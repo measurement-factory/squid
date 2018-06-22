@@ -74,6 +74,7 @@ class HttpRequest;
 class MemBuf;
 class StoreEntry;
 class wordlist;
+typedef RefCount<HttpReply> HttpReplyPointer;
 
 /// \ingroup ErrorPageAPI
 class ErrorState
@@ -82,6 +83,10 @@ class ErrorState
 
 public:
     ErrorState(err_type type, Http::StatusCode, HttpRequest * request);
+
+    /// Build an ERR_RELAY_REMOTE ErrorState object
+    ErrorState(HttpReply *);
+
     ErrorState(); // not implemented.
     ~ErrorState();
 
@@ -173,6 +178,8 @@ public:
     /// type-specific detail about the transaction error;
     /// overwrites xerrno; overwritten by detail, if any.
     int detailCode;
+
+    HttpReplyPointer response_;
 };
 
 /**
