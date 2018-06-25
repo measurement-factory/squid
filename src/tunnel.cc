@@ -152,7 +152,7 @@ public:
         // XXX: make these an AsyncCall when event API can handle them
         TunnelStateData *readPending;
         EVH *readPendingFunc;
-    private:
+
 #if USE_DELAY_POOLS
 
         DelayId delayId;
@@ -989,7 +989,7 @@ tunnelStart(ClientHttpRequest * http)
 
     tunnelState = new TunnelStateData(http);
 #if USE_DELAY_POOLS
-    //server.setDelayId called from tunnelConnectDone after server side connection established
+    tunnelState->server.setDelayId(DelayId::DelayClient(http));
 #endif
 
     peerSelect(&(tunnelState->serverDestinations), request, http->al,
@@ -1038,6 +1038,9 @@ TunnelStateData::connectedToPeer(Security::EncryptorAnswer &answer)
     tunneler->request = request;
     tunneler->url = url;
     tunneler->lifetimeLimit = Config.Timeout.lifetime;
+#if USE_DELAY_POOLS
+    tunneler->delayId = server.delayId;
+#endif
     AsyncJob::Start(tunneler);
     waitingForConnectExchange = true;
     // and wait for the tunnelEstablishmentDone() call
@@ -1153,7 +1156,7 @@ switchToTunnel(HttpRequest *request, Comm::ConnectionPointer &clientConn, Comm::
 
 #if USE_DELAY_POOLS
     /* no point using the delayIsNoDelay stuff since tunnel is nice and simple */
-    if (srvConn->getPeer() && srvConn->getPeer()->options.no_delay)
+    if (!srvConn->getPeer() || !srvConn->getPeer()->options.no_delay)
         tunnelState->server.setDelayId(DelayId::DelayClient(context->http));
 #endif
 
