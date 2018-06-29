@@ -560,25 +560,25 @@ ErrorState::NewForwarding(err_type type, HttpRequest *request)
 ErrorState::ErrorState(err_type t) :
     type(t),
     page_id(t),
-    err_language(NULL),
+    err_language(nullptr),
     httpStatus(Http::scNone),
 #if USE_AUTH
-    auth_user_request (NULL),
+    auth_user_request(nullptr),
 #endif
-    request(NULL),
-    url(NULL),
+    request(nullptr),
+    url(nullptr),
     xerrno(0),
     port(0),
     dnsError(),
     ttl(0),
     src_addr(),
-    redirect_url(NULL),
-    callback(NULL),
-    callback_data(NULL),
-    request_hdrs(NULL),
-    err_msg(NULL),
+    redirect_url(nullptr),
+    callback(nullptr),
+    callback_data(nullptr),
+    request_hdrs(nullptr),
+    err_msg(nullptr),
 #if USE_OPENSSL
-    detail(NULL),
+    detail(nullptr),
 #endif
     detailCode(ERR_DETAIL_NONE)
 {
@@ -605,7 +605,7 @@ ErrorState::ErrorState(HttpRequest * req, HttpReply *errorReply) :
 {
     Must(errorReply);
     httpStatus = errorReply->sline.status();
-    if (req != NULL) {
+    if (req != nullptr) {
         request = req;
         HTTPMSGLOCK(request);
         src_addr = req->client_addr;

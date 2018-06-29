@@ -170,7 +170,6 @@ public:
     /// Whether we are waiting for the CONNECT request/response exchange with the peer.
     bool waitingForConnectExchange;
 
-
     void copyRead(Connection &from, IOCB *completion);
 
     /// continue to set up connection to a peer, going async for SSL peers
@@ -854,7 +853,7 @@ TunnelStateData::notePeerReadyToShovel()
         *status_ptr = Http::scOkay;
         AsyncCall::Pointer call = commCbCall(5,5, "tunnelConnectedWriteDone",
                                              CommIoCbPtrFun(tunnelConnectedWriteDone, this));
-        client.write(conn_established, strlen(conn_established), call, NULL);
+        client.write(conn_established, strlen(conn_established), call, nullptr);
     }
 }
 
@@ -898,7 +897,7 @@ tunnelConnectDone(const Comm::ConnectionPointer &conn, Comm::Flag status, int xe
             tunnelState->startConnecting();
         } else {
             debugs(26, 4, HERE << "terminate with error.");
-            if (tunnelState->request != NULL)
+            if (tunnelState->request != nullptr)
                 tunnelState->request->hier.stopPeerClock(false);
             ErrorState *err = new ErrorState(ERR_CONNECT_FAIL, Http::scServiceUnavailable, tunnelState->request.getRaw());
             *tunnelState->status_ptr = Http::scServiceUnavailable;
