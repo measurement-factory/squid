@@ -85,7 +85,7 @@ public:
     ErrorState(err_type type, Http::StatusCode, HttpRequest * request);
 
     /// Build an ERR_RELAY_REMOTE ErrorState object
-    ErrorState(HttpReply *);
+    explicit ErrorState(HttpRequest * request, HttpReply *);
 
     ErrorState(); // not implemented.
     ~ErrorState();
@@ -102,6 +102,9 @@ public:
     void detailError(int dCode) {detailCode = dCode;}
 
 private:
+    /// used by public constructors
+    ErrorState(err_type type);
+
     /**
      * Locates error page template to be used for this error
      * and constructs the HTML page content from it.
