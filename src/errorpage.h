@@ -88,7 +88,6 @@ public:
     /// creates an ERR_RELAY_REMOTE error
     ErrorState(HttpRequest * request, HttpReply *);
 
-    ErrorState(); // not implemented.
     ~ErrorState();
 
     /// Creates a general request forwarding error with the right http_status.
