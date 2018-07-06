@@ -82,10 +82,11 @@ class ErrorState
     CBDATA_CLASS(ErrorState);
 
 public:
+    /// creates an error of type other than ERR_RELAY_REMOTE
     ErrorState(err_type type, Http::StatusCode, HttpRequest * request);
 
-    /// Build an ERR_RELAY_REMOTE ErrorState object
-    explicit ErrorState(HttpRequest * request, HttpReply *);
+    /// creates an ERR_RELAY_REMOTE error
+    ErrorState(HttpRequest * request, HttpReply *);
 
     ErrorState(); // not implemented.
     ~ErrorState();
@@ -102,8 +103,8 @@ public:
     void detailError(int dCode) {detailCode = dCode;}
 
 private:
-    /// used by public constructors
-    ErrorState(err_type type);
+    /// initializations shared by public constructors
+    explicit ErrorState(err_type type);
 
     /**
      * Locates error page template to be used for this error
