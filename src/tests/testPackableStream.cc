@@ -34,7 +34,7 @@ testPackableStream::testGetStream()
     Store::Init();
 
     CapturingStoreEntry * anEntry = new CapturingStoreEntry();
-    CapturingStoreEntryPacker packer(*anEntry);
+    StoreEntryPacker packer(*anEntry);
     {
         anEntry->lock("test");
         PackableStream stream(packer);

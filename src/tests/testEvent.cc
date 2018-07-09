@@ -88,7 +88,7 @@ testEvent::testDump()
     AsyncCallQueue::Instance().fire();
     scheduler.schedule("test event", CalledEvent::Handler, &event, 0, 0, false);
     scheduler.schedule("test event2", CalledEvent::Handler, &event2, 0, 0, false);
-    CapturingStoreEntryPacker packer(*anEntry);
+    StoreEntryPacker packer(*anEntry);
     scheduler.dump(anEntry, packer);
 
     /* loop over the strings, showing exactly where they differ (if at all) */
