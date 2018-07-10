@@ -195,30 +195,33 @@ storeIdHandleReply(void *data, const Helper::Reply &reply)
 static void
 redirectStats(StoreEntry * sentry)
 {
+    StoreEntryPacker packer(*sentry);
+
     if (redirectors == NULL) {
-        storeAppendPrintf(sentry, "No redirectors defined\n");
+        packer.appendf("No redirectors defined\n");
         return;
     }
 
-    redirectors->packStatsInto(sentry, "Redirector Statistics");
+    redirectors->packStatsInto(&packer, "Redirector Statistics");
 
     if (Config.onoff.redirector_bypass)
-        storeAppendPrintf(sentry, "\nNumber of requests bypassed "
+        packer.appendf("\nNumber of requests bypassed "
                           "because all redirectors were busy: %d\n", redirectorBypassed);
 }
 
 static void
 storeIdStats(StoreEntry * sentry)
 {
+    StoreEntryPacker packer(*sentry);
     if (storeIds == NULL) {
-        storeAppendPrintf(sentry, "No StoreId helpers defined\n");
+        packer.appendf("No StoreId helpers defined\n");
         return;
     }
 
-    storeIds->packStatsInto(sentry, "StoreId helper Statistics");
+    storeIds->packStatsInto(&packer, "StoreId helper Statistics");
 
     if (Config.onoff.store_id_bypass)
-        storeAppendPrintf(sentry, "\nNumber of requests bypassed "
+        packer.appendf("\nNumber of requests bypassed "
                           "because all StoreId helpers were busy: %d\n", storeIdBypassed);
 }
 

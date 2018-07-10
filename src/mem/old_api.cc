@@ -165,7 +165,8 @@ memBufStats(std::ostream & stream)
 void
 Mem::Stats(StoreEntry * sentry)
 {
-    PackableStream stream(*sentry);
+    StoreEntryPacker packer(*sentry);
+    PackableStream stream(packer);
     Report(stream);
     memStringStats(stream);
     memBufStats(stream);

@@ -97,12 +97,6 @@ void StoreEntry::append(char const *, int) STUB
 void StoreEntry::vappendf(const char *, va_list) STUB
 void StoreEntry::setCollapsingRequirement(const bool required) STUB
 
-NullStoreEntry *NullStoreEntry::getInstance() STUB_RETVAL(NULL)
-const char *NullStoreEntry::getMD5Text() const STUB_RETVAL(NULL)
-void NullStoreEntry::operator delete(void *address) STUB
-// private virtual. Why is this linked from outside?
-const char *NullStoreEntry::getSerialisedMetaData() STUB_RETVAL(NULL)
-
 Store::Controller &Store::Root() STUB_RETREF(Store::Controller)
 void Store::Init(Store::Controller *root) STUB
 void Store::FreeMemory() STUB
@@ -140,4 +134,8 @@ void storeFsDone(void) STUB
 void storeReplAdd(const char *, REMOVALPOLICYCREATE *) STUB
 void destroyStoreEntry(void *) STUB
 void storeGetMemSpace(int size) STUB
+void StoreEntryPacker::append(char const *, int) STUB
+void StoreEntryPacker::vappendf(const char *, va_list) STUB
+void StoreEntryPacker::buffer() STUB
+void StoreEntryPacker::flush() STUB
 

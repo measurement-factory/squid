@@ -144,8 +144,10 @@ Auth::Basic::Config::parse(Auth::SchemeConfig * scheme, int n_configured, char *
 static void
 authenticateBasicStats(StoreEntry * sentry)
 {
-    if (basicauthenticators)
-        basicauthenticators->packStatsInto(sentry, "Basic Authenticator Statistics");
+    if (basicauthenticators) {
+        StoreEntryPacker packer(*sentry);
+        basicauthenticators->packStatsInto(&packer, "Basic Authenticator Statistics");
+    }
 }
 
 char *

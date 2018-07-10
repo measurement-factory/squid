@@ -142,7 +142,8 @@ eventInit(void)
 static void
 eventDump(StoreEntry * sentry)
 {
-    EventScheduler::GetInstance()->dump(sentry);
+    StoreEntryPacker packer(*sentry);
+    EventScheduler::GetInstance()->dump(sentry, packer);
 }
 
 void
@@ -271,22 +272,22 @@ EventScheduler::clean()
 }
 
 void
-EventScheduler::dump(StoreEntry * sentry)
+EventScheduler::dump(StoreEntry * sentry, Packable &packer)
 {
 
     ev_entry *e = tasks;
 
     if (last_event_ran)
-        storeAppendPrintf(sentry, "Last event to run: %s\n\n", last_event_ran);
+        packer.appendf("Last event to run: %s\n\n", last_event_ran);
 
-    storeAppendPrintf(sentry, "%-25s\t%-15s\t%s\t%s\n",
+    packer.appendf("%-25s\t%-15s\t%s\t%s\n",
                       "Operation",
                       "Next Execution",
                       "Weight",
                       "Callback Valid?");
 
     while (e != NULL) {
-        storeAppendPrintf(sentry, "%-25s\t%0.3f sec\t%5d\t %s\n",
+        packer.appendf("%-25s\t%0.3f sec\t%5d\t %s\n",
                           e->name, e->when ? e->when - current_dtime : 0, e->weight,
                           (e->arg && e->cbdata) ? cbdataReferenceValid(e->arg) ? "yes" : "no" : "N/A");
         e = e->next;

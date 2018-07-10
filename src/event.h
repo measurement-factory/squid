@@ -12,7 +12,7 @@
 #include "AsyncEngine.h"
 #include "mem/forward.h"
 
-class StoreEntry;
+class Packable;
 
 /* event scheduling facilities - run a callback after a given time period. */
 
@@ -57,7 +57,7 @@ public:
     /* either EVENT_IDLE or milliseconds remaining until the next event */
     int timeRemaining() const;
     /* cache manager output for the event queue */
-    void dump(StoreEntry *);
+    void dump(StoreEntry *, Packable &);
     /* find a scheduled event */
     bool find(EVH * func, void * arg);
     /* schedule a callback function to run in when seconds */

@@ -2381,16 +2381,17 @@ free_peer(CachePeer ** P)
 static void
 dump_cachemgrpasswd(StoreEntry * entry, const char *name, Mgr::ActionPasswordList * list)
 {
+    StoreEntryPacker packer(*entry);
     while (list) {
         if (strcmp(list->passwd, "none") && strcmp(list->passwd, "disable"))
-            storeAppendPrintf(entry, "%s XXXXXXXXXX", name);
+            packer.appendf("%s XXXXXXXXXX", name);
         else
-            storeAppendPrintf(entry, "%s %s", name, list->passwd);
+            packer.appendf("%s %s", name, list->passwd);
 
         for (auto w : list->actions)
-            entry->appendf(" " SQUIDSBUFPH, SQUIDSBUFPRINT(w));
+            packer.appendf(" " SQUIDSBUFPH, SQUIDSBUFPRINT(w));
 
-        storeAppendPrintf(entry, "\n");
+        packer.appendf("\n");
         list = list->next;
     }
 }
@@ -3848,64 +3849,64 @@ parsePortCfg(AnyP::PortCfgPointer *head, const char *optionName)
 }
 
 static void
-dump_generic_port(StoreEntry * e, const char *n, const AnyP::PortCfgPointer &s)
+dump_generic_port(StoreEntryPacker &packer, const char *n, const AnyP::PortCfgPointer &s)
 {
     char buf[MAX_IPSTRLEN];
 
-    storeAppendPrintf(e, "%s %s",
+    packer.appendf("%s %s",
                       n,
                       s->s.toUrl(buf,MAX_IPSTRLEN));
 
     // MODES and specific sub-options.
     if (s->flags.natIntercept)
-        storeAppendPrintf(e, " intercept");
+        packer.appendf(" intercept");
 
     else if (s->flags.tproxyIntercept)
-        storeAppendPrintf(e, " tproxy");
+        packer.appendf(" tproxy");
 
     else if (s->flags.proxySurrogate)
-        storeAppendPrintf(e, " require-proxy-header");
+        packer.appendf(" require-proxy-header");
 
     else if (s->flags.accelSurrogate) {
-        storeAppendPrintf(e, " accel");
+        packer.appendf(" accel");
 
         if (s->vhost)
-            storeAppendPrintf(e, " vhost");
+            packer.appendf(" vhost");
 
         if (s->vport < 0)
-            storeAppendPrintf(e, " vport");
+            packer.appendf(" vport");
         else if (s->vport > 0)
-            storeAppendPrintf(e, " vport=%d", s->vport);
+            packer.appendf(" vport=%d", s->vport);
 
         if (s->defaultsite)
-            storeAppendPrintf(e, " defaultsite=%s", s->defaultsite);
+            packer.appendf(" defaultsite=%s", s->defaultsite);
 
         // TODO: compare against prefix of 'n' instead of assuming http_port
         if (s->transport.protocol != AnyP::PROTO_HTTP)
-            storeAppendPrintf(e, " protocol=%s", AnyP::ProtocolType_str[s->transport.protocol]);
+            packer.appendf(" protocol=%s", AnyP::ProtocolType_str[s->transport.protocol]);
 
         if (s->allow_direct)
-            storeAppendPrintf(e, " allow-direct");
+            packer.appendf(" allow-direct");
 
         if (s->ignore_cc)
-            storeAppendPrintf(e, " ignore-cc");
+            packer.appendf(" ignore-cc");
 
     }
 
     // Generic independent options
 
     if (s->name)
-        storeAppendPrintf(e, " name=%s", s->name);
+        packer.appendf(" name=%s", s->name);
 
 #if USE_HTTP_VIOLATIONS
     if (!s->flags.accelSurrogate && s->ignore_cc)
-        storeAppendPrintf(e, " ignore-cc");
+        packer.appendf(" ignore-cc");
 #endif
 
     if (s->connection_auth_disabled)
-        storeAppendPrintf(e, " connection-auth=off");
+        packer.appendf(" connection-auth=off");
     else
-        storeAppendPrintf(e, " connection-auth=on");
+        packer.appendf(" connection-auth=on");
 
     if (s->disable_pmtu_discovery != DISABLE_PMTU_OFF) {
         const char *pmtu;
@@ -3915,34 +3916,34 @@ dump_generic_port(StoreEntry * e, const char *n, const AnyP::PortCfgPointer &s)
         else
             pmtu = "transparent";
 
-        storeAppendPrintf(e, " disable-pmtu-discovery=%s", pmtu);
+        packer.appendf(" disable-pmtu-discovery=%s", pmtu);
     }
 
     if (s->s.isAnyAddr() && !s->s.isIPv6())
-        storeAppendPrintf(e, " ipv4");
+        packer.appendf(" ipv4");
 
     if (s->tcp_keepalive.enabled) {
         if (s->tcp_keepalive.idle || s->tcp_keepalive.interval || s->tcp_keepalive.timeout) {
-            storeAppendPrintf(e, " tcpkeepalive=%d,%d,%d", s->tcp_keepalive.idle, s->tcp_keepalive.interval, s->tcp_keepalive.timeout);
+            packer.appendf(" tcpkeepalive=%d,%d,%d", s->tcp_keepalive.idle, s->tcp_keepalive.interval, s->tcp_keepalive.timeout);
         } else {
-            storeAppendPrintf(e, " tcpkeepalive");
+            packer.appendf(" tcpkeepalive");
         }
     }
 
 #if USE_OPENSSL
     if (s->flags.tunnelSslBumping)
-        storeAppendPrintf(e, " ssl-bump");
+        packer.appendf(" ssl-bump");
 #endif
-
-    s->secure.dumpCfg(e, "tls-");
+    s->secure.dumpCfg(&packer, "tls-");
 }
 
 static void
 dump_PortCfg(StoreEntry * e, const char *n, const AnyP::PortCfgPointer &s)
 {
+	StoreEntryPacker packer(*e);
     for (AnyP::PortCfgPointer p = s; p != NULL; p = p->next) {
-        dump_generic_port(e, n, p);
-        storeAppendPrintf(e, "\n");
+        dump_generic_port(packer, n, p);
+        packer.appendf("\n");
     }
 }
 

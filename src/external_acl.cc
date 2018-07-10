@@ -1089,12 +1089,13 @@ ExternalACLLookup::Start(ACLChecklist *checklist, external_acl_data *acl, bool i
 static void
 externalAclStats(StoreEntry * sentry)
 {
+    StoreEntryPacker packer(*sentry);
     for (external_acl *p = Config.externalAclHelperList; p; p = p->next) {
-        storeAppendPrintf(sentry, "External ACL Statistics: %s\n", p->name);
-        storeAppendPrintf(sentry, "Cache size: %d\n", p->cache->count);
+        packer.appendf("External ACL Statistics: %s\n", p->name);
+        packer.appendf("Cache size: %d\n", p->cache->count);
         assert(p->theHelper);
-        p->theHelper->packStatsInto(sentry);
-        storeAppendPrintf(sentry, "\n");
+        p->theHelper->packStatsInto(&packer);
+        packer.appendf("\n");
     }
 }
 

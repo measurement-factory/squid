@@ -53,7 +53,8 @@ statHistSBufDumper(StoreEntry * sentry, int, double val, double size, int count)
 void
 SBufStatsAction::dump(StoreEntry* entry)
 {
-    PackableStream ses(*entry);
+    StoreEntryPacker packer(*entry);
+    PackableStream ses(packer);
     ses << "\n\n\nThese statistics are experimental; their format and contents "
         "should not be relied upon, they are bound to change as "
         "the SBuf feature is evolved\n";
