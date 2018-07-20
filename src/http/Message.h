@@ -136,6 +136,9 @@ protected:
     virtual bool parseFirstLine(const char *blk_start, const char *blk_end) = 0;
 
     virtual void hdrCacheInit();
+
+    /// configures the interpreter as needed
+    virtual void configureContentLengthInterpreter(Http::ContentLengthInterpreter &) = 0;
 };
 
 } // namespace Http

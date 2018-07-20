@@ -236,6 +236,8 @@ public:
     NotePairs::Pointer notes();
     bool hasNotes() const { return bool(theNotes) && !theNotes->empty(); }
 
+    virtual void configureContentLengthInterpreter(Http::ContentLengthInterpreter &) {}
+
 private:
     mutable int64_t rangeOffsetLimit;  /* caches the result of getRangeOffsetLimit */
 

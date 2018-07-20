@@ -9,6 +9,8 @@
 #ifndef SQUID_SRC_HTTP_CONTENTLENGTH_INTERPRETER_H
 #define SQUID_SRC_HTTP_CONTENTLENGTH_INTERPRETER_H
 
+#include "StatusCode.h"
+
 class String;
 
 namespace Http
@@ -19,11 +21,17 @@ namespace Http
 class ContentLengthInterpreter
 {
 public:
-    explicit ContentLengthInterpreter(const int aDebugLevel);
+    ContentLengthInterpreter();
 
     /// updates history based on the given message-header field
     /// \return true iff the field should be added/remembered for future use
     bool checkField(const String &field);
+
+    /// prohibits Content-Length in 1xx and 204 responses
+    void applyStatusCodeRules(const StatusCode code) { prohibitedAndIgnored = ProhibitsContentLength(code); }
+    // TODO: implement
+    /// prohibits Content-Length in GET/HEAD requests
+    // void applyRequestMethodRules(const Http::MethodType method);
 
     /// intended Content-Length value if sawGood is set and sawBad is not set
     /// meaningless otherwise
@@ -44,6 +52,9 @@ public:
     /// whether a valid field value was present, possibly among problematic ones
     /// irrelevant if sawBad is set
     bool sawGood;
+
+    /// whether the response status code forbids Content-Length
+    bool prohibitedAndIgnored;
 
 protected:
     bool goodSuffix(const char *suffix, const char * const end) const;
