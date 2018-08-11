@@ -738,7 +738,7 @@ FwdState::connectDone(const Comm::ConnectionPointer &conn, Comm::Flag status, in
         // but we do not support TLS inside TLS, so we exclude HTTPS proxies.
         const bool originWantsEncryptedTraffic =
             request->method == Http::METHOD_CONNECT ||
-            request->flags.sslBumped;
+            request->flags.sslPeek;
         if (originWantsEncryptedTraffic && // the "encrypted traffic" part
                 !peer->options.originserver && // the "through a proxy" part
                 !peer->secure.encryptTransport) // the "exclude HTTPS proxies" part
@@ -817,7 +817,7 @@ FwdState::secureConnectionToPeerIfNeeded()
                                             request->method == Http::METHOD_CONNECT;
         const bool needTlsToPeer = peerWantsTls && !userWillTlsToPeerForUs;
         const bool needTlsToOrigin = !p && request->url.getScheme() == AnyP::PROTO_HTTPS;
-        if (needTlsToPeer || needTlsToOrigin || request->flags.sslBumped) {
+        if (needTlsToPeer || needTlsToOrigin || request->flags.sslPeek) {
             HttpRequest::Pointer requestPointer = request;
             AsyncCall::Pointer callback = asyncCall(17,4,
                                                     "FwdState::ConnectedToPeer",
@@ -974,10 +974,9 @@ FwdState::connectStart()
         return;
     }
 
-#if USE_OPENSSL
     // Bumped requests require their pinned connection. Since we failed to reuse
     // that pinned connection above, we now must terminate the bumped request.
-    if (request->clientConnectionManager.valid() && request->clientConnectionManager->serverBump()) {
+    if (request->flags.sslBumped) {
         // TODO: Factor out/reuse as Occasionally(DBG_IMPORTANT, 2[, occurrences]).
         static int occurrences = 0;
         const auto level = (occurrences++ < 100) ? DBG_IMPORTANT : 2;
@@ -986,7 +985,6 @@ FwdState::connectStart()
         self = NULL; // refcounted
         return;
     }
-#endif // USE_OPENSSL
 
     // Use pconn to avoid opening a new connection.
     const char *host = NULL;
