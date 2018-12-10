@@ -75,7 +75,7 @@ public:
     virtual bool smpAware() const override { return false; }
     /// as long as ufs relies on the global store_table to index entries,
     /// it is wrong to ask individual ufs cache_dirs whether they have an entry
-    virtual bool hasReadableEntry(const StoreEntry &) const override { return false; }
+    virtual bool hasReadableEntry(const StoreEntry &, bool *isEmpty = nullptr) const override { return false; }
 
     void unlinkFile(sfileno f);
     // move down when unlink is a virtual method

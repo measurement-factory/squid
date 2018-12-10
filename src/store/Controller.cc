@@ -316,9 +316,9 @@ Store::Controller::markedForDeletionAndAbandoned(const StoreEntry &e) const
 }
 
 bool
-Store::Controller::hasReadableDiskEntry(const StoreEntry &e) const
+Store::Controller::hasReadableDiskEntry(const StoreEntry &e, bool *isEmpty) const
 {
-    return swapDir->hasReadableEntry(e);
+    return swapDir->hasReadableEntry(e, isEmpty);
 }
 
 StoreEntry *

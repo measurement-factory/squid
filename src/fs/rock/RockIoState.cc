@@ -91,6 +91,30 @@ Rock::IoState::currentReadableSlice() const
 }
 
 void
+Rock::IoState::advanceSid(const off_t coreOff, SlotId &readableSlot, int64_t &slotOffset) const
+{
+    // if we are dealing with the first read or
+    // if the offset went backwords, start searching from the beginning
+    if (readableSlot < 0 || coreOff < slotOffset) {
+        readableSlot = readAnchor().start;
+        slotOffset = 0;
+    }
+    while (readableSlot >= 0 && coreOff >= slotOffset + dir->map->readableSlice(swap_filen, readableSlot).size) {
+        slotOffset += dir->map->readableSlice(swap_filen, readableSlot).size;
+        readableSlot = dir->map->readableSlice(swap_filen, readableSlot).next;
+    }
+}
+
+bool
+Rock::IoState::hasMoreData(const off_t coreOff) const
+{
+    SlotId readableSlot = sidCurrent;
+    int64_t slotOffset = objOffset;
+    advanceSid(coreOff, readableSlot, slotOffset);
+    return (readableSlot >= 0 && (dir->map->readableSlice(swap_filen, readableSlot).size));
+}
+
+void
 Rock::IoState::read_(char *buf, size_t len, off_t coreOff, STRCB *cb, void *data)
 {
     debugs(79, 7, swap_filen << " reads from " << coreOff);
@@ -98,17 +122,7 @@ Rock::IoState::read_(char *buf, size_t len, off_t coreOff, STRCB *cb, void *data
     assert(theFile != NULL);
     assert(coreOff >= 0);
 
-    // if we are dealing with the first read or
-    // if the offset went backwords, start searching from the beginning
-    if (sidCurrent < 0 || coreOff < objOffset) {
-        sidCurrent = readAnchor().start;
-        objOffset = 0;
-    }
-
-    while (sidCurrent >= 0 && coreOff >= objOffset + currentReadableSlice().size) {
-        objOffset += currentReadableSlice().size;
-        sidCurrent = currentReadableSlice().next;
-    }
+    advanceSid(coreOff, sidCurrent, objOffset);
 
     assert(read.callback == NULL);
     assert(read.callback_data == NULL);
@@ -191,7 +205,6 @@ Rock::IoState::tryWrite(char const *buf, size_t size, off_t coreOff)
     if (!coreOff) {
         assert(sidCurrent < 0);
         sidCurrent = reserveSlotForWriting(); // throws on failures
-        assert(sidCurrent >= 0);
         writeAnchor().start = sidCurrent;
     }
 
@@ -208,14 +221,16 @@ Rock::IoState::tryWrite(char const *buf, size_t size, off_t coreOff)
         // we would not yet know what to set the nextSlot to.
         if (overflow) {
             const SlotId sidNext = reserveSlotForWriting(); // throws
-            assert(sidNext >= 0);
             writeToDisk(sidNext);
         } else if (Store::Root().transientReaders(*e)) {
             // write partial buffer for all remote hit readers to see
             writeBufToDisk(-1, false, false);
+            // TODO: should clear theBuf to avoid useless overwrites,
+            // but we need to reconcile with Rock::IoState::close(),
+            // expecting non-empty theBuf
+            // theBuf.clear();
         }
     }
-
 }
 
 /// Buffers incoming data for the current slot.
@@ -271,7 +286,6 @@ Rock::IoState::writeBufToDisk(const SlotId sidNext, const bool eof, const bool l
 {
     // no slots after the last/eof slot (but partial slots may have a nil next)
     assert(!eof || sidNext < 0);
-
     // finalize db cell header
     DbCellHeader header;
     memcpy(header.key, e->key, sizeof(header.key));
@@ -311,8 +325,12 @@ Rock::SlotId
 Rock::IoState::reserveSlotForWriting()
 {
     Ipc::Mem::PageId pageId;
-    if (dir->useFreeSlot(pageId))
-        return pageId.number-1;
+    if (dir->useFreeSlot(pageId)) {
+        const SlotId sid = pageId.number-1;
+        assert(sid >= 0);
+        dir->map->writeableSlice(swap_filen, sid).reset();
+        return sid;
+    }
 
     // This may happen when the number of available db slots is close to the
     // number of concurrent requests reading or writing those slots, which may

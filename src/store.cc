@@ -300,9 +300,11 @@ StoreEntry::storeClientType() const
 
     /* here and past, entry is STORE_PENDING */
     /*
-     * If this is the first client, let it be the mem client
+     * If this is the first client, let it be the mem client.
+     * This check covers SMP cases as well (for SMP the first client
+     * should be transients writer).
      */
-    if (mem_obj->nclients == 1)
+    if (mem_obj->nclients == 1 && !Store::Root().transientsReader(*this))
         return STORE_MEM_CLIENT;
 
     /*

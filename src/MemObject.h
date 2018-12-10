@@ -57,6 +57,9 @@ public:
     const HttpReplyPointer &getReply() const { return reply_; }
     void replaceReply(const HttpReplyPointer &r) { reply_ = r; }
     void stat (MemBuf * mb) const;
+    /// The last byte position of the received reply.
+    /// Unreliable for SMP readers: the offset may not be properly updated
+    /// (thus remaining zero) when memory cache is disabled.
     int64_t endOffset () const;
     void markEndOfReplyHeaders(); ///< sets reply_->hdr_sz to endOffset()
     /// negative if unknown; otherwise, expected object_sz, expected endOffset
@@ -119,6 +122,7 @@ public:
         /// Decision states for StoreEntry::swapoutPossible() and related code.
         typedef enum { swNeedsCheck = 0, swImpossible = -1, swPossible = +1, swStarted } Decision;
         Decision decision = swNeedsCheck; ///< current decision state
+        bool ioPending = false; ///< prevents reentrant swapout operations
     };
 
     SwapOut swapout;

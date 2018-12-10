@@ -199,7 +199,7 @@ store_client::store_client(StoreEntry *e) :
     owner(cbdataReference(data)),
 #endif
     entry(e),
-    type(e->storeClientType()),
+    type(e->storeClientType()), // XXX: do not use storeClientType() before MemObject::addClient()
     object_ok(true)
 {
     flags.disk_io_pending = false;
@@ -375,7 +375,20 @@ store_client::doCopy(StoreEntry *anEntry)
     }
 
     /* Check that we actually have data */
-    if (anEntry->store_status == STORE_PENDING && copyInto.offset >= mem->endOffset()) {
+
+    const int clientType = getType();
+
+    bool waitingForMore = anEntry->store_status == STORE_PENDING && copyInto.offset >= mem->endOffset();
+
+    if (waitingForMore && clientType == STORE_DISK_CLIENT) {
+        bool isEmpty = false;
+        if (!swapin_sio)
+            waitingForMore = Store::Root().hasReadableDiskEntry(*anEntry, &isEmpty) && isEmpty;
+        else
+            waitingForMore = !swapin_sio->hasMoreData(copyInto.offset + mem->swap_hdr_sz);
+    }
+
+    if (waitingForMore) {
         debugs(90, 3, "store_client::doCopy: Waiting for more");
         flags.store_copying = false;
         return;
@@ -393,7 +406,7 @@ store_client::doCopy(StoreEntry *anEntry)
      * if needed.
      */
 
-    if (STORE_DISK_CLIENT == getType() && swapin_sio == NULL) {
+    if (clientType == STORE_DISK_CLIENT && swapin_sio == nullptr) {
         if (!startSwapin())
             return; // failure
     }
@@ -405,6 +418,8 @@ bool
 store_client::startSwapin()
 {
     debugs(90, 3, "store_client::doCopy: Need to open swap in file");
+    assert(entry->hasDisk());
+
     /* gotta open the swapin file */
 
     if (storeTooManyDiskFilesOpen()) {
@@ -456,9 +471,14 @@ store_client::scheduleDiskRead()
 
     assert(!flags.disk_io_pending);
 
-    debugs(90, 3, "reading " << *entry << " from disk");
-
-    fileRead();
+    MemObject *mem = entry->mem_obj;
+    assert(swapin_sio);
+    if (swapin_sio->hasMoreData(copyInto.offset + mem->swap_hdr_sz)) {
+        debugs(90, 3, "reading " << *entry << " from disk");
+        fileRead();
+    } else {
+        debugs(33, 3, "waiting for more disk data");
+    }
 
     flags.store_copying = false;
 }
@@ -484,7 +504,7 @@ store_client::fileRead()
     flags.disk_io_pending = true;
 
     if (mem->swap_hdr_sz != 0)
-        if (entry->swappingOut())
+        if (entry->swappingOut() && mem->swapout.sio)
             assert(mem->swapout.sio->offset() > copyInto.offset + (int64_t)mem->swap_hdr_sz);
 
     storeRead(swapin_sio,
@@ -517,17 +537,18 @@ store_client::readBody(const char *, ssize_t len)
         }
     }
 
-    const HttpReply *rep = entry->getReply();
-    if (len > 0 && rep && entry->mem_obj->inmem_lo == 0 && entry->objectLen() <= (int64_t)Config.Store.maxInMemObjSize && Config.onoff.memory_cache_disk) {
-        storeGetMemSpace(len);
-        // The above may start to free our object so we need to check again
-        if (entry->mem_obj->inmem_lo == 0) {
-            /* Copy read data back into memory.
-             * copyInto.offset includes headers, which is what mem cache needs
-             */
-            int64_t mem_offset = entry->mem_obj->endOffset();
-            if ((copyInto.offset == mem_offset) || (parsed_header && mem_offset == rep->hdr_sz)) {
-                entry->mem_obj->write(StoreIOBuffer(len, copyInto.offset, copyInto.data));
+    if (Store::Root().memoryCacheEnabled()) {
+        const HttpReply *rep = entry->getReply();
+        if (len > 0 && rep && entry->mem_obj->inmem_lo == 0 && entry->objectLen() <= (int64_t)Config.Store.maxInMemObjSize && Config.onoff.memory_cache_disk) {
+            storeGetMemSpace(len);
+            // The above may start to free our object so we need to check again
+            if (entry->mem_obj->inmem_lo == 0) {
+                /* Copy read data back into memory.
+                 * copyInto.offset includes headers, which is what mem cache needs
+                 */
+                int64_t mem_offset = entry->mem_obj->endOffset();
+                if ((copyInto.offset == mem_offset) || (parsed_header && mem_offset == rep->hdr_sz))
+                    entry->mem_obj->write(StoreIOBuffer(len, copyInto.offset, copyInto.data));
             }
         }
     }

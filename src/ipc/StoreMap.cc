@@ -155,6 +155,13 @@ Ipc::StoreMap::startAppending(const sfileno fileno)
 }
 
 void
+Ipc::StoreMap::tryAppending(const sfileno fileno, const StoreEntry &e)
+{
+    if (e.mem_obj->expectedReplySize())
+        startAppending(fileno);
+}
+
+void
 Ipc::StoreMap::closeForWriting(const sfileno fileno)
 {
     Anchor &s = anchorAt(fileno);
@@ -186,7 +193,7 @@ Ipc::StoreMap::writeableSlice(const AnchorId anchorId, const SliceId sliceId)
 const Ipc::StoreMap::Slice &
 Ipc::StoreMap::readableSlice(const AnchorId anchorId, const SliceId sliceId) const
 {
-    assert(anchorAt(anchorId).reading());
+    assert(anchorAt(anchorId).reading() || anchorAt(anchorId).appending());
     assert(validSlice(sliceId));
     return sliceAt(sliceId);
 }
@@ -245,7 +252,7 @@ const Ipc::StoreMap::Anchor *
 Ipc::StoreMap::peekAtReader(const sfileno fileno) const
 {
     const Anchor &s = anchorAt(fileno);
-    if (s.reading())
+    if (s.reading() || s.appending())
         return &s; // immediate access by lock holder so no locking
     if (s.writing())
         return NULL; // the caller is not a read lock holder
@@ -310,10 +317,12 @@ Ipc::StoreMap::markedForDeletion(const cache_key *const key)
 }
 
 bool
-Ipc::StoreMap::hasReadableEntry(const cache_key *const key)
+Ipc::StoreMap::hasReadableEntry(const cache_key *const key, bool *isEmpty)
 {
     sfileno index;
-    if (openForReading(reinterpret_cast<const cache_key*>(key), index)) {
+    if (const auto *slot = openForReading(reinterpret_cast<const cache_key*>(key), index)) {
+        if (isEmpty)
+            *isEmpty = !readableSlice(index, slot->start).size;
         closeForReading(index);
         return true;
     }

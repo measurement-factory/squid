@@ -646,8 +646,7 @@ MemStore::startCaching(StoreEntry &e)
     slot->set(e);
     // Do not allow others to feed off an unknown-size entry because we will
     // stop swapping it out if it grows too large.
-    if (e.mem_obj->expectedReplySize() >= 0)
-        map->startAppending(index);
+    map->tryAppending(index, e);
     e.memOutDecision(true);
     return true;
 }

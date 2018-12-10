@@ -50,7 +50,7 @@ public:
     virtual void create();
     virtual void parse(int index, char *path);
     virtual bool smpAware() const { return true; }
-    virtual bool hasReadableEntry(const StoreEntry &) const;
+    virtual bool hasReadableEntry(const StoreEntry &, bool *isEmpty = nullptr) const;
 
     // temporary path to the shared memory map of first slots of cached entries
     SBuf inodeMapPath() const;

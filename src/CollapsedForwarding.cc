@@ -25,7 +25,8 @@
 static const char *const ShmLabel = "cf";
 /// a single worker-to-worker queue capacity
 // TODO: make configurable or compute from squid.conf settings if possible
-static const int QueueCapacity = 1024;
+// TODO: reconcile with IpcIo/IpcIoFile QueueCapacity
+static const int QueueCapacity = 1024 * 2;
 
 std::unique_ptr<CollapsedForwarding::Queue> CollapsedForwarding::queue;
 

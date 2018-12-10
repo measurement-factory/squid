@@ -558,10 +558,10 @@ Store::Disks::SmpAware()
 }
 
 bool
-Store::Disks::hasReadableEntry(const StoreEntry &e) const
+Store::Disks::hasReadableEntry(const StoreEntry &e, bool *isEmpty) const
 {
     for (int i = 0; i < Config.cacheSwap.n_configured; ++i)
-        if (Dir(i).active() && Dir(i).hasReadableEntry(e))
+        if (Dir(i).active() && Dir(i).hasReadableEntry(e, isEmpty))
             return true;
     return false;
 }

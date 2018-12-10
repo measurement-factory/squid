@@ -35,7 +35,7 @@ public:
     virtual void parse(int, char*) override;
     virtual void evictCached(StoreEntry &) override {}
     virtual void evictIfFound(const cache_key *) override {}
-    virtual bool hasReadableEntry(const StoreEntry &) const override { return false; }
+    virtual bool hasReadableEntry(const StoreEntry &, bool *isEmpty = nullptr) const override { return false; }
     virtual bool smpAware() const override { return false; }
 };
 

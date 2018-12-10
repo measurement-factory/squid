@@ -187,6 +187,8 @@ StoreEntry::swapOut()
     if (mem_obj->swapout.decision < MemObject::SwapOut::swPossible)
         return; // nothing else to do
 
+    if (mem_obj->swapout.ioPending)
+        return;
     // Aborted entries have STORE_OK, but swapoutPossible rejects them. Thus,
     // store_status == STORE_OK below means we got everything we wanted.
 
@@ -251,9 +253,18 @@ StoreEntry::swapOut()
     if (mem_obj->swapout.sio == NULL)
         return;
 
-    if (!doPages(this))
-        /* oops, we're not swapping out any more */
-        return;
+    try {
+        mem_obj->swapout.ioPending = true;
+        const bool stillSwappingOut = doPages(this);
+        mem_obj->swapout.ioPending = false;
+        if (!stillSwappingOut) {
+            /* oops, we're not swapping out any more */
+            return;
+        }
+    } catch (const std::exception &ex) {
+        mem_obj->swapout.ioPending = false;
+        throw;
+    }
 
     if (store_status == STORE_OK) {
         /*

@@ -80,6 +80,9 @@ public:
     // * header updates that create a fresh chain (while keeping the stale one usable).
     bool touchingStoreEntry() const;
 
+    /// whether there is some data available for read_()
+    virtual bool hasMoreData(const off_t) const = 0;
+
     sdirno swap_dirn;
     sfileno swap_filen;
     StoreEntry *e;      /* Need this so the FS layers can play god */

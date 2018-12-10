@@ -105,6 +105,11 @@ bool
 Rock::SwapDir::updateAnchoredWith(StoreEntry &entry, const Ipc::StoreMapAnchor &anchor)
 {
     entry.swap_file_sz = anchor.basics.swap_file_sz;
+    if (anchor.complete()) {
+        entry.store_status = STORE_OK;
+        entry.swap_status = SWAPOUT_DONE;
+        entry.mem_obj->object_sz = entry.swap_file_sz - entry.mem_obj->swap_hdr_sz;
+    }
     return true;
 }
 
@@ -641,6 +646,8 @@ Rock::SwapDir::createStoreIO(StoreEntry &e, StoreIOState::STFNCB *cbFile, StoreI
     assert(filen >= 0);
     slot->set(e);
 
+    map->tryAppending(filen, e);
+
     // XXX: We rely on our caller, storeSwapOutStart(), to set e.fileno.
     // If that does not happen, the entry will not decrement the read level!
 
@@ -778,7 +785,7 @@ Rock::SwapDir::openStoreIO(StoreEntry &e, StoreIOState::STFNCB *cbFile, StoreIOS
 
     // The are two ways an entry can get swap_filen: our get() locked it for
     // reading or our storeSwapOutStart() locked it for writing. Peeking at our
-    // locked entry is safe, but no support for reading the entry we swap out.
+    // locked entry is safe.
     const Ipc::StoreMapAnchor *slot = map->peekAtReader(e.swap_filen);
     if (!slot)
         return NULL; // we were writing afterall
@@ -795,7 +802,7 @@ Rock::SwapDir::openStoreIO(StoreEntry &e, StoreIOState::STFNCB *cbFile, StoreIOS
            std::setfill('0') << std::hex << std::uppercase << std::setw(8) <<
            sio->swap_filen);
 
-    assert(slot->sameKey(static_cast<const cache_key*>(e.key)));
+    assert(!e.publicKey() || slot->sameKey(static_cast<const cache_key*>(e.key)));
     // For collapsed disk hits: e.swap_file_sz and slot->basics.swap_file_sz
     // may still be zero and basics.swap_file_sz may grow.
     assert(slot->basics.swap_file_sz >= e.swap_file_sz);
@@ -891,8 +898,10 @@ Rock::SwapDir::writeCompleted(int errflag, size_t, RefCount< ::WriteRequest> r)
         // and wait for the finalizeSwapoutFailure() call to close the map entry
     }
 
-    if (sio.touchingStoreEntry())
+    if (sio.touchingStoreEntry()) {
         CollapsedForwarding::Broadcast(*sio.e);
+        (sio.e)->invokeHandlers();
+    }
 }
 
 void
@@ -1079,9 +1088,9 @@ Rock::SwapDir::freeSlotsPath() const
 }
 
 bool
-Rock::SwapDir::hasReadableEntry(const StoreEntry &e) const
+Rock::SwapDir::hasReadableEntry(const StoreEntry &e, bool *isEmpty) const
 {
-    return map->hasReadableEntry(reinterpret_cast<const cache_key*>(e.key));
+    return map->hasReadableEntry(reinterpret_cast<const cache_key*>(e.key), isEmpty);
 }
 
 namespace Rock

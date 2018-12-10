@@ -36,11 +36,16 @@ CBDATA_CLASS_INIT(IpcIoFile);
 
 /// shared memory segment path to use for IpcIoFile maps
 static const char *const ShmLabel = "io_file";
+
 /// a single worker-to-disker or disker-to-worker queue capacity; up
 /// to 2*QueueCapacity I/O requests queued between a single worker and
 /// a single disker
 // TODO: make configurable or compute from squid.conf settings if possible
-static const int QueueCapacity = 1024;
+#if !defined(DISK_IO_QUEUE_CAPACITY)
+#define DISK_IO_QUEUE_CAPACITY 1024
+#endif
+
+static const int QueueCapacity = DISK_IO_QUEUE_CAPACITY;
 
 const double IpcIoFile::Timeout = 7; // seconds;  XXX: ALL,9 may require more
 IpcIoFile::IpcIoFileList IpcIoFile::WaitingForOpen;

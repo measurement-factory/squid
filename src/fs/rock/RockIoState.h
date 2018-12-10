@@ -37,6 +37,7 @@ public:
     virtual void read_(char *buf, size_t size, off_t offset, STRCB * callback, void *callback_data);
     virtual bool write(char const *buf, size_t size, off_t offset, FREE * free_func);
     virtual void close(int how);
+    virtual bool hasMoreData(const off_t) const;
 
     /// whether we are still waiting for the I/O results (i.e., not closed)
     bool stillWaiting() const { return theFile != NULL; }
@@ -67,6 +68,7 @@ private:
     void writeToDisk(const SlotId nextSlot);
     void writeBufToDisk(const SlotId nextSlot, const bool eof, const bool lastWrite);
     SlotId reserveSlotForWriting();
+    void advanceSid(const off_t coreOff, SlotId &readableSlot, int64_t &slotOffset) const;
 
     void callBack(int errflag);
 

@@ -30,7 +30,7 @@ class StoreMapSlice
 public:
     typedef uint32_t Size;
 
-    StoreMapSlice(): size(0), next(-1) {}
+    StoreMapSlice() { reset(); }
     StoreMapSlice(const StoreMapSlice &o) {
         size.exchange(o.size);
         next.exchange(o.next);
@@ -41,6 +41,8 @@ public:
         next.store(o.next);
         return *this;
     }
+
+    void reset() { size = 0; next = -1; }
 
     std::atomic<Size> size; ///< slice contents size
     std::atomic<StoreMapSliceId> next; ///< ID of the next entry slice
@@ -71,6 +73,7 @@ public:
     bool empty() const { return !key[0] && !key[1]; }
     bool reading() const { return lock.readers; }
     bool writing() const { return lock.writing; }
+    bool appending() const { return lock.appending && lock.writing; }
     bool complete() const { return !empty() && !writing(); }
 
 public:
@@ -241,6 +244,8 @@ public:
     Anchor *openForWritingAt(sfileno fileno, bool overwriteExisting = true);
     /// restrict opened for writing entry to appending operations; allow reads
     void startAppending(const sfileno fileno);
+    /// calls startAppending() for entries with known size
+    void tryAppending(const sfileno fileno, const StoreEntry &e);
     /// successfully finish creating or updating the entry at fileno pos
     void closeForWriting(const sfileno fileno);
     /// stop writing (or updating) the locked entry and start reading it
@@ -274,7 +279,8 @@ public:
     bool markedForDeletion(const cache_key *const);
 
     /// whether the index contains a valid readable entry with the given key
-    bool hasReadableEntry(const cache_key *const);
+    /// \param isEmpty if provided, whether the readable entry exists and is empty
+    bool hasReadableEntry(const cache_key *const, bool *isEmpty = nullptr);
 
     /// opens entry (identified by key) for reading, increments read level
     const Anchor *openForReading(const cache_key *const key, sfileno &fileno);

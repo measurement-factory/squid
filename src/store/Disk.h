@@ -76,7 +76,8 @@ public:
     virtual void finalizeSwapoutFailure(StoreEntry &) = 0;
 
     /// whether this cache dir has an entry with `e.key`
-    virtual bool hasReadableEntry(const StoreEntry &e) const = 0;
+    /// \param isEmpty if provided, whether this entry still lacks data
+    virtual bool hasReadableEntry(const StoreEntry &e, bool *isEmpty = nullptr) const = 0;
 
 protected:
     void parseOptions(int reconfiguring);

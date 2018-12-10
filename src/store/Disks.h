@@ -51,7 +51,7 @@ public:
     /// whether any disk cache is SMP-aware
     static bool SmpAware();
     /// whether any of disk caches has entry with e.key
-    bool hasReadableEntry(const StoreEntry &) const;
+    bool hasReadableEntry(const StoreEntry &, bool *isEmpty = nullptr) const;
 
 private:
     /* migration logic */
