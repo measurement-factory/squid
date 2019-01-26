@@ -89,7 +89,6 @@ public:
     bool noConnections() const;
     char *url;
     CbcPointer<ClientHttpRequest> http;
-    HttpRequest::Pointer request;
     AccessLogEntryPointer al;
     Comm::ConnectionList serverDestinations;
 
@@ -306,6 +305,7 @@ tunnelClientClosed(const CommCloseCbParams &params)
 }
 
 TunnelStateData::TunnelStateData(ClientHttpRequest *clientRequest) :
+    PeerSelectionInitiator(clientRequest->request),
     connectRespBuf(NULL),
     connectReqWriting(false),
     startTime(squid_curtime)
@@ -316,7 +316,6 @@ TunnelStateData::TunnelStateData(ClientHttpRequest *clientRequest) :
 
     assert(clientRequest);
     url = xstrdup(clientRequest->uri);
-    request = clientRequest->request;
     server.size_ptr = &clientRequest->out.size;
     client.size_ptr = &clientRequest->al->http.clientRequestSz.payloadData;
     status_ptr = &clientRequest->al->http.code;
@@ -1026,6 +1025,7 @@ TunnelStateData::noteConnectFailure(const Comm::ConnectionPointer &conn)
     if (!PeerSelectionInitiator::subscribed)
         return sendError(savedError, "tried all destinations");
 
+    requestMoreDestinations();
     debugs(26, 4, "wait for more destinations to try");
     // expect a noteDestination*() call
 }
@@ -1126,7 +1126,7 @@ tunnelStart(ClientHttpRequest * http)
 #if USE_DELAY_POOLS
     //server.setDelayId called from tunnelConnectDone after server side connection established
 #endif
-    tunnelState->startSelectingDestinations(request, http->al, nullptr);
+    tunnelState->startSelectingDestinations(http->al, nullptr);
 }
 
 void

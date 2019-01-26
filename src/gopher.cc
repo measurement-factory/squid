@@ -772,7 +772,7 @@ gopherReadReply(const Comm::ConnectionPointer &conn, char *buf, size_t len, Comm
 
         ++IOStats.Gopher.read_hist[bin];
 
-        HttpRequest *req = gopherState->fwd->request;
+        HttpRequest::Pointer req = gopherState->fwd->request;
         if (req->hier.bodyBytesRead < 0) {
             req->hier.bodyBytesRead = 0;
             // first bytes read, update Reply flags:
@@ -937,7 +937,7 @@ gopherStart(FwdState * fwd)
     ++ statCounter.server.other.requests;
 
     /* Parse url. */
-    gopher_request_parse(fwd->request,
+    gopher_request_parse(fwd->request.getRaw(),
                          &gopherState->type_id, gopherState->request);
 
     comm_add_close_handler(fwd->serverConnection()->fd, gopherStateFree, gopherState);

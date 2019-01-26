@@ -59,8 +59,6 @@ public:
     ping_data ping;
     char cd_host[SQUIDHOSTNAMELEN]; /* the host of selected by cd peer */
     lookup_t cd_lookup;     /* cd prediction: none, miss, hit */
-    int n_choices;      /* #peers we selected from (cd only) */
-    int n_ichoices;     /* #peers with known rtt we selected from (cd only) */
 
     struct timeval peer_select_start;
 

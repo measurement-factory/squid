@@ -81,7 +81,11 @@ void netdbBinaryExchange(StoreEntry *);
 void netdbExchangeStart(void *);
 
 void netdbExchangeUpdatePeer(Ip::Address &, CachePeer *, double, double);
-CachePeer *netdbClosestParent(PeerSelector *);
+
+/// Appends to PeerSelector peers list the closest parent group ordered
+/// with netdb based statistics.
+void netdbClosestParent(PeerSelector *);
+
 void netdbHostData(const char *host, int *samp, int *rtt, int *hops);
 
 #endif /* ICMP_NET_DB_H */

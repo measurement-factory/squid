@@ -82,6 +82,7 @@ class ErrorState
 
 public:
     ErrorState(err_type type, Http::StatusCode, HttpRequest * request);
+    ErrorState(err_type type, Http::StatusCode, const HttpRequestPointer &request);
     ErrorState() = delete; // not implemented.
     ~ErrorState();
 

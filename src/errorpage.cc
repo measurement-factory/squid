@@ -571,6 +571,11 @@ ErrorState::ErrorState(err_type t, Http::StatusCode status, HttpRequest * req) :
     }
 }
 
+ErrorState::ErrorState(err_type t, Http::StatusCode status, const HttpRequestPointer &req):
+    ErrorState(t, status, req.getRaw())
+{
+}
+
 void
 errorAppendEntry(StoreEntry * entry, ErrorState * err)
 {

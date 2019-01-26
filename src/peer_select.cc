@@ -10,6 +10,7 @@
 
 #include "squid.h"
 #include "acl/FilledChecklist.h"
+#include "base/AsyncCbdataCalls.h"
 #include "base/InstanceId.h"
 #include "CachePeer.h"
 #include "carp.h"
@@ -49,14 +50,24 @@ class FwdServer
     MEMPROXY_CLASS(FwdServer);
 
 public:
-    FwdServer(CachePeer *p, hier_code c) :
+    FwdServer(CachePeer *p, hier_code c, int gid) :
         _peer(p),
         code(c),
+        groupId(gid),
         next(nullptr)
     {}
 
+    /// whether the given peer is already covered by this selection
+    bool duplicates(CachePeer *peer, const hier_code code, const int groupId);
+
     CbcPointer<CachePeer> _peer;                /* NULL --> origin server */
     hier_code code;
+
+    /// Selection groupId for peer.
+    /// Peers selected with the same method (eg netdb, roundrobin etc)
+    /// has the same groupId. Currently as groupId values the related
+    /// hier_code is used.
+    int groupId;
     FwdServer *next;
 };
 
@@ -75,12 +86,13 @@ static const char *DirectStr[] = {
 class PeerSelectionDumper
 {
 public:
-    PeerSelectionDumper(const PeerSelector * const aSelector, const CachePeer * const aPeer, const hier_code aCode):
-        selector(aSelector), peer(aPeer), code(aCode) {}
+    PeerSelectionDumper(const PeerSelector * const aSelector, const CachePeer * const aPeer, const hier_code aCode, int aGroupId):
+        selector(aSelector), peer(aPeer), code(aCode), groupId(aGroupId) {}
 
     const PeerSelector * const selector; ///< selection parameters
     const CachePeer * const peer; ///< successful selection info
     const hier_code code; ///< selection algorithm
+    const int groupId; ///< selection groupId for peer.
 };
 
 CBDATA_CLASS_INIT(PeerSelector);
@@ -89,7 +101,7 @@ CBDATA_CLASS_INIT(PeerSelector);
 static std::ostream &
 operator <<(std::ostream &os, const PeerSelectionDumper &fsd)
 {
-    os << hier_code_str[fsd.code];
+    os << hier_code_str[fsd.code] << '/' << fsd.groupId;
 
     if (fsd.peer)
         os << '/' << fsd.peer->host;
@@ -97,6 +109,22 @@ operator <<(std::ostream &os, const PeerSelectionDumper &fsd)
         os << '#' << fsd.selector->request->url.host();
 
     return os;
+}
+
+bool
+FwdServer::duplicates(CachePeer *peer, const hier_code peerCode, const int peerGroup)
+{
+    // there can be at most one PINNED destination
+    if (peerCode == PINNED)
+        return code == PINNED;
+
+    // there can be at most one CachePeer within peer's group
+    if (groupId)
+        return groupId == peerGroup && _peer == peer;
+
+    // non-grouped destinations are uniquely identified by their CachePeer pointers
+    // (even though a DIRECT destination might match a cache_peer network address)
+    return _peer == peer;
 }
 
 PeerSelector::~PeerSelector()
@@ -121,80 +149,184 @@ PeerSelector::~PeerSelector()
         delete acl_checklist;
     }
 
-    HTTPMSGUNLOCK(request);
-
     if (entry) {
-        assert(entry->ping_status != PING_WAITING);
         entry->unlock("peerSelect");
         entry = NULL;
     }
-
-    delete lastError;
 }
 
-static int
-peerSelectIcpPing(PeerSelector *ps, int direct, StoreEntry * entry)
+bool
+PeerSelector::findIcpNeighborsToPing()
 {
-    assert(ps);
-    HttpRequest *request = ps->request;
-
-    int n;
     assert(entry);
-    assert(entry->ping_status == PING_NONE);
     assert(direct != DIRECT_YES);
+
+    if (entry->ping_status != PING_NONE)
+        return false;
+
     debugs(44, 3, entry->url());
 
     if (!request->flags.hierarchical && direct != DIRECT_NO)
-        return 0;
+        return false;
 
     if (EBIT_TEST(entry->flags, KEY_PRIVATE) && !neighbors_do_private_keys)
         if (direct != DIRECT_NO)
-            return 0;
+            return false;
 
-    n = neighborsCount(ps);
+    getNeighborsToPing(this, candidatePingPeers);
 
-    debugs(44, 3, "counted " << n << " neighbors");
+    debugs(44, 3, "counted " << candidatePingPeers.size() << "candidate neighbors");
 
-    return n;
+    return (candidatePingPeers.size() > 0);
 }
 
-static void
-peerSelect(PeerSelectionInitiator *initiator,
-           HttpRequest * request,
-           AccessLogEntry::Pointer const &al,
-           StoreEntry * entry)
+PeerSelectionInitiator::PeerSelectionInitiator(HttpRequest *req):
+    request(req)
+{}
+
+PeerSelectionInitiator::~PeerSelectionInitiator()
 {
+    delete lastError;
+    delete selector;
+}
+
+void
+PeerSelectionInitiator::notePeer(CachePeer *peer, const hier_code code)
+{
+    if (peer == nullptr && code == HIER_NONE) {
+        PeerSelectionInitiator::subscribed = false;
+        if (lastError && foundPaths) {
+            // nobody cares about errors if we found destinations despite them
+            debugs(44, 3, "forgetting the last error");
+            delete lastError;
+            lastError = nullptr;
+        }
+        // May kill our self:
+        noteDestinationsEnd(lastError);
+        return;
+    }
+
+    peer_ = peer;
+    peerType_ = code;
+    if (code == ORIGINAL_DST) {
+        assert(peer_ == nullptr);
+        if (request->clientConnectionManager.valid()) {
+            const Ip::Address originalDst = request->clientConnectionManager->clientConnection->local;
+            noteIp(originalDst);
+            return;
+        }
+        requestMoreDestinations(); //nothing to send continue to the next Peer
+        return;
+    }
+
+    if (code == PINNED) {
+        const Ip::Address tmpnoaddr;
+        noteIp(tmpnoaddr);
+        return;
+    }
+
+    const char *host = peer_.valid() ? peer_->host : request->url.host();
+    debugs(44, 2, "Find IP destination for: " << request->url << "' via " << host);
+    Dns::nbgethostbyname(host, this);
+}
+
+bool
+PeerSelectionInitiator::wantsMoreDestinations() const
+{
+    const auto maxCount = Config.forward_max_tries;
+    return maxCount >= 0 && foundPaths <
+           static_cast<std::make_unsigned<decltype(maxCount)>::type>(maxCount);
+}
+
+
+void
+PeerSelectionInitiator::noteIp(const Ip::Address &ip)
+{
+    if (peer_.raw() && !peer_.valid()) //Peer gone, abort?
+        return;
+
+    // for TPROXY spoofing, we must skip unusable addresses
+    if (request->flags.spoofClientIp && !(peer_.valid() && peer_->options.no_tproxy) ) {
+        if (ip.isIPv4() != request->client_addr.isIPv4())
+            return; // cannot spoof the client address on this link
+    }
+
+    Comm::ConnectionPointer path = new Comm::Connection();
+    path->remote = ip;
+    path->peerType = peerType_;
+    if (peerType_ != PINNED && peerType_ != ORIGINAL_DST) {
+        if (peer_.valid()) {
+            path->remote.port(peer_.valid() ? peer_->http_port : request->url.port());
+            path->setPeer(peer_.get());
+        } else
+            path->remote.port(request->url.port());
+    }
+
+    // if not pinned check for a configured outgoing address
+    if (peerType_ != PINNED)
+        getOutgoingAddress(request.getRaw(), path);
+
+    ++foundPaths;
+    noteDestination(path);
+}
+
+void
+PeerSelectionInitiator::noteIps(const Dns::CachedIps *ips, const Dns::LookupDetails &details)
+{
+    if (ips)
+        return; // noteIp() calls have already processed all IPs
+
+    debugs(17, 3, "Unknown host: " << (peer_.valid() ? peer_->host : request->url.host()));
+    if (peerType_ == HIER_DIRECT) {
+        assert(!peer_.raw());
+        // discard any previous error.
+        delete lastError;
+        lastError = new ErrorState(ERR_DNS_FAIL, Http::scServiceUnavailable, request.getRaw());
+        lastError->dnsError = details.error;
+        requestMoreDestinations(); //nothing to send continue to the next Peer
+    }
+}
+
+void
+PeerSelectionInitiator::noteLookup(const Dns::LookupDetails &details)
+{
+    request->recordLookup(details);
+}
+
+void
+PeerSelectionInitiator::startSelectingDestinations(const AccessLogEntry::Pointer &ale, StoreEntry *entry)
+{
+    subscribed = true;
+
     if (entry)
         debugs(44, 3, *entry << ' ' << entry->url());
     else
         debugs(44, 3, request->method);
 
-    const auto selector = new PeerSelector(initiator);
-
-    selector->request = request;
-    HTTPMSGLOCK(selector->request);
-    selector->al = al;
-
-    selector->entry = entry;
+    assert(!selector);
+    selector = new PeerSelector(request.getRaw(), entry);
+    selector->al = ale;
 
 #if USE_CACHE_DIGESTS
-
     request->hier.peer_select_start = current_time;
-
 #endif
 
-    if (selector->entry)
-        selector->entry->lock("peerSelect");
-
-    selector->selectMore();
+    requestMoreDestinations();
+    // and wait for noteDestination() and/or noteDestinationsEnd() calls
 }
 
 void
-PeerSelectionInitiator::startSelectingDestinations(HttpRequest *request, const AccessLogEntry::Pointer &ale, StoreEntry *entry)
+PeerSelectionInitiator::requestMoreDestinations()
 {
-    subscribed = true;
-    peerSelect(this, request, ale, entry);
-    // and wait for noteDestination() and/or noteDestinationsEnd() calls
+    if (subscribed && wantsMoreDestinations() && selector) {
+        typedef PeerSelector::CbDialer Dialer;
+        AsyncCall::Pointer call = asyncCall(44, 5, "PeerSelectionInitiator::notePeer",
+                                            Dialer(this, &PeerSelectionInitiator::notePeer));
+
+        selector->requestPeer(call);
+        return;
+    }
+    notePeer(nullptr, HIER_NONE);
 }
 
 void
@@ -208,6 +340,7 @@ PeerSelector::checkNeverDirectDone(const allow_t answer)
         /** if never_direct says YES, do that. */
         direct = DIRECT_NO;
         debugs(44, 3, "direct = " << DirectStr[direct] << " (never_direct allow)");
+        planNextStep(DoPinned, "check for pinned after NeverDirect");
         break;
     case ACCESS_DENIED: // not relevant.
     case ACCESS_DUNNO:  // not relevant.
@@ -236,6 +369,7 @@ PeerSelector::checkAlwaysDirectDone(const allow_t answer)
         /** if always_direct says YES, do that. */
         direct = DIRECT_YES;
         debugs(44, 3, "direct = " << DirectStr[direct] << " (always_direct allow)");
+        planNextStep(DoPinned, "check for pinned after AlwaysDirect");
         break;
     case ACCESS_DENIED: // not relevant.
     case ACCESS_DUNNO:  // not relevant.
@@ -244,6 +378,7 @@ PeerSelector::checkAlwaysDirectDone(const allow_t answer)
         debugs(44, DBG_IMPORTANT, "WARNING: always_direct resulted in " << answer << ". Username ACLs are not reliable here.");
         break;
     }
+
     selectMore();
 }
 
@@ -258,154 +393,139 @@ PeerSelector::CheckAlwaysDirectDone(allow_t answer, void *data)
 bool
 PeerSelector::selectionAborted()
 {
-    if (interestedInitiator())
+    if (callback_ && !callback_->canceled())
         return false;
 
     debugs(44, 3, "Aborting peer selection: Initiator gone or lost interest.");
-    delete this;
     return true;
 }
 
-/// A single DNS resolution loop iteration: Converts selected FwdServer to IPs.
+bool
+PeerSelector::accessCheckCached(const CachePeer *p, allow_t &answer) const
+{
+    if (!p)
+        return false;
+
+    for (auto it : aclPeersCache) {
+        if (p == it.first.valid()) {
+            answer = it.second;
+            return true;
+        }
+    }
+    return false;
+}
+
+static void
+checkLastPeerAccessWrapper(allow_t answer, void *data)
+{
+    auto selector = static_cast<PeerSelector *>(data);
+    selector->checkLastPeerAccess(answer);
+}
+
 void
-PeerSelector::resolveSelected()
+PeerSelector::checkLastPeerAccess(const allow_t answer)
+{
+    acl_checklist = nullptr;
+
+    if (selectionAborted())
+        return;
+
+    assert(currentServer);
+    if (currentServer->_peer.valid())
+        aclPeersCache.push_back(std::pair<CbcPointer<CachePeer>, allow_t>(currentServer->_peer, answer));
+
+    if (!answer.allowed() || !currentServer->_peer.valid()) {
+        currentServer = currentServer->next;
+        selectMore();
+        return;
+    }
+
+    if (currentServer->groupId)
+        groupSelect(currentServer);
+
+    updateSelectedPeer(currentServer->_peer.get(), currentServer->code);
+
+    callback(currentServer->_peer.get(), currentServer->code);
+    currentServer = currentServer->next;
+}
+
+void
+PeerSelector::updateSelectedPeer(CachePeer *p, hier_code code)
+{
+#if USE_CACHE_DIGESTS
+    if (code == CD_PARENT_HIT || code == CD_SIBLING_HIT) {
+        peerNoteDigestLookup(request.getRaw(), p, LOOKUP_HIT);
+        // If none selected and digestLookup not updates the default values
+        // in request->hier should be enough.
+
+        // Do not ping for peers if any of the above peer types succeed
+        disablePinging = true;
+    } else
+#endif
+    if (code == CLOSEST_PARENT)
+        disablePinging = true;
+    else if (code == WEIGHTED_ROUNDROBIN_PARENT && p->options.weighted_roundrobin)
+        updateWeightedRoundRobinParent(p, request.getRaw());
+    else if (code == ROUNDROBIN_PARENT && p->options.roundrobin)
+        updateRoundRobinParent(p);
+}
+
+void
+PeerSelector::sendNextPeer()
 {
     if (selectionAborted())
         return;
 
-    FwdServer *fs = servers;
+    if (!currentServer) {
+        // Done with peers
+        ping.stop = current_time;
+        request->hier.ping = ping; // final result
+        callback(nullptr, HIER_NONE);
+        return;
+    }
 
     // Bug 3243: CVE 2009-0801
     // Bypass of browser same-origin access control in intercepted communication
     // To resolve this we must use only the original client destination when going DIRECT
     // on intercepted traffic which failed Host verification
-    const HttpRequest *req = request;
-    const bool isIntercepted = !req->flags.redirected &&
-                               (req->flags.intercepted || req->flags.interceptTproxy);
-    const bool useOriginalDst = Config.onoff.client_dst_passthru || !req->flags.hostVerified;
-    const bool choseDirect = fs && fs->code == HIER_DIRECT;
+    const bool isIntercepted = !request->flags.redirected &&
+        (request->flags.intercepted || request->flags.interceptTproxy);
+    const bool useOriginalDst = Config.onoff.client_dst_passthru || !request->flags.hostVerified;
+    const bool choseDirect = currentServer->code == HIER_DIRECT;
     if (isIntercepted && useOriginalDst && choseDirect) {
-        // check the client is still around before using any of its details
-        if (req->clientConnectionManager.valid()) {
-            // construct a "result" adding the ORIGINAL_DST to the set instead of DIRECT
-            Comm::ConnectionPointer p = new Comm::Connection();
-            p->remote = req->clientConnectionManager->clientConnection->local;
-            fs->code = ORIGINAL_DST; // fs->code is DIRECT. This fixes the display.
-            handlePath(p, *fs);
-        }
+        callback(nullptr, ORIGINAL_DST);
 
-        // clear the used fs and continue
-        servers = fs->next;
-        delete fs;
-        resolveSelected();
+        currentServer = currentServer->next;
         return;
     }
 
-    // convert the list of FwdServer destinations into destinations IP addresses
-    if (fs && wantsMoreDestinations()) {
-        // send the next one off for DNS lookup.
-        const char *host = fs->_peer.valid() ? fs->_peer->host : request->url.host();
-        debugs(44, 2, "Find IP destination for: " << url() << "' via " << host);
-        Dns::nbgethostbyname(host, this);
+    if (!currentServer->_peer.raw()) { // eg PINNED
+        callback(nullptr, currentServer->code);
+        currentServer = currentServer->next;
         return;
     }
 
-    // Bug 3605: clear any extra listed FwdServer destinations, when the options exceeds max_foward_tries.
-    // due to the allocation method of fs, we must deallocate each manually.
-    // TODO: use a std::list so we can get the size and abort adding whenever the selection loops reach Config.forward_max_tries
-    if (fs) {
-        assert(fs == servers);
-        while (fs) {
-            servers = fs->next;
-            delete fs;
-            fs = servers;
-        }
-    }
-
-    // done with DNS lookups. pass back to caller
-
-    debugs(44, 2, id << " found all " << foundPaths << " destinations for " << url());
-    debugs(44, 2, "  always_direct = " << always_direct);
-    debugs(44, 2, "   never_direct = " << never_direct);
-    debugs(44, 2, "       timedout = " << ping.timedout);
-
-    ping.stop = current_time;
-    request->hier.ping = ping; // final result
-
-    if (lastError && foundPaths) {
-        // nobody cares about errors if we found destinations despite them
-        debugs(44, 3, "forgetting the last error");
-        delete lastError;
-        lastError = nullptr;
-    }
-
-    if (const auto initiator = interestedInitiator())
-        initiator->noteDestinationsEnd(lastError);
-    lastError = nullptr; // initiator owns the ErrorState object now
-    delete this;
+    checkPeerAccess(currentServer->_peer.get(), checkLastPeerAccessWrapper);
 }
 
 void
-PeerSelector::noteLookup(const Dns::LookupDetails &details)
+PeerSelector::checkPeerAccess(CachePeer *p, ACLCB *cb)
 {
-    /* ignore lookup delays that occurred after the initiator moved on */
-
-    if (selectionAborted())
-        return;
-
-    if (!wantsMoreDestinations())
-        return;
-
-    request->recordLookup(details);
-}
-
-void
-PeerSelector::noteIp(const Ip::Address &ip)
-{
-    if (selectionAborted())
-        return;
-
-    if (!wantsMoreDestinations())
-        return;
-
-    const auto peer = servers->_peer.valid();
-
-    // for TPROXY spoofing, we must skip unusable addresses
-    if (request->flags.spoofClientIp && !(peer && peer->options.no_tproxy) ) {
-        if (ip.isIPv4() != request->client_addr.isIPv4())
-            return; // cannot spoof the client address on this link
-    }
-
-    Comm::ConnectionPointer p = new Comm::Connection();
-    p->remote = ip;
-    p->remote.port(peer ? peer->http_port : request->url.port());
-    handlePath(p, *servers);
-}
-
-void
-PeerSelector::noteIps(const Dns::CachedIps *ia, const Dns::LookupDetails &details)
-{
-    if (selectionAborted())
-        return;
-
-    FwdServer *fs = servers;
-    if (!ia) {
-        debugs(44, 3, "Unknown host: " << (fs->_peer.valid() ? fs->_peer->host : request->url.host()));
-        // discard any previous error.
-        delete lastError;
-        lastError = NULL;
-        if (fs->code == HIER_DIRECT) {
-            lastError = new ErrorState(ERR_DNS_FAIL, Http::scServiceUnavailable, request);
-            lastError->dnsError = details.error;
+    if (p->access) {
+        allow_t cached;
+        if (accessCheckCached(p, cached))
+            cb(cached, this);
+        else {
+            ACLFilledChecklist *ch = new ACLFilledChecklist(p->access, request.getRaw(), nullptr);
+            ch->al = al;
+            acl_checklist = ch;
+            acl_checklist->syncAle(request.getRaw(), nullptr);
+            // TODO: Avoid deep recursion when finding the first allowed peer
+            // using fast/cached ACLs.
+            acl_checklist->nonBlockingCheck(cb, this);
         }
-    }
-    // else noteIp() calls have already processed all IPs in *ia
-
-    servers = fs->next;
-    delete fs;
-
-    // continue resolving selected peers
-    resolveSelected();
+    } else
+        cb(ACCESS_ALLOWED, this);
 }
 
 int
@@ -452,6 +572,27 @@ PeerSelector::checkNetdbDirect()
 }
 
 void
+PeerSelector::planNextStep(SelectionState state, const char *comment)
+{
+    selectionState = state;
+    debugs(44, 4, "New selection state: " << state << " reason: " << comment);
+
+    switch(state) {
+    case DoFinalizePing:
+        assert(entry);
+        entry->ping_status = PING_WAITING;
+        break;
+    case DoFinal:
+        if (entry)
+            entry->ping_status = PING_DONE;
+        break;
+    default:
+        // nothing to do
+        break;
+    }
+}
+
+void
 PeerSelector::selectMore()
 {
     if (selectionAborted())
@@ -459,24 +600,75 @@ PeerSelector::selectMore()
 
     debugs(44, 3, request->method << ' ' << request->url.host());
 
-    /** If we don't know whether DIRECT is permitted ... */
+    while (!currentServer && selectionState != DoFinished) {
+        switch (selectionState) {
+        case DoCheckDirect:
+            checkDirect();
+            if (selectionState == DoCheckDirect)
+                return; // wait nonblocking acls to finish
+            break;
+        case DoPinned:
+            assert(!entry || entry->ping_status == PING_NONE);
+            selectPinned();
+            break;
+        case DoSelectSomeNeighbors:
+            assert(entry);
+            selectSomeNeighbor();
+            break;
+        case DoStartPing:
+            assert(entry);
+            startIcpPing();
+            break;
+        case DoContinuePing:
+            continueIcpPing();
+            if (selectionState == DoContinuePing)
+                return; // wait for pinging results
+            break;
+        case DoFinalizePing:
+            finalizeIcpPing();
+            break;
+        case DoFinal:
+            finalSelections();
+            break;
+        default:
+            assert(selectionState == DoFinished);
+            break;
+        }
+    }
+
+    // Start acl-check and resolve currentServer or finish
+    sendNextPeer();
+    return;
+}
+
+void
+PeerSelector::requestPeer(AsyncCall::Pointer &call)
+{
+    assert(!callback_);
+    callback_ = call;
+    selectMore();
+}
+
+void
+PeerSelector::checkDirect()
+{
     if (direct == DIRECT_UNKNOWN) {
         if (always_direct == ACCESS_DUNNO) {
             debugs(44, 3, "direct = " << DirectStr[direct] << " (always_direct to be checked)");
             /** check always_direct; */
-            ACLFilledChecklist *ch = new ACLFilledChecklist(Config.accessList.AlwaysDirect, request, NULL);
+            ACLFilledChecklist *ch = new ACLFilledChecklist(Config.accessList.AlwaysDirect, request.getRaw(), nullptr);
             ch->al = al;
             acl_checklist = ch;
-            acl_checklist->syncAle(request, nullptr);
+            acl_checklist->syncAle(request.getRaw(), nullptr);
             acl_checklist->nonBlockingCheck(CheckAlwaysDirectDone, this);
             return;
         } else if (never_direct == ACCESS_DUNNO) {
             debugs(44, 3, "direct = " << DirectStr[direct] << " (never_direct to be checked)");
             /** check never_direct; */
-            ACLFilledChecklist *ch = new ACLFilledChecklist(Config.accessList.NeverDirect, request, NULL);
+            ACLFilledChecklist *ch = new ACLFilledChecklist(Config.accessList.NeverDirect, request.getRaw(), nullptr);
             ch->al = al;
             acl_checklist = ch;
-            acl_checklist->syncAle(request, nullptr);
+            acl_checklist->syncAle(request.getRaw(), nullptr);
             acl_checklist->nonBlockingCheck(CheckNeverDirectDone, this);
             return;
         } else if (request->flags.noDirect) {
@@ -498,20 +690,12 @@ PeerSelector::selectMore()
         debugs(44, 3, "direct = " << DirectStr[direct]);
     }
 
-    if (!entry || entry->ping_status == PING_NONE)
-        selectPinned();
-    if (entry == NULL) {
-        (void) 0;
-    } else if (entry->ping_status == PING_NONE) {
-        selectSomeNeighbor();
+    planNextStep(DoPinned, "check for pinned");
+}
 
-        if (entry->ping_status == PING_WAITING)
-            return;
-    } else if (entry->ping_status == PING_WAITING) {
-        selectSomeNeighborReplies();
-        entry->ping_status = PING_DONE;
-    }
-
+void
+PeerSelector::finalSelections()
+{
     switch (direct) {
 
     case DIRECT_YES:
@@ -538,9 +722,7 @@ PeerSelector::selectMore()
 
         break;
     }
-
-    // end peer selection; start resolving selected peers
-    resolveSelected();
+    planNextStep(DoFinished, "peer selection done");
 }
 
 bool peerAllowedToUse(const CachePeer *, PeerSelector*);
@@ -549,24 +731,31 @@ bool peerAllowedToUse(const CachePeer *, PeerSelector*);
 void
 PeerSelector::selectPinned()
 {
-    // TODO: Avoid all repeated calls. Relying on PING_DONE is not enough.
-    if (!request->pinnedConnection())
-        return;
-    CachePeer *pear = request->pinnedConnection()->pinnedPeer();
-    if (Comm::IsConnOpen(request->pinnedConnection()->validatePinnedConnection(request, pear))) {
-        const bool usePinned = pear ? peerAllowedToUse(pear, this) : (direct != DIRECT_NO);
-        if (usePinned) {
-            addSelection(pear, PINNED);
-            if (entry)
-                entry->ping_status = PING_DONE; // skip ICP
+    if (request->pinnedConnection()) {
+        CachePeer *pear = request->pinnedConnection()->pinnedPeer();
+        if (Comm::IsConnOpen(request->pinnedConnection()->validatePinnedConnection(request.getRaw(), pear))) {
+            const bool usePinned = pear ? peerAllowedToUse(pear, this) : (direct != DIRECT_NO);
+            if (usePinned) {
+                addSelection(pear, PINNED);
+                planNextStep(DoFinal, "pinned connection");
+                return;
+            }
         }
     }
+
     // If the pinned connection is prohibited (for this request) or gone, then
     // the initiator must decide whether it is OK to open a new one instead.
+
+    if (!entry)
+        planNextStep(DoFinal, "null entry, disable neighbors lookup/ping");
+    else if (direct == DIRECT_YES)
+        planNextStep(DoFinal, "do direct");
+    else
+        planNextStep(DoSelectSomeNeighbors, "neighbors lookup");
 }
 
 /**
- * Selects a neighbor (parent or sibling) based on one of the
+ * Selects a group of neighbors (parent or sibling) based on one of the
  * following methods:
  *      Cache Digests
  *      CARP
@@ -576,58 +765,133 @@ PeerSelector::selectPinned()
 void
 PeerSelector::selectSomeNeighbor()
 {
-    CachePeer *p;
-    hier_code code = HIER_NONE;
-    assert(entry->ping_status == PING_NONE);
+    assert(direct != DIRECT_YES);
 
-    if (direct == DIRECT_YES) {
-        entry->ping_status = PING_DONE;
+#if USE_CACHE_DIGESTS
+    neighborsDigestSelect(this);
+#endif
+    netdbClosestParent(this);
+
+    planNextStep(DoStartPing, "consider pinging");
+}
+
+static void
+checkNeighborToPingAccessWrapper(allow_t answer, void *data)
+{
+    auto selector = static_cast<PeerSelector *>(data);
+    selector->checkNeighborToPingAccess(answer);
+}
+
+void
+PeerSelector::checkNeighborToPingAccess(const allow_t answer)
+{
+    acl_checklist = nullptr;
+    assert(!candidatePingPeers.empty());
+    CbcPointer<CachePeer> p = candidatePingPeers.front();
+    candidatePingPeers.erase(candidatePingPeers.begin());
+
+    if (p.valid()) {
+        aclPeersCache.push_back(std::make_pair(p, answer));
+
+        if (answer.allowed()) { // check for the next peer
+            debugs(44, 5, "Will ping peer " << p->name);
+            peersToPing.push_back(p);
+        }
+    }
+
+    continueIcpPing();
+    if (selectionState == DoFinal) // pinging aborted or finished
+        selectMore();
+}
+
+bool
+PeerSelector::moreNeighborsToPing()
+{
+    while (!candidatePingPeers.empty() && !candidatePingPeers.front().valid())
+        candidatePingPeers.erase(candidatePingPeers.begin());
+
+    if (candidatePingPeers.empty())
+        return false;
+
+    CachePeer *p = candidatePingPeers.front().get();
+
+    checkPeerAccess(p, checkNeighborToPingAccessWrapper);
+
+    return true;
+}
+
+void
+PeerSelector::startIcpPing()
+{
+    assert(selectionState == DoStartPing);
+    if (disablePinging)
+        planNextStep(DoFinal, "pinging is disabled");
+    else if (!findIcpNeighborsToPing())
+        planNextStep(DoFinal, "no neighbors to ping");
+    else
+        planNextStep(DoContinuePing, "found candidate neighbors to ping");
+}
+
+void
+PeerSelector::continueIcpPing()
+{
+    // moreNeighborsToPing will do acl check for the next candidate neighbor
+    // and will callback us
+    if (!moreNeighborsToPing()) {
+        doIcpPing();
+
+        if (ping.n_replies_expected > 0) {
+            planNextStep(DoFinalizePing, "waiting neighbors replies");
+            // Nothing to do, HandlePingReply will call PeerSelector::selectMore
+            // when a HIT or all of the replies are received.
+        } else
+            planNextStep(DoFinal, "no neighbors replies expected");
+    }
+}
+
+void
+PeerSelector::finalizeIcpPing()
+{
+    assert(selectionState == DoFinalizePing);
+    assert(entry && entry->ping_status == PING_WAITING);
+    selectSomeNeighborReplies();
+    planNextStep(DoFinal, "ping done");
+}
+
+void
+PeerSelector::doIcpPing()
+{
+    if (peersToPing.empty()) {
+        debugs(44, 3, "No servers to ping");
         return;
     }
 
-#if USE_CACHE_DIGESTS
-    if ((p = neighborsDigestSelect(this))) {
-        if (neighborType(p, request->url) == PEER_PARENT)
-            code = CD_PARENT_HIT;
-        else
-            code = CD_SIBLING_HIT;
-    } else
-#endif
-        if ((p = netdbClosestParent(this))) {
-            code = CLOSEST_PARENT;
-        } else if (peerSelectIcpPing(this, direct, entry)) {
-            debugs(44, 3, "Doing ICP pings");
-            ping.start = current_time;
-            ping.n_sent = neighborsUdpPing(request,
-                                           entry,
-                                           HandlePingReply,
-                                           this,
-                                           &ping.n_replies_expected,
-                                           &ping.timeout);
+    debugs(44, 3, "Start pinging " << peersToPing.size() << " servers");
 
-            if (ping.n_sent == 0)
-                debugs(44, DBG_CRITICAL, "WARNING: neighborsUdpPing returned 0");
-            debugs(44, 3, ping.n_replies_expected <<
-                   " ICP replies expected, RTT " << ping.timeout <<
-                   " msec");
+    ping.start = current_time;
+    ping.n_sent = neighborsUdpPing(
+        peersToPing,
+        request.getRaw(),
+        entry,
+        HandlePingReply,
+        this,
+        &ping.n_replies_expected,
+        &ping.timeout);
 
-            if (ping.n_replies_expected > 0) {
-                entry->ping_status = PING_WAITING;
-                eventAdd("PeerSelector::HandlePingTimeout",
-                         HandlePingTimeout,
-                         this,
-                         0.001 * ping.timeout,
-                         0);
-                return;
-            }
-        }
+    if (ping.n_sent == 0)
+        debugs(44, DBG_CRITICAL, "WARNING: neighborsUdpPing returned 0");
 
-    if (code != HIER_NONE) {
-        assert(p);
-        addSelection(p, code);
+    debugs(44, 3, ping.n_replies_expected <<
+           " ICP replies expected, RTT " << ping.timeout <<
+           " msec");
+
+    if (ping.n_replies_expected > 0) {
+        eventAdd("PeerSelector::HandlePingTimeout",
+                 HandlePingTimeout,
+                 this,
+                 0.001 * ping.timeout,
+                 0);
     }
-
-    entry->ping_status = PING_DONE;
 }
 
 /// Selects a neighbor (parent or sibling) based on ICP/HTCP replies.
@@ -678,34 +942,24 @@ PeerSelector::selectSomeDirect()
 void
 PeerSelector::selectSomeParent()
 {
-    CachePeer *p;
-    hier_code code = HIER_NONE;
     debugs(44, 3, request->method << ' ' << request->url.host());
 
     if (direct == DIRECT_YES)
         return;
 
-    if ((p = peerSourceHashSelectParent(this))) {
-        code = SOURCEHASH_PARENT;
+    peerSourceHashSelectParent(this);
 #if USE_AUTH
-    } else if ((p = peerUserHashSelectParent(this))) {
-        code = USERHASH_PARENT;
+    peerUserHashSelectParent(this);
 #endif
-    } else if ((p = carpSelectParent(this))) {
-        code = CARP;
-    } else if ((p = getRoundRobinParent(this))) {
-        code = ROUNDROBIN_PARENT;
-    } else if ((p = getWeightedRoundRobinParent(this))) {
-        code = ROUNDROBIN_PARENT;
-    } else if ((p = getFirstUpParent(this))) {
-        code = FIRSTUP_PARENT;
-    } else if ((p = getDefaultParent(this))) {
-        code = DEFAULT_PARENT;
-    }
+    carpSelectParent(this);
 
-    if (code != HIER_NONE) {
-        addSelection(p, code);
-    }
+    retrieveRoundRobinParentsGroup(this);
+
+    retrieveWeightedRoundRobinParentsGroup(this);
+
+    retrieveFirstUpParentsGroup(this);
+
+    retrieveDefaultParentsGroup(this);
 }
 
 /// Adds alive parents. Used as a last resort for never_direct.
@@ -734,9 +988,7 @@ PeerSelector::selectAllParents()
      * simply are not configured to handle the request.
      */
     /* Add default parent as a last resort */
-    if ((p = getDefaultParent(this))) {
-        addSelection(p, DEFAULT_PARENT);
-    }
+    retrieveDefaultParentsGroup(this);
 }
 
 void
@@ -744,8 +996,7 @@ PeerSelector::handlePingTimeout()
 {
     debugs(44, 3, url());
 
-    if (entry)
-        entry->ping_status = PING_DONE;
+    planNextStep(DoFinal, "ping timed out");
 
     if (selectionAborted())
         return;
@@ -922,44 +1173,59 @@ PeerSelector::HandlePingReply(CachePeer * p, peer_t type, AnyP::ProtocolType pro
 }
 
 void
-PeerSelector::addSelection(CachePeer *peer, const hier_code code)
+PeerSelector::addSelection(CachePeer *peer, const hier_code code, const int groupId)
 {
     // Find the end of the servers list. Bail on a duplicate destination.
     auto **serversTail = &servers;
     while (const auto server = *serversTail) {
-        // There can be at most one PINNED destination.
-        // Non-PINNED destinations are uniquely identified by their CachePeer
-        // (even though a DIRECT destination might match a cache_peer address).
-        const bool duplicate = (server->code == PINNED) ?
-                               (code == PINNED) : (server->_peer == peer);
-        if (duplicate) {
-            debugs(44, 3, "skipping " << PeerSelectionDumper(this, peer, code) <<
-                   "; have " << PeerSelectionDumper(this, server->_peer.get(), server->code));
+        if (server->duplicates(peer, code, groupId)) {
+            debugs(44, 3, "skipping " << PeerSelectionDumper(this, peer, code, groupId) <<
+                   "; have " << PeerSelectionDumper(this, server->_peer.get(), server->code, server->groupId));
             return;
         }
         serversTail = &server->next;
     }
 
-    debugs(44, 3, "adding " << PeerSelectionDumper(this, peer, code));
-    *serversTail = new FwdServer(peer, code);
+    debugs(44, 3, "adding " << PeerSelectionDumper(this, peer, code, groupId));
+    *serversTail = new FwdServer(peer, code, groupId);
+
+    if (!currentServer)
+        currentServer = *serversTail;
 }
 
-PeerSelector::PeerSelector(PeerSelectionInitiator *initiator):
-    request(nullptr),
-    entry (NULL),
+void
+PeerSelector::groupSelect(FwdServer *fs)
+{
+    const int gid = fs->groupId;
+    CbcPointer<CachePeer> p = fs->_peer;
+    fs->groupId = 0;
+    FwdServer **srv = &fs->next;
+    // Remove any other FwdServer has the same gid or pointes to the same peer
+    while (*srv) {
+        if ((*srv)->groupId == gid || (*srv)->_peer == p) {
+            auto *tmp = (*srv);
+            *srv = tmp->next;
+            delete tmp;
+        } else
+            srv = &(*srv)->next;
+    }
+}
+
+PeerSelector::PeerSelector(HttpRequest *req, StoreEntry *anEntry):
+    request(req),
+    entry (anEntry),
     always_direct(Config.accessList.AlwaysDirect?ACCESS_DUNNO:ACCESS_DENIED),
     never_direct(Config.accessList.NeverDirect?ACCESS_DUNNO:ACCESS_DENIED),
     direct(DIRECT_UNKNOWN),
-    lastError(NULL),
     servers (NULL),
     first_parent_miss(),
     closest_parent_miss(),
     hit(NULL),
     hit_type(PEER_NONE),
-    acl_checklist (NULL),
-    initiator_(initiator)
+    acl_checklist (nullptr)
 {
-    ; // no local defaults.
+    if (entry)
+        entry->lock("PeerSelector");
 }
 
 const SBuf
@@ -975,53 +1241,27 @@ PeerSelector::url() const
     return noUrl;
 }
 
-/// \returns valid/interested peer initiator or nil
-PeerSelectionInitiator *
-PeerSelector::interestedInitiator()
-{
-    const auto initiator = initiator_.valid();
-
-    if (!initiator) {
-        debugs(44, 3, id << " initiator gone");
-        return nullptr;
-    }
-
-    if (!initiator->subscribed) {
-        debugs(44, 3, id << " initiator lost interest");
-        return nullptr;
-    }
-
-    debugs(44, 7, id);
-    return initiator;
-}
-
-bool
-PeerSelector::wantsMoreDestinations() const {
-    const auto maxCount = Config.forward_max_tries;
-    return maxCount >= 0 && foundPaths <
-           static_cast<std::make_unsigned<decltype(maxCount)>::type>(maxCount);
-}
-
 void
-PeerSelector::handlePath(Comm::ConnectionPointer &path, FwdServer &fs)
+PeerSelector::callback(CachePeer *peer, const hier_code code)
 {
-    ++foundPaths;
+    request->hier.ping = ping;
 
-    path->peerType = fs.code;
-    path->setPeer(fs._peer.get());
-
-    // check for a configured outgoing address for this destination...
-    getOutgoingAddress(request, path);
-
-    request->hier.ping = ping; // may be updated later
-
-    debugs(44, 2, id << " found " << path << ", destination #" << foundPaths << " for " << url());
+    if (code == HIER_NONE)
+        debugs(44, 2, id << " found all " << foundPeers << " peers for " << url());
+    else
+        debugs(44, 2, id << " found peer " << (peer ? peer->name : "direct") << ", " << foundPeers << " peer for " << url());
     debugs(44, 2, "  always_direct = " << always_direct);
     debugs(44, 2, "   never_direct = " << never_direct);
     debugs(44, 2, "       timedout = " << ping.timedout);
 
-    if (const auto initiator = interestedInitiator())
-        initiator->noteDestination(path);
+    assert(callback_);
+    CbDialer *dialer = dynamic_cast<CbDialer*>(callback_->getDialer());
+    dialer->peer_ = peer;
+    dialer->code_ = code;
+    ScheduleCallHere(callback_);
+    callback_ = nullptr;
+    if (code != HIER_NONE)
+        ++foundPeers;
 }
 
 InstanceIdDefinitions(PeerSelector, "PeerSelector");

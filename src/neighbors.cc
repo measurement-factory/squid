@@ -136,7 +136,7 @@ bool
 peerAllowedToUse(const CachePeer * p, PeerSelector * ps)
 {
     assert(ps);
-    HttpRequest *request = ps->request;
+    HttpRequest::Pointer request = ps->request;
     assert(request != NULL);
 
     if (neighborType(p, request->url) == PEER_SIBLING) {
@@ -163,13 +163,7 @@ peerAllowedToUse(const CachePeer * p, PeerSelector * ps)
     if (p->options.originserver && request->method == Http::METHOD_CONNECT && request->url.port() != p->http_port)
         return false;
 
-    if (p->access == NULL)
-        return true;
-
-    ACLFilledChecklist checklist(p->access, request, NULL);
-    checklist.al = ps->al;
-    checklist.syncAle(request, nullptr);
-    return checklist.fastCheck().allowed();
+    return true;
 }
 
 /* Return TRUE if it is okay to send an ICP request to this CachePeer.   */
@@ -177,7 +171,7 @@ static int
 peerWouldBePinged(const CachePeer * p, PeerSelector * ps)
 {
     assert(ps);
-    HttpRequest *request = ps->request;
+    HttpRequest::Pointer request = ps->request;
 
     if (p->icp.port == 0)
         return 0;
@@ -263,26 +257,30 @@ peerHTTPOkay(const CachePeer * p, PeerSelector * ps)
     return 1;
 }
 
-int
-neighborsCount(PeerSelector *ps)
+void
+getNeighborsToPing(PeerSelector *ps, std::vector<CbcPointer<CachePeer> > &list)
 {
-    CachePeer *p = NULL;
-    int count = 0;
+    CachePeer *p = nullptr;
+    int i;
 
-    for (p = Config.peers; p; p = p->next)
+    for (i = 0, p = first_ping; i++ < Config.npeers; p = p->next) {
+        if (p == nullptr)
+            p = Config.peers;
+
         if (peerWouldBePinged(p, ps))
-            ++count;
+            list.push_back(p);
+    }
 
-    debugs(15, 3, "neighborsCount: " << count);
+    debugs(15, 3, "candidate neighbors to ping: " << list.size());
 
-    return count;
+    first_ping = first_ping->next ? first_ping->next : Config.peers;
 }
 
-CachePeer *
-getFirstUpParent(PeerSelector *ps)
+void
+retrieveFirstUpParentsGroup(PeerSelector *ps)
 {
     assert(ps);
-    HttpRequest *request = ps->request;
+    HttpRequest::Pointer request = ps->request;
 
     CachePeer *p = NULL;
 
@@ -296,22 +294,19 @@ getFirstUpParent(PeerSelector *ps)
         if (!peerHTTPOkay(p, ps))
             continue;
 
-        break;
+        ps->addSelection(p, FIRSTUP_PARENT);
+        debugs(15, 3, "adding first-up-parent parent: " << (p ? p->host : "NULL"));
     }
-
-    debugs(15, 3, "getFirstUpParent: returning " << (p ? p->host : "NULL"));
-    return p;
 }
 
-CachePeer *
-getRoundRobinParent(PeerSelector *ps)
+void
+retrieveRoundRobinParentsGroup(PeerSelector *ps)
 {
     assert(ps);
-    HttpRequest *request = ps->request;
+    HttpRequest::Pointer request = ps->request;
 
     CachePeer *p;
-    CachePeer *q = NULL;
-
+    PeerSelector::CachePeersByKey<double> peers;
     for (p = Config.peers; p; p = p->next) {
         if (!p->options.roundrobin)
             continue;
@@ -325,36 +320,29 @@ getRoundRobinParent(PeerSelector *ps)
         if (p->weight == 0)
             continue;
 
-        if (q) {
-            if (p->weight == q->weight) {
-                if (q->rr_count < p->rr_count)
-                    continue;
-            } else if ( ((double) q->rr_count / q->weight) < ((double) p->rr_count / p->weight)) {
-                continue;
-            }
-        }
-
-        q = p;
+        double score = ((double) p->rr_count / p->weight);
+        peers.push_back(std::make_pair(score, p));
     }
 
-    if (q)
-        ++ q->rr_count;
-
-    debugs(15, 3, HERE << "returning " << (q ? q->host : "NULL"));
-
-    return q;
+    ps->addGroup(peers, ROUNDROBIN_PARENT);
 }
 
-CachePeer *
-getWeightedRoundRobinParent(PeerSelector *ps)
+void
+updateRoundRobinParent(CachePeer *peer)
+{
+    assert(peer->options.roundrobin);
+    if (peer) //We should update the rr_count if roundrobin peer is selected
+        ++peer->rr_count;
+}
+
+void
+retrieveWeightedRoundRobinParentsGroup(PeerSelector *ps)
 {
     assert(ps);
-    HttpRequest *request = ps->request;
+    HttpRequest::Pointer request = ps->request;
 
     CachePeer *p;
-    CachePeer *q = NULL;
-    int weighted_rtt;
-
+    PeerSelector::CachePeersByKey<int> peers;
     for (p = Config.peers; p; p = p->next) {
         if (!p->options.weighted_roundrobin)
             continue;
@@ -365,14 +353,20 @@ getWeightedRoundRobinParent(PeerSelector *ps)
         if (!peerHTTPOkay(p, ps))
             continue;
 
-        if (q && q->rr_count < p->rr_count)
-            continue;
-
-        q = p;
+        peers.push_back(std::make_pair(p->rr_count, p));
     }
 
-    if (q && q->rr_count > 1000000)
-        for (p = Config.peers; p; p = p->next) {
+    ps->addGroup(peers, WEIGHTED_ROUNDROBIN_PARENT);
+}
+
+void
+updateWeightedRoundRobinParent(CachePeer *peer, HttpRequest *request)
+{
+    //We should update the rr_count if weighed roundrobin peer is selected
+    assert(peer->options.weighted_roundrobin);
+    int weighted_rtt;
+    if (peer && peer->rr_count > 1000000)
+        for (CachePeer *p = Config.peers; p; p = p->next) {
             if (!p->options.weighted_roundrobin)
                 continue;
 
@@ -382,19 +376,16 @@ getWeightedRoundRobinParent(PeerSelector *ps)
             p->rr_count = 0;
         }
 
-    if (q) {
-        weighted_rtt = (q->stats.rtt - q->basetime) / q->weight;
+    if (peer) {
+        weighted_rtt = (peer->stats.rtt - peer->basetime) / peer->weight;
 
         if (weighted_rtt < 1)
             weighted_rtt = 1;
 
-        q->rr_count += weighted_rtt;
+        peer->rr_count += weighted_rtt;
 
-        debugs(15, 3, "getWeightedRoundRobinParent: weighted_rtt " << weighted_rtt);
+        debugs(15, 3, "weighted_rtt " << weighted_rtt);
     }
-
-    debugs(15, 3, "getWeightedRoundRobinParent: returning " << (q ? q->host : "NULL"));
-    return q;
 }
 
 /**
@@ -463,11 +454,11 @@ peerAlive(CachePeer *p)
     p->stats.probe_start = 0;
 }
 
-CachePeer *
-getDefaultParent(PeerSelector *ps)
+void
+retrieveDefaultParentsGroup(PeerSelector *ps)
 {
     assert(ps);
-    HttpRequest *request = ps->request;
+    HttpRequest::Pointer request = ps->request;
 
     CachePeer *p = NULL;
 
@@ -481,13 +472,9 @@ getDefaultParent(PeerSelector *ps)
         if (!peerHTTPOkay(p, ps))
             continue;
 
-        debugs(15, 3, "getDefaultParent: returning " << p->host);
-
-        return p;
+        ps->addSelection(p, DEFAULT_PARENT);
+        debugs(15, 3, "adding default-parent parent: " << p->host);
     }
-
-    debugs(15, 3, "getDefaultParent: returning NULL");
-    return NULL;
 }
 
 CachePeer *
@@ -586,7 +573,9 @@ neighbors_init(void)
 }
 
 int
-neighborsUdpPing(HttpRequest * request,
+neighborsUdpPing(
+                 std::vector<CbcPointer<CachePeer> > &pingPeers,
+                 HttpRequest * request,
                  StoreEntry * entry,
                  IRCB * callback,
                  PeerSelector *ps,
@@ -595,8 +584,6 @@ neighborsUdpPing(HttpRequest * request,
 {
     const char *url = entry->url();
     MemObject *mem = entry->mem_obj;
-    CachePeer *p = NULL;
-    int i;
     int reqnum = 0;
     int flags;
     int queries_sent = 0;
@@ -604,9 +591,6 @@ neighborsUdpPing(HttpRequest * request,
     int parent_timeout = 0, parent_exprep = 0;
     int sibling_timeout = 0, sibling_exprep = 0;
     int mcast_timeout = 0, mcast_exprep = 0;
-
-    if (Config.peers == NULL)
-        return 0;
 
     assert(!entry->hasDisk());
 
@@ -618,14 +602,14 @@ neighborsUdpPing(HttpRequest * request,
 
     reqnum = icpSetCacheKey((const cache_key *)entry->key);
 
-    for (i = 0, p = first_ping; i++ < Config.npeers; p = p->next) {
-        if (p == NULL)
-            p = Config.peers;
+    for (auto it : pingPeers) {
+
+        CachePeer *p = it.valid();
+
+        if (!p)
+            continue;
 
         debugs(15, 5, "neighborsUdpPing: Peer " << p->host);
-
-        if (!peerWouldBePinged(p, ps))
-            continue;       /* next CachePeer */
 
         ++peers_pinged;
 
@@ -667,7 +651,6 @@ neighborsUdpPing(HttpRequest * request,
                     if (Config.onoff.query_icmp)
                         if (p->icp.version == ICP_VERSION_2)
                             flags |= ICP_FLAG_SRC_RTT;
-
                     // TODO: Get ALE from callback_data if possible.
                     icpCreateAndSend(ICP_QUERY, flags, url, reqnum, 0,
                                      icpOutgoingConn->fd, p->in_addr, nullptr);
@@ -713,9 +696,6 @@ neighborsUdpPing(HttpRequest * request,
             p->stats.probe_start = squid_curtime;
     }
 
-    if ((first_ping = first_ping->next) == NULL)
-        first_ping = Config.peers;
-
     /*
      * How many replies to expect?
      */
@@ -754,8 +734,8 @@ peerDigestLookup(CachePeer * p, PeerSelector * ps)
 {
 #if USE_CACHE_DIGESTS
     assert(ps);
-    HttpRequest *request = ps->request;
-    const cache_key *key = request ? storeKeyPublicByRequest(request) : NULL;
+    HttpRequest::Pointer request = ps->request;
+    const cache_key *key = request ? storeKeyPublicByRequest(request.getRaw()) : nullptr;
     assert(p);
     assert(request);
     debugs(15, 5, "peerDigestLookup: peer " << p->host);
@@ -793,34 +773,29 @@ peerDigestLookup(CachePeer * p, PeerSelector * ps)
 }
 
 /* select best CachePeer based on cache digests */
-CachePeer *
+void
 neighborsDigestSelect(PeerSelector *ps)
 {
-    CachePeer *best_p = NULL;
 #if USE_CACHE_DIGESTS
     assert(ps);
-    HttpRequest *request = ps->request;
+    HttpRequest::Pointer request = ps->request;
 
-    int best_rtt = 0;
-    int choice_count = 0;
-    int ichoice_count = 0;
-    CachePeer *p;
     int p_rtt;
     int i;
+    int choice_count = 0;
 
     if (!request->flags.hierarchical)
-        return NULL;
+        return;
 
-    storeKeyPublicByRequest(request);
+    storeKeyPublicByRequest(request.getRaw());
 
-    for (i = 0, p = first_ping; i++ < Config.npeers; p = p->next) {
+    PeerSelector::CachePeersByKey<int> peers;
+    i = 0;
+    for (CachePeer *p = first_ping; i++ < Config.npeers; p = p->next) {
         lookup_t lookup;
 
         if (!p)
             p = Config.peers;
-
-        if (i == 1)
-            first_ping = p;
 
         lookup = peerDigestLookup(p, ps);
 
@@ -836,26 +811,23 @@ neighborsDigestSelect(PeerSelector *ps)
 
         debugs(15, 5, "neighborsDigestSelect: peer " << p->host << " rtt: " << p_rtt);
 
-        /* is this CachePeer better than others in terms of rtt ? */
-        if (!best_p || (p_rtt && p_rtt < best_rtt)) {
-            best_p = p;
-            best_rtt = p_rtt;
-
-            if (p_rtt)      /* informative choice (aka educated guess) */
-                ++ichoice_count;
-
-            debugs(15, 4, "neighborsDigestSelect: peer " << p->host << " leads with rtt " << best_rtt);
-        }
+        peers.push_back(std::make_pair(p_rtt, p));
     }
 
-    debugs(15, 4, "neighborsDigestSelect: choices: " << choice_count << " (" << ichoice_count << ")");
-    peerNoteDigestLookup(request, best_p,
-                         best_p ? LOOKUP_HIT : (choice_count ? LOOKUP_MISS : LOOKUP_NONE));
-    request->hier.n_choices = choice_count;
-    request->hier.n_ichoices = ichoice_count;
-#endif
+    first_ping = first_ping->next ? first_ping->next : Config.peers;
 
-    return best_p;
+    if (peers.size() == 0 && choice_count != 0) {
+        // This is may cause some LOOKUP_NONE be logged
+        // as LOOKUP_MISS, in the case the peer_access acl would failed
+        // if executed for all of the misses)
+        peerNoteDigestLookup(request.getRaw(), nullptr, LOOKUP_MISS);
+    } else {
+        auto getHierFunc = [&request](const CachePeer *p) -> const hier_code {
+            return (neighborType(p, request->url) == PEER_PARENT) ? CD_PARENT_HIT : CD_SIBLING_HIT;
+        };
+        ps->addGroup(peers, getHierFunc, CD_PARENT_HIT);
+    }
+#endif
 }
 
 void
@@ -1406,10 +1378,7 @@ peerCountMcastPeersStart(void *data)
     HttpRequest *req = HttpRequest::FromUrl(url, mx);
     assert(req != nullptr);
     StoreEntry *fake = storeCreateEntry(url, url, RequestFlags(), Http::METHOD_GET);
-    const auto psstate = new PeerSelector(nullptr);
-    psstate->request = req;
-    HTTPMSGLOCK(psstate->request);
-    psstate->entry = fake;
+    const auto psstate = new PeerSelector(req, fake);
     psstate->peerCountMcastPeerXXX = cbdataReference(p);
     psstate->ping.start = current_time;
     mem = fake->mem_obj;

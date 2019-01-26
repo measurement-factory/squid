@@ -3880,7 +3880,7 @@ DOC_START
 	may check it independently from each other. These redundant checks
 	may be optimized away in future Squid versions.
 
-	This clause only supports fast acl types.
+	This clause supports both fast and slow acl types.
 	See http://wiki.squid-cache.org/SquidFaq/SquidAcl for details.
 
 DOC_END

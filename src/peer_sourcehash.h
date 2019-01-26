@@ -11,11 +11,10 @@
 #ifndef SQUID_PEER_SOURCEHASH_H_
 #define SQUID_PEER_SOURCEHASH_H_
 
-class CachePeer;
 class PeerSelector;
 
 void peerSourceHashInit(void);
-CachePeer * peerSourceHashSelectParent(PeerSelector*);
+void peerSourceHashSelectParent(PeerSelector *);
 
 #endif /* SQUID_PEER_SOURCEHASH_H_ */
 

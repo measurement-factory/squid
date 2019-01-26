@@ -138,7 +138,6 @@ private:
 
 public:
     StoreEntry *entry;
-    HttpRequest *request;
     AccessLogEntryPointer al; ///< info for the future access.log entry
 
     static void abort(void*);

@@ -129,8 +129,8 @@ FwdState::closeServerConnection(const char *reason)
 /**** PUBLIC INTERFACE ********************************************************/
 
 FwdState::FwdState(const Comm::ConnectionPointer &client, StoreEntry * e, HttpRequest * r, const AccessLogEntryPointer &alp):
+    PeerSelectionInitiator(r),
     entry(e),
-    request(r),
     al(alp),
     err(NULL),
     clientConn(client),
@@ -139,7 +139,6 @@ FwdState::FwdState(const Comm::ConnectionPointer &client, StoreEntry * e, HttpRe
     pconnRace(raceImpossible)
 {
     debugs(17, 2, "Forwarding client request " << client << ", url=" << e->url());
-    HTTPMSGLOCK(request);
     serverDestinations.reserve(Config.forward_max_tries);
     e->lock("FwdState");
     flags.connected_okay = false;
@@ -181,7 +180,7 @@ void FwdState::start(Pointer aSelf)
 #endif
 
     // do full route options selection
-    startSelectingDestinations(request, al, entry);
+    startSelectingDestinations(al, entry);
 }
 
 /// ends forwarding; relies on refcounting so the effect may not be immediate
@@ -284,8 +283,6 @@ FwdState::~FwdState()
         completed();
 
     doneWithRetries();
-
-    HTTPMSGUNLOCK(request);
 
     delete err;
 
@@ -442,6 +439,7 @@ FwdState::startConnectionOrFail()
     } else {
         if (PeerSelectionInitiator::subscribed) {
             debugs(17, 4, "wait for more destinations to try");
+            requestMoreDestinations();
             return; // expect a noteDestination*() call
         }
 
@@ -836,11 +834,11 @@ void
 FwdState::syncWithServerConn(const char *host)
 {
     if (Ip::Qos::TheConfig.isAclTosActive())
-        Ip::Qos::setSockTos(serverConn, GetTosToServer(request));
+        Ip::Qos::setSockTos(serverConn, GetTosToServer(request.getRaw()));
 
 #if SO_MARK
     if (Ip::Qos::TheConfig.isAclNfmarkActive())
-        Ip::Qos::setSockNfmark(serverConn, GetNfmarkToServer(request));
+        Ip::Qos::setSockNfmark(serverConn, GetNfmarkToServer(request.getRaw()));
 #endif
 
     syncHierNote(serverConn, host);
@@ -886,7 +884,7 @@ FwdState::connectStart()
         ConnStateData *pinned_connection = request->pinnedConnection();
         debugs(17,7, "pinned peer connection: " << pinned_connection);
         // pinned_connection may become nil after a pconn race
-        serverConn = pinned_connection ? pinned_connection->borrowPinnedConnection(request, serverDestinations[0]->getPeer()) : nullptr;
+        serverConn = pinned_connection ? pinned_connection->borrowPinnedConnection(request.getRaw(), serverDestinations[0]->getPeer()) : nullptr;
         if (Comm::IsConnOpen(serverConn)) {
             flags.connected_okay = true;
             ++n_tries;
@@ -953,7 +951,9 @@ FwdState::connectStart()
     entry->mem_obj->checkUrlChecksum();
 #endif
 
-    GetMarkingsToServer(request, *serverDestinations[0]);
+    GetMarkingsToServer(request.getRaw(), *serverDestinations[0]);
+
+    debugs(17, 3, "trying connect to " << serverDestinations[0]);
 
     calls.connector = commCbCall(17,3, "fwdConnectDoneWrapper", CommConnectCbPtrFun(fwdConnectDoneWrapper, this));
     const time_t connTimeout = serverDestinations[0]->connectTimeout(start_t);
@@ -1218,9 +1218,9 @@ FwdState::pconnPop(const Comm::ConnectionPointer &dest, const char *domain)
 {
     bool retriable = checkRetriable();
     if (!retriable && Config.accessList.serverPconnForNonretriable) {
-        ACLFilledChecklist ch(Config.accessList.serverPconnForNonretriable, request, NULL);
+        ACLFilledChecklist ch(Config.accessList.serverPconnForNonretriable, request.getRaw(), nullptr);
         ch.al = al;
-        ch.syncAle(request, nullptr);
+        ch.syncAle(request.getRaw(), nullptr);
         retriable = ch.fastCheck().allowed();
     }
     // always call shared pool first because we need to close an idle

@@ -222,8 +222,6 @@ accessLogClose(void)
 HierarchyLogEntry::HierarchyLogEntry() :
     code(HIER_NONE),
     cd_lookup(LOOKUP_NONE),
-    n_choices(0),
-    n_ichoices(0),
     peer_reply_status(Http::scNone),
     tcpServer(NULL),
     bodyBytesRead(-1)
