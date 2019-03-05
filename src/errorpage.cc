@@ -604,6 +604,7 @@ ErrorState::ErrorState(HttpRequest * req, HttpReply *errorReply) :
     ErrorState(ERR_RELAY_REMOTE)
 {
     Must(errorReply);
+    response_ = errorReply;
     httpStatus = errorReply->sline.status();
     if (req != nullptr) {
         request = req;
