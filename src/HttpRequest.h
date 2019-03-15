@@ -138,12 +138,15 @@ public:
 
     int imslen;
 
-    /// mark this request as internally built
+    /// Mark this request as internally built. For internal requests,
+    /// client connection addresses are undefined.
     void toInternal();
+
     /// Downloader specific settings
     void prepareForDownloader(Downloader *);
-    /// ICP/HTCP specific settings
-    void prepareForCachingProtocol(const Ip::Address &fromAddr);
+
+    /// specify addresses manually when lacking client connection
+    void prepareForConnectionlessProtocol(const Ip::Address &fromAddr, const Ip::Address &localAddr);
 
     /// the remote address of the client connection
     const Ip::Address& clientAddr() const;

@@ -42,9 +42,8 @@ ACLFilledChecklist::ACLFilledChecklist() :
     destinationDomainChecked_(false),
     sourceDomainChecked_(false),
 #if FOLLOW_X_FORWARDED_FOR
-    forceIndirectAddr_(false),
+    forceIndirectAddr_(false)
 #endif
-    forceListeningAddr_(false)
 {
     my_addr.setEmpty();
     src_addr.setEmpty();
@@ -150,7 +149,6 @@ ACLFilledChecklist::clientConnectionManager() const
     return cbdataReferenceValid(conn_) ? conn_ : nullptr;
 }
 
-/// the remote address of the client connection
 const Ip::Address &
 ACLFilledChecklist::srcAddr() const
 {
@@ -159,24 +157,6 @@ ACLFilledChecklist::srcAddr() const
         return request->indirectClientAddr();
 #endif /* FOLLOW_X_FORWARDED_FOR */
     return src_addr;
-}
-
-const Ip::Address &
-ACLFilledChecklist::myAddr() const
-{
-    return (forceListeningAddr_ && clientConnectionManager()) ?
-        clientConnectionManager()->port->s :
-        my_addr;
-}
-
-
-void
-ACLFilledChecklist::setClientConnectionManager(ConnStateData *aConn)
-{
-    if (!(aConn && cbdataReferenceValid(aConn)))
-        return;
-    assert(!clientConnectionManager());
-    conn_ = cbdataReference(aConn);
 }
 
 int
@@ -253,9 +233,9 @@ ACLFilledChecklist::ACLFilledChecklist(const acl_access *A, HttpRequest *http_re
     destinationDomainChecked_(false),
     sourceDomainChecked_(false),
 #if FOLLOW_X_FORWARDED_FOR
-    forceIndirectAddr_(false),
+    forceIndirectAddr_(false)
 #endif
-    forceListeningAddr_(false)
+
 {
     my_addr.setEmpty();
     src_addr.setEmpty();
@@ -273,35 +253,42 @@ void ACLFilledChecklist::setRequest(HttpRequest *httpRequest)
     if (httpRequest) {
         request = httpRequest;
         HTTPMSGLOCK(request);
-        applyIndirectClientOption(Config.onoff.acl_uses_indirect_client);
+        src_addr = request->effectiveClientAddr(Config.onoff.acl_uses_indirect_client);
         my_addr = request->myAddr();
         setClientConnectionManager(request->clientConnectionManager().get());
+        setClientConnection(request->clientConnection());
     }
 }
 
 void ACLFilledChecklist::clientConnectionManager(ConnStateData *aConn)
 {
-    if (!clientConnectionManager()) {
-        setClientConnectionManager(aConn);
-        if (clientConnectionManager())
-            setClientConnection(clientConnectionManager()->clientConnection);
-    }
+    setClientConnectionManager(aConn);
+    if (clientConnectionManager())
+        setClientConnection(clientConnectionManager()->clientConnection);
 }
 
 void ACLFilledChecklist::clientConnection(Comm::ConnectionPointer conn)
 {
-    if (request || clientConnectionManager())
-        return;
-
     setClientConnection(conn);
 }
 
-void ACLFilledChecklist::applyIndirectClientOption(const bool useIndirect)
+void ACLFilledChecklist::configureClientAddr(const bool useIndirect)
 {
-    if (!request)
+    assert(request);
+    src_addr = Config.onoff.acl_uses_indirect_client ?
+            request->effectiveClientAddr(useIndirect) : request->clientAddr();
+}
+
+void
+ACLFilledChecklist::setClientConnectionManager(ConnStateData *aConn)
+{
+    if (!(aConn && cbdataReferenceValid(aConn)))
         return;
 
-    src_addr = request->effectiveClientAddr(useIndirect);
+    if (clientConnectionManager())
+        return;
+
+    conn_ = cbdataReference(aConn);
 }
 
 void ACLFilledChecklist::setClientConnection(Comm::ConnectionPointer conn)
@@ -309,14 +296,23 @@ void ACLFilledChecklist::setClientConnection(Comm::ConnectionPointer conn)
     if(!conn)
         return;
 
-    src_addr = conn->remote;
-    my_addr = conn->local;
+    if (clientConnection_)
+        return;
+
+    clientConnection_ = conn;
+
+    if (request)
+        return; // addresses already initialized from request
+
+    src_addr = clientConnection_->remote;
+    my_addr = clientConnection_->local;
 }
 
-void ACLFilledChecklist::snmpDetails(char *snmpCommunity, const Ip::Address &from)
+void ACLFilledChecklist::snmpDetails(char *snmpCommunity, const Ip::Address &fromAddr, const Ip::Address &localAddr)
 {
     snmp_community = snmpCommunity;
-    src_addr = from;
+    src_addr = fromAddr;
+    my_addr = localAddr;
 }
 
 void

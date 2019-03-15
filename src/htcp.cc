@@ -119,6 +119,9 @@ struct _htcpAuthHeader {
     Countstr signature;
 };
 
+static Comm::ConnectionPointer htcpOutgoingConn;
+static Comm::ConnectionPointer htcpIncomingConn;
+
 class htcpSpecifier : public RefCountable, public StoreClient
 {
     MEMPROXY_CLASS(htcpSpecifier);
@@ -133,9 +136,9 @@ public:
         assert(request);
         return request->clientAddr();
     }
-    void setAddresses(Ip::Address &anIp) {
+    void setAddresses(Ip::Address &from) {
         assert(request);
-        request->prepareForCachingProtocol(anIp);
+        request->prepareForConnectionlessProtocol(from, htcpIncomingConn->local);
     }
     void setDataHeader(htcpDataHeader *aDataHeader) {
         dhdr = aDataHeader;
@@ -238,8 +241,6 @@ enum {
 static void htcpIncomingConnectionOpened(const Comm::ConnectionPointer &conn, int errNo);
 static uint32_t msg_id_counter = 0;
 
-static Comm::ConnectionPointer htcpOutgoingConn = NULL;
-static Comm::ConnectionPointer htcpIncomingConn = NULL;
 #define N_QUERIED_KEYS 8192
 static uint32_t queried_id[N_QUERIED_KEYS];
 static cache_key queried_keys[N_QUERIED_KEYS][SQUID_MD5_DIGEST_LENGTH];

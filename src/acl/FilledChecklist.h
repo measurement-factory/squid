@@ -39,32 +39,43 @@ public:
     ACLFilledChecklist(const acl_access *, HttpRequest *, const char *ident = nullptr);
     ~ACLFilledChecklist();
 
-    /// configure client request-related fields for the first time
+    /// Configure client request-related fields for the first time.
+    /// The passed HttpRequest parameter usually contains all client-related
+    /// data, including addresses and the connection manager.
     void setRequest(HttpRequest *);
+
     /// configure rfc931 user identity for the first time
     void setIdent(const char *userIdentity);
 
-public:
+    /// Configures client-related fields from the passed client connection manager.
+    /// Has no effect if the client connection manager field is already initialized.
+    /// This method should be used in contexts where HttpRequest may be unavailable.
     void clientConnectionManager(ConnStateData *);
 
+    /// Configures client-related fields from the passed client connection.
+    /// Has no effect if the fields are already initialized.
+    /// This method should be used in contexts where HttpRequest and
+    /// connection manager may be unavailable.
     void clientConnection(Comm::ConnectionPointer);
 
-    void applyIndirectClientOption(const bool);
+    /// Use either indirect client address or direct address
+    /// depending on the argument, passed as one of *uses_indirect_client
+    /// configuration options.
+    void configureClientAddr(const bool useIndirect);
 
-    /// always use Squid listening address instead of the connection local address
-    void forceListeningAddr() { forceListeningAddr_ = true; }
 #if FOLLOW_X_FORWARDED_FOR
-    /// always use indirect client address instead of direct client address
-    void forceIndirectAddr() { forceIndirectAddr_ = true; }
+     /// always use indirect client address instead of direct client address
+     void forceIndirectAddr() { forceIndirectAddr_ = true; }
 #endif /* FOLLOW_X_FORWARDED_FOR */
+
     /// the associated client connection manager or nil
     ConnStateData *clientConnectionManager() const;
 
     /// remote address, direct or indirect
     const Ip::Address &srcAddr() const;
 
-    /// local address, listening or of the established connection
-    const Ip::Address &myAddr() const;
+    /// local address
+    const Ip::Address &myAddr() const { return my_addr; }
 
     /// The client side fd. It uses conn() if available
     int fd() const;
@@ -99,7 +110,8 @@ public:
     Auth::UserRequest::Pointer auth_user_request;
 #endif
 #if SQUID_SNMP
-    void snmpDetails(char *community, const Ip::Address &from);
+    /// configure with SNMP specific parameters
+    void snmpDetails(char *community, const Ip::Address &fromAddr, const Ip::Address &localAddr);
 
     char *snmp_community;
 #endif
@@ -120,6 +132,7 @@ private:
     void setClientConnection(Comm::ConnectionPointer);
 
     ConnStateData * conn_;          /**< hack for ident and NTLM */
+    Comm::ConnectionPointer clientConnection_;
     int fd_;                        /**< may be available when conn_ is not */
     bool destinationDomainChecked_;
     bool sourceDomainChecked_;
@@ -129,8 +142,6 @@ private:
     /// whether we will use indirect client address instead of direct address
     bool forceIndirectAddr_;
 #endif /* FOLLOW_X_FORWARDED_FOR */
-    /// whether we will use Squid listening address instead of local connection address
-    bool forceListeningAddr_;
     /// not implemented; will cause link failures if used
     ACLFilledChecklist(const ACLFilledChecklist &);
     /// not implemented; will cause link failures if used

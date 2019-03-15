@@ -772,10 +772,10 @@ HttpRequest::clientAddr() const
 }
 
 void
-HttpRequest::prepareForCachingProtocol(const Ip::Address &fromAddr)
+HttpRequest::prepareForConnectionlessProtocol(const Ip::Address &fromAddr, const Ip::Address &localAddr)
 {
     client_addr = fromAddr;
-    my_addr = NoAddr();
+    my_addr = localAddr;
 }
 
 const Ip::Address&

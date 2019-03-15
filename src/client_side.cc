@@ -2619,7 +2619,6 @@ ConnStateData::postHttpsAccept()
 
         ACLFilledChecklist *acl_checklist = new ACLFilledChecklist(Config.accessList.ssl_bump, request, NULL);
         acl_checklist->clientConnectionManager(this);
-        acl_checklist->forceListeningAddr();
         // Build a local AccessLogEntry to allow requiresAle() acls work
         acl_checklist->al = new AccessLogEntry;
         acl_checklist->al->cache.start_time = current_time;
