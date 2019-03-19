@@ -74,7 +74,6 @@ class HttpRequest;
 class MemBuf;
 class StoreEntry;
 class wordlist;
-typedef RefCount<HttpReply> HttpReplyPointer;
 
 /// \ingroup ErrorPageAPI
 class ErrorState
