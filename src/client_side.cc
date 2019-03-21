@@ -2274,7 +2274,6 @@ ConnStateData::whenClientIpKnown()
 
         // TODO: we check early to limit error response bandwith but we
         // should recheck when we can honor delay_pool_uses_indirect
-        // TODO: we should also pass the port details for myportname here.
 
         for (unsigned int pool = 0; pool < pools.size(); ++pool) {
 

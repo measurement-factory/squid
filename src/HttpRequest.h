@@ -142,7 +142,7 @@ public:
     /// client connection addresses are undefined.
     void toInternal();
 
-    /// Downloader specific settings
+    /// supply Downloader-specific settings
     void prepareForDownloader(Downloader *);
 
     /// specify addresses manually when lacking client connection
@@ -154,18 +154,21 @@ public:
     /// the local address of the client connection
     const Ip::Address& myAddr() const;
 
-    /// \returns indirect client address, if allowed, or direct client address
+    /// indirect client address, if allowed, or direct client address
     const Ip::Address& effectiveClientAddr(const bool useIndirect) const;
 
+    /// the client connection manager of the underlying transaction, if any
     CbcPointer<ConnStateData> &clientConnectionManager() { return masterXaction->clientConnectionManager(); }
 
+    /// the client connection of the underlying transaction, if any
     Comm::ConnectionPointer clientConnection() const;
 
 #if FOLLOW_X_FORWARDED_FOR
+    /// the indirect client address
     const Ip::Address& indirectClientAddr() const;
 
     void indirectClientAddr(const Ip::Address &addr) { indirect_client_addr = addr; }
-    /// always use direct client address
+    /// force using direct client address
     void ignoreIndirectClientAddr();
 #endif /* FOLLOW_X_FORWARDED_FOR */
 

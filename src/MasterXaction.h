@@ -49,8 +49,10 @@ public:
 
     MasterXaction(const XactionInitiator, Comm::ConnectionPointer);
 
+    /// the client connection of the transaction, if any
     Comm::ConnectionPointer clientConnection();
 
+    /// the client connection manager of the transaction, if any
     CbcPointer<ConnStateData> &clientConnectionManager() { return clientConnectionManager_; }
 
     /// transaction ID.

@@ -131,7 +131,9 @@ private:
     void setClientConnectionManager(ConnStateData *);
     void setClientConnection(Comm::ConnectionPointer);
 
-    ConnStateData * conn_;          /**< hack for ident and NTLM */
+    /// a client connection manager, if any
+    ConnStateData *connectionManager_;
+    /// a client connection, if any
     Comm::ConnectionPointer clientConnection_;
     int fd_;                        /**< may be available when conn_ is not */
     bool destinationDomainChecked_;

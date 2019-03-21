@@ -37,7 +37,7 @@ ACLFilledChecklist::ACLFilledChecklist() :
     sslErrors(NULL),
 #endif
     requestErrorType(ERR_MAX),
-    conn_(NULL),
+    connectionManager_(nullptr),
     fd_(-1),
     destinationDomainChecked_(false),
     sourceDomainChecked_(false),
@@ -61,7 +61,7 @@ ACLFilledChecklist::~ACLFilledChecklist()
 
     HTTPMSGUNLOCK(reply);
 
-    cbdataReferenceDone(conn_);
+    cbdataReferenceDone(connectionManager_);
 
 #if USE_OPENSSL
     cbdataReferenceDone(sslErrors);
@@ -146,7 +146,7 @@ ACLFilledChecklist::syncAle(HttpRequest *adaptedRequest, const char *logUri) con
 ConnStateData *
 ACLFilledChecklist::clientConnectionManager() const
 {
-    return cbdataReferenceValid(conn_) ? conn_ : nullptr;
+    return cbdataReferenceValid(connectionManager_) ? connectionManager_ : nullptr;
 }
 
 const Ip::Address &
@@ -228,7 +228,7 @@ ACLFilledChecklist::ACLFilledChecklist(const acl_access *A, HttpRequest *http_re
     sslErrors(NULL),
 #endif
     requestErrorType(ERR_MAX),
-    conn_(NULL),
+    connectionManager_(NULL),
     fd_(-1),
     destinationDomainChecked_(false),
     sourceDomainChecked_(false),
@@ -247,7 +247,8 @@ ACLFilledChecklist::ACLFilledChecklist(const acl_access *A, HttpRequest *http_re
     setIdent(ident);
 }
 
-void ACLFilledChecklist::setRequest(HttpRequest *httpRequest)
+void
+ACLFilledChecklist::setRequest(HttpRequest *httpRequest)
 {
     assert(!request);
     if (httpRequest) {
@@ -260,25 +261,30 @@ void ACLFilledChecklist::setRequest(HttpRequest *httpRequest)
     }
 }
 
-void ACLFilledChecklist::clientConnectionManager(ConnStateData *aConn)
+void
+ACLFilledChecklist::clientConnectionManager(ConnStateData *aConn)
 {
     setClientConnectionManager(aConn);
     if (clientConnectionManager())
         setClientConnection(clientConnectionManager()->clientConnection);
 }
 
-void ACLFilledChecklist::clientConnection(Comm::ConnectionPointer conn)
+void
+ACLFilledChecklist::clientConnection(Comm::ConnectionPointer conn)
 {
     setClientConnection(conn);
 }
 
-void ACLFilledChecklist::configureClientAddr(const bool useIndirect)
+void
+ACLFilledChecklist::configureClientAddr(const bool useIndirect)
 {
     assert(request);
     src_addr = Config.onoff.acl_uses_indirect_client ?
             request->effectiveClientAddr(useIndirect) : request->clientAddr();
 }
 
+/// Initializes the client connection manager; does nothing
+/// if already initialized.
 void
 ACLFilledChecklist::setClientConnectionManager(ConnStateData *aConn)
 {
@@ -288,10 +294,14 @@ ACLFilledChecklist::setClientConnectionManager(ConnStateData *aConn)
     if (clientConnectionManager())
         return;
 
-    conn_ = cbdataReference(aConn);
+    connectionManager_ = cbdataReference(aConn);
 }
 
-void ACLFilledChecklist::setClientConnection(Comm::ConnectionPointer conn)
+
+/// Initializes the client connection and addresses; does nothing
+/// if already initialized.
+void
+ACLFilledChecklist::setClientConnection(Comm::ConnectionPointer conn)
 {
     if(!conn)
         return;
@@ -302,13 +312,14 @@ void ACLFilledChecklist::setClientConnection(Comm::ConnectionPointer conn)
     clientConnection_ = conn;
 
     if (request)
-        return; // addresses already initialized from request
+        return; // addresses should have already initialized from the request
 
     src_addr = clientConnection_->remote;
     my_addr = clientConnection_->local;
 }
 
-void ACLFilledChecklist::snmpDetails(char *snmpCommunity, const Ip::Address &fromAddr, const Ip::Address &localAddr)
+void
+ACLFilledChecklist::snmpDetails(char *snmpCommunity, const Ip::Address &fromAddr, const Ip::Address &localAddr)
 {
     snmp_community = snmpCommunity;
     src_addr = fromAddr;
