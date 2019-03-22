@@ -96,7 +96,6 @@ HttpRequest::init()
     peer_domain = NULL;     // not allocated/deallocated by this class
     peer_host = NULL;
     vary_headers = SBuf();
-    myportname = null_string;
     tag = null_string;
 #if USE_AUTH
     extacl_user = null_string;
@@ -120,7 +119,6 @@ HttpRequest::init()
 
     if (clientConnectionManager().valid()) {
         if (const auto port = clientConnectionManager()->port) {
-            myportname = port->name;
             flags.ignoreCc = port->ignore_cc;
         }
     }
@@ -155,8 +153,6 @@ HttpRequest::clean()
         delete range;
         range = NULL;
     }
-
-    myportname.clean();
 
     theNotes = nullptr;
 
@@ -258,8 +254,6 @@ HttpRequest::inheritProperties(const Http::Message *aMsg)
     extacl_user = aReq->extacl_user;
     extacl_passwd = aReq->extacl_passwd;
 #endif
-
-    myportname = aReq->myportname;
 
     forcedBodyContinuation = aReq->forcedBodyContinuation;
 
