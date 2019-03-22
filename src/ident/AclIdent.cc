@@ -116,7 +116,7 @@ void
 IdentLookup::checkForAsync(ACLChecklist *cl)const
 {
     ACLFilledChecklist *checklist = Filled(cl);
-    const ConnStateData *conn = checklist->clientConnectionManager();
+    const auto *conn = checklist->clientConnectionManager();
     // check that ACLIdent::match() tested this lookup precondition
     assert(conn && Comm::IsConnOpen(conn->clientConnection));
     debugs(28, 3, HERE << "Doing ident lookup" );

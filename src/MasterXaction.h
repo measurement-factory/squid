@@ -65,11 +65,8 @@ public:
     XactionInitiator initiator;
 
 private:
-    /**
-     * The client connection manager, if known;
-     * Used for any response actions needed directly to the client.
-     * ie 1xx forwarding or connection pinning state changes
-     */
+
+    /// the client connection manager, if any
     CbcPointer<ConnStateData> clientConnectionManager_;
 
     /// the client TCP connection which originated this transaction

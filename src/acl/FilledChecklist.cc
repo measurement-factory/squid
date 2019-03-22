@@ -228,7 +228,7 @@ ACLFilledChecklist::ACLFilledChecklist(const acl_access *A, HttpRequest *http_re
     sslErrors(NULL),
 #endif
     requestErrorType(ERR_MAX),
-    connectionManager_(NULL),
+    connectionManager_(nullptr),
     fd_(-1),
     destinationDomainChecked_(false),
     sourceDomainChecked_(false),

@@ -58,13 +58,14 @@ public:
     /// connection manager may be unavailable.
     void clientConnection(Comm::ConnectionPointer);
 
-    /// Use either indirect client address or direct address
-    /// depending on the argument, passed as one of *uses_indirect_client
+    /// Configures srcAddr() to return either indirect client address or direct
+    /// address depending on the argument, passed as one of *uses_indirect_client
     /// configuration options.
     void configureClientAddr(const bool useIndirect);
 
 #if FOLLOW_X_FORWARDED_FOR
-     /// always use indirect client address instead of direct client address
+     /// Configures srcAddr() to always return available indirect client address
+     /// instead of direct client address.
      void forceIndirectAddr() { forceIndirectAddr_ = true; }
 #endif /* FOLLOW_X_FORWARDED_FOR */
 
@@ -80,6 +81,7 @@ public:
     /// The client side fd. It uses conn() if available
     int fd() const;
 
+    // TODO: remove as unused?
     /// set the client side FD
     void fd(int aDescriptor);
 
@@ -135,6 +137,7 @@ private:
     ConnStateData *connectionManager_;
     /// a client connection, if any
     Comm::ConnectionPointer clientConnection_;
+    // TODO: remove as unused?
     int fd_;                        /**< may be available when conn_ is not */
     bool destinationDomainChecked_;
     bool sourceDomainChecked_;
