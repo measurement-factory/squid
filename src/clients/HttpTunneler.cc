@@ -12,6 +12,7 @@
 #include "comm/Read.h"
 #include "comm/Write.h"
 #include "errorpage.h"
+#include "fd.h"
 #include "fde.h"
 #include "http.h"
 #include "http/one/ResponseParser.h"
@@ -145,6 +146,7 @@ Http::Tunneler::writeRequest()
 
     debugs(11, 2, "Tunnel Server REQUEST: " << connection <<
            ":\n----------\n" << mb.buf << "\n----------");
+    fd_note(connection->fd, "Tunnel Server CONNECT");
 
     typedef CommCbMemFunT<Http::Tunneler, CommIoCbParams> Dialer;
     writer = JobCallback(5, 5, Dialer, this, Http::Tunneler::handleWrittenRequest);
