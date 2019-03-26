@@ -4023,6 +4023,16 @@ DOC_START
 	Manager mgr:counters, mgr:5min, and mgr:60min reports.
 DOC_END
 
+NAME: paranoid_hit_validation_profiler_cycles
+DEFAULT: 100
+TYPE: int
+LOC: Config.paranoid_hit_validation_profiler_cycles
+DOC_START
+        Turns on paranoid hit validation time measurements. Will print
+        the calculated statistics every this number of paranoid
+        hit validation calls.
+DOC_END
+
 NAME: max_open_disk_fds
 TYPE: int
 LOC: Config.max_open_disk_fds

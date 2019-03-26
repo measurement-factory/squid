@@ -353,6 +353,8 @@ public:
     int forward_max_tries;
     int connect_retries;
 
+    int paranoid_hit_validation_profiler_cycles;
+
     class ACL *aclList;
 
     struct {

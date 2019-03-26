@@ -15,6 +15,7 @@
 #include "StatCounters.h"
 #include "Store.h"
 #include "store_key_md5.h"
+#include "TimeProfiler.h"
 #include "tools.h"
 
 static SBuf
@@ -668,9 +669,19 @@ Ipc::StoreMap::validSlice(const int pos) const
     return 0 <= pos && pos < sliceLimit();
 }
 
+
+static Profiler *TheProfiler()
+{
+    static Profiler profiler("validateHit", Config.paranoid_hit_validation_profiler_cycles);
+    return &profiler;
+}
+
 bool
 Ipc::StoreMap::validateHit(const sfileno fileno)
 {
+    if (TheProfiler()->needPrintStat())
+        debugs(54, DBG_IMPORTANT, TheProfiler()->toString().c_str());
+    ProfilerScope scope(TheProfiler());
     const auto &anchor = anchorAt(fileno);
 
     ++statCounter.hitValidation.attempts;
@@ -695,6 +706,7 @@ Ipc::StoreMap::validateHit(const sfileno fileno)
             break;
         lastSeenSlice = slice.next;
     }
+    TheProfiler()->takeObjectInfo(actualSliceCount, actualByteCount);
 
     anchor.lock.unlockHeaders();
 
