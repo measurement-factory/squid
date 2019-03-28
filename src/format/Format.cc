@@ -1225,7 +1225,7 @@ Format::Format::assemble(MemBuf &mb, const AccessLogEntry::Pointer &al, int logS
 
         case LFT_EXT_ACL_USER_CERT:
             if (al->request) {
-                auto *conn = al->request->clientConnectionManager().get();
+                const auto conn = al->request->clientConnectionManager().get();
                 if (conn && Comm::IsConnOpen(conn->clientConnection)) {
                     if (auto ssl = fd_table[conn->clientConnection->fd].ssl.get())
                         out = sslGetUserAttribute(ssl, fmt->data.header.header);
@@ -1235,7 +1235,7 @@ Format::Format::assemble(MemBuf &mb, const AccessLogEntry::Pointer &al, int logS
 
         case LFT_EXT_ACL_USER_CA_CERT:
             if (al->request) {
-                auto *conn = al->request->clientConnectionManager().get();
+                const auto conn = al->request->clientConnectionManager().get();
                 if (conn && Comm::IsConnOpen(conn->clientConnection)) {
                     if (auto ssl = fd_table[conn->clientConnection->fd].ssl.get())
                         out = sslGetCAAttribute(ssl, fmt->data.header.header);
@@ -1263,7 +1263,7 @@ Format::Format::assemble(MemBuf &mb, const AccessLogEntry::Pointer &al, int logS
 
         case LFT_SSL_CLIENT_SNI:
             if (al->request && al->request->clientConnectionManager().valid()) {
-                if (const auto *conn = al->request->clientConnectionManager().get()) {
+                if (const auto conn = al->request->clientConnectionManager().get()) {
                     if (!conn->tlsClientSni().isEmpty()) {
                         sb = conn->tlsClientSni();
                         out = sb.c_str();
@@ -1274,7 +1274,7 @@ Format::Format::assemble(MemBuf &mb, const AccessLogEntry::Pointer &al, int logS
 
         case LFT_SSL_SERVER_CERT_ERRORS:
             if (al->request && al->request->clientConnectionManager().valid()) {
-                if (auto *srvBump = al->request->clientConnectionManager()->serverBump()) {
+                if (const auto srvBump = al->request->clientConnectionManager()->serverBump()) {
                     const char *separator = fmt->data.string ? fmt->data.string : ":";
                     for (const Security::CertErrors *sslError = srvBump->sslErrors(); sslError; sslError = sslError->next) {
                         if (!sb.isEmpty())
@@ -1296,7 +1296,7 @@ Format::Format::assemble(MemBuf &mb, const AccessLogEntry::Pointer &al, int logS
         case LFT_SSL_SERVER_CERT_SUBJECT:
         case LFT_SSL_SERVER_CERT_WHOLE:
             if (al->request && al->request->clientConnectionManager().valid()) {
-                if (auto *srvBump = al->request->clientConnectionManager()->serverBump()) {
+                if (const auto srvBump = al->request->clientConnectionManager()->serverBump()) {
                     if (X509 *serverCert = srvBump->serverCert.get()) {
                         if (fmt->type == LFT_SSL_SERVER_CERT_SUBJECT)
                             out = Ssl::GetX509UserAttribute(serverCert, "DN");

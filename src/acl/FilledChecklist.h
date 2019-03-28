@@ -58,10 +58,9 @@ public:
     /// connection manager may be unavailable.
     void clientConnection(Comm::ConnectionPointer);
 
-    /// Configures srcAddr() to return either indirect client address or direct
-    /// address depending on the argument, passed as one of *uses_indirect_client
-    /// configuration options.
-    void configureClientAddr(const bool useIndirect);
+    /// Configures srcAddr() to return either indirect client address (if possible)
+    /// or direct address.
+    void configureClientAddr(const bool wantIndirect);
 
 #if FOLLOW_X_FORWARDED_FOR
      /// Configures srcAddr() to always return available indirect client address
@@ -72,16 +71,16 @@ public:
     /// the associated client connection manager or nil
     ConnStateData *clientConnectionManager() const;
 
-    /// remote address, direct or indirect
+    /// remote/source address of a client-to-Squid connection, direct or indirect
     const Ip::Address &srcAddr() const;
 
-    /// local address
+    /// local/destination address of a client-to-Squid connection
     const Ip::Address &myAddr() const { return my_addr; }
 
     /// The client side fd. It uses conn() if available
     int fd() const;
 
-    // TODO: remove as unused?
+    // TODO: Unused. Remove?
     /// set the client side FD
     void fd(int aDescriptor);
 
@@ -137,7 +136,7 @@ private:
     ConnStateData *connectionManager_;
     /// a client connection, if any
     Comm::ConnectionPointer clientConnection_;
-    // TODO: remove as unused?
+    // TODO: Unused. Remove?
     int fd_;                        /**< may be available when conn_ is not */
     bool destinationDomainChecked_;
     bool sourceDomainChecked_;

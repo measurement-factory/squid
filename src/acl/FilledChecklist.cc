@@ -254,7 +254,12 @@ ACLFilledChecklist::setRequest(HttpRequest *httpRequest)
     if (httpRequest) {
         request = httpRequest;
         HTTPMSGLOCK(request);
-        src_addr = request->effectiveClientAddr(Config.onoff.acl_uses_indirect_client);
+#if FOLLOW_X_FORWARDED_FOR
+        if (Config.onoff.acl_uses_indirect_client)
+            src_addr = request->indirectClientAddr();
+        else
+#endif /* FOLLOW_X_FORWARDED_FOR */
+            src_addr = request->clientAddr();
         my_addr = request->myAddr();
         setClientConnectionManager(request->clientConnectionManager().get());
         setClientConnection(request->clientConnection());
@@ -279,8 +284,12 @@ void
 ACLFilledChecklist::configureClientAddr(const bool useIndirect)
 {
     assert(request);
-    src_addr = Config.onoff.acl_uses_indirect_client ?
-            request->effectiveClientAddr(useIndirect) : request->clientAddr();
+#if FOLLOW_X_FORWARDED_FOR
+    if (Config.onoff.acl_uses_indirect_client && useIndirect)
+        src_addr = request->indirectClientAddr();
+    else
+#endif /* FOLLOW_X_FORWARDED_FOR */
+    src_addr = request->clientAddr();
 }
 
 /// Initializes the client connection manager; does nothing
@@ -303,11 +312,13 @@ ACLFilledChecklist::setClientConnectionManager(ConnStateData *aConn)
 void
 ACLFilledChecklist::setClientConnection(Comm::ConnectionPointer conn)
 {
-    if(!conn)
+    if (!conn)
         return;
 
-    if (clientConnection_)
+    if (clientConnection_) {
+        Must(conn == clientConnection_);
         return;
+    }
 
     clientConnection_ = conn;
 

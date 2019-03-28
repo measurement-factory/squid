@@ -90,7 +90,12 @@ DelayId::DelayClient(ClientHttpRequest * http, HttpReply *reply)
             ch.reply = reply;
             HTTPMSGLOCK(reply);
         }
-        ch.configureClientAddr(Config.onoff.delay_pool_uses_indirect_client);
+#if FOLLOW_X_FORWARDED_FOR
+        if (Config.onoff.delay_pool_uses_indirect_client)
+            ch.configureClientAddr(true);
+        else
+#endif /* FOLLOW_X_FORWARDED_FOR */
+        ch.configureClientAddr(false);
 
         if (DelayPools::delay_data[pool].theComposite().getRaw() && ch.fastCheck().allowed()) {
 

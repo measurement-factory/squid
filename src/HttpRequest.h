@@ -138,9 +138,8 @@ public:
 
     int imslen;
 
-    /// Mark this request as internally built. For internal requests,
-    /// client connection addresses are undefined.
-    void toInternal();
+    /// this request was initiated by Squid (rather than received on a client connection)
+    void makeInternal();
 
     /// supply Downloader-specific settings
     void prepareForDownloader(Downloader *);
@@ -154,11 +153,8 @@ public:
     /// the local address of the client connection
     const Ip::Address& myAddr() const;
 
-    /// indirect client address, if allowed, or direct client address
-    const Ip::Address& effectiveClientAddr(const bool useIndirect) const;
-
     /// the client connection manager of the underlying transaction, if any
-    CbcPointer<ConnStateData> &clientConnectionManager() { return masterXaction->clientConnectionManager(); }
+    CbcPointer<ConnStateData> &clientConnectionManager();
 
     /// the client connection of the underlying transaction, if any
     Comm::ConnectionPointer clientConnection() const;
@@ -275,7 +271,7 @@ private:
     Ip::Address indirect_client_addr;
 #endif /* FOLLOW_X_FORWARDED_FOR */
 
-    /// whether this is an internally built request
+    /// whether this request was initiated by Squid itself
     bool internal;
 
 protected:

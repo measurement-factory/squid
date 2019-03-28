@@ -122,12 +122,6 @@ HttpRequest::init()
             flags.ignoreCc = port->ignore_cc;
         }
     }
-#if FOLLOW_X_FORWARDED_FOR
-    // indirect client gets stored here because it is an HTTP header result (from X-Forwarded-For:)
-    // not details about the TCP connection itself
-    if (clientConnection())
-      indirect_client_addr = clientConnection()->remote;
-#endif /* FOLLOW_X_FORWARDED_FOR */
 }
 
 void
@@ -725,11 +719,11 @@ HttpRequest::prepareForDownloader(Downloader *aDownloader)
     header.putStr(Http::HdrType::HOST, url.host());
     header.putTime(Http::HdrType::DATE, squid_curtime);
     downloader = aDownloader;
-    toInternal();
+    makeInternal();
 }
 
 void
-HttpRequest::toInternal()
+HttpRequest::makeInternal()
 {
     /* Internally created requests cannot have bodies today */
     content_length = 0;
@@ -737,15 +731,13 @@ HttpRequest::toInternal()
     internal = true;
 }
 
-const Ip::Address&
-HttpRequest::effectiveClientAddr(const bool useIndirect) const
+CbcPointer<ConnStateData> &
+HttpRequest::clientConnectionManager()
 {
-#if FOLLOW_X_FORWARDED_FOR
-    if (useIndirect)
-        return indirectClientAddr();
-    else
-#endif
-    return clientAddr();
+    if (!internal)
+        return masterXaction->clientConnectionManager();
+    static CbcPointer<ConnStateData> noManager;
+    return noManager;
 }
 
 static const Ip::Address&
@@ -760,9 +752,11 @@ NoAddr()
 const Ip::Address&
 HttpRequest::clientAddr() const
 {
-    return internal ? NoAddr() :
-        masterXaction->clientConnection() ?
-        masterXaction->clientConnection()->remote : client_addr;
+    if (internal)
+        return NoAddr();
+    if (clientConnection())
+        return clientConnection()->remote;
+    return client_addr;
 }
 
 void
@@ -784,7 +778,11 @@ HttpRequest::myAddr() const
 const Ip::Address&
 HttpRequest::indirectClientAddr() const
 {
-    return internal ? NoAddr() : indirect_client_addr;
+    if (internal)
+       return NoAddr();
+    if (indirect_client_addr.port()) // configured
+        return indirect_client_addr;
+    return clientAddr();
 }
 
 void
@@ -875,5 +873,8 @@ FindListeningPortAddress(const HttpRequest *callerRequest, const AccessLogEntry 
 Comm::ConnectionPointer
 HttpRequest::clientConnection() const
 {
-    return masterXaction->clientConnection();
+	if (!internal)
+        return masterXaction->clientConnection();
+	static Comm::ConnectionPointer noConnection;
+	return noConnection;
 }

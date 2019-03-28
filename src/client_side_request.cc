@@ -375,7 +375,7 @@ clientBeginRequest(const HttpRequestMethod& method, char const *url, CSCB * stre
      * objects ?
      */
 
-    request->toInternal();
+    request->makeInternal();
 
     http->initRequest(request);
 
