@@ -134,6 +134,9 @@ public:
      */
     bool isSiteLocalAuto() const;
 
+    /// whether the address is the same as the one created with default constructor
+    bool isEmpty() const;
+
     /*@}*/
 
     /** Retrieve the Port if stored.

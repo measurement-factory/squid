@@ -770,7 +770,7 @@ void
 Ftp::Relay::stopOriginWait(int code)
 {
     if (originWaitInProgress) {
-        if (const auto mgr = fwd->request->clientConnectionManager().get()) {
+        if (const auto mgr = fwd->request->clientConnectionManager().valid()) {
             if (const auto srv = dynamic_cast<Ftp::Server*>(mgr)) {
                 typedef UnaryMemFunT<Ftp::Server, int> CbDialer;
                 AsyncCall::Pointer call = asyncCall(11, 3, "Ftp::Server::stopWaitingForOrigin",

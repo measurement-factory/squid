@@ -46,7 +46,7 @@ void
 Ssl::PeekingPeerConnector::checkForPeekAndSplice()
 {
     // Mark Step3 of bumping
-    if (const auto manager = request->clientConnectionManager().get()) {
+    if (const auto manager = request->clientConnectionManager().valid()) {
         if (const auto serverBump = manager->serverBump()) {
             serverBump->step = Ssl::bumpStep3;
         }
@@ -319,7 +319,7 @@ Ssl::PeekingPeerConnector::handleServerCertificate()
     if (serverCertificateHandled)
         return;
 
-    if (const auto csd = request->clientConnectionManager().get()) {
+    if (const auto csd = request->clientConnectionManager().valid()) {
         const int fd = serverConnection()->fd;
         Security::SessionPointer session(fd_table[fd].ssl);
         Security::CertPointer serverCert(SSL_get_peer_certificate(session.get()));
@@ -338,7 +338,7 @@ Ssl::PeekingPeerConnector::handleServerCertificate()
 void
 Ssl::PeekingPeerConnector::serverCertificateVerified()
 {
-    if (const auto csd = request->clientConnectionManager().get()) {
+    if (const auto csd = request->clientConnectionManager().valid()) {
         Security::CertPointer serverCert;
         if(Ssl::ServerBump *serverBump = csd->serverBump())
             serverCert.resetAndLock(serverBump->serverCert.get());

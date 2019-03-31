@@ -780,7 +780,7 @@ HttpRequest::indirectClientAddr() const
 {
     if (internal)
        return NoAddr();
-    if (indirect_client_addr.port()) // configured
+    if (!indirect_client_addr.isEmpty())
         return indirect_client_addr;
     return clientAddr();
 }
