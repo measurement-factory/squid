@@ -95,7 +95,7 @@ DelayId::DelayClient(ClientHttpRequest * http, HttpReply *reply)
             ch.configureClientAddr(true);
         else
 #endif /* FOLLOW_X_FORWARDED_FOR */
-        ch.configureClientAddr(false);
+            ch.configureClientAddr(false);
 
         if (DelayPools::delay_data[pool].theComposite().getRaw() && ch.fastCheck().allowed()) {
 

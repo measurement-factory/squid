@@ -10,8 +10,8 @@
 #define SQUID_SRC_MASTERXACTION_H
 
 #include "anyp/forward.h"
-#include "base/CbcPointer.h"
 #include "anyp/PortCfg.h"
+#include "base/CbcPointer.h"
 #include "base/InstanceId.h"
 #include "base/Lock.h"
 #include "base/RefCount.h"

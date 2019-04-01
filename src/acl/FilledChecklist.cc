@@ -289,7 +289,7 @@ ACLFilledChecklist::configureClientAddr(const bool useIndirect)
         src_addr = request->indirectClientAddr();
     else
 #endif /* FOLLOW_X_FORWARDED_FOR */
-    src_addr = request->clientAddr();
+        src_addr = request->clientAddr();
 }
 
 /// Initializes the client connection manager; does nothing
@@ -305,7 +305,6 @@ ACLFilledChecklist::setClientConnectionManager(ConnStateData *aConn)
 
     connectionManager_ = cbdataReference(aConn);
 }
-
 
 /// Initializes the client connection and addresses; does nothing
 /// if already initialized.

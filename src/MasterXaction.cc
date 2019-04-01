@@ -33,3 +33,4 @@ MasterXaction::clientConnection()
 {
     return clientConnectionManager_.valid() ? clientConnectionManager_->clientConnection : clientConnection_;
 }
+

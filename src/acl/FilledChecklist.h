@@ -63,9 +63,9 @@ public:
     void configureClientAddr(const bool wantIndirect);
 
 #if FOLLOW_X_FORWARDED_FOR
-     /// Configures srcAddr() to always return available indirect client address
-     /// instead of direct client address.
-     void forceIndirectAddr() { forceIndirectAddr_ = true; }
+    /// Configures srcAddr() to always return available indirect client address
+    /// instead of direct client address.
+    void forceIndirectAddr() { forceIndirectAddr_ = true; }
 #endif /* FOLLOW_X_FORWARDED_FOR */
 
     /// the associated client connection manager or nil

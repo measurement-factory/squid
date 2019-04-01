@@ -770,8 +770,8 @@ const Ip::Address&
 HttpRequest::myAddr() const
 {
     return internal ? NoAddr():
-        masterXaction->clientConnection() ?
-        masterXaction->clientConnection()->local : my_addr;
+           masterXaction->clientConnection() ?
+           masterXaction->clientConnection()->local : my_addr;
 }
 
 #if FOLLOW_X_FORWARDED_FOR
@@ -779,7 +779,7 @@ const Ip::Address&
 HttpRequest::indirectClientAddr() const
 {
     if (internal)
-       return NoAddr();
+        return NoAddr();
     if (!indirect_client_addr.isEmpty())
         return indirect_client_addr;
     return clientAddr();
@@ -873,8 +873,9 @@ FindListeningPortAddress(const HttpRequest *callerRequest, const AccessLogEntry 
 Comm::ConnectionPointer
 HttpRequest::clientConnection() const
 {
-	if (!internal)
+    if (!internal)
         return masterXaction->clientConnection();
-	static Comm::ConnectionPointer noConnection;
-	return noConnection;
+    static Comm::ConnectionPointer noConnection;
+    return noConnection;
 }
+
