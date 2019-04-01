@@ -52,7 +52,7 @@ void setMaxFD(void);
 void setSystemLimits(void);
 void squid_signal(int sig, SIGHDLR *, int flags);
 void keepCapabilities(void);
-void BroadcastSignalIfAny(int& sig);
+void BroadcastSignalIfAny(int& sig, const bool includingCoordinator = true);
 
 /// whether the current process is the parent of all other Squid processes
 bool IamMasterProcess();

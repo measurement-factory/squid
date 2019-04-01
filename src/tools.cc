@@ -360,12 +360,14 @@ death(int sig)
 }
 
 void
-BroadcastSignalIfAny(int& sig)
+BroadcastSignalIfAny(int& sig, const bool includingCoordinator)
 {
     if (sig > 0) {
         if (IamMasterProcess()) {
             for (int i = TheKids.count() - 1; i >= 0; --i) {
                 const auto &kid = TheKids.get(i);
+                if (!includingCoordinator && kid.isCoordinator())
+                    continue;
                 if (kid.running())
                     kill(kid.getPid(), sig);
             }

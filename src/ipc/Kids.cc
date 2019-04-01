@@ -73,6 +73,16 @@ bool Kids::allHopeless() const
     return true;
 }
 
+/// whether the coordinator is hopeless
+bool Kids::coordinatorHopeless() const
+{
+    for (const auto &kid: storage) {
+        if (kid.hopeless() && kid.isCoordinator())
+            return true;
+    }
+    return false;
+}
+
 void
 Kids::forgetAllFailures()
 {

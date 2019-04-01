@@ -181,4 +181,3 @@ Kid::deathDuration() const
 {
     return squid_curtime > stopTime ? squid_curtime - stopTime : 0;
 }
-

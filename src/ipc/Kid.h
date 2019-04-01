@@ -80,6 +80,12 @@ public:
     /// \returns kid's role and ID summary; usable as a --kid parameter value
     SBuf gist() const;
 
+    /// whether the role is "squid-coord"
+    static bool CoordinatorRole(const SBuf &role) { return role.cmp("squid-coord") == 0; }
+
+    /// whether the kid's role is "squid-coord"
+    bool isCoordinator() const { return CoordinatorRole(processRole); }
+
 private:
     void reportStopped() const;
 
