@@ -60,7 +60,7 @@ bool HttpRequest::inheritProperties(const Http::Message *) STUB_RETVAL(false)
 const Ip::Address& HttpRequest::indirectClientAddr() const STUB_RETREF(Ip::Address)
 const Ip::Address& HttpRequest::clientAddr() const STUB_RETREF(Ip::Address)
 const Ip::Address& HttpRequest::myAddr() const STUB_RETREF(Ip::Address)
-const Ip::Address& HttpRequest::effectiveClientAddr(const bool useIndirect) const STUB_RETREF(Ip::Address)
 Comm::ConnectionPointer HttpRequest::clientConnection() const STUB
+CbcPointer<ConnStateData> &HttpRequest::clientConnectionManager() STUB_RETREF(CbcPointer<ConnStateData>)
 NotePairs::Pointer HttpRequest::notes() STUB_RETVAL(NotePairs::Pointer())
 
