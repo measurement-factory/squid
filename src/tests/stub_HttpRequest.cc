@@ -57,7 +57,9 @@ void HttpRequest::packFirstLineInto(Packable *, bool) const STUB
 bool HttpRequest::sanityCheckStartLine(const char *, const size_t, Http::StatusCode *) STUB_RETVAL(false)
 void HttpRequest::hdrCacheInit() STUB
 bool HttpRequest::inheritProperties(const Http::Message *) STUB_RETVAL(false)
+#if FOLLOW_X_FORWARDED_FOR
 const Ip::Address& HttpRequest::indirectClientAddr() const STUB_RETREF(Ip::Address)
+#endif /* FOLLOW_X_FORWARDED_FOR */
 const Ip::Address& HttpRequest::clientAddr() const STUB_RETREF(Ip::Address)
 const Ip::Address& HttpRequest::myAddr() const STUB_RETREF(Ip::Address)
 Comm::ConnectionPointer HttpRequest::clientConnection() const STUB
