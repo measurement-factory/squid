@@ -41,9 +41,7 @@ ACLFilledChecklist::ACLFilledChecklist() :
     fd_(-1),
     destinationDomainChecked_(false),
     sourceDomainChecked_(false),
-#if FOLLOW_X_FORWARDED_FOR
-    forceIndirectAddr_(false)
-#endif
+    srcAddrRestrictions_(noRestrictions)
 {
     my_addr.setEmpty();
     src_addr.setEmpty();
@@ -152,10 +150,15 @@ ACLFilledChecklist::clientConnectionManager() const
 const Ip::Address &
 ACLFilledChecklist::srcAddr() const
 {
+    if (request) {
 #if FOLLOW_X_FORWARDED_FOR
-    if (forceIndirectAddr_ && request)
-        return request->indirectClientAddr();
+        if (srcAddrRestrictions_ == forceIndirect)
+            return request->indirectClientAddr();
 #endif /* FOLLOW_X_FORWARDED_FOR */
+        if (srcAddrRestrictions_ == forceDirect)
+            return request->clientAddr();
+        assert(srcAddrRestrictions_ == noRestrictions);
+    }
     return src_addr;
 }
 
@@ -232,10 +235,7 @@ ACLFilledChecklist::ACLFilledChecklist(const acl_access *A, HttpRequest *http_re
     fd_(-1),
     destinationDomainChecked_(false),
     sourceDomainChecked_(false),
-#if FOLLOW_X_FORWARDED_FOR
-    forceIndirectAddr_(false)
-#endif
-
+    srcAddrRestrictions_(noRestrictions)
 {
     my_addr.setEmpty();
     src_addr.setEmpty();
@@ -278,18 +278,6 @@ void
 ACLFilledChecklist::clientConnection(Comm::ConnectionPointer conn)
 {
     setClientConnection(conn);
-}
-
-void
-ACLFilledChecklist::configureClientAddr(const bool useIndirect)
-{
-    assert(request);
-#if FOLLOW_X_FORWARDED_FOR
-    if (Config.onoff.acl_uses_indirect_client && useIndirect)
-        src_addr = request->indirectClientAddr();
-    else
-#endif /* FOLLOW_X_FORWARDED_FOR */
-        src_addr = request->clientAddr();
 }
 
 /// Initializes the client connection manager; does nothing

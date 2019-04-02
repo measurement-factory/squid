@@ -92,10 +92,10 @@ DelayId::DelayClient(ClientHttpRequest * http, HttpReply *reply)
         }
 #if FOLLOW_X_FORWARDED_FOR
         if (Config.onoff.delay_pool_uses_indirect_client)
-            ch.configureClientAddr(true);
+            ch.forceIndirectAddr();
         else
 #endif /* FOLLOW_X_FORWARDED_FOR */
-            ch.configureClientAddr(false);
+            ch.forceDirectAddr();
 
         if (DelayPools::delay_data[pool].theComposite().getRaw() && ch.fastCheck().allowed()) {
 

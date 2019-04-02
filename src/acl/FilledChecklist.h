@@ -58,15 +58,14 @@ public:
     /// connection manager may be unavailable.
     void clientConnection(Comm::ConnectionPointer);
 
-    /// Configures srcAddr() to return either indirect client address (if possible)
-    /// or direct address.
-    void configureClientAddr(const bool wantIndirect);
-
 #if FOLLOW_X_FORWARDED_FOR
     /// Configures srcAddr() to always return available indirect client address
     /// instead of direct client address.
-    void forceIndirectAddr() { forceIndirectAddr_ = true; }
+    void forceIndirectAddr() { srcAddrRestrictions_ = forceIndirect; }
 #endif /* FOLLOW_X_FORWARDED_FOR */
+
+    /// Configures srcAddr() to always return direct client address
+    void forceDirectAddr() { srcAddrRestrictions_ = forceDirect; }
 
     /// the associated client connection manager or nil
     ConnStateData *clientConnectionManager() const;
@@ -142,10 +141,17 @@ private:
     bool sourceDomainChecked_;
     Ip::Address src_addr;
     Ip::Address my_addr;
+
+    typedef enum {
+        noRestrictions,
 #if FOLLOW_X_FORWARDED_FOR
-    /// whether we will use indirect client address instead of direct address
-    bool forceIndirectAddr_;
+        forceIndirect, ///< will use indirect client address instead of direct address
 #endif /* FOLLOW_X_FORWARDED_FOR */
+        forceDirect ///< will use direct client address instead of indirect address (if configured)
+    } SrcAddrRestrictions;
+
+    /// forces using either direct or indirect client address
+    SrcAddrRestrictions srcAddrRestrictions_;
     /// not implemented; will cause link failures if used
     ACLFilledChecklist(const ACLFilledChecklist &);
     /// not implemented; will cause link failures if used
