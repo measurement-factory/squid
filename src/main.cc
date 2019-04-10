@@ -1132,9 +1132,6 @@ mainSetCwd(void)
 static void
 mainInitialize(void)
 {
-    /* chroot if configured to run inside chroot */
-    mainSetCwd();
-
     if (opt_catch_signals) {
         squid_signal(SIGSEGV, death, SA_NODEFER | SA_RESETHAND);
         squid_signal(SIGBUS, death, SA_NODEFER | SA_RESETHAND);
@@ -1148,8 +1145,6 @@ mainInitialize(void)
 
     if (icpPortNumOverride != 1)
         Config.Port.icp = (unsigned short) icpPortNumOverride;
-
-    _db_init(Debug::cache_log, Debug::debugOptions);
 
     // Do not register cache.log descriptor with Comm (for now).
     // See https://bugs.squid-cache.org/show_bug.cgi?id=4796
@@ -1443,8 +1438,33 @@ ConfigureCurrentKid(const CommandLine &cmdLine)
     }
 }
 
+static void
+StartUsingFdTable()
+{
+    setMaxFD();
+    fd_table = static_cast<fde *>(xcalloc(Squid_MaxFD, sizeof(fde)));
+
+    // we should not create cache.log outside chroot environment, if any
+    if (!Config.chroot_dir || Chrooted)
+        _db_init(Debug::cache_log, Debug::debugOptions);
+
+    if (opt_no_daemon) {
+        /* we have to init fdstat here. */
+        fd_open(0, FD_LOG, "stdin");
+        fd_open(1, FD_LOG, "stdout");
+        fd_open(2, FD_LOG, "stderr");
+    }
+}
+
+static void
+CleanupFdTable()
+{
+    safe_free(fd_table);
+}
+
 static void StartUsingConfig()
 {
+    StartUsingFdTable();
     RunRegisteredHere(RegisteredRunner::claimMemoryNeeds);
     RunRegisteredHere(RegisteredRunner::useConfig);
 }
@@ -1587,6 +1607,8 @@ SquidMain(int argc, char **argv)
 
 #if TEST_ACCESS
 
+    StartUsingFdTable();
+
     comm_init();
 
     mainInitialize();
@@ -1624,13 +1646,13 @@ SquidMain(int argc, char **argv)
         }
     }
 
+    enter_suid();
+    mainSetCwd();
+    leave_suid();
     StartUsingConfig();
     enter_suid();
 
     if (opt_create_swap_dirs) {
-        /* chroot if configured to run inside chroot */
-        mainSetCwd();
-
         setEffectiveUser();
         debugs(0, DBG_CRITICAL, "Creating missing swap directories");
         Store::Root().create();
@@ -1642,17 +1664,8 @@ SquidMain(int argc, char **argv)
         CpuAffinityCheck();
     CpuAffinityInit();
 
-    setMaxFD();
-
     /* init comm module */
     comm_init();
-
-    if (opt_no_daemon) {
-        /* we have to init fdstat here. */
-        fd_open(0, FD_LOG, "stdin");
-        fd_open(1, FD_LOG, "stdout");
-        fd_open(2, FD_LOG, "stderr");
-    }
 
 #if USE_WIN32_SERVICE
 
@@ -2146,6 +2159,8 @@ SquidShutdown()
     fdDumpOpen();
 
     comm_exit();
+
+    CleanupFdTable();
 
     RunRegisteredHere(RegisteredRunner::finishShutdown);
 
