@@ -1146,10 +1146,6 @@ mainInitialize(void)
     if (icpPortNumOverride != 1)
         Config.Port.icp = (unsigned short) icpPortNumOverride;
 
-    // Do not register cache.log descriptor with Comm (for now).
-    // See https://bugs.squid-cache.org/show_bug.cgi?id=4796
-    // fd_open(fileno(debug_log), FD_LOG, Debug::cache_log);
-
     debugs(1, DBG_CRITICAL, "Starting Squid Cache version " << version_string << " for " << CONFIG_HOST_TYPE << "...");
     debugs(1, DBG_CRITICAL, "Service Name: " << service_name);
 
@@ -1460,6 +1456,7 @@ static void
 CleanupFdTable()
 {
     safe_free(fd_table);
+    fd_table = nullptr;
 }
 
 static void StartUsingConfig()
@@ -2160,13 +2157,13 @@ SquidShutdown()
 
     comm_exit();
 
-    CleanupFdTable();
-
     RunRegisteredHere(RegisteredRunner::finishShutdown);
 
     memClean();
 
     debugs(1, DBG_IMPORTANT, "Squid Cache (Version " << version_string << "): Exiting normally.");
+
+    CleanupFdTable();
 
     /*
      * DPW 2006-10-23

@@ -81,8 +81,11 @@ fdUpdateBiggest(int fd, int opening)
 void
 fd_close(int fd)
 {
-    fde *F = &fd_table[fd];
+    // have nothing to do if called from an exit() callback
+    if (!fd_table)
+        return;
 
+    fde *F = &fd_table[fd];
     assert(fd >= 0);
     assert(F->flags.open);
 
