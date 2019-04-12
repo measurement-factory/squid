@@ -1448,7 +1448,6 @@ StartUsingFdTable()
     // we should not create cache.log outside chroot environment, if any
     if (!Config.chroot_dir || Chrooted)
         _db_init(Debug::cache_log, Debug::debugOptions);
-
 }
 
 static void

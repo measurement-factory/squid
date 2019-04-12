@@ -1235,6 +1235,7 @@ comm_exit(void)
 {
     delete TheHalfClosed;
     TheHalfClosed = NULL;
+
     Comm::CallbackTableDestruct();
 }
 

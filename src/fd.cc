@@ -82,6 +82,7 @@ void
 fd_close(int fd)
 {
     fde *F = &fd_table[fd];
+
     assert(fd >= 0);
     assert(F->flags.open);
 
