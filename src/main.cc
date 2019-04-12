@@ -1438,7 +1438,7 @@ static void
 StartUsingFdTable()
 {
     setMaxFD();
-    fd_table = static_cast<fde *>(xcalloc(Squid_MaxFD, sizeof(fde)));
+    fde::CreateTable();
     if (opt_no_daemon) {
         /* we have to init fdstat here. */
         fd_open(0, FD_LOG, "stdin");
