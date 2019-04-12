@@ -1439,31 +1439,45 @@ StartUsingFdTable()
 {
     setMaxFD();
     fd_table = static_cast<fde *>(xcalloc(Squid_MaxFD, sizeof(fde)));
-
-    // we should not create cache.log outside chroot environment, if any
-    if (!Config.chroot_dir || Chrooted)
-        _db_init(Debug::cache_log, Debug::debugOptions);
-
     if (opt_no_daemon) {
         /* we have to init fdstat here. */
         fd_open(0, FD_LOG, "stdin");
         fd_open(1, FD_LOG, "stdout");
         fd_open(2, FD_LOG, "stderr");
     }
+    // we should not create cache.log outside chroot environment, if any
+    if (!Config.chroot_dir || Chrooted)
+        _db_init(Debug::cache_log, Debug::debugOptions);
+
 }
 
 static void
-CleanupFdTable()
+UseConfigRunners()
 {
-    safe_free(fd_table);
-    fd_table = nullptr;
-}
-
-static void StartUsingConfig()
-{
-    StartUsingFdTable();
     RunRegisteredHere(RegisteredRunner::claimMemoryNeeds);
     RunRegisteredHere(RegisteredRunner::useConfig);
+}
+
+static void
+StartUsingConfig()
+{
+    const bool skipCwdAdjusting = IamMasterProcess() && InDaemonMode();
+    if (skipCwdAdjusting) {
+        StartUsingFdTable();
+        UseConfigRunners();
+    } else if (Config.chroot_dir) {
+        UseConfigRunners();
+        enter_suid();
+        mainSetCwd();
+        leave_suid();
+        StartUsingFdTable();
+    } else {
+        StartUsingFdTable();
+        UseConfigRunners();
+        enter_suid();
+        mainSetCwd();
+        leave_suid();
+    }
 }
 
 int
@@ -1643,9 +1657,6 @@ SquidMain(int argc, char **argv)
         }
     }
 
-    enter_suid();
-    mainSetCwd();
-    leave_suid();
     StartUsingConfig();
     enter_suid();
 
@@ -2162,8 +2173,6 @@ SquidShutdown()
     memClean();
 
     debugs(1, DBG_IMPORTANT, "Squid Cache (Version " << version_string << "): Exiting normally.");
-
-    CleanupFdTable();
 
     /*
      * DPW 2006-10-23
