@@ -876,13 +876,13 @@ Ftp::Gateway::htmlifyListEntry(const char *line)
 
     if (parts->type != 'd') {
         if (mimeGetViewOption(parts->name)) {
-            snprintf(view, 2048, "<a href=\"%s%s;type=a\"><img border=\"0\" src=\"%s\" "
+            snprintfXXX(view, sizeof(view), "<a href=\"%s%s;type=a\"><img border=\"0\" src=\"%s\" "
                      "alt=\"[VIEW]\"></a>",
                      prefix, href, mimeGetIconURL("internal-view"));
         }
 
         if (mimeGetDownloadOption(parts->name)) {
-            snprintf(download, 2048, "<a href=\"%s%s;type=i\"><img border=\"0\" src=\"%s\" "
+            snprintfXXX(download, sizeof(download), "<a href=\"%s%s;type=i\"><img border=\"0\" src=\"%s\" "
                      "alt=\"[DOWNLOAD]\"></a>",
                      prefix, href, mimeGetIconURL("internal-download"));
         }

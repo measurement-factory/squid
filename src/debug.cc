@@ -515,7 +515,7 @@ debugLogTime(void)
         tm = localtime(&t);
         strftime(buf2, 127, "%Y/%m/%d %H:%M:%S", tm);
         buf2[127] = '\0';
-        snprintf(buf, 127, "%s.%03d", buf2, (int) current_time.tv_usec / 1000);
+        snprintfXXX(buf, 127, "%s.%03d", buf2, (int) current_time.tv_usec / 1000);
         last_t = t;
     } else if (t != last_t) {
         tm = localtime(&t);

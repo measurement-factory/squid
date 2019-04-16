@@ -466,7 +466,6 @@ Ipc::StoreMap::sliceAt(const SliceId sliceId) const
 Ipc::StoreMapAnchor::StoreMapAnchor(): start(0)
 {
     memset(&key, 0, sizeof(key));
-    memset(&basics, 0, sizeof(basics));
     // keep in sync with rewind()
 }
 
@@ -503,7 +502,7 @@ Ipc::StoreMapAnchor::rewind()
     assert(writing());
     start = 0;
     memset(&key, 0, sizeof(key));
-    memset(&basics, 0, sizeof(basics));
+    basics.clear();
     // but keep the lock
 }
 

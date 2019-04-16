@@ -377,12 +377,12 @@ main(int argc, char *argv[])
 
     if (version[0] == '-' || !version[0]) {
         /* HTTP/0.9, no headers, no version */
-        snprintf(msg, BUFSIZ, "%s %s\r\n", method, url);
+        snprintfXXX(msg, BUFSIZ, "%s %s\r\n", method, url);
     } else {
         if (!xisdigit(version[0])) // not HTTP/n.n
-            snprintf(msg, BUFSIZ, "%s %s %s\r\n", method, url, version);
+            snprintfXXX(msg, BUFSIZ, "%s %s %s\r\n", method, url, version);
         else
-            snprintf(msg, BUFSIZ, "%s %s HTTP/%s\r\n", method, url, version);
+            snprintfXXX(msg, BUFSIZ, "%s %s HTTP/%s\r\n", method, url, version);
 
         if (host) {
             snprintf(buf, BUFSIZ, "Host: %s\r\n", host);

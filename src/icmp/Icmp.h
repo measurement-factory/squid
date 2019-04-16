@@ -23,19 +23,21 @@
 
 /* This is a line-data format struct. DO NOT alter. */
 struct pingerEchoData {
+    pingerEchoData() { memset(payload, 0, sizeof(payload)); }
     Ip::Address to;
-    unsigned char opcode;
-    int psize;
+    unsigned char opcode = '\0';
+    int psize = 0;
     char payload[PINGER_PAYLOAD_SZ];
 };
 
 /* This is a line-data format struct. DO NOT alter. */
 struct pingerReplyData {
+    pingerReplyData() { memset(payload, 0, sizeof(payload)); }
     Ip::Address from;
-    unsigned char opcode;
-    int rtt;
-    int hops;
-    int psize;
+    unsigned char opcode = '\0';
+    int rtt = 0;
+    int hops = 0;
+    int psize = 0;
     char payload[PINGER_PAYLOAD_SZ];
 };
 

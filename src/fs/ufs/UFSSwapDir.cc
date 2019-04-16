@@ -1394,7 +1394,7 @@ Fs::Ufs::UFSSwapDir::DirClean(int swap_index)
 
     for (n = 0; n < k; ++n) {
         debugs(36, 3, HERE << "Cleaning file "<< std::setfill('0') << std::hex << std::uppercase << std::setw(8) << files[n]);
-        snprintf(p2, MAXPATHLEN + 1, "%s/%08X", p1, files[n]);
+        snprintfXXX(p2, MAXPATHLEN + 1, "%s/%08X", p1, files[n]);
         safeunlink(p2, 0);
         ++statCounter.swap.files_cleaned;
     }

@@ -1431,7 +1431,7 @@ clientReplyContext::buildReplyHeader()
 
             if (squid_curtime - http->storeEntry()->timestamp >= 86400) {
                 char tbuf[512];
-                snprintf (tbuf, sizeof(tbuf), "%s %s %s",
+                snprintfXXX(tbuf, sizeof(tbuf), "%s %s %s",
                           "113", ThisCache,
                           "This cache hit is still fresh and more than 1 day old");
                 hdr->putStr(HDR_WARNING, tbuf);

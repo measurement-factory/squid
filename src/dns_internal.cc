@@ -304,8 +304,10 @@ idnsAddNameserver(const char *buf)
 
         nameservers = (ns *)xcalloc(nns_alloc, sizeof(*nameservers));
 
-        if (oldptr && oldalloc)
-            memcpy(nameservers, oldptr, oldalloc * sizeof(*nameservers));
+        if (oldptr && oldalloc) {
+            for (int i = 0; i <  oldalloc; ++i)
+                *(nameservers + i) = *(oldptr + i);
+        }
 
         if (oldptr)
             safe_free(oldptr);

@@ -242,7 +242,7 @@ Ident::Start(const Comm::ConnectionPointer &conn, IDCB * callback, void *data)
 
     conn->local.toUrl(key1, IDENT_KEY_SZ);
     conn->remote.toUrl(key2, IDENT_KEY_SZ);
-    snprintf(key, IDENT_KEY_SZ, "%s,%s", key1, key2);
+    snprintfXXX(key, IDENT_KEY_SZ, "%s,%s", key1, key2);
 
     if (!ident_hash) {
         Init();

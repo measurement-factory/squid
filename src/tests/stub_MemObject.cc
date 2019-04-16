@@ -40,7 +40,7 @@ MemObject::MemObject() :
     swap_hdr_sz(0),
     _reply(NULL)
 {
-    memset(&clients, 0, sizeof(clients));
+    clients = dlink_list();
     memset(&start_ping, 0, sizeof(start_ping));
     memset(&abort, 0, sizeof(abort));
 } // NOP instead of elided due to Store

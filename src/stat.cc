@@ -85,7 +85,6 @@ static void statGraphDump(StoreEntry *);
 static void statCountersInit(StatCounters *);
 static void statCountersInitSpecial(StatCounters *);
 static void statCountersClean(StatCounters *);
-static void statCountersCopy(StatCounters * dest, const StatCounters * orig);
 static double statPctileSvc(double, int, int);
 static void statStoreEntry(MemBuf * mb, StoreEntry * e);
 static double statCPUUsage(int minutes);
@@ -1248,30 +1247,24 @@ statInit(void)
 static void
 statAvgTick(void *notused)
 {
-    StatCounters *t = &CountHist[0];
-    StatCounters *p = &CountHist[1];
-    StatCounters *c = &statCounter;
-
     struct rusage rusage;
     eventAdd("statAvgTick", statAvgTick, NULL, (double) COUNT_INTERVAL, 1);
     squid_getrusage(&rusage);
-    c->page_faults = rusage_pagefaults(&rusage);
-    c->cputime = rusage_cputime(&rusage);
-    c->timestamp = current_time;
-    /* even if NCountHist is small, we already Init()ed the tail */
-    statCountersClean(CountHist + N_COUNT_HIST - 1);
-    memmove(p, t, (N_COUNT_HIST - 1) * sizeof(StatCounters));
-    statCountersCopy(t, c);
+    statCounter.page_faults = rusage_pagefaults(&rusage);
+    statCounter.cputime = rusage_cputime(&rusage);
+    statCounter.timestamp = current_time;
+    // shift all elements right and prepend statCounter
+    for(int i = N_COUNT_HIST-1; i > 0; --i)
+        CountHist[i] = CountHist[i-1];
+    CountHist[0] = statCounter;
     ++NCountHist;
 
     if ((NCountHist % COUNT_INTERVAL) == 0) {
         /* we have an hours worth of readings.  store previous hour */
-        StatCounters *t2 = &CountHourHist[0];
-        StatCounters *p2 = &CountHourHist[1];
-        StatCounters *c2 = &CountHist[N_COUNT_HIST - 1];
-        statCountersClean(CountHourHist + N_COUNT_HOUR_HIST - 1);
-        memmove(p2, t2, (N_COUNT_HOUR_HIST - 1) * sizeof(StatCounters));
-        statCountersCopy(t2, c2);
+        // shift all elements right and prepend final CountHist element
+        for(int i = N_COUNT_HOUR_HIST-1; i > 0; --i)
+            CountHourHist[i] = CountHourHist[i-1];
+        CountHourHist[0] = CountHist[N_COUNT_HIST - 1];
         ++NCountHourHist;
     }
 
@@ -1309,8 +1302,7 @@ static void
 statCountersInit(StatCounters * C)
 {
     assert(C);
-    memset(C, 0, sizeof(*C));
-    C->timestamp = current_time;
+    *C = StatCounters();
     statCountersInitSpecial(C);
 }
 
@@ -1363,33 +1355,6 @@ statCountersClean(StatCounters * C)
     C->comm_dns_incoming.clear();
     C->comm_tcp_incoming.clear();
     C->select_fds_hist.clear();
-}
-
-/* add special cases here as they arrive */
-static void
-statCountersCopy(StatCounters * dest, const StatCounters * orig)
-{
-    assert(dest && orig);
-    /* this should take care of all the fields, but "special" ones */
-    memcpy(dest, orig, sizeof(*dest));
-    /* prepare space where to copy special entries */
-    statCountersInitSpecial(dest);
-    /* now handle special cases */
-    /* note: we assert that histogram capacities do not change */
-    dest->client_http.allSvcTime=orig->client_http.allSvcTime;
-    dest->client_http.missSvcTime=orig->client_http.missSvcTime;
-    dest->client_http.nearMissSvcTime=orig->client_http.nearMissSvcTime;
-    dest->client_http.nearHitSvcTime=orig->client_http.nearHitSvcTime;
-
-    dest->client_http.hitSvcTime=orig->client_http.hitSvcTime;
-    dest->icp.querySvcTime=orig->icp.querySvcTime;
-    dest->icp.replySvcTime=orig->icp.replySvcTime;
-    dest->dns.svcTime=orig->dns.svcTime;
-    dest->cd.on_xition_count=orig->cd.on_xition_count;
-    dest->comm_udp_incoming=orig->comm_udp_incoming;
-    dest->comm_dns_incoming=orig->comm_dns_incoming;
-    dest->comm_tcp_incoming=orig->comm_tcp_incoming;
-    dest->select_fds_hist=orig->select_fds_hist;
 }
 
 static void

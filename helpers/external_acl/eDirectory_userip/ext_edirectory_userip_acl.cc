@@ -148,6 +148,9 @@ typedef struct {
 #define LDAP_ERR_FAILED         -16             /* Operation failed */
 #define LDAP_ERR_SUCCESS        -17             /* Operation successful */
 
+
+#define FREE_SPACE(x) (sizeof(x) - strlen(x) - 1)
+
 /* edui_ldap_t - struct typedef */
 typedef struct {
     LDAP *lp;
@@ -717,8 +720,8 @@ BindLDAP(edui_ldap_t *l, char *dn, char *pw, unsigned int t)
         if ((l->basedn[0] != '\0') && (strstr(dn, l->basedn) == NULL)) {
             /* We got a basedn, but it's not part of dn */
             xstrncpy(l->dn, dn, sizeof(l->dn));
-            strncat(l->dn, ",", 1);
-            strncat(l->dn, l->basedn, strlen(l->basedn));
+            strncat(l->dn, ",", FREE_SPACE(l->dn));
+            strncat(l->dn, l->basedn, FREE_SPACE(l->dn));
         } else
             xstrncpy(l->dn, dn, sizeof(l->dn));
     }
@@ -932,7 +935,7 @@ ConvertIP(edui_ldap_t *l, char *ip)
                 strncat(l->search_ip, hexc, 2);
                 break;
             case 2:
-                strncat(l->search_ip, "00", 2);
+                strncat(l->search_ip, "00", FREE_SPACE(l->search_ip));
                 hexc[0] = (char) toupper((int)obj[0]);
                 i = (int)hexc[0];
                 if (!isxdigit(i))
@@ -945,7 +948,7 @@ ConvertIP(edui_ldap_t *l, char *ip)
                 strncat(l->search_ip, hexc, 2);
                 break;
             case 1:
-                strncat(l->search_ip, "00", 2);
+                strncat(l->search_ip, "00", FREE_SPACE(l->search_ip));
                 hexc[0] = '0';
                 hexc[1] = (char) toupper((int)obj[0]);
                 i = (int)hexc[1];
@@ -973,7 +976,7 @@ ConvertIP(edui_ldap_t *l, char *ip)
                 t = 8 - (strlen(l->search_ip) / 4) - j;         /* Remainder */
                 if (t > 0) {
                     for (i = 0; i < t; ++i)
-                        strncat(l->search_ip, "0000", 4);
+                        strncat(l->search_ip, "0000", FREE_SPACE(l->search_ip));
                 }
             }
         }
@@ -988,7 +991,7 @@ ConvertIP(edui_ldap_t *l, char *ip)
     /* CHECK sizes of address, truncate or pad */
     /* if "::" is at end of ip, then pad another block or two */
     while ((l->status & LDAP_IPV6_S) && (s < 32)) {
-        strncat(l->search_ip, "0000", 4);
+        strncat(l->search_ip, "0000", FREE_SPACE(l->search_ip));
         s = strlen(l->search_ip);
     }
     if ((l->status & LDAP_IPV6_S) && (s > 32)) {
@@ -998,7 +1001,7 @@ ConvertIP(edui_ldap_t *l, char *ip)
     }
     /* If at end of ip, and its not long enough, then pad another block or two */
     while ((l->status & LDAP_IPV4_S) && (s < 8)) {
-        strncat(l->search_ip, "00", 2);
+        strncat(l->search_ip, "00", FREE_SPACE(l->search_ip));
         s = strlen(l->search_ip);
     }
     if ((l->status & LDAP_IPV4_S) && (s > 8)) {
@@ -1102,7 +1105,7 @@ SearchFilterLDAP(edui_ldap_t *l, char *group)
         xstrncpy(bufa, "(&", sizeof(bufa));
         strncat(bufa, edui_conf.search_filter, strlen(edui_conf.search_filter));
         /* networkAddress */
-        snprintf(bufb, sizeof(bufb), "(|(networkAddress=1\\23%s)", bufc);
+        snprintfXXX(bufb, sizeof(bufb), "(|(networkAddress=1\\23%s)", bufc);
         if (l->status & LDAP_IPV4_S) {
             int ln = snprintf(bufd, sizeof(bufd), "(networkAddress=8\\23\\00\\00%s)(networkAddress=9\\23\\00\\00%s))", \
                               bufc, bufc);
@@ -1112,9 +1115,9 @@ SearchFilterLDAP(edui_ldap_t *l, char *group)
                               bufc, bufc);
             strncat(bufb, bufd, ln);
         } else
-            strncat(bufb, ")", 1);
-        strncat(bufa, bufb, strlen(bufb));
-        strncat(bufa, ")", 1);
+            strncat(bufb, ")", FREE_SPACE(bufb));
+        strncat(bufa, bufb, FREE_SPACE(bufa));
+        strncat(bufa, ")", FREE_SPACE(bufa));
     } else {
         /* Needs groupMembership= to add... */
         xstrncpy(bufa, "(&(&", sizeof(bufa));
@@ -1122,25 +1125,25 @@ SearchFilterLDAP(edui_ldap_t *l, char *group)
         /* groupMembership -- NOTE: Squid *MUST* provide "cn=" from squid.conf */
         snprintf(bufg, sizeof(bufg), "(groupMembership=%s", group);
         if ((l->basedn[0] != '\0') && (strstr(group, l->basedn) == NULL)) {
-            strncat(bufg, ",", 1);
-            strncat(bufg, l->basedn, strlen(l->basedn));
+            strncat(bufg, ",", FREE_SPACE(bufg));
+            strncat(bufg, l->basedn, FREE_SPACE(bufg));
         }
-        strncat(bufg, ")", 1);
+        strncat(bufg, ")", FREE_SPACE(bufg));
         strncat(bufa, bufg, strlen(bufg));
         /* networkAddress */
-        snprintf(bufb, sizeof(bufb), "(|(networkAddress=1\\23%s)", bufc);
+        snprintfXXX(bufb, sizeof(bufb), "(|(networkAddress=1\\23%s)", bufc);
         if (l->status & LDAP_IPV4_S) {
-            int ln = snprintf(bufd, sizeof(bufd), "(networkAddress=8\\23\\00\\00%s)(networkAddress=9\\23\\00\\00%s))", \
-                              bufc, bufc);
-            strncat(bufb, bufd, ln);
+            snprintfXXX(bufd, sizeof(bufd), "(networkAddress=8\\23\\00\\00%s)(networkAddress=9\\23\\00\\00%s))", \
+                        bufc, bufc);
+            strncat(bufb, bufd, FREE_SPACE(bufb));
         } else if (l->status & LDAP_IPV6_S) {
-            int ln = snprintf(bufd, sizeof(bufd), "(networkAddress=10\\23\\00\\00%s)(networkAddress=11\\23\\00\\00%s))", \
-                              bufc, bufc);
-            strncat(bufb, bufd, ln);
+            snprintfXXX(bufd, sizeof(bufd), "(networkAddress=10\\23\\00\\00%s)(networkAddress=11\\23\\00\\00%s))", \
+                        bufc, bufc);
+            strncat(bufb, bufd, FREE_SPACE(bufb));
         } else
-            strncat(bufb, ")", 1);
-        strncat(bufa, bufb, strlen(bufb));
-        strncat(bufa, "))", 2);
+            strncat(bufb, ")", FREE_SPACE(bufb));
+        strncat(bufa, bufb, FREE_SPACE(bufa));
+        strncat(bufa, "))", FREE_SPACE(bufa));
     }
     s = strlen(bufa);
     xstrncpy(l->search_filter, bufa, sizeof(l->search_filter));

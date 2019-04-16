@@ -77,7 +77,7 @@ HttpRequest::init()
 #endif
     port = 0;
     canonical = NULL;
-    memset(&flags, '\0', sizeof(flags));
+    flags = RequestFlags();
     range = NULL;
     ims = -1;
     imslen = 0;
@@ -182,8 +182,8 @@ HttpRequest::clone() const
     copy->pstate = pstate; // TODO: should we assert a specific state here?
     copy->body_pipe = body_pipe;
 
-    strncpy(copy->login, login, sizeof(login)); // MAX_LOGIN_SZ
-    strncpy(copy->host, host, sizeof(host)); // SQUIDHOSTNAMELEN
+    strncpy(copy->login, login, sizeof(copy->login)); // MAX_LOGIN_SZ
+    strncpy(copy->host, host, sizeof(copy->host)); // SQUIDHOSTNAMELEN
     copy->host_addr = host_addr;
 
     copy->port = port;

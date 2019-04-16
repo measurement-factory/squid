@@ -62,5 +62,8 @@ inline FILE * tmpfile(void) { return tmpfile64(); }
 #define MAXPATHLEN SQUID_MAXPATHLEN
 #endif
 
+// circumvents GCC 'format-truncation' warning, introduced since v7.1
+#define snprintfXXX(...) (snprintf(__VA_ARGS__) < 0 ? (void)0 : (void)0)
+
 #endif /* _SQUID_COMPAT_STDIO_H */
 

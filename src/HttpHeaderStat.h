@@ -15,19 +15,19 @@
 class HttpHeaderStat
 {
 public:
-    const char *label;
-    HttpHeaderMask *owner_mask;
+    const char *label = nullptr;
+    HttpHeaderMask *owner_mask = nullptr;
 
     StatHist hdrUCountDistr;
     StatHist fieldTypeDistr;
     StatHist ccTypeDistr;
     StatHist scTypeDistr;
 
-    int parsedCount;
-    int ccParsedCount;
-    int scParsedCount;
-    int destroyedCount;
-    int busyDestroyedCount;
+    int parsedCount = 0;
+    int ccParsedCount = 0;
+    int scParsedCount = 0;
+    int destroyedCount = 0;
+    int busyDestroyedCount = 0;
 };
 
 #endif /* HTTPHEADERSTAT_H_ */
