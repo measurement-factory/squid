@@ -18,6 +18,7 @@
 #include "http/one/ResponseParser.h"
 #include "http/StateFlags.h"
 #include "HttpRequest.h"
+#include "proxyp/Header.h"
 #include "StatCounters.h"
 #include "SquidConfig.h"
 
@@ -122,23 +123,66 @@ Http::Tunneler::startReadingResponse()
 }
 
 void
+Http::Tunneler::buildHttpHeaders(HttpHeader &hdr_out)
+{
+    Http::StateFlags flags;
+    flags.peering = true;
+    // flags.tunneling = false; // the CONNECT request itself is not tunneled
+    // flags.toOrigin = false; // the next HTTP hop is a non-originserver peer
+    if (request->method == Http::METHOD_CONNECT) {
+        // We are forwarding an HTTP CONNECT request
+        HttpStateData::httpBuildRequestHeader(request.getRaw(),
+                                              nullptr, // StoreEntry
+                                              al,
+                                              &hdr_out,
+                                              flags);
+    } else {
+        // We need to create a new CONNECT request to forward the HttpRequest object
+
+        // The new HttpRequest object shares the same features with the
+        // origin, including the masterXaction object.
+        // XXX: Should the peerRequest be handled as a new HTTP transaction?
+        HttpRequest::Pointer peerRequest = new HttpRequest(request->masterXaction);
+        peerRequest->initHTTP(Http::METHOD_CONNECT, AnyP::PROTO_HTTP, "http", url.c_str());
+
+        // OK about auth and client related info, but what about
+        // adaptHistory_/icapHistory_ ?
+        Http::Message *msg = peerRequest.getRaw();
+        msg->inheritProperties(request.getRaw());
+
+        AccessLogEntry::Pointer peerRequestAl = new AccessLogEntry;
+        peerRequestAl->request = peerRequest.getRaw();
+        HTTPMSGLOCK(peerRequestAl->request);
+        peerRequestAl->syncNotes(peerRequestAl->request);
+        peerRequestAl->url = url;
+        peerRequestAl->tcpClient = al->tcpClient;
+        peerRequestAl->cache.start_time = al->cache.start_time;
+        peerRequestAl->cache.port = al->cache.port;
+        peerRequestAl->cache.caddr = al->cache.caddr;
+#if USE_OPENSSL
+        peerRequestAl->ssl.bumpMode = al->ssl.bumpMode;
+        peerRequestAl->cache.sslClientCert = al->cache.sslClientCert;
+#endif
+        peerRequestAl->proxyProtocolHeader = al->proxyProtocolHeader;
+
+        HttpStateData::httpBuildRequestHeader(peerRequest.getRaw(),
+                                              nullptr, // StoreEntry
+                                              peerRequestAl,
+                                              &hdr_out,
+                                              flags);
+    }
+}
+
+void
 Http::Tunneler::writeRequest()
 {
     debugs(83, 5, connection);
 
     HttpHeader hdr_out(hoRequest);
-    Http::StateFlags flags;
-    flags.peering = true;
-    // flags.tunneling = false; // the CONNECT request itself is not tunneled
-    // flags.toOrigin = false; // the next HTTP hop is a non-originserver peer
     MemBuf mb;
     mb.init();
     mb.appendf("CONNECT %s HTTP/1.1\r\n", url.c_str());
-    HttpStateData::httpBuildRequestHeader(request.getRaw(),
-                                          nullptr, // StoreEntry
-                                          al,
-                                          &hdr_out,
-                                          flags);
+    buildHttpHeaders(hdr_out);
     hdr_out.packInto(&mb);
     hdr_out.clean();
     mb.append("\r\n", 2);

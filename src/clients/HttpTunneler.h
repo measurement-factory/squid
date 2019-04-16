@@ -21,6 +21,7 @@
 
 class ErrorState;
 class AccessLogEntry;
+class HttpHeader;
 typedef RefCount<AccessLogEntry> AccessLogEntryPointer;
 
 namespace Http
@@ -83,6 +84,7 @@ protected:
     void watchForClosures();
     void handleException(const std::exception&);
     void startReadingResponse();
+    void buildHttpHeaders(HttpHeader &hdr_out);
     void writeRequest();
     void handleWrittenRequest(const CommIoCbParams&);
     void handleReadyRead(const CommIoCbParams&);
