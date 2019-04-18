@@ -721,9 +721,10 @@ BindLDAP(edui_ldap_t *l, char *dn, char *pw, unsigned int t)
             /* We got a basedn, but it's not part of dn */
             xstrncpy(l->dn, dn, sizeof(l->dn));
             strncat(l->dn, ",", FREE_SPACE(l->dn));
-            const auto dnFreeBytes = FREE_SPACE(l->dn);
-            const auto dnAppendBytes = dnFreeBytes < strlen(l->basedn) ? dnFreeBytes : strlen(l->basedn);
             const auto dnOldLength = strlen(l->dn);
+            const auto dnFreeBytes = sizeof(l->dn) - dnOldLength - 1;
+            const auto baseDnLength = strlen(l->basedn);
+            const auto dnAppendBytes = dnFreeBytes < baseDnLength ? dnFreeBytes : baseDnLength;
             memmove(l->dn + dnOldLength, l->basedn, dnAppendBytes);
             l->dn[dnOldLength + dnAppendBytes] = '\0';
         } else
