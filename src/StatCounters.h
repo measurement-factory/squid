@@ -41,9 +41,9 @@ public:
         int mem_hits = 0;
         int disk_hits = 0;
         int errors = 0;
-        kb_t kbytes_in;
-        kb_t kbytes_out;
-        kb_t hit_kbytes_out;
+        kb_t kbytes_in = {0, 0};
+        kb_t kbytes_out = {0, 0};
+        kb_t hit_kbytes_out = {0, 0};
         StatHist missSvcTime;
         StatHist nearMissSvcTime;
         StatHist nearHitSvcTime;

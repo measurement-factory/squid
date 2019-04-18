@@ -72,7 +72,7 @@ peerDigestInit(PeerDigest * pd, CachePeer * p)
 {
     assert(pd && p);
 
-    memset(pd, 0, sizeof(*pd));
+    *pd = PeerDigest();
     /*
      * DPW 2007-04-12
      * Lock on to the peer here.  The corresponding cbdataReferenceDone()

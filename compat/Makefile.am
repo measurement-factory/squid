@@ -50,6 +50,7 @@ libcompat_squid_la_SOURCES = \
 	statvfs.h \
 	statvfs.cc \
 	stdio.h \
+	stdio.cc \
 	stdvarargs.h \
 	strnstr.cc \
 	strtoll.h \

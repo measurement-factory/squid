@@ -2273,7 +2273,8 @@ ElementList::pop_front (size_t const count)
     if (!count)
         return;
 
-    memmove(elements, &elements[count], (elementcount - count)  * sizeof (ESIElement::Pointer));
+    for (unsigned int i = 0; i < elementcount-count; ++i)
+        elements[i] = elements[i+count];
 
     elementcount -= count;
 }
@@ -2285,7 +2286,6 @@ ElementList::push_back(ESIElement::Pointer &newElement)
                &allocedsize);
     assert (elements);
     allocedcount = elementcount;
-    memset(&elements[elementcount - 1], '\0', sizeof (ESIElement::Pointer));
     elements[elementcount - 1] = newElement;
 }
 

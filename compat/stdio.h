@@ -63,7 +63,7 @@ inline FILE * tmpfile(void) { return tmpfile64(); }
 #endif
 
 // circumvents GCC 'format-truncation' warning, introduced since v7.1
-#define snprintfXXX(...) (snprintf(__VA_ARGS__) < 0 ? (void)0 : (void)0)
+int snprintfXXX(char *str, size_t size, const char *fmt, ...);
 
 #endif /* _SQUID_COMPAT_STDIO_H */
 

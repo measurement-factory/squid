@@ -846,9 +846,9 @@ Ftp::Gateway::htmlifyListEntry(const char *line)
 
         if (parts->link) {
             char *link2 = xstrdup(html_quote(rfc1738_escape(parts->link)));
-            snprintf(link, 2048, " -&gt; <a href=\"%s%s\">%s</a>",
-                     *link2 != '/' ? prefix : "", link2,
-                     html_quote(parts->link));
+            snprintfXXX(link, 2048, " -&gt; <a href=\"%s%s\">%s</a>",
+                        *link2 != '/' ? prefix : "", link2,
+                        html_quote(parts->link));
             safe_free(link2);
         }
 

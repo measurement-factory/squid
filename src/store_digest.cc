@@ -45,12 +45,12 @@ class StoreDigestState
 
 public:
     StoreDigestCBlock cblock;
-    int rebuild_lock;       /* bucket number */
-    StoreEntry * rewrite_lock;  /* points to store entry with the digest */
+    int rebuild_lock = 0;                 ///< bucket number
+    StoreEntry * rewrite_lock = nullptr;  ///< points to store entry with the digest
     StoreSearchPointer theSearch;
-    int rewrite_offset;
-    int rebuild_count;
-    int rewrite_count;
+    int rewrite_offset = 0;
+    int rebuild_count = 0;
+    int rewrite_count = 0;
 };
 
 typedef struct {
@@ -138,7 +138,7 @@ storeDigestInit(void)
            (int) Config.digest.rebuild_period << "/" <<
            (int) Config.digest.rewrite_period << " sec");
 
-    memset(&sd_state, 0, sizeof(sd_state));
+    sd_state = StoreDigestState();
 #else
     store_digest = NULL;
     debugs(71, 3, "Local cache digest is 'off'");
