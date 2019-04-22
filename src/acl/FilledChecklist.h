@@ -50,28 +50,28 @@ public:
     /// Configures client-related fields from the passed client connection manager.
     /// Has no effect if the client connection manager field is already initialized.
     /// This method should be used in contexts where HttpRequest may be unavailable.
-    void clientConnectionManager(ConnStateData *);
+    void setClientConnectionManager(ConnStateData *);
 
     /// Configures client-related fields from the passed client connection.
     /// Has no effect if the fields are already initialized.
     /// This method should be used in contexts where HttpRequest and
     /// connection manager may be unavailable.
-    void clientConnection(Comm::ConnectionPointer);
+    void setClientConnection(Comm::ConnectionPointer);
 
 #if FOLLOW_X_FORWARDED_FOR
     /// Configures srcAddr() to always return available indirect client address
     /// instead of direct client address.
-    void forceIndirectAddr() { srcAddrRestrictions_ = forceIndirect; }
-#endif /* FOLLOW_X_FORWARDED_FOR */
+    void forceIndirectAddr();
+#endif
 
     /// Configures srcAddr() to always return direct client address
-    void forceDirectAddr() { srcAddrRestrictions_ = forceDirect; }
+    void forceDirectAddr();
 
     /// the associated client connection manager or nil
     ConnStateData *clientConnectionManager() const;
 
     /// remote/source address of a client-to-Squid connection, direct or indirect
-    const Ip::Address &srcAddr() const;
+    const Ip::Address &srcAddr() const { return src_addr; }
 
     /// local/destination address of a client-to-Squid connection
     const Ip::Address &myAddr() const { return my_addr; }
@@ -128,9 +128,7 @@ public:
     err_type requestErrorType;
 
 private:
-    void setClientConnectionManager(ConnStateData *);
-    void setClientConnection(Comm::ConnectionPointer);
-
+    void setClientSideAddresses();
     /// a client connection manager, if any
     ConnStateData *connectionManager_;
     /// a client connection, if any
@@ -142,16 +140,6 @@ private:
     Ip::Address src_addr;
     Ip::Address my_addr;
 
-    typedef enum {
-        noRestrictions,
-#if FOLLOW_X_FORWARDED_FOR
-        forceIndirect, ///< will use indirect client address instead of direct address
-#endif /* FOLLOW_X_FORWARDED_FOR */
-        forceDirect ///< will use direct client address instead of indirect address (if configured)
-    } SrcAddrRestrictions;
-
-    /// forces using either direct or indirect client address
-    SrcAddrRestrictions srcAddrRestrictions_;
     /// not implemented; will cause link failures if used
     ACLFilledChecklist(const ACLFilledChecklist &);
     /// not implemented; will cause link failures if used

@@ -40,8 +40,7 @@ ACLFilledChecklist::ACLFilledChecklist() :
     connectionManager_(nullptr),
     fd_(-1),
     destinationDomainChecked_(false),
-    sourceDomainChecked_(false),
-    srcAddrRestrictions_(noRestrictions)
+    sourceDomainChecked_(false)
 {
     my_addr.setEmpty();
     src_addr.setEmpty();
@@ -147,19 +146,20 @@ ACLFilledChecklist::clientConnectionManager() const
     return cbdataReferenceValid(connectionManager_) ? connectionManager_ : nullptr;
 }
 
-const Ip::Address &
-ACLFilledChecklist::srcAddr() const
-{
-    if (request) {
 #if FOLLOW_X_FORWARDED_FOR
-        if (srcAddrRestrictions_ == forceIndirect)
-            return request->indirectClientAddr();
-#endif /* FOLLOW_X_FORWARDED_FOR */
-        if (srcAddrRestrictions_ == forceDirect)
-            return request->clientAddr();
-        assert(srcAddrRestrictions_ == noRestrictions);
-    }
-    return src_addr;
+void
+ACLFilledChecklist::forceIndirectAddr()
+{
+    assert(request);
+    src_addr = request->indirectClientAddr();
+}
+#endif
+
+void
+ACLFilledChecklist::forceDirectAddr()
+{
+    assert(request);
+    src_addr = request->clientAddr();
 }
 
 int
@@ -234,8 +234,7 @@ ACLFilledChecklist::ACLFilledChecklist(const acl_access *A, HttpRequest *http_re
     connectionManager_(nullptr),
     fd_(-1),
     destinationDomainChecked_(false),
-    sourceDomainChecked_(false),
-    srcAddrRestrictions_(noRestrictions)
+    sourceDomainChecked_(false)
 {
     my_addr.setEmpty();
     src_addr.setEmpty();
@@ -247,55 +246,52 @@ ACLFilledChecklist::ACLFilledChecklist(const acl_access *A, HttpRequest *http_re
     setIdent(ident);
 }
 
-void
-ACLFilledChecklist::setRequest(HttpRequest *httpRequest)
+void ACLFilledChecklist::setRequest(HttpRequest *httpRequest)
 {
     assert(!request);
     if (httpRequest) {
         request = httpRequest;
         HTTPMSGLOCK(request);
-#if FOLLOW_X_FORWARDED_FOR
-        if (Config.onoff.acl_uses_indirect_client)
-            src_addr = request->indirectClientAddr();
-        else
-#endif /* FOLLOW_X_FORWARDED_FOR */
-            src_addr = request->clientAddr();
-        my_addr = request->myAddr();
         setClientConnectionManager(request->clientConnectionManager().get());
-        setClientConnection(request->clientConnection());
+        if (!clientConnectionManager()) // could not take the connection from the connection manager
+            setClientConnection(request->clientConnection());
     }
 }
 
+/// configures addresses of the client-to-Squid connection
 void
-ACLFilledChecklist::clientConnectionManager(ConnStateData *aConn)
+ACLFilledChecklist::setClientSideAddresses()
 {
-    setClientConnectionManager(aConn);
-    if (clientConnectionManager())
-        setClientConnection(clientConnectionManager()->clientConnection);
+    if (request) {
+#if FOLLOW_X_FORWARDED_FOR
+        if (Config.onoff.acl_uses_indirect_client) {
+            assert(src_addr != request->indirectClientAddr());
+            src_addr = request->indirectClientAddr();
+        } else
+#endif
+        {
+            assert(src_addr != request->clientAddr());
+            src_addr = request->clientAddr();
+        }
+        my_addr = request->myAddr();
+    } else if (clientConnection_) {
+        src_addr = clientConnection_->remote;
+        my_addr = clientConnection_->local;
+    }
 }
 
-void
-ACLFilledChecklist::clientConnection(Comm::ConnectionPointer conn)
-{
-    setClientConnection(conn);
-}
-
-/// Initializes the client connection manager; does nothing
-/// if already initialized.
 void
 ACLFilledChecklist::setClientConnectionManager(ConnStateData *aConn)
 {
     if (!(aConn && cbdataReferenceValid(aConn)))
         return;
 
-    if (clientConnectionManager())
-        return;
+    if (!clientConnectionManager())
+        connectionManager_ = cbdataReference(aConn);
 
-    connectionManager_ = cbdataReference(aConn);
+    setClientConnection(clientConnectionManager()->clientConnection);
 }
 
-/// Initializes the client connection and addresses; does nothing
-/// if already initialized.
 void
 ACLFilledChecklist::setClientConnection(Comm::ConnectionPointer conn)
 {
@@ -309,11 +305,7 @@ ACLFilledChecklist::setClientConnection(Comm::ConnectionPointer conn)
 
     clientConnection_ = conn;
 
-    if (request)
-        return; // addresses should have already initialized from the request
-
-    src_addr = clientConnection_->remote;
-    my_addr = clientConnection_->local;
+    setClientSideAddresses();
 }
 
 void

@@ -317,12 +317,11 @@ FwdState::Start(const Comm::ConnectionPointer &clientConn, StoreEntry *entry, Ht
 
     if ( Config.accessList.miss && !request->clientAddr().isNoAddr() &&
             !request->flags.internal && request->url.getScheme() != AnyP::PROTO_CACHE_OBJECT) {
-        /**
-         * Check if this host is allowed to fetch MISSES from us (miss_access).
-         * Intentionally replace the src_addr automatically selected by the checklist code
-         * we do NOT want the indirect client address to be tested here.
-         */
+        // Check if this host is allowed to fetch MISSES from us (miss_access).
         ACLFilledChecklist ch(Config.accessList.miss, request, NULL);
+        // TODO: Explain this acl_uses_indirect_client violation in squid.conf.
+        // TODO: Refer to the above squid.conf documentation here.
+        ch.forceDirectAddr();
         ch.al = al;
         ch.syncAle(request, nullptr);
         if (ch.fastCheck().denied()) {

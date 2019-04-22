@@ -265,10 +265,10 @@ private:
     /// and(or) by annotate_transaction/annotate_client ACLs.
     NotePairs::Pointer theNotes;
 
-    Ip::Address client_addr;
-    Ip::Address my_addr;
+    Ip::Address client_addr; ///< source address of a non-TCP (e.g. ICMP) client
+    Ip::Address my_addr; ///< local address which a non-TCP (e.g., ICMP) client connects to
 #if FOLLOW_X_FORWARDED_FOR
-    Ip::Address indirect_client_addr;
+    Ip::Address indirect_client_addr; ///< calculated client address, after applying X-Forwarded-For rules
 #endif /* FOLLOW_X_FORWARDED_FOR */
 
     /// whether this request was initiated by Squid itself

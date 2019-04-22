@@ -788,8 +788,7 @@ HttpRequest::indirectClientAddr() const
 void
 HttpRequest::ignoreIndirectClientAddr()
 {
-    indirect_client_addr = clientAddr();
-    indirect_client_addr.port(0);
+    indirect_client_addr.setEmpty();
 }
 #endif /* FOLLOW_X_FORWARDED_FOR */
 
