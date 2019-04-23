@@ -1791,7 +1791,7 @@ ClientHttpRequest::doCallouts()
     if (getConn() && Comm::IsConnOpen(getConn()->clientConnection)) {
         ACLFilledChecklist ch(nullptr, request, nullptr);
         ch.al = calloutContext->http->al;
-        ch.setClientConnectionManager(getConn());
+        ch.setClientConnectionDetails(getConn());
         ch.syncAle(request, log_uri);
 
         if (!calloutContext->toClientMarkingDone) {

@@ -47,16 +47,11 @@ public:
     /// configure rfc931 user identity for the first time
     void setIdent(const char *userIdentity);
 
-    /// Configures client-related fields from the passed client connection manager.
-    /// Has no effect if the client connection manager field is already initialized.
-    /// This method should be used in contexts where HttpRequest may be unavailable.
-    void setClientConnectionManager(ConnStateData *);
-
-    /// Configures client-related fields from the passed client connection.
-    /// Has no effect if the fields are already initialized.
-    /// This method should be used in contexts where HttpRequest and
-    /// connection manager may be unavailable.
-    void setClientConnection(Comm::ConnectionPointer);
+    /// Configures client-related fields from the passed client connection manager
+    /// or client connection. The second parameter is used only if the first one
+    /// is nil or invalid. Has no effect if the client connection manager field
+    /// has been already initialized.
+    void setClientConnectionDetails(ConnStateData *, Comm::ConnectionPointer conn = nullptr);
 
 #if FOLLOW_X_FORWARDED_FOR
     /// Configures srcAddr() to always return available indirect client address
@@ -128,6 +123,7 @@ public:
     err_type requestErrorType;
 
 private:
+    void setClientConnection(Comm::ConnectionPointer);
     void setClientSideAddresses();
     /// a client connection manager, if any
     ConnStateData *connectionManager_;

@@ -252,7 +252,7 @@ void ACLFilledChecklist::setRequest(HttpRequest *httpRequest)
     if (httpRequest) {
         request = httpRequest;
         HTTPMSGLOCK(request);
-        setClientConnectionManager(request->clientConnectionManager().get());
+        setClientConnectionDetails(request->clientConnectionManager().get());
         if (!clientConnectionManager()) // could not take the connection from the connection manager
             setClientConnection(request->clientConnection());
     }
@@ -281,17 +281,22 @@ ACLFilledChecklist::setClientSideAddresses()
 }
 
 void
-ACLFilledChecklist::setClientConnectionManager(ConnStateData *aConn)
+ACLFilledChecklist::setClientConnectionDetails(ConnStateData *aConn, Comm::ConnectionPointer conn)
 {
-    if (!(aConn && cbdataReferenceValid(aConn)))
+    if (clientConnectionManager())
         return;
 
-    if (!clientConnectionManager())
+    if (aConn && cbdataReferenceValid(aConn)) {
         connectionManager_ = cbdataReference(aConn);
+        setClientConnection(clientConnectionManager()->clientConnection);
+        return;
+    }
 
-    setClientConnection(clientConnectionManager()->clientConnection);
+    setClientConnection(conn);
 }
 
+/// Configures client-related fields from the passed client connection.
+/// Has no effect if the fields are already initialized.
 void
 ACLFilledChecklist::setClientConnection(Comm::ConnectionPointer conn)
 {

@@ -166,7 +166,7 @@ public:
     void indirectClientAddr(const Ip::Address &addr) { indirect_client_addr = addr; }
     /// force using direct client address
     void ignoreIndirectClientAddr();
-#endif /* FOLLOW_X_FORWARDED_FOR */
+#endif
 
     HierarchyLogEntry hier;
 
@@ -198,7 +198,7 @@ public:
 
 #if FOLLOW_X_FORWARDED_FOR
     String x_forwarded_for_iterator; /* XXX a list of IP addresses */
-#endif /* FOLLOW_X_FORWARDED_FOR */
+#endif
 
     /// A strong etag of the cached entry. Used for refreshing that entry.
     String etag;
@@ -269,7 +269,7 @@ private:
     Ip::Address my_addr; ///< local address which a non-TCP (e.g., ICMP) client connects to
 #if FOLLOW_X_FORWARDED_FOR
     Ip::Address indirect_client_addr; ///< calculated client address, after applying X-Forwarded-For rules
-#endif /* FOLLOW_X_FORWARDED_FOR */
+#endif
 
     /// whether this request was initiated by Squid itself
     bool internal;

@@ -1544,7 +1544,7 @@ Ftp::Server::handleUploadRequest(String &, String &)
         HttpRequest *request = http->request;
         ACLFilledChecklist bodyContinuationCheck(Config.accessList.forceRequestBodyContinuation, request, NULL);
         bodyContinuationCheck.al = http->al;
-        bodyContinuationCheck.setClientConnectionManager(this);
+        bodyContinuationCheck.setClientConnectionDetails(this);
         bodyContinuationCheck.syncAle(request, http->log_uri);
         if (bodyContinuationCheck.fastCheck().allowed()) {
             request->forcedBodyContinuation = true;
