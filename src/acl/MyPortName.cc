@@ -18,8 +18,10 @@
 int
 ACLMyPortNameStrategy::match(ACLData<MatchType> * &data, ACLFilledChecklist *checklist)
 {
-    if (checklist->clientConnectionManager() && checklist->clientConnectionManager()->port)
-        return data->match(checklist->clientConnectionManager()->port->name);
+    if (const auto mgr = checklist->clientConnectionManager()) {
+        if (const auto port = mgr->port)
+            return data->match(port->name);
+    }
     return 0;
 }
 

@@ -67,11 +67,13 @@ int
 ACLIdent::match(ACLChecklist *cl)
 {
     ACLFilledChecklist *checklist = Filled(cl);
-    if (checklist->rfc931[0]) {
+    if (checklist->rfc931[0])
         return data->match(checklist->rfc931);
-    } else if (checklist->clientConnectionManager() && checklist->clientConnectionManager()->clientConnection && checklist->clientConnectionManager()->clientConnection->rfc931[0]) {
-        return data->match(checklist->clientConnectionManager()->clientConnection->rfc931);
-    } else if (checklist->clientConnectionManager() && Comm::IsConnOpen(checklist->clientConnectionManager()->clientConnection)) {
+
+    const auto mgr = checklist->clientConnectionManager();
+    if (mgr && mgr->clientConnection && mgr->clientConnection->rfc931[0]) {
+        return data->match(mgr->clientConnection->rfc931);
+    } else if (mgr && Comm::IsConnOpen(mgr->clientConnection)) {
         if (checklist->goAsync(IdentLookup::Instance())) {
             debugs(28, 3, "switching to ident lookup state");
             return -1;
@@ -120,7 +122,7 @@ IdentLookup::checkForAsync(ACLChecklist *cl)const
     // check that ACLIdent::match() tested this lookup precondition
     assert(conn && Comm::IsConnOpen(conn->clientConnection));
     debugs(28, 3, HERE << "Doing ident lookup" );
-    Ident::Start(checklist->clientConnectionManager()->clientConnection, LookupDone, checklist);
+    Ident::Start(conn->clientConnection, LookupDone, checklist);
 }
 
 void
@@ -138,8 +140,9 @@ IdentLookup::LookupDone(const char *ident, void *data)
      * Cache the ident result in the connection, to avoid redoing ident lookup
      * over and over on persistent connections
      */
-    if (checklist->clientConnectionManager() && checklist->clientConnectionManager()->clientConnection && !checklist->clientConnectionManager()->clientConnection->rfc931[0])
-        xstrncpy(checklist->clientConnectionManager()->clientConnection->rfc931, checklist->rfc931, USER_IDENT_SZ);
+    const auto mgr = checklist->clientConnectionManager();
+    if (mgr && mgr->clientConnection && !mgr->clientConnection->rfc931[0])
+        xstrncpy(mgr->clientConnection->rfc931, checklist->rfc931, USER_IDENT_SZ);
 
     checklist->resumeNonBlockingCheck(IdentLookup::Instance());
 }

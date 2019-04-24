@@ -92,7 +92,7 @@ ACLServerNameStrategy::match (ACLData<MatchType> * &data, ACLFilledChecklist *ch
 
     const char *serverName = nullptr;
     SBuf clientSniKeeper; // because c_str() is not constant
-    if (ConnStateData *conn = checklist->clientConnectionManager()) {
+    if (const auto conn = checklist->clientConnectionManager()) {
         const char *clientRequestedServerName = nullptr;
         clientSniKeeper = conn->tlsClientSni();
         if (clientSniKeeper.isEmpty()) {

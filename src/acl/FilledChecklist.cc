@@ -85,9 +85,11 @@ ACLFilledChecklist::verifyAle() const
     // fill the old external_acl_type codes are set if any
     // data on them exists in the Checklist
 
-    if (!al->cache.port && clientConnectionManager()) {
-        showDebugWarning("listening port");
-        al->cache.port = clientConnectionManager()->port;
+    if (!al->cache.port) {
+        if (const auto mgr = clientConnectionManager()) {
+            showDebugWarning("listening port");
+            al->cache.port = mgr->port;
+        }
     }
 
     if (request) {
@@ -281,14 +283,15 @@ ACLFilledChecklist::setClientSideAddresses()
 }
 
 void
-ACLFilledChecklist::setClientConnectionDetails(ConnStateData *aConn, Comm::ConnectionPointer conn)
+ACLFilledChecklist::setClientConnectionDetails(ConnStateData *mgr, Comm::ConnectionPointer conn)
 {
     if (clientConnectionManager())
         return;
 
-    if (aConn && cbdataReferenceValid(aConn)) {
-        connectionManager_ = cbdataReference(aConn);
-        setClientConnection(clientConnectionManager()->clientConnection);
+    if (mgr && cbdataReferenceValid(mgr)) {
+        connectionManager_ = cbdataReference(mgr);
+        Must(!conn || conn == mgr->clientConnection);
+        setClientConnection(mgr->clientConnection);
         return;
     }
 

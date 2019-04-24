@@ -22,10 +22,12 @@ int
 ACLServerCertificateStrategy::match(ACLData<MatchType> * &data, ACLFilledChecklist *checklist)
 {
     Security::CertPointer cert;
-    if (checklist->serverCert)
+    if (checklist->serverCert) {
         cert = checklist->serverCert;
-    else if (checklist->clientConnectionManager() && checklist->clientConnectionManager()->serverBump())
-        cert = checklist->clientConnectionManager()->serverBump()->serverCert;
+    } else if (const auto mgr = checklist->clientConnectionManager()) {
+        if (mgr->serverBump())
+            cert = mgr->serverBump()->serverCert;
+    }
 
     if (!cert)
         return 0;

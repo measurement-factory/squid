@@ -47,10 +47,9 @@ public:
     /// configure rfc931 user identity for the first time
     void setIdent(const char *userIdentity);
 
-    /// Configures client-related fields from the passed client connection manager
-    /// or client connection. The second parameter is used only if the first one
-    /// is nil or invalid. Has no effect if the client connection manager field
-    /// has been already initialized.
+    /// Configure client connection-related information. Each and both parameters
+    /// can be nil (or equivalent). Specifying mgr->clientConnection as the second
+    /// parameter is useless.
     void setClientConnectionDetails(ConnStateData *, Comm::ConnectionPointer conn = nullptr);
 
 #if FOLLOW_X_FORWARDED_FOR
@@ -62,7 +61,7 @@ public:
     /// Configures srcAddr() to always return direct client address
     void forceDirectAddr();
 
-    /// the associated client connection manager or nil
+    /// a valid client connection manager or nil
     ConnStateData *clientConnectionManager() const;
 
     /// remote/source address of a client-to-Squid connection, direct or indirect
