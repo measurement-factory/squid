@@ -43,7 +43,7 @@ ACLFilledChecklist::ACLFilledChecklist() :
     sourceDomainChecked_(false)
 {
     my_addr.setEmpty();
-    src_addr.setEmpty();
+    client_addr.setEmpty();
     dst_addr.setEmpty();
     rfc931[0] = '\0';
 }
@@ -153,7 +153,7 @@ void
 ACLFilledChecklist::forceIndirectAddr()
 {
     assert(request);
-    src_addr = request->indirectClientAddr();
+    client_addr = request->indirectClientAddr();
 }
 #endif
 
@@ -161,7 +161,7 @@ void
 ACLFilledChecklist::forceDirectAddr()
 {
     assert(request);
-    src_addr = request->clientAddr();
+    client_addr = request->clientAddr();
 }
 
 int
@@ -239,7 +239,7 @@ ACLFilledChecklist::ACLFilledChecklist(const acl_access *A, HttpRequest *http_re
     sourceDomainChecked_(false)
 {
     my_addr.setEmpty();
-    src_addr.setEmpty();
+    client_addr.setEmpty();
     dst_addr.setEmpty();
     rfc931[0] = '\0';
 
@@ -267,17 +267,17 @@ ACLFilledChecklist::setClientSideAddresses()
     if (request) {
 #if FOLLOW_X_FORWARDED_FOR
         if (Config.onoff.acl_uses_indirect_client) {
-            assert(src_addr != request->indirectClientAddr());
-            src_addr = request->indirectClientAddr();
+            assert(client_addr != request->indirectClientAddr());
+            client_addr = request->indirectClientAddr();
         } else
 #endif
         {
-            assert(src_addr != request->clientAddr());
-            src_addr = request->clientAddr();
+            assert(client_addr != request->clientAddr());
+            client_addr = request->clientAddr();
         }
         my_addr = request->myAddr();
     } else if (clientConnection_) {
-        src_addr = clientConnection_->remote;
+        client_addr = clientConnection_->remote;
         my_addr = clientConnection_->local;
     }
 }
@@ -320,7 +320,7 @@ void
 ACLFilledChecklist::snmpDetails(char *snmpCommunity, const Ip::Address &fromAddr, const Ip::Address &localAddr)
 {
     snmp_community = snmpCommunity;
-    src_addr = fromAddr;
+    client_addr = fromAddr;
     my_addr = localAddr;
 }
 

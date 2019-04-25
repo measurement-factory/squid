@@ -587,7 +587,7 @@ template class ACLStrategised<Ip::Address>;
 int
 ACLSourceASNStrategy::match (ACLData<Ip::Address> * &data, ACLFilledChecklist *checklist)
 {
-    return data->match(checklist->srcAddr());
+    return data->match(checklist->clientAddr());
 }
 
 int

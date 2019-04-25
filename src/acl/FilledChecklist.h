@@ -53,19 +53,19 @@ public:
     void setClientConnectionDetails(ConnStateData *, Comm::ConnectionPointer conn = nullptr);
 
 #if FOLLOW_X_FORWARDED_FOR
-    /// Configures srcAddr() to always return available indirect client address
+    /// Configures clientAddr() to always return available indirect client address
     /// instead of direct client address.
     void forceIndirectAddr();
 #endif
 
-    /// Configures srcAddr() to always return direct client address
+    /// Configures clientAddr() to always return direct client address
     void forceDirectAddr();
 
     /// a valid client connection manager or nil
     ConnStateData *clientConnectionManager() const;
 
     /// remote/source address of a client-to-Squid connection, direct or indirect
-    const Ip::Address &srcAddr() const { return src_addr; }
+    const Ip::Address &clientAddr() const { return client_addr; }
 
     /// local/destination address of a client-to-Squid connection
     const Ip::Address &myAddr() const { return my_addr; }
@@ -132,7 +132,11 @@ private:
     int fd_;                        /**< may be available when conn_ is not */
     bool destinationDomainChecked_;
     bool sourceDomainChecked_;
-    Ip::Address src_addr;
+    /// The client source address, which is either source address of the client-to-Squid TCP
+    /// connection (direct address) or a Forwarded-For address (indirect address), determined
+    /// by Squid configuration. The checklist may be configured to force either direct or indirect
+    /// client address usage, overwriting the default configuration.
+    Ip::Address client_addr;
     Ip::Address my_addr;
 
     /// not implemented; will cause link failures if used

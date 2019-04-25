@@ -87,19 +87,19 @@ ACLEui64::match(ACLChecklist *cl)
     ACLFilledChecklist *checklist = Filled(cl);
 
     /* IPv4 does not do EUI-64 (yet) */
-    if (!checklist->srcAddr().isIPv6()) {
-        debugs(14, 3, "ACLEui64::match: IPv6 Required for EUI-64 Lookups. Skipping " << checklist->srcAddr() );
+    if (!checklist->clientAddr().isIPv6()) {
+        debugs(14, 3, "ACLEui64::match: IPv6 Required for EUI-64 Lookups. Skipping " << checklist->clientAddr() );
         return 0;
     }
 
     Eui::Eui64 lookingFor;
-    if (lookingFor.lookup(checklist->srcAddr())) {
+    if (lookingFor.lookup(checklist->clientAddr())) {
         bool found = (eui64Data.find(lookingFor) != eui64Data.end());
-        debugs(28, 3,  checklist->srcAddr() << "' " << (found ? "found" : "NOT found"));
+        debugs(28, 3,  checklist->clientAddr() << "' " << (found ? "found" : "NOT found"));
         return found;
     }
 
-    debugs(28, 3, checklist->srcAddr() << " NOT found");
+    debugs(28, 3, checklist->clientAddr() << " NOT found");
     return 0;
 }
 

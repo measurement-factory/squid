@@ -115,13 +115,13 @@ ACLARP::match(ACLChecklist *cl)
     ACLFilledChecklist *checklist = Filled(cl);
 
     /* IPv6 does not do ARP */
-    if (!checklist->srcAddr().isIPv4()) {
-        debugs(14, 3, "ACLARP::match: IPv4 Required for ARP Lookups. Skipping " << checklist->srcAddr() );
+    if (!checklist->clientAddr().isIPv4()) {
+        debugs(14, 3, "ACLARP::match: IPv4 Required for ARP Lookups. Skipping " << checklist->clientAddr() );
         return 0;
     }
 
     Eui::Eui48 lookingFor;
-    lookingFor.lookup(checklist->srcAddr());
+    lookingFor.lookup(checklist->clientAddr());
     return (aclArpData.find(lookingFor) != aclArpData.end());
 }
 

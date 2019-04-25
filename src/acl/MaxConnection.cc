@@ -75,7 +75,7 @@ ACLMaxConnection::parse()
 int
 ACLMaxConnection::match(ACLChecklist *checklist)
 {
-    return clientdbEstablished(Filled(checklist)->srcAddr(), 0) > limit ? 1 : 0;
+    return clientdbEstablished(Filled(checklist)->clientAddr(), 0) > limit ? 1 : 0;
 }
 
 SBufList
