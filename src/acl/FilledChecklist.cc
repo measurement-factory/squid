@@ -260,25 +260,29 @@ void ACLFilledChecklist::setRequest(HttpRequest *httpRequest)
     }
 }
 
+static void
+InitializeAddress(Ip::Address &addr, const Ip::Address &value)
+{
+    Must(addr.isEmpty() || addr == value);
+    if (addr.isEmpty())
+        addr = value;
+}
+
 /// configures addresses of the client-to-Squid connection
 void
 ACLFilledChecklist::setClientSideAddresses()
 {
     if (request) {
 #if FOLLOW_X_FORWARDED_FOR
-        if (Config.onoff.acl_uses_indirect_client) {
-            assert(client_addr != request->indirectClientAddr());
-            client_addr = request->indirectClientAddr();
-        } else
+        if (Config.onoff.acl_uses_indirect_client)
+            InitializeAddress(client_addr, request->indirectClientAddr());
+        else
 #endif
-        {
-            assert(client_addr != request->clientAddr());
-            client_addr = request->clientAddr();
-        }
-        my_addr = request->myAddr();
+            InitializeAddress(client_addr, request->clientAddr());
+        InitializeAddress(my_addr, request->myAddr());
     } else if (clientConnection_) {
-        client_addr = clientConnection_->remote;
-        my_addr = clientConnection_->local;
+        InitializeAddress(client_addr, clientConnection_->remote);
+        InitializeAddress(my_addr, clientConnection_->local);
     }
 }
 
