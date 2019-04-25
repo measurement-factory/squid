@@ -70,8 +70,8 @@ public:
     /// This applies to TPROXY traffic that has not had spoofing disabled through
     /// the spoof_client_ip squid.conf ACL.
     bool spoofClientIp = false;
-    /** set if the request is internal (\see ClientHttpRequest::flags.internal)*/
-    bool internal = false;
+    /// set if the received request is internal (\see ClientHttpRequest::flags.internalReceived)
+    bool internalReceived = false;
     /** if set, request to try very hard to keep the connection alive */
     bool mustKeepalive = false;
     /** set if the rquest wants connection oriented auth */

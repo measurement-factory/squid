@@ -1282,6 +1282,8 @@ netdbExchangeStart(void *data)
         return;
     }
 
+    req->selfInitiated();
+
     netdbExchangeState *ex = new netdbExchangeState(p, req);
     ex->e = storeCreateEntry(uri, uri, RequestFlags(), Http::METHOD_GET);
     assert(NULL != ex->e);

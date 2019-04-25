@@ -375,7 +375,7 @@ clientBeginRequest(const HttpRequestMethod& method, char const *url, CSCB * stre
      * objects ?
      */
 
-    request->makeInternal();
+    request->selfInitiated();
 
     http->initRequest(request);
 
@@ -582,7 +582,7 @@ ClientRequestContext::hostHeaderVerify()
         return;
     }
 
-    if (http->request->flags.internal) {
+    if (http->request->flags.internalReceived) {
         // TODO: kill this when URL handling allows partial URLs out of accel mode
         //       and we no longer screw with the URL just to add our internal host there
         debugs(85, 6, HERE << "validate skipped due to internal composite URL.");

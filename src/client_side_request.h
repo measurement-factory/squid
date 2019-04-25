@@ -124,10 +124,10 @@ public:
     AccessLogEntry::Pointer al; ///< access.log entry
 
     struct Flags {
-        Flags() : accel(false), internal(false), done_copying(false), purging(false) {}
+        Flags() : accel(false), internalReceived(false), done_copying(false), purging(false) {}
 
         bool accel;
-        bool internal;
+        bool internalReceived;
         bool done_copying;
         bool purging;
     } flags;

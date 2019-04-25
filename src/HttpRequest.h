@@ -97,6 +97,9 @@ public:
     /// sets TPROXY-related flags
     void setInterceptionFlags(const AccessLogEntryPointer &al);
 
+    /// whether this request is a subject of 'miss_access' check
+    bool needCheckMissAccess() const;
+
 protected:
     void clean();
 
@@ -139,7 +142,7 @@ public:
     int imslen;
 
     /// this request was initiated by Squid (rather than received on a client connection)
-    void makeInternal();
+    void selfInitiated();
 
     /// supply Downloader-specific settings
     void prepareForDownloader(Downloader *);
@@ -271,8 +274,8 @@ private:
     Ip::Address indirect_client_addr; ///< calculated client address, after applying X-Forwarded-For rules
 #endif
 
-    /// whether this request was initiated by Squid itself
-    bool internal;
+    /// whether this request was spawned by Squid itself
+    bool selfInitiated_;
 
 protected:
     virtual void packFirstLineInto(Packable * p, bool full_uri) const;

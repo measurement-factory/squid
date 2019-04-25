@@ -647,7 +647,7 @@ clientReplyContext::cacheHit(StoreIOBuffer result)
         http->logType.update(LOG_TCP_MISS);
         processMiss();
         return;
-    } else if (!http->flags.internal && refreshCheckHTTP(e, r)) {
+    } else if (!http->flags.internalReceived && refreshCheckHTTP(e, r)) {
         debugs(88, 5, "clientCacheHit: in refreshCheck() block");
         /*
          * We hold a stale copy; it needs to be validated
@@ -874,7 +874,7 @@ clientReplyContext::blockedHit() const
     if (!Config.accessList.sendHit)
         return false; // hits are not blocked by default
 
-    if (http->flags.internal)
+    if (http->flags.internalReceived)
         return false; // internal content "hits" cannot be blocked
 
     if (const HttpReply *rep = http->storeEntry()->getReply()) {
@@ -1682,7 +1682,7 @@ clientReplyContext::identifyStoreObject()
 
     // client sent CC:no-cache or some other condition has been
     // encountered which prevents delivering a public/cached object.
-    if (!r->flags.noCache || r->flags.internal) {
+    if (!r->flags.noCache || r->flags.internalReceived) {
         lookingforstore = 5;
         StoreEntry::getPublicByRequest (this, r);
     } else {

@@ -334,6 +334,8 @@ peerDigestRequest(PeerDigest * pd)
     /* add custom headers */
     assert(!req->header.len);
 
+    req->selfInitiated();
+
     req->header.putStr(Http::HdrType::ACCEPT, StoreDigestMimeStr);
 
     req->header.putStr(Http::HdrType::ACCEPT, "text/html");

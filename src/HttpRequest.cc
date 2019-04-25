@@ -115,7 +115,7 @@ HttpRequest::init()
 #endif
     rangeOffsetLimit = -2; //a value of -2 means not checked yet
     forcedBodyContinuation = false;
-    internal = false;
+    selfInitiated_ = false;
 
     if (clientConnectionManager().valid()) {
         if (const auto port = clientConnectionManager()->port) {
@@ -257,7 +257,7 @@ HttpRequest::inheritProperties(const Http::Message *aMsg)
 
     sources = aReq->sources;
 
-    internal = aReq->internal;
+    selfInitiated_ = aReq->selfInitiated_;
 
     return true;
 }
@@ -719,22 +719,22 @@ HttpRequest::prepareForDownloader(Downloader *aDownloader)
     header.putStr(Http::HdrType::HOST, url.host());
     header.putTime(Http::HdrType::DATE, squid_curtime);
     downloader = aDownloader;
-    makeInternal();
+    selfInitiated();
 }
 
 void
-HttpRequest::makeInternal()
+HttpRequest::selfInitiated()
 {
     /* Internally created requests cannot have bodies today */
     content_length = 0;
     http_ver = Http::ProtocolVersion();
-    internal = true;
+    selfInitiated_ = true;
 }
 
 CbcPointer<ConnStateData> &
 HttpRequest::clientConnectionManager()
 {
-    if (!internal)
+    if (!selfInitiated_)
         return masterXaction->clientConnectionManager();
     static CbcPointer<ConnStateData> noManager;
     return noManager;
@@ -752,7 +752,7 @@ NoAddr()
 const Ip::Address&
 HttpRequest::clientAddr() const
 {
-    if (internal)
+    if (selfInitiated_)
         return NoAddr();
     if (clientConnection())
         return clientConnection()->remote;
@@ -769,7 +769,7 @@ HttpRequest::prepareForConnectionlessProtocol(const Ip::Address &fromAddr, const
 const Ip::Address&
 HttpRequest::myAddr() const
 {
-    return internal ? NoAddr():
+    return selfInitiated_ ? NoAddr():
            masterXaction->clientConnection() ?
            masterXaction->clientConnection()->local : my_addr;
 }
@@ -778,7 +778,7 @@ HttpRequest::myAddr() const
 const Ip::Address&
 HttpRequest::indirectClientAddr() const
 {
-    if (internal)
+    if (selfInitiated_)
         return NoAddr();
     if (!indirect_client_addr.isEmpty())
         return indirect_client_addr;
@@ -812,6 +812,12 @@ HttpRequest::setInterceptionFlags(const AccessLogEntryPointer &al)
         } else
             flags.spoofClientIp = false;
     }
+}
+
+bool
+HttpRequest::needCheckMissAccess() const
+{
+    return !(flags.internalReceived || url.getScheme() == AnyP::PROTO_CACHE_OBJECT);
 }
 
 char *
@@ -872,7 +878,7 @@ FindListeningPortAddress(const HttpRequest *callerRequest, const AccessLogEntry 
 Comm::ConnectionPointer
 HttpRequest::clientConnection() const
 {
-    if (!internal)
+    if (!selfInitiated_)
         return masterXaction->clientConnection();
     static Comm::ConnectionPointer noConnection;
     return noConnection;

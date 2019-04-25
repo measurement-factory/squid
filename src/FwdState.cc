@@ -309,14 +309,7 @@ FwdState::~FwdState()
 void
 FwdState::Start(const Comm::ConnectionPointer &clientConn, StoreEntry *entry, HttpRequest *request, const AccessLogEntryPointer &al)
 {
-    /** \note
-     * client_addr == no_addr indicates this is an "internal" request
-     * from peer_digest.c, asn.c, netdb.c, etc and should always
-     * be allowed.  yuck, I know.
-     */
-
-    if ( Config.accessList.miss && !request->clientAddr().isNoAddr() &&
-            !request->flags.internal && request->url.getScheme() != AnyP::PROTO_CACHE_OBJECT) {
+    if (Config.accessList.miss && request->needCheckMissAccess()) {
         // Check if this host is allowed to fetch MISSES from us (miss_access).
         ACLFilledChecklist ch(Config.accessList.miss, request, NULL);
         // TODO: Explain this acl_uses_indirect_client violation in squid.conf.
@@ -355,7 +348,7 @@ FwdState::Start(const Comm::ConnectionPointer &clientConn, StoreEntry *entry, Ht
         return;
     }
 
-    if (request->flags.internal) {
+    if (request->flags.internalReceived) {
         debugs(17, 2, "calling internalStart() due to request flag");
         internalStart(clientConn, request, entry);
         return;

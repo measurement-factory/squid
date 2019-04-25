@@ -1095,13 +1095,7 @@ tunnelStart(ClientHttpRequest * http)
     HttpRequest *request = http->request;
     char *url = http->uri;
 
-    /*
-     * client_addr.isNoAddr()  indicates this is an "internal" request
-     * from peer_digest.c, asn.c, netdb.c, etc and should always
-     * be allowed.  yuck, I know.
-     */
-
-    if (Config.accessList.miss && !request->clientAddr().isNoAddr()) {
+    if (Config.accessList.miss && request->needCheckMissAccess()) {
         /*
          * Check if this host is allowed to fetch MISSES from us (miss_access)
          * default is to allow.
