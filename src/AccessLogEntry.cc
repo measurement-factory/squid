@@ -31,6 +31,7 @@ AccessLogEntry::getLogClientIp(char *buf, size_t bufsz) const
 
     // internally generated requests (and some ICAP) lack client IP
     if (log_ip.isNoAddr()) {
+        Must(!request || request->isSelfInitiated());
         strncpy(buf, "-", bufsz);
         return;
     }

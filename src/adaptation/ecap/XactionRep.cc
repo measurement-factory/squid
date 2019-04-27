@@ -127,7 +127,7 @@ Adaptation::Ecap::XactionRep::clientIpValue() const
     Must(request);
     // TODO: move this logic into HttpRequest::clientIp(bool) and
     // HttpRequest::clientIpString(bool) and reuse everywhere
-    if (TheConfig.send_client_ip && request) {
+    if (TheConfig.send_client_ip && request && !request->isSelfInitiated()) {
         Ip::Address client_addr;
 #if FOLLOW_X_FORWARDED_FOR
         if (TheConfig.use_indirect_client)
@@ -135,7 +135,7 @@ Adaptation::Ecap::XactionRep::clientIpValue() const
         else
 #endif
             client_addr = request->clientAddr();
-        if (!client_addr.isAnyAddr() && !client_addr.isNoAddr()) {
+        if (!client_addr.isAnyAddr()) {
             char ntoabuf[MAX_IPSTRLEN] = "";
             client_addr.toStr(ntoabuf,MAX_IPSTRLEN);
             return libecap::Area::FromTempBuffer(ntoabuf, strlen(ntoabuf));

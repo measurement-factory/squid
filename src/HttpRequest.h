@@ -143,6 +143,7 @@ public:
 
     /// this request was initiated by Squid (rather than received on a client connection)
     void selfInitiated();
+    bool isSelfInitiated() const { return selfInitiated_; }
 
     /// supply Downloader-specific settings
     void prepareForDownloader(Downloader *);
