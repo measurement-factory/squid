@@ -817,7 +817,7 @@ HttpRequest::setInterceptionFlags(const AccessLogEntryPointer &al)
 bool
 HttpRequest::needCheckMissAccess() const
 {
-    return !(flags.internalReceived || url.getScheme() == AnyP::PROTO_CACHE_OBJECT);
+    return !(flags.internalReceived || url.getScheme() == AnyP::PROTO_CACHE_OBJECT || isSelfInitiated());
 }
 
 char *
