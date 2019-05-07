@@ -680,7 +680,7 @@ class TimeMeter
         bool overflowed() const {
             const auto endTime = std::chrono::high_resolution_clock::now();
             const auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - startTime);
-            return static_cast<time_nsec_t>(duration.count()) < maxDuration;
+            return static_cast<time_nsec_t>(duration.count()) > maxDuration;
         }
 
     private:
