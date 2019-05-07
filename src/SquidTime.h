@@ -19,6 +19,9 @@
 /* Use uint64_t to store milliseconds */
 typedef uint64_t time_msec_t;
 
+/// Use uint64_t to store nanoseconds
+typedef uint64_t time_nsec_t;
+
 /* globals for accessing time */
 extern struct timeval current_time;
 extern double current_dtime;

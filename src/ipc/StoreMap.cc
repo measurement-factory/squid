@@ -17,6 +17,8 @@
 #include "store_key_md5.h"
 #include "tools.h"
 
+#include <chrono>
+
 static SBuf
 StoreMapSlicesId(const SBuf &path)
 {
@@ -404,7 +406,7 @@ Ipc::StoreMap::openForReadingAt(const sfileno fileno, const cache_key *const key
         return nullptr;
     }
 
-    if (Config.onoff.paranoid_hit_validation && (path.cmp("transients_map") != 0) && !validateHit(fileno)) {
+    if (Config.paranoid_hit_validation > 0 && (path.cmp("transients_map") != 0) && !validateHit(fileno)) {
         s.lock.unlockShared();
         debugs(54, 5, "cannot open corrupted entry " << fileno <<
                " for reading " << path);
@@ -668,6 +670,24 @@ Ipc::StoreMap::validSlice(const int pos) const
     return 0 <= pos && pos < sliceLimit();
 }
 
+class TimeMeter
+{
+    public:
+        TimeMeter(const time_nsec_t max) : maxDuration() {
+            startTime = std::chrono::high_resolution_clock::now();
+        }
+
+        bool overflowed() const {
+            const auto endTime = std::chrono::high_resolution_clock::now();
+            const auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - startTime);
+            return static_cast<time_nsec_t>(duration.count()) < maxDuration;
+        }
+
+    private:
+        std::chrono::time_point<std::chrono::high_resolution_clock> startTime;
+        const time_nsec_t maxDuration;
+};
+
 bool
 Ipc::StoreMap::validateHit(const sfileno fileno)
 {
@@ -685,6 +705,7 @@ Ipc::StoreMap::validateHit(const sfileno fileno)
     size_t actualSliceCount = 0;
     uint64_t actualByteCount = 0;
     SliceId lastSeenSlice = anchor.start;
+    TimeMeter timeMeter(Config.paranoid_hit_validation);
     while (lastSeenSlice >= 0) {
         ++actualSliceCount;
         if (!validSlice(lastSeenSlice))
@@ -694,6 +715,8 @@ Ipc::StoreMap::validateHit(const sfileno fileno)
         if (actualByteCount > expectedByteCount)
             break;
         lastSeenSlice = slice.next;
+        if (timeMeter.overflowed())
+            return true;
     }
 
     anchor.lock.unlockHeaders();

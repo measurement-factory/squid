@@ -324,7 +324,6 @@ public:
         int httpd_suppress_version_string;
         int global_internal_static;
         int collapsed_forwarding;
-        int paranoid_hit_validation;
 
 #if FOLLOW_X_FORWARDED_FOR
         int acl_uses_indirect_client;
@@ -352,6 +351,8 @@ public:
 
     int forward_max_tries;
     int connect_retries;
+
+    time_nsec_t paranoid_hit_validation;
 
     class ACL *aclList;
 

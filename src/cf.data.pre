@@ -55,6 +55,24 @@ COMMENT_START
 		MB - Megabyte
 		GB - Gigabyte
 
+  Values with time units
+
+	Time-related directives marked with either "time-units" or
+	"time-units-small" accept a time unit. The supported time units are:
+
+		nanosecond - one billionth (10^-9) of a second (time-units-small only)
+		microsecond - one millionth (10^-6) of a second (time-units-small only)
+		millisecond - one thousandth (10^-3) of a second
+		second
+		minute - 60 seconds
+		hour - 60 minutes
+		day - 24 hours
+		week - 7 days
+		fortnight - 2 weeks
+		month - 30 days
+		year - 31557790080 milliseconds (just over 365 days)
+		decade - 10 years
+
   Values with spaces, quotes, and other special characters
 
 	Squid supports directive parameters with spaces, quotes, and other
@@ -4007,20 +4025,36 @@ DOC_START
 DOC_END
 
 NAME: paranoid_hit_validation
-COMMENT: on|off
-TYPE: onoff
-DEFAULT: off
-LOC: Config.onoff.paranoid_hit_validation
+COMMENT: time-units-small
+TYPE: time_nanoseconds
+DEFAULT: 0
+DEFAULT_DOC: validation disabled
+LOC: Config.paranoid_hit_validation
 DOC_START
-	Controls whether Squid should perform paranoid validation of
-	cache entry metadata integrity every time a cache entry is hit.
-	Squid bugs notwithstanding, this low-level validation should
-	always succeed. Each failed validation results in a cache miss,
-	a BUG line reported to cache.log, and the invalid entry marked
-	as unusable (and eventually purged from the cache).
+		Controls whether Squid should perform paranoid validation of cache entry
+		metadata integrity every time a cache entry is hit. Squid bugs
+		notwithstanding, this low-level validation should always succeed. Each
+		failed validation results in a cache miss, a BUG line reported to cache.log,
+		and the invalid entry marked as unusable (and eventually purged from the
+		cache).
 
-	When hit validation is enabled, its statistics is included in Cache
-	Manager mgr:counters, mgr:5min, and mgr:60min reports.
+		Squid can only validate shared cache memory and rock cache_dir entries.
+
+		Positive paranoid_hit_validation values enable validation and approximate
+		the maximum time that Squid is allowed to spend validating a single cache
+		hit. Hits are usually stored using 16KB slots (for rock, the size is
+		configurable via cache_dir slot-size). Larger hits require scanning more
+		slots and, hence, take more time. When validation is enabled, at least one
+		slot is always validated, regardless of the configured time limit.
+
+		A worker process validating an entry cannot do anything else (i.e. the
+		validation is blocking). The validation overhead is environment dependent,
+		but developers have observed Squid spending 3-10 microseconds to check each
+		slot of a Rock or shared memory hit entry. If Squid cuts validation short
+		because it runs out of configured time, it treats the entry as valid.
+
+		When hit validation is enabled, its statistics is included in Cache
+		Manager mgr:counters, mgr:5min, and mgr:60min reports.
 DOC_END
 
 NAME: max_open_disk_fds

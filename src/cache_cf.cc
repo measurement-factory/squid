@@ -92,6 +92,7 @@
 #if HAVE_GLOB_H
 #include <glob.h>
 #endif
+#include <chrono>
 #include <limits>
 #include <list>
 #if HAVE_PWD_H
@@ -134,6 +135,8 @@ static void free_ecap_service_type(Adaptation::Ecap::Config *);
 
 static peer_t parseNeighborType(const char *s);
 
+static const char *const T_NANOSECOND_STR = "nanosecond";
+static const char *const T_MICROSECOND_STR = "microsecond";
 static const char *const T_MILLISECOND_STR = "millisecond";
 static const char *const T_SECOND_STR = "second";
 static const char *const T_MINUTE_STR = "minute";
@@ -150,6 +153,14 @@ static const char *const B_KBYTES_STR = "KB";
 static const char *const B_MBYTES_STR = "MB";
 static const char *const B_GBYTES_STR = "GB";
 
+/// each time unit specifies the number of samples in a second
+typedef enum {
+    seconds = 1,
+    milliSeconds = 1000,
+    microSeconds = 1000000,
+    nanoSeconds = 1000000000
+} TimeUnits;
+
 static const char *const list_sep = ", \t\n\r";
 
 static void parse_access_log(CustomLog ** customlog_definitions);
@@ -160,8 +171,6 @@ static bool setLogformat(CustomLog *cl, const char *name, const bool dieWhenMiss
 
 static void configDoConfigure(void);
 static void parse_refreshpattern(RefreshPattern **);
-static uint64_t parseTimeUnits(const char *unit,  bool allowMsec);
-static void parseTimeLine(time_msec_t * tptr, const char *units, bool allowMsec, bool expectMoreArguments);
 static void parse_u_short(unsigned short * var);
 static void parse_string(char **);
 static void default_all(void);
@@ -1014,12 +1023,57 @@ parse_obsolete(const char *name)
     }
 }
 
-/* Parse a time specification from the config file.  Store the
- * result in 'tptr', after converting it to 'units' */
-static void
-parseTimeLine(time_msec_t * tptr, const char *units,  bool allowMsec,  bool expectMoreArguments = false)
+/// \returns the number of samples specified by 'unit' in unitName
+template <class T>
+T parseTimeUnits(const char *unitName, const TimeUnits unit)
 {
-    time_msec_t u = parseTimeUnits(units, allowMsec);
+    if (unit >= TimeUnits::nanoSeconds && !strncasecmp(unitName, T_NANOSECOND_STR, strlen(T_NANOSECOND_STR)))
+        return unit/TimeUnits::nanoSeconds;
+
+    if (unit >= TimeUnits::microSeconds && !strncasecmp(unitName, T_MICROSECOND_STR, strlen(T_MICROSECOND_STR)))
+        return unit/TimeUnits::microSeconds;
+
+    if (unit >= TimeUnits::milliSeconds && !strncasecmp(unitName, T_MILLISECOND_STR, strlen(T_MILLISECOND_STR)))
+        return unit/TimeUnits::milliSeconds;
+
+    if (!strncasecmp(unitName, T_SECOND_STR, strlen(T_SECOND_STR)))
+        return unit;
+
+    if (!strncasecmp(unitName, T_MINUTE_STR, strlen(T_MINUTE_STR)))
+        return 60 * unit;
+
+    if (!strncasecmp(unitName, T_HOUR_STR, strlen(T_HOUR_STR)))
+        return 3600 * unit;
+
+    if (!strncasecmp(unitName, T_DAY_STR, strlen(T_DAY_STR)))
+        return 86400 * unit;
+
+    if (!strncasecmp(unitName, T_WEEK_STR, strlen(T_WEEK_STR)))
+        return 86400 * 7 * unit;
+
+    if (!strncasecmp(unitName, T_FORTNIGHT_STR, strlen(T_FORTNIGHT_STR)))
+        return 86400 * 14 * unit;
+
+    if (!strncasecmp(unitName, T_MONTH_STR, strlen(T_MONTH_STR)))
+        return 86400 * 30 * unit;
+
+    if (!strncasecmp(unitName, T_YEAR_STR, strlen(T_YEAR_STR)))
+        return static_cast<T>(86400 * unit * 365.2522);
+
+    if (!strncasecmp(unitName, T_DECADE_STR, strlen(T_DECADE_STR)))
+        return static_cast<T>(86400 * unit * 365.2522 * 10);
+
+    debugs(3, DBG_IMPORTANT, "parseTimeUnits: unknown time unit '" << unit << "'");
+
+    return 0;
+}
+
+/// Parse a time specification from the config file. Store the
+/// result in 'tptr', after converting it to 'unit'.
+template <class T>
+void parseTimeLine(T *tptr, const char *defaultUnitName, const TimeUnits unit, const bool expectMoreArguments = false)
+{
+    const auto u = parseTimeUnits<T>(defaultUnitName, unit);
     if (u == 0) {
         self_destruct();
         return;
@@ -1033,10 +1087,10 @@ parseTimeLine(time_msec_t * tptr, const char *units,  bool allowMsec,  bool expe
 
     double d = xatof(token);
 
-    time_msec_t m = u; /* default to 'units' if none specified */
+    auto m = u; // 'defaultUnitName' if none specified
 
     if (d) {
-        if ((token = ConfigParser::PeekAtToken()) && (m = parseTimeUnits(token, allowMsec))) {
+        if ((token = ConfigParser::PeekAtToken()) && (m = parseTimeUnits<T>(token, unit))) {
             (void)ConfigParser::NextToken();
 
         } else if (!expectMoreArguments) {
@@ -1045,56 +1099,40 @@ parseTimeLine(time_msec_t * tptr, const char *units,  bool allowMsec,  bool expe
 
         } else {
             token = NULL; // show default units if dying below
-            debugs(3, DBG_CRITICAL, "WARNING: No units on '" << config_input_line << "', assuming " << d << " " << units);
+            debugs(3, DBG_CRITICAL, "WARNING: No units on '" << config_input_line << "', assuming " << d << " " << defaultUnitName);
         }
     } else
         token = NULL; // show default units if dying below.
 
-    *tptr = static_cast<time_msec_t>(m * d);
+    *tptr = static_cast<T>(m * d);
 
     if (static_cast<double>(*tptr) * 2 != m * d * 2) {
         debugs(3, DBG_CRITICAL, "FATAL: Invalid value '" <<
-               d << " " << (token ? token : units) << ": integer overflow (time_msec_t).");
+               d << " " << (token ? token : defaultUnitName) << ": integer overflow.");
         self_destruct();
     }
-}
 
-static uint64_t
-parseTimeUnits(const char *unit, bool allowMsec)
-{
-    if (allowMsec && !strncasecmp(unit, T_MILLISECOND_STR, strlen(T_MILLISECOND_STR)))
-        return 1;
+    if (unit < TimeUnits::microSeconds || !(*tptr))
+        return;
 
-    if (!strncasecmp(unit, T_SECOND_STR, strlen(T_SECOND_STR)))
-        return 1000;
+    // validate precisions (time-unit-small only)
 
-    if (!strncasecmp(unit, T_MINUTE_STR, strlen(T_MINUTE_STR)))
-        return 60 * 1000;
+    using HighResDuration = std::chrono::high_resolution_clock::duration;
+    HighResDuration durationRatio;
 
-    if (!strncasecmp(unit, T_HOUR_STR, strlen(T_HOUR_STR)))
-        return 3600 * 1000;
+    if (unit == TimeUnits::nanoSeconds) {
+        std::chrono::duration<int64_t, std::ratio<1, TimeUnits::nanoSeconds>> parsedDuration(*tptr);
+        durationRatio = HighResDuration(parsedDuration);
+    } else {
+        assert(unit == TimeUnits::microSeconds);
+        std::chrono::duration<int64_t, std::ratio<1, TimeUnits::microSeconds>> parsedDuration(*tptr);
+        durationRatio = HighResDuration(parsedDuration);
+    }
 
-    if (!strncasecmp(unit, T_DAY_STR, strlen(T_DAY_STR)))
-        return 86400 * 1000;
-
-    if (!strncasecmp(unit, T_WEEK_STR, strlen(T_WEEK_STR)))
-        return 86400 * 7 * 1000;
-
-    if (!strncasecmp(unit, T_FORTNIGHT_STR, strlen(T_FORTNIGHT_STR)))
-        return 86400 * 14 * 1000;
-
-    if (!strncasecmp(unit, T_MONTH_STR, strlen(T_MONTH_STR)))
-        return static_cast<uint64_t>(86400) * 30 * 1000;
-
-    if (!strncasecmp(unit, T_YEAR_STR, strlen(T_YEAR_STR)))
-        return static_cast<uint64_t>(86400 * 1000 * 365.2522);
-
-    if (!strncasecmp(unit, T_DECADE_STR, strlen(T_DECADE_STR)))
-        return static_cast<uint64_t>(86400 * 1000 * 365.2522 * 10);
-
-    debugs(3, DBG_IMPORTANT, "parseTimeUnits: unknown time unit '" << unit << "'");
-
-    return 0;
+    if (durationRatio.count() <= 3)
+        debugs(3, DBG_CRITICAL, "WARNING: the parsed value " << d << " " <<
+                (token ? token : defaultUnitName) <<
+                " is too small to be measured with high_resolution_clock");
 }
 
 static void
@@ -2904,9 +2942,7 @@ dump_time_t(StoreEntry * entry, const char *name, time_t var)
 void
 parse_time_t(time_t * var)
 {
-    time_msec_t tval;
-    parseTimeLine(&tval, T_SECOND_STR, false);
-    *var = static_cast<time_t>(tval/1000);
+    parseTimeLine(var, T_SECOND_STR, TimeUnits::seconds);
 }
 
 static void
@@ -2927,11 +2963,29 @@ dump_time_msec(StoreEntry * entry, const char *name, time_msec_t var)
 void
 parse_time_msec(time_msec_t * var)
 {
-    parseTimeLine(var, T_SECOND_STR, true);
+    parseTimeLine(var, T_SECOND_STR, TimeUnits::milliSeconds);
 }
 
 static void
 free_time_msec(time_msec_t * var)
+{
+    *var = 0;
+}
+
+static void
+dump_time_nanoseconds(StoreEntry * entry, const char *name, time_nsec_t var)
+{
+    storeAppendPrintf(entry, "%s %" PRId64 " nanoseconds\n", name, var);
+}
+
+void
+parse_time_nanoseconds(time_nsec_t *var)
+{
+    parseTimeLine(var, T_SECOND_STR, TimeUnits::nanoSeconds);
+}
+
+static void
+free_time_nanoseconds(time_nsec_t * var)
 {
     *var = 0;
 }
@@ -4371,7 +4425,7 @@ static void parse_icap_service_failure_limit(Adaptation::Icap::Config *cfg)
         debugs(3, DBG_CRITICAL, "No time-units on '" << config_input_line << "'");
         self_destruct();
         return;
-    } else if ((m = parseTimeUnits(token, false)) == 0) {
+    } else if ((m = parseTimeUnits<time_t>(token, TimeUnits::seconds)) == 0) {
         self_destruct();
         return;
     }
@@ -4811,9 +4865,9 @@ static void free_ftp_epsv(acl_access **ftp_epsv)
 static void
 parse_UrlHelperTimeout(SquidConfig::UrlHelperTimeout *config)
 {
-    time_msec_t tval;
-    parseTimeLine(&tval, T_SECOND_STR, false, true);
-    Config.Timeout.urlRewrite = static_cast<time_t>(tval/1000);
+    time_t tval = 0;
+    parseTimeLine(&tval, T_SECOND_STR, TimeUnits::seconds, true);
+    Config.Timeout.urlRewrite = tval;
 
     char *key, *value;
     while(ConfigParser::NextKvPair(key, value)) {
