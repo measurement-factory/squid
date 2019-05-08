@@ -1025,7 +1025,8 @@ parse_obsolete(const char *name)
 
 /// \returns the number of samples specified by 'unit' in unitName
 template <class T>
-T parseTimeUnits(const char *unitName, const TimeUnits unit)
+T
+parseTimeUnits(const char *unitName, const TimeUnits unit)
 {
     if (unit >= TimeUnits::nanoSeconds && !strncasecmp(unitName, T_NANOSECOND_STR, strlen(T_NANOSECOND_STR)))
         return unit/TimeUnits::nanoSeconds;
@@ -1071,10 +1072,11 @@ T parseTimeUnits(const char *unitName, const TimeUnits unit)
 /// Parse a time specification from the config file. Store the
 /// result in 'tptr', after converting it to 'unit'.
 template <class T>
-void parseTimeLine(T *tptr, const char *defaultUnitName, const TimeUnits unit, const bool expectMoreArguments = false)
+void
+parseTimeLine(T *parsedTime, const char *defaultUnitName, const TimeUnits unit, const bool expectMoreArguments = false)
 {
-    const auto u = parseTimeUnits<T>(defaultUnitName, unit);
-    if (u == 0) {
+    const auto defaultUnits = parseTimeUnits<T>(defaultUnitName, unit);
+    if (defaultUnits == 0) {
         self_destruct();
         return;
     }
@@ -1085,12 +1087,12 @@ void parseTimeLine(T *tptr, const char *defaultUnitName, const TimeUnits unit, c
         return;
     }
 
-    double d = xatof(token);
+    const auto parsedValue = xatof(token);
 
-    auto m = u; // 'defaultUnitName' if none specified
+    auto parsedUnits = defaultUnits;
 
-    if (d) {
-        if ((token = ConfigParser::PeekAtToken()) && (m = parseTimeUnits<T>(token, unit))) {
+    if (parsedValue) {
+        if ((token = ConfigParser::PeekAtToken()) && (parsedUnits = parseTimeUnits<T>(token, unit))) {
             (void)ConfigParser::NextToken();
 
         } else if (!expectMoreArguments) {
@@ -1099,20 +1101,20 @@ void parseTimeLine(T *tptr, const char *defaultUnitName, const TimeUnits unit, c
 
         } else {
             token = NULL; // show default units if dying below
-            debugs(3, DBG_CRITICAL, "WARNING: No units on '" << config_input_line << "', assuming " << d << " " << defaultUnitName);
+            debugs(3, DBG_CRITICAL, "WARNING: No units on '" << config_input_line << "', assuming " << parsedValue << " " << defaultUnitName);
         }
     } else
         token = NULL; // show default units if dying below.
 
-    *tptr = static_cast<T>(m * d);
+    *parsedTime = static_cast<T>(parsedUnits * parsedValue);
 
-    if (static_cast<double>(*tptr) * 2 != m * d * 2) {
+    if (static_cast<double>(*parsedTime) * 2 != parsedUnits * parsedValue * 2) {
         debugs(3, DBG_CRITICAL, "FATAL: Invalid value '" <<
-               d << " " << (token ? token : defaultUnitName) << ": integer overflow.");
+               parsedValue << " " << (token ? token : defaultUnitName) << ": integer overflow.");
         self_destruct();
     }
 
-    if (unit < TimeUnits::microSeconds || !(*tptr))
+    if (unit < TimeUnits::microSeconds || !(*parsedTime))
         return;
 
     // validate precisions (time-unit-small only)
@@ -1121,16 +1123,16 @@ void parseTimeLine(T *tptr, const char *defaultUnitName, const TimeUnits unit, c
     HighResDuration durationRatio;
 
     if (unit == TimeUnits::nanoSeconds) {
-        std::chrono::duration<int64_t, std::ratio<1, TimeUnits::nanoSeconds>> parsedDuration(*tptr);
+        const std::chrono::duration<time_nsec_t, std::ratio<1, TimeUnits::nanoSeconds>> parsedDuration(*parsedTime);
         durationRatio = HighResDuration(parsedDuration);
     } else {
         assert(unit == TimeUnits::microSeconds);
-        std::chrono::duration<int64_t, std::ratio<1, TimeUnits::microSeconds>> parsedDuration(*tptr);
+        const std::chrono::duration<time_nsec_t, std::ratio<1, TimeUnits::microSeconds>> parsedDuration(*parsedTime);
         durationRatio = HighResDuration(parsedDuration);
     }
 
     if (durationRatio.count() <= 3)
-        debugs(3, DBG_CRITICAL, "WARNING: the parsed value " << d << " " <<
+        debugs(3, DBG_CRITICAL, "WARNING: the parsed value " << parsedValue << " " <<
                 (token ? token : defaultUnitName) <<
                 " is too small to be measured with high_resolution_clock");
 }
@@ -2973,7 +2975,7 @@ free_time_msec(time_msec_t * var)
 }
 
 static void
-dump_time_nanoseconds(StoreEntry * entry, const char *name, time_nsec_t var)
+dump_time_nanoseconds(StoreEntry *entry, const char *name, time_nsec_t var)
 {
     storeAppendPrintf(entry, "%s %" PRId64 " nanoseconds\n", name, var);
 }
