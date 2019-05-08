@@ -671,6 +671,8 @@ Ipc::StoreMap::validSlice(const int pos) const
     return 0 <= pos && pos < sliceLimit();
 }
 
+/// measures time and checks whether the elapsed time exceeds
+/// the given time interval
 class TimeMeter
 {
     public:
@@ -711,7 +713,7 @@ Ipc::StoreMap::validateHit(const sfileno fileno)
     uint64_t actualByteCount = 0;
     SliceId lastSeenSlice = anchor.start;
     TimeMeter timeMeter(Config.paranoid_hit_validation);
-    while (lastSeenSlice >= 0 && !timeMeter.overflowed()) {
+    while (lastSeenSlice >= 0) {
         ++actualSliceCount;
         if (!validSlice(lastSeenSlice))
             break;
@@ -720,6 +722,8 @@ Ipc::StoreMap::validateHit(const sfileno fileno)
         if (actualByteCount > expectedByteCount)
             break;
         lastSeenSlice = slice.next;
+        if (timeMeter.overflowed())
+            break;
     }
 
     anchor.lock.unlockHeaders();
