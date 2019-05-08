@@ -674,19 +674,23 @@ Ipc::StoreMap::validSlice(const int pos) const
 class TimeMeter
 {
     public:
-        explicit TimeMeter(const time_nsec_t max) : maxDuration() {
+        explicit TimeMeter(const time_nsec_t max) : maxDuration(max) {
             startTime = std::chrono::high_resolution_clock::now();
         }
 
         bool overflowed() const {
-            const auto endTime = std::chrono::high_resolution_clock::now();
-            const auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - startTime);
-            return static_cast<time_nsec_t>(duration.count()) > maxDuration;
+            if (!overflowed_) {
+                const auto endTime = std::chrono::high_resolution_clock::now();
+                const auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - startTime);
+                overflowed_ = static_cast<time_nsec_t>(duration.count()) > maxDuration;
+            }
+            return overflowed_;
         }
 
     private:
         std::chrono::time_point<std::chrono::high_resolution_clock> startTime;
         const time_nsec_t maxDuration;
+        bool overflowed_ = false;
 };
 
 bool
@@ -707,7 +711,7 @@ Ipc::StoreMap::validateHit(const sfileno fileno)
     uint64_t actualByteCount = 0;
     SliceId lastSeenSlice = anchor.start;
     TimeMeter timeMeter(Config.paranoid_hit_validation);
-    while (lastSeenSlice >= 0) {
+    while (lastSeenSlice >= 0 && !timeMeter.overflowed()) {
         ++actualSliceCount;
         if (!validSlice(lastSeenSlice))
             break;
@@ -716,8 +720,6 @@ Ipc::StoreMap::validateHit(const sfileno fileno)
         if (actualByteCount > expectedByteCount)
             break;
         lastSeenSlice = slice.next;
-        if (timeMeter.overflowed())
-            return true;
     }
 
     anchor.lock.unlockHeaders();
@@ -729,6 +731,9 @@ Ipc::StoreMap::validateHit(const sfileno fileno)
         ++statCounter.hitValidation.refusalsDueToZeroSize;
         return true; // presume valid; cannot validate w/o known swap_file_sz
     }
+
+    if (timeMeter.overflowed())
+        return true;
 
     ++statCounter.hitValidation.failures;
 
