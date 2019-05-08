@@ -1003,6 +1003,7 @@ GetAvgStat(Mgr::IntervalActionData& stats, int minutes, int hours)
         stats.hitValidationAttempts = XAVG(hitValidation.attempts);
         stats.hitValidationRefusalsDueToLocking = XAVG(hitValidation.refusalsDueToLocking);
         stats.hitValidationRefusalsDueToZeroSize = XAVG(hitValidation.refusalsDueToZeroSize);
+        stats.hitValidationRefusalsDueToTimeLimit = XAVG(hitValidation.refusalsDueToTimeLimit);
         stats.hitValidationFailures = XAVG(hitValidation.failures);
     }
 
@@ -1160,6 +1161,8 @@ DumpAvgStat(Mgr::IntervalActionData& stats, StoreEntry* sentry)
                           stats.hitValidationRefusalsDueToLocking);
         storeAppendPrintf(sentry, "hit_validation.refusals.due_to_zeroSize = %f/sec\n",
                           stats.hitValidationRefusalsDueToZeroSize);
+        storeAppendPrintf(sentry, "hit_validation.refusals.due_to_timeLimit = %f/sec\n",
+                          stats.hitValidationRefusalsDueToTimeLimit);
         storeAppendPrintf(sentry, "hit_validation.failures = %f/sec\n",
                           stats.hitValidationFailures);
     }
@@ -1517,6 +1520,7 @@ GetCountersStats(Mgr::CountersActionData& stats)
         stats.hitValidationAttempts = f->hitValidation.attempts;
         stats.hitValidationRefusalsDueToLocking = f->hitValidation.refusalsDueToLocking;
         stats.hitValidationRefusalsDueToZeroSize = f->hitValidation.refusalsDueToZeroSize;
+        stats.hitValidationRefusalsDueToTimeLimit = f->hitValidation.refusalsDueToTimeLimit;
         stats.hitValidationFailures = f->hitValidation.failures;
     }
 }
@@ -1652,6 +1656,8 @@ DumpCountersStats(Mgr::CountersActionData& stats, StoreEntry* sentry)
                           stats.hitValidationRefusalsDueToLocking);
         storeAppendPrintf(sentry, "hit_validation.refusals.due_to_zeroSize = %.0f\n",
                           stats.hitValidationRefusalsDueToZeroSize);
+        storeAppendPrintf(sentry, "hit_validation.refusals.due_to_timeLimit = %.0f\n",
+                          stats.hitValidationRefusalsDueToTimeLimit);
         storeAppendPrintf(sentry, "hit_validation.failures = %.0f\n",
                           stats.hitValidationFailures);
     }

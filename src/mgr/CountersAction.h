@@ -83,6 +83,7 @@ public:
     double hitValidationAttempts;
     double hitValidationRefusalsDueToLocking;
     double hitValidationRefusalsDueToZeroSize;
+    double hitValidationRefusalsDueToTimeLimit;
     double hitValidationFailures;
 };
 

@@ -90,6 +90,7 @@ Mgr::CountersActionData::operator += (const CountersActionData& stats)
         hitValidationAttempts += stats.hitValidationAttempts;
         hitValidationRefusalsDueToLocking += stats.hitValidationRefusalsDueToLocking;
         hitValidationRefusalsDueToZeroSize += stats.hitValidationRefusalsDueToZeroSize;
+        hitValidationRefusalsDueToTimeLimit += stats.hitValidationRefusalsDueToTimeLimit;
         hitValidationFailures += stats.hitValidationFailures;
     }
 

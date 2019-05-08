@@ -678,7 +678,7 @@ class TimeMeter
             startTime = std::chrono::high_resolution_clock::now();
         }
 
-        bool overflowed() const {
+        bool overflowed() {
             if (!overflowed_) {
                 const auto endTime = std::chrono::high_resolution_clock::now();
                 const auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - startTime);
@@ -732,8 +732,10 @@ Ipc::StoreMap::validateHit(const sfileno fileno)
         return true; // presume valid; cannot validate w/o known swap_file_sz
     }
 
-    if (timeMeter.overflowed())
+    if (timeMeter.overflowed()) {
+        ++statCounter.hitValidation.refusalsDueToTimeLimit;
         return true;
+    }
 
     ++statCounter.hitValidation.failures;
 

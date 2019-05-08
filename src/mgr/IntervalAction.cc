@@ -90,6 +90,7 @@ Mgr::IntervalActionData::operator += (const IntervalActionData& stats)
         hitValidationAttempts += stats.hitValidationAttempts;
         hitValidationRefusalsDueToLocking += stats.hitValidationRefusalsDueToLocking;
         hitValidationRefusalsDueToZeroSize += stats.hitValidationRefusalsDueToZeroSize;
+        hitValidationRefusalsDueToTimeLimit += stats.hitValidationRefusalsDueToTimeLimit;
         hitValidationFailures += stats.hitValidationFailures;
     }
     syscalls_disk_opens += stats.syscalls_disk_opens;
