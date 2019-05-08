@@ -53,7 +53,8 @@ Ipc::StoreMap::Init(const SBuf &path, const int sliceLimit)
 Ipc::StoreMap::StoreMap(const SBuf &aPath): cleaner(NULL), path(aPath),
     fileNos(shm_old(FileNos)(StoreMapFileNosId(path).c_str())),
     anchors(shm_old(Anchors)(StoreMapAnchorsId(path).c_str())),
-    slices(shm_old(Slices)(StoreMapSlicesId(path).c_str()))
+    slices(shm_old(Slices)(StoreMapSlicesId(path).c_str())),
+    hitValidation(true)
 {
     debugs(54, 5, "attached " << path << " with " <<
            fileNos->capacity << '+' <<
@@ -406,7 +407,7 @@ Ipc::StoreMap::openForReadingAt(const sfileno fileno, const cache_key *const key
         return nullptr;
     }
 
-    if (Config.paranoid_hit_validation > 0 && (path.cmp("transients_map") != 0) && !validateHit(fileno)) {
+    if (Config.paranoid_hit_validation > 0 && hitValidation && !validateHit(fileno)) {
         s.lock.unlockShared();
         debugs(54, 5, "cannot open corrupted entry " << fileno <<
                " for reading " << path);
@@ -673,7 +674,7 @@ Ipc::StoreMap::validSlice(const int pos) const
 class TimeMeter
 {
     public:
-        TimeMeter(const time_nsec_t max) : maxDuration() {
+        explicit TimeMeter(const time_nsec_t max) : maxDuration() {
             startTime = std::chrono::high_resolution_clock::now();
         }
 

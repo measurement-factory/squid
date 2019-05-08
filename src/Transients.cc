@@ -49,6 +49,7 @@ Transients::init()
     Must(!map);
     map = new TransientsMap(MapLabel);
     map->cleaner = this;
+    map->disableHitValidation(); // Transients lacks slices to validate
 
     extras = shm_old(TransientsMapExtras)(ExtrasLabel);
 

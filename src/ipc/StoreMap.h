@@ -290,6 +290,8 @@ public:
     /// \returns whether hit metadata is correct
     bool validateHit(const sfileno);
 
+    void disableHitValidation() { hitValidation = false; }
+
     /// copies slice to its designated position
     void importSlice(const SliceId sliceId, const Slice &slice);
 
@@ -333,6 +335,9 @@ private:
 
     void freeChain(const sfileno fileno, Anchor &inode, const bool keepLock);
     void freeChainAt(SliceId sliceId, const SliceId splicingPoint);
+
+    /// whether hid validation is enabled
+    bool hitValidation;
 };
 
 /// API for adjusting external state when dirty map slice is being freed
