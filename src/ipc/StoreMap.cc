@@ -671,36 +671,47 @@ Ipc::StoreMap::validSlice(const int pos) const
     return 0 <= pos && pos < sliceLimit();
 }
 
-/// measures time and checks whether the elapsed time exceeds
-/// the given time interval
-class TimeMeter
+/// Checks whether the object lifetime has exceeded the specified maximum.
+/// The lifetime is considered to exceed the maximum if the time goes backwards.
+/// Uses the highest precision provided by the C++ implementation.
+class ConservativeTimer
 {
     public:
-        explicit TimeMeter(const time_nsec_t max) : maxDuration(max) {
-            startTime = std::chrono::high_resolution_clock::now();
-        }
+        typedef std::chrono::high_resolution_clock Clock;
 
-        bool overflowed() {
-            if (!overflowed_) {
-                const auto endTime = std::chrono::high_resolution_clock::now();
-                const auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - startTime);
-                overflowed_ = static_cast<time_nsec_t>(duration.count()) > maxDuration;
-            }
-            return overflowed_;
+        explicit ConservativeTimer(const time_nsec_t max) :
+            startTime(Clock::now()), lastTime(startTime),
+            maxTime(startTime + Clock::duration(max)) {}
+
+        bool expired() {
+            const auto endTime = Clock::now();
+            if (endTime < lastTime)
+                return true;
+            lastTime = endTime;
+            return lastTime > maxTime;
         }
 
     private:
-        std::chrono::time_point<std::chrono::high_resolution_clock> startTime;
-        const time_nsec_t maxDuration;
-        bool overflowed_ = false;
+        Clock::time_point startTime;
+        Clock::time_point lastTime;
+        Clock::time_point maxTime;
 };
 
 bool
 Ipc::StoreMap::validateHit(const sfileno fileno)
 {
+    ConservativeTimer timer(Config.paranoid_hit_validation);
+    const time_nsec_t DayInNanoseconds = 86400 * 1000000000l;
+    const auto timeIsLimited = Config.paranoid_hit_validation < DayInNanoseconds;
+
     const auto &anchor = anchorAt(fileno);
 
     ++statCounter.hitValidation.attempts;
+
+    if (!anchor.basics.swap_file_sz) {
+        ++statCounter.hitValidation.refusalsDueToZeroSize;
+        return true; // presume valid; cannot validate w/o known swap_file_sz
+    }
 
     if (!anchor.lock.lockHeaders()) {
         ++statCounter.hitValidation.refusalsDueToLocking;
@@ -712,7 +723,6 @@ Ipc::StoreMap::validateHit(const sfileno fileno)
     size_t actualSliceCount = 0;
     uint64_t actualByteCount = 0;
     SliceId lastSeenSlice = anchor.start;
-    TimeMeter timeMeter(Config.paranoid_hit_validation);
     while (lastSeenSlice >= 0) {
         ++actualSliceCount;
         if (!validSlice(lastSeenSlice))
@@ -722,24 +732,17 @@ Ipc::StoreMap::validateHit(const sfileno fileno)
         if (actualByteCount > expectedByteCount)
             break;
         lastSeenSlice = slice.next;
-        if (timeMeter.overflowed())
-            break;
+        if (timeIsLimited && timer.expired()) {
+            anchor.lock.unlockHeaders();
+            ++statCounter.hitValidation.refusalsDueToTimeLimit;
+            return true;
+        }
     }
 
     anchor.lock.unlockHeaders();
 
     if (actualByteCount == expectedByteCount && lastSeenSlice < 0)
         return true;
-
-    if (!anchor.basics.swap_file_sz) {
-        ++statCounter.hitValidation.refusalsDueToZeroSize;
-        return true; // presume valid; cannot validate w/o known swap_file_sz
-    }
-
-    if (timeMeter.overflowed()) {
-        ++statCounter.hitValidation.refusalsDueToTimeLimit;
-        return true;
-    }
 
     ++statCounter.hitValidation.failures;
 

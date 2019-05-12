@@ -1028,6 +1028,10 @@ template <class T>
 T
 parseTimeUnits(const char *unitName, const TimeUnits unit)
 {
+    // The smallest T used for this method is time_t, 32 bits at least.
+    // Each returning expression, peforming an implicit conversion into T,
+    // fits into this type and cannot overflow it.
+
     if (unit >= TimeUnits::nanoSeconds && !strncasecmp(unitName, T_NANOSECOND_STR, strlen(T_NANOSECOND_STR)))
         return unit/TimeUnits::nanoSeconds;
 
@@ -1036,6 +1040,8 @@ parseTimeUnits(const char *unitName, const TimeUnits unit)
 
     if (unit >= TimeUnits::milliSeconds && !strncasecmp(unitName, T_MILLISECOND_STR, strlen(T_MILLISECOND_STR)))
         return unit/TimeUnits::milliSeconds;
+
+    assert(unit == TimeUnits::seconds);
 
     if (!strncasecmp(unitName, T_SECOND_STR, strlen(T_SECOND_STR)))
         return unit;
