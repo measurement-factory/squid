@@ -1125,19 +1125,10 @@ parseTimeLine(T *parsedTime, const char *defaultUnitName, const TimeUnits unit, 
 
     // validate precisions (time-unit-small only)
 
-    using HighResDuration = std::chrono::nanoseconds;
-    HighResDuration durationRatio;
-
-    if (unit == TimeUnits::nanoSeconds) {
-        const std::chrono::duration<time_nsec_t, std::ratio<1, TimeUnits::nanoSeconds>> parsedDuration(*parsedTime);
-        durationRatio = HighResDuration(parsedDuration);
-    } else {
-        assert(unit == TimeUnits::microSeconds);
-        const std::chrono::duration<time_nsec_t, std::ratio<1, TimeUnits::microSeconds>> parsedDuration(*parsedTime);
-        durationRatio = HighResDuration(parsedDuration);
-    }
-
-    if (durationRatio.count() <= 3)
+    const auto duration = (unit == TimeUnits::nanoSeconds) ?
+        std::chrono::nanoseconds(*parsedTime) :
+        std::chrono::nanoseconds(std::chrono::microseconds(*parsedTime));
+    if (duration.count() <= 3)
         debugs(3, DBG_CRITICAL, "WARNING: the parsed value " << parsedValue << " " <<
                 (token ? token : defaultUnitName) <<
                 " is too small to be measured with high_resolution_clock");
@@ -2989,7 +2980,7 @@ dump_time_nanoseconds(StoreEntry *entry, const char *name, const std::chrono::na
 void
 parse_time_nanoseconds(std::chrono::nanoseconds *var)
 {
-    time_nsec_t nanoseconds = 0;
+    std::chrono::nanoseconds::rep nanoseconds = 0;
     parseTimeLine(&nanoseconds, T_SECOND_STR, TimeUnits::nanoSeconds);
     *var = std::chrono::nanoseconds(nanoseconds);
 }
