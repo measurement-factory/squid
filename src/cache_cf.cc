@@ -1125,7 +1125,7 @@ parseTimeLine(T *parsedTime, const char *defaultUnitName, const TimeUnits unit, 
 
     // validate precisions (time-unit-small only)
 
-    using HighResDuration = std::chrono::high_resolution_clock::duration;
+    using HighResDuration = std::chrono::nanoseconds;
     HighResDuration durationRatio;
 
     if (unit == TimeUnits::nanoSeconds) {
@@ -2981,21 +2981,23 @@ free_time_msec(time_msec_t * var)
 }
 
 static void
-dump_time_nanoseconds(StoreEntry *entry, const char *name, time_nsec_t var)
+dump_time_nanoseconds(StoreEntry *entry, const char *name, const std::chrono::nanoseconds &var)
 {
-    storeAppendPrintf(entry, "%s %" PRId64 " nanoseconds\n", name, var);
+    storeAppendPrintf(entry, "%s %" PRId64 " nanoseconds\n", name, var.count());
 }
 
 void
-parse_time_nanoseconds(time_nsec_t *var)
+parse_time_nanoseconds(std::chrono::nanoseconds *var)
 {
-    parseTimeLine(var, T_SECOND_STR, TimeUnits::nanoSeconds);
+    time_nsec_t nanoseconds = 0;
+    parseTimeLine(&nanoseconds, T_SECOND_STR, TimeUnits::nanoSeconds);
+    *var = std::chrono::nanoseconds(nanoseconds);
 }
 
 static void
-free_time_nanoseconds(time_nsec_t * var)
+free_time_nanoseconds(std::chrono::nanoseconds *var)
 {
-    *var = 0;
+    *var = std::chrono::nanoseconds::zero();
 }
 
 #if UNUSED_CODE

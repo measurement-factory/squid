@@ -86,7 +86,7 @@ Mgr::IntervalActionData::operator += (const IntervalActionData& stats)
     swap_ins += stats.swap_ins;
     swap_files_cleaned += stats.swap_files_cleaned;
     aborted_requests += stats.aborted_requests;
-    if (Config.paranoid_hit_validation) {
+    if (Config.paranoid_hit_validation.count()) {
         hitValidationAttempts += stats.hitValidationAttempts;
         hitValidationRefusalsDueToLocking += stats.hitValidationRefusalsDueToLocking;
         hitValidationRefusalsDueToZeroSize += stats.hitValidationRefusalsDueToZeroSize;

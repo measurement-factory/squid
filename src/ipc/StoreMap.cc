@@ -407,7 +407,7 @@ Ipc::StoreMap::openForReadingAt(const sfileno fileno, const cache_key *const key
         return nullptr;
     }
 
-    if (Config.paranoid_hit_validation > 0 && hitValidation && !validateHit(fileno)) {
+    if (Config.paranoid_hit_validation.count() && hitValidation && !validateHit(fileno)) {
         s.lock.unlockShared();
         debugs(54, 5, "cannot open corrupted entry " << fileno <<
                " for reading " << path);
@@ -679,9 +679,9 @@ class ConservativeTimer
     public:
         typedef std::chrono::high_resolution_clock Clock;
 
-        explicit ConservativeTimer(const time_nsec_t max) :
+        explicit ConservativeTimer(const Clock::duration &max) :
             startTime(Clock::now()), lastTime(startTime),
-            maxTime(startTime + Clock::duration(max)) {}
+            maxTime(startTime + max) {}
 
         bool expired() {
             const auto endTime = Clock::now();
@@ -694,15 +694,14 @@ class ConservativeTimer
     private:
         Clock::time_point startTime;
         Clock::time_point lastTime;
-        Clock::time_point maxTime;
+        const Clock::time_point maxTime;
 };
 
 bool
 Ipc::StoreMap::validateHit(const sfileno fileno)
 {
     ConservativeTimer timer(Config.paranoid_hit_validation);
-    const time_nsec_t DayInNanoseconds = 86400 * 1000000000l;
-    const auto timeIsLimited = Config.paranoid_hit_validation < DayInNanoseconds;
+    const auto timeIsLimited = Config.paranoid_hit_validation < std::chrono::hours(24);
 
     const auto &anchor = anchorAt(fileno);
 

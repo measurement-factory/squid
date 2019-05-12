@@ -999,7 +999,7 @@ GetAvgStat(Mgr::IntervalActionData& stats, int minutes, int hours)
     stats.swap_files_cleaned = XAVG(swap.files_cleaned);
     stats.aborted_requests = XAVG(aborted_requests);
 
-    if (Config.paranoid_hit_validation) {
+    if (Config.paranoid_hit_validation.count()) {
         stats.hitValidationAttempts = XAVG(hitValidation.attempts);
         stats.hitValidationRefusalsDueToLocking = XAVG(hitValidation.refusalsDueToLocking);
         stats.hitValidationRefusalsDueToZeroSize = XAVG(hitValidation.refusalsDueToZeroSize);
@@ -1154,7 +1154,7 @@ DumpAvgStat(Mgr::IntervalActionData& stats, StoreEntry* sentry)
     storeAppendPrintf(sentry, "aborted_requests = %f/sec\n",
                       stats.aborted_requests);
 
-    if (Config.paranoid_hit_validation) {
+    if (Config.paranoid_hit_validation.count()) {
         storeAppendPrintf(sentry, "hit_validation.attempts = %f/sec\n",
                           stats.hitValidationAttempts);
         storeAppendPrintf(sentry, "hit_validation.refusals.due_to_locking = %f/sec\n",
@@ -1516,7 +1516,7 @@ GetCountersStats(Mgr::CountersActionData& stats)
     stats.swap_files_cleaned = f->swap.files_cleaned;
     stats.aborted_requests = f->aborted_requests;
 
-    if (Config.paranoid_hit_validation) {
+    if (Config.paranoid_hit_validation.count()) {
         stats.hitValidationAttempts = f->hitValidation.attempts;
         stats.hitValidationRefusalsDueToLocking = f->hitValidation.refusalsDueToLocking;
         stats.hitValidationRefusalsDueToZeroSize = f->hitValidation.refusalsDueToZeroSize;
@@ -1649,7 +1649,7 @@ DumpCountersStats(Mgr::CountersActionData& stats, StoreEntry* sentry)
     storeAppendPrintf(sentry, "aborted_requests = %.0f\n",
                       stats.aborted_requests);
 
-    if (Config.paranoid_hit_validation) {
+    if (Config.paranoid_hit_validation.count()) {
         storeAppendPrintf(sentry, "hit_validation.attempts = %.0f\n",
                           stats.hitValidationAttempts);
         storeAppendPrintf(sentry, "hit_validation.refusals.due_to_locking = %.0f\n",
