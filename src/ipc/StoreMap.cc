@@ -683,6 +683,7 @@ class ConservativeTimer
             startTime(Clock::now()), lastTime(startTime),
             maxTime(startTime + max) {}
 
+        /// whether the current time reached the provided maximum time
         bool expired() {
             const auto endTime = Clock::now();
             if (endTime < lastTime)
@@ -692,8 +693,11 @@ class ConservativeTimer
         }
 
     private:
+        /// the object creation time
         Clock::time_point startTime;
+        /// the time of the last expired() call, initially equals to startTime
         Clock::time_point lastTime;
+        /// after reaching this maximum, expired() returns true
         const Clock::time_point maxTime;
 };
 
