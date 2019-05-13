@@ -1099,7 +1099,7 @@ parseTimeLine(const char *defaultUnitName, const bool expectMoreArguments = fals
 
     const auto maxNanoseconds = std::chrono::nanoseconds::max().count();
     if (parsedValue > maxNanoseconds/static_cast<double>(parsedUnitDuration.count())) {
-        const auto maxYears = std::chrono::duration_cast<std::chrono::hours>(maxNanoseconds/(24*365.2522);
+        const auto maxYears = maxNanoseconds/(365.2522*1000000000*3600*24);
         debugs(3, DBG_CRITICAL, "FATAL: Invalid value '" <<
                parsedValue << " " << (token ? token : defaultUnitName) << ": must be less than " << maxYears << " years");
         self_destruct();
