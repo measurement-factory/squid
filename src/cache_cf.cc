@@ -155,6 +155,8 @@ static const char *const B_GBYTES_STR = "GB";
 
 static const char *const list_sep = ", \t\n\r";
 
+static const double HoursPerYear = 24*365.2522;
+
 static void parse_access_log(CustomLog ** customlog_definitions);
 static int check_null_access_log(CustomLog *customlog_definitions);
 static void dump_access_log(StoreEntry * entry, const char *name, CustomLog * definitions);
@@ -1015,13 +1017,15 @@ parse_obsolete(const char *name)
     }
 }
 
-/// \returns the number of samples specified by 'unit' in unitName
+/// Assigns 'ns' the number of nanoseconds corresponding to 'unitName'.
+/// \param MinimalUnit is a chrono duration type specifying the minimal
+/// allowed time unit.
+/// \returns true if unitName is correct and its time unit is not less
+/// than MinimalUnit.
 template <class MinimalUnit>
 bool
 parseTimeUnits(const char *unitName, std::chrono::nanoseconds &ns)
 {
-    MinimalUnit minUnit(1);
-
     if (!strncasecmp(unitName, T_NANOSECOND_STR, strlen(T_NANOSECOND_STR)))
         ns = std::chrono::nanoseconds(1);
     else if (!strncasecmp(unitName, T_MICROSECOND_STR, strlen(T_MICROSECOND_STR)))
@@ -1043,23 +1047,24 @@ parseTimeUnits(const char *unitName, std::chrono::nanoseconds &ns)
     else if (!strncasecmp(unitName, T_MONTH_STR, strlen(T_MONTH_STR)))
         ns = std::chrono::hours(24 * 30);
     else if (!strncasecmp(unitName, T_YEAR_STR, strlen(T_YEAR_STR)))
-        ns = std::chrono::hours(static_cast<std::chrono::hours::rep>(24 * 365.2522));
+        ns = std::chrono::hours(static_cast<std::chrono::hours::rep>(HoursPerYear));
     else if (!strncasecmp(unitName, T_DECADE_STR, strlen(T_DECADE_STR)))
-        ns = std::chrono::hours(static_cast<std::chrono::hours::rep>(24 * 365.2522 * 10));
+        ns = std::chrono::hours(static_cast<std::chrono::hours::rep>(HoursPerYear * 10));
     else {
         debugs(3, DBG_IMPORTANT, "unknown time unit '" << unitName << "'");
         return false;
     }
 
-    if (ns < minUnit) {
+    if (ns < MinimalUnit(1)) {
         debugs(3, DBG_IMPORTANT, "unsupported time unit '" << unitName << "'");
         return false;
     }
     return true;
 }
 
-/// Parse a time specification from the config file. Store the
-/// result in 'tptr', after converting it to 'unit'.
+/// Parses a time specification from the config file and
+/// returns the time as a chrono duration object of 'TimeUnit' type.
+/// \param defaultUnitName the time unit name used no unit was parsed
 template <class TimeUnit>
 TimeUnit
 parseTimeLine(const char *defaultUnitName, const bool expectMoreArguments = false)
@@ -1099,14 +1104,14 @@ parseTimeLine(const char *defaultUnitName, const bool expectMoreArguments = fals
 
     const auto maxNanoseconds = std::chrono::nanoseconds::max().count();
     if (parsedValue > maxNanoseconds/static_cast<double>(parsedUnitDuration.count())) {
-        const auto maxYears = maxNanoseconds/(365.2522*1000000000*3600*24);
+        const auto maxYears = maxNanoseconds/(HoursPerYear*3600*1000000000);
         debugs(3, DBG_CRITICAL, "FATAL: Invalid value '" <<
                parsedValue << " " << (token ? token : defaultUnitName) << ": must be less than " << maxYears << " years");
         self_destruct();
         return TimeUnit::zero();
     }
 
-    std::chrono::nanoseconds resultDuration(static_cast<std::chrono::nanoseconds::rep>(parsedUnitDuration.count() * parsedValue));
+    const std::chrono::nanoseconds resultDuration(static_cast<std::chrono::nanoseconds::rep>(parsedUnitDuration.count() * parsedValue));
 
     // validate precisions (time-unit-small only)
     if (TimeUnit(1) <= std::chrono::microseconds(1) && resultDuration.count() && resultDuration.count() <= 3) {
@@ -1117,7 +1122,7 @@ parseTimeLine(const char *defaultUnitName, const bool expectMoreArguments = fals
 
     const auto result = std::chrono::duration_cast<TimeUnit>(resultDuration);
 
-    if (parsedValue > 0 && result.count() == 0) {
+    if (parsedValue > 0 && !result.count()) {
         debugs(3, DBG_CRITICAL, "FATAL: Invalid value '" << std::setprecision(5) <<
                parsedValue << "' is less than the minimal allowed time unit here");
         self_destruct();
