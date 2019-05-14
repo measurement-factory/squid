@@ -1062,6 +1062,16 @@ parseTimeUnits(const char *unitName, std::chrono::nanoseconds &ns)
     return true;
 }
 
+static void
+CheckTimeOverflow(const double value, const std::chrono::nanoseconds &unit) {
+    const auto maxNanoseconds = std::chrono::nanoseconds::max().count();
+    if (value > maxNanoseconds/static_cast<double>(unit.count())) {
+        const auto maxYears = maxNanoseconds/(HoursPerYear*3600*1000000000);
+        debugs(3, DBG_CRITICAL, "FATAL: The time must be less than " << maxYears << " years");
+        self_destruct();
+    }
+}
+
 /// Parses a time specification from the config file and
 /// returns the time as a chrono duration object of 'TimeUnit' type.
 /// \param defaultUnitName the time unit name used no unit was parsed
@@ -1102,14 +1112,7 @@ parseTimeLine(const char *defaultUnitName, const bool expectMoreArguments = fals
     } else
         token = NULL; // show default units if dying below.
 
-    const auto maxNanoseconds = std::chrono::nanoseconds::max().count();
-    if (parsedValue > maxNanoseconds/static_cast<double>(parsedUnitDuration.count())) {
-        const auto maxYears = maxNanoseconds/(HoursPerYear*3600*1000000000);
-        debugs(3, DBG_CRITICAL, "FATAL: Invalid value '" <<
-               parsedValue << " " << (token ? token : defaultUnitName) << ": must be less than " << maxYears << " years");
-        self_destruct();
-        return TimeUnit::zero();
-    }
+    CheckTimeOverflow(parsedValue, parsedUnitDuration);
 
     const std::chrono::nanoseconds resultDuration(static_cast<std::chrono::nanoseconds::rep>(parsedUnitDuration.count() * parsedValue));
 
@@ -4414,19 +4417,21 @@ static void parse_icap_service_failure_limit(Adaptation::Icap::Config *cfg)
     d = static_cast<time_t> (xatoi(token));
 
     using Seconds = std::chrono::seconds;
-    std::chrono::nanoseconds ns(Seconds(1));
+    std::chrono::nanoseconds parsedUnitDuration(Seconds(1));
     if (0 == d)
         (void) 0;
     else if ((token = ConfigParser::NextToken()) == NULL) {
         debugs(3, DBG_CRITICAL, "No time-units on '" << config_input_line << "'");
         self_destruct();
         return;
-    } else if (!parseTimeUnits<Seconds>(token, ns)) {
+    } else if (!parseTimeUnits<Seconds>(token, parsedUnitDuration)) {
         self_destruct();
         return;
     }
 
-    cfg->oldest_service_failure = (std::chrono::duration_cast<Seconds>(ns)).count() * d;
+    CheckTimeOverflow(d, parsedUnitDuration);
+
+    cfg->oldest_service_failure = std::chrono::duration_cast<Seconds>(parsedUnitDuration).count() * d;
 }
 
 static void dump_icap_service_failure_limit(StoreEntry *entry, const char *name, const Adaptation::Icap::Config &cfg)
