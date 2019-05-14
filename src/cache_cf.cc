@@ -1051,12 +1051,12 @@ parseTimeUnits(const char *unitName, std::chrono::nanoseconds &ns)
     else if (!strncasecmp(unitName, T_DECADE_STR, strlen(T_DECADE_STR)))
         ns = std::chrono::hours(static_cast<std::chrono::hours::rep>(HoursPerYear * 10));
     else {
-        debugs(3, DBG_IMPORTANT, "unknown time unit '" << unitName << "'");
+        debugs(3, DBG_CRITICAL, "unknown time unit '" << unitName << "'");
         return false;
     }
 
     if (ns < MinimalUnit(1)) {
-        debugs(3, DBG_IMPORTANT, "unsupported time unit '" << unitName << "'");
+        debugs(3, DBG_CRITICAL, "unsupported time unit '" << unitName << "'");
         return false;
     }
     return true;
