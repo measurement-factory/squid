@@ -4042,7 +4042,9 @@ DOC_START
 
 		Positive paranoid_hit_validation values enable validation and approximate
 		the maximum time that Squid is allowed to spend validating a single cache
-		hit. Hits are usually stored using 16KB slots (for rock, the size is
+		hit. Huge values greater or equal to 1 day are considered as no limitation:
+		in this case all checks will be performed, regardless of how much time they
+		take. Hits are usually stored using 16KB slots (for rock, the size is
 		configurable via cache_dir slot-size). Larger hits require scanning more
 		slots and, hence, take more time. When validation is enabled, at least one
 		slot is always validated, regardless of the configured time limit.
