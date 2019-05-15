@@ -968,10 +968,7 @@ FwdState::connectStart()
     const auto clientFirstBump = false;
 #endif /* USE_OPENSSL */
     if (request->flags.sslBumped && !clientFirstBump) {
-        // TODO: Factor out/reuse as Occasionally(DBG_IMPORTANT, 2[, occurrences]).
-        static int occurrences = 0;
-        const auto level = (occurrences++ < 100) ? DBG_IMPORTANT : 2;
-        debugs(17, level, "BUG: Lost previously bumped from-Squid connection. Rejecting bumped request.");
+        debugs(17, 2, "Lost previously bumped from-Squid connection. Rejecting bumped request.");
         fail(new ErrorState(ERR_CANNOT_FORWARD, Http::scServiceUnavailable, request));
         self = nullptr; // refcounted
         return;
