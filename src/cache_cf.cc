@@ -1080,9 +1080,9 @@ parseTimeUnits(const char *unitName, const char *defaultUnitName, std::chrono::n
     }
 
     if (unitName)
-        debugs(3, DBG_CRITICAL, "unknown time unit '" << unitName << "'");
+        debugs(3, DBG_CRITICAL, "FATAL: unknown time unit '" << unitName << "'");
     else
-        debugs(3, DBG_CRITICAL, "missed time unit");
+        debugs(3, DBG_CRITICAL, "FATAL: missing time unit");
 
     self_destruct();
     return false;
