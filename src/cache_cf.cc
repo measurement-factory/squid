@@ -2953,7 +2953,8 @@ dump_time_t(StoreEntry * entry, const char *name, time_t var)
 void
 parse_time_t(time_t * var)
 {
-    *var = parseTimeLine<std::chrono::seconds>().count();
+    const auto seconds = parseTimeLine<std::chrono::seconds>();
+    *var = std::chrono::high_resolution_clock::to_time_t(std::chrono::high_resolution_clock::time_point(seconds));
 }
 
 static void
