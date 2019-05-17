@@ -165,6 +165,8 @@ public:
     /// whether there is a corresponding locked shared memory table entry
     bool hasMemStore() const { return mem_obj && mem_obj->memCache.index >= 0; }
 
+    /// whether the entry is in "writing to Transients" I/O state
+    bool transientsWriter() const { return mem_obj && mem_obj->xitTable.io == MemObject::ioWriting; }
     /// whether this is a collapsed forwarding-created public entry that still
     /// has not received its response headers; new requests may collapse on it
     bool collapsingInitiator() const;
