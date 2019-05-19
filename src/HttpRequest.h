@@ -141,8 +141,10 @@ public:
 
     int imslen;
 
-    /// this request was initiated by Squid (rather than received on a client connection)
+    /// mark this request as initiated by Squid (rather than received on a client connection)
     void selfInitiated();
+
+    /// whether this request was initiated by Squid (rather than received on a client connection)
     bool isSelfInitiated() const { return selfInitiated_; }
 
     /// supply Downloader-specific settings

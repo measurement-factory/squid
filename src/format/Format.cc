@@ -410,8 +410,10 @@ Format::Format::assemble(MemBuf &mb, const AccessLogEntry::Pointer &al, int logS
 
         case LFT_CLIENT_PORT:
             if (al->request) {
-                outint = al->request->clientAddr().port();
-                doint = 1;
+                if (!al->request->isSelfInitiated()) {
+                    outint = al->request->clientAddr().port();
+                    doint = 1;
+                }
             } else if (al->tcpClient) {
                 outint = al->tcpClient->remote.port();
                 doint = 1;
