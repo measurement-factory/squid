@@ -624,6 +624,13 @@ MemStore::shouldCache(StoreEntry &e) const
         return false;
     }
 
+    // in collapsed forwarding, restrict caching to master worker to avoid
+    // collapsed workers releasing each other caching attempts
+    if (e.transientsReader()) {
+        debugs(20, 5, "CF slaves do not mem-cache: " << e);
+        return false;
+    }
+
     const int64_t expectedSize = e.mem_obj->expectedReplySize(); // may be < 0
     const int64_t loadedSize = e.mem_obj->endOffset();
     const int64_t ramSize = max(loadedSize, expectedSize);

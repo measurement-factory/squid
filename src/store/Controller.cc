@@ -393,9 +393,7 @@ void
 Store::Controller::memoryOut(StoreEntry &e, const bool preserveSwappable)
 {
     bool keepInLocalMemory = false;
-    /// For collapsed entries allow only the collapsing initiator(transients writer)
-    /// to write, do not allow collapsed slaves to overwrite the shared entry.
-    if (memStore && (!e.hasTransients() || e.transientsWriter()))
+    if (memStore)
         memStore->write(e); // leave keepInLocalMemory false
     else
         keepInLocalMemory = keepForLocalMemoryCache(e);
