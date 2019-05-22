@@ -741,22 +741,18 @@ HttpRequest::clientConnectionManager()
 }
 
 static const Ip::Address&
-NoAddr()
+EmptyAddr()
 {
     static Ip::Address addr;
-    if (!addr.isNoAddr())
-        addr.setNoAddr();
     return addr;
 }
 
 const Ip::Address&
 HttpRequest::clientAddr() const
 {
-    if (selfInitiated_)
-        return NoAddr();
-    if (clientConnection())
-        return clientConnection()->remote;
-    return client_addr;
+    if (!selfInitiated_)
+        return clientConnection() ? clientConnection()->remote : client_addr;
+    return EmptyAddr();
 }
 
 void
@@ -769,20 +765,18 @@ HttpRequest::prepareForConnectionlessProtocol(const Ip::Address &fromAddr, const
 const Ip::Address&
 HttpRequest::myAddr() const
 {
-    return selfInitiated_ ? NoAddr():
-           masterXaction->clientConnection() ?
-           masterXaction->clientConnection()->local : my_addr;
+    if (!selfInitiated_)
+        return masterXaction->clientConnection() ? masterXaction->clientConnection()->local : my_addr;
+    return EmptyAddr();
 }
 
 #if FOLLOW_X_FORWARDED_FOR
 const Ip::Address&
 HttpRequest::indirectClientAddr() const
 {
-    if (selfInitiated_)
-        return NoAddr();
-    if (!indirect_client_addr.isEmpty())
-        return indirect_client_addr;
-    return clientAddr();
+    if (!selfInitiated_)
+        return indirect_client_addr.isEmpty() ? clientAddr() : indirect_client_addr;
+    return EmptyAddr();
 }
 
 void

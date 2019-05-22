@@ -71,8 +71,8 @@ DelayId::DelayClient(ClientHttpRequest * http, HttpReply *reply)
     assert(http);
     r = http->request;
 
-    if (r->isSelfInitiated()) {
-        debugs(77, 2, "ignoring self-initiated requests");
+    if (r->clientAddr().isEmpty()) {
+        debugs(77, 2, "called with an empty address, ignoring");
         return DelayId();
     }
 

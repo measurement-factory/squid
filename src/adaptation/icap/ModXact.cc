@@ -1471,7 +1471,7 @@ void Adaptation::Icap::ModXact::makeRequestHeaders(MemBuf &buf)
 
     makeAllowHeader(buf);
 
-    if (TheConfig.send_client_ip && request && !request->isSelfInitiated()) {
+    if (TheConfig.send_client_ip && request) {
         Ip::Address client_addr;
 #if FOLLOW_X_FORWARDED_FOR
         if (TheConfig.use_indirect_client)
@@ -1479,7 +1479,7 @@ void Adaptation::Icap::ModXact::makeRequestHeaders(MemBuf &buf)
         else
 #endif
             client_addr = request->clientAddr();
-        if (!client_addr.isAnyAddr())
+        if (!client_addr.isAnyAddr() && !client_addr.isEmpty())
             buf.appendf("X-Client-IP: %s\r\n", client_addr.toStr(ntoabuf,MAX_IPSTRLEN));
     }
 

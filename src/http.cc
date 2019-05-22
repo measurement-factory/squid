@@ -1833,7 +1833,7 @@ HttpStateData::httpBuildRequestHeader(HttpRequest * request,
 
         if (strcmp(opt_forwarded_for, "on") == 0) {
             /** If set to ON - append client IP or 'unknown'. */
-            if (request->isSelfInitiated())
+            if (request->clientAddr().isEmpty())
                 strListAdd(&strFwd, "unknown", ',');
             else
                 strListAdd(&strFwd, request->clientAddr().toStr(ntoabuf, MAX_IPSTRLEN), ',');
@@ -1844,7 +1844,7 @@ HttpStateData::httpBuildRequestHeader(HttpRequest * request,
             /** If set to TRANSPARENT - pass through unchanged. */
         } else if (strcmp(opt_forwarded_for, "truncate") == 0) {
             /** If set to TRUNCATE - drop existing list and replace with client IP or 'unknown'. */
-            if (request->isSelfInitiated() )
+            if (request->clientAddr().isEmpty() )
                 strFwd = "unknown";
             else
                 strFwd = request->clientAddr().toStr(ntoabuf, MAX_IPSTRLEN);
