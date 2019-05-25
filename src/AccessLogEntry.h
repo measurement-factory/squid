@@ -130,7 +130,6 @@ public:
     {
     public:
         CacheDetails() {
-            caddr.setNoAddr();
             memset(&start_time, 0, sizeof(start_time));
             memset(&trTime, 0, sizeof(start_time));
         }

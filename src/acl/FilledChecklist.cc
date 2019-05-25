@@ -261,10 +261,11 @@ void ACLFilledChecklist::setRequest(HttpRequest *httpRequest)
 }
 
 static void
-InitializeAddress(Ip::Address &addr, const Ip::Address &value)
+InitializeClientAddress(Ip::Address &addr, const Ip::Address &value)
 {
-    Must(addr.isEmpty() || addr == value);
-    if (addr.isEmpty())
+    //Must(addr.isKnown() || addr == value);
+    assert(!addr.isKnown() || addr == value);
+    if (!addr.isKnown())
         addr = value;
 }
 
@@ -275,14 +276,14 @@ ACLFilledChecklist::setClientSideAddresses()
     if (request) {
 #if FOLLOW_X_FORWARDED_FOR
         if (Config.onoff.acl_uses_indirect_client)
-            InitializeAddress(client_addr, request->indirectClientAddr());
+            InitializeClientAddress(client_addr, request->indirectClientAddr());
         else
 #endif
-            InitializeAddress(client_addr, request->clientAddr());
-        InitializeAddress(my_addr, request->myAddr());
+            InitializeClientAddress(client_addr, request->clientAddr());
+        InitializeClientAddress(my_addr, request->myAddr());
     } else if (clientConnection_) {
-        InitializeAddress(client_addr, clientConnection_->remote);
-        InitializeAddress(my_addr, clientConnection_->local);
+        InitializeClientAddress(client_addr, clientConnection_->remote);
+        InitializeClientAddress(my_addr, clientConnection_->local);
     }
 }
 

@@ -1374,7 +1374,7 @@ Ftp::Server::handleUserRequest(const SBuf &, SBuf &params)
     // Otherwise (domain, IPv4, [bracketed] IPv6, garbage, etc), use as is.
     if (host.find(':') != SBuf::npos) {
         const Ip::Address ipa(host.c_str());
-        if (!ipa.isAnyAddr()) {
+        if (!ipa.isKnown()) {
             char ipBuf[MAX_IPSTRLEN];
             ipa.toHostStr(ipBuf, MAX_IPSTRLEN);
             host = ipBuf;
@@ -1435,7 +1435,7 @@ bool
 Ftp::Server::createDataConnection(Ip::Address cltAddr)
 {
     assert(clientConnection != NULL);
-    assert(!clientConnection->remote.isAnyAddr());
+    assert(!clientConnection->remote.isKnown());
 
     if (cltAddr != clientConnection->remote) {
         debugs(33, 2, "rogue PORT " << cltAddr << " request? ctrl: " << clientConnection->remote);
@@ -1675,7 +1675,7 @@ Ftp::Server::checkDataConnPre()
         return true;
     }
 
-    if (!dataConn || dataConn->remote.isAnyAddr()) {
+    if (!dataConn || !dataConn->remote.isKnown()) {
         debugs(33, 5, "missing " << dataConn);
         // TODO: use client address and default port instead.
         setReply(425, "Use PORT or PASV first");

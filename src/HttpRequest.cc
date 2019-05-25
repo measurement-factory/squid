@@ -775,7 +775,7 @@ const Ip::Address&
 HttpRequest::indirectClientAddr() const
 {
     if (!selfInitiated_)
-        return indirect_client_addr.isEmpty() ? clientAddr() : indirect_client_addr;
+        return indirect_client_addr.isKnown() ? indirect_client_addr : clientAddr();
     return EmptyAddr();
 }
 
@@ -825,7 +825,7 @@ static const Ip::Address *
 FindListeningPortAddressInAddress(const Ip::Address *ip)
 {
     // FindListeningPortAddress() callers do not want INADDR_ANY addresses
-    return (ip && !ip->isAnyAddr()) ? ip : nullptr;
+    return (ip && ip->isKnown()) ? ip : nullptr;
 }
 
 /// a helper for handling PortCfg cases of FindListeningPortAddress()

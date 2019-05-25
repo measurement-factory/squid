@@ -1339,7 +1339,8 @@ void
 getOutgoingAddress(HttpRequest * request, Comm::ConnectionPointer conn)
 {
     // skip if an outgoing address is already set.
-    if (!conn->local.isAnyAddr()) return;
+    if (conn->local.isKnown())
+        return;
 
     // ensure that at minimum the wildcard local matches remote protocol
     if (conn->remote.isIPv4())

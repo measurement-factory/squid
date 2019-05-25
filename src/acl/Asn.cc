@@ -143,10 +143,7 @@ asnMatchIp(CbDataList<int> *data, Ip::Address &addr)
     if (AS_tree_head == NULL)
         return 0;
 
-    if (addr.isNoAddr())
-        return 0;
-
-    if (addr.isAnyAddr())
+    if (!addr.isKnown())
         return 0;
 
     m_addr.addr = addr;

@@ -424,14 +424,14 @@ getMyHostname(void)
 
     host[0] = '\0';
 
-    if (HttpPortList != NULL && sa.isAnyAddr())
+    if (HttpPortList != NULL)
         sa = HttpPortList->s;
 
     /*
      * If the first http_port address has a specific address, try a
      * reverse DNS lookup on it.
      */
-    if ( !sa.isAnyAddr() ) {
+    if (sa.isKnown()) {
 
         sa.getAddrInfo(AI);
         /* we are looking for a name. */

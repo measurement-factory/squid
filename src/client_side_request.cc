@@ -84,7 +84,7 @@ static const char *const crlf = "\r\n";
 static void clientFollowXForwardedForCheck(allow_t answer, void *data);
 #endif /* FOLLOW_X_FORWARDED_FOR */
 
-ErrorState *clientBuildError(err_type, Http::StatusCode, char const *url, Ip::Address &, HttpRequest *);
+ErrorState *clientBuildError(err_type, Http::StatusCode, char const *url, const Ip::Address &, HttpRequest *);
 
 CBDATA_CLASS_INIT(ClientRequestContext);
 
@@ -787,11 +787,9 @@ ClientRequestContext::clientAccessCheckDone(const allow_t &answer)
                 page_id = ERR_ACCESS_DENIED;
         }
 
-        Ip::Address tmpnoaddr;
-        tmpnoaddr.setNoAddr();
         error = clientBuildError(page_id, status,
                                  NULL,
-                                 http->getConn() != NULL ? http->getConn()->clientConnection->remote : tmpnoaddr,
+                                 http->clientAddrOnError(),
                                  http->request
                                 );
 
@@ -1675,6 +1673,16 @@ ClientHttpRequest::clearRequest()
     absorbLogUri(nullptr);
 }
 
+const Ip::Address&
+ClientHttpRequest::clientAddrOnError() const
+{
+    if (const auto conn = getConn())
+        if (conn->clientConnection)
+            return conn->clientConnection->remote;
+    static Ip::Address emptyAddr;
+    return emptyAddr;
+}
+
 /*
  * doCallouts() - This function controls the order of "callout"
  * executions, including non-blocking access control checks, the
@@ -2148,12 +2156,10 @@ ClientHttpRequest::calloutsError(const err_type error, const int errDetail)
     // setReplyToError, but it seems unlikely that the errno reflects the
     // true cause of the error at this point, so I did not pass it.
     if (calloutContext) {
-        Ip::Address noAddr;
-        noAddr.setNoAddr();
         ConnStateData * c = getConn();
         calloutContext->error = clientBuildError(error, Http::scInternalServerError,
                                 NULL,
-                                c != NULL ? c->clientConnection->remote : noAddr,
+                                clientAddrOnError(),
                                 request
                                                 );
 #if USE_AUTH

@@ -30,7 +30,7 @@ AccessLogEntry::getLogClientIp(char *buf, size_t bufsz) const
             log_ip = cache.caddr;
 
     // internally generated requests (and some ICAP) lack client IP
-    if (log_ip.isEmpty()) {
+    if (!log_ip.isKnown()) {
         strncpy(buf, "-", bufsz);
         return;
     }

@@ -71,8 +71,8 @@ DelayId::DelayClient(ClientHttpRequest * http, HttpReply *reply)
     assert(http);
     r = http->request;
 
-    if (r->clientAddr().isEmpty()) {
-        debugs(77, 2, "called with an empty address, ignoring");
+    if (!r->clientAddr().isKnown()) {
+        debugs(77, 2, "called with unknown address, ignoring");
         return DelayId();
     }
 

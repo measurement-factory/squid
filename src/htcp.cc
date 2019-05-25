@@ -1423,10 +1423,7 @@ htcpOpenPorts(void)
         fatal("HTCP port cannot be opened.");
     }
     /* split-stack for now requires default IPv4-only HTCP */
-    if (Ip::EnableIpv6&IPV6_SPECIAL_SPLITSTACK && htcpIncomingConn->local.isAnyAddr()) {
-        htcpIncomingConn->local.setIPv4();
-    }
-
+    htcpIncomingConn->local.adjustSplitStackIPv6();
     AsyncCall::Pointer call = asyncCall(31, 2,
                                         "htcpIncomingConnectionOpened",
                                         Comm::UdpOpenDialer(&htcpIncomingConnectionOpened));
@@ -1436,7 +1433,7 @@ htcpOpenPorts(void)
                         htcpIncomingConn,
                         Ipc::fdnInHtcpSocket, call);
 
-    if (!Config.Addrs.udp_outgoing.isNoAddr()) {
+    if (Config.Addrs.udp_outgoing.isBindable()) {
         htcpOutgoingConn = new Comm::Connection;
         htcpOutgoingConn->local = Config.Addrs.udp_outgoing;
         htcpOutgoingConn->local.port(Config.Port.htcp);
@@ -1446,9 +1443,7 @@ htcpOpenPorts(void)
             fatal("HTCP port cannot be opened.");
         }
         /* split-stack for now requires default IPv4-only HTCP */
-        if (Ip::EnableIpv6&IPV6_SPECIAL_SPLITSTACK && htcpOutgoingConn->local.isAnyAddr()) {
-            htcpOutgoingConn->local.setIPv4();
-        }
+        htcpOutgoingConn->local.adjustSplitStackIPv6();
 
         enter_suid();
         comm_open_listener(SOCK_DGRAM, IPPROTO_UDP, htcpOutgoingConn, "Outgoing HTCP Socket");
@@ -1474,7 +1469,7 @@ htcpIncomingConnectionOpened(const Comm::ConnectionPointer &conn, int)
 
     debugs(31, DBG_CRITICAL, "Accepting HTCP messages on " << conn->local);
 
-    if (Config.Addrs.udp_outgoing.isNoAddr()) {
+    if (!Config.Addrs.udp_outgoing.isBindable()) {
         htcpOutgoingConn = conn;
         debugs(31, DBG_IMPORTANT, "Sending HTCP messages from " << htcpOutgoingConn->local);
     }

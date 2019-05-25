@@ -779,7 +779,7 @@ netdbExchangeHandleReply(void *data, StoreIOBuffer receivedData)
 
     while (size >= rec_sz) {
         debugs(38, 5, "netdbExchangeHandleReply: in parsing loop, size = " << size);
-        addr.setAnyAddr();
+        addr.setEmpty();
         hops = rtt = 0.0;
 
         for (o = 0; o < rec_sz;) {
@@ -814,7 +814,7 @@ netdbExchangeHandleReply(void *data, StoreIOBuffer receivedData)
             }
         }
 
-        if (!addr.isAnyAddr() && rtt > 0)
+        if (addr.isKnown() && rtt > 0)
             netdbExchangeUpdatePeer(addr, ex->p.get(), rtt, hops);
 
         assert(o == rec_sz);

@@ -92,9 +92,8 @@ internalRemoteUri(bool encrypt, const char *host, unsigned short port, const cha
 
     /* check for an IP address and format appropriately if found */
     Ip::Address test = lc_host;
-    if ( !test.isAnyAddr() ) {
+    if (test.isKnown())
         test.toHostStr(lc_host,SQUIDHOSTNAMELEN);
-    }
 
     /*
      * append the domain in order to mirror the requests with appended

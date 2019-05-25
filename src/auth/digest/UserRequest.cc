@@ -148,13 +148,6 @@ Auth::Digest::UserRequest::authenticate(HttpRequest * request, ConnStateData *, 
                 const char *useragent = request->header.getStr(Http::HdrType::USER_AGENT);
 
                 static Ip::Address last_broken_addr;
-                static int seen_broken_client = 0;
-
-                if (!seen_broken_client) {
-                    last_broken_addr.setNoAddr();
-                    seen_broken_client = 1;
-                }
-
                 if (last_broken_addr != request->clientAddr()) {
                     debugs(29, DBG_IMPORTANT, "Digest POST bug detected from " <<
                            request->clientAddr() << " using '" <<

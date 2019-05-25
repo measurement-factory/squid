@@ -99,7 +99,7 @@ wccpInit(void)
     last_assign_buckets_change = 0;
     number_caches = 0;
 
-    if (!Config.Wccp.router.isAnyAddr())
+    if (Config.Wccp.router.isKnown())
         if (!eventFind(wccpHereIam, NULL))
             eventAdd("wccpHereIam", wccpHereIam, NULL, 5.0, 1);
 }
@@ -109,7 +109,7 @@ wccpConnectionOpen(void)
 {
     debugs(80, 5, "wccpConnectionOpen: Called");
 
-    if (Config.Wccp.router.isAnyAddr()) {
+    if (!Config.Wccp.router.isKnown()) {
         debugs(80, 2, "WCCPv1 disabled.");
         return;
     }

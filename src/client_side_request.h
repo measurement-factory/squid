@@ -72,6 +72,9 @@ public:
         }
     }
 
+    /// client address used when creating an error page
+    const Ip::Address& clientAddrOnError() const;
+
     /// Initializes the current request with the virgin request.
     /// Call this method when the virgin request becomes known.
     /// To update the current request later, use resetRequest().

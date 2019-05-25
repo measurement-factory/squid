@@ -1479,7 +1479,7 @@ void Adaptation::Icap::ModXact::makeRequestHeaders(MemBuf &buf)
         else
 #endif
             client_addr = request->clientAddr();
-        if (!client_addr.isAnyAddr() && !client_addr.isEmpty())
+        if (client_addr.isKnown())
             buf.appendf("X-Client-IP: %s\r\n", client_addr.toStr(ntoabuf,MAX_IPSTRLEN));
     }
 

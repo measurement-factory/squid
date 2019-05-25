@@ -112,6 +112,12 @@ public:
      */
     bool isNoAddr() const;
 
+    /// whether this address may be used in bind() call
+    bool isBindable() const;
+
+    /// whether this is an non-empty address other from ANY_ADDR or NO_ADDR
+    bool isKnown() const;
+
     /** Content-neutral test for whether the specific IP case LOCALHOST is stored.
      *  This is the default content of a new undefined Ip::Address object.
      \retval true IPv4 127.0.0.1
@@ -133,9 +139,6 @@ public:
      \retval false if address does not match ::ff:fe00:0
      */
     bool isSiteLocalAuto() const;
-
-    /// whether the address is the same as the one created with default constructor
-    bool isEmpty() const;
 
     /*@}*/
 
@@ -174,6 +177,10 @@ public:
      \retval false  Content CANNOT be IPv4
      */
     bool setIPv4();
+
+    /// applies specific settings for IPV6_SPECIAL_SPLITSTACK type
+    void adjustSplitStackIPv6();
+    bool needAdjustingSplitStackIPv6() const;
 
     /**
      *  Valid results IF and only IF the stored IP address is actually a network bitmask
@@ -336,6 +343,10 @@ private:
     struct sockaddr_in6 mSocketAddr_;
 
 private:
+
+    /// whether the address is the same as the one created with default constructor
+    bool isEmpty() const;
+
     /* Internally used constants */
     static const unsigned int STRLEN_IP4A = 16;              // aaa.bbb.ccc.ddd\0
     static const unsigned int STRLEN_IP4R = 28;              // ddd.ccc.bbb.aaa.in-addr.arpa.\0

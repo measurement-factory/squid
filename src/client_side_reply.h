@@ -50,7 +50,7 @@ public:
     /// replaces current response store entry with the given one
     void setReplyToStoreEntry(StoreEntry *e, const char *reason);
     /// builds error using clientBuildError() and calls setReplyToError() below
-    void setReplyToError(err_type, Http::StatusCode, const HttpRequestMethod&, char const *, Ip::Address &, HttpRequest *, const char *,
+    void setReplyToError(err_type, Http::StatusCode, const HttpRequestMethod&, char const *, const Ip::Address &, HttpRequest *, const char *,
 #if USE_AUTH
                          Auth::UserRequest::Pointer);
 #else

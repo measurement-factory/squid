@@ -669,7 +669,7 @@ wccp2Init(void)
 
     /* Calculate the number of routers configured in the config file */
     for (s = Config.Wccp2.router; s; s = s->next) {
-        if (!s->s.isAnyAddr()) {
+        if (s->s.isKnown()) {
             /* Increment the counter */
             ++wccp2_numrouters;
         }
@@ -829,7 +829,7 @@ wccp2Init(void)
 
         /* Add each router.  Keep this functionality here to make sure the received_id can be updated in the packet */
         for (s = Config.Wccp2.router; s; s = s->next) {
-            if (!s->s.isAnyAddr()) {
+            if (s->s.isKnown()) {
 
                 wccp2_here_i_am_header.length += sizeof(struct wccp2_router_id_element_t);
                 assert(wccp2_here_i_am_header.length <= WCCP_RESPONSE_SIZE);

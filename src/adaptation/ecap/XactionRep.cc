@@ -135,7 +135,7 @@ Adaptation::Ecap::XactionRep::clientIpValue() const
         else
 #endif
             client_addr = request->clientAddr();
-        if (!client_addr.isAnyAddr() && !client_addr.isEmpty()) {
+        if (client_addr.isKnown()) {
             char ntoabuf[MAX_IPSTRLEN] = "";
             client_addr.toStr(ntoabuf,MAX_IPSTRLEN);
             return libecap::Area::FromTempBuffer(ntoabuf, strlen(ntoabuf));

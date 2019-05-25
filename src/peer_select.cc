@@ -660,10 +660,10 @@ PeerSelector::selectSomeNeighborReplies()
     if ((p = hit)) {
         code = hit_type == PEER_PARENT ? PARENT_HIT : SIBLING_HIT;
     } else {
-        if (!closest_parent_miss.isAnyAddr()) {
+        if (closest_parent_miss.isKnown()) {
             p = whichPeer(closest_parent_miss);
             code = CLOSEST_PARENT_MISS;
-        } else if (!first_parent_miss.isAnyAddr()) {
+        } else if (first_parent_miss.isKnown()) {
             p = whichPeer(first_parent_miss);
             code = FIRST_PARENT_MISS;
         }
@@ -806,7 +806,7 @@ PeerSelector::handleIcpParentMiss(CachePeer *p, icp_common_t *header)
         return;
 
     /* set FIRST_MISS if there is no CLOSEST parent */
-    if (!closest_parent_miss.isAnyAddr())
+    if (closest_parent_miss.isKnown())
         return;
 
     rtt = (tvSubMsec(ping.start, current_time) - p->basetime) / p->weight;
@@ -814,7 +814,7 @@ PeerSelector::handleIcpParentMiss(CachePeer *p, icp_common_t *header)
     if (rtt < 1)
         rtt = 1;
 
-    if (first_parent_miss.isAnyAddr() || rtt < ping.w_rtt) {
+    if (!first_parent_miss.isKnown() || rtt < ping.w_rtt) {
         first_parent_miss = p->in_addr;
         ping.w_rtt = rtt;
     }
@@ -900,7 +900,7 @@ PeerSelector::handleHtcpParentMiss(CachePeer *p, HtcpReplyData *htcp)
         return;
 
     /* set FIRST_MISS if there is no CLOSEST parent */
-    if (!closest_parent_miss.isAnyAddr())
+    if (closest_parent_miss.isKnown())
         return;
 
     rtt = (tvSubMsec(ping.start, current_time) - p->basetime) / p->weight;
@@ -908,7 +908,7 @@ PeerSelector::handleHtcpParentMiss(CachePeer *p, HtcpReplyData *htcp)
     if (rtt < 1)
         rtt = 1;
 
-    if (first_parent_miss.isAnyAddr() || rtt < ping.w_rtt) {
+    if (!first_parent_miss.isKnown() || rtt < ping.w_rtt) {
         first_parent_miss = p->in_addr;
         ping.w_rtt = rtt;
     }
