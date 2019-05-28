@@ -272,7 +272,7 @@ urnHandleReply(void *data, StoreIOBuffer result)
 
     debugs(52, 3, "urnHandleReply: Called with size=" << result.length << ".");
 
-    if (EBIT_TEST(urlres_e->flags, ENTRY_ABORTED) || result.length == 0 || result.flags.error) {
+    if (EBIT_TEST(urlres_e->flags, ENTRY_ABORTED) || result.flags.error) {
         delete urnState;
         return;
     }
@@ -287,8 +287,7 @@ urnHandleReply(void *data, StoreIOBuffer result)
     }
 
     /* If we haven't received the entire object (urn), copy more */
-    if (urlres_e->store_status == STORE_PENDING &&
-            urnState->reqofs < URN_REQBUF_SZ) {
+    if (urlres_e->store_status == STORE_PENDING) {
         tempBuffer.offset = urnState->reqofs;
         tempBuffer.length = URN_REQBUF_SZ - urnState->reqofs;
         tempBuffer.data = urnState->reqbuf + urnState->reqofs;
