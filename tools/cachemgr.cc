@@ -802,7 +802,7 @@ process_request(cachemgr_request * req)
 
     S = *gethostbyname(req->hostname);
 
-    if ( !S.isAnyAddr() ) {
+    if (S.isKnown()) {
         (void) 0;
     } else if ((S = req->hostname))
         (void) 0;
