@@ -293,7 +293,7 @@ urnHandleReply(void *data, StoreIOBuffer result)
     if (urlres_e->store_status == STORE_PENDING &&
             urnState->reqofs < URN_REQBUF_SZ) {
         tempBuffer.offset = urnState->reqofs;
-        tempBuffer.length = URN_REQBUF_SZ;
+        tempBuffer.length = URN_REQBUF_SZ - urnState->reqofs;
         tempBuffer.data = urnState->reqbuf + urnState->reqofs;
         storeClientCopy(urnState->sc, urlres_e,
                         tempBuffer,
