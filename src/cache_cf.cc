@@ -2953,8 +2953,13 @@ dump_time_t(StoreEntry * entry, const char *name, time_t var)
 void
 parse_time_t(time_t * var)
 {
+    static const auto maxTime = std::numeric_limits<time_t>::max();
     const auto seconds = parseTimeLine<std::chrono::seconds>();
-    *var = std::chrono::high_resolution_clock::to_time_t(std::chrono::high_resolution_clock::time_point(seconds));
+    if (maxTime < seconds.count()) {
+        debugs(3, DBG_CRITICAL, "FATAL: time_t is too small to accommodate " << seconds.count() << " seconds");
+        self_destruct();
+    }
+    *var = static_cast<time_t>(seconds.count());
 }
 
 static void
