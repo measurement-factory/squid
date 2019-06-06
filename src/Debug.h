@@ -286,7 +286,7 @@ private:
 };
 
 /// The exact number of supported configurable messages. Increase as needed.
-constexpr size_t DebugMessageCount = 59;
+constexpr size_t DebugMessageCount = 62;
 /// configurable messages indexed by DebugMessageId
 typedef std::array<DebugMessage, DebugMessageCount> DebugMessages;
 /// all configurable debugging messages
