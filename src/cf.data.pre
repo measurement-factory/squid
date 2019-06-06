@@ -4895,19 +4895,24 @@ DOC_START
 	Configures logging of individual cache.log messages.
 
 		cache_log_message id=<number> [option...]
+		cache_log_message ids=<number>-<number> [option...]
 
 	Most messages have _not_ been instrumented to support this directive
 	yet. For the list of instrumented messages, see XXX.
 
-	The required message ID corresponds to the message semantics rather
-	than message text or source code location. The ID is stable across
-	Squid instances and versions. Substantial changes in message
-	semantics result in a new ID assignment. To reduce the danger of
-	suppressing an important log message, the old IDs of removed (or
-	substantially changed) messages are never reused.
+	Message ID corresponds to the message semantics rather than message
+	text or source code location. The ID is stable across Squid
+	instances and versions. Substantial changes in message semantics
+	result in a new ID assignment. To reduce the danger of suppressing
+	an important log message, the old IDs of removed (or substantially
+	changed) messages are never reused.
 
 	If more than one cache_log_message directive refers to the same
 	message ID, the last directive wins.
+
+	Use ids=min-max syntax to apply the same message configuration to an
+	inclusive range of message IDs. An ID range with N values has
+	exactly the same effect as typing N cache_log_message lines.
 
 	Supported options are:
 
@@ -4923,12 +4928,6 @@ DOC_START
 		level-9 messages are not logged anywhere so this option can be
 		used to effectively suppress the message. Each SMP Squid process
 		gets the same limit.
-
-	  prefix=<text>: To catch configuration typos, specify the intended
-		message prefix text. A mismatch is treated as a configuration
-		error. While IDs are stable, message text might change across
-		Squid versions and may not be unique. See XXX for the current
-		list of prefixes. THIS SAFETY OPTION IS NOT SUPPORTED (YET?).
 DOC_END
 
 NAME: debug_options

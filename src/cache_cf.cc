@@ -4748,20 +4748,39 @@ static void free_note(Notes *notes)
     notes->clean();
 }
 
-#include "sbuf/Stream.h"
+#include "sbuf/Stream.h" /* XXX: Move */
+
+static DebugMessageId ParseDebugMessageId(const char *value, const char eov, const DebugMessageId oldId)
+{
+    if (oldId > 0)
+        throw TexcHere(ToSBuf("repeated id=... or ids=... option in cache_log_message"));
+    const auto id = xatoui(value, eov);
+    if (!(0 < id && id < DebugMessageCount))
+        throw TexcHere(ToSBuf("unknown cache_log_message ID: ", value));
+    return static_cast<DebugMessageId>(id);
+}
+
 static void parse_cache_log_message(DebugMessages *messages)
 {
     assert(messages);
 
     DebugMessage msg;
+    DebugMessageId minId = 0;
+    DebugMessageId maxId = 0;
 
     char *key, *value;
     while (ConfigParser::NextKvPair(key, value)) {
         if (strcmp(key, "id") == 0) {
-            const auto id = xatoui(value, 0);
-            if (!(0 < id && id < DebugMessageCount))
-                throw TexcHere(ToSBuf("unknown cache_log_message id: ", value));
-            msg.id = static_cast<DebugMessageId>(id);
+            minId = maxId = ParseDebugMessageId(value, '\0', minId);
+        } else if (strcmp(key, "ids") == 0) {
+            const auto dash = strchr(value, '-');
+            if (!dash)
+                throw TexcHere(ToSBuf("malformed cache_log_message ID range: ", key, '=', value));
+            const auto oldId = minId;
+            minId = ParseDebugMessageId(value, '-', oldId);
+            maxId = ParseDebugMessageId(dash+1, '\0', oldId);
+            if (minId > maxId)
+                throw TexcHere(ToSBuf("invalid cache_log_message ID range: ", key, '=', value));
         } else if (strcmp(key, "level") == 0) {
             const auto level = xatoi(value);
             if (level < 0)
@@ -4774,12 +4793,13 @@ static void parse_cache_log_message(DebugMessages *messages)
         }
     }
 
-    if (!msg.configured())
-        throw TexcHere("missing required option for the cache_log_message directive: id=...");
+    if (!minId)
+        throw TexcHere("cache_log_message is missing a required id=... or ids=... option");
 
-    assert(msg.id > 0);
-    assert(msg.id < DebugMessageCount);
-    messages->at(msg.id) = msg;
+    for (auto id = minId; id <= maxId; ++id) {
+        msg.id = id;
+        messages->at(id) = msg;
+    }
 }
 
 static void dump_cache_log_message(StoreEntry *entry, const char *name, const DebugMessages &messages)
