@@ -12,6 +12,7 @@
 // Origin: xstd/TextException
 
 #include <exception>
+#include <iosfwd>
 
 class SBuf;
 
@@ -52,10 +53,8 @@ protected:
     friend unsigned int FileNameHashCached(const char *fname);
 };
 
-//inline
-//ostream &operator <<(ostream &os, const TextException &exx) {
-//    return exx.print(os);
-//}
+/// prints active (i.e., thrown but not yet handled) exception
+std::ostream &CurrentException(std::ostream &);
 
 /// caches the result of FileNameHash() for each translation unit
 static unsigned int
