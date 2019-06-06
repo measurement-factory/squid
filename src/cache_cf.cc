@@ -152,6 +152,10 @@ static const char *const B_GBYTES_STR = "GB";
 
 static const char *const list_sep = ", \t\n\r";
 
+static void parse_cache_log_message(DebugMessages *messages);
+static void dump_cache_log_message(StoreEntry *entry, const char *name, const DebugMessages &messages);
+static void free_cache_log_message(DebugMessages *messages);
+
 static void parse_access_log(CustomLog ** customlog_definitions);
 static int check_null_access_log(CustomLog *customlog_definitions);
 static void dump_access_log(StoreEntry * entry, const char *name, CustomLog * definitions);
@@ -4742,6 +4746,63 @@ static void dump_note(StoreEntry *entry, const char *name, Notes &notes)
 static void free_note(Notes *notes)
 {
     notes->clean();
+}
+
+#include "sbuf/Stream.h"
+static void parse_cache_log_message(DebugMessages *messages)
+{
+    assert(messages);
+
+    DebugMessage msg;
+
+    char *key, *value;
+    while (ConfigParser::NextKvPair(key, value)) {
+        if (strcmp(key, "id") == 0) {
+            const auto id = xatoull(value, 0);
+            if (!(dmsgNone < id && id < dmsgEnd))
+                throw TexcHere(ToSBuf("unknown cache_log_message id: ", value));
+            msg.id = static_cast<DebugMessageId>(id);
+        } else if (strcmp(key, "level") == 0) {
+            msg.level = xatoull(value, 10);
+        } else if (strcmp(key, "limit") == 0) {
+            msg.limit = xatoull(value, 10);
+        } else {
+            throw TexcHere(ToSBuf("unsupported cache_log_message option: ", key));
+        }
+    }
+
+    if (!msg.configured())
+        throw TexcHere("missing required option for the cache_log_message directive: id=...");
+
+    assert(msg.id > dmsgNone);
+    assert(msg.id < dmsgEnd);
+    (*messages)[msg.id] = msg;
+}
+
+static void dump_cache_log_message(StoreEntry *entry, const char *name, const DebugMessages &messages)
+{
+    assert(messages);
+    SBufStream out;
+    for (const auto &msg: messages) {
+        if (!msg.configured())
+            continue;
+        out << name << " id=" << msg.id;
+        if (msg.levelled())
+            out << " level=" << msg.level;
+        if (msg.limited())
+            out << " limit=" << msg.limit;
+        out << "\n";
+    }
+    const auto buf = out.buf();
+    entry->append(buf.rawContent(), buf.length()); // may be empty
+}
+
+static void free_cache_log_message(DebugMessages *messages)
+{
+    assert(messages);
+    // clear old messages to avoid cumulative effect across (re)configurations
+    for (auto &msg: *messages)
+        msg = DebugMessage();
 }
 
 static bool FtpEspvDeprecated = false;

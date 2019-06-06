@@ -906,8 +906,7 @@ mainReconfigureFinish(void *)
         }
     } catch (...) {
         // for now any errors are a fatal condition...
-        debugs(1, DBG_CRITICAL, "FATAL: Unhandled exception parsing config file. " <<
-               " Run squid -k parse and check for errors.");
+        debugs(1, DBG_CRITICAL, "FATAL: Configuration error: " << CurrentException);
         self_destruct();
     }
 
@@ -1524,8 +1523,7 @@ SquidMain(int argc, char **argv)
             parse_err = parseConfigFile(ConfigFile);
         } catch (...) {
             // for now any errors are a fatal condition...
-            debugs(1, DBG_CRITICAL, "FATAL: Unhandled exception parsing config file." <<
-                   (opt_parse_cfg_only ? " Run squid -k parse and check for errors." : ""));
+            debugs(1, DBG_CRITICAL, "FATAL: Configuration error: " << CurrentException);
             parse_err = 1;
         }
 

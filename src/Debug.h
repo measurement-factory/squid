@@ -237,5 +237,72 @@ operator <<(std::ostream &os, const RawPointerT<Pointer> &pd)
         return os << "[nil]";
 }
 
+// XXX: Move to src/DebugMessages.h
+// XXX: Replace Debug class with namespace and use that namespace here.
+#ifndef SQUID_DEBUG_MESSAGES_H
+#define SQUID_DEBUG_MESSAGES_H
+
+#include <limits>
+
+/// IDs for messages that support configuration via cache_log_message
+/// Never change ID values. Add new IDs to the end of the enum.
+typedef enum {
+    dmsgNone = 0,
+    dmsgAleMissing = 1,
+    dmsgEnd
+} DebugMessageId;
+
+/// manages configurable aspects of a debugs() message
+class DebugMessage
+{
+public:
+    /// whether the logging of this message has been customized
+    bool configured() const { return id > 0; }
+
+    /// whether the default logging level of this message has been altered
+    bool levelled() const { return level >= 0; }
+
+    /// whether the number of logging attempts have been limited
+    bool limited() const { return limit < std::numeric_limits<decltype(limit)>::max(); }
+
+    /// \returns appropriate debugging level for the message
+    int currentLevel(const int defaultLevel) const {
+        if (configured())
+            return (count_++ >= limit) ? DBG_DATA : level;
+        return defaultLevel;
+    }
+
+    /// message identifier or, if the message has not been configured, zero
+    DebugMessageId id = dmsgNone;
+
+    /* all these configurable members are ignored unless configured() */
+
+    /// debugging level (i.e., the second debugs() parameter) or -1
+    int level = -1;
+
+    /// logging attempts beyond this limit are logged at the DBG_DATA level
+    uint64_t limit = std::numeric_limits<uint64_t>::max();
+
+private:
+    /// the total number of attempts to log this message
+    mutable uint64_t count_ = 0;
+};
+
+/// configurable messages indexed by DebugMessageId
+typedef DebugMessage DebugMessages[dmsgEnd];
+/// all configurable debugging messages
+extern DebugMessages TheDebugMessages;
+
+/// \returns configured debugging level for the given message or defaultLevel
+inline int ConfigurableMessage(const DebugMessageId id, const int defaultLevel) { return TheDebugMessages[id].currentLevel(defaultLevel); }
+/// \returns configured debugging level for the given message or DBG_CRITICAL
+inline int CriticalMessage(const DebugMessageId id) { return ConfigurableMessage(id, DBG_CRITICAL); }
+/// \returns configured debugging level for the given message or DBG_IMPORTANT
+inline int ImportantMessage(const DebugMessageId id) { return ConfigurableMessage(id, DBG_IMPORTANT); }
+/// \returns configured debugging level for the given message or DBG_DATA
+inline int DataMessage(const DebugMessageId id) { return ConfigurableMessage(id, DBG_DATA); }
+
+#endif /* SQUID_DEBUG_MESSAGES_H */
+
 #endif /* SQUID_DEBUG_H */
 
