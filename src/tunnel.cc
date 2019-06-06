@@ -1128,10 +1128,18 @@ TunnelStateData::usePinned()
 {
     const auto serverConn = borrowPinnedConnection(request.getRaw());
     debugs(26,7, "pinned peer connection: " << serverConn);
-    if (!Comm::IsConnOpen(serverConn)) {
+
+    const char *fail = nullptr;
+    if (!Comm::IsConnOpen(serverConn))
+        fail = "pinned path failure";
+
+    if (request->pinnedConnection()->pinning.peerAccessDenied)
+        fail = "pinned path access denied";
+
+    if (fail){
         // a PINNED path failure is fatal; do not wait for more paths
         sendError(new ErrorState(ERR_CANNOT_FORWARD, Http::scServiceUnavailable, request.getRaw(), al),
-                  "pinned path failure");
+                  fail);
         return;
     }
 
