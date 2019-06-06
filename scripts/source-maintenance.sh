@@ -144,6 +144,26 @@ for FILENAME in `git ls-files`; do
 	grep " DEBUG: section" <${FILENAME} | sed -e 's/ \* DEBUG: //' -e 's%/\* DEBUG: %%' -e 's% \*/%%' | sort -u >>doc/debug-sections.tmp
 
 	#
+	# cache_log_message index
+	#
+	# sed expressions:
+	# - replace debugs() prefix with its message ID
+	# - remove simple parenthesized non-"string" items like (a ? b : c)
+	# - replace any remaining non-"string" items with ...
+	# - remove quotes around "strings"
+	# - remove excessive whitespace
+	# - remove debugs() statement termination sugar
+	grep -o -E '\bdebugs[^,]*,\s*(Critical|Important)[(][0-9]+.*' ${FILENAME} | \
+		sed -r \
+			-e 's/.*?(Critical|Important)[(]([0-9]+)[)],\s*/\2 /' \
+			-e 's/<<\s*[(].*[)]\s*(<<|[)];)/<< ... \1/g' \
+			-e 's/<<\s*[^"]*/.../g' \
+			-e 's@([^\\])"@\1@g' \
+			-e 's/\s\s*/ /g' \
+			-e 's/[)];$//g' \
+			>> doc/debug-messages.tmp
+
+	#
 	# File permissions maintenance.
 	#
 	chmod 644 ${FILENAME}
@@ -274,10 +294,20 @@ echo " "
 # Build the GPERF generated content
 make -C src/http gperf-files
 
-# Run formating
+# Format sources and index their metadata
+
 echo "" >doc/debug-sections.tmp
+echo "" >doc/debug-messages.tmp
+
 srcformat || exit 1
+
 sort -u <doc/debug-sections.tmp | sort -n >doc/debug-sections.tmp2
 cat scripts/boilerplate.h doc/debug-sections.tmp2 >doc/debug-sections.txt
+
+sort -n <doc/debug-messages.tmp >doc/debug-messages.tmp2
+cat scripts/boilerplate.h doc/debug-messages.tmp2 >doc/debug-messages.txt
+
 rm doc/debug-sections.tmp doc/debug-sections.tmp2
+rm doc/debug-messages.tmp doc/debug-messages.tmp2
+
 rm boilerplate_fix.sed
