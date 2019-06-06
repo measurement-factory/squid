@@ -4758,12 +4758,15 @@ static void parse_cache_log_message(DebugMessages *messages)
     char *key, *value;
     while (ConfigParser::NextKvPair(key, value)) {
         if (strcmp(key, "id") == 0) {
-            const auto id = xatoull(value, 0);
-            if (!(dmsgNone < id && id < dmsgEnd))
+            const auto id = xatoui(value, 0);
+            if (!(0 < id && id < DebugMessageCount))
                 throw TexcHere(ToSBuf("unknown cache_log_message id: ", value));
             msg.id = static_cast<DebugMessageId>(id);
         } else if (strcmp(key, "level") == 0) {
-            msg.level = xatoull(value, 10);
+            const auto level = xatoi(value);
+            if (level < 0)
+                throw TexcHere(ToSBuf("negative cache_log_message level: ", value));
+            msg.level = level;
         } else if (strcmp(key, "limit") == 0) {
             msg.limit = xatoull(value, 10);
         } else {
@@ -4774,14 +4777,13 @@ static void parse_cache_log_message(DebugMessages *messages)
     if (!msg.configured())
         throw TexcHere("missing required option for the cache_log_message directive: id=...");
 
-    assert(msg.id > dmsgNone);
-    assert(msg.id < dmsgEnd);
-    (*messages)[msg.id] = msg;
+    assert(msg.id > 0);
+    assert(msg.id < DebugMessageCount);
+    messages->at(msg.id) = msg;
 }
 
 static void dump_cache_log_message(StoreEntry *entry, const char *name, const DebugMessages &messages)
 {
-    assert(messages);
     SBufStream out;
     for (const auto &msg: messages) {
         if (!msg.configured())

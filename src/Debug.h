@@ -238,19 +238,16 @@ operator <<(std::ostream &os, const RawPointerT<Pointer> &pd)
 }
 
 // XXX: Move to src/DebugMessages.h
-// XXX: Replace Debug class with namespace and use that namespace here.
 #ifndef SQUID_DEBUG_MESSAGES_H
 #define SQUID_DEBUG_MESSAGES_H
 
 #include <limits>
+#include <array>
 
-/// IDs for messages that support configuration via cache_log_message
-/// Never change ID values. Add new IDs to the end of the enum.
-typedef enum {
-    dmsgNone = 0,
-    dmsgAleMissing = 1,
-    dmsgEnd
-} DebugMessageId;
+// XXX: Replace Debug class with namespace and use that namespace here.
+
+/// an identifier for messages supporting configuration via cache_log_message
+typedef unsigned int DebugMessageId;
 
 /// manages configurable aspects of a debugs() message
 class DebugMessage
@@ -273,7 +270,7 @@ public:
     }
 
     /// message identifier or, if the message has not been configured, zero
-    DebugMessageId id = dmsgNone;
+    DebugMessageId id = 0;
 
     /* all these configurable members are ignored unless configured() */
 
@@ -284,23 +281,32 @@ public:
     uint64_t limit = std::numeric_limits<uint64_t>::max();
 
 private:
-    /// the total number of attempts to log this message
+    /// the total number of attempts to log this message if it was configured()
     mutable uint64_t count_ = 0;
 };
 
+/// The exact number of supported configurable messages. Increase as needed.
+constexpr size_t DebugMessageCount = 2;
 /// configurable messages indexed by DebugMessageId
-typedef DebugMessage DebugMessages[dmsgEnd];
+typedef std::array<DebugMessage, DebugMessageCount> DebugMessages;
 /// all configurable debugging messages
 extern DebugMessages TheDebugMessages;
 
+// Using a template allows us to check message ID range at compile time.
 /// \returns configured debugging level for the given message or defaultLevel
-inline int ConfigurableMessage(const DebugMessageId id, const int defaultLevel) { return TheDebugMessages[id].currentLevel(defaultLevel); }
-/// \returns configured debugging level for the given message or DBG_CRITICAL
-inline int CriticalMessage(const DebugMessageId id) { return ConfigurableMessage(id, DBG_CRITICAL); }
-/// \returns configured debugging level for the given message or DBG_IMPORTANT
-inline int ImportantMessage(const DebugMessageId id) { return ConfigurableMessage(id, DBG_IMPORTANT); }
-/// \returns configured debugging level for the given message or DBG_DATA
-inline int DataMessage(const DebugMessageId id) { return ConfigurableMessage(id, DBG_DATA); }
+template <DebugMessageId id>
+inline int
+DebugMessageLevel(const int defaultLevel)
+{
+    static_assert(id > 0, "debugs() message ID must be positive");
+    static_assert(id < DebugMessageCount, "debugs() message ID too large");
+    return TheDebugMessages[id].currentLevel(defaultLevel);
+}
+
+/* convenience macros for calling DebugMessageLevel */
+#define Critical(id) DebugMessageLevel<id>(DBG_CRITICAL)
+#define Important(id) DebugMessageLevel<id>(DBG_IMPORTANT)
+#define Dbg(id, defaultLevel) DebugMessageLevel<id>(defaultLevel)
 
 #endif /* SQUID_DEBUG_MESSAGES_H */
 
