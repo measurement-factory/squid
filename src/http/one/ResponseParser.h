@@ -29,7 +29,7 @@ namespace One {
 class ResponseParser : public Http1::Parser
 {
 public:
-    ResponseParser() : Parser(), completedStatus_(false), statusCode_(Http::scNone) {}
+    ResponseParser() : Parser(), completedStatus_(false), statusCode_(Http::scNone), finalParse_(false) {}
     virtual ~ResponseParser() {}
 
     /* Http::One::Parser API */
@@ -37,6 +37,9 @@ public:
     virtual Http1::Parser::size_type firstLineSize() const;
     virtual bool parse(const SBuf &aBuf);
 
+    /// like parse(), but treats the the buffer as complete
+    /// (no more response data expected).
+    bool parseFinal(const SBuf &aBuf);
     /* respone specific fields, read-only */
     Http::StatusCode messageStatus() const { return statusCode_;}
     SBuf reasonPhrase() const { return reasonPhrase_;}
@@ -57,6 +60,9 @@ private:
 
     /// HTTP/1 status-line reason phrase
     SBuf reasonPhrase_;
+
+    /// whether parseFinal() was called
+    bool finalParse_;
 };
 
 } // namespace One

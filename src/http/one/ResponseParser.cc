@@ -160,7 +160,7 @@ Http::One::ResponseParser::parseResponseFirstLine()
         buf_ = tok.remaining(); // resume checkpoint
         return parseResponseStatusAndReason(tok, WspDelim);
 
-    } else if (buf_.length() > Http1magic.length() && buf_.length() > IcyMagic.length()) {
+    } else if (finalParse_ || (buf_.length() > Http1magic.length() && buf_.length() > IcyMagic.length())) {
         debugs(74, 2, "unknown/missing prefix magic. Interpreting as HTTP/0.9");
         // found something that looks like an HTTP/0.9 response
         // Gateway/Transform it into HTTP/1.1
@@ -181,6 +181,13 @@ Http::One::ResponseParser::parseResponseFirstLine()
     }
 
     return 0; // need more to parse anything.
+}
+
+bool
+Http::One::ResponseParser::parseFinal(const SBuf &aBuf)
+{
+    finalParse_ = true;
+    return parse(aBuf);
 }
 
 bool
