@@ -692,7 +692,7 @@ HttpStateData::processReplyHeader()
                  */
                 inBuf.append("\r\n\r\n", 4);
                 // retry the parse
-                parsedOk = hp->parseFinal(inBuf);
+                parsedOk = hp->parse(inBuf);
                 // sync the buffers after parsing.
                 inBuf = hp->remaining();
             } else {
