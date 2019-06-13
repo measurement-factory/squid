@@ -1926,9 +1926,9 @@ HttpStateData::httpBuildRequestHeader(HttpRequest * request,
         delete cc;
     }
 
-    /* maybe append Connection: keep-alive */
-    if (flags.keepalive) {
-        hdr_out->putStr(Http::HdrType::CONNECTION, "keep-alive");
+    /// RFC7230 section 6.1
+    if (!flags.keepalive) {
+        hdr_out->putStr(Http::HdrType::CONNECTION, "close");
     }
 
     /* append Front-End-Https */
