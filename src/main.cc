@@ -287,8 +287,8 @@ SignalEngine::doShutdown(time_t wait)
     if (AvoidSignalAction("shutdown", do_shutdown))
         return;
 
-    debugs(1, DBG_IMPORTANT, "Preparing for shutdown after " << statCounter.client_http.requests << " requests");
-    debugs(1, DBG_IMPORTANT, "Waiting " << wait << " seconds for active connections to finish");
+    debugs(1, Important(2), "Preparing for shutdown after " << statCounter.client_http.requests << " requests");
+    debugs(1, Important(3), "Waiting " << wait << " seconds for active connections to finish");
 
 #if KILL_PARENT_OPT
     if (!IamMasterProcess() && !parentKillNotified && ShutdownSignal > 0 && parentPid > 1) {
@@ -906,8 +906,7 @@ mainReconfigureFinish(void *)
         }
     } catch (...) {
         // for now any errors are a fatal condition...
-        debugs(1, DBG_CRITICAL, "FATAL: Unhandled exception parsing config file. " <<
-               " Run squid -k parse and check for errors.");
+        debugs(1, DBG_CRITICAL, "FATAL: Configuration error: " << CurrentException);
         self_destruct();
     }
 
@@ -1089,7 +1088,7 @@ mainSetCwd(void)
 
     if (Config.coredump_dir && strcmp("none", Config.coredump_dir) != 0) {
         if (mainChangeDir(Config.coredump_dir)) {
-            debugs(0, DBG_IMPORTANT, "Set Current Directory to " << Config.coredump_dir);
+            debugs(0, Important(4), "Set Current Directory to " << Config.coredump_dir);
             return;
         }
     }
@@ -1126,10 +1125,8 @@ mainInitialize(void)
 
     _db_init(Debug::cache_log, Debug::debugOptions);
 
-    fd_open(fileno(debug_log), FD_LOG, Debug::cache_log);
-
     debugs(1, DBG_CRITICAL, "Starting Squid Cache version " << version_string << " for " << CONFIG_HOST_TYPE << "...");
-    debugs(1, DBG_CRITICAL, "Service Name: " << service_name);
+    debugs(1, Critical(5), "Service Name: " << service_name);
 
 #if _SQUID_WINDOWS_
     if (WIN32_run_mode == _WIN_SQUID_RUN_MODE_SERVICE) {
@@ -1138,12 +1135,12 @@ mainInitialize(void)
         debugs(1, DBG_CRITICAL, "Running on " << WIN32_OS_string);
 #endif
 
-    debugs(1, DBG_IMPORTANT, "Process ID " << getpid());
+    debugs(1, Important(6), "Process ID " << getpid());
 
-    debugs(1, DBG_IMPORTANT, "Process Roles:" << ProcessRoles());
+    debugs(1, Important(7), "Process Roles:" << ProcessRoles());
 
     setSystemLimits();
-    debugs(1, DBG_IMPORTANT, "With " << Squid_MaxFD << " file descriptors available");
+    debugs(1, Important(8), "With " << Squid_MaxFD << " file descriptors available");
 
 #if _SQUID_WINDOWS_
 
@@ -1526,8 +1523,7 @@ SquidMain(int argc, char **argv)
             parse_err = parseConfigFile(ConfigFile);
         } catch (...) {
             // for now any errors are a fatal condition...
-            debugs(1, DBG_CRITICAL, "FATAL: Unhandled exception parsing config file." <<
-                   (opt_parse_cfg_only ? " Run squid -k parse and check for errors." : ""));
+            debugs(1, DBG_CRITICAL, "FATAL: Configuration error: " << CurrentException);
             parse_err = 1;
         }
 
@@ -1970,7 +1966,7 @@ SquidShutdown()
     WIN32_svcstatusupdate(SERVICE_STOP_PENDING, 10000);
 #endif
 
-    debugs(1, DBG_IMPORTANT, "Shutting down...");
+    debugs(1, Important(9), "Shutting down...");
 #if USE_SSL_CRTD
     Ssl::Helper::GetInstance()->Shutdown();
 #endif
@@ -2055,7 +2051,7 @@ SquidShutdown()
 
     memClean();
 
-    debugs(1, DBG_IMPORTANT, "Squid Cache (Version " << version_string << "): Exiting normally.");
+    debugs(1, Important(10), "Squid Cache (Version " << version_string << "): Exiting normally.");
 
     /*
      * DPW 2006-10-23

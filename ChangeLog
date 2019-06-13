@@ -255,6 +255,54 @@ Changes to squid-4.0.1 (14 Oct 2015):
 	- ... and many documentation changes
 	- ... and much code cleanup and polishing
 
+Changes to squid-3.5.27 (20 Aug 2017):
+
+	- Regression Bug #4112: ssl_engine does not accept cryptodev
+	- Bug 4687: Wrong names of components in man page, section SEE ALSO
+	- Bug 4671: various GCC 7 compile errors
+	- Bug 4464: Reduce "!Comm::MonitorsRead(serverConnection->fd)" assertions
+	- Bug 2833: Collapse internal revalidation requests (SMP-unaware caches)
+	- Bug 2833: Do not respond with HTTP/304 to unconditional requests
+	- Fix message packing error handling in mgr and snmp SMP Forwarders
+	- Fix mgr query handoff from the original recipient to Coordinator.
+	- ... and some documentation updates
+
+Changes to squid-3.5.26 (01 Jun 2017):
+
+	- Bug 4711: SubjectAlternativeNames is missing in some generated certificates
+	- Bug 4695: squidpurge: GCC 7 build errors
+	- Bug 4682: ignoring http_access deny when client-first bumping mode is used
+	- Bug 4682: Fix ssl_bump "bump" action documentation
+	- Bug 4653: %st lies about tunneled traffic volumes
+	- Bug 4589: ssl_crtd: returning zero on failure
+	- Bug 3772: message from FTP server gets mangled
+	- Bug 3102: FTP directory listing drops fist character of file names
+	- Add OpenSSL library details to -v output
+	- ... and some documentation updates
+
+Changes to squid-3.5.25 (02 Apr 2017):
+
+	- Bug 4688: various typo error(s) in man page(s)
+	- Bug 4508: Host forgery stalls intercepted being-spliced connections
+	- Native FTP relay: NAT and TPROXY interception fixes
+	- Fix missing CRLF on FTP timeout ABORT commands
+	- TLS: Bump client on errors encountered before ssl_bump evaluation
+	- ext_kerberos_ldap_group_acl: fix unused value warnings
+	- Fix crash when configuring with invalid delay_parameters restore value.
+	- Check that -k argument is provided before trying to use it.
+	- ... and some build fixes
+
+Changes to squid-3.5.24 (28 Jan 2017):
+
+	- Regression Bug 3940: Make 'cache deny' do what is documented
+	- TLS: Fix SSLv2 records bumping despite a matching step2 peek rule
+	- TLS: Mitigate DoS attacks that use client-initiated SSL/TLS renegotiation
+	- Fix "Source and destination overlap in memcpy" Valgrind errors
+	- Reduce crashes due to unexpected ClientHttpRequest termination
+	- Update External ACL helpers error handling and caching
+	- Detect HTTP header ACL issues
+	- ... and some documentation fixes
+
 Changes to squid-3.5.23 (16 Dec 2016):
 
 	- Bug 4627: fix generate-host-certificates and dynamic_cert_mem_cache_size docs
