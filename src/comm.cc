@@ -484,7 +484,7 @@ comm_apply_flags(int new_socket,
                 const auto errorMessage = ToSBuf("cannot enable SO_REUSEPORT socket option when binding to ",
                                                  addr, ": ", xstrerr(savedErrno));
                 if (reconfiguring)
-                    debugs(5, DBG_IMPORTANT, errorMessage);
+                    debugs(5, DBG_IMPORTANT, "ERROR: " << errorMessage);
                 else
                     throw TexcHere(errorMessage);
             }
