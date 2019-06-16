@@ -137,6 +137,7 @@ private:
     mb_size_t buildRequestPrefix(MemBuf * mb);
     static bool decideIfWeDoRanges (HttpRequest * orig_request);
     bool peerSupportsConnectionPinning() const;
+    void refreshConnectionCloseFlag();
 
     /// Parser being used at present to parse the HTTP/ICY server response.
     Http1::ResponseParserPointer hp;
