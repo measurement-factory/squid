@@ -271,7 +271,7 @@ Security::HandshakeParser::parseModernRecords()
         }
         catch (const Parser::BinaryTokenizer::InsufficientInput &ii) {
             if (!parsedRecords)
-                throw ii;
+                return;
 
             doneWithRecords = true;
         }
@@ -545,11 +545,11 @@ Security::HandshakeParser::parseHello(const SBuf &data)
         // data contains everything read so far, but we may read more later
         tkRecords.reinput(data, true);
         tkRecords.rollback();
-        while (!done)
-            parseRecords();
-        debugs(83, 7, "success; got: " << done);
+        parseRecords();
+        if (done)
+            debugs(83, 7, "success; got: " << done);
         // we are done; tkRecords may have leftovers we are not interested in
-        return true;
+        return done;
     }
     catch (const Parser::BinaryTokenizer::InsufficientInput &) {
         debugs(83, 5, "need more data");
