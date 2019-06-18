@@ -221,19 +221,25 @@ Security::HandshakeParser::isSslv2Record(const SBuf &raw) const
 }
 
 void
-Security::HandshakeParser::parseRecord()
+Security::HandshakeParser::parseRecords()
 {
     if (expectingModernRecords)
-        parseModernRecord();
+        parseModernRecords();
     else
         parseVersion2Record();
 }
 
 /// parses a single TLS Record Layer frame
 void
-Security::HandshakeParser::parseModernRecord()
+Security::HandshakeParser::parseOneModernRecord(bool concatRecords)
 {
     const TLSPlaintext record(tkRecords);
+
+    if (concatRecords && currentContentType != record.type) {
+        tkRecords.rollback();
+        return;
+    }
+
     tkRecords.commit();
 
     details->tlsVersion = record.version;
@@ -252,6 +258,23 @@ Security::HandshakeParser::parseModernRecord()
         fragments.append(record.fragment);
         tkMessages.reinput(fragments, true); // true because more fragments may come
         tkMessages.rollback();
+    }
+}
+
+void
+Security::HandshakeParser::parseModernRecords()
+{
+    bool doneWithRecords = false;
+    for (int parsedRecords = 0; !doneWithRecords; ++parsedRecords) {
+        try {
+            parseOneModernRecord(parsedRecords > 0);
+        }
+        catch (const Parser::BinaryTokenizer::InsufficientInput &ii) {
+            if (!parsedRecords)
+                throw ii;
+
+            doneWithRecords = true;
+        }
     }
     parseMessages();
 }
@@ -523,7 +546,7 @@ Security::HandshakeParser::parseHello(const SBuf &data)
         tkRecords.reinput(data, true);
         tkRecords.rollback();
         while (!done)
-            parseRecord();
+            parseRecords();
         debugs(83, 7, "success; got: " << done);
         // we are done; tkRecords may have leftovers we are not interested in
         return true;

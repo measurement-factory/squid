@@ -77,8 +77,9 @@ public:
 
 private:
     bool isSslv2Record(const SBuf &raw) const;
-    void parseRecord();
-    void parseModernRecord();
+    void parseRecords();
+    void parseModernRecords();
+    void parseOneModernRecord(bool concatRecords);
     void parseVersion2Record();
     void parseMessages();
 
