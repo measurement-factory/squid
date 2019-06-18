@@ -24,6 +24,7 @@
 #include "HttpReply.h"
 #include "HttpRequest.h"
 #include "MasterXaction.h"
+#include "sbuf/StringConvert.h"
 #include "SquidTime.h"
 
 CBDATA_NAMESPACED_CLASS_INIT(Adaptation::Ecap::XactionRep, XactionRep);
@@ -241,12 +242,8 @@ Adaptation::Ecap::XactionRep::start()
         adaptHistoryId = ah->recordXactStart(service().cfg().key, current_time, false);
         SBuf matched;
         for (auto h: Adaptation::Config::metaHeaders) {
-            if (h->match(request, reply, al, matched)) {
-                if (ah->metaHeaders == NULL)
-                    ah->metaHeaders = new NotePairs();
-                if (!ah->metaHeaders->hasPair(h->key(), matched))
-                    ah->metaHeaders->add(h->key(), matched);
-            }
+            if (h->match(request, reply, al, matched))
+                ah->addMetaHeader(h->key(), matched);
         }
     }
 
@@ -490,15 +487,17 @@ Adaptation::Ecap::XactionRep::updateHistory(Http::Message *adapted)
         }
     } // TODO: else warn (occasionally!) if we got libecap::metaNextServices
 
-    // Store received meta headers for adapt::<last_h logformat code use.
-    // If we already have stored headers from a previous adaptation transaction
-    // related to the same master transction, they will be replaced.
-    Adaptation::History::Pointer ah = request->adaptLogHistory();
-    if (ah != NULL) {
-        HttpHeader meta(hoReply);
-        OptionsExtractor extractor(meta);
-        theMaster->visitEachOption(extractor);
-        ah->recordMeta(&meta);
+    HttpHeader meta(hoReply);
+    OptionsExtractor extractor(meta);
+    theMaster->visitEachOption(extractor);
+    if (!meta.entries.empty()) {
+        auto history = request->adaptHistory(true);
+        // Store received meta headers for adapt::<last_h logformat code use.
+        // If we already have stored headers from a previous adaptation transaction
+        // related to the same master transction, they will be replaced.
+        history->recordMeta(&meta);
+        for (const auto &e: meta.entries)
+            history->addMetaHeader(e->name, StringToSBuf(e->value));
     }
 
     // Add just-created history to the adapted/cloned request that lacks it.
