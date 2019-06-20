@@ -626,7 +626,7 @@ httpMakeVaryMark(HttpRequest * request, HttpReply const * reply)
 void
 HttpStateData::keepaliveAccounting(HttpReply *reply)
 {
-    if (!flags.connectionClose)
+    if (flags.keepalive)
         if (flags.peering && !flags.tunneling)
             ++ _peer->stats.n_keepalives_sent;
 
@@ -1044,10 +1044,10 @@ HttpStateData::statusIfComplete() const
         return COMPLETE_NONPERSISTENT_MSG;
 
     /** \par
-     * If we sent the Connection:close request header, then this
+     * If we didn't send a keep-alive request header, then this
      * can not be a persistent connection.
      */
-    if (flags.connectionClose)
+    if (!flags.keepalive)
         return COMPLETE_NONPERSISTENT_MSG;
 
     /** \par
@@ -1927,7 +1927,7 @@ HttpStateData::httpBuildRequestHeader(HttpRequest * request,
     }
 
     /// RFC7230 section 6.1
-    if (flags.connectionClose) {
+    if (!flags.keepalive) {
         hdr_out->putStr(Http::HdrType::CONNECTION, "close");
     }
 
@@ -2193,29 +2193,6 @@ HttpStateData::buildRequestPrefix(MemBuf * mb)
     return mb->size - offset;
 }
 
-void
-HttpStateData::refreshConnectionCloseFlag()
-{
-    if (request->flags.mustKeepalive)
-        flags.connectionClose = false;
-    else if (request->flags.pinned)
-        flags.connectionClose = !request->persistent();
-    else if (!Config.onoff.server_pconns)
-        flags.connectionClose = true;
-    else if (flags.tunneling)
-        // tunneled non pinned bumped requests must not keepalive
-        flags.connectionClose = request->flags.sslBumped;
-    else if (!_peer)
-        flags.connectionClose = false;
-    else if (_peer->stats.n_keepalives_sent < 10)
-        flags.connectionClose = false;
-    else if ((double) _peer->stats.n_keepalives_recv /
-             (double) _peer->stats.n_keepalives_sent > 0.50)
-        flags.connectionClose = false;
-    else
-        flags.connectionClose = true;
-}
-
 /* This will be called when connect completes. Write request. */
 bool
 HttpStateData::sendRequest()
@@ -2255,7 +2232,25 @@ HttpStateData::sendRequest()
                                     Dialer, this,  HttpStateData::wroteLast);
     }
 
-    refreshConnectionCloseFlag();
+    /*
+     * Is keep-alive okay for all request methods?
+     */
+    if (request->flags.mustKeepalive)
+        flags.keepalive = true;
+    else if (request->flags.pinned)
+        flags.keepalive = request->persistent();
+    else if (!Config.onoff.server_pconns)
+        flags.keepalive = false;
+    else if (flags.tunneling)
+        // tunneled non pinned bumped requests must not keepalive
+        flags.keepalive = !request->flags.sslBumped;
+    else if (_peer == NULL)
+        flags.keepalive = true;
+    else if (_peer->stats.n_keepalives_sent < 10)
+        flags.keepalive = true;
+    else if ((double) _peer->stats.n_keepalives_recv /
+             (double) _peer->stats.n_keepalives_sent > 0.50)
+        flags.keepalive = true;
 
     if (_peer && !flags.tunneling) {
         /*The old code here was
