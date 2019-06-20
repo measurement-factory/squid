@@ -1926,10 +1926,10 @@ HttpStateData::httpBuildRequestHeader(HttpRequest * request,
         delete cc;
     }
 
-    /// RFC7230 section 6.6
-    if (!flags.keepalive) {
-        hdr_out->putStr(Http::HdrType::CONNECTION, "close");
-    }
+    // Explicitly enable persistent connections with legacy HTTP/1.0 servers
+    // (HTTP/1.1 connections are persistent by default). Otherwise, provide a
+    // "close" connection option for non-persistent connections (RFC 7230 Section 6.6).
+    hdr_out->putStr(Http::HdrType::CONNECTION, flags.keepalive ? "keep-alive" : "close");
 
     /* append Front-End-Https */
     if (flags.front_end_https) {
