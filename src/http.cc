@@ -1926,7 +1926,7 @@ HttpStateData::httpBuildRequestHeader(HttpRequest * request,
         delete cc;
     }
 
-    /// RFC7230 section 6.1
+    /// RFC7230 section 6.6
     if (!flags.keepalive) {
         hdr_out->putStr(Http::HdrType::CONNECTION, "close");
     }
