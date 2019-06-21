@@ -1926,9 +1926,9 @@ HttpStateData::httpBuildRequestHeader(HttpRequest * request,
         delete cc;
     }
 
-    // Explicitly enable persistent connections with legacy HTTP/1.0 servers
-    // (HTTP/1.1 connections are persistent by default). Otherwise, provide a
-    // "close" connection option for non-persistent connections (RFC 7230 Section 6.6).
+    // Always send Connection because older servers need explicit "keep-alive"
+    // while modern servers need explicit "close", and we do not always know
+    // the server expectations.
     hdr_out->putStr(Http::HdrType::CONNECTION, flags.keepalive ? "keep-alive" : "close");
 
     /* append Front-End-Https */
