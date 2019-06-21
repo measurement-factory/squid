@@ -160,8 +160,10 @@ Http::One::ResponseParser::parseResponseFirstLine()
         buf_ = tok.remaining(); // resume checkpoint
         return parseResponseStatusAndReason(tok, WspDelim);
     } else if (buf_.length() < Http1magic.length() && Http1magic.startsWith(buf_)) {
+        debugs(74, 7, Raw("valid HTTP/1 prefix", buf_.rawContent(), buf_.length()));
         return 0;
     } else if (buf_.length() < IcyMagic.length() && IcyMagic.startsWith(buf_)) {
+        debugs(74, 7, Raw("valid ICY prefix", buf_.rawContent(), buf_.length()));
         return 0;
     } else {
         debugs(74, 2, "unknown/missing prefix magic. Interpreting as HTTP/0.9");
@@ -182,6 +184,10 @@ Http::One::ResponseParser::parseResponseFirstLine()
         parsingStage_ = HTTP_PARSE_DONE;
         return 1; // no more parsing
     }
+
+    // unreachable
+    assert(false);
+    return -1;
 }
 
 bool
