@@ -3968,7 +3968,16 @@ ConnStateData::checkLogging()
     ClientHttpRequest http(this);
     http.req_sz = inBuf.length();
     // XXX: Or we died while waiting for the pinned connection to become idle.
-    http.setErrorUri("error:transaction-end-before-headers");
+    const char *errorUri = "error:transaction-end-before-headers";
+    http.setErrorUri(errorUri);
+    static const SBuf errorCode(errorUri);
+    http.al->errorCode = errorCode;
+#if USE_OPENSSL
+    if (parsingTlsHandshake) {
+        static const SBuf errorDetail("expecting-TLS-client-handshake");
+        http.al->errorDetail = errorDetail;
+    }
+#endif
 }
 
 bool

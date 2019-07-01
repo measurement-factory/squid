@@ -188,6 +188,13 @@ public:
     /// see ConnStateData::proxyProtocolHeader_
     ProxyProtocol::HeaderPointer proxyProtocolHeader;
 
+    /// an internal transaction error identifier, logged as %err_code
+    /// when HttpRequest::errType is unavailable
+    SBuf errorCode;
+
+    /// some additional errorCode-dependent information
+    SBuf errorDetail;
+
 #if ICAP_CLIENT
     /** \brief This subclass holds log info for ICAP part of request
      *  \todo Inner class declarations should be moved outside

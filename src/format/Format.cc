@@ -983,6 +983,8 @@ Format::Format::assemble(MemBuf &mb, const AccessLogEntry::Pointer &al, int logS
         case LFT_SQUID_ERROR:
             if (al->request && al->request->errType != ERR_NONE)
                 out = errorPageName(al->request->errType);
+            if (!out && !al->errorCode.isEmpty())
+                out = al->errorCode.c_str();
             break;
 
         case LFT_SQUID_ERROR_DETAIL:
@@ -1006,6 +1008,8 @@ Format::Format::assemble(MemBuf &mb, const AccessLogEntry::Pointer &al, int logS
                         out = sb.c_str();
                     }
                 }
+            if (!out && !al->errorDetail.isEmpty())
+                out = al->errorDetail.c_str();
             break;
 
         case LFT_SQUID_HIERARCHY:
