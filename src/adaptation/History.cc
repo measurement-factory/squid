@@ -152,6 +152,17 @@ Adaptation::History::recordAdaptationService(SBuf &srvId)
 }
 
 void
+Adaptation::History::addNewMetaHeader(const SBuf &key, const SBuf &value)
+{
+    if (!metaHeaders)
+        metaHeaders = new NotePairs;
+    else if (metaHeaders->hasPair(key, value))
+        return;
+
+    metaHeaders->add(key, value);
+}
+
+void
 Adaptation::History::setFutureServices(const DynamicGroupCfg &services)
 {
     if (!theFutureServices.empty())

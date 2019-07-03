@@ -55,13 +55,17 @@ public:
     void recordMeta(const HttpHeader *lm);
 
     void recordAdaptationService(SBuf &srvId);
+
+    /// appends a new meta header; does nothing if key:value was added earlier
+    void addNewMetaHeader(const SBuf &key, const SBuf &value);
+
 public:
     /// Last received meta header (REQMOD or RESPMOD, whichever comes last).
     HttpHeader lastMeta;
     /// All REQMOD and RESPMOD meta headers merged. Last field wins conflicts.
     HttpHeader allMeta;
-    /// key:value pairs set by adaptation_meta, to be added to
-    /// AccessLogEntry::notes when ALE becomes available
+    /// key:value transaction annotations
+    /// set by adaptation_meta and/or meta headers returned by eCAP
     NotePairs::Pointer metaHeaders;
 
     typedef std::vector<SBuf> AdaptationServices;
