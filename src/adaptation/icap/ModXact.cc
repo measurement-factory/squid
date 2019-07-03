@@ -1505,7 +1505,7 @@ void Adaptation::Icap::ModXact::makeRequestHeaders(MemBuf &buf)
             buf.append(matched.rawContent(), matched.length());
             buf.append("\r\n", 2);
             if (auto ah = request->adaptHistory(false))
-                ah->addMetaHeader(h->key(), matched);
+                ah->addNewMetaHeader(h->key(), matched);
         }
     }
 

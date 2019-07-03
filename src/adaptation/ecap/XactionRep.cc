@@ -243,7 +243,7 @@ Adaptation::Ecap::XactionRep::start()
         SBuf matched;
         for (auto h: Adaptation::Config::metaHeaders) {
             if (h->match(request, reply, al, matched))
-                ah->addMetaHeader(h->key(), matched);
+                ah->addNewMetaHeader(h->key(), matched);
         }
     }
 
@@ -492,12 +492,9 @@ Adaptation::Ecap::XactionRep::updateHistory(Http::Message *adapted)
     theMaster->visitEachOption(extractor);
     if (!meta.entries.empty()) {
         auto history = request->adaptHistory(true);
-        // Store received meta headers for adapt::<last_h logformat code use.
-        // If we already have stored headers from a previous adaptation transaction
-        // related to the same master transction, they will be replaced.
         history->recordMeta(&meta);
         for (const auto &e: meta.entries)
-            history->addMetaHeader(e->name, StringToSBuf(e->value));
+            history->addNewMetaHeader(e->name, StringToSBuf(e->value));
     }
 
     // Add just-created history to the adapted/cloned request that lacks it.

@@ -56,16 +56,16 @@ public:
 
     void recordAdaptationService(SBuf &srvId);
 
-    /// appends a meta header, does nothing if it already exists
-    void addMetaHeader(const SBuf &key, const SBuf &value);
+    /// appends a new meta header; does nothing if key:value was added earlier
+    void addNewMetaHeader(const SBuf &key, const SBuf &value);
 
 public:
     /// Last received meta header (REQMOD or RESPMOD, whichever comes last).
     HttpHeader lastMeta;
     /// All REQMOD and RESPMOD meta headers merged. Last field wins conflicts.
     HttpHeader allMeta;
-    /// key:value pairs set by adaptation_meta and(or) eCAP response meta headers.
-    /// This is a part of the transaction annotation.
+    /// key:value transaction annotations
+    /// set by adaptation_meta and/or meta headers returned by eCAP
     NotePairs::Pointer metaHeaders;
 
     typedef std::vector<SBuf> AdaptationServices;
