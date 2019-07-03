@@ -210,15 +210,15 @@ Rock::IoState::tryWrite(char const *buf, size_t size, off_t coreOff)
             const auto sidNext = dir->reserveSlotForWriting(); // throws
             assert(sidNext >= 0);
             writeToDisk(sidNext);
-        } else if (false && Store::Root().transientReaders(*e)) {
-            // XXX: partial writes cause errors in SwapDir::droppedEarlierRequest(),
-            // sometimes getting unexpected '-1' slice id. We need to fix that bug
-            // before re-enabling this feature.
-            // XXX: the effective benefit of partial writes is limited by doPages()
-            // buffering (up to SM_PAGE_SIZE).
+            // } else if (Store::Root().transientReaders(*e)) {
+            // XXX: Partial writes cannot be read -- no map->startAppending()!
+            // XXX: Partial writes confuse SwapDir::droppedEarlierRequest(),
+            // resulting in released entries and, hence, misses and CF retries.
+            // XXX: The effective benefit of partial writes is reduced by
+            // doPages() buffering SM_PAGE_SIZE*n leftovers.
 
-            // write partial buffer for all remote hit readers to see
-            writeBufToDisk(-1, false, false);
+            // // write partial buffer for all remote hit readers to see
+            // writeBufToDisk(-1, false, false);
         }
     }
 
