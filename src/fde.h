@@ -50,6 +50,9 @@ class fde
 {
 
 public:
+
+    static void CreateTable() { assert(!Table); Table = static_cast<fde *>(xcalloc(Squid_MaxFD, sizeof(fde))); }
+
     fde() {
         *ipaddr = 0;
         *desc = 0;
@@ -58,8 +61,6 @@ public:
         read_method = nullptr;
         write_method = nullptr;
     }
-
-    static void CreateTable() { assert(!Table); Table = static_cast<fde *>(xcalloc(Squid_MaxFD, sizeof(fde))); }
 
     /// Clear the fde class back to NULL equivalent.
     void clear() { *this = fde(); }

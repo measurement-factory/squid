@@ -1435,10 +1435,8 @@ ConfigureCurrentKid(const CommandLine &cmdLine)
 }
 
 static void
-StartUsingFdTable()
+ConfigureDebugging()
 {
-    setMaxFD();
-    fde::CreateTable();
     if (opt_no_daemon) {
         /* we have to init fdstat here. */
         fd_open(0, FD_LOG, "stdin");
@@ -1451,7 +1449,7 @@ StartUsingFdTable()
 }
 
 static void
-UseConfigRunners()
+RunConfigUsers()
 {
     RunRegisteredHere(RegisteredRunner::claimMemoryNeeds);
     RunRegisteredHere(RegisteredRunner::useConfig);
@@ -1460,19 +1458,21 @@ UseConfigRunners()
 static void
 StartUsingConfig()
 {
+    setMaxFD();
+    fde::CreateTable();
     const bool skipCwdAdjusting = IamMasterProcess() && InDaemonMode();
     if (skipCwdAdjusting) {
-        StartUsingFdTable();
-        UseConfigRunners();
+        ConfigureDebugging();
+        RunConfigUsers();
     } else if (Config.chroot_dir) {
-        UseConfigRunners();
+        RunConfigUsers();
         enter_suid();
         mainSetCwd();
         leave_suid();
-        StartUsingFdTable();
+        ConfigureDebugging();
     } else {
-        StartUsingFdTable();
-        UseConfigRunners();
+        ConfigureDebugging();
+        RunConfigUsers();
         enter_suid();
         mainSetCwd();
         leave_suid();
@@ -1614,20 +1614,6 @@ SquidMain(int argc, char **argv)
     // is not applicable to kids because they always co-exist with their master.
     if (opt_send_signal == -1 && IamMasterProcess())
         Instance::ThrowIfAlreadyRunning();
-
-#if TEST_ACCESS
-
-    StartUsingFdTable();
-
-    comm_init();
-
-    mainInitialize();
-
-    test_access();
-
-    return 0;
-
-#endif
 
     /* send signal to running copy and exit */
     if (opt_send_signal != -1) {
