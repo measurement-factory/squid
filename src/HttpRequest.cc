@@ -429,6 +429,9 @@ HttpRequest::adaptHistory(bool createIfNone) const
 Adaptation::History::Pointer
 HttpRequest::adaptLogHistory() const
 {
+    // TODO: we also need the history for dynamically loaded error pages, using logformat %code.
+    // So we need either modifying the condition to take into account this case or creating the
+    // history unconditionally.
     return HttpRequest::adaptHistory(Log::TheConfig.hasAdaptToken || !Adaptation::Config::metaHeaders.empty());
 }
 
