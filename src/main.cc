@@ -1467,6 +1467,8 @@ StartUsingConfig()
     } else if (Config.chroot_dir) {
         RunConfigUsers();
         enter_suid();
+        // TODO: don't we need to RunConfigUsers() in the configured
+        // chroot environment?
         mainSetCwd();
         leave_suid();
         ConfigureDebugging();
@@ -1474,6 +1476,8 @@ StartUsingConfig()
         ConfigureDebugging();
         RunConfigUsers();
         enter_suid();
+        // TODO: since RunConfigUsers() may use a relative path, we
+        // need to change the process root first
         mainSetCwd();
         leave_suid();
     }

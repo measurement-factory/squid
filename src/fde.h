@@ -51,7 +51,7 @@ class fde
 
 public:
 
-    static void CreateTable() { assert(!Table); Table = static_cast<fde *>(xcalloc(Squid_MaxFD, sizeof(fde))); }
+    static void CreateTable();
 
     fde() {
         *ipaddr = 0;
