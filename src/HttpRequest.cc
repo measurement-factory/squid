@@ -33,6 +33,10 @@
 #include "SquidConfig.h"
 #include "Store.h"
 
+#if USE_ADAPTATION
+#include "adaptation/Config.h"
+#endif
+
 #if USE_AUTH
 #include "auth/UserRequest.h"
 #endif
@@ -425,7 +429,7 @@ HttpRequest::adaptHistory(bool createIfNone) const
 Adaptation::History::Pointer
 HttpRequest::adaptLogHistory() const
 {
-    return HttpRequest::adaptHistory(Log::TheConfig.hasAdaptToken);
+    return HttpRequest::adaptHistory(Log::TheConfig.hasAdaptToken || !Adaptation::Config::metaHeaders.empty());
 }
 
 void
