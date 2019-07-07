@@ -1023,7 +1023,7 @@ parse_obsolete(const char *name)
 /// \returns true if unitName is correct and its time unit is not less
 /// than MinimalUnit.
 template <class MinimalUnit>
-bool
+static bool
 parseSingleTimeUnit(const char *unitName, std::chrono::nanoseconds &ns)
 {
     assert(unitName);
@@ -1066,30 +1066,32 @@ parseSingleTimeUnit(const char *unitName, std::chrono::nanoseconds &ns)
 /// Wraps parseSingleTimeUnit() and parses defaultUnitName if it failed to parse unitName.
 /// \returns true iff unitName was successfully parsed.
 template <class MinimalUnit>
-bool
+static bool
 parseTimeUnits(const char *unitName, const char *defaultUnitName, std::chrono::nanoseconds &ns)
 {
-    if (unitName && parseSingleTimeUnit<MinimalUnit>(unitName, ns))
-        return true;
-
-    if (defaultUnitName) {
+    if (unitName) {
+        if (parseSingleTimeUnit<MinimalUnit>(unitName, ns))
+            return true;
+        debugs(3, DBG_CRITICAL, "FATAL: unknown time unit '" << unitName << "'");
+    } else if (defaultUnitName) {
         const auto defaultParsed = parseSingleTimeUnit<MinimalUnit>(defaultUnitName, ns);
         assert(defaultParsed);
         debugs(3, DBG_CRITICAL, "WARNING: No units on '" << config_input_line << "', assuming " << defaultUnitName);
         return false;
-    }
-
-    if (unitName)
-        debugs(3, DBG_CRITICAL, "FATAL: unknown time unit '" << unitName << "'");
-    else
+    } else {
         debugs(3, DBG_CRITICAL, "FATAL: missing time unit");
+    }
 
     self_destruct();
     return false;
 }
 
 static void
-CheckTimeOverflow(const double value, const std::chrono::nanoseconds &unit) {
+CheckTimeValue(const double value, const std::chrono::nanoseconds &unit) {
+    if (value < 0) {
+        debugs(3, DBG_CRITICAL, "FATAL: time must have a positive value");
+        self_destruct();
+    }
     const auto maxNanoseconds = std::chrono::nanoseconds::max().count();
     if (value > maxNanoseconds/static_cast<double>(unit.count())) {
         const auto maxYears = maxNanoseconds/(HoursPerYear*3600*1000000000);
@@ -1104,39 +1106,42 @@ CheckTimeOverflow(const double value, const std::chrono::nanoseconds &unit) {
 /// it should passed only if the configuration paramter being parsed
 /// excpects more arguments after time unit.
 template <class TimeUnit>
-TimeUnit
+static TimeUnit
 parseTimeLine(const char *defaultUnitName = nullptr)
 {
-    char *token = ConfigParser::NextToken();;
-    if (!token) {
+    const auto valueToken = ConfigParser::NextToken();
+    if (!valueToken) {
         self_destruct();
         return TimeUnit::zero();
     }
 
-    const auto parsedValue = xatof(token);
+    const auto parsedValue = xatof(valueToken);
 
     std::chrono::nanoseconds parsedUnitDuration;
 
-    token = parsedValue ? ConfigParser::PeekAtToken() : nullptr;
+    const auto token = parsedValue ? ConfigParser::PeekAtToken() : nullptr;
 
     if (parsedValue && parseTimeUnits<TimeUnit>(token, defaultUnitName, parsedUnitDuration))
         (void)ConfigParser::NextToken();
 
-    CheckTimeOverflow(parsedValue, parsedUnitDuration);
+    CheckTimeValue(parsedValue, parsedUnitDuration);
 
     const std::chrono::nanoseconds resultDuration(static_cast<std::chrono::nanoseconds::rep>(parsedUnitDuration.count() * parsedValue));
 
-    // validate precisions (time-unit-small only)
-    if (TimeUnit(1) <= std::chrono::microseconds(1) && resultDuration.count() && resultDuration.count() <= 3) {
-        const auto unitName = token ? token : defaultUnitName;
-        assert(unitName);
-        debugs(3, DBG_CRITICAL, "WARNING: The parsed " << parsedValue << " " << unitName <<
-                " on '" << config_input_line << "' is too small to be measured with high_resolution_clock");
+    // validate precisions (time-units-small only)
+    if (TimeUnit(1) <= std::chrono::microseconds(1)) {
+        const auto durationNanoseconds = resultDuration.count();
+        if (durationNanoseconds && durationNanoseconds <= 3) {
+            const auto unitName = token ? token : defaultUnitName;
+            assert(unitName);
+            debugs(3, DBG_CRITICAL, "WARNING: The parsed '" << parsedValue << " " << unitName <<
+                    "' in '" << config_input_line << "' is too small to be measured with an acceptable precision");
+        }
     }
 
     const auto result = std::chrono::duration_cast<TimeUnit>(resultDuration);
 
-    if (parsedValue > 0 && !result.count()) {
+    if (parsedValue && !result.count()) {
         debugs(3, DBG_CRITICAL, "FATAL: Invalid time value '" << parsedValue <<
                 "' is to small to be used in this context");
         self_destruct();
@@ -2956,7 +2961,8 @@ parse_time_t(time_t * var)
     static const auto maxTime = std::numeric_limits<time_t>::max();
     const auto seconds = parseTimeLine<std::chrono::seconds>();
     if (maxTime < seconds.count()) {
-        debugs(3, DBG_CRITICAL, "FATAL: time_t is too small to accommodate " << seconds.count() << " seconds");
+        debugs(3, DBG_CRITICAL, "FATAL: directive supports time values up to " << maxTime <<
+                " but given " << seconds.count() << " seconds");
         self_destruct();
     }
     *var = static_cast<time_t>(seconds.count());
@@ -4446,7 +4452,7 @@ static void parse_icap_service_failure_limit(Adaptation::Icap::Config *cfg)
         return;
     }
 
-    CheckTimeOverflow(d, parsedUnitDuration);
+    CheckTimeValue(d, parsedUnitDuration);
 
     cfg->oldest_service_failure = std::chrono::duration_cast<Seconds>(parsedUnitDuration).count() * d;
 }
