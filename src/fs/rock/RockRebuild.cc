@@ -240,7 +240,7 @@ Rock::Rebuild::start()
         return;
     }
 
-    debugs(47, DBG_IMPORTANT, "Loading cache_dir #" << sd->index <<
+    debugs(47, Important(18), "Loading cache_dir #" << sd->index <<
            " from " << sd->filePath);
 
     fd = file_open(sd->filePath, O_RDONLY | O_BINARY);

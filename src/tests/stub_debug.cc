@@ -17,6 +17,7 @@
 #include "Debug.h"
 
 FILE *debug_log = NULL;
+DebugMessages TheDebugMessages;
 
 char *Debug::debugOptions;
 char *Debug::cache_log= NULL;

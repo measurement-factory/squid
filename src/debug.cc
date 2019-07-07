@@ -28,6 +28,7 @@ char *Debug::cache_log = NULL;
 int Debug::rotateNumber = -1;
 bool Debug::ForceAlert = false;
 FILE *debug_log = NULL;
+DebugMessages TheDebugMessages;
 static char *debug_log_file = NULL;
 static int Ctx_Lock = 0;
 static const char *debugLogTime(void);
