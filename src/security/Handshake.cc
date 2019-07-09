@@ -231,15 +231,8 @@ Security::HandshakeParser::parseRecords()
 
 /// parses a single TLS Record Layer frame
 void
-Security::HandshakeParser::parseOneModernRecord(bool concatRecords)
+Security::HandshakeParser::commitModernRecord(const TLSPlaintext &record)
 {
-    const TLSPlaintext record(tkRecords);
-
-    if (concatRecords && currentContentType != record.type) {
-        tkRecords.rollback();
-        return;
-    }
-
     tkRecords.commit();
 
     details->tlsVersion = record.version;
@@ -267,12 +260,21 @@ Security::HandshakeParser::parseModernRecords()
     bool doneWithRecords = false;
     for (int parsedRecords = 0; !doneWithRecords; ++parsedRecords) {
         try {
-            parseOneModernRecord(parsedRecords > 0);
+            tkRecords.rollback();
+            const TLSPlaintext record(tkRecords);
+            if (parsedRecords && currentContentType != record.type) {
+                // Stop accumulating data and parse the messages included
+                // in parsed records.
+                doneWithRecords = true;
+            } else
+                commitModernRecord(record);
         }
         catch (const Parser::BinaryTokenizer::InsufficientInput &ii) {
-            if (!parsedRecords)
-                return;
-
+            if (!parsedRecords) {
+                debugs(83, 7, "there are no parsed records, not enough data, re-throw");
+                throw ii;
+            }
+            debugs(83, 7, "There are parsed records going to parse included messages");
             doneWithRecords = true;
         }
     }
@@ -545,11 +547,13 @@ Security::HandshakeParser::parseHello(const SBuf &data)
         // data contains everything read so far, but we may read more later
         tkRecords.reinput(data, true);
         tkRecords.rollback();
-        parseRecords();
-        if (done)
-            debugs(83, 7, "success; got: " << done);
+        while (!done) {
+            debugs(83, 7, "Try next record");
+            parseRecords();
+        }
+        debugs(83, 7, "success; got: " << done);
         // we are done; tkRecords may have leftovers we are not interested in
-        return done;
+        return true;
     }
     catch (const Parser::BinaryTokenizer::InsufficientInput &) {
         debugs(83, 5, "need more data");

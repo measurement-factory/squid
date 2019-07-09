@@ -52,6 +52,7 @@ std::ostream &operator <<(std::ostream &os, Security::TlsDetails const &details)
     return details.print(os);
 }
 
+class TLSPlaintext;
 /// Incremental TLS/SSL Handshake parser.
 class HandshakeParser
 {
@@ -79,7 +80,7 @@ private:
     bool isSslv2Record(const SBuf &raw) const;
     void parseRecords();
     void parseModernRecords();
-    void parseOneModernRecord(bool concatRecords);
+    void commitModernRecord(const TLSPlaintext &);
     void parseVersion2Record();
     void parseMessages();
 
