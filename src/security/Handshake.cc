@@ -43,6 +43,15 @@ public:
     SBuf fragment; ///< possibly partial content
 };
 
+/// Next TLS Record peeker
+class TLSPlainTextPeeker
+{
+public:
+    ///< false if there are not enough data to parse the next record
+    bool peekAt(Parser::BinaryTokenizer &tk);
+    uint8_t type; ///< Record content type
+};
+
 /// draft-hickman-netscape-ssl-00. Section 4.1. SSL Record Header Format
 class Sslv2Record
 {
@@ -132,6 +141,27 @@ Security::TLSPlaintext::TLSPlaintext(Parser::BinaryTokenizer &tk)
     // TODO: Must(version.major == 3);
     fragment = tk.pstring16(".fragment");
     context.success();
+}
+
+bool Security::TLSPlainTextPeeker::peekAt(Parser::BinaryTokenizer &tk)
+{
+    // Be sure that we can read at least 5 bytes without throwing an
+    // InsufficientSpace exception:
+    // - 1 byte for content type
+    // - 2 bytes for record version
+    // - 2 bytes for content size
+    const uint64_t recordDescriptionSize = 5;
+    if (tk.unparsed() >= recordDescriptionSize) {
+        Parser::BinaryTokenizerContext context(tk, "TLSPlaintextPeeker");
+        type = tk.uint8(".type");
+        (void)ParseProtocolVersion(tk);
+        const uint16_t dataLength = tk.uint16(".length");
+        bool insufficientInput = (dataLength > tk.unparsed());
+        context.success();
+        tk.rollback();
+        return !insufficientInput;
+    }
+    return false;
 }
 
 Security::Handshake::Handshake(Parser::BinaryTokenizer &tk)
@@ -231,8 +261,9 @@ Security::HandshakeParser::parseRecords()
 
 /// parses a single TLS Record Layer frame
 void
-Security::HandshakeParser::commitModernRecord(const TLSPlaintext &record)
+Security::HandshakeParser::parseOneModernRecord()
 {
+    const TLSPlaintext record(tkRecords);
     tkRecords.commit();
 
     details->tlsVersion = record.version;
@@ -259,24 +290,32 @@ Security::HandshakeParser::parseModernRecords()
 {
     bool doneWithRecords = false;
     for (int parsedRecords = 0; !doneWithRecords; ++parsedRecords) {
-        try {
-            tkRecords.rollback();
-            const TLSPlaintext record(tkRecords);
-            if (parsedRecords && currentContentType != record.type) {
-                // Stop accumulating data and parse the messages included
-                // in parsed records.
+        tkRecords.rollback();
+
+        if (parsedRecords) {
+            // If there are parsed records, try to peek at next record to
+            // 1) check if there is the whole next record in unparsed data
+            // 2) check if the next record has the same content type with current
+            //    record. If yes then parse this record and add its content to
+            //    messages buffer. Maybe one or more messages needs more than
+            //    one TLS records to be transfered.
+
+            TLSPlainTextPeeker recordPeeker;
+            if (!recordPeeker.peekAt(tkRecords)) {
+                // not enough data to retrieve next record. Stop here and try parse
+                // messages from parsed records.
                 doneWithRecords = true;
-            } else
-                commitModernRecord(record);
-        }
-        catch (const Parser::BinaryTokenizer::InsufficientInput &ii) {
-            if (!parsedRecords) {
-                debugs(83, 7, "there are no parsed records, not enough data, re-throw");
-                throw ii;
+                continue;
             }
-            debugs(83, 7, "There are parsed records going to parse included messages");
-            doneWithRecords = true;
+
+            if (currentContentType != recordPeeker.type) {
+                // The next record has different content type than the current
+                doneWithRecords = true;
+                continue;
+            }
         }
+
+        parseOneModernRecord();
     }
     parseMessages();
 }
@@ -547,10 +586,8 @@ Security::HandshakeParser::parseHello(const SBuf &data)
         // data contains everything read so far, but we may read more later
         tkRecords.reinput(data, true);
         tkRecords.rollback();
-        while (!done) {
-            debugs(83, 7, "Try next record");
+        while (!done)
             parseRecords();
-        }
         debugs(83, 7, "success; got: " << done);
         // we are done; tkRecords may have leftovers we are not interested in
         return true;

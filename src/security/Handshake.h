@@ -80,7 +80,7 @@ private:
     bool isSslv2Record(const SBuf &raw) const;
     void parseRecords();
     void parseModernRecords();
-    void commitModernRecord(const TLSPlaintext &);
+    void parseOneModernRecord();
     void parseVersion2Record();
     void parseMessages();
 
