@@ -52,7 +52,6 @@ std::ostream &operator <<(std::ostream &os, Security::TlsDetails const &details)
     return details.print(os);
 }
 
-class TLSPlaintext;
 /// Incremental TLS/SSL Handshake parser.
 class HandshakeParser
 {
