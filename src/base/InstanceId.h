@@ -16,14 +16,13 @@
  *   - useful for debugging and insecure request/response matching;
  *   - sequential IDs within a class except when wrapping;
  *   - always positive IDs.
- *  \todo: add storage type parameter to support configurable Value types?
  *  \todo: add creation/destruction debugging?
  */
-template <class Class>
+template <class Class, class ValueType = unsigned int>
 class InstanceId
 {
 public:
-    typedef unsigned int Value; ///< id storage type; \todo: parameterize?
+    typedef ValueType Value; ///< id storage type
 
     InstanceId() {change();}
 
@@ -39,15 +38,16 @@ public:
     const char * prefix() const;
 
 public:
-    Value value = 0; ///< instance identifier
+    Value value = Value(); ///< instance identifier
 
 private:
     InstanceId(const InstanceId &); ///< not implemented; IDs are unique
     InstanceId& operator=(const InstanceId &); ///< not implemented
 };
 
-/// convenience macro to instantiate Class-specific stuff in .cc files
-#define InstanceIdDefinitions(Class, pfx) \
+/// 1-parameter instantiation macro (for private use only).
+/// In other sources use InstanceIdDefinitions() instead.
+#define InstanceIdDefinitions2(Class, pfx) \
     template<> const char * \
     InstanceId<Class>::prefix() const { \
         return pfx; \
@@ -58,14 +58,36 @@ private:
     } \
     template<> void \
     InstanceId<Class>::change() { \
-        static InstanceId<Class>::Value Last = 0; \
+        static auto Last = InstanceId<Class>::Value(); \
         value = ++Last ? Last : ++Last; \
     }
 
+/// 2-parameter instantiation macro (for private use only).
+/// In other sources use InstanceIdDefinitions() instead.
+#define InstanceIdDefinitions3(Class, ValueType, pfx) \
+    template<> const char * \
+    InstanceId<Class, ValueType>::prefix() const { \
+        return pfx; \
+    } \
+    template<> std::ostream & \
+    InstanceId<Class, ValueType>::print(std::ostream &os) const { \
+        return os << pfx << value; \
+    } \
+    template<> void \
+    InstanceId<Class, ValueType>::change() { \
+        static auto Last = InstanceId<Class, ValueType>::Value(); \
+        value = ++Last ? Last : ++Last; \
+    }
+
+#define GetInstanceIdMacro(_1, _2, _3, MacroName, ...) MacroName
+
+/// convenience macro to instantiate Class-specific stuff in .cc files
+#define InstanceIdDefinitions(...) GetInstanceIdMacro(__VA_ARGS__, InstanceIdDefinitions3, InstanceIdDefinitions2)(__VA_ARGS__)
+
 /// print the id
-template <class Class>
+template <class Class, class ValueType>
 inline
-std::ostream &operator <<(std::ostream &os, const InstanceId<Class> &id)
+std::ostream &operator <<(std::ostream &os, const InstanceId<Class, ValueType> &id)
 {
     return id.print(os);
 }

@@ -4533,6 +4533,9 @@ DOC_START
 			individual notes. There is currently no way to
 			specify both value and notes separators when logging
 			all notes with %note.
+		master_xaction The master transaction ID, which is unique
+			only during a single worker process lifetime. It may clash
+			with IDs from other worker instances.
 
 	Connection related format codes:
 

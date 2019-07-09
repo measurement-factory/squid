@@ -23,6 +23,7 @@
 #include "MemBuf.h"
 #include "proxyp/Header.h"
 #include "rfc1738.h"
+#include "sbuf/Stream.h"
 #include "sbuf/StringConvert.h"
 #include "security/CertError.h"
 #include "security/NegotiationHistory.h"
@@ -1431,6 +1432,14 @@ Format::Format::assemble(MemBuf &mb, const AccessLogEntry::Pointer &al, int logS
             if (!al->lastAclData.isEmpty())
                 out = al->lastAclData.c_str();
             break;
+
+        case LFT_MASTER_XACTION:
+            if (al->request) {
+                sb = ToSBuf(al->request->masterXaction->id);
+                out = sb.c_str();
+                break;
+            }
+
         }
 
         if (dooff) {
