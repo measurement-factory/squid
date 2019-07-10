@@ -267,13 +267,14 @@ Comm::DoSelect(int msec)
 
         if (cevents->events & (EPOLLIN|EPOLLHUP|EPOLLERR) || F->flags.read_pending) {
             if ((hdl = F->read_handler) != NULL) {
-                debugs(5, DEBUG_EPOLL ? 0 : 8, HERE << "Calling read handler on FD " << fd);
+                debugs(5, 2, "entering reading FD " << fd);
                 PROF_start(comm_write_handler);
                 F->flags.read_pending = 0;
                 F->read_handler = NULL;
                 hdl(fd, F->read_data);
                 PROF_stop(comm_write_handler);
                 ++ statCounter.select_fds;
+                debugs(5, 2, "leaving reading FD " << fd);
             } else {
                 debugs(5, DEBUG_EPOLL ? 0 : 8, HERE << "no read handler for FD " << fd);
                 // remove interest since no handler exist for this event.
@@ -283,12 +284,13 @@ Comm::DoSelect(int msec)
 
         if (cevents->events & (EPOLLOUT|EPOLLHUP|EPOLLERR)) {
             if ((hdl = F->write_handler) != NULL) {
-                debugs(5, DEBUG_EPOLL ? 0 : 8, HERE << "Calling write handler on FD " << fd);
+                debugs(5, 2, "entering writing FD " << fd);
                 PROF_start(comm_read_handler);
                 F->write_handler = NULL;
                 hdl(fd, F->write_data);
                 PROF_stop(comm_read_handler);
                 ++ statCounter.select_fds;
+                debugs(5, 2, "leaving writing FD " << fd);
             } else {
                 debugs(5, DEBUG_EPOLL ? 0 : 8, HERE << "no write handler for FD " << fd);
                 // remove interest since no handler exist for this event.
