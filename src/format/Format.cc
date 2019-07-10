@@ -1439,7 +1439,6 @@ Format::Format::assemble(MemBuf &mb, const AccessLogEntry::Pointer &al, int logS
                 out = sb.c_str();
                 break;
             }
-
         }
 
         if (dooff) {
