@@ -336,7 +336,7 @@ private:
     void freeChain(const sfileno fileno, Anchor &inode, const bool keepLock);
     void freeChainAt(SliceId sliceId, const SliceId splicingPoint);
 
-    /// whether hid validation is enabled
+    /// whether paranoid_hit_validation should be performed
     bool hitValidation;
 };
 

@@ -1021,6 +1021,23 @@ parse_obsolete(const char *name)
     }
 }
 
+template <class MinimalUnit>
+static const char *
+TimeUnitToString()
+{
+    const auto minUnit = MinimalUnit(1);
+    if(minUnit == std::chrono::nanoseconds(1))
+        return "nanosecond";
+    else if (minUnit == std::chrono::microseconds(1))
+        return "microsecond";
+    else if (minUnit == std::chrono::milliseconds(1))
+        return "millisecond";
+    else {
+        assert(minUnit >= std::chrono::seconds(1));
+        return "second";
+    }
+}
+
 /// Assigns 'ns' the number of nanoseconds corresponding to 'unitName'.
 /// \param MinimalUnit is a chrono duration type specifying the minimal
 /// allowed time unit.
@@ -1059,7 +1076,8 @@ parseSingleTimeUnit(const char *unitName, std::chrono::nanoseconds &ns)
         return false;
 
     if (ns < MinimalUnit(1)) {
-        debugs(3, DBG_CRITICAL, "time unit '" << unitName << "' is too small to be used in this context");
+        debugs(3, DBG_CRITICAL, "time unit '" << unitName << "' is too small to be used in this context, the minimal unit is " <<
+                TimeUnitToString<MinimalUnit>());
         self_destruct();
         return false;
     }
@@ -1139,15 +1157,15 @@ parseTimeLine(const char *defaultUnitName = nullptr)
             const auto unitName = token ? token : defaultUnitName;
             assert(unitName);
             debugs(3, DBG_CRITICAL, "WARNING: The parsed '" << parsedValue << " " << unitName <<
-                    "' in '" << config_input_line << "' is too small to be measured with an acceptable precision");
+                    "' in '" << config_input_line << "' is too small to be measured with 1-nanosecond precision");
         }
     }
 
     const auto result = std::chrono::duration_cast<TimeUnit>(resultDuration);
 
     if (parsedValue && !result.count()) {
-        debugs(3, DBG_CRITICAL, "FATAL: Invalid time value '" << parsedValue <<
-                "' is to small to be used in this context");
+        debugs(3, DBG_CRITICAL, "FATAL: Time value '" << parsedValue <<
+                "' is too small to be used in this context, the minimal value is 1 " << TimeUnitToString<TimeUnit>());
         self_destruct();
         return TimeUnit::zero();
     }
@@ -2962,11 +2980,11 @@ dump_time_t(StoreEntry * entry, const char *name, time_t var)
 void
 parse_time_t(time_t * var)
 {
-    static const auto maxTime = std::numeric_limits<time_t>::max();
+    const auto maxTime = std::numeric_limits<time_t>::max();
     const auto seconds = parseTimeLine<std::chrono::seconds>();
     if (maxTime < seconds.count()) {
         debugs(3, DBG_CRITICAL, "FATAL: directive supports time values up to " << maxTime <<
-                " but given " << seconds.count() << " seconds");
+                " but is given " << seconds.count() << " seconds");
         self_destruct();
     }
     *var = static_cast<time_t>(seconds.count());
@@ -3005,7 +3023,7 @@ dump_time_nanoseconds(StoreEntry *entry, const char *name, const std::chrono::na
     storeAppendPrintf(entry, "%s %" PRId64 " nanoseconds\n", name, var.count());
 }
 
-void
+static void
 parse_time_nanoseconds(std::chrono::nanoseconds *var)
 {
     *var = parseTimeLine<std::chrono::nanoseconds>();
