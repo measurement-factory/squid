@@ -1027,14 +1027,14 @@ TimeUnitToString()
 {
     const auto minUnit = MinimalUnit(1);
     if(minUnit == std::chrono::nanoseconds(1))
-        return "nanosecond";
+        return T_NANOSECOND_STR;
     else if (minUnit == std::chrono::microseconds(1))
-        return "microsecond";
+        return T_MICROSECOND_STR;
     else if (minUnit == std::chrono::milliseconds(1))
-        return "millisecond";
+        return T_MILLISECOND_STR;
     else {
         assert(minUnit >= std::chrono::seconds(1));
-        return "second";
+        return T_SECOND_STR;
     }
 }
 
@@ -1045,9 +1045,14 @@ TimeUnitToString()
 /// than MinimalUnit.
 template <class MinimalUnit>
 static bool
-parseSingleTimeUnit(const char *unitName, std::chrono::nanoseconds &ns)
+parseTimeUnit(const char *unitName, std::chrono::nanoseconds &ns)
 {
-    assert(unitName);
+    if (!unitName) {
+        debugs(3, DBG_CRITICAL, "FATAL: missing time unit");
+        self_destruct();
+        return false;
+    }
+
     if (!strncasecmp(unitName, T_NANOSECOND_STR, strlen(T_NANOSECOND_STR)))
         ns = std::chrono::nanoseconds(1);
     else if (!strncasecmp(unitName, T_MICROSECOND_STR, strlen(T_MICROSECOND_STR)))
@@ -1085,29 +1090,6 @@ parseSingleTimeUnit(const char *unitName, std::chrono::nanoseconds &ns)
     return true;
 }
 
-/// Wraps parseSingleTimeUnit() and parses defaultUnitName if it failed to parse unitName.
-/// \returns true iff unitName was successfully parsed.
-template <class MinimalUnit>
-static bool
-parseTimeUnits(const char *unitName, const char *defaultUnitName, std::chrono::nanoseconds &ns)
-{
-    if (unitName) {
-        if (parseSingleTimeUnit<MinimalUnit>(unitName, ns))
-            return true;
-        debugs(3, DBG_CRITICAL, "FATAL: unknown time unit '" << unitName << "'");
-    } else if (defaultUnitName) {
-        const auto defaultParsed = parseSingleTimeUnit<MinimalUnit>(defaultUnitName, ns);
-        assert(defaultParsed);
-        debugs(3, DBG_CRITICAL, "WARNING: No units on '" << config_input_line << "', assuming " << defaultUnitName);
-        return false;
-    } else {
-        debugs(3, DBG_CRITICAL, "FATAL: missing time unit");
-    }
-
-    self_destruct();
-    return false;
-}
-
 static void
 CheckTimeValue(const double value, const std::chrono::nanoseconds &unit) {
     if (value < 0) {
@@ -1122,14 +1104,24 @@ CheckTimeValue(const double value, const std::chrono::nanoseconds &unit) {
     }
 }
 
-/// Parses a time specification from the config file and
-/// returns the time as a chrono duration object of 'TimeUnit' type.
-/// \param defaultUnitName will be used if the time unit is missing,
-/// it should passed only if the configuration paramter being parsed
-/// excpects more arguments after time unit.
 template <class TimeUnit>
 static TimeUnit
-parseTimeLine(const char *defaultUnitName = nullptr)
+FromNanoseconds(const std::chrono::nanoseconds &ns, const double parsedValue)
+{
+    const auto result = std::chrono::duration_cast<TimeUnit>(ns);
+    if (result.count())
+        return result;
+    debugs(3, DBG_CRITICAL, "FATAL: Time value '" << parsedValue <<
+            "' is too small to be used in this context, the minimal value is 1 " << TimeUnitToString<TimeUnit>());
+    self_destruct();
+    return TimeUnit::zero(); // never reached
+}
+
+/// Parses a time specification from the config file and
+/// returns the time as a chrono duration object of 'TimeUnit' type.
+template <class TimeUnit>
+static TimeUnit
+parseTimeLine()
 {
     const auto valueToken = ConfigParser::NextToken();
     if (!valueToken) {
@@ -1139,12 +1131,19 @@ parseTimeLine(const char *defaultUnitName = nullptr)
 
     const auto parsedValue = xatof(valueToken);
 
+    if (!parsedValue)
+        return TimeUnit::zero();
+
     std::chrono::nanoseconds parsedUnitDuration;
 
-    const auto token = parsedValue ? ConfigParser::PeekAtToken() : nullptr;
+    const auto token = ConfigParser::PeekAtToken();
 
-    if (parsedValue && parseTimeUnits<TimeUnit>(token, defaultUnitName, parsedUnitDuration))
+    if(parseTimeUnit<TimeUnit>(token, parsedUnitDuration)) {
         (void)ConfigParser::NextToken();
+    } else {
+        debugs(3, DBG_CRITICAL, "FATAL: unknown time unit '" << token << "'");
+        self_destruct();
+    }
 
     CheckTimeValue(parsedValue, parsedUnitDuration);
 
@@ -1154,23 +1153,12 @@ parseTimeLine(const char *defaultUnitName = nullptr)
     if (TimeUnit(1) <= std::chrono::microseconds(1)) {
         const auto durationNanoseconds = resultDuration.count();
         if (durationNanoseconds && durationNanoseconds <= 3) {
-            const auto unitName = token ? token : defaultUnitName;
-            assert(unitName);
-            debugs(3, DBG_CRITICAL, "WARNING: The parsed '" << parsedValue << " " << unitName <<
+            debugs(3, DBG_CRITICAL, "WARNING: The parsed '" << parsedValue << " " << token <<
                     "' in '" << config_input_line << "' is too small to be measured with 1-nanosecond precision");
         }
     }
 
-    const auto result = std::chrono::duration_cast<TimeUnit>(resultDuration);
-
-    if (parsedValue && !result.count()) {
-        debugs(3, DBG_CRITICAL, "FATAL: Time value '" << parsedValue <<
-                "' is too small to be used in this context, the minimal value is 1 " << TimeUnitToString<TimeUnit>());
-        self_destruct();
-        return TimeUnit::zero();
-    }
-
-    return result;
+    return FromNanoseconds<TimeUnit>(resultDuration, parsedValue);
 }
 
 static void
@@ -4469,7 +4457,7 @@ static void parse_icap_service_failure_limit(Adaptation::Icap::Config *cfg)
         debugs(3, DBG_CRITICAL, "No time-units on '" << config_input_line << "'");
         self_destruct();
         return;
-    } else if (!parseTimeUnits<Seconds>(token, nullptr, parsedUnitDuration)) {
+    } else if (!parseTimeUnit<Seconds>(token, parsedUnitDuration)) {
         self_destruct();
         return;
     }
@@ -4987,10 +4975,46 @@ static void free_ftp_epsv(acl_access **ftp_epsv)
     FtpEspvDeprecated = false;
 }
 
+/// Like parseTimeLine() but does not require the timeunit to be specified.
+/// If missed, the default 'second' timeunit is assumed.
+static std::chrono::seconds
+ParseUrlRewriteTimeout()
+{
+    const auto valueToken = ConfigParser::NextToken();
+    if (!valueToken)
+        self_destruct();
+
+    using Seconds = std::chrono::seconds;
+
+    const auto parsedValue = xatof(valueToken);
+
+    std::chrono::nanoseconds parsedUnitDuration;
+
+    const auto token = parsedValue ? ConfigParser::PeekAtToken() : nullptr;
+
+    if (parsedValue) {
+        if (parseTimeUnit<Seconds>(token, parsedUnitDuration))
+            (void)ConfigParser::NextToken();
+        else {
+            const auto defaultParsed = parseTimeUnit<Seconds>(T_SECOND_STR, parsedUnitDuration);
+            assert(defaultParsed);
+            debugs(3, DBG_CRITICAL, "WARNING: No units on '" << config_input_line << "', assuming " << T_SECOND_STR);
+        }
+    }
+
+    CheckTimeValue(parsedValue, parsedUnitDuration);
+
+    const std::chrono::nanoseconds resultDuration(static_cast<std::chrono::nanoseconds::rep>(parsedUnitDuration.count() * parsedValue));
+
+    return FromNanoseconds<Seconds>(resultDuration, parsedValue);
+}
+
 static void
 parse_UrlHelperTimeout(SquidConfig::UrlHelperTimeout *config)
 {
-    Config.Timeout.urlRewrite = parseTimeLine<std::chrono::seconds>(T_SECOND_STR).count();
+    // TODO: do not allow optional timeunit (as the documentation prescribes)
+    // and use parseTimeLine() instead.
+    Config.Timeout.urlRewrite = ParseUrlRewriteTimeout().count();
 
     char *key, *value;
     while(ConfigParser::NextKvPair(key, value)) {
