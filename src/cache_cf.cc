@@ -1147,18 +1147,17 @@ parseTimeLine()
 
     CheckTimeValue(parsedValue, parsedUnitDuration);
 
-    const std::chrono::nanoseconds resultDuration(static_cast<std::chrono::nanoseconds::rep>(parsedUnitDuration.count() * parsedValue));
+    const std::chrono::nanoseconds nanoseconds(static_cast<std::chrono::nanoseconds::rep>(parsedUnitDuration.count() * parsedValue));
 
     // validate precisions (time-units-small only)
     if (TimeUnit(1) <= std::chrono::microseconds(1)) {
-        const auto durationNanoseconds = resultDuration.count();
-        if (durationNanoseconds && durationNanoseconds <= 3) {
-            debugs(3, DBG_CRITICAL, "WARNING: The parsed '" << parsedValue << " " << token <<
-                    "' in '" << config_input_line << "' is too small to be measured with 1-nanosecond precision");
+        if (0 < nanoseconds.count() && nanoseconds.count() < 3) {
+            debugs(3, DBG_CRITICAL, "WARNING: " << __FILE__ << ":" << __LINE__ << ": Squid time measurement precision is likely to be far worse than " <<
+                    "the nanosecond-level precision implied by the configured value: " << parsedValue << ' ' << token);
         }
     }
 
-    return FromNanoseconds<TimeUnit>(resultDuration, parsedValue);
+    return FromNanoseconds<TimeUnit>(nanoseconds, parsedValue);
 }
 
 static void
@@ -5004,9 +5003,9 @@ ParseUrlRewriteTimeout()
 
     CheckTimeValue(parsedValue, parsedUnitDuration);
 
-    const std::chrono::nanoseconds resultDuration(static_cast<std::chrono::nanoseconds::rep>(parsedUnitDuration.count() * parsedValue));
+    const std::chrono::nanoseconds nanoseconds(static_cast<std::chrono::nanoseconds::rep>(parsedUnitDuration.count() * parsedValue));
 
-    return FromNanoseconds<Seconds>(resultDuration, parsedValue);
+    return FromNanoseconds<Seconds>(nanoseconds, parsedValue);
 }
 
 static void
