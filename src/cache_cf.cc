@@ -422,6 +422,12 @@ EvalBoolExpr(const char* expr)
     return false; // this place cannot be reached
 }
 
+static SBuf
+ConfigPosition()
+{
+    return ToSBuf(cfg_filename, ":", config_lineno, ": ");
+}
+
 static int
 parseOneConfigFile(const char *file_name, unsigned int depth)
 {
@@ -547,9 +553,17 @@ parseOneConfigFile(const char *file_name, unsigned int depth)
             /* Handle includes here */
             if (tmp_line_len >= 9 && strncmp(tmp_line, "include", 7) == 0 && xisspace(tmp_line[7])) {
                 err_count += parseManyConfigFiles(tmp_line + 8, depth + 1);
-            } else if (!parse_line(tmp_line)) {
-                debugs(3, DBG_CRITICAL, HERE << cfg_filename << ":" << config_lineno << " unrecognized: '" << tmp_line << "'");
-                ++err_count;
+            } else {
+                try {
+                    if (!parse_line(tmp_line)) {
+                        debugs(3, DBG_CRITICAL, HERE << cfg_filename << ":" << config_lineno << " unrecognized: '" << tmp_line << "'");
+                        ++err_count;
+                    }
+                } catch (const std::exception &ex) {
+                    // fatal for now
+                    debugs(3, DBG_CRITICAL, ex.what());
+                    self_destruct();
+                }
             }
         }
 
@@ -1022,12 +1036,6 @@ parse_obsolete(const char *name)
     }
 }
 
-static SBuf
-ConfigPosition()
-{
-    return ToSBuf(cfg_filename, ":", config_lineno, ": ");
-}
-
 template <class MinimalUnit>
 static const char *
 TimeUnitToString()
@@ -1055,7 +1063,7 @@ static bool
 parseTimeUnit(const char *unitName, std::chrono::nanoseconds &ns)
 {
     if (!unitName)
-        throw TexcHere(ToSBuf(ConfigPosition(), "missing time unit"));
+        throw TexcHere("missing time unit");
 
     if (!strncasecmp(unitName, T_NANOSECOND_STR, strlen(T_NANOSECOND_STR)))
         ns = std::chrono::nanoseconds(1);
@@ -1085,7 +1093,7 @@ parseTimeUnit(const char *unitName, std::chrono::nanoseconds &ns)
         return false;
 
     if (ns < MinimalUnit(1)) {
-        throw TexcHere(ToSBuf(ConfigPosition(), "time unit '", unitName, "' is too small to be used in this context, the minimal unit is ",
+        throw TexcHere(ToSBuf("time unit '", unitName, "' is too small to be used in this context, the minimal unit is ",
                 TimeUnitToString<MinimalUnit>()));
     }
 
@@ -1095,12 +1103,12 @@ parseTimeUnit(const char *unitName, std::chrono::nanoseconds &ns)
 static void
 CheckTimeValue(const double value, const std::chrono::nanoseconds &unit) {
     if (value < 0)
-        throw TexcHere(ToSBuf(ConfigPosition(), "time must have a positive value"));
+        throw TexcHere("time must have a positive value");
 
     const auto maxNanoseconds = std::chrono::nanoseconds::max().count();
     if (value > maxNanoseconds/static_cast<double>(unit.count())) {
         const auto maxYears = maxNanoseconds/(HoursPerYear*3600*1000000000);
-        throw TexcHere(ToSBuf(ConfigPosition(), "the time must be less than ", maxYears, " years"));
+        throw TexcHere(ToSBuf("the time must be less than ", maxYears, " years"));
     }
 }
 
@@ -1110,7 +1118,7 @@ FromNanoseconds(const std::chrono::nanoseconds &ns, const double parsedValue)
 {
     const auto result = std::chrono::duration_cast<TimeUnit>(ns);
     if (!result.count()) {
-        throw TexcHere(ToSBuf(ConfigPosition(), "time value '", parsedValue,
+        throw TexcHere(ToSBuf("time value '", parsedValue,
                     "' is too small to be used in this context, the minimal value is 1 ",
                     TimeUnitToString<TimeUnit>()));
     }
@@ -1139,7 +1147,7 @@ parseTimeLine()
     const auto token = ConfigParser::PeekAtToken();
 
     if (!parseTimeUnit<TimeUnit>(token, parsedUnitDuration))
-        throw TexcHere(ToSBuf(ConfigPosition(), "unknown time unit '", token, "'"));
+        throw TexcHere(ToSBuf("unknown time unit '", token, "'"));
 
     (void)ConfigParser::NextToken();
 
@@ -2969,7 +2977,7 @@ parse_time_t(time_t * var)
     const auto maxTime = std::numeric_limits<time_t>::max();
     const auto seconds = parseTimeLine<std::chrono::seconds>();
     if (maxTime < seconds.count())
-        throw TexcHere(ToSBuf(ConfigPosition(), "directive supports time values up to ", maxTime, " but is given ", seconds.count(), " seconds"));
+        throw TexcHere(ToSBuf("directive supports time values up to ", maxTime, " but is given ", seconds.count(), " seconds"));
     *var = static_cast<time_t>(seconds.count());
 }
 
