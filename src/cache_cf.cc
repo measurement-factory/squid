@@ -53,6 +53,7 @@
 #include "RefreshPattern.h"
 #include "rfc1738.h"
 #include "sbuf/List.h"
+#include "sbuf/Stream.h"
 #include "SquidConfig.h"
 #include "SquidString.h"
 #include "ssl/ProxyCerts.h"
@@ -1047,11 +1048,8 @@ template <class MinimalUnit>
 static bool
 parseTimeUnit(const char *unitName, std::chrono::nanoseconds &ns)
 {
-    if (!unitName) {
-        debugs(3, DBG_CRITICAL, "FATAL: missing time unit");
-        self_destruct();
-        return false;
-    }
+    if (!unitName)
+        throw TexcHere("missing time unit");
 
     if (!strncasecmp(unitName, T_NANOSECOND_STR, strlen(T_NANOSECOND_STR)))
         ns = std::chrono::nanoseconds(1);
@@ -1081,10 +1079,8 @@ parseTimeUnit(const char *unitName, std::chrono::nanoseconds &ns)
         return false;
 
     if (ns < MinimalUnit(1)) {
-        debugs(3, DBG_CRITICAL, "time unit '" << unitName << "' is too small to be used in this context, the minimal unit is " <<
-                TimeUnitToString<MinimalUnit>());
-        self_destruct();
-        return false;
+        throw TexcHere(ToSBuf("time unit '", unitName, "' is too small to be used in this context, the minimal unit is ",
+                TimeUnitToString<MinimalUnit>()));
     }
 
     return true;
@@ -1092,15 +1088,13 @@ parseTimeUnit(const char *unitName, std::chrono::nanoseconds &ns)
 
 static void
 CheckTimeValue(const double value, const std::chrono::nanoseconds &unit) {
-    if (value < 0) {
-        debugs(3, DBG_CRITICAL, "FATAL: time must have a positive value");
-        self_destruct();
-    }
+    if (value < 0)
+        throw TexcHere("time must have a positive value");
+
     const auto maxNanoseconds = std::chrono::nanoseconds::max().count();
     if (value > maxNanoseconds/static_cast<double>(unit.count())) {
         const auto maxYears = maxNanoseconds/(HoursPerYear*3600*1000000000);
-        debugs(3, DBG_CRITICAL, "FATAL: The time must be less than " << maxYears << " years");
-        self_destruct();
+        throw TexcHere(ToSBuf("the time must be less than ", maxYears, " years"));
     }
 }
 
@@ -1109,12 +1103,12 @@ static TimeUnit
 FromNanoseconds(const std::chrono::nanoseconds &ns, const double parsedValue)
 {
     const auto result = std::chrono::duration_cast<TimeUnit>(ns);
-    if (result.count())
-        return result;
-    debugs(3, DBG_CRITICAL, "FATAL: Time value '" << parsedValue <<
-            "' is too small to be used in this context, the minimal value is 1 " << TimeUnitToString<TimeUnit>());
-    self_destruct();
-    return TimeUnit::zero(); // never reached
+    if (!result.count()) {
+        throw TexcHere(ToSBuf("time value '", parsedValue,
+                    "' is too small to be used in this context, the minimal value is 1 ",
+                    TimeUnitToString<TimeUnit>()));
+    }
+    return result;
 }
 
 /// Parses a time specification from the config file and
@@ -1131,19 +1125,17 @@ parseTimeLine()
 
     const auto parsedValue = xatof(valueToken);
 
-    if (!parsedValue)
+    if (parsedValue == 0)
         return TimeUnit::zero();
 
     std::chrono::nanoseconds parsedUnitDuration;
 
     const auto token = ConfigParser::PeekAtToken();
 
-    if(parseTimeUnit<TimeUnit>(token, parsedUnitDuration)) {
-        (void)ConfigParser::NextToken();
-    } else {
-        debugs(3, DBG_CRITICAL, "FATAL: unknown time unit '" << token << "'");
-        self_destruct();
-    }
+    if (!parseTimeUnit<TimeUnit>(token, parsedUnitDuration))
+        throw TexcHere(ToSBuf("unknown time unit '", token, "'"));
+
+    (void)ConfigParser::NextToken();
 
     CheckTimeValue(parsedValue, parsedUnitDuration);
 
@@ -1152,7 +1144,8 @@ parseTimeLine()
     // validate precisions (time-units-small only)
     if (TimeUnit(1) <= std::chrono::microseconds(1)) {
         if (0 < nanoseconds.count() && nanoseconds.count() < 3) {
-            debugs(3, DBG_CRITICAL, "WARNING: " << __FILE__ << ":" << __LINE__ << ": Squid time measurement precision is likely to be far worse than " <<
+            debugs(3, DBG_CRITICAL, "WARNING: " << cfg_filename << ":" << config_lineno <<
+                    ": Squid time measurement precision is likely to be far worse than " <<
                     "the nanosecond-level precision implied by the configured value: " << parsedValue << ' ' << token);
         }
     }
@@ -2969,11 +2962,8 @@ parse_time_t(time_t * var)
 {
     const auto maxTime = std::numeric_limits<time_t>::max();
     const auto seconds = parseTimeLine<std::chrono::seconds>();
-    if (maxTime < seconds.count()) {
-        debugs(3, DBG_CRITICAL, "FATAL: directive supports time values up to " << maxTime <<
-                " but is given " << seconds.count() << " seconds");
-        self_destruct();
-    }
+    if (maxTime < seconds.count())
+        throw TexcHere(ToSBuf("directive supports time values up to ", maxTime, " but is given ", seconds.count(), " seconds"));
     *var = static_cast<time_t>(seconds.count());
 }
 
@@ -4429,7 +4419,6 @@ dump_ecap_service_type(StoreEntry * entry, const char *name, const Adaptation::E
 static void parse_icap_service_failure_limit(Adaptation::Icap::Config *cfg)
 {
     char *token;
-    time_t d;
     cfg->service_failure_limit = GetInteger();
 
     if ((token = ConfigParser::NextToken()) == NULL)
@@ -4441,29 +4430,7 @@ static void parse_icap_service_failure_limit(Adaptation::Icap::Config *cfg)
         return;
     }
 
-    if ((token = ConfigParser::NextToken()) == NULL) {
-        self_destruct();
-        return;
-    }
-
-    d = static_cast<time_t> (xatoi(token));
-
-    using Seconds = std::chrono::seconds;
-    std::chrono::nanoseconds parsedUnitDuration(Seconds(1));
-    if (0 == d)
-        (void) 0;
-    else if ((token = ConfigParser::NextToken()) == NULL) {
-        debugs(3, DBG_CRITICAL, "No time-units on '" << config_input_line << "'");
-        self_destruct();
-        return;
-    } else if (!parseTimeUnit<Seconds>(token, parsedUnitDuration)) {
-        self_destruct();
-        return;
-    }
-
-    CheckTimeValue(d, parsedUnitDuration);
-
-    cfg->oldest_service_failure = std::chrono::duration_cast<Seconds>(parsedUnitDuration).count() * d;
+    parse_time_t(&cfg->oldest_service_failure);
 }
 
 static void dump_icap_service_failure_limit(StoreEntry *entry, const char *name, const Adaptation::Icap::Config &cfg)
@@ -4831,8 +4798,6 @@ static void free_note(Notes *notes)
     notes->clean();
 }
 
-#include "sbuf/Stream.h" /* XXX: Move */
-
 static DebugMessageId ParseDebugMessageId(const char *value, const char eov, const DebugMessageId oldId)
 {
     if (oldId > 0)
@@ -4997,7 +4962,7 @@ ParseUrlRewriteTimeout()
         else {
             const auto defaultParsed = parseTimeUnit<Seconds>(T_SECOND_STR, parsedUnitDuration);
             assert(defaultParsed);
-            debugs(3, DBG_CRITICAL, "WARNING: No units on '" << config_input_line << "', assuming " << T_SECOND_STR);
+            debugs(3, DBG_CRITICAL, "WARNING: missing time unit on '" << config_input_line << "', using deprecated default '" << T_SECOND_STR << "'");
         }
     }
 
