@@ -30,11 +30,6 @@ static const char *SpaceLabel = "cache_mem_space";
 static const char *ExtrasLabel = "cache_mem_ex";
 // TODO: sync with Rock::SwapDir::*Path()
 
-// We store free slot IDs (i.e., "space") as Page objects so that we can use
-// Ipc::Mem::PageStack. Pages require pool IDs. The value here is not really
-// used except for a positivity test. A unique value is handy for debugging.
-static const uint32_t SpacePoolId = 510716;
-
 /// Packs to shared memory, allocating new slots/pages as needed.
 /// Requires an Ipc::StoreMapAnchor locked for writing.
 class ShmWriter: public Packable
@@ -850,7 +845,7 @@ MemStore::noteFreeMapSlice(const Ipc::StoreMapSliceId sliceId)
     debugs(20, 9, "slice " << sliceId << " freed " << pageId);
     assert(pageId);
     Ipc::Mem::PageId slotId;
-    slotId.pool = SpacePoolId;
+    slotId.pool = Ipc::Mem::PageStack::IdForMemStoreSpace();
     slotId.number = sliceId + 1;
     if (!waitingFor) {
         // must zero pageId before we give slice (and pageId extras!) to others
@@ -1046,7 +1041,8 @@ MemStoreRr::create()
     }
 
     Must(!spaceOwner);
-    spaceOwner = shm_new(Ipc::Mem::PageStack)(SpaceLabel, SpacePoolId,
+    spaceOwner = shm_new(Ipc::Mem::PageStack)(SpaceLabel,
+                 Ipc::Mem::PageStack::IdForMemStoreSpace(),
                  entryLimit, 0);
     Must(!mapOwner);
     mapOwner = MemStoreMap::Init(MapLabel, entryLimit);
