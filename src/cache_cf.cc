@@ -556,7 +556,7 @@ parseOneConfigFile(const char *file_name, unsigned int depth)
             } else {
                 try {
                     if (!parse_line(tmp_line)) {
-                        debugs(3, DBG_CRITICAL, HERE << cfg_filename << ":" << config_lineno << " unrecognized: '" << tmp_line << "'");
+                        debugs(3, DBG_CRITICAL, ConfigPosition() << "unrecognized: '" << tmp_line << "'");
                         ++err_count;
                     }
                 } catch (const std::exception &ex) {
