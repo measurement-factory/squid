@@ -11,6 +11,7 @@
 
 #include <iosfwd>
 
+typedef unsigned int InstanceIdDefaultValueType;
 /** Identifier for class instances
  *   - unique IDs for a large number of concurrent instances, but may wrap;
  *   - useful for debugging and insecure request/response matching;
@@ -18,7 +19,7 @@
  *   - always positive IDs.
  *  \todo: add creation/destruction debugging?
  */
-template <class Class, class ValueType = unsigned int>
+template <class Class, class ValueType = InstanceIdDefaultValueType>
 class InstanceId
 {
 public:
@@ -45,23 +46,6 @@ private:
     InstanceId& operator=(const InstanceId &); ///< not implemented
 };
 
-/// 1-parameter instantiation macro (for private use only).
-/// In other sources use InstanceIdDefinitions() instead.
-#define InstanceIdDefinitions2(Class, pfx) \
-    template<> const char * \
-    InstanceId<Class>::prefix() const { \
-        return pfx; \
-    } \
-    template<> std::ostream & \
-    InstanceId<Class>::print(std::ostream &os) const { \
-        return os << pfx << value; \
-    } \
-    template<> void \
-    InstanceId<Class>::change() { \
-        static auto Last = InstanceId<Class>::Value(); \
-        value = ++Last ? Last : ++Last; \
-    }
-
 /// 2-parameter instantiation macro (for private use only).
 /// In other sources use InstanceIdDefinitions() instead.
 #define InstanceIdDefinitions3(Class, ValueType, pfx) \
@@ -75,9 +59,13 @@ private:
     } \
     template<> void \
     InstanceId<Class, ValueType>::change() { \
-        static auto Last = InstanceId<Class, ValueType>::Value(); \
+        static auto Last = Value(); \
         value = ++Last ? Last : ++Last; \
     }
+
+/// 1-parameter instantiation macro (for private use only).
+/// In other sources use InstanceIdDefinitions() instead.
+#define InstanceIdDefinitions2(Class, pfx) InstanceIdDefinitions3(Class, InstanceIdDefaultValueType, pfx)
 
 #define GetInstanceIdMacro(_1, _2, _3, MacroName, ...) MacroName
 
