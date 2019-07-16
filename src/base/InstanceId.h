@@ -46,9 +46,9 @@ private:
     InstanceId& operator=(const InstanceId &); ///< not implemented
 };
 
-/// 2-parameter instantiation macro (for private use only).
+/// A helper instantiation macro for (for private use only).
 /// In other sources use InstanceIdDefinitions() instead.
-#define InstanceIdDefinitions3(Class, ValueType, pfx) \
+#define InstanceIdDefinitions3(Class, pfx, ValueType, ...) \
     template<> const char * \
     InstanceId<Class, ValueType>::prefix() const { \
         return pfx; \
@@ -63,14 +63,8 @@ private:
         value = ++Last ? Last : ++Last; \
     }
 
-/// 1-parameter instantiation macro (for private use only).
-/// In other sources use InstanceIdDefinitions() instead.
-#define InstanceIdDefinitions2(Class, pfx) InstanceIdDefinitions3(Class, InstanceIdDefaultValueType, pfx)
-
-#define GetInstanceIdMacro(_1, _2, _3, MacroName, ...) MacroName
-
 /// convenience macro to instantiate Class-specific stuff in .cc files
-#define InstanceIdDefinitions(...) GetInstanceIdMacro(__VA_ARGS__, InstanceIdDefinitions3, InstanceIdDefinitions2)(__VA_ARGS__)
+#define InstanceIdDefinitions(...) InstanceIdDefinitions3(__VA_ARGS__, InstanceIdDefaultValueType)
 
 /// print the id
 template <class Class, class ValueType>

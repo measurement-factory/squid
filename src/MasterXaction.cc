@@ -9,5 +9,5 @@
 #include "squid.h"
 #include "MasterXaction.h"
 
-InstanceIdDefinitions(MasterXaction, uint64_t, "MXID_");
+InstanceIdDefinitions(MasterXaction, "master", uint64_t);
 
