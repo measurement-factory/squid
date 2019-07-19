@@ -3078,8 +3078,7 @@ free_time_msec(time_msec_t * var)
     *var = 0;
 }
 
-// Unused. TODO: add a parameter with 'time_nanoseconds' TYPE and uncomment
-/*
+
 static void
 dump_time_nanoseconds(StoreEntry *entry, const char *name, const std::chrono::nanoseconds &var)
 {
@@ -3097,7 +3096,6 @@ free_time_nanoseconds(std::chrono::nanoseconds *var)
 {
     *var = std::chrono::nanoseconds::zero();
 }
-*/
 
 #if UNUSED_CODE
 static void
