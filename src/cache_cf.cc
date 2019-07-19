@@ -3078,7 +3078,6 @@ free_time_msec(time_msec_t * var)
     *var = 0;
 }
 
-
 static void
 dump_time_nanoseconds(StoreEntry *entry, const char *name, const std::chrono::nanoseconds &var)
 {
