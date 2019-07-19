@@ -422,10 +422,10 @@ EvalBoolExpr(const char* expr)
     return false; // this place cannot be reached
 }
 
-static SBuf
-ConfigPosition()
+static std::ostream &
+ConfigPosition(std::ostream &os)
 {
-    return ToSBuf(cfg_filename, ":", config_lineno, ": ");
+    return os << cfg_filename << ":" << config_lineno << ": ";
 }
 
 static int
@@ -556,12 +556,12 @@ parseOneConfigFile(const char *file_name, unsigned int depth)
             } else {
                 try {
                     if (!parse_line(tmp_line)) {
-                        debugs(3, DBG_CRITICAL, ConfigPosition() << "unrecognized: '" << tmp_line << "'");
+                        debugs(3, DBG_CRITICAL, ConfigPosition << "unrecognized: '" << tmp_line << "'");
                         ++err_count;
                     }
-                } catch (const std::exception &ex) {
+                } catch (...) {
                     // fatal for now
-                    debugs(3, DBG_CRITICAL, ex.what());
+                    debugs(3, DBG_CRITICAL, "configuration error: " << CurrentException);
                     self_destruct();
                 }
             }
@@ -1100,7 +1100,7 @@ parseTimeUnit(const char *unitName, std::chrono::nanoseconds &ns)
     return true;
 }
 
-static void
+static std::chrono::nanoseconds
 CheckTimeValue(const double value, const std::chrono::nanoseconds &unit) {
     if (value < 0)
         throw TexcHere("time must have a positive value");
@@ -1108,8 +1108,10 @@ CheckTimeValue(const double value, const std::chrono::nanoseconds &unit) {
     const auto maxNanoseconds = std::chrono::nanoseconds::max().count();
     if (value > maxNanoseconds/static_cast<double>(unit.count())) {
         const auto maxYears = maxNanoseconds/(HoursPerYear*3600*1000000000);
-        throw TexcHere(ToSBuf("the time must be less than ", maxYears, " years"));
+        throw TexcHere(ToSBuf("time values cannot exceed ", maxYears, " years"));
     }
+
+    return std::chrono::nanoseconds(static_cast<std::chrono::nanoseconds::rep>(unit.count() * value));
 }
 
 template <class TimeUnit>
@@ -1132,10 +1134,8 @@ static TimeUnit
 parseTimeLine()
 {
     const auto valueToken = ConfigParser::NextToken();
-    if (!valueToken) {
-        self_destruct();
-        return TimeUnit::zero();
-    }
+    if (!valueToken)
+        throw TexcHere("cannot read a time value");
 
     const auto parsedValue = xatof(valueToken);
 
@@ -1151,14 +1151,12 @@ parseTimeLine()
 
     (void)ConfigParser::NextToken();
 
-    CheckTimeValue(parsedValue, parsedUnitDuration);
-
-    const std::chrono::nanoseconds nanoseconds(static_cast<std::chrono::nanoseconds::rep>(parsedUnitDuration.count() * parsedValue));
+    const auto nanoseconds = CheckTimeValue(parsedValue, parsedUnitDuration);
 
     // validate precisions (time-units-small only)
     if (TimeUnit(1) <= std::chrono::microseconds(1)) {
         if (0 < nanoseconds.count() && nanoseconds.count() < 3) {
-            debugs(3, DBG_CRITICAL, "WARNING: " << ConfigPosition() <<
+            debugs(3, DBG_CRITICAL, ConfigPosition << "WARNING: " <<
                     "Squid time measurement precision is likely to be far worse than " <<
                     "the nanosecond-level precision implied by the configured value: " << parsedValue << ' ' << token);
         }
@@ -4968,21 +4966,18 @@ ParseUrlRewriteTimeout()
 
     std::chrono::nanoseconds parsedUnitDuration;
 
-    const auto token = parsedValue ? ConfigParser::PeekAtToken() : nullptr;
-
     if (parsedValue) {
-        if (parseTimeUnit<Seconds>(token, parsedUnitDuration))
+        const auto unitToken = parsedValue ? ConfigParser::PeekAtToken() : nullptr;
+        if (parseTimeUnit<Seconds>(unitToken, parsedUnitDuration))
             (void)ConfigParser::NextToken();
         else {
             const auto defaultParsed = parseTimeUnit<Seconds>(T_SECOND_STR, parsedUnitDuration);
             assert(defaultParsed);
-            debugs(3, DBG_CRITICAL, "WARNING: " << ConfigPosition() << "missing time unit, using deprecated default '" << T_SECOND_STR << "'");
+            debugs(3, DBG_CRITICAL, "WARNING: " << ConfigPosition << "missing time unit, using deprecated default '" << T_SECOND_STR << "'");
         }
     }
 
-    CheckTimeValue(parsedValue, parsedUnitDuration);
-
-    const std::chrono::nanoseconds nanoseconds(static_cast<std::chrono::nanoseconds::rep>(parsedUnitDuration.count() * parsedValue));
+    const auto nanoseconds = CheckTimeValue(parsedValue, parsedUnitDuration);
 
     return FromNanoseconds<Seconds>(nanoseconds, parsedValue);
 }
