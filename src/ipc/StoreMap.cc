@@ -706,30 +706,30 @@ Ipc::StoreMap::validSlice(const int pos) const
 /// Uses the highest precision provided by the C++ implementation.
 class ConservativeTimer
 {
-    public:
-        typedef std::chrono::high_resolution_clock Clock;
+public:
+    typedef std::chrono::high_resolution_clock Clock;
 
-        explicit ConservativeTimer(const Clock::duration max):
-            startTime(Clock::now()),
-            lastTime(startTime),
-            maxTime(startTime + max) {}
+    explicit ConservativeTimer(const Clock::duration max):
+        startTime(Clock::now()),
+        lastTime(startTime),
+        maxTime(startTime + max) {}
 
-        /// whether the current time reached the provided maximum time
-        bool expired() {
-            const auto currentTime = Clock::now();
-            if (currentTime < lastTime) // time went backwards
-                return true;
-            lastTime = currentTime;
-            return lastTime > maxTime;
-        }
+    /// whether the current time reached the provided maximum time
+    bool expired() {
+        const auto currentTime = Clock::now();
+        if (currentTime < lastTime) // time went backwards
+            return true;
+        lastTime = currentTime;
+        return lastTime > maxTime;
+    }
 
-    private:
-        /// the object creation time
-        Clock::time_point startTime;
-        /// the time of the last expired() call, initially equals to startTime
-        Clock::time_point lastTime;
-        /// after going past this point in time, expired() becomes true
-        const Clock::time_point maxTime;
+private:
+    /// the object creation time
+    Clock::time_point startTime;
+    /// the time of the last expired() call, initially equals to startTime
+    Clock::time_point lastTime;
+    /// after going past this point in time, expired() becomes true
+    const Clock::time_point maxTime;
 };
 
 bool

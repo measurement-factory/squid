@@ -151,8 +151,8 @@ std::ostream &
 Ipc::operator <<(std::ostream &os, const Ipc::ReadWriteLock &lock)
 {
     return os << lock.readers << 'R' <<
-        (lock.writing ? "W" : "") <<
-        (lock.appending ? "A" : "");
+           (lock.writing ? "W" : "") <<
+           (lock.appending ? "A" : "");
     // impossible to report lock.updating without setting/clearing that flag
 }
 
