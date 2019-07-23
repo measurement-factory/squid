@@ -11,6 +11,7 @@
 
 #include "DiskIO/ReadRequest.h"
 #include "DiskIO/WriteRequest.h"
+#include "fs/rock/forward.h"
 #include "fs/rock/RockIoState.h"
 
 class DiskFile;
@@ -25,6 +26,9 @@ class ReadRequest: public ::ReadRequest
 public:
     ReadRequest(const ::ReadRequest &base, const IoState::Pointer &anSio);
     IoState::Pointer sio;
+
+    /// identifies this read transaction for the requesting IoState
+    IoXactionId id;
 };
 
 class WriteRequest: public ::WriteRequest
@@ -35,11 +39,16 @@ public:
     WriteRequest(const ::WriteRequest &base, const IoState::Pointer &anSio);
     IoState::Pointer sio;
 
+    /* We own these two reserved slots until SwapDir links them into the map. */
+
+    /// slot that will point to sidCurrent in the cache_dir map
+    SlotId sidPrevious;
+
     /// slot being written using this write request
     SlotId sidCurrent;
 
-    /// allocated next slot (negative if we are writing the last slot)
-    SlotId sidNext;
+    /// identifies this write transaction for the requesting IoState
+    IoXactionId id;
 
     /// whether this is the last request for the entry
     bool eof;

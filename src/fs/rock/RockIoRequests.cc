@@ -17,7 +17,8 @@ CBDATA_NAMESPACED_CLASS_INIT(Rock, WriteRequest);
 Rock::ReadRequest::ReadRequest(const ::ReadRequest &base,
                                const IoState::Pointer &anSio):
     ::ReadRequest(base),
-     sio(anSio)
+     sio(anSio),
+     id(0)
 {
 }
 
@@ -25,8 +26,9 @@ Rock::WriteRequest::WriteRequest(const ::WriteRequest &base,
                                  const IoState::Pointer &anSio):
     ::WriteRequest(base),
      sio(anSio),
+     sidPrevious(-1),
      sidCurrent(-1),
-     sidNext(-1),
+     id(0),
      eof(false)
 {
 }
