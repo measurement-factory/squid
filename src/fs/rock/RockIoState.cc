@@ -377,8 +377,17 @@ Rock::IoState::close(int how)
     switch (how) {
     case wroteAll:
         assert(theBuf.size > 0); // we never flush last bytes on our own
-        writeToDisk(); // flush last, yet unwritten slot to disk
-        return; // writeCompleted() will callBack()
+        try {
+            writeToDisk(); // flush last, yet unwritten slot to disk
+            return; // writeCompleted() will callBack()
+        }
+        catch (...) {
+            debugs(79, 2, "db flush error: " << CurrentException);
+            // TODO: Move finishedWriting() into SwapDir::writeError().
+            dir->writeError(*this);
+            finishedWriting(DISK_ERROR);
+        }
+        return;
 
     case writerGone:
         dir->writeError(*this); // abort a partially stored entry
