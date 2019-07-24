@@ -276,16 +276,16 @@ Rock::IoState::writeToDisk()
     // TODO: if DiskIO module is mmap-based, we should be writing whole pages
     // to avoid triggering read-page;new_head+old_tail;write-page overheads
 
-    assert(eof == lastWrite); // no slots after eof
+    assert(!eof || sidNext < 0); // no slots after eof
 
     // finalize db cell header
     DbCellHeader header;
     memcpy(header.key, e->key, sizeof(header.key));
     header.firstSlot = sidFirst;
 
-    const auto updatingTheLastSlot = !touchingStoreEntry() && lastWrite;
-    assert(!updatingTheLastSlot || lastWrite);
-    header.nextSlot = updatingTheLastSlot ? staleSplicingPointNext : sidNext;
+    const auto lastUpdatingWrite = lastWrite && !touchingStoreEntry();
+    assert(!lastUpdatingWrite || sidNext < 0);
+    header.nextSlot = lastUpdatingWrite ? staleSplicingPointNext : sidNext;
 
     header.payloadSize = theBuf.size - sizeof(DbCellHeader);
     header.entrySize = eof ? offset_ : 0; // storeSwapOutFileClosed sets swap_file_sz after write
