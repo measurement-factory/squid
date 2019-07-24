@@ -87,7 +87,7 @@ private:
     SlotId sidPrevious;
 
     /// For readers, the db slot currently being read from disk.
-    /// For writers, the reserved db slot that will be filled and written next.
+    /// For writers, the reserved db slot currently being filled (to be written).
     SlotId sidCurrent;
 
     /// Unused by readers.

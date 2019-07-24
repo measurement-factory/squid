@@ -133,8 +133,8 @@ Rock::IoState::read_(char *buf, size_t len, off_t coreOff, STRCB *cb, void *data
               static_cast<size_t>(objOffset + currentReadableSlice().size - coreOff));
     const uint64_t diskOffset = dir->diskOffset(sidCurrent);
     const auto start = diskOffset + sizeof(DbCellHeader) + coreOff - objOffset;
-    const auto request = new ReadRequest(::ReadRequest(buf, start, len), this);
-    request->id = ++requestsSent;
+    ++requestsSent;
+    const auto request = new ReadRequest(::ReadRequest(buf, start, len), this, requestsSent);
     theFile->read(request);
 }
 
@@ -276,7 +276,7 @@ Rock::IoState::writeToDisk()
     // TODO: if DiskIO module is mmap-based, we should be writing whole pages
     // to avoid triggering read-page;new_head+old_tail;write-page overheads
 
-    assert(eof == (sidNext < 0)); // no slots after eof
+    assert(eof == lastWrite); // no slots after eof
 
     // finalize db cell header
     DbCellHeader header;
@@ -284,7 +284,7 @@ Rock::IoState::writeToDisk()
     header.firstSlot = sidFirst;
 
     const auto updatingTheLastSlot = !touchingStoreEntry() && lastWrite;
-    assert(!updatingTheLastSlot || sidNext < 0);
+    assert(!updatingTheLastSlot || lastWrite);
     header.nextSlot = updatingTheLastSlot ? staleSplicingPointNext : sidNext;
 
     header.payloadSize = theBuf.size - sizeof(DbCellHeader);
@@ -304,13 +304,12 @@ Rock::IoState::writeToDisk()
     const uint64_t diskOffset = dir->diskOffset(sidCurrent);
     debugs(79, 5, HERE << swap_filen << " at " << diskOffset << '+' <<
            theBuf.size);
-
+    ++requestsSent;
     WriteRequest *const r = new WriteRequest(
         ::WriteRequest(static_cast<char*>(wBuf), diskOffset, theBuf.size,
-                       memFreeBufFunc(wBufCap)), this);
+                       memFreeBufFunc(wBufCap)), this, requestsSent);
     r->sidCurrent = sidCurrent;
     r->sidPrevious = sidPrevious;
-    r->id = ++requestsSent;
     r->eof = lastWrite;
 
     sidPrevious = sidCurrent;

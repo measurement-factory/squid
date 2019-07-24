@@ -24,7 +24,7 @@ class ReadRequest: public ::ReadRequest
     CBDATA_CLASS(ReadRequest);
 
 public:
-    ReadRequest(const ::ReadRequest &base, const IoState::Pointer &anSio);
+    ReadRequest(const ::ReadRequest &base, const IoState::Pointer &anSio, const IoXactionId);
     IoState::Pointer sio;
 
     /// identifies this read transaction for the requesting IoState
@@ -36,7 +36,7 @@ class WriteRequest: public ::WriteRequest
     CBDATA_CLASS(WriteRequest);
 
 public:
-    WriteRequest(const ::WriteRequest &base, const IoState::Pointer &anSio);
+    WriteRequest(const ::WriteRequest &base, const IoState::Pointer &anSio, const IoXactionId);
     IoState::Pointer sio;
 
     /* We own these two reserved slots until SwapDir links them into the map. */
