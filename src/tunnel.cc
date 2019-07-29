@@ -1133,9 +1133,6 @@ TunnelStateData::usePinned()
     if (!Comm::IsConnOpen(serverConn))
         fail = "pinned path failure";
 
-    if (request->pinnedConnection()->pinning.peerAccessDenied)
-        fail = "pinned path access denied";
-
     if (fail) {
         // a PINNED path failure is fatal; do not wait for more paths
         sendError(new ErrorState(ERR_CANNOT_FORWARD, Http::scServiceUnavailable, request.getRaw(), al),
