@@ -1011,18 +1011,6 @@ TunnelStateData::connectedToPeer(Security::EncryptorAnswer &answer)
     // and wait for the tunnelEstablishmentDone() call
 }
 
-static Comm::ConnectionPointer
-borrowPinnedConnection(HttpRequest *request)
-{
-    // pinned_connection may become nil after a pconn race
-    if (ConnStateData *pinned_connection = request ? request->pinnedConnection() : nullptr) {
-        Comm::ConnectionPointer serverConn = pinned_connection->borrowPinnedConnection(request);
-        return serverConn;
-    }
-
-    return nullptr;
-}
-
 void
 TunnelStateData::noteDestination(Comm::ConnectionPointer path)
 {
@@ -1126,21 +1114,16 @@ TunnelStateData::startConnecting()
 void
 TunnelStateData::usePinned()
 {
-    const auto serverConn = borrowPinnedConnection(request.getRaw());
-    debugs(26,7, "pinned peer connection: " << serverConn);
+    try {
+        const auto serverConn = ConnStateData::BorrowPinnedConnection(request.getRaw());
+        debugs(26,7, "pinned peer connection: " << serverConn);
 
-    const char *fail = nullptr;
-    if (!Comm::IsConnOpen(serverConn))
-        fail = "pinned path failure";
-
-    if (fail) {
+        tunnelConnectDone(serverConn, Comm::OK, 0, (void *)this);
+    } catch (const PinningException &ex) {
         // a PINNED path failure is fatal; do not wait for more paths
-        sendError(new ErrorState(ERR_CANNOT_FORWARD, Http::scServiceUnavailable, request.getRaw(), al),
-                  fail);
+        sendError(new ErrorState(ERR_CANNOT_FORWARD, Http::scServiceUnavailable, request.getRaw(), al), ex.what());
         return;
     }
-
-    tunnelConnectDone(serverConn, Comm::OK, 0, (void *)this);
 }
 
 CBDATA_CLASS_INIT(TunnelStateData);
