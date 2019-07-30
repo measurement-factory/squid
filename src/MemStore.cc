@@ -602,6 +602,19 @@ MemStore::shouldCache(StoreEntry &e) const
         return false;
     }
 
+    // Store::Root() in the next check below is FATALly missing during shutdown
+    if (shutting_down) {
+        debugs(20, 5, "yield to shutdown: " << e);
+        return false;
+    }
+
+    // in SMP mode, restrict caching to StoreEntry publisher to avoid
+    // workers releasing each other caching attempts
+    if (Store::Root().transientsReader(e)) {
+        debugs(20, 5, "yield to entry publisher: " << e);
+        return false;
+    }
+
     const int64_t expectedSize = e.mem_obj->expectedReplySize(); // may be < 0
     const int64_t loadedSize = e.mem_obj->endOffset();
     const int64_t ramSize = max(loadedSize, expectedSize);
@@ -881,8 +894,8 @@ MemStore::completeWriting(StoreEntry &e)
     e.mem_obj->memCache.io = MemObject::ioDone;
     map->closeForWriting(index);
 
-    CollapsedForwarding::Broadcast(e); // before we close our transient entry!
-    Store::Root().transientsCompleteWriting(e);
+    CollapsedForwarding::Broadcast(e);
+    e.storeWriterDone();
 }
 
 void
@@ -921,7 +934,8 @@ MemStore::disconnect(StoreEntry &e)
             map->abortWriting(mem_obj.memCache.index);
             mem_obj.memCache.index = -1;
             mem_obj.memCache.io = MemObject::ioDone;
-            Store::Root().stopSharing(e); // broadcasts after the change
+            CollapsedForwarding::Broadcast(e);
+            e.storeWriterDone();
         } else {
             assert(mem_obj.memCache.io == MemObject::ioReading);
             map->closeForReading(mem_obj.memCache.index);

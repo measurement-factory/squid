@@ -141,7 +141,8 @@ void Rock::SwapDir::disconnect(StoreEntry &e)
         map->abortWriting(e.swap_filen);
         e.detachFromDisk();
         dynamic_cast<IoState&>(*e.mem_obj->swapout.sio).writeableAnchor_ = NULL;
-        Store::Root().stopSharing(e); // broadcasts after the change
+        CollapsedForwarding::Broadcast(e);
+        e.storeWriterDone();
     } else {
         map->closeForReading(e.swap_filen);
         e.detachFromDisk();
@@ -172,9 +173,12 @@ Rock::SwapDir::doReportStat() const
 }
 
 void
-Rock::SwapDir::finalizeSwapoutSuccess(const StoreEntry &)
+Rock::SwapDir::finalizeSwapoutSuccess(const StoreEntry &e)
 {
-    // nothing to do
+    // nothing to do; handleWriteCompletionSuccess() did everything for us
+    assert(!e.mem_obj ||
+           !e.mem_obj->swapout.sio ||
+           !dynamic_cast<IoState&>(*e.mem_obj->swapout.sio).writeableAnchor_);
 }
 
 void
@@ -903,6 +907,7 @@ Rock::SwapDir::handleWriteCompletionSuccess(const WriteRequest &request)
 
             map->switchWritingToReading(sio.swap_filen);
             // sio.e keeps the (now read) lock on the anchor
+            // storeSwapOutFileClosed() sets swap_status and calls storeWriterDone()
         }
         sio.writeableAnchor_ = NULL;
         sio.finishedWriting(DISK_OK);
@@ -930,7 +935,7 @@ Rock::SwapDir::writeError(StoreIOState &sio)
     map->freeEntry(sio.swap_filen); // will mark as unusable, just in case
 
     if (sio.touchingStoreEntry())
-        Store::Root().stopSharing(*sio.e);
+        CollapsedForwarding::Broadcast(*sio.e);
     // else noop: a fresh entry update error does not affect stale entry readers
 
     // All callers must also call IoState callback, to propagate the error.
