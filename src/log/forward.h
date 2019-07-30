@@ -6,16 +6,13 @@
  * Please see the COPYING and CONTRIBUTORS files for details.
  */
 
-#ifndef _SQUID_UUDECODE_H
-#define _SQUID_UUDECODE_H
+#ifndef SQUID_FORMAT_FORWARD_H
+#define SQUID_FORMAT_FORWARD_H
 
-#ifdef __cplusplus
-extern "C"
-#else
-extern
-#endif
+#include "base/RefCount.h"
 
-char *uudecode(const char *);
+class AccessLogEntry;
+typedef RefCount<AccessLogEntry> AccessLogEntryPointer;
 
-#endif /* _SQUID_UUDECODE_H */
+#endif /* SQUID_FORMAT_FORWARD_H */
 

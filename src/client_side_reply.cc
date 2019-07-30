@@ -53,7 +53,7 @@ CBDATA_CLASS_INIT(clientReplyContext);
 
 /* Local functions */
 extern "C" CSS clientReplyStatus;
-ErrorState *clientBuildError(err_type, Http::StatusCode, char const *, const Ip::Address &, HttpRequest *);
+ErrorState *clientBuildError(err_type, Http::StatusCode, char const *, const Ip::Address &, HttpRequest *, const AccessLogEntry::Pointer &);
 
 /* privates */
 
@@ -111,7 +111,7 @@ clientReplyContext::setReplyToError(
 #endif
 )
 {
-    ErrorState *errstate = clientBuildError(err, status, uri, addr, failedrequest);
+    auto errstate = clientBuildError(err, status, uri, addr, failedrequest, http->al);
 
     if (unparsedrequest)
         errstate->request_hdrs = xstrdup(unparsedrequest);
@@ -765,7 +765,7 @@ clientReplyContext::processMiss()
     /// Deny loops
     if (r->flags.loopDetected) {
         http->al->http.code = Http::scForbidden;
-        err = clientBuildError(ERR_ACCESS_DENIED, Http::scForbidden, nullptr, http->clientAddrOnError(), http->request);
+        err = clientBuildError(ERR_ACCESS_DENIED, Http::scForbidden, nullptr, http->clientAddrOnError(), http->request, http->al);
         createStoreEntry(r->method, RequestFlags());
         errorAppendEntry(http->storeEntry(), err);
         triggerInitialStoreRead();
@@ -804,7 +804,7 @@ clientReplyContext::processOnlyIfCachedMiss()
     debugs(88, 4, http->request->method << ' ' << http->uri);
     http->al->http.code = Http::scGatewayTimeout;
     ErrorState *err = clientBuildError(ERR_ONLY_IF_CACHED_MISS, Http::scGatewayTimeout, NULL,
-                                       http->clientAddrOnError(), http->request);
+                                       http->clientAddrOnError(), http->request, http->al);
     removeClientStoreReference(&sc, http);
     startError(err);
 }
@@ -978,7 +978,7 @@ clientReplyContext::purgeFoundObject(StoreEntry *entry)
     if (EBIT_TEST(entry->flags, ENTRY_SPECIAL)) {
         http->logType.update(LOG_TCP_DENIED);
         ErrorState *err = clientBuildError(ERR_ACCESS_DENIED, Http::scForbidden, NULL,
-                                           http->clientAddrOnError(), http->request);
+                                           http->clientAddrOnError(), http->request, http->al);
         startError(err);
         return; // XXX: leaking unused entry if some store does not keep it
     }
@@ -1016,7 +1016,7 @@ clientReplyContext::purgeRequest()
     if (!Config2.onoff.enable_purge) {
         http->logType.update(LOG_TCP_DENIED);
         ErrorState *err = clientBuildError(ERR_ACCESS_DENIED, Http::scForbidden, NULL,
-                                           http->clientAddrOnError(), http->request);
+                                           http->clientAddrOnError(), http->request, http->al);
         startError(err);
         return;
     }
@@ -1952,7 +1952,7 @@ clientReplyContext::sendBodyTooLargeError()
 {
     http->logType.update(LOG_TCP_DENIED_REPLY);
     ErrorState *err = clientBuildError(ERR_TOO_BIG, Http::scForbidden, NULL,
-                                       http->clientAddrOnError(), http->request);
+                                       http->clientAddrOnError(), http->request, http->al);
     removeClientStoreReference(&(sc), http);
     HTTPMSGUNLOCK(reply);
     startError(err);
@@ -1966,7 +1966,7 @@ clientReplyContext::sendPreconditionFailedError()
     http->logType.update(LOG_TCP_HIT);
     ErrorState *const err =
         clientBuildError(ERR_PRECONDITION_FAILED, Http::scPreconditionFailed,
-                         NULL, http->clientAddrOnError(), http->request);
+                         NULL, http->clientAddrOnError(), http->request, http->al);
     removeClientStoreReference(&sc, http);
     HTTPMSGUNLOCK(reply);
     startError(err);
@@ -2052,14 +2052,14 @@ clientReplyContext::processReplyAccess ()
 }
 
 void
-clientReplyContext::ProcessReplyAccessResult(allow_t rv, void *voidMe)
+clientReplyContext::ProcessReplyAccessResult(Acl::Answer rv, void *voidMe)
 {
     clientReplyContext *me = static_cast<clientReplyContext *>(voidMe);
     me->processReplyAccessResult(rv);
 }
 
 void
-clientReplyContext::processReplyAccessResult(const allow_t &accessAllowed)
+clientReplyContext::processReplyAccessResult(const Acl::Answer &accessAllowed)
 {
     debugs(88, 2, "The reply for " << http->request->method
            << ' ' << http->uri << " is " << accessAllowed << ", because it matched "
@@ -2076,7 +2076,7 @@ clientReplyContext::processReplyAccessResult(const allow_t &accessAllowed)
             page_id = ERR_ACCESS_DENIED;
 
         err = clientBuildError(page_id, Http::scForbidden, NULL,
-                               http->clientAddrOnError(), http->request);
+                               http->clientAddrOnError(), http->request, http->al);
 
         removeClientStoreReference(&sc, http);
 
@@ -2319,9 +2319,9 @@ clientReplyContext::createStoreEntry(const HttpRequestMethod& m, RequestFlags re
 
 ErrorState *
 clientBuildError(err_type page_id, Http::StatusCode status, char const *url,
-                 const Ip::Address &src_addr, HttpRequest *request)
+                 const Ip::Address &src_addr, HttpRequest *request, const AccessLogEntry::Pointer &al)
 {
-    ErrorState *err = new ErrorState(page_id, status, request);
+    const auto err = new ErrorState(page_id, status, request, al);
     err->src_addr = src_addr;
 
     if (url)

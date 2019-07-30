@@ -23,8 +23,6 @@
 
 #include <cerrno>
 
-#define WHOIS_PORT 43
-
 class WhoisState
 {
     CBDATA_CLASS(WhoisState);
@@ -128,7 +126,7 @@ WhoisState::readReply(const Comm::ConnectionPointer &conn, char *aBuffer, size_t
                                                  CommIoCbPtrFun(whoisReadReply, this));
             comm_read(conn, aBuffer, BUFSIZ, call);
         } else {
-            ErrorState *err = new ErrorState(ERR_READ_ERROR, Http::scInternalServerError, fwd->request);
+            const auto err = new ErrorState(ERR_READ_ERROR, Http::scInternalServerError, fwd->request, fwd->al);
             err->xerrno = xerrno;
             fwd->fail(err);
             conn->close();

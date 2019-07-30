@@ -81,24 +81,24 @@
 static const char *const crlf = "\r\n";
 
 #if FOLLOW_X_FORWARDED_FOR
-static void clientFollowXForwardedForCheck(allow_t answer, void *data);
+static void clientFollowXForwardedForCheck(Acl::Answer answer, void *data);
 #endif /* FOLLOW_X_FORWARDED_FOR */
 
-ErrorState *clientBuildError(err_type, Http::StatusCode, char const *url, const Ip::Address &, HttpRequest *);
+ErrorState *clientBuildError(err_type, Http::StatusCode, char const *url, const Ip::Address &, HttpRequest *, const AccessLogEntry::Pointer &);
 
 CBDATA_CLASS_INIT(ClientRequestContext);
 
 /* Local functions */
 /* other */
-static void clientAccessCheckDoneWrapper(allow_t, void *);
+static void clientAccessCheckDoneWrapper(Acl::Answer, void *);
 #if USE_OPENSSL
-static void sslBumpAccessCheckDoneWrapper(allow_t, void *);
+static void sslBumpAccessCheckDoneWrapper(Acl::Answer, void *);
 #endif
 static int clientHierarchical(ClientHttpRequest * http);
 static void clientInterpretRequestHeaders(ClientHttpRequest * http);
 static HLPCB clientRedirectDoneWrapper;
 static HLPCB clientStoreIdDoneWrapper;
-static void checkNoCacheDoneWrapper(allow_t, void *);
+static void checkNoCacheDoneWrapper(Acl::Answer, void *);
 SQUIDCEXTERN CSR clientGetMoreData;
 SQUIDCEXTERN CSS clientReplyStatus;
 SQUIDCEXTERN CSD clientReplyDetach;
@@ -424,7 +424,7 @@ ClientRequestContext::httpStateIsValid()
  * ++ indirect_client_addr contains the remote direct client from the trusted peers viewpoint.
  */
 static void
-clientFollowXForwardedForCheck(allow_t answer, void *data)
+clientFollowXForwardedForCheck(Acl::Answer answer, void *data)
 {
     ClientRequestContext *calloutContext = (ClientRequestContext *) data;
 
@@ -711,7 +711,7 @@ ClientRequestContext::clientAccessCheck2()
 }
 
 void
-clientAccessCheckDoneWrapper(allow_t answer, void *data)
+clientAccessCheckDoneWrapper(Acl::Answer answer, void *data)
 {
     ClientRequestContext *calloutContext = (ClientRequestContext *) data;
 
@@ -722,7 +722,7 @@ clientAccessCheckDoneWrapper(allow_t answer, void *data)
 }
 
 void
-ClientRequestContext::clientAccessCheckDone(const allow_t &answer)
+ClientRequestContext::clientAccessCheckDone(const Acl::Answer &answer)
 {
     acl_checklist = NULL;
     err_type page_id;
@@ -790,7 +790,7 @@ ClientRequestContext::clientAccessCheckDone(const allow_t &answer)
         error = clientBuildError(page_id, status,
                                  NULL,
                                  http->clientAddrOnError(),
-                                 http->request
+                                 http->request, http->al
                                 );
 
 #if USE_AUTH
@@ -842,7 +842,7 @@ ClientHttpRequest::noteAdaptationAclCheckDone(Adaptation::ServiceGroupPointer g)
 #endif
 
 static void
-clientRedirectAccessCheckDone(allow_t answer, void *data)
+clientRedirectAccessCheckDone(Acl::Answer answer, void *data)
 {
     ClientRequestContext *context = (ClientRequestContext *)data;
     ClientHttpRequest *http = context->http;
@@ -873,7 +873,7 @@ ClientRequestContext::clientRedirectStart()
  * Will handle as "ERR" (no change) in a case Access is not allowed.
  */
 static void
-clientStoreIdAccessCheckDone(allow_t answer, void *data)
+clientStoreIdAccessCheckDone(Acl::Answer answer, void *data)
 {
     ClientRequestContext *context = static_cast<ClientRequestContext *>(data);
     ClientHttpRequest *http = context->http;
@@ -1103,8 +1103,6 @@ clientInterpretRequestHeaders(ClientHttpRequest * http)
          */
 
         if (strListIsSubstr(&s, ThisCache2, ',')) {
-            debugObj(33, 1, "WARNING: Forwarding loop detected for:\n",
-                     request, (ObjPackMethod) & httpRequestPack);
             request->flags.loopDetected = true;
         }
 
@@ -1114,6 +1112,19 @@ clientInterpretRequestHeaders(ClientHttpRequest * http)
 #endif
 
         s.clean();
+    }
+
+    // headers only relevant to reverse-proxy
+    if (request->flags.accelerated) {
+        // check for a cdn-info member with a cdn-id matching surrogate_id
+        // XXX: HttpHeader::hasListMember() does not handle OWS around ";" yet
+        if (req_hdr->hasListMember(Http::HdrType::CDN_LOOP, Config.Accel.surrogate_id, ','))
+            request->flags.loopDetected = true;
+    }
+
+    if (request->flags.loopDetected) {
+        debugObj(33, DBG_IMPORTANT, "WARNING: Forwarding loop detected for:\n",
+                 request, (ObjPackMethod) & httpRequestPack);
     }
 
 #if USE_FORW_VIA_DB
@@ -1346,7 +1357,7 @@ ClientRequestContext::checkNoCache()
 }
 
 static void
-checkNoCacheDoneWrapper(allow_t answer, void *data)
+checkNoCacheDoneWrapper(Acl::Answer answer, void *data)
 {
     ClientRequestContext *calloutContext = (ClientRequestContext *) data;
 
@@ -1357,7 +1368,7 @@ checkNoCacheDoneWrapper(allow_t answer, void *data)
 }
 
 void
-ClientRequestContext::checkNoCacheDone(const allow_t &answer)
+ClientRequestContext::checkNoCacheDone(const Acl::Answer &answer)
 {
     acl_checklist = NULL;
     if (answer.denied()) {
@@ -1444,7 +1455,7 @@ ClientRequestContext::sslBumpAccessCheck()
  * as ACLFilledChecklist callback
  */
 static void
-sslBumpAccessCheckDoneWrapper(allow_t answer, void *data)
+sslBumpAccessCheckDoneWrapper(Acl::Answer answer, void *data)
 {
     ClientRequestContext *calloutContext = static_cast<ClientRequestContext *>(data);
 
@@ -1454,7 +1465,7 @@ sslBumpAccessCheckDoneWrapper(allow_t answer, void *data)
 }
 
 void
-ClientRequestContext::sslBumpAccessCheckDone(const allow_t &answer)
+ClientRequestContext::sslBumpAccessCheckDone(const Acl::Answer &answer)
 {
     if (!httpStateIsValid())
         return;
@@ -1566,7 +1577,7 @@ ClientHttpRequest::sslBumpEstablish(Comm::Flag errflag)
 #endif
 
     assert(sslBumpNeeded());
-    getConn()->switchToHttps(request, sslBumpNeed_);
+    getConn()->switchToHttps(this, sslBumpNeed_);
 }
 
 void
@@ -1840,7 +1851,7 @@ ClientHttpRequest::doCallouts()
             // We have to serve an error, so bump the client first.
             sslBumpNeed(Ssl::bumpClientFirst);
             // set final error but delay sending until we bump
-            Ssl::ServerBump *srvBump = new Ssl::ServerBump(request, e, Ssl::bumpClientFirst);
+            Ssl::ServerBump *srvBump = new Ssl::ServerBump(this, e, Ssl::bumpClientFirst);
             errorAppendEntry(e, calloutContext->error);
             calloutContext->error = NULL;
             getConn()->setServerBump(srvBump);
@@ -2160,7 +2171,8 @@ ClientHttpRequest::calloutsError(const err_type error, const int errDetail)
         calloutContext->error = clientBuildError(error, Http::scInternalServerError,
                                 NULL,
                                 clientAddrOnError(),
-                                request
+                                request,
+                                al
                                                 );
 #if USE_AUTH
         calloutContext->error->auth_user_request =

@@ -167,6 +167,30 @@ urlParseProtocol(const char *b)
     return AnyP::PROTO_NONE;
 }
 
+/**
+ * Appends configured append_domain to hostname, assuming
+ * the given buffer is at least SQUIDHOSTNAMELEN bytes long,
+ * and that the host FQDN is not a 'dotless' TLD.
+ *
+ * \returns false if and only if there is not enough space to append
+ */
+bool
+urlAppendDomain(char *host)
+{
+    /* For IPv4 addresses check for a dot */
+    /* For IPv6 addresses also check for a colon */
+    if (Config.appendDomain && !strchr(host, '.') && !strchr(host, ':')) {
+        const uint64_t dlen = strlen(host);
+        const uint64_t want = dlen + Config.appendDomainLen;
+        if (want > SQUIDHOSTNAMELEN - 1) {
+            debugs(23, 2, "URL domain too large (" << dlen << " bytes)");
+            return false;
+        }
+        strncat(host, Config.appendDomain, SQUIDHOSTNAMELEN - dlen - 1);
+    }
+    return true;
+}
+
 /*
  * Parse a URI/URL.
  *
@@ -376,9 +400,8 @@ AnyP::Uri::parse(const HttpRequestMethod& method, const char *url)
         return false;
     }
 
-    /* For IPV6 addresses also check for a colon */
-    if (Config.appendDomain && !strchr(foundHost, '.') && !strchr(foundHost, ':'))
-        strncat(foundHost, Config.appendDomain, SQUIDHOSTNAMELEN - strlen(foundHost) - 1);
+    if (!urlAppendDomain(foundHost))
+        return false;
 
     /* remove trailing dots from hostnames */
     while ((l = strlen(foundHost)) > 0 && foundHost[--l] == '.')
@@ -495,10 +518,10 @@ AnyP::Uri::absolute() const
         absolute_.append(":",1);
         if (getScheme() != AnyP::PROTO_URN) {
             absolute_.append("//", 2);
-            const bool omitUserInfo = getScheme() == AnyP::PROTO_HTTP ||
-                                      getScheme() != AnyP::PROTO_HTTPS ||
-                                      userInfo().isEmpty();
-            if (!omitUserInfo) {
+            const bool allowUserInfo = getScheme() == AnyP::PROTO_FTP ||
+                                       getScheme() == AnyP::PROTO_UNKNOWN;
+
+            if (allowUserInfo && !userInfo().isEmpty()) {
                 absolute_.append(userInfo());
                 absolute_.append("@", 1);
             }

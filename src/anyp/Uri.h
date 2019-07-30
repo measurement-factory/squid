@@ -82,6 +82,8 @@ public:
 
     void port(unsigned short p) {port_=p; touch();}
     unsigned short port() const {return port_;}
+    /// reset the port to the default port number for the current scheme
+    void defaultPort() { port(getScheme().defaultPort()); }
 
     void path(const char *p) {path_=p; touch();}
     void path(const SBuf &p) {path_=p; touch();}
@@ -191,6 +193,7 @@ bool urlIsRelative(const char *);
 char *urlMakeAbsolute(const HttpRequest *, const char *);
 char *urlRInternal(const char *host, unsigned short port, const char *dir, const char *name);
 char *urlInternal(const char *dir, const char *name);
+bool urlAppendDomain(char *host); ///< apply append_domain config to the given hostname
 
 enum MatchDomainNameFlags {
     mdnNone = 0,

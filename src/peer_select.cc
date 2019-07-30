@@ -198,7 +198,7 @@ PeerSelectionInitiator::startSelectingDestinations(HttpRequest *request, const A
 }
 
 void
-PeerSelector::checkNeverDirectDone(const allow_t answer)
+PeerSelector::checkNeverDirectDone(const Acl::Answer answer)
 {
     acl_checklist = nullptr;
     debugs(44, 3, answer);
@@ -220,13 +220,13 @@ PeerSelector::checkNeverDirectDone(const allow_t answer)
 }
 
 void
-PeerSelector::CheckNeverDirectDone(allow_t answer, void *data)
+PeerSelector::CheckNeverDirectDone(Acl::Answer answer, void *data)
 {
     static_cast<PeerSelector*>(data)->checkNeverDirectDone(answer);
 }
 
 void
-PeerSelector::checkAlwaysDirectDone(const allow_t answer)
+PeerSelector::checkAlwaysDirectDone(const Acl::Answer answer)
 {
     acl_checklist = nullptr;
     debugs(44, 3, answer);
@@ -248,7 +248,7 @@ PeerSelector::checkAlwaysDirectDone(const allow_t answer)
 }
 
 void
-PeerSelector::CheckAlwaysDirectDone(allow_t answer, void *data)
+PeerSelector::CheckAlwaysDirectDone(Acl::Answer answer, void *data)
 {
     static_cast<PeerSelector*>(data)->checkAlwaysDirectDone(answer);
 }
@@ -406,7 +406,7 @@ PeerSelector::noteIps(const Dns::CachedIps *ia, const Dns::LookupDetails &detail
         delete lastError;
         lastError = NULL;
         if (fs->code == HIER_DIRECT) {
-            lastError = new ErrorState(ERR_DNS_FAIL, Http::scServiceUnavailable, request);
+            lastError = new ErrorState(ERR_DNS_FAIL, Http::scServiceUnavailable, request, al);
             lastError->dnsError = details.error;
         }
     }

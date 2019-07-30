@@ -1535,7 +1535,7 @@ bool ConnStateData::serveDelayedError(Http::Stream *context)
                 request->hier = sslServerBump->request->hier;
 
                 // Create an error object and fill it
-                ErrorState *err = new ErrorState(ERR_SECURE_CONNECT_FAIL, Http::scServiceUnavailable, request);
+                const auto err = new ErrorState(ERR_SECURE_CONNECT_FAIL, Http::scServiceUnavailable, request, http->al);
                 err->src_addr = clientConnection->remote;
                 Ssl::ErrorDetail *errDetail = new Ssl::ErrorDetail(
                     SQUID_X509_V_ERR_DOMAIN_MISMATCH,
@@ -1568,7 +1568,7 @@ clientTunnelOnError(ConnStateData *conn, Http::StreamPointer &context, HttpReque
         ClientHttpRequest *http = context ? context->http : nullptr;
         const char *log_uri = http ? http->log_uri : nullptr;
         checklist.syncAle(request.getRaw(), log_uri);
-        allow_t answer = checklist.fastCheck();
+        auto answer = checklist.fastCheck();
         if (answer.allowed() && answer.kind == 1) {
             debugs(33, 3, "Request will be tunneled to server");
             if (context) {
@@ -2280,7 +2280,7 @@ ConnStateData::whenClientIpKnown()
             /* pools require explicit 'allow' to assign a client into them */
             if (pools[pool]->access) {
                 ch.changeAcl(pools[pool]->access);
-                allow_t answer = ch.fastCheck();
+                auto answer = ch.fastCheck();
                 if (answer.allowed()) {
 
                     /*  request client information from db after we did all checks
@@ -2337,9 +2337,10 @@ httpAccept(const CommAcceptCbParams &params)
 
 /// Create TLS connection structure and update fd_table
 static bool
-httpsCreate(const Comm::ConnectionPointer &conn, const Security::ContextPointer &ctx)
+httpsCreate(const ConnStateData *connState, const Security::ContextPointer &ctx)
 {
-    if (Security::CreateServerSession(ctx, conn, "client https start")) {
+    const auto conn = connState->clientConnection;
+    if (Security::CreateServerSession(ctx, conn, connState->port->secure, "client https start")) {
         debugs(33, 5, "will negotiate TLS on " << conn);
         return true;
     }
@@ -2524,7 +2525,7 @@ httpsEstablish(ConnStateData *connState, const Security::ContextPointer &ctx)
     assert(connState);
     const Comm::ConnectionPointer &details = connState->clientConnection;
 
-    if (!ctx || !httpsCreate(details, ctx))
+    if (!ctx || !httpsCreate(connState, ctx))
         return;
 
     typedef CommCbMemFunT<ConnStateData, CommTimeoutCbParams> TimeoutDialer;
@@ -2540,7 +2541,7 @@ httpsEstablish(ConnStateData *connState, const Security::ContextPointer &ctx)
  * A callback function to use with the ACLFilledChecklist callback.
  */
 static void
-httpsSslBumpAccessCheckDone(allow_t answer, void *data)
+httpsSslBumpAccessCheckDone(Acl::Answer answer, void *data)
 {
     ConnStateData *connState = (ConnStateData *) data;
 
@@ -2886,7 +2887,7 @@ ConnStateData::getSslContextDone(Security::ContextPointer &ctx)
         }
     }
 
-    if (!httpsCreate(clientConnection, ctx))
+    if (!httpsCreate(this, ctx))
         return;
 
     // bumped intercepted conns should already have Config.Timeout.request set
@@ -2908,9 +2909,11 @@ ConnStateData::getSslContextDone(Security::ContextPointer &ctx)
 }
 
 void
-ConnStateData::switchToHttps(HttpRequest *request, Ssl::BumpMode bumpServerMode)
+ConnStateData::switchToHttps(ClientHttpRequest *http, Ssl::BumpMode bumpServerMode)
 {
     assert(!switchedToHttps_);
+    Must(http->request);
+    auto &request = http->request;
 
     sslConnectHostOrIp = request->url.host();
     tlsConnectPort = request->url.port();
@@ -2929,10 +2932,10 @@ ConnStateData::switchToHttps(HttpRequest *request, Ssl::BumpMode bumpServerMode)
     // without even peeking at the origin server certificate.
     if (bumpServerMode == Ssl::bumpServerFirst && !sslServerBump) {
         request->flags.sslPeek = true;
-        sslServerBump = new Ssl::ServerBump(request);
+        sslServerBump = new Ssl::ServerBump(http);
     } else if (bumpServerMode == Ssl::bumpPeek || bumpServerMode == Ssl::bumpStare) {
         request->flags.sslPeek = true;
-        sslServerBump = new Ssl::ServerBump(request, NULL, bumpServerMode);
+        sslServerBump = new Ssl::ServerBump(http, nullptr, bumpServerMode);
     }
 
     // commSetConnTimeout() was called for this request before we switched.
@@ -3005,15 +3008,17 @@ ConnStateData::parseTlsHandshake()
         getSslContextStart();
         return;
     } else if (sslServerBump->act.step1 == Ssl::bumpServerFirst) {
+        Http::StreamPointer context = pipeline.front();
+        ClientHttpRequest *http = context ? context->http : nullptr;
         // will call httpsPeeked() with certificate and connection, eventually
-        FwdState::fwdStart(clientConnection, sslServerBump->entry, sslServerBump->request.getRaw());
+        FwdState::Start(clientConnection, sslServerBump->entry, sslServerBump->request.getRaw(), http ? http->al : nullptr);
     } else {
         Must(sslServerBump->act.step1 == Ssl::bumpPeek || sslServerBump->act.step1 == Ssl::bumpStare);
         startPeekAndSplice();
     }
 }
 
-void httpsSslBumpStep2AccessCheckDone(allow_t answer, void *data)
+void httpsSslBumpStep2AccessCheckDone(Acl::Answer answer, void *data)
 {
     ConnStateData *connState = (ConnStateData *) data;
 
@@ -3048,11 +3053,10 @@ ConnStateData::splice()
 {
     // normally we can splice here, because we just got client hello message
 
-    if (fd_table[clientConnection->fd].ssl.get()) {
-        // Restore default read methods
-        fd_table[clientConnection->fd].read_method = &default_read_method;
-        fd_table[clientConnection->fd].write_method = &default_write_method;
-    }
+    // fde::ssl/tls_read_method() probably reads from our own inBuf. If so, then
+    // we should not lose any raw bytes when switching to raw I/O here.
+    if (fd_table[clientConnection->fd].ssl.get())
+        fd_table[clientConnection->fd].useDefaultIo();
 
     // XXX: assuming that there was an HTTP/1.1 CONNECT to begin with...
     // reset the current protocol to HTTP/1.1 (was "HTTPS" for the bumping process)
@@ -3095,9 +3099,9 @@ ConnStateData::startPeekAndSplice()
         acl_checklist->setClientConnectionDetails(this);
         //acl_checklist->src_addr = params.conn->remote;
         //acl_checklist->my_addr = s->s;
-        acl_checklist->banAction(allow_t(ACCESS_ALLOWED, Ssl::bumpNone));
-        acl_checklist->banAction(allow_t(ACCESS_ALLOWED, Ssl::bumpClientFirst));
-        acl_checklist->banAction(allow_t(ACCESS_ALLOWED, Ssl::bumpServerFirst));
+        acl_checklist->banAction(Acl::Answer(ACCESS_ALLOWED, Ssl::bumpNone));
+        acl_checklist->banAction(Acl::Answer(ACCESS_ALLOWED, Ssl::bumpClientFirst));
+        acl_checklist->banAction(Acl::Answer(ACCESS_ALLOWED, Ssl::bumpServerFirst));
         const char *log_uri = http ? http->log_uri : nullptr;
         acl_checklist->syncAle(sslServerBump->request.getRaw(), log_uri);
         acl_checklist->nonBlockingCheck(httpsSslBumpStep2AccessCheckDone, this);
@@ -3108,7 +3112,7 @@ ConnStateData::startPeekAndSplice()
     Security::ContextPointer unConfiguredCTX(Ssl::createSSLContext(port->secure.signingCa.cert, port->secure.signingCa.pkey, port->secure));
     fd_table[clientConnection->fd].dynamicTlsContext = unConfiguredCTX;
 
-    if (!httpsCreate(clientConnection, unConfiguredCTX))
+    if (!httpsCreate(this, unConfiguredCTX))
         return;
 
     switchedToHttps_ = true;
