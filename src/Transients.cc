@@ -166,8 +166,6 @@ Transients::get(const cache_key *key)
     e->mem_obj->xitTable.index = index;
     e->mem_obj->xitTable.io = Store::ioReading;
     anchor->exportInto(*e);
-    const bool collapsingRequired = EBIT_TEST(anchor->basics.flags, ENTRY_REQUIRES_COLLAPSING);
-    e->setCollapsingRequirement(collapsingRequired);
     // keep read lock to receive updates from others
     return e;
 }
@@ -186,21 +184,6 @@ Transients::findCollapsed(const sfileno index)
 
     debugs(20, 3, "no entry at " << index << " in " << MapLabel);
     return NULL;
-}
-
-void
-Transients::clearCollapsingRequirement(const StoreEntry &e)
-{
-    assert(map);
-    assert(e.hasTransients());
-    assert(isWriter(e));
-    const auto idx = e.mem_obj->xitTable.index;
-    auto &anchor = map->writeableEntry(idx);
-    if (EBIT_TEST(anchor.basics.flags, ENTRY_REQUIRES_COLLAPSING)) {
-        // XXX: Non-atomic, [app]-unmarked flags are off limits in append mode.
-        EBIT_CLR(anchor.basics.flags, ENTRY_REQUIRES_COLLAPSING);
-        CollapsedForwarding::Broadcast(e);
-    }
 }
 
 void

@@ -1818,13 +1818,6 @@ StoreEntry::startWriting()
 
     rep->body.packInto(this);
     flush();
-
-    // The entry headers are written, new clients
-    // should not collapse anymore.
-    if (hittingRequiresCollapsing()) {
-        setCollapsingRequirement(false);
-        Store::Root().transientsClearCollapsingRequirement(*this);
-    }
 }
 
 char const *
@@ -2111,6 +2104,10 @@ StoreEntry::describeTimestamps() const
 void
 StoreEntry::setCollapsingRequirement(const bool required)
 {
+    if (hittingRequiresCollapsing() == required)
+        return; // no change
+
+    debugs(20, 5, (required ? "adding to " : "removing from ") << *this);
     if (required)
         EBIT_SET(flags, ENTRY_REQUIRES_COLLAPSING);
     else
