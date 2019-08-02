@@ -814,6 +814,7 @@ Ipc::StoreMapAnchor::exportInto(StoreEntry &into) const
     // There are possibly several flags we do not need to overwrite,
     // and ENTRY_REQUIRES_COLLAPSING is one of them.
     // TODO: check for other flags.
+    // XXX: This flip-flopping trick results in confusing debugging messages.
     into.setCollapsingRequirement(collapsingRequired);
 }
 
