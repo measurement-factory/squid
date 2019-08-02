@@ -774,6 +774,7 @@ Store::Controller::syncCollapsed(const sfileno xitIndex)
 
     if (inSync) {
         debugs(20, 5, "synced " << *collapsed);
+        assert(found);
         collapsed->setCollapsingRequirement(false);
         collapsed->invokeHandlers();
         return;
