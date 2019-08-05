@@ -521,6 +521,12 @@ MemStore::copyFromShm(StoreEntry &e, const sfileno index, const Ipc::StoreMapAnc
         return true;
     }
 
+    if (anchor.writerHalted) {
+        debugs(20, 5, "mem-loaded aborted " << e.mem_obj->endOffset() << '/' <<
+           anchor.basics.swap_file_sz << " bytes of " << e);
+        return false;
+    }
+
     debugs(20, 5, "mem-loaded all " << e.mem_obj->endOffset() << '/' <<
            anchor.basics.swap_file_sz << " bytes of " << e);
 

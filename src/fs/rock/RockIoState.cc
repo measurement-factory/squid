@@ -98,6 +98,8 @@ Rock::IoState::read_(char *buf, size_t len, off_t coreOff, STRCB *cb, void *data
     assert(theFile != NULL);
     assert(coreOff >= 0);
 
+    bool writerLeft = readAnchor().writerHalted; // before the sidCurrent change
+
     // if we are dealing with the first read or
     // if the offset went backwords, start searching from the beginning
     if (sidCurrent < 0 || coreOff < objOffset) {
@@ -106,6 +108,7 @@ Rock::IoState::read_(char *buf, size_t len, off_t coreOff, STRCB *cb, void *data
     }
 
     while (sidCurrent >= 0 && coreOff >= objOffset + currentReadableSlice().size) {
+        writerLeft = readAnchor().writerHalted; // before the sidCurrent change
         objOffset += currentReadableSlice().size;
         sidCurrent = currentReadableSlice().next;
     }
@@ -114,6 +117,13 @@ Rock::IoState::read_(char *buf, size_t len, off_t coreOff, STRCB *cb, void *data
     assert(read.callback_data == NULL);
     read.callback = cb;
     read.callback_data = cbdataReference(data);
+
+    // quit if we cannot read what they want, and the writer cannot add more
+    if (sidCurrent < 0 && writerLeft) {
+        debugs(79, 5, "quitting at " << coreOff << " in " << *e);
+        callReaderBack(buf, -1);
+        return;
+    }
 
     // punt if read offset is too big (because of client bugs or collapsing)
     if (sidCurrent < 0) {
