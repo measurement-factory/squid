@@ -10,6 +10,7 @@
 #define SQUID_SRC_SECURITY_FORWARD_H
 
 #include "base/CbDataList.h"
+#include "sbuf/forward.h"
 #include "security/Context.h"
 #include "security/Session.h"
 
@@ -80,6 +81,9 @@ typedef void *CrlPointer;
 typedef std::list<Security::CertPointer> CertList;
 
 typedef std::list<Security::CrlPointer> CertRevokeList;
+
+/// \return the SubjectName field of the given certificate
+SBuf CertSubjectName(const CertPointer &);
 
 #if USE_OPENSSL
 CtoCpp1(DH_free, DH *);

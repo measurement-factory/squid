@@ -656,15 +656,15 @@ Security::PeerConnector::certDownloadingDone(SBuf &obj, int downloadStatus)
     // be able to accept collection of certificates.
     // TODO: support collection of certificates
     const unsigned char *raw = (const unsigned char*)obj.rawContent();
-    if (X509 *cert = d2i_X509(NULL, &raw, obj.length())) {
-        char buffer[1024];
-        debugs(81, 5, "Retrieved certificate: " << X509_NAME_oneline(X509_get_subject_name(cert), buffer, 1024));
+    CertPointer cert(d2i_X509(NULL, &raw, obj.length()));
+    if (cert) {
+        debugs(81, 5, "Retrieved certificate: " << CertSubjectName(cert));
         ContextPointer ctx(getTlsContext());
         const Security::CertList &certsList = srvBio->serverCertificatesIfAny();
-        if (const char *issuerUri = Ssl::uriOfIssuerIfMissing(cert, certsList, ctx)) {
+        if (const char *issuerUri = Ssl::uriOfIssuerIfMissing(cert.get(), certsList, ctx)) {
             urlsOfMissingCerts.push(SBuf(issuerUri));
         }
-        Ssl::SSL_add_untrusted_cert(session.get(), cert);
+        Ssl::SSL_add_untrusted_cert(session.get(), cert.release());
     }
 
     // Check if there are URIs to download from and if yes start downloading

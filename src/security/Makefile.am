@@ -16,6 +16,7 @@ libsecurity_la_SOURCES= \
 	BlindPeerConnector.cc \
 	BlindPeerConnector.h \
 	CertError.h \
+	CertGadgets.cc \
 	Context.h \
 	EncryptorAnswer.cc \
 	EncryptorAnswer.h \

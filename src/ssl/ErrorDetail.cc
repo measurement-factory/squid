@@ -436,11 +436,11 @@ Ssl::ErrorDetail::err_frm_code Ssl::ErrorDetail::ErrorFormatingCodes[] = {
 const char  *Ssl::ErrorDetail::subject() const
 {
     if (broken_cert.get()) {
-        static char tmpBuffer[256]; // A temporary buffer
-        if (X509_NAME_oneline(X509_get_subject_name(broken_cert.get()), tmpBuffer, sizeof(tmpBuffer))) {
+        auto tmp = CertSubjectName(broken_cert);
+        if (!tmp.isEmpty()) {
             // quote to avoid possible html code injection through
             // certificate subject
-            return html_quote(tmpBuffer);
+            return html_quote(tmp.c_str());
         }
     }
     return "[Not available]";
