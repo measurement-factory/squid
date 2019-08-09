@@ -10,6 +10,7 @@
 #include "errorpage.h"
 #include "fatal.h"
 #include "html_quote.h"
+#include "security/CertGadgets.h"
 #include "ssl/ErrorDetail.h"
 
 #include <climits>
@@ -436,7 +437,7 @@ Ssl::ErrorDetail::err_frm_code Ssl::ErrorDetail::ErrorFormatingCodes[] = {
 const char  *Ssl::ErrorDetail::subject() const
 {
     if (broken_cert.get()) {
-        auto tmp = CertSubjectName(broken_cert);
+        auto tmp = Security::CertSubjectName(broken_cert);
         if (!tmp.isEmpty()) {
             // quote to avoid possible html code injection through
             // certificate subject

@@ -17,6 +17,7 @@
 #include "fde.h"
 #include "http/Stream.h"
 #include "HttpRequest.h"
+#include "security/CertGadgets.h"
 #include "security/NegotiationHistory.h"
 #include "security/PeerConnector.h"
 #include "SquidConfig.h"
