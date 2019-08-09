@@ -507,12 +507,6 @@ Client::haveParsedReplyHeaders()
 {
     Must(theFinalReply);
 
-    // Same-worker collapsing risks end with the receipt of the headers.
-    // SMP collapsing risks remain until the headers are actually cached, but
-    // that event is announced via CF-agnostic disk I/O broadcasts.
-    if (entry->hittingRequiresCollapsing())
-        entry->setCollapsingRequirement(false);
-
     maybePurgeOthers();
 
     // adaptation may overwrite old offset computed using the virgin response

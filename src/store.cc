@@ -2101,19 +2101,6 @@ StoreEntry::describeTimestamps() const
     return buf;
 }
 
-void
-StoreEntry::setCollapsingRequirement(const bool required)
-{
-    if (hittingRequiresCollapsing() == required)
-        return; // no change
-
-    debugs(20, 5, (required ? "adding to " : "removing from ") << *this);
-    if (required)
-        EBIT_SET(flags, ENTRY_REQUIRES_COLLAPSING);
-    else
-        EBIT_CLR(flags, ENTRY_REQUIRES_COLLAPSING);
-}
-
 static std::ostream &
 operator <<(std::ostream &os, const Store::IoStatus &io)
 {
@@ -2183,7 +2170,6 @@ std::ostream &operator <<(std::ostream &os, const StoreEntry &e)
         if (EBIT_TEST(e.flags, ENTRY_VALIDATED)) os << 'V';
         if (EBIT_TEST(e.flags, ENTRY_BAD_LENGTH)) os << 'L';
         if (EBIT_TEST(e.flags, ENTRY_ABORTED)) os << 'A';
-        if (EBIT_TEST(e.flags, ENTRY_REQUIRES_COLLAPSING)) os << 'C';
     }
 
     return os << '/' << &e << '*' << e.locks();

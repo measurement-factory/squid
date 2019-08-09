@@ -109,9 +109,6 @@ enum {
     ENTRY_VALIDATED,
     ENTRY_BAD_LENGTH,
     ENTRY_ABORTED,
-    /// Whether the entry serves collapsed hits now.
-    /// Meaningful only for public entries.
-    ENTRY_REQUIRES_COLLAPSING
 };
 
 /*

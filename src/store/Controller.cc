@@ -677,15 +677,11 @@ Store::Controller::allowCollapsing(StoreEntry *e, const RequestFlags &reqFlags,
                                    const HttpRequestMethod &reqMethod)
 {
     const KeyScope keyScope = reqFlags.refresh ? ksRevalidation : ksDefault;
-    // set the flag now so that it gets copied into the Transients entry
-    e->setCollapsingRequirement(true);
     if (e->makePublic(keyScope)) { // this is needed for both local and SMP collapsing
         debugs(20, 3, "may " << (transients && e->hasTransients() ?
                                  "SMP-" : "locally-") << "collapse " << *e);
         return true;
     }
-    // paranoid cleanup; the flag is meaningless for private entries
-    e->setCollapsingRequirement(false);
     return false;
 }
 
@@ -775,7 +771,6 @@ Store::Controller::syncCollapsed(const sfileno xitIndex)
     if (inSync) {
         debugs(20, 5, "synced " << *collapsed);
         assert(found);
-        collapsed->setCollapsingRequirement(false);
         collapsed->invokeHandlers();
         return;
     }
@@ -794,7 +789,6 @@ Store::Controller::syncCollapsed(const sfileno xitIndex)
 
     // the entry is still not in one of the caches
     debugs(20, 7, "waiting " << *collapsed);
-    collapsed->setCollapsingRequirement(true);
 }
 
 /// Called for Transients entries that are not yet anchored to a cache.
@@ -822,7 +816,6 @@ Store::Controller::anchorToCache(StoreEntry &entry, bool &inSync)
     if (inSync) {
         debugs(20, 7, "anchored " << entry);
         assert(found);
-        entry.setCollapsingRequirement(false);
         return true;
     }
 
@@ -842,7 +835,6 @@ Store::Controller::anchorToCache(StoreEntry &entry, bool &inSync)
     }
 
     debugs(20, 7, "skipping not yet cached " << entry);
-    entry.setCollapsingRequirement(true);
     return false;
 }
 
