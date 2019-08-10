@@ -94,11 +94,24 @@ class EncryptorAnswer;
 /// Squid defined error code (<0), an error code returned by X.509 API, or SSL_ERROR_NONE
 typedef int ErrorCode;
 
+// produce the string representation of a TLS library error code
 inline const char *ErrorString(const ErrorCode code) {
 #if USE_OPENSSL
     return ERR_error_string(code, nullptr);
 #elif USE_GNUTLS
     return gnutls_strerror(code);
+#else
+    return "[no TLS library]";
+#endif
+}
+
+// produce the string representation of an X.509 certificate verify error code
+inline const char *VerifyErrorString(const ErrorCode checkCode)
+{
+#if USE_OPENSSL
+    return X509_verify_cert_error_string(checkCode);
+#elif USE_GNUTLS
+    return "[not implemented]";
 #else
     return "[no TLS library]";
 #endif
