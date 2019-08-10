@@ -343,6 +343,12 @@ Rock::SwapDir::parse(int anIndex, char *aPath)
     validateOptions();
 }
 
+bool
+Rock::SwapDir::smpAware() const
+{
+    return UsingSmp();
+}
+
 void
 Rock::SwapDir::reconfigure()
 {
