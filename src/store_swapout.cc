@@ -374,7 +374,7 @@ StoreEntry::mayStartSwapOut()
 
     // in SMP mode, restrict caching to StoreEntry publisher to avoid
     // workers releasing each other caching attempts
-    if (!Store::Root().transientsWriter(*this)) {
+    if (Store::Controller::SmpAware() && !Store::Root().transientsWriter(*this)) {
         debugs(20, 5, "yield to entry publisher");
         swapOutDecision(MemObject::SwapOut::swImpossible);
         return false;
