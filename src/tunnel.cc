@@ -1116,14 +1116,14 @@ TunnelStateData::usePinned()
 {
     try {
         const auto serverConn = ConnStateData::BorrowPinnedConnection(request.getRaw(), al);
-        debugs(26,7, "pinned peer connection: " << serverConn);
-
+        debugs(26, 7, "pinned peer connection: " << serverConn);
         tunnelConnectDone(serverConn, Comm::OK, 0, (void *)this);
-    } catch (const PinningException &ex) {
+    } catch (ErrorState * const error) {
         // a PINNED path failure is fatal; do not wait for more paths
-        sendError(new ErrorState(ERR_CANNOT_FORWARD, Http::scServiceUnavailable, request.getRaw(), al), ex.what());
+        sendError(error, "pinned path failure");
         return;
     }
+
 }
 
 CBDATA_CLASS_INIT(TunnelStateData);
