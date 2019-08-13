@@ -193,7 +193,7 @@ public:
     bool hasMemStore() const { return mem_obj && mem_obj->memCache.index >= 0; }
 
     /// whether this entry can feed collapsed requests and only them
-    bool hittingRequiresCollapsing() const { return !mem_obj || (mem_obj->getReply()->pstate < Http::Message::psParsed); }
+    bool hittingRequiresCollapsing() const { return mem_obj && (mem_obj->getReply()->pstate < Http::Message::psParsed); }
 
     MemObject *mem_obj;
     RemovalPolicyNode repl;
