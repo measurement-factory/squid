@@ -750,6 +750,7 @@ Store::Controller::allowCollapsing(StoreEntry *e, const RequestFlags &reqFlags,
     if (e->makePublic(keyScope)) { // this is needed for both local and SMP collapsing
         debugs(20, 3, "may " << (transients && e->hasTransients() ?
                                  "SMP-" : "locally-") << "collapse " << *e);
+        assert(e->hittingRequiresCollapsing());
         return true;
     }
     // paranoid cleanup; the flag is meaningless for private entries
