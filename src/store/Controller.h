@@ -111,6 +111,9 @@ public:
     /// marks the entry completed for collapsed requests
     void transientsCompleteWriting(StoreEntry &);
 
+    /// whether the caller holds basic writing rights to the given entry
+    bool cacheWriter(const StoreEntry &) const;
+
     /// Update local intransit entry after changes made by appending worker.
     void syncCollapsed(const sfileno);
 

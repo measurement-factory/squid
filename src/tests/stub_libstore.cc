@@ -47,6 +47,7 @@ void Controller::addReading(StoreEntry *, const cache_key *) STUB
 void Controller::addWriting(StoreEntry *, const cache_key *) STUB
 bool Controller::transientsReader(const StoreEntry &) const STUB_RETVAL(false)
 bool Controller::transientsWriter(const StoreEntry &) const STUB_RETVAL(false)
+bool Controller::cacheWriter(const StoreEntry &) const STUB_RETVAL(false)
 void Controller::syncCollapsed(const sfileno) STUB
 void Controller::noteStoppedSharedWriting(StoreEntry &) STUB
 int Controller::transientReaders(const StoreEntry &) const STUB_RETVAL(0)

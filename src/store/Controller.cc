@@ -443,6 +443,12 @@ Store::Controller::transientsWriter(const StoreEntry &e) const
     return transients && e.hasTransients() && transients->isWriter(e);
 }
 
+bool
+Store::Controller::cacheWriter(const StoreEntry &e) const
+{
+    return transients ? transientsWriter(e) : true;
+}
+
 int64_t
 Store::Controller::accumulateMore(StoreEntry &entry) const
 {
