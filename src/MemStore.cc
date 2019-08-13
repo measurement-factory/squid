@@ -479,7 +479,7 @@ MemStore::copyFromShm(StoreEntry &e, const sfileno index, const Ipc::StoreMapAnc
         wasEof = anchor.complete() && slice.next < 0;
         const Ipc::StoreMapSlice::Size wasSize = slice.size;
 
-        debugs(20, 9, "entry " << index << " slice " << sid << " eof " <<
+        debugs(20, 8, "entry " << index << " slice " << sid << " eof " <<
                wasEof << " wasSize " << wasSize << " <= " <<
                anchor.basics.swap_file_sz << " sliceOffset " << sliceOffset <<
                " mem.endOffset " << e.mem_obj->endOffset());
@@ -497,7 +497,7 @@ MemStore::copyFromShm(StoreEntry &e, const sfileno index, const Ipc::StoreMapAnc
                                          page + prefixSize);
             if (!copyFromShmSlice(e, sliceBuf, wasEof))
                 return false;
-            debugs(20, 9, "entry " << index << " copied slice " << sid <<
+            debugs(20, 8, "entry " << index << " copied slice " << sid <<
                    " from " << extra.page << '+' << prefixSize);
         }
         // else skip a [possibly incomplete] slice that we copied earlier
@@ -521,7 +521,13 @@ MemStore::copyFromShm(StoreEntry &e, const sfileno index, const Ipc::StoreMapAnc
         return true;
     }
 
-    debugs(20, 7, "mem-loaded all " << e.mem_obj->object_sz << '/' <<
+    if (anchor.writerHalted) {
+        debugs(20, 5, "mem-loaded aborted " << e.mem_obj->endOffset() << '/' <<
+           anchor.basics.swap_file_sz << " bytes of " << e);
+        return false;
+    }
+
+    debugs(20, 5, "mem-loaded all " << e.mem_obj->endOffset() << '/' <<
            anchor.basics.swap_file_sz << " bytes of " << e);
 
     // from StoreEntry::complete()
@@ -599,6 +605,19 @@ MemStore::shouldCache(StoreEntry &e) const
     if (!e.mem_obj->vary_headers.isEmpty()) {
         // XXX: We must store/load SerialisedMetaData to cache Vary in RAM
         debugs(20, 5, "Vary not yet supported: " << e.mem_obj->vary_headers);
+        return false;
+    }
+
+    // Store::Root() in the next check below is FATALly missing during shutdown
+    if (shutting_down) {
+        debugs(20, 5, "yield to shutdown: " << e);
+        return false;
+    }
+
+    // in SMP mode, restrict caching to StoreEntry publisher to avoid
+    // workers releasing each other caching attempts
+    if (Store::Root().transientsReader(e)) {
+        debugs(20, 5, "yield to entry publisher: " << e);
         return false;
     }
 
@@ -881,8 +900,8 @@ MemStore::completeWriting(StoreEntry &e)
     e.mem_obj->memCache.io = MemObject::ioDone;
     map->closeForWriting(index);
 
-    CollapsedForwarding::Broadcast(e); // before we close our transient entry!
-    Store::Root().transientsCompleteWriting(e);
+    CollapsedForwarding::Broadcast(e);
+    e.storeWriterDone();
 }
 
 void
@@ -921,7 +940,8 @@ MemStore::disconnect(StoreEntry &e)
             map->abortWriting(mem_obj.memCache.index);
             mem_obj.memCache.index = -1;
             mem_obj.memCache.io = MemObject::ioDone;
-            Store::Root().stopSharing(e); // broadcasts after the change
+            CollapsedForwarding::Broadcast(e);
+            e.storeWriterDone();
         } else {
             assert(mem_obj.memCache.io == MemObject::ioReading);
             map->closeForReading(mem_obj.memCache.index);

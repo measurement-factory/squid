@@ -95,7 +95,6 @@ void StoreEntry::touch() STUB
 void StoreEntry::release(const bool shareable) STUB
 void StoreEntry::append(char const *, int) STUB
 void StoreEntry::vappendf(const char *, va_list) STUB
-void StoreEntry::setCollapsingRequirement(const bool required) STUB
 
 void Store::Maintain(void *unused) STUB
 

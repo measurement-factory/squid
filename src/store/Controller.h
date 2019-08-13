@@ -111,20 +111,20 @@ public:
     /// marks the entry completed for collapsed requests
     void transientsCompleteWriting(StoreEntry &);
 
+    /// whether the caller holds basic writing rights to the given entry
+    bool cacheWriter(const StoreEntry &) const;
+
     /// Update local intransit entry after changes made by appending worker.
     void syncCollapsed(const sfileno);
 
-    /// stop any current (and prevent any future) SMP sharing of the given entry
-    void stopSharing(StoreEntry &);
+    /// adjust shared state after this worker stopped changing the entry
+    void noteStoppedSharedWriting(StoreEntry &);
 
     /// number of the transient entry readers some time ago
     int transientReaders(const StoreEntry &) const;
 
     /// disassociates the entry from the intransit table
     void transientsDisconnect(StoreEntry &);
-
-    /// removes collapsing requirement (for future hits)
-    void transientsClearCollapsingRequirement(StoreEntry &e);
 
     /// disassociates the entry from the memory cache, preserving cached data
     void memoryDisconnect(StoreEntry &);

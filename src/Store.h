@@ -80,6 +80,8 @@ public:
     void memOutDecision(const bool willCacheInRam);
     // called when a decision to cache on disk has been made
     void swapOutDecision(const MemObject::SwapOut::Decision &decision);
+    /// called when a store writer ends its work (successfully or not)
+    void storeWriterDone();
 
     void abort();
     bool makePublic(const KeyScope keyScope = ksDefault);
@@ -191,10 +193,7 @@ public:
     bool hasMemStore() const { return mem_obj && mem_obj->memCache.index >= 0; }
 
     /// whether this entry can feed collapsed requests and only them
-    bool hittingRequiresCollapsing() const { return EBIT_TEST(flags, ENTRY_REQUIRES_COLLAPSING); }
-
-    /// allow or forbid collapsed requests feeding
-    void setCollapsingRequirement(const bool required);
+    bool hittingRequiresCollapsing() const { return mem_obj && (mem_obj->getReply()->pstate < Http::Message::psParsed); }
 
     MemObject *mem_obj;
     RemovalPolicyNode repl;
@@ -286,7 +285,7 @@ public:
 protected:
     typedef Store::EntryGuard EntryGuard;
 
-    void transientsAbandonmentCheck();
+    void storeWritingCheckpoint();
     /// does nothing except throwing if disk-associated data members are inconsistent
     void checkDisk() const;
 
