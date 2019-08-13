@@ -112,7 +112,7 @@ public:
     void transientsCompleteWriting(StoreEntry &);
 
     /// whether the caller holds basic writing rights to the given entry
-    bool cacheWriter(const StoreEntry &) const;
+    bool cacheWriter(const StoreEntry &e) const { return transients ? transientsWriter(e) : true; }
 
     /// Update local intransit entry after changes made by appending worker.
     void syncCollapsed(const sfileno);
