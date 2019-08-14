@@ -1117,7 +1117,7 @@ TunnelStateData::usePinned()
     try {
         const auto serverConn = ConnStateData::BorrowPinnedConnection(request.getRaw(), al);
         debugs(26, 7, "pinned peer connection: " << serverConn);
-        tunnelConnectDone(serverConn, Comm::OK, 0, (void *)this);
+        tunnelConnectDone(serverConn, Comm::OK, 0, static_cast<void *>(this));
     } catch (ErrorState * const error) {
         // a PINNED path failure is fatal; do not wait for more paths
         sendError(error, "pinned path failure");
