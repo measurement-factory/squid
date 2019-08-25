@@ -105,7 +105,7 @@ inline const char *ErrorString(const ErrorCode code) {
 #endif
 }
 
-// produce the string representation of an X.509 certificate verify error code
+/// the string representation of an X.509 certificate verify error code
 inline const char *VerifyErrorString(const ErrorCode checkCode)
 {
 #if USE_OPENSSL
