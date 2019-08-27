@@ -80,6 +80,8 @@ public:
     /// if not the accept() will be postponed
     static bool okToAccept();
 
+    virtual std::string context() const;
+
 protected:
     friend class AcceptLimiter;
 

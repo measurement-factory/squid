@@ -11,6 +11,7 @@
 #include "squid.h"
 #include "acl/FilledChecklist.h"
 #include "anyp/PortCfg.h"
+#include "AsyncContext.h"
 #include "base/TextException.h"
 #include "client_db.h"
 #include "comm/AcceptLimiter.h"
@@ -28,6 +29,7 @@
 #include "log/access_log.h"
 #include "MasterXaction.h"
 #include "profiler/Profiler.h"
+#include "sbuf/Stream.h"
 #include "SquidConfig.h"
 #include "SquidTime.h"
 #include "StatCounters.h"
@@ -83,8 +85,10 @@ Comm::TcpAcceptor::start()
     conn->noteStart();
 
     // if no error so far start accepting connections.
-    if (errcode == 0)
+    if (errcode == 0) {
+        remember();
         SetSelect(conn->fd, COMM_SELECT_READ, doAccept, this, 0);
+    }
 }
 
 bool
@@ -255,6 +259,16 @@ Comm::TcpAcceptor::okToAccept()
     return false;
 }
 
+std::string
+Comm::TcpAcceptor::context() const
+{
+    if (!AsyncContext::context().empty())
+        return AsyncContext::context();
+    // XXX: construct a meaningful context instead
+    auto localContext = ToSBuf("remote address: ", conn->remote);
+    return localContext.c_str();
+}
+
 static void
 logAcceptError(const Comm::ConnectionPointer &conn)
 {
@@ -302,6 +316,7 @@ Comm::TcpAcceptor::acceptOne()
         notify(flag, newConnDetails);
     }
 
+    remember();
     SetSelect(conn->fd, COMM_SELECT_READ, doAccept, this, 0);
 }
 

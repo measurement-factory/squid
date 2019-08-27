@@ -9,6 +9,7 @@
 #ifndef SQUID_ASYNCCALL_H
 #define SQUID_ASYNCCALL_H
 
+#include "AsyncContext.h"
 #include "base/InstanceId.h"
 #include "event.h"
 #include "RefCount.h"
@@ -41,7 +42,7 @@ class AsyncCallQueue;
  \todo CBDATA_CLASS kids
  \ingroup AsyncCallsAPI
  */
-class AsyncCall: public RefCountable
+class AsyncCall: public RefCountable, public AsyncContext
 {
 public:
     typedef RefCount <AsyncCall> Pointer;

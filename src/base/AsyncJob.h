@@ -9,6 +9,7 @@
 #ifndef SQUID_ASYNC_JOB_H
 #define SQUID_ASYNC_JOB_H
 
+#include "AsyncContext.h"
 #include "base/AsyncCall.h"
 #include "base/InstanceId.h"
 #include "cbdata.h"
@@ -28,7 +29,7 @@ class CbcPointer;
 
 /// \ingroup AsyncJobAPI
 /// Base class for all asynchronous jobs
-class AsyncJob: public CbdataParent
+class AsyncJob: public CbdataParent, public AsyncContext
 {
 public:
     typedef CbcPointer<AsyncJob> Pointer;

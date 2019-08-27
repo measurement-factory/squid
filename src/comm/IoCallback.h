@@ -9,6 +9,7 @@
 #ifndef _SQUID_COMM_IOCALLBACK_H
 #define _SQUID_COMM_IOCALLBACK_H
 
+#include "AsyncContext.h"
 #include "base/AsyncCall.h"
 #include "comm/Flag.h"
 #include "comm/forward.h"
@@ -26,7 +27,7 @@ typedef enum {
 } iocb_type;
 
 /// Details about a particular Comm IO callback event.
-class IoCallback
+class IoCallback : public AsyncContext
 {
 public:
     iocb_type type;
@@ -53,6 +54,8 @@ public:
 
     /// finish the IO operation imediately and schedule the callback with the current state.
     void finish(Comm::Flag code, int xerrn);
+
+    virtual std::string context() const override;
 
 private:
     void reset();

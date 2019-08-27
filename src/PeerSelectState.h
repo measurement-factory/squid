@@ -11,6 +11,7 @@
 
 #include "AccessLogEntry.h"
 #include "acl/Checklist.h"
+#include "AsyncContext.h"
 #include "base/CbcPointer.h"
 #include "comm/forward.h"
 #include "hier_code.h"
@@ -56,7 +57,7 @@ class FwdServer;
 
 /// Finds peer (including origin server) IPs for forwarding a single request.
 /// Gives PeerSelectionInitiator each found destination, in the right order.
-class PeerSelector: public Dns::IpReceiver
+class PeerSelector: public Dns::IpReceiver, public AsyncContext
 {
     CBDATA_CHILD(PeerSelector);
 

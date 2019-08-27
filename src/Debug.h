@@ -11,6 +11,7 @@
 #ifndef SQUID_DEBUG_H
 #define SQUID_DEBUG_H
 
+#include "AsyncContext.h"
 #include "base/Here.h"
 // XXX should be mem/forward.h once it removes dependencies on typedefs.h
 #include "mem/AllocatorProxy.h"
@@ -128,8 +129,11 @@ void ResyncDebugLog(FILE *newDestination);
             std::ostream &_dbo = Debug::Start((SECTION), _dbg_level); \
             if (_dbg_level > DBG_IMPORTANT) { \
                 _dbo << (SECTION) << ',' << _dbg_level << "| " \
-                     << Here() << ": "; \
-            } \
+                     << Here() << ": xID: " << AsyncContext::ToString() << " : "; \
+            }  else { \
+                _dbo << (SECTION) << ',' << _dbg_level << "| " \
+                     << Here() << ": xID: " << AsyncContext::ToString() << " : "; \
+			} \
             _dbo << CONTENT; \
             Debug::Finish(); \
         } \

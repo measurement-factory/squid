@@ -10,6 +10,7 @@
 
 #include "squid.h"
 #include "acl/FilledChecklist.h"
+#include "AsyncContext.h"
 #include "client_side.h"
 #include "client_side_reply.h"
 #include "client_side_request.h"
@@ -18,6 +19,7 @@
 #include "http/Stream.h"
 #include "HttpHeaderTools.h"
 #include "profiler/Profiler.h"
+#include "sbuf/Stream.h"
 #include "servers/Http1Server.h"
 #include "SquidConfig.h"
 #include "Store.h"
@@ -138,7 +140,7 @@ Http::One::Server::buildHttpRequest(Http::StreamPointer &context)
 
     // TODO: move URL parse into Http Parser and INVALID_URL into the above parse error handling
     MasterXaction::Pointer mx = new MasterXaction(XactionInitiator::initClient);
-    mx->tcpClient = clientConnection;
+    AsyncContext::Reset(ToSBuf(mx->id).c_str());
     if ((request = HttpRequest::FromUrl(http->uri, mx, parser_->method())) == NULL) {
         debugs(33, 5, "Invalid URL: " << http->uri);
         // setReplyToError() requires log_uri

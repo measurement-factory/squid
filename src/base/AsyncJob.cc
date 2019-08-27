@@ -32,6 +32,7 @@ AsyncJob::AsyncJob(const char *aTypeName) :
 {
     debugs(93,5, "AsyncJob constructed, this=" << this <<
            " type=" << typeName << " [" << id << ']');
+    remember();
 }
 
 AsyncJob::~AsyncJob()
@@ -117,6 +118,8 @@ void AsyncJob::callStart(AsyncCall &call)
     Must(cbdataReferenceValid(toCbdata()));
 
     Must(!inCall); // see AsyncJob::canBeCalled
+
+    recollect();
 
     inCall = &call; // XXX: ugly, but safe if callStart/callEnd,Ex are paired
     debugs(inCall->debugSection, inCall->debugLevel,

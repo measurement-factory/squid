@@ -15,6 +15,7 @@
 #include "CommCalls.h"
 #include "fde.h"
 #include "globals.h"
+#include "sbuf/Stream.h"
 
 Comm::CbEntry *Comm::iocb_table;
 
@@ -134,5 +135,15 @@ Comm::IoCallback::finish(Comm::Flag code, int xerrn)
 
     /* Reset for next round. */
     reset();
+}
+
+std::string
+Comm::IoCallback::context() const
+{
+    if (!AsyncContext::context().empty())
+        return AsyncContext::context();
+    // XXX: construct a meaningful context instead
+    auto localContext = ToSBuf("remote: ", conn->remote);
+    return localContext.c_str();
 }
 

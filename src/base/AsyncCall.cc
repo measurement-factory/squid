@@ -8,6 +8,7 @@
 
 #include "squid.h"
 #include "AsyncCall.h"
+#include "AsyncContext.h"
 #include "base/AsyncCall.h"
 #include "base/AsyncCallQueue.h"
 #include "cbdata.h"
@@ -24,6 +25,7 @@ AsyncCall::AsyncCall(int aDebugSection, int aDebugLevel,
 {
     debugs(debugSection, debugLevel, "The AsyncCall " << name << " constructed, this=" << this <<
            " [" << id << ']');
+    remember();
 }
 
 AsyncCall::~AsyncCall()
@@ -37,6 +39,7 @@ AsyncCall::make()
     debugs(debugSection, debugLevel, HERE << "make call " << name <<
            " [" << id << ']');
     if (canFire()) {
+        recollect();
         fire();
         return;
     }

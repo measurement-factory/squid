@@ -23,6 +23,7 @@ void AsyncCallQueue::schedule(AsyncCall::Pointer &call)
 {
     assert(call != NULL);
     assert(!call->theNext);
+    call->remember();
     if (theHead != NULL) { // append
         assert(!theTail->theNext);
         theTail->theNext = call;
