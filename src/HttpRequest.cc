@@ -545,6 +545,7 @@ HttpRequest::FromUrl(const char * url, const MasterXaction::Pointer &mx, const H
     std::unique_ptr<HttpRequest> req(new HttpRequest(mx));
     if (req->url.parse(method, url)) {
         req->method = method;
+        AsyncContextManager::Instance().init(req.get());
         return req.release();
     }
     return nullptr;

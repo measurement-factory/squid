@@ -42,7 +42,7 @@ class AsyncCallQueue;
  \todo CBDATA_CLASS kids
  \ingroup AsyncCallsAPI
  */
-class AsyncCall: public RefCountable, public AsyncContext
+class AsyncCall: public RefCountable
 {
 public:
     typedef RefCount <AsyncCall> Pointer;
@@ -78,6 +78,7 @@ public:
     const int debugSection;
     const int debugLevel;
     const InstanceId<AsyncCall> id;
+    AsyncContextPointer asyncContext;
 
 protected:
     virtual bool canFire();

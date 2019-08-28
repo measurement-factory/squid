@@ -10,6 +10,7 @@
 
 #include "squid.h"
 #include "AsyncContext.h"
+#include "AsyncContextManager.h"
 #include "AsyncEngine.h"
 #include "base/AsyncCallQueue.h"
 #include "Debug.h"
@@ -30,7 +31,7 @@ void
 EventLoop::checkEngine(AsyncEngine * engine, bool const primary)
 {
     int requested_delay;
-    AsyncContext::Reset();
+    AsyncContextManager::Instance().reset(nullptr);
 
     if (!primary)
         requested_delay = engine->checkEvents(0);
@@ -144,7 +145,7 @@ EventLoop::runOnce()
 bool
 EventLoop::dispatchCalls()
 {
-    AsyncContext::Reset();
+    AsyncContextManager::Instance().reset(nullptr);
     bool dispatchedSome = AsyncCallQueue::Instance().fire();
     return dispatchedSome;
 }

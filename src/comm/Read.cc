@@ -74,7 +74,6 @@ comm_read_base(const Comm::ConnectionPointer &conn, char *buf, int size, AsyncCa
 
     /* Queue the read */
     ccb->setCallback(Comm::IOCB_READ, callback, (char *)buf, NULL, size);
-    ccb->remember();
     Comm::SetSelect(conn->fd, COMM_SELECT_READ, Comm::HandleRead, ccb, 0);
 }
 
@@ -131,8 +130,6 @@ Comm::HandleRead(int fd, void *data)
     assert(data == COMMIO_FD_READCB(fd));
     assert(ccb->active());
 
-    ccb->recollect();
-
     // Without a buffer, just call back.
     // The callee may ReadMore() to get the data.
     if (!ccb->buf) {
@@ -162,7 +159,6 @@ Comm::HandleRead(int fd, void *data)
         return;
     };
 
-    ccb->remember();
     /* Nope, register for some more IO */
     Comm::SetSelect(fd, COMM_SELECT_READ, Comm::HandleRead, data, 0);
 }

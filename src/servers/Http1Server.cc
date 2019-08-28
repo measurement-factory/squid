@@ -140,7 +140,6 @@ Http::One::Server::buildHttpRequest(Http::StreamPointer &context)
 
     // TODO: move URL parse into Http Parser and INVALID_URL into the above parse error handling
     MasterXaction::Pointer mx = new MasterXaction(XactionInitiator::initClient);
-    AsyncContext::Reset(ToSBuf(mx->id).c_str());
     if ((request = HttpRequest::FromUrl(http->uri, mx, parser_->method())) == NULL) {
         debugs(33, 5, "Invalid URL: " << http->uri);
         // setReplyToError() requires log_uri

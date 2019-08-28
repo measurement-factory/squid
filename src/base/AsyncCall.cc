@@ -21,11 +21,10 @@ InstanceIdDefinitions(AsyncCall, "call");
 
 AsyncCall::AsyncCall(int aDebugSection, int aDebugLevel,
                      const char *aName): name(aName), debugSection(aDebugSection),
-    debugLevel(aDebugLevel), theNext(0), isCanceled(NULL)
+    debugLevel(aDebugLevel), asyncContext(AsyncContextManager::Instance().context()), theNext(0), isCanceled(NULL)
 {
     debugs(debugSection, debugLevel, "The AsyncCall " << name << " constructed, this=" << this <<
            " [" << id << ']');
-    remember();
 }
 
 AsyncCall::~AsyncCall()
@@ -39,7 +38,7 @@ AsyncCall::make()
     debugs(debugSection, debugLevel, HERE << "make call " << name <<
            " [" << id << ']');
     if (canFire()) {
-        recollect();
+        asyncContext->restore();
         fire();
         return;
     }

@@ -971,8 +971,7 @@ PeerSelector::PeerSelector(PeerSelectionInitiator *initiator):
     acl_checklist (NULL),
     initiator_(initiator)
 {
-    // no local defaults.
-    remember();
+    ; // no local defaults.
 }
 
 const SBuf
@@ -1036,10 +1035,8 @@ PeerSelector::handlePath(const Comm::ConnectionPointer &path, FwdServer &fs)
     debugs(44, 2, "   never_direct = " << never_direct);
     debugs(44, 2, "       timedout = " << ping.timedout);
 
-    if (const auto initiator = interestedInitiator()) {
-        recollect();
+    if (const auto initiator = interestedInitiator())
         initiator->noteDestination(path);
-    }
 }
 
 InstanceIdDefinitions(PeerSelector, "PeerSelector");

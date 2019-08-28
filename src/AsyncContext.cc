@@ -6,16 +6,30 @@
  * Please see the COPYING and CONTRIBUTORS files for details.
  */
 
+#include "squid.h"
 #include "AsyncContext.h"
+#include "AsyncContextManager.h"
+#include "HttpRequest.h"
+#include "sbuf/SBuf.h"
 
-std::string AsyncContext::CurrentContext;
+AsyncContext::AsyncContext(const HttpRequestPointer &req) : request(new HttpRequestPointer)
+{
+    *request = req;
+}
+
+AsyncContext::AsyncContext() : request(new HttpRequestPointer)
+{}
+
+AsyncContext::~AsyncContext()
+{
+    delete request;
+}
 
 void
-AsyncContext::Reset(const char *context)
+AsyncContext::restore()
 {
-    if (context)
-        CurrentContext.assign(context);
-    else
-        CurrentContext.clear();
+    AsyncContextManager::Instance().reset(this);
+    // should we clean the local context?
+    // *request = HttpRequestPointer();
 }
 

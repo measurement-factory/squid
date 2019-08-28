@@ -156,3 +156,22 @@ Raw::print(std::ostream &os) const
     return os;
 }
 
+AsyncContextManager &
+AsyncContextManager::Instance()
+{
+    static AsyncContextManager manager;
+    return manager;
+}
+
+AsyncContextManager::AsyncContextManager()
+{}
+
+AsyncContextManager::~AsyncContextManager()
+{}
+
+std::ostream &
+operator<<(std::ostream &os, const AsyncContextManager &)
+{
+    return os;
+}
+

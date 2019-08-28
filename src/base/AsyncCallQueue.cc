@@ -23,7 +23,7 @@ void AsyncCallQueue::schedule(AsyncCall::Pointer &call)
 {
     assert(call != NULL);
     assert(!call->theNext);
-    call->remember();
+    call->asyncContext = AsyncContextManager::Instance().context();
     if (theHead != NULL) { // append
         assert(!theTail->theNext);
         theTail->theNext = call;

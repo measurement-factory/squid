@@ -28,11 +28,11 @@ AsyncJob::Pointer AsyncJob::Start(AsyncJob *j)
 }
 
 AsyncJob::AsyncJob(const char *aTypeName) :
-    stopReason(NULL), typeName(aTypeName), inCall(NULL)
+    stopReason(NULL), typeName(aTypeName), inCall(NULL),
+    asyncContext(AsyncContextManager::Instance().context())
 {
     debugs(93,5, "AsyncJob constructed, this=" << this <<
            " type=" << typeName << " [" << id << ']');
-    remember();
 }
 
 AsyncJob::~AsyncJob()
@@ -119,7 +119,7 @@ void AsyncJob::callStart(AsyncCall &call)
 
     Must(!inCall); // see AsyncJob::canBeCalled
 
-    recollect();
+    asyncContext->restore();
 
     inCall = &call; // XXX: ugly, but safe if callStart/callEnd,Ex are paired
     debugs(inCall->debugSection, inCall->debugLevel,

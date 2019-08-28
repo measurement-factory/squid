@@ -29,7 +29,7 @@ class CbcPointer;
 
 /// \ingroup AsyncJobAPI
 /// Base class for all asynchronous jobs
-class AsyncJob: public CbdataParent, public AsyncContext
+class AsyncJob: public CbdataParent
 {
 public:
     typedef CbcPointer<AsyncJob> Pointer;
@@ -71,6 +71,7 @@ protected:
     const char *typeName; ///< kid (leaf) class name, for debugging
     AsyncCall::Pointer inCall; ///< the asynchronous call being handled, if any
     const InstanceId<AsyncJob> id; ///< job identifier
+    AsyncContextPointer asyncContext;
 };
 
 #endif /* SQUID_ASYNC_JOB_H */

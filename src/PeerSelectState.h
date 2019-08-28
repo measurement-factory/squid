@@ -57,7 +57,7 @@ class FwdServer;
 
 /// Finds peer (including origin server) IPs for forwarding a single request.
 /// Gives PeerSelectionInitiator each found destination, in the right order.
-class PeerSelector: public Dns::IpReceiver, public AsyncContext
+class PeerSelector: public Dns::IpReceiver
 {
     CBDATA_CHILD(PeerSelector);
 

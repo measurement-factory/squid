@@ -149,6 +149,7 @@ public:
     AsyncCall::Pointer halfClosedReader; /// read handler for half-closed fds
     Security::SessionPointer ssl;
     Security::ContextPointer dynamicTlsContext; ///< cached and then freed when fd is closed
+    AsyncContextPointer asyncContext;
 #if _SQUID_WINDOWS_
     struct {
         long handle = (long)nullptr;

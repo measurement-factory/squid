@@ -9,20 +9,24 @@
 #ifndef SQUID_SRC_ASYNC_CONTEXT_H
 #define SQUID_SRC_ASYNC_CONTEXT_H
 
-#include <string>
+#include "http/forward.h"
 
-class AsyncContext
+class AsyncContext : public RefCountable
 {
     public:
-        virtual std::string context() const { return CurrentContext; }
-        static void Reset(const char *context = nullptr);
-        static const char *ToString() { return CurrentContext.empty() ? "-" : CurrentContext.c_str(); }
-        void remember() { savedContext = context(); } 
-        void recollect() { CurrentContext = savedContext; }
+        AsyncContext();
+        AsyncContext(const HttpRequestPointer &);
+        ~AsyncContext();
 
-        std::string savedContext;
-        static std::string CurrentContext;
+        AsyncContext(const AsyncContext &) = delete;
+        AsyncContext &operator=(const AsyncContext &) = delete;
+
+        void restore();
+
+        HttpRequestPointer *request;
 };
+
+typedef RefCount<AsyncContext> AsyncContextPointer;
 
 #endif
 

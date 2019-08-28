@@ -219,6 +219,8 @@ squid_SOURCES = \
 	AccessLogEntry.h \
 	AsyncContext.cc \
 	AsyncContext.h \
+	AsyncContextManager.cc \
+	AsyncContextManager.h \
 	AsyncEngine.cc \
 	AsyncEngine.h \
 	cache_cf.h \
