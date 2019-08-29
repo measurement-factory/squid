@@ -34,7 +34,7 @@ bool IsConnOpen(const Comm::ConnectionPointer &conn);
 PF HandleWrite;
 
 /// Mark an FD to be watched for its IO status.
-void SetSelect(int, unsigned int, PF *, void *, time_t);
+void SetSelect(int, unsigned int, PF *, void *, time_t, bool saveContext = false);
 
 }; // namespace Comm
 

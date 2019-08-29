@@ -160,7 +160,7 @@ Comm::HandleRead(int fd, void *data)
     };
 
     /* Nope, register for some more IO */
-    Comm::SetSelect(fd, COMM_SELECT_READ, Comm::HandleRead, data, 0);
+    Comm::SetSelect(fd, COMM_SELECT_READ, Comm::HandleRead, data, 0, true);
 }
 
 /**

@@ -106,7 +106,7 @@ static const char* epolltype_atoi(int x)
  * and deregister interest in a pending IO state for a given FD.
  */
 void
-Comm::SetSelect(int fd, unsigned int type, PF * handler, void *client_data, time_t timeout)
+Comm::SetSelect(int fd, unsigned int type, PF * handler, void *client_data, time_t timeout, bool saveContext)
 {
     fde *F = &fd_table[fd];
     int epoll_ctl_type = 0;
@@ -139,7 +139,8 @@ Comm::SetSelect(int fd, unsigned int type, PF * handler, void *client_data, time
 
         F->read_data = client_data;
 
-        F->asyncContext = AsyncContextManager::Instance().context();
+        if (saveContext)
+            F->asyncContext = AsyncContextManager::Instance().context();
 
         // Otherwise, use previously stored value
     } else if (F->epoll_state & EPOLLIN) {
@@ -268,7 +269,8 @@ Comm::DoSelect(int msec)
                 debugs(5, DEBUG_EPOLL ? 0 : 8, HERE << "Calling read handler on FD " << fd);
                 PROF_start(comm_write_handler);
                 F->read_handler = NULL;
-                F->asyncContext->restore();
+                if (F->asyncContext)
+                    F->asyncContext->restore();
                 hdl(fd, F->read_data);
                 PROF_stop(comm_write_handler);
                 ++ statCounter.select_fds;
@@ -284,7 +286,8 @@ Comm::DoSelect(int msec)
                 debugs(5, DEBUG_EPOLL ? 0 : 8, HERE << "Calling write handler on FD " << fd);
                 PROF_start(comm_read_handler);
                 F->write_handler = NULL;
-                F->asyncContext->restore();
+                if (F->asyncContext)
+                    F->asyncContext->restore();
                 hdl(fd, F->write_data);
                 PROF_stop(comm_read_handler);
                 ++ statCounter.select_fds;
