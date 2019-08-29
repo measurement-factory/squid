@@ -157,6 +157,7 @@ private:
     Initiator initiator_; ///< recipient of the destinations we select; use interestedInitiator() to access
 
     const InstanceId<PeerSelector> id; ///< unique identification in worker log
+    AsyncContextPointer asyncContext;
 };
 
 #endif /* SQUID_PEERSELECTSTATE_H */
