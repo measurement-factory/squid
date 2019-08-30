@@ -32,7 +32,6 @@ STUB_SOURCE= tests/STUB.h \
 	tests/stub_gopher.cc \
 	tests/stub_helper.cc \
 	tests/stub_HelperChildConfig.cc \
-	tests/stub_http.cc \
 	tests/stub_HttpControlMsg.cc \
 	tests/stub_HttpHeader.cc \
 	tests/stub_HttpReply.cc \

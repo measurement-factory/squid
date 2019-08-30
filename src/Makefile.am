@@ -1205,7 +1205,6 @@ tests_testRock_SOURCES = \
 	tests/stub_debug.cc \
 	tests/stub_errorpage.cc \
 	tests/stub_HelperChildConfig.cc \
-	tests/stub_http.cc \
 	tests/stub_HttpRequest.cc \
 	tests/stub_libauth.cc \
 	tests/stub_icp.cc \
@@ -1368,7 +1367,6 @@ tests_testUfs_SOURCES = \
 	String.cc \
 	tests/stub_debug.cc \
 	tests/stub_client_side_request.cc \
-	tests/stub_http.cc \
 	tests/stub_libauth.cc \
 	mem_node.cc \
 	stmem.cc \
@@ -1545,7 +1543,6 @@ tests_testStore_SOURCES= \
 	tests/stub_fd.cc \
 	tests/stub_helper.cc \
 	tests/stub_HelperChildConfig.cc \
-	tests/stub_http.cc \
 	tests/stub_libauth.cc \
 	tests/stub_libeui.cc \
 	tests/stub_libdiskio.cc \
@@ -1722,7 +1719,6 @@ tests_testDiskIO_SOURCES = \
 	tests/stub_helper.cc \
 	tests/stub_HelperChildConfig.cc \
 	tests/stub_HttpRequest.cc \
-	tests/stub_http.cc \
 	tests/stub_icp.cc \
 	internal.h \
 	tests/stub_internal.cc \
