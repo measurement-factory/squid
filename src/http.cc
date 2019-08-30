@@ -50,7 +50,6 @@
 #include "profiler/Profiler.h"
 #include "refresh.h"
 #include "RefreshPattern.h"
-#include "rfc1738.h"
 #include "SquidConfig.h"
 #include "SquidTime.h"
 #include "StatCounters.h"
@@ -568,62 +567,6 @@ HttpStateData::reusableReply(HttpStateData::ReuseDecision &decision)
     return decision.answer;
 }
 
-/// assemble a variant key (vary-mark) from the given Vary header and HTTP request
-static void
-assembleVaryKey(String &vary, SBuf &vstr, const HttpRequest &request)
-{
-    static const SBuf asterisk("*");
-    const char *pos = nullptr;
-    const char *item = nullptr;
-    int ilen = 0;
-
-    while (strListGetItem(&vary, ',', &item, &ilen, &pos)) {
-        SBuf name(item, ilen);
-        if (name == asterisk) {
-            vstr = asterisk;
-            break;
-        }
-        name.toLower();
-        if (!vstr.isEmpty())
-            vstr.append(", ", 2);
-        vstr.append(name);
-        String hdr(request.header.getByName(name));
-        const char *value = hdr.termedBuf();
-        if (value) {
-            value = rfc1738_escape_part(value);
-            vstr.append("=\"", 2);
-            vstr.append(value);
-            vstr.append("\"", 1);
-        }
-
-        hdr.clean();
-    }
-}
-
-/*
- * For Vary, store the relevant request headers as
- * virtual headers in the reply
- * Returns an empty SBuf if the variance cannot be stored
- */
-SBuf
-httpMakeVaryMark(HttpRequest * request, HttpReply const * reply)
-{
-    SBuf vstr;
-    String vary;
-
-    vary = reply->header.getList(Http::HdrType::VARY);
-    assembleVaryKey(vary, vstr, *request);
-
-#if X_ACCELERATOR_VARY
-    vary.clean();
-    vary = reply->header.getList(Http::HdrType::HDR_X_ACCELERATOR_VARY);
-    assembleVaryKey(vary, vstr, *request);
-#endif
-
-    debugs(11, 3, vstr);
-    return vstr;
-}
-
 void
 HttpStateData::keepaliveAccounting(HttpReply *reply)
 {
@@ -929,7 +872,7 @@ HttpStateData::haveParsedReplyHeaders()
             || rep->header.has(Http::HdrType::HDR_X_ACCELERATOR_VARY)
 #endif
        ) {
-        const SBuf vary(httpMakeVaryMark(request.getRaw(), rep));
+        const SBuf vary(rep->makeVaryMark(*request));
 
         if (vary.isEmpty()) {
             // TODO: check whether such responses are shareable.

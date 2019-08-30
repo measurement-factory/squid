@@ -191,7 +191,7 @@ public:
     unsigned int chksum = 0;
 #endif
 
-    SBuf vary_headers;
+    SBuf vary_headers; ///<  variant key (vary-mark)
 
     void delayRead(DeferredRead const &);
     void kickReads();

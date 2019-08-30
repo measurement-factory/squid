@@ -129,6 +129,11 @@ public:
     /// parses reply header using Parser
     bool parseHeader(Http1::Parser &hp);
 
+    /// Creates a variant key (vary-mark) in a form of of key="value"
+    /// pairs, where key is a Vary header name and value is the
+    /// relevant request header value.
+    SBuf makeVaryMark(const HttpRequest &) const;
+
 private:
     /** initialize */
     void init();

@@ -156,7 +156,6 @@ std::ostream &operator <<(std::ostream &os, const HttpStateData::ReuseDecision &
 
 int httpCachable(const HttpRequestMethod&);
 void httpStart(FwdState *);
-SBuf httpMakeVaryMark(HttpRequest * request, HttpReply const * reply);
 
 #endif /* SQUID_HTTP_H */
 

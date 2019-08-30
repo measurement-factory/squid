@@ -710,7 +710,7 @@ StoreEntry::adjustVary()
 
         /* Make sure the request knows the variance status */
         if (request->vary_headers.isEmpty())
-            request->vary_headers = httpMakeVaryMark(request.getRaw(), mem_obj->getReply().getRaw());
+            request->vary_headers = mem_obj->getReply()->makeVaryMark(*request);
     }
 
     // TODO: storeGetPublic() calls below may create unlocked entries.
@@ -1537,7 +1537,12 @@ StoreEntry::updateOnNotModified(const StoreEntry &e304)
     if (!timestampsSet() && !updatedReply)
         return false;
 
-    // XXX: Update old->mem_obj->vary_headers?
+    assert(e304.mem_obj->request);
+    const auto updatedVaryMark = updatedReply->makeVaryMark(*(e304.mem_obj->request));
+    if (mem_obj->vary_headers != updatedVaryMark) {
+        debugs(20, 2, "unexpected vary headers change in the not-modified response detected!");
+        mem_obj->vary_headers = updatedVaryMark;
+    }
 
     debugs(20, 5, "updated basics of " << *this << " after " << e304);
     mem_obj->appliedUpdates = true; // helps in triage; may already be true
