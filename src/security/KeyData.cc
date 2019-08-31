@@ -79,9 +79,8 @@ Security::KeyData::loadX509CertFromFile()
     return bool(cert);
 }
 
-#if USE_OPENSSL || USE_GNUTLS
-static void
-verifyChainCert(Security::CertPointer &ca, Security::CertPointer &latestCert, Security::CertList &chain)
+void
+Security::KeyData::tryAddChainCa(Security::CertPointer &ca)
 {
     const auto name = Security::CertSubjectName(ca);
     Security::ErrorCode checkCode;
@@ -93,18 +92,18 @@ verifyChainCert(Security::CertPointer &ca, Security::CertPointer &latestCert, Se
     }
 #endif
 
+    CertPointer latestCert(chain.size() > 0 ? chain.front() : cert);
+
     // checks that the chained certs are actually part of a chain for validating cert
     if (Security::CertIssuerCheck(latestCert, ca, checkCode)) {
         debugs(83, DBG_PARSE_NOTE(3), "Adding issuer CA: " << name);
         // OpenSSL API requires that we order certificates such that the
         // chain can be appended directly into the on-wire traffic.
-        latestCert = ca;
-        chain.emplace_front(latestCert);
+        chain.emplace_front(ca);
     } else {
         debugs(83, DBG_PARSE_NOTE(2), "Ignoring non-issuer CA " << name << ": " << Security::VerifyErrorString(checkCode) << " (" << checkCode << ")");
     }
 }
-#endif
 
 /**
  * Read certificate from file.
@@ -122,8 +121,6 @@ Security::KeyData::loadX509ChainFromFile()
 
     debugs(83, DBG_PARSE_NOTE(2), "Using certificate chain in " << certFile);
     // and add to the chain any other certificate exist in the file
-    CertPointer latestCert = cert;
-
 #if USE_OPENSSL
     const char *certFilename = certFile.c_str();
     Ssl::BIO_Pointer bio(BIO_new(BIO_s_file()));
@@ -133,8 +130,8 @@ Security::KeyData::loadX509ChainFromFile()
         return;
     }
 
-    while (CertPointer ca = CertPointer(PEM_read_bio_X509(bio.get(), nullptr, nullptr, nullptr))) {
-        verifyChainCert(ca, latestCert, chain);
+    while (auto ca = CertPointer(PEM_read_bio_X509(bio.get(), nullptr, nullptr, nullptr))) {
+        tryAddChainCa(ca);
     }
 
 #elif USE_GNUTLS
@@ -160,7 +157,7 @@ Security::KeyData::loadX509ChainFromFile()
             gnutls_x509_crt_deinit(p);
         });
 
-        verifyChainCert(ca, latestCert, chain);
+        tryAddChainCa(ca);
     }
     gnutls_free(certChain);
 
