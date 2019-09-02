@@ -29,9 +29,11 @@
 #include "HttpRequest.h"
 #include "log/Config.h"
 #include "MemBuf.h"
+#include "rfc1738.h"
 #include "sbuf/StringConvert.h"
 #include "SquidConfig.h"
 #include "Store.h"
+#include "StrList.h"
 
 #if USE_AUTH
 #include "auth/UserRequest.h"
@@ -826,5 +828,52 @@ FindListeningPortAddress(const HttpRequest *callerRequest, const AccessLogEntry 
     if (!ip && ale)
         ip = FindListeningPortAddressInConn(ale->tcpClient);
     return ip; // may still be nil
+}
+
+/// assemble a variant key (vary-mark) from the given Vary header and HTTP request
+void
+assembleVaryKey(String &vary, SBuf &vstr, const HttpRequest &request)
+{
+    static const SBuf asterisk("*");
+    const char *pos = nullptr;
+    const char *item = nullptr;
+    int ilen = 0;
+
+    while (strListGetItem(&vary, ',', &item, &ilen, &pos)) {
+        SBuf name(item, ilen);
+        if (name == asterisk) {
+            vstr = asterisk;
+            break;
+        }
+        name.toLower();
+        if (!vstr.isEmpty())
+            vstr.append(", ", 2);
+        vstr.append(name);
+        String hdr(request.header.getByName(name));
+        const char *value = hdr.termedBuf();
+        if (value) {
+            value = rfc1738_escape_part(value);
+            vstr.append("=\"", 2);
+            vstr.append(value);
+            vstr.append("\"", 1);
+        }
+        hdr.clean();
+    }
+}
+
+SBuf
+MakeVaryMark(const HttpRequest &request, const HttpReply &reply)
+{
+    SBuf varyMark;
+    auto vary = reply.header.getList(Http::HdrType::VARY);
+    assembleVaryKey(vary, varyMark, request);
+
+#if X_ACCELERATOR_VARY
+    vary = reply.header.getList(Http::HdrType::HDR_X_ACCELERATOR_VARY);
+    assembleVaryKey(vary, varyMark, request);
+#endif
+
+    debugs(58, 3, varyMark);
+    return varyMark;
 }
 

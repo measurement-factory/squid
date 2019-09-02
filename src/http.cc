@@ -872,7 +872,7 @@ HttpStateData::haveParsedReplyHeaders()
             || rep->header.has(Http::HdrType::HDR_X_ACCELERATOR_VARY)
 #endif
        ) {
-        const SBuf vary(rep->makeVaryMark(*request));
+        const SBuf vary(MakeVaryMark(*request, *rep));
 
         if (vary.isEmpty()) {
             // TODO: check whether such responses are shareable.

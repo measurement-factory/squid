@@ -3533,7 +3533,7 @@ varyEvaluateMatch(StoreEntry * entry, HttpRequest * request)
         /* virtual "vary" object found. Calculate the vary key and
          * continue the search
          */
-        vary = entry->getReply()->makeVaryMark(*request);
+        vary = MakeVaryMark(*request, *entry->getReply());
 
         if (!vary.isEmpty()) {
             request->vary_headers = vary;
@@ -3545,7 +3545,7 @@ varyEvaluateMatch(StoreEntry * entry, HttpRequest * request)
         }
     } else {
         if (vary.isEmpty()) {
-            vary = entry->getReply()->makeVaryMark(*request);
+            vary = MakeVaryMark(*request, *entry->getReply());
 
             if (!vary.isEmpty())
                 request->vary_headers = vary;

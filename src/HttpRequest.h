@@ -279,5 +279,8 @@ void UpdateRequestNotes(ConnStateData *csd, HttpRequest &request, NotePairs cons
 /// nil parameter(s) indicate missing caller information and are handled safely
 const Ip::Address *FindListeningPortAddress(const HttpRequest *, const AccessLogEntry *);
 
+/// creates a variant key (vary-mark)
+SBuf MakeVaryMark(const HttpRequest &, const HttpReply &);
+
 #endif /* SQUID_HTTPREQUEST_H */
 

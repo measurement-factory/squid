@@ -21,7 +21,6 @@
 #include "HttpReply.h"
 #include "HttpRequest.h"
 #include "MemBuf.h"
-#include "rfc1738.h"
 #include "SquidConfig.h"
 #include "SquidTime.h"
 #include "Store.h"
@@ -666,51 +665,5 @@ HttpReply::removeIrrelevantContentLength() {
     if (Http::ProhibitsContentLength(sline.status()))
         if (header.delById(Http::HdrType::CONTENT_LENGTH))
             debugs(58, 3, "Removing unexpected Content-Length header");
-}
-
-/// assemble a variant key (vary-mark) from the given Vary header and HTTP request
-static SBuf
-assembleVaryKey(String &vary, const HttpRequest &request)
-{
-    static const SBuf asterisk("*");
-    const char *pos = nullptr;
-    const char *item = nullptr;
-    int ilen = 0;
-    SBuf vstr;
-
-    while (strListGetItem(&vary, ',', &item, &ilen, &pos)) {
-        SBuf name(item, ilen);
-        if (name == asterisk) {
-            vstr = asterisk;
-            break;
-        }
-        name.toLower();
-        if (!vstr.isEmpty())
-            vstr.append(", ", 2);
-        vstr.append(name);
-        String hdr(request.header.getByName(name));
-        const char *value = hdr.termedBuf();
-        if (value) {
-            value = rfc1738_escape_part(value);
-            vstr.append("=\"", 2);
-            vstr.append(value);
-            vstr.append("\"", 1);
-        }
-        hdr.clean();
-    }
-    debugs(58, 3, vstr);
-    return vstr;
-}
-
-SBuf
-HttpReply::makeVaryMark(const HttpRequest &request) const
-{
-    auto hdrType = Http::HdrType::VARY;
-#if X_ACCELERATOR_VARY
-    hdrType = Http::HdrType::HDR_X_ACCELERATOR_VARY;
-#endif
-
-    auto vary = header.getList(hdrType);
-    return assembleVaryKey(vary, request);
 }
 

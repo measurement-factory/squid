@@ -58,4 +58,5 @@ bool HttpRequest::sanityCheckStartLine(const char *, const size_t, Http::StatusC
 void HttpRequest::hdrCacheInit() STUB
 bool HttpRequest::inheritProperties(const Http::Message *) STUB_RETVAL(false)
 NotePairs::Pointer HttpRequest::notes() STUB_RETVAL(NotePairs::Pointer())
+SBuf MakeVaryMark(const HttpRequest &, HttpReply const &) STUB_RETVAL(SBuf())
 
