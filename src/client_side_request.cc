@@ -1576,8 +1576,6 @@ ClientHttpRequest::sslBumpEstablish(Comm::Flag errflag)
         return;
     }
 
-    // We lack HttpReply which logRequest() uses to log the status code.
-    // TODO: Use HttpReply instead of the "200 Connection established" string.
     al->http.code = 200;
 
 #if USE_AUTH
@@ -1608,10 +1606,17 @@ ClientHttpRequest::sslBumpStart()
         return;
     }
 
+    auto establishedReply = new HttpReply;
+    establishedReply->sline.set(Http::ProtocolVersion(), Http::scOkay, "Connection established");
+    assert(!al->reply);
+    al->reply = establishedReply;
+    HTTPMSGLOCK(al->reply)
+
+    const auto mb = establishedReply->pack();
     // send an HTTP 200 response to kick client SSL negotiation
     // TODO: Unify with tunnel.cc and add a Server(?) header
-    static const char *const conn_established = "HTTP/1.1 200 Connection established\r\n\r\n";
-    Comm::Write(getConn()->clientConnection, conn_established, strlen(conn_established), bumpCall, NULL);
+    Comm::Write(getConn()->clientConnection, mb->content(), mb->contentSize(), bumpCall, nullptr);
+    delete mb;
 }
 
 #endif
