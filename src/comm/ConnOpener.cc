@@ -21,6 +21,7 @@
 #include "ip/QosConfig.h"
 #include "ip/tools.h"
 #include "ipcache.h"
+#include "neighbors.h"
 #include "SquidConfig.h"
 #include "SquidTime.h"
 
@@ -365,6 +366,8 @@ Comm::ConnOpener::doConnect()
         } else {
             // send ERROR back to the upper layer.
             debugs(5, 5, HERE << conn_ << ": * - ERR tried too many times already.");
+            if (auto peer = conn_->getPeer())
+                peerConnectFailed(peer);
             sendAnswer(Comm::ERR_CONNECT, xerrno, "Comm::ConnOpener::doConnect");
         }
     }

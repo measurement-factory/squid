@@ -1003,8 +1003,6 @@ TunnelStateData::retry(const int xerrno, ErrorState *anError)
     {
         const Comm::Connection &failedDest = *serverDestinations.front();
         remotePort = failedDest.remote.port();
-        if (auto peer = failedDest.getPeer())
-            peerConnectFailed(peer);
         debugs(26, 4, "removing the failed one from " << serverDestinations.size() <<
                 " destinations: " << failedDest);
     }
@@ -1013,6 +1011,7 @@ TunnelStateData::retry(const int xerrno, ErrorState *anError)
 
     if (!serverDestinations.empty() && FwdState::EnoughTimeToReForward(startTime)) {
         debugs(26, 4, "re-forwarding");
+        delete anError;
         startConnecting();
         return true;
     }
@@ -1150,8 +1149,8 @@ void
 TunnelStateData::connectedToPeer(Security::EncryptorAnswer &answer)
 {
     if (ErrorState *error = answer.error.get()) {
-        if (!retry(0,  error))
-            answer.error.clear(); // preserve error for errorSendComplete()
+        answer.error.clear();
+        retry(0, error);
         return;
     }
 

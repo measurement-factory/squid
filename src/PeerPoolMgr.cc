@@ -101,7 +101,6 @@ PeerPoolMgr::handleOpenedConnection(const CommConnectCbParams &params)
         /* it might have been a timeout with a partially open link */
         if (params.conn != NULL)
             params.conn->close();
-        peerConnectFailed(peer);
         checkpoint("conn opening failure"); // may retry
         return;
     }
