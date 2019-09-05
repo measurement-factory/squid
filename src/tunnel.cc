@@ -181,6 +181,8 @@ public:
     /// continue to set up connection to a peer, going async for SSL peers
     void connectToPeer();
 
+    bool retry(const int, ErrorState *);
+
 private:
     /// Gives Security::PeerConnector access to Answer in the TunnelStateData callback dialer.
     class MyAnswerDialer: public CallDialer, public Security::PeerConnector::CbDialer
@@ -993,6 +995,43 @@ tunnelErrorComplete(int fd/*const Comm::ConnectionPointer &*/, void *data, size_
         tunnelState->server.conn->close();
 }
 
+bool
+TunnelStateData::retry(const int xerrno, ErrorState *anError)
+{
+    assert(!serverDestinations.empty());
+    unsigned short remotePort = 0;
+    {
+        const Comm::Connection &failedDest = *serverDestinations.front();
+        remotePort = failedDest.remote.port();
+        if (auto peer = failedDest.getPeer())
+            peerConnectFailed(peer);
+        debugs(26, 4, "removing the failed one from " << serverDestinations.size() <<
+                " destinations: " << failedDest);
+    }
+
+    serverDestinations.erase(serverDestinations.begin());
+
+    if (!serverDestinations.empty() && FwdState::EnoughTimeToReForward(startTime)) {
+        debugs(26, 4, "re-forwarding");
+        startConnecting();
+        return true;
+    }
+
+    debugs(26, 4, "terminate with error.");
+
+    auto error = anError ? anError : new ErrorState(ERR_CONNECT_FAIL, Http::scServiceUnavailable, request.getRaw());
+    *status_ptr = error->httpStatus;
+    error->xerrno = xerrno;
+    // on timeout is this still:    error->xerrno = ETIMEDOUT;
+    error->port = remotePort;
+    error->callback = tunnelErrorComplete;
+    error->callback_data = this;
+    errorSend(client.conn, error);
+    if (request)
+        request->hier.stopPeerClock(false);
+    return false;
+}
+
 static void
 tunnelConnectDone(const Comm::ConnectionPointer &conn, Comm::Flag status, int xerrno, void *data)
 {
@@ -1000,34 +1039,7 @@ tunnelConnectDone(const Comm::ConnectionPointer &conn, Comm::Flag status, int xe
 
     if (status != Comm::OK) {
         debugs(26, 4, HERE << conn << ", comm failure recovery.");
-        {
-            assert(!tunnelState->serverDestinations.empty());
-            const Comm::Connection &failedDest = *tunnelState->serverDestinations.front();
-            if (CachePeer *peer = failedDest.getPeer())
-                peerConnectFailed(peer);
-            debugs(26, 4, "removing the failed one from " << tunnelState->serverDestinations.size() <<
-                   " destinations: " << failedDest);
-        }
-        /* At this point only the TCP handshake has failed. no data has been passed.
-         * we are allowed to re-try the TCP-level connection to alternate IPs for CONNECT.
-         */
-        tunnelState->serverDestinations.erase(tunnelState->serverDestinations.begin());
-        if (!tunnelState->serverDestinations.empty() && FwdState::EnoughTimeToReForward(tunnelState->startTime)) {
-            debugs(26, 4, "re-forwarding");
-            tunnelState->startConnecting();
-        } else {
-            debugs(26, 4, HERE << "terminate with error.");
-            ErrorState *err = new ErrorState(ERR_CONNECT_FAIL, Http::scServiceUnavailable, tunnelState->request.getRaw());
-            *tunnelState->status_ptr = Http::scServiceUnavailable;
-            err->xerrno = xerrno;
-            // on timeout is this still:    err->xerrno = ETIMEDOUT;
-            err->port = conn->remote.port();
-            err->callback = tunnelErrorComplete;
-            err->callback_data = tunnelState;
-            errorSend(tunnelState->client.conn, err);
-            if (tunnelState->request != NULL)
-                tunnelState->request->hier.stopPeerClock(false);
-        }
+        tunnelState->retry(xerrno, nullptr);
         return;
     }
 
@@ -1138,11 +1150,8 @@ void
 TunnelStateData::connectedToPeer(Security::EncryptorAnswer &answer)
 {
     if (ErrorState *error = answer.error.get()) {
-        *status_ptr = error->httpStatus;
-        error->callback = tunnelErrorComplete;
-        error->callback_data = this;
-        errorSend(client.conn, error);
-        answer.error.clear(); // preserve error for errorSendComplete()
+        if (!retry(0,  error))
+            answer.error.clear(); // preserve error for errorSendComplete()
         return;
     }
 
