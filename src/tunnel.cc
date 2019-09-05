@@ -181,7 +181,12 @@ public:
     /// continue to set up connection to a peer, going async for SSL peers
     void connectToPeer();
 
-    bool retry(const int, ErrorState *);
+    /// tries connecting to another destination, if available
+    bool retry();
+
+    /// responds with the error to the client
+    /// \param conn the last failed connection
+    void sendError(const int xerrno, ErrorState *, const Comm::ConnectionPointer &conn);
 
 private:
     /// Gives Security::PeerConnector access to Answer in the TunnelStateData callback dialer.
@@ -996,13 +1001,10 @@ tunnelErrorComplete(int fd/*const Comm::ConnectionPointer &*/, void *data, size_
 }
 
 bool
-TunnelStateData::retry(const int xerrno, ErrorState *anError)
+TunnelStateData::retry()
 {
-    assert(!serverDestinations.empty());
-    unsigned short remotePort = 0;
     {
         const Comm::Connection &failedDest = *serverDestinations.front();
-        remotePort = failedDest.remote.port();
         debugs(26, 4, "removing the failed one from " << serverDestinations.size() <<
                 " destinations: " << failedDest);
     }
@@ -1011,24 +1013,29 @@ TunnelStateData::retry(const int xerrno, ErrorState *anError)
 
     if (!serverDestinations.empty() && FwdState::EnoughTimeToReForward(startTime)) {
         debugs(26, 4, "re-forwarding");
-        delete anError;
         startConnecting();
         return true;
     }
+    return false;
+}
+
+void
+TunnelStateData::sendError(const int xerrno, ErrorState *error, const Comm::ConnectionPointer &conn)
+{
+    assert(error);
+    assert(conn);
 
     debugs(26, 4, "terminate with error.");
 
-    auto error = anError ? anError : new ErrorState(ERR_CONNECT_FAIL, Http::scServiceUnavailable, request.getRaw());
     *status_ptr = error->httpStatus;
     error->xerrno = xerrno;
     // on timeout is this still:    error->xerrno = ETIMEDOUT;
-    error->port = remotePort;
+    error->port = conn->remote.port();
     error->callback = tunnelErrorComplete;
     error->callback_data = this;
     errorSend(client.conn, error);
     if (request)
         request->hier.stopPeerClock(false);
-    return false;
 }
 
 static void
@@ -1038,7 +1045,12 @@ tunnelConnectDone(const Comm::ConnectionPointer &conn, Comm::Flag status, int xe
 
     if (status != Comm::OK) {
         debugs(26, 4, HERE << conn << ", comm failure recovery.");
-        tunnelState->retry(xerrno, nullptr);
+        assert(!tunnelState->serverDestinations.empty());
+        auto failedDest = tunnelState->serverDestinations.front();
+        if (!tunnelState->retry()) {
+            auto error = new ErrorState(ERR_CONNECT_FAIL, Http::scServiceUnavailable, tunnelState->request.getRaw());
+            tunnelState->sendError(xerrno, error, failedDest);
+        }
         return;
     }
 
@@ -1150,7 +1162,12 @@ TunnelStateData::connectedToPeer(Security::EncryptorAnswer &answer)
 {
     if (ErrorState *error = answer.error.get()) {
         answer.error.clear();
-        retry(0, error);
+        assert(!serverDestinations.empty());
+        auto failedDest = serverDestinations.front();
+        if (retry())
+            delete error;
+        else
+            sendError(0, error, failedDest);
         return;
     }
 
