@@ -48,8 +48,8 @@
 /* count mcast group peers every 15 minutes */
 #define MCAST_COUNT_RATE 900
 
-bool peerAllowedToUse(const CachePeer *, HttpRequest *);
-static int peerWouldBePinged(const CachePeer *, HttpRequest *);
+bool peerAllowedToUse(const CachePeer *, HttpRequest *, ps_state *);
+static int peerWouldBePinged(const CachePeer *, HttpRequest *, ps_state *);
 static void neighborRemove(CachePeer *);
 static void neighborAlive(CachePeer *, const MemObject *, const icp_common_t *);
 #if USE_HTCP
@@ -133,7 +133,7 @@ neighborType(const CachePeer * p, const AnyP::Uri &url)
  * \return Whether it is appropriate to fetch REQUEST from PEER.
  */
 bool
-peerAllowedToUse(const CachePeer * p, HttpRequest * request)
+peerAllowedToUse(const CachePeer * p, HttpRequest * request, ps_state *ps)
 {
     assert(request != NULL);
 
@@ -165,14 +165,14 @@ peerAllowedToUse(const CachePeer * p, HttpRequest * request)
         return true;
 
     ACLFilledChecklist checklist(p->access, request, NULL);
-//    checklist.al = ps->al;
+    checklist.al = ps->al;
     checklist.syncAle(request, nullptr);
     return checklist.fastCheck().allowed();
 }
 
 /* Return TRUE if it is okay to send an ICP request to this CachePeer.   */
 static int
-peerWouldBePinged(const CachePeer * p, HttpRequest * request)
+peerWouldBePinged(const CachePeer * p, HttpRequest * request, ps_state *ps)
 {
     if (p->icp.port == 0)
         return 0;
@@ -195,7 +195,7 @@ peerWouldBePinged(const CachePeer * p, HttpRequest * request)
         if (!request->flags.hierarchical)
             return 0;
 
-    if (!peerAllowedToUse(p, request))
+    if (!peerAllowedToUse(p, request, ps))
         return 0;
 
     /* Ping dead peers every timeout interval */
@@ -244,12 +244,12 @@ peerConnClosed(CachePeer *p)
 
 /* Return TRUE if it is okay to send an HTTP request to this CachePeer. */
 int
-peerHTTPOkay(const CachePeer * p, HttpRequest * request)
+peerHTTPOkay(const CachePeer * p, HttpRequest * request, ps_state *ps)
 {
     if (!peerCanOpenMore(p) && !peerHasConnAvailable(p))
         return 0;
 
-    if (!peerAllowedToUse(p, request))
+    if (!peerAllowedToUse(p, request, ps))
         return 0;
 
     if (!neighborUp(p))
@@ -259,13 +259,13 @@ peerHTTPOkay(const CachePeer * p, HttpRequest * request)
 }
 
 int
-neighborsCount(HttpRequest * request)
+neighborsCount(HttpRequest * request, ps_state *ps)
 {
     CachePeer *p = NULL;
     int count = 0;
 
     for (p = Config.peers; p; p = p->next)
-        if (peerWouldBePinged(p, request))
+        if (peerWouldBePinged(p, request, ps))
             ++count;
 
     debugs(15, 3, "neighborsCount: " << count);
@@ -274,7 +274,7 @@ neighborsCount(HttpRequest * request)
 }
 
 CachePeer *
-getFirstUpParent(HttpRequest * request)
+getFirstUpParent(HttpRequest * request, ps_state *ps)
 {
     CachePeer *p = NULL;
 
@@ -285,7 +285,7 @@ getFirstUpParent(HttpRequest * request)
         if (neighborType(p, request->url) != PEER_PARENT)
             continue;
 
-        if (!peerHTTPOkay(p, request))
+        if (!peerHTTPOkay(p, request, ps))
             continue;
 
         break;
@@ -296,7 +296,7 @@ getFirstUpParent(HttpRequest * request)
 }
 
 CachePeer *
-getRoundRobinParent(HttpRequest * request)
+getRoundRobinParent(HttpRequest * request, ps_state *ps)
 {
     CachePeer *p;
     CachePeer *q = NULL;
@@ -308,7 +308,7 @@ getRoundRobinParent(HttpRequest * request)
         if (neighborType(p, request->url) != PEER_PARENT)
             continue;
 
-        if (!peerHTTPOkay(p, request))
+        if (!peerHTTPOkay(p, request, ps))
             continue;
 
         if (p->weight == 0)
@@ -335,7 +335,7 @@ getRoundRobinParent(HttpRequest * request)
 }
 
 CachePeer *
-getWeightedRoundRobinParent(HttpRequest * request)
+getWeightedRoundRobinParent(HttpRequest * request, ps_state *ps)
 {
     CachePeer *p;
     CachePeer *q = NULL;
@@ -348,7 +348,7 @@ getWeightedRoundRobinParent(HttpRequest * request)
         if (neighborType(p, request->url) != PEER_PARENT)
             continue;
 
-        if (!peerHTTPOkay(p, request))
+        if (!peerHTTPOkay(p, request, ps))
             continue;
 
         if (q && q->rr_count < p->rr_count)
@@ -450,7 +450,7 @@ peerAlive(CachePeer *p)
 }
 
 CachePeer *
-getDefaultParent(HttpRequest * request)
+getDefaultParent(HttpRequest * request, ps_state *ps)
 {
     CachePeer *p = NULL;
 
@@ -461,7 +461,7 @@ getDefaultParent(HttpRequest * request)
         if (!p->options.default_parent)
             continue;
 
-        if (!peerHTTPOkay(p, request))
+        if (!peerHTTPOkay(p, request, ps))
             continue;
 
         debugs(15, 3, "getDefaultParent: returning " << p->host);
@@ -608,7 +608,7 @@ neighborsUdpPing(HttpRequest * request,
 
         debugs(15, 5, "neighborsUdpPing: Peer " << p->host);
 
-        if (!peerWouldBePinged(p, request))
+        if (!peerWouldBePinged(p, request, reinterpret_cast<ps_state *>(callback_data)))
             continue;       /* next CachePeer */
 
         ++peers_pinged;
@@ -733,7 +733,7 @@ neighborsUdpPing(HttpRequest * request,
 
 /* lookup the digest of a given CachePeer */
 lookup_t
-peerDigestLookup(CachePeer * p, HttpRequest * request)
+peerDigestLookup(CachePeer * p, HttpRequest * request, ps_state *ps)
 {
 #if USE_CACHE_DIGESTS
     const cache_key *key = request ? storeKeyPublicByRequest(request) : NULL;
@@ -745,7 +745,7 @@ peerDigestLookup(CachePeer * p, HttpRequest * request)
     if (!p->digest) {
         debugs(15, 5, "peerDigestLookup: gone!");
         return LOOKUP_NONE;
-    } else if (!peerHTTPOkay(p, request)) {
+    } else if (!peerHTTPOkay(p, request, ps)) {
         debugs(15, 5, "peerDigestLookup: !peerHTTPOkay");
         return LOOKUP_NONE;
     } else if (!p->digest->flags.needed) {
@@ -959,7 +959,7 @@ ignoreMulticastReply(CachePeer * p, MemObject * mem)
     if (!p->options.mcast_responder)
         return 0;
 
-    if (peerHTTPOkay(p, mem->request))
+    if (peerHTTPOkay(p, mem->request, nullptr))
         return 0;
 
     return 1;

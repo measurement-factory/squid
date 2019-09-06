@@ -145,8 +145,10 @@ peerUserHashRegisterWithCacheManager(void)
                         0, 1);
 }
 
+class ps_state;
+
 CachePeer *
-peerUserHashSelectParent(HttpRequest * request)
+peerUserHashSelectParent(HttpRequest * request, ps_state *ps)
 {
     int k;
     const char *c;
@@ -183,7 +185,7 @@ peerUserHashSelectParent(HttpRequest * request)
         debugs(39, 3, "peerUserHashSelectParent: " << tp->name << " combined_hash " << combined_hash  <<
                " score " << std::setprecision(0) << score);
 
-        if ((score > high_score) && peerHTTPOkay(tp, request)) {
+        if ((score > high_score) && peerHTTPOkay(tp, request, ps)) {
             p = tp;
             high_score = score;
         }
