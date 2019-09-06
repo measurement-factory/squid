@@ -166,6 +166,8 @@ peerAllowedToUse(const CachePeer * p, HttpRequest * request, ps_state *ps)
 
     ACLFilledChecklist checklist(p->access, request, NULL);
     checklist.al = ps->al;
+    if (ps->al)
+        checklist.reply = ps->al->reply;
     checklist.syncAle(request, nullptr);
     return checklist.fastCheck().allowed();
 }
