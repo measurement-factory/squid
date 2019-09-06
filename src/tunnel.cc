@@ -91,6 +91,7 @@ public:
     HttpRequest::Pointer request;
     AccessLogEntryPointer al;
     Comm::ConnectionList serverDestinations;
+    AsyncCall::Pointer serverCloseHandler; ///< the server connection close handler
 
     const char * getHost() const {
         return (server.conn != NULL && server.conn->getPeer() ? server.conn->getPeer()->host : request->url.host());
@@ -187,6 +188,9 @@ public:
     /// responds with the error to the client
     /// \param conn the last failed connection
     void sendError(const int xerrno, ErrorState *, const Comm::ConnectionPointer &conn);
+
+    /// stops monitoring server connection and closes it
+    void closeServerConnection();
 
 private:
     /// Gives Security::PeerConnector access to Answer in the TunnelStateData callback dialer.
@@ -1012,11 +1016,22 @@ TunnelStateData::retry()
     serverDestinations.erase(serverDestinations.begin());
 
     if (!serverDestinations.empty() && FwdState::EnoughTimeToReForward(startTime)) {
+        closeServerConnection();
         debugs(26, 4, "re-forwarding");
         startConnecting();
         return true;
     }
     return false;
+}
+
+void
+TunnelStateData::closeServerConnection()
+{
+    if (Comm::IsConnOpen(server.conn)) {
+        comm_remove_close_handler(server.conn->fd, serverCloseHandler);
+        serverCloseHandler = nullptr;
+        server.conn->close();
+    }
 }
 
 void
@@ -1064,7 +1079,7 @@ tunnelConnectDone(const Comm::ConnectionPointer &conn, Comm::Flag status, int xe
 
     tunnelState->server.conn = conn;
     tunnelState->request->peer_host = conn->getPeer() ? conn->getPeer()->host : NULL;
-    comm_add_close_handler(conn->fd, tunnelServerClosed, tunnelState);
+    tunnelState->serverCloseHandler = comm_add_close_handler(conn->fd, tunnelServerClosed, tunnelState);
 
     debugs(26, 4, HERE << "determine post-connect handling pathway.");
     if (conn->getPeer()) {
