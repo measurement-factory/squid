@@ -1576,8 +1576,6 @@ ClientHttpRequest::sslBumpEstablish(Comm::Flag errflag)
         return;
     }
 
-    al->http.code = 200;
-
 #if USE_AUTH
     // Preserve authentication info for the ssl-bumped request
     if (request->auth_user_request != NULL)
@@ -1606,16 +1604,15 @@ ClientHttpRequest::sslBumpStart()
         return;
     }
 
-    auto establishedReply = new HttpReply;
-    establishedReply->sline.set(Http::ProtocolVersion(), Http::scOkay, "Connection established");
-    assert(!al->reply);
-    al->reply = establishedReply;
-    HTTPMSGLOCK(al->reply)
+    HTTPMSGUNLOCK(al->reply);
+    al->reply = new HttpReply;
+    HTTPMSGLOCK(al->reply);
+    al->reply->sline.set(Http::ProtocolVersion(), Http::scOkay, "Connection established");
 
-    const auto mb = establishedReply->pack();
+    const auto mb = al->reply->pack();
     // send an HTTP 200 response to kick client SSL negotiation
     // TODO: Unify with tunnel.cc and add a Server(?) header
-    Comm::Write(getConn()->clientConnection, mb->content(), mb->contentSize(), bumpCall, nullptr);
+    Comm::Write(getConn()->clientConnection, mb, bumpCall);
     delete mb;
 }
 
