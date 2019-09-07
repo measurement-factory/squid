@@ -1605,9 +1605,8 @@ ClientHttpRequest::sslBumpStart()
     }
 
     HTTPMSGUNLOCK(al->reply);
-    al->reply = new HttpReply;
+    al->reply = HttpReply::makeConnectionEstablished();
     HTTPMSGLOCK(al->reply);
-    al->reply->sline.set(Http::ProtocolVersion(), Http::scOkay, "Connection established");
 
     const auto mb = al->reply->pack();
     // send an HTTP 200 response to kick client SSL negotiation
