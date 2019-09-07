@@ -226,8 +226,6 @@ public:
     void copyServerBytes();
 };
 
-static const char *const conn_established = "HTTP/1.1 200 Connection established\r\n\r\n";
-
 static CNCB tunnelConnectDone;
 static ERCB tunnelErrorComplete;
 static CLCB tunnelServerClosed;
@@ -974,7 +972,13 @@ tunnelConnected(const Comm::ConnectionPointer &server, void *data)
         *tunnelState->status_ptr = Http::scOkay;
         AsyncCall::Pointer call = commCbCall(5,5, "tunnelConnectedWriteDone",
                                              CommIoCbPtrFun(tunnelConnectedWriteDone, tunnelState));
-        tunnelState->client.write(conn_established, strlen(conn_established), call, NULL);
+        HTTPMSGUNLOCK(tunnelState->al->reply);
+        tunnelState->al->reply = new HttpReply;
+        HTTPMSGLOCK(tunnelState->al->reply);
+        tunnelState->al->reply->sline.set(Http::ProtocolVersion(), Http::scOkay, "Connection established");
+        const auto mb = tunnelState->al->reply->pack();
+        tunnelState->client.write(mb->content(), mb->contentSize(), call, mb->freeFunc());
+        delete mb;
     }
 }
 
