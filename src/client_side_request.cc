@@ -1605,7 +1605,7 @@ ClientHttpRequest::sslBumpStart()
     }
 
     HTTPMSGUNLOCK(al->reply);
-    al->reply = HttpReply::makeConnectionEstablished();
+    al->reply = HttpReply::MakeConnectionEstablished();
     HTTPMSGLOCK(al->reply);
 
     const auto mb = al->reply->pack();

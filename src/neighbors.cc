@@ -165,12 +165,15 @@ peerAllowedToUse(const CachePeer * p, HttpRequest * request, ps_state *ps)
         return true;
 
     ACLFilledChecklist checklist(p->access, request, NULL);
-    checklist.al = ps->al;
-    if (ps->al && ps->al->reply) {
-        checklist.reply = ps->al->reply;
-        HTTPMSGLOCK(checklist.reply);
+    // TODO: Make this unconditional after fixing XXX in ignoreMulticastReply().
+    if (ps) {
+        checklist.al = ps->al;
+        if (ps->al && ps->al->reply) {
+            checklist.reply = ps->al->reply;
+            HTTPMSGLOCK(checklist.reply);
+        }
+        checklist.syncAle(request, nullptr);
     }
-    checklist.syncAle(request, nullptr);
     return checklist.fastCheck().allowed();
 }
 
@@ -963,7 +966,7 @@ ignoreMulticastReply(CachePeer * p, MemObject * mem)
     if (!p->options.mcast_responder)
         return 0;
 
-    if (peerHTTPOkay(p, mem->request, nullptr))
+    if (peerHTTPOkay(p, mem->request, /* XXX: missing ps */ nullptr))
         return 0;
 
     return 1;

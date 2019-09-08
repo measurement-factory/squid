@@ -83,7 +83,7 @@ public:
     MemBuf *pack() const;
 
     /// construct and return a 200 (Connection established)
-    static HttpReply *makeConnectionEstablished();
+    static HttpReply *MakeConnectionEstablished();
 
     /** construct a 304 reply and return it */
     HttpReply *make304() const;

@@ -116,11 +116,11 @@ HttpReply::pack() const
 }
 
 HttpReply *
-HttpReply::makeConnectionEstablished() {
+HttpReply::MakeConnectionEstablished() {
 
-    auto rep = new HttpReply;
+    std::unique_ptr<HttpReply> rep(new HttpReply);
     rep->sline.set(Http::ProtocolVersion(), Http::scOkay, "Connection established");
-    return rep;
+    return rep.release();
 }
 
 HttpReply *

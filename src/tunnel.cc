@@ -973,7 +973,7 @@ tunnelConnected(const Comm::ConnectionPointer &server, void *data)
         AsyncCall::Pointer call = commCbCall(5,5, "tunnelConnectedWriteDone",
                                              CommIoCbPtrFun(tunnelConnectedWriteDone, tunnelState));
         HTTPMSGUNLOCK(tunnelState->al->reply);
-        tunnelState->al->reply = HttpReply::makeConnectionEstablished();
+        tunnelState->al->reply = HttpReply::MakeConnectionEstablished();
         HTTPMSGLOCK(tunnelState->al->reply);
         const auto mb = tunnelState->al->reply->pack();
         tunnelState->client.write(mb->content(), mb->contentSize(), call, mb->freeFunc());
