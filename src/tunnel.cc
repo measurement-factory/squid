@@ -1180,13 +1180,12 @@ void
 TunnelStateData::connectedToPeer(Security::EncryptorAnswer &answer)
 {
     if (ErrorState *error = answer.error.get()) {
-        answer.error.clear();
         assert(!serverDestinations.empty());
-        auto failedDest = serverDestinations.front();
-        if (retry())
-            delete error;
-        else
+        const auto failedDest = serverDestinations.front();
+        if (!retry()) {
+            answer.error.clear(); // preserve error for errorSendComplete()
             sendError(0, error, failedDest);
+        }
         return;
     }
 
