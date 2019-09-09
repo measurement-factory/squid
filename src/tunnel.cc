@@ -188,9 +188,9 @@ public:
     /// tries connecting to another destination, if available
     bool retry();
 
-    /// responds with the error to the client
+    /// responds with the given error to the client
     /// \param conn the last failed connection
-    void sendError(const int xerrno, ErrorState *, const Comm::ConnectionPointer &conn);
+    void sendError(ErrorState *, const Comm::ConnectionPointer &conn);
 
 private:
     /// Gives Security::PeerConnector access to Answer in the TunnelStateData callback dialer.
@@ -1040,14 +1040,13 @@ TunnelStateData::closeServerConnection()
 }
 
 void
-TunnelStateData::sendError(const int xerrno, ErrorState *error, const Comm::ConnectionPointer &conn)
+TunnelStateData::sendError(ErrorState *error, const Comm::ConnectionPointer &conn)
 {
-    debugs(26, 4, "terminate with error: " << xerrno);
+    debugs(26, 4, "terminate with error after " << conn);
     assert(error);
     assert(conn);
 
     *status_ptr = error->httpStatus;
-    error->xerrno = xerrno;
     // on timeout is this still:    error->xerrno = ETIMEDOUT;
     error->port = conn->remote.port();
     error->callback = tunnelErrorComplete;
@@ -1068,7 +1067,8 @@ tunnelConnectDone(const Comm::ConnectionPointer &conn, Comm::Flag status, int xe
         auto failedDest = tunnelState->serverDestinations.front();
         if (!tunnelState->retry()) {
             auto error = new ErrorState(ERR_CONNECT_FAIL, Http::scServiceUnavailable, tunnelState->request.getRaw());
-            tunnelState->sendError(xerrno, error, failedDest);
+            error->xerrno = xerrno;
+            tunnelState->sendError(error, failedDest);
         }
         return;
     }
@@ -1184,7 +1184,7 @@ TunnelStateData::connectedToPeer(Security::EncryptorAnswer &answer)
         const auto failedDest = serverDestinations.front();
         if (!retry()) {
             answer.error.clear(); // preserve error for errorSendComplete()
-            sendError(0, error, failedDest);
+            sendError(error, failedDest);
         }
         return;
     }
