@@ -284,7 +284,11 @@ bool
 HttpHeader::skipUpdateHeader(const Http::HdrType id) const
 {
     // RFC 7234, section 4.3.4: use fields other from Warning for update
-    return id == Http::HdrType::WARNING;
+    return id == Http::HdrType::WARNING ||
+        // XXX: updating Vary headers requires other changes:
+        // * updating the vary marker cache entry
+        // * re-key the corresponding cache entry due to variance change
+        id == Http::HdrType::VARY;
 }
 
 void
