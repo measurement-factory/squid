@@ -96,6 +96,9 @@ public:
     /// the number of already parsed bytes
     uint64_t parsed() const { return parsed_; }
 
+    /// the number of unparsed bytes
+    uint64_t unparsed() const { return data_.length() - parsed_; }
+
     /// yet unparsed bytes
     SBuf leftovers() const { return data_.substr(parsed_); }
 

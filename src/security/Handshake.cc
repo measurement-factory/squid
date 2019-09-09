@@ -43,6 +43,15 @@ public:
     SBuf fragment; ///< possibly partial content
 };
 
+/// Next TLS Record peeker
+class TLSPlainTextPeeker
+{
+public:
+    ///< false if there are not enough data to parse the next record
+    bool peekAt(Parser::BinaryTokenizer &tk);
+    uint8_t type; ///< Record content type
+};
+
 /// draft-hickman-netscape-ssl-00. Section 4.1. SSL Record Header Format
 class Sslv2Record
 {
@@ -134,6 +143,27 @@ Security::TLSPlaintext::TLSPlaintext(Parser::BinaryTokenizer &tk)
     context.success();
 }
 
+bool Security::TLSPlainTextPeeker::peekAt(Parser::BinaryTokenizer &tk)
+{
+    // Be sure that we can read at least 5 bytes without throwing an
+    // InsufficientSpace exception:
+    // - 1 byte for content type
+    // - 2 bytes for record version
+    // - 2 bytes for content size
+    const uint64_t recordDescriptionSize = 5;
+    if (tk.unparsed() >= recordDescriptionSize) {
+        Parser::BinaryTokenizerContext context(tk, "TLSPlaintextPeeker");
+        type = tk.uint8(".type");
+        (void)ParseProtocolVersion(tk);
+        const uint16_t dataLength = tk.uint16(".length");
+        bool insufficientInput = (dataLength > tk.unparsed());
+        context.success();
+        tk.rollback();
+        return !insufficientInput;
+    }
+    return false;
+}
+
 Security::Handshake::Handshake(Parser::BinaryTokenizer &tk)
 {
     Parser::BinaryTokenizerContext context(tk, "Handshake");
@@ -221,17 +251,17 @@ Security::HandshakeParser::isSslv2Record(const SBuf &raw) const
 }
 
 void
-Security::HandshakeParser::parseRecord()
+Security::HandshakeParser::parseRecords()
 {
     if (expectingModernRecords)
-        parseModernRecord();
+        parseModernRecords();
     else
         parseVersion2Record();
 }
 
 /// parses a single TLS Record Layer frame
 void
-Security::HandshakeParser::parseModernRecord()
+Security::HandshakeParser::parseOneModernRecord()
 {
     const TLSPlaintext record(tkRecords);
     tkRecords.commit();
@@ -252,6 +282,40 @@ Security::HandshakeParser::parseModernRecord()
         fragments.append(record.fragment);
         tkMessages.reinput(fragments, true); // true because more fragments may come
         tkMessages.rollback();
+    }
+}
+
+void
+Security::HandshakeParser::parseModernRecords()
+{
+    bool doneWithRecords = false;
+    for (int parsedRecords = 0; !doneWithRecords; ++parsedRecords) {
+        tkRecords.rollback();
+
+        if (parsedRecords) {
+            // If there are parsed records, try to peek at next record to
+            // 1) check if there is the whole next record in unparsed data
+            // 2) check if the next record has the same content type with current
+            //    record. If yes then parse this record and add its content to
+            //    messages buffer. Maybe one or more messages needs more than
+            //    one TLS records to be transfered.
+
+            TLSPlainTextPeeker recordPeeker;
+            if (!recordPeeker.peekAt(tkRecords)) {
+                // not enough data to retrieve next record. Stop here and try parse
+                // messages from parsed records.
+                doneWithRecords = true;
+                continue;
+            }
+
+            if (currentContentType != recordPeeker.type) {
+                // The next record has different content type than the current
+                doneWithRecords = true;
+                continue;
+            }
+        }
+
+        parseOneModernRecord();
     }
     parseMessages();
 }
@@ -523,7 +587,7 @@ Security::HandshakeParser::parseHello(const SBuf &data)
         tkRecords.reinput(data, true);
         tkRecords.rollback();
         while (!done)
-            parseRecord();
+            parseRecords();
         debugs(83, 7, "success; got: " << done);
         // we are done; tkRecords may have leftovers we are not interested in
         return true;
