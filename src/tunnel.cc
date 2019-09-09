@@ -1064,9 +1064,9 @@ tunnelConnectDone(const Comm::ConnectionPointer &conn, Comm::Flag status, int xe
     if (status != Comm::OK) {
         debugs(26, 4, HERE << conn << ", comm failure recovery.");
         assert(!tunnelState->serverDestinations.empty());
-        auto failedDest = tunnelState->serverDestinations.front();
+        const auto failedDest = tunnelState->serverDestinations.front();
         if (!tunnelState->retry()) {
-            auto error = new ErrorState(ERR_CONNECT_FAIL, Http::scServiceUnavailable, tunnelState->request.getRaw());
+            const auto error = new ErrorState(ERR_CONNECT_FAIL, Http::scServiceUnavailable, tunnelState->request.getRaw());
             error->xerrno = xerrno;
             tunnelState->sendError(error, failedDest);
         }
