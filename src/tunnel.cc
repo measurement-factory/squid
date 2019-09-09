@@ -91,7 +91,10 @@ public:
     HttpRequest::Pointer request;
     AccessLogEntryPointer al;
     Comm::ConnectionList serverDestinations;
-    AsyncCall::Pointer serverCloseHandler; ///< the server connection close handler
+
+    // TODO: Move to TunnelStateData::Connection::closer.
+    /// the registered close handler for the connection to the server (or nil)
+    AsyncCall::Pointer serverCloseHandler;
 
     const char * getHost() const {
         return (server.conn != NULL && server.conn->getPeer() ? server.conn->getPeer()->host : request->url.host());
@@ -189,9 +192,6 @@ public:
     /// \param conn the last failed connection
     void sendError(const int xerrno, ErrorState *, const Comm::ConnectionPointer &conn);
 
-    /// stops monitoring server connection and closes it
-    void closeServerConnection();
-
 private:
     /// Gives Security::PeerConnector access to Answer in the TunnelStateData callback dialer.
     class MyAnswerDialer: public CallDialer, public Security::PeerConnector::CbDialer
@@ -220,6 +220,8 @@ private:
 
     /// callback handler after connection setup (including any encryption)
     void connectedToPeer(Security::EncryptorAnswer &answer);
+
+    void closeServerConnection();
 
 public:
     bool keepGoingAfterRead(size_t len, Comm::Flag errcode, int xerrno, Connection &from, Connection &to);
@@ -1024,12 +1026,15 @@ TunnelStateData::retry()
     return false;
 }
 
+/// closes the connection to the server without triggering the close handler
 void
 TunnelStateData::closeServerConnection()
 {
     if (Comm::IsConnOpen(server.conn)) {
-        comm_remove_close_handler(server.conn->fd, serverCloseHandler);
-        serverCloseHandler = nullptr;
+        if (serverCloseHandler) {
+            comm_remove_close_handler(server.conn->fd, serverCloseHandler);
+            serverCloseHandler = nullptr;
+        }
         server.conn->close();
     }
 }
@@ -1037,10 +1042,9 @@ TunnelStateData::closeServerConnection()
 void
 TunnelStateData::sendError(const int xerrno, ErrorState *error, const Comm::ConnectionPointer &conn)
 {
+    debugs(26, 4, "terminate with error: " << xerrno);
     assert(error);
     assert(conn);
-
-    debugs(26, 4, "terminate with error.");
 
     *status_ptr = error->httpStatus;
     error->xerrno = xerrno;
