@@ -13,7 +13,8 @@
 
 class CachePeer;
 class HttpRequest;
+class ps_state;
 
 void carpInit(void) STUB
-CachePeer * carpSelectParent(HttpRequest *) STUB_RETVAL(NULL)
+CachePeer * carpSelectParent(HttpRequest *, ps_state *) STUB_RETVAL(NULL)
 
