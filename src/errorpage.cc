@@ -557,11 +557,11 @@ ErrorState::NewForwarding(err_type type, HttpRequest *request)
     return new ErrorState(type, status, request);
 }
 
-ErrorState::ErrorState(err_type t, Http::StatusCode status, HttpRequest * req) :
+ErrorState::ErrorState(err_type t) :
     type(t),
     page_id(t),
     err_language(NULL),
-    httpStatus(status),
+    httpStatus(Http::scNone),
 #if USE_AUTH
     auth_user_request (NULL),
 #endif
@@ -583,11 +583,30 @@ ErrorState::ErrorState(err_type t, Http::StatusCode status, HttpRequest * req) :
     detailCode(ERR_DETAIL_NONE)
 {
     memset(&ftp, 0, sizeof(ftp));
+}
 
+ErrorState::ErrorState(err_type t, Http::StatusCode status, HttpRequest * req) :
+    ErrorState(t)
+{
     if (page_id >= ERR_MAX && ErrorDynamicPages[page_id - ERR_MAX]->page_redirect != Http::scNone)
         httpStatus = ErrorDynamicPages[page_id - ERR_MAX]->page_redirect;
+    else
+        httpStatus = status;
 
     if (req != NULL) {
+        request = req;
+        HTTPMSGLOCK(request);
+        src_addr = req->client_addr;
+    }
+}
+
+ErrorState::ErrorState(HttpRequest * req, HttpReply *errorReply) :
+    ErrorState(ERR_RELAY_REMOTE)
+{
+    Must(errorReply);
+    response_ = errorReply;
+    httpStatus = errorReply->sline.status();
+    if (req != nullptr) {
         request = req;
         HTTPMSGLOCK(request);
         src_addr = req->client_addr;
@@ -630,19 +649,16 @@ errorAppendEntry(StoreEntry * entry, ErrorState * err)
 void
 errorSend(const Comm::ConnectionPointer &conn, ErrorState * err)
 {
-    HttpReply *rep;
     debugs(4, 3, HERE << conn << ", err=" << err);
     assert(Comm::IsConnOpen(conn));
 
-    rep = err->BuildHttpReply();
+    HttpReplyPointer rep(err->BuildHttpReply());
 
     MemBuf *mb = rep->pack();
     AsyncCall::Pointer call = commCbCall(78, 5, "errorSendComplete",
                                          CommIoCbPtrFun(&errorSendComplete, err));
     Comm::Write(conn, mb, call);
     delete mb;
-
-    delete rep;
 }
 
 /**
@@ -1132,6 +1148,9 @@ ErrorState::DenyInfoLocation(const char *name, HttpRequest *, MemBuf &result)
 HttpReply *
 ErrorState::BuildHttpReply()
 {
+    if (response_)
+        return response_.getRaw();
+
     HttpReply *rep = new HttpReply;
     const char *name = errorPageName(page_id);
     /* no LMT for error pages; error pages expire immediately */
