@@ -124,6 +124,11 @@ Comm::ConnOpener::sendAnswer(Comm::Flag errFlag, int xerrno, const char *why)
         }
     }
 
+    if (errFlag && conn_) {
+        if (const auto peer = conn_->getPeer())
+            peerConnectFailed(peer);
+    }
+
     if (callback_ != NULL) {
         // avoid scheduling cancelled callbacks, assuming they are common
         // enough to make this extra check an optimization
@@ -366,8 +371,6 @@ Comm::ConnOpener::doConnect()
         } else {
             // send ERROR back to the upper layer.
             debugs(5, 5, HERE << conn_ << ": * - ERR tried too many times already.");
-            if (auto peer = conn_->getPeer())
-                peerConnectFailed(peer);
             sendAnswer(Comm::ERR_CONNECT, xerrno, "Comm::ConnOpener::doConnect");
         }
     }
