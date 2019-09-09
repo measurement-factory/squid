@@ -81,8 +81,12 @@ class ErrorState
     CBDATA_CLASS(ErrorState);
 
 public:
+    /// creates an error of type other than ERR_RELAY_REMOTE
     ErrorState(err_type type, Http::StatusCode, HttpRequest * request);
-    ErrorState(); // not implemented.
+
+    /// creates an ERR_RELAY_REMOTE error
+    ErrorState(HttpRequest * request, HttpReply *);
+
     ~ErrorState();
 
     /// Creates a general request forwarding error with the right http_status.
@@ -97,6 +101,9 @@ public:
     void detailError(int dCode) {detailCode = dCode;}
 
 private:
+    /// initializations shared by public constructors
+    explicit ErrorState(err_type type);
+
     /**
      * Locates error page template to be used for this error
      * and constructs the HTML page content from it.
@@ -173,6 +180,8 @@ public:
     /// type-specific detail about the transaction error;
     /// overwrites xerrno; overwritten by detail, if any.
     int detailCode;
+
+    HttpReplyPointer response_;
 };
 
 /**
