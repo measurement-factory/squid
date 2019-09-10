@@ -3998,6 +3998,11 @@ ConnStateData::checkLogging()
     http.req_sz = inBuf.length();
     // XXX: Or we died while waiting for the pinned connection to become idle.
     http.setErrorUri("error:transaction-end-before-headers");
+#if USE_OPENSSL
+    if (parsingTlsHandshake) {
+        http.al->setTransactionErrorDetails(AccessLogEntry::TransactionErrorDetails::TlsClientHandshakeMissing);
+    }
+#endif
 }
 
 bool

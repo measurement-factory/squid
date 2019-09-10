@@ -131,3 +131,36 @@ AccessLogEntry::effectiveVirginUrl() const
     return nullptr;
 }
 
+AccessLogEntry::TransactionErrorDetails::DetailsMap AccessLogEntry::TransactionErrorDetails::Details;
+
+AccessLogEntry::TransactionErrorDetails::TransactionErrorDetails(const Codes aCode) : code(aCode)
+{
+    if (Details.empty())
+        FillDetails();
+}
+
+void
+AccessLogEntry::TransactionErrorDetails::FillDetails()
+{
+    assert(Details.empty());
+    Details.push_back(std::make_pair(SBuf("error:transaction-end-before-headers"), SBuf("expecting-TLS-client-handshake")));
+}
+
+const SBuf &
+AccessLogEntry::TransactionErrorDetails::codeString() const
+{
+    return Details.at(code - 1).first;
+}
+
+const SBuf &
+AccessLogEntry::TransactionErrorDetails::detailString() const
+{
+    return Details.at(code - 1).second;
+}
+
+void
+AccessLogEntry::setTransactionErrorDetails(const TransactionErrorDetails::Codes code)
+{
+    transactionErrorDetails = std::make_shared<TransactionErrorDetails>(code);
+}
+

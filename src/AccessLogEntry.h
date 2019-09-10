@@ -188,6 +188,32 @@ public:
     /// see ConnStateData::proxyProtocolHeader_
     ProxyProtocol::HeaderPointer proxyProtocolHeader;
 
+    /// Internal transaction error details
+    class TransactionErrorDetails
+    {
+    public:
+        typedef enum { TlsClientHandshakeMissing = 1 } Codes;
+
+        TransactionErrorDetails(const Codes);
+
+        const SBuf &codeString() const;
+
+        const SBuf &detailString() const;
+
+    private:
+        typedef std::vector< std::pair<SBuf, SBuf> > DetailsMap;
+        static void FillDetails();
+        static DetailsMap Details;
+        Codes code;
+    };
+
+    typedef std::shared_ptr<TransactionErrorDetails> TransactionErrorDetailsPtr;
+
+    void setTransactionErrorDetails(const TransactionErrorDetails::Codes);
+
+    /// if set, logged as %err_code and %err_detail when HttpRequest::errType is unavailable
+    TransactionErrorDetailsPtr transactionErrorDetails;
+
 #if ICAP_CLIENT
     /** \brief This subclass holds log info for ICAP part of request
      *  \todo Inner class declarations should be moved outside
