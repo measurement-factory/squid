@@ -46,8 +46,7 @@ private:
     InstanceId& operator=(const InstanceId &); ///< not implemented
 };
 
-/// A helper instantiation macro for (for private use only).
-/// In other sources use InstanceIdDefinitions() instead.
+/// An InstanceIdDefinitions() helper. Avoid direct use.
 #define InstanceIdDefinitions3(Class, pfx, ValueType, ...) \
     template<> const char * \
     InstanceId<Class, ValueType>::prefix() const { \
