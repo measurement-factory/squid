@@ -97,7 +97,7 @@ fde::remoteAddr() const
 }
 
 void
-fde::CreateTable()
+fde::Init()
 {
     assert(!Table);
     Table = static_cast<fde *>(xcalloc(Squid_MaxFD, sizeof(fde)));

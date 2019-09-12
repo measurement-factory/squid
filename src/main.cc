@@ -1434,11 +1434,12 @@ ConfigureCurrentKid(const CommandLine &cmdLine)
     }
 }
 
+/// Start directing debugs() messages to the configured cache.log.
+/// Until this function is called, all allowed messages go to stderr.
 static void
 ConfigureDebugging()
 {
     if (opt_no_daemon) {
-        /* we have to init fdstat here. */
         fd_open(0, FD_LOG, "stdin");
         fd_open(1, FD_LOG, "stdout");
         fd_open(2, FD_LOG, "stderr");
@@ -1459,8 +1460,8 @@ static void
 StartUsingConfig()
 {
     setMaxFD();
-    fde::CreateTable();
-    const bool skipCwdAdjusting = IamMasterProcess() && InDaemonMode();
+    fde::Init();
+    const auto skipCwdAdjusting = IamMasterProcess() && InDaemonMode();
     if (skipCwdAdjusting) {
         ConfigureDebugging();
         RunConfigUsers();

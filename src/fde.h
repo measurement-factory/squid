@@ -51,7 +51,7 @@ class fde
 
 public:
 
-    static void CreateTable();
+    static void Init();
 
     fde() {
         *ipaddr = 0;

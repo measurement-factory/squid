@@ -73,7 +73,7 @@ testUfs::commonInit()
 
     Mem::Init();
 
-    fde::CreateTable();
+    fde::Init();
 
     comm_init();
 
