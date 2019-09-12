@@ -288,6 +288,7 @@ urnHandleReply(void *data, StoreIOBuffer result)
 
     /* If we haven't received the entire object (urn), copy more */
     if (urlres_e->store_status == STORE_PENDING) {
+        Must(result.length > 0); // zero length ought to imply STORE_OK
         tempBuffer.offset = urnState->reqofs;
         tempBuffer.length = URN_REQBUF_SZ - urnState->reqofs;
         tempBuffer.data = urnState->reqbuf + urnState->reqofs;
