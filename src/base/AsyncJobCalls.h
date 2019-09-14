@@ -179,6 +179,7 @@ JobDialer<Job>::dial(AsyncCall &call)
         job->callException(e);
     }
 
+    // XXX: Add scope_guard to emulate finally {} to always call callEnd().
     job->callEnd(); // may delete job
 }
 

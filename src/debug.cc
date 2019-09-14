@@ -843,6 +843,10 @@ Debug::Start(const int section, const int level)
 void
 Debug::Finish()
 {
+    extern std::ostream &CurrentAsyncContext(std::ostream &os);
+    if (Current->level <= DBG_IMPORTANT+1) // XXX
+        Current->buf << CurrentAsyncContext;
+
     // TODO: Optimize to remove at least one extra copy.
     _db_print(Current->forceAlert, "%s\n", Current->buf.str().c_str());
     Current->forceAlert = false;

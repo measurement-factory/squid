@@ -16,6 +16,9 @@
 template <class Cbc>
 class CbcPointer;
 
+class AccessLogEntry;
+typedef RefCount<AccessLogEntry> AccessLogEntryPointer;
+
 /**
  \defgroup AsyncJobAPI Async-Jobs API
  \par
@@ -39,6 +42,10 @@ public:
     /// starts a freshly created job (i.e., makes the job asynchronous)
     static Pointer Start(AsyncJob *job);
 
+    virtual const char *status() const; ///< for debugging, starts with space
+
+    virtual AccessLogEntryPointer accessLogEntry() const; ///< XXX: document
+
 protected:
     // XXX: temporary method to replace "delete this" in jobs-in-transition.
     // Will be replaced with calls to mustStop() when transition is complete.
@@ -52,7 +59,6 @@ protected:
     virtual void start(); ///< called by AsyncStart; do not call directly
     virtual bool doneAll() const; ///< whether positive goal has been reached
     virtual void swanSong() {}; ///< internal cleanup; do not call directly
-    virtual const char *status() const; ///< for debugging, starts with space
 
 public:
     bool canBeCalled(AsyncCall &call) const; ///< whether we can be called

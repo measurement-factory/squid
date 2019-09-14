@@ -9,6 +9,7 @@
 /* DEBUG: section 93    ICAP (RFC 3507) Client */
 
 #include "squid.h"
+#include "AccessLogEntry.h"
 #include "base/AsyncCall.h"
 #include "base/AsyncJob.h"
 #include "base/AsyncJobCalls.h"
@@ -17,6 +18,11 @@
 #include "MemBuf.h"
 
 #include <ostream>
+
+static void PushCallContext(const AccessLogEntryPointer &);
+static void PopCallContext();
+/// XXX: Move to header
+extern std::ostream &CurrentAsyncContext(std::ostream &);
 
 InstanceIdDefinitions(AsyncJob, "job");
 
@@ -38,6 +44,12 @@ AsyncJob::~AsyncJob()
 {
     debugs(93,5, "AsyncJob destructed, this=" << this <<
            " type=" << typeName << " [" << id << ']');
+}
+
+AccessLogEntryPointer
+AsyncJob::accessLogEntry() const
+{
+    return nullptr; // XXX: should return global ptr set by loopers
 }
 
 void AsyncJob::start()
@@ -116,6 +128,8 @@ void AsyncJob::callStart(AsyncCall &call)
     // we must be called asynchronously and hence, the caller must lock us
     Must(cbdataReferenceValid(toCbdata()));
 
+    PushCallContext(accessLogEntry());
+
     Must(!inCall); // see AsyncJob::canBeCalled
 
     inCall = &call; // XXX: ugly, but safe if callStart/callEnd,Ex are paired
@@ -147,12 +161,14 @@ void AsyncJob::callEnd()
 
         // careful: this object does not exist any more
         debugs(93, 6, HERE << *inCallSaved << " ended " << thisSaved);
+        PopCallContext(); // TODO: Add scope_guard
         return;
     }
 
     debugs(inCall->debugSection, inCall->debugLevel,
            typeName << " status out:" << status());
     inCall = NULL;
+    PopCallContext();
 }
 
 // returns a temporary string depicting transaction status, for debugging
@@ -171,3 +187,61 @@ const char *AsyncJob::status() const
     return buf.content();
 }
 
+
+#include "HttpRequest.h"
+#include "MasterXaction.h"
+
+typedef AccessLogEntryPointer CallContext;
+static CallContext CallContext_;
+
+static void
+PushCallContext(const CallContext &newCtx)
+{
+    if (CallContext_)
+        debugs(93, DBG_IMPORTANT, "BUG: nested async call " << newCtx);
+    CallContext_ = newCtx;
+}
+
+static void
+PopCallContext()
+{
+    CallContext_ = nullptr;
+}
+
+std::ostream &
+CurrentAsyncContext(std::ostream &os)
+{
+    if (!CallContext_)
+        return os;
+
+    const static SBuf DebugExtra("\n    ");
+
+    const auto &ale = *CallContext_;
+
+    if (const auto &request = ale.request) {
+        if (const auto &mx = request->masterXaction)
+            return os << DebugExtra << "current master transaction: " << mx->id;
+    }
+
+    // provide helpful details since we cannot identify the transaction exactly
+
+    if (const auto &from = ale.tcpClient)
+        return os << DebugExtra << "current from-client connection: " << from;
+    else if (!ale.cache.caddr.isNoAddr())
+        return os << DebugExtra << "current client: " << ale.cache.caddr;
+
+    const auto optionalMethod = [&ale,&os]() {
+        if (ale.hasLogMethod())
+            os << ale.getLogMethod() << ' ';
+        return "";
+    };
+
+    if (const auto uri = ale.effectiveVirginUrl())
+        return os << DebugExtra << "current client request: " << optionalMethod() << *uri;
+    else if (!ale.url.isEmpty())
+        return os << DebugExtra << "current request: " << optionalMethod() << ale.url;
+    else if (ale.hasLogMethod())
+        return os << DebugExtra << "current request method: " << ale.getLogMethod();
+
+    return os;
+}

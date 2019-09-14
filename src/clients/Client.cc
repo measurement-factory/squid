@@ -99,6 +99,13 @@ Client::swanSong()
 #endif
 }
 
+AccessLogEntryPointer
+Client::accessLogEntry() const
+{
+    return fwd ? fwd->al : nullptr;
+}
+
+
 HttpReply *
 Client::virginReply()
 {

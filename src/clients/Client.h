@@ -38,6 +38,9 @@ public:
     Client(FwdState *);
     virtual ~Client();
 
+    // AsyncJob API
+    virtual AccessLogEntryPointer accessLogEntry() const; // overwrite
+
     /// \return primary or "request data connection"
     virtual const Comm::ConnectionPointer & dataConnection() const = 0;
 

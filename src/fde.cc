@@ -20,6 +20,12 @@
 fde *fde::Table = nullptr;
 
 void
+fde::clear()
+{
+    *this = fde();
+}
+
+void
 fde::setIo(READ_HANDLER *reader, WRITE_HANDLER *writer)
 {
     assert(reader);

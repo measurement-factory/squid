@@ -9,6 +9,7 @@
 #include "squid.h"
 #include "anyp/PortCfg.h"
 #include "client_side.h"
+#include "client_side_request.h"
 #include "comm.h"
 #include "comm/Read.h"
 #include "Debug.h"
@@ -50,6 +51,17 @@ Server::swanSong()
         clientConnection->close();
 
     BodyProducer::swanSong();
+}
+
+
+AccessLogEntryPointer
+Server::accessLogEntry() const
+{
+    if (!pipeline.empty()) {
+        if (const auto http = pipeline.front()->http)
+            return http->al;
+    }
+    return nullptr;
 }
 
 void

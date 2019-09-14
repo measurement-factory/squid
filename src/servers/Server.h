@@ -35,6 +35,7 @@ public:
     virtual void start();
     virtual bool doneAll() const;
     virtual void swanSong();
+    virtual AccessLogEntryPointer accessLogEntry() const;
 
     /// ??
     virtual bool connFinishedWithConn(int size) = 0;

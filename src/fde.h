@@ -9,6 +9,7 @@
 #ifndef SQUID_FDE_H
 #define SQUID_FDE_H
 
+#include "base/forward.h"
 #include "comm.h"
 #include "defines.h"
 #include "ip/Address.h"
@@ -21,6 +22,9 @@
 class ClientInfo;
 #endif
 class dwrite_q;
+
+class AccessLogEntry;
+typedef RefCount<AccessLogEntry> AccessLogEntryPointer;
 
 /**
  * READ_HANDLER functions return < 0 if, and only if, they fail with an error.
@@ -50,17 +54,8 @@ class fde
 {
 
 public:
-    fde() {
-        *ipaddr = 0;
-        *desc = 0;
-        read_handler = nullptr;
-        write_handler = nullptr;
-        readMethod_ = nullptr;
-        writeMethod_ = nullptr;
-    }
-
     /// Clear the fde class back to NULL equivalent.
-    void clear() { *this = fde(); }
+    void clear(); // { *this = fde(); }
 
     /// True if comm_close for this fd has been called
     bool closing() const { return flags.close_request; }
@@ -102,8 +97,8 @@ public:
     nfmark_t nfmarkToServer = 0;   /**< The netfilter mark for packets going towards the server.
                                         See also nfConnmarkFromServer. */
     int sock_family = 0;
-    char ipaddr[MAX_IPSTRLEN];            /* dotted decimal address of peer */
-    char desc[FD_DESC_SZ];
+    char ipaddr[MAX_IPSTRLEN] = { 0 }; ///< dotted decimal address of a peer
+    char desc[FD_DESC_SZ]= { 0 };
 
     struct _fde_flags {
         bool open = false;
@@ -137,14 +132,16 @@ public:
     unsigned epoll_state = 0;
 
     _fde_disk disk;
-    PF *read_handler;
+    PF *read_handler = nullptr;
     void *read_data = nullptr;
-    PF *write_handler;
+    PF *write_handler = nullptr;
     void *write_data = nullptr;
     AsyncCall::Pointer timeoutHandler;
     time_t timeout = 0;
     time_t writeStart = 0;
-    void *lifetime_data = nullptr;
+
+    AccessLogEntryPointer ale;
+
     AsyncCall::Pointer closeHandler;
     AsyncCall::Pointer halfClosedReader; /// read handler for half-closed fds
     Security::SessionPointer ssl;
