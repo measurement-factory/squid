@@ -72,6 +72,17 @@ Comm::TcpAcceptor::unsubscribe(const char *reason)
 }
 
 void
+Comm::SetSelect(int fd, IoDirection op, PF *methodWrapper, AsyncJob *job, time_t tout)
+{
+    // we are also called by stateless globals that supply nil "job"
+    if (job) {
+        debugs(1, 1, Here() << "XXX: YES!" << job->status());
+        // fd_table[fd].ale = job->accessLogEntry();
+    }
+    Comm::SetSelect(fd, op, methodWrapper, (void*)job, tout);
+}
+
+void
 Comm::TcpAcceptor::start()
 {
     debugs(5, 5, HERE << status() << " AsyncCall Subscription: " << theCallSub);
