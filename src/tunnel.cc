@@ -148,6 +148,8 @@ public:
         // XXX: make these an AsyncCall when event API can handle them
         TunnelStateData *readPending;
         EVH *readPendingFunc;
+        /// the registered close handler for the connection
+        AsyncCall::Pointer closer;
 
 #if USE_DELAY_POOLS
 
@@ -234,6 +236,8 @@ private:
     /// callback handler after connection setup (including any encryption)
     void connectedToPeer(Security::EncryptorAnswer &answer);
 
+    void closeServerConnection();
+
     /// details of the "last tunneling attempt" failure (if it failed)
     ErrorState *savedError = nullptr;
 
@@ -268,6 +272,7 @@ tunnelServerClosed(const CommCloseCbParams &params)
     debugs(26, 3, HERE << tunnelState->server.conn);
     tunnelState->server.conn = NULL;
     tunnelState->server.writer = NULL;
+    tunnelState->server.closer = nullptr;
 
     if (tunnelState->request != NULL)
         tunnelState->request->hier.stopPeerClock(false);
@@ -883,6 +888,19 @@ tunnelErrorComplete(int fd/*const Comm::ConnectionPointer &*/, void *data, size_
         tunnelState->server.conn->close();
 }
 
+/// closes the connection to the server without triggering the close handler
+void
+TunnelStateData::closeServerConnection()
+{
+    if (Comm::IsConnOpen(server.conn)) {
+        if (server.closer) {
+            comm_remove_close_handler(server.conn->fd, server.closer);
+            server.closer = nullptr;
+        }
+        server.conn->close();
+    }
+}
+
 void
 TunnelStateData::noteConnection(HappyConnOpener::Answer &answer)
 {
@@ -925,7 +943,7 @@ TunnelStateData::connectDone(const Comm::ConnectionPointer &conn, const char *or
     netdbPingSite(request->url.host());
 
     request->peer_host = conn->getPeer() ? conn->getPeer()->host : nullptr;
-    comm_add_close_handler(conn->fd, tunnelServerClosed, this);
+    server.closer = comm_add_close_handler(conn->fd, tunnelServerClosed, this);
 
     bool toOrigin = false; // same semantics as StateFlags::toOrigin
     if (const auto * const peer = conn->getPeer()) {
@@ -1015,8 +1033,17 @@ void
 TunnelStateData::connectedToPeer(Security::EncryptorAnswer &answer)
 {
     if (ErrorState *error = answer.error.get()) {
-        answer.error.clear(); // sendError() will own the error
-        sendError(error, "TLS peer connection error");
+        if (!destinations->empty()) {
+            closeServerConnection();
+            if (!opening())
+                startConnecting(); // try connecting to another destination
+        } else if (PeerSelectionInitiator::subscribed) {
+            closeServerConnection();
+            debugs(26, 4, "wait for more destinations to try");
+        } else {
+            answer.error.clear(); // sendError() will own the error
+            sendError(error, "TLS peer connection error");
+        }
         return;
     }
 
@@ -1256,7 +1283,7 @@ switchToTunnel(HttpRequest *request, Comm::ConnectionPointer &clientConn, Comm::
 #endif
 
     request->peer_host = srvConn->getPeer() ? srvConn->getPeer()->host : nullptr;
-    comm_add_close_handler(srvConn->fd, tunnelServerClosed, tunnelState);
+    tunnelState->server.closer = comm_add_close_handler(srvConn->fd, tunnelServerClosed, tunnelState);
 
     debugs(26, 4, "determine post-connect handling pathway.");
     if (const auto peer = srvConn->getPeer())
