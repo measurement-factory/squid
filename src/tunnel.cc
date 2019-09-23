@@ -137,7 +137,8 @@ public:
         void dataSent (size_t amount);
         /// writes 'b' buffer, setting the 'writer' member to 'callback'.
         void write(const char *b, int size, AsyncCall::Pointer &callback, FREE * free_func);
-        void setCloseHandler(CLCB *handler, TunnelStateData *data);
+        /// sets a new close handler for the connection, removing the old one
+        void setCloseHandler(CLCB *, TunnelStateData *);
         void resetCloseHandler() { closer = nullptr; }
         int len;
         char *buf;
@@ -669,6 +670,10 @@ TunnelStateData::Connection::setCloseHandler(CLCB *handler, TunnelStateData *tun
 {
     assert(handler);
     assert(tunnelState);
+    if (!Comm::IsConnOpen(conn)) {
+        closer = nullptr;
+        return;
+    }
     if (closer)
         comm_remove_close_handler(conn->fd, closer);
     closer = comm_add_close_handler(conn->fd, handler, tunnelState);
