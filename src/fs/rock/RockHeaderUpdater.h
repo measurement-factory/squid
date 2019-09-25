@@ -15,6 +15,8 @@
 #include "fs/rock/RockSwapDir.h"
 #include "ipc/StoreMap.h"
 
+class MemBuf;
+
 namespace Rock
 {
 
@@ -57,6 +59,8 @@ private:
 
     void startWriting();
     void noteDoneWriting(int errflag);
+
+    MemBuf *calculateSizes(uint64_t &stalePrefixSz, uint64_t &freshPrefixSz);
 
     Rock::SwapDir::Pointer store; ///< cache_dir where the entry is stored
     Ipc::StoreMapUpdate update; ///< Ipc::StoreMap update reservation
