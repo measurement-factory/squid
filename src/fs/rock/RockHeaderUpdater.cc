@@ -163,26 +163,6 @@ Rock::HeaderUpdater::noteDoneReading(int errflag)
     }
 }
 
-MemBuf *
-Rock::HeaderUpdater::calculateSizes(uint64_t &stalePrefixSz, uint64_t &freshPrefixSz)
-{
-    const auto &mem = update.entry->mem();
-    stalePrefixSz += mem.swap_hdr_sz;
-    const auto &staleReply = mem.baseReply();
-    Must(staleReply.hdr_sz >= 0); // for int-to-uint64_t conversion below
-    Must(staleReply.hdr_sz > 0); // already initialized
-    stalePrefixSz += staleReply.hdr_sz;
-
-    size_t freshSwapHeaderSize = 0;
-    const auto tmp = update.entry->getSerialisedMetaData(freshSwapHeaderSize);
-    freshPrefixSz += freshSwapHeaderSize;
-    xfree(tmp);
-
-    const auto httpHeader = mem.freshestReply().pack();
-    freshPrefixSz += httpHeader->contentSize();
-    return httpHeader;
-}
-
 void
 Rock::HeaderUpdater::startWriting()
 {
@@ -200,32 +180,31 @@ Rock::HeaderUpdater::startWriting()
     uint64_t stalePrefixSz = 0;
     uint64_t freshPrefixSz = 0;
 
-    const auto httpHeader = calculateSizes(stalePrefixSz, freshPrefixSz);
-
-    auto &swap_file_sz = update.fresh.anchor->basics.swap_file_sz;
-    Must(swap_file_sz >= stalePrefixSz);
-    swap_file_sz -= stalePrefixSz;
-    swap_file_sz += freshPrefixSz;
-
     off_t offset = 0; // current writing offset (for debugging)
+
+    const auto &mem = update.entry->mem();
 
     {
         debugs(20, 7, "fresh store meta for " << *update.entry);
         size_t freshSwapHeaderSize = 0;
-        const auto oldSwapFileSize = update.entry->swap_file_sz;
-        // serialize with a new swap_file_sz
-        update.entry->swap_file_sz = swap_file_sz;
         const auto freshSwapHeader = update.entry->getSerialisedMetaData(freshSwapHeaderSize);
         Must(freshSwapHeader);
-        update.entry->swap_file_sz = oldSwapFileSize;
         writer->write(freshSwapHeader, freshSwapHeaderSize, 0, nullptr);
+        stalePrefixSz += mem.swap_hdr_sz;
+        freshPrefixSz += freshSwapHeaderSize;
         offset += freshSwapHeaderSize;
         xfree(freshSwapHeader);
     }
 
     {
         debugs(20, 7, "fresh HTTP header @ " << offset);
+        const auto httpHeader = mem.freshestReply().pack();
         writer->write(httpHeader->content(), httpHeader->contentSize(), -1, nullptr);
+        const auto &staleReply = mem.baseReply();
+        Must(staleReply.hdr_sz >= 0); // for int-to-uint64_t conversion below
+        Must(staleReply.hdr_sz > 0); // already initialized
+        stalePrefixSz += staleReply.hdr_sz;
+        freshPrefixSz += httpHeader->contentSize();
         offset += httpHeader->contentSize();
         delete httpHeader;
     }
@@ -241,6 +220,10 @@ Rock::HeaderUpdater::startWriting()
            "; swap_file_sz delta: -" << stalePrefixSz << " +" << freshPrefixSz);
 
     // Optimistic early update OK: Our write lock blocks access to swap_file_sz.
+    auto &swap_file_sz = update.fresh.anchor->basics.swap_file_sz;
+    Must(swap_file_sz >= stalePrefixSz);
+    swap_file_sz -= stalePrefixSz;
+    swap_file_sz += freshPrefixSz;
 
     writer->close(StoreIOState::wroteAll); // should call noteDoneWriting()
 }
