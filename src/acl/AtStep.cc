@@ -8,25 +8,40 @@
 
 #include "squid.h"
 
-#if USE_OPENSSL
-
 #include "acl/AtStep.h"
 #include "acl/AtStepData.h"
 #include "acl/FilledChecklist.h"
 #include "client_side.h"
 #include "http/Stream.h"
+#if USE_OPENSSL
 #include "ssl/ServerBump.h"
+#endif
 
 int
-ACLAtStepStrategy::match (ACLData<Ssl::BumpStep> * &data, ACLFilledChecklist *checklist)
+ACLAtStepStrategy::match(ACLData<XactionStep> * &data, ACLFilledChecklist *checklist)
 {
+#if USE_OPENSSL
     Ssl::ServerBump *bump = NULL;
-    if (checklist->conn() != NULL && (bump = checklist->conn()->serverBump()))
-        return data->match(bump->step);
-    else
-        return data->match(Ssl::bumpStep1);
-    return 0;
-}
+    if (checklist->conn() != NULL &&
+        (bump = checklist->conn()->serverBump()) &&
+        data->match(bump->step))
+        return 1;
+#endif
 
-#endif /* USE_OPENSSL */
+    if (checklist->request && data->match(XactionStep::generatingConnect)) {
+        if (!checklist->request->masterXaction)
+            debugs(28, DBG_IMPORTANT, "at_step GeneratingCONNECT ACL is missing master transaction info. Assuming mismatch.");
+        else if (checklist->request->masterXaction->generatingConnect)
+            return 1;
+    }
+
+#if USE_OPENSSL
+    // We need the following to cover the case of bumping at SslBump1 step
+    // where the connStateData::serverBump() is not build yet.
+    // The following also has the meaning that if no bumping preformed
+    // or a client-first bumping is applied then the request is remaining
+    // at SslBump1 bumping processing step.
+    return data->match(XactionStep::tlsBump1);
+#endif
+}
 
