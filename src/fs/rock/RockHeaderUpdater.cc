@@ -187,7 +187,12 @@ Rock::HeaderUpdater::startWriting()
     {
         debugs(20, 7, "fresh store meta for " << *update.entry);
         size_t freshSwapHeaderSize = 0;
+        const auto oldSwapFileSize = update.entry->swap_file_sz;
+        // Serialize zero swap_file_sz so that de-serializing code could
+        // re-calculate it. See storeRebuildParseEntry() for details.
+        update.entry->swap_file_sz = 0;
         const auto freshSwapHeader = update.entry->getSerialisedMetaData(freshSwapHeaderSize);
+        update.entry->swap_file_sz = oldSwapFileSize;
         Must(freshSwapHeader);
         writer->write(freshSwapHeader, freshSwapHeaderSize, 0, nullptr);
         stalePrefixSz += mem.swap_hdr_sz;
