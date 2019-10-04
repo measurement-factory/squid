@@ -782,7 +782,7 @@ peerDigestLookup(CachePeer * p, HttpRequest * request, ps_state *ps)
 
 /* select best CachePeer based on cache digests */
 CachePeer *
-neighborsDigestSelect(HttpRequest * request)
+neighborsDigestSelect(HttpRequest * request, ps_state *ps)
 {
     CachePeer *best_p = NULL;
 #if USE_CACHE_DIGESTS
@@ -808,7 +808,7 @@ neighborsDigestSelect(HttpRequest * request)
         if (i == 1)
             first_ping = p;
 
-        lookup = peerDigestLookup(p, request);
+        lookup = peerDigestLookup(p, request, ps);
 
         if (lookup == LOOKUP_NONE)
             continue;
