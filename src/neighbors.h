@@ -50,7 +50,7 @@ CachePeer *getWeightedRoundRobinParent(HttpRequest * request, ps_state *);
 void peerClearRRStart(void);
 void peerClearRR(void);
 lookup_t peerDigestLookup(CachePeer * p, HttpRequest * request, ps_state *);
-CachePeer *neighborsDigestSelect(HttpRequest * request);
+CachePeer *neighborsDigestSelect(HttpRequest * request, ps_state *);
 void peerNoteDigestLookup(HttpRequest * request, CachePeer * p, lookup_t lookup);
 void peerNoteDigestGone(CachePeer * p);
 int neighborUp(const CachePeer * e);
