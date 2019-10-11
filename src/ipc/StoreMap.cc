@@ -812,11 +812,13 @@ Ipc::StoreMapAnchor::exportInto(StoreEntry &into) const
     into.refcount = basics.refcount;
     const bool collapsingRequired = into.hittingRequiresCollapsing();
     into.flags = basics.flags;
+    // basics.flags does not relay meaningful ENTRY_REQUIRES_COLLAPSING
+    EBIT_CLR(into.flags, ENTRY_REQUIRES_COLLAPSING);
     // There are possibly several flags we do not need to overwrite,
     // and ENTRY_REQUIRES_COLLAPSING is one of them.
     // TODO: check for other flags.
-    // XXX: This flip-flopping trick results in confusing debugging messages.
-    into.setCollapsingRequirement(collapsingRequired);
+    if (collapsingRequired)
+        EBIT_SET(into.flags, ENTRY_REQUIRES_COLLAPSING);
 }
 
 void
