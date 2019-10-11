@@ -1816,6 +1816,12 @@ StoreEntry::startWriting()
     rep->packHeadersUsingSlowPacker(*this);
     mem_obj->markEndOfReplyHeaders();
 
+    // Same-worker collapsing risks end with the receipt of the headers.
+    // SMP collapsing risks remain until the headers are actually cached, but
+    // that event is announced via CF-agnostic disk I/O broadcasts.
+    if (hittingRequiresCollapsing())
+        setCollapsingRequirement(false);
+
     rep->body.packInto(this);
     flush();
 }
