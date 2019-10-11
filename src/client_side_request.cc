@@ -470,7 +470,7 @@ clientFollowXForwardedForCheck(Acl::Answer answer, void *data)
             request->x_forwarded_for_iterator.cut(l);
             calloutContext->acl_checklist = clientAclChecklistCreate(Config.accessList.followXFF, http);
             /* override the default src_addr tested if we have to go deeper than one level into XFF */
-            Filled(calloutContext->acl_checklist)->forceIndirectAddr();
+            Filled(calloutContext->acl_checklist)->preferIndirectAddr();
             calloutContext->acl_checklist->nonBlockingCheck(clientFollowXForwardedForCheck, data);
             return;
         }
@@ -482,15 +482,15 @@ clientFollowXForwardedForCheck(Acl::Answer answer, void *data)
         * Ensure that the access log shows the indirect client
         * instead of the direct client.
         */
-        http->al->cache.caddr = request->indirectClientAddr();
+        http->al->cache.caddr = request->furthestClientAddress();
         if (ConnStateData *conn = http->getConn())
-            conn->log_addr = request->indirectClientAddr();
+            conn->log_addr = request->furthestClientAddress();
     }
     request->x_forwarded_for_iterator.clean();
     request->flags.done_follow_x_forwarded_for = true;
 
     if (answer.conflicted()) {
-        debugs(28, DBG_CRITICAL, "ERROR: Processing X-Forwarded-For. Stopping at IP address: " << request->indirectClientAddr() );
+        debugs(28, DBG_CRITICAL, "ERROR: Processing X-Forwarded-For. Stopping at IP address: " << request->furthestClientAddress());
     }
 
     /* process actual access ACL as normal. */
@@ -1690,8 +1690,7 @@ ClientHttpRequest::clientAddrOnError() const
     if (const auto conn = getConn())
         if (conn->clientConnection)
             return conn->clientConnection->remote;
-    static Ip::Address emptyAddr;
-    return emptyAddr;
+    return Ip::Address::Empty();
 }
 
 /*

@@ -43,11 +43,12 @@ class MasterXaction : public RefCountable
 {
 public:
     typedef RefCount<MasterXaction> Pointer;
-    explicit MasterXaction(const XactionInitiator);
 
+    // Creators must call the first constructor they can call (with a non-nil
+    // pointer). Following this rule maximizes stored information.
     MasterXaction(const XactionInitiator, ConnStateData *);
-
     MasterXaction(const XactionInitiator, Comm::ConnectionPointer);
+    explicit MasterXaction(const XactionInitiator anInitiator) : initiator(anInitiator) {}
 
     /// the client connection of the transaction, if any
     Comm::ConnectionPointer clientConnection();

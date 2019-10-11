@@ -13,10 +13,6 @@
 
 InstanceIdDefinitions(MasterXaction, "MXID_");
 
-MasterXaction::MasterXaction(const XactionInitiator anInitiator) :
-    initiator(anInitiator)
-{};
-
 MasterXaction::MasterXaction(const XactionInitiator anInitiator, ConnStateData *connManager) :
     initiator(anInitiator),
     clientConnectionManager_(connManager),

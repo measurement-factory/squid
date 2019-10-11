@@ -1457,7 +1457,7 @@ getOutgoingAddress(HttpRequest * request, Comm::ConnectionPointer conn)
         if (!conn->getPeer() || !conn->getPeer()->options.no_tproxy) {
 #if FOLLOW_X_FORWARDED_FOR && LINUX_NETFILTER
             if (Config.onoff.tproxy_uses_indirect_client)
-                conn->local = request->indirectClientAddr();
+                conn->local = request->furthestClientAddress();
             else
 #endif
                 conn->local = request->clientAddr();

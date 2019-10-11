@@ -174,8 +174,8 @@ public:
     Comm::ConnectionPointer clientConnection() const;
 
 #if FOLLOW_X_FORWARDED_FOR
-    /// the indirect client address
-    const Ip::Address& indirectClientAddr() const;
+    /// Indirect client address, if available, otherwise clientAddr().
+    const Ip::Address& furthestClientAddress() const;
 
     void indirectClientAddr(const Ip::Address &addr) { indirect_client_addr = addr; }
     /// force using direct client address

@@ -118,10 +118,9 @@ HttpRequest::init()
     forcedBodyContinuation = false;
     selfInitiated_ = false;
 
-    if (clientConnectionManager().valid()) {
-        if (const auto port = clientConnectionManager()->port) {
+    if (const auto mgr = clientConnectionManager().valid()) {
+        if (const auto port = mgr->port)
             flags.ignoreCc = port->ignore_cc;
-        }
     }
 }
 
@@ -760,19 +759,12 @@ HttpRequest::clientConnectionManager()
     return noManager;
 }
 
-static const Ip::Address&
-EmptyAddr()
-{
-    static Ip::Address addr;
-    return addr;
-}
-
 const Ip::Address&
 HttpRequest::clientAddr() const
 {
     if (!selfInitiated_)
         return clientConnection() ? clientConnection()->remote : client_addr;
-    return EmptyAddr();
+    return Ip::Address::Empty();
 }
 
 void
@@ -787,16 +779,16 @@ HttpRequest::myAddr() const
 {
     if (!selfInitiated_)
         return masterXaction->clientConnection() ? masterXaction->clientConnection()->local : my_addr;
-    return EmptyAddr();
+    return Ip::Address::Empty();
 }
 
 #if FOLLOW_X_FORWARDED_FOR
 const Ip::Address&
-HttpRequest::indirectClientAddr() const
+HttpRequest::furthestClientAddress() const
 {
     if (!selfInitiated_)
         return indirect_client_addr.isKnown() ? indirect_client_addr : clientAddr();
-    return EmptyAddr();
+    return Ip::Address::Empty();
 }
 
 void

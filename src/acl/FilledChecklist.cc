@@ -150,10 +150,10 @@ ACLFilledChecklist::clientConnectionManager() const
 
 #if FOLLOW_X_FORWARDED_FOR
 void
-ACLFilledChecklist::forceIndirectAddr()
+ACLFilledChecklist::preferIndirectAddr()
 {
     assert(request);
-    client_addr = request->indirectClientAddr();
+    client_addr = request->furthestClientAddress();
 }
 #endif
 
@@ -263,7 +263,6 @@ void ACLFilledChecklist::setRequest(HttpRequest *httpRequest)
 static void
 InitializeClientAddress(Ip::Address &addr, const Ip::Address &value)
 {
-    //Must(addr.isKnown() || addr == value);
     assert(!addr.isKnown() || addr == value);
     if (!addr.isKnown())
         addr = value;
@@ -276,7 +275,7 @@ ACLFilledChecklist::setClientSideAddresses()
     if (request) {
 #if FOLLOW_X_FORWARDED_FOR
         if (Config.onoff.acl_uses_indirect_client)
-            InitializeClientAddress(client_addr, request->indirectClientAddr());
+            InitializeClientAddress(client_addr, request->furthestClientAddress());
         else
 #endif
             InitializeClientAddress(client_addr, request->clientAddr());

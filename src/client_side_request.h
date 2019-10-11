@@ -127,10 +127,11 @@ public:
     AccessLogEntry::Pointer al; ///< access.log entry
 
     struct Flags {
-        Flags() : accel(false), internalReceived(false), done_copying(false), purging(false) {}
+        Flags() : accel(false), askingForOurInternalResource(false), done_copying(false), purging(false) {}
 
         bool accel;
-        bool internalReceived;
+        /// a request with a /squid-internal-... URL referring to this Squid instance
+        bool askingForOurInternalResource;
         bool done_copying;
         bool purging;
     } flags;

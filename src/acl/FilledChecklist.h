@@ -53,9 +53,9 @@ public:
     void setClientConnectionDetails(ConnStateData *, Comm::ConnectionPointer conn = nullptr);
 
 #if FOLLOW_X_FORWARDED_FOR
-    /// Configures clientAddr() to always return available indirect client address
-    /// instead of direct client address.
-    void forceIndirectAddr();
+    /// Instructs clientAddr() to return the indirect client address, if available,
+    /// or direct client address otherwise.
+    void preferIndirectAddr();
 #endif
 
     /// Configures clientAddr() to always return direct client address
@@ -137,6 +137,7 @@ private:
     /// by Squid configuration. The checklist may be configured to force either direct or indirect
     /// client address usage, overwriting the default configuration.
     Ip::Address client_addr;
+    /// the local address of the client connection
     Ip::Address my_addr;
 
     /// not implemented; will cause link failures if used

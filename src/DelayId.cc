@@ -92,7 +92,7 @@ DelayId::DelayClient(ClientHttpRequest * http, HttpReply *reply)
         }
 #if FOLLOW_X_FORWARDED_FOR
         if (Config.onoff.delay_pool_uses_indirect_client)
-            ch.forceIndirectAddr();
+            ch.preferIndirectAddr();
         else
 #endif /* FOLLOW_X_FORWARDED_FOR */
             ch.forceDirectAddr();

@@ -300,6 +300,8 @@ public:
      */
     static void InitAddr(struct addrinfo *&ai);
 
+    static const Address &Empty() { static Address emptyAddr; return emptyAddr; }
+
     /**
      *  Lookup a Host by Name. Equivalent to system call gethostbyname(char*)
      \param s The textual FQDN of the host being located.

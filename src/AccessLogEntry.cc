@@ -21,7 +21,7 @@ AccessLogEntry::getLogClientIp(char *buf, size_t bufsz) const
 
 #if FOLLOW_X_FORWARDED_FOR
     if (Config.onoff.log_uses_indirect_client && request)
-        log_ip = request->indirectClientAddr();
+        log_ip = request->furthestClientAddress();
     else
 #endif
         if (tcpClient)

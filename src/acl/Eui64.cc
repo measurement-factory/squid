@@ -88,7 +88,7 @@ ACLEui64::match(ACLChecklist *cl)
 
     /* IPv4 does not do EUI-64 (yet) */
     if (!checklist->clientAddr().isIPv6()) {
-        debugs(14, 3, "ACLEui64::match: IPv6 Required for EUI-64 Lookups. Skipping " << checklist->clientAddr() );
+        debugs(14, 3, "ACLEui64::match: IPv6 Required for EUI-64 Lookups. Skipping " << checklist->clientAddr());
         return 0;
     }
 

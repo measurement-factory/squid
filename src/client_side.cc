@@ -1404,7 +1404,7 @@ parseHttpRequest(ConnStateData *csd, const Http1::RequestParserPointer &hp)
         http->uri = xstrdup(internalLocalUri(NULL, hp->requestUri()));
         // We just re-wrote the URL. Must replace the Host: header.
         //  But have not parsed there yet!! flag for local-only handling.
-        http->flags.internalReceived = true;
+        http->flags.askingForOurInternalResource = true;
 
     } else if (csd->port->flags.accelSurrogate) {
         /* accelerator mode */
@@ -1641,19 +1641,19 @@ clientProcessRequest(ConnStateData *conn, const Http1::RequestParserPointer &hp,
     if (internalCheck(request->url.path())) {
         if (internalHostnameIs(request->url.host()) && request->url.port() == getMyPort()) {
             debugs(33, 2, "internal URL found: " << request->url.getScheme() << "://" << request->url.authority(true));
-            http->flags.internalReceived = true;
+            http->flags.askingForOurInternalResource = true;
         } else if (Config.onoff.global_internal_static && internalStaticCheck(request->url.path())) {
             debugs(33, 2, "internal URL found: " << request->url.getScheme() << "://" << request->url.authority(true) << " (global_internal_static on)");
             request->url.setScheme(AnyP::PROTO_HTTP, "http");
             request->url.host(internalHostname());
             request->url.port(getMyPort());
-            http->flags.internalReceived = true;
+            http->flags.askingForOurInternalResource = true;
             http->setLogUriToRequestUri();
         } else
             debugs(33, 2, "internal URL found: " << request->url.getScheme() << "://" << request->url.authority(true) << " (not this proxy)");
     }
 
-    request->flags.internalReceived = http->flags.internalReceived;
+    request->flags.internalReceived = http->flags.askingForOurInternalResource;
 
     if (!isFtp) {
         // XXX: for non-HTTP messages instantiate a different Http::Message child type

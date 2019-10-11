@@ -131,7 +131,7 @@ Adaptation::Ecap::XactionRep::clientIpValue() const
         Ip::Address client_addr;
 #if FOLLOW_X_FORWARDED_FOR
         if (TheConfig.use_indirect_client)
-            client_addr = request->indirectClientAddr();
+            client_addr = request->furthestClientAddress();
         else
 #endif
             client_addr = request->clientAddr();
