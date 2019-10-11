@@ -517,7 +517,6 @@ void
 Client::haveParsedReplyHeaders()
 {
     Must(theFinalReply);
-
     maybePurgeOthers();
 
     // adaptation may overwrite old offset computed using the virgin response
