@@ -375,7 +375,7 @@ clientBeginRequest(const HttpRequestMethod& method, char const *url, CSCB * stre
      * objects ?
      */
 
-    request->selfInitiated();
+    request->markAsSelfInitiated();
 
     http->initRequest(request);
 

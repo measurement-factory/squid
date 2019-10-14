@@ -150,10 +150,10 @@ public:
     int imslen;
 
     /// mark this request as initiated by Squid (rather than received on a client connection)
-    void selfInitiated();
+    void markAsSelfInitiated();
 
     /// whether this request was initiated by Squid (rather than received on a client connection)
-    bool isSelfInitiated() const { return selfInitiated_; }
+    bool selfInitiated() const { return selfInitiated_; }
 
     /// supply Downloader-specific settings
     void prepareForDownloader(Downloader *);
@@ -161,7 +161,7 @@ public:
     /// specify addresses manually when lacking client connection
     void prepareForConnectionlessProtocol(const Ip::Address &fromAddr, const Ip::Address &localAddr);
 
-    /// the remote address of the client connection
+    /// the source address of the client connection
     const Ip::Address& clientAddr() const;
 
     /// the local address of the client connection
@@ -170,7 +170,9 @@ public:
     /// the client connection manager of the underlying transaction, if any
     CbcPointer<ConnStateData> &clientConnectionManager();
 
-    /// the client connection of the underlying transaction, if any
+    /// the client connection of the underlying transaction
+    /// \retval * client connection that initiated this request (if any)
+    /// \retval nil for selfInitiated() requests
     Comm::ConnectionPointer clientConnection() const;
 
 #if FOLLOW_X_FORWARDED_FOR
@@ -178,7 +180,8 @@ public:
     const Ip::Address& furthestClientAddress() const;
 
     void indirectClientAddr(const Ip::Address &addr) { indirect_client_addr = addr; }
-    /// force using direct client address
+
+    /// forces furthestClientAddress() to return a direct client address
     void ignoreIndirectClientAddr();
 #endif
 

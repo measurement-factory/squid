@@ -738,11 +738,11 @@ HttpRequest::prepareForDownloader(Downloader *aDownloader)
     header.putStr(Http::HdrType::HOST, url.host());
     header.putTime(Http::HdrType::DATE, squid_curtime);
     downloader = aDownloader;
-    selfInitiated();
+    markAsSelfInitiated();
 }
 
 void
-HttpRequest::selfInitiated()
+HttpRequest::markAsSelfInitiated()
 {
     /* Internally created requests cannot have bodies today */
     content_length = 0;
@@ -762,7 +762,7 @@ HttpRequest::clientConnectionManager()
 const Ip::Address&
 HttpRequest::clientAddr() const
 {
-    if (!selfInitiated_)
+    if (!selfInitiated_) // Optimization: Checking clientConnection() would be enough.
         return clientConnection() ? clientConnection()->remote : client_addr;
     return Ip::Address::Empty();
 }
@@ -823,7 +823,7 @@ HttpRequest::setInterceptionFlags(const AccessLogEntryPointer &al)
 bool
 HttpRequest::needCheckMissAccess() const
 {
-    return !(flags.internalReceived || url.getScheme() == AnyP::PROTO_CACHE_OBJECT || isSelfInitiated());
+    return !(flags.internalReceived || url.getScheme() == AnyP::PROTO_CACHE_OBJECT || selfInitiated());
 }
 
 char *
