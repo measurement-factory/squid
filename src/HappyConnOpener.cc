@@ -152,6 +152,7 @@ HappyOrderEnforcer::enqueue(HappyConnOpener &job)
     Must(!job.spareWaiting.callback);
     jobs_.emplace_back(&job);
     job.spareWaiting.position = std::prev(jobs_.end());
+    job.spareWaiting.codeContext = CodeContext::Current();
 }
 
 void
@@ -172,10 +173,11 @@ HappyOrderEnforcer::checkpoint()
     while (!jobs_.empty()) {
         if (const auto jobPtr = jobs_.front().valid()) {
             auto &job = *jobPtr;
-            if (readyNow(job))
-                job.spareWaiting.callback = notify(jobPtr); // and fall through to the next job
-            else
+            if (!readyNow(job))
                 break; // the next job cannot be ready earlier (FIFO)
+            CallBack(job.spareWaiting.codeContext, [&] {
+                job.spareWaiting.callback = notify(jobPtr);
+            });
         }
         jobs_.pop_front();
     }

@@ -41,6 +41,9 @@ public:
     /// a pending noteGavePrimeItsChance() or noteSpareAllowance() call
     AsyncCall::Pointer callback;
 
+    /// what HappyConnOpener is working on
+    CodeContext::Pointer codeContext;
+
     /// location on the toGivePrimeItsChance or forSpareAllowance wait list
     /// invalidated when the callback is set
     HappySpareWaitList::iterator position;
