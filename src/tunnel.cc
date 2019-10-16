@@ -1017,7 +1017,7 @@ TunnelStateData::connectToPeer(const Comm::ConnectionPointer &conn)
     connectedToPeer(conn);
 }
 
-    /// callback handler for the connection encryptor
+/// callback handler for the connection encryptor
 void
 TunnelStateData::noteSecurityPeerConnectorAnswer(Security::EncryptorAnswer &answer)
 {
