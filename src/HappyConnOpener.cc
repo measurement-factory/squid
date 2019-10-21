@@ -153,6 +153,7 @@ HappyOrderEnforcer::enqueue(HappyConnOpener &job)
     Must(!job.spareWaiting.callback);
     jobs_.emplace_back(&job);
     job.spareWaiting.position = std::prev(jobs_.end());
+    job.spareWaiting.codeContext = CodeContext::Current();
 }
 
 void
@@ -175,7 +176,7 @@ HappyOrderEnforcer::checkpoint()
             auto &job = *jobPtr;
             if (!readyNow(job))
                 break; // the next job cannot be ready earlier (FIFO)
-            CallBack(job.codeContext, [&] {
+            CallBack(job.spareWaiting.codeContext, [&] {
                 job.spareWaiting.callback = notify(jobPtr); // and fall through to the next job
             });
         }
@@ -327,7 +328,6 @@ HappyConnOpenerAnswer::~HappyConnOpenerAnswer()
 
 HappyConnOpener::HappyConnOpener(const ResolvedPeers::Pointer &dests, const AsyncCall::Pointer &aCall, HttpRequest::Pointer &request, const time_t aFwdStart, int tries, const AccessLogEntry::Pointer &anAle):
     AsyncJob("HappyConnOpener"),
-    codeContext(CodeContext::Current()),
     fwdStart(aFwdStart),
     callback_(aCall),
     destinations(dests),

@@ -64,6 +64,8 @@ public:
     /// The current peer has no spares left to try.
     /// Prime exhaustion ends this wait (by changing currentPeer).
     bool forNewPeer = false;
+
+    CodeContext::Pointer codeContext; ///< requestor's context
 };
 
 /// Final result (an open connection or an error) sent to the job initiator.
@@ -149,8 +151,6 @@ public:
 
     /// the start of the first connection attempt for the currentPeer
     HappyAbsoluteTime primeStart = 0;
-
-    CodeContext::Pointer codeContext; ///< requestor's context
 
 private:
     /// a connection opening attempt in progress (or falsy)
