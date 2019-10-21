@@ -8,6 +8,7 @@
 
 #include "squid.h"
 #include "AccessLogEntry.h"
+#include "base/CodeContext.h"
 #include "CachePeer.h"
 #include "errorpage.h"
 #include "FwdState.h"
@@ -172,10 +173,11 @@ HappyOrderEnforcer::checkpoint()
     while (!jobs_.empty()) {
         if (const auto jobPtr = jobs_.front().valid()) {
             auto &job = *jobPtr;
-            if (readyNow(job))
-                job.spareWaiting.callback = notify(jobPtr); // and fall through to the next job
-            else
+            if (!readyNow(job))
                 break; // the next job cannot be ready earlier (FIFO)
+            CallBack(job.codeContext, [&] {
+                job.spareWaiting.callback = notify(jobPtr); // and fall through to the next job
+            });
         }
         jobs_.pop_front();
     }
@@ -325,6 +327,7 @@ HappyConnOpenerAnswer::~HappyConnOpenerAnswer()
 
 HappyConnOpener::HappyConnOpener(const ResolvedPeers::Pointer &dests, const AsyncCall::Pointer &aCall, HttpRequest::Pointer &request, const time_t aFwdStart, int tries, const AccessLogEntry::Pointer &anAle):
     AsyncJob("HappyConnOpener"),
+    codeContext(CodeContext::Current()),
     fwdStart(aFwdStart),
     callback_(aCall),
     destinations(dests),

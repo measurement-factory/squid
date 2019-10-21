@@ -150,6 +150,8 @@ public:
     /// the start of the first connection attempt for the currentPeer
     HappyAbsoluteTime primeStart = 0;
 
+    CodeContext::Pointer codeContext; ///< requestor's context
+
 private:
     /// a connection opening attempt in progress (or falsy)
     class Attempt {
