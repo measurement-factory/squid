@@ -49,7 +49,7 @@ Auth::Basic::UserRequest::credentialsStr()
 /* log a basic user in
  */
 void
-Auth::Basic::UserRequest::authenticate(HttpRequest *, ConnStateData *, Http::HdrType)
+Auth::Basic::UserRequest::authenticate(HttpRequest *, ConnStateData *, Http::HdrType, AccessLogEntry::Pointer &)
 {
     assert(user() != NULL);
 

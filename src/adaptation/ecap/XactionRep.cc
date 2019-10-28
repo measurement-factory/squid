@@ -131,10 +131,10 @@ Adaptation::Ecap::XactionRep::clientIpValue() const
         Ip::Address client_addr;
 #if FOLLOW_X_FORWARDED_FOR
         if (TheConfig.use_indirect_client)
-            client_addr = request->furthestClientAddress();
+            client_addr = al->furthestClientAddress();
         else
 #endif
-            client_addr = request->clientAddr();
+            client_addr = al->clientAddr();
         if (client_addr.isKnown()) {
             char ntoabuf[MAX_IPSTRLEN] = "";
             client_addr.toStr(ntoabuf,MAX_IPSTRLEN);

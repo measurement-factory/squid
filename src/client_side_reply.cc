@@ -1319,7 +1319,7 @@ clientReplyContext::replyStatus()
     }
 
     // XXX: Should this be checked earlier? We could return above w/o checking.
-    if (reply->receivedBodyTooLarge(*http->request, http->out.offset - 4096)) {
+    if (reply->receivedBodyTooLarge(*http->request, http->out.offset - 4096, http->al)) {
         /* 4096 is a margin for the HTTP headers included in out.offset */
         debugs(88, 5, "clientReplyStatus: client reply body is too large");
         return STREAM_FAILED;
@@ -1539,9 +1539,9 @@ clientReplyContext::buildReplyHeader()
          * data on 407/401 responses, and do not check the accel state on 401/407
          * responses
          */
-        Auth::UserRequest::AddReplyAuthHeader(reply, request->auth_user_request, request, 0, 1);
+        Auth::UserRequest::AddReplyAuthHeader(reply, request->auth_user_request, request, 0, 1, http->al);
     } else if (request->auth_user_request != NULL)
-        Auth::UserRequest::AddReplyAuthHeader(reply, request->auth_user_request, request, http->flags.accel, 0);
+        Auth::UserRequest::AddReplyAuthHeader(reply, request->auth_user_request, request, http->flags.accel, 0, http->al);
 #endif
 
     /* Append X-Cache */
@@ -2030,7 +2030,7 @@ clientReplyContext::processReplyAccess ()
     }
 
     /** Check for reply to big error */
-    if (reply->expectedBodyTooLarge(*http->request)) {
+    if (reply->expectedBodyTooLarge(*http->request, http->al)) {
         sendBodyTooLargeError();
         return;
     }

@@ -87,6 +87,7 @@ icpSyncAle(AccessLogEntryPointer &al, const Ip::Address &caddr, const char *url,
     al->cache.start_time.tv_sec -= delay;
     al->cache.trTime.tv_sec = delay;
     al->cache.trTime.tv_usec = 0;
+    al->prepareForConnectionlessProtocol(caddr, icpIncomingConn->local);
 }
 
 /**
@@ -471,7 +472,7 @@ icpAccessAllowed(Ip::Address &from, HttpRequest * icp_request)
     if (!Config.accessList.icp)
         return false;
 
-    ACLFilledChecklist checklist(Config.accessList.icp, icp_request, NULL);
+    ACLFilledChecklist checklist(Config.accessList.icp, icp_request, nullptr, nullptr); // XXX: supply ALE
     return checklist.fastCheck().allowed();
 }
 
@@ -497,8 +498,6 @@ icpGetRequest(char *url, int reqnum, int fd, Ip::Address &from)
     const MasterXaction::Pointer mx = new MasterXaction(XactionInitiator::initIcp);
     if ((result = HttpRequest::FromUrl(url, mx)) == NULL)
         icpCreateAndSend(ICP_ERR, 0, url, reqnum, 0, fd, from, nullptr);
-    else
-        result->prepareForConnectionlessProtocol(from, icpIncomingConn->local);
 
     return result;
 

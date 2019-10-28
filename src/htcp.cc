@@ -122,6 +122,9 @@ struct _htcpAuthHeader {
 static Comm::ConnectionPointer htcpOutgoingConn;
 static Comm::ConnectionPointer htcpIncomingConn;
 
+static void
+htcpSyncAle(AccessLogEntryPointer &al, const Ip::Address &caddr, const int opcode, const char *url);
+
 class htcpSpecifier : public RefCountable, public StoreClient
 {
     MEMPROXY_CLASS(htcpSpecifier);
@@ -134,11 +137,11 @@ public:
 
     const Ip::Address &from() const {
         assert(request);
-        return request->clientAddr();
+        return al->clientAddr();
     }
-    void setAddresses(Ip::Address &from) {
-        assert(request);
-        request->prepareForConnectionlessProtocol(from, htcpIncomingConn->local);
+    void setAddresses(Ip::Address &fromAddr) {
+        htcpSyncAle(al, fromAddr, dhdr->opcode, uri);
+        al->prepareForConnectionlessProtocol(fromAddr, htcpIncomingConn->local);
     }
     void setDataHeader(htcpDataHeader *aDataHeader) {
         dhdr = aDataHeader;
@@ -800,7 +803,7 @@ htcpAccessAllowed(acl_access * acl, const htcpSpecifier::Pointer &s, Ip::Address
     if (!acl)
         return false;
 
-    ACLFilledChecklist checklist(acl, s->request.getRaw(), nullptr);
+    ACLFilledChecklist checklist(acl, s->request.getRaw(), s->al, nullptr);
     return checklist.fastCheck().allowed();
 }
 
@@ -1194,8 +1197,8 @@ htcpHandleClr(htcpDataHeader * hdr, char *buf, int sz, Ip::Address &from)
         htcpLogHtcp(from, hdr->opcode, LOG_UDP_INVALID, dash_str, nullptr);
         return;
     } else {
-        s->setAddresses(from);
         s->setDataHeader(hdr);
+        s->setAddresses(from);
     }
 
     if (!s->request) {

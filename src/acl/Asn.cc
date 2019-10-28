@@ -238,7 +238,6 @@ asnCacheStart(int as)
     asState->request = new HttpRequest(mx);
     asState->request->url = whoisUrl;
     asState->request->method = Http::METHOD_GET;
-    asState->request->markAsSelfInitiated();
 
     // XXX: performance regression, c_str() reallocates
     const auto asres = xstrdup(whoisUrl.absolute().c_str());

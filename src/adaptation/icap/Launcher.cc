@@ -141,7 +141,7 @@ bool Adaptation::Icap::Launcher::canRepeat(Adaptation::Icap::XactAbortInfo &info
         return true;
 
     ACLFilledChecklist *cl =
-        new ACLFilledChecklist(TheConfig.repeat, info.icapRequest, dash_str);
+        new ACLFilledChecklist(TheConfig.repeat, info.icapRequest, info.al, dash_str);
     cl->reply = info.icapReply;
     HTTPMSGLOCK(cl->reply);
 
@@ -153,11 +153,12 @@ bool Adaptation::Icap::Launcher::canRepeat(Adaptation::Icap::XactAbortInfo &info
 /* ICAPXactAbortInfo */
 
 Adaptation::Icap::XactAbortInfo::XactAbortInfo(HttpRequest *anIcapRequest,
-        HttpReply *anIcapReply, bool beRetriable, bool beRepeatable):
+        HttpReply *anIcapReply, bool beRetriable, bool beRepeatable,  const AccessLogEntry::Pointer &ale):
     icapRequest(anIcapRequest),
     icapReply(anIcapReply),
     isRetriable(beRetriable),
-    isRepeatable(beRepeatable)
+    isRepeatable(beRepeatable),
+    al(ale)
 {
     if (icapRequest)
         HTTPMSGLOCK(icapRequest);
@@ -169,7 +170,8 @@ Adaptation::Icap::XactAbortInfo::XactAbortInfo(const Adaptation::Icap::XactAbort
     icapRequest(i.icapRequest),
     icapReply(i.icapReply),
     isRetriable(i.isRetriable),
-    isRepeatable(i.isRepeatable)
+    isRepeatable(i.isRepeatable),
+    al(i.al)
 {
     if (icapRequest)
         HTTPMSGLOCK(icapRequest);

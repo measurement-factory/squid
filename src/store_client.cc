@@ -56,7 +56,7 @@ StoreClient::onCollapsingPath() const
     if (!Config.accessList.collapsedForwardingAccess)
         return true;
 
-    ACLFilledChecklist checklist(Config.accessList.collapsedForwardingAccess, nullptr, nullptr);
+    ACLFilledChecklist checklist(Config.accessList.collapsedForwardingAccess, nullptr, nullptr, nullptr);
     fillChecklist(checklist);
     return checklist.fastCheck().allowed();
 }
@@ -859,7 +859,7 @@ CheckQuickAbortIsReasonable(StoreEntry * entry)
         return false;
     }
 
-    if (mem->request && mem->request->range && mem->request->getRangeOffsetLimit() < 0) {
+    if (mem->request && mem->request->range && mem->request->getRangeOffsetLimit(nullptr) < 0) { // XXX supply ALE
         /* Don't abort if the admin has configured range_ofset -1 to download fully for caching. */
         debugs(90, 3, "quick-abort? NO admin configured range replies to full-download");
         return false;

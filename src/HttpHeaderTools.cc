@@ -273,7 +273,7 @@ httpHeaderQuoteString(const char *raw)
  * \retval 1    Header has no access controls to test
  */
 static int
-httpHdrMangle(HttpHeaderEntry * e, HttpRequest * request, HeaderManglers *hms)
+httpHdrMangle(HttpHeaderEntry *e, HttpRequest * request, HeaderManglers *hms, const AccessLogEntryPointer &al)
 {
     int retval;
 
@@ -287,7 +287,7 @@ httpHdrMangle(HttpHeaderEntry * e, HttpRequest * request, HeaderManglers *hms)
         return 1;
     }
 
-    ACLFilledChecklist checklist(hm->access_list, request, NULL);
+    ACLFilledChecklist checklist(hm->access_list, request, al, nullptr);
 
     if (checklist.fastCheck().allowed()) {
         /* aclCheckFast returns true for allow. */
@@ -335,7 +335,7 @@ httpHdrMangleList(HttpHeader *l, HttpRequest *request, const AccessLogEntryPoint
     if (hms) {
         int headers_deleted = 0;
         while ((e = l->getEntry(&p))) {
-            if (0 == httpHdrMangle(e, request, hms))
+            if (0 == httpHdrMangle(e, request, hms, al))
                 l->delAt(p, headers_deleted);
         }
 
@@ -476,7 +476,7 @@ HeaderManglers::find(const HttpHeaderEntry &e) const
 void
 httpHdrAdd(HttpHeader *heads, HttpRequest *request, const AccessLogEntryPointer &al, HeaderWithAclList &headersAdd)
 {
-    ACLFilledChecklist checklist(NULL, request, NULL);
+    ACLFilledChecklist checklist(nullptr, request, al, nullptr);
 
     for (HeaderWithAclList::const_iterator hwa = headersAdd.begin(); hwa != headersAdd.end(); ++hwa) {
         if (!hwa->aclList || checklist.fastCheck(hwa->aclList).allowed()) {

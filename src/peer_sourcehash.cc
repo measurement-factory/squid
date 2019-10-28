@@ -159,9 +159,8 @@ peerSourceHashSelectParent(PeerSelector *ps)
         return NULL;
 
     assert(ps);
-    HttpRequest *request = ps->request;
 
-    key = request->clientAddr().toStr(ntoabuf, sizeof(ntoabuf));
+    key = ps->al->clientAddr().toStr(ntoabuf, sizeof(ntoabuf));
 
     /* calculate hash key */
     debugs(39, 2, "peerSourceHashSelectParent: Calculating hash for " << key);

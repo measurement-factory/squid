@@ -688,7 +688,7 @@ ErrorState::ErrorState(err_type t, Http::StatusCode status, HttpRequest * req, c
 
     if (req) {
         request = req;
-        src_addr = req->clientAddr();
+        src_addr = ale->clientAddr();
     }
 
     ale = anAle;
@@ -703,7 +703,7 @@ ErrorState::ErrorState(HttpRequest * req, HttpReply *errorReply) :
 
     if (req) {
         request = req;
-        src_addr = req->clientAddr();
+        src_addr = ale->clientAddr();
     }
 }
 

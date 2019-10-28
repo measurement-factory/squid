@@ -305,13 +305,12 @@ FwdState::~FwdState()
 void
 FwdState::Start(const Comm::ConnectionPointer &clientConn, StoreEntry *entry, HttpRequest *request, const AccessLogEntryPointer &al)
 {
-    if (Config.accessList.miss && request->needCheckMissAccess()) {
+    if (Config.accessList.miss && !al->clientAddr().isEmpty() && request->needCheckMissAccess()) {
         // Check if this host is allowed to fetch MISSES from us (miss_access).
-        ACLFilledChecklist ch(Config.accessList.miss, request, NULL);
+        ACLFilledChecklist ch(Config.accessList.miss, request, al, nullptr);
         // TODO: Explain this acl_uses_indirect_client violation in squid.conf.
         // TODO: Refer to the above squid.conf documentation here.
         ch.forceDirectAddr();
-        ch.al = al;
         ch.syncAle(request, nullptr);
         if (ch.fastCheck().denied()) {
             err_type page_id;
@@ -906,11 +905,11 @@ void
 FwdState::syncWithServerConn(const char *host)
 {
     if (Ip::Qos::TheConfig.isAclTosActive())
-        Ip::Qos::setSockTos(serverConn, GetTosToServer(request));
+        Ip::Qos::setSockTos(serverConn, GetTosToServer(request, al));
 
 #if SO_MARK
     if (Ip::Qos::TheConfig.isAclNfmarkActive())
-        Ip::Qos::setSockNfmark(serverConn, GetNfmarkToServer(request));
+        Ip::Qos::setSockNfmark(serverConn, GetNfmarkToServer(request, al));
 #endif
 
     syncHierNote(serverConn, host);
@@ -1020,7 +1019,7 @@ FwdState::connectStart()
     entry->mem_obj->checkUrlChecksum();
 #endif
 
-    GetMarkingsToServer(request, *serverDestinations[0]);
+    GetMarkingsToServer(request, *serverDestinations[0], al);
 
     const AsyncCall::Pointer connector = commCbCall(17,3, "fwdConnectDoneWrapper", CommConnectCbPtrFun(fwdConnectDoneWrapper, this));
     const auto connTimeout = connectingTimeout(serverDestinations[0]);
@@ -1332,8 +1331,7 @@ FwdState::pconnPop(const Comm::ConnectionPointer &dest, const char *domain)
 {
     bool retriable = checkRetriable();
     if (!retriable && Config.accessList.serverPconnForNonretriable) {
-        ACLFilledChecklist ch(Config.accessList.serverPconnForNonretriable, request, NULL);
-        ch.al = al;
+        ACLFilledChecklist ch(Config.accessList.serverPconnForNonretriable, request, al, nullptr);
         ch.syncAle(request, nullptr);
         retriable = ch.fastCheck().allowed();
     }
@@ -1442,7 +1440,7 @@ aclFindNfMarkConfig(acl_nfmark * head, ACLChecklist * ch)
 }
 
 void
-getOutgoingAddress(HttpRequest * request, Comm::ConnectionPointer conn)
+getOutgoingAddress(HttpRequest * request, Comm::ConnectionPointer conn, AccessLogEntry::Pointer al)
 {
     // skip if an outgoing address is already set.
     if (conn->local.isKnown())
@@ -1457,10 +1455,10 @@ getOutgoingAddress(HttpRequest * request, Comm::ConnectionPointer conn)
         if (!conn->getPeer() || !conn->getPeer()->options.no_tproxy) {
 #if FOLLOW_X_FORWARDED_FOR && LINUX_NETFILTER
             if (Config.onoff.tproxy_uses_indirect_client)
-                conn->local = request->furthestClientAddress();
+                conn->local = al->furthestClientAddress();
             else
 #endif
-                conn->local = request->clientAddr();
+                conn->local = al->clientAddr();
             conn->local.port(0); // let OS pick the source port to prevent address clashes
             // some flags need setting on the socket to use this address
             conn->flags |= COMM_DOBIND;
@@ -1474,9 +1472,10 @@ getOutgoingAddress(HttpRequest * request, Comm::ConnectionPointer conn)
         return; // anything will do.
     }
 
-    ACLFilledChecklist ch(NULL, request, NULL);
+    ACLFilledChecklist ch(NULL, request, al, nullptr);
     ch.dst_peer_name = conn->getPeer() ? conn->getPeer()->name : NULL;
     ch.dst_addr = conn->remote;
+    // TODO: ch.syncAle(request, nullptr);
 
     // TODO use the connection details in ACL.
     // needs a bit of rework in ACLFilledChecklist to use Comm::Connection instead of ConnStateData
@@ -1495,31 +1494,31 @@ getOutgoingAddress(HttpRequest * request, Comm::ConnectionPointer conn)
 }
 
 tos_t
-GetTosToServer(HttpRequest * request)
+GetTosToServer(HttpRequest * request, const AccessLogEntry::Pointer &al)
 {
-    ACLFilledChecklist ch(NULL, request, NULL);
+    ACLFilledChecklist ch(NULL, request, al, nullptr);
     return aclMapTOS(Ip::Qos::TheConfig.tosToServer, &ch);
 }
 
 nfmark_t
-GetNfmarkToServer(HttpRequest * request)
+GetNfmarkToServer(HttpRequest * request, const AccessLogEntry::Pointer &al)
 {
-    ACLFilledChecklist ch(NULL, request, NULL);
+    ACLFilledChecklist ch(nullptr, request, al, nullptr);
     const auto mc = aclFindNfMarkConfig(Ip::Qos::TheConfig.nfmarkToServer, &ch);
     return mc.mark;
 }
 
 void
-GetMarkingsToServer(HttpRequest * request, Comm::Connection &conn)
+GetMarkingsToServer(HttpRequest * request, Comm::Connection &conn, const AccessLogEntry::Pointer &al)
 {
     // Get the server side TOS and Netfilter mark to be set on the connection.
     if (Ip::Qos::TheConfig.isAclTosActive()) {
-        conn.tos = GetTosToServer(request);
+        conn.tos = GetTosToServer(request, al);
         debugs(17, 3, "from " << conn.local << " tos " << int(conn.tos));
     }
 
 #if SO_MARK && USE_LIBCAP
-    conn.nfmark = GetNfmarkToServer(request);
+    conn.nfmark = GetNfmarkToServer(request, al);
     debugs(17, 3, "from " << conn.local << " netfilter mark " << conn.nfmark);
 #else
     conn.nfmark = 0;

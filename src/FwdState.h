@@ -44,16 +44,16 @@ class CertValidationResponse;
  * Returns the TOS value that we should be setting on the connection
  * to the server, based on the ACL.
  */
-tos_t GetTosToServer(HttpRequest * request);
+tos_t GetTosToServer(HttpRequest *request, const AccessLogEntry::Pointer &al);
 
 /**
  * Returns the Netfilter mark value that we should be setting on the
  * connection to the server, based on the ACL.
  */
-nfmark_t GetNfmarkToServer(HttpRequest * request);
+nfmark_t GetNfmarkToServer(HttpRequest *request, const AccessLogEntry::Pointer &al);
 
 /// Sets initial TOS value and Netfilter for the future outgoing connection.
-void GetMarkingsToServer(HttpRequest * request, Comm::Connection &conn);
+void GetMarkingsToServer(HttpRequest *request, Comm::Connection &conn, const AccessLogEntry::Pointer &);
 
 class HelperReply;
 
@@ -184,7 +184,7 @@ private:
     PconnRace pconnRace; ///< current pconn race state
 };
 
-void getOutgoingAddress(HttpRequest * request, Comm::ConnectionPointer conn);
+void getOutgoingAddress(HttpRequest *request, Comm::ConnectionPointer conn, AccessLogEntry::Pointer);
 
 #endif /* SQUID_FORWARD_H */
 

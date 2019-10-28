@@ -60,7 +60,7 @@ icapLogRotate()
 void icapLogLog(AccessLogEntry::Pointer &al)
 {
     if (IcapLogfileStatus == LOG_ENABLE) {
-        ACLFilledChecklist checklist(NULL, al->adapted_request, NULL);
+        ACLFilledChecklist checklist(nullptr, al->adapted_request, al, nullptr);
         if (al->reply) {
             checklist.reply = al->reply;
             HTTPMSGLOCK(checklist.reply);

@@ -427,7 +427,7 @@ Format::Format::assemble(MemBuf &mb, const AccessLogEntry::Pointer &al, int logS
 
         case LFT_CLIENT_PORT:
             if (al->request) {
-                if (const auto port = al->request->clientAddr().port()) {
+                if (const auto port = al->clientAddr().port()) {
                     outint = port;
                     doint = 1;
                 }

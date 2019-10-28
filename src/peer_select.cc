@@ -286,10 +286,10 @@ PeerSelector::resolveSelected()
     const bool choseDirect = fs && fs->code == HIER_DIRECT;
     if (isIntercepted && useOriginalDst && choseDirect) {
         // check the client is still around before using any of its details
-        if (req->clientConnection()) {
+        if (al->tcpClient) {
             // construct a "result" adding the ORIGINAL_DST to the set instead of DIRECT
             Comm::ConnectionPointer p = new Comm::Connection();
-            p->remote = req->clientConnection()->local;
+            p->remote = al->tcpClient->local;
             fs->code = ORIGINAL_DST; // fs->code is DIRECT. This fixes the display.
             handlePath(p, *fs);
         }
@@ -383,7 +383,7 @@ PeerSelector::noteIp(const Ip::Address &ip)
 
     // for TPROXY spoofing, we must skip unusable addresses
     if (request->flags.spoofClientIp && !(peer && peer->options.no_tproxy) ) {
-        if (ip.isIPv4() != request->clientAddr().isIPv4())
+        if (ip.isIPv4() != al->clientAddr().isIPv4())
             return; // cannot spoof the client address on this link
     }
 
@@ -475,8 +475,7 @@ PeerSelector::selectMore()
         if (always_direct == ACCESS_DUNNO) {
             debugs(44, 3, "direct = " << DirectStr[direct] << " (always_direct to be checked)");
             /** check always_direct; */
-            ACLFilledChecklist *ch = new ACLFilledChecklist(Config.accessList.AlwaysDirect, request, NULL);
-            ch->al = al;
+            ACLFilledChecklist *ch = new ACLFilledChecklist(Config.accessList.AlwaysDirect, request, al, nullptr);
             acl_checklist = ch;
             acl_checklist->syncAle(request, nullptr);
             acl_checklist->nonBlockingCheck(CheckAlwaysDirectDone, this);
@@ -484,8 +483,7 @@ PeerSelector::selectMore()
         } else if (never_direct == ACCESS_DUNNO) {
             debugs(44, 3, "direct = " << DirectStr[direct] << " (never_direct to be checked)");
             /** check never_direct; */
-            ACLFilledChecklist *ch = new ACLFilledChecklist(Config.accessList.NeverDirect, request, NULL);
-            ch->al = al;
+            ACLFilledChecklist *ch = new ACLFilledChecklist(Config.accessList.NeverDirect, request, al, nullptr);
             acl_checklist = ch;
             acl_checklist->syncAle(request, nullptr);
             acl_checklist->nonBlockingCheck(CheckNeverDirectDone, this);
@@ -1024,7 +1022,7 @@ PeerSelector::handlePath(const Comm::ConnectionPointer &path, FwdServer &fs)
         path->setPeer(fs._peer.get());
 
         // check for a configured outgoing address for this destination...
-        getOutgoingAddress(request, path);
+        getOutgoingAddress(request, path, al);
         debugs(44, 2, id << " found " << path << ", destination #" << foundPaths << " for " << url());
     } else
         debugs(44, 2, id << " found pinned, destination #" << foundPaths << " for " << url());

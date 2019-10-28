@@ -61,10 +61,34 @@ public:
 
     void syncNotes(HttpRequest *request);
 
+    /// the source address of the client connection
+    const Ip::Address& clientAddr() const;
+
+#if FOLLOW_X_FORWARDED_FOR
+    /// Indirect client address, if available, otherwise clientAddr().
+    const Ip::Address& furthestClientAddress() const;
+
+    void indirectClientAddr(const Ip::Address &addr) { indirect_client_addr = addr; }
+
+    /// forces furthestClientAddress() to return a direct client address
+    void ignoreIndirectClientAddr();
+#endif
+    /// specify addresses manually when lacking client connection
+    void prepareForConnectionlessProtocol(const Ip::Address &fromAddr, const Ip::Address &localAddr);
+
+    /// the local address of the client connection
+    const Ip::Address& myAddr() const;
+
     SBuf url;
 
     /// TCP/IP level details about the client connection
     Comm::ConnectionPointer tcpClient;
+#if FOLLOW_X_FORWARDED_FOR
+    Ip::Address indirect_client_addr; ///< calculated client address, after applying X-Forwarded-For rules
+#endif
+    Ip::Address client_addr; ///< source address of a non-TCP (e.g. ICMP) client
+    Ip::Address my_addr;  ///< local address which a non-TCP (e.g., ICMP) client connects to
+
     // TCP/IP level details about the server or peer connection
     // are stored in hier.tcpServer
 

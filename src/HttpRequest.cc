@@ -116,7 +116,6 @@ HttpRequest::init()
 #endif
     rangeOffsetLimit = -2; //a value of -2 means not checked yet
     forcedBodyContinuation = false;
-    selfInitiated_ = false;
 
     if (const auto mgr = clientConnectionManager().valid()) {
         if (const auto port = mgr->port)
@@ -256,8 +255,6 @@ HttpRequest::inheritProperties(const Http::Message *aMsg)
     theNotes = aReq->theNotes;
 
     sources = aReq->sources;
-
-    selfInitiated_ = aReq->selfInitiated_;
 
     return true;
 }
@@ -619,7 +616,7 @@ HttpRequest::recordLookup(const Dns::LookupDetails &dns)
 }
 
 int64_t
-HttpRequest::getRangeOffsetLimit()
+HttpRequest::getRangeOffsetLimit(const AccessLogEntry::Pointer &al)
 {
     /* -2 is the starting value of rangeOffsetLimit.
      * If it is -2, that means we haven't checked it yet.
@@ -629,7 +626,7 @@ HttpRequest::getRangeOffsetLimit()
 
     rangeOffsetLimit = 0; // default value for rangeOffsetLimit
 
-    ACLFilledChecklist ch(NULL, this, NULL);
+    ACLFilledChecklist ch(nullptr, this, al, nullptr);
 
     for (AclSizeLimit *l = Config.rangeOffsetLimit; l; l = l -> next) {
         /* if there is no ACL list or if the ACLs listed match use this limit value */
@@ -738,78 +735,26 @@ HttpRequest::prepareForDownloader(Downloader *aDownloader)
     header.putStr(Http::HdrType::HOST, url.host());
     header.putTime(Http::HdrType::DATE, squid_curtime);
     downloader = aDownloader;
-    markAsSelfInitiated();
 }
 
-void
-HttpRequest::markAsSelfInitiated()
-{
-    /* Internally created requests cannot have bodies today */
-    content_length = 0;
-    http_ver = Http::ProtocolVersion();
-    selfInitiated_ = true;
-}
-
+// XXX: move this method to ALE
 CbcPointer<ConnStateData> &
 HttpRequest::clientConnectionManager()
 {
-    if (!selfInitiated_)
-        return masterXaction->clientConnectionManager();
-    static CbcPointer<ConnStateData> noManager;
-    return noManager;
+    return masterXaction->clientConnectionManager();
 }
-
-const Ip::Address&
-HttpRequest::clientAddr() const
-{
-    if (!selfInitiated_) // Optimization: Checking clientConnection() would be enough.
-        return clientConnection() ? clientConnection()->remote : client_addr;
-    return Ip::Address::Empty();
-}
-
-void
-HttpRequest::prepareForConnectionlessProtocol(const Ip::Address &fromAddr, const Ip::Address &localAddr)
-{
-    client_addr = fromAddr;
-    my_addr = localAddr;
-}
-
-const Ip::Address&
-HttpRequest::myAddr() const
-{
-    if (!selfInitiated_)
-        return masterXaction->clientConnection() ? masterXaction->clientConnection()->local : my_addr;
-    return Ip::Address::Empty();
-}
-
-#if FOLLOW_X_FORWARDED_FOR
-const Ip::Address&
-HttpRequest::furthestClientAddress() const
-{
-    if (!selfInitiated_)
-        return indirect_client_addr.isKnown() ? indirect_client_addr : clientAddr();
-    return Ip::Address::Empty();
-}
-
-void
-HttpRequest::ignoreIndirectClientAddr()
-{
-    indirect_client_addr.setEmpty();
-}
-#endif /* FOLLOW_X_FORWARDED_FOR */
 
 void
 HttpRequest::setInterceptionFlags(const AccessLogEntryPointer &al)
 {
-    if (const auto connection = clientConnection()) {
+    if (const auto connection = al->tcpClient) {
         flags.intercepted = ((connection->flags & COMM_INTERCEPTION) != 0);
         flags.interceptTproxy = ((connection->flags & COMM_TRANSPARENT) != 0 ) ;
         const auto port = clientConnectionManager()->port;
         const bool proxyProtocolPort = port ? port->flags.proxySurrogate : false;
         if (flags.interceptTproxy && !proxyProtocolPort) {
             if (Config.accessList.spoof_client_ip) {
-                ACLFilledChecklist *checklist = new ACLFilledChecklist(Config.accessList.spoof_client_ip, this, connection->rfc931);
-                checklist->al = al;
+                ACLFilledChecklist *checklist = new ACLFilledChecklist(Config.accessList.spoof_client_ip, this, al, connection->rfc931);
                 checklist->syncAle(this, nullptr);
                 flags.spoofClientIp = checklist->fastCheck().allowed();
                 delete checklist;
@@ -823,7 +768,7 @@ HttpRequest::setInterceptionFlags(const AccessLogEntryPointer &al)
 bool
 HttpRequest::needCheckMissAccess() const
 {
-    return !(flags.internalReceived || url.getScheme() == AnyP::PROTO_CACHE_OBJECT || selfInitiated());
+    return !(flags.internalReceived || url.getScheme() == AnyP::PROTO_CACHE_OBJECT);
 }
 
 char *
@@ -875,18 +820,8 @@ FindListeningPortAddress(const HttpRequest *callerRequest, const AccessLogEntry 
         return ip;
 
     /* handle non-intercepted cases that were not handled above */
-    ip = FindListeningPortAddressInConn(request->clientConnection());
+    ip = FindListeningPortAddressInConn(ale->tcpClient);
     if (!ip && ale)
         ip = FindListeningPortAddressInConn(ale->tcpClient);
     return ip; // may still be nil
 }
-
-Comm::ConnectionPointer
-HttpRequest::clientConnection() const
-{
-    if (!selfInitiated_)
-        return masterXaction->clientConnection();
-    static Comm::ConnectionPointer noConnection;
-    return noConnection;
-}
-

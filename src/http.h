@@ -107,6 +107,8 @@ private:
 
     void abortTransaction(const char *reason) { abortAll(reason); } // abnormal termination
 
+    AccessLogEntry::Pointer ale() { assert(fwd); assert(fwd->al); return fwd->al; }
+
     /**
      * determine if read buffer can have space made available
      * for a read.
@@ -135,7 +137,7 @@ private:
     void httpTimeout(const CommTimeoutCbParams &params);
 
     mb_size_t buildRequestPrefix(MemBuf * mb);
-    static bool decideIfWeDoRanges (HttpRequest * orig_request);
+    static bool decideIfWeDoRanges (HttpRequest * orig_request, const AccessLogEntryPointer &al);
     bool peerSupportsConnectionPinning() const;
 
     /// Parser being used at present to parse the HTTP/ICY server response.

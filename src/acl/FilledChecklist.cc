@@ -153,7 +153,7 @@ void
 ACLFilledChecklist::preferIndirectAddr()
 {
     assert(request);
-    client_addr = request->furthestClientAddress();
+    client_addr = al->furthestClientAddress();
 }
 #endif
 
@@ -161,7 +161,7 @@ void
 ACLFilledChecklist::forceDirectAddr()
 {
     assert(request);
-    client_addr = request->clientAddr();
+    client_addr = al->clientAddr();
 }
 
 int
@@ -219,7 +219,7 @@ ACLFilledChecklist::markSourceDomainChecked()
  *    *not* delete the list.  After the callback function returns,
  *    checkCallback() will delete the list (i.e., self).
  */
-ACLFilledChecklist::ACLFilledChecklist(const acl_access *A, HttpRequest *http_request, const char *ident):
+ACLFilledChecklist::ACLFilledChecklist(const acl_access *A, HttpRequest *http_request, const AccessLogEntry::Pointer &ale, const char *ident):
     dst_rdns(NULL),
     request(NULL),
     reply(NULL),
@@ -232,6 +232,7 @@ ACLFilledChecklist::ACLFilledChecklist(const acl_access *A, HttpRequest *http_re
 #if USE_OPENSSL
     sslErrors(NULL),
 #endif
+    al(ale),
     requestErrorType(ERR_MAX),
     connectionManager_(nullptr),
     fd_(-1),
@@ -256,7 +257,7 @@ void ACLFilledChecklist::setRequest(HttpRequest *httpRequest)
         HTTPMSGLOCK(request);
         setClientConnectionDetails(request->clientConnectionManager().get());
         if (!clientConnectionManager()) // could not take the connection from the connection manager
-            setClientConnection(request->clientConnection());
+            setClientConnection(al->tcpClient);
     }
 }
 
@@ -275,11 +276,11 @@ ACLFilledChecklist::setClientSideAddresses()
     if (request) {
 #if FOLLOW_X_FORWARDED_FOR
         if (Config.onoff.acl_uses_indirect_client)
-            InitializeClientAddress(client_addr, request->furthestClientAddress());
+            InitializeClientAddress(client_addr, al->furthestClientAddress());
         else
 #endif
-            InitializeClientAddress(client_addr, request->clientAddr());
-        InitializeClientAddress(my_addr, request->myAddr());
+            InitializeClientAddress(client_addr, al->clientAddr());
+        InitializeClientAddress(my_addr, al->myAddr());
     } else if (clientConnection_) {
         InitializeClientAddress(client_addr, clientConnection_->remote);
         InitializeClientAddress(my_addr, clientConnection_->local);

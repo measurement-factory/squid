@@ -78,7 +78,7 @@ Auth::Digest::UserRequest::credentialsStr()
 /** log a digest user in
  */
 void
-Auth::Digest::UserRequest::authenticate(HttpRequest * request, ConnStateData *, Http::HdrType)
+Auth::Digest::UserRequest::authenticate(HttpRequest * request, ConnStateData *, Http::HdrType, AccessLogEntry::Pointer &al)
 {
     HASHHEX SESSIONKEY;
     HASHHEX HA2 = "";
@@ -148,13 +148,13 @@ Auth::Digest::UserRequest::authenticate(HttpRequest * request, ConnStateData *, 
                 const char *useragent = request->header.getStr(Http::HdrType::USER_AGENT);
 
                 static Ip::Address last_broken_addr;
-                if (last_broken_addr != request->clientAddr()) {
+                if (last_broken_addr != al->clientAddr()) {
                     debugs(29, DBG_IMPORTANT, "Digest POST bug detected from " <<
-                           request->clientAddr() << " using '" <<
+                           al->clientAddr() << " using '" <<
                            (useragent ? useragent : "-") <<
                            "'. Please upgrade browser. See Bug #630 for details.");
 
-                    last_broken_addr = request->clientAddr();
+                    last_broken_addr = al->clientAddr();
                 }
             }
         } else {

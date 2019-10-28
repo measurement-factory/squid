@@ -436,7 +436,8 @@ ClientHttpRequest::logRequest()
         al->syncNotes(request);
     }
 
-    ACLFilledChecklist checklist(NULL, request, NULL);
+    ACLFilledChecklist checklist(nullptr, request, al, nullptr);
+    // no need checklist.syncAle(): already synced
 
     if (al->reply) {
         checklist.reply = al->reply;
@@ -448,15 +449,13 @@ ClientHttpRequest::logRequest()
         al->adapted_request = request;
         HTTPMSGLOCK(al->adapted_request);
     }
-    // no need checklist.syncAle(): already synced
-    checklist.al = al;
+
     checklist.setClientConnectionDetails(getConn());
     accessLogLog(al, &checklist);
 
     bool updatePerformanceCounters = true;
     if (Config.accessList.stats_collection) {
-        ACLFilledChecklist statsCheck(Config.accessList.stats_collection, request, NULL);
-        statsCheck.al = al;
+        ACLFilledChecklist statsCheck(Config.accessList.stats_collection, request, al, nullptr);
         statsCheck.setClientConnectionDetails(getConn());
         if (al->reply) {
             statsCheck.reply = al->reply;
@@ -1515,8 +1514,7 @@ bool ConnStateData::serveDelayedError(Http::Stream *context)
 
             bool allowDomainMismatch = false;
             if (Config.ssl_client.cert_error) {
-                ACLFilledChecklist check(Config.ssl_client.cert_error, request, dash_str);
-                check.al = http->al;
+                ACLFilledChecklist check(Config.ssl_client.cert_error, request, http->al, dash_str);
                 check.setClientConnectionDetails(this);
                 check.sslErrors = new Security::CertErrors(Security::CertError(SQUID_X509_V_ERR_DOMAIN_MISMATCH, srvCert));
                 check.syncAle(request, http->log_uri);
@@ -1561,8 +1559,8 @@ bool
 clientTunnelOnError(ConnStateData *conn, Http::StreamPointer &context, HttpRequest::Pointer &request, const HttpRequestMethod& method, err_type requestError)
 {
     if (conn->mayTunnelUnsupportedProto()) {
-        ACLFilledChecklist checklist(Config.accessList.on_unsupported_protocol, request.getRaw(), nullptr);
-        checklist.al = (context && context->http) ? context->http->al : nullptr;
+        const auto ale = (context && context->http) ? context->http->al : nullptr;
+        ACLFilledChecklist checklist(Config.accessList.on_unsupported_protocol, request.getRaw(), ale, nullptr);
         checklist.requestErrorType = requestError;
         checklist.setClientConnectionDetails(conn);
         ClientHttpRequest *http = context ? context->http : nullptr;
@@ -1809,7 +1807,7 @@ ConnStateData::proxyProtocolValidateClient()
     if (!Config.accessList.proxyProtocol)
         return proxyProtocolError("PROXY client not permitted by default ACL");
 
-    ACLFilledChecklist ch(Config.accessList.proxyProtocol, NULL, clientConnection->rfc931);
+    ACLFilledChecklist ch(Config.accessList.proxyProtocol, nullptr, nullptr, clientConnection->rfc931);
     ch.setClientConnectionDetails(this);
 
     if (!ch.fastCheck().allowed())
@@ -2252,7 +2250,7 @@ ConnStateData::whenClientIpKnown()
 
 #if USE_IDENT
     if (Ident::TheConfig.identLookup) {
-        ACLFilledChecklist identChecklist(Ident::TheConfig.identLookup, NULL, NULL);
+        ACLFilledChecklist identChecklist(Ident::TheConfig.identLookup, nullptr, nullptr, nullptr);
         identChecklist.setClientConnectionDetails(this);
         if (identChecklist.fastCheck().allowed())
             Ident::Start(clientConnection, clientIdentDone, this);
@@ -2269,7 +2267,7 @@ ConnStateData::whenClientIpKnown()
 
     const auto &pools = ClientDelayPools::Instance()->pools;
     if (pools.size()) {
-        ACLFilledChecklist ch(NULL, NULL, NULL);
+        ACLFilledChecklist ch(nullptr, nullptr, nullptr, nullptr);
         ch.setClientConnectionDetails(this);
 
         // TODO: we check early to limit error response bandwith but we
@@ -2616,7 +2614,7 @@ ConnStateData::postHttpsAccept()
         request->url.host(clientConnection->local.toStr(ip, sizeof(ip)));
         request->url.port(clientConnection->local.port());
 
-        ACLFilledChecklist *acl_checklist = new ACLFilledChecklist(Config.accessList.ssl_bump, request, NULL);
+        ACLFilledChecklist *acl_checklist = new ACLFilledChecklist(Config.accessList.ssl_bump, request, nullptr, nullptr);
         acl_checklist->setClientConnectionDetails(this);
         // Build a local AccessLogEntry to allow requiresAle() acls work
         acl_checklist->al = new AccessLogEntry;
@@ -2703,7 +2701,7 @@ void ConnStateData::buildSslCertGenerationParams(Ssl::CertificateProperties &cer
         if (X509 *mimicCert = sslServerBump->serverCert.get())
             certProperties.mimicCert.resetAndLock(mimicCert);
 
-        ACLFilledChecklist checklist(NULL, sslServerBump->request.getRaw(),
+        ACLFilledChecklist checklist(nullptr, sslServerBump->request.getRaw(), nullptr, // XXX
                                      clientConnection != NULL ? clientConnection->rfc931 : dash_str);
         checklist.setClientConnectionDetails(this);
         checklist.sslErrors = cbdataReference(sslServerBump->sslErrors());
@@ -3094,8 +3092,7 @@ ConnStateData::startPeekAndSplice()
         sslServerBump->step = Ssl::bumpStep2;
         // Run a accessList check to check if want to splice or continue bumping
 
-        ACLFilledChecklist *acl_checklist = new ACLFilledChecklist(Config.accessList.ssl_bump, sslServerBump->request.getRaw(), nullptr);
-        acl_checklist->al = http ? http->al : nullptr;
+        ACLFilledChecklist *acl_checklist = new ACLFilledChecklist(Config.accessList.ssl_bump, sslServerBump->request.getRaw(), http ? http->al : nullptr, nullptr);
         acl_checklist->setClientConnectionDetails(this);
         //acl_checklist->src_addr = params.conn->remote;
         //acl_checklist->my_addr = s->s;
@@ -3536,7 +3533,7 @@ varyEvaluateMatch(StoreEntry * entry, HttpRequest * request)
 ACLFilledChecklist *
 clientAclChecklistCreate(const acl_access * acl, ClientHttpRequest * http)
 {
-    const auto checklist = new ACLFilledChecklist(acl, nullptr, nullptr);
+    const auto checklist = new ACLFilledChecklist(acl, nullptr, http->al, nullptr);
     clientAclChecklistFill(*checklist, http);
     return checklist;
 }
@@ -3545,9 +3542,8 @@ void
 clientAclChecklistFill(ACLFilledChecklist &checklist, ClientHttpRequest *http)
 {
     checklist.setRequest(http->request);
-    checklist.al = http->al;
     checklist.syncAle(http->request, http->log_uri);
-
+    checklist.al = http->al;
     // TODO: If http->getConn is always http->request->clientConnectionManager,
     // then call setIdent() inside checklist.setRequest(). Otherwise, restore
     // USE_IDENT lost in commit 94439e4.

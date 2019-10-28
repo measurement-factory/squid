@@ -175,7 +175,7 @@ Auth::Ntlm::UserRequest::releaseAuthServer()
 }
 
 void
-Auth::Ntlm::UserRequest::authenticate(HttpRequest * aRequest, ConnStateData * conn, Http::HdrType type)
+Auth::Ntlm::UserRequest::authenticate(HttpRequest * aRequest, ConnStateData * conn, Http::HdrType type, AccessLogEntry::Pointer &)
 {
     /* Check that we are in the client side, where we can generate
      * auth challenges */

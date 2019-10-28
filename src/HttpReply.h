@@ -91,12 +91,12 @@ public:
     /** Checks whether received body exceeds known maximum size.
      * Requires a prior call to calcMaxBodySize().
      */
-    bool receivedBodyTooLarge(HttpRequest&, int64_t receivedBodySize);
+    bool receivedBodyTooLarge(HttpRequest&, int64_t receivedBodySize, const AccessLogEntry::Pointer &);
 
     /** Checks whether expected body exceeds known maximum size.
      * Requires a prior call to calcMaxBodySize().
      */
-    bool expectedBodyTooLarge(HttpRequest& request);
+    bool expectedBodyTooLarge(HttpRequest& request, const AccessLogEntry::Pointer &);
 
     int validatorsMatch (HttpReply const *other) const;
 
@@ -147,7 +147,7 @@ private:
     /** Calculates and stores maximum body size if needed.
      * Used by receivedBodyTooLarge() and expectedBodyTooLarge().
      */
-    void calcMaxBodySize(HttpRequest& request) const;
+    void calcMaxBodySize(HttpRequest& request, const AccessLogEntry::Pointer &al) const;
 
     String removeStaleWarningValues(const String &value);
 

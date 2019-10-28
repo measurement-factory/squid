@@ -71,7 +71,7 @@ DelayId::DelayClient(ClientHttpRequest * http, HttpReply *reply)
     assert(http);
     r = http->request;
 
-    if (!r->clientAddr().isKnown()) {
+    if (!http->al->clientAddr().isKnown()) {
         debugs(77, 2, "called with unknown address, ignoring");
         return DelayId();
     }
@@ -85,7 +85,7 @@ DelayId::DelayClient(ClientHttpRequest * http, HttpReply *reply)
             continue;
         }
 
-        ACLFilledChecklist ch(DelayPools::delay_data[pool].access, r, NULL);
+        ACLFilledChecklist ch(DelayPools::delay_data[pool].access, r, http->al, nullptr);
         if (reply) {
             ch.reply = reply;
             HTTPMSGLOCK(reply);

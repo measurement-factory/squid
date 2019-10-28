@@ -375,8 +375,6 @@ clientBeginRequest(const HttpRequestMethod& method, char const *url, CSCB * stre
      * objects ?
      */
 
-    request->markAsSelfInitiated();
-
     http->initRequest(request);
 
     /* optional - skip the access check ? */
@@ -466,7 +464,7 @@ clientFollowXForwardedForCheck(Acl::Answer answer, void *data)
             --l;
         asciiaddr = p+l;
         if ((addr = asciiaddr)) {
-            request->indirectClientAddr(addr);
+            http->al->indirectClientAddr(addr);
             request->x_forwarded_for_iterator.cut(l);
             calloutContext->acl_checklist = clientAclChecklistCreate(Config.accessList.followXFF, http);
             /* override the default src_addr tested if we have to go deeper than one level into XFF */
@@ -482,15 +480,15 @@ clientFollowXForwardedForCheck(Acl::Answer answer, void *data)
         * Ensure that the access log shows the indirect client
         * instead of the direct client.
         */
-        http->al->cache.caddr = request->furthestClientAddress();
+        http->al->cache.caddr = http->al->furthestClientAddress();
         if (ConnStateData *conn = http->getConn())
-            conn->log_addr = request->furthestClientAddress();
+            conn->log_addr = http->al->furthestClientAddress();
     }
     request->x_forwarded_for_iterator.clean();
     request->flags.done_follow_x_forwarded_for = true;
 
     if (answer.conflicted()) {
-        debugs(28, DBG_CRITICAL, "ERROR: Processing X-Forwarded-For. Stopping at IP address: " << request->furthestClientAddress());
+        debugs(28, DBG_CRITICAL, "ERROR: Processing X-Forwarded-For. Stopping at IP address: " << http->al->furthestClientAddress());
     }
 
     /* process actual access ACL as normal. */
@@ -672,7 +670,7 @@ ClientRequestContext::clientAccessCheck()
             http->request->header.has(Http::HdrType::X_FORWARDED_FOR)) {
 
         /* we always trust the direct client address for actual use */
-        http->request->ignoreIndirectClientAddr();
+        http->al->ignoreIndirectClientAddr();
 
         /* setup the XFF iterator for processing */
         http->request->x_forwarded_for_iterator = http->request->header.getList(Http::HdrType::X_FORWARDED_FOR);
@@ -1807,8 +1805,7 @@ ClientHttpRequest::doCallouts()
 
     // Set appropriate MARKs and CONNMARKs if needed.
     if (getConn() && Comm::IsConnOpen(getConn()->clientConnection)) {
-        ACLFilledChecklist ch(nullptr, request, nullptr);
-        ch.al = calloutContext->http->al;
+        ACLFilledChecklist ch(nullptr, request, calloutContext->http->al, nullptr);
         ch.setClientConnectionDetails(getConn());
         ch.syncAle(request, log_uri);
 

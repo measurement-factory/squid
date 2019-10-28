@@ -422,7 +422,7 @@ Http::Stream::buildRangeHeader(HttpReply *rep)
     HttpRequest *request = http->request;
     assert(request->range);
     /* check if we still want to do ranges */
-    int64_t roffLimit = request->getRangeOffsetLimit();
+    int64_t roffLimit = request->getRangeOffsetLimit(http->al);
     auto contentRange = rep ? rep->contentRange() : nullptr;
 
     if (!rep)

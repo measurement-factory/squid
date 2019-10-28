@@ -934,13 +934,12 @@ tunnelStart(ClientHttpRequest * http)
     HttpRequest *request = http->request;
     char *url = http->uri;
 
-    if (Config.accessList.miss && request->needCheckMissAccess()) {
+    if (Config.accessList.miss && !tunnelState->al->clientAddr().isEmpty() && request->needCheckMissAccess()) {
         /*
          * Check if this host is allowed to fetch MISSES from us (miss_access)
          * default is to allow.
          */
-        ACLFilledChecklist ch(Config.accessList.miss, request, NULL);
-        ch.al = http->al;
+        ACLFilledChecklist ch(Config.accessList.miss, request, http->al, nullptr);
         ch.syncAle(request, http->log_uri);
         if (ch.fastCheck().denied()) {
             debugs(26, 4, HERE << "MISS access forbidden.");
@@ -1105,7 +1104,7 @@ TunnelStateData::startConnecting()
     debugs(26, 3, "to " << dest);
     assert(dest != nullptr);
 
-    GetMarkingsToServer(request.getRaw(), *dest);
+    GetMarkingsToServer(request.getRaw(), *dest, al);
 
     const time_t connectTimeout = dest->connectTimeout(startTime);
     AsyncCall::Pointer call = commCbCall(26,3, "tunnelConnectDone", CommConnectCbPtrFun(tunnelConnectDone, this));

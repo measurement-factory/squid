@@ -327,6 +327,9 @@ public:
     void getSockAddr(struct sockaddr_in6 &) const;
     void getInAddr(struct in6_addr &) const;
 
+    /// whether the address is the same as the one created with default constructor
+    bool isEmpty() const;
+
 private:
     /* Conversion for dual-type internals */
 
@@ -345,9 +348,6 @@ private:
     struct sockaddr_in6 mSocketAddr_;
 
 private:
-
-    /// whether the address is the same as the one created with default constructor
-    bool isEmpty() const;
 
     /* Internally used constants */
     static const unsigned int STRLEN_IP4A = 16;              // aaa.bbb.ccc.ddd\0

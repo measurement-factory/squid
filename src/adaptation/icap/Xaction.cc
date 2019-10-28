@@ -217,7 +217,7 @@ Adaptation::Icap::Xaction::dnsLookupDone(const ipcache_addrs *ia)
     connection = new Comm::Connection;
     connection->remote = ia->current();
     connection->remote.port(s.cfg().port);
-    getOutgoingAddress(NULL, connection);
+    getOutgoingAddress(nullptr, connection, nullptr);
 
     // TODO: service bypass status may differ from that of a transaction
     typedef CommCbMemFunT<Adaptation::Icap::Xaction, CommConnectCbParams> ConnectDialer;
@@ -620,7 +620,7 @@ void Adaptation::Icap::Xaction::tellQueryAborted()
 {
     if (theInitiator.set()) {
         Adaptation::Icap::XactAbortInfo abortInfo(icapRequest, icapReply.getRaw(),
-                retriable(), repeatable());
+                retriable(), repeatable(), alep);
         Launcher *launcher = dynamic_cast<Launcher*>(theInitiator.get());
         // launcher may be nil if initiator is invalid
         CallJobHere1(91,5, CbcPointer<Launcher>(launcher),

@@ -21,7 +21,7 @@ AccessLogEntry::getLogClientIp(char *buf, size_t bufsz) const
 
 #if FOLLOW_X_FORWARDED_FOR
     if (Config.onoff.log_uses_indirect_client && request)
-        log_ip = request->furthestClientAddress();
+        log_ip = furthestClientAddress();
     else
 #endif
         if (tcpClient)
@@ -131,3 +131,35 @@ AccessLogEntry::effectiveVirginUrl() const
     return nullptr;
 }
 
+const Ip::Address&
+AccessLogEntry::clientAddr() const
+{
+    return tcpClient ? tcpClient->remote : client_addr;
+}
+
+#if FOLLOW_X_FORWARDED_FOR
+const Ip::Address&
+AccessLogEntry::furthestClientAddress() const
+{
+    return indirect_client_addr.isKnown() ? indirect_client_addr : clientAddr();
+}
+
+void
+AccessLogEntry::ignoreIndirectClientAddr()
+{
+    indirect_client_addr.setEmpty();
+}
+#endif /* FOLLOW_X_FORWARDED_FOR */
+
+void
+AccessLogEntry::prepareForConnectionlessProtocol(const Ip::Address &fromAddr, const Ip::Address &localAddr)
+{
+    client_addr = fromAddr;
+    my_addr = localAddr;
+}
+
+const Ip::Address&
+AccessLogEntry::myAddr() const
+{
+    return tcpClient ? tcpClient->local : my_addr;
+}

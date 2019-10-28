@@ -33,7 +33,7 @@ public:
     virtual ~UserRequest() { assert(LockCount()==0); }
 
     virtual int authenticated() const;
-    virtual void authenticate(HttpRequest * request, ConnStateData *conn, Http::HdrType type);
+    virtual void authenticate(HttpRequest * request, ConnStateData *conn, Http::HdrType type, AccessLogEntry::Pointer &);
     virtual Auth::Direction module_direction();
     virtual void startHelperLookup(HttpRequest * request, AccessLogEntry::Pointer &al, AUTHCB *, void *);
     virtual const char *credentialsStr();

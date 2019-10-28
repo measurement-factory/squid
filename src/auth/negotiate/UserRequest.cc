@@ -182,7 +182,7 @@ Auth::Negotiate::UserRequest::releaseAuthServer()
 }
 
 void
-Auth::Negotiate::UserRequest::authenticate(HttpRequest * aRequest, ConnStateData * conn, Http::HdrType type)
+Auth::Negotiate::UserRequest::authenticate(HttpRequest * aRequest, ConnStateData * conn, Http::HdrType type, AccessLogEntry::Pointer &)
 {
     /* Check that we are in the client side, where we can generate
      * auth challenges */
