@@ -1027,6 +1027,11 @@ TunnelStateData::noteSecurityPeerConnectorAnswer(Security::EncryptorAnswer &answ
         return;
     }
 
+    if (!Comm::IsConnOpen(answer.conn) || fd_table[answer.conn->fd].closing()) {
+        sendError(new ErrorState(ERR_CANNOT_FORWARD, Http::scServiceUnavailable, request.getRaw(), al), "connecion gone");
+        return;
+    }
+
     connectedToPeer(answer.conn);
 }
 
