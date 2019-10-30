@@ -23,7 +23,7 @@
 
 CBDATA_NAMESPACED_CLASS_INIT(Ssl, PeekingPeerConnector);
 
-void switchToTunnel(HttpRequest *request, Comm::ConnectionPointer & clientConn, Comm::ConnectionPointer &srvConn);
+void switchToTunnel(HttpRequest *request, const AccessLogEntryPointer &al, Comm::ConnectionPointer &srvConn);
 
 void
 Ssl::PeekingPeerConnector::cbCheckForPeekAndSpliceDone(Acl::Answer answer, void *data)
@@ -46,7 +46,7 @@ void
 Ssl::PeekingPeerConnector::checkForPeekAndSplice()
 {
     // Mark Step3 of bumping
-    if (const auto manager = request->clientConnectionManager().valid()) {
+    if (const auto manager = al->clientConnectionManager().valid()) {
         if (const auto serverBump = manager->serverBump()) {
             serverBump->step = Ssl::bumpStep3;
         }
@@ -84,9 +84,9 @@ Ssl::PeekingPeerConnector::checkForPeekAndSpliceMatched(const Ssl::BumpMode acti
     Ssl::BumpMode finalAction = action;
     Must(finalAction == Ssl::bumpSplice || finalAction == Ssl::bumpBump || finalAction == Ssl::bumpTerminate);
     // Record final decision
-    if (request->clientConnectionManager().valid()) {
-        request->clientConnectionManager()->sslBumpMode = finalAction;
-        request->clientConnectionManager()->serverBump()->act.step3 = finalAction;
+    if (al->clientConnectionManager().valid()) {
+        al->clientConnectionManager()->sslBumpMode = finalAction;
+        al->clientConnectionManager()->serverBump()->act.step3 = finalAction;
     }
     al->ssl.bumpMode = finalAction;
 
@@ -113,7 +113,7 @@ Ssl::PeekingPeerConnector::checkForPeekAndSpliceMatched(const Ssl::BumpMode acti
 Ssl::BumpMode
 Ssl::PeekingPeerConnector::checkForPeekAndSpliceGuess() const
 {
-    if (const auto csd = request->clientConnectionManager().valid()) {
+    if (const auto csd = al->clientConnectionManager().valid()) {
         const Ssl::BumpMode currentMode = csd->sslBumpMode;
         if (currentMode == Ssl::bumpStare) {
             debugs(83,5, "default to bumping after staring");
@@ -139,7 +139,7 @@ Ssl::PeekingPeerConnector::initialize(Security::SessionPointer &serverSession)
     if (!Security::PeerConnector::initialize(serverSession))
         return false;
 
-    if (const auto csd = request->clientConnectionManager().valid()) {
+    if (const auto csd = al->clientConnectionManager().valid()) {
 
         // client connection is required in the case we need to splice
         // or terminate client and server connections
@@ -211,11 +211,11 @@ void
 Ssl::PeekingPeerConnector::noteNegotiationDone(ErrorState *error)
 {
     // Check the list error with
-    if (!request->clientConnectionManager().valid() || !fd_table[serverConnection()->fd].ssl)
+    if (!al->clientConnectionManager().valid() || !fd_table[serverConnection()->fd].ssl)
         return;
 
     // remember the server certificate from the ErrorDetail object
-    if (const auto serverBump = request->clientConnectionManager()->serverBump()) {
+    if (const auto serverBump = al->clientConnectionManager()->serverBump()) {
         if (!serverBump->serverCert.get()) {
             // remember the server certificate from the ErrorDetail object
             if (error && error->detail && error->detail->peerCert())
@@ -229,7 +229,7 @@ Ssl::PeekingPeerConnector::noteNegotiationDone(ErrorState *error)
             // For intercepted connections, set the host name to the server
             // certificate CN. Otherwise, we just hope that CONNECT is using
             // a user-entered address (a host name or a user-entered IP).
-            const auto isConnectRequest = !request->clientConnectionManager()->port->flags.isIntercepted();
+            const auto isConnectRequest = !al->clientConnectionManager()->port->flags.isIntercepted();
             if (request->flags.sslPeek && !isConnectRequest) {
                 if (X509 *srvX509 = serverBump->serverCert.get()) {
                     if (const char *name = Ssl::CommonHostName(srvX509)) {
@@ -244,7 +244,7 @@ Ssl::PeekingPeerConnector::noteNegotiationDone(ErrorState *error)
     if (!error) {
         serverCertificateVerified();
         if (splice) {
-            switchToTunnel(request.getRaw(), clientConn, serverConn);
+            switchToTunnel(request.getRaw(), al, serverConn);
             tunnelInsteadOfNegotiating();
         }
     }
@@ -318,7 +318,7 @@ Ssl::PeekingPeerConnector::handleServerCertificate()
     if (serverCertificateHandled)
         return;
 
-    if (const auto csd = request->clientConnectionManager().valid()) {
+    if (const auto csd = al->clientConnectionManager().valid()) {
         const int fd = serverConnection()->fd;
         Security::SessionPointer session(fd_table[fd].ssl);
         Security::CertPointer serverCert(SSL_get_peer_certificate(session.get()));
@@ -337,7 +337,7 @@ Ssl::PeekingPeerConnector::handleServerCertificate()
 void
 Ssl::PeekingPeerConnector::serverCertificateVerified()
 {
-    if (const auto csd = request->clientConnectionManager().valid()) {
+    if (const auto csd = al->clientConnectionManager().valid()) {
         Security::CertPointer serverCert;
         if(Ssl::ServerBump *serverBump = csd->serverBump())
             serverCert.resetAndLock(serverBump->serverCert.get());

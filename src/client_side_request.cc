@@ -168,6 +168,7 @@ ClientHttpRequest::ClientHttpRequest(ConnStateData * aConn) :
 {
     setConn(aConn);
     al = new AccessLogEntry;
+    al->setClientConnectionManager(aConn);
     al->cache.start_time = current_time;
     if (aConn) {
         al->tcpClient = clientConnection = aConn->clientConnection;
@@ -972,7 +973,7 @@ clientCheckPinning(ClientHttpRequest * http)
                 request->flags.connectionProxyAuth = true;
             }
             // These should already be linked correctly.
-            assert(request->clientConnectionManager() == http_conn);
+            assert(http->al->clientConnectionManager() == http_conn);
         }
     }
 
@@ -1004,9 +1005,9 @@ clientCheckPinning(ClientHttpRequest * http)
                     }
                 }
             }
-            if (may_pin && !request->pinnedConnection()) {
+            if (may_pin && !http->al->pinnedConnection()) {
                 // These should already be linked correctly. Just need the ServerConnection to pinn.
-                assert(request->clientConnectionManager() == http_conn);
+                assert(http->al->clientConnectionManager() == http_conn);
             }
         }
     }
@@ -1184,7 +1185,7 @@ ClientRequestContext::clientRedirectDone(const Helper::Reply &reply)
     if (http->al)
         http->al->syncNotes(old_request);
 
-    UpdateRequestNotes(http->getConn(), *old_request, reply.notes);
+    UpdateRequestNotes(*old_request, reply.notes);
 
     switch (reply.result) {
     case Helper::TimedOut:
@@ -1302,7 +1303,7 @@ ClientRequestContext::clientStoreIdDone(const Helper::Reply &reply)
     if (http->al)
         http->al->syncNotes(old_request);
 
-    UpdateRequestNotes(http->getConn(), *old_request, reply.notes);
+    UpdateRequestNotes(*old_request, reply.notes);
 
     switch (reply.result) {
     case Helper::Unknown:

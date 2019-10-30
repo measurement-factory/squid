@@ -590,7 +590,7 @@ copyResultsFromEntry(HttpRequest *req, const ExternalACLEntryPointer &entry)
             req->extacl_message = entry->message;
 
         // attach the helper kv-pair to the transaction
-        UpdateRequestNotes(req->clientConnectionManager().get(), *req, entry->notes);
+        UpdateRequestNotes(*req, entry->notes);
     }
 }
 

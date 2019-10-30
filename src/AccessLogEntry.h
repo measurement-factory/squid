@@ -10,6 +10,7 @@
 #define SQUID_HTTPACCESSLOGENTRY_H
 
 #include "anyp/PortCfg.h"
+#include "base/CbcPointer.h"
 #include "base/RefCount.h"
 #include "comm/Connection.h"
 #include "HierarchyLogEntry.h"
@@ -35,6 +36,7 @@
 class HttpReply;
 class HttpRequest;
 class CustomLog;
+class ConnStateData;
 
 class AccessLogEntry: public RefCountable
 {
@@ -81,6 +83,12 @@ public:
 
     /// the local address of the client connection
     const Ip::Address& myAddr() const;
+
+    /// the client connection manager of the underlying transaction, if any
+    CbcPointer<ConnStateData> &clientConnectionManager() {  return clientConnectionManager_; }
+    void setClientConnectionManager(const CbcPointer<ConnStateData> &aMgr) { clientConnectionManager_ = aMgr; }
+
+    ConnStateData *pinnedConnection();
 
     SBuf url;
 
@@ -276,6 +284,7 @@ private:
     /// Client URI (or equivalent) for effectiveVirginUrl() when HttpRequest is
     /// missing. This member is ignored unless the request member is nil.
     SBuf virginUrlForMissingRequest_;
+    CbcPointer<ConnStateData> clientConnectionManager_;
 };
 
 class ACLChecklist;

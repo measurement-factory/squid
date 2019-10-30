@@ -350,7 +350,7 @@ clientReplyContext::processExpired()
     debugs(88, 5, "lastmod " << entry->lastModified());
     http->storeEntry(entry);
     assert(http->out.offset == 0);
-    assert(http->request->clientConnectionManager() == http->getConn());
+    assert(http->al->clientConnectionManager() == http->getConn());
 
     if (collapsedRevalidation != crSlave) {
         /*
@@ -785,7 +785,7 @@ clientReplyContext::processMiss()
             return;
         }
 
-        assert(r->clientConnectionManager() == http->getConn());
+        assert(http->al->clientConnectionManager() == http->getConn());
 
         /** Start forwarding to get the new object from network */
         FwdState::Start(conn, http->storeEntry(), r, http->al);
@@ -1583,7 +1583,7 @@ clientReplyContext::buildReplyHeader()
         // We do not really have to close, but we pretend we are a tunnel.
         debugs(88, 3, "clientBuildReplyHeader: bumped reply forces close");
         request->flags.proxyKeepalive = false;
-    } else if (request->pinnedConnection() && !reply->persistent()) {
+    } else if (http->al->pinnedConnection() && !reply->persistent()) {
         // The peer wants to close the pinned connection
         debugs(88, 3, "pinned reply forces close");
         request->flags.proxyKeepalive = false;

@@ -117,7 +117,7 @@ HttpRequest::init()
     rangeOffsetLimit = -2; //a value of -2 means not checked yet
     forcedBodyContinuation = false;
 
-    if (const auto mgr = clientConnectionManager().valid()) {
+    if (const auto mgr = masterXaction->clientConnectionManager().valid()) {
         if (const auto port = mgr->port)
             flags.ignoreCc = port->ignore_cc;
     }
@@ -680,14 +680,6 @@ HttpRequest::parseHeader(const char *buffer, const size_t size)
     return header.parse(buffer, size, clen);
 }
 
-ConnStateData *
-HttpRequest::pinnedConnection()
-{
-    if (clientConnectionManager().valid() && clientConnectionManager()->pinning.pinned)
-        return clientConnectionManager().get();
-    return NULL;
-}
-
 const SBuf
 HttpRequest::storeId()
 {
@@ -716,12 +708,12 @@ HttpRequest::notes()
 }
 
 void
-UpdateRequestNotes(ConnStateData *csd, HttpRequest &request, NotePairs const &helperNotes)
+UpdateRequestNotes(HttpRequest &request, NotePairs const &helperNotes)
 {
     // Tag client connection if the helper responded with clt_conn_tag=tag.
     const char *cltTag = "clt_conn_tag";
     if (const char *connTag = helperNotes.findFirst(cltTag)) {
-        if (csd) {
+        if (auto csd = request.masterXaction->clientConnectionManager().get()) {
             csd->notes()->remove(cltTag);
             csd->notes()->add(cltTag, connTag);
         }
@@ -737,20 +729,13 @@ HttpRequest::prepareForDownloader(Downloader *aDownloader)
     downloader = aDownloader;
 }
 
-// XXX: move this method to ALE
-CbcPointer<ConnStateData> &
-HttpRequest::clientConnectionManager()
-{
-    return masterXaction->clientConnectionManager();
-}
-
 void
 HttpRequest::setInterceptionFlags(const AccessLogEntryPointer &al)
 {
     if (const auto connection = al->tcpClient) {
         flags.intercepted = ((connection->flags & COMM_INTERCEPTION) != 0);
         flags.interceptTproxy = ((connection->flags & COMM_TRANSPARENT) != 0 ) ;
-        const auto port = clientConnectionManager()->port;
+        const auto port = al->clientConnectionManager()->port;
         const bool proxyProtocolPort = port ? port->flags.proxySurrogate : false;
         if (flags.interceptTproxy && !proxyProtocolPort) {
             if (Config.accessList.spoof_client_ip) {

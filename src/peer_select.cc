@@ -559,11 +559,11 @@ void
 PeerSelector::selectPinned()
 {
     // TODO: Avoid all repeated calls. Relying on PING_DONE is not enough.
-    if (!request->pinnedConnection())
+    if (!al->pinnedConnection())
         return;
 
-    if (Comm::IsConnOpen(request->pinnedConnection()->validatePinnedConnection(request))) {
-        const auto pear = request->pinnedConnection()->pinnedPeer();
+    if (Comm::IsConnOpen(al->pinnedConnection()->validatePinnedConnection(request))) {
+        const auto pear = al->pinnedConnection()->pinnedPeer();
         const bool usePinned = pear ? peerAllowedToUse(pear, this) : (direct != DIRECT_NO);
         if (usePinned) {
             addSelection(pear, PINNED);

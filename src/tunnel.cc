@@ -1003,10 +1003,10 @@ TunnelStateData::connectedToPeer(Security::EncryptorAnswer &answer)
 }
 
 static Comm::ConnectionPointer
-borrowPinnedConnection(HttpRequest *request)
+borrowPinnedConnection(HttpRequest *request, const AccessLogEntryPointer &al)
 {
     // pinned_connection may become nil after a pconn race
-    if (ConnStateData *pinned_connection = request ? request->pinnedConnection() : nullptr) {
+    if (auto pinned_connection = al->pinnedConnection()) {
         Comm::ConnectionPointer serverConn = pinned_connection->borrowPinnedConnection(request);
         return serverConn;
     }
@@ -1117,7 +1117,7 @@ TunnelStateData::startConnecting()
 void
 TunnelStateData::usePinned()
 {
-    const auto serverConn = borrowPinnedConnection(request.getRaw());
+    const auto serverConn = borrowPinnedConnection(request.getRaw(), al);
     debugs(26,7, "pinned peer connection: " << serverConn);
     if (!Comm::IsConnOpen(serverConn)) {
         // a PINNED path failure is fatal; do not wait for more paths
@@ -1148,15 +1148,18 @@ TunnelStateData::Connection::setDelayId(DelayId const &newDelay)
 
 #if USE_OPENSSL
 void
-switchToTunnel(HttpRequest *request, Comm::ConnectionPointer &clientConn, Comm::ConnectionPointer &srvConn)
+switchToTunnel(HttpRequest *request, const AccessLogEntryPointer &al, Comm::ConnectionPointer &srvConn)
 {
+    const auto clientConn = al->tcpClient;
+    Must(clientConn);
+
     debugs(26,5, "Revert to tunnel FD " << clientConn->fd << " with FD " << srvConn->fd);
 
     /* Create state structure. */
     ++statCounter.server.all.requests;
     ++statCounter.server.other.requests;
 
-    const auto conn = request->clientConnectionManager().get();
+    const auto conn = al->clientConnectionManager().get();
     Must(conn);
     Http::StreamPointer context = conn->pipeline.front();
     Must(context && context->http);

@@ -155,9 +155,6 @@ public:
     /// supply Downloader-specific settings
     void prepareForDownloader(Downloader *);
 
-    /// the client connection manager of the underlying transaction, if any
-    CbcPointer<ConnStateData> &clientConnectionManager();
-
     HierarchyLogEntry hier;
 
     int dnsWait; ///< sum of DNS lookup delays in milliseconds, for %dt
@@ -214,8 +211,6 @@ public:
     static void httpRequestPack(void *obj, Packable *p);
 
     static HttpRequest * FromUrl(const char * url, const MasterXaction::Pointer &, const HttpRequestMethod &method = Http::METHOD_GET);
-
-    ConnStateData *pinnedConnection();
 
     /**
      * Returns the current StoreID for the request as a nul-terminated char*.
@@ -278,7 +273,7 @@ class ConnStateData;
 /**
  * Updates ConnStateData ids and HttpRequest notes from helpers received notes.
  */
-void UpdateRequestNotes(ConnStateData *csd, HttpRequest &request, NotePairs const &notes);
+void UpdateRequestNotes(HttpRequest &request, NotePairs const &notes);
 
 /// \returns listening/*_port address used by the client connection (or nil)
 /// nil parameter(s) indicate missing caller information and are handled safely

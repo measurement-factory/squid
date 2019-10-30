@@ -254,8 +254,8 @@ FwdState::completed()
             errorAppendEntry(entry, err);
             err = NULL;
 #if USE_OPENSSL
-            if (request->flags.sslPeek && request->clientConnectionManager().valid()) {
-                CallJobHere1(17, 4, request->clientConnectionManager(), ConnStateData,
+            if (request->flags.sslPeek && al->clientConnectionManager().valid()) {
+                CallJobHere1(17, 4, al->clientConnectionManager(), ConnStateData,
                              ConnStateData::httpsPeeked, ConnStateData::PinnedIdleContext(Comm::ConnectionPointer(nullptr), request));
             }
 #endif
@@ -443,7 +443,7 @@ FwdState::fail(ErrorState * errorState)
         pconnRace = raceHappened;
     }
 
-    if (ConnStateData *pinned_connection = request->pinnedConnection()) {
+    if (auto pinned_connection = al->pinnedConnection()) {
         pinned_connection->pinning.zeroReply = true;
         debugs(17, 4, "zero reply on pinned connection");
     }
@@ -868,7 +868,7 @@ void
 FwdState::successfullyConnectedToPeer()
 {
     // should reach ConnStateData before the dispatched Client job starts
-    CallJobHere1(17, 4, request->clientConnectionManager(), ConnStateData,
+    CallJobHere1(17, 4, al->clientConnectionManager(), ConnStateData,
                  ConnStateData::notePeerConnection, serverConnection());
 
     if (serverConnection()->getPeer())
@@ -961,9 +961,9 @@ FwdState::connectStart()
     // server is not established/pinned so they must be excluded. We can
     // recognize step1 bumping by nil ConnStateData::serverBump().
 #if USE_OPENSSL
-    const auto clientFirstBump = request->clientConnectionManager().valid() &&
-                                 (request->clientConnectionManager()->sslBumpMode == Ssl::bumpClientFirst ||
-                                  (request->clientConnectionManager()->sslBumpMode == Ssl::bumpBump && !request->clientConnectionManager()->serverBump())
+    const auto clientFirstBump = al->clientConnectionManager().valid() &&
+                                 (al->clientConnectionManager()->sslBumpMode == Ssl::bumpClientFirst ||
+                                  (al->clientConnectionManager()->sslBumpMode == Ssl::bumpBump && !al->clientConnectionManager()->serverBump())
                                  );
 #else
     const auto clientFirstBump = false;
@@ -1038,7 +1038,7 @@ FwdState::usePinned()
     assert(!serverDestinations.empty());
     assert(!serverDestinations[0]);
 
-    const auto connManager = request->pinnedConnection();
+    const auto connManager = al->pinnedConnection();
     debugs(17, 7, "connection manager: " << connManager);
 
     // the client connection may close while we get here, nullifying connManager
@@ -1125,7 +1125,7 @@ FwdState::dispatch()
 
 #if USE_OPENSSL
     if (request->flags.sslPeek) {
-        CallJobHere1(17, 4, request->clientConnectionManager(), ConnStateData,
+        CallJobHere1(17, 4, al->clientConnectionManager(), ConnStateData,
                      ConnStateData::httpsPeeked, ConnStateData::PinnedIdleContext(serverConnection(), request));
         unregister(serverConn); // async call owns it now
         complete(); // destroys us

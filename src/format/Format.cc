@@ -440,9 +440,9 @@ Format::Format::assemble(MemBuf &mb, const AccessLogEntry::Pointer &al, int logS
         case LFT_CLIENT_EUI:
 #if USE_SQUID_EUI
             // TODO make the ACL checklist have a direct link to any TCP details.
-            if (al->request && al->request->clientConnectionManager().valid() &&
-                    al->request->clientConnectionManager()->clientConnection) {
-                const auto &conn = al->request->clientConnectionManager()->clientConnection;
+            if (al->clientConnectionManager().valid() &&
+                    al->clientConnectionManager()->clientConnection) {
+                const auto &conn = al->clientConnectionManager()->clientConnection;
                 if (conn->remote.isIPv4())
                     conn->remoteEui48.encode(tmp, sizeof(tmp));
                 else
@@ -454,10 +454,10 @@ Format::Format::assemble(MemBuf &mb, const AccessLogEntry::Pointer &al, int logS
 
         case LFT_EXT_ACL_CLIENT_EUI48:
 #if USE_SQUID_EUI
-            if (al->request && al->request->clientConnectionManager().valid() &&
-                    al->request->clientConnectionManager()->clientConnection &&
-                    al->request->clientConnectionManager()->clientConnection->remote.isIPv4()) {
-                al->request->clientConnectionManager()->clientConnection->remoteEui48.encode(tmp, sizeof(tmp));
+            if (al->clientConnectionManager().valid() &&
+                    al->clientConnectionManager()->clientConnection &&
+                    al->clientConnectionManager()->clientConnection->remote.isIPv4()) {
+                al->clientConnectionManager()->clientConnection->remoteEui48.encode(tmp, sizeof(tmp));
                 out = tmp;
             }
 #endif
@@ -465,10 +465,10 @@ Format::Format::assemble(MemBuf &mb, const AccessLogEntry::Pointer &al, int logS
 
         case LFT_EXT_ACL_CLIENT_EUI64:
 #if USE_SQUID_EUI
-            if (al->request && al->request->clientConnectionManager().valid() &&
-                    al->request->clientConnectionManager()->clientConnection &&
-                    !al->request->clientConnectionManager()->clientConnection->remote.isIPv4()) {
-                al->request->clientConnectionManager()->clientConnection->remoteEui64.encode(tmp, sizeof(tmp));
+            if (al->clientConnectionManager().valid() &&
+                    al->clientConnectionManager()->clientConnection &&
+                    !al->clientConnectionManager()->clientConnection->remote.isIPv4()) {
+                al->clientConnectionManager()->clientConnection->remoteEui64.encode(tmp, sizeof(tmp));
                 out = tmp;
             }
 #endif
@@ -556,8 +556,8 @@ Format::Format::assemble(MemBuf &mb, const AccessLogEntry::Pointer &al, int logS
             break;
 
         case LFT_CLIENT_HANDSHAKE:
-            if (al->request && al->request->clientConnectionManager().valid()) {
-                const auto &handshake = al->request->clientConnectionManager()->preservedClientData;
+            if (al->clientConnectionManager().valid()) {
+                const auto &handshake = al->clientConnectionManager()->preservedClientData;
                 if (const auto rawLength = handshake.length()) {
                     // add 1 byte to optimize the c_str() conversion below
                     char *buf = sb.rawAppendStart(base64_encode_len(rawLength) + 1);
@@ -1220,7 +1220,7 @@ Format::Format::assemble(MemBuf &mb, const AccessLogEntry::Pointer &al, int logS
 
         case LFT_EXT_ACL_USER_CERT_RAW:
             if (al->request) {
-                ConnStateData *conn = al->request->clientConnectionManager().get();
+                const auto conn = al->clientConnectionManager().get();
                 if (conn && Comm::IsConnOpen(conn->clientConnection)) {
                     if (const auto ssl = fd_table[conn->clientConnection->fd].ssl.get()) {
                         sb = sslGetUserCertificatePEM(ssl);
@@ -1232,7 +1232,7 @@ Format::Format::assemble(MemBuf &mb, const AccessLogEntry::Pointer &al, int logS
 
         case LFT_EXT_ACL_USER_CERTCHAIN_RAW:
             if (al->request) {
-                ConnStateData *conn = al->request->clientConnectionManager().get();
+                const auto conn = al->clientConnectionManager().get();
                 if (conn && Comm::IsConnOpen(conn->clientConnection)) {
                     if (const auto ssl = fd_table[conn->clientConnection->fd].ssl.get()) {
                         sb = sslGetUserCertificatePEM(ssl);
@@ -1244,7 +1244,7 @@ Format::Format::assemble(MemBuf &mb, const AccessLogEntry::Pointer &al, int logS
 
         case LFT_EXT_ACL_USER_CERT:
             if (al->request) {
-                const auto conn = al->request->clientConnectionManager().get();
+                const auto conn = al->clientConnectionManager().get();
                 if (conn && Comm::IsConnOpen(conn->clientConnection)) {
                     if (auto ssl = fd_table[conn->clientConnection->fd].ssl.get())
                         out = sslGetUserAttribute(ssl, fmt->data.header.header);
@@ -1254,7 +1254,7 @@ Format::Format::assemble(MemBuf &mb, const AccessLogEntry::Pointer &al, int logS
 
         case LFT_EXT_ACL_USER_CA_CERT:
             if (al->request) {
-                const auto conn = al->request->clientConnectionManager().get();
+                const auto conn = al->clientConnectionManager().get();
                 if (conn && Comm::IsConnOpen(conn->clientConnection)) {
                     if (auto ssl = fd_table[conn->clientConnection->fd].ssl.get())
                         out = sslGetCAAttribute(ssl, fmt->data.header.header);
@@ -1281,8 +1281,8 @@ Format::Format::assemble(MemBuf &mb, const AccessLogEntry::Pointer &al, int logS
             break;
 
         case LFT_SSL_CLIENT_SNI:
-            if (al->request && al->request->clientConnectionManager().valid()) {
-                if (const auto conn = al->request->clientConnectionManager().get()) {
+            if (al->clientConnectionManager().valid()) {
+                if (const auto conn = al->clientConnectionManager().get()) {
                     if (!conn->tlsClientSni().isEmpty()) {
                         sb = conn->tlsClientSni();
                         out = sb.c_str();
@@ -1292,8 +1292,8 @@ Format::Format::assemble(MemBuf &mb, const AccessLogEntry::Pointer &al, int logS
             break;
 
         case LFT_SSL_SERVER_CERT_ERRORS:
-            if (al->request && al->request->clientConnectionManager().valid()) {
-                if (const auto srvBump = al->request->clientConnectionManager()->serverBump()) {
+            if (al->clientConnectionManager().valid()) {
+                if (const auto srvBump = al->clientConnectionManager()->serverBump()) {
                     const char *separator = fmt->data.string ? fmt->data.string : ":";
                     for (const Security::CertErrors *sslError = srvBump->sslErrors(); sslError; sslError = sslError->next) {
                         if (!sb.isEmpty())
@@ -1314,8 +1314,8 @@ Format::Format::assemble(MemBuf &mb, const AccessLogEntry::Pointer &al, int logS
         case LFT_SSL_SERVER_CERT_ISSUER:
         case LFT_SSL_SERVER_CERT_SUBJECT:
         case LFT_SSL_SERVER_CERT_WHOLE:
-            if (al->request && al->request->clientConnectionManager().valid()) {
-                if (const auto srvBump = al->request->clientConnectionManager()->serverBump()) {
+            if (al->clientConnectionManager().valid()) {
+                if (const auto srvBump = al->clientConnectionManager()->serverBump()) {
                     if (X509 *serverCert = srvBump->serverCert.get()) {
                         if (fmt->type == LFT_SSL_SERVER_CERT_SUBJECT)
                             out = Ssl::GetX509UserAttribute(serverCert, "DN");

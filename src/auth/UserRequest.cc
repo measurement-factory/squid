@@ -244,7 +244,7 @@ authTryGetUser(Auth::UserRequest::Pointer auth_user_request, ConnStateData * con
         // workaround by using anything already set in HttpRequest
         // OR use new and rely on a later Sync copying these to AccessLogEntry
 
-        UpdateRequestNotes(conn, *request, res->user()->notes);
+        UpdateRequestNotes(*request, res->user()->notes);
     }
 
     return res;

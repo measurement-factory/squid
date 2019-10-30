@@ -246,6 +246,9 @@ ACLFilledChecklist::ACLFilledChecklist(const acl_access *A, HttpRequest *http_re
 
     changeAcl(A);
     setRequest(http_request);
+    setClientConnectionDetails(al->clientConnectionManager().get());
+    if (!clientConnectionManager()) // could not take the connection from the connection manager
+        setClientConnection(al->tcpClient);
     setIdent(ident);
 }
 
@@ -255,9 +258,6 @@ void ACLFilledChecklist::setRequest(HttpRequest *httpRequest)
     if (httpRequest) {
         request = httpRequest;
         HTTPMSGLOCK(request);
-        setClientConnectionDetails(request->clientConnectionManager().get());
-        if (!clientConnectionManager()) // could not take the connection from the connection manager
-            setClientConnection(al->tcpClient);
     }
 }
 

@@ -8,7 +8,9 @@
 
 #include "squid.h"
 #include "AccessLogEntry.h"
+#include "client_side.h"
 #include "HttpReply.h"
+#include "http/Stream.h"
 #include "HttpRequest.h"
 #include "proxyp/Header.h"
 #include "SquidConfig.h"
@@ -155,4 +157,12 @@ const Ip::Address&
 AccessLogEntry::myAddr() const
 {
     return tcpClient ? tcpClient->local : my_addr;
+}
+
+ConnStateData *
+AccessLogEntry::pinnedConnection()
+{
+    if (clientConnectionManager().valid() && clientConnectionManager()->pinning.pinned)
+        return clientConnectionManager().get();
+    return nullptr;
 }
