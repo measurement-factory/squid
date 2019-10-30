@@ -151,13 +151,6 @@ AccessLogEntry::ignoreIndirectClientAddr()
 }
 #endif /* FOLLOW_X_FORWARDED_FOR */
 
-void
-AccessLogEntry::prepareForConnectionlessProtocol(const Ip::Address &fromAddr, const Ip::Address &localAddr)
-{
-    client_addr = fromAddr;
-    my_addr = localAddr;
-}
-
 const Ip::Address&
 AccessLogEntry::myAddr() const
 {

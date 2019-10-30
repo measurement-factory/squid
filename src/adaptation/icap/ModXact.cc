@@ -1331,7 +1331,8 @@ void Adaptation::Icap::ModXact::finalizeLogInfo()
     const Adaptation::Icap::ServiceRep  &s = service();
     al.icap.reqMethod = s.cfg().method;
 
-    al.cache.caddr = al.clientAddr(); // XXX: should we use the virgin client addr (as the old code did)?
+    al.cache.caddr = alMaster->clientAddr();
+    al.setClientAddr(alMaster->clientAddr());
 
     al.request = virgin_request_;
     HTTPMSGLOCK(al.request);

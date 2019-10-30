@@ -141,7 +141,8 @@ public:
     }
     void setAddresses(Ip::Address &fromAddr) {
         htcpSyncAle(al, fromAddr, dhdr->opcode, uri);
-        al->prepareForConnectionlessProtocol(fromAddr, htcpIncomingConn->local);
+        al->setClientAddr(fromAddr);
+        al->setMyAddr(htcpIncomingConn->local);
     }
     void setDataHeader(htcpDataHeader *aDataHeader) {
         dhdr = aDataHeader;

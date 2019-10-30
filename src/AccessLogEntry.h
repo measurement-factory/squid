@@ -73,8 +73,11 @@ public:
     /// forces furthestClientAddress() to return a direct client address
     void ignoreIndirectClientAddr();
 #endif
-    /// specify addresses manually when lacking client connection
-    void prepareForConnectionlessProtocol(const Ip::Address &fromAddr, const Ip::Address &localAddr);
+    /// specify the source client address manually when lacking client connection
+    void setClientAddr(const Ip::Address &fromAddr) { client_addr = fromAddr; }
+
+    /// specify the local address manually when lacking client connection
+    void setMyAddr(const Ip::Address &localAddr) { my_addr = localAddr; }
 
     /// the local address of the client connection
     const Ip::Address& myAddr() const;

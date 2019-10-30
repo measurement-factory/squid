@@ -87,7 +87,8 @@ icpSyncAle(AccessLogEntryPointer &al, const Ip::Address &caddr, const char *url,
     al->cache.start_time.tv_sec -= delay;
     al->cache.trTime.tv_sec = delay;
     al->cache.trTime.tv_usec = 0;
-    al->prepareForConnectionlessProtocol(caddr, icpIncomingConn->local);
+    al->setClientAddr(caddr);
+    al->setMyAddr(icpIncomingConn->local);
 }
 
 /**
