@@ -72,8 +72,8 @@ static LogTags_ot icpLogFromICPCode(icp_opcode);
 
 static int icpUdpSend(int fd, const Ip::Address &to, icp_common_t * msg, int delay, AccessLogEntryPointer al);
 
-static void
-icpSyncAle(AccessLogEntryPointer &al, const Ip::Address &caddr, const char *url, int len, int delay)
+void
+ICPState::SyncAle(AccessLogEntryPointer &al, const Ip::Address &caddr, const char *url, int len, int delay)
 {
     if (!al)
         al = new AccessLogEntry();
@@ -141,11 +141,12 @@ icp_common_t::getOpCode() const
 
 /* ICPState */
 
-ICPState::ICPState(icp_common_t &aHeader, HttpRequest *aRequest):
+ICPState::ICPState(icp_common_t &aHeader, HttpRequest *aRequest, const AccessLogEntryPointer &ale):
     header(aHeader),
     request(aRequest),
     fd(-1),
-    url(NULL)
+    url(nullptr),
+    al(ale)
 {
     HTTPMSGLOCK(request);
 }
@@ -174,7 +175,7 @@ ICPState::confirmAndPrepHit(const StoreEntry &e)
 LogTags *
 ICPState::loggingTags()
 {
-    // calling icpSyncAle(LOG_TAG_NONE) here would not change cache.code
+    // calling SyncAle(LOG_TAG_NONE) here would not change cache.code
     if (!al)
         al = new AccessLogEntry();
     return &al->cache.code;
@@ -184,7 +185,7 @@ void
 ICPState::fillChecklist(ACLFilledChecklist &checklist) const
 {
     checklist.setRequest(request);
-    icpSyncAle(al, from, url, 0, 0);
+    SyncAle(al, from, url, 0, 0);
     checklist.al = al;
 }
 
@@ -197,8 +198,8 @@ class ICP2State: public ICPState
 {
 
 public:
-    ICP2State(icp_common_t & aHeader, HttpRequest *aRequest):
-        ICPState(aHeader, aRequest),rtt(0),src_rtt(0),flags(0) {}
+    ICP2State(icp_common_t &aHeader, HttpRequest *aRequest, const AccessLogEntryPointer &ale):
+        ICPState(aHeader, aRequest, ale), rtt(0), src_rtt(0), flags(0) {}
 
     ~ICP2State();
     virtual void created(StoreEntry * newEntry) override;
@@ -252,9 +253,9 @@ icpLogIcp(const Ip::Address &caddr, const LogTags_ot logcode, const int len, con
 {
     assert(logcode != LOG_TAG_NONE);
 
-    // Optimization: No premature (ALE creation in) icpSyncAle().
+    // Optimization: No premature (ALE creation in) SyncAle().
     if (al) {
-        icpSyncAle(al, caddr, url, len, delay);
+        ICPState::SyncAle(al, caddr, url, len, delay);
         al->cache.code.update(logcode);
     }
 
@@ -268,7 +269,7 @@ icpLogIcp(const Ip::Address &caddr, const LogTags_ot logcode, const int len, con
 
     if (!al) {
         // The above attempt to optimize ALE creation has failed. We do need it.
-        icpSyncAle(al, caddr, url, len, delay);
+        ICPState::SyncAle(al, caddr, url, len, delay);
         al->cache.code.update(logcode);
     }
     clientdbUpdate(caddr, al->cache.code, AnyP::PROTO_ICP, len);
@@ -467,13 +468,13 @@ icpDenyAccess(Ip::Address &from, char *url, int reqnum, int fd)
 }
 
 bool
-icpAccessAllowed(Ip::Address &from, HttpRequest * icp_request)
+icpAccessAllowed(Ip::Address &from, HttpRequest *icp_request, const AccessLogEntryPointer &al)
 {
     /* absent any explicit rules, we deny all */
     if (!Config.accessList.icp)
         return false;
 
-    ACLFilledChecklist checklist(Config.accessList.icp, icp_request, nullptr, nullptr); // XXX: supply ALE
+    ACLFilledChecklist checklist(Config.accessList.icp, icp_request, al, nullptr);
     return checklist.fastCheck().allowed();
 }
 
@@ -519,7 +520,10 @@ doV2Query(int fd, Ip::Address &from, char *buf, icp_common_t header)
 
     HTTPMSGLOCK(icp_request);
 
-    if (!icpAccessAllowed(from, icp_request)) {
+    AccessLogEntryPointer al = new AccessLogEntry();
+    ICPState::SyncAle(al, from, url, 0, 0);
+
+    if (!icpAccessAllowed(from, icp_request, al)) {
         icpDenyAccess(from, url, header.reqnum, fd);
         HTTPMSGUNLOCK(icp_request);
         return;
@@ -536,7 +540,7 @@ doV2Query(int fd, Ip::Address &from, char *buf, icp_common_t header)
 #endif /* USE_ICMP */
 
     /* The peer is allowed to use this cache */
-    ICP2State *state = new ICP2State(header, icp_request);
+    auto state = new ICP2State(header, icp_request, al);
     state->fd = fd;
     state->from = from;
     state->url = xstrdup(url);
