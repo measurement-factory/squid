@@ -10,9 +10,12 @@
 
 #include "squid.h"
 #include "acl/FilledChecklist.h"
+#include "client_side.h"
+#include "client_side_request.h"
 #include "event.h"
 #include "globals.h"
 #include "HttpReply.h"
+#include "http/Stream.h"
 #include "HttpRequest.h"
 #include "MemBuf.h"
 #include "MemObject.h"
@@ -859,10 +862,20 @@ CheckQuickAbortIsReasonable(StoreEntry * entry)
         return false;
     }
 
-    if (mem->request && mem->request->range && mem->request->getRangeOffsetLimit(nullptr) < 0) { // XXX supply ALE
-        /* Don't abort if the admin has configured range_ofset -1 to download fully for caching. */
-        debugs(90, 3, "quick-abort? NO admin configured range replies to full-download");
-        return false;
+    if (const auto req = mem->request) {
+        if (req->range) {
+            AccessLogEntry::Pointer al;
+            if (const auto mgr = req->masterXaction->clientConnectionManager().valid()) {
+                if (const auto stream = mgr->pipeline.front()) {
+                    if (stream->http)
+                        al = stream->http->al;
+                }
+            }
+            if (req->getRangeOffsetLimit(al) < 0) {
+                debugs(90, 3, "quick-abort? NO admin configured range replies to full-download");
+                return false;
+            }
+        }
     }
 
     if (curlen > expectlen) {
