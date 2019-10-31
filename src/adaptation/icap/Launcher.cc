@@ -140,8 +140,10 @@ bool Adaptation::Icap::Launcher::canRepeat(Adaptation::Icap::XactAbortInfo &info
     if (info.icapReply->sline.status() == Http::scNone) // failed to parse the reply; I/O err
         return true;
 
+    // XXX: we cannot simply pass Xaction::al here, because icapRequest and al->request
+    // represent different objects
     ACLFilledChecklist *cl =
-        new ACLFilledChecklist(TheConfig.repeat, info.icapRequest, info.al, dash_str);
+        new ACLFilledChecklist(TheConfig.repeat, info.icapRequest, nullptr, dash_str);
     cl->reply = info.icapReply;
     HTTPMSGLOCK(cl->reply);
 
@@ -153,12 +155,11 @@ bool Adaptation::Icap::Launcher::canRepeat(Adaptation::Icap::XactAbortInfo &info
 /* ICAPXactAbortInfo */
 
 Adaptation::Icap::XactAbortInfo::XactAbortInfo(HttpRequest *anIcapRequest,
-        HttpReply *anIcapReply, bool beRetriable, bool beRepeatable,  const AccessLogEntry::Pointer &ale):
+        HttpReply *anIcapReply, bool beRetriable, bool beRepeatable):
     icapRequest(anIcapRequest),
     icapReply(anIcapReply),
     isRetriable(beRetriable),
-    isRepeatable(beRepeatable),
-    al(ale)
+    isRepeatable(beRepeatable)
 {
     if (icapRequest)
         HTTPMSGLOCK(icapRequest);
@@ -170,8 +171,7 @@ Adaptation::Icap::XactAbortInfo::XactAbortInfo(const Adaptation::Icap::XactAbort
     icapRequest(i.icapRequest),
     icapReply(i.icapReply),
     isRetriable(i.isRetriable),
-    isRepeatable(i.isRepeatable),
-    al(i.al)
+    isRepeatable(i.isRepeatable)
 {
     if (icapRequest)
         HTTPMSGLOCK(icapRequest);

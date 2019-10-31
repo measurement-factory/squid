@@ -83,7 +83,7 @@ class XactAbortInfo
 {
 public:
     XactAbortInfo(HttpRequest *anIcapRequest, HttpReply *anIcapReply,
-                  bool beRetriable, bool beRepeatable, const AccessLogEntry::Pointer &);
+                  bool beRetriable, bool beRepeatable);
     XactAbortInfo(const XactAbortInfo &);
     ~XactAbortInfo();
 
@@ -95,7 +95,6 @@ public:
     HttpReply *icapReply;
     bool isRetriable;
     bool isRepeatable;
-    AccessLogEntry::Pointer al;
 
 private:
     XactAbortInfo &operator =(const XactAbortInfo &); // undefined
