@@ -93,6 +93,8 @@ public:
     void prepForPeering(const CachePeer &peer);
     /// get ready to be sent directly to an origin server, excluding originserver
     void prepForDirect();
+    /// configure with Downloader-specific settings
+    void prepForDownloader();
 
     void recordLookup(const Dns::LookupDetails &detail);
 
@@ -147,12 +149,6 @@ public:
     time_t ims;
 
     int imslen;
-
-    /// whether this request was initiated by Squid (rather than received on a client connection)
-    bool selfInitiated() const { return selfInitiated_; }
-
-    /// configure with Downloader-specific settings
-    void prepareForDownloader();
 
     HierarchyLogEntry hier;
 
@@ -245,15 +241,6 @@ private:
     /// annotations added by the note directive and helpers
     /// and(or) by annotate_transaction/annotate_client ACLs.
     NotePairs::Pointer theNotes;
-
-    Ip::Address client_addr; ///< source address of a non-TCP (e.g. ICMP) client
-    Ip::Address my_addr; ///< local address which a non-TCP (e.g., ICMP) client connects to
-#if FOLLOW_X_FORWARDED_FOR
-    Ip::Address indirect_client_addr; ///< calculated client address, after applying X-Forwarded-For rules
-#endif
-
-    /// whether this request was spawned by Squid itself
-    bool selfInitiated_;
 
 protected:
     virtual void packFirstLineInto(Packable * p, bool full_uri) const;

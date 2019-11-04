@@ -1472,7 +1472,7 @@ getOutgoingAddress(HttpRequest * request, Comm::ConnectionPointer conn, AccessLo
         return; // anything will do.
     }
 
-    ACLFilledChecklist ch(NULL, request, al, nullptr);
+    ACLFilledChecklist ch(nullptr, request, al, nullptr);
     ch.dst_peer_name = conn->getPeer() ? conn->getPeer()->name : NULL;
     ch.dst_addr = conn->remote;
     // TODO: ch.syncAle(request, nullptr);

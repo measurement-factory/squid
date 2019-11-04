@@ -135,7 +135,7 @@ Downloader::buildRequest()
         debugs(33, 5, "Invalid URI: " << url_);
         return false; //earlyError(...)
     }
-    request->prepareForDownloader();
+    request->prepForDownloader();
 
     debugs(11, 2, "HTTP Client Downloader " << this << "/" << id);
     debugs(11, 2, "HTTP Client REQUEST:\n---------\n" <<

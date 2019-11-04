@@ -85,8 +85,6 @@ HttpRequest::init()
     ims = -1;
     imslen = 0;
     lastmod = -1;
-    client_addr.setEmpty();
-    my_addr.setEmpty();
     body_pipe = NULL;
     // hier
     dnsWait = -1;
@@ -104,9 +102,6 @@ HttpRequest::init()
     extacl_log = null_string;
     extacl_message = null_string;
     pstate = Http::Message::psReadyToParseStartLine;
-#if FOLLOW_X_FORWARDED_FOR
-    indirect_client_addr.setEmpty();
-#endif /* FOLLOW_X_FORWARDED_FOR */
 #if USE_ADAPTATION
     adaptHistory_ = NULL;
 #endif
@@ -219,12 +214,6 @@ HttpRequest::inheritProperties(const Http::Message *aMsg)
     const HttpRequest* aReq = dynamic_cast<const HttpRequest*>(aMsg);
     if (!aReq)
         return false;
-
-    client_addr = aReq->client_addr;
-#if FOLLOW_X_FORWARDED_FOR
-    indirect_client_addr = aReq->indirect_client_addr;
-#endif
-    my_addr = aReq->my_addr;
 
     dnsWait = aReq->dnsWait;
 
@@ -719,10 +708,11 @@ UpdateRequestNotes(HttpRequest &request, NotePairs const &helperNotes)
 }
 
 void
-HttpRequest::prepareForDownloader()
+HttpRequest::prepForDownloader()
 {
     header.putStr(Http::HdrType::HOST, url.host());
     header.putTime(Http::HdrType::DATE, squid_curtime);
+    debugs(11, 4, this);
 }
 
 void
