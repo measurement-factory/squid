@@ -37,6 +37,7 @@ class HttpReply;
 class HttpRequest;
 class CustomLog;
 class ConnStateData;
+class Downloader;
 
 class AccessLogEntry: public RefCountable
 {
@@ -87,6 +88,10 @@ public:
     /// the client connection manager of the underlying transaction, if any
     CbcPointer<ConnStateData> &clientConnectionManager() {  return clientConnectionManager_; }
     void setClientConnectionManager(const CbcPointer<ConnStateData> &aMgr) { clientConnectionManager_ = aMgr; }
+
+    /// the Downloader of the underlying transaction, if any
+    CbcPointer<Downloader> &downloader() {  return downloader_; }
+    void setDownloader(const CbcPointer<Downloader> &aDownloader) { downloader_ = aDownloader; }
 
     ConnStateData *pinnedConnection();
 
@@ -284,7 +289,12 @@ private:
     /// Client URI (or equivalent) for effectiveVirginUrl() when HttpRequest is
     /// missing. This member is ignored unless the request member is nil.
     SBuf virginUrlForMissingRequest_;
+
+    /// the client connection manager of this ALE transaction, if any
     CbcPointer<ConnStateData> clientConnectionManager_;
+
+    /// the Downloader of this ALE transaction, if any
+    CbcPointer<Downloader> downloader_;
 };
 
 class ACLChecklist;

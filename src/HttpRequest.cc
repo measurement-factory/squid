@@ -16,7 +16,6 @@
 #include "client_side.h"
 #include "client_side_request.h"
 #include "dns/LookupDetails.h"
-#include "Downloader.h"
 #include "err_detail_type.h"
 #include "globals.h"
 #include "gopher.h"
@@ -249,8 +248,6 @@ HttpRequest::inheritProperties(const Http::Message *aMsg)
 #endif
 
     forcedBodyContinuation = aReq->forcedBodyContinuation;
-
-    downloader = aReq->downloader;
 
     theNotes = aReq->theNotes;
 
@@ -722,11 +719,10 @@ UpdateRequestNotes(HttpRequest &request, NotePairs const &helperNotes)
 }
 
 void
-HttpRequest::prepareForDownloader(Downloader *aDownloader)
+HttpRequest::prepareForDownloader()
 {
     header.putStr(Http::HdrType::HOST, url.host());
     header.putTime(Http::HdrType::DATE, squid_curtime);
-    downloader = aDownloader;
 }
 
 void

@@ -135,7 +135,7 @@ Downloader::buildRequest()
         debugs(33, 5, "Invalid URI: " << url_);
         return false; //earlyError(...)
     }
-    request->prepareForDownloader(this);
+    request->prepareForDownloader();
 
     debugs(11, 2, "HTTP Client Downloader " << this << "/" << id);
     debugs(11, 2, "HTTP Client REQUEST:\n---------\n" <<
@@ -143,6 +143,7 @@ Downloader::buildRequest()
            "\n----------");
 
     ClientHttpRequest *const http = new ClientHttpRequest(nullptr);
+    http->al->setDownloader(this);
     http->initRequest(request);
     http->req_sz = 0;
     // XXX: performance regression. c_str() reallocates

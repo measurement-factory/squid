@@ -38,7 +38,6 @@ class AccessLogEntry;
 typedef RefCount<AccessLogEntry> AccessLogEntryPointer;
 class CachePeer;
 class ConnStateData;
-class Downloader;
 
 /*  Http Request */
 void httpRequestPack(void *obj, Packable *p);
@@ -152,8 +151,8 @@ public:
     /// whether this request was initiated by Squid (rather than received on a client connection)
     bool selfInitiated() const { return selfInitiated_; }
 
-    /// supply Downloader-specific settings
-    void prepareForDownloader(Downloader *);
+    /// configure with Downloader-specific settings
+    void prepareForDownloader();
 
     HierarchyLogEntry hier;
 
@@ -218,9 +217,6 @@ public:
      * (either the effective request URI or modified ID by the helper).
      */
     const SBuf storeId();
-
-    /// The Downloader object which initiated the HTTP request if any
-    CbcPointer<Downloader> downloader;
 
     /// the master transaction this request belongs to. Never nil.
     MasterXaction::Pointer masterXaction;
