@@ -148,6 +148,7 @@ ICPState::ICPState(icp_common_t &aHeader, HttpRequest *aRequest, const AccessLog
     url(nullptr),
     al(ale)
 {
+    assert(al); // created already in icpAccessAllowed()
     HTTPMSGLOCK(request);
 }
 
@@ -176,8 +177,6 @@ LogTags *
 ICPState::loggingTags()
 {
     // calling SyncAle(LOG_TAG_NONE) here would not change cache.code
-    if (!al)
-        al = new AccessLogEntry();
     return &al->cache.code;
 }
 
