@@ -2701,8 +2701,14 @@ void ConnStateData::buildSslCertGenerationParams(Ssl::CertificateProperties &cer
         if (X509 *mimicCert = sslServerBump->serverCert.get())
             certProperties.mimicCert.resetAndLock(mimicCert);
 
-        ACLFilledChecklist checklist(nullptr, sslServerBump->request.getRaw(), nullptr, // XXX
+        Http::StreamPointer context = pipeline.front();
+
+        const auto http = context ? context->http : nullptr;
+        const auto log_uri = http ? http->log_uri : nullptr;
+
+        ACLFilledChecklist checklist(nullptr, sslServerBump->request.getRaw(), http ? http->al : nullptr,
                                      clientConnection != NULL ? clientConnection->rfc931 : dash_str);
+        checklist.syncAle(sslServerBump->request.getRaw(), log_uri);
         checklist.setClientConnectionDetails(this);
         checklist.sslErrors = cbdataReference(sslServerBump->sslErrors());
 
@@ -3542,8 +3548,8 @@ void
 clientAclChecklistFill(ACLFilledChecklist &checklist, ClientHttpRequest *http)
 {
     checklist.setRequest(http->request);
-    checklist.syncAle(http->request, http->log_uri);
     checklist.al = http->al;
+    checklist.syncAle(http->request, http->log_uri);
     // TODO: If http->getConn is always http->request->clientConnectionManager,
     // then call setIdent() inside checklist.setRequest(). Otherwise, restore
     // USE_IDENT lost in commit 94439e4.

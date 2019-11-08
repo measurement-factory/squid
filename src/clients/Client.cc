@@ -521,6 +521,7 @@ Client::blockCaching()
         // This relatively expensive check is not in StoreEntry::checkCachable:
         // That method lacks HttpRequest and may be called too many times.
         ACLFilledChecklist ch(acl, originalRequest().getRaw(), fwd->al, nullptr);
+        ch.syncAle(request.getRaw(), nullptr);
         ch.reply = const_cast<HttpReply*>(entry->getReply()); // ACLFilledChecklist API bug
         HTTPMSGLOCK(ch.reply);
         if (!ch.fastCheck().allowed()) { // when in doubt, block

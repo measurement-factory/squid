@@ -1473,6 +1473,7 @@ getOutgoingAddress(HttpRequest * request, Comm::ConnectionPointer conn, AccessLo
     }
 
     ACLFilledChecklist ch(nullptr, request, al, nullptr);
+    ch.syncAle(request, nullptr);
     ch.dst_peer_name = conn->getPeer() ? conn->getPeer()->name : NULL;
     ch.dst_addr = conn->remote;
     // TODO: ch.syncAle(request, nullptr);
@@ -1497,6 +1498,7 @@ tos_t
 GetTosToServer(HttpRequest * request, const AccessLogEntry::Pointer &al)
 {
     ACLFilledChecklist ch(NULL, request, al, nullptr);
+    ch.syncAle(request, nullptr);
     return aclMapTOS(Ip::Qos::TheConfig.tosToServer, &ch);
 }
 
@@ -1504,6 +1506,7 @@ nfmark_t
 GetNfmarkToServer(HttpRequest * request, const AccessLogEntry::Pointer &al)
 {
     ACLFilledChecklist ch(nullptr, request, al, nullptr);
+    ch.syncAle(request, nullptr);
     const auto mc = aclFindNfMarkConfig(Ip::Qos::TheConfig.nfmarkToServer, &ch);
     return mc.mark;
 }

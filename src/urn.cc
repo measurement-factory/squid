@@ -194,6 +194,7 @@ UrnState::fillChecklist(ACLFilledChecklist &checklist) const
 {
     checklist.setRequest(request.getRaw());
     checklist.al = ale;
+    checklist.syncAle(request.getRaw(), nullptr);
 }
 
 void

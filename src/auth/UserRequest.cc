@@ -466,6 +466,7 @@ schemesConfig(HttpRequest *request, HttpReply *rep, const AccessLogEntryPointer 
 {
     if (!Auth::TheConfig.schemeLists.empty() && Auth::TheConfig.schemeAccess) {
         ACLFilledChecklist ch(nullptr, request, al, nullptr);
+        ch.syncAle(request, nullptr);
         ch.reply = rep;
         HTTPMSGLOCK(ch.reply);
         const auto answer = ch.fastCheck(Auth::TheConfig.schemeAccess);

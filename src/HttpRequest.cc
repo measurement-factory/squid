@@ -613,6 +613,7 @@ HttpRequest::getRangeOffsetLimit(const AccessLogEntry::Pointer &al)
     rangeOffsetLimit = 0; // default value for rangeOffsetLimit
 
     ACLFilledChecklist ch(nullptr, this, al, nullptr);
+    ch.syncAle(this, nullptr);
 
     for (AclSizeLimit *l = Config.rangeOffsetLimit; l; l = l -> next) {
         /* if there is no ACL list or if the ACLs listed match use this limit value */

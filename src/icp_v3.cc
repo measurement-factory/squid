@@ -42,10 +42,9 @@ doV3Query(int fd, Ip::Address &from, char *buf, icp_common_t header)
     if (!icp_request)
         return;
 
-    AccessLogEntryPointer al = new AccessLogEntry();
-    ICPState::SyncAle(al, from, url, 0, 0);
+    AccessLogEntryPointer al;
 
-    if (!icpAccessAllowed(from, icp_request, al)) {
+    if (!icpAccessAllowed(from, icp_request, url, al)) {
         icpDenyAccess (from, url, header.reqnum, fd);
         delete icp_request;
         return;

@@ -134,6 +134,7 @@ ACLFilledChecklist::syncAle(HttpRequest *adaptedRequest, const char *logUri) con
 {
     if (!al)
         return;
+    // TODO: move this into the constructor
     if (adaptedRequest && !al->adapted_request) {
         al->adapted_request = adaptedRequest;
         HTTPMSGLOCK(al->adapted_request);

@@ -97,7 +97,7 @@ extern Ip::Address theIcpPublicHostID;
 HttpRequest* icpGetRequest(char *url, int reqnum, int fd, Ip::Address &from);
 
 /// \ingroup ServerProtocolICPAPI
-bool icpAccessAllowed(Ip::Address &from, HttpRequest *icp_request, const AccessLogEntryPointer &al);
+bool icpAccessAllowed(Ip::Address &from, HttpRequest *icp_request, const char *url, AccessLogEntryPointer &al);
 
 /// \ingroup ServerProtocolICPAPI
 void icpCreateAndSend(icp_opcode, int flags, char const *url, int reqnum, int pad, int fd, const Ip::Address &from, AccessLogEntryPointer);

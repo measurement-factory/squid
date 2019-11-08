@@ -551,6 +551,7 @@ HttpReply::calcMaxBodySize(HttpRequest& request, const AccessLogEntry::Pointer &
         return;
 
     ACLFilledChecklist ch(nullptr, &request, al, nullptr);
+    ch.syncAle(&request, nullptr);
     // XXX: cont-cast becomes irrelevant when checklist is HttpReply::Pointer
     ch.reply = const_cast<HttpReply *>(this);
     HTTPMSGLOCK(ch.reply);

@@ -139,13 +139,10 @@ public:
         assert(request);
         return al->clientAddr();
     }
-    void setAddresses(Ip::Address &fromAddr) {
-        htcpSyncAle(al, fromAddr, dhdr->opcode, uri);
-        al->setClientAddr(fromAddr);
-        al->setMyAddr(htcpIncomingConn->local);
-    }
-    void setDataHeader(htcpDataHeader *aDataHeader) {
+
+    void initFields(htcpDataHeader *aDataHeader, Ip::Address &fromAddr) {
         dhdr = aDataHeader;
+        htcpSyncAle(al, fromAddr, dhdr->opcode, uri);
     }
 
     /* StoreClient API */
@@ -291,6 +288,8 @@ htcpSyncAle(AccessLogEntryPointer &al, const Ip::Address &caddr, const int opcod
     al->cache.start_time = current_time;
     al->cache.trTime.tv_sec = 0;
     al->cache.trTime.tv_usec = 0;
+    al->setClientAddr(caddr);
+    al->setMyAddr(htcpIncomingConn->local);
 }
 
 static void
@@ -1140,10 +1139,9 @@ htcpHandleTstRequest(htcpDataHeader * dhdr, char *buf, int sz, Ip::Address &from
         debugs(31, 3, "htcpHandleTstRequest: htcpUnpackSpecifier failed");
         htcpLogHtcp(from, dhdr->opcode, LOG_UDP_INVALID, dash_str, nullptr);
         return;
-    } else {
-        s->setAddresses(from);
-        s->setDataHeader(dhdr);
     }
+
+    s->initFields(dhdr, from);
 
     if (!s->request) {
         debugs(31, 3, "htcpHandleTstRequest: failed to parse request");
@@ -1197,10 +1195,9 @@ htcpHandleClr(htcpDataHeader * hdr, char *buf, int sz, Ip::Address &from)
         debugs(31, 3, "htcpHandleClr: htcpUnpackSpecifier failed");
         htcpLogHtcp(from, hdr->opcode, LOG_UDP_INVALID, dash_str, nullptr);
         return;
-    } else {
-        s->setDataHeader(hdr);
-        s->setAddresses(from);
     }
+
+    s->initFields(hdr, from);
 
     if (!s->request) {
         debugs(31, 3, "htcpHandleTstRequest: failed to parse request");

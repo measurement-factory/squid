@@ -468,12 +468,13 @@ icpDenyAccess(Ip::Address &from, char *url, int reqnum, int fd)
 }
 
 bool
-icpAccessAllowed(Ip::Address &from, HttpRequest *icp_request, const AccessLogEntryPointer &al)
+icpAccessAllowed(Ip::Address &from, HttpRequest *icp_request, const char *url, AccessLogEntryPointer &al)
 {
     /* absent any explicit rules, we deny all */
     if (!Config.accessList.icp)
         return false;
 
+    ICPState::SyncAle(al, from, url, 0, 0);
     ACLFilledChecklist checklist(Config.accessList.icp, icp_request, al, nullptr);
     return checklist.fastCheck().allowed();
 }
@@ -520,10 +521,9 @@ doV2Query(int fd, Ip::Address &from, char *buf, icp_common_t header)
 
     HTTPMSGLOCK(icp_request);
 
-    AccessLogEntryPointer al = new AccessLogEntry();
-    ICPState::SyncAle(al, from, url, 0, 0);
+    AccessLogEntryPointer al;
 
-    if (!icpAccessAllowed(from, icp_request, al)) {
+    if (!icpAccessAllowed(from, icp_request, url, al)) {
         icpDenyAccess(from, url, header.reqnum, fd);
         HTTPMSGUNLOCK(icp_request);
         return;

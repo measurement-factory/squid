@@ -288,6 +288,7 @@ httpHdrMangle(HttpHeaderEntry *e, HttpRequest * request, HeaderManglers *hms, co
     }
 
     ACLFilledChecklist checklist(hm->access_list, request, al, nullptr);
+    checklist.syncAle(request, nullptr);
 
     if (checklist.fastCheck().allowed()) {
         /* aclCheckFast returns true for allow. */
@@ -477,6 +478,7 @@ void
 httpHdrAdd(HttpHeader *heads, HttpRequest *request, const AccessLogEntryPointer &al, HeaderWithAclList &headersAdd)
 {
     ACLFilledChecklist checklist(nullptr, request, al, nullptr);
+    checklist.syncAle(request, nullptr);
 
     for (HeaderWithAclList::const_iterator hwa = headersAdd.begin(); hwa != headersAdd.end(); ++hwa) {
         if (!hwa->aclList || checklist.fastCheck(hwa->aclList).allowed()) {
