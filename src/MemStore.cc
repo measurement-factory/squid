@@ -360,10 +360,7 @@ MemStore::updateHeadersOrThrow(Ipc::StoreMapUpdate &update)
     // our +/- hdr_sz math below does not work if the chains differ [in size]
     Must(update.stale.anchor->basics.swap_file_sz == update.fresh.anchor->basics.swap_file_sz);
 
-    const HttpReply *rawReply = update.entry->getReply();
-    Must(rawReply);
-    const HttpReply &reply = *rawReply;
-    const uint64_t staleHdrSz = reply.hdr_sz;
+    const uint64_t staleHdrSz = update.entry->mem().baseReply().hdr_sz;
     debugs(20, 7, "stale hdr_sz: " << staleHdrSz);
 
     /* we will need to copy same-slice payload after the stored headers later */
@@ -374,7 +371,7 @@ MemStore::updateHeadersOrThrow(Ipc::StoreMapUpdate &update)
 
     Must(update.stale.anchor);
     ShmWriter writer(*this, update.entry, update.fresh.fileNo);
-    reply.packHeadersUsingSlowPacker(writer);
+    update.entry->mem().freshestReply().packHeadersUsingSlowPacker(writer);
     const uint64_t freshHdrSz = writer.totalWritten;
     debugs(20, 7, "fresh hdr_sz: " << freshHdrSz << " diff: " << (freshHdrSz - staleHdrSz));
 
@@ -479,7 +476,7 @@ MemStore::copyFromShm(StoreEntry &e, const sfileno index, const Ipc::StoreMapAnc
         wasEof = anchor.complete() && slice.next < 0;
         const Ipc::StoreMapSlice::Size wasSize = slice.size;
 
-        debugs(20, 9, "entry " << index << " slice " << sid << " eof " <<
+        debugs(20, 8, "entry " << index << " slice " << sid << " eof " <<
                wasEof << " wasSize " << wasSize << " <= " <<
                anchor.basics.swap_file_sz << " sliceOffset " << sliceOffset <<
                " mem.endOffset " << e.mem_obj->endOffset());
@@ -497,7 +494,7 @@ MemStore::copyFromShm(StoreEntry &e, const sfileno index, const Ipc::StoreMapAnc
                                          page + prefixSize);
             if (!copyFromShmSlice(e, sliceBuf, wasEof))
                 return false;
-            debugs(20, 9, "entry " << index << " copied slice " << sid <<
+            debugs(20, 8, "entry " << index << " copied slice " << sid <<
                    " from " << extra.page << '+' << prefixSize);
         }
         // else skip a [possibly incomplete] slice that we copied earlier
@@ -521,7 +518,7 @@ MemStore::copyFromShm(StoreEntry &e, const sfileno index, const Ipc::StoreMapAnc
         return true;
     }
 
-    debugs(20, 7, "mem-loaded all " << e.mem_obj->object_sz << '/' <<
+    debugs(20, 5, "mem-loaded all " << e.mem_obj->endOffset() << '/' <<
            anchor.basics.swap_file_sz << " bytes of " << e);
 
     // from StoreEntry::complete()
@@ -546,7 +543,7 @@ MemStore::copyFromShmSlice(StoreEntry &e, const StoreIOBuffer &buf, bool eof)
 
     // from store_client::readBody()
     // parse headers if needed; they might span multiple slices!
-    HttpReply *rep = (HttpReply *)e.getReply();
+    const auto rep = &e.mem().adjustableBaseReply();
     if (rep->pstate < Http::Message::psParsed) {
         // XXX: have to copy because httpMsgParseStep() requires 0-termination
         MemBuf mb;

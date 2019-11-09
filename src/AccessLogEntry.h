@@ -11,6 +11,7 @@
 
 #include "anyp/PortCfg.h"
 #include "base/CbcPointer.h"
+#include "base/CodeContext.h"
 #include "base/RefCount.h"
 #include "comm/Connection.h"
 #include "HierarchyLogEntry.h"
@@ -39,14 +40,18 @@ class CustomLog;
 class ConnStateData;
 class Downloader;
 
-class AccessLogEntry: public RefCountable
+class AccessLogEntry: public CodeContext
 {
 
 public:
     typedef RefCount<AccessLogEntry> Pointer;
 
     AccessLogEntry();
-    ~AccessLogEntry();
+    virtual ~AccessLogEntry();
+
+    /* CodeContext API */
+    virtual std::ostream &detailCodeContext(std::ostream &os) const override;
+    virtual ScopedId codeContextGist() const override;
 
     /// Fetch the client IP log string into the given buffer.
     /// Knows about several alternate locations of the IP
@@ -58,6 +63,9 @@ public:
 
     /// Fetch the external ACL provided 'user=' string, or nil if none is available.
     const char *getExtUser() const;
+
+    /// whether we know what the request method is
+    bool hasLogMethod() const { return icp.opcode || htcp.opcode || http.method; }
 
     /// Fetch the transaction method string (ICP opcode, HTCP opcode or HTTP method)
     SBuf getLogMethod() const;
@@ -94,6 +102,9 @@ public:
     void setDownloader(const CbcPointer<Downloader> &aDownloader) { downloader_ = aDownloader; }
 
     ConnStateData *pinnedConnection();
+
+    /// dump all reply headers (for sending or risky logging)
+    void packReplyHeaders(MemBuf &mb) const;
 
     SBuf url;
 
@@ -197,7 +208,6 @@ public:
     public:
         char *request = nullptr; //< virgin HTTP request headers
         char *adapted_request = nullptr; //< HTTP request headers after adaptation and redirection
-        char *reply = nullptr;
     } headers;
 
 #if USE_ADAPTATION
@@ -216,7 +226,7 @@ public:
     SBuf lastAclData; ///< string for external_acl_type %DATA format code
 
     HierarchyLogEntry hier;
-    HttpReply *reply = nullptr;
+    HttpReplyPointer reply;
     HttpRequest *request = nullptr; //< virgin HTTP request
     HttpRequest *adapted_request = nullptr; //< HTTP request after adaptation and redirection
 

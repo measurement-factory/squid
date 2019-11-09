@@ -11,7 +11,7 @@
 #include "http/Stream.h"
 #include "MasterXaction.h"
 
-InstanceIdDefinitions(MasterXaction, "MXID_");
+InstanceIdDefinitions(MasterXaction, "master", uint64_t);
 
 MasterXaction::MasterXaction(const XactionInitiator anInitiator, ConnStateData *connManager) :
     initiator(anInitiator),

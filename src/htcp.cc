@@ -125,7 +125,7 @@ static Comm::ConnectionPointer htcpIncomingConn;
 static void
 htcpSyncAle(AccessLogEntryPointer &al, const Ip::Address &caddr, const int opcode, const char *url);
 
-class htcpSpecifier : public RefCountable, public StoreClient
+class htcpSpecifier: public CodeContext, public StoreClient
 {
     MEMPROXY_CLASS(htcpSpecifier);
 
@@ -144,6 +144,10 @@ public:
         dhdr = aDataHeader;
         htcpSyncAle(al, fromAddr, dhdr->opcode, uri);
     }
+
+    /* CodeContext API */
+    virtual ScopedId codeContextGist() const; // override
+    virtual std::ostream &detailCodeContext(std::ostream &os) const; // override
 
     /* StoreClient API */
     void created(StoreEntry *);
@@ -705,7 +709,7 @@ htcpUnpackSpecifier(char *buf, int sz)
     method.HttpRequestMethodXXX(s->method);
 
     const MasterXaction::Pointer mx = new MasterXaction(XactionInitiator::initHtcp);
-    s->request = HttpRequest::FromUrl(s->uri, mx, method == Http::METHOD_NONE ? HttpRequestMethod(Http::METHOD_GET) : method);
+    s->request = HttpRequest::FromUrlXXX(s->uri, mx, method == Http::METHOD_NONE ? HttpRequestMethod(Http::METHOD_GET) : method);
     if (!s->request) {
         debugs(31, 3, "failed to create request. Invalid URI?");
         return nil;
@@ -920,6 +924,38 @@ htcpClrReply(htcpDataHeader * dhdr, int purgeSucceeded, Ip::Address &from)
     }
 
     htcpSend(pkt, (int) pktlen, from);
+}
+
+ScopedId
+htcpSpecifier::codeContextGist() const
+{
+    if (al) {
+        const auto gist = al->codeContextGist();
+        if (gist.value)
+            return gist;
+    }
+
+    if (request) {
+        if (const auto &mx = request->masterXaction)
+            return mx->id.detach();
+    }
+
+    return ScopedId("HTCP w/o master");
+}
+
+std::ostream &
+htcpSpecifier::detailCodeContext(std::ostream &os) const
+{
+    if (al)
+        return al->detailCodeContext(os);
+
+    if (request) {
+        if (const auto &mx = request->masterXaction)
+            return os << Debug::Extra << "current master transaction: " << mx->id;
+    }
+
+    // TODO: Report method, uri, and version if they have been set
+    return os;
 }
 
 void
@@ -1267,6 +1303,8 @@ htcpForwardClr(char *buf, int sz)
 static void
 htcpHandleMsg(char *buf, int sz, Ip::Address &from)
 {
+    // TODO: function-scoped CodeContext::Reset(...("HTCP message from", from))
+
     htcpHeader htcpHdr;
     htcpDataHeader hdr;
     char *hbuf;

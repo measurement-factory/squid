@@ -725,7 +725,7 @@ Ftp::Server::parseOneRequest()
                        &params : NULL;
     calcUri(path);
     MasterXaction::Pointer mx = new MasterXaction(XactionInitiator::initClient, this);
-    HttpRequest *const request = HttpRequest::FromUrl(uri.c_str(), mx, method);
+    auto * const request = HttpRequest::FromUrl(uri, mx, method);
     if (!request) {
         debugs(33, 5, "Invalid FTP URL: " << uri);
         uri.clear();
@@ -775,12 +775,6 @@ Ftp::Server::handleReply(HttpReply *reply, StoreIOBuffer data)
     // the caller guarantees that we are dealing with the current context only
     Http::StreamPointer context = pipeline.front();
     assert(context != nullptr);
-
-    if (context->http && context->http->al != NULL &&
-            !context->http->al->reply && reply) {
-        context->http->al->reply = reply;
-        HTTPMSGLOCK(context->http->al->reply);
-    }
 
     static ReplyHandler handlers[] = {
         NULL, // fssBegin

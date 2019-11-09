@@ -24,12 +24,16 @@ libbase_la_SOURCES = \
 	CbDataList.h \
 	CharacterSet.cc \
 	CharacterSet.h \
+	CodeContext.cc \
+	CodeContext.h \
 	EnumIterator.h \
 	File.cc \
 	File.h \
+	forward.h \
 	HardFun.h \
 	Here.cc \
 	Here.h \
+	InstanceId.cc \
 	InstanceId.h \
 	Lock.h \
 	LookupTable.h \

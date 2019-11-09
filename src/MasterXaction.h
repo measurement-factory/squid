@@ -57,13 +57,16 @@ public:
     CbcPointer<ConnStateData> &clientConnectionManager() { return clientConnectionManager_; }
 
     /// transaction ID.
-    InstanceId<MasterXaction> id;
+    InstanceId<MasterXaction, uint64_t> id;
 
     /// the listening port which originated this transaction
     AnyP::PortCfgPointer squidPort;
 
     /// the initiator of this transaction
     XactionInitiator initiator;
+
+    /// whether we are currently creating a CONNECT header (to be sent to peer)
+    bool generatingConnect = false;
 
 private:
 
