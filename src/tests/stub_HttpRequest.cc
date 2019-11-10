@@ -50,20 +50,12 @@ void HttpRequest::pack(Packable *) const STUB
 void HttpRequest::httpRequestPack(void *, Packable *) STUB
 HttpRequest * HttpRequest::FromUrl(const SBuf &, const MasterXaction::Pointer &, const HttpRequestMethod &) STUB_RETVAL(nullptr)
 HttpRequest * HttpRequest::FromUrlXXX(const char *, const MasterXaction::Pointer &, const HttpRequestMethod &) STUB_RETVAL(nullptr)
-ConnStateData *HttpRequest::pinnedConnection() STUB_RETVAL(NULL)
 const SBuf HttpRequest::storeId() STUB_RETVAL(SBuf("."))
 void HttpRequest::ignoreRange(const char *) STUB
-int64_t HttpRequest::getRangeOffsetLimit() STUB_RETVAL(0)
+int64_t HttpRequest::getRangeOffsetLimit(const AccessLogEntry::Pointer &) STUB_RETVAL(0)
 void HttpRequest::packFirstLineInto(Packable *, bool) const STUB
 bool HttpRequest::sanityCheckStartLine(const char *, const size_t, Http::StatusCode *) STUB_RETVAL(false)
 void HttpRequest::hdrCacheInit() STUB
 bool HttpRequest::inheritProperties(const Http::Message *) STUB_RETVAL(false)
-#if FOLLOW_X_FORWARDED_FOR
-const Ip::Address& HttpRequest::furthestClientAddress() const STUB_RETREF(Ip::Address)
-#endif
-const Ip::Address& HttpRequest::clientAddr() const STUB_RETREF(Ip::Address)
-const Ip::Address& HttpRequest::myAddr() const STUB_RETREF(Ip::Address)
-Comm::ConnectionPointer HttpRequest::clientConnection() const STUB
-CbcPointer<ConnStateData> &HttpRequest::clientConnectionManager() STUB_RETREF(CbcPointer<ConnStateData>)
 NotePairs::Pointer HttpRequest::notes() STUB_RETVAL(NotePairs::Pointer())
 
