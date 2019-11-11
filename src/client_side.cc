@@ -1569,9 +1569,8 @@ ConnStateData::tunnelOnError(const HttpRequestMethod &method, const err_type req
     const auto http = context ? context->http : nullptr;
     const auto request = http ? http->request : nullptr;
 
-    const auto ale = (context && context->http) ? context->http->al : nullptr;
+    const auto ale = http ? http->al : nullptr;
     ACLFilledChecklist checklist(Config.accessList.on_unsupported_protocol, request, ale, nullptr);
-    checklist.al = http ? http->al : nullptr;
     checklist.requestErrorType = requestError;
     checklist.setClientConnectionDetails(this);
     const char *log_uri = http ? http->log_uri : nullptr;

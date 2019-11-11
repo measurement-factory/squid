@@ -241,6 +241,7 @@ public:
 private:
     mutable int64_t rangeOffsetLimit;  /* caches the result of getRangeOffsetLimit */
 
+    // TODO: remove and use ALE::notes instead
     /// annotations added by the note directive and helpers
     /// and(or) by annotate_transaction/annotate_client ACLs.
     NotePairs::Pointer theNotes;

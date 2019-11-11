@@ -72,9 +72,6 @@ public:
 
     void syncNotes(HttpRequest *request);
 
-    /// the source address of the client connection
-    const Ip::Address& clientAddr() const;
-
 #if FOLLOW_X_FORWARDED_FOR
     /// Indirect client address, if available, otherwise clientAddr().
     const Ip::Address& furthestClientAddress() const;
@@ -84,6 +81,9 @@ public:
     /// forces furthestClientAddress() to return a direct client address
     void ignoreIndirectClientAddr();
 #endif
+    /// the source address of the client connection
+    const Ip::Address& clientAddr() const;
+
     /// specify the source client address manually when lacking client connection
     void setClientAddr(const Ip::Address &fromAddr) { client_addr = fromAddr; }
 
@@ -110,11 +110,6 @@ public:
 
     /// TCP/IP level details about the client connection
     Comm::ConnectionPointer tcpClient;
-#if FOLLOW_X_FORWARDED_FOR
-    Ip::Address indirect_client_addr; ///< calculated client address, after applying X-Forwarded-For rules
-#endif
-    Ip::Address client_addr; ///< source address of a non-TCP (e.g. ICMP) client
-    Ip::Address my_addr;  ///< local address which a non-TCP (e.g., ICMP) client connects to
 
     // TCP/IP level details about the server or peer connection
     // are stored in hier.tcpServer
@@ -296,6 +291,12 @@ public:
     }
 
 private:
+#if FOLLOW_X_FORWARDED_FOR
+    Ip::Address indirect_client_addr; ///< calculated client address, after applying X-Forwarded-For rules
+#endif
+    Ip::Address client_addr; ///< source address of a non-TCP (e.g. ICMP) client
+    Ip::Address my_addr;  ///< local address which a non-TCP (e.g., ICMP) client connects to
+
     /// Client URI (or equivalent) for effectiveVirginUrl() when HttpRequest is
     /// missing. This member is ignored unless the request member is nil.
     SBuf virginUrlForMissingRequest_;

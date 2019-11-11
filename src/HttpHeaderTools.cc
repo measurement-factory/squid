@@ -289,8 +289,6 @@ httpHdrMangle(HttpHeaderEntry * e, HttpRequest * request, HeaderManglers *hms, c
 
     ACLFilledChecklist checklist(hm->access_list, request, al, nullptr);
     checklist.syncAle(request, nullptr);
-
-    checklist.al = al;
     if (al && al->reply) {
         checklist.reply = al->reply.getRaw();
         HTTPMSGLOCK(checklist.reply);
