@@ -59,7 +59,7 @@ StoreClient::onCollapsingPath() const
     if (!Config.accessList.collapsedForwardingAccess)
         return true;
 
-    ACLFilledChecklist checklist(Config.accessList.collapsedForwardingAccess, nullptr, nullptr, nullptr);
+    ACLFilledChecklist checklist(Config.accessList.collapsedForwardingAccess, nullptr, nullptr);
     fillChecklist(checklist);
     return checklist.fastCheck().allowed();
 }

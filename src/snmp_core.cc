@@ -394,7 +394,7 @@ snmpDecodePacket(SnmpRequest * rq)
     /* Check if we have explicit permission to access SNMP data.
      * default (set above) is to deny all */
     if (Community) {
-        ACLFilledChecklist checklist(Config.accessList.snmp, nullptr, nullptr, nullptr);
+        ACLFilledChecklist checklist(Config.accessList.snmp, nullptr, nullptr);
         checklist.snmpDetails(reinterpret_cast<char*>(Community), rq->from, snmpIncomingConn->local);
         if (checklist.fastCheck().allowed() && (snmp_coexist_V2toV1(PDU))) {
             rq->community = Community;

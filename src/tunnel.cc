@@ -963,7 +963,7 @@ tunnelStart(ClientHttpRequest * http)
          * Check if this host is allowed to fetch MISSES from us (miss_access)
          * default is to allow.
          */
-        ACLFilledChecklist ch(Config.accessList.miss, request, http->al, nullptr);
+        ACLFilledChecklist ch(Config.accessList.miss, request, http->al);
         ch.syncAle(request, http->log_uri);
         if (ch.fastCheck().denied()) {
             debugs(26, 4, HERE << "MISS access forbidden.");

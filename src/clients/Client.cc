@@ -524,7 +524,7 @@ Client::blockCaching()
     if (const Acl::Tree *acl = Config.accessList.storeMiss) {
         // This relatively expensive check is not in StoreEntry::checkCachable:
         // That method lacks HttpRequest and may be called too many times.
-        ACLFilledChecklist ch(acl, originalRequest().getRaw(), fwd->al, nullptr);
+        ACLFilledChecklist ch(acl, originalRequest().getRaw(), fwd->al);
         ch.syncAle(request.getRaw(), nullptr);
         ch.reply = const_cast<HttpReply*>(&entry->mem().freshestReply()); // ACLFilledChecklist API bug
         HTTPMSGLOCK(ch.reply);

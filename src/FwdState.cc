@@ -330,7 +330,7 @@ FwdState::Start(const Comm::ConnectionPointer &clientConn, StoreEntry *entry, Ht
 {
     if (Config.accessList.miss && !al->clientAddr().isEmpty() && request->needCheckMissAccess()) {
         // Check if this host is allowed to fetch MISSES from us (miss_access).
-        ACLFilledChecklist ch(Config.accessList.miss, request, al, nullptr);
+        ACLFilledChecklist ch(Config.accessList.miss, request, al);
         // TODO: Explain this acl_uses_indirect_client violation in squid.conf.
         // TODO: Refer to the above squid.conf documentation here.
         ch.forceDirectAddr();
@@ -982,7 +982,7 @@ FwdState::connectStart()
     cs->setHost(request->url.host());
     bool retriable = checkRetriable();
     if (!retriable && Config.accessList.serverPconnForNonretriable) {
-        ACLFilledChecklist ch(Config.accessList.serverPconnForNonretriable, request, al, nullptr);
+        ACLFilledChecklist ch(Config.accessList.serverPconnForNonretriable, request, al);
         ch.syncAle(request, nullptr);
         retriable = ch.fastCheck().allowed();
     }
@@ -1374,7 +1374,7 @@ getOutgoingAddress(HttpRequest * request, Comm::ConnectionPointer conn, AccessLo
         return; // anything will do.
     }
 
-    ACLFilledChecklist ch(nullptr, request, al, nullptr);
+    ACLFilledChecklist ch(nullptr, request, al);
     ch.syncAle(request, nullptr);
     ch.dst_peer_name = conn->getPeer() ? conn->getPeer()->name : NULL;
     ch.dst_addr = conn->remote;
@@ -1403,7 +1403,7 @@ GetTosToServer(HttpRequest * request, Comm::Connection &conn, const AccessLogEnt
     if (!Ip::Qos::TheConfig.tosToServer)
         return 0;
 
-    ACLFilledChecklist ch(nullptr, request, al, nullptr);
+    ACLFilledChecklist ch(nullptr, request, al);
     ch.dst_peer_name = conn.getPeer() ? conn.getPeer()->name : nullptr;
     ch.dst_addr = conn.remote;
     return aclMapTOS(Ip::Qos::TheConfig.tosToServer, &ch);
@@ -1416,7 +1416,7 @@ GetNfmarkToServer(HttpRequest * request, Comm::Connection &conn, const AccessLog
     if (!Ip::Qos::TheConfig.nfmarkToServer)
         return 0;
 
-    ACLFilledChecklist ch(nullptr, request, al, nullptr);
+    ACLFilledChecklist ch(nullptr, request, al);
     ch.dst_peer_name = conn.getPeer() ? conn.getPeer()->name : nullptr;
     ch.dst_addr = conn.remote;
     const auto mc = aclFindNfMarkConfig(Ip::Qos::TheConfig.nfmarkToServer, &ch);

@@ -166,7 +166,7 @@ peerAllowedToUse(const CachePeer * p, PeerSelector * ps)
     if (p->access == NULL)
         return true;
 
-    ACLFilledChecklist checklist(p->access, request, ps->al, nullptr);
+    ACLFilledChecklist checklist(p->access, request, ps->al);
     if (ps->al && ps->al->reply) {
         checklist.reply = ps->al->reply.getRaw();
         HTTPMSGLOCK(checklist.reply);

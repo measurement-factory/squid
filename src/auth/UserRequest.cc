@@ -465,7 +465,7 @@ static Auth::ConfigVector &
 schemesConfig(HttpRequest *request, HttpReply *rep, const AccessLogEntryPointer &al)
 {
     if (!Auth::TheConfig.schemeLists.empty() && Auth::TheConfig.schemeAccess) {
-        ACLFilledChecklist ch(nullptr, request, al, nullptr);
+        ACLFilledChecklist ch(nullptr, request, al);
         ch.syncAle(request, nullptr);
         ch.reply = rep;
         HTTPMSGLOCK(ch.reply);

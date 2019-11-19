@@ -474,7 +474,7 @@ icpAccessAllowed(Ip::Address &from, HttpRequest *icp_request, const char *url, A
         return false;
 
     ICPState::SyncAle(al, from, url, 0, 0);
-    ACLFilledChecklist checklist(Config.accessList.icp, icp_request, al, nullptr);
+    ACLFilledChecklist checklist(Config.accessList.icp, icp_request, al);
     return checklist.fastCheck().allowed();
 }
 

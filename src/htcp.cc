@@ -807,7 +807,7 @@ htcpAccessAllowed(acl_access * acl, const htcpSpecifier::Pointer &s, Ip::Address
     if (!acl)
         return false;
 
-    ACLFilledChecklist checklist(acl, s->request.getRaw(), s->al, nullptr);
+    ACLFilledChecklist checklist(acl, s->request.getRaw(), s->al);
     return checklist.fastCheck().allowed();
 }
 

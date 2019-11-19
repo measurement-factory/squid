@@ -128,6 +128,8 @@ public:
 
     Ip::Address log_addr;
 
+    AccessLogEntry::Pointer al;
+
     struct {
         bool readMore; ///< needs comm_read (for this request or new requests)
         bool swanSang; // XXX: temporary flag to check proper cleanup

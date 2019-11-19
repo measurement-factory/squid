@@ -143,7 +143,7 @@ bool Adaptation::Icap::Launcher::canRepeat(Adaptation::Icap::XactAbortInfo &info
     // XXX: we cannot simply pass Xaction::al here, because icapRequest and al->request
     // represent different objects
     ACLFilledChecklist *cl =
-        new ACLFilledChecklist(TheConfig.repeat, info.icapRequest, nullptr, dash_str);
+        new ACLFilledChecklist(TheConfig.repeat, info.icapRequest, nullptr);
     cl->reply = info.icapReply;
     HTTPMSGLOCK(cl->reply);
 

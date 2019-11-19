@@ -265,8 +265,7 @@ Comm::TcpAcceptor::logAcceptError(const ConnectionPointer &tcpClient) const
     al->tcpClient = tcpClient;
     al->url = "error:accept-client-connection";
     al->setVirginUrlForMissingRequest(al->url);
-    ACLFilledChecklist ch(nullptr, nullptr, al, nullptr);
-    ch.setClientConnectionDetails(nullptr, conn);
+    ACLFilledChecklist ch(nullptr, nullptr, al);
     accessLogLog(al, &ch);
 
     CodeContext::Reset(listenPort_);

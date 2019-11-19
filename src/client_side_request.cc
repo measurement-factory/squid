@@ -167,23 +167,27 @@ ClientHttpRequest::ClientHttpRequest(ConnStateData * aConn) :
 #endif
 {
     setConn(aConn);
-    al = new AccessLogEntry;
-    CodeContext::Reset(al);
-    al->setClientConnectionManager(aConn);
-    al->cache.start_time = current_time;
-    if (aConn) {
-        al->tcpClient = clientConnection = aConn->clientConnection;
-        al->cache.port = aConn->port;
-        al->cache.caddr = aConn->log_addr;
-        al->proxyProtocolHeader = aConn->proxyProtocolHeader();
+    if (conn_ && (conn_->pipeline.nrequests == 0)) {
+        al = conn_->al;
+    } else {
+        al = new AccessLogEntry;
+        CodeContext::Reset(al);
+        al->cache.start_time = current_time;
+        if (conn_) {
+            al->setClientConnectionManager(conn_);
+            al->tcpClient = clientConnection = conn_->clientConnection;
+            al->cache.port = conn_->port;
+            al->cache.caddr = conn_->log_addr;
+            al->proxyProtocolHeader = conn_->proxyProtocolHeader();
+        }
+    }
 
 #if USE_OPENSSL
-        if (aConn->clientConnection != NULL && aConn->clientConnection->isOpen()) {
-            if (auto ssl = fd_table[aConn->clientConnection->fd].ssl.get())
-                al->cache.sslClientCert.resetWithoutLocking(SSL_get_peer_certificate(ssl));
-        }
-#endif
+    if (clientConnection && clientConnection->isOpen()) {
+        if (auto ssl = fd_table[clientConnection->fd].ssl.get())
+            al->cache.sslClientCert.resetWithoutLocking(SSL_get_peer_certificate(ssl));
     }
+#endif
     dlinkAdd(this, &active, &ClientActiveRequests);
 }
 
@@ -329,8 +333,6 @@ clientBeginRequest(const HttpRequestMethod& method, char const *url, CSCB * stre
     ClientHttpRequest *http = new ClientHttpRequest(NULL);
     HttpRequest *request;
     StoreIOBuffer tempBuffer;
-    if (http->al != NULL)
-        http->al->cache.start_time = current_time;
     /* this is only used to adjust the connection offset in client_side.c */
     http->req_sz = 0;
     tempBuffer.length = taillen;
@@ -1807,7 +1809,7 @@ ClientHttpRequest::doCallouts()
 
     // Set appropriate MARKs and CONNMARKs if needed.
     if (getConn() && Comm::IsConnOpen(getConn()->clientConnection)) {
-        ACLFilledChecklist ch(nullptr, request, calloutContext->http->al, nullptr);
+        ACLFilledChecklist ch(nullptr, request, calloutContext->http->al);
         ch.setClientConnectionDetails(getConn());
         ch.syncAle(request, log_uri);
 

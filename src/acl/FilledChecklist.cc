@@ -219,7 +219,7 @@ ACLFilledChecklist::markSourceDomainChecked()
  *    *not* delete the list.  After the callback function returns,
  *    checkCallback() will delete the list (i.e., self).
  */
-ACLFilledChecklist::ACLFilledChecklist(const acl_access *A, HttpRequest *http_request, const AccessLogEntry::Pointer &ale, const char *ident):
+ACLFilledChecklist::ACLFilledChecklist(const acl_access *A, HttpRequest *http_request, const AccessLogEntry::Pointer &ale):
     dst_rdns(NULL),
     request(NULL),
     reply(NULL),
@@ -249,7 +249,7 @@ ACLFilledChecklist::ACLFilledChecklist(const acl_access *A, HttpRequest *http_re
     setClientConnectionDetails(al->clientConnectionManager().get());
     if (!clientConnectionManager()) // could not take the connection from the connection manager
         setClientConnection(al->tcpClient);
-    setIdent(ident);
+    setIdent(clientConnection_ ? clientConnection_->rfc931 : dash_str);
 }
 
 void ACLFilledChecklist::setRequest(HttpRequest *httpRequest)

@@ -610,7 +610,7 @@ HttpRequest::getRangeOffsetLimit(const AccessLogEntry::Pointer &al)
 
     rangeOffsetLimit = 0; // default value for rangeOffsetLimit
 
-    ACLFilledChecklist ch(nullptr, this, al, nullptr);
+    ACLFilledChecklist ch(nullptr, this, al);
     ch.syncAle(this, nullptr);
 
     for (AclSizeLimit *l = Config.rangeOffsetLimit; l; l = l -> next) {
@@ -724,7 +724,7 @@ HttpRequest::setInterceptionFlags(const AccessLogEntryPointer &al)
         const bool proxyProtocolPort = port ? port->flags.proxySurrogate : false;
         if (flags.interceptTproxy && !proxyProtocolPort) {
             if (Config.accessList.spoof_client_ip) {
-                ACLFilledChecklist *checklist = new ACLFilledChecklist(Config.accessList.spoof_client_ip, this, al, connection->rfc931);
+                auto checklist = new ACLFilledChecklist(Config.accessList.spoof_client_ip, this, al);
                 checklist->syncAle(this, nullptr);
                 flags.spoofClientIp = checklist->fastCheck().allowed();
                 delete checklist;
