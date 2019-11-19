@@ -2183,6 +2183,7 @@ ConnStateData::ConnStateData(const MasterXaction::Pointer &xact) :
     AsyncJob("ConnStateData"), // kids overwrite
     Server(xact),
     bodyParser(nullptr),
+    masterXaction(xact),
 #if USE_OPENSSL
     sslBumpMode(Ssl::bumpEnd),
 #endif
@@ -2212,6 +2213,8 @@ ConnStateData::ConnStateData(const MasterXaction::Pointer &xact) :
     // store the details required for creating more MasterXaction objects as new requests come in
     log_addr = clientConnection->remote;
     log_addr.applyClientMask(Config.Addrs.client_netmask);
+
+    masterXaction->setClientConnectionManager(this);
 
     al = new AccessLogEntry;
     CodeContext::Reset(al);
@@ -2628,7 +2631,8 @@ ConnStateData::postHttpsAccept()
             return;
         }
 
-        MasterXaction::Pointer mx = new MasterXaction(XactionInitiator::initClient, this);
+        Must(pipeline.nrequests == 0);
+        const auto mx = createMasterXaction(nullptr);
         // Create a fake HTTP request for the ssl_bump ACL check,
         // using tproxy/intercept provided destination IP and port.
         // XXX: Merge with subsequent fakeAConnectRequest(), buildFakeRequest().
@@ -2641,11 +2645,6 @@ ConnStateData::postHttpsAccept()
         HTTPMSGUNLOCK(al->request);
         al->request = request;
         HTTPMSGLOCK(al->request);
-        // It looks like pipeline is still empty here.
-        // TODO: remove
-        if (const auto context = pipeline.front())
-            if (const auto http = context->http)
-                al->url = http->log_uri;
 
         // TODO: Use these request/ALE when waiting for new bumped transactions.
 
@@ -3294,7 +3293,7 @@ ConnStateData::buildFakeRequest(Http::MethodType const method, SBuf &useHost, un
 
     stream->registerWithConn();
 
-    MasterXaction::Pointer mx = new MasterXaction(XactionInitiator::initClient, this);
+    const auto mx = createMasterXaction(nullptr);
     // Setup Http::Request object. Maybe should be replaced by a call to (modified)
     // clientProcessRequest
     HttpRequest::Pointer request = new HttpRequest(mx);
@@ -3322,6 +3321,12 @@ ConnStateData::buildFakeRequest(Http::MethodType const method, SBuf &useHost, un
     flags.readMore = false;
 
     return http;
+}
+
+MasterXaction::Pointer
+ConnStateData::createMasterXaction(const Http::Stream *stream)
+{
+    return firstTransaction(stream) ? masterXaction : new MasterXaction(XactionInitiator::initClient, this);
 }
 
 /// check FD after clientHttp[s]ConnectionOpened, adjust HttpSockets as needed

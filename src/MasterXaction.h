@@ -56,6 +56,10 @@ public:
     /// the client connection manager of the transaction, if any
     CbcPointer<ConnStateData> &clientConnectionManager() { return clientConnectionManager_; }
 
+    /// Initializes the client connection manager and the client connection with non-nil values.
+    /// Has no effect if the client connection manager has been already initialized.
+    void setClientConnectionManager(ConnStateData *);
+
     /// transaction ID.
     InstanceId<MasterXaction, uint64_t> id;
 

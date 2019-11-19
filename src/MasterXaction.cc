@@ -30,3 +30,16 @@ MasterXaction::clientConnection()
     return clientConnectionManager_.valid() ? clientConnectionManager_->clientConnection : clientConnection_;
 }
 
+void
+MasterXaction::setClientConnectionManager(ConnStateData *connManager)
+{
+    if (!connManager || clientConnectionManager_.valid())
+        return;
+    clientConnectionManager_ = connManager;
+    if (clientConnection_) {
+        Must(clientConnection_ == connManager->clientConnection);
+        return;
+    }
+    clientConnection_ = connManager->clientConnection;
+}
+

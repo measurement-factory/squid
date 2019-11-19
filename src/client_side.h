@@ -128,7 +128,9 @@ public:
 
     Ip::Address log_addr;
 
-    AccessLogEntry::Pointer al;
+    MasterXaction::Pointer masterXaction; ///< the master transaction for the initial request
+
+    AccessLogEntry::Pointer al; ///< ALE of the initial transaction
 
     struct {
         bool readMore; ///< needs comm_read (for this request or new requests)
@@ -326,6 +328,8 @@ public:
 
     const ProxyProtocol::HeaderPointer &proxyProtocolHeader() const { return proxyProtocolHeader_; }
 
+    MasterXaction::Pointer createMasterXaction(const Http::Stream *);
+
 protected:
     void startDechunkingRequest();
     void finishDechunkingRequest(bool withSuccess);
@@ -370,6 +374,11 @@ protected:
     /// Perform client data lookups that depend on client src-IP.
     /// The PROXY protocol may require some data input first.
     void whenClientIpKnown();
+
+    /// Whether we are processing the initial transaction on this connection.
+    /// \param the Stream object created for the current transaction.
+    /// If the caller does not have Stream object yet, nil is passed.
+    bool firstTransaction(const Http::Stream *stream) const { return stream ? pipeline.nrequests == 1 : pipeline.nrequests == 0; }
 
     BodyPipe::Pointer bodyPipe; ///< set when we are reading request body
 
