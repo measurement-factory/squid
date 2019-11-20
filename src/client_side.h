@@ -40,6 +40,8 @@ class HttpHdrRangeSpec;
 
 class MasterXaction;
 typedef RefCount<MasterXaction> MasterXactionPointer;
+class AccessLogEntry;
+typedef RefCount<AccessLogEntry> AccessLogEntryPointer;
 
 #if USE_OPENSSL
 namespace Ssl
@@ -130,7 +132,7 @@ public:
 
     MasterXaction::Pointer masterXaction; ///< the master transaction for the initial request
 
-    AccessLogEntry::Pointer al; ///< ALE of the initial transaction
+    AccessLogEntryPointer al; ///< ALE of the initial transaction
 
     struct {
         bool readMore; ///< needs comm_read (for this request or new requests)

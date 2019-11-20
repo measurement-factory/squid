@@ -321,6 +321,7 @@ ACLFilledChecklist::setClientConnection(Comm::ConnectionPointer conn)
     setClientSideAddresses();
 }
 
+#if SQUID_SNMP
 void
 ACLFilledChecklist::snmpDetails(char *snmpCommunity, const Ip::Address &fromAddr, const Ip::Address &localAddr)
 {
@@ -328,6 +329,7 @@ ACLFilledChecklist::snmpDetails(char *snmpCommunity, const Ip::Address &fromAddr
     client_addr = fromAddr;
     my_addr = localAddr;
 }
+#endif
 
 void
 ACLFilledChecklist::setIdent(const char *ident)

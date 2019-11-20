@@ -222,7 +222,7 @@ public:
 
     /// forgets about the cached Range header (for a reason)
     void ignoreRange(const char *reason);
-    int64_t getRangeOffsetLimit(const AccessLogEntry::Pointer &); /* the result of this function gets cached in rangeOffsetLimit */
+    int64_t getRangeOffsetLimit(const AccessLogEntryPointer &); /* the result of this function gets cached in rangeOffsetLimit */
 
     /// \returns existing non-empty transaction annotations,
     /// creates and returns empty annotations otherwise
