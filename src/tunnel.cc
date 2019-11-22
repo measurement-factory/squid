@@ -112,6 +112,8 @@ public:
     /// recovering from the previous connect failure
     void startConnecting();
 
+    void retryOrBail();
+
     /// called when negotiations with the peer have been successfully completed
     void notePeerReadyToShovel(const Comm::ConnectionPointer &conn);
 
@@ -261,6 +263,17 @@ static CLCB tunnelClientClosed;
 static CTCB tunnelTimeout;
 static EVH tunnelDelayedClientRead;
 static EVH tunnelDelayedServerRead;
+
+// TODO: Extract destination-specific handling from TunnelStateData and
+// surround it with a single try/catch,retry block written without these macros.
+/// emulate AsyncJob call protections
+#define TunnelStateEnterThrowingCode() try {
+#define TunnelStateExitThrowingCode(cleanupCode) } \
+    catch (...) { \
+    debugs (26, 2, "exception: " << CurrentException); \
+    cleanupCode(); \
+    retryOrBail(); \
+    }
 
 static void
 tunnelServerClosed(const CommCloseCbParams &params)
@@ -896,6 +909,28 @@ tunnelErrorComplete(int fd/*const Comm::ConnectionPointer &*/, void *data, size_
         tunnelState->server.conn->close();
 }
 
+/// reacts to the current destination failure
+void
+TunnelStateData::retryOrBail()
+{
+    assert(!serverDestinations.empty());
+    debugs(26, 4, "removing the failed one from " << serverDestinations.size() <<
+           " destinations: " << serverDestinations.front());
+    serverDestinations.erase(serverDestinations.begin());
+
+    // Since no TCP payload has been passed to client or server, we may
+    // TCP-connect to other destinations (including alternate IPs).
+
+    if (!FwdState::EnoughTimeToReForward(startTime))
+        return sendError(savedError, "forwarding timeout");
+
+    if (!serverDestinations.empty())
+        return startConnecting();
+
+    if (!PeerSelectionInitiator::subscribed)
+        return sendError(savedError, "tried all destinations");
+}
+
 void
 TunnelStateData::noteConnection(HappyConnOpener::Answer &answer)
 {
@@ -906,7 +941,7 @@ TunnelStateData::noteConnection(HappyConnOpener::Answer &answer)
         syncHierNote(answer.conn, request->url.host());
         saveError(error);
         answer.error.clear(); // savedError has it now
-        sendError(savedError, "tried all destinations");
+        retryOrBail();
         return;
     }
 
@@ -1005,11 +1040,13 @@ TunnelStateData::connectToPeer(const Comm::ConnectionPointer &conn)
 {
     if (const auto *p = conn->getPeer()) {
         if (p->secure.encryptTransport) {
+            TunnelStateEnterThrowingCode();
             AsyncCall::Pointer callback = asyncCall(5,4,
                                                     "TunnelStateData::ConnectedToPeer",
                                                     MyAnswerDialer(&TunnelStateData::noteSecurityPeerConnectorAnswer, this));
             const auto connector = new Security::BlindPeerConnector(request, conn, callback, al);
             AsyncJob::Start(connector); // will call our callback
+            TunnelStateExitThrowingCode([&conn] { conn->close(); });
             return;
         }
     }
@@ -1038,6 +1075,7 @@ TunnelStateData::noteSecurityPeerConnectorAnswer(Security::EncryptorAnswer &answ
 void
 TunnelStateData::connectedToPeer(const Comm::ConnectionPointer &conn)
 {
+    TunnelStateEnterThrowingCode();
     assert(!waitingForConnectExchange);
 
     AsyncCall::Pointer callback = asyncCall(5,4,
@@ -1050,6 +1088,10 @@ TunnelStateData::connectedToPeer(const Comm::ConnectionPointer &conn)
     AsyncJob::Start(tunneler);
     waitingForConnectExchange = true;
     // and wait for the tunnelEstablishmentDone() call
+
+    // XXX: In tests, this conn remains open forever(?) if we do not close it
+    // here. The expected outcome is a "BUG #3329" warning in ~Connection.
+    TunnelStateExitThrowingCode([&conn] { conn->close(); });
 }
 
 void
@@ -1169,6 +1211,8 @@ TunnelStateData::cancelOpening(const char *reason)
 void
 TunnelStateData::startConnecting()
 {
+    TunnelStateEnterThrowingCode();
+
     if (request)
         request->hier.startPeerClock();
 
@@ -1182,6 +1226,8 @@ TunnelStateData::startConnecting()
     destinations->notificationPending = true; // start() is async
     connOpener = cs;
     AsyncJob::Start(cs);
+
+    TunnelStateExitThrowingCode([] { /* no conn to cleanup yet */ });
 }
 
 /// send request on an existing connection dedicated to the requesting client
