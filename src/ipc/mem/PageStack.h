@@ -12,6 +12,7 @@
 #include "ipc/mem/FlexibleArray.h"
 
 #include <atomic>
+#include <limits>
 
 namespace Ipc
 {
@@ -21,20 +22,52 @@ namespace Mem
 
 class PageId;
 
+/// reflects the dual nature of PageStack storage:
+/// - for free pages, this is a pointer to the next free page
+/// - for used pages, this is a "used page" marker
+class PageStackStorageSlot
+{
+public:
+    typedef uint32_t PointerOrMarker;
+    typedef PointerOrMarker Pointer;
+    typedef PointerOrMarker Marker;
+
+    /// represents a nil next slot pointer
+    static const Pointer NilPtr = std::numeric_limits<PointerOrMarker>::max();
+    /// marks a slot of a used (i.e. take()n) page
+    static const Marker TakenPage = std::numeric_limits<PointerOrMarker>::max() - 1;
+    static_assert(TakenPage != NilPtr);
+
+    explicit PageStackStorageSlot(const Pointer next = NilPtr): nextOrMarker(next) {}
+
+    /// returns a (possibly nil) pointer to the next free page
+    Pointer next() const { return nextOrMarker.load(); }
+
+    /// marks our page as used
+    void take();
+
+    /// marks our page as free, to be used before the given `next` page;
+    /// also checks that the slot state matches the caller expectations
+    void put(const PointerOrMarker expected, const Pointer next);
+
+private:
+    std::atomic<PointerOrMarker> nextOrMarker;
+};
+
 /// Atomic container of "free" page numbers inside a single SharedMemory space.
 /// Assumptions: all page numbers are unique, positive, have an known maximum,
 /// and can be temporary unavailable as long as they are never trully lost.
 class PageStack
 {
 public:
-    typedef uint32_t Value; ///< stack item type (a free page number)
+    typedef std::atomic<size_t> Levels_t;
 
     PageStack(const uint32_t aPoolId, const unsigned int aCapacity, const size_t aPageSize);
 
     unsigned int capacity() const { return theCapacity; }
     size_t pageSize() const { return thePageSize; }
-    /// lower bound for the number of free pages
-    unsigned int size() const { return max(0, theSize.load()); }
+    /// an approximate number of free pages
+    unsigned int size() const { return theSize.load(); }
 
     /// sets value and returns true unless no free page numbers are found
     bool pop(PageId &page);
@@ -53,26 +86,21 @@ public:
     size_t stackSize() const;
 
 private:
-    /// stack index and size type (may temporary go negative)
-    typedef int Offset;
-
-    // these help iterate the stack in search of a free spot or a page
-    Offset next(const Offset idx) const { return (idx + 1) % theCapacity; }
-    Offset prev(const Offset idx) const { return (theCapacity + idx - 1) % theCapacity; }
+    using Slot = PageStackStorageSlot;
 
     const uint32_t thePoolId; ///< pool ID
-    const Offset theCapacity; ///< stack capacity, i.e. theItems size
+    const unsigned int theCapacity; ///< the maximum number of pages
     const size_t thePageSize; ///< page size, used to calculate shared memory size
-    /// lower bound for the number of free pages (may get negative!)
-    std::atomic<Offset> theSize;
 
-    /// last readable item index; just a hint, not a guarantee
-    std::atomic<Offset> theLastReadable;
-    /// first writable item index; just a hint, not a guarantee
-    std::atomic<Offset> theFirstWritable;
+    /// a rough number of free pages (for debugging purposes)
+    std::atomic<unsigned int> theSize;
 
-    typedef std::atomic<Value> Item;
-    Ipc::Mem::FlexibleArray<Item> theItems; ///< page number storage
+    /// the index of the first free stack element or nil
+    std::atomic<Slot::Pointer> head_;
+
+    /// slots indexed using their page number
+    Ipc::Mem::FlexibleArray<Slot> slots_;
+    // No more data members should follow! See Ipc::Mem::FlexibleArray<> for details.
 };
 
 } // namespace Mem

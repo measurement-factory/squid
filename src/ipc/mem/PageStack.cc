@@ -15,101 +15,108 @@
 #include "ipc/mem/Page.h"
 #include "ipc/mem/PageStack.h"
 
-/// used to mark a stack slot available for storing free page offsets
-const Ipc::Mem::PageStack::Value Writable = 0;
+/* Ipc::Mem::PageStackStorageSlot */
+
+// We are using uint32_t for Pointer because PageId::number is uint32_t.
+// PageId::number should probably be uint64_t to accommodate larger caches.
+static_assert(sizeof(Ipc::Mem::PageStackStorageSlot::Pointer) ==
+    sizeof(decltype(Ipc::Mem::PageId::number)));
+
+void
+Ipc::Mem::PageStackStorageSlot::take()
+{
+    const auto next = nextOrMarker.exchange(TakenPage);
+    assert(next != TakenPage);
+}
+
+void
+Ipc::Mem::PageStackStorageSlot::put(const PointerOrMarker expected, const Pointer next)
+{
+    assert(next != TakenPage);
+    const auto old = nextOrMarker.exchange(next);
+    assert(old == expected);
+}
+
+/* Ipc::Mem::PageStack */
 
 Ipc::Mem::PageStack::PageStack(const uint32_t aPoolId, const unsigned int aCapacity, const size_t aPageSize):
     thePoolId(aPoolId), theCapacity(aCapacity), thePageSize(aPageSize),
-    theSize(theCapacity),
-    theLastReadable(prev(theSize)), theFirstWritable(next(theLastReadable)),
-    theItems(aCapacity)
+    theSize(0),
+    head_(Slot::NilPtr),
+    slots_(aCapacity)
 {
+    assert(theCapacity < Slot::TakenPage);
+    assert(theCapacity < Slot::NilPtr);
+
     // initially, all pages are free
-    for (Offset i = 0; i < theSize; ++i)
-        theItems[i] = i + 1; // skip page number zero to keep numbers positive
+    if (theCapacity) {
+        const auto lastIndex = theCapacity-1;
+        // FlexibleArray cannot construct its phantom elements so, technically,
+        // all slots (except the very first one) are uninitialized until now.
+        for (Slot::Pointer i = 0; i < lastIndex; ++i)
+            (void)new(&slots_[i])Slot(i+1);
+        (void)new(&slots_[lastIndex])Slot(Slot::NilPtr);
+        theSize = theCapacity;
+        head_ = 0;
+    }
 }
 
-/*
- * TODO: We currently rely on the theLastReadable hint during each
- * loop iteration. We could also use hint just for the start position:
- * (const Offset start = theLastReadable) and then scan the stack
- * sequentially regardless of theLastReadable changes by others. Which
- * approach is better? Same for push().
- */
 bool
 Ipc::Mem::PageStack::pop(PageId &page)
 {
-    Must(!page);
+    assert(!page);
 
-    // we may fail to dequeue, but be conservative to prevent long searches
-    --theSize;
+    Slot::Pointer current = head_.load();
 
-    // find a Readable slot, starting with theLastReadable and going left
-    while (theSize >= 0) {
-        Offset idx = theLastReadable;
-        // mark the slot at ids Writable while extracting its current value
-        const Value value = theItems[idx].fetch_and(0); // works if Writable is 0
-        const bool popped = value != Writable;
-        // theItems[idx] is probably not Readable [any more]
-
-        // Whether we popped a Readable value or not, we should try going left
-        // to maintain the index (and make progress).
-        // We may fail if others already updated the index, but that is OK.
-        theLastReadable.compare_exchange_weak(idx, prev(idx)); // may fail or lie
-
-        if (popped) {
-            // the slot we emptied may already be filled, but that is OK
-            theFirstWritable = idx; // may lie
-            page.pool = thePoolId;
-            page.number = value;
-            debugs(54, 9, page << " at " << idx << " size: " << theSize);
-            return true;
-        }
+    auto nextFree = Slot::NilPtr;
+    do {
+        if (current == Slot::NilPtr)
+            return false;
+        nextFree = slots_[current].next();
         // TODO: report suspiciously long loops
-    }
+    } while (!head_.compare_exchange_weak(current, nextFree));
 
-    ++theSize;
-    return false;
+    // must decrement after removing the page to avoid underflow
+    const auto newSize = --theSize;
+    assert(newSize < theCapacity);
+
+    slots_[current].take();
+    page.number = current + 1;
+    page.pool = thePoolId;
+    debugs(54, 8, page << " size: " << newSize);
+    return true;
 }
 
 void
 Ipc::Mem::PageStack::push(PageId &page)
 {
-    debugs(54, 9, page);
+    debugs(54, 8, page);
+    assert(page);
+    assert(pageIdIsValid(page));
 
-    if (!page)
-        return;
+    const auto pageIndex = page.number - 1;
+    auto &slot = slots_[pageIndex];
 
-    Must(pageIdIsValid(page));
-    // find a Writable slot, starting with theFirstWritable and going right
-    while (theSize < theCapacity) {
-        Offset idx = theFirstWritable;
-        auto isWritable = Writable;
-        const bool pushed = theItems[idx].compare_exchange_strong(isWritable, page.number);
-        // theItems[idx] is probably not Writable [any more];
+    // must increment before inserting the page to avoid underflow in pop()
+    const auto newSize = ++theSize;
+    assert(newSize <= theCapacity);
 
-        // Whether we pushed the page number or not, we should try going right
-        // to maintain the index (and make progress).
-        // We may fail if others already updated the index, but that is OK.
-        theFirstWritable.compare_exchange_weak(idx, next(idx)); // may fail or lie
-
-        if (pushed) {
-            // the enqueued value may already by gone, but that is OK
-            theLastReadable = idx; // may lie
-            ++theSize;
-            debugs(54, 9, page << " at " << idx << " size: " << theSize);
-            page = PageId();
-            return;
-        }
+    auto current = head_.load();
+    auto expected = Slot::TakenPage;
+    do {
+        slot.put(expected, current);
+        expected = current;
         // TODO: report suspiciously long loops
-    }
-    Must(false); // the number of pages cannot exceed theCapacity
+    } while (!head_.compare_exchange_weak(current, pageIndex));
+
+    debugs(54, 8, page << " size: " << newSize);
+    page = PageId();
 }
 
 bool
 Ipc::Mem::PageStack::pageIdIsValid(const PageId &page) const
 {
-    return page.pool == thePoolId && page.number != Writable &&
+    return page.pool == thePoolId && page.number != 0 &&
            page.number <= capacity();
 }
 
@@ -130,7 +137,7 @@ Ipc::Mem::PageStack::SharedMemorySize(const uint32_t, const unsigned int capacit
 size_t
 Ipc::Mem::PageStack::StackSize(const unsigned int capacity)
 {
-    return sizeof(PageStack) + capacity * sizeof(Item);
+    return sizeof(PageStack) + capacity * sizeof(Slot);
 }
 
 size_t
