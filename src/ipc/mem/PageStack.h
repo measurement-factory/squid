@@ -12,6 +12,7 @@
 #include "ipc/mem/FlexibleArray.h"
 
 #include <atomic>
+#include <limits>
 
 namespace Ipc
 {
@@ -29,13 +30,15 @@ class PageStack
 public:
     typedef uint32_t Value; ///< stack item type (a free page number)
     typedef std::atomic<size_t> Levels_t;
+    const Value NilItem = std::numeric_limits<Value>::max(); ///< 'nil' reference for the first stack item
+    const Value NoItem = std::numeric_limits<Value>::max() - 1; ///< 'empty' reference for a popped item
 
     PageStack(const uint32_t aPoolId, const unsigned int aCapacity, const size_t aPageSize);
 
     unsigned int capacity() const { return theCapacity; }
     size_t pageSize() const { return thePageSize; }
     /// lower bound for the number of free pages
-    unsigned int size() const { return max(0, theSize.load()); }
+    unsigned int size() const { return theSize.load(); }
 
     /// sets value and returns true unless no free page numbers are found
     bool pop(PageId &page);
@@ -58,26 +61,18 @@ public:
     size_t levelsPaddingSize() const { return LevelsPaddingSize(theCapacity); }
 
 private:
-    /// stack index and size type (may temporary go negative)
-    typedef int Offset;
-
-    // these help iterate the stack in search of a free spot or a page
-    Offset next(const Offset idx) const { return (idx + 1) % theCapacity; }
-    Offset prev(const Offset idx) const { return (theCapacity + idx - 1) % theCapacity; }
 
     const uint32_t thePoolId; ///< pool ID
-    const Offset theCapacity; ///< stack capacity, i.e. theItems size
+    const Value theCapacity; ///< stack capacity, i.e. theItems size
     const size_t thePageSize; ///< page size, used to calculate shared memory size
-    /// lower bound for the number of free pages (may get negative!)
-    std::atomic<Offset> theSize;
-
-    /// last readable item index; just a hint, not a guarantee
-    std::atomic<Offset> theLastReadable;
-    /// first writable item index; just a hint, not a guarantee
-    std::atomic<Offset> theFirstWritable;
 
     typedef std::atomic<Value> Item;
-    Ipc::Mem::FlexibleArray<Item> theItems; ///< page number storage
+    Item theSize;
+    Item head; ///< the index of the first free stack element or NilItem
+    /// Page number storage. Stack elements are linked to each other, forming
+    /// an array-based linked list.
+    Ipc::Mem::FlexibleArray<Item> theItems;
+    // No more data members should follow! See Ipc::Mem::FlexibleArray<> for details.
 };
 
 } // namespace Mem

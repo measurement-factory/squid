@@ -21,12 +21,14 @@ const Ipc::Mem::PageStack::Value Writable = 0;
 Ipc::Mem::PageStack::PageStack(const uint32_t aPoolId, const unsigned int aCapacity, const size_t aPageSize):
     thePoolId(aPoolId), theCapacity(aCapacity), thePageSize(aPageSize),
     theSize(theCapacity),
-    theLastReadable(prev(theSize)), theFirstWritable(next(theLastReadable)),
+    head(theCapacity - 1),
     theItems(aCapacity)
 {
+    assert(theCapacity < NoItem);
     // initially, all pages are free
-    for (Offset i = 0; i < theSize; ++i)
-        theItems[i] = i + 1; // skip page number zero to keep numbers positive
+    theItems[0] = NilItem;
+    for (Value i = 1; i < theSize; ++i)
+        theItems[i].store(i - 1);
 }
 
 /*
@@ -43,33 +45,24 @@ Ipc::Mem::PageStack::pop(PageId &page)
 
     // we may fail to dequeue, but be conservative to prevent long searches
     --theSize;
+    Value prev = 0;
+    Value current = head.load();
 
-    // find a Readable slot, starting with theLastReadable and going left
-    while (theSize >= 0) {
-        Offset idx = theLastReadable;
-        // mark the slot at ids Writable while extracting its current value
-        const Value value = theItems[idx].fetch_and(0); // works if Writable is 0
-        const bool popped = value != Writable;
-        // theItems[idx] is probably not Readable [any more]
-
-        // Whether we popped a Readable value or not, we should try going left
-        // to maintain the index (and make progress).
-        // We may fail if others already updated the index, but that is OK.
-        theLastReadable.compare_exchange_weak(idx, prev(idx)); // may fail or lie
-
-        if (popped) {
-            // the slot we emptied may already be filled, but that is OK
-            theFirstWritable = idx; // may lie
-            page.pool = thePoolId;
-            page.number = value;
-            debugs(54, 9, page << " at " << idx << " size: " << theSize);
-            return true;
+    do {
+        if (current == NilItem) {
+            ++theSize;
+            return false;
         }
+        prev = theItems[current].load();
         // TODO: report suspiciously long loops
-    }
+    } while (!head.compare_exchange_weak(current, prev));
 
-    ++theSize;
-    return false;
+    const auto poppedPrev = theItems[current].exchange(NoItem);
+    assert(poppedPrev != NoItem);
+    page.number = current + 1;
+    page.pool = thePoolId;
+    debugs(54, 9, page << " at " << current << " size: " << theSize);
+    return true;
 }
 
 void
@@ -81,35 +74,27 @@ Ipc::Mem::PageStack::push(PageId &page)
         return;
 
     Must(pageIdIsValid(page));
-    // find a Writable slot, starting with theFirstWritable and going right
-    while (theSize < theCapacity) {
-        Offset idx = theFirstWritable;
-        auto isWritable = Writable;
-        const bool pushed = theItems[idx].compare_exchange_strong(isWritable, page.number);
-        // theItems[idx] is probably not Writable [any more];
 
-        // Whether we pushed the page number or not, we should try going right
-        // to maintain the index (and make progress).
-        // We may fail if others already updated the index, but that is OK.
-        theFirstWritable.compare_exchange_weak(idx, next(idx)); // may fail or lie
+    const auto pageIndex = page.number - 1;
+    Value current = head.load();
+    unsigned int tries = 0;
 
-        if (pushed) {
-            // the enqueued value may already by gone, but that is OK
-            theLastReadable = idx; // may lie
-            ++theSize;
-            debugs(54, 9, page << " at " << idx << " size: " << theSize);
-            page = PageId();
-            return;
-        }
+    do {
+        const auto prev = theItems[pageIndex].exchange(current);
+        assert((!tries && prev == NoItem) || (tries && prev != NoItem));
+        ++tries;
         // TODO: report suspiciously long loops
-    }
-    Must(false); // the number of pages cannot exceed theCapacity
+    } while (!head.compare_exchange_weak(current, pageIndex));
+
+    theSize++;
+    debugs(54, 9, page << " at " << current << " size: " << theSize);
+    page = PageId();
 }
 
 bool
 Ipc::Mem::PageStack::pageIdIsValid(const PageId &page) const
 {
-    return page.pool == thePoolId && page.number != Writable &&
+    return page.pool == thePoolId && page.number != 0 &&
            page.number <= capacity();
 }
 
