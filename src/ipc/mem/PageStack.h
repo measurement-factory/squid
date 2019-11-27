@@ -37,7 +37,7 @@ public:
 
     unsigned int capacity() const { return theCapacity; }
     size_t pageSize() const { return thePageSize; }
-    /// lower bound for the number of free pages
+    /// the number of free pages
     unsigned int size() const { return theSize.load(); }
 
     /// sets value and returns true unless no free page numbers are found
