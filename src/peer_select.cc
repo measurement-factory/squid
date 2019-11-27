@@ -274,6 +274,19 @@ peerSelectDnsPaths(ps_state *psstate)
         return;
     }
 
+    if (fs && fs->code == PINNED) {
+        // Nil path signals a PINNED destination selection. Our initiator should
+        // borrow and use clientConnectionManager's pinned connection object
+        // (regardless of that connection destination).
+        Comm::ConnectionPointer nil;
+        psstate->paths->push_back(nil);
+        debugs(44, 2, "Found pinned, destination #" << psstate->paths->size() << " for " << psstate->url());
+        psstate->servers = fs->next;
+        delete fs;
+        peerSelectDnsPaths(psstate);
+        return;
+    }
+
     // convert the list of FwdServer destinations into destinations IP addresses
     if (fs && psstate->paths->size() < (unsigned int)Config.forward_max_tries) {
         // send the next one off for DNS lookup.
@@ -304,12 +317,12 @@ peerSelectDnsPaths(ps_state *psstate)
     debugs(44, 2, "   never_direct = " << psstate->never_direct);
     if (psstate->paths) {
         for (size_t i = 0; i < psstate->paths->size(); ++i) {
-            if ((*psstate->paths)[i]->peerType == HIER_DIRECT)
+            if (!(*psstate->paths)[i])
+                debugs(44, 2, "         PINNED");
+            else if ((*psstate->paths)[i]->peerType == HIER_DIRECT)
                 debugs(44, 2, "         DIRECT = " << (*psstate->paths)[i]);
             else if ((*psstate->paths)[i]->peerType == ORIGINAL_DST)
                 debugs(44, 2, "   ORIGINAL_DST = " << (*psstate->paths)[i]);
-            else if ((*psstate->paths)[i]->peerType == PINNED)
-                debugs(44, 2, "         PINNED = " << (*psstate->paths)[i]);
             else
                 debugs(44, 2, "     cache_peer = " << (*psstate->paths)[i]);
         }
@@ -552,8 +565,8 @@ peerSelectPinned(ps_state * ps)
     HttpRequest *request = ps->request;
     if (!request->pinnedConnection())
         return;
-    CachePeer *pear = request->pinnedConnection()->pinnedPeer();
-    if (Comm::IsConnOpen(request->pinnedConnection()->validatePinnedConnection(request, pear))) {
+    if (Comm::IsConnOpen(request->pinnedConnection()->validatePinnedConnection(request))) {
+        auto *pear = request->pinnedConnection()->pinnedPeer();
         if (pear && peerAllowedToUse(pear, request)) {
             peerAddFwdServer(ps, pear, PINNED);
             if (ps->entry)

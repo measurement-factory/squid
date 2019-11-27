@@ -1199,11 +1199,11 @@ tunnelRelayConnectRequest(const Comm::ConnectionPointer &srv, void *data)
 }
 
 static Comm::ConnectionPointer
-borrowPinnedConnection(HttpRequest *request, Comm::ConnectionPointer &serverDestination)
+borrowPinnedConnection(HttpRequest *request)
 {
     // pinned_connection may become nil after a pconn race
     if (ConnStateData *pinned_connection = request ? request->pinnedConnection() : nullptr) {
-        Comm::ConnectionPointer serverConn = pinned_connection->borrowPinnedConnection(request, serverDestination->getPeer());
+        Comm::ConnectionPointer serverConn = pinned_connection->borrowPinnedConnection(request);
         return serverConn;
     }
 
@@ -1221,8 +1221,8 @@ tunnelPeerSelectComplete(Comm::ConnectionList *peer_paths, ErrorState *err, void
         bail = true;
     }
 
-    if (!bail && tunnelState->serverDestinations[0]->peerType == PINNED) {
-        Comm::ConnectionPointer serverConn = borrowPinnedConnection(tunnelState->request.getRaw(), tunnelState->serverDestinations[0]);
+    if (!bail && tunnelState->serverDestinations[0] == nullptr) {
+        Comm::ConnectionPointer serverConn = borrowPinnedConnection(tunnelState->request.getRaw());
         debugs(26,7, "pinned peer connection: " << serverConn);
         if (Comm::IsConnOpen(serverConn)) {
             tunnelConnectDone(serverConn, Comm::OK, 0, (void *)tunnelState);
