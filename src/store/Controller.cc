@@ -356,7 +356,7 @@ Store::Controller::allowSharing(StoreEntry &entry, const cache_key *key)
         if (found && !inSync)
             throw TexcHere("cannot sync");
         else if (!found && !transients->hasWriter(entry)) // cannot anchor right now and will not be able in the future
-            throw TexcHere("orphaned transients entry");
+            throw TexcHere("unattached transients entry");
     }
 }
 
