@@ -333,7 +333,7 @@ Comm::TcpAcceptor::notify(const Comm::Flag flag, const Comm::ConnectionPointer &
         params.xaction = new MasterXaction(XactionInitiator::initClient, newConnDetails);
         params.xaction->squidPort = listenPort_;
         params.fd = conn->fd;
-        params.conn =  newConnDetails;
+        params.conn = newConnDetails;
         params.flag = flag;
         params.xerrno = errcode;
         ScheduleCallHere(call);

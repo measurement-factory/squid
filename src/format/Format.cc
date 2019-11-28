@@ -457,23 +457,23 @@ Format::Format::assemble(MemBuf &mb, const AccessLogEntry::Pointer &al, int logS
 
         case LFT_EXT_ACL_CLIENT_EUI48:
 #if USE_SQUID_EUI
-            if (al->clientConnectionManager().valid() &&
-                    al->clientConnectionManager()->clientConnection &&
-                    al->clientConnectionManager()->clientConnection->remote.isIPv4()) {
-                al->clientConnectionManager()->clientConnection->remoteEui48.encode(tmp, sizeof(tmp));
-                out = tmp;
-            }
+            if (const auto mgr = al->clientConnectionManager().valid())
+                if (const auto conn = mgr->clientConnection)
+                    if (conn->remote.isIPv4()) {
+                        conn->remoteEui48.encode(tmp, sizeof(tmp));
+                        out = tmp;
+                    }
 #endif
             break;
 
         case LFT_EXT_ACL_CLIENT_EUI64:
 #if USE_SQUID_EUI
-            if (al->clientConnectionManager().valid() &&
-                    al->clientConnectionManager()->clientConnection &&
-                    !al->clientConnectionManager()->clientConnection->remote.isIPv4()) {
-                al->clientConnectionManager()->clientConnection->remoteEui64.encode(tmp, sizeof(tmp));
-                out = tmp;
-            }
+            if (const auto mgr = al->clientConnectionManager().valid())
+                if (const auto conn = mgr->clientConnection)
+                    if (!conn->remote.isIPv4()) {
+                        conn->remoteEui64.encode(tmp, sizeof(tmp));
+                        out = tmp;
+                    }
 #endif
             break;
 
@@ -559,8 +559,8 @@ Format::Format::assemble(MemBuf &mb, const AccessLogEntry::Pointer &al, int logS
             break;
 
         case LFT_CLIENT_HANDSHAKE:
-            if (al->clientConnectionManager().valid()) {
-                const auto &handshake = al->clientConnectionManager()->preservedClientData;
+            if (const auto mgr = al->clientConnectionManager().valid()) {
+                const auto &handshake = mgr->preservedClientData;
                 if (const auto rawLength = handshake.length()) {
                     // add 1 byte to optimize the c_str() conversion below
                     char *buf = sb.rawAppendStart(base64_encode_len(rawLength) + 1);
@@ -1297,19 +1297,17 @@ Format::Format::assemble(MemBuf &mb, const AccessLogEntry::Pointer &al, int logS
             break;
 
         case LFT_SSL_CLIENT_SNI:
-            if (al->clientConnectionManager().valid()) {
-                if (const auto conn = al->clientConnectionManager().get()) {
-                    if (!conn->tlsClientSni().isEmpty()) {
-                        sb = conn->tlsClientSni();
-                        out = sb.c_str();
-                    }
+            if (const auto mgr = al->clientConnectionManager().valid()) {
+                if (!mgr->tlsClientSni().isEmpty()) {
+                    sb = mgr->tlsClientSni();
+                    out = sb.c_str();
                 }
             }
             break;
 
         case LFT_SSL_SERVER_CERT_ERRORS:
-            if (al->clientConnectionManager().valid()) {
-                if (const auto srvBump = al->clientConnectionManager()->serverBump()) {
+            if (const auto mgr = al->clientConnectionManager().valid()) {
+                if (const auto srvBump = mgr->serverBump()) {
                     const char *separator = fmt->data.string ? fmt->data.string : ":";
                     for (const Security::CertErrors *sslError = srvBump->sslErrors(); sslError; sslError = sslError->next) {
                         if (!sb.isEmpty())
@@ -1330,8 +1328,8 @@ Format::Format::assemble(MemBuf &mb, const AccessLogEntry::Pointer &al, int logS
         case LFT_SSL_SERVER_CERT_ISSUER:
         case LFT_SSL_SERVER_CERT_SUBJECT:
         case LFT_SSL_SERVER_CERT_WHOLE:
-            if (al->clientConnectionManager().valid()) {
-                if (const auto srvBump = al->clientConnectionManager()->serverBump()) {
+            if (const auto mgr = al->clientConnectionManager().valid()) {
+                if (const auto srvBump = mgr->serverBump()) {
                     if (X509 *serverCert = srvBump->serverCert.get()) {
                         if (fmt->type == LFT_SSL_SERVER_CERT_SUBJECT)
                             out = Ssl::GetX509UserAttribute(serverCert, "DN");

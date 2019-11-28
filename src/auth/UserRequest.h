@@ -126,7 +126,7 @@ public:
      */
     bool valid() const;
 
-    virtual void authenticate(HttpRequest * request, ConnStateData * conn, Http::HdrType type, AccessLogEntry::Pointer &al) = 0;
+    virtual void authenticate(HttpRequest * request, ConnStateData * conn, Http::HdrType type, AccessLogEntry::Pointer &) = 0;
 
     /* template method - what needs to be done next? advertise schemes, challenge, handle error, nothing? */
     virtual Direction module_direction() = 0;
@@ -165,7 +165,7 @@ public:
     static AuthAclState tryToAuthenticateAndSetAuthUser(UserRequest::Pointer *aUR, Http::HdrType, HttpRequest *, ConnStateData *, const Ip::Address &, AccessLogEntry::Pointer &);
 
     /// Add the appropriate [Proxy-]Authenticate header to the given reply
-    static void AddReplyAuthHeader(HttpReply * rep, UserRequest::Pointer auth_user_request, HttpRequest * request, int accelerated, int internal, const AccessLogEntryPointer &al);
+    static void AddReplyAuthHeader(HttpReply * rep, UserRequest::Pointer auth_user_request, HttpRequest * request, int accelerated, int internal, const AccessLogEntryPointer &);
 
     /** Start an asynchronous helper lookup to verify the user credentials
      *

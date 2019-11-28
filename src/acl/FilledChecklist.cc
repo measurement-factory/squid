@@ -239,9 +239,6 @@ ACLFilledChecklist::ACLFilledChecklist(const acl_access *A, HttpRequest *http_re
     destinationDomainChecked_(false),
     sourceDomainChecked_(false)
 {
-    my_addr.setEmpty();
-    client_addr.setEmpty();
-    dst_addr.setEmpty();
     rfc931[0] = '\0';
 
     changeAcl(A);
@@ -262,7 +259,7 @@ void ACLFilledChecklist::setRequest(HttpRequest *httpRequest)
 }
 
 static void
-InitializeClientAddress(Ip::Address &addr, const Ip::Address &value)
+InitializeAddress(Ip::Address &addr, const Ip::Address &value)
 {
     assert(!addr.isKnown() || addr == value);
     if (!addr.isKnown())
@@ -276,14 +273,14 @@ ACLFilledChecklist::setClientSideAddresses()
     if (request) {
 #if FOLLOW_X_FORWARDED_FOR
         if (Config.onoff.acl_uses_indirect_client)
-            InitializeClientAddress(client_addr, al->furthestClientAddress());
+        	InitializeAddress(client_addr, al->furthestClientAddress());
         else
 #endif
-            InitializeClientAddress(client_addr, al->clientAddr());
-        InitializeClientAddress(my_addr, al->myAddr());
+        	InitializeAddress(client_addr, al->clientAddr());
+        InitializeAddress(my_addr, al->myAddr());
     } else if (clientConnection_) {
-        InitializeClientAddress(client_addr, clientConnection_->remote);
-        InitializeClientAddress(my_addr, clientConnection_->local);
+    	InitializeAddress(client_addr, clientConnection_->remote);
+    	InitializeAddress(my_addr, clientConnection_->local);
     }
 }
 

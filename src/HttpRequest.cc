@@ -241,7 +241,6 @@ HttpRequest::inheritProperties(const Http::Message *aMsg)
     theNotes = aReq->theNotes;
 
     sources = aReq->sources;
-
     return true;
 }
 

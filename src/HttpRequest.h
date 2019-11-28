@@ -104,7 +104,7 @@ public:
     void clearError();
 
     /// sets TPROXY-related flags
-    void setInterceptionFlags(const AccessLogEntryPointer &al);
+    void setInterceptionFlags(const AccessLogEntryPointer &);
 
     /// whether this request is a subject of 'miss_access' check
     bool needCheckMissAccess() const;
@@ -245,7 +245,6 @@ private:
     /// annotations added by the note directive and helpers
     /// and(or) by annotate_transaction/annotate_client ACLs.
     NotePairs::Pointer theNotes;
-
 protected:
     virtual void packFirstLineInto(Packable * p, bool full_uri) const;
 
@@ -257,10 +256,9 @@ protected:
 };
 
 class ConnStateData;
-/**
- * Updates ConnStateData ids and HttpRequest notes from helpers received notes.
- */
-void UpdateRequestNotes(HttpRequest &request, NotePairs const &notes);
+
+/// updates ConnStateData ids and HttpRequest notes from helpers received notes
+void UpdateRequestNotes(HttpRequest &, NotePairs const &);
 
 /// \returns listening/*_port address used by the client connection (or nil)
 /// nil parameter(s) indicate missing caller information and are handled safely

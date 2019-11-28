@@ -1342,7 +1342,7 @@ aclFindNfMarkConfig(acl_nfmark * head, ACLChecklist * ch)
 }
 
 void
-getOutgoingAddress(HttpRequest * request, Comm::ConnectionPointer conn, AccessLogEntry::Pointer al)
+getOutgoingAddress(HttpRequest *request, Comm::ConnectionPointer conn, const AccessLogEntry::Pointer &al)
 {
     // skip if an outgoing address is already set.
     if (conn->local.isKnown())
@@ -1378,7 +1378,6 @@ getOutgoingAddress(HttpRequest * request, Comm::ConnectionPointer conn, AccessLo
     ch.syncAle(request, nullptr);
     ch.dst_peer_name = conn->getPeer() ? conn->getPeer()->name : NULL;
     ch.dst_addr = conn->remote;
-    // TODO: ch.syncAle(request, nullptr);
 
     // TODO use the connection details in ACL.
     // needs a bit of rework in ACLFilledChecklist to use Comm::Connection instead of ConnStateData
@@ -1398,12 +1397,13 @@ getOutgoingAddress(HttpRequest * request, Comm::ConnectionPointer conn, AccessLo
 
 /// \returns the TOS value that should be set on the to-peer connection
 static tos_t
-GetTosToServer(HttpRequest * request, Comm::Connection &conn, const AccessLogEntry::Pointer &al)
+GetTosToServer(HttpRequest *request, Comm::Connection &conn, const AccessLogEntry::Pointer &al)
 {
     if (!Ip::Qos::TheConfig.tosToServer)
         return 0;
 
     ACLFilledChecklist ch(nullptr, request, al);
+    ch.syncAle(request, nullptr);
     ch.dst_peer_name = conn.getPeer() ? conn.getPeer()->name : nullptr;
     ch.dst_addr = conn.remote;
     return aclMapTOS(Ip::Qos::TheConfig.tosToServer, &ch);
@@ -1417,6 +1417,7 @@ GetNfmarkToServer(HttpRequest * request, Comm::Connection &conn, const AccessLog
         return 0;
 
     ACLFilledChecklist ch(nullptr, request, al);
+    ch.syncAle(request, nullptr);
     ch.dst_peer_name = conn.getPeer() ? conn.getPeer()->name : nullptr;
     ch.dst_addr = conn.remote;
     const auto mc = aclFindNfMarkConfig(Ip::Qos::TheConfig.nfmarkToServer, &ch);
@@ -1424,7 +1425,7 @@ GetNfmarkToServer(HttpRequest * request, Comm::Connection &conn, const AccessLog
 }
 
 void
-GetMarkingsToServer(HttpRequest * request, Comm::Connection &conn, const AccessLogEntry::Pointer &al)
+GetMarkingsToServer(HttpRequest *request, Comm::Connection &conn, const AccessLogEntry::Pointer &al)
 {
     // Get the server side TOS and Netfilter mark to be set on the connection.
     conn.tos = GetTosToServer(request, conn, al);
@@ -1433,7 +1434,7 @@ GetMarkingsToServer(HttpRequest * request, Comm::Connection &conn, const AccessL
 }
 
 void
-ResetMarkingsToServer(HttpRequest * request, Comm::Connection &conn, const AccessLogEntry::Pointer &al)
+ResetMarkingsToServer(HttpRequest *request, Comm::Connection &conn, const AccessLogEntry::Pointer &al)
 {
     GetMarkingsToServer(request, conn, al);
 

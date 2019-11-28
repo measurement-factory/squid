@@ -94,11 +94,11 @@ public:
     const Ip::Address& myAddr() const;
 
     /// the client connection manager of the underlying transaction, if any
-    CbcPointer<ConnStateData> &clientConnectionManager() {  return clientConnectionManager_; }
+    CbcPointer<ConnStateData> &clientConnectionManager() { return clientConnectionManager_; }
     void setClientConnectionManager(const CbcPointer<ConnStateData> &aMgr) { clientConnectionManager_ = aMgr; }
 
     /// the Downloader of the underlying transaction, if any
-    CbcPointer<Downloader> &downloader() {  return downloader_; }
+    CbcPointer<Downloader> &downloader() { return downloader_; }
     void setDownloader(const CbcPointer<Downloader> &aDownloader) { downloader_ = aDownloader; }
 
     ConnStateData *pinnedConnection();
@@ -110,7 +110,6 @@ public:
 
     /// TCP/IP level details about the client connection
     Comm::ConnectionPointer tcpClient;
-
     // TCP/IP level details about the server or peer connection
     // are stored in hier.tcpServer
 
@@ -295,7 +294,7 @@ private:
     Ip::Address indirect_client_addr; ///< calculated client address, after applying X-Forwarded-For rules
 #endif
     Ip::Address client_addr; ///< source address of a non-TCP (e.g. ICMP) client
-    Ip::Address my_addr;  ///< local address which a non-TCP (e.g., ICMP) client connects to
+    Ip::Address my_addr; ///< local address which a non-TCP (e.g., ICMP) client connects to
 
     /// Client URI (or equivalent) for effectiveVirginUrl() when HttpRequest is
     /// missing. This member is ignored unless the request member is nil.

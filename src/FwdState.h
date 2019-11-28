@@ -50,7 +50,7 @@ class CertValidationResponse;
 
 /// Sets initial TOS value and Netfilter for the future outgoing connection.
 /// Updates the given Connection object, not the future transport connection.
-void GetMarkingsToServer(HttpRequest * request, Comm::Connection &conn, const AccessLogEntry::Pointer &);
+void GetMarkingsToServer(HttpRequest *, Comm::Connection &, const AccessLogEntry::Pointer &);
 
 /// Recomputes and applies TOS value and Netfilter to the outgoing connection.
 /// Updates both the given Connection object and the transport connection.
@@ -197,7 +197,7 @@ private:
     PconnRace pconnRace; ///< current pconn race state
 };
 
-void getOutgoingAddress(HttpRequest *request, Comm::ConnectionPointer conn, AccessLogEntry::Pointer);
+void getOutgoingAddress(HttpRequest *, Comm::ConnectionPointer, const AccessLogEntry::Pointer &);
 
 /// a collection of previously used persistent Squid-to-peer HTTP(S) connections
 extern PconnPool *fwdPconnPool;

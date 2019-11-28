@@ -548,7 +548,7 @@ Ftp::Relay::sendCommand()
         SENT_COMMAND;
 
     if (state == SENT_DATA_REQUEST) {
-        CbcPointer<ConnStateData> &mgr = fwd->al->clientConnectionManager();
+        auto &mgr = fwd->al->clientConnectionManager();
         if (mgr.valid()) {
             if (Ftp::Server *srv = dynamic_cast<Ftp::Server*>(mgr.get())) {
                 typedef NullaryMemFunT<Ftp::Server> CbDialer;

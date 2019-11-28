@@ -65,11 +65,11 @@ class ICPState: public StoreClient
 {
 
 public:
-    ICPState(icp_common_t &aHeader, HttpRequest *aRequest, const AccessLogEntryPointer &);
+    ICPState(icp_common_t &aHeader, HttpRequest *, const AccessLogEntryPointer &);
     virtual ~ICPState();
 
     /// creates ALE (if nil), always overwriting its fields with the supplied parameters
-    static void SyncAle(AccessLogEntryPointer &al, const Ip::Address &caddr, const char *url, int len, int delay);
+    static void SyncAle(AccessLogEntryPointer &, const Ip::Address &caddr, const char *url, int len, int delay);
 
     icp_common_t header;
     HttpRequest *request;
@@ -97,7 +97,7 @@ extern Ip::Address theIcpPublicHostID;
 HttpRequest* icpGetRequest(char *url, int reqnum, int fd, Ip::Address &from);
 
 /// \ingroup ServerProtocolICPAPI
-bool icpAccessAllowed(Ip::Address &from, HttpRequest *icp_request, const char *url, AccessLogEntryPointer &al);
+bool icpAccessAllowed(Ip::Address &from, HttpRequest *icp_request, const char *url, AccessLogEntryPointer &);
 
 /// \ingroup ServerProtocolICPAPI
 void icpCreateAndSend(icp_opcode, int flags, char const *url, int reqnum, int pad, int fd, const Ip::Address &from, AccessLogEntryPointer);

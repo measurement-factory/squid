@@ -348,7 +348,6 @@ private:
     struct sockaddr_in6 mSocketAddr_;
 
 private:
-
     /* Internally used constants */
     static const unsigned int STRLEN_IP4A = 16;              // aaa.bbb.ccc.ddd\0
     static const unsigned int STRLEN_IP4R = 28;              // ddd.ccc.bbb.aaa.in-addr.arpa.\0

@@ -3587,6 +3587,7 @@ clientAclChecklistFill(ACLFilledChecklist &checklist, ClientHttpRequest *http)
     checklist.setRequest(http->request);
     checklist.al = http->al;
     checklist.syncAle(http->request, http->log_uri);
+
     // TODO: If http->getConn is always http->request->clientConnectionManager,
     // then call setIdent() inside checklist.setRequest(). Otherwise, restore
     // USE_IDENT lost in commit 94439e4.
