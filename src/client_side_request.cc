@@ -1810,7 +1810,6 @@ ClientHttpRequest::doCallouts()
     // Set appropriate MARKs and CONNMARKs if needed.
     if (getConn() && Comm::IsConnOpen(getConn()->clientConnection)) {
         ACLFilledChecklist ch(nullptr, request, calloutContext->http->al);
-        ch.setClientConnectionDetails(getConn());
         ch.syncAle(request, log_uri);
 
         if (!calloutContext->toClientMarkingDone) {

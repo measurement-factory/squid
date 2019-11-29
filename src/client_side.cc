@@ -454,13 +454,11 @@ ClientHttpRequest::logRequest()
         HTTPMSGLOCK(al->adapted_request);
     }
 
-    checklist.setClientConnectionDetails(getConn());
     accessLogLog(al, &checklist);
 
     bool updatePerformanceCounters = true;
     if (Config.accessList.stats_collection) {
         ACLFilledChecklist statsCheck(Config.accessList.stats_collection, request, al);
-        statsCheck.setClientConnectionDetails(getConn());
         if (al->reply) {
             statsCheck.reply = al->reply.getRaw();
             HTTPMSGLOCK(statsCheck.reply);
@@ -1506,7 +1504,6 @@ bool ConnStateData::serveDelayedError(Http::Stream *context)
             bool allowDomainMismatch = false;
             if (Config.ssl_client.cert_error) {
                 ACLFilledChecklist check(Config.ssl_client.cert_error, request, http->al);
-                check.setClientConnectionDetails(this);
                 check.sslErrors = new Security::CertErrors(Security::CertError(SQUID_X509_V_ERR_DOMAIN_MISMATCH, srvCert));
                 check.syncAle(request, http->log_uri);
                 allowDomainMismatch = check.fastCheck().allowed();
@@ -1572,7 +1569,6 @@ ConnStateData::tunnelOnError(const HttpRequestMethod &method, const err_type req
     const auto ale = http ? http->al : nullptr;
     ACLFilledChecklist checklist(Config.accessList.on_unsupported_protocol, request, ale);
     checklist.requestErrorType = requestError;
-    checklist.setClientConnectionDetails(this);
     const char *log_uri = http ? http->log_uri : nullptr;
     checklist.syncAle(request, log_uri);
     auto answer = checklist.fastCheck();
