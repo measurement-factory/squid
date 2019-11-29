@@ -1018,7 +1018,7 @@ tunnelConnectDone(const Comm::ConnectionPointer &conn, Comm::Flag status, int xe
         } else {
             debugs(26, 4, HERE << "terminate with error.");
             ErrorState *err = new ErrorState(ERR_CONNECT_FAIL, Http::scServiceUnavailable, tunnelState->request.getRaw());
-            *tunnelState->status_ptr = Http::scServiceUnavailable;
+            *tunnelState->status_ptr = err->httpStatus;
             err->xerrno = xerrno;
             // on timeout is this still:    err->xerrno = ETIMEDOUT;
             err->port = conn->remote.port();
@@ -1230,7 +1230,7 @@ tunnelPeerSelectComplete(Comm::ConnectionList *peer_paths, ErrorState *err, void
 
     if (bail) {
         if (!err) {
-            err = new ErrorState(ERR_CANNOT_FORWARD, Http::scServiceUnavailable, tunnelState->request.getRaw());
+            err = new ErrorState(ERR_CANNOT_FORWARD, Http::scInternalServerError, tunnelState->request.getRaw());
         }
         *tunnelState->status_ptr = err->httpStatus;
         err->callback = tunnelErrorComplete;
