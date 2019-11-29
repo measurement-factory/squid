@@ -21,6 +21,7 @@
 #include "ip/QosConfig.h"
 #include "ip/tools.h"
 #include "ipcache.h"
+#include "neighbors.h"
 #include "SquidConfig.h"
 #include "SquidTime.h"
 
@@ -121,6 +122,11 @@ Comm::ConnOpener::sendAnswer(Comm::Flag errFlag, int xerrno, const char *why)
                 netdbDeleteAddrNetwork(conn_->remote);
 #endif
         }
+    }
+
+    if (errFlag && conn_) {
+        if (const auto peer = conn_->getPeer())
+            peerConnectFailed(peer);
     }
 
     if (callback_ != NULL) {

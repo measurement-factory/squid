@@ -691,12 +691,9 @@ FwdState::connectDone(const Comm::ConnectionPointer &conn, Comm::Flag status, in
         fail(anErr);
 
         /* it might have been a timeout with a partially open link */
-        if (conn != NULL) {
-            if (conn->getPeer())
-                peerConnectFailed(conn->getPeer());
-
+        if (conn)
             conn->close();
-        }
+
         retryOrBail();
         return;
     }

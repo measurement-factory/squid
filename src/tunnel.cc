@@ -92,6 +92,10 @@ public:
     AccessLogEntryPointer al;
     Comm::ConnectionList serverDestinations;
 
+    // TODO: Move to TunnelStateData::Connection::closer.
+    /// the registered close handler for the connection to the server (or nil)
+    AsyncCall::Pointer serverCloseHandler;
+
     const char * getHost() const {
         return (server.conn != NULL && server.conn->getPeer() ? server.conn->getPeer()->host : request->url.host());
     };
@@ -181,6 +185,13 @@ public:
     /// continue to set up connection to a peer, going async for SSL peers
     void connectToPeer();
 
+    /// tries connecting to another destination, if available
+    bool retry();
+
+    /// responds with the given error to the client
+    /// \param conn the last failed connection
+    void sendError(ErrorState *, const Comm::ConnectionPointer &conn);
+
 private:
     /// Gives Security::PeerConnector access to Answer in the TunnelStateData callback dialer.
     class MyAnswerDialer: public CallDialer, public Security::PeerConnector::CbDialer
@@ -209,6 +220,8 @@ private:
 
     /// callback handler after connection setup (including any encryption)
     void connectedToPeer(Security::EncryptorAnswer &answer);
+
+    void closeServerConnection();
 
 public:
     bool keepGoingAfterRead(size_t len, Comm::Flag errcode, int xerrno, Connection &from, Connection &to);
@@ -993,6 +1006,56 @@ tunnelErrorComplete(int fd/*const Comm::ConnectionPointer &*/, void *data, size_
         tunnelState->server.conn->close();
 }
 
+bool
+TunnelStateData::retry()
+{
+    {
+        const Comm::Connection &failedDest = *serverDestinations.front();
+        debugs(26, 4, "removing the failed one from " << serverDestinations.size() <<
+                " destinations: " << failedDest);
+    }
+
+    serverDestinations.erase(serverDestinations.begin());
+
+    if (!serverDestinations.empty() && FwdState::EnoughTimeToReForward(startTime)) {
+        closeServerConnection();
+        debugs(26, 4, "re-forwarding");
+        startConnecting();
+        return true;
+    }
+    return false;
+}
+
+/// closes the connection to the server without triggering the close handler
+void
+TunnelStateData::closeServerConnection()
+{
+    if (Comm::IsConnOpen(server.conn)) {
+        if (serverCloseHandler) {
+            comm_remove_close_handler(server.conn->fd, serverCloseHandler);
+            serverCloseHandler = nullptr;
+        }
+        server.conn->close();
+    }
+}
+
+void
+TunnelStateData::sendError(ErrorState *error, const Comm::ConnectionPointer &conn)
+{
+    debugs(26, 4, "terminate with error after " << conn);
+    assert(error);
+    assert(conn);
+
+    *status_ptr = error->httpStatus;
+    // on timeout is this still:    error->xerrno = ETIMEDOUT;
+    error->port = conn->remote.port();
+    error->callback = tunnelErrorComplete;
+    error->callback_data = this;
+    errorSend(client.conn, error);
+    if (request)
+        request->hier.stopPeerClock(false);
+}
+
 static void
 tunnelConnectDone(const Comm::ConnectionPointer &conn, Comm::Flag status, int xerrno, void *data)
 {
@@ -1000,33 +1063,12 @@ tunnelConnectDone(const Comm::ConnectionPointer &conn, Comm::Flag status, int xe
 
     if (status != Comm::OK) {
         debugs(26, 4, HERE << conn << ", comm failure recovery.");
-        {
-            assert(!tunnelState->serverDestinations.empty());
-            const Comm::Connection &failedDest = *tunnelState->serverDestinations.front();
-            if (CachePeer *peer = failedDest.getPeer())
-                peerConnectFailed(peer);
-            debugs(26, 4, "removing the failed one from " << tunnelState->serverDestinations.size() <<
-                   " destinations: " << failedDest);
-        }
-        /* At this point only the TCP handshake has failed. no data has been passed.
-         * we are allowed to re-try the TCP-level connection to alternate IPs for CONNECT.
-         */
-        tunnelState->serverDestinations.erase(tunnelState->serverDestinations.begin());
-        if (!tunnelState->serverDestinations.empty() && FwdState::EnoughTimeToReForward(tunnelState->startTime)) {
-            debugs(26, 4, "re-forwarding");
-            tunnelState->startConnecting();
-        } else {
-            debugs(26, 4, HERE << "terminate with error.");
-            ErrorState *err = new ErrorState(ERR_CONNECT_FAIL, Http::scServiceUnavailable, tunnelState->request.getRaw());
-            *tunnelState->status_ptr = err->httpStatus;
-            err->xerrno = xerrno;
-            // on timeout is this still:    err->xerrno = ETIMEDOUT;
-            err->port = conn->remote.port();
-            err->callback = tunnelErrorComplete;
-            err->callback_data = tunnelState;
-            errorSend(tunnelState->client.conn, err);
-            if (tunnelState->request != NULL)
-                tunnelState->request->hier.stopPeerClock(false);
+        assert(!tunnelState->serverDestinations.empty());
+        const auto failedDest = tunnelState->serverDestinations.front();
+        if (!tunnelState->retry()) {
+            const auto error = new ErrorState(ERR_CONNECT_FAIL, Http::scServiceUnavailable, tunnelState->request.getRaw());
+            error->xerrno = xerrno;
+            tunnelState->sendError(error, failedDest);
         }
         return;
     }
@@ -1041,7 +1083,7 @@ tunnelConnectDone(const Comm::ConnectionPointer &conn, Comm::Flag status, int xe
 
     tunnelState->server.conn = conn;
     tunnelState->request->peer_host = conn->getPeer() ? conn->getPeer()->host : NULL;
-    comm_add_close_handler(conn->fd, tunnelServerClosed, tunnelState);
+    tunnelState->serverCloseHandler = comm_add_close_handler(conn->fd, tunnelServerClosed, tunnelState);
 
     debugs(26, 4, HERE << "determine post-connect handling pathway.");
     if (conn->getPeer()) {
@@ -1138,11 +1180,12 @@ void
 TunnelStateData::connectedToPeer(Security::EncryptorAnswer &answer)
 {
     if (ErrorState *error = answer.error.get()) {
-        *status_ptr = error->httpStatus;
-        error->callback = tunnelErrorComplete;
-        error->callback_data = this;
-        errorSend(client.conn, error);
-        answer.error.clear(); // preserve error for errorSendComplete()
+        assert(!serverDestinations.empty());
+        const auto failedDest = serverDestinations.front();
+        if (!retry()) {
+            answer.error.clear(); // preserve error for errorSendComplete()
+            sendError(error, failedDest);
+        }
         return;
     }
 
