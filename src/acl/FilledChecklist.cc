@@ -243,7 +243,7 @@ ACLFilledChecklist::ACLFilledChecklist(const acl_access *A, HttpRequest *http_re
 
     changeAcl(A);
     setRequest(http_request);
-    setClientConnectionDetails(al->clientConnectionManager().get());
+    setClientConnectionManager(al->clientConnectionManager().get());
     if (!clientConnectionManager()) // could not take the connection from the connection manager
         setClientConnection(al->tcpClient);
     setIdent(clientConnection_ ? clientConnection_->rfc931 : dash_str);
@@ -273,10 +273,10 @@ ACLFilledChecklist::setClientSideAddresses()
     if (request) {
 #if FOLLOW_X_FORWARDED_FOR
         if (Config.onoff.acl_uses_indirect_client)
-        	InitializeAddress(client_addr, al->furthestClientAddress());
+            InitializeAddress(client_addr, al->furthestClientAddress());
         else
 #endif
-        	InitializeAddress(client_addr, al->clientAddr());
+            InitializeAddress(client_addr, al->clientAddr());
         InitializeAddress(my_addr, al->myAddr());
     } else if (clientConnection_) {
     	InitializeAddress(client_addr, clientConnection_->remote);
@@ -285,19 +285,15 @@ ACLFilledChecklist::setClientSideAddresses()
 }
 
 void
-ACLFilledChecklist::setClientConnectionDetails(ConnStateData *mgr, Comm::ConnectionPointer conn)
+ACLFilledChecklist::setClientConnectionManager(ConnStateData *mgr)
 {
     if (clientConnectionManager())
         return;
 
     if (mgr && cbdataReferenceValid(mgr)) {
         connectionManager_ = cbdataReference(mgr);
-        Must(!conn || conn == mgr->clientConnection);
         setClientConnection(mgr->clientConnection);
-        return;
     }
-
-    setClientConnection(conn);
 }
 
 /// Configures client-related fields from the passed client connection.

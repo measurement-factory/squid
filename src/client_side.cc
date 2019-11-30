@@ -2269,8 +2269,7 @@ ConnStateData::whenClientIpKnown()
 
 #if USE_IDENT
     if (Ident::TheConfig.identLookup) {
-        ACLFilledChecklist identChecklist(Ident::TheConfig.identLookup, nullptr, nullptr);
-        identChecklist.setClientConnectionDetails(this);
+        ACLFilledChecklist identChecklist(Ident::TheConfig.identLookup, nullptr, al);
         if (identChecklist.fastCheck().allowed())
             Ident::Start(clientConnection, clientIdentDone, this);
     }
@@ -2286,8 +2285,7 @@ ConnStateData::whenClientIpKnown()
 
     const auto &pools = ClientDelayPools::Instance()->pools;
     if (pools.size()) {
-        ACLFilledChecklist ch(nullptr, nullptr, nullptr);
-        ch.setClientConnectionDetails(this);
+        ACLFilledChecklist ch(nullptr, nullptr, al);
 
         // TODO: we check early to limit error response bandwith but we
         // should recheck when we can honor delay_pool_uses_indirect
@@ -3578,14 +3576,12 @@ void
 clientAclChecklistFill(ACLFilledChecklist &checklist, ClientHttpRequest *http)
 {
     checklist.setRequest(http->request);
-    checklist.al = http->al;
     checklist.syncAle(http->request, http->log_uri);
 
     // TODO: If http->getConn is always http->request->clientConnectionManager,
     // then call setIdent() inside checklist.setRequest(). Otherwise, restore
     // USE_IDENT lost in commit 94439e4.
     ConnStateData * conn = http->getConn();
-    checklist.setClientConnectionDetails(conn);
     const char *ident = (cbdataReferenceValid(conn) &&
                          conn && conn->clientConnection) ?
                         conn->clientConnection->rfc931 : dash_str;

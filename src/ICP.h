@@ -82,6 +82,7 @@ protected:
     /* StoreClient API */
     virtual LogTags *loggingTags() override;
     virtual void fillChecklist(ACLFilledChecklist &) const override;
+    virtual const AccessLogEntryPointer &accessLogEntry() const override { return al; }
 
     /// either confirms and starts processing a cache hit or returns false
     bool confirmAndPrepHit(const StoreEntry &);

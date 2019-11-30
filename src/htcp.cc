@@ -165,6 +165,10 @@ public:
     /// optimization: nil until needed
     mutable AccessLogEntryPointer al;
 
+protected:
+    /* StoreClient API */
+    virtual const AccessLogEntryPointer &accessLogEntry() const { return al; }
+
 private:
     HttpRequest::Pointer checkHitRequest;
 
@@ -1018,7 +1022,6 @@ htcpSpecifier::fillChecklist(ACLFilledChecklist &checklist) const
 {
     checklist.setRequest(request.getRaw());
     htcpSyncAle(al, from(), dhdr->opcode, uri);
-    checklist.al = al;
 }
 
 static void

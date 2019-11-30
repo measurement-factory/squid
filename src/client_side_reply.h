@@ -104,6 +104,10 @@ public:
     } flags;
     clientStreamNode *ourNode;  /* This will go away if/when this file gets refactored some more */
 
+protected:
+    /* StoreClient API */
+    virtual const AccessLogEntryPointer &accessLogEntry() const { return http->al; }
+
 private:
     /* StoreClient API */
     virtual void fillChecklist(ACLFilledChecklist &) const;

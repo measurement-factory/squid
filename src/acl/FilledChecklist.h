@@ -47,11 +47,6 @@ public:
     /// configure rfc931 user identity for the first time
     void setIdent(const char *userIdentity);
 
-    /// Configure client connection-related information. Each and both parameters
-    /// can be nil (or equivalent). Specifying mgr->clientConnection as the second
-    /// parameter is useless.
-    void setClientConnectionDetails(ConnStateData *, Comm::ConnectionPointer conn = nullptr);
-
 #if FOLLOW_X_FORWARDED_FOR
     /// Instructs clientAddr() to return the indirect client address, if available,
     /// or direct client address otherwise.
@@ -122,6 +117,7 @@ public:
     err_type requestErrorType;
 
 private:
+    void setClientConnectionManager(ConnStateData *);
     void setClientConnection(Comm::ConnectionPointer);
     void setClientSideAddresses();
     /// a client connection manager, if any

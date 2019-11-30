@@ -185,7 +185,6 @@ ICPState::fillChecklist(ACLFilledChecklist &checklist) const
 {
     checklist.setRequest(request);
     SyncAle(al, from, url, 0, 0);
-    checklist.al = al;
 }
 
 /* End ICPState */
