@@ -29,12 +29,20 @@ Http::One::Server::Server(const MasterXaction::Pointer &xact, bool beHttpsServer
     ConnStateData(xact),
     isHttpsServer(beHttpsServer)
 {
+    initWithConnectionManager();
 }
 
 time_t
 Http::One::Server::idleTimeout() const
 {
     return Config.Timeout.clientIdlePconn;
+}
+
+void
+Http::One::Server::initWithConnectionManager()
+{
+    masterXaction->setClientConnectionManager(this);
+    al->setClientConnectionManager(this);
 }
 
 void

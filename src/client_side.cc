@@ -2210,11 +2210,8 @@ ConnStateData::ConnStateData(const MasterXaction::Pointer &xact) :
     log_addr = clientConnection->remote;
     log_addr.applyClientMask(Config.Addrs.client_netmask);
 
-    masterXaction->setClientConnectionManager(this);
-
     al = new AccessLogEntry;
     CodeContext::Reset(al);
-    al->setClientConnectionManager(this);
     al->tcpClient = clientConnection;
     al->cache.start_time = current_time;
     al->cache.port = port;

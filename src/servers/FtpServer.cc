@@ -66,6 +66,7 @@ Ftp::Server::Server(const MasterXaction::Pointer &xact):
     waitingForOrigin(false),
     originDataDownloadAbortedOnError(false)
 {
+    initWithConnectionManager();
     flags.readMore = false; // we need to announce ourselves first
     *uploadBuf = 0;
 }
@@ -85,6 +86,13 @@ time_t
 Ftp::Server::idleTimeout() const
 {
     return Config.Timeout.ftpClientIdle;
+}
+
+void
+Ftp::Server::initWithConnectionManager()
+{
+    masterXaction->setClientConnectionManager(this);
+    al->setClientConnectionManager(this);
 }
 
 void

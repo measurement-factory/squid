@@ -382,6 +382,9 @@ protected:
     /// If the caller does not have Stream object yet, nil is passed.
     bool firstTransaction(const Http::Stream *stream) const { return stream ? pipeline.nrequests == 1 : pipeline.nrequests == 0; }
 
+    /// CBDATA subclasses use this method to initialize CbcPointer<ConnStateData> fields
+    virtual void initWithConnectionManager() = 0;
+
     BodyPipe::Pointer bodyPipe; ///< set when we are reading request body
 
     /// whether preservedClientData is valid and should be kept up to date
