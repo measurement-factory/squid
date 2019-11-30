@@ -84,9 +84,9 @@ Ssl::PeekingPeerConnector::checkForPeekAndSpliceMatched(const Ssl::BumpMode acti
     Ssl::BumpMode finalAction = action;
     Must(finalAction == Ssl::bumpSplice || finalAction == Ssl::bumpBump || finalAction == Ssl::bumpTerminate);
     // Record final decision
-    if (al->clientConnectionManager().valid()) {
-        al->clientConnectionManager()->sslBumpMode = finalAction;
-        al->clientConnectionManager()->serverBump()->act.step3 = finalAction;
+    if (auto mgr = al->clientConnectionManager().valid()) {
+        mgr->sslBumpMode = finalAction;
+        mgr->serverBump()->act.step3 = finalAction;
     }
     al->ssl.bumpMode = finalAction;
 
