@@ -94,7 +94,7 @@ class EncryptorAnswer;
 /// Squid defined error code (<0), an error code returned by X.509 API, or SSL_ERROR_NONE
 typedef int ErrorCode;
 
-// produce the string representation of a TLS library error code
+/// c-string representation of a TLS library error code
 inline const char *ErrorString(const ErrorCode code) {
 #if USE_OPENSSL
     return ERR_error_string(code, nullptr);
@@ -167,4 +167,3 @@ class ServerOptions;
 } // namespace Security
 
 #endif /* SQUID_SRC_SECURITY_FORWARD_H */
-
