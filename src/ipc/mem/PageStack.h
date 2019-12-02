@@ -37,7 +37,7 @@ public:
 
     unsigned int capacity() const { return theCapacity; }
     size_t pageSize() const { return thePageSize; }
-    /// the number of free pages
+    /// an approximate number of free pages
     unsigned int size() const { return theSize.load(); }
 
     /// sets value and returns true unless no free page numbers are found
@@ -67,7 +67,7 @@ private:
     const size_t thePageSize; ///< page size, used to calculate shared memory size
 
     typedef std::atomic<Value> Item;
-    Item theSize;
+    Item theSize; ///< a rough number of free pages, for debug purpose only
     Item head; ///< the index of the first free stack element or NilItem
     /// Page number storage. Stack elements are linked to each other, forming
     /// an array-based linked list.

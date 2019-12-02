@@ -42,21 +42,17 @@ bool
 Ipc::Mem::PageStack::pop(PageId &page)
 {
     Must(!page);
-
-    // we may fail to dequeue, but be conservative to prevent long searches
-    --theSize;
     Value prev = 0;
     Value current = head.load();
 
     do {
-        if (current == NilItem) {
-            ++theSize;
+        if (current == NilItem)
             return false;
-        }
         prev = theItems[current].load();
         // TODO: report suspiciously long loops
     } while (!head.compare_exchange_weak(current, prev));
 
+    --theSize;
     const auto poppedPrev = theItems[current].exchange(NoItem);
     assert(poppedPrev != NoItem);
     page.number = current + 1;
@@ -78,6 +74,7 @@ Ipc::Mem::PageStack::push(PageId &page)
     const auto pageIndex = page.number - 1;
     Value current = head.load();
     unsigned int tries = 0;
+    theSize++;
 
     do {
         const auto prev = theItems[pageIndex].exchange(current);
@@ -86,7 +83,6 @@ Ipc::Mem::PageStack::push(PageId &page)
         // TODO: report suspiciously long loops
     } while (!head.compare_exchange_weak(current, pageIndex));
 
-    theSize++;
     debugs(54, 9, page << " at " << current << " size: " << theSize);
     page = PageId();
 }
