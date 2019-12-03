@@ -25,6 +25,8 @@ Ipc::Mem::PageStack::PageStack(const uint32_t aPoolId, const unsigned int aCapac
     theItems(aCapacity)
 {
     assert(theCapacity < NoItem);
+    assert(theCapacity < NilItem);
+    assert(NoItem != NilItem);
     // initially, all pages are free
     theItems[0] = NilItem;
     for (Value i = 1; i < theSize; ++i)
