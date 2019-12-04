@@ -2613,6 +2613,23 @@ httpsAccept(const CommAcceptCbParams &params)
     AsyncJob::Start(srv); // usually async-calls postHttpsAccept()
 }
 
+#if USE_OPENSSL
+static int
+generateSniContext(SSL *ssl, int *, void *data)
+{
+    //auto conn = static_cast<CbcPointer<ConnStateData> *>(data);
+    auto conn = static_cast<ConnStateData *>(data);
+    if (cbdataReferenceValid(conn)) {
+        if (const char *servername = SSL_get_servername(ssl, TLSEXT_NAMETYPE_host_name)) {
+            conn->resetSslCommonName(servername);
+            conn->getSslContextStart();
+            return SSL_TLSEXT_ERR_OK;
+        }
+    }
+    return SSL_TLSEXT_ERR_ALERT_FATAL;
+}
+#endif
+
 void
 ConnStateData::postHttpsAccept()
 {
@@ -2663,6 +2680,12 @@ ConnStateData::postHttpsAccept()
         fatal("FATAL: SSL-Bump requires --with-openssl");
 #endif
         return;
+    }
+    else if (port->secure.generateHostCertificates) {
+        Security::ContextPointer ctx(port->secure.createBlankContext());
+        SSL_CTX_set_tlsext_servername_callback(ctx.get(), generateSniContext);
+        SSL_CTX_set_tlsext_servername_arg(ctx.get(), this);
+        httpsEstablish(this, ctx);
     } else {
         httpsEstablish(this, port->secure.staticContext);
     }
@@ -2854,20 +2877,22 @@ ConnStateData::getSslContextStart()
         }
 
 #if USE_SSL_CRTD
-        try {
-            debugs(33, 5, HERE << "Generating SSL certificate for " << certProperties.commonName << " using ssl_crtd.");
-            Ssl::CrtdMessage request_message(Ssl::CrtdMessage::REQUEST);
-            request_message.setCode(Ssl::CrtdMessage::code_new_certificate);
-            request_message.composeRequest(certProperties);
-            debugs(33, 5, HERE << "SSL crtd request: " << request_message.compose().c_str());
-            Ssl::Helper::Submit(request_message, sslCrtdHandleReplyWrapper, this);
-            return;
-        } catch (const std::exception &e) {
-            debugs(33, DBG_IMPORTANT, "ERROR: Failed to compose ssl_crtd " <<
-                   "request for " << certProperties.commonName <<
-                   " certificate: " << e.what() << "; will now block to " <<
-                   "generate that certificate.");
-            // fall through to do blocking in-process generation.
+        if (port->flags.tunnelSslBumping) {
+            try {
+                debugs(33, 5, HERE << "Generating SSL certificate for " << certProperties.commonName << " using ssl_crtd.");
+                Ssl::CrtdMessage request_message(Ssl::CrtdMessage::REQUEST);
+                request_message.setCode(Ssl::CrtdMessage::code_new_certificate);
+                request_message.composeRequest(certProperties);
+                debugs(33, 5, HERE << "SSL crtd request: " << request_message.compose().c_str());
+                Ssl::Helper::Submit(request_message, sslCrtdHandleReplyWrapper, this);
+                return;
+            } catch (const std::exception &e) {
+                debugs(33, DBG_IMPORTANT, "ERROR: Failed to compose ssl_crtd " <<
+                       "request for " << certProperties.commonName <<
+                       " certificate: " << e.what() << "; will now block to " <<
+                       "generate that certificate.");
+                // fall through to do blocking in-process generation.
+            }
         }
 #endif // USE_SSL_CRTD
 
@@ -2910,6 +2935,14 @@ ConnStateData::getSslContextDone(Security::ContextPointer &ctx)
             debugs(33, 5, "Using static TLS context.");
             ctx = port->secure.staticContext;
         }
+    }
+
+    if (!port->flags.tunnelSslBumping) {
+        // generate-host-certificates on non bumping port
+        // Just replace with the new Ctx and continue.
+        auto ssl = fd_table[clientConnection->fd].ssl.get();
+        SSL_set_SSL_CTX(ssl, ctx.get());
+        return;
     }
 
     if (!httpsCreate(this, ctx))
