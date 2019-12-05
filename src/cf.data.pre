@@ -2126,10 +2126,11 @@ DOC_START
 	TLS / SSL Options:
 
 	   generate-host-certificates[=<on|off>]
-			Dynamically create SSL server certificates for the
-			destination hosts. When  enabled, the cert and key
-			options are used to sign generated certificates.
-			Otherwise generated certificate will be selfsigned.
+			Dynamically create SSL server certificates with Subject fields
+			based on the destination hosts. These generated certificates are
+			signed by the configured port certificate (see tls-cert). When
+			this option is not enabled, Squid uses the same configured port
+			certificate regardless of the request destination.
 			If there is a CA certificate lifetime of the generated 
 			certificate equals lifetime of the CA certificate. If
 			generated certificate is selfsigned lifetime is three 
