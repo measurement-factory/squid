@@ -2797,7 +2797,6 @@ ConnStateData::SetSniContext(SSL *ssl, int *, void *data)
     const auto rawCbdata = static_cast<Pointer*>(SSL_get_ex_data(ssl, ssl_ex_index_connstatedata_pointer));
     assert(rawCbdata);
     const std::unique_ptr<Pointer> cbdata(rawCbdata);
-    SSL_set_ex_data(ssl, ssl_ex_index_connstatedata_pointer, nullptr);
 
     if (const auto conn = cbdata->valid()) {
         if (const char *servername = SSL_get_servername(ssl, TLSEXT_NAMETYPE_host_name)) {
