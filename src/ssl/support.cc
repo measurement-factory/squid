@@ -481,7 +481,7 @@ static void
 ssl_free_ConnStateDataPointer(void *, void *ptr, CRYPTO_EX_DATA *,
                               int, long, void *)
 {
-    auto conn = static_cast <ConnStateData::Pointer *>(ptr);
+    const auto conn = static_cast <ConnStateData::Pointer *>(ptr);
     delete conn;
 }
 

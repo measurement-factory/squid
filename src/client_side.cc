@@ -2799,7 +2799,7 @@ ConnStateData::SetSniContext(SSL *ssl, int *, void *data)
     const std::unique_ptr<Pointer> cbdata(rawCbdata);
 
     if (const auto conn = cbdata->valid()) {
-        if (const char *servername = SSL_get_servername(ssl, TLSEXT_NAMETYPE_host_name)) {
+        if (const auto servername = SSL_get_servername(ssl, TLSEXT_NAMETYPE_host_name)) {
             conn->resetSslCommonName(servername);
             const auto wentAsync = !conn->getSslContextStart();
             assert(!wentAsync);
@@ -2856,10 +2856,10 @@ ConnStateData::postHttpsAccept()
         return;
     }
     else if (port->secure.generateHostCertificates) {
-        Security::ContextPointer ctx(port->secure.createBlankContext());
+        const auto ctx(port->secure.createBlankContext());
         SSL_CTX_set_tlsext_servername_callback(ctx.get(), &SetSniContext);
         httpsEstablish(this, ctx);
-        if (auto ssl = fd_table[clientConnection->fd].ssl.get())
+        if (const auto ssl = fd_table[clientConnection->fd].ssl.get())
             SSL_set_ex_data(ssl, ssl_ex_index_client_connection_mgr,  (void *)new Pointer(this));
     } else {
         httpsEstablish(this, port->secure.staticContext);
@@ -3116,7 +3116,7 @@ ConnStateData::getSslContextDone(Security::ContextPointer &ctx)
     if (!port->flags.tunnelSslBumping) {
         // generate-host-certificates on non bumping port
         // Just replace with the new Ctx and continue.
-        auto ssl = fd_table[clientConnection->fd].ssl.get();
+        const auto ssl = fd_table[clientConnection->fd].ssl.get();
         SSL_set_SSL_CTX(ssl, ctx.get());
         return;
     }
