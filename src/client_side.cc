@@ -2794,15 +2794,16 @@ httpsAccept(const CommAcceptCbParams &params)
 static int
 generateSniContext(SSL *ssl, int *, void *data)
 {
-    //auto conn = static_cast<CbcPointer<ConnStateData> *>(data);
-    auto conn = static_cast<ConnStateData *>(data);
-    if (cbdataReferenceValid(conn)) {
+    auto conn = static_cast<ConnStateData::Pointer *>(data);
+    if (conn->valid()) {
         if (const char *servername = SSL_get_servername(ssl, TLSEXT_NAMETYPE_host_name)) {
-            conn->resetSslCommonName(servername);
-            conn->getSslContextStart();
+            (*conn)->resetSslCommonName(servername);
+            (*conn)->getSslContextStart();
+            delete conn;
             return SSL_TLSEXT_ERR_OK;
         }
     }
+    delete conn;
     return SSL_TLSEXT_ERR_ALERT_FATAL;
 }
 #endif
@@ -2855,7 +2856,7 @@ ConnStateData::postHttpsAccept()
     else if (port->secure.generateHostCertificates) {
         Security::ContextPointer ctx(port->secure.createBlankContext());
         SSL_CTX_set_tlsext_servername_callback(ctx.get(), generateSniContext);
-        SSL_CTX_set_tlsext_servername_arg(ctx.get(), this);
+        SSL_CTX_set_tlsext_servername_arg(ctx.get(), new Pointer(this));
         httpsEstablish(this, ctx);
     } else {
         httpsEstablish(this, port->secure.staticContext);

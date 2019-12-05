@@ -71,6 +71,9 @@ class ConnStateData : public Server, public HttpControlMsgSink, private Independ
 {
 
 public:
+    typedef CbcPointer<ConnStateData> Pointer;
+
+public:
     explicit ConnStateData(const MasterXactionPointer &xact);
     virtual ~ConnStateData();
 
