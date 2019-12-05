@@ -526,7 +526,7 @@ Ssl::Initialize(void)
     ssl_ex_index_ssl_cert_chain = SSL_get_ex_new_index(0, (void *) "ssl_cert_chain", NULL, NULL, &ssl_free_CertChain);
     ssl_ex_index_ssl_validation_counter = SSL_get_ex_new_index(0, (void *) "ssl_validation_counter", NULL, NULL, &ssl_free_int);
     ssl_ex_index_ssl_untrusted_chain = SSL_get_ex_new_index(0, (void *) "ssl_untrusted_chain", NULL, NULL, &ssl_free_CertChain);
-    ssl_ex_index_connstatedata_pointer = SSL_get_ex_new_index(0, (void *) "ConnStateData::Pointer", NULL, NULL, &ssl_free_ConnStateDataPointer);
+    ssl_ex_index_connstatedata_pointer = SSL_get_ex_new_index(0, (void *) "connstatedata_pointer", NULL, NULL, &ssl_free_ConnStateDataPointer);
 }
 
 bool
