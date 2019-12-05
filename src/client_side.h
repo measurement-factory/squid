@@ -335,6 +335,10 @@ protected:
     void startPinnedConnectionMonitoring();
     void clientPinnedConnectionRead(const CommIoCbParams &io);
 #if USE_OPENSSL
+    /// provides SNI-specific TLS context for the current TLS connection
+    /// using SSL_CTX_set_tlsext_servername_callback() API
+    static int SetSniContext(SSL *ssl, int *, void *data);
+
     /// Handles a ready-for-reading TLS squid-to-server connection that
     /// we thought was idle.
     /// \return false if and only if the connection should be closed.

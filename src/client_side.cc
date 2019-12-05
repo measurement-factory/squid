@@ -2791,12 +2791,12 @@ httpsAccept(const CommAcceptCbParams &params)
 }
 
 #if USE_OPENSSL
-static int
-generateSniContext(SSL *ssl, int *, void *data)
+int
+ConnStateData::SetSniContext(SSL *ssl, int *, void *data)
 {
-    const auto rawCbdata = static_cast<ConnStateData::Pointer*>(SSL_get_ex_data(ssl, ssl_ex_index_connstatedata_pointer));
+    const auto rawCbdata = static_cast<Pointer*>(SSL_get_ex_data(ssl, ssl_ex_index_connstatedata_pointer));
     assert(rawCbdata);
-    const std::unique_ptr<ConnStateData::Pointer> cbdata(rawCbdata);
+    const std::unique_ptr<Pointer> cbdata(rawCbdata);
     SSL_set_ex_data(ssl, ssl_ex_index_connstatedata_pointer, nullptr);
 
     if (const auto conn = cbdata->valid()) {
@@ -2858,7 +2858,7 @@ ConnStateData::postHttpsAccept()
     }
     else if (port->secure.generateHostCertificates) {
         Security::ContextPointer ctx(port->secure.createBlankContext());
-        SSL_CTX_set_tlsext_servername_callback(ctx.get(), generateSniContext);
+        SSL_CTX_set_tlsext_servername_callback(ctx.get(), &SetSniContext);
         httpsEstablish(this, ctx);
         if (auto ssl = fd_table[clientConnection->fd].ssl.get())
             SSL_set_ex_data(ssl, ssl_ex_index_connstatedata_pointer,  (void *)new Pointer(this));
