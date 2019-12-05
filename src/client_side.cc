@@ -2794,18 +2794,19 @@ httpsAccept(const CommAcceptCbParams &params)
 static int
 generateSniContext(SSL *ssl, int *, void *data)
 {
-    auto conn = static_cast<ConnStateData::Pointer *>(SSL_get_ex_data(ssl, ssl_ex_index_connstatedata_pointer));
+    const auto rawCbdata = static_cast<ConnStateData::Pointer*>(SSL_get_ex_data(ssl, ssl_ex_index_connstatedata_pointer));
+    assert(rawCbdata);
+    const std::unique_ptr<ConnStateData::Pointer> cbdata(rawCbdata);
     SSL_set_ex_data(ssl, ssl_ex_index_connstatedata_pointer, nullptr);
-    if (conn->valid()) {
+
+    if (const auto conn = cbdata->valid()) {
         if (const char *servername = SSL_get_servername(ssl, TLSEXT_NAMETYPE_host_name)) {
-            (*conn)->resetSslCommonName(servername);
-            const auto wentAsync = !(*conn)->getSslContextStart();
+            conn->resetSslCommonName(servername);
+            const auto wentAsync = !conn->getSslContextStart();
             assert(!wentAsync);
-            delete conn;
             return SSL_TLSEXT_ERR_OK;
         }
     }
-    delete conn;
     return SSL_TLSEXT_ERR_ALERT_FATAL;
 }
 #endif
