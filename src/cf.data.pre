@@ -2076,6 +2076,8 @@ DOC_START
 			The ssl_bump option is required to fully enable
 			bumping of CONNECT requests.
 
+			The ssl-bump requires TLS/SSL options.
+
 	Omitting the mode flag causes default forward proxy mode to be used.
 
 
@@ -2121,15 +2123,13 @@ DOC_START
 			http_access rules when using this.
 
 
-	SSL Bump Mode Options:
-	    In addition to these options ssl-bump requires TLS/SSL options.
+	TLS / SSL Options:
 
 	   generate-host-certificates[=<on|off>]
 			Dynamically create SSL server certificates for the
-			destination hosts of bumped CONNECT requests.When 
-			enabled, the cert and key options are used to sign
-			generated certificates. Otherwise generated
-			certificate will be selfsigned.
+			destination hosts. When  enabled, the cert and key
+			options are used to sign generated certificates.
+			Otherwise generated certificate will be selfsigned.
 			If there is a CA certificate lifetime of the generated 
 			certificate equals lifetime of the CA certificate. If
 			generated certificate is selfsigned lifetime is three 
@@ -2141,8 +2141,6 @@ DOC_START
 			Approximate total RAM size spent on cached generated
 			certificates. If set to zero, caching is disabled. The
 			default value is 4MB.
-
-	TLS / SSL Options:
 
 	   tls-cert=	Path to file containing an X.509 certificate (PEM format)
 			to be used in the TLS handshake ServerHello.
