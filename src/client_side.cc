@@ -2798,7 +2798,8 @@ generateSniContext(SSL *ssl, int *, void *data)
     if (conn->valid()) {
         if (const char *servername = SSL_get_servername(ssl, TLSEXT_NAMETYPE_host_name)) {
             (*conn)->resetSslCommonName(servername);
-            (*conn)->getSslContextStart();
+            const auto wentAsync = !(*conn)->getSslContextStart();
+            assert(!wentAsync);
             delete conn;
             return SSL_TLSEXT_ERR_OK;
         }
@@ -3019,7 +3020,7 @@ ConnStateData::storeTlsContextToCache(const SBuf &cacheKey, Security::ContextPoi
     }
 }
 
-void
+bool
 ConnStateData::getSslContextStart()
 {
     // If we are called, then CONNECT has succeeded. Finalize it.
@@ -3044,7 +3045,7 @@ ConnStateData::getSslContextStart()
             Security::ContextPointer ctx(getTlsContextFromCache(sslBumpCertKey, certProperties));
             if (ctx) {
                 getSslContextDone(ctx);
-                return;
+                return true;
             }
         }
 
@@ -3057,7 +3058,7 @@ ConnStateData::getSslContextStart()
                 request_message.composeRequest(certProperties);
                 debugs(33, 5, HERE << "SSL crtd request: " << request_message.compose().c_str());
                 Ssl::Helper::Submit(request_message, sslCrtdHandleReplyWrapper, this);
-                return;
+                return false;
             } catch (const std::exception &e) {
                 debugs(33, DBG_IMPORTANT, "ERROR: Failed to compose ssl_crtd " <<
                        "request for " << certProperties.commonName <<
@@ -3083,11 +3084,12 @@ ConnStateData::getSslContextStart()
                 storeTlsContextToCache(sslBumpCertKey, dynCtx);
             getSslContextDone(dynCtx);
         }
-        return;
+    } else {
+        Security::ContextPointer nil;
+        getSslContextDone(nil);
     }
 
-    Security::ContextPointer nil;
-    getSslContextDone(nil);
+    return true;
 }
 
 void

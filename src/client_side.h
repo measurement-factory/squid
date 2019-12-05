@@ -236,8 +236,10 @@ public:
     /// Splice a bumped client connection on peek-and-splice mode
     bool splice();
 
-    /// Start to create dynamic Security::ContextPointer for host or uses static port SSL context.
-    void getSslContextStart();
+    /// Start to create dynamic Security::ContextPointer for host or uses static port
+    /// SSL context.
+    /// \return true if the context generated without any asynchronous action
+    bool getSslContextStart();
 
     /// finish configuring the newly created SSL context"
     void getSslContextDone(Security::ContextPointer &);
