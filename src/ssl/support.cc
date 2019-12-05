@@ -18,6 +18,8 @@
 #include "acl/FilledChecklist.h"
 #include "anyp/PortCfg.h"
 #include "anyp/Uri.h"
+#include "client_side.h"
+#include "http/Stream.h"
 #include "fatal.h"
 #include "fd.h"
 #include "fde.h"
@@ -475,6 +477,14 @@ ssl_free_SBuf(void *, void *ptr, CRYPTO_EX_DATA *,
     delete buf;
 }
 
+static void
+ssl_free_ConnStateDataPointer(void *, void *ptr, CRYPTO_EX_DATA *,
+                              int, long, void *)
+{
+    auto conn = static_cast <ConnStateData::Pointer *>(ptr);
+    delete conn;
+}
+
 void
 Ssl::Initialize(void)
 {
@@ -516,6 +526,7 @@ Ssl::Initialize(void)
     ssl_ex_index_ssl_cert_chain = SSL_get_ex_new_index(0, (void *) "ssl_cert_chain", NULL, NULL, &ssl_free_CertChain);
     ssl_ex_index_ssl_validation_counter = SSL_get_ex_new_index(0, (void *) "ssl_validation_counter", NULL, NULL, &ssl_free_int);
     ssl_ex_index_ssl_untrusted_chain = SSL_get_ex_new_index(0, (void *) "ssl_untrusted_chain", NULL, NULL, &ssl_free_CertChain);
+    ssl_ex_index_connstatedata_pointer = SSL_get_ex_new_index(0, (void *) "ConnStateData::Pointer", NULL, NULL, &ssl_free_ConnStateDataPointer);
 }
 
 bool
