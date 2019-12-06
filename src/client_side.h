@@ -236,12 +236,11 @@ public:
     /// Splice a bumped client connection on peek-and-splice mode
     bool splice();
 
-    /// Start to create dynamic Security::ContextPointer for host or uses static port
-    /// SSL context.
-    /// \return true if the context generated without any asynchronous action
+    /// start obtaining a Security::ContextPointer for our connection
+    /// \returns whether the action has ended (w/o waiting for async helpers)
     bool getSslContextStart();
 
-    /// finish configuring the newly created SSL context"
+    /// apply Security::ContextPointer obtained via getSslContextStart()
     void getSslContextDone(Security::ContextPointer &);
 
     /// Callback function. It is called when squid receive message from ssl_crtd.
