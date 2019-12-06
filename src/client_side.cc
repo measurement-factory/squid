@@ -3054,11 +3054,11 @@ ConnStateData::getSslContextStart()
 #if USE_SSL_CRTD
         if (port->flags.tunnelSslBumping) {
             try {
-                debugs(33, 5, HERE << "Generating SSL certificate for " << certProperties.commonName << " using ssl_crtd.");
+                debugs(33, 5, "asynchronous generation for " << certProperties.commonName);
                 Ssl::CrtdMessage request_message(Ssl::CrtdMessage::REQUEST);
                 request_message.setCode(Ssl::CrtdMessage::code_new_certificate);
                 request_message.composeRequest(certProperties);
-                debugs(33, 5, HERE << "SSL crtd request: " << request_message.compose().c_str());
+                debugs(33, 7, "crtd request: " << request_message.compose());
                 Ssl::Helper::Submit(request_message, sslCrtdHandleReplyWrapper, this);
                 return false;
             } catch (const std::exception &e) {
@@ -3071,8 +3071,8 @@ ConnStateData::getSslContextStart()
         }
 #endif // USE_SSL_CRTD
 
-        debugs(33, 5, HERE << "Generating SSL certificate for " << certProperties.commonName);
         if (sslServerBump && (sslServerBump->act.step1 == Ssl::bumpPeek || sslServerBump->act.step1 == Ssl::bumpStare)) {
+            debugs(33, 5, "synchronous generation for " << certProperties.commonName << " step1=" << sslServerBump->act.step1);
             doPeekAndSpliceStep();
             auto ssl = fd_table[clientConnection->fd].ssl.get();
             if (!Ssl::configureSSL(ssl, certProperties, *port))
@@ -3081,6 +3081,7 @@ ConnStateData::getSslContextStart()
             Security::ContextPointer ctx(Security::GetFrom(fd_table[clientConnection->fd].ssl));
             Ssl::configureUnconfiguredSslContext(ctx, certProperties.signAlgorithm, *port);
         } else {
+            debugs(33, 5, "synchronous generation for " << certProperties.commonName);
             Security::ContextPointer dynCtx(Ssl::GenerateSslContext(certProperties, port->secure, (signAlgorithm == Ssl::algSignTrusted)));
             if (dynCtx && !sslBumpCertKey.isEmpty())
                 storeTlsContextToCache(sslBumpCertKey, dynCtx);
@@ -3089,6 +3090,7 @@ ConnStateData::getSslContextStart()
         return true;
     }
 
+    debugs(33, 5, "static port certificate reuse");
     Security::ContextPointer nil;
     getSslContextDone(nil);
     return true;
