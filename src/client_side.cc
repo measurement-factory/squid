@@ -3115,9 +3115,9 @@ ConnStateData::getSslContextDone(Security::ContextPointer &ctx)
         }
     }
 
-    if (!port->flags.tunnelSslBumping) {
-        // generate-host-certificates on non bumping port
-        // Just replace with the new Ctx and continue.
+    if (port->secure.generateHostCertificates && !port->flags.tunnelSslBumping) {
+        // When dealing with a generate-host-certificates port without SslBump,
+        // just replace the SSL connection context.
         const auto ssl = fd_table[clientConnection->fd].ssl.get();
         SSL_set_SSL_CTX(ssl, ctx.get());
         return;
