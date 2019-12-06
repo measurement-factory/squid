@@ -2794,10 +2794,8 @@ httpsAccept(const CommAcceptCbParams &params)
 int
 ConnStateData::SetSniContext(SSL *ssl, int *, void *)
 {
-    const auto rawCbdata = static_cast<Pointer*>(SSL_get_ex_data(ssl, ssl_ex_index_client_connection_mgr));
-    assert(rawCbdata);
-    const std::unique_ptr<Pointer> cbdata(rawCbdata);
-
+    const auto cbdata = static_cast<Pointer*>(SSL_get_ex_data(ssl, ssl_ex_index_client_connection_mgr));
+    assert(cbdata);
     if (const auto conn = cbdata->valid()) {
         if (const auto servername = SSL_get_servername(ssl, TLSEXT_NAMETYPE_host_name)) {
             conn->resetSslCommonName(servername);
