@@ -2855,15 +2855,17 @@ ConnStateData::postHttpsAccept()
 #endif
         return;
     }
-    else if (port->secure.generateHostCertificates) {
+
+    if (port->secure.generateHostCertificates) {
         const auto ctx(port->secure.createBlankContext());
         SSL_CTX_set_tlsext_servername_callback(ctx.get(), &SetSniContext);
         httpsEstablish(this, ctx);
         if (const auto ssl = fd_table[clientConnection->fd].ssl.get())
             SSL_set_ex_data(ssl, ssl_ex_index_client_connection_mgr, new Pointer(this));
-    } else {
-        httpsEstablish(this, port->secure.staticContext);
+        return;
     }
+
+    httpsEstablish(this, port->secure.staticContext);
 }
 
 #if USE_OPENSSL
