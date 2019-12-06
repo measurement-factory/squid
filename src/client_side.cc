@@ -2792,7 +2792,7 @@ httpsAccept(const CommAcceptCbParams &params)
 
 #if USE_OPENSSL
 int
-ConnStateData::SetSniContext(SSL *ssl, int *, void *data)
+ConnStateData::SetSniContext(SSL *ssl, int *, void *)
 {
     const auto rawCbdata = static_cast<Pointer*>(SSL_get_ex_data(ssl, ssl_ex_index_client_connection_mgr));
     assert(rawCbdata);

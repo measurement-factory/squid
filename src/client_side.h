@@ -336,7 +336,7 @@ protected:
 #if USE_OPENSSL
     /// provides SNI-specific TLS context for the current TLS connection
     /// using SSL_CTX_set_tlsext_servername_callback() API
-    static int SetSniContext(SSL *ssl, int *, void *data);
+    static int SetSniContext(SSL *, int *, void *);
 
     /// Handles a ready-for-reading TLS squid-to-server connection that
     /// we thought was idle.
