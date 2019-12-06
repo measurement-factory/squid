@@ -3086,11 +3086,11 @@ ConnStateData::getSslContextStart()
                 storeTlsContextToCache(sslBumpCertKey, dynCtx);
             getSslContextDone(dynCtx);
         }
-    } else {
-        Security::ContextPointer nil;
-        getSslContextDone(nil);
+        return true;
     }
 
+    Security::ContextPointer nil;
+    getSslContextDone(nil);
     return true;
 }
 
