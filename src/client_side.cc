@@ -2856,8 +2856,11 @@ ConnStateData::postHttpsAccept()
 
     if (port->secure.generateHostCertificates) {
         const auto ctx(port->secure.createBlankContext());
+        // finish configuring ctx before httpsEstablish() starts using it
         SSL_CTX_set_tlsext_servername_callback(ctx.get(), &SetSniContext);
+        // sets fde::ssl that we update below; negotiation starts asynchronously
         httpsEstablish(this, ctx);
+        // and finally supply the callback with the info it will use when called
         if (const auto ssl = fd_table[clientConnection->fd].ssl.get())
             SSL_set_ex_data(ssl, ssl_ex_index_client_connection_mgr, new Pointer(this));
         return;
