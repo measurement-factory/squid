@@ -2997,14 +2997,14 @@ void ConnStateData::buildSslCertGenerationParams(Ssl::CertificateProperties &cer
 Security::ContextPointer
 ConnStateData::getTlsContextFromCache(const SBuf &cacheKey, const Ssl::CertificateProperties &certProperties)
 {
-    debugs(33, 5, "Finding SSL certificate for " << cacheKey << " in cache");
+    debugs(33, 7, "looking for " << cacheKey);
     Ssl::LocalContextStorage * ssl_ctx_cache = Ssl::TheGlobalContextStorage.getLocalStorage(port->s);
     if (Security::ContextPointer *ctx = ssl_ctx_cache ? ssl_ctx_cache->get(cacheKey) : nullptr) {
         if (Ssl::verifySslCertificate(*ctx, certProperties)) {
-            debugs(33, 5, "Cached SSL certificate for " << certProperties.commonName << " is valid");
+            debugs(33, 7, "found valid for " << certProperties.commonName);
             return *ctx;
         } else {
-            debugs(33, 5, "Cached SSL certificate for " << certProperties.commonName << " is out of date. Delete this certificate from cache");
+            debugs(33, 5, "purging invalid for " << certProperties.commonName);
             if (ssl_ctx_cache)
                 ssl_ctx_cache->del(cacheKey);
         }
@@ -3046,6 +3046,7 @@ ConnStateData::getSslContextStart()
 
             Security::ContextPointer ctx(getTlsContextFromCache(sslBumpCertKey, certProperties));
             if (ctx) {
+                debugs(33, 5, "memory-cache hit for " << certProperties.commonName);
                 getSslContextDone(ctx);
                 return true;
             }
@@ -3596,10 +3597,10 @@ clientHttpConnectionsOpen(void)
                 if (s->transport.protocol == AnyP::PROTO_HTTP)
                     s->secure.encryptTransport = false;
             }
-            if (s->flags.tunnelSslBumping) {
-                // Create ssl_ctx cache for this port.
-                Ssl::TheGlobalContextStorage.addLocalStorage(s->s, s->secure.dynamicCertMemCacheSize);
-            }
+        }
+        if (const auto cacheSize = s->secure.dynamicCertMemCacheSize) {
+            if (s->flags.tunnelSslBumping || s->secure.generateHostCertificates)
+                Ssl::TheGlobalContextStorage.addLocalStorage(s->s, cacheSize);
         }
 #endif
 
