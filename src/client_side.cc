@@ -2797,8 +2797,8 @@ ConnStateData::SetSniContext(SSL *ssl, int *, void *)
     const auto cbdata = static_cast<Pointer*>(SSL_get_ex_data(ssl, ssl_ex_index_client_connection_mgr));
     assert(cbdata);
     if (const auto conn = cbdata->valid()) {
-        if (const auto servername = SSL_get_servername(ssl, TLSEXT_NAMETYPE_host_name)) {
-            conn->resetSslCommonName(servername);
+        if (const auto sni = SSL_get_servername(ssl, TLSEXT_NAMETYPE_host_name)) {
+            conn->resetSslCommonName(sni);
             const auto wentAsync = !conn->getSslContextStart();
             assert(!wentAsync);
             return SSL_TLSEXT_ERR_OK;
