@@ -3738,6 +3738,9 @@ parsePortCfg(AnyP::PortCfgPointer *head, const char *optionName)
 #if USE_OPENSSL
         if (!s->flags.accelSurrogate && !s->flags.tunnelSslBumping)
             throw TextException("generate-host-certificates requires accel or ssl-bump port mode", Here());
+        // TODO: Prohibit "http_port ssl-bump accel" combo and remove !s->flags.tunnelSslBumping.
+        if (s->flags.accelSurrogate && !s->flags.tunnelSslBumping && protoName.cmp("HTTPS") != 0)
+            throw TextException("using generate-host-certificates in reverse proxy ('accel') mode requires https_port", Here());
 #else
         throw TextException("generate-host-certificates currently requires --with-openssl", Here());
 #endif

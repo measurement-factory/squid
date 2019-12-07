@@ -2138,7 +2138,8 @@ DOC_START
 			self-signed generated certificate is three years.
 
 			This option is enabled by default when (and only when) the port
-			is configured to work in ssl-bump mode.
+			is configured to work in ssl-bump mode. Enabling this option
+			requires a port in ssl-bump mode or an https_port in accel mode.
 
 			Certificate generation is stable: Roughly speaking, identically
 			configured SMP workers and even independent Squid instances
