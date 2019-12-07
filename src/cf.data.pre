@@ -2076,7 +2076,8 @@ DOC_START
 			The ssl_bump option is required to fully enable
 			bumping of CONNECT requests.
 
-			The ssl-bump option currently requires the tls-cert option.
+			The ssl-bump mode currently requires the tls-cert option. It also
+			sets the generate-host-certificates default to "on".
 
 	Omitting the mode flag causes default forward proxy mode to be used.
 
