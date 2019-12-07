@@ -10,6 +10,7 @@
 #define SQUID_SRC_SECURITY_SERVEROPTIONS_H
 
 #include "anyp/forward.h"
+#include "base/YesNoNone.h"
 #include "security/PeerOptions.h"
 #if USE_OPENSSL
 #include "compat/openssl.h"
@@ -34,6 +35,8 @@ public:
         // Bug 4005: dynamic contexts use a lot of memory and it
         // is more secure to have only a small set of trusted CA.
         flags.tlsDefaultCa.defaultTo(false);
+        // this simple initial default may be updated later
+        generateHostCertificates.defaultTo(false);
     }
     ServerOptions(const ServerOptions &) = default;
     ServerOptions &operator =(const ServerOptions &);
@@ -70,19 +73,7 @@ public:
     /// TLS context to use for HTTPS accelerator or static SSL-Bump
     Security::ContextPointer staticContext;
     SBuf staticContextSessionId; ///< "session id context" for staticContext
-
-#if USE_OPENSSL
-    bool generateHostCertificates = true; ///< dynamically make host cert
-#elif USE_GNUTLS
-    // TODO: GnuTLS does implement TLS server connections so the cert
-    // generate vs static choice can be reached in the code now.
-    // But this feature is not fully working implemented so must not
-    // be enabled by default for production installations.
-    bool generateHostCertificates = false; ///< dynamically make host cert
-#else
-    // same as OpenSSL so config errors show up easily
-    bool generateHostCertificates = true; ///< dynamically make host cert
-#endif
+    YesNoNone generateHostCertificates; ///< make destination-specific certs
 
     Security::KeyData signingCa; ///< x509 certificate and key for signing generated certificates
     Security::KeyData untrustedSigningCa; ///< x509 certificate and key for signing untrusted generated certificates

@@ -105,11 +105,11 @@ Security::ServerOptions::parse(const char *token)
         }
 
     } else if (strcmp(token, "generate-host-certificates") == 0) {
-        generateHostCertificates = true;
+        generateHostCertificates.configure(true);
     } else if (strcmp(token, "generate-host-certificates=on") == 0) {
-        generateHostCertificates = true;
+        generateHostCertificates.configure(true);
     } else if (strcmp(token, "generate-host-certificates=off") == 0) {
-        generateHostCertificates = false;
+        generateHostCertificates.configure(false);
 
     } else if (strncmp(token, "context=", 8) == 0) {
 #if USE_OPENSSL
