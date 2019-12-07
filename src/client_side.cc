@@ -2790,24 +2790,6 @@ httpsAccept(const CommAcceptCbParams &params)
     AsyncJob::Start(srv); // usually async-calls postHttpsAccept()
 }
 
-#if USE_OPENSSL
-int
-ConnStateData::SetSniContext(SSL *ssl, int *, void *)
-{
-    const auto cbdata = static_cast<Pointer*>(SSL_get_ex_data(ssl, ssl_ex_index_client_connection_mgr));
-    assert(cbdata);
-    if (const auto conn = cbdata->valid()) {
-        if (const auto sni = SSL_get_servername(ssl, TLSEXT_NAMETYPE_host_name)) {
-            conn->resetSslCommonName(sni);
-            const auto wentAsync = !conn->getSslContextStart();
-            assert(!wentAsync);
-            return SSL_TLSEXT_ERR_OK;
-        }
-    }
-    return SSL_TLSEXT_ERR_ALERT_FATAL;
-}
-#endif
-
 void
 ConnStateData::postHttpsAccept()
 {
@@ -2855,6 +2837,7 @@ ConnStateData::postHttpsAccept()
     }
 
     if (port->secure.generateHostCertificates) {
+#if USE_OPENSSL
         const auto ctx(port->secure.createBlankContext());
         // finish configuring ctx before httpsEstablish() starts using it
         SSL_CTX_set_tlsext_servername_callback(ctx.get(), &SetSniContext);
@@ -2864,12 +2847,31 @@ ConnStateData::postHttpsAccept()
         if (const auto ssl = fd_table[clientConnection->fd].ssl.get())
             SSL_set_ex_data(ssl, ssl_ex_index_client_connection_mgr, new Pointer(this));
         return;
+#else
+        assert(!"unreachable: USE_OPENSSL checked at (re)configuration time");
+#endif
     }
 
     httpsEstablish(this, port->secure.staticContext);
 }
 
 #if USE_OPENSSL
+int
+ConnStateData::SetSniContext(SSL *ssl, int *, void *)
+{
+    const auto cbdata = static_cast<Pointer*>(SSL_get_ex_data(ssl, ssl_ex_index_client_connection_mgr));
+    assert(cbdata);
+    if (const auto conn = cbdata->valid()) {
+        if (const auto sni = SSL_get_servername(ssl, TLSEXT_NAMETYPE_host_name)) {
+            conn->resetSslCommonName(sni);
+            const auto wentAsync = !conn->getSslContextStart();
+            assert(!wentAsync);
+            return SSL_TLSEXT_ERR_OK;
+        }
+    }
+    return SSL_TLSEXT_ERR_ALERT_FATAL;
+}
+
 void
 ConnStateData::sslCrtdHandleReplyWrapper(void *data, const Helper::Reply &reply)
 {
