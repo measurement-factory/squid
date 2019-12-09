@@ -135,6 +135,7 @@ public:
 
     public:
         Connection() : len (0), buf ((char *)xmalloc(SQUID_TCP_SO_RCVBUF)), size_ptr(NULL), delayedLoops(0),
+            dirty(false),
             readPending(NULL), readPendingFunc(NULL) {}
 
         ~Connection();
@@ -159,6 +160,7 @@ public:
 
         Comm::ConnectionPointer conn;    ///< The currently connected connection.
         uint8_t delayedLoops; ///< how many times a read on this connection has been postponed.
+        bool dirty; ///< whether write() has been called (at least once)
 
         // XXX: make these an AsyncCall when event API can handle them
         TunnelStateData *readPending;
@@ -179,18 +181,23 @@ public:
     SBuf preReadClientData;
     SBuf preReadServerData;
     time_t startTime; ///< object creation time, before any peer selection/connection attempts
+    /// whether another destination may be still attempted if the TCP connection
+    /// was unexpectedly closed
+    bool retriable;
 
     void copyRead(Connection &from, IOCB *completion);
 
     /// continue to set up connection to a peer, going async for SSL peers
     void connectToPeer();
 
-    /// tries connecting to another destination, if available
-    bool retry();
-
-    /// responds with the given error to the client
-    /// \param conn the last failed connection
-    void sendError(ErrorState *, const Comm::ConnectionPointer &conn);
+    /// tries connecting to another destination, if available,
+    /// otherwise, initiates the transaction termination
+    void retryOrBail(const char *context);
+    /// remembers an error to be used if there will be no more connection attempts
+    void saveError(ErrorState *finalError);
+    /// Starts sending the given error message to the client, leading to the
+    /// eventual transaction termination. Call with savedError to send savedError.
+    void sendError(ErrorState *,  const char *reason);
 
 private:
     /// Gives Security::PeerConnector access to Answer in the TunnelStateData callback dialer.
@@ -221,7 +228,13 @@ private:
     /// callback handler after connection setup (including any encryption)
     void connectedToPeer(Security::EncryptorAnswer &answer);
 
+    /// whether the request should be retried
+    bool checkRetry();
+
     void closeServerConnection();
+
+    /// details of the "last tunneling attempt" failure (if it failed)
+    ErrorState *savedError = nullptr;
 
 public:
     bool keepGoingAfterRead(size_t len, Comm::Flag errcode, int xerrno, Connection &from, Connection &to);
@@ -309,7 +322,8 @@ tunnelClientClosed(const CommCloseCbParams &params)
 TunnelStateData::TunnelStateData(ClientHttpRequest *clientRequest) :
     connectRespBuf(NULL),
     connectReqWriting(false),
-    startTime(squid_curtime)
+    startTime(squid_curtime),
+    retriable(true)
 {
     debugs(26, 3, "TunnelStateData constructed this=" << this);
     client.readPendingFunc = &tunnelDelayedClientRead;
@@ -731,6 +745,7 @@ void
 TunnelStateData::Connection::write(const char *b, int size, AsyncCall::Pointer &callback, FREE * free_func)
 {
     writer = callback;
+    dirty = true;
     Comm::Write(conn, b, size, callback, free_func);
 }
 
@@ -979,6 +994,8 @@ tunnelConnected(const Comm::ConnectionPointer &server, void *data)
 {
     TunnelStateData *tunnelState = (TunnelStateData *)data;
     debugs(26, 3, HERE << server << ", tunnelState=" << tunnelState);
+    assert(!tunnelState->client.dirty);
+    tunnelState->retriable = false;
 
     if (!tunnelState->clientExpectsConnectResponse())
         tunnelStartShoveling(tunnelState); // ssl-bumped connection, be quiet
@@ -1007,7 +1024,21 @@ tunnelErrorComplete(int fd/*const Comm::ConnectionPointer &*/, void *data, size_
 }
 
 bool
-TunnelStateData::retry()
+TunnelStateData::checkRetry()
+{
+    if (shutting_down)
+        return false;
+    if (!retriable)
+        return false;
+    if (noConnections())
+        return false;
+    if (!FwdState::EnoughTimeToReForward(startTime))
+        return false;
+    return true;
+}
+
+void
+TunnelStateData::retryOrBail(const char *context)
 {
     {
         const Comm::Connection &failedDest = *serverDestinations.front();
@@ -1017,13 +1048,26 @@ TunnelStateData::retry()
 
     serverDestinations.erase(serverDestinations.begin());
 
-    if (!serverDestinations.empty() && FwdState::EnoughTimeToReForward(startTime)) {
-        closeServerConnection();
-        debugs(26, 4, "re-forwarding");
-        startConnecting();
-        return true;
+    if (checkRetry()) {
+        if (!serverDestinations.empty() && FwdState::EnoughTimeToReForward(startTime)) {
+            closeServerConnection();
+            debugs(26, 4, "re-forwarding");
+            return startConnecting();
+        }
     }
-    return false;
+
+    // TODO: Add sendSavedErrorOr(err_type type, Http::StatusCode, context).
+    // Then, the remaining method code (below) should become the common part of
+    // sendNewError() and sendSavedErrorOr(), used in "error detected" cases.
+    const auto error = savedError ? savedError : new ErrorState(ERR_CANNOT_FORWARD,
+            Http::scInternalServerError, request.getRaw());
+
+    const auto canSendError = Comm::IsConnOpen(client.conn) && !client.dirty &&
+        clientExpectsConnectResponse(); // XXX: add and check 'dirty'
+
+    if (canSendError)
+        return sendError(error, context);
+    *status_ptr = error->httpStatus;
 }
 
 /// closes the connection to the server without triggering the close handler
@@ -1040,15 +1084,22 @@ TunnelStateData::closeServerConnection()
 }
 
 void
-TunnelStateData::sendError(ErrorState *error, const Comm::ConnectionPointer &conn)
+TunnelStateData::saveError(ErrorState *error)
 {
-    debugs(26, 4, "terminate with error after " << conn);
+    debugs(26, 4, savedError << " ? " << error);
     assert(error);
-    assert(conn);
+    delete savedError; // may be nil
+    savedError = error;
+}
+
+void
+TunnelStateData::sendError(ErrorState *error, const char *reason)
+{
+    debugs(26, 3, "aborting transaction for " << reason);
+    assert(error);
 
     *status_ptr = error->httpStatus;
     // on timeout is this still:    error->xerrno = ETIMEDOUT;
-    error->port = conn->remote.port();
     error->callback = tunnelErrorComplete;
     error->callback_data = this;
     errorSend(client.conn, error);
@@ -1065,11 +1116,11 @@ tunnelConnectDone(const Comm::ConnectionPointer &conn, Comm::Flag status, int xe
         debugs(26, 4, HERE << conn << ", comm failure recovery.");
         assert(!tunnelState->serverDestinations.empty());
         const auto failedDest = tunnelState->serverDestinations.front();
-        if (!tunnelState->retry()) {
-            const auto error = new ErrorState(ERR_CONNECT_FAIL, Http::scServiceUnavailable, tunnelState->request.getRaw());
-            error->xerrno = xerrno;
-            tunnelState->sendError(error, failedDest);
-        }
+        const auto error = new ErrorState(ERR_CONNECT_FAIL, Http::scServiceUnavailable, tunnelState->request.getRaw());
+        error->xerrno = xerrno;
+        error->port = failedDest->remote.port();
+        tunnelState->saveError(error);
+        tunnelState->retryOrBail("destination connection error");
         return;
     }
 
@@ -1182,10 +1233,10 @@ TunnelStateData::connectedToPeer(Security::EncryptorAnswer &answer)
     if (ErrorState *error = answer.error.get()) {
         assert(!serverDestinations.empty());
         const auto failedDest = serverDestinations.front();
-        if (!retry()) {
-            answer.error.clear(); // preserve error for errorSendComplete()
-            sendError(error, failedDest);
-        }
+        saveError(error);
+        savedError->port = failedDest->remote.port();
+        answer.error.clear(); // preserve error for errorSendComplete()
+        retryOrBail("TLS peer connection error");
         return;
     }
 
@@ -1340,6 +1391,7 @@ switchToTunnel(HttpRequest *request, Comm::ConnectionPointer &clientConn, Comm::
     debugs(26, 3, request->method << " " << context->http->uri << " " << request->http_ver);
 
     TunnelStateData *tunnelState = new TunnelStateData(context->http);
+    tunnelState->retriable = false;
 
     fd_table[clientConn->fd].read_method = &default_read_method;
     fd_table[clientConn->fd].write_method = &default_write_method;
