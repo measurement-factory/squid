@@ -42,9 +42,6 @@ ACLFilledChecklist::ACLFilledChecklist() :
     destinationDomainChecked_(false),
     sourceDomainChecked_(false)
 {
-    my_addr.setEmpty();
-    client_addr.setEmpty();
-    dst_addr.setEmpty();
     rfc931[0] = '\0';
 }
 
