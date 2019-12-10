@@ -958,7 +958,7 @@ tunnelStart(ClientHttpRequest * http)
     HttpRequest *request = http->request;
     char *url = http->uri;
 
-    if (Config.accessList.miss && !tunnelState->al->clientAddr().isEmpty() && request->needCheckMissAccess()) {
+    if (Config.accessList.miss && tunnelState->al->clientAddr().isKnown() && request->needCheckMissAccess()) {
         /*
          * Check if this host is allowed to fetch MISSES from us (miss_access)
          * default is to allow.

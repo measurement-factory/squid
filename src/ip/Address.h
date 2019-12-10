@@ -327,9 +327,6 @@ public:
     void getSockAddr(struct sockaddr_in6 &) const;
     void getInAddr(struct in6_addr &) const;
 
-    /// whether the address is the same as the one created with default constructor
-    bool isEmpty() const;
-
 private:
     /* Conversion for dual-type internals */
 

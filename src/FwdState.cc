@@ -328,7 +328,7 @@ FwdState::~FwdState()
 void
 FwdState::Start(const Comm::ConnectionPointer &clientConn, StoreEntry *entry, HttpRequest *request, const AccessLogEntryPointer &al)
 {
-    if (Config.accessList.miss && !al->clientAddr().isEmpty() && request->needCheckMissAccess()) {
+    if (Config.accessList.miss && al->clientAddr().isKnown() && request->needCheckMissAccess()) {
         // Check if this host is allowed to fetch MISSES from us (miss_access).
         ACLFilledChecklist ch(Config.accessList.miss, request, al);
         // TODO: Explain this acl_uses_indirect_client violation in squid.conf.
