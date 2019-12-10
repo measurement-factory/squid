@@ -21,6 +21,7 @@ namespace Mem
 {
 
 class PageId;
+class LoopTimer;
 
 /// reflects the dual nature of PageStack storage:
 /// - for free pages, this is a pointer to the next free page
@@ -87,6 +88,7 @@ public:
 
 private:
     using Slot = PageStackStorageSlot;
+    friend LoopTimer;
 
     const uint32_t thePoolId; ///< pool ID
     const unsigned int theCapacity; ///< the maximum number of pages

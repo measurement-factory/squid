@@ -14,6 +14,70 @@
 #include "Debug.h"
 #include "ipc/mem/Page.h"
 #include "ipc/mem/PageStack.h"
+#include "MasterXaction.h" /* XXX: for Stopwatch */
+
+namespace Ipc
+{
+namespace Mem
+{
+
+/// helper class to report suspiciously long "optimistic search" loops
+class LoopTimer
+{
+public:
+    LoopTimer(const char *operation, const PageStack &stack);
+
+    void noteStart() { stopwatch.resume(); iterations = 0; }
+    void noteFinish(const bool result) { checkpoint(result, stopwatch.pause()); }
+    void noteIteration() { ++iterations; }
+
+private:
+    // minimum duration we should report next (may increase to reduce noise)
+    std::chrono::nanoseconds reportableDuration = std::chrono::nanoseconds(10000);
+    // minimum duration we should report always (fixed)
+    const std::chrono::seconds hugeDuration = std::chrono::seconds(1);
+
+    void checkpoint(const bool result, const Stopwatch::Clock::duration duration);
+
+    Stopwatch stopwatch;
+    uint64_t iterations = 0;
+
+    const PageStack &stack_; ///< the stack which loops we are measuring
+    const char * const operation_ = nullptr; ///< stack's method being measured
+};
+
+} // namespace Mem
+} // namespace Ipc
+
+/* Ipc::Mem::LoopTimer */
+
+Ipc::Mem::LoopTimer::LoopTimer(const char *operation, const PageStack &stack):
+    stack_(stack),
+    operation_(operation)
+{
+}
+
+void
+Ipc::Mem::LoopTimer::checkpoint(const bool result, const Stopwatch::Clock::duration duration)
+{
+    if (duration >= reportableDuration) {
+        reportableDuration *= 2;
+        if (reportableDuration > hugeDuration)
+            reportableDuration = hugeDuration;
+
+        debugs(54, Important(62), "WARNING: shm page search took too long:" <<
+               Debug::Extra << "duration: " << std::chrono::duration_cast<std::chrono::nanoseconds>(duration).count() << "ns" <<
+               Debug::Extra << "iterations: " << iterations <<
+               Debug::Extra << "result: " << (result ? "success" : "failure") <<
+               Debug::Extra << "free pages: " << stack_.theSize <<
+               Debug::Extra << "total pages: " << stack_.theCapacity <<
+               Debug::Extra << "searches seen: " << stopwatch.busyPeriodCount() <<
+               Debug::Extra << "mean duration: " << std::chrono::nanoseconds(stopwatch.busyPeriodMean()).count() << "ns" <<
+               Debug::Extra << "shm page stack operation: " << operation_ <<
+               Debug::Extra << "shm page stack ID: " << stack_.thePoolId <<
+               Debug::Extra << "next report threshold: " << std::chrono::duration_cast<std::chrono::nanoseconds>(reportableDuration).count() << "ns");
+    }
+}
 
 /* Ipc::Mem::PageStackStorageSlot */
 
@@ -66,14 +130,19 @@ Ipc::Mem::PageStack::pop(PageId &page)
 {
     assert(!page);
 
+    static LoopTimer loopTimer("pop", *this);
+    loopTimer.noteStart();
+
     Slot::Pointer current = head_.load();
 
     auto nextFree = Slot::NilPtr;
     do {
-        if (current == Slot::NilPtr)
+        if (current == Slot::NilPtr) {
+            loopTimer.noteFinish(false);
             return false;
+        }
+        loopTimer.noteIteration();
         nextFree = slots_[current].next();
-        // TODO: report suspiciously long loops
     } while (!head_.compare_exchange_weak(current, nextFree));
 
     // must decrement after removing the page to avoid underflow
@@ -84,6 +153,7 @@ Ipc::Mem::PageStack::pop(PageId &page)
     page.number = current + 1;
     page.pool = thePoolId;
     debugs(54, 8, page << " size: " << newSize);
+    loopTimer.noteFinish(true);
     return true;
 }
 
@@ -93,6 +163,9 @@ Ipc::Mem::PageStack::push(PageId &page)
     debugs(54, 8, page);
     assert(page);
     assert(pageIdIsValid(page));
+
+    static LoopTimer loopTimer("push", *this);
+    loopTimer.noteStart();
 
     const auto pageIndex = page.number - 1;
     auto &slot = slots_[pageIndex];
@@ -104,13 +177,15 @@ Ipc::Mem::PageStack::push(PageId &page)
     auto current = head_.load();
     auto expected = Slot::TakenPage;
     do {
+        loopTimer.noteIteration();
+
         slot.put(expected, current);
         expected = current;
-        // TODO: report suspiciously long loops
     } while (!head_.compare_exchange_weak(current, pageIndex));
 
     debugs(54, 8, page << " size: " << newSize);
     page = PageId();
+    loopTimer.noteFinish(true);
 }
 
 bool

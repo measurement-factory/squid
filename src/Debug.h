@@ -96,6 +96,9 @@ public:
     /// logs output buffer created in Start() and closes debugging context
     static void Finish();
 
+    /// prefixes each grouped debugs() line after the first one in the group
+    static std::ostream &Extra(std::ostream &os) { return os << "\n    "; }
+
 private:
     static Context *Current; ///< deepest active context; nil outside debugs()
 };
@@ -286,7 +289,7 @@ private:
 };
 
 /// The exact number of supported configurable messages. Increase as needed.
-constexpr size_t DebugMessageCount = 62;
+constexpr size_t DebugMessageCount = 63;
 /// configurable messages indexed by DebugMessageId
 typedef std::array<DebugMessage, DebugMessageCount> DebugMessages;
 /// all configurable debugging messages
