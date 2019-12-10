@@ -151,7 +151,7 @@ Ip::Address::applyMask(const unsigned int cidrMask, int mtype)
 bool
 Ip::Address::isBindable() const
 {
-    return !isEmpty() && !isNoAddr();
+    return !isNoAddr();
 }
 
 bool
