@@ -14,6 +14,55 @@
 #include "base/Lock.h"
 #include "comm/forward.h"
 
+#include <chrono>
+
+/// Quickly accumulates related real-time periods.
+/// Usually suitable for measuring CPU overheads of non-sleeping code sequences.
+/// Uses the best precision supported by the compiler (usually nanoseconds).
+class Stopwatch
+{
+public:
+    // std::clock() is not precise enough and raises (minor) overflow concerns,
+    // clock_gettime(CLOCK_PROCESS_CPUTIME_ID) may not be portable, and both may
+    // include CPU ticks accumulated by [AUFS] threads. When the code does
+    // not sleep (i.e. always does something), wall clock time is better.
+
+    // XXX?: don't use high_resolution_clock:
+    // https://stackoverflow.com/questions/38252022/does-standard-c11-guarantee-that-high-resolution-clock-measure-real-time-non
+    // http://howardhinnant.github.io/clock_survey.html
+    typedef std::chrono::high_resolution_clock Clock;
+
+    Stopwatch();
+
+    bool running() const { return resumes_ > pauses_; }
+    bool ran() const { return resumes_ > 0; }
+
+    /// the sum of all periods, including the currently running() one, if any
+    Clock::duration total() const;
+
+    /// \returns mean duration of a "busy" period or, if no resume() calls, zero
+    /// busy period is the time from resume() to the nearest resume() or pause()
+    Clock::duration busyPeriodMean() const;
+
+    /// the total number of resume() calls, including nested ones
+    uint64_t busyPeriodCount() const { return resumes_; }
+
+    /// (re)starts or continues measuring as needed; must be paired with pause()
+    void resume();
+
+    /// ends the current measurement period (if needed); requires prior resume()
+    /// \returns the duration of the ended (or current) measurement period
+    Clock::duration pause();
+
+private:
+    Clock::time_point runStart_; ///< when the current period was initiated
+
+    Clock::duration subtotal_; ///< the sum of all _finished_ periods
+
+    uint64_t resumes_ = 0; ///< the total number of resume() calls
+    uint64_t pauses_ = 0; ///< the total number of pause() calls
+};
+
 /** Master transaction details.
  *
  * Aggregates historical data from individual related protocol-specific
@@ -48,6 +97,8 @@ public:
     Comm::ConnectionPointer tcpClient;
 
     // TODO: add state from other Jobs in the transaction
+
+    Stopwatch stopwatch;
 };
 
 #endif /* SQUID_SRC_MASTERXACTION_H */
