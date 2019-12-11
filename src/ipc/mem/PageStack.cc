@@ -16,6 +16,28 @@
 #include "ipc/mem/PageStack.h"
 #include "MasterXaction.h" /* XXX: for Stopwatch */
 
+template <class Member>
+static inline void
+ReportOneRusageChange(std::ostream &os, struct rusage &from, struct rusage &to, const Member member, const char *label)
+{
+    if (from.*member != to.*member)
+        os << Debug::Extra << label << ':' << ' ' << (to.*member - from.*member);
+}
+
+static void
+ReportRusageChange(std::ostream &os, struct rusage &from, struct rusage &to)
+{
+    ReportOneRusageChange(os, from, to, &rusage::ru_maxrss, "maximum-resident-set-size");
+    ReportOneRusageChange(os, from, to, &rusage::ru_minflt, "soft-page-faults");
+    ReportOneRusageChange(os, from, to, &rusage::ru_majflt, "hard-page-faults");
+    ReportOneRusageChange(os, from, to, &rusage::ru_nswap, "swaps");
+    ReportOneRusageChange(os, from, to, &rusage::ru_inblock, "block-input-operations");
+    ReportOneRusageChange(os, from, to, &rusage::ru_oublock, "block-output-operations");
+    ReportOneRusageChange(os, from, to, &rusage::ru_nsignals, "signals-received");
+    ReportOneRusageChange(os, from, to, &rusage::ru_nvcsw, "voluntary-context-switches");
+    ReportOneRusageChange(os, from, to, &rusage::ru_nivcsw, "involuntary-context-switches");
+}
+
 namespace Ipc
 {
 namespace Mem
@@ -27,7 +49,7 @@ class LoopTimer
 public:
     LoopTimer(const char *operation, const PageStack &stack);
 
-    void noteStart() { stopwatch.resume(); iterations = 0; }
+    void noteStart() { getRusage(usageAtStart); iterations = 0; stopwatch.resume(); }
     void noteFinish(const bool result) { checkpoint(result, stopwatch.pause()); }
     void noteIteration() { ++iterations; }
 
@@ -38,8 +60,10 @@ private:
     const std::chrono::seconds hugeDuration = std::chrono::seconds(1);
 
     void checkpoint(const bool result, const Stopwatch::Clock::duration duration);
+    void getRusage(struct rusage &rusage) const;
 
     Stopwatch stopwatch;
+    struct rusage usageAtStart; ///< resource usage at noteStart() time
     uint64_t iterations = 0;
 
     const PageStack &stack_; ///< the stack which loops we are measuring
@@ -58,6 +82,14 @@ Ipc::Mem::LoopTimer::LoopTimer(const char *operation, const PageStack &stack):
 }
 
 void
+Ipc::Mem::LoopTimer::getRusage(struct rusage &usage) const
+{
+    // XXX: Merge with squid_getrusage() as squid_fast_getrusage() or RUsage::?
+    const auto ok = getrusage(RUSAGE_THREAD, &usage) == 0;
+    assert(ok); // XXX
+}
+
+void
 Ipc::Mem::LoopTimer::checkpoint(const bool result, const Stopwatch::Clock::duration duration)
 {
     if (duration >= reportableDuration) {
@@ -65,17 +97,26 @@ Ipc::Mem::LoopTimer::checkpoint(const bool result, const Stopwatch::Clock::durat
         if (reportableDuration > hugeDuration)
             reportableDuration = hugeDuration;
 
-        debugs(54, Important(62), "WARNING: shm page search took too long:" <<
-               Debug::Extra << "duration: " << std::chrono::duration_cast<std::chrono::nanoseconds>(duration).count() << "ns" <<
-               Debug::Extra << "iterations: " << iterations <<
-               Debug::Extra << "result: " << (result ? "success" : "failure") <<
-               Debug::Extra << "free pages: " << stack_.theSize <<
-               Debug::Extra << "total pages: " << stack_.theCapacity <<
-               Debug::Extra << "searches seen: " << stopwatch.busyPeriodCount() <<
-               Debug::Extra << "mean duration: " << std::chrono::nanoseconds(stopwatch.busyPeriodMean()).count() << "ns" <<
-               Debug::Extra << "shm page stack operation: " << operation_ <<
-               Debug::Extra << "shm page stack ID: " << stack_.thePoolId <<
-               Debug::Extra << "next report threshold: " << std::chrono::duration_cast<std::chrono::nanoseconds>(reportableDuration).count() << "ns");
+        if (Debug::Enabled(54, Important(62))) {
+            struct rusage rusageAtEnd;
+            getRusage(rusageAtEnd);
+            auto &os = Debug::Start(54, DBG_IMPORTANT);
+
+            os << "WARNING: shm page search took too long:" <<
+                Debug::Extra << "duration: " << std::chrono::duration_cast<std::chrono::nanoseconds>(duration).count() << "ns" <<
+                Debug::Extra << "iterations: " << iterations <<
+                Debug::Extra << "result: " << (result ? "success" : "failure") <<
+                Debug::Extra << "free pages: " << stack_.theSize <<
+                Debug::Extra << "total pages: " << stack_.theCapacity <<
+                Debug::Extra << "searches seen: " << stopwatch.busyPeriodCount() <<
+                Debug::Extra << "mean duration: " << std::chrono::nanoseconds(stopwatch.busyPeriodMean()).count() << "ns" <<
+                Debug::Extra << "shm page stack operation: " << operation_ <<
+                Debug::Extra << "shm page stack ID: " << stack_.thePoolId <<
+                Debug::Extra << "next report threshold: " << std::chrono::duration_cast<std::chrono::nanoseconds>(reportableDuration).count() << "ns";
+
+            ReportRusageChange(os, usageAtStart, rusageAtEnd);
+            Debug::Finish();
+        }
     }
 }
 
