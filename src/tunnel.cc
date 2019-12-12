@@ -1056,6 +1056,8 @@ TunnelStateData::retryOrBail(const char *context)
         }
     }
 
+    /* bail */
+
     // TODO: Add sendSavedErrorOr(err_type type, Http::StatusCode, context).
     // Then, the remaining method code (below) should become the common part of
     // sendNewError() and sendSavedErrorOr(), used in "error detected" cases.
@@ -1068,6 +1070,12 @@ TunnelStateData::retryOrBail(const char *context)
     if (canSendError)
         return sendError(error, context);
     *status_ptr = error->httpStatus;
+
+    // This is a "Comm::IsConnOpen(client.conn) but !canSendError" case.
+    // Closing the connection (after finishing writing) is the best we can do.
+    if (!client.writer)
+        client.conn->close();
+    // else writeClientDone() must notice a closed server and close the client
 }
 
 /// closes the connection to the server without triggering the close handler
