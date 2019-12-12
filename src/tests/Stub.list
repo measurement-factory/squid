@@ -8,6 +8,7 @@
 
 STUB_SOURCE= tests/STUB.h \
 	tests/stub_access_log.cc \
+	tests/stub_AccessLogEntry.cc \
 	tests/stub_acl.cc \
 	tests/stub_cache_cf.cc \
 	tests/stub_CacheDigest.cc \

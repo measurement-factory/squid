@@ -133,7 +133,7 @@ Auth::UserRequest::denyMessage(char const * const default_message) const
 }
 
 static void
-authenticateAuthUserRequestSetIp(Auth::UserRequest::Pointer auth_user_request, Ip::Address &ipaddr)
+authenticateAuthUserRequestSetIp(Auth::UserRequest::Pointer auth_user_request, const Ip::Address &ipaddr)
 {
     Auth::User::Pointer auth_user = auth_user_request->user();
 
@@ -219,11 +219,11 @@ Auth::UserRequest::connLastHeader()
  * This is basically a handle approach.
  */
 static void
-authenticateAuthenticateUser(Auth::UserRequest::Pointer auth_user_request, HttpRequest * request, ConnStateData * conn, Http::HdrType type)
+authenticateAuthenticateUser(Auth::UserRequest::Pointer auth_user_request, HttpRequest * request, ConnStateData * conn, Http::HdrType type, AccessLogEntry::Pointer &al)
 {
     assert(auth_user_request.getRaw() != NULL);
 
-    auth_user_request->authenticate(request, conn, type);
+    auth_user_request->authenticate(request, conn, type, al);
 }
 
 static Auth::UserRequest::Pointer
@@ -244,7 +244,7 @@ authTryGetUser(Auth::UserRequest::Pointer auth_user_request, ConnStateData * con
         // workaround by using anything already set in HttpRequest
         // OR use new and rely on a later Sync copying these to AccessLogEntry
 
-        UpdateRequestNotes(conn, *request, res->user()->notes);
+        UpdateRequestNotes(*request, res->user()->notes);
     }
 
     return res;
@@ -272,7 +272,7 @@ authTryGetUser(Auth::UserRequest::Pointer auth_user_request, ConnStateData * con
  * Caller is responsible for locking and unlocking their *auth_user_request!
  */
 AuthAclState
-Auth::UserRequest::authenticate(Auth::UserRequest::Pointer * auth_user_request, Http::HdrType headertype, HttpRequest * request, ConnStateData * conn, Ip::Address &src_addr, AccessLogEntry::Pointer &al)
+Auth::UserRequest::authenticate(Auth::UserRequest::Pointer * auth_user_request, Http::HdrType headertype, HttpRequest * request, ConnStateData * conn, const Ip::Address &src_addr, AccessLogEntry::Pointer &al)
 {
     const char *proxy_auth;
     assert(headertype != 0);
@@ -383,7 +383,7 @@ Auth::UserRequest::authenticate(Auth::UserRequest::Pointer * auth_user_request, 
 
     if (!authenticateUserAuthenticated(*auth_user_request)) {
         /* User not logged in. Try to log them in */
-        authenticateAuthenticateUser(*auth_user_request, request, conn, headertype);
+        authenticateAuthenticateUser(*auth_user_request, request, conn, headertype, al);
 
         switch ((*auth_user_request)->direction()) {
 
@@ -434,7 +434,7 @@ Auth::UserRequest::authenticate(Auth::UserRequest::Pointer * auth_user_request, 
 }
 
 AuthAclState
-Auth::UserRequest::tryToAuthenticateAndSetAuthUser(Auth::UserRequest::Pointer * aUR, Http::HdrType headertype, HttpRequest * request, ConnStateData * conn, Ip::Address &src_addr, AccessLogEntry::Pointer &al)
+Auth::UserRequest::tryToAuthenticateAndSetAuthUser(Auth::UserRequest::Pointer * aUR, Http::HdrType headertype, HttpRequest * request, ConnStateData * conn, const Ip::Address &src_addr, AccessLogEntry::Pointer &al)
 {
     // If we have already been called, return the cached value
     Auth::UserRequest::Pointer t = authTryGetUser(*aUR, conn, request);
@@ -462,10 +462,11 @@ Auth::UserRequest::tryToAuthenticateAndSetAuthUser(Auth::UserRequest::Pointer * 
 }
 
 static Auth::ConfigVector &
-schemesConfig(HttpRequest *request, HttpReply *rep)
+schemesConfig(HttpRequest *request, HttpReply *rep, const AccessLogEntryPointer &al)
 {
     if (!Auth::TheConfig.schemeLists.empty() && Auth::TheConfig.schemeAccess) {
-        ACLFilledChecklist ch(NULL, request, NULL);
+        ACLFilledChecklist ch(nullptr, request, al);
+        ch.syncAle(request, nullptr);
         ch.reply = rep;
         HTTPMSGLOCK(ch.reply);
         const auto answer = ch.fastCheck(Auth::TheConfig.schemeAccess);
@@ -476,7 +477,7 @@ schemesConfig(HttpRequest *request, HttpReply *rep)
 }
 
 void
-Auth::UserRequest::AddReplyAuthHeader(HttpReply * rep, Auth::UserRequest::Pointer auth_user_request, HttpRequest * request, int accelerated, int internal)
+Auth::UserRequest::AddReplyAuthHeader(HttpReply * rep, Auth::UserRequest::Pointer auth_user_request, HttpRequest * request, int accelerated, int internal, const AccessLogEntryPointer &al)
 /* send the auth types we are configured to support (and have compiled in!) */
 {
     Http::HdrType type;
@@ -512,7 +513,7 @@ Auth::UserRequest::AddReplyAuthHeader(HttpReply * rep, Auth::UserRequest::Pointe
             auth_user_request->user()->config->fixHeader(auth_user_request, rep, type, request);
         else {
             /* call each configured & running auth scheme */
-            Auth::ConfigVector &configs = schemesConfig(request, rep);
+            Auth::ConfigVector &configs = schemesConfig(request, rep, al);
             for (auto *scheme : configs) {
                 if (scheme->active()) {
                     if (auth_user_request != NULL && auth_user_request->scheme()->type() == scheme->type())

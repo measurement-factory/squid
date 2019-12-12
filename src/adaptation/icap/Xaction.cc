@@ -217,7 +217,7 @@ Adaptation::Icap::Xaction::dnsLookupDone(const ipcache_addrs *ia)
     connection = new Comm::Connection;
     connection->remote = ia->current();
     connection->remote.port(s.cfg().port);
-    getOutgoingAddress(NULL, connection);
+    getOutgoingAddress(nullptr, connection, nullptr);
 
     // TODO: service bypass status may differ from that of a transaction
     typedef CommCbMemFunT<Adaptation::Icap::Xaction, CommConnectCbParams> ConnectDialer;

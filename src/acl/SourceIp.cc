@@ -21,7 +21,7 @@ ACLSourceIP::typeString() const
 int
 ACLSourceIP::match(ACLChecklist *checklist)
 {
-    return ACLIP::match(Filled(checklist)->src_addr);
+    return ACLIP::match(Filled(checklist)->clientAddr());
 }
 
 ACL *

@@ -128,22 +128,14 @@ Downloader::buildRequest()
 {
     const HttpRequestMethod method = Http::METHOD_GET;
 
+    // TODO: reuse the original master transaction, if available
     const MasterXaction::Pointer mx = new MasterXaction(initiator_);
     auto * const request = HttpRequest::FromUrl(url_, mx, method);
     if (!request) {
         debugs(33, 5, "Invalid URI: " << url_);
         return false; //earlyError(...)
     }
-    request->http_ver = Http::ProtocolVersion();
-    request->header.putStr(Http::HdrType::HOST, request->url.host());
-    request->header.putTime(Http::HdrType::DATE, squid_curtime);
-    request->client_addr.setNoAddr();
-#if FOLLOW_X_FORWARDED_FOR
-    request->indirect_client_addr.setNoAddr();
-#endif /* FOLLOW_X_FORWARDED_FOR */
-    request->my_addr.setNoAddr();   /* undefined for internal requests */
-    request->my_addr.port(0);
-    request->downloader = this;
+    request->prepForDownloader();
 
     debugs(11, 2, "HTTP Client Downloader " << this << "/" << id);
     debugs(11, 2, "HTTP Client REQUEST:\n---------\n" <<
@@ -151,6 +143,7 @@ Downloader::buildRequest()
            "\n----------");
 
     ClientHttpRequest *const http = new ClientHttpRequest(nullptr);
+    http->al->setDownloader(this);
     http->initRequest(request);
     http->req_sz = 0;
     // XXX: performance regression. c_str() reallocates

@@ -333,7 +333,7 @@ idnsAddNameserver(const char *buf)
         return;
     }
 
-    if (A.isAnyAddr()) {
+    if (!A.isKnown()) {
         debugs(78, DBG_CRITICAL, "WARNING: Squid does not accept " << A << " in DNS server specifications.");
         A.setLocalhost();
         debugs(78, DBG_CRITICAL, "Will be using " << A << " instead, assuming you meant that DNS is running on the same machine");
@@ -893,7 +893,7 @@ idnsInitVC(size_t nsv)
 
     Comm::ConnectionPointer conn = new Comm::Connection();
 
-    if (!Config.Addrs.udp_outgoing.isNoAddr())
+    if (Config.Addrs.udp_outgoing.isBindable())
         conn->setAddrs(Config.Addrs.udp_outgoing, nameservers[nsv].S);
     else
         conn->setAddrs(Config.Addrs.udp_incoming, nameservers[nsv].S);
@@ -1540,7 +1540,7 @@ Dns::Init(void)
     if (DnsSocketA < 0 && DnsSocketB < 0) {
         Ip::Address addrV6; // since we do not want to alter Config.Addrs.udp_* and do not have one of our own.
 
-        if (!Config.Addrs.udp_outgoing.isNoAddr())
+        if (Config.Addrs.udp_outgoing.isBindable())
             addrV6 = Config.Addrs.udp_outgoing;
         else
             addrV6 = Config.Addrs.udp_incoming;

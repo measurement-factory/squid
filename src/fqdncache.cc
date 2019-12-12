@@ -482,9 +482,8 @@ fqdncache_gethostbyaddr(const Ip::Address &addr, int flags)
     char name[MAX_IPSTRLEN];
     fqdncache_entry *f = NULL;
 
-    if (addr.isAnyAddr() || addr.isNoAddr()) {
+    if (!addr.isKnown())
         return NULL;
-    }
 
     addr.toStr(name,MAX_IPSTRLEN);
     ++ FqdncacheStats.requests;

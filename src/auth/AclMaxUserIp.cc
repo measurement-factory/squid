@@ -129,7 +129,7 @@ ACLMaxUserIP::match(ACLChecklist *cl)
     switch (answer) {
     case ACCESS_ALLOWED:
         // check for a match
-        ti = match(checklist->auth_user_request, checklist->src_addr);
+        ti = match(checklist->auth_user_request, checklist->clientAddr());
         checklist->auth_user_request = NULL;
         return ti;
 

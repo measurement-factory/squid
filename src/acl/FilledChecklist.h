@@ -13,6 +13,7 @@
 #include "acl/Checklist.h"
 #include "acl/forward.h"
 #include "base/CbcPointer.h"
+#include "comm/forward.h"
 #include "err_type.h"
 #include "ip/Address.h"
 #if USE_AUTH
@@ -35,23 +36,39 @@ class ACLFilledChecklist: public ACLChecklist
 
 public:
     ACLFilledChecklist();
-    ACLFilledChecklist(const acl_access *, HttpRequest *, const char *ident = nullptr);
+    ACLFilledChecklist(const acl_access *, HttpRequest *, const AccessLogEntry::Pointer &);
     ~ACLFilledChecklist();
 
-    /// configure client request-related fields for the first time
+    /// Configure client request-related fields for the first time.
+    /// The passed HttpRequest parameter usually contains all client-related
+    /// data, including addresses and the connection manager.
     void setRequest(HttpRequest *);
+
     /// configure rfc931 user identity for the first time
     void setIdent(const char *userIdentity);
 
-public:
-    /// The client connection manager
-    ConnStateData * conn() const;
+#if FOLLOW_X_FORWARDED_FOR
+    /// Instructs clientAddr() to return the indirect client address, if available,
+    /// or direct client address otherwise.
+    void preferIndirectAddr();
+#endif
+
+    /// Configures clientAddr() to always return direct client address
+    void forceDirectAddr();
+
+    /// a valid client connection manager or nil
+    ConnStateData *clientConnectionManager() const;
+
+    /// remote/source address of a client-to-Squid connection, direct or indirect
+    const Ip::Address &clientAddr() const { return client_addr; }
+
+    /// local/destination address of a client-to-Squid connection
+    const Ip::Address &myAddr() const { return my_addr; }
 
     /// The client side fd. It uses conn() if available
     int fd() const;
 
-    /// set either conn
-    void conn(ConnStateData *);
+    // TODO: Unused. Remove?
     /// set the client side FD
     void fd(int aDescriptor);
 
@@ -70,9 +87,7 @@ public:
     virtual void verifyAle() const;
 
 public:
-    Ip::Address src_addr;
     Ip::Address dst_addr;
-    Ip::Address my_addr;
     SBuf dst_peer_name;
     char *dst_rdns;
 
@@ -84,6 +99,9 @@ public:
     Auth::UserRequest::Pointer auth_user_request;
 #endif
 #if SQUID_SNMP
+    /// configure with SNMP specific parameters
+    void snmpDetails(char *community, const Ip::Address &fromAddr, const Ip::Address &localAddr);
+
     char *snmp_community;
 #endif
 
@@ -99,10 +117,25 @@ public:
     err_type requestErrorType;
 
 private:
-    ConnStateData * conn_;          /**< hack for ident and NTLM */
+    void setClientConnectionManager(ConnStateData *);
+    void setClientConnection(Comm::ConnectionPointer);
+    void setClientSideAddresses();
+    /// a client connection manager, if any
+    ConnStateData *connectionManager_;
+    /// a client connection, if any
+    Comm::ConnectionPointer clientConnection_;
+    // TODO: Unused. Remove?
     int fd_;                        /**< may be available when conn_ is not */
     bool destinationDomainChecked_;
     bool sourceDomainChecked_;
+    /// The client source address, which is either source address of the client-to-Squid TCP
+    /// connection (direct address) or a Forwarded-For address (indirect address), determined
+    /// by Squid configuration. The checklist may be configured to force either direct or indirect
+    /// client address usage, overwriting the default configuration.
+    Ip::Address client_addr;
+    /// the local address of the client connection
+    Ip::Address my_addr;
+
     /// not implemented; will cause link failures if used
     ACLFilledChecklist(const ACLFilledChecklist &);
     /// not implemented; will cause link failures if used

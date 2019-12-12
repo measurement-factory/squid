@@ -8,6 +8,8 @@
 
 #include "squid.h"
 #include "AccessLogEntry.h"
+#include "client_side.h"
+#include "http/Stream.h"
 #include "HttpReply.h"
 #include "HttpRequest.h"
 #include "MemBuf.h"
@@ -22,7 +24,7 @@ AccessLogEntry::getLogClientIp(char *buf, size_t bufsz) const
 
 #if FOLLOW_X_FORWARDED_FOR
     if (Config.onoff.log_uses_indirect_client && request)
-        log_ip = request->indirect_client_addr;
+        log_ip = furthestClientAddress();
     else
 #endif
         if (tcpClient)
@@ -31,7 +33,7 @@ AccessLogEntry::getLogClientIp(char *buf, size_t bufsz) const
             log_ip = cache.caddr;
 
     // internally generated requests (and some ICAP) lack client IP
-    if (log_ip.isNoAddr()) {
+    if (!log_ip.isKnown()) {
         strncpy(buf, "-", bufsz);
         return;
     }
@@ -172,6 +174,40 @@ AccessLogEntry::effectiveVirginUrl() const
     // We can not use ALE::url here because it may contain a request URI after
     // adaptation/redirection. When the request is missing, a non-empty ALE::url
     // means that we missed a setVirginUrlForMissingRequest() call somewhere.
+    return nullptr;
+}
+
+const Ip::Address&
+AccessLogEntry::clientAddr() const
+{
+    return tcpClient ? tcpClient->remote : client_addr;
+}
+
+#if FOLLOW_X_FORWARDED_FOR
+const Ip::Address&
+AccessLogEntry::furthestClientAddress() const
+{
+    return indirect_client_addr.isKnown() ? indirect_client_addr : clientAddr();
+}
+
+void
+AccessLogEntry::ignoreIndirectClientAddr()
+{
+    indirect_client_addr.setEmpty();
+}
+#endif /* FOLLOW_X_FORWARDED_FOR */
+
+const Ip::Address&
+AccessLogEntry::myAddr() const
+{
+    return tcpClient ? tcpClient->local : my_addr;
+}
+
+ConnStateData *
+AccessLogEntry::pinnedConnection()
+{
+    if (clientConnectionManager().valid() && clientConnectionManager()->pinning.pinned)
+        return clientConnectionManager().get();
     return nullptr;
 }
 

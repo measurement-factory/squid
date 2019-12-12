@@ -265,10 +265,7 @@ Comm::TcpAcceptor::logAcceptError(const ConnectionPointer &tcpClient) const
     al->tcpClient = tcpClient;
     al->url = "error:accept-client-connection";
     al->setVirginUrlForMissingRequest(al->url);
-    ACLFilledChecklist ch(nullptr, nullptr, nullptr);
-    ch.src_addr = tcpClient->remote;
-    ch.my_addr = tcpClient->local;
-    ch.al = al;
+    ACLFilledChecklist ch(nullptr, nullptr, al);
     accessLogLog(al, &ch);
 
     CodeContext::Reset(listenPort_);
@@ -333,10 +330,10 @@ Comm::TcpAcceptor::notify(const Comm::Flag flag, const Comm::ConnectionPointer &
     if (theCallSub != NULL) {
         AsyncCall::Pointer call = theCallSub->callback();
         CommAcceptCbParams &params = GetCommParams<CommAcceptCbParams>(call);
-        params.xaction = new MasterXaction(XactionInitiator::initClient);
+        params.xaction = new MasterXaction(XactionInitiator::initClient, newConnDetails);
         params.xaction->squidPort = listenPort_;
         params.fd = conn->fd;
-        params.conn = params.xaction->tcpClient = newConnDetails;
+        params.conn = newConnDetails;
         params.flag = flag;
         params.xerrno = errcode;
         ScheduleCallHere(call);

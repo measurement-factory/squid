@@ -130,8 +130,7 @@ Security::PeerConnector::initialize(Security::SessionPointer &serverSession)
         // Create the ACL check list now, while we have access to more info.
         // The list is used in ssl_verify_cb() and is freed in ssl_free().
         if (acl_access *acl = ::Config.ssl_client.cert_error) {
-            ACLFilledChecklist *check = new ACLFilledChecklist(acl, request.getRaw(), dash_str);
-            check->al = al;
+            auto check = new ACLFilledChecklist(acl, request.getRaw(), al);
             check->syncAle(request.getRaw(), nullptr);
             // check->fd(fd); XXX: need client FD here
             SSL_set_ex_data(serverSession.get(), ssl_ex_index_cert_error_check, check);
@@ -310,8 +309,7 @@ Security::PeerConnector::sslCrtvdCheckForErrors(Ssl::CertValidationResponse cons
 {
     ACLFilledChecklist *check = NULL;
     if (acl_access *acl = ::Config.ssl_client.cert_error) {
-        check = new ACLFilledChecklist(acl, request.getRaw(), dash_str);
-        check->al = al;
+        check = new ACLFilledChecklist(acl, request.getRaw(), al);
         check->syncAle(request.getRaw(), nullptr);
     }
 
@@ -631,7 +629,7 @@ Security::PeerConnector::startCertDownloading(SBuf &url)
                                       "Security::PeerConnector::certDownloadingDone",
                                       PeerConnectorCertDownloaderDialer(&Security::PeerConnector::certDownloadingDone, this));
 
-    const Downloader *csd = (request ? dynamic_cast<const Downloader*>(request->downloader.valid()) : nullptr);
+    const auto csd = al->downloader().get();
     Downloader *dl = new Downloader(url, certCallback, XactionInitiator::initCertFetcher, csd ? csd->nestedLevel() + 1 : 1);
     AsyncJob::Start(dl);
 }
@@ -686,9 +684,9 @@ Security::PeerConnector::checkForMissingCertificates()
     // certificate located in an SSL site which requires to download a
     // a missing certificate (... from an SSL site which requires to ...).
 
-    const Downloader *csd = (request ? request->downloader.get() : nullptr);
-    if (csd && csd->nestedLevel() >= MaxNestedDownloads)
-        return false;
+    if (const auto csd = al->downloader().get())
+        if (csd->nestedLevel() >= MaxNestedDownloads)
+            return false;
 
     const int fd = serverConnection()->fd;
     Security::SessionPointer session(fd_table[fd].ssl);

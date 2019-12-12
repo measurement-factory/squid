@@ -10,8 +10,11 @@
 
 #include "squid.h"
 #include "acl/FilledChecklist.h"
+#include "client_side.h"
+#include "client_side_request.h"
 #include "event.h"
 #include "globals.h"
+#include "http/Stream.h"
 #include "HttpReply.h"
 #include "HttpRequest.h"
 #include "MemBuf.h"
@@ -56,7 +59,7 @@ StoreClient::onCollapsingPath() const
     if (!Config.accessList.collapsedForwardingAccess)
         return true;
 
-    ACLFilledChecklist checklist(Config.accessList.collapsedForwardingAccess, nullptr, nullptr);
+    ACLFilledChecklist checklist(Config.accessList.collapsedForwardingAccess, nullptr, accessLogEntry());
     fillChecklist(checklist);
     return checklist.fastCheck().allowed();
 }
@@ -856,10 +859,21 @@ CheckQuickAbortIsReasonable(StoreEntry * entry)
         return false;
     }
 
-    if (mem->request && mem->request->range && mem->request->getRangeOffsetLimit() < 0) {
-        // the admin has configured "range_offset_limit none"
-        debugs(90, 3, "quick-abort? NO admin configured range replies to full-download");
-        return false;
+    if (const auto req = mem->request) {
+        if (req->range) {
+            AccessLogEntry::Pointer al;
+            if (const auto mgr = req->masterXaction->clientConnectionManager().valid()) {
+                if (const auto stream = mgr->pipeline.front()) {
+                    if (stream->http)
+                        al = stream->http->al;
+                }
+            }
+            if (req->getRangeOffsetLimit(al) < 0) {
+                // the admin has configured "range_offset_limit none"
+                debugs(90, 3, "quick-abort? NO admin configured range replies to full-download");
+                return false;
+            }
+        }
     }
 
     if (reply.content_length < 0) {

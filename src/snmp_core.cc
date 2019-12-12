@@ -269,15 +269,13 @@ snmpOpenPorts(void)
         fatal("SNMP port cannot be opened.");
     }
     /* split-stack for now requires IPv4-only SNMP */
-    if (Ip::EnableIpv6&IPV6_SPECIAL_SPLITSTACK && snmpIncomingConn->local.isAnyAddr()) {
-        snmpIncomingConn->local.setIPv4();
-    }
+    snmpIncomingConn->local.adjustSplitStackIPv6();
 
     AsyncCall::Pointer call = asyncCall(49, 2, "snmpIncomingConnectionOpened",
                                         Comm::UdpOpenDialer(&snmpPortOpened));
     Ipc::StartListening(SOCK_DGRAM, IPPROTO_UDP, snmpIncomingConn, Ipc::fdnInSnmpSocket, call);
 
-    if (!Config.Addrs.snmp_outgoing.isNoAddr()) {
+    if (Config.Addrs.snmp_outgoing.isBindable()) {
         snmpOutgoingConn = new Comm::Connection;
         snmpOutgoingConn->local = Config.Addrs.snmp_outgoing;
         snmpOutgoingConn->local.port(Config.Port.snmp);
@@ -287,9 +285,7 @@ snmpOpenPorts(void)
             fatal("SNMP port cannot be opened.");
         }
         /* split-stack for now requires IPv4-only SNMP */
-        if (Ip::EnableIpv6&IPV6_SPECIAL_SPLITSTACK && snmpOutgoingConn->local.isAnyAddr()) {
-            snmpOutgoingConn->local.setIPv4();
-        }
+        snmpOutgoingConn->local.adjustSplitStackIPv6();
         AsyncCall::Pointer c = asyncCall(49, 2, "snmpOutgoingConnectionOpened",
                                          Comm::UdpOpenDialer(&snmpPortOpened));
         Ipc::StartListening(SOCK_DGRAM, IPPROTO_UDP, snmpOutgoingConn, Ipc::fdnOutSnmpSocket, c);
@@ -398,10 +394,8 @@ snmpDecodePacket(SnmpRequest * rq)
     /* Check if we have explicit permission to access SNMP data.
      * default (set above) is to deny all */
     if (Community) {
-        ACLFilledChecklist checklist(Config.accessList.snmp, NULL, NULL);
-        checklist.src_addr = rq->from;
-        checklist.snmp_community = (char *) Community;
-
+        ACLFilledChecklist checklist(Config.accessList.snmp, nullptr, nullptr);
+        checklist.snmpDetails(reinterpret_cast<char*>(Community), rq->from, snmpIncomingConn->local);
         if (checklist.fastCheck().allowed() && (snmp_coexist_V2toV1(PDU))) {
             rq->community = Community;
             rq->PDU = PDU;
@@ -773,8 +767,6 @@ client_Inst(oid * name, snint * len, mib_tree_entry * current, oid_ParseFn ** Fn
         aux  = client_entry(NULL);
         if (aux)
             laddr = *aux;
-        else
-            laddr.setAnyAddr();
 
         if (laddr.isIPv4())
             size = sizeof(in_addr);
@@ -786,7 +778,7 @@ client_Inst(oid * name, snint * len, mib_tree_entry * current, oid_ParseFn ** Fn
         instance = (oid *)xmalloc(sizeof(*name) * (*len + size ));
         memcpy(instance, name, (sizeof(*name) * (*len)));
 
-        if ( !laddr.isAnyAddr() ) {
+        if (laddr.isKnown() ) {
             addr2oid(laddr, &instance[ *len]);  // the addr
             *len += size ;
         }
@@ -796,10 +788,8 @@ client_Inst(oid * name, snint * len, mib_tree_entry * current, oid_ParseFn ** Fn
         aux = client_entry(&laddr);
         if (aux)
             laddr = *aux;
-        else
-            laddr.setAnyAddr();
 
-        if (!laddr.isAnyAddr()) {
+        if (laddr.isKnown()) {
             if (laddr.isIPv4())
                 newshift = sizeof(in_addr);
             else

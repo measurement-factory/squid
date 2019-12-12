@@ -149,6 +149,31 @@ Ip::Address::applyMask(const unsigned int cidrMask, int mtype)
 }
 
 bool
+Ip::Address::isBindable() const
+{
+    return !isNoAddr();
+}
+
+bool
+Ip::Address::isKnown() const
+{
+    return isBindable() && !isAnyAddr();
+}
+
+void
+Ip::Address::adjustSplitStackIPv6()
+{
+    if (needAdjustingSplitStackIPv6())
+        setIPv4();
+}
+
+bool
+Ip::Address::needAdjustingSplitStackIPv6() const
+{
+    return Ip::EnableIpv6&IPV6_SPECIAL_SPLITSTACK && isAnyAddr();
+}
+
+bool
 Ip::Address::isSockAddr() const
 {
     return (mSocketAddr_.sin6_port != 0);

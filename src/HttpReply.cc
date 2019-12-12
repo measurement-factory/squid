@@ -514,17 +514,17 @@ HttpReply::expectingBody(const HttpRequestMethod& req_method, int64_t& theSize) 
 }
 
 bool
-HttpReply::receivedBodyTooLarge(HttpRequest& request, int64_t receivedSize)
+HttpReply::receivedBodyTooLarge(HttpRequest& request, int64_t receivedSize, const AccessLogEntry::Pointer &al)
 {
-    calcMaxBodySize(request);
+    calcMaxBodySize(request, al);
     debugs(58, 3, HERE << receivedSize << " >? " << bodySizeMax);
     return bodySizeMax >= 0 && receivedSize > bodySizeMax;
 }
 
 bool
-HttpReply::expectedBodyTooLarge(HttpRequest& request)
+HttpReply::expectedBodyTooLarge(HttpRequest& request, const AccessLogEntry::Pointer &al)
 {
-    calcMaxBodySize(request);
+    calcMaxBodySize(request, al);
     debugs(58, 7, HERE << "bodySizeMax=" << bodySizeMax);
 
     if (bodySizeMax < 0) // no body size limit
@@ -543,7 +543,7 @@ HttpReply::expectedBodyTooLarge(HttpRequest& request)
 }
 
 void
-HttpReply::calcMaxBodySize(HttpRequest& request) const
+HttpReply::calcMaxBodySize(HttpRequest& request, const AccessLogEntry::Pointer &al) const
 {
     // hack: -2 is used as "we have not calculated max body size yet" state
     if (bodySizeMax != -2) // already tried
@@ -554,7 +554,8 @@ HttpReply::calcMaxBodySize(HttpRequest& request) const
     if (!Config.ReplyBodySize)
         return;
 
-    ACLFilledChecklist ch(NULL, &request, NULL);
+    ACLFilledChecklist ch(nullptr, &request, al);
+    ch.syncAle(&request, nullptr);
     // XXX: cont-cast becomes irrelevant when checklist is HttpReply::Pointer
     ch.reply = const_cast<HttpReply *>(this);
     HTTPMSGLOCK(ch.reply);

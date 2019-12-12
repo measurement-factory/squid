@@ -1534,6 +1534,7 @@ tests_testStore_SOURCES= \
 	tests/CapturingStoreEntry.h \
 	log/access_log.h \
 	tests/stub_access_log.cc \
+	tests/stub_AccessLogEntry.cc \
 	tests/stub_acl.cc \
 	cache_cf.h \
 	tests/stub_cache_cf.cc \
@@ -1817,6 +1818,7 @@ nodist_tests_testACLMaxUserIP_SOURCES = \
 	Parsing.cc \
 	String.cc \
 	tests/stub_access_log.cc \
+	tests/stub_AccessLogEntry.cc \
 	tests/stub_cache_cf.cc \
 	tests/stub_cbdata.cc \
 	tests/stub_client_side.cc \
@@ -2177,6 +2179,7 @@ tests_testHttpReply_SOURCES=\
 	Notes.cc \
 	SquidString.h \
 	SquidTime.h \
+	tests/stub_AccessLogEntry.cc \
 	tests/stub_SBufDetailedStats.cc \
 	String.cc \
 	StrList.h \

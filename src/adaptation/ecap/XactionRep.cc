@@ -130,12 +130,12 @@ Adaptation::Ecap::XactionRep::clientIpValue() const
     if (TheConfig.send_client_ip && request) {
         Ip::Address client_addr;
 #if FOLLOW_X_FORWARDED_FOR
-        if (TheConfig.use_indirect_client) {
-            client_addr = request->indirect_client_addr;
-        } else
+        if (TheConfig.use_indirect_client)
+            client_addr = al->furthestClientAddress();
+        else
 #endif
-            client_addr = request->client_addr;
-        if (!client_addr.isAnyAddr() && !client_addr.isNoAddr()) {
+            client_addr = al->clientAddr();
+        if (client_addr.isKnown()) {
             char ntoabuf[MAX_IPSTRLEN] = "";
             client_addr.toStr(ntoabuf,MAX_IPSTRLEN);
             return libecap::Area::FromTempBuffer(ntoabuf, strlen(ntoabuf));

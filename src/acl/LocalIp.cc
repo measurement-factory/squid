@@ -21,7 +21,7 @@ ACLLocalIP::typeString() const
 int
 ACLLocalIP::match(ACLChecklist *checklist)
 {
-    return ACLIP::match (Filled(checklist)->my_addr);
+    return ACLIP::match (Filled(checklist)->myAddr());
 }
 
 ACL *

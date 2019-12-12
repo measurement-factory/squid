@@ -247,7 +247,7 @@ IdleConnList::findUseable(const Comm::ConnectionPointer &aKey)
     assert(size_);
 
     // small optimization: do the constant bool tests only once.
-    const bool keyCheckAddr = !aKey->local.isAnyAddr();
+    const auto keyCheckAddr = aKey->local.isKnown();
     const bool keyCheckPort = aKey->local.port() > 0;
 
     for (int i=size_-1; i>=0; --i) {

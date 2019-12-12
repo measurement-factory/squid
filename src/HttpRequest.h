@@ -38,7 +38,6 @@ class AccessLogEntry;
 typedef RefCount<AccessLogEntry> AccessLogEntryPointer;
 class CachePeer;
 class ConnStateData;
-class Downloader;
 
 /*  Http Request */
 void httpRequestPack(void *obj, Packable *p);
@@ -94,6 +93,8 @@ public:
     void prepForPeering(const CachePeer &peer);
     /// get ready to be sent directly to an origin server, excluding originserver
     void prepForDirect();
+    /// configure with Downloader-specific settings
+    void prepForDownloader();
 
     void recordLookup(const Dns::LookupDetails &detail);
 
@@ -102,8 +103,11 @@ public:
     /// clear error details, useful for retries/repeats
     void clearError();
 
-    /// associates the request with a from-client connection manager
-    void manager(const CbcPointer<ConnStateData> &aMgr, const AccessLogEntryPointer &al);
+    /// sets TPROXY-related flags
+    void setInterceptionFlags(const AccessLogEntryPointer &);
+
+    /// whether this request is a subject of 'miss_access' check
+    bool needCheckMissAccess() const;
 
 protected:
     void clean();
@@ -146,14 +150,6 @@ public:
 
     int imslen;
 
-    Ip::Address client_addr;
-
-#if FOLLOW_X_FORWARDED_FOR
-    Ip::Address indirect_client_addr;
-#endif /* FOLLOW_X_FORWARDED_FOR */
-
-    Ip::Address my_addr;
-
     HierarchyLogEntry hier;
 
     int dnsWait; ///< sum of DNS lookup delays in milliseconds, for %dt
@@ -172,8 +168,6 @@ public:
 
     char *peer_domain;      /* Configured peer forceddomain */
 
-    String myportname; // Internal tag name= value from port this requests arrived in.
-
     String tag;         /* Internal tag for this request */
 
     String extacl_user;     /* User name returned by extacl lookup */
@@ -186,7 +180,7 @@ public:
 
 #if FOLLOW_X_FORWARDED_FOR
     String x_forwarded_for_iterator; /* XXX a list of IP addresses */
-#endif /* FOLLOW_X_FORWARDED_FOR */
+#endif
 
     /// A strong etag of the cached entry. Used for refreshing that entry.
     String etag;
@@ -216,8 +210,6 @@ public:
     /// \deprecated use SBuf variant instead
     static HttpRequest * FromUrlXXX(const char * url, const MasterXaction::Pointer &, const HttpRequestMethod &method = Http::METHOD_GET);
 
-    ConnStateData *pinnedConnection();
-
     /**
      * Returns the current StoreID for the request as a nul-terminated char*.
      * Always returns the current id for the request
@@ -225,22 +217,12 @@ public:
      */
     const SBuf storeId();
 
-    /**
-     * The client connection manager, if known;
-     * Used for any response actions needed directly to the client.
-     * ie 1xx forwarding or connection pinning state changes
-     */
-    CbcPointer<ConnStateData> clientConnectionManager;
-
-    /// The Downloader object which initiated the HTTP request if any
-    CbcPointer<Downloader> downloader;
-
     /// the master transaction this request belongs to. Never nil.
     MasterXaction::Pointer masterXaction;
 
     /// forgets about the cached Range header (for a reason)
     void ignoreRange(const char *reason);
-    int64_t getRangeOffsetLimit(); /* the result of this function gets cached in rangeOffsetLimit */
+    int64_t getRangeOffsetLimit(const AccessLogEntryPointer &); /* the result of this function gets cached in rangeOffsetLimit */
 
     /// \returns existing non-empty transaction annotations,
     /// creates and returns empty annotations otherwise
@@ -259,6 +241,7 @@ public:
 private:
     mutable int64_t rangeOffsetLimit;  /* caches the result of getRangeOffsetLimit */
 
+    // TODO: remove and use ALE::notes instead
     /// annotations added by the note directive and helpers
     /// and(or) by annotate_transaction/annotate_client ACLs.
     NotePairs::Pointer theNotes;
@@ -273,10 +256,9 @@ protected:
 };
 
 class ConnStateData;
-/**
- * Updates ConnStateData ids and HttpRequest notes from helpers received notes.
- */
-void UpdateRequestNotes(ConnStateData *csd, HttpRequest &request, NotePairs const &notes);
+
+/// updates ConnStateData ids and HttpRequest notes from helpers received notes
+void UpdateRequestNotes(HttpRequest &, NotePairs const &);
 
 /// \returns listening/*_port address used by the client connection (or nil)
 /// nil parameter(s) indicate missing caller information and are handled safely

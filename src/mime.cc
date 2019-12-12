@@ -50,6 +50,8 @@ public:
     virtual void fillChecklist(ACLFilledChecklist &) const;
 
 private:
+    virtual const AccessLogEntryPointer &accessLogEntry() const;
+
     SBuf icon_;
     char *url_;
 };
@@ -447,6 +449,15 @@ MimeIcon::fillChecklist(ACLFilledChecklist &) const
     // Unreachable: We never mayInitiateCollapsing() or startCollapsingOn().
     assert(false);
 }
+
+const AccessLogEntryPointer &
+MimeIcon::accessLogEntry() const
+{
+    // Unreachable: We never mayInitiateCollapsing() or startCollapsingOn().
+    assert(false);
+    static AccessLogEntryPointer al;
+    return al;
+};
 
 MimeEntry::~MimeEntry()
 {

@@ -66,6 +66,7 @@ Ftp::Server::Server(const MasterXaction::Pointer &xact):
     waitingForOrigin(false),
     originDataDownloadAbortedOnError(false)
 {
+    initWithConnectionManager();
     flags.readMore = false; // we need to announce ourselves first
     *uploadBuf = 0;
 }
@@ -85,6 +86,13 @@ time_t
 Ftp::Server::idleTimeout() const
 {
     return Config.Timeout.ftpClientIdle;
+}
+
+void
+Ftp::Server::initWithConnectionManager()
+{
+    masterXaction->setClientConnectionManager(this);
+    al->setClientConnectionManager(this);
 }
 
 void
@@ -724,8 +732,7 @@ Ftp::Server::parseOneRequest()
     const SBuf *path = (params.length() && CommandHasPathParameter(cmd)) ?
                        &params : NULL;
     calcUri(path);
-    MasterXaction::Pointer mx = new MasterXaction(XactionInitiator::initClient);
-    mx->tcpClient = clientConnection;
+    const auto mx = createMasterXaction(nullptr);
     auto * const request = HttpRequest::FromUrl(uri, mx, method);
     if (!request) {
         debugs(33, 5, "Invalid FTP URL: " << uri);
@@ -1369,7 +1376,7 @@ Ftp::Server::handleUserRequest(const SBuf &, SBuf &params)
     // Otherwise (domain, IPv4, [bracketed] IPv6, garbage, etc), use as is.
     if (host.find(':') != SBuf::npos) {
         const Ip::Address ipa(host.c_str());
-        if (!ipa.isAnyAddr()) {
+        if (!ipa.isKnown()) {
             char ipBuf[MAX_IPSTRLEN];
             ipa.toHostStr(ipBuf, MAX_IPSTRLEN);
             host = ipBuf;
@@ -1430,7 +1437,7 @@ bool
 Ftp::Server::createDataConnection(Ip::Address cltAddr)
 {
     assert(clientConnection != NULL);
-    assert(!clientConnection->remote.isAnyAddr());
+    assert(!clientConnection->remote.isKnown());
 
     if (cltAddr != clientConnection->remote) {
         debugs(33, 2, "rogue PORT " << cltAddr << " request? ctrl: " << clientConnection->remote);
@@ -1537,8 +1544,7 @@ Ftp::Server::handleUploadRequest(String &, String &)
     if (Config.accessList.forceRequestBodyContinuation) {
         ClientHttpRequest *http = pipeline.front()->http;
         HttpRequest *request = http->request;
-        ACLFilledChecklist bodyContinuationCheck(Config.accessList.forceRequestBodyContinuation, request, NULL);
-        bodyContinuationCheck.al = http->al;
+        ACLFilledChecklist bodyContinuationCheck(Config.accessList.forceRequestBodyContinuation, request, http->al);
         bodyContinuationCheck.syncAle(request, http->log_uri);
         if (bodyContinuationCheck.fastCheck().allowed()) {
             request->forcedBodyContinuation = true;
@@ -1669,7 +1675,7 @@ Ftp::Server::checkDataConnPre()
         return true;
     }
 
-    if (!dataConn || dataConn->remote.isAnyAddr()) {
+    if (!dataConn || !dataConn->remote.isKnown()) {
         debugs(33, 5, "missing " << dataConn);
         // TODO: use client address and default port instead.
         setReply(425, "Use PORT or PASV first");

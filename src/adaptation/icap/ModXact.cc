@@ -1331,7 +1331,8 @@ void Adaptation::Icap::ModXact::finalizeLogInfo()
     const Adaptation::Icap::ServiceRep  &s = service();
     al.icap.reqMethod = s.cfg().method;
 
-    al.cache.caddr = virgin_request_->client_addr;
+    al.cache.caddr = alMaster->clientAddr();
+    al.setClientAddr(alMaster->clientAddr());
 
     al.request = virgin_request_;
     HTTPMSGLOCK(al.request);
@@ -1466,15 +1467,15 @@ void Adaptation::Icap::ModXact::makeRequestHeaders(MemBuf &buf)
 
     makeAllowHeader(buf);
 
-    if (TheConfig.send_client_ip && request) {
+    if (TheConfig.send_client_ip) {
         Ip::Address client_addr;
 #if FOLLOW_X_FORWARDED_FOR
-        if (TheConfig.use_indirect_client) {
-            client_addr = request->indirect_client_addr;
-        } else
+        if (TheConfig.use_indirect_client)
+            client_addr = al.furthestClientAddress();
+        else
 #endif
-            client_addr = request->client_addr;
-        if (!client_addr.isAnyAddr() && !client_addr.isNoAddr())
+            client_addr = al.clientAddr();
+        if (client_addr.isKnown())
             buf.appendf("X-Client-IP: %s\r\n", client_addr.toStr(ntoabuf,MAX_IPSTRLEN));
     }
 

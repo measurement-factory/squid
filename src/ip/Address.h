@@ -112,6 +112,12 @@ public:
      */
     bool isNoAddr() const;
 
+    /// whether this address may be used in bind() call
+    bool isBindable() const;
+
+    /// whether this is an non-empty address other from ANY_ADDR or NO_ADDR
+    bool isKnown() const;
+
     /** Content-neutral test for whether the specific IP case LOCALHOST is stored.
      *  This is the default content of a new undefined Ip::Address object.
      \retval true IPv4 127.0.0.1
@@ -171,6 +177,10 @@ public:
      \retval false  Content CANNOT be IPv4
      */
     bool setIPv4();
+
+    /// applies specific settings for IPV6_SPECIAL_SPLITSTACK type
+    void adjustSplitStackIPv6();
+    bool needAdjustingSplitStackIPv6() const;
 
     /**
      *  Valid results IF and only IF the stored IP address is actually a network bitmask
@@ -289,6 +299,8 @@ public:
      \param ai addrinfo struct to be initialized as AF_UNSPEC with large address buffer
      */
     static void InitAddr(struct addrinfo *&ai);
+
+    static const Address &Empty() { static Address emptyAddr; return emptyAddr; }
 
     /**
      *  Lookup a Host by Name. Equivalent to system call gethostbyname(char*)

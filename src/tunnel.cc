@@ -908,7 +908,7 @@ TunnelStateData::connectDone(const Comm::ConnectionPointer &conn, const char *or
     server.conn = conn;
 
     if (reused)
-        ResetMarkingsToServer(request.getRaw(), *conn);
+        ResetMarkingsToServer(request.getRaw(), *conn, al);
     // else Comm::ConnOpener already applied proper/current markings
 
     syncHierNote(server.conn, request->url.host());
@@ -958,21 +958,12 @@ tunnelStart(ClientHttpRequest * http)
     HttpRequest *request = http->request;
     char *url = http->uri;
 
-    /*
-     * client_addr.isNoAddr()  indicates this is an "internal" request
-     * from peer_digest.c, asn.c, netdb.c, etc and should always
-     * be allowed.  yuck, I know.
-     */
-
-    if (Config.accessList.miss && !request->client_addr.isNoAddr()) {
+    if (Config.accessList.miss && tunnelState->al->clientAddr().isKnown() && request->needCheckMissAccess()) {
         /*
          * Check if this host is allowed to fetch MISSES from us (miss_access)
          * default is to allow.
          */
-        ACLFilledChecklist ch(Config.accessList.miss, request, NULL);
-        ch.al = http->al;
-        ch.src_addr = request->client_addr;
-        ch.my_addr = request->my_addr;
+        ACLFilledChecklist ch(Config.accessList.miss, request, http->al);
         ch.syncAle(request, http->log_uri);
         if (ch.fastCheck().denied()) {
             debugs(26, 4, HERE << "MISS access forbidden.");
@@ -1172,7 +1163,7 @@ void
 TunnelStateData::usePinned()
 {
     Must(request);
-    const auto connManager = request->pinnedConnection();
+    const auto connManager = al->pinnedConnection();
     try {
         const auto serverConn = ConnStateData::BorrowPinnedConnection(request.getRaw(), al);
         debugs(26, 7, "pinned peer connection: " << serverConn);
@@ -1226,15 +1217,18 @@ TunnelStateData::notifyConnOpener()
 
 #if USE_OPENSSL
 void
-switchToTunnel(HttpRequest *request, Comm::ConnectionPointer &clientConn, Comm::ConnectionPointer &srvConn)
+switchToTunnel(HttpRequest *request, const AccessLogEntryPointer &al, Comm::ConnectionPointer &srvConn)
 {
+    const auto clientConn = al->tcpClient;
+    Must(clientConn);
+
     debugs(26,5, "Revert to tunnel FD " << clientConn->fd << " with FD " << srvConn->fd);
 
     /* Create state structure. */
     ++statCounter.server.all.requests;
     ++statCounter.server.other.requests;
 
-    auto conn = request->clientConnectionManager.get();
+    const auto conn = al->clientConnectionManager().get();
     Must(conn);
     Http::StreamPointer context = conn->pipeline.front();
     Must(context && context->http);

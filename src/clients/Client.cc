@@ -524,10 +524,10 @@ Client::blockCaching()
     if (const Acl::Tree *acl = Config.accessList.storeMiss) {
         // This relatively expensive check is not in StoreEntry::checkCachable:
         // That method lacks HttpRequest and may be called too many times.
-        ACLFilledChecklist ch(acl, originalRequest().getRaw());
+        ACLFilledChecklist ch(acl, originalRequest().getRaw(), fwd->al);
+        ch.syncAle(request.getRaw(), nullptr);
         ch.reply = const_cast<HttpReply*>(&entry->mem().freshestReply()); // ACLFilledChecklist API bug
         HTTPMSGLOCK(ch.reply);
-        ch.al = fwd->al;
         if (!ch.fastCheck().allowed()) { // when in doubt, block
             debugs(20, 3, "store_miss prohibits caching");
             return true;
@@ -916,7 +916,7 @@ Client::noteAdaptationAclCheckDone(Adaptation::ServiceGroupPointer group)
 
     // TODO: Should non-ICAP and ICAP REPMOD pre-cache paths check this?
     // That check now only happens on REQMOD pre-cache and REPMOD post-cache, in processReplyAccess().
-    if (virginReply()->expectedBodyTooLarge(*request)) {
+    if (virginReply()->expectedBodyTooLarge(*request, fwd->al)) {
         sendBodyIsTooLargeError();
         return;
     }

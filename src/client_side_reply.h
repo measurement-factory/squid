@@ -50,7 +50,7 @@ public:
     /// replaces current response store entry with the given one
     void setReplyToStoreEntry(StoreEntry *e, const char *reason);
     /// builds error using clientBuildError() and calls setReplyToError() below
-    void setReplyToError(err_type, Http::StatusCode, const HttpRequestMethod&, char const *, Ip::Address &, HttpRequest *, const char *,
+    void setReplyToError(err_type, Http::StatusCode, const HttpRequestMethod&, char const *, const Ip::Address &, HttpRequest *, const char *,
 #if USE_AUTH
                          Auth::UserRequest::Pointer);
 #else
@@ -103,6 +103,10 @@ public:
         bool headersSent;
     } flags;
     clientStreamNode *ourNode;  /* This will go away if/when this file gets refactored some more */
+
+protected:
+    /* StoreClient API */
+    virtual const AccessLogEntryPointer &accessLogEntry() const { return http->al; }
 
 private:
     /* StoreClient API */

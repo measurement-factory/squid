@@ -16,5 +16,5 @@ class ClientHttpRequest;
 
 void tunnelStart(ClientHttpRequest *) STUB
 
-void switchToTunnel(HttpRequest *request, Comm::ConnectionPointer &clientConn, Comm::ConnectionPointer &srvConn) STUB
+void switchToTunnel(HttpRequest *request, const AccessLogEntry::Pointer &al, Comm::ConnectionPointer &srvConn) STUB
 

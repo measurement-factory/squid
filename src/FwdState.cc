@@ -276,8 +276,8 @@ FwdState::completed()
             errorAppendEntry(entry, err);
             err = NULL;
 #if USE_OPENSSL
-            if (request->flags.sslPeek && request->clientConnectionManager.valid()) {
-                CallJobHere1(17, 4, request->clientConnectionManager, ConnStateData,
+            if (request->flags.sslPeek && al->clientConnectionManager().valid()) {
+                CallJobHere1(17, 4, al->clientConnectionManager(), ConnStateData,
                              ConnStateData::httpsPeeked, ConnStateData::PinnedIdleContext(Comm::ConnectionPointer(nullptr), request));
             }
 #endif
@@ -328,22 +328,12 @@ FwdState::~FwdState()
 void
 FwdState::Start(const Comm::ConnectionPointer &clientConn, StoreEntry *entry, HttpRequest *request, const AccessLogEntryPointer &al)
 {
-    /** \note
-     * client_addr == no_addr indicates this is an "internal" request
-     * from peer_digest.c, asn.c, netdb.c, etc and should always
-     * be allowed.  yuck, I know.
-     */
-
-    if ( Config.accessList.miss && !request->client_addr.isNoAddr() &&
-            !request->flags.internal && request->url.getScheme() != AnyP::PROTO_CACHE_OBJECT) {
-        /**
-         * Check if this host is allowed to fetch MISSES from us (miss_access).
-         * Intentionally replace the src_addr automatically selected by the checklist code
-         * we do NOT want the indirect client address to be tested here.
-         */
-        ACLFilledChecklist ch(Config.accessList.miss, request, NULL);
-        ch.al = al;
-        ch.src_addr = request->client_addr;
+    if (Config.accessList.miss && al->clientAddr().isKnown() && request->needCheckMissAccess()) {
+        // Check if this host is allowed to fetch MISSES from us (miss_access).
+        ACLFilledChecklist ch(Config.accessList.miss, request, al);
+        // TODO: Explain this acl_uses_indirect_client violation in squid.conf.
+        // TODO: Refer to the above squid.conf documentation here.
+        ch.forceDirectAddr();
         ch.syncAle(request, nullptr);
         if (ch.fastCheck().denied()) {
             err_type page_id;
@@ -376,7 +366,7 @@ FwdState::Start(const Comm::ConnectionPointer &clientConn, StoreEntry *entry, Ht
         return;
     }
 
-    if (request->flags.internal) {
+    if (request->flags.internalReceived) {
         debugs(17, 2, "calling internalStart() due to request flag");
         internalStart(clientConn, request, entry, al);
         return;
@@ -473,7 +463,7 @@ FwdState::fail(ErrorState * errorState)
         destinations->retryPath(serverConn);
     }
 
-    if (ConnStateData *pinned_connection = request->pinnedConnection()) {
+    if (auto pinned_connection = al->pinnedConnection()) {
         pinned_connection->pinning.zeroReply = true;
         debugs(17, 4, "zero reply on pinned connection");
     }
@@ -923,7 +913,7 @@ void
 FwdState::successfullyConnectedToPeer()
 {
     // should reach ConnStateData before the dispatched Client job starts
-    CallJobHere1(17, 4, request->clientConnectionManager, ConnStateData,
+    CallJobHere1(17, 4, al->clientConnectionManager(), ConnStateData,
                  ConnStateData::notePeerConnection, serverConnection());
 
     if (serverConnection()->getPeer())
@@ -943,7 +933,7 @@ FwdState::syncWithServerConn(const Comm::ConnectionPointer &conn, const char *ho
 
     if (reused) {
         pconnRace = racePossible;
-        ResetMarkingsToServer(request, *serverConn);
+        ResetMarkingsToServer(request, *serverConn, al);
     } else {
         pconnRace = raceImpossible;
         // Comm::ConnOpener already applied proper/current markings
@@ -971,7 +961,7 @@ FwdState::connectStart()
 {
     debugs(17, 3, *destinations << " to " << entry->url());
 
-    Must(!request->pinnedConnection());
+    Must(!al->pinnedConnection());
 
     assert(!destinations->empty());
     assert(!opening());
@@ -992,8 +982,7 @@ FwdState::connectStart()
     cs->setHost(request->url.host());
     bool retriable = checkRetriable();
     if (!retriable && Config.accessList.serverPconnForNonretriable) {
-        ACLFilledChecklist ch(Config.accessList.serverPconnForNonretriable, request, nullptr);
-        ch.al = al;
+        ACLFilledChecklist ch(Config.accessList.serverPconnForNonretriable, request, al);
         ch.syncAle(request, nullptr);
         retriable = ch.fastCheck().allowed();
     }
@@ -1008,7 +997,7 @@ FwdState::connectStart()
 void
 FwdState::usePinned()
 {
-    const auto connManager = request->pinnedConnection();
+    const auto connManager = al->pinnedConnection();
     debugs(17, 7, "connection manager: " << connManager);
 
     try {
@@ -1090,7 +1079,7 @@ FwdState::dispatch()
 
 #if USE_OPENSSL
     if (request->flags.sslPeek) {
-        CallJobHere1(17, 4, request->clientConnectionManager, ConnStateData,
+        CallJobHere1(17, 4, al->clientConnectionManager(), ConnStateData,
                      ConnStateData::httpsPeeked, ConnStateData::PinnedIdleContext(serverConnection(), request));
         unregister(serverConn); // async call owns it now
         complete(); // destroys us
@@ -1353,10 +1342,11 @@ aclFindNfMarkConfig(acl_nfmark * head, ACLChecklist * ch)
 }
 
 void
-getOutgoingAddress(HttpRequest * request, Comm::ConnectionPointer conn)
+getOutgoingAddress(HttpRequest *request, Comm::ConnectionPointer conn, const AccessLogEntry::Pointer &al)
 {
     // skip if an outgoing address is already set.
-    if (!conn->local.isAnyAddr()) return;
+    if (conn->local.isKnown())
+        return;
 
     // ensure that at minimum the wildcard local matches remote protocol
     if (conn->remote.isIPv4())
@@ -1367,10 +1357,10 @@ getOutgoingAddress(HttpRequest * request, Comm::ConnectionPointer conn)
         if (!conn->getPeer() || !conn->getPeer()->options.no_tproxy) {
 #if FOLLOW_X_FORWARDED_FOR && LINUX_NETFILTER
             if (Config.onoff.tproxy_uses_indirect_client)
-                conn->local = request->indirect_client_addr;
+                conn->local = al->furthestClientAddress();
             else
 #endif
-                conn->local = request->client_addr;
+                conn->local = al->clientAddr();
             conn->local.port(0); // let OS pick the source port to prevent address clashes
             // some flags need setting on the socket to use this address
             conn->flags |= COMM_DOBIND;
@@ -1384,7 +1374,8 @@ getOutgoingAddress(HttpRequest * request, Comm::ConnectionPointer conn)
         return; // anything will do.
     }
 
-    ACLFilledChecklist ch(NULL, request, NULL);
+    ACLFilledChecklist ch(nullptr, request, al);
+    ch.syncAle(request, nullptr);
     ch.dst_peer_name = conn->getPeer() ? conn->getPeer()->name : NULL;
     ch.dst_addr = conn->remote;
 
@@ -1406,12 +1397,13 @@ getOutgoingAddress(HttpRequest * request, Comm::ConnectionPointer conn)
 
 /// \returns the TOS value that should be set on the to-peer connection
 static tos_t
-GetTosToServer(HttpRequest * request, Comm::Connection &conn)
+GetTosToServer(HttpRequest *request, Comm::Connection &conn, const AccessLogEntry::Pointer &al)
 {
     if (!Ip::Qos::TheConfig.tosToServer)
         return 0;
 
-    ACLFilledChecklist ch(NULL, request, NULL);
+    ACLFilledChecklist ch(nullptr, request, al);
+    ch.syncAle(request, nullptr);
     ch.dst_peer_name = conn.getPeer() ? conn.getPeer()->name : nullptr;
     ch.dst_addr = conn.remote;
     return aclMapTOS(Ip::Qos::TheConfig.tosToServer, &ch);
@@ -1419,12 +1411,13 @@ GetTosToServer(HttpRequest * request, Comm::Connection &conn)
 
 /// \returns the Netfilter mark that should be set on the to-peer connection
 static nfmark_t
-GetNfmarkToServer(HttpRequest * request, Comm::Connection &conn)
+GetNfmarkToServer(HttpRequest * request, Comm::Connection &conn, const AccessLogEntry::Pointer &al)
 {
     if (!Ip::Qos::TheConfig.nfmarkToServer)
         return 0;
 
-    ACLFilledChecklist ch(NULL, request, NULL);
+    ACLFilledChecklist ch(nullptr, request, al);
+    ch.syncAle(request, nullptr);
     ch.dst_peer_name = conn.getPeer() ? conn.getPeer()->name : nullptr;
     ch.dst_addr = conn.remote;
     const auto mc = aclFindNfMarkConfig(Ip::Qos::TheConfig.nfmarkToServer, &ch);
@@ -1432,18 +1425,18 @@ GetNfmarkToServer(HttpRequest * request, Comm::Connection &conn)
 }
 
 void
-GetMarkingsToServer(HttpRequest * request, Comm::Connection &conn)
+GetMarkingsToServer(HttpRequest *request, Comm::Connection &conn, const AccessLogEntry::Pointer &al)
 {
     // Get the server side TOS and Netfilter mark to be set on the connection.
-    conn.tos = GetTosToServer(request, conn);
-    conn.nfmark = GetNfmarkToServer(request, conn);
+    conn.tos = GetTosToServer(request, conn, al);
+    conn.nfmark = GetNfmarkToServer(request, conn, al);
     debugs(17, 3, "from " << conn.local << " tos " << int(conn.tos) << " netfilter mark " << conn.nfmark);
 }
 
 void
-ResetMarkingsToServer(HttpRequest * request, Comm::Connection &conn)
+ResetMarkingsToServer(HttpRequest *request, Comm::Connection &conn, const AccessLogEntry::Pointer &al)
 {
-    GetMarkingsToServer(request, conn);
+    GetMarkingsToServer(request, conn, al);
 
     // TODO: Avoid these calls if markings has not changed.
     if (conn.tos)

@@ -29,12 +29,20 @@ Http::One::Server::Server(const MasterXaction::Pointer &xact, bool beHttpsServer
     ConnStateData(xact),
     isHttpsServer(beHttpsServer)
 {
+    initWithConnectionManager();
 }
 
 time_t
 Http::One::Server::idleTimeout() const
 {
     return Config.Timeout.clientIdlePconn;
+}
+
+void
+Http::One::Server::initWithConnectionManager()
+{
+    masterXaction->setClientConnectionManager(this);
+    al->setClientConnectionManager(this);
 }
 
 void
@@ -137,8 +145,7 @@ Http::One::Server::buildHttpRequest(Http::StreamPointer &context)
     }
 
     // TODO: move URL parse into Http Parser and INVALID_URL into the above parse error handling
-    MasterXaction::Pointer mx = new MasterXaction(XactionInitiator::initClient);
-    mx->tcpClient = clientConnection;
+    const auto mx = createMasterXaction(context.getRaw());
     request = HttpRequest::FromUrlXXX(http->uri, mx, parser_->method());
     if (!request) {
         debugs(33, 5, "Invalid URL: " << http->uri);
@@ -261,8 +268,7 @@ Http::One::Server::processParsedRequest(Http::StreamPointer &context)
         }
 
         if (Config.accessList.forceRequestBodyContinuation) {
-            ACLFilledChecklist bodyContinuationCheck(Config.accessList.forceRequestBodyContinuation, request.getRaw(), NULL);
-            bodyContinuationCheck.al = http->al;
+            ACLFilledChecklist bodyContinuationCheck(Config.accessList.forceRequestBodyContinuation, request.getRaw(), http->al);
             bodyContinuationCheck.syncAle(request.getRaw(), http->log_uri);
             if (bodyContinuationCheck.fastCheck().allowed()) {
                 debugs(33, 5, "Body Continuation forced");

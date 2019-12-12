@@ -440,7 +440,9 @@ ClientHttpRequest::logRequest()
         al->syncNotes(request);
     }
 
-    ACLFilledChecklist checklist(NULL, request, NULL);
+    ACLFilledChecklist checklist(nullptr, request, al);
+    // no need checklist.syncAle(): already synced
+
     if (al->reply) {
         checklist.reply = al->reply.getRaw();
         HTTPMSGLOCK(checklist.reply);
@@ -451,14 +453,12 @@ ClientHttpRequest::logRequest()
         al->adapted_request = request;
         HTTPMSGLOCK(al->adapted_request);
     }
-    // no need checklist.syncAle(): already synced
-    checklist.al = al;
+
     accessLogLog(al, &checklist);
 
     bool updatePerformanceCounters = true;
     if (Config.accessList.stats_collection) {
-        ACLFilledChecklist statsCheck(Config.accessList.stats_collection, request, NULL);
-        statsCheck.al = al;
+        ACLFilledChecklist statsCheck(Config.accessList.stats_collection, request, al);
         if (al->reply) {
             statsCheck.reply = al->reply.getRaw();
             HTTPMSGLOCK(statsCheck.reply);
@@ -1392,7 +1392,7 @@ ConnStateData::parseHttpRequest(const Http1::RequestParserPointer &hp)
         http->uri = xstrdup(internalLocalUri(NULL, hp->requestUri()));
         // We just re-wrote the URL. Must replace the Host: header.
         //  But have not parsed there yet!! flag for local-only handling.
-        http->flags.internal = true;
+        http->flags.askingForOurInternalResource = true;
 
     } else if (port->flags.accelSurrogate) {
         /* accelerator mode */
@@ -1503,8 +1503,7 @@ bool ConnStateData::serveDelayedError(Http::Stream *context)
 
             bool allowDomainMismatch = false;
             if (Config.ssl_client.cert_error) {
-                ACLFilledChecklist check(Config.ssl_client.cert_error, request, dash_str);
-                check.al = http->al;
+                ACLFilledChecklist check(Config.ssl_client.cert_error, request, http->al);
                 check.sslErrors = new Security::CertErrors(Security::CertError(SQUID_X509_V_ERR_DOMAIN_MISMATCH, srvCert));
                 check.syncAle(request, http->log_uri);
                 allowDomainMismatch = check.fastCheck().allowed();
@@ -1567,12 +1566,9 @@ ConnStateData::tunnelOnError(const HttpRequestMethod &method, const err_type req
     const auto http = context ? context->http : nullptr;
     const auto request = http ? http->request : nullptr;
 
-    ACLFilledChecklist checklist(Config.accessList.on_unsupported_protocol, request, nullptr);
-    checklist.al = http ? http->al : nullptr;
+    const auto ale = http ? http->al : nullptr;
+    ACLFilledChecklist checklist(Config.accessList.on_unsupported_protocol, request, ale);
     checklist.requestErrorType = requestError;
-    checklist.src_addr = clientConnection->remote;
-    checklist.my_addr = clientConnection->local;
-    checklist.conn(this);
     const char *log_uri = http ? http->log_uri : nullptr;
     checklist.syncAle(request, log_uri);
     auto answer = checklist.fastCheck();
@@ -1624,7 +1620,7 @@ clientProcessRequest(ConnStateData *conn, const Http1::RequestParserPointer &hp,
     // this entire function to remove them from the FTP code path. Connection
     // setup and body_pipe preparation blobs are needed for FTP.
 
-    request->manager(conn, http->al);
+    request->setInterceptionFlags(http->al);
 
     request->flags.accelerated = http->flags.accel;
     request->flags.sslBumped=conn->switchedToHttps();
@@ -1643,19 +1639,19 @@ clientProcessRequest(ConnStateData *conn, const Http1::RequestParserPointer &hp,
     if (internalCheck(request->url.path())) {
         if (internalHostnameIs(request->url.host()) && request->url.port() == getMyPort()) {
             debugs(33, 2, "internal URL found: " << request->url.getScheme() << "://" << request->url.authority(true));
-            http->flags.internal = true;
+            http->flags.askingForOurInternalResource = true;
         } else if (Config.onoff.global_internal_static && internalStaticCheck(request->url.path())) {
             debugs(33, 2, "internal URL found: " << request->url.getScheme() << "://" << request->url.authority(true) << " (global_internal_static on)");
             request->url.setScheme(AnyP::PROTO_HTTP, "http");
             request->url.host(internalHostname());
             request->url.port(getMyPort());
-            http->flags.internal = true;
+            http->flags.askingForOurInternalResource = true;
             http->setLogUriToRequestUri();
         } else
             debugs(33, 2, "internal URL found: " << request->url.getScheme() << "://" << request->url.authority(true) << " (not this proxy)");
     }
 
-    request->flags.internal = http->flags.internal;
+    request->flags.internalReceived = http->flags.askingForOurInternalResource;
 
     if (!isFtp) {
         // XXX: for non-HTTP messages instantiate a different Http::Message child type
@@ -1811,10 +1807,7 @@ ConnStateData::proxyProtocolValidateClient()
     if (!Config.accessList.proxyProtocol)
         return proxyProtocolError("PROXY client not permitted by default ACL");
 
-    ACLFilledChecklist ch(Config.accessList.proxyProtocol, NULL, clientConnection->rfc931);
-    ch.src_addr = clientConnection->remote;
-    ch.my_addr = clientConnection->local;
-    ch.conn(this);
+    ACLFilledChecklist ch(Config.accessList.proxyProtocol, nullptr, al);
 
     if (!ch.fastCheck().allowed())
         return proxyProtocolError("PROXY client not permitted by ACLs");
@@ -1857,6 +1850,7 @@ ConnStateData::parseProxyProtocolHeader()
         assert(bool(proxyProtocolHeader_));
         inBuf.consume(parsed.size);
         needProxyProtocolHeader_ = false;
+        al->proxyProtocolHeader = proxyProtocolHeader_;
         if (proxyProtocolHeader_->hasForwardedAddresses()) {
             clientConnection->local = proxyProtocolHeader_->destinationAddress;
             clientConnection->remote = proxyProtocolHeader_->sourceAddress;
@@ -2185,6 +2179,7 @@ ConnStateData::ConnStateData(const MasterXaction::Pointer &xact) :
     AsyncJob("ConnStateData"), // kids overwrite
     Server(xact),
     bodyParser(nullptr),
+    masterXaction(xact),
 #if USE_OPENSSL
     sslBumpMode(Ssl::bumpEnd),
 #endif
@@ -2212,8 +2207,15 @@ ConnStateData::ConnStateData(const MasterXaction::Pointer &xact) :
     pinning.peer = NULL;
 
     // store the details required for creating more MasterXaction objects as new requests come in
-    log_addr = xact->tcpClient->remote;
+    log_addr = clientConnection->remote;
     log_addr.applyClientMask(Config.Addrs.client_netmask);
+
+    al = new AccessLogEntry;
+    CodeContext::Reset(al);
+    al->tcpClient = clientConnection;
+    al->cache.start_time = current_time;
+    al->cache.port = port;
+    al->cache.caddr = log_addr;
 
     // register to receive notice of Squid signal events
     // which may affect long persisting client connections
@@ -2267,9 +2269,7 @@ ConnStateData::whenClientIpKnown()
 
 #if USE_IDENT
     if (Ident::TheConfig.identLookup) {
-        ACLFilledChecklist identChecklist(Ident::TheConfig.identLookup, NULL, NULL);
-        identChecklist.src_addr = clientConnection->remote;
-        identChecklist.my_addr = clientConnection->local;
+        ACLFilledChecklist identChecklist(Ident::TheConfig.identLookup, nullptr, al);
         if (identChecklist.fastCheck().allowed())
             Ident::Start(clientConnection, clientIdentDone, this);
     }
@@ -2285,13 +2285,10 @@ ConnStateData::whenClientIpKnown()
 
     const auto &pools = ClientDelayPools::Instance()->pools;
     if (pools.size()) {
-        ACLFilledChecklist ch(NULL, NULL, NULL);
+        ACLFilledChecklist ch(nullptr, nullptr, al);
 
         // TODO: we check early to limit error response bandwith but we
         // should recheck when we can honor delay_pool_uses_indirect
-        // TODO: we should also pass the port details for myportname here.
-        ch.src_addr = clientConnection->remote;
-        ch.my_addr = clientConnection->local;
 
         for (unsigned int pool = 0; pool < pools.size(); ++pool) {
 
@@ -2625,9 +2622,9 @@ ConnStateData::postHttpsAccept()
             return;
         }
 
-        MasterXaction::Pointer mx = new MasterXaction(XactionInitiator::initClient);
-        mx->tcpClient = clientConnection;
-        // Create a fake HTTP request and ALE for the ssl_bump ACL check,
+        Must(pipeline.nrequests == 0);
+        const auto mx = createMasterXaction(nullptr);
+        // Create a fake HTTP request for the ssl_bump ACL check,
         // using tproxy/intercept provided destination IP and port.
         // XXX: Merge with subsequent fakeAConnectRequest(), buildFakeRequest().
         // XXX: Do this earlier (e.g., in Http[s]::One::Server constructor).
@@ -2636,28 +2633,13 @@ ConnStateData::postHttpsAccept()
         assert(clientConnection->flags & (COMM_TRANSPARENT | COMM_INTERCEPTION));
         request->url.host(clientConnection->local.toStr(ip, sizeof(ip)));
         request->url.port(clientConnection->local.port());
-        request->myportname = port->name;
-        const AccessLogEntry::Pointer connectAle = new AccessLogEntry;
-        CodeContext::Reset(connectAle);
+        HTTPMSGUNLOCK(al->request);
+        al->request = request;
+        HTTPMSGLOCK(al->request);
+
         // TODO: Use these request/ALE when waiting for new bumped transactions.
 
-        ACLFilledChecklist *acl_checklist = new ACLFilledChecklist(Config.accessList.ssl_bump, request, NULL);
-        acl_checklist->src_addr = clientConnection->remote;
-        acl_checklist->my_addr = port->s;
-        // Build a local AccessLogEntry to allow requiresAle() acls work
-        acl_checklist->al = connectAle;
-        acl_checklist->al->cache.start_time = current_time;
-        acl_checklist->al->tcpClient = clientConnection;
-        acl_checklist->al->cache.port = port;
-        acl_checklist->al->cache.caddr = log_addr;
-        acl_checklist->al->proxyProtocolHeader = proxyProtocolHeader_;
-        HTTPMSGUNLOCK(acl_checklist->al->request);
-        acl_checklist->al->request = request;
-        HTTPMSGLOCK(acl_checklist->al->request);
-        Http::StreamPointer context = pipeline.front();
-        ClientHttpRequest *http = context ? context->http : nullptr;
-        const char *log_uri = http ? http->log_uri : nullptr;
-        acl_checklist->syncAle(request, log_uri);
+        auto acl_checklist = new ACLFilledChecklist(Config.accessList.ssl_bump, request, al);
         acl_checklist->nonBlockingCheck(httpsSslBumpAccessCheckDone, this);
 #else
         fatal("FATAL: SSL-Bump requires --with-openssl");
@@ -2729,8 +2711,7 @@ void ConnStateData::buildSslCertGenerationParams(Ssl::CertificateProperties &cer
         if (X509 *mimicCert = sslServerBump->serverCert.get())
             certProperties.mimicCert.resetAndLock(mimicCert);
 
-        ACLFilledChecklist checklist(NULL, sslServerBump->request.getRaw(),
-                                     clientConnection != NULL ? clientConnection->rfc931 : dash_str);
+        ACLFilledChecklist checklist(nullptr, sslServerBump->request.getRaw(), al);
         checklist.sslErrors = cbdataReference(sslServerBump->sslErrors());
 
         for (sslproxy_cert_adapt *ca = Config.ssl_client.cert_adapt; ca != NULL; ca = ca->next) {
@@ -3131,8 +3112,7 @@ ConnStateData::startPeekAndSplice()
         sslServerBump->step = XactionStep::tlsBump2;
         // Run a accessList check to check if want to splice or continue bumping
 
-        ACLFilledChecklist *acl_checklist = new ACLFilledChecklist(Config.accessList.ssl_bump, sslServerBump->request.getRaw(), nullptr);
-        acl_checklist->al = http ? http->al : nullptr;
+        auto acl_checklist = new ACLFilledChecklist(Config.accessList.ssl_bump, sslServerBump->request.getRaw(), http ? http->al : nullptr);
         //acl_checklist->src_addr = params.conn->remote;
         //acl_checklist->my_addr = s->s;
         acl_checklist->banAction(Acl::Answer(ACCESS_ALLOWED, Ssl::bumpNone));
@@ -3304,8 +3284,7 @@ ConnStateData::buildFakeRequest(Http::MethodType const method, SBuf &useHost, un
 
     stream->registerWithConn();
 
-    MasterXaction::Pointer mx = new MasterXaction(XactionInitiator::initClient);
-    mx->tcpClient = clientConnection;
+    const auto mx = createMasterXaction(nullptr);
     // Setup Http::Request object. Maybe should be replaced by a call to (modified)
     // clientProcessRequest
     HttpRequest::Pointer request = new HttpRequest(mx);
@@ -3318,7 +3297,7 @@ ConnStateData::buildFakeRequest(Http::MethodType const method, SBuf &useHost, un
     http->uri = SBufToCstring(request->effectiveRequestUri());
     http->initRequest(request.getRaw());
 
-    request->manager(this, http->al);
+    request->setInterceptionFlags(http->al);
 
     if (proto == AnyP::PROTO_HTTP)
         request->header.putStr(Http::HOST, useHost.c_str());
@@ -3333,6 +3312,12 @@ ConnStateData::buildFakeRequest(Http::MethodType const method, SBuf &useHost, un
     flags.readMore = false;
 
     return http;
+}
+
+MasterXaction::Pointer
+ConnStateData::createMasterXaction(const Http::Stream *stream)
+{
+    return firstTransaction(stream) ? masterXaction : new MasterXaction(XactionInitiator::initClient, this);
 }
 
 /// check FD after clientHttp[s]ConnectionOpened, adjust HttpSockets as needed
@@ -3582,7 +3567,7 @@ varyEvaluateMatch(StoreEntry * entry, HttpRequest * request)
 ACLFilledChecklist *
 clientAclChecklistCreate(const acl_access * acl, ClientHttpRequest * http)
 {
-    const auto checklist = new ACLFilledChecklist(acl, nullptr, nullptr);
+    const auto checklist = new ACLFilledChecklist(acl, nullptr, http->al);
     clientAclChecklistFill(*checklist, http);
     return checklist;
 }
@@ -3591,7 +3576,6 @@ void
 clientAclChecklistFill(ACLFilledChecklist &checklist, ClientHttpRequest *http)
 {
     checklist.setRequest(http->request);
-    checklist.al = http->al;
     checklist.syncAle(http->request, http->log_uri);
 
     // TODO: If http->getConn is always http->request->clientConnectionManager,
@@ -3958,7 +3942,7 @@ ConnStateData::borrowPinnedConnection(HttpRequest *request, const AccessLogEntry
 Comm::ConnectionPointer
 ConnStateData::BorrowPinnedConnection(HttpRequest *request, const AccessLogEntryPointer &ale)
 {
-    if (const auto connManager = request ? request->pinnedConnection() : nullptr)
+    if (const auto connManager = ale->pinnedConnection())
         return connManager->borrowPinnedConnection(request, ale);
 
     // ERR_CANNOT_FORWARD is somewhat misleading here; we can still forward, but

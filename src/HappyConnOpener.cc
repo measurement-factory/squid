@@ -547,7 +547,7 @@ HappyConnOpener::openFreshConnection(Attempt &attempt, Comm::ConnectionPointer &
     entry->mem_obj->checkUrlChecksum();
 #endif
 
-    GetMarkingsToServer(cause.getRaw(), *dest);
+    GetMarkingsToServer(cause.getRaw(), *dest, ale);
 
     // ConnOpener modifies its destination argument so we reset the source port
     // in case we are reusing the destination already used by our predecessor.

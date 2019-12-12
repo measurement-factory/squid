@@ -11,11 +11,14 @@
 
 #include "anyp/forward.h"
 #include "anyp/PortCfg.h"
+#include "base/CbcPointer.h"
 #include "base/InstanceId.h"
 #include "base/Lock.h"
 #include "base/RefCount.h"
 #include "comm/forward.h"
 #include "XactionInitiator.h"
+
+class ConnStateData;
 
 /** Master transaction details.
  *
@@ -41,7 +44,21 @@ class MasterXaction : public RefCountable
 public:
     typedef RefCount<MasterXaction> Pointer;
 
-    explicit MasterXaction(const XactionInitiator anInitiator) : initiator(anInitiator) {};
+    // Creators must call the first constructor they can call (with a non-nil
+    // pointer). Following this rule maximizes stored information.
+    MasterXaction(const XactionInitiator, ConnStateData *);
+    MasterXaction(const XactionInitiator, Comm::ConnectionPointer);
+    explicit MasterXaction(const XactionInitiator anInitiator) : initiator(anInitiator) {}
+
+    /// the client connection of the transaction, if any
+    Comm::ConnectionPointer clientConnection();
+
+    /// the client connection manager of the transaction, if any
+    CbcPointer<ConnStateData> &clientConnectionManager() { return clientConnectionManager_; }
+
+    /// Initializes the client connection manager and the client connection with non-nil values.
+    /// Has no effect if the client connection manager has been already initialized.
+    void setClientConnectionManager(ConnStateData *);
 
     /// transaction ID.
     InstanceId<MasterXaction, uint64_t> id;
@@ -49,14 +66,19 @@ public:
     /// the listening port which originated this transaction
     AnyP::PortCfgPointer squidPort;
 
-    /// the client TCP connection which originated this transaction
-    Comm::ConnectionPointer tcpClient;
-
     /// the initiator of this transaction
     XactionInitiator initiator;
 
     /// whether we are currently creating a CONNECT header (to be sent to peer)
     bool generatingConnect = false;
+
+private:
+
+    /// the client connection manager, if any
+    CbcPointer<ConnStateData> clientConnectionManager_;
+
+    /// the client TCP connection which originated this transaction
+    Comm::ConnectionPointer clientConnection_;
 
     // TODO: add state from other Jobs in the transaction
 };

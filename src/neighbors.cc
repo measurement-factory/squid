@@ -166,8 +166,7 @@ peerAllowedToUse(const CachePeer * p, PeerSelector * ps)
     if (p->access == NULL)
         return true;
 
-    ACLFilledChecklist checklist(p->access, request, NULL);
-    checklist.al = ps->al;
+    ACLFilledChecklist checklist(p->access, request, ps->al);
     if (ps->al && ps->al->reply) {
         checklist.reply = ps->al->reply.getRaw();
         HTTPMSGLOCK(checklist.reply);
@@ -1344,7 +1343,7 @@ peerProbeConnect(CachePeer *p, const bool reprobeIfBusy)
         conn->remote = p->addresses[i];
         conn->remote.port(p->http_port);
         conn->setPeer(p);
-        getOutgoingAddress(NULL, conn);
+        getOutgoingAddress(nullptr, conn, nullptr);
 
         ++ p->testing_now;
 

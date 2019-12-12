@@ -24,8 +24,8 @@ class ICP3State: public ICPState
 {
 
 public:
-    ICP3State(icp_common_t &aHeader, HttpRequest *aRequest) :
-        ICPState(aHeader, aRequest) {}
+    ICP3State(icp_common_t &aHeader, HttpRequest *aRequest, const AccessLogEntryPointer &ale) :
+        ICPState(aHeader, aRequest, ale) {}
 
     ~ICP3State();
     void created (StoreEntry *newEntry);
@@ -42,14 +42,16 @@ doV3Query(int fd, Ip::Address &from, char *buf, icp_common_t header)
     if (!icp_request)
         return;
 
-    if (!icpAccessAllowed(from, icp_request)) {
+    AccessLogEntryPointer al;
+
+    if (!icpAccessAllowed(from, icp_request, url, al)) {
         icpDenyAccess (from, url, header.reqnum, fd);
         delete icp_request;
         return;
     }
 
     /* The peer is allowed to use this cache */
-    ICP3State *state = new ICP3State (header, icp_request);
+    auto state = new ICP3State(header, icp_request, al);
     state->fd = fd;
     state->from = from;
     state->url = xstrdup(url);

@@ -19,7 +19,7 @@ icp_common_t::icp_common_t(char *buf, unsigned int len) STUB
 void icp_common_t::handleReply(char *buf, Ip::Address &from) STUB
 icp_common_t *icp_common_t::CreateMessage(icp_opcode opcode, int flags, const char *url, int reqnum, int pad) STUB_RETVAL(nullptr)
 icp_opcode icp_common_t::getOpCode() const STUB_RETVAL(ICP_INVALID)
-ICPState::ICPState(icp_common_t &aHeader, HttpRequest *aRequest) STUB
+ICPState::ICPState(icp_common_t &aHeader, HttpRequest *aRequest, const AccessLogEntryPointer &) STUB
 ICPState::~ICPState() STUB
 bool ICPState::confirmAndPrepHit(const StoreEntry &) STUB_RETVAL(false)
 LogTags *ICPState::loggingTags() STUB_RETVAL(nullptr)

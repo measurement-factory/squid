@@ -42,7 +42,7 @@ int
 Acl::ConnMark::match(ACLChecklist *cl)
 {
     const auto *checklist = Filled(cl);
-    const auto conn = checklist->conn();
+    const auto conn = checklist->clientConnectionManager();
 
     if (conn && conn->clientConnection) {
         const auto connmark = conn->clientConnection->nfConnmark;

@@ -32,7 +32,7 @@ Ftp::ParseIpPort(const char *buf, const char *forceIp, Ip::Address &addr)
         snprintf(ipBuf, sizeof(ipBuf), "%d.%d.%d.%d", h1, h2, h3, h4);
         addr = ipBuf;
 
-        if (addr.isAnyAddr())
+        if (!addr.isKnown())
             return false;
     }
 
@@ -68,7 +68,7 @@ Ftp::ParseProtoIpPort(const char *buf, Ip::Address &addr)
     ip[e - s] = '\0';
     addr = ip;
 
-    if (addr.isAnyAddr())
+    if (!addr.isKnown())
         return false;
 
     if ((proto == 2) != addr.isIPv6()) // proto ID mismatches address version

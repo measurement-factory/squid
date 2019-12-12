@@ -126,7 +126,7 @@ public:
      */
     bool valid() const;
 
-    virtual void authenticate(HttpRequest * request, ConnStateData * conn, Http::HdrType type) = 0;
+    virtual void authenticate(HttpRequest * request, ConnStateData * conn, Http::HdrType type, AccessLogEntry::Pointer &) = 0;
 
     /* template method - what needs to be done next? advertise schemes, challenge, handle error, nothing? */
     virtual Direction module_direction() = 0;
@@ -162,10 +162,10 @@ public:
      *
      * \return Some AUTH_ACL_* state
      */
-    static AuthAclState tryToAuthenticateAndSetAuthUser(UserRequest::Pointer *aUR, Http::HdrType, HttpRequest *, ConnStateData *, Ip::Address &, AccessLogEntry::Pointer &);
+    static AuthAclState tryToAuthenticateAndSetAuthUser(UserRequest::Pointer *aUR, Http::HdrType, HttpRequest *, ConnStateData *, const Ip::Address &, AccessLogEntry::Pointer &);
 
     /// Add the appropriate [Proxy-]Authenticate header to the given reply
-    static void AddReplyAuthHeader(HttpReply * rep, UserRequest::Pointer auth_user_request, HttpRequest * request, int accelerated, int internal);
+    static void AddReplyAuthHeader(HttpReply * rep, UserRequest::Pointer auth_user_request, HttpRequest * request, int accelerated, int internal, const AccessLogEntryPointer &);
 
     /** Start an asynchronous helper lookup to verify the user credentials
      *
@@ -221,7 +221,7 @@ protected:
 
 private:
 
-    static AuthAclState authenticate(UserRequest::Pointer * auth_user_request, Http::HdrType headertype, HttpRequest * request, ConnStateData * conn, Ip::Address &src_addr, AccessLogEntry::Pointer &al);
+    static AuthAclState authenticate(UserRequest::Pointer * auth_user_request, Http::HdrType headertype, HttpRequest * request, ConnStateData * conn, const Ip::Address &src_addr, AccessLogEntry::Pointer &al);
 
     /** return a message on the 407 error pages */
     char *message;

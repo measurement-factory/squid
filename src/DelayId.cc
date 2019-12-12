@@ -71,8 +71,8 @@ DelayId::DelayClient(ClientHttpRequest * http, HttpReply *reply)
     assert(http);
     r = http->request;
 
-    if (r->client_addr.isNoAddr()) {
-        debugs(77, 2, "delayClient: WARNING: Called with 'NO_ADDR' address, ignoring");
+    if (!http->al->clientAddr().isKnown()) {
+        debugs(77, 2, "called with unknown address, ignoring");
         return DelayId();
     }
 
@@ -85,27 +85,24 @@ DelayId::DelayClient(ClientHttpRequest * http, HttpReply *reply)
             continue;
         }
 
-        ACLFilledChecklist ch(DelayPools::delay_data[pool].access, r, NULL);
+        ACLFilledChecklist ch(DelayPools::delay_data[pool].access, r, http->al);
+        ch.syncAle(r, http->log_uri);
         if (reply) {
             ch.reply = reply;
             HTTPMSGLOCK(reply);
         }
 #if FOLLOW_X_FORWARDED_FOR
         if (Config.onoff.delay_pool_uses_indirect_client)
-            ch.src_addr = r->indirect_client_addr;
+            ch.preferIndirectAddr();
         else
 #endif /* FOLLOW_X_FORWARDED_FOR */
-            ch.src_addr = r->client_addr;
-        ch.my_addr = r->my_addr;
-
-        if (http->getConn() != NULL)
-            ch.conn(http->getConn());
+            ch.forceDirectAddr();
 
         if (DelayPools::delay_data[pool].theComposite().getRaw() && ch.fastCheck().allowed()) {
 
             DelayId result (pool + 1);
             CompositePoolNode::CompositeSelectionDetails details;
-            details.src_addr = ch.src_addr;
+            details.src_addr = ch.clientAddr();
 #if USE_AUTH
             details.user = r->auth_user_request;
 #endif

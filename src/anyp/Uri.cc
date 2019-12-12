@@ -49,7 +49,7 @@ AnyP::Uri::host(const char *src)
 {
     hostAddr_.setEmpty();
     hostAddr_ = src;
-    if (hostAddr_.isAnyAddr()) {
+    if (!hostAddr_.isKnown()) {
         xstrncpy(host_, src, sizeof(host_));
         hostIsNumeric_ = false;
     } else {

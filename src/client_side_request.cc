@@ -84,7 +84,7 @@ static const char *const crlf = "\r\n";
 static void clientFollowXForwardedForCheck(Acl::Answer answer, void *data);
 #endif /* FOLLOW_X_FORWARDED_FOR */
 
-ErrorState *clientBuildError(err_type, Http::StatusCode, char const *url, Ip::Address &, HttpRequest *, const AccessLogEntry::Pointer &);
+ErrorState *clientBuildError(err_type, Http::StatusCode, char const *url, const Ip::Address &, HttpRequest *, const AccessLogEntry::Pointer &);
 
 CBDATA_CLASS_INIT(ClientRequestContext);
 
@@ -167,22 +167,27 @@ ClientHttpRequest::ClientHttpRequest(ConnStateData * aConn) :
 #endif
 {
     setConn(aConn);
-    al = new AccessLogEntry;
-    CodeContext::Reset(al);
-    al->cache.start_time = current_time;
-    if (aConn) {
-        al->tcpClient = clientConnection = aConn->clientConnection;
-        al->cache.port = aConn->port;
-        al->cache.caddr = aConn->log_addr;
-        al->proxyProtocolHeader = aConn->proxyProtocolHeader();
+    if (conn_ && (conn_->pipeline.nrequests == 0)) {
+        al = conn_->al;
+    } else {
+        al = new AccessLogEntry;
+        CodeContext::Reset(al);
+        al->cache.start_time = current_time;
+        if (conn_) {
+            al->setClientConnectionManager(conn_);
+            al->tcpClient = clientConnection = conn_->clientConnection;
+            al->cache.port = conn_->port;
+            al->cache.caddr = conn_->log_addr;
+            al->proxyProtocolHeader = conn_->proxyProtocolHeader();
+        }
+    }
 
 #if USE_OPENSSL
-        if (aConn->clientConnection != NULL && aConn->clientConnection->isOpen()) {
-            if (auto ssl = fd_table[aConn->clientConnection->fd].ssl.get())
-                al->cache.sslClientCert.resetWithoutLocking(SSL_get_peer_certificate(ssl));
-        }
-#endif
+    if (clientConnection && clientConnection->isOpen()) {
+        if (auto ssl = fd_table[clientConnection->fd].ssl.get())
+            al->cache.sslClientCert.resetWithoutLocking(SSL_get_peer_certificate(ssl));
     }
+#endif
     dlinkAdd(this, &active, &ClientActiveRequests);
 }
 
@@ -328,8 +333,6 @@ clientBeginRequest(const HttpRequestMethod& method, char const *url, CSCB * stre
     ClientHttpRequest *http = new ClientHttpRequest(NULL);
     HttpRequest *request;
     StoreIOBuffer tempBuffer;
-    if (http->al != NULL)
-        http->al->cache.start_time = current_time;
     /* this is only used to adjust the connection offset in client_side.c */
     http->req_sz = 0;
     tempBuffer.length = taillen;
@@ -376,21 +379,6 @@ clientBeginRequest(const HttpRequestMethod& method, char const *url, CSCB * stre
      * FIXME? Do we want to detect and handle internal requests of internal
      * objects ?
      */
-
-    /* Internally created requests cannot have bodies today */
-    request->content_length = 0;
-
-    request->client_addr.setNoAddr();
-
-#if FOLLOW_X_FORWARDED_FOR
-    request->indirect_client_addr.setNoAddr();
-#endif /* FOLLOW_X_FORWARDED_FOR */
-
-    request->my_addr.setNoAddr();   /* undefined for internal requests */
-
-    request->my_addr.port(0);
-
-    request->http_ver = Http::ProtocolVersion();
 
     http->initRequest(request);
 
@@ -481,13 +469,11 @@ clientFollowXForwardedForCheck(Acl::Answer answer, void *data)
             --l;
         asciiaddr = p+l;
         if ((addr = asciiaddr)) {
-            request->indirect_client_addr = addr;
+            http->al->indirectClientAddr(addr);
             request->x_forwarded_for_iterator.cut(l);
             calloutContext->acl_checklist = clientAclChecklistCreate(Config.accessList.followXFF, http);
-            if (!Config.onoff.acl_uses_indirect_client) {
-                /* override the default src_addr tested if we have to go deeper than one level into XFF */
-                Filled(calloutContext->acl_checklist)->src_addr = request->indirect_client_addr;
-            }
+            /* override the default src_addr tested if we have to go deeper than one level into XFF */
+            Filled(calloutContext->acl_checklist)->preferIndirectAddr();
             calloutContext->acl_checklist->nonBlockingCheck(clientFollowXForwardedForCheck, data);
             return;
         }
@@ -499,15 +485,15 @@ clientFollowXForwardedForCheck(Acl::Answer answer, void *data)
         * Ensure that the access log shows the indirect client
         * instead of the direct client.
         */
-        http->al->cache.caddr = request->indirect_client_addr;
+        http->al->cache.caddr = http->al->furthestClientAddress();
         if (ConnStateData *conn = http->getConn())
-            conn->log_addr = request->indirect_client_addr;
+            conn->log_addr = http->al->furthestClientAddress();
     }
     request->x_forwarded_for_iterator.clean();
     request->flags.done_follow_x_forwarded_for = true;
 
     if (answer.conflicted()) {
-        debugs(28, DBG_CRITICAL, "ERROR: Processing X-Forwarded-For. Stopping at IP address: " << request->indirect_client_addr );
+        debugs(28, DBG_CRITICAL, "ERROR: Processing X-Forwarded-For. Stopping at IP address: " << http->al->furthestClientAddress());
     }
 
     /* process actual access ACL as normal. */
@@ -599,7 +585,7 @@ ClientRequestContext::hostHeaderVerify()
         return;
     }
 
-    if (http->request->flags.internal) {
+    if (http->request->flags.internalReceived) {
         // TODO: kill this when URL handling allows partial URLs out of accel mode
         //       and we no longer screw with the URL just to add our internal host there
         debugs(85, 6, HERE << "validate skipped due to internal composite URL.");
@@ -689,8 +675,7 @@ ClientRequestContext::clientAccessCheck()
             http->request->header.has(Http::HdrType::X_FORWARDED_FOR)) {
 
         /* we always trust the direct client address for actual use */
-        http->request->indirect_client_addr = http->request->client_addr;
-        http->request->indirect_client_addr.port(0);
+        http->al->ignoreIndirectClientAddr();
 
         /* setup the XFF iterator for processing */
         http->request->x_forwarded_for_iterator = http->request->header.getList(Http::HdrType::X_FORWARDED_FOR);
@@ -805,11 +790,9 @@ ClientRequestContext::clientAccessCheckDone(const Acl::Answer &answer)
                 page_id = ERR_ACCESS_DENIED;
         }
 
-        Ip::Address tmpnoaddr;
-        tmpnoaddr.setNoAddr();
         error = clientBuildError(page_id, status,
                                  NULL,
-                                 http->getConn() != NULL ? http->getConn()->clientConnection->remote : tmpnoaddr,
+                                 http->clientAddrOnError(),
                                  http->request, http->al
                                 );
 
@@ -994,7 +977,7 @@ clientCheckPinning(ClientHttpRequest * http)
                 request->flags.connectionProxyAuth = true;
             }
             // These should already be linked correctly.
-            assert(request->clientConnectionManager == http_conn);
+            assert(http->al->clientConnectionManager() == http_conn);
         }
     }
 
@@ -1026,9 +1009,9 @@ clientCheckPinning(ClientHttpRequest * http)
                     }
                 }
             }
-            if (may_pin && !request->pinnedConnection()) {
+            if (may_pin && !http->al->pinnedConnection()) {
                 // These should already be linked correctly. Just need the ServerConnection to pinn.
-                assert(request->clientConnectionManager == http_conn);
+                assert(http->al->clientConnectionManager() == http_conn);
             }
         }
     }
@@ -1206,7 +1189,7 @@ ClientRequestContext::clientRedirectDone(const Helper::Reply &reply)
     if (http->al)
         http->al->syncNotes(old_request);
 
-    UpdateRequestNotes(http->getConn(), *old_request, reply.notes);
+    UpdateRequestNotes(*old_request, reply.notes);
 
     switch (reply.result) {
     case Helper::TimedOut:
@@ -1324,7 +1307,7 @@ ClientRequestContext::clientStoreIdDone(const Helper::Reply &reply)
     if (http->al)
         http->al->syncNotes(old_request);
 
-    UpdateRequestNotes(http->getConn(), *old_request, reply.notes);
+    UpdateRequestNotes(*old_request, reply.notes);
 
     switch (reply.result) {
     case Helper::Unknown:
@@ -1703,6 +1686,15 @@ ClientHttpRequest::clearRequest()
     absorbLogUri(nullptr);
 }
 
+const Ip::Address&
+ClientHttpRequest::clientAddrOnError() const
+{
+    if (const auto conn = getConn())
+        if (conn->clientConnection)
+            return conn->clientConnection->remote;
+    return Ip::Address::Empty();
+}
+
 /*
  * doCallouts() - This function controls the order of "callout"
  * executions, including non-blocking access control checks, the
@@ -1817,10 +1809,7 @@ ClientHttpRequest::doCallouts()
 
     // Set appropriate MARKs and CONNMARKs if needed.
     if (getConn() && Comm::IsConnOpen(getConn()->clientConnection)) {
-        ACLFilledChecklist ch(nullptr, request, nullptr);
-        ch.al = calloutContext->http->al;
-        ch.src_addr = request->client_addr;
-        ch.my_addr = request->my_addr;
+        ACLFilledChecklist ch(nullptr, request, calloutContext->http->al);
         ch.syncAle(request, log_uri);
 
         if (!calloutContext->toClientMarkingDone) {
@@ -2179,12 +2168,10 @@ ClientHttpRequest::calloutsError(const err_type error, const int errDetail)
     // setReplyToError, but it seems unlikely that the errno reflects the
     // true cause of the error at this point, so I did not pass it.
     if (calloutContext) {
-        Ip::Address noAddr;
-        noAddr.setNoAddr();
         ConnStateData * c = getConn();
         calloutContext->error = clientBuildError(error, Http::scInternalServerError,
                                 NULL,
-                                c != NULL ? c->clientConnection->remote : noAddr,
+                                clientAddrOnError(),
                                 request,
                                 al
                                                 );
@@ -2199,4 +2186,3 @@ ClientHttpRequest::calloutsError(const err_type error, const int errDetail)
     }
     //else if(calloutContext == NULL) is it possible?
 }
-

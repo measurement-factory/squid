@@ -53,7 +53,7 @@ CBDATA_CLASS_INIT(clientReplyContext);
 
 /* Local functions */
 extern "C" CSS clientReplyStatus;
-ErrorState *clientBuildError(err_type, Http::StatusCode, char const *, Ip::Address &, HttpRequest *, const AccessLogEntry::Pointer &);
+ErrorState *clientBuildError(err_type, Http::StatusCode, char const *, const Ip::Address &, HttpRequest *, const AccessLogEntry::Pointer &);
 
 /* privates */
 
@@ -103,7 +103,7 @@ clientReplyContext::clientReplyContext(ClientHttpRequest *clientContext) :
 void
 clientReplyContext::setReplyToError(
     err_type err, Http::StatusCode status, const HttpRequestMethod& method, char const *uri,
-    Ip::Address &addr, HttpRequest * failedrequest, const char *unparsedrequest,
+    const Ip::Address &addr, HttpRequest *failedrequest, const char *unparsedrequest,
 #if USE_AUTH
     Auth::UserRequest::Pointer auth_user_request
 #else
@@ -350,7 +350,7 @@ clientReplyContext::processExpired()
     debugs(88, 5, "lastmod " << entry->lastModified());
     http->storeEntry(entry);
     assert(http->out.offset == 0);
-    assert(http->request->clientConnectionManager == http->getConn());
+    assert(http->al->clientConnectionManager() == http->getConn());
 
     if (collapsedRevalidation != crSlave) {
         /*
@@ -647,7 +647,7 @@ clientReplyContext::cacheHit(StoreIOBuffer result)
         http->logType.update(LOG_TCP_MISS);
         processMiss();
         return;
-    } else if (!http->flags.internal && refreshCheckHTTP(e, r)) {
+    } else if (!http->flags.askingForOurInternalResource && refreshCheckHTTP(e, r)) {
         debugs(88, 5, "clientCacheHit: in refreshCheck() block");
         /*
          * We hold a stale copy; it needs to be validated
@@ -765,9 +765,7 @@ clientReplyContext::processMiss()
     /// Deny loops
     if (r->flags.loopDetected) {
         http->al->http.code = Http::scForbidden;
-        Ip::Address tmp_noaddr;
-        tmp_noaddr.setNoAddr();
-        err = clientBuildError(ERR_ACCESS_DENIED, Http::scForbidden, nullptr, conn ? conn->remote : tmp_noaddr, http->request, http->al);
+        err = clientBuildError(ERR_ACCESS_DENIED, Http::scForbidden, nullptr, http->clientAddrOnError(), http->request, http->al);
         createStoreEntry(r->method, RequestFlags());
         errorAppendEntry(http->storeEntry(), err);
         triggerInitialStoreRead();
@@ -787,7 +785,7 @@ clientReplyContext::processMiss()
             return;
         }
 
-        assert(r->clientConnectionManager == http->getConn());
+        assert(http->al->clientConnectionManager() == http->getConn());
 
         /** Start forwarding to get the new object from network */
         FwdState::Start(conn, http->storeEntry(), r, http->al);
@@ -805,11 +803,8 @@ clientReplyContext::processOnlyIfCachedMiss()
 {
     debugs(88, 4, http->request->method << ' ' << http->uri);
     http->al->http.code = Http::scGatewayTimeout;
-    Ip::Address tmp_noaddr;
-    tmp_noaddr.setNoAddr();
     ErrorState *err = clientBuildError(ERR_ONLY_IF_CACHED_MISS, Http::scGatewayTimeout, NULL,
-                                       http->getConn() ? http->getConn()->clientConnection->remote : tmp_noaddr,
-                                       http->request, http->al);
+                                       http->clientAddrOnError(), http->request, http->al);
     removeClientStoreReference(&sc, http);
     startError(err);
 }
@@ -875,7 +870,7 @@ clientReplyContext::blockedHit() const
     if (!Config.accessList.sendHit)
         return false; // hits are not blocked by default
 
-    if (http->flags.internal)
+    if (http->flags.askingForOurInternalResource)
         return false; // internal content "hits" cannot be blocked
 
     const auto &rep = http->storeEntry()->mem().freshestReply();
@@ -978,11 +973,8 @@ clientReplyContext::purgeFoundObject(StoreEntry *entry)
 
     if (EBIT_TEST(entry->flags, ENTRY_SPECIAL)) {
         http->logType.update(LOG_TCP_DENIED);
-        Ip::Address tmp_noaddr;
-        tmp_noaddr.setNoAddr(); // TODO: make a global const
         ErrorState *err = clientBuildError(ERR_ACCESS_DENIED, Http::scForbidden, NULL,
-                                           http->getConn() ? http->getConn()->clientConnection->remote : tmp_noaddr,
-                                           http->request, http->al);
+                                           http->clientAddrOnError(), http->request, http->al);
         startError(err);
         return; // XXX: leaking unused entry if some store does not keep it
     }
@@ -1019,10 +1011,8 @@ clientReplyContext::purgeRequest()
 
     if (!Config2.onoff.enable_purge) {
         http->logType.update(LOG_TCP_DENIED);
-        Ip::Address tmp_noaddr;
-        tmp_noaddr.setNoAddr();
         ErrorState *err = clientBuildError(ERR_ACCESS_DENIED, Http::scForbidden, NULL,
-                                           http->getConn() ? http->getConn()->clientConnection->remote : tmp_noaddr, http->request, http->al);
+                                           http->clientAddrOnError(), http->request, http->al);
         startError(err);
         return;
     }
@@ -1333,7 +1323,7 @@ clientReplyContext::replyStatus()
     }
 
     // XXX: Should this be checked earlier? We could return above w/o checking.
-    if (reply->receivedBodyTooLarge(*http->request, http->out.offset - 4096)) {
+    if (reply->receivedBodyTooLarge(*http->request, http->out.offset - 4096, http->al)) {
         /* 4096 is a margin for the HTTP headers included in out.offset */
         debugs(88, 5, "clientReplyStatus: client reply body is too large");
         return STREAM_FAILED;
@@ -1553,9 +1543,9 @@ clientReplyContext::buildReplyHeader()
          * data on 407/401 responses, and do not check the accel state on 401/407
          * responses
          */
-        Auth::UserRequest::AddReplyAuthHeader(reply, request->auth_user_request, request, 0, 1);
+        Auth::UserRequest::AddReplyAuthHeader(reply, request->auth_user_request, request, 0, 1, http->al);
     } else if (request->auth_user_request != NULL)
-        Auth::UserRequest::AddReplyAuthHeader(reply, request->auth_user_request, request, http->flags.accel, 0);
+        Auth::UserRequest::AddReplyAuthHeader(reply, request->auth_user_request, request, http->flags.accel, 0, http->al);
 #endif
 
     /* Append X-Cache */
@@ -1597,7 +1587,7 @@ clientReplyContext::buildReplyHeader()
         // We do not really have to close, but we pretend we are a tunnel.
         debugs(88, 3, "clientBuildReplyHeader: bumped reply forces close");
         request->flags.proxyKeepalive = false;
-    } else if (request->pinnedConnection() && !reply->persistent()) {
+    } else if (http->al->pinnedConnection() && !reply->persistent()) {
         // The peer wants to close the pinned connection
         debugs(88, 3, "pinned reply forces close");
         request->flags.proxyKeepalive = false;
@@ -1688,7 +1678,7 @@ clientReplyContext::identifyStoreObject()
 
     // client sent CC:no-cache or some other condition has been
     // encountered which prevents delivering a public/cached object.
-    if (!r->flags.noCache || r->flags.internal) {
+    if (!r->flags.noCache || r->flags.internalReceived) {
         lookingforstore = 5;
         StoreEntry::getPublicByRequest (this, r);
     } else {
@@ -1966,12 +1956,9 @@ clientReplyContext::next() const
 void
 clientReplyContext::sendBodyTooLargeError()
 {
-    Ip::Address tmp_noaddr;
-    tmp_noaddr.setNoAddr(); // TODO: make a global const
     http->logType.update(LOG_TCP_DENIED_REPLY);
     ErrorState *err = clientBuildError(ERR_TOO_BIG, Http::scForbidden, NULL,
-                                       http->getConn() != NULL ? http->getConn()->clientConnection->remote : tmp_noaddr,
-                                       http->request, http->al);
+                                       http->clientAddrOnError(), http->request, http->al);
     removeClientStoreReference(&(sc), http);
     HTTPMSGUNLOCK(reply);
     startError(err);
@@ -1983,11 +1970,9 @@ void
 clientReplyContext::sendPreconditionFailedError()
 {
     http->logType.update(LOG_TCP_HIT);
-    Ip::Address tmp_noaddr;
-    tmp_noaddr.setNoAddr();
     ErrorState *const err =
         clientBuildError(ERR_PRECONDITION_FAILED, Http::scPreconditionFailed,
-                         NULL, http->getConn() ? http->getConn()->clientConnection->remote : tmp_noaddr, http->request, http->al);
+                         NULL, http->clientAddrOnError(), http->request, http->al);
     removeClientStoreReference(&sc, http);
     HTTPMSGUNLOCK(reply);
     startError(err);
@@ -2051,7 +2036,7 @@ clientReplyContext::processReplyAccess ()
     }
 
     /** Check for reply to big error */
-    if (reply->expectedBodyTooLarge(*http->request)) {
+    if (reply->expectedBodyTooLarge(*http->request, http->al)) {
         sendBodyTooLargeError();
         return;
     }
@@ -2096,11 +2081,8 @@ clientReplyContext::processReplyAccessResult(const Acl::Answer &accessAllowed)
         if (page_id == ERR_NONE)
             page_id = ERR_ACCESS_DENIED;
 
-        Ip::Address tmp_noaddr;
-        tmp_noaddr.setNoAddr();
         err = clientBuildError(page_id, Http::scForbidden, NULL,
-                               http->getConn() != NULL ? http->getConn()->clientConnection->remote : tmp_noaddr,
-                               http->request, http->al);
+                               http->clientAddrOnError(), http->request, http->al);
 
         removeClientStoreReference(&sc, http);
 
@@ -2280,7 +2262,9 @@ clientReplyContext::createStoreEntry(const HttpRequestMethod& m, RequestFlags re
      */
 
     if (http->request == NULL) {
-        const MasterXaction::Pointer mx = new MasterXaction(XactionInitiator::initClient);
+        const MasterXaction::Pointer mx = http->getConn() ?
+            http->getConn()->createMasterXaction(http->getConn()->pipeline.front().getRaw()) :
+            new MasterXaction(XactionInitiator::initClient, http->getConn());
         // XXX: These fake URI parameters shadow the real (or error:...) URI.
         // TODO: Either always set the request earlier and assert here OR use
         // http->uri (converted to Anyp::Uri) to create this catch-all request.
@@ -2331,7 +2315,7 @@ clientReplyContext::createStoreEntry(const HttpRequestMethod& m, RequestFlags re
 
 ErrorState *
 clientBuildError(err_type page_id, Http::StatusCode status, char const *url,
-                 Ip::Address &src_addr, HttpRequest * request, const AccessLogEntry::Pointer &al)
+                 const Ip::Address &src_addr, HttpRequest *request, const AccessLogEntry::Pointer &al)
 {
     const auto err = new ErrorState(page_id, status, request, al);
     err->src_addr = src_addr;

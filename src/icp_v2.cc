@@ -72,8 +72,8 @@ static LogTags_ot icpLogFromICPCode(icp_opcode);
 
 static int icpUdpSend(int fd, const Ip::Address &to, icp_common_t * msg, int delay, AccessLogEntryPointer al);
 
-static void
-icpSyncAle(AccessLogEntryPointer &al, const Ip::Address &caddr, const char *url, int len, int delay)
+void
+ICPState::SyncAle(AccessLogEntryPointer &al, const Ip::Address &caddr, const char *url, int len, int delay)
 {
     if (!al)
         al = new AccessLogEntry();
@@ -87,6 +87,8 @@ icpSyncAle(AccessLogEntryPointer &al, const Ip::Address &caddr, const char *url,
     al->cache.start_time.tv_sec -= delay;
     al->cache.trTime.tv_sec = delay;
     al->cache.trTime.tv_usec = 0;
+    al->setClientAddr(caddr);
+    al->setMyAddr(icpIncomingConn->local);
 }
 
 /**
@@ -139,12 +141,14 @@ icp_common_t::getOpCode() const
 
 /* ICPState */
 
-ICPState::ICPState(icp_common_t &aHeader, HttpRequest *aRequest):
+ICPState::ICPState(icp_common_t &aHeader, HttpRequest *aRequest, const AccessLogEntryPointer &ale):
     header(aHeader),
     request(aRequest),
     fd(-1),
-    url(NULL)
+    url(nullptr),
+    al(ale)
 {
+    assert(al); // created already in icpAccessAllowed()
     HTTPMSGLOCK(request);
 }
 
@@ -172,9 +176,7 @@ ICPState::confirmAndPrepHit(const StoreEntry &e)
 LogTags *
 ICPState::loggingTags()
 {
-    // calling icpSyncAle(LOG_TAG_NONE) here would not change cache.code
-    if (!al)
-        al = new AccessLogEntry();
+    // calling SyncAle(LOG_TAG_NONE) here would not change cache.code
     return &al->cache.code;
 }
 
@@ -182,8 +184,7 @@ void
 ICPState::fillChecklist(ACLFilledChecklist &checklist) const
 {
     checklist.setRequest(request);
-    icpSyncAle(al, from, url, 0, 0);
-    checklist.al = al;
+    SyncAle(al, from, url, 0, 0);
 }
 
 /* End ICPState */
@@ -195,8 +196,8 @@ class ICP2State: public ICPState
 {
 
 public:
-    ICP2State(icp_common_t & aHeader, HttpRequest *aRequest):
-        ICPState(aHeader, aRequest),rtt(0),src_rtt(0),flags(0) {}
+    ICP2State(icp_common_t &aHeader, HttpRequest *aRequest, const AccessLogEntryPointer &ale):
+        ICPState(aHeader, aRequest, ale), rtt(0), src_rtt(0), flags(0) {}
 
     ~ICP2State();
     virtual void created(StoreEntry * newEntry) override;
@@ -250,9 +251,9 @@ icpLogIcp(const Ip::Address &caddr, const LogTags_ot logcode, const int len, con
 {
     assert(logcode != LOG_TAG_NONE);
 
-    // Optimization: No premature (ALE creation in) icpSyncAle().
+    // Optimization: No premature (ALE creation in) SyncAle().
     if (al) {
-        icpSyncAle(al, caddr, url, len, delay);
+        ICPState::SyncAle(al, caddr, url, len, delay);
         al->cache.code.update(logcode);
     }
 
@@ -266,7 +267,7 @@ icpLogIcp(const Ip::Address &caddr, const LogTags_ot logcode, const int len, con
 
     if (!al) {
         // The above attempt to optimize ALE creation has failed. We do need it.
-        icpSyncAle(al, caddr, url, len, delay);
+        ICPState::SyncAle(al, caddr, url, len, delay);
         al->cache.code.update(logcode);
     }
     clientdbUpdate(caddr, al->cache.code, AnyP::PROTO_ICP, len);
@@ -465,15 +466,14 @@ icpDenyAccess(Ip::Address &from, char *url, int reqnum, int fd)
 }
 
 bool
-icpAccessAllowed(Ip::Address &from, HttpRequest * icp_request)
+icpAccessAllowed(Ip::Address &from, HttpRequest *icp_request, const char *url, AccessLogEntryPointer &al)
 {
     /* absent any explicit rules, we deny all */
     if (!Config.accessList.icp)
         return false;
 
-    ACLFilledChecklist checklist(Config.accessList.icp, icp_request, NULL);
-    checklist.src_addr = from;
-    checklist.my_addr.setNoAddr();
+    ICPState::SyncAle(al, from, url, 0, 0);
+    ACLFilledChecklist checklist(Config.accessList.icp, icp_request, al);
     return checklist.fastCheck().allowed();
 }
 
@@ -519,7 +519,9 @@ doV2Query(int fd, Ip::Address &from, char *buf, icp_common_t header)
 
     HTTPMSGLOCK(icp_request);
 
-    if (!icpAccessAllowed(from, icp_request)) {
+    AccessLogEntryPointer al;
+
+    if (!icpAccessAllowed(from, icp_request, url, al)) {
         icpDenyAccess(from, url, header.reqnum, fd);
         HTTPMSGUNLOCK(icp_request);
         return;
@@ -536,7 +538,7 @@ doV2Query(int fd, Ip::Address &from, char *buf, icp_common_t header)
 #endif /* USE_ICMP */
 
     /* The peer is allowed to use this cache */
-    ICP2State *state = new ICP2State(header, icp_request);
+    auto state = new ICP2State(header, icp_request, al);
     state->fd = fd;
     state->from = from;
     state->url = xstrdup(url);
@@ -720,10 +722,9 @@ icpOpenPorts(void)
         debugs(12, DBG_CRITICAL, "ERROR: IPv6 is disabled. " << icpIncomingConn->local << " is not an IPv4 address.");
         fatal("ICP port cannot be opened.");
     }
+
     /* split-stack for now requires default IPv4-only ICP */
-    if (Ip::EnableIpv6&IPV6_SPECIAL_SPLITSTACK && icpIncomingConn->local.isAnyAddr()) {
-        icpIncomingConn->local.setIPv4();
-    }
+    icpIncomingConn->local.adjustSplitStackIPv6();
 
     AsyncCall::Pointer call = asyncCall(12, 2,
                                         "icpIncomingConnectionOpened",
@@ -734,7 +735,7 @@ icpOpenPorts(void)
                         icpIncomingConn,
                         Ipc::fdnInIcpSocket, call);
 
-    if ( !Config.Addrs.udp_outgoing.isNoAddr() ) {
+    if (Config.Addrs.udp_outgoing.isBindable() ) {
         icpOutgoingConn = new Comm::Connection;
         icpOutgoingConn->local = Config.Addrs.udp_outgoing;
         icpOutgoingConn->local.port(port);
@@ -744,9 +745,7 @@ icpOpenPorts(void)
             fatal("ICP port cannot be opened.");
         }
         /* split-stack for now requires default IPv4-only ICP */
-        if (Ip::EnableIpv6&IPV6_SPECIAL_SPLITSTACK && icpOutgoingConn->local.isAnyAddr()) {
-            icpOutgoingConn->local.setIPv4();
-        }
+        icpOutgoingConn->local.adjustSplitStackIPv6();
 
         enter_suid();
         comm_open_listener(SOCK_DGRAM, IPPROTO_UDP, icpOutgoingConn, "Outgoing ICP Port");
@@ -777,7 +776,7 @@ icpIncomingConnectionOpened(const Comm::ConnectionPointer &conn, int)
 
     fd_note(conn->fd, "Incoming ICP port");
 
-    if (Config.Addrs.udp_outgoing.isNoAddr()) {
+    if (!Config.Addrs.udp_outgoing.isBindable()) {
         icpOutgoingConn = conn;
         debugs(12, DBG_IMPORTANT, "Sending ICP messages from " << icpOutgoingConn->local);
     }

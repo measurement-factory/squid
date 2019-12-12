@@ -140,8 +140,9 @@ bool Adaptation::Icap::Launcher::canRepeat(Adaptation::Icap::XactAbortInfo &info
     if (info.icapReply->sline.status() == Http::scNone) // failed to parse the reply; I/O err
         return true;
 
-    ACLFilledChecklist *cl =
-        new ACLFilledChecklist(TheConfig.repeat, info.icapRequest, dash_str);
+    // XXX: we cannot simply pass Xaction::al here, because icapRequest and al->request
+    // represent different objects
+    auto cl = new ACLFilledChecklist(TheConfig.repeat, info.icapRequest, nullptr);
     cl->reply = info.icapReply;
     HTTPMSGLOCK(cl->reply);
 

@@ -17,7 +17,7 @@
 int
 ACLAnnotateClientStrategy::match(ACLData<MatchType> * &data, ACLFilledChecklist *checklist)
 {
-    if (const auto conn = checklist->conn()) {
+    if (const auto conn = checklist->clientConnectionManager()) {
         ACLAnnotationData *tdata = dynamic_cast<ACLAnnotationData*>(data);
         assert(tdata);
         tdata->annotate(conn->notes(), &delimiters.value, checklist->al);

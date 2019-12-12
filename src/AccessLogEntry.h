@@ -10,7 +10,9 @@
 #define SQUID_HTTPACCESSLOGENTRY_H
 
 #include "anyp/PortCfg.h"
+#include "base/CbcPointer.h"
 #include "base/CodeContext.h"
+#include "base/RefCount.h"
 #include "comm/Connection.h"
 #include "HierarchyLogEntry.h"
 #include "http/ProtocolVersion.h"
@@ -35,6 +37,8 @@
 class HttpReply;
 class HttpRequest;
 class CustomLog;
+class ConnStateData;
+class Downloader;
 
 class AccessLogEntry: public CodeContext
 {
@@ -67,6 +71,37 @@ public:
     SBuf getLogMethod() const;
 
     void syncNotes(HttpRequest *request);
+
+#if FOLLOW_X_FORWARDED_FOR
+    /// Indirect client address, if available, otherwise clientAddr().
+    const Ip::Address& furthestClientAddress() const;
+
+    void indirectClientAddr(const Ip::Address &addr) { indirect_client_addr = addr; }
+
+    /// forces furthestClientAddress() to return a direct client address
+    void ignoreIndirectClientAddr();
+#endif
+    /// the source address of the client connection
+    const Ip::Address& clientAddr() const;
+
+    /// specify the source client address manually when lacking client connection
+    void setClientAddr(const Ip::Address &fromAddr) { client_addr = fromAddr; }
+
+    /// specify the local address manually when lacking client connection
+    void setMyAddr(const Ip::Address &localAddr) { my_addr = localAddr; }
+
+    /// the local address of the client connection
+    const Ip::Address& myAddr() const;
+
+    /// the client connection manager of the underlying transaction, if any
+    CbcPointer<ConnStateData> &clientConnectionManager() { return clientConnectionManager_; }
+    void setClientConnectionManager(const CbcPointer<ConnStateData> &aMgr) { clientConnectionManager_ = aMgr; }
+
+    /// the Downloader of the underlying transaction, if any
+    CbcPointer<Downloader> &downloader() { return downloader_; }
+    void setDownloader(const CbcPointer<Downloader> &aDownloader) { downloader_ = aDownloader; }
+
+    ConnStateData *pinnedConnection();
 
     /// dump all reply headers (for sending or risky logging)
     void packReplyHeaders(MemBuf &mb) const;
@@ -140,7 +175,6 @@ public:
     {
     public:
         CacheDetails() {
-            caddr.setNoAddr();
             memset(&start_time, 0, sizeof(start_time));
             memset(&trTime, 0, sizeof(start_time));
         }
@@ -256,9 +290,21 @@ public:
     }
 
 private:
+#if FOLLOW_X_FORWARDED_FOR
+    Ip::Address indirect_client_addr; ///< calculated client address, after applying X-Forwarded-For rules
+#endif
+    Ip::Address client_addr; ///< source address of a non-TCP (e.g. ICMP) client
+    Ip::Address my_addr; ///< local address which a non-TCP (e.g., ICMP) client connects to
+
     /// Client URI (or equivalent) for effectiveVirginUrl() when HttpRequest is
     /// missing. This member is ignored unless the request member is nil.
     SBuf virginUrlForMissingRequest_;
+
+    /// the client connection manager of this ALE transaction, if any
+    CbcPointer<ConnStateData> clientConnectionManager_;
+
+    /// the Downloader of this ALE transaction, if any
+    CbcPointer<Downloader> downloader_;
 };
 
 class ACLChecklist;

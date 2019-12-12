@@ -18,6 +18,8 @@ typedef void STCB(void *, StoreIOBuffer);   /* store callback */
 class StoreEntry;
 class ACLFilledChecklist;
 class LogTags;
+class AccessLogEntry;
+typedef RefCount<AccessLogEntry> AccessLogEntryPointer;
 
 /// A StoreEntry::getPublic*() caller.
 class StoreClient
@@ -51,6 +53,8 @@ protected:
     bool mayInitiateCollapsing() const { return onCollapsingPath(); }
     /// whether Squid configuration allows collapsing for this transaction
     bool onCollapsingPath() const;
+
+    virtual const AccessLogEntryPointer &accessLogEntry() const = 0;
 };
 
 #if USE_DELAY_POOLS

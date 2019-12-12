@@ -222,8 +222,8 @@ PeerPoolMgr::openNewConnection()
     conn->remote.port(peer->http_port);
     conn->peerType = STANDBY_POOL; // should be reset by peerSelect()
     conn->setPeer(peer);
-    getOutgoingAddress(request.getRaw(), conn);
-    GetMarkingsToServer(request.getRaw(), *conn);
+    getOutgoingAddress(request.getRaw(), conn, nullptr);
+    GetMarkingsToServer(request.getRaw(), *conn, nullptr);
 
     const int ctimeout = peerConnectTimeout(peer);
     typedef CommCbMemFunT<PeerPoolMgr, CommConnectCbParams> Dialer;

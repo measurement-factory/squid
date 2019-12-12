@@ -201,7 +201,7 @@ Ftp::Relay::serverComplete()
 {
     stopOriginWait(ctrl.replycode);
 
-    CbcPointer<ConnStateData> &mgr = fwd->request->clientConnectionManager;
+    auto &mgr = fwd->al->clientConnectionManager();
     if (mgr.valid()) {
         if (Comm::IsConnOpen(ctrl.conn)) {
             debugs(9, 7, "completing FTP server " << ctrl.conn <<
@@ -227,7 +227,7 @@ Ftp::Relay::serverComplete()
 Ftp::MasterState &
 Ftp::Relay::updateMaster()
 {
-    CbcPointer<ConnStateData> &mgr = fwd->request->clientConnectionManager;
+    const auto &mgr = fwd->al->clientConnectionManager();
     if (mgr.valid()) {
         if (Ftp::Server *srv = dynamic_cast<Ftp::Server*>(mgr.get()))
             return *srv->master;
@@ -340,7 +340,7 @@ Ftp::Relay::processReplyBody()
 void
 Ftp::Relay::handleControlReply()
 {
-    if (!request->clientConnectionManager.valid()) {
+    if (!fwd->al->clientConnectionManager().valid()) {
         debugs(9, 5, "client connection gone");
         closeServer();
         return;
@@ -400,7 +400,7 @@ Ftp::Relay::forwardPreliminaryReply(const PreliminaryCb cb)
     const AsyncCall::Pointer call = JobCallback(11, 3, CbDialer, this,
                                     Ftp::Relay::proceedAfterPreliminaryReply);
 
-    CallJobHere1(9, 4, request->clientConnectionManager, ConnStateData,
+    CallJobHere1(9, 4, fwd->al->clientConnectionManager(), ConnStateData,
                  ConnStateData::sendControlMsg, HttpControlMsg(reply, call));
 }
 
@@ -548,7 +548,7 @@ Ftp::Relay::sendCommand()
         SENT_COMMAND;
 
     if (state == SENT_DATA_REQUEST) {
-        CbcPointer<ConnStateData> &mgr = fwd->request->clientConnectionManager;
+        auto &mgr = fwd->al->clientConnectionManager();
         if (mgr.valid()) {
             if (Ftp::Server *srv = dynamic_cast<Ftp::Server*>(mgr.get())) {
                 typedef NullaryMemFunT<Ftp::Server> CbDialer;
@@ -633,7 +633,7 @@ Ftp::Relay::readDataReply()
 bool
 Ftp::Relay::startDirTracking()
 {
-    if (!fwd->request->clientConnectionManager->port->ftp_track_dirs)
+    if (!fwd->al->clientConnectionManager()->port->ftp_track_dirs)
         return false;
 
     debugs(9, 5, "start directory tracking");
@@ -770,9 +770,8 @@ void
 Ftp::Relay::stopOriginWait(int code)
 {
     if (originWaitInProgress) {
-        CbcPointer<ConnStateData> &mgr = fwd->request->clientConnectionManager;
-        if (mgr.valid()) {
-            if (Ftp::Server *srv = dynamic_cast<Ftp::Server*>(mgr.get())) {
+        if (const auto mgr = fwd->al->clientConnectionManager().valid()) {
+            if (const auto srv = dynamic_cast<Ftp::Server*>(mgr)) {
                 typedef UnaryMemFunT<Ftp::Server, int> CbDialer;
                 AsyncCall::Pointer call = asyncCall(11, 3, "Ftp::Server::stopWaitingForOrigin",
                                                     CbDialer(srv, &Ftp::Server::stopWaitingForOrigin, code));

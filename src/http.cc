@@ -806,8 +806,7 @@ HttpStateData::handle1xx(HttpReply *reply)
 #if USE_HTTP_VIOLATIONS
     // check whether the 1xx response forwarding is allowed by squid.conf
     if (Config.accessList.reply) {
-        ACLFilledChecklist ch(Config.accessList.reply, originalRequest().getRaw());
-        ch.al = fwd->al;
+        ACLFilledChecklist ch(Config.accessList.reply, originalRequest().getRaw(), fwd->al);
         ch.reply = reply;
         ch.syncAle(originalRequest().getRaw(), nullptr);
         HTTPMSGLOCK(ch.reply);
@@ -825,7 +824,7 @@ HttpStateData::handle1xx(HttpReply *reply)
     typedef NullaryMemFunT<HttpStateData> CbDialer;
     const AsyncCall::Pointer cb = JobCallback(11, 3, CbDialer, this,
                                   HttpStateData::proceedAfter1xx);
-    CallJobHere1(11, 4, request->clientConnectionManager, ConnStateData,
+    CallJobHere1(11, 4, fwd->al->clientConnectionManager(), ConnStateData,
                  ConnStateData::sendControlMsg, HttpControlMsg(msg, cb));
     // If the call is not fired, then the Sink is gone, and HttpStateData
     // will terminate due to an aborted store entry or another similar error.
@@ -1472,7 +1471,7 @@ HttpStateData::processReplyBody()
 
             Ip::Address client_addr; // XXX: Remove as unused. Why was it added?
             if (request->flags.spoofClientIp)
-                client_addr = request->client_addr;
+                client_addr = ale()->clientAddr();
 
             auto serverConnectionSaved = serverConnection;
             fwd->unregister(serverConnection);
@@ -1486,8 +1485,8 @@ HttpStateData::processReplyBody()
             }
 
             if (ispinned) {
-                if (request->clientConnectionManager.valid()) {
-                    CallJobHere1(11, 4, request->clientConnectionManager,
+                if (fwd->al->clientConnectionManager().valid()) {
+                    CallJobHere1(11, 4, fwd->al->clientConnectionManager(),
                                  ConnStateData,
                                  notePinnedConnectionBecameIdle,
                                  ConnStateData::PinnedIdleContext(serverConnectionSaved, request));
@@ -1800,7 +1799,7 @@ HttpStateData::httpBuildRequestHeader(HttpRequest * request,
                                               request->etag.termedBuf()));
     }
 
-    bool we_do_ranges = decideIfWeDoRanges (request);
+    bool we_do_ranges = decideIfWeDoRanges (request, al);
 
     String strConnection (hdr_in->getList(Http::HdrType::CONNECTION));
 
@@ -1853,10 +1852,10 @@ HttpStateData::httpBuildRequestHeader(HttpRequest * request,
 
         if (strcmp(opt_forwarded_for, "on") == 0) {
             /** If set to ON - append client IP or 'unknown'. */
-            if ( request->client_addr.isNoAddr() )
+            if (!al->clientAddr().isKnown())
                 strListAdd(&strFwd, "unknown", ',');
             else
-                strListAdd(&strFwd, request->client_addr.toStr(ntoabuf, MAX_IPSTRLEN), ',');
+                strListAdd(&strFwd, al->clientAddr().toStr(ntoabuf, MAX_IPSTRLEN), ',');
         } else if (strcmp(opt_forwarded_for, "off") == 0) {
             /** If set to OFF - append 'unknown'. */
             strListAdd(&strFwd, "unknown", ',');
@@ -1864,10 +1863,10 @@ HttpStateData::httpBuildRequestHeader(HttpRequest * request,
             /** If set to TRANSPARENT - pass through unchanged. */
         } else if (strcmp(opt_forwarded_for, "truncate") == 0) {
             /** If set to TRUNCATE - drop existing list and replace with client IP or 'unknown'. */
-            if ( request->client_addr.isNoAddr() )
+            if (!al->clientAddr().isKnown() )
                 strFwd = "unknown";
             else
-                strFwd = request->client_addr.toStr(ntoabuf, MAX_IPSTRLEN);
+                strFwd = al->clientAddr().toStr(ntoabuf, MAX_IPSTRLEN);
         }
         if (strFwd.size() > 0)
             hdr_out->putStr(Http::HdrType::X_FORWARDED_FOR, strFwd.termedBuf());
@@ -2133,7 +2132,7 @@ copyOneHeaderFromClientsideRequestToUpstreamRequest(const HttpHeaderEntry *e, co
 }
 
 bool
-HttpStateData::decideIfWeDoRanges (HttpRequest * request)
+HttpStateData::decideIfWeDoRanges (HttpRequest * request,  const AccessLogEntryPointer &al)
 {
     bool result = true;
     /* decide if we want to do Ranges ourselves
@@ -2147,7 +2146,7 @@ HttpStateData::decideIfWeDoRanges (HttpRequest * request)
      *  the server and fetch only the requested content)
      */
 
-    int64_t roffLimit = request->getRangeOffsetLimit();
+    int64_t roffLimit = request->getRangeOffsetLimit(al);
 
     if (NULL == request->range || !request->flags.cachable
             || request->range->offsetLimitExceeded(roffLimit) || request->flags.connectionAuth)
@@ -2355,8 +2354,7 @@ HttpStateData::finishingBrokenPost()
         return false;
     }
 
-    ACLFilledChecklist ch(Config.accessList.brokenPosts, originalRequest().getRaw());
-    ch.al = fwd->al;
+    ACLFilledChecklist ch(Config.accessList.brokenPosts, originalRequest().getRaw(), fwd->al);
     ch.syncAle(originalRequest().getRaw(), nullptr);
     if (!ch.fastCheck().allowed()) {
         debugs(11, 5, HERE << "didn't match brokenPosts");
@@ -2432,7 +2430,7 @@ HttpStateData::handleMoreRequestBodyAvailable()
 
         if (flags.headers_parsed && !flags.abuse_detected) {
             flags.abuse_detected = true;
-            debugs(11, DBG_IMPORTANT, "http handleMoreRequestBodyAvailable: Likely proxy abuse detected '" << request->client_addr << "' -> '" << entry->url() << "'" );
+            debugs(11, DBG_IMPORTANT, "http handleMoreRequestBodyAvailable: Likely proxy abuse detected '" << ale()->clientAddr() << "' -> '" << entry->url() << "'" );
 
             if (virginReply()->sline.status() == Http::scInvalidHeader) {
                 closeServer();

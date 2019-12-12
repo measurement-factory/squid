@@ -681,6 +681,8 @@ ErrorState::ErrorState(err_type t) :
 ErrorState::ErrorState(err_type t, Http::StatusCode status, HttpRequest * req, const AccessLogEntry::Pointer &anAle) :
     ErrorState(t)
 {
+    ale = anAle;
+
     if (page_id >= ERR_MAX && ErrorDynamicPages[page_id - ERR_MAX]->page_redirect != Http::scNone)
         httpStatus = ErrorDynamicPages[page_id - ERR_MAX]->page_redirect;
     else
@@ -688,10 +690,8 @@ ErrorState::ErrorState(err_type t, Http::StatusCode status, HttpRequest * req, c
 
     if (req) {
         request = req;
-        src_addr = req->client_addr;
+        src_addr = ale->clientAddr();
     }
-
-    ale = anAle;
 }
 
 ErrorState::ErrorState(HttpRequest * req, HttpReply *errorReply) :
@@ -703,7 +703,7 @@ ErrorState::ErrorState(HttpRequest * req, HttpReply *errorReply) :
 
     if (req) {
         request = req;
-        src_addr = req->client_addr;
+        src_addr = ale->clientAddr();
     }
 }
 

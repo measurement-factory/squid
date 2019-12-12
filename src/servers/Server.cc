@@ -23,7 +23,7 @@
 
 Server::Server(const MasterXaction::Pointer &xact) :
     AsyncJob("::Server"), // kids overwrite
-    clientConnection(xact->tcpClient),
+    clientConnection(xact->clientConnection()),
     transferProtocol(xact->squidPort->transport),
     port(xact->squidPort),
     receivedFirstByte_(false)

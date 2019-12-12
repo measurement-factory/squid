@@ -57,6 +57,7 @@ private:
     /* StoreClient API */
     virtual LogTags *loggingTags() { return ale ? &ale->cache.code : nullptr; }
     virtual void fillChecklist(ACLFilledChecklist &) const;
+    virtual const AccessLogEntryPointer &accessLogEntry() const { return ale; }
 
     char *urlres = nullptr;
 };
@@ -182,7 +183,7 @@ void
 UrnState::fillChecklist(ACLFilledChecklist &checklist) const
 {
     checklist.setRequest(request.getRaw());
-    checklist.al = ale;
+    checklist.syncAle(request.getRaw(), nullptr);
 }
 
 void

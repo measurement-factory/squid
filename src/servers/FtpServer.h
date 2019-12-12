@@ -99,6 +99,7 @@ protected:
     virtual int pipelinePrefetchMax() const override;
     virtual bool writeControlMsgAndCall(HttpReply *rep, AsyncCall::Pointer &call) override;
     virtual time_t idleTimeout() const override;
+    virtual void initWithConnectionManager() override;
 
     /* BodyPipe API */
     virtual void noteMoreBodySpaceAvailable(BodyPipe::Pointer) override;

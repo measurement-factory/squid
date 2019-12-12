@@ -286,10 +286,10 @@ PeerSelector::resolveSelected()
     const bool choseDirect = fs && fs->code == HIER_DIRECT;
     if (isIntercepted && useOriginalDst && choseDirect) {
         // check the client is still around before using any of its details
-        if (req->clientConnectionManager.valid()) {
+        if (al->tcpClient) {
             // construct a "result" adding the ORIGINAL_DST to the set instead of DIRECT
             Comm::ConnectionPointer p = new Comm::Connection();
-            p->remote = req->clientConnectionManager->clientConnection->local;
+            p->remote = al->tcpClient->local;
             fs->code = ORIGINAL_DST; // fs->code is DIRECT. This fixes the display.
             handlePath(p, *fs);
         }
@@ -383,7 +383,7 @@ PeerSelector::noteIp(const Ip::Address &ip)
 
     // for TPROXY spoofing, we must skip unusable addresses
     if (request->flags.spoofClientIp && !(peer && peer->options.no_tproxy) ) {
-        if (ip.isIPv4() != request->client_addr.isIPv4())
+        if (ip.isIPv4() != al->clientAddr().isIPv4())
             return; // cannot spoof the client address on this link
     }
 
@@ -475,18 +475,14 @@ PeerSelector::selectMore()
         if (always_direct == ACCESS_DUNNO) {
             debugs(44, 3, "direct = " << DirectStr[direct] << " (always_direct to be checked)");
             /** check always_direct; */
-            ACLFilledChecklist *ch = new ACLFilledChecklist(Config.accessList.AlwaysDirect, request, NULL);
-            ch->al = al;
-            acl_checklist = ch;
+            acl_checklist = new ACLFilledChecklist(Config.accessList.AlwaysDirect, request, al);
             acl_checklist->syncAle(request, nullptr);
             acl_checklist->nonBlockingCheck(CheckAlwaysDirectDone, this);
             return;
         } else if (never_direct == ACCESS_DUNNO) {
             debugs(44, 3, "direct = " << DirectStr[direct] << " (never_direct to be checked)");
             /** check never_direct; */
-            ACLFilledChecklist *ch = new ACLFilledChecklist(Config.accessList.NeverDirect, request, NULL);
-            ch->al = al;
-            acl_checklist = ch;
+            acl_checklist = new ACLFilledChecklist(Config.accessList.NeverDirect, request, al);
             acl_checklist->syncAle(request, nullptr);
             acl_checklist->nonBlockingCheck(CheckNeverDirectDone, this);
             return;
@@ -561,14 +557,15 @@ void
 PeerSelector::selectPinned()
 {
     // TODO: Avoid all repeated calls. Relying on PING_DONE is not enough.
-    if (!request->pinnedConnection())
+    if (!al->pinnedConnection())
         return;
 
-    const auto peer = request->pinnedConnection()->pinnedPeer();
+    // If the pinned connection is prohibited (for this request) or gone, then
+    const auto peer = al->pinnedConnection()->pinnedPeer();
     const auto usePinned = peer ? peerAllowedToUse(peer, this) : (direct != DIRECT_NO);
     // If the pinned connection is prohibited (for this request) then
     // the initiator must decide whether it is OK to open a new one instead.
-    request->pinnedConnection()->pinning.peerAccessDenied = !usePinned;
+    al->pinnedConnection()->pinning.peerAccessDenied = !usePinned;
 
     addSelection(peer, PINNED);
     if (entry)
@@ -658,10 +655,10 @@ PeerSelector::selectSomeNeighborReplies()
     if ((p = hit)) {
         code = hit_type == PEER_PARENT ? PARENT_HIT : SIBLING_HIT;
     } else {
-        if (!closest_parent_miss.isAnyAddr()) {
+        if (closest_parent_miss.isKnown()) {
             p = whichPeer(closest_parent_miss);
             code = CLOSEST_PARENT_MISS;
-        } else if (!first_parent_miss.isAnyAddr()) {
+        } else if (first_parent_miss.isKnown()) {
             p = whichPeer(first_parent_miss);
             code = FIRST_PARENT_MISS;
         }
@@ -804,7 +801,7 @@ PeerSelector::handleIcpParentMiss(CachePeer *p, icp_common_t *header)
         return;
 
     /* set FIRST_MISS if there is no CLOSEST parent */
-    if (!closest_parent_miss.isAnyAddr())
+    if (closest_parent_miss.isKnown())
         return;
 
     rtt = (tvSubMsec(ping.start, current_time) - p->basetime) / p->weight;
@@ -812,7 +809,7 @@ PeerSelector::handleIcpParentMiss(CachePeer *p, icp_common_t *header)
     if (rtt < 1)
         rtt = 1;
 
-    if (first_parent_miss.isAnyAddr() || rtt < ping.w_rtt) {
+    if (!first_parent_miss.isKnown() || rtt < ping.w_rtt) {
         first_parent_miss = p->in_addr;
         ping.w_rtt = rtt;
     }
@@ -898,7 +895,7 @@ PeerSelector::handleHtcpParentMiss(CachePeer *p, HtcpReplyData *htcp)
         return;
 
     /* set FIRST_MISS if there is no CLOSEST parent */
-    if (!closest_parent_miss.isAnyAddr())
+    if (closest_parent_miss.isKnown())
         return;
 
     rtt = (tvSubMsec(ping.start, current_time) - p->basetime) / p->weight;
@@ -906,7 +903,7 @@ PeerSelector::handleHtcpParentMiss(CachePeer *p, HtcpReplyData *htcp)
     if (rtt < 1)
         rtt = 1;
 
-    if (first_parent_miss.isAnyAddr() || rtt < ping.w_rtt) {
+    if (!first_parent_miss.isKnown() || rtt < ping.w_rtt) {
         first_parent_miss = p->in_addr;
         ping.w_rtt = rtt;
     }
@@ -1022,7 +1019,7 @@ PeerSelector::handlePath(const Comm::ConnectionPointer &path, FwdServer &fs)
         path->setPeer(fs._peer.get());
 
         // check for a configured outgoing address for this destination...
-        getOutgoingAddress(request, path);
+        getOutgoingAddress(request, path, al);
         debugs(44, 2, id << " found " << path << ", destination #" << foundPaths << " for " << url());
     } else
         debugs(44, 2, id << " found pinned, destination #" << foundPaths << " for " << url());

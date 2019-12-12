@@ -16,7 +16,6 @@
 #include "client_side.h"
 #include "client_side_request.h"
 #include "dns/LookupDetails.h"
-#include "Downloader.h"
 #include "err_detail_type.h"
 #include "globals.h"
 #include "gopher.h"
@@ -86,8 +85,6 @@ HttpRequest::init()
     ims = -1;
     imslen = 0;
     lastmod = -1;
-    client_addr.setEmpty();
-    my_addr.setEmpty();
     body_pipe = NULL;
     // hier
     dnsWait = -1;
@@ -97,7 +94,6 @@ HttpRequest::init()
     peer_domain = NULL;     // not allocated/deallocated by this class
     peer_host = NULL;
     vary_headers = SBuf();
-    myportname = null_string;
     tag = null_string;
 #if USE_AUTH
     extacl_user = null_string;
@@ -106,9 +102,6 @@ HttpRequest::init()
     extacl_log = null_string;
     extacl_message = null_string;
     pstate = Http::Message::psReadyToParseStartLine;
-#if FOLLOW_X_FORWARDED_FOR
-    indirect_client_addr.setEmpty();
-#endif /* FOLLOW_X_FORWARDED_FOR */
 #if USE_ADAPTATION
     adaptHistory_ = NULL;
 #endif
@@ -117,6 +110,11 @@ HttpRequest::init()
 #endif
     rangeOffsetLimit = -2; //a value of -2 means not checked yet
     forcedBodyContinuation = false;
+
+    if (const auto mgr = masterXaction->clientConnectionManager().valid()) {
+        if (const auto port = mgr->port)
+            flags.ignoreCc = port->ignore_cc;
+    }
 }
 
 void
@@ -142,8 +140,6 @@ HttpRequest::clean()
         delete range;
         range = NULL;
     }
-
-    myportname.clean();
 
     theNotes = nullptr;
 
@@ -219,12 +215,6 @@ HttpRequest::inheritProperties(const Http::Message *aMsg)
     if (!aReq)
         return false;
 
-    client_addr = aReq->client_addr;
-#if FOLLOW_X_FORWARDED_FOR
-    indirect_client_addr = aReq->indirect_client_addr;
-#endif
-    my_addr = aReq->my_addr;
-
     dnsWait = aReq->dnsWait;
 
 #if USE_ADAPTATION
@@ -246,14 +236,7 @@ HttpRequest::inheritProperties(const Http::Message *aMsg)
     extacl_passwd = aReq->extacl_passwd;
 #endif
 
-    myportname = aReq->myportname;
-
     forcedBodyContinuation = aReq->forcedBodyContinuation;
-
-    // main property is which connection the request was received on (if any)
-    clientConnectionManager = aReq->clientConnectionManager;
-
-    downloader = aReq->downloader;
 
     theNotes = aReq->theNotes;
 
@@ -616,7 +599,7 @@ HttpRequest::recordLookup(const Dns::LookupDetails &dns)
 }
 
 int64_t
-HttpRequest::getRangeOffsetLimit()
+HttpRequest::getRangeOffsetLimit(const AccessLogEntry::Pointer &al)
 {
     /* -2 is the starting value of rangeOffsetLimit.
      * If it is -2, that means we haven't checked it yet.
@@ -626,9 +609,8 @@ HttpRequest::getRangeOffsetLimit()
 
     rangeOffsetLimit = 0; // default value for rangeOffsetLimit
 
-    ACLFilledChecklist ch(NULL, this, NULL);
-    ch.src_addr = client_addr;
-    ch.my_addr =  my_addr;
+    ACLFilledChecklist ch(nullptr, this, al);
+    ch.syncAle(this, nullptr);
 
     for (AclSizeLimit *l = Config.rangeOffsetLimit; l; l = l -> next) {
         /* if there is no ACL list or if the ACLs listed match use this limit value */
@@ -682,14 +664,6 @@ HttpRequest::parseHeader(const char *buffer, const size_t size)
     return header.parse(buffer, size, clen);
 }
 
-ConnStateData *
-HttpRequest::pinnedConnection()
-{
-    if (clientConnectionManager.valid() && clientConnectionManager->pinning.pinned)
-        return clientConnectionManager.get();
-    return NULL;
-}
-
 const SBuf
 HttpRequest::storeId()
 {
@@ -718,12 +692,12 @@ HttpRequest::notes()
 }
 
 void
-UpdateRequestNotes(ConnStateData *csd, HttpRequest &request, NotePairs const &helperNotes)
+UpdateRequestNotes(HttpRequest &request, NotePairs const &helperNotes)
 {
     // Tag client connection if the helper responded with clt_conn_tag=tag.
     const char *cltTag = "clt_conn_tag";
     if (const char *connTag = helperNotes.findFirst(cltTag)) {
-        if (csd) {
+        if (auto csd = request.masterXaction->clientConnectionManager().get()) {
             csd->notes()->remove(cltTag);
             csd->notes()->add(cltTag, connTag);
         }
@@ -732,35 +706,24 @@ UpdateRequestNotes(ConnStateData *csd, HttpRequest &request, NotePairs const &he
 }
 
 void
-HttpRequest::manager(const CbcPointer<ConnStateData> &aMgr, const AccessLogEntryPointer &al)
+HttpRequest::prepForDownloader()
 {
-    clientConnectionManager = aMgr;
+    header.putStr(Http::HdrType::HOST, url.host());
+    header.putTime(Http::HdrType::DATE, squid_curtime);
+    debugs(11, 4, this);
+}
 
-    if (!clientConnectionManager.valid())
-        return;
-
-    AnyP::PortCfgPointer port = clientConnectionManager->port;
-    if (port) {
-        myportname = port->name;
-        flags.ignoreCc = port->ignore_cc;
-    }
-
-    if (auto clientConnection = clientConnectionManager->clientConnection) {
-        client_addr = clientConnection->remote; // XXX: remove request->client_addr member.
-#if FOLLOW_X_FORWARDED_FOR
-        // indirect client gets stored here because it is an HTTP header result (from X-Forwarded-For:)
-        // not details about the TCP connection itself
-        indirect_client_addr = clientConnection->remote;
-#endif /* FOLLOW_X_FORWARDED_FOR */
-        my_addr = clientConnection->local;
-
-        flags.intercepted = ((clientConnection->flags & COMM_INTERCEPTION) != 0);
-        flags.interceptTproxy = ((clientConnection->flags & COMM_TRANSPARENT) != 0 ) ;
+void
+HttpRequest::setInterceptionFlags(const AccessLogEntryPointer &al)
+{
+    if (const auto connection = al->tcpClient) {
+        flags.intercepted = ((connection->flags & COMM_INTERCEPTION) != 0);
+        flags.interceptTproxy = ((connection->flags & COMM_TRANSPARENT) != 0 ) ;
+        const auto port = al->clientConnectionManager()->port;
         const bool proxyProtocolPort = port ? port->flags.proxySurrogate : false;
         if (flags.interceptTproxy && !proxyProtocolPort) {
             if (Config.accessList.spoof_client_ip) {
-                ACLFilledChecklist *checklist = new ACLFilledChecklist(Config.accessList.spoof_client_ip, this, clientConnection->rfc931);
-                checklist->al = al;
+                auto checklist = new ACLFilledChecklist(Config.accessList.spoof_client_ip, this, al);
                 checklist->syncAle(this, nullptr);
                 flags.spoofClientIp = checklist->fastCheck().allowed();
                 delete checklist;
@@ -769,6 +732,12 @@ HttpRequest::manager(const CbcPointer<ConnStateData> &aMgr, const AccessLogEntry
         } else
             flags.spoofClientIp = false;
     }
+}
+
+bool
+HttpRequest::needCheckMissAccess() const
+{
+    return !(flags.internalReceived || url.getScheme() == AnyP::PROTO_CACHE_OBJECT);
 }
 
 char *
@@ -782,7 +751,7 @@ static const Ip::Address *
 FindListeningPortAddressInAddress(const Ip::Address *ip)
 {
     // FindListeningPortAddress() callers do not want INADDR_ANY addresses
-    return (ip && !ip->isAnyAddr()) ? ip : nullptr;
+    return (ip && ip->isKnown()) ? ip : nullptr;
 }
 
 /// a helper for handling PortCfg cases of FindListeningPortAddress()
@@ -820,9 +789,8 @@ FindListeningPortAddress(const HttpRequest *callerRequest, const AccessLogEntry 
         return ip;
 
     /* handle non-intercepted cases that were not handled above */
-    ip = FindListeningPortAddressInConn(request->masterXaction->tcpClient);
+    ip = FindListeningPortAddressInConn(ale->tcpClient);
     if (!ip && ale)
         ip = FindListeningPortAddressInConn(ale->tcpClient);
     return ip; // may still be nil
 }
-

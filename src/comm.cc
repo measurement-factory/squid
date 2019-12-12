@@ -468,7 +468,7 @@ comm_apply_flags(int new_socket,
     if ( (flags & COMM_DOBIND) || addr.port() > 0 || !addr.isAnyAddr() ) {
         if ( !(flags & COMM_DOBIND) && addr.isAnyAddr() )
             debugs(5, DBG_IMPORTANT,"WARNING: Squid is attempting to bind() port " << addr << " without being a listener.");
-        if ( addr.isNoAddr() )
+        if (!addr.isBindable())
             debugs(5,0,"CRITICAL: Squid is attempting to bind() port " << addr << "!!");
 
         if (commBind(new_socket, *AI) != Comm::OK) {

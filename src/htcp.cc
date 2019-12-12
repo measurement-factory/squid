@@ -119,6 +119,12 @@ struct _htcpAuthHeader {
     Countstr signature;
 };
 
+static Comm::ConnectionPointer htcpOutgoingConn;
+static Comm::ConnectionPointer htcpIncomingConn;
+
+static void
+htcpSyncAle(AccessLogEntryPointer &al, const Ip::Address &caddr, const int opcode, const char *url);
+
 class htcpSpecifier: public CodeContext, public StoreClient
 {
     MEMPROXY_CLASS(htcpSpecifier);
@@ -129,9 +135,14 @@ public:
     void checkHit();
     void checkedHit(StoreEntry *);
 
-    void setFrom(Ip::Address &anIp) { from = anIp; }
-    void setDataHeader(htcpDataHeader *aDataHeader) {
+    const Ip::Address &from() const {
+        assert(request);
+        return al->clientAddr();
+    }
+
+    void initFields(htcpDataHeader *aDataHeader, Ip::Address &fromAddr) {
         dhdr = aDataHeader;
+        htcpSyncAle(al, fromAddr, dhdr->opcode, uri);
     }
 
     /* CodeContext API */
@@ -154,10 +165,13 @@ public:
     /// optimization: nil until needed
     mutable AccessLogEntryPointer al;
 
+protected:
+    /* StoreClient API */
+    virtual const AccessLogEntryPointer &accessLogEntry() const { return al; }
+
 private:
     HttpRequest::Pointer checkHitRequest;
 
-    Ip::Address from;
     htcpDataHeader *dhdr = nullptr;
 };
 
@@ -236,8 +250,6 @@ enum {
 static void htcpIncomingConnectionOpened(const Comm::ConnectionPointer &conn, int errNo);
 static uint32_t msg_id_counter = 0;
 
-static Comm::ConnectionPointer htcpOutgoingConn = NULL;
-static Comm::ConnectionPointer htcpIncomingConn = NULL;
 #define N_QUERIED_KEYS 8192
 static uint32_t queried_id[N_QUERIED_KEYS];
 static cache_key queried_keys[N_QUERIED_KEYS][SQUID_MD5_DIGEST_LENGTH];
@@ -258,14 +270,14 @@ static ssize_t htcpBuildTstOpData(char *buf, size_t buflen, htcpStuff * stuff);
 
 static void htcpHandleMsg(char *buf, int sz, Ip::Address &from);
 
-static void htcpLogHtcp(Ip::Address &, const int, const LogTags_ot, const char *, AccessLogEntryPointer);
+static void htcpLogHtcp(const Ip::Address &, const int, const LogTags_ot, const char *, AccessLogEntryPointer);
 static void htcpHandleTst(htcpDataHeader *, char *buf, int sz, Ip::Address &from);
 
 static void htcpRecv(int fd, void *data);
 
-static void htcpSend(const char *buf, int len, Ip::Address &to);
+static void htcpSend(const char *buf, int len, const Ip::Address &to);
 
-static void htcpTstReply(htcpDataHeader *, StoreEntry *, htcpSpecifier *, Ip::Address &);
+static void htcpTstReply(htcpDataHeader *, StoreEntry *, htcpSpecifier *, const Ip::Address &);
 
 static void htcpHandleTstRequest(htcpDataHeader *, char *buf, int sz, Ip::Address &from);
 
@@ -284,6 +296,8 @@ htcpSyncAle(AccessLogEntryPointer &al, const Ip::Address &caddr, const int opcod
     al->cache.start_time = current_time;
     al->cache.trTime.tv_sec = 0;
     al->cache.trTime.tv_usec = 0;
+    al->setClientAddr(caddr);
+    al->setMyAddr(htcpIncomingConn->local);
 }
 
 static void
@@ -587,7 +601,7 @@ htcpBuildPacket(char *buf, size_t buflen, htcpStuff * stuff)
 }
 
 static void
-htcpSend(const char *buf, int len, Ip::Address &to)
+htcpSend(const char *buf, int len, const Ip::Address &to)
 {
     debugs(31, 3, to);
     htcpHexdump("htcpSend", buf, len);
@@ -797,14 +811,12 @@ htcpAccessAllowed(acl_access * acl, const htcpSpecifier::Pointer &s, Ip::Address
     if (!acl)
         return false;
 
-    ACLFilledChecklist checklist(acl, s->request.getRaw(), nullptr);
-    checklist.src_addr = from;
-    checklist.my_addr.setNoAddr();
+    ACLFilledChecklist checklist(acl, s->request.getRaw(), s->al);
     return checklist.fastCheck().allowed();
 }
 
 static void
-htcpTstReply(htcpDataHeader * dhdr, StoreEntry * e, htcpSpecifier * spec, Ip::Address &from)
+htcpTstReply(htcpDataHeader * dhdr, StoreEntry * e, htcpSpecifier * spec, const Ip::Address &from)
 {
     static char pkt[8192];
     HttpHeader hdr(hoHtcpReply);
@@ -1009,8 +1021,7 @@ void
 htcpSpecifier::fillChecklist(ACLFilledChecklist &checklist) const
 {
     checklist.setRequest(request.getRaw());
-    htcpSyncAle(al, from, dhdr->opcode, uri);
-    checklist.al = al;
+    htcpSyncAle(al, from(), dhdr->opcode, uri);
 }
 
 static void
@@ -1167,10 +1178,9 @@ htcpHandleTstRequest(htcpDataHeader * dhdr, char *buf, int sz, Ip::Address &from
         debugs(31, 3, "htcpHandleTstRequest: htcpUnpackSpecifier failed");
         htcpLogHtcp(from, dhdr->opcode, LOG_UDP_INVALID, dash_str, nullptr);
         return;
-    } else {
-        s->setFrom(from);
-        s->setDataHeader(dhdr);
     }
+
+    s->initFields(dhdr, from);
 
     if (!s->request) {
         debugs(31, 3, "htcpHandleTstRequest: failed to parse request");
@@ -1193,11 +1203,11 @@ void
 htcpSpecifier::checkedHit(StoreEntry *e)
 {
     if (e) {
-        htcpTstReply(dhdr, e, this, from);      /* hit */
-        htcpLogHtcp(from, dhdr->opcode, LOG_UDP_HIT, uri, al);
+        htcpTstReply(dhdr, e, this, from());      /* hit */
+        htcpLogHtcp(from(), dhdr->opcode, LOG_UDP_HIT, uri, al);
     } else {
-        htcpTstReply(dhdr, NULL, NULL, from);   /* cache miss */
-        htcpLogHtcp(from, dhdr->opcode, LOG_UDP_MISS, uri, al);
+        htcpTstReply(dhdr, NULL, NULL, from());   /* cache miss */
+        htcpLogHtcp(from(), dhdr->opcode, LOG_UDP_MISS, uri, al);
     }
 }
 
@@ -1224,10 +1234,9 @@ htcpHandleClr(htcpDataHeader * hdr, char *buf, int sz, Ip::Address &from)
         debugs(31, 3, "htcpHandleClr: htcpUnpackSpecifier failed");
         htcpLogHtcp(from, hdr->opcode, LOG_UDP_INVALID, dash_str, nullptr);
         return;
-    } else {
-        s->setFrom(from);
-        s->setDataHeader(hdr);
     }
+
+    s->initFields(hdr, from);
 
     if (!s->request) {
         debugs(31, 3, "htcpHandleTstRequest: failed to parse request");
@@ -1456,10 +1465,7 @@ htcpOpenPorts(void)
         fatal("HTCP port cannot be opened.");
     }
     /* split-stack for now requires default IPv4-only HTCP */
-    if (Ip::EnableIpv6&IPV6_SPECIAL_SPLITSTACK && htcpIncomingConn->local.isAnyAddr()) {
-        htcpIncomingConn->local.setIPv4();
-    }
-
+    htcpIncomingConn->local.adjustSplitStackIPv6();
     AsyncCall::Pointer call = asyncCall(31, 2,
                                         "htcpIncomingConnectionOpened",
                                         Comm::UdpOpenDialer(&htcpIncomingConnectionOpened));
@@ -1469,7 +1475,7 @@ htcpOpenPorts(void)
                         htcpIncomingConn,
                         Ipc::fdnInHtcpSocket, call);
 
-    if (!Config.Addrs.udp_outgoing.isNoAddr()) {
+    if (Config.Addrs.udp_outgoing.isBindable()) {
         htcpOutgoingConn = new Comm::Connection;
         htcpOutgoingConn->local = Config.Addrs.udp_outgoing;
         htcpOutgoingConn->local.port(Config.Port.htcp);
@@ -1479,9 +1485,7 @@ htcpOpenPorts(void)
             fatal("HTCP port cannot be opened.");
         }
         /* split-stack for now requires default IPv4-only HTCP */
-        if (Ip::EnableIpv6&IPV6_SPECIAL_SPLITSTACK && htcpOutgoingConn->local.isAnyAddr()) {
-            htcpOutgoingConn->local.setIPv4();
-        }
+        htcpOutgoingConn->local.adjustSplitStackIPv6();
 
         enter_suid();
         comm_open_listener(SOCK_DGRAM, IPPROTO_UDP, htcpOutgoingConn, "Outgoing HTCP Socket");
@@ -1507,7 +1511,7 @@ htcpIncomingConnectionOpened(const Comm::ConnectionPointer &conn, int)
 
     debugs(31, DBG_CRITICAL, "Accepting HTCP messages on " << conn->local);
 
-    if (Config.Addrs.udp_outgoing.isNoAddr()) {
+    if (!Config.Addrs.udp_outgoing.isBindable()) {
         htcpOutgoingConn = conn;
         debugs(31, DBG_IMPORTANT, "Sending HTCP messages from " << htcpOutgoingConn->local);
     }
@@ -1663,7 +1667,7 @@ htcpClosePorts(void)
 }
 
 static void
-htcpLogHtcp(Ip::Address &caddr, const int opcode, const LogTags_ot logcode, const char *url, AccessLogEntryPointer al)
+htcpLogHtcp(const Ip::Address &caddr, const int opcode, const LogTags_ot logcode, const char *url, AccessLogEntryPointer al)
 {
     if (!Config.onoff.log_udp)
         return;

@@ -72,6 +72,9 @@ public:
         }
     }
 
+    /// client address used when creating an error page
+    const Ip::Address& clientAddrOnError() const;
+
     /// Initializes the current request with the virgin request.
     /// Call this method when the virgin request becomes known.
     /// To update the current request later, use resetRequest().
@@ -132,10 +135,11 @@ public:
     AccessLogEntry::Pointer al; ///< access.log entry
 
     struct Flags {
-        Flags() : accel(false), internal(false), done_copying(false), purging(false) {}
+        Flags() : accel(false), askingForOurInternalResource(false), done_copying(false), purging(false) {}
 
         bool accel;
-        bool internal;
+        /// a request with a /squid-internal-... URL referring to this Squid instance
+        bool askingForOurInternalResource;
         bool done_copying;
         bool purging;
     } flags;
