@@ -1049,7 +1049,7 @@ TunnelStateData::retryOrBail(const char *context)
     serverDestinations.erase(serverDestinations.begin());
 
     if (checkRetry()) {
-        if (!serverDestinations.empty() && FwdState::EnoughTimeToReForward(startTime)) {
+        if (!serverDestinations.empty()) {
             closeServerConnection();
             debugs(26, 4, "re-forwarding");
             return startConnecting();
@@ -1235,7 +1235,7 @@ TunnelStateData::connectedToPeer(Security::EncryptorAnswer &answer)
         const auto failedDest = serverDestinations.front();
         saveError(error);
         savedError->port = failedDest->remote.port();
-        answer.error.clear(); // preserve error for errorSendComplete()
+        answer.error.clear();
         retryOrBail("TLS peer connection error");
         return;
     }
