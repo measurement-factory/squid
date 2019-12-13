@@ -40,23 +40,23 @@ Ipc::Mem::PageStackStorageSlot::put(const PointerOrMarker expected, const Pointe
 /* Ipc::Mem::PageStack */
 
 Ipc::Mem::PageStack::PageStack(const uint32_t aPoolId, const unsigned int aCapacity, const size_t aPageSize):
-    thePoolId(aPoolId), theCapacity(aCapacity), thePageSize(aPageSize),
-    theSize(0),
+    thePoolId(aPoolId), capacity_(aCapacity), thePageSize(aPageSize),
+    size_(0),
     head_(Slot::NilPtr),
     slots_(aCapacity)
 {
-    assert(theCapacity < Slot::TakenPage);
-    assert(theCapacity < Slot::NilPtr);
+    assert(capacity_ < Slot::TakenPage);
+    assert(capacity_ < Slot::NilPtr);
 
     // initially, all pages are free
-    if (theCapacity) {
-        const auto lastIndex = theCapacity-1;
+    if (capacity_) {
+        const auto lastIndex = capacity_-1;
         // FlexibleArray cannot construct its phantom elements so, technically,
         // all slots (except the very first one) are uninitialized until now.
         for (Slot::Pointer i = 0; i < lastIndex; ++i)
             (void)new(&slots_[i])Slot(i+1);
         (void)new(&slots_[lastIndex])Slot(Slot::NilPtr);
-        theSize = theCapacity;
+        size_ = capacity_;
         head_ = 0;
     }
 }
@@ -77,8 +77,8 @@ Ipc::Mem::PageStack::pop(PageId &page)
     } while (!head_.compare_exchange_weak(current, nextFree));
 
     // must decrement after removing the page to avoid underflow
-    const auto newSize = --theSize;
-    assert(newSize < theCapacity);
+    const auto newSize = --size_;
+    assert(newSize < capacity_);
 
     slots_[current].take();
     page.number = current + 1;
@@ -98,8 +98,8 @@ Ipc::Mem::PageStack::push(PageId &page)
     auto &slot = slots_[pageIndex];
 
     // must increment before inserting the page to avoid underflow in pop()
-    const auto newSize = ++theSize;
-    assert(newSize <= theCapacity);
+    const auto newSize = ++size_;
+    assert(newSize <= capacity_);
 
     auto current = head_.load();
     auto expected = Slot::TakenPage;
@@ -123,7 +123,7 @@ Ipc::Mem::PageStack::pageIdIsValid(const PageId &page) const
 size_t
 Ipc::Mem::PageStack::sharedMemorySize() const
 {
-    return SharedMemorySize(thePoolId, theCapacity, thePageSize);
+    return SharedMemorySize(thePoolId, capacity_, thePageSize);
 }
 
 size_t
@@ -143,6 +143,6 @@ Ipc::Mem::PageStack::StackSize(const unsigned int capacity)
 size_t
 Ipc::Mem::PageStack::stackSize() const
 {
-    return StackSize(theCapacity);
+    return StackSize(capacity_);
 }
 
