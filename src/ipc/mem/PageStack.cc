@@ -73,7 +73,6 @@ Ipc::Mem::PageStack::pop(PageId &page)
         if (current == Slot::NilPtr)
             return false;
         nextFree = slots_[current].next();
-        // TODO: report suspiciously long loops
     } while (!head_.compare_exchange_weak(current, nextFree));
 
     // must decrement after removing the page to avoid underflow
@@ -106,7 +105,6 @@ Ipc::Mem::PageStack::push(PageId &page)
     do {
         slot.put(expected, current);
         expected = current;
-        // TODO: report suspiciously long loops
     } while (!head_.compare_exchange_weak(current, pageIndex));
 
     debugs(54, 8, page << " size: " << newSize);
