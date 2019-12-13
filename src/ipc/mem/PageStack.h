@@ -54,9 +54,9 @@ private:
     std::atomic<PointerOrMarker> nextOrMarker;
 };
 
-/// Atomic container of "free" page numbers inside a single SharedMemory space.
-/// Assumptions: all page numbers are unique, positive, have an known maximum,
-/// and can be temporary unavailable as long as they are never trully lost.
+/// Atomic container of "free" PageIds. Detects (some) double-free bugs.
+/// Assumptions: All page numbers are unique, positive, with a known maximum.
+/// A pushed page may not become available immediately but is never truly lost.
 class PageStack
 {
 public:
