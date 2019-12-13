@@ -62,12 +62,18 @@ class PageStack
 public:
     typedef std::atomic<size_t> Levels_t;
 
-    PageStack(const uint32_t aPoolId, const unsigned int aCapacity, const size_t aPageSize);
+    // XXX: The actual type may have been on PagePool::Init() but may conflict
+    // with PageLimit(), StoreMapSliceId, Rock::SwapDirRr::slotLimitActual(),
+    // Rock::SlotId, PageId::number, etc.
+    /// the number of (free and/or used) pages in a stack
+    typedef unsigned int PageCount;
 
-    unsigned int capacity() const { return capacity_; }
+    PageStack(const uint32_t aPoolId, const PageCount aCapacity, const size_t aPageSize);
+
+    PageCount capacity() const { return capacity_; }
     size_t pageSize() const { return thePageSize; }
     /// an approximate number of free pages
-    unsigned int size() const { return size_.load(); }
+    PageCount size() const { return size_.load(); }
 
     /// sets value and returns true unless no free page numbers are found
     bool pop(PageId &page);
@@ -77,12 +83,12 @@ public:
     bool pageIdIsValid(const PageId &page) const;
 
     /// total shared memory size required to share
-    static size_t SharedMemorySize(const uint32_t aPoolId, const unsigned int capacity, const size_t pageSize);
+    static size_t SharedMemorySize(const uint32_t aPoolId, const PageCount capacity, const size_t pageSize);
     size_t sharedMemorySize() const;
 
     /// shared memory size required only by PageStack, excluding
     /// shared counters and page data
-    static size_t StackSize(const unsigned int capacity);
+    static size_t StackSize(const PageCount capacity);
     size_t stackSize() const;
 
 private:
@@ -92,11 +98,11 @@ private:
     // (which should support multiple Segments but does not) and PageStack
     // (which should not calculate the Segment size but does) duties.
     const uint32_t thePoolId; ///< pool ID
-    const unsigned int capacity_; ///< the maximum number of pages
+    const PageCount capacity_; ///< the maximum number of pages
     const size_t thePageSize; ///< page size, used to calculate shared memory size
 
     /// a lower bound for the number of free pages (for debugging purposes)
-    std::atomic<unsigned int> size_;
+    std::atomic<PageCount> size_;
 
     /// the index of the first free stack element or nil
     std::atomic<Slot::Pointer> head_;

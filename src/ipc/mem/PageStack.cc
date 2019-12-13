@@ -39,7 +39,7 @@ Ipc::Mem::PageStackStorageSlot::put(const PointerOrMarker expected, const Pointe
 
 /* Ipc::Mem::PageStack */
 
-Ipc::Mem::PageStack::PageStack(const uint32_t aPoolId, const unsigned int aCapacity, const size_t aPageSize):
+Ipc::Mem::PageStack::PageStack(const uint32_t aPoolId, const PageCount aCapacity, const size_t aPageSize):
     thePoolId(aPoolId), capacity_(aCapacity), thePageSize(aPageSize),
     size_(0),
     head_(Slot::NilPtr),
@@ -127,7 +127,7 @@ Ipc::Mem::PageStack::sharedMemorySize() const
 }
 
 size_t
-Ipc::Mem::PageStack::SharedMemorySize(const uint32_t, const unsigned int capacity, const size_t pageSize)
+Ipc::Mem::PageStack::SharedMemorySize(const uint32_t, const PageCount capacity, const size_t pageSize)
 {
     const size_t levelsSize = PageId::maxPurpose * sizeof(std::atomic<size_t>);
     const size_t pagesDataSize = capacity * pageSize;
@@ -135,7 +135,7 @@ Ipc::Mem::PageStack::SharedMemorySize(const uint32_t, const unsigned int capacit
 }
 
 size_t
-Ipc::Mem::PageStack::StackSize(const unsigned int capacity)
+Ipc::Mem::PageStack::StackSize(const PageCount capacity)
 {
     return sizeof(PageStack) + capacity * sizeof(Slot);
 }
