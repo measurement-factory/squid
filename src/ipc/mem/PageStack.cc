@@ -114,8 +114,8 @@ Ipc::Mem::PageStack::push(PageId &page)
 bool
 Ipc::Mem::PageStack::pageIdIsValid(const PageId &page) const
 {
-    return page.pool == thePoolId && page.number != 0 &&
-           page.number <= capacity();
+    return page.pool == thePoolId &&
+           0 < page.number && page.number <= capacity();
 }
 
 size_t
