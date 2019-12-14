@@ -254,6 +254,15 @@ public:
     void readConnectResponseDone(char *buf, size_t len, Comm::Flag errcode, int xerrno);
     void copyClientBytes();
     void copyServerBytes();
+
+    /// handles client-to-Squid connection closure; may destroy us
+    void clientClosed();
+
+    /// handles Squid-to-server connection closure; may destroy us
+    void serverClosed();
+
+    /// whether noteDestination() and noteDestinationsEnd() calls are allowed
+    bool subscribed = false;
 };
 
 static const char *const conn_established = "HTTP/1.1 200 Connection established\r\n\r\n";
@@ -272,34 +281,34 @@ static void tunnelRelayConnectRequest(const Comm::ConnectionPointer &server, voi
 static void
 tunnelServerClosed(const CommCloseCbParams &params)
 {
-    TunnelStateData *tunnelState = (TunnelStateData *)params.data;
-    tunnelState->server.noteClosure();
+    const auto tunnelState = reinterpret_cast<TunnelStateData *>(params.data);
+    tunnelState->serverClosed();
+}
 
-    if (tunnelState->request != NULL)
-        tunnelState->request->hier.stopPeerClock(false);
-
-    if (tunnelState->noConnections())
-        return tunnelState->deleteThis();
-
-    if (!tunnelState->client.writer) {
-        tunnelState->client.conn->close();
-        return;
-    }
+void
+TunnelStateData::serverClosed()
+{
+    server.noteClosure();
+    retryOrBail("server closed");
 }
 
 static void
 tunnelClientClosed(const CommCloseCbParams &params)
 {
-    TunnelStateData *tunnelState = (TunnelStateData *)params.data;
-    tunnelState->client.noteClosure();
+    const auto tunnelState = reinterpret_cast<TunnelStateData *>(params.data);
+    tunnelState->clientClosed();
+}
 
-    if (tunnelState->noConnections())
-        return tunnelState->deleteThis();
+void
+TunnelStateData::clientClosed()
+{
+    client.noteClosure();
 
-    if (!tunnelState->server.writer) {
-        tunnelState->server.conn->close();
-        return;
-    }
+    if (noConnections())
+        return deleteThis();
+
+    if (!server.writer)
+        server.conn->close();
 }
 
 /// destroys the tunnel (after performing potentially-throwing cleanup)
@@ -1072,22 +1081,29 @@ TunnelStateData::retryOrBail(const char *context)
             debugs(26, 4, "re-forwarding");
             return startConnecting();
         }
+        if (subscribed) {
+            debugs(26, 4, "wait for more destinations to try");
+            return; // expect a tunnelPeerSelectComplete() call
+        }
     }
 
     /* bail */
 
+    if (request)
+        request->hier.stopPeerClock(false);
+
     // TODO: Add sendSavedErrorOr(err_type type, Http::StatusCode, context).
     // Then, the remaining method code (below) should become the common part of
     // sendNewError() and sendSavedErrorOr(), used in "error detected" cases.
-    const auto error = savedError ? savedError : new ErrorState(ERR_CANNOT_FORWARD,
-            Http::scInternalServerError, request.getRaw());
+    if (!savedError)
+        saveError(new ErrorState(ERR_CANNOT_FORWARD, Http::scInternalServerError, request.getRaw()));;
 
     const auto canSendError = Comm::IsConnOpen(client.conn) && !client.dirty &&
         clientExpectsConnectResponse(); // XXX: add and check 'dirty'
 
     if (canSendError)
-        return sendError(error, context);
-    *status_ptr = error->httpStatus;
+        return sendError(savedError, context);
+    *status_ptr = savedError->httpStatus;
 
     // This is a "Comm::IsConnOpen(client.conn) but !canSendError" case.
     // Closing the connection (after finishing writing) is the best we can do.
@@ -1239,6 +1255,7 @@ tunnelStart(ClientHttpRequest * http)
     //server.setDelayId called from tunnelConnectDone after server side connection established
 #endif
 
+    tunnelState->subscribed = true;
     peerSelect(&(tunnelState->serverDestinations), request, http->al,
                NULL,
                tunnelPeerSelectComplete,
@@ -1346,6 +1363,7 @@ tunnelPeerSelectComplete(Comm::ConnectionList *peer_paths, ErrorState *err, void
     if (!peer_paths || peer_paths->empty()) {
         debugs(26, 3, HERE << "No paths found. Aborting CONNECT");
         bail = true;
+        tunnelState->subscribed = false;
     }
 
     if (!bail && tunnelState->serverDestinations[0]->peerType == PINNED) {
