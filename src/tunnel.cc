@@ -140,6 +140,9 @@ public:
         template <typename Method>
         void initConnection(const Comm::ConnectionPointer &aConn, Method method, const char *name, TunnelStateData *tunnelState);
 
+        /// reacts to the external closure of our connection
+        void noteClosure();
+
         int bytesWanted(int lower=0, int upper = INT_MAX) const;
         void bytesIn(int const &);
 #if USE_DELAY_POOLS
@@ -270,9 +273,7 @@ static void
 tunnelServerClosed(const CommCloseCbParams &params)
 {
     TunnelStateData *tunnelState = (TunnelStateData *)params.data;
-    debugs(26, 3, HERE << tunnelState->server.conn);
-    tunnelState->server.conn = NULL;
-    tunnelState->server.writer = NULL;
+    tunnelState->server.noteClosure();
 
     if (tunnelState->request != NULL)
         tunnelState->request->hier.stopPeerClock(false);
@@ -290,9 +291,7 @@ static void
 tunnelClientClosed(const CommCloseCbParams &params)
 {
     TunnelStateData *tunnelState = (TunnelStateData *)params.data;
-    debugs(26, 3, HERE << tunnelState->client.conn);
-    tunnelState->client.conn = NULL;
-    tunnelState->client.writer = NULL;
+    tunnelState->client.noteClosure();
 
     if (tunnelState->noConnections())
         return tunnelState->deleteThis();
@@ -757,6 +756,15 @@ TunnelStateData::Connection::initConnection(const Comm::ConnectionPointer &aConn
     conn = aConn;
     closer = commCbCall(5, 4, name, CommCloseCbPtrFun(method, tunnelState));
     comm_add_close_handler(conn->fd, closer);
+}
+
+void
+TunnelStateData::Connection::noteClosure()
+{
+    debugs(26, 3, conn);
+    conn = nullptr;
+    closer = nullptr;
+    writer = nullptr; // may already be nil
 }
 
 void
