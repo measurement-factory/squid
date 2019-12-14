@@ -92,10 +92,6 @@ public:
     AccessLogEntryPointer al;
     Comm::ConnectionList serverDestinations;
 
-    // TODO: Move to TunnelStateData::Connection::closer.
-    /// the registered close handler for the connection to the server (or nil)
-    AsyncCall::Pointer serverCloseHandler;
-
     const char * getHost() const {
         return (server.conn != NULL && server.conn->getPeer() ? server.conn->getPeer()->host : request->url.host());
     };
@@ -140,6 +136,10 @@ public:
 
         ~Connection();
 
+        /// initiates Comm::Connection ownership, including closure monitoring
+        template <typename Method>
+        void initConnection(const Comm::ConnectionPointer &aConn, Method method, const char *name, TunnelStateData *tunnelState);
+
         int bytesWanted(int lower=0, int upper = INT_MAX) const;
         void bytesIn(int const &);
 #if USE_DELAY_POOLS
@@ -153,6 +153,8 @@ public:
         void dataSent (size_t amount);
         /// writes 'b' buffer, setting the 'writer' member to 'callback'.
         void write(const char *b, int size, AsyncCall::Pointer &callback, FREE * free_func);
+        /// end connection ownership (if any) w/o calling our closing handler
+        void closeQuietly();
         int len;
         char *buf;
         AsyncCall::Pointer writer; ///< pending Comm::Write callback
@@ -170,7 +172,8 @@ public:
 
         DelayId delayId;
 #endif
-
+        /// the registered close handler for the connection
+        AsyncCall::Pointer closer;
     };
 
     Connection client, server;
@@ -231,12 +234,11 @@ private:
     /// whether the request should be retried
     bool checkRetry();
 
-    void closeServerConnection();
-
     /// details of the "last tunneling attempt" failure (if it failed)
     ErrorState *savedError = nullptr;
 
 public:
+    void deleteThis();
     bool keepGoingAfterRead(size_t len, Comm::Flag errcode, int xerrno, Connection &from, Connection &to);
     void copy(size_t len, Connection &from, Connection &to, IOCB *);
     void handleConnectResponse(const size_t chunkSize);
@@ -275,17 +277,8 @@ tunnelServerClosed(const CommCloseCbParams &params)
     if (tunnelState->request != NULL)
         tunnelState->request->hier.stopPeerClock(false);
 
-    if (tunnelState->noConnections()) {
-        // ConnStateData pipeline should contain the CONNECT we are performing
-        // but it may be invalid already (bug 4392)
-        if (tunnelState->http.valid() && tunnelState->http->getConn()) {
-            auto ctx = tunnelState->http->getConn()->pipeline.front();
-            if (ctx != nullptr)
-                ctx->finished();
-        }
-        delete tunnelState;
-        return;
-    }
+    if (tunnelState->noConnections())
+        return tunnelState->deleteThis();
 
     if (!tunnelState->client.writer) {
         tunnelState->client.conn->close();
@@ -301,22 +294,28 @@ tunnelClientClosed(const CommCloseCbParams &params)
     tunnelState->client.conn = NULL;
     tunnelState->client.writer = NULL;
 
-    if (tunnelState->noConnections()) {
-        // ConnStateData pipeline should contain the CONNECT we are performing
-        // but it may be invalid already (bug 4392)
-        if (tunnelState->http.valid() && tunnelState->http->getConn()) {
-            auto ctx = tunnelState->http->getConn()->pipeline.front();
-            if (ctx != nullptr)
-                ctx->finished();
-        }
-        delete tunnelState;
-        return;
-    }
+    if (tunnelState->noConnections())
+        return tunnelState->deleteThis();
 
     if (!tunnelState->server.writer) {
         tunnelState->server.conn->close();
         return;
     }
+}
+
+/// destroys the tunnel (after performing potentially-throwing cleanup)
+void
+TunnelStateData::deleteThis()
+{
+    assert(noConnections());
+    // ConnStateData pipeline should contain the CONNECT we are performing
+    // but it may be invalid already (bug 4392)
+    if (const auto h = http.valid()) {
+        if (const auto c = h->getConn())
+            if (const auto ctx = c->pipeline.front())
+                ctx->finished();
+    }
+    delete this;
 }
 
 TunnelStateData::TunnelStateData(ClientHttpRequest *clientRequest) :
@@ -339,8 +338,7 @@ TunnelStateData::TunnelStateData(ClientHttpRequest *clientRequest) :
     al = clientRequest->al;
     http = clientRequest;
 
-    client.conn = clientRequest->getConn()->clientConnection;
-    comm_add_close_handler(client.conn->fd, tunnelClientClosed, this);
+    client.initConnection(clientRequest->getConn()->clientConnection, tunnelClientClosed, "tunnelClientClosed", this);
 
     AsyncCall::Pointer timeoutCall = commCbCall(5, 4, "tunnelTimeout",
                                      CommTimeoutCbPtrFun(tunnelTimeout, this));
@@ -749,6 +747,18 @@ TunnelStateData::Connection::write(const char *b, int size, AsyncCall::Pointer &
     Comm::Write(conn, b, size, callback, free_func);
 }
 
+template <typename Method>
+void
+TunnelStateData::Connection::initConnection(const Comm::ConnectionPointer &aConn, Method method, const char *name, TunnelStateData *tunnelState)
+{
+    Must(!Comm::IsConnOpen(conn));
+    Must(!closer);
+    Must(Comm::IsConnOpen(aConn));
+    conn = aConn;
+    closer = commCbCall(5, 4, name, CommCloseCbPtrFun(method, tunnelState));
+    comm_add_close_handler(conn->fd, closer);
+}
+
 void
 TunnelStateData::writeClientDone(char *, size_t len, Comm::Flag flag, int xerrno)
 {
@@ -1050,7 +1060,7 @@ TunnelStateData::retryOrBail(const char *context)
 
     if (checkRetry()) {
         if (!serverDestinations.empty()) {
-            closeServerConnection();
+            server.closeQuietly(); // may already be closed
             debugs(26, 4, "re-forwarding");
             return startConnecting();
         }
@@ -1078,16 +1088,27 @@ TunnelStateData::retryOrBail(const char *context)
     // else writeClientDone() must notice a closed server and close the client
 }
 
-/// closes the connection to the server without triggering the close handler
 void
-TunnelStateData::closeServerConnection()
+TunnelStateData::Connection::closeQuietly()
 {
-    if (Comm::IsConnOpen(server.conn)) {
-        if (serverCloseHandler) {
-            comm_remove_close_handler(server.conn->fd, serverCloseHandler);
-            serverCloseHandler = nullptr;
-        }
-        server.conn->close();
+    assert(!writer);
+
+    if (Comm::IsConnOpen(conn)) {
+        Must(closer);
+        comm_remove_close_handler(conn->fd, closer);
+        closer = nullptr;
+        conn->close();
+        conn = nullptr;
+        return;
+    }
+
+    if (closer) {
+        Must(conn);
+        Must(fd_table[conn->fd].closing()); // explains false IsConnOpen()
+        // our close callback has already been scheduled
+        closer->cancel("no longer needed by tunnel");
+        closer = nullptr;
+        conn = nullptr;
     }
 }
 
@@ -1140,9 +1161,8 @@ tunnelConnectDone(const Comm::ConnectionPointer &conn, Comm::Flag status, int xe
 
     tunnelState->request->hier.resetPeerNotes(conn, tunnelState->getHost());
 
-    tunnelState->server.conn = conn;
     tunnelState->request->peer_host = conn->getPeer() ? conn->getPeer()->host : NULL;
-    tunnelState->serverCloseHandler = comm_add_close_handler(conn->fd, tunnelServerClosed, tunnelState);
+    tunnelState->server.initConnection(conn, tunnelServerClosed, "tunnelServerClosed", tunnelState);
 
     debugs(26, 4, HERE << "determine post-connect handling pathway.");
     if (conn->getPeer()) {
@@ -1406,7 +1426,7 @@ switchToTunnel(HttpRequest *request, Comm::ConnectionPointer &clientConn, Comm::
 
     request->hier.resetPeerNotes(srvConn, tunnelState->getHost());
 
-    tunnelState->server.conn = srvConn;
+    tunnelState->server.initConnection(srvConn, tunnelServerClosed, "tunnelServerClosed", tunnelState);
 
 #if USE_DELAY_POOLS
     /* no point using the delayIsNoDelay stuff since tunnel is nice and simple */
@@ -1415,7 +1435,6 @@ switchToTunnel(HttpRequest *request, Comm::ConnectionPointer &clientConn, Comm::
 #endif
 
     request->peer_host = srvConn->getPeer() ? srvConn->getPeer()->host : nullptr;
-    comm_add_close_handler(srvConn->fd, tunnelServerClosed, tunnelState);
 
     debugs(26, 4, "determine post-connect handling pathway.");
     if (srvConn->getPeer()) {
