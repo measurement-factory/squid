@@ -263,9 +263,6 @@ public:
 
     /// handles Squid-to-server connection closure; may destroy us
     void serverClosed();
-
-    /// whether noteDestination() and noteDestinationsEnd() calls are allowed
-    bool subscribed = false;
 };
 
 static const char *const conn_established = "HTTP/1.1 200 Connection established\r\n\r\n";
@@ -1131,10 +1128,6 @@ TunnelStateData::retryOrBail(const char *context)
             debugs(26, 4, "re-forwarding");
             return startConnecting();
         }
-        if (subscribed) {
-            debugs(26, 4, "wait for more destinations to try");
-            return; // expect a tunnelPeerSelectComplete() call
-        }
     }
 
     /* bail */
@@ -1305,7 +1298,6 @@ tunnelStart(ClientHttpRequest * http)
     //server.setDelayId called from tunnelConnectDone after server side connection established
 #endif
 
-    tunnelState->subscribed = true;
     peerSelect(&(tunnelState->serverDestinations), request, http->al,
                NULL,
                tunnelPeerSelectComplete,
@@ -1406,7 +1398,6 @@ tunnelPeerSelectComplete(Comm::ConnectionList *peer_paths, ErrorState *err, void
     if (!peer_paths || peer_paths->empty()) {
         debugs(26, 3, HERE << "No paths found. Aborting CONNECT");
         bail = true;
-        tunnelState->subscribed = false;
     }
 
     if (!bail && tunnelState->serverDestinations[0]->peerType == PINNED) {
