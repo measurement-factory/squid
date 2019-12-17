@@ -561,34 +561,31 @@ ErrorState::NewForwarding(err_type type, HttpRequest *request)
 ErrorState::ErrorState(err_type t, Http::StatusCode status, HttpRequest * req) :
     type(t),
     page_id(t),
-    err_language(NULL),
-    httpStatus(status),
-#if USE_AUTH
-    auth_user_request (NULL),
-#endif
-    request(NULL),
-    url(NULL),
-    xerrno(0),
-    port(0),
-    dnsError(),
-    ttl(0),
-    src_addr(),
-    redirect_url(NULL),
-    callback(NULL),
-    callback_data(NULL),
-    request_hdrs(NULL),
-    err_msg(NULL),
-#if USE_OPENSSL
-    detail(NULL),
-#endif
-    detailCode(ERR_DETAIL_NONE)
+    httpStatus(status)
 {
-    memset(&ftp, 0, sizeof(ftp));
+    init(req);
 
     if (page_id >= ERR_MAX && ErrorDynamicPages[page_id - ERR_MAX]->page_redirect != Http::scNone)
         httpStatus = ErrorDynamicPages[page_id - ERR_MAX]->page_redirect;
 
-    if (req != NULL) {
+}
+
+ErrorState::ErrorState(HttpRequest *req, HttpReply *errorReply) :
+    type(ERR_RELAY_REMOTE),
+    page_id(ERR_RELAY_REMOTE)
+{
+    Must(errorReply);
+    response_ = errorReply;
+    httpStatus = errorReply->sline.status();
+
+    init(req);
+}
+
+void
+ErrorState::init(HttpRequest *req)
+{
+    memset(&ftp, 0, sizeof(ftp));
+    if (req) {
         request = req;
         HTTPMSGLOCK(request);
         src_addr = req->client_addr;
@@ -694,6 +691,7 @@ ErrorState::~ErrorState()
 #if USE_OPENSSL
     delete detail;
 #endif
+    delete response_;
 }
 
 int
@@ -1133,6 +1131,12 @@ ErrorState::DenyInfoLocation(const char *name, HttpRequest *, MemBuf &result)
 HttpReply *
 ErrorState::BuildHttpReply()
 {
+    if (response_) {
+        auto temp = response_;
+        response_ = nullptr;
+        return temp;
+    }
+
     HttpReply *rep = new HttpReply;
     const char *name = errorPageName(page_id);
     /* no LMT for error pages; error pages expire immediately */

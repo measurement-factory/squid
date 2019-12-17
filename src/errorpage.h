@@ -83,6 +83,9 @@ class ErrorState
 public:
     ErrorState(err_type type, Http::StatusCode, HttpRequest * request);
     ErrorState(); // not implemented.
+    /// creates an ERR_RELAY_REMOTE error
+    ErrorState(HttpRequest * request, HttpReply *);
+
     ~ErrorState();
 
     /// Creates a general request forwarding error with the right http_status.
@@ -129,6 +132,8 @@ private:
      */
     const char *Convert(char token, bool building_deny_info_url, bool allowRecursion);
 
+    void init(HttpRequest *);
+
     /**
      * CacheManager / Debug dump of the ErrorState object.
      * Writes output into the given MemBuf.
@@ -139,22 +144,22 @@ private:
 public:
     err_type type;
     int page_id;
-    char *err_language;
+    char *err_language = nullptr;
     Http::StatusCode httpStatus;
 #if USE_AUTH
     Auth::UserRequest::Pointer auth_user_request;
 #endif
-    HttpRequest *request;
-    char *url;
-    int xerrno;
-    unsigned short port;
+    HttpRequest *request = nullptr;
+    char *url = nullptr;
+    int xerrno = 0;
+    unsigned short port = 0;
     String dnsError; ///< DNS lookup error message
-    time_t ttl;
+    time_t ttl = 0;
 
     Ip::Address src_addr;
-    char *redirect_url;
-    ERCB *callback;
-    void *callback_data;
+    char *redirect_url = nullptr;
+    ERCB *callback = nullptr;
+    void *callback_data = nullptr;
 
     struct {
         wordlist *server_msg;
@@ -164,15 +169,16 @@ public:
         MemBuf *listing;
     } ftp;
 
-    char *request_hdrs;
-    char *err_msg; /* Preformatted error message from the cache */
+    char *request_hdrs = nullptr;
+    char *err_msg = nullptr; /* Preformatted error message from the cache */
 
 #if USE_OPENSSL
-    Ssl::ErrorDetail *detail;
+    Ssl::ErrorDetail *detail = nullptr;
 #endif
     /// type-specific detail about the transaction error;
     /// overwrites xerrno; overwritten by detail, if any.
-    int detailCode;
+    int detailCode = ERR_DETAIL_NONE;
+    HttpReply *response_ = nullptr;
 };
 
 /**
