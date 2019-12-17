@@ -279,6 +279,7 @@ static EVH tunnelDelayedServerRead;
 static void tunnelConnected(const Comm::ConnectionPointer &server, void *);
 static void tunnelRelayConnectRequest(const Comm::ConnectionPointer &server, void *);
 
+/// TunnelStateData::serverClosed() wrapper
 static void
 tunnelServerClosed(const CommCloseCbParams &params)
 {
@@ -293,6 +294,7 @@ TunnelStateData::serverClosed()
     retryOrBail("server closed");
 }
 
+/// TunnelStateData::clientClosed() wrapper
 static void
 tunnelClientClosed(const CommCloseCbParams &params)
 {
@@ -1142,11 +1144,14 @@ TunnelStateData::retryOrBail(const char *context)
         saveError(new ErrorState(ERR_CANNOT_FORWARD, Http::scInternalServerError, request.getRaw()));;
 
     const auto canSendError = Comm::IsConnOpen(client.conn) && !client.dirty &&
-        clientExpectsConnectResponse(); // XXX: add and check 'dirty'
+        clientExpectsConnectResponse();
 
     if (canSendError)
         return sendError(savedError, context);
     *status_ptr = savedError->httpStatus;
+
+    if (noConnections())
+        return deleteThis();
 
     // This is a "Comm::IsConnOpen(client.conn) but !canSendError" case.
     // Closing the connection (after finishing writing) is the best we can do.
