@@ -38,7 +38,7 @@ public:
     static const Marker TakenPage = std::numeric_limits<PointerOrMarker>::max() - 1;
     static_assert(TakenPage != NilPtr, "magic PointerOrMarker values do not clash");
 
-    explicit PageStackStorageSlot(const Pointer next = NilPtr): nextOrMarker(next) {}
+    explicit PageStackStorageSlot(const Pointer nxt = NilPtr): nextOrMarker(nxt) {}
 
     /// returns a (possibly nil) pointer to the next free page
     Pointer next() const { return nextOrMarker.load(); }
@@ -46,9 +46,9 @@ public:
     /// marks our page as used
     void take();
 
-    /// marks our page as free, to be used before the given `next` page;
+    /// marks our page as free, to be used before the given `nxt` page;
     /// also checks that the slot state matches the caller expectations
-    void put(const PointerOrMarker expected, const Pointer next);
+    void put(const PointerOrMarker expected, const Pointer nxt);
 
 private:
     std::atomic<PointerOrMarker> nextOrMarker;
