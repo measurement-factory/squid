@@ -28,6 +28,9 @@ class PageId;
 class PageStackStorageSlot
 {
 public:
+    // We are using uint32_t for Pointer because PageId::number is uint32_t.
+    // PageId::number should probably be uint64_t to accommodate caches with
+    // page numbers exceeding UINT32_MAX.
     typedef uint32_t PointerOrMarker;
     typedef PointerOrMarker Pointer;
     typedef PointerOrMarker Marker;
