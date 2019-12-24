@@ -509,11 +509,13 @@ MemStore::copyFromShm(StoreEntry &e, const sfileno index, const Ipc::StoreMapAnc
                 replyBuffer.terminate();
                 Http::StatusCode error = Http::scNone;
 
-                if (rep->parse(replyBuffer.buf, replyBuffer.size, wasEof, &error))
+                if (rep->parse(replyBuffer.buf, replyBuffer.size, wasEof, &error)) {
                     assert(rep->pstate == Http::Message::psParsed);
-                else if (error)
+                } else if (error) {
                     return false;
-                // else more data needed
+                } else {
+                    assert(!wasEof); // more data needed
+                }
             }
         }
         // else skip a [possibly incomplete] slice that we copied earlier
