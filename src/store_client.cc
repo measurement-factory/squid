@@ -199,9 +199,11 @@ store_client::store_client(StoreEntry *e) :
     owner(cbdataReference(data)),
 #endif
     entry(e),
+    replyBuffer(new MemBuf),
     type(e->storeClientType()),
     object_ok(true)
 {
+    replyBuffer->init();
     flags.disk_io_pending = false;
     flags.store_copying = false;
     flags.copy_event_pending = false;
@@ -215,7 +217,9 @@ store_client::store_client(StoreEntry *e) :
 }
 
 store_client::~store_client()
-{}
+{
+    delete replyBuffer;
+}
 
 /* copy bytes requested by the client */
 void
@@ -491,34 +495,39 @@ store_client::fileRead()
               copyInto.data,
               copyInto.length,
               copyInto.offset + mem->swap_hdr_sz,
-              mem->swap_hdr_sz == 0 ? storeClientReadHeader
-              : storeClientReadBody,
+              expectHeader() ? storeClientReadHeader : storeClientReadBody,
               this);
 }
 
 void
 store_client::readBody(const char *, ssize_t len)
 {
-    int parsed_header = 0;
-
     // Don't assert disk_io_pending here.. may be called by read_header
     flags.disk_io_pending = false;
     assert(_callback.pending());
-    debugs(90, 3, "storeClientReadBody: len " << len << "");
+    debugs(90, 3, "storeClientReadBody: len " << len << " offset " << copyInto.offset);
 
     if (len < 0)
         return fail();
 
-    const auto rep = entry->mem_obj ? &entry->mem().baseReply() : nullptr;
-    if (copyInto.offset == 0 && len > 0 && rep && rep->sline.status() == Http::scNone) {
-        /* Our structure ! */
-        if (!entry->mem_obj->adjustableBaseReply().parseCharBuf(copyInto.data, headersEnd(copyInto.data, len))) {
-            debugs(90, DBG_CRITICAL, "Could not parse headers from on disk object");
+    auto headerParsed = !expectHeader();
+    if (!headerParsed) {
+        replyBuffer->append(copyInto.data, len);
+        replyBuffer->terminate();
+        Http::StatusCode error = Http::scNone;
+        auto &adjustableReply = entry->mem_obj->adjustableBaseReply();
+        if (!adjustableReply.parse(replyBuffer->buf, replyBuffer->size, 0, &error)) {
+            if (error)
+                debugs(90, DBG_CRITICAL, "Could not parse headers from on disk object");
         } else {
-            parsed_header = 1;
+            headerParsed = true;
+            assert(adjustableReply.pstate == Http::Message::psParsed);
+            delete replyBuffer;
+            replyBuffer = nullptr;
         }
     }
 
+    const auto rep = entry->mem_obj ? &entry->mem().baseReply() : nullptr;
     if (len > 0 && rep && entry->mem_obj->inmem_lo == 0 && entry->objectLen() <= (int64_t)Config.Store.maxInMemObjSize && Config.onoff.memory_cache_disk) {
         storeGetMemSpace(len);
         // The above may start to free our object so we need to check again
@@ -527,10 +536,15 @@ store_client::readBody(const char *, ssize_t len)
              * copyInto.offset includes headers, which is what mem cache needs
              */
             int64_t mem_offset = entry->mem_obj->endOffset();
-            if ((copyInto.offset == mem_offset) || (parsed_header && mem_offset == rep->hdr_sz)) {
+            if ((copyInto.offset == mem_offset) || (headerParsed && mem_offset == rep->hdr_sz)) {
                 entry->mem_obj->write(StoreIOBuffer(len, copyInto.offset, copyInto.data));
             }
         }
+    }
+
+    if (!headerParsed) {
+        copyInto.offset += len;
+        throw TexcHere("More data needed");
     }
 
     callback(len);
@@ -606,10 +620,19 @@ store_client::unpackHeader(char const *buf, ssize_t len)
     return true;
 }
 
+bool
+store_client::expectHeader() const
+{
+    const auto rep = entry->mem_obj ? &entry->mem().baseReply() : nullptr;
+	return rep && (rep->pstate < Http::Message::psParsed);
+}
+
 void
 store_client::readHeader(char const *buf, ssize_t len)
 {
     MemObject *const mem = entry->mem_obj;
+    const auto initialRead = (mem->swap_hdr_sz == 0);
+    assert(!initialRead || !replyBuffer->hasContent());
 
     assert(flags.disk_io_pending);
     flags.disk_io_pending = false;
@@ -622,28 +645,32 @@ store_client::readHeader(char const *buf, ssize_t len)
     if (len < 0)
         return fail();
 
-    if (!unpackHeader(buf, len)) {
-        fail();
-        return;
+    if (initialRead) {
+        if (!unpackHeader(buf, len)) {
+            fail();
+            return;
+        }
     }
 
     /*
      * If our last read got some data the client wants, then give
      * it to them, otherwise schedule another read.
      */
-    size_t body_sz = len - mem->swap_hdr_sz;
+    const auto body_sz = initialRead ? len - mem->swap_hdr_sz : len;
 
-    if (copyInto.offset < static_cast<int64_t>(body_sz)) {
+    try {
+        // if (copyInto.offset < static_cast<int64_t>(body_sz)) {
         /*
          * we have (part of) what they want
          */
         size_t copy_sz = min(copyInto.length, body_sz);
         debugs(90, 3, "storeClientReadHeader: copying " << copy_sz << " bytes of body");
-        memmove(copyInto.data, copyInto.data + mem->swap_hdr_sz, copy_sz);
-
+        if (initialRead)
+            memmove(copyInto.data, copyInto.data + mem->swap_hdr_sz, copy_sz);
         readBody(copyInto.data, copy_sz);
-
         return;
+    } catch (const std::exception &ex) {
+        debugs(90, 2, ex.what());
     }
 
     /*

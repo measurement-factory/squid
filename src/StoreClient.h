@@ -75,6 +75,7 @@ public:
     void readBody(const char *buf, ssize_t len);
     void copy(StoreEntry *, StoreIOBuffer, STCB *, void *);
     void dumpStats(MemBuf * output, int clientNumber) const;
+    bool expectHeader() const;
 
     int64_t cmp_offset;
 #if STORE_CLIENT_LIST_DEBUG
@@ -99,6 +100,7 @@ public:
     dlink_node node;
     /* Below here is private - do no alter outside storeClient calls */
     StoreIOBuffer copyInto;
+    MemBuf *replyBuffer;
 
 private:
     bool moreToSend() const;
