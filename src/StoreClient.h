@@ -112,6 +112,9 @@ private:
     bool startSwapin();
     bool unpackHeader(char const *buf, ssize_t len);
 
+    void initReplyBuffer();
+    void freeReplyBuffer();
+
     int type;
     bool object_ok;
 

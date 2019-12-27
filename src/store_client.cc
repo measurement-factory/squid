@@ -47,6 +47,8 @@ CBDATA_CLASS_INIT(store_client);
 
 /* StoreClient */
 
+class IncompleteHeaderException {};
+
 bool
 StoreClient::onCollapsingPath() const
 {
@@ -193,17 +195,32 @@ storeClientCopyEvent(void *data)
     storeClientCopy2(sc->entry, sc);
 }
 
+void
+store_client::initReplyBuffer()
+{
+    assert(!replyBuffer);
+    replyBuffer = new MemBuf;
+    replyBuffer->init();
+}
+
+void
+store_client::freeReplyBuffer()
+{
+    delete replyBuffer;
+    replyBuffer = nullptr;
+}
+
 store_client::store_client(StoreEntry *e) :
     cmp_offset(0),
 #if STORE_CLIENT_LIST_DEBUG
     owner(cbdataReference(data)),
 #endif
     entry(e),
-    replyBuffer(new MemBuf),
+    replyBuffer(nullptr),
     type(e->storeClientType()),
     object_ok(true)
 {
-    replyBuffer->init();
+    initReplyBuffer();
     flags.disk_io_pending = false;
     flags.store_copying = false;
     flags.copy_event_pending = false;
@@ -218,7 +235,7 @@ store_client::store_client(StoreEntry *e) :
 
 store_client::~store_client()
 {
-    delete replyBuffer;
+    freeReplyBuffer();
 }
 
 /* copy bytes requested by the client */
@@ -517,13 +534,14 @@ store_client::readBody(const char *, ssize_t len)
         Http::StatusCode error = Http::scNone;
         auto &adjustableReply = entry->mem_obj->adjustableBaseReply();
         if (!adjustableReply.parse(replyBuffer->buf, replyBuffer->size, 0, &error)) {
-            if (error)
-                debugs(90, DBG_CRITICAL, "Could not parse headers from on disk object");
+            if (error) {
+                freeReplyBuffer();
+                throw TextException("Could not parse headers from on disk object", Here());
+            }
         } else {
             headerParsed = true;
             assert(adjustableReply.pstate == Http::Message::psParsed);
-            delete replyBuffer;
-            replyBuffer = nullptr;
+            freeReplyBuffer();
         }
     }
 
@@ -544,7 +562,7 @@ store_client::readBody(const char *, ssize_t len)
 
     if (!headerParsed) {
         copyInto.offset += len;
-        throw TexcHere("More data needed");
+        throw IncompleteHeaderException();
     }
 
     callback(len);
@@ -624,16 +642,12 @@ bool
 store_client::expectHeader() const
 {
     const auto rep = entry->mem_obj ? &entry->mem().baseReply() : nullptr;
-	return rep && (rep->pstate < Http::Message::psParsed);
+    return rep && (rep->pstate < Http::Message::psParsed);
 }
 
 void
 store_client::readHeader(char const *buf, ssize_t len)
 {
-    MemObject *const mem = entry->mem_obj;
-    const auto initialRead = (mem->swap_hdr_sz == 0);
-    assert(!initialRead || !replyBuffer->hasContent());
-
     assert(flags.disk_io_pending);
     flags.disk_io_pending = false;
     assert(_callback.pending());
@@ -645,12 +659,12 @@ store_client::readHeader(char const *buf, ssize_t len)
     if (len < 0)
         return fail();
 
-    if (initialRead) {
-        if (!unpackHeader(buf, len)) {
-            fail();
-            return;
-        }
-    }
+    MemObject *const mem = entry->mem_obj;
+    const auto initialRead = (mem->swap_hdr_sz == 0);
+    assert(!initialRead || (replyBuffer && !replyBuffer->hasContent()));
+
+    if (initialRead && !unpackHeader(buf, len))
+        return fail();
 
     /*
      * If our last read got some data the client wants, then give
@@ -669,8 +683,14 @@ store_client::readHeader(char const *buf, ssize_t len)
             memmove(copyInto.data, copyInto.data + mem->swap_hdr_sz, copy_sz);
         readBody(copyInto.data, copy_sz);
         return;
+    } catch (const IncompleteHeaderException &) {
+        debugs(90, 2, "Could not parse header: more data needed");
     } catch (const std::exception &ex) {
-        debugs(90, 2, ex.what());
+        debugs(90, DBG_IMPORTANT, ex.what());
+        return fail();
+    } catch (...) {
+        debugs(90, DBG_IMPORTANT, "error: " << CurrentException);
+        return fail();
     }
 
     /*
