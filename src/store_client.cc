@@ -685,11 +685,8 @@ store_client::readHeader(char const *buf, ssize_t len)
         return;
     } catch (const IncompleteHeaderException &) {
         debugs(90, 2, "Could not parse header: more data needed");
-    } catch (const std::exception &ex) {
-        debugs(90, DBG_IMPORTANT, ex.what());
-        return fail();
     } catch (...) {
-        debugs(90, DBG_IMPORTANT, "error: " << CurrentException);
+        debugs(90, DBG_IMPORTANT,  CurrentException);
         return fail();
     }
 
