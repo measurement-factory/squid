@@ -96,7 +96,7 @@ Http::Message::parse(const char *buf, const size_t sz, bool eof, Http::StatusCod
     }
 
     if (hdr_len > Config.maxReplyHeaderSize || (hdr_len <= 0 && sz > Config.maxReplyHeaderSize)) {
-        debugs(58, DBG_IMPORTANT, "Too large reply header (" << hdr_len << " > " << Config.maxReplyHeaderSize);
+        debugs(58, DBG_IMPORTANT, "Too large reply header (" << hdr_len << " > " << Config.maxReplyHeaderSize << ")");
         *error = Http::scHeaderTooLarge;
         return false;
     }
