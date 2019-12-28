@@ -532,18 +532,17 @@ store_client::readBody(const char *, ssize_t len)
         initReplyBuffer();
         replyBuffer->append(copyInto.data, len);
         replyBuffer->terminate();
-        Http::StatusCode error = Http::scNone;
+        auto error = Http::scNone;
         auto &adjustableReply = entry->mem_obj->adjustableBaseReply();
-        if (!adjustableReply.parse(replyBuffer->buf, replyBuffer->size, 0, &error)) {
-            if (error) {
-                freeReplyBuffer();
-                throw TextException("Could not parse headers from on disk object", Here());
-            }
-        } else {
+        if (adjustableReply.parse(replyBuffer->buf, replyBuffer->size, 0, &error)) {
             headerParsed = true;
             assert(adjustableReply.pstate == Http::Message::psParsed);
             freeReplyBuffer();
+        } else if (error) {
+            freeReplyBuffer();
+            throw TextException("Could not parse headers from on disk object", Here());
         }
+        // else more data needed, see below
     }
 
     const auto rep = entry->mem_obj ? &entry->mem().baseReply() : nullptr;
@@ -562,6 +561,7 @@ store_client::readBody(const char *, ssize_t len)
     }
 
     if (!headerParsed) {
+        // more data needed
         copyInto.offset += len;
         throw IncompleteHeaderException();
     }
