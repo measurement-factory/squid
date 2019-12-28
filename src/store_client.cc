@@ -198,9 +198,10 @@ storeClientCopyEvent(void *data)
 void
 store_client::initReplyBuffer()
 {
-    assert(!replyBuffer);
-    replyBuffer = new MemBuf;
-    replyBuffer->init();
+    if (!replyBuffer) {
+        replyBuffer = new MemBuf;
+        replyBuffer->init();
+    }
 }
 
 void
@@ -220,7 +221,6 @@ store_client::store_client(StoreEntry *e) :
     type(e->storeClientType()),
     object_ok(true)
 {
-    initReplyBuffer();
     flags.disk_io_pending = false;
     flags.store_copying = false;
     flags.copy_event_pending = false;
@@ -529,6 +529,7 @@ store_client::readBody(const char *, ssize_t len)
 
     auto headerParsed = !expectHeader();
     if (!headerParsed) {
+        initReplyBuffer();
         replyBuffer->append(copyInto.data, len);
         replyBuffer->terminate();
         Http::StatusCode error = Http::scNone;
@@ -661,7 +662,6 @@ store_client::readHeader(char const *buf, ssize_t len)
 
     MemObject *const mem = entry->mem_obj;
     const auto initialRead = (mem->swap_hdr_sz == 0);
-    assert(!initialRead || (replyBuffer && !replyBuffer->hasContent()));
 
     if (initialRead && !unpackHeader(buf, len))
         return fail();
