@@ -507,7 +507,7 @@ MemStore::copyFromShm(StoreEntry &e, const sfileno index, const Ipc::StoreMapAnc
                 // XXX: have to copy because httpMsgParseStep() requires 0-termination
                 replyBuffer.append(sliceBuf.data, sliceBuf.length);
                 replyBuffer.terminate();
-                Http::StatusCode error = Http::scNone;
+                auto error = Http::scNone;
 
                 if (rep->parse(replyBuffer.buf, replyBuffer.size, wasEof, &error)) {
                     assert(rep->pstate == Http::Message::psParsed);
