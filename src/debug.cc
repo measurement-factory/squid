@@ -62,6 +62,8 @@ public:
     /// logging stream; the only method that uses stderr as the last resort
     FILE *file() { return file_ ? file_ : stderr; }
 
+    bool inited() { return file_; }
+
     char *name = nullptr;
 
 private:
@@ -789,7 +791,7 @@ ctx_get_descr(Ctx ctx)
 }
 
 Debug::Context *Debug::Current = nullptr;
-Debug::Lines *Debug::EarlyMessages = nullptr;
+Debug::Messages *Debug::EarlyMessages = nullptr;
 
 Debug::Context::Context(const int aSection, const int aLevel):
     level(aLevel),
@@ -856,9 +858,6 @@ Debug::Finish()
     if (Current->level <= DBG_IMPORTANT)
         Current->buf << CurrentCodeContextDetail;
 
-    if (!TheLog.inited())
-        AddWarning(Current->buf.str());
-
     // TODO: Optimize to remove at least one extra copy.
     _db_print(Current->forceAlert, "%s\n", Current->buf.str().c_str());
     Current->forceAlert = false;
@@ -875,13 +874,13 @@ Debug::RememberMessage(const Message &msg)
 {
     if (!EarlyMessages)
         EarlyMessages = new Messages;
-    EarlyWarnings->push_back(msg);
+    EarlyMessages->push_back(msg);
 }
 
 bool
 Debug::Initializing()
 {
-    return TheLog.file();
+    return !TheLog.inited();
 }
 
 void
