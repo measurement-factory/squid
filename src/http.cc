@@ -1494,6 +1494,9 @@ HttpStateData::processReplyBody()
 
         case COMPLETE_NONPERSISTENT_MSG:
             debugs(11, 5, "processReplyBody: COMPLETE_NONPERSISTENT_MSG from " << serverConnection);
+            if (flags.chunked && !lastChunk)
+                entry->lengthWentBad("missing last-chunk");
+
             serverComplete();
             return;
         }
