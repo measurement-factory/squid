@@ -297,6 +297,7 @@ debugOpenLog(const char *logfile)
         setmode(fileno(log), O_TEXT);
 #endif
         TheLog.reset(log, logfilename);
+        Debug::PrintEarlyMessages();
     } else {
         fprintf(stderr, "WARNING: Cannot write log file: %s\n", logfile);
         perror(logfile);
@@ -788,6 +789,7 @@ ctx_get_descr(Ctx ctx)
 }
 
 Debug::Context *Debug::Current = nullptr;
+Debug::Lines *Debug::EarlyMessages = nullptr;
 
 Debug::Context::Context(const int aSection, const int aLevel):
     level(aLevel),
@@ -854,6 +856,9 @@ Debug::Finish()
     if (Current->level <= DBG_IMPORTANT)
         Current->buf << CurrentCodeContextDetail;
 
+    if (!TheLog.inited())
+        AddWarning(Current->buf.str());
+
     // TODO: Optimize to remove at least one extra copy.
     _db_print(Current->forceAlert, "%s\n", Current->buf.str().c_str());
     Current->forceAlert = false;
@@ -863,6 +868,31 @@ Debug::Finish()
     if (Current)
         delete past;
     // else it was a static topContext from Debug::Start()
+}
+
+void
+Debug::RememberMessage(const Message &msg)
+{
+    if (!EarlyMessages)
+        EarlyMessages = new Messages;
+    EarlyWarnings->push_back(msg);
+}
+
+bool
+Debug::Initializing()
+{
+    return TheLog.file();
+}
+
+void
+Debug::PrintEarlyMessages()
+{
+    if (!EarlyMessages)
+        return;
+    for (auto &msg : *EarlyMessages)
+        debugs(msg.level, msg.sectionLevel, msg.line);
+    delete EarlyMessages;
+    EarlyMessages = nullptr;
 }
 
 void

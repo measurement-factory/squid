@@ -71,11 +71,30 @@ public:
         bool forceAlert; ///< the current debugs() will be a syslog ALERT
     };
 
+    class Message
+    {
+    public:
+        Message(const int aSectionLevel, const int aLevel, const std::string &aLine) :
+            sectionLevel(aSectionLevel), level(aLevel), line(aLine) {}
+
+        int sectionLevel;
+        int level;
+        std::string line;
+    };
+
+    typedef std::vector<Message> Messages;
+
     /// whether debugging the given section and the given level produces output
     static bool Enabled(const int section, const int level)
     {
         return level <= Debug::Levels[section];
     }
+
+    static bool Initializing();
+
+    static void PrintEarlyMessages();
+
+    static void RememberMessage(const Message &);
 
     static char *debugOptions;
     static char *cache_log;
@@ -105,6 +124,7 @@ public:
 
 private:
     static Context *Current; ///< deepest active context; nil outside debugs()
+    static Messages *EarlyMessages;
 };
 
 /// cache.log FILE or, as the last resort, stderr stream;
@@ -128,14 +148,19 @@ void ResyncDebugLog(FILE *newDestination);
 #define debugs(SECTION, LEVEL, CONTENT) \
    do { \
         const int _dbg_level = (LEVEL); \
-        if (Debug::Enabled((SECTION), _dbg_level)) { \
-            std::ostream &_dbo = Debug::Start((SECTION), _dbg_level); \
+        const auto debugInitializing = Debug::Initializing(); \
+        const auto debugEnabled = Debug::Enabled((SECTION), _dbg_level); \
+        if (debugEnabled || debugInitializing) { \
+            std::ostringstream &_dbo = Debug::Start((SECTION), _dbg_level); \
             if (_dbg_level > DBG_IMPORTANT) { \
                 _dbo << (SECTION) << ',' << _dbg_level << "| " \
                      << Here() << ": "; \
             } \
             _dbo << CONTENT; \
-            Debug::Finish(); \
+            if (debugEnabled) \
+                Debug::Finish(); \
+            else \
+                Debug::RememberMessage(Debug::Message((SECTION), _dbg_level, _dbo.str())); \
         } \
    } while (/*CONSTCOND*/ 0)
 
