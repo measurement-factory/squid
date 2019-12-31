@@ -890,8 +890,16 @@ Debug::Finish()
 void
 Debug::RememberMessage(const Message &msg)
 {
+    // TODO: resolve duplication with Debug::Finish()
+    // TODO: #include "base/CodeContext.h" instead if doing so works well.
+    extern std::ostream &CurrentCodeContextDetail(std::ostream &os);
+    if (Current->level <= DBG_IMPORTANT)
+        Current->buf << CurrentCodeContextDetail;
+
     if (!EarlyMessages)
         EarlyMessages = new Messages;
+    if (EarlyMessages->size() == Debug::Message::MaxCount)
+        return;
     EarlyMessages->push_back(msg);
 }
 

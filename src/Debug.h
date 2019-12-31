@@ -74,6 +74,8 @@ public:
     class Message
     {
     public:
+        static const int MaxCount = 1000;
+
         Message(const int aSectionLevel, const int aLevel, const std::string &aLine);
 
         int sectionLevel;
@@ -158,7 +160,7 @@ void ResyncDebugLog(FILE *newDestination);
             _dbo << CONTENT; \
             if (debugEnabled) \
                 Debug::Finish(); \
-            else \
+            else if (_dbg_level <= DBG_IMPORTANT) \
                 Debug::RememberMessage(Debug::Message((SECTION), _dbg_level, _dbo.str())); \
         } \
    } while (/*CONSTCOND*/ 0)
