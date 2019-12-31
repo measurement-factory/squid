@@ -74,8 +74,7 @@ public:
     class Message
     {
     public:
-        Message(const int aSectionLevel, const int aLevel, const std::string &aLine) :
-            sectionLevel(aSectionLevel), level(aLevel), line(aLine) {}
+        Message(const int aSectionLevel, const int aLevel, const std::string &aLine);
 
         int sectionLevel;
         int level;

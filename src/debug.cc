@@ -39,6 +39,7 @@ static void _db_print_syslog(const bool forceAlert, const char *format, va_list 
 #endif
 static void _db_print_stderr(const char *format, va_list args);
 static void _db_print_file(const char *format, va_list args);
+static void _db_print_file(const char *line);
 
 #if _SQUID_WINDOWS_
 extern LPCRITICAL_SECTION dbg_mutex;
@@ -199,6 +200,15 @@ _db_print_file(const char *format, va_list args)
         ctx_print();
 
     vfprintf(debug_log, format, args);
+    fflush(debug_log);
+}
+
+static void
+_db_print_file(const char *line)
+{
+    if (debug_log == NULL)
+        return;
+    fprintf(debug_log, "%s\n", line);
     fflush(debug_log);
 }
 
@@ -802,6 +812,14 @@ Debug::Context::Context(const int aSection, const int aLevel):
     formatStream();
 }
 
+Debug::Message::Message(const int aSectionLevel, const int aLevel, const std::string &aLine) :
+    sectionLevel(aSectionLevel), level(aLevel)
+{
+     std::ostringstream stream;
+     stream << debugLogTime() << debugLogKid() << '|' << aLine;
+     line = stream.str();
+}
+
 /// Optimization: avoids new Context creation for every debugs().
 void
 Debug::Context::rewind(const int aSection, const int aLevel)
@@ -886,12 +904,14 @@ Debug::Initializing()
 void
 Debug::PrintEarlyMessages()
 {
+    debugs(0, 2, "started");
     if (!EarlyMessages)
         return;
     for (auto &msg : *EarlyMessages)
-        debugs(msg.level, msg.sectionLevel, msg.line);
+        _db_print_file(msg.line.c_str());
     delete EarlyMessages;
     EarlyMessages = nullptr;
+    debugs(0, 2, "finished");
 }
 
 void
