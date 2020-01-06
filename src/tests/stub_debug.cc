@@ -120,13 +120,13 @@ Debug::Message::Message(const int aSectionLevel, const int aLevel, const std::st
 }
 
 bool
-Debug::Initializing()
+Debug::LogOpened()
 {
-    return false;
+    return true;
 }
 
 void
-Debug::RememberMessage(const Message &)
+Debug::RememberEarlyMessage(const Message &)
 {}
 
 std::ostringstream &

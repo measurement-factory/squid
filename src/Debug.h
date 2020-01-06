@@ -91,11 +91,13 @@ public:
         return level <= Debug::Levels[section];
     }
 
-    static bool Initializing();
-
-    static void PrintEarlyMessages();
-
-    static void RememberMessage(const Message &);
+    /// whether the log file was opened
+    static bool LogOpened();
+    /// cache log messages at early(initialization) stage,
+    /// when the log file has not been opened yet
+    static void RememberEarlyMessage(const Message &);
+    /// write the cached messages into the log file
+    static void LogEarlyMessages();
 
     static char *debugOptions;
     static char *cache_log;
@@ -149,9 +151,8 @@ void ResyncDebugLog(FILE *newDestination);
 #define debugs(SECTION, LEVEL, CONTENT) \
    do { \
         const int _dbg_level = (LEVEL); \
-        const auto debugInitializing = Debug::Initializing(); \
         const auto debugEnabled = Debug::Enabled((SECTION), _dbg_level); \
-        if (debugEnabled || debugInitializing) { \
+        if (debugEnabled || !Debug::LogOpened()) { \
             std::ostringstream &_dbo = Debug::Start((SECTION), _dbg_level); \
             if (_dbg_level > DBG_IMPORTANT) { \
                 _dbo << (SECTION) << ',' << _dbg_level << "| " \
@@ -161,7 +162,7 @@ void ResyncDebugLog(FILE *newDestination);
             if (debugEnabled) \
                 Debug::Finish(); \
             else if (_dbg_level <= DBG_IMPORTANT) \
-                Debug::RememberMessage(Debug::Message((SECTION), _dbg_level, _dbo.str())); \
+                Debug::RememberEarlyMessage(Debug::Message((SECTION), _dbg_level, _dbo.str())); \
         } \
    } while (/*CONSTCOND*/ 0)
 

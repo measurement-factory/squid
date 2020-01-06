@@ -63,7 +63,8 @@ public:
     /// logging stream; the only method that uses stderr as the last resort
     FILE *file() { return file_ ? file_ : stderr; }
 
-    bool inited() { return file_; }
+    /// whether a real log file was opened
+    bool opened() { return file_; }
 
     char *name = nullptr;
 
@@ -309,7 +310,7 @@ debugOpenLog(const char *logfile)
         setmode(fileno(log), O_TEXT);
 #endif
         TheLog.reset(log, logfilename);
-        Debug::PrintEarlyMessages();
+        Debug::LogEarlyMessages();
     } else {
         fprintf(stderr, "WARNING: Cannot write log file: %s\n", logfile);
         perror(logfile);
@@ -888,8 +889,9 @@ Debug::Finish()
 }
 
 void
-Debug::RememberMessage(const Message &msg)
+Debug::RememberEarlyMessage(const Message &msg)
 {
+    assert(!Debug::LogOpened());
     // TODO: resolve duplication with Debug::Finish()
     // TODO: #include "base/CodeContext.h" instead if doing so works well.
     extern std::ostream &CurrentCodeContextDetail(std::ostream &os);
@@ -904,17 +906,18 @@ Debug::RememberMessage(const Message &msg)
 }
 
 bool
-Debug::Initializing()
+Debug::LogOpened()
 {
-    return !TheLog.inited();
+    return TheLog.opened();
 }
 
 void
-Debug::PrintEarlyMessages()
+Debug::LogEarlyMessages()
 {
-    debugs(0, 2, "started");
+    assert(Debug::LogOpened());
     if (!EarlyMessages)
         return;
+    debugs(0, 2, "started");
     for (auto &msg : *EarlyMessages)
         _db_print_file(msg.line.c_str());
     delete EarlyMessages;
