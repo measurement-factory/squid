@@ -110,6 +110,25 @@ Debug::Context::Context(const int aSection, const int aLevel):
     buf.precision(2);
 }
 
+Debug::Message::Message(const int aSectionLevel, const int aLevel, const std::string &aLine) :
+    sectionLevel(aSectionLevel), level(aLevel)
+{
+     std::ostringstream stream;
+     // debugLogTime(squid_curtime)
+     stream << "stub time" << '|' << aLine;
+     line = stream.str();
+}
+
+bool
+Debug::Initializing()
+{
+    return false;
+}
+
+void
+Debug::RememberMessage(const Message &)
+{}
+
 std::ostringstream &
 Debug::Start(const int section, const int level)
 {
