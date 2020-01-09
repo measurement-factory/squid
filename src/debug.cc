@@ -920,12 +920,12 @@ Debug::LogEarlyMessages()
     assert(Debug::LogOpened());
     if (!EarlyMessages)
         return;
-    debugs(0, 2, "started");
+    const auto count = EarlyMessages->size();
     for (auto &msg : *EarlyMessages)
         _db_print_file(msg.line.c_str());
     delete EarlyMessages;
     EarlyMessages = nullptr;
-    debugs(0, 2, "finished");
+    debugs(0, 2, "total " << count << " messages");
 }
 
 void
