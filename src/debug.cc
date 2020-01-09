@@ -101,11 +101,15 @@ DebugFile::reset(FILE *newFile, const char *newName)
     // callers must use nullptr instead of the used-as-the-last-resort stderr
     assert(newFile != stderr || !stderr);
 
+    const bool oldFile = file_;
     if (file_) {
         fd_close(fileno(file_));
         fclose(file_);
     }
     file_ = newFile; // may be nil
+
+    if (!oldFile && newFile)
+        Debug::LogEarlyMessages();
 
     if (file_)
         fd_open(fileno(file_), FD_LOG, Debug::cache_log);
@@ -310,7 +314,6 @@ debugOpenLog(const char *logfile)
         setmode(fileno(log), O_TEXT);
 #endif
         TheLog.reset(log, logfilename);
-        Debug::LogEarlyMessages();
     } else {
         fprintf(stderr, "WARNING: Cannot write log file: %s\n", logfile);
         perror(logfile);
