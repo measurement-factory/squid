@@ -184,7 +184,8 @@ public:
 
     /// continue to set up connection to a peer, going async for SSL peers
     void connectToPeer();
-
+    /// whether the request should be retried
+    bool checkRetry();
     /// tries connecting to another destination, if available
     bool retry();
 
@@ -1007,6 +1008,18 @@ tunnelErrorComplete(int fd/*const Comm::ConnectionPointer &*/, void *data, size_
 }
 
 bool
+TunnelStateData::checkRetry()
+{
+    if (shutting_down)
+        return false;
+    if (!FwdState::EnoughTimeToReForward(startTime))
+        return false;
+    if (noConnections())
+        return false;
+    return true;
+}
+
+bool
 TunnelStateData::retry()
 {
     {
@@ -1017,7 +1030,7 @@ TunnelStateData::retry()
 
     serverDestinations.erase(serverDestinations.begin());
 
-    if (!serverDestinations.empty() && FwdState::EnoughTimeToReForward(startTime)) {
+    if (!serverDestinations.empty() && checkRetry()) {
         closeServerConnection();
         debugs(26, 4, "re-forwarding");
         startConnecting();
