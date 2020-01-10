@@ -924,8 +924,10 @@ Debug::LogEarlyMessages()
     if (!EarlyMessages)
         return;
     const auto count = EarlyMessages->size();
-    for (auto &msg : *EarlyMessages)
-        _db_print_file(msg.line.c_str());
+    for (auto &msg : *EarlyMessages) {
+        if (Debug::Enabled(msg.sectionLevel, msg.level))
+            _db_print_file(msg.line.c_str());
+    }
     delete EarlyMessages;
     EarlyMessages = nullptr;
     if (DroppedEarlyMessages)
