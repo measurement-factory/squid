@@ -27,6 +27,7 @@ bool Debug::log_syslog = false;
 int Debug::Levels[MAX_DEBUG_SECTIONS];
 char *Debug::cache_log = NULL;
 int Debug::rotateNumber = -1;
+int Debug::DroppedEarlyMessages;
 static int Ctx_Lock = 0;
 static const char *debugLogTime(void);
 static const char *debugLogKid(void);
@@ -903,8 +904,10 @@ Debug::RememberEarlyMessage(const Message &msg)
 
     if (!EarlyMessages)
         EarlyMessages = new Messages;
-    if (EarlyMessages->size() == Debug::Message::MaxCount)
+    if (EarlyMessages->size() == Debug::Message::MaxCount) {
+        DroppedEarlyMessages++;
         return;
+    }
     EarlyMessages->push_back(msg);
 }
 
@@ -925,7 +928,10 @@ Debug::LogEarlyMessages()
         _db_print_file(msg.line.c_str());
     delete EarlyMessages;
     EarlyMessages = nullptr;
-    debugs(0, 2, "total " << count << " messages");
+    if (DroppedEarlyMessages)
+        debugs(0, DBG_IMPORTANT, "Too many early WARNING messages, logged only initial " << Debug::Message::MaxCount << " of total " << DroppedEarlyMessages + count);
+    else
+        debugs(0, 2, "total " << count << " messages");
 }
 
 void

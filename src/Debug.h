@@ -128,6 +128,8 @@ public:
 private:
     static Context *Current; ///< deepest active context; nil outside debugs()
     static Messages *EarlyMessages;
+    /// the number of early messages exceeding Message::MaxCount
+    static int DroppedEarlyMessages;
 };
 
 /// cache.log FILE or, as the last resort, stderr stream;
