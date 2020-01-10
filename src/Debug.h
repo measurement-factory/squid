@@ -153,18 +153,19 @@ void ResyncDebugLog(FILE *newDestination);
 #define debugs(SECTION, LEVEL, CONTENT) \
    do { \
         const int _dbg_level = (LEVEL); \
-        const auto debugEnabled = Debug::Enabled((SECTION), _dbg_level); \
-        if (debugEnabled || !Debug::LogOpened()) { \
+        const auto _debugEnabled = Debug::Enabled((SECTION), _dbg_level); \
+        const auto _logEarlyMessage = !Debug::LogOpened(); \
+        if (_debugEnabled || _logEarlyMessage) { \
             std::ostringstream &_dbo = Debug::Start((SECTION), _dbg_level); \
             if (_dbg_level > DBG_IMPORTANT) { \
                 _dbo << (SECTION) << ',' << _dbg_level << "| " \
                      << Here() << ": "; \
             } \
             _dbo << CONTENT; \
-            if (debugEnabled) \
-                Debug::Finish(); \
-            else if (_dbg_level <= DBG_IMPORTANT) \
+            if (_logEarlyMessage && _dbg_level <= DBG_IMPORTANT) \
                 Debug::RememberEarlyMessage(Debug::Message((SECTION), _dbg_level, _dbo.str())); \
+            if (_debugEnabled) \
+                Debug::Finish(); \
         } \
    } while (/*CONSTCOND*/ 0)
 
