@@ -71,16 +71,20 @@ public:
         bool forceAlert; ///< the current debugs() will be a syslog ALERT
     };
 
+    /// Preserves 'early' debugs() message and context for future writing into the log file.
+    /// 'early' messages are warning/critical debugs() calls performed before the configuration
+    /// is loaded and the log file is opened.
     class Message
     {
     public:
+        /// the maximum number of messages to accumulate
         static const int MaxCount = 1000;
 
         Message(const int aSectionLevel, const int aLevel, const std::string &aLine);
 
-        int sectionLevel;
-        int level;
-        std::string line;
+        int sectionLevel; ///< the debugs() SECTION argument
+        int level; ///< the debugs() LEVEL argument
+        std::string line; ///< the final message (including timestamp and context) for logging
     };
 
     typedef std::vector<Message> Messages;
@@ -93,10 +97,9 @@ public:
 
     /// whether the log file was opened
     static bool LogOpened();
-    /// cache log messages at early(initialization) stage,
-    /// when the log file has not been opened yet
+    /// cache an 'early' message
     static void RememberEarlyMessage(const Message &);
-    /// write the cached messages into the log file
+    /// write all cached 'early' messages into the log file
     static void LogEarlyMessages();
 
     static char *debugOptions;
@@ -127,8 +130,10 @@ public:
 
 private:
     static Context *Current; ///< deepest active context; nil outside debugs()
+    /// Accumulates debugs() warning messages before the log file is opened.
+    /// Becomes nil after these messages are written into the log.
     static Messages *EarlyMessages;
-    /// the number of early messages exceeding Message::MaxCount
+    /// the number of ignored 'early' messages
     static int DroppedEarlyMessages;
 };
 
