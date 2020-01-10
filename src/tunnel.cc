@@ -1014,8 +1014,9 @@ TunnelStateData::checkRetry()
         return false;
     if (!FwdState::EnoughTimeToReForward(startTime))
         return false;
-    if (noConnections())
+    if (!Comm::IsConnOpen(client.conn))
         return false;
+    // whether the server connection is open does not matter here
     return true;
 }
 
