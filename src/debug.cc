@@ -820,7 +820,7 @@ Debug::Message::Message(const int aSectionLevel, const int aLevel, const std::st
     sectionLevel(aSectionLevel), level(aLevel)
 {
      std::ostringstream stream;
-     stream << debugLogTime() << debugLogKid() << '|' << aLine;
+     stream << debugLogTime() << debugLogKid() << "| " << aLine;
      line = stream.str();
 }
 
