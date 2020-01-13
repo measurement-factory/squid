@@ -760,8 +760,10 @@ FwdState::noteConnection(HappyConnOpener::Answer &answer)
     calls.connector = nullptr;
     connOpener.clear();
 
-    Must(tries() <= answer.n_tries); // n_tries cannot decrease
-    addTries(answer.n_tries);
+    if (al) {
+        Must(al->requestAttempts <= answer.n_tries); // n_tries cannot decrease
+        al->requestAttempts = answer.n_tries;
+    }
 
     if (const auto error = answer.error.get()) {
         flags.dont_retry = true; // or HappyConnOpener would not have given up
@@ -1024,7 +1026,9 @@ FwdState::usePinned()
         return;
     }
 
-    addTries(1);
+    if (al)
+        al->requestAttempts++;
+
     request->flags.pinned = true;
 
     assert(connManager);

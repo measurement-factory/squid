@@ -146,8 +146,6 @@ private:
     void syncWithServerConn(const Comm::ConnectionPointer &server, const char *host, const bool reused);
     void syncHierNote(const Comm::ConnectionPointer &server, const char *host);
 
-    /// increments the forwarding attempts counter
-    void addTries(const int tries) { if (al) al->requestAttempts += tries; }
     /// the number of forwarding attempts so far
     int tries() const { return al ? al->requestAttempts : 0; }
     /// whether we have used up all permitted forwarding attempts
