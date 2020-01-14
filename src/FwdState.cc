@@ -760,11 +760,6 @@ FwdState::noteConnection(HappyConnOpener::Answer &answer)
     calls.connector = nullptr;
     connOpener.clear();
 
-    if (al) {
-        Must(al->requestAttempts <= answer.n_tries); // n_tries cannot decrease
-        al->requestAttempts = answer.n_tries;
-    }
-
     if (const auto error = answer.error.get()) {
         flags.dont_retry = true; // or HappyConnOpener would not have given up
         syncHierNote(answer.conn, request->url.host());
@@ -989,7 +984,7 @@ FwdState::connectStart()
     calls.connector = asyncCall(17, 5, "FwdState::noteConnection", HappyConnOpener::CbDialer<FwdState>(&FwdState::noteConnection, this));
 
     HttpRequest::Pointer cause = request;
-    const auto cs = new HappyConnOpener(destinations, calls.connector, cause, start_t, tries(), al);
+    const auto cs = new HappyConnOpener(destinations, calls.connector, cause, start_t, al);
     cs->setHost(request->url.host());
     bool retriable = checkRetriable();
     if (!retriable && Config.accessList.serverPconnForNonretriable) {
@@ -1026,10 +1021,10 @@ FwdState::usePinned()
         return;
     }
 
+    request->flags.pinned = true;
+
     if (al)
         al->requestAttempts++;
-
-    request->flags.pinned = true;
 
     assert(connManager);
     if (connManager->pinnedAuth())

@@ -194,7 +194,9 @@ public:
     /// key=value pairs returned from URL rewrite/redirect helper
     NotePairs::Pointer notes;
 
-    /// The number of request sending attempts so far. See %request_attempts.
+    /// The total number of attempts to establish a connection. Includes any
+    /// failed attempts and [always successful] persistent connection reuse.
+    /// See %request_attempts.
     int requestAttempts = 0;
     /// see ConnStateData::proxyProtocolHeader_
     ProxyProtocol::HeaderPointer proxyProtocolHeader;

@@ -890,11 +890,6 @@ TunnelStateData::noteConnection(HappyConnOpener::Answer &answer)
     calls.connector = nullptr;
     connOpener.clear();
 
-    if (al) {
-        Must(al->requestAttempts <= answer.n_tries); // n_tries cannot decrease
-        al->requestAttempts = answer.n_tries;
-    }
-
     if (const auto error = answer.error.get()) {
         syncHierNote(answer.conn, request->url.host());
         saveError(error);
@@ -1163,7 +1158,7 @@ TunnelStateData::startConnecting()
     assert(!destinations->empty());
 
     calls.connector = asyncCall(17, 5, "TunnelStateData::noteConnection", HappyConnOpener::CbDialer<TunnelStateData>(&TunnelStateData::noteConnection, this));
-    const auto cs = new HappyConnOpener(destinations, calls.connector, request, startTime, 0, al);
+    const auto cs = new HappyConnOpener(destinations, calls.connector, request, startTime, al);
     cs->setHost(request->url.host());
     cs->setRetriable(false);
     cs->allowPersistent(false);
@@ -1185,6 +1180,10 @@ TunnelStateData::usePinned()
         // Set HttpRequest pinned related flags for consistency even if
         // they are not really used by tunnel.cc code.
         request->flags.pinned = true;
+
+        if (al)
+            al->requestAttempts++;
+
         if (connManager->pinnedAuth())
             request->flags.auth = true;
 
