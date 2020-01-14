@@ -817,11 +817,11 @@ Debug::Context::Context(const int aSection, const int aLevel):
     formatStream();
 }
 
-Debug::Message::Message(const int aSectionLevel, const int aLevel, const std::string &aLine) :
-    sectionLevel(aSectionLevel), level(aLevel)
+Debug::Message::Message(const Debug::Context &context) :
+    level(context.level), sectionLevel(context.sectionLevel)
 {
      std::ostringstream stream;
-     stream << debugLogTime() << debugLogKid() << "| " << aLine;
+     stream << debugLogTime() << debugLogKid() << "| " << context.buf.str();
      line = stream.str();
 }
 
@@ -881,8 +881,13 @@ Debug::Finish()
     if (Current->level <= DBG_IMPORTANT)
         Current->buf << CurrentCodeContextDetail;
 
-    // TODO: Optimize to remove at least one extra copy.
-    _db_print(Current->forceAlert, "%s\n", Current->buf.str().c_str());
+    if (Current->level <= DBG_IMPORTANT && !Debug::LogOpened()) {
+        Debug::RememberEarlyMessage();
+    } else if (Enabled(Current->sectionLevel, Current->level)) {
+        // TODO: Optimize to remove at least one extra copy.
+        _db_print(Current->forceAlert, "%s\n", Current->buf.str().c_str());
+    }
+
     Current->forceAlert = false;
 
     Context *past = Current;
@@ -893,14 +898,9 @@ Debug::Finish()
 }
 
 void
-Debug::RememberEarlyMessage(const Message &msg)
+Debug::RememberEarlyMessage()
 {
     assert(!Debug::LogOpened());
-    // TODO: resolve duplication with Debug::Finish()
-    // TODO: #include "base/CodeContext.h" instead if doing so works well.
-    extern std::ostream &CurrentCodeContextDetail(std::ostream &os);
-    if (Current->level <= DBG_IMPORTANT)
-        Current->buf << CurrentCodeContextDetail;
 
     if (!EarlyMessages)
         EarlyMessages = new Messages;
@@ -908,7 +908,8 @@ Debug::RememberEarlyMessage(const Message &msg)
         DroppedEarlyMessages++;
         return;
     }
-    EarlyMessages->push_back(msg);
+    assert(Current);
+    EarlyMessages->push_back(Message(*Current));
 }
 
 bool

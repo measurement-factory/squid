@@ -80,15 +80,20 @@ public:
         /// the maximum number of messages to accumulate
         static const int MaxCount = 1000;
 
-        Message(const int aSectionLevel, const int aLevel, const std::string &aLine);
+        Message(const Context &);
 
-        int sectionLevel; ///< the debugs() SECTION argument
         int level; ///< the debugs() LEVEL argument
+        int sectionLevel; ///< the debugs() SECTION argument
         std::string line; ///< the final message (including timestamp and context) for logging
     };
 
     typedef std::vector<Message> Messages;
 
+    /// whether the subsequent Debug::Start() may be called
+    static bool CanStart(const int section, const int level)
+    {
+        return Enabled(section, level) || !Debug::LogOpened();
+    }
     /// whether debugging the given section and the given level produces output
     static bool Enabled(const int section, const int level)
     {
@@ -98,7 +103,7 @@ public:
     /// whether the log file was opened
     static bool LogOpened();
     /// cache an 'early' message
-    static void RememberEarlyMessage(const Message &);
+    static void RememberEarlyMessage();
     /// write all cached 'early' messages into the log file
     static void LogEarlyMessages();
 
@@ -158,19 +163,14 @@ void ResyncDebugLog(FILE *newDestination);
 #define debugs(SECTION, LEVEL, CONTENT) \
    do { \
         const int _dbg_level = (LEVEL); \
-        const auto _debugEnabled = Debug::Enabled((SECTION), _dbg_level); \
-        const auto _logEarlyMessage = !Debug::LogOpened(); \
-        if (_debugEnabled || _logEarlyMessage) { \
+        if (Debug::CanStart((SECTION), _dbg_level)) { \
             std::ostringstream &_dbo = Debug::Start((SECTION), _dbg_level); \
             if (_dbg_level > DBG_IMPORTANT) { \
                 _dbo << (SECTION) << ',' << _dbg_level << "| " \
                      << Here() << ": "; \
             } \
             _dbo << CONTENT; \
-            if (_logEarlyMessage && _dbg_level <= DBG_IMPORTANT) \
-                Debug::RememberEarlyMessage(Debug::Message((SECTION), _dbg_level, _dbo.str())); \
-            if (_debugEnabled) \
-                Debug::Finish(); \
+            Debug::Finish(); \
         } \
    } while (/*CONSTCOND*/ 0)
 
