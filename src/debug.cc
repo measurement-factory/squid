@@ -27,7 +27,7 @@ bool Debug::log_syslog = false;
 int Debug::Levels[MAX_DEBUG_SECTIONS];
 char *Debug::cache_log = NULL;
 int Debug::rotateNumber = -1;
-int Debug::DroppedEarlyMessages;
+int Debug::DroppedEarlyMessages = 0;
 static int Ctx_Lock = 0;
 static const char *debugLogTime(void);
 static const char *debugLogKid(void);
@@ -64,8 +64,8 @@ public:
     /// logging stream; the only method that uses stderr as the last resort
     FILE *file() { return file_ ? file_ : stderr; }
 
-    /// whether a real log file was opened
-    bool opened() { return file_; }
+    /// whether a real log file is open
+    bool isOpen() { return file_; }
 
     char *name = nullptr;
 
@@ -102,14 +102,14 @@ DebugFile::reset(FILE *newFile, const char *newName)
     // callers must use nullptr instead of the used-as-the-last-resort stderr
     assert(newFile != stderr || !stderr);
 
-    const bool oldFile = file_;
+    const bool wasLoggingToFile = file_;
     if (file_) {
         fd_close(fileno(file_));
         fclose(file_);
     }
     file_ = newFile; // may be nil
 
-    if (!oldFile && newFile)
+    if (!wasLoggingToFile && newFile)
         Debug::LogEarlyMessages();
 
     if (file_)
@@ -212,7 +212,7 @@ _db_print_file(const char *format, va_list args)
 static void
 _db_print_file(const char *line)
 {
-    if (debug_log == NULL)
+    if (!debug_log)
         return;
     fprintf(debug_log, "%s\n", line);
     fflush(debug_log);
@@ -915,7 +915,7 @@ Debug::RememberEarlyMessage()
 bool
 Debug::LogOpened()
 {
-    return TheLog.opened();
+    return TheLog.isOpen();
 }
 
 void
@@ -932,7 +932,8 @@ Debug::LogEarlyMessages()
     delete EarlyMessages;
     EarlyMessages = nullptr;
     if (DroppedEarlyMessages)
-        debugs(0, DBG_IMPORTANT, "Too many early WARNING messages, logged only initial " << Debug::Message::MaxCount << " of total " << DroppedEarlyMessages + count);
+        debugs(0, DBG_IMPORTANT, "ERROR: Too many early important messages: " << (count + DroppedEarlyMessages) <<
+                "; logged the first " << count << " and dropped " << DroppedEarlyMessages);
     else
         debugs(0, 2, "total " << count << " messages");
 }
