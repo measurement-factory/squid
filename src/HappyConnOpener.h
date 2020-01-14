@@ -191,7 +191,7 @@ private:
     void sendSuccess(const Comm::ConnectionPointer &conn, bool reused, const char *connKind);
     void sendFailure();
 
-    /// number of connection opening attempts, including those in the requestor
+    /// the total number of connection opening attempts
     int tries() const { return ale ? ale->requestAttempts : 0; }
     /// increments the connection opening attempts
     void incTries() { if (ale) ale->requestAttempts++; }
