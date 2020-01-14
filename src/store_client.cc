@@ -199,6 +199,7 @@ store_client::store_client(StoreEntry *e) :
     owner(cbdataReference(data)),
 #endif
     entry(e),
+    codeContext(CodeContext::Current()),
     type(e->storeClientType()),
     object_ok(true)
 {
@@ -787,7 +788,9 @@ StoreEntry::invokeHandlers()
         if (sc->flags.disk_io_pending)
             continue;
 
-        storeClientCopy2(this, sc);
+        CallBack(sc->codeContext, [&] {
+            storeClientCopy2(this, sc);
+        });
     }
     PROF_stop(InvokeHandlers);
 }

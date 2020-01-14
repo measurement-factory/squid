@@ -9,6 +9,7 @@
 #ifndef SQUID_STORECLIENT_H
 #define SQUID_STORECLIENT_H
 
+#include "base/CodeContext.h"
 #include "dlink.h"
 #include "StoreIOBuffer.h"
 #include "StoreIOState.h"
@@ -99,6 +100,8 @@ public:
     dlink_node node;
     /* Below here is private - do no alter outside storeClient calls */
     StoreIOBuffer copyInto;
+
+    CodeContext::Pointer codeContext; ///< requestor's context
 
 private:
     bool moreToSend() const;
