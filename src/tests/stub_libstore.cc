@@ -47,12 +47,10 @@ void Controller::addReading(StoreEntry *, const cache_key *) STUB
 void Controller::addWriting(StoreEntry *, const cache_key *) STUB
 bool Controller::transientsReader(const StoreEntry &) const STUB_RETVAL(false)
 bool Controller::transientsWriter(const StoreEntry &) const STUB_RETVAL(false)
-void Controller::transientsCompleteWriting(StoreEntry &) STUB
 void Controller::syncCollapsed(const sfileno) STUB
-void Controller::stopSharing(StoreEntry &) STUB
+void Controller::noteStoppedSharedWriting(StoreEntry &) STUB
 int Controller::transientReaders(const StoreEntry &) const STUB_RETVAL(0)
 void Controller::transientsDisconnect(StoreEntry &) STUB
-void Controller::transientsClearCollapsingRequirement(StoreEntry &) STUB
 void Controller::memoryDisconnect(StoreEntry &) STUB
 StoreSearch *Controller::search() STUB_RETVAL(nullptr)
 bool Controller::SmpAware() STUB_RETVAL(false)

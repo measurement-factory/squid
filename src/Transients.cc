@@ -166,8 +166,6 @@ Transients::get(const cache_key *key)
     e->mem_obj->xitTable.index = index;
     e->mem_obj->xitTable.io = Store::ioReading;
     anchor->exportInto(*e);
-    const bool collapsingRequired = EBIT_TEST(anchor->basics.flags, ENTRY_REQUIRES_COLLAPSING);
-    e->setCollapsingRequirement(collapsingRequired);
     // keep read lock to receive updates from others
     return e;
 }
@@ -186,20 +184,6 @@ Transients::findCollapsed(const sfileno index)
 
     debugs(20, 3, "no entry at " << index << " in " << MapLabel);
     return NULL;
-}
-
-void
-Transients::clearCollapsingRequirement(const StoreEntry &e)
-{
-    assert(map);
-    assert(e.hasTransients());
-    assert(isWriter(e));
-    const auto idx = e.mem_obj->xitTable.index;
-    auto &anchor = map->writeableEntry(idx);
-    if (EBIT_TEST(anchor.basics.flags, ENTRY_REQUIRES_COLLAPSING)) {
-        EBIT_CLR(anchor.basics.flags, ENTRY_REQUIRES_COLLAPSING);
-        CollapsedForwarding::Broadcast(e);
-    }
 }
 
 void
@@ -265,7 +249,7 @@ Transients::status(const StoreEntry &entry, Transients::EntryStatus &entryStatus
     const auto idx = entry.mem_obj->xitTable.index;
     const auto &anchor = isWriter(entry) ?
                          map->writeableEntry(idx) : map->readableEntry(idx);
-    entryStatus.abortedByWriter = anchor.writerHalted;
+    entryStatus.hasWriter = anchor.writing();
     entryStatus.waitingToBeFreed = anchor.waitingToBeFreed;
     entryStatus.collapsed = EBIT_TEST(anchor.basics.flags, ENTRY_REQUIRES_COLLAPSING);
 }
@@ -273,10 +257,12 @@ Transients::status(const StoreEntry &entry, Transients::EntryStatus &entryStatus
 void
 Transients::completeWriting(const StoreEntry &e)
 {
+    debugs(20, 5, e);
     assert(e.hasTransients());
     assert(isWriter(e));
     map->switchWritingToReading(e.mem_obj->xitTable.index);
     e.mem_obj->xitTable.io = Store::ioReading;
+    CollapsedForwarding::Broadcast(e);
 }
 
 int
@@ -322,7 +308,12 @@ Transients::disconnect(StoreEntry &entry)
         auto &xitTable = entry.mem_obj->xitTable;
         assert(map);
         if (isWriter(entry)) {
-            map->abortWriting(xitTable.index);
+            // completeWriting() was not called, so there could be an active
+            // Store writer out there, but we should not abortWriting() here
+            // because another writer may have succeeded, making readers happy.
+            // If none succeeded, the readers will notice the lack of writers.
+            map->closeForWriting(xitTable.index);
+            CollapsedForwarding::Broadcast(entry);
         } else {
             assert(isReader(entry));
             map->closeForReading(xitTable.index);
