@@ -811,6 +811,7 @@ Debug::Messages *Debug::EarlyMessages = nullptr;
 Debug::Context::Context(const int aSection, const int aLevel):
     level(aLevel),
     sectionLevel(Levels[aSection]),
+    section(aSection),
     upper(Current),
     forceAlert(false)
 {
@@ -818,7 +819,7 @@ Debug::Context::Context(const int aSection, const int aLevel):
 }
 
 Debug::Message::Message(const Debug::Context &context) :
-    level(context.level), sectionLevel(context.sectionLevel)
+    level(context.level), section(context.section)
 {
      std::ostringstream stream;
      stream << debugLogTime() << debugLogKid() << "| " << context.buf.str();
@@ -831,6 +832,7 @@ Debug::Context::rewind(const int aSection, const int aLevel)
 {
     level = aLevel;
     sectionLevel = Levels[aSection];
+    section = aSection;
     assert(upper == Current);
 
     buf.str(std::string());
@@ -881,9 +883,10 @@ Debug::Finish()
     if (Current->level <= DBG_IMPORTANT)
         Current->buf << CurrentCodeContextDetail;
 
-    if (Current->level <= DBG_IMPORTANT && !Debug::LogOpened()) {
+    if (Current->level <= DBG_IMPORTANT && !Debug::LogOpened())
         Debug::RememberEarlyMessage();
-    } else if (Enabled(Current->sectionLevel, Current->level)) {
+
+    if (Enabled(Current->section, Current->level)) {
         // TODO: Optimize to remove at least one extra copy.
         _db_print(Current->forceAlert, "%s\n", Current->buf.str().c_str());
     }
@@ -926,7 +929,7 @@ Debug::LogEarlyMessages()
         return;
     const auto count = EarlyMessages->size();
     for (auto &msg : *EarlyMessages) {
-        if (Debug::Enabled(msg.sectionLevel, msg.level))
+        if (Debug::Enabled(msg.section, msg.level))
             _db_print_file(msg.line.c_str());
     }
     delete EarlyMessages;

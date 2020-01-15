@@ -61,6 +61,7 @@ public:
 
         int level; ///< minimum debugging level required by the debugs() call
         int sectionLevel; ///< maximum debugging level allowed during the call
+        int section; ///< the debug section of the call
 
     private:
         friend class Debug;
@@ -82,8 +83,8 @@ public:
 
         Message(const Context &);
 
-        int level; ///< the debugs() LEVEL argument
-        int sectionLevel; ///< the debugs() SECTION argument
+        int level; ///< the debug level
+        int section; ///< the debug section
         std::string line; ///< the final message (including timestamp and context) for logging
     };
 
