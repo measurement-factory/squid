@@ -883,7 +883,7 @@ Debug::Finish()
     if (Current->level <= DBG_IMPORTANT)
         Current->buf << CurrentCodeContextDetail;
 
-    if (Current->level <= DBG_IMPORTANT && !Debug::LogOpened())
+    if (Current->level <= DBG_IMPORTANT && !Debug::LogIsOpen())
         Debug::RememberEarlyMessage();
 
     if (Enabled(Current->section, Current->level)) {
@@ -903,7 +903,7 @@ Debug::Finish()
 void
 Debug::RememberEarlyMessage()
 {
-    assert(!Debug::LogOpened());
+    assert(!Debug::LogIsOpen());
 
     if (!EarlyMessages)
         EarlyMessages = new Messages;
@@ -916,7 +916,7 @@ Debug::RememberEarlyMessage()
 }
 
 bool
-Debug::LogOpened()
+Debug::LogIsOpen()
 {
     return TheLog.isOpen();
 }
@@ -924,7 +924,7 @@ Debug::LogOpened()
 void
 Debug::LogEarlyMessages()
 {
-    assert(Debug::LogOpened());
+    assert(Debug::LogIsOpen());
     if (!EarlyMessages)
         return;
     const auto count = EarlyMessages->size();

@@ -93,7 +93,7 @@ public:
     /// whether the subsequent Debug::Start() may be called
     static bool CanStart(const int section, const int level)
     {
-        return Enabled(section, level) || !Debug::LogOpened();
+        return Enabled(section, level) || !Debug::LogIsOpen();
     }
     /// whether debugging the given section and the given level produces output
     static bool Enabled(const int section, const int level)
@@ -101,8 +101,8 @@ public:
         return level <= Debug::Levels[section];
     }
 
-    /// whether the log file was opened
-    static bool LogOpened();
+    /// whether the log file is open now
+    static bool LogIsOpen();
     /// cache an 'early' message
     static void RememberEarlyMessage();
     /// write all cached 'early' messages into the log file
@@ -165,7 +165,7 @@ void ResyncDebugLog(FILE *newDestination);
    do { \
         const int _dbg_level = (LEVEL); \
         if (Debug::CanStart((SECTION), _dbg_level)) { \
-            std::ostringstream &_dbo = Debug::Start((SECTION), _dbg_level); \
+            std::ostream &_dbo = Debug::Start((SECTION), _dbg_level); \
             if (_dbg_level > DBG_IMPORTANT) { \
                 _dbo << (SECTION) << ',' << _dbg_level << "| " \
                      << Here() << ": "; \

@@ -103,6 +103,7 @@ Debug::Context *Debug::Current = nullptr;
 Debug::Context::Context(const int aSection, const int aLevel):
     level(aLevel),
     sectionLevel(Levels[aSection]),
+    section(aSection),
     upper(Current),
     forceAlert(false)
 {
@@ -110,23 +111,22 @@ Debug::Context::Context(const int aSection, const int aLevel):
     buf.precision(2);
 }
 
-Debug::Message::Message(const int aSectionLevel, const int aLevel, const std::string &aLine) :
-    sectionLevel(aSectionLevel), level(aLevel)
+Debug::Message::Message(const Debug::Context &context)
 {
      std::ostringstream stream;
      // debugLogTime(squid_curtime)
-     stream << "stub time" << '|' << aLine;
+     stream << "stub time" << '|' << context.buf.str();
      line = stream.str();
 }
 
 bool
-Debug::LogOpened()
+Debug::LogIsOpen()
 {
     return true;
 }
 
 void
-Debug::RememberEarlyMessage(const Message &)
+Debug::RememberEarlyMessage()
 {}
 
 std::ostringstream &
