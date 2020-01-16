@@ -91,14 +91,9 @@ public:
     typedef std::vector<Message> Messages;
 
     /// whether the subsequent Debug::Start() may be called
-    static bool CanStart(const int section, const int level)
-    {
-        return Enabled(section, level) || !Debug::LogIsOpen();
-    }
-    /// whether debugging the given section and the given level produces output
     static bool Enabled(const int section, const int level)
     {
-        return level <= Debug::Levels[section];
+        return LevelAllowed(section, level) || EarlyMessagesAllowed();
     }
 
     /// whether the log file is open now
@@ -135,6 +130,17 @@ public:
     static std::ostream& Extra(std::ostream &os) { return os << "\n    "; }
 
 private:
+    /// whether debugging the given section and the given level produces output
+    static bool LevelAllowed(const int section, const int level)
+    {
+        return level <= Debug::Levels[section];
+    }
+
+    static bool EarlyMessagesAllowed()
+    {
+        return Current->level <= DBG_IMPORTANT && !Debug::LogIsOpen();
+    }
+
     static Context *Current; ///< deepest active context; nil outside debugs()
     /// Accumulates debugs() warning messages before the log file is opened.
     /// Becomes nil after these messages are written into the log.
@@ -164,7 +170,7 @@ void ResyncDebugLog(FILE *newDestination);
 #define debugs(SECTION, LEVEL, CONTENT) \
    do { \
         const int _dbg_level = (LEVEL); \
-        if (Debug::CanStart((SECTION), _dbg_level)) { \
+        if (Debug::Enabled((SECTION), _dbg_level)) { \
             std::ostream &_dbo = Debug::Start((SECTION), _dbg_level); \
             if (_dbg_level > DBG_IMPORTANT) { \
                 _dbo << (SECTION) << ',' << _dbg_level << "| " \

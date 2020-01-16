@@ -883,10 +883,10 @@ Debug::Finish()
     if (Current->level <= DBG_IMPORTANT)
         Current->buf << CurrentCodeContextDetail;
 
-    if (Current->level <= DBG_IMPORTANT && !Debug::LogIsOpen())
+    if (EarlyMessagesAllowed())
         Debug::RememberEarlyMessage();
 
-    if (Enabled(Current->section, Current->level)) {
+    if (LevelAllowed(Current->section, Current->level)) {
         // TODO: Optimize to remove at least one extra copy.
         _db_print(Current->forceAlert, "%s\n", Current->buf.str().c_str());
     }
@@ -929,7 +929,7 @@ Debug::LogEarlyMessages()
         return;
     const auto count = EarlyMessages->size();
     for (auto &msg : *EarlyMessages) {
-        if (Debug::Enabled(msg.section, msg.level))
+        if (Debug::LevelAllowed(msg.section, msg.level))
             _db_print_file(msg.line.c_str());
     }
     delete EarlyMessages;
