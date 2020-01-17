@@ -109,11 +109,11 @@ DebugFile::reset(FILE *newFile, const char *newName)
     }
     file_ = newFile; // may be nil
 
-    if (!wasLoggingToFile && newFile)
-        Debug::LogEarlyMessages();
-
-    if (file_)
+    if (file_) {
+        if (!wasLoggingToFile)
+            Debug::LogEarlyMessages(); // before anything that logs, including fd_open()
         fd_open(fileno(file_), FD_LOG, Debug::cache_log);
+    }
 
     xfree(name);
     name = newName ? xstrdup(newName) : nullptr;
