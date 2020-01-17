@@ -111,12 +111,9 @@ Debug::Context::Context(const int aSection, const int aLevel):
     buf.precision(2);
 }
 
-Debug::Message::Message(const Debug::Context &context)
+Debug::Message::Message(const Debug::Context &context, const char *msg) :
+    level(context.level), section(context.section), line(msg)
 {
-     std::ostringstream stream;
-     // debugLogTime(squid_curtime)
-     stream << "stub time" << '|' << context.buf.str();
-     line = stream.str();
 }
 
 bool
@@ -126,7 +123,7 @@ Debug::LogIsOpen()
 }
 
 void
-Debug::RememberEarlyMessage()
+Debug::RememberEarlyMessage(const char *)
 {}
 
 std::ostringstream &

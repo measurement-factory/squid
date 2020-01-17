@@ -81,7 +81,7 @@ public:
         /// the maximum number of messages to accumulate
         static const int MaxCount = 1000;
 
-        Message(const Context &);
+        Message(const Context &, const char *);
 
         int level; ///< the debug level
         int section; ///< the debug section
@@ -93,13 +93,23 @@ public:
     /// whether the subsequent Debug::Start() may be called
     static bool Enabled(const int section, const int level)
     {
-        return LevelAllowed(section, level) || EarlyMessagesAllowed();
+        return LevelAllowed(section, level) || EarlyMessagesAllowed(level);
+    }
+    /// whether debugging the given section and the given level produces output
+    static bool LevelAllowed(const int section, const int level)
+    {
+        return level <= Debug::Levels[section];
+    }
+
+    static bool EarlyMessagesAllowed(const int level)
+    {
+        return level <= DBG_IMPORTANT && !Debug::LogIsOpen();
     }
 
     /// whether the log file is open now
     static bool LogIsOpen();
     /// cache an 'early' message
-    static void RememberEarlyMessage();
+    static void RememberEarlyMessage(const char *msg);
     /// write all cached 'early' messages into the log file
     static void LogEarlyMessages();
 
@@ -117,6 +127,8 @@ public:
     static int Level() { return Current ? Current->level : 1; }
     /// maximum level currently allowed
     static int SectionLevel() { return Current ? Current->sectionLevel : 1; }
+    /// the section of the current debugs() call
+    static int Section() { return Current ? Current->section : 0; }
 
     /// opens debugging context and returns output buffer
     static std::ostringstream &Start(const int section, const int level);
@@ -130,17 +142,6 @@ public:
     static std::ostream& Extra(std::ostream &os) { return os << "\n    "; }
 
 private:
-    /// whether debugging the given section and the given level produces output
-    static bool LevelAllowed(const int section, const int level)
-    {
-        return level <= Debug::Levels[section];
-    }
-
-    static bool EarlyMessagesAllowed()
-    {
-        return Current->level <= DBG_IMPORTANT && !Debug::LogIsOpen();
-    }
-
     static Context *Current; ///< deepest active context; nil outside debugs()
     /// Accumulates debugs() warning messages before the log file is opened.
     /// Becomes nil after these messages are written into the log.

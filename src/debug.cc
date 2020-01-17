@@ -40,6 +40,7 @@ static void _db_print_syslog(const bool forceAlert, const char *format, va_list 
 #endif
 static void _db_print_stderr(const char *format, va_list args);
 static void _db_print_file(const char *format, va_list args);
+static void _db_print_early_message(const char *format, va_list args);
 static void _db_print_file(const char *line);
 
 #if _SQUID_WINDOWS_
@@ -132,6 +133,7 @@ _db_print(const bool forceAlert, const char *format,...)
     va_list args1;
     va_list args2;
     va_list args3;
+    va_list args4;
 
 #if _SQUID_WINDOWS_
     /* Multiple WIN32 threads may call this simultaneously */
@@ -170,29 +172,45 @@ _db_print(const bool forceAlert, const char *format,...)
     if (!Ctx_Lock)
         ctx_print();
 
-    va_start(args1, format);
-    va_start(args2, format);
-    va_start(args3, format);
+    const bool willLog = Debug::LevelAllowed(Debug::Section(), Debug::Level());
+    const bool willCache = Debug::EarlyMessagesAllowed(Debug::Level());
+    assert(willCache || willLog);
 
     snprintf(f, BUFSIZ, "%s%s| %s",
              debugLogTime(),
              debugLogKid(),
              format);
 
-    _db_print_file(f, args1);
-    _db_print_stderr(f, args2);
-
+    if (willLog) {
+        va_start(args1, format);
+        va_start(args2, format);
+        _db_print_file(f, args1);
+        _db_print_stderr(f, args2);
 #if HAVE_SYSLOG
-    _db_print_syslog(forceAlert, format, args3);
+        va_start(args3, format);
+        _db_print_syslog(forceAlert, format, args3);
 #endif
+    }
+
+    if (willCache) {
+        va_start(args4, format);
+        _db_print_early_message(f, args4);
+    }
 
 #if _SQUID_WINDOWS_
     LeaveCriticalSection(dbg_mutex);
 #endif
 
-    va_end(args1);
-    va_end(args2);
-    va_end(args3);
+    if (willLog) {
+        va_end(args1);
+        va_end(args2);
+#if HAVE_SYSLOG
+        va_end(args3);
+#endif
+    }
+
+    if (willCache)
+        va_end(args4);
 }
 
 static void
@@ -210,11 +228,20 @@ _db_print_file(const char *format, va_list args)
 }
 
 static void
+_db_print_early_message(const char *format, va_list args)
+{
+    assert(Debug::EarlyMessagesAllowed(Debug::Level()));
+    char msg[BUFSIZ];
+    vsnprintf(msg, BUFSIZ, format, args);
+    Debug::RememberEarlyMessage(msg);
+}
+
+static void
 _db_print_file(const char *line)
 {
     if (!debug_log)
         return;
-    fprintf(debug_log, "%s\n", line);
+    fprintf(debug_log, "%s", line);
     fflush(debug_log);
 }
 
@@ -818,12 +845,9 @@ Debug::Context::Context(const int aSection, const int aLevel):
     formatStream();
 }
 
-Debug::Message::Message(const Debug::Context &context) :
-    level(context.level), section(context.section)
+Debug::Message::Message(const Debug::Context &context, const char *msg) :
+    level(context.level), section(context.section), line(msg)
 {
-     std::ostringstream stream;
-     stream << debugLogTime() << debugLogKid() << "| " << context.buf.str();
-     line = stream.str();
 }
 
 /// Optimization: avoids new Context creation for every debugs().
@@ -883,13 +907,8 @@ Debug::Finish()
     if (Current->level <= DBG_IMPORTANT)
         Current->buf << CurrentCodeContextDetail;
 
-    if (EarlyMessagesAllowed())
-        Debug::RememberEarlyMessage();
-
-    if (LevelAllowed(Current->section, Current->level)) {
-        // TODO: Optimize to remove at least one extra copy.
-        _db_print(Current->forceAlert, "%s\n", Current->buf.str().c_str());
-    }
+    // TODO: Optimize to remove at least one extra copy.
+    _db_print(Current->forceAlert, "%s\n", Current->buf.str().c_str());
 
     Current->forceAlert = false;
 
@@ -901,7 +920,7 @@ Debug::Finish()
 }
 
 void
-Debug::RememberEarlyMessage()
+Debug::RememberEarlyMessage(const char *msg)
 {
     assert(!Debug::LogIsOpen());
 
@@ -912,7 +931,7 @@ Debug::RememberEarlyMessage()
         return;
     }
     assert(Current);
-    EarlyMessages->push_back(Message(*Current));
+    EarlyMessages->push_back(Message(*Current, msg));
 }
 
 bool
