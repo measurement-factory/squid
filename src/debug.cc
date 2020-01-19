@@ -28,6 +28,7 @@ int Debug::Levels[MAX_DEBUG_SECTIONS];
 char *Debug::cache_log = NULL;
 int Debug::rotateNumber = -1;
 int Debug::DroppedEarlyMessages = 0;
+bool Debug::EarlyMessagesLogged = false;
 static int Ctx_Lock = 0;
 static const char *debugLogTime(void);
 static const char *debugLogKid(void);
@@ -953,6 +954,7 @@ Debug::LogEarlyMessages()
     }
     delete EarlyMessages;
     EarlyMessages = nullptr;
+    EarlyMessagesLogged = true;
     if (DroppedEarlyMessages)
         debugs(0, DBG_IMPORTANT, "ERROR: Too many early important messages: " << (count + DroppedEarlyMessages) <<
                 "; logged the first " << count << " and dropped " << DroppedEarlyMessages);
