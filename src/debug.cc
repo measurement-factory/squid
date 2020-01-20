@@ -920,12 +920,12 @@ Debug::RememberEarlyMessage(const char *msg)
 
     if (!EarlyMessages)
         EarlyMessages = new Messages;
-    if (EarlyMessages->size() == Debug::Message::MaxCount) {
+    if (EarlyMessages->size() >= Debug::Message::MaxCount) {
         DroppedEarlyMessages++;
         return;
     }
     assert(Current);
-    EarlyMessages->push_back(Message(*Current, msg));
+    EarlyMessages->emplace_back(Message(*Current, msg));
 }
 
 bool
