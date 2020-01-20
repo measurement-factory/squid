@@ -103,7 +103,7 @@ public:
 
     static bool EarlyMessagesAllowed(const int level)
     {
-        return level <= DBG_IMPORTANT && !Debug::LogIsOpen() && !EarlyMessagesLogged;
+        return level <= DBG_IMPORTANT && SavingEarlyMessages;
     }
 
     /// whether the log file is open now
@@ -148,8 +148,8 @@ private:
     static Messages *EarlyMessages;
     /// the number of ignored 'early' messages
     static int DroppedEarlyMessages;
-    /// whether all 'early' messages were logged into the log file
-    static bool EarlyMessagesLogged;
+    /// whether 'early' messages are still being accumulated
+    static bool SavingEarlyMessages;
 };
 
 /// cache.log FILE or, as the last resort, stderr stream;

@@ -26,7 +26,7 @@ int Debug::Levels[MAX_DEBUG_SECTIONS];
 int Debug::override_X = 0;
 int Debug::log_stderr = 1;
 bool Debug::log_syslog = false;
-bool Debug::EarlyMessagesLogged = false;
+bool Debug::SavingEarlyMessages = true;
 void Debug::ForceAlert() STUB
 
 void StopUsingDebugLog() STUB
