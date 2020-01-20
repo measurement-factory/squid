@@ -131,10 +131,6 @@ _db_print(const bool forceAlert, const char *format,...)
 {
     char f[BUFSIZ];
     f[0]='\0';
-    va_list args1;
-    va_list args2;
-    va_list args3;
-    va_list args4;
 
 #if _SQUID_WINDOWS_
     /* Multiple WIN32 threads may call this simultaneously */
@@ -183,35 +179,32 @@ _db_print(const bool forceAlert, const char *format,...)
              format);
 
     if (willLog) {
+        va_list args1;
+        va_list args2;
+        va_list args3;
         va_start(args1, format);
         va_start(args2, format);
+        va_start(args3, format);
         _db_print_file(f, args1);
         _db_print_stderr(f, args2);
 #if HAVE_SYSLOG
-        va_start(args3, format);
         _db_print_syslog(forceAlert, format, args3);
 #endif
+        va_end(args1);
+        va_end(args2);
+        va_end(args3);
     }
 
     if (willCache) {
-        va_start(args4, format);
-        _db_print_early_message(f, args4);
+        va_list args;
+        va_start(args, format);
+        _db_print_early_message(f, args);
+        va_end(args);
     }
 
 #if _SQUID_WINDOWS_
     LeaveCriticalSection(dbg_mutex);
 #endif
-
-    if (willLog) {
-        va_end(args1);
-        va_end(args2);
-#if HAVE_SYSLOG
-        va_end(args3);
-#endif
-    }
-
-    if (willCache)
-        va_end(args4);
 }
 
 static void
