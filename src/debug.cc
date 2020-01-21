@@ -76,9 +76,6 @@ public:
     /// logging stream; the only method that uses stderr as the last resort
     FILE *file() { return file_ ? file_ : stderr; }
 
-    /// whether a real log file is open
-    bool isOpen() { return file_; }
-
     char *name = nullptr;
 
 private:
@@ -156,7 +153,6 @@ FlushEarlyMessages()
     if (!EarlyMessages)
         return; // no early messages collected
 
-    assert(TheLog.isOpen());
     EarlyMessages->log();
     delete EarlyMessages;
     EarlyMessages = nullptr;
