@@ -95,11 +95,6 @@ public:
         return level <= Debug::Levels[section];
     }
 
-    static bool EarlyMessagesAllowed(const int level)
-    {
-        return level <= DBG_IMPORTANT && SavingEarlyMessages;
-    }
-
     /// cache an 'early' message
     static void RememberEarlyMessage(const char *msg);
     /// write all cached 'early' messages into the log file

@@ -206,7 +206,7 @@ _db_print(const bool forceAlert, const char *format,...)
     _db_print_syslog(forceAlert, format, args3);
 #endif
 
-    if (Debug::EarlyMessagesAllowed(Debug::Level())) {
+    if (SavingEarlyMessages && Debug::Level() <= DBG_IMPORTANT) {
         va_list args;
         va_start(args, format);
         _db_print_early_message(f, args);
@@ -239,7 +239,6 @@ _db_print_file(const char *format, va_list args)
 static void
 _db_print_early_message(const char *format, va_list args)
 {
-    assert(Debug::EarlyMessagesAllowed(Debug::Level()));
     char msg[BUFSIZ];
     vsnprintf(msg, sizeof(msg), format, args);
     Debug::RememberEarlyMessage(msg);
