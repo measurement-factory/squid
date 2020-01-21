@@ -327,7 +327,11 @@ _db_print_syslog(const bool forceAlert, const char *format, va_list args)
     }
 
     char tmpbuf[BUFSIZ];
-    vsnprintf(tmpbuf, sizeof(tmpbuf), format, args);
+    tmpbuf[0] = '\0';
+
+    vsnprintf(tmpbuf, BUFSIZ, format, args);
+
+    tmpbuf[BUFSIZ - 1] = '\0';
 
     syslog(forceAlert ? LOG_ALERT : (Debug::Level() == 0 ? LOG_WARNING : LOG_NOTICE), "%s", tmpbuf);
 }
@@ -979,7 +983,12 @@ ForceAlert(std::ostream& s)
 DebugMessage::DebugMessage(const int sctn, const int lvl, const char *format, va_list args):
     level(lvl), section(sctn)
 {
+    // The two paranoid(?) termination lines below are meant for vsnprintf()
+    // implementations that do not terminate on various kinds of errors.
+    // TODO: Unify all Squid vsnprintf() calls, probably using std::vsnprintf().
+    image[0] = '\0';
     (void)vsnprintf(image, sizeof(image), format, args);
+    image[sizeof(image)-1] = '\0';
 }
 
 /* DebugMessages */
