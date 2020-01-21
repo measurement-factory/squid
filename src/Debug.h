@@ -59,8 +59,8 @@ public:
     public:
         Context(const int aSectionLevel, const int aLevel);
 
-        int level; ///< minimum debugging level required by the debugs() call
         int section; ///< the debug section of the debugs() call
+        int level; ///< minimum debugging level required by the debugs() call
         int sectionLevel; ///< maximum debugging level allowed during the call
 
     private:

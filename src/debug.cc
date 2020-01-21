@@ -102,8 +102,8 @@ public:
 
     DebugMessage(const int section, const int level, const char *format, va_list args);
 
-    int level; ///< the debug level
     int section; ///< the debug section
+    int level; ///< the debug level
     char image[BUFSIZ]; ///< formatted message (including timestamp and context)
 };
 
@@ -886,8 +886,8 @@ ctx_get_descr(Ctx ctx)
 Debug::Context *Debug::Current = nullptr;
 
 Debug::Context::Context(const int aSection, const int aLevel):
-    level(aLevel),
     section(aSection),
+    level(aLevel),
     sectionLevel(Levels[aSection]),
     upper(Current),
     forceAlert(false)
@@ -899,9 +899,9 @@ Debug::Context::Context(const int aSection, const int aLevel):
 void
 Debug::Context::rewind(const int aSection, const int aLevel)
 {
+    section = aSection;
     level = aLevel;
     sectionLevel = Levels[aSection];
-    section = aSection;
     assert(upper == Current);
 
     buf.str(std::string());
@@ -980,8 +980,9 @@ ForceAlert(std::ostream& s)
 
 /* DebugMessage */
 
-DebugMessage::DebugMessage(const int sctn, const int lvl, const char *format, va_list args):
-    level(lvl), section(sctn)
+DebugMessage::DebugMessage(const int aSection, const int aLevel, const char *format, va_list args):
+    section(aSection),
+    level(aLevel)
 {
     // The two paranoid(?) termination lines below are meant for vsnprintf()
     // implementations that do not terminate on various kinds of errors.
