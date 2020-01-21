@@ -150,6 +150,9 @@ _db_print(const bool forceAlert, const char *format,...)
 {
     char f[BUFSIZ];
     f[0]='\0';
+    va_list args1;
+    va_list args2;
+    va_list args3;
 
 #if _SQUID_WINDOWS_
     /* Multiple WIN32 threads may call this simultaneously */
@@ -188,33 +191,23 @@ _db_print(const bool forceAlert, const char *format,...)
     if (!Ctx_Lock)
         ctx_print();
 
-    const bool willLog = Debug::LevelAllowed(Debug::Section(), Debug::Level());
-    const bool willCache = Debug::EarlyMessagesAllowed(Debug::Level());
-    assert(willCache || willLog);
+    va_start(args1, format);
+    va_start(args2, format);
+    va_start(args3, format);
 
     snprintf(f, BUFSIZ, "%s%s| %s",
              debugLogTime(),
              debugLogKid(),
              format);
 
-    if (willLog) {
-        va_list args1;
-        va_list args2;
-        va_list args3;
-        va_start(args1, format);
-        va_start(args2, format);
-        va_start(args3, format);
-        _db_print_file(f, args1);
-        _db_print_stderr(f, args2);
-#if HAVE_SYSLOG
-        _db_print_syslog(forceAlert, format, args3);
-#endif
-        va_end(args1);
-        va_end(args2);
-        va_end(args3);
-    }
+    _db_print_file(f, args1);
+    _db_print_stderr(f, args2);
 
-    if (willCache) {
+#if HAVE_SYSLOG
+    _db_print_syslog(forceAlert, format, args3);
+#endif
+
+    if (Debug::EarlyMessagesAllowed(Debug::Level())) {
         va_list args;
         va_start(args, format);
         _db_print_early_message(f, args);
@@ -224,6 +217,10 @@ _db_print(const bool forceAlert, const char *format,...)
 #if _SQUID_WINDOWS_
     LeaveCriticalSection(dbg_mutex);
 #endif
+
+    va_end(args1);
+    va_end(args2);
+    va_end(args3);
 }
 
 static void

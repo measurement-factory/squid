@@ -93,7 +93,7 @@ public:
     /// whether the subsequent Debug::Start() may be called
     static bool Enabled(const int section, const int level)
     {
-        return LevelAllowed(section, level) || EarlyMessagesAllowed(level);
+        return LevelAllowed(section, level);
     }
     /// whether debugging the given section and the given level produces output
     static bool LevelAllowed(const int section, const int level)
