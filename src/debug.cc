@@ -938,7 +938,7 @@ Debug::LogEarlyMessages()
     const auto log = DebugStream();
     const auto count = EarlyMessages->size();
     for (auto &msg : *EarlyMessages) {
-        if (Debug::LevelAllowed(msg.section, msg.level))
+        if (Debug::Enabled(msg.section, msg.level))
             fprintf(log, "%s", msg.line.c_str());
     }
     fflush(log);
