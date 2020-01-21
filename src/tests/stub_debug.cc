@@ -111,10 +111,6 @@ Debug::Context::Context(const int aSection, const int aLevel):
     buf.precision(2);
 }
 
-void
-Debug::RememberEarlyMessage(const char *)
-{}
-
 std::ostringstream &
 Debug::Start(const int section, const int level)
 {

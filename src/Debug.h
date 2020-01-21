@@ -78,11 +78,6 @@ public:
         return level <= Debug::Levels[section];
     }
 
-    /// cache an 'early' message
-    static void RememberEarlyMessage(const char *msg);
-    /// write all cached 'early' messages into the log file
-    static void LogEarlyMessages();
-
     static char *debugOptions;
     static char *cache_log;
     static int rotateNumber;
@@ -93,6 +88,8 @@ public:
 
     static void parseOptions(char const *);
 
+    /// debugging section of the current debugs() call
+    static int Section() { return Current ? Current->section : 0; }
     /// minimum level required by the current debugs() call
     static int Level() { return Current ? Current->level : 1; }
     /// maximum level currently allowed

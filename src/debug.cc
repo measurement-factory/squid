@@ -100,7 +100,7 @@ public:
     /// the maximum number of messages to accumulate
     static const int MaxCount = 1000;
 
-    DebugMessage(const Debug::Context &, const char *);
+    DebugMessage(const int section, const int level, const char *msg);
 
     int level; ///< the debug level
     int section; ///< the debug section
@@ -112,7 +112,7 @@ class DebugMessages
 {
 public:
     /// stores the given message (if possible) or forgets it (otherwise)
-    void insert(const Debug::Context *context, const char *msg);
+    void insert(const int section, const int level, const char *msg);
     /// logs all previously stored messages
     void log();
 
@@ -154,6 +154,23 @@ ResyncDebugLog(FILE *newFile)
     TheLog.file_ = newFile;
 }
 
+/// write all previously saved "early" messages into the log file
+/// and stop accumulating them
+static void
+FlushEarlyMessages()
+{
+    assert(SavingEarlyMessages);
+    SavingEarlyMessages = false;
+
+    if (!EarlyMessages)
+        return; // no early messages collected
+
+    assert(TheLog.isOpen());
+    EarlyMessages->log();
+    delete EarlyMessages;
+    EarlyMessages = nullptr;
+}
+
 void
 DebugFile::reset(FILE *newFile, const char *newName)
 {
@@ -169,7 +186,7 @@ DebugFile::reset(FILE *newFile, const char *newName)
 
     if (file_) {
         if (!wasLoggingToFile)
-            Debug::LogEarlyMessages(); // before anything that logs, including fd_open()
+            FlushEarlyMessages(); // before anything that logs, including fd_open()
         fd_open(fileno(file_), FD_LOG, Debug::cache_log);
     }
 
@@ -277,9 +294,14 @@ _db_print_file(const char *format, va_list args)
 static void
 _db_print_early_message(const char *format, va_list args)
 {
+    assert(SavingEarlyMessages);
+
     char msg[BUFSIZ];
     vsnprintf(msg, sizeof(msg), format, args);
-    Debug::RememberEarlyMessage(msg);
+
+    if (!EarlyMessages)
+        EarlyMessages = new DebugMessages;
+    EarlyMessages->insert(Debug::Section(), Debug::Level(), msg);
 }
 
 static void
@@ -942,31 +964,6 @@ Debug::Finish()
 }
 
 void
-Debug::RememberEarlyMessage(const char *msg)
-{
-    assert(SavingEarlyMessages);
-
-    if (!EarlyMessages)
-        EarlyMessages = new DebugMessages;
-    EarlyMessages->insert(Current, msg);
-}
-
-void
-Debug::LogEarlyMessages()
-{
-    assert(SavingEarlyMessages);
-    SavingEarlyMessages = false;
-
-    if (!EarlyMessages)
-        return; // no early messages collected
-
-    assert(TheLog.isOpen());
-    EarlyMessages->log();
-    delete EarlyMessages;
-    EarlyMessages = nullptr;
-}
-
-void
 Debug::ForceAlert()
 {
     //  the ForceAlert(ostream) manipulator should only be used inside debugs()
@@ -983,23 +980,20 @@ ForceAlert(std::ostream& s)
 
 /* DebugMessage */
 
-DebugMessage::DebugMessage(const Debug::Context &context, const char *msg):
-    level(context.level), section(context.section), line(msg)
+DebugMessage::DebugMessage(const int sctn, const int lvl, const char *msg):
+    level(lvl), section(sctn), line(msg)
 {
 }
 
 /* DebugMessages */
 
 void
-DebugMessages::insert(const Debug::Context *context, const char *msg)
+DebugMessages::insert(const int section, const int level, const char *msg)
 {
-    if (messages.size() >= DebugMessage::MaxCount) {
-        dropped++;
-        return;
-    }
-
-    assert(context);
-    messages.emplace_back(*context, msg);
+    if (messages.size() < DebugMessage::MaxCount)
+        messages.emplace_back(section, level, msg);
+    else
+        ++dropped;
 }
 
 void
