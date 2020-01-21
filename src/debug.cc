@@ -49,6 +49,25 @@ extern LPCRITICAL_SECTION dbg_mutex;
 typedef BOOL (WINAPI * PFInitializeCriticalSectionAndSpinCount) (LPCRITICAL_SECTION, DWORD);
 #endif
 
+class LevelInitializer
+{
+public:
+    LevelInitializer() { Default(); }
+
+    /// fills Debug::Levels with default values
+    static void Default() { Fill(DBG_IMPORTANT); }
+
+    /// fills Debug::Levels with custom values
+    static void Fill(const int level)
+    {
+        for (auto i = 0; i < MAX_DEBUG_SECTIONS; ++i)
+            Debug::Levels[i] = level;
+    }
+};
+
+// Debug::Levels default initialization
+static LevelInitializer LevelInit;
+
 /// a (FILE*, file name) pair that uses stderr FILE as the last resort
 class DebugFile
 {
@@ -281,7 +300,6 @@ debugArg(const char *arg)
 {
     int s = 0;
     int l = 0;
-    int i;
 
     if (!strncasecmp(arg, "rotate=", 7)) {
         arg += 7;
@@ -312,8 +330,7 @@ debugArg(const char *arg)
         return;
     }
 
-    for (i = 0; i < MAX_DEBUG_SECTIONS; ++i)
-        Debug::Levels[i] = l;
+    LevelInitializer::Fill(l);
 }
 
 static void
@@ -503,7 +520,6 @@ _db_set_syslog(const char *facility)
 void
 Debug::parseOptions(char const *options)
 {
-    int i;
     char *p = NULL;
     char *s = NULL;
 
@@ -512,8 +528,7 @@ Debug::parseOptions(char const *options)
         return;
     }
 
-    for (i = 0; i < MAX_DEBUG_SECTIONS; ++i)
-        Debug::Levels[i] = 0;
+    LevelInitializer::Default();
 
     if (options) {
         p = xstrdup(options);
