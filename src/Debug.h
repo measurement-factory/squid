@@ -72,24 +72,6 @@ public:
         bool forceAlert; ///< the current debugs() will be a syslog ALERT
     };
 
-    /// Preserves 'early' debugs() message and context for future writing into the log file.
-    /// 'early' messages are warning/critical debugs() calls performed before the configuration
-    /// is loaded and the log file is opened.
-    class Message
-    {
-    public:
-        /// the maximum number of messages to accumulate
-        static const int MaxCount = 1000;
-
-        Message(const Context &, const char *);
-
-        int level; ///< the debug level
-        int section; ///< the debug section
-        std::string line; ///< the final message (including timestamp and context) for logging
-    };
-
-    typedef std::vector<Message> Messages;
-
     static bool Enabled(const int section, const int level)
     {
         return level <= Debug::Levels[section];
@@ -128,13 +110,6 @@ public:
 
 private:
     static Context *Current; ///< deepest active context; nil outside debugs()
-    /// Accumulates debugs() warning messages before the log file is opened.
-    /// Becomes nil after these messages are written into the log.
-    static Messages *EarlyMessages;
-    /// the number of ignored 'early' messages
-    static int DroppedEarlyMessages;
-    /// whether 'early' messages are still being accumulated
-    static bool SavingEarlyMessages;
 };
 
 /// cache.log FILE or, as the last resort, stderr stream;

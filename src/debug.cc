@@ -27,8 +27,6 @@ bool Debug::log_syslog = false;
 int Debug::Levels[MAX_DEBUG_SECTIONS];
 char *Debug::cache_log = NULL;
 int Debug::rotateNumber = -1;
-int Debug::DroppedEarlyMessages = 0;
-bool Debug::SavingEarlyMessages = true;
 static int Ctx_Lock = 0;
 static const char *debugLogTime(void);
 static const char *debugLogKid(void);
@@ -94,6 +92,46 @@ private:
 
     FILE *file_ = nullptr; ///< opened "real" file or nil; never stderr
 };
+
+/// a stored debugs() message
+class DebugMessage
+{
+public:
+    /// the maximum number of messages to accumulate
+    static const int MaxCount = 1000;
+
+    DebugMessage(const Debug::Context &, const char *);
+
+    int level; ///< the debug level
+    int section; ///< the debug section
+    std::string line; ///< the final message (including timestamp and context)
+};
+
+/// preserves (a limited amount of) debugs() messages for delayed logging
+class DebugMessages
+{
+public:
+    /// stores the given message (if possible) or forgets it (otherwise)
+    void insert(const Debug::Context *context, const char *msg);
+    /// logs all previously stored messages
+    void log();
+
+private:
+    typedef std::vector<DebugMessage> Storage;
+    Storage messages;
+
+    /// the total number of messages we could not store (due to capacity limits)
+    int dropped = 0;
+};
+
+/// Preserves important debugs() messages until the log file gets opened and
+/// then logs those messages.
+static DebugMessages *EarlyMessages = nullptr;
+
+// Becomes true during C++ constant initialization, before any debugs() calls.
+// Exists because EarlyMessages cannot be set during constant initialization.
+/// whether "early" messages may need to be accumulated and/or logged
+static bool SavingEarlyMessages = true;
 
 /// configured cache.log file or stderr
 /// safe during static initialization, even if it has not been constructed yet
@@ -824,7 +862,6 @@ ctx_get_descr(Ctx ctx)
 }
 
 Debug::Context *Debug::Current = nullptr;
-Debug::Messages *Debug::EarlyMessages = nullptr;
 
 Debug::Context::Context(const int aSection, const int aLevel):
     level(aLevel),
@@ -834,11 +871,6 @@ Debug::Context::Context(const int aSection, const int aLevel):
     forceAlert(false)
 {
     formatStream();
-}
-
-Debug::Message::Message(const Debug::Context &context, const char *msg) :
-    level(context.level), section(context.section), line(msg)
-{
 }
 
 /// Optimization: avoids new Context creation for every debugs().
@@ -915,13 +947,8 @@ Debug::RememberEarlyMessage(const char *msg)
     assert(SavingEarlyMessages);
 
     if (!EarlyMessages)
-        EarlyMessages = new Messages;
-    if (EarlyMessages->size() >= Debug::Message::MaxCount) {
-        DroppedEarlyMessages++;
-        return;
-    }
-    assert(Current);
-    EarlyMessages->emplace_back(*Current, msg);
+        EarlyMessages = new DebugMessages;
+    EarlyMessages->insert(Current, msg);
 }
 
 void
@@ -934,18 +961,7 @@ Debug::LogEarlyMessages()
         return; // no early messages collected
 
     assert(TheLog.isOpen());
-    const auto log = DebugStream();
-    const auto count = EarlyMessages->size();
-    for (auto &msg : *EarlyMessages) {
-        if (Debug::Enabled(msg.section, msg.level))
-            fprintf(log, "%s", msg.line.c_str());
-    }
-    fflush(log);
-    if (DroppedEarlyMessages)
-        debugs(0, DBG_IMPORTANT, "ERROR: Too many early important messages: " << (count + DroppedEarlyMessages) <<
-                "; logged the first " << count << " and dropped " << DroppedEarlyMessages);
-    else
-        debugs(0, 2, "total " << count << " messages");
+    EarlyMessages->log();
     delete EarlyMessages;
     EarlyMessages = nullptr;
 }
@@ -964,6 +980,46 @@ ForceAlert(std::ostream& s)
     Debug::ForceAlert();
     return s;
 }
+
+/* DebugMessage */
+
+DebugMessage::DebugMessage(const Debug::Context &context, const char *msg):
+    level(context.level), section(context.section), line(msg)
+{
+}
+
+/* DebugMessages */
+
+void
+DebugMessages::insert(const Debug::Context *context, const char *msg)
+{
+    if (messages.size() >= DebugMessage::MaxCount) {
+        dropped++;
+        return;
+    }
+
+    assert(context);
+    messages.emplace_back(*context, msg);
+}
+
+void
+DebugMessages::log()
+{
+    const auto log = DebugStream();
+    for (const auto &msg: messages) {
+        if (Debug::Enabled(msg.section, msg.level))
+            fprintf(log, "%s", msg.line.c_str());
+    }
+    fflush(log);
+    const auto logged = messages.size();
+    if (dropped)
+        debugs(0, DBG_IMPORTANT, "ERROR: Too many early important messages: " << (logged + dropped) <<
+               "; logged the first " << logged << " and dropped " << dropped);
+    else
+        debugs(0, 2, "all " << logged << " messages");
+}
+
+/* Raw */
 
 /// print data bytes using hex notation
 void

@@ -26,7 +26,6 @@ int Debug::Levels[MAX_DEBUG_SECTIONS];
 int Debug::override_X = 0;
 int Debug::log_stderr = 1;
 bool Debug::log_syslog = false;
-bool Debug::SavingEarlyMessages = true;
 void Debug::ForceAlert() STUB
 
 void StopUsingDebugLog() STUB
@@ -110,11 +109,6 @@ Debug::Context::Context(const int aSection, const int aLevel):
 {
     buf.setf(std::ios::fixed);
     buf.precision(2);
-}
-
-Debug::Message::Message(const Debug::Context &context, const char *msg) :
-    level(context.level), section(context.section), line(msg)
-{
 }
 
 void
