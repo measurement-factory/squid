@@ -100,11 +100,11 @@ public:
     /// the maximum number of messages to accumulate
     static const int MaxCount = 1000;
 
-    DebugMessage(const int section, const int level, const char *msg);
+    DebugMessage(const int section, const int level, const char *format, va_list args);
 
     int level; ///< the debug level
     int section; ///< the debug section
-    std::string line; ///< the final message (including timestamp and context)
+    char image[BUFSIZ]; ///< formatted message (including timestamp and context)
 };
 
 /// preserves (a limited amount of) debugs() messages for delayed logging
@@ -112,7 +112,7 @@ class DebugMessages
 {
 public:
     /// stores the given message (if possible) or forgets it (otherwise)
-    void insert(const int section, const int level, const char *msg);
+    void insert(const int section, const int level, const char *format, va_list args);
     /// logs all previously stored messages
     void log();
 
@@ -295,13 +295,9 @@ static void
 _db_print_early_message(const char *format, va_list args)
 {
     assert(SavingEarlyMessages);
-
-    char msg[BUFSIZ];
-    vsnprintf(msg, sizeof(msg), format, args);
-
     if (!EarlyMessages)
         EarlyMessages = new DebugMessages;
-    EarlyMessages->insert(Debug::Section(), Debug::Level(), msg);
+    EarlyMessages->insert(Debug::Section(), Debug::Level(), format, args);
 }
 
 static void
@@ -980,18 +976,19 @@ ForceAlert(std::ostream& s)
 
 /* DebugMessage */
 
-DebugMessage::DebugMessage(const int sctn, const int lvl, const char *msg):
-    level(lvl), section(sctn), line(msg)
+DebugMessage::DebugMessage(const int sctn, const int lvl, const char *format, va_list args):
+    level(lvl), section(sctn)
 {
+    (void)vsnprintf(image, sizeof(image), format, args);
 }
 
 /* DebugMessages */
 
 void
-DebugMessages::insert(const int section, const int level, const char *msg)
+DebugMessages::insert(const int section, const int level, const char *format, va_list args)
 {
     if (messages.size() < DebugMessage::MaxCount)
-        messages.emplace_back(section, level, msg);
+        messages.emplace_back(section, level, format, args);
     else
         ++dropped;
 }
@@ -1002,7 +999,7 @@ DebugMessages::log()
     const auto log = DebugStream();
     for (const auto &msg: messages) {
         if (Debug::Enabled(msg.section, msg.level))
-            fprintf(log, "%s", msg.line.c_str());
+            fprintf(log, "%s", msg.image);
     }
     fflush(log);
     const auto logged = messages.size();
