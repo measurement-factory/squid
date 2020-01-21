@@ -91,9 +91,6 @@ private:
 class DebugMessage
 {
 public:
-    /// the maximum number of messages to accumulate
-    static const int MaxCount = 1000;
-
     DebugMessage(const int section, const int level, const char *format, va_list args);
 
     int section; ///< the debug section
@@ -991,7 +988,10 @@ DebugMessage::DebugMessage(const int aSection, const int aLevel, const char *for
 void
 DebugMessages::insert(const int section, const int level, const char *format, va_list args)
 {
-    if (messages.size() < DebugMessage::MaxCount)
+    // There should not be a lot of messages since we are only accumulating
+    // level-0/1 messages, but we limit accumulation just in case.
+    const size_t limit = 1000;
+    if (messages.size() < limit)
         messages.emplace_back(section, level, format, args);
     else
         ++dropped;
