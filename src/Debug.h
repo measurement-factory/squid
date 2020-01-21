@@ -72,6 +72,7 @@ public:
         bool forceAlert; ///< the current debugs() will be a syslog ALERT
     };
 
+    /// whether debugging the given section and the given level produces output
     static bool Enabled(const int section, const int level)
     {
         return level <= Debug::Levels[section];
