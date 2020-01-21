@@ -46,24 +46,18 @@ extern LPCRITICAL_SECTION dbg_mutex;
 typedef BOOL (WINAPI * PFInitializeCriticalSectionAndSpinCount) (LPCRITICAL_SECTION, DWORD);
 #endif
 
-class LevelInitializer
+static bool ResetSections(const int level = DBG_IMPORTANT);
+static bool Initialized = ResetSections();
+
+/// used for the side effect: fills Debug::Levels with the given level
+static bool
+ResetSections(const int level)
 {
-public:
-    LevelInitializer() { Default(); }
-
-    /// fills Debug::Levels with default values
-    static void Default() { Fill(DBG_IMPORTANT); }
-
-    /// fills Debug::Levels with custom values
-    static void Fill(const int level)
-    {
-        for (auto i = 0; i < MAX_DEBUG_SECTIONS; ++i)
-            Debug::Levels[i] = level;
-    }
-};
-
-// Debug::Levels default initialization
-static LevelInitializer LevelInit;
+    for (auto i = 0; i < MAX_DEBUG_SECTIONS; ++i)
+        Debug::Levels[i] = level;
+    assert(sizeof(Initialized)); // avoids warnings about an unused static
+    return true; // simplifies invocation during dynamic initialization
+}
 
 /// a (FILE*, file name) pair that uses stderr FILE as the last resort
 class DebugFile
@@ -372,7 +366,7 @@ debugArg(const char *arg)
         return;
     }
 
-    LevelInitializer::Fill(l);
+    ResetSections(l);
 }
 
 static void
@@ -570,7 +564,7 @@ Debug::parseOptions(char const *options)
         return;
     }
 
-    LevelInitializer::Default();
+    ResetSections();
 
     if (options) {
         p = xstrdup(options);
