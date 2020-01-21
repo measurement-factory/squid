@@ -125,8 +125,6 @@ public:
     static int Level() { return Current ? Current->level : 1; }
     /// maximum level currently allowed
     static int SectionLevel() { return Current ? Current->sectionLevel : 1; }
-    /// the section of the current debugs() call
-    static int Section() { return Current ? Current->section : 0; }
 
     /// opens debugging context and returns output buffer
     static std::ostringstream &Start(const int section, const int level);
