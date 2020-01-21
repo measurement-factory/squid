@@ -42,7 +42,6 @@ static void _db_print_syslog(const bool forceAlert, const char *format, va_list 
 static void _db_print_stderr(const char *format, va_list args);
 static void _db_print_file(const char *format, va_list args);
 static void _db_print_early_message(const char *format, va_list args);
-static void _db_print_file(const char *line);
 
 #if _SQUID_WINDOWS_
 extern LPCRITICAL_SECTION dbg_mutex;
@@ -242,17 +241,8 @@ _db_print_early_message(const char *format, va_list args)
 {
     assert(Debug::EarlyMessagesAllowed(Debug::Level()));
     char msg[BUFSIZ];
-    vsnprintf(msg, BUFSIZ, format, args);
+    vsnprintf(msg, sizeof(msg), format, args);
     Debug::RememberEarlyMessage(msg);
-}
-
-static void
-_db_print_file(const char *line)
-{
-    if (!debug_log)
-        return;
-    fprintf(debug_log, "%s", line);
-    fflush(debug_log);
 }
 
 static void
@@ -282,11 +272,7 @@ _db_print_syslog(const bool forceAlert, const char *format, va_list args)
     }
 
     char tmpbuf[BUFSIZ];
-    tmpbuf[0] = '\0';
-
-    vsnprintf(tmpbuf, BUFSIZ, format, args);
-
-    tmpbuf[BUFSIZ - 1] = '\0';
+    vsnprintf(tmpbuf, sizeof(tmpbuf), format, args);
 
     syslog(forceAlert ? LOG_ALERT : (Debug::Level() == 0 ? LOG_WARNING : LOG_NOTICE), "%s", tmpbuf);
 }
@@ -843,8 +829,8 @@ Debug::Messages *Debug::EarlyMessages = nullptr;
 
 Debug::Context::Context(const int aSection, const int aLevel):
     level(aLevel),
-    sectionLevel(Levels[aSection]),
     section(aSection),
+    sectionLevel(Levels[aSection]),
     upper(Current),
     forceAlert(false)
 {
@@ -915,7 +901,6 @@ Debug::Finish()
 
     // TODO: Optimize to remove at least one extra copy.
     _db_print(Current->forceAlert, "%s\n", Current->buf.str().c_str());
-
     Current->forceAlert = false;
 
     Context *past = Current;
@@ -928,7 +913,7 @@ Debug::Finish()
 void
 Debug::RememberEarlyMessage(const char *msg)
 {
-    assert(!Debug::LogIsOpen());
+    assert(SavingEarlyMessages);
 
     if (!EarlyMessages)
         EarlyMessages = new Messages;
@@ -937,34 +922,33 @@ Debug::RememberEarlyMessage(const char *msg)
         return;
     }
     assert(Current);
-    EarlyMessages->emplace_back(Message(*Current, msg));
-}
-
-bool
-Debug::LogIsOpen()
-{
-    return TheLog.isOpen();
+    EarlyMessages->emplace_back(*Current, msg);
 }
 
 void
 Debug::LogEarlyMessages()
 {
-    assert(Debug::LogIsOpen());
+    assert(SavingEarlyMessages);
     SavingEarlyMessages = false;
+
     if (!EarlyMessages)
-        return;
+        return; // no early messages collected
+
+    assert(TheLog.isOpen());
+    const auto log = DebugStream();
     const auto count = EarlyMessages->size();
     for (auto &msg : *EarlyMessages) {
         if (Debug::LevelAllowed(msg.section, msg.level))
-            _db_print_file(msg.line.c_str());
+            fprintf(log, "%s", msg.line.c_str());
     }
-    delete EarlyMessages;
-    EarlyMessages = nullptr;
+    fflush(log);
     if (DroppedEarlyMessages)
         debugs(0, DBG_IMPORTANT, "ERROR: Too many early important messages: " << (count + DroppedEarlyMessages) <<
                 "; logged the first " << count << " and dropped " << DroppedEarlyMessages);
     else
         debugs(0, 2, "total " << count << " messages");
+    delete EarlyMessages;
+    EarlyMessages = nullptr;
 }
 
 void

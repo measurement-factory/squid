@@ -103,8 +103,8 @@ Debug::Context *Debug::Current = nullptr;
 
 Debug::Context::Context(const int aSection, const int aLevel):
     level(aLevel),
-    sectionLevel(Levels[aSection]),
     section(aSection),
+    sectionLevel(Levels[aSection]),
     upper(Current),
     forceAlert(false)
 {
@@ -115,12 +115,6 @@ Debug::Context::Context(const int aSection, const int aLevel):
 Debug::Message::Message(const Debug::Context &context, const char *msg) :
     level(context.level), section(context.section), line(msg)
 {
-}
-
-bool
-Debug::LogIsOpen()
-{
-    return true;
 }
 
 void

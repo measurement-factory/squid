@@ -60,8 +60,8 @@ public:
         Context(const int aSectionLevel, const int aLevel);
 
         int level; ///< minimum debugging level required by the debugs() call
+        int section; ///< the debug section of the debugs() call
         int sectionLevel; ///< maximum debugging level allowed during the call
-        int section; ///< the debug section of the call
 
     private:
         friend class Debug;
@@ -106,8 +106,6 @@ public:
         return level <= DBG_IMPORTANT && SavingEarlyMessages;
     }
 
-    /// whether the log file is open now
-    static bool LogIsOpen();
     /// cache an 'early' message
     static void RememberEarlyMessage(const char *msg);
     /// write all cached 'early' messages into the log file
