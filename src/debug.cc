@@ -102,7 +102,7 @@ public:
     /// stores the given message (if possible) or forgets it (otherwise)
     void insert(const int section, const int level, const char *format, va_list args);
     /// logs all previously stored messages
-    void log();
+    void write();
 
 private:
     typedef std::vector<DebugMessage> Storage;
@@ -153,7 +153,7 @@ FlushEarlyMessages()
     if (!EarlyMessages)
         return; // no early messages collected
 
-    EarlyMessages->log();
+    EarlyMessages->write();
     delete EarlyMessages;
     EarlyMessages = nullptr;
 }
@@ -994,7 +994,7 @@ DebugMessages::insert(const int section, const int level, const char *format, va
 }
 
 void
-DebugMessages::log()
+DebugMessages::write()
 {
     const auto log = DebugStream();
     for (const auto &message: messages) {
