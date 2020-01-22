@@ -997,17 +997,18 @@ void
 DebugMessages::log()
 {
     const auto log = DebugStream();
-    for (const auto &msg: messages) {
-        if (Debug::Enabled(msg.section, msg.level))
-            fprintf(log, "%s", msg.image);
+    for (const auto &message: messages) {
+        if (Debug::Enabled(message.section, message.level))
+            fprintf(log, "%s", message.image);
     }
     fflush(log);
     const auto logged = messages.size();
-    if (dropped)
+    if (dropped) {
         debugs(0, DBG_IMPORTANT, "ERROR: Too many early important messages: " << (logged + dropped) <<
-               "; logged the first " << logged << " and dropped " << dropped);
-    else
-        debugs(0, 2, "all " << logged << " messages");
+               "; logged the first " << logged << " but dropped " << dropped);
+    } else {
+        debugs(0, 2, "all " << logged << " early messages");
+    }
 }
 
 /* Raw */
