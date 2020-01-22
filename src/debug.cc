@@ -109,7 +109,7 @@ private:
     Storage messages;
 
     /// the total number of messages we could not store (due to capacity limits)
-    int dropped = 0;
+    uint64_t dropped = 0;
 };
 
 /// Preserves important debugs() messages until the log file gets opened and
