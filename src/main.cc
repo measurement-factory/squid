@@ -524,7 +524,7 @@ mainHandleCommandLineOption(const int optId, const char *optValue)
     case 'd':
         /** \par d
          * Set global option Debug::log_stderr to the number given following the option */
-        Debug::log_stderr = xatoi(optValue);
+        _db_set_stderr(xatoi(optValue));
         break;
 
     case 'f':
@@ -695,7 +695,7 @@ mainHandleCommandLineOption(const int optId, const char *optValue)
     case 'z':
         /** \par z
          * Set global option Debug::log_stderr and opt_create_swap_dirs */
-        Debug::log_stderr = 1;
+        _db_set_stderr(1);
         opt_create_swap_dirs = 1;
         break;
 

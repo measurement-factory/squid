@@ -182,6 +182,7 @@ inline std::ostream& operator <<(std::ostream &os, const uint8_t d)
 /* Legacy debug function definitions */
 void _db_init(const char *logfile, const char *options);
 void _db_set_syslog(const char *facility);
+void _db_set_stderr(int level);
 void _db_rotate_log(void);
 
 /// Prints raw and/or non-terminated data safely, efficiently, and beautifully.
