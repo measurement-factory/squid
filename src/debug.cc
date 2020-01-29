@@ -74,7 +74,7 @@ public:
     void clear() { reset(nullptr, nullptr); }
 
     /// logging stream; the only method that uses stderr as the last resort
-    FILE *file() { return file_ ? file_ : stderr; }
+    FILE *file() { return file_; }
 
     char *name = nullptr;
 
@@ -291,9 +291,6 @@ static void
 _db_print_stderr(const char *format, va_list args)
 {
     if (Debug::log_stderr < Debug::Level())
-        return;
-
-    if (debug_log == stderr)
         return;
 
     vfprintf(stderr, format, args);
