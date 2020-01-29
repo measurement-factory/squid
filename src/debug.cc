@@ -1074,6 +1074,7 @@ DebugMessages::write(const Channel ch)
 {
     flushedChannels |= ch;
     const auto log = ChannelStream(ch);
+    uint64_t logged = 0;
     for (const auto &message: messages) {
         if (ChannelEnabled(message.section, message.level, ch)) {
             if (log) {
@@ -1085,14 +1086,15 @@ DebugMessages::write(const Channel ch)
                 syslog(SyslogLevel(message.forceAlert, message.level), "%s", message.image);
             }
 #endif
+            logged++;
         }
     }
     if (log)
         fflush(log);
-    const auto logged = messages.size();
+    const auto total = messages.size();
     if (dropped) {
-        debugs(0, DBG_IMPORTANT, "ERROR: Too many early important messages: " << (logged + dropped) <<
-               "; logged the first " << logged << " but dropped " << dropped);
+        debugs(0, DBG_IMPORTANT, "ERROR: Too many early important messages: " << (total + dropped) <<
+               "; logged " << logged << " of the first " << total << " but dropped " << dropped);
     } else {
         debugs(0, 2, "all " << logged << " " << ChannelName(ch) << " early messages");
     }
