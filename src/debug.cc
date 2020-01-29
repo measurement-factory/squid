@@ -111,6 +111,7 @@ private:
     static FILE *ChannelStream(const Channel);
     static const char *ChannelName(const Channel);
     static bool ChannelEnabled(const int section, const int level, const Channel);
+    void dumpToStderr() const;
 
     typedef std::vector<DebugMessage> Storage;
     Storage messages;
@@ -155,10 +156,11 @@ ResyncDebugLog(FILE *newFile)
 static void
 StopEarlyMessaging()
 {
-    assert(SavingEarlyMessages);
-    SavingEarlyMessages = false;
-    delete EarlyMessages;
-    EarlyMessages = nullptr;
+    if (SavingEarlyMessages) {
+        SavingEarlyMessages = false;
+        delete EarlyMessages;
+        EarlyMessages = nullptr;
+    }
 }
 
 static void
@@ -265,7 +267,7 @@ _db_print(const bool forceAlert, const char *format,...)
     _db_print_syslog(forceAlert, format, args3);
 #endif
 
-    if (SavingEarlyMessages) {
+    if (SavingEarlyMessages && Debug::Level() <= DBG_IMPORTANT) {
         va_list args;
         va_start(args, format);
         _db_print_early_message(forceAlert, f, args);
@@ -1020,10 +1022,16 @@ DebugMessages::insert(const int section, const int level, const bool forceAlert,
     // There should not be a lot of messages since we are only accumulating
     // level-0/1 messages, but we limit accumulation just in case.
     const size_t limit = 1000;
-    if (messages.size() < limit)
-        messages.emplace_back(section, level, forceAlert, format, args);
-    else
-        ++dropped;
+    if (messages.size() >= limit) {
+        if (flushed(stdErr)) {
+            dropped++;
+            return;
+        }
+        dumpToStderr();
+        messages.clear();
+        dropped += limit;
+    }
+    messages.emplace_back(section, level, forceAlert, format, args);
 }
 
 FILE *
@@ -1070,11 +1078,17 @@ DebugMessages::ChannelEnabled(const int section, const int level, const Channel 
 }
 
 void
+DebugMessages::dumpToStderr() const
+{
+    for (const auto &message: messages)
+        fprintf(stderr, "%s", message.image);
+}
+
+void
 DebugMessages::write(const Channel ch)
 {
     flushedChannels |= ch;
     const auto log = ChannelStream(ch);
-    uint64_t logged = 0;
     for (const auto &message: messages) {
         if (ChannelEnabled(message.section, message.level, ch)) {
             if (log) {
@@ -1086,17 +1100,21 @@ DebugMessages::write(const Channel ch)
                 syslog(SyslogLevel(message.forceAlert, message.level), "%s", message.image);
             }
 #endif
-            logged++;
         }
     }
     if (log)
         fflush(log);
-    const auto total = messages.size();
+
+    if (ch != cacheLog)
+        return;
+
+    // print statistics only for cache.log
+    const auto logged = messages.size();
     if (dropped) {
-        debugs(0, DBG_IMPORTANT, "ERROR: Too many early important messages: " << (total + dropped) <<
-               "; logged " << logged << " of the first " << total << " but dropped " << dropped);
+        debugs(0, DBG_IMPORTANT, "ERROR: Too many early important messages: " << (logged + dropped) <<
+               "; logged " << logged << " but dropped " << dropped);
     } else {
-        debugs(0, 2, "all " << logged << " " << ChannelName(ch) << " early messages");
+        debugs(0, 2, "all " << logged << " early messages");
     }
 }
 
