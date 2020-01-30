@@ -59,7 +59,7 @@ ResetSections(const int level)
     return true; // simplifies invocation during dynamic initialization
 }
 
-/// a (FILE*, file name) pair that uses stderr FILE as the last resort
+/// a (FILE*, file name) pair
 class DebugFile
 {
 public:
@@ -73,7 +73,12 @@ public:
     /// go back to the initial state
     void clear() { reset(nullptr, nullptr); }
 
-    /// logging stream; the only method that uses stderr as the last resort
+    ///< could not open "real" file due to an error
+    void fail();
+
+    bool failed() { return failed_; }
+
+    /// logging stream
     FILE *file() { return file_; }
 
     char *name = nullptr;
@@ -82,6 +87,8 @@ private:
     friend void ResyncDebugLog(FILE *newFile);
 
     FILE *file_ = nullptr; ///< opened "real" file or nil; never stderr
+
+    bool failed_ = false; ///< whether fail() was called
 };
 
 /// a stored debugs() message
@@ -175,6 +182,12 @@ FlushEarlyMessages(const DebugMessages::Channel ch)
         return; // already flushed
 
     EarlyMessages->write(ch);
+}
+
+void DebugFile::fail()
+{
+    clear();
+    failed_ = true;
 }
 
 void
@@ -309,7 +322,7 @@ _db_print_early_message(const bool forceAlert, const char *format, va_list args)
 static void
 _db_print_stderr(const char *format, va_list args)
 {
-    if (Debug::log_stderr < Debug::Level())
+    if (Debug::log_stderr < Debug::Level() && !TheLog.failed())
         return;
 
     vfprintf(stderr, format, args);
@@ -410,7 +423,7 @@ debugOpenLog(const char *logfile)
         perror(logfile);
         fprintf(stderr, "         messages will be sent to 'stderr'.\n");
         fflush(stderr);
-        TheLog.clear();
+        TheLog.fail();
     }
 }
 
