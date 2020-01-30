@@ -1087,7 +1087,6 @@ DebugMessages::ChannelEnabled(const int section, const int level, const Channel 
         assert(ch == sysLog);
         return Debug::log_syslog && (level <= DBG_IMPORTANT);
     }
-
 }
 
 void
