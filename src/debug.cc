@@ -549,6 +549,8 @@ _db_set_syslog(const char *facility)
 {
     Debug::log_syslog = true;
 
+    FlushEarlyMessages(DebugMessages::sysLog);
+
 #ifdef LOG_LOCAL4
 #ifdef LOG_DAEMON
 
@@ -621,10 +623,8 @@ _db_init(const char *logfile, const char *options)
 
 #if HAVE_SYSLOG && defined(LOG_LOCAL4)
 
-    if (Debug::log_syslog) {
+    if (Debug::log_syslog)
         openlog(APP_SHORTNAME, LOG_PID | LOG_NDELAY | LOG_CONS, syslog_facility);
-        FlushEarlyMessages(DebugMessages::sysLog);
-    }
 
 #endif /* HAVE_SYSLOG */
 
@@ -1107,7 +1107,7 @@ DebugMessages::write(const Channel ch)
                 fprintf(log, "%s", message.image);
             }
 #if HAVE_SYSLOG
-            else {
+            else if (!message.forceAlert) { // not logged already
                 assert(ch == sysLog);
                 syslog(SyslogLevel(message.forceAlert, message.level), "%s", message.image);
             }
