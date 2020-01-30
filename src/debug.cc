@@ -136,7 +136,7 @@ static DebugFile TheLog;
 
 FILE *
 DebugStream() {
-    return TheLog.file();
+    return TheLog.file() ? TheLog.file() : stderr;
 }
 
 void
@@ -232,9 +232,9 @@ _db_print(const bool forceAlert, const char *format,...)
             /* let multiprocessor systems EnterCriticalSection() fast */
 
             if (!InitializeCriticalSectionAndSpinCount(dbg_mutex, 4000)) {
-                if (debug_log) {
-                    fprintf(debug_log, "FATAL: _db_print: can't initialize critical section\n");
-                    fflush(debug_log);
+                if (const auto logFile = TheLog.file()) {
+                    fprintf(logFile, "FATAL: _db_print: can't initialize critical section\n");
+                    fflush(logFile);
                 }
 
                 fprintf(stderr, "FATAL: _db_print: can't initialize critical section\n");
@@ -286,15 +286,15 @@ _db_print(const bool forceAlert, const char *format,...)
 static void
 _db_print_file(const char *format, va_list args)
 {
-    if (debug_log == NULL)
+    if (!TheLog.file())
         return;
 
     /* give a chance to context-based debugging to print current context */
     if (!Ctx_Lock)
         ctx_print();
 
-    vfprintf(debug_log, format, args);
-    fflush(debug_log);
+    vfprintf(TheLog.file(), format, args);
+    fflush(TheLog.file());
 }
 
 static void
@@ -1040,7 +1040,7 @@ DebugMessages::ChannelStream(const Channel ch)
     if (ch == stdErr)
         return stderr;
     else if (ch == cacheLog)
-        return DebugStream();
+        return TheLog.file();
     else {
         assert(ch == sysLog);
         return nullptr;
