@@ -1489,7 +1489,6 @@ int
 SquidMain(int argc, char **argv)
 {
     const CommandLine cmdLine(argc, argv, shortOpStr, squidOptions);
-
     ConfigureCurrentKid(cmdLine);
 
     Debug::parseOptions(NULL);
@@ -1546,6 +1545,9 @@ SquidMain(int argc, char **argv)
     if (opt_parse_cfg_only) {
         Debug::parseOptions("ALL,1");
     }
+
+    if (opt_send_signal != -1)
+        _db_set_stderr(0); // allow critical messages to stderr
 
 #if USE_WIN32_SERVICE
 
