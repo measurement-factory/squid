@@ -1092,7 +1092,7 @@ DebugMessage::allowed(const DebugChannel ch) const
     if (ch == ErrChannel)
         return level <= Debug::log_stderr;
     else if (ch == CacheChannel)
-        return level <= DBG_IMPORTANT;
+        return !Debug::override_X && (level <= DBG_IMPORTANT);
     else {
         assert(ch == SysChannel);
         return SysLogAllowed(forceAlert, level);
@@ -1119,11 +1119,25 @@ ChannelStream(const DebugChannel ch)
     }
 }
 
+static const char *
+ChannelName(const DebugChannel ch)
+{
+    if (ch == ErrChannel)
+        return "stderr";
+    else if (ch == CacheChannel)
+        return "cache.log";
+    else {
+        assert(ch == SysChannel);
+        return "syslog";
+    }
+}
+
 void
 DebugMessages::write(const DebugChannel ch)
 {
     flushedChannels |= ch;
     const auto log = ChannelStream(ch);
+    uint64_t logged = 0;
     for (const auto &message: messages) {
         if (message.allowed(ch)) {
             if (log) {
@@ -1135,21 +1149,19 @@ DebugMessages::write(const DebugChannel ch)
                 syslog(SyslogLevel(message.forceAlert, message.level), "%s", message.image);
             }
 #endif
+            logged++;;
         }
     }
     if (log)
         fflush(log);
 
-    if (ch != CacheChannel)
-        return;
-
     // print statistics only for cache.log
-    const auto logged = messages.size();
+    const auto total = messages.size();
     if (dropped) {
-        debugs(0, DBG_IMPORTANT, "ERROR: Too many early important messages: " << (logged + dropped) <<
-               "; logged " << logged << " but dropped " << dropped);
-    } else {
-        debugs(0, 2, "all " << logged << " early messages");
+        debugs(0, DBG_IMPORTANT, "ERROR: Too many early important messages: " << (total + dropped) <<
+               "; cached " << total << " but dropped " << dropped);
+    } else if (logged) {
+        debugs(0, 2, logged << " " << ChannelName(ch) << " early messages");
     }
 }
 
