@@ -105,6 +105,9 @@ public:
 
     /// prefixes each grouped debugs() line after the first one in the group
     static std::ostream& Extra(std::ostream &os) { return os << "\n    "; }
+    /// flushes early messages if needed
+    /// \param defaultErrLevel the value for log_stderr (if uninitialized)
+    static void EarlyMessagesCheckpoint(const int defaultErrLevel);
 
 private:
     static Context *Current; ///< deepest active context; nil outside debugs()

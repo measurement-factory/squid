@@ -356,6 +356,8 @@ death(int sig)
         puts(dead_msg());
     }
 
+    Debug::EarlyMessagesCheckpoint(0);
+
     abort();
 }
 

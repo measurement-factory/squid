@@ -49,6 +49,12 @@ typedef BOOL (WINAPI * PFInitializeCriticalSectionAndSpinCount) (LPCRITICAL_SECT
 static bool ResetSections(const int level = DBG_IMPORTANT);
 static bool Initialized = ResetSections();
 
+static void
+FlushEarlyMessagesAtExit()
+{
+    Debug::EarlyMessagesCheckpoint(0);
+}
+
 /// used for the side effect: fills Debug::Levels with the given level
 static bool
 ResetSections(const int level)
@@ -56,6 +62,9 @@ ResetSections(const int level)
     for (auto i = 0; i < MAX_DEBUG_SECTIONS; ++i)
         Debug::Levels[i] = level;
     assert(sizeof(Initialized)); // avoids warnings about an unused static
+
+    (void)std::atexit(&FlushEarlyMessagesAtExit);
+
     return true; // simplifies invocation during dynamic initialization
 }
 
@@ -185,10 +194,12 @@ FlushEarlyMessages(const DebugChannel ch)
 
 /// ensure that all previously saved "early messages" are written
 /// and stop accumulating them
-static void
-StopEarlyMessaging()
+void
+Debug::EarlyMessagesCheckpoint(const int defaultErrLevel)
 {
     if (SavingEarlyMessages) {
+        if (Debug::log_stderr == -1 && defaultErrLevel != -1)
+            Debug::log_stderr = defaultErrLevel;
         // some of channels may not be flushed yet
         FlushEarlyMessages(ErrChannel);
         FlushEarlyMessages(SysChannel);
@@ -664,7 +675,7 @@ _db_init(const char *logfile, const char *options)
 
 #endif /* HAVE_SYSLOG */
 
-    StopEarlyMessaging();
+    Debug::EarlyMessagesCheckpoint(-1);
 
     /* Pre-Init TZ env, see bug #2656 */
     tzset();
@@ -786,8 +797,10 @@ xassert(const char *msg, const char *file, int line)
 {
     debugs(0, DBG_CRITICAL, "assertion failed: " << file << ":" << line << ": \"" << msg << "\"");
 
-    if (!shutting_down)
+    if (!shutting_down) {
+        Debug::EarlyMessagesCheckpoint(0);
         abort();
+    }
 }
 
 /*
@@ -1141,11 +1154,11 @@ DebugMessages::write(const DebugChannel ch)
     for (const auto &message: messages) {
         if (message.allowed(ch)) {
             if (log) {
+                assert(ch == ErrChannel || ch == CacheChannel);
                 fprintf(log, "%s", message.image);
             }
 #if HAVE_SYSLOG
-            else {
-                assert(ch == SysChannel);
+            else if (ch == SysChannel) {
                 syslog(SyslogLevel(message.forceAlert, message.level), "%s", message.image);
             }
 #endif
