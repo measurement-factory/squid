@@ -1023,7 +1023,7 @@ mainReconfigureFinish(void *)
 
     if (Config.onoff.announce) {
         if (!eventFind(start_announce, NULL))
-        	eventAddGlobal0("start_announce", start_announce, 3600.0, 1);
+            eventAddGlobal0("start_announce", start_announce, 3600.0, 1);
     } else {
         if (eventFind(start_announce, NULL))
             eventDelete(start_announce, NULL);
@@ -1340,7 +1340,7 @@ mainInitialize(void)
     eventAddGlobal0("storeMaintain", Store::Maintain, 1.0, 1);
 
     if (Config.onoff.announce)
-    	eventAddGlobal0("start_announce", start_announce, 3600.0, 1);
+        eventAddGlobal0("start_announce", start_announce, 3600.0, 1);
 
     eventAddGlobal0("ipcache_purgelru", ipcache_purgelru, 10.0, 1);
 

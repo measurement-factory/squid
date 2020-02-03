@@ -1633,7 +1633,7 @@ void
 commPlanHalfClosedCheck()
 {
     if (!WillCheckHalfClosed && !TheHalfClosed->empty()) {
-    	eventAddGlobal0("commHalfClosedCheck", &commHalfClosedCheck, 1.0, 1);
+        eventAddGlobal0("commHalfClosedCheck", &commHalfClosedCheck, 1.0, 1);
         WillCheckHalfClosed = true;
     }
 }

@@ -1225,7 +1225,7 @@ storeLateRelease(void *)
     static int n = 0;
 
     if (Store::Controller::store_dirs_rebuilding) {
-    	eventAddGlobal0("storeLateRelease", storeLateRelease, 1.0, 1);
+        eventAddGlobal0("storeLateRelease", storeLateRelease, 1.0, 1);
         return;
     }
 

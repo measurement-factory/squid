@@ -284,7 +284,7 @@ authenticateDigestNonceCacheCleanup(void *)
     debugs(29, 3, "Finished cleaning the nonce cache.");
 
     if (static_cast<Auth::Digest::Config*>(Auth::SchemeConfig::Find("digest"))->active())
-    	eventAddGlobal0("Digest nonce cache maintenance", authenticateDigestNonceCacheCleanup, static_cast<Auth::Digest::Config*>(Auth::SchemeConfig::Find("digest"))->nonceGCInterval, 1);
+        eventAddGlobal0("Digest nonce cache maintenance", authenticateDigestNonceCacheCleanup, static_cast<Auth::Digest::Config*>(Auth::SchemeConfig::Find("digest"))->nonceGCInterval, 1);
 }
 
 static void

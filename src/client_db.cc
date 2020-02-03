@@ -400,7 +400,7 @@ clientdbGC(void *)
     }
 
     if (bucket < CLIENT_DB_HASH_SIZE)
-    	eventAddGlobal0("client_db garbage collector", clientdbGC, 0.15, 0);
+        eventAddGlobal0("client_db garbage collector", clientdbGC, 0.15, 0);
     else {
         bucket = 0;
         cleanup_running = 0;

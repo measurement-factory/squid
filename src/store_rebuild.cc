@@ -114,7 +114,7 @@ storeCleanup(void *)
 
         currentSearch = NULL;
     } else
-    	eventAddGlobal0("storeCleanup", storeCleanup, 0.0, 1);
+        eventAddGlobal0("storeCleanup", storeCleanup, 0.0, 1);
 }
 
 /* meta data recreated from disk image in swap directory */

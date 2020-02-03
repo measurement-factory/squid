@@ -936,7 +936,7 @@ wccp2Init(void)
         debugs(80,3,"wccp2Init: scheduled 'HERE_I_AM' message to " << wccp2_numrouters << "routers.");
         if (wccp2_numrouters) {
             if (!eventFind(wccp2HereIam, NULL)) {
-            	eventAddGlobal0("wccp2HereIam", wccp2HereIam, 1, 1);
+                eventAddGlobal0("wccp2HereIam", wccp2HereIam, 1, 1);
             } else
                 debugs(80,3,"wccp2Init: skip duplicate 'HERE_I_AM'.");
         }
@@ -1537,7 +1537,7 @@ wccp2HereIam(void *)
 
     /* Wait if store dirs are rebuilding */
     if (StoreController::store_dirs_rebuilding && Config.Wccp2.rebuildwait) {
-    	eventAddGlobal0("wccp2HereIam", wccp2HereIam, 1.0, 1);
+        eventAddGlobal0("wccp2HereIam", wccp2HereIam, 1.0, 1);
         return;
     }
 

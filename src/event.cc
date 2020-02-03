@@ -106,32 +106,28 @@ ev_entry::~ev_entry()
         cbdataReferenceDone(arg);
 }
 
-/*
-void
-eventAdd(const char *name, EVH * func, void *arg, double when, int weight, bool cbdata)
-{
-    EventScheduler::GetInstance()->schedule(name, func, arg, when, weight, cbdata);
-}
-*/
-
+// used for event callers, having a specific transaction context
 void
 eventAddContextual(const char *name, EVH * func, void *arg, double when, int weight, bool cbdata)
 {
     EventScheduler::GetInstance()->schedule(name, func, arg, when, weight, cbdata);
 }
 
+// used for event callers that do not supply callback data
 void
 eventAddGlobal0(const char *name, EVH * func, double when, int weight, bool cbdata)
 {
     EventScheduler::GetInstance()->schedule(name, func, nullptr, when, weight, cbdata);
 }
 
+// used for event callers, supplying cbdata-unprotected callback data
 void
 eventAddGlobal1(const char *name, EVH * func, void *arg, double when, int weight)
 {
     EventScheduler::GetInstance()->schedule(name, func, nullptr, when, weight, false);
 }
 
+// used for event callers, lacking a specific transaction context (but supplying cbdata-protected calback data)
 void
 eventAddGlobal2(const char *name, EVH * func, void *arg, double when, int weight, bool cbdata)
 {
