@@ -359,10 +359,15 @@ _db_print_early_message(const bool forceAlert, const char *format, va_list args)
     EarlyMessages->insert(Debug::Section(), Debug::Level(), forceAlert, format, args);
 }
 
+static bool StdErrAllowed(const int level)
+{
+    return level <= Debug::log_stderr || TheLog.failed();
+}
+
 static void
 _db_print_stderr(const char *format, va_list args)
 {
-    if (Debug::log_stderr < Debug::Level() && !TheLog.failed())
+    if (!StdErrAllowed(Debug::Level()))
         return;
 
     if (SavingEarlyMessagesToChannel(ErrChannel))
@@ -1102,8 +1107,15 @@ DebugMessage::allowed(const DebugChannel ch) const
     if (!Debug::Enabled(section, level))
         return false;
 
-    if (ch == ErrChannel)
-        return level <= Debug::log_stderr;
+    if (ch == ErrChannel) {
+        if (Debug::log_stderr > -1) {
+            // honor debug level, if specified
+            return level <= Debug::log_stderr;
+        }
+        // If cache.log is unavailable, further output goes to stderr.
+        // We need there early messages too.
+        return TheLog.failed();
+    }
     else if (ch == CacheChannel)
         return !Debug::override_X && (level <= DBG_IMPORTANT);
     else {
@@ -1156,13 +1168,14 @@ DebugMessages::write(const DebugChannel ch)
             if (log) {
                 assert(ch == ErrChannel || ch == CacheChannel);
                 fprintf(log, "%s", message.image);
+                logged++;;
             }
 #if HAVE_SYSLOG
             else if (ch == SysChannel) {
                 syslog(SyslogLevel(message.forceAlert, message.level), "%s", message.image);
+                logged++;;
             }
 #endif
-            logged++;;
         }
     }
     if (log)
