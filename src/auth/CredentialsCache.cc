@@ -131,7 +131,7 @@ CredentialsCache::scheduleCleanup()
 {
     if (!gcScheduled_ && store_.size()) {
         gcScheduled_ = true;
-        eventAdd(cacheCleanupEventName, &CredentialsCache::Cleanup,
+        eventAddGlobal2(cacheCleanupEventName, &CredentialsCache::Cleanup,
                  this, Auth::TheConfig.garbageCollectInterval, 1);
     }
 }

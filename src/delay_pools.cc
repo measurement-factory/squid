@@ -470,7 +470,7 @@ DelayPools::InitDelayData()
 
     DelayPools::delay_data = new DelayPool[pools()];
 
-    eventAdd("DelayPools::Update", DelayPools::Update, NULL, 1.0, 1);
+    eventAddGlobal0("DelayPools::Update", DelayPools::Update, 1.0, 1);
 }
 
 void
@@ -487,7 +487,7 @@ DelayPools::Update(void *unused)
     if (!pools())
         return;
 
-    eventAdd("DelayPools::Update", Update, NULL, 1.0, 1);
+    eventAddGlobal0("DelayPools::Update", Update, 1.0, 1);
 
     int incr = squid_curtime - LastUpdate;
 

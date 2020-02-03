@@ -95,6 +95,7 @@ ev_entry::ev_entry(char const * aName, EVH * aFunction, void * aArgument, double
     when(evWhen),
     weight(aWeight),
     cbdata(haveArg),
+    codeContext(CodeContext::Current()),
     next(NULL)
 {
 }
@@ -105,15 +106,36 @@ ev_entry::~ev_entry()
         cbdataReferenceDone(arg);
 }
 
+// used for event callers, having a specific transaction context
 void
-eventAdd(const char *name, EVH * func, void *arg, double when, int weight, bool cbdata)
+eventAddContextual(const char *name, EVH * func, void *arg, double when, int weight, bool cbdata)
 {
     EventScheduler::GetInstance()->schedule(name, func, arg, when, weight, cbdata);
 }
 
-/* same as eventAdd but adds a random offset within +-1/3 of delta_ish */
+// used for event callers that do not supply callback data
 void
-eventAddIsh(const char *name, EVH * func, void *arg, double delta_ish, int weight)
+eventAddGlobal0(const char *name, EVH * func, double when, int weight, bool cbdata)
+{
+    EventScheduler::GetInstance()->schedule(name, func, nullptr, when, weight, cbdata);
+}
+
+// used for event callers, supplying cbdata-unprotected callback data
+void
+eventAddGlobal1(const char *name, EVH * func, void *arg, double when, int weight)
+{
+    EventScheduler::GetInstance()->schedule(name, func, nullptr, when, weight, false);
+}
+
+// used for event callers, lacking a specific transaction context (but supplying cbdata-protected calback data)
+void
+eventAddGlobal2(const char *name, EVH * func, void *arg, double when, int weight, bool cbdata)
+{
+    EventScheduler::GetInstance()->schedule(name, func, arg, when, weight, cbdata);
+}
+
+void
+eventAddIshContextual(const char *name, EVH * func, void *arg, double delta_ish, int weight)
 {
     if (delta_ish >= 3.0) {
         // Default seed is fine. We just need values random enough
@@ -124,7 +146,37 @@ eventAddIsh(const char *name, EVH * func, void *arg, double delta_ish, int weigh
         delta_ish = thirdIsh(rng);
     }
 
-    eventAdd(name, func, arg, delta_ish, weight);
+	eventAddContextual(name, func, arg, delta_ish, weight);
+}
+
+void eventAddIshGlobal0(const char *name, EVH * func, double delta_ish, int weight)
+{
+    if (delta_ish >= 3.0) {
+        // Default seed is fine. We just need values random enough
+        // relative to each other to prevent waves of synchronised activity.
+        static std::mt19937 rng;
+        auto third = (delta_ish/3.0);
+        xuniform_real_distribution<> thirdIsh(delta_ish - third, delta_ish + third);
+        delta_ish = thirdIsh(rng);
+    }
+
+    eventAddGlobal0(name, func, delta_ish, weight);
+}
+
+/* same as eventAdd but adds a random offset within +-1/3 of delta_ish */
+void
+eventAddIshGlobal2(const char *name, EVH * func, void *arg, double delta_ish, int weight)
+{
+    if (delta_ish >= 3.0) {
+        // Default seed is fine. We just need values random enough
+        // relative to each other to prevent waves of synchronised activity.
+        static std::mt19937 rng;
+        auto third = (delta_ish/3.0);
+        xuniform_real_distribution<> thirdIsh(delta_ish - third, delta_ish + third);
+        delta_ish = thirdIsh(rng);
+    }
+
+	eventAddGlobal2(name, func, arg, delta_ish, weight);
 }
 
 void
@@ -238,6 +290,8 @@ EventScheduler::checkEvents(int)
         /* XXX assumes event->name is static memory! */
         AsyncCall::Pointer call = asyncCall(41,5, event->name,
                                             EventDialer(event->func, event->arg, event->cbdata));
+        call->codeContext = event->codeContext;
+
         ScheduleCallHere(call);
 
         last_event_ran = event->name; // XXX: move this to AsyncCallQueue

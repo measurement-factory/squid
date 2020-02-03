@@ -95,7 +95,7 @@ Fs::Ufs::RebuildState::RebuildStep(void *data)
 
     // delay storeRebuildComplete() when reconfiguring to protect storeCleanup()
     if (!rb->isDone() || reconfiguring)
-        eventAdd("storeRebuild", RebuildStep, rb, 0.01, 1);
+        eventAddGlobal2("storeRebuild", RebuildStep, rb, 0.01, 1);
     else {
         -- StoreController::store_dirs_rebuilding;
         storeRebuildComplete(&rb->counts);

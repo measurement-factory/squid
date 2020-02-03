@@ -202,7 +202,7 @@ fqdncache_purgelru(void *)
     dlink_node *prev = NULL;
     fqdncache_entry *f;
     int removed = 0;
-    eventAdd("fqdncache_purgelru", fqdncache_purgelru, NULL, 10.0, 1);
+    eventAddGlobal0("fqdncache_purgelru", fqdncache_purgelru, 10.0, 1);
 
     for (m = lru_list.tail; m; m = prev) {
         if (fqdncacheCount() < fqdncache_low)

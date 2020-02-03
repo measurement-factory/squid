@@ -719,7 +719,7 @@ TunnelStateData::copyRead(Connection &from, IOCB *completion)
     int bw = from.bytesWanted(1, SQUID_TCP_SO_RCVBUF);
     if (bw == 1 && ++from.delayedLoops < 10) {
         from.readPending = this;
-        eventAdd("tunnelDelayedServerRead", from.readPendingFunc, from.readPending, 0.3, true);
+        eventAddContextual("tunnelDelayedServerRead", from.readPendingFunc, from.readPending, 0.3, true);
         return;
     }
 

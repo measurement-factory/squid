@@ -78,8 +78,8 @@ Ipc::Inquirer::inquire()
     TypedMsgHdr message;
     request->pack(message);
     SendMessage(Port::MakeAddr(strandAddrLabel, kidId), message);
-    eventAdd("Ipc::Inquirer::requestTimedOut", &Inquirer::RequestTimedOut,
-             this, timeout, 0, false);
+    eventAddGlobal1("Ipc::Inquirer::requestTimedOut", &Inquirer::RequestTimedOut,
+             this, timeout, 0);
 }
 
 /// called when a strand is done writing its output

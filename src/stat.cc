@@ -362,7 +362,7 @@ statObjects(void *data)
         return;
     } else if (state->sentry->checkDeferRead(-1)) {
         state->sentry->flush();
-        eventAdd("statObjects", statObjects, state, 0.1, 1);
+        eventAddGlobal2("statObjects", statObjects, state, 0.1, 1);
         return;
     }
 
@@ -385,7 +385,7 @@ statObjects(void *data)
         state->sentry->append(mb.buf, mb.size);
     mb.clean();
 
-    eventAdd("statObjects", statObjects, state, 0.0, 1);
+    eventAddGlobal2("statObjects", statObjects, state, 0.0, 1);
 }
 
 static void
@@ -398,7 +398,7 @@ statObjectsStart(StoreEntry * sentry, STOBJFLT * filter)
     sentry->lock("statObjects");
     state->theSearch = Store::Root().search();
 
-    eventAdd("statObjects", statObjects, state, 0.0, 1);
+    eventAddGlobal2("statObjects", statObjects, state, 0.0, 1);
 }
 
 static void
@@ -1268,7 +1268,7 @@ statInit(void)
 
     statCountersInit(&statCounter);
 
-    eventAdd("statAvgTick", statAvgTick, NULL, (double) COUNT_INTERVAL, 1);
+    eventAddGlobal0("statAvgTick", statAvgTick, (double) COUNT_INTERVAL, 1);
 
     ClientActiveRequests.head = NULL;
 
@@ -1281,7 +1281,7 @@ static void
 statAvgTick(void *)
 {
     struct rusage rusage;
-    eventAdd("statAvgTick", statAvgTick, NULL, (double) COUNT_INTERVAL, 1);
+    eventAddGlobal0("statAvgTick", statAvgTick, (double) COUNT_INTERVAL, 1);
     squid_getrusage(&rusage);
     statCounter.page_faults = rusage_pagefaults(&rusage);
     statCounter.cputime = rusage_cputime(&rusage);

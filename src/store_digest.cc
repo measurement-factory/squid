@@ -360,7 +360,7 @@ storeDigestRebuildResume(void)
 
     sd_stats = StoreDigestStats();
 
-    eventAdd("storeDigestRebuildStep", storeDigestRebuildStep, NULL, 0.0, 1);
+    eventAddGlobal0("storeDigestRebuildStep", storeDigestRebuildStep, 0.0, 1);
 }
 
 /* finishes swap out sequence for the digest; schedules next rebuild */
@@ -371,7 +371,7 @@ storeDigestRebuildFinish(void)
     sd_state.rebuild_lock = 0;
     ++sd_state.rebuild_count;
     debugs(71, 2, "storeDigestRebuildFinish: done.");
-    eventAdd("storeDigestRebuildStart", storeDigestRebuildStart, NULL, (double)
+    eventAddGlobal0("storeDigestRebuildStart", storeDigestRebuildStart, (double)
              Config.digest.rebuild_period, 1);
     /* resume pending Rewrite if any */
 
@@ -397,7 +397,7 @@ storeDigestRebuildStep(void *datanotused)
     if (sd_state.theSearch->isDone())
         storeDigestRebuildFinish();
     else
-        eventAdd("storeDigestRebuildStep", storeDigestRebuildStep, NULL, 0.0, 1);
+        eventAddGlobal0("storeDigestRebuildStep", storeDigestRebuildStep, 0.0, 1);
 }
 
 /* starts swap out sequence for the digest */
@@ -466,7 +466,7 @@ storeDigestRewriteResume(void)
     e->replaceHttpReply(rep);
     storeDigestCBlockSwapOut(e);
     e->flush();
-    eventAdd("storeDigestSwapOutStep", storeDigestSwapOutStep, sd_state.rewrite_lock, 0.0, 1, false);
+    eventAddGlobal1("storeDigestSwapOutStep", storeDigestSwapOutStep, sd_state.rewrite_lock, 0.0, 1);
 }
 
 /* finishes swap out sequence for the digest; schedules next rewrite */
@@ -482,7 +482,7 @@ storeDigestRewriteFinish(StoreEntry * e)
     e->mem_obj->unlinkRequest();
     sd_state.rewrite_lock = NULL;
     ++sd_state.rewrite_count;
-    eventAdd("storeDigestRewriteStart", storeDigestRewriteStart, NULL, (double)
+    eventAddGlobal0("storeDigestRewriteStart", storeDigestRewriteStart, (double)
              Config.digest.rewrite_period, 1);
     /* resume pending Rebuild if any */
 
@@ -515,7 +515,7 @@ storeDigestSwapOutStep(void *data)
     if (static_cast<uint32_t>(sd_state.rewrite_offset) >= store_digest->mask_size)
         storeDigestRewriteFinish(e);
     else
-        eventAdd("storeDigestSwapOutStep", storeDigestSwapOutStep, data, 0.0, 1, false);
+        eventAddGlobal1("storeDigestSwapOutStep", storeDigestSwapOutStep, data, 0.0, 1);
 }
 
 static void
