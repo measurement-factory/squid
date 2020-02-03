@@ -82,7 +82,7 @@ clientdbAdd(const Ip::Address &addr)
 
     if ((statCounter.client_http.clients > max_clients) && !cleanup_running && cleanup_scheduled < 2) {
         ++cleanup_scheduled;
-        eventAdd("client_db garbage collector", clientdbScheduledGC, NULL, 90, 0);
+        eventAddGlobal0("client_db garbage collector", clientdbScheduledGC, 90, 0);
     }
 
     return c;
@@ -400,7 +400,7 @@ clientdbGC(void *)
     }
 
     if (bucket < CLIENT_DB_HASH_SIZE)
-        eventAdd("client_db garbage collector", clientdbGC, NULL, 0.15, 0);
+    	eventAddGlobal0("client_db garbage collector", clientdbGC, 0.15, 0);
     else {
         bucket = 0;
         cleanup_running = 0;
@@ -408,7 +408,7 @@ clientdbGC(void *)
 
         if (!cleanup_scheduled) {
             cleanup_scheduled = 1;
-            eventAdd("client_db garbage collector", clientdbScheduledGC, NULL, 6 * 3600, 0);
+            eventAddGlobal0("client_db garbage collector", clientdbScheduledGC, 6 * 3600, 0);
         }
 
         debugs(49, 2, "clientdbGC: Removed " << cleanup_removed << " entries");

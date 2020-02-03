@@ -1136,7 +1136,7 @@ StoreEntry::abort()
     if (mem_obj->abort.callback) {
         if (!cbdataReferenceValid(mem_obj->abort.data))
             debugs(20, DBG_IMPORTANT,HERE << "queueing event when abort.data is not valid");
-        eventAdd("mem_obj->abort.callback",
+        eventAddContextual("mem_obj->abort.callback",
                  mem_obj->abort.callback,
                  mem_obj->abort.data,
                  0.0,
@@ -1179,7 +1179,7 @@ Store::Maintain(void *)
     Store::Root().maintain();
 
     /* Reregister a maintain event .. */
-    eventAdd("MaintainSwapSpace", Maintain, NULL, 1.0, 1);
+    eventAddGlobal0("MaintainSwapSpace", Maintain, 1.0, 1);
 
 }
 
@@ -1225,7 +1225,7 @@ storeLateRelease(void *)
     static int n = 0;
 
     if (Store::Controller::store_dirs_rebuilding) {
-        eventAdd("storeLateRelease", storeLateRelease, NULL, 1.0, 1);
+    	eventAddGlobal0("storeLateRelease", storeLateRelease, 1.0, 1);
         return;
     }
 
@@ -1243,7 +1243,7 @@ storeLateRelease(void *)
         ++n;
     }
 
-    eventAdd("storeLateRelease", storeLateRelease, NULL, 0.0, 1);
+    eventAddGlobal0("storeLateRelease", storeLateRelease, 0.0, 1);
 }
 
 /// whether the base response has all the body bytes we expect
@@ -1308,7 +1308,7 @@ storeInit(void)
     mem_policy = createRemovalPolicy(Config.memPolicy);
     storeDigestInit();
     storeLogOpen();
-    eventAdd("storeLateRelease", storeLateRelease, NULL, 1.0, 1);
+    eventAddGlobal0("storeLateRelease", storeLateRelease, 1.0, 1);
     Store::Root().init();
     storeRebuildStart();
 

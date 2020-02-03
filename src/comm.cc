@@ -1339,7 +1339,7 @@ ClientInfo::kickQuotaQueue()
     if (!eventWaiting && !selectWaiting && hasQueue()) {
         // wait at least a second if the bucket is empty
         const double delay = (bucketLevel < 1.0) ? 1.0 : 0.0;
-        eventAdd("commHandleWriteHelper", &commHandleWriteHelper,
+        eventAddGlobal2("commHandleWriteHelper", &commHandleWriteHelper,
                  quotaQueue, delay, 0, true);
         eventWaiting = true;
     }
@@ -1633,7 +1633,7 @@ void
 commPlanHalfClosedCheck()
 {
     if (!WillCheckHalfClosed && !TheHalfClosed->empty()) {
-        eventAdd("commHalfClosedCheck", &commHalfClosedCheck, NULL, 1.0, 1);
+    	eventAddGlobal0("commHalfClosedCheck", &commHalfClosedCheck, 1.0, 1);
         WillCheckHalfClosed = true;
     }
 }

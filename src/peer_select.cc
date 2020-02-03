@@ -623,7 +623,7 @@ PeerSelector::selectSomeNeighbor()
 
             if (ping.n_replies_expected > 0) {
                 entry->ping_status = PING_WAITING;
-                eventAdd("PeerSelector::HandlePingTimeout",
+                eventAddContextual("PeerSelector::HandlePingTimeout",
                          HandlePingTimeout,
                          this,
                          0.001 * ping.timeout,

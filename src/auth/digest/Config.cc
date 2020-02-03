@@ -220,7 +220,7 @@ authenticateDigestNonceSetup(void)
     if (!digest_nonce_cache) {
         digest_nonce_cache = hash_create((HASHCMP *) strcmp, 7921, hash_string);
         assert(digest_nonce_cache);
-        eventAdd("Digest nonce cache maintenance", authenticateDigestNonceCacheCleanup, NULL, static_cast<Auth::Digest::Config*>(Auth::SchemeConfig::Find("digest"))->nonceGCInterval, 1);
+        eventAddGlobal0("Digest nonce cache maintenance", authenticateDigestNonceCacheCleanup, static_cast<Auth::Digest::Config*>(Auth::SchemeConfig::Find("digest"))->nonceGCInterval, 1);
     }
 }
 
@@ -284,7 +284,7 @@ authenticateDigestNonceCacheCleanup(void *)
     debugs(29, 3, "Finished cleaning the nonce cache.");
 
     if (static_cast<Auth::Digest::Config*>(Auth::SchemeConfig::Find("digest"))->active())
-        eventAdd("Digest nonce cache maintenance", authenticateDigestNonceCacheCleanup, NULL, static_cast<Auth::Digest::Config*>(Auth::SchemeConfig::Find("digest"))->nonceGCInterval, 1);
+    	eventAddGlobal0("Digest nonce cache maintenance", authenticateDigestNonceCacheCleanup, static_cast<Auth::Digest::Config*>(Auth::SchemeConfig::Find("digest"))->nonceGCInterval, 1);
 }
 
 static void

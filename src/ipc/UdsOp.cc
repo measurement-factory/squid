@@ -140,9 +140,9 @@ void Ipc::UdsSender::startSleep()
 {
     Must(!sleeping);
     sleeping = true;
-    eventAdd("Ipc::UdsSender::DelayedRetry",
+    eventAddGlobal1("Ipc::UdsSender::DelayedRetry",
              Ipc::UdsSender::DelayedRetry,
-             new Pointer(this), 1, 0, false); // TODO: Use Fibonacci increments
+             new Pointer(this), 1, 0); // TODO: Use Fibonacci increments
 }
 
 /// stop sleeping (or do nothing if we were not)

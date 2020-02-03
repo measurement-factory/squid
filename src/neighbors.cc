@@ -415,7 +415,7 @@ static void
 peerClearRRLoop(void *data)
 {
     peerClearRR();
-    eventAdd("peerClearRR", peerClearRRLoop, data, 5 * 60.0, 0);
+    eventAddGlobal2("peerClearRR", peerClearRRLoop, data, 5 * 60.0, 0);
 }
 
 /**
@@ -1244,7 +1244,7 @@ peerDNSConfigure(const ipcache_addrs *ia, const Dns::LookupDetails &, void *data
 #if USE_ICMP
     if (p->type != PEER_MULTICAST && IamWorkerProcess())
         if (!p->options.no_netdb_exchange)
-            eventAddIsh("netdbExchangeStart", netdbExchangeStart, p, 30.0, 1);
+            eventAddIshGlobal2("netdbExchangeStart", netdbExchangeStart, p, 30.0, 1);
 #endif
 
     if (p->standby.mgr.valid())
@@ -1261,7 +1261,7 @@ peerRefreshDNS(void *data)
 
     if (!data && 0 == stat5minClientRequests()) {
         /* no recent client traffic, wait a bit */
-        eventAddIsh("peerRefreshDNS", peerRefreshDNS, NULL, 180.0, 1);
+        eventAddIshGlobal0("peerRefreshDNS", peerRefreshDNS, 180.0, 1);
         return;
     }
 
@@ -1269,7 +1269,7 @@ peerRefreshDNS(void *data)
         ipcache_nbgethostbyname(p->host, peerDNSConfigure, p);
 
     /* Reconfigure the peers every hour */
-    eventAddIsh("peerRefreshDNS", peerRefreshDNS, NULL, 3600.0, 1);
+    eventAddIshGlobal0("peerRefreshDNS", peerRefreshDNS, 3600.0, 1);
 }
 
 static void
@@ -1382,7 +1382,7 @@ peerCountMcastPeersSchedule(CachePeer * p, time_t when)
     if (p->mcast.flags.count_event_pending)
         return;
 
-    eventAdd("peerCountMcastPeersStart",
+    eventAddGlobal2("peerCountMcastPeersStart",
              peerCountMcastPeersStart,
              p,
              (double) when, 1);
@@ -1426,7 +1426,7 @@ peerCountMcastPeersStart(void *data)
     icpCreateAndSend(ICP_QUERY, 0, url, reqnum, 0,
                      icpOutgoingConn->fd, p->in_addr, psstate->al);
     fake->ping_status = PING_WAITING;
-    eventAdd("peerCountMcastPeersDone",
+    eventAddGlobal2("peerCountMcastPeersDone",
              peerCountMcastPeersDone,
              psstate,
              Config.Timeout.mcast_icp_query / 1000.0, 1);

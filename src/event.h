@@ -19,8 +19,15 @@ class StoreEntry;
 
 typedef void EVH(void *);
 
-void eventAdd(const char *name, EVH * func, void *arg, double when, int, bool cbdata=true);
-void eventAddIsh(const char *name, EVH * func, void *arg, double delta_ish, int);
+//void eventAdd(const char *name, EVH * func, void *arg, double when, int, bool cbdata=true);
+void eventAddContextual(const char *name, EVH * func, void *arg, double when, int, bool cbdata=true);
+void eventAddGlobal0(const char *name, EVH * func, double when, int weight, bool cbdata = true);
+void eventAddGlobal1(const char *name, EVH * func, void *arg, double when, int weight);
+void eventAddGlobal2(const char *name, EVH * func, void *arg, double when, int, bool cbdata=true);
+//void eventAddIsh(const char *name, EVH * func, void *arg, double delta_ish, int);
+void eventAddIshContextual(const char *name, EVH * func, void *arg, double delta_ish, int);
+void eventAddIshGlobal0(const char *name, EVH * func, double delta_ish, int);
+void eventAddIshGlobal2(const char *name, EVH * func, void *arg, double delta_ish, int);
 void eventDelete(EVH * func, void *arg);
 void eventInit(void);
 void eventFreeMemory(void);

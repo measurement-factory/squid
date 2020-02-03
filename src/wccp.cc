@@ -101,7 +101,7 @@ wccpInit(void)
 
     if (!Config.Wccp.router.isAnyAddr())
         if (!eventFind(wccpHereIam, NULL))
-            eventAdd("wccpHereIam", wccpHereIam, NULL, 5.0, 1);
+        	eventAddGlobal0("wccpHereIam", wccpHereIam, 5.0, 1);
 }
 
 void
@@ -287,7 +287,7 @@ wccpHereIam(void *)
     }
 
     if (!eventFind(wccpHereIam, NULL))
-        eventAdd("wccpHereIam", wccpHereIam, NULL, interval, 1);
+    	eventAddGlobal0("wccpHereIam", wccpHereIam, interval, 1);
 }
 
 static void

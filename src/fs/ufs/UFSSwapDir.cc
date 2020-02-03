@@ -290,7 +290,7 @@ Fs::Ufs::UFSSwapDir::init()
     rebuild();
 
     if (!started_clean_event) {
-        eventAdd("UFS storeDirClean", CleanEvent, NULL, 15.0, 1);
+        eventAddGlobal0("UFS storeDirClean", CleanEvent, 15.0, 1);
         started_clean_event = 1;
     }
 
@@ -824,7 +824,7 @@ void
 Fs::Ufs::UFSSwapDir::rebuild()
 {
     ++StoreController::store_dirs_rebuilding;
-    eventAdd("storeRebuild", Fs::Ufs::RebuildState::RebuildStep, new Fs::Ufs::RebuildState(this), 0.0, 1);
+    eventAddGlobal2("storeRebuild", Fs::Ufs::RebuildState::RebuildStep, new Fs::Ufs::RebuildState(this), 0.0, 1);
 }
 
 void
@@ -1095,7 +1095,7 @@ void
 Fs::Ufs::UFSSwapDir::CleanEvent(void *)
 {
     const int n = HandleCleanEvent();
-    eventAdd("storeDirClean", CleanEvent, NULL,
+    eventAddGlobal0("storeDirClean", CleanEvent,
              15.0 * exp(-0.25 * n), 1);
 }
 

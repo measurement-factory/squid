@@ -304,7 +304,7 @@ xprof_event(void *data)
 
     xprof_chk_overhead(30);
 
-    eventAdd("cpuProfiling", xprof_event, NULL, 1.0, 1);
+    eventAddGlobal0("cpuProfiling", xprof_event, 1.0, 1);
 }
 
 #endif /* USE_XPROF_STATS */

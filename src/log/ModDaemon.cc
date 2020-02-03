@@ -202,7 +202,7 @@ logfileFlushEvent(void *data)
      * schedule a write if we haven't done so in the last second or two.
      */
     logfileQueueWrite(lf);
-    eventAdd("logfileFlush", logfileFlushEvent, lf, 1.0, 1);
+    eventAddGlobal2("logfileFlush", logfileFlushEvent, lf, 1.0, 1);
 }
 
 /* External code */
@@ -245,7 +245,7 @@ logfile_mod_daemon_open(Logfile * lf, const char *path, size_t, int)
     xfree(tmpbuf);
 
     /* Start the flush event */
-    eventAdd("logfileFlush", logfileFlushEvent, lf, 1.0, 1);
+    eventAddGlobal2("logfileFlush", logfileFlushEvent, lf, 1.0, 1);
 
     return 1;
 }

@@ -224,7 +224,7 @@ private:
         Auth::Scheme::FreeAll();
 #endif
 
-        eventAdd("SquidTerminate", &StopEventLoop, NULL, 0, 1, false);
+        eventAddGlobal0("SquidTerminate", &StopEventLoop, 0, 1, false);
     }
 
     void doShutdown(time_t wait);
@@ -323,7 +323,7 @@ SignalEngine::doShutdown(time_t wait)
     WIN32_svcstatusupdate(SERVICE_STOP_PENDING, (wait + 1) * 1000);
 #endif
 
-    eventAdd("SquidShutdown", &FinalShutdownRunners, this, (double) (wait + 1), 1, false);
+    eventAddGlobal1("SquidShutdown", &FinalShutdownRunners, this, (double) (wait + 1), 1);
 }
 
 void
@@ -907,7 +907,7 @@ mainReconfigureStart(void)
     icapLogClose();
 #endif
 
-    eventAdd("mainReconfigureFinish", &mainReconfigureFinish, NULL, 0, 1,
+    eventAddGlobal0("mainReconfigureFinish", &mainReconfigureFinish, 0, 1,
              false);
 }
 
@@ -1023,7 +1023,7 @@ mainReconfigureFinish(void *)
 
     if (Config.onoff.announce) {
         if (!eventFind(start_announce, NULL))
-            eventAdd("start_announce", start_announce, NULL, 3600.0, 1);
+        	eventAddGlobal0("start_announce", start_announce, 3600.0, 1);
     } else {
         if (eventFind(start_announce, NULL))
             eventDelete(start_announce, NULL);
@@ -1337,22 +1337,22 @@ mainInitialize(void)
     Config.ClientDelay.finalize();
 #endif
 
-    eventAdd("storeMaintain", Store::Maintain, nullptr, 1.0, 1);
+    eventAddGlobal0("storeMaintain", Store::Maintain, 1.0, 1);
 
     if (Config.onoff.announce)
-        eventAdd("start_announce", start_announce, nullptr, 3600.0, 1);
+    	eventAddGlobal0("start_announce", start_announce, 3600.0, 1);
 
-    eventAdd("ipcache_purgelru", ipcache_purgelru, nullptr, 10.0, 1);
+    eventAddGlobal0("ipcache_purgelru", ipcache_purgelru, 10.0, 1);
 
-    eventAdd("fqdncache_purgelru", fqdncache_purgelru, nullptr, 15.0, 1);
+    eventAddGlobal0("fqdncache_purgelru", fqdncache_purgelru, 15.0, 1);
 
 #if USE_XPROF_STATS
 
-    eventAdd("cpuProfiling", xprof_event, nullptr, 1.0, 1);
+    eventAddGlobal0("cpuProfiling", xprof_event, 1.0, 1);
 
 #endif
 
-    eventAdd("memPoolCleanIdlePools", Mem::CleanIdlePools, nullptr, 15.0, 1);
+    eventAddGlobal0("memPoolCleanIdlePools", Mem::CleanIdlePools, 15.0, 1);
 
     configured_once = 1;
 }

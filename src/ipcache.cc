@@ -354,7 +354,7 @@ ipcache_purgelru(void *)
     dlink_node *prev = NULL;
     ipcache_entry *i;
     int removed = 0;
-    eventAdd("ipcache_purgelru", ipcache_purgelru, NULL, 10.0, 1);
+    eventAddGlobal0("ipcache_purgelru", ipcache_purgelru, 10.0, 1);
 
     for (m = lru_list.tail; m; m = prev) {
         if (ipcacheCount() < ipcache_low)

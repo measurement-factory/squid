@@ -529,7 +529,7 @@ netdbSaveState(void *foo)
     debugs(38, DBG_IMPORTANT, "NETDB state saved; " <<
            count << " entries, " <<
            tvSubMsec(start, current_time) << " msec" );
-    eventAddIsh("netdbSaveState", netdbSaveState, NULL, 3600.0, 1);
+    eventAddIshGlobal("netdbSaveState", netdbSaveState, 3600.0, 1);
 }
 
 static void
@@ -897,7 +897,7 @@ netdbInit(void)
 
     host_table = hash_create((HASHCMP *) strcmp, n, hash_string);
 
-    eventAddIsh("netdbSaveState", netdbSaveState, NULL, 3600.0, 1);
+    eventAddIshGlobal("netdbSaveState", netdbSaveState, 3600.0, 1);
 
     netdbReloadState();
 

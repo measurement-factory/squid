@@ -648,7 +648,7 @@ void Adaptation::Icap::ServiceRep::scheduleUpdate(time_t when)
     const int delay = when - squid_curtime;
     debugs(93,5, HERE << "will fetch OPTIONS in " << delay << " sec");
 
-    eventAdd("Adaptation::Icap::ServiceRep::noteTimeToUpdate",
+    eventAddGlobal2("Adaptation::Icap::ServiceRep::noteTimeToUpdate",
              &ServiceRep_noteTimeToUpdate, this, delay, 0, true);
     updateScheduled = true;
 }

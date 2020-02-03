@@ -35,7 +35,7 @@ start_announce(void *)
 
     ipcache_nbgethostbyname(Config.Announce.host, send_announce, NULL);
 
-    eventAdd("send_announce", start_announce, NULL, (double) Config.Announce.period, 1);
+    eventAddGlobal0("send_announce", start_announce, (double) Config.Announce.period, 1);
 }
 
 static void

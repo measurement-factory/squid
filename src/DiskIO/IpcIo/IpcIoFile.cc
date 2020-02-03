@@ -137,8 +137,8 @@ IpcIoFile::open(int flags, mode_t mode, RefCount<IORequestor> callback)
 
     WaitingForOpen.push_back(this);
 
-    eventAdd("IpcIoFile::OpenTimeout", &IpcIoFile::OpenTimeout,
-             this, Timeout, 0, false); // "this" pointer is used as id
+    eventAddGlobal1("IpcIoFile::OpenTimeout", &IpcIoFile::OpenTimeout,
+             this, Timeout, 0); // "this" pointer is used as id
 }
 
 void
@@ -581,8 +581,8 @@ IpcIoFile::scheduleTimeoutCheck()
     // one-for-all CheckTimeouts() that is not specific to any request.
     CallService(nullptr, [&] {
         // we check all older requests at once so some may be wait for 2*Timeout
-        eventAdd("IpcIoFile::CheckTimeouts", &IpcIoFile::CheckTimeouts,
-        reinterpret_cast<void *>(diskId), Timeout, 0, false);
+        eventAddGlobal1("IpcIoFile::CheckTimeouts", &IpcIoFile::CheckTimeouts,
+        reinterpret_cast<void *>(diskId), Timeout, 0);
         timeoutCheckScheduled = true;
     });
 }
@@ -809,10 +809,10 @@ IpcIoFile::WaitBeforePop()
 
         debugs(47, 3, HERE << "rate limiting by " << toSpend << " ms to get" <<
                (1e3*maxRate) << "/sec rate");
-        eventAdd("IpcIoFile::DiskerHandleMoreRequests",
+        eventAddGlobal1("IpcIoFile::DiskerHandleMoreRequests",
                  &IpcIoFile::DiskerHandleMoreRequests,
                  const_cast<char*>("rate limiting"),
-                 toSpend/1e3, 0, false);
+                 toSpend/1e3, 0);
         DiskerHandleMoreRequestsScheduled = true;
         return true;
     } else if (balance < -maxImbalance) {
@@ -847,10 +847,10 @@ IpcIoFile::DiskerHandleRequests()
             if (!DiskerHandleMoreRequestsScheduled) {
                 // the gap must be positive for select(2) to be given a chance
                 const double minBreakSecs = 0.001;
-                eventAdd("IpcIoFile::DiskerHandleMoreRequests",
+                eventAddGlobal1("IpcIoFile::DiskerHandleMoreRequests",
                          &IpcIoFile::DiskerHandleMoreRequests,
                          const_cast<char*>("long I/O loop"),
-                         minBreakSecs, 0, false);
+                         minBreakSecs, 0);
                 DiskerHandleMoreRequestsScheduled = true;
             }
             debugs(47, 3, HERE << "pausing after " << popped << " I/Os in " <<

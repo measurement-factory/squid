@@ -114,7 +114,7 @@ storeCleanup(void *)
 
         currentSearch = NULL;
     } else
-        eventAdd("storeCleanup", storeCleanup, NULL, 0.0, 1);
+    	eventAddGlobal0("storeCleanup", storeCleanup, 0.0, 1);
 }
 
 /* meta data recreated from disk image in swap directory */
@@ -157,7 +157,7 @@ storeRebuildComplete(StoreRebuildData *dc)
            ((double) counts.objcount / (dt > 0.0 ? dt : 1.0)) << " objects/sec).");
     debugs(20, DBG_IMPORTANT, "Beginning Validation Procedure");
 
-    eventAdd("storeCleanup", storeCleanup, NULL, 0.0, 1);
+    eventAddGlobal0("storeCleanup", storeCleanup, 0.0, 1);
 
     xfree(RebuildProgress);
 

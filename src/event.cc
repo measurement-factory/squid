@@ -106,15 +106,40 @@ ev_entry::~ev_entry()
         cbdataReferenceDone(arg);
 }
 
+/*
 void
 eventAdd(const char *name, EVH * func, void *arg, double when, int weight, bool cbdata)
 {
     EventScheduler::GetInstance()->schedule(name, func, arg, when, weight, cbdata);
 }
+*/
 
-/* same as eventAdd but adds a random offset within +-1/3 of delta_ish */
 void
-eventAddIsh(const char *name, EVH * func, void *arg, double delta_ish, int weight)
+eventAddContextual(const char *name, EVH * func, void *arg, double when, int weight, bool cbdata)
+{
+    EventScheduler::GetInstance()->schedule(name, func, arg, when, weight, cbdata);
+}
+
+void
+eventAddGlobal0(const char *name, EVH * func, double when, int weight, bool cbdata)
+{
+    EventScheduler::GetInstance()->schedule(name, func, nullptr, when, weight, cbdata);
+}
+
+void
+eventAddGlobal1(const char *name, EVH * func, void *arg, double when, int weight)
+{
+    EventScheduler::GetInstance()->schedule(name, func, nullptr, when, weight, false);
+}
+
+void
+eventAddGlobal2(const char *name, EVH * func, void *arg, double when, int weight, bool cbdata)
+{
+    EventScheduler::GetInstance()->schedule(name, func, arg, when, weight, cbdata);
+}
+
+void
+eventAddIshContextual(const char *name, EVH * func, void *arg, double delta_ish, int weight)
 {
     if (delta_ish >= 3.0) {
         // Default seed is fine. We just need values random enough
@@ -125,7 +150,37 @@ eventAddIsh(const char *name, EVH * func, void *arg, double delta_ish, int weigh
         delta_ish = thirdIsh(rng);
     }
 
-    eventAdd(name, func, arg, delta_ish, weight);
+	eventAddContextual(name, func, arg, delta_ish, weight);
+}
+
+void eventAddIshGlobal0(const char *name, EVH * func, double delta_ish, int weight)
+{
+    if (delta_ish >= 3.0) {
+        // Default seed is fine. We just need values random enough
+        // relative to each other to prevent waves of synchronised activity.
+        static std::mt19937 rng;
+        auto third = (delta_ish/3.0);
+        xuniform_real_distribution<> thirdIsh(delta_ish - third, delta_ish + third);
+        delta_ish = thirdIsh(rng);
+    }
+
+    eventAddGlobal0(name, func, delta_ish, weight);
+}
+
+/* same as eventAdd but adds a random offset within +-1/3 of delta_ish */
+void
+eventAddIshGlobal2(const char *name, EVH * func, void *arg, double delta_ish, int weight)
+{
+    if (delta_ish >= 3.0) {
+        // Default seed is fine. We just need values random enough
+        // relative to each other to prevent waves of synchronised activity.
+        static std::mt19937 rng;
+        auto third = (delta_ish/3.0);
+        xuniform_real_distribution<> thirdIsh(delta_ish - third, delta_ish + third);
+        delta_ish = thirdIsh(rng);
+    }
+
+	eventAddGlobal2(name, func, arg, delta_ish, weight);
 }
 
 void
