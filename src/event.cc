@@ -108,8 +108,9 @@ ev_entry::~ev_entry()
 void
 ev_entry::buildCall()
 {
-    AsyncCall::Pointer c = asyncCall(41,5, name, EventDialer(func, arg, cbdata));
-    c->codeContext = CodeContext::Current();
+    assert(!call);
+    call = asyncCall(41,5, name, EventDialer(func, arg, cbdata));
+    call->codeContext = CodeContext::Current();
 }
 
 
