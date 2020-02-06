@@ -106,9 +106,17 @@ ev_entry::~ev_entry()
 }
 
 void
+ev_entry::buildCall()
+{
+    AsyncCall::Pointer c = asyncCall(41,5, name, EventDialer(func, arg, cbdata));
+    c->codeContext = CodeContext::Current();
+}
+
+
+ev_entry *
 eventAdd(const char *name, EVH * func, void *arg, double when, int weight, bool cbdata)
 {
-    EventScheduler::GetInstance()->schedule(name, func, arg, when, weight, cbdata);
+    return EventScheduler::GetInstance()->schedule(name, func, arg, when, weight, cbdata);
 }
 
 /* same as eventAdd but adds a random offset within +-1/3 of delta_ish */
@@ -236,8 +244,9 @@ EventScheduler::checkEvents(int)
         assert(event);
 
         /* XXX assumes event->name is static memory! */
-        AsyncCall::Pointer call = asyncCall(41,5, event->name,
-                                            EventDialer(event->func, event->arg, event->cbdata));
+        AsyncCall::Pointer call = event->call;
+        if (!call)
+            call = asyncCall(41,5, event->name, EventDialer(event->func, event->arg, event->cbdata));
         ScheduleCallHere(call);
 
         last_event_ran = event->name; // XXX: move this to AsyncCallQueue
@@ -313,7 +322,7 @@ EventScheduler::GetInstance()
     return &_instance;
 }
 
-void
+ev_entry *
 EventScheduler::schedule(const char *name, EVH * func, void *arg, double when, int weight, bool cbdata)
 {
     // Use zero timestamp for when=0 events: Many of them are async calls that
@@ -333,5 +342,6 @@ EventScheduler::schedule(const char *name, EVH * func, void *arg, double when, i
 
     event->next = *E;
     *E = event;
+    return event;
 }
 

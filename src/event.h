@@ -10,6 +10,7 @@
 #define SQUID_EVENT_H
 
 #include "AsyncEngine.h"
+#include "base/AsyncCall.h"
 #include "mem/forward.h"
 
 class StoreEntry;
@@ -18,7 +19,9 @@ class StoreEntry;
 
 typedef void EVH(void *);
 
-void eventAdd(const char *name, EVH * func, void *arg, double when, int, bool cbdata=true);
+class ev_entry;
+
+ev_entry *eventAdd(const char *name, EVH * func, void *arg, double when, int, bool cbdata=true);
 void eventAddIsh(const char *name, EVH * func, void *arg, double delta_ish, int);
 void eventDelete(EVH * func, void *arg);
 void eventInit(void);
@@ -32,6 +35,9 @@ class ev_entry
 public:
     ev_entry(char const * name, EVH * func, void *arg, double when, int weight, bool cbdata=true);
     ~ev_entry();
+
+    void buildCall();
+
     const char *name;
     EVH *func;
     void *arg;
@@ -41,6 +47,8 @@ public:
     bool cbdata;
 
     ev_entry *next;
+
+    AsyncCall::Pointer call;
 };
 
 // manages time-based events
@@ -61,7 +69,7 @@ public:
     /* find a scheduled event */
     bool find(EVH * func, void * arg);
     /* schedule a callback function to run in when seconds */
-    void schedule(const char *name, EVH * func, void *arg, double when, int weight, bool cbdata=true);
+    ev_entry *schedule(const char *name, EVH * func, void *arg, double when, int weight, bool cbdata=true);
     int checkEvents(int timeout);
     static EventScheduler *GetInstance();
 

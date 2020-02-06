@@ -623,11 +623,12 @@ PeerSelector::selectSomeNeighbor()
 
             if (ping.n_replies_expected > 0) {
                 entry->ping_status = PING_WAITING;
-                eventAdd("PeerSelector::HandlePingTimeout",
+                auto *event = eventAdd("PeerSelector::HandlePingTimeout",
                          HandlePingTimeout,
                          this,
                          0.001 * ping.timeout,
                          0);
+                event->buildCall();
                 return;
             }
         }

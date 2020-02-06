@@ -1136,11 +1136,12 @@ StoreEntry::abort()
     if (mem_obj->abort.callback) {
         if (!cbdataReferenceValid(mem_obj->abort.data))
             debugs(20, DBG_IMPORTANT,HERE << "queueing event when abort.data is not valid");
-        eventAdd("mem_obj->abort.callback",
+        auto *event = eventAdd("mem_obj->abort.callback",
                  mem_obj->abort.callback,
                  mem_obj->abort.data,
                  0.0,
                  true);
+        event->buildCall();
         unregisterAbort();
     }
 
