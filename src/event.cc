@@ -113,7 +113,6 @@ ev_entry::buildCall()
     call->codeContext = CodeContext::Current();
 }
 
-
 ev_entry *
 eventAdd(const char *name, EVH * func, void *arg, double when, int weight, bool cbdata)
 {
@@ -244,10 +243,11 @@ EventScheduler::checkEvents(int)
         ev_entry *event = tasks;
         assert(event);
 
-        /* XXX assumes event->name is static memory! */
         AsyncCall::Pointer call = event->call;
+        /* XXX assumes event->name is static memory! */
         if (!call)
-            call = asyncCall(41,5, event->name, EventDialer(event->func, event->arg, event->cbdata));
+            call = asyncCall(41, 5, event->name, EventDialer(event->func, event->arg, event->cbdata));
+
         ScheduleCallHere(call);
 
         last_event_ran = event->name; // XXX: move this to AsyncCallQueue
