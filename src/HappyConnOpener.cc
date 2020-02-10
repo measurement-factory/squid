@@ -480,6 +480,8 @@ HappyConnOpener::sendSuccess(const Comm::ConnectionPointer &conn, bool reused, c
     callback_ = nullptr;
 }
 
+/// if the given attempt is in progress, cancels it and re-inserts
+/// the path into the beginning of candidates list
 void
 HappyConnOpener::cancelAttempt(Attempt &attempt, const char *reason)
 {

@@ -158,7 +158,7 @@ private:
     public:
         explicit operator bool() const { return static_cast<bool>(path); }
         void clear() { path = nullptr; connector = nullptr; connOpener = nullptr; }
-        /// cancels the attempt, aborting the Comm::ConnOpener job
+        /// cancels the attempt
         void cancel(const char *reason);
 
         Comm::ConnectionPointer path; ///< the destination we are connecting to
