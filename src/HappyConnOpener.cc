@@ -518,6 +518,7 @@ HappyConnOpener::startConnecting(Attempt &attempt, Comm::ConnectionPointer &dest
 {
     Must(!attempt.path);
     Must(!attempt.connector);
+    Must(!attempt.connOpener.valid());
     Must(dest);
 
     const auto bumpThroughPeer = cause->flags.sslBumped && dest->getPeer();
