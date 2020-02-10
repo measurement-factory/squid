@@ -397,11 +397,11 @@ HappyConnOpener::swanSong()
     // TODO: Find an automated, faster way to kill no-longer-needed jobs.
 
     if (prime) {
-        prime.cancel("HappyConnOpener object destructed");
+        cancelAttempt(prime, "HappyConnOpener object destructed");
     }
 
     if (spare) {
-        spare.cancel("HappyConnOpener object destructed");
+        cancelAttempt(spare, "HappyConnOpener object destructed");
         if (gotSpareAllowance) {
             TheSpareAllowanceGiver.jobDroppedAllowance();
             gotSpareAllowance = false;
@@ -481,11 +481,11 @@ HappyConnOpener::sendSuccess(const Comm::ConnectionPointer &conn, bool reused, c
 }
 
 void
-HappyConnOpener::cancelAttempt(Attempt &attempt)
+HappyConnOpener::cancelAttempt(Attempt &attempt, const char *reason)
 {
     if (attempt) {
         destinations->retryPath(attempt.path);
-        attempt.cancel("aborting spare ConnOpener attempt");
+        attempt.cancel(reason);
     }
 }
 
@@ -595,7 +595,6 @@ HappyConnOpener::connectDone(const CommConnectCbParams &params)
 
     const char *what = itWasPrime ? "new prime connection" : "new spare connection";
     if (params.flag == Comm::OK) {
-        cancelAttempt(itWasPrime ? spare : prime);
         sendSuccess(params.conn, false, what);
         return;
     }
