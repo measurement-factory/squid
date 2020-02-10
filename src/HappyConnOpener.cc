@@ -485,10 +485,9 @@ HappyConnOpener::sendSuccess(const Comm::ConnectionPointer &conn, bool reused, c
 void
 HappyConnOpener::cancelAttempt(Attempt &attempt, const char *reason)
 {
-    if (attempt) {
-        destinations->retryPath(attempt.path);
-        attempt.cancel(reason);
-    }
+    Must(attempt);
+    destinations->retryPath(attempt.path);
+    attempt.cancel(reason);
 }
 
 /// inform the initiator about our failure to connect (if needed)
