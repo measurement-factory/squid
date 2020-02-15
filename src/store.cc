@@ -9,6 +9,7 @@
 /* DEBUG: section 20    Storage Manager */
 
 #include "squid.h"
+#include "base/AsyncCbdataCalls.h"
 #include "base/TextException.h"
 #include "CacheDigest.h"
 #include "CacheManager.h"
@@ -1135,13 +1136,12 @@ StoreEntry::abort()
      */
     if (mem_obj->abort.callback) {
         if (!cbdataReferenceValid(mem_obj->abort.data))
-            debugs(20, DBG_IMPORTANT,HERE << "queueing event when abort.data is not valid");
-        eventAdd("mem_obj->abort.callback",
-                 mem_obj->abort.callback,
-                 mem_obj->abort.data,
-                 0.0,
-                 true);
-        unregisterAbort();
+            debugs(20, DBG_IMPORTANT, "abort.data is invalid");
+        else {
+            AsyncCall::Pointer call = asyncCall(5,4, "mem_obj->abort.callback", cbdataDialer(mem_obj->abort.callback, mem_obj->abort.data));
+            ScheduleCallHere(call);
+            unregisterAbort();
+        }
     }
 
     /* XXX Should we reverse these two, so that there is no
@@ -1525,7 +1525,7 @@ StoreEntry::updateOnNotModified(const StoreEntry &e304)
 }
 
 void
-StoreEntry::registerAbort(STABH * cb, void *data)
+StoreEntry::registerAbort(STABH *cb, CbdataParent *data)
 {
     assert(mem_obj);
     assert(mem_obj->abort.callback == NULL);

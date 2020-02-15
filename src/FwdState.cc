@@ -105,9 +105,13 @@ private:
 };
 
 void
-FwdState::abort(void* d)
+FwdState::Abort(CbdataParent *param)
 {
-    FwdState* fwd = (FwdState*)d;
+    auto fwd = dynamic_cast<FwdState *>(param);
+    assert(fwd);
+    if (!cbdataReferenceValid(fwd))
+        return;
+
     Pointer tmp = fwd; // Grab a temporary pointer to keep the object alive during our scope.
 
     if (Comm::IsConnOpen(fwd->serverConnection())) {
@@ -166,7 +170,7 @@ void FwdState::start(Pointer aSelf)
     // Ftp::Relay needs to preserve control connection on data aborts
     // so it registers its own abort handler that calls ours when needed.
     if (!request->flags.ftpNative)
-        entry->registerAbort(FwdState::abort, this);
+        entry->registerAbort(FwdState::Abort, this);
 
     // just in case; should already be initialized to false
     request->flags.pinned = false;

@@ -25,7 +25,7 @@
 #endif
 
 typedef void STMCB (void *data, StoreIOBuffer wroteBuffer);
-typedef void STABH(void *);
+typedef void STABH(CbdataParent *);
 
 class store_client;
 class PeerSelector;
@@ -195,7 +195,7 @@ public:
     struct abort_ {
         abort_() { callback = nullptr; }
         STABH *callback;
-        void *data = nullptr;
+        CbdataParent *data = nullptr;
     } abort;
     RemovalPolicyNode repl;
     int id = 0;

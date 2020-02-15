@@ -158,9 +158,12 @@ Mgr::StoreToCommWriter::doneAll() const
 }
 
 void
-Mgr::StoreToCommWriter::Abort(void* param)
+Mgr::StoreToCommWriter::Abort(CbdataParent *param)
 {
-    StoreToCommWriter* mgrWriter = static_cast<StoreToCommWriter*>(param);
+    auto mgrWriter = dynamic_cast<StoreToCommWriter *>(param);
+    assert(mgrWriter);
+    if (!cbdataReferenceValid(mgrWriter))
+        return;
     if (Comm::IsConnOpen(mgrWriter->clientConnection))
         mgrWriter->clientConnection->close();
 }

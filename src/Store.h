@@ -150,7 +150,7 @@ public:
     void dump(int debug_lvl) const;
     void hashDelete();
     void hashInsert(const cache_key *);
-    void registerAbort(STABH * cb, void *);
+    void registerAbort(STABH *cb, CbdataParent *param);
     void reset();
     void setMemStatus(mem_status_t);
     bool timestampsSet();

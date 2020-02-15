@@ -165,7 +165,8 @@ public:
     HttpRequest *request;
     AccessLogEntryPointer al; ///< info for the future access.log entry
 
-    static void abort(void*);
+    /// called by Store if the entry is no longer usable
+    static void Abort(CbdataParent *);
 
 private:
     Pointer self;

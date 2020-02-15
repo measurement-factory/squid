@@ -94,8 +94,8 @@ protected:
 
     /// Inform Ftp::Server that we are done if originWaitInProgress
     void stopOriginWait(int code);
-
-    static void abort(void *d); // TODO: Capitalize this and FwdState::abort().
+    /// called by Store if the entry is no longer usable
+    static void Abort(CbdataParent *);
 
     bool forwardingCompleted; ///< completeForwarding() has been called
 
@@ -162,7 +162,7 @@ Ftp::Relay::Relay(FwdState *const fwdState):
     // uncachable, unfortunately. This prevents "found KEY_PRIVATE" WARNINGs.
     entry->releaseRequest();
     // TODO: Convert registerAbort() to use AsyncCall
-    entry->registerAbort(Ftp::Relay::abort, this);
+    entry->registerAbort(Ftp::Relay::Abort, this);
 }
 
 Ftp::Relay::~Relay()
@@ -784,9 +784,10 @@ Ftp::Relay::stopOriginWait(int code)
 }
 
 void
-Ftp::Relay::abort(void *d)
+Ftp::Relay::Abort(CbdataParent *d)
 {
-    Ftp::Relay *ftpClient = (Ftp::Relay *)d;
+    auto ftpClient = dynamic_cast<Ftp::Relay *>(d);
+    assert(ftpClient);
     debugs(9, 2, "Client Data connection closed!");
     if (!cbdataReferenceValid(ftpClient))
         return;
