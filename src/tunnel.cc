@@ -168,6 +168,7 @@ public:
     HappyConnOpenerPointer connOpener; ///< current connection opening job
     ResolvedPeersPointer destinations; ///< paths for forwarding the request
     bool destinationsFound; ///< At least one candidate path found
+    // TODO: remove after fixing deferred reads in TunnelStateData::copyRead()
     CodeContext::Pointer codeContext; ///< our creator context
 
     // AsyncCalls which we set and may need cancelling.
@@ -725,6 +726,7 @@ TunnelStateData::copyRead(Connection &from, IOCB *completion)
     // then we schedule an event to try again in a few I/O cycles.
     // Allow at least 1 byte to be read every (0.3*10) seconds.
     int bw = from.bytesWanted(1, SQUID_TCP_SO_RCVBUF);
+    /// XXX: delay reading with DeferredRead instead of this ad hoc logic (see BUG 4913)
     if (bw == 1 && ++from.delayedLoops < 10) {
         from.readPending = this;
         // XXX: wrong name if readPendingFunc is tunnelDelayedServerRead()
