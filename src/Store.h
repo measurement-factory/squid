@@ -150,11 +150,11 @@ public:
     void dump(int debug_lvl) const;
     void hashDelete();
     void hashInsert(const cache_key *);
-    void registerAbort(STABH *cb, CbdataParent *param);
+    void registerAbort(const AsyncCall::Pointer &);
     void reset();
     void setMemStatus(mem_status_t);
     bool timestampsSet();
-    void unregisterAbort();
+    void unregisterAbort(const char *reason);
     void destroyMemObject();
     int checkTooSmall();
 

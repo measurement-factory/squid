@@ -9,6 +9,7 @@
 /* DEBUG: section 16    Cache Manager API */
 
 #include "squid.h"
+#include "base/AsyncCbdataCalls.h"
 #include "base/TextException.h"
 #include "comm/Connection.h"
 #include "comm/Write.h"
@@ -57,7 +58,8 @@ Mgr::StoreToCommWriter::start()
     debugs(16, 6, HERE);
     Must(Comm::IsConnOpen(clientConnection));
     Must(entry != NULL);
-    entry->registerAbort(&StoreToCommWriter::Abort, this);
+    AsyncCall::Pointer call = asyncCall(16, 4, "StoreToCommWriter::Abort", cbdataDialer(&StoreToCommWriter::Abort, this));
+    entry->registerAbort(call);
     sc = storeClientListAdd(entry, this);
     Must(sc != NULL);
 
@@ -142,7 +144,7 @@ Mgr::StoreToCommWriter::swanSong()
             storeUnregister(sc, entry, this);
             sc = NULL;
         }
-        entry->unregisterAbort();
+        entry->unregisterAbort("StoreToCommWriter object destructed");
         entry->unlock("Mgr::StoreToCommWriter::swanSong");
         entry = NULL;
     }
@@ -158,10 +160,8 @@ Mgr::StoreToCommWriter::doneAll() const
 }
 
 void
-Mgr::StoreToCommWriter::Abort(CbdataParent *param)
+Mgr::StoreToCommWriter::Abort(StoreToCommWriter *mgrWriter)
 {
-    auto mgrWriter = dynamic_cast<StoreToCommWriter *>(param);
-    assert(mgrWriter);
     if (!cbdataReferenceValid(mgrWriter))
         return;
     if (Comm::IsConnOpen(mgrWriter->clientConnection))

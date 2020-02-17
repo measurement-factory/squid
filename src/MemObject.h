@@ -192,11 +192,7 @@ public:
     IRCB *ping_reply_callback;
     PeerSelector *ircb_data = nullptr;
 
-    struct abort_ {
-        abort_() { callback = nullptr; }
-        STABH *callback;
-        CbdataParent *data = nullptr;
-    } abort;
+    AsyncCall::Pointer abortCallback;
     RemovalPolicyNode repl;
     int id = 0;
     int64_t object_sz = -1;

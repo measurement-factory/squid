@@ -1130,19 +1130,9 @@ StoreEntry::abort()
 
     /* Notify the server side */
 
-    /*
-     * DPW 2007-05-07
-     * Should we check abort.data for validity?
-     */
-    if (mem_obj->abort.callback) {
-        if (!cbdataReferenceValid(mem_obj->abort.data))
-            debugs(20, DBG_IMPORTANT, "abort.data is invalid");
-        else {
-            AsyncCall::Pointer call = asyncCall(5,4, "mem_obj->abort.callback", cbdataDialer(mem_obj->abort.callback, mem_obj->abort.data));
-            ScheduleCallHere(call);
-            unregisterAbort();
-        }
-    }
+    if (mem_obj->abortCallback && !mem_obj->abortCallback->canceled())
+        ScheduleCallHere(mem_obj->abortCallback);
+    mem_obj->abortCallback = nullptr;
 
     /* XXX Should we reverse these two, so that there is no
      * unneeded disk swapping triggered?
@@ -1525,21 +1515,20 @@ StoreEntry::updateOnNotModified(const StoreEntry &e304)
 }
 
 void
-StoreEntry::registerAbort(STABH *cb, CbdataParent *data)
+StoreEntry::registerAbort(const AsyncCall::Pointer &handler)
 {
     assert(mem_obj);
-    assert(mem_obj->abort.callback == NULL);
-    mem_obj->abort.callback = cb;
-    mem_obj->abort.data = cbdataReference(data);
+    assert(!mem_obj->abortCallback);
+    mem_obj->abortCallback = handler;
 }
 
 void
-StoreEntry::unregisterAbort()
+StoreEntry::unregisterAbort(const char *reason)
 {
     assert(mem_obj);
-    if (mem_obj->abort.callback) {
-        mem_obj->abort.callback = NULL;
-        cbdataReferenceDone(mem_obj->abort.data);
+    if (mem_obj->abortCallback) {
+        mem_obj->abortCallback->cancel(reason);
+        mem_obj->abortCallback = nullptr;
     }
 }
 

@@ -10,6 +10,7 @@
 
 #include "squid.h"
 #include "anyp/PortCfg.h"
+#include "base/AsyncCbdataCalls.h"
 #include "client_side.h"
 #include "clients/forward.h"
 #include "clients/FtpClient.h"
@@ -95,7 +96,7 @@ protected:
     /// Inform Ftp::Server that we are done if originWaitInProgress
     void stopOriginWait(int code);
     /// called by Store if the entry is no longer usable
-    static void Abort(CbdataParent *);
+    static void Abort(Relay *);
 
     bool forwardingCompleted; ///< completeForwarding() has been called
 
@@ -161,12 +162,13 @@ Ftp::Relay::Relay(FwdState *const fwdState):
     // Nothing we can do at request creation time can mark the response as
     // uncachable, unfortunately. This prevents "found KEY_PRIVATE" WARNINGs.
     entry->releaseRequest();
-    // TODO: Convert registerAbort() to use AsyncCall
-    entry->registerAbort(Ftp::Relay::Abort, this);
+    AsyncCall::Pointer call = asyncCall(9, 4, "Ftp::Relay::Abort", cbdataDialer(&Relay::Abort, this));
+    entry->registerAbort(call);
 }
 
 Ftp::Relay::~Relay()
 {
+    entry->unregisterAbort("Ftp::Relay object destructed");
     closeServer(); // TODO: move to clients/Client.cc?
     if (savedReply.message)
         wordlistDestroy(&savedReply.message);
@@ -784,10 +786,8 @@ Ftp::Relay::stopOriginWait(int code)
 }
 
 void
-Ftp::Relay::Abort(CbdataParent *d)
+Ftp::Relay::Abort(Relay *ftpClient)
 {
-    auto ftpClient = dynamic_cast<Ftp::Relay *>(d);
-    assert(ftpClient);
     debugs(9, 2, "Client Data connection closed!");
     if (!cbdataReferenceValid(ftpClient))
         return;
