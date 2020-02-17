@@ -168,6 +168,7 @@ public:
     HappyConnOpenerPointer connOpener; ///< current connection opening job
     ResolvedPeersPointer destinations; ///< paths for forwarding the request
     bool destinationsFound; ///< At least one candidate path found
+    CodeContext::Pointer codeContext; ///< our creator context
 
     // AsyncCalls which we set and may need cancelling.
     struct {
@@ -318,7 +319,8 @@ TunnelStateData::TunnelStateData(ClientHttpRequest *clientRequest) :
     startTime(squid_curtime),
     waitingForConnectExchange(false),
     destinations(new ResolvedPeers()),
-    destinationsFound(false)
+    destinationsFound(false),
+    codeContext(CodeContext::Current())
 {
     debugs(26, 3, "TunnelStateData constructed this=" << this);
     client.readPendingFunc = &tunnelDelayedClientRead;
@@ -690,10 +692,13 @@ tunnelDelayedClientRead(void *data)
         return;
 
     TunnelStateData *tunnel = static_cast<TunnelStateData*>(data);
+    const auto savedContext = CodeContext::Current();
+    CodeContext::Reset(tunnel->codeContext);
     tunnel->client.readPending = NULL;
     static uint64_t counter=0;
     debugs(26, 7, "Client read(2) delayed " << ++counter << " times");
     tunnel->copyRead(tunnel->client, TunnelStateData::ReadClient);
+    CodeContext::Reset(savedContext);
 }
 
 static void
@@ -703,10 +708,13 @@ tunnelDelayedServerRead(void *data)
         return;
 
     TunnelStateData *tunnel = static_cast<TunnelStateData*>(data);
+    const auto savedContext = CodeContext::Current();
+    CodeContext::Reset(tunnel->codeContext);
     tunnel->server.readPending = NULL;
     static uint64_t counter=0;
     debugs(26, 7, "Server read(2) delayed " << ++counter << " times");
     tunnel->copyRead(tunnel->server, TunnelStateData::ReadServer);
+    CodeContext::Reset(savedContext);
 }
 
 void
@@ -719,6 +727,7 @@ TunnelStateData::copyRead(Connection &from, IOCB *completion)
     int bw = from.bytesWanted(1, SQUID_TCP_SO_RCVBUF);
     if (bw == 1 && ++from.delayedLoops < 10) {
         from.readPending = this;
+        // XXX: wrong name if readPendingFunc is tunnelDelayedServerRead()
         eventAdd("tunnelDelayedServerRead", from.readPendingFunc, from.readPending, 0.3, true);
         return;
     }
