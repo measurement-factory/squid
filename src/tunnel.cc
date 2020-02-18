@@ -725,11 +725,12 @@ TunnelStateData::copyRead(Connection &from, IOCB *completion)
     // If only the minimum permitted read size is going to be attempted
     // then we schedule an event to try again in a few I/O cycles.
     // Allow at least 1 byte to be read every (0.3*10) seconds.
+    // XXX: this limiting is applicable only to server-to-client traffic (the subject of delay pools).
+    // We must not perform it for client-to-server traffic (i.e., when from.readPendingFunc is tunnelDelayedClientRead().
     int bw = from.bytesWanted(1, SQUID_TCP_SO_RCVBUF);
     /// XXX: delay reading with DeferredRead instead of this ad hoc logic (see BUG 4913)
     if (bw == 1 && ++from.delayedLoops < 10) {
         from.readPending = this;
-        // XXX: wrong name if readPendingFunc is tunnelDelayedServerRead()
         eventAdd("tunnelDelayedServerRead", from.readPendingFunc, from.readPending, 0.3, true);
         return;
     }
