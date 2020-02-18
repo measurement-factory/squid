@@ -318,10 +318,10 @@ _db_print(const bool forceAlert, const char *format,...)
 #endif
 
     if (SavingEarlyMessages && Debug::Level() <= DBG_IMPORTANT) {
-        va_list args;
-        va_start(args, format);
-        _db_print_early_message(forceAlert, f, args);
-        va_end(args);
+        va_list args4;
+        va_start(args4, format);
+        _db_print_early_message(forceAlert, f, args4);
+        va_end(args4);
     }
 
 #if _SQUID_WINDOWS_
