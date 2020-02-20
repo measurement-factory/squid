@@ -341,6 +341,8 @@ storeClientCopy2(StoreEntry * e, store_client * sc)
      * everything we got before the abort condition occurred.
      */
 
+    // TODO: optimize, immediately returning if is no data yet
+
     AsyncCall::Pointer call = asyncCall(17, 4, "DoCopy", cbdataDialer(DoCopy, sc));
     ScheduleCallHere(call);
     sc->flags.copy_pending = true;
