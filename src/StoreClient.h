@@ -88,8 +88,7 @@ public:
 
     struct {
         bool disk_io_pending;
-        bool store_copying;
-        bool copy_event_pending;
+        bool copy_pending; ///< whether a copy operation was scheduled
     } flags;
 
 #if USE_DELAY_POOLS
