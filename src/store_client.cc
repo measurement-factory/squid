@@ -10,6 +10,7 @@
 
 #include "squid.h"
 #include "acl/FilledChecklist.h"
+#include "base/AsyncCbdataCalls.h"
 #include "base/CodeContext.h"
 #include "event.h"
 #include "globals.h"
@@ -40,7 +41,6 @@
 static StoreIOState::STRCB storeClientReadBody;
 static StoreIOState::STRCB storeClientReadHeader;
 static void storeClientCopy2(StoreEntry * e, store_client * sc);
-static EVH storeClientCopyEvent;
 static bool CheckQuickAbortIsReasonable(StoreEntry * entry);
 
 CBDATA_CLASS_INIT(store_client);
@@ -173,20 +173,6 @@ store_client::callback(ssize_t sz, bool error)
     cbdataReferenceDone(cbdata);
 }
 
-static void
-storeClientCopyEvent(void *data)
-{
-    store_client *sc = (store_client *)data;
-    debugs(90, 3, "storeClientCopyEvent: Running");
-    assert (sc->flags.copy_event_pending);
-    sc->flags.copy_event_pending = false;
-
-    if (!sc->_callback.pending())
-        return;
-
-    storeClientCopy2(sc->entry, sc);
-}
-
 store_client::store_client(StoreEntry *e) :
     cmp_offset(0),
 #if STORE_CLIENT_LIST_DEBUG
@@ -197,8 +183,7 @@ store_client::store_client(StoreEntry *e) :
     object_ok(true)
 {
     flags.disk_io_pending = false;
-    flags.store_copying = false;
-    flags.copy_event_pending = false;
+    flags.copy_pending = false;
     ++ entry->refcount;
 
     if (getType() == STORE_DISK_CLIENT) {
@@ -309,25 +294,36 @@ store_client::moreToSend() const
 }
 
 static void
-storeClientCopy2(StoreEntry * e, store_client * sc)
+DoCopy(store_client *sc)
 {
-    /* reentrancy not allowed  - note this could lead to
-     * dropped events
+    if (!cbdataReferenceValid(sc)) {
+        debugs(33, 2, "invalid store_client " << sc);
+        return;
+    }
+
+    assert(sc->_callback.pending());
+
+    sc->flags.copy_pending = false;
+
+    /* Warning: doCopy may indirectly free itself in callbacks,
+     * hence the lock to keep it active for the duration of
+     * this function
+     * XXX: Locking does not prevent calling sc destructor (it only prevents
+     * freeing sc memory) so sc may become invalid from C++ p.o.v.
      */
 
-    if (sc->flags.copy_event_pending) {
-        return;
-    }
+    CbcPointer<store_client> tmpLock = sc;
 
-    if (sc->flags.store_copying) {
-        sc->flags.copy_event_pending = true;
-        debugs(90, 3, "storeClientCopy2: Queueing storeClientCopyEvent()");
-        eventAdd("storeClientCopyEvent", storeClientCopyEvent, sc, 0.0, 0);
+    sc->doCopy(sc->entry);
+}
+
+static void
+storeClientCopy2(StoreEntry * e, store_client * sc)
+{
+    if (sc->flags.copy_pending)
         return;
-    }
 
     debugs(90, 3, "storeClientCopy2: " << e->getMD5Text());
-    assert(sc->_callback.pending());
     /*
      * We used to check for ENTRY_ABORTED here.  But there were some
      * problems.  For example, we might have a slow client (or two) and
@@ -335,23 +331,16 @@ storeClientCopy2(StoreEntry * e, store_client * sc)
      * if the peer aborts, we want to give the client(s)
      * everything we got before the abort condition occurred.
      */
-    /* Warning: doCopy may indirectly free itself in callbacks,
-     * hence the lock to keep it active for the duration of
-     * this function
-     * XXX: Locking does not prevent calling sc destructor (it only prevents
-     * freeing sc memory) so sc may become invalid from C++ p.o.v.
-     */
-    CbcPointer<store_client> tmpLock = sc;
-    assert (!sc->flags.store_copying);
-    sc->doCopy(e);
-    assert(!sc->flags.store_copying);
+
+    AsyncCall::Pointer call = asyncCall(17, 4, "DoCopy", cbdataDialer(DoCopy, sc));
+    ScheduleCallHere(call);
+    sc->flags.copy_pending = true;
 }
 
 void
 store_client::doCopy(StoreEntry *anEntry)
 {
     assert (anEntry == entry);
-    flags.store_copying = true;
     MemObject *mem = entry->mem_obj;
 
     debugs(33, 5, "store_client::doCopy: co: " <<
@@ -362,14 +351,12 @@ store_client::doCopy(StoreEntry *anEntry)
         /* There is no more to send! */
         debugs(33, 3, "There is no more to send!");
         callback(0);
-        flags.store_copying = false;
         return;
     }
 
     /* Check that we actually have data */
     if (anEntry->store_status == STORE_PENDING && copyInto.offset >= mem->endOffset()) {
         debugs(90, 3, "store_client::doCopy: Waiting for more");
-        flags.store_copying = false;
         return;
     }
 
@@ -402,7 +389,6 @@ store_client::startSwapin()
     if (storeTooManyDiskFilesOpen()) {
         /* yuck -- this causes a TCP_SWAPFAIL_MISS on the client side */
         fail();
-        flags.store_copying = false;
         return false;
     } else if (!flags.disk_io_pending) {
         /* Don't set store_io_pending here */
@@ -410,14 +396,12 @@ store_client::startSwapin()
 
         if (swapin_sio == NULL) {
             fail();
-            flags.store_copying = false;
             return false;
         }
 
         return true;
     } else {
         debugs(90, DBG_IMPORTANT, "WARNING: Averted multiple fd operation (1)");
-        flags.store_copying = false;
         return false;
     }
 }
@@ -442,7 +426,6 @@ store_client::scheduleDiskRead()
         assert(swapin_sio != NULL);
     } else if (!swapin_sio && !startSwapin()) {
         debugs(90, 3, "bailing after swapin start failure for " << *entry);
-        assert(!flags.store_copying);
         return;
     }
 
@@ -451,8 +434,6 @@ store_client::scheduleDiskRead()
     debugs(90, 3, "reading " << *entry << " from disk");
 
     fileRead();
-
-    flags.store_copying = false;
 }
 
 void
@@ -463,7 +444,6 @@ store_client::scheduleMemRead()
     debugs(90, 3, "store_client::doCopy: Copying normal from memory");
     size_t sz = entry->mem_obj->data_hdr.copy(copyInto);
     callback(sz);
-    flags.store_copying = false;
 }
 
 void
@@ -902,11 +882,8 @@ store_client::dumpStats(MemBuf * output, int clientNumber) const
     if (flags.disk_io_pending)
         output->append(" disk_io_pending", 16);
 
-    if (flags.store_copying)
-        output->append(" store_copying", 14);
-
-    if (flags.copy_event_pending)
-        output->append(" copy_event_pending", 19);
+    if (flags.copy_pending)
+        output->append(" copy_pending", 19);
 
     output->append("\n",1);
 }
