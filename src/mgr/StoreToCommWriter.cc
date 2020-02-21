@@ -162,8 +162,6 @@ Mgr::StoreToCommWriter::doneAll() const
 void
 Mgr::StoreToCommWriter::Abort(StoreToCommWriter *mgrWriter)
 {
-    if (!cbdataReferenceValid(mgrWriter))
-        return;
     if (Comm::IsConnOpen(mgrWriter->clientConnection))
         mgrWriter->clientConnection->close();
 }

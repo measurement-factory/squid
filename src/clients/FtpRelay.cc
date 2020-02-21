@@ -789,8 +789,6 @@ void
 Ftp::Relay::Abort(Relay *ftpClient)
 {
     debugs(9, 2, "Client Data connection closed!");
-    if (!cbdataReferenceValid(ftpClient))
-        return;
     if (Comm::IsConnOpen(ftpClient->data.conn))
         ftpClient->dataComplete();
 }

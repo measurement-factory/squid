@@ -107,9 +107,6 @@ private:
 void
 FwdState::Abort(FwdState *fwd)
 {
-    if (!cbdataReferenceValid(fwd))
-        return;
-
     Pointer tmp = fwd; // Grab a temporary pointer to keep the object alive during our scope.
 
     if (Comm::IsConnOpen(fwd->serverConnection())) {
