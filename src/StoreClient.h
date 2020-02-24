@@ -9,6 +9,7 @@
 #ifndef SQUID_STORECLIENT_H
 #define SQUID_STORECLIENT_H
 
+#include "base/AsyncCbdataCalls.h"
 #include "base/forward.h"
 #include "dlink.h"
 #include "StoreIOBuffer.h"
@@ -71,6 +72,7 @@ public:
     int getType() const;
     void fail();
     void callback(ssize_t len, bool error = false);
+    void callbackClientSide();
     void doCopy (StoreEntry *e);
     void readHeader(const char *buf, ssize_t len);
     void readBody(const char *buf, ssize_t len);
@@ -91,6 +93,8 @@ public:
         bool copy_pending; ///< whether a copy operation was scheduled
     } flags;
 
+    AsyncCall::Pointer clientSideCaller;
+
 #if USE_DELAY_POOLS
     DelayId delayId;
     void setDelayId(DelayId delay_id);
@@ -99,6 +103,8 @@ public:
     dlink_node node;
     /* Below here is private - do no alter outside storeClient calls */
     StoreIOBuffer copyInto;
+    /// the number of bytes effectively copied from Store into the I/O buffer
+    size_t copiedSize;
 
 private:
     bool moreToSend() const;

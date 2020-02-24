@@ -153,31 +153,51 @@ storeClientListAdd(StoreEntry * e, void *data)
     return sc;
 }
 
-void
-store_client::callback(ssize_t sz, bool error)
+static void
+CallbackClientSide(store_client *sc)
 {
-    size_t bSz = 0;
+    sc->callbackClientSide();
+}
 
-    if (sz >= 0 && !error)
-        bSz = sz;
-
-    StoreIOBuffer result(bSz, 0,copyInto.data);
-
-    if (sz < 0 || error)
-        result.flags.error = 1;
-
-    result.offset = cmp_offset;
+void
+store_client::callbackClientSide()
+{
     assert(_callback.pending());
-    cmp_offset = copyInto.offset + bSz;
-    STCB *temphandler = _callback.callback_handler;
+
+    clientSideCaller = nullptr;
+    StoreIOBuffer result(copiedSize, copyInto.offset, copyInto.data);
+    result.flags.error = copyInto.flags.error;
+    cmp_offset = copyInto.offset + copiedSize;
+
+    auto temphandler = _callback.callback_handler;
     void *cbdata = _callback.callback_data;
-    _callback = Callback(NULL, NULL);
-    copyInto.data = NULL;
+    _callback = store_client::Callback(nullptr, nullptr);
+    copyInto.data = nullptr;
+    copiedSize = 0;
 
     if (cbdataReferenceValid(cbdata))
         temphandler(cbdata, result);
 
     cbdataReferenceDone(cbdata);
+}
+
+void
+store_client::callback(ssize_t sz, bool error)
+{
+    if (sz >= 0 && !error)
+        copiedSize = sz;
+    if (sz < 0 || error)
+        copyInto.flags.error = 1;
+
+    if (clientSideCaller) {
+        if (!copyInto.flags.error)
+            return;
+        // reschedule with error
+        clientSideCaller->cancel("failed"); // TODO: provide a meaningful reason
+    }
+
+    clientSideCaller = asyncCall(17, 4, "Callback", cbdataDialer(CallbackClientSide, this));
+    ScheduleCallHere(clientSideCaller);
 }
 
 store_client::store_client(StoreEntry *e) :
@@ -186,11 +206,11 @@ store_client::store_client(StoreEntry *e) :
     owner(cbdataReference(data)),
 #endif
     entry(e),
+    copiedSize(0),
     type(e->storeClientType()),
     object_ok(true)
 {
     flags.disk_io_pending = false;
-    flags.copy_pending = false;
     ++ entry->refcount;
 
     if (getType() == STORE_DISK_CLIENT) {
@@ -303,35 +323,8 @@ store_client::moreToSend() const
 }
 
 static void
-DoCopy(store_client *sc)
-{
-    if (!cbdataReferenceValid(sc)) {
-        debugs(33, 2, "invalid store_client " << sc);
-        return;
-    }
-
-    assert(sc->_callback.pending());
-
-    sc->flags.copy_pending = false;
-
-    /* Warning: doCopy may indirectly free itself in callbacks,
-     * hence the lock to keep it active for the duration of
-     * this function
-     * XXX: Locking does not prevent calling sc destructor (it only prevents
-     * freeing sc memory) so sc may become invalid from C++ p.o.v.
-     */
-
-    CbcPointer<store_client> tmpLock = sc;
-
-    sc->doCopy(sc->entry);
-}
-
-static void
 storeClientCopy2(StoreEntry * e, store_client * sc)
 {
-    if (sc->flags.copy_pending)
-        return;
-
     debugs(90, 3, "storeClientCopy2: " << e->getMD5Text());
     /*
      * We used to check for ENTRY_ABORTED here.  But there were some
@@ -343,9 +336,7 @@ storeClientCopy2(StoreEntry * e, store_client * sc)
 
     // TODO: optimize, immediately returning if is no data yet
 
-    AsyncCall::Pointer call = asyncCall(17, 4, "DoCopy", cbdataDialer(DoCopy, sc));
-    ScheduleCallHere(call);
-    sc->flags.copy_pending = true;
+    sc->doCopy(sc->entry);
 }
 
 void
@@ -901,9 +892,6 @@ store_client::dumpStats(MemBuf * output, int clientNumber) const
 
     if (flags.disk_io_pending)
         output->append(" disk_io_pending", 16);
-
-    if (flags.copy_pending)
-        output->append(" copy_pending", 19);
 
     output->append("\n",1);
 }
