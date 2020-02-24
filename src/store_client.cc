@@ -167,7 +167,6 @@ store_client::callbackClientSide()
     clientSideCaller = nullptr;
     StoreIOBuffer result(copiedSize, copyInto.offset, copyInto.data);
     result.flags.error = copyInto.flags.error;
-    cmp_offset = copyInto.offset + copiedSize;
 
     auto temphandler = _callback.callback_handler;
     void *cbdata = _callback.callback_data;
@@ -201,7 +200,6 @@ store_client::callback(ssize_t sz, bool error)
 }
 
 store_client::store_client(StoreEntry *e) :
-    cmp_offset(0),
 #if STORE_CLIENT_LIST_DEBUG
     owner(cbdataReference(data)),
 #endif
@@ -256,12 +254,7 @@ store_client::copy(StoreEntry * anEntry,
 #endif
 
     assert(!_callback.pending());
-#if ONLYCONTIGUOUSREQUESTS
-
-    assert(cmp_offset == copyRequest.offset);
-#endif
     /* range requests will skip into the body */
-    cmp_offset = copyRequest.offset;
     _callback = Callback (callback_fn, cbdataReference(data));
     copyInto.data = copyRequest.data;
     copyInto.length = copyRequest.length;

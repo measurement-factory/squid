@@ -79,7 +79,6 @@ public:
     void copy(StoreEntry *, StoreIOBuffer, STCB *, void *);
     void dumpStats(MemBuf * output, int clientNumber) const;
 
-    int64_t cmp_offset;
 #if STORE_CLIENT_LIST_DEBUG
 
     void *owner;
