@@ -195,6 +195,8 @@ store_client::callback(ssize_t sz, bool error)
         clientSideCaller->cancel("failed"); // TODO: provide a meaningful reason
     }
 
+    /// XXX: do not schedule if the object is going to be deleted,
+    /// see storeUnregister().
     clientSideCaller = asyncCall(17, 4, "Callback", cbdataDialer(CallbackClientSide, this));
     ScheduleCallHere(clientSideCaller);
 }
