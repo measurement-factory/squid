@@ -191,8 +191,6 @@ store_client::callback(ssize_t sz, bool error)
     if (clientSideCaller)
         return;
 
-    /// XXX: do not schedule if the object is going to be deleted,
-    /// see storeUnregister().
     clientSideCaller = asyncCall(17, 4, "Callback", cbdataDialer(CallbackClientSide, this));
     ScheduleCallHere(clientSideCaller);
 }
@@ -682,12 +680,6 @@ storeUnregister(store_client * sc, StoreEntry * e, void *data)
         storeClose(sc->swapin_sio, StoreIOState::readerDone);
         sc->swapin_sio = NULL;
         ++statCounter.swap.ins;
-    }
-
-    if (sc->_callback.pending()) {
-        /* callback with ssize = -1 to indicate unexpected termination */
-        debugs(90, 3, "store_client for " << *e << " has a callback");
-        sc->fail();
     }
 
 #if STORE_CLIENT_LIST_DEBUG
