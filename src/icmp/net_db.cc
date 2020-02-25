@@ -1316,7 +1316,7 @@ netdbExchangeStart(void *data)
 }
 
 CachePeer *
-netdbClosestParent(HttpRequest * request)
+netdbClosestParent(HttpRequest * request, ps_state *ps)
 {
 #if USE_ICMP
     CachePeer *p = NULL;
@@ -1362,7 +1362,7 @@ netdbClosestParent(HttpRequest * request)
         if (neighborType(p, request->url) != PEER_PARENT)
             continue;
 
-        if (!peerHTTPOkay(p, request))  /* not allowed */
+        if (!peerHTTPOkay(p, request, ps))  /* not allowed */
             continue;
 
         return p;
