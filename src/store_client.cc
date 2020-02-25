@@ -255,6 +255,7 @@ store_client::copy(StoreEntry * anEntry,
     copyInto.data = copyRequest.data;
     copyInto.length = copyRequest.length;
     copyInto.offset = copyRequest.offset;
+    // copyInto.flags.error should persist between the calls, do not modify it.
 
     static bool copying (false);
     assert (!copying);
