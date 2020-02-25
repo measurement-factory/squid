@@ -168,8 +168,7 @@ struct LowestMemReader : public unary_function<store_client, void> {
     LowestMemReader(int64_t seed):current(seed) {}
 
     void operator() (store_client const &x) {
-        if (x.memReaderHasLowerOffset(current))
-            current = x.copyInto.offset;
+        current = x.memHeaderOffsetLowerThan(current);
     }
 
     int64_t current;
@@ -468,7 +467,7 @@ MemObject::mostBytesAllowed() const
     for (dlink_node *node = clients.head; node; node = node->next) {
         store_client *sc = (store_client *) node->data;
 
-        j = sc->delayId.bytesWanted(0, sc->copyInto.length);
+        j = sc->bytesWanted();
 
         if (j > jmax) {
             jmax = j;
