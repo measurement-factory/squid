@@ -10,7 +10,7 @@
 #define SQUID_STORECLIENT_H
 
 #include "acl/ChecklistFiller.h"
-#include "base/AsyncCbdataCalls.h"
+#include "base/AsyncCall.h"
 #include "base/forward.h"
 #include "dlink.h"
 #include "StoreIOBuffer.h"
@@ -60,7 +60,7 @@ class store_client
 public:
     store_client(StoreEntry *);
     ~store_client();
-    /// returns the smallest of the passed value and the memory offset of the client
+    /// \returns the smallest of the passed value and the memory offset of the client
     int memHeaderOffsetLowerThan(const int64_t offset) const;
     int getType() const;
     void fail();
