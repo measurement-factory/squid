@@ -93,10 +93,12 @@ StoreClient::fillChecklist(ACLFilledChecklist &checklist) const
 
 /* store_client */
 
-bool
-store_client::memReaderHasLowerOffset(int64_t anOffset) const
+int
+store_client::memHeaderOffsetLowerThan(const int64_t anOffset) const
 {
-    return getType() == STORE_MEM_CLIENT && copyInto.offset < anOffset;
+    if (getType() == STORE_MEM_CLIENT && copyInto.offset < anOffset)
+        return copyInto.offset;
+    return anOffset;
 }
 
 int
@@ -200,9 +202,9 @@ store_client::store_client(StoreEntry *e) :
     owner(cbdataReference(data)),
 #endif
     entry(e),
-    copiedSize(0),
     type(e->storeClientType()),
-    object_ok(true)
+    object_ok(true),
+    copiedSize(0)
 {
     flags.disk_io_pending = false;
     ++ entry->refcount;

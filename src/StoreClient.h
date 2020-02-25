@@ -68,7 +68,8 @@ class store_client
 public:
     store_client(StoreEntry *);
     ~store_client();
-    bool memReaderHasLowerOffset(int64_t) const;
+    /// returns the smallest of the passed value and the memory offset of the client
+    int memHeaderOffsetLowerThan(const int64_t offset) const;
     int getType() const;
     void fail();
     void callback(ssize_t len, bool error = false);
@@ -92,18 +93,14 @@ public:
         bool copy_pending; ///< whether a copy operation was scheduled
     } flags;
 
-    AsyncCall::Pointer clientSideCaller;
-
 #if USE_DELAY_POOLS
+    int bytesWanted() const { return delayId.bytesWanted(0, copyInto.length); }
     DelayId delayId;
     void setDelayId(DelayId delay_id);
 #endif
 
     dlink_node node;
     /* Below here is private - do no alter outside storeClient calls */
-    StoreIOBuffer copyInto;
-    /// the number of bytes effectively copied from Store into the I/O buffer
-    size_t copiedSize;
 
 private:
     bool moreToSend() const;
@@ -117,6 +114,11 @@ private:
 
     int type;
     bool object_ok;
+
+    StoreIOBuffer copyInto;
+    /// the number of bytes effectively copied from Store into the I/O buffer
+    size_t copiedSize;
+    AsyncCall::Pointer clientSideCaller;
 
     /* Until we finish stuffing code into store_client */
 
