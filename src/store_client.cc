@@ -183,17 +183,13 @@ store_client::callbackClientSide()
 void
 store_client::callback(ssize_t sz, bool error)
 {
-    if (sz >= 0 && !error)
-        copiedSize = sz;
+    copiedSize = (sz > 0 && !error) ? sz : 0;
+
     if (sz < 0 || error)
         copyInto.flags.error = 1;
 
-    if (clientSideCaller) {
-        if (!copyInto.flags.error)
-            return;
-        // reschedule with error
-        clientSideCaller->cancel("failed"); // TODO: provide a meaningful reason
-    }
+    if (clientSideCaller)
+        return;
 
     /// XXX: do not schedule if the object is going to be deleted,
     /// see storeUnregister().
