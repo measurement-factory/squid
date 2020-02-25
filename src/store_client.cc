@@ -326,8 +326,6 @@ storeClientCopy2(StoreEntry * e, store_client * sc)
      * everything we got before the abort condition occurred.
      */
 
-    // TODO: optimize, immediately returning if is no data yet
-
     sc->doCopy(sc->entry);
 }
 
