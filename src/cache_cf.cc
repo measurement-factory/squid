@@ -3095,27 +3095,6 @@ free_time_nanoseconds(std::chrono::nanoseconds *var)
 }
 
 #if UNUSED_CODE
-// TODO: add a parameter with 'time_nanoseconds' TYPE and uncomment
-static void
-dump_time_nanoseconds(StoreEntry *entry, const char *name, const std::chrono::nanoseconds &var)
-{
-    storeAppendPrintf(entry, "%s %" PRId64 " nanoseconds\n", name, var.count());
-}
-
-static void
-parse_time_nanoseconds(std::chrono::nanoseconds *var)
-{
-    *var = parseTimeLine<std::chrono::nanoseconds>();
-}
-
-static void
-free_time_nanoseconds(std::chrono::nanoseconds *var)
-{
-    *var = std::chrono::nanoseconds::zero();
-}
-#endif
-
-#if UNUSED_CODE
 static void
 dump_size_t(StoreEntry * entry, const char *name, size_t var)
 {
