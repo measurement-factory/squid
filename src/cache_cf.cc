@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1996-2019 The Squid Software Foundation and contributors
+ * Copyright (C) 1996-2020 The Squid Software Foundation and contributors
  *
  * Squid software is distributed under GPLv2+ license and includes
  * contributions from numerous individuals and organizations.
@@ -101,6 +101,9 @@
 #if HAVE_GRP_H
 #include <grp.h>
 #endif
+#if HAVE_SYS_SOCKET_H
+#include <sys/socket.h>
+#endif
 #if HAVE_SYS_STAT_H
 #include <sys/stat.h>
 #endif
@@ -155,6 +158,7 @@ static const char *const B_GBYTES_STR = "GB";
 
 static const char *const list_sep = ", \t\n\r";
 
+// std::chrono::years requires C++20. Do our own rough calculation for now.
 static const double HoursPerYear = 24*365.2522;
 
 static void parse_access_log(CustomLog ** customlog_definitions);
@@ -237,12 +241,6 @@ static void free_CpuAffinityMap(CpuAffinityMap **const cpuAffinityMap);
 static void parse_UrlHelperTimeout(SquidConfig::UrlHelperTimeout *);
 static void dump_UrlHelperTimeout(StoreEntry *, const char *, SquidConfig::UrlHelperTimeout &);
 static void free_UrlHelperTimeout(SquidConfig::UrlHelperTimeout *);
-
-static std::ostream &
-ConfigPosition(std::ostream &os)
-{
-    return os << cfg_filename << ":" << config_lineno << ": ";
-}
 
 static int parseOneConfigFile(const char *file_name, unsigned int depth);
 
@@ -549,7 +547,7 @@ parseOneConfigFile(const char *file_name, unsigned int depth)
             } else {
                 try {
                     if (!parse_line(tmp_line)) {
-                        debugs(3, DBG_CRITICAL, ConfigPosition << "unrecognized: '" << tmp_line << "'");
+                        debugs(3, DBG_CRITICAL, ConfigParser::CurrentLocation() << ": unrecognized: '" << tmp_line << "'");
                         ++err_count;
                     }
                 } catch (...) {
@@ -1180,7 +1178,7 @@ parseTimeLine()
     // validate precisions (time-units-small only)
     if (TimeUnit(1) <= std::chrono::microseconds(1)) {
         if (0 < nanoseconds.count() && nanoseconds.count() < 3) {
-            debugs(3, DBG_PARSE_NOTE(DBG_IMPORTANT), ConfigPosition << "WARNING: " <<
+            debugs(3, DBG_PARSE_NOTE(DBG_IMPORTANT), ConfigParser::CurrentLocation() << ": WARNING: " <<
                    "Squid time measurement precision is likely to be far worse than " <<
                    "the nanosecond-level precision implied by the configured value: " << parsedValue << ' ' << token);
         }
@@ -3097,6 +3095,27 @@ free_time_nanoseconds(std::chrono::nanoseconds *var)
 }
 
 #if UNUSED_CODE
+// TODO: add a parameter with 'time_nanoseconds' TYPE and uncomment
+static void
+dump_time_nanoseconds(StoreEntry *entry, const char *name, const std::chrono::nanoseconds &var)
+{
+    storeAppendPrintf(entry, "%s %" PRId64 " nanoseconds\n", name, var.count());
+}
+
+static void
+parse_time_nanoseconds(std::chrono::nanoseconds *var)
+{
+    *var = parseTimeLine<std::chrono::nanoseconds>();
+}
+
+static void
+free_time_nanoseconds(std::chrono::nanoseconds *var)
+{
+    *var = std::chrono::nanoseconds::zero();
+}
+#endif
+
+#if UNUSED_CODE
 static void
 dump_size_t(StoreEntry * entry, const char *name, size_t var)
 {
@@ -3825,6 +3844,14 @@ parse_port_option(AnyP::PortCfgPointer &s, char *token)
         s->secure.parse(token+4);
     } else if (strcmp(token, "ftp-track-dirs") == 0) {
         s->ftp_track_dirs = true;
+    } else if (strcmp(token, "worker-queues") == 0) {
+#if !defined(SO_REUSEADDR)
+#error missing system #include that #defines SO_* constants
+#endif
+#if !defined(SO_REUSEPORT)
+        throw TexcHere(ToSBuf(cfg_directive, ' ', token, " option requires building Squid where SO_REUSEPORT is supported by the TCP stack"));
+#endif
+        s->workerQueues = true;
     } else {
         debugs(3, DBG_CRITICAL, "FATAL: Unknown " << cfg_directive << " option '" << token << "'.");
         self_destruct();
@@ -4941,30 +4968,32 @@ static void free_ftp_epsv(acl_access **ftp_epsv)
 static std::chrono::seconds
 ParseUrlRewriteTimeout()
 {
-    const auto valueToken = ConfigParser::NextToken();
-    if (!valueToken)
-        self_destruct();
+    const auto timeValueToken = ConfigParser::NextToken();
+    if (!timeValueToken)
+        throw TexcHere("cannot read a time value");
 
     using Seconds = std::chrono::seconds;
 
-    const auto parsedValue = xatof(valueToken);
+    const auto parsedTimeValue = xatof(timeValueToken);
+
+    if (parsedTimeValue == 0)
+        return std::chrono::seconds::zero();
 
     std::chrono::nanoseconds parsedUnitDuration;
 
-    if (parsedValue) {
-        const auto unitToken = parsedValue ? ConfigParser::PeekAtToken() : nullptr;
-        if (parseTimeUnit<Seconds>(unitToken, parsedUnitDuration))
-            (void)ConfigParser::NextToken();
-        else {
-            const auto defaultParsed = parseTimeUnit<Seconds>(T_SECOND_STR, parsedUnitDuration);
-            assert(defaultParsed);
-            debugs(3, DBG_PARSE_NOTE(DBG_IMPORTANT), "WARNING: " << ConfigPosition << "missing time unit, using deprecated default '" << T_SECOND_STR << "'");
-        }
+    const auto unitToken = ConfigParser::PeekAtToken();
+    if (parseTimeUnit<Seconds>(unitToken, parsedUnitDuration))
+        (void)ConfigParser::NextToken();
+    else {
+        const auto defaultParsed = parseTimeUnit<Seconds>(T_SECOND_STR, parsedUnitDuration);
+        assert(defaultParsed);
+        debugs(3, DBG_PARSE_NOTE(DBG_IMPORTANT), ConfigParser::CurrentLocation() <<
+                ": WARNING: missing time unit, using deprecated default '" << T_SECOND_STR << "'");
     }
 
-    const auto nanoseconds = CheckTimeValue(parsedValue, parsedUnitDuration);
+    const auto nanoseconds = CheckTimeValue(parsedTimeValue, parsedUnitDuration);
 
-    return FromNanoseconds<Seconds>(nanoseconds, parsedValue);
+    return FromNanoseconds<Seconds>(nanoseconds, parsedTimeValue);
 }
 
 static void

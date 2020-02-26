@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1996-2019 The Squid Software Foundation and contributors
+ * Copyright (C) 1996-2020 The Squid Software Foundation and contributors
  *
  * Squid software is distributed under GPLv2+ license and includes
  * contributions from numerous individuals and organizations.
@@ -18,7 +18,7 @@
 /* Ipc::Mem::PageStackStorageSlot */
 
 static_assert(sizeof(Ipc::Mem::PageStackStorageSlot::Pointer) ==
-    sizeof(decltype(Ipc::Mem::PageId::number)), "page indexing types are consistent");
+              sizeof(decltype(Ipc::Mem::PageId::number)), "page indexing types are consistent");
 
 void
 Ipc::Mem::PageStackStorageSlot::take()
@@ -37,12 +37,14 @@ Ipc::Mem::PageStackStorageSlot::put(const PointerOrMarker expected, const Pointe
 
 /* Ipc::Mem::PageStack */
 
-Ipc::Mem::PageStack::PageStack(const uint32_t aPoolId, const PageCount aCapacity, const size_t aPageSize):
+Ipc::Mem::PageStack::PageStack(const PoolId aPoolId, const PageCount aCapacity, const size_t aPageSize):
     thePoolId(aPoolId), capacity_(aCapacity), thePageSize(aPageSize),
     size_(0),
     head_(Slot::NilPtr),
     slots_(aCapacity)
 {
+    assert(thePoolId);
+
     assert(capacity_ < Slot::TakenPage);
     assert(capacity_ < Slot::NilPtr);
 
@@ -123,7 +125,7 @@ Ipc::Mem::PageStack::sharedMemorySize() const
 }
 
 size_t
-Ipc::Mem::PageStack::SharedMemorySize(const uint32_t, const PageCount capacity, const size_t pageSize)
+Ipc::Mem::PageStack::SharedMemorySize(const PoolId, const PageCount capacity, const size_t pageSize)
 {
     const auto levelsSize = PageId::maxPurpose * sizeof(Levels_t);
     const size_t pagesDataSize = capacity * pageSize;
