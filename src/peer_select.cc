@@ -10,6 +10,7 @@
 
 #include "squid.h"
 #include "acl/FilledChecklist.h"
+#include "base/AsyncCbdataCalls.h"
 #include "base/InstanceId.h"
 #include "CachePeer.h"
 #include "carp.h"
@@ -64,13 +65,6 @@ static struct {
     int timeouts;
 } PeerStats;
 
-static const char *DirectStr[] = {
-    "DIRECT_UNKNOWN",
-    "DIRECT_NO",
-    "DIRECT_MAYBE",
-    "DIRECT_YES"
-};
-
 /// a helper class to report a selected destination (for debugging)
 class PeerSelectionDumper
 {
@@ -81,6 +75,88 @@ public:
     const PeerSelector * const selector; ///< selection parameters
     const CachePeer * const peer; ///< successful selection info
     const hier_code code; ///< selection algorithm
+};
+
+class PeerSelectorTimeoutProcessor
+{
+public:
+    /// \param aName names scheduled events, for debugging
+    PeerSelectorTimeoutProcessor(const char *aName): name(aName) {}
+
+    static void NoteWaitOver(void *raw);
+
+    void noteWaitOver();
+
+    void enqueue(PeerSelector &);
+
+    void dequeue(PeerSelector &);
+
+    bool waiting() { return waitEnd_ > 0; }
+
+    const char * const name; ///< waiting event name, for debugging
+
+private:
+    PeerSelectorWaitList selectors_;
+    double waitEnd_;
+};
+
+PeerSelectorTimeoutProcessor ThePeerSelectorTimeoutProcessor("peer selector timeout processor");
+
+void
+HandlePingTimeout(PeerSelector *selector)
+{
+    selector->handlePingTimeout();
+}
+
+void
+PeerSelectorTimeoutProcessor::NoteWaitOver(void *raw)
+{
+    assert(raw);
+    static_cast<PeerSelectorTimeoutProcessor*>(raw)->noteWaitOver();
+}
+
+void
+PeerSelectorTimeoutProcessor::noteWaitOver()
+{
+    waitEnd_ = 0;
+    while (!selectors_.empty()) {
+        if (const auto selectorPtr = selectors_.front().valid()) {
+            auto &selector = *selectorPtr;
+            CallBack(selector.peerWaiting.codeContext, [&] {
+                ScheduleCallHere(selector.peerWaiting.callback);
+            });
+        }
+        selectors_.pop_front();
+    }
+}
+
+void
+PeerSelectorTimeoutProcessor::enqueue(PeerSelector &s)
+{
+    if (!waiting()) {
+        // TODO: specify a timeout
+        const int timeout = 1;
+        waitEnd_ = current_dtime + timeout;
+        eventAdd(name, &PeerSelectorTimeoutProcessor::NoteWaitOver, const_cast<PeerSelectorTimeoutProcessor*>(this), timeout, 0, false);
+    }
+
+    s.peerWaiting.codeContext = CodeContext::Current();
+    s.peerWaiting.callback = asyncCall(44, 4, name, cbdataDialer(HandlePingTimeout, &s));
+    selectors_.emplace_back(&s);
+}
+
+void
+PeerSelectorTimeoutProcessor::dequeue(PeerSelector &s)
+{
+    Must(!selectors_.empty());
+    selectors_.erase(s.peerWaiting.position);
+}
+
+static const char *DirectStr[] = {
+    "DIRECT_UNKNOWN",
+    "DIRECT_NO",
+    "DIRECT_MAYBE",
+    "DIRECT_YES"
 };
 
 CBDATA_CLASS_INIT(PeerSelector);
@@ -111,7 +187,8 @@ PeerSelector::~PeerSelector()
         debugs(44, 3, entry->url());
 
         if (entry->ping_status == PING_WAITING)
-            eventDelete(HandlePingTimeout, this);
+            if (peerWaiting)
+                ThePeerSelectorTimeoutProcessor.dequeue(*this);
 
         entry->ping_status = PING_DONE;
     }
@@ -623,11 +700,7 @@ PeerSelector::selectSomeNeighbor()
 
             if (ping.n_replies_expected > 0) {
                 entry->ping_status = PING_WAITING;
-                eventAdd("PeerSelector::HandlePingTimeout",
-                         HandlePingTimeout,
-                         this,
-                         0.001 * ping.timeout,
-                         0);
+                ThePeerSelectorTimeoutProcessor.enqueue(*this);
                 return;
             }
         }
@@ -763,12 +836,6 @@ PeerSelector::handlePingTimeout()
     ++PeerStats.timeouts;
     ping.timedout = 1;
     selectMore();
-}
-
-void
-PeerSelector::HandlePingTimeout(void *data)
-{
-    static_cast<PeerSelector*>(data)->handlePingTimeout();
 }
 
 void

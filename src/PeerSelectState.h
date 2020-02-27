@@ -20,6 +20,8 @@
 #include "PingData.h"
 #include "typedefs.h" /* for IRCB */
 
+#include <list>
+
 class ErrorState;
 class HtcpReplyData;
 class HttpRequest;
@@ -54,6 +56,19 @@ public:
 
 class FwdServer;
 
+class PeerSelector;
+
+typedef std::list< CbcPointer<PeerSelector> > PeerSelectorWaitList;
+
+class PeerSelectorWait
+{
+    public:
+        operator bool() const { return bool(callback); }
+        AsyncCall::Pointer callback;
+        PeerSelectorWaitList::iterator position;
+        CodeContext::Pointer codeContext;
+};
+
 /// Finds peer (including origin server) IPs for forwarding a single request.
 /// Gives PeerSelectionInitiator each found destination, in the right order.
 class PeerSelector: public Dns::IpReceiver
@@ -85,6 +100,8 @@ public:
     /// a single selection loop iteration: attempts to add more destinations
     void selectMore();
 
+    void handlePingTimeout();
+
     HttpRequest *request;
     AccessLogEntry::Pointer al; ///< info for the future access.log entry
     StoreEntry *entry;
@@ -93,10 +110,11 @@ public:
 
     ping_data ping;
 
+    PeerSelectorWait peerWaiting;
+
 protected:
     bool selectionAborted();
 
-    void handlePingTimeout();
     void handleIcpReply(CachePeer*, const peer_t, icp_common_t *header);
     void handleIcpParentMiss(CachePeer*, icp_common_t*);
 #if USE_HTCP
