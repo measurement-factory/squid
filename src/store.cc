@@ -1130,9 +1130,10 @@ StoreEntry::abort()
 
     /* Notify the server side */
 
-    if (mem_obj->abortCallback && !mem_obj->abortCallback->canceled())
+    if (mem_obj->abortCallback) {
         ScheduleCallHere(mem_obj->abortCallback);
-    mem_obj->abortCallback = nullptr;
+        mem_obj->abortCallback = nullptr;
+    }
 
     /* XXX Should we reverse these two, so that there is no
      * unneeded disk swapping triggered?
@@ -1515,7 +1516,7 @@ StoreEntry::updateOnNotModified(const StoreEntry &e304)
 }
 
 void
-StoreEntry::registerAbort(const AsyncCall::Pointer &handler)
+StoreEntry::registerAbortCallback(const AsyncCall::Pointer &handler)
 {
     assert(mem_obj);
     assert(!mem_obj->abortCallback);

@@ -150,7 +150,8 @@ public:
     void dump(int debug_lvl) const;
     void hashDelete();
     void hashInsert(const cache_key *);
-    void registerAbort(const AsyncCall::Pointer &);
+    /// notify the StoreEntry writer of a 3rd-party initiated StoreEntry abort
+    void registerAbortCallback(const AsyncCall::Pointer &);
     void reset();
     void setMemStatus(mem_status_t);
     bool timestampsSet();

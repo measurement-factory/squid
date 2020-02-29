@@ -59,7 +59,7 @@ Mgr::StoreToCommWriter::start()
     Must(Comm::IsConnOpen(clientConnection));
     Must(entry != NULL);
     AsyncCall::Pointer call = asyncCall(16, 4, "StoreToCommWriter::Abort", cbdataDialer(&StoreToCommWriter::Abort, this));
-    entry->registerAbort(call);
+    entry->registerAbortCallback(call);
     sc = storeClientListAdd(entry, this);
     Must(sc != NULL);
 
@@ -144,7 +144,7 @@ Mgr::StoreToCommWriter::swanSong()
             storeUnregister(sc, entry, this);
             sc = NULL;
         }
-        entry->unregisterAbort("StoreToCommWriter object destructed");
+        entry->unregisterAbort("StoreToCommWriter done");
         entry->unlock("Mgr::StoreToCommWriter::swanSong");
         entry = NULL;
     }

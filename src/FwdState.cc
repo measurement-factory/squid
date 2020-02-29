@@ -166,7 +166,7 @@ void FwdState::start(Pointer aSelf)
     // so it registers its own abort handler that calls ours when needed.
     if (!request->flags.ftpNative) {
         AsyncCall::Pointer call = asyncCall(17, 4, "FwdState::Abort", cbdataDialer(&FwdState::Abort, this));
-        entry->registerAbort(call);
+        entry->registerAbortCallback(call);
     }
 
     // just in case; should already be initialized to false

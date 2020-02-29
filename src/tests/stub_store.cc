@@ -57,7 +57,7 @@ void StoreEntry::ensureMemObject(const char *, const char *, const HttpRequestMe
 void StoreEntry::dump(int debug_lvl) const STUB
 void StoreEntry::hashDelete() STUB
 void StoreEntry::hashInsert(const cache_key *) STUB
-void StoreEntry::registerAbort(STABH * cb, void *) STUB
+void StoreEntry::registerAbortCallback(const AsyncCall::Pointer &) STUB
 void StoreEntry::reset() STUB
 void StoreEntry::setMemStatus(mem_status_t) STUB
 bool StoreEntry::timestampsSet() STUB_RETVAL(false)

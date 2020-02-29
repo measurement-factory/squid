@@ -25,7 +25,6 @@
 #endif
 
 typedef void STMCB (void *data, StoreIOBuffer wroteBuffer);
-typedef void STABH(CbdataParent *);
 
 class store_client;
 class PeerSelector;

@@ -163,7 +163,7 @@ Ftp::Relay::Relay(FwdState *const fwdState):
     // uncachable, unfortunately. This prevents "found KEY_PRIVATE" WARNINGs.
     entry->releaseRequest();
     AsyncCall::Pointer call = asyncCall(9, 4, "Ftp::Relay::Abort", cbdataDialer(&Relay::Abort, this));
-    entry->registerAbort(call);
+    entry->registerAbortCallback(call);
 }
 
 Ftp::Relay::~Relay()
