@@ -39,13 +39,36 @@ static void _db_print_syslog(const bool forceAlert, const char *format, va_list 
 #endif
 static void _db_print_stderr(const char *format, va_list args);
 static void _db_print_file(const char *format, va_list args);
+static void _db_print_early_message(const bool forceAlert, const char *format, va_list args);
 
 #if _SQUID_WINDOWS_
 extern LPCRITICAL_SECTION dbg_mutex;
 typedef BOOL (WINAPI * PFInitializeCriticalSectionAndSpinCount) (LPCRITICAL_SECTION, DWORD);
 #endif
 
-/// a (FILE*, file name) pair that uses stderr FILE as the last resort
+static bool ResetSections(const int level = DBG_IMPORTANT);
+static bool Initialized = ResetSections();
+
+static void
+FlushEarlyMessagesAtExit()
+{
+    Debug::EarlyMessagesCheckpoint(0);
+}
+
+/// used for the side effect: fills Debug::Levels with the given level
+static bool
+ResetSections(const int level)
+{
+    for (auto i = 0; i < MAX_DEBUG_SECTIONS; ++i)
+        Debug::Levels[i] = level;
+    assert(sizeof(Initialized)); // avoids warnings about an unused static
+
+    (void)std::atexit(&FlushEarlyMessagesAtExit);
+
+    return true; // simplifies invocation during dynamic initialization
+}
+
+/// a (FILE*, file name) pair
 class DebugFile
 {
 public:
@@ -59,8 +82,13 @@ public:
     /// go back to the initial state
     void clear() { reset(nullptr, nullptr); }
 
-    /// logging stream; the only method that uses stderr as the last resort
-    FILE *file() { return file_ ? file_ : stderr; }
+    ///< could not open "real" file due to an error
+    void fail();
+
+    bool failed() { return failed_; }
+
+    /// logging stream
+    FILE *file() { return file_; }
 
     char *name = nullptr;
 
@@ -68,7 +96,64 @@ private:
     friend void ResyncDebugLog(FILE *newFile);
 
     FILE *file_ = nullptr; ///< opened "real" file or nil; never stderr
+
+    bool failed_ = false; ///< whether fail() was called
 };
+
+/// receivers of debugs() messages
+enum DebugChannel {
+    ErrChannel = 0x1, // stderr
+    CacheChannel = 0x2, // cache.log
+    SysChannel = 0x4 // syslog()
+};
+
+/// a stored debugs() message
+class DebugMessage
+{
+public:
+    DebugMessage(const int section, const int level, const bool forceAlert, const char *format, va_list args);
+
+    /// whether the channel expects this message
+    bool allowed(const DebugChannel) const;
+
+    int section; ///< the debug section
+    int level; ///< the debug level
+    bool forceAlert; ///< the debugs() forceAlert flag
+    char image[BUFSIZ]; ///< formatted message (including timestamp and context)
+};
+
+/// preserves (a limited amount of) debugs() messages for delayed logging
+class DebugMessages
+{
+public:
+    /// stores the given message (if possible) or forgets it (otherwise)
+    void insert(const int section, const int level, const bool forceAlert, const char *format, va_list args);
+    /// whether the stored messages were written to a given channel
+    bool flushed(const DebugChannel ch) const { return ch & flushedChannels; }
+    /// whether the stored messages were written to all channels
+    bool flushedAll() const { return flushedChannels == (ErrChannel|CacheChannel|SysChannel); };
+    /// logs all previously stored messages
+    void write(const DebugChannel);
+
+private:
+    void dumpToStderr() const;
+
+    typedef std::vector<DebugMessage> Storage;
+    Storage messages;
+
+    /// the total number of messages we could not store (due to capacity limits)
+    uint64_t dropped = 0;
+    uint64_t flushedChannels = 0;; ///< flushed channels bitmask
+};
+
+/// Preserves important debugs() messages until the log file gets opened and
+/// then logs those messages.
+static DebugMessages *EarlyMessages = nullptr;
+
+// Becomes true during C++ constant initialization, before any debugs() calls.
+// Exists because EarlyMessages cannot be set during constant initialization.
+/// whether "early" messages may need to be accumulated and/or logged
+static bool SavingEarlyMessages = true;
 
 /// configured cache.log file or stderr
 /// safe during static initialization, even if it has not been constructed yet
@@ -76,7 +161,7 @@ static DebugFile TheLog;
 
 FILE *
 DebugStream() {
-    return TheLog.file();
+    return TheLog.file() ? TheLog.file() : stderr;
 }
 
 void
@@ -91,20 +176,75 @@ ResyncDebugLog(FILE *newFile)
     TheLog.file_ = newFile;
 }
 
+/// write all previously saved "early" messages into a specified channel
+static void
+FlushEarlyMessages(const DebugChannel ch)
+{
+    if (!SavingEarlyMessages || !EarlyMessages)
+        return;
+
+    if (EarlyMessages->flushed(ch))
+        return; // already flushed
+
+    EarlyMessages->write(ch);
+
+    if (EarlyMessages->flushedAll())
+        SavingEarlyMessages = false;
+}
+
+/// ensure that all previously saved "early messages" are written
+/// and stop accumulating them
+void
+Debug::EarlyMessagesCheckpoint(const int defaultErrLevel)
+{
+    if (SavingEarlyMessages) {
+        if (Debug::log_stderr == -1 && defaultErrLevel != -1)
+            Debug::log_stderr = defaultErrLevel;
+        // some of channels may not be flushed yet
+        FlushEarlyMessages(ErrChannel);
+        FlushEarlyMessages(SysChannel);
+        FlushEarlyMessages(CacheChannel);
+        assert(!SavingEarlyMessages);
+    }
+    delete EarlyMessages;
+    EarlyMessages = nullptr;
+}
+
+/// whether we are still saving early messages into a given channel
+static bool
+SavingEarlyMessagesToChannel(const DebugChannel &ch)
+{
+    if (SavingEarlyMessages) {
+        if (!EarlyMessages || !EarlyMessages->flushed(ch))
+            return true;
+    }
+    return false;
+}
+
+void DebugFile::fail()
+{
+    clear();
+    failed_ = true;
+}
+
 void
 DebugFile::reset(FILE *newFile, const char *newName)
 {
     // callers must use nullptr instead of the used-as-the-last-resort stderr
     assert(newFile != stderr || !stderr);
 
+    const bool wasLoggingToFile = file_;
     if (file_) {
         fd_close(fileno(file_));
         fclose(file_);
     }
     file_ = newFile; // may be nil
 
-    if (file_)
+    if (file_) {
+        if (!wasLoggingToFile)
+            FlushEarlyMessages(CacheChannel); // before anything that logs, including fd_open()
         fd_open(fileno(file_), FD_LOG, Debug::cache_log);
+    }
 
     xfree(name);
     name = newName ? xstrdup(newName) : nullptr;
@@ -142,9 +282,9 @@ _db_print(const bool forceAlert, const char *format,...)
             /* let multiprocessor systems EnterCriticalSection() fast */
 
             if (!InitializeCriticalSectionAndSpinCount(dbg_mutex, 4000)) {
-                if (debug_log) {
-                    fprintf(debug_log, "FATAL: _db_print: can't initialize critical section\n");
-                    fflush(debug_log);
+                if (const auto logFile = TheLog.file()) {
+                    fprintf(logFile, "FATAL: _db_print: can't initialize critical section\n");
+                    fflush(logFile);
                 }
 
                 fprintf(stderr, "FATAL: _db_print: can't initialize critical section\n");
@@ -177,6 +317,13 @@ _db_print(const bool forceAlert, const char *format,...)
     _db_print_syslog(forceAlert, format, args3);
 #endif
 
+    if (SavingEarlyMessages && Debug::Level() <= DBG_IMPORTANT) {
+        va_list args;
+        va_start(args, format);
+        _db_print_early_message(forceAlert, f, args);
+        va_end(args);
+    }
+
 #if _SQUID_WINDOWS_
     LeaveCriticalSection(dbg_mutex);
 #endif
@@ -189,42 +336,70 @@ _db_print(const bool forceAlert, const char *format,...)
 static void
 _db_print_file(const char *format, va_list args)
 {
-    if (debug_log == NULL)
+    if (!TheLog.file())
+        return;
+
+    if (SavingEarlyMessagesToChannel(CacheChannel))
         return;
 
     /* give a chance to context-based debugging to print current context */
     if (!Ctx_Lock)
         ctx_print();
 
-    vfprintf(debug_log, format, args);
-    fflush(debug_log);
+    vfprintf(TheLog.file(), format, args);
+    fflush(TheLog.file());
+}
+
+static void
+_db_print_early_message(const bool forceAlert, const char *format, va_list args)
+{
+    assert(SavingEarlyMessages);
+    if (!EarlyMessages)
+        EarlyMessages = new DebugMessages;
+    EarlyMessages->insert(Debug::Section(), Debug::Level(), forceAlert, format, args);
+}
+
+static bool StdErrAllowed(const int level)
+{
+    return level <= Debug::log_stderr || TheLog.failed();
 }
 
 static void
 _db_print_stderr(const char *format, va_list args)
 {
-    if (Debug::log_stderr < Debug::Level())
+    if (!StdErrAllowed(Debug::Level()))
         return;
 
-    if (debug_log == stderr)
+    if (SavingEarlyMessagesToChannel(ErrChannel))
         return;
 
     vfprintf(stderr, format, args);
 }
 
 #if HAVE_SYSLOG
+
+static int
+SyslogLevel(const int forceAlert, const int level)
+{
+    return forceAlert ? LOG_ALERT : (level == 0 ? LOG_WARNING : LOG_NOTICE);
+}
+
+static bool
+SysLogAllowed(const int forceAlert, const int level)
+{
+    return forceAlert || (Debug::log_syslog && (level <= DBG_IMPORTANT));
+}
+
 static void
 _db_print_syslog(const bool forceAlert, const char *format, va_list args)
 {
     /* level 0,1 go to syslog */
 
-    if (!forceAlert) {
-        if (Debug::Level() > 1)
-            return;
+    if (!SysLogAllowed(forceAlert, Debug::Level()))
+        return;
 
-        if (!Debug::log_syslog)
-            return;
-    }
+    if (SavingEarlyMessagesToChannel(SysChannel))
+        return;
 
     char tmpbuf[BUFSIZ];
     tmpbuf[0] = '\0';
@@ -233,7 +408,7 @@ _db_print_syslog(const bool forceAlert, const char *format, va_list args)
 
     tmpbuf[BUFSIZ - 1] = '\0';
 
-    syslog(forceAlert ? LOG_ALERT : (Debug::Level() == 0 ? LOG_WARNING : LOG_NOTICE), "%s", tmpbuf);
+    syslog(SyslogLevel(forceAlert, Debug::Level()), "%s", tmpbuf);
 }
 #endif /* HAVE_SYSLOG */
 
@@ -242,7 +417,6 @@ debugArg(const char *arg)
 {
     int s = 0;
     int l = 0;
-    int i;
 
     if (!strncasecmp(arg, "rotate=", 7)) {
         arg += 7;
@@ -273,8 +447,7 @@ debugArg(const char *arg)
         return;
     }
 
-    for (i = 0; i < MAX_DEBUG_SECTIONS; ++i)
-        Debug::Levels[i] = l;
+    ResetSections(l);
 }
 
 static void
@@ -302,7 +475,7 @@ debugOpenLog(const char *logfile)
         perror(logfile);
         fprintf(stderr, "         messages will be sent to 'stderr'.\n");
         fflush(stderr);
-        TheLog.clear();
+        TheLog.fail();
     }
 }
 
@@ -428,6 +601,8 @@ _db_set_syslog(const char *facility)
 {
     Debug::log_syslog = true;
 
+    FlushEarlyMessages(SysChannel);
+
 #ifdef LOG_LOCAL4
 #ifdef LOG_DAEMON
 
@@ -462,9 +637,15 @@ _db_set_syslog(const char *facility)
 #endif
 
 void
+_db_set_stderr(int level)
+{
+    Debug::log_stderr = level;
+    FlushEarlyMessages(ErrChannel); // before anything that logs, including fd_open()
+}
+
+void
 Debug::parseOptions(char const *options)
 {
-    int i;
     char *p = NULL;
     char *s = NULL;
 
@@ -473,8 +654,7 @@ Debug::parseOptions(char const *options)
         return;
     }
 
-    for (i = 0; i < MAX_DEBUG_SECTIONS; ++i)
-        Debug::Levels[i] = 0;
+    ResetSections();
 
     if (options) {
         p = xstrdup(options);
@@ -499,6 +679,8 @@ _db_init(const char *logfile, const char *options)
         openlog(APP_SHORTNAME, LOG_PID | LOG_NDELAY | LOG_CONS, syslog_facility);
 
 #endif /* HAVE_SYSLOG */
+
+    Debug::EarlyMessagesCheckpoint(-1);
 
     /* Pre-Init TZ env, see bug #2656 */
     tzset();
@@ -620,8 +802,10 @@ xassert(const char *msg, const char *file, int line)
 {
     debugs(0, DBG_CRITICAL, "assertion failed: " << file << ":" << line << ": \"" << msg << "\"");
 
-    if (!shutting_down)
+    if (!shutting_down) {
+        Debug::EarlyMessagesCheckpoint(0);
         abort();
+    }
 }
 
 /*
@@ -790,6 +974,7 @@ ctx_get_descr(Ctx ctx)
 Debug::Context *Debug::Current = nullptr;
 
 Debug::Context::Context(const int aSection, const int aLevel):
+    section(aSection),
     level(aLevel),
     sectionLevel(Levels[aSection]),
     upper(Current),
@@ -802,6 +987,7 @@ Debug::Context::Context(const int aSection, const int aLevel):
 void
 Debug::Context::rewind(const int aSection, const int aLevel)
 {
+    section = aSection;
     level = aLevel;
     sectionLevel = Levels[aSection];
     assert(upper == Current);
@@ -879,6 +1065,133 @@ ForceAlert(std::ostream& s)
     Debug::ForceAlert();
     return s;
 }
+
+/* DebugMessage */
+
+DebugMessage::DebugMessage(const int aSection, const int aLevel, const bool aForceAlert, const char *format, va_list args):
+    section(aSection),
+    level(aLevel),
+    forceAlert(aForceAlert)
+{
+    // The two paranoid(?) termination lines below are meant for vsnprintf()
+    // implementations that do not terminate on various kinds of errors.
+    // TODO: Unify all Squid vsnprintf() calls, probably using std::vsnprintf().
+    image[0] = '\0';
+    (void)vsnprintf(image, sizeof(image), format, args);
+    image[sizeof(image)-1] = '\0';
+}
+
+/* DebugMessages */
+
+void
+DebugMessages::insert(const int section, const int level, const bool forceAlert, const char *format, va_list args)
+{
+    // There should not be a lot of messages since we are only accumulating
+    // level-0/1 messages, but we limit accumulation just in case.
+    const size_t limit = 1000;
+    if (messages.size() >= limit) {
+        if (flushed(ErrChannel)) {
+            dropped++;
+            return;
+        }
+        dumpToStderr();
+        messages.clear();
+        dropped += limit;
+    }
+    messages.emplace_back(section, level, forceAlert, format, args);
+}
+
+bool
+DebugMessage::allowed(const DebugChannel ch) const
+{
+    if (!Debug::Enabled(section, level))
+        return false;
+
+    if (ch == ErrChannel) {
+        if (Debug::log_stderr > -1) {
+            // honor debug level, if specified
+            return level <= Debug::log_stderr;
+        }
+        // If cache.log is unavailable, further output goes to stderr.
+        // We need there early messages too.
+        return TheLog.failed();
+    }
+    else if (ch == CacheChannel)
+        return !Debug::override_X && (level <= DBG_IMPORTANT);
+    else {
+        assert(ch == SysChannel);
+        return SysLogAllowed(forceAlert, level);
+    }
+}
+
+void
+DebugMessages::dumpToStderr() const
+{
+    for (const auto &message: messages)
+        fprintf(stderr, "%s", message.image);
+}
+
+static FILE *
+ChannelStream(const DebugChannel ch)
+{
+    if (ch == ErrChannel)
+        return stderr;
+    else if (ch == CacheChannel)
+        return TheLog.file();
+    else {
+        assert(ch == SysChannel);
+        return nullptr;
+    }
+}
+
+static const char *
+ChannelName(const DebugChannel ch)
+{
+    if (ch == ErrChannel)
+        return "stderr";
+    else if (ch == CacheChannel)
+        return "cache.log";
+    else {
+        assert(ch == SysChannel);
+        return "syslog";
+    }
+}
+
+void
+DebugMessages::write(const DebugChannel ch)
+{
+    flushedChannels |= ch;
+    const auto log = ChannelStream(ch);
+    uint64_t logged = 0;
+    for (const auto &message: messages) {
+        if (message.allowed(ch)) {
+            if (log) {
+                assert(ch == ErrChannel || ch == CacheChannel);
+                fprintf(log, "%s", message.image);
+                logged++;;
+            }
+#if HAVE_SYSLOG
+            else if (ch == SysChannel) {
+                syslog(SyslogLevel(message.forceAlert, message.level), "%s", message.image);
+                logged++;;
+            }
+#endif
+        }
+    }
+    if (log)
+        fflush(log);
+
+    // print statistics only for cache.log
+    const auto total = messages.size();
+    if (dropped) {
+        debugs(0, DBG_IMPORTANT, "ERROR: Too many early important messages: " << (total + dropped) <<
+               "; cached " << total << " but dropped " << dropped);
+    } else if (logged) {
+        debugs(0, 2, logged << " " << ChannelName(ch) << " early messages");
+    }
+}
+
+/* Raw */
 
 /// print data bytes using hex notation
 void

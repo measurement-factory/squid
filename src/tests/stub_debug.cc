@@ -101,6 +101,7 @@ Debug::parseOptions(char const *)
 Debug::Context *Debug::Current = nullptr;
 
 Debug::Context::Context(const int aSection, const int aLevel):
+    section(aSection),
     level(aLevel),
     sectionLevel(Levels[aSection]),
     upper(Current),

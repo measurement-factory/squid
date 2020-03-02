@@ -59,6 +59,7 @@ public:
     public:
         Context(const int aSectionLevel, const int aLevel);
 
+        int section; ///< the debug section of the debugs() call
         int level; ///< minimum debugging level required by the debugs() call
         int sectionLevel; ///< maximum debugging level allowed during the call
 
@@ -87,6 +88,8 @@ public:
 
     static void parseOptions(char const *);
 
+    /// debugging section of the current debugs() call
+    static int Section() { return Current ? Current->section : 0; }
     /// minimum level required by the current debugs() call
     static int Level() { return Current ? Current->level : 1; }
     /// maximum level currently allowed
@@ -102,6 +105,9 @@ public:
 
     /// prefixes each grouped debugs() line after the first one in the group
     static std::ostream& Extra(std::ostream &os) { return os << "\n    "; }
+    /// flushes early messages if needed
+    /// \param defaultErrLevel the value for log_stderr (if uninitialized)
+    static void EarlyMessagesCheckpoint(const int defaultErrLevel);
 
 private:
     static Context *Current; ///< deepest active context; nil outside debugs()
@@ -179,6 +185,7 @@ inline std::ostream& operator <<(std::ostream &os, const uint8_t d)
 /* Legacy debug function definitions */
 void _db_init(const char *logfile, const char *options);
 void _db_set_syslog(const char *facility);
+void _db_set_stderr(int level);
 void _db_rotate_log(void);
 
 /// Prints raw and/or non-terminated data safely, efficiently, and beautifully.

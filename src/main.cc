@@ -524,7 +524,7 @@ mainHandleCommandLineOption(const int optId, const char *optValue)
     case 'd':
         /** \par d
          * Set global option Debug::log_stderr to the number given following the option */
-        Debug::log_stderr = xatoi(optValue);
+        _db_set_stderr(xatoi(optValue));
         break;
 
     case 'f':
@@ -695,7 +695,7 @@ mainHandleCommandLineOption(const int optId, const char *optValue)
     case 'z':
         /** \par z
          * Set global option Debug::log_stderr and opt_create_swap_dirs */
-        Debug::log_stderr = 1;
+        _db_set_stderr(1);
         opt_create_swap_dirs = 1;
         break;
 
@@ -1358,6 +1358,9 @@ OnTerminate()
     terminating = true;
 
     debugs(1, DBG_CRITICAL, "FATAL: Dying from an exception handling failure; exception: " << CurrentException);
+
+    Debug::EarlyMessagesCheckpoint(0);
+
     abort();
 }
 
@@ -1489,7 +1492,6 @@ int
 SquidMain(int argc, char **argv)
 {
     const CommandLine cmdLine(argc, argv, shortOpStr, squidOptions);
-
     ConfigureCurrentKid(cmdLine);
 
     Debug::parseOptions(NULL);
@@ -1546,6 +1548,9 @@ SquidMain(int argc, char **argv)
     if (opt_parse_cfg_only) {
         Debug::parseOptions("ALL,1");
     }
+
+    if (opt_send_signal != -1)
+        _db_set_stderr(0); // allow critical messages to stderr
 
 #if USE_WIN32_SERVICE
 
