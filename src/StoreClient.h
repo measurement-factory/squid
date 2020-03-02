@@ -79,6 +79,7 @@ public:
     void readBody(const char *buf, ssize_t len);
     void copy(StoreEntry *, StoreIOBuffer, STCB *, void *);
     void dumpStats(MemBuf * output, int clientNumber) const;
+    bool canCopy() const { return _callback.pending() && !clientSideCaller && !flags.disk_io_pending; }
 
 #if STORE_CLIENT_LIST_DEBUG
 

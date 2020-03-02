@@ -739,15 +739,11 @@ StoreEntry::invokeHandlers()
         nx = node->next;
         ++i;
 
-        if (!sc->_callback.pending())
-            continue;
-
-        if (sc->flags.disk_io_pending)
-            continue;
-
-        CodeContext::Reset(sc->_callback.codeContext);
-        debugs(90, 3, "checking client #" << i);
-        storeClientCopy2(this, sc);
+        if (sc->canCopy()) {
+            CodeContext::Reset(sc->_callback.codeContext);
+            debugs(90, 3, "checking client #" << i);
+            storeClientCopy2(this, sc);
+        }
     }
     CodeContext::Reset(savedContext);
     PROF_stop(InvokeHandlers);
