@@ -85,6 +85,7 @@ public:
     /// a single selection loop iteration: attempts to add more destinations
     void selectMore();
 
+    /// resumes peer selection after a timeout
     void handlePingTimeout();
 
     HttpRequest *request;
