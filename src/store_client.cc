@@ -169,6 +169,8 @@ store_client::callbackClientSide()
     copyInto.data = nullptr;
     copiedSize = 0;
 
+    assert(!canScheduleCallback());
+
     if (cbdataReferenceValid(cbdata))
         temphandler(cbdata, result);
 
@@ -178,6 +180,8 @@ store_client::callbackClientSide()
 void
 store_client::callback(ssize_t sz, bool error)
 {
+    assert(canScheduleCallback());
+
     copiedSize = (sz > 0 && !error) ? sz : 0;
 
     if (sz < 0 || error)
@@ -325,6 +329,7 @@ store_client::doCopy(StoreEntry *anEntry)
 {
     assert (anEntry == entry);
     MemObject *mem = entry->mem_obj;
+    assert(canCopy());
 
     debugs(33, 5, "store_client::doCopy: co: " <<
            copyInto.offset << ", hi: " <<
@@ -434,7 +439,7 @@ store_client::fileRead()
 {
     MemObject *mem = entry->mem_obj;
 
-    assert(_callback.pending());
+    assert(canScheduleCallback());
     assert(!flags.disk_io_pending);
     flags.disk_io_pending = true;
 
@@ -458,7 +463,7 @@ store_client::readBody(const char *, ssize_t len)
 
     // Don't assert disk_io_pending here.. may be called by read_header
     flags.disk_io_pending = false;
-    assert(_callback.pending());
+    assert(canScheduleCallback());
     debugs(90, 3, "storeClientReadBody: len " << len << "");
 
     if (len < 0)
@@ -502,7 +507,7 @@ store_client::fail()
      * not synchronous
      */
 
-    if (_callback.pending())
+    if (canScheduleCallback())
         callback(0, true);
 }
 
@@ -568,7 +573,7 @@ store_client::readHeader(char const *buf, ssize_t len)
 
     assert(flags.disk_io_pending);
     flags.disk_io_pending = false;
-    assert(_callback.pending());
+    assert(canScheduleCallback());
 
     // abort if we fail()'d earlier
     if (!object_ok)
