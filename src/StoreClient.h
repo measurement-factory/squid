@@ -79,7 +79,11 @@ public:
     void readBody(const char *buf, ssize_t len);
     void copy(StoreEntry *, StoreIOBuffer, STCB *, void *);
     void dumpStats(MemBuf * output, int clientNumber) const;
-    bool canCopy() const { return _callback.pending() && !clientSideCaller && !flags.disk_io_pending; }
+    /// whether doCopy() can be called
+    bool canCopy() const { return canScheduleCallback() && !flags.disk_io_pending; }
+    /// TODO: revise/verify all usages
+    /// whether callback() can be called
+    bool canScheduleCallback() const { return _callback.pending() && !clientSideCaller; }
 
 #if STORE_CLIENT_LIST_DEBUG
 
