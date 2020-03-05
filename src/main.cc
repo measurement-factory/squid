@@ -1876,6 +1876,8 @@ masterSignaled()
 static void
 GoIntoBackground()
 {
+    // XXX: This fork() effectively dupes EarlyMessages in debug.cc. Both the
+    // head and master processes then dump them to stderr (squid -d1).
     pid_t pid;
     if ((pid = fork()) < 0) {
         int xerrno = errno;
