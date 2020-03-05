@@ -123,11 +123,11 @@ void
 PeerSelectorTimeoutProcessor::noteWaitOver()
 {
     waitEnd_ = 0;
-    AsyncCall::Pointer current = headCall;
-    while (current) {
+    while (headCall) {
+        AsyncCall::Pointer current = headCall;
+        headCall = headCall->Next();
+        current->setNext(nullptr);
         ScheduleCallHere(current);
-        current = current->Next();
-        headCall = current;
     }
 }
 
