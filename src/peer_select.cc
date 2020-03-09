@@ -92,16 +92,19 @@ public:
     void noteWaitOver();
 
     /// adds a PeerSelector to the waiting list
-    void enqueue(const AsyncCall::Pointer &, const double timeout);
+    void enqueue(PeerSelector *selector, const double timeout);
 
     /// removes a PeerSelector from the waiting list
-    void dequeue(const AsyncCall::Pointer &);
+    void dequeue(PeerSelector *selector);
+
+    void wait();
 
 private:
     bool waiting() { return waitEnd_ > 0; }
 
-    AsyncCall::Pointer headCall; ///< a list of callbacks of waiting PeerSelectors
-    double waitEnd_;
+    double waitEnd_ = 0.;
+    double tickInterval_ = 0.;
+    dlink_list peerSelectors;
 };
 
 PeerSelectorTimeoutProcessor ThePeerSelectorTimeoutProcessor;
@@ -119,49 +122,59 @@ PeerSelectorTimeoutProcessor::NoteWaitOver(void *raw)
     static_cast<PeerSelectorTimeoutProcessor*>(raw)->noteWaitOver();
 }
 
+bool
+PeerSelectorWait::ready() const
+{
+    return waitEnd <= current_dtime;
+}
+
 void
 PeerSelectorTimeoutProcessor::noteWaitOver()
 {
     waitEnd_ = 0;
-    while (headCall) {
-        AsyncCall::Pointer current = headCall;
-        headCall = headCall->Next();
-        current->setNext(nullptr);
-        ScheduleCallHere(current);
+    auto link = peerSelectors.head;
+    while (link) {
+        PeerSelector *selector = reinterpret_cast<PeerSelector *>(link->data);
+        auto prevLink = link;
+        link = link->next;
+        if (selector->peerWaiting.ready()) {
+            dlinkDelete(prevLink, &peerSelectors);
+            CallBack(selector->peerWaiting.codeContext, [&] {
+                AsyncCall::Pointer callback = asyncCall(44, 4, "HandlePingTimeout", cbdataDialer(HandlePingTimeout, selector));
+                ScheduleCallHere(callback);
+            });
+        }
     }
+    if (peerSelectors.head)
+        wait();
 }
 
 void
-PeerSelectorTimeoutProcessor::enqueue(const AsyncCall::Pointer &callback, const double timeout)
+PeerSelectorTimeoutProcessor::wait()
 {
-    assert(callback);
+    assert(tickInterval_ > 0.);
+    assert(!waiting());
+    waitEnd_ = current_dtime + tickInterval_;
+    eventAdd("PeerSelectorTimeoutProcessor::NoteWaitOver", &PeerSelectorTimeoutProcessor::NoteWaitOver, this, tickInterval_, 0, false);
+}
+
+void
+PeerSelectorTimeoutProcessor::enqueue(PeerSelector *selector, const double timeout)
+{
     if (!waiting()) {
-        waitEnd_ = current_dtime + timeout;
-        eventAdd("PeerSelectorTimeoutProcessor::NoteWaitOver", &PeerSelectorTimeoutProcessor::NoteWaitOver, this, timeout, 0, false);
+        tickInterval_ = timeout;
+        wait();
     }
-
-    if (headCall)
-        callback->setNext(headCall);
-    headCall = callback;
+    selector->peerWaiting.waitEnd = current_dtime + timeout;
+    selector->peerWaiting.codeContext = CodeContext::Current();
+    dlinkAdd(selector, &selector->peerWaiting.node, &peerSelectors);
 }
 
 void
-PeerSelectorTimeoutProcessor::dequeue(const AsyncCall::Pointer &callback)
+PeerSelectorTimeoutProcessor::dequeue(PeerSelector *selector)
 {
-    assert(callback);
-
-    AsyncCall::Pointer current = headCall;
-    AsyncCall::Pointer prev;
-
-    while (current) {
-        if (current == callback)
-            break;
-        prev = current;
-        current = current->Next();
-    }
-
-    if (current)
-        current->dequeue(headCall, prev);
+    selector->peerWaiting.reset();
+    dlinkDelete(&selector->peerWaiting.node, &peerSelectors);
 }
 
 static const char *DirectStr[] = {
@@ -195,8 +208,8 @@ PeerSelector::~PeerSelector()
         servers = next;
     }
 
-    if (peerWaitCallback)
-        ThePeerSelectorTimeoutProcessor.dequeue(peerWaitCallback);
+    if (peerWaiting)
+        ThePeerSelectorTimeoutProcessor.dequeue(this);
 
     if (entry) {
         debugs(44, 3, entry->url());
@@ -710,10 +723,9 @@ PeerSelector::selectSomeNeighbor()
 
             if (ping.n_replies_expected > 0) {
                 entry->ping_status = PING_WAITING;
-                Must(!peerWaitCallback);
-                peerWaitCallback = asyncCall(44, 4, "HandlePingTimeout", cbdataDialer(HandlePingTimeout, this));
+                Must(!peerWaiting);
                 /// TODO: provide a reasonable timeout
-                ThePeerSelectorTimeoutProcessor.enqueue(peerWaitCallback, 0.001 * ping.timeout);
+                ThePeerSelectorTimeoutProcessor.enqueue(this, 0.001 * ping.timeout);
                 return;
             }
         }
@@ -839,8 +851,6 @@ void
 PeerSelector::handlePingTimeout()
 {
     debugs(44, 3, url());
-
-    peerWaitCallback = nullptr;
 
     if (entry)
         entry->ping_status = PING_DONE;

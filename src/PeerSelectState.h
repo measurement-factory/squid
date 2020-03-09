@@ -54,6 +54,17 @@ public:
 
 class FwdServer;
 
+class PeerSelectorWait
+{
+    public:
+        operator bool() const { return bool(waitEnd); }
+        void reset() { waitEnd = 0.; }
+        bool ready() const;
+        CodeContext::Pointer codeContext;
+        double waitEnd = 0.;
+        dlink_node node;
+};
+
 /// Finds peer (including origin server) IPs for forwarding a single request.
 /// Gives PeerSelectionInitiator each found destination, in the right order.
 class PeerSelector: public Dns::IpReceiver
@@ -96,7 +107,7 @@ public:
 
     ping_data ping;
 
-    AsyncCall::Pointer peerWaitCallback; ///< a callback to wait a ping response from the peer
+    PeerSelectorWait peerWaiting;
 
 protected:
     bool selectionAborted();
