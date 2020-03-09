@@ -31,6 +31,8 @@
 #include "store/Disk.h"
 #include "store/forward.h"
 
+#include <chrono>
+
 #if USE_OPENSSL
 class sslproxy_cert_sign;
 class sslproxy_cert_adapt;
@@ -352,6 +354,8 @@ public:
 
     int forward_max_tries;
     int connect_retries;
+
+    std::chrono::nanoseconds paranoid_hit_validation;
 
     class ACL *aclList;
 
