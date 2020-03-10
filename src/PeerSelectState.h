@@ -20,6 +20,9 @@
 #include "PingData.h"
 #include "typedefs.h" /* for IRCB */
 
+/// absolute time in fractional seconds, compatible with current_dtime
+typedef double PeerSelectAbsoluteTime;
+
 class ErrorState;
 class HtcpReplyData;
 class HttpRequest;
@@ -53,16 +56,25 @@ public:
 };
 
 class FwdServer;
+class PeerSelector;
 
+/// a context for a delayed PeerSelector object
 class PeerSelectorWait
 {
     public:
         operator bool() const { return bool(waitEnd); }
-        void reset() { waitEnd = 0.; }
+        /// remembers the context and adds the PeerSelector into the waiting list
+        void start(PeerSelector *selector, const PeerSelectAbsoluteTime timeout, dlink_list *list);
+        /// removes the PeerSelector from the waiting list
+        void stop(dlink_list *);
+        /// whether the PeerSelector is ready to be resumed
         bool ready() const;
-        CodeContext::Pointer codeContext;
-        double waitEnd = 0.;
-        dlink_node node;
+
+        CodeContext::Pointer codeContext; ///< the PeerSelector context
+
+    private:
+        PeerSelectAbsoluteTime waitEnd = 0; ///< an expected time when the PeerSelector will be resumed
+        dlink_node peerSelectorNode; ///< a node storing the PeerSelector
 };
 
 /// Finds peer (including origin server) IPs for forwarding a single request.
@@ -107,7 +119,7 @@ public:
 
     ping_data ping;
 
-    PeerSelectorWait peerWaiting;
+    PeerSelectorWait peerWaiting; ///< preserves the context while waiting for ping replies
 
 protected:
     bool selectionAborted();

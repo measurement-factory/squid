@@ -78,33 +78,31 @@ public:
 };
 
 /// Implements a "ping timemout service", managing a list of PeerSelector
-/// objects waiting for peer responses. It helps to optimize situations when
+/// objects waiting for peer ping responses. It helps to optimize situations when
 /// there are many (thousands) of concurrent transactions: an inefficient
 /// alternative would add thousands of concurrent events to the Squid event queue
 /// instead.
 class PeerSelectorTimeoutProcessor
 {
 public:
-
     static void NoteWaitOver(void *raw);
 
-    /// calls back all awaiting PeerSelectors and clears the waiting list
+    /// calls back all ready PeerSelectors and continues to wait for others
     void noteWaitOver();
 
     /// adds a PeerSelector to the waiting list
-    void enqueue(PeerSelector *selector, const double timeout);
+    void enqueue(PeerSelector *selector, const PeerSelectAbsoluteTime timeout);
 
     /// removes a PeerSelector from the waiting list
     void dequeue(PeerSelector *selector);
 
-    void wait();
-
 private:
+    void wait(const PeerSelectAbsoluteTime);
     bool waiting() { return waitEnd_ > 0; }
 
-    double waitEnd_ = 0.;
-    double tickInterval_ = 0.;
-    dlink_list peerSelectors;
+    PeerSelectAbsoluteTime waitStart_ = 0; ///< the time of the last wait() call
+    PeerSelectAbsoluteTime waitEnd_ = 0; ///< expected NoteWaitOver() call time (or zero)
+    dlink_list peerSelectors; /// a list of postponed PeerSelectors
 };
 
 PeerSelectorTimeoutProcessor ThePeerSelectorTimeoutProcessor;
@@ -122,59 +120,70 @@ PeerSelectorTimeoutProcessor::NoteWaitOver(void *raw)
     static_cast<PeerSelectorTimeoutProcessor*>(raw)->noteWaitOver();
 }
 
+void
+PeerSelectorTimeoutProcessor::noteWaitOver()
+{
+    assert(waitEnd_ >= waitStart_);
+    const PeerSelectAbsoluteTime lastTimeout = waitEnd_ - waitStart_;
+    waitEnd_ = 0;
+    auto link = peerSelectors.head;
+    while (link) {
+        auto selector = reinterpret_cast<PeerSelector *>(link->data);
+        link = link->next;
+        if (selector->peerWaiting.ready()) {
+            selector->peerWaiting.stop(&peerSelectors);
+            AsyncCall::Pointer callback = asyncCall(44, 4, "HandlePingTimeout", cbdataDialer(HandlePingTimeout, selector));
+            callback->codeContext = selector->peerWaiting.codeContext;
+            ScheduleCallHere(callback);
+        }
+    }
+    if (peerSelectors.head)
+        wait(lastTimeout);
+}
+
+void
+PeerSelectorWait::start(PeerSelector *selector, const PeerSelectAbsoluteTime timeout, dlink_list *list)
+{
+    waitEnd = current_dtime + timeout;
+    codeContext = CodeContext::Current();
+    dlinkAdd(selector, &peerSelectorNode, list);
+}
+
+void
+PeerSelectorWait::stop(dlink_list *list)
+{
+    waitEnd = 0;
+    dlinkDelete(&peerSelectorNode, list);
+}
+
 bool
 PeerSelectorWait::ready() const
 {
+    assert(waitEnd > 0);
     return waitEnd <= current_dtime;
 }
 
 void
-PeerSelectorTimeoutProcessor::noteWaitOver()
+PeerSelectorTimeoutProcessor::wait(const PeerSelectAbsoluteTime interval)
 {
-    waitEnd_ = 0;
-    auto link = peerSelectors.head;
-    while (link) {
-        PeerSelector *selector = reinterpret_cast<PeerSelector *>(link->data);
-        auto prevLink = link;
-        link = link->next;
-        if (selector->peerWaiting.ready()) {
-            dlinkDelete(prevLink, &peerSelectors);
-            CallBack(selector->peerWaiting.codeContext, [&] {
-                AsyncCall::Pointer callback = asyncCall(44, 4, "HandlePingTimeout", cbdataDialer(HandlePingTimeout, selector));
-                ScheduleCallHere(callback);
-            });
-        }
-    }
-    if (peerSelectors.head)
-        wait();
-}
-
-void
-PeerSelectorTimeoutProcessor::wait()
-{
-    assert(tickInterval_ > 0.);
     assert(!waiting());
-    waitEnd_ = current_dtime + tickInterval_;
-    eventAdd("PeerSelectorTimeoutProcessor::NoteWaitOver", &PeerSelectorTimeoutProcessor::NoteWaitOver, this, tickInterval_, 0, false);
+    waitStart_ = current_dtime;
+    waitEnd_ = waitStart_ + interval;
+    eventAdd("PeerSelectorTimeoutProcessor::NoteWaitOver", &PeerSelectorTimeoutProcessor::NoteWaitOver, this, interval, 0, false);
 }
 
 void
-PeerSelectorTimeoutProcessor::enqueue(PeerSelector *selector, const double timeout)
+PeerSelectorTimeoutProcessor::enqueue(PeerSelector *selector, const PeerSelectAbsoluteTime timeout)
 {
-    if (!waiting()) {
-        tickInterval_ = timeout;
-        wait();
-    }
-    selector->peerWaiting.waitEnd = current_dtime + timeout;
-    selector->peerWaiting.codeContext = CodeContext::Current();
-    dlinkAdd(selector, &selector->peerWaiting.node, &peerSelectors);
+    selector->peerWaiting.start(selector, timeout, &peerSelectors);
+    if (!waiting())
+        wait(timeout);
 }
 
 void
 PeerSelectorTimeoutProcessor::dequeue(PeerSelector *selector)
 {
-    selector->peerWaiting.reset();
-    dlinkDelete(&selector->peerWaiting.node, &peerSelectors);
+    selector->peerWaiting.stop(&peerSelectors);
 }
 
 static const char *DirectStr[] = {
