@@ -396,16 +396,17 @@ HappyConnOpener::swanSong()
 
     // TODO: Find an automated, faster way to kill no-longer-needed jobs.
 
-    if (prime) {
-        cancelAttempt(prime, "HappyConnOpener object destructed");
-    }
-
     if (spare) {
-        cancelAttempt(spare, "HappyConnOpener object destructed");
+        // cancel the spare attempt first to preserve destination order
+        cancelAttempt(spare, "job finished during a spare attempt");
         if (gotSpareAllowance) {
             TheSpareAllowanceGiver.jobDroppedAllowance();
             gotSpareAllowance = false;
         }
+    }
+
+    if (prime) {
+        cancelAttempt(prime, "job finished during a prime attempt");
     }
 
     AsyncJob::swanSong();
@@ -879,9 +880,8 @@ HappyConnOpener::ranOutOfTimeOrAttempts() const
 void
 HappyConnOpener::Attempt::cancel(const char *reason)
 {
-    if (connector)
+    if (connector) {
         connector->cancel(reason);
-    if (connOpener.valid()) {
         CallJobHere(17, 3, connOpener, Comm::ConnOpener, noteAbort);
     }
     clear();
