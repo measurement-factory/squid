@@ -11,6 +11,7 @@
 
 #include "ipc/mem/FlexibleArray.h"
 
+#include <array>
 #include <atomic>
 #include <limits>
 
@@ -57,6 +58,26 @@ private:
     std::atomic<PointerOrMarker> nextOrMarker;
 };
 
+/// safely points to the beginning of the page stack
+class PageStackHeadPointer
+{
+public:
+    bool operator ==(const PageStackHeadPointer &them) const;
+    bool operator !=(const PageStackHeadPointer &them) const { return !(*this == them); }
+
+    using Pointer = PageStackStorageSlot::Pointer;
+
+    /// An opaque nonce value: PageStack uses this nonce in combination of the
+    /// first field to make sure that the stack head pointer is unique among
+    /// critical sections of concurrent pop()/push() callers, allowing detection
+    /// of stack changes, including changes ordinarily leading to ABA problems.
+    /// The value of zero is used as a "no version" marker.
+    typedef uint32_t Version;
+
+    Pointer first; ///< the location of the stack slot to be popped first
+    Version version; ///< reflects changes in stack as a whole; \see Version
+};
+
 /// Atomic container of "free" PageIds. Detects (some) double-free bugs.
 /// Assumptions: All page numbers are unique, positive, with a known maximum.
 /// A pushed page may not become available immediately but is never truly lost.
@@ -96,6 +117,15 @@ public:
 
 private:
     using Slot = PageStackStorageSlot;
+    using HeadPointer = PageStackHeadPointer;
+
+    HeadPointer::Version nextVersion() const;
+    HeadPointer::Version hazardlessVersion(bool lonely) const;
+    HeadPointer::Version hazardlessVersionForPop() const;
+    HeadPointer::Version hazardlessVersionForPush() const;
+    void initHazardousVersion();
+    bool resetHazardousVersion(HeadPointer &currentHead, HeadPointer &nextHead);
+    void clearHazardousVersion();
 
     // XXX: theFoo members look misplaced due to messy separation of PagePool
     // (which should support multiple Segments but does not) and PageStack
@@ -108,7 +138,20 @@ private:
     std::atomic<PageCount> size_;
 
     /// the index of the first free stack element or nil
-    std::atomic<Slot::Pointer> head_;
+    std::atomic<HeadPointer> head_;
+
+    /// An estimated number of non-zero hazards_ entries.
+    /// This common-case optimization avoids scanning all-zero hazards_.
+    std::atomic<size_t> hazardousVersionCount_;
+
+    typedef std::atomic<HeadPointer::Version> HazardousVersion;
+    /// We limit the number of kids at compile time so that we can allocate both
+    /// hazards_ and slots_ in a shared memory segment. To support more kids or
+    /// to reduce wasteful overallocation, we could manually compute hazards_
+    /// and slots_ addresses (inside the shared memory segment) instead of
+    /// relying on the C++ compiler to do that for us.
+    typedef std::array<HazardousVersion, 256> HazardousVersions;
+    HazardousVersions hazards_;
 
     /// slots indexed using their page number
     Ipc::Mem::FlexibleArray<Slot> slots_;
