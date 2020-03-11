@@ -72,7 +72,7 @@ bool InDaemonMode(); // try using specific Iam*() checks above first
 /// Whether there should be more than one worker process running
 bool UsingSmp(); // try using specific Iam*() checks above first
 /// number of Kid processes as defined in src/ipc/Kid.h
-int NumberOfKids();
+size_t NumberOfKids();
 /// a string describing this process roles such as worker or coordinator
 SBuf ProcessRoles();
 

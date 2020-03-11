@@ -682,7 +682,7 @@ IamPrimaryProcess()
     return IamCoordinatorProcess();
 }
 
-int
+size_t
 NumberOfKids()
 {
     // no kids in no-daemon mode
@@ -691,7 +691,7 @@ NumberOfKids()
 
     // XXX: detect and abort when called before workers/cache_dirs are parsed
 
-    const int rockDirs = Config.cacheSwap.n_strands;
+    const size_t rockDirs = static_cast<size_t>(Config.cacheSwap.n_strands);
 
     const bool needCoord = Config.workers > 1 || rockDirs > 0;
     return (needCoord ? 1 : 0) + Config.workers + rockDirs;
