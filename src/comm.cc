@@ -1282,14 +1282,17 @@ commHandleWriteHelper(void * data)
     do {
         // check that the head descriptor is still relevant
         const int head = clientInfo->quotaPeekFd();
+        auto headFde = &fd_table[head];
         Comm::IoCallback *ccb = COMMIO_FD_WRITECB(head);
 
-        if (fd_table[head].clientInfo == clientInfo &&
+        if (headFde->clientInfo == clientInfo &&
                 clientInfo->quotaPeekReserv() == ccb->quotaQueueReserv &&
-                !fd_table[head].closing()) {
+                !headFde->closing()) {
 
+            CodeContext::Reset(headFde->codeContext);
             // wait for the head descriptor to become ready for writing
             Comm::SetSelect(head, COMM_SELECT_WRITE, Comm::HandleWrite, ccb, 0);
+            CodeContext::Reset();
             clientInfo->selectWaiting = true;
             return;
         }
@@ -1474,6 +1477,7 @@ CommQuotaQueue::enqueue(int fd)
     debugs(77,5, "clt" << (const char*)clientInfo->key <<
            ": FD " << fd << " with qqid" << (ins+1) << ' ' << fds.size());
     fds.push_back(fd);
+    fd_table[fd].codeContext = CodeContext::Current();
     return ++ins;
 }
 
