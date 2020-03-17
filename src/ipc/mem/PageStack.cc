@@ -10,44 +10,396 @@
 
 #include "squid.h"
 
-#include "base/TextException.h"
 #include "Debug.h"
 #include "ipc/mem/Page.h"
 #include "ipc/mem/PageStack.h"
-#include "sbuf/Stream.h"
-#include "tools.h"
 
-#include <unordered_set>
+#include <cmath>
+#include <algorithm>
 
-/* Ipc::Mem::PageStackStorageSlot */
-
-static_assert(sizeof(Ipc::Mem::PageStackStorageSlot::Pointer) ==
-    sizeof(decltype(Ipc::Mem::PageId::number)), "page indexing types are consistent");
-
-void
-Ipc::Mem::PageStackStorageSlot::take()
+namespace Ipc
 {
-    const auto nxt = nextOrMarker.exchange(TakenPage);
-    assert(nxt != TakenPage);
+
+namespace Mem
+{
+
+/// the maximum number of pages that a leaf node can store
+static const IdSet::size_type BitsPerLeaf = 64;
+
+class IdSetPosition
+{
+public:
+    using size_type = IdSet::size_type;
+
+    IdSetPosition() = default; ///< root node position
+    IdSetPosition(size_type aLevel, size_type anOffset);
+
+    /// whether we are at the top of the tree
+    bool atRoot() const { return !level && !offset; }
+
+    /// which direction is this position from our parent node
+    IdSetNavigationDirection ascendDirection() const;
+
+    /// the number of levels above us (e.g., zero for the root node)
+    IdSet::size_type level = 0;
+    /// the number of nodes (at our level) to the left of us
+    IdSet::size_type offset = 0;
+};
+
+/// a helper class to perform inner node manipulation for IdSet
+class IdSetInnerNode
+{
+public:
+    using size_type = IdSet::size_type;
+    typedef uint64_t Packed; ///< (atomically) stored serialized value
+
+    /// de-serializes a given value
+    static IdSetInnerNode Unpack(Packed packed);
+
+    IdSetInnerNode() = default;
+    IdSetInnerNode(size_type left, size_type right);
+
+    /// returns a serializes value suitable for shared memory storage
+    Packed pack() const { return (static_cast<Packed>(left) << 32) | right; }
+
+    size_type left = 0; ///< the number of available IDs in the left subtree
+    size_type right = 0; ///< the number of available IDs in the right subtree
+};
+
+} // namespace Mem
+
+} // namespace Ipc
+
+/* Ipc::Mem::IdSetPosition */
+
+Ipc::Mem::IdSetPosition::IdSetPosition(size_type aLevel, size_type anOffset):
+    level(aLevel),
+    offset(anOffset)
+{
+}
+
+Ipc::Mem::IdSetNavigationDirection
+Ipc::Mem::IdSetPosition::ascendDirection() const
+{
+    return (offset % 2 == 0) ? dirLeft : dirRight;
+}
+
+/* Ipc::Mem::IdSetMeasurements */
+
+Ipc::Mem::IdSetMeasurements::IdSetMeasurements(const size_type aCapacity)
+{
+    capacity = aCapacity;
+
+    // For simplicity, we want a perfect full binary tree with root and leaves.
+    // We could compute all this with log2() calls, but rounding and honoring
+    // root+leaves minimums make that approach more complex than this fast loop.
+    requestedLeafNodeCount = (capacity + (BitsPerLeaf-1))/BitsPerLeaf;
+    treeHeight = 1+1; // the root level plus the leaf nodes level
+    leafNodeCount = 2; // the root node can have only two leaf nodes
+    while (leafNodeCount < requestedLeafNodeCount) {
+        leafNodeCount *= 2;
+        ++treeHeight;
+    }
+    innerLevelCount = treeHeight - 1;
+
+    debugs(54, 5, "rounded capacity up from " << capacity << " to " << (leafNodeCount*BitsPerLeaf));
+
+    // we do (1 << level) when computing 32-bit IdSetInnerNode::left
+    assert(treeHeight < 32);
+}
+
+/* Ipc::Mem::IdSetInnerNode */
+
+Ipc::Mem::IdSetInnerNode::IdSetInnerNode(size_type aLeft, size_type aRight):
+    left(aLeft),
+    right(aRight)
+{
+}
+
+Ipc::Mem::IdSetInnerNode
+Ipc::Mem::IdSetInnerNode::Unpack(Packed packed)
+{
+    // truncation during the cast is intentional here
+    return IdSetInnerNode(packed >> 32, static_cast<uint32_t>(packed));
+}
+
+/* Ipc::Mem::IdSet */
+
+Ipc::Mem::IdSet::IdSet(const size_type capacity):
+    measurements(capacity),
+    nodes_(capacity)
+{
+    // For valueAddress() to be able to return a raw uint64_t pointer, the
+    // atomic wrappers in nodes_ must be zero-size. Check the best we can. Once.
+    static_assert(sizeof(StoredNode) == sizeof(Node), "atomic locks use no storage");
+    assert(StoredNode().is_lock_free());
+
+    makeFullBeforeSharing();
 }
 
 void
-Ipc::Mem::PageStackStorageSlot::put(const PointerOrMarker expected, const Pointer nxt)
+Ipc::Mem::IdSet::makeFullBeforeSharing()
 {
-    assert(nxt != TakenPage);
-    const auto old = nextOrMarker.exchange(nxt);
-    assert(old == expected);
+    // initially, all IDs are marked as available
+    fillAllNodes();
+
+    // ... but IDs beyond the requested capacity should not be available
+    if (measurements.capacity != measurements.leafNodeCount*BitsPerLeaf)
+        truncateExtras();
 }
 
-/* Ipc::Mem::PageStackHeadPointer */
+/// populates the entire allocated tree with available IDs
+/// may exceed the requested capacity; \see truncateExtras()
+void
+Ipc::Mem::IdSet::fillAllNodes()
+{
+    // leaf nodes
+    auto pos = Position(measurements.treeHeight-1, 0);
+    const auto allOnes = ~uint64_t(0);
+    std::fill_n(valueAddress(pos), measurements.leafNodeCount, allOnes);
 
-static_assert(sizeof(Ipc::Mem::PageStackHeadPointer) <= sizeof(uint64_t),
-    "PageStackHeadPointer is likely to be lock-free on supported performance-focused platforms");
+    // inner nodes, starting from the bottom of the tree
+    auto nodesAtLevel = measurements.leafNodeCount/2;
+    auto pagesBelow = BitsPerLeaf;
+    do {
+        pos = ascend(pos);
+        const auto value = IdSetInnerNode(pagesBelow, pagesBelow).pack();
+        std::fill_n(valueAddress(pos), nodesAtLevel, value);
+        nodesAtLevel /= 2;
+        pagesBelow *= 2;
+    } while (!pos.atRoot());
+}
+
+/// effectively removes IDs that exceed the requested capacity after makeFull()
+void
+Ipc::Mem::IdSet::truncateExtras()
+{
+    // leaf nodes
+    // the left-most leaf with zero(s); it may even have no ones at all
+    auto pos = Position(measurements.treeHeight-1, measurements.capacity/BitsPerLeaf);
+    leafTruncate(pos, measurements.capacity % BitsPerLeaf);
+    const auto rightLeaves = measurements.leafNodeCount - measurements.requestedLeafNodeCount;
+    // this nullification of leaves is only necessary to trigger asserts if
+    // there is a bug in the code that updates inner nodes/counters below
+    if (rightLeaves > 1)
+        std::fill_n(valueAddress(pos) + 1, rightLeaves-1, 0);
+
+    // inner nodes, starting from the bottom of the tree; optimization: only
+    // adjusting nodes on the way up from the first leaf-with-0s position
+    auto toSubtract = BitsPerLeaf - (measurements.capacity % BitsPerLeaf);
+    do {
+        const auto direction = pos.ascendDirection();
+        pos = ascend(pos);
+        toSubtract = innerTruncate(pos, direction, toSubtract);
+    } while (!pos.atRoot());
+}
+
+/// fill the leaf node at a given position with 0s, leaving only idsToKeep IDs
+void
+Ipc::Mem::IdSet::leafTruncate(const Position pos, const size_type idsToKeep)
+{
+    Node &node = *valueAddress(pos); // no auto to simplify the asserts() below
+    assert(node == std::numeric_limits<Node>::max()); // all 1s
+    static_assert(std::is_unsigned<Node>::value, "right shift prepends 0s");
+    node >>= BitsPerLeaf - idsToKeep;
+    // node be anything here, including becoming zero or staying the same
+}
+
+/// accounts for toSubtract IDs removal from a subtree in the given direction of
+/// the given position
+/// \returns the number of IDs to subtract from the parent node
+Ipc::Mem::IdSet::size_type
+Ipc::Mem::IdSet::innerTruncate(const Position pos, const NavigationDirection dir, const size_type toSubtract)
+{
+    auto *valuePtr = valueAddress(pos);
+    auto value = IdSetInnerNode::Unpack(*valuePtr);
+    size_type toSubtractNext = 0;
+    if (dir == dirLeft) {
+        toSubtractNext = toSubtract + value.right;
+        assert(value.left >= toSubtract);
+        value.left -= toSubtract;
+        value.right = 0;
+    } else {
+        assert(dir == dirRight);
+        toSubtractNext = toSubtract;
+        assert(value.right >= toSubtract);
+        value.left = value.left;
+        value.right -= toSubtract;
+    }
+    *valuePtr = value.pack();
+    return toSubtractNext;
+}
+
+/// accounts for an ID added to subtree in the given dir from the given position
+void
+Ipc::Mem::IdSet::innerPush(const Position pos, const NavigationDirection dir)
+{
+    // either left or right component will be true/1; the other will be false/0
+    const auto increment = IdSetInnerNode(dir == dirLeft, dir == dirRight).pack();
+    const auto previousValue = nodeAt(pos).fetch_add(increment);
+    // no overflows
+    assert(previousValue <= std::numeric_limits<Node>::max() - increment);
+}
+
+/// accounts for future ID removal from a subtree of the given position
+/// \returns the direction of the subtree chosen to relinquish the ID
+Ipc::Mem::IdSet::NavigationDirection
+Ipc::Mem::IdSet::innerPop(const Position pos)
+{
+    NavigationDirection direction = dirNone;
+
+    auto &node = nodeAt(pos);
+    auto oldValue = node.load();
+    IdSetInnerNode newValue;
+    do {
+        newValue = IdSetInnerNode::Unpack(oldValue);
+        if (newValue.left) {
+            --newValue.left;
+            direction = dirLeft;
+        } else if (newValue.right) {
+            --newValue.right;
+            direction = dirRight;
+        } else {
+            return dirEnd;
+        }
+    } while (!node.compare_exchange_weak(oldValue, newValue.pack()));
+
+    assert(direction == dirLeft || direction == dirRight);
+    return direction;
+}
+
+/// adds the given ID to the leaf node at the given position
+void
+Ipc::Mem::IdSet::leafPush(const Position pos, const size_type id)
+{
+    const auto mask = Node(1) << (id % BitsPerLeaf);
+    const auto oldValue = nodeAt(pos).fetch_or(mask);
+    // this was a new entry
+    assert((oldValue & mask) == 0);
+}
+
+// TODO: After switching to C++20, use countr_zero() which may compile to a
+// single TZCNT assembly instruction on modern CPUs.
+/// a temporary C++20 countr_zero() replacement
+static inline
+int trailingZeros(uint64_t x)
+{
+    if (!x)
+        return 64;
+    int count = 0;
+    for (uint64_t mask = 1; !(x & mask); mask <<= 1)
+        ++count;
+    return count;
+}
+
+/// extracts and returns an ID from the leaf node at the given position
+Ipc::Mem::IdSet::size_type
+Ipc::Mem::IdSet::leafPop(const Position pos)
+{
+    auto &node = nodeAt(pos);
+    auto oldValue = node.load();
+    Node newValue;
+    do {
+        assert(oldValue > 0);
+        const auto mask = oldValue - 1; // flips (the last 1 and trailing 0s)
+        newValue = oldValue & mask;
+    } while (!node.compare_exchange_weak(oldValue, newValue));
+
+    return pos.offset*BitsPerLeaf + trailingZeros(oldValue);
+}
+
+/// \returns the position of a parent node of the node at the given position
+Ipc::Mem::IdSet::Position
+Ipc::Mem::IdSet::ascend(Position pos)
+{
+    assert(pos.level > 0);
+    --pos.level;
+    pos.offset /= 2;
+    return pos;
+}
+
+/// \returns the position of a child node in the given direction of the parent
+/// node at the given position
+Ipc::Mem::IdSet::Position
+Ipc::Mem::IdSet::descend(Position pos, const NavigationDirection direction)
+{
+    assert(pos.level < measurements.treeHeight);
+    ++pos.level;
+
+    pos.offset *= 2;
+    if (direction == dirRight)
+        ++pos.offset;
+    else
+        assert(direction == dirLeft);
+
+    return pos;
+}
+
+/// \returns the atomic node (either inner or leaf) at the given position
+Ipc::Mem::IdSet::StoredNode &
+Ipc::Mem::IdSet::nodeAt(const Position pos)
+{
+    assert(pos.level < measurements.treeHeight);
+    // n = 2^(h+1) - 1 with h = level-1
+    const auto nodesAbove = (1U << pos.level) - 1;
+
+    // the second clause is for the special case of a root node
+    assert(pos.offset < nodesAbove*2 || (pos.atRoot() && nodesAbove == 0));
+    const auto nodesToTheLeft = pos.offset;
+
+    const size_t nodesBefore = nodesAbove + nodesToTheLeft;
+    assert(nodesBefore < measurements.nodeCount());
+    return nodes_[nodesBefore];
+}
+
+/// \returns the location of the raw (inner or leaf) node at the given position
+Ipc::Mem::IdSet::Node *
+Ipc::Mem::IdSet::valueAddress(const Position pos)
+{
+    // IdSet() constructor asserts that this frequent reinterpret_cast is safe
+    return &reinterpret_cast<Node&>(nodeAt(pos));
+}
 
 bool
-Ipc::Mem::PageStackHeadPointer::operator ==(const PageStackHeadPointer &them) const
+Ipc::Mem::IdSet::pop(size_type &id)
 {
-    return first == them.first && version == them.version;
+    Position rootPos;
+    const auto directionFromRoot = innerPop(rootPos);
+    if (directionFromRoot == dirEnd)
+        return false; // an empty tree
+
+    auto pos = descend(rootPos, directionFromRoot);
+    for (size_t level = 1; level < measurements.innerLevelCount; ++level) {
+        const auto direction = innerPop(pos);
+        pos = descend(pos, direction);
+    }
+
+    id = leafPop(pos);
+    return true;
+}
+
+void
+Ipc::Mem::IdSet::push(const size_type id)
+{
+    const auto offsetAtLeafLevel = id/BitsPerLeaf;
+    auto pos = Position(measurements.innerLevelCount, offsetAtLeafLevel);
+    leafPush(pos, id);
+
+    do {
+        const auto direction = pos.ascendDirection();
+        pos = ascend(pos);
+        innerPush(pos, direction);
+    } while (!pos.atRoot());
+}
+
+size_t
+Ipc::Mem::IdSet::MemorySize(const size_type capacity)
+{
+    const IdSetMeasurements measurements(capacity);
+    // Adding sizeof(IdSet) double-counts the first node but it is better to
+    // overestimate (a little) than to underestimate our memory needs due to
+    // padding, new data members, etc.
+    return sizeof(IdSet) + measurements.nodeCount() * sizeof(StoredNode);
 }
 
 /* Ipc::Mem::PageStack */
@@ -55,170 +407,9 @@ Ipc::Mem::PageStackHeadPointer::operator ==(const PageStackHeadPointer &them) co
 Ipc::Mem::PageStack::PageStack(const uint32_t aPoolId, const PageCount aCapacity, const size_t aPageSize):
     thePoolId(aPoolId), capacity_(aCapacity), thePageSize(aPageSize),
     size_(0),
-    head_(HeadPointer({Slot::NilPtr, 0})), // XXX
-    hazards_(),
-    slots_(aCapacity)
+    ids_(capacity_)
 {
-    assert(capacity_ < Slot::TakenPage);
-    assert(capacity_ < Slot::NilPtr);
-
-    if (NumberOfKids() >= hazards_.size()) {
-        throw TexcHere(ToSBuf("The total number of kid processes (", NumberOfKids(),
-            ") exceeds the current internal SMP code limit (", hazards_.size()-1, ")"));
-    }
-
-    // initially, all pages are free
-    if (capacity_) {
-        const auto lastIndex = capacity_-1;
-        // FlexibleArray cannot construct its phantom elements so, technically,
-        // all slots (except the very first one) are uninitialized until now.
-        for (Slot::Pointer i = 0; i < lastIndex; ++i)
-            (void)new(&slots_[i])Slot(i+1);
-        (void)new(&slots_[lastIndex])Slot(Slot::NilPtr);
-        size_ = capacity_;
-        head_.store(HeadPointer({0, 1})); // XXX
-    }
-}
-
-/// initiates hazardous version maintenance
-void
-Ipc::Mem::PageStack::initHazardousVersion()
-{
-    const auto concurrencyLevel = ++hazardousVersionCount_;
-    assert(concurrencyLevel > 0); // no overflows
-
-    // if pop() finds a stale version, then this kid process was restarted, and
-    // we should mimic a clearHazardousVersion() call the died kid could not run
-    if (hazards_[KidIdentifier].load()) {
-        assert(hazardousVersionCount_ > 1);
-        --hazardousVersionCount_;
-    }
-}
-
-/// forget the hazardous version recorded during the same pop() call
-void
-Ipc::Mem::PageStack::clearHazardousVersion()
-{
-    hazards_[KidIdentifier].store(0); // may already be zero or even stale
-    const auto concurrencyLevel = hazardousVersionCount_--;
-    assert(concurrencyLevel > 0); // no underflows
-}
-
-/// sync our hazardous version declaration and nextHead with currentHead,
-/// resetting currentHead if needed to keep all three consistent
-/// \retval false signals an empty stack (and the end of push)
-bool
-Ipc::Mem::PageStack::resetHazardousVersion(HeadPointer &currentHead, HeadPointer &nextHead)
-{
-    while (currentHead.first != Slot::NilPtr) {
-        assert(currentHead.version);
-        hazards_[KidIdentifier].store(currentHead.version);
-        if (head_.load() == currentHead) {
-            // success: ABA#3 has not started before/while we declared hazards
-
-            // Another pop() may nullify A.next() without noticing our
-            // currentHead.version hazard set above, but a push() will need to
-            // return the head_.first value to currentHead.first after that, and
-            // that is when they must notice/honor our hazard, blocking ABA#4.
-            nextHead.first = slots_[currentHead.first].next(); // may be nil, taken, stale
-            nextHead.version = hazardlessVersionForPop();
-            return true;
-        }
-        // ABA#2 has happened already. Thus, it is possible that ABA#3 started
-        // before we stored our hazardous version. Restart from scratch.
-        currentHead = head_.load();
-    }
-    clearHazardousVersion();
-    return false; // the stack is empty
-}
-
-/// hazardlessVersion*() helper
-/// \returns the next (possibly hazardous) version
-Ipc::Mem::PageStack::HeadPointer::Version
-Ipc::Mem::PageStack::nextVersion() const
-{
-    // spread initial versions among kids to reduce collisions
-    using Version = HeadPointer::Version;
-    static const size_t ConcurrencyLimit = NumberOfKids() + 1;
-    static Version LastVersion = KidIdentifier *
-        (std::numeric_limits<Version>::max() / ConcurrencyLimit);
-
-    static_assert(std::is_unsigned<decltype(LastVersion)>::value,
-        "version iterator overflows to zero");
-    const auto candidate = ++LastVersion;
-    return candidate ? candidate : ++LastVersion;
-}
-
-/// \returns version that differs from any declared (at call time) hazards
-/// \param lonely whether there are no other/concurrent pop() calls
-/// Call via hazardlessVersionForPop() or hazardlessVersionForPush().
-Ipc::Mem::PageStack::HeadPointer::Version
-Ipc::Mem::PageStack::hazardlessVersion(const bool lonely) const
-{
-    // The ABA problem:
-    // 1. an endangered pop() remembers that head is A, A.next is B and pauses
-    // ... zero or more push/pop events, ending with ...
-    // 2. another pop() extracts A and makes head=B
-    // ... zero or more push/pop events, ending with ...
-    // 3. a dangerous push() or pop() that makes head=A; A.next becomes some C
-    // 4. an endangered pop() resumes and extracts A, making head=B instead of C
-    //
-    // Hazardous version declarations may change at any time. This method may
-    // return a version that became hazardous during the search, but that is OK:
-    // To prevent ABA, we only need to fail the endangered pop() in ABA#4. That
-    // pop() will fail if ABA#3 sets a version different from the "hazardous"
-    // version declared in ABA#1. ABA#3 starts _after_ the end of ABA#1 because
-    // there is a required ABA#2 between them -- somebody needs to pop A for
-    // ABA#3 to become possible. To make sure that ABA#1 ends before ABA#2 ends
-    // (and, hence, before ABA#3 starts), ABA#1 must record the hazardous
-    // version before that version (and A) disappear. The loop in
-    // resetHazardousVersion() does that.
-
-    // Optimization: We expect most push() and pop() calls to run solo. Without
-    // other/concurrent pop() calls, there are no hazards _we_ need to avoid.
-    if (lonely)
-        return nextVersion();
-
-    // to avoid an (infinitely small) probability of an infinite loop, copy all
-    const auto kidCount = NumberOfKids() + 1;
-    static std::unordered_set<HeadPointer::Version> versions(kidCount+1);
-    versions.clear();
-    for (size_t kid = 0; kid <= kidCount; ++kid) {
-        if (const auto version = hazards_[kid].load())
-            versions.insert(version); // may already be there
-    }
-
-    auto attemptsRemaining = versions.size() + 1;
-    do {
-        const auto candidate = nextVersion();
-        if (versions.find(candidate) == versions.end())
-            return candidate;
-    } while (--attemptsRemaining);
-
-    // Unreachable: At least one of the n+1 unique candidates must be different
-    // from any of the n saved numbers.
-    assert(false);
-    return 0;
-}
-
-/// \returns version that differs from any declared (at call time) hazards
-/// This is a hazardlessVersion() wrapper optimized for pop() context.
-Ipc::Mem::PageStack::HeadPointer::Version
-Ipc::Mem::PageStack::hazardlessVersionForPop() const
-{
-    // pop() increases hazardousVersionCount_ so level 1 means we are alone
-    const auto noPops = hazardousVersionCount_ == 1;
-    return hazardlessVersion(noPops);
-}
-
-/// \returns version that differs from any declared (at call time) hazards
-/// This is a hazardlessVersion() wrapper optimized for push() context.
-Ipc::Mem::PageStack::HeadPointer::Version
-Ipc::Mem::PageStack::hazardlessVersionForPush() const
-{
-    // Optimization: We expect no contention in most cases.
-    const auto noPops = !hazardousVersionCount_;
-    return hazardlessVersion(noPops);
+    size_ = capacity_;
 }
 
 bool
@@ -226,29 +417,21 @@ Ipc::Mem::PageStack::pop(PageId &page)
 {
     assert(!page);
 
-    initHazardousVersion();
-    HeadPointer current = head_.load();
-    HeadPointer newHead;
-    do {
-        if (!resetHazardousVersion(current, newHead))
-            return false; // empty stack
+    if (!capacity_)
+        return false;
 
-        // Somebody may declare our newHead.version hazardous now, but if they
-        // do it for the same newHead.first pointer, then our exchange below
-        // will fail (because head_ has already changed on us).
-
-    } while (!head_.compare_exchange_weak(current, newHead));
-    clearHazardousVersion();
+    IdSet::size_type pageIndex = 0;
+    if (!ids_.pop(pageIndex))
+        return false;
 
     // must decrement after removing the page to avoid underflow
     const auto newSize = --size_;
     assert(newSize < capacity_);
 
-    const auto pageIndex = current.first;
-    slots_[pageIndex].take();
     page.number = pageIndex + 1;
     page.pool = thePoolId;
     debugs(54, 8, page << " size: " << newSize);
+    assert(pageIdIsValid(page));
     return true;
 }
 
@@ -259,26 +442,12 @@ Ipc::Mem::PageStack::push(PageId &page)
     assert(page);
     assert(pageIdIsValid(page));
 
-    const auto pageIndex = page.number - 1;
-    HeadPointer newHead{pageIndex, 0};
-
-    // Somebody may declare our newHead.version hazardous at any time, but they
-    // cannot do it for our newHead.first pointer because it is not in the stack
-    // until we exchange the heads below.
-
-    auto &slot = slots_[pageIndex];
-
     // must increment before inserting the page to avoid underflow in pop()
     const auto newSize = ++size_;
     assert(newSize <= capacity_);
 
-    auto current = head_.load();
-    auto expected = Slot::TakenPage;
-    do {
-        slot.put(expected, current.first);
-        expected = current.first;
-        newHead.version = hazardlessVersionForPush();
-    } while (!head_.compare_exchange_weak(current, newHead));
+    const auto pageIndex = page.number - 1;
+    ids_.push(pageIndex);
 
     debugs(54, 8, page << " size: " << newSize);
     page = PageId();
@@ -308,7 +477,10 @@ Ipc::Mem::PageStack::SharedMemorySize(const uint32_t, const PageCount capacity, 
 size_t
 Ipc::Mem::PageStack::StackSize(const PageCount capacity)
 {
-    return sizeof(PageStack) + capacity * sizeof(Slot);
+    // Adding sizeof(PageStack) double-counts the fixed portion of the ids_ data
+    // member but it is better to overestimate (a little) than to underestimate
+    // our memory needs due to padding, new data members, etc.
+    return sizeof(PageStack) + IdSet::MemorySize(capacity);
 }
 
 size_t

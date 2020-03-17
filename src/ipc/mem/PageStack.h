@@ -23,59 +23,83 @@ namespace Mem
 
 class PageId;
 
-/// reflects the dual nature of PageStack storage:
-/// - for free pages, this is a pointer to the next free page
-/// - for used pages, this is a "used page" marker
-class PageStackStorageSlot
+class IdSetPosition;
+typedef enum { dirNone, dirLeft, dirRight, dirEnd } IdSetNavigationDirection;
+
+/// basic IdSet storage parameters, extracted here to keep them constant
+class IdSetMeasurements
 {
 public:
-    // We are using uint32_t for Pointer because PageId::number is uint32_t.
-    // PageId::number should probably be uint64_t to accommodate caches with
-    // page numbers exceeding UINT32_MAX.
-    typedef uint32_t PointerOrMarker;
-    typedef PointerOrMarker Pointer;
-    typedef PointerOrMarker Marker;
+    /// we need to fit two size_type counters into one 64-bit lockless atomic
+    typedef uint32_t size_type;
 
-    /// represents a nil next slot pointer
-    static const Pointer NilPtr = std::numeric_limits<PointerOrMarker>::max();
-    /// marks a slot of a used (i.e. take()n) page
-    static const Marker TakenPage = std::numeric_limits<PointerOrMarker>::max() - 1;
-    static_assert(TakenPage != NilPtr, "magic PointerOrMarker values do not clash");
+    explicit IdSetMeasurements(size_type capacity);
 
-    explicit PageStackStorageSlot(const Pointer nxt = NilPtr): nextOrMarker(nxt) {}
+    /// the maximum number of pages our tree is allowed to store
+    size_type capacity = 0;
 
-    /// returns a (possibly nil) pointer to the next free page
-    Pointer next() const { return nextOrMarker.load(); }
+    /// the number of leaf nodes that satisfy capacity requirements
+    size_type requestedLeafNodeCount = 0;
 
-    /// marks our page as used
-    void take();
+    size_type treeHeight = 0; ///< total number of levels, including the leaf level
+    size_type leafNodeCount = 0; ///< the number of nodes at the leaf level
+    size_type innerLevelCount = 0; ///< all levels except the leaf level
 
-    /// marks our page as free, to be used before the given `nxt` page;
-    /// also checks that the slot state matches the caller expectations
-    void put(const PointerOrMarker expected, const Pointer nxt);
-
-private:
-    std::atomic<PointerOrMarker> nextOrMarker;
+    /// the total number of nodes at all levels
+    size_type nodeCount() const { return leafNodeCount ? leafNodeCount*2 -1 : 0; }
 };
 
-/// safely points to the beginning of the page stack
-class PageStackHeadPointer
+/// a shareable set of positive uint32_t IDs with O(1) insertion/removal ops
+class IdSet
 {
 public:
-    bool operator ==(const PageStackHeadPointer &them) const;
-    bool operator !=(const PageStackHeadPointer &them) const { return !(*this == them); }
+    using size_type = IdSetMeasurements::size_type;
+    using Position = IdSetPosition;
+    using NavigationDirection = IdSetNavigationDirection;
 
-    using Pointer = PageStackStorageSlot::Pointer;
+    /// memory size required to store a tree with the given capacity
+    static size_t MemorySize(size_type capacity);
 
-    /// An opaque nonce value: PageStack uses this nonce in combination of the
-    /// first field to make sure that the stack head pointer is unique among
-    /// critical sections of concurrent pop()/push() callers, allowing detection
-    /// of stack changes, including changes ordinarily leading to ABA problems.
-    /// The value of zero is used as a "no version" marker.
-    typedef uint32_t Version;
+    explicit IdSet(size_type capacity);
 
-    Pointer first; ///< the location of the stack slot to be popped first
-    Version version; ///< reflects changes in stack as a whole; \see Version
+    /// populates the allocated tree with the requested capacity IDs
+    /// optimized to run without atomic protection
+    void makeFullBeforeSharing();
+
+    /// finds/extracts (into the given `id`) an ID value and returns true
+    /// \retval false no IDs are left
+    bool pop(size_type &id);
+
+    /// makes `id` value available to future pop() callers
+    void push(size_type id);
+
+    const IdSetMeasurements measurements;
+
+private:
+    typedef uint64_t Node; ///< either leaf or intermediate node
+    typedef std::atomic<Node> StoredNode; ///< a Node stored in shared memory
+
+    /* optimization: these initialization methods bypass atomic protections */
+    void fillAllNodes();
+    void truncateExtras();
+    Node *valueAddress(Position);
+    size_type innerTruncate(Position pos, NavigationDirection dir, size_type toSubtract);
+    void leafTruncate(Position pos, size_type idsToKeep);
+
+    void innerPush(Position, NavigationDirection);
+    NavigationDirection innerPop(Position);
+
+    void leafPush(Position, size_type id);
+    size_type leafPop(Position);
+
+    Position ascend(Position);
+    Position descend(Position, NavigationDirection);
+
+    StoredNode &nodeAt(Position);
+
+    /// the entire binary tree flattened into an array
+    FlexibleArray<StoredNode> nodes_;
+    // No more data members should follow! See FlexibleArray<> for details.
 };
 
 /// Atomic container of "free" PageIds. Detects (some) double-free bugs.
@@ -116,17 +140,6 @@ public:
     size_t stackSize() const;
 
 private:
-    using Slot = PageStackStorageSlot;
-    using HeadPointer = PageStackHeadPointer;
-
-    HeadPointer::Version nextVersion() const;
-    HeadPointer::Version hazardlessVersion(bool lonely) const;
-    HeadPointer::Version hazardlessVersionForPop() const;
-    HeadPointer::Version hazardlessVersionForPush() const;
-    void initHazardousVersion();
-    bool resetHazardousVersion(HeadPointer &currentHead, HeadPointer &nextHead);
-    void clearHazardousVersion();
-
     // XXX: theFoo members look misplaced due to messy separation of PagePool
     // (which should support multiple Segments but does not) and PageStack
     // (which should not calculate the Segment size but does) duties.
@@ -137,25 +150,8 @@ private:
     /// a lower bound for the number of free pages (for debugging purposes)
     std::atomic<PageCount> size_;
 
-    /// the index of the first free stack element or nil
-    std::atomic<HeadPointer> head_;
-
-    /// An estimated number of non-zero hazards_ entries.
-    /// This common-case optimization avoids scanning all-zero hazards_.
-    std::atomic<size_t> hazardousVersionCount_;
-
-    typedef std::atomic<HeadPointer::Version> HazardousVersion;
-    /// We limit the number of kids at compile time so that we can allocate both
-    /// hazards_ and slots_ in a shared memory segment. To support more kids or
-    /// to reduce wasteful overallocation, we could manually compute hazards_
-    /// and slots_ addresses (inside the shared memory segment) instead of
-    /// relying on the C++ compiler to do that for us.
-    typedef std::array<HazardousVersion, 256> HazardousVersions;
-    HazardousVersions hazards_;
-
-    /// slots indexed using their page number
-    Ipc::Mem::FlexibleArray<Slot> slots_;
-    // No more data members should follow! See Ipc::Mem::FlexibleArray<> for details.
+    IdSet ids_; ///< free pages (valid with positive capacity_)
+    // No more data members should follow! See IdSet for details.
 };
 
 } // namespace Mem
