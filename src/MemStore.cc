@@ -1045,9 +1045,13 @@ MemStoreRr::create()
         return; // no memory cache configured or a misconfiguration
     }
 
+    Ipc::Mem::PageStack::Config spaceConfig;
+    spaceConfig.poolId = SpacePoolId;
+    spaceConfig.pageSize = 0; // the pages are stored in Ipc::Mem::Pages
+    spaceConfig.capacity = entryLimit;
+    spaceConfig.createFull = true; // all pages are initially available
     Must(!spaceOwner);
-    spaceOwner = shm_new(Ipc::Mem::PageStack)(SpaceLabel, SpacePoolId,
-                 entryLimit, 0);
+    spaceOwner = shm_new(Ipc::Mem::PageStack)(SpaceLabel, spaceConfig);
     Must(!mapOwner);
     mapOwner = MemStoreMap::Init(MapLabel, entryLimit);
     Must(!extrasOwner);

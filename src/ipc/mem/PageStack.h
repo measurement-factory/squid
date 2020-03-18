@@ -116,10 +116,24 @@ public:
     /// the number of (free and/or used) pages in a stack
     typedef unsigned int PageCount;
 
-    PageStack(const uint32_t aPoolId, const PageCount aCapacity, const size_t aPageSize);
+    // XXX: poolId, pageSize look misplaced due to messy separation of PagePool
+    // (which should support multiple Segments but does not) and PageStack
+    // (which should not calculate the Segment size but does) duties.
+    /// PageStack construction and SharedMemorySize calculation parameters
+    class Config {
+    public:
+        uint32_t poolId = 0; ///< pool ID
+        size_t pageSize = 0; ///< page size, used to calculate shared memory size
+        PageCount capacity = 0; ///< the maximum number of pages
 
-    PageCount capacity() const { return capacity_; }
-    size_t pageSize() const { return thePageSize; }
+        /// whether a newly created PageStack should contain capacity IDs
+        bool createFull = false;
+    };
+
+    explicit PageStack(const Config &);
+
+    PageCount capacity() const { return config_.capacity; }
+    size_t pageSize() const { return config_.pageSize; }
     /// an approximate number of free pages
     PageCount size() const { return size_.load(); }
 
@@ -131,7 +145,7 @@ public:
     bool pageIdIsValid(const PageId &page) const;
 
     /// total shared memory size required to share
-    static size_t SharedMemorySize(const uint32_t aPoolId, const PageCount capacity, const size_t pageSize);
+    static size_t SharedMemorySize(const Config &);
     size_t sharedMemorySize() const;
 
     /// shared memory size required only by PageStack, excluding
@@ -140,12 +154,7 @@ public:
     size_t stackSize() const;
 
 private:
-    // XXX: theFoo members look misplaced due to messy separation of PagePool
-    // (which should support multiple Segments but does not) and PageStack
-    // (which should not calculate the Segment size but does) duties.
-    const uint32_t thePoolId; ///< pool ID
-    const PageCount capacity_; ///< the maximum number of pages
-    const size_t thePageSize; ///< page size, used to calculate shared memory size
+    const Config config_;
 
     /// a lower bound for the number of free pages (for debugging purposes)
     std::atomic<PageCount> size_;
