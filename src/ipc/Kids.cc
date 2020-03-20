@@ -49,7 +49,7 @@ void Kids::init()
         storage.push_back(Kid(kid_name));
     }
 
-    Must(storage.size() == NumberOfKids());
+    Must(storage.size() == static_cast<size_t>(NumberOfKids()));
 }
 
 /// returns kid by pid

@@ -57,7 +57,7 @@ bool InDaemonMode() STUB_RETVAL_NOP(false)
 bool UsingSmp() STUB_RETVAL_NOP(false)
 bool IamCoordinatorProcess() STUB_RETVAL(false)
 bool IamPrimaryProcess() STUB_RETVAL(false)
-size_t NumberOfKids() STUB_RETVAL(0)
+int NumberOfKids() STUB_RETVAL(0)
 
 //not actually needed in the Stub, causes dependency on SBuf
 //SBuf ProcessRoles() STUB_RETVAL(SBuf())
