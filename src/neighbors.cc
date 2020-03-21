@@ -1408,6 +1408,9 @@ peerCountMcastPeersStart(void *data)
     const MasterXaction::Pointer mx = new MasterXaction(XactionInitiator::initPeerMcast);
     auto *req = HttpRequest::FromUrlXXX(url, mx);
     assert(req != nullptr);
+    const AccessLogEntry::Pointer ale = new AccessLogEntry;
+    ale->request = req;
+    CodeContext::Reset(ale);
     StoreEntry *fake = storeCreateEntry(url, url, RequestFlags(), Http::METHOD_GET);
     const auto psstate = new PeerSelector(nullptr);
     psstate->request = req;
@@ -1415,6 +1418,7 @@ peerCountMcastPeersStart(void *data)
     psstate->entry = fake;
     psstate->peerCountMcastPeerXXX = cbdataReference(p);
     psstate->ping.start = current_time;
+    psstate->al = ale;
     mem = fake->mem_obj;
     mem->request = psstate->request;
     mem->start_ping = current_time;
@@ -1431,6 +1435,7 @@ peerCountMcastPeersStart(void *data)
              psstate,
              Config.Timeout.mcast_icp_query / 1000.0, 1);
     p->mcast.flags.counting = true;
+    CodeContext::Reset();
     peerCountMcastPeersSchedule(p, MCAST_COUNT_RATE);
 }
 
@@ -1438,6 +1443,7 @@ static void
 peerCountMcastPeersDone(void *data)
 {
     const auto psstate = static_cast<PeerSelector*>(data);
+    CodeContext::Reset(psstate->al);
     StoreEntry *fake = psstate->entry;
 
     if (cbdataReferenceValid(psstate->peerCountMcastPeerXXX)) {
@@ -1456,6 +1462,7 @@ peerCountMcastPeersDone(void *data)
     fake->mem_obj->request = nullptr;
     fake->unlock("peerCountMcastPeersDone");
     delete psstate;
+    CodeContext::Reset();
 }
 
 static void
