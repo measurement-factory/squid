@@ -63,6 +63,8 @@ static CNCB peerProbeConnectDone;
 static void peerCountMcastPeersDone(void *data);
 static void peerCountMcastPeersStart(void *data);
 static void peerCountMcastPeersSchedule(CachePeer * p, time_t when);
+static void peerCountMcastPeersAbort(PeerSelector *);
+static void peerCountMcastPeersCreateAndSend(CachePeer *p);
 static IRCB peerCountHandleIcpReply;
 
 static void neighborIgnoreNonPeer(const Ip::Address &, icp_opcode);
@@ -1393,9 +1395,19 @@ peerCountMcastPeersSchedule(CachePeer * p, time_t when)
 static void
 peerCountMcastPeersStart(void *data)
 {
+    const auto peer = static_cast<CachePeer*>(data);
+    CallContextCreator([peer] {
+        peerCountMcastPeersCreateAndSend(peer);
+    });
+    peerCountMcastPeersSchedule(peer, MCAST_COUNT_RATE);
+}
+
+/// initiates an ICP transaction to a multicast peer
+static void
+peerCountMcastPeersCreateAndSend(CachePeer * const p)
+{
     // XXX: Do not create lots of complex fake objects (while abusing their
     // APIs) to pass around a few basic data points like start_ping and ping!
-    CachePeer *p = (CachePeer *)data;
     MemObject *mem;
     int reqnum;
     // TODO: use class AnyP::Uri instead of constructing and re-parsing a string
@@ -1435,15 +1447,23 @@ peerCountMcastPeersStart(void *data)
              psstate,
              Config.Timeout.mcast_icp_query / 1000.0, 1);
     p->mcast.flags.counting = true;
-    CodeContext::Reset();
-    peerCountMcastPeersSchedule(p, MCAST_COUNT_RATE);
 }
 
 static void
 peerCountMcastPeersDone(void *data)
 {
     const auto psstate = static_cast<PeerSelector*>(data);
-    CodeContext::Reset(psstate->al);
+    CallBack(psstate->al, [psstate] {
+        peerCountMcastPeersAbort(psstate);
+        delete psstate;
+    });
+}
+
+/// ends counting of multicast ICP replies
+/// to the ICP query initiated by peerCountMcastPeersCreateAndSend()
+static void
+peerCountMcastPeersAbort(PeerSelector * const psstate)
+{
     StoreEntry *fake = psstate->entry;
 
     if (cbdataReferenceValid(psstate->peerCountMcastPeerXXX)) {
@@ -1461,8 +1481,6 @@ peerCountMcastPeersDone(void *data)
     fake->abort(); // sets ENTRY_ABORTED and initiates releated cleanup
     fake->mem_obj->request = nullptr;
     fake->unlock("peerCountMcastPeersDone");
-    delete psstate;
-    CodeContext::Reset();
 }
 
 static void
