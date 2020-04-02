@@ -20,9 +20,6 @@
 #include "PingData.h"
 #include "typedefs.h" /* for IRCB */
 
-/// absolute time in fractional seconds, compatible with current_dtime
-typedef double PeerSelectAbsoluteTime;
-
 class ErrorState;
 class HtcpReplyData;
 class HttpRequest;
@@ -62,18 +59,16 @@ class PeerSelector;
 class PeerSelectorWait
 {
     public:
-        operator bool() const { return bool(waitEnd); }
+        operator bool() const { return waitingList; }
         /// remembers the context and adds the PeerSelector into the waiting list
-        void start(PeerSelector *selector, const PeerSelectAbsoluteTime timeout, dlink_list *list);
+        void start(PeerSelector *, dlink_list *);
         /// removes the PeerSelector from the waiting list
-        void stop(dlink_list *);
-        /// whether the PeerSelector is ready to be resumed
-        bool ready() const;
+        void stop();
 
         CodeContext::Pointer codeContext; ///< the PeerSelector context
 
     private:
-        PeerSelectAbsoluteTime waitEnd = 0; ///< an expected time when the PeerSelector will be resumed
+        dlink_list *waitingList = nullptr;
         dlink_node peerSelectorNode; ///< a node storing the PeerSelector
 };
 
