@@ -181,6 +181,7 @@ PeerSelectorTimeoutProcessor::wait()
         Must(!peerWaiting.eventScheduled);
         waitEnd_ = endTime;
         auto interval = waitEnd_ - current_dtime;
+        /// XXX: remove the pending (later) event, if any (endTime < waitEnd_ condition)
         eventAdd("PeerSelectorTimeoutProcessor::NoteWaitOver", &PeerSelectorTimeoutProcessor::NoteWaitOver, this, interval, 0, false);
         peerWaiting.eventScheduled = true;
     }
@@ -208,6 +209,7 @@ PeerSelectorTimeoutProcessor::dequeue(PeerSelector *selector)
     assert(selector->peerWaiting);
     selector->peerWaiting->stop();
     selector->peerWaiting = nullptr;
+    /// XXX:  delete the pending event if there are no awaiting peers with the given timeout
 }
 
 static const char *DirectStr[] = {
