@@ -26,6 +26,9 @@ class HttpRequest;
 class icp_common_t;
 class StoreEntry;
 
+/// absolute time in milliseconds, compatible with current_dtime
+typedef unsigned long PingAbsoluteTime;
+
 void peerSelectInit(void);
 
 /// Interface for those who need a list of peers to forward a request to.
@@ -58,18 +61,16 @@ class PeerSelector;
 /// a context for a delayed PeerSelector object
 class PeerSelectorWait
 {
-    public:
-        operator bool() const { return waitingList; }
-        /// remembers the context and adds the PeerSelector into the waiting list
-        void start(PeerSelector *, dlink_list *);
-        /// removes the PeerSelector from the waiting list
-        void stop();
+public:
+    /// remember the context for future use
+    void start(PeerSelector *, const bool hasEvent);
+    /// mark this context as unusable
+    void stop();
 
-        CodeContext::Pointer codeContext; ///< the PeerSelector context
-
-    private:
-        dlink_list *waitingList = nullptr;
-        dlink_node peerSelectorNode; ///< a node storing the PeerSelector
+    bool eventScheduled = false; ///< whether there is event for applying this context
+    bool started = false; ///< whether we can still use this context
+    PeerSelector *selector = nullptr;
+    CodeContext::Pointer codeContext; ///< the PeerSelector context
 };
 
 /// Finds peer (including origin server) IPs for forwarding a single request.
@@ -114,7 +115,7 @@ public:
 
     ping_data ping;
 
-    PeerSelectorWait peerWaiting; ///< preserves the context while waiting for ping replies
+    PeerSelectorWait *peerWaiting = nullptr; ///< preserves the context while waiting for ping replies
 
 protected:
     bool selectionAborted();
