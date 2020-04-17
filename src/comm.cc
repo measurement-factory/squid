@@ -1279,18 +1279,19 @@ commHandleWriteHelper(void * data)
     clientInfo->eventWaiting = false;
 
     do {
-        if (clientInfo->writeOrQuotaDequeue())
+        clientInfo->writeOrDequeue();
+        if (clientInfo->selectWaiting)
             return;
     } while (clientInfo->hasQueue());
 
-    debugs(77,3, HERE << "emptied queue");
+    debugs(77,3, "emptied queue");
 }
 
-bool
-ClientInfo::writeOrQuotaDequeue()
+void
+ClientInfo::writeOrDequeue()
 {
     assert(!selectWaiting);
-    const int head = quotaPeekFd();
+    const auto head = quotaPeekFd();
     const auto &headFde = fd_table[head];
     CallBack(headFde.codeContext, [&] {
         const auto ccb = COMMIO_FD_WRITECB(head);
@@ -1306,7 +1307,6 @@ ClientInfo::writeOrQuotaDequeue()
             quotaDequeue(); // remove the no longer relevant descriptor
         }
     });
-    return selectWaiting;
 }
 
 bool

@@ -78,8 +78,8 @@ public:
     unsigned int quotaPeekReserv() const; ///< returns the next reserv. to pop
     void quotaDequeue(); ///< pops queue head from queue
     void kickQuotaQueue(); ///< schedule commHandleWriteHelper call
-    /// selects the delayed head descriptor for writing or quotaDequeue()
-    bool writeOrQuotaDequeue();
+    /// either selects the head descriptor for writing or calls quotaDequeue()
+    void writeOrDequeue();
 
     /* BandwidthBucket API */
     virtual int quota() override; ///< allocate quota for a just dequeued client
