@@ -1275,33 +1275,38 @@ commHandleWriteHelper(void * data)
     assert(clientInfo);
     assert(clientInfo->hasQueue());
     assert(clientInfo->hasQueue(queue));
-    assert(!clientInfo->selectWaiting);
     assert(clientInfo->eventWaiting);
     clientInfo->eventWaiting = false;
 
     do {
-        // check that the head descriptor is still relevant
-        const int head = clientInfo->quotaPeekFd();
-        auto headFde = &fd_table[head];
-        Comm::IoCallback *ccb = COMMIO_FD_WRITECB(head);
-
-        if (headFde->clientInfo == clientInfo &&
-                clientInfo->quotaPeekReserv() == ccb->quotaQueueReserv &&
-                !headFde->closing()) {
-
-            CodeContext::Reset(headFde->codeContext);
-            // wait for the head descriptor to become ready for writing
-            Comm::SetSelect(head, COMM_SELECT_WRITE, Comm::HandleWrite, ccb, 0);
-            CodeContext::Reset();
-            clientInfo->selectWaiting = true;
+        if (clientInfo->writeOrQuotaDequeue())
             return;
-        }
-
-        clientInfo->quotaDequeue(); // remove the no longer relevant descriptor
-        // and continue looking for a relevant one
     } while (clientInfo->hasQueue());
 
     debugs(77,3, HERE << "emptied queue");
+}
+
+bool
+ClientInfo::writeOrQuotaDequeue()
+{
+    assert(!selectWaiting);
+    const int head = quotaPeekFd();
+    const auto &headFde = fd_table[head];
+    CallBack(headFde.codeContext, [&] {
+        const auto ccb = COMMIO_FD_WRITECB(head);
+        // check that the head descriptor is still relevant
+        if (headFde.clientInfo == this &&
+                quotaPeekReserv() == ccb->quotaQueueReserv &&
+                !headFde.closing()) {
+
+            // wait for the head descriptor to become ready for writing
+            Comm::SetSelect(head, COMM_SELECT_WRITE, Comm::HandleWrite, ccb, 0);
+            selectWaiting = true;
+        } else {
+            quotaDequeue(); // remove the no longer relevant descriptor
+        }
+    });
+    return selectWaiting;
 }
 
 bool
