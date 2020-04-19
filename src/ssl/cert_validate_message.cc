@@ -85,7 +85,7 @@ get_error_id(const char *label, size_t len)
     const char *e = label + len -1;
     while (e != label && xisdigit(*e)) --e;
     if (e != label) ++e;
-    return strtol(e, 0, 10);
+    return strtol(e, nullptr, 10);
 }
 
 bool
@@ -118,7 +118,7 @@ Ssl::CertValidationMsg::parseResponse(CertValidationResponse &resp, std::string 
             certs.push_back(ci);
 
             const char *b = strstr(value, "-----END CERTIFICATE-----");
-            if (b == NULL) {
+            if (b == nullptr) {
                 debugs(83, DBG_IMPORTANT, "WARNING: cert Validator response parse error: Failed  to find certificate boundary " << value);
                 return false;
             }
@@ -194,7 +194,7 @@ Ssl::CertValidationMsg::getCertByName(std::vector<CertItem> const &certs, std::s
         if (ci->name.compare(name) == 0)
             return ci->cert.get();
     }
-    return NULL;
+    return nullptr;
 }
 
 Ssl::CertValidationResponse::RecvdError &

@@ -71,12 +71,12 @@ helper *Ssl::Helper::ssl_crtd = nullptr;
 
 void Ssl::Helper::Init()
 {
-    assert(ssl_crtd == NULL);
+    assert(ssl_crtd == nullptr);
 
     // we need to start ssl_crtd only if some port(s) need to bump SSL *and* generate certificates
     // TODO: generate host certificates for SNI enabled accel ports
     bool found = false;
-    for (AnyP::PortCfgPointer s = HttpPortList; !found && s != NULL; s = s->next)
+    for (AnyP::PortCfgPointer s = HttpPortList; !found && s != nullptr; s = s->next)
         found = s->flags.tunnelSslBumping && s->secure.generateHostCertificates;
     if (!found)
         return;
@@ -87,12 +87,12 @@ void Ssl::Helper::Init()
     // The crtd messages may contain the eol ('\n') character. We are
     // going to use the '\1' char as the end-of-message mark.
     ssl_crtd->eom = '\1';
-    assert(ssl_crtd->cmdline == NULL);
+    assert(ssl_crtd->cmdline == nullptr);
     {
         char *tmp = xstrdup(Ssl::TheConfig.ssl_crtd);
         char *tmp_begin = tmp;
-        char *token = NULL;
-        while ((token = strwordtok(NULL, &tmp))) {
+        char *token = nullptr;
+        while ((token = strwordtok(nullptr, &tmp))) {
             wordlistAdd(&ssl_crtd->cmdline, token);
         }
         safe_free(tmp_begin);
@@ -107,7 +107,7 @@ void Ssl::Helper::Shutdown()
     helperShutdown(ssl_crtd);
     wordlistDestroy(&ssl_crtd->cmdline);
     delete ssl_crtd;
-    ssl_crtd = NULL;
+    ssl_crtd = nullptr;
 }
 
 void
@@ -169,11 +169,11 @@ void Ssl::CertValidationHelper::Init()
     if (!Ssl::TheConfig.ssl_crt_validator)
         return;
 
-    assert(ssl_crt_validator == NULL);
+    assert(ssl_crt_validator == nullptr);
 
     // we need to start ssl_crtd only if some port(s) need to bump SSL
     bool found = false;
-    for (AnyP::PortCfgPointer s = HttpPortList; !found && s != NULL; s = s->next)
+    for (AnyP::PortCfgPointer s = HttpPortList; !found && s != nullptr; s = s->next)
         found = s->flags.tunnelSslBumping;
     if (!found)
         return;
@@ -184,16 +184,16 @@ void Ssl::CertValidationHelper::Init()
     // The crtd messages may contain the eol ('\n') character. We are
     // going to use the '\1' char as the end-of-message mark.
     ssl_crt_validator->eom = '\1';
-    assert(ssl_crt_validator->cmdline == NULL);
+    assert(ssl_crt_validator->cmdline == nullptr);
 
     int ttl = 60;
     size_t cache = 2048;
     {
         char *tmp = xstrdup(Ssl::TheConfig.ssl_crt_validator);
         char *tmp_begin = tmp;
-        char * token = NULL;
+        char * token = nullptr;
         bool parseParams = true;
-        while ((token = strwordtok(NULL, &tmp))) {
+        while ((token = strwordtok(nullptr, &tmp))) {
             if (parseParams) {
                 if (strncmp(token, "ttl=", 4) == 0) {
                     ttl = atoi(token + 4);
@@ -211,7 +211,7 @@ void Ssl::CertValidationHelper::Init()
     helperOpenServers(ssl_crt_validator);
 
     //WARNING: initializing static member in an object initialization method
-    assert(HelperCache == NULL);
+    assert(HelperCache == nullptr);
     HelperCache = new Ssl::CertValidationHelper::LruCache(ttl, cache);
 }
 
@@ -222,13 +222,13 @@ void Ssl::CertValidationHelper::Shutdown()
     helperShutdown(ssl_crt_validator);
     wordlistDestroy(&ssl_crt_validator->cmdline);
     delete ssl_crt_validator;
-    ssl_crt_validator = NULL;
+    ssl_crt_validator = nullptr;
 
     // CertValidationHelper::HelperCache is a static member, it is not good policy to
     // reset it here. Will work because the current Ssl::CertValidationHelper is
     // always the same static object.
     delete HelperCache;
-    HelperCache = NULL;
+    HelperCache = nullptr;
 }
 
 void

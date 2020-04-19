@@ -129,7 +129,7 @@ main(int argc, char *argv[])
     // determine IPv4 or IPv6 capabilities before using sockets.
     Ip::ProbeTransport();
 
-    _db_init(NULL, debug_args);
+    _db_init(nullptr, debug_args);
 
     debugs(42, DBG_CRITICAL, "pinger: Initialising ICMP pinger ...");
 
@@ -216,7 +216,7 @@ main(int argc, char *argv[])
         }
 
         FD_SET(squid_link, &R);
-        x = select(max_fd+1, &R, NULL, NULL, &tv);
+        x = select(max_fd+1, &R, nullptr, nullptr, &tv);
         getCurrentTime();
 
         if (x < 0) {

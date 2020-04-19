@@ -29,7 +29,7 @@ LeakFinderPtr::LeakFinderPtr(void *p, const char *f, const int l) :
 {
     // XXX: these bits should be done by hash_link()
     key = p;
-    next = NULL;
+    next = nullptr;
 }
 
 /* ========================================================================= */
@@ -53,7 +53,7 @@ LeakFinder::LeakFinder() :
 void *
 LeakFinder::addSome(void *p, const char *file, int line)
 {
-    assert(hash_lookup(table, p) == NULL);
+    assert(hash_lookup(table, p) == nullptr);
     LeakFinderPtr *c = new LeakFinderPtr(p, file, line);
     hash_join(table, c);
     ++count;

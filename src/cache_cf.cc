@@ -288,14 +288,14 @@ static int
 parseManyConfigFiles(char* files, int depth)
 {
     int error_count = 0;
-    char* saveptr = NULL;
+    char* saveptr = nullptr;
 #if HAVE_GLOB
     char *path;
     glob_t globbuf;
     int i;
     memset(&globbuf, 0, sizeof(globbuf));
-    for (path = strwordtok(files, &saveptr); path; path = strwordtok(NULL, &saveptr)) {
-        if (glob(path, globbuf.gl_pathc ? GLOB_APPEND : 0, NULL, &globbuf) != 0) {
+    for (path = strwordtok(files, &saveptr); path; path = strwordtok(nullptr, &saveptr)) {
+        if (glob(path, globbuf.gl_pathc ? GLOB_APPEND : 0, nullptr, &globbuf) != 0) {
             int xerrno = errno;
             fatalf("Unable to find configuration file: %s: %s", path, xstrerr(xerrno));
         }
@@ -317,8 +317,8 @@ parseManyConfigFiles(char* files, int depth)
 static void
 ReplaceSubstr(char*& str, int& len, unsigned substrIdx, unsigned substrLen, const char* newSubstr)
 {
-    assert(str != NULL);
-    assert(newSubstr != NULL);
+    assert(str != nullptr);
+    assert(newSubstr != nullptr);
 
     unsigned newSubstrLen = strlen(newSubstr);
     if (newSubstrLen > substrLen)
@@ -335,9 +335,9 @@ ReplaceSubstr(char*& str, int& len, unsigned substrIdx, unsigned substrLen, cons
 static void
 SubstituteMacro(char*& line, int& len, const char* macroName, const char* substStr)
 {
-    assert(line != NULL);
-    assert(macroName != NULL);
-    assert(substStr != NULL);
+    assert(line != nullptr);
+    assert(macroName != nullptr);
+    assert(substStr != nullptr);
     unsigned macroNameLen = strlen(macroName);
     while (const char* macroPos = strstr(line, macroName)) // we would replace all occurrences
         ReplaceSubstr(line, len, macroPos - line, macroNameLen, substStr);
@@ -354,7 +354,7 @@ ProcessMacros(char*& line, int& len)
 static void
 trim_trailing_ws(char* str)
 {
-    assert(str != NULL);
+    assert(str != nullptr);
     unsigned i = strlen(str);
     while ((i > 0) && xisspace(str[i - 1]))
         --i;
@@ -364,8 +364,8 @@ trim_trailing_ws(char* str)
 static const char*
 FindStatement(const char* line, const char* statement)
 {
-    assert(line != NULL);
-    assert(statement != NULL);
+    assert(line != nullptr);
+    assert(statement != nullptr);
 
     const char* str = skip_ws(line);
     unsigned len = strlen(statement);
@@ -377,13 +377,13 @@ FindStatement(const char* line, const char* statement)
             return skip_ws(str);
     }
 
-    return NULL;
+    return nullptr;
 }
 
 static bool
 StrToInt(const char* str, long& number)
 {
-    assert(str != NULL);
+    assert(str != nullptr);
 
     char* end;
     number = strtol(str, &end, 0);
@@ -394,7 +394,7 @@ StrToInt(const char* str, long& number)
 static bool
 EvalBoolExpr(const char* expr)
 {
-    assert(expr != NULL);
+    assert(expr != nullptr);
     if (strcmp(expr, "true") == 0) {
         return true;
     } else if (strcmp(expr, "false") == 0) {
@@ -422,11 +422,11 @@ EvalBoolExpr(const char* expr)
 static int
 parseOneConfigFile(const char *file_name, unsigned int depth)
 {
-    FILE *fp = NULL;
+    FILE *fp = nullptr;
     const char *orig_cfg_filename = cfg_filename;
     const int orig_config_lineno = config_lineno;
-    char *token = NULL;
-    char *tmp_line = NULL;
+    char *token = nullptr;
+    char *tmp_line = nullptr;
     int tmp_line_len = 0;
     int err_count = 0;
     int is_pipe = 0;
@@ -640,7 +640,7 @@ configDoConfigure(void)
     /* Sanity checks */
 
     Config.cacheSwap.n_strands = 0; // no diskers by default
-    if (Config.cacheSwap.swapDirs == NULL) {
+    if (Config.cacheSwap.swapDirs == nullptr) {
         /* Memory-only cache probably in effect. */
         /* turn off the cache rebuild delays... */
         StoreController::store_dirs_rebuilding = 0;
@@ -693,7 +693,7 @@ configDoConfigure(void)
         if (*Config.appendDomain != '.')
             fatal("append_domain must begin with a '.'");
 
-    if (Config.errHtmlText == NULL)
+    if (Config.errHtmlText == nullptr)
         Config.errHtmlText = xstrdup(null_string);
 
 #if !HAVE_SETRLIMIT || !defined(RLIMIT_NOFILE)
@@ -839,11 +839,11 @@ configDoConfigure(void)
     Config2.onoff.enable_purge = (ACLMethodData::ThePurgeCount > 0);
 
     if (geteuid() == 0) {
-        if (NULL != Config.effectiveUser) {
+        if (nullptr != Config.effectiveUser) {
 
             struct passwd *pwd = getpwnam(Config.effectiveUser);
 
-            if (NULL == pwd) {
+            if (nullptr == pwd) {
                 /*
                  * Andres Kroonmaa <andre@online.ee>:
                  * Some getpwnam() implementations (Solaris?) require
@@ -881,11 +881,11 @@ configDoConfigure(void)
         Config2.effectiveGroupID = getegid();
     }
 
-    if (NULL != Config.effectiveGroup) {
+    if (nullptr != Config.effectiveGroup) {
 
         struct group *grp = getgrnam(Config.effectiveGroup);
 
-        if (NULL == grp) {
+        if (nullptr == grp) {
             fatalf("getgrnam failed to find groupid for effective group '%s'",
                    Config.effectiveGroup);
             return;
@@ -914,7 +914,7 @@ configDoConfigure(void)
 #endif
     }
 
-    for (CachePeer *p = Config.peers; p != NULL; p = p->next) {
+    for (CachePeer *p = Config.peers; p != nullptr; p = p->next) {
 
         // default value for ssldomain= is the peer host/IP
         if (p->secure.sslDomain.isEmpty())
@@ -931,7 +931,7 @@ configDoConfigure(void)
         }
     }
 
-    for (AnyP::PortCfgPointer s = HttpPortList; s != NULL; s = s->next) {
+    for (AnyP::PortCfgPointer s = HttpPortList; s != nullptr; s = s->next) {
         if (!s->secure.encryptTransport)
             continue;
         debugs(3, DBG_IMPORTANT, "Initializing " << AnyP::UriScheme(s->transport.protocol) << "_port " << s->s << " TLS contexts");
@@ -1192,7 +1192,7 @@ parseBytesLine64(int64_t * bptr, const char *units)
         return;
     }
 
-    if ((token = ConfigParser::NextToken()) == NULL) {
+    if ((token = ConfigParser::NextToken()) == nullptr) {
         self_destruct();
         return;
     }
@@ -1208,7 +1208,7 @@ parseBytesLine64(int64_t * bptr, const char *units)
 
     if (0.0 == d)
         (void) 0;
-    else if ((token = ConfigParser::NextToken()) == NULL)
+    else if ((token = ConfigParser::NextToken()) == nullptr)
         debugs(3, DBG_CRITICAL, "WARNING: No units on '" <<
                config_input_line << "', assuming " <<
                d << " " <<  units  );
@@ -1239,7 +1239,7 @@ parseBytesLine(size_t * bptr, const char *units)
         return;
     }
 
-    if ((token = ConfigParser::NextToken()) == NULL) {
+    if ((token = ConfigParser::NextToken()) == nullptr) {
         self_destruct();
         return;
     }
@@ -1255,7 +1255,7 @@ parseBytesLine(size_t * bptr, const char *units)
 
     if (0.0 == d)
         (void) 0;
-    else if ((token = ConfigParser::NextToken()) == NULL)
+    else if ((token = ConfigParser::NextToken()) == nullptr)
         debugs(3, DBG_CRITICAL, "WARNING: No units on '" <<
                config_input_line << "', assuming " <<
                d << " " <<  units  );
@@ -1286,7 +1286,7 @@ parseBytesLineSigned(ssize_t * bptr, const char *units)
         return;
     }
 
-    if ((token = ConfigParser::NextToken()) == NULL) {
+    if ((token = ConfigParser::NextToken()) == nullptr) {
         self_destruct();
         return;
     }
@@ -1302,7 +1302,7 @@ parseBytesLineSigned(ssize_t * bptr, const char *units)
 
     if (0.0 == d)
         (void) 0;
-    else if ((token = ConfigParser::NextToken()) == NULL)
+    else if ((token = ConfigParser::NextToken()) == nullptr)
         debugs(3, DBG_CRITICAL, "WARNING: No units on '" <<
                config_input_line << "', assuming " <<
                d << " " <<  units  );
@@ -1416,7 +1416,7 @@ free_SBufList(SBufList *list)
 static void
 dump_acl(StoreEntry * entry, const char *name, ACL * ae)
 {
-    while (ae != NULL) {
+    while (ae != nullptr) {
         debugs(3, 3, "dump_acl: " << name << " " << ae->name);
         storeAppendPrintf(entry, "%s %s %s ",
                           name,
@@ -1539,7 +1539,7 @@ static void
 free_acl_address(Acl::Address ** head)
 {
     delete *head;
-    *head = NULL;
+    *head = nullptr;
 }
 
 static void
@@ -1570,7 +1570,7 @@ parse_acl_tos(acl_tos ** head)
         return;
     }
 
-    if (!xstrtoui(token, NULL, &tos, 0, std::numeric_limits<tos_t>::max())) {
+    if (!xstrtoui(token, nullptr, &tos, 0, std::numeric_limits<tos_t>::max())) {
         self_destruct();
         return;
     }
@@ -1598,7 +1598,7 @@ static void
 free_acl_tos(acl_tos ** head)
 {
     delete *head;
-    *head = NULL;
+    *head = nullptr;
 }
 
 #if SO_MARK && USE_LIBCAP
@@ -1681,7 +1681,7 @@ static void
 free_acl_b_size_t(AclSizeLimit ** head)
 {
     delete *head;
-    *head = NULL;
+    *head = nullptr;
 }
 
 #if USE_DELAY_POOLS
@@ -1789,9 +1789,9 @@ dump_http_header_access(StoreEntry * entry, const char *name, const HeaderMangle
 static void
 parse_http_header_access(HeaderManglers **pm)
 {
-    char *t = NULL;
+    char *t = nullptr;
 
-    if ((t = ConfigParser::NextToken()) == NULL) {
+    if ((t = ConfigParser::NextToken()) == nullptr) {
         debugs(3, DBG_CRITICAL, "" << cfg_filename << " line " << config_lineno << ": " << config_input_line);
         debugs(3, DBG_CRITICAL, "parse_http_header_access: missing header name.");
         return;
@@ -1814,7 +1814,7 @@ free_HeaderManglers(HeaderManglers **pm)
     // we delete the entire http_header_* mangler configuration at once
     if (const HeaderManglers *manglers = *pm) {
         delete manglers;
-        *pm = NULL;
+        *pm = nullptr;
     }
 }
 
@@ -1828,9 +1828,9 @@ dump_http_header_replace(StoreEntry * entry, const char *name, const HeaderMangl
 static void
 parse_http_header_replace(HeaderManglers **pm)
 {
-    char *t = NULL;
+    char *t = nullptr;
 
-    if ((t = ConfigParser::NextToken()) == NULL) {
+    if ((t = ConfigParser::NextToken()) == nullptr) {
         debugs(3, DBG_CRITICAL, "" << cfg_filename << " line " << config_lineno << ": " << config_input_line);
         debugs(3, DBG_CRITICAL, "parse_http_header_replace: missing header name.");
         return;
@@ -1865,7 +1865,7 @@ dump_cachedir(StoreEntry * entry, const char *name, const Store::DiskConfig &swa
 static int
 check_null_string(char *s)
 {
-    return s == NULL;
+    return s == nullptr;
 }
 
 #if USE_AUTH
@@ -1887,11 +1887,11 @@ parse_authparam(Auth::ConfigVector * config)
     /* find a configuration for the scheme in the currently parsed configs... */
     Auth::SchemeConfig *schemeCfg = Auth::SchemeConfig::Find(type_str);
 
-    if (schemeCfg == NULL) {
+    if (schemeCfg == nullptr) {
         /* Create a configuration based on the scheme info */
         Auth::Scheme::Pointer theScheme = Auth::Scheme::Find(type_str);
 
-        if (theScheme == NULL) {
+        if (theScheme == nullptr) {
             debugs(3, DBG_CRITICAL, "Parsing Config File: Unknown authentication scheme '" << type_str << "'.");
             self_destruct();
             return;
@@ -1899,7 +1899,7 @@ parse_authparam(Auth::ConfigVector * config)
 
         config->push_back(theScheme->createConfig());
         schemeCfg = Auth::SchemeConfig::Find(type_str);
-        if (schemeCfg == NULL) {
+        if (schemeCfg == nullptr) {
             debugs(3, DBG_CRITICAL, "Parsing Config File: Corruption configuring authentication scheme '" << type_str << "'.");
             self_destruct();
             return;
@@ -2090,7 +2090,7 @@ dump_peer(StoreEntry * entry, const char *name, CachePeer * p)
     NeighborTypeDomainList *t;
     LOCAL_ARRAY(char, xname, 128);
 
-    while (p != NULL) {
+    while (p != nullptr) {
         storeAppendPrintf(entry, "%s %s %s %d %d name=%s",
                           name,
                           p->host,
@@ -2139,17 +2139,17 @@ isUnsignedNumeric(const char *str, size_t len)
 static unsigned short
 GetService(const char *proto)
 {
-    struct servent *port = NULL;
+    struct servent *port = nullptr;
     /** Parses a port number or service name from the squid.conf */
     char *token = ConfigParser::NextToken();
-    if (token == NULL) {
+    if (token == nullptr) {
         self_destruct();
         return 0; /* NEVER REACHED */
     }
     /** Returns either the service port number from /etc/services */
     if ( !isUnsignedNumeric(token, strlen(token)) )
         port = getservbyname(token, proto);
-    if (port != NULL) {
+    if (port != nullptr) {
         return ntohs((unsigned short)port->s_port);
     }
     /** Or a numeric translation of the config text. */
@@ -2420,7 +2420,7 @@ parse_peer(CachePeer ** head)
 
     p->index =  ++Config.npeers;
 
-    while (*head != NULL)
+    while (*head != nullptr)
         head = &(*head)->next;
 
     *head = p;
@@ -2432,7 +2432,7 @@ static void
 free_peer(CachePeer ** P)
 {
     delete *P;
-    *P = NULL;
+    *P = nullptr;
     Config.npeers = 0;
 }
 
@@ -2498,7 +2498,7 @@ free_cachemgrpasswd(Mgr::ActionPasswordList ** head)
 static void
 dump_denyinfo(StoreEntry * entry, const char *name, AclDenyInfoList * var)
 {
-    while (var != NULL) {
+    while (var != nullptr) {
         storeAppendPrintf(entry, "%s %s", name, var->err_page_name);
 
         for (const auto &aclName: var->acl_list)
@@ -2722,7 +2722,7 @@ parse_pipelinePrefetch(int *var)
 static void
 dump_refreshpattern(StoreEntry * entry, const char *name, RefreshPattern * head)
 {
-    while (head != NULL) {
+    while (head != nullptr) {
         storeAppendPrintf(entry, "%s%s %s %d %d%% %d",
                           name,
                           head->pattern.flags&REG_ICASE ? " -i" : null_string,
@@ -2795,7 +2795,7 @@ parse_refreshpattern(RefreshPattern ** head)
     int errcode;
     int flags = REG_EXTENDED | REG_NOSUB;
 
-    if ((token = ConfigParser::RegexPattern()) != NULL) {
+    if ((token = ConfigParser::RegexPattern()) != nullptr) {
 
         if (strcmp(token, "-i") == 0) {
             flags |= REG_ICASE;
@@ -2807,7 +2807,7 @@ parse_refreshpattern(RefreshPattern ** head)
 
     }
 
-    if (token == NULL) {
+    if (token == nullptr) {
         debugs(3, DBG_CRITICAL, "FATAL: refresh_pattern missing the regex pattern parameter");
         self_destruct();
         return;
@@ -2846,7 +2846,7 @@ parse_refreshpattern(RefreshPattern ** head)
     max = (time_t) (i * 60);    /* convert minutes to seconds */
 
     /* Options */
-    while ((token = ConfigParser::NextToken()) != NULL) {
+    while ((token = ConfigParser::NextToken()) != nullptr) {
         if (!strcmp(token, "refresh-ims")) {
             refresh_ims = 1;
         } else if (!strcmp(token, "store-stale")) {
@@ -2929,7 +2929,7 @@ parse_refreshpattern(RefreshPattern ** head)
         t->flags.ignore_private = true;
 #endif
 
-    t->next = NULL;
+    t->next = nullptr;
 
     while (*head)
         head = &(*head)->next;
@@ -2954,7 +2954,7 @@ free_refreshpattern(RefreshPattern ** head)
 static void
 dump_string(StoreEntry * entry, const char *name, char *var)
 {
-    if (var != NULL)
+    if (var != nullptr)
         storeAppendPrintf(entry, "%s %s\n", name, var);
 }
 
@@ -3234,7 +3234,7 @@ ConfigParser::ParseBool(bool *var)
 static void
 dump_wordlist(StoreEntry * entry, const char *name, wordlist * list)
 {
-    while (list != NULL) {
+    while (list != nullptr) {
         storeAppendPrintf(entry, "%s %s\n", name, list->key);
         list = list->next;
     }
@@ -3265,7 +3265,7 @@ check_null_wordlist(wordlist * w)
 static int
 check_null_acl_access(acl_access * a)
 {
-    return a == NULL;
+    return a == nullptr;
 }
 
 #define free_wordlist wordlistDestroy
@@ -3328,7 +3328,7 @@ free_removalpolicy(RemovalPolicySettings ** settings)
 
     delete *settings;
 
-    *settings = NULL;
+    *settings = nullptr;
 }
 
 static void
@@ -3491,7 +3491,7 @@ static void
 free_IpAddress_list(Ip::Address_list ** head)
 {
     if (*head) delete *head;
-    *head = NULL;
+    *head = nullptr;
 }
 
 #if CURRENTLY_UNUSED
@@ -3510,10 +3510,10 @@ check_null_IpAddress_list(const Ip::Address_list * s)
 static void
 parsePortSpecification(const AnyP::PortCfgPointer &s, char *token)
 {
-    char *host = NULL;
+    char *host = nullptr;
     unsigned short port = 0;
-    char *t = NULL;
-    char *junk = NULL;
+    char *t = nullptr;
+    char *junk = nullptr;
 
     s->disable_pmtu_discovery = DISABLE_PMTU_OFF;
     s->name = xstrdup(token);
@@ -3559,13 +3559,13 @@ parsePortSpecification(const AnyP::PortCfgPointer &s, char *token)
         return;
     }
 
-    if (port == 0 && host != NULL) {
+    if (port == 0 && host != nullptr) {
         debugs(3, DBG_CRITICAL, "FATAL: " << portType << "_port: Port cannot be 0: " << token);
         self_destruct();
         return;
     }
 
-    if (NULL == host) {
+    if (nullptr == host) {
         s->s.setAnyAddr();
         s->s.port(port);
         if (!Ip::EnableIpv6)
@@ -3837,7 +3837,7 @@ add_http_port(char *portspec)
     s->transport = parsePortProtocol(SBuf("HTTP"));
     parsePortSpecification(s, portspec);
     // we may need to merge better if the above returns a list with clones
-    assert(s->next == NULL);
+    assert(s->next == nullptr);
     s->next = HttpPortList;
     HttpPortList = s;
 }
@@ -3929,7 +3929,7 @@ parsePortCfg(AnyP::PortCfgPointer *head, const char *optionName)
         debugs(3, 3, AnyP::UriScheme(s->transport.protocol).image() << "_port: clone wildcard address for split-stack: " << s->s << " and " << s->next->s);
     }
 
-    while (*head != NULL)
+    while (*head != nullptr)
         head = &((*head)->next);
 
     *head = s;
@@ -4028,7 +4028,7 @@ dump_generic_port(StoreEntry * e, const char *n, const AnyP::PortCfgPointer &s)
 static void
 dump_PortCfg(StoreEntry * e, const char *n, const AnyP::PortCfgPointer &s)
 {
-    for (AnyP::PortCfgPointer p = s; p != NULL; p = p->next) {
+    for (AnyP::PortCfgPointer p = s; p != nullptr; p = p->next) {
         dump_generic_port(e, n, p);
         storeAppendPrintf(e, "\n");
     }
@@ -4050,7 +4050,7 @@ requirePathnameExists(const char *name, const char *path)
 
     struct stat sb;
     char pathbuf[BUFSIZ];
-    assert(path != NULL);
+    assert(path != nullptr);
 
     if (Config.chroot_dir && (geteuid() == 0)) {
         snprintf(pathbuf, BUFSIZ, "%s/%s", Config.chroot_dir, path);
@@ -4161,7 +4161,7 @@ parse_access_log(CustomLog ** logs)
             // Pop the token, it was a valid "name=value" option
             (void)ConfigParser::NextToken();
             // Get next with preview ConfigParser::NextToken call.
-        } while ((token = ConfigParser::PeekAtToken()) != NULL);
+        } while ((token = ConfigParser::PeekAtToken()) != nullptr);
     }
 
     // set format if it has not been specified explicitly
@@ -4196,7 +4196,7 @@ setLogformat(CustomLog *cl, const char *logdef_name, const bool dieWhenMissing)
     /* look for the definition pointer corresponding to this name */
     Format::Format *lf = Log::TheConfig.logformats;
 
-    while (lf != NULL) {
+    while (lf != nullptr) {
         debugs(3, 9, "Comparing against '" << lf->name << "'");
 
         if (strcmp(lf->name, logdef_name) == 0)
@@ -4205,7 +4205,7 @@ setLogformat(CustomLog *cl, const char *logdef_name, const bool dieWhenMissing)
         lf = lf->next;
     }
 
-    if (lf != NULL) {
+    if (lf != nullptr) {
         cl->type = Log::Format::CLF_CUSTOM;
         cl->logFormat = lf;
     } else if (strcmp(logdef_name, "auto") == 0) {
@@ -4239,7 +4239,7 @@ setLogformat(CustomLog *cl, const char *logdef_name, const bool dieWhenMissing)
 static int
 check_null_access_log(CustomLog *customlog_definitions)
 {
-    return customlog_definitions == NULL;
+    return customlog_definitions == nullptr;
 }
 
 static void
@@ -4315,7 +4315,7 @@ free_access_log(CustomLog ** definitions)
         CustomLog *log = *definitions;
         *definitions = log->next;
 
-        log->logFormat = NULL;
+        log->logFormat = nullptr;
         log->type = Log::Format::CLF_UNKNOWN;
 
         if (log->aclList)
@@ -4404,7 +4404,7 @@ static void
 free_CpuAffinityMap(CpuAffinityMap **const cpuAffinityMap)
 {
     delete *cpuAffinityMap;
-    *cpuAffinityMap = NULL;
+    *cpuAffinityMap = nullptr;
 }
 
 #if USE_ADAPTATION
@@ -4494,7 +4494,7 @@ static void parse_icap_service_failure_limit(Adaptation::Icap::Config *cfg)
     char *token;
     cfg->service_failure_limit = GetInteger();
 
-    if ((token = ConfigParser::NextToken()) == NULL)
+    if ((token = ConfigParser::NextToken()) == nullptr)
         return;
 
     if (strcmp(token,"in") != 0) {
@@ -4527,7 +4527,7 @@ static void parse_sslproxy_cert_adapt(sslproxy_cert_adapt **cert_adapt)
 {
     char *al;
     sslproxy_cert_adapt *ca = (sslproxy_cert_adapt *) xcalloc(1, sizeof(sslproxy_cert_adapt));
-    if ((al = ConfigParser::NextToken()) == NULL) {
+    if ((al = ConfigParser::NextToken()) == nullptr) {
         xfree(ca);
         self_destruct();
         return;
@@ -4546,7 +4546,7 @@ static void parse_sslproxy_cert_adapt(sslproxy_cert_adapt **cert_adapt)
         }
         *s = '\0';
     } else
-        param = NULL;
+        param = nullptr;
 
     if (strcmp(al, Ssl::CertAdaptAlgorithmStr[Ssl::algSetValidAfter]) == 0) {
         ca->alg = Ssl::algSetValidAfter;
@@ -4582,7 +4582,7 @@ static void parse_sslproxy_cert_adapt(sslproxy_cert_adapt **cert_adapt)
 
 static void dump_sslproxy_cert_adapt(StoreEntry *entry, const char *name, sslproxy_cert_adapt *cert_adapt)
 {
-    for (sslproxy_cert_adapt *ca = cert_adapt; ca != NULL; ca = ca->next) {
+    for (sslproxy_cert_adapt *ca = cert_adapt; ca != nullptr; ca = ca->next) {
         storeAppendPrintf(entry, "%s ", name);
         storeAppendPrintf(entry, "%s{%s} ", Ssl::sslCertAdaptAlgoritm(ca->alg), ca->param);
         if (ca->aclList)
@@ -4609,7 +4609,7 @@ static void parse_sslproxy_cert_sign(sslproxy_cert_sign **cert_sign)
 {
     char *al;
     sslproxy_cert_sign *cs = (sslproxy_cert_sign *) xcalloc(1, sizeof(sslproxy_cert_sign));
-    if ((al = ConfigParser::NextToken()) == NULL) {
+    if ((al = ConfigParser::NextToken()) == nullptr) {
         xfree(cs);
         self_destruct();
         return;
@@ -4639,7 +4639,7 @@ static void parse_sslproxy_cert_sign(sslproxy_cert_sign **cert_sign)
 static void dump_sslproxy_cert_sign(StoreEntry *entry, const char *name, sslproxy_cert_sign *cert_sign)
 {
     sslproxy_cert_sign *cs;
-    for (cs = cert_sign; cs != NULL; cs = cs->next) {
+    for (cs = cert_sign; cs != nullptr; cs = cs->next) {
         storeAppendPrintf(entry, "%s ", name);
         storeAppendPrintf(entry, "%s ", Ssl::certSignAlgorithm(cs->alg));
         if (cs->aclList)
@@ -4698,19 +4698,19 @@ sslBumpCfgRr::finalizeConfig()
 static void parse_sslproxy_ssl_bump(acl_access **ssl_bump)
 {
     typedef const char *BumpCfgStyle;
-    BumpCfgStyle bcsNone = NULL;
+    BumpCfgStyle bcsNone = nullptr;
     BumpCfgStyle bcsNew = "new client/server-first/none";
     BumpCfgStyle bcsOld = "deprecated allow/deny";
     static BumpCfgStyle bumpCfgStyleLast = bcsNone;
     BumpCfgStyle bumpCfgStyleNow = bcsNone;
     char *bm;
-    if ((bm = ConfigParser::NextToken()) == NULL) {
+    if ((bm = ConfigParser::NextToken()) == nullptr) {
         self_destruct();
         return;
     }
 
     // if this is the first rule processed
-    if (*ssl_bump == NULL) {
+    if (*ssl_bump == nullptr) {
         bumpCfgStyleLast = bcsNone;
         sslBumpCfgRr::lastDeprecatedRule = Ssl::bumpEnd;
     }
@@ -4809,7 +4809,7 @@ static void parse_HeaderWithAclList(HeaderWithAclList **headers)
     if (!*headers) {
         *headers = new HeaderWithAclList;
     }
-    if ((fn = ConfigParser::NextToken()) == NULL) {
+    if ((fn = ConfigParser::NextToken()) == nullptr) {
         self_destruct();
         return;
     }
@@ -4848,11 +4848,11 @@ static void free_HeaderWithAclList(HeaderWithAclList **header)
 
         if (hwa->valueFormat) {
             delete hwa->valueFormat;
-            hwa->valueFormat = NULL;
+            hwa->valueFormat = nullptr;
         }
     }
     delete *header;
-    *header = NULL;
+    *header = nullptr;
 }
 
 static void parse_note(Notes *notes)
@@ -4898,7 +4898,7 @@ static void parse_ftp_epsv(acl_access **ftp_epsv)
     //   2) if this line is "ftp_epsv on|off" and already exist rules of "ftp_epsv allow|deny ..."
     // then abort
     if ((!ftpEpsvIsDeprecatedRule && FtpEspvDeprecated) ||
-            (ftpEpsvIsDeprecatedRule && !FtpEspvDeprecated && *ftp_epsv != NULL)) {
+            (ftpEpsvIsDeprecatedRule && !FtpEspvDeprecated && *ftp_epsv != nullptr)) {
         debugs(3, DBG_CRITICAL, "FATAL: do not mix \"ftp_epsv on|off\" cfg lines with \"ftp_epsv allow|deny ...\" cfg lines. Update your ftp_epsv rules.");
         self_destruct();
         return;
@@ -5068,7 +5068,7 @@ static void
 parse_on_unsupported_protocol(acl_access **access)
 {
     char *tm;
-    if ((tm = ConfigParser::NextToken()) == NULL) {
+    if ((tm = ConfigParser::NextToken()) == nullptr) {
         self_destruct();
         return;
     }

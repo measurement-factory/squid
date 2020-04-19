@@ -353,7 +353,7 @@ Security::ServerOptions::loadDhParams()
 #if USE_OPENSSL
     DH *dhp = nullptr;
     if (FILE *in = fopen(dhParamsFile.c_str(), "r")) {
-        dhp = PEM_read_DHparams(in, NULL, NULL, NULL);
+        dhp = PEM_read_DHparams(in, nullptr, nullptr, nullptr);
         fclose(in);
     }
 
@@ -443,7 +443,7 @@ Security::ServerOptions::updateContextClientCa(Security::ContextPointer &ctx)
 
     } else {
         debugs(83, 9, "Not requiring any client certificates");
-        SSL_CTX_set_verify(ctx.get(), SSL_VERIFY_NONE, NULL);
+        SSL_CTX_set_verify(ctx.get(), SSL_VERIFY_NONE, nullptr);
     }
 #endif
 }

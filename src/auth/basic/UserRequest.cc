@@ -42,7 +42,7 @@ Auth::Basic::UserRequest::credentialsStr()
     Auth::Basic::User const *basic_auth = dynamic_cast<Auth::Basic::User const *>(user().getRaw());
     if (basic_auth)
         return basic_auth->passwd;
-    return NULL;
+    return nullptr;
 }
 
 /* log a basic user in
@@ -50,7 +50,7 @@ Auth::Basic::UserRequest::credentialsStr()
 void
 Auth::Basic::UserRequest::authenticate(HttpRequest *, ConnStateData *, Http::HdrType)
 {
-    assert(user() != NULL);
+    assert(user() != nullptr);
 
     /* if the password is not ok, do an identity */
     if (!user() || user()->credentials() != Auth::Ok)
@@ -102,10 +102,10 @@ Auth::Basic::UserRequest::startHelperLookup(HttpRequest *request, AccessLogEntry
 {
     assert(user()->auth_type == Auth::AUTH_BASIC);
     Auth::Basic::User *basic_auth = dynamic_cast<Auth::Basic::User *>(user().getRaw());
-    assert(basic_auth != NULL);
+    assert(basic_auth != nullptr);
     debugs(29, 9, HERE << "'" << basic_auth->username() << ":" << basic_auth->passwd << "'");
 
-    if (static_cast<Auth::Basic::Config*>(Auth::SchemeConfig::Find("basic"))->authenticateProgram == NULL) {
+    if (static_cast<Auth::Basic::Config*>(Auth::SchemeConfig::Find("basic"))->authenticateProgram == nullptr) {
         debugs(29, DBG_CRITICAL, "ERROR: No Basic authentication program configured.");
         handler(data);
         return;
@@ -157,7 +157,7 @@ Auth::Basic::UserRequest::HandleReply(void *data, const Helper::Reply &reply)
     void *cbdata;
     debugs(29, 5, HERE << "reply=" << reply);
 
-    assert(r->auth_user_request != NULL);
+    assert(r->auth_user_request != nullptr);
     assert(r->auth_user_request->user()->auth_type == Auth::AUTH_BASIC);
 
     // add new helper kv-pair notes to the credentials object
@@ -169,7 +169,7 @@ Auth::Basic::UserRequest::HandleReply(void *data, const Helper::Reply &reply)
      * and do not pass the pointer itself anywhere */
     Auth::Basic::User *basic_auth = dynamic_cast<Auth::Basic::User *>(r->auth_user_request->user().getRaw());
 
-    assert(basic_auth != NULL);
+    assert(basic_auth != nullptr);
 
     if (reply.result == Helper::Okay)
         basic_auth->credentials(Auth::Ok);
@@ -192,7 +192,7 @@ Auth::Basic::UserRequest::HandleReply(void *data, const Helper::Reply &reply)
             basic_auth->queue->handler(cbdata);
 
         Auth::QueueNode *tmpnode = basic_auth->queue->next;
-        basic_auth->queue->next = NULL;
+        basic_auth->queue->next = nullptr;
         delete basic_auth->queue;
 
         basic_auth->queue = tmpnode;

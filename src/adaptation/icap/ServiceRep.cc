@@ -33,18 +33,18 @@ CBDATA_NAMESPACED_CLASS_INIT(Adaptation::Icap, ServiceRep);
 
 Adaptation::Icap::ServiceRep::ServiceRep(const ServiceConfigPointer &svcCfg):
     AsyncJob("Adaptation::Icap::ServiceRep"), Adaptation::Service(svcCfg),
-    theOptions(NULL), theOptionsFetcher(0), theLastUpdate(0),
+    theOptions(nullptr), theOptionsFetcher(nullptr), theLastUpdate(0),
     theBusyConns(0),
     theAllWaiters(0),
     connOverloadReported(false),
-    theIdleConns(NULL),
-    isSuspended(0), notifying(false),
+    theIdleConns(nullptr),
+    isSuspended(nullptr), notifying(false),
     updateScheduled(false),
     wasAnnouncedUp(true), // do not announce an "up" service at startup
     isDetached(false)
 {
     setMaxConnections();
-    theIdleConns = new IdleConnList("ICAP Service", NULL);
+    theIdleConns = new IdleConnList("ICAP Service", nullptr);
 }
 
 Adaptation::Icap::ServiceRep::~ServiceRep()
@@ -272,7 +272,7 @@ void Adaptation::Icap::ServiceRep::busyCheckpoint()
         Client i = theNotificationWaiters.front();
         theNotificationWaiters.pop_front();
         ScheduleCallHere(i.callback);
-        i.callback = NULL;
+        i.callback = nullptr;
         --freed;
     }
 }
@@ -398,13 +398,13 @@ void Adaptation::Icap::ServiceRep::noteTimeToNotify()
 
     // note: we must notify even if we are invalidated
 
-    Pointer us = NULL;
+    Pointer us = nullptr;
 
     while (!theClients.empty()) {
         Client i = theClients.back();
         theClients.pop_back();
         ScheduleCallHere(i.callback);
-        i.callback = 0;
+        i.callback = nullptr;
     }
 
     notifying = false;
@@ -413,7 +413,7 @@ void Adaptation::Icap::ServiceRep::noteTimeToNotify()
 void Adaptation::Icap::ServiceRep::callWhenAvailable(AsyncCall::Pointer &cb, bool priority)
 {
     debugs(93,8, "ICAPServiceRep::callWhenAvailable");
-    Must(cb!=NULL);
+    Must(cb!=nullptr);
     Must(up());
     Must(!theIdleConns->count()); // or we should not be waiting
 
@@ -430,7 +430,7 @@ void Adaptation::Icap::ServiceRep::callWhenAvailable(AsyncCall::Pointer &cb, boo
 
 void Adaptation::Icap::ServiceRep::callWhenReady(AsyncCall::Pointer &cb)
 {
-    Must(cb!=NULL);
+    Must(cb!=nullptr);
 
     debugs(93,5, HERE << "Adaptation::Icap::Service is asked to call " << *cb <<
            " when ready " << status());
@@ -470,7 +470,7 @@ void Adaptation::Icap::ServiceRep::changeOptions(Adaptation::Icap::Options *newO
     delete theOptions;
     theOptions = newOptions;
     theSessionFailures.clear();
-    isSuspended = 0;
+    isSuspended = nullptr;
     theLastUpdate = squid_curtime;
 
     checkOptions();
@@ -479,7 +479,7 @@ void Adaptation::Icap::ServiceRep::changeOptions(Adaptation::Icap::Options *newO
 
 void Adaptation::Icap::ServiceRep::checkOptions()
 {
-    if (theOptions == NULL)
+    if (theOptions == nullptr)
         return;
 
     if (!theOptions->valid()) {
@@ -552,7 +552,7 @@ void Adaptation::Icap::ServiceRep::noteAdaptationAnswer(const Answer &answer)
 
     if (answer.kind == Answer::akError) {
         debugs(93,3, HERE << "failed to fetch options " << status());
-        handleNewOptions(0);
+        handleNewOptions(nullptr);
         return;
     }
 
@@ -562,7 +562,7 @@ void Adaptation::Icap::ServiceRep::noteAdaptationAnswer(const Answer &answer)
 
     debugs(93,5, HERE << "is interpreting new options " << status());
 
-    Adaptation::Icap::Options *newOptions = NULL;
+    Adaptation::Icap::Options *newOptions = nullptr;
     if (const HttpReply *r = dynamic_cast<const HttpReply*>(msg)) {
         newOptions = new Adaptation::Icap::Options;
         newOptions->configure(r);
@@ -580,7 +580,7 @@ void Adaptation::Icap::ServiceRep::callException(const std::exception &e)
     clearAdaptation(theOptionsFetcher);
     debugs(93,2, "ICAP probably failed to fetch options (" << e.what() <<
            ")" << status());
-    handleNewOptions(0);
+    handleNewOptions(nullptr);
 }
 
 void Adaptation::Icap::ServiceRep::handleNewOptions(Adaptation::Icap::Options *newOptions)

@@ -82,7 +82,7 @@ time_t getCurrentTime(void)
 #if GETTIMEOFDAY_NO_TZP
     gettimeofday(&current_time);
 #else
-    gettimeofday(&current_time, NULL);
+    gettimeofday(&current_time, nullptr);
 #endif
     return current_time.tv_sec;
 }
@@ -333,7 +333,7 @@ int main(int argc, char *argv[])
             Ssl::CrtdMessage::ParseResult parse_result = Ssl::CrtdMessage::INCOMPLETE;
 
             while (parse_result == Ssl::CrtdMessage::INCOMPLETE) {
-                if (fgets(request, HELPER_INPUT_BUFFER, stdin) == NULL)
+                if (fgets(request, HELPER_INPUT_BUFFER, stdin) == nullptr)
                     exit(EXIT_FAILURE);
                 size_t gcount = strlen(request);
                 parse_result = request_message.parse(request, gcount);

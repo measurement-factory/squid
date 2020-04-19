@@ -90,25 +90,25 @@ PeerPoolMgr::doneAll() const
 void
 PeerPoolMgr::handleOpenedConnection(const CommConnectCbParams &params)
 {
-    opener = NULL;
+    opener = nullptr;
 
     if (!validPeer()) {
         debugs(48, 3, "peer gone");
-        if (params.conn != NULL)
+        if (params.conn != nullptr)
             params.conn->close();
         return;
     }
 
     if (params.flag != Comm::OK) {
         /* it might have been a timeout with a partially open link */
-        if (params.conn != NULL)
+        if (params.conn != nullptr)
             params.conn->close();
         peerConnectFailed(peer);
         checkpoint("conn opening failure"); // may retry
         return;
     }
 
-    Must(params.conn != NULL);
+    Must(params.conn != nullptr);
 
     // Handle TLS peers.
     if (peer->secure.encryptTransport) {
@@ -137,33 +137,33 @@ PeerPoolMgr::pushNewConnection(const Comm::ConnectionPointer &conn)
 {
     Must(validPeer());
     Must(Comm::IsConnOpen(conn));
-    peer->standby.pool->push(conn, NULL /* domain */);
+    peer->standby.pool->push(conn, nullptr /* domain */);
     // push() will trigger a checkpoint()
 }
 
 void
 PeerPoolMgr::handleSecuredPeer(Security::EncryptorAnswer &answer)
 {
-    Must(securer != NULL);
-    securer = NULL;
+    Must(securer != nullptr);
+    securer = nullptr;
 
-    if (closer != NULL) {
-        if (answer.conn != NULL)
+    if (closer != nullptr) {
+        if (answer.conn != nullptr)
             comm_remove_close_handler(answer.conn->fd, closer);
         else
             closer->cancel("securing completed");
-        closer = NULL;
+        closer = nullptr;
     }
 
     if (!validPeer()) {
         debugs(48, 3, "peer gone");
-        if (answer.conn != NULL)
+        if (answer.conn != nullptr)
             answer.conn->close();
         return;
     }
 
     if (answer.error.get()) {
-        if (answer.conn != NULL)
+        if (answer.conn != nullptr)
             answer.conn->close();
         // PeerConnector calls peerConnectFailed() for us;
         checkpoint("conn securing failure"); // may retry
@@ -176,11 +176,11 @@ PeerPoolMgr::handleSecuredPeer(Security::EncryptorAnswer &answer)
 void
 PeerPoolMgr::handleSecureClosure(const CommCloseCbParams &params)
 {
-    Must(closer != NULL);
-    Must(securer != NULL);
+    Must(closer != nullptr);
+    Must(securer != nullptr);
     securer->cancel("conn closed by a 3rd party");
-    securer = NULL;
-    closer = NULL;
+    securer = nullptr;
+    closer = nullptr;
     // allow the closing connection to fully close before we check again
     Checkpoint(this, "conn closure while securing");
 }
@@ -189,7 +189,7 @@ void
 PeerPoolMgr::openNewConnection()
 {
     // KISS: Do nothing else when we are already doing something.
-    if (opener != NULL || securer != NULL || shutting_down) {
+    if (opener != nullptr || securer != nullptr || shutting_down) {
         debugs(48, 7, "busy: " << opener << '|' << securer << '|' << shutting_down);
         return; // there will be another checkpoint when we are done opening/securing
     }

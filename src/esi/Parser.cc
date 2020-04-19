@@ -12,8 +12,8 @@
 #include "esi/Parser.h"
 #include "fatal.h"
 
-char *ESIParser::Type = NULL;
-ESIParser::Register *ESIParser::Parser = NULL;
+char *ESIParser::Type = nullptr;
+ESIParser::Register *ESIParser::Parser = nullptr;
 
 std::list<ESIParser::Register *> &
 ESIParser::GetRegistry()
@@ -25,7 +25,7 @@ ESIParser::GetRegistry()
 ESIParser::Pointer
 ESIParser::NewParser(ESIParserClient *aClient)
 {
-    if (Parser == NULL) {
+    if (Parser == nullptr) {
         Parser = GetRegistry().front();
 
         // if type name matters, use it
@@ -36,7 +36,7 @@ ESIParser::NewParser(ESIParserClient *aClient)
             }
         }
 
-        if (Parser == NULL)
+        if (Parser == nullptr)
             fatal ("Unknown ESI Parser type");
     }
 

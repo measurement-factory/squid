@@ -65,7 +65,7 @@ static IOCB WriteFeedback;
 static CLCB Close;
 static CTCB Timeout;
 static CNCB ConnectDone;
-static hash_table *ident_hash = NULL;
+static hash_table *ident_hash = nullptr;
 static void ClientAdd(IdentStateData * state, IDCB * callback, void *callback_data);
 
 } // namespace Ident
@@ -82,8 +82,8 @@ Ident::IdentStateData::deleteThis(const char *)
 void
 Ident::IdentStateData::swanSong()
 {
-    if (clients != NULL)
-        notify(NULL);
+    if (clients != nullptr)
+        notify(nullptr);
 
     if (Comm::IsConnOpen(conn)) {
         comm_remove_close_handler(conn->fd, Ident::Close, this);
@@ -144,12 +144,12 @@ Ident::ConnectDone(const Comm::ConnectionPointer &conn, Comm::Flag status, int, 
             break;
     }
 
-    if (c == NULL) {
+    if (c == nullptr) {
         state->deleteThis("client(s) aborted");
         return;
     }
 
-    assert(conn != NULL && conn == state->conn);
+    assert(conn != nullptr && conn == state->conn);
     comm_add_close_handler(conn->fd, Ident::Close, state);
 
     AsyncCall::Pointer writeCall = commCbCall(5,4, "Ident::WriteFeedback",
@@ -180,8 +180,8 @@ void
 Ident::ReadReply(const Comm::ConnectionPointer &conn, char *buf, size_t len, Comm::Flag flag, int, void *data)
 {
     IdentStateData *state = (IdentStateData *)data;
-    char *ident = NULL;
-    char *t = NULL;
+    char *ident = nullptr;
+    char *t = nullptr;
 
     assert(buf == state->buf);
     assert(conn->fd == state->conn->fd);
@@ -210,7 +210,7 @@ Ident::ReadReply(const Comm::ConnectionPointer &conn, char *buf, size_t len, Com
         if ((ident = strrchr(buf, ':'))) {
             while (xisspace(*++ident));
             if (ident && *ident == '\0')
-                ident = NULL;
+                ident = nullptr;
             state->notify(ident);
         }
     }
@@ -250,7 +250,7 @@ Ident::Start(const Comm::ConnectionPointer &conn, IDCB * callback, void *data)
     if (!ident_hash) {
         Init();
     }
-    if ((state = (IdentStateData *)hash_lookup(ident_hash, key)) != NULL) {
+    if ((state = (IdentStateData *)hash_lookup(ident_hash, key)) != nullptr) {
         ClientAdd(state, callback, data);
         return;
     }

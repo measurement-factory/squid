@@ -236,8 +236,8 @@ enum {
 static void htcpIncomingConnectionOpened(const Comm::ConnectionPointer &conn, int errNo);
 static uint32_t msg_id_counter = 0;
 
-static Comm::ConnectionPointer htcpOutgoingConn = NULL;
-static Comm::ConnectionPointer htcpIncomingConn = NULL;
+static Comm::ConnectionPointer htcpOutgoingConn = nullptr;
+static Comm::ConnectionPointer htcpIncomingConn = nullptr;
 #define N_QUERIED_KEYS 8192
 static uint32_t queried_id[N_QUERIED_KEYS];
 static cache_key queried_keys[N_QUERIED_KEYS][SQUID_MD5_DIGEST_LENGTH];
@@ -725,7 +725,7 @@ htcpUnpackDetail(char *buf, int sz)
     if (l > sz) {
         debugs(31, 3, "htcpUnpackDetail: failed to unpack RESP_HDRS");
         delete d;
-        return NULL;
+        return nullptr;
     }
 
     /* Set RESP-HDRS */
@@ -742,7 +742,7 @@ htcpUnpackDetail(char *buf, int sz)
     if (l > sz) {
         debugs(31, 3, "htcpUnpackDetail: failed to unpack ENTITY_HDRS");
         delete d;
-        return NULL;
+        return nullptr;
     }
 
     /* Add terminating null to RESP-HDRS */
@@ -764,7 +764,7 @@ htcpUnpackDetail(char *buf, int sz)
     if (l > sz) {
         debugs(31, 3, "htcpUnpackDetail: failed to unpack CACHE_HDRS");
         delete d;
-        return NULL;
+        return nullptr;
     }
 
     /* Add terminating null to ENTITY-HDRS */
@@ -1083,10 +1083,10 @@ static void
 htcpHandleTstResponse(htcpDataHeader * hdr, char *buf, int sz, Ip::Address &from)
 {
     HtcpReplyData htcpReply;
-    cache_key *key = NULL;
+    cache_key *key = nullptr;
 
     Ip::Address *peer;
-    htcpDetail *d = NULL;
+    htcpDetail *d = nullptr;
     char *t;
 
     if (queried_id[hdr->msg_id % N_QUERIED_KEYS] != hdr->msg_id) {
@@ -1127,7 +1127,7 @@ htcpHandleTstResponse(htcpDataHeader * hdr, char *buf, int sz, Ip::Address &from
         debugs(31, 3, "htcpHandleTstResponse: HIT");
         d = htcpUnpackDetail(buf, sz);
 
-        if (d == NULL) {
+        if (d == nullptr) {
             debugs(31, 3, "htcpHandleTstResponse: bad DETAIL");
             return;
         }
@@ -1196,7 +1196,7 @@ htcpSpecifier::checkedHit(StoreEntry *e)
         htcpTstReply(dhdr, e, this, from);      /* hit */
         htcpLogHtcp(from, dhdr->opcode, LOG_UDP_HIT, uri, al);
     } else {
-        htcpTstReply(dhdr, NULL, NULL, from);   /* cache miss */
+        htcpTstReply(dhdr, nullptr, nullptr, from);   /* cache miss */
         htcpLogHtcp(from, dhdr->opcode, LOG_UDP_MISS, uri, al);
     }
 }
@@ -1430,7 +1430,7 @@ htcpRecv(int fd, void *)
 
     htcpHandleMsg(buf, len, from);
 
-    Comm::SetSelect(fd, COMM_SELECT_READ, htcpRecv, NULL, 0);
+    Comm::SetSelect(fd, COMM_SELECT_READ, htcpRecv, nullptr, 0);
 }
 
 /*
@@ -1490,7 +1490,7 @@ htcpOpenPorts(void)
         if (!Comm::IsConnOpen(htcpOutgoingConn))
             fatal("Cannot open Outgoing HTCP Socket");
 
-        Comm::SetSelect(htcpOutgoingConn->fd, COMM_SELECT_READ, htcpRecv, NULL, 0);
+        Comm::SetSelect(htcpOutgoingConn->fd, COMM_SELECT_READ, htcpRecv, nullptr, 0);
 
         debugs(31, DBG_IMPORTANT, "Sending HTCP messages from " << htcpOutgoingConn->local);
     }
@@ -1503,7 +1503,7 @@ htcpIncomingConnectionOpened(const Comm::ConnectionPointer &conn, int)
     if (!Comm::IsConnOpen(conn))
         fatal("Cannot open HTCP Socket");
 
-    Comm::SetSelect(conn->fd, COMM_SELECT_READ, htcpRecv, NULL, 0);
+    Comm::SetSelect(conn->fd, COMM_SELECT_READ, htcpRecv, nullptr, 0);
 
     debugs(31, DBG_CRITICAL, "Accepting HTCP messages on " << conn->local);
 
@@ -1535,7 +1535,7 @@ htcpQuery(StoreEntry * e, HttpRequest * req, CachePeer * p)
     stuff.S.method = sb.c_str();
     stuff.S.uri = (char *) e->url();
     stuff.S.version = vbuf;
-    HttpStateData::httpBuildRequestHeader(req, e, NULL, &hdr, flags);
+    HttpStateData::httpBuildRequestHeader(req, e, nullptr, &hdr, flags);
     MemBuf mb;
     mb.init();
     hdr.packInto(&mb);
@@ -1585,8 +1585,8 @@ htcpClear(StoreEntry * e, const char *uri, HttpRequest * req, const HttpRequestM
 
     SBuf sb = req->method.image();
     stuff.S.method = sb.c_str();
-    if (e == NULL || e->mem_obj == NULL) {
-        if (uri == NULL) {
+    if (e == nullptr || e->mem_obj == nullptr) {
+        if (uri == nullptr) {
             return;
         }
         stuff.S.uri = xstrdup(uri);
@@ -1595,19 +1595,19 @@ htcpClear(StoreEntry * e, const char *uri, HttpRequest * req, const HttpRequestM
     }
     stuff.S.version = vbuf;
     if (reason != HTCP_CLR_INVALIDATION) {
-        HttpStateData::httpBuildRequestHeader(req, e, NULL, &hdr, flags);
+        HttpStateData::httpBuildRequestHeader(req, e, nullptr, &hdr, flags);
         mb.init();
         hdr.packInto(&mb);
         hdr.clean();
         stuff.S.req_hdrs = mb.buf;
     } else {
-        stuff.S.req_hdrs = NULL;
+        stuff.S.req_hdrs = nullptr;
     }
     pktlen = htcpBuildPacket(pkt, sizeof(pkt), &stuff);
     if (reason != HTCP_CLR_INVALIDATION) {
         mb.clean();
     }
-    if (e == NULL) {
+    if (e == nullptr) {
         xfree(stuff.S.uri);
     }
     if (!pktlen) {
@@ -1635,7 +1635,7 @@ htcpSocketShutdown(void)
      * function from executing repeatedly.  When we are really ready to
      * exit or restart, main will comm_close the 'out' descriptor.
      */
-    htcpIncomingConn = NULL;
+    htcpIncomingConn = nullptr;
 
     /*
      * Normally we only write to the outgoing HTCP socket, but
@@ -1648,7 +1648,7 @@ htcpSocketShutdown(void)
      */
     assert(Comm::IsConnOpen(htcpOutgoingConn));
 
-    Comm::SetSelect(htcpOutgoingConn->fd, COMM_SELECT_READ, NULL, NULL, 0);
+    Comm::SetSelect(htcpOutgoingConn->fd, COMM_SELECT_READ, nullptr, nullptr, 0);
 }
 
 void
@@ -1656,9 +1656,9 @@ htcpClosePorts(void)
 {
     htcpSocketShutdown();
 
-    if (htcpOutgoingConn != NULL) {
+    if (htcpOutgoingConn != nullptr) {
         debugs(12, DBG_IMPORTANT, "Stop sending HTCP from " << htcpOutgoingConn->local);
-        htcpOutgoingConn = NULL;
+        htcpOutgoingConn = nullptr;
     }
 }
 
@@ -1673,6 +1673,6 @@ htcpLogHtcp(Ip::Address &caddr, const int opcode, const LogTags_ot logcode, cons
     assert(logcode != LOG_TAG_NONE);
     al->cache.code.update(logcode);
 
-    accessLogLog(al, NULL);
+    accessLogLog(al, nullptr);
 }
 

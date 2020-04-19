@@ -16,13 +16,13 @@
 void
 Http::StatusLine::init()
 {
-    set(Http::ProtocolVersion(), Http::scNone, NULL);
+    set(Http::ProtocolVersion(), Http::scNone, nullptr);
 }
 
 void
 Http::StatusLine::clean()
 {
-    set(Http::ProtocolVersion(), Http::scInternalServerError, NULL);
+    set(Http::ProtocolVersion(), Http::scInternalServerError, nullptr);
 }
 
 /* set values */

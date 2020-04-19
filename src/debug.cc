@@ -20,12 +20,12 @@
 /* for shutting_down flag in xassert() */
 #include "globals.h"
 
-char *Debug::debugOptions = NULL;
+char *Debug::debugOptions = nullptr;
 int Debug::override_X = 0;
 int Debug::log_stderr = -1;
 bool Debug::log_syslog = false;
 int Debug::Levels[MAX_DEBUG_SECTIONS];
-char *Debug::cache_log = NULL;
+char *Debug::cache_log = nullptr;
 int Debug::rotateNumber = -1;
 static int Ctx_Lock = 0;
 static const char *debugLogTime(void);
@@ -189,7 +189,7 @@ _db_print(const bool forceAlert, const char *format,...)
 static void
 _db_print_file(const char *format, va_list args)
 {
-    if (debug_log == NULL)
+    if (debug_log == nullptr)
         return;
 
     /* give a chance to context-based debugging to print current context */
@@ -280,7 +280,7 @@ debugArg(const char *arg)
 static void
 debugOpenLog(const char *logfile)
 {
-    if (logfile == NULL) {
+    if (logfile == nullptr) {
         TheLog.clear();
         return;
     }
@@ -417,7 +417,7 @@ syslog_facility_names[] = {
     },
 #endif
     {
-        NULL, 0
+        nullptr, 0
     }
 };
 
@@ -465,8 +465,8 @@ void
 Debug::parseOptions(char const *options)
 {
     int i;
-    char *p = NULL;
-    char *s = NULL;
+    char *p = nullptr;
+    char *s = nullptr;
 
     if (override_X) {
         debugs(0, 9, "command-line -X overrides: " << options);
@@ -479,7 +479,7 @@ Debug::parseOptions(char const *options)
     if (options) {
         p = xstrdup(options);
 
-        for (s = strtok(p, w_space); s; s = strtok(NULL, w_space))
+        for (s = strtok(p, w_space); s; s = strtok(nullptr, w_space))
             debugArg(s);
 
         xfree(p);

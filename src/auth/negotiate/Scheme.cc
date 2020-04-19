@@ -12,12 +12,12 @@
 #include "Debug.h"
 #include "helper.h"
 
-Auth::Scheme::Pointer Auth::Negotiate::Scheme::_instance = NULL;
+Auth::Scheme::Pointer Auth::Negotiate::Scheme::_instance = nullptr;
 
 Auth::Scheme::Pointer
 Auth::Negotiate::Scheme::GetInstance()
 {
-    if (_instance == NULL) {
+    if (_instance == nullptr) {
         _instance = new Auth::Negotiate::Scheme();
         AddScheme(_instance);
     }
@@ -33,10 +33,10 @@ Auth::Negotiate::Scheme::type() const
 void
 Auth::Negotiate::Scheme::shutdownCleanup()
 {
-    if (_instance == NULL)
+    if (_instance == nullptr)
         return;
 
-    _instance = NULL;
+    _instance = nullptr;
     debugs(29, DBG_CRITICAL, "Shutdown: Negotiate authentication.");
 }
 

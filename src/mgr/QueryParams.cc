@@ -20,7 +20,7 @@ Mgr::QueryParams::get(const String& name) const
 {
     Must(name.size() != 0);
     Params::const_iterator pos = find(name);
-    return (pos == params.end() ? NULL : pos->second);
+    return (pos == params.end() ? nullptr : pos->second);
 }
 
 void
@@ -30,7 +30,7 @@ Mgr::QueryParams::pack(Ipc::TypedMsgHdr& msg) const
     for (Params::const_iterator iter = params.begin(); iter != params.end(); ++iter) {
         Must(iter->first.size() != 0);
         msg.putString(iter->first);
-        Must(iter->second != NULL);
+        Must(iter->second != nullptr);
         iter->second->pack(msg);
     }
 }
@@ -136,6 +136,6 @@ Mgr::QueryParams::CreateParam(QueryParam::Type aType)
         throw TexcHere("unknown parameter type");
         break;
     }
-    return NULL;
+    return nullptr;
 }
 

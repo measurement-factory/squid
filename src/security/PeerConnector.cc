@@ -80,7 +80,7 @@ Security::PeerConnector::connectionClosed(const char *reason)
 {
     debugs(83, 5, reason << " socket closed/closing. this=" << (void*)this);
     mustStop(reason);
-    callback = NULL;
+    callback = nullptr;
 }
 
 bool
@@ -247,7 +247,7 @@ Security::PeerConnector::sslFinalized()
     }
 #endif
 
-    noteNegotiationDone(NULL);
+    noteNegotiationDone(nullptr);
     return true;
 }
 
@@ -255,9 +255,9 @@ Security::PeerConnector::sslFinalized()
 void
 Security::PeerConnector::sslCrtvdHandleReply(Ssl::CertValidationResponse::Pointer validationResponse)
 {
-    Must(validationResponse != NULL);
+    Must(validationResponse != nullptr);
 
-    Ssl::ErrorDetail *errDetails = NULL;
+    Ssl::ErrorDetail *errDetails = nullptr;
     bool validatorFailed = false;
     if (!Comm::IsConnOpen(serverConnection())) {
         return;
@@ -280,12 +280,12 @@ Security::PeerConnector::sslCrtvdHandleReply(Ssl::CertValidationResponse::Pointe
         validatorFailed = true;
 
     if (!errDetails && !validatorFailed) {
-        noteNegotiationDone(NULL);
+        noteNegotiationDone(nullptr);
         callBack();
         return;
     }
 
-    ErrorState *anErr = NULL;
+    ErrorState *anErr = nullptr;
     if (validatorFailed) {
         anErr = new ErrorState(ERR_GATEWAY_FAILURE, Http::scInternalServerError, request.getRaw(), al);
     }  else {
@@ -308,7 +308,7 @@ Security::PeerConnector::sslCrtvdHandleReply(Ssl::CertValidationResponse::Pointe
 Security::CertErrors *
 Security::PeerConnector::sslCrtvdCheckForErrors(Ssl::CertValidationResponse const &resp, Ssl::ErrorDetail *& errDetails)
 {
-    ACLFilledChecklist *check = NULL;
+    ACLFilledChecklist *check = nullptr;
     Security::SessionPointer session(fd_table[serverConnection()->fd].ssl);
 
     if (acl_access *acl = ::Config.ssl_client.cert_error) {
@@ -341,12 +341,12 @@ Security::PeerConnector::sslCrtvdCheckForErrors(Ssl::CertValidationResponse cons
                 debugs(83, 5, "confirming SSL error " << i->error_no);
                 X509 *brokenCert = i->cert.get();
                 Security::CertPointer peerCert(SSL_get_peer_certificate(session.get()));
-                const char *aReason = i->error_reason.empty() ? NULL : i->error_reason.c_str();
+                const char *aReason = i->error_reason.empty() ? nullptr : i->error_reason.c_str();
                 errDetails = new Ssl::ErrorDetail(i->error_no, peerCert.get(), brokenCert, aReason);
             }
             if (check) {
                 delete check->sslErrors;
-                check->sslErrors = NULL;
+                check->sslErrors = nullptr;
             }
         }
 
@@ -516,7 +516,7 @@ Security::PeerConnector::noteNegotiationError(const int ret, const int ssl_error
 #if USE_OPENSSL
     Security::SessionPointer session(fd_table[fd].ssl);
     Ssl::ErrorDetail *errFromFailure = static_cast<Ssl::ErrorDetail *>(SSL_get_ex_data(session.get(), ssl_ex_index_ssl_error_detail));
-    if (errFromFailure != NULL) {
+    if (errFromFailure != nullptr) {
         // The errFromFailure is attached to the ssl object
         // and will be released when ssl object destroyed.
         // Copy errFromFailure to a new Ssl::ErrorDetail object
@@ -524,7 +524,7 @@ Security::PeerConnector::noteNegotiationError(const int ret, const int ssl_error
     } else {
         // server_cert can be NULL here
         X509 *server_cert = SSL_get_peer_certificate(session.get());
-        anErr->detail = new Ssl::ErrorDetail(SQUID_ERR_SSL_HANDSHAKE, server_cert, NULL);
+        anErr->detail = new Ssl::ErrorDetail(SQUID_ERR_SSL_HANDSHAKE, server_cert, nullptr);
         X509_free(server_cert);
     }
 
@@ -540,7 +540,7 @@ void
 Security::PeerConnector::bail(ErrorState *error)
 {
     Must(error); // or the recipient will not know there was a problem
-    Must(callback != NULL);
+    Must(callback != nullptr);
     CbDialer *dialer = dynamic_cast<CbDialer*>(callback->getDialer());
     Must(dialer);
     dialer->answer().error = error;
@@ -562,7 +562,7 @@ Security::PeerConnector::callBack()
     AsyncCall::Pointer cb = callback;
     // Do this now so that if we throw below, swanSong() assert that we _tried_
     // to call back holds.
-    callback = NULL; // this should make done() true
+    callback = nullptr; // this should make done() true
 
     // remove close handler
     comm_remove_close_handler(serverConnection()->fd, closeHandler);
@@ -578,7 +578,7 @@ Security::PeerConnector::swanSong()
 {
     // XXX: unregister fd-closure monitoring and CommSetSelect interest, if any
     AsyncJob::swanSong();
-    if (callback != NULL) { // paranoid: we have left the caller waiting
+    if (callback != nullptr) { // paranoid: we have left the caller waiting
         debugs(83, DBG_IMPORTANT, "BUG: Unexpected state while connecting to a cache_peer or origin server");
         const auto anErr = new ErrorState(ERR_GATEWAY_FAILURE, Http::scInternalServerError, request.getRaw(), al);
         bail(anErr);
@@ -596,11 +596,11 @@ Security::PeerConnector::status() const
     // TODO: redesign AsyncJob::status() API to avoid this
     // id and stop reason reporting duplication.
     buf.append(" [", 2);
-    if (stopReason != NULL) {
+    if (stopReason != nullptr) {
         buf.append("Stopped, reason:", 16);
         buf.appendf("%s",stopReason);
     }
-    if (serverConn != NULL)
+    if (serverConn != nullptr)
         buf.appendf(" FD %d", serverConn->fd);
     buf.appendf(" %s%u]", id.prefix(), id.value);
     buf.terminate();
@@ -658,7 +658,7 @@ Security::PeerConnector::certDownloadingDone(SBuf &obj, int downloadStatus)
     // be able to accept collection of certificates.
     // TODO: support collection of certificates
     const unsigned char *raw = (const unsigned char*)obj.rawContent();
-    if (X509 *cert = d2i_X509(NULL, &raw, obj.length())) {
+    if (X509 *cert = d2i_X509(nullptr, &raw, obj.length())) {
         char buffer[1024];
         debugs(81, 5, "Retrieved certificate: " << X509_NAME_oneline(X509_get_subject_name(cert), buffer, 1024));
         ContextPointer ctx(getTlsContext());

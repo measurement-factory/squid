@@ -83,7 +83,7 @@ xcalloc(size_t n, size_t sz)
     void *p = calloc(n, sz);
     PROF_stop(calloc);
 
-    if (p == NULL) {
+    if (p == nullptr) {
         if (failure_notify) {
             static char msg[128];
             snprintf(msg, 128, "xcalloc: Unable to allocate %" PRIuSIZE " blocks of %" PRIuSIZE " bytes!\n", n, sz);
@@ -114,7 +114,7 @@ xmalloc(size_t sz)
     void *p = malloc(sz);
     PROF_stop(malloc);
 
-    if (p == NULL) {
+    if (p == nullptr) {
         if (failure_notify) {
             static char msg[128];
             snprintf(msg, 128, "xmalloc: Unable to allocate %" PRIuSIZE " bytes!\n", sz);
@@ -145,7 +145,7 @@ xrealloc(void *s, size_t sz)
     void *p= realloc(s, sz);
     PROF_stop(realloc);
 
-    if (p == NULL) {
+    if (p == nullptr) {
         if (failure_notify) {
             static char msg[128];
             snprintf(msg, 128, "xrealloc: Unable to reallocate %" PRIuSIZE " bytes!\n", sz);

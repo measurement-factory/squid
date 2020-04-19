@@ -111,7 +111,7 @@ removeUnnecessaryWildcards(char * t)
 static bool
 compileRE(std::list<RegexPattern> &curlist, const char * RE, int flags)
 {
-    if (RE == NULL || *RE == '\0')
+    if (RE == nullptr || *RE == '\0')
         return curlist.empty(); // XXX: old code did this. It looks wrong.
 
     regex_t comp;

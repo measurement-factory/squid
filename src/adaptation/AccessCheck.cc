@@ -47,11 +47,11 @@ Adaptation::AccessCheck::AccessCheck(const ServiceFilter &aFilter,
                                      Adaptation::Initiator *initiator):
     AsyncJob("AccessCheck"), filter(aFilter),
     theInitiator(initiator),
-    acl_checklist(NULL)
+    acl_checklist(nullptr)
 {
 #if ICAP_CLIENT
     Adaptation::Icap::History::Pointer h = filter.request->icapHistory();
-    if (h != NULL)
+    if (h != nullptr)
         h->start("ACL");
 #endif
 
@@ -63,7 +63,7 @@ Adaptation::AccessCheck::~AccessCheck()
 {
 #if ICAP_CLIENT
     Adaptation::Icap::History::Pointer h = filter.request->icapHistory();
-    if (h != NULL)
+    if (h != nullptr)
         h->stop("ACL");
 #endif
 }
@@ -144,7 +144,7 @@ Adaptation::AccessCheck::checkCandidates()
     }
 
     debugs(93, 4, HERE << "NO candidates left");
-    callBack(NULL);
+    callBack(nullptr);
     Must(done());
 }
 
@@ -177,7 +177,7 @@ Adaptation::AccessCheck::noteAnswer(Acl::Answer answer)
 
     if (answer.allowed()) { // the rule matched
         ServiceGroupPointer g = topGroup();
-        if (g != NULL) { // the corresponding group found
+        if (g != nullptr) { // the corresponding group found
             callBack(g);
             Must(done());
             return;

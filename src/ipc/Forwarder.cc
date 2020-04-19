@@ -98,7 +98,7 @@ void
 Ipc::Forwarder::RequestTimedOut(void* param)
 {
     debugs(54, 3, HERE);
-    Must(param != NULL);
+    Must(param != nullptr);
     Forwarder* fwdr = static_cast<Forwarder*>(param);
     // use async call to enable job call protection that time events lack
     CallJobHere(54, 5, fwdr, Forwarder, requestTimedOut);
@@ -153,7 +153,7 @@ Ipc::Forwarder::DequeueRequest(unsigned int requestId)
     RequestsMap::iterator request = TheRequestsMap.find(requestId);
     if (request != TheRequestsMap.end()) {
         call = request->second;
-        Must(call != NULL);
+        Must(call != nullptr);
         TheRequestsMap.erase(request);
     }
     return call;
@@ -174,7 +174,7 @@ Ipc::Forwarder::HandleRemoteAck(unsigned int requestId)
     Must(requestId != 0);
 
     AsyncCall::Pointer call = DequeueRequest(requestId);
-    if (call != NULL)
+    if (call != nullptr)
         ScheduleCallHere(call);
 }
 

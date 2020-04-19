@@ -27,7 +27,7 @@ void
 Mgr::ActionWriter::start()
 {
     debugs(16, 5, HERE);
-    Must(action != NULL);
+    Must(action != nullptr);
 
     StoreToCommWriter::start();
     action->fillEntry(entry, false);

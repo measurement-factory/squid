@@ -96,7 +96,7 @@ void
 MemBuf::init(mb_size_t szInit, mb_size_t szMax)
 {
     assert(szInit > 0 && szMax > 0);
-    buf = NULL;
+    buf = nullptr;
     size = 0;
     max_capacity = szMax;
     capacity = 0;
@@ -119,7 +119,7 @@ MemBuf::clean()
         assert(!stolen);    /* not frozen */
 
         memFreeBuf(capacity, buf);
-        buf = NULL;
+        buf = nullptr;
         size = capacity = max_capacity = 0;
     }
 }

@@ -24,11 +24,11 @@
 #include "HttpRequest.h"
 #include "SquidConfig.h"
 
-DelayId::DelayId () : pool_ (0), compositeId(NULL), markedAsNoDelay(false)
+DelayId::DelayId () : pool_ (0), compositeId(nullptr), markedAsNoDelay(false)
 {}
 
 DelayId::DelayId (unsigned short aPool) :
-    pool_ (aPool), compositeId (NULL), markedAsNoDelay (false)
+    pool_ (aPool), compositeId (nullptr), markedAsNoDelay (false)
 {
     debugs(77, 3, "DelayId::DelayId: Pool " << aPool << "u");
 }
@@ -85,7 +85,7 @@ DelayId::DelayClient(ClientHttpRequest * http, HttpReply *reply)
             continue;
         }
 
-        ACLFilledChecklist ch(DelayPools::delay_data[pool].access, r, NULL);
+        ACLFilledChecklist ch(DelayPools::delay_data[pool].access, r, nullptr);
         if (reply) {
             ch.reply = reply;
             HTTPMSGLOCK(reply);
@@ -98,7 +98,7 @@ DelayId::DelayClient(ClientHttpRequest * http, HttpReply *reply)
             ch.src_addr = r->client_addr;
         ch.my_addr = r->my_addr;
 
-        if (http->getConn() != NULL)
+        if (http->getConn() != nullptr)
             ch.conn(http->getConn());
 
         if (DelayPools::delay_data[pool].theComposite().getRaw() && ch.fastCheck().allowed()) {
@@ -139,7 +139,7 @@ DelayId::bytesWanted(int minimum, int maximum) const
     /* limited */
     int nbytes = max(minimum, maximum);
 
-    if (compositeId != NULL)
+    if (compositeId != nullptr)
         nbytes = compositeId->bytesWanted(minimum, nbytes);
 
     return nbytes;
@@ -161,14 +161,14 @@ DelayId::bytesIn(int qty)
 
     assert ((unsigned short)(pool() - 1) != 0xFFFF);
 
-    if (compositeId != NULL)
+    if (compositeId != nullptr)
         compositeId->bytesIn(qty);
 }
 
 void
 DelayId::delayRead(DeferredRead const &aRead)
 {
-    assert (compositeId != NULL);
+    assert (compositeId != nullptr);
     compositeId->delayRead(aRead);
 
 }

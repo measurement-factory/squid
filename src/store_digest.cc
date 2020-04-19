@@ -130,7 +130,7 @@ storeDigestInit(void)
 
 #if USE_CACHE_DIGESTS
     if (!Config.onoff.digest_generation) {
-        store_digest = NULL;
+        store_digest = nullptr;
         debugs(71, 3, "Local cache digest generation disabled");
         return;
     }
@@ -155,8 +155,8 @@ storeDigestNoteStoreReady(void)
 #if USE_CACHE_DIGESTS
 
     if (Config.onoff.digest_generation) {
-        storeDigestRebuildStart(NULL);
-        storeDigestRewriteStart(NULL);
+        storeDigestRebuildStart(nullptr);
+        storeDigestRewriteStart(nullptr);
     }
 
 #endif
@@ -360,7 +360,7 @@ storeDigestRebuildResume(void)
 
     sd_stats = StoreDigestStats();
 
-    eventAdd("storeDigestRebuildStep", storeDigestRebuildStep, NULL, 0.0, 1);
+    eventAdd("storeDigestRebuildStep", storeDigestRebuildStep, nullptr, 0.0, 1);
 }
 
 /* finishes swap out sequence for the digest; schedules next rebuild */
@@ -371,7 +371,7 @@ storeDigestRebuildFinish(void)
     sd_state.rebuild_lock = 0;
     ++sd_state.rebuild_count;
     debugs(71, 2, "storeDigestRebuildFinish: done.");
-    eventAdd("storeDigestRebuildStart", storeDigestRebuildStart, NULL, (double)
+    eventAdd("storeDigestRebuildStart", storeDigestRebuildStart, nullptr, (double)
              Config.digest.rebuild_period, 1);
     /* resume pending Rewrite if any */
 
@@ -397,7 +397,7 @@ storeDigestRebuildStep(void *datanotused)
     if (sd_state.theSearch->isDone())
         storeDigestRebuildFinish();
     else
-        eventAdd("storeDigestRebuildStep", storeDigestRebuildStep, NULL, 0.0, 1);
+        eventAdd("storeDigestRebuildStep", storeDigestRebuildStep, nullptr, 0.0, 1);
 }
 
 /* starts swap out sequence for the digest */
@@ -480,9 +480,9 @@ storeDigestRewriteFinish(StoreEntry * e)
            " (" << std::showpos << (int) (e->expires - squid_curtime) << ")");
     /* is this the write order? @?@ */
     e->mem_obj->unlinkRequest();
-    sd_state.rewrite_lock = NULL;
+    sd_state.rewrite_lock = nullptr;
     ++sd_state.rewrite_count;
-    eventAdd("storeDigestRewriteStart", storeDigestRewriteStart, NULL, (double)
+    eventAdd("storeDigestRewriteStart", storeDigestRewriteStart, nullptr, (double)
              Config.digest.rewrite_period, 1);
     /* resume pending Rebuild if any */
 

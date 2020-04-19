@@ -13,17 +13,17 @@
 #include "base/AsyncCallQueue.h"
 #include "Debug.h"
 
-AsyncCallQueue *AsyncCallQueue::TheInstance = 0;
+AsyncCallQueue *AsyncCallQueue::TheInstance = nullptr;
 
-AsyncCallQueue::AsyncCallQueue(): theHead(NULL), theTail(NULL)
+AsyncCallQueue::AsyncCallQueue(): theHead(nullptr), theTail(nullptr)
 {
 }
 
 void AsyncCallQueue::schedule(AsyncCall::Pointer &call)
 {
-    assert(call != NULL);
+    assert(call != nullptr);
     assert(!call->theNext);
-    if (theHead != NULL) { // append
+    if (theHead != nullptr) { // append
         assert(!theTail->theNext);
         theTail->theNext = call;
         theTail = call;
@@ -37,7 +37,7 @@ void AsyncCallQueue::schedule(AsyncCall::Pointer &call)
 bool
 AsyncCallQueue::fire()
 {
-    const bool made = theHead != NULL;
+    const bool made = theHead != nullptr;
     while (theHead) {
         CodeContext::Reset(theHead->codeContext);
         fireNext();
@@ -52,9 +52,9 @@ AsyncCallQueue::fireNext()
 {
     AsyncCall::Pointer call = theHead;
     theHead = call->theNext;
-    call->theNext = NULL;
+    call->theNext = nullptr;
     if (theTail == call)
-        theTail = NULL;
+        theTail = nullptr;
 
     debugs(call->debugSection, call->debugLevel, "entering " << *call);
     call->make();

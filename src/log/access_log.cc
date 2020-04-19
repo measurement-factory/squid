@@ -56,8 +56,8 @@ typedef struct {
     hash_link hash;
     int n;
 } fvdb_entry;
-static hash_table *via_table = NULL;
-static hash_table *forw_table = NULL;
+static hash_table *via_table = nullptr;
+static hash_table *forw_table = nullptr;
 static void fvdbInit();
 static void fvdbDumpTable(StoreEntry * e, hash_table * hash);
 static void fvdbCount(hash_table * hash, const char *key);
@@ -206,7 +206,7 @@ accessLogClose(void)
     for (log = Config.Log.accesslogs; log; log = log->next) {
         if (log->logfile) {
             logfileClose(log->logfile);
-            log->logfile = NULL;
+            log->logfile = nullptr;
         }
     }
 
@@ -225,7 +225,7 @@ HierarchyLogEntry::HierarchyLogEntry() :
     n_choices(0),
     n_ichoices(0),
     peer_reply_status(Http::scNone),
-    tcpServer(NULL),
+    tcpServer(nullptr),
     bodyBytesRead(-1)
 {
     memset(host, '\0', SQUIDHOSTNAMELEN);
@@ -252,7 +252,7 @@ HierarchyLogEntry::resetPeerNotes(const Comm::ConnectionPointer &server, const c
     clearPeerNotes();
 
     tcpServer = server;
-    if (tcpServer == NULL) {
+    if (tcpServer == nullptr) {
         code = HIER_NONE;
         xstrncpy(host, requestedHost, sizeof(host));
     } else {
@@ -384,7 +384,7 @@ accessLogInit(void)
         LogfileStatus = LOG_ENABLE;
 
 #if USE_ADAPTATION
-        for (Format::Token * curr_token = (log->logFormat?log->logFormat->format:NULL); curr_token; curr_token = curr_token->next) {
+        for (Format::Token * curr_token = (log->logFormat?log->logFormat->format:nullptr); curr_token; curr_token = curr_token->next) {
             if (curr_token->type == Format::LFT_ADAPTATION_SUM_XACT_TIMES ||
                     curr_token->type == Format::LFT_ADAPTATION_ALL_XACT_TIMES ||
                     curr_token->type == Format::LFT_ADAPTATION_LAST_HEADER ||
@@ -464,12 +464,12 @@ fvdbCount(hash_table * hash, const char *key)
 {
     fvdb_entry *fv;
 
-    if (NULL == hash)
+    if (nullptr == hash)
         return;
 
     fv = (fvdb_entry *)hash_lookup(hash, key);
 
-    if (NULL == fv) {
+    if (nullptr == fv) {
         fv = static_cast <fvdb_entry *>(xcalloc(1, sizeof(fvdb_entry)));
         fv->hash.key = xstrdup(key);
         hash_join(hash, &fv->hash);
@@ -496,7 +496,7 @@ fvdbDumpTable(StoreEntry * e, hash_table * hash)
     hash_link *h;
     fvdb_entry *fv;
 
-    if (hash == NULL)
+    if (hash == nullptr)
         return;
 
     hash_first(hash);

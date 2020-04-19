@@ -37,7 +37,7 @@ Store::Controller::Controller() :
     swapDir(new Disks),
     sharedMemStore(nullptr),
     localMemStore(false),
-    transients(NULL)
+    transients(nullptr)
 {
     assert(!store_table);
 }
@@ -338,7 +338,7 @@ Store::Controller::find(const cache_key *key)
             // fall through
         }
     }
-    return NULL;
+    return nullptr;
 }
 
 /// indexes and adds SMP-tracking for an ephemeral peek() result

@@ -16,7 +16,7 @@
 #include "Debug.h"
 #include "wordlist.h"
 
-ACLCertificateData::ACLCertificateData(Ssl::GETX509ATTRIBUTE *sslStrategy, const char *attrs, bool optionalAttr) : validAttributesStr(attrs), attributeIsOptional(optionalAttr), attribute (NULL), values (), sslAttributeCall (sslStrategy)
+ACLCertificateData::ACLCertificateData(Ssl::GETX509ATTRIBUTE *sslStrategy, const char *attrs, bool optionalAttr) : validAttributesStr(attrs), attributeIsOptional(optionalAttr), attribute (nullptr), values (), sslAttributeCall (sslStrategy)
 {
     if (attrs) {
         size_t current = 0;
@@ -30,7 +30,7 @@ ACLCertificateData::ACLCertificateData(Ssl::GETX509ATTRIBUTE *sslStrategy, const
     }
 }
 
-ACLCertificateData::ACLCertificateData(ACLCertificateData const &old) : attribute (NULL), values (old.values), sslAttributeCall (old.sslAttributeCall)
+ACLCertificateData::ACLCertificateData(ACLCertificateData const &old) : attribute (nullptr), values (old.values), sslAttributeCall (old.sslAttributeCall)
 {
     validAttributesStr = old.validAttributesStr;
     validAttributes.assign (old.validAttributes.begin(), old.validAttributes.end());
@@ -66,7 +66,7 @@ ACLCertificateData::match(X509 *cert)
 
     char const *value = sslAttributeCall(cert, attribute);
     debugs(28, 6, (attribute ? attribute : "value") << "=" << value);
-    if (value == NULL)
+    if (value == nullptr)
         return 0;
 
     return values.match(value);

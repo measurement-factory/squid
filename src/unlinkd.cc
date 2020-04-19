@@ -72,7 +72,7 @@ unlinkdUnlink(const char *path)
         FD_SET(unlinkd_rfd, &R);
         to.tv_sec = 0;
         to.tv_usec = 100000;
-        select(unlinkd_rfd + 1, &R, NULL, NULL, &to);
+        select(unlinkd_rfd + 1, &R, nullptr, nullptr, &to);
 #endif
     }
 
@@ -197,7 +197,7 @@ unlinkdInit(void)
     Ip::Address localhost;
 
     args[0] = "(unlinkd)";
-    args[1] = NULL;
+    args[1] = nullptr;
     localhost.setLocalhost();
 
     pid = ipcCreate(

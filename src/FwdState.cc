@@ -123,7 +123,7 @@ FwdState::closeServerConnection(const char *reason)
 {
     debugs(17, 3, "because " << reason << "; " << serverConn);
     comm_remove_close_handler(serverConn->fd, closeHandler);
-    closeHandler = NULL;
+    closeHandler = nullptr;
     fwdPconnPool->noteUses(fd_table[serverConn->fd].pconn.uses);
     serverConn->close();
 }
@@ -134,7 +134,7 @@ FwdState::FwdState(const Comm::ConnectionPointer &client, StoreEntry * e, HttpRe
     entry(e),
     request(r),
     al(alp),
-    err(NULL),
+    err(nullptr),
     clientConn(client),
     start_t(squid_curtime),
     n_tries(0),
@@ -274,7 +274,7 @@ FwdState::completed()
                 fail(new ErrorState(ERR_READ_ERROR, Http::scBadGateway, request, al));
             assert(err);
             errorAppendEntry(entry, err);
-            err = NULL;
+            err = nullptr;
 #if USE_OPENSSL
             if (request->flags.sslPeek && request->clientConnectionManager.valid()) {
                 CallJobHere1(17, 4, request->clientConnectionManager, ConnStateData,
@@ -309,7 +309,7 @@ FwdState::~FwdState()
 
     entry->unlock("FwdState");
 
-    entry = NULL;
+    entry = nullptr;
 
     if (opening())
         cancelOpening("~FwdState");
@@ -341,7 +341,7 @@ FwdState::Start(const Comm::ConnectionPointer &clientConn, StoreEntry *entry, Ht
          * Intentionally replace the src_addr automatically selected by the checklist code
          * we do NOT want the indirect client address to be tested here.
          */
-        ACLFilledChecklist ch(Config.accessList.miss, request, NULL);
+        ACLFilledChecklist ch(Config.accessList.miss, request, nullptr);
         ch.al = al;
         ch.src_addr = request->client_addr;
         ch.syncAle(request, nullptr);
@@ -406,7 +406,7 @@ void
 FwdState::fwdStart(const Comm::ConnectionPointer &clientConn, StoreEntry *entry, HttpRequest *request)
 {
     // Hides AccessLogEntry.h from code that does not supply ALE anyway.
-    Start(clientConn, entry, request, NULL);
+    Start(clientConn, entry, request, nullptr);
 }
 
 /// subtracts time_t values, returning zero if smaller exceeds the larger value
@@ -489,8 +489,8 @@ FwdState::unregister(Comm::ConnectionPointer &conn)
     assert(serverConnection() == conn);
     assert(Comm::IsConnOpen(conn));
     comm_remove_close_handler(conn->fd, closeHandler);
-    closeHandler = NULL;
-    serverConn = NULL;
+    closeHandler = nullptr;
+    serverConn = nullptr;
 }
 
 // \deprecated use unregister(Comm::ConnectionPointer &conn) instead
@@ -694,7 +694,7 @@ FwdState::checkRetriable()
     // Optimize: A compliant proxy may retry PUTs, but Squid lacks the [rather
     // complicated] code required to protect the PUT request body from being
     // nibbled during the first try. Thus, Squid cannot retry some PUTs today.
-    if (request->body_pipe != NULL)
+    if (request->body_pipe != nullptr)
         return false;
 
     // RFC2616 9.1 Safe and Idempotent Methods
@@ -726,7 +726,7 @@ FwdState::retryOrBail()
 
     request->hier.stopPeerClock(false);
 
-    if (self != NULL && !err && shutting_down && entry->isEmpty()) {
+    if (self != nullptr && !err && shutting_down && entry->isEmpty()) {
         const auto anErr = new ErrorState(ERR_SHUTTING_DOWN, Http::scServiceUnavailable, request, al);
         errorAppendEntry(entry, anErr);
     }
@@ -740,7 +740,7 @@ FwdState::retryOrBail()
 void
 FwdState::doneWithRetries()
 {
-    if (request && request->body_pipe != NULL)
+    if (request && request->body_pipe != nullptr)
         request->body_pipe->expectNoConsumption();
 }
 
@@ -1384,8 +1384,8 @@ getOutgoingAddress(HttpRequest * request, Comm::ConnectionPointer conn)
         return; // anything will do.
     }
 
-    ACLFilledChecklist ch(NULL, request, NULL);
-    ch.dst_peer_name = conn->getPeer() ? conn->getPeer()->name : NULL;
+    ACLFilledChecklist ch(nullptr, request, nullptr);
+    ch.dst_peer_name = conn->getPeer() ? conn->getPeer()->name : nullptr;
     ch.dst_addr = conn->remote;
 
     // TODO use the connection details in ACL.
@@ -1411,7 +1411,7 @@ GetTosToServer(HttpRequest * request, Comm::Connection &conn)
     if (!Ip::Qos::TheConfig.tosToServer)
         return 0;
 
-    ACLFilledChecklist ch(NULL, request, NULL);
+    ACLFilledChecklist ch(nullptr, request, nullptr);
     ch.dst_peer_name = conn.getPeer() ? conn.getPeer()->name : nullptr;
     ch.dst_addr = conn.remote;
     return aclMapTOS(Ip::Qos::TheConfig.tosToServer, &ch);
@@ -1424,7 +1424,7 @@ GetNfmarkToServer(HttpRequest * request, Comm::Connection &conn)
     if (!Ip::Qos::TheConfig.nfmarkToServer)
         return 0;
 
-    ACLFilledChecklist ch(NULL, request, NULL);
+    ACLFilledChecklist ch(nullptr, request, nullptr);
     ch.dst_peer_name = conn.getPeer() ? conn.getPeer()->name : nullptr;
     ch.dst_addr = conn.remote;
     const auto mc = aclFindNfMarkConfig(Ip::Qos::TheConfig.nfmarkToServer, &ch);

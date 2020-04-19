@@ -68,7 +68,7 @@ Ipc::Inquirer::inquire()
 
     Must(request->requestId == 0);
     AsyncCall::Pointer callback = asyncCall(54, 5, "Mgr::Inquirer::handleRemoteAck",
-                                            HandleAckDialer(this, &Inquirer::handleRemoteAck, NULL));
+                                            HandleAckDialer(this, &Inquirer::handleRemoteAck, nullptr));
     if (++LastRequestId == 0) // don't use zero value as request->requestId
         ++LastRequestId;
     request->requestId = LastRequestId;
@@ -146,7 +146,7 @@ Ipc::Inquirer::DequeueRequest(unsigned int requestId)
     RequestsMap::iterator request = TheRequestsMap.find(requestId);
     if (request != TheRequestsMap.end()) {
         call = request->second;
-        Must(call != NULL);
+        Must(call != nullptr);
         TheRequestsMap.erase(request);
     }
     return call;
@@ -157,7 +157,7 @@ Ipc::Inquirer::HandleRemoteAck(const Response& response)
 {
     Must(response.requestId != 0);
     AsyncCall::Pointer call = DequeueRequest(response.requestId);
-    if (call != NULL) {
+    if (call != nullptr) {
         HandleAckDialer* dialer = dynamic_cast<HandleAckDialer*>(call->getDialer());
         Must(dialer);
         dialer->arg1 = response.clone();
@@ -178,7 +178,7 @@ void
 Ipc::Inquirer::RequestTimedOut(void* param)
 {
     debugs(54, 3, HERE);
-    Must(param != NULL);
+    Must(param != nullptr);
     Inquirer* cmi = static_cast<Inquirer*>(param);
     // use async call to enable job call protection that time events lack
     CallJobHere(54, 5, cmi, Inquirer, requestTimedOut);

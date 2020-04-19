@@ -22,7 +22,7 @@
 #define ROTATE_LEFT(x, n) (((x) << (n)) | ((x) >> (32-(n))))
 
 static int n_carp_peers = 0;
-static CachePeer **carp_peers = NULL;
+static CachePeer **carp_peers = nullptr;
 static OBJH carpCachemgr;
 
 static int
@@ -149,7 +149,7 @@ carpSelectParent(PeerSelector *ps)
     HttpRequest *request = ps->request;
 
     int k;
-    CachePeer *p = NULL;
+    CachePeer *p = nullptr;
     CachePeer *tp;
     unsigned int user_hash = 0;
     unsigned int combined_hash;
@@ -157,7 +157,7 @@ carpSelectParent(PeerSelector *ps)
     double high_score = 0;
 
     if (n_carp_peers == 0)
-        return NULL;
+        return nullptr;
 
     /* calculate hash key */
     debugs(39, 2, "carpSelectParent: Calculating hash for " << request->effectiveRequestUri());

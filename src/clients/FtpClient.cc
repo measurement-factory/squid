@@ -72,10 +72,10 @@ Ftp::Channel::opened(const Comm::ConnectionPointer &newConn,
                      const AsyncCall::Pointer &aCloser)
 {
     assert(!Comm::IsConnOpen(conn));
-    assert(closer == NULL);
+    assert(closer == nullptr);
 
     assert(Comm::IsConnOpen(newConn));
-    assert(aCloser != NULL);
+    assert(aCloser != nullptr);
 
     conn = newConn;
     closer = aCloser;
@@ -107,19 +107,19 @@ Ftp::Channel::forget()
 void
 Ftp::Channel::clear()
 {
-    conn = NULL;
-    closer = NULL;
+    conn = nullptr;
+    closer = nullptr;
 }
 
 /* Ftp::CtrlChannel */
 
 Ftp::CtrlChannel::CtrlChannel():
-    buf(NULL),
+    buf(nullptr),
     size(0),
     offset(0),
-    message(NULL),
-    last_command(NULL),
-    last_reply(NULL),
+    message(nullptr),
+    last_command(nullptr),
+    last_reply(nullptr),
     replycode(0)
 {
     buf = static_cast<char*>(memAllocBuf(4096, &size));
@@ -137,8 +137,8 @@ Ftp::CtrlChannel::~CtrlChannel()
 /* Ftp::DataChannel */
 
 Ftp::DataChannel::DataChannel():
-    readBuf(NULL),
-    host(NULL),
+    readBuf(nullptr),
+    host(nullptr),
     port(0),
     read_pending(false)
 {
@@ -167,8 +167,8 @@ Ftp::Client::Client(FwdState *fwdState):
      ctrl(),
      data(),
      state(BEGIN),
-     old_request(NULL),
-     old_reply(NULL),
+     old_request(nullptr),
+     old_reply(nullptr),
      shortenReadTimeout(false)
 {
     ++statCounter.server.all.requests;
@@ -184,15 +184,15 @@ Ftp::Client::Client(FwdState *fwdState):
 
 Ftp::Client::~Client()
 {
-    if (data.opener != NULL) {
+    if (data.opener != nullptr) {
         data.opener->cancel("Ftp::Client destructed");
-        data.opener = NULL;
+        data.opener = nullptr;
     }
     data.close();
 
     safe_free(old_request);
     safe_free(old_reply);
-    fwd = NULL; // refcounted
+    fwd = nullptr; // refcounted
 }
 
 void
@@ -204,7 +204,7 @@ Ftp::Client::start()
 void
 Ftp::Client::initReadBuf()
 {
-    if (data.readBuf == NULL) {
+    if (data.readBuf == nullptr) {
         data.readBuf = new MemBuf;
         data.readBuf->init(4096, SQUID_TCP_SO_RCVBUF);
     }
@@ -263,7 +263,7 @@ Ftp::Client::failed(err_type error, int xerrno, ErrorState *err)
     ftperr->xerrno = xerrno;
 
     ftperr->ftp.server_msg = ctrl.message;
-    ctrl.message = NULL;
+    ctrl.message = nullptr;
 
     if (old_request)
         command = old_request;
@@ -459,7 +459,7 @@ Ftp::Client::handlePasvReply(Ip::Address &srvAddr)
     buf = ctrl.last_reply + strcspn(ctrl.last_reply, "0123456789");
 
     const char *forceIp = Config.Ftp.sanitycheck ?
-                          fd_table[ctrl.conn->fd].ipaddr : NULL;
+                          fd_table[ctrl.conn->fd].ipaddr : nullptr;
     if (!Ftp::ParseIpPort(buf, forceIp, srvAddr)) {
         debugs(9, DBG_IMPORTANT, "Unsafe PASV reply from " <<
                ctrl.conn->remote << ": " << ctrl.last_reply);
@@ -505,12 +505,12 @@ Ftp::Client::handleEpsvReply(Ip::Address &remoteAddr)
          */
         debugs(9, 5, "scanning: " << ctrl.last_reply);
         buf = ctrl.last_reply;
-        while (buf != NULL && *buf != '\0' && *buf != '\n' && *buf != '(')
+        while (buf != nullptr && *buf != '\0' && *buf != '\n' && *buf != '(')
             ++buf;
-        if (buf != NULL && *buf == '\n')
+        if (buf != nullptr && *buf == '\n')
             ++buf;
 
-        if (buf == NULL || *buf == '\0') {
+        if (buf == nullptr || *buf == '\0') {
             /* handle broken server (RFC 2428 says MUST specify supported protocols in 522) */
             debugs(9, DBG_IMPORTANT, "Broken FTP Server at " << ctrl.conn->remote << ". 522 error missing protocol negotiation hints");
             return sendPassive();
@@ -704,7 +704,7 @@ Ftp::Client::sendPassive()
     default: {
         bool doEpsv = true;
         if (Config.accessList.ftp_epsv) {
-            ACLFilledChecklist checklist(Config.accessList.ftp_epsv, fwd->request, NULL);
+            ACLFilledChecklist checklist(Config.accessList.ftp_epsv, fwd->request, nullptr);
             doEpsv = checklist.fastCheck().allowed();
         }
         if (!doEpsv) {
@@ -733,7 +733,7 @@ Ftp::Client::sendPassive()
 
     if (ctrl.message)
         wordlistDestroy(&ctrl.message);
-    ctrl.message = NULL; //No message to return to client.
+    ctrl.message = nullptr; //No message to return to client.
     ctrl.offset = 0; //reset readed response, to make room read the next response
 
     writeCommand(mb.content());
@@ -794,9 +794,9 @@ void
 Ftp::Client::dataClosed(const CommCloseCbParams &)
 {
     debugs(9, 4, status());
-    if (data.listenConn != NULL) {
+    if (data.listenConn != nullptr) {
         data.listenConn->close();
-        data.listenConn = NULL;
+        data.listenConn = nullptr;
         // NP clear() does the: data.fd = -1;
     }
     data.clear();
@@ -829,7 +829,7 @@ Ftp::Client::writeCommand(const char *buf)
     typedef CommCbMemFunT<Client, CommIoCbParams> Dialer;
     AsyncCall::Pointer call = JobCallback(9, 5, Dialer, this,
                                           Ftp::Client::writeCommandCallback);
-    Comm::Write(ctrl.conn, ctrl.last_command, strlen(ctrl.last_command), call, NULL);
+    Comm::Write(ctrl.conn, ctrl.last_command, strlen(ctrl.last_command), call, nullptr);
 
     scheduleReadControlReply(0);
 }
@@ -1020,7 +1020,7 @@ void
 Ftp::Client::abortAll(const char *reason)
 {
     debugs(9, 3, "aborting transaction for " << reason <<
-           "; FD " << (ctrl.conn!=NULL?ctrl.conn->fd:-1) << ", Data FD " << (data.conn!=NULL?data.conn->fd:-1) << ", this " << this);
+           "; FD " << (ctrl.conn!=nullptr?ctrl.conn->fd:-1) << ", Data FD " << (data.conn!=nullptr?data.conn->fd:-1) << ", this " << this);
     mustStop(reason);
 }
 
@@ -1072,7 +1072,7 @@ Ftp::Client::parseControlReply(size_t &bytesUsed)
     char *end;
     int usable;
     int complete = 0;
-    wordlist *head = NULL;
+    wordlist *head = nullptr;
     wordlist *list;
     wordlist **tail = &head;
     size_t linelen;

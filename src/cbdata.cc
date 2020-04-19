@@ -83,11 +83,11 @@ public:
         locks(0),
         type(CBDATA_UNKNOWN),
 #if USE_CBDATA_DEBUG
-        file(NULL),
+        file(nullptr),
         line(0),
 #endif
         cookie(0),
-        data(NULL)
+        data(nullptr)
     {}
     ~cbdata();
 
@@ -130,7 +130,7 @@ const long cbdata::Offset(MakeOffset());
 long
 cbdata::MakeOffset()
 {
-    cbdata *zero = (cbdata *)0L;
+    cbdata *zero = (cbdata *)nullptr;
     void **dataOffset = &zero->data;
     return (long)dataOffset;
 }
@@ -144,7 +144,7 @@ static OBJH cbdataDumpHistory;
 struct CBDataIndex {
     MemAllocator *pool;
 }
-*cbdata_index = NULL;
+*cbdata_index = nullptr;
 
 int cbdata_types = 0;
 
@@ -186,7 +186,7 @@ cbdataInternalInitType(cbdata_type type, const char *name, int size)
     snprintf(label, strlen(name) + 20, "cbdata %s (%d)", name, (int) type);
 
 #if !WITH_VALGRIND
-    assert((size_t)cbdata::Offset == (sizeof(cbdata) - ((cbdata *)NULL)->dataSize()));
+    assert((size_t)cbdata::Offset == (sizeof(cbdata) - ((cbdata *)nullptr)->dataSize()));
     size += cbdata::Offset;
 #endif
 
@@ -319,11 +319,11 @@ cbdataInternalFree(void *p, const char *file, int line)
 
     if (c->locks) {
         debugs(45, 9, p << " has " << c->locks << " locks, not freeing");
-        return NULL;
+        return nullptr;
     }
 
     cbdataRealFree(c, file, line);
-    return NULL;
+    return nullptr;
 }
 
 void
@@ -335,7 +335,7 @@ cbdataInternalLock(const void *p)
 {
     cbdata *c;
 
-    if (p == NULL)
+    if (p == nullptr)
         return;
 
 #if WITH_VALGRIND
@@ -367,7 +367,7 @@ cbdataInternalUnlock(const void *p)
 {
     cbdata *c;
 
-    if (p == NULL)
+    if (p == nullptr)
         return;
 
 #if WITH_VALGRIND
@@ -385,7 +385,7 @@ cbdataInternalUnlock(const void *p)
 
     c->check(__LINE__);
 
-    assert(c != NULL);
+    assert(c != nullptr);
 
     assert(c->locks > 0);
 
@@ -413,7 +413,7 @@ cbdataReferenceValid(const void *p)
 {
     cbdata *c;
 
-    if (p == NULL)
+    if (p == nullptr)
         return 1;       /* A NULL pointer cannot become invalid */
 
     debugs(45, 9, p);
@@ -440,7 +440,7 @@ cbdataInternalReferenceDoneValid(void **pp, void **tp)
 {
     void *p = (void *) *pp;
     int valid = cbdataReferenceValid(p);
-    *pp = NULL;
+    *pp = nullptr;
 #if USE_CBDATA_DEBUG
 
     cbdataInternalUnlockDbg(p, file, line);
@@ -453,7 +453,7 @@ cbdataInternalReferenceDoneValid(void **pp, void **tp)
         *tp = p;
         return 1;
     } else {
-        *tp = NULL;
+        *tp = nullptr;
         return 0;
     }
 }

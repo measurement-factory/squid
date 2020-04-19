@@ -87,7 +87,7 @@ HttpStateData::HttpStateData(FwdState *theFwdState) :
     AsyncJob("HttpStateData"),
     Client(theFwdState),
     lastChunk(0),
-    httpChunkDecoder(NULL),
+    httpChunkDecoder(nullptr),
     payloadSeen(0),
     payloadTruncated(0),
     sawDateGoBack(false)
@@ -97,7 +97,7 @@ HttpStateData::HttpStateData(FwdState *theFwdState) :
     surrogateNoStore = false;
     serverConnection = fwd->serverConnection();
 
-    if (fwd->serverConnection() != NULL)
+    if (fwd->serverConnection() != nullptr)
         _peer = cbdataReference(fwd->serverConnection()->getPeer());         /* might be NULL */
 
     flags.peering =  _peer;
@@ -250,7 +250,7 @@ httpMaybeRemovePublic(StoreEntry * e, Http::StatusCode status)
 
     StoreEntry *pe = findPreviouslyCachedEntry(e);
 
-    if (pe != NULL) {
+    if (pe != nullptr) {
         assert(e != pe);
 #if USE_HTCP
         neighborsHtcpClear(e, nullptr, e->mem_obj->request.getRaw(), e->mem_obj->method, HTCP_CLR_INVALIDATION);
@@ -267,7 +267,7 @@ httpMaybeRemovePublic(StoreEntry * e, Http::StatusCode status)
     else
         pe = storeGetPublic(e->mem_obj->storeId(), Http::METHOD_HEAD);
 
-    if (pe != NULL) {
+    if (pe != nullptr) {
         assert(e != pe);
 #if USE_HTCP
         neighborsHtcpClear(e, nullptr, e->mem_obj->request.getRaw(), HttpRequestMethod(Http::METHOD_HEAD), HTCP_CLR_INVALIDATION);
@@ -322,7 +322,7 @@ HttpStateData::reusableReply(HttpStateData::ReuseDecision &decision)
     const char *v;
 #if USE_HTTP_VIOLATIONS
 
-    const RefreshPattern *R = NULL;
+    const RefreshPattern *R = nullptr;
 
     /* This strange looking define first looks up the refresh pattern
      * and then checks if the specified flag is set. The main purpose
@@ -680,7 +680,7 @@ HttpStateData::processReplyHeader()
 
     /* Attempt to parse the first line; this will define where the protocol, status, reason-phrase and header begin */
     {
-        if (hp == NULL)
+        if (hp == nullptr)
             hp = new Http1::ResponseParser;
 
         bool parsedOk = hp->parse(inBuf);
@@ -749,7 +749,7 @@ HttpStateData::processReplyHeader()
     }
 
     // done with Parser, now process using the HttpReply
-    hp = NULL;
+    hp = nullptr;
 
     newrep->sources |= request->url.getScheme() == AnyP::PROTO_HTTPS ? Http::Message::srcHttps : Http::Message::srcHttp;
 
@@ -1176,7 +1176,7 @@ HttpStateData::readReply(const CommIoCbParams &io)
     if (rd.size <= 0) {
         assert(entry->mem_obj);
         AsyncCall::Pointer nilCall;
-        entry->mem_obj->delayRead(DeferredRead(readDelayed, this, CommRead(io.conn, NULL, 0, nilCall)));
+        entry->mem_obj->delayRead(DeferredRead(readDelayed, this, CommRead(io.conn, nullptr, 0, nilCall)));
         return;
     }
 
@@ -1375,7 +1375,7 @@ HttpStateData::writeReplyBody()
 bool
 HttpStateData::decodeAndWriteReplyBody()
 {
-    const char *data = NULL;
+    const char *data = nullptr;
     int len;
     bool wasThereAnException = false;
     assert(flags.chunked);
@@ -1468,7 +1468,7 @@ HttpStateData::processReplyBody()
             flags.do_next_read = false;
 
             comm_remove_close_handler(serverConnection->fd, closeHandler);
-            closeHandler = NULL;
+            closeHandler = nullptr;
 
             Ip::Address client_addr; // XXX: Remove as unused. Why was it added?
             if (request->flags.spoofClientIp)
@@ -1651,7 +1651,7 @@ HttpStateData::closeServer()
     if (Comm::IsConnOpen(serverConnection)) {
         fwd->unregister(serverConnection);
         comm_remove_close_handler(serverConnection->fd, closeHandler);
-        closeHandler = NULL;
+        closeHandler = nullptr;
         serverConnection->close();
     }
 }
@@ -1717,7 +1717,7 @@ httpFixupAuthentication(HttpRequest * request, const HttpHeader * hdr_in, HttpHe
         if (request->extacl_user.size())
             username = request->extacl_user.termedBuf();
 #if USE_AUTH
-        else if (request->auth_user_request != NULL)
+        else if (request->auth_user_request != nullptr)
             username = request->auth_user_request->username();
 #endif
 
@@ -1788,7 +1788,7 @@ HttpStateData::httpBuildRequestHeader(HttpRequest * request,
     LOCAL_ARRAY(char, bbuf, BBUF_SZ);
     LOCAL_ARRAY(char, ntoabuf, MAX_IPSTRLEN);
     const HttpHeader *hdr_in = &request->header;
-    const HttpHeaderEntry *e = NULL;
+    const HttpHeaderEntry *e = nullptr;
     HttpHeaderPos pos = HttpHeaderInitPos;
     assert (hdr_out->owner == hoRequest);
 
@@ -2152,7 +2152,7 @@ HttpStateData::decideIfWeDoRanges (HttpRequest * request)
 
     int64_t roffLimit = request->getRangeOffsetLimit();
 
-    if (NULL == request->range || !request->flags.cachable
+    if (nullptr == request->range || !request->flags.cachable
             || request->range->offsetLimitExceeded(roffLimit) || request->flags.connectionAuth)
         result = false;
 
@@ -2210,7 +2210,7 @@ HttpStateData::sendRequest()
 
     if (!Comm::IsConnOpen(serverConnection)) {
         debugs(11,3, HERE << "cannot send request to closing " << serverConnection);
-        assert(closeHandler != NULL);
+        assert(closeHandler != nullptr);
         return false;
     }
 
@@ -2221,7 +2221,7 @@ HttpStateData::sendRequest()
     flags.do_next_read = true;
     maybeReadVirginBody();
 
-    if (request->body_pipe != NULL) {
+    if (request->body_pipe != nullptr) {
         if (!startRequestBodyFlow()) // register to receive body data
             return false;
         typedef CommCbMemFunT<HttpStateData, CommIoCbParams> Dialer;
@@ -2251,7 +2251,7 @@ HttpStateData::sendRequest()
     else if (flags.tunneling)
         // tunneled non pinned bumped requests must not keepalive
         flags.keepalive = !request->flags.sslBumped;
-    else if (_peer == NULL)
+    else if (_peer == nullptr)
         flags.keepalive = true;
     else if (_peer->stats.n_keepalives_sent < 10)
         flags.keepalive = true;
@@ -2278,7 +2278,7 @@ HttpStateData::sendRequest()
     }
 
     mb.init();
-    request->peer_host=_peer?_peer->host:NULL;
+    request->peer_host=_peer?_peer->host:nullptr;
     buildRequestPrefix(&mb);
 
     debugs(11, 2, "HTTP Server " << serverConnection);
@@ -2297,7 +2297,7 @@ HttpStateData::getMoreRequestBody(MemBuf &buf)
 
     MemBuf raw;
 
-    Must(requestBodySource != NULL);
+    Must(requestBodySource != nullptr);
     if (!requestBodySource->getMoreData(raw))
         return false; // no request body bytes to chunk yet
 
@@ -2368,7 +2368,7 @@ HttpStateData::finishingBrokenPost()
 
     if (!Comm::IsConnOpen(serverConnection)) {
         debugs(11, 3, HERE << "ignoring broken POST for closed " << serverConnection);
-        assert(closeHandler != NULL);
+        assert(closeHandler != nullptr);
         return true; // prevent caller from proceeding as if nothing happened
     }
 
@@ -2376,7 +2376,7 @@ HttpStateData::finishingBrokenPost()
     typedef CommCbMemFunT<HttpStateData, CommIoCbParams> Dialer;
     requestSender = JobCallback(11,5,
                                 Dialer, this, HttpStateData::wroteLast);
-    Comm::Write(serverConnection, "\r\n", 2, requestSender, NULL);
+    Comm::Write(serverConnection, "\r\n", 2, requestSender, nullptr);
     return true;
 #else
     return false;
@@ -2397,7 +2397,7 @@ HttpStateData::finishingChunkedRequest()
 
     typedef CommCbMemFunT<HttpStateData, CommIoCbParams> Dialer;
     requestSender = JobCallback(11,5, Dialer, this, HttpStateData::wroteLast);
-    Comm::Write(serverConnection, "0\r\n\r\n", 5, requestSender, NULL);
+    Comm::Write(serverConnection, "0\r\n\r\n", 5, requestSender, nullptr);
     return true;
 }
 
@@ -2428,7 +2428,7 @@ HttpStateData::handleMoreRequestBodyAvailable()
         return;
     }
 
-    assert(requestBodySource != NULL);
+    assert(requestBodySource != nullptr);
 
     if (requestBodySource->buf().hasContent()) {
         // XXX: why does not this trigger a debug message on every request?

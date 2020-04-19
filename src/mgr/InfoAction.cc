@@ -140,7 +140,7 @@ void
 Mgr::InfoAction::dump(StoreEntry* entry)
 {
     debugs(16, 5, HERE);
-    Must(entry != NULL);
+    Must(entry != nullptr);
 
 #if XMALLOC_STATISTICS
     if (UsingSmp())

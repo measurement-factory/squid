@@ -24,8 +24,8 @@
 void
 Log::Format::SquidIcap(const AccessLogEntry::Pointer &al, Logfile * logfile)
 {
-    const char *client = NULL;
-    const char *user = NULL;
+    const char *client = nullptr;
+    const char *user = nullptr;
     char tmp[MAX_IPSTRLEN], clientbuf[MAX_IPSTRLEN];
 
     if (al->cache.caddr.isAnyAddr()) { // ICAP OPTIONS xactions lack client
@@ -38,7 +38,7 @@ Log::Format::SquidIcap(const AccessLogEntry::Pointer &al, Logfile * logfile)
     }
 
 #if USE_AUTH
-    if (al->request != NULL && al->request->auth_user_request != NULL)
+    if (al->request != nullptr && al->request->auth_user_request != nullptr)
         user = ::Format::QuoteUrlEncodeUsername(al->request->auth_user_request->username());
 #endif
 

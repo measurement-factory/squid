@@ -16,9 +16,9 @@
 #include "Debug.h"
 #include "wordlist.h"
 
-ACLTimeData::ACLTimeData () : weekbits (0), start (0), stop (0), next (NULL) {}
+ACLTimeData::ACLTimeData () : weekbits (0), start (0), stop (0), next (nullptr) {}
 
-ACLTimeData::ACLTimeData(ACLTimeData const &old) : weekbits(old.weekbits), start (old.start), stop (old.stop), next (NULL)
+ACLTimeData::ACLTimeData(ACLTimeData const &old) : weekbits(old.weekbits), start (old.start), stop (old.stop), next (nullptr)
 {
     if (old.next)
         next = (ACLTimeData *)old.next->clone();
@@ -30,7 +30,7 @@ ACLTimeData::operator=(ACLTimeData const &old)
     weekbits = old.weekbits;
     start = old.start;
     stop = old.stop;
-    next = NULL;
+    next = nullptr;
 
     if (old.next)
         next = (ACLTimeData *)old.next->clone();
@@ -80,7 +80,7 @@ ACLTimeData::dump() const
     SBufList sl;
     const ACLTimeData *t = this;
 
-    while (t != NULL) {
+    while (t != nullptr) {
         SBuf s;
         s.Printf("%c%c%c%c%c%c%c %02d:%02d-%02d:%02d",
                  t->weekbits & ACL_SUNDAY ? 'S' : '-',
@@ -105,7 +105,7 @@ ACLTimeData::parse()
     long parsed_weekbits = 0;
 
     for (Tail = &next; *Tail; Tail = &((*Tail)->next));
-    ACLTimeData *q = NULL;
+    ACLTimeData *q = nullptr;
 
     int h1, m1, h2, m2;
 

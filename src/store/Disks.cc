@@ -592,7 +592,7 @@ storeDirCloseSwapLogs()
 int
 storeDirWriteCleanLogs(int reopen)
 {
-    const StoreEntry *e = NULL;
+    const StoreEntry *e = nullptr;
     int n = 0;
 
     struct timeval start;
@@ -634,7 +634,7 @@ storeDirWriteCleanLogs(int reopen)
         for (dirn = 0; dirn < Config.cacheSwap.n_configured; ++dirn) {
             sd = dynamic_cast<SwapDir *>(INDEXSD(dirn));
 
-            if (NULL == sd->cleanLog)
+            if (nullptr == sd->cleanLog)
                 continue;
 
             e = sd->cleanLog->nextEntry();

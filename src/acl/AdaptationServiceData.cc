@@ -28,9 +28,9 @@ ACLAdaptationServiceData::parse()
             Adaptation::Ecap::TheConfig.findServiceConfig(t) == NULL &&
 #endif
 #if ICAP_CLIENT
-            Adaptation::Icap::TheConfig.findServiceConfig(t) == NULL &&
+            Adaptation::Icap::TheConfig.findServiceConfig(t) == nullptr &&
 #endif
-            Adaptation::FindGroup(t) == NULL) {
+            Adaptation::FindGroup(t) == nullptr) {
             debugs(28, DBG_CRITICAL, "FATAL: Adaptation service/group " << t << " in adaptation_service acl is not defined");
             self_destruct();
         }

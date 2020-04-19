@@ -24,20 +24,20 @@
 CBDATA_CLASS_INIT(ACLFilledChecklist);
 
 ACLFilledChecklist::ACLFilledChecklist() :
-    dst_rdns(NULL),
-    request (NULL),
-    reply (NULL),
+    dst_rdns(nullptr),
+    request (nullptr),
+    reply (nullptr),
 #if USE_AUTH
-    auth_user_request (NULL),
+    auth_user_request (nullptr),
 #endif
 #if SQUID_SNMP
-    snmp_community(NULL),
+    snmp_community(nullptr),
 #endif
 #if USE_OPENSSL
-    sslErrors(NULL),
+    sslErrors(nullptr),
 #endif
     requestErrorType(ERR_MAX),
-    conn_(NULL),
+    conn_(nullptr),
     fd_(-1),
     destinationDomainChecked_(false),
     sourceDomainChecked_(false)
@@ -150,7 +150,7 @@ ACLFilledChecklist::conn(ConnStateData *aConn)
 {
     if (conn() == aConn)
         return;
-    assert (conn() == NULL);
+    assert (conn() == nullptr);
     conn_ = cbdataReference(aConn);
 }
 
@@ -210,20 +210,20 @@ ACLFilledChecklist::markSourceDomainChecked()
  *    checkCallback() will delete the list (i.e., self).
  */
 ACLFilledChecklist::ACLFilledChecklist(const acl_access *A, HttpRequest *http_request, const char *ident):
-    dst_rdns(NULL),
-    request(NULL),
-    reply(NULL),
+    dst_rdns(nullptr),
+    request(nullptr),
+    reply(nullptr),
 #if USE_AUTH
-    auth_user_request(NULL),
+    auth_user_request(nullptr),
 #endif
 #if SQUID_SNMP
-    snmp_community(NULL),
+    snmp_community(nullptr),
 #endif
 #if USE_OPENSSL
-    sslErrors(NULL),
+    sslErrors(nullptr),
 #endif
     requestErrorType(ERR_MAX),
-    conn_(NULL),
+    conn_(nullptr),
     fd_(-1),
     destinationDomainChecked_(false),
     sourceDomainChecked_(false)

@@ -74,7 +74,7 @@ ACLChecklist::preCheck(const char *what)
     occupied_ = true;
     asyncLoopDepth_ = 0;
 
-    AclMatchedName = NULL;
+    AclMatchedName = nullptr;
     finished_ = false;
 }
 
@@ -163,7 +163,7 @@ ACLChecklist::checkCallback(Acl::Answer answer)
     debugs(28, 3, "ACLChecklist::checkCallback: " << this << " answer=" << answer);
 
     callback_ = callback;
-    callback = NULL;
+    callback = nullptr;
 
     if (cbdataReferenceValidDone(callback_data, &cbdata_))
         callback_(answer, cbdata_);
@@ -175,9 +175,9 @@ ACLChecklist::checkCallback(Acl::Answer answer)
 }
 
 ACLChecklist::ACLChecklist() :
-    accessList (NULL),
-    callback (NULL),
-    callback_data (NULL),
+    accessList (nullptr),
+    callback (nullptr),
+    callback_data (nullptr),
     asyncCaller_(false),
     occupied_(false),
     finished_(false),
@@ -245,7 +245,7 @@ ACLChecklist::nonBlockingCheck(ACLCB * callback_, void *callback_data_)
     /** The ACL List should NEVER be NULL when calling this method.
      * Always caller should check for NULL and handle appropriate to its needs first.
      * We cannot select a sensible default for all callers here. */
-    if (accessList == NULL) {
+    if (accessList == nullptr) {
         debugs(28, DBG_CRITICAL, "SECURITY ERROR: ACL " << this << " checked with nothing to match against!!");
         checkCallback(ACCESS_DUNNO);
         return;
@@ -342,7 +342,7 @@ ACLChecklist::fastCheck()
 
     debugs(28, 5, "aclCheckFast: list: " << accessList);
     const Acl::Tree *acl = cbdataReference(accessList);
-    if (acl != NULL && cbdataReferenceValid(acl)) {
+    if (acl != nullptr && cbdataReferenceValid(acl)) {
         matchAndFinish(); // calls markFinished() on success
 
         // if finished (on a match or in exceptional cases), stop

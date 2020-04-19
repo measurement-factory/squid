@@ -61,7 +61,7 @@ private:
 void
 CacheManager::registerProfile(const Mgr::ActionProfile::Pointer &profile)
 {
-    Must(profile != NULL);
+    Must(profile != nullptr);
     if (!CacheManager::findAction(profile->name)) {
         menu_.push_back(profile);
         debugs(16, 3, HERE << "registered profile: " << *profile);
@@ -110,7 +110,7 @@ CacheManager::registerProfile(char const * action, char const * desc,
 Mgr::ActionProfile::Pointer
 CacheManager::findAction(char const * action) const
 {
-    Must(action != NULL);
+    Must(action != nullptr);
     Menu::const_iterator a;
 
     debugs(16, 5, "CacheManager::findAction: looking for action " << action);
@@ -134,7 +134,7 @@ CacheManager::createNamedAction(const char *actionName)
     cmd->profile = findAction(actionName);
     cmd->params.actionName = actionName;
 
-    Must(cmd->profile != NULL);
+    Must(cmd->profile != nullptr);
     return cmd->profile->creator->create(cmd);
 }
 
@@ -144,7 +144,7 @@ CacheManager::createRequestedAction(const Mgr::ActionParams &params)
     Mgr::Command::Pointer cmd = new Mgr::Command;
     cmd->params = params;
     cmd->profile = findAction(params.actionName.termedBuf());
-    Must(cmd->profile != NULL);
+    Must(cmd->profile != nullptr);
     return cmd->profile->creator->create(cmd);
 }
 
@@ -207,18 +207,18 @@ CacheManager::ParseUrl(const char *url)
     Mgr::ActionProfile::Pointer profile = findAction(request);
     if (!profile) {
         debugs(16, DBG_IMPORTANT, "CacheManager::ParseUrl: action '" << request << "' not found");
-        return NULL;
+        return nullptr;
     }
 
     const char *prot = ActionProtection(profile);
     if (!strcmp(prot, "disabled") || !strcmp(prot, "hidden")) {
         debugs(16, DBG_IMPORTANT, "CacheManager::ParseUrl: action '" << request << "' is " << prot);
-        return NULL;
+        return nullptr;
     }
 
     Mgr::Command::Pointer cmd = new Mgr::Command;
     if (!Mgr::QueryParams::Parse(params, cmd->params.queryParams))
-        return NULL;
+        return nullptr;
     cmd->profile = profile;
     cmd->params.httpUri = url;
     cmd->params.userName = String();
@@ -276,13 +276,13 @@ CacheManager::ParseHeaders(const HttpRequest * request, Mgr::ActionParams &param
 int
 CacheManager::CheckPassword(const Mgr::Command &cmd)
 {
-    assert(cmd.profile != NULL);
+    assert(cmd.profile != nullptr);
     const char *action = cmd.profile->name;
     char *pwd = PasswdGet(Config.passwd_list, action);
 
     debugs(16, 4, "CacheManager::CheckPassword for action " << action);
 
-    if (pwd == NULL)
+    if (pwd == nullptr)
         return cmd.profile->isPwReq;
 
     if (strcmp(pwd, "disable") == 0)
@@ -412,7 +412,7 @@ CacheManager::start(const Comm::ConnectionPointer &client, HttpRequest *request,
     }
 
     Mgr::Action::Pointer action = cmd->profile->creator->create(cmd);
-    Must(action != NULL);
+    Must(action != nullptr);
     action->run(entry, true);
 }
 
@@ -424,7 +424,7 @@ CacheManager::start(const Comm::ConnectionPointer &client, HttpRequest *request,
 const char *
 CacheManager::ActionProtection(const Mgr::ActionProfile::Pointer &profile)
 {
-    assert(profile != NULL);
+    assert(profile != nullptr);
     const char *pwd = PasswdGet(Config.passwd_list, profile->name);
 
     if (!pwd)
@@ -460,7 +460,7 @@ CacheManager::PasswdGet(Mgr::ActionPasswordList * a, const char *action)
         a = a->next;
     }
 
-    return NULL;
+    return nullptr;
 }
 
 CacheManager*

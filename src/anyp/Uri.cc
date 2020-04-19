@@ -207,8 +207,8 @@ AnyP::Uri::parse(const HttpRequestMethod& method, const SBuf &rawUrl)
         LOCAL_ARRAY(char, login, MAX_URL);
         LOCAL_ARRAY(char, foundHost, MAX_URL);
         LOCAL_ARRAY(char, urlpath, MAX_URL);
-        char *t = NULL;
-        char *q = NULL;
+        char *t = nullptr;
+        char *q = nullptr;
         int foundPort;
         int l;
         int i;
@@ -319,7 +319,7 @@ AnyP::Uri::parse(const HttpRequestMethod& method, const SBuf &rawUrl)
 
             /* Is there any login information? (we should eventually parse it above) */
             t = strrchr(foundHost, '@');
-            if (t != NULL) {
+            if (t != nullptr) {
                 strncpy((char *) login, (char *) foundHost, sizeof(login)-1);
                 login[sizeof(login)-1] = '\0';
                 t = strrchr(login, '@');
@@ -358,7 +358,7 @@ AnyP::Uri::parse(const HttpRequestMethod& method, const SBuf &rawUrl)
                     /* RFC 2732 states IPv6 "SHOULD" be bracketed. allowing for times when its not. */
                     /* RFC 3986 'update' simply modifies this to an "is" with no emphasis at all! */
                     /* therefore we MUST accept the case where they are not bracketed at all. */
-                    t = NULL;
+                    t = nullptr;
                 }
             }
 
@@ -630,7 +630,7 @@ urlIsRelative(const char *url)
 {
     const char *p;
 
-    if (url == NULL) {
+    if (url == nullptr) {
         return (false);
     }
     if (*url == '\0') {
@@ -663,7 +663,7 @@ urlMakeAbsolute(const HttpRequest * req, const char *relUrl)
 {
 
     if (req->method.id() == Http::METHOD_CONNECT) {
-        return (NULL);
+        return (nullptr);
     }
 
     char *urlbuf = (char *)xmalloc(MAX_URL * sizeof(char));
@@ -933,7 +933,7 @@ URLHostName::init(char const *aUrl)
 void
 URLHostName::findHostStart()
 {
-    if (NULL == (hostStart = strchr(url, ':')))
+    if (nullptr == (hostStart = strchr(url, ':')))
         return;
 
     ++hostStart;
@@ -977,8 +977,8 @@ URLHostName::extract(char const *aUrl)
     init(aUrl);
     findHostStart();
 
-    if (hostStart == NULL)
-        return NULL;
+    if (hostStart == nullptr)
+        return nullptr;
 
     xstrncpy(Host, hostStart, SQUIDHOSTNAMELEN);
 

@@ -63,7 +63,7 @@ httpHdrScParseCreate(const String & str)
 
     if (!sc->parse(&str)) {
         delete sc;
-        sc = NULL;
+        sc = nullptr;
     }
 
     return sc;
@@ -76,9 +76,9 @@ HttpHdrSc::parse(const String * str)
     HttpHdrSc * sc=this;
     const char *item;
     const char *p;      /* '=' parameter */
-    const char *pos = NULL;
-    const char *target = NULL; /* ;foo */
-    const char *temp = NULL; /* temp buffer */
+    const char *pos = nullptr;
+    const char *target = nullptr; /* ;foo */
+    const char *temp = nullptr; /* temp buffer */
     http_hdr_sc_type type;
     int ilen, vlen;
     int initiallen;
@@ -117,7 +117,7 @@ HttpHdrSc::parse(const String * str)
         temp = xstrndup (item, initiallen + 1);
 
         if (!((target = strrchr (temp, ';')) && !strchr (target, '"') && *(target + 1) != '\0'))
-            target = NULL;
+            target = nullptr;
         else
             ++target;
 
@@ -189,7 +189,7 @@ HttpHdrSc::parse(const String * str)
         }
     }
 
-    return sc->targets.head != NULL;
+    return sc->targets.head != nullptr;
 }
 
 HttpHdrSc::~HttpHdrSc()
@@ -327,17 +327,17 @@ HttpHdrSc::findTarget(const char *target)
         node = node->next;
     }
 
-    return NULL;
+    return nullptr;
 }
 
 HttpHdrScTarget *
 HttpHdrSc::getMergedTarget(const char *ourtarget)
 {
     HttpHdrScTarget *sctus = findTarget(ourtarget);
-    HttpHdrScTarget *sctgeneric = findTarget(NULL);
+    HttpHdrScTarget *sctgeneric = findTarget(nullptr);
 
     if (sctgeneric || sctus) {
-        HttpHdrScTarget *sctusable = new HttpHdrScTarget(NULL);
+        HttpHdrScTarget *sctusable = new HttpHdrScTarget(nullptr);
 
         if (sctgeneric)
             sctusable->mergeWith(sctgeneric);
@@ -348,7 +348,7 @@ HttpHdrSc::getMergedTarget(const char *ourtarget)
         return sctusable;
     }
 
-    return NULL;
+    return nullptr;
 }
 
 void

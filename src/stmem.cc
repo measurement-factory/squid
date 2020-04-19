@@ -183,7 +183,7 @@ mem_hdr::getBlockContainingLocation (int64_t location) const
     if (result)
         return *result;
 
-    return NULL;
+    return nullptr;
 }
 
 size_t
@@ -314,7 +314,7 @@ mem_hdr::nodeToRecieve(int64_t offset)
         return nodes.start()->data;
     }
 
-    mem_node *candidate = NULL;
+    mem_node *candidate = nullptr;
     /* case 2: location fits within an extant node */
 
     if (offset > 0) {
@@ -418,7 +418,7 @@ mem_hdr::start() const
     if (result)
         return result->data;
 
-    return NULL;
+    return nullptr;
 }
 
 const Splay<mem_node *> &

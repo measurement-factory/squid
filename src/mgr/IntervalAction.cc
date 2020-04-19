@@ -148,7 +148,7 @@ void
 Mgr::IntervalAction::dump(StoreEntry* entry)
 {
     debugs(16, 5, HERE);
-    Must(entry != NULL);
+    Must(entry != nullptr);
     DumpAvgStat(data, entry);
 }
 

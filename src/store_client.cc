@@ -171,8 +171,8 @@ store_client::callback(ssize_t sz, bool error)
     cmp_offset = copyInto.offset + bSz;
     STCB *temphandler = _callback.callback_handler;
     void *cbdata = _callback.callback_data;
-    _callback = Callback(NULL, NULL);
-    copyInto.data = NULL;
+    _callback = Callback(nullptr, nullptr);
+    copyInto.data = nullptr;
 
     if (cbdataReferenceValid(cbdata))
         temphandler(cbdata, result);
@@ -226,7 +226,7 @@ storeClientCopy(store_client * sc,
                 STCB * callback,
                 void *data)
 {
-    assert (sc != NULL);
+    assert (sc != nullptr);
     sc->copy(e, copyInto,callback,data);
 }
 
@@ -394,7 +394,7 @@ store_client::doCopy(StoreEntry *anEntry)
      * if needed.
      */
 
-    if (STORE_DISK_CLIENT == getType() && swapin_sio == NULL) {
+    if (STORE_DISK_CLIENT == getType() && swapin_sio == nullptr) {
         if (!startSwapin())
             return; // failure
     }
@@ -417,7 +417,7 @@ store_client::startSwapin()
         /* Don't set store_io_pending here */
         storeSwapInStart(this);
 
-        if (swapin_sio == NULL) {
+        if (swapin_sio == nullptr) {
             fail();
             flags.store_copying = false;
             return false;
@@ -448,7 +448,7 @@ store_client::scheduleDiskRead()
     /* What the client wants is not in memory. Schedule a disk read */
     if (getType() == STORE_DISK_CLIENT) {
         // we should have called startSwapin() already
-        assert(swapin_sio != NULL);
+        assert(swapin_sio != nullptr);
     } else if (!swapin_sio && !startSwapin()) {
         debugs(90, 3, "bailing after swapin start failure for " << *entry);
         assert(!flags.store_copying);
@@ -692,12 +692,12 @@ storeUnregister(store_client * sc, StoreEntry * e, void *data)
     assert(sc == storeClientListSearch(e->mem_obj, data));
 #endif
 
-    if (mem == NULL)
+    if (mem == nullptr)
         return 0;
 
     debugs(90, 3, "storeUnregister: called for '" << e->getMD5Text() << "'");
 
-    if (sc == NULL) {
+    if (sc == nullptr) {
         debugs(90, 3, "storeUnregister: No matching client for '" << e->getMD5Text() << "'");
         return 0;
     }
@@ -714,9 +714,9 @@ storeUnregister(store_client * sc, StoreEntry * e, void *data)
     if (e->store_status == STORE_OK && !swapoutFinished)
         e->swapOut();
 
-    if (sc->swapin_sio != NULL) {
+    if (sc->swapin_sio != nullptr) {
         storeClose(sc->swapin_sio, StoreIOState::readerDone);
-        sc->swapin_sio = NULL;
+        sc->swapin_sio = nullptr;
         ++statCounter.swap.ins;
     }
 
@@ -768,7 +768,7 @@ StoreEntry::invokeHandlers()
     swapOut();
     int i = 0;
     store_client *sc;
-    dlink_node *nx = NULL;
+    dlink_node *nx = nullptr;
     dlink_node *node;
 
     PROF_start(InvokeHandlers);
@@ -801,7 +801,7 @@ int
 storePendingNClients(const StoreEntry * e)
 {
     MemObject *mem = e->mem_obj;
-    int npend = NULL == mem ? 0 : mem->nclients;
+    int npend = nullptr == mem ? 0 : mem->nclients;
     debugs(90, 3, "storePendingNClients: returning " << npend);
     return npend;
 }

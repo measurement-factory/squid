@@ -33,7 +33,7 @@ CommCommonCbParams::~CommCommonCbParams()
 void
 CommCommonCbParams::print(std::ostream &os) const
 {
-    if (conn != NULL)
+    if (conn != nullptr)
         os << conn;
     else
         os << "FD " << fd;
@@ -58,7 +58,7 @@ CommAcceptCbParams::print(std::ostream &os) const
 {
     CommCommonCbParams::print(os);
 
-    if (xaction != NULL)
+    if (xaction != nullptr)
         os << ", " << xaction->id;
 }
 
@@ -84,7 +84,7 @@ CommConnectCbParams::syncWithComm()
 /* CommIoCbParams */
 
 CommIoCbParams::CommIoCbParams(void *aData): CommCommonCbParams(aData),
-    buf(NULL), size(0)
+    buf(nullptr), size(0)
 {
 }
 

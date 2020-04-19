@@ -162,12 +162,12 @@ void Ipc::SharedListenJoined(const SharedListenResponse &response)
 
     Must(TheSharedListenRequestMap.find(response.mapId) != TheSharedListenRequestMap.end());
     PendingOpenRequest por = TheSharedListenRequestMap[response.mapId];
-    Must(por.callback != NULL);
+    Must(por.callback != nullptr);
     TheSharedListenRequestMap.erase(response.mapId);
 
     StartListeningCb *cbd = dynamic_cast<StartListeningCb*>(por.callback->getDialer());
-    assert(cbd && cbd->conn != NULL);
-    Must(cbd && cbd->conn != NULL);
+    assert(cbd && cbd->conn != nullptr);
+    Must(cbd && cbd->conn != nullptr);
     cbd->conn->fd = response.fd;
 
     if (Comm::IsConnOpen(cbd->conn)) {
@@ -175,7 +175,7 @@ void Ipc::SharedListenJoined(const SharedListenResponse &response)
         cbd->conn->local = p.addr;
         cbd->conn->flags = p.flags;
         // XXX: leave the comm AI stuff to comm_import_opened()?
-        struct addrinfo *AI = NULL;
+        struct addrinfo *AI = nullptr;
         p.addr.getAddrInfo(AI);
         AI->ai_socktype = p.sock_type;
         AI->ai_protocol = p.proto;

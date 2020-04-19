@@ -261,7 +261,7 @@ static SslErrorEntry TheSslErrorArray[] = {
         "X509_V_ERR_APPLICATION_VERIFICATION"
     },
     { SSL_ERROR_NONE, "SSL_ERROR_NONE"},
-    {SSL_ERROR_NONE, NULL}
+    {SSL_ERROR_NONE, nullptr}
 };
 
 static const char *OptionalSslErrors[] = {
@@ -286,7 +286,7 @@ static const char *OptionalSslErrors[] = {
     "X509_V_ERR_UNSUPPORTED_CONSTRAINT_SYNTAX",
     "X509_V_ERR_UNSUPPORTED_NAME_SYNTAX",
     "X509_V_ERR_CRL_PATH_VALIDATION_ERROR",
-    NULL
+    nullptr
 };
 
 struct SslErrorAlias {
@@ -321,7 +321,7 @@ static SslErrorAlias TheSslErrorShortcutsArray[] = {
     {"certUntrusted", certUntrusted},
     {"ssl::certSelfSigned", certSelfSigned},
     {"certSelfSigned", certSelfSigned},
-    {NULL, NULL}
+    {nullptr, nullptr}
 };
 
 // Use std::map to optimize search.
@@ -346,7 +346,7 @@ static void loadSslErrorShortcutsMap()
 Security::ErrorCode Ssl::GetErrorCode(const char *name)
 {
     //TODO: use a std::map?
-    for (int i = 0; TheSslErrorArray[i].name != NULL; ++i) {
+    for (int i = 0; TheSslErrorArray[i].name != nullptr; ++i) {
         if (strcmp(name, TheSslErrorArray[i].name) == 0)
             return TheSslErrorArray[i].value;
     }
@@ -365,7 +365,7 @@ Ssl::ParseErrorString(const char *name, Security::Errors &errors)
     }
 
     if (xisdigit(*name)) {
-        const long int value = strtol(name, NULL, 0);
+        const long int value = strtol(name, nullptr, 0);
         if (SQUID_SSL_ERROR_MIN <= value && value <= SQUID_SSL_ERROR_MAX) {
             errors.emplace(value);
             return true;
@@ -399,13 +399,13 @@ const char *Ssl::GetErrorName(Security::ErrorCode value)
     if (it != TheSslErrors.end())
         return it->second->name;
 
-    return NULL;
+    return nullptr;
 }
 
 bool
 Ssl::ErrorIsOptional(const char *name)
 {
-    for (int i = 0; OptionalSslErrors[i] != NULL; ++i) {
+    for (int i = 0; OptionalSslErrors[i] != nullptr; ++i) {
         if (strcmp(name, OptionalSslErrors[i]) == 0)
             return true;
     }
@@ -427,7 +427,7 @@ Ssl::ErrorDetail::err_frm_code Ssl::ErrorDetail::ErrorFormatingCodes[] = {
     {"err_name", &Ssl::ErrorDetail::err_code},
     {"ssl_error_descr", &Ssl::ErrorDetail::err_descr},
     {"ssl_lib_error", &Ssl::ErrorDetail::err_lib_error},
-    {NULL,NULL}
+    {nullptr,nullptr}
 };
 
 /**
@@ -588,7 +588,7 @@ const char *Ssl::ErrorDetail::err_lib_error() const
 int Ssl::ErrorDetail::convert(const char *code, const char **value) const
 {
     *value = "-";
-    for (int i=0; ErrorFormatingCodes[i].code!=NULL; ++i) {
+    for (int i=0; ErrorFormatingCodes[i].code!=nullptr; ++i) {
         const int len = strlen(ErrorFormatingCodes[i].code);
         if (strncmp(code,ErrorFormatingCodes[i].code, len)==0) {
             ErrorDetail::fmt_action_t action  = ErrorFormatingCodes[i].fmt_action;
@@ -608,7 +608,7 @@ int Ssl::ErrorDetail::convert(const char *code, const char **value) const
  */
 void Ssl::ErrorDetail::buildDetail() const
 {
-    char const *s = NULL;
+    char const *s = nullptr;
     char const *p;
     char const *t;
     int code_len = 0;
