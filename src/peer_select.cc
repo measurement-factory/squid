@@ -93,7 +93,7 @@ public:
     void noteWaitOver();
 
     /// adds a PeerSelector to the waiting list
-    void enqueue(PeerSelector *selector, const PingAbsoluteTime &endTime);
+    void enqueue(PeerSelector *selector, const PingAbsoluteTime &endTime, const int repliesExpected);
 
     /// removes a PeerSelector from the waiting list
     void dequeue(PeerSelector *selector);
@@ -152,16 +152,33 @@ PeerSelectorTimeoutProcessor::noteWaitOver()
         wait();
 }
 
-PeerSelectorWait::PeerSelectorWait() : position(ThePeerSelectorTimeoutProcessor.end())
+PeerSelectorWait::PeerSelectorWait() :
+    position(ThePeerSelectorTimeoutProcessor.end()),
+    n_sent(0),
+    n_recv(0),
+    repliesExpected(0),
+    w_rtt(0),
+    p_rtt(0)
 {}
 
 void
-PeerSelectorWait::start(PeerSelector *s, const PeerSelectorListIterator &pos, const bool hasEvent)
+PeerSelectorWait::start(PeerSelector *s, const PeerSelectorListIterator &pos, const bool hasEvent, const int replies)
 {
     assert(!selector);
     selector = s;
     position = pos;
     eventScheduled = hasEvent;
+    repliesExpected = replies;
+    codeContext = CodeContext::Current();
+}
+
+void
+PeerSelectorWait::start(PeerSelector *s, const bool hasEvent, const int replies)
+{
+    assert(!selector);
+    selector = s;
+    eventScheduled = hasEvent;
+    repliesExpected = replies;
     codeContext = CodeContext::Current();
 }
 
@@ -189,7 +206,7 @@ PeerSelectorTimeoutProcessor::wait()
 }
 
 void
-PeerSelectorTimeoutProcessor::enqueue(PeerSelector *selector, const PingAbsoluteTime &endTime)
+PeerSelectorTimeoutProcessor::enqueue(PeerSelector *selector, const PingAbsoluteTime &endTime, const int repliesExpected)
 {
     assert(selector);
     auto found = waitingList.find(endTime);
@@ -197,7 +214,7 @@ PeerSelectorTimeoutProcessor::enqueue(PeerSelector *selector, const PingAbsolute
     auto inserted = (found == waitingList.end()) ?
         waitingList.emplace(endTime, PeerSelectorWait()) :
         waitingList.emplace_hint(found, endTime, PeerSelectorWait());
-    selector->startWaiting(inserted, eventScheduled);
+    selector->startWaiting(inserted, eventScheduled, repliesExpected);
     wait();
 }
 
@@ -242,7 +259,7 @@ PeerSelector::~PeerSelector()
         servers = next;
     }
 
-    if (peerWaiting)
+    if (ping.peerWaiting)
         ThePeerSelectorTimeoutProcessor.dequeue(this);
 
     if (entry) {
@@ -267,27 +284,27 @@ PeerSelector::~PeerSelector()
 }
 
 void
-PeerSelector::startWaiting(const PeerSelectorListIterator &el, const bool hasEvent)
+PeerSelector::startWaiting(const PeerSelectorListIterator &el, const bool hasEvent, const int repliesExpected)
 {
-    Must(!peerWaiting);
-    peerWaiting = &(el->second);
-    peerWaiting->start(this, el, hasEvent);
+    Must(!ping.peerWaiting);
+    ping.peerWaiting = &(el->second);
+    ping.peerWaiting->start(this, el, hasEvent, repliesExpected);
 }
 
 void
 PeerSelector::stopWaiting()
 {
-    Must(peerWaiting);
-    peerWaiting->stop();
-    peerWaiting = nullptr;
+    Must(ping.peerWaiting);
+    ping.peerWaiting->stop();
+    ping.peerWaiting = nullptr;
 }
 
 PeerSelectorListIterator
 PeerSelector::waitingPosition() const
 {
-    assert(peerWaiting);
-    assert(peerWaiting->position != ThePeerSelectorTimeoutProcessor.end());
-    return peerWaiting->position;
+    assert(ping.peerWaiting);
+    assert(ping.peerWaiting->position != ThePeerSelectorTimeoutProcessor.end());
+    return ping.peerWaiting->position;
 }
 
 static int
@@ -610,9 +627,9 @@ PeerSelector::checkNetdbDirect()
     if (p == NULL)
         return 0;
 
-    debugs(44, 3, "closest_parent_miss RTT = " << ping.p_rtt << " msec");
+    debugs(44, 3, "closest_parent_miss RTT = " << ping.peerWaiting->p_rtt << " msec");
 
-    if (myrtt && myrtt <= ping.p_rtt)
+    if (myrtt && myrtt <= ping.peerWaiting->p_rtt)
         return 1;
 
 #endif /* USE_ICMP */
@@ -765,25 +782,26 @@ PeerSelector::selectSomeNeighbor()
             code = CLOSEST_PARENT;
         } else if (peerSelectIcpPing(this, direct, entry)) {
             debugs(44, 3, "Doing ICP pings");
+            int repliesExpected = 0;
             ping.start = current_time;
             ping.n_sent = neighborsUdpPing(request,
                                            entry,
                                            HandlePingReply,
                                            this,
-                                           &ping.n_replies_expected,
+                                           &repliesExpected,
                                            &ping.timeout);
 
             if (ping.n_sent == 0)
                 debugs(44, DBG_CRITICAL, "WARNING: neighborsUdpPing returned 0");
-            debugs(44, 3, ping.n_replies_expected <<
+            debugs(44, 3, repliesExpected <<
                    " ICP replies expected, RTT " << ping.timeout <<
                    " msec");
 
-            if (ping.n_replies_expected > 0) {
+            if (repliesExpected > 0) {
                 entry->ping_status = PING_WAITING;
-                Must(!peerWaiting);
+                Must(!ping.peerWaiting);
 
-                ThePeerSelectorTimeoutProcessor.enqueue(this, PingTimeoutAbsMsec(ping));
+                ThePeerSelectorTimeoutProcessor.enqueue(this, PingTimeoutAbsMsec(ping), repliesExpected);
                 return;
             }
         }
@@ -930,6 +948,8 @@ peerSelectInit(void)
 void
 PeerSelector::handleIcpParentMiss(CachePeer *p, icp_common_t *header)
 {
+    Must(ping.peerWaiting);
+
     int rtt;
 
 #if USE_ICMP
@@ -941,9 +961,9 @@ PeerSelector::handleIcpParentMiss(CachePeer *p, icp_common_t *header)
             if (rtt > 0 && rtt < 0xFFFF)
                 netdbUpdatePeer(request->url, p, rtt, hops);
 
-            if (rtt && (ping.p_rtt == 0 || rtt < ping.p_rtt)) {
+            if (rtt && (ping.peerWaiting->p_rtt == 0 || rtt < ping.peerWaiting->p_rtt)) {
                 closest_parent_miss = p->in_addr;
-                ping.p_rtt = rtt;
+                ping.peerWaiting->p_rtt = rtt;
             }
         }
     }
@@ -962,9 +982,9 @@ PeerSelector::handleIcpParentMiss(CachePeer *p, icp_common_t *header)
     if (rtt < 1)
         rtt = 1;
 
-    if (first_parent_miss.isAnyAddr() || rtt < ping.w_rtt) {
+    if (first_parent_miss.isAnyAddr() || rtt < ping.peerWaiting->w_rtt) {
         first_parent_miss = p->in_addr;
-        ping.w_rtt = rtt;
+        ping.peerWaiting->w_rtt = rtt;
     }
 }
 
@@ -982,7 +1002,9 @@ PeerSelector::handleIcpReply(CachePeer *p, const peer_t type, icp_common_t *head
 
 #endif
 
-    ++ping.n_recv;
+    Must(ping.peerWaiting);
+
+    ++ping.peerWaiting->n_recv;
 
     if (op == ICP_MISS || op == ICP_DECHO) {
         if (type == PEER_PARENT)
@@ -994,7 +1016,7 @@ PeerSelector::handleIcpReply(CachePeer *p, const peer_t type, icp_common_t *head
         return;
     }
 
-    if (ping.n_recv < ping.n_replies_expected)
+    if (ping.peerWaiting->n_recv < ping.peerWaiting->repliesExpected)
         return;
 
     selectMore();
@@ -1005,7 +1027,10 @@ void
 PeerSelector::handleHtcpReply(CachePeer *p, const peer_t type, HtcpReplyData *htcp)
 {
     debugs(44, 3, (htcp->hit ? "HIT" : "MISS") << ' ' << url());
-    ++ping.n_recv;
+
+    Must(ping.peerWaiting);
+
+    ++ping.peerWaiting->n_recv;
 
     if (htcp->hit) {
         hit = p;
@@ -1017,7 +1042,7 @@ PeerSelector::handleHtcpReply(CachePeer *p, const peer_t type, HtcpReplyData *ht
     if (type == PEER_PARENT)
         handleHtcpParentMiss(p, htcp);
 
-    if (ping.n_recv < ping.n_replies_expected)
+    if (ping.peerWaiting->n_recv < ping.peerWaiting->repliesExpected)
         return;
 
     selectMore();
@@ -1026,6 +1051,8 @@ PeerSelector::handleHtcpReply(CachePeer *p, const peer_t type, HtcpReplyData *ht
 void
 PeerSelector::handleHtcpParentMiss(CachePeer *p, HtcpReplyData *htcp)
 {
+    Must(ping.peerWaiting);
+
     int rtt;
 
 #if USE_ICMP
@@ -1035,9 +1062,9 @@ PeerSelector::handleHtcpParentMiss(CachePeer *p, HtcpReplyData *htcp)
             int hops = (int) htcp->cto.hops * 1000;
             netdbUpdatePeer(request->url, p, rtt, hops);
 
-            if (rtt && (ping.p_rtt == 0 || rtt < ping.p_rtt)) {
+            if (rtt && (ping.peerWaiting->p_rtt == 0 || rtt < ping.peerWaiting->p_rtt)) {
                 closest_parent_miss = p->in_addr;
-                ping.p_rtt = rtt;
+                ping.peerWaiting->p_rtt = rtt;
             }
         }
     }
@@ -1056,9 +1083,9 @@ PeerSelector::handleHtcpParentMiss(CachePeer *p, HtcpReplyData *htcp)
     if (rtt < 1)
         rtt = 1;
 
-    if (first_parent_miss.isAnyAddr() || rtt < ping.w_rtt) {
+    if (first_parent_miss.isAnyAddr() || rtt < ping.peerWaiting->w_rtt) {
         first_parent_miss = p->in_addr;
-        ping.w_rtt = rtt;
+        ping.peerWaiting->w_rtt = rtt;
     }
 }
 
@@ -1190,13 +1217,10 @@ PeerSelector::handlePath(const Comm::ConnectionPointer &path, FwdServer &fs)
 InstanceIdDefinitions(PeerSelector, "PeerSelector");
 
 ping_data::ping_data() :
-    n_sent(0),
-    n_recv(0),
-    n_replies_expected(0),
     timeout(0),
     timedout(0),
-    w_rtt(0),
-    p_rtt(0)
+    n_sent(0),
+    peerWaiting(nullptr)
 {
     start.tv_sec = 0;
     start.tv_usec = 0;

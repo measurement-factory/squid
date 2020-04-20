@@ -9,6 +9,8 @@
 #ifndef SQUID_PINGDATA_H
 #define SQUID_PINGDATA_H
 
+class PeerSelectorWait;
+
 class ping_data
 {
 
@@ -16,15 +18,12 @@ public:
     ping_data();
 
     struct timeval start;
-
     struct timeval stop;
-    int n_sent;
-    int n_recv;
-    int n_replies_expected;
     int timeout;        /* msec */
     int timedout;
-    int w_rtt;
-    int p_rtt;
+    int n_sent;
+
+    PeerSelectorWait *peerWaiting; ///< preserves the context while waiting for ping replies
 };
 
 #endif /* SQUID_PINGDATA_H */
