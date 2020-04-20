@@ -18,9 +18,9 @@ RegexPattern::RegexPattern(int aFlags, const char *aPattern) :
 }
 
 RegexPattern::RegexPattern(RegexPattern &&o) :
-    flags(std::move(o.flags)),
-    regex(std::move(o.regex)),
-    pattern(std::move(o.pattern))
+    flags(o.flags),
+    regex(o.regex),
+    pattern(o.pattern)
 {
     memset(&o.regex, 0, sizeof(o.regex));
     o.pattern = nullptr;
@@ -35,10 +35,10 @@ RegexPattern::~RegexPattern()
 RegexPattern &
 RegexPattern::operator =(RegexPattern &&o)
 {
-    flags = std::move(o.flags);
-    regex = std::move(o.regex);
+    flags = o.flags;
+    regex = o.regex;
     memset(&o.regex, 0, sizeof(o.regex));
-    pattern = std::move(o.pattern);
+    pattern = o.pattern;
     o.pattern = nullptr;
     return *this;
 }

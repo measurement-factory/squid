@@ -49,7 +49,7 @@ protected:
     esiTreeParentPtr parent;
 
 private:
-    int elementIndex (ESIElement::Pointer anElement) const;
+    int elementIndex (const ESIElement::Pointer& anElement) const;
     bool mayFail_;
     bool failed;
     esiProcessResult_t processOne(int, size_t);

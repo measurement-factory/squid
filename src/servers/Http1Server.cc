@@ -227,7 +227,7 @@ Http::One::Server::setReplyError(Http::StreamPointer &context, HttpRequest::Poin
 }
 
 void
-Http::One::Server::proceedAfterBodyContinuation(Http::StreamPointer context)
+Http::One::Server::proceedAfterBodyContinuation(const Http::StreamPointer& context)
 {
     debugs(33, 5, "Body Continuation written");
     clientProcessRequest(this, parser_, context.getRaw());

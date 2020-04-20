@@ -253,7 +253,7 @@ Security::PeerConnector::sslFinalized()
 
 #if USE_OPENSSL
 void
-Security::PeerConnector::sslCrtvdHandleReply(Ssl::CertValidationResponse::Pointer validationResponse)
+Security::PeerConnector::sslCrtvdHandleReply(const Ssl::CertValidationResponse::Pointer& validationResponse)
 {
     Must(validationResponse != NULL);
 

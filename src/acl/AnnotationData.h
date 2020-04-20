@@ -29,7 +29,7 @@ public:
     virtual ACLData<NotePairs::Entry *> *clone() const;
 
     /// Stores annotations into pairs.
-    void annotate(NotePairs::Pointer pairs, const CharacterSet *delimiters, const AccessLogEntry::Pointer &al);
+    void annotate(const NotePairs::Pointer& pairs, const CharacterSet *delimiters, const AccessLogEntry::Pointer &al);
 
 private:
     Notes::Pointer notes;

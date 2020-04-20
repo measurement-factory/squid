@@ -40,7 +40,7 @@ ACLAnnotationData::parse()
 }
 
 void
-ACLAnnotationData::annotate(NotePairs::Pointer pairs, const CharacterSet *delimiters, const AccessLogEntry::Pointer &al)
+ACLAnnotationData::annotate(const NotePairs::Pointer& pairs, const CharacterSet *delimiters, const AccessLogEntry::Pointer &al)
 {
     notes->updateNotePairs(pairs, delimiters, al);
 }

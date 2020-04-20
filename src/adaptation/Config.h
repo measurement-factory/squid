@@ -97,7 +97,7 @@ private:
 
     virtual ServicePointer createService(const ServiceConfigPointer &cfg) = 0;
 
-    static void ParseServiceGroup(ServiceGroupPointer group);
+    static void ParseServiceGroup(const ServiceGroupPointer& group);
     static void FreeServiceGroups(void);
     static void DumpServiceGroups(StoreEntry *, const char *);
 };

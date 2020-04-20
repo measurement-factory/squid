@@ -17,6 +17,7 @@
 #include "ipc/TypedMsgHdr.h"
 #include "MemBuf.h"
 #include <algorithm>
+#include <utility>
 
 CBDATA_NAMESPACED_CLASS_INIT(Ipc, Inquirer);
 
@@ -33,7 +34,7 @@ LesserStrandByKidId(const Ipc::StrandCoord &c1, const Ipc::StrandCoord &c2)
 Ipc::Inquirer::Inquirer(Request::Pointer aRequest, const StrandCoords& coords,
                         double aTimeout):
     AsyncJob("Ipc::Inquirer"),
-    request(aRequest), strands(coords), pos(strands.begin()), timeout(aTimeout)
+    request(std::move(aRequest)), strands(coords), pos(strands.begin()), timeout(aTimeout)
 {
     debugs(54, 5, HERE);
 
@@ -89,7 +90,7 @@ Ipc::Inquirer::handleRemoteAck(Response::Pointer response)
     debugs(54, 4, HERE << status());
     request->requestId = 0;
     removeTimeoutEvent();
-    if (aggregate(response)) {
+    if (aggregate(std::move(response))) {
         Must(!done()); // or we should not be called
         ++pos; // advance after a successful inquiry
         inquire();

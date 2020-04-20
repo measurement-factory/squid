@@ -12,6 +12,7 @@
 #include "dlink.h"
 
 #include <ostream>
+#include <utility>
 
 template <class _Arg, class _Result>
 struct unary_function {
@@ -83,7 +84,7 @@ Visitor& for_each(InputIterator from, InputIterator to, Visitor& visitor)
 /* generic ostream printer */
 template <class Pointer>
 struct PointerPrinter {
-    PointerPrinter(std::ostream &astream, std::string aDelimiter) : os(astream), delimiter (aDelimiter) {}
+    PointerPrinter(std::ostream &astream, std::string aDelimiter) : os(astream), delimiter (std::move(aDelimiter)) {}
 
     void operator () (Pointer aNode) {
         os << *aNode << delimiter;

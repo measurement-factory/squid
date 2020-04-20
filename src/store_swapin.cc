@@ -15,8 +15,8 @@
 #include "store_swapin.h"
 #include "StoreClient.h"
 
-static StoreIOState::STIOCB storeSwapInFileClosed;
-static StoreIOState::STFNCB storeSwapInFileNotify;
+static StoreIOState::STIOCB& const storeSwapInFileClosed;
+static StoreIOState::STFNCB& const storeSwapInFileNotify;
 
 void
 storeSwapInStart(store_client * sc)
@@ -48,7 +48,7 @@ storeSwapInStart(store_client * sc)
 }
 
 static void
-storeSwapInFileClosed(void *data, int errflag, StoreIOState::Pointer)
+storeSwapInFileClosed(void *data, int errflag, const StoreIOState::Pointer&)
 {
     store_client *sc = (store_client *)data;
     debugs(20, 3, "storeSwapInFileClosed: sio=" << sc->swapin_sio.getRaw() << ", errflag=" << errflag);
@@ -63,7 +63,7 @@ storeSwapInFileClosed(void *data, int errflag, StoreIOState::Pointer)
 }
 
 static void
-storeSwapInFileNotify(void *data, int, StoreIOState::Pointer)
+storeSwapInFileNotify(void *data, int, const StoreIOState::Pointer&)
 {
     store_client *sc = (store_client *)data;
     StoreEntry *e = sc->entry;

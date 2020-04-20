@@ -38,8 +38,8 @@
  *       'Body' refers to the swapfile body, which is the full
  *        HTTP reply (including HTTP headers and body).
  */
-static StoreIOState::STRCB storeClientReadBody;
-static StoreIOState::STRCB storeClientReadHeader;
+static StoreIOState::STRCB& const storeClientReadBody;
+static StoreIOState::STRCB& const storeClientReadHeader;
 static void storeClientCopy2(StoreEntry * e, store_client * sc);
 static EVH storeClientCopyEvent;
 static bool CheckQuickAbortIsReasonable(StoreEntry * entry);
@@ -553,14 +553,14 @@ store_client::fail()
 }
 
 static void
-storeClientReadHeader(void *data, const char *buf, ssize_t len, StoreIOState::Pointer)
+storeClientReadHeader(void *data, const char *buf, ssize_t len, const StoreIOState::Pointer&)
 {
     store_client *sc = (store_client *)data;
     sc->readHeader(buf, len);
 }
 
 static void
-storeClientReadBody(void *data, const char *buf, ssize_t len, StoreIOState::Pointer)
+storeClientReadBody(void *data, const char *buf, ssize_t len, const StoreIOState::Pointer&)
 {
     store_client *sc = (store_client *)data;
     sc->readBody(buf, len);
@@ -944,7 +944,7 @@ store_client::Callback::Callback(STCB *function, void *data):
 
 #if USE_DELAY_POOLS
 void
-store_client::setDelayId(DelayId delay_id)
+store_client::setDelayId(const DelayId& delay_id)
 {
     delayId = delay_id;
 }

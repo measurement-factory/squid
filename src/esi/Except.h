@@ -11,6 +11,8 @@
 #ifndef SQUID_ESIEXCEPT_H
 #define SQUID_ESIEXCEPT_H
 
+#include <utility>
+
 #include "esi/Element.h"
 #include "esi/Sequence.h"
 
@@ -20,7 +22,7 @@ class esiExcept : public esiSequence
 {
 
 public:
-    esiExcept(esiTreeParentPtr aParent) : esiSequence (aParent) {}
+    esiExcept(esiTreeParentPtr aParent) : esiSequence (std::move(aParent)) {}
 };
 
 #endif /* SQUID_ESIEXCEPT_H */

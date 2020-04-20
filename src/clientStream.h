@@ -99,7 +99,7 @@ public:
 void clientStreamInit(dlink_list *, CSR *, CSD *, CSS *, ClientStreamData, CSCB *, CSD *, ClientStreamData, StoreIOBuffer tailBuffer);
 
 /// \ingroup ClientStreamAPI
-void clientStreamInsertHead(dlink_list *, CSR *, CSCB *, CSD *, CSS *, ClientStreamData);
+void clientStreamInsertHead(dlink_list *, CSR *, CSCB *, CSD *, CSS *, const ClientStreamData&);
 
 /**
  \ingroup ClientStreamAPI

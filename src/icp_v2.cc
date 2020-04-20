@@ -439,7 +439,7 @@ icpLogFromICPCode(icp_opcode opcode)
 }
 
 void
-icpCreateAndSend(icp_opcode opcode, int flags, char const *url, int reqnum, int pad, int fd, const Ip::Address &from, AccessLogEntry::Pointer al)
+icpCreateAndSend(icp_opcode opcode, int flags, char const *url, int reqnum, int pad, int fd, const Ip::Address &from, const AccessLogEntry::Pointer& al)
 {
     // update potentially shared ALE ASAP; the ICP query itself may be delayed
     if (al)

@@ -1427,7 +1427,7 @@ Ftp::Server::handlePasvRequest(String &, String &params)
 
 /// [Re]initializes dataConn for active data transfers. Does not connect.
 bool
-Ftp::Server::createDataConnection(Ip::Address cltAddr)
+Ftp::Server::createDataConnection(const Ip::Address& cltAddr)
 {
     assert(clientConnection != NULL);
     assert(!clientConnection->remote.isAnyAddr());

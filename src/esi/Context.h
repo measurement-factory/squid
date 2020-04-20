@@ -63,7 +63,7 @@ public:
     void setError();
     void setErrorMessage(char const *);
 
-    void addStackElement (ESIElement::Pointer element);
+    void addStackElement (const ESIElement::Pointer& element);
     void addLiteral (const char *s, int len);
 
     void finishChildren ();
@@ -146,7 +146,7 @@ private:
     void trimBlanks();
     size_t send ();
     bool reading_;
-    void appendOutboundData(ESISegment::Pointer theData);
+    void appendOutboundData(const ESISegment::Pointer& theData);
     esiProcessResult_t process ();
     void parse();
     void parseOneBuffer();

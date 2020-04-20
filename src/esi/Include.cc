@@ -15,6 +15,8 @@
 #include "client_side.h"
 #include "client_side_request.h"
 #include "esi/Include.h"
+
+#include <utility>
 #include "esi/VarState.h"
 #include "fatal.h"
 #include "http/Stream.h"
@@ -213,7 +215,7 @@ ESIStreamContext *
 ESIStreamContextNew (ESIIncludePtr include)
 {
     ESIStreamContext *rv = new ESIStreamContext;
-    rv->include = include;
+    rv->include = std::move(include);
     return rv;
 }
 
@@ -283,7 +285,7 @@ ESIInclude::prepareRequestHeaders(HttpHeader &tempheaders, ESIVarState *vars)
 }
 
 void
-ESIInclude::Start (ESIStreamContext::Pointer stream, char const *url, ESIVarState *vars)
+ESIInclude::Start (const ESIStreamContext::Pointer& stream, char const *url, ESIVarState *vars)
 {
     if (!stream.getRaw())
         return;
@@ -311,7 +313,7 @@ ESIInclude::ESIInclude(esiTreeParentPtr aParent, int attrcount, char const **att
     varState(NULL),
     srcurl(NULL),
     alturl(NULL),
-    parent(aParent),
+    parent(std::move(aParent)),
     started(false),
     sent(false)
 {
@@ -437,7 +439,7 @@ ESIInclude::process (int dovars)
 }
 
 void
-ESIInclude::includeFail (ESIStreamContext::Pointer stream)
+ESIInclude::includeFail (const ESIStreamContext::Pointer& stream)
 {
     subRequestDone (stream, false);
 }
@@ -449,7 +451,7 @@ ESIInclude::dataNeeded() const
 }
 
 void
-ESIInclude::subRequestDone (ESIStreamContext::Pointer stream, bool success)
+ESIInclude::subRequestDone (const ESIStreamContext::Pointer& stream, bool success)
 {
     if (!dataNeeded())
         return;

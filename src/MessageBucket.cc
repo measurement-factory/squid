@@ -14,10 +14,12 @@
 #include "fde.h"
 #include "MessageBucket.h"
 
+#include <utility>
+
 MessageBucket::MessageBucket(const int speed, const int initialLevelPercent,
                              const double sizeLimit, MessageDelayPool::Pointer pool) :
     BandwidthBucket(speed, initialLevelPercent, sizeLimit),
-    theAggregate(pool) {}
+    theAggregate(std::move(pool)) {}
 
 int
 MessageBucket::quota()

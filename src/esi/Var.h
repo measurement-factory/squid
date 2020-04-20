@@ -11,6 +11,8 @@
 #ifndef SQUID_ESIVAR_H
 #define SQUID_ESIVAR_H
 
+#include <utility>
+
 #include "esi/Element.h"
 #include "esi/Sequence.h"
 
@@ -20,7 +22,7 @@ class ESIVar:public esiSequence
 {
 
 public:
-    ESIVar(esiTreeParentPtr aParent) : esiSequence (aParent) {
+    ESIVar(esiTreeParentPtr aParent) : esiSequence (std::move(aParent)) {
         flags.dovars = 1;
     }
 };

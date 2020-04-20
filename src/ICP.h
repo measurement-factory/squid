@@ -97,7 +97,7 @@ HttpRequest* icpGetRequest(char *url, int reqnum, int fd, Ip::Address &from);
 bool icpAccessAllowed(Ip::Address &from, HttpRequest * icp_request);
 
 /// \ingroup ServerProtocolICPAPI
-void icpCreateAndSend(icp_opcode, int flags, char const *url, int reqnum, int pad, int fd, const Ip::Address &from, AccessLogEntryPointer);
+void icpCreateAndSend(icp_opcode, int flags, char const *url, int reqnum, int pad, int fd, const Ip::Address &from, const AccessLogEntryPointer&);
 
 /// \ingroup ServerProtocolICPAPI
 icp_opcode icpGetCommonOpcode();

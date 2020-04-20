@@ -18,6 +18,8 @@
 #include "client_side_request.h"
 #include "CommRead.h"
 #include "DelayId.h"
+
+#include <utility>
 #include "DelayPool.h"
 #include "DelayPools.h"
 #include "http/Stream.h"
@@ -39,7 +41,7 @@ DelayId::~DelayId ()
 void
 DelayId::compositePosition(DelayIdComposite::Pointer newPosition)
 {
-    compositeId = newPosition;
+    compositeId = std::move(newPosition);
 }
 
 unsigned short

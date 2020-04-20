@@ -34,7 +34,7 @@ public:
     int getMaximum() const {return maximum;}
 
 private:
-    int match(Auth::UserRequest::Pointer auth_user_request, Ip::Address const &src_addr);
+    int match(const Auth::UserRequest::Pointer& auth_user_request, Ip::Address const &src_addr);
 
 public:
     Acl::BooleanOptionValue beStrict; ///< Enforce "one user, one device" policy?

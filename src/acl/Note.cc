@@ -47,7 +47,7 @@ bool
 ACLNoteStrategy::matchNotes(ACLData<MatchType> *noteData, const NotePairs *note) const
 {
     const NotePairs::Entries &entries = note->expandListEntries(&delimiters.value);
-    for (auto e: entries)
+    for (const auto& e: entries)
         if (noteData->match(e.getRaw()))
             return true;
     return false;

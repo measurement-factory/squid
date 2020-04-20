@@ -30,7 +30,7 @@ namespace Ssl
 class ErrorDetailFile : public TemplateFile
 {
 public:
-    explicit ErrorDetailFile(ErrorDetailsList::Pointer const details): TemplateFile("error-details.txt", ERR_NONE) {
+    explicit ErrorDetailFile(ErrorDetailsList::Pointer const& details): TemplateFile("error-details.txt", ERR_NONE) {
         theDetails = details;
     }
 

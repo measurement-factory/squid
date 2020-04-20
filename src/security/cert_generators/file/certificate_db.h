@@ -129,7 +129,7 @@ private:
     static bool WriteEntry(const std::string &filename, const Security::CertPointer & cert, const Security::PrivateKeyPointer & pkey, const Security::CertPointer &orig);
 
     /// loads a db entry from the file
-    static bool ReadEntry(std::string filename, Security::CertPointer & cert, Security::PrivateKeyPointer & pkey, Security::CertPointer &orig);
+    static bool ReadEntry(const std::string& filename, Security::CertPointer & cert, Security::PrivateKeyPointer & pkey, Security::CertPointer &orig);
 
     /// Removes the first matching row from TXT_DB. Ignores failures.
     static void sq_TXT_DB_delete(TXT_DB *db, const char **row);

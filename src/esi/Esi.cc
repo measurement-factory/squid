@@ -25,6 +25,8 @@
 #include "esi/Context.h"
 #include "esi/Element.h"
 #include "esi/Esi.h"
+
+#include <utility>
 #include "esi/Except.h"
 #include "esi/Expression.h"
 #include "esi/Segment.h"
@@ -185,7 +187,7 @@ public:
 private:
     esiChoose(esiChoose const &);
     esiTreeParentPtr parent;
-    void checkValidSource (ESIElement::Pointer source) const;
+    void checkValidSource (const ESIElement::Pointer& source) const;
     void selectElement();
 };
 
@@ -212,7 +214,7 @@ private:
 };
 
 struct esiOtherwise : public esiSequence {
-    esiOtherwise(esiTreeParentPtr aParent) : esiSequence (aParent) {}
+    esiOtherwise(esiTreeParentPtr aParent) : esiSequence (std::move(aParent)) {}
 };
 
 CBDATA_CLASS_INIT(ESIContext);
@@ -250,7 +252,7 @@ ESIContext::setError()
 }
 
 void
-ESIContext::appendOutboundData(ESISegment::Pointer theData)
+ESIContext::appendOutboundData(const ESISegment::Pointer& theData)
 {
     if (!outbound.getRaw()) {
         outbound = theData;
@@ -928,7 +930,7 @@ ESIContext::ParserState::inited() const
 }
 
 void
-ESIContext::addStackElement (ESIElement::Pointer element)
+ESIContext::addStackElement (const ESIElement::Pointer& element)
 {
     /* Put on the stack to allow skipping of 'invalid' markup */
 
@@ -1511,7 +1513,7 @@ esiLiteral::~esiLiteral()
 }
 
 esiLiteral::esiLiteral(ESISegment::Pointer aSegment) :
-    buffer(aSegment),
+    buffer(std::move(aSegment)),
     varState(nullptr)
 {
     /* Nothing to do */
@@ -1644,7 +1646,7 @@ esiTry::~esiTry()
 }
 
 esiTry::esiTry(esiTreeParentPtr aParent) :
-    parent(aParent),
+    parent(std::move(aParent)),
     exceptbuffer(NULL)
 {
     memset(&flags, 0, sizeof(flags));
@@ -1910,7 +1912,7 @@ esiChoose::~esiChoose()
 esiChoose::esiChoose(esiTreeParentPtr aParent) :
     elements(),
     chosenelement(-1),
-    parent(aParent)
+    parent(std::move(aParent))
 {}
 
 void
@@ -2068,7 +2070,7 @@ esiChoose::process (int dovars)
 }
 
 void
-esiChoose::checkValidSource (ESIElement::Pointer source) const
+esiChoose::checkValidSource (const ESIElement::Pointer& source) const
 {
     if (!elements.size())
         fatal ("invalid callback = no when clause\n");
@@ -2166,7 +2168,7 @@ esiChoose::makeUsable(esiTreeParentPtr newParent, ESIVarState &newVarState) cons
 
 /* esiWhen */
 esiWhen::esiWhen(esiTreeParentPtr aParent, int attrcount, const char **attr,ESIVarState *aVar) :
-    esiSequence(aParent),
+    esiSequence(std::move(aParent)),
     testValue(false),
     unevaluatedExpression(NULL),
     varState(NULL)

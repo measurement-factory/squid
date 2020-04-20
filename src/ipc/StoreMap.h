@@ -362,7 +362,7 @@ private:
     void closeForUpdateFinal(Update &update);
 
     typedef std::function<bool (const sfileno name)> NameFilter; // a "name"-based test
-    bool visitVictims(const NameFilter filter);
+    bool visitVictims(const NameFilter& filter);
 
     void freeChain(const sfileno fileno, Anchor &inode, const bool keepLock);
     void freeChainAt(SliceId sliceId, const SliceId splicingPoint);

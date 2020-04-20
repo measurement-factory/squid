@@ -107,7 +107,7 @@ authenticateReset(void)
 std::vector<Auth::User::Pointer>
 authenticateCachedUsersList()
 {
-    auto aucp_compare = [=](const Auth::User::Pointer lhs, const Auth::User::Pointer rhs) {
+    auto aucp_compare = [=](const Auth::User::Pointer& lhs, const Auth::User::Pointer& rhs) {
         return lhs->userKey() < rhs->userKey();
     };
     std::vector<Auth::User::Pointer> v1, v2, rv, u1, u2;

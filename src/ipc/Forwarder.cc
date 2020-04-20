@@ -15,6 +15,8 @@
 #include "HttpReply.h"
 #include "HttpRequest.h"
 #include "ipc/Forwarder.h"
+
+#include <utility>
 #include "ipc/Port.h"
 #include "ipc/TypedMsgHdr.h"
 
@@ -25,7 +27,7 @@ unsigned int Ipc::Forwarder::LastRequestId = 0;
 
 Ipc::Forwarder::Forwarder(Request::Pointer aRequest, double aTimeout):
     AsyncJob("Ipc::Forwarder"),
-    request(aRequest), timeout(aTimeout)
+    request(std::move(aRequest)), timeout(aTimeout)
 {
 }
 

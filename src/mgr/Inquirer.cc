@@ -31,7 +31,7 @@
 
 CBDATA_NAMESPACED_CLASS_INIT(Mgr, Inquirer);
 
-Mgr::Inquirer::Inquirer(Action::Pointer anAction,
+Mgr::Inquirer::Inquirer(const Action::Pointer& anAction,
                         const Request &aCause, const Ipc::StrandCoords &coords):
     Ipc::Inquirer(aCause.clone(), applyQueryParams(coords, aCause.params.queryParams), anAction->atomic() ? 10 : 100),
     aggrAction(anAction)

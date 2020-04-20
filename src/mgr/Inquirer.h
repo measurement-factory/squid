@@ -28,7 +28,7 @@ class Inquirer: public Ipc::Inquirer
     CBDATA_CLASS(Inquirer);
 
 public:
-    Inquirer(Action::Pointer anAction, const Request &aCause,
+    Inquirer(const Action::Pointer& anAction, const Request &aCause,
              const Ipc::StrandCoords &coords);
 
 protected:

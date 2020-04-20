@@ -11,6 +11,8 @@
 #include "squid.h"
 #include "client_side_request.h"
 #include "clientStream.h"
+
+#include <utility>
 #include "http/Stream.h"
 #include "HttpReply.h"
 #include "HttpRequest.h"
@@ -89,7 +91,7 @@ clientStreamNode::clientStreamNode(CSR * aReadfunc, CSCB * aCallback, CSD * aDet
     callback(aCallback),
     detach(aDetach),
     status(aStatus),
-    data(aData)
+    data(std::move(aData))
 {}
 
 clientStreamNode::~clientStreamNode()
@@ -113,10 +115,10 @@ clientStreamInit(dlink_list * list, CSR * func, CSD * rdetach, CSS * readstatus,
                  ClientStreamData readdata, CSCB * callback, CSD * cdetach, ClientStreamData callbackdata,
                  StoreIOBuffer tailBuffer)
 {
-    clientStreamNode *temp = new clientStreamNode(func, NULL, rdetach, readstatus, readdata);
+    clientStreamNode *temp = new clientStreamNode(func, NULL, rdetach, readstatus, std::move(readdata));
     dlinkAdd(cbdataReference(temp), &temp->node, list);
     temp->head = list;
-    clientStreamInsertHead(list, NULL, callback, cdetach, NULL, callbackdata);
+    clientStreamInsertHead(list, NULL, callback, cdetach, NULL, std::move(callbackdata));
     temp = (clientStreamNode *)list->tail->data;
     temp->readBuffer = tailBuffer;
 }
@@ -129,7 +131,7 @@ clientStreamInit(dlink_list * list, CSR * func, CSD * rdetach, CSS * readstatus,
  */
 void
 clientStreamInsertHead(dlink_list * list, CSR * func, CSCB * callback,
-                       CSD * detach, CSS * status, ClientStreamData data)
+                       CSD * detach, CSS * status, const ClientStreamData& data)
 {
     /* test preconditions */
     assert(list != NULL);

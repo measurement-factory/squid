@@ -79,7 +79,7 @@ CodeContext::Reset()
 }
 
 void
-CodeContext::Reset(const Pointer codeCtx)
+CodeContext::Reset(const Pointer& codeCtx)
 {
     if (codeCtx == Current())
         return; // context has not actually changed

@@ -44,9 +44,9 @@ protected:
     virtual void swanSong() override;
 
 private:
-    static StoreIOState::STRCB NoteRead;
-    static StoreIOState::STIOCB NoteDoneReading;
-    static StoreIOState::STIOCB NoteDoneWriting;
+    static StoreIOState::STRCB& const NoteRead;
+    static StoreIOState::STIOCB& const NoteDoneReading;
+    static StoreIOState::STIOCB& const NoteDoneWriting;
 
     void startReading();
     void stopReading(const char *why);

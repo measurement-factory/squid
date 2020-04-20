@@ -117,7 +117,7 @@ protected:
     void connectedForData(const CommConnectCbParams &params);
 
     unsigned int listenForDataConnection();
-    bool createDataConnection(Ip::Address cltAddr);
+    bool createDataConnection(const Ip::Address& cltAddr);
     void closeDataConnection();
 
     /// Called after data transfer on client-to-squid data connection is

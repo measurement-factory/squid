@@ -57,7 +57,7 @@ Auth::User::credentials(CredentialState newCreds)
  * the 'from' object. They are invalid once this method is complete.
  */
 void
-Auth::User::absorb(Auth::User::Pointer from)
+Auth::User::absorb(const Auth::User::Pointer& from)
 {
     /*
      * XXX Incomplete: it should merge in hash references too and ask the module to merge in scheme data
@@ -159,7 +159,7 @@ Auth::User::clearIp()
 }
 
 void
-Auth::User::removeIp(Ip::Address ipaddr)
+Auth::User::removeIp(const Ip::Address& ipaddr)
 {
     AuthUserIP *ipdata = (AuthUserIP *) ip_list.head;
 
@@ -182,7 +182,7 @@ Auth::User::removeIp(Ip::Address ipaddr)
 }
 
 void
-Auth::User::addIp(Ip::Address ipaddr)
+Auth::User::addIp(const Ip::Address& ipaddr)
 {
     AuthUserIP *ipdata = (AuthUserIP *) ip_list.head;
     int found = 0;
@@ -252,7 +252,7 @@ Auth::User::CredentialsCacheStats(StoreEntry *output)
                       "Cache TTL",
                       "Username", "Key");
     storeAppendPrintf(output, "--------------- --------- --------- --------- ------------------------------\n");
-    for ( auto auth_user : userlist ) {
+    for ( const auto& auth_user : userlist ) {
         storeAppendPrintf(output, "%-15s %-9s %-9d %-9d %s\t" SQUIDSBUFPH "\n",
                           Auth::Type_str[auth_user->auth_type],
                           CredentialState_str[auth_user->credentials()],

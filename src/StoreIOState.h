@@ -101,9 +101,9 @@ public:
 
 StoreIOState::Pointer storeCreate(StoreEntry *, StoreIOState::STFNCB *, StoreIOState::STIOCB *, void *);
 StoreIOState::Pointer storeOpen(StoreEntry *, StoreIOState::STFNCB *, StoreIOState::STIOCB *, void *);
-void storeClose(StoreIOState::Pointer, int how);
-void storeRead(StoreIOState::Pointer, char *, size_t, off_t, StoreIOState::STRCB *, void *);
-void storeIOWrite(StoreIOState::Pointer, char const *, size_t, off_t, FREE *);
+void storeClose(const StoreIOState::Pointer&, int how);
+void storeRead(const StoreIOState::Pointer&, char *, size_t, off_t, StoreIOState::STRCB *, void *);
+void storeIOWrite(const StoreIOState::Pointer&, char const *, size_t, off_t, FREE *);
 
 #endif /* SQUID_STOREIOSTATE_H */
 

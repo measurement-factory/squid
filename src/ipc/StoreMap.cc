@@ -645,7 +645,7 @@ Ipc::StoreMap::closeForUpdating(Update &update)
 /// * we give up finding a suitable entry because it already took "too long"; or
 /// * we have offered all entries.
 bool
-Ipc::StoreMap::visitVictims(const NameFilter visitor)
+Ipc::StoreMap::visitVictims(const NameFilter& visitor)
 {
     // Hopefully, we find a usable entry much sooner (TODO: use time?).
     // The min() will protect us from division by zero inside the loop.

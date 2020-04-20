@@ -48,6 +48,7 @@
 #endif
 
 #include <memory>
+#include <utility>
 
 CBDATA_CLASS_INIT(clientReplyContext);
 
@@ -117,7 +118,7 @@ clientReplyContext::setReplyToError(
         errstate->request_hdrs = xstrdup(unparsedrequest);
 
 #if USE_AUTH
-    errstate->auth_user_request = auth_user_request;
+    errstate->auth_user_request = std::move(auth_user_request);
 #endif
     setReplyToError(method, errstate);
 }

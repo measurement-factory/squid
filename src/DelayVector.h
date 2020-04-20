@@ -28,7 +28,7 @@ public:
     virtual void parse();
 
     virtual DelayIdComposite::Pointer id(CompositeSelectionDetails &);
-    void push_back (CompositePoolNode::Pointer);
+    void push_back (const CompositePoolNode::Pointer&);
 
 private:
 

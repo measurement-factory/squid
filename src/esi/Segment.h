@@ -34,14 +34,14 @@ public:
     ESISegment::Pointer cloneList() const;
     char *listToChar() const;
     void listAppend (char const *s, size_t length);
-    void adsorbList (ESISegment::Pointer from);
+    void adsorbList (const ESISegment::Pointer& from);
     size_t space() const;
 
     char buf[HTTP_REQBUF_SZ];
     size_t len; /* how much data has been pushed into this */
     Pointer next;
     size_t append(char const *, size_t);
-    size_t append (Pointer);
+    size_t append (const Pointer&);
     ESISegment const *tail() const;
     ESISegment *tail();
     void dumpToLog() const;

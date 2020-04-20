@@ -16,6 +16,8 @@
 #if (USE_SQUID_ESI == 1)
 
 #include "esi/Assign.h"
+
+#include <utility>
 #include "esi/Context.h"
 #include "esi/Sequence.h"
 #include "HttpReply.h"
@@ -29,7 +31,7 @@ ESIAssign::~ESIAssign()
 ESIAssign::ESIAssign (ESIAssign const &old) : parent (NULL), varState (NULL), name (old.name), value (old.value ? new ESIVariableExpression (*old.value): NULL), variable (NULL), unevaluatedVariable(old.unevaluatedVariable)
 {}
 
-ESIAssign::ESIAssign (esiTreeParentPtr aParent, int attrcount, char const **attr, ESIContext *aContext) : parent (aParent), varState (NULL), name(), value (NULL), variable (NULL), unevaluatedVariable()
+ESIAssign::ESIAssign (esiTreeParentPtr aParent, int attrcount, char const **attr, ESIContext *aContext) : parent (std::move(aParent)), varState (NULL), name(), value (NULL), variable (NULL), unevaluatedVariable()
 {
     /* TODO: grab content IFF no value was specified */
     assert (aContext);

@@ -102,7 +102,7 @@ CredentialsCache::cleanup()
 }
 
 void
-CredentialsCache::insert(const SBuf &userKey, Auth::User::Pointer anAuth_user)
+CredentialsCache::insert(const SBuf &userKey, const Auth::User::Pointer& anAuth_user)
 {
     debugs(29, 6, "adding " << userKey << " (" << anAuth_user->username() << ")");
     store_[userKey] = anAuth_user;
@@ -116,7 +116,7 @@ CredentialsCache::sortedUsersList() const
 {
     std::vector<Auth::User::Pointer> rv(size(), nullptr);
     std::transform(store_.begin(), store_.end(), rv.begin(),
-    [](StoreType::value_type v) { return v.second; }
+    [](const StoreType::value_type& v) { return v.second; }
                   );
     std::sort(rv.begin(), rv.end(),
     [](const Auth::User::Pointer &lhs, const Auth::User::Pointer &rhs) {
@@ -142,7 +142,7 @@ CredentialsCache::doConfigChangeCleanup()
     // purge expired entries entirely
     cleanup();
     // purge the ACL match data stored in the credentials
-    for (auto i : store_) {
+    for (const auto& i : store_) {
         aclCacheMatchFlush(&i.second->proxy_match_cache);
     }
 }

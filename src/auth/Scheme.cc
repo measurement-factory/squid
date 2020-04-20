@@ -17,7 +17,7 @@
 std::vector<Auth::Scheme::Pointer> *Auth::Scheme::_Schemes = NULL;
 
 void
-Auth::Scheme::AddScheme(Auth::Scheme::Pointer instance)
+Auth::Scheme::AddScheme(const Auth::Scheme::Pointer& instance)
 {
     iterator i = GetSchemes().begin();
 

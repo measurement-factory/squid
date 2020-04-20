@@ -133,7 +133,7 @@ Auth::UserRequest::denyMessage(char const * const default_message) const
 }
 
 static void
-authenticateAuthUserRequestSetIp(Auth::UserRequest::Pointer auth_user_request, Ip::Address &ipaddr)
+authenticateAuthUserRequestSetIp(const Auth::UserRequest::Pointer& auth_user_request, Ip::Address &ipaddr)
 {
     Auth::User::Pointer auth_user = auth_user_request->user();
 
@@ -144,7 +144,7 @@ authenticateAuthUserRequestSetIp(Auth::UserRequest::Pointer auth_user_request, I
 }
 
 void
-authenticateAuthUserRequestRemoveIp(Auth::UserRequest::Pointer auth_user_request, Ip::Address const &ipaddr)
+authenticateAuthUserRequestRemoveIp(const Auth::UserRequest::Pointer& auth_user_request, Ip::Address const &ipaddr)
 {
     Auth::User::Pointer auth_user = auth_user_request->user();
 
@@ -155,14 +155,14 @@ authenticateAuthUserRequestRemoveIp(Auth::UserRequest::Pointer auth_user_request
 }
 
 void
-authenticateAuthUserRequestClearIp(Auth::UserRequest::Pointer auth_user_request)
+authenticateAuthUserRequestClearIp(const Auth::UserRequest::Pointer& auth_user_request)
 {
     if (auth_user_request != NULL)
         auth_user_request->user()->clearIp();
 }
 
 int
-authenticateAuthUserRequestIPCount(Auth::UserRequest::Pointer auth_user_request)
+authenticateAuthUserRequestIPCount(const Auth::UserRequest::Pointer& auth_user_request)
 {
     assert(auth_user_request != NULL);
     assert(auth_user_request->user() != NULL);
@@ -173,7 +173,7 @@ authenticateAuthUserRequestIPCount(Auth::UserRequest::Pointer auth_user_request)
  * authenticateUserAuthenticated: is this auth_user structure logged in ?
  */
 int
-authenticateUserAuthenticated(Auth::UserRequest::Pointer auth_user_request)
+authenticateUserAuthenticated(const Auth::UserRequest::Pointer& auth_user_request)
 {
     if (auth_user_request == NULL || !auth_user_request->valid())
         return 0;
@@ -219,7 +219,7 @@ Auth::UserRequest::connLastHeader()
  * This is basically a handle approach.
  */
 static void
-authenticateAuthenticateUser(Auth::UserRequest::Pointer auth_user_request, HttpRequest * request, ConnStateData * conn, Http::HdrType type)
+authenticateAuthenticateUser(const Auth::UserRequest::Pointer& auth_user_request, HttpRequest * request, ConnStateData * conn, Http::HdrType type)
 {
     assert(auth_user_request.getRaw() != NULL);
 
@@ -227,7 +227,7 @@ authenticateAuthenticateUser(Auth::UserRequest::Pointer auth_user_request, HttpR
 }
 
 static Auth::UserRequest::Pointer
-authTryGetUser(Auth::UserRequest::Pointer auth_user_request, ConnStateData * conn, HttpRequest * request)
+authTryGetUser(const Auth::UserRequest::Pointer& auth_user_request, ConnStateData * conn, HttpRequest * request)
 {
     Auth::UserRequest::Pointer res;
 
@@ -476,7 +476,7 @@ schemesConfig(HttpRequest *request, HttpReply *rep)
 }
 
 void
-Auth::UserRequest::AddReplyAuthHeader(HttpReply * rep, Auth::UserRequest::Pointer auth_user_request, HttpRequest * request, int accelerated, int internal)
+Auth::UserRequest::AddReplyAuthHeader(HttpReply * rep, const Auth::UserRequest::Pointer& auth_user_request, HttpRequest * request, int accelerated, int internal)
 /* send the auth types we are configured to support (and have compiled in!) */
 {
     Http::HdrType type;

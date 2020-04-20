@@ -29,7 +29,7 @@ public:
     static void Reset();
 
     /// changes the current context; nil argument sets it to nil/unknown
-    static void Reset(const Pointer);
+    static void Reset(const Pointer&);
 
     virtual ~CodeContext() {}
 

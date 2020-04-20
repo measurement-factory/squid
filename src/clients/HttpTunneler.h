@@ -68,7 +68,7 @@ public:
     Tunneler &operator =(const Tunneler &) = delete;
 
 #if USE_DELAY_POOLS
-    void setDelayId(DelayId delay_id) {delayId = delay_id;}
+    void setDelayId(const DelayId& delay_id) {delayId = delay_id;}
 #endif
 
 protected:

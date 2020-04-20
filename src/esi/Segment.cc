@@ -33,7 +33,7 @@ ESISegment::space() const
 }
 
 void
-ESISegment::adsorbList (ESISegment::Pointer from)
+ESISegment::adsorbList (const ESISegment::Pointer& from)
 {
     assert (next.getRaw() == NULL);
     assert (from.getRaw() != NULL);
@@ -144,7 +144,7 @@ ESISegment::append(char const *appendBuffer, size_t appendLength)
 }
 
 size_t
-ESISegment::append(ESISegment::Pointer from)
+ESISegment::append(const ESISegment::Pointer& from)
 {
     return append (from->buf, from->len);
 }

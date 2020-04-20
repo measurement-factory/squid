@@ -44,7 +44,7 @@ public:
     esiProcessResult_t process (int dovars);
     Pointer makeCacheable() const;
     Pointer makeUsable(esiTreeParentPtr, ESIVarState &) const;
-    void subRequestDone (ESIStreamContext::Pointer, bool);
+    void subRequestDone (const ESIStreamContext::Pointer&, bool);
 
     struct {
         int onerrorcontinue:1; /* on error return zero data */
@@ -57,11 +57,11 @@ public:
     ESISegment::Pointer altcontent;
     ESIVarState *varState;
     char *srcurl, *alturl;
-    void includeFail(ESIStreamContext::Pointer);
+    void includeFail(const ESIStreamContext::Pointer&);
     void finish();
 
 private:
-    void Start (ESIStreamContext::Pointer, char const *, ESIVarState *);
+    void Start (const ESIStreamContext::Pointer&, char const *, ESIVarState *);
     esiTreeParentPtr parent;
     void start();
     bool started;

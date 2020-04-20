@@ -39,7 +39,7 @@ MessageDelayPool::Pointer
 MessageDelayPools::pool(const SBuf &name)
 {
     auto it = std::find_if(pools.begin(), pools.end(),
-    [&name](const MessageDelayPool::Pointer p) { return p->poolName == name; });
+    [&name](const MessageDelayPool::Pointer& p) { return p->poolName == name; });
     return it == pools.end() ? 0 : *it;
 }
 
@@ -47,7 +47,7 @@ void
 MessageDelayPools::add(MessageDelayPool *p)
 {
     const auto it = std::find_if(pools.begin(), pools.end(),
-    [&p](const MessageDelayPool::Pointer mp) { return mp->poolName == p->poolName; });
+    [&p](const MessageDelayPool::Pointer& mp) { return mp->poolName == p->poolName; });
     if (it != pools.end()) {
         debugs(3, DBG_CRITICAL, "WARNING: Ignoring duplicate " << p->poolName << " response delay pool");
         return;
@@ -198,7 +198,7 @@ void
 MessageDelayConfig::dumpResponseDelayPoolParameters(StoreEntry *entry, const char *name)
 {
     auto &pools = MessageDelayPools::Instance()->pools;
-    for (auto pool: pools)
+    for (const auto& pool: pools)
         pool->dump(entry);
 }
 

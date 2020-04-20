@@ -68,6 +68,7 @@
 #endif
 
 #include <cerrno>
+#include <utility>
 
 static CLCB fwdServerClosedWrapper;
 
@@ -158,7 +159,7 @@ void FwdState::start(Pointer aSelf)
     // to us is gone (while we expect to talk to more Servers later).
     // Once we set self, we are responsible for clearing it when we do not
     // expect to talk to any servers.
-    self = aSelf; // refcounted
+    self = std::move(aSelf); // refcounted
 
     // We hope that either the store entry aborts or peer is selected.
     // Otherwise we are going to leak our object.
@@ -1353,7 +1354,7 @@ aclFindNfMarkConfig(acl_nfmark * head, ACLChecklist * ch)
 }
 
 void
-getOutgoingAddress(HttpRequest * request, Comm::ConnectionPointer conn)
+getOutgoingAddress(HttpRequest * request, const Comm::ConnectionPointer& conn)
 {
     // skip if an outgoing address is already set.
     if (!conn->local.isAnyAddr()) return;

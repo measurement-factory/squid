@@ -65,7 +65,7 @@ storeOpen(StoreEntry * e, StoreIOState::STFNCB * file_callback, StoreIOState::ST
 }
 
 void
-storeClose(StoreIOState::Pointer sio, int how)
+storeClose(const StoreIOState::Pointer& sio, int how)
 {
     if (sio->flags.closing) {
         debugs(20,3,HERE << "storeClose: flags.closing already set, bailing");
@@ -79,13 +79,13 @@ storeClose(StoreIOState::Pointer sio, int how)
 }
 
 void
-storeRead(StoreIOState::Pointer sio, char *buf, size_t size, off_t offset, StoreIOState::STRCB * callback, void *callback_data)
+storeRead(const StoreIOState::Pointer& sio, char *buf, size_t size, off_t offset, StoreIOState::STRCB * callback, void *callback_data)
 {
     sio->read_(buf, size, offset, callback, callback_data);
 }
 
 void
-storeIOWrite(StoreIOState::Pointer sio, char const *buf, size_t size, off_t offset, FREE * free_func)
+storeIOWrite(const StoreIOState::Pointer& sio, char const *buf, size_t size, off_t offset, FREE * free_func)
 {
     sio->write(buf,size,offset,free_func);
 }

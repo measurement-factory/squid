@@ -177,7 +177,7 @@ public:
     };
 
     /// Called when a pinned connection becomes available for forwarding the next request.
-    void notePinnedConnectionBecameIdle(PinnedIdleContext pic);
+    void notePinnedConnectionBecameIdle(const PinnedIdleContext& pic);
     /// Forward future client requests using the given to-server connection.
     /// The connection is still being used by the current client request.
     void pinBusyConnection(const Comm::ConnectionPointer &pinServerConn, const HttpRequest::Pointer &request);
@@ -228,7 +228,7 @@ public:
     /// generated
     void doPeekAndSpliceStep();
     /// called by FwdState when it is done bumping the server
-    void httpsPeeked(PinnedIdleContext pic);
+    void httpsPeeked(const PinnedIdleContext& pic);
 
     /// Splice a bumped client connection on peek-and-splice mode
     bool splice();
@@ -454,10 +454,10 @@ void httpRequestFree(void *);
 void clientSetKeepaliveFlag(ClientHttpRequest *http);
 
 /// append a "part" HTTP header (as in a multi-part/range reply) to the buffer
-void clientPackRangeHdr(const HttpReplyPointer &, const HttpHdrRangeSpec *, String boundary, MemBuf *);
+void clientPackRangeHdr(const HttpReplyPointer &, const HttpHdrRangeSpec *, const String& boundary, MemBuf *);
 
 /// put terminating boundary for multiparts to the buffer
-void clientPackTermBound(String boundary, MemBuf *);
+void clientPackTermBound(const String& boundary, MemBuf *);
 
 /* misplaced declaratrions of Stream callbacks provided/used by client side */
 SQUIDCEXTERN CSR clientGetMoreData;

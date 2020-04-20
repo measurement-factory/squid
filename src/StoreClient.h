@@ -94,7 +94,7 @@ public:
 
 #if USE_DELAY_POOLS
     DelayId delayId;
-    void setDelayId(DelayId delay_id);
+    void setDelayId(const DelayId& delay_id);
 #endif
 
     dlink_node node;

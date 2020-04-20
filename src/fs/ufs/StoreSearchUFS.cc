@@ -11,12 +11,14 @@
 #include "squid.h"
 #include "cbdata.h"
 #include "StoreSearchUFS.h"
+
+#include <utility>
 #include "UFSSwapDir.h"
 
 CBDATA_NAMESPACED_CLASS_INIT(Fs::Ufs,StoreSearchUFS);
 
 Fs::Ufs::StoreSearchUFS::StoreSearchUFS(RefCount<UFSSwapDir> aSwapDir) :
-    sd(aSwapDir),
+    sd(std::move(aSwapDir)),
     walker(sd->repl->WalkInit(sd->repl)),
     cbdata(NULL),
     current(NULL),

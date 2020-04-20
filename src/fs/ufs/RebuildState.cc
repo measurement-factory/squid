@@ -23,6 +23,7 @@
 
 #include <cerrno>
 #include <cmath>
+#include <utility>
 #if HAVE_SYS_STAT_H
 #include <sys/stat.h>
 #endif
@@ -30,7 +31,7 @@
 CBDATA_NAMESPACED_CLASS_INIT(Fs::Ufs,RebuildState);
 
 Fs::Ufs::RebuildState::RebuildState(RefCount<UFSSwapDir> aSwapDir) :
-    sd(aSwapDir),
+    sd(std::move(aSwapDir)),
     n_read(0),
     LogParser(NULL),
     curlvl1(0),

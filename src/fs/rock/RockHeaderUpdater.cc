@@ -96,7 +96,7 @@ Rock::HeaderUpdater::stopReading(const char *why)
 }
 
 void
-Rock::HeaderUpdater::NoteRead(void *data, const char *buf, ssize_t result, StoreIOState::Pointer)
+Rock::HeaderUpdater::NoteRead(void *data, const char *buf, ssize_t result, const StoreIOState::Pointer&)
 {
     IoCbParams io(buf, result);
     // TODO: Avoid Rock::StoreIOStateCb for jobs to protect jobs for "free".
@@ -139,7 +139,7 @@ Rock::HeaderUpdater::readMore(const char *why)
 }
 
 void
-Rock::HeaderUpdater::NoteDoneReading(void *data, int errflag, StoreIOState::Pointer)
+Rock::HeaderUpdater::NoteDoneReading(void *data, int errflag, const StoreIOState::Pointer&)
 {
     // TODO: Avoid Rock::StoreIOStateCb for jobs to protect jobs for "free".
     CallJobHere1(47, 7,
@@ -239,7 +239,7 @@ Rock::HeaderUpdater::startWriting()
 }
 
 void
-Rock::HeaderUpdater::NoteDoneWriting(void *data, int errflag, StoreIOState::Pointer)
+Rock::HeaderUpdater::NoteDoneWriting(void *data, int errflag, const StoreIOState::Pointer&)
 {
     CallJobHere1(47, 7,
                  CbcPointer<HeaderUpdater>(static_cast<HeaderUpdater*>(data)),

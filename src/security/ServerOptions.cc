@@ -232,7 +232,7 @@ Security::ServerOptions::createStaticServerContext(AnyP::PortCfg &port)
             return false;
         }
 
-        for (auto cert : keys.chain) {
+        for (const auto& cert : keys.chain) {
             if (SSL_CTX_add_extra_chain_cert(t.get(), cert.get())) {
                 // increase the certificate lock
                 X509_up_ref(cert.get());

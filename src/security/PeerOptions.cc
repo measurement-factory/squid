@@ -121,7 +121,7 @@ Security::PeerOptions::dumpCfg(Packable *p, const char *pfx) const
     if (!sslCipher.isEmpty())
         p->appendf(" %scipher=" SQUIDSBUFPH, pfx, SQUIDSBUFPRINT(sslCipher));
 
-    for (auto i : caFiles) {
+    for (const auto& i : caFiles) {
         p->appendf(" %scafile=" SQUIDSBUFPH, pfx, SQUIDSBUFPRINT(i));
     }
 

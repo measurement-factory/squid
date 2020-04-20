@@ -9,6 +9,8 @@
 #ifndef SQUID_ASYNCCALL_H
 #define SQUID_ASYNCCALL_H
 
+#include <utility>
+
 #include "base/CodeContext.h"
 #include "base/InstanceId.h"
 #include "event.h"
@@ -66,7 +68,7 @@ public:
     void dequeue(AsyncCall::Pointer &head, AsyncCall::Pointer &prev);
 
     void setNext(AsyncCall::Pointer aNext) {
-        theNext = aNext;
+        theNext = std::move(aNext);
     }
 
     AsyncCall::Pointer &Next() {

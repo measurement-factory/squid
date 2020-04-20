@@ -248,7 +248,7 @@ Adaptation::Config::ParseServiceChain()
 }
 
 void
-Adaptation::Config::ParseServiceGroup(ServiceGroupPointer g)
+Adaptation::Config::ParseServiceGroup(const ServiceGroupPointer& g)
 {
     assert(g != NULL);
     g->parse();

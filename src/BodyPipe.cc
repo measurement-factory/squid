@@ -48,7 +48,7 @@ public:
     typedef UnaryMemFunT<BodyProducer, BodyPipe::Pointer> Parent;
 
     BodyProducerDialer(const BodyProducer::Pointer &aProducer,
-                       Parent::Method aHandler, BodyPipe::Pointer bp):
+                       Parent::Method aHandler, const BodyPipe::Pointer& bp):
         Parent(aProducer, aHandler, bp) {}
 
     virtual bool canDial(AsyncCall &call);
@@ -63,7 +63,7 @@ public:
     typedef UnaryMemFunT<BodyConsumer, BodyPipe::Pointer> Parent;
 
     BodyConsumerDialer(const BodyConsumer::Pointer &aConsumer,
-                       Parent::Method aHandler, BodyPipe::Pointer bp):
+                       Parent::Method aHandler, const BodyPipe::Pointer& bp):
         Parent(aConsumer, aHandler, bp) {}
 
     virtual bool canDial(AsyncCall &call);

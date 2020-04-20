@@ -11,6 +11,8 @@
 #ifndef SQUID_DISKTHREADSDISKFILE_H
 #define SQUID_DISKTHREADSDISKFILE_H
 
+#include <utility>
+
 #include "cbdata.h"
 #include "DiskIO/DiskFile.h"
 #include "DiskThreads.h"
@@ -72,7 +74,7 @@ class IoResult
     CBDATA_CLASS(IoResult);
 
 public:
-    IoResult(RefCount<DiskThreadsDiskFile> aFile, RefCount<RT> aRequest) : file(aFile), request(aRequest) {}
+    IoResult(RefCount<DiskThreadsDiskFile> aFile, RefCount<RT> aRequest) : file(std::move(aFile)), request(aRequest) {}
 
     RefCount<DiskThreadsDiskFile> file;
     RefCount<RT> request;

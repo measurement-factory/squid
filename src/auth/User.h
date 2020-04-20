@@ -58,7 +58,7 @@ public:
 public:
     static SBuf BuildUserKey(const char *username, const char *realm);
 
-    void absorb(Auth::User::Pointer from);
+    void absorb(const Auth::User::Pointer& from);
     char const *username() const { return username_; }
     void username(char const *); ///< set stored username and userKey
 
@@ -73,8 +73,8 @@ public:
 
     /* Manage list of IPs using this username */
     void clearIp();
-    void removeIp(Ip::Address);
-    void addIp(Ip::Address);
+    void removeIp(const Ip::Address&);
+    void addIp(const Ip::Address&);
 
     /// add the Auth::User to the protocol-specific username cache.
     virtual void addToNameCache() = 0;

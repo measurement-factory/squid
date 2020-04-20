@@ -13,6 +13,8 @@
 #if USE_DELAY_POOLS
 #include "comm/Connection.h"
 #include "DelayTagged.h"
+
+#include <utility>
 #include "NullDelayId.h"
 #include "Store.h"
 
@@ -141,7 +143,7 @@ DelayTaggedBucket::stats(StoreEntry *entry) const
     theBucket.stats(entry);
 }
 
-DelayTagged::Id::Id(DelayTagged::Pointer aDelayTagged, String &aTag) : theTagged(aDelayTagged)
+DelayTagged::Id::Id(DelayTagged::Pointer aDelayTagged, String &aTag) : theTagged(std::move(aDelayTagged))
 {
     theBucket = new DelayTaggedBucket(aTag);
     DelayTaggedBucket::Pointer const *existing = theTagged->buckets.find(theBucket, DelayTaggedCmp);

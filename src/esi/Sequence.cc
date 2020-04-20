@@ -22,6 +22,8 @@
 #include "esi/Literal.h"
 #include "esi/Sequence.h"
 
+#include <utility>
+
 class esiExcept;
 
 esiSequence::~esiSequence ()
@@ -33,7 +35,7 @@ esiSequence::~esiSequence ()
 esiSequence::esiSequence(esiTreeParentPtr aParent, bool incrementalFlag) :
     elements(),
     processedcount(0),
-    parent(aParent),
+    parent(std::move(aParent)),
     mayFail_(true),
     failed(false),
     provideIncrementalData(incrementalFlag),
@@ -174,7 +176,7 @@ esiSequence::addElement (ESIElement::Pointer element)
 }
 
 int
-esiSequence::elementIndex(ESIElement::Pointer anElement) const
+esiSequence::elementIndex(const ESIElement::Pointer& anElement) const
 {
     for (size_t i = 0; i < elements.size(); ++i)
         if (elements[i] == anElement)

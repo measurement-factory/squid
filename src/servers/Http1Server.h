@@ -42,7 +42,7 @@ protected:
     /* AsyncJob API */
     virtual void start();
 
-    void proceedAfterBodyContinuation(Http::StreamPointer context);
+    void proceedAfterBodyContinuation(const Http::StreamPointer& context);
 
 private:
     void processHttpRequest(Http::Stream *const context);

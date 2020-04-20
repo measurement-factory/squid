@@ -807,7 +807,7 @@ Ssl::chainCertificatesToSSLContext(Security::ContextPointer &ctx, Security::Serv
         debugs(33, DBG_IMPORTANT, "WARNING: can not add signing certificate to SSL context chain: " << Security::ErrorString(ssl_error));
     }
 
-    for (auto cert : options.signingCa.chain) {
+    for (const auto& cert : options.signingCa.chain) {
         if (SSL_CTX_add_extra_chain_cert(ctx.get(), cert.get())) {
             // increase the certificate lock
             X509_up_ref(cert.get());

@@ -67,7 +67,7 @@ private:
     void optionQ1Dump(StoreEntry * e) const;
     bool optionQ2Parse(char const *option, const char *value, int reconfiguring);
     void optionQ2Dump(StoreEntry * e) const;
-    int send(int mtype, int id, RefCount<StoreIOState> sio, size_t size, off_t offset, ssize_t shm_offset);
+    int send(int mtype, int id, const RefCount<StoreIOState>& sio, size_t size, off_t offset, ssize_t shm_offset);
     int SEND(diomsg * M, int mtype, int id, size_t size, off_t offset, ssize_t shm_offset);
     void handle(diomsg * M);
     void unlinkDone(diomsg * M);

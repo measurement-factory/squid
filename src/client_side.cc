@@ -187,7 +187,7 @@ static void clientUpdateStatCounters(const LogTags &logType);
 static void clientUpdateHierCounters(HierarchyLogEntry *);
 static bool clientPingHasFinished(ping_data const *aPing);
 void prepareLogWithRequestDetails(HttpRequest *, AccessLogEntry::Pointer &);
-static void ClientSocketContextPushDeferredIfNeeded(Http::StreamPointer deferredRequest, ConnStateData * conn);
+static void ClientSocketContextPushDeferredIfNeeded(const Http::StreamPointer& deferredRequest, ConnStateData * conn);
 
 char *skipLeadingSpace(char *aString);
 
@@ -434,7 +434,7 @@ ClientHttpRequest::logRequest()
     /* Add notes (if we have a request to annotate) */
     if (request) {
         SBuf matched;
-        for (auto h: Config.notes) {
+        for (const auto& h: Config.notes) {
             if (h->match(request, al->reply.getRaw(), al, matched)) {
                 request->notes()->add(h->key(), matched);
                 debugs(33, 3, h->key() << " " << matched);
@@ -698,14 +698,14 @@ ClientHttpRequest::multipartRangeRequest() const
 }
 
 void
-clientPackTermBound(String boundary, MemBuf *mb)
+clientPackTermBound(const String& boundary, MemBuf *mb)
 {
     mb->appendf("\r\n--" SQUIDSTRINGPH "--\r\n", SQUIDSTRINGPRINT(boundary));
     debugs(33, 6, "buf offset: " << mb->size);
 }
 
 void
-clientPackRangeHdr(const HttpReplyPointer &rep, const HttpHdrRangeSpec * spec, String boundary, MemBuf * mb)
+clientPackRangeHdr(const HttpReplyPointer &rep, const HttpHdrRangeSpec * spec, const String& boundary, MemBuf * mb)
 {
     HttpHeader hdr(hoReply);
     assert(rep);
@@ -874,7 +874,7 @@ ConnStateData::readNextRequest()
 }
 
 static void
-ClientSocketContextPushDeferredIfNeeded(Http::StreamPointer deferredRequest, ConnStateData * conn)
+ClientSocketContextPushDeferredIfNeeded(const Http::StreamPointer& deferredRequest, ConnStateData * conn)
 {
     debugs(33, 2, HERE << conn->clientConnection << " Sending next");
 
@@ -3195,7 +3195,7 @@ ConnStateData::doPeekAndSpliceStep()
 }
 
 void
-ConnStateData::httpsPeeked(PinnedIdleContext pic)
+ConnStateData::httpsPeeked(const PinnedIdleContext& pic)
 {
     Must(sslServerBump != NULL);
     Must(sslServerBump->request == pic.request);
@@ -3788,7 +3788,7 @@ ConnStateData::pinBusyConnection(const Comm::ConnectionPointer &pinServer, const
 }
 
 void
-ConnStateData::notePinnedConnectionBecameIdle(PinnedIdleContext pic)
+ConnStateData::notePinnedConnectionBecameIdle(const PinnedIdleContext& pic)
 {
     Must(pic.connection);
     Must(pic.request);

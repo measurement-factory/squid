@@ -13,6 +13,8 @@
  \ingroup DelayPoolsAPI
  */
 
+#include <utility>
+
 #include "squid.h"
 
 #if USE_DELAY_POOLS
@@ -429,7 +431,7 @@ Aggregate::id(CompositeSelectionDetails &details)
         return new NullDelayId;
 }
 
-Aggregate::AggregateId::AggregateId(RefCount<Aggregate> anAggregate) : theAggregate(anAggregate)
+Aggregate::AggregateId::AggregateId(RefCount<Aggregate> anAggregate) : theAggregate(std::move(anAggregate))
 {}
 
 int
@@ -711,7 +713,7 @@ VectorPool::id(CompositeSelectionDetails &details)
     return new Id(this, resultIndex);
 }
 
-VectorPool::Id::Id(VectorPool::Pointer aPool, int anIndex) : theVector (aPool), theIndex (anIndex)
+VectorPool::Id::Id(VectorPool::Pointer aPool, int anIndex) : theVector (std::move(aPool)), theIndex (anIndex)
 {}
 
 int
@@ -863,7 +865,7 @@ ClassCHostPool::id(CompositeSelectionDetails &details)
     return new Id (this, netIndex, hostIndex);
 }
 
-ClassCHostPool::Id::Id (ClassCHostPool::Pointer aPool, unsigned char aNet, unsigned char aHost) : theClassCHost (aPool), theNet (aNet), theHost (aHost)
+ClassCHostPool::Id::Id (ClassCHostPool::Pointer aPool, unsigned char aNet, unsigned char aHost) : theClassCHost (std::move(aPool)), theNet (aNet), theHost (aHost)
 {}
 
 int

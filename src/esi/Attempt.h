@@ -11,11 +11,13 @@
 #ifndef SQUID_ESIATTEMPT_H
 #define SQUID_ESIATTEMPT_H
 
+#include <utility>
+
 #include "esi/Element.h"
 #include "esi/Sequence.h"
 
 struct esiAttempt : public esiSequence {
-    esiAttempt(esiTreeParentPtr aParent) : esiSequence (aParent) {}
+    esiAttempt(esiTreeParentPtr aParent) : esiSequence (std::move(aParent)) {}
 };
 
 #endif /* SQUID_ESIATTEMPT_H */

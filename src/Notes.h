@@ -73,7 +73,7 @@ public:
     typedef std::vector<Value::Pointer> Values;
 
     Note(const char *aKey, const size_t keyLen): theKey(aKey, keyLen) {}
-    explicit Note(const SBuf aKey): theKey(aKey) {}
+    explicit Note(const SBuf& aKey): theKey(aKey) {}
     Note(const Note&) = delete;
     Note &operator=(const Note&) = delete;
 
@@ -88,7 +88,7 @@ public:
     /// \return true if matched, false otherwise
     bool match(HttpRequest *request, HttpReply *reply, const AccessLogEntryPointer &al, SBuf &matched);
     const SBuf &key() const { return theKey; }
-    void updateNotePairs(NotePairsPointer pairs, const CharacterSet *delimiters, const AccessLogEntryPointer &al);
+    void updateNotePairs(const NotePairsPointer& pairs, const CharacterSet *delimiters, const AccessLogEntryPointer &al);
     /// Dump the single Note to the given StoreEntry object.
     void dump(StoreEntry *entry, const char *key);
     /// For the key and all its Values compile a string of
@@ -140,7 +140,7 @@ public:
     /// Convert Notes list to a string consist of "Key: Value"
     /// entries separated by sep string.
     const char *toString(const char *sep = "\r\n") const;
-    void updateNotePairs(NotePairsPointer pairs, const CharacterSet *delimiters,
+    void updateNotePairs(const NotePairsPointer& pairs, const CharacterSet *delimiters,
                          const AccessLogEntryPointer &al);
 private:
     /// Makes sure the given key is not on the given list of banned names.

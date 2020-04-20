@@ -25,8 +25,8 @@
 #include "swap_log_op.h"
 
 static void storeSwapOutStart(StoreEntry * e);
-static StoreIOState::STIOCB storeSwapOutFileClosed;
-static StoreIOState::STFNCB storeSwapOutFileNotify;
+static StoreIOState::STIOCB& const storeSwapOutFileClosed;
+static StoreIOState::STFNCB& const storeSwapOutFileNotify;
 
 // wrapper to cross C/C++ ABI boundary. xfree is extern "C" for libraries.
 static void xfree_cppwrapper(void *x)
@@ -88,7 +88,7 @@ storeSwapOutStart(StoreEntry * e)
 
 /// XXX: unused, see a related StoreIOState::file_callback
 static void
-storeSwapOutFileNotify(void *, int, StoreIOState::Pointer)
+storeSwapOutFileNotify(void *, int, const StoreIOState::Pointer&)
 {
     assert(false);
 }
@@ -271,7 +271,7 @@ StoreEntry::swapOutFileClose(int how)
 }
 
 static void
-storeSwapOutFileClosed(void *data, int errflag, StoreIOState::Pointer self)
+storeSwapOutFileClosed(void *data, int errflag, const StoreIOState::Pointer& self)
 {
     StoreEntry *e;
     static_cast<generic_cbdata *>(data)->unwrap(&e);

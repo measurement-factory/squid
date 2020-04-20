@@ -21,6 +21,7 @@
 #include "Store.h"
 
 #include <cerrno>
+#include <utility>
 
 /* === PUBLIC =========================================================== */
 
@@ -278,7 +279,7 @@ DiskThreadsDiskFile::readDone(int rvfd, const char *buf, int len, int errflag, R
 
     --inProgressIOs;
 
-    ioRequestor->readCompleted(buf, rlen, errflag, request);
+    ioRequestor->readCompleted(buf, rlen, errflag, std::move(request));
 }
 
 void
@@ -318,7 +319,7 @@ DiskThreadsDiskFile::writeDone(int rvfd, int errflag, size_t len, RefCount<Write
 
     --inProgressIOs;
 
-    ioRequestor->writeCompleted(errflag, len, request);
+    ioRequestor->writeCompleted(errflag, len, std::move(request));
 
     --loop_detect;
 }

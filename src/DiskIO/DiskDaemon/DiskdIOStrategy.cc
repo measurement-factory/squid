@@ -349,7 +349,7 @@ DiskdIOStrategy::send(int mtype, int id, DiskdFile *theFile, size_t size, off_t 
 }
 
 int
-DiskdIOStrategy::send(int mtype, int id, RefCount<StoreIOState> sio, size_t size, off_t offset, ssize_t shm_offset)
+DiskdIOStrategy::send(int mtype, int id, const RefCount<StoreIOState>& sio, size_t size, off_t offset, ssize_t shm_offset)
 {
     diomsg M;
     M.callback_data = cbdataReference(sio.getRaw());

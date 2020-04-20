@@ -11,6 +11,8 @@
 
 #if USE_AUTH
 
+#include <utility>
+
 #include "AccessLogEntry.h"
 #include "auth/AuthAclState.h"
 #include "auth/Scheme.h"
@@ -142,7 +144,7 @@ public:
     // User credentials object this UserRequest is managing
     virtual User::Pointer user() {return _auth_user;}
     virtual const User::Pointer user() const {return _auth_user;}
-    virtual void user(User::Pointer aUser) {_auth_user=aUser;}
+    virtual void user(User::Pointer aUser) {_auth_user=std::move(aUser);}
 
     /**
      * Locate user credentials in one of several locations. Begin authentication if needed.
@@ -165,7 +167,7 @@ public:
     static AuthAclState tryToAuthenticateAndSetAuthUser(UserRequest::Pointer *aUR, Http::HdrType, HttpRequest *, ConnStateData *, Ip::Address &, AccessLogEntry::Pointer &);
 
     /// Add the appropriate [Proxy-]Authenticate header to the given reply
-    static void AddReplyAuthHeader(HttpReply * rep, UserRequest::Pointer auth_user_request, HttpRequest * request, int accelerated, int internal);
+    static void AddReplyAuthHeader(HttpReply * rep, const UserRequest::Pointer& auth_user_request, HttpRequest * request, int accelerated, int internal);
 
     /** Start an asynchronous helper lookup to verify the user credentials
      *
@@ -239,15 +241,15 @@ private:
 /* AuthUserRequest */
 
 /// \ingroup AuthAPI
-void authenticateAuthUserRequestRemoveIp(Auth::UserRequest::Pointer, Ip::Address const &);
+void authenticateAuthUserRequestRemoveIp(const Auth::UserRequest::Pointer&, Ip::Address const &);
 /// \ingroup AuthAPI
-void authenticateAuthUserRequestClearIp(Auth::UserRequest::Pointer);
+void authenticateAuthUserRequestClearIp(const Auth::UserRequest::Pointer&);
 /// \ingroup AuthAPI
-int authenticateAuthUserRequestIPCount(Auth::UserRequest::Pointer);
+int authenticateAuthUserRequestIPCount(const Auth::UserRequest::Pointer&);
 
 /// \ingroup AuthAPI
 /// See Auth::UserRequest::authenticated()
-int authenticateUserAuthenticated(Auth::UserRequest::Pointer);
+int authenticateUserAuthenticated(const Auth::UserRequest::Pointer&);
 
 #endif /* USE_AUTH */
 #endif /* SQUID_AUTHUSERREQUEST_H */

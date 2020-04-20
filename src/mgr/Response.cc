@@ -17,8 +17,10 @@
 #include "mgr/ActionProfile.h"
 #include "mgr/Response.h"
 
+#include <utility>
+
 Mgr::Response::Response(unsigned int aRequestId, Action::Pointer anAction):
-    Ipc::Response(aRequestId), action(anAction)
+    Ipc::Response(aRequestId), action(std::move(anAction))
 {
     Must(!action || action->name()); // if there is an action, it must be named
 }

@@ -35,7 +35,7 @@ public:
     Scheme() : initialised (false) {};
     virtual ~Scheme() {};
 
-    static void AddScheme(Scheme::Pointer);
+    static void AddScheme(const Scheme::Pointer&);
 
     /**
      * Final termination of all authentication components.

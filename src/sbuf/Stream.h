@@ -12,6 +12,7 @@
 #include "sbuf/SBuf.h"
 
 #include <ostream>
+#include <utility>
 
 /** streambuf class for a SBuf-backed stream interface.
  *
@@ -22,7 +23,7 @@ class SBufStreamBuf : public std::streambuf
 {
 public:
     /// initialize streambuf; use supplied SBuf as backing store
-    explicit SBufStreamBuf(SBuf aBuf) : theBuf(aBuf) {}
+    explicit SBufStreamBuf(SBuf aBuf) : theBuf(std::move(aBuf)) {}
 
     /// get a copy of the stream's contents
     SBuf getBuf() {
@@ -90,7 +91,7 @@ public:
      * The supplied SBuf copied: in order to retrieve the written-to contents
      * they must be later fetched using the buf() class method.
      */
-    SBufStream(SBuf aBuf): std::ostream(0), theBuffer(aBuf) {
+    SBufStream(SBuf aBuf): std::ostream(0), theBuffer(std::move(aBuf)) {
         rdbuf(&theBuffer); // set the buffer to now-initialized theBuffer
         clear(); //clear badbit set by calling init(0)
     }

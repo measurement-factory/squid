@@ -35,7 +35,7 @@ public:
     static int Open(Logfile *lf, const char *path, size_t bufSz, int fatalFlag);
 
 protected:
-    TcpLogger(size_t, bool, Ip::Address);
+    TcpLogger(size_t, bool, const Ip::Address&);
     virtual ~TcpLogger();
 
     /// Called when Squid is reconfiguring (or exiting) to give us a chance to

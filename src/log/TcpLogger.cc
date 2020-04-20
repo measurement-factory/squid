@@ -34,7 +34,7 @@ const size_t Log::TcpLogger::BufferCapacityMin = 2*Log::TcpLogger::IoBufSize;
 
 CBDATA_NAMESPACED_CLASS_INIT(Log, TcpLogger);
 
-Log::TcpLogger::TcpLogger(size_t bufCap, bool dieOnErr, Ip::Address them):
+Log::TcpLogger::TcpLogger(size_t bufCap, bool dieOnErr, const Ip::Address& them):
     AsyncJob("TcpLogger"),
     dieOnError(dieOnErr),
     bufferCapacity(bufCap),

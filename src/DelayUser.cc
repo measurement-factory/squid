@@ -15,6 +15,8 @@
 #include "auth/UserRequest.h"
 #include "comm/Connection.h"
 #include "DelayUser.h"
+
+#include <utility>
 #include "NullDelayId.h"
 #include "Store.h"
 
@@ -135,7 +137,7 @@ DelayUser::id(CompositePoolNode::CompositeSelectionDetails &details)
     return new Id(this, details.user->user());
 }
 
-DelayUserBucket::DelayUserBucket(Auth::User::Pointer aUser) : authUser(aUser)
+DelayUserBucket::DelayUserBucket(Auth::User::Pointer aUser) : authUser(std::move(aUser))
 {
     debugs(77, 3, "DelayUserBucket::DelayUserBucket");
 }
@@ -153,9 +155,9 @@ DelayUserBucket::stats (StoreEntry *entry) const
     theBucket.stats(entry);
 }
 
-DelayUser::Id::Id(DelayUser::Pointer aDelayUser, Auth::User::Pointer aUser) : theUser(aDelayUser)
+DelayUser::Id::Id(DelayUser::Pointer aDelayUser, Auth::User::Pointer aUser) : theUser(std::move(aDelayUser))
 {
-    theBucket = new DelayUserBucket(aUser);
+    theBucket = new DelayUserBucket(std::move(aUser));
     DelayUserBucket::Pointer const *existing = theUser->buckets.find(theBucket, DelayUserCmp);
 
     if (existing) {

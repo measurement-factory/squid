@@ -1922,7 +1922,7 @@ free_authparam(Auth::ConfigVector * cfg)
 }
 
 static void
-dump_authparam(StoreEntry * entry, const char *name, Auth::ConfigVector cfg)
+dump_authparam(StoreEntry * entry, const char *name, const Auth::ConfigVector& cfg)
 {
     for (auto *scheme : cfg)
         scheme->dump(entry, name, scheme);
@@ -2445,7 +2445,7 @@ dump_cachemgrpasswd(StoreEntry * entry, const char *name, Mgr::ActionPasswordLis
         else
             storeAppendPrintf(entry, "%s %s", name, list->passwd);
 
-        for (auto w : list->actions)
+        for (const auto& w : list->actions)
             entry->appendf(" " SQUIDSBUFPH, SQUIDSBUFPRINT(w));
 
         storeAppendPrintf(entry, "\n");

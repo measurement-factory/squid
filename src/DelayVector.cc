@@ -15,6 +15,8 @@
 #include "CommRead.h"
 #include "DelayVector.h"
 
+#include <utility>
+
 DelayVector::DelayVector()
 {
     DelayPools::registerForUpdates (this);
@@ -76,12 +78,12 @@ DelayVector::id(CompositeSelectionDetails &details)
 }
 
 void
-DelayVector::push_back(CompositePoolNode::Pointer aNode)
+DelayVector::push_back(const CompositePoolNode::Pointer& aNode)
 {
     pools.push_back(aNode);
 }
 
-DelayVector::Id::Id(DelayVector::Pointer aDelayVector, CompositeSelectionDetails &details) : theVector(aDelayVector)
+DelayVector::Id::Id(DelayVector::Pointer aDelayVector, CompositeSelectionDetails &details) : theVector(std::move(aDelayVector))
 {
     debugs(77, 3, "DelayVector::Id::Id");
     DelayVector::iterator pos = theVector->pools.begin();
