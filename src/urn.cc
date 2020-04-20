@@ -37,11 +37,11 @@ class UrnState : public StoreClient
 public:
     explicit UrnState(const AccessLogEntry::Pointer &anAle): ale(anAle) {}
 
-    void created (StoreEntry *newEntry);
+    void created (StoreEntry *newEntry) override;
     void start (HttpRequest *, StoreEntry *);
     void setUriResFromRequest(HttpRequest *);
 
-    virtual ~UrnState();
+    ~UrnState() override;
 
     StoreEntry *entry = nullptr;
     store_client *sc = nullptr;
@@ -55,8 +55,8 @@ public:
 
 private:
     /* StoreClient API */
-    virtual LogTags *loggingTags() { return ale ? &ale->cache.code : nullptr; }
-    virtual void fillChecklist(ACLFilledChecklist &) const;
+    LogTags *loggingTags() override { return ale ? &ale->cache.code : nullptr; }
+    void fillChecklist(ACLFilledChecklist &) const override;
 
     char *urlres = nullptr;
 };

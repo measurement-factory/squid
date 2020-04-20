@@ -30,9 +30,9 @@ public:
     Nodes::size_type childrenCount() const { return nodes.size(); }
 
     /* ACL API */
-    virtual void prepareForUse();
-    virtual bool empty() const;
-    virtual SBufList dump() const;
+    void prepareForUse() override;
+    bool empty() const override;
+    SBufList dump() const override;
 
     /// parses one "acl name type acl1 acl2..." line, appending to nodes
     void lineParse();
@@ -46,7 +46,7 @@ protected:
     virtual int doMatch(ACLChecklist *checklist, Nodes::const_iterator start) const = 0;
 
     /* ACL API */
-    virtual int match(ACLChecklist *checklist);
+    int match(ACLChecklist *checklist) override;
 
     // XXX: use refcounting instead of raw pointers
     std::vector<ACL*> nodes; ///< children nodes of this intermediate node

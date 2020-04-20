@@ -63,11 +63,11 @@ public:
     void markSourceDomainChecked();
 
     // ACLChecklist API
-    virtual bool hasRequest() const { return request != NULL; }
-    virtual bool hasReply() const { return reply != NULL; }
-    virtual bool hasAle() const { return al != NULL; }
-    virtual void syncAle(HttpRequest *adaptedRequest, const char *logUri) const;
-    virtual void verifyAle() const;
+    bool hasRequest() const override { return request != NULL; }
+    bool hasReply() const override { return reply != NULL; }
+    bool hasAle() const override { return al != NULL; }
+    void syncAle(HttpRequest *adaptedRequest, const char *logUri) const override;
+    void verifyAle() const override;
 
 public:
     Ip::Address src_addr;

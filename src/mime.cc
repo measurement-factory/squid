@@ -39,15 +39,15 @@ class MimeIcon : public StoreClient
 
 public:
     explicit MimeIcon(const char *aName);
-    ~MimeIcon();
+    ~MimeIcon() override;
     void setName(char const *);
     SBuf getName() const;
     void load();
 
     /* StoreClient API */
-    virtual void created(StoreEntry *);
-    virtual LogTags *loggingTags() { return nullptr; } // no access logging/ACLs
-    virtual void fillChecklist(ACLFilledChecklist &) const;
+    void created(StoreEntry *) override;
+    LogTags *loggingTags() override { return nullptr; } // no access logging/ACLs
+    void fillChecklist(ACLFilledChecklist &) const override;
 
 private:
     SBuf icon_;

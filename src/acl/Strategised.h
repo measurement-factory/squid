@@ -36,21 +36,21 @@ public:
     ACLStrategised(ACLData<MatchType> *, ACLStrategy<MatchType> *, char const *);
     ACLStrategised(ACLStrategised const &&) = delete;
 
-    virtual char const *typeString() const;
-    virtual void parseFlags();
+    char const *typeString() const override;
+    void parseFlags() override;
 
-    virtual bool requiresRequest() const {return matcher->requiresRequest();}
+    bool requiresRequest() const override {return matcher->requiresRequest();}
 
-    virtual bool requiresReply() const {return matcher->requiresReply();}
+    bool requiresReply() const override {return matcher->requiresReply();}
 
-    virtual void prepareForUse() { data->prepareForUse();}
-    virtual const Acl::Options &options() { return matcher->options(); }
-    virtual void parse();
-    virtual int match(ACLChecklist *checklist);
+    void prepareForUse() override { data->prepareForUse();}
+    const Acl::Options &options() override { return matcher->options(); }
+    void parse() override;
+    int match(ACLChecklist *checklist) override;
     virtual int match (M const &);
-    virtual SBufList dump() const;
-    virtual bool empty () const;
-    virtual bool valid () const;
+    SBufList dump() const override;
+    bool empty () const override;
+    bool valid () const override;
 
 private:
     ACLData<MatchType> *data;

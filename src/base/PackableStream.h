@@ -27,7 +27,7 @@ protected:
     /** flush the current buffer and the character that is overflowing
      * to the Packable.
      */
-    virtual int_type overflow(int_type aChar = traits_type::eof()) override {
+    int_type overflow(int_type aChar = traits_type::eof()) override {
         std::streamsize pending(pptr() - pbase());
 
         if (pending && sync())
@@ -43,7 +43,7 @@ protected:
     }
 
     /** push the buffer to the Packable */
-    virtual int sync() override {
+    int sync() override {
         std::streamsize pending(pptr() - pbase());
         lowAppend(pbase(), pending);
         buf_.flush();
@@ -53,7 +53,7 @@ protected:
     /** write multiple characters to the Packable
      * - this is an optimisation method.
      */
-    virtual std::streamsize xsputn(const char * chars, std::streamsize number) override {
+    std::streamsize xsputn(const char * chars, std::streamsize number) override {
         lowAppend(chars, number);
         return number;
     }

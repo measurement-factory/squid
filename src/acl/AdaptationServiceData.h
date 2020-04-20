@@ -21,8 +21,8 @@ public:
     ACLAdaptationServiceData(ACLAdaptationServiceData const &old) : ACLStringData(old) {};
     // Not implemented
     ACLAdaptationServiceData &operator= (ACLAdaptationServiceData const &);
-    virtual void parse();
-    virtual ACLData<char const *> *clone() const;
+    void parse() override;
+    ACLData<char const *> *clone() const override;
 };
 
 #endif /* SQUID_ADAPTATIONSERVICEDATA_H */

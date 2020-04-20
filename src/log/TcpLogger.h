@@ -51,9 +51,9 @@ protected:
     void flush();
 
     /* AsyncJob API */
-    virtual void start();
-    virtual bool doneAll() const;
-    virtual void swanSong();
+    void start() override;
+    bool doneAll() const override;
+    void swanSong() override;
 
 private:
     /* Logfile API. Map c-style Logfile calls to TcpLogger method calls. */

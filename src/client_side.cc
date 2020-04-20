@@ -155,7 +155,7 @@ public:
     ListeningStartedDialer(Handler aHandler, AnyP::PortCfgPointer &aPortCfg, const Ipc::FdNoteId note, const Subscription::Pointer &aSub):
         handler(aHandler), portCfg(aPortCfg), portTypeNote(note), sub(aSub) {}
 
-    virtual void print(std::ostream &os) const {
+    void print(std::ostream &os) const override {
         startPrint(os) <<
                        ", " << FdNote(portTypeNote) << " port=" << (void*)&portCfg << ')';
     }

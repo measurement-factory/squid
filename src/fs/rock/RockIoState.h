@@ -35,9 +35,9 @@ public:
     void file(const RefCount<DiskFile> &aFile);
 
     // ::StoreIOState API
-    virtual void read_(char *buf, size_t size, off_t offset, STRCB * callback, void *callback_data);
-    virtual bool write(char const *buf, size_t size, off_t offset, FREE * free_func);
-    virtual void close(int how);
+    void read_(char *buf, size_t size, off_t offset, STRCB * callback, void *callback_data) override;
+    bool write(char const *buf, size_t size, off_t offset, FREE * free_func) override;
+    void close(int how) override;
 
     /// whether we are still waiting for the I/O results (i.e., not closed)
     bool stillWaiting() const { return theFile != NULL; }

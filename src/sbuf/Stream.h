@@ -35,7 +35,7 @@ public:
     }
 
 protected:
-    virtual int_type overflow(int_type aChar = traits_type::eof()) {
+    int_type overflow(int_type aChar = traits_type::eof()) override {
         std::streamsize pending(pptr() - pbase());
 
         if (pending && sync())
@@ -53,7 +53,7 @@ protected:
     }
 
     /// push the streambuf to the backing SBuf
-    virtual int sync() {
+    int sync() override {
         std::streamsize pending(pptr() - pbase());
 
         if (pending)
@@ -65,7 +65,7 @@ protected:
     /** write multiple characters to the store entry
      * \note this is an optimisation consistent with std::streambuf API
      */
-    virtual std::streamsize xsputn(const char * chars, std::streamsize number) {
+    std::streamsize xsputn(const char * chars, std::streamsize number) override {
         if (number)
             theBuf.append(chars, number);
 

@@ -22,12 +22,12 @@ class ACLUserData : public ACLData<char const *>
 public:
     virtual ~ACLUserData() {}
     ACLUserData();
-    bool match(char const *user);
-    virtual SBufList dump() const;
-    void parse();
-    virtual const Acl::ParameterFlags &supportedFlags() const;
-    bool empty() const;
-    virtual ACLData<char const *> *clone() const;
+    bool match(char const *user) override;
+    SBufList dump() const override;
+    void parse() override;
+    const Acl::ParameterFlags &supportedFlags() const override;
+    bool empty() const override;
+    ACLData<char const *> *clone() const override;
 
 private:
 

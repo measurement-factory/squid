@@ -62,7 +62,7 @@ public:
     bool find(EVH * func, void * arg);
     /* schedule a callback function to run in when seconds */
     void schedule(const char *name, EVH * func, void *arg, double when, int weight, bool cbdata=true);
-    int checkEvents(int timeout);
+    int checkEvents(int timeout) override;
     static EventScheduler *GetInstance();
 
 private:

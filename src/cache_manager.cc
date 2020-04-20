@@ -49,7 +49,7 @@ public:
 public:
     ClassActionCreator(Handler *aHandler): handler(aHandler) {}
 
-    virtual Mgr::Action::Pointer create(const Mgr::Command::Pointer &cmd) const {
+    Mgr::Action::Pointer create(const Mgr::Command::Pointer &cmd) const override {
         return handler(cmd);
     }
 

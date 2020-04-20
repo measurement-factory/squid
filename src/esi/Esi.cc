@@ -88,13 +88,13 @@ class esiComment : public ESIElement
     MEMPROXY_CLASS(esiComment);
 
 public:
-    ~esiComment();
+    ~esiComment() override;
     esiComment();
-    Pointer makeCacheable() const;
-    Pointer makeUsable(esiTreeParentPtr, ESIVarState &) const;
+    Pointer makeCacheable() const override;
+    Pointer makeUsable(esiTreeParentPtr, ESIVarState &) const override;
 
-    void render(ESISegment::Pointer);
-    void finish();
+    void render(ESISegment::Pointer) override;
+    void finish() override;
 };
 
 #include "esi/Literal.h"
@@ -111,13 +111,13 @@ class esiRemove : public ESIElement
 
 public:
     esiRemove() : ESIElement() {}
-    virtual ~esiRemove() {}
+    ~esiRemove() override {}
 
-    virtual void render(ESISegment::Pointer);
-    virtual bool addElement (ESIElement::Pointer);
-    virtual Pointer makeCacheable() const;
-    virtual Pointer makeUsable(esiTreeParentPtr, ESIVarState &) const;
-    virtual void finish() {}
+    void render(ESISegment::Pointer) override;
+    bool addElement (ESIElement::Pointer) override;
+    Pointer makeCacheable() const override;
+    Pointer makeUsable(esiTreeParentPtr, ESIVarState &) const override;
+    void finish() override {}
 };
 
 class esiTry : public ESIElement
@@ -126,15 +126,15 @@ class esiTry : public ESIElement
 
 public:
     esiTry(esiTreeParentPtr aParent);
-    ~esiTry();
+    ~esiTry() override;
 
-    void render(ESISegment::Pointer);
-    bool addElement (ESIElement::Pointer);
-    void fail(ESIElement *, char const * = NULL);
-    esiProcessResult_t process (int dovars);
-    void provideData (ESISegment::Pointer data, ESIElement * source);
-    Pointer makeCacheable() const;
-    Pointer makeUsable(esiTreeParentPtr, ESIVarState &) const;
+    void render(ESISegment::Pointer) override;
+    bool addElement (ESIElement::Pointer) override;
+    void fail(ESIElement *, char const * = NULL) override;
+    esiProcessResult_t process (int dovars) override;
+    void provideData (ESISegment::Pointer data, ESIElement * source) override;
+    Pointer makeCacheable() const override;
+    Pointer makeUsable(esiTreeParentPtr, ESIVarState &) const override;
 
     ESIElement::Pointer attempt;
     ESIElement::Pointer except;
@@ -145,7 +145,7 @@ public:
         int attemptfailed:1; /* The attempt branch failed */
         int exceptfailed:1; /* the except branch failed */
     } flags;
-    void finish();
+    void finish() override;
 
 private:
     void notifyParent();
@@ -163,24 +163,24 @@ class esiChoose : public ESIElement
 
 public:
     esiChoose(esiTreeParentPtr);
-    ~esiChoose();
+    ~esiChoose() override;
 
-    void render(ESISegment::Pointer);
-    bool addElement (ESIElement::Pointer);
-    void fail(ESIElement *, char const * = NULL);
-    esiProcessResult_t process (int dovars);
+    void render(ESISegment::Pointer) override;
+    bool addElement (ESIElement::Pointer) override;
+    void fail(ESIElement *, char const * = NULL) override;
+    esiProcessResult_t process (int dovars) override;
 
-    void provideData (ESISegment::Pointer data, ESIElement *source);
+    void provideData (ESISegment::Pointer data, ESIElement *source) override;
     void makeCachableElements(esiChoose const &old);
     void makeUsableElements(esiChoose const &old, ESIVarState &);
-    Pointer makeCacheable() const;
-    Pointer makeUsable(esiTreeParentPtr, ESIVarState &) const;
+    Pointer makeCacheable() const override;
+    Pointer makeUsable(esiTreeParentPtr, ESIVarState &) const override;
     void NULLUnChosen();
 
     Esi::Elements elements;
     int chosenelement;
     ESIElement::Pointer otherwise;
-    void finish();
+    void finish() override;
 
 private:
     esiChoose(esiChoose const &);
@@ -195,9 +195,9 @@ class esiWhen : public esiSequence
 
 public:
     esiWhen(esiTreeParentPtr aParent, int attributes, const char **attr, ESIVarState *);
-    ~esiWhen();
-    Pointer makeCacheable() const;
-    Pointer makeUsable(esiTreeParentPtr, ESIVarState &) const;
+    ~esiWhen() override;
+    Pointer makeCacheable() const override;
+    Pointer makeUsable(esiTreeParentPtr, ESIVarState &) const override;
 
     bool testsTrue() const { return testValue;}
 

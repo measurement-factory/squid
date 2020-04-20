@@ -44,9 +44,9 @@ protected:
     void tellQueryAborted(bool final); // tell initiator
     void clearInitiator(); // used by noteInitiatorAborted; TODO: make private
 
-    virtual void swanSong(); // internal cleanup
+    void swanSong() override; // internal cleanup
 
-    virtual const char *status() const; // for debugging
+    const char *status() const override; // for debugging
 
     CbcPointer<Initiator> theInitiator;
 

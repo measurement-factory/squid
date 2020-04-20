@@ -34,9 +34,9 @@ public:
 
 protected:
     /* AsyncJob API */
-    virtual void start() override;
-    virtual bool doneAll() const override;
-    virtual void swanSong() override;
+    void start() override;
+    bool doneAll() const override;
+    void swanSong() override;
 
     bool doneLoading() const;
     bool doneValidating() const;

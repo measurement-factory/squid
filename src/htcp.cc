@@ -135,13 +135,13 @@ public:
     }
 
     /* CodeContext API */
-    virtual ScopedId codeContextGist() const; // override
-    virtual std::ostream &detailCodeContext(std::ostream &os) const; // override
+    ScopedId codeContextGist() const override; // override
+    std::ostream &detailCodeContext(std::ostream &os) const override; // override
 
     /* StoreClient API */
-    void created(StoreEntry *);
-    virtual LogTags *loggingTags();
-    virtual void fillChecklist(ACLFilledChecklist &) const;
+    void created(StoreEntry *) override;
+    LogTags *loggingTags() override;
+    void fillChecklist(ACLFilledChecklist &) const override;
 
 public:
     const char *method = nullptr;

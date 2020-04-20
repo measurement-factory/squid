@@ -33,9 +33,9 @@ public:
 
 protected:
     /* AsyncJob API */
-    virtual void start();
-    virtual void swanSong();
-    virtual bool doneAll() const;
+    void start() override;
+    void swanSong() override;
+    bool doneAll() const override;
 
     /// whether the peer is still out there and in a valid state we can safely use
     bool validPeer() const;

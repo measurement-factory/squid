@@ -26,8 +26,8 @@ public:
     Response(unsigned int aRequestId);
     explicit Response(const Ipc::TypedMsgHdr& msg); ///< from recvmsg()
     /* Ipc::Response API */
-    virtual void pack(Ipc::TypedMsgHdr& msg) const;
-    virtual Ipc::Response::Pointer clone() const;
+    void pack(Ipc::TypedMsgHdr& msg) const override;
+    Ipc::Response::Pointer clone() const override;
 
 private:
     Response(const Response& response);

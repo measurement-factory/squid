@@ -77,8 +77,8 @@ public:
 
 protected:
     /* StoreClient API */
-    virtual LogTags *loggingTags() override;
-    virtual void fillChecklist(ACLFilledChecklist &) const override;
+    LogTags *loggingTags() override;
+    void fillChecklist(ACLFilledChecklist &) const override;
 
     /// either confirms and starts processing a cache hit or returns false
     bool confirmAndPrepHit(const StoreEntry &);

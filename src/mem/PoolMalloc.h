@@ -38,19 +38,19 @@ class MemPoolMalloc : public MemImplementingAllocator
 public:
     MemPoolMalloc(char const *label, size_t aSize);
     ~MemPoolMalloc();
-    virtual bool idleTrigger(int shift) const;
-    virtual void clean(time_t maxage);
+    bool idleTrigger(int shift) const override;
+    void clean(time_t maxage) override;
 
     /**
      \param stats   Object to be filled with statistical data about pool.
      \retval        Number of objects in use, ie. allocated.
      */
-    virtual int getStats(MemPoolStats * stats, int accumulate);
+    int getStats(MemPoolStats * stats, int accumulate) override;
 
-    virtual int getInUseCount();
+    int getInUseCount() override;
 protected:
-    virtual void *allocate();
-    virtual void deallocate(void *, bool aggressive);
+    void *allocate() override;
+    void deallocate(void *, bool aggressive) override;
 private:
     std::stack<void *> freelist;
 };

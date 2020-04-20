@@ -37,7 +37,7 @@ public:
         UnaryMemFunT<PeerPoolMgr, Security::EncryptorAnswer, Security::EncryptorAnswer&>(aJob, aMethod, Security::EncryptorAnswer()) {}
 
     /* Security::PeerConnector::CbDialer API */
-    virtual Security::EncryptorAnswer &answer() { return arg1; }
+    Security::EncryptorAnswer &answer() override { return arg1; }
 };
 
 PeerPoolMgr::PeerPoolMgr(CachePeer *aPeer): AsyncJob("PeerPoolMgr"),
@@ -268,8 +268,8 @@ class PeerPoolMgrsRr: public RegisteredRunner
 {
 public:
     /* RegisteredRunner API */
-    virtual void useConfig() { syncConfig(); }
-    virtual void syncConfig();
+    void useConfig() override { syncConfig(); }
+    void syncConfig() override;
 };
 
 RunnerRegistrationEntry(PeerPoolMgrsRr);

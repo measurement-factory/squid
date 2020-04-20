@@ -25,21 +25,21 @@ public:
     MemPoolChunked(const char *label, size_t obj_size);
     ~MemPoolChunked();
     void convertFreeCacheToChunkFreeCache();
-    virtual void clean(time_t maxage);
+    void clean(time_t maxage) override;
 
     /**
      \param stats   Object to be filled with statistical data about pool.
      \retval        Number of objects in use, ie. allocated.
      */
-    virtual int getStats(MemPoolStats * stats, int accumulate);
+    int getStats(MemPoolStats * stats, int accumulate) override;
 
     void createChunk();
     void *get();
     void push(void *obj);
-    virtual int getInUseCount();
+    int getInUseCount() override;
 protected:
-    virtual void *allocate();
-    virtual void deallocate(void *, bool aggressive);
+    void *allocate() override;
+    void deallocate(void *, bool aggressive) override;
 public:
     /**
      * Allows you tune chunk size of pooling. Objects are allocated in chunks
@@ -51,9 +51,9 @@ public:
      \note  As a general guideline, increase chunk size only for pools that keep
      *      very many items for relatively long time.
      */
-    virtual void setChunkSize(size_t chunksize);
+    void setChunkSize(size_t chunksize) override;
 
-    virtual bool idleTrigger(int shift) const;
+    bool idleTrigger(int shift) const override;
 
     size_t chunk_size;
     int chunk_capacity;

@@ -18,10 +18,10 @@ class StoreMetaMD5 : public StoreMeta
     MEMPROXY_CLASS(StoreMetaMD5);
 
 public:
-    char getType() const {return STORE_META_KEY_MD5;}
+    char getType() const override {return STORE_META_KEY_MD5;}
 
-    bool validLength(int) const;
-    bool checkConsistency(StoreEntry *) const;
+    bool validLength(int) const override;
+    bool checkConsistency(StoreEntry *) const override;
 
 private:
     static int md5_mismatches;

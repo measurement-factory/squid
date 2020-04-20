@@ -198,8 +198,8 @@ public:
     ICP2State(icp_common_t & aHeader, HttpRequest *aRequest):
         ICPState(aHeader, aRequest),rtt(0),src_rtt(0),flags(0) {}
 
-    ~ICP2State();
-    virtual void created(StoreEntry * newEntry) override;
+    ~ICP2State() override;
+    void created(StoreEntry * newEntry) override;
 
     int rtt;
     int src_rtt;

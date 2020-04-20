@@ -41,7 +41,7 @@ public:
         UnaryMemFunT<Adaptation::Icap::Xaction, Security::EncryptorAnswer, Security::EncryptorAnswer&>(aJob, aMethod, Security::EncryptorAnswer()) {}
 
     /* Security::PeerConnector::CbDialer API */
-    virtual Security::EncryptorAnswer &answer() { return arg1; }
+    Security::EncryptorAnswer &answer() override { return arg1; }
 };
 
 namespace Ssl
@@ -60,9 +60,9 @@ public:
         Security::PeerConnector(aServerConn, aCallback, alp, timeout), icapService(service) {}
 
     /* Security::PeerConnector API */
-    virtual bool initialize(Security::SessionPointer &);
-    virtual void noteNegotiationDone(ErrorState *error);
-    virtual Security::ContextPointer getTlsContext() {
+    bool initialize(Security::SessionPointer &) override;
+    void noteNegotiationDone(ErrorState *error) override;
+    Security::ContextPointer getTlsContext() override {
         return icapService->sslContext;
     }
 

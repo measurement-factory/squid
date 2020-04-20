@@ -21,11 +21,11 @@ public:
     ACLIntRange() {}
 
     virtual ~ACLIntRange();
-    virtual bool match(int);
-    virtual SBufList dump() const;
-    virtual void parse();
-    virtual bool empty() const;
-    virtual ACLData<int> *clone() const;
+    bool match(int) override;
+    SBufList dump() const override;
+    void parse() override;
+    bool empty() const override;
+    ACLData<int> *clone() const override;
 
 private:
     typedef Range<int> RangeType;

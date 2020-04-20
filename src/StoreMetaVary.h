@@ -16,9 +16,9 @@ class StoreMetaVary : public StoreMeta
     MEMPROXY_CLASS(StoreMetaVary);
 
 public:
-    char getType() const {return STORE_META_VARY_HEADERS;}
+    char getType() const override {return STORE_META_VARY_HEADERS;}
 
-    bool checkConsistency(StoreEntry *) const;
+    bool checkConsistency(StoreEntry *) const override;
 };
 
 #endif /* SQUID_STOREMETAVARY_H */

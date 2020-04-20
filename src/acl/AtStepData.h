@@ -23,11 +23,11 @@ public:
     ACLAtStepData(ACLAtStepData const &);
     ACLAtStepData &operator= (ACLAtStepData const &);
     virtual ~ACLAtStepData();
-    bool match(XactionStep);
-    virtual SBufList dump() const;
-    void parse();
-    bool empty() const;
-    virtual ACLAtStepData *clone() const;
+    bool match(XactionStep) override;
+    SBufList dump() const override;
+    void parse() override;
+    bool empty() const override;
+    ACLAtStepData *clone() const override;
 
     std::list<XactionStep> values;
 };

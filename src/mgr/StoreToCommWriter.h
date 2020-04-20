@@ -35,9 +35,9 @@ public:
 
 protected:
     /* AsyncJob API */
-    virtual void start();
-    virtual void swanSong();
-    virtual bool doneAll() const;
+    void start() override;
+    void swanSong() override;
+    bool doneAll() const override;
 
     /// request more action results from the store
     void scheduleStoreCopy();

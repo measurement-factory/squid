@@ -32,9 +32,9 @@ public:
     virtual ~Server() {}
 
     /* AsyncJob API */
-    virtual void start();
-    virtual bool doneAll() const;
-    virtual void swanSong();
+    void start() override;
+    bool doneAll() const override;
+    void swanSong() override;
 
     /// ??
     virtual bool connFinishedWithConn(int size) = 0;

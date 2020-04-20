@@ -64,7 +64,7 @@ public:
     void closeN(size_t count);
 
     // IndependentRunner API
-    virtual void endingShutdown();
+    void endingShutdown() override;
 private:
     bool isAvailable(int i) const;
     bool removeAt(int index);

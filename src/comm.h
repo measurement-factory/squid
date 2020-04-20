@@ -106,7 +106,7 @@ class CommSelectEngine : public AsyncEngine
 {
 
 public:
-    virtual int checkEvents(int timeout);
+    int checkEvents(int timeout) override;
 };
 
 #endif

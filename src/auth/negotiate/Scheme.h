@@ -28,9 +28,9 @@ public:
     virtual ~Scheme() {};
 
     /* per scheme */
-    virtual char const *type() const;
-    virtual void shutdownCleanup();
-    virtual Auth::SchemeConfig *createConfig();
+    char const *type() const override;
+    void shutdownCleanup() override;
+    Auth::SchemeConfig *createConfig() override;
 
     /* Not implemented */
     Scheme (Scheme const &);

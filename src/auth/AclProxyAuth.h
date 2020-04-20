@@ -20,7 +20,7 @@ class ProxyAuthLookup : public ACLChecklist::AsyncState
 
 public:
     static ProxyAuthLookup *Instance();
-    virtual void checkForAsync(ACLChecklist *) const;
+    void checkForAsync(ACLChecklist *) const override;
 
 private:
     static ProxyAuthLookup instance_;
@@ -38,17 +38,17 @@ public:
     ACLProxyAuth &operator =(ACLProxyAuth const &);
 
     /* ACL API */
-    virtual char const *typeString() const;
-    virtual void parse();
-    virtual bool isProxyAuth() const {return true;}
-    virtual void parseFlags();
-    virtual int match(ACLChecklist *checklist);
-    virtual SBufList dump() const;
-    virtual bool valid() const;
-    virtual bool empty() const;
-    virtual bool requiresRequest() const {return true;}
+    char const *typeString() const override;
+    void parse() override;
+    bool isProxyAuth() const override {return true;}
+    void parseFlags() override;
+    int match(ACLChecklist *checklist) override;
+    SBufList dump() const override;
+    bool valid() const override;
+    bool empty() const override;
+    bool requiresRequest() const override {return true;}
     virtual ACL *clone() const;
-    virtual int matchForCache(ACLChecklist *checklist);
+    int matchForCache(ACLChecklist *checklist) override;
 
 private:
     int matchProxyAuth(ACLChecklist *);

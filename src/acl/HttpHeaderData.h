@@ -21,11 +21,11 @@ class ACLHTTPHeaderData : public ACLData<HttpHeader*>
 public:
     ACLHTTPHeaderData();
     virtual ~ACLHTTPHeaderData();
-    virtual bool match(HttpHeader* hdr);
-    virtual SBufList dump() const;
-    virtual void parse();
-    virtual bool empty() const;
-    virtual ACLData<HttpHeader*> *clone() const;
+    bool match(HttpHeader* hdr) override;
+    SBufList dump() const override;
+    void parse() override;
+    bool empty() const override;
+    ACLData<HttpHeader*> *clone() const override;
 
 private:
     Http::HdrType hdrId;            /**< set if header is known */

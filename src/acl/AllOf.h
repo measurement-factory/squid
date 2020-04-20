@@ -23,14 +23,14 @@ class AllOf: public Acl::InnerNode
 
 public:
     /* ACL API */
-    virtual char const *typeString() const;
+    char const *typeString() const override;
     virtual ACL *clone() const;
-    virtual void parse();
-    virtual SBufList dump() const;
+    void parse() override;
+    SBufList dump() const override;
 
 private:
     /* Acl::InnerNode API */
-    virtual int doMatch(ACLChecklist *checklist, Nodes::const_iterator start) const;
+    int doMatch(ACLChecklist *checklist, Nodes::const_iterator start) const override;
 };
 
 } // namespace Acl

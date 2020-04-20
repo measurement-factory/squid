@@ -45,12 +45,12 @@ public:
 
     DelayTagged();
     virtual ~DelayTagged();
-    virtual void stats(StoreEntry * sentry);
-    virtual void dump(StoreEntry *entry) const;
-    virtual void update(int incr);
-    virtual void parse();
+    void stats(StoreEntry * sentry) override;
+    void dump(StoreEntry *entry) const override;
+    void update(int incr) override;
+    void parse() override;
 
-    virtual DelayIdComposite::Pointer id(CompositeSelectionDetails &);
+    DelayIdComposite::Pointer id(CompositeSelectionDetails &) override;
 
 private:
 
@@ -62,9 +62,9 @@ private:
     public:
         Id (RefCount<DelayTagged>, String &);
         ~Id();
-        virtual int bytesWanted (int min, int max) const;
-        virtual void bytesIn(int qty);
-        virtual void delayRead(DeferredRead const &);
+        int bytesWanted (int min, int max) const override;
+        void bytesIn(int qty) override;
+        void delayRead(DeferredRead const &) override;
 
     private:
         RefCount<DelayTagged> theTagged;

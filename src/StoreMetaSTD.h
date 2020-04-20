@@ -16,9 +16,9 @@ class StoreMetaSTD : public StoreMeta
     MEMPROXY_CLASS(StoreMetaSTD);
 
 public:
-    char getType() const {return STORE_META_STD;}
+    char getType() const override {return STORE_META_STD;}
 
-    bool validLength(int) const;
+    bool validLength(int) const override;
     //    bool checkConsistency(StoreEntry *) const;
 };
 

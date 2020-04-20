@@ -25,11 +25,11 @@ class AnswerCall: public AsyncCallT<AnswerDialer>
 public:
     AnswerCall(const char *aName, const AnswerDialer &aDialer) :
         AsyncCallT<AnswerDialer>(93, 5, aName, aDialer), fired(false) {}
-    virtual void fire() {
+    void fire() override {
         fired = true;
         AsyncCallT<AnswerDialer>::fire();
     }
-    virtual ~AnswerCall() {
+    ~AnswerCall() override {
         if (!fired && dialer.arg1.message != NULL && dialer.arg1.message->body_pipe != NULL)
             dialer.arg1.message->body_pipe->expectNoConsumption();
     }

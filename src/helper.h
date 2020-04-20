@@ -277,9 +277,9 @@ public:
     void checkForTimedOutRequests(bool const retry);
 
     /*HelperServerBase API*/
-    virtual bool reserved() override {return false;}
-    virtual void dropQueued() override;
-    virtual helper *getParent() const override {return parent;}
+    bool reserved() override {return false;}
+    void dropQueued() override;
+    helper *getParent() const override {return parent;}
 
     /// Read timeout handler
     static void requestTimeout(const CommTimeoutCbParams &io);
@@ -300,8 +300,8 @@ public:
     void clearReservation();
 
     /* HelperServerBase API */
-    virtual bool reserved() override {return reservationId.reserved();}
-    virtual helper *getParent() const override {return parent;}
+    bool reserved() override {return reservationId.reserved();}
+    helper *getParent() const override {return parent;}
 
     /// close handler to handle exited server processes
     static void HelperServerClosed(helper_stateful_server *srv);

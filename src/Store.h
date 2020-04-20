@@ -288,10 +288,10 @@ public:
 #endif
 
     /* Packable API */
-    virtual void append(char const *, int);
-    virtual void vappendf(const char *, va_list);
-    virtual void buffer();
-    virtual void flush();
+    void append(char const *, int) override;
+    void vappendf(const char *, va_list) override;
+    void buffer() override;
+    void flush() override;
 
 protected:
     typedef Store::EntryGuard EntryGuard;

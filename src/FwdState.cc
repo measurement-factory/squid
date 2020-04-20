@@ -91,12 +91,12 @@ public:
     /* CallDialer API */
     virtual bool canDial(AsyncCall &call) { return fwd_.valid(); }
     void dial(AsyncCall &call) { ((&(*fwd_))->*method_)(answer_); }
-    virtual void print(std::ostream &os) const {
+    void print(std::ostream &os) const override {
         os << '(' << fwd_.get() << ", " << answer_ << ')';
     }
 
     /* Security::PeerConnector::CbDialer API */
-    virtual Security::EncryptorAnswer &answer() { return answer_; }
+    Security::EncryptorAnswer &answer() override { return answer_; }
 
 private:
     Method method_;

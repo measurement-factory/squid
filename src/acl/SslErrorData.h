@@ -22,11 +22,11 @@ public:
     ACLSslErrorData(ACLSslErrorData const &);
     ACLSslErrorData &operator= (ACLSslErrorData const &);
     virtual ~ACLSslErrorData() {}
-    bool match(const Security::CertErrors *);
-    virtual SBufList dump() const;
-    void parse();
-    bool empty() const { return values.empty(); }
-    virtual  ACLSslErrorData *clone() const;
+    bool match(const Security::CertErrors *) override;
+    SBufList dump() const override;
+    void parse() override;
+    bool empty() const override { return values.empty(); }
+     ACLSslErrorData *clone() const override;
 
     Security::Errors values;
 };

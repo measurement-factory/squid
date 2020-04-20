@@ -118,7 +118,7 @@ public:
         /* CallDialer API */
         bool canDial(AsyncCall &) { return initiator_.valid(); }
         void dial(AsyncCall &) {((*initiator_).*method_)(*this); }
-        virtual void print(std::ostream &os) const override {
+        void print(std::ostream &os) const override {
             os << '(' << static_cast<const Answer&>(*this) << ')';
         }
 
@@ -164,10 +164,10 @@ private:
     };
 
     /* AsyncJob API */
-    virtual void start() override;
-    virtual bool doneAll() const override;
-    virtual void swanSong() override;
-    virtual const char *status() const override;
+    void start() override;
+    bool doneAll() const override;
+    void swanSong() override;
+    const char *status() const override;
 
     void maybeOpenAnotherPrimeConnection();
 

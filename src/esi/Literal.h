@@ -24,10 +24,10 @@ public:
     esiLiteral(ESIContext *, const char *s, int len);
     ~esiLiteral();
 
-    void render(ESISegment::Pointer);
-    esiProcessResult_t process (int dovars);
-    Pointer makeCacheable() const;
-    Pointer makeUsable(esiTreeParentPtr, ESIVarState &) const;
+    void render(ESISegment::Pointer) override;
+    esiProcessResult_t process (int dovars) override;
+    Pointer makeCacheable() const override;
+    Pointer makeUsable(esiTreeParentPtr, ESIVarState &) const override;
     /* optimise copies away later */
     ESISegment::Pointer buffer;
 
@@ -36,7 +36,7 @@ public:
     } flags;
 
     ESIVarState *varState;
-    void finish();
+    void finish() override;
 
 private:
     esiLiteral(esiLiteral const &);

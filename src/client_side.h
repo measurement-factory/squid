@@ -80,14 +80,14 @@ public:
     virtual ~ConnStateData();
 
     /* ::Server API */
-    virtual void receivedFirstByte();
-    virtual bool handleReadData();
-    virtual void afterClientRead();
-    virtual void afterClientWrite(size_t);
+    void receivedFirstByte() override;
+    bool handleReadData() override;
+    void afterClientRead() override;
+    void afterClientWrite(size_t) override;
 
     /* HttpControlMsgSink API */
-    virtual void sendControlMsg(HttpControlMsg);
-    virtual void doneWithControlMsg();
+    void sendControlMsg(HttpControlMsg) override;
+    void doneWithControlMsg() override;
 
     /// Traffic parsing
     bool clientParseRequests();
@@ -161,8 +161,8 @@ public:
 
     /* BodyPipe API */
     BodyPipe::Pointer expectRequestBody(int64_t size);
-    virtual void noteMoreBodySpaceAvailable(BodyPipe::Pointer) = 0;
-    virtual void noteBodyConsumerAborted(BodyPipe::Pointer) = 0;
+    void noteMoreBodySpaceAvailable(BodyPipe::Pointer) override = 0;
+    void noteBodyConsumerAborted(BodyPipe::Pointer) override = 0;
 
     bool handleRequestBodyData();
 
@@ -205,9 +205,9 @@ public:
     void requestTimeout(const CommTimeoutCbParams &params);
 
     // AsyncJob API
-    virtual void start();
-    virtual bool doneAll() const { return BodyProducer::doneAll() && false;}
-    virtual void swanSong();
+    void start() override;
+    bool doneAll() const override { return BodyProducer::doneAll() && false;}
+    void swanSong() override;
 
     /// Changes state so that we close the connection and quit after serving
     /// the client-side-detected error response instead of getting stuck.
@@ -314,8 +314,8 @@ public:
     SBuf preservedClientData;
 
     /* Registered Runner API */
-    virtual void startShutdown();
-    virtual void endingShutdown();
+    void startShutdown() override;
+    void endingShutdown() override;
 
     /// \returns existing non-empty connection annotations,
     /// creates and returns empty annotations otherwise
@@ -376,8 +376,8 @@ protected:
 
 private:
     /* ::Server API */
-    virtual bool connFinishedWithConn(int size);
-    virtual void checkLogging();
+    bool connFinishedWithConn(int size) override;
+    void checkLogging() override;
 
     void clientAfterReadingRequests();
     bool concurrentRequestQueueFilled() const;

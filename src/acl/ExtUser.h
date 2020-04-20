@@ -26,12 +26,12 @@ public:
     ~ACLExtUser();
 
     /* ACL API */
-    virtual char const *typeString() const;
-    virtual void parse();
-    virtual void parseFlags();
-    virtual int match(ACLChecklist *checklist);
-    virtual SBufList dump() const;
-    virtual bool empty () const;
+    char const *typeString() const override;
+    void parse() override;
+    void parseFlags() override;
+    int match(ACLChecklist *checklist) override;
+    SBufList dump() const override;
+    bool empty () const override;
     virtual ACL *clone()const;
 
 private:

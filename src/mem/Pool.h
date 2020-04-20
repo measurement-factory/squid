@@ -242,7 +242,7 @@ class MemImplementingAllocator : public MemAllocator
 public:
     MemImplementingAllocator(char const *aLabel, size_t aSize);
     virtual ~MemImplementingAllocator();
-    virtual MemPoolMeter const &getMeter() const;
+    MemPoolMeter const &getMeter() const override;
     virtual MemPoolMeter &getMeter();
     virtual void flushMetersFull();
     virtual void flushMeters();
@@ -250,17 +250,17 @@ public:
     /**
      * Allocate one element from the pool
      */
-    virtual void *alloc();
+    void *alloc() override;
 
     /**
      * Free a element allocated by MemImplementingAllocator::alloc()
      */
-    virtual void freeOne(void *);
+    void freeOne(void *) override;
 
     virtual bool idleTrigger(int shift) const = 0;
     virtual void clean(time_t maxage) = 0;
-    virtual size_t objectSize() const;
-    virtual int getInUseCount() = 0;
+    size_t objectSize() const override;
+    int getInUseCount() override = 0;
 protected:
     virtual void *allocate() = 0;
     virtual void deallocate(void *, bool aggressive) = 0;

@@ -38,10 +38,10 @@ public:
     StoreFSufs(char const *DefaultModuleType, char const *label);
     virtual ~StoreFSufs() {}
 
-    virtual char const *type() const;
-    virtual SwapDir *createSwapDir();
-    virtual void done();
-    virtual void setup();
+    char const *type() const override;
+    SwapDir *createSwapDir() override;
+    void done() override;
+    void setup() override;
     /** Not implemented */
     StoreFSufs (StoreFSufs const &);
     StoreFSufs &operator=(StoreFSufs const &);

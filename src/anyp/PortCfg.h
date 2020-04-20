@@ -28,8 +28,8 @@ public:
     AnyP::PortCfgPointer clone() const;
 
     /* CodeContext API */
-    virtual ScopedId codeContextGist() const override;
-    virtual std::ostream &detailCodeContext(std::ostream &os) const override;
+    ScopedId codeContextGist() const override;
+    std::ostream &detailCodeContext(std::ostream &os) const override;
 
     PortCfgPointer next;
 

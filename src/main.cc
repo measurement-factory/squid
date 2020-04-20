@@ -191,7 +191,7 @@ class StoreRootEngine : public AsyncEngine
 {
 
 public:
-    int checkEvents(int) {
+    int checkEvents(int) override {
         Store::Root().callback();
         return EVENT_IDLE;
     };
@@ -207,7 +207,7 @@ public:
     }
 #endif
 
-    virtual int checkEvents(int timeout);
+    int checkEvents(int timeout) override;
 
 private:
     static void StopEventLoop(void *) {

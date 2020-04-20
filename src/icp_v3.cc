@@ -27,8 +27,8 @@ public:
     ICP3State(icp_common_t &aHeader, HttpRequest *aRequest) :
         ICPState(aHeader, aRequest) {}
 
-    ~ICP3State();
-    void created (StoreEntry *newEntry);
+    ~ICP3State() override;
+    void created (StoreEntry *newEntry) override;
 };
 
 /// \ingroup ServerProtocolICPInternal3

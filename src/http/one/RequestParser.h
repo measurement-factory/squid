@@ -39,9 +39,9 @@ public:
     virtual ~RequestParser() {}
 
     /* Http::One::Parser API */
-    virtual void clear() {*this = RequestParser();}
-    virtual Http1::Parser::size_type firstLineSize() const;
-    virtual bool parse(const SBuf &aBuf);
+    void clear() override {*this = RequestParser();}
+    Http1::Parser::size_type firstLineSize() const override;
+    bool parse(const SBuf &aBuf) override;
 
     /// the HTTP method if this is a request message
     const HttpRequestMethod & method() const {return method_;}

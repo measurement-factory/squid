@@ -85,10 +85,10 @@ public:
 
 protected:
     // AsyncJob API
-    virtual void start();
-    virtual bool doneAll() const;
-    virtual void swanSong();
-    virtual const char *status() const;
+    void start() override;
+    bool doneAll() const override;
+    void swanSong() override;
+    const char *status() const override;
 
     /// The comm_close callback handler.
     void commCloseHandler(const CommCloseCbParams &params);

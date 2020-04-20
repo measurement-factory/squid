@@ -37,13 +37,13 @@ public:
     static void HandleRemoteAck(unsigned int requestId);
 
     /* has-to-be-public AsyncJob API */
-    virtual void callException(const std::exception& e);
+    void callException(const std::exception& e) override;
 
 protected:
     /* AsyncJob API */
-    virtual void start();
-    virtual void swanSong();
-    virtual bool doneAll() const;
+    void start() override;
+    void swanSong() override;
+    bool doneAll() const override;
 
     virtual void handleError();
     virtual void handleTimeout();

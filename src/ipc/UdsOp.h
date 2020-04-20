@@ -72,10 +72,10 @@ public:
     UdsSender(const String& pathAddr, const TypedMsgHdr& aMessage);
 
 protected:
-    virtual void swanSong(); // UdsOp (AsyncJob) API
-    virtual void start(); // UdsOp (AsyncJob) API
-    virtual bool doneAll() const; // UdsOp (AsyncJob) API
-    virtual void timedout(); // UdsOp API
+    void swanSong() override; // UdsOp (AsyncJob) API
+    void start() override; // UdsOp (AsyncJob) API
+    bool doneAll() const override; // UdsOp (AsyncJob) API
+    void timedout() override; // UdsOp API
 
 private:
     void startSleep();

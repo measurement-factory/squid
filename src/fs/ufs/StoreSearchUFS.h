@@ -30,17 +30,17 @@ public:
      * callback the client when a new StoreEntry is available
      * or an error occurs
      */
-    virtual void next(void (callback)(void *cbdata), void *cbdata);
+    void next(void (callback)(void *cbdata), void *cbdata) override;
 
     /**
      \retval true if a new StoreEntry is immediately available
      \retval false if a new StoreEntry is NOT immediately available
      */
-    virtual bool next();
+    bool next() override;
 
-    virtual bool error() const;
-    virtual bool isDone() const;
-    virtual StoreEntry *currentItem();
+    bool error() const override;
+    bool isDone() const override;
+    StoreEntry *currentItem() override;
 
     RefCount<UFSSwapDir> sd;
     RemovalPolicyWalker *walker;

@@ -112,8 +112,8 @@ private:
     void stopAndDestroy(const char *reason);
 
     /* PeerSelectionInitiator API */
-    virtual void noteDestination(Comm::ConnectionPointer conn) override;
-    virtual void noteDestinationsEnd(ErrorState *selectionError) override;
+    void noteDestination(Comm::ConnectionPointer conn) override;
+    void noteDestinationsEnd(ErrorState *selectionError) override;
 
     void noteConnection(HappyConnOpenerAnswer &);
 

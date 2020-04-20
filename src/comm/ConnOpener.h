@@ -31,7 +31,7 @@ public:
 
     typedef CbcPointer<ConnOpener> Pointer;
 
-    virtual bool doneAll() const;
+    bool doneAll() const override;
 
     ConnOpener(Comm::ConnectionPointer &, const AsyncCall::Pointer &handler, time_t connect_timeout);
     ~ConnOpener();
@@ -40,8 +40,8 @@ public:
     const char * getHost() const;  ///< get the hostname noted for this connection
 
 protected:
-    virtual void start();
-    virtual void swanSong();
+    void start() override;
+    void swanSong() override;
 
 private:
     // Undefined because two openers cannot share a connection

@@ -16,7 +16,7 @@ class StoreMetaObjSize : public StoreMeta
     MEMPROXY_CLASS(StoreMetaObjSize);
 
 public:
-    char getType() const {return STORE_META_OBJSIZE;}
+    char getType() const override {return STORE_META_OBJSIZE;}
 };
 
 #endif /* SQUID_STOREMETAOBJSIZE_H */

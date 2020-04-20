@@ -171,11 +171,11 @@ public:
 
 #if USE_ADAPTATION
     // AsyncJob virtual methods
-    virtual bool doneAll() const {
+    bool doneAll() const override {
         return Initiator::doneAll() &&
                BodyConsumer::doneAll() && false;
     }
-    virtual void callException(const std::exception &ex);
+    void callException(const std::exception &ex) override;
 #endif
 
 private:
@@ -219,15 +219,15 @@ private:
     void handleAdaptationFailure(int errDetail, bool bypassable = false);
 
     // Adaptation::Initiator API
-    virtual void noteAdaptationAnswer(const Adaptation::Answer &answer);
+    void noteAdaptationAnswer(const Adaptation::Answer &answer) override;
     void handleAdaptedHeader(Http::Message *msg);
     void handleAdaptationBlock(const Adaptation::Answer &answer);
-    virtual void noteAdaptationAclCheckDone(Adaptation::ServiceGroupPointer group);
+    void noteAdaptationAclCheckDone(Adaptation::ServiceGroupPointer group) override;
 
     // BodyConsumer API, called by BodyPipe
-    virtual void noteMoreBodyDataAvailable(BodyPipe::Pointer);
-    virtual void noteBodyProductionEnded(BodyPipe::Pointer);
-    virtual void noteBodyProducerAborted(BodyPipe::Pointer);
+    void noteMoreBodyDataAvailable(BodyPipe::Pointer) override;
+    void noteBodyProductionEnded(BodyPipe::Pointer) override;
+    void noteBodyProducerAborted(BodyPipe::Pointer) override;
 
     void endRequestSatisfaction();
     /// called by StoreEntry when it has more buffer space available

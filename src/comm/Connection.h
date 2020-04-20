@@ -127,8 +127,8 @@ public:
     const Security::NegotiationHistory *hasTlsNegotiations() const {return tlsHistory;}
 
     /* CodeContext API */
-    virtual ScopedId codeContextGist() const override;
-    virtual std::ostream &detailCodeContext(std::ostream &os) const override;
+    ScopedId codeContextGist() const override;
+    std::ostream &detailCodeContext(std::ostream &os) const override;
 
 private:
     /** These objects may not be exactly duplicated. Use copyDetails() instead. */

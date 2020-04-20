@@ -16,9 +16,9 @@ class StoreMetaURL : public StoreMeta
     MEMPROXY_CLASS(StoreMetaURL);
 
 public:
-    char getType() const {return STORE_META_URL;}
+    char getType() const override {return STORE_META_URL;}
 
-    bool checkConsistency(StoreEntry *) const;
+    bool checkConsistency(StoreEntry *) const override;
 };
 
 #endif /* SQUID_STOREMETAURL_H */

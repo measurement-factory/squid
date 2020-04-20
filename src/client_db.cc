@@ -101,7 +101,7 @@ class ClientDbRr: public RegisteredRunner
 {
 public:
     /* RegisteredRunner API */
-    virtual void useConfig();
+    void useConfig() override;
 };
 RunnerRegistrationEntry(ClientDbRr);
 

@@ -73,7 +73,7 @@ class TunnelStateData: public PeerSelectionInitiator
 
 public:
     TunnelStateData(ClientHttpRequest *);
-    virtual ~TunnelStateData();
+    ~TunnelStateData() override;
     TunnelStateData(const TunnelStateData &); // do not implement
     TunnelStateData &operator =(const TunnelStateData &); // do not implement
 
@@ -182,8 +182,8 @@ public:
     void connectToPeer();
 
     /* PeerSelectionInitiator API */
-    virtual void noteDestination(Comm::ConnectionPointer conn) override;
-    virtual void noteDestinationsEnd(ErrorState *selectionError) override;
+    void noteDestination(Comm::ConnectionPointer conn) override;
+    void noteDestinationsEnd(ErrorState *selectionError) override;
 
     void syncHierNote(const Comm::ConnectionPointer &server, const char *origin);
 
@@ -218,12 +218,12 @@ private:
         /* CallDialer API */
         virtual bool canDial(AsyncCall &call) { return tunnel_.valid(); }
         void dial(AsyncCall &call) { ((&(*tunnel_))->*method_)(answer_); }
-        virtual void print(std::ostream &os) const {
+        void print(std::ostream &os) const override {
             os << '(' << tunnel_.get() << ", " << answer_ << ')';
         }
 
         /* Security::PeerConnector::CbDialer API */
-        virtual Security::EncryptorAnswer &answer() { return answer_; }
+        Security::EncryptorAnswer &answer() override { return answer_; }
 
     private:
         Method method_;

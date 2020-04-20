@@ -95,11 +95,11 @@ public:
 
     /* Option API */
 
-    virtual bool configured() const override { return recipient_ && recipient_->configured; }
-    virtual bool valued() const override { return recipient_ && recipient_->valued; }
+    bool configured() const override { return recipient_ && recipient_->configured; }
+    bool valued() const override { return recipient_ && recipient_->valued; }
 
     /// sets the default value when option is used without a value
-    virtual void configureDefault() const override
+    void configureDefault() const override
     {
         assert(recipient_);
         recipient_->configured = true;
@@ -109,7 +109,7 @@ public:
     }
 
     /// sets the option value from rawValue
-    virtual void configureWith(const SBuf &rawValue) const override
+    void configureWith(const SBuf &rawValue) const override
     {
         assert(recipient_);
         recipient_->configured = true;
@@ -117,7 +117,7 @@ public:
         import(rawValue);
     }
 
-    virtual void print(std::ostream &os) const override { if (valued()) os << recipient_->value; }
+    void print(std::ostream &os) const override { if (valued()) os << recipient_->value; }
 
 private:
     void import(const SBuf &rawValue) const { recipient_->value = rawValue; }

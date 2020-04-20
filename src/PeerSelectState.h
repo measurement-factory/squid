@@ -65,9 +65,9 @@ public:
     virtual ~PeerSelector() override;
 
     /* Dns::IpReceiver API */
-    virtual void noteIp(const Ip::Address &ip) override;
-    virtual void noteIps(const Dns::CachedIps *ips, const Dns::LookupDetails &details) override;
-    virtual void noteLookup(const Dns::LookupDetails &details) override;
+    void noteIp(const Ip::Address &ip) override;
+    void noteIps(const Dns::CachedIps *ips, const Dns::LookupDetails &details) override;
+    void noteLookup(const Dns::LookupDetails &details) override;
 
     // Produce a URL for display identifying the transaction we are
     // trying to locate a peer for.

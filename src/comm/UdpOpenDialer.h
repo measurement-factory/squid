@@ -22,7 +22,7 @@ public:
     typedef void (*Handler)(const Comm::ConnectionPointer &conn, int errNo);
     UdpOpenDialer(Handler aHandler): handler(aHandler) {}
 
-    virtual void print(std::ostream &os) const { startPrint(os) << ')'; }
+    void print(std::ostream &os) const override { startPrint(os) << ')'; }
     virtual bool canDial(AsyncCall &) const { return true; }
     virtual void dial(AsyncCall &) { (handler)(conn, errNo); }
 

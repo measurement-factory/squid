@@ -25,11 +25,11 @@ public:
     StoreFileSystem();
     virtual ~StoreFileSystem();
 
-    virtual char const *type() const;
-    virtual SwapDir *createSwapDir();
-    virtual void done();
-    virtual void registerWithCacheManager();
-    virtual void setup();
+    char const *type() const override;
+    SwapDir *createSwapDir() override;
+    void done() override;
+    void registerWithCacheManager() override;
+    void setup() override;
 
 private:
     //static Stats Stats_;

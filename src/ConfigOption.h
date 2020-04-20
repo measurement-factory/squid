@@ -30,8 +30,8 @@ class ConfigOptionVector : public ConfigOption
 
 public:
     virtual ~ConfigOptionVector();
-    virtual bool parse(char const *option, const char *value, int reconfiguring);
-    virtual void dump(StoreEntry * e) const;
+    bool parse(char const *option, const char *value, int reconfiguring) override;
+    void dump(StoreEntry * e) const override;
     std::vector<ConfigOption *>options;
 };
 
@@ -42,14 +42,14 @@ class ConfigOptionAdapter : public ConfigOption
 public:
     ConfigOptionAdapter(C& theObject, bool (C::*parseFP)(char const *option, const char *value, int reconfiguring), void (C::*dumpFP)(StoreEntry * e) const) : object(theObject), parser(parseFP), dumper(dumpFP) {}
 
-    bool parse(char const *option, const char *value, int isaReconf) {
+    bool parse(char const *option, const char *value, int isaReconf) override {
         if (parser)
             return (object.*parser)(option, value, isaReconf);
 
         return false;
     }
 
-    void dump(StoreEntry * e) const {
+    void dump(StoreEntry * e) const override {
         if (dumper)
             (object.*dumper)(e);
     }

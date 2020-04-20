@@ -140,14 +140,14 @@ public:
 
     ~AsyncCallT() {}
 
-    CallDialer *getDialer() { return &dialer; }
+    CallDialer *getDialer() override { return &dialer; }
 
 protected:
-    virtual bool canFire() {
+    bool canFire() override {
         return AsyncCall::canFire() &&
                dialer.canDial(*this);
     }
-    virtual void fire() { dialer.dial(*this); }
+    void fire() override { dialer.dial(*this); }
 
     Dialer dialer;
 
