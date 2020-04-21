@@ -102,6 +102,7 @@ public:
     PeerSelectorMapIterator end() { return waitingMap.end(); }
 
 private:
+    void addEvent();
 
     PeerSelectorMap waitingMap; ///< postponed PeerSelectors
 };
@@ -128,6 +129,15 @@ PeerSelectorTimeoutProcessor::NoteWaitOver(void *raw)
 }
 
 void
+PeerSelectorTimeoutProcessor::addEvent()
+{
+    Must(!waitingMap.empty());
+    const auto nextTime = waitingMap.begin()->first;
+    const auto interval = nextTime - current_dtime;
+    eventAdd("PeerSelectorTimeoutProcessor::NoteWaitOver", &PeerSelectorTimeoutProcessor::NoteWaitOver, this, interval, 0, false);
+}
+
+void
 PeerSelectorTimeoutProcessor::noteWaitOver()
 {
     (void)getCurrentTime();
@@ -138,7 +148,7 @@ PeerSelectorTimeoutProcessor::noteWaitOver()
         if (endTime > current_dtime)
             break;
         const auto selector = it->second;
-        CallBack(selector->al, [&] {
+        CallBack(selector->al, [selector] {
             AsyncCall::Pointer callback = asyncCall(44, 4, "HandlePingTimeout", cbdataDialer(HandlePingTimeout, selector));
             ScheduleCallHere(callback);
         });
@@ -147,11 +157,8 @@ PeerSelectorTimeoutProcessor::noteWaitOver()
 
     waitingMap.erase(waitingMap.begin(), it);
 
-    if (!waitingMap.empty()) {
-        const auto nextTime = waitingMap.begin()->first;
-        const auto interval = nextTime - current_dtime;
-        eventAdd("PeerSelectorTimeoutProcessor::NoteWaitOver", &PeerSelectorTimeoutProcessor::NoteWaitOver, this, interval, 0, false);
-    }
+    if (!waitingMap.empty())
+        addEvent();
 }
 
 void
@@ -170,8 +177,7 @@ PeerSelectorTimeoutProcessor::enqueue(PeerSelector *selector, const PingAbsolute
     if (plannedEndTime)
         eventDelete(&PeerSelectorTimeoutProcessor::NoteWaitOver, nullptr);
 
-    const auto interval = endTime - current_dtime;
-    eventAdd("PeerSelectorTimeoutProcessor::NoteWaitOver", &PeerSelectorTimeoutProcessor::NoteWaitOver, this, interval, 0, false);
+    addEvent();
 }
 
 void
