@@ -140,7 +140,11 @@ PeerSelectorTimeoutProcessor::addEvent()
 void
 PeerSelectorTimeoutProcessor::noteWaitOver()
 {
+    if (waitingMap.empty())
+        return;
+
     (void)getCurrentTime();
+
     auto it = waitingMap.begin();
     for (; it != waitingMap.end(); ++it)
     {
