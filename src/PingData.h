@@ -9,6 +9,18 @@
 #ifndef SQUID_PINGDATA_H
 #define SQUID_PINGDATA_H
 
+#include "mem/PoolingAllocator.h"
+
+#include <map>
+
+class PeerSelector;
+
+/// absolute time in milliseconds, compatible with current_dtime
+typedef unsigned long PingAbsoluteTime;
+
+typedef std::multimap<PingAbsoluteTime, PeerSelector *, std::less<PingAbsoluteTime>, PoolingAllocator<std::pair<PingAbsoluteTime, PeerSelector *> > > PeerSelectorMap;
+typedef PeerSelectorMap::iterator PeerSelectorMapIterator;
+
 class ping_data
 {
 
@@ -25,6 +37,8 @@ public:
     int timedout;
     int w_rtt;
     int p_rtt;
+
+    PeerSelectorMapIterator waitPosition; ///< the position of this PeerSelector in the waiting map
 };
 
 #endif /* SQUID_PINGDATA_H */

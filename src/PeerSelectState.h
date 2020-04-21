@@ -26,9 +26,6 @@ class HttpRequest;
 class icp_common_t;
 class StoreEntry;
 
-/// absolute time in milliseconds, compatible with current_dtime
-typedef unsigned long PingAbsoluteTime;
-
 void peerSelectInit(void);
 
 /// Interface for those who need a list of peers to forward a request to.
@@ -57,9 +54,6 @@ public:
 
 class FwdServer;
 class PeerSelector;
-
-typedef std::multimap<PingAbsoluteTime, PeerSelector *, std::less<PingAbsoluteTime>, PoolingAllocator<std::pair<PingAbsoluteTime, PeerSelector *> > > PeerSelectorMap;
-typedef PeerSelectorMap::iterator PeerSelectorMapIterator;
 
 /// Finds peer (including origin server) IPs for forwarding a single request.
 /// Gives PeerSelectionInitiator each found destination, in the right order.
@@ -103,9 +97,7 @@ public:
 
     ping_data ping;
 
-    bool pingWaiting();
-
-    PeerSelectorMapIterator position; ///< the position of this PeerSelector in the waiting map
+    bool waitingPingReply();
 
 protected:
     bool selectionAborted();

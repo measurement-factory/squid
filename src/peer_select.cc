@@ -169,7 +169,7 @@ PeerSelectorTimeoutProcessor::enqueue(PeerSelector *selector, const PingAbsolute
 
     const auto plannedEndTime = waitingMap.empty() ? 0 : waitingMap.begin()->first;
 
-    selector->position = waitingMap.emplace(endTime, selector);
+    selector->ping.waitPosition = waitingMap.emplace(endTime, selector);
 
     if (endTime >= plannedEndTime)
         return;
@@ -184,9 +184,10 @@ void
 PeerSelectorTimeoutProcessor::dequeue(PeerSelector *selector)
 {
     assert(selector);
-    assert(selector->position != waitingMap.end());
-    waitingMap.erase(selector->position);
-    selector->position = waitingMap.end();
+    auto &position = selector->ping.waitPosition;
+    assert(position != waitingMap.end());
+    waitingMap.erase(position);
+    position = waitingMap.end();
     /// XXX:  delete the pending event if there are no awaiting peers with the given timeout
 }
 
@@ -221,7 +222,7 @@ PeerSelector::~PeerSelector()
         servers = next;
     }
 
-    if (pingWaiting())
+    if (waitingPingReply())
         ThePeerSelectorTimeoutProcessor.dequeue(this);
 
     if (entry) {
@@ -246,9 +247,9 @@ PeerSelector::~PeerSelector()
 }
 
 bool
-PeerSelector::pingWaiting()
+PeerSelector::waitingPingReply()
 {
-    return position != ThePeerSelectorTimeoutProcessor.end();
+    return ping.waitPosition != ThePeerSelectorTimeoutProcessor.end();
 }
 
 static int
@@ -742,7 +743,7 @@ PeerSelector::selectSomeNeighbor()
 
             if (ping.n_replies_expected > 0) {
                 entry->ping_status = PING_WAITING;
-                Must(!pingWaiting());
+                Must(!waitingPingReply());
 
                 ThePeerSelectorTimeoutProcessor.enqueue(this, PingTimeoutAbsMsec(ping));
                 return;
@@ -1157,7 +1158,8 @@ ping_data::ping_data() :
     timeout(0),
     timedout(0),
     w_rtt(0),
-    p_rtt(0)
+    p_rtt(0),
+    waitPosition(ThePeerSelectorTimeoutProcessor.end())
 {
     start.tv_sec = 0;
     start.tv_usec = 0;
