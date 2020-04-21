@@ -1430,8 +1430,6 @@ peerCountMcastPeersCreateAndSend(CachePeer * const p)
     psstate->entry = fake;
     psstate->peerCountMcastPeerXXX = cbdataReference(p);
     psstate->ping.start = current_time;
-    psstate->ping.peerWaiting = new PeerSelectorWait();
-    psstate->ping.peerWaiting->start(psstate, true, 1);
     psstate->al = ale;
     mem = fake->mem_obj;
     mem->request = psstate->request;
@@ -1471,9 +1469,8 @@ peerCountMcastPeersAbort(PeerSelector * const psstate)
     if (cbdataReferenceValid(psstate->peerCountMcastPeerXXX)) {
         CachePeer *p = (CachePeer *)psstate->peerCountMcastPeerXXX;
         p->mcast.flags.counting = false;
-        Must(psstate->ping.peerWaiting);
-        p->mcast.avg_n_members = Math::doubleAverage(p->mcast.avg_n_members, static_cast<double>(psstate->ping.peerWaiting->n_recv), ++p->mcast.n_times_counted, 10);
-        debugs(15, DBG_IMPORTANT, "Group " << p->host  << ": " << psstate->ping.peerWaiting->n_recv  <<
+        p->mcast.avg_n_members = Math::doubleAverage(p->mcast.avg_n_members, (double) psstate->ping.n_recv, ++p->mcast.n_times_counted, 10);
+        debugs(15, DBG_IMPORTANT, "Group " << p->host  << ": " << psstate->ping.n_recv  <<
                " replies, "<< std::setw(4)<< std::setprecision(2) <<
                p->mcast.avg_n_members <<" average, RTT " << p->stats.rtt);
         p->mcast.n_replies_expected = (int) p->mcast.avg_n_members;
@@ -1496,14 +1493,13 @@ peerCountHandleIcpReply(CachePeer * p, peer_t, AnyP::ProtocolType proto, void *,
     assert(mem);
     int rtt = tvSubMsec(mem->start_ping, current_time);
     assert(proto == AnyP::PROTO_ICP);
-    Must(psstate->ping.peerWaiting);
-    ++ psstate->ping.peerWaiting->n_recv;
+    ++ psstate->ping.n_recv;
     int rtt_av_factor = RTT_AV_FACTOR;
 
     if (p->options.weighted_roundrobin)
         rtt_av_factor = RTT_BACKGROUND_AV_FACTOR;
 
-    p->stats.rtt = Math::intAverage(p->stats.rtt, rtt, psstate->ping.peerWaiting->n_recv, rtt_av_factor);
+    p->stats.rtt = Math::intAverage(p->stats.rtt, rtt, psstate->ping.n_recv, rtt_av_factor);
 }
 
 static void

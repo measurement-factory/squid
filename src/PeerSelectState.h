@@ -68,8 +68,7 @@ class PeerSelectorWait
 public:
     PeerSelectorWait();
     /// remember the context for future use
-    void start(PeerSelector *, const PeerSelectorListIterator &, const bool hasEvent, const int replies);
-    void start(PeerSelector *, const bool hasEvent, const int replies);
+    void start(PeerSelector *, const PeerSelectorListIterator &, const bool hasEvent);
     /// mark this context as unusable
     void stop();
 
@@ -77,11 +76,6 @@ public:
     PeerSelector *selector = nullptr;
     PeerSelectorListIterator position; ///< the position of this context in the waiting list
     CodeContext::Pointer codeContext; ///< the PeerSelector context
-
-    int n_recv;
-    int repliesExpected;
-    int w_rtt;
-    int p_rtt;
 };
 
 
@@ -120,7 +114,7 @@ public:
     void handlePingTimeout();
 
     PeerSelectorListIterator waitingPosition() const;
-    void startWaiting(const PeerSelectorListIterator &, const bool hasEvent, const int repliesExpected);
+    void startWaiting(const PeerSelectorListIterator &, const bool hasEvent);
     void stopWaiting();
 
     HttpRequest *request;
@@ -192,6 +186,8 @@ private:
     Initiator initiator_; ///< recipient of the destinations we select; use interestedInitiator() to access
 
     const InstanceId<PeerSelector> id; ///< unique identification in worker log
+
+    PeerSelectorWait *peerWaiting = nullptr; ///< preserves the context while waiting for ping replies
 };
 
 #endif /* SQUID_PEERSELECTSTATE_H */
