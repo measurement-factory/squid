@@ -78,9 +78,9 @@ public:
     const hier_code code; ///< selection algorithm
 };
 
-/// Implements a "ping timemout service", managing an sorted array of PeerSelector lists.
-/// Each list contains PeerSelectors awaiting ping responses by a specific absolute time
-/// with a millisecond precision.
+/// Implements a "ping timemout service", managing a map of PeerSelectors.
+/// Each map element is a (pingTime, PeerSelector) pair, where pingTime is the
+/// expected ping reply absolute time maximum for the given PeerSelector.
 /// It helps to optimize situations when there are many (thousands) of concurrent
 /// transactions: an inefficient alternative would add thousands of concurrent events
 /// to the Squid event queue.
@@ -92,20 +92,18 @@ public:
     /// calls back all ready PeerSelectors and continues to wait for others
     void noteWaitOver();
 
-    /// adds a PeerSelector to the waiting list
+    /// adds a PeerSelector to the map
     void enqueue(PeerSelector *selector, const PingAbsoluteTime &endTime);
 
-    /// removes a PeerSelector from the waiting list
+    /// removes a PeerSelector from the map
     void dequeue(PeerSelector *selector);
 
-    /// \returns the 'end' iterator of the list
-    PeerSelectorListIterator end() { return waitingList.end(); }
+    /// \returns the 'end' iterator of the map
+    PeerSelectorMapIterator end() { return waitingMap.end(); }
 
 private:
-    void wait();
 
-    PingAbsoluteTime waitEnd_ = 0; ///< expected NoteWaitOver() call time (or zero)
-    PeerSelectorList waitingList; ///< postponed PeerSelectors
+    PeerSelectorMap waitingMap; ///< postponed PeerSelectors
 };
 
 PeerSelectorTimeoutProcessor ThePeerSelectorTimeoutProcessor;
@@ -132,59 +130,27 @@ PeerSelectorTimeoutProcessor::NoteWaitOver(void *raw)
 void
 PeerSelectorTimeoutProcessor::noteWaitOver()
 {
-    auto it = waitingList.begin();
-    for (; it != waitingList.end(); ++it)
+    (void)getCurrentTime();
+    auto it = waitingMap.begin();
+    for (; it != waitingMap.end(); ++it)
     {
         const auto endTime = it->first;
-        auto &peerWaiting = it->second;
-        if (endTime > waitEnd_)
+        if (endTime > current_dtime)
             break;
-        CallBack(peerWaiting.codeContext, [&] {
-            AsyncCall::Pointer callback = asyncCall(44, 4, "HandlePingTimeout", cbdataDialer(HandlePingTimeout, peerWaiting.selector));
-            peerWaiting.stop();
+        const auto selector = it->second;
+        CallBack(selector->al, [&] {
+            AsyncCall::Pointer callback = asyncCall(44, 4, "HandlePingTimeout", cbdataDialer(HandlePingTimeout, selector));
             ScheduleCallHere(callback);
         });
 
     }
-    waitingList.erase(waitingList.begin(), it);
-    waitEnd_ = 0;
-    if (!waitingList.empty())
-        wait();
-}
 
-PeerSelectorWait::PeerSelectorWait() : position(ThePeerSelectorTimeoutProcessor.end())
-{}
+    waitingMap.erase(waitingMap.begin(), it);
 
-void
-PeerSelectorWait::start(PeerSelector *s, const PeerSelectorListIterator &pos, const bool hasEvent)
-{
-    assert(!selector);
-    selector = s;
-    position = pos;
-    eventScheduled = hasEvent;
-    codeContext = CodeContext::Current();
-}
-
-void
-PeerSelectorWait::stop()
-{
-    assert(selector);
-    *this = PeerSelectorWait();
-}
-
-void
-PeerSelectorTimeoutProcessor::wait()
-{
-    Must(!waitingList.empty());
-    const auto endTime = waitingList.begin()->first;
-    auto &peerWaiting = waitingList.begin()->second;
-    if (!waitEnd_ || endTime < waitEnd_) {
-        Must(!peerWaiting.eventScheduled);
-        waitEnd_ = endTime;
-        auto interval = waitEnd_ - current_dtime;
-        /// XXX: remove the pending (later) event, if any (endTime < waitEnd_ condition)
+    if (!waitingMap.empty()) {
+        const auto nextTime = waitingMap.begin()->first;
+        const auto interval = nextTime - current_dtime;
         eventAdd("PeerSelectorTimeoutProcessor::NoteWaitOver", &PeerSelectorTimeoutProcessor::NoteWaitOver, this, interval, 0, false);
-        peerWaiting.eventScheduled = true;
     }
 }
 
@@ -192,22 +158,29 @@ void
 PeerSelectorTimeoutProcessor::enqueue(PeerSelector *selector, const PingAbsoluteTime &endTime)
 {
     assert(selector);
-    auto found = waitingList.find(endTime);
-    auto eventScheduled = (found == waitingList.end()) ? false : found->second.eventScheduled;
-    auto inserted = (found == waitingList.end()) ?
-        waitingList.emplace(endTime, PeerSelectorWait()) :
-        waitingList.emplace_hint(found, endTime, PeerSelectorWait());
-    selector->startWaiting(inserted, eventScheduled);
-    wait();
+    assert(endTime > 0);
+
+    const auto plannedEndTime = waitingMap.empty() ? 0 : waitingMap.begin()->first;
+
+    selector->position = waitingMap.emplace(endTime, selector);
+
+    if (endTime >= plannedEndTime)
+        return;
+
+    if (plannedEndTime)
+        eventDelete(&PeerSelectorTimeoutProcessor::NoteWaitOver, nullptr);
+
+    const auto interval = endTime - current_dtime;
+    eventAdd("PeerSelectorTimeoutProcessor::NoteWaitOver", &PeerSelectorTimeoutProcessor::NoteWaitOver, this, interval, 0, false);
 }
 
 void
 PeerSelectorTimeoutProcessor::dequeue(PeerSelector *selector)
 {
     assert(selector);
-    const auto pos = selector->waitingPosition();
-    selector->stopWaiting();
-    waitingList.erase(pos);
+    assert(selector->position != waitingMap.end());
+    waitingMap.erase(selector->position);
+    selector->position = waitingMap.end();
     /// XXX:  delete the pending event if there are no awaiting peers with the given timeout
 }
 
@@ -242,7 +215,7 @@ PeerSelector::~PeerSelector()
         servers = next;
     }
 
-    if (peerWaiting)
+    if (pingWaiting())
         ThePeerSelectorTimeoutProcessor.dequeue(this);
 
     if (entry) {
@@ -266,28 +239,10 @@ PeerSelector::~PeerSelector()
     delete lastError;
 }
 
-void
-PeerSelector::startWaiting(const PeerSelectorListIterator &el, const bool hasEvent)
+bool
+PeerSelector::pingWaiting()
 {
-    Must(!peerWaiting);
-    peerWaiting = &(el->second);
-    peerWaiting->start(this, el, hasEvent);
-}
-
-void
-PeerSelector::stopWaiting()
-{
-    Must(peerWaiting);
-    peerWaiting->stop();
-    peerWaiting = nullptr;
-}
-
-PeerSelectorListIterator
-PeerSelector::waitingPosition() const
-{
-    assert(peerWaiting);
-    assert(peerWaiting->position != ThePeerSelectorTimeoutProcessor.end());
-    return peerWaiting->position;
+    return position != ThePeerSelectorTimeoutProcessor.end();
 }
 
 static int
@@ -781,7 +736,7 @@ PeerSelector::selectSomeNeighbor()
 
             if (ping.n_replies_expected > 0) {
                 entry->ping_status = PING_WAITING;
-                Must(!peerWaiting);
+                Must(!pingWaiting());
 
                 ThePeerSelectorTimeoutProcessor.enqueue(this, PingTimeoutAbsMsec(ping));
                 return;
