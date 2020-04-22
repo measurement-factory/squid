@@ -60,7 +60,6 @@ public:
 #endif
 
     ClientHttpRequest *http;
-    ACLChecklist *acl_checklist;        /* need ptr back so we can unreg if needed */
     int redirect_state;
     int store_id_state;
 

@@ -116,11 +116,6 @@ PeerSelector::~PeerSelector()
         entry->ping_status = PING_DONE;
     }
 
-    if (acl_checklist) {
-        debugs(44, DBG_IMPORTANT, "BUG: peer selector gone while waiting for a slow ACL");
-        delete acl_checklist;
-    }
-
     HTTPMSGUNLOCK(request);
 
     if (entry) {
@@ -200,7 +195,6 @@ PeerSelectionInitiator::startSelectingDestinations(HttpRequest *request, const A
 void
 PeerSelector::checkNeverDirectDone(const Acl::Answer answer)
 {
-    acl_checklist = nullptr;
     debugs(44, 3, answer);
     never_direct = answer;
     switch (answer) {
@@ -228,7 +222,6 @@ PeerSelector::CheckNeverDirectDone(Acl::Answer answer, void *data)
 void
 PeerSelector::checkAlwaysDirectDone(const Acl::Answer answer)
 {
-    acl_checklist = nullptr;
     debugs(44, 3, answer);
     always_direct = answer;
     switch (answer) {
@@ -475,18 +468,16 @@ PeerSelector::selectMore()
         if (always_direct == ACCESS_DUNNO) {
             debugs(44, 3, "direct = " << DirectStr[direct] << " (always_direct to be checked)");
             /** check always_direct; */
-            ACLFilledChecklist *ch = new ACLFilledChecklist(Config.accessList.AlwaysDirect, request, NULL);
-            ch->al = al;
-            acl_checklist = ch;
+            const auto acl_checklist = new ACLFilledChecklist(Config.accessList.AlwaysDirect, request, NULL);
+            acl_checklist->al = al;
             acl_checklist->syncAle(request, nullptr);
             acl_checklist->nonBlockingCheck(CheckAlwaysDirectDone, this);
             return;
         } else if (never_direct == ACCESS_DUNNO) {
             debugs(44, 3, "direct = " << DirectStr[direct] << " (never_direct to be checked)");
             /** check never_direct; */
-            ACLFilledChecklist *ch = new ACLFilledChecklist(Config.accessList.NeverDirect, request, NULL);
-            ch->al = al;
-            acl_checklist = ch;
+            const auto acl_checklist = new ACLFilledChecklist(Config.accessList.NeverDirect, request, NULL);
+            acl_checklist->al = al;
             acl_checklist->syncAle(request, nullptr);
             acl_checklist->nonBlockingCheck(CheckNeverDirectDone, this);
             return;
@@ -966,7 +957,6 @@ PeerSelector::PeerSelector(PeerSelectionInitiator *initiator):
     closest_parent_miss(),
     hit(NULL),
     hit_type(PEER_NONE),
-    acl_checklist (NULL),
     initiator_(initiator)
 {
     ; // no local defaults.

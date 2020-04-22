@@ -46,8 +46,7 @@ Adaptation::AccessCheck::Start(Method method, VectPoint vp,
 Adaptation::AccessCheck::AccessCheck(const ServiceFilter &aFilter,
                                      Adaptation::Initiator *initiator):
     AsyncJob("AccessCheck"), filter(aFilter),
-    theInitiator(initiator),
-    acl_checklist(NULL)
+    theInitiator(initiator)
 {
 #if ICAP_CLIENT
     Adaptation::Icap::History::Pointer h = filter.request->icapHistory();
@@ -131,7 +130,7 @@ Adaptation::AccessCheck::checkCandidates()
         if (AccessRule *r = FindRule(topCandidate())) {
             /* BUG 2526: what to do when r->acl is empty?? */
             // XXX: we do not have access to conn->rfc931 here.
-            acl_checklist = new ACLFilledChecklist(r->acl, filter.request, dash_str);
+            const auto acl_checklist = new ACLFilledChecklist(r->acl, filter.request, dash_str);
             if ((acl_checklist->reply = filter.reply))
                 HTTPMSGLOCK(acl_checklist->reply);
             acl_checklist->al = filter.al;

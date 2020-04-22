@@ -153,8 +153,6 @@ ACLChecklist::goAsync(AsyncState *state)
     return true;
 }
 
-// ACLFilledChecklist overwrites this to unclock something before we
-// "delete this"
 void
 ACLChecklist::checkCallback(Acl::Answer answer)
 {
