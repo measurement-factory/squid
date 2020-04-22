@@ -10,6 +10,7 @@
 #define SQUID_ACLCHECKLIST_H
 
 #include "acl/InnerNode.h"
+#include "base/AsyncCall.h"
 #include <stack>
 #include <vector>
 
@@ -72,6 +73,7 @@ public:
      * Each rule comes with a list of ACLs.
      *
      * The callback specified will be called with the result of the check.
+     * Its dialer must be a derivative of Acl::Answer.
      *
      * The first rule where all ACLs match wins. If there is such a rule,
      * the result becomes that rule keyword (ACCESS_ALLOWED or ACCESS_DENIED).
@@ -87,6 +89,9 @@ public:
      * Calling this method with no rules to check wastes a lot of CPU cycles
      * and will result in a DBG_CRITICAL debugging message.
      */
+    void nonBlockingCheck(const AsyncCall::Pointer &callback);
+
+    /// \deprecated nonBlockingCheck(AsyncCall::Pointer) wrapper for legacy code
     void nonBlockingCheck(ACLCB * callback, void *callback_data);
 
     /**
@@ -183,6 +188,8 @@ public:
     }
 
 private:
+    Acl::Answer &callbackAnswer();
+
     /// Calls non-blocking check callback with the answer and destroys self.
     void checkCallback(Acl::Answer answer);
 
@@ -192,10 +199,9 @@ private:
     AsyncState *asyncState() const;
 
     const Acl::Tree *accessList;
-public:
+    AsyncCall::Pointer callback_; ///< where to send nonBlockingCheck() results
 
-    ACLCB *callback;
-    void *callback_data;
+public:
 
     /// Resumes non-blocking check started by nonBlockingCheck() and
     /// suspended until some async operation updated Squid state.

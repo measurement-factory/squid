@@ -16,6 +16,33 @@
 
 #include <algorithm>
 
+namespace Acl {
+
+/// dialer for legacy nonBlockingCheck() callbacks
+class LegacyCheckDialer: public CallDialer, public Answer
+{
+public:
+    using Handler = ACLCB*;
+
+    LegacyCheckDialer(Handler handler, void *rawData):
+        handler_(handler),
+        data_(rawData)
+    {}
+
+    /* CallDialer API */
+    bool canDial(AsyncCall &) { return data_.valid(); }
+    void dial(AsyncCall &) { handler_(*this, data_.validDone()); }
+    void print(std::ostream &os) const override {
+        os << '(' << static_cast<const Answer&>(*this) << ')';
+    }
+
+private:
+    Handler handler_; ///< the function we need to call back
+    CallbackData data_; ///< manages the second handler_ parameter
+};
+
+} // namespace Acl
+
 /// common parts of nonBlockingCheck() and resumeNonBlockingCheck()
 bool
 ACLChecklist::prepNonBlocking()
@@ -23,6 +50,7 @@ ACLChecklist::prepNonBlocking()
     assert(accessList);
 
     if (callerGone()) {
+        callback_ = nullptr; // reduce the number of future checks
         checkCallback(ACCESS_DUNNO); // the answer does not really matter
         return false;
     }
@@ -156,15 +184,13 @@ ACLChecklist::goAsync(AsyncState *state)
 void
 ACLChecklist::checkCallback(Acl::Answer answer)
 {
-    ACLCB *callback_;
-    void *cbdata_;
     debugs(28, 3, "ACLChecklist::checkCallback: " << this << " answer=" << answer);
 
-    callback_ = callback;
-    callback = NULL;
-
-    if (cbdataReferenceValidDone(callback_data, &cbdata_))
-        callback_(answer, cbdata_);
+    if (callback_) {
+        callbackAnswer() = answer;
+        ScheduleCallHere(callback_);
+        callback_ = nullptr;
+    }
 
     // not really meaningful just before delete, but here for completeness sake
     occupied_ = false;
@@ -174,8 +200,6 @@ ACLChecklist::checkCallback(Acl::Answer answer)
 
 ACLChecklist::ACLChecklist() :
     accessList (NULL),
-    callback (NULL),
-    callback_data (NULL),
     asyncCaller_(false),
     occupied_(false),
     finished_(false),
@@ -193,6 +217,18 @@ ACLChecklist::~ACLChecklist()
     changeAcl(nullptr);
 
     debugs(28, 4, "ACLChecklist::~ACLChecklist: destroyed " << this);
+}
+
+/// \returns writable answer that will be sent to the requestor
+Acl::Answer &
+ACLChecklist::callbackAnswer()
+{
+    assert(callback_);
+    const auto dialer = callback_->getDialer();
+    assert(dialer);
+    const auto answer = dynamic_cast<Acl::Answer*>(dialer);
+    assert(answer);
+    return *answer;
 }
 
 ACLChecklist::NullState *
@@ -227,18 +263,14 @@ ACLChecklist::asyncState() const
     return state_;
 }
 
-/**
- * Kick off a non-blocking (slow) ACL access list test
- *
- * NP: this should probably be made Async now.
- */
 void
-ACLChecklist::nonBlockingCheck(ACLCB * callback_, void *callback_data_)
+ACLChecklist::nonBlockingCheck(const AsyncCall::Pointer &callback)
 {
     preCheck("slow rules");
-    callback = callback_;
-    callback_data = cbdataReference(callback_data_);
     asyncCaller_ = true;
+
+    callback_ = callback;
+    assert(callbackAnswer()); // caller supplied an Acl::Answer-based callback
 
     /** The ACL List should NEVER be NULL when calling this method.
      * Always caller should check for NULL and handle appropriate to its needs first.
@@ -254,6 +286,13 @@ ACLChecklist::nonBlockingCheck(ACLCB * callback_, void *callback_data_)
         if (!asyncInProgress())
             completeNonBlocking();
     } // else checkCallback() has been called
+}
+
+void
+ACLChecklist::nonBlockingCheck(ACLCB *fun, void *data)
+{
+    AsyncCall::Pointer callback = asyncCall(28, 5, "someAclChecker", Acl::LegacyCheckDialer(fun, data));
+    nonBlockingCheck(callback);
 }
 
 void
@@ -385,7 +424,9 @@ ACLChecklist::calcImplicitAnswer()
 bool
 ACLChecklist::callerGone()
 {
-    return !cbdataReferenceValid(callback_data);
+    // FIXME: Expose AsyncCall::canFire() so that code like this can reliably
+    // detect all gone requestors. See also: HappyConnOpener::doneAll().
+    return !callback_ || callback_->canceled();
 }
 
 bool
