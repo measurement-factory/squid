@@ -3046,10 +3046,9 @@ ConnStateData::parseTlsHandshake()
     }
 }
 
-void httpsSslBumpStep2AccessCheckDone(Acl::Answer answer, void *data)
+void
+ConnStateData::bumpStep2AccessCheckDone(const Acl::Answer &answer)
 {
-    ConnStateData *connState = (ConnStateData *) data;
-
     // if the connection is closed or closing, just return.
     if (!connState->isOpen())
         return;
@@ -3131,7 +3130,10 @@ ConnStateData::startPeekAndSplice()
         acl_checklist->banAction(Acl::Answer(ACCESS_ALLOWED, Ssl::bumpServerFirst));
         const char *log_uri = http ? http->log_uri : nullptr;
         acl_checklist->syncAle(sslServerBump->request.getRaw(), log_uri);
-        acl_checklist->nonBlockingCheck(httpsSslBumpStep2AccessCheckDone, this);
+
+        typedef JobCbDialer<ConnStateData, Acl::Answer> MyDailer;
+        const auto cb = JobCallback(83, 5, MyDailer, this, ConnStateData::bumpStep2AccessCheckDone);
+        acl_checklist->nonBlockingCheck(cb);
         return;
     }
 
