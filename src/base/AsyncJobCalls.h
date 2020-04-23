@@ -122,6 +122,31 @@ protected:
     virtual void doDial() { ((&(*this->job))->*method)(arg1); }
 };
 
+/// AsyncCall dialer for a job callback method expecting class Answer parameter.
+/// Unlike UnaryMemFunT<>, designed to let the method caller set the parameter.
+template <class Job, class Answer>
+class JobCbDialer: public JobDialer<Job>, public Answer {
+public:
+    // requestor method that is waiting for the answer
+    typedef void (Job::*Method)(const Answer &);
+
+    JobCbDialer(const CbcPointer<Job> &aJob, Method aMethod): JobDialer<Job>(aJob),
+        method_(aMethod) {}
+    virtual ~JobCbDialer() = default;
+
+    /* CallDialer API */
+    void print(std::ostream &os) const override {
+        os << '(' << static_cast<const Answer&>(*this) << ')';
+    }
+
+protected:
+    /* JobDialer API */
+    void doDial() override { ((&(*this->job))->*method_)(*this); }
+
+private:
+    Method method_; ///< initiator_ method to call with the answer
+};
+
 // ... add more as needed
 
 // Now we add global templated functions that create the member function
