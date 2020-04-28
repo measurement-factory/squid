@@ -78,10 +78,11 @@ public:
     const hier_code code; ///< selection algorithm
 };
 
-/// Implements a "ping timemout service", managing a map of PeerSelectors.
-/// Each map element is a (pingTime, PeerSelector) pair, where pingTime is the
-/// expected ping reply absolute time maximum for the given PeerSelector.
-/// It helps to optimize situations when there are many (thousands) of concurrent
+/// Implements a "ping timemout service", as a map of PeerSelectors.
+/// Each map element is a (pingTime, PeerSelector) pair, where pingTime is an
+/// expiration time, i.e., ping reply absolute time maximum for the given PeerSelector.
+/// Scheduling only one event at a time (for PeerSelector with the lowest expiration time),
+/// it helps to optimize situations when there are many (thousands) of concurrent
 /// transactions: an inefficient alternative would add thousands of concurrent events
 /// to the Squid event queue.
 class PeerSelectorTimeoutProcessor
@@ -104,7 +105,7 @@ public:
 private:
     void addEvent();
 
-    PeerSelectorMap waitingMap; ///< postponed PeerSelectors
+    PeerSelectorMap waitingMap; ///< postponed PeerSelectors as (PingAbsoluteTime, PeerSelector*) pairs
 };
 
 PeerSelectorTimeoutProcessor ThePeerSelectorTimeoutProcessor;
@@ -128,12 +129,18 @@ PeerSelectorTimeoutProcessor::NoteWaitOver(void *raw)
     static_cast<PeerSelectorTimeoutProcessor*>(raw)->noteWaitOver();
 }
 
+static double
+DayTimeOf(const PeerSelectorMapIterator &it)
+{
+    // convert milliseconds into the time compatible with current_dtime
+    return (it->first)/1000.;
+}
+
 void
 PeerSelectorTimeoutProcessor::addEvent()
 {
     Must(!waitingMap.empty());
-    const auto nextTime = waitingMap.begin()->first;
-    const auto interval = nextTime - current_dtime;
+    const auto interval = DayTimeOf(waitingMap.begin()) - current_dtime;
     eventAdd("PeerSelectorTimeoutProcessor::NoteWaitOver", &PeerSelectorTimeoutProcessor::NoteWaitOver, this, interval, 0, false);
 }
 
@@ -148,10 +155,10 @@ PeerSelectorTimeoutProcessor::noteWaitOver()
     auto it = waitingMap.begin();
     for (; it != waitingMap.end(); ++it)
     {
-        const auto endTime = it->first;
-        if (endTime > current_dtime)
+        if (DayTimeOf(it) > current_dtime)
             break;
         const auto selector = it->second;
+        selector->ping.waitPosition = waitingMap.end();
         CallBack(selector->al, [selector] {
             AsyncCall::Pointer callback = asyncCall(44, 4, "HandlePingTimeout", cbdataDialer(HandlePingTimeout, selector));
             ScheduleCallHere(callback);
@@ -175,10 +182,7 @@ PeerSelectorTimeoutProcessor::enqueue(PeerSelector *selector, const PingAbsolute
 
     selector->ping.waitPosition = waitingMap.emplace(endTime, selector);
 
-    if (endTime >= plannedEndTime)
-        return;
-
-    if (plannedEndTime)
+    if (plannedEndTime && endTime < plannedEndTime)
         eventDelete(&PeerSelectorTimeoutProcessor::NoteWaitOver, nullptr);
 
     addEvent();
