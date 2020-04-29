@@ -27,13 +27,17 @@ class ping_data
 public:
     ping_data();
 
+    PingAbsoluteTime expectedStopTime() const {
+        return start.tv_sec*1000 + start.tv_usec/1000 + timeout;
+    }
+
     struct timeval start;
 
     struct timeval stop;
     int n_sent;
     int n_recv;
     int n_replies_expected;
-    int timeout;        /* msec */
+    PingAbsoluteTime timeout;
     int timedout;
     int w_rtt;
     int p_rtt;

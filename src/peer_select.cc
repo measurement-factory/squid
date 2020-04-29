@@ -94,7 +94,7 @@ public:
     void noteWaitOver();
 
     /// adds a PeerSelector to the map
-    void enqueue(PeerSelector *selector, const PingAbsoluteTime &endTime);
+    void enqueue(PeerSelector *selector);
 
     /// removes a PeerSelector from the map
     void dequeue(PeerSelector *selector);
@@ -113,12 +113,6 @@ private:
 };
 
 PeerSelectorTimeoutProcessor ThePeerSelectorTimeoutProcessor;
-
-static PingAbsoluteTime
-PingTimeoutAbsMsec(const ping_data &pingData)
-{
-    return pingData.start.tv_sec*1000 + (pingData.start.tv_usec/1000 + 1) + pingData.timeout;
-}
 
 static void
 HandlePingTimeout(PeerSelector *selector)
@@ -191,10 +185,12 @@ PeerSelectorTimeoutProcessor::noteWaitOver()
 }
 
 void
-PeerSelectorTimeoutProcessor::enqueue(PeerSelector *selector, const PingAbsoluteTime &endTime)
+PeerSelectorTimeoutProcessor::enqueue(PeerSelector *selector)
 {
     assert(selector);
-    assert(endTime > 0);
+
+    const auto expectedStopTime = selector->ping.expectedStopTime();
+    Must(expectedStopTime > 0);
 
     Must(selector->entry);
     Must(selector->entry->ping_status == PING_NONE);
@@ -202,7 +198,7 @@ PeerSelectorTimeoutProcessor::enqueue(PeerSelector *selector, const PingAbsolute
     selector->entry->ping_status = PING_WAITING;
 
     const auto scheduledEventTime = waitingMap.empty() ? 0 : nextEventTime();
-    selector->ping.waitPosition = waitingMap.emplace(endTime, selector);
+    selector->ping.waitPosition = waitingMap.emplace(expectedStopTime, selector);
 
     if (scheduledEventTime == 0) {
         // no scheduled events yet: the map was empty
@@ -769,12 +765,15 @@ PeerSelector::selectSomeNeighbor()
         } else if (peerSelectIcpPing(this, direct, entry)) {
             debugs(44, 3, "Doing ICP pings");
             ping.start = current_time;
+            int pingTimeout = 0;
             ping.n_sent = neighborsUdpPing(request,
                                            entry,
                                            HandlePingReply,
                                            this,
                                            &ping.n_replies_expected,
-                                           &ping.timeout);
+                                           &pingTimeout); // TODO: convert into unsigned integer type
+            Must(pingTimeout >= 0);
+            ping.timeout = static_cast<PingAbsoluteTime>(pingTimeout);
 
             if (ping.n_sent == 0)
                 debugs(44, DBG_CRITICAL, "WARNING: neighborsUdpPing returned 0");
@@ -783,7 +782,7 @@ PeerSelector::selectSomeNeighbor()
                    " msec");
 
             if (ping.n_replies_expected > 0) {
-                ThePeerSelectorTimeoutProcessor.enqueue(this, PingTimeoutAbsMsec(ping));
+                ThePeerSelectorTimeoutProcessor.enqueue(this);
                 return;
             }
         }
