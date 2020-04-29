@@ -196,6 +196,11 @@ PeerSelectorTimeoutProcessor::enqueue(PeerSelector *selector, const PingAbsolute
     assert(selector);
     assert(endTime > 0);
 
+    Must(selector->entry);
+    Must(selector->entry->ping_status == PING_NONE);
+
+    selector->entry->ping_status = PING_WAITING;
+
     const auto scheduledEventTime = waitingMap.empty() ? 0 : nextEventTime();
     selector->ping.waitPosition = waitingMap.emplace(endTime, selector);
 
@@ -213,8 +218,17 @@ void
 PeerSelectorTimeoutProcessor::dequeue(PeerSelector *selector)
 {
     assert(selector);
+    Must(selector->entry);
+
     auto &position = selector->ping.waitPosition;
-    assert(position != waitingMap.end());
+
+    if (position == waitingMap.end()) {
+        Must(selector->entry->ping_status == PING_DONE);
+        return;
+    }
+
+    selector->entry->ping_status = PING_DONE;
+
     const auto scheduledEventTime = nextEventTime();
     waitingMap.erase(position);
     position = waitingMap.end();
@@ -258,12 +272,9 @@ PeerSelector::~PeerSelector()
         servers = next;
     }
 
-    if (waitingPingReply())
-        ThePeerSelectorTimeoutProcessor.dequeue(this);
-
     if (entry) {
         debugs(44, 3, entry->url());
-        entry->ping_status = PING_DONE;
+        ThePeerSelectorTimeoutProcessor.dequeue(this);
     }
 
     if (acl_checklist) {
@@ -280,12 +291,6 @@ PeerSelector::~PeerSelector()
     }
 
     delete lastError;
-}
-
-bool
-PeerSelector::waitingPingReply()
-{
-    return ping.waitPosition != ThePeerSelectorTimeoutProcessor.end();
 }
 
 static int
@@ -676,7 +681,7 @@ PeerSelector::selectMore()
             return;
     } else if (entry->ping_status == PING_WAITING) {
         selectSomeNeighborReplies();
-        entry->ping_status = PING_DONE;
+        ThePeerSelectorTimeoutProcessor.dequeue(this);
     }
 
     switch (direct) {
@@ -778,9 +783,6 @@ PeerSelector::selectSomeNeighbor()
                    " msec");
 
             if (ping.n_replies_expected > 0) {
-                entry->ping_status = PING_WAITING;
-                Must(!waitingPingReply());
-
                 ThePeerSelectorTimeoutProcessor.enqueue(this, PingTimeoutAbsMsec(ping));
                 return;
             }

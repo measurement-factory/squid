@@ -97,8 +97,6 @@ public:
 
     ping_data ping;
 
-    bool waitingPingReply();
-
 protected:
     bool selectionAborted();
 
