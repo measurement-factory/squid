@@ -102,8 +102,12 @@ public:
     /// \returns the 'end' iterator of the map
     PeerSelectorMapIterator end() { return waitingMap.end(); }
 
+    /// the scheduled event absolute time
+    PingAbsoluteTime nextEventTime() const;
+
 private:
     void addEvent();
+    void deleteEvent();
 
     PeerSelectorMap waitingMap; ///< postponed PeerSelectors as (PingAbsoluteTime, PeerSelector*) pairs
 };
@@ -122,6 +126,13 @@ HandlePingTimeout(PeerSelector *selector)
     selector->handlePingTimeout();
 }
 
+PingAbsoluteTime
+PeerSelectorTimeoutProcessor::nextEventTime() const
+{
+    Must(!waitingMap.empty());
+    return waitingMap.begin()->first;
+}
+
 void
 PeerSelectorTimeoutProcessor::NoteWaitOver(void *raw)
 {
@@ -132,6 +143,7 @@ PeerSelectorTimeoutProcessor::NoteWaitOver(void *raw)
 static double
 DayTimeOf(const PeerSelectorMapIterator &it)
 {
+    Must(it != ThePeerSelectorTimeoutProcessor.end());
     // convert milliseconds into the time compatible with current_dtime
     return (it->first)/1000.;
 }
@@ -142,6 +154,12 @@ PeerSelectorTimeoutProcessor::addEvent()
     Must(!waitingMap.empty());
     const auto interval = DayTimeOf(waitingMap.begin()) - current_dtime;
     eventAdd("PeerSelectorTimeoutProcessor::NoteWaitOver", &PeerSelectorTimeoutProcessor::NoteWaitOver, this, interval, 0, false);
+}
+
+void
+PeerSelectorTimeoutProcessor::deleteEvent()
+{
+    eventDelete(&PeerSelectorTimeoutProcessor::NoteWaitOver, nullptr);
 }
 
 void
@@ -178,14 +196,17 @@ PeerSelectorTimeoutProcessor::enqueue(PeerSelector *selector, const PingAbsolute
     assert(selector);
     assert(endTime > 0);
 
-    const auto plannedEndTime = waitingMap.empty() ? 0 : waitingMap.begin()->first;
-
+    const auto scheduledEventTime = waitingMap.empty() ? 0 : nextEventTime();
     selector->ping.waitPosition = waitingMap.emplace(endTime, selector);
 
-    if (plannedEndTime && endTime < plannedEndTime)
-        eventDelete(&PeerSelectorTimeoutProcessor::NoteWaitOver, nullptr);
-
-    addEvent();
+    if (scheduledEventTime == 0) {
+        // no scheduled events yet: the map was empty
+        addEvent();
+    } else if (nextEventTime() < scheduledEventTime) {
+        // add an earlier event, removing the scheduled one
+        deleteEvent();
+        addEvent();
+    } // else: no action since the already scheduled event is the earliest one
 }
 
 void
@@ -194,9 +215,16 @@ PeerSelectorTimeoutProcessor::dequeue(PeerSelector *selector)
     assert(selector);
     auto &position = selector->ping.waitPosition;
     assert(position != waitingMap.end());
+    const auto scheduledEventTime = nextEventTime();
     waitingMap.erase(position);
     position = waitingMap.end();
-    /// XXX:  delete the pending event if there are no awaiting peers with the given timeout
+
+    if (waitingMap.empty()) {
+        deleteEvent();
+    } else if (nextEventTime() > scheduledEventTime) {
+        deleteEvent();
+        addEvent();
+    } // else: no action since the already scheduled event is the earliest one
 }
 
 static const char *DirectStr[] = {
