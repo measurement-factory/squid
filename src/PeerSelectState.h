@@ -53,7 +53,6 @@ public:
 };
 
 class FwdServer;
-class PeerSelector;
 
 /// Finds peer (including origin server) IPs for forwarding a single request.
 /// Gives PeerSelectionInitiator each found destination, in the right order.

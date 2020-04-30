@@ -66,6 +66,13 @@ static struct {
     int timeouts;
 } PeerStats;
 
+static const char *DirectStr[] = {
+    "DIRECT_UNKNOWN",
+    "DIRECT_NO",
+    "DIRECT_MAYBE",
+    "DIRECT_YES"
+};
+
 /// a helper class to report a selected destination (for debugging)
 class PeerSelectionDumper
 {
@@ -77,6 +84,22 @@ public:
     const CachePeer * const peer; ///< successful selection info
     const hier_code code; ///< selection algorithm
 };
+
+CBDATA_CLASS_INIT(PeerSelector);
+
+/// prints PeerSelectionDumper (for debugging)
+static std::ostream &
+operator <<(std::ostream &os, const PeerSelectionDumper &fsd)
+{
+    os << hier_code_str[fsd.code];
+
+    if (fsd.peer)
+        os << '/' << fsd.peer->host;
+    else if (fsd.selector) // useful for DIRECT and gone PINNED destinations
+        os << '#' << fsd.selector->request->url.host();
+
+    return os;
+}
 
 /// Implements a "ping timemout service", as a map of PeerSelectors.
 /// Each map element is a (pingTime, PeerSelector) pair, where pingTime is an
@@ -114,12 +137,6 @@ private:
 
 PeerSelectorTimeoutProcessor ThePeerSelectorTimeoutProcessor;
 
-static void
-HandlePingTimeout(PeerSelector *selector)
-{
-    selector->handlePingTimeout();
-}
-
 PingAbsoluteTime
 PeerSelectorTimeoutProcessor::nextEventTime() const
 {
@@ -154,6 +171,12 @@ void
 PeerSelectorTimeoutProcessor::deleteEvent()
 {
     eventDelete(&PeerSelectorTimeoutProcessor::NoteWaitOver, nullptr);
+}
+
+static void
+HandlePingTimeout(PeerSelector *selector)
+{
+    selector->handlePingTimeout();
 }
 
 void
@@ -217,7 +240,6 @@ PeerSelectorTimeoutProcessor::dequeue(PeerSelector *selector)
     Must(selector->entry);
 
     auto &position = selector->ping.waitPosition;
-
     if (position == waitingMap.end()) {
         Must(selector->entry->ping_status == PING_DONE);
         return;
@@ -235,29 +257,6 @@ PeerSelectorTimeoutProcessor::dequeue(PeerSelector *selector)
         deleteEvent();
         addEvent();
     } // else: no action since the already scheduled event is the earliest one
-}
-
-static const char *DirectStr[] = {
-    "DIRECT_UNKNOWN",
-    "DIRECT_NO",
-    "DIRECT_MAYBE",
-    "DIRECT_YES"
-};
-
-CBDATA_CLASS_INIT(PeerSelector);
-
-/// prints PeerSelectionDumper (for debugging)
-static std::ostream &
-operator <<(std::ostream &os, const PeerSelectionDumper &fsd)
-{
-    os << hier_code_str[fsd.code];
-
-    if (fsd.peer)
-        os << '/' << fsd.peer->host;
-    else if (fsd.selector) // useful for DIRECT and gone PINNED destinations
-        os << '#' << fsd.selector->request->url.host();
-
-    return os;
 }
 
 PeerSelector::~PeerSelector()
@@ -771,7 +770,7 @@ PeerSelector::selectSomeNeighbor()
                                            HandlePingReply,
                                            this,
                                            &ping.n_replies_expected,
-                                           &pingTimeout); // TODO: convert into unsigned integer type
+                                           &pingTimeout); // TODO: convert into unsigned integer type and pass ping.timeout instead
             Must(pingTimeout >= 0);
             ping.timeout = static_cast<PingAbsoluteTime>(pingTimeout);
 
