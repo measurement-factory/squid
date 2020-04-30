@@ -1441,7 +1441,7 @@ peerCountMcastPeersCreateAndSend(CachePeer * const p)
     reqnum = icpSetCacheKey((const cache_key *)fake->key);
     icpCreateAndSend(ICP_QUERY, 0, url, reqnum, 0,
                      icpOutgoingConn->fd, p->in_addr, psstate->al);
-    fake->ping_status = PING_WAITING;
+    fake->ping_status = PING_WAITING; // XXX: adjust and use PeerSelector::startPingWaiting() instead
     eventAdd("peerCountMcastPeersDone",
              peerCountMcastPeersDone,
              psstate,

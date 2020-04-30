@@ -88,6 +88,16 @@ public:
     /// resumes peer selection after a timeout
     void handlePingTimeout();
 
+    /// switches into PING_WAITING state
+    /// \param inserted the position of this PeerSelector in the waiting map
+    void startPingWaiting(const PeerSelectorMapIterator &inserted);
+
+    /// switches into PING_DONE state
+    void stopPingWaiting();
+
+    /// whether we are in PING_WAITING state
+    bool pingWaiting() const;
+
     HttpRequest *request;
     AccessLogEntry::Pointer al; ///< info for the future access.log entry
     StoreEntry *entry;

@@ -193,12 +193,10 @@ PeerSelectorTimeoutProcessor::noteWaitOver()
         if (DayTimeOf(it) > current_dtime)
             break;
         const auto selector = it->second;
-        selector->ping.waitPosition = waitingMap.end();
         CallBack(selector->al, [selector] {
             AsyncCall::Pointer callback = asyncCall(44, 4, "HandlePingTimeout", cbdataDialer(HandlePingTimeout, selector));
             ScheduleCallHere(callback);
         });
-
     }
 
     waitingMap.erase(waitingMap.begin(), it);
@@ -215,13 +213,9 @@ PeerSelectorTimeoutProcessor::enqueue(PeerSelector *selector)
     const auto expectedStopTime = selector->ping.expectedStopTime();
     Must(expectedStopTime > 0);
 
-    Must(selector->entry);
-    Must(selector->entry->ping_status == PING_NONE);
-
-    selector->entry->ping_status = PING_WAITING;
-
     const auto scheduledEventTime = waitingMap.empty() ? 0 : nextEventTime();
-    selector->ping.waitPosition = waitingMap.emplace(expectedStopTime, selector);
+    auto position = waitingMap.emplace(expectedStopTime, selector);
+    selector->startPingWaiting(position);
 
     if (scheduledEventTime == 0) {
         // no scheduled events yet: the map was empty
@@ -237,19 +231,13 @@ void
 PeerSelectorTimeoutProcessor::dequeue(PeerSelector *selector)
 {
     assert(selector);
-    Must(selector->entry);
 
-    auto &position = selector->ping.waitPosition;
-    if (position == waitingMap.end()) {
-        Must(selector->entry->ping_status == PING_DONE);
+    if (!selector->pingWaiting())
         return;
-    }
-
-    selector->entry->ping_status = PING_DONE;
 
     const auto scheduledEventTime = nextEventTime();
-    waitingMap.erase(position);
-    position = waitingMap.end();
+    waitingMap.erase(selector->ping.waitPosition);
+    selector->stopPingWaiting();
 
     if (waitingMap.empty()) {
         deleteEvent();
@@ -286,6 +274,37 @@ PeerSelector::~PeerSelector()
     }
 
     delete lastError;
+}
+
+void
+PeerSelector::startPingWaiting(const PeerSelectorMapIterator &inserted)
+{
+    Must(!pingWaiting());
+
+    entry->ping_status = PING_WAITING;
+    ping.waitPosition = inserted;
+}
+
+void
+PeerSelector::stopPingWaiting()
+{
+    Must(pingWaiting());
+
+    entry->ping_status = PING_DONE;
+    ping.waitPosition = ThePeerSelectorTimeoutProcessor.end();
+}
+
+bool
+PeerSelector::pingWaiting() const
+{
+    Must(entry);
+
+    if (ping.waitPosition == ThePeerSelectorTimeoutProcessor.end()) {
+        Must(entry->ping_status != PING_WAITING);
+        return false;
+    }
+    Must(entry->ping_status == PING_WAITING);
+    return true;
 }
 
 static int
@@ -908,8 +927,7 @@ PeerSelector::handlePingTimeout()
 {
     debugs(44, 3, url());
 
-    if (entry)
-        entry->ping_status = PING_DONE;
+    stopPingWaiting();
 
     if (selectionAborted())
         return;
