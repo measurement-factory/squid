@@ -126,18 +126,18 @@ public:
     PeerSelectorMapIterator end() { return waitingMap.end(); }
 
     /// the scheduled event absolute time
-    PingAbsoluteTime nextEventTime() const;
+    timeval nextEventTime() const;
 
 private:
     void addEvent();
     void deleteEvent();
 
-    PeerSelectorMap waitingMap; ///< postponed PeerSelectors as (PingAbsoluteTime, PeerSelector*) pairs
+    PeerSelectorMap waitingMap; ///< postponed PeerSelectors as (timeval, PeerSelector*) pairs
 };
 
 PeerSelectorTimeoutProcessor ThePeerSelectorTimeoutProcessor;
 
-PingAbsoluteTime
+timeval
 PeerSelectorTimeoutProcessor::nextEventTime() const
 {
     Must(!waitingMap.empty());
@@ -155,8 +155,8 @@ static double
 DayTimeOf(const PeerSelectorMapIterator &it)
 {
     Must(it != ThePeerSelectorTimeoutProcessor.end());
-    // convert milliseconds into the time compatible with current_dtime
-    return (it->first)/1000.;
+    // convert timeval into the time compatible with current_dtime
+    return static_cast<double>(it->first.tv_sec) + static_cast<double>(it->first.tv_usec) / 1000000.0;
 }
 
 void
@@ -210,17 +210,21 @@ PeerSelectorTimeoutProcessor::enqueue(PeerSelector *selector)
 {
     assert(selector);
 
-    const auto expectedStopTime = selector->ping.expectedStopTime();
-    Must(expectedStopTime > 0);
+    timeval expectedStopTime;
+    selector->ping.expectedStopTime(expectedStopTime);
 
-    const auto scheduledEventTime = waitingMap.empty() ? 0 : nextEventTime();
+    timeval scheduledEventTime;
+    const auto wasEmpty = waitingMap.empty();
+    if (!wasEmpty)
+        scheduledEventTime = nextEventTime();
+
     auto position = waitingMap.emplace(expectedStopTime, selector);
     selector->startPingWaiting(position);
 
-    if (scheduledEventTime == 0) {
-        // no scheduled events yet: the map was empty
+    if (wasEmpty) {
+        // no scheduled events yet
         addEvent();
-    } else if (nextEventTime() < scheduledEventTime) {
+    } else if (std::less<timeval>()(nextEventTime(), scheduledEventTime)) {
         // add an earlier event, removing the scheduled one
         deleteEvent();
         addEvent();
@@ -241,7 +245,7 @@ PeerSelectorTimeoutProcessor::dequeue(PeerSelector *selector)
 
     if (waitingMap.empty()) {
         deleteEvent();
-    } else if (nextEventTime() > scheduledEventTime) {
+    } else if (std::less<timeval>()(scheduledEventTime, nextEventTime())) {
         deleteEvent();
         addEvent();
     } // else: no action since the already scheduled event is the earliest one
@@ -783,15 +787,14 @@ PeerSelector::selectSomeNeighbor()
         } else if (peerSelectIcpPing(this, direct, entry)) {
             debugs(44, 3, "Doing ICP pings");
             ping.start = current_time;
-            int pingTimeout = 0;
             ping.n_sent = neighborsUdpPing(request,
                                            entry,
                                            HandlePingReply,
                                            this,
                                            &ping.n_replies_expected,
-                                           &pingTimeout); // TODO: convert into unsigned integer type and pass ping.timeout instead
-            Must(pingTimeout >= 0);
-            ping.timeout = static_cast<PingAbsoluteTime>(pingTimeout);
+                                           &ping.timeout); // TODO: convert into unsigned integer type
+            if (ping.timeout < 0)
+                ping.timeout = 0;
 
             if (ping.n_sent == 0)
                 debugs(44, DBG_CRITICAL, "WARNING: neighborsUdpPing returned 0");

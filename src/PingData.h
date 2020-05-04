@@ -15,10 +15,7 @@
 
 class PeerSelector;
 
-/// absolute time in milliseconds, compatible with current_dtime
-typedef unsigned long PingAbsoluteTime;
-
-typedef std::multimap<PingAbsoluteTime, PeerSelector *, std::less<PingAbsoluteTime>, PoolingAllocator<std::pair<PingAbsoluteTime, PeerSelector *> > > PeerSelectorMap;
+typedef std::multimap<timeval, PeerSelector *, std::less<timeval>, PoolingAllocator<std::pair<timeval, PeerSelector *> > > PeerSelectorMap;
 typedef PeerSelectorMap::iterator PeerSelectorMapIterator;
 
 class ping_data
@@ -27,8 +24,12 @@ class ping_data
 public:
     ping_data();
 
-    PingAbsoluteTime expectedStopTime() const {
-        return start.tv_sec*1000 + start.tv_usec/1000 + timeout;
+    void expectedStopTime(timeval &result) const {
+        struct timeval timeInterval;
+        timeInterval.tv_sec = timeout / 1000;
+        timeInterval.tv_usec = (timeout % 1000) * 1000;
+
+        tvAdd(result, start, timeInterval);
     }
 
     struct timeval start;
@@ -37,7 +38,7 @@ public:
     int n_sent;
     int n_recv;
     int n_replies_expected;
-    PingAbsoluteTime timeout;
+    int timeout;
     int timedout;
     int w_rtt;
     int p_rtt;
