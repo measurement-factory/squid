@@ -89,8 +89,7 @@ public:
     void handlePingTimeout();
 
     /// switches into PING_WAITING state
-    /// \param inserted the position of this PeerSelector in the waiting map
-    void startPingWaiting(const PeerSelectorMapIterator &inserted);
+    void startPingWaiting();
 
     /// switches into PING_DONE state
     void stopPingWaiting();

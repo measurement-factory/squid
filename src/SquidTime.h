@@ -56,17 +56,10 @@ public:
     virtual void tick();
 };
 
-namespace std {
-
-/// a sorting criteria for STL containers
-template<>
-struct less<timeval>
+inline bool
+operator<(const timeval& t1, const timeval& t2)
 {
-   bool operator()(const timeval& t1, const timeval& t2) const {
-       return timercmp(&t1, &t2, <);
-   }
-};
-
+    return timercmp(&t1, &t2, <);
 }
 
 namespace Time

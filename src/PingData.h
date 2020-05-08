@@ -15,7 +15,8 @@
 
 class PeerSelector;
 
-typedef std::multimap<timeval, PeerSelector *, std::less<timeval>, PoolingAllocator<std::pair<timeval, PeerSelector *> > > PeerSelectorMap;
+typedef std::pair<timeval, PeerSelector *> PeerSelectorMapItem;
+typedef std::multimap<timeval, PeerSelector *, std::less<timeval>, PoolingAllocator<PeerSelectorMapItem > > PeerSelectorMap;
 typedef PeerSelectorMap::iterator PeerSelectorMapIterator;
 
 class ping_data
@@ -24,13 +25,9 @@ class ping_data
 public:
     ping_data();
 
-    void expectedStopTime(timeval &result) const {
-        struct timeval timeInterval;
-        timeInterval.tv_sec = timeout / 1000;
-        timeInterval.tv_usec = (timeout % 1000) * 1000;
+    timeval expectedStopTime() const;
 
-        tvAdd(result, start, timeInterval);
-    }
+    bool timedOut() const;
 
     struct timeval start;
 
@@ -43,7 +40,8 @@ public:
     int w_rtt;
     int p_rtt;
 
-    PeerSelectorMapIterator waitPosition; ///< the position of this PeerSelector in the waiting map
+    /// maintained by PeerSelectorTimeoutProcessor to keep our position its map
+    PeerSelectorMapIterator waitPosition;
 };
 
 #endif /* SQUID_PINGDATA_H */
