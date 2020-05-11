@@ -28,9 +28,6 @@ public:
     /// the absolute time when the timeout will occur
     timeval expectedStopTime() const;
 
-    /// whether the timeout has already occurred
-    bool timedOut() const;
-
     struct timeval start;
 
     struct timeval stop;

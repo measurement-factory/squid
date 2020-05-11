@@ -122,11 +122,6 @@ public:
     /// \returns an (unusable) position of a non-waiting peer selector
     PeerSelectorMapIterator waitless() { return selectors.end(); }
 
-    PeerSelector *front() const {
-        Must(!selectors.empty());
-        return selectors.begin()->second;
-    }
-
     /// the scheduled event absolute time
     timeval nextEventTime() const;
 
@@ -181,7 +176,7 @@ PeerSelectorTimeoutProcessor::noteWaitOver()
     if (selectors.empty())
         return;
 
-    while (!selectors.empty() && front()->ping.timedOut()) {
+    while (!selectors.empty() && current_time >= selectors.begin()->first) {
         const auto selector = selectors.begin()->second;
         CallBack(selector->al, [selector] {
             selector->ping.waitPosition = ThePeerSelectorTimeoutProcessor.waitless();
@@ -1218,11 +1213,3 @@ ping_data::expectedStopTime() const
     tvAdd(result, start, timeInterval);
     return result;
 }
-
-bool
-ping_data::timedOut() const
-{
-    Must (waitPosition != ThePeerSelectorTimeoutProcessor.waitless());
-    return !(current_time < waitPosition->first);
-}
-
