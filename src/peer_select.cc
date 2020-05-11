@@ -224,9 +224,12 @@ PeerSelector::~PeerSelector()
         servers = next;
     }
 
-    if (pingWaiting()) {
-        debugs(44, 3, entry->url());
+    if (pingWaiting())
         stopPingWaiting();
+
+    if (entry) {
+        debugs(44, 3, entry->url());
+        entry->ping_status = PING_DONE; // may be PING_NONE or already PING_DONE
     }
 
     if (acl_checklist) {
