@@ -173,9 +173,6 @@ HandlePingTimeout(PeerSelector *selector)
 void
 PeerSelectorTimeoutProcessor::noteWaitOver()
 {
-    if (selectors.empty())
-        return;
-
     while (!selectors.empty() && current_time >= selectors.begin()->first) {
         const auto selector = selectors.begin()->second;
         CallBack(selector->al, [selector] {
