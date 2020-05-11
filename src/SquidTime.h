@@ -56,10 +56,45 @@ public:
     virtual void tick();
 };
 
+// TODO: Remove direct timercmp() calls in legacy code.
+
 inline bool
-operator<(const timeval& t1, const timeval& t2)
+operator <(const timeval &a, const timeval &b)
 {
-    return timercmp(&t1, &t2, <);
+    return timercmp(&a, &b, <);
+}
+
+inline bool
+operator >(const timeval &a, const timeval &b)
+{
+    return timercmp(&a, &b, >);
+}
+
+inline bool
+operator !=(const timeval &a, const timeval &b)
+{
+    return timercmp(&a, &b, !=);
+}
+
+// Operators for timeval below avoid timercmp() because Linux timeradd(3) manual
+// page says that their timercmp() versions "do not work" on some platforms.
+
+inline bool
+operator <=(const timeval &a, const timeval &b)
+{
+    return !(a > b);
+}
+
+inline bool
+operator >=(const timeval &a, const timeval &b)
+{
+    return !(a < b);
+}
+
+inline bool
+operator ==(const timeval &a, const timeval &b)
+{
+    return !(a != b);
 }
 
 namespace Time
