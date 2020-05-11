@@ -196,19 +196,15 @@ PeerSelectorTimeoutProcessor::enqueue(PeerSelector *selector)
 {
     assert(selector);
 
-    const auto wasEmpty = selectors.empty();
-
     const auto expectedStopTime = selector->ping.expectedStopTime();
     const auto position = selectors.emplace(expectedStopTime, selector);
 
-    if (wasEmpty) {
-        // no scheduled events yet
+    if (position == selectors.begin()) {
+        if (selectors.size() > 1)
+            abortWaiting(); // remove the previously scheduled earlier event
         startWaiting();
-    } else if (position == selectors.begin()) {
-        // add an earlier event, removing the scheduled one
-        abortWaiting();
-        startWaiting();
-    } // else: no action since the already scheduled event is the earliest one
+    } // else the already scheduled event is still the earliest one
+
     return position;
 }
 
