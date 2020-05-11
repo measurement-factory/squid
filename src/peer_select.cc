@@ -122,9 +122,6 @@ public:
     /// \returns an (unusable) position of a non-waiting peer selector
     PeerSelectorMapIterator waitless() { return selectors.end(); }
 
-    /// the scheduled event absolute time
-    timeval nextEventTime() const;
-
 private:
     void startWaiting();
     void abortWaiting();
@@ -133,13 +130,6 @@ private:
 };
 
 PeerSelectorTimeoutProcessor ThePeerSelectorTimeoutProcessor;
-
-timeval
-PeerSelectorTimeoutProcessor::nextEventTime() const
-{
-    Must(!selectors.empty());
-    return selectors.begin()->first;
-}
 
 void
 PeerSelectorTimeoutProcessor::NoteWaitOver(void *raw)
