@@ -188,6 +188,7 @@ PeerSelectorTimeoutProcessor::enqueue(PeerSelector *selector)
 
     const auto expectedStopTime = selector->ping.expectedStopTime();
     const auto position = selectors.emplace(expectedStopTime, selector);
+    selector->ping.waitPosition = position;
 
     if (position == selectors.begin()) {
         if (selectors.size() > 1)
@@ -207,6 +208,7 @@ PeerSelectorTimeoutProcessor::dequeue(PeerSelector *selector)
 
     const auto wasFirst = selector->ping.waitPosition == selectors.begin();
     selectors.erase(selector->ping.waitPosition);
+    selector->ping.waitPosition = ThePeerSelectorTimeoutProcessor.waitless();
 
     if (selectors.empty()) {
         abortWaiting();
@@ -252,19 +254,15 @@ void
 PeerSelector::startPingWaiting()
 {
     Must(!pingWaiting());
-    const auto inserted = ThePeerSelectorTimeoutProcessor.enqueue(this);
-
+    ThePeerSelectorTimeoutProcessor.enqueue(this);
     entry->ping_status = PING_WAITING;
-    ping.waitPosition = inserted;
 }
 
 void
 PeerSelector::stopPingWaiting()
 {
-    if (ping.waitPosition != ThePeerSelectorTimeoutProcessor.waitless()) {
+    if (ping.waitPosition != ThePeerSelectorTimeoutProcessor.waitless())
         ThePeerSelectorTimeoutProcessor.dequeue(this);
-        ping.waitPosition = ThePeerSelectorTimeoutProcessor.waitless();
-    }
     entry->ping_status = PING_DONE;
 }
 
