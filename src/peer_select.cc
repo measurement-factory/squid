@@ -112,10 +112,10 @@ public:
     /// calls back all ready PeerSelectors and continues to wait for others
     void noteWaitOver();
 
-    /// adds a PeerSelector to the map
+    /// adds a PeerSelector to the waiting list
     PeerSelectorMapIterator enqueue(PeerSelector *selector);
 
-    /// removes a PeerSelector from the map
+    /// removes a PeerSelector from the waiting list
     void dequeue(PeerSelector *selector);
 
     /// \returns an (unusable) position of a non-waiting peer selector
@@ -194,7 +194,7 @@ PeerSelectorTimeoutProcessor::noteWaitOver()
 
     if (!selectors.empty()) {
         // We can be awakened by a 'stale' event, meanwhile a new event may be queued already.
-        // Get rid of it (if any) and re-schedule.
+        // To avoid event accumulation, get rid of it (if any) and re-schedule.
         abortWaiting();
         startWaiting();
     }
