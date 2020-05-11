@@ -36,6 +36,7 @@
 #include "SquidConfig.h"
 #include "SquidTime.h"
 #include "Store.h"
+#include "util.h" // for tvSubDsec() which should be in SquidTime.h
 
 /**
  * A CachePeer which has been selected as a possible destination.
@@ -156,9 +157,7 @@ void
 PeerSelectorTimeoutProcessor::startWaiting()
 {
     Must(!selectors.empty());
-    const auto &expectedTime = selectors.begin()->first;
-    const auto dtime = static_cast<double>(expectedTime.tv_sec) + static_cast<double>(expectedTime.tv_usec) / 1000000.0;
-    const auto interval = dtime - current_dtime;
+    const auto interval = tvSubDsec(current_time, selectors.begin()->first);
     eventAdd("PeerSelectorTimeoutProcessor::NoteWaitOver", &PeerSelectorTimeoutProcessor::NoteWaitOver, this, interval, 0, false);
 }
 
