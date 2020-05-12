@@ -141,7 +141,7 @@ PeerSelectorTimeoutProcessor::NoteWaitOver(void *raw)
 void
 PeerSelectorTimeoutProcessor::startWaiting()
 {
-    Must(!selectors.empty());
+    assert(!selectors.empty());
     const auto interval = tvSubDsec(current_time, selectors.begin()->first);
     eventAdd("PeerSelectorTimeoutProcessor::NoteWaitOver", &PeerSelectorTimeoutProcessor::NoteWaitOver, this, interval, 0, false);
 }
@@ -203,7 +203,7 @@ void
 PeerSelectorTimeoutProcessor::dequeue(PeerSelector *selector)
 {
     assert(selector);
-    Must(selector->pingWaiting());
+    assert(selector->pingWaiting());
 
     if (selector->ping.waitPosition == waitless())
         return; // already forgotten, handlePingTimeout() is queued
@@ -254,7 +254,7 @@ PeerSelector::~PeerSelector()
 void
 PeerSelector::startPingWaiting()
 {
-    Must(!pingWaiting());
+    assert(!pingWaiting());
     ThePeerSelectorTimeoutProcessor.enqueue(this);
     entry->ping_status = PING_WAITING;
 }
