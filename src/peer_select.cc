@@ -165,8 +165,8 @@ PeerSelectorTimeoutProcessor::noteWaitOver()
 {
     while (!selectors.empty() && current_time >= selectors.begin()->first) {
         const auto selector = selectors.begin()->second;
-        CallBack(selector->al, [selector] {
-            selector->ping.waitPosition = ThePeerSelectorTimeoutProcessor.waitless();
+        CallBack(selector->al, [selector,this] {
+            selector->ping.waitPosition = waitless();
             AsyncCall::Pointer callback = asyncCall(44, 4, "HandlePingTimeout", cbdataDialer(HandlePingTimeout, selector));
             ScheduleCallHere(callback);
         });
@@ -204,11 +204,11 @@ PeerSelectorTimeoutProcessor::dequeue(PeerSelector *selector)
 {
     assert(selector);
     Must(selector->pingWaiting());
-    Must(selector->ping.waitPosition != ThePeerSelectorTimeoutProcessor.waitless());
+    Must(selector->ping.waitPosition != waitless());
 
     const auto wasFirst = selector->ping.waitPosition == selectors.begin();
     selectors.erase(selector->ping.waitPosition);
-    selector->ping.waitPosition = ThePeerSelectorTimeoutProcessor.waitless();
+    selector->ping.waitPosition = waitless();
 
     if (selectors.empty()) {
         abortWaiting();
