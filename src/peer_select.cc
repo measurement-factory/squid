@@ -212,12 +212,11 @@ PeerSelectorTimeoutProcessor::dequeue(PeerSelector *selector)
     selectors.erase(selector->ping.waitPosition);
     selector->ping.waitPosition = waitless();
 
-    if (selectors.empty()) {
+    if (wasFirst) {
         abortWaiting();
-    } else if (wasFirst) {
-        abortWaiting();
-        startWaiting();
-    } // else: no action since the already scheduled event is the earliest one
+        if (!selectors.empty())
+            startWaiting();
+    } // else do nothing since the old scheduled event is still the earliest one
 }
 
 PeerSelector::~PeerSelector()
