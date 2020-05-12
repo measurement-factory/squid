@@ -753,7 +753,8 @@ PeerSelector::selectSomeNeighbor()
                                            HandlePingReply,
                                            this,
                                            &ping.n_replies_expected,
-                                           &ping.timeout); // TODO: convert into unsigned integer type
+                                           &ping.timeout);
+            // TODO: Refactor neighborsUdpPing() to guarantee positive timeouts.
             if (ping.timeout < 0)
                 ping.timeout = 0;
 
