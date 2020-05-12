@@ -892,8 +892,11 @@ PeerSelector::handlePingTimeout()
 {
     debugs(44, 3, url());
 
-    if (entry)
-        entry->ping_status = PING_DONE;
+    // do nothing if ping reply came while handlePingTimeout() was queued
+    if (!pingWaiting())
+        return;
+
+    entry->ping_status = PING_DONE;
 
     if (selectionAborted())
         return;
