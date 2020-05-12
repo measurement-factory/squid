@@ -85,16 +85,16 @@ public:
     /// a single selection loop iteration: attempts to add more destinations
     void selectMore();
 
-    /// resumes peer selection after a timeout
-    void handlePingTimeout();
-
-    /// switches into PING_WAITING state
+    /// switches into the PING_WAITING state (and associated timeout monitoring)
     void startPingWaiting();
 
     /// terminates ICP ping timeout monitoring
     void cancelPingTimeoutMonitoring();
 
-    /// whether we are in PING_WAITING state
+    /// called when we no longer expect ICP ping responses
+    void handlePingTimeout();
+
+    /// whether we are currently waiting for the ICP ping responses
     bool pingWaiting() const;
 
     HttpRequest *request;

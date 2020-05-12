@@ -14,20 +14,23 @@
 #include <map>
 
 class PeerSelector;
-class PeerSelectorTimeoutProcessor;
+class PeerSelectorPingMonitor;
 
-typedef std::pair<timeval, PeerSelector *> PeerSelectorMapItem;
-typedef std::multimap<timeval, PeerSelector *, std::less<timeval>, PoolingAllocator<PeerSelectorMapItem > > PeerSelectorMap;
-typedef PeerSelectorMap::iterator PeerSelectorMapIterator;
+typedef std::pair<timeval, PeerSelector *> WaitingPeerSelector;
+/// waiting PeerSelector objects, ordered by their absolute deadlines
+typedef std::multimap<timeval, PeerSelector *, std::less<timeval>, PoolingAllocator<WaitingPeerSelector> > WaitingPeerSelectors;
+typedef WaitingPeerSelectors::iterator WaitingPeerSelectorPosition;
 
+/// ICP probing of cache_peers during peer selection
 class ping_data
 {
 
 public:
     ping_data();
 
-    /// the absolute time when the timeout will occur
-    timeval expectedStopTime() const;
+    /// no ICP responses are expected beyond the returned absolute time
+    /// \returns start + timeout
+    timeval deadline() const;
 
     struct timeval start;
 
@@ -41,9 +44,9 @@ public:
     int p_rtt;
 
 private:
-    friend PeerSelectorTimeoutProcessor;
-    /// maintained by PeerSelectorTimeoutProcessor to keep our position its map
-    PeerSelectorMapIterator waitPosition;
+    friend PeerSelectorPingMonitor;
+    /// maintained by PeerSelectorPingMonitor to keep our position in its map
+    WaitingPeerSelectorPosition monitorRegistration;
 };
 
 #endif /* SQUID_PINGDATA_H */

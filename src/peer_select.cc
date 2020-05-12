@@ -105,53 +105,57 @@ operator <<(std::ostream &os, const PeerSelectionDumper &fsd)
 /// An ICP ping timeout service.
 /// Protects event.cc (which is designed to handle a few unrelated timeouts)
 /// from exposure to thousands of ping-related timeouts on busy proxies.
-class PeerSelectorTimeoutProcessor
+class PeerSelectorPingMonitor
 {
 public:
-    static void NoteWaitOver(void *raw);
-
-    /// calls back all ready PeerSelectors and continues to wait for others
-    void noteWaitOver();
-
-    /// adds a PeerSelector to the waiting list
-    PeerSelectorMapIterator enqueue(PeerSelector *selector);
+    /// registers the given selector to be notified about the IPC ping timeout
+    void monitor(PeerSelector *);
 
     /// removes a PeerSelector from the waiting list
-    void dequeue(PeerSelector *selector);
+    void forget(PeerSelector *);
 
-    /// \returns an (unusable) position of a non-waiting peer selector
-    PeerSelectorMapIterator waitless() { return selectors.end(); }
+    /// \returns a (nil) registration of a non-waiting peer selector
+    WaitingPeerSelectorPosition npos() { return selectors.end(); }
 
 private:
+    static void NoteWaitOver(void *monitor);
+
     void startWaiting();
     void abortWaiting();
+    void noteWaitOver();
 
-    PeerSelectorMap selectors; ///< selectors waiting for ICP responses
+    WaitingPeerSelectors selectors; ///< \see WaitingPeerSelectors
 };
 
-PeerSelectorTimeoutProcessor ThePeerSelectorTimeoutProcessor;
+/// monitors all PeerSelector ICP ping timeouts
+PeerSelectorPingMonitor ThePeerSelectorPingMonitor;
 
+/* PeerSelectorPingMonitor */
+
+/// PeerSelectorPingMonitor::noteWaitOver() wrapper
 void
-PeerSelectorTimeoutProcessor::NoteWaitOver(void *raw)
+PeerSelectorPingMonitor::NoteWaitOver(void *raw)
 {
     assert(raw);
-    static_cast<PeerSelectorTimeoutProcessor*>(raw)->noteWaitOver();
+    static_cast<PeerSelectorPingMonitor*>(raw)->noteWaitOver();
 }
 
+/// schedules a single event to represent all waiting selectors
 void
-PeerSelectorTimeoutProcessor::startWaiting()
+PeerSelectorPingMonitor::startWaiting()
 {
     assert(!selectors.empty());
     const auto interval = tvSubDsec(current_time, selectors.begin()->first);
-    eventAdd("PeerSelectorTimeoutProcessor::NoteWaitOver", &PeerSelectorTimeoutProcessor::NoteWaitOver, this, interval, 0, false);
+    eventAdd("PeerSelectorPingMonitor::NoteWaitOver", &PeerSelectorPingMonitor::NoteWaitOver, this, interval, 0, false);
 }
 
+/// undoes an earlier startWaiting() call
 void
-PeerSelectorTimeoutProcessor::abortWaiting()
+PeerSelectorPingMonitor::abortWaiting()
 {
     // our event may be already in the AsyncCallQueue but that is OK:
     // such queued calls cannot accumulate, and we ignore any stale ones
-    eventDelete(&PeerSelectorTimeoutProcessor::NoteWaitOver, nullptr);
+    eventDelete(&PeerSelectorPingMonitor::NoteWaitOver, nullptr);
 }
 
 static void
@@ -160,13 +164,14 @@ HandlePingTimeout(PeerSelector *selector)
     selector->handlePingTimeout();
 }
 
+/// calls back all ready PeerSelectors and continues to wait for others
 void
-PeerSelectorTimeoutProcessor::noteWaitOver()
+PeerSelectorPingMonitor::noteWaitOver()
 {
     while (!selectors.empty() && current_time >= selectors.begin()->first) {
         const auto selector = selectors.begin()->second;
         CallBack(selector->al, [selector,this] {
-            selector->ping.waitPosition = waitless();
+            selector->ping.monitorRegistration = npos();
             AsyncCall::Pointer callback = asyncCall(44, 4, "HandlePingTimeout", cbdataDialer(HandlePingTimeout, selector));
             ScheduleCallHere(callback);
         });
@@ -174,43 +179,43 @@ PeerSelectorTimeoutProcessor::noteWaitOver()
     }
 
     if (!selectors.empty()) {
-        // We can be awakened by a 'stale' event, meanwhile a new event may be queued already.
-        // To avoid event accumulation, get rid of it (if any) and re-schedule.
+        // Since abortWaiting() is unreliable, we may have been awakened by a
+        // stale event A after event B has been scheduled. Now we are going to
+        // schedule event C. Prevent event accumulation by deleting B (if any).
         abortWaiting();
+
         startWaiting();
     }
 }
 
-PeerSelectorMapIterator
-PeerSelectorTimeoutProcessor::enqueue(PeerSelector *selector)
+void
+PeerSelectorPingMonitor::monitor(PeerSelector *selector)
 {
     assert(selector);
 
-    const auto expectedStopTime = selector->ping.expectedStopTime();
-    const auto position = selectors.emplace(expectedStopTime, selector);
-    selector->ping.waitPosition = position;
+    const auto deadline = selector->ping.deadline();
+    const auto position = selectors.emplace(deadline, selector);
+    selector->ping.monitorRegistration = position;
 
     if (position == selectors.begin()) {
         if (selectors.size() > 1)
             abortWaiting(); // remove the previously scheduled earlier event
         startWaiting();
     } // else the already scheduled event is still the earliest one
-
-    return position;
 }
 
 void
-PeerSelectorTimeoutProcessor::dequeue(PeerSelector *selector)
+PeerSelectorPingMonitor::forget(PeerSelector *selector)
 {
     assert(selector);
     assert(selector->pingWaiting());
 
-    if (selector->ping.waitPosition == waitless())
+    if (selector->ping.monitorRegistration == npos())
         return; // already forgotten, handlePingTimeout() is queued
 
-    const auto wasFirst = selector->ping.waitPosition == selectors.begin();
-    selectors.erase(selector->ping.waitPosition);
-    selector->ping.waitPosition = waitless();
+    const auto wasFirst = selector->ping.monitorRegistration == selectors.begin();
+    selectors.erase(selector->ping.monitorRegistration);
+    selector->ping.monitorRegistration = npos();
 
     if (wasFirst) {
         abortWaiting();
@@ -218,6 +223,8 @@ PeerSelectorTimeoutProcessor::dequeue(PeerSelector *selector)
             startWaiting();
     } // else do nothing since the old scheduled event is still the earliest one
 }
+
+/* PeerSelector */
 
 PeerSelector::~PeerSelector()
 {
@@ -256,14 +263,14 @@ void
 PeerSelector::startPingWaiting()
 {
     assert(!pingWaiting());
-    ThePeerSelectorTimeoutProcessor.enqueue(this);
+    ThePeerSelectorPingMonitor.monitor(this);
     entry->ping_status = PING_WAITING;
 }
 
 void
 PeerSelector::cancelPingTimeoutMonitoring()
 {
-    ThePeerSelectorTimeoutProcessor.dequeue(this);
+    ThePeerSelectorPingMonitor.forget(this);
 }
 
 bool
@@ -1183,7 +1190,7 @@ ping_data::ping_data() :
     timedout(0),
     w_rtt(0),
     p_rtt(0),
-    waitPosition(ThePeerSelectorTimeoutProcessor.waitless())
+    monitorRegistration(ThePeerSelectorPingMonitor.npos())
 {
     start.tv_sec = 0;
     start.tv_usec = 0;
@@ -1192,7 +1199,7 @@ ping_data::ping_data() :
 }
 
 timeval
-ping_data::expectedStopTime() const
+ping_data::deadline() const
 {
     struct timeval timeInterval;
     timeInterval.tv_sec = timeout / 1000;
