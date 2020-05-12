@@ -204,7 +204,9 @@ PeerSelectorTimeoutProcessor::dequeue(PeerSelector *selector)
 {
     assert(selector);
     Must(selector->pingWaiting());
-    Must(selector->ping.waitPosition != waitless());
+
+    if (selector->ping.waitPosition == waitless())
+        return; // already forgotten, handlePingTimeout() is queued
 
     const auto wasFirst = selector->ping.waitPosition == selectors.begin();
     selectors.erase(selector->ping.waitPosition);
@@ -261,8 +263,7 @@ PeerSelector::startPingWaiting()
 void
 PeerSelector::stopPingWaiting()
 {
-    if (ping.waitPosition != ThePeerSelectorTimeoutProcessor.waitless())
-        ThePeerSelectorTimeoutProcessor.dequeue(this);
+    ThePeerSelectorTimeoutProcessor.dequeue(this);
     entry->ping_status = PING_DONE;
 }
 
