@@ -227,12 +227,13 @@ PeerSelector::~PeerSelector()
         servers = next;
     }
 
-    if (pingWaiting())
-        stopPingWaiting();
-
     if (entry) {
         debugs(44, 3, entry->url());
-        entry->ping_status = PING_DONE; // may be PING_NONE or already PING_DONE
+
+        if (pingWaiting())
+            cancelPingTimeoutMonitoring();
+
+        entry->ping_status = PING_DONE;
     }
 
     if (acl_checklist) {
@@ -260,10 +261,9 @@ PeerSelector::startPingWaiting()
 }
 
 void
-PeerSelector::stopPingWaiting()
+PeerSelector::cancelPingTimeoutMonitoring()
 {
     ThePeerSelectorTimeoutProcessor.dequeue(this);
-    entry->ping_status = PING_DONE;
 }
 
 bool
@@ -660,7 +660,8 @@ PeerSelector::selectMore()
             return;
     } else if (pingWaiting()) {
         selectSomeNeighborReplies();
-        stopPingWaiting();
+        cancelPingTimeoutMonitoring();
+        entry->ping_status = PING_DONE;
     }
 
     switch (direct) {

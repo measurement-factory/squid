@@ -91,8 +91,8 @@ public:
     /// switches into PING_WAITING state
     void startPingWaiting();
 
-    /// switches into PING_DONE state
-    void stopPingWaiting();
+    /// terminates ICP ping timeout monitoring
+    void cancelPingTimeoutMonitoring();
 
     /// whether we are in PING_WAITING state
     bool pingWaiting() const;
