@@ -14,6 +14,7 @@
 #include <map>
 
 class PeerSelector;
+class PeerSelectorTimeoutProcessor;
 
 typedef std::pair<timeval, PeerSelector *> PeerSelectorMapItem;
 typedef std::multimap<timeval, PeerSelector *, std::less<timeval>, PoolingAllocator<PeerSelectorMapItem > > PeerSelectorMap;
@@ -39,6 +40,8 @@ public:
     int w_rtt;
     int p_rtt;
 
+private:
+    friend PeerSelectorTimeoutProcessor;
     /// maintained by PeerSelectorTimeoutProcessor to keep our position its map
     PeerSelectorMapIterator waitPosition;
 };
