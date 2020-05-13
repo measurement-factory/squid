@@ -91,11 +91,11 @@ public:
     /// terminates ICP ping timeout monitoring
     void cancelPingTimeoutMonitoring();
 
-    /// called when we no longer expect ICP ping responses
-    void handlePingTimeout();
-
     /// whether we are currently waiting for the ICP ping responses
     bool pingWaiting() const;
+
+    /// called when the given selector should stop expecting ICP ping responses
+    static void HandlePingTimeout(PeerSelector *);
 
     HttpRequest *request;
     AccessLogEntry::Pointer al; ///< info for the future access.log entry
@@ -108,6 +108,7 @@ public:
 protected:
     bool selectionAborted();
 
+    void handlePingTimeout();
     void handleIcpReply(CachePeer*, const peer_t, icp_common_t *header);
     void handleIcpParentMiss(CachePeer*, icp_common_t*);
 #if USE_HTCP

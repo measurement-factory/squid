@@ -157,12 +157,6 @@ PeerSelectorPingMonitor::abortWaiting()
     eventDelete(&PeerSelectorPingMonitor::NoteWaitOver, nullptr);
 }
 
-static void
-HandlePingTimeout(PeerSelector *selector)
-{
-    selector->handlePingTimeout();
-}
-
 /// calls back all ready PeerSelectors and continues to wait for others
 void
 PeerSelectorPingMonitor::noteWaitOver()
@@ -171,7 +165,8 @@ PeerSelectorPingMonitor::noteWaitOver()
         const auto selector = selectors.begin()->second;
         CallBack(selector->al, [selector,this] {
             selector->ping.monitorRegistration = npos();
-            AsyncCall::Pointer callback = asyncCall(44, 4, "HandlePingTimeout", cbdataDialer(HandlePingTimeout, selector));
+            AsyncCall::Pointer callback = asyncCall(44, 4, "PeerSelector::HandlePingTimeout",
+                cbdataDialer(PeerSelector::HandlePingTimeout, selector));
             ScheduleCallHere(callback);
         });
         selectors.erase(selectors.begin());
@@ -911,6 +906,12 @@ PeerSelector::handlePingTimeout()
     ++PeerStats.timeouts;
     ping.timedout = 1;
     selectMore();
+}
+
+void
+PeerSelector::HandlePingTimeout(PeerSelector *selector)
+{
+    selector->handlePingTimeout();
 }
 
 void
