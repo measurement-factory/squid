@@ -1201,11 +1201,11 @@ ping_data::ping_data() :
 timeval
 ping_data::deadline() const
 {
-    struct timeval timeInterval;
+    timeval timeInterval;
     timeInterval.tv_sec = timeout / 1000;
     timeInterval.tv_usec = (timeout % 1000) * 1000;
 
-    struct timeval result;
+    timeval result;
     tvAdd(result, start, timeInterval);
     return result;
 }
