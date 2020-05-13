@@ -28,7 +28,6 @@
 #include "ICP.h"
 #include "ip/tools.h"
 #include "ipcache.h"
-#include "mem/PoolingAllocator.h"
 #include "neighbors.h"
 #include "peer_sourcehash.h"
 #include "peer_userhash.h"
