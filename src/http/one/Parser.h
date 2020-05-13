@@ -106,8 +106,16 @@ public:
      */
     Http::StatusCode parseStatusCode;
 
-    /// the characters which are to be considered valid whitespace
-    /// (WSP / BSP / OWS)
+    /// Whitespace between regular protocol elements.
+    /// Seen in RFCs as OWS, RWS, BWS, SP/HTAB but may be "relaxed" by us.
+    /// See also: DelimiterCharacters().
+    static const CharacterSet &WhitespaceCharacters();
+
+    /// Whitespace between protocol elements in restricted contexts like
+    /// request line, status line, asctime-date, and credentials
+    /// Seen in RFCs as SP but may be "relaxed" by us.
+    /// See also: WhitespaceCharacters().
+    /// XXX: Misnamed and overused.
     static const CharacterSet &DelimiterCharacters();
 
 protected:
