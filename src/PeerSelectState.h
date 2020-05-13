@@ -91,9 +91,6 @@ public:
     /// terminates ICP ping timeout monitoring
     void cancelPingTimeoutMonitoring();
 
-    /// whether we are currently waiting for the ICP ping responses
-    bool pingWaiting() const;
-
     /// called when the given selector should stop expecting ICP ping responses
     static void HandlePingTimeout(PeerSelector *);
 

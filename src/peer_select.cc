@@ -202,7 +202,6 @@ void
 PeerSelectorPingMonitor::forget(PeerSelector *selector)
 {
     assert(selector);
-    assert(selector->pingWaiting());
 
     if (selector->ping.monitorRegistration == npos())
         return; // already forgotten, handlePingTimeout() is queued
@@ -231,7 +230,7 @@ PeerSelector::~PeerSelector()
     if (entry) {
         debugs(44, 3, entry->url());
 
-        if (pingWaiting())
+        if (entry->ping_status == PING_WAITING)
             cancelPingTimeoutMonitoring();
 
         entry->ping_status = PING_DONE;
@@ -245,7 +244,7 @@ PeerSelector::~PeerSelector()
     HTTPMSGUNLOCK(request);
 
     if (entry) {
-        assert(!pingWaiting());
+        assert(entry->ping_status != PING_WAITING);
         entry->unlock("peerSelect");
         entry = NULL;
     }
@@ -256,7 +255,8 @@ PeerSelector::~PeerSelector()
 void
 PeerSelector::startPingWaiting()
 {
-    assert(!pingWaiting());
+    assert(entry);
+    assert(entry->ping_status != PING_WAITING);
     ThePeerSelectorPingMonitor.monitor(this);
     entry->ping_status = PING_WAITING;
 }
@@ -264,13 +264,9 @@ PeerSelector::startPingWaiting()
 void
 PeerSelector::cancelPingTimeoutMonitoring()
 {
+    assert(entry);
+    assert(entry->ping_status == PING_WAITING);
     ThePeerSelectorPingMonitor.forget(this);
-}
-
-bool
-PeerSelector::pingWaiting() const
-{
-    return entry && entry->ping_status == PING_WAITING;
 }
 
 static int
@@ -657,9 +653,9 @@ PeerSelector::selectMore()
     } else if (entry->ping_status == PING_NONE) {
         selectSomeNeighbor();
 
-        if (pingWaiting())
+        if (entry->ping_status == PING_WAITING)
             return;
-    } else if (pingWaiting()) {
+    } else if (entry->ping_status == PING_WAITING) {
         selectSomeNeighborReplies();
         cancelPingTimeoutMonitoring();
         entry->ping_status = PING_DONE;
@@ -786,7 +782,7 @@ PeerSelector::selectSomeNeighborReplies()
 {
     CachePeer *p = NULL;
     hier_code code = HIER_NONE;
-    assert(pingWaiting());
+    assert(entry->ping_status == PING_WAITING);
     assert(direct != DIRECT_YES);
 
     if (checkNetdbDirect()) {
@@ -895,7 +891,7 @@ PeerSelector::handlePingTimeout()
     debugs(44, 3, url());
 
     // do nothing if ping reply came while handlePingTimeout() was queued
-    if (!pingWaiting())
+    if (!entry || entry->ping_status != PING_WAITING)
         return;
 
     entry->ping_status = PING_DONE;
