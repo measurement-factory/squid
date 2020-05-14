@@ -45,9 +45,8 @@ public:
 
 private:
     friend PeerSelectorPingMonitor;
-    /// maintained by PeerSelectorPingMonitor to keep our position in its map
+    /// maintained by PeerSelectorPingMonitor
     WaitingPeerSelectorPosition monitorRegistration;
 };
 
 #endif /* SQUID_PINGDATA_H */
-
