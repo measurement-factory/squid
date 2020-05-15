@@ -50,3 +50,4 @@ private:
 };
 
 #endif /* SQUID_PINGDATA_H */
+
