@@ -86,8 +86,8 @@ std::ostream &operator <<(std::ostream &os, const HappyConnOpenerAnswer &answer)
 {
     if (answer.error.set())
         os << "bad ";
-    if (answer.conn)
-        os << (answer.reused ? "reused " : "new ") << answer.conn;
+    if (answer.establishedConn)
+        os << (answer.reused ? "reused " : "new ") << answer.establishedConn;
     if (answer.n_tries != 1)
         os << " after " << answer.n_tries;
     return os;
@@ -455,12 +455,13 @@ HappyConnOpener::makeError(const err_type type) const
 
 /// \returns pre-filled Answer if the initiator needs an answer (or nil)
 HappyConnOpener::Answer *
-HappyConnOpener::futureAnswer(const Comm::ConnectionPointer &conn)
+HappyConnOpener::futureAnswer(const Comm::ConnectionPointer &candidate, const Comm::ConnectionPointer &established)
 {
     if (callback_ && !callback_->canceled()) {
         const auto answer = dynamic_cast<Answer *>(callback_->getDialer());
         assert(answer);
-        answer->conn = conn;
+        answer->candidateConn = candidate;
+        answer->establishedConn = established;
         answer->n_tries = n_tries;
         return answer;
     }
@@ -469,10 +470,11 @@ HappyConnOpener::futureAnswer(const Comm::ConnectionPointer &conn)
 
 /// send a successful result to the initiator (if it still needs an answer)
 void
-HappyConnOpener::sendSuccess(const Comm::ConnectionPointer &conn, bool reused, const char *connKind)
+HappyConnOpener::sendSuccess(const Comm::ConnectionPointer &candidate, const Comm::ConnectionPointer &established, bool reused, const char *connKind)
 {
-    debugs(17, 4, connKind << ": " << conn);
-    if (auto *answer = futureAnswer(conn)) {
+    debugs(17, 4, connKind << ": " << established);
+    if (auto *answer = futureAnswer(candidate, established)) {
+        // TODO: compare 'candidate' and 'established' instead
         answer->reused = reused;
         assert(!answer->error);
         ScheduleCallHere(callback_);
@@ -494,7 +496,7 @@ void
 HappyConnOpener::sendFailure()
 {
     debugs(17, 3, lastFailedConnection);
-    if (auto *answer = futureAnswer(lastFailedConnection)) {
+    if (auto *answer = futureAnswer(lastFailedConnection, lastFailedConnection)) {
         if (!lastError)
             lastError = makeError(ERR_GATEWAY_FAILURE);
         answer->error = lastError;
@@ -536,7 +538,7 @@ HappyConnOpener::reuseOldConnection(const Comm::ConnectionPointer &dest)
 
     if (const auto pconn = fwdPconnPool->pop(dest, host_, retriable_)) {
         ++n_tries;
-        sendSuccess(pconn, true, "reused connection");
+        sendSuccess(dest, pconn, true, "reused connection");
         return true;
     }
 
@@ -595,7 +597,7 @@ HappyConnOpener::connectDone(const CommConnectCbParams &params)
 
     const char *what = itWasPrime ? "new prime connection" : "new spare connection";
     if (params.flag == Comm::OK) {
-        sendSuccess(params.conn, false, what);
+        sendSuccess(params.conn, params.conn, false, what);
         return;
     }
 

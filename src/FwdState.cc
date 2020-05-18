@@ -470,7 +470,7 @@ FwdState::fail(ErrorState * errorState)
     if (pconnRace == racePossible) {
         debugs(17, 5, HERE << "pconn race happened");
         pconnRace = raceHappened;
-        destinations->retryPath(serverConn);
+        destinations->retryPath(candidateServer);
     }
 
     if (ConnStateData *pinned_connection = request->pinnedConnection()) {
@@ -766,14 +766,14 @@ FwdState::noteConnection(HappyConnOpener::Answer &answer)
 
     if (const auto error = answer.error.get()) {
         flags.dont_retry = true; // or HappyConnOpener would not have given up
-        syncHierNote(answer.conn, request->url.host());
+        syncHierNote(answer.establishedConn, request->url.host());
         fail(error);
         answer.error.clear(); // preserve error for errorSendComplete()
         retryOrBail(); // will notice flags.dont_retry and bail
         return;
     }
 
-    syncWithServerConn(answer.conn, request->url.host(), answer.reused);
+    syncWithServerConn(answer.candidateConn, answer.establishedConn, request->url.host(), answer.reused);
 
     if (answer.reused)
         return dispatch();
@@ -934,10 +934,11 @@ FwdState::successfullyConnectedToPeer()
 
 /// commits to using the given open to-peer connection
 void
-FwdState::syncWithServerConn(const Comm::ConnectionPointer &conn, const char *host, const bool reused)
+FwdState::syncWithServerConn(const Comm::ConnectionPointer &candidate, const Comm::ConnectionPointer &established, const char *host, const bool reused)
 {
-    Must(IsConnOpen(conn));
-    serverConn = conn;
+    Must(IsConnOpen(established));
+    candidateServer = candidate;
+    serverConn = established;
 
     closeHandler = comm_add_close_handler(serverConn->fd,  fwdServerClosedWrapper, this);
 
@@ -1034,7 +1035,7 @@ FwdState::usePinned()
 
     // the server may close the pinned connection before this request
     const auto reused = true;
-    syncWithServerConn(serverConn, connManager->pinning.host, reused);
+    syncWithServerConn(serverConn, serverConn, connManager->pinning.host, reused);
 
     dispatch();
 }

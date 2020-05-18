@@ -77,9 +77,11 @@ public:
     /// whether HappyConnOpener succeeded, returning a usable connection
     bool success() const { return !error; }
 
+    /// a candidate path used for connection establishing
+    Comm::ConnectionPointer candidateConn;
     /// on success: an open, ready-to-use Squid-to-peer connection
     /// on failure: either a closed failed Squid-to-peer connection or nil
-    Comm::ConnectionPointer conn;
+    Comm::ConnectionPointer establishedConn;
 
     // answer recipients must clear the error member in order to keep its info
     // XXX: We should refcount ErrorState instead of cbdata-protecting it.
@@ -201,8 +203,8 @@ private:
     bool ranOutOfTimeOrAttempts() const;
 
     ErrorState *makeError(const err_type type) const;
-    Answer *futureAnswer(const Comm::ConnectionPointer &);
-    void sendSuccess(const Comm::ConnectionPointer &conn, bool reused, const char *connKind);
+    Answer *futureAnswer(const Comm::ConnectionPointer &candidate, const Comm::ConnectionPointer &established);
+    void sendSuccess(const Comm::ConnectionPointer &candidate, const Comm::ConnectionPointer &extablished, bool reused, const char *connKind);
     void sendFailure();
     void cancelAttempt(Attempt &, const char *reason);
 

@@ -30,7 +30,7 @@ ResolvedPeers::retryPath(const Comm::ConnectionPointer &path)
     // extract*() methods should return the path index.
     const auto found = std::find_if(paths_.begin(), paths_.end(),
     [path](const ResolvedPeerPath &candidate) {
-        return candidate.connection->remote == path->remote;
+        return candidate.connection == path; // (refcounted) pointer comparison
     });
     assert(found != paths_.end());
     assert(!found->available);

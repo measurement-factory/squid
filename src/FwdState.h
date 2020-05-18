@@ -143,7 +143,7 @@ private:
     /// stops monitoring server connection for closure and updates pconn stats
     void closeServerConnection(const char *reason);
 
-    void syncWithServerConn(const Comm::ConnectionPointer &server, const char *host, const bool reused);
+    void syncWithServerConn(const Comm::ConnectionPointer &candidate, const Comm::ConnectionPointer &established, const char *host, const bool reused);
     void syncHierNote(const Comm::ConnectionPointer &server, const char *host);
 
     /// whether we have used up all permitted forwarding attempts
@@ -188,6 +188,7 @@ private:
 
     HappyConnOpenerPointer connOpener; ///< current connection opening job
     ResolvedPeersPointer destinations; ///< paths for forwarding the request
+    Comm::ConnectionPointer candidateServer; ///< a candidate address used for serverConn
     Comm::ConnectionPointer serverConn; ///< a successfully opened connection to a server.
 
     AsyncCall::Pointer closeHandler; ///< The serverConn close handler

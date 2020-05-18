@@ -903,14 +903,14 @@ TunnelStateData::noteConnection(HappyConnOpener::Answer &answer)
     connOpener.clear();
 
     if (const auto error = answer.error.get()) {
-        syncHierNote(answer.conn, request->url.host());
+        syncHierNote(answer.establishedConn, request->url.host());
         saveError(error);
         answer.error.clear(); // savedError has it now
         sendError(savedError, "tried all destinations");
         return;
     }
 
-    connectDone(answer.conn, request->url.host(), answer.reused);
+    connectDone(answer.establishedConn, request->url.host(), answer.reused);
 }
 
 void
