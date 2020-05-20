@@ -139,6 +139,7 @@ FwdState::FwdState(const Comm::ConnectionPointer &client, StoreEntry * e, HttpRe
     start_t(squid_curtime),
     n_tries(0),
     destinations(new ResolvedPeers()),
+    candidatePosition(ResolvedPeers::npos),
     pconnRace(raceImpossible)
 {
     debugs(17, 2, "Forwarding client request " << client << ", url=" << e->url());
