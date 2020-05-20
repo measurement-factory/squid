@@ -14,6 +14,7 @@
 #include "comm/ConnOpener.h"
 #include "http/forward.h"
 #include "log/forward.h"
+#include "ResolvedPeers.h"
 
 #include <iosfwd>
 
@@ -77,8 +78,8 @@ public:
     /// whether HappyConnOpener succeeded, returning a usable connection
     bool success() const { return !error; }
 
-    /// a candidate path used for connection establishing
-    Comm::ConnectionPointer candidateConn;
+    /// a candidate path index in the 'destinations' array
+    ResolvedPeers::size_type candidatePosition;
     /// on success: an open, ready-to-use Squid-to-peer connection
     /// on failure: either a closed failed Squid-to-peer connection or nil
     Comm::ConnectionPointer establishedConn;
@@ -158,7 +159,7 @@ private:
     /// a connection opening attempt in progress (or falsy)
     class Attempt {
     public:
-        explicit operator bool() const { return static_cast<bool>(path); }
+        explicit operator bool() const { return static_cast<bool>(path.connection()); }
 
         /// reacts to a natural attempt completion (successful or otherwise)
         void finish() { clear(); }
@@ -166,13 +167,13 @@ private:
         /// aborts an in-progress attempt
         void cancel(const char *reason);
 
-        Comm::ConnectionPointer path; ///< the destination we are connecting to
+        ResolvedPeerPath path; ///< the destination we are connecting to
         AsyncCall::Pointer connector; ///< our opener callback
         Comm::ConnOpener::Pointer opener; ///< connects to path and calls us
 
     private:
         /// cleans up after the attempt ends (successfully or otherwise)
-        void clear() { path = nullptr; connector = nullptr; opener = nullptr; }
+        void clear() { path = ResolvedPeerPath(); connector = nullptr; opener = nullptr; }
     };
 
     /* AsyncJob API */
@@ -188,9 +189,9 @@ private:
     void stopWaitingForSpareAllowance();
     void maybeOpenSpareConnection();
 
-    void startConnecting(Attempt &, Comm::ConnectionPointer &);
-    void openFreshConnection(Attempt &, Comm::ConnectionPointer &);
-    bool reuseOldConnection(const Comm::ConnectionPointer &);
+    void startConnecting(Attempt &, ResolvedPeerPath &);
+    void openFreshConnection(Attempt &, ResolvedPeerPath &);
+    bool reuseOldConnection(const ResolvedPeerPath &);
 
     void connectDone(const CommConnectCbParams &);
 
@@ -203,8 +204,8 @@ private:
     bool ranOutOfTimeOrAttempts() const;
 
     ErrorState *makeError(const err_type type) const;
-    Answer *futureAnswer(const Comm::ConnectionPointer &candidate, const Comm::ConnectionPointer &established);
-    void sendSuccess(const Comm::ConnectionPointer &candidate, const Comm::ConnectionPointer &extablished, bool reused, const char *connKind);
+    Answer *futureAnswer(const ResolvedPeerPath &candidate, const Comm::ConnectionPointer &established);
+    void sendSuccess(const ResolvedPeerPath &candidate, const Comm::ConnectionPointer &extablished, const char *connKind);
     void sendFailure();
     void cancelAttempt(Attempt &, const char *reason);
 
@@ -233,6 +234,7 @@ private:
 
     ErrorState *lastError = nullptr; ///< last problem details (or nil)
     Comm::ConnectionPointer lastFailedConnection; ///< nil if none has failed
+    ResolvedPeerPath lastFailedCandidate; ///< valid only if lastFailedConnection is not nil
 
     /// whether spare connection attempts disregard happy_eyeballs_* settings
     bool ignoreSpareRestrictions = false;

@@ -21,6 +21,7 @@
 #include "http/StatusCode.h"
 #include "ip/Address.h"
 #include "PeerSelectState.h"
+#include "ResolvedPeers.h"
 #include "security/forward.h"
 #if USE_OPENSSL
 #include "ssl/support.h"
@@ -143,7 +144,7 @@ private:
     /// stops monitoring server connection for closure and updates pconn stats
     void closeServerConnection(const char *reason);
 
-    void syncWithServerConn(const Comm::ConnectionPointer &candidate, const Comm::ConnectionPointer &established, const char *host, const bool reused);
+    void syncWithServerConn(const ResolvedPeers::size_type candidateIndex, const Comm::ConnectionPointer &established, const char *host, const bool reused);
     void syncHierNote(const Comm::ConnectionPointer &server, const char *host);
 
     /// whether we have used up all permitted forwarding attempts
@@ -188,7 +189,9 @@ private:
 
     HappyConnOpenerPointer connOpener; ///< current connection opening job
     ResolvedPeersPointer destinations; ///< paths for forwarding the request
-    Comm::ConnectionPointer candidateServer; ///< a candidate address used for serverConn
+    ///< the candidate index in 'destinations' used for serverConn
+    ///< ResolvedPeers::npos if serverConn was not obtained from 'destinations'
+    ResolvedPeers::size_type candidatePosition;
     Comm::ConnectionPointer serverConn; ///< a successfully opened connection to a server.
 
     AsyncCall::Pointer closeHandler; ///< The serverConn close handler

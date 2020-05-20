@@ -470,7 +470,8 @@ FwdState::fail(ErrorState * errorState)
     if (pconnRace == racePossible) {
         debugs(17, 5, HERE << "pconn race happened");
         pconnRace = raceHappened;
-        destinations->retryPath(candidateServer);
+        if (candidatePosition != ResolvedPeers::npos)
+            destinations->retryPath(candidatePosition);
     }
 
     if (ConnStateData *pinned_connection = request->pinnedConnection()) {
@@ -773,7 +774,7 @@ FwdState::noteConnection(HappyConnOpener::Answer &answer)
         return;
     }
 
-    syncWithServerConn(answer.candidateConn, answer.establishedConn, request->url.host(), answer.reused);
+    syncWithServerConn(answer.candidatePosition, answer.establishedConn, request->url.host(), answer.reused);
 
     if (answer.reused)
         return dispatch();
@@ -934,10 +935,10 @@ FwdState::successfullyConnectedToPeer()
 
 /// commits to using the given open to-peer connection
 void
-FwdState::syncWithServerConn(const Comm::ConnectionPointer &candidate, const Comm::ConnectionPointer &established, const char *host, const bool reused)
+FwdState::syncWithServerConn(const ResolvedPeers::size_type pos, const Comm::ConnectionPointer &established, const char *host, const bool reused)
 {
     Must(IsConnOpen(established));
-    candidateServer = candidate;
+    candidatePosition = pos;
     serverConn = established;
 
     closeHandler = comm_add_close_handler(serverConn->fd,  fwdServerClosedWrapper, this);
@@ -1035,7 +1036,7 @@ FwdState::usePinned()
 
     // the server may close the pinned connection before this request
     const auto reused = true;
-    syncWithServerConn(serverConn, serverConn, connManager->pinning.host, reused);
+    syncWithServerConn(ResolvedPeers::npos, serverConn, connManager->pinning.host, reused);
 
     dispatch();
 }
