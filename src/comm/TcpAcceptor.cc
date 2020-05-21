@@ -398,13 +398,16 @@ Comm::TcpAcceptor::oldAccept(Comm::ConnectionPointer &details)
     details->local = *gai;
     Ip::Address::FreeAddr(gai);
 
-    // Perform NAT or TPROXY operations to retrieve the real client/dest IP addresses
-    if (conn->flags&(COMM_TRANSPARENT|COMM_INTERCEPTION) && !Ip::Interceptor.Lookup(details, conn)) {
-        debugs(50, DBG_IMPORTANT, "ERROR: NAT/TPROXY lookup failed to locate original IPs on " << details);
-        // Failed.
-        PROF_stop(comm_accept);
-        return Comm::COMM_ERROR;
-    }
+    details->flags |= (conn->flags & (COMM_TRANSPARENT|COMM_INTERCEPTION));
+    if (!listenPort_->flags.proxySurrogate) {
+        // Perform NAT or TPROXY operations to retrieve the real client/dest IP addresses
+        if (conn->flags&(COMM_TRANSPARENT|COMM_INTERCEPTION) && !Ip::Interceptor.Lookup(details, conn)) {
+            debugs(50, DBG_IMPORTANT, "ERROR: NAT/TPROXY lookup failed to locate original IPs on " << details);
+            // Failed.
+            PROF_stop(comm_accept);
+            return Comm::COMM_ERROR;
+        }
+    } // else the real client/dest IP addresses will be filled from PROXY protocol message
 
 #if USE_SQUID_EUI
     if (Eui::TheConfig.euiLookup) {

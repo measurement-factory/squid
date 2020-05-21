@@ -3881,25 +3881,30 @@ parsePortCfg(AnyP::PortCfgPointer *head, const char *optionName)
 
     if (s->transport.protocol == AnyP::PROTO_HTTPS) {
         s->secure.encryptTransport = true;
+        const auto hijacked = s->flags.isIntercepted();
 #if USE_OPENSSL
-        /* ssl-bump on https_port configuration requires either tproxy or intercept, and vice versa */
-        const bool hijacked = s->flags.isIntercepted();
-        if (s->flags.tunnelSslBumping && !hijacked) {
-            debugs(3, DBG_CRITICAL, "FATAL: ssl-bump on https_port requires tproxy/intercept which is missing.");
+        /* ssl-bump on https_port configuration requires one of tproxy, intercept or require-proxy-header and vice versa */
+        const auto sslBumpRequiredOption = hijacked || s->flags.proxySurrogate;
+        if (s->flags.tunnelSslBumping && !sslBumpRequiredOption) {
+            debugs(3, DBG_CRITICAL, "FATAL: ssl-bump on https_port requires tproxy/intercept/require-proxy-header which is missing.");
             self_destruct();
             return;
         }
-        if (hijacked && !s->flags.tunnelSslBumping) {
-            debugs(3, DBG_CRITICAL, "FATAL: tproxy/intercept on https_port requires ssl-bump which is missing.");
+        if (sslBumpRequiredOption && !s->flags.tunnelSslBumping) {
+            debugs(3, DBG_CRITICAL, "FATAL: tproxy/intercept/require-proxy-header on https_port requires ssl-bump which is missing.");
             self_destruct();
             return;
         }
 #endif
-        if (s->flags.proxySurrogate) {
-            debugs(3,DBG_CRITICAL, "FATAL: https_port: require-proxy-header option is not supported on HTTPS ports.");
+        if (s->flags.proxySurrogate && (hijacked || s->flags.accelSurrogate)) {
+            debugs(3, DBG_CRITICAL, "FATAL: https_port: require-proxy-header option and tproxy/intercept/accel are incompatible on HTTPS ports.");
             self_destruct();
             return;
         }
+
+        if (s->flags.tunnelSslBumping && s->flags.proxySurrogate)
+            s->flags.natIntercept = true; // emulate interception for PROXY protocol
+
     } else if (protoName.cmp("FTP") == 0) {
         /* ftp_port does not support ssl-bump */
         if (s->flags.tunnelSslBumping) {

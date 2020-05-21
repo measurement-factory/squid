@@ -1864,6 +1864,15 @@ ConnStateData::parseProxyProtocolHeader()
                 clientConnection->flags ^= COMM_TRANSPARENT; // prevent TPROXY spoofing of this new IP.
             debugs(33, 5, "PROXY/" << proxyProtocolHeader_->version() << " upgrade: " << clientConnection);
         }
+
+        // TODO: The PROXY message is never inside a CONNECT tunnel. The
+        // presence of a fake CONNECT here indicates that we are parsing the
+        // PROXY message too late. We should do it before CONNECT is faked, even
+        // before the decision to fake CONNECT is made!
+        if (const auto context = pipeline.front()) { // e.g., fake CONNECT
+            if (const auto http = context->http)
+                http->al->proxyProtocolHeader = proxyProtocolHeader_;
+        }
     } catch (const Parser::BinaryTokenizer::InsufficientInput &) {
         debugs(33, 3, "PROXY protocol: waiting for more than " << inBuf.length() << " bytes");
         return false;
@@ -1914,21 +1923,6 @@ ConnStateData::clientParseRequests()
         if (concurrentRequestQueueFilled())
             break;
 
-        // try to parse the PROXY protocol header magic bytes
-        if (needProxyProtocolHeader_) {
-            if (!parseProxyProtocolHeader())
-                break;
-
-            // we have been waiting for PROXY to provide client-IP
-            // for some lookups, ie rDNS and IDENT.
-            whenClientIpKnown();
-
-            // Done with PROXY protocol which has cleared preservingClientData_.
-            // If the next protocol supports on_unsupported_protocol, then its
-            // parseOneRequest() must reset preservingClientData_.
-            assert(!preservingClientData_);
-        }
-
         if (Http::StreamPointer context = parseOneRequest()) {
             debugs(33, 5, clientConnection << ": done parsing a request");
 
@@ -1966,6 +1960,21 @@ ConnStateData::clientParseRequests()
 void
 ConnStateData::afterClientRead()
 {
+    // try to parse the PROXY protocol header magic bytes
+    if (needProxyProtocolHeader_) {
+        if (!parseProxyProtocolHeader())
+            return;
+
+        // we have been waiting for PROXY to provide client-IP
+        // for some lookups, ie rDNS and IDENT.
+        whenClientIpKnown();
+
+        // Done with PROXY protocol which has cleared preservingClientData_.
+        // If the next protocol supports on_unsupported_protocol, then its
+        // parseOneRequest() must reset preservingClientData_.
+        assert(!preservingClientData_);
+    }
+
 #if USE_OPENSSL
     if (parsingTlsHandshake) {
         parseTlsHandshake();
@@ -2995,8 +3004,12 @@ ConnStateData::parseTlsHandshake()
 {
     Must(parsingTlsHandshake);
 
-    assert(!inBuf.isEmpty());
-    receivedFirstByte();
+    // TODO: Call receivedFirstByte() below at most once per connection.
+    // Addressing this correctly may be related to understanding and possibly
+    // changing what receivedFirstByte_ truly is and how it is managed.
+    if (!inBuf.isEmpty())
+        receivedFirstByte();
+    // XXX: Call fd_note() below at most once per connection. Its expensive.
     fd_note(clientConnection->fd, "Parsing TLS handshake");
 
     bool unsupportedProtocol = false;
@@ -3476,12 +3489,13 @@ clientListenerConnectionOpened(AnyP::PortCfgPointer &s, const Ipc::FdNoteId port
     AsyncJob::Start(new Comm::TcpAcceptor(s, FdNote(portTypeNote), sub));
 
     debugs(1, DBG_IMPORTANT, "Accepting " <<
-           (s->flags.natIntercept ? "NAT intercepted " : "") <<
-           (s->flags.tproxyIntercept ? "TPROXY intercepted " : "") <<
+           ((s->flags.natIntercept && !s->flags.proxySurrogate) ? "NAT intercepted " : "") <<
+           ((s->flags.tproxyIntercept && !s->flags.proxySurrogate) ? "TPROXY intercepted " : "") <<
            (s->flags.tunnelSslBumping ? "SSL bumped " : "") <<
-           (s->flags.accelSurrogate ? "reverse-proxy " : "")
-           << FdNote(portTypeNote) << " connections at "
-           << s->listenConn);
+           (s->flags.accelSurrogate ? "reverse-proxy " : "") <<
+           FdNote(portTypeNote) << " connections " <<
+           (s->flags.proxySurrogate ? "with PROXY protocol headers " : "") <<
+           "at " << s->listenConn);
 
     Must(AddOpenedHttpSocket(s->listenConn)); // otherwise, we have received a fd we did not ask for
 
