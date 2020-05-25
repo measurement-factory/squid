@@ -18,7 +18,6 @@
 #include "neighbors.h"
 #include "pconn.h"
 #include "PeerPoolMgr.h"
-#include "ResolvedPeers.h"
 #include "SquidConfig.h"
 
 CBDATA_CLASS_INIT(HappyConnOpener);
@@ -421,16 +420,14 @@ HappyConnOpener::status() const
     if (stopReason)
         buf.appendf("Stopped, reason:%s", stopReason);
     if (prime) {
-        const auto conn = prime.path.connection();
-        if (conn && conn->isOpen())
-            buf.appendf(" prime FD %d", conn->fd);
+        if (prime.path && prime.path->isOpen())
+            buf.appendf(" prime FD %d", prime.path->fd);
         else if (prime.connector)
             buf.appendf(" prime call%ud", prime.connector->id.value);
     }
     if (spare) {
-        const auto conn = spare.path.connection();
-        if (conn && conn->isOpen())
-            buf.appendf(" spare FD %d", conn->fd);
+        if (spare.path && spare.path->isOpen())
+            buf.appendf(" spare FD %d", spare.path->fd);
         else if (spare.connector)
             buf.appendf(" spare call%ud", spare.connector->id.value);
     }
@@ -457,12 +454,12 @@ HappyConnOpener::makeError(const err_type type) const
 
 /// \returns pre-filled Answer if the initiator needs an answer (or nil)
 HappyConnOpener::Answer *
-HappyConnOpener::futureAnswer(const ResolvedPeerPath &candidate, const Comm::ConnectionPointer &established)
+HappyConnOpener::futureAnswer(const ResolvedPeer &candidate, const Comm::ConnectionPointer &established)
 {
     if (callback_ && !callback_->canceled()) {
         const auto answer = dynamic_cast<Answer *>(callback_->getDialer());
         assert(answer);
-        answer->candidatePosition = candidate.position();
+        answer->candidateConn = candidate;
         answer->establishedConn = established;
         answer->n_tries = n_tries;
         return answer;
@@ -472,7 +469,7 @@ HappyConnOpener::futureAnswer(const ResolvedPeerPath &candidate, const Comm::Con
 
 /// send a successful result to the initiator (if it still needs an answer)
 void
-HappyConnOpener::sendSuccess(const ResolvedPeerPath &candidate, const Comm::ConnectionPointer &established, const char *connKind)
+HappyConnOpener::sendSuccess(const ResolvedPeer &candidate, const Comm::ConnectionPointer &established, const char *connKind)
 {
     debugs(17, 4, connKind << ": " << established);
     if (auto *answer = futureAnswer(candidate, established)) {
@@ -488,7 +485,7 @@ void
 HappyConnOpener::cancelAttempt(Attempt &attempt, const char *reason)
 {
     Must(attempt);
-    destinations->retryPath(attempt.path.position()); // before attempt.cancel() clears path
+    destinations->retryPath(attempt.path); // before attempt.cancel() clears path
     attempt.cancel(reason);
 }
 
@@ -517,13 +514,13 @@ HappyConnOpener::noteCandidatesChange()
 
 /// starts opening (or reusing) a connection to the given destination
 void
-HappyConnOpener::startConnecting(Attempt &attempt, ResolvedPeerPath &dest)
+HappyConnOpener::startConnecting(Attempt &attempt, ResolvedPeer &dest)
 {
     Must(!attempt.path);
     Must(!attempt.connector);
     Must(dest);
 
-    const auto bumpThroughPeer = cause->flags.sslBumped && dest.connection()->getPeer();
+    const auto bumpThroughPeer = cause->flags.sslBumped && dest->getPeer();
     const auto canReuseOld = allowPconn_ && !bumpThroughPeer;
     if (!canReuseOld || !reuseOldConnection(dest))
         openFreshConnection(attempt, dest);
@@ -533,7 +530,7 @@ HappyConnOpener::startConnecting(Attempt &attempt, ResolvedPeerPath &dest)
 /// \returns true if and only if reuse was possible
 /// must be called via startConnecting()
 bool
-HappyConnOpener::reuseOldConnection(const ResolvedPeerPath &dest)
+HappyConnOpener::reuseOldConnection(const ResolvedPeer &dest)
 {
     assert(allowPconn_);
 
@@ -549,24 +546,24 @@ HappyConnOpener::reuseOldConnection(const ResolvedPeerPath &dest)
 /// opens a fresh connection to the given destination
 /// must be called via startConnecting()
 void
-HappyConnOpener::openFreshConnection(Attempt &attempt, ResolvedPeerPath &dest)
+HappyConnOpener::openFreshConnection(Attempt &attempt, ResolvedPeer &dest)
 {
 #if URL_CHECKSUM_DEBUG
     entry->mem_obj->checkUrlChecksum();
 #endif
-    auto conn = dest.connection();
-    GetMarkingsToServer(cause.getRaw(), *conn);
+    GetMarkingsToServer(cause.getRaw(), *dest);
 
     // ConnOpener modifies its destination argument so we reset the source port
     // in case we are reusing the destination already used by our predecessor.
-    conn->local.port(0);
+    dest->local.port(0);
     ++n_tries;
 
     typedef CommCbMemFunT<HappyConnOpener, CommConnectCbParams> Dialer;
     AsyncCall::Pointer callConnect = JobCallback(48, 5, Dialer, this, HappyConnOpener::connectDone);
-    const time_t connTimeout = dest.connection()->connectTimeout(fwdStart);
+    const time_t connTimeout = dest->connectTimeout(fwdStart);
+    auto conn = dest.connection();
     Comm::ConnOpener *cs = new Comm::ConnOpener(conn, callConnect, connTimeout);
-    if (!conn->getPeer())
+    if (!dest->getPeer())
         cs->setHost(host_);
 
     attempt.path = dest;

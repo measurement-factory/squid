@@ -16,7 +16,16 @@
 #include <limits>
 #include <utility>
 
-class ResolvedPeerPath;
+class ResolvedPeerPath
+{
+public:
+    explicit ResolvedPeerPath(const Comm::ConnectionPointer &conn) : connection(conn), available(true) {}
+
+    Comm::ConnectionPointer connection; ///< (the address of) a path
+    bool available; ///< whether this path may be used (i.e., has not been tried already)
+};
+
+class ResolvedPeer;
 
 /// cache_peer and origin server addresses (a.k.a. paths)
 /// selected and resolved by the peering code
@@ -41,18 +50,18 @@ public:
     void addPath(const Comm::ConnectionPointer &);
 
     /// re-inserts the previously extracted address into the position
-    void retryPath(const size_type pos);
+    void retryPath(const ResolvedPeer &peer);
 
     /// extracts and returns the first queued address
-    ResolvedPeerPath extractFront();
+    ResolvedPeer extractFront();
 
     /// extracts and returns the first same-peer same-family address
     /// \returns nil if it cannot find the requested address
-    ResolvedPeerPath extractPrime(const Comm::Connection &currentPeer);
+    ResolvedPeer extractPrime(const Comm::Connection &currentPeer);
 
     /// extracts and returns the first same-peer different-family address
     /// \returns nil if it cannot find the requested address
-    ResolvedPeerPath extractSpare(const Comm::Connection &currentPeer);
+    ResolvedPeer extractSpare(const Comm::Connection &currentPeer);
 
     /// whether extractSpare() would return a non-nil path right now
     bool haveSpare(const Comm::Connection &currentPeer);
@@ -87,7 +96,7 @@ private:
     Finding findSpare(const Comm::Connection &currentPeer);
     Finding findPrime(const Comm::Connection &currentPeer);
     Finding findPeer(const Comm::Connection &currentPeer);
-    ResolvedPeerPath extractFound(const char *description, const Paths::iterator &found);
+    ResolvedPeer extractFound(const char *description, const Paths::iterator &found);
     Finding makeFinding(const Paths::iterator &found, bool foundOther);
 
     bool doneWith(const Finding &findings) const;
@@ -106,22 +115,27 @@ private:
     size_type availablePaths = 0;
 };
 
-
-class ResolvedPeerPath
+/// Binds a candidate connection with its index in ResolvedPeers
+class ResolvedPeer
 {
 public:
-    explicit ResolvedPeerPath(const Comm::ConnectionPointer &conn, const ResolvedPeers::size_type pos) : available(true), connection_(conn), position_(pos) {}
-    ResolvedPeerPath() : available(false), connection_(nullptr), position_(ResolvedPeers::npos) {}
+    explicit ResolvedPeer(const Comm::ConnectionPointer &conn, const ResolvedPeers::size_type pos) : connection_(conn), position_(pos) {}
 
-    Comm::ConnectionPointer connection() const { return connection_; }
-    ResolvedPeers::size_type position() const { return position_; }
+    ResolvedPeer() : connection_(nullptr), position_(ResolvedPeers::npos) {}
+
     explicit operator bool() const { return static_cast<bool>(connection_); }
 
-    bool available; ///< whether this path may be used (i.e., has not been tried already)
+    Comm::Connection *operator->() const { return connection_.getRaw(); }
+
+    Comm::Connection &operator *() const { return *connection_; }
+
+    Comm::ConnectionPointer connection() const { return connection_; }
 
 private:
     Comm::ConnectionPointer connection_; ///< (the address of) a path
-    ResolvedPeers::size_type position_; ///< the index of the path
+    ResolvedPeers::size_type position_; ///< the index of the path in ResolvedPeers
+
+    friend class ResolvedPeers;
 };
 
 /// summarized ResolvedPeers (for debugging)
