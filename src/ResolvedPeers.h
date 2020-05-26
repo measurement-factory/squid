@@ -49,7 +49,7 @@ public:
     /// add a candidate path to try after all the existing paths
     void addPath(const Comm::ConnectionPointer &);
 
-    /// re-inserts the previously extracted address into the position
+    /// re-inserts the previously extracted address into the same position
     void retryPath(const ResolvedPeer &);
 
     /// extracts and returns the first queued address
