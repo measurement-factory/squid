@@ -512,6 +512,7 @@ MemStore::copyFromShm(StoreEntry &e, const sfileno index, const Ipc::StoreMapAnc
                 if (rep->parse(replyBuffer.buf, replyBuffer.size, wasEof, &error)) {
                     assert(rep->pstate == Http::Message::psParsed);
                 } else if (error) {
+                    debugs(20, DBG_IMPORTANT, "BUG: Corrupted mem-cached headers: " << e);
                     return false;
                 } else {
                     assert(!wasEof); // more data needed
