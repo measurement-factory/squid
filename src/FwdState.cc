@@ -767,14 +767,14 @@ FwdState::noteConnection(HappyConnOpener::Answer &answer)
 
     if (const auto error = answer.error.get()) {
         flags.dont_retry = true; // or HappyConnOpener would not have given up
-        syncHierNote(answer.establishedConn, request->url.host());
+        syncHierNote(answer.conn, request->url.host());
         fail(error);
         answer.error.clear(); // preserve error for errorSendComplete()
         retryOrBail(); // will notice flags.dont_retry and bail
         return;
     }
 
-    syncWithServerConn(answer.candidateConn, answer.establishedConn, request->url.host(), answer.reused);
+    syncWithServerConn(answer.candidateConn, answer.conn, request->url.host(), answer.reused);
 
     if (answer.reused)
         return dispatch();
@@ -935,11 +935,11 @@ FwdState::successfullyConnectedToPeer()
 
 /// commits to using the given open to-peer connection
 void
-FwdState::syncWithServerConn(const ResolvedPeer &aCandidate, const Comm::ConnectionPointer &established, const char *host, const bool reused)
+FwdState::syncWithServerConn(const ResolvedPeer &aCandidate, const Comm::ConnectionPointer &conn, const char *host, const bool reused)
 {
-    Must(IsConnOpen(established));
+    Must(IsConnOpen(conn));
+    serverConn = conn;
     candidateServer = aCandidate;
-    serverConn = established;
 
     closeHandler = comm_add_close_handler(serverConn->fd,  fwdServerClosedWrapper, this);
 

@@ -85,8 +85,8 @@ std::ostream &operator <<(std::ostream &os, const HappyConnOpenerAnswer &answer)
 {
     if (answer.error.set())
         os << "bad ";
-    if (answer.establishedConn)
-        os << (answer.reused ? "reused " : "new ") << answer.establishedConn;
+    if (answer.conn)
+        os << (answer.reused ? "reused " : "new ") << answer.conn;
     if (answer.n_tries != 1)
         os << " after " << answer.n_tries;
     return os;
@@ -454,13 +454,13 @@ HappyConnOpener::makeError(const err_type type) const
 
 /// \returns pre-filled Answer if the initiator needs an answer (or nil)
 HappyConnOpener::Answer *
-HappyConnOpener::futureAnswer(const ResolvedPeer &candidate, const Comm::ConnectionPointer &established)
+HappyConnOpener::futureAnswer(const ResolvedPeer &candidate, const Comm::ConnectionPointer &conn)
 {
     if (callback_ && !callback_->canceled()) {
         const auto answer = dynamic_cast<Answer *>(callback_->getDialer());
         assert(answer);
         answer->candidateConn = candidate;
-        answer->establishedConn = established;
+        answer->conn = conn;
         answer->n_tries = n_tries;
         return answer;
     }
@@ -469,11 +469,11 @@ HappyConnOpener::futureAnswer(const ResolvedPeer &candidate, const Comm::Connect
 
 /// send a successful result to the initiator (if it still needs an answer)
 void
-HappyConnOpener::sendSuccess(const ResolvedPeer &candidate, const Comm::ConnectionPointer &established, const char *connKind)
+HappyConnOpener::sendSuccess(const ResolvedPeer &candidate, const Comm::ConnectionPointer &conn, const char *connKind)
 {
-    debugs(17, 4, connKind << ": " << established);
-    if (auto *answer = futureAnswer(candidate, established)) {
-        answer->reused = candidate.connection() != established;
+    debugs(17, 4, connKind << ": " << conn);
+    if (auto *answer = futureAnswer(candidate, conn)) {
+        answer->reused = candidate.connection() != conn;
         assert(!answer->error);
         ScheduleCallHere(callback_);
     }
@@ -551,6 +551,7 @@ HappyConnOpener::openFreshConnection(Attempt &attempt, ResolvedPeer &dest)
 #if URL_CHECKSUM_DEBUG
     entry->mem_obj->checkUrlChecksum();
 #endif
+
     GetMarkingsToServer(cause.getRaw(), *dest);
 
     // ConnOpener modifies its destination argument so we reset the source port
@@ -562,7 +563,7 @@ HappyConnOpener::openFreshConnection(Attempt &attempt, ResolvedPeer &dest)
     AsyncCall::Pointer callConnect = JobCallback(48, 5, Dialer, this, HappyConnOpener::connectDone);
     const time_t connTimeout = dest->connectTimeout(fwdStart);
     auto conn = dest.connection();
-    Comm::ConnOpener *cs = new Comm::ConnOpener(conn, callConnect, connTimeout);
+    auto cs = new Comm::ConnOpener(conn, callConnect, connTimeout);
     if (!dest->getPeer())
         cs->setHost(host_);
 

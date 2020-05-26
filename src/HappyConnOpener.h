@@ -81,7 +81,7 @@ public:
     ResolvedPeer candidateConn;
     /// on success: an open, ready-to-use Squid-to-peer connection
     /// on failure: either a closed failed Squid-to-peer connection or nil
-    Comm::ConnectionPointer establishedConn;
+    Comm::ConnectionPointer conn;
 
     // answer recipients must clear the error member in order to keep its info
     // XXX: We should refcount ErrorState instead of cbdata-protecting it.
@@ -203,8 +203,8 @@ private:
     bool ranOutOfTimeOrAttempts() const;
 
     ErrorState *makeError(const err_type type) const;
-    Answer *futureAnswer(const ResolvedPeer &candidate, const Comm::ConnectionPointer &established);
-    void sendSuccess(const ResolvedPeer &candidate, const Comm::ConnectionPointer &extablished, const char *connKind);
+    Answer *futureAnswer(const ResolvedPeer &candidate, const Comm::ConnectionPointer &);
+    void sendSuccess(const ResolvedPeer &candidate, const Comm::ConnectionPointer &conn, const char *connKind);
     void sendFailure();
     void cancelAttempt(Attempt &, const char *reason);
 

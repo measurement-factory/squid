@@ -50,7 +50,7 @@ public:
     void addPath(const Comm::ConnectionPointer &);
 
     /// re-inserts the previously extracted address into the position
-    void retryPath(const ResolvedPeer &peer);
+    void retryPath(const ResolvedPeer &);
 
     /// extracts and returns the first queued address
     ResolvedPeer extractFront();

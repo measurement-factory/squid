@@ -20,10 +20,11 @@ ResolvedPeers::ResolvedPeers()
 }
 
 void
-ResolvedPeers::retryPath(const ResolvedPeer &peer)
+ResolvedPeers::retryPath(const ResolvedPeer &path)
 {
-    const auto pos = peer.position_;
+    const auto pos = path.position_;
     debugs(17, 4, pos);
+    assert(path);
     assert(pos != npos);
     assert(pos < paths_.size());
     assert(!paths_[pos].available);
