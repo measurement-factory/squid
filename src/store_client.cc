@@ -25,6 +25,7 @@
 #include "StoreClient.h"
 #include "StoreMeta.h"
 #include "StoreMetaUnpacker.h"
+#include "sbuf/Stream.h"
 #if USE_DELAY_POOLS
 #include "DelayPools.h"
 #endif
@@ -200,7 +201,8 @@ store_client::initReplyBuffer()
 {
     if (!replyBuffer) {
         replyBuffer = new MemBuf;
-        replyBuffer->init();
+        const auto initialSize = HTTP_REPLY_BUF_SZ > Config.maxReplyHeaderSize ? Config.maxReplyHeaderSize : HTTP_REPLY_BUF_SZ;
+        replyBuffer->init(initialSize, Config.maxReplyHeaderSize);
     }
 }
 
@@ -512,8 +514,30 @@ store_client::fileRead()
               copyInto.data,
               copyInto.length,
               copyInto.offset + mem->swap_hdr_sz,
-              expectHeader() ? storeClientReadHeader : storeClientReadBody,
+              expectingHttpHeader() ? storeClientReadHeader : storeClientReadBody,
               this);
+}
+
+bool
+store_client::parseHttpHeader(const ssize_t len)
+{
+    initReplyBuffer();
+    replyBuffer->append(copyInto.data, len);
+    replyBuffer->terminate();
+    auto error = Http::scNone;
+    auto &adjustableReply = entry->mem_obj->adjustableBaseReply();
+    const auto bufSize = replyBuffer->size;
+    if (adjustableReply.parse(replyBuffer->buf, replyBuffer->size, 0, &error)) {
+        assert(adjustableReply.pstate == Http::Message::psParsed);
+        assert(!expectingHttpHeader()); // paranoid
+        freeReplyBuffer();
+        return true;
+    } else if (error) {
+        freeReplyBuffer();
+        throw TextException(ToSBuf("Could not parse headers from on disk object, object size=", bufSize), Here());
+    }
+    // else more data needed
+    return false;
 }
 
 void
@@ -527,24 +551,7 @@ store_client::readBody(const char *, ssize_t len)
     if (len < 0)
         return fail();
 
-    auto headerParsed = !expectHeader();
-    if (!headerParsed) {
-        initReplyBuffer();
-        replyBuffer->append(copyInto.data, len);
-        replyBuffer->terminate();
-        auto error = Http::scNone;
-        auto &adjustableReply = entry->mem_obj->adjustableBaseReply();
-        if (adjustableReply.parse(replyBuffer->buf, replyBuffer->size, 0, &error)) {
-            headerParsed = true;
-            assert(adjustableReply.pstate == Http::Message::psParsed);
-            freeReplyBuffer();
-        } else if (error) {
-            freeReplyBuffer();
-            throw TextException("Could not parse headers from on disk object", Here());
-        }
-        // else more data needed, see below
-    }
-
+    const auto doneParsingHttpHeader = expectingHttpHeader() ? parseHttpHeader(len) : false;
     const auto rep = entry->mem_obj ? &entry->mem().baseReply() : nullptr;
     if (len > 0 && rep && entry->mem_obj->inmem_lo == 0 && entry->objectLen() <= (int64_t)Config.Store.maxInMemObjSize && Config.onoff.memory_cache_disk) {
         storeGetMemSpace(len);
@@ -554,13 +561,14 @@ store_client::readBody(const char *, ssize_t len)
              * copyInto.offset includes headers, which is what mem cache needs
              */
             int64_t mem_offset = entry->mem_obj->endOffset();
-            if ((copyInto.offset == mem_offset) || (headerParsed && mem_offset == rep->hdr_sz)) {
+            // do not copy not-parsed-yet headers
+            if (doneParsingHttpHeader || (mem_offset > 0 && copyInto.offset == mem_offset)) {
                 entry->mem_obj->write(StoreIOBuffer(len, copyInto.offset, copyInto.data));
             }
         }
     }
 
-    if (!headerParsed) {
+    if (expectingHttpHeader()) {
         // more data needed
         copyInto.offset += len;
         throw IncompleteHeaderException();
@@ -640,7 +648,7 @@ store_client::unpackHeader(char const *buf, ssize_t len)
 }
 
 bool
-store_client::expectHeader() const
+store_client::expectingHttpHeader() const
 {
     const auto rep = entry->mem_obj ? &entry->mem().baseReply() : nullptr;
     return rep && (rep->pstate < Http::Message::psParsed);

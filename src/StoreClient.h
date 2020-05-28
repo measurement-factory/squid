@@ -75,7 +75,6 @@ public:
     void readBody(const char *buf, ssize_t len);
     void copy(StoreEntry *, StoreIOBuffer, STCB *, void *);
     void dumpStats(MemBuf * output, int clientNumber) const;
-    bool expectHeader() const;
 
     int64_t cmp_offset;
 #if STORE_CLIENT_LIST_DEBUG
@@ -114,6 +113,8 @@ private:
 
     void initReplyBuffer();
     void freeReplyBuffer();
+    bool expectingHttpHeader() const;
+    bool parseHttpHeader(const ssize_t len);
 
     int type;
     bool object_ok;
