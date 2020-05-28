@@ -472,7 +472,8 @@ MemStore::copyFromShm(StoreEntry &e, const sfileno index, const Ipc::StoreMapAnc
     int64_t sliceOffset = 0;
 
     MemBuf replyBuffer;
-    replyBuffer.init();
+    const auto initialSize = HTTP_REPLY_BUF_SZ > Config.maxReplyHeaderSize ? Config.maxReplyHeaderSize : HTTP_REPLY_BUF_SZ;
+    replyBuffer->init(initialSize, Config.maxReplyHeaderSize);
     const auto rep = &e.mem().adjustableBaseReply();
 
     while (sid >= 0) {
