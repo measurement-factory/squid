@@ -13,6 +13,7 @@
 #include "acl/Checklist.h"
 #include "base/CbcPointer.h"
 #include "comm/forward.h"
+#include "event.h"
 #include "hier_code.h"
 #include "ip/Address.h"
 #include "ipcache.h"
