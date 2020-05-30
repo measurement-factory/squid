@@ -470,8 +470,8 @@ FwdState::fail(ErrorState * errorState)
     if (pconnRace == racePossible) {
         debugs(17, 5, HERE << "pconn race happened");
         pconnRace = raceHappened;
-        if (candidateServer)
-            destinations->retryPath(candidateServer);
+        if (serverConnReceipt)
+            destinations->retryPath(serverConnReceipt);
     }
 
     if (ConnStateData *pinned_connection = request->pinnedConnection()) {
@@ -767,14 +767,14 @@ FwdState::noteConnection(HappyConnOpener::Answer &answer)
 
     if (const auto error = answer.error.get()) {
         flags.dont_retry = true; // or HappyConnOpener would not have given up
-        syncHierNote(answer.conn, request->url.host());
+        syncHierNote(answer.conn.address(), request->url.host());
         fail(error);
         answer.error.clear(); // preserve error for errorSendComplete()
         retryOrBail(); // will notice flags.dont_retry and bail
         return;
     }
 
-    syncWithServerConn(answer.candidateConn, answer.conn, request->url.host(), answer.reused);
+    syncWithServerConn(answer.conn, request->url.host(), answer.reused);
 
     if (answer.reused)
         return dispatch();
@@ -935,11 +935,11 @@ FwdState::successfullyConnectedToPeer()
 
 /// commits to using the given open to-peer connection
 void
-FwdState::syncWithServerConn(const ResolvedPeer &aCandidate, const Comm::ConnectionPointer &conn, const char *host, const bool reused)
+FwdState::syncWithServerConn(const ResolvedPeer &conn, const char *host, const bool reused)
 {
-    Must(IsConnOpen(conn));
-    serverConn = conn;
-    candidateServer = aCandidate;
+    Must(IsConnOpen(conn.address()));
+    serverConn = conn.address();
+    serverConnReceipt = conn;
 
     closeHandler = comm_add_close_handler(serverConn->fd,  fwdServerClosedWrapper, this);
 
@@ -1036,7 +1036,7 @@ FwdState::usePinned()
 
     // the server may close the pinned connection before this request
     const auto reused = true;
-    syncWithServerConn(ResolvedPeer(), serverConn, connManager->pinning.host, reused);
+    syncWithServerConn(ResolvedPeer(serverConn, ResolvedPeers::npos), connManager->pinning.host, reused);
 
     dispatch();
 }

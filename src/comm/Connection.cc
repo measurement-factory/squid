@@ -77,6 +77,21 @@ Comm::Connection::copyDetails() const
     return c;
 }
 
+Comm::ConnectionPointer
+Comm::Connection::copyAddressDetails() const
+{
+    ConnectionPointer c = new Comm::Connection;
+
+    c->setAddrs(local, remote);
+    c->peerType = peerType;
+    c->flags = flags;
+
+    // ensure we have a cbdata reference to peer_ not a straight ptr copy.
+    c->peer_ = cbdataReference(getPeer());
+
+    return c;
+}
+
 void
 Comm::Connection::close()
 {

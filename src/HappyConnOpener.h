@@ -77,11 +77,9 @@ public:
     /// whether HappyConnOpener succeeded, returning a usable connection
     bool success() const { return !error; }
 
-    /// a candidate connection taken from 'destinations'
-    ResolvedPeer candidateConn;
-    /// on success: an open, ready-to-use Squid-to-peer connection
-    /// on failure: either a closed failed Squid-to-peer connection or nil
-    Comm::ConnectionPointer conn;
+    /// on success: an open, ready-to-use Squid-to-peer connection (with a return receipt)
+    /// on failure: either a closed failed Squid-to-peer connection or nil (w/o a return receipt)
+    ResolvedPeer conn;
 
     // answer recipients must clear the error member in order to keep its info
     // XXX: We should refcount ErrorState instead of cbdata-protecting it.
@@ -190,7 +188,7 @@ private:
 
     void startConnecting(Attempt &, ResolvedPeer &);
     void openFreshConnection(Attempt &, ResolvedPeer &);
-    bool reuseOldConnection(const ResolvedPeer &);
+    bool reuseOldConnection(ResolvedPeer &);
 
     void connectDone(const CommConnectCbParams &);
 
@@ -203,8 +201,8 @@ private:
     bool ranOutOfTimeOrAttempts() const;
 
     ErrorState *makeError(const err_type type) const;
-    Answer *futureAnswer(const ResolvedPeer &candidate, const Comm::ConnectionPointer &);
-    void sendSuccess(const ResolvedPeer &candidate, const Comm::ConnectionPointer &conn, const char *connKind);
+    Answer *futureAnswer(const ResolvedPeer &);
+    void sendSuccess(const ResolvedPeer &candidate, const bool reused, const char *connKind);
     void sendFailure();
     void cancelAttempt(Attempt &, const char *reason);
 
@@ -232,8 +230,7 @@ private:
     AccessLogEntryPointer ale; ///< transaction details
 
     ErrorState *lastError = nullptr; ///< last problem details (or nil)
-    Comm::ConnectionPointer lastFailedConnection; ///< nil if none has failed
-    ResolvedPeer lastFailedCandidate; ///< a candidate corresponding to lastFailedConnection
+    ResolvedPeer lastFailedConnection; ///< nil if none has failed
 
     /// whether spare connection attempts disregard happy_eyeballs_* settings
     bool ignoreSpareRestrictions = false;

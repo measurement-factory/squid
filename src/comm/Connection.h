@@ -80,6 +80,10 @@ public:
      */
     ConnectionPointer copyDetails() const;
 
+    /// Copy IPs and some fields, excluding properties, modified on connection opening
+    /// (such as FD, tos, nfmark and others).
+    ConnectionPointer copyAddressDetails() const;
+
     /** Close any open socket. */
     void close();
 

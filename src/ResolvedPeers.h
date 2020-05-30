@@ -19,10 +19,11 @@
 class ResolvedPeerPath
 {
 public:
-    explicit ResolvedPeerPath(const Comm::ConnectionPointer &conn) : connection(conn), available(true) {}
+    explicit ResolvedPeerPath(const Comm::ConnectionPointer &conn) : connection(conn), available(true), dirty(false) {}
 
     Comm::ConnectionPointer connection; ///< (the address of) a path
     bool available; ///< whether this path may be used (i.e., has not been tried already)
+    bool dirty; ///< whether this path was reused (i.e., retried)
 };
 
 class ResolvedPeer;
@@ -39,7 +40,7 @@ public:
     using size_type = Paths::size_type;
     typedef RefCount<ResolvedPeers> Pointer;
 
-    static const size_type npos = std::numeric_limits<size_type>::max();
+    static constexpr auto npos = std::numeric_limits<size_type>::max();
 
     ResolvedPeers();
 
@@ -129,7 +130,13 @@ public:
 
     Comm::Connection &operator *() const { return *connection_; }
 
-    Comm::ConnectionPointer connection() const { return connection_; }
+    /// resolved peer path expressed using a Comm::Connection
+    const Comm::ConnectionPointer &connection() const { return connection_; }
+
+    /// resolved peer path expressed using an (unconnected) Comm::Connection
+    const Comm::ConnectionPointer &address() const { return connection_; }
+
+    void connection(const Comm::ConnectionPointer &conn) { connection_ = conn; }
 
 private:
     Comm::ConnectionPointer connection_; ///< (the address of) a path

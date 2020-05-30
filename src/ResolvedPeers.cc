@@ -29,6 +29,7 @@ ResolvedPeers::retryPath(const ResolvedPeer &path)
     assert(pos < paths_.size());
     assert(!paths_[pos].available);
     paths_[pos].available = true;
+    paths_[pos].dirty = true;
     increaseAvailability();
 
     // if we restored availability of a path that we used to skip, update
@@ -150,7 +151,7 @@ ResolvedPeers::extractFound(const char *description, const Paths::iterator &foun
         while (++pathsToSkip < paths_.size() && !paths_[pathsToSkip].available) {}
     }
 
-    return ResolvedPeer(path.connection, found - paths_.begin());
+    return ResolvedPeer(path.dirty ? path.connection->copyAddressDetails() : path.connection, found - paths_.begin());
 }
 
 bool
