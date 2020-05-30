@@ -58,9 +58,6 @@ private:
 
     Http1::RequestParserPointer parser_;
     HttpRequestMethod method_; ///< parsed HTTP method
-
-    /// temporary hack to avoid creating a true HttpsServer class
-    const bool isHttpsServer;
 };
 
 } // namespace One

@@ -26,8 +26,7 @@ CBDATA_NAMESPACED_CLASS_INIT(Http1, Server);
 
 Http::One::Server::Server(const MasterXaction::Pointer &xact, bool beHttpsServer):
     AsyncJob("Http1::Server"),
-    ConnStateData(xact),
-    isHttpsServer(beHttpsServer)
+    ConnStateData(xact, beHttpsServer)
 {
 }
 
@@ -41,13 +40,6 @@ void
 Http::One::Server::start()
 {
     ConnStateData::start();
-
-    // XXX: Until we create an HttpsServer class, use this hack to allow old
-    // client_side.cc code to manipulate ConnStateData object directly
-    if (isHttpsServer) {
-        postHttpsAccept();
-        return;
-    }
 
     typedef CommCbMemFunT<Server, CommTimeoutCbParams> TimeoutDialer;
     AsyncCall::Pointer timeoutCall =  JobCallback(33, 5,

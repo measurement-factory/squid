@@ -1986,12 +1986,10 @@ ConnStateData::afterClientRead()
         assert(!preservingClientData_);
     }
 
-#if USE_OPENSSL
-    if (parsingTlsHandshake) {
-        parseTlsHandshake();
+    if (isHttpsServer && !switchedToHttps_) {
+        postHttpsAccept();
         return;
     }
-#endif
 
     /* Process next request */
     if (pipeline.empty())
@@ -2201,7 +2199,7 @@ clientLifetimeTimeout(const CommTimeoutCbParams &io)
         io.conn->close();
 }
 
-ConnStateData::ConnStateData(const MasterXaction::Pointer &xact) :
+ConnStateData::ConnStateData(const MasterXaction::Pointer &xact, const bool beHttpsServer) :
     AsyncJob("ConnStateData"), // kids overwrite
     Server(xact),
     bodyParser(nullptr),
@@ -2209,6 +2207,7 @@ ConnStateData::ConnStateData(const MasterXaction::Pointer &xact) :
     sslBumpMode(Ssl::bumpEnd),
     tlsParser(Security::HandshakeParser::fromClient),
 #endif
+    isHttpsServer(beHttpsServer),
     needProxyProtocolHeader_(false),
 #if USE_OPENSSL
     switchedToHttps_(false),
@@ -3007,7 +3006,9 @@ ConnStateData::switchToHttps(ClientHttpRequest *http, Ssl::BumpMode bumpServerMo
     if (insideConnectTunnel)
         preservingClientData_ = shouldPreserveClientData();
 
-    readSomeData();
+#if USE_OPENSSL
+    parseTlsHandshake();
+#endif
 }
 
 void

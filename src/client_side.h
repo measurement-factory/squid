@@ -76,7 +76,7 @@ class ConnStateData : public Server, public HttpControlMsgSink, private Independ
 {
 
 public:
-    explicit ConnStateData(const MasterXactionPointer &xact);
+    explicit ConnStateData(const MasterXactionPointer &xact, const bool beHttpsServer);
     virtual ~ConnStateData();
 
     /* ::Server API */
@@ -373,6 +373,9 @@ protected:
 
     /// whether preservedClientData is valid and should be kept up to date
     bool preservingClientData_;
+
+    /// temporary hack to avoid creating a true HttpsServer class
+    const bool isHttpsServer;
 
 private:
     /* ::Server API */

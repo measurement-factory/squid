@@ -51,7 +51,7 @@ static bool CommandHasPathParameter(const SBuf &cmd);
 
 Ftp::Server::Server(const MasterXaction::Pointer &xact):
     AsyncJob("Ftp::Server"),
-    ConnStateData(xact),
+    ConnStateData(xact, false),
     master(new MasterState),
     uri(),
     host(),
