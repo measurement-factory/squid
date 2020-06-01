@@ -154,7 +154,8 @@ ResolvedPeers::extractFound(const char *description, const Paths::iterator &foun
         while (++pathsToSkip < paths_.size() && !paths_[pathsToSkip].available) {}
     }
 
-    return ResolvedPeer(path.dirty ? path.connection->copyAddressDetails() : path.connection, found - paths_.begin());
+    const auto cleanPath = path.dirty ? path.connection->copyAddressDetails() : path.connection;
+    return ResolvedPeer(cleanPath, found - paths_.begin());
 }
 
 bool
