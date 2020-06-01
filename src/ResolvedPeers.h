@@ -126,9 +126,9 @@ public:
 
     explicit operator bool() const { return static_cast<bool>(connection_); }
 
-    Comm::Connection *operator->() const { return connection_.getRaw(); }
+    Comm::Connection *operator->() const { assert(connection_); return connection_.getRaw(); }
 
-    Comm::Connection &operator *() const { return *connection_; }
+    Comm::Connection &operator *() const { assert(connection_); return *connection_; }
 
     /// resolved peer path expressed using a Comm::Connection
     const Comm::ConnectionPointer &connection() const { return connection_; }
