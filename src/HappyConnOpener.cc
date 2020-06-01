@@ -584,9 +584,12 @@ HappyConnOpener::connectDone(const CommConnectCbParams &params)
     const bool itWasSpare = (params.conn == spare.path.connection());
     Must(itWasPrime != itWasSpare);
 
+    ResolvedPeer obtainedConnection;
     if (itWasPrime) {
+        obtainedConnection = prime.path;
         prime.finish();
     } else {
+        obtainedConnection = spare.path;
         spare.finish();
         if (gotSpareAllowance) {
             TheSpareAllowanceGiver.jobUsedAllowance();
@@ -596,7 +599,7 @@ HappyConnOpener::connectDone(const CommConnectCbParams &params)
 
     const char *what = itWasPrime ? "new prime connection" : "new spare connection";
     if (params.flag == Comm::OK) {
-        sendSuccess(itWasPrime ? prime.path : spare.path, false, what);
+        sendSuccess(obtainedConnection, false, what);
         return;
     }
 
