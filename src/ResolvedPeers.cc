@@ -32,6 +32,10 @@ ResolvedPeers::retryPath(const ResolvedPeer &path)
     paths_[pos].dirty = true;
     increaseAvailability();
 
+    // This probably should be done by callers before retrying the path (but we cannot guarantee that).
+    // Ensure that the connection is closed because we keep the connection reference.
+    path->close();
+
     // if we restored availability of a path that we used to skip, update
     const auto pathsToTheLeft = pos;
     if (pathsToTheLeft < pathsToSkip) {
