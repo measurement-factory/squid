@@ -606,10 +606,10 @@ HappyConnOpener::connectDone(const CommConnectCbParams &params)
     debugs(17, 8, what << " failed: " << params.conn);
     if (const auto peer = params.conn->getPeer())
         peerConnectFailed(peer);
-    params.conn->close(); // TODO: Comm::ConnOpener should do this instead.
+    obtainedConnection->close(); // TODO: Comm::ConnOpener should do this instead.
 
     // remember the last failure (we forward it if we cannot connect anywhere)
-    lastFailedConnection = itWasPrime ? prime.path : spare.path;
+    lastFailedConnection = obtainedConnection;
     delete lastError;
     lastError = nullptr; // in case makeError() throws
     lastError = makeError(ERR_CONNECT_FAIL);
