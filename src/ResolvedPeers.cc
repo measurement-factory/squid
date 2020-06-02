@@ -28,13 +28,12 @@ ResolvedPeers::retryPath(const ResolvedPeer &path)
     assert(pos != npos);
     assert(pos < paths_.size());
     assert(!paths_[pos].available);
-    paths_[pos].available = true;
-    paths_[pos].dirty = true;
-    increaseAvailability();
-
     // This probably should be done by callers before retrying the path (but we cannot guarantee that).
     // Ensure that the connection is closed because we keep the connection reference.
     path->close();
+    paths_[pos].available = true;
+    paths_[pos].dirty = true;
+    increaseAvailability();
 
     // if we restored availability of a path that we used to skip, update
     const auto pathsToTheLeft = pos;
