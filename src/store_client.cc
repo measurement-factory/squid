@@ -544,7 +544,7 @@ store_client::readBody(const char *, ssize_t len)
     // Don't assert disk_io_pending here.. may be called by read_header
     flags.disk_io_pending = false;
     assert(_callback.pending());
-    debugs(90, 3, "storeClientReadBody: len " << len << " offset " << copyInto.offset);
+    debugs(90, 3, "storeClientReadBody: len " << len << "");
 
     if (len < 0)
         return fail();
@@ -559,11 +559,12 @@ store_client::readBody(const char *, ssize_t len)
             /* Copy read data back into memory.
              * copyInto.offset includes headers, which is what mem cache needs
              */
-            const auto mem_offset = entry->mem_obj->endOffset();
+            const auto memOffset = entry->mem_obj->endOffset();
             if (doneParsingHeader) {
                 assert(replyHeaderBytes);
                 entry->mem_obj->write(StoreIOBuffer(replyHeaderBytes, 0));
-            } else if (copyInto.offset == mem_offset && mem_offset > 0) {
+            } else if (copyInto.offset == memOffset && memOffset > 0) {
+                assert(!expectingHeader);
                 entry->mem_obj->write(StoreIOBuffer(len, copyInto.offset, copyInto.data));
             }
         }
