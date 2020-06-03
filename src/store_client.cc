@@ -532,7 +532,9 @@ store_client::parseHttpHeader(const ssize_t len)
         return true;
     } else if (error) {
         stopBufferingHeaderBytes();
-        throw TextException(ToSBuf("Could not parse headers from on disk object, object size=", bufSize), Here());
+        debugs(90, DBG_IMPORTANT, "Could not parse headers from on disk object, object size=" << bufSize);
+        fail();
+        return false;
     }
     // else more data needed
     return false;
@@ -550,7 +552,13 @@ store_client::readBody(const char *, ssize_t len)
         return fail();
 
     const auto expectingHeader = expectingHttpHeader();
-    const auto doneParsingHeader = expectingHeader ? parseHttpHeader(len) : false;
+    auto doneParsingHeader = false;
+    if (expectingHeader) {
+        doneParsingHeader = parseHttpHeader(len);
+        if (!object_ok)
+            return;
+    }
+
     const auto rep = entry->mem_obj ? &entry->mem().baseReply() : nullptr;
     if (len > 0 && rep && entry->mem_obj->inmem_lo == 0 && entry->objectLen() <= (int64_t)Config.Store.maxInMemObjSize && Config.onoff.memory_cache_disk) {
         storeGetMemSpace(len);
