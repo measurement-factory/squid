@@ -99,8 +99,8 @@ public:
     dlink_node node;
     /* Below here is private - do no alter outside storeClient calls */
     StoreIOBuffer copyInto;
-    /// accumulates raw header bytes while parsing large headers (> HTTP_REPLY_BUF_SZ)
-    MemBuf *replyBuffer;
+    /// accumulates raw header bytes while parsing headers (incrementally)
+    MemBuf *replyHeaderBytes;
 
 private:
     bool moreToSend() const;
@@ -112,8 +112,8 @@ private:
     bool startSwapin();
     bool unpackHeader(char const *buf, ssize_t len);
 
-    void initReplyBuffer();
-    void freeReplyBuffer();
+    void startBufferingReplyBytes();
+    void stopBufferingHeaderBytes();
     bool expectingHttpHeader() const;
     bool parseHttpHeader(const ssize_t len);
 

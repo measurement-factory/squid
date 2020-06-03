@@ -48,8 +48,6 @@ CBDATA_CLASS_INIT(store_client);
 
 /* StoreClient */
 
-class IncompleteHeaderException {};
-
 bool
 StoreClient::onCollapsingPath() const
 {
@@ -197,20 +195,20 @@ storeClientCopyEvent(void *data)
 }
 
 void
-store_client::initReplyBuffer()
+store_client::startBufferingReplyBytes()
 {
-    if (!replyBuffer) {
-        replyBuffer = new MemBuf;
+    if (!replyHeaderBytes) {
+        replyHeaderBytes = new MemBuf;
         const auto initialSize = HTTP_REPLY_BUF_SZ > Config.maxReplyHeaderSize ? Config.maxReplyHeaderSize : HTTP_REPLY_BUF_SZ;
-        replyBuffer->init(initialSize, Config.maxReplyHeaderSize);
+        replyHeaderBytes->init(initialSize, Config.maxReplyHeaderSize);
     }
 }
 
 void
-store_client::freeReplyBuffer()
+store_client::stopBufferingHeaderBytes()
 {
-    delete replyBuffer;
-    replyBuffer = nullptr;
+    delete replyHeaderBytes;
+    replyHeaderBytes = nullptr;
 }
 
 store_client::store_client(StoreEntry *e) :
@@ -219,7 +217,7 @@ store_client::store_client(StoreEntry *e) :
     owner(cbdataReference(data)),
 #endif
     entry(e),
-    replyBuffer(nullptr),
+    replyHeaderBytes(nullptr),
     type(e->storeClientType()),
     object_ok(true)
 {
@@ -237,7 +235,7 @@ store_client::store_client(StoreEntry *e) :
 
 store_client::~store_client()
 {
-    freeReplyBuffer();
+    stopBufferingHeaderBytes();
 }
 
 /* copy bytes requested by the client */
@@ -522,18 +520,18 @@ store_client::fileRead()
 bool
 store_client::parseHttpHeader(const ssize_t len)
 {
-    initReplyBuffer();
-    replyBuffer->append(copyInto.data, len);
-    replyBuffer->terminate();
+    startBufferingReplyBytes();
+    replyHeaderBytes->append(copyInto.data, len);
+    replyHeaderBytes->terminate();
     auto error = Http::scNone;
     auto &adjustableReply = entry->mem_obj->adjustableBaseReply();
-    const auto bufSize = replyBuffer->size;
-    if (adjustableReply.parse(replyBuffer->buf, replyBuffer->size, 0, &error)) {
+    const auto bufSize = replyHeaderBytes->size;
+    if (adjustableReply.parse(replyHeaderBytes->buf, replyHeaderBytes->size, 0, &error)) {
         assert(adjustableReply.pstate == Http::Message::psParsed);
         assert(!expectingHttpHeader()); // paranoid
         return true;
     } else if (error) {
-        freeReplyBuffer();
+        stopBufferingHeaderBytes();
         throw TextException(ToSBuf("Could not parse headers from on disk object, object size=", bufSize), Here());
     }
     // else more data needed
@@ -563,8 +561,8 @@ store_client::readBody(const char *, ssize_t len)
              */
             const auto mem_offset = entry->mem_obj->endOffset();
             if (doneParsingHeader) {
-                assert(replyBuffer);
-                entry->mem_obj->write(StoreIOBuffer(replyBuffer, 0));
+                assert(replyHeaderBytes);
+                entry->mem_obj->write(StoreIOBuffer(replyHeaderBytes, 0));
             } else if (copyInto.offset == mem_offset && mem_offset > 0) {
                 entry->mem_obj->write(StoreIOBuffer(len, copyInto.offset, copyInto.data));
             }
@@ -572,7 +570,7 @@ store_client::readBody(const char *, ssize_t len)
     }
 
     if (doneParsingHeader)
-        freeReplyBuffer();
+        stopBufferingHeaderBytes();
 
     if (expectingHeader && !doneParsingHeader) {
         // more data needed to parse the header
