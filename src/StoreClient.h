@@ -99,6 +99,7 @@ public:
     dlink_node node;
     /* Below here is private - do no alter outside storeClient calls */
     StoreIOBuffer copyInto;
+    /// accumulates raw header bytes while parsing large headers (> HTTP_REPLY_BUF_SZ)
     MemBuf *replyBuffer;
 
 private:

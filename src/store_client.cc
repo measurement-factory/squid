@@ -514,7 +514,8 @@ store_client::fileRead()
               copyInto.data,
               copyInto.length,
               copyInto.offset + mem->swap_hdr_sz,
-              expectingHttpHeader() ? storeClientReadHeader : storeClientReadBody,
+              mem->swap_hdr_sz == 0 ? storeClientReadHeader
+              : storeClientReadBody,
               this);
 }
 
@@ -530,7 +531,6 @@ store_client::parseHttpHeader(const ssize_t len)
     if (adjustableReply.parse(replyBuffer->buf, replyBuffer->size, 0, &error)) {
         assert(adjustableReply.pstate == Http::Message::psParsed);
         assert(!expectingHttpHeader()); // paranoid
-        freeReplyBuffer();
         return true;
     } else if (error) {
         freeReplyBuffer();
@@ -551,7 +551,8 @@ store_client::readBody(const char *, ssize_t len)
     if (len < 0)
         return fail();
 
-    const auto doneParsingHttpHeader = expectingHttpHeader() ? parseHttpHeader(len) : false;
+    const auto expectingHeader = expectingHttpHeader();
+    const auto doneParsingHeader = expectingHeader ? parseHttpHeader(len) : false;
     const auto rep = entry->mem_obj ? &entry->mem().baseReply() : nullptr;
     if (len > 0 && rep && entry->mem_obj->inmem_lo == 0 && entry->objectLen() <= (int64_t)Config.Store.maxInMemObjSize && Config.onoff.memory_cache_disk) {
         storeGetMemSpace(len);
@@ -560,18 +561,24 @@ store_client::readBody(const char *, ssize_t len)
             /* Copy read data back into memory.
              * copyInto.offset includes headers, which is what mem cache needs
              */
-            int64_t mem_offset = entry->mem_obj->endOffset();
-            // do not copy not-parsed-yet headers
-            if (doneParsingHttpHeader || (mem_offset > 0 && copyInto.offset == mem_offset)) {
+            const auto mem_offset = entry->mem_obj->endOffset();
+            if (doneParsingHeader) {
+                assert(replyBuffer);
+                entry->mem_obj->write(StoreIOBuffer(replyBuffer, 0));
+            } else if (copyInto.offset == mem_offset && mem_offset > 0) {
                 entry->mem_obj->write(StoreIOBuffer(len, copyInto.offset, copyInto.data));
             }
         }
     }
 
-    if (expectingHttpHeader()) {
-        // more data needed
+    if (doneParsingHeader)
+        freeReplyBuffer();
+
+    if (expectingHeader && !doneParsingHeader) {
+        // more data needed to parse the header
         copyInto.offset += len;
-        throw IncompleteHeaderException();
+        fileRead();
+        return;
     }
 
     callback(len);
@@ -657,6 +664,8 @@ store_client::expectingHttpHeader() const
 void
 store_client::readHeader(char const *buf, ssize_t len)
 {
+    MemObject *const mem = entry->mem_obj;
+
     assert(flags.disk_io_pending);
     flags.disk_io_pending = false;
     assert(_callback.pending());
@@ -668,34 +677,28 @@ store_client::readHeader(char const *buf, ssize_t len)
     if (len < 0)
         return fail();
 
-    MemObject *const mem = entry->mem_obj;
-    const auto initialRead = (mem->swap_hdr_sz == 0);
-
-    if (initialRead && !unpackHeader(buf, len))
-        return fail();
+    if (!unpackHeader(buf, len)) {
+        fail();
+        return;
+    }
 
     /*
      * If our last read got some data the client wants, then give
      * it to them, otherwise schedule another read.
      */
-    const auto body_sz = initialRead ? len - mem->swap_hdr_sz : len;
+    size_t body_sz = len - mem->swap_hdr_sz;
 
-    try {
-        // if (copyInto.offset < static_cast<int64_t>(body_sz)) {
+    if (copyInto.offset < static_cast<int64_t>(body_sz)) {
         /*
          * we have (part of) what they want
          */
         size_t copy_sz = min(copyInto.length, body_sz);
         debugs(90, 3, "storeClientReadHeader: copying " << copy_sz << " bytes of body");
-        if (initialRead)
-            memmove(copyInto.data, copyInto.data + mem->swap_hdr_sz, copy_sz);
+        memmove(copyInto.data, copyInto.data + mem->swap_hdr_sz, copy_sz);
+
         readBody(copyInto.data, copy_sz);
+
         return;
-    } catch (const IncompleteHeaderException &) {
-        debugs(90, 2, "Could not parse header: more data needed");
-    } catch (...) {
-        debugs(90, DBG_IMPORTANT,  CurrentException);
-        return fail();
     }
 
     /*
