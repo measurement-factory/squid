@@ -220,6 +220,7 @@ public:
     void postHttpsAccept();
 
 #if USE_OPENSSL
+    void sslBumpAccessCheck();
     /// Initializes and starts a peek-and-splice negotiation with the SSL client
     void startPeekAndSplice();
 
