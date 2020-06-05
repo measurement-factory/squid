@@ -86,7 +86,7 @@ std::ostream &operator <<(std::ostream &os, const HappyConnOpenerAnswer &answer)
     if (answer.error.set())
         os << "bad ";
     if (answer.conn)
-        os << (answer.reused ? "reused " : "new ") << answer.conn.connection();
+        os << (answer.reused ? "reused " : "new ") << answer.conn;
     if (answer.n_tries != 1)
         os << " after " << answer.n_tries;
     return os;
@@ -470,7 +470,7 @@ HappyConnOpener::futureAnswer(const ResolvedPeer &conn)
 void
 HappyConnOpener::sendSuccess(const ResolvedPeer &conn, const bool reused, const char *connKind)
 {
-    debugs(17, 4, connKind << ": " << conn.connection());
+    debugs(17, 4, connKind << ": " << conn);
     if (auto *answer = futureAnswer(conn)) {
         answer->reused = reused;
         assert(!answer->error);
@@ -492,7 +492,7 @@ HappyConnOpener::cancelAttempt(Attempt &attempt, const char *reason)
 void
 HappyConnOpener::sendFailure()
 {
-    debugs(17, 3, lastFailedConnection.address());
+    debugs(17, 3, lastFailedConnection);
     if (auto *answer = futureAnswer(lastFailedConnection)) {
         if (!lastError)
             lastError = makeError(ERR_GATEWAY_FAILURE);
@@ -533,7 +533,7 @@ HappyConnOpener::reuseOldConnection(ResolvedPeer &dest)
 {
     assert(allowPconn_);
 
-    if (const auto pconn = fwdPconnPool->pop(dest.address(), host_, retriable_)) {
+    if (const auto pconn = fwdPconnPool->pop(dest, host_, retriable_)) {
         ++n_tries;
         dest.connection(pconn);
         sendSuccess(dest, true, "reused connection");
@@ -562,8 +562,7 @@ HappyConnOpener::openFreshConnection(Attempt &attempt, ResolvedPeer &dest)
     typedef CommCbMemFunT<HappyConnOpener, CommConnectCbParams> Dialer;
     AsyncCall::Pointer callConnect = JobCallback(48, 5, Dialer, this, HappyConnOpener::connectDone);
     const time_t connTimeout = dest->connectTimeout(fwdStart);
-    auto conn = dest.address();
-    auto cs = new Comm::ConnOpener(conn, callConnect, connTimeout);
+    Comm::ConnOpener *cs = new Comm::ConnOpener(dest, callConnect, connTimeout);
     if (!dest->getPeer())
         cs->setHost(host_);
 
@@ -580,8 +579,8 @@ void
 HappyConnOpener::connectDone(const CommConnectCbParams &params)
 {
     Must(params.conn);
-    const bool itWasPrime = (params.conn == prime.path.connection());
-    const bool itWasSpare = (params.conn == spare.path.connection());
+    const bool itWasPrime = (params.conn == prime.path);
+    const bool itWasSpare = (params.conn == spare.path);
     Must(itWasPrime != itWasSpare);
 
     ResolvedPeer obtainedConnection;
@@ -606,7 +605,7 @@ HappyConnOpener::connectDone(const CommConnectCbParams &params)
     debugs(17, 8, what << " failed: " << params.conn);
     if (const auto peer = params.conn->getPeer())
         peerConnectFailed(peer);
-    obtainedConnection->close(); // TODO: Comm::ConnOpener should do this instead.
+    params.conn->close(); // TODO: Comm::ConnOpener should do this instead.
 
     // remember the last failure (we forward it if we cannot connect anywhere)
     lastFailedConnection = obtainedConnection;
@@ -722,7 +721,7 @@ HappyConnOpener::checkForNewConnection()
     if (!destinations->empty()) {
         if (!currentPeer) {
             auto extracted = destinations->extractFront();
-            currentPeer = extracted.address();
+            currentPeer = extracted;
             Must(currentPeer);
             debugs(17, 7, "new peer " << *currentPeer);
             primeStart = current_dtime;

@@ -22,11 +22,14 @@ ResolvedPeers::ResolvedPeers()
 void
 ResolvedPeers::retryPath(const ResolvedPeer &path)
 {
-    const auto pos = path.position_;
-    debugs(17, 4, pos);
+    // branch TODO: report position when printing ResolvedPeer
+    debugs(17, 4, path);
     assert(path);
+
+    const auto pos = path.position_;
     assert(pos != npos);
     assert(pos < paths_.size());
+
     assert(!paths_[pos].available);
     // This probably should be done by callers before retrying the path (but we cannot guarantee that).
     // Ensure that the connection is closed because we keep the connection reference.
@@ -125,7 +128,7 @@ ResolvedPeers::extractPrime(const Comm::Connection &currentPeer)
         return extractFound("same-peer same-family match: ", found);
 
     debugs(17, 7, "no same-peer same-family paths");
-    return ResolvedPeer();
+    return nullptr;
 }
 
 ResolvedPeer
@@ -136,7 +139,7 @@ ResolvedPeers::extractSpare(const Comm::Connection &currentPeer)
         return extractFound("same-peer different-family match: ", found);
 
     debugs(17, 7, "no same-peer different-family paths");
-    return ResolvedPeer();
+    return nullptr;
 }
 
 /// convenience method to finish a successful extract*() call

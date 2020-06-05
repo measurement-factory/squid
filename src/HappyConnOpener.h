@@ -170,7 +170,7 @@ private:
 
     private:
         /// cleans up after the attempt ends (successfully or otherwise)
-        void clear() { path = ResolvedPeer(); connector = nullptr; opener = nullptr; }
+        void clear() { path = nullptr; connector = nullptr; opener = nullptr; }
     };
 
     /* AsyncJob API */
@@ -202,7 +202,7 @@ private:
 
     ErrorState *makeError(const err_type type) const;
     Answer *futureAnswer(const ResolvedPeer &);
-    void sendSuccess(const ResolvedPeer &candidate, const bool reused, const char *connKind);
+    void sendSuccess(const ResolvedPeer &conn, const bool reused, const char *connKind);
     void sendFailure();
     void cancelAttempt(Attempt &, const char *reason);
 

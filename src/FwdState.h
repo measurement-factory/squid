@@ -189,10 +189,7 @@ private:
 
     HappyConnOpenerPointer connOpener; ///< current connection opening job
     ResolvedPeersPointer destinations; ///< paths for forwarding the request
-    /// an RMA for returning the serverConn path to `destinations` (or falsy)
-    /// a falsy value implies that serverConn is unrelated to `destinations`
-    ResolvedPeer serverConnReceipt;
-    Comm::ConnectionPointer serverConn; ///< a successfully opened connection to a server.
+    ResolvedPeer serverConn; ///< a successfully opened connection to a server
 
     AsyncCall::Pointer closeHandler; ///< The serverConn close handler
 

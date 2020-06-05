@@ -120,7 +120,9 @@ private:
 class ResolvedPeer
 {
 public:
-    explicit ResolvedPeer(const Comm::ConnectionPointer &conn, const ResolvedPeers::size_type pos) : connection_(conn), position_(pos) {}
+    ResolvedPeer(nullptr_t): connection_(nullptr), position_(ResolvedPeers::npos) {}
+
+    ResolvedPeer(const Comm::ConnectionPointer &conn, const ResolvedPeers::size_type pos) : connection_(conn), position_(pos) {}
 
     ResolvedPeer() : connection_(nullptr), position_(ResolvedPeers::npos) {}
 
@@ -130,13 +132,12 @@ public:
 
     Comm::Connection &operator *() const { assert(connection_); return *connection_; }
 
-    /// resolved peer path expressed using a Comm::Connection
-    const Comm::ConnectionPointer &connection() const { return connection_; }
-
-    /// resolved peer path expressed using an (unconnected) Comm::Connection
-    const Comm::ConnectionPointer &address() const { return connection_; }
+    operator Comm::ConnectionPointer&() { return connection_; }
+    operator const Comm::ConnectionPointer&() const { return connection_; }
 
     void connection(const Comm::ConnectionPointer &conn) { connection_ = conn; }
+
+    bool returnable() const { return position_ != ResolvedPeers::npos; }
 
 private:
     Comm::ConnectionPointer connection_; ///< (the address of) a path
