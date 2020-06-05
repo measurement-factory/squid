@@ -1987,6 +1987,10 @@ ConnStateData::afterClientRead()
     }
 
 #if USE_OPENSSL
+    if (parsingTlsHandshake) {
+        parseTlsHandshake();
+        return;
+    }
     if (port->transport.protocol == AnyP::PROTO_HTTPS && !switchedToHttps_ && port->flags.tunnelSslBumping) {
         httpsSslBumpStep1AccessCheck();
         return;
