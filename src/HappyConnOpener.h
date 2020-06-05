@@ -79,7 +79,7 @@ public:
 
     /// on success: an open, ready-to-use Squid-to-peer connection (with a return receipt)
     /// on failure: either a closed failed Squid-to-peer connection or nil (w/o a return receipt)
-    ResolvedPeer conn;
+    PeerConnectionPointer conn;
 
     // answer recipients must clear the error member in order to keep its info
     // XXX: We should refcount ErrorState instead of cbdata-protecting it.
@@ -164,7 +164,7 @@ private:
         /// aborts an in-progress attempt
         void cancel(const char *reason);
 
-        ResolvedPeer path; ///< the destination we are connecting to
+        PeerConnectionPointer path; ///< the destination we are connecting to
         AsyncCall::Pointer connector; ///< our opener callback
         Comm::ConnOpener::Pointer opener; ///< connects to path and calls us
 
@@ -186,9 +186,9 @@ private:
     void stopWaitingForSpareAllowance();
     void maybeOpenSpareConnection();
 
-    void startConnecting(Attempt &, ResolvedPeer &);
-    void openFreshConnection(Attempt &, ResolvedPeer &);
-    bool reuseOldConnection(ResolvedPeer &);
+    void startConnecting(Attempt &, PeerConnectionPointer &);
+    void openFreshConnection(Attempt &, PeerConnectionPointer &);
+    bool reuseOldConnection(PeerConnectionPointer &);
 
     void connectDone(const CommConnectCbParams &);
 
@@ -201,8 +201,8 @@ private:
     bool ranOutOfTimeOrAttempts() const;
 
     ErrorState *makeError(const err_type type) const;
-    Answer *futureAnswer(const ResolvedPeer &);
-    void sendSuccess(const ResolvedPeer &conn, const bool reused, const char *connKind);
+    Answer *futureAnswer(const PeerConnectionPointer &);
+    void sendSuccess(const PeerConnectionPointer &conn, const bool reused, const char *connKind);
     void sendFailure();
     void cancelAttempt(Attempt &, const char *reason);
 
@@ -230,7 +230,7 @@ private:
     AccessLogEntryPointer ale; ///< transaction details
 
     ErrorState *lastError = nullptr; ///< last problem details (or nil)
-    ResolvedPeer lastFailedConnection; ///< nil if none has failed
+    PeerConnectionPointer lastFailedConnection; ///< nil if none has failed
 
     /// whether spare connection attempts disregard happy_eyeballs_* settings
     bool ignoreSpareRestrictions = false;

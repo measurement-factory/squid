@@ -26,7 +26,7 @@ public:
     bool dirty; ///< whether this path was reused (i.e., retried)
 };
 
-class ResolvedPeer;
+class PeerConnectionPointer;
 
 /// cache_peer and origin server addresses (a.k.a. paths)
 /// selected and resolved by the peering code
@@ -51,18 +51,18 @@ public:
     void addPath(const Comm::ConnectionPointer &);
 
     /// re-inserts the previously extracted address into the same position
-    void retryPath(const ResolvedPeer &);
+    void retryPath(const PeerConnectionPointer &);
 
     /// extracts and returns the first queued address
-    ResolvedPeer extractFront();
+    PeerConnectionPointer extractFront();
 
     /// extracts and returns the first same-peer same-family address
     /// \returns nil if it cannot find the requested address
-    ResolvedPeer extractPrime(const Comm::Connection &currentPeer);
+    PeerConnectionPointer extractPrime(const Comm::Connection &currentPeer);
 
     /// extracts and returns the first same-peer different-family address
     /// \returns nil if it cannot find the requested address
-    ResolvedPeer extractSpare(const Comm::Connection &currentPeer);
+    PeerConnectionPointer extractSpare(const Comm::Connection &currentPeer);
 
     /// whether extractSpare() would return a non-nil path right now
     bool haveSpare(const Comm::Connection &currentPeer);
@@ -97,7 +97,7 @@ private:
     Finding findSpare(const Comm::Connection &currentPeer);
     Finding findPrime(const Comm::Connection &currentPeer);
     Finding findPeer(const Comm::Connection &currentPeer);
-    ResolvedPeer extractFound(const char *description, const Paths::iterator &found);
+    PeerConnectionPointer extractFound(const char *description, const Paths::iterator &found);
     Finding makeFinding(const Paths::iterator &found, bool foundOther);
 
     bool doneWith(const Finding &findings) const;
@@ -119,14 +119,14 @@ private:
 /// An invasive reference-counting Comm::Connection pointer that also keeps an
 /// (optional) ResolvedPeers position for the ResolvedPeers::retryPath() usage.
 /// Reference counting mechanism is compatible with Comm::ConnectionPointer.
-class ResolvedPeer
+class PeerConnectionPointer
 {
 public:
     using size_type = ResolvedPeers::size_type;
 
-    ResolvedPeer() = default;
-    ResolvedPeer(nullptr_t): ResolvedPeer() {} ///< implicit nullptr conversion
-    ResolvedPeer(const Comm::ConnectionPointer &conn, const size_type pos): connection_(conn), position_(pos) {}
+    PeerConnectionPointer() = default;
+    PeerConnectionPointer(nullptr_t): PeerConnectionPointer() {} ///< implicit nullptr conversion
+    PeerConnectionPointer(const Comm::ConnectionPointer &conn, const size_type pos): connection_(conn), position_(pos) {}
 
     /* read-only pointer API; for Connection assignment, see finalize() */
     explicit operator bool() const { return static_cast<bool>(connection_); }

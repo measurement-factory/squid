@@ -454,7 +454,7 @@ HappyConnOpener::makeError(const err_type type) const
 
 /// \returns pre-filled Answer if the initiator needs an answer (or nil)
 HappyConnOpener::Answer *
-HappyConnOpener::futureAnswer(const ResolvedPeer &conn)
+HappyConnOpener::futureAnswer(const PeerConnectionPointer &conn)
 {
     if (callback_ && !callback_->canceled()) {
         const auto answer = dynamic_cast<Answer *>(callback_->getDialer());
@@ -468,7 +468,7 @@ HappyConnOpener::futureAnswer(const ResolvedPeer &conn)
 
 /// send a successful result to the initiator (if it still needs an answer)
 void
-HappyConnOpener::sendSuccess(const ResolvedPeer &conn, const bool reused, const char *connKind)
+HappyConnOpener::sendSuccess(const PeerConnectionPointer &conn, const bool reused, const char *connKind)
 {
     debugs(17, 4, connKind << ": " << conn);
     if (auto *answer = futureAnswer(conn)) {
@@ -513,7 +513,7 @@ HappyConnOpener::noteCandidatesChange()
 
 /// starts opening (or reusing) a connection to the given destination
 void
-HappyConnOpener::startConnecting(Attempt &attempt, ResolvedPeer &dest)
+HappyConnOpener::startConnecting(Attempt &attempt, PeerConnectionPointer &dest)
 {
     Must(!attempt.path);
     Must(!attempt.connector);
@@ -529,7 +529,7 @@ HappyConnOpener::startConnecting(Attempt &attempt, ResolvedPeer &dest)
 /// \returns true if and only if reuse was possible
 /// must be called via startConnecting()
 bool
-HappyConnOpener::reuseOldConnection(ResolvedPeer &dest)
+HappyConnOpener::reuseOldConnection(PeerConnectionPointer &dest)
 {
     assert(allowPconn_);
 
@@ -546,7 +546,7 @@ HappyConnOpener::reuseOldConnection(ResolvedPeer &dest)
 /// opens a fresh connection to the given destination
 /// must be called via startConnecting()
 void
-HappyConnOpener::openFreshConnection(Attempt &attempt, ResolvedPeer &dest)
+HappyConnOpener::openFreshConnection(Attempt &attempt, PeerConnectionPointer &dest)
 {
 #if URL_CHECKSUM_DEBUG
     entry->mem_obj->checkUrlChecksum();
@@ -583,7 +583,7 @@ HappyConnOpener::connectDone(const CommConnectCbParams &params)
     const bool itWasSpare = (params.conn == spare.path);
     Must(itWasPrime != itWasSpare);
 
-    ResolvedPeer obtainedConnection;
+    PeerConnectionPointer obtainedConnection;
     if (itWasPrime) {
         obtainedConnection = prime.path;
         prime.finish();

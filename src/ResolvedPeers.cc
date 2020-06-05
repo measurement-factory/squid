@@ -20,9 +20,9 @@ ResolvedPeers::ResolvedPeers()
 }
 
 void
-ResolvedPeers::retryPath(const ResolvedPeer &path)
+ResolvedPeers::retryPath(const PeerConnectionPointer &path)
 {
-    // branch TODO: report position when printing ResolvedPeer
+    // branch TODO: report position when printing PeerConnectionPointer
     debugs(17, 4, path);
     assert(path);
 
@@ -113,14 +113,14 @@ ResolvedPeers::findPeer(const Comm::Connection &currentPeer)
     return makeFinding(path, foundNext);
 }
 
-ResolvedPeer
+PeerConnectionPointer
 ResolvedPeers::extractFront()
 {
     Must(!empty());
     return extractFound("first: ", start());
 }
 
-ResolvedPeer
+PeerConnectionPointer
 ResolvedPeers::extractPrime(const Comm::Connection &currentPeer)
 {
     const auto found = findPrime(currentPeer).first;
@@ -131,7 +131,7 @@ ResolvedPeers::extractPrime(const Comm::Connection &currentPeer)
     return nullptr;
 }
 
-ResolvedPeer
+PeerConnectionPointer
 ResolvedPeers::extractSpare(const Comm::Connection &currentPeer)
 {
     const auto found = findSpare(currentPeer).first;
@@ -143,7 +143,7 @@ ResolvedPeers::extractSpare(const Comm::Connection &currentPeer)
 }
 
 /// convenience method to finish a successful extract*() call
-ResolvedPeer
+PeerConnectionPointer
 ResolvedPeers::extractFound(const char *description, const Paths::iterator &found)
 {
     auto &path = *found;
@@ -158,7 +158,7 @@ ResolvedPeers::extractFound(const char *description, const Paths::iterator &foun
     }
 
     const auto cleanPath = path.dirty ? path.connection->copyAddressDetails() : path.connection;
-    return ResolvedPeer(cleanPath, found - paths_.begin());
+    return PeerConnectionPointer(cleanPath, found - paths_.begin());
 }
 
 bool

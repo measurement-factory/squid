@@ -935,7 +935,7 @@ FwdState::successfullyConnectedToPeer()
 
 /// commits to using the given open to-peer connection
 void
-FwdState::syncWithServerConn(const ResolvedPeer &conn, const char *host, const bool reused)
+FwdState::syncWithServerConn(const PeerConnectionPointer &conn, const char *host, const bool reused)
 {
     Must(Comm::IsConnOpen(conn));
     serverConn = conn;
