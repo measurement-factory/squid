@@ -220,7 +220,10 @@ public:
     void postHttpsAccept();
 
 #if USE_OPENSSL
-    void sslBumpAccessCheck();
+    /// initiates acl checks for step1 SSL bump
+    void httpsSslBumpStep1AccessCheck();
+    /// callback for httpsSslBumpStep1AccessCheck()
+    void httpsSslBumpStep1AccessCheckDone(const Acl::Answer answer);
     /// Initializes and starts a peek-and-splice negotiation with the SSL client
     void startPeekAndSplice();
 

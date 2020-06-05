@@ -1986,10 +1986,12 @@ ConnStateData::afterClientRead()
         assert(!preservingClientData_);
     }
 
+#if USE_OPENSSL
     if (port->transport.protocol == AnyP::PROTO_HTTPS && !switchedToHttps_ && port->flags.tunnelSslBumping) {
-        sslBumpAccessCheck();
+        httpsSslBumpStep1AccessCheck();
         return;
     }
+#endif
 
     /* Process next request */
     if (pipeline.empty())
@@ -2574,33 +2576,35 @@ httpsEstablish(ConnStateData *connState, const Security::ContextPointer &ctx)
 }
 
 #if USE_OPENSSL
-/**
- * A callback function to use with the ACLFilledChecklist callback.
- */
-static void
-httpsSslBumpAccessCheckDone(Acl::Answer answer, void *data)
+void
+HttpsSslBumpStep1AccessCheckDone(Acl::Answer answer, void *data)
 {
-    ConnStateData *connState = (ConnStateData *) data;
+    auto connState = static_cast<ConnStateData *>(data);
+    connState->httpsSslBumpStep1AccessCheckDone(answer);
+}
 
+void
+ConnStateData::httpsSslBumpStep1AccessCheckDone(const Acl::Answer answer)
+{
     // if the connection is closed or closing, just return.
-    if (!connState->isOpen())
+    if (!isOpen())
         return;
 
     if (answer.allowed()) {
-        debugs(33, 2, "sslBump action " << Ssl::bumpMode(answer.kind) << "needed for " << connState->clientConnection);
-        connState->sslBumpMode = static_cast<Ssl::BumpMode>(answer.kind);
+        debugs(33, 2, "sslBump action " << Ssl::bumpMode(answer.kind) << "needed for " << clientConnection);
+        sslBumpMode = static_cast<Ssl::BumpMode>(answer.kind);
     } else {
-        debugs(33, 3, "sslBump not needed for " << connState->clientConnection);
-        connState->sslBumpMode = Ssl::bumpSplice;
+        debugs(33, 3, "sslBump not needed for " << clientConnection);
+        sslBumpMode = Ssl::bumpSplice;
     }
 
-    if (connState->sslBumpMode == Ssl::bumpTerminate) {
-        connState->clientConnection->close();
+    if (sslBumpMode == Ssl::bumpTerminate) {
+        clientConnection->close();
         return;
     }
 
-    if (!connState->fakeAConnectRequest("ssl-bump", connState->inBuf))
-        connState->clientConnection->close();
+    if (!fakeAConnectRequest("ssl-bump", inBuf))
+        clientConnection->close();
 }
 #endif
 
@@ -2642,13 +2646,15 @@ ConnStateData::postHttpsAccept()
 
 #if USE_OPENSSL
 void
-ConnStateData::sslBumpAccessCheck()
+ConnStateData::httpsSslBumpStep1AccessCheck()
 {
     debugs(33, 5, "accept transparent connection: " << clientConnection);
+    assert(port->transport.protocol == AnyP::PROTO_HTTPS);
     assert(port->flags.tunnelSslBumping);
+    assert(!switchedToHttps_);
 
     if (!Config.accessList.ssl_bump) {
-        httpsSslBumpAccessCheckDone(ACCESS_DENIED, this);
+        httpsSslBumpStep1AccessCheckDone(ACCESS_DENIED);
         return;
     }
 
@@ -2685,7 +2691,7 @@ ConnStateData::sslBumpAccessCheck()
     ClientHttpRequest *http = context ? context->http : nullptr;
     const char *log_uri = http ? http->log_uri : nullptr;
     acl_checklist->syncAle(request, log_uri);
-    acl_checklist->nonBlockingCheck(httpsSslBumpAccessCheckDone, this);
+    acl_checklist->nonBlockingCheck(HttpsSslBumpStep1AccessCheckDone, this);
 }
 
 void
@@ -3005,9 +3011,7 @@ ConnStateData::switchToHttps(ClientHttpRequest *http, Ssl::BumpMode bumpServerMo
     if (insideConnectTunnel)
         preservingClientData_ = shouldPreserveClientData();
 
-#if USE_OPENSSL
     parseTlsHandshake();
-#endif
 }
 
 void
