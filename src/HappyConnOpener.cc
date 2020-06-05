@@ -484,7 +484,7 @@ void
 HappyConnOpener::cancelAttempt(Attempt &attempt, const char *reason)
 {
     Must(attempt);
-    destinations->retryPath(attempt.path); // before attempt.cancel() clears path
+    destinations->returnPath(attempt.path); // before attempt.cancel() clears path
     attempt.cancel(reason);
 }
 
@@ -583,12 +583,12 @@ HappyConnOpener::connectDone(const CommConnectCbParams &params)
     const bool itWasSpare = (params.conn == spare.path);
     Must(itWasPrime != itWasSpare);
 
-    PeerConnectionPointer obtainedConnection;
+    PeerConnectionPointer handledPath;
     if (itWasPrime) {
-        obtainedConnection = prime.path;
+        handledPath = prime.path;
         prime.finish();
     } else {
-        obtainedConnection = spare.path;
+        handledPath = spare.path;
         spare.finish();
         if (gotSpareAllowance) {
             TheSpareAllowanceGiver.jobUsedAllowance();
@@ -598,7 +598,7 @@ HappyConnOpener::connectDone(const CommConnectCbParams &params)
 
     const char *what = itWasPrime ? "new prime connection" : "new spare connection";
     if (params.flag == Comm::OK) {
-        sendSuccess(obtainedConnection, false, what);
+        sendSuccess(handledPath, false, what);
         return;
     }
 
@@ -608,7 +608,7 @@ HappyConnOpener::connectDone(const CommConnectCbParams &params)
     params.conn->close(); // TODO: Comm::ConnOpener should do this instead.
 
     // remember the last failure (we forward it if we cannot connect anywhere)
-    lastFailedConnection = obtainedConnection;
+    lastFailedConnection = handledPath;
     delete lastError;
     lastError = nullptr; // in case makeError() throws
     lastError = makeError(ERR_CONNECT_FAIL);
@@ -720,12 +720,14 @@ HappyConnOpener::checkForNewConnection()
     // open a new prime and/or a new spare connection if needed
     if (!destinations->empty()) {
         if (!currentPeer) {
-            auto extracted = destinations->extractFront();
-            currentPeer = extracted;
+            auto newPrime = destinations->extractFront();
+            currentPeer = newPrime;
             Must(currentPeer);
             debugs(17, 7, "new peer " << *currentPeer);
             primeStart = current_dtime;
-            startConnecting(prime, extracted);
+            startConnecting(prime, newPrime);
+            // XXX: if reuseOldConnection() in startConnecting() above succeeds,
+            // then we should not get here, and Must(prime) below will fail.
             maybeGivePrimeItsChance();
             Must(prime); // entering state #1.1
         } else {

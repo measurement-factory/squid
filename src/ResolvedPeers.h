@@ -40,6 +40,7 @@ public:
     using size_type = Paths::size_type;
     typedef RefCount<ResolvedPeers> Pointer;
 
+    /// marks non-returnable() PeerConnectionPointer objects
     static constexpr auto npos = std::numeric_limits<size_type>::max();
 
     ResolvedPeers();
@@ -50,8 +51,9 @@ public:
     /// add a candidate path to try after all the existing paths
     void addPath(const Comm::ConnectionPointer &);
 
-    /// re-inserts the previously extracted address into the same position
-    void retryPath(const PeerConnectionPointer &);
+    /// makes the previously extracted path available for extraction at its
+    /// original position; the caller must check that the path is returnable()
+    void returnPath(const PeerConnectionPointer &);
 
     /// extracts and returns the first queued address
     PeerConnectionPointer extractFront();
@@ -148,7 +150,7 @@ public:
 private:
     static constexpr auto npos = ResolvedPeers::npos;
 
-    /// half-baked, open, or failed Comm::Connection
+    /// half-baked, open, failed, or closed Comm::Connection (or nil)
     Comm::ConnectionPointer connection_;
 
     /// ResolvedPeers-maintained membership index (or npos)

@@ -55,8 +55,10 @@ Comm::Connection::~Connection()
     delete tlsHistory;
 }
 
+// Branch TODO: Once the XXX below is resolved, refactor cloneIdentDetails() to
+// call copyDestinationDetails() (to reduce code duplication).
 Comm::ConnectionPointer
-Comm::Connection::copyDetails() const
+Comm::Connection::cloneIdentDetails() const
 {
     ConnectionPointer c = new Comm::Connection;
 
@@ -78,17 +80,17 @@ Comm::Connection::copyDetails() const
 }
 
 Comm::ConnectionPointer
-Comm::Connection::copyAddressDetails() const
+Comm::Connection::cloneDestinationDetails() const
 {
-    ConnectionPointer c = new Comm::Connection;
-
+    const ConnectionPointer c = new Comm::Connection;
+    // Branch XXX: Do we really need to copy the local address? Does some peer
+    // selection code sets it? I doubt it is always set by the peer selection
+    // code. If some peer selection code paths set it and some do not, we have
+    // an even bigger problem because this copying would have to be conditional.
     c->setAddrs(local, remote);
     c->peerType = peerType;
     c->flags = flags;
-
-    // ensure we have a cbdata reference to peer_ not a straight ptr copy.
     c->peer_ = cbdataReference(getPeer());
-
     return c;
 }
 

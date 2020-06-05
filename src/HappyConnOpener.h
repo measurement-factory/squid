@@ -77,8 +77,8 @@ public:
     /// whether HappyConnOpener succeeded, returning a usable connection
     bool success() const { return !error; }
 
-    /// on success: an open, ready-to-use Squid-to-peer connection (with a return receipt)
-    /// on failure: either a closed failed Squid-to-peer connection or nil (w/o a return receipt)
+    /// on success: an open, ready-to-use, returnable() Squid-to-peer connection
+    /// on failure: either a closed failed Squid-to-peer connection or nil
     PeerConnectionPointer conn;
 
     // answer recipients must clear the error member in order to keep its info

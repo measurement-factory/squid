@@ -22,7 +22,8 @@ void Comm::AcceptLimiter::kick() STUB
 #include "comm/Connection.h"
 Comm::Connection::Connection() STUB
 Comm::Connection::~Connection() STUB
-Comm::ConnectionPointer Comm::Connection::copyDetails() const STUB_RETVAL(NULL)
+Comm::ConnectionPointer Comm::Connection::cloneIdentDetails() const STUB_RETVAL(nullptr)
+Comm::ConnectionPointer Comm::Connection::cloneDestinationDetails() const STUB_RETVAL(nullptr)
 void Comm::Connection::close() STUB
 CachePeer * Comm::Connection::getPeer() const STUB_RETVAL(NULL)
 void Comm::Connection::setPeer(CachePeer * p) STUB

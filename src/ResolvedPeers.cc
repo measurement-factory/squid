@@ -22,7 +22,7 @@ ResolvedPeers::ResolvedPeers()
 }
 
 void
-ResolvedPeers::retryPath(const PeerConnectionPointer &path)
+ResolvedPeers::returnPath(const PeerConnectionPointer &path)
 {
     debugs(17, 4, path);
     assert(path);
@@ -32,8 +32,8 @@ ResolvedPeers::retryPath(const PeerConnectionPointer &path)
     assert(pos < paths_.size());
 
     assert(!paths_[pos].available);
-    // This probably should be done by callers before retrying the path (but we cannot guarantee that).
-    // Ensure that the connection is closed because we keep the connection reference.
+    // The caller may expect refcounting to close() the underlying connection,
+    // but since we keep a Connection object reference, we (re)close explicitly.
     path->close();
     paths_[pos].available = true;
     paths_[pos].dirty = true;
@@ -158,7 +158,7 @@ ResolvedPeers::extractFound(const char *description, const Paths::iterator &foun
         while (++pathsToSkip < paths_.size() && !paths_[pathsToSkip].available) {}
     }
 
-    const auto cleanPath = path.dirty ? path.connection->copyAddressDetails() : path.connection;
+    const auto cleanPath = path.dirty ? path.connection->cloneDestinationDetails() : path.connection;
     return PeerConnectionPointer(cleanPath, found - paths_.begin());
 }
 

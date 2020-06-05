@@ -471,7 +471,7 @@ FwdState::fail(ErrorState * errorState)
         debugs(17, 5, HERE << "pconn race happened");
         pconnRace = raceHappened;
         if (serverConn.returnable())
-            destinations->retryPath(serverConn);
+            destinations->returnPath(serverConn);
     }
 
     if (ConnStateData *pinned_connection = request->pinnedConnection()) {
@@ -1014,7 +1014,7 @@ FwdState::usePinned()
 
     try {
         // TODO: Refactor syncWithServerConn() and callers to always set
-        // serverConn inside the method.
+        // serverConn inside that method.
         serverConn = {ConnStateData::BorrowPinnedConnection(request, al), ResolvedPeers::npos};
         debugs(17, 5, "connection: " << serverConn);
     } catch (ErrorState * const anErr) {
