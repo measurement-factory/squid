@@ -13,6 +13,8 @@
 #include "ResolvedPeers.h"
 #include "SquidConfig.h"
 
+/* ResolvedPeers */
+
 ResolvedPeers::ResolvedPeers()
 {
     if (Config.forward_max_tries > 0)
@@ -22,7 +24,6 @@ ResolvedPeers::ResolvedPeers()
 void
 ResolvedPeers::retryPath(const PeerConnectionPointer &path)
 {
-    // branch TODO: report position when printing PeerConnectionPointer
     debugs(17, 4, path);
     assert(path);
 
@@ -227,5 +228,22 @@ operator <<(std::ostream &os, const ResolvedPeers &peers)
     if (peers.empty())
         return os << "[no paths]";
     return os << peers.size() << (peers.destinationsFinalized ? "" : "+") << " paths";
+}
+
+/* PeerConnectionPointer */
+
+void
+PeerConnectionPointer::print(std::ostream &os) const
+{
+    // We should see no combinations of a nil connection and a set position
+    // because assigning nullptr (to our smart pointer) naturally erases both
+    // fields. We report such unexpected combinations for debugging sake, but do
+    // not complicate this code to report them beautifully.
+
+    if (connection_)
+        os << connection_;
+
+    if (position_ != npos)
+        os << " @" << position_;
 }
 

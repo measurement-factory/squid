@@ -142,6 +142,9 @@ public:
     /// whether our connection originated in ResolvedPeers
     bool returnable() const { return position_ != npos; }
 
+    /// debugging dump
+    void print(std::ostream &) const;
+
 private:
     static constexpr auto npos = ResolvedPeers::npos;
 
@@ -155,6 +158,13 @@ private:
 
 /// summarized ResolvedPeers (for debugging)
 std::ostream &operator <<(std::ostream &, const ResolvedPeers &);
+
+inline std::ostream &
+operator <<(std::ostream &os, const PeerConnectionPointer &dest)
+{
+    dest.print(os);
+    return os;
+}
 
 #endif /* SQUID_RESOLVEDPEERS_H */
 
