@@ -484,7 +484,7 @@ FwdState::fail(ErrorState * errorState)
  * Frees fwdState without closing FD or generating an abort
  */
 void
-FwdState::unregister(Comm::ConnectionPointer &conn)
+FwdState::unregister(const Comm::ConnectionPointer &conn)
 {
     debugs(17, 3, HERE << entry->url() );
     assert(serverConnection() == conn);

@@ -116,33 +116,40 @@ private:
     size_type availablePaths = 0;
 };
 
-/// Binds a candidate connection with its index in ResolvedPeers
+/// An invasive reference-counting Comm::Connection pointer that also keeps an
+/// (optional) ResolvedPeers position for the ResolvedPeers::retryPath() usage.
+/// Reference counting mechanism is compatible with Comm::ConnectionPointer.
 class ResolvedPeer
 {
 public:
-    ResolvedPeer(nullptr_t): connection_(nullptr), position_(ResolvedPeers::npos) {}
+    using size_type = ResolvedPeers::size_type;
 
-    ResolvedPeer(const Comm::ConnectionPointer &conn, const ResolvedPeers::size_type pos) : connection_(conn), position_(pos) {}
+    ResolvedPeer() = default;
+    ResolvedPeer(nullptr_t): ResolvedPeer() {} ///< implicit nullptr conversion
+    ResolvedPeer(const Comm::ConnectionPointer &conn, const size_type pos): connection_(conn), position_(pos) {}
 
-    ResolvedPeer() : connection_(nullptr), position_(ResolvedPeers::npos) {}
-
+    /* read-only pointer API; for Connection assignment, see finalize() */
     explicit operator bool() const { return static_cast<bool>(connection_); }
-
     Comm::Connection *operator->() const { assert(connection_); return connection_.getRaw(); }
-
     Comm::Connection &operator *() const { assert(connection_); return *connection_; }
 
-    operator Comm::ConnectionPointer&() { return connection_; }
+    /// convenience conversion to Comm::ConnectionPointer
     operator const Comm::ConnectionPointer&() const { return connection_; }
 
-    void connection(const Comm::ConnectionPointer &conn) { connection_ = conn; }
+    /// upgrade stored peer selection details with a matching actual connection
+    void finalize(const Comm::ConnectionPointer &conn) { connection_ = conn; }
 
-    bool returnable() const { return position_ != ResolvedPeers::npos; }
+    /// whether our connection originated in ResolvedPeers
+    bool returnable() const { return position_ != npos; }
 
 private:
-    Comm::ConnectionPointer connection_; ///< (the address of) a path
-    ResolvedPeers::size_type position_; ///< the index of the path in ResolvedPeers
+    static constexpr auto npos = ResolvedPeers::npos;
 
+    /// half-baked, open, or failed Comm::Connection
+    Comm::ConnectionPointer connection_;
+
+    /// ResolvedPeers-maintained membership index (or npos)
+    size_type position_ = npos;
     friend class ResolvedPeers;
 };
 

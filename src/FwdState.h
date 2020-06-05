@@ -84,7 +84,7 @@ public:
     void useDestinations();
 
     void fail(ErrorState *err);
-    void unregister(Comm::ConnectionPointer &conn);
+    void unregister(const Comm::ConnectionPointer &conn);
     void unregister(int fd);
     void complete();
     void handleUnregisteredServerEnd();

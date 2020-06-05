@@ -535,7 +535,7 @@ HappyConnOpener::reuseOldConnection(ResolvedPeer &dest)
 
     if (const auto pconn = fwdPconnPool->pop(dest, host_, retriable_)) {
         ++n_tries;
-        dest.connection(pconn);
+        dest.finalize(pconn);
         sendSuccess(dest, true, "reused connection");
         return true;
     }
