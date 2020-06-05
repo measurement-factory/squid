@@ -1986,7 +1986,7 @@ ConnStateData::afterClientRead()
         assert(!preservingClientData_);
     }
 
-    if (isHttpsServer && !switchedToHttps_ && port->flags.tunnelSslBumping) {
+    if (port->transport.protocol == AnyP::PROTO_HTTPS && !switchedToHttps_ && port->flags.tunnelSslBumping) {
         sslBumpAccessCheck();
         return;
     }
@@ -2199,7 +2199,7 @@ clientLifetimeTimeout(const CommTimeoutCbParams &io)
         io.conn->close();
 }
 
-ConnStateData::ConnStateData(const MasterXaction::Pointer &xact, const bool beHttpsServer) :
+ConnStateData::ConnStateData(const MasterXaction::Pointer &xact) :
     AsyncJob("ConnStateData"), // kids overwrite
     Server(xact),
     bodyParser(nullptr),
@@ -2207,7 +2207,6 @@ ConnStateData::ConnStateData(const MasterXaction::Pointer &xact, const bool beHt
     sslBumpMode(Ssl::bumpEnd),
     tlsParser(Security::HandshakeParser::fromClient),
 #endif
-    isHttpsServer(beHttpsServer),
     needProxyProtocolHeader_(false),
 #if USE_OPENSSL
     switchedToHttps_(false),
@@ -2620,7 +2619,7 @@ httpsAccept(const CommAcceptCbParams &params)
         return;
     }
 
-    debugs(33, 4, HERE << params.conn << " accepted, starting SSL negotiation.");
+    debugs(33, 4, params.conn << ": accepted");
     fd_note(params.conn->fd, "client https connect");
 
     if (s->tcp_keepalive.enabled) {
@@ -2636,8 +2635,9 @@ httpsAccept(const CommAcceptCbParams &params)
 void
 ConnStateData::postHttpsAccept()
 {
-    if (!port->flags.tunnelSslBumping)
-        httpsEstablish(this, port->secure.staticContext);
+    assert(port->transport.protocol == AnyP::PROTO_HTTPS);
+    assert(!port->flags.tunnelSslBumping);
+    httpsEstablish(this, port->secure.staticContext);
 }
 
 #if USE_OPENSSL

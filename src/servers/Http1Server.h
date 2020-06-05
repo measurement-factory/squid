@@ -22,7 +22,7 @@ class Server: public ConnStateData
     CBDATA_CLASS(Server);
 
 public:
-    Server(const MasterXaction::Pointer &xact, const bool beHttpsServer);
+    Server(const MasterXaction::Pointer &xact);
     virtual ~Server() {}
 
     void readSomeHttpData();
