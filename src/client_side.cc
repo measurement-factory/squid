@@ -1860,17 +1860,6 @@ ConnStateData::parseProxyProtocolHeader()
         if (proxyProtocolHeader_->hasForwardedAddresses()) {
             clientConnection->local = proxyProtocolHeader_->destinationAddress;
             clientConnection->remote = proxyProtocolHeader_->sourceAddress;
-
-            Http::StreamPointer context = pipeline.front();
-            if (context && context->http) {
-                // update the early (possibly fake) request, if any
-                if (auto request = context->http->request) {
-                    // TODO: place this common code into a method
-                    static char ip[MAX_IPSTRLEN];
-                    request->url.host(clientConnection->local.toStr(ip, sizeof(ip)));
-                    request->url.port(clientConnection->local.port());
-                }
-            }
             if ((clientConnection->flags & COMM_TRANSPARENT))
                 clientConnection->flags ^= COMM_TRANSPARENT; // prevent TPROXY spoofing of this new IP.
             debugs(33, 5, "PROXY/" << proxyProtocolHeader_->version() << " upgrade: " << clientConnection);
