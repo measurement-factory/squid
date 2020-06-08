@@ -465,6 +465,12 @@ MemStore::copyFromShm(StoreEntry &e, const sfileno index, const Ipc::StoreMapAnc
     Ipc::StoreMapSliceId sid = anchor.start; // optimize: remember the last sid
     bool wasEof = anchor.complete() && sid < 0;
     int64_t sliceOffset = 0;
+
+    MemBuf replyBuffer;
+    const auto initialSize = HTTP_REPLY_BUF_SZ > Config.maxReplyHeaderSize ? Config.maxReplyHeaderSize : HTTP_REPLY_BUF_SZ;
+    replyBuffer->init(initialSize, Config.maxReplyHeaderSize);
+    const auto rep = &e.mem().adjustableBaseReply();
+
     while (sid >= 0) {
         const Ipc::StoreMapSlice &slice = map->readableSlice(index, sid);
         // slice state may change during copying; take snapshots now
@@ -487,10 +493,27 @@ MemStore::copyFromShm(StoreEntry &e, const sfileno index, const Ipc::StoreMapAnc
             const StoreIOBuffer sliceBuf(wasSize - prefixSize,
                                          e.mem_obj->endOffset(),
                                          page + prefixSize);
-            if (!copyFromShmSlice(e, sliceBuf, wasEof))
-                return false;
+
+            copyFromShmSlice(e, sliceBuf);
             debugs(20, 8, "entry " << index << " copied slice " << sid <<
                    " from " << extra.page << '+' << prefixSize);
+
+            // parse headers if needed; they might span multiple slices!
+            if (rep->pstate < Http::Message::psParsed) {
+                // XXX: have to copy because httpMsgParseStep() requires 0-termination
+                replyBuffer.append(sliceBuf.data, sliceBuf.length);
+                replyBuffer.terminate();
+                auto error = Http::scNone;
+
+                if (rep->parse(replyBuffer.buf, replyBuffer.size, wasEof, &error)) {
+                    assert(rep->pstate == Http::Message::psParsed);
+                } else if (error) {
+                    debugs(20, DBG_IMPORTANT, "BUG: Corrupted mem-cached headers: " << e);
+                    return false;
+                } else {
+                    assert(!wasEof); // more data needed
+                }
+            }
         }
         // else skip a [possibly incomplete] slice that we copied earlier
 
@@ -531,31 +554,10 @@ MemStore::copyFromShm(StoreEntry &e, const sfileno index, const Ipc::StoreMapAnc
 }
 
 /// imports one shared memory slice into local memory
-bool
-MemStore::copyFromShmSlice(StoreEntry &e, const StoreIOBuffer &buf, bool eof)
+void
+MemStore::copyFromShmSlice(StoreEntry &e, const StoreIOBuffer &buf)
 {
     debugs(20, 7, "buf: " << buf.offset << " + " << buf.length);
-
-    // from store_client::readBody()
-    // parse headers if needed; they might span multiple slices!
-    const auto rep = &e.mem().adjustableBaseReply();
-    if (rep->pstate < Http::Message::psParsed) {
-        // XXX: have to copy because httpMsgParseStep() requires 0-termination
-        MemBuf mb;
-        mb.init(buf.length+1, buf.length+1);
-        mb.append(buf.data, buf.length);
-        mb.terminate();
-        const int result = rep->httpMsgParseStep(mb.buf, buf.length, eof);
-        if (result > 0) {
-            assert(rep->pstate == Http::Message::psParsed);
-        } else if (result < 0) {
-            debugs(20, DBG_IMPORTANT, "Corrupted mem-cached headers: " << e);
-            return false;
-        } else { // more slices are needed
-            assert(!eof);
-        }
-    }
-    debugs(20, 7, "rep pstate: " << rep->pstate);
 
     // local memory stores both headers and body so copy regardless of pstate
     const int64_t offBefore = e.mem_obj->endOffset();
@@ -564,7 +566,6 @@ MemStore::copyFromShmSlice(StoreEntry &e, const StoreIOBuffer &buf, bool eof)
     // expect to write the entire buf because StoreEntry::write() never fails
     assert(offAfter >= 0 && offBefore <= offAfter &&
            static_cast<size_t>(offAfter - offBefore) == buf.length);
-    return true;
 }
 
 /// whether we should cache the entry
