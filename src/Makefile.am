@@ -134,12 +134,6 @@ if ENABLE_HTCP
 HTCPSOURCE = htcp.cc htcp.h
 endif
 
-if ENABLE_LEAKFINDER
-LEAKFINDERSOURCE =  LeakFinder.cc
-else
-LEAKFINDERSOURCE =
-endif
-
 if ENABLE_UNLINKD
 UNLINKDSOURCE = unlinkd.h unlinkd.cc
 UNLINKD = unlinkd
@@ -221,7 +215,6 @@ squid_SOURCES = \
 	$(DNSSOURCE) \
 	$(HTCPSOURCE) \
 	$(IPC_SOURCE) \
-	$(LEAKFINDERSOURCE) \
 	$(SNMP_SOURCE) \
 	$(STOREMETA_SOURCE) \
 	$(UNLINKDSOURCE) \
@@ -503,8 +496,6 @@ EXTRA_squid_SOURCES = \
 	$(WIN32_ALL_SOURCE) \
 	$(all_AUTHMODULES) \
 	ConfigOption.h \
-	LeakFinder.cc \
-	LeakFinder.h \
 	ProfStats.cc \
 	htcp.cc \
 	htcp.h \
