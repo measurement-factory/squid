@@ -1875,6 +1875,7 @@ ConnStateData::parseProxyProtocolHeader()
         }
     } catch (const Parser::BinaryTokenizer::InsufficientInput &) {
         debugs(33, 3, "PROXY protocol: waiting for more than " << inBuf.length() << " bytes");
+        readSomeData();
         return false;
     } catch (const std::exception &e) {
         return proxyProtocolError(e.what());
