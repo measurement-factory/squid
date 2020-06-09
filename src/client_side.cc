@@ -2646,6 +2646,7 @@ ConnStateData::httpsSslBumpStep1AccessCheck()
     assert(port->transport.protocol == AnyP::PROTO_HTTPS);
     assert(port->flags.tunnelSslBumping);
     assert(!switchedToHttps_);
+    assert(!needProxyProtocolHeader_); // if we expect a PROXY protocol header, it must have been parsed already
 
     if (!Config.accessList.ssl_bump) {
         httpsSslBumpStep1AccessCheckDone(ACCESS_DENIED);
