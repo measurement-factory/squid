@@ -26,6 +26,7 @@
 #include "mime_header.h"
 #include "profiler/Profiler.h"
 #include "rfc1123.h"
+#include "sbuf/Stream.h"
 #include "sbuf/StringConvert.h"
 #include "SquidConfig.h"
 #include "StatHist.h"
@@ -747,6 +748,22 @@ HttpHeader::refreshMask()
     }
 }
 
+bool
+HttpHeader::tooLarge() const
+{
+    size_t max = 0;
+    switch (owner) {
+    case hoRequest:
+        max = Config.maxRequestHeaderSize;
+    case hoReply:
+         max = Config.maxReplyHeaderSize;
+    default:
+        return false;
+    }
+    debugs(55, 3, "hdr: " << this << ", owner: " << owner << ", len: " << len << ", max: " << max);
+    return len >=0 && static_cast<size_t>(len) > max;
+}
+
 /* appends an entry;
  * does not call e->clone() so one should not reuse "*e"
  */
@@ -769,32 +786,7 @@ HttpHeader::addEntry(HttpHeaderEntry * e)
 
     entries.push_back(e);
 
-    /* increment header length, allow for ": " and crlf */
-    len += e->name.length() + 2 + e->value.size() + 2;
-}
-
-/* inserts an entry;
- * does not call e->clone() so one should not reuse "*e"
- */
-void
-HttpHeader::insertEntry(HttpHeaderEntry * e)
-{
-    assert(e);
-    assert(any_valid_header(e->id));
-
-    debugs(55, 7, this << " adding entry: " << e->id << " at " << entries.size());
-
-    // Http::HdrType::BAD_HDR is filtered out by assert_any_valid_header
-    if (CBIT_TEST(mask, e->id)) {
-        ++ headerStatsTable[e->id].repCount;
-    } else {
-        CBIT_SET(mask, e->id);
-    }
-
-    entries.insert(entries.begin(),e);
-
-    /* increment header length, allow for ": " and crlf */
-    len += e->name.length() + 2 + e->value.size() + 2;
+    len += e->length();
 }
 
 bool

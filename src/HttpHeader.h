@@ -59,6 +59,8 @@ public:
     void packInto(Packable *p) const;
     int getInt() const;
     int64_t getInt64() const;
+    /// packed length, including ": " and CRLF
+    size_t length() const { return name.length() + 2 + value.size() + 2; }
 
     Http::HdrType id;
     SBuf name;
@@ -107,7 +109,6 @@ public:
     void delAt(HttpHeaderPos pos, int &headers_deleted);
     void refreshMask();
     void addEntry(HttpHeaderEntry * e);
-    void insertEntry(HttpHeaderEntry * e);
     String getList(Http::HdrType id) const;
     bool getList(Http::HdrType id, String *s) const;
     bool conflictingContentLength() const { return conflictingContentLength_; }
@@ -160,6 +161,7 @@ public:
     int hasByNameListMember(const char *name, const char *member, const char separator) const;
     void removeHopByHopEntries();
     inline bool chunked() const; ///< whether message uses chunked Transfer-Encoding
+    bool tooLarge() const; ///< whether the packed length exceeds the configured limit
 
     /* protected, do not use these, use interface functions instead */
     std::vector<HttpHeaderEntry*, PoolingAllocator<HttpHeaderEntry*> > entries; /**< parsed fields in raw format */
