@@ -1864,15 +1864,6 @@ ConnStateData::parseProxyProtocolHeader()
                 clientConnection->flags ^= COMM_TRANSPARENT; // prevent TPROXY spoofing of this new IP.
             debugs(33, 5, "PROXY/" << proxyProtocolHeader_->version() << " upgrade: " << clientConnection);
         }
-
-        // TODO: The PROXY message is never inside a CONNECT tunnel. The
-        // presence of a fake CONNECT here indicates that we are parsing the
-        // PROXY message too late. We should do it before CONNECT is faked, even
-        // before the decision to fake CONNECT is made!
-        if (const auto context = pipeline.front()) { // e.g., fake CONNECT
-            if (const auto http = context->http)
-                http->al->proxyProtocolHeader = proxyProtocolHeader_;
-        }
     } catch (const Parser::BinaryTokenizer::InsufficientInput &) {
         debugs(33, 3, "PROXY protocol: waiting for more than " << inBuf.length() << " bytes");
         readSomeData();
