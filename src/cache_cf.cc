@@ -3897,7 +3897,7 @@ parsePortCfg(AnyP::PortCfgPointer *head, const char *optionName)
         }
 #endif
         if (s->flags.proxySurrogate && (hijacked || s->flags.accelSurrogate)) {
-            debugs(3, DBG_CRITICAL, "FATAL: https_port: require-proxy-header option and tproxy/intercept/accel are incompatible on HTTPS ports.");
+            debugs(3, DBG_CRITICAL, "FATAL: require-proxy-header option is incompatible with tproxy/intercept/accel for https_port.");
             self_destruct();
             return;
         }
