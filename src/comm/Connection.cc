@@ -55,26 +55,18 @@ Comm::Connection::~Connection()
     delete tlsHistory;
 }
 
-// Branch TODO: Once the XXX below is resolved, refactor cloneIdentDetails() to
-// call copyDestinationDetails() (to reduce code duplication).
 Comm::ConnectionPointer
 Comm::Connection::cloneIdentDetails() const
 {
-    ConnectionPointer c = new Comm::Connection;
+    auto c = cloneDestinationDetails();
 
-    c->setAddrs(local, remote);
-    c->peerType = peerType;
     c->tos = tos;
     c->nfmark = nfmark;
     c->nfConnmark = nfConnmark;
-    c->flags = flags;
     c->startTime_ = startTime_;
 
     // ensure FD is not open in the new copy.
     c->fd = -1;
-
-    // ensure we have a cbdata reference to peer_ not a straight ptr copy.
-    c->peer_ = cbdataReference(getPeer());
 
     return c;
 }
@@ -86,6 +78,7 @@ Comm::Connection::cloneDestinationDetails() const
     c->setAddrs(local, remote);
     c->peerType = peerType;
     c->flags = flags;
+    // ensure we have a cbdata reference to peer_ not a straight ptr copy.
     c->peer_ = cbdataReference(getPeer());
     return c;
 }
