@@ -32,9 +32,6 @@ ResolvedPeers::returnPath(const PeerConnectionPointer &path)
     assert(pos < paths_.size());
 
     assert(!paths_[pos].available);
-    // The caller may expect refcounting to close() the underlying connection,
-    // but since we keep a Connection object reference, we (re)close explicitly.
-    path->close();
     paths_[pos].available = true;
     increaseAvailability();
 
