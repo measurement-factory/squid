@@ -36,7 +36,6 @@ ResolvedPeers::returnPath(const PeerConnectionPointer &path)
     // but since we keep a Connection object reference, we (re)close explicitly.
     path->close();
     paths_[pos].available = true;
-    paths_[pos].dirty = true;
     increaseAvailability();
 
     // if we restored availability of a path that we used to skip, update
@@ -158,7 +157,7 @@ ResolvedPeers::extractFound(const char *description, const Paths::iterator &foun
         while (++pathsToSkip < paths_.size() && !paths_[pathsToSkip].available) {}
     }
 
-    const auto cleanPath = path.dirty ? path.connection->cloneDestinationDetails() : path.connection;
+    const auto cleanPath = path.connection->cloneDestinationDetails();
     return PeerConnectionPointer(cleanPath, found - paths_.begin());
 }
 

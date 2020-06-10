@@ -19,7 +19,7 @@
 class ResolvedPeerPath
 {
 public:
-    explicit ResolvedPeerPath(const Comm::ConnectionPointer &conn) : connection(conn), available(true), dirty(false) {}
+    explicit ResolvedPeerPath(const Comm::ConnectionPointer &conn) : connection(conn), available(true) {}
 
     Comm::ConnectionPointer connection; ///< (the address of) a path
     bool available; ///< whether this path may be used (i.e., has not been tried already)
