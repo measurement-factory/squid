@@ -202,7 +202,7 @@ private:
 
     ErrorState *makeError(const err_type type) const;
     Answer *futureAnswer(const PeerConnectionPointer &);
-    void sendSuccess(const PeerConnectionPointer &conn, const bool reused, const char *connKind);
+    void sendSuccess(const PeerConnectionPointer &conn, bool reused, const char *connKind);
     void sendFailure();
     void cancelAttempt(Attempt &, const char *reason);
 

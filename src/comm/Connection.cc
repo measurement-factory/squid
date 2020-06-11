@@ -56,30 +56,25 @@ Comm::Connection::~Connection()
 }
 
 Comm::ConnectionPointer
-Comm::Connection::cloneIdentDetails() const
-{
-    auto c = cloneDestinationDetails();
-
-    c->tos = tos;
-    c->nfmark = nfmark;
-    c->nfConnmark = nfConnmark;
-    c->startTime_ = startTime_;
-
-    // ensure FD is not open in the new copy.
-    c->fd = -1;
-
-    return c;
-}
-
-Comm::ConnectionPointer
 Comm::Connection::cloneDestinationDetails() const
 {
     const ConnectionPointer c = new Comm::Connection;
     c->setAddrs(local, remote);
     c->peerType = peerType;
     c->flags = flags;
-    // ensure we have a cbdata reference to peer_ not a straight ptr copy.
     c->peer_ = cbdataReference(getPeer());
+    assert(!c->isOpen());
+    return c;
+}
+
+Comm::ConnectionPointer
+Comm::Connection::cloneIdentDetails() const
+{
+    auto c = cloneDestinationDetails();
+    c->tos = tos;
+    c->nfmark = nfmark;
+    c->nfConnmark = nfConnmark;
+    c->startTime_ = startTime_;
     return c;
 }
 

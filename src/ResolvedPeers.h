@@ -23,7 +23,6 @@ public:
 
     Comm::ConnectionPointer connection; ///< (the address of) a path
     bool available; ///< whether this path may be used (i.e., has not been tried already)
-    bool dirty; ///< whether this path was reused (i.e., retried)
 };
 
 class PeerConnectionPointer;
@@ -52,7 +51,7 @@ public:
     void addPath(const Comm::ConnectionPointer &);
 
     /// makes the previously extracted path available for extraction at its
-    /// original position; the caller must check that the path is returnable()
+    /// original position; the supplied path must be returnable()
     void returnPath(const PeerConnectionPointer &);
 
     /// extracts and returns the first queued address
@@ -119,7 +118,7 @@ private:
 };
 
 /// An invasive reference-counting Comm::Connection pointer that also keeps an
-/// (optional) ResolvedPeers position for the ResolvedPeers::retryPath() usage.
+/// (optional) ResolvedPeers position for the ResolvedPeers::returnPath() usage.
 /// Reference counting mechanism is compatible with Comm::ConnectionPointer.
 class PeerConnectionPointer
 {
