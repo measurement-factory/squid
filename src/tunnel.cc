@@ -182,8 +182,8 @@ public:
     void copyRead(Connection &from, IOCB *completion);
 
     /// continue to set up connection to a peer, going async for SSL peers
-    void connectToPeer(const Comm::ConnectionPointer &);
-    void secureConnectionToPeer(const Comm::ConnectionPointer &);
+    void connectToPeer(const PeerConnectionPointer &);
+    void secureConnectionToPeer(const PeerConnectionPointer &);
 
     /* PeerSelectionInitiator API */
     virtual void noteDestination(Comm::ConnectionPointer conn) override;
@@ -202,7 +202,7 @@ public:
     void cancelOpening(const char *reason);
 
     /// Start using an established connection
-    void connectDone(const Comm::ConnectionPointer &conn, const char *origin, const bool reused);
+    void connectDone(const PeerConnectionPointer &conn, const char *origin, const bool reused);
 
     void notifyConnOpener();
 
@@ -241,8 +241,8 @@ private:
     void noteSecurityPeerConnectorAnswer(Security::EncryptorAnswer &);
 
     /// called after connection setup (including any encryption)
-    void connectedToPeer(const Comm::ConnectionPointer &);
-    void establishTunnelThruProxy(const Comm::ConnectionPointer &);
+    void connectedToPeer(const PeerConnectionPointer &);
+    void establishTunnelThruProxy(const PeerConnectionPointer &);
 
     template <typename StepStart>
     void advanceDestination(const char *stepDescription, const Comm::ConnectionPointer &conn, const StepStart &startStep);
@@ -980,7 +980,7 @@ TunnelStateData::noteConnection(HappyConnOpener::Answer &answer)
 }
 
 void
-TunnelStateData::connectDone(const Comm::ConnectionPointer &conn, const char *origin, const bool reused)
+TunnelStateData::connectDone(const PeerConnectionPointer &conn, const char *origin, const bool reused)
 {
     Must(Comm::IsConnOpen(conn));
 
@@ -1063,7 +1063,7 @@ tunnelStart(ClientHttpRequest * http)
 }
 
 void
-TunnelStateData::connectToPeer(const Comm::ConnectionPointer &conn)
+TunnelStateData::connectToPeer(const PeerConnectionPointer &conn)
 {
     if (const auto p = conn->getPeer()) {
         if (p->secure.encryptTransport)
@@ -1077,7 +1077,7 @@ TunnelStateData::connectToPeer(const Comm::ConnectionPointer &conn)
 
 /// encrypts an established TCP connection to peer
 void
-TunnelStateData::secureConnectionToPeer(const Comm::ConnectionPointer &conn)
+TunnelStateData::secureConnectionToPeer(const PeerConnectionPointer &conn)
 {
     AsyncCall::Pointer callback = asyncCall(5,4, "TunnelStateData::noteSecurityPeerConnectorAnswer",
                                             MyAnswerDialer(&TunnelStateData::noteSecurityPeerConnectorAnswer, this));
@@ -1126,7 +1126,7 @@ TunnelStateData::noteSecurityPeerConnectorAnswer(Security::EncryptorAnswer &answ
 }
 
 void
-TunnelStateData::connectedToPeer(const Comm::ConnectionPointer &conn)
+TunnelStateData::connectedToPeer(const PeerConnectionPointer &conn)
 {
     advanceDestination("establish tunnel through proxy", conn, [this,&conn] {
         establishTunnelThruProxy(conn);
@@ -1134,7 +1134,7 @@ TunnelStateData::connectedToPeer(const Comm::ConnectionPointer &conn)
 }
 
 void
-TunnelStateData::establishTunnelThruProxy(const Comm::ConnectionPointer &conn)
+TunnelStateData::establishTunnelThruProxy(const PeerConnectionPointer &conn)
 {
     assert(!waitingForConnectExchange);
 
@@ -1300,7 +1300,7 @@ TunnelStateData::usePinned()
 
         // the server may close the pinned connection before this request
         const auto reused = true;
-        connectDone(serverConn, connManager->pinning.host, reused);
+        connectDone({serverConn, ResolvedPeers::npos}, connManager->pinning.host, reused);
     } catch (ErrorState * const error) {
         syncHierNote(nullptr, connManager ? connManager->pinning.host : request->url.host());
         // a PINNED path failure is fatal; do not wait for more paths

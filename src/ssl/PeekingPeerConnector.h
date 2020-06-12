@@ -21,7 +21,7 @@ class PeekingPeerConnector: public Security::PeerConnector {
     CBDATA_CLASS(PeekingPeerConnector);
 public:
     PeekingPeerConnector(HttpRequestPointer &aRequest,
-                         const Comm::ConnectionPointer &aServerConn,
+                         const PeerConnectionPointer &aServerConn,
                          const Comm::ConnectionPointer &aClientConn,
                          AsyncCall::Pointer &aCallback,
                          const AccessLogEntryPointer &alp,

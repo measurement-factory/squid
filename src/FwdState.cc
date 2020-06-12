@@ -482,7 +482,8 @@ FwdState::fail(ErrorState * errorState)
     if (pconnRace == racePossible) {
         debugs(17, 5, HERE << "pconn race happened");
         pconnRace = raceHappened;
-        destinations->retryPath(serverConn);
+        if (serverConn.returnable())
+            destinations->returnPath(serverConn);
     }
 
     if (ConnStateData *pinned_connection = request->pinnedConnection()) {
@@ -495,7 +496,7 @@ FwdState::fail(ErrorState * errorState)
  * Frees fwdState without closing FD or generating an abort
  */
 void
-FwdState::unregister(Comm::ConnectionPointer &conn)
+FwdState::unregister(const Comm::ConnectionPointer &conn)
 {
     debugs(17, 3, HERE << entry->url() );
     assert(serverConnection() == conn);
@@ -841,7 +842,7 @@ FwdState::noteConnection(HappyConnOpener::Answer &answer)
 }
 
 void
-FwdState::establishTunnelThruProxy(const Comm::ConnectionPointer &conn)
+FwdState::establishTunnelThruProxy(const PeerConnectionPointer &conn)
 {
     AsyncCall::Pointer callback = asyncCall(17,4,
                                             "FwdState::tunnelEstablishmentDone",
@@ -900,7 +901,7 @@ FwdState::tunnelEstablishmentDone(Http::TunnelerAnswer &answer)
 
 /// handles an established TCP connection to peer (including origin servers)
 void
-FwdState::secureConnectionToPeerIfNeeded(const Comm::ConnectionPointer &conn)
+FwdState::secureConnectionToPeerIfNeeded(const PeerConnectionPointer &conn)
 {
     assert(!request->flags.pinned);
 
@@ -929,7 +930,7 @@ FwdState::secureConnectionToPeerIfNeeded(const Comm::ConnectionPointer &conn)
 
 /// encrypts an established TCP connection to peer (including origin servers)
 void
-FwdState::secureConnectionToPeer(const Comm::ConnectionPointer &conn)
+FwdState::secureConnectionToPeer(const PeerConnectionPointer &conn)
 {
     HttpRequest::Pointer requestPointer = request;
     AsyncCall::Pointer callback = asyncCall(17,4,
@@ -978,7 +979,7 @@ FwdState::connectedToPeer(Security::EncryptorAnswer &answer)
 
 /// called when all negotiations with the peer have been completed
 void
-FwdState::successfullyConnectedToPeer(const Comm::ConnectionPointer &conn)
+FwdState::successfullyConnectedToPeer(const PeerConnectionPointer &conn)
 {
     syncWithServerConn(conn, request->url.host(), false);
 
@@ -994,9 +995,9 @@ FwdState::successfullyConnectedToPeer(const Comm::ConnectionPointer &conn)
 
 /// commits to using the given open to-peer connection
 void
-FwdState::syncWithServerConn(const Comm::ConnectionPointer &conn, const char *host, const bool reused)
+FwdState::syncWithServerConn(const PeerConnectionPointer &conn, const char *host, const bool reused)
 {
-    Must(IsConnOpen(conn));
+    Must(Comm::IsConnOpen(conn));
     serverConn = conn;
 
     closeHandler = comm_add_close_handler(serverConn->fd,  fwdServerClosedWrapper, this);
@@ -1072,7 +1073,9 @@ FwdState::usePinned()
     debugs(17, 7, "connection manager: " << connManager);
 
     try {
-        serverConn = ConnStateData::BorrowPinnedConnection(request, al);
+        // TODO: Refactor syncWithServerConn() and callers to always set
+        // serverConn inside that method.
+        serverConn = {ConnStateData::BorrowPinnedConnection(request, al), ResolvedPeers::npos};
         debugs(17, 5, "connection: " << serverConn);
     } catch (ErrorState * const anErr) {
         syncHierNote(nullptr, connManager ? connManager->pinning.host : request->url.host());

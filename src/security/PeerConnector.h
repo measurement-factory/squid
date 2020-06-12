@@ -55,7 +55,7 @@ public:
     };
 
 public:
-    PeerConnector(const Comm::ConnectionPointer &aServerConn,
+    PeerConnector(const PeerConnectionPointer &aServerConn,
                   AsyncCall::Pointer &aCallback,
                   const AccessLogEntryPointer &alp,
                   const time_t timeout = 0);
@@ -134,7 +134,7 @@ protected:
     virtual Security::ContextPointer getTlsContext() = 0;
 
     /// mimics FwdState to minimize changes to FwdState::initiate/negotiateSsl
-    Comm::ConnectionPointer const &serverConnection() const { return serverConn; }
+    PeerConnectionPointer const &serverConnection() const { return serverConn; }
 
     /// sends the given error to the initiator
     void bail(ErrorState *error);
@@ -156,7 +156,7 @@ protected:
     void recordNegotiationDetails();
 
     HttpRequestPointer request; ///< peer connection trigger or cause
-    Comm::ConnectionPointer serverConn; ///< TCP connection to the peer
+    PeerConnectionPointer serverConn; ///< TCP connection to the peer
     AccessLogEntryPointer al; ///< info for the future access.log entry
     AsyncCall::Pointer callback; ///< we call this with the results
 private:

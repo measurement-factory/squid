@@ -21,6 +21,7 @@
 #include "http/StatusCode.h"
 #include "ip/Address.h"
 #include "PeerSelectState.h"
+#include "ResolvedPeers.h"
 #include "security/forward.h"
 #if USE_OPENSSL
 #include "ssl/support.h"
@@ -83,7 +84,7 @@ public:
     void useDestinations();
 
     void fail(ErrorState *err);
-    void unregister(Comm::ConnectionPointer &conn);
+    void unregister(const Comm::ConnectionPointer &conn);
     void unregister(int fd);
     void complete();
     void handleUnregisteredServerEnd();
@@ -141,16 +142,16 @@ private:
     void connectedToPeer(Security::EncryptorAnswer &answer);
     static void RegisterWithCacheManager(void);
 
-    void establishTunnelThruProxy(const Comm::ConnectionPointer &);
+    void establishTunnelThruProxy(const PeerConnectionPointer &);
     void tunnelEstablishmentDone(Http::TunnelerAnswer &answer);
-    void secureConnectionToPeerIfNeeded(const Comm::ConnectionPointer &);
-    void secureConnectionToPeer(const Comm::ConnectionPointer &);
-    void successfullyConnectedToPeer(const Comm::ConnectionPointer &);
+    void secureConnectionToPeerIfNeeded(const PeerConnectionPointer &);
+    void secureConnectionToPeer(const PeerConnectionPointer &);
+    void successfullyConnectedToPeer(const PeerConnectionPointer &);
 
     /// stops monitoring server connection for closure and updates pconn stats
     void closeServerConnection(const char *reason);
 
-    void syncWithServerConn(const Comm::ConnectionPointer &server, const char *host, const bool reused);
+    void syncWithServerConn(const PeerConnectionPointer &server, const char *host, const bool reused);
     void syncHierNote(const Comm::ConnectionPointer &server, const char *host);
 
     /// whether we have used up all permitted forwarding attempts
@@ -195,7 +196,7 @@ private:
 
     HappyConnOpenerPointer connOpener; ///< current connection opening job
     ResolvedPeersPointer destinations; ///< paths for forwarding the request
-    Comm::ConnectionPointer serverConn; ///< a successfully opened connection to a server.
+    PeerConnectionPointer serverConn; ///< a successfully opened connection to a server
 
     AsyncCall::Pointer closeHandler; ///< The serverConn close handler
 

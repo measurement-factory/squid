@@ -11,6 +11,7 @@
 
 #include "base/CbcPointer.h"
 #include "comm/forward.h"
+#include "ResolvedPeers.h"
 
 class ErrorState;
 
@@ -23,7 +24,7 @@ class EncryptorAnswer
 public:
     EncryptorAnswer(): tunneled(false) {}
     ~EncryptorAnswer(); ///< deletes error if it is still set
-    Comm::ConnectionPointer conn; ///< peer connection (secured on success)
+    PeerConnectionPointer conn; ///< peer connection (secured on success)
 
     /// answer recipients must clear the error member in order to keep its info
     /// XXX: We should refcount ErrorState instead of cbdata-protecting it.

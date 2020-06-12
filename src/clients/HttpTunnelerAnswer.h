@@ -12,6 +12,7 @@
 #include "base/CbcPointer.h"
 #include "comm/forward.h"
 #include "http/StatusCode.h"
+#include "ResolvedPeers.h"
 #include "sbuf/SBuf.h"
 
 class ErrorState;
@@ -44,7 +45,7 @@ public:
     /// the status code of the successfully parsed CONNECT response (or scNone)
     StatusCode peerResponseStatus = scNone;
 
-    Comm::ConnectionPointer conn;
+    PeerConnectionPointer conn;
 };
 
 std::ostream &operator <<(std::ostream &, const Http::TunnelerAnswer &);

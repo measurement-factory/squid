@@ -32,7 +32,7 @@
 
 CBDATA_NAMESPACED_CLASS_INIT(Security, PeerConnector);
 
-Security::PeerConnector::PeerConnector(const Comm::ConnectionPointer &aServerConn, AsyncCall::Pointer &aCallback, const AccessLogEntryPointer &alp, const time_t timeout) :
+Security::PeerConnector::PeerConnector(const PeerConnectionPointer &aServerConn, AsyncCall::Pointer &aCallback, const AccessLogEntryPointer &alp, const time_t timeout) :
     AsyncJob("Security::PeerConnector"),
     noteFwdPconnUse(false),
     serverConn(aServerConn),
@@ -617,7 +617,7 @@ Security::PeerConnector::status() const
         buf.append("Stopped, reason:", 16);
         buf.appendf("%s",stopReason);
     }
-    if (serverConn != NULL)
+    if (serverConn)
         buf.appendf(" FD %d", serverConn->fd);
     buf.appendf(" %s%u]", id.prefix(), id.value);
     buf.terminate();

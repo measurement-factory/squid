@@ -124,7 +124,7 @@ PeerPoolMgr::handleOpenedConnection(const CommConnectCbParams &params)
         const int timeUsed = squid_curtime - params.conn->startTime();
         // Use positive timeout when less than one second is left for conn.
         const int timeLeft = positiveTimeout(peerTimeout - timeUsed);
-        auto *connector = new Security::BlindPeerConnector(request, params.conn, securer, nullptr, timeLeft);
+        auto *connector = new Security::BlindPeerConnector(request, {params.conn, ResolvedPeers::npos}, securer, nullptr, timeLeft);
         AsyncJob::Start(connector); // will call our callback
         return;
     }
@@ -148,7 +148,7 @@ PeerPoolMgr::handleSecuredPeer(Security::EncryptorAnswer &answer)
     securer = NULL;
 
     if (closer != NULL) {
-        if (answer.conn != NULL)
+        if (answer.conn)
             comm_remove_close_handler(answer.conn->fd, closer);
         else
             closer->cancel("securing completed");
@@ -157,13 +157,13 @@ PeerPoolMgr::handleSecuredPeer(Security::EncryptorAnswer &answer)
 
     if (!validPeer()) {
         debugs(48, 3, "peer gone");
-        if (answer.conn != NULL)
+        if (answer.conn)
             answer.conn->close();
         return;
     }
 
     if (answer.error.get()) {
-        if (answer.conn != NULL)
+        if (answer.conn)
             answer.conn->close();
         // PeerConnector calls peerConnectFailed() for us;
         checkpoint("conn securing failure"); // may retry

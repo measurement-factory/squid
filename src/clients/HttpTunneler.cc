@@ -25,7 +25,7 @@
 
 CBDATA_NAMESPACED_CLASS_INIT(Http, Tunneler);
 
-Http::Tunneler::Tunneler(const Comm::ConnectionPointer &conn, const HttpRequest::Pointer &req, AsyncCall::Pointer &aCallback, time_t timeout, const AccessLogEntryPointer &alp):
+Http::Tunneler::Tunneler(const PeerConnectionPointer &conn, const HttpRequest::Pointer &req, AsyncCall::Pointer &aCallback, time_t timeout, const AccessLogEntryPointer &alp):
     AsyncJob("Http::Tunneler"),
     noteFwdPconnUse(false),
     connection(conn),
@@ -442,7 +442,7 @@ Http::Tunneler::status() const
         buf.append(" stopped, reason:", 16);
         buf.appendf("%s",stopReason);
     }
-    if (connection != nullptr)
+    if (connection)
         buf.appendf(" FD %d", connection->fd);
     buf.appendf(" %s%u]", id.prefix(), id.value);
     buf.terminate();

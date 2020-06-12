@@ -21,7 +21,7 @@ class BlindPeerConnector: public Security::PeerConnector {
     CBDATA_CLASS(BlindPeerConnector);
 public:
     BlindPeerConnector(HttpRequestPointer &aRequest,
-                       const Comm::ConnectionPointer &aServerConn,
+                       const PeerConnectionPointer &aServerConn,
                        AsyncCall::Pointer &aCallback,
                        const AccessLogEntryPointer &alp,
                        const time_t timeout = 0) :

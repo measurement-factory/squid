@@ -57,7 +57,7 @@ public:
     };
 
 public:
-    Tunneler(const Comm::ConnectionPointer &conn, const HttpRequestPointer &req, AsyncCall::Pointer &aCallback, time_t timeout, const AccessLogEntryPointer &alp);
+    Tunneler(const PeerConnectionPointer &conn, const HttpRequestPointer &req, AsyncCall::Pointer &aCallback, time_t timeout, const AccessLogEntryPointer &alp);
     Tunneler(const Tunneler &) = delete;
     Tunneler &operator =(const Tunneler &) = delete;
 
@@ -106,7 +106,7 @@ private:
     AsyncCall::Pointer reader; ///< called when the response should be read
     AsyncCall::Pointer closer; ///< called when the connection is being closed
 
-    Comm::ConnectionPointer connection; ///< TCP connection to the cache_peer
+    PeerConnectionPointer connection; ///< TCP connection to the cache_peer
     HttpRequestPointer request; ///< peer connection trigger or cause
     AsyncCall::Pointer callback; ///< we call this with the results
     SBuf url; ///< request-target for the CONNECT request

@@ -52,7 +52,7 @@ class IcapPeerConnector: public Security::PeerConnector {
 public:
     IcapPeerConnector(
         Adaptation::Icap::ServiceRep::Pointer &service,
-        const Comm::ConnectionPointer &aServerConn,
+        const PeerConnectionPointer &aServerConn,
         AsyncCall::Pointer &aCallback,
         AccessLogEntry::Pointer const &alp,
         const time_t timeout = 0):
@@ -308,7 +308,7 @@ void Adaptation::Icap::Xaction::noteCommConnected(const CommConnectCbParams &io)
         securer = asyncCall(93, 4, "Adaptation::Icap::Xaction::handleSecuredPeer",
                             MyIcapAnswerDialer(me, &Adaptation::Icap::Xaction::handleSecuredPeer));
 
-        auto *sslConnector = new Ssl::IcapPeerConnector(theService, io.conn, securer, masterLogEntry(), TheConfig.connect_timeout(service().cfg().bypass));
+        auto *sslConnector = new Ssl::IcapPeerConnector(theService, {io.conn, ResolvedPeers::npos}, securer, masterLogEntry(), TheConfig.connect_timeout(service().cfg().bypass));
         AsyncJob::Start(sslConnector); // will call our callback
         return;
     }
@@ -749,7 +749,7 @@ Adaptation::Icap::Xaction::handleSecuredPeer(Security::EncryptorAnswer &answer)
     }
 
     if (answer.error.get()) {
-        if (answer.conn != NULL)
+        if (answer.conn)
             answer.conn->close();
         debugs(93, 2, typeName <<
                " TLS negotiation to " << service().cfg().uri << " failed");
