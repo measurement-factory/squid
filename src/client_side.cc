@@ -2997,7 +2997,10 @@ ConnStateData::switchToHttps(ClientHttpRequest *http, Ssl::BumpMode bumpServerMo
     if (insideConnectTunnel)
         preservingClientData_ = shouldPreserveClientData();
 
-    parseTlsHandshake();
+    if (inBuf.isEmpty())
+        readSomeData();
+    else
+        parseTlsHandshake();
 }
 
 void
