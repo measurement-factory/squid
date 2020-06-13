@@ -243,3 +243,9 @@ PeerConnectionPointer::print(std::ostream &os) const
         os << " @" << position_;
 }
 
+PeerConnectionPointer
+PeerConnectionPointer::clone() const
+{
+    return PeerConnectionPointer(connection_->cloneDestinationDetails(), position_);
+}
+

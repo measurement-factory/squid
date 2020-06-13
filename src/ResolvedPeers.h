@@ -146,6 +146,8 @@ public:
     /// debugging dump
     void print(std::ostream &) const;
 
+    PeerConnectionPointer clone() const;
+
 private:
     static constexpr auto npos = ResolvedPeers::npos;
 

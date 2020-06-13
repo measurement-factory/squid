@@ -816,6 +816,8 @@ FwdState::noteConnection(HappyConnOpener::Answer &answer)
     if (answer.reused) {
         syncWithServerConn(answer.conn, request->url.host(), answer.reused);
         return dispatch();
+    } else {
+        serverConn = answer.conn.clone();
     }
 
     // Check if we need to TLS before use
@@ -838,7 +840,7 @@ FwdState::noteConnection(HappyConnOpener::Answer &answer)
             });
     }
 
-    secureConnectionToPeerIfNeeded(answer.conn);
+    secureConnectionToPeerIfNeeded(static_cast<Comm::ConnectionPointer>(answer.conn));
 }
 
 void
@@ -981,7 +983,9 @@ FwdState::connectedToPeer(Security::EncryptorAnswer &answer)
 void
 FwdState::successfullyConnectedToPeer(const Comm::ConnectionPointer &conn)
 {
-    syncWithServerConn(conn, request->url.host(), false);
+    serverConn.finalize(conn);
+
+    syncWithServerConn(serverConn, request->url.host(), false);
 
     // should reach ConnStateData before the dispatched Client job starts
     CallJobHere1(17, 4, request->clientConnectionManager, ConnStateData,
