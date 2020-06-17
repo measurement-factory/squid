@@ -850,7 +850,7 @@ FwdState::establishTunnelThruProxy(const Comm::ConnectionPointer &conn)
                                             "FwdState::tunnelEstablishmentDone",
                                             Http::Tunneler::CbDialer<FwdState>(&FwdState::tunnelEstablishmentDone, this));
     HttpRequest::Pointer requestPointer = request;
-    const auto tunneler = new Http::Tunneler(conn, requestPointer, callback, connectingTimeout(serverConnection()), al);
+    const auto tunneler = new Http::Tunneler(conn, requestPointer, callback, connectingTimeout(conn), al);
 
     // TODO: Replace this hack with proper Comm::Connection-Pool association
     // that is not tied to fwdPconnPool and can handle disappearing pools.
