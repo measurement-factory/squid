@@ -809,7 +809,7 @@ FwdState::noteConnection(HappyConnOpener::Answer &answer)
 
     if (error) {
         fail(error);
-        retryOrBail(); // will notice flags.dont_retry and bail
+        retryOrBail();
         return;
     }
 
