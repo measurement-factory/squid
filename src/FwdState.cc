@@ -482,8 +482,9 @@ FwdState::fail(ErrorState * errorState)
     if (pconnRace == racePossible) {
         debugs(17, 5, HERE << "pconn race happened");
         pconnRace = raceHappened;
-        if (serverConn.returnable())
-            destinations->returnPath(serverConn);
+        if (destinationReceipt.returnable())
+            destinations->returnPath(destinationReceipt);
+        destinationReceipt = nullptr;
     }
 
     if (ConnStateData *pinned_connection = request->pinnedConnection()) {
@@ -496,7 +497,7 @@ FwdState::fail(ErrorState * errorState)
  * Frees fwdState without closing FD or generating an abort
  */
 void
-FwdState::unregister(const Comm::ConnectionPointer &conn)
+FwdState::unregister(Comm::ConnectionPointer &conn)
 {
     debugs(17, 3, HERE << entry->url() );
     assert(serverConnection() == conn);
@@ -504,6 +505,7 @@ FwdState::unregister(const Comm::ConnectionPointer &conn)
     comm_remove_close_handler(conn->fd, closeHandler);
     closeHandler = NULL;
     serverConn = NULL;
+    destinationReceipt = nullptr;
 }
 
 // \deprecated use unregister(Comm::ConnectionPointer &conn) instead
@@ -802,9 +804,17 @@ FwdState::noteConnection(HappyConnOpener::Answer &answer)
         Must(!Comm::IsConnOpen(answer.conn));
         answer.error.clear(); // preserve error for errorSendComplete()
     } else if (!Comm::IsConnOpen(answer.conn) || fd_table[answer.conn->fd].closing()) {
+        // We do not know exactly why the connection got closed, so we play it
+        // safe: Do not ban retries (i.e. do not set flags.dont_retry) but do
+        // not retry this potentially problematic destination either (i.e. do
+        // not set destinationReceipt).
         syncHierNote(answer.conn, request->url.host());
         closePendingConnection(answer.conn, "conn was closed while waiting for noteConnection");
         error = new ErrorState(ERR_CANNOT_FORWARD, Http::scServiceUnavailable, request, al);
+    } else {
+        assert(!error);
+        destinationReceipt = answer.conn;
+        // serverConn remains nil until syncWithServerConn()
     }
 
     if (error) {
@@ -817,8 +827,6 @@ FwdState::noteConnection(HappyConnOpener::Answer &answer)
         syncWithServerConn(answer.conn, request->url.host(), answer.reused);
         return dispatch();
     }
-
-    serverConn = answer.conn.clone();
 
     // Check if we need to TLS before use
     if (const auto *peer = answer.conn->getPeer()) {
@@ -983,9 +991,7 @@ FwdState::connectedToPeer(Security::EncryptorAnswer &answer)
 void
 FwdState::successfullyConnectedToPeer(const Comm::ConnectionPointer &conn)
 {
-    serverConn.finalize(conn);
-
-    syncWithServerConn(serverConn, request->url.host(), false);
+    syncWithServerConn(conn, request->url.host(), false);
 
     // should reach ConnStateData before the dispatched Client job starts
     CallJobHere1(17, 4, request->clientConnectionManager, ConnStateData,
@@ -999,10 +1005,11 @@ FwdState::successfullyConnectedToPeer(const Comm::ConnectionPointer &conn)
 
 /// commits to using the given open to-peer connection
 void
-FwdState::syncWithServerConn(const PeerConnectionPointer &conn, const char *host, const bool reused)
+FwdState::syncWithServerConn(const Comm::ConnectionPointer &conn, const char *host, const bool reused)
 {
-    Must(Comm::IsConnOpen(conn));
+    Must(IsConnOpen(conn));
     serverConn = conn;
+    // no effect on destinationReceipt (which may even be nil here)
 
     closeHandler = comm_add_close_handler(serverConn->fd,  fwdServerClosedWrapper, this);
 
@@ -1047,6 +1054,7 @@ FwdState::connectStart()
     err = nullptr;
     request->clearError();
     serverConn = nullptr;
+    destinationReceipt = nullptr;
 
     request->hier.startPeerClock();
 
@@ -1079,7 +1087,7 @@ FwdState::usePinned()
     try {
         // TODO: Refactor syncWithServerConn() and callers to always set
         // serverConn inside that method.
-        serverConn = {ConnStateData::BorrowPinnedConnection(request, al), ResolvedPeers::npos};
+        serverConn = ConnStateData::BorrowPinnedConnection(request, al);
         debugs(17, 5, "connection: " << serverConn);
     } catch (ErrorState * const anErr) {
         syncHierNote(nullptr, connManager ? connManager->pinning.host : request->url.host());

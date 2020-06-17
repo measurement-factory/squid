@@ -242,10 +242,3 @@ PeerConnectionPointer::print(std::ostream &os) const
     if (position_ != npos)
         os << " @" << position_;
 }
-
-PeerConnectionPointer
-PeerConnectionPointer::clone() const
-{
-    return PeerConnectionPointer(connection_->cloneDestinationDetails(), position_);
-}
-

@@ -84,7 +84,7 @@ public:
     void useDestinations();
 
     void fail(ErrorState *err);
-    void unregister(const Comm::ConnectionPointer &conn);
+    void unregister(Comm::ConnectionPointer &conn);
     void unregister(int fd);
     void complete();
     void handleUnregisteredServerEnd();
@@ -151,7 +151,7 @@ private:
     /// stops monitoring server connection for closure and updates pconn stats
     void closeServerConnection(const char *reason);
 
-    void syncWithServerConn(const PeerConnectionPointer &server, const char *host, const bool reused);
+    void syncWithServerConn(const Comm::ConnectionPointer &server, const char *host, const bool reused);
     void syncHierNote(const Comm::ConnectionPointer &server, const char *host);
 
     /// whether we have used up all permitted forwarding attempts
@@ -196,8 +196,8 @@ private:
 
     HappyConnOpenerPointer connOpener; ///< current connection opening job
     ResolvedPeersPointer destinations; ///< paths for forwarding the request
-    /// a peer selection result, a ready-to-dispatch connection to a server, or both
-    PeerConnectionPointer serverConn;
+    Comm::ConnectionPointer serverConn; ///< a successfully opened connection to a server.
+    PeerConnectionPointer destinationReceipt; ///< peer selection result (or nil)
 
     AsyncCall::Pointer closeHandler; ///< The serverConn close handler
 
