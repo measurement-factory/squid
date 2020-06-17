@@ -155,7 +155,10 @@ public:
     void reset();
     void setMemStatus(mem_status_t);
     bool timestampsSet();
-    void unregisterAbort(const char *reason);
+    /// Avoid notifying anybody about a 3rd-party initiated StoreEntry abort.
+    /// Calling this method does not cancel the already queued notification.
+    /// TODO: Refactor to represent the end of (shared) ownership by our writer.
+    void unregisterAbortCallback(const char *reason);
     void destroyMemObject();
     int checkTooSmall();
 

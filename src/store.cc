@@ -1524,7 +1524,7 @@ StoreEntry::registerAbortCallback(const AsyncCall::Pointer &handler)
 }
 
 void
-StoreEntry::unregisterAbort(const char *reason)
+StoreEntry::unregisterAbortCallback(const char *reason)
 {
     assert(mem_obj);
     if (mem_obj->abortCallback) {

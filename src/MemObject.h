@@ -191,6 +191,7 @@ public:
     IRCB *ping_reply_callback;
     PeerSelector *ircb_data = nullptr;
 
+    /// used for notifying StoreEntry writers about 3rd-party initiated aborts
     AsyncCall::Pointer abortCallback;
     RemovalPolicyNode repl;
     int id = 0;

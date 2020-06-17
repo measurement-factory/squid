@@ -166,7 +166,7 @@ public:
     AccessLogEntryPointer al; ///< info for the future access.log entry
 
     /// called by Store if the entry is no longer usable
-    static void Abort(FwdState *);
+    static void HandleStoreAbort(FwdState *);
 
 private:
     Pointer self;

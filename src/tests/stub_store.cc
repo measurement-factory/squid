@@ -61,7 +61,7 @@ void StoreEntry::registerAbortCallback(const AsyncCall::Pointer &) STUB
 void StoreEntry::reset() STUB
 void StoreEntry::setMemStatus(mem_status_t) STUB
 bool StoreEntry::timestampsSet() STUB_RETVAL(false)
-void StoreEntry::unregisterAbort() STUB
+void StoreEntry::unregisterAbortCallback() STUB
 void StoreEntry::destroyMemObject() STUB
 int StoreEntry::checkTooSmall() STUB_RETVAL(0)
 void StoreEntry::delayAwareRead(const Comm::ConnectionPointer&, char *buf, int len, AsyncCall::Pointer callback) STUB
