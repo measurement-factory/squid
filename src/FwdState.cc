@@ -816,9 +816,9 @@ FwdState::noteConnection(HappyConnOpener::Answer &answer)
     if (answer.reused) {
         syncWithServerConn(answer.conn, request->url.host(), answer.reused);
         return dispatch();
-    } else {
-        serverConn = answer.conn.clone();
     }
+
+    serverConn = answer.conn.clone();
 
     // Check if we need to TLS before use
     if (const auto *peer = answer.conn->getPeer()) {
@@ -840,7 +840,7 @@ FwdState::noteConnection(HappyConnOpener::Answer &answer)
             });
     }
 
-    secureConnectionToPeerIfNeeded(static_cast<Comm::ConnectionPointer>(answer.conn));
+    secureConnectionToPeerIfNeeded(answer.conn);
 }
 
 void
