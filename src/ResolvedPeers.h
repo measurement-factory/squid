@@ -13,6 +13,7 @@
 #include "comm/forward.h"
 
 #include <iosfwd>
+#include <limits>
 #include <utility>
 
 class ResolvedPeerPath
@@ -23,6 +24,8 @@ public:
     Comm::ConnectionPointer connection; ///< (the address of) a path
     bool available; ///< whether this path may be used (i.e., has not been tried already)
 };
+
+class PeerConnectionPointer;
 
 /// cache_peer and origin server addresses (a.k.a. paths)
 /// selected and resolved by the peering code
@@ -36,6 +39,9 @@ public:
     using size_type = Paths::size_type;
     typedef RefCount<ResolvedPeers> Pointer;
 
+    /// marks non-returnable() PeerConnectionPointer objects
+    static constexpr auto npos = std::numeric_limits<size_type>::max();
+
     ResolvedPeers();
 
     /// whether we lack any known candidate paths
@@ -44,19 +50,20 @@ public:
     /// add a candidate path to try after all the existing paths
     void addPath(const Comm::ConnectionPointer &);
 
-    /// re-inserts the previously extracted address into the same position
-    void retryPath(const Comm::ConnectionPointer &);
+    /// makes the previously extracted path available for extraction at its
+    /// original position; the supplied path must be returnable()
+    void returnPath(const PeerConnectionPointer &);
 
     /// extracts and returns the first queued address
-    Comm::ConnectionPointer extractFront();
+    PeerConnectionPointer extractFront();
 
     /// extracts and returns the first same-peer same-family address
     /// \returns nil if it cannot find the requested address
-    Comm::ConnectionPointer extractPrime(const Comm::Connection &currentPeer);
+    PeerConnectionPointer extractPrime(const Comm::Connection &currentPeer);
 
     /// extracts and returns the first same-peer different-family address
     /// \returns nil if it cannot find the requested address
-    Comm::ConnectionPointer extractSpare(const Comm::Connection &currentPeer);
+    PeerConnectionPointer extractSpare(const Comm::Connection &currentPeer);
 
     /// whether extractSpare() would return a non-nil path right now
     bool haveSpare(const Comm::Connection &currentPeer);
@@ -91,7 +98,7 @@ private:
     Finding findSpare(const Comm::Connection &currentPeer);
     Finding findPrime(const Comm::Connection &currentPeer);
     Finding findPeer(const Comm::Connection &currentPeer);
-    Comm::ConnectionPointer extractFound(const char *description, const Paths::iterator &found);
+    PeerConnectionPointer extractFound(const char *description, const Paths::iterator &found);
     Finding makeFinding(const Paths::iterator &found, bool foundOther);
 
     bool doneWith(const Finding &findings) const;
@@ -110,8 +117,55 @@ private:
     size_type availablePaths = 0;
 };
 
+/// An invasive reference-counting Comm::Connection pointer that also keeps an
+/// (optional) ResolvedPeers position for the ResolvedPeers::returnPath() usage.
+/// Reference counting mechanism is compatible with Comm::ConnectionPointer.
+class PeerConnectionPointer
+{
+public:
+    using size_type = ResolvedPeers::size_type;
+
+    PeerConnectionPointer() = default;
+    PeerConnectionPointer(nullptr_t): PeerConnectionPointer() {} ///< implicit nullptr conversion
+    PeerConnectionPointer(const Comm::ConnectionPointer &conn, const size_type pos): connection_(conn), position_(pos) {}
+
+    /* read-only pointer API; for Connection assignment, see finalize() */
+    explicit operator bool() const { return static_cast<bool>(connection_); }
+    Comm::Connection *operator->() const { assert(connection_); return connection_.getRaw(); }
+    Comm::Connection &operator *() const { assert(connection_); return *connection_; }
+
+    /// convenience conversion to Comm::ConnectionPointer
+    operator const Comm::ConnectionPointer&() const { return connection_; }
+
+    /// upgrade stored peer selection details with a matching actual connection
+    void finalize(const Comm::ConnectionPointer &conn) { connection_ = conn; }
+
+    /// whether our connection originated in ResolvedPeers
+    bool returnable() const { return position_ != npos; }
+
+    /// debugging dump
+    void print(std::ostream &) const;
+
+private:
+    static constexpr auto npos = ResolvedPeers::npos;
+
+    /// half-baked, open, failed, or closed Comm::Connection (or nil)
+    Comm::ConnectionPointer connection_;
+
+    /// ResolvedPeers-maintained membership index (or npos)
+    size_type position_ = npos;
+    friend class ResolvedPeers;
+};
+
 /// summarized ResolvedPeers (for debugging)
 std::ostream &operator <<(std::ostream &, const ResolvedPeers &);
+
+inline std::ostream &
+operator <<(std::ostream &os, const PeerConnectionPointer &dest)
+{
+    dest.print(os);
+    return os;
+}
 
 #endif /* SQUID_RESOLVEDPEERS_H */
 
