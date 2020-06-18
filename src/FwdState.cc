@@ -482,9 +482,10 @@ FwdState::fail(ErrorState * errorState)
     if (pconnRace == racePossible) {
         debugs(17, 5, HERE << "pconn race happened");
         pconnRace = raceHappened;
-        if (destinationReceipt.returnable())
+        if (destinationReceipt) {
             destinations->returnPath(destinationReceipt);
-        destinationReceipt = nullptr;
+            destinationReceipt = nullptr;
+        }
     }
 
     if (ConnStateData *pinned_connection = request->pinnedConnection()) {
@@ -803,17 +804,21 @@ FwdState::noteConnection(HappyConnOpener::Answer &answer)
         syncHierNote(answer.conn, request->url.host());
         Must(!Comm::IsConnOpen(answer.conn));
         answer.error.clear(); // preserve error for errorSendComplete()
+        destinationReceipt = nullptr;
     } else if (!Comm::IsConnOpen(answer.conn) || fd_table[answer.conn->fd].closing()) {
         // We do not know exactly why the connection got closed, so we play it
-        // safe: Do not ban retries (i.e. do not set flags.dont_retry) but do
-        // not retry this potentially problematic destination either (i.e. do
-        // not set destinationReceipt).
+        // safe, allowing retries only for persistent (reused) connections
+        if (answer.reused) {
+            destinationReceipt = answer.conn;
+            assert(destinationReceipt);
+        }
         syncHierNote(answer.conn, request->url.host());
         closePendingConnection(answer.conn, "conn was closed while waiting for noteConnection");
         error = new ErrorState(ERR_CANNOT_FORWARD, Http::scServiceUnavailable, request, al);
     } else {
         assert(!error);
         destinationReceipt = answer.conn;
+        assert(destinationReceipt);
         // serverConn remains nil until syncWithServerConn()
     }
 

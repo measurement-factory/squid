@@ -28,7 +28,6 @@ ResolvedPeers::returnPath(const PeerConnectionPointer &path)
     assert(path);
 
     const auto pos = path.position_;
-    assert(pos != npos);
     assert(pos < paths_.size());
 
     assert(!paths_[pos].available);
