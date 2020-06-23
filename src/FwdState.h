@@ -196,7 +196,7 @@ private:
 
     HappyConnOpenerPointer connOpener; ///< current connection opening job
     ResolvedPeersPointer destinations; ///< paths for forwarding the request
-    Comm::ConnectionPointer serverConn; ///< a successfully opened connection to a server
+    Comm::ConnectionPointer serverConn; ///< a successfully opened connection to a server.
     PeerConnectionPointer destinationReceipt; ///< peer selection result (or nil)
 
     AsyncCall::Pointer closeHandler; ///< The serverConn close handler

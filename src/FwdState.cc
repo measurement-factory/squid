@@ -792,6 +792,8 @@ FwdState::advanceDestination(const char *stepDescription, const Comm::Connection
 void
 FwdState::noteConnection(HappyConnOpener::Answer &answer)
 {
+    assert(!destinationReceipt);
+
     calls.connector = nullptr;
     connOpener.clear();
 
@@ -804,7 +806,6 @@ FwdState::noteConnection(HappyConnOpener::Answer &answer)
         syncHierNote(answer.conn, request->url.host());
         Must(!Comm::IsConnOpen(answer.conn));
         answer.error.clear(); // preserve error for errorSendComplete()
-        destinationReceipt = nullptr;
     } else if (!Comm::IsConnOpen(answer.conn) || fd_table[answer.conn->fd].closing()) {
         // We do not know exactly why the connection got closed, so we play it
         // safe, allowing retries only for persistent (reused) connections
