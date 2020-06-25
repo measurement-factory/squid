@@ -117,11 +117,13 @@ public:
     /// returns true iff the value was set; the value may be stale!
     template<class Value> bool peek(Value &value) const;
 
-    template<class Value> void stat(StoreEntry &, const bool full) const;
+    template<class Value> void statIn(StoreEntry &) const;
+    template<class Value> void statOut(StoreEntry &) const;
 
 private:
-    template<class Value> void statFirstN(StoreEntry &, const uint32_t size, const uint32_t number) const;
-    template<class Value> void statLastN(StoreEntry &, const uint32_t size, const uint32_t number) const;
+    template<class Value> void stat(StoreEntry &, const uint32_t size) const;
+    template<class Value> void statInFirstN(StoreEntry &, const uint32_t size, const uint32_t number) const;
+    template<class Value> void statInLastN(StoreEntry &, const uint32_t size, const uint32_t number) const;
 
     unsigned int theIn; ///< input index, used only in push()
     unsigned int theOut; ///< output index, used only in pop()
@@ -421,29 +423,45 @@ OneToOneUniQueue::push(const Value &value, QueueReader *const reader)
 
 template <class Value>
 void
-OneToOneUniQueue::stat(StoreEntry &entry, const bool fullStat) const
+OneToOneUniQueue::stat(StoreEntry &entry, const uint32_t size) const
+{
+    storeAppendPrintf(&entry, "\t\tSize: %d, Capacity: %d, InputIndex: %d, OutputIndex: %d\n",
+            size, theCapacity, theIn, theOut);
+}
+
+
+template <class Value>
+void
+OneToOneUniQueue::statIn(StoreEntry &entry) const
 {
     if (sizeof(Value) > theMaxItemSize)
         throw ItemTooLarge();
 
     const auto size = theSize.load();
 
-    storeAppendPrintf(&entry, "\t\tSize: %d, Capacity: %d, InputIndex: %d, OutputIndex: %d\n",
-            size, theCapacity, theIn, theOut);
+    stat<Value>(entry, size);
 
-    if (empty())
-        return;
-
-    if (!fullStat)
-        return;
-
-    statFirstN<Value>(entry, size, 3);
-    statLastN<Value>(entry, size, 3);
+    if (!empty()) {
+        statInFirstN<Value>(entry, size, 3);
+        statInLastN<Value>(entry, size, 3);
+    }
 }
 
 template <class Value>
 void
-OneToOneUniQueue::statFirstN(StoreEntry &entry, const uint32_t size, const uint32_t n) const
+OneToOneUniQueue::statOut(StoreEntry &entry) const
+{
+    if (sizeof(Value) > theMaxItemSize)
+        throw ItemTooLarge();
+
+    const auto size = theSize.load();
+
+    stat<Value>(entry, size);
+}
+
+template <class Value>
+void
+OneToOneUniQueue::statInFirstN(StoreEntry &entry, const uint32_t size, const uint32_t n) const
 {
     assert(!empty());
     auto outPos = theOut;
@@ -461,7 +479,7 @@ OneToOneUniQueue::statFirstN(StoreEntry &entry, const uint32_t size, const uint3
 
 template <class Value>
 void
-OneToOneUniQueue::statLastN(StoreEntry &entry, const uint32_t size, const uint32_t n) const
+OneToOneUniQueue::statInLastN(StoreEntry &entry, const uint32_t size, const uint32_t n) const
 {
     assert(!empty());
     uint32_t start = size - n > n ? size - n : n;
@@ -549,7 +567,7 @@ BaseMultiQueue::stat(StoreEntry &entry) const
     for (int processId = remotesIdOffset(); processId < remotesIdOffset() + remotesCount(); ++processId) {
         const OneToOneUniQueue &queue = inQueue(processId);
         storeAppendPrintf(&entry, "\tInQueue [%d] -> [%d]\n", processId, theLocalProcessId);
-        queue.stat<Value>(entry, true);
+        queue.statIn<Value>(entry);
     }
 
     storeAppendPrintf(&entry, "\n");
@@ -557,7 +575,7 @@ BaseMultiQueue::stat(StoreEntry &entry) const
     for (int processId = remotesIdOffset(); processId < remotesIdOffset() + remotesCount(); ++processId) {
         const OneToOneUniQueue &queue = outQueue(processId);
         storeAppendPrintf(&entry, "\tOutQueue [%d] -> [%d]\n", theLocalProcessId, processId);
-        queue.stat<Value>(entry, false);
+        queue.statOut<Value>(entry);
     }
 }
 
