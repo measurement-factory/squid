@@ -141,7 +141,7 @@ void
 CollapsedForwarding::Stat(StoreEntry &entry)
 {
     if (queue.get()) {
-        storeAppendPrintf(&entry, "Collapsed forwarding queues:\n");
+        storeAppendPrintf(&entry, "Transients queues:\n");
         queue->stat<CollapsedForwardingMsg>(entry);
     }
 }

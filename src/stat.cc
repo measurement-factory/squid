@@ -1207,8 +1207,8 @@ statRegisterWithCacheManager(void)
     Mgr::RegisterAction("active_requests",
                         "Client-side Active Requests",
                         statClientRequests, 0, 1);
-    Mgr::RegisterAction("queues",
-                        "CollapsedForwarding and Disk I/O queues",
+    Mgr::RegisterAction("store_queues",
+                        "Transients and Disk I/O queues",
                         StatQueues, 0, 1);
 #if USE_AUTH
     Mgr::RegisterAction("username_cache",

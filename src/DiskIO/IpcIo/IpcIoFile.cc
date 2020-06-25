@@ -637,8 +637,10 @@ IpcIoMsg::IpcIoMsg():
 void
 IpcIoMsg::stat(StoreEntry &e)
 {
-    storeAppendPrintf(&e, "requestId: %u, offset: %ld, len: %lu, pageId: %u, command: %d, startTime: %ld.%ld, xerrno: %d",
-            requestId, offset, len, page.number, command, start.tv_sec, start.tv_usec, xerrno);
+    timeval passedTime;
+    tvSub(passedTime, start, current_time);
+    storeAppendPrintf(&e, "requestId: %u, offset: %ld, len: %lu, pageId: %u, command: %d, startTime: %ld.%ld, passedTime: %ld.%ld, xerrno: %d\n",
+            requestId, offset, len, page.number, command, start.tv_sec, start.tv_usec, passedTime.tv_sec, passedTime.tv_usec, xerrno);
 }
 
 /* IpcIoPendingRequest */
