@@ -34,6 +34,7 @@ class CollapsedForwardingMsg
 {
 public:
     CollapsedForwardingMsg(): sender(-1), xitIndex(-1) {}
+    void stat(StoreEntry &);
 
 public:
     int sender; ///< kid ID of sending process
@@ -41,6 +42,12 @@ public:
     /// transients index, so that workers can find [private] entries to sync
     sfileno xitIndex;
 };
+
+void
+CollapsedForwardingMsg::stat(StoreEntry &e)
+{
+    storeAppendPrintf(&e, "Sender: %d, xitIndex: %d\n", sender, xitIndex);
+}
 
 // CollapsedForwarding
 
@@ -128,6 +135,15 @@ CollapsedForwarding::HandleNotification(const Ipc::TypedMsgHdr &msg)
     assert(queue.get());
     queue->clearReaderSignal(from);
     HandleNewData("after notification");
+}
+
+void
+CollapsedForwarding::Stat(StoreEntry &entry)
+{
+    if (queue.get()) {
+        storeAppendPrintf(&entry, "Collapsed forwarding queues:\n");
+        queue->stat<CollapsedForwardingMsg>(entry);
+    }
 }
 
 /// initializes shared queue used by CollapsedForwarding

@@ -497,6 +497,15 @@ IpcIoFile::HandleNotification(const Ipc::TypedMsgHdr &msg)
         HandleResponses("after notification");
 }
 
+void
+IpcIoFile::Stat(StoreEntry &entry)
+{
+    if (queue.get()) {
+        storeAppendPrintf(&entry, "Disk I/O queues:\n");
+        queue->stat<IpcIoMsg>(entry);
+    }
+}
+
 /// handles open request timeout
 void
 IpcIoFile::OpenTimeout(void *const param)
@@ -623,6 +632,13 @@ IpcIoMsg::IpcIoMsg():
 {
     start.tv_sec = 0;
     start.tv_usec = 0;
+}
+
+void
+IpcIoMsg::stat(StoreEntry &e)
+{
+    storeAppendPrintf(&e, "requestId: %u, offset: %ld, len: %lu, pageId: %u, command: %d, startTime: %ld.%ld, xerrno: %d",
+            requestId, offset, len, page.number, command, start.tv_sec, start.tv_usec, xerrno);
 }
 
 /* IpcIoPendingRequest */

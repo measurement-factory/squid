@@ -117,9 +117,12 @@ Mgr::Inquirer::noteCommClosed(const CommCloseCbParams& params)
 bool
 Mgr::Inquirer::aggregate(Ipc::Response::Pointer aResponse)
 {
+    debugs(16, 5, HERE);
     Mgr::Response& response = static_cast<Response&>(*aResponse);
-    if (response.hasAction())
+    if (response.hasAction()) {
+        debugs(16, 5, aggrAction->name());
         aggrAction->add(response.getAction());
+    }
     return true;
 }
 

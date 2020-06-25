@@ -18,6 +18,9 @@
 #include <atomic>
 
 class String;
+class StoreEntry;
+
+void storeAppendPrintf(StoreEntry *, const char *,...) PRINTF_FORMAT_ARG2;
 
 namespace Ipc
 {
@@ -114,7 +117,11 @@ public:
     /// returns true iff the value was set; the value may be stale!
     template<class Value> bool peek(Value &value) const;
 
+    template<class Value> void stat(StoreEntry &, const bool full) const;
+
 private:
+    template<class Value> void statFirstN(StoreEntry &, const uint32_t size, const uint32_t number) const;
+    template<class Value> void statLastN(StoreEntry &, const uint32_t size, const uint32_t number) const;
 
     unsigned int theIn; ///< input index, used only in push()
     unsigned int theOut; ///< output index, used only in pop()
@@ -166,6 +173,8 @@ public:
 
     /// peeks at the item likely to be pop()ed next
     template<class Value> bool peek(int &remoteProcessId, Value &value) const;
+
+    template<class Value> void stat(StoreEntry &) const;
 
     /// returns local reader's balance
     QueueReader::Balance &localBalance() { return localReader().balance; }
@@ -410,6 +419,65 @@ OneToOneUniQueue::push(const Value &value, QueueReader *const reader)
     return wasEmpty && (!reader || reader->raiseSignal());
 }
 
+template <class Value>
+void
+OneToOneUniQueue::stat(StoreEntry &entry, const bool fullStat) const
+{
+    if (sizeof(Value) > theMaxItemSize)
+        throw ItemTooLarge();
+
+    const auto size = theSize.load();
+
+    storeAppendPrintf(&entry, "\t\tSize: %d, Capacity: %d, InputIndex: %d, OutputIndex: %d\n",
+            size, theCapacity, theIn, theOut);
+
+    if (empty())
+        return;
+
+    if (!fullStat)
+        return;
+
+    statFirstN<Value>(entry, size, 3);
+    statLastN<Value>(entry, size, 3);
+}
+
+template <class Value>
+void
+OneToOneUniQueue::statFirstN(StoreEntry &entry, const uint32_t size, const uint32_t n) const
+{
+    assert(!empty());
+    auto outPos = theOut;
+    storeAppendPrintf(&entry, "\t\tElements:\n");
+    for (uint32_t i = 0; i < n; ++i) {
+        if (i >= size)
+            break;
+        const auto pos = (outPos++ % theCapacity) * theMaxItemSize;
+        Value value;
+        memcpy(&value, theBuffer + pos, sizeof(value));
+        storeAppendPrintf(&entry, "\t\t[%d]: ", i);
+        value.stat(entry);
+    }
+}
+
+template <class Value>
+void
+OneToOneUniQueue::statLastN(StoreEntry &entry, const uint32_t size, const uint32_t n) const
+{
+    assert(!empty());
+    uint32_t start = size - n > n ? size - n : n;
+    if (start >= size)
+        return;
+    storeAppendPrintf(&entry, "\t\tElements:\n");
+    auto outPos = theOut + start;
+    for (uint32_t i = start; i < size; ++i) {
+        const auto pos = (outPos++ % theCapacity) * theMaxItemSize;
+        Value value;
+        memcpy(&value, theBuffer + pos, sizeof(value));
+        storeAppendPrintf(&entry, "\t\t[%d]: ", i);
+        value.stat(entry);
+    }
+}
+
 // OneToOneUniQueues
 
 inline OneToOneUniQueue &
@@ -472,6 +540,25 @@ BaseMultiQueue::peek(int &remoteProcessId, Value &value) const
         }
     }
     return false; // most likely, no process had anything to pop
+}
+
+template <class Value>
+void
+BaseMultiQueue::stat(StoreEntry &entry) const
+{
+    for (int processId = remotesIdOffset(); processId < remotesIdOffset() + remotesCount(); ++processId) {
+        const OneToOneUniQueue &queue = inQueue(processId);
+        storeAppendPrintf(&entry, "\tInQueue [%d] -> [%d]\n", processId, theLocalProcessId);
+        queue.stat<Value>(entry, true);
+    }
+
+    storeAppendPrintf(&entry, "\n");
+
+    for (int processId = remotesIdOffset(); processId < remotesIdOffset() + remotesCount(); ++processId) {
+        const OneToOneUniQueue &queue = outQueue(processId);
+        storeAppendPrintf(&entry, "\tOutQueue [%d] -> [%d]\n", theLocalProcessId, processId);
+        queue.stat<Value>(entry, false);
+    }
 }
 
 // FewToFewBiQueue

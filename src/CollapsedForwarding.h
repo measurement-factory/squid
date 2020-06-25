@@ -37,6 +37,8 @@ public:
     /// handle queue push notifications from worker or disker
     static void HandleNotification(const Ipc::TypedMsgHdr &msg);
 
+    static void Stat(StoreEntry &);
+
 private:
     typedef Ipc::MultiQueue Queue;
     static std::unique_ptr<Queue> queue; ///< IPC queue

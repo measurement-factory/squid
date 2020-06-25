@@ -40,6 +40,8 @@ class IpcIoMsg
 public:
     IpcIoMsg();
 
+    void stat(StoreEntry &);
+
 public:
     unsigned int requestId; ///< unique for requestor; matches request w/ response
 
@@ -85,6 +87,8 @@ public:
 
     /// handle queue push notifications from worker or disker
     static void HandleNotification(const Ipc::TypedMsgHdr &msg);
+
+    static void Stat(StoreEntry &);
 
     DiskFile::Config config; ///< supported configuration options
 
