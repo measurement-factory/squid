@@ -124,8 +124,13 @@ public:
 
 private:
     /// a common method for statIn() and statOut()
+    /// \param size the size of the queue at the moment of the call
+    /// \param startPos the absolute index (based on theIn or theOut) of the first available queue element
     template<class Value> void stat(StoreEntry &, const uint32_t size, const unsigned int startPos) const;
-    /// outputs several queue elements (for statistics) to the provided StoreEntry
+    /// outputs few queue elements (for statistics) to the provided StoreEntry
+    /// \param startPos the absolute index (based on theIn or theOut) of the first available queue element
+    /// \param offset skip this number of elements, starting from startPos
+    /// \param requested the number of elements to copy to StoreEntry
     template<class Value> void statElements(StoreEntry &, const unsigned int startPos, const uint32_t offset, const uint32_t requested) const;
 
     unsigned int theIn; ///< input index, used only in push()
@@ -452,17 +457,17 @@ OneToOneUniQueue::stat(StoreEntry &entry, const uint32_t aSize, const unsigned i
             aSize, theCapacity, theIn, theOut);
 
     if (!empty()) {
-        static const auto elementsNumber = 3;
-        auto n = elementsNumber < aSize ? elementsNumber : aSize;
-        statElements<Value>(entry, startPos, 0, n);
-        if (n < aSize) {
-            if (aSize > 2*n)
+        static const auto groupSize = 3;
+        // we output maximum two groups of elements, taken from the beginning and the end of the buffer
+        auto elementsInGroup = groupSize < aSize ? groupSize : aSize;
+        statElements<Value>(entry, startPos, 0, elementsInGroup);
+        if (elementsInGroup < aSize) { // else the first group consumed all queue elements
+            if (aSize > 2 * elementsInGroup) // else no delimiter since all buffer elements will be showed
                 storeAppendPrintf(&entry, "\t\t# ...\n");
-            // no overlapping with the previous elements
-            const auto offset = (aSize - n < n) ? n : aSize - n;
-            if (offset == n)
-                n = aSize - offset;
-            statElements<Value>(entry, startPos, offset, n);
+            const auto defaultOffset = aSize - elementsInGroup;
+            // no overlapping with the first group
+            const auto secondGroupOffset = defaultOffset < elementsInGroup ? elementsInGroup : defaultOffset;
+            statElements<Value>(entry, startPos, secondGroupOffset, elementsInGroup);
         }
     }
 }
