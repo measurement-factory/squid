@@ -1239,6 +1239,7 @@ tests_testCacheManager_SOURCES = \
 	ClientInfo.h \
 	clientStream.cc \
 	tests/stub_CollapsedForwarding.cc \
+	tests/stub_IpcIoFile.cc \
 	ConfigOption.cc \
 	ConfigParser.cc \
 	CpuAffinityMap.cc \
@@ -1655,6 +1656,7 @@ tests_testEvent_SOURCES = \
 	ClientInfo.h \
 	clientStream.cc \
 	tests/stub_CollapsedForwarding.cc \
+	tests/stub_IpcIoFile.cc \
 	ConfigOption.cc \
 	ConfigParser.cc \
 	CpuAffinityMap.cc \
@@ -2042,6 +2044,7 @@ tests_testEventLoop_SOURCES = \
 	tests/stub_libeui.cc \
 	tests/stub_libsecurity.cc \
 	tests/stub_store_stats.cc \
+	tests/stub_IpcIoFile.cc \
 	time.cc \
 	tools.h \
 	tools.cc \
@@ -2275,6 +2278,7 @@ tests_test_http_range_SOURCES = \
 	tests/stub_MemStore.cc \
 	tests/stub_store_stats.cc \
 	tests/stub_EventLoop.cc \
+	tests/stub_IpcIoFile.cc \
 	time.cc \
 	tools.h \
 	tools.cc \
@@ -2542,6 +2546,7 @@ tests_testHttpRequest_SOURCES = \
 	refresh.cc \
 	RemovalPolicy.cc \
 	tests/stub_SBufDetailedStats.cc \
+	tests/stub_IpcIoFile.cc \
 	$(SNMP_SOURCE) \
 	SquidMath.h \
 	SquidMath.cc \
@@ -3444,6 +3449,7 @@ tests_testURL_SOURCES = \
 	tests/testUriScheme.h \
 	tests/stub_time.cc \
 	tests/stub_EventLoop.cc \
+	tests/stub_IpcIoFile.cc \
 	tools.h \
 	tools.cc \
 	tests/stub_tunnel.cc \
