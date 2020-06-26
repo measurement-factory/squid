@@ -139,7 +139,7 @@ CollapsedForwarding::HandleNotification(const Ipc::TypedMsgHdr &msg)
 }
 
 void
-CollapsedForwarding::Stat(StoreEntry &entry)
+CollapsedForwarding::StatQueue(StoreEntry &entry)
 {
     if (queue.get()) {
         storeAppendPrintf(&entry, "Transients queues:\n");

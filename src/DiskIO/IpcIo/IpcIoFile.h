@@ -92,7 +92,8 @@ public:
     /// handle queue push notifications from worker or disker
     static void HandleNotification(const Ipc::TypedMsgHdr &msg);
 
-    static void Stat(StoreEntry &);
+    /// outputs the IPC queue statistics to the StoreEntry
+    static void StatQueue(StoreEntry &);
 
     DiskFile::Config config; ///< supported configuration options
 

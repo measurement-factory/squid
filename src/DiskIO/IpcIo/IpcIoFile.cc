@@ -498,7 +498,7 @@ IpcIoFile::HandleNotification(const Ipc::TypedMsgHdr &msg)
 }
 
 void
-IpcIoFile::Stat(StoreEntry &entry)
+IpcIoFile::StatQueue(StoreEntry &entry)
 {
     if (queue.get()) {
         storeAppendPrintf(&entry, "Disk I/O queues:\n");

@@ -1908,9 +1908,9 @@ static void
 StatQueues(StoreEntry *e)
 {
     assert(e);
-    CollapsedForwarding::Stat(*e);
+    CollapsedForwarding::StatQueue(*e);
     storeAppendPrintf(e, "\n");
-    IpcIoFile::Stat(*e);
+    IpcIoFile::StatQueue(*e);
 }
 
 #if STAT_GRAPHS
