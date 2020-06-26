@@ -429,39 +429,39 @@ template <class Value>
 void
 OneToOneUniQueue::statIn(StoreEntry &entry) const
 {
-    const auto size = theSize.load();
-    stat<Value>(entry, size, theIn - size);
+    const auto sz = theSize.load();
+    stat<Value>(entry, sz, theIn - sz);
 }
 
 template <class Value>
 void
 OneToOneUniQueue::statOut(StoreEntry &entry) const
 {
-    const auto size = theSize.load();
-    stat<Value>(entry, size, theOut);
+    const auto sz = theSize.load();
+    stat<Value>(entry, sz, theOut);
 }
 
 template <class Value>
 void
-OneToOneUniQueue::stat(StoreEntry &entry, const uint32_t size, const unsigned int startPos) const
+OneToOneUniQueue::stat(StoreEntry &entry, const uint32_t aSize, const unsigned int startPos) const
 {
     if (sizeof(Value) > theMaxItemSize)
         throw ItemTooLarge();
 
     storeAppendPrintf(&entry, "{ size: %d, apacity: %d, inputIndex: %d, outputIndex: %d }\n",
-            size, theCapacity, theIn, theOut);
+            aSize, theCapacity, theIn, theOut);
 
     if (!empty()) {
         static const auto elementsNumber = 3;
-        auto n = elementsNumber < size ? elementsNumber : size;
+        auto n = elementsNumber < aSize ? elementsNumber : aSize;
         statElements<Value>(entry, startPos, 0, n);
-        if (n < size) {
-            if (size > 2*n)
+        if (n < aSize) {
+            if (aSize > 2*n)
                 storeAppendPrintf(&entry, "\t\t# ...\n");
             // no overlapping with the previous elements
-            const auto offset = (size - n < n) ? n : size - n;
+            const auto offset = (aSize - n < n) ? n : aSize - n;
             if (offset == n)
-                n = size - offset;
+                n = aSize - offset;
             statElements<Value>(entry, startPos, offset, n);
         }
     }
