@@ -66,7 +66,7 @@ std::ostream &
 operator <<(std::ostream &os, const SipcIo &sio)
 {
     return os << "ipcIo" << sio.worker << '.' << sio.msg.requestId <<
-           (sio.msg.command == IpcIo::cmdRead ? 'r' : 'w') << sio.disker;
+           sio.msg.commandIdentifier() << sio.disker;
 }
 
 IpcIoFile::IpcIoFile(char const *aDb):
@@ -639,8 +639,8 @@ IpcIoMsg::stat(StoreEntry &e)
 {
     timeval passedTime;
     tvSub(passedTime, start, current_time);
-    storeAppendPrintf(&e, "requestId: %u, offset: %ld, len: %lu, pageId: %u, command: %d, startTime: %ld.%ld, passedTime: %ld.%ld, xerrno: %d\n",
-            requestId, offset, len, page.number, command, start.tv_sec, start.tv_usec, passedTime.tv_sec, passedTime.tv_usec, xerrno);
+    storeAppendPrintf(&e, "id: %u, offset: %ld, len: %lu, pageId: %u, command: %c, startTime: %ld.%ld, passedTime: %ld.%ld, xerrno: %d",
+            requestId, offset, len, page.number, commandIdentifier(), start.tv_sec, start.tv_usec, passedTime.tv_sec, passedTime.tv_usec, xerrno);
 }
 
 /* IpcIoPendingRequest */

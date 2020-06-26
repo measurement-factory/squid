@@ -1903,6 +1903,7 @@ statClientRequests(StoreEntry * s)
     }
 }
 
+/// outputs Store queues to the provided StoreEntry
 static void
 StatQueues(StoreEntry *e)
 {

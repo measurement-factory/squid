@@ -117,11 +117,15 @@ public:
     /// returns true iff the value was set; the value may be stale!
     template<class Value> bool peek(Value &value) const;
 
+    /// outputs writer statistics to the provided StoreEntry
     template<class Value> void statIn(StoreEntry &) const;
+    /// outputs reader statistics to the provided StoreEntry
     template<class Value> void statOut(StoreEntry &) const;
 
 private:
+    /// a common method for statIn() and statOut()
     template<class Value> void stat(StoreEntry &, const uint32_t size, const unsigned int startPos) const;
+    /// outputs several queue elements (for statistics) to the provided StoreEntry
     template<class Value> void statElements(StoreEntry &, const unsigned int startPos, const uint32_t offset, const uint32_t requested) const;
 
     unsigned int theIn; ///< input index, used only in push()
@@ -175,6 +179,7 @@ public:
     /// peeks at the item likely to be pop()ed next
     template<class Value> bool peek(int &remoteProcessId, Value &value) const;
 
+    /// outputs statistics to the provided StoreEntry
     template<class Value> void stat(StoreEntry &) const;
 
     /// returns local reader's balance
@@ -443,15 +448,22 @@ OneToOneUniQueue::stat(StoreEntry &entry, const uint32_t size, const unsigned in
     if (sizeof(Value) > theMaxItemSize)
         throw ItemTooLarge();
 
-    storeAppendPrintf(&entry, "Size: %d, Capacity: %d, InputIndex: %d, OutputIndex: %d\n",
+    storeAppendPrintf(&entry, "{ size: %d, apacity: %d, inputIndex: %d, outputIndex: %d }\n",
             size, theCapacity, theIn, theOut);
 
     if (!empty()) {
         static const auto elementsNumber = 3;
-        const auto n = elementsNumber < size ? elementsNumber : size;
+        auto n = elementsNumber < size ? elementsNumber : size;
         statElements<Value>(entry, startPos, 0, n);
-        if (n < size)
-            statElements<Value>(entry, startPos, size - n, n);
+        if (n < size) {
+            if (size > 2*n)
+                storeAppendPrintf(&entry, "\t\t# ...\n");
+            // no overlapping with the previous elements
+            const auto offset = (size - n < n) ? n : size - n;
+            if (offset == n)
+                n = size - offset;
+            statElements<Value>(entry, startPos, offset, n);
+        }
     }
 }
 
@@ -461,14 +473,13 @@ OneToOneUniQueue::statElements(StoreEntry &entry, const unsigned int startPos, u
 {
     assert(!empty());
     auto absPos = startPos + offset;
-    const auto prefix = offset ? "last" : "first";
-    storeAppendPrintf(&entry, "\t\t%s %d elements:\n", prefix, requested);
     for (uint32_t i = 0; i < requested; ++i) {
         const auto pos = (absPos++ % theCapacity) * theMaxItemSize;
         Value value;
         memcpy(&value, theBuffer + pos, sizeof(value));
-        storeAppendPrintf(&entry, "\t\tel[%d]: ", i + offset);
+        storeAppendPrintf(&entry, "\t\t- { ");
         value.stat(entry);
+        storeAppendPrintf(&entry, " }\t#[%d]\n", i + offset);
     }
 }
 
@@ -542,7 +553,7 @@ BaseMultiQueue::stat(StoreEntry &entry) const
 {
     for (int processId = remotesIdOffset(); processId < remotesIdOffset() + remotesCount(); ++processId) {
         const OneToOneUniQueue &queue = inQueue(processId);
-        storeAppendPrintf(&entry, "\tInQueue kid%d to kid%d: ", processId, theLocalProcessId);
+        storeAppendPrintf(&entry, "\tkid%d receiving from kid%d: ", theLocalProcessId, processId);
         queue.statIn<Value>(entry);
     }
 
@@ -550,7 +561,7 @@ BaseMultiQueue::stat(StoreEntry &entry) const
 
     for (int processId = remotesIdOffset(); processId < remotesIdOffset() + remotesCount(); ++processId) {
         const OneToOneUniQueue &queue = outQueue(processId);
-        storeAppendPrintf(&entry, "\tOutQueue kid%d to kid%d: ", theLocalProcessId, processId);
+        storeAppendPrintf(&entry, "\tkid%d sending to kid%d: ", theLocalProcessId, processId);
         queue.statOut<Value>(entry);
     }
 }

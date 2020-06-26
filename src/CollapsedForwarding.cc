@@ -34,6 +34,7 @@ class CollapsedForwardingMsg
 {
 public:
     CollapsedForwardingMsg(): sender(-1), xitIndex(-1) {}
+    /// outputs *this to the StoreEntry
     void stat(StoreEntry &);
 
 public:
@@ -46,7 +47,7 @@ public:
 void
 CollapsedForwardingMsg::stat(StoreEntry &e)
 {
-    storeAppendPrintf(&e, "Sender: %d, xitIndex: %d\n", sender, xitIndex);
+    storeAppendPrintf(&e, "sender: %d, xitIndex: %d", sender, xitIndex);
 }
 
 // CollapsedForwarding
