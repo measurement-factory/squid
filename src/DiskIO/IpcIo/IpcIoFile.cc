@@ -639,7 +639,7 @@ IpcIoMsg::stat(StoreEntry &e)
 {
     timeval passedTime;
     tvSub(passedTime, start, current_time);
-    storeAppendPrintf(&e, "id: %u, offset: %ld, len: %lu, pageId: %u, command: %c, startTime: %ld.%ld, passedTime: %ld.%ld, xerrno: %d",
+    storeAppendPrintf(&e, "id: %u, offset: %ld, len: %lu, pageId: %u, command: %c, startTime: %ld.%06ld, passedTime: %ld.%06ld, xerrno: %d",
             requestId, offset, len, page.number, commandIdentifier(), start.tv_sec, start.tv_usec, passedTime.tv_sec, passedTime.tv_usec, xerrno);
 }
 
