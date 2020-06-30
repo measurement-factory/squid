@@ -453,7 +453,7 @@ OneToOneUniQueue::stat(StoreEntry &entry, const uint32_t aSize, const unsigned i
     if (sizeof(Value) > theMaxItemSize)
         throw ItemTooLarge();
 
-    storeAppendPrintf(&entry, "{ size: %d, apacity: %d, inputIndex: %d, outputIndex: %d }\n",
+    storeAppendPrintf(&entry, "{ size: %d, capacity: %d, inputIndex: %d, outputIndex: %d }\n",
             aSize, theCapacity, theIn, theOut);
 
     if (!empty()) {
