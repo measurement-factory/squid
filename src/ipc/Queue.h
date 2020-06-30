@@ -450,9 +450,6 @@ template <class Value>
 void
 OneToOneUniQueue::stat(StoreEntry &entry, const uint32_t aSize, const unsigned int startPos) const
 {
-    if (sizeof(Value) > theMaxItemSize)
-        throw ItemTooLarge();
-
     storeAppendPrintf(&entry, "{ size: %d, capacity: %d, inputIndex: %d, outputIndex: %d }\n",
             aSize, theCapacity, theIn, theOut);
 
@@ -477,6 +474,7 @@ void
 OneToOneUniQueue::statElements(StoreEntry &entry, const unsigned int startPos, uint32_t offset, const uint32_t requested) const
 {
     assert(!empty());
+    assert(sizeof(Value) <= theMaxItemSize);
     auto absPos = startPos + offset;
     for (uint32_t i = 0; i < requested; ++i) {
         const auto pos = (absPos++ % theCapacity) * theMaxItemSize;
