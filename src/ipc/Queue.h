@@ -15,6 +15,7 @@
 #include "ipc/mem/Pointer.h"
 #include "util.h"
 
+#include <algorithm>
 #include <atomic>
 
 class String;
@@ -455,9 +456,8 @@ OneToOneUniQueue::stat(StoreEntry &entry, const uint32_t aSize, const unsigned i
 
     if (!empty()) {
         storeAppendPrintf(&entry, ", items: [\n");
-        static const auto groupSize = 3;
         // we output maximum two groups of elements, taken from the beginning and the end of the buffer
-        auto elementsInGroup = groupSize < aSize ? groupSize : aSize;
+        const auto elementsInGroup = std::min(3U, aSize);
         statElements<Value>(entry, startPos, 0, elementsInGroup);
         if (elementsInGroup < aSize) { // else the first group consumed all queue elements
             if (aSize > 2 * elementsInGroup) // else no delimiter since all buffer elements will be showed
