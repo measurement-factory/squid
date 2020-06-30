@@ -461,13 +461,13 @@ OneToOneUniQueue::stat(StoreEntry &entry, const uint32_t aSize, const unsigned i
         statElements<Value>(entry, startPos, 0, elementsInGroup);
         if (elementsInGroup < aSize) { // else the first group consumed all queue elements
             if (aSize > 2 * elementsInGroup) // else no delimiter since all buffer elements will be showed
-                storeAppendPrintf(&entry, "\t\t# ...\n");
+                storeAppendPrintf(&entry, "    # ...\n");
             const auto defaultOffset = aSize - elementsInGroup;
             // no overlapping with the first group
             const auto secondGroupOffset = defaultOffset < elementsInGroup ? elementsInGroup : defaultOffset;
             statElements<Value>(entry, startPos, secondGroupOffset, elementsInGroup);
         }
-        storeAppendPrintf(&entry, "\t]");
+        storeAppendPrintf(&entry, "  ]");
     } else {
         storeAppendPrintf(&entry, " ");
     }
@@ -486,9 +486,9 @@ OneToOneUniQueue::statElements(StoreEntry &entry, const unsigned int startPos, u
         const auto pos = (absPos++ % theCapacity) * theMaxItemSize;
         Value value;
         memcpy(&value, theBuffer + pos, sizeof(value));
-        storeAppendPrintf(&entry, "\t\t{ ");
+        storeAppendPrintf(&entry, "    { ");
         value.stat(entry);
-        storeAppendPrintf(&entry, " },\t#[%d]\n", i + offset);
+        storeAppendPrintf(&entry, " }, # [%d]\n", i + offset);
     }
 }
 
@@ -562,7 +562,7 @@ BaseMultiQueue::stat(StoreEntry &entry) const
 {
     for (int processId = remotesIdOffset(); processId < remotesIdOffset() + remotesCount(); ++processId) {
         const OneToOneUniQueue &queue = inQueue(processId);
-        storeAppendPrintf(&entry, "\tkid%d receiving from kid%d: ", theLocalProcessId, processId);
+        storeAppendPrintf(&entry, "  kid%d receiving from kid%d: ", theLocalProcessId, processId);
         queue.statIn<Value>(entry);
     }
 
@@ -570,7 +570,7 @@ BaseMultiQueue::stat(StoreEntry &entry) const
 
     for (int processId = remotesIdOffset(); processId < remotesIdOffset() + remotesCount(); ++processId) {
         const OneToOneUniQueue &queue = outQueue(processId);
-        storeAppendPrintf(&entry, "\tkid%d sending to kid%d: ", theLocalProcessId, processId);
+        storeAppendPrintf(&entry, "  kid%d sending to kid%d: ", theLocalProcessId, processId);
         queue.statOut<Value>(entry);
     }
 }
