@@ -450,10 +450,11 @@ template <class Value>
 void
 OneToOneUniQueue::stat(StoreEntry &entry, const uint32_t aSize, const unsigned int startPos) const
 {
-    storeAppendPrintf(&entry, "{ size: %d, capacity: %d, inputIndex: %d, outputIndex: %d }\n",
+    storeAppendPrintf(&entry, "{ size: %d, capacity: %d, inputIndex: %d, outputIndex: %d",
             aSize, theCapacity, theIn, theOut);
 
     if (!empty()) {
+        storeAppendPrintf(&entry, ", items: [\n");
         static const auto groupSize = 3;
         // we output maximum two groups of elements, taken from the beginning and the end of the buffer
         auto elementsInGroup = groupSize < aSize ? groupSize : aSize;
@@ -466,7 +467,12 @@ OneToOneUniQueue::stat(StoreEntry &entry, const uint32_t aSize, const unsigned i
             const auto secondGroupOffset = defaultOffset < elementsInGroup ? elementsInGroup : defaultOffset;
             statElements<Value>(entry, startPos, secondGroupOffset, elementsInGroup);
         }
+        storeAppendPrintf(&entry, "\t]");
+    } else {
+        storeAppendPrintf(&entry, " ");
     }
+
+    storeAppendPrintf(&entry, "}\n");
 }
 
 template <class Value>
@@ -480,9 +486,9 @@ OneToOneUniQueue::statElements(StoreEntry &entry, const unsigned int startPos, u
         const auto pos = (absPos++ % theCapacity) * theMaxItemSize;
         Value value;
         memcpy(&value, theBuffer + pos, sizeof(value));
-        storeAppendPrintf(&entry, "\t\t- { ");
+        storeAppendPrintf(&entry, "\t\t{ ");
         value.stat(entry);
-        storeAppendPrintf(&entry, " }\t#[%d]\n", i + offset);
+        storeAppendPrintf(&entry, " },\t#[%d]\n", i + offset);
     }
 }
 
