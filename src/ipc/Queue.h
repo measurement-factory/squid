@@ -120,9 +120,9 @@ public:
     template<class Value> bool peek(Value &value) const;
 
     /// reports incoming queue state
-    template<class Value> void statIn(StoreEntry &) const;
+    template<class Value> void statIn(StoreEntry &, const int localProcessId, const int remoteProcessId) const;
     /// reports outgoing queue state
-    template<class Value> void statOut(StoreEntry &) const;
+    template<class Value> void statOut(StoreEntry &, const int localProcessId, const int remoteProcessId) const;
 
 private:
     inline void statOpen(StoreEntry &entry, const char *inLabel, const char *outLabel, const uint32_t count) const;
@@ -428,8 +428,9 @@ OneToOneUniQueue::push(const Value &value, QueueReader *const reader)
 
 template <class Value>
 void
-OneToOneUniQueue::statIn(StoreEntry &entry) const
+OneToOneUniQueue::statIn(StoreEntry &entry, const int localProcessId, const int remoteProcessId) const
 {
+    storeAppendPrintf(&entry, "  kid%d receiving from kid%d: ", localProcessId, remoteProcessId);
     // Nobody can modify our theOut so, after capturing some valid theSize value
     // in count, we can reliably report all [theOut, theOut+count) items that
     // were queued at theSize capturing time. We will miss new items push()ed by
@@ -441,8 +442,9 @@ OneToOneUniQueue::statIn(StoreEntry &entry) const
 
 template <class Value>
 void
-OneToOneUniQueue::statOut(StoreEntry &entry) const
+OneToOneUniQueue::statOut(StoreEntry &entry, const int localProcessId, const int remoteProcessId) const
 {
+    storeAppendPrintf(&entry, "  kid%d sending to kid%d: ", localProcessId, remoteProcessId);
     // Nobody can modify our theIn so, after capturing some valid theSize value
     // in count, we can reliably report all [theIn-count, theIn) items that were
     // queued at theSize capturing time. We may report items already pop()ed by
@@ -585,16 +587,14 @@ BaseMultiQueue::stat(StoreEntry &entry) const
 {
     for (int processId = remotesIdOffset(); processId < remotesIdOffset() + remotesCount(); ++processId) {
         const OneToOneUniQueue &queue = inQueue(processId);
-        storeAppendPrintf(&entry, "  kid%d receiving from kid%d: ", theLocalProcessId, processId);
-        queue.statIn<Value>(entry);
+        queue.statIn<Value>(entry, theLocalProcessId, processId);
     }
 
     storeAppendPrintf(&entry, "\n");
 
     for (int processId = remotesIdOffset(); processId < remotesIdOffset() + remotesCount(); ++processId) {
         const OneToOneUniQueue &queue = outQueue(processId);
-        storeAppendPrintf(&entry, "  kid%d sending to kid%d: ", theLocalProcessId, processId);
-        queue.statOut<Value>(entry);
+        queue.statOut<Value>(entry, theLocalProcessId, processId);
     }
 }
 
