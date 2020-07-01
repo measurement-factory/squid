@@ -456,8 +456,8 @@ template <class Value>
 void
 OneToOneUniQueue::stat(StoreEntry &entry, const unsigned int start, const uint32_t count) const
 {
-    // Branch XXX: Some arguments are not %d (i.e. signed int)!
-    storeAppendPrintf(&entry, "{ size: %d, capacity: %d, inputIndex: %d, outputIndex: %d",
+    // Branch XXX: Some arguments are not %u (i.e. unsigned int)!
+    storeAppendPrintf(&entry, "{ size: %u, capacity: %u, inputIndex: %u, outputIndex: %u",
             count, theCapacity, theIn, theOut);
 
     if (!empty()) {
@@ -502,7 +502,7 @@ OneToOneUniQueue::statRange(StoreEntry &entry, const unsigned int start, const u
         memcpy(&value, theBuffer + pos, sizeof(value));
         storeAppendPrintf(&entry, "    { ");
         value.stat(entry);
-        storeAppendPrintf(&entry, " }, # [%d]\n", skippedCount + i);
+        storeAppendPrintf(&entry, " }, # [%u]\n", skippedCount + i);
     }
 }
 
