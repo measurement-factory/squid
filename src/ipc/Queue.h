@@ -21,6 +21,7 @@
 class String;
 class StoreEntry;
 
+// Branch XXX: storeAppendPrintf is deprecated in favor of StoreEntry::appendf()
 void storeAppendPrintf(StoreEntry *, const char *,...) PRINTF_FORMAT_ARG2;
 
 namespace Ipc
@@ -124,18 +125,13 @@ public:
     template<class Value> void statOut(StoreEntry &) const;
 
 private:
-    /// a common method for statIn() and statOut()
-    /// \param size the size of the queue at the moment of the call
-    /// \param startPos the absolute index (based on theIn or theOut) of the first available queue element
-    template<class Value> void stat(StoreEntry &, const uint32_t size, const unsigned int startPos) const;
-    /// outputs few queue elements (for statistics) to the provided StoreEntry
-    /// \param startPos the absolute index (based on theIn or theOut) of the first available queue element
-    /// \param offset skip this number of elements, starting from startPos
-    /// \param requested the number of elements to copy to StoreEntry
-    template<class Value> void statElements(StoreEntry &, const unsigned int startPos, const uint32_t offset, const uint32_t requested) const;
+    /// report queue parameters and a sample of [start, start + size) items
+    template<class Value> void stat(StoreEntry &e, unsigned int start, uint32_t size) const;
+    /// report n items, starting from start + skippedCount
+    template<class Value> void statRange(StoreEntry &e, unsigned int start, uint32_t skippedCount, uint32_t n) const;
 
-    unsigned int theIn; ///< input index, used only in push()
-    unsigned int theOut; ///< output index, used only in pop()
+    unsigned int theIn; ///< input index; reporting aside, used only in push()
+    unsigned int theOut; ///< output index; reporting aside, used only in pop()/peek()
 
     std::atomic<uint32_t> theSize; ///< number of items in the queue
     const unsigned int theMaxItemSize; ///< maximum item size
@@ -435,37 +431,49 @@ template <class Value>
 void
 OneToOneUniQueue::statIn(StoreEntry &entry) const
 {
-    const auto sz = theSize.load();
-    stat<Value>(entry, sz, theIn - sz);
+    // Nobody can modify our theIn so, after capturing some valid theSize value
+    // in count, we can reliably report all [theIn-count, theIn) items that were
+    // queued at theSize capturing time. We may report items already pop()ed by
+    // the other side, but that is OK because pop() does not modify items -- it
+    // only increments theOut.
+    const auto count = theSize.load();
+    stat<Value>(entry, theIn - count, count); // Branch XXX: theIn-count may get negative!
 }
 
 template <class Value>
 void
 OneToOneUniQueue::statOut(StoreEntry &entry) const
 {
-    const auto sz = theSize.load();
-    stat<Value>(entry, sz, theOut);
+    // Nobody can modify our theOut so, after capturing some valid theSize value
+    // in count, we can reliably report all [theOut, theOut+count) items that
+    // were queued at theSize capturing time. We will miss new items push()ed by
+    // the other side, but that is OK.
+    const auto count = theSize.load();
+    stat<Value>(entry, theOut, count);
 }
 
 template <class Value>
 void
-OneToOneUniQueue::stat(StoreEntry &entry, const uint32_t aSize, const unsigned int startPos) const
+OneToOneUniQueue::stat(StoreEntry &entry, const unsigned int start, const uint32_t count) const
 {
+    // Branch XXX: Some arguments are not %d (i.e. signed int)!
     storeAppendPrintf(&entry, "{ size: %d, capacity: %d, inputIndex: %d, outputIndex: %d",
-            aSize, theCapacity, theIn, theOut);
+            count, theCapacity, theIn, theOut);
 
     if (!empty()) {
         storeAppendPrintf(&entry, ", items: [\n");
-        // we output maximum two groups of elements, taken from the beginning and the end of the buffer
-        const auto elementsInGroup = std::min(3U, aSize);
-        statElements<Value>(entry, startPos, 0, elementsInGroup);
-        if (elementsInGroup < aSize) { // else the first group consumed all queue elements
-            if (aSize > 2 * elementsInGroup) // else no delimiter since all buffer elements will be showed
-                storeAppendPrintf(&entry, "    # ...\n");
-            const auto defaultOffset = aSize - elementsInGroup;
-            // no overlapping with the first group
-            const auto secondGroupOffset = defaultOffset < elementsInGroup ? elementsInGroup : defaultOffset;
-            statElements<Value>(entry, startPos, secondGroupOffset, elementsInGroup);
+        // report a few leading and trailing items, without repetitions
+        const auto sampleSize = std::min(3U, count); // leading/trailing sample
+        statRange<Value>(entry, start, 0, sampleSize);
+        if (sampleSize < count) { // the first sample did not show some items
+            if (sampleSize*2U < count) // both samples will not show some items
+                storeAppendPrintf(&entry, "    # ... %u items not shown ...\n", count - sampleSize*2U);
+            // The `start` offset aside, the first sample reported all items
+            // below the sampleSize offset. The second sample needs to report
+            // the last sampleSize items (i.e. starting at count-sampleSize
+            // offset) except those already reported by the first sample.
+            const auto secondSampleOffset = std::max(sampleSize, count - sampleSize);
+            statRange<Value>(entry, start, secondSampleOffset, sampleSize);
         }
         storeAppendPrintf(&entry, "  ]");
     } else {
@@ -477,18 +485,19 @@ OneToOneUniQueue::stat(StoreEntry &entry, const uint32_t aSize, const unsigned i
 
 template <class Value>
 void
-OneToOneUniQueue::statElements(StoreEntry &entry, const unsigned int startPos, uint32_t offset, const uint32_t requested) const
+OneToOneUniQueue::statRange(StoreEntry &entry, const unsigned int start, const uint32_t skippedCount, const uint32_t n) const
 {
     assert(!empty());
     assert(sizeof(Value) <= theMaxItemSize);
-    auto absPos = startPos + offset;
-    for (uint32_t i = 0; i < requested; ++i) {
-        const auto pos = (absPos++ % theCapacity) * theMaxItemSize;
+    auto offset = start + skippedCount;
+    for (uint32_t i = 0; i < n; ++i) {
+        // XXX: Wrapping tricks like this work only if theCapacity is a power of 2.
+        const auto pos = (offset++ % theCapacity) * theMaxItemSize;
         Value value;
         memcpy(&value, theBuffer + pos, sizeof(value));
         storeAppendPrintf(&entry, "    { ");
         value.stat(entry);
-        storeAppendPrintf(&entry, " }, # [%d]\n", i + offset);
+        storeAppendPrintf(&entry, " }, # [%d]\n", skippedCount + i);
     }
 }
 
