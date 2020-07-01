@@ -454,7 +454,7 @@ OneToOneUniQueue::statOut(StoreEntry &entry, const int localProcessId, const int
     // only increments theOut.
     const auto count = theSize.load();
     statOpen(entry, "pushIndex", "other", count);
-    statSamples<Value>(entry, theIn - count, count); // Branch XXX: theIn-count may get negative!
+    statSamples<Value>(entry, theIn - count, count); // unsigned underflow is OK
     statClose(entry);
 }
 
