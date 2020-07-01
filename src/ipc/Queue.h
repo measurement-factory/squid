@@ -466,8 +466,13 @@ OneToOneUniQueue::stat(StoreEntry &entry, const unsigned int start, const uint32
         const auto sampleSize = std::min(3U, count); // leading/trailing sample
         statRange<Value>(entry, start, 0, sampleSize);
         if (sampleSize < count) { // the first sample did not show some items
-            if (sampleSize*2U < count) // both samples will not show some items
-                storeAppendPrintf(&entry, "    # ... %u items not shown ...\n", count - sampleSize*2U);
+            if (sampleSize*2U < count) { // both samples will not show some items
+                const auto middleCount = count - sampleSize*2U;
+                if (middleCount == 1)
+                    statRange<Value>(entry, start, sampleSize, 1);
+                else
+                    storeAppendPrintf(&entry, "    # ... %u items not shown ...\n", middleCount);
+            }
             // The `start` offset aside, the first sample reported all items
             // below the sampleSize offset. The second sample needs to report
             // the last sampleSize items (i.e. starting at count-sampleSize
