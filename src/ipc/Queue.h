@@ -125,9 +125,8 @@ public:
     template<class Value> void statOut(StoreEntry &) const;
 
 private:
-    /// report queue parameters and a sample of [start, start + size) items
-    template<class Value> void stat(StoreEntry &e, unsigned int start, uint32_t size) const;
-    /// report n items, starting from start + skippedCount
+    inline void statOpen(StoreEntry &entry, const char *inLabel, const char *outLabel, const uint32_t count) const;
+    template<class Value> void statClose(StoreEntry &e, unsigned int start, uint32_t size) const;
     template<class Value> void statRange(StoreEntry &e, unsigned int start, uint32_t skippedCount, uint32_t n) const;
 
     unsigned int theIn; ///< input index; reporting aside, used only in push()
@@ -437,7 +436,8 @@ OneToOneUniQueue::statIn(StoreEntry &entry) const
     // the other side, but that is OK because pop() does not modify items -- it
     // only increments theOut.
     const auto count = theSize.load();
-    stat<Value>(entry, theIn - count, count); // Branch XXX: theIn-count may get negative!
+    statOpen(entry, "pushIndex", "other", count);
+    statClose<Value>(entry, theIn - count, count); // Branch XXX: theIn-count may get negative!
 }
 
 template <class Value>
@@ -449,17 +449,26 @@ OneToOneUniQueue::statOut(StoreEntry &entry) const
     // were queued at theSize capturing time. We will miss new items push()ed by
     // the other side, but that is OK.
     const auto count = theSize.load();
-    stat<Value>(entry, theOut, count);
+    statOpen(entry, "other", "popIndex", count);
+    statClose<Value>(entry, theOut, count);
 }
 
-template <class Value>
-void
-OneToOneUniQueue::stat(StoreEntry &entry, const unsigned int start, const uint32_t count) const
+/// start cache manager reporting (by reporting queue parameters)
+/// The labels reflect whether the caller owns theIn or theOut data member and,
+/// hence, can report the corresponding value reliably.
+inline void
+OneToOneUniQueue::statOpen(StoreEntry &entry, const char *inLabel, const char *outLabel, const uint32_t count) const
 {
     // Branch XXX: Some arguments are not %u (i.e. unsigned int)!
-    storeAppendPrintf(&entry, "{ size: %u, capacity: %u, inputIndex: %u, outputIndex: %u",
-            count, theCapacity, theIn, theOut);
+    storeAppendPrintf(&entry, "{ size: %u, capacity: %u, %s: %u, %s: %u",
+                      count, theCapacity, inLabel, theIn, outLabel, theOut);
+}
 
+/// end cache manager reporting with a sample of [start, start + size) items
+template <class Value>
+void
+OneToOneUniQueue::statClose(StoreEntry &entry, const unsigned int start, const uint32_t count) const
+{
     if (!empty()) {
         storeAppendPrintf(&entry, ", items: [\n");
         // report a few leading and trailing items, without repetitions
@@ -488,6 +497,7 @@ OneToOneUniQueue::stat(StoreEntry &entry, const unsigned int start, const uint32
     storeAppendPrintf(&entry, "}\n");
 }
 
+/// statClose() helper that reports n items, starting from start + skippedCount
 template <class Value>
 void
 OneToOneUniQueue::statRange(StoreEntry &entry, const unsigned int start, const uint32_t skippedCount, const uint32_t n) const
