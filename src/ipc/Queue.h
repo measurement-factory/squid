@@ -126,7 +126,8 @@ public:
 
 private:
     inline void statOpen(StoreEntry &entry, const char *inLabel, const char *outLabel, const uint32_t count) const;
-    template<class Value> void statClose(StoreEntry &e, unsigned int start, uint32_t size) const;
+    template<class Value> void statSamples(StoreEntry &e, unsigned int start, uint32_t size) const;
+    void statClose(StoreEntry &) const;
     template<class Value> void statRange(StoreEntry &e, unsigned int start, uint32_t skippedCount, uint32_t n) const;
 
     unsigned int theIn; ///< input index; reporting aside, used only in push()
@@ -437,7 +438,8 @@ OneToOneUniQueue::statIn(StoreEntry &entry, const int localProcessId, const int 
     // the other side, but that is OK.
     const auto count = theSize.load();
     statOpen(entry, "other", "popIndex", count);
-    statClose<Value>(entry, theOut, count);
+    statSamples<Value>(entry, theOut, count);
+    statClose(entry);
 }
 
 template <class Value>
@@ -452,7 +454,8 @@ OneToOneUniQueue::statOut(StoreEntry &entry, const int localProcessId, const int
     // only increments theOut.
     const auto count = theSize.load();
     statOpen(entry, "pushIndex", "other", count);
-    statClose<Value>(entry, theIn - count, count); // Branch XXX: theIn-count may get negative!
+    statSamples<Value>(entry, theIn - count, count); // Branch XXX: theIn-count may get negative!
+    statClose(entry);
 }
 
 /// start cache manager reporting (by reporting queue parameters)
@@ -466,35 +469,41 @@ OneToOneUniQueue::statOpen(StoreEntry &entry, const char *inLabel, const char *o
                       count, theCapacity, inLabel, theIn, outLabel, theOut);
 }
 
-/// end cache manager reporting with a sample of [start, start + size) items
+/// report a sample of [start, start + size) items
 template <class Value>
 void
-OneToOneUniQueue::statClose(StoreEntry &entry, const unsigned int start, const uint32_t count) const
+OneToOneUniQueue::statSamples(StoreEntry &entry, const unsigned int start, const uint32_t count) const
 {
-    if (!empty()) {
-        storeAppendPrintf(&entry, ", items: [\n");
-        // report a few leading and trailing items, without repetitions
-        const auto sampleSize = std::min(3U, count); // leading/trailing sample
-        statRange<Value>(entry, start, 0, sampleSize);
-        if (sampleSize < count) { // the first sample did not show some items
-            const auto maxSamples = sampleSize*2U;
-            if (maxSamples + 1U == count)
-                statRange<Value>(entry, start, sampleSize, 1);
-            else if (count > maxSamples)
-                storeAppendPrintf(&entry, "    # ... %u items not shown ...\n", count - maxSamples);
-            // The `start` offset aside, the first sample reported all items
-            // below the sampleSize offset. The second sample needs to report
-            // the last sampleSize items (i.e. starting at count-sampleSize
-            // offset) except those already reported by the first sample.
-            const auto secondSampleOffset = std::max(sampleSize, count - sampleSize);
-            const auto secondSampleSize = std::min(sampleSize, count - sampleSize);
-            statRange<Value>(entry, start, secondSampleOffset, secondSampleSize);
-        }
-        storeAppendPrintf(&entry, "  ]");
-    } else {
+    if (empty()) {
         storeAppendPrintf(&entry, " ");
+        return;
     }
 
+    storeAppendPrintf(&entry, ", items: [\n");
+    // report a few leading and trailing items, without repetitions
+    const auto sampleSize = std::min(3U, count); // leading/trailing sample
+    statRange<Value>(entry, start, 0, sampleSize);
+    if (sampleSize < count) { // the first sample did not show some items
+        const auto maxSamples = sampleSize*2U;
+        if (maxSamples + 1U == count)
+            statRange<Value>(entry, start, sampleSize, 1);
+        else if (count > maxSamples)
+            storeAppendPrintf(&entry, "    # ... %u items not shown ...\n", count - maxSamples);
+        // The `start` offset aside, the first sample reported all items
+        // below the sampleSize offset. The second sample needs to report
+        // the last sampleSize items (i.e. starting at count-sampleSize
+        // offset) except those already reported by the first sample.
+        const auto secondSampleOffset = std::max(sampleSize, count - sampleSize);
+        const auto secondSampleSize = std::min(sampleSize, count - sampleSize);
+        statRange<Value>(entry, start, secondSampleOffset, secondSampleSize);
+    }
+    storeAppendPrintf(&entry, "  ]");
+}
+
+/// end cache manager reporting
+inline void
+OneToOneUniQueue::statClose(StoreEntry &entry) const
+{
     storeAppendPrintf(&entry, "}\n");
 }
 
