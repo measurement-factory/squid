@@ -487,7 +487,8 @@ OneToOneUniQueue::statClose(StoreEntry &entry, const unsigned int start, const u
             // the last sampleSize items (i.e. starting at count-sampleSize
             // offset) except those already reported by the first sample.
             const auto secondSampleOffset = std::max(sampleSize, count - sampleSize);
-            statRange<Value>(entry, start, secondSampleOffset, sampleSize);
+            const auto secondSampleSize = std::min(sampleSize, count - sampleSize);
+            statRange<Value>(entry, start, secondSampleOffset, secondSampleSize);
         }
         storeAppendPrintf(&entry, "  ]");
     } else {
