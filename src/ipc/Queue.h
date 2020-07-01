@@ -119,9 +119,9 @@ public:
     /// returns true iff the value was set; the value may be stale!
     template<class Value> bool peek(Value &value) const;
 
-    /// outputs writer statistics to the provided StoreEntry
+    /// reports incoming queue state
     template<class Value> void statIn(StoreEntry &) const;
-    /// outputs reader statistics to the provided StoreEntry
+    /// reports outgoing queue state
     template<class Value> void statOut(StoreEntry &) const;
 
 private:
@@ -430,6 +430,19 @@ template <class Value>
 void
 OneToOneUniQueue::statIn(StoreEntry &entry) const
 {
+    // Nobody can modify our theOut so, after capturing some valid theSize value
+    // in count, we can reliably report all [theOut, theOut+count) items that
+    // were queued at theSize capturing time. We will miss new items push()ed by
+    // the other side, but that is OK.
+    const auto count = theSize.load();
+    statOpen(entry, "other", "popIndex", count);
+    statClose<Value>(entry, theOut, count);
+}
+
+template <class Value>
+void
+OneToOneUniQueue::statOut(StoreEntry &entry) const
+{
     // Nobody can modify our theIn so, after capturing some valid theSize value
     // in count, we can reliably report all [theIn-count, theIn) items that were
     // queued at theSize capturing time. We may report items already pop()ed by
@@ -438,19 +451,6 @@ OneToOneUniQueue::statIn(StoreEntry &entry) const
     const auto count = theSize.load();
     statOpen(entry, "pushIndex", "other", count);
     statClose<Value>(entry, theIn - count, count); // Branch XXX: theIn-count may get negative!
-}
-
-template <class Value>
-void
-OneToOneUniQueue::statOut(StoreEntry &entry) const
-{
-    // Nobody can modify our theOut so, after capturing some valid theSize value
-    // in count, we can reliably report all [theOut, theOut+count) items that
-    // were queued at theSize capturing time. We will miss new items push()ed by
-    // the other side, but that is OK.
-    const auto count = theSize.load();
-    statOpen(entry, "other", "popIndex", count);
-    statClose<Value>(entry, theOut, count);
 }
 
 /// start cache manager reporting (by reporting queue parameters)
