@@ -9,7 +9,6 @@
 /* DEBUG: section 17    Request Forwarding */
 
 #include "squid.h"
-#include "base/PackableStream.h"
 #include "CollapsedForwarding.h"
 #include "globals.h"
 #include "ipc/mem/Segment.h"
@@ -140,10 +139,9 @@ CollapsedForwarding::HandleNotification(const Ipc::TypedMsgHdr &msg)
 }
 
 void
-CollapsedForwarding::StatQueue(StoreEntry &entry)
+CollapsedForwarding::StatQueue(std::ostream &stream)
 {
     if (queue.get()) {
-        PackableStream stream(entry);
         stream << "Transients queues:\n";
         queue->stat<CollapsedForwardingMsg>(stream);
         stream.flush();

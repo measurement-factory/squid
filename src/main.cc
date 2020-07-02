@@ -14,6 +14,7 @@
 #include "acl/Asn.h"
 #include "anyp/UriScheme.h"
 #include "AuthReg.h"
+#include "base/PackableStream.h"
 #include "base/RunnersRegistry.h"
 #include "base/Subscription.h"
 #include "base/TextException.h"
@@ -1111,9 +1112,11 @@ static void
 StatQueues(StoreEntry *e)
 {
     assert(e);
-    CollapsedForwarding::StatQueue(*e);
-    storeAppendPrintf(e, "\n");
-    IpcIoFile::StatQueue(*e);
+    PackableStream stream(*e);
+    CollapsedForwarding::StatQueue(stream);
+    stream << "\n";
+    IpcIoFile::StatQueue(stream);
+    stream.flush();
 }
 
 static void

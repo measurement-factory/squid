@@ -9,7 +9,6 @@
 /* DEBUG: section 47    Store Directory Routines */
 
 #include "squid.h"
-#include "base/PackableStream.h"
 #include "base/RunnersRegistry.h"
 #include "base/TextException.h"
 #include "DiskIO/IORequestor.h"
@@ -499,13 +498,11 @@ IpcIoFile::HandleNotification(const Ipc::TypedMsgHdr &msg)
 }
 
 void
-IpcIoFile::StatQueue(StoreEntry &entry)
+IpcIoFile::StatQueue(std::ostream &stream)
 {
     if (queue.get()) {
-        PackableStream stream(entry);
         stream << "Disk I/O queues:\n";
         queue->stat<IpcIoMsg>(stream);
-        stream.flush();
     }
 }
 
