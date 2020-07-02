@@ -43,8 +43,8 @@ public:
     /// outputs *this to the StoreEntry
     void stat(StoreEntry &);
 
-    // TODO: distinguish all possible Command values
-    char commandIdentifier() const { return command == IpcIo::cmdRead ? 'r' : 'w'; }
+    // IpcIo::Command representation for debugging
+    char commandIdentifier() const;
 
 public:
     unsigned int requestId; ///< unique for requestor; matches request w/ response

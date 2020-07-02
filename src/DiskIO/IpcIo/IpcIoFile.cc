@@ -643,6 +643,24 @@ IpcIoMsg::stat(StoreEntry &e)
             requestId, offset, len, page.number, commandIdentifier(), start.tv_sec, start.tv_usec, passedTime.tv_sec, passedTime.tv_usec, xerrno);
 }
 
+char
+IpcIoMsg::commandIdentifier() const
+{
+    switch (command) {
+        case IpcIo::cmdNone:
+            return 'n';
+        case IpcIo::cmdOpen:
+            return 'o';
+        case IpcIo::cmdRead:
+            return 'r';
+        case IpcIo::cmdWrite:
+            return 'w';
+        default:
+            assert(0);
+            return 0;
+    }
+}
+
 /* IpcIoPendingRequest */
 
 IpcIoPendingRequest::IpcIoPendingRequest(const IpcIoFile::Pointer &aFile):
