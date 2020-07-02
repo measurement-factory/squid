@@ -22,10 +22,12 @@
 #include "carp.h"
 #include "client_db.h"
 #include "client_side.h"
+#include "CollapsedForwarding.h"
 #include "comm.h"
 #include "ConfigParser.h"
 #include "CpuAffinity.h"
 #include "DiskIO/DiskIOModule.h"
+#include "DiskIO/IpcIo/IpcIoFile.h"
 #include "dns/forward.h"
 #include "errorpage.h"
 #include "event.h"
@@ -52,6 +54,7 @@
 #include "ipc/Kids.h"
 #include "ipc/Strand.h"
 #include "ipcache.h"
+#include "mgr/Registration.h"
 #include "mime.h"
 #include "neighbors.h"
 #include "parser/Tokenizer.h"
@@ -1103,6 +1106,16 @@ mainSetCwd(void)
     }
 }
 
+/// outputs Store queues to the provided StoreEntry
+static void
+StatQueues(StoreEntry *e)
+{
+    assert(e);
+    CollapsedForwarding::StatQueue(*e);
+    storeAppendPrintf(e, "\n");
+    IpcIoFile::StatQueue(*e);
+}
+
 static void
 mainInitialize(void)
 {
@@ -1209,6 +1222,7 @@ mainInitialize(void)
 
         urlInitialize();
         statInit();
+        Mgr::RegisterAction("store_queues", "Transients and Disk I/O queues", StatQueues, 0, 1);
         storeInit();
         mainSetCwd();
         mimeInit(Config.mimeTablePathname);

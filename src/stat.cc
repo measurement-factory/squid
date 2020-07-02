@@ -13,10 +13,8 @@
 #include "CachePeer.h"
 #include "client_side.h"
 #include "client_side_request.h"
-#include "CollapsedForwarding.h"
 #include "comm/Connection.h"
 #include "comm/Loops.h"
-#include "DiskIO/IpcIo/IpcIoFile.h"
 #include "event.h"
 #include "fde.h"
 #include "format/Token.h"
@@ -105,7 +103,6 @@ static OBJH statDigestBlob;
 static OBJH statUtilization;
 static OBJH statCountersHistograms;
 static OBJH statClientRequests;
-static OBJH StatQueues;
 void GetAvgStat(Mgr::IntervalActionData& stats, int minutes, int hours);
 void DumpAvgStat(Mgr::IntervalActionData& stats, StoreEntry* sentry);
 void GetInfo(Mgr::InfoActionData& stats);
@@ -1207,13 +1204,6 @@ statRegisterWithCacheManager(void)
     Mgr::RegisterAction("active_requests",
                         "Client-side Active Requests",
                         statClientRequests, 0, 1);
-    // Branch TODO: Split StatQueues() into two and move each part to
-    // the corresponding existing .cc file. Register each from main.cc.
-    // See https://github.com/squid-cache/squid/pull/637#discussion_r430626239
-    // for a similar change request. I hope this will remove stub_IpcIoFile.cc.
-    Mgr::RegisterAction("store_queues",
-                        "Transients and Disk I/O queues",
-                        StatQueues, 0, 1);
 #if USE_AUTH
     Mgr::RegisterAction("username_cache",
                         "Active Cached Usernames",
@@ -1905,16 +1895,6 @@ statClientRequests(StoreEntry * s)
 
         storeAppendPrintf(s, "\n");
     }
-}
-
-/// outputs Store queues to the provided StoreEntry
-static void
-StatQueues(StoreEntry *e)
-{
-    assert(e);
-    CollapsedForwarding::StatQueue(*e);
-    storeAppendPrintf(e, "\n");
-    IpcIoFile::StatQueue(*e);
 }
 
 #if STAT_GRAPHS
