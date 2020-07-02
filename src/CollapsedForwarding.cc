@@ -9,6 +9,7 @@
 /* DEBUG: section 17    Request Forwarding */
 
 #include "squid.h"
+#include "base/PackableStream.h"
 #include "CollapsedForwarding.h"
 #include "globals.h"
 #include "ipc/mem/Segment.h"
@@ -34,8 +35,8 @@ class CollapsedForwardingMsg
 {
 public:
     CollapsedForwardingMsg(): sender(-1), xitIndex(-1) {}
-    /// outputs *this to the StoreEntry
-    void stat(StoreEntry &);
+    /// outputs *this to the stream
+    void stat(std::ostream &);
 
 public:
     int sender; ///< kid ID of sending process
@@ -45,9 +46,9 @@ public:
 };
 
 void
-CollapsedForwardingMsg::stat(StoreEntry &e)
+CollapsedForwardingMsg::stat(std::ostream &stream)
 {
-    storeAppendPrintf(&e, "sender: %d, xitIndex: %d", sender, xitIndex);
+    stream << "sender: " << sender << ", xitIndex: " << xitIndex;
 }
 
 // CollapsedForwarding
@@ -142,8 +143,10 @@ void
 CollapsedForwarding::StatQueue(StoreEntry &entry)
 {
     if (queue.get()) {
-        storeAppendPrintf(&entry, "Transients queues:\n");
-        queue->stat<CollapsedForwardingMsg>(entry);
+        PackableStream stream(entry);
+        stream << "Transients queues:\n";
+        queue->stat<CollapsedForwardingMsg>(stream);
+        stream.flush();
     }
 }
 

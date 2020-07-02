@@ -40,8 +40,8 @@ class IpcIoMsg
 public:
     IpcIoMsg();
 
-    /// outputs *this to the StoreEntry
-    void stat(StoreEntry &);
+    /// outputs *this to the stream
+    void stat(std::ostream &);
 
     // IpcIo::Command representation for debugging
     char commandIdentifier() const;

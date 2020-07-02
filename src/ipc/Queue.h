@@ -19,10 +19,6 @@
 #include <atomic>
 
 class String;
-class StoreEntry;
-
-// Branch XXX: storeAppendPrintf is deprecated in favor of StoreEntry::appendf()
-void storeAppendPrintf(StoreEntry *, const char *,...) PRINTF_FORMAT_ARG2;
 
 namespace Ipc
 {
@@ -120,15 +116,15 @@ public:
     template<class Value> bool peek(Value &value) const;
 
     /// reports incoming queue state
-    template<class Value> void statIn(StoreEntry &, const int localProcessId, const int remoteProcessId) const;
+    template<class Value> void statIn(std::ostream &, const int localProcessId, const int remoteProcessId) const;
     /// reports outgoing queue state
-    template<class Value> void statOut(StoreEntry &, const int localProcessId, const int remoteProcessId) const;
+    template<class Value> void statOut(std::ostream &, const int localProcessId, const int remoteProcessId) const;
 
 private:
-    inline void statOpen(StoreEntry &entry, const char *inLabel, const char *outLabel, const uint32_t count) const;
-    template<class Value> void statSamples(StoreEntry &e, unsigned int start, uint32_t size) const;
-    void statClose(StoreEntry &) const;
-    template<class Value> void statRange(StoreEntry &e, unsigned int start, uint32_t skippedCount, uint32_t n) const;
+    inline void statOpen(std::ostream &, const char *inLabel, const char *outLabel, const uint32_t count) const;
+    template<class Value> void statSamples(std::ostream &, unsigned int start, uint32_t size) const;
+    void statClose(std::ostream &) const;
+    template<class Value> void statRange(std::ostream &, unsigned int start, uint32_t skippedCount, uint32_t n) const;
 
     unsigned int theIn; ///< input index; reporting aside, used only in push()
     unsigned int theOut; ///< output index; reporting aside, used only in pop()/peek()
@@ -181,8 +177,8 @@ public:
     /// peeks at the item likely to be pop()ed next
     template<class Value> bool peek(int &remoteProcessId, Value &value) const;
 
-    /// outputs statistics to the provided StoreEntry
-    template<class Value> void stat(StoreEntry &) const;
+    /// outputs statistics to the provided stream
+    template<class Value> void stat(std::ostream &) const;
 
     /// returns local reader's balance
     QueueReader::Balance &localBalance() { return localReader().balance; }
@@ -429,88 +425,87 @@ OneToOneUniQueue::push(const Value &value, QueueReader *const reader)
 
 template <class Value>
 void
-OneToOneUniQueue::statIn(StoreEntry &entry, const int localProcessId, const int remoteProcessId) const
+OneToOneUniQueue::statIn(std::ostream &stream, const int localProcessId, const int remoteProcessId) const
 {
-    storeAppendPrintf(&entry, "  kid%d receiving from kid%d: ", localProcessId, remoteProcessId);
+    stream << "  kid" << localProcessId << " receiving from kid" << remoteProcessId << ": ";
     // Nobody can modify our theOut so, after capturing some valid theSize value
     // in count, we can reliably report all [theOut, theOut+count) items that
     // were queued at theSize capturing time. We will miss new items push()ed by
     // the other side, but that is OK.
     const auto count = theSize.load();
-    statOpen(entry, "other", "popIndex", count);
-    statSamples<Value>(entry, theOut, count);
-    statClose(entry);
+    statOpen(stream, "other", "popIndex", count);
+    statSamples<Value>(stream, theOut, count);
+    statClose(stream);
 }
 
 template <class Value>
 void
-OneToOneUniQueue::statOut(StoreEntry &entry, const int localProcessId, const int remoteProcessId) const
+OneToOneUniQueue::statOut(std::ostream &stream, const int localProcessId, const int remoteProcessId) const
 {
-    storeAppendPrintf(&entry, "  kid%d sending to kid%d: ", localProcessId, remoteProcessId);
+    stream << "  kid" << localProcessId << " sending to kid" << remoteProcessId << ": ";
     // Nobody can modify our theIn so, after capturing some valid theSize value
     // in count, we can reliably report all [theIn-count, theIn) items that were
     // queued at theSize capturing time. We may report items already pop()ed by
     // the other side, but that is OK because pop() does not modify items -- it
     // only increments theOut.
     const auto count = theSize.load();
-    statOpen(entry, "pushIndex", "other", count);
-    statSamples<Value>(entry, theIn - count, count); // unsigned underflow is OK
-    statClose(entry);
+    statOpen(stream, "pushIndex", "other", count);
+    statSamples<Value>(stream, theIn - count, count); // unsigned underflow is OK
+    statClose(stream);
 }
 
 /// start cache manager reporting (by reporting queue parameters)
 /// The labels reflect whether the caller owns theIn or theOut data member and,
 /// hence, can report the corresponding value reliably.
 inline void
-OneToOneUniQueue::statOpen(StoreEntry &entry, const char *inLabel, const char *outLabel, const uint32_t count) const
+OneToOneUniQueue::statOpen(std::ostream &stream, const char *inLabel, const char *outLabel, const uint32_t count) const
 {
-    // Branch XXX: Some arguments are not %u (i.e. unsigned int)!
-    storeAppendPrintf(&entry, "{ size: %u, capacity: %u, %s: %u, %s: %u",
-                      count, theCapacity, inLabel, theIn, outLabel, theOut);
+    stream << "{ size: " << count << ", capacity: " << theCapacity << ", " <<
+        inLabel << ": " << theIn << ", " << outLabel << ": " << theOut;
 }
 
 /// report a sample of [start, start + size) items
 template <class Value>
 void
-OneToOneUniQueue::statSamples(StoreEntry &entry, const unsigned int start, const uint32_t count) const
+OneToOneUniQueue::statSamples(std::ostream &stream, const unsigned int start, const uint32_t count) const
 {
     if (empty()) {
-        storeAppendPrintf(&entry, " ");
+        stream << " ";
         return;
     }
 
-    storeAppendPrintf(&entry, ", items: [\n");
+    stream << ", items: [\n";
     // report a few leading and trailing items, without repetitions
     const auto sampleSize = std::min(3U, count); // leading/trailing sample
-    statRange<Value>(entry, start, 0, sampleSize);
+    statRange<Value>(stream, start, 0, sampleSize);
     if (sampleSize < count) { // the first sample did not show some items
         const auto maxSamples = sampleSize*2U;
         if (maxSamples + 1U == count)
-            statRange<Value>(entry, start, sampleSize, 1);
+            statRange<Value>(stream, start, sampleSize, 1);
         else if (count > maxSamples)
-            storeAppendPrintf(&entry, "    # ... %u items not shown ...\n", count - maxSamples);
+            stream << "    # ... " << count - maxSamples << " items not shown ...\n";
         // The `start` offset aside, the first sample reported all items
         // below the sampleSize offset. The second sample needs to report
         // the last sampleSize items (i.e. starting at count-sampleSize
         // offset) except those already reported by the first sample.
         const auto secondSampleOffset = std::max(sampleSize, count - sampleSize);
         const auto secondSampleSize = std::min(sampleSize, count - sampleSize);
-        statRange<Value>(entry, start, secondSampleOffset, secondSampleSize);
+        statRange<Value>(stream, start, secondSampleOffset, secondSampleSize);
     }
-    storeAppendPrintf(&entry, "  ]");
+    stream << "  ]";
 }
 
 /// end cache manager reporting
 inline void
-OneToOneUniQueue::statClose(StoreEntry &entry) const
+OneToOneUniQueue::statClose(std::ostream &stream) const
 {
-    storeAppendPrintf(&entry, "}\n");
+    stream << "}\n";
 }
 
 /// statClose() helper that reports n items, starting from start + skippedCount
 template <class Value>
 void
-OneToOneUniQueue::statRange(StoreEntry &entry, const unsigned int start, const uint32_t skippedCount, const uint32_t n) const
+OneToOneUniQueue::statRange(std::ostream &stream, const unsigned int start, const uint32_t skippedCount, const uint32_t n) const
 {
     assert(!empty());
     assert(sizeof(Value) <= theMaxItemSize);
@@ -520,9 +515,9 @@ OneToOneUniQueue::statRange(StoreEntry &entry, const unsigned int start, const u
         const auto pos = (offset++ % theCapacity) * theMaxItemSize;
         Value value;
         memcpy(&value, theBuffer + pos, sizeof(value));
-        storeAppendPrintf(&entry, "    { ");
-        value.stat(entry);
-        storeAppendPrintf(&entry, " }, # [%u]\n", skippedCount + i);
+        stream << "    { ";
+        value.stat(stream);
+        stream << " }, # [" << skippedCount + i << "]\n";
     }
 }
 
@@ -592,18 +587,18 @@ BaseMultiQueue::peek(int &remoteProcessId, Value &value) const
 
 template <class Value>
 void
-BaseMultiQueue::stat(StoreEntry &entry) const
+BaseMultiQueue::stat(std::ostream &stream) const
 {
     for (int processId = remotesIdOffset(); processId < remotesIdOffset() + remotesCount(); ++processId) {
         const OneToOneUniQueue &queue = inQueue(processId);
-        queue.statIn<Value>(entry, theLocalProcessId, processId);
+        queue.statIn<Value>(stream, theLocalProcessId, processId);
     }
 
-    storeAppendPrintf(&entry, "\n");
+    stream << "\n";
 
     for (int processId = remotesIdOffset(); processId < remotesIdOffset() + remotesCount(); ++processId) {
         const OneToOneUniQueue &queue = outQueue(processId);
-        queue.statOut<Value>(entry, theLocalProcessId, processId);
+        queue.statOut<Value>(stream, theLocalProcessId, processId);
     }
 }
 

@@ -9,6 +9,7 @@
 /* DEBUG: section 47    Store Directory Routines */
 
 #include "squid.h"
+#include "base/PackableStream.h"
 #include "base/RunnersRegistry.h"
 #include "base/TextException.h"
 #include "DiskIO/IORequestor.h"
@@ -501,8 +502,10 @@ void
 IpcIoFile::StatQueue(StoreEntry &entry)
 {
     if (queue.get()) {
-        storeAppendPrintf(&entry, "Disk I/O queues:\n");
-        queue->stat<IpcIoMsg>(entry);
+        PackableStream stream(entry);
+        stream << "Disk I/O queues:\n";
+        queue->stat<IpcIoMsg>(stream);
+        stream.flush();
     }
 }
 
@@ -635,12 +638,15 @@ IpcIoMsg::IpcIoMsg():
 }
 
 void
-IpcIoMsg::stat(StoreEntry &e)
+IpcIoMsg::stat(std::ostream &stream)
 {
     timeval passedTime;
     tvSub(passedTime, start, current_time);
-    storeAppendPrintf(&e, "id: %u, offset: %ld, len: %lu, pageId: %u, command: %c, startTime: %ld.%06ld, passedTime: %ld.%06ld, xerrno: %d",
-            requestId, offset, len, page.number, commandIdentifier(), start.tv_sec, start.tv_usec, passedTime.tv_sec, passedTime.tv_usec, xerrno);
+    stream << "id: " << requestId << ", offset: " << offset << ", len: " << len <<
+        ", pageId: " << page.number << ", command: " << commandIdentifier() <<
+        ", startTime: " << start.tv_sec << "." << std::setfill('0') << std::setw(6) << start.tv_usec <<
+        ", passedTime: " << passedTime.tv_sec << "." << std::setfill('0') << std::setw(6) << passedTime.tv_usec <<
+        ", xerrno: " << xerrno;
 }
 
 char
