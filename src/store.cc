@@ -9,10 +9,13 @@
 /* DEBUG: section 20    Storage Manager */
 
 #include "squid.h"
+#include "base/PackableStream.h"
 #include "CacheDigest.h"
 #include "CacheManager.h"
+#include "CollapsedForwarding.h"
 #include "comm/Connection.h"
 #include "comm/Read.h"
+#include "DiskIO/IpcIo/IpcIoFile.h"
 #include "ETag.h"
 #include "event.h"
 #include "fde.h"
@@ -116,6 +119,18 @@ Store::Stats(StoreEntry * output)
 {
     assert(output);
     Root().stat(*output);
+}
+
+/// outputs Store queues to the provided StoreEntry
+static void
+StatQueues(StoreEntry *e)
+{
+    assert(e);
+    PackableStream stream(*e);
+    CollapsedForwarding::StatQueue(stream);
+    stream << "\n";
+    IpcIoFile::StatQueue(stream);
+    stream.flush();
 }
 
 // XXX: new/delete operators need to be replaced with MEMPROXY_CLASS
@@ -1378,6 +1393,7 @@ storeRegisterWithCacheManager(void)
     Mgr::RegisterAction("store_io", "Store IO Interface Stats", &Mgr::StoreIoAction::Create, 0, 1);
     Mgr::RegisterAction("store_check_cachable_stats", "storeCheckCachable() Stats",
                         storeCheckCachableStats, 0, 1);
+    Mgr::RegisterAction("store_queues", "Transients and Disk I/O queues", StatQueues, 0, 1);
 }
 
 void
