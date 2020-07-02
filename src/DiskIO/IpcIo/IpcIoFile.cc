@@ -641,9 +641,7 @@ IpcIoMsg::stat(std::ostream &stream)
     tvSub(passedTime, start, current_time);
     stream << "id: " << requestId << ", offset: " << offset << ", len: " << len <<
         ", pageId: " << page.number << ", command: " << commandIdentifier() <<
-        ", startTime: " << start.tv_sec << "." << std::setfill('0') << std::setw(6) << start.tv_usec <<
-        ", passedTime: " << passedTime.tv_sec << "." << std::setfill('0') << std::setw(6) << passedTime.tv_usec <<
-        ", xerrno: " << xerrno;
+        ", startTime: " << start << ", passedTime: " << passedTime << ", xerrno: " << xerrno;
 }
 
 char

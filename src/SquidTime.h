@@ -13,6 +13,7 @@
 
 #include "rfc1123.h"
 
+#include <iomanip>
 #include <ctime>
 /* NP: sys/time.h is provided by libcompat */
 
@@ -55,6 +56,15 @@ public:
     /** tick the clock - update from the OS or other time source, */
     virtual void tick();
 };
+
+inline std::ostream &
+operator <<(std::ostream &os, const timeval &t)
+{
+    auto prevFill = os.fill();
+    os << t.tv_sec << "." << std::setfill('0') << std::setw(6) << t.tv_usec;
+    os.fill(prevFill);
+    return os;
+}
 
 namespace Time
 {
