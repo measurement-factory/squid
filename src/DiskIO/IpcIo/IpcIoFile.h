@@ -40,10 +40,10 @@ class IpcIoMsg
 public:
     IpcIoMsg();
 
-    /// outputs *this to the stream
+    /// prints message parameters; suitable for cache manager reports
     void stat(std::ostream &);
 
-    // IpcIo::Command representation for debugging
+    /// a human-friendly IpcIo::Command representation
     char commandIdentifier() const;
 
 public:
@@ -92,7 +92,7 @@ public:
     /// handle queue push notifications from worker or disker
     static void HandleNotification(const Ipc::TypedMsgHdr &msg);
 
-    /// outputs the IPC queue statistics to the stream
+    /// prints IPC message queue state; suitable for cache manager reports
     static void StatQueue(std::ostream &);
 
     DiskFile::Config config; ///< supported configuration options

@@ -60,9 +60,10 @@ public:
 inline std::ostream &
 operator <<(std::ostream &os, const timeval &t)
 {
-    auto prevFill = os.fill();
-    os << t.tv_sec << "." << std::setfill('0') << std::setw(6) << t.tv_usec;
-    os.fill(prevFill);
+    os << t.tv_sec << ".";
+    const auto savedFill = os.fill('0');
+    os << std::setw(6) << t.tv_usec;
+    os.fill(savedFill);
     return os;
 }
 

@@ -115,10 +115,10 @@ public:
     /// returns true iff the value was set; the value may be stale!
     template<class Value> bool peek(Value &value) const;
 
-    /// reports incoming queue state
-    template<class Value> void statIn(std::ostream &, const int localProcessId, const int remoteProcessId) const;
-    /// reports outgoing queue state
-    template<class Value> void statOut(std::ostream &, const int localProcessId, const int remoteProcessId) const;
+    /// prints incoming queue state; suitable for cache manager reports
+    template<class Value> void statIn(std::ostream &, int localProcessId, int remoteProcessId) const;
+    /// prints outgoing queue state; suitable for cache manager reports
+    template<class Value> void statOut(std::ostream &, int localProcessId, int remoteProcessId) const;
 
 private:
     inline void statOpen(std::ostream &, const char *inLabel, const char *outLabel, const uint32_t count) const;
@@ -126,8 +126,10 @@ private:
     void statClose(std::ostream &) const;
     template<class Value> void statRange(std::ostream &, unsigned int start, uint32_t skippedCount, uint32_t n) const;
 
-    unsigned int theIn; ///< input index; reporting aside, used only in push()
-    unsigned int theOut; ///< output index; reporting aside, used only in pop()/peek()
+    // optimization: these non-std::atomic data members are in shared memory,
+    // but each is used only by one process (aside from obscured reporting)
+    unsigned int theIn; ///< current push() position; reporting aside, used only in push()
+    unsigned int theOut; ///< current pop() position; reporting aside, used only in pop()/peek()
 
     std::atomic<uint32_t> theSize; ///< number of items in the queue
     const unsigned int theMaxItemSize; ///< maximum item size
@@ -177,7 +179,7 @@ public:
     /// peeks at the item likely to be pop()ed next
     template<class Value> bool peek(int &remoteProcessId, Value &value) const;
 
-    /// outputs statistics to the provided stream
+    /// prints current state; suitable for cache manager reports
     template<class Value> void stat(std::ostream &) const;
 
     /// returns local reader's balance
@@ -425,99 +427,107 @@ OneToOneUniQueue::push(const Value &value, QueueReader *const reader)
 
 template <class Value>
 void
-OneToOneUniQueue::statIn(std::ostream &stream, const int localProcessId, const int remoteProcessId) const
+OneToOneUniQueue::statIn(std::ostream &os, const int localProcessId, const int remoteProcessId) const
 {
-    stream << "  kid" << localProcessId << " receiving from kid" << remoteProcessId << ": ";
+    os << "  kid" << localProcessId << " receiving from kid" << remoteProcessId << ": ";
     // Nobody can modify our theOut so, after capturing some valid theSize value
     // in count, we can reliably report all [theOut, theOut+count) items that
     // were queued at theSize capturing time. We will miss new items push()ed by
-    // the other side, but that is OK.
+    // the other side, but it is OK -- we report state at the capturing time.
     const auto count = theSize.load();
-    statOpen(stream, "other", "popIndex", count);
-    statSamples<Value>(stream, theOut, count);
-    statClose(stream);
+    statOpen(os, "other", "popIndex", count);
+    statSamples<Value>(os, theOut, count);
+    statClose(os);
 }
 
 template <class Value>
 void
-OneToOneUniQueue::statOut(std::ostream &stream, const int localProcessId, const int remoteProcessId) const
+OneToOneUniQueue::statOut(std::ostream &os, const int localProcessId, const int remoteProcessId) const
 {
-    stream << "  kid" << localProcessId << " sending to kid" << remoteProcessId << ": ";
+    os << "  kid" << localProcessId << " sending to kid" << remoteProcessId << ": ";
     // Nobody can modify our theIn so, after capturing some valid theSize value
     // in count, we can reliably report all [theIn-count, theIn) items that were
     // queued at theSize capturing time. We may report items already pop()ed by
     // the other side, but that is OK because pop() does not modify items -- it
     // only increments theOut.
     const auto count = theSize.load();
-    statOpen(stream, "pushIndex", "other", count);
-    statSamples<Value>(stream, theIn - count, count); // unsigned underflow is OK
-    statClose(stream);
+    statOpen(os, "pushIndex", "other", count);
+    statSamples<Value>(os, theIn - count, count); // unsigned offset underflow OK
+    statClose(os);
 }
 
-/// start cache manager reporting (by reporting queue parameters)
+/// start state reporting (by reporting queue parameters)
 /// The labels reflect whether the caller owns theIn or theOut data member and,
-/// hence, can report the corresponding value reliably.
+/// hence, cannot report the other value reliably.
 inline void
-OneToOneUniQueue::statOpen(std::ostream &stream, const char *inLabel, const char *outLabel, const uint32_t count) const
+OneToOneUniQueue::statOpen(std::ostream &os, const char *inLabel, const char *outLabel, const uint32_t count) const
 {
-    stream << "{ size: " << count << ", capacity: " << theCapacity << ", " <<
-        inLabel << ": " << theIn << ", " << outLabel << ": " << theOut;
+    os << "{ size: " << count <<
+        ", capacity: " << theCapacity <<
+        ", " << inLabel << ": " << theIn <<
+        ", " << outLabel << ": " << theOut;
 }
 
 /// report a sample of [start, start + size) items
 template <class Value>
 void
-OneToOneUniQueue::statSamples(std::ostream &stream, const unsigned int start, const uint32_t count) const
+OneToOneUniQueue::statSamples(std::ostream &os, const unsigned int start, const uint32_t count) const
 {
     if (empty()) {
-        stream << " ";
+        os << " ";
         return;
     }
 
-    stream << ", items: [\n";
+    os << ", items: [\n";
     // report a few leading and trailing items, without repetitions
-    const auto sampleSize = std::min(3U, count); // leading/trailing sample
-    statRange<Value>(stream, start, 0, sampleSize);
+    const auto sampleSize = std::min(3U, count); // leading (and max) sample
+    statRange<Value>(os, start, 0, sampleSize);
     if (sampleSize < count) { // the first sample did not show some items
-        const auto maxSamples = sampleSize*2U;
-        if (maxSamples + 1U == count)
-            statRange<Value>(stream, start, sampleSize, 1);
-        else if (count > maxSamples)
-            stream << "    # ... " << count - maxSamples << " items not shown ...\n";
         // The `start` offset aside, the first sample reported all items
         // below the sampleSize offset. The second sample needs to report
         // the last sampleSize items (i.e. starting at count-sampleSize
         // offset) except those already reported by the first sample.
         const auto secondSampleOffset = std::max(sampleSize, count - sampleSize);
         const auto secondSampleSize = std::min(sampleSize, count - sampleSize);
-        statRange<Value>(stream, start, secondSampleOffset, secondSampleSize);
+
+        // but first we print a sample separator, unless there are no items
+        // between the samples or the separator hides the only unsampled item
+        const auto bothSamples = sampleSize + secondSampleSize;
+        if (bothSamples + 1U == count)
+            statRange<Value>(os, start, sampleSize, 1);
+        else if (count > bothSamples)
+            os << "    # ... " << (count - bothSamples) << " items not shown ...\n";
+
+        statRange<Value>(os, start, secondSampleOffset, secondSampleSize);
     }
-    stream << "  ]";
+    os << "  ]";
 }
 
-/// end cache manager reporting
+/// end state reporting started by statOpen()
 inline void
-OneToOneUniQueue::statClose(std::ostream &stream) const
+OneToOneUniQueue::statClose(std::ostream &os) const
 {
-    stream << "}\n";
+    os << "}\n";
 }
 
-/// statClose() helper that reports n items, starting from start + skippedCount
+/// statSamples() helper that reports n items starting from (start+skippedCount)
 template <class Value>
 void
-OneToOneUniQueue::statRange(std::ostream &stream, const unsigned int start, const uint32_t skippedCount, const uint32_t n) const
+OneToOneUniQueue::statRange(std::ostream &os, const unsigned int start, const uint32_t skippedCount, const uint32_t n) const
 {
     assert(!empty());
     assert(sizeof(Value) <= theMaxItemSize);
     auto offset = start + skippedCount;
     for (uint32_t i = 0; i < n; ++i) {
-        // XXX: Wrapping tricks like this work only if theCapacity is a power of 2.
+        // XXX: Throughout this C++ header, these overflow wrapping tricks work
+        // only because theCapacity currently happens to be a power of 2 (e.g.,
+        // the highest offset (0xF...FFF) % 3 is 0 and so is the next offset).
         const auto pos = (offset++ % theCapacity) * theMaxItemSize;
         Value value;
         memcpy(&value, theBuffer + pos, sizeof(value));
-        stream << "    { ";
-        value.stat(stream);
-        stream << " }, # [" << skippedCount + i << "]\n";
+        os << "    { ";
+        value.stat(os);
+        os << " }, # [" << skippedCount + i << "]\n"; // item's queue position
     }
 }
 
@@ -587,18 +597,18 @@ BaseMultiQueue::peek(int &remoteProcessId, Value &value) const
 
 template <class Value>
 void
-BaseMultiQueue::stat(std::ostream &stream) const
+BaseMultiQueue::stat(std::ostream &os) const
 {
     for (int processId = remotesIdOffset(); processId < remotesIdOffset() + remotesCount(); ++processId) {
-        const OneToOneUniQueue &queue = inQueue(processId);
-        queue.statIn<Value>(stream, theLocalProcessId, processId);
+        const auto &queue = inQueue(processId);
+        queue.statIn<Value>(os, theLocalProcessId, processId);
     }
 
-    stream << "\n";
+    os << "\n";
 
     for (int processId = remotesIdOffset(); processId < remotesIdOffset() + remotesCount(); ++processId) {
-        const OneToOneUniQueue &queue = outQueue(processId);
-        queue.statOut<Value>(stream, theLocalProcessId, processId);
+        const auto &queue = outQueue(processId);
+        queue.statOut<Value>(os, theLocalProcessId, processId);
     }
 }
 

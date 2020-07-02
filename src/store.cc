@@ -121,7 +121,7 @@ Store::Stats(StoreEntry * output)
     Root().stat(*output);
 }
 
-/// outputs Store queues to the provided StoreEntry
+/// reports the current state of Store-related queues
 static void
 StatQueues(StoreEntry *e)
 {
@@ -1393,7 +1393,7 @@ storeRegisterWithCacheManager(void)
     Mgr::RegisterAction("store_io", "Store IO Interface Stats", &Mgr::StoreIoAction::Create, 0, 1);
     Mgr::RegisterAction("store_check_cachable_stats", "storeCheckCachable() Stats",
                         storeCheckCachableStats, 0, 1);
-    Mgr::RegisterAction("store_queues", "Transients and Disk I/O queues", StatQueues, 0, 1);
+    Mgr::RegisterAction("store_queues", "SMP Transients and Caching Queues", StatQueues, 0, 1);
 }
 
 void

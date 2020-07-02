@@ -498,11 +498,11 @@ IpcIoFile::HandleNotification(const Ipc::TypedMsgHdr &msg)
 }
 
 void
-IpcIoFile::StatQueue(std::ostream &stream)
+IpcIoFile::StatQueue(std::ostream &os)
 {
     if (queue.get()) {
-        stream << "Disk I/O queues:\n";
-        queue->stat<IpcIoMsg>(stream);
+        os << "SMP disk I/O queues:\n";
+        queue->stat<IpcIoMsg>(os);
     }
 }
 
@@ -635,13 +635,18 @@ IpcIoMsg::IpcIoMsg():
 }
 
 void
-IpcIoMsg::stat(std::ostream &stream)
+IpcIoMsg::stat(std::ostream &os)
 {
-    timeval passedTime;
-    tvSub(passedTime, start, current_time);
-    stream << "id: " << requestId << ", offset: " << offset << ", len: " << len <<
-        ", pageId: " << page.number << ", command: " << commandIdentifier() <<
-        ", startTime: " << start << ", passedTime: " << passedTime << ", xerrno: " << xerrno;
+    timeval elapsedTime;
+    tvSub(elapsedTime, start, current_time);
+    os << "id: " << requestId <<
+        ", offset: " << offset <<
+        ", size: " << len <<
+        ", page: " << page.number <<
+        ", command: " << commandIdentifier() <<
+        ", start: " << start <<
+        ", elapsed: " << elapsedTime <<
+        ", errno: " << xerrno;
 }
 
 char
@@ -649,7 +654,7 @@ IpcIoMsg::commandIdentifier() const
 {
     switch (command) {
         case IpcIo::cmdNone:
-            return 'n';
+            return '-';
         case IpcIo::cmdOpen:
             return 'o';
         case IpcIo::cmdRead:

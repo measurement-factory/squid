@@ -34,7 +34,8 @@ class CollapsedForwardingMsg
 {
 public:
     CollapsedForwardingMsg(): sender(-1), xitIndex(-1) {}
-    /// outputs *this to the stream
+
+    /// prints message parameters; suitable for cache manager reports
     void stat(std::ostream &);
 
 public:
@@ -45,9 +46,9 @@ public:
 };
 
 void
-CollapsedForwardingMsg::stat(std::ostream &stream)
+CollapsedForwardingMsg::stat(std::ostream &os)
 {
-    stream << "sender: " << sender << ", xitIndex: " << xitIndex;
+    os << "sender: " << sender << ", xitIndex: " << xitIndex;
 }
 
 // CollapsedForwarding
@@ -139,12 +140,12 @@ CollapsedForwarding::HandleNotification(const Ipc::TypedMsgHdr &msg)
 }
 
 void
-CollapsedForwarding::StatQueue(std::ostream &stream)
+CollapsedForwarding::StatQueue(std::ostream &os)
 {
     if (queue.get()) {
-        stream << "Transients queues:\n";
-        queue->stat<CollapsedForwardingMsg>(stream);
-        stream.flush();
+        os << "Transients queues:\n";
+        queue->stat<CollapsedForwardingMsg>(os);
+        os.flush();
     }
 }
 
