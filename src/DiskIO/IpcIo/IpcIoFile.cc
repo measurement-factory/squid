@@ -642,7 +642,7 @@ IpcIoMsg::stat(std::ostream &os)
     os << "id: " << requestId <<
         ", offset: " << offset <<
         ", size: " << len <<
-        ", page: " << page.number <<
+        ", page: " << page <<
         ", command: " << commandIdentifier() <<
         ", start: " << start <<
         ", elapsed: " << elapsedTime <<
