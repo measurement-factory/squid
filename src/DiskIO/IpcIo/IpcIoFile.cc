@@ -66,8 +66,29 @@ std::ostream &
 operator <<(std::ostream &os, const SipcIo &sio)
 {
     return os << "ipcIo" << sio.worker << '.' << sio.msg.requestId <<
-           sio.msg.commandIdentifier() << sio.disker;
+           sio.msg.command << sio.disker;
 }
+
+/* IpcIo::Command */
+
+std::ostream &
+operator <<(std::ostream &os, const IpcIo::Command command)
+{
+    switch (command) {
+    case IpcIo::cmdNone:
+        return os << '-';
+    case IpcIo::cmdOpen:
+        return os << 'o';
+    case IpcIo::cmdRead:
+        return os << 'r';
+    case IpcIo::cmdWrite:
+        return os << 'w';
+    }
+    // unreachable code
+    return os << static_cast<int>(command);
+}
+
+/* IpcIoFile */
 
 IpcIoFile::IpcIoFile(char const *aDb):
     dbName(aDb), diskId(-1), error_(false), lastRequestId(0),
@@ -643,28 +664,10 @@ IpcIoMsg::stat(std::ostream &os)
         ", offset: " << offset <<
         ", size: " << len <<
         ", page: " << page <<
-        ", command: " << commandIdentifier() <<
+        ", command: " << command <<
         ", start: " << start <<
         ", elapsed: " << elapsedTime <<
         ", errno: " << xerrno;
-}
-
-char
-IpcIoMsg::commandIdentifier() const
-{
-    switch (command) {
-        case IpcIo::cmdNone:
-            return '-';
-        case IpcIo::cmdOpen:
-            return 'o';
-        case IpcIo::cmdRead:
-            return 'r';
-        case IpcIo::cmdWrite:
-            return 'w';
-        default:
-            assert(0);
-            return 0;
-    }
 }
 
 /* IpcIoPendingRequest */
