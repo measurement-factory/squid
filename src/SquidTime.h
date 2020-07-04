@@ -13,8 +13,8 @@
 
 #include "rfc1123.h"
 
-#include <iomanip>
 #include <ctime>
+#include <iosfwd>
 /* NP: sys/time.h is provided by libcompat */
 
 /* Use uint64_t to store milliseconds */
@@ -57,15 +57,8 @@ public:
     virtual void tick();
 };
 
-inline std::ostream &
-operator <<(std::ostream &os, const timeval &t)
-{
-    os << t.tv_sec << ".";
-    const auto savedFill = os.fill('0');
-    os << std::setw(6) << t.tv_usec;
-    os.fill(savedFill);
-    return os;
-}
+/// prints <seconds>.<microseconds>
+std::ostream &operator <<(std::ostream &, const timeval &);
 
 namespace Time
 {
