@@ -145,7 +145,6 @@ CollapsedForwarding::StatQueue(std::ostream &os)
     if (queue.get()) {
         os << "Transients queues:\n";
         queue->stat<CollapsedForwardingMsg>(os);
-        os.flush();
     }
 }
 
