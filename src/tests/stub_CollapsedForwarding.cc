@@ -13,4 +13,5 @@
 #include "tests/STUB.h"
 
 void CollapsedForwarding::Broadcast(StoreEntry const&) STUB
+void CollapsedForwarding::StatQueue(std::ostream &) STUB
 

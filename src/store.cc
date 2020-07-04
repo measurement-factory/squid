@@ -121,18 +121,6 @@ Store::Stats(StoreEntry * output)
     Root().stat(*output);
 }
 
-/// reports the current state of Store-related queues
-static void
-StatQueues(StoreEntry *e)
-{
-    assert(e);
-    PackableStream stream(*e);
-    CollapsedForwarding::StatQueue(stream);
-    stream << "\n";
-    IpcIoFile::StatQueue(stream);
-    stream.flush();
-}
-
 // XXX: new/delete operators need to be replaced with MEMPROXY_CLASS
 // definitions but doing so exposes bug 4370, and maybe 4354 and 4355
 void *
@@ -1393,7 +1381,6 @@ storeRegisterWithCacheManager(void)
     Mgr::RegisterAction("store_io", "Store IO Interface Stats", &Mgr::StoreIoAction::Create, 0, 1);
     Mgr::RegisterAction("store_check_cachable_stats", "storeCheckCachable() Stats",
                         storeCheckCachableStats, 0, 1);
-    Mgr::RegisterAction("store_queues", "SMP Transients and Caching Queues", StatQueues, 0, 1);
 }
 
 void
