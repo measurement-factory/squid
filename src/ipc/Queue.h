@@ -121,9 +121,9 @@ public:
     template<class Value> void statOut(std::ostream &, int localProcessId, int remoteProcessId) const;
 
 private:
-    inline void statOpen(std::ostream &, const char *inLabel, const char *outLabel, const uint32_t count) const;
-    template<class Value> void statSamples(std::ostream &, unsigned int start, uint32_t size) const;
+    void statOpen(std::ostream &, const char *inLabel, const char *outLabel, const uint32_t count) const;
     void statClose(std::ostream &) const;
+    template<class Value> void statSamples(std::ostream &, unsigned int start, uint32_t size) const;
     template<class Value> void statRange(std::ostream &, unsigned int start, uint32_t skippedCount, uint32_t n) const;
 
     // optimization: these non-std::atomic data members are in shared memory,
@@ -456,18 +456,6 @@ OneToOneUniQueue::statOut(std::ostream &os, const int localProcessId, const int 
     statClose(os);
 }
 
-/// start state reporting (by reporting queue parameters)
-/// The labels reflect whether the caller owns theIn or theOut data member and,
-/// hence, cannot report the other value reliably.
-inline void
-OneToOneUniQueue::statOpen(std::ostream &os, const char *inLabel, const char *outLabel, const uint32_t count) const
-{
-    os << "{ size: " << count <<
-        ", capacity: " << theCapacity <<
-        ", " << inLabel << ": " << theIn <<
-        ", " << outLabel << ": " << theOut;
-}
-
 /// report a sample of [start, start + size) items
 template <class Value>
 void
@@ -501,13 +489,6 @@ OneToOneUniQueue::statSamples(std::ostream &os, const unsigned int start, const 
         statRange<Value>(os, start, secondSampleOffset, secondSampleSize);
     }
     os << "  ]";
-}
-
-/// end state reporting started by statOpen()
-inline void
-OneToOneUniQueue::statClose(std::ostream &os) const
-{
-    os << "}\n";
 }
 
 /// statSamples() helper that reports n items starting from (start+skippedCount)
