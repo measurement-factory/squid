@@ -9,13 +9,10 @@
 /* DEBUG: section 20    Storage Manager */
 
 #include "squid.h"
-#include "base/PackableStream.h"
 #include "CacheDigest.h"
 #include "CacheManager.h"
-#include "CollapsedForwarding.h"
 #include "comm/Connection.h"
 #include "comm/Read.h"
-#include "DiskIO/IpcIo/IpcIoFile.h"
 #include "ETag.h"
 #include "event.h"
 #include "fde.h"
