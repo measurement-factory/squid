@@ -461,7 +461,7 @@ template <class Value>
 void
 OneToOneUniQueue::statSamples(std::ostream &os, const unsigned int start, const uint32_t count) const
 {
-    if (empty()) {
+    if (!count) {
         os << " ";
         return;
     }
@@ -496,7 +496,6 @@ template <class Value>
 void
 OneToOneUniQueue::statRange(std::ostream &os, const unsigned int start, const uint32_t skippedCount, const uint32_t n) const
 {
-    assert(!empty());
     assert(sizeof(Value) <= theMaxItemSize);
     auto offset = start + skippedCount;
     for (uint32_t i = 0; i < n; ++i) {
