@@ -1286,6 +1286,9 @@ GetFirstAvailable(const helper * hlp)
         if (srv->flags.shutdown)
             continue;
 
+        if (srv->flags.closing)
+            continue;
+
         if (!srv->stats.pending)
             return srv;
 
@@ -1340,6 +1343,9 @@ StatefulGetFirstAvailable(statefulhelper * hlp)
         }
 
         if (srv->flags.shutdown)
+            continue;
+
+        if (srv->flags.closing)
             continue;
 
         debugs(84, 5, "StatefulGetFirstAvailable: returning srv-" << srv->index);
