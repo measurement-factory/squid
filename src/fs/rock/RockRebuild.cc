@@ -17,6 +17,8 @@
 #include "globals.h"
 #include "ipc/StoreMap.h"
 #include "md5.h"
+#include "sbuf/Stream.h"
+#include "SquidMath.h"
 #include "SquidTime.h"
 #include "Store.h"
 #include "store_rebuild.h"
@@ -563,19 +565,35 @@ Rock::Rebuild::swanSong()
     storeRebuildComplete(&counts);
 }
 
+// TODO: After PR #691, revise callException() and failure() to supply errno
+// detail via SysErrorDetail and exception detail via ExceptionErrorDetail.
+void
+Rock::Rebuild::callException(const std::exception &e)
+{
+    failure(e.what()); // XXX: This does not detail the exception enough
+    // fatal failure() substitutes default AsyncJob::callException(e) handling
+}
+
 void
 Rock::Rebuild::failure(const char *msg, int errNo)
 {
+    assert(sd);
     debugs(47,5, sd->index << " slot " << loadingPos << " at " <<
            dbOffset << " <= " << dbSize);
 
-    if (errNo)
-        debugs(47, DBG_CRITICAL, "ERROR: Rock cache_dir rebuild failure: " << xstrerr(errNo));
-    debugs(47, DBG_CRITICAL, "Do you need to run 'squid -z' to initialize storage?");
+    auto error = ToSBuf("Cannot rebuild rock cache_dir index for ", sd->filePath,
+        Debug::Extra, "problem: ", msg,
+        Debug::Extra, "scan progress: ", Math::int64Percent(loadingPos, dbSlotLimit), '%');
 
-    assert(sd);
-    fatalf("Rock cache_dir[%d] rebuild of %s failed: %s.",
-           sd->index, sd->filePath, msg);
+    if (errNo) {
+        error.append(ToSBuf(Debug::Extra, "I/O error: ", xstrerr(errNo)));
+        // XXX: squid -z is only useful for ENOENT, but ENOENT is detected in
+        // SwapDir and prevents our Rebuild job from starting.
+        if (errNo == ENOENT)
+            error.append(ToSBuf(Debug::Extra, "hint: Do you need to run 'squid -z' to initialize cache_dir(s)?"));
+    }
+
+    fatal(error.c_str());
 }
 
 /// adds slot to the free slot index
