@@ -402,6 +402,14 @@ Security::PeerConnector::handleNegotiateError(const int ret)
         ssl_lib_error = ERR_get_error();
         // proceed to the general error handling code
         break;
+    case SSL_ERROR_WANT_ASYNC:
+        debugs(83, 3, "Want async operation");
+        negotiateSsl();
+        return;
+    case SSL_ERROR_WANT_ASYNC_JOB:
+        debugs(83, 3, "want asyncjob to be finished");
+        negotiateSsl();
+        return;
     default:
         // no special error handling for all other errors
         ssl_lib_error = SSL_ERROR_NONE;

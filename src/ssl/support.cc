@@ -279,6 +279,11 @@ ssl_verify_cb(int ok, X509_STORE_CTX * ctx)
         SSL_set_ex_data(ssl, ssl_ex_index_ssl_validation_counter, validationCounter);
     } else {
         // overflows allowed if SQUID_CERT_VALIDATION_ITERATION_MAX >= UINT32_MAX
+        if ((*validationCounter) == 1) {
+            debugs(83, 2, "Will pause validation here ");
+            ASYNC_pause_job();
+            debugs(83, 2, "Will continue validation here ");
+        }
         (*validationCounter)++;
     }
 
@@ -586,6 +591,8 @@ Ssl::InitClientContext(Security::ContextPointer &ctx, Security::PeerOptions &pee
         debugs(83, 9, "Setting certificate verification callback.");
         Ssl::SetupVerifyCallback(ctx);
     }
+
+    SSL_CTX_set_mode(ctx.get(), SSL_MODE_ASYNC);
 
     return true;
 }
