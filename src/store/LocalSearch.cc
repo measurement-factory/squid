@@ -103,6 +103,7 @@ Store::LocalSearch::copyBucket()
         entries.push_back(e);
     }
 
+    // minimize debugging: we may be called more than a million times on startup
     if (const auto count = entries.size())
         debugs(47, 8, "bucket #" << bucket << " entries: " << count);
 
