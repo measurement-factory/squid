@@ -103,8 +103,9 @@ Store::LocalSearch::copyBucket()
         entries.push_back(e);
     }
 
-    ++bucket;
     if (entries.size())
         debugs(47, 3, "bucket #" << bucket << ", got entries: " << entries.size());
+
+    ++bucket;
 }
 
