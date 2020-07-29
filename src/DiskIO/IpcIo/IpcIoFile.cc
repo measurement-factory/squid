@@ -138,7 +138,7 @@ IpcIoFile::open(int flags, mode_t mode, RefCount<IORequestor> callback)
 
         queue->localRateLimit().store(config.ioRate);
 
-        Ipc::HereIamMessage ann(Ipc::StrandCoord(KidIdentifier, getpid()));
+        Ipc::HereIamMessage ann(Ipc::StrandCoord(KidIdentifier, getPid()));
         ann.strand.tag = dbName;
         Ipc::TypedMsgHdr message;
         ann.pack(message);
@@ -369,6 +369,7 @@ IpcIoFile::push(IpcIoPendingRequest *const pending)
             ++lastRequestId;
         ipcIo.requestId = lastRequestId;
         ipcIo.start = current_time;
+        ipcIo.workerPid = getPid();
         if (pending->readRequest) {
             ipcIo.command = IpcIo::cmdRead;
             ipcIo.offset = pending->readRequest->offset;
@@ -488,8 +489,13 @@ IpcIoFile::handleResponse(IpcIoMsg &ipcIo)
     Must(requestId);
     if (IpcIoPendingRequest *const pending = dequeueRequest(requestId)) {
         CallBack(pending->codeContext, [&] {
-            debugs(47, 7, "popped disker response to " << SipcIo(KidIdentifier, ipcIo, diskId));
-            pending->completeIo(&ipcIo);
+            if (getPid() == ipcIo.workerPid) {
+                debugs(47, 7, "popped disker response to " << SipcIo(KidIdentifier, ipcIo, diskId));
+                pending->completeIo(&ipcIo);
+            } else {
+                debugs(47, 7, "request/response process ID mismatch: " << getPid() << "!=" << ipcIo.workerPid <<
+                       " when processing disker response to " << SipcIo(KidIdentifier, ipcIo, diskId));
+            }
             delete pending; // XXX: leaking if throwing
         });
     } else {
@@ -655,6 +661,7 @@ IpcIoMsg::IpcIoMsg():
     requestId(0),
     offset(0),
     len(0),
+    workerPid(-1),
     command(IpcIo::cmdNone),
     xerrno(0)
 {
@@ -670,6 +677,7 @@ IpcIoMsg::stat(std::ostream &os)
     os << "id: " << requestId <<
         ", offset: " << offset <<
         ", size: " << len <<
+        ", workerPid: " << workerPid <<
         ", page: " << page <<
         ", command: " << command <<
         ", start: " << start <<
@@ -868,6 +876,16 @@ IpcIoFile::WaitBeforePop()
     return false;
 }
 
+pid_t
+IpcIoFile::getPid()
+{
+    static pid_t pid = -1;
+    if (pid < 0)
+        pid = getpid();
+    // TODO: this will be wrong if we fork()
+    return pid;
+}
+
 void
 IpcIoFile::DiskerHandleRequests()
 {
@@ -926,10 +944,14 @@ IpcIoFile::DiskerHandleRequest(const int workerId, IpcIoMsg &ipcIo)
            ipcIo.len << " at " << ipcIo.offset <<
            " ipcIo" << workerId << '.' << ipcIo.requestId);
 
+    const auto workerPid = ipcIo.workerPid;
+
     if (ipcIo.command == IpcIo::cmdRead)
         diskerRead(ipcIo);
     else // ipcIo.command == IpcIo::cmdWrite
         diskerWrite(ipcIo);
+
+    assert(ipcIo.workerPid == workerPid);
 
     debugs(47, 7, HERE << "pushing " << SipcIo(workerId, ipcIo, KidIdentifier));
 
