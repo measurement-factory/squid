@@ -13,7 +13,6 @@
 #include "ipc/Messages.h"
 #include "ipc/TypedMsgHdr.h"
 #include "mgr/IntervalAction.h"
-#include "SquidConfig.h"
 #include "SquidMath.h"
 #include "Store.h"
 #include "tools.h"
@@ -86,12 +85,10 @@ Mgr::IntervalActionData::operator += (const IntervalActionData& stats)
     swap_ins += stats.swap_ins;
     swap_files_cleaned += stats.swap_files_cleaned;
     aborted_requests += stats.aborted_requests;
-    if (Config.onoff.paranoid_hit_validation) {
-        hitValidationAttempts += stats.hitValidationAttempts;
-        hitValidationRefusalsDueToLocking += stats.hitValidationRefusalsDueToLocking;
-        hitValidationRefusalsDueToZeroSize += stats.hitValidationRefusalsDueToZeroSize;
-        hitValidationFailures += stats.hitValidationFailures;
-    }
+    hitValidationAttempts += stats.hitValidationAttempts;
+    hitValidationRefusalsDueToLocking += stats.hitValidationRefusalsDueToLocking;
+    hitValidationRefusalsDueToZeroSize += stats.hitValidationRefusalsDueToZeroSize;
+    hitValidationFailures += stats.hitValidationFailures;
     syscalls_disk_opens += stats.syscalls_disk_opens;
     syscalls_disk_closes += stats.syscalls_disk_closes;
     syscalls_disk_reads += stats.syscalls_disk_reads;
