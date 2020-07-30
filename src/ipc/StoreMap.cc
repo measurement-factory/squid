@@ -687,6 +687,11 @@ Ipc::StoreMap::validateHit(const sfileno fileno)
 
     ++statCounter.hitValidation.attempts;
 
+    if (!anchor.basics.swap_file_sz) {
+        ++statCounter.hitValidation.refusalsDueToZeroSize;
+        return true; // presume valid; cannot validate w/o known swap_file_sz
+    }
+
     if (!anchor.lock.lockHeaders()) {
         ++statCounter.hitValidation.refusalsDueToLocking;
         return true; // presume valid; cannot validate changing entry
@@ -713,11 +718,6 @@ Ipc::StoreMap::validateHit(const sfileno fileno)
 
     if (actualByteCount == expectedByteCount && lastSeenSlice < 0)
         return true;
-
-    if (!anchor.basics.swap_file_sz) {
-        ++statCounter.hitValidation.refusalsDueToZeroSize;
-        return true; // presume valid; cannot validate w/o known swap_file_sz
-    }
 
     ++statCounter.hitValidation.failures;
 
