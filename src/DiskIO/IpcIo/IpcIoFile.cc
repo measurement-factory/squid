@@ -879,9 +879,7 @@ IpcIoFile::WaitBeforePop()
 pid_t
 IpcIoFile::getPid()
 {
-    static pid_t pid = -1;
-    if (pid < 0)
-        pid = getpid();
+    static auto pid = getpid();
     // TODO: this will be wrong if we fork()
     return pid;
 }
