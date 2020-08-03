@@ -94,7 +94,8 @@ operator <<(std::ostream &os, const IpcIo::Command command)
 IpcIoFile::IpcIoFile(char const *aDb):
     dbName(aDb), diskId(-1), error_(false), lastRequestId(0),
     olderRequests(&requestMap1), newerRequests(&requestMap2),
-    timeoutCheckScheduled(false)
+    timeoutCheckScheduled(false),
+    myPid(getpid())
 {
 }
 
@@ -138,7 +139,7 @@ IpcIoFile::open(int flags, mode_t mode, RefCount<IORequestor> callback)
 
         queue->localRateLimit().store(config.ioRate);
 
-        Ipc::HereIamMessage ann(Ipc::StrandCoord(KidIdentifier, getPid()));
+        Ipc::HereIamMessage ann(Ipc::StrandCoord(KidIdentifier, myPid));
         ann.strand.tag = dbName;
         Ipc::TypedMsgHdr message;
         ann.pack(message);
@@ -369,7 +370,7 @@ IpcIoFile::push(IpcIoPendingRequest *const pending)
             ++lastRequestId;
         ipcIo.requestId = lastRequestId;
         ipcIo.start = current_time;
-        ipcIo.workerPid = getPid();
+        ipcIo.workerPid = myPid;
         if (pending->readRequest) {
             ipcIo.command = IpcIo::cmdRead;
             ipcIo.offset = pending->readRequest->offset;
@@ -489,11 +490,11 @@ IpcIoFile::handleResponse(IpcIoMsg &ipcIo)
     Must(requestId);
     if (IpcIoPendingRequest *const pending = dequeueRequest(requestId)) {
         CallBack(pending->codeContext, [&] {
-            if (getPid() == ipcIo.workerPid) {
+            if (myPid == ipcIo.workerPid) {
                 debugs(47, 7, "popped disker response to " << SipcIo(KidIdentifier, ipcIo, diskId));
                 pending->completeIo(&ipcIo);
             } else {
-                debugs(47, 7, "request/response process ID mismatch: " << getPid() << "!=" << ipcIo.workerPid <<
+                debugs(47, 7, "request/response process ID mismatch: " << myPid << "!=" << ipcIo.workerPid <<
                        " when processing disker response to " << SipcIo(KidIdentifier, ipcIo, diskId));
             }
             delete pending; // XXX: leaking if throwing
@@ -874,14 +875,6 @@ IpcIoFile::WaitBeforePop()
     }
 
     return false;
-}
-
-pid_t
-IpcIoFile::getPid()
-{
-    static auto pid = getpid();
-    // TODO: this will be wrong if we fork()
-    return pid;
 }
 
 void

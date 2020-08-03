@@ -127,7 +127,6 @@ private:
     static void DiskerHandleRequests();
     static void DiskerHandleRequest(const int workerId, IpcIoMsg &ipcIo);
     static bool WaitBeforePop();
-    static pid_t getPid();
 
 private:
     const String dbName; ///< the name of the file we are managing
@@ -145,6 +144,7 @@ private:
     RequestMap *olderRequests; ///< older requests (map1 or map2)
     RequestMap *newerRequests; ///< newer requests (map2 or map1)
     bool timeoutCheckScheduled; ///< we expect a CheckTimeouts() call
+    const pid_t myPid; ///< the current OS process ID
 
     static const double Timeout; ///< timeout value in seconds
 
