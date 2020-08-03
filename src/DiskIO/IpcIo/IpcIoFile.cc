@@ -19,7 +19,6 @@
 #include "fd.h"
 #include "fs_io.h"
 #include "globals.h"
-#include "ipc/Kid.h"
 #include "ipc/mem/Pages.h"
 #include "ipc/Messages.h"
 #include "ipc/Port.h"
@@ -881,10 +880,7 @@ pid_t
 IpcIoFile::getPid()
 {
     static auto pid = getpid();
-    // pid may become wrong if we fork(). The assertion below guards us from the problem
-    // because currently no worker or disker forks into another worker or disker.
-    // However, this may change in future. TODO: add a more reliable check instead.
-    assert(TheProcessKind == pkWorker || TheProcessKind == pkDisker);
+    // TODO: this will be wrong if we fork()
     return pid;
 }
 
