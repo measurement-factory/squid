@@ -1084,7 +1084,7 @@ helperHandleRead(const Comm::ConnectionPointer &conn, char *, size_t len, Comm::
         srv->roffset = 0;
     }
 
-    if (Comm::IsConnOpen(srv->readPipe) && !fd_table[srv->readPipe->fd].closing()) {
+    if (!srv->readPipe->closing()) {
         int spaceSize = srv->rbuf_sz - srv->roffset - 1;
         assert(spaceSize >= 0);
 
@@ -1191,7 +1191,7 @@ helperStatefulHandleRead(const Comm::ConnectionPointer &conn, char *, size_t len
             hlp->cancelReservation(srv->reservationId);
     }
 
-    if (Comm::IsConnOpen(srv->readPipe) && !fd_table[srv->readPipe->fd].closing()) {
+    if (!srv->readPipe->closing()) {
         int spaceSize = srv->rbuf_sz - 1;
 
         AsyncCall::Pointer call = commCbCall(5,4, "helperStatefulHandleRead",
