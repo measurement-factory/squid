@@ -59,6 +59,12 @@ CBDATA_CLASS_INIT(helper_stateful_server);
 
 InstanceIdDefinitions(HelperServerBase, "Hlpr");
 
+bool
+HelperServerBase::canAcceptRequests() const
+{
+    return !flags.closing && Comm::IsConnOpen(writePipe) && !writePipe->closing();
+}
+
 void
 HelperServerBase::initStats()
 {
@@ -1280,13 +1286,13 @@ GetFirstAvailable(const helper * hlp)
     for (n = hlp->servers.head; n != NULL; n = n->next) {
         srv = (helper_server *)n->data;
 
+        if (srv->canAcceptRequests())
+            continue;
+
         if (selected && selected->stats.pending <= srv->stats.pending)
             continue;
 
         if (srv->flags.shutdown)
-            continue;
-
-        if (srv->flags.closing)
             continue;
 
         if (!srv->stats.pending)
@@ -1328,6 +1334,9 @@ StatefulGetFirstAvailable(statefulhelper * hlp)
     for (n = hlp->servers.head; n != NULL; n = n->next) {
         srv = (helper_stateful_server *)n->data;
 
+        if (srv->canAcceptRequests())
+            continue;
+
         if (srv->stats.pending)
             continue;
 
@@ -1343,9 +1352,6 @@ StatefulGetFirstAvailable(statefulhelper * hlp)
         }
 
         if (srv->flags.shutdown)
-            continue;
-
-        if (srv->flags.closing)
             continue;
 
         debugs(84, 5, "StatefulGetFirstAvailable: returning srv-" << srv->index);

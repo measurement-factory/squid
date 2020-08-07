@@ -187,6 +187,8 @@ public:
      */
     void closeWritePipeSafely(const char *name);
 
+    bool canAcceptRequests() const;
+
     // TODO: Teach each child to report its child-specific state instead.
     /// whether the server is locked for exclusive use by a client
     virtual bool reserved() = 0;
