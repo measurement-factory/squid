@@ -1286,7 +1286,7 @@ GetFirstAvailable(const helper * hlp)
     for (n = hlp->servers.head; n != NULL; n = n->next) {
         srv = (helper_server *)n->data;
 
-        if (srv->canAcceptRequests())
+        if (!srv->canAcceptRequests())
             continue;
 
         if (selected && selected->stats.pending <= srv->stats.pending)
@@ -1334,7 +1334,7 @@ StatefulGetFirstAvailable(statefulhelper * hlp)
     for (n = hlp->servers.head; n != NULL; n = n->next) {
         srv = (helper_stateful_server *)n->data;
 
-        if (srv->canAcceptRequests())
+        if (!srv->canAcceptRequests())
             continue;
 
         if (srv->stats.pending)
