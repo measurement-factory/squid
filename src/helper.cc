@@ -60,7 +60,7 @@ CBDATA_CLASS_INIT(helper_stateful_server);
 InstanceIdDefinitions(HelperServerBase, "Hlpr");
 
 bool
-HelperServerBase::canAcceptRequests() const
+HelperServerBase::available() const
 {
     return !flags.closing && !flags.shutdown && Comm::IsConnOpen(writePipe) && !writePipe->closing();
 }
@@ -181,7 +181,7 @@ helper_server::dropQueued()
 }
 
 bool
-helper_stateful_server::canAcceptRequests() const
+helper_stateful_server::available() const
 {
     if (stats.pending)
         return false;
@@ -189,7 +189,7 @@ helper_stateful_server::canAcceptRequests() const
     if (reserved() && (squid_curtime - reservationStart) <= parent->childs.reservationTimeout)
         return false;
 
-    return HelperServerBase::canAcceptRequests();
+    return HelperServerBase::available();
 }
 
 helper_stateful_server::~helper_stateful_server()
@@ -1301,7 +1301,7 @@ GetFirstAvailable(const helper * hlp)
         if (selected && selected->stats.pending <= srv->stats.pending)
             continue;
 
-        if (!srv->canAcceptRequests())
+        if (!srv->available())
             continue;
 
         if (!srv->stats.pending)
@@ -1343,7 +1343,7 @@ StatefulGetFirstAvailable(statefulhelper * hlp)
     for (n = hlp->servers.head; n != NULL; n = n->next) {
         srv = (helper_stateful_server *)n->data;
 
-        if (!srv->canAcceptRequests())
+        if (!srv->available())
             continue;
 
         if (srv->reserved()) {

@@ -187,8 +187,8 @@ public:
      */
     void closeWritePipeSafely(const char *name);
 
-    /// Whether the server can accept new requests
-    virtual bool canAcceptRequests() const;
+    /// ready to handle new requests
+    virtual bool available() const;
 
     // TODO: Teach each child to report its child-specific state instead.
     /// whether the server is locked for exclusive use by a client
@@ -303,7 +303,7 @@ public:
     void clearReservation();
 
     /* HelperServerBase API */
-    virtual bool canAcceptRequests() const override;
+    virtual bool available() const override;
     virtual bool reserved() const override {return reservationId.reserved();}
     virtual helper *getParent() const override {return parent;}
 
