@@ -62,7 +62,7 @@ InstanceIdDefinitions(HelperServerBase, "Hlpr");
 bool
 HelperServerBase::canAcceptRequests() const
 {
-    return !flags.closing && Comm::IsConnOpen(writePipe) && !writePipe->closing();
+    return !flags.closing && !flags.shutdown && Comm::IsConnOpen(writePipe) && !writePipe->closing();
 }
 
 void
@@ -178,6 +178,18 @@ helper_server::dropQueued()
 {
     HelperServerBase::dropQueued();
     requestsIndex.clear();
+}
+
+bool
+helper_stateful_server::canAcceptRequests() const
+{
+    if (stats.pending)
+        return false;
+
+    if (reserved() && (squid_curtime - reservationStart) <= parent->childs.reservationTimeout)
+        return false;
+
+    return HelperServerBase::canAcceptRequests();
 }
 
 helper_stateful_server::~helper_stateful_server()
@@ -1286,13 +1298,10 @@ GetFirstAvailable(const helper * hlp)
     for (n = hlp->servers.head; n != NULL; n = n->next) {
         srv = (helper_server *)n->data;
 
-        if (!srv->canAcceptRequests())
-            continue;
-
         if (selected && selected->stats.pending <= srv->stats.pending)
             continue;
 
-        if (srv->flags.shutdown)
+        if (!srv->canAcceptRequests())
             continue;
 
         if (!srv->stats.pending)
@@ -1337,22 +1346,14 @@ StatefulGetFirstAvailable(statefulhelper * hlp)
         if (!srv->canAcceptRequests())
             continue;
 
-        if (srv->stats.pending)
-            continue;
-
         if (srv->reserved()) {
-            if ((squid_curtime - srv->reservationStart) > hlp->childs.reservationTimeout) {
-                if (!oldestReservedServer)
-                    oldestReservedServer = srv;
-                else if (oldestReservedServer->reservationStart < srv->reservationStart)
-                    oldestReservedServer = srv;
-                debugs(84, 5, "the earlier reserved server is the srv-" << oldestReservedServer->index);
-            }
+            if (!oldestReservedServer)
+                oldestReservedServer = srv;
+            else if (oldestReservedServer->reservationStart < srv->reservationStart)
+                oldestReservedServer = srv;
+            debugs(84, 5, "the earlier reserved server is the srv-" << oldestReservedServer->index);
             continue;
         }
-
-        if (srv->flags.shutdown)
-            continue;
 
         debugs(84, 5, "StatefulGetFirstAvailable: returning srv-" << srv->index);
         return srv;

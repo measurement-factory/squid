@@ -187,11 +187,12 @@ public:
      */
     void closeWritePipeSafely(const char *name);
 
-    bool canAcceptRequests() const;
+    /// Whether the server can accept new requests
+    virtual bool canAcceptRequests() const;
 
     // TODO: Teach each child to report its child-specific state instead.
     /// whether the server is locked for exclusive use by a client
-    virtual bool reserved() = 0;
+    virtual bool reserved() const = 0;
 
     /// dequeues and sends a Helper::Unknown answer to all queued requests
     virtual void dropQueued();
@@ -279,7 +280,7 @@ public:
     void checkForTimedOutRequests(bool const retry);
 
     /*HelperServerBase API*/
-    virtual bool reserved() override {return false;}
+    virtual bool reserved() const override {return false;}
     virtual void dropQueued() override;
     virtual helper *getParent() const override {return parent;}
 
@@ -302,7 +303,8 @@ public:
     void clearReservation();
 
     /* HelperServerBase API */
-    virtual bool reserved() override {return reservationId.reserved();}
+    virtual bool canAcceptRequests() const override;
+    virtual bool reserved() const override {return reservationId.reserved();}
     virtual helper *getParent() const override {return parent;}
 
     /// close handler to handle exited server processes
