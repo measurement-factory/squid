@@ -99,7 +99,10 @@ public:
     /** determine whether this object describes an active connection or not. */
     bool isOpen() const { return (fd >= 0); }
 
+    /// whether this connection is going through the Comm closing sequence
+    /// requires an open connection
     bool closing() const;
+
     /** Alter the stored IP address pair.
      * WARNING: Does not ensure matching IPv4/IPv6 are supplied.
      */

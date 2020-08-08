@@ -175,7 +175,8 @@ Comm::Connection::detailCodeContext(std::ostream &os) const
 bool
 Comm::Connection::closing() const
 {
-    return !isOpen() || fd_table[fd].closing();
+    assert(isOpen());
+    return fd_table[fd].closing();
 }
 
 std::ostream &
