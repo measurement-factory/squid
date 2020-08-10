@@ -938,6 +938,7 @@ IpcIoFile::DiskerHandleRequest(const int workerId, IpcIoMsg &ipcIo)
            " ipcIo" << workerId << '.' << ipcIo.requestId);
 
     const auto workerPid = ipcIo.workerPid;
+    assert(workerPid >= 0);
 
     if (ipcIo.command == IpcIo::cmdRead)
         diskerRead(ipcIo);
