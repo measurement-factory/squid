@@ -490,13 +490,11 @@ IpcIoFile::handleResponse(IpcIoMsg &ipcIo)
     Must(requestId);
     if (IpcIoPendingRequest *const pending = dequeueRequest(requestId)) {
         CallBack(pending->codeContext, [&] {
-            if (myPid == ipcIo.workerPid) {
-                debugs(47, 7, "popped disker response to " << SipcIo(KidIdentifier, ipcIo, diskId));
+            debugs(47, 7, "popped disker response to " << SipcIo(KidIdentifier, ipcIo, diskId));
+            if (myPid == ipcIo.workerPid)
                 pending->completeIo(&ipcIo);
-            } else {
-                debugs(47, 7, "request/response process ID mismatch: " << myPid << "!=" << ipcIo.workerPid <<
-                       " when processing disker response to " << SipcIo(KidIdentifier, ipcIo, diskId));
-            }
+            else
+                debugs(47, 5, "ignoring response meant for our predecessor PID: " << ipcIo.workerPid);
             delete pending; // XXX: leaking if throwing
         });
     } else {
