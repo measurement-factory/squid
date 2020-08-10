@@ -660,7 +660,7 @@ IpcIoMsg::IpcIoMsg():
     requestId(0),
     offset(0),
     len(0),
-    workerPid(-1), // cannot use 0 because Unix-like systems utilize process IDs starting from 0
+    workerPid(-1), // Unix-like systems use process IDs starting from 0
     command(IpcIo::cmdNone),
     xerrno(0)
 {
