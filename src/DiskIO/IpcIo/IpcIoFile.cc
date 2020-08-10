@@ -92,10 +92,13 @@ operator <<(std::ostream &os, const IpcIo::Command command)
 /* IpcIoFile */
 
 IpcIoFile::IpcIoFile(char const *aDb):
-    dbName(aDb), diskId(-1), error_(false), lastRequestId(0),
+    dbName(aDb),
+    myPid(getpid()),
+    diskId(-1),
+    error_(false),
+    lastRequestId(0),
     olderRequests(&requestMap1), newerRequests(&requestMap2),
-    timeoutCheckScheduled(false),
-    myPid(getpid())
+    timeoutCheckScheduled(false)
 {
 }
 

@@ -130,6 +130,7 @@ private:
 
 private:
     const String dbName; ///< the name of the file we are managing
+    const pid_t myPid; ///< optimization: cached process ID of our process
     int diskId; ///< the kid ID of the disker we talk to
     RefCount<IORequestor> ioRequestor;
 
@@ -144,8 +145,6 @@ private:
     RequestMap *olderRequests; ///< older requests (map1 or map2)
     RequestMap *newerRequests; ///< newer requests (map2 or map1)
     bool timeoutCheckScheduled; ///< we expect a CheckTimeouts() call
-
-    const pid_t myPid; ///< optimization: cached process ID of our process
 
     static const double Timeout; ///< timeout value in seconds
 
