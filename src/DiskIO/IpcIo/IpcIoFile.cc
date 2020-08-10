@@ -100,6 +100,7 @@ IpcIoFile::IpcIoFile(char const *aDb):
     olderRequests(&requestMap1), newerRequests(&requestMap2),
     timeoutCheckScheduled(false)
 {
+    assert(myPid >= 0);
 }
 
 IpcIoFile::~IpcIoFile()
