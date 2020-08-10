@@ -825,9 +825,9 @@ IpcIoFile::WaitBeforePop()
         return false;
 
     // is there an I/O request we could potentially delay?
-    int processId;
+    int kidId;
     IpcIoMsg ipcIo;
-    if (!queue->peek(processId, ipcIo)) {
+    if (!queue->peek(kidId, ipcIo)) {
         // unlike pop(), peek() is not reliable and does not block reader
         // so we must proceed with pop() even if it is likely to fail
         return false;
