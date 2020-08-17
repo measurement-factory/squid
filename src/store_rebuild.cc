@@ -28,7 +28,6 @@
 
 static StoreRebuildData counts;
 
-static struct timeval rebuild_start;
 static void storeCleanup(void *);
 
 typedef struct {
@@ -120,7 +119,7 @@ storeCleanup(void *)
 /* meta data recreated from disk image in swap directory */
 void
 
-storeRebuildComplete(StoreRebuildData *dc)
+storeRebuildComplete(StoreRebuildData *dc, const bool updateStartTime)
 {
     double dt;
     counts.objcount += dc->objcount;
@@ -133,6 +132,8 @@ storeRebuildComplete(StoreRebuildData *dc)
     counts.badflags += dc->badflags;
     counts.bad_log_op += dc->bad_log_op;
     counts.zero_object_sz += dc->zero_object_sz;
+    if (updateStartTime)
+        counts.rebuildStart = dc->rebuildStart;
     /*
      * When store_dirs_rebuilding == 1, it means we are done reading
      * or scanning all cache_dirs.  Now report the stats and start
@@ -142,7 +143,7 @@ storeRebuildComplete(StoreRebuildData *dc)
     if (StoreController::store_dirs_rebuilding > 1)
         return;
 
-    dt = tvSubDsec(rebuild_start, current_time);
+    dt = tvSubDsec(counts.rebuildStart, current_time);
 
     debugs(20, DBG_IMPORTANT, "Finished rebuilding storage from disk.");
     debugs(20, DBG_IMPORTANT, "  " << std::setw(7) << counts.scancount  << " Entries scanned");
@@ -173,7 +174,7 @@ void
 storeRebuildStart(void)
 {
     counts = StoreRebuildData(); // reset counters
-    rebuild_start = current_time;
+    counts.rebuildStart = current_time;
     /*
      * Note: store_dirs_rebuilding is initialized to 1.
      *

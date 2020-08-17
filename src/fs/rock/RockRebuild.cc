@@ -19,7 +19,6 @@
 #include "md5.h"
 #include "SquidTime.h"
 #include "Store.h"
-#include "store_rebuild.h"
 #include "tools.h"
 
 #include <cerrno>
@@ -209,8 +208,9 @@ Rock::Rebuild::Rebuild(SwapDir *dir): AsyncJob("Rock::Rebuild"),
     dbEntryLimit(0),
     fd(-1),
     dbOffset(0),
-    loadingPos(0),
-    validationPos(0)
+    loadingPos(sd->rebuldMetadata->counts.scancount),
+    validationPos(0),
+    counts(sd->rebuldMetadata->counts)
 {
     assert(sd);
     dbSize = sd->diskOffsetLimit(); // we do not care about the trailer waste
@@ -254,7 +254,10 @@ Rock::Rebuild::start()
     assert(sizeof(DbCellHeader) < SM_PAGE_SIZE);
     buf.init(SM_PAGE_SIZE, SM_PAGE_SIZE);
 
-    dbOffset = SwapDir::HeaderSize;
+    dbOffset = SwapDir::HeaderSize + loadingPos * dbSlotSize;
+
+    if (!counts.rebuildStart.tv_sec)
+        counts.rebuildStart = current_time;
 
     parts = new LoadingParts(dbEntryLimit, dbSlotLimit);
 
@@ -560,7 +563,7 @@ Rock::Rebuild::swanSong()
     debugs(47,3, HERE << "cache_dir #" << sd->index << " rebuild level: " <<
            StoreController::store_dirs_rebuilding);
     --StoreController::store_dirs_rebuilding;
-    storeRebuildComplete(&counts);
+    storeRebuildComplete(&counts, true);
 }
 
 void

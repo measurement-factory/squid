@@ -11,6 +11,7 @@
 #ifndef SQUID_STORE_REBUILD_H_
 #define SQUID_STORE_REBUILD_H_
 
+#include "MemBuf.h"
 #include "store_key_md5.h"
 
 class StoreRebuildData
@@ -26,10 +27,11 @@ public:
     int badflags = 0;       /* # bad e->flags */
     int bad_log_op = 0;
     int zero_object_sz = 0;
+    struct timeval rebuildStart;
 };
 
 void storeRebuildStart(void);
-void storeRebuildComplete(StoreRebuildData *);
+void storeRebuildComplete(StoreRebuildData *, const bool updateStartTime);
 void storeRebuildProgress(int sd_index, int total, int sofar);
 
 /// loads entry from disk; fills supplied memory buffer on success

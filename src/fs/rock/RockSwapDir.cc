@@ -287,6 +287,8 @@ Rock::SwapDir::init()
     // are refcounted. We up our count once to avoid implicit delete's.
     lock();
 
+    rebuldMetadata = shm_old(RebuildMetadata)(rebuildMetadataPath());
+
     freeSlots = shm_old(Ipc::Mem::PageStack)(freeSlotsPath());
 
     Must(!map);
@@ -1113,6 +1115,15 @@ Rock::SwapDir::freeSlotsPath() const
     return spacesPath.termedBuf();
 }
 
+const char *
+Rock::SwapDir::rebuildMetadataPath() const
+{
+    static String metadataPath;
+    metadataPath = path;
+    metadataPath.append("_metadata");
+    return metadataPath.termedBuf();
+}
+
 bool
 Rock::SwapDir::hasReadableEntry(const StoreEntry &e) const
 {
@@ -1129,6 +1140,10 @@ void Rock::SwapDirRr::create()
     Must(mapOwners.empty() && freeSlotsOwners.empty());
     for (int i = 0; i < Config.cacheSwap.n_configured; ++i) {
         if (const Rock::SwapDir *const sd = dynamic_cast<Rock::SwapDir *>(INDEXSD(i))) {
+            Ipc::Mem::Owner<SwapDir::RebuildMetadata> * const metadataOwner =
+                shm_new(Rock::SwapDir::RebuildMetadata)(sd->rebuildMetadataPath());
+            metadataOwners.push_back(metadataOwner);
+
             const int64_t capacity = sd->slotLimitActual();
 
             SwapDir::DirMap::Owner *const mapOwner =

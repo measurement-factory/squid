@@ -81,12 +81,12 @@ private:
     int dbEntryLimit; ///< maximum number of entries that can be stored in db
 
     int fd; // store db file descriptor
-    int64_t dbOffset;
+    int64_t dbOffset; // TODO: calculate in a method, using loadingPos
     sfileno loadingPos; ///< index of the db slot being loaded from disk now
     sfileno validationPos; ///< index of the loaded db slot being validated now
     MemBuf buf; ///< space to load current db slot (and entry metadata) into
 
-    StoreRebuildData counts;
+    StoreRebuildData &counts; ///< a reference to the shared memory counters
 
     static void Steps(void *data);
 };
