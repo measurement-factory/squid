@@ -74,7 +74,7 @@ Fs::Ufs::RebuildState::RebuildState(RefCount<UFSSwapDir> aSwapDir) :
     if (!clean)
         flags.need_to_validate = true;
 
-    counts.rebuildStart = current_time;
+    counts.startTime = current_time;
 
     debugs(47, DBG_IMPORTANT, "Rebuilding storage in " << sd->path << " (" <<
            (clean ? "clean log" : (LogParser ? "dirty log" : "no log")) << ")");
@@ -100,7 +100,7 @@ Fs::Ufs::RebuildState::RebuildStep(void *data)
         eventAdd("storeRebuild", RebuildStep, rb, 0.01, 1);
     else {
         -- StoreController::store_dirs_rebuilding;
-        storeRebuildComplete(&rb->counts, false);
+        storeRebuildComplete(&rb->counts);
         delete rb;
     }
 }

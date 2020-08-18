@@ -11,12 +11,20 @@
 #ifndef SQUID_STORE_REBUILD_H_
 #define SQUID_STORE_REBUILD_H_
 
-#include "MemBuf.h"
 #include "store_key_md5.h"
+
+class MemBuf;
 
 class StoreRebuildData
 {
 public:
+    void updateStartTime(const timeval &newTime) {
+        if (!startTime.tv_sec)
+            startTime = newTime;
+        else
+            startTime = std::min(startTime, newTime);
+    }
+
     int objcount = 0;       /* # objects successfully reloaded */
     int expcount = 0;       /* # objects expired */
     int scancount = 0;      /* # entries scanned or read from state file */
@@ -27,11 +35,11 @@ public:
     int badflags = 0;       /* # bad e->flags */
     int bad_log_op = 0;
     int zero_object_sz = 0;
-    struct timeval rebuildStart;
+    timeval startTime = {0, 0}; ///< when the rebuild has started
 };
 
 void storeRebuildStart(void);
-void storeRebuildComplete(StoreRebuildData *, const bool updateStartTime);
+void storeRebuildComplete(StoreRebuildData *);
 void storeRebuildProgress(int sd_index, int total, int sofar);
 
 /// loads entry from disk; fills supplied memory buffer on success

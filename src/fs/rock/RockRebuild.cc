@@ -256,8 +256,7 @@ Rock::Rebuild::start()
 
     dbOffset = SwapDir::HeaderSize + loadingPos * dbSlotSize;
 
-    if (!counts.rebuildStart.tv_sec)
-        counts.rebuildStart = current_time;
+    counts.updateStartTime(current_time);
 
     parts = new LoadingParts(dbEntryLimit, dbSlotLimit);
 
@@ -563,7 +562,7 @@ Rock::Rebuild::swanSong()
     debugs(47,3, HERE << "cache_dir #" << sd->index << " rebuild level: " <<
            StoreController::store_dirs_rebuilding);
     --StoreController::store_dirs_rebuilding;
-    storeRebuildComplete(&counts, true);
+    storeRebuildComplete(&counts);
 }
 
 void
