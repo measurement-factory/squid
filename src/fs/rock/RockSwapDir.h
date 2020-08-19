@@ -83,16 +83,6 @@ public:
 
     uint64_t slotSize; ///< all db slots are of this size
 
-public:
-    class RebuildMetadata
-    {
-        public:
-            size_t sharedMemorySize() const { return sizeof(*this); }
-            static size_t SharedMemorySize() { return sizeof(RebuildMetadata); }
-
-            StoreRebuildData counts;
-    };
-
 protected:
     /* Store API */
     virtual bool anchorToCache(StoreEntry &entry, bool &inSync);
@@ -156,7 +146,6 @@ private:
 
     DiskIOStrategy *io;
     RefCount<DiskFile> theFile; ///< cache storage for this cache_dir
-    Ipc::Mem::Pointer<RebuildMetadata> rebuldMetadata;
     Ipc::Mem::Pointer<Ipc::Mem::PageStack> freeSlots; ///< all unused slots
     Ipc::Mem::PageId *waitingForPage; ///< one-page cache for a "hot" free slot
 
@@ -164,23 +153,6 @@ private:
     DiskFile::Config fileConfig; ///< file-level configuration options
 
     static const int64_t HeaderSize; ///< on-disk db header size
-};
-
-/// initializes shared memory segments used by Rock::SwapDir
-class SwapDirRr: public Ipc::Mem::RegisteredRunner
-{
-public:
-    /* ::RegisteredRunner API */
-    virtual ~SwapDirRr();
-
-protected:
-    /* Ipc::Mem::RegisteredRunner API */
-    virtual void create();
-
-private:
-    std::vector<Ipc::Mem::Owner<SwapDir::RebuildMetadata> *> metadataOwners;
-    std::vector<SwapDir::DirMap::Owner *> mapOwners;
-    std::vector< Ipc::Mem::Owner<Ipc::Mem::PageStack> *> freeSlotsOwners;
 };
 
 } // namespace Rock

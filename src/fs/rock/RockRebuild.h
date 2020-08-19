@@ -12,6 +12,7 @@
 #include "base/AsyncJob.h"
 #include "cbdata.h"
 #include "fs/rock/forward.h"
+#include "ipc/mem/Pointer.h"
 #include "MemBuf.h"
 #include "store_rebuild.h"
 
@@ -28,9 +29,32 @@ class Rebuild: public AsyncJob
 {
     CBDATA_CHILD(Rebuild);
 
+private:
+    /// shared metadata during rebuild process
+    class Metadata
+    {
+    public:
+        size_t sharedMemorySize() const { return sizeof(*this); }
+        static size_t SharedMemorySize() { return sizeof(Metadata); }
+
+        StoreRebuildData counts;
+    };
+
 public:
     Rebuild(SwapDir *dir);
     virtual ~Rebuild() override;
+
+    class Owner
+    {
+    public:
+        Owner(const SwapDir *dir);
+        ~Owner();
+
+    private:
+        Ipc::Mem::Owner<Metadata> *const metadataOwner;
+    };
+
+    static Owner *Init(const SwapDir *dir);
 
 protected:
     /* AsyncJob API */
@@ -75,6 +99,8 @@ private:
     SwapDir *sd;
     LoadingParts *parts; ///< parts of store entries being loaded from disk
 
+    Ipc::Mem::Pointer<Metadata> metadata; ///< shared metadata
+
     int64_t dbSize;
     int dbSlotSize; ///< the size of a db cell, including the cell header
     int dbSlotLimit; ///< total number of db cells
@@ -85,7 +111,6 @@ private:
     sfileno loadingPos; ///< index of the db slot being loaded from disk now
     sfileno validationPos; ///< index of the loaded db slot being validated now
     MemBuf buf; ///< space to load current db slot (and entry metadata) into
-
     StoreRebuildData &counts; ///< a reference to the shared memory counters
 
     static void Steps(void *data);

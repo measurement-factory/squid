@@ -202,15 +202,16 @@ Rock::LoadingParts::LoadingParts(const int dbEntryLimit, const int dbSlotLimit):
 Rock::Rebuild::Rebuild(SwapDir *dir): AsyncJob("Rock::Rebuild"),
     sd(dir),
     parts(nullptr),
+    metadata(shm_old(Metadata)(sd->rebuildMetadataPath())),
     dbSize(0),
     dbSlotSize(0),
     dbSlotLimit(0),
     dbEntryLimit(0),
     fd(-1),
     dbOffset(0),
-    loadingPos(sd->rebuldMetadata->counts.scancount),
+    loadingPos(metadata->counts.scancount),
     validationPos(0),
-    counts(sd->rebuldMetadata->counts)
+    counts(metadata->counts)
 {
     assert(sd);
     dbSize = sd->diskOffsetLimit(); // we do not care about the trailer waste
@@ -225,6 +226,21 @@ Rock::Rebuild::~Rebuild()
     if (fd >= 0)
         file_close(fd);
     delete parts;
+}
+
+Rock::Rebuild::Owner::Owner(const SwapDir *dir):
+    metadataOwner(shm_new(Metadata)(dir->rebuildMetadataPath()))
+{}
+
+Rock::Rebuild::Owner::~Owner()
+{
+    delete metadataOwner;
+}
+
+Rock::Rebuild::Owner *
+Rock::Rebuild::Init(const SwapDir *dir)
+{
+    return new Owner(dir);
 }
 
 /// prepares and initiates entry loading sequence

@@ -287,8 +287,6 @@ Rock::SwapDir::init()
     // are refcounted. We up our count once to avoid implicit delete's.
     lock();
 
-    rebuldMetadata = shm_old(RebuildMetadata)(rebuildMetadataPath());
-
     freeSlots = shm_old(Ipc::Mem::PageStack)(freeSlotsPath());
 
     Must(!map);
@@ -1132,6 +1130,23 @@ Rock::SwapDir::hasReadableEntry(const StoreEntry &e) const
 
 namespace Rock
 {
+/// initializes shared memory segments used by Rock::SwapDir
+class SwapDirRr: public Ipc::Mem::RegisteredRunner
+{
+public:
+    /* ::RegisteredRunner API */
+    virtual ~SwapDirRr();
+
+protected:
+    /* Ipc::Mem::RegisteredRunner API */
+    virtual void create();
+
+private:
+    std::vector<Rebuild::Owner *> rebuildMetadataOwners;
+    std::vector<SwapDir::DirMap::Owner *> mapOwners;
+    std::vector< Ipc::Mem::Owner<Ipc::Mem::PageStack> *> freeSlotsOwners;
+};
+
 RunnerRegistrationEntry(SwapDirRr);
 }
 
@@ -1140,9 +1155,7 @@ void Rock::SwapDirRr::create()
     Must(mapOwners.empty() && freeSlotsOwners.empty());
     for (int i = 0; i < Config.cacheSwap.n_configured; ++i) {
         if (const Rock::SwapDir *const sd = dynamic_cast<Rock::SwapDir *>(INDEXSD(i))) {
-            Ipc::Mem::Owner<SwapDir::RebuildMetadata> * const metadataOwner =
-                shm_new(Rock::SwapDir::RebuildMetadata)(sd->rebuildMetadataPath());
-            metadataOwners.push_back(metadataOwner);
+            rebuildMetadataOwners.push_back(Rebuild::Init(sd));
 
             const int64_t capacity = sd->slotLimitActual();
 
@@ -1166,6 +1179,7 @@ void Rock::SwapDirRr::create()
 Rock::SwapDirRr::~SwapDirRr()
 {
     for (size_t i = 0; i < mapOwners.size(); ++i) {
+        delete rebuildMetadataOwners[i];
         delete mapOwners[i];
         delete freeSlotsOwners[i];
     }
