@@ -210,7 +210,7 @@ Rock::Rebuild::Rebuild(SwapDir *dir): AsyncJob("Rock::Rebuild"),
     fd(-1),
     dbOffset(0),
     loadingPos(metadata->counts.scancount),
-    validationPos(0),
+    validationPos(metadata->counts.validatedCount),
     counts(metadata->counts)
 {
     assert(sd);
@@ -381,6 +381,8 @@ Rock::Rebuild::loadOneSlot()
     debugs(47,5, sd->index << " slot " << loadingPos << " at " <<
            dbOffset << " <= " << dbSize);
 
+    // increment before loadingPos to avoid getting stuck at a slot
+    // in a case of crash
     ++counts.scancount;
 
     if (lseek(fd, dbOffset, SEEK_SET) < 0)
@@ -455,6 +457,9 @@ Rock::Rebuild::validationSteps()
 
     int validated = 0;
     while (!doneValidating()) {
+        // increment before validationPos to avoid getting stuck at a slot
+        // in a case of crash
+        ++counts.validatedCount;
         if (validationPos < dbEntryLimit)
             validateOneEntry(validationPos);
         else

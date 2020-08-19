@@ -35,6 +35,7 @@ public:
     int badflags = 0;       /* # bad e->flags */
     int bad_log_op = 0;
     int zero_object_sz = 0;
+    int validatedCount = 0; ///< the number of validated entries
     timeval startTime = {0, 0}; ///< when the rebuild has started
 };
 
