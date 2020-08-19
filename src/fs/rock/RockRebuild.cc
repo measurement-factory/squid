@@ -17,6 +17,7 @@
 #include "globals.h"
 #include "ipc/StoreMap.h"
 #include "md5.h"
+#include "sbuf/Stream.h"
 #include "SquidTime.h"
 #include "Store.h"
 #include "tools.h"
@@ -219,6 +220,8 @@ Rock::Rebuild::Rebuild(SwapDir *dir): AsyncJob("Rock::Rebuild"),
     dbEntryLimit = sd->entryLimitActual();
     dbSlotLimit = sd->slotLimitActual();
     assert(dbEntryLimit <= dbSlotLimit);
+    if (doneLoading() && doneValidating())
+        throw TextException(ToSBuf("already loaded and validated all ", dbSlotLimit, " slots"), Here());
 }
 
 Rock::Rebuild::~Rebuild()
