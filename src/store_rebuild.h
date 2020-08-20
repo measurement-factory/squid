@@ -12,6 +12,7 @@
 #define SQUID_STORE_REBUILD_H_
 
 #include "store_key_md5.h"
+#include <sys/time.h>
 
 class MemBuf;
 
