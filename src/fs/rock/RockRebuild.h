@@ -56,6 +56,9 @@ public:
 
     static Owner *Init(const SwapDir *dir);
 
+    /// whether the kid should start rebuild
+    static bool ShouldStart(const SwapDir &);
+
 protected:
     /* AsyncJob API */
     virtual void start() override;

@@ -222,6 +222,7 @@ Rock::Rebuild::Rebuild(SwapDir *dir): AsyncJob("Rock::Rebuild"),
     assert(dbEntryLimit <= dbSlotLimit);
     if (doneLoading() && doneValidating())
         throw TextException(ToSBuf("already loaded and validated all ", dbSlotLimit, " slots"), Here());
+
 }
 
 Rock::Rebuild::~Rebuild()
@@ -246,17 +247,23 @@ Rock::Rebuild::Init(const SwapDir *dir)
     return new Owner(dir);
 }
 
-/// prepares and initiates entry loading sequence
-void
-Rock::Rebuild::start()
+bool
+Rock::Rebuild::ShouldStart(const SwapDir &sd)
 {
     // in SMP mode, only the disker is responsible for populating the map
     if (UsingSmp() && !IamDiskProcess()) {
         debugs(47, 2, "Non-disker skips rebuilding of cache_dir #" <<
-               sd->index << " from " << sd->filePath);
-        mustStop("non-disker");
-        return;
+               sd.index << " from " << sd.filePath);
+        return false;
     }
+    return true;
+}
+
+/// prepares and initiates entry loading sequence
+void
+Rock::Rebuild::start()
+{
+    Must(ShouldStart(*sd));
 
     debugs(47, DBG_IMPORTANT, "Loading cache_dir #" << sd->index <<
            " from " << sd->filePath);

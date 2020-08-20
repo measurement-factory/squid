@@ -589,6 +589,9 @@ Rock::SwapDir::validateOptions()
 void
 Rock::SwapDir::rebuild()
 {
+    if (!Rebuild::ShouldStart(*this))
+        return;
+
     //++StoreController::store_dirs_rebuilding; // see Rock::SwapDir::init()
     Rebuild *rebuild = 0;
     try {
