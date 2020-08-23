@@ -830,6 +830,10 @@ IpcIoFile::WaitBeforePop()
     const int ioRate = queue->localRateLimit().load();
     const double maxRate = ioRate/1e3; // req/ms
 
+    // are we already waiting?
+    if (DiskerHandleMoreRequestsScheduled)
+        return true;
+
     // do we need to enforce configured I/O rate?
     if (maxRate <= 0)
         return false;
@@ -903,6 +907,7 @@ IpcIoFile::DiskerHandleRequests()
         // at least one I/O per call is guaranteed if the queue is not empty
         DiskerHandleRequest(workerId, ipcIo);
 
+        // TODO: Do not pause when the queue is empty.
         getCurrentTime();
         const double elapsedMsec = tvSubMsec(loopStart, current_time);
         if (elapsedMsec > maxSpentMsec || elapsedMsec < 0) {
