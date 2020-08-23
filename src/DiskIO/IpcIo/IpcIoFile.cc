@@ -522,7 +522,7 @@ IpcIoFile::HandleNotification(const Ipc::TypedMsgHdr &msg)
 {
     const int from = msg.getInt();
     debugs(47, 7, HERE << "from " << from);
-    queue->clearReaderSignal(from);
+    queue->solicitPushNotifications();
     if (IamDiskProcess())
         DiskerHandleRequests();
     else
@@ -532,7 +532,7 @@ IpcIoFile::HandleNotification(const Ipc::TypedMsgHdr &msg)
 void
 IpcIoFile::HandleMessagesAtStart()
 {
-    queue->clearAllReaderSignals();
+    queue->solicitPushNotifications();
     if (IamDiskProcess())
         DiskerHandleRequests();
     else

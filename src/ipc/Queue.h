@@ -28,30 +28,24 @@ namespace Ipc
 class QueueReader
 {
 public:
-    QueueReader(); // the initial state is "blocked without a signal"
+    /// initial queue state requires no notifications because readers MUST pop()
+    /// upon (re)start to withstand notification-losing process restarts
+    QueueReader();
 
-    /// whether the reader is waiting for a notification signal
-    bool blocked() const { return popBlocked.load(); }
+    /// whether there is an outstanding/unsatisfied need for a notification at
+    /// the time of the call: startSoliciting() without endSolicitation()
+    bool soliciting() const { return soliciting_.load(); }
 
-    /// whether the reader was notified by the signal
-    bool signaled() const { return popSignal.load(); }
+    /// tell the writer that the reader is about to start waiting for a signal
+    void startSoliciting() { soliciting_.store(true); }
 
-    /// marks the reader as blocked, waiting for a notification signal
-    void block() { popBlocked.store(true); }
-
-    /// removes the block() effects
-    void unblock() { popBlocked.store(false); }
-
-    /// if reader is blocked and not notified, marks the notification signal
-    /// as sent and not received, returning true; otherwise, returns false
-    bool raiseSignal() { return blocked() && !popSignal.exchange(true); }
-
-    /// marks sent reader notification as received (also removes pop blocking)
-    void clearSignal() { unblock(); popSignal.store(false); }
+    /// clears the reader request for a notification (if any)
+    /// \returns whether the reader has requested a signal
+    bool endSolicitation() { return soliciting_.exchange(false); }
 
 private:
-    std::atomic<bool> popBlocked; ///< whether the reader is blocked on pop()
-    std::atomic<bool> popSignal; ///< whether writer has sent and reader has not received notification
+    /// whether the writer must notify us after push()
+    std::atomic<bool> soliciting_;
 
 public:
     typedef std::atomic<int> Rate; ///< pop()s per second
@@ -170,11 +164,8 @@ public:
     BaseMultiQueue(const int aLocalProcessId);
     virtual ~BaseMultiQueue() {}
 
-    /// clears the reader notification received by the local process from the remote process
-    void clearReaderSignal(const int remoteProcessId);
-
-    /// clears the reader notification (probably lost), sent from some remote process some time ago
-    void clearAllReaderSignals();
+    /// informs writers that the local reader must be notified after push()
+    void solicitPushNotifications();
 
     /// picks a process and calls OneToOneUniQueue::pop() using its queue
     template <class Value> bool pop(int &remoteProcessId, Value &value);
@@ -375,21 +366,18 @@ OneToOneUniQueue::pop(Value &value, QueueReader *const reader)
     if (sizeof(value) > theMaxItemSize)
         throw ItemTooLarge();
 
-    // A writer might push between the empty test and block() below, so we do
-    // not return false right after calling block(), but test again.
     if (empty()) {
         if (!reader)
             return false;
 
-        reader->block();
-        // A writer might push between the empty test and block() below,
-        // so we must test again as such a writer will not signal us.
+        // A push() ending before startSoliciting() below will not notify us, so
+        // we retest empty() after calling startSoliciting().
+
+        reader->startSoliciting();
+
         if (empty())
             return false;
     }
-
-    if (reader)
-        reader->unblock();
 
     const unsigned int pos = (theOut++ % theCapacity) * theMaxItemSize;
     memcpy(&value, theBuffer + pos, sizeof(value));
@@ -428,7 +416,7 @@ OneToOneUniQueue::push(const Value &value, QueueReader *const reader)
     memcpy(theBuffer + pos, &value, sizeof(value));
     const bool wasEmpty = !theSize++;
 
-    return wasEmpty && (!reader || reader->raiseSignal());
+    return wasEmpty && (!reader || reader->endSolicitation());
 }
 
 template <class Value>
@@ -601,7 +589,7 @@ BaseMultiQueue::stat(std::ostream &os) const
 
     const auto &reader = localReader();
     os << "  kid" << theLocalProcessId << " reader flags: " <<
-        "{ blocked: " << reader.blocked() << ", signaled: " << reader.signaled() << " }\n";
+        "{ soliciting: " << reader.soliciting() << " }\n";
 }
 
 // FewToFewBiQueue
