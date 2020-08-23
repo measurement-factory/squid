@@ -13,6 +13,7 @@
 #include "cbdata.h"
 #include "fs/rock/forward.h"
 #include "ipc/mem/Pointer.h"
+#include "ipc/StoreMap.h"
 #include "MemBuf.h"
 #include "store_rebuild.h"
 
@@ -44,14 +45,45 @@ public:
     Rebuild(SwapDir *dir);
     virtual ~Rebuild() override;
 
+    /// low-level anti-padding storage class for LoadingEntry and LoadingSlot flags
+    class LoadingFlags
+    {
+    public:
+        LoadingFlags(): state(0), anchored(0), mapped(0), finalized(0), freed(0) {}
+
+        /* for LoadingEntry */
+        uint8_t state:3;  ///< current entry state (one of the LoadingEntry::State values)
+        uint8_t anchored:1;  ///< whether we loaded the inode slot for this entry
+
+        /* for LoadingSlot */
+        uint8_t mapped:1;  ///< whether the slot was added to a mapped entry
+        uint8_t finalized:1;  ///< whether finalizeOrThrow() has scanned the slot
+        uint8_t freed:1;  ///< whether the slot was given to the map as free space
+    };
+
+    typedef Ipc::StoreMapItems<uint64_t> Sizes;
+    typedef Ipc::StoreMapItems<uint32_t> Versions;
+    typedef Ipc::StoreMapItems<Ipc::StoreMapSliceId> Mores;
+    typedef Ipc::StoreMapItems<LoadingFlags> Flags;
+
     class Owner
     {
     public:
         Owner(const SwapDir *dir);
         ~Owner();
 
+        static SBuf MetadataPath(const char *);
+        static SBuf SizesPath(const char *);
+        static SBuf VersionsPath(const char *);
+        static SBuf MoresPath(const char *);
+        static SBuf FlagsPath(const char *);
+
     private:
         Ipc::Mem::Owner<Metadata> *const metadataOwner;
+        Sizes::Owner *sizes;
+        Versions::Owner *versions;
+        Mores::Owner *mores;
+        Flags::Owner *flags;
     };
 
     static Owner *Init(const SwapDir *dir);

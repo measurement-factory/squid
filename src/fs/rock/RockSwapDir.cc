@@ -1123,15 +1123,6 @@ Rock::SwapDir::freeSlotsPath() const
     return spacesPath.termedBuf();
 }
 
-const char *
-Rock::SwapDir::rebuildMetadataPath() const
-{
-    static String metadataPath;
-    metadataPath = path;
-    metadataPath.append("_metadata");
-    return metadataPath.termedBuf();
-}
-
 bool
 Rock::SwapDir::hasReadableEntry(const StoreEntry &e) const
 {

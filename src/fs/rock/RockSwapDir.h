@@ -58,8 +58,6 @@ public:
     // temporary path to the shared memory stack of free slots
     const char *freeSlotsPath() const;
 
-    const char *rebuildMetadataPath() const;
-
     int64_t entryLimitAbsolute() const { return SwapFilenMax+1; } ///< Core limit
     int64_t entryLimitActual() const; ///< max number of possible entries in db
     int64_t slotLimitAbsolute() const; ///< Rock store implementation limit

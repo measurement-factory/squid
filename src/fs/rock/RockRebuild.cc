@@ -15,7 +15,6 @@
 #include "fs/rock/RockSwapDir.h"
 #include "fs_io.h"
 #include "globals.h"
-#include "ipc/StoreMap.h"
 #include "md5.h"
 #include "sbuf/Stream.h"
 #include "SquidTime.h"
@@ -73,23 +72,6 @@ CBDATA_NAMESPACED_CLASS_INIT(Rock, Rebuild);
 
 namespace Rock
 {
-
-/// low-level anti-padding storage class for LoadingEntry and LoadingSlot flags
-class LoadingFlags
-{
-public:
-    LoadingFlags(): state(0), anchored(0), mapped(0), finalized(0), freed(0) {}
-
-    /* for LoadingEntry */
-    uint8_t state:3;  ///< current entry state (one of the LoadingEntry::State values)
-    uint8_t anchored:1;  ///< whether we loaded the inode slot for this entry
-
-    /* for LoadingSlot */
-    uint8_t mapped:1;  ///< whether the slot was added to a mapped entry
-    uint8_t finalized:1;  ///< whether finalizeOrThrow() has scanned the slot
-    uint8_t freed:1;  ///< whether the slot was given to the map as free space
-};
-
 /// smart StoreEntry-level info pointer (hides anti-padding LoadingParts arrays)
 class LoadingEntry
 {
@@ -111,7 +93,7 @@ public:
     void anchored(const bool beAnchored) { flags.anchored = beAnchored; }
 
 private:
-    LoadingFlags &flags; ///< entry flags (see the above accessors) are ours
+    Rebuild::LoadingFlags &flags; ///< entry flags (see the above accessors) are ours
 };
 
 /// smart db slot-level info pointer (hides anti-padding LoadingParts arrays)
@@ -138,7 +120,7 @@ public:
     bool used() const { return freed() || mapped() || more != -1; }
 
 private:
-    LoadingFlags &flags; ///< slot flags (see the above accessors) are ours
+    Rebuild::LoadingFlags &flags; ///< slot flags (see the above accessors) are ours
 };
 
 /// information about store entries being loaded from disk (and their slots)
@@ -146,24 +128,17 @@ private:
 class LoadingParts
 {
 public:
-    LoadingParts(int dbSlotLimit, int dbEntryLimit);
+    LoadingParts(const char *dirPath);
     LoadingParts(LoadingParts&&) = delete; // paranoid (often too huge to copy)
 
 private:
     friend class LoadingEntry;
     friend class LoadingSlot;
 
-    /* Anti-padding storage. With millions of entries, padding matters! */
-
-    /* indexed by sfileno */
-    std::vector<uint64_t> sizes; ///< LoadingEntry::size for all entries
-    std::vector<uint32_t> versions; ///< LoadingEntry::version for all entries
-
-    /* indexed by SlotId */
-    std::vector<Ipc::StoreMapSliceId> mores; ///< LoadingSlot::more for all slots
-
-    /* entry flags are indexed by sfileno; slot flags -- by SlotId */
-    std::vector<LoadingFlags> flags; ///< all LoadingEntry and LoadingSlot flags
+    Ipc::Mem::Pointer<Rebuild::Sizes> sizes;
+    Ipc::Mem::Pointer<Rebuild::Versions> versions;
+    Ipc::Mem::Pointer<Rebuild::Mores> mores;
+    Ipc::Mem::Pointer<Rebuild::Flags> flags;
 };
 
 } /* namespace Rock */
@@ -171,31 +146,31 @@ private:
 /* LoadingEntry */
 
 Rock::LoadingEntry::LoadingEntry(const sfileno fileNo, LoadingParts &source):
-    size(source.sizes.at(fileNo)),
-    version(source.versions.at(fileNo)),
-    flags(source.flags.at(fileNo))
+    size(source.sizes->items[fileNo]),
+    version(source.versions->items[fileNo]),
+    flags(source.flags->items[fileNo])
 {
 }
 
 /* LoadingSlot */
 
 Rock::LoadingSlot::LoadingSlot(const SlotId slotId, LoadingParts &source):
-    more(source.mores.at(slotId)),
-    flags(source.flags.at(slotId))
+    more(source.mores->items[slotId]),
+    flags(source.flags->items[slotId])
 {
 }
 
 /* LoadingParts */
 
-Rock::LoadingParts::LoadingParts(const int dbEntryLimit, const int dbSlotLimit):
-    sizes(dbEntryLimit, 0),
-    versions(dbEntryLimit, 0),
-    mores(dbSlotLimit, -1),
-    flags(dbSlotLimit)
+Rock::LoadingParts::LoadingParts(const char *dirPath):
+    sizes(shm_old(Rebuild::Sizes)(Rebuild::Owner::SizesPath(dirPath).c_str())),
+    versions(shm_old(Rebuild::Versions)(Rebuild::Owner::VersionsPath(dirPath).c_str())),
+    mores(shm_old(Rebuild::Mores)(Rebuild::Owner::MoresPath(dirPath).c_str())),
+    flags(shm_old(Rebuild::Flags)(Rebuild::Owner::FlagsPath(dirPath).c_str()))
 {
-    assert(sizes.size() == versions.size()); // every entry has both fields
-    assert(sizes.size() <= mores.size()); // every entry needs slot(s)
-    assert(mores.size() == flags.size()); // every slot needs a set of flags
+    assert(sizes->capacity == versions->capacity); // every entry has both fields
+    assert(sizes->capacity <= mores->capacity); // every entry needs slot(s)
+    assert(mores->capacity == flags->capacity); // every slot needs a set of flags
 }
 
 /* Rebuild */
@@ -203,7 +178,7 @@ Rock::LoadingParts::LoadingParts(const int dbEntryLimit, const int dbSlotLimit):
 Rock::Rebuild::Rebuild(SwapDir *dir): AsyncJob("Rock::Rebuild"),
     sd(dir),
     parts(nullptr),
-    metadata(shm_old(Metadata)(sd->rebuildMetadataPath())),
+    metadata(shm_old(Metadata)(Owner::MetadataPath(dir->path).c_str())),
     dbSize(0),
     dbSlotSize(0),
     dbSlotLimit(0),
@@ -233,8 +208,47 @@ Rock::Rebuild::~Rebuild()
 }
 
 Rock::Rebuild::Owner::Owner(const SwapDir *dir):
-    metadataOwner(shm_new(Metadata)(dir->rebuildMetadataPath()))
-{}
+    metadataOwner(shm_new(Metadata)(MetadataPath(dir->path).c_str())),
+    sizes(shm_new(Sizes)(SizesPath(dir->path).c_str(), dir->entryLimitActual())),
+    versions(shm_new(Versions)(VersionsPath(dir->path).c_str(), dir->entryLimitActual())),
+    mores(shm_new(Mores)(MoresPath(dir->path).c_str(), dir->slotLimitActual())),
+    flags(shm_new(Flags)(FlagsPath(dir->path).c_str(), dir->slotLimitActual()))
+{
+    auto moresArray = mores->object();
+    for (int i = 0; i < moresArray->capacity; ++i)
+        moresArray->items[i] = -1;
+}
+
+SBuf
+Rock::Rebuild::Owner::MetadataPath(const char *dirPath)
+{
+    return Ipc::Mem::Segment::Name(SBuf(dirPath), "rebuild_metadata");
+
+}
+
+SBuf
+Rock::Rebuild::Owner::SizesPath(const char *dirPath)
+{
+    return Ipc::Mem::Segment::Name(SBuf(dirPath), "rebuild_sizes");
+}
+
+SBuf
+Rock::Rebuild::Owner::VersionsPath(const char *dirPath)
+{
+    return Ipc::Mem::Segment::Name(SBuf(dirPath), "rebuild_versions");
+}
+
+SBuf
+Rock::Rebuild::Owner::MoresPath(const char *dirPath)
+{
+    return Ipc::Mem::Segment::Name(SBuf(dirPath), "rebuild_mores");
+}
+
+SBuf
+Rock::Rebuild::Owner::FlagsPath(const char *dirPath)
+{
+    return Ipc::Mem::Segment::Name(SBuf(dirPath), "rebuild_flags");
+}
 
 Rock::Rebuild::Owner::~Owner()
 {
@@ -284,7 +298,7 @@ Rock::Rebuild::start()
 
     counts.updateStartTime(current_time);
 
-    parts = new LoadingParts(dbEntryLimit, dbSlotLimit);
+    parts = new LoadingParts(sd->path);
 
     checkpoint();
 }
