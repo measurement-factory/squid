@@ -72,6 +72,7 @@ CBDATA_NAMESPACED_CLASS_INIT(Rock, Rebuild);
 
 namespace Rock
 {
+
 /// smart StoreEntry-level info pointer (hides anti-padding LoadingParts arrays)
 class LoadingEntry
 {
@@ -197,7 +198,6 @@ Rock::Rebuild::Rebuild(SwapDir *dir): AsyncJob("Rock::Rebuild"),
     assert(dbEntryLimit <= dbSlotLimit);
     if (doneLoading() && doneValidating())
         throw TextException(ToSBuf("already loaded and validated all ", dbSlotLimit, " slots"), Here());
-
 }
 
 Rock::Rebuild::~Rebuild()
@@ -223,7 +223,6 @@ SBuf
 Rock::Rebuild::Owner::MetadataPath(const char *dirPath)
 {
     return Ipc::Mem::Segment::Name(SBuf(dirPath), "rebuild_metadata");
-
 }
 
 SBuf
@@ -253,6 +252,10 @@ Rock::Rebuild::Owner::FlagsPath(const char *dirPath)
 Rock::Rebuild::Owner::~Owner()
 {
     delete metadataOwner;
+    delete sizes;
+    delete versions;
+    delete mores;
+    delete flags;
 }
 
 Rock::Rebuild::Owner *
