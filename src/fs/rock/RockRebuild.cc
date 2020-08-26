@@ -237,6 +237,7 @@ Rock::Rebuild::Rebuild(SwapDir *dir): AsyncJob("Rock::Rebuild"),
     assert(dbEntryLimit <= dbSlotLimit);
     if (loadedAndValidated())
         throw TextException(ToSBuf("already loaded and validated all ", dbSlotLimit, " slots"), Here());
+    registerRunner();
 }
 
 Rock::Rebuild::~Rebuild()
@@ -251,7 +252,12 @@ Rock::Rebuild::~Rebuild()
         Ipc::Mem::Segment::Unlink(MoresPath(sd->path).c_str());
         Ipc::Mem::Segment::Unlink(FlagsPath(sd->path).c_str());
     }
+}
 
+void
+Rock::Rebuild::startShutdown()
+{
+    mustStop("startShutdown");
 }
 
 /// prepares and initiates entry loading sequence

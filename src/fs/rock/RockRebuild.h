@@ -10,6 +10,7 @@
 #define SQUID_FS_ROCK_REBUILD_H
 
 #include "base/AsyncJob.h"
+#include "base/RunnersRegistry.h"
 #include "cbdata.h"
 #include "fs/rock/forward.h"
 #include "ipc/mem/Pointer.h"
@@ -26,7 +27,7 @@ class LoadingParts;
 
 /// \ingroup Rock
 /// manages store rebuild process: loading meta information from db on disk
-class Rebuild: public AsyncJob
+class Rebuild: public AsyncJob, private IndependentRunner
 {
     CBDATA_CHILD(Rebuild);
 
@@ -69,6 +70,9 @@ public:
 
     /// whether the current kid is responsible for rebuilding this db file
     static bool ShouldStart(const SwapDir &);
+
+    /* Registered Runner API */
+    virtual void startShutdown() override;
 
 protected:
     /* AsyncJob API */
