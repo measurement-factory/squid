@@ -235,7 +235,7 @@ Rock::Rebuild::Rebuild(SwapDir *dir): AsyncJob("Rock::Rebuild"),
     dbEntryLimit = sd->entryLimitActual();
     dbSlotLimit = sd->slotLimitActual();
     assert(dbEntryLimit <= dbSlotLimit);
-    if (doneLoading() && doneValidating())
+    if (loadedAndValidated())
         throw TextException(ToSBuf("already loaded and validated all ", dbSlotLimit, " slots"), Here());
 }
 
@@ -245,7 +245,7 @@ Rock::Rebuild::~Rebuild()
         file_close(fd);
     delete parts;
     delete partsOwner;
-    if (resuming) {
+    if (resuming && loadedAndValidated()) {
         Ipc::Mem::Segment::Unlink(SizesPath(sd->path).c_str());
         Ipc::Mem::Segment::Unlink(VersionsPath(sd->path).c_str());
         Ipc::Mem::Segment::Unlink(MoresPath(sd->path).c_str());
@@ -311,7 +311,7 @@ Rock::Rebuild::doneValidating() const
 bool
 Rock::Rebuild::doneAll() const
 {
-    return doneLoading() && doneValidating() && AsyncJob::doneAll();
+    return loadedAndValidated() && AsyncJob::doneAll();
 }
 
 void

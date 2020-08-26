@@ -76,6 +76,7 @@ protected:
     virtual bool doneAll() const override;
     virtual void swanSong() override;
 
+    bool loadedAndValidated() const { return doneLoading() && doneValidating(); }
     bool doneLoading() const;
     bool doneValidating() const;
 
