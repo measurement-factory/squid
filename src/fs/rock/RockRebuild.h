@@ -30,7 +30,10 @@ class Rebuild: public AsyncJob
 {
     CBDATA_CHILD(Rebuild);
 
-private:
+public:
+    Rebuild(SwapDir *dir);
+    virtual ~Rebuild() override;
+
     /// shared metadata during rebuild process
     class Metadata
     {
@@ -40,10 +43,6 @@ private:
 
         StoreRebuildData counts;
     };
-
-public:
-    Rebuild(SwapDir *dir);
-    virtual ~Rebuild() override;
 
     /// low-level anti-padding storage class for LoadingEntry and LoadingSlot flags
     class LoadingFlags
@@ -66,29 +65,9 @@ public:
     typedef Ipc::StoreMapItems<Ipc::StoreMapSliceId> Mores;
     typedef Ipc::StoreMapItems<LoadingFlags> Flags;
 
-    class Owner
-    {
-    public:
-        Owner(const SwapDir *dir);
-        ~Owner();
+    static Ipc::Mem::Owner<Metadata> *InitMetadata(const SwapDir *dir);
 
-        static SBuf MetadataPath(const char *);
-        static SBuf SizesPath(const char *);
-        static SBuf VersionsPath(const char *);
-        static SBuf MoresPath(const char *);
-        static SBuf FlagsPath(const char *);
-
-    private:
-        Ipc::Mem::Owner<Metadata> *const metadataOwner;
-        Sizes::Owner *sizes;
-        Versions::Owner *versions;
-        Mores::Owner *mores;
-        Flags::Owner *flags;
-    };
-
-    static Owner *Init(const SwapDir *dir);
-
-    /// whether the kid should start rebuild
+    /// whether the current kid is responsible for rebuilding this db file
     static bool ShouldStart(const SwapDir &);
 
 protected:
@@ -99,6 +78,20 @@ protected:
 
     bool doneLoading() const;
     bool doneValidating() const;
+
+private:
+    class LoadingPartsOwner
+    {
+    public:
+        LoadingPartsOwner(const SwapDir *dir);
+        ~LoadingPartsOwner();
+
+    private:
+        Sizes::Owner *sizes;
+        Versions::Owner *versions;
+        Mores::Owner *mores;
+        Flags::Owner *flags;
+    };
 
 private:
     void checkpoint();
@@ -146,7 +139,13 @@ private:
     sfileno loadingPos; ///< index of the db slot being loaded from disk now
     sfileno validationPos; ///< index of the loaded db slot being validated now
     MemBuf buf; ///< space to load current db slot (and entry metadata) into
+
     StoreRebuildData &counts; ///< a reference to the shared memory counters
+    /// shared memory storage where parts of being loaded entries are
+    /// temporarily stored
+    LoadingPartsOwner *partsOwner;
+    /// whether the rebuild process was aborted and now resumed
+    const bool resuming;
 
     static void Steps(void *data);
 };

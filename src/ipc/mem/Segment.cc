@@ -133,7 +133,6 @@ void
 Ipc::Mem::Segment::open()
 {
     assert(theFD < 0);
-
     theFD = shm_open(theName.termedBuf(), O_RDWR, 0);
     if (theFD < 0) {
         int xerrno = errno;
@@ -237,11 +236,23 @@ Ipc::Mem::Segment::lock()
 void
 Ipc::Mem::Segment::unlink()
 {
-    if (shm_unlink(theName.termedBuf()) != 0) {
+    UnlinkName(theName);
+}
+
+void
+Ipc::Mem::Segment::UnlinkName(const String &name)
+{
+    if (shm_unlink(name.termedBuf()) != 0) {
         int xerrno = errno;
-        debugs(54, 5, "shm_unlink(" << theName << "): " << xstrerr(xerrno));
+        debugs(54, 5, "shm_unlink(" << name << "): " << xstrerr(xerrno));
     } else
-        debugs(54, 3, "unlinked " << theName << " segment");
+        debugs(54, 3, "unlinked " << name << " segment");
+}
+
+void
+Ipc::Mem::Segment::Unlink(const char *id)
+{
+    UnlinkName(GenerateName(id));
 }
 
 /// determines the size of the underlying "file"

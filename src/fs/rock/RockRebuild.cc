@@ -73,6 +73,36 @@ CBDATA_NAMESPACED_CLASS_INIT(Rock, Rebuild);
 namespace Rock
 {
 
+static SBuf
+MetadataPath(const char *dirPath)
+{
+    return Ipc::Mem::Segment::Name(SBuf(dirPath), "rebuild_metadata");
+}
+
+static SBuf
+SizesPath(const char *dirPath)
+{
+    return Ipc::Mem::Segment::Name(SBuf(dirPath), "rebuild_sizes");
+}
+
+static SBuf
+VersionsPath(const char *dirPath)
+{
+    return Ipc::Mem::Segment::Name(SBuf(dirPath), "rebuild_versions");
+}
+
+static SBuf
+MoresPath(const char *dirPath)
+{
+    return Ipc::Mem::Segment::Name(SBuf(dirPath), "rebuild_mores");
+}
+
+static SBuf
+FlagsPath(const char *dirPath)
+{
+    return Ipc::Mem::Segment::Name(SBuf(dirPath), "rebuild_flags");
+}
+
 /// smart StoreEntry-level info pointer (hides anti-padding LoadingParts arrays)
 class LoadingEntry
 {
@@ -136,10 +166,17 @@ private:
     friend class LoadingEntry;
     friend class LoadingSlot;
 
-    Ipc::Mem::Pointer<Rebuild::Sizes> sizes;
-    Ipc::Mem::Pointer<Rebuild::Versions> versions;
-    Ipc::Mem::Pointer<Rebuild::Mores> mores;
-    Ipc::Mem::Pointer<Rebuild::Flags> flags;
+    /* Anti-padding storage. With millions of entries, padding matters! */
+
+    /* indexed by sfileno */
+    Ipc::Mem::Pointer<Rebuild::Sizes> sizes; ///< LoadingEntry::size for all entries
+    Ipc::Mem::Pointer<Rebuild::Versions> versions; ///< LoadingEntry::version for all entries
+
+    /* indexed by SlotId */
+    Ipc::Mem::Pointer<Rebuild::Mores> mores; ///< LoadingSlot::more for all slots
+
+    /* entry flags are indexed by sfileno; slot flags -- by SlotId */
+    Ipc::Mem::Pointer<Rebuild::Flags> flags; ///< all LoadingEntry and LoadingSlot flags
 };
 
 } /* namespace Rock */
@@ -164,10 +201,10 @@ Rock::LoadingSlot::LoadingSlot(const SlotId slotId, LoadingParts &source):
 /* LoadingParts */
 
 Rock::LoadingParts::LoadingParts(const char *dirPath):
-    sizes(shm_old(Rebuild::Sizes)(Rebuild::Owner::SizesPath(dirPath).c_str())),
-    versions(shm_old(Rebuild::Versions)(Rebuild::Owner::VersionsPath(dirPath).c_str())),
-    mores(shm_old(Rebuild::Mores)(Rebuild::Owner::MoresPath(dirPath).c_str())),
-    flags(shm_old(Rebuild::Flags)(Rebuild::Owner::FlagsPath(dirPath).c_str()))
+    sizes(shm_old(Rebuild::Sizes)(SizesPath(dirPath).c_str())),
+    versions(shm_old(Rebuild::Versions)(VersionsPath(dirPath).c_str())),
+    mores(shm_old(Rebuild::Mores)(MoresPath(dirPath).c_str())),
+    flags(shm_old(Rebuild::Flags)(FlagsPath(dirPath).c_str()))
 {
     assert(sizes->capacity == versions->capacity); // every entry has both fields
     assert(sizes->capacity <= mores->capacity); // every entry needs slot(s)
@@ -179,7 +216,7 @@ Rock::LoadingParts::LoadingParts(const char *dirPath):
 Rock::Rebuild::Rebuild(SwapDir *dir): AsyncJob("Rock::Rebuild"),
     sd(dir),
     parts(nullptr),
-    metadata(shm_old(Metadata)(Owner::MetadataPath(dir->path).c_str())),
+    metadata(shm_old(Metadata)(MetadataPath(dir->path).c_str())),
     dbSize(0),
     dbSlotSize(0),
     dbSlotLimit(0),
@@ -188,7 +225,9 @@ Rock::Rebuild::Rebuild(SwapDir *dir): AsyncJob("Rock::Rebuild"),
     dbOffset(0),
     loadingPos(metadata->counts.scancount),
     validationPos(metadata->counts.validatedCount),
-    counts(metadata->counts)
+    counts(metadata->counts),
+    partsOwner(nullptr),
+    resuming(metadata->counts.started())
 {
     assert(sd);
     dbSize = sd->diskOffsetLimit(); // we do not care about the trailer waste
@@ -205,75 +244,14 @@ Rock::Rebuild::~Rebuild()
     if (fd >= 0)
         file_close(fd);
     delete parts;
-}
-
-Rock::Rebuild::Owner::Owner(const SwapDir *dir):
-    metadataOwner(shm_new(Metadata)(MetadataPath(dir->path).c_str())),
-    sizes(shm_new(Sizes)(SizesPath(dir->path).c_str(), dir->entryLimitActual())),
-    versions(shm_new(Versions)(VersionsPath(dir->path).c_str(), dir->entryLimitActual())),
-    mores(shm_new(Mores)(MoresPath(dir->path).c_str(), dir->slotLimitActual())),
-    flags(shm_new(Flags)(FlagsPath(dir->path).c_str(), dir->slotLimitActual()))
-{
-    auto moresArray = mores->object();
-    for (int i = 0; i < moresArray->capacity; ++i)
-        moresArray->items[i] = -1;
-}
-
-SBuf
-Rock::Rebuild::Owner::MetadataPath(const char *dirPath)
-{
-    return Ipc::Mem::Segment::Name(SBuf(dirPath), "rebuild_metadata");
-}
-
-SBuf
-Rock::Rebuild::Owner::SizesPath(const char *dirPath)
-{
-    return Ipc::Mem::Segment::Name(SBuf(dirPath), "rebuild_sizes");
-}
-
-SBuf
-Rock::Rebuild::Owner::VersionsPath(const char *dirPath)
-{
-    return Ipc::Mem::Segment::Name(SBuf(dirPath), "rebuild_versions");
-}
-
-SBuf
-Rock::Rebuild::Owner::MoresPath(const char *dirPath)
-{
-    return Ipc::Mem::Segment::Name(SBuf(dirPath), "rebuild_mores");
-}
-
-SBuf
-Rock::Rebuild::Owner::FlagsPath(const char *dirPath)
-{
-    return Ipc::Mem::Segment::Name(SBuf(dirPath), "rebuild_flags");
-}
-
-Rock::Rebuild::Owner::~Owner()
-{
-    delete metadataOwner;
-    delete sizes;
-    delete versions;
-    delete mores;
-    delete flags;
-}
-
-Rock::Rebuild::Owner *
-Rock::Rebuild::Init(const SwapDir *dir)
-{
-    return new Owner(dir);
-}
-
-bool
-Rock::Rebuild::ShouldStart(const SwapDir &sd)
-{
-    // in SMP mode, only the disker is responsible for populating the map
-    if (UsingSmp() && !IamDiskProcess()) {
-        debugs(47, 2, "Non-disker skips rebuilding of cache_dir #" <<
-               sd.index << " from " << sd.filePath);
-        return false;
+    delete partsOwner;
+    if (resuming) {
+        Ipc::Mem::Segment::Unlink(SizesPath(sd->path).c_str());
+        Ipc::Mem::Segment::Unlink(VersionsPath(sd->path).c_str());
+        Ipc::Mem::Segment::Unlink(MoresPath(sd->path).c_str());
+        Ipc::Mem::Segment::Unlink(FlagsPath(sd->path).c_str());
     }
-    return true;
+
 }
 
 /// prepares and initiates entry loading sequence
@@ -284,6 +262,8 @@ Rock::Rebuild::start()
 
     debugs(47, DBG_IMPORTANT, "Loading cache_dir #" << sd->index <<
            " from " << sd->filePath);
+    if (!resuming)
+        partsOwner = new LoadingPartsOwner(sd);
 
     fd = file_open(sd->filePath, O_RDONLY | O_BINARY);
     if (fd < 0)
@@ -845,5 +825,42 @@ Rock::Rebuild::useNewSlot(const SlotId slotId, const DbCellHeader &header)
         break;
     }
     }
+}
+
+bool
+Rock::Rebuild::ShouldStart(const SwapDir &sd)
+{
+    // in SMP mode, only the disker is responsible for populating the map
+    if (UsingSmp() && !IamDiskProcess()) {
+        debugs(47, 2, "Non-disker skips rebuilding of cache_dir #" <<
+               sd.index << " from " << sd.filePath);
+        return false;
+    }
+    return true;
+}
+
+Ipc::Mem::Owner<Rock::Rebuild::Metadata> *
+Rock::Rebuild::InitMetadata(const SwapDir *dir)
+{
+    return shm_new(Metadata)(MetadataPath(dir->path).c_str());
+}
+
+Rock::Rebuild::LoadingPartsOwner::LoadingPartsOwner(const SwapDir *dir):
+    sizes(shm_new(Sizes)(SizesPath(dir->path).c_str(), dir->entryLimitActual())),
+    versions(shm_new(Versions)(VersionsPath(dir->path).c_str(), dir->entryLimitActual())),
+    mores(shm_new(Mores)(MoresPath(dir->path).c_str(), dir->slotLimitActual())),
+    flags(shm_new(Flags)(FlagsPath(dir->path).c_str(), dir->slotLimitActual()))
+{
+    auto moresArray = mores->object();
+    for (int i = 0; i < moresArray->capacity; ++i)
+        moresArray->items[i] = -1;
+}
+
+Rock::Rebuild::LoadingPartsOwner::~LoadingPartsOwner()
+{
+    delete sizes;
+    delete versions;
+    delete mores;
+    delete flags;
 }
 

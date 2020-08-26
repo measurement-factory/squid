@@ -19,12 +19,9 @@ class MemBuf;
 class StoreRebuildData
 {
 public:
-    void updateStartTime(const timeval &newTime) {
-        if (!startTime.tv_sec)
-            startTime = newTime;
-        else
-            startTime = std::min(startTime, newTime);
-    }
+    void updateStartTime(const timeval &newTime) { startTime = started() ? std::min(startTime, newTime) : newTime; }
+
+    bool started() const { return startTime.tv_sec > 0; }
 
     int objcount = 0;       /* # objects successfully reloaded */
     int expcount = 0;       /* # objects expired */

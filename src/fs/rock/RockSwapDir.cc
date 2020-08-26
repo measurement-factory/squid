@@ -1143,7 +1143,7 @@ protected:
     virtual void create();
 
 private:
-    std::vector<Rebuild::Owner *> rebuildMetadataOwners;
+    std::vector<Ipc::Mem::Owner<Rebuild::Metadata> *> rebuildMetadataOwners;
     std::vector<SwapDir::DirMap::Owner *> mapOwners;
     std::vector< Ipc::Mem::Owner<Ipc::Mem::PageStack> *> freeSlotsOwners;
 };
@@ -1156,7 +1156,7 @@ void Rock::SwapDirRr::create()
     Must(mapOwners.empty() && freeSlotsOwners.empty());
     for (int i = 0; i < Config.cacheSwap.n_configured; ++i) {
         if (const Rock::SwapDir *const sd = dynamic_cast<Rock::SwapDir *>(INDEXSD(i))) {
-            rebuildMetadataOwners.push_back(Rebuild::Init(sd));
+            rebuildMetadataOwners.push_back(Rebuild::InitMetadata(sd));
 
             const int64_t capacity = sd->slotLimitActual();
 

@@ -45,6 +45,8 @@ public:
     /// concatenates parts of a name to form a complete name (or its prefix)
     static SBuf Name(const SBuf &prefix, const char *suffix);
 
+    static void Unlink(const char *id); ///< unlinks the segment
+
 private:
 
     // not implemented
@@ -60,6 +62,7 @@ private:
     void unlink(); ///< unlink the segment
     off_t statSize(const char *context) const;
 
+    static void UnlinkName(const String &);
     static String GenerateName(const char *id);
 
     int theFD; ///< shared memory segment file descriptor

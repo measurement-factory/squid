@@ -74,7 +74,7 @@ Fs::Ufs::RebuildState::RebuildState(RefCount<UFSSwapDir> aSwapDir) :
     if (!clean)
         flags.need_to_validate = true;
 
-    counts.startTime = current_time;
+    counts.updateStartTime(current_time);
 
     debugs(47, DBG_IMPORTANT, "Rebuilding storage in " << sd->path << " (" <<
            (clean ? "clean log" : (LogParser ? "dirty log" : "no log")) << ")");
