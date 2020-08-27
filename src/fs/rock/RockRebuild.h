@@ -31,20 +31,7 @@ class Rebuild: public AsyncJob, private IndependentRunner
 {
     CBDATA_CHILD(Rebuild);
 
-public:
-    Rebuild(SwapDir *dir);
-    virtual ~Rebuild() override;
-
-    /// shared metadata during rebuild process
-    class Metadata
-    {
-    public:
-        size_t sharedMemorySize() const { return sizeof(*this); }
-        static size_t SharedMemorySize() { return sizeof(Metadata); }
-
-        StoreRebuildData counts;
-    };
-
+private:
     /// low-level anti-padding storage class for LoadingEntry and LoadingSlot flags
     class LoadingFlags
     {
@@ -59,6 +46,23 @@ public:
         uint8_t mapped:1;  ///< whether the slot was added to a mapped entry
         uint8_t finalized:1;  ///< whether finalizeOrThrow() has scanned the slot
         uint8_t freed:1;  ///< whether the slot was given to the map as free space
+    };
+
+    friend class LoadingEntry;
+    friend class LoadingSlot;
+
+public:
+    Rebuild(SwapDir *dir);
+    virtual ~Rebuild() override;
+
+    /// shared metadata during rebuild process
+    class Metadata
+    {
+    public:
+        size_t sharedMemorySize() const { return sizeof(*this); }
+        static size_t SharedMemorySize() { return sizeof(Metadata); }
+
+        StoreRebuildData counts;
     };
 
     typedef Ipc::StoreMapItems<uint64_t> Sizes;
@@ -98,7 +102,6 @@ private:
         Flags::Owner *flags;
     };
 
-private:
     void checkpoint();
     void steps();
     void loadingSteps();
