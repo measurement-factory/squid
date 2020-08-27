@@ -133,6 +133,7 @@ void
 Ipc::Mem::Segment::open()
 {
     assert(theFD < 0);
+
     theFD = shm_open(theName.termedBuf(), O_RDWR, 0);
     if (theFD < 0) {
         int xerrno = errno;
