@@ -593,14 +593,14 @@ Rock::SwapDir::rebuild()
         return;
 
     //++StoreController::store_dirs_rebuilding; // see Rock::SwapDir::init()
-    Rebuild *rebuild = 0;
+    Rebuild *rebuildJob = 0;
     try {
-        rebuild = new Rebuild(this);
+    	rebuildJob = new Rebuild(this);
     } catch (const TextException &e) {
         debugs(47, 2, "will not rebuild " << path << " because " << e.what());
         return;
     }
-    AsyncJob::Start(rebuild);
+    AsyncJob::Start(rebuildJob);
 }
 
 bool
