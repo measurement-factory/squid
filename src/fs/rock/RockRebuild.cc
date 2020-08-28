@@ -235,8 +235,6 @@ Rock::Rebuild::Rebuild(SwapDir *dir): AsyncJob("Rock::Rebuild"),
     dbEntryLimit = sd->entryLimitActual();
     dbSlotLimit = sd->slotLimitActual();
     assert(dbEntryLimit <= dbSlotLimit);
-    if (loadedAndValidated())
-        throw TextException(ToSBuf("already loaded and validated all ", dbSlotLimit, " slots"), Here());
     registerRunner();
 }
 
