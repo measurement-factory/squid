@@ -103,6 +103,40 @@ FlagsPath(const char *dirPath)
     return Ipc::Mem::Segment::Name(SBuf(dirPath), "rebuild_flags");
 }
 
+/// low-level anti-padding storage class for LoadingEntry and LoadingSlot flags
+class LoadingFlags
+{
+public:
+    LoadingFlags(): state(0), anchored(0), mapped(0), finalized(0), freed(0) {}
+
+    /* for LoadingEntry */
+    uint8_t state:3;  ///< current entry state (one of the LoadingEntry::State values)
+    uint8_t anchored:1;  ///< whether we loaded the inode slot for this entry
+
+    /* for LoadingSlot */
+    uint8_t mapped:1;  ///< whether the slot was added to a mapped entry
+    uint8_t finalized:1;  ///< whether finalizeOrThrow() has scanned the slot
+    uint8_t freed:1;  ///< whether the slot was given to the map as free space
+};
+
+typedef Ipc::StoreMapItems<uint64_t> Sizes;
+typedef Ipc::StoreMapItems<uint32_t> Versions;
+typedef Ipc::StoreMapItems<Ipc::StoreMapSliceId> Mores;
+typedef Ipc::StoreMapItems<LoadingFlags> Flags;
+
+class LoadingPartsOwner
+{
+public:
+    LoadingPartsOwner(const SwapDir *dir);
+    ~LoadingPartsOwner();
+
+private:
+    Sizes::Owner *sizes;
+    Versions::Owner *versions;
+    Mores::Owner *mores;
+    Flags::Owner *flags;
+};
+
 /// smart StoreEntry-level info pointer (hides anti-padding LoadingParts arrays)
 class LoadingEntry
 {
@@ -124,7 +158,7 @@ public:
     void anchored(const bool beAnchored) { flags.anchored = beAnchored; }
 
 private:
-    Rebuild::LoadingFlags &flags; ///< entry flags (see the above accessors) are ours
+    LoadingFlags &flags; ///< entry flags (see the above accessors) are ours
 };
 
 /// smart db slot-level info pointer (hides anti-padding LoadingParts arrays)
@@ -151,7 +185,7 @@ public:
     bool used() const { return freed() || mapped() || more != -1; }
 
 private:
-    Rebuild::LoadingFlags &flags; ///< slot flags (see the above accessors) are ours
+    LoadingFlags &flags; ///< slot flags (see the above accessors) are ours
 };
 
 /// information about store entries being loaded from disk (and their slots)
@@ -169,17 +203,38 @@ private:
     /* Anti-padding storage. With millions of entries, padding matters! */
 
     /* indexed by sfileno */
-    Ipc::Mem::Pointer<Rebuild::Sizes> sizes; ///< LoadingEntry::size for all entries
-    Ipc::Mem::Pointer<Rebuild::Versions> versions; ///< LoadingEntry::version for all entries
+    Ipc::Mem::Pointer<Sizes> sizes; ///< LoadingEntry::size for all entries
+    Ipc::Mem::Pointer<Versions> versions; ///< LoadingEntry::version for all entries
 
     /* indexed by SlotId */
-    Ipc::Mem::Pointer<Rebuild::Mores> mores; ///< LoadingSlot::more for all slots
+    Ipc::Mem::Pointer<Mores> mores; ///< LoadingSlot::more for all slots
 
     /* entry flags are indexed by sfileno; slot flags -- by SlotId */
-    Ipc::Mem::Pointer<Rebuild::Flags> flags; ///< all LoadingEntry and LoadingSlot flags
+    Ipc::Mem::Pointer<Flags> flags; ///< all LoadingEntry and LoadingSlot flags
 };
 
 } /* namespace Rock */
+
+/* LoadingPartsOwner */
+
+Rock::LoadingPartsOwner::LoadingPartsOwner(const SwapDir *dir):
+    sizes(shm_new(Sizes)(SizesPath(dir->path).c_str(), dir->entryLimitActual())),
+    versions(shm_new(Versions)(VersionsPath(dir->path).c_str(), dir->entryLimitActual())),
+    mores(shm_new(Mores)(MoresPath(dir->path).c_str(), dir->slotLimitActual())),
+    flags(shm_new(Flags)(FlagsPath(dir->path).c_str(), dir->slotLimitActual()))
+{
+    auto moresArray = mores->object();
+    for (int i = 0; i < moresArray->capacity; ++i)
+        moresArray->items[i] = -1;
+}
+
+Rock::LoadingPartsOwner::~LoadingPartsOwner()
+{
+    delete sizes;
+    delete versions;
+    delete mores;
+    delete flags;
+}
 
 /* LoadingEntry */
 
@@ -201,10 +256,10 @@ Rock::LoadingSlot::LoadingSlot(const SlotId slotId, LoadingParts &source):
 /* LoadingParts */
 
 Rock::LoadingParts::LoadingParts(const char *dirPath):
-    sizes(shm_old(Rebuild::Sizes)(SizesPath(dirPath).c_str())),
-    versions(shm_old(Rebuild::Versions)(VersionsPath(dirPath).c_str())),
-    mores(shm_old(Rebuild::Mores)(MoresPath(dirPath).c_str())),
-    flags(shm_old(Rebuild::Flags)(FlagsPath(dirPath).c_str()))
+    sizes(shm_old(Sizes)(SizesPath(dirPath).c_str())),
+    versions(shm_old(Versions)(VersionsPath(dirPath).c_str())),
+    mores(shm_old(Mores)(MoresPath(dirPath).c_str())),
+    flags(shm_old(Flags)(FlagsPath(dirPath).c_str()))
 {
     assert(sizes->capacity == versions->capacity); // every entry has both fields
     assert(sizes->capacity <= mores->capacity); // every entry needs slot(s)
@@ -847,24 +902,5 @@ Ipc::Mem::Owner<Rock::Rebuild::Metadata> *
 Rock::Rebuild::InitMetadata(const SwapDir *dir)
 {
     return shm_new(Metadata)(MetadataPath(dir->path).c_str());
-}
-
-Rock::Rebuild::LoadingPartsOwner::LoadingPartsOwner(const SwapDir *dir):
-    sizes(shm_new(Sizes)(SizesPath(dir->path).c_str(), dir->entryLimitActual())),
-    versions(shm_new(Versions)(VersionsPath(dir->path).c_str(), dir->entryLimitActual())),
-    mores(shm_new(Mores)(MoresPath(dir->path).c_str(), dir->slotLimitActual())),
-    flags(shm_new(Flags)(FlagsPath(dir->path).c_str(), dir->slotLimitActual()))
-{
-    auto moresArray = mores->object();
-    for (int i = 0; i < moresArray->capacity; ++i)
-        moresArray->items[i] = -1;
-}
-
-Rock::Rebuild::LoadingPartsOwner::~LoadingPartsOwner()
-{
-    delete sizes;
-    delete versions;
-    delete mores;
-    delete flags;
 }
 
