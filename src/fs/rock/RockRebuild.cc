@@ -317,7 +317,7 @@ Rock::Rebuild::startShutdown()
 void
 Rock::Rebuild::start()
 {
-    Must(ShouldStart(*sd));
+    assert(IsResponsible(*sd));
 
     debugs(47, DBG_IMPORTANT, "Loading cache_dir #" << sd->index <<
            " from " << sd->filePath);
@@ -887,15 +887,10 @@ Rock::Rebuild::useNewSlot(const SlotId slotId, const DbCellHeader &header)
 }
 
 bool
-Rock::Rebuild::ShouldStart(const SwapDir &sd)
+Rock::Rebuild::IsResponsible(const SwapDir &sd)
 {
     // in SMP mode, only the disker is responsible for populating the map
-    if (UsingSmp() && !IamDiskProcess()) {
-        debugs(47, 2, "Non-disker skips rebuilding of cache_dir #" <<
-               sd.index << " from " << sd.filePath);
-        return false;
-    }
-    return true;
+    return !UsingSmp() || IamDiskProcess();
 }
 
 Ipc::Mem::Owner<Rock::Rebuild::Metadata> *

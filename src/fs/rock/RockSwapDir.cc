@@ -589,8 +589,11 @@ Rock::SwapDir::validateOptions()
 void
 Rock::SwapDir::rebuild()
 {
-    if (!Rebuild::ShouldStart(*this))
+    if (!Rebuild::IsResponsible(*this)) {
+        debugs(47, 2, "not responsible for building a memory index of cache_dir #" <<
+               index << " from " << filePath);
         return;
+    }
 
     //++StoreController::store_dirs_rebuilding; // see Rock::SwapDir::init()
     auto rebuildJob = new Rebuild(this);

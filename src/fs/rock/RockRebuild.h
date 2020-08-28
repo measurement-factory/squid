@@ -49,7 +49,7 @@ public:
     static Ipc::Mem::Owner<Metadata> *InitMetadata(const SwapDir *dir);
 
     /// whether the current kid is responsible for rebuilding this db file
-    static bool ShouldStart(const SwapDir &);
+    static bool IsResponsible(const SwapDir &);
 
     /* Registered Runner API */
     virtual void startShutdown() override;
