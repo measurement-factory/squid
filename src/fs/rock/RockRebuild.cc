@@ -321,8 +321,19 @@ Rock::Rebuild::start()
 
     debugs(47, DBG_IMPORTANT, "Loading cache_dir #" << sd->index <<
            " from " << sd->filePath);
-    if (!resuming)
+
+    if (!resuming) {
         partsOwner = new LoadingPartsOwner(sd);
+    } else {
+        debugs(47, DBG_IMPORTANT, "Resuming rebuilding storage from disk:");
+        resumingProgress("slots loaded:", loadingPos, dbSlotLimit);
+        const auto entriesValidated = validationPos > dbEntryLimit ? dbEntryLimit : validationPos;
+        resumingProgress("entries validated:", entriesValidated, dbEntryLimit);
+        if (opt_store_doublecheck) {
+            const auto slotsValidated = validationPos > dbEntryLimit ? validationPos - dbEntryLimit : 0;
+            resumingProgress("slots validated:", slotsValidated, dbSlotLimit);
+        }
+    }
 
     fd = file_open(sd->filePath, O_RDONLY | O_BINARY);
     if (fd < 0)
@@ -900,5 +911,15 @@ Ipc::Mem::Owner<Rock::Rebuild::Metadata> *
 Rock::Rebuild::InitMetadata(const SwapDir *dir)
 {
     return shm_new(Metadata)(MetadataPath(dir->path).c_str());
+}
+
+void
+Rock::Rebuild::resumingProgress(const char *description, const int scanned, const int total)
+{
+    assert(resuming);
+    auto values = ToSBuf(scanned, " of ", total);
+    debugs(47, DBG_IMPORTANT, "    " <<  std::setw(20) << std::left << description <<
+           std::right << std::setw(20) << values.c_str() << std::setw(8) << std::setprecision(2) <<
+           100.0*scanned/total << "% complete");
 }
 
