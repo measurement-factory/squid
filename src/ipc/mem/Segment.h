@@ -32,7 +32,9 @@ public:
 
     /// Create a new shared memory segment. Unlinks the segment on destruction.
     void create(const off_t aSize);
-    void open(); ///< Open an existing shared memory segment.
+    /// opens an existing shared memory segment
+    /// \param willUnlink whether to delete the segment on destruction
+    void open(const bool willUnlink);
 
     const String &name() { return theName; } ///< shared memory segment name
     off_t size() { return theSize; } ///< shared memory segment size
@@ -44,8 +46,6 @@ public:
 
     /// concatenates parts of a name to form a complete name (or its prefix)
     static SBuf Name(const SBuf &prefix, const char *suffix);
-
-    static void Unlink(const char *id); ///< unlinks the segment
 
 private:
 
@@ -62,7 +62,6 @@ private:
     void unlink(); ///< unlink the segment
     off_t statSize(const char *context) const;
 
-    static void UnlinkName(const String &);
     static String GenerateName(const char *id);
 
     int theFD; ///< shared memory segment file descriptor

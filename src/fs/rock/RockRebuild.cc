@@ -127,21 +127,26 @@ typedef Ipc::StoreMapItems<LoadingFlags> Flags;
 class LoadingPartsOwner
 {
 public:
-    LoadingPartsOwner(const SwapDir *dir);
+    LoadingPartsOwner(const SwapDir *dir, const bool resuming);
     ~LoadingPartsOwner();
 
+    Sizes *sizes() const { return sizesOwner->object(); }
+    Versions *versions() const { return versionsOwner->object(); }
+    Mores *mores() const { return moresOwner->object(); }
+    Flags *flags() const { return flagsOwner->object(); }
+
 private:
-    Sizes::Owner *sizes;
-    Versions::Owner *versions;
-    Mores::Owner *mores;
-    Flags::Owner *flags;
+    Sizes::Owner *sizesOwner;
+    Versions::Owner *versionsOwner;
+    Mores::Owner *moresOwner;
+    Flags::Owner *flagsOwner;
 };
 
 /// smart StoreEntry-level info pointer (hides anti-padding LoadingParts arrays)
 class LoadingEntry
 {
 public:
-    LoadingEntry(const sfileno fileNo, LoadingParts &source);
+    LoadingEntry(const sfileno fileNo, const LoadingPartsOwner &source);
 
     uint64_t &size; ///< payload seen so far
     uint32_t &version; ///< DbCellHeader::version to distinguish same-URL chains
@@ -165,7 +170,7 @@ private:
 class LoadingSlot
 {
 public:
-    LoadingSlot(const SlotId slotId, LoadingParts &source);
+    LoadingSlot(const SlotId slotId, const LoadingPartsOwner &source);
 
     /// another slot in some chain belonging to the same entry (unordered!)
     Ipc::StoreMapSliceId &more;
@@ -188,89 +193,62 @@ private:
     LoadingFlags &flags; ///< slot flags (see the above accessors) are ours
 };
 
-/// information about store entries being loaded from disk (and their slots)
-/// used for identifying partially stored/loaded entries
-class LoadingParts
-{
-public:
-    LoadingParts(const char *dirPath);
-    LoadingParts(LoadingParts&&) = delete; // paranoid (often too huge to copy)
-
-private:
-    friend class LoadingEntry;
-    friend class LoadingSlot;
-
-    /* Anti-padding storage. With millions of entries, padding matters! */
-
-    /* indexed by sfileno */
-    Ipc::Mem::Pointer<Sizes> sizes; ///< LoadingEntry::size for all entries
-    Ipc::Mem::Pointer<Versions> versions; ///< LoadingEntry::version for all entries
-
-    /* indexed by SlotId */
-    Ipc::Mem::Pointer<Mores> mores; ///< LoadingSlot::more for all slots
-
-    /* entry flags are indexed by sfileno; slot flags -- by SlotId */
-    Ipc::Mem::Pointer<Flags> flags; ///< all LoadingEntry and LoadingSlot flags
-};
-
 } /* namespace Rock */
 
 /* LoadingPartsOwner */
 
-Rock::LoadingPartsOwner::LoadingPartsOwner(const SwapDir *dir):
-    sizes(shm_new(Sizes)(SizesPath(dir->path).c_str(), dir->entryLimitActual())),
-    versions(shm_new(Versions)(VersionsPath(dir->path).c_str(), dir->entryLimitActual())),
-    mores(shm_new(Mores)(MoresPath(dir->path).c_str(), dir->slotLimitActual())),
-    flags(shm_new(Flags)(FlagsPath(dir->path).c_str(), dir->slotLimitActual()))
+template <class T>
+typename T::Owner *createOwner(const char *path, const int64_t entryLimit, const bool resuming)
 {
-    auto moresArray = mores->object();
-    for (int i = 0; i < moresArray->capacity; ++i)
-        moresArray->items[i] = -1;
+    return resuming ?  Ipc::Mem::Owner<T>::Old(path) : shm_new(T)(path, entryLimit);
+}
+
+Rock::LoadingPartsOwner::LoadingPartsOwner(const SwapDir *dir, const bool resuming):
+    sizesOwner(createOwner<Sizes>(SizesPath(dir->path).c_str(), dir->entryLimitActual(), resuming)),
+    versionsOwner(createOwner<Versions>(VersionsPath(dir->path).c_str(), dir->entryLimitActual(), resuming)),
+    moresOwner(createOwner<Mores>(MoresPath(dir->path).c_str(), dir->slotLimitActual(), resuming)),
+    flagsOwner(createOwner<Flags>(FlagsPath(dir->path).c_str(), dir->slotLimitActual(), resuming))
+{
+    assert(sizes()->capacity == versions()->capacity); // every entry has both fields
+    assert(sizes()->capacity <= mores()->capacity); // every entry needs slot(s)
+    assert(mores()->capacity == flags()->capacity); // every slot needs a set of flags
+
+    if (!resuming) {
+        auto moresObject = mores();
+        for (int i = 0; i < moresObject->capacity; ++i)
+            moresObject->items[i] = -1;
+    }
 }
 
 Rock::LoadingPartsOwner::~LoadingPartsOwner()
 {
-    delete sizes;
-    delete versions;
-    delete mores;
-    delete flags;
+    delete sizesOwner;
+    delete versionsOwner;
+    delete moresOwner;
+    delete flagsOwner;
 }
 
 /* LoadingEntry */
 
-Rock::LoadingEntry::LoadingEntry(const sfileno fileNo, LoadingParts &source):
-    size(source.sizes->items[fileNo]),
-    version(source.versions->items[fileNo]),
-    flags(source.flags->items[fileNo])
+Rock::LoadingEntry::LoadingEntry(const sfileno fileNo, const LoadingPartsOwner &source):
+    size(source.sizes()->items[fileNo]),
+    version(source.versions()->items[fileNo]),
+    flags(source.flags()->items[fileNo])
 {
 }
 
 /* LoadingSlot */
 
-Rock::LoadingSlot::LoadingSlot(const SlotId slotId, LoadingParts &source):
-    more(source.mores->items[slotId]),
-    flags(source.flags->items[slotId])
+Rock::LoadingSlot::LoadingSlot(const SlotId slotId, const LoadingPartsOwner &source):
+    more(source.mores()->items[slotId]),
+    flags(source.flags()->items[slotId])
 {
-}
-
-/* LoadingParts */
-
-Rock::LoadingParts::LoadingParts(const char *dirPath):
-    sizes(shm_old(Sizes)(SizesPath(dirPath).c_str())),
-    versions(shm_old(Versions)(VersionsPath(dirPath).c_str())),
-    mores(shm_old(Mores)(MoresPath(dirPath).c_str())),
-    flags(shm_old(Flags)(FlagsPath(dirPath).c_str()))
-{
-    assert(sizes->capacity == versions->capacity); // every entry has both fields
-    assert(sizes->capacity <= mores->capacity); // every entry needs slot(s)
-    assert(mores->capacity == flags->capacity); // every slot needs a set of flags
 }
 
 /* Rebuild */
 
 Rock::Rebuild::Rebuild(SwapDir *dir): AsyncJob("Rock::Rebuild"),
     sd(dir),
-    parts(nullptr),
     metadata(shm_old(Metadata)(MetadataPath(dir->path).c_str())),
     dbSize(0),
     dbSlotSize(0),
@@ -297,14 +275,7 @@ Rock::Rebuild::~Rebuild()
 {
     if (fd >= 0)
         file_close(fd);
-    delete parts;
     delete partsOwner;
-    if (resuming && loadedAndValidated()) {
-        Ipc::Mem::Segment::Unlink(SizesPath(sd->path).c_str());
-        Ipc::Mem::Segment::Unlink(VersionsPath(sd->path).c_str());
-        Ipc::Mem::Segment::Unlink(MoresPath(sd->path).c_str());
-        Ipc::Mem::Segment::Unlink(FlagsPath(sd->path).c_str());
-    }
 }
 
 void
@@ -322,9 +293,10 @@ Rock::Rebuild::start()
     debugs(47, DBG_IMPORTANT, "Loading cache_dir #" << sd->index <<
            " from " << sd->filePath);
 
-    if (!resuming) {
-        partsOwner = new LoadingPartsOwner(sd);
-    } else {
+    partsOwner = new LoadingPartsOwner(sd, resuming);
+
+    if (resuming) {
+        partsOwner = new LoadingPartsOwner(sd, true);
         debugs(47, DBG_IMPORTANT, "Resuming rebuilding storage from disk:");
         resumingProgress("slots loaded:", loadingPos, dbSlotLimit);
         const auto entriesValidated = validationPos > dbEntryLimit ? dbEntryLimit : validationPos;
@@ -350,8 +322,6 @@ Rock::Rebuild::start()
     dbOffset = SwapDir::HeaderSize + loadingPos * dbSlotSize;
 
     counts.updateStartTime(current_time);
-
-    parts = new LoadingParts(sd->path);
 
     checkpoint();
 }
@@ -441,7 +411,7 @@ Rock::LoadingEntry
 Rock::Rebuild::loadingEntry(const sfileno fileNo)
 {
     Must(0 <= fileNo && fileNo < dbEntryLimit);
-    return LoadingEntry(fileNo, *parts);
+    return LoadingEntry(fileNo, *partsOwner);
 }
 
 Rock::LoadingSlot
@@ -449,7 +419,7 @@ Rock::Rebuild::loadingSlot(const SlotId slotId)
 {
     Must(0 <= slotId && slotId < dbSlotLimit);
     Must(slotId <= loadingPos); // cannot look ahead
-    return LoadingSlot(slotId, *parts);
+    return LoadingSlot(slotId, *partsOwner);
 }
 
 void

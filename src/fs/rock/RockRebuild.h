@@ -98,7 +98,6 @@ private:
     void resumingProgress(const char *description, const int scanned, const int total);
 
     SwapDir *sd;
-    LoadingParts *parts; ///< parts of store entries being loaded from disk
 
     Ipc::Mem::Pointer<Metadata> metadata; ///< shared metadata
 

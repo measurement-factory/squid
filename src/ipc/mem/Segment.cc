@@ -130,7 +130,7 @@ Ipc::Mem::Segment::create(const off_t aSize)
 }
 
 void
-Ipc::Mem::Segment::open()
+Ipc::Mem::Segment::open(const bool willUnlink)
 {
     assert(theFD < 0);
 
@@ -143,6 +143,7 @@ Ipc::Mem::Segment::open()
     }
 
     theSize = statSize("Ipc::Mem::Segment::open");
+    doUnlink = willUnlink;
 
     debugs(54, 3, HERE << "opened " << theName << " segment: " << theSize);
 
@@ -237,23 +238,11 @@ Ipc::Mem::Segment::lock()
 void
 Ipc::Mem::Segment::unlink()
 {
-    UnlinkName(theName);
-}
-
-void
-Ipc::Mem::Segment::UnlinkName(const String &name)
-{
-    if (shm_unlink(name.termedBuf()) != 0) {
+    if (shm_unlink(theName.termedBuf()) != 0) {
         int xerrno = errno;
-        debugs(54, 5, "shm_unlink(" << name << "): " << xstrerr(xerrno));
+        debugs(54, 5, "shm_unlink(" << theName << "): " << xstrerr(xerrno));
     } else
-        debugs(54, 3, "unlinked " << name << " segment");
-}
-
-void
-Ipc::Mem::Segment::Unlink(const char *id)
-{
-    UnlinkName(GenerateName(id));
+        debugs(54, 3, "unlinked " << theName << " segment");
 }
 
 /// determines the size of the underlying "file"
