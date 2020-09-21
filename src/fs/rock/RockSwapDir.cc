@@ -592,12 +592,15 @@ Rock::SwapDir::rebuild()
     if (!Rebuild::IsResponsible(*this)) {
         debugs(47, 2, "not responsible for building a memory index of cache_dir #" <<
                index << " from " << filePath);
+        storeRebuildCancel();
         return;
     }
 
     Ipc::Mem::Pointer<Rebuild::Metadata> metadata = shm_old(Rebuild::Metadata)(Rebuild::Metadata::Path(path).c_str());
-    if (metadata->completed(this))
+    if (metadata->completed(this)) {
+        storeRebuildCancel();
         return;
+    }
 
     //++StoreController::store_dirs_rebuilding; // see Rock::SwapDir::init()
     AsyncJob::Start(new Rebuild(this, metadata));

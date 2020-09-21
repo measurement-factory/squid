@@ -165,6 +165,12 @@ storeRebuildComplete(StoreRebuildData *dc)
     RebuildProgress = NULL;
 }
 
+void
+storeRebuildCancel()
+{
+    StoreController::store_dirs_rebuilding = 0;
+}
+
 /*
  * this is ugly.  We don't actually start any rebuild threads here,
  * but only initialize counters, etc.  The rebuild threads are

@@ -59,6 +59,7 @@ std::ostream &operator <<(std::ostream &os, const ProgressDescription &p)
 
 void storeRebuildStart(void);
 void storeRebuildComplete(StoreRebuildData *);
+void storeRebuildCancel();
 void storeRebuildProgress(int sd_index, int total, int sofar);
 
 /// loads entry from disk; fills supplied memory buffer on success
