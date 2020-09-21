@@ -23,7 +23,6 @@ namespace Rock
 
 class LoadingEntry;
 class LoadingSlot;
-class LoadingParts;
 class LoadingPartsOwner;
 
 /// \ingroup Rock
@@ -95,7 +94,7 @@ private:
 
     bool sameEntry(const sfileno fileno, const DbCellHeader &header) const;
 
-    void resumingProgress(const char *description, const int scanned, const int total);
+    SBuf progressDescription() const;
 
     SwapDir *sd;
 

@@ -12,7 +12,6 @@
 #define SQUID_STORE_REBUILD_H_
 
 #include "store_key_md5.h"
-#include <sys/time.h>
 
 class MemBuf;
 
@@ -34,8 +33,29 @@ public:
     int bad_log_op = 0;
     int zero_object_sz = 0;
     int validatedCount = 0; ///< the number of validated entries
-    timeval startTime = {0, 0}; ///< when the rebuild has started
+    timeval startTime = {}; ///< when the rebuild has started
 };
+
+/// prints the progress of an operation
+class ProgressDescription
+{
+public:
+    ProgressDescription(const char *label, const int count, const int total):
+        label_(label), count_(count), total_(total) {}
+
+    std::ostream &print(std::ostream &os) const;
+
+private:
+    const char *label_;
+    const int count_;
+    const int total_;
+};
+
+inline
+std::ostream &operator <<(std::ostream &os, const ProgressDescription &p)
+{
+    return p.print(os);
+}
 
 void storeRebuildStart(void);
 void storeRebuildComplete(StoreRebuildData *);

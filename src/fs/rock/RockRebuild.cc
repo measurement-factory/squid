@@ -142,7 +142,7 @@ private:
     Flags::Owner *flagsOwner;
 };
 
-/// smart StoreEntry-level info pointer (hides anti-padding LoadingParts arrays)
+/// smart StoreEntry-level info pointer (hides anti-padding LoadingPartsOwner segments)
 class LoadingEntry
 {
 public:
@@ -166,7 +166,7 @@ private:
     LoadingFlags &flags; ///< entry flags (see the above accessors) are ours
 };
 
-/// smart db slot-level info pointer (hides anti-padding LoadingParts arrays)
+/// smart db slot-level info pointer (hides anti-padding LoadingPartsOwner segments)
 class LoadingSlot
 {
 public:
@@ -275,6 +275,8 @@ Rock::Rebuild::~Rebuild()
 {
     if (fd >= 0)
         file_close(fd);
+    // normally, segments are used until the Squid instance quits,
+    // but these indexing-only segments are no longer needed
     delete partsOwner;
 }
 
@@ -290,21 +292,15 @@ Rock::Rebuild::start()
 {
     assert(IsResponsible(*sd));
 
-    debugs(47, DBG_IMPORTANT, "Loading cache_dir #" << sd->index <<
-           " from " << sd->filePath);
-
     partsOwner = new LoadingPartsOwner(sd, resuming);
 
-    if (resuming) {
+    if (!resuming) {
+        debugs(47, DBG_IMPORTANT, "Loading cache_dir #" << sd->index <<
+               " from " << sd->filePath);
+    } else {
         partsOwner = new LoadingPartsOwner(sd, true);
-        debugs(47, DBG_IMPORTANT, "Resuming rebuilding storage from disk:");
-        resumingProgress("slots loaded:", loadingPos, dbSlotLimit);
-        const auto entriesValidated = validationPos > dbEntryLimit ? dbEntryLimit : validationPos;
-        resumingProgress("entries validated:", entriesValidated, dbEntryLimit);
-        if (opt_store_doublecheck) {
-            const auto slotsValidated = validationPos > dbEntryLimit ? validationPos - dbEntryLimit : 0;
-            resumingProgress("slots validated:", slotsValidated, dbSlotLimit);
-        }
+        debugs(47, DBG_IMPORTANT, "Resuming indexing cache_dir #" << sd->index <<
+            " from " << sd->filePath << ':' << progressDescription());
     }
 
     fd = file_open(sd->filePath, O_RDONLY | O_BINARY);
@@ -627,8 +623,8 @@ Rock::Rebuild::freeBadEntry(const sfileno fileno, const char *eDescription)
 void
 Rock::Rebuild::swanSong()
 {
-    // optimization: do not update/print probably incomplete statistics
-    if (shutting_down)
+    // do not declare rebuild completion if interrupted by shutdown
+    if (shutting_down && !loadedAndValidated())
         return;
     debugs(47,3, HERE << "cache_dir #" << sd->index << " rebuild level: " <<
            StoreController::store_dirs_rebuilding);
@@ -883,13 +879,17 @@ Rock::Rebuild::InitMetadata(const SwapDir *dir)
     return shm_new(Metadata)(MetadataPath(dir->path).c_str());
 }
 
-void
-Rock::Rebuild::resumingProgress(const char *description, const int scanned, const int total)
+SBuf
+Rock::Rebuild::progressDescription() const
 {
-    assert(resuming);
-    auto values = ToSBuf(scanned, " of ", total);
-    debugs(47, DBG_IMPORTANT, "    " <<  std::setw(20) << std::left << description <<
-           std::right << std::setw(20) << values.c_str() << std::setw(8) << std::setprecision(2) <<
-           100.0*scanned/total << "% complete");
+    SBufStream str;
+    const auto entriesValidated = validationPos > dbEntryLimit ? dbEntryLimit : validationPos;
+    str << Debug::Extra << ProgressDescription("slots loaded:", loadingPos, dbSlotLimit) <<
+        Debug::Extra << ProgressDescription("entries validated:", entriesValidated, dbEntryLimit);
+    if (opt_store_doublecheck) {
+        const auto slotsValidated = validationPos > dbEntryLimit ? validationPos - dbEntryLimit : 0;
+        str << Debug::Extra << ProgressDescription("slots validated:", slotsValidated, dbSlotLimit);
+    }
+    return str.buf();
 }
 

@@ -221,8 +221,15 @@ storeRebuildProgress(int sd_index, int total, int sofar)
         d += (double) RebuildProgress[sd_index].total;
     }
 
-    debugs(20, DBG_IMPORTANT, "Store rebuilding is "<< std::setw(4)<< std::setprecision(2) << 100.0 * n / d << "% complete");
+    debugs(20, DBG_IMPORTANT, ProgressDescription("Store rebuilding is ", n, d));
     last_report = squid_curtime;
+}
+
+std::ostream &
+ProgressDescription::print(std::ostream &os) const
+{
+    os << label_ << std::setw(4) << std::setprecision(2) << 100.0 * count_ / total_ << "% complete";
+    return os;
 }
 
 #include "fde.h"
