@@ -595,13 +595,12 @@ Rock::SwapDir::rebuild()
         return;
     }
 
+    Ipc::Mem::Pointer<Rebuild::Metadata> metadata = shm_old(Rebuild::Metadata)(Rebuild::Metadata::Path(path).c_str());
+    if (metadata->completed(this))
+        return;
+
     //++StoreController::store_dirs_rebuilding; // see Rock::SwapDir::init()
-    auto rebuildJob = new Rebuild(this);
-    // TODO: move this check into AsyncJob::Start()
-    if (!rebuildJob->done())
-        AsyncJob::Start(rebuildJob);
-    else
-        delete rebuildJob;
+    AsyncJob::Start(new Rebuild(this, metadata));
 }
 
 bool

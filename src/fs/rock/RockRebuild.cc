@@ -73,10 +73,30 @@ CBDATA_NAMESPACED_CLASS_INIT(Rock, Rebuild);
 namespace Rock
 {
 
-static SBuf
-MetadataPath(const char *dirPath)
+static bool
+DoneLoading(const int loadingPos, const int64_t dbSlotLimit)
+{
+    return loadingPos >= dbSlotLimit;
+}
+
+static bool
+DoneValidating(const int validationPos, const int64_t dbSlotLimit, const int64_t dbEntryLimit)
+{
+    // paranoid slot checking is only enabled with squid -S
+    return (validationPos >= dbEntryLimit + (opt_store_doublecheck ? dbSlotLimit : 0));
+}
+
+SBuf
+Rebuild::Metadata::Path(const char *dirPath)
 {
     return Ipc::Mem::Segment::Name(SBuf(dirPath), "rebuild_metadata");
+}
+
+bool
+Rebuild::Metadata::completed(const SwapDir *sd) const
+{
+    return DoneLoading(counts.scancount, sd->slotLimitActual()) &&
+        DoneValidating(counts.validatedCount, sd->slotLimitActual(), sd->entryLimitActual());
 }
 
 static SBuf
@@ -247,9 +267,9 @@ Rock::LoadingSlot::LoadingSlot(const SlotId slotId, const LoadingPartsOwner &sou
 
 /* Rebuild */
 
-Rock::Rebuild::Rebuild(SwapDir *dir): AsyncJob("Rock::Rebuild"),
+Rock::Rebuild::Rebuild(SwapDir *dir, const Ipc::Mem::Pointer<Metadata> &m): AsyncJob("Rock::Rebuild"),
     sd(dir),
-    metadata(shm_old(Metadata)(MetadataPath(dir->path).c_str())),
+    metadata(m),
     dbSize(0),
     dbSlotSize(0),
     dbSlotLimit(0),
@@ -333,15 +353,13 @@ Rock::Rebuild::checkpoint()
 bool
 Rock::Rebuild::doneLoading() const
 {
-    return loadingPos >= dbSlotLimit;
+    return DoneLoading(loadingPos, dbSlotLimit);
 }
 
 bool
 Rock::Rebuild::doneValidating() const
 {
-    // paranoid slot checking is only enabled with squid -S
-    return validationPos >= dbEntryLimit +
-           (opt_store_doublecheck ? dbSlotLimit : 0);
+    return DoneValidating(validationPos, dbSlotLimit, dbEntryLimit);
 }
 
 bool
@@ -876,7 +894,7 @@ Rock::Rebuild::IsResponsible(const SwapDir &sd)
 Ipc::Mem::Owner<Rock::Rebuild::Metadata> *
 Rock::Rebuild::InitMetadata(const SwapDir *dir)
 {
-    return shm_new(Metadata)(MetadataPath(dir->path).c_str());
+    return shm_new(Metadata)(Metadata::Path(dir->path).c_str());
 }
 
 SBuf

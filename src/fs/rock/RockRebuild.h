@@ -32,18 +32,21 @@ class Rebuild: public AsyncJob, private IndependentRunner
     CBDATA_CHILD(Rebuild);
 
 public:
-    Rebuild(SwapDir *dir);
-    virtual ~Rebuild() override;
-
     /// shared metadata during rebuild process
     class Metadata
     {
     public:
         size_t sharedMemorySize() const { return sizeof(*this); }
         static size_t SharedMemorySize() { return sizeof(Metadata); }
+        static SBuf Path(const char *dirPath);
+        /// whether the rebuild is finished already
+        bool completed(const SwapDir *) const;
 
         StoreRebuildData counts;
     };
+
+    Rebuild(SwapDir *dir, const Ipc::Mem::Pointer<Metadata> &);
+    virtual ~Rebuild() override;
 
     static Ipc::Mem::Owner<Metadata> *InitMetadata(const SwapDir *dir);
 
