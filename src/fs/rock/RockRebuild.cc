@@ -641,9 +641,6 @@ Rock::Rebuild::freeBadEntry(const sfileno fileno, const char *eDescription)
 void
 Rock::Rebuild::swanSong()
 {
-    // do not declare rebuild completion if interrupted by shutdown
-    if (shutting_down && !loadedAndValidated())
-        return;
     debugs(47,3, HERE << "cache_dir #" << sd->index << " rebuild level: " <<
            StoreController::store_dirs_rebuilding);
     storeRebuildComplete(&counts);
