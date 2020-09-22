@@ -140,7 +140,7 @@ storeRebuildComplete(StoreRebuildData *dc)
      * the validation (storeCleanup()) thread.
      */
 
-    if (StoreController::store_dirs_rebuilding > 1)
+    if (!storeRebuildUnregister())
         return;
 
     dt = tvSubDsec(counts.startTime, current_time);
@@ -158,17 +158,27 @@ storeRebuildComplete(StoreRebuildData *dc)
            ((double) counts.objcount / (dt > 0.0 ? dt : 1.0)) << " objects/sec).");
     debugs(20, DBG_IMPORTANT, "Beginning Validation Procedure");
 
-    eventAdd("storeCleanup", storeCleanup, NULL, 0.0, 1);
-
     xfree(RebuildProgress);
 
     RebuildProgress = NULL;
 }
 
 void
-storeRebuildCancel()
+storeRebuildRegister()
 {
-    StoreController::store_dirs_rebuilding = 0;
+    // TODO: move store_dirs_rebuilding hack to store modules that need it.
+    ++StoreController::store_dirs_rebuilding;
+}
+
+bool
+storeRebuildUnregister()
+{
+    --StoreController::store_dirs_rebuilding;
+    assert(StoreController::store_dirs_rebuilding > 0);
+    if (StoreController::store_dirs_rebuilding > 1)
+        return false;
+    eventAdd("storeCleanup", storeCleanup, NULL, 0.0, 1);
+    return true;
 }
 
 /*

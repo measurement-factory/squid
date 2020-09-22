@@ -304,14 +304,13 @@ Rock::SwapDir::init()
         fatal("Rock Store missing a required DiskIO module");
     }
 
+    // Register early. Otherwise, if one SwapDir finishes rebuild before
+    // others start, storeRebuildComplete() will think the rebuild is over!
+    storeRebuildRegister();
+
     theFile = io->newFile(filePath);
     theFile->configure(fileConfig);
     theFile->open(O_RDWR, 0644, this);
-
-    // Increment early. Otherwise, if one SwapDir finishes rebuild before
-    // others start, storeRebuildComplete() will think the rebuild is over!
-    // TODO: move store_dirs_rebuilding hack to store modules that need it.
-    ++StoreController::store_dirs_rebuilding;
 }
 
 bool
@@ -586,26 +585,6 @@ Rock::SwapDir::validateOptions()
     }
 }
 
-void
-Rock::SwapDir::rebuild()
-{
-    if (!Rebuild::IsResponsible(*this)) {
-        debugs(47, 2, "not responsible for building a memory index of cache_dir #" <<
-               index << " from " << filePath);
-        storeRebuildCancel();
-        return;
-    }
-
-    Ipc::Mem::Pointer<Rebuild::Metadata> metadata = shm_old(Rebuild::Metadata)(Rebuild::Metadata::Path(path).c_str());
-    if (metadata->completed(this)) {
-        storeRebuildCancel();
-        return;
-    }
-
-    //++StoreController::store_dirs_rebuilding; // see Rock::SwapDir::init()
-    AsyncJob::Start(new Rebuild(this, metadata));
-}
-
 bool
 Rock::SwapDir::canStore(const StoreEntry &e, int64_t diskSpaceNeeded, int &load) const
 {
@@ -826,6 +805,24 @@ Rock::SwapDir::openStoreIO(StoreEntry &e, StoreIOState::STFNCB *cbFile, StoreIOS
     return sio;
 }
 
+static Ipc::Mem::Pointer<Rock::Rebuild::Metadata>
+RebuildRequired(const Rock::SwapDir &dir, const char *filePath)
+{
+    using RebuildMetadata = Ipc::Mem::Pointer<Rock::Rebuild::Metadata>;
+
+    if (!Rock::Rebuild::IsResponsible(dir)) {
+        debugs(47, 2, "not responsible for building a memory index of cache_dir #" <<
+               dir.index << " from " << filePath);
+        return RebuildMetadata();
+    }
+
+    RebuildMetadata metadata = shm_old(Rock::Rebuild::Metadata)(Rock::Rebuild::Metadata::Path(dir.path).c_str());
+    if (metadata->completed(&dir))
+        return RebuildMetadata();
+
+    return metadata;
+}
+
 void
 Rock::SwapDir::ioCompletedNotification()
 {
@@ -843,7 +840,10 @@ Rock::SwapDir::ioCompletedNotification()
            std::setw(7) << map->entryLimit() << " entries, and " <<
            std::setw(7) << map->sliceLimit() << " slots");
 
-    rebuild();
+    if (auto metadata = RebuildRequired(*this, filePath))
+        AsyncJob::Start(new Rebuild(this, metadata));
+    else
+        storeRebuildUnregister();
 }
 
 void
