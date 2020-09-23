@@ -122,7 +122,7 @@ template <class Class>
 Owner<Class> *
 Owner<Class>::Old(const char *const id)
 {
-    Owner *const owner = new Owner(id);
+    auto owner = new Owner(id);
     owner->theObject = reinterpret_cast<Class*>(owner->theSegment.mem());
     Must(static_cast<off_t>(owner->theObject->sharedMemorySize()) <= owner->theSegment.size());
     return owner;
