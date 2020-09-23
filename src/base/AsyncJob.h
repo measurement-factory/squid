@@ -47,6 +47,8 @@ protected:
     // force done() for a reason but continue with the current method
     void mustStop(const char *aReason);
 
+    bool done() const; ///< the job is destroyed in callEnd() when done()
+
     virtual void start(); ///< called by AsyncStart; do not call directly
     virtual bool doneAll() const; ///< whether positive goal has been reached
     virtual void swanSong() {}; ///< internal cleanup; do not call directly
@@ -59,8 +61,6 @@ public:
     virtual void callEnd(); ///< called right after the called job method
     /// called when the job throws during an async call
     virtual void callException(const std::exception &e);
-    /// whether there is nothing to do for the job
-    bool done() const;
 
 protected:
     // external destruction prohibited to ensure swanSong() is called
