@@ -30,6 +30,8 @@ static StoreRebuildData counts;
 
 static void storeCleanup(void *);
 
+// TODO: Either convert to Progress or replace with StoreRebuildData.
+// TODO: Handle unknown totals (UFS cache_dir that lost swap.state) correctly.
 typedef struct {
     /* total number of "swap.state" entries that will be read */
     int total;
@@ -237,23 +239,22 @@ storeRebuildProgress(int sd_index, int total, int sofar)
         d += (double) RebuildProgress[sd_index].total;
     }
 
-    debugs(20, DBG_IMPORTANT, "Indexing cache entries: " << ProgressDescription(n, d));
+    debugs(20, DBG_IMPORTANT, "Indexing cache entries: " << Progress(n, d));
     last_report = squid_curtime;
 }
 
 void
-ProgressDescription::print(std::ostream &os) const
+Progress::print(std::ostream &os) const
 {
-    const auto processed = std::max(0, completed_);
-    if (total_ > 0) {
-        const auto percent = 100.0 * processed / total_;
+    if (goal > 0) {
+        const auto percent = 100.0 * completed / goal;
         os << std::setprecision(2) << percent << "% (" <<
-            processed << " out of " << total_ << ")";
-    } else if (!processed && !total_) {
+            completed << " out of " << goal << ")";
+    } else if (!completed && !goal) {
         os << "nothing to do";
     } else {
-        // unknown (i.e. negative) or buggy (i.e. zero when processed > 0) total
-        os << processed;
+        // unknown (i.e. negative) or buggy (i.e. zero when completed != 0) goal
+        os << completed;
     }
 }
 

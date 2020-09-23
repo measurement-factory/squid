@@ -36,22 +36,22 @@ public:
     timeval startTime = {}; ///< when the rebuild has started
 };
 
-/// std::ostream manipulator reporting how far some work has advanced
-class ProgressDescription
+/// advancement of work that consists of (usually known number) of similar steps
+class Progress
 {
 public:
-    ProgressDescription(const int completed, const int total):
-        completed_(completed), total_(total) {}
+    Progress(const int stepsCompleted, const int stepsTotal):
+        completed(stepsCompleted), goal(stepsTotal) {}
 
+    /// brief progress report suitable for level-0/1 debugging
     void print(std::ostream &os) const;
 
-private:
-    const int completed_; ///< the number of finished work items
-    const int total_; ///< the total number of work items
+    int completed; ///< the number of finished work steps
+    int goal; ///< the known total number of work steps (or negative)
 };
 
 inline
-std::ostream &operator <<(std::ostream &os, const ProgressDescription &p)
+std::ostream &operator <<(std::ostream &os, const Progress &p)
 {
     p.print(os);
     return os;

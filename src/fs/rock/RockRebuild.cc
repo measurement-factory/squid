@@ -910,14 +910,14 @@ Rock::Rebuild::progressDescription() const
 {
     SBufStream str;
 
-    str << Debug::Extra << "slots loaded: " << ProgressDescription(loadingPos, dbSlotLimit);
+    str << Debug::Extra << "slots loaded: " << Progress(loadingPos, dbSlotLimit);
 
     const auto validatingEntries = validationPos < dbEntryLimit;
     const auto entriesValidated = validatingEntries ? validationPos : dbEntryLimit;
-    str << Debug::Extra << "entries validated: " << ProgressDescription(entriesValidated, dbEntryLimit);
+    str << Debug::Extra << "entries validated: " << Progress(entriesValidated, dbEntryLimit);
     if (opt_store_doublecheck) {
         const auto slotsValidated = validatingEntries ? 0 : (validationPos - dbEntryLimit);
-        str << Debug::Extra << "slots validated: " << ProgressDescription(slotsValidated, dbSlotLimit);
+        str << Debug::Extra << "slots validated: " << Progress(slotsValidated, dbSlotLimit);
     }
 
     return str.buf();
