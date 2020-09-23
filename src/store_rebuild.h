@@ -40,14 +40,14 @@ public:
 class Progress
 {
 public:
-    Progress(const int stepsCompleted, const int stepsTotal):
+    Progress(const int64_t stepsCompleted, const int64_t stepsTotal):
         completed(stepsCompleted), goal(stepsTotal) {}
 
     /// brief progress report suitable for level-0/1 debugging
     void print(std::ostream &os) const;
 
-    int completed; ///< the number of finished work steps
-    int goal; ///< the known total number of work steps (or negative)
+    int64_t completed; ///< the number of finished work steps
+    int64_t goal; ///< the known total number of work steps (or negative)
 };
 
 inline
