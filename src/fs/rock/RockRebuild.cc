@@ -83,7 +83,8 @@ static bool
 DoneValidating(const int validationPos, const int64_t dbSlotLimit, const int64_t dbEntryLimit)
 {
     // paranoid slot checking is only enabled with squid -S
-    return (validationPos >= dbEntryLimit + (opt_store_doublecheck ? dbSlotLimit : 0));
+    const auto extraWork = opt_store_doublecheck ? dbSlotLimit : 0;
+    return validationPos >= (dbEntryLimit + extraWork);
 }
 
 SBuf
