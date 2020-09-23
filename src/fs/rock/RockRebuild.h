@@ -23,7 +23,7 @@ namespace Rock
 
 class LoadingEntry;
 class LoadingSlot;
-class LoadingPartsOwner;
+class LoadingParts;
 
 /// \ingroup Rock
 /// manages store rebuild process: loading meta information from db on disk
@@ -100,6 +100,7 @@ private:
     SBuf progressDescription() const;
 
     SwapDir *sd;
+    LoadingParts *parts; ///< parts of store entries being loaded from disk
 
     Ipc::Mem::Pointer<Metadata> metadata; ///< shared metadata
 
@@ -115,9 +116,7 @@ private:
     MemBuf buf; ///< space to load current db slot (and entry metadata) into
 
     StoreRebuildData &counts; ///< a reference to the shared memory counters
-    /// shared memory storage where parts of being loaded entries are
-    /// temporarily stored
-    LoadingPartsOwner *partsOwner;
+
     /// whether the rebuild process was aborted and now resumed
     const bool resuming;
 
