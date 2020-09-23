@@ -36,25 +36,25 @@ public:
     timeval startTime = {}; ///< when the rebuild has started
 };
 
-/// prints the progress of an operation
+/// std::ostream manipulator reporting how far some work has advanced
 class ProgressDescription
 {
 public:
-    ProgressDescription(const char *label, const int count, const int total):
-        label_(label), count_(count), total_(total) {}
+    ProgressDescription(const int completed, const int total):
+        completed_(completed), total_(total) {}
 
-    std::ostream &print(std::ostream &os) const;
+    void print(std::ostream &os) const;
 
 private:
-    const char *label_;
-    const int count_;
-    const int total_;
+    const int completed_; ///< the number of finished work items
+    const int total_; ///< the total number of work items
 };
 
 inline
 std::ostream &operator <<(std::ostream &os, const ProgressDescription &p)
 {
-    return p.print(os);
+    p.print(os);
+    return os;
 }
 
 void storeRebuildStart(void);

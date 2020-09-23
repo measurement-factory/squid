@@ -237,15 +237,24 @@ storeRebuildProgress(int sd_index, int total, int sofar)
         d += (double) RebuildProgress[sd_index].total;
     }
 
-    debugs(20, DBG_IMPORTANT, ProgressDescription("Store rebuilding is ", n, d));
+    debugs(20, DBG_IMPORTANT, "Indexing cache entries: " << ProgressDescription(n, d));
     last_report = squid_curtime;
 }
 
-std::ostream &
+void
 ProgressDescription::print(std::ostream &os) const
 {
-    os << label_ << std::setw(4) << std::setprecision(2) << 100.0 * count_ / total_ << "% complete";
-    return os;
+    const auto processed = std::max(0, completed_);
+    if (total_ > 0) {
+        const auto percent = 100.0 * processed / total_;
+        os << std::setprecision(2) << percent << "% (" <<
+            processed << " out of " << total_ << ")";
+    } else if (!processed && !total_) {
+        os << "nothing to do";
+    } else {
+        // unknown (i.e. negative) or buggy (i.e. zero when processed > 0) total
+        os << processed;
+    }
 }
 
 #include "fde.h"
