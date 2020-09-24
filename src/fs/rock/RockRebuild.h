@@ -32,31 +32,36 @@ class Rebuild: public AsyncJob, private IndependentRunner
     CBDATA_CHILD(Rebuild);
 
 public:
-    /// shared metadata during rebuild process
-    class Metadata
+    /// cache_dir indexing statistics shared across same-kid process restarts
+    class Stats
     {
     public:
-        size_t sharedMemorySize() const { return sizeof(*this); }
-        static size_t SharedMemorySize() { return sizeof(Metadata); }
         static SBuf Path(const char *dirPath);
+        static Ipc::Mem::Owner<Stats> *Init(const SwapDir &);
+
+        static size_t SharedMemorySize() { return sizeof(Stats); }
+        size_t sharedMemorySize() const { return SharedMemorySize(); }
+
         /// whether the rebuild is finished already
-        bool completed(const SwapDir *) const;
+        bool completed(const SwapDir &) const;
 
         StoreRebuildData counts;
     };
 
-    Rebuild(SwapDir *dir, const Ipc::Mem::Pointer<Metadata> &);
-    virtual ~Rebuild() override;
+    /// starts indexing the given cache_dir if that indexing is necessary
+    /// \returns whether the indexing was necessary (and, hence, started)
+    static bool Start(SwapDir &dir);
 
-    static Ipc::Mem::Owner<Metadata> *InitMetadata(const SwapDir *dir);
-
+protected:
     /// whether the current kid is responsible for rebuilding this db file
     static bool IsResponsible(const SwapDir &);
+
+    Rebuild(SwapDir *dir, const Ipc::Mem::Pointer<Stats> &);
+    virtual ~Rebuild() override;
 
     /* Registered Runner API */
     virtual void startShutdown() override;
 
-protected:
     /* AsyncJob API */
     virtual void start() override;
     virtual bool doneAll() const override;
@@ -102,7 +107,7 @@ private:
     SwapDir *sd;
     LoadingParts *parts; ///< parts of store entries being loaded from disk
 
-    Ipc::Mem::Pointer<Metadata> metadata; ///< shared metadata
+    Ipc::Mem::Pointer<Stats> stats; ///< indexing statistics in shared memory
 
     int64_t dbSize;
     int dbSlotSize; ///< the size of a db cell, including the cell header

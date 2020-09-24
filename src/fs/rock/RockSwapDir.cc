@@ -809,24 +809,6 @@ Rock::SwapDir::openStoreIO(StoreEntry &e, StoreIOState::STFNCB *cbFile, StoreIOS
     return sio;
 }
 
-static Ipc::Mem::Pointer<Rock::Rebuild::Metadata>
-RebuildRequired(const Rock::SwapDir &dir, const char *filePath)
-{
-    using RebuildMetadata = Ipc::Mem::Pointer<Rock::Rebuild::Metadata>;
-
-    if (!Rock::Rebuild::IsResponsible(dir)) {
-        debugs(47, 2, "not responsible for building a memory index of cache_dir #" <<
-               dir.index << " from " << filePath);
-        return RebuildMetadata();
-    }
-
-    RebuildMetadata metadata = shm_old(Rock::Rebuild::Metadata)(Rock::Rebuild::Metadata::Path(dir.path).c_str());
-    if (metadata->completed(&dir))
-        return RebuildMetadata();
-
-    return metadata;
-}
-
 void
 Rock::SwapDir::ioCompletedNotification()
 {
@@ -844,9 +826,7 @@ Rock::SwapDir::ioCompletedNotification()
            std::setw(7) << map->entryLimit() << " entries, and " <<
            std::setw(7) << map->sliceLimit() << " slots");
 
-    if (auto metadata = RebuildRequired(*this, filePath))
-        AsyncJob::Start(new Rebuild(this, metadata));
-    else
+    if (!Rebuild::Start(*this))
         storeRebuildUnregister();
 }
 
@@ -1150,7 +1130,7 @@ protected:
     virtual void create();
 
 private:
-    std::vector<Ipc::Mem::Owner<Rebuild::Metadata> *> rebuildMetadataOwners;
+    std::vector<Ipc::Mem::Owner<Rebuild::Stats> *> rebuildStatsOwners;
     std::vector<SwapDir::DirMap::Owner *> mapOwners;
     std::vector< Ipc::Mem::Owner<Ipc::Mem::PageStack> *> freeSlotsOwners;
 };
@@ -1163,7 +1143,7 @@ void Rock::SwapDirRr::create()
     Must(mapOwners.empty() && freeSlotsOwners.empty());
     for (int i = 0; i < Config.cacheSwap.n_configured; ++i) {
         if (const Rock::SwapDir *const sd = dynamic_cast<Rock::SwapDir *>(INDEXSD(i))) {
-            rebuildMetadataOwners.push_back(Rebuild::InitMetadata(sd));
+            rebuildStatsOwners.push_back(Rebuild::Stats::Init(*sd));
 
             const int64_t capacity = sd->slotLimitActual();
 
@@ -1187,7 +1167,7 @@ void Rock::SwapDirRr::create()
 Rock::SwapDirRr::~SwapDirRr()
 {
     for (size_t i = 0; i < mapOwners.size(); ++i) {
-        delete rebuildMetadataOwners[i];
+        delete rebuildStatsOwners[i];
         delete mapOwners[i];
         delete freeSlotsOwners[i];
     }

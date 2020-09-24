@@ -87,19 +87,6 @@ DoneValidating(const int validationPos, const int64_t dbSlotLimit, const int64_t
     return validationPos >= (dbEntryLimit + extraWork);
 }
 
-SBuf
-Rebuild::Metadata::Path(const char *dirPath)
-{
-    return Ipc::Mem::Segment::Name(SBuf(dirPath), "rebuild_metadata");
-}
-
-bool
-Rebuild::Metadata::completed(const SwapDir *sd) const
-{
-    return DoneLoading(counts.scancount, sd->slotLimitActual()) &&
-        DoneValidating(counts.validatedCount, sd->slotLimitActual(), sd->entryLimitActual());
-}
-
 static SBuf
 SizesPath(const char *dirPath)
 {
@@ -278,22 +265,70 @@ Rock::LoadingParts::~LoadingParts()
     delete flagsOwner;
 }
 
+/* Rock::Rebuild::Stats */
+
+SBuf
+Rock::Rebuild::Stats::Path(const char *dirPath)
+{
+    return Ipc::Mem::Segment::Name(SBuf(dirPath), "rebuild_stats");
+}
+
+Ipc::Mem::Owner<Rock::Rebuild::Stats>*
+Rock::Rebuild::Stats::Init(const SwapDir &dir)
+{
+    return shm_new(Stats)(Path(dir.path).c_str());
+}
+
+bool
+Rock::Rebuild::Stats::completed(const SwapDir &sd) const
+{
+    return DoneLoading(counts.scancount, sd.slotLimitActual()) &&
+        DoneValidating(counts.validatedCount, sd.slotLimitActual(), sd.entryLimitActual());
+}
+
 /* Rebuild */
 
-Rock::Rebuild::Rebuild(SwapDir *dir, const Ipc::Mem::Pointer<Metadata> &m): AsyncJob("Rock::Rebuild"),
+bool
+Rock::Rebuild::IsResponsible(const SwapDir &sd)
+{
+    // in SMP mode, only the disker is responsible for populating the map
+    return !UsingSmp() || IamDiskProcess();
+}
+
+bool
+Rock::Rebuild::Start(SwapDir &dir)
+{
+    if (!IsResponsible(dir)) {
+        debugs(47, 2, "not responsible for indexing cache_dir #" <<
+               dir.index << " from " << dir.filePath);
+        return false;
+    }
+
+    const auto stats = shm_old(Rebuild::Stats)(Stats::Path(dir.path).c_str());
+    if (stats->completed(dir)) {
+        debugs(47, 2, "already indexed cache_dir #" <<
+               dir.index << " from " << dir.filePath);
+        return false;
+    }
+
+    Must(AsyncJob::Start(new Rebuild(&dir, stats)));
+    return true;
+}
+
+Rock::Rebuild::Rebuild(SwapDir *dir, const Ipc::Mem::Pointer<Stats> &s): AsyncJob("Rock::Rebuild"),
     sd(dir),
     parts(nullptr),
-    metadata(m),
+    stats(s),
     dbSize(0),
     dbSlotSize(0),
     dbSlotLimit(0),
     dbEntryLimit(0),
     fd(-1),
     dbOffset(0),
-    loadingPos(metadata->counts.scancount),
-    validationPos(metadata->counts.validatedCount),
-    counts(metadata->counts),
-    resuming(metadata->counts.started())
+    loadingPos(stats->counts.scancount),
+    validationPos(stats->counts.validatedCount),
+    counts(stats->counts),
+    resuming(stats->counts.started())
 {
     assert(sd);
     dbSize = sd->diskOffsetLimit(); // we do not care about the trailer waste
@@ -891,19 +926,6 @@ Rock::Rebuild::useNewSlot(const SlotId slotId, const DbCellHeader &header)
         break;
     }
     }
-}
-
-bool
-Rock::Rebuild::IsResponsible(const SwapDir &sd)
-{
-    // in SMP mode, only the disker is responsible for populating the map
-    return !UsingSmp() || IamDiskProcess();
-}
-
-Ipc::Mem::Owner<Rock::Rebuild::Metadata> *
-Rock::Rebuild::InitMetadata(const SwapDir *dir)
-{
-    return shm_new(Metadata)(Metadata::Path(dir->path).c_str());
 }
 
 SBuf

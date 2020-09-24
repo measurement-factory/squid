@@ -15,12 +15,16 @@
 
 class MemBuf;
 
+/// a single cache_dir indexing statistics
 class StoreRebuildData
 {
 public:
     void updateStartTime(const timeval &newTime) { startTime = started() ? std::min(startTime, newTime) : newTime; }
 
     bool started() const { return startTime.tv_sec > 0; }
+
+    // when adding members, keep the class remains compatible with placement new
+    // onto a zeroed shared memory segment (see Rock::Rebuild::Stats usage)
 
     int objcount = 0;       /* # objects successfully reloaded */
     int expcount = 0;       /* # objects expired */
