@@ -237,7 +237,7 @@ Rock::LoadingSlot::LoadingSlot(const SlotId slotId, LoadingParts &source):
 template <class T>
 typename T::Owner *createOwner(const char *path, const int64_t entryLimit, const bool resuming)
 {
-    return resuming ?  Ipc::Mem::Owner<T>::Old(path) : shm_new(T)(path, entryLimit);
+    return resuming ? Ipc::Mem::Owner<T>::Old(path) : shm_new(T)(path, entryLimit);
 }
 
 Rock::LoadingParts::LoadingParts(const SwapDir *dir, const bool resuming):

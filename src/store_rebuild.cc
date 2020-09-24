@@ -179,7 +179,7 @@ storeRebuildUnregister()
     assert(StoreController::store_dirs_rebuilding > 0);
     if (StoreController::store_dirs_rebuilding > 1)
         return false;
-    eventAdd("storeCleanup", storeCleanup, NULL, 0.0, 1);
+    eventAdd("storeCleanup", storeCleanup, nullptr, 0.0, 1);
     return true;
 }
 

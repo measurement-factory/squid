@@ -54,8 +54,8 @@ public:
     int64_t goal; ///< the known total number of work steps (or negative)
 };
 
-inline
-std::ostream &operator <<(std::ostream &os, const Progress &p)
+inline std::ostream &
+operator <<(std::ostream &os, const Progress &p)
 {
     p.print(os);
     return os;
