@@ -122,7 +122,8 @@ private:
 
     StoreRebuildData &counts; ///< a reference to the shared memory counters
 
-    /// whether the rebuild process was aborted and now resumed
+    /// whether we have started indexing this cache_dir before,
+    /// presumably in the previous process performing the same-kid role
     const bool resuming;
 
     static void Steps(void *data);

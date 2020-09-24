@@ -130,7 +130,7 @@ Ipc::Mem::Segment::create(const off_t aSize)
 }
 
 void
-Ipc::Mem::Segment::open(const bool willUnlink)
+Ipc::Mem::Segment::open(const bool unlinkWhenDone)
 {
     assert(theFD < 0);
 
@@ -143,7 +143,7 @@ Ipc::Mem::Segment::open(const bool willUnlink)
     }
 
     theSize = statSize("Ipc::Mem::Segment::open");
-    doUnlink = willUnlink;
+    doUnlink = unlinkWhenDone;
 
     debugs(54, 3, HERE << "opened " << theName << " segment: " << theSize);
 
