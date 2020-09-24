@@ -74,13 +74,13 @@ namespace Rock
 {
 
 static bool
-DoneLoading(const int loadingPos, const int64_t dbSlotLimit)
+DoneLoading(const int64_t loadingPos, const int64_t dbSlotLimit)
 {
     return loadingPos >= dbSlotLimit;
 }
 
 static bool
-DoneValidating(const int validationPos, const int64_t dbSlotLimit, const int64_t dbEntryLimit)
+DoneValidating(const int64_t validationPos, const int64_t dbSlotLimit, const int64_t dbEntryLimit)
 {
     // paranoid slot checking is only enabled with squid -S
     const auto extraWork = opt_store_doublecheck ? dbSlotLimit : 0;
@@ -283,7 +283,7 @@ bool
 Rock::Rebuild::Stats::completed(const SwapDir &sd) const
 {
     return DoneLoading(counts.scancount, sd.slotLimitActual()) &&
-        DoneValidating(counts.validatedCount, sd.slotLimitActual(), sd.entryLimitActual());
+        DoneValidating(counts.validations, sd.slotLimitActual(), sd.entryLimitActual());
 }
 
 /* Rebuild */
@@ -326,7 +326,7 @@ Rock::Rebuild::Rebuild(SwapDir *dir, const Ipc::Mem::Pointer<Stats> &s): AsyncJo
     fd(-1),
     dbOffset(0),
     loadingPos(stats->counts.scancount),
-    validationPos(stats->counts.validatedCount),
+    validationPos(stats->counts.validations),
     counts(stats->counts),
     resuming(stats->counts.started())
 {
@@ -446,7 +446,7 @@ Rock::Rebuild::loadingSteps()
     const int maxSpentMsec = 50; // keep small: most RAM I/Os are under 1ms
     const timeval loopStart = current_time;
 
-    int loaded = 0;
+    int64_t loaded = 0;
     while (!doneLoading()) {
         loadOneSlot();
         dbOffset += dbSlotSize;
@@ -564,11 +564,11 @@ Rock::Rebuild::validationSteps()
     const int maxSpentMsec = 50; // keep small: validation does not do I/O
     const timeval loopStart = current_time;
 
-    int validated = 0;
+    int64_t validated = 0;
     while (!doneValidating()) {
         // increment before validationPos to avoid getting stuck at a slot
         // in a case of crash
-        ++counts.validatedCount;
+        ++counts.validations;
         if (validationPos < dbEntryLimit)
             validateOneEntry(validationPos);
         else

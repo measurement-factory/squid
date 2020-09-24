@@ -111,13 +111,13 @@ private:
 
     int64_t dbSize;
     int dbSlotSize; ///< the size of a db cell, including the cell header
-    int dbSlotLimit; ///< total number of db cells
-    int dbEntryLimit; ///< maximum number of entries that can be stored in db
+    int64_t dbSlotLimit; ///< total number of db cells
+    int64_t dbEntryLimit; ///< maximum number of entries that can be stored in db
 
     int fd; // store db file descriptor
     int64_t dbOffset; // TODO: calculate in a method, using loadingPos
-    sfileno loadingPos; ///< index of the db slot being loaded from disk now
-    sfileno validationPos; ///< index of the loaded db slot being validated now
+    int64_t loadingPos; ///< index of the db slot being loaded from disk now
+    int64_t validationPos; ///< index of the loaded db slot being validated now
     MemBuf buf; ///< space to load current db slot (and entry metadata) into
 
     StoreRebuildData &counts; ///< a reference to the shared memory counters

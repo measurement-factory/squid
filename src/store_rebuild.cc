@@ -134,7 +134,7 @@ storeRebuildComplete(StoreRebuildData *dc)
     counts.badflags += dc->badflags;
     counts.bad_log_op += dc->bad_log_op;
     counts.zero_object_sz += dc->zero_object_sz;
-    counts.validatedCount += dc->validatedCount;
+    counts.validations += dc->validations;
     counts.updateStartTime(dc->startTime);
     /*
      * When store_dirs_rebuilding == 1, it means we are done reading
