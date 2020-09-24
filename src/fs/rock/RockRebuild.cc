@@ -183,10 +183,10 @@ private:
 class LoadingParts
 {
 public:
-    typedef Ipc::StoreMapItems<uint64_t> Sizes;
-    typedef Ipc::StoreMapItems<uint32_t> Versions;
-    typedef Ipc::StoreMapItems<Ipc::StoreMapSliceId> Mores;
-    typedef Ipc::StoreMapItems<LoadingFlags> Flags;
+    using Sizes = Ipc::StoreMapItems<uint64_t>;
+    using Versions = Ipc::StoreMapItems<uint32_t>;
+    using Mores = Ipc::StoreMapItems<Ipc::StoreMapSliceId>;
+    using Flags = Ipc::StoreMapItems<LoadingFlags>;
 
     LoadingParts(const SwapDir *dir, const bool resuming);
     ~LoadingParts();
