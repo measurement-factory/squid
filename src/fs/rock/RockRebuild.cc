@@ -87,30 +87,6 @@ DoneValidating(const int64_t validationPos, const int64_t dbSlotLimit, const int
     return validationPos >= (dbEntryLimit + extraWork);
 }
 
-static SBuf
-SizesPath(const char *dirPath)
-{
-    return Ipc::Mem::Segment::Name(SBuf(dirPath), "rebuild_sizes");
-}
-
-static SBuf
-VersionsPath(const char *dirPath)
-{
-    return Ipc::Mem::Segment::Name(SBuf(dirPath), "rebuild_versions");
-}
-
-static SBuf
-MoresPath(const char *dirPath)
-{
-    return Ipc::Mem::Segment::Name(SBuf(dirPath), "rebuild_mores");
-}
-
-static SBuf
-FlagsPath(const char *dirPath)
-{
-    return Ipc::Mem::Segment::Name(SBuf(dirPath), "rebuild_flags");
-}
-
 /// low-level anti-padding storage class for LoadingEntry and LoadingSlot flags
 class LoadingFlags
 {
@@ -188,7 +164,7 @@ public:
     using Mores = Ipc::StoreMapItems<Ipc::StoreMapSliceId>;
     using Flags = Ipc::StoreMapItems<LoadingFlags>;
 
-    LoadingParts(const SwapDir *dir, const bool resuming);
+    LoadingParts(const SwapDir &dir, const bool resuming);
     ~LoadingParts();
 
     // lacking copying/moving code and often too huge to copy
@@ -235,16 +211,18 @@ Rock::LoadingSlot::LoadingSlot(const SlotId slotId, LoadingParts &source):
 /* LoadingParts */
 
 template <class T>
-typename T::Owner *createOwner(const char *path, const int64_t entryLimit, const bool resuming)
+inline typename T::Owner *
+createOwner(const Rock::SwapDir &dir, const char *sfx, const int64_t limit, const bool resuming)
 {
-    return resuming ? Ipc::Mem::Owner<T>::Old(path) : shm_new(T)(path, entryLimit);
+    auto id = Ipc::Mem::Segment::Name(SBuf(dir.path), sfx);
+    return resuming ? Ipc::Mem::Owner<T>::Old(id.c_str()) : shm_new(T)(id.c_str(), limit);
 }
 
-Rock::LoadingParts::LoadingParts(const SwapDir *dir, const bool resuming):
-    sizesOwner(createOwner<Sizes>(SizesPath(dir->path).c_str(), dir->entryLimitActual(), resuming)),
-    versionsOwner(createOwner<Versions>(VersionsPath(dir->path).c_str(), dir->entryLimitActual(), resuming)),
-    moresOwner(createOwner<Mores>(MoresPath(dir->path).c_str(), dir->slotLimitActual(), resuming)),
-    flagsOwner(createOwner<Flags>(FlagsPath(dir->path).c_str(), dir->slotLimitActual(), resuming))
+Rock::LoadingParts::LoadingParts(const SwapDir &dir, const bool resuming):
+    sizesOwner(createOwner<Sizes>(dir, "rebuild_sizes", dir.entryLimitActual(), resuming)),
+    versionsOwner(createOwner<Versions>(dir, "rebuild_versions", dir.entryLimitActual(), resuming)),
+    moresOwner(createOwner<Mores>(dir, "rebuild_mores", dir.slotLimitActual(), resuming)),
+    flagsOwner(createOwner<Flags>(dir, "rebuild_flags", dir.slotLimitActual(), resuming))
 {
     assert(sizes().capacity == versions().capacity); // every entry has both fields
     assert(sizes().capacity <= mores().capacity); // every entry needs slot(s)
@@ -383,7 +361,7 @@ Rock::Rebuild::start()
     dbOffset = SwapDir::HeaderSize + loadingPos * dbSlotSize;
 
     assert(!parts);
-    parts = new LoadingParts(sd, resuming);
+    parts = new LoadingParts(*sd, resuming);
 
     counts.updateStartTime(current_time);
 
