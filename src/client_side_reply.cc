@@ -1057,8 +1057,7 @@ void
 clientReplyContext::purgeEntry(StoreEntry *entry, const Http::MethodType methodType, const char *description)
 {
     if (!entry) {
-        if (purgeStatus == Http::scNone)
-            purgeStatus = Http::scNotFound;
+        purgeStatus = Http::scNotFound;
         return;
     }
     debugs(88, 4, description << " " << Http::MethodStr(methodType) << " '" << entry->url() << "'" );
