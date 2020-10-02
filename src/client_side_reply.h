@@ -127,8 +127,6 @@ private:
     void triggerInitialStoreRead();
     void sendClientOldEntry();
     void purgeAllCached();
-    /// releases the cached entry
-    void purgeEntry(StoreEntry *, const Http::MethodType, const char *description = nullptr);
     void forgetHit();
     bool blockedHit() const;
     void detailStoreLookup(const char *detail);
