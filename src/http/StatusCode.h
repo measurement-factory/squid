@@ -92,6 +92,12 @@ const char *StatusCodeString(const Http::StatusCode status);
 inline bool Is1xx(const int sc) { return scContinue <= sc && sc < scOkay; }
 /// whether this response status code prohibits sending Content-Length
 inline bool ProhibitsContentLength(const StatusCode sc) { return sc == scNoContent || Is1xx(sc); }
+// RFC 7230 section 3.1.2 - status code is 3 DIGIT octets.
+// However, codes with a wrong class (the first digit) are considered as invalid.
+// For details, see HTTP WG discussion:
+// https://lists.w3.org/Archives/Public/ietf-http-wg/2010AprJun/0354.html
+/// whether the status is 3-digit and has a valid class
+inline bool ValidStatus(const StatusCode sc) { return sc >= scContinue && sc < scInvalidHeader; }
 
 } // namespace Http
 

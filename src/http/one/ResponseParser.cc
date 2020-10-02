@@ -51,15 +51,12 @@ Http::One::ResponseParser::parseResponseStatusAndReason(Tokenizer &tok, const Ch
 {
     if (!completedStatus_) {
         debugs(74, 9, "seek status-code in: " << tok.remaining().substr(0,10) << "...");
-        /* RFC 7230 section 3.1.2 - status code is 3 DIGIT octets.
-         * There is no limit on what those octets may be.
-         * 000 through 999 are all valid.
-         */
         int64_t statusValue;
         if (tok.int64(statusValue, 10, false, 3) && tok.skipOne(WspDelim)) {
-
             debugs(74, 6, "found int64 status-code=" << statusValue);
             statusCode_ = static_cast<Http::StatusCode>(statusValue);
+            if (!ValidStatus(statusCode_))
+                return -1;
 
             buf_ = tok.remaining(); // resume checkpoint
             completedStatus_ = true;

@@ -12,6 +12,8 @@
 #include "base/Packable.h"
 #include "Debug.h"
 #include "http/StatusLine.h"
+#include "http/one/Parser.h"
+#include "parser/Tokenizer.h"
 
 void
 Http::StatusLine::init()
@@ -114,8 +116,14 @@ Http::StatusLine::parse(const String &protoPrefix, const char *start, const char
     if (!(start = strchr(start, ' ')))
         return false;
 
-    // XXX: should we be using xstrtoui() or xatoui() ?
-    status_ = static_cast<Http::StatusCode>(atoi(++start));
+    Parser::Tokenizer tok(SBuf(++start));
+    int64_t statusValue;
+    const auto &WspDelim = One::Parser::DelimiterCharacters();
+    if (tok.int64(statusValue, 10, false, 3) && tok.skipOne(WspDelim)) {
+        status_ = static_cast<StatusCode>(statusValue);
+        if(!ValidStatus(status_))
+            return false;
+    }
 
     // XXX check if the given 'reason' is the default status string, if not save to reason_
 
