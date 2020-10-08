@@ -13,6 +13,7 @@
 #include "Debug.h"
 #include "http/StatusLine.h"
 #include "http/one/Parser.h"
+#include "http/one/ResponseParser.h"
 #include "parser/Tokenizer.h"
 
 void
@@ -118,14 +119,10 @@ Http::StatusLine::parse(const String &protoPrefix, const char *start, const char
 
     static SBuf statusBuf;
     statusBuf.assign(++start, 4);
+    static const auto &wspDelim = One::Parser::DelimiterCharacters();
     Parser::Tokenizer tok(statusBuf);
-    int64_t statusValue;
-    const auto &WspDelim = One::Parser::DelimiterCharacters();
-    if (tok.int64(statusValue, 10, false, 3) && tok.skipOne(WspDelim)) {
-        status_ = static_cast<StatusCode>(statusValue);
-        if(!ValidStatus(status_))
-            return false;
-    }
+    if (!One::ResponseParser::ParseResponseStatus(tok, wspDelim, status_))
+        return false;
 
     // XXX check if the given 'reason' is the default status string, if not save to reason_
 

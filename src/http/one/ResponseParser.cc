@@ -51,17 +51,9 @@ Http::One::ResponseParser::parseResponseStatusAndReason(Tokenizer &tok, const Ch
 {
     if (!completedStatus_) {
         debugs(74, 9, "seek status-code in: " << tok.remaining().substr(0,10) << "...");
-        int64_t statusValue;
-        if (tok.int64(statusValue, 10, false, 3) && tok.skipOne(WspDelim)) {
-
-            debugs(74, 6, "found int64 status-code=" << statusValue);
-            statusCode_ = static_cast<Http::StatusCode>(statusValue);
-            if (!ValidStatus(statusCode_))
-                return -1;
-
+        if (ParseResponseStatus(tok, WspDelim, statusCode_)) {
             buf_ = tok.remaining(); // resume checkpoint
             completedStatus_ = true;
-
         } else if (tok.atEnd()) {
             debugs(74, 6, "Parser needs more data");
             return 0; // need more to be sure we have it all
@@ -96,6 +88,24 @@ Http::One::ResponseParser::parseResponseStatusAndReason(Tokenizer &tok, const Ch
         debugs(74, 6, "invalid status-line: " << ex.what());
     }
     return -1;
+}
+
+bool
+Http::One::ResponseParser::ParseResponseStatus(Tokenizer &tok, const CharacterSet &wspDelim, Http::StatusCode &code)
+{
+    int64_t statusValue;
+    if (tok.int64(statusValue, 10, false, 3) && tok.skipOne(wspDelim)) {
+        debugs(74, 6, "found status-code=" << statusValue);
+        code = static_cast<Http::StatusCode>(statusValue);
+        // RFC 7230 section 3.1.2 - status code is 3 DIGIT octets.
+        // However, codes with a wrong class (the first digit) are considered as invalid.
+        // For details, see HTTP WG discussion:
+        // https://lists.w3.org/Archives/Public/ietf-http-wg/2010AprJun/0354.html
+        /// whether the status is 3-digit and has a valid class
+        if (code >= scContinue && code < scInvalidHeader)
+            return true;
+    }
+    return false;
 }
 
 /**

@@ -45,6 +45,10 @@ public:
     Http::StatusCode messageStatus() const { return statusCode_;}
     SBuf reasonPhrase() const { return reasonPhrase_;}
 
+    /// attempts to parse response status into code
+    /// \returns whether the status was successfully parsed
+    static bool ParseResponseStatus(Tokenizer&, const CharacterSet &, Http::StatusCode &code);
+
 private:
     int parseResponseFirstLine();
     int parseResponseStatusAndReason(Tokenizer&, const CharacterSet &);
