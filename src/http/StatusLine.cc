@@ -116,7 +116,9 @@ Http::StatusLine::parse(const String &protoPrefix, const char *start, const char
     if (!(start = strchr(start, ' ')))
         return false;
 
-    Parser::Tokenizer tok(SBuf(++start));
+    static SBuf statusBuf;
+    statusBuf.assign(++start, 4);
+    Parser::Tokenizer tok(statusBuf);
     int64_t statusValue;
     const auto &WspDelim = One::Parser::DelimiterCharacters();
     if (tok.int64(statusValue, 10, false, 3) && tok.skipOne(WspDelim)) {
