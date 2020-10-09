@@ -119,9 +119,8 @@ Http::StatusLine::parse(const String &protoPrefix, const char *start, const char
 
     static SBuf statusBuf;
     statusBuf.assign(++start, 4);
-    static const auto &wspDelim = One::Parser::DelimiterCharacters();
     Parser::Tokenizer tok(statusBuf);
-    if (!One::ResponseParser::ParseResponseStatus(tok, wspDelim, status_))
+    if (!One::ResponseParser::ParseResponseStatus(tok, status_))
         return false;
 
     // XXX check if the given 'reason' is the default status string, if not save to reason_

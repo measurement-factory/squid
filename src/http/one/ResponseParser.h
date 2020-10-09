@@ -47,11 +47,11 @@ public:
 
     /// attempts to parse response status into code
     /// \returns whether the status was successfully parsed
-    static bool ParseResponseStatus(Tokenizer&, const CharacterSet &, Http::StatusCode &code);
+    static bool ParseResponseStatus(Tokenizer &, Http::StatusCode &code);
 
 private:
     int parseResponseFirstLine();
-    int parseResponseStatusAndReason(Tokenizer&, const CharacterSet &);
+    int parseResponseStatusAndReason(Tokenizer &);
 
     /// magic prefix for identifying ICY response messages
     static const SBuf IcyMagic;

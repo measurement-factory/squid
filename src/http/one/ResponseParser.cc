@@ -47,11 +47,11 @@ Http::One::ResponseParser::firstLineSize() const
 // NP: we found the protocol version and consumed it already.
 // just need the status code and reason phrase
 int
-Http::One::ResponseParser::parseResponseStatusAndReason(Tokenizer &tok, const CharacterSet &WspDelim)
+Http::One::ResponseParser::parseResponseStatusAndReason(Tokenizer &tok)
 {
     if (!completedStatus_) {
         debugs(74, 9, "seek status-code in: " << tok.remaining().substr(0,10) << "...");
-        if (ParseResponseStatus(tok, WspDelim, statusCode_)) {
+        if (ParseResponseStatus(tok, statusCode_)) {
             buf_ = tok.remaining(); // resume checkpoint
             completedStatus_ = true;
         } else if (tok.atEnd()) {
@@ -91,8 +91,9 @@ Http::One::ResponseParser::parseResponseStatusAndReason(Tokenizer &tok, const Ch
 }
 
 bool
-Http::One::ResponseParser::ParseResponseStatus(Tokenizer &tok, const CharacterSet &wspDelim, Http::StatusCode &code)
+Http::One::ResponseParser::ParseResponseStatus(Tokenizer &tok, Http::StatusCode &code)
 {
+    static const auto &wspDelim = One::Parser::DelimiterCharacters();
     int64_t statusValue;
     if (tok.int64(statusValue, 10, false, 3) && tok.skipOne(wspDelim)) {
         debugs(74, 6, "found status-code=" << statusValue);
@@ -128,13 +129,11 @@ Http::One::ResponseParser::parseResponseFirstLine()
 {
     Tokenizer tok(buf_);
 
-    const CharacterSet &WspDelim = DelimiterCharacters();
-
     if (msgProtocol_.protocol != AnyP::PROTO_NONE) {
         debugs(74, 6, "continue incremental parse for " << msgProtocol_);
         debugs(74, DBG_DATA, "parse remaining buf={length=" << tok.remaining().length() << ", data='" << tok.remaining() << "'}");
         // we already found the magic, but not the full line. keep going.
-        return parseResponseStatusAndReason(tok, WspDelim);
+        return parseResponseStatusAndReason(tok);
 
     } else if (tok.skip(Http1magic)) {
         debugs(74, 6, "found prefix magic " << Http1magic);
@@ -142,6 +141,7 @@ Http::One::ResponseParser::parseResponseFirstLine()
 
         // magic contains major version, still need to find minor DIGIT
         int64_t verMinor;
+        const auto &WspDelim = DelimiterCharacters();
         if (tok.int64(verMinor, 10, false, 1) && tok.skipOne(WspDelim)) {
             msgProtocol_.protocol = AnyP::PROTO_HTTP;
             msgProtocol_.major = 1;
@@ -151,7 +151,7 @@ Http::One::ResponseParser::parseResponseFirstLine()
 
             debugs(74, DBG_DATA, "parse remaining buf={length=" << tok.remaining().length() << ", data='" << tok.remaining() << "'}");
             buf_ = tok.remaining(); // resume checkpoint
-            return parseResponseStatusAndReason(tok, WspDelim);
+            return parseResponseStatusAndReason(tok);
 
         } else if (tok.atEnd())
             return 0; // need more to be sure we have it all
@@ -165,7 +165,7 @@ Http::One::ResponseParser::parseResponseFirstLine()
         // NP: ICY has no /major.minor details
         debugs(74, DBG_DATA, "parse remaining buf={length=" << tok.remaining().length() << ", data='" << tok.remaining() << "'}");
         buf_ = tok.remaining(); // resume checkpoint
-        return parseResponseStatusAndReason(tok, WspDelim);
+        return parseResponseStatusAndReason(tok);
     } else if (buf_.length() < Http1magic.length() && Http1magic.startsWith(buf_)) {
         debugs(74, 7, Raw("valid HTTP/1 prefix", buf_.rawContent(), buf_.length()));
         return 0;
