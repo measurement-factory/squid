@@ -81,12 +81,8 @@ Http::StatusLine::packInto(Packable * p) const
     p->appendf(Http1StatusLineFormat, version.major, version.minor, packedStatus, packedReason);
 }
 
-/*
- * Parse character string.
- * XXX: Note 'end' currently unused, so NULL-termination assumed.
- */
 bool
-Http::StatusLine::parse(const String &protoPrefix, const char *start, const char * /*end*/)
+Http::StatusLine::parse(const String &protoPrefix, const char *start, const char *end)
 {
     status_ = Http::scInvalidHeader;    /* Squid header parsing error */
 
@@ -117,8 +113,12 @@ Http::StatusLine::parse(const String &protoPrefix, const char *start, const char
     if (!(start = strchr(start, ' ')))
         return false;
 
+    start++;
+    if (end - start < 4)
+        return false;
+
     static SBuf statusBuf;
-    statusBuf.assign(++start, 4);
+    statusBuf.assign(start, 4);
     Parser::Tokenizer tok(statusBuf);
     if (!One::ResponseParser::ParseResponseStatus(tok, status_))
         return false;
