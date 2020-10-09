@@ -45,8 +45,9 @@ public:
     Http::StatusCode messageStatus() const { return statusCode_;}
     SBuf reasonPhrase() const { return reasonPhrase_;}
 
-    /// attempts to parse response status into code
-    /// \returns whether the status was successfully parsed
+    /// Attempts to parse response status
+    /// \param code the parsed and syntactically valid status code
+    /// \returns whether the status was parsed and syntactically/semantically valid
     static bool ParseResponseStatus(Tokenizer &, Http::StatusCode &code);
 
 private:
