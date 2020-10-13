@@ -19,13 +19,15 @@
 #include "swap_log_op.h"
 #include "util.h" // for tvSubDsec() which should be in SquidTime.h
 
+typedef int STDIRSELECT(const StoreEntry *e);
+
 static STDIRSELECT storeDirSelectSwapDirRoundRobin;
 static STDIRSELECT storeDirSelectSwapDirLeastLoad;
 /**
  * This function pointer is set according to 'store_dir_select_algorithm'
  * in squid.conf.
  */
-STDIRSELECT *storeDirSelectSwapDir = storeDirSelectSwapDirLeastLoad;
+static STDIRSELECT *storeDirSelectSwapDir = storeDirSelectSwapDirLeastLoad;
 
 /// The entry size to use for Disk::canStore() size limit checks.
 /// This is an optimization to avoid similar calculations in every cache_dir.
@@ -63,10 +65,9 @@ storeDirSelectSwapDirRoundRobin(const StoreEntry * e)
 
     for (int i = 0; i < Config.cacheSwap.n_configured; ++i) {
         const int dirn = (firstCandidate + i) % Config.cacheSwap.n_configured;
-        const SwapDir *sd = dynamic_cast<SwapDir*>(INDEXSD(dirn));
 
         int load = 0;
-        if (!sd->canStore(*e, objsize, load))
+        if (!Store::Disks::Dir(dirn).canStore(*e, objsize, load))
             continue;
 
         if (load < 0 || load > 1000) {
@@ -101,15 +102,14 @@ storeDirSelectSwapDirLeastLoad(const StoreEntry * e)
     int load;
     int dirn = -1;
     int i;
-    RefCount<SwapDir> SD;
 
     const int64_t objsize = objectSizeForDirSelection(*e);
 
     for (i = 0; i < Config.cacheSwap.n_configured; ++i) {
-        SD = dynamic_cast<SwapDir *>(INDEXSD(i));
-        SD->flags.selected = false;
+        auto &sd = Store::Disks::Dir(i);
+        sd.flags.selected = false;
 
-        if (!SD->canStore(*e, objsize, load))
+        if (!sd.canStore(*e, objsize, load))
             continue;
 
         if (load < 0 || load > 1000)
@@ -118,7 +118,7 @@ storeDirSelectSwapDirLeastLoad(const StoreEntry * e)
         if (load > least_load)
             continue;
 
-        const int64_t cur_free = SD->maxSize() - SD->currentSize();
+        const int64_t cur_free = sd.maxSize() - sd.currentSize();
 
         /* If the load is equal, then look in more details */
         if (load == least_load) {
@@ -126,8 +126,8 @@ storeDirSelectSwapDirLeastLoad(const StoreEntry * e)
             if (best_objsize != -1) {
                 // cache_dir with the smallest max-size gets the known-size object
                 // cache_dir with the largest max-size gets the unknown-size object
-                if ((objsize != -1 && SD->maxObjectSize() > best_objsize) ||
-                        (objsize == -1 && SD->maxObjectSize() < best_objsize))
+                if ((objsize != -1 && sd.maxObjectSize() > best_objsize) ||
+                        (objsize == -1 && sd.maxObjectSize() < best_objsize))
                     continue;
             }
 
@@ -137,13 +137,13 @@ storeDirSelectSwapDirLeastLoad(const StoreEntry * e)
         }
 
         least_load = load;
-        best_objsize = SD->maxObjectSize();
+        best_objsize = sd.maxObjectSize();
         most_free = cur_free;
         dirn = i;
     }
 
     if (dirn >= 0)
-        dynamic_cast<SwapDir *>(INDEXSD(dirn))->flags.selected = true;
+        Store::Disks::Dir(dirn).flags.selected = true;
 
     return dirn;
 }
@@ -224,11 +224,11 @@ Store::Disks::get(const cache_key *key)
         static int idx = 0;
         for (int n = 0; n < cacheDirs; ++n) {
             idx = (idx + 1) % cacheDirs;
-            SwapDir *sd = dynamic_cast<SwapDir*>(INDEXSD(idx));
-            if (!sd->active())
+            auto &sd = Dir(idx);
+            if (!sd.active())
                 continue;
 
-            if (StoreEntry *e = sd->get(key)) {
+            if (auto e = sd.get(key)) {
                 debugs(20, 7, "cache_dir " << idx << " has: " << *e);
                 return e;
             }
@@ -557,6 +557,13 @@ Store::Disks::SmpAware()
     return false;
 }
 
+SwapDir *
+Store::Disks::SelectSwapDir(const StoreEntry *e)
+{
+    const auto dirn = storeDirSelectSwapDir(e);
+    return dirn == -1 ? nullptr : &Dir(dirn);
+}
+
 bool
 Store::Disks::hasReadableEntry(const StoreEntry &e) const
 {
@@ -597,7 +604,6 @@ storeDirWriteCleanLogs(int reopen)
 
     struct timeval start;
     double dt;
-    RefCount<SwapDir> sd;
     int dirn;
     int notdone = 1;
 
@@ -615,10 +621,10 @@ storeDirWriteCleanLogs(int reopen)
     start = current_time;
 
     for (dirn = 0; dirn < Config.cacheSwap.n_configured; ++dirn) {
-        sd = dynamic_cast<SwapDir *>(INDEXSD(dirn));
+        auto &sd = *INDEXSD(dirn);
 
-        if (sd->writeCleanStart() < 0) {
-            debugs(20, DBG_IMPORTANT, "log.clean.start() failed for dir #" << sd->index);
+        if (sd.writeCleanStart() < 0) {
+            debugs(20, DBG_IMPORTANT, "log.clean.start() failed for dir #" << sd.index);
             continue;
         }
     }
@@ -632,22 +638,22 @@ storeDirWriteCleanLogs(int reopen)
         notdone = 0;
 
         for (dirn = 0; dirn < Config.cacheSwap.n_configured; ++dirn) {
-            sd = dynamic_cast<SwapDir *>(INDEXSD(dirn));
+            auto &sd = Store::Disks::Dir(dirn);
 
-            if (NULL == sd->cleanLog)
+            if (!sd.cleanLog)
                 continue;
 
-            e = sd->cleanLog->nextEntry();
+            e = sd.cleanLog->nextEntry();
 
             if (!e)
                 continue;
 
             notdone = 1;
 
-            if (!sd->canLog(*e))
+            if (!sd.canLog(*e))
                 continue;
 
-            sd->cleanLog->write(*e);
+            sd.cleanLog->write(*e);
 
             if ((++n & 0xFFFF) == 0) {
                 getCurrentTime();
@@ -659,7 +665,7 @@ storeDirWriteCleanLogs(int reopen)
 
     /* Flush */
     for (dirn = 0; dirn < Config.cacheSwap.n_configured; ++dirn)
-        dynamic_cast<SwapDir *>(INDEXSD(dirn))->writeCleanDone();
+        Store::Disks::Dir(dirn).writeCleanDone();
 
     if (reopen)
         storeDirOpenSwapLogs();
@@ -750,6 +756,6 @@ storeDirSwapLog(const StoreEntry * e, int op)
            e->swap_dirn << " " <<
            std::hex << std::uppercase << std::setfill('0') << std::setw(8) << e->swap_filen);
 
-    dynamic_cast<SwapDir *>(INDEXSD(e->swap_dirn))->logEntry(*e, op);
+    Store::Disks::Dir(e->swap_dirn).logEntry(*e, op);
 }
 

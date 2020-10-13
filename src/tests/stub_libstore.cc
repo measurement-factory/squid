@@ -131,8 +131,7 @@ void storeDirOpenSwapLogs(void) STUB
 int storeDirWriteCleanLogs(int) STUB_RETVAL(0)
 void storeDirCloseSwapLogs(void) STUB
 void allocate_new_swapdir(Store::DiskConfig *) STUB
-void free_cachedir(Store::DiskConfig *) STUB
-STDIRSELECT *storeDirSelectSwapDir = nullptr;
+void free_cachedir(Store::DiskConfig *) STUB;
 void storeDirSwapLog(const StoreEntry *, int) STUB
 
 #include "store/LocalSearch.h"

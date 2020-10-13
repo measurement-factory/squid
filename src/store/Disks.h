@@ -50,13 +50,14 @@ public:
     int64_t accumulateMore(const StoreEntry&) const;
     /// whether any disk cache is SMP-aware
     static bool SmpAware();
+    static SwapDir &Dir(int const idx);
+    static SwapDir *SelectSwapDir(const StoreEntry *);
     /// whether any of disk caches has entry with e.key
     bool hasReadableEntry(const StoreEntry &) const;
 
 private:
     /* migration logic */
     SwapDir *store(int const x) const;
-    static SwapDir &Dir(int const idx);
 
     int64_t largestMinimumObjectSize; ///< maximum of all Disk::minObjectSize()s
     int64_t largestMaximumObjectSize; ///< maximum of all Disk::maxObjectSize()s
@@ -74,9 +75,6 @@ void storeDirCloseSwapLogs(void);
 void allocate_new_swapdir(Store::DiskConfig *swap);
 void free_cachedir(Store::DiskConfig *swap);
 
-/* Globals that should be converted to Store::Disks private data members */
-typedef int STDIRSELECT(const StoreEntry *e);
-extern STDIRSELECT *storeDirSelectSwapDir;
 
 /* Globals that should be moved to some Store::UFS-specific logging module */
 void storeDirSwapLog(const StoreEntry *e, int op);
