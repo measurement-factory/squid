@@ -643,19 +643,6 @@ configDoConfigure(void)
     memConfigure();
     /* Sanity checks */
 
-    Config.cacheSwap.n_strands = 0; // no diskers by default
-    if (Config.cacheSwap.swapDirs == NULL) {
-        /* Memory-only cache probably in effect. */
-        /* turn off the cache rebuild delays... */
-        StoreController::store_dirs_rebuilding = 0;
-    } else if (InDaemonMode()) { // no diskers in non-daemon mode
-        for (int i = 0; i < Config.cacheSwap.n_configured; ++i) {
-            const RefCount<SwapDir> sd = Config.cacheSwap.swapDirs[i];
-            if (sd->needsDiskStrand())
-                sd->disker = Config.workers + (++Config.cacheSwap.n_strands);
-        }
-    }
-
     if (Debug::rotateNumber < 0) {
         Debug::rotateNumber = Config.Log.rotateNumber;
     }

@@ -195,9 +195,17 @@ Store::Controller::maxObjectSize() const
 }
 
 void
-Store::Controller::updateLimits()
+Store::Controller::configure()
 {
-    swapDir->updateLimits();
+    if (!Config.cacheSwap.swapDirs) {
+        // Memory-only cache probably in effect.
+        // turn off the cache rebuild delays...
+        store_dirs_rebuilding = 0;
+    }
+
+    swapDir->configure();
+
+    // update limits
 
     store_swap_high = (long) (((float) maxSize() *
                                (float) Config.Swap.highWaterMark) / (float) 100);

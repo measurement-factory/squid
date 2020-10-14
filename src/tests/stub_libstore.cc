@@ -37,7 +37,7 @@ bool Controller::markedForDeletion(const cache_key *) const STUB_RETVAL(false)
 bool Controller::markedForDeletionAndAbandoned(const StoreEntry &) const STUB_RETVAL(false)
 bool Controller::hasReadableDiskEntry(const StoreEntry &) const STUB_RETVAL(false)
 int64_t Controller::accumulateMore(StoreEntry &) const STUB_RETVAL(0)
-void Controller::updateLimits() STUB
+void Controller::configure() STUB
 void Controller::handleIdleEntry(StoreEntry &) STUB
 void Controller::freeMemorySpace(const int) STUB
 void Controller::memoryOut(StoreEntry &, const bool) STUB
@@ -122,7 +122,7 @@ bool Disks::updateAnchored(StoreEntry &) STUB_RETVAL(false)
 void Disks::evictCached(StoreEntry &) STUB
 void Disks::evictIfFound(const cache_key *) STUB
 int Disks::callback() STUB_RETVAL(0)
-void Disks::updateLimits() STUB
+void Disks::configure() STUB
 int64_t Disks::accumulateMore(const StoreEntry&) const STUB_RETVAL(0)
 bool Disks::SmpAware() STUB_RETVAL(false)
 bool Disks::hasReadableEntry(const StoreEntry &) const STUB_RETVAL(false)

@@ -17,6 +17,7 @@
 #include "store/Disk.h"
 #include "store/Disks.h"
 #include "swap_log_op.h"
+#include "tools.h"
 #include "util.h" // for tvSubDsec() which should be in SquidTime.h
 
 typedef int STDIRSELECT(const StoreEntry *e);
@@ -355,16 +356,23 @@ Store::Disks::maxObjectSize() const
 }
 
 void
-Store::Disks::updateLimits()
+Store::Disks::configure()
 {
     largestMinimumObjectSize = -1;
     largestMaximumObjectSize = -1;
     secondLargestMaximumObjectSize = -1;
 
     for (int i = 0; i < Config.cacheSwap.n_configured; ++i) {
-        const auto &disk = Dir(i);
+        auto &disk = Dir(i);
+        if (disk.needsDiskStrand()) {
+            assert(InDaemonMode());
+            disk.disker = Config.workers + (++Config.cacheSwap.n_strands);
+        }
+
         if (!disk.active())
             continue;
+
+        // update limits
 
         if (disk.minObjectSize() > largestMinimumObjectSize)
             largestMinimumObjectSize = disk.minObjectSize();

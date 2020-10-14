@@ -42,8 +42,8 @@ public:
     virtual void evictIfFound(const cache_key *) override;
     virtual int callback() override;
 
-    /// slowly calculate (and cache) hi/lo watermarks and similar limits
-    void updateLimits();
+    /// update configuration, including limits (re)calculation
+    void configure();
 
     /// Additional unknown-size entry bytes required by disks in order to
     /// reduce the risk of selecting the wrong disk cache for the growing entry.
