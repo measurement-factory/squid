@@ -9,6 +9,7 @@
 /* DEBUG: section 47    Store Directory Routines */
 
 #include "squid.h"
+#include "cache_cf.h"
 #include "Debug.h"
 #include "globals.h"
 #include "profiler/Profiler.h"
@@ -384,6 +385,49 @@ Store::Disks::configure()
             largestMaximumObjectSize = diskMaxObjectSize;
         }
     }
+}
+
+bool
+Store::Disks::ReconfigureSwapDir(Store::DiskConfig *swap, const char *fsType, const char *path)
+{
+    for (int i = 0; i < swap->n_configured; ++i) {
+        auto &disk = Dir(i);
+        if ((strcasecmp(path, disk.path)) == 0) {
+            /* this is specific to on-fs Stores. The right
+             * way to handle this is probably to have a mapping
+             * from paths to stores, and have on-fs stores
+             * register with that, and lookip in that in their
+             * own setup logic. RBC 20041225. TODO.
+             */
+
+            if (strcmp(disk.type(), fsType) == 0)
+                disk.reconfigure();
+            else
+                debugs(3, DBG_CRITICAL, "ERROR: Can't change type of existing cache_dir " <<
+                       disk.type() << " " << disk.path << " to " << fsType << ". Restart required");
+
+            return true;
+        }
+    }
+    return false;
+}
+
+void
+Store::Disks::CreateSwapDir(Store::DiskConfig *swap, SwapDir *dir, char *path)
+{
+    if (swap->n_configured > 63) {
+        /* 7 bits, signed */
+        debugs(3, DBG_CRITICAL, "WARNING: There is a fixed maximum of 63 cache_dir entries Squid can handle.");
+        debugs(3, DBG_CRITICAL, "WARNING: '" << path << "' is one to many.");
+        self_destruct();
+        return;
+    }
+
+    allocate_new_swapdir(swap);
+    swap->swapDirs[swap->n_configured] = dir;
+    auto &disk = Dir(swap->n_configured);
+    disk.parse(swap->n_configured, path);
+    ++swap->n_configured;
 }
 
 int64_t

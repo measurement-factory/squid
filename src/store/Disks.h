@@ -44,6 +44,10 @@ public:
 
     /// update configuration, including limits (re)calculation
     void configure();
+    /// \returns whether there is an existing cache_dir with path to be reconfigured
+    static bool ReconfigureSwapDir(Store::DiskConfig *swap, const char *fsType, const char *path);
+    /// creates a new cache_dir
+    static void CreateSwapDir(Store::DiskConfig *, SwapDir *, char *path);
 
     /// Additional unknown-size entry bytes required by disks in order to
     /// reduce the risk of selecting the wrong disk cache for the growing entry.
