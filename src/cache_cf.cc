@@ -64,7 +64,6 @@
 #include "Store.h"
 #include "store/Disk.h"
 #include "store/Disks.h"
-#include "StoreFileSystem.h"
 #include "tools.h"
 #include "util.h"
 #include "wordlist.h"
@@ -1968,41 +1967,10 @@ ParseAclWithAction(acl_access **access, const Acl::Answer &action, const char *d
     (*access)->add(rule, action);
 }
 
-/* TODO: just return the object, the # is irrelevant */
-static int
-find_fstype(char *type)
-{
-    for (size_t i = 0; i < StoreFileSystem::FileSystems().size(); ++i)
-        if (strcasecmp(type, StoreFileSystem::FileSystems().at(i)->type()) == 0)
-            return (int)i;
-
-    return (-1);
-}
-
 static void
 parse_cachedir(Store::DiskConfig *swap)
 {
-    char *type_str = ConfigParser::NextToken();
-    if (!type_str) {
-        self_destruct();
-        return;
-    }
-
-    char *path_str = ConfigParser::NextToken();
-    if (!path_str) {
-        self_destruct();
-        return;
-    }
-
-    int fs = find_fstype(type_str);
-    if (fs < 0) {
-        debugs(3, DBG_PARSE_NOTE(DBG_IMPORTANT), "ERROR: This proxy does not support the '" << type_str << "' cache type. Ignoring.");
-        return;
-    }
-
-
-    if (!Store::Disks::ReconfigureSwapDir(swap, StoreFileSystem::FileSystems().at(fs)->type(), path_str))
-        Store::Disks::CreateSwapDir(swap, StoreFileSystem::FileSystems().at(fs)->createSwapDir(), path_str);
+    Store::Disks::ReconfigureSwapDir(swap);
 }
 
 static const char *

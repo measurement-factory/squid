@@ -10,6 +10,7 @@
 
 #include "squid.h"
 #include "cache_cf.h"
+#include "ConfigParser.h"
 #include "Debug.h"
 #include "globals.h"
 #include "profiler/Profiler.h"
@@ -17,6 +18,7 @@
 #include "Store.h"
 #include "store/Disk.h"
 #include "store/Disks.h"
+#include "StoreFileSystem.h"
 #include "swap_log_op.h"
 #include "tools.h"
 #include "util.h" // for tvSubDsec() which should be in SquidTime.h
@@ -387,12 +389,44 @@ Store::Disks::configure()
     }
 }
 
-bool
-Store::Disks::ReconfigureSwapDir(Store::DiskConfig *swap, const char *fsType, const char *path)
+/* TODO: just return the object, the # is irrelevant */
+static int
+find_fstype(char *type)
 {
+    for (size_t i = 0; i < StoreFileSystem::FileSystems().size(); ++i)
+        if (strcasecmp(type, StoreFileSystem::FileSystems().at(i)->type()) == 0)
+            return (int)i;
+
+    return (-1);
+}
+
+void
+Store::Disks::ReconfigureSwapDir(Store::DiskConfig *swap)
+{
+    auto typeStr = ConfigParser::NextToken();
+    if (!typeStr) {
+        self_destruct();
+        return;
+    }
+
+    auto pathStr = ConfigParser::NextToken();
+    if (!pathStr) {
+        self_destruct();
+        return;
+    }
+
+    auto fs = find_fstype(typeStr);
+    if (fs < 0) {
+        debugs(3, DBG_PARSE_NOTE(DBG_IMPORTANT), "ERROR: This proxy does not support the '" << typeStr << "' cache type. Ignoring.");
+        return;
+    }
+
+    const auto fsType = StoreFileSystem::FileSystems().at(fs)->type();
+
+    // check for the existing cache_dir
     for (int i = 0; i < swap->n_configured; ++i) {
         auto &disk = Dir(i);
-        if ((strcasecmp(path, disk.path)) == 0) {
+        if ((strcasecmp(pathStr, disk.path)) == 0) {
             /* this is specific to on-fs Stores. The right
              * way to handle this is probably to have a mapping
              * from paths to stores, and have on-fs stores
@@ -406,27 +440,24 @@ Store::Disks::ReconfigureSwapDir(Store::DiskConfig *swap, const char *fsType, co
                 debugs(3, DBG_CRITICAL, "ERROR: Can't change type of existing cache_dir " <<
                        disk.type() << " " << disk.path << " to " << fsType << ". Restart required");
 
-            return true;
+            return;
         }
     }
-    return false;
-}
 
-void
-Store::Disks::CreateSwapDir(Store::DiskConfig *swap, SwapDir *dir, char *path)
-{
     if (swap->n_configured > 63) {
         /* 7 bits, signed */
         debugs(3, DBG_CRITICAL, "WARNING: There is a fixed maximum of 63 cache_dir entries Squid can handle.");
-        debugs(3, DBG_CRITICAL, "WARNING: '" << path << "' is one to many.");
+        debugs(3, DBG_CRITICAL, "WARNING: '" << pathStr << "' is one to many.");
         self_destruct();
         return;
     }
 
+    // create a new cache_dir
+
     allocate_new_swapdir(swap);
-    swap->swapDirs[swap->n_configured] = dir;
+    swap->swapDirs[swap->n_configured] = StoreFileSystem::FileSystems().at(fs)->createSwapDir();
     auto &disk = Dir(swap->n_configured);
-    disk.parse(swap->n_configured, path);
+    disk.parse(swap->n_configured, pathStr);
     ++swap->n_configured;
 }
 
