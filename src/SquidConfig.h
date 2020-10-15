@@ -50,6 +50,7 @@ class HeaderManglers;
 class RefreshPattern;
 class RemovalPolicySettings;
 class HttpUpgradeProtocolAccess;
+class StoreEntry;
 
 namespace AnyP
 {
@@ -61,6 +62,7 @@ class DiskConfig {
 public:
     DiskConfig() { assert(swapDirs == nullptr); }
     ~DiskConfig() { delete[] swapDirs; }
+    void dump(StoreEntry *entry, const char *name) const;
 
     RefCount<SwapDir> *swapDirs = nullptr;
     int n_allocated = 0;
