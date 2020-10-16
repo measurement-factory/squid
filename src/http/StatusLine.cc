@@ -114,11 +114,14 @@ Http::StatusLine::parse(const String &protoPrefix, const char *start, const char
         return false;
 
     start++;
-    if (end - start < 4)
+
+    static const auto statusLength = 4; // the status field length plus delimiter
+
+    if (end - start < statusLength)
         return false;
 
     static SBuf statusBuf;
-    statusBuf.assign(start, 4);
+    statusBuf.assign(start, statusLength);
     Parser::Tokenizer tok(statusBuf);
     if (!One::ResponseParser::ParseResponseStatus(tok, status_))
         return false;
