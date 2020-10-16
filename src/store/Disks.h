@@ -44,8 +44,9 @@ public:
 
     /// update configuration, including limits (re)calculation
     void configure();
-    /// reconfigures the existing cache_dir or creates a new one
-    static void ReconfigureSwapDir(Store::DiskConfig *);
+    /// parses a single cache_dir configuration line
+    static void Parse(Store::DiskConfig *);
+    /// prints the configuration into the provided StoreEntry
     static void Dump(const Store::DiskConfig &, StoreEntry &, const char *name);
 
     /// Additional unknown-size entry bytes required by disks in order to

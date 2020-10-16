@@ -407,7 +407,7 @@ find_fstype(char *type)
 }
 
 void
-Store::Disks::ReconfigureSwapDir(Store::DiskConfig *swap)
+Store::Disks::Parse(Store::DiskConfig *swap)
 {
     auto typeStr = ConfigParser::NextToken();
     if (!typeStr) {
