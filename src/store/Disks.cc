@@ -51,6 +51,14 @@ objectSizeForDirSelection(const StoreEntry &entry)
     return minSize;
 }
 
+static SwapDir &
+SwapDirByIndex(const int i)
+{
+    SwapDir *sd = INDEXSD(i);
+    assert(sd);
+    return *sd;
+}
+
 /**
  * This new selection scheme simply does round-robin on all SwapDirs.
  * A SwapDir is skipped if it is over the max_size (100%) limit, or
@@ -71,7 +79,7 @@ storeDirSelectSwapDirRoundRobin(const StoreEntry * e)
         const int dirn = (firstCandidate + i) % Config.cacheSwap.n_configured;
 
         int load = 0;
-        if (!Store::Disks::Dir(dirn).canStore(*e, objsize, load))
+        if (!SwapDirByIndex(dirn).canStore(*e, objsize, load))
             continue;
 
         if (load < 0 || load > 1000) {
@@ -110,7 +118,7 @@ storeDirSelectSwapDirLeastLoad(const StoreEntry * e)
     const int64_t objsize = objectSizeForDirSelection(*e);
 
     for (i = 0; i < Config.cacheSwap.n_configured; ++i) {
-        auto &sd = Store::Disks::Dir(i);
+        auto &sd = SwapDirByIndex(i);
         sd.flags.selected = false;
 
         if (!sd.canStore(*e, objsize, load))
@@ -147,7 +155,7 @@ storeDirSelectSwapDirLeastLoad(const StoreEntry * e)
     }
 
     if (dirn >= 0)
-        Store::Disks::Dir(dirn).flags.selected = true;
+        SwapDirByIndex(dirn).flags.selected = true;
 
     return dirn;
 }
@@ -168,9 +176,7 @@ Store::Disks::store(int const x) const
 SwapDir &
 Store::Disks::Dir(const int i)
 {
-    SwapDir *sd = INDEXSD(i);
-    assert(sd);
-    return *sd;
+    return SwapDirByIndex(i);
 }
 
 int
@@ -461,6 +467,17 @@ Store::Disks::ReconfigureSwapDir(Store::DiskConfig *swap)
     ++swap->n_configured;
 }
 
+void
+Store::Disks::Dump(const Store::DiskConfig &swap, StoreEntry &entry, const char *name)
+{
+   for (int i = 0; i < swap.n_configured; ++i) {
+       auto &disk = SwapDirByIndex(i);
+       storeAppendPrintf(&entry, "%s %s %s", name, disk.type(), disk.path);
+       disk.dump(entry);
+       storeAppendPrintf(&entry, "\n");
+   }
+}
+
 int64_t
 Store::Disks::accumulateMore(const StoreEntry &entry) const
 {
@@ -721,7 +738,7 @@ storeDirWriteCleanLogs(int reopen)
         notdone = 0;
 
         for (dirn = 0; dirn < Config.cacheSwap.n_configured; ++dirn) {
-            auto &sd = Store::Disks::Dir(dirn);
+            auto &sd = SwapDirByIndex(dirn);
 
             if (!sd.cleanLog)
                 continue;
@@ -748,7 +765,7 @@ storeDirWriteCleanLogs(int reopen)
 
     /* Flush */
     for (dirn = 0; dirn < Config.cacheSwap.n_configured; ++dirn)
-        Store::Disks::Dir(dirn).writeCleanDone();
+        SwapDirByIndex(dirn).writeCleanDone();
 
     if (reopen)
         storeDirOpenSwapLogs();
@@ -839,6 +856,6 @@ storeDirSwapLog(const StoreEntry * e, int op)
            e->swap_dirn << " " <<
            std::hex << std::uppercase << std::setfill('0') << std::setw(8) << e->swap_filen);
 
-    Store::Disks::Dir(e->swap_dirn).logEntry(*e, op);
+    SwapDirByIndex(e->swap_dirn).logEntry(*e, op);
 }
 
