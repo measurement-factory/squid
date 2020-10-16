@@ -62,7 +62,6 @@
 #include "SquidString.h"
 #include "ssl/ProxyCerts.h"
 #include "Store.h"
-#include "store/Disk.h"
 #include "store/Disks.h"
 #include "tools.h"
 #include "util.h"
