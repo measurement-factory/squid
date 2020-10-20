@@ -50,7 +50,6 @@ class HeaderManglers;
 class RefreshPattern;
 class RemovalPolicySettings;
 class HttpUpgradeProtocolAccess;
-class StoreEntry;
 
 namespace AnyP
 {

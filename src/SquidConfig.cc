@@ -8,8 +8,6 @@
 
 #include "squid.h"
 #include "SquidConfig.h"
-#include "Store.h"
-#include "store/Disks.h"
 
 class SquidConfig Config;
 
