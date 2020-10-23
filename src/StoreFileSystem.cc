@@ -73,8 +73,7 @@ StoreFileSystem::FreeAllFs()
 StoreFileSystem *
 StoreFileSystem::FindByType(const char *type)
 {
-    for (size_t i = 0; i < FileSystems().size(); ++i) {
-        auto fs = FileSystems().at(i);
+    for (const auto fs: FileSystems()) {
         if (strcasecmp(type, fs->type()) == 0)
             return fs;
     }

@@ -56,7 +56,7 @@ objectSizeForDirSelection(const StoreEntry &entry)
 static SwapDir &
 SwapDirByIndex(const int i)
 {
-    SwapDir *sd = INDEXSD(i);
+    const auto sd = INDEXSD(i);
     assert(sd);
     return *sd;
 }
@@ -413,13 +413,13 @@ Store::Disks::Parse(Store::DiskConfig &swap)
 {
     const auto typeStr = ConfigParser::NextToken();
     if (!typeStr)
-        throw TextException("missing swap_dir storage type", Here());
+        throw TextException("missing cache_dir parameter: storage type", Here());
 
     const auto pathStr = ConfigParser::NextToken();
     if (!pathStr)
-        throw TextException("missing swap_dir directory name", Here());
+        throw TextException("missing cache_dir parameter: directory name", Here());
 
-    auto fs = StoreFileSystem::FindByType(typeStr);
+    const auto fs = StoreFileSystem::FindByType(typeStr);
     if (!fs) {
         debugs(3, DBG_PARSE_NOTE(DBG_IMPORTANT), "ERROR: This proxy does not support the '" << typeStr << "' cache type. Ignoring.");
         return;
@@ -448,8 +448,8 @@ Store::Disks::Parse(Store::DiskConfig &swap)
         }
     }
 
-    const int cacheDirCountLimit = 64;
-    if (swap.n_configured >= cacheDirCountLimit) // 7 bits, signed
+    const int cacheDirCountLimit = 64; // StoreEntry::swap_dirn is a signed 7-bit integer
+    if (swap.n_configured >= cacheDirCountLimit)
         throw TextException(ToSBuf("Squid cannot handle more than ", cacheDirCountLimit, " cache_dir directives"), Here());
 
     // create a new cache_dir
