@@ -14,6 +14,7 @@
 #include "Debug.h"
 #include "globals.h"
 #include "profiler/Profiler.h"
+#include "sbuf/Stream.h"
 #include "SquidConfig.h"
 #include "Store.h"
 #include "store/Disk.h"
@@ -24,7 +25,7 @@
 #include "tools.h"
 #include "util.h" // for tvSubDsec() which should be in SquidTime.h
 
-typedef int STDIRSELECT(const StoreEntry *e);
+typedef SwapDir *STDIRSELECT(const StoreEntry *e);
 
 static STDIRSELECT storeDirSelectSwapDirRoundRobin;
 static STDIRSELECT storeDirSelectSwapDirLeastLoad;
@@ -65,7 +66,7 @@ SwapDirByIndex(const int i)
  * A SwapDir is skipped if it is over the max_size (100%) limit, or
  * overloaded.
  */
-static int
+static SwapDir *
 storeDirSelectSwapDirRoundRobin(const StoreEntry * e)
 {
     const int64_t objsize = objectSizeForDirSelection(*e);
@@ -78,19 +79,20 @@ storeDirSelectSwapDirRoundRobin(const StoreEntry * e)
 
     for (int i = 0; i < Config.cacheSwap.n_configured; ++i) {
         const int dirn = (firstCandidate + i) % Config.cacheSwap.n_configured;
+        auto &dir = SwapDirByIndex(dirn);
 
         int load = 0;
-        if (!SwapDirByIndex(dirn).canStore(*e, objsize, load))
+        if (!dir.canStore(*e, objsize, load))
             continue;
 
         if (load < 0 || load > 1000) {
             continue;
         }
 
-        return dirn;
+        return &dir;
     }
 
-    return -1;
+    return nullptr;
 }
 
 /**
@@ -106,14 +108,14 @@ storeDirSelectSwapDirRoundRobin(const StoreEntry * e)
  * ALL swapdirs, regardless of state. Again, this is a hack while
  * we sort out the real usefulness of this algorithm.
  */
-static int
+static SwapDir *
 storeDirSelectSwapDirLeastLoad(const StoreEntry * e)
 {
     int64_t most_free = 0;
     int64_t best_objsize = -1;
     int least_load = INT_MAX;
     int load;
-    int dirn = -1;
+    SwapDir *selectedDir = nullptr;
     int i;
 
     const int64_t objsize = objectSizeForDirSelection(*e);
@@ -152,13 +154,13 @@ storeDirSelectSwapDirLeastLoad(const StoreEntry * e)
         least_load = load;
         best_objsize = sd.maxObjectSize();
         most_free = cur_free;
-        dirn = i;
+        selectedDir = &sd;
     }
 
-    if (dirn >= 0)
-        SwapDirByIndex(dirn).flags.selected = true;
+    if (selectedDir)
+        selectedDir->flags.selected = true;
 
-    return dirn;
+    return selectedDir;
 }
 
 Store::Disks::Disks():
@@ -375,6 +377,9 @@ Store::Disks::maxObjectSize() const
 void
 Store::Disks::configure()
 {
+    if (!Config.cacheSwap.swapDirs)
+        Controller::store_dirs_rebuilding = 0; // nothing to index
+
     largestMinimumObjectSize = -1;
     largestMaximumObjectSize = -1;
     secondLargestMaximumObjectSize = -1;
@@ -403,42 +408,27 @@ Store::Disks::configure()
     }
 }
 
-/* TODO: just return the object, the # is irrelevant */
-static int
-find_fstype(char *type)
-{
-    for (size_t i = 0; i < StoreFileSystem::FileSystems().size(); ++i)
-        if (strcasecmp(type, StoreFileSystem::FileSystems().at(i)->type()) == 0)
-            return (int)i;
-
-    return (-1);
-}
-
 void
-Store::Disks::Parse(Store::DiskConfig *swap)
+Store::Disks::Parse(Store::DiskConfig &swap)
 {
-    auto typeStr = ConfigParser::NextToken();
-    if (!typeStr) {
-        self_destruct();
-        return;
-    }
+    const auto typeStr = ConfigParser::NextToken();
+    if (!typeStr)
+        throw TextException("missing swap_dir storage type", Here());
 
-    auto pathStr = ConfigParser::NextToken();
-    if (!pathStr) {
-        self_destruct();
-        return;
-    }
+    const auto pathStr = ConfigParser::NextToken();
+    if (!pathStr)
+        throw TextException("missing swap_dir directory name", Here());
 
-    auto fs = find_fstype(typeStr);
-    if (fs < 0) {
+    auto fs = StoreFileSystem::FindByType(typeStr);
+    if (!fs) {
         debugs(3, DBG_PARSE_NOTE(DBG_IMPORTANT), "ERROR: This proxy does not support the '" << typeStr << "' cache type. Ignoring.");
         return;
     }
 
-    const auto fsType = StoreFileSystem::FileSystems().at(fs)->type();
+    const auto fsType = fs->type();
 
     // check for the existing cache_dir
-    for (int i = 0; i < swap->n_configured; ++i) {
+    for (int i = 0; i < swap.n_configured; ++i) {
         auto &disk = Dir(i);
         if ((strcasecmp(pathStr, disk.path)) == 0) {
             /* this is specific to on-fs Stores. The right
@@ -458,28 +448,24 @@ Store::Disks::Parse(Store::DiskConfig *swap)
         }
     }
 
-    if (swap->n_configured > 63) {
-        /* 7 bits, signed */
-        debugs(3, DBG_CRITICAL, "WARNING: There is a fixed maximum of 63 cache_dir entries Squid can handle.");
-        debugs(3, DBG_CRITICAL, "WARNING: '" << pathStr << "' is one to many.");
-        self_destruct();
-        return;
-    }
+    const int cacheDirCountLimit = 64;
+    if (swap.n_configured >= cacheDirCountLimit) // 7 bits, signed
+        throw TextException(ToSBuf("Squid cannot handle more than ", cacheDirCountLimit, " cache_dir directives"), Here());
 
     // create a new cache_dir
 
     allocate_new_swapdir(swap);
-    swap->swapDirs[swap->n_configured] = StoreFileSystem::FileSystems().at(fs)->createSwapDir();
-    auto &disk = Dir(swap->n_configured);
-    disk.parse(swap->n_configured, pathStr);
-    ++swap->n_configured;
+    swap.swapDirs[swap.n_configured] = fs->createSwapDir();
+    auto &disk = Dir(swap.n_configured);
+    disk.parse(swap.n_configured, pathStr);
+    ++swap.n_configured;
 }
 
 void
 Store::Disks::Dump(const Store::DiskConfig &swap, StoreEntry &entry, const char *name)
 {
    for (int i = 0; i < swap.n_configured; ++i) {
-       auto &disk = SwapDirByIndex(i);
+       const auto &disk = SwapDirByIndex(i);
        storeAppendPrintf(&entry, "%s %s %s", name, disk.type(), disk.path);
        disk.dump(entry);
        storeAppendPrintf(&entry, "\n");
@@ -668,8 +654,7 @@ Store::Disks::SmpAware()
 SwapDir *
 Store::Disks::SelectSwapDir(const StoreEntry *e)
 {
-    const auto dirn = storeDirSelectSwapDir(e);
-    return dirn == -1 ? nullptr : &Dir(dirn);
+    return storeDirSelectSwapDir(e);
 }
 
 bool
@@ -792,21 +777,21 @@ storeDirWriteCleanLogs(int reopen)
 /* Globals that should be converted to static Store::Disks methods */
 
 void
-allocate_new_swapdir(Store::DiskConfig *swap)
+allocate_new_swapdir(Store::DiskConfig &swap)
 {
-    if (!swap->swapDirs) {
-        swap->n_allocated = 4;
-        swap->swapDirs = new SwapDir::Pointer[swap->n_allocated];
+    if (!swap.swapDirs) {
+        swap.n_allocated = 4;
+        swap.swapDirs = new SwapDir::Pointer[swap.n_allocated];
     }
 
-    if (swap->n_allocated == swap->n_configured) {
-        swap->n_allocated <<= 1;
-        const auto tmp = new SwapDir::Pointer[swap->n_allocated];
-        for (int i = 0; i < swap->n_configured; ++i) {
-            tmp[i] = swap->swapDirs[i];
+    if (swap.n_allocated == swap.n_configured) {
+        swap.n_allocated <<= 1;
+        const auto tmp = new SwapDir::Pointer[swap.n_allocated];
+        for (int i = 0; i < swap.n_configured; ++i) {
+            tmp[i] = swap.swapDirs[i];
         }
-        delete[] swap->swapDirs;
-        swap->swapDirs = tmp;
+        delete[] swap.swapDirs;
+        swap.swapDirs = tmp;
     }
 }
 

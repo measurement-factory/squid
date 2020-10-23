@@ -1960,7 +1960,8 @@ ParseAclWithAction(acl_access **access, const Acl::Answer &action, const char *d
 static void
 parse_cachedir(Store::DiskConfig *swap)
 {
-    Store::Disks::Parse(swap);
+    assert(swap);
+    Store::Disks::Parse(*swap);
 }
 
 static const char *

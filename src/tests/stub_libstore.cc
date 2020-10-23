@@ -126,14 +126,14 @@ void Disks::configure() STUB
 int64_t Disks::accumulateMore(const StoreEntry&) const STUB_RETVAL(0)
 bool Disks::SmpAware() STUB_RETVAL(false)
 bool Disks::hasReadableEntry(const StoreEntry &) const STUB_RETVAL(false)
-void Disks::Parse(Store::DiskConfig *) STUB
+void Disks::Parse(Store::DiskConfig &) STUB
 void Disks::Dump(const Store::DiskConfig &, StoreEntry &, const char *name) STUB
 SwapDir *Store::Disks::SelectSwapDir(const StoreEntry *) STUB_RETVAL(nullptr)
 }
 void storeDirOpenSwapLogs(void) STUB
 int storeDirWriteCleanLogs(int) STUB_RETVAL(0)
 void storeDirCloseSwapLogs(void) STUB
-void allocate_new_swapdir(Store::DiskConfig *) STUB
+void allocate_new_swapdir(Store::DiskConfig &) STUB
 void free_cachedir(Store::DiskConfig *) STUB;
 void storeDirSwapLog(const StoreEntry *, int) STUB
 

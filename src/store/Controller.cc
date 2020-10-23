@@ -197,12 +197,6 @@ Store::Controller::maxObjectSize() const
 void
 Store::Controller::configure()
 {
-    if (!Config.cacheSwap.swapDirs) {
-        // Memory-only cache probably in effect.
-        // turn off the cache rebuild delays...
-        store_dirs_rebuilding = 0;
-    }
-
     swapDir->configure();
 
     // update limits

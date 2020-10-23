@@ -45,7 +45,7 @@ public:
     /// update configuration, including limits (re)calculation
     void configure();
     /// parses a single cache_dir configuration line
-    static void Parse(Store::DiskConfig *);
+    static void Parse(Store::DiskConfig &);
     /// prints the configuration into the provided StoreEntry
     static void Dump(const Store::DiskConfig &, StoreEntry &, const char *name);
 
@@ -76,7 +76,7 @@ int storeDirWriteCleanLogs(int reopen);
 void storeDirCloseSwapLogs(void);
 
 /* Globals that should be converted to static Store::Disks methods */
-void allocate_new_swapdir(Store::DiskConfig *swap);
+void allocate_new_swapdir(Store::DiskConfig &swap);
 void free_cachedir(Store::DiskConfig *swap);
 
 
