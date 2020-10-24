@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1996-2018 The Squid Software Foundation and contributors
+ * Copyright (C) 1996-2020 The Squid Software Foundation and contributors
  *
  * Squid software is distributed under GPLv2+ license and includes
  * contributions from numerous individuals and organizations.
@@ -11,7 +11,6 @@
 
 #include "ipc/mem/FlexibleArray.h"
 
-#include <array>
 #include <atomic>
 #include <limits>
 
@@ -126,7 +125,7 @@ public:
         size_t pageSize = 0; ///< page size, used to calculate shared memory size
         PageCount capacity = 0; ///< the maximum number of pages
 
-        /// whether a newly created PageStack should contain capacity IDs
+        /// whether a newly created PageStack should be prefilled with PageIds
         bool createFull = false;
     };
 
@@ -155,7 +154,6 @@ public:
 
 private:
     const Config config_;
-
     /// a lower bound for the number of free pages (for debugging purposes)
     std::atomic<PageCount> size_;
 

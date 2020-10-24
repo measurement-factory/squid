@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1996-2018 The Squid Software Foundation and contributors
+ * Copyright (C) 1996-2020 The Squid Software Foundation and contributors
  *
  * Squid software is distributed under GPLv2+ license and includes
  * contributions from numerous individuals and organizations.
@@ -16,6 +16,29 @@
 
 #include <cmath>
 #include <algorithm>
+
+/*
+
+Ipc::Mem::IdSet and related code maintains a perfect full binary tree structure:
+
+         (l,r)
+           /\
+    (ll,lr)  (rl,rr)
+       /\      /\
+      L1 L2   L3 L4
+
+where
+
+    * (l,r) is an always-present root node;
+    * inner nodes, including the root one, count the total number of available
+      IDs in the leaf nodes of the left and right subtrees (e.g., r = rl + rr);
+    * leaf nodes are bitsets of available IDs (e.g., rl = number of 1s in L3);
+      all leaf nodes are always present.
+
+The above sample tree would be stored as seven 64-bit atomic integers:
+    (l,r), (ll,lr), (rl,rr), L1, L2, L3, L4
+
+*/
 
 namespace Ipc
 {
@@ -173,12 +196,13 @@ void
 Ipc::Mem::IdSet::truncateExtras()
 {
     // leaf nodes
-    // the left-most leaf with zero(s); it may even have no ones at all
+    // start with the left-most leaf that should have some 0s; it may even have
+    // no 1s at all (i.e. be completely unused)
     auto pos = Position(measurements.treeHeight-1, measurements.capacity/BitsPerLeaf);
     leafTruncate(pos, measurements.capacity % BitsPerLeaf);
     const auto rightLeaves = measurements.leafNodeCount - measurements.requestedLeafNodeCount;
-    // this nullification of leaves is only necessary to trigger asserts if
-    // there is a bug in the code that updates inner nodes/counters below
+    // this zeroing of the leaf nodes to the right from pos is only necessary to
+    // trigger asserts if the code dealing with the inner node counters is buggy
     if (rightLeaves > 1)
         std::fill_n(valueAddress(pos) + 1, rightLeaves-1, 0);
 
@@ -200,7 +224,7 @@ Ipc::Mem::IdSet::leafTruncate(const Position pos, const size_type idsToKeep)
     assert(node == std::numeric_limits<Node>::max()); // all 1s
     static_assert(std::is_unsigned<Node>::value, "right shift prepends 0s");
     node >>= BitsPerLeaf - idsToKeep;
-    // node be anything here, including becoming zero or staying the same
+    // node can be anything here, including all 0s and all 1s
 }
 
 /// accounts for toSubtract IDs removal from a subtree in the given direction of
@@ -221,7 +245,7 @@ Ipc::Mem::IdSet::innerTruncate(const Position pos, const NavigationDirection dir
         assert(dir == dirRight);
         toSubtractNext = toSubtract;
         assert(value.right >= toSubtract);
-        value.left = value.left;
+        // value.left is unchanged; we have only adjusted the right branch
         value.right -= toSubtract;
     }
     *valuePtr = value.pack();
@@ -299,8 +323,8 @@ Ipc::Mem::IdSet::leafPop(const Position pos)
     Node newValue;
     do {
         assert(oldValue > 0);
-        const auto mask = oldValue - 1; // flips (the last 1 and trailing 0s)
-        newValue = oldValue & mask;
+        const auto mask = oldValue - 1; // flips the rightmost 1 and trailing 0s
+        newValue = oldValue & mask; // clears the rightmost 1
     } while (!node.compare_exchange_weak(oldValue, newValue));
 
     return pos.offset*BitsPerLeaf + trailingZeros(oldValue);
