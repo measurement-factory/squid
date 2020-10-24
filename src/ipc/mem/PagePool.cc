@@ -21,7 +21,13 @@ Ipc::Mem::PagePool::Init(const char *const id, const unsigned int capacity, cons
     static uint32_t LastPagePoolId = 0;
     if (++LastPagePoolId == 0)
         ++LastPagePoolId; // skip zero pool id
-    return shm_new(PageStack)(id, LastPagePoolId, capacity, pageSize);
+
+    PageStack::Config config;
+    config.poolId = LastPagePoolId;
+    config.pageSize = pageSize; // the pages are stored in Ipc::Mem::Pages
+    config.capacity = capacity;
+    config.createFull = true; // all pages are initially available
+    return shm_new(PageStack)(id, config);
 }
 
 Ipc::Mem::PagePool::PagePool(const char *const id):

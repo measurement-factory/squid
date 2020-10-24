@@ -1133,17 +1133,14 @@ void Rock::SwapDirRr::create()
             mapOwners.push_back(mapOwner);
 
             // TODO: somehow remove pool id and counters from PageStack?
+            Ipc::Mem::PageStack::Config config;
+            config.poolId = i+1;
+            config.pageSize = 0; // this is an index of slots on _disk_
+            config.capacity = capacity;
+            config.createFull = false; // Rebuild finds and pushes free slots
             Ipc::Mem::Owner<Ipc::Mem::PageStack> *const freeSlotsOwner =
-                shm_new(Ipc::Mem::PageStack)(sd->freeSlotsPath(),
-                                             i+1, capacity, 0);
+                shm_new(Ipc::Mem::PageStack)(sd->freeSlotsPath(), config);
             freeSlotsOwners.push_back(freeSlotsOwner);
-
-            // TODO: add method to initialize PageStack with no free pages
-            while (true) {
-                Ipc::Mem::PageId pageId;
-                if (!freeSlotsOwner->object()->pop(pageId))
-                    break;
-            }
         }
     }
 }
