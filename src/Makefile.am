@@ -1513,6 +1513,7 @@ tests_testStore_SOURCES = \
 	StatCounters.h \
 	StatHist.cc \
 	StatHist.h \
+	StoreFileSystem.cc \
 	tests/testStore.cc \
 	tests/testStore.h \
 	tests/testStoreController.cc \
@@ -1794,7 +1795,6 @@ tests_testDiskIO_LDADD = \
 	dns/libdns.la \
 	base/libbase.la \
 	mem/libmem.la \
-	store/libstore.la \
 	sbuf/libsbuf.la \
 	$(top_builddir)/lib/libmisccontainers.la \
 	$(top_builddir)/lib/libmiscencoding.la \

@@ -48,13 +48,6 @@ StoreRebuildData::updateStartTime(const timeval &dirStartTime)
     startTime = started() ? std::min(startTime, dirStartTime) : dirStartTime;
 }
 
-static int
-storeCleanupDoubleCheck(StoreEntry * e)
-{
-    SwapDir *SD = dynamic_cast<SwapDir *>(INDEXSD(e->swap_dirn));
-    return (SD->doubleCheck(*e));
-}
-
 static void
 storeCleanup(void *)
 {
@@ -87,7 +80,7 @@ storeCleanup(void *)
             continue;
 
         if (opt_store_doublecheck)
-            if (storeCleanupDoubleCheck(e))
+            if (e->disk().doubleCheck(*e))
                 ++store_errors;
 
         EBIT_SET(e->flags, ENTRY_VALIDATED);
