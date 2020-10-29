@@ -3881,22 +3881,23 @@ parsePortCfg(AnyP::PortCfgPointer *head, const char *optionName)
 
     if (s->transport.protocol == AnyP::PROTO_HTTPS) {
         s->secure.encryptTransport = true;
-        const auto hijacked = s->flags.isIntercepted();
+        const auto isIntercepted = s->flags.isIntercepted();
 #if USE_OPENSSL
-        /* ssl-bump on https_port configuration requires one of tproxy, intercept or require-proxy-header and vice versa */
-        const auto sslBumpRequiredOption = hijacked || s->flags.proxySurrogate;
-        if (s->flags.tunnelSslBumping && !sslBumpRequiredOption) {
+        // https_port: ssl-bump requires either tproxy or intercept or
+        // require-proxy-header and vice versa
+        const auto expectingSslBumpOption = isIntercepted || s->flags.proxySurrogate;
+        if (s->flags.tunnelSslBumping && !expectingSslBumpOption) {
             debugs(3, DBG_CRITICAL, "FATAL: ssl-bump on https_port requires tproxy/intercept/require-proxy-header which is missing.");
             self_destruct();
             return;
         }
-        if (sslBumpRequiredOption && !s->flags.tunnelSslBumping) {
+        if (expectingSslBumpOption && !s->flags.tunnelSslBumping) {
             debugs(3, DBG_CRITICAL, "FATAL: tproxy/intercept/require-proxy-header on https_port requires ssl-bump which is missing.");
             self_destruct();
             return;
         }
 #endif
-        if (s->flags.proxySurrogate && (hijacked || s->flags.accelSurrogate)) {
+        if (s->flags.proxySurrogate && (isIntercepted || s->flags.accelSurrogate)) {
             debugs(3, DBG_CRITICAL, "FATAL: require-proxy-header option is incompatible with tproxy/intercept/accel for https_port.");
             self_destruct();
             return;

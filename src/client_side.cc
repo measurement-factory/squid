@@ -3498,7 +3498,7 @@ clientListenerConnectionOpened(AnyP::PortCfgPointer &s, const Ipc::FdNoteId port
            (s->flags.tunnelSslBumping ? "SSL bumped " : "") <<
            (s->flags.accelSurrogate ? "reverse-proxy " : "") <<
            FdNote(portTypeNote) << " connections " <<
-           (s->flags.proxySurrogate ? "with PROXY protocol headers " : "") <<
+           (s->flags.proxySurrogate ? "with PROXY protocol header " : "") <<
            "at " << s->listenConn);
 
     Must(AddOpenedHttpSocket(s->listenConn)); // otherwise, we have received a fd we did not ask for
