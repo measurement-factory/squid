@@ -104,8 +104,7 @@ public:
         if (http.valid() && http->getConn() && http->getConn()->serverBump() && http->getConn()->serverBump()->at(XactionStep::tlsBump2, XactionStep::tlsBump3))
             return false;
 #endif
-        return !(request != NULL &&
-                 (request->flags.interceptTproxy || request->flags.intercepted));
+        return !(request && request->isIntercepted());
     }
 
     /// starts connecting to the next hop, either for the first time or while

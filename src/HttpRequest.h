@@ -105,6 +105,8 @@ public:
     /// associates the request with a from-client connection manager
     void manager(const CbcPointer<ConnStateData> &aMgr, const AccessLogEntryPointer &al);
 
+    bool isIntercepted() const { return masterXaction->squidPort->flags.isIntercepted(); }
+
 protected:
     void clean();
 

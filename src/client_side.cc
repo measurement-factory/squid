@@ -2652,7 +2652,7 @@ ConnStateData::httpsSslBumpStep1AccessCheck()
     // XXX: Do this earlier (e.g., in Http[s]::One::Server constructor).
     HttpRequest *request = new HttpRequest(mx);
     static char ip[MAX_IPSTRLEN];
-    assert(clientConnection->flags & (COMM_TRANSPARENT | COMM_INTERCEPTION));
+    assert(transparent() || port->flags.proxyProtocolSslBump());
     request->url.host(clientConnection->local.toStr(ip, sizeof(ip)));
     request->url.port(clientConnection->local.port());
     request->myportname = port->name;
@@ -3493,8 +3493,8 @@ clientListenerConnectionOpened(AnyP::PortCfgPointer &s, const Ipc::FdNoteId port
     AsyncJob::Start(new Comm::TcpAcceptor(s, FdNote(portTypeNote), sub));
 
     debugs(1, DBG_IMPORTANT, "Accepting " <<
-           ((s->flags.natIntercept && !s->flags.proxySurrogate) ? "NAT intercepted " : "") <<
-           ((s->flags.tproxyIntercept && !s->flags.proxySurrogate) ? "TPROXY intercepted " : "") <<
+           (s->flags.natIntercept ? "NAT intercepted " : "") <<
+           (s->flags.tproxyIntercept ? "TPROXY intercepted " : "") <<
            (s->flags.tunnelSslBumping ? "SSL bumped " : "") <<
            (s->flags.accelSurrogate ? "reverse-proxy " : "") <<
            FdNote(portTypeNote) << " connections " <<

@@ -559,7 +559,7 @@ HttpRequest::maybeCacheable()
     // Because it failed verification, or someone bypassed the security tests
     // we cannot cache the reponse for sharing between clients.
     // TODO: update cache to store for particular clients only (going to same Host: and destination IP)
-    if (!flags.hostVerified && (flags.intercepted || flags.interceptTproxy))
+    if (!flags.hostVerified && isIntercepted())
         return false;
 
     switch (url.getScheme()) {
@@ -815,8 +815,7 @@ FindListeningPortAddress(const HttpRequest *callerRequest, const AccessLogEntry 
     if (!ip && ale)
         ip = FindListeningPortAddressInPort(ale->cache.port);
 
-    // XXX: also handle PROXY protocol here when we have a flag to identify such request
-    if (ip || request->flags.interceptTproxy || request->flags.intercepted)
+    if (ip || request->isIntercepted())
         return ip;
 
     /* handle non-intercepted cases that were not handled above */

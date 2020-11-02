@@ -3881,31 +3881,25 @@ parsePortCfg(AnyP::PortCfgPointer *head, const char *optionName)
 
     if (s->transport.protocol == AnyP::PROTO_HTTPS) {
         s->secure.encryptTransport = true;
-        const auto isIntercepted = s->flags.isIntercepted();
 #if USE_OPENSSL
         // https_port: ssl-bump requires either tproxy or intercept or
         // require-proxy-header and vice versa
-        const auto expectingSslBumpOption = isIntercepted || s->flags.proxySurrogate;
-        if (s->flags.tunnelSslBumping && !expectingSslBumpOption) {
+        if (s->flags.tunnelSslBumping && !s->flags.isIntercepted()) {
             debugs(3, DBG_CRITICAL, "FATAL: ssl-bump on https_port requires tproxy/intercept/require-proxy-header which is missing.");
             self_destruct();
             return;
         }
-        if (expectingSslBumpOption && !s->flags.tunnelSslBumping) {
+        if (s->flags.isIntercepted() && !s->flags.tunnelSslBumping) {
             debugs(3, DBG_CRITICAL, "FATAL: tproxy/intercept/require-proxy-header on https_port requires ssl-bump which is missing.");
             self_destruct();
             return;
         }
 #endif
-        if (s->flags.proxySurrogate && (isIntercepted || s->flags.accelSurrogate)) {
+        if (s->flags.proxySurrogate && (s->flags.natIntercept || s->flags.tproxyIntercept || s->flags.accelSurrogate)) {
             debugs(3, DBG_CRITICAL, "FATAL: require-proxy-header option is incompatible with tproxy/intercept/accel for https_port.");
             self_destruct();
             return;
         }
-
-        if (s->flags.tunnelSslBumping && s->flags.proxySurrogate)
-            s->flags.natIntercept = true; // emulate interception for PROXY protocol
-
     } else if (protoName.cmp("FTP") == 0) {
         /* ftp_port does not support ssl-bump */
         if (s->flags.tunnelSslBumping) {

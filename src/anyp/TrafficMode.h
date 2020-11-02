@@ -76,7 +76,9 @@ public:
     /** true if the traffic is in any way intercepted
      *
      */
-    bool isIntercepted() { return natIntercept||tproxyIntercept ;}
+    bool isIntercepted() const { return natIntercept || tproxyIntercept || proxyProtocolSslBump();}
+
+    bool proxyProtocolSslBump() const { return tunnelSslBumping && proxySurrogate; }
 };
 
 } // namespace AnyP
