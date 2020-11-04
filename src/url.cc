@@ -269,8 +269,9 @@ urlParse(const HttpRequestMethod& method, char *url, HttpRequest *request)
             return NULL;
         *dst = '\0';
 
-        // bug 3074: received 'path' starting with '?', '#', or '\0' implies '/'
-        if (*src == '?' || *src == '#' || *src == '\0') {
+        // We are looking at path-abempty.
+        if (*src != '/') {
+            // path-empty, including the end of the `src` c-string cases
             urlpath[0] = '/';
             dst = &urlpath[1];
         } else {
@@ -284,11 +285,6 @@ urlParse(const HttpRequestMethod& method, char *url, HttpRequest *request)
         /* We -could- be at the end of the buffer here */
         if (i > l)
             return NULL;
-        /* If the URL path is empty we set it to be "/" */
-        if (dst == urlpath) {
-            *dst = '/';
-            ++dst;
-        }
         *dst = '\0';
 
         protocol = urlParseProtocol(proto);
