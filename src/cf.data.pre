@@ -4006,6 +4006,23 @@ DOC_START
 		cache_dir rock /ssd3 ... max-size=99999
 DOC_END
 
+NAME: paranoid_hit_validation
+COMMENT: on|off
+TYPE: onoff
+DEFAULT: off
+LOC: Config.onoff.paranoid_hit_validation
+DOC_START
+	Controls whether Squid should perform paranoid validation of
+	cache entry metadata integrity every time a cache entry is hit.
+	Squid bugs notwithstanding, this low-level validation should
+	always succeed. Each failed validation results in a cache miss,
+	a BUG line reported to cache.log, and the invalid entry marked
+	as unusable (and eventually purged from the cache).
+
+	When hit validation is enabled, its statistics is included in Cache
+	Manager mgr:counters, mgr:5min, and mgr:60min reports.
+DOC_END
+
 NAME: max_open_disk_fds
 TYPE: int
 LOC: Config.max_open_disk_fds

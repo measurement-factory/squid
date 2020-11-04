@@ -11,6 +11,8 @@
 #include "squid.h"
 #include "ipc/StoreMap.h"
 #include "sbuf/SBuf.h"
+#include "SquidConfig.h"
+#include "StatCounters.h"
 #include "Store.h"
 #include "store_key_md5.h"
 #include "tools.h"
@@ -49,7 +51,8 @@ Ipc::StoreMap::Init(const SBuf &path, const int sliceLimit)
 Ipc::StoreMap::StoreMap(const SBuf &aPath): cleaner(NULL), path(aPath),
     fileNos(shm_old(FileNos)(StoreMapFileNosId(path).c_str())),
     anchors(shm_old(Anchors)(StoreMapAnchorsId(path).c_str())),
-    slices(shm_old(Slices)(StoreMapSlicesId(path).c_str()))
+    slices(shm_old(Slices)(StoreMapSlicesId(path).c_str())),
+    hitValidation(true)
 {
     debugs(54, 5, "attached " << path << " with " <<
            fileNos->capacity << '+' <<
@@ -362,19 +365,15 @@ Ipc::StoreMap::openForReading(const cache_key *const key, sfileno &fileno)
     debugs(54, 5, "opening entry with key " << storeKeyText(key)
            << " for reading " << path);
     const int idx = fileNoByKey(key);
-    if (const Anchor *slot = openForReadingAt(idx)) {
-        if (slot->sameKey(key)) {
-            fileno = idx;
-            return slot; // locked for reading
-        }
-        slot->lock.unlockShared();
-        debugs(54, 7, "closed wrong-key entry " << idx << " for reading " << path);
+    if (const auto anchor = openForReadingAt(idx, key)) {
+        fileno = idx;
+        return anchor; // locked for reading
     }
     return NULL;
 }
 
 const Ipc::StoreMap::Anchor *
-Ipc::StoreMap::openForReadingAt(const sfileno fileno)
+Ipc::StoreMap::openForReadingAt(const sfileno fileno, const cache_key *const key)
 {
     debugs(54, 5, "opening entry " << fileno << " for reading " << path);
     Anchor &s = anchorAt(fileno);
@@ -397,6 +396,20 @@ Ipc::StoreMap::openForReadingAt(const sfileno fileno)
         debugs(54, 7, "cannot open marked entry " << fileno <<
                " for reading " << path);
         return NULL;
+    }
+
+    if (!s.sameKey(key)) {
+        s.lock.unlockShared();
+        debugs(54, 5, "cannot open wrong-key entry " << fileno <<
+               " for reading " << path);
+        return nullptr;
+    }
+
+    if (Config.onoff.paranoid_hit_validation && hitValidation && !validateHit(fileno)) {
+        s.lock.unlockShared();
+        debugs(54, 5, "cannot open corrupted entry " << fileno <<
+               " for reading " << path);
+        return nullptr;
     }
 
     debugs(54, 5, "opened entry " << fileno << " for reading " << path);
@@ -432,13 +445,7 @@ Ipc::StoreMap::openForUpdating(Update &update, const sfileno fileNoHint)
 
     // Unreadable entries cannot (e.g., empty and otherwise problematic entries)
     // or should not (e.g., entries still forming their metadata) be updated.
-    if (const Anchor *anchor = openForReadingAt(update.stale.fileNo)) {
-        if (!anchor->sameKey(key)) {
-            closeForReading(update.stale.fileNo);
-            debugs(54, 5, "cannot open wrong-key entry " << update.stale.fileNo << " for updating " << path);
-            return false;
-        }
-    } else {
+    if (!openForReadingAt(update.stale.fileNo, key)) {
         debugs(54, 5, "cannot open unreadable entry " << update.stale.fileNo << " for updating " << path);
         return false;
     }
@@ -660,6 +667,68 @@ bool
 Ipc::StoreMap::validSlice(const int pos) const
 {
     return 0 <= pos && pos < sliceLimit();
+}
+
+bool
+Ipc::StoreMap::validateHit(const sfileno fileno)
+{
+    const auto &anchor = anchorAt(fileno);
+
+    ++statCounter.hitValidation.attempts;
+
+    if (!anchor.basics.swap_file_sz) {
+        ++statCounter.hitValidation.refusalsDueToZeroSize;
+        return true; // presume valid; cannot validate w/o known swap_file_sz
+    }
+
+    if (!anchor.lock.lockHeaders()) {
+        ++statCounter.hitValidation.refusalsDueToLocking;
+        return true; // presume valid; cannot validate changing entry
+    }
+
+    const uint64_t expectedByteCount = anchor.basics.swap_file_sz;
+
+    size_t actualSliceCount = 0;
+    uint64_t actualByteCount = 0;
+    SliceId lastSeenSlice = anchor.start;
+    while (lastSeenSlice >= 0) {
+        ++actualSliceCount;
+        if (!validSlice(lastSeenSlice))
+            break;
+        const auto &slice = sliceAt(lastSeenSlice);
+        actualByteCount += slice.size;
+        if (actualByteCount > expectedByteCount)
+            break;
+        lastSeenSlice = slice.next;
+    }
+
+    anchor.lock.unlockHeaders();
+
+    if (actualByteCount == expectedByteCount && lastSeenSlice < 0)
+        return true;
+
+    ++statCounter.hitValidation.failures;
+
+    debugs(54, DBG_IMPORTANT, "BUG: purging corrupted cache entry " << fileno <<
+           " from " << path <<
+           " expected swap_file_sz=" << expectedByteCount <<
+           " actual swap_file_sz=" << actualByteCount <<
+           " actual slices=" << actualSliceCount <<
+           " last slice seen=" << lastSeenSlice << "\n" <<
+           "    key=" << storeKeyText(reinterpret_cast<const cache_key*>(anchor.key)) << "\n" <<
+           "    tmestmp=" << anchor.basics.timestamp << "\n" <<
+           "    lastref=" << anchor.basics.lastref << "\n" <<
+           "    expires=" << anchor.basics.expires << "\n" <<
+           "    lastmod=" << anchor.basics.lastmod << "\n" <<
+           "    refcount=" << anchor.basics.refcount << "\n" <<
+           "    flags=0x" << std::hex << anchor.basics.flags << std::dec << "\n" <<
+           "    start=" << anchor.start << "\n" <<
+           "    splicingPoint=" << anchor.splicingPoint << "\n" <<
+           "    lock=" << anchor.lock << "\n" <<
+           "    waitingToBeFreed=" << (anchor.waitingToBeFreed ? 1 : 0) << "\n"
+          );
+    freeEntry(fileno);
+    return false;
 }
 
 Ipc::StoreMap::Anchor&

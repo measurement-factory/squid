@@ -80,6 +80,10 @@ public:
     double swap_ins;
     double swap_files_cleaned;
     double aborted_requests;
+    double hitValidationAttempts;
+    double hitValidationRefusalsDueToLocking;
+    double hitValidationRefusalsDueToZeroSize;
+    double hitValidationFailures;
 };
 
 /// implement aggregated 'counters' action

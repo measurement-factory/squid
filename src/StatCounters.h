@@ -157,6 +157,13 @@ public:
         int ins;
     } swap;
 
+    struct {
+        uint64_t attempts = 0;
+        uint64_t refusalsDueToLocking = 0;
+        uint64_t refusalsDueToZeroSize = 0;
+        uint64_t failures = 0;
+    } hitValidation;
+
 private:
 };
 

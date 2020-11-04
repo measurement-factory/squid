@@ -85,6 +85,10 @@ Mgr::CountersActionData::operator += (const CountersActionData& stats)
     swap_ins += stats.swap_ins;
     swap_files_cleaned += stats.swap_files_cleaned;
     aborted_requests += stats.aborted_requests;
+    hitValidationAttempts += stats.hitValidationAttempts;
+    hitValidationRefusalsDueToLocking += stats.hitValidationRefusalsDueToLocking;
+    hitValidationRefusalsDueToZeroSize += stats.hitValidationRefusalsDueToZeroSize;
+    hitValidationFailures += stats.hitValidationFailures;
 
     return *this;
 }
