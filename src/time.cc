@@ -12,6 +12,7 @@
 #include "SquidTime.h"
 
 #include <iomanip>
+#include <ostream>
 
 struct timeval current_time;
 double current_dtime;
