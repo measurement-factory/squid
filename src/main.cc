@@ -1210,6 +1210,7 @@ mainInitialize(void)
         urlInitialize();
         statInit();
         storeInit();
+
         mainSetCwd();
         mimeInit(Config.mimeTablePathname);
         refreshInit();
