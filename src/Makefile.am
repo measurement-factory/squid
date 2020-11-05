@@ -1216,6 +1216,7 @@ tests_testCacheManager_SOURCES = \
 	tests/stub_ipc_Forwarder.cc \
 	tests/stub_store_stats.cc \
 	tests/stub_EventLoop.cc \
+	tests/stub_IpcIoFile.cc \
 	time.cc \
 	BodyPipe.cc \
 	cache_manager.cc \
@@ -1655,6 +1656,7 @@ tests_testEvent_SOURCES = \
 	ClientInfo.h \
 	clientStream.cc \
 	tests/stub_CollapsedForwarding.cc \
+	tests/stub_IpcIoFile.cc \
 	ConfigOption.cc \
 	ConfigParser.cc \
 	CpuAffinityMap.cc \
@@ -2042,6 +2044,7 @@ tests_testEventLoop_SOURCES = \
 	tests/stub_libeui.cc \
 	tests/stub_libsecurity.cc \
 	tests/stub_store_stats.cc \
+	tests/stub_IpcIoFile.cc \
 	time.cc \
 	tools.h \
 	tools.cc \
@@ -2147,6 +2150,7 @@ tests_test_http_range_SOURCES = \
 	fatal.h \
 	tests/stub_libauth.cc \
 	tests/stub_fatal.cc \
+	tests/stub_IpcIoFile.cc \
 	fd.h \
 	fd.cc \
 	fde.cc \
@@ -2423,6 +2427,7 @@ tests_testHttpRequest_SOURCES = \
 	tests/stub_libeui.cc \
 	tests/stub_store_stats.cc \
 	tests/stub_EventLoop.cc \
+	tests/stub_IpcIoFile.cc \
 	time.cc \
 	BodyPipe.cc \
 	cache_manager.cc \
@@ -2844,12 +2849,12 @@ tests_testStore_LDADD= \
 	ip/libip.la \
 	fs/libfs.la \
 	mgr/libmgr.la \
-	ipc/libipc.la \
 	anyp/libanyp.la \
 	mem/libmem.la \
 	store/libstore.la \
 	sbuf/libsbuf.la \
 	DiskIO/libdiskio.la \
+	ipc/libipc.la \
 	$(top_builddir)/lib/libmisccontainers.la \
 	$(top_builddir)/lib/libmiscencoding.la \
 	$(top_builddir)/lib/libmiscutil.la \
@@ -3407,6 +3412,7 @@ tests_testURL_SOURCES = \
 	store_client.cc \
 	store_digest.h \
 	tests/stub_store_digest.cc \
+	tests/stub_IpcIoFile.cc \
 	store_io.cc \
 	store_key_md5.h \
 	store_key_md5.cc \

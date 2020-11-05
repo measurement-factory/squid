@@ -14,6 +14,7 @@
 #include "rfc1123.h"
 
 #include <ctime>
+#include <iosfwd>
 /* NP: sys/time.h is provided by libcompat */
 
 /* Use uint64_t to store milliseconds */
@@ -55,6 +56,9 @@ public:
     /** tick the clock - update from the OS or other time source, */
     virtual void tick();
 };
+
+/// prints <seconds>.<microseconds>
+std::ostream &operator <<(std::ostream &, const timeval &);
 
 namespace Time
 {
