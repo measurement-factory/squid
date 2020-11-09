@@ -259,8 +259,8 @@ FwdState::completed()
 #endif
         } else {
             EBIT_CLR(entry->flags, ENTRY_FWD_HDR_WAIT);
-            entry->complete();
             entry->releaseRequest();
+            entry->complete();
         }
     }
 

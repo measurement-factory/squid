@@ -157,6 +157,12 @@ HttpStateData::httpTimeout(const CommTimeoutCbParams &)
     debugs(11, 4, serverConnection << ": '" << entry->url() << "'");
 
     if (entry->store_status == STORE_PENDING) {
+        // Inform everybody that this incomplete entry will never get the entire
+        // response (regardless of chunked encoding, Content-Length, or even
+        // RESPMOD). However, preserve the _empty_ entry state to avoid tainting
+        // the (full) error response that FwdState::completed() should store.
+        if (!entry->isEmpty())
+            entry->lengthWentBad(__FUNCTION__);
         fwd->fail(new ErrorState(ERR_READ_TIMEOUT, Http::scGatewayTimeout, fwd->request));
     }
 
@@ -1494,6 +1500,7 @@ HttpStateData::processReplyBody()
 
         case COMPLETE_NONPERSISTENT_MSG:
             debugs(11, 5, "processReplyBody: COMPLETE_NONPERSISTENT_MSG from " << serverConnection);
+            // XXX: In some cases, the job ends before getting to this check.
             if (flags.chunked && !lastChunk)
                 entry->lengthWentBad("missing last-chunk");
 

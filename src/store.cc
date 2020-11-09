@@ -1851,9 +1851,9 @@ StoreEntry::storeErrorResponse(HttpReply *reply)
     buffer();
     replaceHttpReply(reply);
     flush();
-    complete();
     negativeCache();
     releaseRequest();
+    complete();
     unlock("StoreEntry::storeErrorResponse");
 }
 
