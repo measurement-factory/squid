@@ -1747,9 +1747,9 @@ StoreEntry::storeErrorResponse(HttpReply *reply)
     buffer();
     replaceHttpReply(HttpReplyPointer(reply));
     flush();
-    complete();
     negativeCache();
     releaseRequest(false); // if it is safe to negatively cache, sharing is OK
+    complete();
     unlock("StoreEntry::storeErrorResponse");
 }
 

@@ -296,8 +296,8 @@ FwdState::completed()
             }
 #endif
         } else {
-            entry->complete();
             entry->releaseRequest();
+            entry->complete();
         }
     }
 
