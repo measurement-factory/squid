@@ -2254,7 +2254,7 @@ ConnStateData::start()
     AsyncCall::Pointer call = JobCallback(33, 5, Dialer, this, ConnStateData::connStateClosed);
     comm_add_close_handler(clientConnection->fd, call);
 
-    needProxyProtocolHeader_ = port->flags.proxySurrogate;
+    needProxyProtocolHeader_ = port->flags.proxySurrogate();
     if (needProxyProtocolHeader_) {
         if (!proxyProtocolValidateClient()) // will close the connection on failure
             return;
@@ -2644,6 +2644,7 @@ ConnStateData::httpsSslBumpStep1AccessCheck()
         return;
     }
 
+    assert(port->flags.isIntercepted());
     MasterXaction::Pointer mx = new MasterXaction(XactionInitiator::initClient);
     mx->tcpClient = clientConnection;
     // Create a fake HTTP request and ALE for the ssl_bump ACL check,
@@ -2652,7 +2653,6 @@ ConnStateData::httpsSslBumpStep1AccessCheck()
     // XXX: Do this earlier (e.g., in Http[s]::One::Server constructor).
     HttpRequest *request = new HttpRequest(mx);
     static char ip[MAX_IPSTRLEN];
-    assert(transparent() || port->flags.proxyProtocolSslBump());
     request->url.host(clientConnection->local.toStr(ip, sizeof(ip)));
     request->url.port(clientConnection->local.port());
     request->myportname = port->name;
@@ -3498,7 +3498,7 @@ clientListenerConnectionOpened(AnyP::PortCfgPointer &s, const Ipc::FdNoteId port
            (s->flags.tunnelSslBumping ? "SSL bumped " : "") <<
            (s->flags.accelSurrogate ? "reverse-proxy " : "") <<
            FdNote(portTypeNote) << " connections " <<
-           (s->flags.proxySurrogate ? "with PROXY protocol header " : "") <<
+           (s->flags.proxySurrogate() ? "with PROXY protocol header " : "") <<
            "at " << s->listenConn);
 
     Must(AddOpenedHttpSocket(s->listenConn)); // otherwise, we have received a fd we did not ask for

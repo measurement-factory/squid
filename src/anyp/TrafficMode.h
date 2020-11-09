@@ -29,7 +29,7 @@ public:
      */
     bool accelSurrogate = false;
 
-    /** marks ports receiving PROXY protocol traffic
+    /** marks http ports receiving PROXY protocol traffic
      *
      * Indicating the following are required:
      *  - PROXY protocol magic header
@@ -37,7 +37,19 @@ public:
      *  - indirect client IP trust verification is mandatory
      *  - TLS is not supported
      */
-    bool proxySurrogate = false;
+    bool proxySurrogateHttp = false;
+
+    /** marks https ports receiving PROXY protocol traffic
+     *
+     * Indicating the following are required:
+     *  - PROXY protocol magic header
+     *  - src/dst IP retrieved from magic PROXY header
+     *  - indirect client IP trust verification is mandatory
+     *  - Same-Origin verification is mandatory
+     *  - TLS is supported
+     *  - authentication prohibited
+     */
+    bool proxySurrogateHttps = false;
 
     /** marks NAT intercepted traffic
      *
@@ -73,12 +85,14 @@ public:
      */
     bool tunnelSslBumping = false;
 
-    /** true if the traffic is in any way intercepted
-     *
-     */
-    bool isIntercepted() const { return natIntercept || tproxyIntercept || proxyProtocolSslBump();}
+    /// whether the PROXY protocol header is present
+    bool proxySurrogate() { return proxySurrogateHttp || proxySurrogateHttps; }
 
-    bool proxyProtocolSslBump() const { return tunnelSslBumping && proxySurrogate; }
+    /** whether the traffic is directed to origin
+     * - Same-Origin verification is mandatory
+     * - authentication prohibited
+     */
+    bool isIntercepted() const { return natIntercept || tproxyIntercept || proxySurrogateHttps;}
 };
 
 } // namespace AnyP

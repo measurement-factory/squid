@@ -559,7 +559,7 @@ HttpRequest::maybeCacheable()
     // Because it failed verification, or someone bypassed the security tests
     // we cannot cache the reponse for sharing between clients.
     // TODO: update cache to store for particular clients only (going to same Host: and destination IP)
-    if (!flags.hostVerified && isIntercepted())
+    if (!flags.hostVerified && interceptedXaction())
         return false;
 
     switch (url.getScheme()) {
@@ -756,7 +756,7 @@ HttpRequest::manager(const CbcPointer<ConnStateData> &aMgr, const AccessLogEntry
 
         flags.intercepted = ((clientConnection->flags & COMM_INTERCEPTION) != 0);
         flags.interceptTproxy = ((clientConnection->flags & COMM_TRANSPARENT) != 0 ) ;
-        const bool proxyProtocolPort = port ? port->flags.proxySurrogate : false;
+        const bool proxyProtocolPort = port ? port->flags.proxySurrogate() : false;
         if (flags.interceptTproxy && !proxyProtocolPort) {
             if (Config.accessList.spoof_client_ip) {
                 ACLFilledChecklist *checklist = new ACLFilledChecklist(Config.accessList.spoof_client_ip, this, clientConnection->rfc931);
@@ -815,7 +815,7 @@ FindListeningPortAddress(const HttpRequest *callerRequest, const AccessLogEntry 
     if (!ip && ale)
         ip = FindListeningPortAddressInPort(ale->cache.port);
 
-    if (ip || request->isIntercepted())
+    if (ip || request->interceptedXaction())
         return ip;
 
     /* handle non-intercepted cases that were not handled above */

@@ -3648,7 +3648,7 @@ parse_port_option(AnyP::PortCfgPointer &s, char *token)
         /* Log information regarding the port modes under transparency. */
         debugs(3, DBG_IMPORTANT, "Disabling Authentication on port " << s->s << " (TPROXY enabled)");
 
-        if (s->flags.proxySurrogate) {
+        if (s->flags.proxySurrogate()) {
             debugs(3, DBG_IMPORTANT, "Disabling TPROXY Spoofing on port " << s->s << " (require-proxy-header enabled)");
         }
 
@@ -3659,7 +3659,10 @@ parse_port_option(AnyP::PortCfgPointer &s, char *token)
         }
 
     } else if (strcmp(token, "require-proxy-header") == 0) {
-        s->flags.proxySurrogate = true;
+        if (s->transport.protocol == AnyP::PROTO_HTTPS)
+            s->flags.proxySurrogateHttps = true;
+        else
+            s->flags.proxySurrogateHttp = true;
         if (s->flags.tproxyIntercept) {
             // receiving is still permitted, so we do not unset the TPROXY flag
             // spoofing access control override takes care of the spoof disable later
@@ -3882,20 +3885,20 @@ parsePortCfg(AnyP::PortCfgPointer *head, const char *optionName)
     if (s->transport.protocol == AnyP::PROTO_HTTPS) {
         s->secure.encryptTransport = true;
 #if USE_OPENSSL
-        // https_port: ssl-bump requires either tproxy or intercept or
-        // require-proxy-header and vice versa
+        // https_port: ssl-bump requires one of: tproxy, intercept or require-proxy-header.
         if (s->flags.tunnelSslBumping && !s->flags.isIntercepted()) {
             debugs(3, DBG_CRITICAL, "FATAL: ssl-bump on https_port requires tproxy/intercept/require-proxy-header which is missing.");
             self_destruct();
             return;
         }
+        // https_port: tproxy, intercept and require-proxy-header require ssl-bump
         if (s->flags.isIntercepted() && !s->flags.tunnelSslBumping) {
             debugs(3, DBG_CRITICAL, "FATAL: tproxy/intercept/require-proxy-header on https_port requires ssl-bump which is missing.");
             self_destruct();
             return;
         }
 #endif
-        if (s->flags.proxySurrogate && (s->flags.natIntercept || s->flags.tproxyIntercept || s->flags.accelSurrogate)) {
+        if (s->flags.proxySurrogateHttps && (s->flags.natIntercept || s->flags.tproxyIntercept || s->flags.accelSurrogate)) {
             debugs(3, DBG_CRITICAL, "FATAL: require-proxy-header option is incompatible with tproxy/intercept/accel for https_port.");
             self_destruct();
             return;
@@ -3907,7 +3910,7 @@ parsePortCfg(AnyP::PortCfgPointer *head, const char *optionName)
             self_destruct();
             return;
         }
-        if (s->flags.proxySurrogate) {
+        if (s->flags.proxySurrogateHttp) {
             // Passive FTP data channel does not work without deep protocol inspection in the frontend.
             debugs(3,DBG_CRITICAL, "FATAL: require-proxy-header option is not supported on ftp_port.");
             self_destruct();
@@ -3954,7 +3957,7 @@ dump_generic_port(StoreEntry * e, const char *n, const AnyP::PortCfgPointer &s)
     else if (s->flags.tproxyIntercept)
         storeAppendPrintf(e, " tproxy");
 
-    else if (s->flags.proxySurrogate)
+    else if (s->flags.proxySurrogate())
         storeAppendPrintf(e, " require-proxy-header");
 
     else if (s->flags.accelSurrogate) {
