@@ -24,14 +24,11 @@ CreateRsaPrivateKey()
         return nullptr;
 
     /* Generate key */
-    Security::PrivateKeyPointer pkey(EVP_PKEY_new());
-    if (pkey) {
-        auto *foo = pkey.get();
-        if (EVP_PKEY_keygen(rsa.get(), &foo) <= 0)
-            return nullptr;
-    }
+    EVP_PKEY *pkey = nullptr;
+    if (EVP_PKEY_keygen(rsa.get(), &pkey) <= 0)
+        return nullptr;
 
-    return pkey.release();
+    return pkey;
 }
 
 /**
