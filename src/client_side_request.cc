@@ -1523,7 +1523,7 @@ ClientHttpRequest::processRequest()
         if (srvBump && srvBump->at(XactionStep::tlsBump2)) {
             // Update request object
             srvBump->request = request;
-            getConn()->resumePeekAndSpliceStep2();
+            CallJobHere(85, 4, getConn(), ConnStateData, resumePeekAndSpliceStep2);
         } else {
             assert(!request->flags.forceTunnel);
             sslBumpStart();
