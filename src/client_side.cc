@@ -2647,6 +2647,7 @@ ConnStateData::httpsSslBumpStep1AccessCheck()
     assert(port->flags.isIntercepted());
     MasterXaction::Pointer mx = new MasterXaction(XactionInitiator::initClient);
     mx->tcpClient = clientConnection;
+    mx->squidPort = port;
     // Create a fake HTTP request and ALE for the ssl_bump ACL check,
     // using tproxy/intercept provided destination IP and port.
     // XXX: Merge with subsequent fakeAConnectRequest(), buildFakeRequest().
@@ -3324,6 +3325,7 @@ ConnStateData::buildFakeRequest(Http::MethodType const method, SBuf &useHost, un
 
     MasterXaction::Pointer mx = new MasterXaction(XactionInitiator::initClient);
     mx->tcpClient = clientConnection;
+    mx->squidPort = port;
     // Setup Http::Request object. Maybe should be replaced by a call to (modified)
     // clientProcessRequest
     HttpRequest::Pointer request = new HttpRequest(mx);
@@ -3641,7 +3643,7 @@ clientAclChecklistFill(ACLFilledChecklist &checklist, ClientHttpRequest *http)
 bool
 ConnStateData::transparent() const
 {
-    return clientConnection != NULL && (clientConnection->flags & (COMM_TRANSPARENT|COMM_INTERCEPTION));
+    return port->flags.isIntercepted();
 }
 
 BodyPipe::Pointer

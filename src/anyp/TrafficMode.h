@@ -88,7 +88,7 @@ public:
     /// whether the PROXY protocol header is present
     bool proxySurrogate() { return proxySurrogateHttp || proxySurrogateHttps; }
 
-    /** whether the traffic is directed to origin
+    /** whether the TCP traffic is directed to origin
      * - Same-Origin verification is mandatory
      * - authentication prohibited
      */

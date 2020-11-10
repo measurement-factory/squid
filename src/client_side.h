@@ -146,6 +146,9 @@ public:
         AsyncCall::Pointer closeHandler; /*The close handler for pinned server side connection*/
     } pinning;
 
+    // TODO: rename
+    /// whether the client traffic is intercepted
+    /// see TrafficMode::isIntercepted() for details
     bool transparent() const;
 
     /// true if we stopped receiving the request
