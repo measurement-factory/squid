@@ -237,8 +237,13 @@ public:
     void postHttpsAccept();
 
 #if USE_OPENSSL
+    /// Initializes the Step2 bumping step
+    void startPeekAndSpliceStep2();
+
+    void resumePeekAndSpliceStep2();
+
     /// Initializes and starts a peek-and-splice negotiation with the SSL client
-    void startPeekAndSplice();
+    void finalizePeekAndSpliceStep2();
 
     /// Called when a peek-and-splice step finished. For example after
     /// server SSL certificates received and fake server SSL certificates

@@ -75,3 +75,18 @@ Ssl::ServerBump::sslErrors() const
     return errs;
 }
 
+void
+Ssl::ServerBump::storeEntryError(StoreEntry *e)
+{
+    if (entry) {
+        assert(sc);
+        storeUnregister(sc, entry, this);
+        entry->unlock("Ssl::ServerBump");
+    }
+    entry = e;
+    entry->lock("Ssl::ServerBump");
+    sc = storeClientListAdd(entry, this);
+#if USE_DELAY_POOLS
+    sc->setDelayId(DelayId::DelayClient(http));
+#endif
+}

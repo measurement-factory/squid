@@ -2667,7 +2667,7 @@ ConnStateData::sslCrtdHandleReply(const Helper::Reply &reply)
                 debugs(33, 5, "Certificate for " << tlsConnectHostOrIp << " cannot be generated. ssl_crtd response: " << reply_message.getBody());
             } else {
                 debugs(33, 5, "Certificate for " << tlsConnectHostOrIp << " was successfully received from ssl_crtd");
-                if (sslServerBump && (sslServerBump->act.step1 == Ssl::bumpPeek || sslServerBump->act.step1 == Ssl::bumpStare)) {
+                if (sslServerBump && sslServerBump->at(XactionStep::tlsBump3) && (sslServerBump->act.step1 == Ssl::bumpPeek || sslServerBump->act.step1 == Ssl::bumpStare)) {
                     doPeekAndSpliceStep();
                     auto ssl = fd_table[clientConnection->fd].ssl.get();
                     bool ret = Ssl::configureSSLUsingPkeyAndCertFromMemory(ssl, reply_message.getBody().c_str(), *port);
@@ -3021,11 +3021,12 @@ ConnStateData::parseTlsHandshake()
         FwdState::Start(clientConnection, sslServerBump->entry, sslServerBump->request.getRaw(), http ? http->al : nullptr);
     } else {
         Must(sslServerBump->act.step1 == Ssl::bumpPeek || sslServerBump->act.step1 == Ssl::bumpStare);
-        startPeekAndSplice();
+        startPeekAndSpliceStep2();
     }
 }
 
-void httpsSslBumpStep2AccessCheckDone(Acl::Answer answer, void *data)
+static void
+httpsSslBumpStep2AccessCheckDone(Acl::Answer answer, void *data)
 {
     ConnStateData *connState = (ConnStateData *) data;
 
@@ -3050,7 +3051,7 @@ void httpsSslBumpStep2AccessCheckDone(Acl::Answer answer, void *data)
     if (bumpAction == Ssl::bumpTerminate) {
         connState->clientConnection->close();
     } else if (bumpAction != Ssl::bumpSplice) {
-        connState->startPeekAndSplice();
+        connState->finalizePeekAndSpliceStep2();
     } else if (!connState->splice())
         connState->clientConnection->close();
 }
@@ -3090,30 +3091,54 @@ ConnStateData::splice()
 }
 
 void
-ConnStateData::startPeekAndSplice()
+ConnStateData::startPeekAndSpliceStep2()
 {
     // This is the Step2 of the SSL bumping
     assert(sslServerBump);
     Http::StreamPointer context = pipeline.front();
     ClientHttpRequest *http = context ? context->http : nullptr;
 
-    if (sslServerBump->at(XactionStep::tlsBump1)) {
-        sslServerBump->step = XactionStep::tlsBump2;
-        // Run a accessList check to check if want to splice or continue bumping
+    Must(sslServerBump->at(XactionStep::tlsBump1));
+    sslServerBump->step = XactionStep::tlsBump2;
 
-        ACLFilledChecklist *acl_checklist = new ACLFilledChecklist(Config.accessList.ssl_bump, sslServerBump->request.getRaw(), nullptr);
-        acl_checklist->al = http ? http->al : nullptr;
-        //acl_checklist->src_addr = params.conn->remote;
-        //acl_checklist->my_addr = s->s;
-        acl_checklist->banAction(Acl::Answer(ACCESS_ALLOWED, Ssl::bumpNone));
-        acl_checklist->banAction(Acl::Answer(ACCESS_ALLOWED, Ssl::bumpClientFirst));
-        acl_checklist->banAction(Acl::Answer(ACCESS_ALLOWED, Ssl::bumpServerFirst));
-        const char *log_uri = http ? http->log_uri : nullptr;
-        acl_checklist->syncAle(sslServerBump->request.getRaw(), log_uri);
-        acl_checklist->nonBlockingCheck(httpsSslBumpStep2AccessCheckDone, this);
+    // Run doCallouts.
+    assert(http->calloutContext == nullptr);
+    http->calloutContext = new ClientRequestContext(http);
+    http->calloutContext->sslBumpCheckDone = true;
+    // http->calloutContext->callUsBack = This;
+    http->doCallouts();
+    return;
+}
+
+void
+ConnStateData::resumePeekAndSpliceStep2()
+{
+    assert(sslServerBump);
+    Http::StreamPointer context = pipeline.front();
+    ClientHttpRequest *http = context ? context->http : nullptr;
+
+    if (!sslServerBump->connectedOk()) {
+        // This is an error. Stop peek and splice and serve the error
+        getSslContextStart();
         return;
     }
 
+    // Run a accessList check to check if want to splice or continue bumping
+    ACLFilledChecklist *acl_checklist = new ACLFilledChecklist(Config.accessList.ssl_bump, sslServerBump->request.getRaw(), nullptr);
+    acl_checklist->al = http ? http->al : nullptr;
+    //acl_checklist->src_addr = params.conn->remote;
+    //acl_checklist->my_addr = s->s;
+    acl_checklist->banAction(Acl::Answer(ACCESS_ALLOWED, Ssl::bumpNone));
+    acl_checklist->banAction(Acl::Answer(ACCESS_ALLOWED, Ssl::bumpClientFirst));
+    acl_checklist->banAction(Acl::Answer(ACCESS_ALLOWED, Ssl::bumpServerFirst));
+    const char *log_uri = http ? http->log_uri : nullptr;
+    acl_checklist->syncAle(sslServerBump->request.getRaw(), log_uri);
+    acl_checklist->nonBlockingCheck(httpsSslBumpStep2AccessCheckDone, this);
+}
+
+void
+ConnStateData::finalizePeekAndSpliceStep2()
+{
     // will call httpsPeeked() with certificate and connection, eventually
     Security::ContextPointer unConfiguredCTX(Ssl::createSSLContext(port->secure.signingCa.cert, port->secure.signingCa.pkey, port->secure));
     fd_table[clientConnection->fd].dynamicTlsContext = unConfiguredCTX;
@@ -3129,6 +3154,8 @@ ConnStateData::startPeekAndSplice()
     bio->setReadBufData(inBuf);
     bio->hold(true);
 
+    Http::StreamPointer context = pipeline.front();
+    ClientHttpRequest *http = context ? context->http : nullptr;
     // Here squid should have all of the client hello message so the
     // tlsAttemptHandshake() should return 0.
     // This block exist only to force openSSL parse client hello and detect

@@ -1519,9 +1519,16 @@ ClientHttpRequest::processRequest()
 
 #if USE_OPENSSL
     if (untouchedConnect && sslBumpNeeded()) {
-        assert(!request->flags.forceTunnel);
-        sslBumpStart();
-        return;
+        auto srvBump = getConn()->serverBump();
+        if (srvBump && srvBump->at(XactionStep::tlsBump2)) {
+            // Update request object
+            srvBump->request = request;
+            getConn()->resumePeekAndSpliceStep2();
+        } else {
+            assert(!request->flags.forceTunnel);
+            sslBumpStart();
+        }
+            return;
     }
 #endif
 
@@ -1855,13 +1862,20 @@ ClientHttpRequest::doCallouts()
         StoreEntry *e = storeCreateEntry(storeUri, storeUri, request->flags, request->method);
 #if USE_OPENSSL
         if (sslBumpNeeded()) {
-            // We have to serve an error, so bump the client first.
-            sslBumpNeed(Ssl::bumpClientFirst);
             // set final error but delay sending until we bump
-            Ssl::ServerBump *srvBump = new Ssl::ServerBump(this, e, Ssl::bumpClientFirst);
+            if (Ssl::ServerBump *srvBump = getConn()->serverBump()) {
+                assert(srvBump->at(XactionStep::tlsBump2));
+                // Update request
+                srvBump->request = request;
+                srvBump->storeEntryError(e);
+            } else {
+                // We have to serve an error, so bump the client first.
+                sslBumpNeed(Ssl::bumpClientFirst);
+                srvBump = new Ssl::ServerBump(this, e, Ssl::bumpClientFirst);
+                getConn()->setServerBump(srvBump);
+            }
             errorAppendEntry(e, calloutContext->error);
             calloutContext->error = NULL;
-            getConn()->setServerBump(srvBump);
             e->unlock("ClientHttpRequest::doCallouts+sslBumpNeeded");
         } else
 #endif
