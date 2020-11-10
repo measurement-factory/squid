@@ -315,10 +315,10 @@ public:
 
     /// generate a fake CONNECT request with the given payload
     /// at the beginning of the client I/O buffer
-    bool fakeAConnectRequest(const char *reason, const SBuf &payload);
+    bool fakeAConnectRequest(const char *reason, const SBuf &payload, bool doCallouts = true);
 
     /// generates and sends to tunnel.cc a fake request with a given payload
-    bool initiateTunneledRequest(HttpRequest::Pointer const &cause, Http::MethodType const method, const char *reason, const SBuf &payload);
+    bool initiateTunneledRequest(HttpRequest::Pointer const &cause, Http::MethodType const method, const char *reason, const SBuf &payload, bool doCallouts = true);
 
     /// whether we should start saving inBuf client bytes in anticipation of
     /// tunneling them to the server later (on_unsupported_protocol)

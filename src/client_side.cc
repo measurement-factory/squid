@@ -3076,17 +3076,17 @@ ConnStateData::splice()
     ClientHttpRequest *http = context->http;
     HttpRequest::Pointer request = http->request;
     context->finished();
+    const auto NoCallouts = false;
     if (transparent()) {
-        // For transparent connections, make a new fake CONNECT request, now
-        // with SNI as target. doCallout() checks, adaptations may need that.
-        return fakeAConnectRequest("splice", preservedClientData);
+        // For transparent connections, make a new fake CONNECT request now
+        // with SNI as target.Callouts are not called.
+        return fakeAConnectRequest("splice", preservedClientData, NoCallouts);
     } else {
         // For non transparent connections  make a new tunneled CONNECT, which
         // also sets the HttpRequest::flags::forceTunnel flag to avoid
         // respond with "Connection Established" to the client.
-        // This fake CONNECT request required to allow use of SNI in
-        // doCallout() checks and adaptations.
-        return initiateTunneledRequest(request, Http::METHOD_CONNECT, "splice", preservedClientData);
+        // Callouts are not called
+        return initiateTunneledRequest(request, Http::METHOD_CONNECT, "splice", preservedClientData, NoCallouts);
     }
 }
 
@@ -3210,7 +3210,7 @@ ConnStateData::httpsPeeked(PinnedIdleContext pic)
 #endif /* USE_OPENSSL */
 
 bool
-ConnStateData::initiateTunneledRequest(HttpRequest::Pointer const &cause, Http::MethodType const method, const char *reason, const SBuf &payload)
+ConnStateData::initiateTunneledRequest(HttpRequest::Pointer const &cause, Http::MethodType const method, const char *reason, const SBuf &payload, bool doCallouts)
 {
     // fake a CONNECT request to force connState to tunnel
     SBuf connectHost;
@@ -3241,14 +3241,17 @@ ConnStateData::initiateTunneledRequest(HttpRequest::Pointer const &cause, Http::
     ClientHttpRequest *http = buildFakeRequest(method, connectHost, connectPort, payload);
     HttpRequest::Pointer request = http->request;
     request->flags.forceTunnel = true;
-    http->calloutContext = new ClientRequestContext(http);
-    http->doCallouts();
+    if (doCallouts) {
+        http->calloutContext = new ClientRequestContext(http);
+        http->doCallouts();
+    } else
+        http->processRequest();
     clientProcessRequestFinished(this, request);
     return true;
 }
 
 bool
-ConnStateData::fakeAConnectRequest(const char *reason, const SBuf &payload)
+ConnStateData::fakeAConnectRequest(const char *reason, const SBuf &payload, bool doCallouts)
 {
     debugs(33, 2, "fake a CONNECT request to force connState to tunnel for " << reason);
 
@@ -3269,9 +3272,13 @@ ConnStateData::fakeAConnectRequest(const char *reason, const SBuf &payload)
 
     ClientHttpRequest *http = buildFakeRequest(Http::METHOD_CONNECT, connectHost, connectPort, payload);
 
-    http->calloutContext = new ClientRequestContext(http);
+    if (doCallouts) {
+        http->calloutContext = new ClientRequestContext(http);
+        http->doCallouts();
+    } else
+        http->processRequest();
+
     HttpRequest::Pointer request = http->request;
-    http->doCallouts();
     clientProcessRequestFinished(this, request);
     return true;
 }
