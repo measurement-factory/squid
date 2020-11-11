@@ -3025,41 +3025,14 @@ ConnStateData::parseTlsHandshake()
     }
 }
 
-static void
-httpsSslBumpStep2AccessCheckDone(Acl::Answer answer, void *data)
-{
-    ConnStateData *connState = (ConnStateData *) data;
-
-    // if the connection is closed or closing, just return.
-    if (!connState->isOpen())
-        return;
-
-    debugs(33, 5, "Answer: " << answer << " kind:" << answer.kind);
-    assert(connState->serverBump());
-    Ssl::BumpMode bumpAction;
-    if (answer.allowed()) {
-        bumpAction = (Ssl::BumpMode)answer.kind;
-    } else
-        bumpAction = Ssl::bumpSplice;
-
-    connState->serverBump()->act.step2 = bumpAction;
-    connState->sslBumpMode = bumpAction;
-    Http::StreamPointer context = connState->pipeline.front();
-    if (ClientHttpRequest *http = (context ? context->http : nullptr))
-        http->al->ssl.bumpMode = bumpAction;
-
-    if (bumpAction == Ssl::bumpTerminate) {
-        connState->clientConnection->close();
-    } else if (bumpAction != Ssl::bumpSplice) {
-        connState->finalizePeekAndSpliceStep2();
-    } else if (!connState->splice())
-        connState->clientConnection->close();
-}
-
 bool
 ConnStateData::splice()
 {
     // normally we can splice here, because we just got client hello message
+    assert(sslServerBump);
+
+    // Bump procedure finished, reset current bumping step
+    sslServerBump->step = XactionStep::unknown;
 
     // fde::ssl/tls_read_method() probably reads from our own inBuf. If so, then
     // we should not lose any raw bytes when switching to raw I/O here.
@@ -3104,7 +3077,6 @@ ConnStateData::startPeekAndSpliceStep2()
     // Run doCallouts.
     assert(http->calloutContext == nullptr);
     http->calloutContext = new ClientRequestContext(http);
-    http->calloutContext->sslBumpCheckDone = true;
     http->doCallouts();
     return;
 }
@@ -3112,27 +3084,26 @@ ConnStateData::startPeekAndSpliceStep2()
 void
 ConnStateData::resumePeekAndSpliceStep2()
 {
-    assert(sslServerBump);
-    Http::StreamPointer context = pipeline.front();
-    ClientHttpRequest *http = context ? context->http : nullptr;
+    if (!isOpen())
+        return;
 
+    assert(sslServerBump);
     if (!sslServerBump->connectedOk()) {
         // This is an error. Stop peek and splice and serve the error
         getSslContextStart();
         return;
     }
 
-    // Run a accessList check to check if want to splice or continue bumping
-    ACLFilledChecklist *acl_checklist = new ACLFilledChecklist(Config.accessList.ssl_bump, sslServerBump->request.getRaw(), nullptr);
-    acl_checklist->al = http ? http->al : nullptr;
-    //acl_checklist->src_addr = params.conn->remote;
-    //acl_checklist->my_addr = s->s;
-    acl_checklist->banAction(Acl::Answer(ACCESS_ALLOWED, Ssl::bumpNone));
-    acl_checklist->banAction(Acl::Answer(ACCESS_ALLOWED, Ssl::bumpClientFirst));
-    acl_checklist->banAction(Acl::Answer(ACCESS_ALLOWED, Ssl::bumpServerFirst));
-    const char *log_uri = http ? http->log_uri : nullptr;
-    acl_checklist->syncAle(sslServerBump->request.getRaw(), log_uri);
-    acl_checklist->nonBlockingCheck(httpsSslBumpStep2AccessCheckDone, this);
+    sslBumpMode = sslServerBump->act.step2;
+    if (sslBumpMode == Ssl::bumpTerminate) {
+        sslServerBump->step = XactionStep::unknown;
+        clientConnection->close();
+    } else if (sslBumpMode != Ssl::bumpSplice) {
+        finalizePeekAndSpliceStep2();
+    } else if (!splice())
+        clientConnection->close();
+
+    return;
 }
 
 void
@@ -3170,7 +3141,7 @@ ConnStateData::finalizePeekAndSpliceStep2()
     // We need to reset inBuf here, to be used by incoming requests in the case
     // of SSL bump
     inBuf.clear();
-
+    sslServerBump->step = XactionStep::tlsBump3;
     debugs(83, 5, "Peek and splice at step2 done. Start forwarding the request!!! ");
     FwdState::Start(clientConnection, sslServerBump->entry, sslServerBump->request.getRaw(), http ? http->al : NULL);
 }

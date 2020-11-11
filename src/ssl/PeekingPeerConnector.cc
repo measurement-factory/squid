@@ -169,7 +169,10 @@ Ssl::PeekingPeerConnector::initialize(Security::SessionPointer &serverSession)
         if (hostName)
             SSL_set_ex_data(serverSession.get(), ssl_ex_index_server, (void*)hostName);
 
-        Must(!csd->serverBump() || csd->serverBump()->at(XactionStep::tlsBump1, XactionStep::tlsBump2));
+        // XXX: The serverBump step should never be tlsBump1 here however
+        // for now the serverBump->step is not update correctly when
+        // bump is decided at step1.
+        Must(!csd->serverBump() || csd->serverBump()->at(XactionStep::tlsBump1, XactionStep::tlsBump3));
         if (csd->sslBumpMode == Ssl::bumpPeek || csd->sslBumpMode == Ssl::bumpStare) {
             auto clientSession = fd_table[clientConn->fd].ssl.get();
             Must(clientSession);
