@@ -3105,7 +3105,6 @@ ConnStateData::startPeekAndSpliceStep2()
     assert(http->calloutContext == nullptr);
     http->calloutContext = new ClientRequestContext(http);
     http->calloutContext->sslBumpCheckDone = true;
-    // http->calloutContext->callUsBack = This;
     http->doCallouts();
     return;
 }
