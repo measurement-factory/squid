@@ -2524,37 +2524,6 @@ httpsEstablish(ConnStateData *connState, const Security::ContextPointer &ctx)
     Comm::SetSelect(details->fd, COMM_SELECT_READ, clientNegotiateSSL, connState, 0);
 }
 
-#if USE_OPENSSL
-/**
- * A callback function to use with the ACLFilledChecklist callback.
- */
-static void
-httpsSslBumpAccessCheckDone(Acl::Answer answer, void *data)
-{
-    ConnStateData *connState = (ConnStateData *) data;
-
-    // if the connection is closed or closing, just return.
-    if (!connState->isOpen())
-        return;
-
-    if (answer.allowed()) {
-        debugs(33, 2, "sslBump action " << Ssl::bumpMode(answer.kind) << "needed for " << connState->clientConnection);
-        connState->sslBumpMode = static_cast<Ssl::BumpMode>(answer.kind);
-    } else {
-        debugs(33, 3, "sslBump not needed for " << connState->clientConnection);
-        connState->sslBumpMode = Ssl::bumpSplice;
-    }
-
-    if (connState->sslBumpMode == Ssl::bumpTerminate) {
-        connState->clientConnection->close();
-        return;
-    }
-
-    if (!connState->fakeAConnectRequest("ssl-bump", connState->inBuf))
-        connState->clientConnection->close();
-}
-#endif
-
 /** handle a new HTTPS connection */
 static void
 httpsAccept(const CommAcceptCbParams &params)
@@ -2590,45 +2559,8 @@ ConnStateData::postHttpsAccept()
 #if USE_OPENSSL
         debugs(33, 5, "accept transparent connection: " << clientConnection);
 
-        if (!Config.accessList.ssl_bump) {
-            httpsSslBumpAccessCheckDone(ACCESS_DENIED, this);
-            return;
-        }
-
-        MasterXaction::Pointer mx = new MasterXaction(XactionInitiator::initClient);
-        mx->tcpClient = clientConnection;
-        // Create a fake HTTP request and ALE for the ssl_bump ACL check,
-        // using tproxy/intercept provided destination IP and port.
-        // XXX: Merge with subsequent fakeAConnectRequest(), buildFakeRequest().
-        // XXX: Do this earlier (e.g., in Http[s]::One::Server constructor).
-        HttpRequest *request = new HttpRequest(mx);
-        static char ip[MAX_IPSTRLEN];
-        assert(clientConnection->flags & (COMM_TRANSPARENT | COMM_INTERCEPTION));
-        request->url.host(clientConnection->local.toStr(ip, sizeof(ip)));
-        request->url.port(clientConnection->local.port());
-        request->myportname = port->name;
-        const AccessLogEntry::Pointer connectAle = new AccessLogEntry;
-        CodeContext::Reset(connectAle);
-        // TODO: Use these request/ALE when waiting for new bumped transactions.
-
-        ACLFilledChecklist *acl_checklist = new ACLFilledChecklist(Config.accessList.ssl_bump, request, NULL);
-        acl_checklist->src_addr = clientConnection->remote;
-        acl_checklist->my_addr = port->s;
-        // Build a local AccessLogEntry to allow requiresAle() acls work
-        acl_checklist->al = connectAle;
-        acl_checklist->al->cache.start_time = current_time;
-        acl_checklist->al->tcpClient = clientConnection;
-        acl_checklist->al->cache.port = port;
-        acl_checklist->al->cache.caddr = log_addr;
-        acl_checklist->al->proxyProtocolHeader = proxyProtocolHeader_;
-        HTTPMSGUNLOCK(acl_checklist->al->request);
-        acl_checklist->al->request = request;
-        HTTPMSGLOCK(acl_checklist->al->request);
-        Http::StreamPointer context = pipeline.front();
-        ClientHttpRequest *http = context ? context->http : nullptr;
-        const char *log_uri = http ? http->log_uri : nullptr;
-        acl_checklist->syncAle(request, log_uri);
-        acl_checklist->nonBlockingCheck(httpsSslBumpAccessCheckDone, this);
+        fakeAConnectRequest("transparent/ssl-bump", inBuf);
+        return;
 #else
         fatal("FATAL: SSL-Bump requires --with-openssl");
 #endif
