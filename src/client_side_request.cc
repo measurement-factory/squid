@@ -1405,7 +1405,7 @@ ClientRequestContext::sslBumpAccessCheck()
     }
 
     auto srvBump = http->getConn()->serverBump();
-    if (srvBump && !srvBump->at(XactionStep::tlsBump2)) {
+    if (!srvBump || !srvBump->at(XactionStep::tlsBump2)) {
         const Ssl::BumpMode bumpMode = http->getConn()->sslBumpMode;
         if (http->request->flags.forceTunnel) {
             debugs(85, 5, "not needed; already decided to tunnel " << http->getConn());
