@@ -14,6 +14,7 @@
 #include "http/StatusLine.h"
 #include "http/one/Parser.h"
 #include "http/one/ResponseParser.h"
+#include "parser/forward.h"
 #include "parser/Tokenizer.h"
 
 void
@@ -113,18 +114,26 @@ Http::StatusLine::parse(const String &protoPrefix, const char *start, const char
     if (!(start = strchr(start, ' ')))
         return false;
 
-    start++;
+    start++; // skip SP between HTTP-version and status-code
 
-    static const auto statusLength = 4; // the status field length plus delimiter
+    static const auto statusLength = 4; // the status-code length plus SP
 
     if (end - start < statusLength)
-        return false;
+        return false; // status-code too short or missing a trailing SP
 
     static SBuf statusBuf;
     statusBuf.assign(start, statusLength);
     Parser::Tokenizer tok(statusBuf);
-    if (!One::ResponseParser::ParseResponseStatus(tok, status_))
+    try {
+        One::ResponseParser::ParseResponseStatus(tok, status_);
+    } catch (const Parser::InsufficientInput &) {
+        // we have checked already for sufficient input
+        assert(0);
         return false;
+    } catch (const std::exception &ex) {
+        debugs(57, 6, "invalid status-line: " << ex.what());
+        return false;
+    }
 
     // XXX check if the given 'reason' is the default status string, if not save to reason_
 

@@ -45,10 +45,10 @@ public:
     Http::StatusCode messageStatus() const { return statusCode_;}
     SBuf reasonPhrase() const { return reasonPhrase_;}
 
-    /// Attempts to parse response status
-    /// \param code the parsed and syntactically valid status code
-    /// \returns whether the status was parsed and syntactically/semantically valid
-    static bool ParseResponseStatus(Tokenizer &, Http::StatusCode &code);
+    /// extracts response status-code and the following delimiter; validates status-code
+    /// \param[out] code syntactically valid status-code (unchanged on syntax errors)
+    /// \throws InsuffientInput and other exceptions on syntax and validation errors
+    static void ParseResponseStatus(Tokenizer &, Http::StatusCode &code);
 
 private:
     int parseResponseFirstLine();

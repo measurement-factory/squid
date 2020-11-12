@@ -12,6 +12,7 @@
 #include "http/ProtocolVersion.h"
 #include "parser/Tokenizer.h"
 #include "profiler/Profiler.h"
+#include "sbuf/Stream.h"
 #include "SquidConfig.h"
 
 const SBuf Http::One::ResponseParser::IcyMagic("ICY ");
@@ -49,34 +50,25 @@ Http::One::ResponseParser::firstLineSize() const
 int
 Http::One::ResponseParser::parseResponseStatusAndReason(Tokenizer &tok)
 {
-    if (!completedStatus_) {
-        debugs(74, 9, "seek status-code in: " << tok.remaining().substr(0,10) << "...");
-        if (ParseResponseStatus(tok, statusCode_)) {
+    try {
+        if (!completedStatus_) {
+            debugs(74, 9, "seek status-code in: " << tok.remaining().substr(0,10) << "...");
+            ParseResponseStatus(tok, statusCode_);
             buf_ = tok.remaining(); // resume checkpoint
             completedStatus_ = true;
-        } else if (tok.atEnd()) {
-            debugs(74, 6, "Parser needs more data");
-            return 0; // need more to be sure we have it all
-
-        } else {
-            debugs(74, 6, "invalid status-line. invalid code.");
-            return -1; // invalid status, a single SP terminator required
         }
         // NOTE: any whitespace after the single SP is part of the reason phrase.
-    }
 
-    /* RFC 7230 says we SHOULD ignore the reason phrase content
-     * but it has a definite valid vs invalid character set.
-     * We interpret the SHOULD as ignoring absence and syntax, but
-     * producing an error if it contains an invalid octet.
-     */
+        /* RFC 7230 says we SHOULD ignore the reason phrase content
+         * but it has a definite valid vs invalid character set.
+         * We interpret the SHOULD as ignoring absence and syntax, but
+         * producing an error if it contains an invalid octet.
+         */
 
-    debugs(74, 9, "seek reason-phrase in: " << tok.remaining().substr(0,50) << "...");
-
-    // if we got here we are still looking for reason-phrase bytes
-    static const CharacterSet phraseChars = CharacterSet::WSP + CharacterSet::VCHAR + CharacterSet::OBSTEXT;
-    (void)tok.prefix(reasonPhrase_, phraseChars); // optional, no error if missing
-    try {
+        debugs(74, 9, "seek reason-phrase in: " << tok.remaining().substr(0,50) << "...");
+        // if we got here we are still looking for reason-phrase bytes
+        static const CharacterSet phraseChars = CharacterSet::WSP + CharacterSet::VCHAR + CharacterSet::OBSTEXT;
+        (void)tok.prefix(reasonPhrase_, phraseChars); // optional, no error if missing
         skipLineTerminator(tok);
         buf_ = tok.remaining(); // resume checkpoint
         debugs(74, DBG_DATA, Raw("leftovers", buf_.rawContent(), buf_.length()));
@@ -90,7 +82,7 @@ Http::One::ResponseParser::parseResponseStatusAndReason(Tokenizer &tok)
     return -1;
 }
 
-bool
+void
 Http::One::ResponseParser::ParseResponseStatus(Tokenizer &tok, Http::StatusCode &code)
 {
     static const auto &wspDelim = One::Parser::DelimiterCharacters();
@@ -98,15 +90,19 @@ Http::One::ResponseParser::ParseResponseStatus(Tokenizer &tok, Http::StatusCode 
     if (tok.int64(statusValue, 10, false, 3) && tok.skipOne(wspDelim)) {
         debugs(74, 6, "found status-code=" << statusValue);
         code = static_cast<Http::StatusCode>(statusValue);
-        // RFC 7230 section 3.1.2 - status code is 3 DIGIT octets.
-        // However, codes with a wrong class (the first digit) are considered as invalid.
-        // For details, see HTTP WG discussion:
+        // RFC 7230 Section 3.1.2 defines status-code as three DIGIT characters.
+        // Codes with a non-standard first digit (a.k.a. response class) are
+        // considered semantically invalid per the following HTTP WG discussion:
         // https://lists.w3.org/Archives/Public/ietf-http-wg/2010AprJun/0354.html
-        /// whether the status is 3-digit and has a valid class
-        if (code >= scContinue && code < scInvalidHeader)
-            return true;
+
+        // whether the extracted code has three digits and indicates a valid class
+        if (code < 100 || code > 599)
+            throw TextException(ToSBuf("status code ", code, " with invalid class"), Here());
+    } else if (tok.atEnd()) {
+        throw InsufficientInput();
+    } else {
+        throw TextException( "invalid status code", Here());
     }
-    return false;
 }
 
 /**
