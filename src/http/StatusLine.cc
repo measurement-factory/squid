@@ -117,21 +117,17 @@ Http::StatusLine::parse(const String &protoPrefix, const char *start, const char
     start++; // skip SP between HTTP-version and status-code
 
     static const auto statusLength = 4; // the status-code length plus SP
-
-    if (end - start < statusLength)
-        return false; // status-code too short or missing a trailing SP
+    const auto unparsedLength = end - start;
 
     static SBuf statusBuf;
-    statusBuf.assign(start, statusLength);
+    statusBuf.assign(start, unparsedLength < statusLength ? unparsedLength : statusLength);
     Parser::Tokenizer tok(statusBuf);
     try {
         One::ResponseParser::ParseResponseStatus(tok, status_);
     } catch (const Parser::InsufficientInput &) {
-        // we have checked already for sufficient input
-        assert(0);
         return false;
-    } catch (const std::exception &ex) {
-        debugs(57, 6, "invalid status-line: " << ex.what());
+    } catch (...) {
+        debugs(57, 6, "invalid status-line: " << CurrentException);
         return false;
     }
 
