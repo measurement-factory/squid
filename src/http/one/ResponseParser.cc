@@ -85,9 +85,8 @@ Http::One::ResponseParser::parseResponseStatusAndReason(Tokenizer &tok)
 void
 Http::One::ResponseParser::ParseResponseStatus(Tokenizer &tok, StatusCode &code)
 {
-    static const auto &wspDelim = One::Parser::DelimiterCharacters();
     int64_t statusValue;
-    if (tok.int64(statusValue, 10, false, 3) && tok.skipOne(wspDelim)) {
+    if (tok.int64(statusValue, 10, false, 3) && tok.skipOne(Parser::DelimiterCharacters())) {
         debugs(74, 6, "raw status-code=" << statusValue);
         code = static_cast<StatusCode>(statusValue); // may be invalid
 
