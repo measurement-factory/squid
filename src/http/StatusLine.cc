@@ -16,6 +16,8 @@
 #include "parser/forward.h"
 #include "parser/Tokenizer.h"
 
+#include <algorithm>
+
 void
 Http::StatusLine::init()
 {
