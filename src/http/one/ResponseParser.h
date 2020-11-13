@@ -48,7 +48,7 @@ public:
     /// extracts response status-code and the following delimiter; validates status-code
     /// \param[out] code syntactically valid status-code (unchanged on syntax errors)
     /// \throws InsuffientInput and other exceptions on syntax and validation errors
-    static void ParseResponseStatus(Tokenizer &, Http::StatusCode &code);
+    static void ParseResponseStatus(Tokenizer &, StatusCode &code);
 
 private:
     int parseResponseFirstLine();

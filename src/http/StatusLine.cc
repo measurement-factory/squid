@@ -11,9 +11,8 @@
 #include "squid.h"
 #include "base/Packable.h"
 #include "Debug.h"
-#include "http/StatusLine.h"
-#include "http/one/Parser.h"
 #include "http/one/ResponseParser.h"
+#include "http/StatusLine.h"
 #include "parser/forward.h"
 #include "parser/Tokenizer.h"
 
@@ -57,7 +56,7 @@ Http::StatusLine::packInto(Packable * p) const
     if (packedStatus == Http::scNone) {
         static unsigned int reports = 0;
         if (++reports <= 100)
-            debugs(57, DBG_IMPORTANT, "BUG: the internalized response lacks status code");
+            debugs(57, DBG_IMPORTANT, "BUG: the internalized response lacks status-code");
         packedStatus = Http::scInternalServerError;
         packedReason = Http::StatusCodeString(packedStatus); // ignore custom reason_ (if any)
     }
@@ -116,18 +115,21 @@ Http::StatusLine::parse(const String &protoPrefix, const char *start, const char
 
     start++; // skip SP between HTTP-version and status-code
 
-    static const auto statusLength = 4; // the status-code length plus SP
+    assert(start <= end);
+    const auto stdStatusAreaLength = 4; // status-code length plus SP
     const auto unparsedLength = end - start;
+    const auto statusAreaLength = std::min<size_t>(stdStatusAreaLength, unparsedLength);
 
     static SBuf statusBuf;
-    statusBuf.assign(start, unparsedLength < statusLength ? unparsedLength : statusLength);
+    statusBuf.assign(start, statusAreaLength);
     Parser::Tokenizer tok(statusBuf);
     try {
         One::ResponseParser::ParseResponseStatus(tok, status_);
     } catch (const Parser::InsufficientInput &) {
+        debugs(57, 7, "need more; have " << unparsedLength);
         return false;
     } catch (...) {
-        debugs(57, 6, "invalid status-line: " << CurrentException);
+        debugs(57, 3, "cannot parse status-code area: " << CurrentException);
         return false;
     }
 

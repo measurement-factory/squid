@@ -83,25 +83,27 @@ Http::One::ResponseParser::parseResponseStatusAndReason(Tokenizer &tok)
 }
 
 void
-Http::One::ResponseParser::ParseResponseStatus(Tokenizer &tok, Http::StatusCode &code)
+Http::One::ResponseParser::ParseResponseStatus(Tokenizer &tok, StatusCode &code)
 {
     static const auto &wspDelim = One::Parser::DelimiterCharacters();
     int64_t statusValue;
     if (tok.int64(statusValue, 10, false, 3) && tok.skipOne(wspDelim)) {
-        debugs(74, 6, "found status-code=" << statusValue);
-        code = static_cast<Http::StatusCode>(statusValue);
-        // RFC 7230 Section 3.1.2 defines status-code as three DIGIT characters.
+        debugs(74, 6, "raw status-code=" << statusValue);
+        code = static_cast<StatusCode>(statusValue); // may be invalid
+
+        // RFC 7230 Section 3.1.2 says status-code is exactly three DIGITs
+        if (code <= 99)
+            throw TextException(ToSBuf("status-code too short: ", code), Here());
+
         // Codes with a non-standard first digit (a.k.a. response class) are
         // considered semantically invalid per the following HTTP WG discussion:
         // https://lists.w3.org/Archives/Public/ietf-http-wg/2010AprJun/0354.html
-
-        // whether the extracted code has three digits and indicates a valid class
-        if (code < 100 || code > 599)
-            throw TextException(ToSBuf("status code ", code, " with invalid class"), Here());
+        if (code >= 600)
+            throw TextException(ToSBuf("status-code from an invalid response class: ", code), Here());
     } else if (tok.atEnd()) {
         throw InsufficientInput();
     } else {
-        throw TextException( "invalid status code", Here());
+        throw TextException("syntactically invalid status-code area", Here());
     }
 }
 
