@@ -415,7 +415,8 @@ storeDigestRewriteStart(void *datanotused)
     debugs(71, 2, "storeDigestRewrite: start rewrite #" << sd_state.rewrite_count + 1);
 
     const char *url = internalLocalUri("/squid-internal-periodic/", SBuf(StoreDigestFileName));
-    const MasterXaction::Pointer mx = new MasterXaction(XactionInitiator::initCacheDigest);
+    // no Squid listening port for an internal request
+    const MasterXaction::Pointer mx = new MasterXaction(XactionInitiator::initCacheDigest, nullptr);
     auto req = HttpRequest::FromUrlXXX(url, mx);
 
     RequestFlags flags;

@@ -128,7 +128,8 @@ Downloader::buildRequest()
 {
     const HttpRequestMethod method = Http::METHOD_GET;
 
-    const MasterXaction::Pointer mx = new MasterXaction(initiator_);
+    // no Squid listening port for a self-generated request
+    const MasterXaction::Pointer mx = new MasterXaction(initiator_, nullptr);
     auto * const request = HttpRequest::FromUrl(url_, mx, method);
     if (!request) {
         debugs(33, 5, "Invalid URI: " << url_);
