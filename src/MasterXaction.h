@@ -44,7 +44,7 @@ public:
     explicit MasterXaction(const XactionInitiator anInitiator, const AnyP::PortCfgPointer &port) : squidPort(port), initiator(anInitiator) {};
 
     /// whether an HTTP/HTTPs intercepted listening port was provided
-    bool hasListeningInterceptedPort() const { return squidPort && squidPort->flags.isIntercepted(); }
+    bool hasListeningInterceptedPort() const { return squidPort && squidPort->flags.intercepted(); }
 
     /// transaction ID.
     InstanceId<MasterXaction, uint64_t> id;

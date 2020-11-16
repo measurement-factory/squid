@@ -3619,7 +3619,7 @@ parse_port_option(AnyP::PortCfgPointer &s, char *token)
     /* modes first */
 
     if (strcmp(token, "accel") == 0) {
-        if (s->flags.isIntercepted()) {
+        if (s->flags.intercepted()) {
             debugs(3, DBG_CRITICAL, "FATAL: " << cfg_directive << ": Accelerator mode requires its own port. It cannot be shared with other modes.");
             self_destruct();
             return;
@@ -3886,13 +3886,13 @@ parsePortCfg(AnyP::PortCfgPointer *head, const char *optionName)
         s->secure.encryptTransport = true;
 #if USE_OPENSSL
         // https_port: ssl-bump requires one of: tproxy, intercept or require-proxy-header.
-        if (s->flags.tunnelSslBumping && !s->flags.isIntercepted()) {
+        if (s->flags.tunnelSslBumping && !s->flags.intercepted()) {
             debugs(3, DBG_CRITICAL, "FATAL: ssl-bump on https_port requires tproxy/intercept/require-proxy-header which is missing.");
             self_destruct();
             return;
         }
         // https_port: tproxy, intercept and require-proxy-header require ssl-bump
-        if (s->flags.isIntercepted() && !s->flags.tunnelSslBumping) {
+        if (s->flags.intercepted() && !s->flags.tunnelSslBumping) {
             debugs(3, DBG_CRITICAL, "FATAL: tproxy/intercept/require-proxy-header on https_port requires ssl-bump which is missing.");
             self_destruct();
             return;

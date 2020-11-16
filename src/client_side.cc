@@ -2644,7 +2644,7 @@ ConnStateData::httpsSslBumpStep1AccessCheck()
         return;
     }
 
-    assert(port->flags.isIntercepted());
+    assert(port->flags.intercepted());
     MasterXaction::Pointer mx = new MasterXaction(XactionInitiator::initClient, port);
     mx->tcpClient = clientConnection;
     // Create a fake HTTP request and ALE for the ssl_bump ACL check,
@@ -3641,7 +3641,7 @@ clientAclChecklistFill(ACLFilledChecklist &checklist, ClientHttpRequest *http)
 bool
 ConnStateData::transparent() const
 {
-    return port->flags.isIntercepted();
+    return port->flags.intercepted();
 }
 
 BodyPipe::Pointer

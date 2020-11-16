@@ -92,7 +92,7 @@ public:
      * - Same-Origin verification is mandatory
      * - authentication prohibited
      */
-    bool isIntercepted() const { return natIntercept || tproxyIntercept || proxySurrogateHttps;}
+    bool intercepted() const { return natIntercept || tproxyIntercept || proxySurrogateHttps;}
 };
 
 } // namespace AnyP
