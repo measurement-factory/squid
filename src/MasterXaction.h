@@ -43,6 +43,9 @@ public:
 
     explicit MasterXaction(const XactionInitiator anInitiator) : initiator(anInitiator) {};
 
+    /// whether the listening port is specified and configured as 'intercepted'
+    bool hasListeningInterceptedPort() const { return squidPort && squidPort->flags.isIntercepted(); }
+
     /// transaction ID.
     InstanceId<MasterXaction, uint64_t> id;
 

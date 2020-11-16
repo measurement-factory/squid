@@ -105,10 +105,6 @@ public:
     /// associates the request with a from-client connection manager
     void manager(const CbcPointer<ConnStateData> &aMgr, const AccessLogEntryPointer &al);
 
-    /// whether the master transaction traffic is intercepted
-    /// see TrafficMode::isIntercepted() for details
-    bool interceptedXaction() const { assert(masterXaction && masterXaction->squidPort); return masterXaction->squidPort->flags.isIntercepted(); }
-
 protected:
     void clean();
 

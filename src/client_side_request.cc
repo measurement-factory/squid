@@ -638,7 +638,7 @@ ClientRequestContext::hostHeaderVerify()
     }
 
     debugs(85, 3, "validate host=" << host << ", port=" << port << ", portStr=" << (portStr?portStr:"NULL"));
-    if (http->request->interceptedXaction()) {
+    if (http->request->masterXaction->hasListeningInterceptedPort()) {
         // verify the Host: port (if any) matches the apparent destination
         if (portStr && port != http->getConn()->clientConnection->local.port()) {
             debugs(85, 3, "FAIL on validate port " << http->getConn()->clientConnection->local.port() <<
@@ -932,7 +932,7 @@ clientHierarchical(ClientHttpRequest * http)
     HttpRequestMethod method = request->method;
 
     // intercepted requests MUST NOT (yet) be sent to peers unless verified
-    if (!request->flags.hostVerified && request->interceptedXaction())
+    if (!request->flags.hostVerified && request->masterXaction->hasListeningInterceptedPort())
         return 0;
 
     /*
@@ -1606,7 +1606,7 @@ ClientHttpRequest::sslBumpStart()
     AsyncCall::Pointer bumpCall = commCbCall(85, 5, "ClientSocketContext::sslBumpEstablish",
                                   CommIoCbPtrFun(&SslBumpEstablish, this));
 
-    if (request->interceptedXaction()) {
+    if (request->masterXaction->hasListeningInterceptedPort()) {
         CommIoCbParams &params = GetCommParams<CommIoCbParams>(bumpCall);
         params.flag = Comm::OK;
         params.conn = getConn()->clientConnection;

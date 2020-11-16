@@ -104,7 +104,7 @@ public:
         if (http.valid() && http->getConn() && http->getConn()->serverBump() && http->getConn()->serverBump()->at(XactionStep::tlsBump2, XactionStep::tlsBump3))
             return false;
 #endif
-        return !(request && request->interceptedXaction());
+        return !(request && request->masterXaction->hasListeningInterceptedPort());
     }
 
     /// starts connecting to the next hop, either for the first time or while

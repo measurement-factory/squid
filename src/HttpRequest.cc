@@ -559,7 +559,7 @@ HttpRequest::maybeCacheable()
     // Because it failed verification, or someone bypassed the security tests
     // we cannot cache the reponse for sharing between clients.
     // TODO: update cache to store for particular clients only (going to same Host: and destination IP)
-    if (!flags.hostVerified && interceptedXaction())
+    if (!flags.hostVerified && masterXaction->hasListeningInterceptedPort())
         return false;
 
     switch (url.getScheme()) {
@@ -815,7 +815,7 @@ FindListeningPortAddress(const HttpRequest *callerRequest, const AccessLogEntry 
     if (!ip && ale)
         ip = FindListeningPortAddressInPort(ale->cache.port);
 
-    if (ip || request->interceptedXaction())
+    if (ip || request->masterXaction->hasListeningInterceptedPort())
         return ip;
 
     /* handle non-intercepted cases that were not handled above */
