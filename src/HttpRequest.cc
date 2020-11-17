@@ -754,10 +754,9 @@ HttpRequest::manager(const CbcPointer<ConnStateData> &aMgr, const AccessLogEntry
 #endif /* FOLLOW_X_FORWARDED_FOR */
         my_addr = clientConnection->local;
 
-        flags.intercepted = ((clientConnection->flags & COMM_INTERCEPTION) != 0);
-        flags.interceptTproxy = ((clientConnection->flags & COMM_TRANSPARENT) != 0 ) ;
+        const auto tproxyIntercepted = port ? port->flags.tproxyIntercept : false;
         const bool proxyProtocolPort = port ? port->flags.proxySurrogate() : false;
-        if (flags.interceptTproxy && !proxyProtocolPort) {
+        if (tproxyIntercepted && !proxyProtocolPort) {
             if (Config.accessList.spoof_client_ip) {
                 ACLFilledChecklist *checklist = new ACLFilledChecklist(Config.accessList.spoof_client_ip, this, clientConnection->rfc931);
                 checklist->al = al;
