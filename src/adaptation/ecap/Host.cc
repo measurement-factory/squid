@@ -163,8 +163,7 @@ Adaptation::Ecap::Host::closeDebug(std::ostream *debug)
 Adaptation::Ecap::Host::MessagePtr
 Adaptation::Ecap::Host::newRequest() const
 {
-    // no Squid listening port for a self-generated request
-    static const MasterXaction::Pointer mx = new MasterXaction(XactionInitiator::initAdaptationOrphan_, nullptr);
+    static const MasterXaction::Pointer mx = new MasterXaction(XactionInitiator::initAdaptationOrphan_);
     return MessagePtr(new Adaptation::Ecap::MessageRep(new HttpRequest(mx)));
 }
 

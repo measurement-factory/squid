@@ -76,8 +76,7 @@ Mgr::Inquirer::start()
     std::unique_ptr<MemBuf> replyBuf;
     if (strands.empty()) {
         const char *url = aggrAction->command().params.httpUri.termedBuf();
-        // no Squid listening port for an internal request
-        const MasterXaction::Pointer mx = new MasterXaction(XactionInitiator::initIpc, nullptr);
+        const MasterXaction::Pointer mx = new MasterXaction(XactionInitiator::initIpc);
         auto *req = HttpRequest::FromUrlXXX(url, mx);
         ErrorState err(ERR_INVALID_URL, Http::scNotFound, req, nullptr);
         std::unique_ptr<HttpReply> reply(err.BuildHttpReply());

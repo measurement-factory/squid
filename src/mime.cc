@@ -403,8 +403,7 @@ MimeIcon::created(StoreEntry *newEntry)
 
     /* fill `e` with a canned 2xx response object */
 
-    // no Squid listening port for an internal request
-    const MasterXaction::Pointer mx = new MasterXaction(XactionInitiator::initIcon, nullptr);
+    const MasterXaction::Pointer mx = new MasterXaction(XactionInitiator::initIcon);
     HttpRequestPointer r(HttpRequest::FromUrlXXX(url_, mx));
     if (!r)
         fatalf("mimeLoadIcon: cannot parse internal URL: %s", url_);
