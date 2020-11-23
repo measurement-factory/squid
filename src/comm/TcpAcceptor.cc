@@ -398,7 +398,7 @@ Comm::TcpAcceptor::oldAccept(Comm::ConnectionPointer &details)
     details->local = *gai;
     Ip::Address::FreeAddr(gai);
 
-    const auto interceptedFlags = listenPort_->flags.intercepted();
+    const auto interceptedFlags = conn->flags & (COMM_TRANSPARENT|COMM_INTERCEPTION);
     details->flags |= interceptedFlags; // for PROXY protocol and interception
     if (!listenPort_->flags.proxySurrogate()) {
         // Perform NAT or TPROXY operations to retrieve the real client/dest IP addresses
