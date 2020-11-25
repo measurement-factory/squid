@@ -43,11 +43,12 @@ public:
      *
      * Indicating the following are required:
      *  - PROXY protocol magic header
+     *  - URL translation from relative to absolute form
      *  - src/dst IP retrieved from magic PROXY header
      *  - indirect client IP trust verification is mandatory
      *  - Same-Origin verification is mandatory
      *  - TLS is supported
-     *  - authentication prohibited
+     *  - proxy authentication prohibited
      */
     bool proxySurrogateHttps = false;
 
@@ -58,7 +59,7 @@ public:
      *  - URL translation from relative to absolute form
      *  - Same-Origin verification is mandatory
      *  - destination pinning is recommended
-     *  - authentication prohibited
+     *  - proxy authentication prohibited
      */
     bool natIntercept = false;
 
@@ -70,7 +71,7 @@ public:
      *  - URL translation from relative to absolute form
      *  - Same-Origin verification is mandatory
      *  - destination pinning is recommended
-     *  - authentication prohibited
+     *  - proxy authentication prohibited
      */
     bool tproxyIntercept = false;
 
@@ -88,11 +89,15 @@ public:
     /// whether the PROXY protocol header is present
     bool proxySurrogate() { return proxySurrogateHttp || proxySurrogateHttps; }
 
-    /** whether the TCP traffic is directed to origin
+    /** whether the client TCP traffic is directed to origin
      * - Same-Origin verification is mandatory
-     * - authentication prohibited
+     * - URL translation from relative to absolute form
+     * - proxy authentication prohibited
      */
-    bool intercepted() const { return natIntercept || tproxyIntercept || proxySurrogateHttps;}
+    bool intercepted() const {
+        /// TODO: treat any proxySurrogate() as intercepted
+        return natIntercept || tproxyIntercept || proxySurrogateHttps;
+    }
 };
 
 } // namespace AnyP
