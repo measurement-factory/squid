@@ -87,7 +87,7 @@ public:
     bool tunnelSslBumping = false;
 
     /// whether the PROXY protocol header is present
-    bool proxySurrogate() { return proxySurrogateHttp || proxySurrogateHttps; }
+    bool proxySurrogate() const { return proxySurrogateHttp || proxySurrogateHttps; }
 
     /** whether the client TCP traffic is directed to origin
      * - Same-Origin verification is mandatory
