@@ -21,13 +21,18 @@ namespace AnyP
 class TrafficMode
 {
 public:
-    /** marks HTTP accelerator (reverse/surrogate proxy) traffic
-     *
-     * Indicating the following are required:
-     *  - URL translation from relative to absolute form
-     *  - restriction to origin peer relay recommended
+    /// whether the PROXY protocol header is present
+    bool proxySurrogate() const { return proxySurrogateHttp_ || proxySurrogateHttps_; }
+
+    /** whether the client TCP traffic is directed to origin
+     * - Same-Origin verification is mandatory
+     * - URL translation from relative to absolute form
+     * - proxy authentication prohibited
      */
-    bool accelSurrogate = false;
+    bool intercepted() const {
+        /// TODO: treat any proxySurrogate() as intercepted
+        return natIntercept_ || tproxyIntercept_ || proxySurrogateHttps_;
+    }
 
     /** marks http ports receiving PROXY protocol traffic
      *
@@ -37,7 +42,8 @@ public:
      *  - indirect client IP trust verification is mandatory
      *  - TLS is not supported
      */
-    bool proxySurrogateHttp = false;
+    void proxySurrogateHttp(const bool val) { proxySurrogateHttp_ = val; }
+    bool proxySurrogateHttp() const { return proxySurrogateHttp_; }
 
     /** marks https ports receiving PROXY protocol traffic
      *
@@ -50,7 +56,8 @@ public:
      *  - TLS is supported
      *  - proxy authentication prohibited
      */
-    bool proxySurrogateHttps = false;
+    void proxySurrogateHttps(const bool val) { proxySurrogateHttps_ = val; }
+    bool proxySurrogateHttps() const { return proxySurrogateHttps_; }
 
     /** marks NAT intercepted traffic
      *
@@ -61,7 +68,8 @@ public:
      *  - destination pinning is recommended
      *  - proxy authentication prohibited
      */
-    bool natIntercept = false;
+    void natIntercept(const bool val) { natIntercept_ = val; }
+    bool natIntercept() const { return natIntercept_; }
 
     /** marks TPROXY intercepted traffic
      *
@@ -73,7 +81,16 @@ public:
      *  - destination pinning is recommended
      *  - proxy authentication prohibited
      */
-    bool tproxyIntercept = false;
+    void tproxyIntercept(const bool val) { tproxyIntercept_ = val; }
+    bool tproxyIntercept() const { return tproxyIntercept_; }
+
+    /** marks HTTP accelerator (reverse/surrogate proxy) traffic
+     *
+     * Indicating the following are required:
+     *  - URL translation from relative to absolute form
+     *  - restriction to origin peer relay recommended
+     */
+    bool accelSurrogate = false;
 
     /** marks intercept and decryption of CONNECT (tunnel) SSL traffic
      *
@@ -86,18 +103,15 @@ public:
      */
     bool tunnelSslBumping = false;
 
-    /// whether the PROXY protocol header is present
-    bool proxySurrogate() const { return proxySurrogateHttp || proxySurrogateHttps; }
+private:
 
-    /** whether the client TCP traffic is directed to origin
-     * - Same-Origin verification is mandatory
-     * - URL translation from relative to absolute form
-     * - proxy authentication prohibited
-     */
-    bool intercepted() const {
-        /// TODO: treat any proxySurrogate() as intercepted
-        return natIntercept || tproxyIntercept || proxySurrogateHttps;
-    }
+    bool proxySurrogateHttp_ = false;
+
+    bool proxySurrogateHttps_ = false;
+
+    bool natIntercept_ = false;
+
+    bool tproxyIntercept_ = false;
 };
 
 } // namespace AnyP

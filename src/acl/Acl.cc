@@ -203,7 +203,8 @@ ACL::ParseAclLine(ConfigParser &parser, ACL ** head)
         AnyP::PortCfgPointer p = HttpPortList;
         while (p != NULL) {
             // Bug 3239: not reliable when there is interception traffic coming
-            if (p->flags.natIntercept)
+            // TODO: missed other interception modes.
+            if (p->flags.natIntercept())
                 debugs(28, DBG_CRITICAL, "WARNING: 'myip' ACL is not reliable for interception proxies. Please use 'myportname' instead.");
             p = p->next;
         }
@@ -214,7 +215,8 @@ ACL::ParseAclLine(ConfigParser &parser, ACL ** head)
         while (p != NULL) {
             // Bug 3239: not reliable when there is interception traffic coming
             // Bug 3239: myport - not reliable (yet) when there is interception traffic coming
-            if (p->flags.natIntercept)
+            // TODO: missed other interception modes.
+            if (p->flags.natIntercept())
                 debugs(28, DBG_CRITICAL, "WARNING: 'myport' ACL is not reliable for interception proxies. Please use 'myportname' instead.");
             p = p->next;
         }

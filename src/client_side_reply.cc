@@ -1524,8 +1524,8 @@ clientReplyContext::buildReplyHeader()
                     }
                     request->flags.mustKeepalive = true;
                     const auto port = request->masterXaction->squidPort;
-                    /// XXX: missing other intercepting modes (e.g., tproxyIntercept).
-                    const auto natIntercepted = port ? port->flags.natIntercept : false;
+                    /// XXX: missed other interception modes (e.g., tproxyIntercept).
+                    const auto natIntercepted = port ? port->flags.natIntercept() : false;
                     if (!request->flags.accelerated && !natIntercepted) {
                         httpHeaderPutStrf(hdr, Http::HdrType::PROXY_SUPPORT, "Session-Based-Authentication");
                         /*

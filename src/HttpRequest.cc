@@ -754,7 +754,7 @@ HttpRequest::manager(const CbcPointer<ConnStateData> &aMgr, const AccessLogEntry
 #endif /* FOLLOW_X_FORWARDED_FOR */
         my_addr = clientConnection->local;
 
-        const auto tproxyIntercepted = port ? port->flags.tproxyIntercept : false;
+        const auto tproxyIntercepted = port ? port->flags.tproxyIntercept() : false;
         const bool proxyProtocolPort = port ? port->flags.proxySurrogate() : false;
         if (tproxyIntercepted && !proxyProtocolPort) {
             if (Config.accessList.spoof_client_ip) {

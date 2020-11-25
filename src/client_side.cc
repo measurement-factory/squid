@@ -3423,8 +3423,8 @@ clientHttpConnectionsOpen(void)
         s->listenConn = new Comm::Connection;
         s->listenConn->local = s->s;
 
-        s->listenConn->flags = COMM_NONBLOCKING | (s->flags.tproxyIntercept ? COMM_TRANSPARENT : 0) |
-                               (s->flags.natIntercept ? COMM_INTERCEPTION : 0) |
+        s->listenConn->flags = COMM_NONBLOCKING | (s->flags.tproxyIntercept() ? COMM_TRANSPARENT : 0) |
+                               (s->flags.natIntercept() ? COMM_INTERCEPTION : 0) |
                                (s->workerQueues ? COMM_REUSEPORT : 0);
 
         typedef CommCbFunPtrCallT<CommAcceptCbPtrFun> AcceptCall;
@@ -3461,8 +3461,8 @@ clientStartListeningOn(AnyP::PortCfgPointer &port, const RefCount< CommCbFunPtrC
     port->listenConn->local = port->s;
     port->listenConn->flags =
         COMM_NONBLOCKING |
-        (port->flags.tproxyIntercept ? COMM_TRANSPARENT : 0) |
-        (port->flags.natIntercept ? COMM_INTERCEPTION : 0);
+        (port->flags.tproxyIntercept() ? COMM_TRANSPARENT : 0) |
+        (port->flags.natIntercept() ? COMM_INTERCEPTION : 0);
 
     // route new connections to subCall
     typedef CommCbFunPtrCallT<CommAcceptCbPtrFun> AcceptCall;
@@ -3493,8 +3493,8 @@ clientListenerConnectionOpened(AnyP::PortCfgPointer &s, const Ipc::FdNoteId port
     AsyncJob::Start(new Comm::TcpAcceptor(s, FdNote(portTypeNote), sub));
 
     debugs(1, DBG_IMPORTANT, "Accepting " <<
-           (s->flags.natIntercept ? "NAT intercepted " : "") <<
-           (s->flags.tproxyIntercept ? "TPROXY intercepted " : "") <<
+           (s->flags.natIntercept() ? "NAT intercepted " : "") <<
+           (s->flags.tproxyIntercept() ? "TPROXY intercepted " : "") <<
            (s->flags.tunnelSslBumping ? "SSL bumped " : "") <<
            (s->flags.accelSurrogate ? "reverse-proxy " : "") <<
            FdNote(portTypeNote) << " connections " <<
