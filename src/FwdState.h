@@ -46,6 +46,32 @@ class CertValidationResponse;
 };
 #endif
 
+// TODO: Move to comm/Connection.h
+namespace Comm
+{
+
+/// an exclusive Connection owner
+class OpenConnectionPointer
+{
+public:
+    OpenConnectionPointer(const ConnectionPointer &, const AsyncCall &closer);
+    ~OpenConnectionPointer();
+    OpenConnectionPointer(OpenConnectionPointer &&) = delete;
+
+    Connection *get() const { return conn_.get(); } ///< a non-nil Connection pointer or nil
+    Connection &operator *() const; ///< a Connection reference or exception
+    Connection *operator ->() const; ///< a non-nil Connection pointer or exception
+
+    /// allows legacy code to dangerously share connection ownership with us
+    const ConnectionPointer &shareXXX() const { return conn; }
+
+private:
+    ConnectionPointer conn_;
+}
+
+
+}
+
 /// Sets initial TOS value and Netfilter for the future outgoing connection.
 /// Updates the given Connection object, not the future transport connection.
 void GetMarkingsToServer(HttpRequest * request, Comm::Connection &conn);
@@ -92,7 +118,7 @@ public:
     void connectDone(const Comm::ConnectionPointer & conn, Comm::Flag status, int xerrno);
     bool checkRetry();
     bool checkRetriable();
-    void dispatch();
+    void dispatch(Comm::OpenConnectionPointer &serverConn);
 
     void pconnPush(Comm::ConnectionPointer & conn, const char *domain);
 
@@ -102,9 +128,6 @@ public:
 
     /// get rid of a to-server connection that failed to become serverConn
     void closePendingConnection(const Comm::ConnectionPointer &conn, const char *reason);
-
-    /** return a ConnectionPointer to the current server connection (may or may not be open) */
-    Comm::ConnectionPointer const & serverConnection() const { return serverConn; };
 
 private:
     // hidden for safer management of self; use static fwdStart
@@ -206,7 +229,6 @@ private:
     JobWait<Http::Tunneler> httpConnectWait;
 
     ResolvedPeersPointer destinations; ///< paths for forwarding the request
-    Comm::ConnectionPointer serverConn; ///< a successfully opened connection to a server.
     PeerConnectionPointer destinationReceipt; ///< peer selection result (or nil)
 
     AsyncCall::Pointer closeHandler; ///< The serverConn close handler

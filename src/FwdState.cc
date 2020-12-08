@@ -1028,39 +1028,40 @@ FwdState::connectedToPeer(Security::EncryptorAnswer &answer)
 
 /// called when all negotiations with the peer have been completed
 void
-FwdState::successfullyConnectedToPeer(const Comm::ConnectionPointer &conn)
+FwdState::successfullyConnectedToPeer(const Comm::OpenConnectionPointer &conn)
 {
     syncWithServerConn(conn, request->url.host(), false);
 
+    // TODO: Pin/move the open connection _after_ it has been used (if still
+    // usable). Also, ConnStateData kids that rely on pinned connection reuse
+    // must pause processing of requests _before_ engaging with FwdState.
+    //
     // should reach ConnStateData before the dispatched Client job starts
     CallJobHere1(17, 4, request->clientConnectionManager, ConnStateData,
-                 ConnStateData::notePeerConnection, serverConnection());
+                 ConnStateData::notePeerConnection, conn.shareXXX());
 
-    if (serverConnection()->getPeer())
-        peerConnectSucceded(serverConnection()->getPeer());
+    if (const auto peer = conn->getPeer())
+        peerConnectSucceded(peer);
 
-    dispatch();
+    dispatch(conn);
 }
 
 /// commits to using the given open to-peer connection
 void
-FwdState::syncWithServerConn(const Comm::ConnectionPointer &conn, const char *host, const bool reused)
+FwdState::syncWithServerConn(const Comm::OpenConnectionPointer &conn, const char *host, const bool reused)
 {
     Must(IsConnOpen(conn));
-    serverConn = conn;
     // no effect on destinationReceipt (which may even be nil here)
-
-    closeHandler = comm_add_close_handler(serverConn->fd,  fwdServerClosedWrapper, this);
 
     if (reused) {
         pconnRace = racePossible;
-        ResetMarkingsToServer(request, *serverConn);
+        ResetMarkingsToServer(request, *conn);
     } else {
         pconnRace = raceImpossible;
         // Comm::ConnOpener already applied proper/current markings
     }
 
-    syncHierNote(serverConn, host);
+    syncHierNote(conn, host);
 }
 
 void
