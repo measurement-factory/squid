@@ -559,7 +559,7 @@ HttpRequest::maybeCacheable()
     // Because it failed verification, or someone bypassed the security tests
     // we cannot cache the reponse for sharing between clients.
     // TODO: update cache to store for particular clients only (going to same Host: and destination IP)
-    if (!flags.hostVerified && (flags.intercepted || flags.interceptTproxy))
+    if (!flags.hostVerified && masterXaction->hasListeningInterceptedPort())
         return false;
 
     switch (url.getScheme()) {
@@ -754,10 +754,9 @@ HttpRequest::manager(const CbcPointer<ConnStateData> &aMgr, const AccessLogEntry
 #endif /* FOLLOW_X_FORWARDED_FOR */
         my_addr = clientConnection->local;
 
-        flags.intercepted = ((clientConnection->flags & COMM_INTERCEPTION) != 0);
-        flags.interceptTproxy = ((clientConnection->flags & COMM_TRANSPARENT) != 0 ) ;
-        const bool proxyProtocolPort = port ? port->flags.proxySurrogate : false;
-        if (flags.interceptTproxy && !proxyProtocolPort) {
+        const auto tproxyIntercepted = port ? port->flags.tproxyIntercept() : false;
+        const bool proxyProtocolPort = port ? port->flags.proxySurrogate() : false;
+        if (tproxyIntercepted && !proxyProtocolPort) {
             if (Config.accessList.spoof_client_ip) {
                 ACLFilledChecklist *checklist = new ACLFilledChecklist(Config.accessList.spoof_client_ip, this, clientConnection->rfc931);
                 checklist->al = al;
@@ -815,8 +814,7 @@ FindListeningPortAddress(const HttpRequest *callerRequest, const AccessLogEntry 
     if (!ip && ale)
         ip = FindListeningPortAddressInPort(ale->cache.port);
 
-    // XXX: also handle PROXY protocol here when we have a flag to identify such request
-    if (ip || request->flags.interceptTproxy || request->flags.intercepted)
+    if (ip || request->masterXaction->hasListeningInterceptedPort())
         return ip;
 
     /* handle non-intercepted cases that were not handled above */

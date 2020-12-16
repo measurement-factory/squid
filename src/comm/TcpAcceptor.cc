@@ -333,7 +333,7 @@ Comm::TcpAcceptor::notify(const Comm::Flag flag, const Comm::ConnectionPointer &
     if (theCallSub != NULL) {
         AsyncCall::Pointer call = theCallSub->callback();
         CommAcceptCbParams &params = GetCommParams<CommAcceptCbParams>(call);
-        params.xaction = new MasterXaction(XactionInitiator::initClient);
+        params.xaction = new MasterXaction(listenPort_);
         params.xaction->squidPort = listenPort_;
         params.fd = conn->fd;
         params.conn = params.xaction->tcpClient = newConnDetails;
@@ -398,13 +398,16 @@ Comm::TcpAcceptor::oldAccept(Comm::ConnectionPointer &details)
     details->local = *gai;
     Ip::Address::FreeAddr(gai);
 
-    // Perform NAT or TPROXY operations to retrieve the real client/dest IP addresses
-    if (conn->flags&(COMM_TRANSPARENT|COMM_INTERCEPTION) && !Ip::Interceptor.Lookup(details, conn)) {
-        debugs(50, DBG_IMPORTANT, "ERROR: NAT/TPROXY lookup failed to locate original IPs on " << details);
-        // Failed.
-        PROF_stop(comm_accept);
-        return Comm::COMM_ERROR;
-    }
+    const auto interceptedFlags = conn->flags & (COMM_TRANSPARENT|COMM_INTERCEPTION);
+    details->flags |= interceptedFlags; // for PROXY protocol and interception
+    if (!listenPort_->flags.proxySurrogate()) {
+        // Perform NAT or TPROXY operations to retrieve the real client/dest IP addresses
+        if (interceptedFlags && !Ip::Interceptor.Lookup(details, conn)) {
+            debugs(50, DBG_IMPORTANT, "ERROR: NAT/TPROXY lookup failed to locate original IPs on " << details);
+            PROF_stop(comm_accept);
+            return Comm::COMM_ERROR;
+        }
+    } // else the PROXY protocol will supply the real client/dest IP addresses
 
 #if USE_SQUID_EUI
     if (Eui::TheConfig.euiLookup) {

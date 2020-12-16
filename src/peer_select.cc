@@ -421,8 +421,7 @@ PeerSelector::resolveSelected()
     // To resolve this we must use only the original client destination when going DIRECT
     // on intercepted traffic which failed Host verification
     const HttpRequest *req = request;
-    const bool isIntercepted = !req->flags.redirected &&
-                               (req->flags.intercepted || req->flags.interceptTproxy);
+    const bool isIntercepted = !req->flags.redirected && req->masterXaction->hasListeningInterceptedPort();
     const bool useOriginalDst = Config.onoff.client_dst_passthru || !req->flags.hostVerified;
     const bool choseDirect = fs && fs->code == HIER_DIRECT;
     if (isIntercepted && useOriginalDst && choseDirect) {

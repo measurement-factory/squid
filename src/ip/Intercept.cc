@@ -404,8 +404,6 @@ Ip::Intercept::Lookup(const Comm::ConnectionPointer &newConn, const Comm::Connec
 
     debugs(89, 5, HERE << "address BEGIN: me/client= " << newConn->local << ", destination/me= " << newConn->remote);
 
-    newConn->flags |= (listenConn->flags & (COMM_TRANSPARENT|COMM_INTERCEPTION));
-
     /* NP: try TPROXY first, its much quieter than NAT when non-matching */
     if (transparentActive_ && listenConn->flags&COMM_TRANSPARENT) {
         if (TproxyTransparent(newConn, silent)) return true;
