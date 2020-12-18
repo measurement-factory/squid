@@ -1581,7 +1581,8 @@ ConnStateData::tunnelOnError(const HttpRequestMethod &method, const err_type req
         if (context)
             context->finished(); // Will remove from pipeline queue
         Comm::SetSelect(clientConnection->fd, COMM_SELECT_READ, NULL, NULL, 0);
-        return initiateTunneledRequest(request, Http::METHOD_NONE, "unknown-protocol", preservedClientData);
+        inBuf = preservedClientData;
+        return initiateTunneledRequest(request, Http::METHOD_NONE, "unknown-protocol");
     }
     debugs(33, 3, "denied; send error: " << requestError);
     return false;
@@ -2559,7 +2560,7 @@ ConnStateData::postHttpsAccept()
 #if USE_OPENSSL
         debugs(33, 5, "accept transparent connection: " << clientConnection);
 
-        fakeAConnectRequest("transparent/ssl-bump", inBuf);
+        fakeAConnectRequest("transparent/ssl-bump");
         return;
 #else
         fatal("FATAL: SSL-Bump requires --with-openssl");
@@ -3004,13 +3005,13 @@ ConnStateData::startPeekAndSpliceStep2()
     if (transparent()) {
         // For transparent connections, make a new fake CONNECT request now
         // with SNI as target.Callouts are not called.
-        (void)fakeAConnectRequest("ssl_bump step2", inBuf);
+        (void)fakeAConnectRequest("ssl_bump step2");
     } else {
         // For non transparent connections  make a new tunneled CONNECT, which
         // also sets the HttpRequest::flags::forceTunnel flag to avoid
         // respond with "Connection Established" to the client.
         // Callouts are not called
-        (void)initiateTunneledRequest(cause, Http::METHOD_CONNECT, "ssl_bump step2", inBuf);
+        (void)initiateTunneledRequest(cause, Http::METHOD_CONNECT, "ssl_bump step2");
     }
     context = pipeline.front();
     Must(context);
@@ -3121,7 +3122,7 @@ ConnStateData::httpsPeeked(PinnedIdleContext pic)
 #endif /* USE_OPENSSL */
 
 bool
-ConnStateData::initiateTunneledRequest(HttpRequest::Pointer const &cause, Http::MethodType const method, const char *reason, const SBuf &payload)
+ConnStateData::initiateTunneledRequest(HttpRequest::Pointer const &cause, Http::MethodType const method, const char *reason)
 {
     // fake a CONNECT request to force connState to tunnel
     SBuf connectHost;
@@ -3149,7 +3150,7 @@ ConnStateData::initiateTunneledRequest(HttpRequest::Pointer const &cause, Http::
     }
 
     debugs(33, 2, "Request tunneling for " << reason);
-    ClientHttpRequest *http = buildFakeRequest(method, connectHost, connectPort, payload);
+    ClientHttpRequest *http = buildFakeRequest(method, connectHost, connectPort);
     HttpRequest::Pointer request = http->request;
     request->flags.forceTunnel = true;
     http->calloutContext = new ClientRequestContext(http);
@@ -3159,7 +3160,7 @@ ConnStateData::initiateTunneledRequest(HttpRequest::Pointer const &cause, Http::
 }
 
 bool
-ConnStateData::fakeAConnectRequest(const char *reason, const SBuf &payload)
+ConnStateData::fakeAConnectRequest(const char *reason)
 {
     debugs(33, 2, "fake a CONNECT request to force connState to tunnel for " << reason);
 
@@ -3178,7 +3179,7 @@ ConnStateData::fakeAConnectRequest(const char *reason, const SBuf &payload)
         connectHost.assign(ip);
     }
 
-    ClientHttpRequest *http = buildFakeRequest(Http::METHOD_CONNECT, connectHost, connectPort, payload);
+    ClientHttpRequest *http = buildFakeRequest(Http::METHOD_CONNECT, connectHost, connectPort);
     http->calloutContext = new ClientRequestContext(http);
     http->doCallouts();
 
@@ -3188,7 +3189,7 @@ ConnStateData::fakeAConnectRequest(const char *reason, const SBuf &payload)
 }
 
 ClientHttpRequest *
-ConnStateData::buildFakeRequest(Http::MethodType const method, SBuf &useHost, unsigned short usePort, const SBuf &payload)
+ConnStateData::buildFakeRequest(Http::MethodType const method, SBuf &useHost, unsigned short usePort)
 {
     ClientHttpRequest *http = new ClientHttpRequest(this);
     Http::Stream *stream = new Http::Stream(clientConnection, http);
@@ -3237,7 +3238,6 @@ ConnStateData::buildFakeRequest(Http::MethodType const method, SBuf &useHost, un
         request->auth_user_request = getAuth();
 #endif
 
-    inBuf = payload;
     flags.readMore = false;
 
     return http;
