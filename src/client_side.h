@@ -327,8 +327,11 @@ public:
     // TODO: move to the protected section when removing clientTunnelOnError()
     bool tunnelOnError(const HttpRequestMethod &, const err_type);
 
-    /// build a fake http request
+    /// build a fake client http request based on method, server and destination port
     ClientHttpRequest *buildFakeRequest(Http::MethodType const method, SBuf &useHost, unsigned short usePort);
+
+    /// build a fake client http request based on an HttpRequest object
+    ClientHttpRequest *buildFakeRequest(HttpRequest::Pointer &request);
 
     /// From-client handshake bytes (including bytes at the beginning of a
     /// CONNECT tunnel) which we may need to forward as-is if their syntax does

@@ -3002,23 +3002,18 @@ ConnStateData::startPeekAndSpliceStep2()
     assert(!pipeline.empty());
     HttpRequest::Pointer cause = http->request;
     context->finished();
-    if (transparent()) {
-        // For transparent connections, make a new fake CONNECT request now
-        // with SNI as target.Callouts are not called.
-        (void)fakeAConnectRequest("ssl_bump step2");
-    } else {
-        // For non transparent connections  make a new tunneled CONNECT, which
-        // also sets the HttpRequest::flags::forceTunnel flag to avoid
-        // respond with "Connection Established" to the client.
-        // Callouts are not called
-        (void)initiateTunneledRequest(cause, Http::METHOD_CONNECT, "ssl_bump step2");
+    HttpRequest::Pointer request = cause->clone();
+    if (request->url.hostIsNumeric() && !tlsClientSni_.isEmpty()) {
+        request->url.host(tlsClientSni_.c_str());
+        // also replace host header
+        request->header.delById(Http::HOST);
+        request->header.putStr(Http::HOST, tlsClientSni_.c_str());
     }
-    context = pipeline.front();
-    Must(context);
-    http = context->http;
-    Must(http);
-    HttpRequest::Pointer request = http->request;
     request->flags.sslPeek = true;
+    http = buildFakeRequest(request);
+    http->calloutContext = new ClientRequestContext(http);
+    http->doCallouts();
+    clientProcessRequestFinished(this, request);
 }
 
 void
@@ -3191,6 +3186,29 @@ ConnStateData::fakeAConnectRequest(const char *reason)
 ClientHttpRequest *
 ConnStateData::buildFakeRequest(Http::MethodType const method, SBuf &useHost, unsigned short usePort)
 {
+    MasterXaction::Pointer mx = new MasterXaction(XactionInitiator::initClient);
+    mx->tcpClient = clientConnection;
+    HttpRequest::Pointer request = new HttpRequest(mx);
+    AnyP::ProtocolType proto = (method == Http::METHOD_NONE) ? AnyP::PROTO_AUTHORITY_FORM : AnyP::PROTO_HTTP;
+    request->url.setScheme(proto, nullptr);
+    request->method = method;
+    request->url.host(useHost.c_str());
+    request->url.port(usePort);
+    if (proto == AnyP::PROTO_HTTP)
+        request->header.putStr(Http::HOST, useHost.c_str());
+
+    request->sources |= ((switchedToHttps() || port->transport.protocol == AnyP::PROTO_HTTPS) ? Http::Message::srcHttps : Http::Message::srcHttp);
+#if USE_AUTH
+    if (getAuth())
+        request->auth_user_request = getAuth();
+#endif
+
+    return buildFakeRequest(request);
+}
+
+ClientHttpRequest *
+ConnStateData::buildFakeRequest(HttpRequest::Pointer &request)
+{
     ClientHttpRequest *http = new ClientHttpRequest(this);
     Http::Stream *stream = new Http::Stream(clientConnection, http);
 
@@ -3213,30 +3231,10 @@ ConnStateData::buildFakeRequest(Http::MethodType const method, SBuf &useHost, un
 
     stream->registerWithConn();
 
-    MasterXaction::Pointer mx = new MasterXaction(XactionInitiator::initClient);
-    mx->tcpClient = clientConnection;
-    // Setup Http::Request object. Maybe should be replaced by a call to (modified)
-    // clientProcessRequest
-    HttpRequest::Pointer request = new HttpRequest(mx);
-    AnyP::ProtocolType proto = (method == Http::METHOD_NONE) ? AnyP::PROTO_AUTHORITY_FORM : AnyP::PROTO_HTTP;
-    request->url.setScheme(proto, nullptr);
-    request->method = method;
-    request->url.host(useHost.c_str());
-    request->url.port(usePort);
-
     http->uri = SBufToCstring(request->effectiveRequestUri());
     http->initRequest(request.getRaw());
 
     request->manager(this, http->al);
-
-    if (proto == AnyP::PROTO_HTTP)
-        request->header.putStr(Http::HOST, useHost.c_str());
-
-    request->sources |= ((switchedToHttps() || port->transport.protocol == AnyP::PROTO_HTTPS) ? Http::Message::srcHttps : Http::Message::srcHttp);
-#if USE_AUTH
-    if (getAuth())
-        request->auth_user_request = getAuth();
-#endif
 
     flags.readMore = false;
 
