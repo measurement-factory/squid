@@ -10,6 +10,8 @@
 #define _SQUID_SRC_LOG_TCPLOGGER_H
 
 #include "base/AsyncJob.h"
+#include "base/forward.h"
+#include "comm/forward.h"
 #include "ip/Address.h"
 
 #include <list>
@@ -102,6 +104,9 @@ private:
     Comm::ConnectionPointer conn; ///< opened connection to the remote logger
     Ip::Address remote; ///< where the remote logger expects our records
     AsyncCall::Pointer closer; ///< handles unexpected/external conn closures
+
+    /// establishes a connection to the remote logger
+    JobWait<Comm::ConnOpener> connWait;
 
     uint64_t connectFailures; ///< number of sequential connection failures
     uint64_t drops; ///< number of records dropped during the current outage

@@ -159,19 +159,15 @@ private:
         explicit operator bool() const { return static_cast<bool>(path); }
 
         /// reacts to a natural attempt completion (successful or otherwise)
-        void finish() { clear(); }
+        void finish();
 
         /// aborts an in-progress attempt
         void cancel(const char *reason);
 
         PeerConnectionPointer path; ///< the destination we are connecting to
-        AsyncCall::Pointer connector; ///< our opener callback
-        Comm::ConnOpener::Pointer opener; ///< connects to path and calls us
-
-    private:
-        /// cleans up after the attempt ends (successfully or otherwise)
-        void clear() { path = nullptr; connector = nullptr; opener = nullptr; }
+        JobWait<Comm::ConnOpener> connWait; ///< establishes a transport connection
     };
+    friend std::ostream &operator <<(std::ostream &, const Attempt &);
 
     /* AsyncJob API */
     virtual void start() override;

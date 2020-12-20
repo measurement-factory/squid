@@ -9,13 +9,11 @@
 #ifndef SQUID_FORWARD_H
 #define SQUID_FORWARD_H
 
-#include "base/CbcPointer.h"
 #include "base/forward.h"
 #include "base/RefCount.h"
 #include "clients/forward.h"
 #include "comm.h"
 #include "comm/Connection.h"
-#include "comm/ConnOpener.h"
 #include "err_type.h"
 #include "fde.h"
 #include "http/StatusCode.h"
@@ -38,7 +36,6 @@ class ResolvedPeers;
 typedef RefCount<ResolvedPeers> ResolvedPeersPointer;
 
 class HappyConnOpener;
-typedef CbcPointer<HappyConnOpener> HappyConnOpenerPointer;
 class HappyConnOpenerAnswer;
 
 #if USE_OPENSSL
@@ -118,6 +115,9 @@ private:
     /* PeerSelectionInitiator API */
     virtual void noteDestination(Comm::ConnectionPointer conn) override;
     virtual void noteDestinationsEnd(ErrorState *selectionError) override;
+    /// whether the successfully selected path destination or the established
+    /// server connection is still in use
+    bool usingDestination() const;
 
     void noteConnection(HappyConnOpenerAnswer &);
 
@@ -160,13 +160,13 @@ private:
     /// \returns the time left for this connection to become connected or 1 second if it is less than one second left
     time_t connectingTimeout(const Comm::ConnectionPointer &conn) const;
 
-    /// whether we are waiting for HappyConnOpener
-    /// same as calls.connector but may differ from connOpener.valid()
-    bool opening() const { return connOpener.set(); }
-
-    void cancelOpening(const char *reason);
-
     void notifyConnOpener();
+
+    void saveError(ErrorState *err);
+
+    void cleanupOnFail(err_type);
+
+    void cancelStep(const char *reason);
 
 public:
     StoreEntry *entry;
@@ -183,11 +183,6 @@ private:
     time_t start_t;
     int n_tries; ///< the number of forwarding attempts so far
 
-    // AsyncCalls which we set and may need cancelling.
-    struct {
-        AsyncCall::Pointer connector;  ///< a call linking us to the ConnOpener producing serverConn.
-    } calls;
-
     struct {
         bool connected_okay; ///< TCP link ever opened properly. This affects retry of POST,PUT,CONNECT,etc
         bool dont_retry;
@@ -195,7 +190,16 @@ private:
         bool destinationsFound; ///< at least one candidate path found
     } flags;
 
-    HappyConnOpenerPointer connOpener; ///< current connection opening job
+    /// establishes a transport connection
+    JobWait<HappyConnOpener> tcpConnWait;
+
+    /// encrypts an established transport connection
+    JobWait<Security::PeerConnector> encryptionWait;
+
+    /// establishes an HTTP CONNECT tunnel through a cache_peer
+    /// over an (encrypted, if needed), transport connection to that cache_peer
+    JobWait<Http::Tunneler> httpConnectWait;
+
     ResolvedPeersPointer destinations; ///< paths for forwarding the request
     Comm::ConnectionPointer serverConn; ///< a successfully opened connection to a server.
     PeerConnectionPointer destinationReceipt; ///< peer selection result (or nil)

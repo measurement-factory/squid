@@ -143,6 +143,7 @@ class ParsedOptions {}; // we never parse/use TLS options in this case
 typedef long ParsedPortFlags;
 
 class PeerConnector;
+class BlindPeerConnector;
 class PeerOptions;
 
 #if USE_OPENSSL

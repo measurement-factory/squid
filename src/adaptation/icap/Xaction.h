@@ -12,12 +12,17 @@
 #include "AccessLogEntry.h"
 #include "adaptation/icap/ServiceRep.h"
 #include "adaptation/Initiate.h"
+#include "base/forward.h"
 #include "comm/ConnOpener.h"
 #include "HttpReply.h"
 #include "ipcache.h"
 #include "sbuf/SBuf.h"
 
 class MemBuf;
+
+namespace Ssl {
+  class IcapPeerConnector;
+}
 
 namespace Adaptation
 {
@@ -33,6 +38,7 @@ namespace Icap
  */
 
 // Note: Xaction must be the first parent for object-unaware cbdata to work
+
 
 class Xaction: public Adaptation::Initiate
 {
@@ -139,8 +145,6 @@ protected:
 
     const char *stopReason;
 
-    // active (pending) comm callbacks for the ICAP server connection
-    AsyncCall::Pointer connector;
     AsyncCall::Pointer reader;
     AsyncCall::Pointer writer;
     AsyncCall::Pointer closer;
@@ -153,8 +157,13 @@ protected:
     timeval icap_tio_finish;   /*time when the last byte of the ICAP responsewas received*/
 
 private:
-    Comm::ConnOpener::Pointer cs;
-    AsyncCall::Pointer securer; ///< whether we are securing a connection
+    void successfullyConnected();
+
+    /// establishes a transport connection to the ICAP server
+    JobWait<Comm::ConnOpener> connWait;
+
+    /// encrypts an established transport connection
+    JobWait<Ssl::IcapPeerConnector> encryptionWait;
 };
 
 } // namespace Icap

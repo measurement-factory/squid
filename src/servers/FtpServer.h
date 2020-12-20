@@ -11,8 +11,10 @@
 #ifndef SQUID_SERVERS_FTP_SERVER_H
 #define SQUID_SERVERS_FTP_SERVER_H
 
+#include "base/forward.h"
 #include "base/Lock.h"
 #include "client_side.h"
+#include "comm/forward.h"
 
 namespace Ftp
 {
@@ -188,7 +190,10 @@ private:
     size_t uploadAvailSize; ///< number of yet unused uploadBuf bytes
 
     AsyncCall::Pointer listener; ///< set when we are passively listening
-    AsyncCall::Pointer connector; ///< set when we are actively connecting
+
+    /// establishes an FTP data connection (active open)
+    JobWait<Comm::ConnOpener> dataConnWait;
+
     AsyncCall::Pointer reader; ///< set when we are reading FTP data
 
     /// whether we wait for the origin data transfer to end

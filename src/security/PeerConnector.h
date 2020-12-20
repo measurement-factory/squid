@@ -12,6 +12,7 @@
 #include "acl/Acl.h"
 #include "base/AsyncCbdataCalls.h"
 #include "base/AsyncJob.h"
+#include "base/forward.h"
 #include "CommCalls.h"
 #include "http/forward.h"
 #include "security/EncryptorAnswer.h"
@@ -24,6 +25,7 @@
 #include <queue>
 
 class ErrorState;
+class Downloader;
 class AccessLogEntry;
 typedef RefCount<AccessLogEntry> AccessLogEntryPointer;
 
@@ -59,7 +61,7 @@ public:
                   AsyncCall::Pointer &aCallback,
                   const AccessLogEntryPointer &alp,
                   const time_t timeout = 0);
-    virtual ~PeerConnector() = default;
+    virtual ~PeerConnector();
 
     /// hack: whether the connection requires fwdPconnPool->noteUses()
     bool noteFwdPconnUse;
@@ -174,6 +176,8 @@ private:
     static void NegotiateSsl(int fd, void *data);
     void negotiateSsl();
 
+    void closeQuietly();
+
     /// The maximum allowed missing certificates downloads.
     static const unsigned int MaxCertsDownloads = 10;
     /// The maximum allowed nested certificates downloads.
@@ -186,6 +190,7 @@ private:
     /// The list of URLs where missing certificates should be downloaded.
     std::queue<SBuf> urlsOfMissingCerts;
     unsigned int certsDownloads; ///< the number of downloaded missing certificates
+    JobWait<Downloader> certDownloadWait; ///< downloads a missing certificate
 };
 
 } // namespace Security

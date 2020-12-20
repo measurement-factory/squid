@@ -18,6 +18,7 @@
 #include "neighbors.h"
 #include "pconn.h"
 #include "PeerPoolMgr.h"
+#include "sbuf/Stream.h"
 #include "SquidConfig.h"
 
 CBDATA_CLASS_INIT(HappyConnOpener);
@@ -410,33 +411,43 @@ HappyConnOpener::swanSong()
     AsyncJob::swanSong();
 }
 
+/// HappyConnOpener::Attempt printer for debugging
+std::ostream &
+operator <<(std::ostream &os, const HappyConnOpener::Attempt &attempt)
+{
+    if (!attempt.path)
+        os << '-';
+    else if (attempt.path->isOpen())
+        os << "FD " << attempt.path->fd;
+    else if (attempt.connWait)
+        os << attempt.connWait;
+    else // destination is known; connection closed (and we are not opening any)
+        os << attempt.path->id;
+    return os;
+}
+
 const char *
 HappyConnOpener::status() const
 {
-    static MemBuf buf;
-    buf.reset();
+    // TODO: In a redesigned status() API, the caller may mimic this approach.
+    static SBuf buf;
+    buf.clear();
 
-    buf.append(" [", 2);
+    SBufStream os(buf);
+
+    os.write(" [", 2);
     if (stopReason)
-        buf.appendf("Stopped, reason:%s", stopReason);
-    if (prime) {
-        if (prime.path && prime.path->isOpen())
-            buf.appendf(" prime FD %d", prime.path->fd);
-        else if (prime.connector)
-            buf.appendf(" prime call%ud", prime.connector->id.value);
-    }
-    if (spare) {
-        if (spare.path && spare.path->isOpen())
-            buf.appendf(" spare FD %d", spare.path->fd);
-        else if (spare.connector)
-            buf.appendf(" spare call%ud", spare.connector->id.value);
-    }
+        os << "Stopped:" << stopReason;
+    if (prime)
+        os << "prime:" << prime;
+    if (spare)
+        os << "spare:" << spare;
     if (n_tries)
-        buf.appendf(" tries %d", n_tries);
-    buf.appendf(" %s%u]", id.prefix(), id.value);
-    buf.terminate();
+        os << " tries:" << n_tries;
+    os << ' ' << id << ']';
 
-    return buf.content();
+    buf = os.buf();
+    return buf.c_str();
 }
 
 /// Create "503 Service Unavailable" or "504 Gateway Timeout" error depending
@@ -516,7 +527,7 @@ void
 HappyConnOpener::startConnecting(Attempt &attempt, PeerConnectionPointer &dest)
 {
     Must(!attempt.path);
-    Must(!attempt.connector);
+    Must(!attempt.connWait);
     Must(dest);
 
     const auto bumpThroughPeer = cause->flags.sslBumped && dest->getPeer();
@@ -567,8 +578,7 @@ HappyConnOpener::openFreshConnection(Attempt &attempt, PeerConnectionPointer &de
         cs->setHost(host_);
 
     attempt.path = dest;
-    attempt.connector = callConnect;
-    attempt.opener = cs;
+    attempt.connWait.start(cs, callConnect);
 
     AsyncJob::Start(cs);
 }
@@ -882,12 +892,16 @@ HappyConnOpener::ranOutOfTimeOrAttempts() const
 }
 
 void
+HappyConnOpener::Attempt::finish()
+{
+    connWait.finish();
+    path = nullptr;
+}
+
+void
 HappyConnOpener::Attempt::cancel(const char *reason)
 {
-    if (connector) {
-        connector->cancel(reason);
-        CallJobHere(17, 3, opener, Comm::ConnOpener, noteAbort);
-    }
-    clear();
+    connWait.cancel(reason);
+    path = nullptr;
 }
 

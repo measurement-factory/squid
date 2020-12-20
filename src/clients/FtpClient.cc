@@ -184,10 +184,6 @@ Ftp::Client::Client(FwdState *fwdState):
 
 Ftp::Client::~Client()
 {
-    if (data.opener != NULL) {
-        data.opener->cancel("Ftp::Client destructed");
-        data.opener = NULL;
-    }
     data.close();
 
     safe_free(old_request);
@@ -769,9 +765,10 @@ Ftp::Client::connectDataChannel()
     debugs(9, 3, "connecting to " << conn->remote);
 
     typedef CommCbMemFunT<Client, CommConnectCbParams> Dialer;
-    data.opener = JobCallback(9, 3, Dialer, this, Ftp::Client::dataChannelConnected);
-    Comm::ConnOpener *cs = new Comm::ConnOpener(conn, data.opener, Config.Timeout.connect);
+    AsyncCall::Pointer callback = JobCallback(9, 3, Dialer, this, Ftp::Client::dataChannelConnected);
+    const auto cs = new Comm::ConnOpener(conn, callback, Config.Timeout.connect);
     cs->setHost(data.host);
+    dataConnWait.start(cs, callback);
     AsyncJob::Start(cs);
 }
 

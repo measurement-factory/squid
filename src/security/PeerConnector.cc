@@ -56,6 +56,8 @@ Security::PeerConnector::PeerConnector(const Comm::ConnectionPointer &aServerCon
     comm_add_close_handler(serverConn->fd, closeHandler);
 }
 
+Security::PeerConnector::~PeerConnector() = default;
+
 bool Security::PeerConnector::doneAll() const
 {
     return (!callback || callback->canceled()) && AsyncJob::doneAll();
@@ -549,8 +551,14 @@ Security::PeerConnector::bail(ErrorState *error)
         peerConnectFailed(p);
 
     callBack();
-    disconnect();
 
+    closeQuietly();
+}
+
+void
+Security::PeerConnector::closeQuietly()
+{
+    disconnect();
     if (noteFwdPconnUse)
         fwdPconnPool->noteUses(fd_table[serverConn->fd].pconn.uses);
     serverConn->close();
@@ -595,13 +603,20 @@ Security::PeerConnector::swanSong()
 {
     // XXX: unregister fd-closure monitoring and CommSetSelect interest, if any
     AsyncJob::swanSong();
-    if (callback != NULL) { // paranoid: we have left the caller waiting
-        debugs(83, DBG_IMPORTANT, "BUG: Unexpected state while connecting to a cache_peer or origin server");
-        const auto anErr = new ErrorState(ERR_GATEWAY_FAILURE, Http::scInternalServerError, request.getRaw(), al);
-        bail(anErr);
-        assert(!callback);
+
+    if (!callback)
+        return;
+
+    if (callback->canceled()) {
+        debugs(83, 3, "cancelled by the caller");
+        closeQuietly();
         return;
     }
+    // paranoid: we have left the caller waiting
+    debugs(83, DBG_IMPORTANT, "BUG: Unexpected state while connecting to a cache_peer or origin server");
+    const auto anErr = new ErrorState(ERR_GATEWAY_FAILURE, Http::scInternalServerError, request.getRaw(), al);
+    bail(anErr);
+    assert(!callback);
 }
 
 const char *
@@ -652,12 +667,17 @@ Security::PeerConnector::startCertDownloading(SBuf &url)
 
     const Downloader *csd = (request ? dynamic_cast<const Downloader*>(request->downloader.valid()) : nullptr);
     Downloader *dl = new Downloader(url, certCallback, XactionInitiator::initCertFetcher, csd ? csd->nestedLevel() + 1 : 1);
+    assert(!certDownloadWait);
+    certDownloadWait.start(dl, certCallback);
     AsyncJob::Start(dl);
 }
 
 void
 Security::PeerConnector::certDownloadingDone(SBuf &obj, int downloadStatus)
 {
+    assert(certDownloadWait);
+    certDownloadWait.finish();
+
     ++certsDownloads;
     debugs(81, 5, "Certificate downloading status: " << downloadStatus << " certificate size: " << obj.length());
 
