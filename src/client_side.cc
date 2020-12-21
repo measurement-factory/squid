@@ -1581,7 +1581,8 @@ ConnStateData::tunnelOnError(const HttpRequestMethod &method, const err_type req
         if (context)
             context->finished(); // Will remove from pipeline queue
         Comm::SetSelect(clientConnection->fd, COMM_SELECT_READ, NULL, NULL, 0);
-        return initiateTunneledRequest(request, Http::METHOD_NONE, "unknown-protocol", preservedClientData);
+        inBuf = preservedClientData;
+        return initiateTunneledRequest(request, Http::METHOD_NONE, "unknown-protocol");
     }
     debugs(33, 3, "denied; send error: " << requestError);
     return false;
@@ -2525,37 +2526,6 @@ httpsEstablish(ConnStateData *connState, const Security::ContextPointer &ctx)
     Comm::SetSelect(details->fd, COMM_SELECT_READ, clientNegotiateSSL, connState, 0);
 }
 
-#if USE_OPENSSL
-/**
- * A callback function to use with the ACLFilledChecklist callback.
- */
-static void
-httpsSslBumpAccessCheckDone(Acl::Answer answer, void *data)
-{
-    ConnStateData *connState = (ConnStateData *) data;
-
-    // if the connection is closed or closing, just return.
-    if (!connState->isOpen())
-        return;
-
-    if (answer.allowed()) {
-        debugs(33, 2, "sslBump action " << Ssl::bumpMode(answer.kind) << "needed for " << connState->clientConnection);
-        connState->sslBumpMode = static_cast<Ssl::BumpMode>(answer.kind);
-    } else {
-        debugs(33, 3, "sslBump not needed for " << connState->clientConnection);
-        connState->sslBumpMode = Ssl::bumpSplice;
-    }
-
-    if (connState->sslBumpMode == Ssl::bumpTerminate) {
-        connState->clientConnection->close();
-        return;
-    }
-
-    if (!connState->fakeAConnectRequest("ssl-bump", connState->inBuf))
-        connState->clientConnection->close();
-}
-#endif
-
 /** handle a new HTTPS connection */
 static void
 httpsAccept(const CommAcceptCbParams &params)
@@ -2591,45 +2561,8 @@ ConnStateData::postHttpsAccept()
 #if USE_OPENSSL
         debugs(33, 5, "accept transparent connection: " << clientConnection);
 
-        if (!Config.accessList.ssl_bump) {
-            httpsSslBumpAccessCheckDone(ACCESS_DENIED, this);
-            return;
-        }
-
-        MasterXaction::Pointer mx = new MasterXaction(XactionInitiator::initClient);
-        mx->tcpClient = clientConnection;
-        // Create a fake HTTP request and ALE for the ssl_bump ACL check,
-        // using tproxy/intercept provided destination IP and port.
-        // XXX: Merge with subsequent fakeAConnectRequest(), buildFakeRequest().
-        // XXX: Do this earlier (e.g., in Http[s]::One::Server constructor).
-        HttpRequest *request = new HttpRequest(mx);
-        static char ip[MAX_IPSTRLEN];
-        assert(clientConnection->flags & (COMM_TRANSPARENT | COMM_INTERCEPTION));
-        request->url.host(clientConnection->local.toStr(ip, sizeof(ip)));
-        request->url.port(clientConnection->local.port());
-        request->myportname = port->name;
-        const AccessLogEntry::Pointer connectAle = new AccessLogEntry;
-        CodeContext::Reset(connectAle);
-        // TODO: Use these request/ALE when waiting for new bumped transactions.
-
-        ACLFilledChecklist *acl_checklist = new ACLFilledChecklist(Config.accessList.ssl_bump, request, NULL);
-        acl_checklist->src_addr = clientConnection->remote;
-        acl_checklist->my_addr = port->s;
-        // Build a local AccessLogEntry to allow requiresAle() acls work
-        acl_checklist->al = connectAle;
-        acl_checklist->al->cache.start_time = current_time;
-        acl_checklist->al->tcpClient = clientConnection;
-        acl_checklist->al->cache.port = port;
-        acl_checklist->al->cache.caddr = log_addr;
-        acl_checklist->al->proxyProtocolHeader = proxyProtocolHeader_;
-        HTTPMSGUNLOCK(acl_checklist->al->request);
-        acl_checklist->al->request = request;
-        HTTPMSGLOCK(acl_checklist->al->request);
-        Http::StreamPointer context = pipeline.front();
-        ClientHttpRequest *http = context ? context->http : nullptr;
-        const char *log_uri = http ? http->log_uri : nullptr;
-        acl_checklist->syncAle(request, log_uri);
-        acl_checklist->nonBlockingCheck(httpsSslBumpAccessCheckDone, this);
+        fakeAConnectRequest("transparent/ssl-bump");
+        return;
 #else
         fatal("FATAL: SSL-Bump requires --with-openssl");
 #endif
@@ -2668,15 +2601,15 @@ ConnStateData::sslCrtdHandleReply(const Helper::Reply &reply)
                 debugs(33, 5, "Certificate for " << tlsConnectHostOrIp << " cannot be generated. ssl_crtd response: " << reply_message.getBody());
             } else {
                 debugs(33, 5, "Certificate for " << tlsConnectHostOrIp << " was successfully received from ssl_crtd");
-                if (sslServerBump && (sslServerBump->act.step1 == Ssl::bumpPeek || sslServerBump->act.step1 == Ssl::bumpStare)) {
-                    doPeekAndSpliceStep();
-                    auto ssl = fd_table[clientConnection->fd].ssl.get();
+                if (auto ssl = fd_table[clientConnection->fd].ssl.get()) {
+                    // The SSL/CTX objects are already generated. Try to reconfigure them.
                     bool ret = Ssl::configureSSLUsingPkeyAndCertFromMemory(ssl, reply_message.getBody().c_str(), *port);
                     if (!ret)
                         debugs(33, 5, "Failed to set certificates to ssl object for PeekAndSplice mode");
 
                     Security::ContextPointer ctx(Security::GetFrom(fd_table[clientConnection->fd].ssl));
                     Ssl::configureUnconfiguredSslContext(ctx, signAlgorithm, *port);
+                    restartTlsNegotiation();
                 } else {
                     Security::ContextPointer ctx(Ssl::GenerateSslContextUsingPkeyAndCertFromMemory(reply_message.getBody().c_str(), port->secure, (signAlgorithm == Ssl::algSignTrusted)));
                     if (ctx && !sslBumpCertKey.isEmpty())
@@ -2811,8 +2744,8 @@ ConnStateData::getSslContextStart()
         Ssl::CertificateProperties certProperties;
         buildSslCertGenerationParams(certProperties);
 
-        // Disable caching for bumpPeekAndSplice mode
-        if (!(sslServerBump && (sslServerBump->act.step1 == Ssl::bumpPeek || sslServerBump->act.step1 == Ssl::bumpStare))) {
+        // Disable caching if the SSL object exists and has attached a CTX object
+        if (!(fd_table[clientConnection->fd].ssl)) {
             sslBumpCertKey.clear();
             Ssl::InRamCertificateDbKey(certProperties, sslBumpCertKey);
             assert(!sslBumpCertKey.isEmpty());
@@ -2843,14 +2776,15 @@ ConnStateData::getSslContextStart()
 #endif // USE_SSL_CRTD
 
         debugs(33, 5, HERE << "Generating SSL certificate for " << certProperties.commonName);
-        if (sslServerBump && (sslServerBump->act.step1 == Ssl::bumpPeek || sslServerBump->act.step1 == Ssl::bumpStare)) {
-            doPeekAndSpliceStep();
+        if (fd_table[clientConnection->fd].ssl) {
+            // The SSL/CTX objects are already built, reconfigure CTX
             auto ssl = fd_table[clientConnection->fd].ssl.get();
             if (!Ssl::configureSSL(ssl, certProperties, *port))
                 debugs(33, 5, "Failed to set certificates to ssl object for PeekAndSplice mode");
 
             Security::ContextPointer ctx(Security::GetFrom(fd_table[clientConnection->fd].ssl));
             Ssl::configureUnconfiguredSslContext(ctx, certProperties.signAlgorithm, *port);
+            restartTlsNegotiation();
         } else {
             Security::ContextPointer dynCtx(Ssl::GenerateSslContext(certProperties, port->secure, (signAlgorithm == Ssl::algSignTrusted)));
             if (dynCtx && !sslBumpCertKey.isEmpty())
@@ -3022,44 +2956,18 @@ ConnStateData::parseTlsHandshake()
         FwdState::Start(clientConnection, sslServerBump->entry, sslServerBump->request.getRaw(), http ? http->al : nullptr);
     } else {
         Must(sslServerBump->act.step1 == Ssl::bumpPeek || sslServerBump->act.step1 == Ssl::bumpStare);
-        startPeekAndSplice();
+        startPeekAndSpliceStep2();
     }
-}
-
-void httpsSslBumpStep2AccessCheckDone(Acl::Answer answer, void *data)
-{
-    ConnStateData *connState = (ConnStateData *) data;
-
-    // if the connection is closed or closing, just return.
-    if (!connState->isOpen())
-        return;
-
-    debugs(33, 5, "Answer: " << answer << " kind:" << answer.kind);
-    assert(connState->serverBump());
-    Ssl::BumpMode bumpAction;
-    if (answer.allowed()) {
-        bumpAction = (Ssl::BumpMode)answer.kind;
-    } else
-        bumpAction = Ssl::bumpSplice;
-
-    connState->serverBump()->act.step2 = bumpAction;
-    connState->sslBumpMode = bumpAction;
-    Http::StreamPointer context = connState->pipeline.front();
-    if (ClientHttpRequest *http = (context ? context->http : nullptr))
-        http->al->ssl.bumpMode = bumpAction;
-
-    if (bumpAction == Ssl::bumpTerminate) {
-        connState->clientConnection->close();
-    } else if (bumpAction != Ssl::bumpSplice) {
-        connState->startPeekAndSplice();
-    } else if (!connState->splice())
-        connState->clientConnection->close();
 }
 
 bool
 ConnStateData::splice()
 {
     // normally we can splice here, because we just got client hello message
+    assert(sslServerBump);
+
+    // Bump procedure finished, reset current bumping step
+    sslServerBump->step = XactionStep::unknown;
 
     // fde::ssl/tls_read_method() probably reads from our own inBuf. If so, then
     // we should not lose any raw bytes when switching to raw I/O here.
@@ -3074,47 +2982,72 @@ ConnStateData::splice()
     Must(context);
     Must(context->http);
     ClientHttpRequest *http = context->http;
-    HttpRequest::Pointer request = http->request;
-    context->finished();
-    if (transparent()) {
-        // For transparent connections, make a new fake CONNECT request, now
-        // with SNI as target. doCallout() checks, adaptations may need that.
-        return fakeAConnectRequest("splice", preservedClientData);
-    } else {
-        // For non transparent connections  make a new tunneled CONNECT, which
-        // also sets the HttpRequest::flags::forceTunnel flag to avoid
-        // respond with "Connection Established" to the client.
-        // This fake CONNECT request required to allow use of SNI in
-        // doCallout() checks and adaptations.
-        return initiateTunneledRequest(request, Http::METHOD_CONNECT, "splice", preservedClientData);
-    }
+    inBuf = preservedClientData;
+    http->processRequest();
+    return true;
 }
 
 void
-ConnStateData::startPeekAndSplice()
+ConnStateData::startPeekAndSpliceStep2()
 {
     // This is the Step2 of the SSL bumping
     assert(sslServerBump);
+    debugs(83, 5, "step2");
+
+    Must(sslServerBump->at(XactionStep::tlsBump1));
+    sslServerBump->step = XactionStep::tlsBump2;
+
     Http::StreamPointer context = pipeline.front();
-    ClientHttpRequest *http = context ? context->http : nullptr;
+    Must(context);
+    ClientHttpRequest *http = context->http;
+    Must(http);
+    assert(!pipeline.empty());
+    HttpRequest::Pointer cause = http->request;
+    context->finished();
+    HttpRequest::Pointer request = cause->clone();
+    if (request->url.hostIsNumeric() && !tlsClientSni_.isEmpty()) {
+        request->url.host(tlsClientSni_.c_str());
+        // also replace host header
+        request->header.delById(Http::HOST);
+        request->header.putStr(Http::HOST, tlsClientSni_.c_str());
+    }
+    request->flags.sslPeek = true;
+    http = buildFakeRequest(request);
+    http->calloutContext = new ClientRequestContext(http);
+    http->doCallouts();
+    clientProcessRequestFinished(this, request);
+}
 
-    if (sslServerBump->at(XactionStep::tlsBump1)) {
-        sslServerBump->step = XactionStep::tlsBump2;
-        // Run a accessList check to check if want to splice or continue bumping
+void
+ConnStateData::resumePeekAndSpliceStep2()
+{
+    if (!isOpen())
+        return;
 
-        ACLFilledChecklist *acl_checklist = new ACLFilledChecklist(Config.accessList.ssl_bump, sslServerBump->request.getRaw(), nullptr);
-        acl_checklist->al = http ? http->al : nullptr;
-        //acl_checklist->src_addr = params.conn->remote;
-        //acl_checklist->my_addr = s->s;
-        acl_checklist->banAction(Acl::Answer(ACCESS_ALLOWED, Ssl::bumpNone));
-        acl_checklist->banAction(Acl::Answer(ACCESS_ALLOWED, Ssl::bumpClientFirst));
-        acl_checklist->banAction(Acl::Answer(ACCESS_ALLOWED, Ssl::bumpServerFirst));
-        const char *log_uri = http ? http->log_uri : nullptr;
-        acl_checklist->syncAle(sslServerBump->request.getRaw(), log_uri);
-        acl_checklist->nonBlockingCheck(httpsSslBumpStep2AccessCheckDone, this);
+    assert(sslServerBump);
+    if (!sslServerBump->connectedOk()) {
+        // This is an error. Stop peek and splice and serve the error
+        getSslContextStart();
+        // We have to read client request:
+        flags.readMore = true;
         return;
     }
 
+    sslBumpMode = sslServerBump->act.step2;
+    if (sslBumpMode == Ssl::bumpTerminate) {
+        sslServerBump->step = XactionStep::unknown;
+        clientConnection->close();
+    } else if (sslBumpMode != Ssl::bumpSplice) {
+        finalizePeekAndSpliceStep2();
+    } else if (!splice())
+        clientConnection->close();
+
+    return;
+}
+
+void
+ConnStateData::finalizePeekAndSpliceStep2()
+{
     // will call httpsPeeked() with certificate and connection, eventually
     Security::ContextPointer unConfiguredCTX(Ssl::createSSLContext(port->secure.signingCa.cert, port->secure.signingCa.pkey, port->secure));
     fd_table[clientConnection->fd].dynamicTlsContext = unConfiguredCTX;
@@ -3130,6 +3063,8 @@ ConnStateData::startPeekAndSplice()
     bio->setReadBufData(inBuf);
     bio->hold(true);
 
+    Http::StreamPointer context = pipeline.front();
+    ClientHttpRequest *http = context ? context->http : nullptr;
     // Here squid should have all of the client hello message so the
     // tlsAttemptHandshake() should return 0.
     // This block exist only to force openSSL parse client hello and detect
@@ -3145,24 +3080,24 @@ ConnStateData::startPeekAndSplice()
     // We need to reset inBuf here, to be used by incoming requests in the case
     // of SSL bump
     inBuf.clear();
-
+    sslServerBump->step = XactionStep::tlsBump3;
     debugs(83, 5, "Peek and splice at step2 done. Start forwarding the request!!! ");
     FwdState::Start(clientConnection, sslServerBump->entry, sslServerBump->request.getRaw(), http ? http->al : NULL);
 }
 
 void
-ConnStateData::doPeekAndSpliceStep()
+ConnStateData::restartTlsNegotiation()
 {
+    Must(switchedToHttps_);
     auto ssl = fd_table[clientConnection->fd].ssl.get();
     BIO *b = SSL_get_rbio(ssl);
     assert(b);
     Ssl::ClientBio *bio = static_cast<Ssl::ClientBio *>(BIO_get_data(b));
 
-    debugs(33, 5, "PeekAndSplice mode, proceed with client negotiation. Current state:" << SSL_state_string_long(ssl));
+    debugs(33, 5, "Clear ClientBio::hold, and proceed with client negotiation. Current state:" << SSL_state_string_long(ssl));
     bio->hold(false);
 
     Comm::SetSelect(clientConnection->fd, COMM_SELECT_WRITE, clientNegotiateSSL, this, 0);
-    switchedToHttps_ = true;
 }
 
 void
@@ -3178,13 +3113,15 @@ ConnStateData::httpsPeeked(PinnedIdleContext pic)
     } else
         debugs(33, 5, "Error while bumping: " << tlsConnectHostOrIp);
 
+    // We are going to read new requests
+    flags.readMore = true;
     getSslContextStart();
 }
 
 #endif /* USE_OPENSSL */
 
 bool
-ConnStateData::initiateTunneledRequest(HttpRequest::Pointer const &cause, Http::MethodType const method, const char *reason, const SBuf &payload)
+ConnStateData::initiateTunneledRequest(HttpRequest::Pointer const &cause, Http::MethodType const method, const char *reason)
 {
     // fake a CONNECT request to force connState to tunnel
     SBuf connectHost;
@@ -3212,7 +3149,7 @@ ConnStateData::initiateTunneledRequest(HttpRequest::Pointer const &cause, Http::
     }
 
     debugs(33, 2, "Request tunneling for " << reason);
-    ClientHttpRequest *http = buildFakeRequest(method, connectHost, connectPort, payload);
+    ClientHttpRequest *http = buildFakeRequest(method, connectHost, connectPort);
     HttpRequest::Pointer request = http->request;
     request->flags.forceTunnel = true;
     http->calloutContext = new ClientRequestContext(http);
@@ -3222,7 +3159,7 @@ ConnStateData::initiateTunneledRequest(HttpRequest::Pointer const &cause, Http::
 }
 
 bool
-ConnStateData::fakeAConnectRequest(const char *reason, const SBuf &payload)
+ConnStateData::fakeAConnectRequest(const char *reason)
 {
     debugs(33, 2, "fake a CONNECT request to force connState to tunnel for " << reason);
 
@@ -3241,17 +3178,40 @@ ConnStateData::fakeAConnectRequest(const char *reason, const SBuf &payload)
         connectHost.assign(ip);
     }
 
-    ClientHttpRequest *http = buildFakeRequest(Http::METHOD_CONNECT, connectHost, connectPort, payload);
-
+    ClientHttpRequest *http = buildFakeRequest(Http::METHOD_CONNECT, connectHost, connectPort);
     http->calloutContext = new ClientRequestContext(http);
-    HttpRequest::Pointer request = http->request;
     http->doCallouts();
+
+    HttpRequest::Pointer request = http->request;
     clientProcessRequestFinished(this, request);
     return true;
 }
 
 ClientHttpRequest *
-ConnStateData::buildFakeRequest(Http::MethodType const method, SBuf &useHost, unsigned short usePort, const SBuf &payload)
+ConnStateData::buildFakeRequest(Http::MethodType const method, SBuf &useHost, unsigned short usePort)
+{
+    MasterXaction::Pointer mx = new MasterXaction(XactionInitiator::initClient);
+    mx->tcpClient = clientConnection;
+    HttpRequest::Pointer request = new HttpRequest(mx);
+    AnyP::ProtocolType proto = (method == Http::METHOD_NONE) ? AnyP::PROTO_AUTHORITY_FORM : AnyP::PROTO_HTTP;
+    request->url.setScheme(proto, nullptr);
+    request->method = method;
+    request->url.host(useHost.c_str());
+    request->url.port(usePort);
+    if (proto == AnyP::PROTO_HTTP)
+        request->header.putStr(Http::HOST, useHost.c_str());
+
+    request->sources |= ((switchedToHttps() || port->transport.protocol == AnyP::PROTO_HTTPS) ? Http::Message::srcHttps : Http::Message::srcHttp);
+#if USE_AUTH
+    if (getAuth())
+        request->auth_user_request = getAuth();
+#endif
+
+    return buildFakeRequest(request);
+}
+
+ClientHttpRequest *
+ConnStateData::buildFakeRequest(HttpRequest::Pointer &request)
 {
     ClientHttpRequest *http = new ClientHttpRequest(this);
     Http::Stream *stream = new Http::Stream(clientConnection, http);
@@ -3275,32 +3235,11 @@ ConnStateData::buildFakeRequest(Http::MethodType const method, SBuf &useHost, un
 
     stream->registerWithConn();
 
-    MasterXaction::Pointer mx = new MasterXaction(XactionInitiator::initClient);
-    mx->tcpClient = clientConnection;
-    // Setup Http::Request object. Maybe should be replaced by a call to (modified)
-    // clientProcessRequest
-    HttpRequest::Pointer request = new HttpRequest(mx);
-    AnyP::ProtocolType proto = (method == Http::METHOD_NONE) ? AnyP::PROTO_AUTHORITY_FORM : AnyP::PROTO_HTTP;
-    request->url.setScheme(proto, nullptr);
-    request->method = method;
-    request->url.host(useHost.c_str());
-    request->url.port(usePort);
-
     http->uri = SBufToCstring(request->effectiveRequestUri());
     http->initRequest(request.getRaw());
 
     request->manager(this, http->al);
 
-    if (proto == AnyP::PROTO_HTTP)
-        request->header.putStr(Http::HOST, useHost.c_str());
-
-    request->sources |= ((switchedToHttps() || port->transport.protocol == AnyP::PROTO_HTTPS) ? Http::Message::srcHttps : Http::Message::srcHttp);
-#if USE_AUTH
-    if (getAuth())
-        request->auth_user_request = getAuth();
-#endif
-
-    inBuf = payload;
     flags.readMore = false;
 
     return http;

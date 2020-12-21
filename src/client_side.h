@@ -237,13 +237,19 @@ public:
     void postHttpsAccept();
 
 #if USE_OPENSSL
-    /// Initializes and starts a peek-and-splice negotiation with the SSL client
-    void startPeekAndSplice();
+    /// Initializes the Step2 bumping step
+    void startPeekAndSpliceStep2();
 
-    /// Called when a peek-and-splice step finished. For example after
-    /// server SSL certificates received and fake server SSL certificates
-    /// generated
-    void doPeekAndSpliceStep();
+    void resumePeekAndSpliceStep2();
+
+    /// Initializes and starts a peek-and-splice negotiation with the SSL client
+    void finalizePeekAndSpliceStep2();
+
+    /// Clears the SSL::ClientBio to not hold on read/write any more and
+    /// proceeds with TLS negotiation. It is used at final steps after
+    /// peek and splice to resume TLS negotiation with the client.
+    void restartTlsNegotiation();
+
     /// called by FwdState when it is done bumping the server
     void httpsPeeked(PinnedIdleContext pic);
 
@@ -310,10 +316,10 @@ public:
 
     /// generate a fake CONNECT request with the given payload
     /// at the beginning of the client I/O buffer
-    bool fakeAConnectRequest(const char *reason, const SBuf &payload);
+    bool fakeAConnectRequest(const char *reason);
 
     /// generates and sends to tunnel.cc a fake request with a given payload
-    bool initiateTunneledRequest(HttpRequest::Pointer const &cause, Http::MethodType const method, const char *reason, const SBuf &payload);
+    bool initiateTunneledRequest(HttpRequest::Pointer const &cause, Http::MethodType const method, const char *reason);
 
     /// whether we should start saving inBuf client bytes in anticipation of
     /// tunneling them to the server later (on_unsupported_protocol)
@@ -322,8 +328,11 @@ public:
     // TODO: move to the protected section when removing clientTunnelOnError()
     bool tunnelOnError(const HttpRequestMethod &, const err_type);
 
-    /// build a fake http request
-    ClientHttpRequest *buildFakeRequest(Http::MethodType const method, SBuf &useHost, unsigned short usePort, const SBuf &payload);
+    /// build a fake client http request based on method, server and destination port
+    ClientHttpRequest *buildFakeRequest(Http::MethodType const method, SBuf &useHost, unsigned short usePort);
+
+    /// build a fake client http request based on an HttpRequest object
+    ClientHttpRequest *buildFakeRequest(HttpRequest::Pointer &request);
 
     /// From-client handshake bytes (including bytes at the beginning of a
     /// CONNECT tunnel) which we may need to forward as-is if their syntax does
