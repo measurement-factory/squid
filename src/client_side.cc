@@ -3027,6 +3027,8 @@ ConnStateData::resumePeekAndSpliceStep2()
     if (!sslServerBump->connectedOk()) {
         // This is an error. Stop peek and splice and serve the error
         getSslContextStart();
+        // We have to read client request:
+        flags.readMore = true;
         return;
     }
 
