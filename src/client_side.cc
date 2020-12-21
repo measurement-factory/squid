@@ -2600,15 +2600,15 @@ ConnStateData::sslCrtdHandleReply(const Helper::Reply &reply)
                 debugs(33, 5, "Certificate for " << tlsConnectHostOrIp << " cannot be generated. ssl_crtd response: " << reply_message.getBody());
             } else {
                 debugs(33, 5, "Certificate for " << tlsConnectHostOrIp << " was successfully received from ssl_crtd");
-                if (sslServerBump && sslServerBump->at(XactionStep::tlsBump3) && (sslServerBump->act.step1 == Ssl::bumpPeek || sslServerBump->act.step1 == Ssl::bumpStare)) {
-                    doPeekAndSpliceStep();
-                    auto ssl = fd_table[clientConnection->fd].ssl.get();
+                if (auto ssl = fd_table[clientConnection->fd].ssl.get()) {
+                    // The SSL/CTX objects are already generated. Try to reconfigure them.
                     bool ret = Ssl::configureSSLUsingPkeyAndCertFromMemory(ssl, reply_message.getBody().c_str(), *port);
                     if (!ret)
                         debugs(33, 5, "Failed to set certificates to ssl object for PeekAndSplice mode");
 
                     Security::ContextPointer ctx(Security::GetFrom(fd_table[clientConnection->fd].ssl));
                     Ssl::configureUnconfiguredSslContext(ctx, signAlgorithm, *port);
+                    restartTlsNegotiation();
                 } else {
                     Security::ContextPointer ctx(Ssl::GenerateSslContextUsingPkeyAndCertFromMemory(reply_message.getBody().c_str(), port->secure, (signAlgorithm == Ssl::algSignTrusted)));
                     if (ctx && !sslBumpCertKey.isEmpty())
@@ -2743,8 +2743,8 @@ ConnStateData::getSslContextStart()
         Ssl::CertificateProperties certProperties;
         buildSslCertGenerationParams(certProperties);
 
-        // Disable caching for bumpPeekAndSplice mode
-        if (!(sslServerBump && (sslServerBump->act.step1 == Ssl::bumpPeek || sslServerBump->act.step1 == Ssl::bumpStare))) {
+        // Disable caching if the SSL object exists and has attached a CTX object
+        if (!(fd_table[clientConnection->fd].ssl)) {
             sslBumpCertKey.clear();
             Ssl::InRamCertificateDbKey(certProperties, sslBumpCertKey);
             assert(!sslBumpCertKey.isEmpty());
@@ -2775,14 +2775,15 @@ ConnStateData::getSslContextStart()
 #endif // USE_SSL_CRTD
 
         debugs(33, 5, HERE << "Generating SSL certificate for " << certProperties.commonName);
-        if (sslServerBump && (sslServerBump->act.step1 == Ssl::bumpPeek || sslServerBump->act.step1 == Ssl::bumpStare)) {
-            doPeekAndSpliceStep();
+        if (fd_table[clientConnection->fd].ssl) {
+            // The SSL/CTX objects are already built, reconfigure CTX
             auto ssl = fd_table[clientConnection->fd].ssl.get();
             if (!Ssl::configureSSL(ssl, certProperties, *port))
                 debugs(33, 5, "Failed to set certificates to ssl object for PeekAndSplice mode");
 
             Security::ContextPointer ctx(Security::GetFrom(fd_table[clientConnection->fd].ssl));
             Ssl::configureUnconfiguredSslContext(ctx, certProperties.signAlgorithm, *port);
+            restartTlsNegotiation();
         } else {
             Security::ContextPointer dynCtx(Ssl::GenerateSslContext(certProperties, port->secure, (signAlgorithm == Ssl::algSignTrusted)));
             if (dynCtx && !sslBumpCertKey.isEmpty())
@@ -3082,18 +3083,18 @@ ConnStateData::finalizePeekAndSpliceStep2()
 }
 
 void
-ConnStateData::doPeekAndSpliceStep()
+ConnStateData::restartTlsNegotiation()
 {
+    Must(switchedToHttps_);
     auto ssl = fd_table[clientConnection->fd].ssl.get();
     BIO *b = SSL_get_rbio(ssl);
     assert(b);
     Ssl::ClientBio *bio = static_cast<Ssl::ClientBio *>(BIO_get_data(b));
 
-    debugs(33, 5, "PeekAndSplice mode, proceed with client negotiation. Current state:" << SSL_state_string_long(ssl));
+    debugs(33, 5, "Clear ClientBio::hold, and proceed with client negotiation. Current state:" << SSL_state_string_long(ssl));
     bio->hold(false);
 
     Comm::SetSelect(clientConnection->fd, COMM_SELECT_WRITE, clientNegotiateSSL, this, 0);
-    switchedToHttps_ = true;
 }
 
 void
