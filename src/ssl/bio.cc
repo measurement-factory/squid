@@ -166,9 +166,6 @@ Ssl::Bio::stateChanged(const SSL *ssl, int where, int ret)
 
 Ssl::ClientBio::ClientBio(const int anFd):
     Bio(anFd),
-    holdRead_(false),
-    holdWrite_(false),
-    helloSize(0),
     abortReason(nullptr)
 {
     renegotiations.configure(10*1000);
@@ -204,11 +201,6 @@ Ssl::ClientBio::write(const char *buf, int size, BIO *table)
         return -1;
     }
 
-    if (holdWrite_) {
-        BIO_set_retry_write(table);
-        return 0;
-    }
-
     return Ssl::Bio::write(buf, size, table);
 }
 
@@ -218,12 +210,6 @@ Ssl::ClientBio::read(char *buf, int size, BIO *table)
     if (abortReason) {
         debugs(83, 3, "BIO on FD " << fd_ << " is aborted");
         BIO_clear_retry_flags(table);
-        return -1;
-    }
-
-    if (holdRead_) {
-        debugs(83, 7, "Hold flag is set, retry latter. (Hold " << size << "bytes)");
-        BIO_set_retry_read(table);
         return -1;
     }
 

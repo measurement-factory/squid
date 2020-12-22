@@ -245,11 +245,6 @@ public:
     /// Initializes and starts a peek-and-splice negotiation with the SSL client
     void finalizePeekAndSpliceStep2();
 
-    /// Clears the SSL::ClientBio to not hold on read/write any more and
-    /// proceeds with TLS negotiation. It is used at final steps after
-    /// peek and splice to resume TLS negotiation with the client.
-    void restartTlsNegotiation();
-
     /// called by FwdState when it is done bumping the server
     void httpsPeeked(PinnedIdleContext pic);
 

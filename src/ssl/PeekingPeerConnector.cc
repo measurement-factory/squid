@@ -174,11 +174,6 @@ Ssl::PeekingPeerConnector::initialize(Security::SessionPointer &serverSession)
         // bump is decided at step1.
         Must(!csd->serverBump() || csd->serverBump()->at(XactionStep::tlsBump1, XactionStep::tlsBump3));
         if (csd->sslBumpMode == Ssl::bumpPeek || csd->sslBumpMode == Ssl::bumpStare) {
-            auto clientSession = fd_table[clientConn->fd].ssl.get();
-            Must(clientSession);
-            BIO *bc = SSL_get_rbio(clientSession);
-            Ssl::ClientBio *cltBio = static_cast<Ssl::ClientBio *>(BIO_get_data(bc));
-            Must(cltBio);
             if (details && details->tlsVersion.protocol != AnyP::PROTO_NONE)
                 applyTlsDetailsToSSL(serverSession.get(), details, csd->sslBumpMode);
 
@@ -186,7 +181,8 @@ Ssl::PeekingPeerConnector::initialize(Security::SessionPointer &serverSession)
             Ssl::ServerBio *srvBio = static_cast<Ssl::ServerBio *>(BIO_get_data(b));
             Must(srvBio);
             // inherit client features such as TLS version and SNI
-            srvBio->setClientFeatures(details, cltBio->rBufData());
+            Must(csd->preservedClientData.length());
+            srvBio->setClientFeatures(details, csd->preservedClientData);
             srvBio->recordInput(true);
             srvBio->mode(csd->sslBumpMode);
         } else {

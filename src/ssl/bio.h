@@ -82,8 +82,6 @@ public:
     /// If the holdRead flag is true then it does not write any data
     /// to socket and sets the "read retry" flag of the BIO to true
     virtual int read(char *buf, int size, BIO *table);
-    /// Prevents or allow writing on socket.
-    void hold(bool h) {holdRead_ = holdWrite_ = h;}
 
     /// Sets the buffered input data (Bio::rbuf).
     /// Used to pass payload data (normally client HELLO data) retrieved
@@ -96,9 +94,6 @@ private:
     /// the maximum tolerated number of client-initiated renegotiations in RenegotiationsWindow
     static const int RenegotiationsLimit = 5;
 
-    bool holdRead_; ///< The read hold state of the bio.
-    bool holdWrite_;  ///< The write hold state of the bio.
-    int helloSize; ///< The SSL hello message sent by client size
     FadingCounter renegotiations; ///< client requested renegotiations limit control
 
     /// why we should terminate the connection during next TLS operation (or nil)

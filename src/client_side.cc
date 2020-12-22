@@ -2600,21 +2600,10 @@ ConnStateData::sslCrtdHandleReply(const Helper::Reply &reply)
                 debugs(33, 5, "Certificate for " << tlsConnectHostOrIp << " cannot be generated. ssl_crtd response: " << reply_message.getBody());
             } else {
                 debugs(33, 5, "Certificate for " << tlsConnectHostOrIp << " was successfully received from ssl_crtd");
-                if (auto ssl = fd_table[clientConnection->fd].ssl.get()) {
-                    // The SSL/CTX objects are already generated. Try to reconfigure them.
-                    bool ret = Ssl::configureSSLUsingPkeyAndCertFromMemory(ssl, reply_message.getBody().c_str(), *port);
-                    if (!ret)
-                        debugs(33, 5, "Failed to set certificates to ssl object for PeekAndSplice mode");
-
-                    Security::ContextPointer ctx(Security::GetFrom(fd_table[clientConnection->fd].ssl));
-                    Ssl::configureUnconfiguredSslContext(ctx, signAlgorithm, *port);
-                    restartTlsNegotiation();
-                } else {
-                    Security::ContextPointer ctx(Ssl::GenerateSslContextUsingPkeyAndCertFromMemory(reply_message.getBody().c_str(), port->secure, (signAlgorithm == Ssl::algSignTrusted)));
-                    if (ctx && !sslBumpCertKey.isEmpty())
-                        storeTlsContextToCache(sslBumpCertKey, ctx);
-                    getSslContextDone(ctx);
-                }
+                Security::ContextPointer ctx(Ssl::GenerateSslContextUsingPkeyAndCertFromMemory(reply_message.getBody().c_str(), port->secure, (signAlgorithm == Ssl::algSignTrusted)));
+                if (ctx && !sslBumpCertKey.isEmpty())
+                    storeTlsContextToCache(sslBumpCertKey, ctx);
+                getSslContextDone(ctx);
                 return;
             }
         }
@@ -2739,21 +2728,21 @@ ConnStateData::getSslContextStart()
     }
     /* careful: finished() above frees request, host, etc. */
 
+    // We are going to build TLS session and context for connection,
+    // they must not exist.
+    Must(!(fd_table[clientConnection->fd].ssl));
+
     if (port->secure.generateHostCertificates) {
         Ssl::CertificateProperties certProperties;
         buildSslCertGenerationParams(certProperties);
 
-        // Disable caching if the SSL object exists and has attached a CTX object
-        if (!(fd_table[clientConnection->fd].ssl)) {
-            sslBumpCertKey.clear();
-            Ssl::InRamCertificateDbKey(certProperties, sslBumpCertKey);
-            assert(!sslBumpCertKey.isEmpty());
-
-            Security::ContextPointer ctx(getTlsContextFromCache(sslBumpCertKey, certProperties));
-            if (ctx) {
-                getSslContextDone(ctx);
-                return;
-            }
+        sslBumpCertKey.clear();
+        Ssl::InRamCertificateDbKey(certProperties, sslBumpCertKey);
+        assert(!sslBumpCertKey.isEmpty());
+        Security::ContextPointer ctx(getTlsContextFromCache(sslBumpCertKey, certProperties));
+        if (ctx) {
+            getSslContextDone(ctx);
+            return;
         }
 
 #if USE_SSL_CRTD
@@ -2775,21 +2764,10 @@ ConnStateData::getSslContextStart()
 #endif // USE_SSL_CRTD
 
         debugs(33, 5, HERE << "Generating SSL certificate for " << certProperties.commonName);
-        if (fd_table[clientConnection->fd].ssl) {
-            // The SSL/CTX objects are already built, reconfigure CTX
-            auto ssl = fd_table[clientConnection->fd].ssl.get();
-            if (!Ssl::configureSSL(ssl, certProperties, *port))
-                debugs(33, 5, "Failed to set certificates to ssl object for PeekAndSplice mode");
-
-            Security::ContextPointer ctx(Security::GetFrom(fd_table[clientConnection->fd].ssl));
-            Ssl::configureUnconfiguredSslContext(ctx, certProperties.signAlgorithm, *port);
-            restartTlsNegotiation();
-        } else {
-            Security::ContextPointer dynCtx(Ssl::GenerateSslContext(certProperties, port->secure, (signAlgorithm == Ssl::algSignTrusted)));
-            if (dynCtx && !sslBumpCertKey.isEmpty())
-                storeTlsContextToCache(sslBumpCertKey, dynCtx);
-            getSslContextDone(dynCtx);
-        }
+        Security::ContextPointer dynCtx(Ssl::GenerateSslContext(certProperties, port->secure, (signAlgorithm == Ssl::algSignTrusted)));
+        if (dynCtx && !sslBumpCertKey.isEmpty())
+            storeTlsContextToCache(sslBumpCertKey, dynCtx);
+        getSslContextDone(dynCtx);
         return;
     }
 
@@ -2829,11 +2807,13 @@ ConnStateData::getSslContextDone(Security::ContextPointer &ctx)
 
     switchedToHttps_ = true;
 
-    auto ssl = fd_table[clientConnection->fd].ssl.get();
-    BIO *b = SSL_get_rbio(ssl);
-    Ssl::ClientBio *bio = static_cast<Ssl::ClientBio *>(BIO_get_data(b));
-    bio->setReadBufData(inBuf);
-    inBuf.clear();
+    if (preservedClientData.length()) {
+        // There is a pre-read client hello message.
+        auto ssl = fd_table[clientConnection->fd].ssl.get();
+        BIO *b = SSL_get_rbio(ssl);
+        Ssl::ClientBio *bio = static_cast<Ssl::ClientBio *>(BIO_get_data(b));
+        bio->setReadBufData(preservedClientData);
+    }
     clientNegotiateSSL(clientConnection->fd, this);
 }
 
@@ -2920,6 +2900,11 @@ ConnStateData::parseTlsHandshake()
     // client data may be needed for splicing and for
     // tunneling unsupportedProtocol after an error
     preservedClientData = inBuf;
+
+    // Clear inBuf so that it can be used to read more data.
+    // The client Hello exist in preservedClientData and can be
+    // retrieved from here if someone need it
+    inBuf.clear();
 
     // Even if the parser failed, each TLS detail should either be set
     // correctly or still be "unknown"; copying unknown detail is a no-op.
@@ -3047,56 +3032,12 @@ ConnStateData::resumePeekAndSpliceStep2()
 void
 ConnStateData::finalizePeekAndSpliceStep2()
 {
-    // will call httpsPeeked() with certificate and connection, eventually
-    Security::ContextPointer unConfiguredCTX(Ssl::createSSLContext(port->secure.signingCa.cert, port->secure.signingCa.pkey, port->secure));
-    fd_table[clientConnection->fd].dynamicTlsContext = unConfiguredCTX;
-
-    if (!httpsCreate(this, unConfiguredCTX))
-        return;
-
-    switchedToHttps_ = true;
-
-    auto ssl = fd_table[clientConnection->fd].ssl.get();
-    BIO *b = SSL_get_rbio(ssl);
-    Ssl::ClientBio *bio = static_cast<Ssl::ClientBio *>(BIO_get_data(b));
-    bio->setReadBufData(inBuf);
-    bio->hold(true);
+    sslServerBump->step = XactionStep::tlsBump3;
+    debugs(83, 5, "Peek and splice at step2 done. Start forwarding the request!!! ");
 
     Http::StreamPointer context = pipeline.front();
     ClientHttpRequest *http = context ? context->http : nullptr;
-    // Here squid should have all of the client hello message so the
-    // tlsAttemptHandshake() should return 0.
-    // This block exist only to force openSSL parse client hello and detect
-    // ERR_SECURE_ACCEPT_FAIL error, which should be checked and splice if required.
-    if (tlsAttemptHandshake(this, nullptr) < 0) {
-        debugs(83, 2, "TLS handshake failed.");
-        HttpRequest::Pointer request(http ? http->request : nullptr);
-        if (!clientTunnelOnError(this, context, request, HttpRequestMethod(), ERR_SECURE_ACCEPT_FAIL))
-            clientConnection->close();
-        return;
-    }
-
-    // We need to reset inBuf here, to be used by incoming requests in the case
-    // of SSL bump
-    inBuf.clear();
-    sslServerBump->step = XactionStep::tlsBump3;
-    debugs(83, 5, "Peek and splice at step2 done. Start forwarding the request!!! ");
     FwdState::Start(clientConnection, sslServerBump->entry, sslServerBump->request.getRaw(), http ? http->al : NULL);
-}
-
-void
-ConnStateData::restartTlsNegotiation()
-{
-    Must(switchedToHttps_);
-    auto ssl = fd_table[clientConnection->fd].ssl.get();
-    BIO *b = SSL_get_rbio(ssl);
-    assert(b);
-    Ssl::ClientBio *bio = static_cast<Ssl::ClientBio *>(BIO_get_data(b));
-
-    debugs(33, 5, "Clear ClientBio::hold, and proceed with client negotiation. Current state:" << SSL_state_string_long(ssl));
-    bio->hold(false);
-
-    Comm::SetSelect(clientConnection->fd, COMM_SELECT_WRITE, clientNegotiateSSL, this, 0);
 }
 
 void

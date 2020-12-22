@@ -840,56 +840,6 @@ Ssl::chainCertificatesToSSLContext(Security::ContextPointer &ctx, Security::Serv
     }
 }
 
-void
-Ssl::configureUnconfiguredSslContext(Security::ContextPointer &ctx, Ssl::CertSignAlgorithm signAlgorithm,AnyP::PortCfg &port)
-{
-    if (ctx && signAlgorithm == Ssl::algSignTrusted)
-        Ssl::chainCertificatesToSSLContext(ctx, port.secure);
-}
-
-bool
-Ssl::configureSSL(SSL *ssl, CertificateProperties const &properties, AnyP::PortCfg &port)
-{
-    Security::CertPointer cert;
-    Security::PrivateKeyPointer pkey;
-    if (!generateSslCertificate(cert, pkey, properties))
-        return false;
-
-    if (!cert)
-        return false;
-
-    if (!pkey)
-        return false;
-
-    if (!SSL_use_certificate(ssl, cert.get()))
-        return false;
-
-    if (!SSL_use_PrivateKey(ssl, pkey.get()))
-        return false;
-
-    return true;
-}
-
-bool
-Ssl::configureSSLUsingPkeyAndCertFromMemory(SSL *ssl, const char *data, AnyP::PortCfg &port)
-{
-    Security::CertPointer cert;
-    Security::PrivateKeyPointer pkey;
-    if (!readCertAndPrivateKeyFromMemory(cert, pkey, data))
-        return false;
-
-    if (!cert || !pkey)
-        return false;
-
-    if (!SSL_use_certificate(ssl, cert.get()))
-        return false;
-
-    if (!SSL_use_PrivateKey(ssl, pkey.get()))
-        return false;
-
-    return true;
-}
-
 bool
 Ssl::verifySslCertificate(const Security::ContextPointer &ctx, CertificateProperties const &properties)
 {
