@@ -1524,9 +1524,7 @@ clientReplyContext::buildReplyHeader()
                     }
                     request->flags.mustKeepalive = true;
                     const auto port = request->masterXaction->squidPort;
-                    /// XXX: missed other interception modes (e.g., tproxyIntercept).
-                    const auto natIntercepted = port ? port->flags.natIntercept() : false;
-                    if (!request->flags.accelerated && !natIntercepted) {
+                    if (port->flags.forwarded() && request->flags.sslBumped) {
                         httpHeaderPutStrf(hdr, Http::HdrType::PROXY_SUPPORT, "Session-Based-Authentication");
                         /*
                           We send "Connection: Proxy-Support" header to mark

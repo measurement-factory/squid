@@ -932,6 +932,7 @@ clientHierarchical(ClientHttpRequest * http)
     HttpRequestMethod method = request->method;
 
     // intercepted requests MUST NOT (yet) be sent to peers unless verified
+    // TODO: use HttpRequest::mustGoToOriginalDestination() after XXX: add missing checks
     if (!request->flags.hostVerified && request->masterXaction->hasListeningInterceptedPort())
         return 0;
 
@@ -1606,6 +1607,9 @@ ClientHttpRequest::sslBumpStart()
     AsyncCall::Pointer bumpCall = commCbCall(85, 5, "ClientSocketContext::sslBumpEstablish",
                                   CommIoCbPtrFun(&SslBumpEstablish, this));
 
+    // TODO: add a boolean ClientHttpRequest::faked field to mark
+    // faked CONNECT requests instead of trying to guess whether a request was
+    // faked based on its port configuration and current state.
     if (request->masterXaction->hasListeningInterceptedPort()) {
         CommIoCbParams &params = GetCommParams<CommIoCbParams>(bumpCall);
         params.flag = Comm::OK;

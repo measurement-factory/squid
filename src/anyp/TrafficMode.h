@@ -34,6 +34,12 @@ public:
         return natIntercept_ || tproxyIntercept_ || proxySurrogateHttps_;
     }
 
+    /** whether the client TCP traffic is directed to the Squid instance
+     */
+    bool forwarded() const {
+        return !intercepted() && !accelSurrogate;
+    }
+
     /** marks http ports receiving PROXY protocol traffic
      *
      * Indicating the following are required:

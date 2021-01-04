@@ -559,6 +559,7 @@ HttpRequest::maybeCacheable()
     // Because it failed verification, or someone bypassed the security tests
     // we cannot cache the reponse for sharing between clients.
     // TODO: update cache to store for particular clients only (going to same Host: and destination IP)
+    // XXX: add missing checks, see HttpRequest::mustGoToOriginalDestination()
     if (!flags.hostVerified && masterXaction->hasListeningInterceptedPort())
         return false;
 
@@ -770,6 +771,16 @@ HttpRequest::manager(const CbcPointer<ConnStateData> &aMgr, const AccessLogEntry
     }
 }
 
+bool
+HttpRequest::mustGoToOriginalDestination() const
+{
+    // TODO: exclude flags.internal requests
+    // TODO: REQMOD/redirection occur after host header verification
+    const auto isIntercepted = !flags.redirected && masterXaction->hasListeningInterceptedPort();
+    const auto useOriginalDst = Config.onoff.client_dst_passthru || !flags.hostVerified;
+    return isIntercepted && useOriginalDst;
+}
+
 char *
 HttpRequest::canonicalCleanUrl() const
 {
@@ -816,6 +827,10 @@ FindListeningPortAddress(const HttpRequest *callerRequest, const AccessLogEntry 
 
     if (ip || request->masterXaction->hasListeningInterceptedPort())
         return ip;
+
+    // if (request->masterXaction->squidPort->flags.proxySurrogateHttp()) {
+    //     XXX: handle PROXY protocol here when we have a flag to identify such request
+    // }
 
     /* handle non-intercepted cases that were not handled above */
     ip = FindListeningPortAddressInConn(request->masterXaction->tcpClient);
