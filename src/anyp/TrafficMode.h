@@ -24,13 +24,15 @@ public:
     /// whether the PROXY protocol header is present
     bool proxySurrogate() const { return proxySurrogateHttp_ || proxySurrogateHttps_; }
 
-    /** whether the client TCP traffic is directed to origin
+    /** Whether the incoming client traffic will be treated by Squid as intercepted,
+     * according to the listening port configuration.
+     * This can be either the TCP traffic, directed to origin or
+     * HTTP(S) traffic, preceded by the PROXY protocol header.
      * - Same-Origin verification is mandatory
      * - URL translation from relative to absolute form
      * - proxy authentication prohibited
      */
     bool intercepted() const {
-        /// TODO: treat any proxySurrogate() as intercepted
         return natIntercept_ || tproxyIntercept_ || proxySurrogateHttps_;
     }
 

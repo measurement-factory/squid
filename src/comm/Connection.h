@@ -138,7 +138,9 @@ private:
     Connection & operator =(const Connection &c);
 
 public:
-    /** Address/Port for the Squid end of a TCP link. */
+    /// Address/Port for the Squid end of a TCP link or
+    /// the remote server Address/Port in a case of interception (for client connections)
+    /// \see TrafficMode::intercepted() for details
     Ip::Address local;
 
     /** Address for the Remote end of a TCP link. */

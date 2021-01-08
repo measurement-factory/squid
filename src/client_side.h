@@ -146,7 +146,7 @@ public:
         AsyncCall::Pointer closeHandler; /*The close handler for pinned server side connection*/
     } pinning;
 
-    /// whether the client connection was accepted on the 'intercepted' port
+    /// whether the client connection was accepted on the port marked as 'intercepted'
     /// \see TrafficMode::intercepted() for details
     bool transparent() const;
 
