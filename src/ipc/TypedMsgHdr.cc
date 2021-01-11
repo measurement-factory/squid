@@ -84,15 +84,15 @@ void Ipc::TypedMsgHdr::sync()
 int
 Ipc::TypedMsgHdr::rawType() const
 {
-    Must(msg_iovlen == 1);
-    return data.type_;
+    return msg_iov ? data.type_ : 0;
 }
 
 Ipc::MessageType
 Ipc::TypedMsgHdr::type() const
 {
     const auto uncheckedType = rawType();
-    Must(uncheckedType >= MessageType::enumBegin_ && uncheckedType <= MessageType::enumEnd_);
+    Must(uncheckedType >= MessageType::enumBegin_);
+    Must(uncheckedType <= MessageType::enumEnd_);
     return static_cast<MessageType>(uncheckedType);
 }
 

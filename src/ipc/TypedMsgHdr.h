@@ -45,7 +45,9 @@ public:
     void setType(int aType); ///< sets message type; use MessageType enum
     void checkType(int aType) const; ///< throws if stored type is not aType
     MessageType type() const; ///< converts rawType() to MessageType
-    int rawType() const; ///< returns stored type or zero if none
+    /// received or set message kind; may not be a MessageType value
+    /// \returns 0 if none message kind has been received or set
+    int rawType() const;
 
     /* access for Plain Old Data (POD)-based message parts */
     template <class Pod>

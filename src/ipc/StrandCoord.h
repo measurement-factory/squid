@@ -42,7 +42,7 @@ public:
     void pack(TypedMsgHdr &) const;
 
     /// creates and sends StrandMessage to Coordinator
-    static void NotifyCoordinator(const MessageType, const char *tag);
+    static void NotifyCoordinator(MessageType, const char *tag);
 
 public:
     MessageType messageType; ///< overall message purpose or category
