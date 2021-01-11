@@ -17,15 +17,20 @@ namespace Ipc
 {
 
 /// message class identifier
-typedef enum { enumBegin_ = 0, mtRegistration,
-               mtStrandSearchRequest, mtStrandSearchResponse,
-               mtSharedListenRequest, mtSharedListenResponse,
+typedef enum { enumBegin_ = 0,
+               mtRegistration, ///< strand registration with Coordinator (also used as an ACK)
+               mtFindStrand, ///< a worker requests a strand from Coordinator
+               mtStrandReady, ///< a mtFindStrand answer: the strand exists and should be usable
+               mtSharedListenRequest,
+               mtSharedListenResponse,
                mtIpcIoNotification,
                mtCollapsedForwardingNotification,
-               mtCacheMgrRequest, mtCacheMgrResponse
+               mtCacheMgrRequest,
+               mtCacheMgrResponse
 #if SQUID_SNMP
                ,
-               mtSnmpRequest, mtSnmpResponse
+               mtSnmpRequest,
+               mtSnmpResponse
 #endif
                ,
                enumEnd_

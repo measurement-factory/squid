@@ -84,7 +84,7 @@ void Ipc::Coordinator::receive(const TypedMsgHdr& message)
         handleRegistrationRequest(StrandMessage(message));
         break;
 
-    case mtStrandSearchRequest: {
+    case mtFindStrand: {
         const StrandSearchRequest sr(message);
         debugs(54, 6, HERE << "Strand search request: " << sr.requestorId <<
                " tag: " << sr.tag);

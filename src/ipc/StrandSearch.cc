@@ -20,14 +20,14 @@ Ipc::StrandSearchRequest::StrandSearchRequest(): requestorId(-1)
 Ipc::StrandSearchRequest::StrandSearchRequest(const TypedMsgHdr &hdrMsg):
     requestorId(-1)
 {
-    hdrMsg.checkType(mtStrandSearchRequest);
+    hdrMsg.checkType(mtFindStrand);
     hdrMsg.getPod(requestorId);
     hdrMsg.getString(tag);
 }
 
 void Ipc::StrandSearchRequest::pack(TypedMsgHdr &hdrMsg) const
 {
-    hdrMsg.setType(mtStrandSearchRequest);
+    hdrMsg.setType(mtFindStrand);
     hdrMsg.putPod(requestorId);
     hdrMsg.putString(tag);
 }
@@ -41,13 +41,13 @@ Ipc::StrandSearchResponse::StrandSearchResponse(const Ipc::StrandCoord &aStrand)
 
 Ipc::StrandSearchResponse::StrandSearchResponse(const TypedMsgHdr &hdrMsg)
 {
-    hdrMsg.checkType(mtStrandSearchResponse);
+    hdrMsg.checkType(mtStrandReady);
     strand.unpack(hdrMsg);
 }
 
 void Ipc::StrandSearchResponse::pack(TypedMsgHdr &hdrMsg) const
 {
-    hdrMsg.setType(mtStrandSearchResponse);
+    hdrMsg.setType(mtStrandReady);
     strand.pack(hdrMsg);
 }
 
