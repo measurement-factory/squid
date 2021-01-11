@@ -23,6 +23,7 @@
 #include "ipc/Messages.h"
 #include "ipc/Port.h"
 #include "ipc/Queue.h"
+#include "ipc/StrandCoord.h"
 #include "ipc/StrandSearch.h"
 #include "ipc/UdsOp.h"
 #include "sbuf/SBuf.h"
@@ -143,11 +144,7 @@ IpcIoFile::open(int flags, mode_t mode, RefCount<IORequestor> callback)
 
         queue->localRateLimit().store(config.ioRate);
 
-        Ipc::HereIamMessage ann(Ipc::StrandCoord(KidIdentifier, myPid));
-        ann.strand.tag = dbName;
-        Ipc::TypedMsgHdr message;
-        ann.pack(message);
-        SendMessage(Ipc::Port::CoordinatorAddr(), message);
+        Ipc::StrandMessage::NotifyCoordinator(Ipc::mtRegistration, dbName.termedBuf());
 
         ioRequestor->ioCompletedNotification();
         return;

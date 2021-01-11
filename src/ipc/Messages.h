@@ -17,7 +17,7 @@ namespace Ipc
 {
 
 /// message class identifier
-typedef enum { mtNone = 0, mtRegistration,
+typedef enum { enumBegin_ = 0, mtRegistration,
                mtStrandSearchRequest, mtStrandSearchResponse,
                mtSharedListenRequest, mtSharedListenResponse,
                mtIpcIoNotification,
@@ -27,6 +27,8 @@ typedef enum { mtNone = 0, mtRegistration,
                ,
                mtSnmpRequest, mtSnmpResponse
 #endif
+               ,
+               enumEnd_
              } MessageType;
 
 } // namespace Ipc;
