@@ -47,7 +47,7 @@ public:
     MessageType type() const; ///< converts rawType() to MessageType
     /// received or set message kind; may not be a MessageType value
     /// \returns 0 if none message kind has been received or set
-    int rawType() const;
+    int rawType() const { return msg_iov ? data.type_ : 0; }
 
     /* access for Plain Old Data (POD)-based message parts */
     template <class Pod>

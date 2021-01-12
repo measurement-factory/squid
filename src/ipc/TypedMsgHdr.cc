@@ -81,12 +81,6 @@ void Ipc::TypedMsgHdr::sync()
     offset = 0;
 }
 
-int
-Ipc::TypedMsgHdr::rawType() const
-{
-    return msg_iov ? data.type_ : 0;
-}
-
 Ipc::MessageType
 Ipc::TypedMsgHdr::type() const
 {
