@@ -398,11 +398,10 @@ Comm::TcpAcceptor::oldAccept(Comm::ConnectionPointer &details)
     details->local = *gai;
     Ip::Address::FreeAddr(gai);
 
-    const auto interceptedFlags = conn->flags & (COMM_TRANSPARENT|COMM_INTERCEPTION);
-    details->flags |= interceptedFlags; // for PROXY protocol and interception
-    if (!listenPort_->flags.proxySurrogate()) {
+    details->flags |= conn->flags & (COMM_TRANSPARENT|COMM_INTERCEPTION); // for PROXY protocol and interception
+    if (listenPort_->flags.interceptedLocally()) {
         // Perform NAT or TPROXY operations to retrieve the real client/dest IP addresses
-        if (interceptedFlags && !Ip::Interceptor.Lookup(details, conn)) {
+        if (!Ip::Interceptor.Lookup(details, conn)) {
             debugs(50, DBG_IMPORTANT, "ERROR: NAT/TPROXY lookup failed to locate original IPs on " << details);
             PROF_stop(comm_accept);
             return Comm::COMM_ERROR;

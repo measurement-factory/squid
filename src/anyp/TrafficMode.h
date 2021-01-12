@@ -21,26 +21,30 @@ namespace AnyP
 class TrafficMode
 {
 public:
-    /// whether the PROXY protocol header is present
+    /// This port handles traffic that has been intercepted prior to being delivered
+    /// to the TCP client of the accepted connection and/or to us. This port mode
+    /// alone does not imply that the client of the accepted TCP connection was not
+    /// connecting directly to this port (since commit 151ba0d).
+    bool interceptedSomewhere() const { return natIntercept_ || tproxyIntercept_ || proxySurrogateHttps_; }
+
+    /// The client of the accepted TCP connection was connecting to this port.
+    /// The accepted traffic may have been intercepted earlier!
+    bool tcpToUs() const { return proxySurrogate() || !interceptedSomewhere(); }
+
+    /// The client of the accepted TCP connection was not connecting to this port.
+    /// The accepted traffic may have been intercepted earlier as well!
+    bool interceptedLocally() const { return interceptedSomewhere() && !tcpToUs(); }
+
+    // Unused yet.
+    /// This port handles traffic that has been intercepted prior to being delivered
+    /// to the TCP client of the accepted connection (which then connected to us).
+    bool interceptedRemotely() const { return interceptedSomewhere() && tcpToUs(); }
+
+    /// The client of the accepted TCP connection was connecting directly to this proxy port
+    bool forwarded() const { return !interceptedSomewhere() && !accelSurrogate; }
+
+    /// whether the PROXY protocol header is required
     bool proxySurrogate() const { return proxySurrogateHttp_ || proxySurrogateHttps_; }
-
-    /** Whether the incoming client traffic will be treated by Squid as intercepted,
-     * according to the listening port configuration.
-     * This can be either the TCP traffic, directed to origin or
-     * HTTP(S) traffic, preceded by the PROXY protocol header.
-     * - Same-Origin verification is mandatory
-     * - URL translation from relative to absolute form
-     * - proxy authentication prohibited
-     */
-    bool intercepted() const {
-        return natIntercept_ || tproxyIntercept_ || proxySurrogateHttps_;
-    }
-
-    /** whether the client TCP traffic is directed to the Squid instance
-     */
-    bool forwarded() const {
-        return !intercepted() && !accelSurrogate;
-    }
 
     /** marks http ports receiving PROXY protocol traffic
      *

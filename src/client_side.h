@@ -147,7 +147,7 @@ public:
     } pinning;
 
     /// whether the client connection was accepted on the port marked as 'intercepted'
-    /// \see TrafficMode::intercepted() for details
+    /// \see TrafficMode::interceptedSomewhere() for details
     bool transparent() const;
 
     /// true if we stopped receiving the request

@@ -57,7 +57,7 @@ public:
     {};
 
     /// whether an FTP/HTTP/HTTPs listening intercepted port was provided
-    bool hasListeningInterceptedPort() const { return squidPort && squidPort->flags.intercepted(); }
+    bool hasListeningInterceptedPort() const { return squidPort && squidPort->flags.interceptedSomewhere(); }
 
     /// transaction ID.
     InstanceId<MasterXaction, uint64_t> id;

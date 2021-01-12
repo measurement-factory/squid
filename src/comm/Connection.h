@@ -140,7 +140,7 @@ private:
 public:
     /// Address/Port for the Squid end of a TCP link or
     /// the remote server Address/Port in a case of interception (for client connections)
-    /// \see TrafficMode::intercepted() for details
+    /// \see TrafficMode::interceptedSomewhere()
     Ip::Address local;
 
     /** Address for the Remote end of a TCP link. */
