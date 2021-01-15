@@ -398,7 +398,6 @@ Comm::TcpAcceptor::oldAccept(Comm::ConnectionPointer &details)
     details->local = *gai;
     Ip::Address::FreeAddr(gai);
 
-    details->flags |= conn->flags & (COMM_TRANSPARENT|COMM_INTERCEPTION); // for PROXY protocol and interception
     // Perform NAT or TPROXY operations to retrieve the real client/dest IP addresses
     /* NP: try TPROXY first, its much quieter than NAT when non-matching */
     if (listenPort_->flags.tproxyInterceptLocally()) {
