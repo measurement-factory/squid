@@ -82,6 +82,7 @@ public:
      */
     void natIntercept(const bool val) { natIntercept_ = val; }
     bool natIntercept() const { return natIntercept_; }
+    bool natInterceptLocally() const { return natIntercept_ && !tcpToUs(); }
 
     /** marks TPROXY intercepted traffic
      *
@@ -95,6 +96,7 @@ public:
      */
     void tproxyIntercept(const bool val) { tproxyIntercept_ = val; }
     bool tproxyIntercept() const { return tproxyIntercept_; }
+    bool tproxyInterceptLocally() const { return tproxyIntercept_ && !tcpToUs(); }
 
     /** marks HTTP accelerator (reverse/surrogate proxy) traffic
      *

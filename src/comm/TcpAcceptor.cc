@@ -399,10 +399,17 @@ Comm::TcpAcceptor::oldAccept(Comm::ConnectionPointer &details)
     Ip::Address::FreeAddr(gai);
 
     details->flags |= conn->flags & (COMM_TRANSPARENT|COMM_INTERCEPTION); // for PROXY protocol and interception
-    if (listenPort_->flags.interceptedLocally()) {
-        // Perform NAT or TPROXY operations to retrieve the real client/dest IP addresses
-        if (!Ip::Interceptor.Lookup(details, conn)) {
-            debugs(50, DBG_IMPORTANT, "ERROR: NAT/TPROXY lookup failed to locate original IPs on " << details);
+    // Perform NAT or TPROXY operations to retrieve the real client/dest IP addresses
+    /* NP: try TPROXY first, its much quieter than NAT when non-matching */
+    if (listenPort_->flags.tproxyInterceptLocally()) {
+        if (!Ip::Interceptor.LookupTproxy(details)) {
+             debugs(50, DBG_IMPORTANT, "ERROR: TPROXY lookup failed to locate original IPs on " << details);
+             PROF_stop(comm_accept);
+             return Comm::COMM_ERROR;
+         }
+    } else if (listenPort_->flags.natInterceptLocally()) {
+        if (!Ip::Interceptor.LookupNat(details)) {
+            debugs(50, DBG_IMPORTANT, "ERROR: NAT lookup failed to locate original IPs on " << details);
             PROF_stop(comm_accept);
             return Comm::COMM_ERROR;
         }
