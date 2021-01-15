@@ -3422,7 +3422,6 @@ clientHttpConnectionsOpen(void)
         s->listenConn->local = s->s;
 
         s->listenConn->flags = COMM_NONBLOCKING | (s->flags.tproxyIntercept() ? COMM_TRANSPARENT : 0) |
-                               (s->flags.natIntercept() ? COMM_INTERCEPTION : 0) |
                                (s->workerQueues ? COMM_REUSEPORT : 0);
 
         typedef CommCbFunPtrCallT<CommAcceptCbPtrFun> AcceptCall;
@@ -3457,10 +3456,7 @@ clientStartListeningOn(AnyP::PortCfgPointer &port, const RefCount< CommCbFunPtrC
     // Fill out a Comm::Connection which IPC will open as a listener for us
     port->listenConn = new Comm::Connection;
     port->listenConn->local = port->s;
-    port->listenConn->flags =
-        COMM_NONBLOCKING |
-        (port->flags.tproxyIntercept() ? COMM_TRANSPARENT : 0) |
-        (port->flags.natIntercept() ? COMM_INTERCEPTION : 0);
+    port->listenConn->flags = COMM_NONBLOCKING | (port->flags.tproxyIntercept() ? COMM_TRANSPARENT : 0);
 
     // route new connections to subCall
     typedef CommCbFunPtrCallT<CommAcceptCbPtrFun> AcceptCall;
