@@ -47,7 +47,7 @@ namespace Comm
 #define COMM_NOCLOEXEC          0x02
 #define COMM_REUSEADDR          0x04  // shared FD may be both accept()ing and read()ing
 #define COMM_DOBIND             0x08  // requires a bind()
-#define COMM_TRANSPARENT        0x10  // arrived via TPROXY
+#define COMM_TRANSPARENT        0x10  ///< whether TPROXY spoofing should be applied
 #define COMM_REUSEPORT          0x40 //< needs SO_REUSEPORT
 
 /**
