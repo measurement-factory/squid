@@ -12,6 +12,65 @@
 namespace AnyP
 {
 
+/// POD representation of TrafficMode flags
+class TrafficModeFlags
+{
+public:
+    /** marks http ports receiving PROXY protocol traffic
+     *
+     * Indicating the following are required:
+     *  - PROXY protocol magic header
+     *  - src/dst IP retrieved from magic PROXY header
+     *  - indirect client IP trust verification is mandatory
+     *  - TLS is not supported
+     */
+    bool proxySurrogateHttp = false;
+
+    /** marks https ports receiving PROXY protocol traffic
+     *
+     * Indicating the following are required:
+     *  - PROXY protocol magic header
+     *  - URL translation from relative to absolute form
+     *  - src/dst IP retrieved from magic PROXY header
+     *  - indirect client IP trust verification is mandatory
+     *  - Same-Origin verification is mandatory
+     *  - TLS is supported
+     *  - proxy authentication prohibited
+     */
+    bool proxySurrogateHttps = false;
+
+    /** marks NAT intercepted traffic
+     *
+     * Indicating the following are required:
+     *  - NAT lookups
+     *  - URL translation from relative to absolute form
+     *  - Same-Origin verification is mandatory
+     *  - destination pinning is recommended
+     *  - proxy authentication prohibited
+     */
+    bool natIntercept = false;
+
+    /** marks TPROXY intercepted traffic
+     *
+     * Indicating the following are required:
+     *  - src/dst IP inversion must be performed
+     *  - client IP should be spoofed if possible
+     *  - URL translation from relative to absolute form
+     *  - Same-Origin verification is mandatory
+     *  - destination pinning is recommended
+     *  - proxy authentication prohibited
+     */
+    bool tproxyIntercept = false;
+
+    /** marks HTTP accelerator (reverse/surrogate proxy) traffic
+     *
+     * Indicating the following are required:
+     *  - URL translation from relative to absolute form
+     *  - restriction to origin peer relay recommended
+     */
+    bool accelSurrogate = false;
+};
+
 /**
  * Set of 'mode' flags defining types of trafic which can be received.
  *
@@ -25,7 +84,7 @@ public:
     /// to the TCP client of the accepted connection and/or to us. This port mode
     /// alone does not imply that the client of the accepted TCP connection was not
     /// connecting directly to this port (since commit 151ba0d).
-    bool interceptedSomewhere() const { return natIntercept_ || tproxyIntercept_ || proxySurrogateHttps_; }
+    bool interceptedSomewhere() const { return flags_.natIntercept || flags_.tproxyIntercept || flags_.proxySurrogateHttps; }
 
     /// The client of the accepted TCP connection was connecting to this port.
     /// The accepted traffic may have been intercepted earlier!
@@ -40,71 +99,24 @@ public:
     /// to the TCP client of the accepted connection (which then connected to us).
     bool interceptedRemotely() const { return interceptedSomewhere() && tcpToUs(); }
 
-    /// The client of the accepted TCP connection was connecting directly to this proxy port
-    bool forwarded() const { return !interceptedSomewhere() && !accelSurrogate; }
+    /// The client of the accepted TCP connection was connecting directly to this proxy port.
+    bool forwarded() const { return !interceptedSomewhere() && !flags_.accelSurrogate; }
 
     /// whether the PROXY protocol header is required
-    bool proxySurrogate() const { return proxySurrogateHttp_ || proxySurrogateHttps_; }
+    bool proxySurrogate() const { return flags_.proxySurrogateHttp || flags_.proxySurrogateHttps; }
 
-    /** marks http ports receiving PROXY protocol traffic
-     *
-     * Indicating the following are required:
-     *  - PROXY protocol magic header
-     *  - src/dst IP retrieved from magic PROXY header
-     *  - indirect client IP trust verification is mandatory
-     *  - TLS is not supported
-     */
-    void proxySurrogateHttp(const bool val) { proxySurrogateHttp_ = val; }
-    bool proxySurrogateHttp() const { return proxySurrogateHttp_; }
+    /// interceptedLocally() with configured NAT interception
+    bool natInterceptLocally() const { return flags_.natIntercept && interceptedLocally(); }
 
-    /** marks https ports receiving PROXY protocol traffic
-     *
-     * Indicating the following are required:
-     *  - PROXY protocol magic header
-     *  - URL translation from relative to absolute form
-     *  - src/dst IP retrieved from magic PROXY header
-     *  - indirect client IP trust verification is mandatory
-     *  - Same-Origin verification is mandatory
-     *  - TLS is supported
-     *  - proxy authentication prohibited
-     */
-    void proxySurrogateHttps(const bool val) { proxySurrogateHttps_ = val; }
-    bool proxySurrogateHttps() const { return proxySurrogateHttps_; }
+    /// interceptedLocally() with configured TPROXY interception
+    bool tproxyInterceptLocally() const { return flags_.tproxyIntercept && interceptedLocally(); }
 
-    /** marks NAT intercepted traffic
-     *
-     * Indicating the following are required:
-     *  - NAT lookups
-     *  - URL translation from relative to absolute form
-     *  - Same-Origin verification is mandatory
-     *  - destination pinning is recommended
-     *  - proxy authentication prohibited
-     */
-    void natIntercept(const bool val) { natIntercept_ = val; }
-    bool natIntercept() const { return natIntercept_; }
-    bool natInterceptLocally() const { return natIntercept_ && !tcpToUs(); }
+    /// whether the reverse proxy is configured
+    bool accelSurrogate() const { return flags_.accelSurrogate; }
 
-    /** marks TPROXY intercepted traffic
-     *
-     * Indicating the following are required:
-     *  - src/dst IP inversion must be performed
-     *  - client IP should be spoofed if possible
-     *  - URL translation from relative to absolute form
-     *  - Same-Origin verification is mandatory
-     *  - destination pinning is recommended
-     *  - proxy authentication prohibited
-     */
-    void tproxyIntercept(const bool val) { tproxyIntercept_ = val; }
-    bool tproxyIntercept() const { return tproxyIntercept_; }
-    bool tproxyInterceptLocally() const { return tproxyIntercept_ && !tcpToUs(); }
+    TrafficModeFlags &rawConfig() { return flags_; }
 
-    /** marks HTTP accelerator (reverse/surrogate proxy) traffic
-     *
-     * Indicating the following are required:
-     *  - URL translation from relative to absolute form
-     *  - restriction to origin peer relay recommended
-     */
-    bool accelSurrogate = false;
+    std::ostream &print(std::ostream &) const;
 
     /** marks intercept and decryption of CONNECT (tunnel) SSL traffic
      *
@@ -118,15 +130,25 @@ public:
     bool tunnelSslBumping = false;
 
 private:
-
-    bool proxySurrogateHttp_ = false;
-
-    bool proxySurrogateHttps_ = false;
-
-    bool natIntercept_ = false;
-
-    bool tproxyIntercept_ = false;
+    TrafficModeFlags flags_;
 };
+
+inline std::ostream &
+TrafficMode::print(std::ostream &os) const
+{
+    // XXX: a caller may not expect the extra ' '
+    return os << (flags_.natIntercept ? "NAT intercepted " : "") <<
+        (flags_.tproxyIntercept ? "TPROXY intercepted " : "") <<
+        (tunnelSslBumping ? "SSL bumped " : "") <<
+        (flags_.accelSurrogate ? "reverse-proxy " : "") <<
+        (proxySurrogate() ? "PROXY protocol header " : "");
+}
+
+inline std::ostream &
+operator <<(std::ostream &os, const TrafficMode &flags)
+{
+    return flags.print(os);
+}
 
 } // namespace AnyP
 

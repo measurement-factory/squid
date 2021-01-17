@@ -1317,7 +1317,7 @@ ConnStateData::parseHttpRequest(const Http1::RequestParserPointer &hp)
            "\n----------");
 
     /* deny CONNECT via accelerated ports */
-    if (hp->method() == Http::METHOD_CONNECT && port != NULL && port->flags.accelSurrogate) {
+    if (hp->method() == Http::METHOD_CONNECT && port && port->flags.accelSurrogate()) {
         debugs(33, DBG_IMPORTANT, "WARNING: CONNECT method received on " << transferProtocol << " Accelerator port " << port->s.port());
         debugs(33, DBG_IMPORTANT, "WARNING: for request: " << hp->method() << " " << hp->requestUri() << " " << hp->messageProtocol());
         hp->parseStatusCode = Http::scMethodNotAllowed;
@@ -1365,8 +1365,9 @@ ConnStateData::parseHttpRequest(const Http1::RequestParserPointer &hp)
                      clientSocketDetach, newClient, tempBuffer);
 
     /* set url */
+    // XXX: rephrase and cover more cases
     debugs(33,5, "Prepare absolute URL from " <<
-           (transparent()?"intercept":(port->flags.accelSurrogate ? "accel":"")));
+           (transparent()?"intercept":(port->flags.accelSurrogate() ? "accel":"")));
     /* Rewrite the URL in transparent or accelerator mode */
     /* NP: there are several cases to traverse here:
      *  - standard mode (forward proxy)
@@ -1394,7 +1395,7 @@ ConnStateData::parseHttpRequest(const Http1::RequestParserPointer &hp)
         //  But have not parsed there yet!! flag for local-only handling.
         http->flags.internal = true;
 
-    } else if (port->flags.accelSurrogate) {
+    } else if (port->flags.accelSurrogate()) {
         /* accelerator mode */
         http->uri = prepareAcceleratedURL(this, hp);
         http->flags.accel = true;
@@ -3485,13 +3486,8 @@ clientListenerConnectionOpened(AnyP::PortCfgPointer &s, const Ipc::FdNoteId port
     // TCP: setup a job to handle accept() with subscribed handler
     AsyncJob::Start(new Comm::TcpAcceptor(s, FdNote(portTypeNote), sub));
 
-    debugs(1, DBG_IMPORTANT, "Accepting " <<
-           (s->flags.natIntercept() ? "NAT intercepted " : "") <<
-           (s->flags.tproxyIntercept() ? "TPROXY intercepted " : "") <<
-           (s->flags.tunnelSslBumping ? "SSL bumped " : "") <<
-           (s->flags.accelSurrogate ? "reverse-proxy " : "") <<
+    debugs(1, DBG_IMPORTANT, "Accepting " << s->flags <<
            FdNote(portTypeNote) << " connections " <<
-           (s->flags.proxySurrogate() ? "with PROXY protocol header " : "") <<
            "at " << s->listenConn);
 
     Must(AddOpenedHttpSocket(s->listenConn)); // otherwise, we have received a fd we did not ask for
