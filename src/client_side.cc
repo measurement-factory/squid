@@ -1365,9 +1365,7 @@ ConnStateData::parseHttpRequest(const Http1::RequestParserPointer &hp)
                      clientSocketDetach, newClient, tempBuffer);
 
     /* set url */
-    // XXX: rephrase and cover more cases
-    debugs(33,5, "Prepare absolute URL from " <<
-           (transparent()?"intercept":(port->flags.accelSurrogate() ? "accel":"")));
+
     /* Rewrite the URL in transparent or accelerator mode */
     /* NP: there are several cases to traverse here:
      *  - standard mode (forward proxy)
