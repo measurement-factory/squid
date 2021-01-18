@@ -56,7 +56,8 @@ public:
         initiator(XactionInitiator::initClient)
     {};
 
-    /// whether an FTP/HTTP/HTTPs listening intercepted port was provided
+    /// a convenience method returning TrafficMode::interceptedSomewhere() for the port accepted this transaction
+    /// \see TrafficMode::interceptedSomewhere() for details
     bool hasListeningInterceptedPort() const { return squidPort && squidPort->flags.interceptedSomewhere(); }
 
     /// transaction ID.
