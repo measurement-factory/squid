@@ -3484,7 +3484,7 @@ clientListenerConnectionOpened(AnyP::PortCfgPointer &s, const Ipc::FdNoteId port
     // TCP: setup a job to handle accept() with subscribed handler
     AsyncJob::Start(new Comm::TcpAcceptor(s, FdNote(portTypeNote), sub));
 
-    debugs(1, DBG_IMPORTANT, "Accepting " << s->flags <<
+    debugs(1, DBG_IMPORTANT, "Accepting" << s->flags << " " <<
            FdNote(portTypeNote) << " connections " <<
            "at " << s->listenConn);
 

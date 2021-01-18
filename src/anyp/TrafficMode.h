@@ -136,12 +136,21 @@ private:
 inline std::ostream &
 TrafficMode::print(std::ostream &os) const
 {
-    // XXX: a caller may not expect the extra ' '
-    return os << (flags_.natIntercept ? "NAT intercepted " : "") <<
-        (flags_.tproxyIntercept ? "TPROXY intercepted " : "") <<
-        (tunnelSslBumping ? "SSL bumped " : "") <<
-        (flags_.accelSurrogate ? "reverse-proxy " : "") <<
-        (proxySurrogate() ? "PROXY protocol header " : "");
+    if (flags_.natIntercept)
+        os << " NAT intercepted";
+    else if (flags_.tproxyIntercept)
+        os << " TPROXY intercepted";
+    else if (flags_.accelSurrogate)
+        os << " reverse-proxy";
+    else
+        os << " forward-proxy";
+
+    if (tunnelSslBumping)
+        os << " SSL bumped";
+    if (proxySurrogate())
+        os << " (with PROXY protocol header)";
+
+    return os;
 }
 
 inline std::ostream &
