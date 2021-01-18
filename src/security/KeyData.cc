@@ -168,7 +168,7 @@ Security::KeyData::loadX509PrivateKeyFromFile()
     if (gnutls_load_file(keyFilename, &data) == GNUTLS_E_SUCCESS) {
         gnutls_privkey_t key;
         (void)gnutls_privkey_init(&key);
-        Security::ErrorCode x = gnutls_privkey_import_x509_raw(key, &data, GNUTLS_X509_FMT_PEM, nullptr, 0);
+        Security::LibErrorCode x = gnutls_privkey_import_x509_raw(key, &data, GNUTLS_X509_FMT_PEM, nullptr, 0);
         if (x == GNUTLS_E_SUCCESS) {
             gnutls_x509_privkey_t xkey;
             gnutls_privkey_export_x509(key, &xkey);
