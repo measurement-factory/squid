@@ -119,7 +119,7 @@ Ssl::ParseErrorString(const char *name, Security::Errors &errors)
 
     if (xisdigit(*name)) {
         const long int value = strtol(name, NULL, 0);
-        if ((SQUID_TLS_ERR_OFFSET < value && value < SQUID_TLS_ERR_END) || // custom
+        if (IsSquidTlsError(value) || // custom
                 (value >= 0)) { // an official error, including SSL_ERROR_NONE
             errors.emplace(value);
             return true;

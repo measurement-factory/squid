@@ -201,21 +201,38 @@ void CloseLogs(); ///< closes logs opened by OpenLogs()
 /// Squid-specific TLS handling errors (a subset of ErrorCode)
 /// These errors either distinguish high-level library calls/contexts or
 /// supplement official certificate validation errors to cover special cases.
-/// We use negative values, assuming that those official errors are positive.
-enum {
-    SQUID_TLS_ERR_OFFSET = std::numeric_limits<int>::min(),
+/// We use negative values (high bit set to 1), assuming that those official
+/// errors are positive. Also the first left bits of the values are used
+/// keep compatibility with the GnuTLS bitwise X509 errors. The GnuTls
+/// Uses the first 20 right bits to mark 20 different certificate
+/// validation errors.
+enum SQUID_TLS_ERRORS : int32_t {
+    /// The first 5 left bits are used, so we can support up to 16 custom Squid TLS errors.
+#define TLS_ERR_VAL(val) ((1 << (sizeof(SQUID_TLS_ERRORS) * 8 - 1)) | \
+                          ((0x0F & val) << ((sizeof(SQUID_TLS_ERRORS) * 8 - 5))))
 
     /* TLS library calls/contexts other than validation (e.g., I/O) */
-    SQUID_TLS_ERR_ACCEPT, ///< failure to accept a connection from a TLS client
-    SQUID_TLS_ERR_CONNECT, ///< failure to establish a connection with a TLS server
+    SQUID_TLS_ERR_ACCEPT = TLS_ERR_VAL(1), ///< failure to accept a connection from a TLS client
+    SQUID_TLS_ERR_CONNECT = TLS_ERR_VAL(2), ///< failure to establish a connection with a TLS server
 
     /* certificate validation problems not covered by official errors */
-    SQUID_X509_V_ERR_CERT_CHANGE,
-    SQUID_X509_V_ERR_DOMAIN_MISMATCH,
-    SQUID_X509_V_ERR_INFINITE_VALIDATION,
-
-    SQUID_TLS_ERR_END
+    SQUID_X509_V_ERR_CERT_CHANGE = TLS_ERR_VAL(3),
+    SQUID_X509_V_ERR_DOMAIN_MISMATCH = TLS_ERR_VAL(4),
+    SQUID_X509_V_ERR_INFINITE_VALIDATION = TLS_ERR_VAL(5)
 };
+
+/// True if the given error numer represents an internal Squid TLS error.
+inline bool IsSquidTlsError(int32_t err)
+{
+#if USE_GNUTLS
+    // GnuTls assume bitwise error codes
+    return (err & 0xF8000000);
+#else
+#define oneBitSet(val) ((val) && !((val) & ((val) -1)))
+    // For all other cases assume number with high bit and one bit is set.
+    return (err & 0xF8000000) && oneBitSet(err & 0x7FFFFFFF);
+#endif
+}
 
 #endif /* SQUID_SRC_SECURITY_FORWARD_H */
 
