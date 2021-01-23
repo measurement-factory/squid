@@ -306,11 +306,11 @@ Security::PeerConnector::negotiate()
         return; // we might be gone by now
     }
 
-    handleNegotiationSucceed();
+    handleNegotiationSuccess();
 }
 
 void
-Security::PeerConnector::handleNegotiationSucceed()
+Security::PeerConnector::handleNegotiationSuccess()
 {
     recordNegotiationDetails();
 
@@ -856,7 +856,7 @@ Security::PeerConnector::resumeNegotiation()
     if (lastError->sslIoResult <= 0)
         handleNegotiateError(*lastError);
     else
-        handleNegotiationSucceed();
+        handleNegotiationSuccess();
 }
 
 #endif //USE_OPENSSL
