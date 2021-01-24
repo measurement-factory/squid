@@ -1066,7 +1066,7 @@ Ssl::setClientSNI(SSL *ssl, const char *fqdn)
 }
 
 const char *
-Ssl::hasAuthorityInfoAccessCaIssuers(X509 *cert)
+Ssl::findIssuerUri(X509 *cert)
 {
     AUTHORITY_INFO_ACCESS *info;
     if (!cert)
@@ -1214,7 +1214,7 @@ Ssl::missingChainCertificatesUrls(std::queue<SBuf> &URIs, const STACK_OF(X509) *
         if (!issuerIsMissing(cert, serverCertificates, context))
             continue;
 
-        const auto issuerUri = hasAuthorityInfoAccessCaIssuers(cert);
+        const auto issuerUri = findIssuerUri(cert);
         if (!issuerUri)
             return false;
         URIs.push(SBuf(issuerUri));
