@@ -31,7 +31,7 @@ Mgr::Response::Response(const Ipc::TypedMsgHdr& msg):
     msg.checkType(Ipc::mtCacheMgrResponse);
     msg.getPod(requestId);
     Must(requestId != 0);
-    qid.unpack(msg);
+    (const_cast<Ipc::QuestionerId &>(qid)).unpack(msg);
 
     if (msg.hasMoreData()) {
         String actionName;

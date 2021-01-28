@@ -31,14 +31,10 @@ public:
     virtual void pack(TypedMsgHdr& msg) const = 0; ///< prepare for sendmsg()
     virtual Pointer clone() const = 0; ///< returns a copy of this
 
-protected:
-    Request(const Request&) = default;
-    Request& operator= (const Request&); // not implemented
-
 public:
     int requestorId; ///< kidId of the requestor; used for response destination
     unsigned int requestId; ///< unique for sender; matches request w/ response
-    QuestionerId qid;
+    const QuestionerId qid;
 };
 
 } // namespace Ipc

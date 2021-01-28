@@ -34,13 +34,9 @@ public:
     virtual void pack(TypedMsgHdr& msg) const = 0; ///< prepare for sendmsg()
     virtual Pointer clone() const = 0; ///< returns a copy of this
 
-protected:
-    Response(const Response&) = default; // not implemented
-    Response& operator= (const Response&); // not implemented
-
 public:
     unsigned int requestId; ///< ID of request we are responding to
-    QuestionerId qid;
+    const QuestionerId qid;
 };
 
 inline

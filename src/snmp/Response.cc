@@ -31,7 +31,7 @@ Snmp::Response::Response(const Ipc::TypedMsgHdr& msg):
 {
     msg.checkType(Ipc::mtSnmpResponse);
     msg.getPod(requestId);
-    qid.unpack(msg);
+    (const_cast<Ipc::QuestionerId &>(qid)).unpack(msg);
     pdu.unpack(msg);
 }
 
