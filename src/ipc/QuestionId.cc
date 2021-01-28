@@ -41,7 +41,8 @@ Ipc::QuestionerId::unpack(const TypedMsgHdr &hdrMsg)
 void
 Ipc::QuestionerId::rejectAnswerIfStale() const
 {
-    if (pid != getpid())
-        throw TextException(ToSBuf("Rejecting a predecessor PID: ", pid),  Here());
+    static const auto currentPid = getpid();
+    if (currentPid != pid)
+        throw TextException(ToSBuf("PID mismatch: ", currentPid, "!=", pid),  Here());
 }
 

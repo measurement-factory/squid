@@ -53,6 +53,9 @@ private:
 private:
     Strand(const Strand&); // not implemented
     Strand& operator =(const Strand&); // not implemented
+
+    /// process the received IPC message or throw
+    void receiveOrThrow(const TypedMsgHdr &);
 };
 
 }

@@ -66,6 +66,9 @@ protected:
     Comm::ConnectionPointer openListenSocket(const SharedListenRequest& request, int &errNo);
 
 private:
+    /// process the received IPC message or throw
+    void receiveOrThrow(const TypedMsgHdr &);
+
     StrandCoords strands_; ///< registered processes and threads
 
     typedef std::list<StrandSearchRequest> Searchers; ///< search requests

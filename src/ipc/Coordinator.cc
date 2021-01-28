@@ -20,6 +20,7 @@
 #include "mgr/Request.h"
 #include "mgr/Response.h"
 #include "tools.h"
+#include "sbuf/Stream.h"
 #if SQUID_SNMP
 #include "snmp/Inquirer.h"
 #include "snmp/Request.h"
@@ -76,7 +77,17 @@ void Ipc::Coordinator::registerStrand(const StrandCoord& strand)
     }
 }
 
-void Ipc::Coordinator::receive(const TypedMsgHdr& message)
+void
+Ipc::Coordinator::receive(const TypedMsgHdr& message)
+{
+    try {
+        receiveOrThrow(message);
+    } catch (const TextException &e) {
+        debugs(54, DBG_IMPORTANT, "WARNING: Ignoring IPC message because of " << e.what());
+    }
+}
+
+void Ipc::Coordinator::receiveOrThrow(const TypedMsgHdr& message)
 {
     switch (message.rawType()) {
     case mtRegisterStrand:
@@ -128,7 +139,7 @@ void Ipc::Coordinator::receive(const TypedMsgHdr& message)
 #endif
 
     default:
-        debugs(54, DBG_IMPORTANT, "WARNING: Ignoring IPC message with an unknown type: " << message.rawType());
+        throw TextException(ToSBuf("unknown message type: ", message.rawType()), Here());
         break;
     }
 }
