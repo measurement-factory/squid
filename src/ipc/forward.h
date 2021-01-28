@@ -11,6 +11,8 @@
 #ifndef SQUID_IPC_FORWARD_H
 #define SQUID_IPC_FORWARD_H
 
+#include "base/RefCount.h"
+
 namespace Ipc
 {
 
@@ -21,6 +23,8 @@ class Forwarder;
 class Inquirer;
 class Request;
 class Response;
+
+typedef RefCount<Request> RequestPointer;
 
 } // namespace Ipc
 

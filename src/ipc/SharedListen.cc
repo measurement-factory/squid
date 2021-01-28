@@ -68,12 +68,13 @@ Ipc::OpenListenerParams::operator <(const OpenListenerParams &p) const
     return addr.compareWhole(p.addr) < 0;
 }
 
-Ipc::SharedListenRequest::SharedListenRequest(): requestorId(-1), mapId(-1)
+Ipc::SharedListenRequest::SharedListenRequest(): requestorId(-1), mapId(-1), qid(true)
 {
     // caller will then set public data members
 }
 
-Ipc::SharedListenRequest::SharedListenRequest(const TypedMsgHdr &hdrMsg)
+Ipc::SharedListenRequest::SharedListenRequest(const TypedMsgHdr &hdrMsg):
+    qid(false)
 {
     hdrMsg.checkType(mtSharedListenRequest);
     hdrMsg.getPod(*this);
@@ -86,12 +87,12 @@ void Ipc::SharedListenRequest::pack(TypedMsgHdr &hdrMsg) const
 }
 
 Ipc::SharedListenResponse::SharedListenResponse(int aFd, int anErrNo, int aMapId):
-    fd(aFd), errNo(anErrNo), mapId(aMapId)
+    fd(aFd), errNo(anErrNo), mapId(aMapId), qid(false)
 {
 }
 
 Ipc::SharedListenResponse::SharedListenResponse(const TypedMsgHdr &hdrMsg):
-    fd(-1), errNo(0), mapId(-1)
+    fd(-1), errNo(0), mapId(-1), qid(false)
 {
     hdrMsg.checkType(mtSharedListenResponse);
     hdrMsg.getPod(*this);

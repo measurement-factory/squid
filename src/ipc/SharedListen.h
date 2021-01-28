@@ -13,6 +13,7 @@
 
 #include "base/AsyncCall.h"
 #include "base/Subscription.h"
+#include "ipc/QuestionId.h"
 
 namespace Ipc
 {
@@ -55,6 +56,8 @@ public:
     OpenListenerParams params; ///< actual comm_open_sharedListen() parameters
 
     int mapId; ///< to map future response to the requestor's callback
+
+    QuestionerId qid;
 };
 
 /// a response to SharedListenRequest
@@ -69,6 +72,7 @@ public:
     int fd; ///< opened listening socket or -1
     int errNo; ///< errno value from comm_open_sharedListen() call
     int mapId; ///< to map future response to the requestor's callback
+    QuestionerId qid;
 };
 
 /// prepare and send SharedListenRequest to Coordinator

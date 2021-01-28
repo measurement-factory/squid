@@ -23,7 +23,7 @@ namespace Mgr
 class Response: public Ipc::Response
 {
 public:
-    Response(unsigned int aRequestId, Action::Pointer anAction = NULL);
+    Response(const Ipc::RequestPointer &request, Action::Pointer anAction = NULL);
 
     explicit Response(const Ipc::TypedMsgHdr& msg); ///< from recvmsg()
 
@@ -35,7 +35,7 @@ public:
     const Action& getAction() const; ///< returns action object
 
 private:
-    Response(const Response& response);
+    Response(const Response &) = default;
 
 public:
     Action::Pointer action; ///< action relating to response

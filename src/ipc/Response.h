@@ -13,6 +13,7 @@
 
 #include "base/RefCount.h"
 #include "ipc/forward.h"
+#include "ipc/QuestionId.h"
 
 namespace Ipc
 {
@@ -25,17 +26,21 @@ public:
 
 public:
     explicit Response(unsigned int aRequestId):
-        requestId(aRequestId) {}
+        requestId(aRequestId), qid(false) {}
+
+    Response(unsigned int aRequestId, const Ipc::QuestionerId &aQid):
+        requestId(aRequestId), qid(aQid) {}
 
     virtual void pack(TypedMsgHdr& msg) const = 0; ///< prepare for sendmsg()
     virtual Pointer clone() const = 0; ///< returns a copy of this
 
-private:
-    Response(const Response&); // not implemented
+protected:
+    Response(const Response&) = default; // not implemented
     Response& operator= (const Response&); // not implemented
 
 public:
     unsigned int requestId; ///< ID of request we are responding to
+    QuestionerId qid;
 };
 
 inline

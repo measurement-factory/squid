@@ -18,6 +18,7 @@
 #include "globals.h"
 #include "ipc/Kids.h"
 #include "ipc/Messages.h"
+#include "ipc/QuestionId.h"
 #include "ipc/SharedListen.h"
 #include "ipc/Strand.h"
 #include "ipc/StrandCoord.h"
@@ -62,16 +63,16 @@ void Ipc::Strand::receive(const TypedMsgHdr &message)
     switch (message.rawType()) {
 
     case mtStrandRegistered:
-        handleRegistrationResponse(StrandMessage(message));
+        handleRegistrationResponse(Mine(StrandMessage(message)));
         break;
 
     case mtSharedListenResponse:
-        SharedListenJoined(SharedListenResponse(message));
+        SharedListenJoined(Mine(SharedListenResponse(message)));
         break;
 
 #if HAVE_DISKIO_MODULE_IPCIO
     case mtStrandReady:
-        IpcIoFile::HandleOpenResponse(StrandMessage(message));
+        IpcIoFile::HandleOpenResponse(Mine(StrandMessage(message)));
         break;
 
     case mtIpcIoNotification:
@@ -87,7 +88,7 @@ void Ipc::Strand::receive(const TypedMsgHdr &message)
 
     case mtCacheMgrResponse: {
         const Mgr::Response resp(message);
-        handleCacheMgrResponse(resp);
+        handleCacheMgrResponse(Mine(resp));
     }
     break;
 
@@ -104,7 +105,7 @@ void Ipc::Strand::receive(const TypedMsgHdr &message)
 
     case mtSnmpResponse: {
         const Snmp::Response resp(message);
-        handleSnmpResponse(resp);
+        handleSnmpResponse(Mine(resp));
     }
     break;
 #endif
@@ -145,7 +146,7 @@ void Ipc::Strand::handleCacheMgrResponse(const Mgr::Response& response)
 void Ipc::Strand::handleSnmpRequest(const Snmp::Request& request)
 {
     debugs(54, 6, HERE);
-    Snmp::SendResponse(request.requestId, request.pdu);
+    Snmp::SendResponse(request.clone(), request.pdu);
 }
 
 void Ipc::Strand::handleSnmpResponse(const Snmp::Response& response)

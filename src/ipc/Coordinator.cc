@@ -107,7 +107,7 @@ void Ipc::Coordinator::receive(const TypedMsgHdr& message)
     case mtCacheMgrResponse: {
         debugs(54, 6, HERE << "Cache manager response");
         const Mgr::Response resp(message);
-        handleCacheMgrResponse(resp);
+        handleCacheMgrResponse(Mine(resp));
     }
     break;
 
@@ -122,7 +122,7 @@ void Ipc::Coordinator::receive(const TypedMsgHdr& message)
     case mtSnmpResponse: {
         debugs(54, 6, HERE << "SNMP response");
         const Snmp::Response resp(message);
-        handleSnmpResponse(resp);
+        handleSnmpResponse(Mine(resp));
     }
     break;
 #endif
@@ -158,6 +158,7 @@ Ipc::Coordinator::handleSharedListenRequest(const SharedListenRequest& request)
            " mapId=" << request.mapId);
 
     SharedListenResponse response(c->fd, errNo, request.mapId);
+    response.qid = request.qid;
     TypedMsgHdr message;
     response.pack(message);
     SendMessage(MakeAddr(strandAddrLabel, request.requestorId), message);
@@ -182,7 +183,7 @@ Ipc::Coordinator::handleCacheMgrRequest(const Mgr::Request& request)
     }
 
     // Let the strand know that we are now responsible for handling the request
-    Mgr::Response response(request.requestId);
+    Mgr::Response response(request.clone());
     TypedMsgHdr message;
     response.pack(message);
     SendMessage(MakeAddr(strandAddrLabel, request.requestorId), message);
@@ -222,7 +223,8 @@ Ipc::Coordinator::notifySearcher(const Ipc::StrandSearchRequest &request,
 {
     debugs(54, 3, HERE << "tell kid" << request.requestorId << " that " <<
            request.tag << " is kid" << strand.kidId);
-    const StrandMessage response(strand);
+    StrandMessage response(strand);
+    response.qid = request.qid;
     TypedMsgHdr message;
     response.pack(mtStrandReady, message);
     SendMessage(MakeAddr(strandAddrLabel, request.requestorId), message);
@@ -234,7 +236,7 @@ Ipc::Coordinator::handleSnmpRequest(const Snmp::Request& request)
 {
     debugs(54, 4, HERE);
 
-    Snmp::Response response(request.requestId);
+    Snmp::Response response(request.clone());
     TypedMsgHdr message;
     response.pack(message);
     SendMessage(MakeAddr(strandAddrLabel, request.requestorId), message);

@@ -10,6 +10,7 @@
 #define SQUID_IPC_STRAND_SEARCH_H
 
 #include "ipc/forward.h"
+#include "ipc/QuestionId.h"
 #include "ipc/StrandCoord.h"
 #include "SquidString.h"
 
@@ -27,6 +28,7 @@ public:
 public:
     int requestorId; ///< sender-provided return address
     String tag; ///< set when looking for a matching StrandCoord::tag
+    QuestionerId qid;
 };
 
 } // namespace Ipc;

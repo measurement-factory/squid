@@ -28,6 +28,8 @@ libipc_la_SOURCES = \
 	Messages.h \
 	Port.cc \
 	Port.h \
+	QuestionId.cc \
+	QuestionId.h \
 	Queue.cc \
 	Queue.h \
 	ReadWriteLock.cc \

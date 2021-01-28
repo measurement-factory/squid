@@ -31,7 +31,7 @@ public:
     virtual Pointer clone() const;
 
 private:
-    Request(const Request& request);
+    Request(const Request &) = default;
 
 public:
     Comm::ConnectionPointer conn; ///< HTTP client connection descriptor

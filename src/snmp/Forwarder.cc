@@ -88,12 +88,12 @@ Snmp::Forwarder::sendError(int error)
 }
 
 void
-Snmp::SendResponse(unsigned int requestId, const Pdu& pdu)
+Snmp::SendResponse(const Ipc::Request::Pointer &request, const Pdu& pdu)
 {
     debugs(49, 5, HERE);
     // snmpAgentResponse() can modify arg
     Pdu tmp = pdu;
-    Snmp::Response response(requestId);
+    Snmp::Response response(request);
     snmp_pdu* response_pdu = NULL;
     try {
         response_pdu = snmpAgentResponse(&tmp);

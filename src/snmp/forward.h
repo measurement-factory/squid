@@ -11,6 +11,8 @@
 #ifndef SQUID_SNMPX_FORWARD_H
 #define SQUID_SNMPX_FORWARD_H
 
+#include "base/RefCount.h"
+
 namespace Snmp
 {
 
@@ -19,6 +21,8 @@ class Request;
 class Response;
 class Session;
 class Var;
+
+typedef RefCount<Request> RequestPointer;
 
 } // namespace Snmp
 

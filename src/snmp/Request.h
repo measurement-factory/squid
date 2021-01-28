@@ -33,7 +33,7 @@ public:
     virtual Pointer clone() const;
 
 private:
-    Request(const Request& request);
+    Request(const Request& request) = default;
 
 public:
     Pdu pdu; ///< SNMP protocol data unit

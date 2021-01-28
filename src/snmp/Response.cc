@@ -11,6 +11,7 @@
 #include "squid.h"
 #include "base/TextException.h"
 #include "ipc/Messages.h"
+#include "ipc/Request.h"
 #include "ipc/TypedMsgHdr.h"
 #include "snmp/Response.h"
 
@@ -20,13 +21,8 @@ std::ostream& Snmp::operator << (std::ostream& os, const Response& response)
     return os;
 }
 
-Snmp::Response::Response(unsigned int aRequestId):
-    Ipc::Response(aRequestId), pdu()
-{
-}
-
-Snmp::Response::Response(const Response& response):
-    Ipc::Response(response.requestId), pdu(response.pdu)
+Snmp::Response::Response(const Ipc::Request::Pointer &request):
+    Ipc::Response(request->requestId), pdu()
 {
 }
 
@@ -35,6 +31,7 @@ Snmp::Response::Response(const Ipc::TypedMsgHdr& msg):
 {
     msg.checkType(Ipc::mtSnmpResponse);
     msg.getPod(requestId);
+    qid.unpack(msg);
     pdu.unpack(msg);
 }
 
@@ -43,6 +40,7 @@ Snmp::Response::pack(Ipc::TypedMsgHdr& msg) const
 {
     msg.setType(Ipc::mtSnmpResponse);
     msg.putPod(requestId);
+    qid.pack(msg);
     pdu.pack(msg);
 }
 
