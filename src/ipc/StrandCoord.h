@@ -20,8 +20,7 @@ namespace Ipc
 /// Strand location details
 class StrandCoord
 {
-public:
-//    StrandCoord(); ///< unknown location
+public
     StrandCoord(int akidId, pid_t aPid);
     explicit StrandCoord(const TypedMsgHdr &);
 
