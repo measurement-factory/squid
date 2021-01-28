@@ -42,7 +42,7 @@ public:
 inline
 std::ostream& operator << (std::ostream &os, const Response& response)
 {
-    os << "[response.requestId %u]" << response.requestId << '}';
+    os << "[response.requestId %u]" << response.requestId << " quid: " << response.qid << '}';
     return os;
 }
 

@@ -39,7 +39,7 @@ public:
     void rejectAnswerIfStale() const;
 
     std::ostream &print(std::ostream &os) const {
-        os << "qid: " << pid;
+        os << pid;
         return os;
     }
 
