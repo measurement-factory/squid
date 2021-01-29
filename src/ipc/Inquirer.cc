@@ -73,6 +73,7 @@ Ipc::Inquirer::inquire()
     if (++LastRequestId == 0) // don't use zero value as request->requestId
         ++LastRequestId;
     request->requestId = LastRequestId;
+    request->qid = QuestionerId(true);
     const int kidId = pos->kidId;
     debugs(54, 4, HERE << "inquire kid: " << kidId << status());
     TheRequestsMap[request->requestId] = callback;
