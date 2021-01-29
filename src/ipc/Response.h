@@ -39,10 +39,11 @@ public:
     const QuestionerId qid;
 };
 
+// TODO: remove as unused?
 inline
 std::ostream& operator << (std::ostream &os, const Response& response)
 {
-    os << "[response.requestId %u]" << response.requestId << " qid: " << response.qid << '}';
+    os << "{requestId: " << response.requestId << " qid: " << response.qid << '}';
     return os;
 }
 
