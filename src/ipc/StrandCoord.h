@@ -38,7 +38,7 @@ public:
 class StrandMessage
 {
 public:
-    explicit StrandMessage(const StrandCoord &);
+    explicit StrandMessage(const StrandCoord &, QuestionerId);
     explicit StrandMessage(const TypedMsgHdr &);
     void pack(MessageType, TypedMsgHdr &) const;
 

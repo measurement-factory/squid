@@ -234,8 +234,7 @@ Ipc::Coordinator::notifySearcher(const Ipc::StrandSearchRequest &request,
 {
     debugs(54, 3, HERE << "tell kid" << request.requestorId << " that " <<
            request.tag << " is kid" << strand.kidId);
-    StrandMessage response(strand);
-    response.qid = request.qid;
+    StrandMessage response(strand, request.qid);
     TypedMsgHdr message;
     response.pack(mtStrandReady, message);
     SendMessage(MakeAddr(strandAddrLabel, request.requestorId), message);

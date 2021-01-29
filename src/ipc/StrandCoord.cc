@@ -39,9 +39,9 @@ void Ipc::StrandCoord::pack(TypedMsgHdr &hdrMsg) const
     hdrMsg.putString(tag);
 }
 
-Ipc::StrandMessage::StrandMessage(const StrandCoord &aStrand):
+Ipc::StrandMessage::StrandMessage(const StrandCoord &aStrand, const QuestionerId aQid):
     strand(aStrand),
-    qid(true)
+    qid(aQid)
 {
 }
 
@@ -63,7 +63,7 @@ void
 Ipc::StrandMessage::NotifyCoordinator(const MessageType msgType, const char *tag)
 {
     static const auto pid = getpid();
-    StrandMessage message(StrandCoord(KidIdentifier, pid));
+    StrandMessage message(StrandCoord(KidIdentifier, pid), QuestionerId(true));
     if (tag)
         message.strand.tag = tag;
     TypedMsgHdr hdr;
