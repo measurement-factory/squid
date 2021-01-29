@@ -12,6 +12,8 @@
 #define STUB_API "lmgr/libmgr.la"
 #include "tests/STUB.h"
 
+#include "ipc/Request.h"
+
 // NP: used by Command.h instantiations
 #include "mgr/ActionProfile.h"
 
