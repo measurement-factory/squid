@@ -26,9 +26,6 @@ public:
     /// for receiving the ID of the asking process in questions and answers
     explicit QuestionerId(const TypedMsgHdr &);
 
-    /// can copy the received ID of the asking process into an answer
-    QuestionerId(const QuestionerId &) = default;
-
     /// for sending the ID of the asking process in questions and answers
     void pack(TypedMsgHdr &) const;
 
