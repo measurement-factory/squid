@@ -32,7 +32,6 @@ typedef RefCount<Action> ActionPointer;
 typedef RefCount<ActionProfile> ActionProfilePointer;
 typedef RefCount<ActionCreator> ActionCreatorPointer;
 typedef RefCount<Command> CommandPointer;
-typedef RefCount<Request> RequestPointer;
 
 typedef ActionPointer (ClassActionCreationHandler)(const CommandPointer &cmd);
 

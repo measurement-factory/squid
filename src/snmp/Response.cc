@@ -13,16 +13,17 @@
 #include "ipc/Messages.h"
 #include "ipc/Request.h"
 #include "ipc/TypedMsgHdr.h"
+#include "snmp/Request.h"
 #include "snmp/Response.h"
 
 std::ostream& Snmp::operator << (std::ostream& os, const Response& response)
 {
-    os << "response: {requestId: " << response.requestId << " qid: " << response.qid << '}';
+    os << "{requestId: " << response.requestId << " qid: " << response.qid << '}';
     return os;
 }
 
-Snmp::Response::Response(const Ipc::Request::Pointer &request):
-    Ipc::Response(request->requestId), pdu()
+Snmp::Response::Response(const Request &request):
+    Ipc::Response(request.requestId, request.qid), pdu()
 {
 }
 
@@ -31,7 +32,7 @@ Snmp::Response::Response(const Ipc::TypedMsgHdr& msg):
 {
     msg.checkType(Ipc::mtSnmpResponse);
     msg.getPod(requestId);
-    (const_cast<Ipc::QuestionerId &>(qid)).unpack(msg);
+    qid.unpack(msg);
     pdu.unpack(msg);
 }
 

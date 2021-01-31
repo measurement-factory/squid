@@ -194,7 +194,7 @@ Ipc::Coordinator::handleCacheMgrRequest(const Mgr::Request& request)
     }
 
     // Let the strand know that we are now responsible for handling the request
-    Mgr::Response response(request.clone());
+    Mgr::Response response(request);
     TypedMsgHdr message;
     response.pack(message);
     SendMessage(MakeAddr(strandAddrLabel, request.requestorId), message);
@@ -246,7 +246,7 @@ Ipc::Coordinator::handleSnmpRequest(const Snmp::Request& request)
 {
     debugs(54, 4, HERE);
 
-    Snmp::Response response(request.clone());
+    Snmp::Response response(request);
     TypedMsgHdr message;
     response.pack(message);
     SendMessage(MakeAddr(strandAddrLabel, request.requestorId), message);

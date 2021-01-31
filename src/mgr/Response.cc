@@ -18,11 +18,15 @@
 #include "mgr/Request.h"
 #include "mgr/Response.h"
 
-Mgr::Response::Response(const Ipc::Request::Pointer &request, Action::Pointer anAction):
+Mgr::Response::Response(const Ipc::Request::Pointer &request, const Action::Pointer &anAction):
     Ipc::Response(request->requestId, request->qid), action(anAction)
 {
-    Must(!action || action->name()); // if there is an action, it must be named
+    Must(action->name()); // the action must be named
+}
 
+Mgr::Response::Response(const Request &request):
+    Ipc::Response(request.requestId, request.qid)
+{
 }
 
 Mgr::Response::Response(const Ipc::TypedMsgHdr& msg):
@@ -31,7 +35,7 @@ Mgr::Response::Response(const Ipc::TypedMsgHdr& msg):
     msg.checkType(Ipc::mtCacheMgrResponse);
     msg.getPod(requestId);
     Must(requestId != 0);
-    (const_cast<Ipc::QuestionerId &>(qid)).unpack(msg);
+    qid.unpack(msg);
 
     if (msg.hasMoreData()) {
         String actionName;

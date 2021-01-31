@@ -27,7 +27,7 @@ Snmp::Request::Request(const Ipc::TypedMsgHdr& msg):
     msg.checkType(Ipc::mtSnmpRequest);
     msg.getPod(requestorId);
     msg.getPod(requestId);
-    (const_cast<Ipc::QuestionerId &>(qid)).unpack(msg);
+    qid.unpack(msg);
     pdu.unpack(msg);
     session.unpack(msg);
     msg.getPod(address);

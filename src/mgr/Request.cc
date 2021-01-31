@@ -31,7 +31,7 @@ Mgr::Request::Request(const Ipc::TypedMsgHdr& msg):
     msg.checkType(Ipc::mtCacheMgrRequest);
     msg.getPod(requestorId);
     msg.getPod(requestId);
-    (const_cast<Ipc::QuestionerId &>(qid)).unpack(msg);
+    qid.unpack(msg);
     params = ActionParams(msg);
 
     conn = new Comm::Connection;
