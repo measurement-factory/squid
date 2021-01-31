@@ -234,7 +234,7 @@ Ipc::Coordinator::notifySearcher(const Ipc::StrandSearchRequest &request,
 {
     debugs(54, 3, HERE << "tell kid" << request.requestorId << " that " <<
            request.tag << " is kid" << strand.kidId);
-    StrandMessage response(strand, request.qid);
+    const StrandMessage response(strand, request.qid);
     TypedMsgHdr message;
     response.pack(mtStrandReady, message);
     SendMessage(MakeAddr(strandAddrLabel, request.requestorId), message);
@@ -246,7 +246,7 @@ Ipc::Coordinator::handleSnmpRequest(const Snmp::Request& request)
 {
     debugs(54, 4, HERE);
 
-    Snmp::Response response(request);
+    const Snmp::Response response(request);
     TypedMsgHdr message;
     response.pack(message);
     SendMessage(MakeAddr(strandAddrLabel, request.requestorId), message);

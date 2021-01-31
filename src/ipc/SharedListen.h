@@ -72,7 +72,7 @@ public:
     int fd; ///< opened listening socket or -1
     int errNo; ///< errno value from comm_open_sharedListen() call
     int mapId; ///< to map future response to the requestor's callback
-    QuestionerId qid;
+    QuestionerId qid; ///< an identifier of the kid process initiated this IPC question
 };
 
 /// prepare and send SharedListenRequest to Coordinator
