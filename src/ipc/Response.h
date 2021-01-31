@@ -40,7 +40,7 @@ public:
 
 public:
     unsigned int requestId; ///< ID of request we are responding to
-    QuestionerId qid;
+    QuestionerId qid; ///< an identifier of the kid process initiated this IPC question
 };
 
 // TODO: remove as unused?

@@ -57,7 +57,7 @@ public:
 
     int mapId; ///< to map future response to the requestor's callback
 
-    QuestionerId qid;
+    QuestionerId qid; ///< an identifier of the kid process initiated this IPC question
 };
 
 /// a response to SharedListenRequest

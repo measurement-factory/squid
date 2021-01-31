@@ -15,7 +15,7 @@
 #include "ipc/StrandCoord.h"
 #include "ipc/TypedMsgHdr.h"
 
-Ipc::StrandCoord::StrandCoord(int aKidId, pid_t aPid): kidId(aKidId), pid(aPid)
+Ipc::StrandCoord::StrandCoord(const int aKidId, const pid_t aPid): kidId(aKidId), pid(aPid)
 {
 }
 

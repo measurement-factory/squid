@@ -47,7 +47,7 @@ public:
 
 public:
     StrandCoord strand; ///< messageType-specific coordinates (e.g., sender)
-    QuestionerId qid;
+    QuestionerId qid; ///< an identifier of the kid process initiated this IPC question
 };
 
 } // namespace Ipc;

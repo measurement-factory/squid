@@ -38,7 +38,7 @@ public:
 public:
     int requestorId; ///< kidId of the requestor; used for response destination
     unsigned int requestId; ///< unique for sender; matches request w/ response
-    QuestionerId qid;
+    QuestionerId qid; ///< an identifier of the kid process initiated this IPC question
 };
 
 } // namespace Ipc
