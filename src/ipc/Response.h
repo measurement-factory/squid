@@ -31,8 +31,9 @@ public:
     Response(unsigned int aRequestId, const Ipc::QuestionerId &aQid):
         requestId(aRequestId), qid(aQid) {}
 
-    // no assignment of any kind
+    // no assignment of any kind, use clone() instead
     Response &operator=(const Response &) = delete;
+    // TODO: also forbid move assignment
 
     virtual void pack(TypedMsgHdr& msg) const = 0; ///< prepare for sendmsg()
     virtual Pointer clone() const = 0; ///< returns a copy of this
