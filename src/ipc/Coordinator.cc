@@ -20,7 +20,6 @@
 #include "mgr/Request.h"
 #include "mgr/Response.h"
 #include "tools.h"
-#include "sbuf/Stream.h"
 #if SQUID_SNMP
 #include "snmp/Inquirer.h"
 #include "snmp/Request.h"
@@ -83,7 +82,8 @@ Ipc::Coordinator::receive(const TypedMsgHdr& message)
     try {
         receiveOrThrow(message);
     } catch (const TextException &e) {
-        debugs(54, DBG_IMPORTANT, "WARNING: Ignoring IPC message because of " << e.what());
+        debugs(54, DBG_IMPORTANT, "WARNING: Ignoring IPC message because of " << e.what() <<
+                Debug::Extra << "message type: " << message.rawType());
     }
 }
 
@@ -139,7 +139,7 @@ void Ipc::Coordinator::receiveOrThrow(const TypedMsgHdr& message)
 #endif
 
     default:
-        throw TextException(ToSBuf("unknown message type: ", message.rawType()), Here());
+        throw TextException("unknown message type", Here());
         break;
     }
 }
