@@ -31,12 +31,15 @@ public:
     Response(unsigned int aRequestId, const Ipc::QuestionerId &aQid):
         requestId(aRequestId), qid(aQid) {}
 
-    // no assignment of any kind, use clone() instead
+    // no assignment of any kind
     Response &operator=(const Response &) = delete;
-    // TODO: also forbid move assignment
+    Response &operator=(const Response &&) = delete;
 
     virtual void pack(TypedMsgHdr& msg) const = 0; ///< prepare for sendmsg()
     virtual Pointer clone() const = 0; ///< returns a copy of this
+
+protected:
+    Response(const Response &) = default;
 
 public:
     unsigned int requestId; ///< ID of request we are responding to

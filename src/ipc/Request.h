@@ -28,12 +28,15 @@ public:
     Request(int aRequestorId, unsigned int aRequestId, bool initQuid):
         requestorId(aRequestorId), requestId(aRequestId), qid(initQuid) {}
 
-    // no assignment of any kind, use clone() instead
+    // no assignment of any kind
     Request &operator=(const Request &) = delete;
-    // TODO: also forbid move assignment
+    Request &operator=(const Request &&) = delete;
 
     virtual void pack(TypedMsgHdr& msg) const = 0; ///< prepare for sendmsg()
     virtual Pointer clone() const = 0; ///< returns a copy of this
+
+protected:
+    Request(const Request &) = default;
 
 public:
     int requestorId; ///< kidId of the requestor; used for response destination
