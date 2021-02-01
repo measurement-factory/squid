@@ -66,6 +66,8 @@ Ipc::Strand::receive(const TypedMsgHdr &message)
     } catch (const TextException &e) {
         debugs(54, DBG_IMPORTANT, "WARNING: Ignoring IPC message because of " << e.what() <<
                Debug::Extra << "message type: " << message.rawType());
+    } catch (...) {
+        debugs(54, 2, "exception: " << CurrentException);
     }
 }
 
