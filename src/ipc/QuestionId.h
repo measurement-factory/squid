@@ -20,7 +20,7 @@ class QuestionerId
 {
 public:
     /// \param init whether we should initialize the Id
-    /// it is true for creators and false for recivers/responses 
+    /// it is true for creators and false for recivers/responses
     explicit QuestionerId(bool init);
 
     /// for receiving the ID of the asking process in questions and answers

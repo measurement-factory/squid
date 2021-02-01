@@ -9,10 +9,10 @@
 /* DEBUG: section 54    Interprocess Communication */
 
 #include "squid.h"
+#include "base/TextException.h"
 #include "ipc/QuestionId.h"
 #include "ipc/TypedMsgHdr.h"
 #include "sbuf/Stream.h"
-#include "base/TextException.h"
 
 Ipc::QuestionerId::QuestionerId(const bool init) :
     pid(-1)
@@ -20,7 +20,7 @@ Ipc::QuestionerId::QuestionerId(const bool init) :
     if (init)
         pid = getpid();
 }
-    
+
 Ipc::QuestionerId::QuestionerId(const TypedMsgHdr &hdrMsg)
 {
     unpack(hdrMsg);
