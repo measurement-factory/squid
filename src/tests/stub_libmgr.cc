@@ -28,7 +28,7 @@ void Mgr::Action::run(StoreEntry *entry, bool writeHttpHeader) STUB
 void Mgr::Action::fillEntry(StoreEntry *entry, bool writeHttpHeader) STUB
 void Mgr::Action::add(const Action &action) STUB
 void Mgr::Action::respond(const Request &request) STUB
-void Mgr::Action::sendResponse(const Ipc::Request::Pointer &request) STUB
+void Mgr::Action::sendResponse(const Ipc::Request::Pointer &) STUB
 bool Mgr::Action::atomic() const STUB_RETVAL(false)
 const char * Mgr::Action::name() const STUB_RETVAL(NULL)
 static Mgr::Command static_Command;

@@ -11,7 +11,6 @@
 #include "squid.h"
 #include "base/TextException.h"
 #include "ipc/Messages.h"
-#include "ipc/Request.h"
 #include "ipc/TypedMsgHdr.h"
 #include "snmp/Request.h"
 #include "snmp/Response.h"

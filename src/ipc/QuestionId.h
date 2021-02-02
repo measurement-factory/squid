@@ -19,7 +19,7 @@ namespace Ipc
 class QuestionerId
 {
 public:
-    /// \param init whether we should initialize the Id
+    /// \param init whether we should initialize the ID
     /// it is true for creators and false for recivers/responses
     explicit QuestionerId(bool init);
 
