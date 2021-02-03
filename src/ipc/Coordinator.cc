@@ -19,7 +19,6 @@
 #include "mgr/Inquirer.h"
 #include "mgr/Request.h"
 #include "mgr/Response.h"
-#include "sbuf/Stream.h"
 #include "tools.h"
 #if SQUID_SNMP
 #include "snmp/Inquirer.h"
@@ -77,21 +76,9 @@ void Ipc::Coordinator::registerStrand(const StrandCoord& strand)
     }
 }
 
-void
-Ipc::Coordinator::receive(const TypedMsgHdr& message)
+void Ipc::Coordinator::receive(const TypedMsgHdr& message)
 {
-    try {
-        receiveOrThrow(message);
-    } catch (...) {
-        debugs(54, DBG_IMPORTANT, "WARNING: Ignoring problematic IPC message" <<
-               Debug::Extra << "message type: " << message.rawType() <<
-               Debug::Extra << "problem: " << CurrentException);
-    }
-}
-
-void Ipc::Coordinator::receiveOrThrow(const TypedMsgHdr& message)
-{
-    switch (const auto rawType = message.rawType()) {
+    switch (message.rawType()) {
     case mtRegisterStrand:
         debugs(54, 6, HERE << "Registration request");
         handleRegistrationRequest(StrandMessage(message));
@@ -141,7 +128,8 @@ void Ipc::Coordinator::receiveOrThrow(const TypedMsgHdr& message)
 #endif
 
     default:
-        throw TextException(ToSBuf("bad IPC message type: ", rawType), Here());
+        Port::receive(message);
+        break;
     }
 }
 

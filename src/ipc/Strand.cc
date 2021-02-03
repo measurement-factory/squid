@@ -58,18 +58,7 @@ void Ipc::Strand::registerSelf()
     setTimeout(6, "Ipc::Strand::timeoutHandler"); // TODO: make 6 configurable?
 }
 
-void
-Ipc::Strand::receive(const TypedMsgHdr &message)
-{
-    try {
-        receiveOrThrow(message);
-    } catch (...) {
-        debugs(54, DBG_IMPORTANT, "WARNING: Ignoring IPC message because of " << CurrentException <<
-               Debug::Extra << "message type: " << message.rawType());
-    }
-}
-
-void Ipc::Strand::receiveOrThrow(const TypedMsgHdr &message)
+void Ipc::Strand::receive(const TypedMsgHdr &message)
 {
     switch (message.rawType()) {
 
@@ -122,7 +111,7 @@ void Ipc::Strand::receiveOrThrow(const TypedMsgHdr &message)
 #endif
 
     default:
-        throw TextException("unknown message type", Here());
+        Port::receive(message);
         break;
     }
 }
