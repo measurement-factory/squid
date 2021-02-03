@@ -19,6 +19,7 @@
 #include "mgr/Inquirer.h"
 #include "mgr/Request.h"
 #include "mgr/Response.h"
+#include "sbuf/Stream.h"
 #include "tools.h"
 #if SQUID_SNMP
 #include "snmp/Inquirer.h"
@@ -90,7 +91,7 @@ Ipc::Coordinator::receive(const TypedMsgHdr& message)
 
 void Ipc::Coordinator::receiveOrThrow(const TypedMsgHdr& message)
 {
-    switch (message.rawType()) {
+    switch (const auto rawType = message.rawType()) {
     case mtRegisterStrand:
         debugs(54, 6, HERE << "Registration request");
         handleRegistrationRequest(StrandMessage(message));
@@ -140,8 +141,7 @@ void Ipc::Coordinator::receiveOrThrow(const TypedMsgHdr& message)
 #endif
 
     default:
-        throw TextException("unknown message type", Here());
-        break;
+        throw TextException(ToSBuf("bad IPC message type: ", rawType), Here());
     }
 }
 
