@@ -82,8 +82,9 @@ Ipc::Coordinator::receive(const TypedMsgHdr& message)
     try {
         receiveOrThrow(message);
     } catch (...) {
-        debugs(54, DBG_IMPORTANT, "WARNING: Ignoring IPC message because of " << CurrentException <<
-               Debug::Extra << "message type: " << message.rawType());
+        debugs(54, DBG_IMPORTANT, "WARNING: Ignoring problematic IPC message" <<
+               Debug::Extra << "message type: " << message.rawType() <<
+               Debug::Extra << "problem: " << CurrentException);
     }
 }
 
