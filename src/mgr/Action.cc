@@ -81,7 +81,7 @@ Mgr::Action::respond(const Request &request)
 void
 Mgr::Action::sendResponse(const Ipc::Request::Pointer &request)
 {
-    Response response(request, this);
+    const Response response(request, this);
     Ipc::TypedMsgHdr message;
     response.pack(message);
     Ipc::SendMessage(Ipc::Port::CoordinatorAddr(), message);

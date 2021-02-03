@@ -24,7 +24,7 @@ namespace Snmp
 class Response: public Ipc::Response
 {
 public:
-    Response(const Request &);
+    explicit Response(const Request &);
     explicit Response(const Ipc::TypedMsgHdr& msg); ///< from recvmsg()
     /* Ipc::Response API */
     virtual void pack(Ipc::TypedMsgHdr& msg) const;

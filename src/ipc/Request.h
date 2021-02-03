@@ -25,7 +25,7 @@ public:
     typedef RefCount<Request> Pointer;
 
 public:
-    Request(int aRequestorId, unsigned int aRequestId, bool initQuid):
+    Request(const int aRequestorId, const unsigned int aRequestId, const bool initQuid):
         requestorId(aRequestorId), requestId(aRequestId), qid(initQuid) {}
 
     // no assignment of any kind

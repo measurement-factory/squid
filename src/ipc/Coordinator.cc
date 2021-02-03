@@ -183,7 +183,7 @@ Ipc::Coordinator::handleCacheMgrRequest(const Mgr::Request& request)
     }
 
     // Let the strand know that we are now responsible for handling the request
-    Mgr::Response response(request);
+    const Mgr::Response response(request);
     TypedMsgHdr message;
     response.pack(message);
     SendMessage(MakeAddr(strandAddrLabel, request.requestorId), message);
