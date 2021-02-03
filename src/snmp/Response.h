@@ -37,9 +37,6 @@ public:
     Pdu pdu; ///< SNMP protocol data unit
 };
 
-// TODO: remove as unused?
-std::ostream& operator << (std::ostream& os, const Response& response);
-
 } // namespace Snmp
 
 #endif /* SQUID_SNMPX_RESPONSE_H */

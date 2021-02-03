@@ -15,12 +15,6 @@
 #include "snmp/Request.h"
 #include "snmp/Response.h"
 
-std::ostream& Snmp::operator << (std::ostream& os, const Response& response)
-{
-    os << "{requestId: " << response.requestId << " qid: " << response.qid << '}';
-    return os;
-}
-
 Snmp::Response::Response(const Request &request):
     Ipc::Response(request.requestId, request.qid), pdu()
 {

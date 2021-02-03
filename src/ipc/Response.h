@@ -46,14 +46,6 @@ public:
     QuestionerId qid; ///< an identifier of the kid process initiated this IPC question
 };
 
-// TODO: remove as unused?
-inline
-std::ostream& operator << (std::ostream &os, const Response& response)
-{
-    os << "{requestId: " << response.requestId << " qid: " << response.qid << '}';
-    return os;
-}
-
 } // namespace Ipc
 
 #endif /* SQUID_IPC_RESPONSE_H */
