@@ -10,7 +10,7 @@
 #define SQUID_IPC_STRAND_SEARCH_H
 
 #include "ipc/forward.h"
-#include "ipc/QuestionId.h"
+#include "ipc/QuestionerId.h"
 #include "ipc/StrandCoord.h"
 #include "SquidString.h"
 

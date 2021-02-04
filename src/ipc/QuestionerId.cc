@@ -10,9 +10,11 @@
 
 #include "squid.h"
 #include "base/TextException.h"
-#include "ipc/QuestionId.h"
+#include "ipc/QuestionerId.h"
 #include "ipc/TypedMsgHdr.h"
 #include "sbuf/Stream.h"
+
+#include <iostream>
 
 Ipc::QuestionerId::QuestionerId(const bool init) :
     pid(-1)
@@ -44,5 +46,11 @@ Ipc::QuestionerId::rejectAnswerIfStale() const
     static const auto currentPid = getpid();
     if (currentPid != pid)
         throw TextException(ToSBuf("PID mismatch: ", currentPid, "!=", pid),  Here());
+}
+
+void
+Ipc::QuestionerId::print(std::ostream &os) const
+{
+    os << pid;
 }
 

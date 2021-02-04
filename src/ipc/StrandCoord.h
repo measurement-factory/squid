@@ -11,7 +11,7 @@
 
 #include "ipc/forward.h"
 #include "ipc/Messages.h"
-#include "ipc/QuestionId.h"
+#include "ipc/QuestionerId.h"
 #include "SquidString.h"
 
 namespace Ipc

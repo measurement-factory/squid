@@ -6,10 +6,12 @@
  * Please see the COPYING and CONTRIBUTORS files for details.
  */
 
-#ifndef SQUID_IPC_QUESTION_ID_H
-#define SQUID_IPC_QUESTION_ID_H
+#ifndef SQUID_IPC_QUESTIONER_ID_H
+#define SQUID_IPC_QUESTIONER_ID_H
 
 #include "ipc/forward.h"
+
+#include <iosfwd>
 
 namespace Ipc
 {
@@ -20,7 +22,7 @@ class QuestionerId
 {
 public:
     /// \param init whether we should initialize the ID
-    /// it is true for creators and false for recivers/responses
+    /// it is true for request senders and false for receivers/responses
     explicit QuestionerId(bool init);
 
     /// for receiving the ID of the asking process in questions and answers
@@ -35,10 +37,8 @@ public:
     /// does nothing but throws if the questioner was not the current process
     void rejectAnswerIfStale() const;
 
-    std::ostream &print(std::ostream &os) const {
-        os << pid;
-        return os;
-    }
+    /// reports the stored opaque ID value (for debugging)
+    void print(std::ostream &) const;
 
 private:
     /// OS process ID of the asking kid. If the kid restarts, it is assumed
@@ -48,20 +48,22 @@ private:
 
 /// Convenience wrapper for rejecting (freshly parsed) stale answers.
 /// All answers are assumed to have a public "QuestionerId qid" member.
-template <class Message>
-const Message &Mine(const Message &message)
+template <class Answer>
+const Answer &
+Mine(const Answer &answer)
 {
-    message.qid.rejectAnswerIfStale();
-    return message;
+    answer.qid.rejectAnswerIfStale();
+    return answer;
 }
 
-inline
-std::ostream& operator << (std::ostream &os, const QuestionerId& qid)
+inline std::ostream &
+operator <<(std::ostream &os, const QuestionerId &qid)
 {
-    return qid.print(os);
+    qid.print(os);
+    return os;
 }
 
 } // namespace Ipc;
 
-#endif /* SQUID_IPC_QUESTION_ID_H */
+#endif /* SQUID_IPC_QUESTIONER_ID_H */
 
