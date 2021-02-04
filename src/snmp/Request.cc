@@ -16,13 +16,12 @@
 Snmp::Request::Request(int aRequestorId, unsigned int aRequestId,
                        const Pdu& aPdu, const Session& aSession,
                        int aFd, const Ip::Address& anAddress):
-    Ipc::Request(aRequestorId, aRequestId, true),
+    Ipc::Request(aRequestorId, aRequestId, Ipc::MyQuestionerId()),
     pdu(aPdu), session(aSession), fd(aFd), address(anAddress)
 {
 }
 
-Snmp::Request::Request(const Ipc::TypedMsgHdr& msg):
-    Ipc::Request(0, 0, false)
+Snmp::Request::Request(const Ipc::TypedMsgHdr &msg)
 {
     msg.checkType(Ipc::mtSnmpRequest);
     msg.getPod(requestorId);

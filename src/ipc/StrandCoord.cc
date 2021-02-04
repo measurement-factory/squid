@@ -63,7 +63,7 @@ void
 Ipc::StrandMessage::NotifyCoordinator(const MessageType msgType, const char *tag)
 {
     static const auto pid = getpid();
-    StrandMessage message(StrandCoord(KidIdentifier, pid), QuestionerId(true));
+    StrandMessage message(StrandCoord(KidIdentifier, pid), MyQuestionerId());
     if (tag)
         message.strand.tag = tag;
     TypedMsgHdr hdr;

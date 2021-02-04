@@ -46,7 +46,7 @@ class TypedMsgHdr;
 class SharedListenRequest
 {
 public:
-    SharedListenRequest(); ///< from OpenSharedListen() which then sets public data
+    SharedListenRequest(const OpenListenerParams &, int aMapId); ///< sender's constructor
     explicit SharedListenRequest(const TypedMsgHdr &hdrMsg); ///< from recvmsg()
     void pack(TypedMsgHdr &hdrMsg) const; ///< prepare for sendmsg()
 
@@ -64,7 +64,7 @@ public:
 class SharedListenResponse
 {
 public:
-    SharedListenResponse(int fd, int errNo, int mapId);
+    SharedListenResponse(int fd, int errNo, int mapId, QuestionerId); ///< sender's constructor
     explicit SharedListenResponse(const TypedMsgHdr &hdrMsg); ///< from recvmsg()
     void pack(TypedMsgHdr &hdrMsg) const; ///< prepare for sendmsg()
 

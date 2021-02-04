@@ -18,15 +18,14 @@
 
 Mgr::Request::Request(int aRequestorId, unsigned int aRequestId, const Comm::ConnectionPointer &aConn,
                       const ActionParams &aParams):
-    Ipc::Request(aRequestorId, aRequestId, true),
+    Ipc::Request(aRequestorId, aRequestId, Ipc::MyQuestionerId()),
     conn(aConn),
     params(aParams)
 {
     Must(requestorId > 0);
 }
 
-Mgr::Request::Request(const Ipc::TypedMsgHdr& msg):
-    Ipc::Request(0, 0, false)
+Mgr::Request::Request(const Ipc::TypedMsgHdr &msg)
 {
     msg.checkType(Ipc::mtCacheMgrRequest);
     msg.getPod(requestorId);

@@ -21,7 +21,7 @@ namespace Ipc
 class StrandSearchRequest
 {
 public:
-    StrandSearchRequest();
+    explicit StrandSearchRequest(const String &aTag); ///< sender's constructor
     explicit StrandSearchRequest(const TypedMsgHdr &hdrMsg); ///< from recvmsg()
     void pack(TypedMsgHdr &hdrMsg) const; ///< prepare for sendmsg()
 

@@ -21,9 +21,8 @@ namespace Ipc
 class QuestionerId
 {
 public:
-    /// \param init whether we should initialize the ID
-    /// it is true for request senders and false for receivers/responses
-    explicit QuestionerId(bool init);
+    /// to-be-determined ID
+    QuestionerId() = default;
 
     /// for receiving the ID of the asking process in questions and answers
     explicit QuestionerId(const TypedMsgHdr &);
@@ -41,10 +40,17 @@ public:
     void print(std::ostream &) const;
 
 private:
+    /// for MyQuestionerId() convenience
+    explicit QuestionerId(const pid_t aPid): pid(aPid) {}
+    friend QuestionerId MyQuestionerId();
+
     /// OS process ID of the asking kid. If the kid restarts, it is assumed
     /// not to wrap back to the old value until the answer is received.
-    pid_t pid;
+    pid_t pid = -1;
 };
+
+/// the questioner ID of the current/calling process
+QuestionerId MyQuestionerId();
 
 /// Convenience wrapper for rejecting (freshly parsed) stale answers.
 /// All answers are assumed to have a public "QuestionerId qid" member.

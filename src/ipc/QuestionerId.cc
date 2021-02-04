@@ -16,13 +16,14 @@
 
 #include <iostream>
 
-Ipc::QuestionerId::QuestionerId(const bool init) :
-    pid(-1)
+Ipc::QuestionerId
+Ipc::MyQuestionerId()
 {
-    if (init)
-        pid = getpid();
+    static const QuestionerId qid(getpid());
+    return qid;
 }
 
+// TODO: Remove as currently unused?
 Ipc::QuestionerId::QuestionerId(const TypedMsgHdr &hdrMsg)
 {
     unpack(hdrMsg);
@@ -43,9 +44,9 @@ Ipc::QuestionerId::unpack(const TypedMsgHdr &hdrMsg)
 void
 Ipc::QuestionerId::rejectAnswerIfStale() const
 {
-    static const auto currentPid = getpid();
-    if (currentPid != pid)
-        throw TextException(ToSBuf("PID mismatch: ", currentPid, "!=", pid),  Here());
+    const auto myPid = MyQuestionerId().pid;
+    if (myPid != pid)
+        throw TextException(ToSBuf("PID mismatch: ", myPid, "!=", pid),  Here());
 }
 
 void

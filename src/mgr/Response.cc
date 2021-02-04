@@ -29,8 +29,7 @@ Mgr::Response::Response(const Request &request):
 {
 }
 
-Mgr::Response::Response(const Ipc::TypedMsgHdr& msg):
-    Ipc::Response(0)
+Mgr::Response::Response(const Ipc::TypedMsgHdr &msg)
 {
     msg.checkType(Ipc::mtCacheMgrResponse);
     msg.getPod(requestId);

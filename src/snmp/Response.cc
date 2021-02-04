@@ -20,8 +20,7 @@ Snmp::Response::Response(const Request &request):
 {
 }
 
-Snmp::Response::Response(const Ipc::TypedMsgHdr& msg):
-    Ipc::Response(0)
+Snmp::Response::Response(const Ipc::TypedMsgHdr &msg)
 {
     msg.checkType(Ipc::mtSnmpResponse);
     msg.getPod(requestId);

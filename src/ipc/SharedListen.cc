@@ -68,13 +68,16 @@ Ipc::OpenListenerParams::operator <(const OpenListenerParams &p) const
     return addr.compareWhole(p.addr) < 0;
 }
 
-Ipc::SharedListenRequest::SharedListenRequest(): requestorId(-1), mapId(-1), qid(true)
+Ipc::SharedListenRequest::SharedListenRequest(const OpenListenerParams &aParams, const int aMapId):
+    requestorId(KidIdentifier),
+    params(aParams),
+    mapId(aMapId),
+    qid(MyQuestionerId())
 {
     // caller will then set public data members
 }
 
-Ipc::SharedListenRequest::SharedListenRequest(const TypedMsgHdr &hdrMsg):
-    qid(false)
+Ipc::SharedListenRequest::SharedListenRequest(const TypedMsgHdr &hdrMsg)
 {
     hdrMsg.checkType(mtSharedListenRequest);
     hdrMsg.getPod(*this);
@@ -86,13 +89,13 @@ void Ipc::SharedListenRequest::pack(TypedMsgHdr &hdrMsg) const
     hdrMsg.putPod(*this);
 }
 
-Ipc::SharedListenResponse::SharedListenResponse(int aFd, int anErrNo, int aMapId):
-    fd(aFd), errNo(anErrNo), mapId(aMapId), qid(false)
+Ipc::SharedListenResponse::SharedListenResponse(const int aFd, const int anErrNo, const int aMapId, const QuestionerId aQid):
+    fd(aFd), errNo(anErrNo), mapId(aMapId), qid(aQid)
 {
 }
 
 Ipc::SharedListenResponse::SharedListenResponse(const TypedMsgHdr &hdrMsg):
-    fd(-1), errNo(0), mapId(-1), qid(false)
+    fd(-1), errNo(0), mapId(-1)
 {
     hdrMsg.checkType(mtSharedListenResponse);
     hdrMsg.getPod(*this);
@@ -110,10 +113,7 @@ void Ipc::SharedListenResponse::pack(TypedMsgHdr &hdrMsg) const
 static void
 SendSharedListenRequest(const PendingOpenRequest &por)
 {
-    Ipc::SharedListenRequest request;
-    request.requestorId = KidIdentifier;
-    request.params = por.params;
-    request.mapId = AddToMap(por);
+    const Ipc::SharedListenRequest request(por.params, AddToMap(por));
 
     debugs(54, 3, "getting listening FD for " << request.params.addr <<
            " mapId=" << request.mapId);

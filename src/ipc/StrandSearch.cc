@@ -9,17 +9,20 @@
 /* DEBUG: section 54    Interprocess Communication */
 
 #include "squid.h"
+#include "globals.h"
 #include "ipc/Messages.h"
 #include "ipc/StrandSearch.h"
 #include "ipc/TypedMsgHdr.h"
 
-Ipc::StrandSearchRequest::StrandSearchRequest(): requestorId(-1), qid(true)
+Ipc::StrandSearchRequest::StrandSearchRequest(const String &aTag):
+    requestorId(KidIdentifier),
+    tag(aTag),
+    qid(MyQuestionerId())
 {
 }
 
 Ipc::StrandSearchRequest::StrandSearchRequest(const TypedMsgHdr &hdrMsg):
-    requestorId(-1),
-    qid(false)
+    requestorId(-1)
 {
     hdrMsg.checkType(mtFindStrand);
     hdrMsg.getPod(requestorId);
