@@ -24,7 +24,7 @@ class Response: public Ipc::Response
 {
 public:
     Response(const Ipc::RequestPointer &, const Action::Pointer &);
-    Response(const Request &);
+    explicit Response(const Request &);
 
     explicit Response(const Ipc::TypedMsgHdr& msg); ///< from recvmsg()
 
@@ -34,9 +34,6 @@ public:
 
     bool hasAction() const; ///< whether response contain action object
     const Action& getAction() const; ///< returns action object
-
-private:
-    Response(const Response &) = default;
 
 public:
     Action::Pointer action; ///< action relating to response

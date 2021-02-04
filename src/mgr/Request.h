@@ -30,9 +30,6 @@ public:
     virtual void pack(Ipc::TypedMsgHdr& msg) const;
     virtual Pointer clone() const;
 
-private:
-    Request(const Request &) = default;
-
 public:
     Comm::ConnectionPointer conn; ///< HTTP client connection descriptor
 

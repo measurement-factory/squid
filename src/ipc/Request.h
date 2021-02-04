@@ -12,6 +12,7 @@
 #define SQUID_IPC_REQUEST_H
 
 #include "base/RefCount.h"
+#include "base/TypeTraits.h"
 #include "ipc/forward.h"
 #include "ipc/QuestionId.h"
 
@@ -19,7 +20,7 @@ namespace Ipc
 {
 
 /// IPC request
-class Request: public RefCountable
+class Request: public RefCountable, public Interface
 {
 public:
     typedef RefCount<Request> Pointer;
@@ -28,15 +29,8 @@ public:
     Request(const int aRequestorId, const unsigned int aRequestId, const bool initQuid):
         requestorId(aRequestorId), requestId(aRequestId), qid(initQuid) {}
 
-    // no assignment of any kind
-    Request &operator=(const Request &) = delete;
-    Request &operator=(const Request &&) = delete;
-
     virtual void pack(TypedMsgHdr& msg) const = 0; ///< prepare for sendmsg()
     virtual Pointer clone() const = 0; ///< returns a copy of this
-
-protected:
-    Request(const Request &) = default;
 
 public:
     int requestorId; ///< kidId of the requestor; used for response destination

@@ -30,9 +30,6 @@ public:
     virtual void pack(Ipc::TypedMsgHdr& msg) const;
     virtual Ipc::Response::Pointer clone() const;
 
-private:
-    Response(const Response& response) = default;
-
 public:
     Pdu pdu; ///< SNMP protocol data unit
 };
