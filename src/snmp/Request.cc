@@ -13,10 +13,10 @@
 #include "ipc/TypedMsgHdr.h"
 #include "snmp/Request.h"
 
-Snmp::Request::Request(int aRequestorId, unsigned int aRequestId,
+Snmp::Request::Request(const int aRequestorId, const Ipc::RequestId aRequestId,
                        const Pdu& aPdu, const Session& aSession,
                        int aFd, const Ip::Address& anAddress):
-    Ipc::Request(aRequestorId, aRequestId, Ipc::MyQuestionerId()),
+    Ipc::Request(aRequestorId, aRequestId),
     pdu(aPdu), session(aSession), fd(aFd), address(anAddress)
 {
 }
@@ -26,7 +26,6 @@ Snmp::Request::Request(const Ipc::TypedMsgHdr &msg)
     msg.checkType(Ipc::mtSnmpRequest);
     msg.getPod(requestorId);
     msg.getPod(requestId);
-    qid.unpack(msg);
     pdu.unpack(msg);
     session.unpack(msg);
     msg.getPod(address);
@@ -41,7 +40,6 @@ Snmp::Request::pack(Ipc::TypedMsgHdr& msg) const
     msg.setType(Ipc::mtSnmpRequest);
     msg.putPod(requestorId);
     msg.putPod(requestId);
-    qid.pack(msg);
     pdu.pack(msg);
     session.pack(msg);
     msg.putPod(address);

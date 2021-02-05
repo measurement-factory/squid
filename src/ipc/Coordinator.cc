@@ -157,7 +157,7 @@ Ipc::Coordinator::handleSharedListenRequest(const SharedListenRequest& request)
            request.params.addr << " to kid" << request.requestorId <<
            " mapId=" << request.mapId);
 
-    const SharedListenResponse response(c->fd, errNo, request.mapId, request.qid);
+    SharedListenResponse response(c->fd, errNo, request.mapId);
     TypedMsgHdr message;
     response.pack(message);
     SendMessage(MakeAddr(strandAddrLabel, request.requestorId), message);
@@ -182,7 +182,7 @@ Ipc::Coordinator::handleCacheMgrRequest(const Mgr::Request& request)
     }
 
     // Let the strand know that we are now responsible for handling the request
-    const Mgr::Response response(request);
+    Mgr::Response response(request.requestId);
     TypedMsgHdr message;
     response.pack(message);
     SendMessage(MakeAddr(strandAddrLabel, request.requestorId), message);
@@ -234,7 +234,7 @@ Ipc::Coordinator::handleSnmpRequest(const Snmp::Request& request)
 {
     debugs(54, 4, HERE);
 
-    const Snmp::Response response(request);
+    Snmp::Response response(request.requestId);
     TypedMsgHdr message;
     response.pack(message);
     SendMessage(MakeAddr(strandAddrLabel, request.requestorId), message);

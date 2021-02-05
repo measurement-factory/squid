@@ -24,7 +24,7 @@ namespace Snmp
 class Request: public Ipc::Request
 {
 public:
-    Request(int aRequestorId, unsigned int aRequestId, const Pdu& aPdu,
+    Request(int aRequestorId, Ipc::RequestId aRequestId, const Pdu& aPdu,
             const Session& aSession, int aFd, const Ip::Address& anAddress);
 
     explicit Request(const Ipc::TypedMsgHdr& msg); ///< from recvmsg()

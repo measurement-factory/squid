@@ -16,6 +16,7 @@
 #include "HttpRequest.h"
 #include "ipc/Forwarder.h"
 #include "ipc/Port.h"
+#include "ipc/RequestId.h"
 #include "ipc/TypedMsgHdr.h"
 
 CBDATA_NAMESPACED_CLASS_INIT(Ipc, Forwarder);
@@ -33,7 +34,7 @@ Ipc::Forwarder::Forwarder(Request::Pointer aRequest, double aTimeout):
 Ipc::Forwarder::~Forwarder()
 {
     SWALLOW_EXCEPTIONS({
-        Must(request->requestId == 0);
+        Must(!request->requestId);
     });
 }
 
@@ -46,8 +47,8 @@ Ipc::Forwarder::start()
     AsyncCall::Pointer callback = JobCallback(54, 5, Dialer, this, Forwarder::handleRemoteAck);
     if (++LastRequestId == 0) // don't use zero value as request->requestId
         ++LastRequestId;
-    request->requestId = LastRequestId;
-    TheRequestsMap[request->requestId] = callback;
+    request->requestId.reset(LastRequestId);
+    TheRequestsMap[request->requestId.index()] = callback;
     TypedMsgHdr message;
 
     try {
@@ -69,9 +70,9 @@ Ipc::Forwarder::swanSong()
 {
     debugs(54, 5, HERE);
     removeTimeoutEvent();
-    if (request->requestId > 0) {
-        DequeueRequest(request->requestId);
-        request->requestId = 0;
+    if (request->requestId) {
+        DequeueRequest(request->requestId.index());
+        request->requestId.reset();
     }
 }
 
@@ -79,7 +80,7 @@ bool
 Ipc::Forwarder::doneAll() const
 {
     debugs(54, 5, HERE);
-    return request->requestId == 0;
+    return !request->requestId;
 }
 
 /// called when Coordinator starts processing the request
@@ -87,7 +88,7 @@ void
 Ipc::Forwarder::handleRemoteAck()
 {
     debugs(54, 3, HERE);
-    request->requestId = 0;
+    request->requestId.reset();
     // Do not do entry->complete() because it will trigger our client side
     // processing when we no longer own the client-Squid connection.
     // Let job cleanup close the client-Squid connection that Coordinator
@@ -172,13 +173,12 @@ Ipc::Forwarder::removeTimeoutEvent()
 }
 
 void
-Ipc::Forwarder::HandleRemoteAck(unsigned int requestId)
+Ipc::Forwarder::HandleRemoteAck(const RequestId requestId)
 {
     debugs(54, 3, HERE);
-    Must(requestId != 0);
+    Must(requestId);
 
-    AsyncCall::Pointer call = DequeueRequest(requestId);
-    if (call != NULL)
+    if (auto call = DequeueRequest(requestId.index()))
         ScheduleCallHere(call);
 }
 

@@ -11,12 +11,12 @@
 #include "squid.h"
 #include "base/TextException.h"
 #include "ipc/Messages.h"
+#include "ipc/RequestId.h"
 #include "ipc/TypedMsgHdr.h"
-#include "snmp/Request.h"
 #include "snmp/Response.h"
 
-Snmp::Response::Response(const Request &request):
-    Ipc::Response(request.requestId, request.qid), pdu()
+Snmp::Response::Response(const Ipc::RequestId aRequestId):
+    Ipc::Response(aRequestId), pdu()
 {
 }
 
@@ -24,7 +24,6 @@ Snmp::Response::Response(const Ipc::TypedMsgHdr &msg)
 {
     msg.checkType(Ipc::mtSnmpResponse);
     msg.getPod(requestId);
-    qid.unpack(msg);
     pdu.unpack(msg);
 }
 
@@ -33,7 +32,6 @@ Snmp::Response::pack(Ipc::TypedMsgHdr& msg) const
 {
     msg.setType(Ipc::mtSnmpResponse);
     msg.putPod(requestId);
-    qid.pack(msg);
     pdu.pack(msg);
 }
 

@@ -16,9 +16,11 @@
 #include "mgr/ActionParams.h"
 #include "mgr/Request.h"
 
-Mgr::Request::Request(int aRequestorId, unsigned int aRequestId, const Comm::ConnectionPointer &aConn,
+Mgr::Request::Request(const int aRequestorId,
+                      const Ipc::RequestId aRequestId,
+                      const Comm::ConnectionPointer &aConn,
                       const ActionParams &aParams):
-    Ipc::Request(aRequestorId, aRequestId, Ipc::MyQuestionerId()),
+    Ipc::Request(aRequestorId, aRequestId),
     conn(aConn),
     params(aParams)
 {
@@ -30,7 +32,6 @@ Mgr::Request::Request(const Ipc::TypedMsgHdr &msg)
     msg.checkType(Ipc::mtCacheMgrRequest);
     msg.getPod(requestorId);
     msg.getPod(requestId);
-    qid.unpack(msg);
     params = ActionParams(msg);
 
     conn = new Comm::Connection;
@@ -45,7 +46,6 @@ Mgr::Request::pack(Ipc::TypedMsgHdr& msg) const
     msg.setType(Ipc::mtCacheMgrRequest);
     msg.putPod(requestorId);
     msg.putPod(requestId);
-    qid.pack(msg);
     params.pack(msg);
 
     msg.putFd(conn->fd);

@@ -12,7 +12,6 @@
 #define SQUID_SNMPX_FORWARDER_H
 
 #include "ipc/Forwarder.h"
-#include "snmp/forward.h"
 #include "snmp/Pdu.h"
 #include "snmp/Session.h"
 
@@ -48,7 +47,7 @@ private:
     AsyncCall::Pointer closer; ///< comm_close handler for the connection
 };
 
-void SendResponse(const Request &, const Pdu &);
+void SendResponse(Ipc::RequestId, const Pdu &);
 
 } // namespace Snmp
 

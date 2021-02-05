@@ -53,12 +53,12 @@ private:
 QuestionerId MyQuestionerId();
 
 /// Convenience wrapper for rejecting (freshly parsed) stale answers.
-/// All answers are assumed to have a public "QuestionerId qid" member.
+/// All answers are assumed to have a "QuestionerId intendedRecepient()" member.
 template <class Answer>
 const Answer &
 Mine(const Answer &answer)
 {
-    answer.qid.rejectAnswerIfStale();
+    answer.intendedRecepient().rejectAnswerIfStale();
     return answer;
 }
 

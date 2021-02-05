@@ -56,7 +56,7 @@ Ipc::Inquirer::cleanup()
 void
 Ipc::Inquirer::start()
 {
-    request->requestId = 0;
+    request->requestId.reset();
 }
 
 void
@@ -67,16 +67,15 @@ Ipc::Inquirer::inquire()
         return;
     }
 
-    Must(request->requestId == 0);
+    Must(!request->requestId);
     AsyncCall::Pointer callback = asyncCall(54, 5, "Mgr::Inquirer::handleRemoteAck",
                                             HandleAckDialer(this, &Inquirer::handleRemoteAck, NULL));
     if (++LastRequestId == 0) // don't use zero value as request->requestId
         ++LastRequestId;
-    request->requestId = LastRequestId;
-    request->qid = MyQuestionerId();
+    request->requestId.reset(LastRequestId);
     const int kidId = pos->kidId;
     debugs(54, 4, HERE << "inquire kid: " << kidId << status());
-    TheRequestsMap[request->requestId] = callback;
+    TheRequestsMap[request->requestId.index()] = callback;
     TypedMsgHdr message;
     request->pack(message);
     SendMessage(Port::MakeAddr(strandAddrLabel, kidId), message);
@@ -89,7 +88,7 @@ void
 Ipc::Inquirer::handleRemoteAck(Response::Pointer response)
 {
     debugs(54, 4, HERE << status());
-    request->requestId = 0;
+    request->requestId.reset();
     removeTimeoutEvent();
     if (aggregate(response)) {
         Must(!done()); // or we should not be called
@@ -105,9 +104,9 @@ Ipc::Inquirer::swanSong()
 {
     debugs(54, 5, HERE);
     removeTimeoutEvent();
-    if (request->requestId > 0) {
-        DequeueRequest(request->requestId);
-        request->requestId = 0;
+    if (request->requestId) {
+        DequeueRequest(request->requestId.index());
+        request->requestId.reset();
     }
     sendResponse();
     cleanup();
@@ -157,8 +156,8 @@ Ipc::Inquirer::DequeueRequest(unsigned int requestId)
 void
 Ipc::Inquirer::HandleRemoteAck(const Response& response)
 {
-    Must(response.requestId != 0);
-    AsyncCall::Pointer call = DequeueRequest(response.requestId);
+    Must(response.requestId);
+    AsyncCall::Pointer call = DequeueRequest(response.requestId.index());
     if (call != NULL) {
         HandleAckDialer* dialer = dynamic_cast<HandleAckDialer*>(call->getDialer());
         Must(dialer);
@@ -193,9 +192,9 @@ void
 Ipc::Inquirer::requestTimedOut()
 {
     debugs(54, 3, HERE);
-    if (request->requestId != 0) {
-        DequeueRequest(request->requestId);
-        request->requestId = 0;
+    if (request->requestId) {
+        DequeueRequest(request->requestId.index());
+        request->requestId.reset();
         Must(!done()); // or we should not be called
         ++pos; // advance after a failed inquiry
         inquire();
@@ -207,7 +206,7 @@ Ipc::Inquirer::status() const
 {
     static MemBuf buf;
     buf.reset();
-    buf.appendf(" [request->requestId %u]", request->requestId);
+    buf.appendf(" [requestId %u]", request->requestId.index());
     buf.terminate();
     return buf.content();
 }

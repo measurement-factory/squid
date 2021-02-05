@@ -13,7 +13,6 @@
 
 #include "ipc/forward.h"
 #include "ipc/Response.h"
-#include "snmp/forward.h"
 #include "snmp/Pdu.h"
 #include <ostream>
 
@@ -24,7 +23,7 @@ namespace Snmp
 class Response: public Ipc::Response
 {
 public:
-    explicit Response(const Request &);
+    explicit Response(Ipc::RequestId); ///< sender's constructor
     explicit Response(const Ipc::TypedMsgHdr& msg); ///< from recvmsg()
     /* Ipc::Response API */
     virtual void pack(Ipc::TypedMsgHdr& msg) const;

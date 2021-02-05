@@ -13,8 +13,7 @@
 
 #include "base/RefCount.h"
 #include "base/TypeTraits.h"
-#include "ipc/forward.h"
-#include "ipc/QuestionerId.h"
+#include "ipc/RequestId.h"
 
 namespace Ipc
 {
@@ -36,20 +35,18 @@ public:
 
 public:
     int requestorId; ///< kidId of the requestor; used for response destination
-    unsigned int requestId; ///< unique for sender; matches request w/ response
-    QuestionerId qid; ///< an identifier of the kid process initiated this IPC question
+    RequestId requestId; ///< matches the request[or] with the response
 
 protected:
     /// sender's constructor
-    Request(const int aRequestorId, const unsigned int aRequestId, const QuestionerId aQid):
+    Request(const int aRequestorId, const RequestId aRequestId):
         requestorId(aRequestorId),
-        requestId(aRequestId),
-        qid(aQid)
+        requestId(aRequestId)
     {
     }
 
     /// recipient's constructor
-    Request(): requestorId(0), requestId(0) {} // TODO: Use "= default"
+    Request(): requestorId(0) {} // TODO: Use "= default"
 };
 
 } // namespace Ipc

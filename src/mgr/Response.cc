@@ -18,14 +18,13 @@
 #include "mgr/Request.h"
 #include "mgr/Response.h"
 
-Mgr::Response::Response(const Ipc::Request::Pointer &request, const Action::Pointer &anAction):
-    Ipc::Response(request->requestId, request->qid), action(anAction)
+Mgr::Response::Response(const Ipc::RequestId aRequestId, const Action::Pointer &anAction):
+    Ipc::Response(aRequestId), action(anAction)
 {
     Must(action->name()); // the action must be named
 }
 
-Mgr::Response::Response(const Request &request):
-    Ipc::Response(request.requestId, request.qid)
+Mgr::Response::Response(const Ipc::RequestId aRequestId): Ipc::Response(aRequestId)
 {
 }
 
@@ -33,8 +32,7 @@ Mgr::Response::Response(const Ipc::TypedMsgHdr &msg)
 {
     msg.checkType(Ipc::mtCacheMgrResponse);
     msg.getPod(requestId);
-    Must(requestId != 0);
-    qid.unpack(msg);
+    Must(requestId);
 
     if (msg.hasMoreData()) {
         String actionName;
@@ -48,10 +46,9 @@ Mgr::Response::Response(const Ipc::TypedMsgHdr &msg)
 void
 Mgr::Response::pack(Ipc::TypedMsgHdr& msg) const
 {
-    Must(requestId != 0);
+    Must(requestId);
     msg.setType(Ipc::mtCacheMgrResponse);
     msg.putPod(requestId);
-    qid.pack(msg);
     if (hasAction()) {
         msg.putString(action->name());
         action->pack(msg);

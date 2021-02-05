@@ -35,6 +35,8 @@ libipc_la_SOURCES = \
 	ReadWriteLock.cc \
 	ReadWriteLock.h \
 	Request.h \
+	RequestId.cc \
+	RequestId.h \
 	Response.h \
 	SharedListen.cc \
 	SharedListen.h \

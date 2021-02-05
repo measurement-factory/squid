@@ -11,17 +11,18 @@
 #include "squid.h"
 #include "base/TextException.h"
 #include "comm/Connection.h"
-#include "ipc/Request.h"
+#include "ipc/RequestId.h"
 #include "mgr/Filler.h"
 #include "mgr/Response.h"
 #include "Store.h"
 
 CBDATA_NAMESPACED_CLASS_INIT(Mgr, Filler);
 
-Mgr::Filler::Filler(const Action::Pointer &anAction, const Comm::ConnectionPointer &conn, const Ipc::Request::Pointer &aRequest):
+Mgr::Filler::Filler(const Action::Pointer &anAction, const Comm::ConnectionPointer &conn,
+                    const Ipc::RequestId aRequestId):
     StoreToCommWriter(conn, anAction->createStoreEntry()),
     action(anAction),
-    request(aRequest)
+    requestId(aRequestId)
 {
     debugs(16, 5, HERE << conn << " action: " << action);
 }
@@ -30,7 +31,7 @@ void
 Mgr::Filler::start()
 {
     debugs(16, 5, HERE);
-    Must(request->requestId != 0);
+    Must(requestId);
     Must(action != NULL);
 
     StoreToCommWriter::start();
@@ -41,7 +42,7 @@ void
 Mgr::Filler::swanSong()
 {
     debugs(16, 5, HERE);
-    action->sendResponse(request);
+    action->sendResponse(requestId);
     StoreToCommWriter::swanSong();
 }
 

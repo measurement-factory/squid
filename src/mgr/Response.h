@@ -23,8 +23,8 @@ namespace Mgr
 class Response: public Ipc::Response
 {
 public:
-    Response(const Ipc::RequestPointer &, const Action::Pointer &);
-    explicit Response(const Request &);
+    Response(const Ipc::RequestId aRequestId, const Action::Pointer &);
+    explicit Response(const Ipc::RequestId aRequestId);
 
     explicit Response(const Ipc::TypedMsgHdr& msg); ///< from recvmsg()
 

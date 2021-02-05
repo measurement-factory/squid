@@ -45,6 +45,9 @@ public:
     /// creates and sends StrandMessage to Coordinator
     static void NotifyCoordinator(MessageType, const char *tag);
 
+    /// for Mine() tests
+    QuestionerId intendedRecepient() const { return qid; }
+
 public:
     StrandCoord strand; ///< messageType-specific coordinates (e.g., sender)
     QuestionerId qid; ///< an identifier of the kid process initiated this IPC question

@@ -75,13 +75,13 @@ Mgr::Action::respond(const Request &request)
     ::close(request.conn->fd);
     request.conn->fd = -1;
     collect();
-    sendResponse(request.clone());
+    sendResponse(request.requestId);
 }
 
 void
-Mgr::Action::sendResponse(const Ipc::Request::Pointer &request)
+Mgr::Action::sendResponse(const Ipc::RequestId requestId)
 {
-    const Response response(request, this);
+    Response response(requestId, this);
     Ipc::TypedMsgHdr message;
     response.pack(message);
     Ipc::SendMessage(Ipc::Port::CoordinatorAddr(), message);

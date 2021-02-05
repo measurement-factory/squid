@@ -25,7 +25,7 @@ class Filler: public StoreToCommWriter
     CBDATA_CLASS(Filler);
 
 public:
-    Filler(const Action::Pointer &anAction, const Comm::ConnectionPointer &conn, const Ipc::RequestPointer &aRequest);
+    Filler(const Action::Pointer &, const Comm::ConnectionPointer &, Ipc::RequestId);
 
 protected:
     /* AsyncJob API */
@@ -34,7 +34,7 @@ protected:
 
 private:
     Action::Pointer action; ///< action that will run() and sendResponse()
-    Ipc::RequestPointer request;  ///< the cache manager request we are responding to
+    Ipc::RequestId requestId; ///< the ID of the Request we are responding to
 };
 
 } // namespace Mgr

@@ -35,7 +35,7 @@ public:
     virtual ~Forwarder();
 
     /// finds and calls the right Forwarder upon Coordinator's response
-    static void HandleRemoteAck(unsigned int requestId);
+    static void HandleRemoteAck(RequestId);
 
     /* has-to-be-public AsyncJob API */
     virtual void callException(const std::exception& e);

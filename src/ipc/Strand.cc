@@ -146,7 +146,7 @@ void Ipc::Strand::handleCacheMgrResponse(const Mgr::Response& response)
 void Ipc::Strand::handleSnmpRequest(const Snmp::Request& request)
 {
     debugs(54, 6, HERE);
-    Snmp::SendResponse(request, request.pdu);
+    Snmp::SendResponse(request.requestId, request.pdu);
 }
 
 void Ipc::Strand::handleSnmpResponse(const Snmp::Response& response)
