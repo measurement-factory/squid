@@ -80,12 +80,14 @@ Ipc::SharedListenRequest::SharedListenRequest(const OpenListenerParams &aParams,
 Ipc::SharedListenRequest::SharedListenRequest(const TypedMsgHdr &hdrMsg)
 {
     hdrMsg.checkType(mtSharedListenRequest);
+    // XXX: our handlerSubscription is not a POD!
     hdrMsg.getPod(*this);
 }
 
 void Ipc::SharedListenRequest::pack(TypedMsgHdr &hdrMsg) const
 {
     hdrMsg.setType(mtSharedListenRequest);
+    // XXX: our handlerSubscription is not a POD!
     hdrMsg.putPod(*this);
 }
 
