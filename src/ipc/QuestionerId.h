@@ -6,8 +6,8 @@
  * Please see the COPYING and CONTRIBUTORS files for details.
  */
 
-#ifndef SQUID_IPC_QUESTIONER_ID_H
-#define SQUID_IPC_QUESTIONER_ID_H
+#ifndef SQUID_SRC_IPC_QUESTIONERID_H
+#define SQUID_SRC_IPC_QUESTIONERID_H
 
 #include "ipc/forward.h"
 
@@ -71,5 +71,5 @@ operator <<(std::ostream &os, const QuestionerId &qid)
 
 } // namespace Ipc;
 
-#endif /* SQUID_IPC_QUESTIONER_ID_H */
+#endif /* SQUID_SRC_IPC_QUESTIONERID_H */
 

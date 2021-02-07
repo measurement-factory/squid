@@ -12,15 +12,16 @@
 #include "base/TextException.h"
 #include "CacheManager.h"
 #include "ipc/Messages.h"
+#include "ipc/RequestId.h"
 #include "ipc/TypedMsgHdr.h"
 #include "mgr/ActionCreator.h"
 #include "mgr/ActionProfile.h"
-#include "mgr/Request.h"
 #include "mgr/Response.h"
 
 Mgr::Response::Response(const Ipc::RequestId aRequestId, const Action::Pointer &anAction):
     Ipc::Response(aRequestId), action(anAction)
 {
+    assert(action);
     Must(action->name()); // the action must be named
 }
 
