@@ -32,7 +32,7 @@ Mgr::Response::Response(const Ipc::TypedMsgHdr &msg)
 {
     msg.checkType(Ipc::mtCacheMgrResponse);
     msg.getPod(requestId);
-    Must(requestId);
+    Must(requestId != 0);
 
     if (msg.hasMoreData()) {
         String actionName;
@@ -46,7 +46,7 @@ Mgr::Response::Response(const Ipc::TypedMsgHdr &msg)
 void
 Mgr::Response::pack(Ipc::TypedMsgHdr& msg) const
 {
-    Must(requestId);
+    Must(requestId != 0);
     msg.setType(Ipc::mtCacheMgrResponse);
     msg.putPod(requestId);
     if (hasAction()) {

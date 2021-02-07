@@ -9,7 +9,8 @@
 /* DEBUG: section 54    Interprocess Communication */
 
 #include "squid.h"
-#include "ipc/QuestionerId.h"
+#include "base/TextException.h"
+#include "Debug.h"
 #include "ipc/RequestId.h"
 
 #include <iostream>
@@ -18,12 +19,7 @@ Ipc::RequestId::RequestId(const Index anIndex):
     qid_(MyQuestionerId()),
     index_(anIndex)
 {
-}
-
-void Ipc::RequestId::reset(const Index anIndex)
-{
-    qid_ = MyQuestionerId();
-    index_ = anIndex;
+    Must(anIndex);
 }
 
 std::ostream &

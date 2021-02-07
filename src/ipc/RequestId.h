@@ -22,7 +22,8 @@ namespace Ipc
 class RequestId
 {
 public:
-    /// simple opaque ID for correlating IPC responses with pending requests
+    /// A simple ID for correlating IPC responses with pending requests.
+    /// Value 0 has a special meaning of "unset/unknown", but otherwise opaque.
     typedef unsigned int Index;
 
     /// request sender's constructor
@@ -31,17 +32,19 @@ public:
     /// request recipient's constructor
     RequestId() = default;
 
-    /// whether the ID is set/known
-    explicit operator bool() const { return index_ != 0; }
-
     /// make the ID unset/unknown
+    /// optimization: leaves the questioner field alone
     void reset() { index_ = 0; }
 
     /// make the ID set/known with the given index; the caller is the questioner
-    void reset(Index index);
+    void reset(const Index index) { *this = RequestId(index); }
 
     QuestionerId questioner() const { return qid_; }
     Index index() const { return index_; }
+
+    // these conversion operators allow our users to treat us as an Index
+    operator Index() const { return index_; }
+    RequestId &operator =(const Index index) { index ? reset(index) : reset(); return *this; }
 
 private:
     /// who asked the question
