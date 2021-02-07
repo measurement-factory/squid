@@ -18,15 +18,10 @@
 #include "mgr/ActionProfile.h"
 #include "mgr/Response.h"
 
-Mgr::Response::Response(const Ipc::RequestId aRequestId, const Action::Pointer &anAction):
+Mgr::Response::Response(const Ipc::RequestId aRequestId, const Action::Pointer anAction):
     Ipc::Response(aRequestId), action(anAction)
 {
-    assert(action);
-    Must(action->name()); // the action must be named
-}
-
-Mgr::Response::Response(const Ipc::RequestId aRequestId): Ipc::Response(aRequestId)
-{
+    Must(!action || action->name()); // if there is an action, it must be named
 }
 
 Mgr::Response::Response(const Ipc::TypedMsgHdr &msg)

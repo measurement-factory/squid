@@ -23,11 +23,8 @@ namespace Mgr
 class Response: public Ipc::Response
 {
 public:
-    /// for sending answers with Action-provided details
-    Response(const Ipc::RequestId, const Action::Pointer &);
-
-    /// for sending basic acknowledgments devoid of any details
-    explicit Response(const Ipc::RequestId);
+    /// sender's constructor
+    Response(Ipc::RequestId, Action::Pointer anAction = nullptr);
 
     explicit Response(const Ipc::TypedMsgHdr& msg); ///< from recvmsg()
 
