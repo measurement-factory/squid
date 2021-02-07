@@ -37,5 +37,5 @@ protected: // prevents accidental creation of Interface instances
 
 using Interface = TypeTraits_::Interface;
 
-#endif /* SQUID_SRC_BASE_MIXTYPETRAITS */
+#endif /* SQUID_SRC_BASE_TYPETRAITS_H */
 

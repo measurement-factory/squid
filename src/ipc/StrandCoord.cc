@@ -15,13 +15,12 @@
 #include "ipc/StrandCoord.h"
 #include "ipc/TypedMsgHdr.h"
 
-Ipc::StrandCoord::StrandCoord(const int aKidId, const pid_t aPid): kidId(aKidId), pid(aPid)
+Ipc::StrandCoord::StrandCoord(): kidId(-1), pid(0)
 {
 }
 
-Ipc::StrandCoord::StrandCoord(const TypedMsgHdr &hdrMsg)
+Ipc::StrandCoord::StrandCoord(int aKidId, pid_t aPid): kidId(aKidId), pid(aPid)
 {
-    unpack(hdrMsg);
 }
 
 void
@@ -45,10 +44,10 @@ Ipc::StrandMessage::StrandMessage(const StrandCoord &aStrand, const QuestionerId
 {
 }
 
-Ipc::StrandMessage::StrandMessage(const TypedMsgHdr &hdrMsg):
-    strand(hdrMsg),
-    qid(hdrMsg)
+Ipc::StrandMessage::StrandMessage(const TypedMsgHdr &hdrMsg)
 {
+    strand.unpack(hdrMsg);
+    qid.unpack(hdrMsg);
 }
 
 void

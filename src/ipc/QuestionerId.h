@@ -24,13 +24,13 @@ public:
     /// to-be-determined ID
     QuestionerId() = default;
 
-    /// for receiving the ID of the asking process in questions and answers
+    /// receiver's constructor
     explicit QuestionerId(const TypedMsgHdr &);
 
-    /// for sending the ID of the asking process in questions and answers
+    /// for sending the ID of the asking process
     void pack(TypedMsgHdr &) const;
 
-    /// for receiving the ID of the asking process in answers
+    /// for receiving the ID of the asking process
     void unpack(const TypedMsgHdr &);
 
     /// does nothing but throws if the questioner was not the current process

@@ -21,8 +21,8 @@ namespace Ipc
 class StrandCoord
 {
 public:
+    StrandCoord(); ///< unknown location
     StrandCoord(int akidId, pid_t aPid);
-    explicit StrandCoord(const TypedMsgHdr &);
 
     void pack(TypedMsgHdr &hdrMsg) const; ///< prepare for sendmsg()
     void unpack(const TypedMsgHdr &hdrMsg); ///< from recvmsg()
