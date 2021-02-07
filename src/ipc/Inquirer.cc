@@ -21,7 +21,7 @@
 CBDATA_NAMESPACED_CLASS_INIT(Ipc, Inquirer);
 
 Ipc::Inquirer::RequestsMap Ipc::Inquirer::TheRequestsMap;
-unsigned int Ipc::Inquirer::LastRequestId = 0;
+Ipc::RequestId::Index Ipc::Inquirer::LastRequestId = 0;
 
 /// compare Ipc::StrandCoord using kidId, for std::sort() below
 static bool
@@ -139,7 +139,7 @@ Ipc::Inquirer::callException(const std::exception& e)
 
 /// returns and forgets the right Inquirer callback for strand request
 AsyncCall::Pointer
-Ipc::Inquirer::DequeueRequest(unsigned int requestId)
+Ipc::Inquirer::DequeueRequest(const RequestId::Index requestId)
 {
     debugs(54, 3, HERE << " requestId " << requestId);
     Must(requestId != 0);

@@ -22,7 +22,7 @@
 CBDATA_NAMESPACED_CLASS_INIT(Ipc, Forwarder);
 
 Ipc::Forwarder::RequestsMap Ipc::Forwarder::TheRequestsMap;
-unsigned int Ipc::Forwarder::LastRequestId = 0;
+Ipc::RequestId::Index Ipc::Forwarder::LastRequestId = 0;
 
 Ipc::Forwarder::Forwarder(Request::Pointer aRequest, double aTimeout):
     AsyncJob("Ipc::Forwarder"),
@@ -150,7 +150,7 @@ Ipc::Forwarder::callException(const std::exception& e)
 
 /// returns and forgets the right Forwarder callback for the request
 AsyncCall::Pointer
-Ipc::Forwarder::DequeueRequest(unsigned int requestId)
+Ipc::Forwarder::DequeueRequest(const RequestId::Index requestId)
 {
     debugs(54, 3, HERE);
     Must(requestId != 0);

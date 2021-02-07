@@ -40,10 +40,14 @@ static SharedListenRequestMap TheSharedListenRequestMap;
 typedef std::list<PendingOpenRequest> DelayedSharedListenRequests;
 static DelayedSharedListenRequests TheDelayedRequests;
 
+// TODO: Encapsulate "Pending Request Map" logic shared by all RequestId users.
+/// registers the given request in the collection of pending requests
+/// \returns the registration key
 static Ipc::RequestId::Index
 AddToMap(const PendingOpenRequest &por)
 {
     static Ipc::RequestId::Index LastIndex = 0;
+    // TODO: Switch Ipc::RequestId::Index to uint64_t and drop these 0 checks.
     if (++LastIndex == 0) // don't use zero value as an ID
         ++LastIndex;
     assert(TheSharedListenRequestMap.find(LastIndex) == TheSharedListenRequestMap.end());
