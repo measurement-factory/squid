@@ -28,7 +28,7 @@ public:
 public:
     int requestorId; ///< sender-provided return address
     String tag; ///< set when looking for a matching StrandCoord::tag
-    QuestionerId qid; ///< an identifier of the kid process initiated this IPC question
+    QuestionerId qid; ///< the sender of the request
 };
 
 } // namespace Ipc;

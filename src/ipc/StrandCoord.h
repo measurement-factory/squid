@@ -50,7 +50,10 @@ public:
 
 public:
     StrandCoord strand; ///< messageType-specific coordinates (e.g., sender)
-    QuestionerId qid; ///< an identifier of the kid process initiated this IPC question
+
+    /// For IPC requests/questions: The sender of this request.
+    /// For IPC responses/answers: The sender of the corresponding request.
+    QuestionerId qid;
 };
 
 } // namespace Ipc;

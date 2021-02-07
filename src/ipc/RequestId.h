@@ -47,10 +47,10 @@ public:
     RequestId &operator =(const Index index) { index ? reset(index) : reset(); return *this; }
 
 private:
-    /// who asked the question
+    /// the sender of the request
     QuestionerId qid_;
 
-    /// question ID; unique within pending same-qid_ questions of the same kind
+    /// request ID; unique within pending same-qid_ questions of the same kind
     Index index_ = 0;
 };
 
