@@ -21,12 +21,6 @@ Ipc::MyQuestionerId()
     return qid;
 }
 
-// TODO: Remove as currently unused?
-Ipc::QuestionerId::QuestionerId(const TypedMsgHdr &hdrMsg)
-{
-    unpack(hdrMsg);
-}
-
 void
 Ipc::QuestionerId::pack(TypedMsgHdr &hdrMsg) const
 {

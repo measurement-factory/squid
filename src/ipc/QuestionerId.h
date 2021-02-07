@@ -24,9 +24,6 @@ public:
     /// to-be-determined ID
     QuestionerId() = default;
 
-    /// receiver's constructor
-    explicit QuestionerId(const TypedMsgHdr &);
-
     /// for sending the ID of the asking process
     void pack(TypedMsgHdr &) const;
 
