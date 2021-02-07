@@ -110,6 +110,7 @@ void Ipc::SharedListenResponse::pack(TypedMsgHdr &hdrMsg) const
 {
     hdrMsg.setType(mtSharedListenResponse);
     hdrMsg.putPod(*this);
+    // XXX: When we respond with an error, putFd() throws due to the negative fd
     hdrMsg.putFd(fd);
 }
 
