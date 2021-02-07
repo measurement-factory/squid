@@ -45,8 +45,10 @@ void
 Ipc::QuestionerId::rejectAnswerIfStale() const
 {
     const auto myPid = MyQuestionerId().pid;
-    if (myPid != pid)
-        throw TextException(ToSBuf("PID mismatch: ", myPid, "!=", pid),  Here());
+    if (myPid != pid) {
+        throw TextException(ToSBuf("received answer to an IPC question asked by process ", pid,
+                                   Debug::Extra, "my process PID: ", myPid), Here());
+    }
 }
 
 void
@@ -54,5 +56,4 @@ Ipc::QuestionerId::print(std::ostream &os) const
 {
     os << pid;
 }
-
 
