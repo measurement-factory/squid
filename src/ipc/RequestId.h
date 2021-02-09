@@ -26,17 +26,19 @@ public:
     /// Value 0 has a special meaning of "unset/unknown", but otherwise opaque.
     typedef unsigned int Index;
 
-    /// request sender's constructor
+    /// Request sender's constructor.
+    /// For performance and clarity sake, default constructor is preferred to 0 index.
     explicit RequestId(Index);
 
     /// request recipient's constructor
     RequestId() = default;
 
-    /// make the ID unset/unknown
-    /// optimization: leaves the questioner field alone
+    /// Make the ID unset/unknown.
+    /// Optimization: leaves the questioner field alone.
     void reset() { index_ = 0; }
 
-    /// make the ID set/known with the given index; the caller is the questioner
+    /// Make the ID set/known with the given (by the questioner) index.
+    /// For performance and clarity sake, reset(void) is preferred to reset(0).
     void reset(const Index index) { *this = RequestId(index); }
 
     QuestionerId questioner() const { return qid_; }

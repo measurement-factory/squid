@@ -16,10 +16,9 @@
 #include <iostream>
 
 Ipc::RequestId::RequestId(const Index anIndex):
-    qid_(MyQuestionerId()),
+    qid_(anIndex ? MyQuestionerId() : QuestionerId()),
     index_(anIndex)
 {
-    Must(anIndex);
 }
 
 std::ostream &
