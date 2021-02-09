@@ -33,7 +33,7 @@ public:
     QuestionerId intendedRecepient() const { return requestId.questioner(); }
 
 public:
-    RequestId requestId; ///< the ID of a request we are responding to
+    RequestId requestId; ///< the ID of the request we are responding to
 
 protected:
     /// sender's constructor
