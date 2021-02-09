@@ -39,14 +39,14 @@ public:
 
     /// Make the ID set/known with the given (by the questioner) index.
     /// For performance and clarity sake, reset(void) is preferred to reset(0).
-    void reset(const Index index) { *this = RequestId(index); }
+    void reset(const Index anIndex) { *this = RequestId(anIndex); }
 
     QuestionerId questioner() const { return qid_; }
     Index index() const { return index_; }
 
     // these conversion operators allow our users to treat us as an Index
     operator Index() const { return index_; }
-    RequestId &operator =(const Index index) { index ? reset(index) : reset(); return *this; }
+    RequestId &operator =(const Index anIndex) { anIndex ? reset(anIndex) : reset(); return *this; }
 
 private:
     /// the sender of the request
