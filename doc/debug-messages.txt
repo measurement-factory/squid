@@ -68,3 +68,4 @@
 59 Shutdown: Digest authentication.
 60 Shutdown: Negotiate authentication.
 61 Shutdown: NTLM authentication.
+62 Error negotiating SSL connection on FD ...

@@ -2614,17 +2614,17 @@ Squid_SSL_accept(ConnStateData *conn, PF *callback)
             if (ret == 0) {
                 debugs(83, 2, "Error negotiating SSL connection on FD " << fd << ": Aborted by client: " << ssl_error);
             } else {
-                debugs(83, (xerrno == ECONNRESET) ? 1 : 2, "Error negotiating SSL connection on FD " << fd << ": " <<
+                debugs(83, (xerrno == ECONNRESET) ? Important(62) : 2, "Error negotiating SSL connection on FD " << fd << ": " <<
                        (xerrno == 0 ? Security::ErrorString(ssl_error) : xstrerr(xerrno)));
             }
             return -1;
 
         case SSL_ERROR_ZERO_RETURN:
-            debugs(83, DBG_IMPORTANT, "Error negotiating SSL connection on FD " << fd << ": Closed by client");
+            debugs(83, Important(62), "Error negotiating SSL connection on FD " << fd << ": Closed by client");
             return -1;
 
         default:
-            debugs(83, DBG_IMPORTANT, "Error negotiating SSL connection on FD " <<
+            debugs(83, Important(62), "Error negotiating SSL connection on FD " <<
                    fd << ": " << Security::ErrorString(ERR_get_error()) <<
                    " (" << ssl_error << "/" << ret << ")");
             return -1;
