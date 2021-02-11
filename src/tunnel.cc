@@ -438,28 +438,16 @@ TunnelStateData::retryOrBail(const char *context)
 
     /* bail */
 
-    if (request)
-        request->hier.stopPeerClock(false);
-
     // TODO: Add sendSavedErrorOr(err_type type, Http::StatusCode, context).
     // Then, the remaining method code (below) should become the common part of
     // sendNewError() and sendSavedErrorOr(), used in "error detected" cases.
     if (!savedError)
         saveError(new ErrorState(ERR_CANNOT_FORWARD, Http::scInternalServerError, request.getRaw(), al));
-    const auto canSendError = Comm::IsConnOpen(client.conn) && !client.dirty &&
-                              clientExpectsConnectResponse();
-    if (canSendError)
-        return sendError(savedError, bailDescription ? bailDescription : context);
-    *status_ptr = savedError->httpStatus;
+
+    sendError(savedError, bailDescription ? bailDescription : context);
 
     if (noConnections())
         return deleteThis();
-
-    // This is a "Comm::IsConnOpen(client.conn) but !canSendError" case.
-    // Closing the connection (after finishing writing) is the best we can do.
-    if (!client.writer)
-        client.conn->close();
-    // else writeClientDone() must notice a closed server and close the client
 }
 
 int
@@ -1275,8 +1263,6 @@ TunnelStateData::noteDestinationsEnd(ErrorState *selectionError)
     destinations->destinationsFinalized = true;
     if (!destinationsFound) {
 
-        // XXX: Honor clientExpectsConnectResponse() before replying.
-
         if (selectionError)
             return sendError(selectionError, "path selection has failed");
 
@@ -1335,9 +1321,24 @@ TunnelStateData::sendError(ErrorState *finalError, const char *reason)
     PeerSelectionInitiator::subscribed = false; // may already be false
 
     *status_ptr = finalError->httpStatus;
-    finalError->callback = tunnelErrorComplete;
-    finalError->callback_data = this;
-    errorSend(client.conn, finalError);
+
+    const auto canSendError = Comm::IsConnOpen(client.conn) && !client.dirty &&
+                              clientExpectsConnectResponse();
+
+    if (canSendError) {
+        finalError->callback = tunnelErrorComplete;
+        finalError->callback_data = this;
+        errorSend(client.conn, finalError);
+    } else if (Comm::IsConnOpen(client.conn)) {
+        // Closing the connection (after finishing writing) is the best we can do.
+        if (!client.writer)
+            client.conn->close();
+        // else writeClientDone() must notice a closed server and close the client
+    }
+//  TODO: consider moving these lines from retryOrBail():
+//  else
+//  if (noConnections())
+//      deleteThis();
 }
 
 /// Notify connOpener that we no longer need connections. We do not have to do
@@ -1393,7 +1394,6 @@ TunnelStateData::usePinned()
         connectDone(serverConn, connManager->pinning.host, reused);
     } catch (ErrorState * const error) {
         syncHierNote(nullptr, connManager ? connManager->pinning.host : request->url.host());
-        // XXX: Honor clientExpectsConnectResponse() before replying.
         // a PINNED path failure is fatal; do not wait for more paths
         sendError(error, "pinned path failure");
         return;
