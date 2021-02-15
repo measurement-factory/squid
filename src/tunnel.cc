@@ -224,7 +224,7 @@ public:
     void notifyConnOpener();
 
     void saveError(ErrorState *finalError);
-    void sendError(ErrorState *finalError, const char *reason);
+    void sendErrorAndDestroy(ErrorState *finalError, const char *reason);
 
 private:
     /// Gives Security::PeerConnector access to Answer in the TunnelStateData callback dialer.
@@ -444,10 +444,7 @@ TunnelStateData::retryOrBail(const char *context)
     if (!savedError)
         saveError(new ErrorState(ERR_CANNOT_FORWARD, Http::scInternalServerError, request.getRaw(), al));
 
-    sendError(savedError, bailDescription ? bailDescription : context);
-
-    if (noConnections())
-        return deleteThis();
+    sendErrorAndDestroy(savedError, bailDescription ? bailDescription : context);
 }
 
 int
@@ -1264,12 +1261,12 @@ TunnelStateData::noteDestinationsEnd(ErrorState *selectionError)
     if (!destinationsFound) {
 
         if (selectionError)
-            return sendError(selectionError, "path selection has failed");
+            return sendErrorAndDestroy(selectionError, "path selection has failed");
 
         if (savedError)
-            return sendError(savedError, "all found paths have failed");
+            return sendErrorAndDestroy(savedError, "all found paths have failed");
 
-        return sendError(new ErrorState(ERR_CANNOT_FORWARD, Http::scInternalServerError, request.getRaw(), al),
+        return sendErrorAndDestroy(new ErrorState(ERR_CANNOT_FORWARD, Http::scInternalServerError, request.getRaw(), al),
                          "path selection found no paths");
     }
     // else continue to use one of the previously noted destinations;
@@ -1300,7 +1297,7 @@ TunnelStateData::saveError(ErrorState *error)
 /// Starts sending the given error message to the client, leading to the
 /// eventual transaction termination. Call with savedError to send savedError.
 void
-TunnelStateData::sendError(ErrorState *finalError, const char *reason)
+TunnelStateData::sendErrorAndDestroy(ErrorState *finalError, const char *reason)
 {
     debugs(26, 3, "aborting transaction for " << reason);
 
@@ -1334,11 +1331,9 @@ TunnelStateData::sendError(ErrorState *finalError, const char *reason)
         if (!client.writer)
             client.conn->close();
         // else writeClientDone() must notice a closed server and close the client
+    } else if (noConnections()) {
+        deleteThis();
     }
-//  TODO: consider moving these lines from retryOrBail():
-//  else
-//  if (noConnections())
-//      deleteThis();
 }
 
 /// Notify connOpener that we no longer need connections. We do not have to do
@@ -1395,7 +1390,7 @@ TunnelStateData::usePinned()
     } catch (ErrorState * const error) {
         syncHierNote(nullptr, connManager ? connManager->pinning.host : request->url.host());
         // a PINNED path failure is fatal; do not wait for more paths
-        sendError(error, "pinned path failure");
+        sendErrorAndDestroy(error, "pinned path failure");
         return;
     }
 
