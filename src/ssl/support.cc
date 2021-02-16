@@ -24,6 +24,7 @@
 #include "globals.h"
 #include "ipc/MemMap.h"
 #include "security/CertError.h"
+#include "security/ErrorDetail.h"
 #include "security/Session.h"
 #include "SquidConfig.h"
 #include "SquidTime.h"
@@ -379,11 +380,12 @@ ssl_verify_cb(int ok, X509_STORE_CTX * ctx)
                 broken_cert.resetAndLock(last_used_cert);
         }
 
-        auto *errDetail = new Ssl::ErrorDetail(error_no, peer_cert.get(), broken_cert.get());
-        if (!SSL_set_ex_data(ssl, ssl_ex_index_ssl_error_detail, errDetail)) {
-            debugs(83, 2, "Failed to set Ssl::ErrorDetail in ssl_verify_cb: Certificate " << buffer);
-            delete errDetail;
-        }
+        std::unique_ptr<Security::ErrorDetail::Pointer> edp(new Security::ErrorDetail::Pointer(
+                    new Security::ErrorDetail(error_no, peer_cert, broken_cert)));
+        if (SSL_set_ex_data(ssl, ssl_ex_index_ssl_error_detail, edp.get()))
+            edp.release();
+        else
+            debugs(83, 2, "failed to store a " << buffer << " error detail: " << *edp);
     }
 
     return ok;
@@ -457,7 +459,7 @@ static void
 ssl_free_ErrorDetail(void *, void *ptr, CRYPTO_EX_DATA *,
                      int, long, void *)
 {
-    Ssl::ErrorDetail  *errDetail = static_cast <Ssl::ErrorDetail *>(ptr);
+    const auto errDetail = static_cast<Security::ErrorDetail::Pointer*>(ptr);
     delete errDetail;
 }
 
@@ -525,7 +527,7 @@ Ssl::Initialize(void)
             fatalf("Unable to find SSL engine '%s'\n", ::Config.SSL.ssl_engine);
 
         if (!ENGINE_set_default(e, ENGINE_METHOD_ALL)) {
-            const int ssl_error = ERR_get_error();
+            const auto ssl_error = ERR_get_error();
             fatalf("Failed to initialise SSL engine: %s\n", Security::ErrorString(ssl_error));
         }
     }
@@ -570,7 +572,7 @@ Ssl::InitClientContext(Security::ContextPointer &ctx, Security::PeerOptions &pee
 
         const char *cipher = peer.sslCipher.c_str();
         if (!SSL_CTX_set_cipher_list(ctx.get(), cipher)) {
-            const int ssl_error = ERR_get_error();
+            const auto ssl_error = ERR_get_error();
             fatalf("Failed to set SSL cipher suite '%s': %s\n",
                    cipher, Security::ErrorString(ssl_error));
         }
@@ -584,7 +586,7 @@ Ssl::InitClientContext(Security::ContextPointer &ctx, Security::PeerOptions &pee
 
             const char *certfile = keys.certFile.c_str();
             if (!SSL_CTX_use_certificate_chain_file(ctx.get(), certfile)) {
-                const int ssl_error = ERR_get_error();
+                const auto ssl_error = ERR_get_error();
                 fatalf("Failed to acquire SSL certificate '%s': %s\n",
                        certfile, Security::ErrorString(ssl_error));
             }
@@ -594,7 +596,7 @@ Ssl::InitClientContext(Security::ContextPointer &ctx, Security::PeerOptions &pee
             ssl_ask_password(ctx.get(), keyfile);
 
             if (!SSL_CTX_use_PrivateKey_file(ctx.get(), keyfile, SSL_FILETYPE_PEM)) {
-                const int ssl_error = ERR_get_error();
+                const auto ssl_error = ERR_get_error();
                 fatalf("Failed to acquire SSL private key '%s': %s\n",
                        keyfile, Security::ErrorString(ssl_error));
             }
@@ -602,7 +604,7 @@ Ssl::InitClientContext(Security::ContextPointer &ctx, Security::PeerOptions &pee
             debugs(83, 5, "Comparing private and public SSL keys.");
 
             if (!SSL_CTX_check_private_key(ctx.get())) {
-                const int ssl_error = ERR_get_error();
+                const auto ssl_error = ERR_get_error();
                 fatalf("SSL private key '%s' does not match public key '%s': %s\n",
                        certfile, keyfile, Security::ErrorString(ssl_error));
             }
@@ -829,7 +831,7 @@ Ssl::chainCertificatesToSSLContext(Security::ContextPointer &ctx, Security::Serv
         // increase the certificate lock
         X509_up_ref(signingCert);
     } else {
-        const int ssl_error = ERR_get_error();
+        const auto ssl_error = ERR_get_error();
         debugs(33, DBG_IMPORTANT, "WARNING: can not add signing certificate to SSL context chain: " << Security::ErrorString(ssl_error));
     }
 
@@ -930,7 +932,7 @@ Ssl::setClientSNI(SSL *ssl, const char *fqdn)
     // if the TLS servername extension (SNI) is enabled in openssl library.
 #if defined(SSL_CTRL_SET_TLSEXT_HOSTNAME)
     if (!SSL_set_tlsext_host_name(ssl, fqdn)) {
-        const int ssl_error = ERR_get_error();
+        const auto ssl_error = ERR_get_error();
         debugs(83, 3,  "WARNING: unable to set TLS servername extension (SNI): " <<
                Security::ErrorString(ssl_error) << "\n");
     }
@@ -1043,7 +1045,7 @@ issuerExistInCaDb(X509 *cert, const Security::ContextPointer &connContext)
         if (issuer)
             X509_free(issuer);
     } else {
-        const int ssl_error = ERR_get_error();
+        const auto ssl_error = ERR_get_error();
         debugs(83, DBG_IMPORTANT, "Failed to initialize STORE_CTX object: " << Security::ErrorString(ssl_error));
     }
     X509_STORE_CTX_free(storeCtx);
