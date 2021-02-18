@@ -1319,20 +1319,29 @@ TunnelStateData::sendErrorAndDestroy(ErrorState *finalError, const char *reason)
 
     *status_ptr = finalError->httpStatus;
 
-    const auto canSendError = Comm::IsConnOpen(client.conn) && !client.dirty &&
+    const auto canSendError = !client.dirty && Comm::IsConnOpen(client.conn) &&
                               clientExpectsConnectResponse();
-
     if (canSendError) {
         finalError->callback = tunnelErrorComplete;
         finalError->callback_data = this;
         errorSend(client.conn, finalError);
-    } else if (Comm::IsConnOpen(client.conn)) {
+        return;
+    }
+
+    if (noConnections()) {
+        deleteThis();
+        return;
+    }
+
+    if (Comm::IsConnOpen(server.conn))
+        server.conn->close();
+
+    if (Comm::IsConnOpen(client.conn)) {
         // Closing the connection (after finishing writing) is the best we can do.
         if (!client.writer)
             client.conn->close();
         // else writeClientDone() must notice a closed server and close the client
-    } else if (noConnections()) {
-        deleteThis();
+        client.conn->close();
     }
 }
 
