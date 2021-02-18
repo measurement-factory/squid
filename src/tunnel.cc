@@ -224,7 +224,7 @@ public:
     void notifyConnOpener();
 
     void saveError(ErrorState *finalError);
-    void sendErrorAndDestroy(ErrorState *finalError, const char *reason);
+    void sendErrorAndDestroy(ErrorState *, const char *reason);
 
 private:
     /// Gives Security::PeerConnector access to Answer in the TunnelStateData callback dialer.
@@ -437,12 +437,6 @@ TunnelStateData::retryOrBail(const char *context)
     }
 
     /* bail */
-
-    // TODO: Add sendSavedErrorOr(err_type type, Http::StatusCode, context).
-    // Then, the remaining method code (below) should become the common part of
-    // sendNewError() and sendSavedErrorOr(), used in "error detected" cases.
-    if (!savedError)
-        saveError(new ErrorState(ERR_CANNOT_FORWARD, Http::scInternalServerError, request.getRaw(), al));
 
     sendErrorAndDestroy(savedError, bailDescription ? bailDescription : context);
 }
@@ -1263,11 +1257,8 @@ TunnelStateData::noteDestinationsEnd(ErrorState *selectionError)
         if (selectionError)
             return sendErrorAndDestroy(selectionError, "path selection has failed");
 
-        if (savedError)
-            return sendErrorAndDestroy(savedError, "all found paths have failed");
-
-        return sendErrorAndDestroy(new ErrorState(ERR_CANNOT_FORWARD, Http::scInternalServerError, request.getRaw(), al),
-                         "path selection found no paths");
+        return sendErrorAndDestroy(savedError, savedError ?
+                "all found paths have failed" : "path selection found no paths");
     }
     // else continue to use one of the previously noted destinations;
     // if all of them fail, tunneling as whole will fail
@@ -1297,17 +1288,17 @@ TunnelStateData::saveError(ErrorState *error)
 /// Starts sending the given error message to the client, leading to the
 /// eventual transaction termination. Call with savedError to send savedError.
 void
-TunnelStateData::sendErrorAndDestroy(ErrorState *finalError, const char *reason)
+TunnelStateData::sendErrorAndDestroy(ErrorState *err, const char *reason)
 {
     debugs(26, 3, "aborting transaction for " << reason);
+
+    auto finalError = err ? err : new ErrorState(ERR_CANNOT_FORWARD, Http::scInternalServerError, request.getRaw(), al);
 
     if (request)
         request->hier.stopPeerClock(false);
 
     if (opening())
         cancelOpening(reason);
-
-    assert(finalError);
 
     // get rid of any cached error unless that is what the caller is sending
     if (savedError != finalError)
