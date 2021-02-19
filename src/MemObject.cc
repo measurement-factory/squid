@@ -117,7 +117,6 @@ MemObject::MemObject() :
 MemObject::~MemObject()
 {
     debugs(20, 3, "del MemObject " << this);
-    const Ctx ctx = ctx_enter(hasUris() ? urlXXX() : "[unknown_ctx]");
 
 #if URL_CHECKSUM_DEBUG
     checkUrlChecksum();
@@ -143,8 +142,6 @@ MemObject::~MemObject()
     HTTPMSGUNLOCK(_reply);
 
     HTTPMSGUNLOCK(request);
-
-    ctx_exit(ctx);              /* must exit before we free mem->url */
 }
 
 void

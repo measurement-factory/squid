@@ -28,16 +28,6 @@ int Debug::log_stderr = 1;
 bool Debug::log_syslog = false;
 bool Debug::ForceAlert = false;
 
-Ctx
-ctx_enter(const char *)
-{
-    return -1;
-}
-
-void
-ctx_exit(Ctx)
-{}
-
 void
 _db_init(const char *, const char *)
 {}

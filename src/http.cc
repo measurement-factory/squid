@@ -688,15 +688,13 @@ HttpStateData::processReplyHeader()
 {
     /** Creates a blank header. If this routine is made incremental, this will not do */
 
-    /* NP: all exit points to this function MUST call ctx_exit(ctx) */
-    Ctx ctx = ctx_enter(entry->mem_obj->urlXXX());
-
     debugs(11, 3, "processReplyHeader: key '" << entry->getMD5Text() << "'");
 
     assert(!flags.headers_parsed);
 
     if (!inBuf.length()) {
-        ctx_exit(ctx);
+        // XXX: Do not block the eof-handling code below.
+        debugs(33, 7, "waiting for input; eof=" << eof);
         return;
     }
 
@@ -723,7 +721,6 @@ HttpStateData::processReplyHeader()
                 inBuf = hp->remaining();
             } else {
                 debugs(33, 5, "Incomplete response, waiting for end of response headers");
-                ctx_exit(ctx);
                 return;
             }
         }
@@ -736,7 +733,6 @@ HttpStateData::processReplyHeader()
             HttpReply *newrep = new HttpReply;
             newrep->sline.set(Http::ProtocolVersion(), hp->parseStatusCode);
             setVirginReply(newrep);
-            ctx_exit(ctx);
             return;
         }
     }
@@ -779,7 +775,6 @@ HttpStateData::processReplyHeader()
 
     if (newrep->sline.protocol == AnyP::PROTO_HTTP && newrep->sline.status() >= 100 && newrep->sline.status() < 200) {
         handle1xx(newrep);
-        ctx_exit(ctx);
         return;
     }
 
@@ -802,8 +797,6 @@ HttpStateData::processReplyHeader()
     processSurrogateControl (vrep);
 
     request->hier.peer_reply_status = newrep->sline.status();
-
-    ctx_exit(ctx);
 }
 
 /// ignore or start forwarding the 1xx response (a.k.a., control message)
@@ -928,7 +921,6 @@ HttpStateData::haveParsedReplyHeaders()
 {
     Client::haveParsedReplyHeaders();
 
-    Ctx ctx = ctx_enter(entry->mem_obj->urlXXX());
     HttpReply *rep = finalReply();
 
     entry->timestampsSet();
@@ -1039,8 +1031,6 @@ HttpStateData::haveParsedReplyHeaders()
     headersLog(1, 0, request->method, rep);
 
 #endif
-
-    ctx_exit(ctx);
 }
 
 HttpStateData::ConnectionStatus
