@@ -453,7 +453,7 @@ Security::PeerConnector::noteNegotiationError(const int ret, const int ssl_error
         sysErrNo = errno;
 
     const int fd = serverConnection()->fd;
-    debugs(83, DBG_IMPORTANT, "Error negotiating SSL on FD " << fd <<
+    debugs(83, Important(63), "Error negotiating SSL on FD " << fd <<
            ": " << Security::ErrorString(ssl_lib_error) << " (" <<
            ssl_error << "/" << ret << "/" << errno << ")");
 
