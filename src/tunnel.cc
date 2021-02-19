@@ -223,7 +223,7 @@ public:
 
     void notifyConnOpener();
 
-    void saveError(ErrorState *finalError);
+    void saveError(ErrorState *);
     void sendErrorAndDestroy(ErrorState *, const char *reason);
 
 private:
@@ -269,6 +269,8 @@ private:
 
     /// details of the "last tunneling attempt" failure (if it failed)
     ErrorState *savedError = nullptr;
+    /// details of the last failure which is the reason of the transaction termination
+    ErrorState *finalError = nullptr;
 
     /// resumes operations after the (possibly failed) HTTP CONNECT exchange
     void tunnelEstablishmentDone(Http::TunnelerAnswer &answer);
@@ -391,6 +393,7 @@ TunnelStateData::~TunnelStateData()
     if (opening())
         cancelOpening("~TunnelStateData");
     delete savedError;
+    delete finalError;
 }
 
 TunnelStateData::Connection::~Connection()
@@ -668,6 +671,14 @@ TunnelStateData::writeServerDone(char *, size_t len, Comm::Flag flag, int xerrno
         return;
     }
 
+    if (finalError) {
+        // All data are written, finally close the server connection.
+        // See sendErrorAndDestroy().
+        debugs(26, 4, "Closing server connection due to the error status " << status_ptr);
+        server.conn->close();
+        return;
+    }
+
     const CbcPointer<TunnelStateData> safetyLock(this); /* ??? should be locked by the caller... */
 
     if (cbdataReferenceValid(this))
@@ -756,6 +767,14 @@ TunnelStateData::writeClientDone(char *, size_t len, Comm::Flag flag, int xerrno
     /* If the other end has closed, so should we */
     if (!Comm::IsConnOpen(server.conn)) {
         debugs(26, 4, HERE << "Server has gone away. Terminating client connection.");
+        client.conn->close();
+        return;
+    }
+
+    if (finalError) {
+        // All data are written, finally close the client connection.
+        // See sendErrorAndDestroy().
+        debugs(26, 4, "Closing client connection due to the error status " << status_ptr);
         client.conn->close();
         return;
     }
@@ -1292,7 +1311,7 @@ TunnelStateData::sendErrorAndDestroy(ErrorState *err, const char *reason)
 {
     debugs(26, 3, "aborting transaction for " << reason);
 
-    auto finalError = err ? err : new ErrorState(ERR_CANNOT_FORWARD, Http::scInternalServerError, request.getRaw(), al);
+    finalError = err ? err : new ErrorState(ERR_CANNOT_FORWARD, Http::scInternalServerError, request.getRaw(), al);
 
     if (request)
         request->hier.stopPeerClock(false);
@@ -1316,6 +1335,7 @@ TunnelStateData::sendErrorAndDestroy(ErrorState *err, const char *reason)
         finalError->callback = tunnelErrorComplete;
         finalError->callback_data = this;
         errorSend(client.conn, finalError);
+        finalError = nullptr;
         return;
     }
 
@@ -1324,15 +1344,16 @@ TunnelStateData::sendErrorAndDestroy(ErrorState *err, const char *reason)
         return;
     }
 
-    if (Comm::IsConnOpen(server.conn))
-        server.conn->close();
+    if (Comm::IsConnOpen(server.conn)) {
+        // Closing the server connection (after finishing writing) is the best we can do.
+        if (!server.writer)
+            server.conn->close();
+    }
 
     if (Comm::IsConnOpen(client.conn)) {
-        // Closing the connection (after finishing writing) is the best we can do.
+        // Closing the client connection (after finishing writing) is the best we can do.
         if (!client.writer)
             client.conn->close();
-        // else writeClientDone() must notice a closed server and close the client
-        client.conn->close();
     }
 }
 
