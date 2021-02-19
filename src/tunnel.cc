@@ -1304,8 +1304,10 @@ TunnelStateData::saveError(ErrorState *error)
     savedError = error;
 }
 
-/// Starts sending the given error message to the client, leading to the
-/// eventual transaction termination. Call with savedError to send savedError.
+/// If the client expects error message, starts sending the given
+/// error message, leading to the eventual transaction termination.
+/// Otherwise initiates the transaction termination, which will happen
+/// only after all in-progress writing is complete.
 void
 TunnelStateData::sendErrorAndDestroy(ErrorState *err, const char *reason)
 {
