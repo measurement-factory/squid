@@ -382,7 +382,14 @@ Comm::TcpAcceptor::oldAccept(Comm::ConnectionPointer &details)
     }
 
     Must(sock >= 0);
+
+    // Sync with Comm ASAP so that abandoned details can properly close().
+    // XXX : these are not all HTTP requests. use a note about type and ip:port details->
+    // so we end up with a uniform "(HTTP|FTP-data|HTTPS|...) remote-ip:remote-port"
+    fd_open(sock, FD_SOCKET, "HTTP Request");
     details->fd = sock;
+    details->enterOrphanage(); // nobody owns this connection yet
+
     details->remote = *gai;
 
     // lookup the local-end details of this new connection
@@ -401,9 +408,8 @@ Comm::TcpAcceptor::oldAccept(Comm::ConnectionPointer &details)
     // Perform NAT or TPROXY operations to retrieve the real client/dest IP addresses
     if (conn->flags&(COMM_TRANSPARENT|COMM_INTERCEPTION) && !Ip::Interceptor.Lookup(details, conn)) {
         debugs(50, DBG_IMPORTANT, "ERROR: NAT/TPROXY lookup failed to locate original IPs on " << details);
-        // Failed.
         PROF_stop(comm_accept);
-        return Comm::COMM_ERROR;
+        return Comm::NOMESSAGE;
     }
 
 #if USE_SQUID_EUI
@@ -425,11 +431,6 @@ Comm::TcpAcceptor::oldAccept(Comm::ConnectionPointer &details)
             return Comm::NOMESSAGE;
         }
     }
-
-    /* fdstat update */
-    // XXX : these are not all HTTP requests. use a note about type and ip:port details->
-    // so we end up with a uniform "(HTTP|FTP-data|HTTPS|...) remote-ip:remote-port"
-    fd_open(sock, FD_SOCKET, "HTTP Request");
 
     fde *F = &fd_table[sock];
     details->remote.toStr(F->ipaddr,MAX_IPSTRLEN);
