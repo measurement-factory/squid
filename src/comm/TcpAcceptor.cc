@@ -293,6 +293,7 @@ Comm::TcpAcceptor::acceptOne()
         if (intendedForUserConnections())
             logAcceptError(newConnDetails);
         notify(flag, newConnDetails);
+        // XXX: not under async job call protections
         mustStop("Listener socket closed");
         return;
     }
