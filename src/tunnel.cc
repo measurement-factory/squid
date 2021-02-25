@@ -270,6 +270,7 @@ private:
     /// details of the "last tunneling attempt" failure (if it failed)
     ErrorState *savedError = nullptr;
     /// details of the last failure which is the reason of the transaction termination
+    /// non-nil only if when more connection attempts are expected
     ErrorState *finalError = nullptr;
 
     /// resumes operations after the (possibly failed) HTTP CONNECT exchange
@@ -1302,6 +1303,7 @@ TunnelStateData::noteDestinationsEnd(ErrorState *selectionError)
 void
 TunnelStateData::saveError(ErrorState *error)
 {
+    assert(!finalError);
     debugs(26, 4, savedError << " ? " << error);
     assert(error);
     delete savedError; // may be nil
@@ -1316,6 +1318,7 @@ void
 TunnelStateData::sendErrorAndDestroy(ErrorState *err, const char *reason)
 {
     assert(!server.conn);
+    assert(!finalError);
 
     debugs(26, 3, "aborting transaction for " << reason);
 
