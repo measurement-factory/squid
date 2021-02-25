@@ -1315,20 +1315,21 @@ TunnelStateData::saveError(ErrorState *error)
 void
 TunnelStateData::sendErrorAndDestroy(ErrorState *err, const char *reason)
 {
+    assert(!server.conn);
+
     debugs(26, 3, "aborting transaction for " << reason);
 
     finalError = err ? err : new ErrorState(ERR_CANNOT_FORWARD, Http::scInternalServerError, request.getRaw(), al);
+    // get rid of any cached error unless that is what the caller is sending
+    if (savedError != finalError)
+        delete savedError; // may be nil
+    savedError = nullptr;
 
     if (request)
         request->hier.stopPeerClock(false);
 
     if (opening())
         cancelOpening(reason);
-
-    // get rid of any cached error unless that is what the caller is sending
-    if (savedError != finalError)
-        delete savedError; // may be nil
-    savedError = nullptr;
 
     // we cannot try other destinations after responding with an error
     PeerSelectionInitiator::subscribed = false; // may already be false
@@ -1350,16 +1351,11 @@ TunnelStateData::sendErrorAndDestroy(ErrorState *err, const char *reason)
         return;
     }
 
-    if (Comm::IsConnOpen(server.conn)) {
-        // Closing the server connection (after finishing writing) is the best we can do.
-        if (!server.writer)
-            server.conn->close();
-    }
-
     if (Comm::IsConnOpen(client.conn)) {
         // Closing the client connection (after finishing writing) is the best we can do.
         if (!client.writer)
             client.conn->close();
+        // else writeClientDone() must notice a closed server and close the client
     }
 }
 
