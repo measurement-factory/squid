@@ -16,6 +16,85 @@
 #include "CommCalls.h"
 #include "ipc/UdsOp.h"
 
+#include <deque>
+
+typedef CbcPointer<Ipc::UdsSender> UdsSenderPointer;
+
+class UdsMessage
+{
+public:
+    UdsMessage(const String &addr, const Ipc::TypedMsgHdr &msg):
+        destinationAddr(addr),
+        message(msg),
+        codeContext(CodeContext::Current())
+    {}
+
+    const String destinationAddr;
+    const Ipc::TypedMsgHdr message;
+    CodeContextPointer codeContext;
+};
+
+/// Queues IPC messages before passing them to a UdsSender job.
+/// Guarantees only one UdsSender at a time.
+class UdsMessages
+{
+public:
+    /// the last started UdsSender job
+    UdsSenderPointer sender;
+
+    /// queued messages as FIFO
+    std::deque<UdsMessage> queue;
+
+    /// pops the head element from the queue and spawns an UdsSender job
+    void kickQueue();
+
+    static void KickQueue();
+};
+
+static UdsMessages QueuedMessages;
+
+void
+UdsMessages::kickQueue()
+{
+    debugs(54, 5, "queue size: " << queue.size());
+
+    if (queue.empty())
+        return;
+
+    if (sender.valid()) {
+        debugs(54, 5, "postponing until the current IPC message is sent");
+        return;
+    }
+
+    const auto &current = queue.front();
+    CallBack(current.codeContext, [&] {
+        sender = new Ipc::UdsSender(current.destinationAddr, current.message);
+        AsyncJob::Start(sender.get());
+    });
+    queue.pop_front();
+}
+
+// an AsyncCall dialer for UdsMessages::KickQueue()
+class UdsDialer: public CallDialer
+{
+public:
+    typedef void (*Handler)();
+    UdsDialer(Handler aHandler): handler(aHandler) {}
+
+    virtual void print(std::ostream &os) const { os << "()"; }
+    virtual bool canDial(AsyncCall &) const { return true; }
+    virtual void dial(AsyncCall &) { (handler)(); }
+
+public:
+    Handler handler;
+};
+
+void
+UdsMessages::KickQueue()
+{
+    QueuedMessages.kickQueue();
+}
+
 Ipc::UdsOp::UdsOp(const String& pathAddr):
     AsyncJob("Ipc::UdsOp"),
     address(PathToAddress(pathAddr)),
@@ -98,6 +177,9 @@ void Ipc::UdsSender::swanSong()
     // did we abort while waiting between retries?
     if (sleeping)
         cancelSleep();
+
+    AsyncCall::Pointer call = asyncCall(54, 5, "UdsMessages::KickQueue", UdsDialer(&UdsMessages::KickQueue));
+    ScheduleCallHere(call);
 
     UdsOp::swanSong();
 }
@@ -187,7 +269,9 @@ void Ipc::UdsSender::timedout()
 
 void Ipc::SendMessage(const String& toAddress, const TypedMsgHdr &message)
 {
-    AsyncJob::Start(new UdsSender(toAddress, message));
+    const UdsMessage msg(toAddress, message);
+    QueuedMessages.queue.emplace_back(msg);
+    QueuedMessages.kickQueue();
 }
 
 const Comm::ConnectionPointer &
