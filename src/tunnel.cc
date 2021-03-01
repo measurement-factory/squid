@@ -270,7 +270,6 @@ private:
     /// details of the "last tunneling attempt" failure (if it failed)
     ErrorState *savedError = nullptr;
     /// details of the last failure which is the reason of the transaction termination
-    /// non-nil only if when more connection attempts are expected
     ErrorState *finalError = nullptr;
 
     /// resumes operations after the (possibly failed) HTTP CONNECT exchange
@@ -393,6 +392,7 @@ TunnelStateData::~TunnelStateData()
     xfree(url);
     if (opening())
         cancelOpening("~TunnelStateData");
+    assert(!finalError || finalError != savedError);
     delete savedError;
     delete finalError;
 }
@@ -1303,7 +1303,6 @@ TunnelStateData::noteDestinationsEnd(ErrorState *selectionError)
 void
 TunnelStateData::saveError(ErrorState *error)
 {
-    assert(!finalError);
     debugs(26, 4, savedError << " ? " << error);
     assert(error);
     delete savedError; // may be nil
@@ -1317,10 +1316,17 @@ TunnelStateData::saveError(ErrorState *error)
 void
 TunnelStateData::sendErrorAndDestroy(ErrorState *err, const char *reason)
 {
-    assert(!server.conn);
-    assert(!finalError);
-
     debugs(26, 3, "aborting transaction for " << reason);
+
+    if (finalError) {
+        debugs(26, 4, "the final error already exists: " << finalError << ", discarding new error: " << err);
+        if (finalError == err)
+            return;
+        if (err == savedError)
+            savedError = nullptr;
+        delete err;
+        return;
+    }
 
     finalError = err ? err : new ErrorState(ERR_CANNOT_FORWARD, Http::scInternalServerError, request.getRaw(), al);
     // get rid of any cached error unless that is what the caller is sending
@@ -1354,11 +1360,16 @@ TunnelStateData::sendErrorAndDestroy(ErrorState *err, const char *reason)
         return;
     }
 
+    if (Comm::IsConnOpen(server.conn)) {
+        // Closing the server connection (after finishing writing) is the best we can do.
+        if (!server.writer)
+            server.conn->close();
+    }
+
     if (Comm::IsConnOpen(client.conn)) {
         // Closing the client connection (after finishing writing) is the best we can do.
         if (!client.writer)
             client.conn->close();
-        // else writeClientDone() must notice a closed server and close the client
     }
 }
 
