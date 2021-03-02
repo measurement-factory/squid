@@ -946,8 +946,8 @@ tunnelConnectedWriteDone(const Comm::ConnectionPointer &conn, char *, size_t len
     tunnelState->client.writer = NULL;
 
     if (flag != Comm::OK) {
-        *tunnelState->status_ptr = Http::scInternalServerError;
-        tunnelErrorComplete(conn->fd, data, 0);
+        auto err = new ErrorState(ERR_WRITE_ERROR, Http::scInternalServerError, tunnelState->request.getRaw(), tunnelState->al);
+        tunnelState->sendErrorAndDestroy(err, "client write failure");
         return;
     }
 
@@ -1318,21 +1318,21 @@ TunnelStateData::sendErrorAndDestroy(ErrorState *err, const char *reason)
 {
     debugs(26, 3, "aborting transaction for " << reason);
 
+    // get rid of any cached error unless that is what the caller is sending
+    if (savedError != err)
+        delete savedError; // may be nil
+    savedError = nullptr;
+
     if (finalError) {
         debugs(26, 4, "the final error already exists: " << finalError << ", discarding new error: " << err);
-        if (finalError == err)
-            return;
-        if (err == savedError)
-            savedError = nullptr;
-        delete err;
+        if (finalError != err) {
+            // get rid of an error created after finalError
+            delete err; // may be nil
+        }
         return;
     }
 
     finalError = err ? err : new ErrorState(ERR_CANNOT_FORWARD, Http::scInternalServerError, request.getRaw(), al);
-    // get rid of any cached error unless that is what the caller is sending
-    if (savedError != finalError)
-        delete savedError; // may be nil
-    savedError = nullptr;
 
     if (request)
         request->hier.stopPeerClock(false);
