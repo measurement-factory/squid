@@ -45,9 +45,14 @@ static bool setSerialNumber(ASN1_INTEGER *ai, BIGNUM const* serial)
     } else {
         if (!bn)
             return false;
-
+#if OPENSSL_VERSION_MAJOR < 3
         if (!BN_pseudo_rand(bn.get(), 64, 0, 0))
             return false;
+#else
+        const int SERIAL_RAND_BITS = 159;
+        if (!BN_rand(bn.get(), SERIAL_RAND_BITS, BN_RAND_TOP_ANY, BN_RAND_BOTTOM_ANY))
+            return false;
+#endif
     }
 
     if (ai && !BN_to_ASN1_INTEGER(bn.get(), ai))
@@ -367,7 +372,11 @@ mimicExtensions(Security::CertPointer & cert, Security::CertPointer const &mimic
     };
 
     EVP_PKEY *certKey = X509_get_pubkey(mimicCert.get());
+#if OPENSSL_VERSION_MAJOR < 3
     const bool rsaPkey = (EVP_PKEY_get0_RSA(certKey) != nullptr);
+#else
+    const bool rsaPkey = EVP_PKEY_is_a(certKey, "RSA");
+#endif
 
     int added = 0;
     int nid;

@@ -351,6 +351,11 @@ Security::ServerOptions::loadDhParams()
         return;
 
 #if USE_OPENSSL
+#if OPENSSL_VERSION_MAJOR < 3
+    // DH_check() removed in OpenSSL 3.0.
+    // TODO: use the EVP API instead, which also works in OpenSSL 1.1.
+    // But it is not yet clear exactly how that API works for DH.
+
     DH *dhp = nullptr;
     if (FILE *in = fopen(dhParamsFile.c_str(), "r")) {
         dhp = PEM_read_DHparams(in, NULL, NULL, NULL);
@@ -362,10 +367,6 @@ Security::ServerOptions::loadDhParams()
         return;
     }
 
-#if OPENSSL_VERSION_MAJOR < 3
-    // DH_check() removed in OpenSSL 3.0.
-    // TODO: use the EVP API instead, which also works in OpenSSL 1.1.
-    // But it is not yet clear exactly how that API works for DH.
     int codes;
     if (DH_check(dhp, &codes) == 0) {
         if (codes) {
@@ -374,9 +375,16 @@ Security::ServerOptions::loadDhParams()
             dhp = nullptr;
         }
     }
-#endif
-
     parsedDhParams.resetWithoutLocking(dhp);
+#else
+    // TODO: load parsedDhParams using the following OSSL_STORE_* API
+    // functions:
+    //  * OSSL_STORE_attach(aFileBio, "file", ...) to define file to use
+    //  * OSSL_STORE_load, OSSL_STORE_eof to read params from file
+    //  * OSSL_STORE_INFO_get_type: to retrieve the type of info included
+    //    in file and check if OSSL_STORE_INFO_PARAMS exists
+    //  * OSSL_STORE_INFO_get1_PARAMS to load params
+#endif
 #endif
 }
 
@@ -452,8 +460,19 @@ Security::ServerOptions::updateContextEecdh(Security::ContextPointer &ctx)
     // set Elliptic Curve details into the server context
     if (!eecdhCurve.isEmpty()) {
         debugs(83, 9, "Setting Ephemeral ECDH curve to " << eecdhCurve << ".");
-
-#if USE_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x0090800fL && !defined(OPENSSL_NO_ECDH)
+#if USE_OPENSSL && OPENSSL_VERSION_MAJOR >= 3
+        // TODO implement the "dh=" parameter for OpenSSL-3.0
+        // From OpenSsl-3.0 Changes.md file:
+        // All of the low level EC_KEY functions have been deprecated ...
+        // ...
+        // Applications that need to implement an EC_KEY_METHOD need to consider
+        // implementation of the functionality in a special provider.
+        // For replacement of the functions manipulating the EC_KEY objects
+        // see the EVP_PKEY-EC(7) manual page.
+        //
+        // From the EVP_PKEY-EC(7) manual page:
+        // The EC keytype is implemented in OpenSSL's default provider
+#elif USE_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x0090800fL && !defined(OPENSSL_NO_ECDH)
         int nid = OBJ_sn2nid(eecdhCurve.c_str());
         if (!nid) {
             debugs(83, DBG_CRITICAL, "ERROR: Unknown EECDH curve '" << eecdhCurve << "'");

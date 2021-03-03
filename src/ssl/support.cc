@@ -519,7 +519,7 @@ Ssl::Initialize(void)
 
     SQUID_OPENSSL_init_ssl();
 
-#if !defined(OPENSSL_NO_ENGINE)
+#if (OPENSSL_VERSION_MAJOR < 3) && !defined(OPENSSL_NO_ENGINE)
     if (::Config.SSL.ssl_engine) {
         ENGINE_load_builtin_engines();
         ENGINE *e;
@@ -532,6 +532,9 @@ Ssl::Initialize(void)
         }
     }
 #else
+    // OpenSSL-3.0 and later deprecates the engines API and suggest
+    // to use providers API instead.
+    // TODO: Support OpenSSL-3.0 providers API
     if (::Config.SSL.ssl_engine)
         fatalf("Your OpenSSL has no SSL engine support\n");
 #endif
