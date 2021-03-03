@@ -76,6 +76,9 @@ public:
     /// the request. To set the virgin request, use initRequest().
     void resetRequest(HttpRequest *);
 
+    /// whether the client sent a CONNECT request to us
+    bool clientExpectsConnectResponse() const;
+
     /** Details of the client socket which produced us.
      * Treat as read-only for the lifetime of this HTTP request.
      */

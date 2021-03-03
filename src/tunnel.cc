@@ -98,17 +98,7 @@ public:
 
     /// Whether the client sent a CONNECT request to us.
     bool clientExpectsConnectResponse() const {
-        // If we are forcing a tunnel after receiving a client CONNECT, then we
-        // have already responded to that CONNECT before tunnel.cc started.
-        if (request && request->flags.forceTunnel)
-            return false;
-#if USE_OPENSSL
-        // We are bumping and we had already send "OK CONNECTED"
-        if (http.valid() && http->getConn() && http->getConn()->serverBump() && http->getConn()->serverBump()->at(XactionStep::tlsBump2, XactionStep::tlsBump3))
-            return false;
-#endif
-        return !(request != NULL &&
-                 (request->flags.interceptTproxy || request->flags.intercepted));
+        return http.valid() && http->clientExpectsConnectResponse();
     }
 
     /// starts connecting to the next hop, either for the first time or while
@@ -1135,7 +1125,11 @@ tunnelStart(ClientHttpRequest * http)
             debugs(26, 4, HERE << "MISS access forbidden.");
             err = new ErrorState(ERR_FORWARDING_DENIED, Http::scForbidden, request, http->al);
             http->al->http.code = Http::scForbidden;
-            errorSend(http->getConn()->clientConnection, err);
+            const Comm::ConnectionPointer conn = http->getConn()->clientConnection;
+            if (http->clientExpectsConnectResponse())
+                errorSend(conn, err);
+            else
+                conn->close(); // closing the client connection is the best we can do
             return;
         }
     }

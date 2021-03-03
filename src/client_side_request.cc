@@ -1704,6 +1704,23 @@ ClientHttpRequest::clearRequest()
     absorbLogUri(nullptr);
 }
 
+bool
+ClientHttpRequest::clientExpectsConnectResponse() const
+{
+    // If we are forcing a tunnel after receiving a client CONNECT, then we
+    // have already responded to that CONNECT before tunnel.cc started.
+    if (request && request->flags.forceTunnel)
+        return false;
+#if USE_OPENSSL
+    // We are bumping and we had already send "OK CONNECTED"
+    if (const auto conn = getConn()) {
+        if (conn->serverBump() && conn->serverBump()->at(XactionStep::tlsBump2, XactionStep::tlsBump3))
+            return false;
+    }
+#endif
+    return !(request && (request->flags.interceptTproxy || request->flags.intercepted));
+}
+
 /*
  * doCallouts() - This function controls the order of "callout"
  * executions, including non-blocking access control checks, the
