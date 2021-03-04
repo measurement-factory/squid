@@ -259,7 +259,7 @@ private:
 
     /// details of the "last tunneling attempt" failure (if it failed)
     ErrorState *savedError = nullptr;
-    /// details of the last failure which is the reason of the transaction termination
+    /// details of the failure that terminated this transaction
     ErrorState *finalError = nullptr;
 
     /// resumes operations after the (possibly failed) HTTP CONNECT exchange
@@ -382,7 +382,7 @@ TunnelStateData::~TunnelStateData()
     xfree(url);
     if (opening())
         cancelOpening("~TunnelStateData");
-    assert(!finalError || finalError != savedError);
+    assert(!finalError || finalError != savedError); // different unless both are nil
     delete savedError;
     delete finalError;
 }
@@ -663,9 +663,7 @@ TunnelStateData::writeServerDone(char *, size_t len, Comm::Flag flag, int xerrno
     }
 
     if (finalError) {
-        // All data are written, finally close the server connection.
-        // See sendErrorAndDestroy().
-        debugs(26, 4, "Closing server connection due to the error status " << status_ptr);
+        debugs(26, 4, "closing to-server connection after sendErrorAndDestroy()");
         server.conn->close();
         return;
     }
@@ -763,9 +761,7 @@ TunnelStateData::writeClientDone(char *, size_t len, Comm::Flag flag, int xerrno
     }
 
     if (finalError) {
-        // All data are written, finally close the client connection.
-        // See sendErrorAndDestroy().
-        debugs(26, 4, "Closing client connection due to the error status " << status_ptr);
+        debugs(26, 4, "closing from-client connection after sendErrorAndDestroy()");
         client.conn->close();
         return;
     }
@@ -929,15 +925,16 @@ tunnelStartShoveling(TunnelStateData *tunnelState)
  * Call the tunnelStartShoveling to start the blind pump.
  */
 static void
-tunnelConnectedWriteDone(const Comm::ConnectionPointer &conn, char *, size_t len, Comm::Flag flag, int, void *data)
+tunnelConnectedWriteDone(const Comm::ConnectionPointer &conn, char *, size_t len, Comm::Flag flag, int xerrno, void *data)
 {
     TunnelStateData *tunnelState = (TunnelStateData *)data;
     debugs(26, 3, HERE << conn << ", flag=" << flag);
     tunnelState->client.writer = NULL;
 
     if (flag != Comm::OK) {
-        auto err = new ErrorState(ERR_WRITE_ERROR, Http::scInternalServerError, tunnelState->request.getRaw(), tunnelState->al);
-        tunnelState->sendErrorAndDestroy(err, "client write failure");
+        const auto err = new ErrorState(ERR_WRITE_ERROR, Http::scInternalServerError, tunnelState->request.getRaw(), tunnelState->al);
+        err->xerrno = xerrno;
+        tunnelState->sendErrorAndDestroy(err, "CONNECT response write failure");
         return;
     }
 
@@ -1125,7 +1122,7 @@ tunnelStart(ClientHttpRequest * http)
             debugs(26, 4, HERE << "MISS access forbidden.");
             err = new ErrorState(ERR_FORWARDING_DENIED, Http::scForbidden, request, http->al);
             http->al->http.code = Http::scForbidden;
-            const Comm::ConnectionPointer conn = http->getConn()->clientConnection;
+            const auto conn = http->getConn()->clientConnection;
             if (http->clientExpectsConnectResponse())
                 errorSend(conn, err);
             else
@@ -1303,10 +1300,10 @@ TunnelStateData::saveError(ErrorState *error)
     savedError = error;
 }
 
-/// If the client expects error message, starts sending the given
-/// error message, leading to the eventual transaction termination.
-/// Otherwise initiates the transaction termination, which will happen
-/// only after all in-progress writing is complete.
+/// Makes sure the transaction is terminated, immediately (if possible) or after
+/// reporting the error to the client and/or finishing in-progress I/Os (as needed).
+/// If given, the error is absorbed and, during the first call, becomes the final error.
+/// Safe to call multiple times, but any call may delete this object.
 void
 TunnelStateData::sendErrorAndDestroy(ErrorState *err, const char *reason)
 {
