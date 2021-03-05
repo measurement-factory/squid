@@ -214,7 +214,7 @@ public:
     void notifyConnOpener();
 
     void saveError(ErrorState *);
-    void sendErrorAndDestroy(ErrorState *, const char *reason);
+    void sendErrorAndDestroy(const char *reason);
 
 private:
     /// Gives Security::PeerConnector access to Answer in the TunnelStateData callback dialer.
@@ -257,7 +257,7 @@ private:
     /// \returns whether the request should be retried (nil) or the description why it should not
     const char *checkRetry();
 
-    /// details of the "last tunneling attempt" failure (if it failed)
+    /// details of the last failure, if any
     ErrorState *savedError = nullptr;
     /// details of the failure that terminated this transaction
     ErrorState *finalError = nullptr;
@@ -433,7 +433,7 @@ TunnelStateData::retryOrBail(const char *context)
 
     /* bail */
 
-    sendErrorAndDestroy(savedError, bailDescription ? bailDescription : context);
+    sendErrorAndDestroy(bailDescription ? bailDescription : context);
 }
 
 int
@@ -935,7 +935,8 @@ tunnelConnectedWriteDone(const Comm::ConnectionPointer &conn, char *, size_t len
     if (flag != Comm::OK) {
         const auto err = new ErrorState(ERR_WRITE_ERROR, Http::scInternalServerError, tunnelState->request.getRaw(), tunnelState->al);
         err->xerrno = xerrno;
-        tunnelState->sendErrorAndDestroy(err, "CONNECT response write failure");
+        tunnelState->saveError(err);
+        tunnelState->sendErrorAndDestroy("CONNECT response write failure");
         return;
     }
 
@@ -1271,9 +1272,10 @@ TunnelStateData::noteDestinationsEnd(ErrorState *selectionError)
     destinations->destinationsFinalized = true;
     if (!destinationsFound) {
         assert(!savedError);
-        auto err = selectionError ? selectionError :
+        const auto err = selectionError ? selectionError :
             new ErrorState(ERR_CANNOT_FORWARD, Http::scInternalServerError, request.getRaw(), al);
-        return sendErrorAndDestroy(err, selectionError ?
+        saveError(err);
+        return sendErrorAndDestroy(selectionError ?
                 "path selection has failed" : "path selection found no paths");
     }
     // else continue to use one of the previously noted destinations;
@@ -1302,30 +1304,28 @@ TunnelStateData::saveError(ErrorState *error)
 }
 
 /// Makes sure the transaction is terminated, immediately (if possible) or after
-/// reporting the error to the client and/or finishing in-progress I/Os (as needed).
-/// If given, the error is absorbed and, during the first call, becomes the final error.
-/// Safe to call multiple times, but any call may delete this object.
+/// reporting the previously saved error to the client and/or finishing in-progress
+/// I/Os (as needed).
+/// All callers guarantee savedError existence, which becomes the final error during
+/// the first call. Safe to call multiple times.
 void
-TunnelStateData::sendErrorAndDestroy(ErrorState *err, const char *reason)
+TunnelStateData::sendErrorAndDestroy(const char *reason)
 {
     debugs(26, 3, "aborting transaction for " << reason);
-    assert(err);
-
-    // get rid of any cached error unless that is what the caller is sending
-    if (savedError != err)
-        delete savedError; // may be nil
-    savedError = nullptr;
+    assert(savedError);
 
     if (finalError) {
-        debugs(26, 4, "the final error already exists: " << finalError << ", discarding new error: " << err);
-        if (finalError != err) {
+        debugs(26, 4, "the final error already exists: " << finalError << ", discarding new error: " << savedError);
+        if (finalError != savedError) {
             // get rid of an error created after finalError
-            delete err;
+            delete savedError;
         }
+        savedError = nullptr;
         return;
     }
 
-    finalError = err;
+    finalError = savedError;
+    savedError = nullptr;
 
     if (request)
         request->hier.stopPeerClock(false);
@@ -1419,7 +1419,8 @@ TunnelStateData::usePinned()
     } catch (ErrorState * const error) {
         syncHierNote(nullptr, connManager ? connManager->pinning.host : request->url.host());
         // a PINNED path failure is fatal; do not wait for more paths
-        sendErrorAndDestroy(error, "pinned path failure");
+        saveError(error);
+        sendErrorAndDestroy("pinned path failure");
         return;
     }
 
