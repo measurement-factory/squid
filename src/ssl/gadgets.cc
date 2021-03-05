@@ -12,7 +12,11 @@
 static EVP_PKEY *
 CreateRsaPrivateKey()
 {
+#if OPENSSL_VERSION_MAJOR < 3
     Ssl::EVP_PKEY_CTX_Pointer rsa(EVP_PKEY_CTX_new_id(EVP_PKEY_RSA, nullptr));
+#else
+    Ssl::EVP_PKEY_CTX_Pointer rsa(EVP_PKEY_CTX_new_from_name(NULL, "RSA", NULL));
+#endif
     if (!rsa)
         return nullptr;
 
