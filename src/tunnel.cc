@@ -1006,6 +1006,7 @@ TunnelStateData::notePeerReadyToShovel(const Comm::ConnectionPointer &conn)
                                              CommIoCbPtrFun(tunnelConnectedWriteDone, this));
         al->reply = HttpReply::MakeConnectionEstablished();
         const auto mb = al->reply->pack();
+        // XXX: check that client connection is still open/not_closing
         client.write(mb->content(), mb->contentSize(), call, mb->freeFunc());
         delete mb;
     }
