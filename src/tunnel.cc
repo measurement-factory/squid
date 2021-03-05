@@ -416,6 +416,7 @@ TunnelStateData::retryOrBail(const char *context)
     // TCP-connect to other destinations (including alternate IPs).
 
     assert(!server.conn);
+    assert(savedError);
 
     const auto *bailDescription = checkRetry();
     if (!bailDescription) {
