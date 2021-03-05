@@ -1269,12 +1269,9 @@ TunnelStateData::noteDestinationsEnd(ErrorState *selectionError)
     PeerSelectionInitiator::subscribed = false;
     destinations->destinationsFinalized = true;
     if (!destinationsFound) {
-
-        if (selectionError)
-            return sendErrorAndDestroy(selectionError, "path selection has failed");
-
-        return sendErrorAndDestroy(savedError, savedError ?
-                "all found paths have failed" : "path selection found no paths");
+        assert(!savedError);
+        return sendErrorAndDestroy(selectionError, selectionError ?
+                "path selection has failed" : "path selection found no paths");
     }
     // else continue to use one of the previously noted destinations;
     // if all of them fail, tunneling as whole will fail
