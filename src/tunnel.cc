@@ -1334,8 +1334,8 @@ TunnelStateData::sendErrorAndDestroy(ErrorState *err, const char *reason)
 
     *status_ptr = finalError->httpStatus;
 
-    const auto canSendError = !client.dirty && clientExpectsConnectResponse();
-    if (canSendError) {
+    const auto canSendError = !client.dirty && Comm::IsConnOpen(client.conn);
+    if (canSendError && clientExpectsConnectResponse()) {
         finalError->callback = tunnelErrorComplete;
         finalError->callback_data = this;
         errorSend(client.conn, finalError);

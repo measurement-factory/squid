@@ -1707,17 +1707,16 @@ ClientHttpRequest::clearRequest()
 bool
 ClientHttpRequest::clientExpectsConnectResponse() const
 {
-    const auto conn = getConn();
-    if (conn && !Comm::IsConnOpen(conn->clientConnection))
-        return false;
     // If we are forcing a tunnel after receiving a client CONNECT, then we
     // have already responded to that CONNECT
     if (request && request->flags.forceTunnel)
         return false;
 #if USE_OPENSSL
-    // We are bumping and we had already send "OK CONNECTED"
-    if (conn && conn->serverBump() && conn->serverBump()->at(XactionStep::tlsBump2, XactionStep::tlsBump3))
-        return false;
+    if (const auto conn = getConn()) {
+        // We are bumping and we had already send "OK CONNECTED"
+        if (conn && conn->serverBump() && conn->serverBump()->at(XactionStep::tlsBump2, XactionStep::tlsBump3))
+            return false;
+    }
 #endif
     return !(request && (request->flags.interceptTproxy || request->flags.intercepted));
 }
