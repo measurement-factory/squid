@@ -1271,7 +1271,9 @@ TunnelStateData::noteDestinationsEnd(ErrorState *selectionError)
     destinations->destinationsFinalized = true;
     if (!destinationsFound) {
         assert(!savedError);
-        return sendErrorAndDestroy(selectionError, selectionError ?
+        auto err = selectionError ? selectionError :
+            new ErrorState(ERR_CANNOT_FORWARD, Http::scInternalServerError, request.getRaw(), al);
+        return sendErrorAndDestroy(err, selectionError ?
                 "path selection has failed" : "path selection found no paths");
     }
     // else continue to use one of the previously noted destinations;
@@ -1307,6 +1309,7 @@ void
 TunnelStateData::sendErrorAndDestroy(ErrorState *err, const char *reason)
 {
     debugs(26, 3, "aborting transaction for " << reason);
+    assert(err);
 
     // get rid of any cached error unless that is what the caller is sending
     if (savedError != err)
@@ -1317,12 +1320,12 @@ TunnelStateData::sendErrorAndDestroy(ErrorState *err, const char *reason)
         debugs(26, 4, "the final error already exists: " << finalError << ", discarding new error: " << err);
         if (finalError != err) {
             // get rid of an error created after finalError
-            delete err; // may be nil
+            delete err;
         }
         return;
     }
 
-    finalError = err ? err : new ErrorState(ERR_CANNOT_FORWARD, Http::scInternalServerError, request.getRaw(), al);
+    finalError = err;
 
     if (request)
         request->hier.stopPeerClock(false);
