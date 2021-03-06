@@ -508,9 +508,14 @@ Security::ServerOptions::updateContextEecdh(Security::ContextPointer &ctx)
 #if USE_OPENSSL
     if (parsedDhParams) {
 #if OPENSSL_VERSION_MAJOR >= 3
-        if (EVP_PKEY_up_ref(parsedDhParams.get())) {
-            if (!SSL_CTX_set0_tmp_dh_pkey(ctx.get(), parsedDhParams.get()))
-                EVP_PKEY_free(parsedDhParams.get());
+        if (!EVP_PKEY_up_ref(parsedDhParams.get())) {
+            debugs(83, DBG_CRITICAL, "ERROR: EVP_PKEY locking failure");
+            return;
+        }
+        if (!SSL_CTX_set0_tmp_dh_pkey(ctx.get(), parsedDhParams.get())) {
+            debugs(83, DBG_CRITICAL, "ERROR: Unable to set DH parameters");
+            EVP_PKEY_free(parsedDhParams.get());
+            return;
         }
 #else
         SSL_CTX_set_tmp_dh(ctx.get(), parsedDhParams.get());
