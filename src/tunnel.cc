@@ -1101,7 +1101,6 @@ tunnelStart(ClientHttpRequest * http)
     debugs(26, 3, HERE);
     /* Create state structure. */
     TunnelStateData *tunnelState = NULL;
-    ErrorState *err = NULL;
     HttpRequest *request = http->request;
     char *url = http->uri;
 
@@ -1123,13 +1122,14 @@ tunnelStart(ClientHttpRequest * http)
         ch.syncAle(request, http->log_uri);
         if (ch.fastCheck().denied()) {
             debugs(26, 4, HERE << "MISS access forbidden.");
-            err = new ErrorState(ERR_FORWARDING_DENIED, Http::scForbidden, request, http->al);
-            http->al->http.code = Http::scForbidden;
             const auto conn = http->getConn()->clientConnection;
-            if (http->clientExpectsConnectResponse())
+            http->al->http.code = Http::scForbidden;
+            if (http->clientExpectsConnectResponse()) {
+                const auto err = new ErrorState(ERR_FORWARDING_DENIED, Http::scForbidden, request, http->al);
                 errorSend(conn, err);
-            else
+            } else {
                 conn->close(); // closing the client connection is the best we can do
+            }
             return;
         }
     }
@@ -1299,6 +1299,10 @@ TunnelStateData::saveError(ErrorState *error)
 {
     debugs(26, 4, savedError << " ? " << error);
     assert(error);
+    // nobody saves finalError (or makes finalError equal to savedError)
+    assert(!finalError || (finalError != error && finalError != savedError));
+    if (savedError == error)
+        return;
     delete savedError; // may be nil
     savedError = error;
 }
@@ -1316,10 +1320,9 @@ TunnelStateData::sendErrorAndDestroy(const char *reason)
 
     if (finalError) {
         debugs(26, 4, "the final error already exists: " << finalError << ", discarding new error: " << savedError);
-        if (finalError != savedError) {
-            // get rid of an error created after finalError
-            delete savedError;
-        }
+        assert(finalError != savedError);
+        // get rid of an error created after finalError
+        delete savedError;
         savedError = nullptr;
         return;
     }
@@ -1340,6 +1343,7 @@ TunnelStateData::sendErrorAndDestroy(const char *reason)
 
     const auto canSendError = !client.dirty && Comm::IsConnOpen(client.conn);
     if (canSendError && clientExpectsConnectResponse()) {
+        assert(!client.writer);
         finalError->callback = tunnelErrorComplete;
         finalError->callback_data = this;
         errorSend(client.conn, finalError);

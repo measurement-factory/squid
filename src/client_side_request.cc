@@ -1713,7 +1713,7 @@ ClientHttpRequest::clientExpectsConnectResponse() const
         return false;
 #if USE_OPENSSL
     if (const auto conn = getConn()) {
-        // We are bumping and we had already send "OK CONNECTED"
+        // We are bumping and we had already sent "OK CONNECTED"
         if (conn && conn->serverBump() && conn->serverBump()->at(XactionStep::tlsBump2, XactionStep::tlsBump3))
             return false;
     }
