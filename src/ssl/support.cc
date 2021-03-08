@@ -18,6 +18,7 @@
 #include "acl/FilledChecklist.h"
 #include "anyp/PortCfg.h"
 #include "anyp/Uri.h"
+#include "base/Build.h"
 #include "fatal.h"
 #include "fd.h"
 #include "fde.h"
@@ -521,7 +522,7 @@ Ssl::Initialize(void)
 
 #if !defined(OPENSSL_NO_ENGINE)
     if (::Config.SSL.ssl_engine) {
-        SQUID_BEGIN_IGNORE_OPENSSL_DEPRECATIONS;
+        SuspendCompilerGeneratedDeprecationWarnings();
         ENGINE_load_builtin_engines();
         ENGINE *e;
         if (!(e = ENGINE_by_id(::Config.SSL.ssl_engine)))
@@ -531,7 +532,7 @@ Ssl::Initialize(void)
             const auto ssl_error = ERR_get_error();
             fatalf("Failed to initialise SSL engine: %s\n", Security::ErrorString(ssl_error));
         }
-        SQUID_END_IGNORE_OPENSSL_DEPRECATIONS
+        ResumeCompilerGeneratedDeprecationWarnings();
     }
 #else
     // OpenSSL-3.0 and later deprecates the engines API and suggest

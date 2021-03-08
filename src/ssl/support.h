@@ -45,45 +45,6 @@
 #define SQUID_CERT_VALIDATION_ITERATION_MAX 16384
 #endif
 
-// The OpenSSL defines deprecation for platforms define the __GNUC__,
-// __MSC_VER and __SUNPRO_C.
-// The ICC defines both __GNUC__ and __MSC_VER.
-// The Clang compiler supports gcc pragmas for handling deprecation.
-// XXX: Check for more compilers defining one of the __GNUC__ __MSV_VER
-// or __SUNPRO_C
-#ifdef __ICC
-// Intel compiler defines both MSC_VER and __GNUC__ so it must be first
-// Untested
-#define SQUID_BEGIN_IGNORE_OPENSSL_DEPRECATIONS \
-    _Pragma ("warning (push)")                  \
-    _Pragma ("warning (disable:1478 1786)")
-#define SQUID_END_IGNORE_OPENSSL_DEPRECATIONS   \
-    _Pragma("warning (pop)")
-
-#elif defined(_MSC_VER)
-#define SQUID_BEGIN_IGNORE_OPENSSL_DEPRECATIONS \
-    _Pragma ("warning (push)")                  \
-    _Pragma ("warning (disable:4996)")
-#define SQUID_END_IGNORE_OPENSSL_DEPRECATIONS   \
-    _Pragma("warning (pop)")
-
-#elif defined(__GNUC__)
-// This is works for both clang and gcc 4.5 or later.
-#define SQUID_BEGIN_IGNORE_OPENSSL_DEPRECATIONS \
-    _Pragma("GCC diagnostic push")              \
-    _Pragma("GCC diagnostic ignored \"-Wdeprecated-declarations\"")
-
-#define SQUID_END_IGNORE_OPENSSL_DEPRECATIONS \
-    _Pragma("GCC diagnostic pop")
-
-#elif defined(__SUNPRO_C)
-// Untested
-#define SQUID_BEGIN_IGNORE_OPENSSL_DEPRECATIONS                         \
-    _Pragma("error_messages (off,symdeprecated,symdeprecated2)")
-#define SQUID_END_IGNORE_OPENSSL_DEPRECATIONS                   \
-    _Pragma("error_messages (on,symdeprecated,symdeprecated2)")
-#endif
-
 namespace AnyP
 {
 class PortCfg;
