@@ -1018,7 +1018,7 @@ tunnelErrorComplete(int fd/*const Comm::ConnectionPointer &*/, void *data, size_
     TunnelStateData *tunnelState = (TunnelStateData *)data;
     debugs(26, 3, HERE << "FD " << fd);
     assert(tunnelState != NULL);
-    tunnelState->client.writer = nullptr;
+    assert(!tunnelState->client.writer);
     /* temporary lock to save our own feets (comm_close -> tunnelClientClosed -> Free) */
     CbcPointer<TunnelStateData> safetyLock(tunnelState);
 
