@@ -96,11 +96,6 @@ public:
         return (server.conn != NULL && server.conn->getPeer() ? server.conn->getPeer()->host : request->url.host());
     };
 
-    /// Whether the client sent a CONNECT request to us.
-    bool clientExpectsConnectResponse() const {
-        return http.valid() && http->clientExpectsConnectResponse();
-    }
-
     /// starts connecting to the next hop, either for the first time or while
     /// recovering from the previous connect failure
     void startConnecting();
@@ -180,6 +175,9 @@ public:
     bool retriable;
     // TODO: remove after fixing deferred reads in TunnelStateData::copyRead()
     CodeContext::Pointer codeContext; ///< our creator context
+
+    /// a cached ClientHttpRequest::clientExpectsConnectResponse() value at the object creation time
+    bool clientExpectsConnectResponse;
 
     // AsyncCalls which we set and may need cancelling.
     struct {
@@ -367,6 +365,7 @@ TunnelStateData::TunnelStateData(ClientHttpRequest *clientRequest) :
     logTag_ptr = &clientRequest->logType;
     al = clientRequest->al;
     http = clientRequest;
+    clientExpectsConnectResponse = clientRequest->clientExpectsConnectResponse();
 
     client.initConnection(clientRequest->getConn()->clientConnection, tunnelClientClosed, "tunnelClientClosed", this);
 
@@ -999,7 +998,7 @@ TunnelStateData::notePeerReadyToShovel(const Comm::ConnectionPointer &conn)
     retriable = false;
     server.initConnection(conn, tunnelServerClosed, "tunnelServerClosed", this);
 
-    if (!clientExpectsConnectResponse())
+    if (!clientExpectsConnectResponse)
         tunnelStartShoveling(this); // ssl-bumped connection, be quiet
     else {
         *status_ptr = Http::scOkay;
@@ -1342,7 +1341,7 @@ TunnelStateData::sendErrorAndDestroy(const char *reason)
     *status_ptr = finalError->httpStatus;
 
     const auto canSendError = !client.dirty && Comm::IsConnOpen(client.conn);
-    if (canSendError && clientExpectsConnectResponse()) {
+    if (canSendError && clientExpectsConnectResponse) {
         assert(!client.writer);
         finalError->callback = tunnelErrorComplete;
         finalError->callback_data = this;
