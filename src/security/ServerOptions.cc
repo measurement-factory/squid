@@ -471,13 +471,14 @@ Security::ServerOptions::updateContextEecdh(Security::ContextPointer &ctx)
     if (!eecdhCurve.isEmpty()) {
         debugs(83, 9, "Setting Ephemeral ECDH curve to " << eecdhCurve << ".");
 
+#if USE_OPENSSL
         int nid = OBJ_sn2nid(eecdhCurve.c_str());
         if (!nid) {
             debugs(83, DBG_CRITICAL, "ERROR: Unknown EECDH curve '" << eecdhCurve << "'");
             return;
         }
 
-#if USE_OPENSSL && OPENSSL_VERSION_MAJOR >= 3
+#elif USE_OPENSSL && OPENSSL_VERSION_MAJOR >= 3
          debugs(83, 5, "ERROR: going to set curve '" << eecdhCurve << "'");
         if (SSL_CTX_set1_groups_list(ctx.get(), eecdhCurve.c_str()) <= 0) {
             debugs(83, DBG_CRITICAL, "ERROR: Unable to set ECDH curve '" << eecdhCurve << "'");
