@@ -1709,6 +1709,9 @@ ClientHttpRequest::clientExpectsConnectResponse() const
 {
     // If we are forcing a tunnel after receiving a client CONNECT, then we
     // have already responded to that CONNECT
+    // TODO: While the above may be true today, the relationship between
+    // flags.forceTunnel and "ClientHttpRequest sent 200 Connection Established"
+    // state is very weak/indirect. Refactor to provide/assure strong guarantees.
     if (request && request->flags.forceTunnel)
         return false;
 #if USE_OPENSSL
