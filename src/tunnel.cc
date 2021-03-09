@@ -177,7 +177,7 @@ public:
     CodeContext::Pointer codeContext; ///< our creator context
 
     /// a cached ClientHttpRequest::clientExpectsConnectResponse() value at the object creation time
-    bool clientExpectsConnectResponse;
+    bool clientExpectedConnectResponse = false;
 
     // AsyncCalls which we set and may need cancelling.
     struct {
@@ -212,7 +212,7 @@ public:
     void notifyConnOpener();
 
     void saveError(ErrorState *);
-    void sendErrorAndDestroy(const char *reason);
+    void terminateWithSavedError(const char *reason);
 
 private:
     /// Gives Security::PeerConnector access to Answer in the TunnelStateData callback dialer.
@@ -365,7 +365,7 @@ TunnelStateData::TunnelStateData(ClientHttpRequest *clientRequest) :
     logTag_ptr = &clientRequest->logType;
     al = clientRequest->al;
     http = clientRequest;
-    clientExpectsConnectResponse = clientRequest->clientExpectsConnectResponse();
+    clientExpectedConnectResponse = clientRequest->clientExpectsConnectResponse();
 
     client.initConnection(clientRequest->getConn()->clientConnection, tunnelClientClosed, "tunnelClientClosed", this);
 
@@ -432,7 +432,7 @@ TunnelStateData::retryOrBail(const char *context)
 
     /* bail */
 
-    sendErrorAndDestroy(bailDescription ? bailDescription : context);
+    terminateWithSavedError(bailDescription ? bailDescription : context);
 }
 
 int
@@ -524,6 +524,7 @@ TunnelStateData::Connection::error(int const xerrno)
 {
     debugs(50, debugLevelForError(xerrno), HERE << conn << ": read/write failure: " << xstrerr(xerrno));
 
+    // No terminateWithSavedError(): We are only called when errors cannot be sent
     if (!ignoreErrno(xerrno))
         conn->close();
 }
@@ -663,7 +664,7 @@ TunnelStateData::writeServerDone(char *, size_t len, Comm::Flag flag, int xerrno
     }
 
     if (finalError) {
-        debugs(26, 4, "closing to-server connection after sendErrorAndDestroy()");
+        debugs(26, 4, "closing to-server connection after terminateWithSavedError()");
         server.conn->close();
         return;
     }
@@ -761,7 +762,7 @@ TunnelStateData::writeClientDone(char *, size_t len, Comm::Flag flag, int xerrno
     }
 
     if (finalError) {
-        debugs(26, 4, "closing from-client connection after sendErrorAndDestroy()");
+        debugs(26, 4, "closing from-client connection after terminateWithSavedError()");
         client.conn->close();
         return;
     }
@@ -892,6 +893,8 @@ tunnelStartShoveling(TunnelStateData *tunnelState)
 {
     assert(!tunnelState->waitingForConnectExchange);
     assert(tunnelState->server.conn);
+    // XXX: check that client connection is still open/not_closing
+
     AsyncCall::Pointer timeoutCall = commCbCall(5, 4, "tunnelTimeout",
                                      CommTimeoutCbPtrFun(tunnelTimeout, tunnelState));
     commSetConnTimeout(tunnelState->server.conn, Config.Timeout.read, timeoutCall);
@@ -935,7 +938,7 @@ tunnelConnectedWriteDone(const Comm::ConnectionPointer &conn, char *, size_t len
         const auto err = new ErrorState(ERR_WRITE_ERROR, Http::scInternalServerError, tunnelState->request.getRaw(), tunnelState->al);
         err->xerrno = xerrno;
         tunnelState->saveError(err);
-        tunnelState->sendErrorAndDestroy("CONNECT response write failure");
+        tunnelState->terminateWithSavedError("CONNECT response write failure");
         return;
     }
 
@@ -998,7 +1001,7 @@ TunnelStateData::notePeerReadyToShovel(const Comm::ConnectionPointer &conn)
     retriable = false;
     server.initConnection(conn, tunnelServerClosed, "tunnelServerClosed", this);
 
-    if (!clientExpectsConnectResponse)
+    if (!clientExpectedConnectResponse)
         tunnelStartShoveling(this); // ssl-bumped connection, be quiet
     else {
         *status_ptr = Http::scOkay;
@@ -1274,7 +1277,7 @@ TunnelStateData::noteDestinationsEnd(ErrorState *selectionError)
         const auto err = selectionError ? selectionError :
             new ErrorState(ERR_CANNOT_FORWARD, Http::scInternalServerError, request.getRaw(), al);
         saveError(err);
-        return sendErrorAndDestroy(selectionError ?
+        return terminateWithSavedError(selectionError ?
                 "path selection has failed" : "path selection found no paths");
     }
     // else continue to use one of the previously noted destinations;
@@ -1312,7 +1315,7 @@ TunnelStateData::saveError(ErrorState *error)
 /// All callers guarantee savedError existence, which becomes the final error during
 /// the first call. Safe to call multiple times.
 void
-TunnelStateData::sendErrorAndDestroy(const char *reason)
+TunnelStateData::terminateWithSavedError(const char *reason)
 {
     debugs(26, 3, "aborting transaction for " << reason);
     assert(savedError);
@@ -1320,9 +1323,6 @@ TunnelStateData::sendErrorAndDestroy(const char *reason)
     if (finalError) {
         debugs(26, 4, "the final error already exists: " << finalError << ", discarding new error: " << savedError);
         assert(finalError != savedError);
-        // get rid of an error created after finalError
-        delete savedError;
-        savedError = nullptr;
         return;
     }
 
@@ -1341,7 +1341,7 @@ TunnelStateData::sendErrorAndDestroy(const char *reason)
     *status_ptr = finalError->httpStatus;
 
     const auto canSendError = !client.dirty && Comm::IsConnOpen(client.conn);
-    if (canSendError && clientExpectsConnectResponse) {
+    if (canSendError && clientExpectedConnectResponse) {
         assert(!client.writer);
         finalError->callback = tunnelErrorComplete;
         finalError->callback_data = this;
@@ -1423,7 +1423,7 @@ TunnelStateData::usePinned()
         syncHierNote(nullptr, connManager ? connManager->pinning.host : request->url.host());
         // a PINNED path failure is fatal; do not wait for more paths
         saveError(error);
-        sendErrorAndDestroy("pinned path failure");
+        terminateWithSavedError("pinned path failure");
         return;
     }
 
