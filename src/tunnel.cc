@@ -381,6 +381,8 @@ TunnelStateData::~TunnelStateData()
     xfree(url);
     if (opening())
         cancelOpening("~TunnelStateData");
+    if (request->hier.peerClockStarted())
+        request->hier.stopPeerClock(false);
     assert(!finalError || finalError != savedError); // different unless both are nil
     delete savedError;
     delete finalError;
@@ -1329,9 +1331,6 @@ TunnelStateData::terminateWithSavedError(const char *reason)
     finalError = savedError;
     savedError = nullptr;
 
-    if (request)
-        request->hier.stopPeerClock(false);
-
     if (opening())
         cancelOpening(reason);
 
@@ -1385,8 +1384,7 @@ TunnelStateData::cancelOpening(const char *reason)
 void
 TunnelStateData::startConnecting()
 {
-    if (request)
-        request->hier.startPeerClock();
+    request->hier.startPeerClock();
 
     assert(!destinations->empty());
     assert(!opening());
