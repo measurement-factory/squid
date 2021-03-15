@@ -1329,8 +1329,8 @@ TunnelStateData::terminateWithSavedError(const char *reason)
     finalError = savedError;
     savedError = nullptr;
 
-    if (request)
-        request->hier.stopPeerClock(false);
+    // TODO: this may be premature if we are still writing to the peer
+    request->hier.stopPeerClock(false);
 
     if (opening())
         cancelOpening(reason);
@@ -1385,8 +1385,7 @@ TunnelStateData::cancelOpening(const char *reason)
 void
 TunnelStateData::startConnecting()
 {
-    if (request)
-        request->hier.startPeerClock();
+    request->hier.startPeerClock();
 
     assert(!destinations->empty());
     assert(!opening());
