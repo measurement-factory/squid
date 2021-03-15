@@ -53,9 +53,6 @@ public:
     /// \returns whether the estimate (stored in `responseTime`) is available.
     bool totalResponseTime(struct timeval &responseTime);
 
-    /// whether startPeerClock() was called
-    bool peerClockStarted() const { return firstConnStart_.tv_sec; }
-
 public:
     hier_code code;
     char host[SQUIDHOSTNAMELEN];
