@@ -1329,7 +1329,8 @@ TunnelStateData::terminateWithSavedError(const char *reason)
     finalError = savedError;
     savedError = nullptr;
 
-    // TODO: this may be premature if we are still writing to the peer
+    // TODO: if we are still writing to the peer, we need to do this later,
+    // when all data is written (or the server connection is closed).
     request->hier.stopPeerClock(false);
 
     if (opening())
