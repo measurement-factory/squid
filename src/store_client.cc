@@ -26,6 +26,7 @@
 #include "StoreClient.h"
 #include "StoreMeta.h"
 #include "StoreMetaUnpacker.h"
+#include "sbuf/Stream.h"
 #if USE_DELAY_POOLS
 #include "DelayPools.h"
 #endif
@@ -194,12 +195,30 @@ storeClientCopyEvent(void *data)
     storeClientCopy2(sc->entry, sc);
 }
 
+void
+store_client::startBufferingReplyBytes()
+{
+    if (!replyHeaderBytes) {
+        replyHeaderBytes = new MemBuf;
+        const auto initialSize = HTTP_REPLY_BUF_SZ > Config.maxReplyHeaderSize ? Config.maxReplyHeaderSize : HTTP_REPLY_BUF_SZ;
+        replyHeaderBytes->init(initialSize, Config.maxReplyHeaderSize);
+    }
+}
+
+void
+store_client::stopBufferingHeaderBytes()
+{
+    delete replyHeaderBytes;
+    replyHeaderBytes = nullptr;
+}
+
 store_client::store_client(StoreEntry *e) :
     cmp_offset(0),
 #if STORE_CLIENT_LIST_DEBUG
     owner(cbdataReference(data)),
 #endif
     entry(e),
+    replyHeaderBytes(nullptr),
     type(e->storeClientType()),
     object_ok(true)
 {
@@ -216,7 +235,9 @@ store_client::store_client(StoreEntry *e) :
 }
 
 store_client::~store_client()
-{}
+{
+    stopBufferingHeaderBytes();
+}
 
 /* copy bytes requested by the client */
 void
@@ -497,11 +518,32 @@ store_client::fileRead()
               this);
 }
 
+bool
+store_client::parseHttpHeader(const ssize_t len)
+{
+    startBufferingReplyBytes();
+    replyHeaderBytes->append(copyInto.data, len);
+    replyHeaderBytes->terminate();
+    auto error = Http::scNone;
+    auto &adjustableReply = entry->mem_obj->adjustableBaseReply();
+    const auto bufSize = replyHeaderBytes->size;
+    if (adjustableReply.parse(replyHeaderBytes->buf, replyHeaderBytes->size, 0, &error)) {
+        assert(adjustableReply.pstate == Http::Message::psParsed);
+        assert(!expectingHttpHeader()); // paranoid
+        return true;
+    } else if (error) {
+        stopBufferingHeaderBytes();
+        debugs(90, DBG_IMPORTANT, "Could not parse headers from on disk object, object size=" << bufSize);
+        fail();
+        return false;
+    }
+    // else more data needed
+    return false;
+}
+
 void
 store_client::readBody(const char *, ssize_t len)
 {
-    int parsed_header = 0;
-
     // Don't assert disk_io_pending here.. may be called by read_header
     flags.disk_io_pending = false;
     assert(_callback.pending());
@@ -510,16 +552,15 @@ store_client::readBody(const char *, ssize_t len)
     if (len < 0)
         return fail();
 
-    const auto rep = entry->mem_obj ? &entry->mem().baseReply() : nullptr;
-    if (copyInto.offset == 0 && len > 0 && rep && rep->sline.status() == Http::scNone) {
-        /* Our structure ! */
-        if (!entry->mem_obj->adjustableBaseReply().parseCharBuf(copyInto.data, headersEnd(copyInto.data, len))) {
-            debugs(90, DBG_CRITICAL, "Could not parse headers from on disk object");
-        } else {
-            parsed_header = 1;
-        }
+    const auto expectingHeader = expectingHttpHeader();
+    auto doneParsingHeader = false;
+    if (expectingHeader) {
+        doneParsingHeader = parseHttpHeader(len);
+        if (!object_ok)
+            return;
     }
 
+    const auto rep = entry->mem_obj ? &entry->mem().baseReply() : nullptr;
     if (len > 0 && rep && entry->mem_obj->inmem_lo == 0 && entry->objectLen() <= (int64_t)Config.Store.maxInMemObjSize && Config.onoff.memory_cache_disk) {
         storeGetMemSpace(len);
         // The above may start to free our object so we need to check again
@@ -527,11 +568,25 @@ store_client::readBody(const char *, ssize_t len)
             /* Copy read data back into memory.
              * copyInto.offset includes headers, which is what mem cache needs
              */
-            int64_t mem_offset = entry->mem_obj->endOffset();
-            if ((copyInto.offset == mem_offset) || (parsed_header && mem_offset == rep->hdr_sz)) {
+            const auto memOffset = entry->mem_obj->endOffset();
+            if (doneParsingHeader) {
+                assert(replyHeaderBytes);
+                entry->mem_obj->write(StoreIOBuffer(replyHeaderBytes, 0));
+            } else if (copyInto.offset == memOffset && memOffset > 0) {
+                assert(!expectingHeader);
                 entry->mem_obj->write(StoreIOBuffer(len, copyInto.offset, copyInto.data));
             }
         }
+    }
+
+    if (doneParsingHeader)
+        stopBufferingHeaderBytes();
+
+    if (expectingHeader && !doneParsingHeader) {
+        // more data needed to parse the header
+        copyInto.offset += len;
+        fileRead();
+        return;
     }
 
     callback(len);
@@ -605,6 +660,13 @@ store_client::unpackHeader(char const *buf, ssize_t len)
            entry->swap_file_sz << "( " << swap_hdr_sz << " + " <<
            entry->mem_obj->object_sz << ")");
     return true;
+}
+
+bool
+store_client::expectingHttpHeader() const
+{
+    const auto rep = entry->mem_obj ? &entry->mem().baseReply() : nullptr;
+    return rep && (rep->pstate < Http::Message::psParsed);
 }
 
 void
