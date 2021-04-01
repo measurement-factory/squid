@@ -1795,6 +1795,15 @@ DOC_START
 	sources is required to prevent abuse of your proxy.
 DOC_END
 
+NAME: bumped_traffic_indirect_client_address
+TYPE: bumped_traffic_indirect_client_address
+COMMENT: none|tunnel|follow_x_forwarded_for
+IFDEF: FOLLOW_X_FORWARDED_FOR&&USE_OPENSSL
+DEFAULT: none
+LOC: Ssl::TheConfig.bumped_traffic_indirect_client_address
+DOC_START
+DOC_END
+
 NAME: spoof_client_ip
 TYPE: acl_access
 LOC: Config.accessList.spoof_client_ip
