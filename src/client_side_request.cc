@@ -682,13 +682,16 @@ void
 ClientRequestContext::clientAccessCheck()
 {
 #if FOLLOW_X_FORWARDED_FOR
+#if USE_OPENSSL
     if (http->request->flags.sslBumped && Ssl::TheConfig.bumped_traffic_indirect_client_address == Ssl::Config::xffTunnel) {
         http->request->indirect_client_addr = http->getConn()->serverBump()->indirectClient;
     } else if (http->request->flags.sslBumped && Ssl::TheConfig.bumped_traffic_indirect_client_address == Ssl::Config::xffNone) {
         // let the default indirect client which is the client ip address
-    } else if (!http->request->flags.doneFollowXff() &&
-               Config.accessList.followXFF &&
-               http->request->header.has(Http::HdrType::X_FORWARDED_FOR)) {
+    } else
+#endif
+    if (!http->request->flags.doneFollowXff() &&
+        Config.accessList.followXFF &&
+        http->request->header.has(Http::HdrType::X_FORWARDED_FOR)) {
 
         /* we always trust the direct client address for actual use */
         http->request->indirect_client_addr = http->request->client_addr;
