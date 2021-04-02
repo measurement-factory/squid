@@ -1802,6 +1802,22 @@ IFDEF: FOLLOW_X_FORWARDED_FOR&&USE_OPENSSL
 DEFAULT: none
 LOC: Ssl::TheConfig.bumped_traffic_indirect_client_address
 DOC_START
+	Controls which address will be used as indirect client address
+	for the HTTP requests tunneled through a bumped connection.
+
+		bumped_traffic_indirect_client_address <mode>
+
+	Supported modes are:
+
+	none	Use the direct client IP address as indirect
+		client address
+
+	tunnel	Use the indirect client address of the bumped CONNECT
+		request
+
+	follow_x_forwarded_for
+		The indirect client address computed for each tunneled
+		HTTP request from its XFF headers
 DOC_END
 
 NAME: spoof_client_ip
