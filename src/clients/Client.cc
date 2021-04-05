@@ -133,6 +133,13 @@ Client::finalReply()
     return theFinalReply;
 }
 
+const HttpReply *
+Client::finalReply() const
+{
+    assert(theFinalReply);
+    return theFinalReply;
+}
+
 HttpReply *
 Client::setFinalReply(HttpReply *rep)
 {
@@ -150,9 +157,29 @@ Client::setFinalReply(HttpReply *rep)
     haveParsedReplyHeaders(); // update the entry/reply (e.g., set timestamps)
     if (!EBIT_TEST(entry->flags, RELEASE_REQUEST) && blockCaching())
         entry->release();
+
+    startIncompleteLengthTracking();
+
     entry->startWriting(); // write the updated entry to store
 
     return theFinalReply;
+}
+
+void
+Client::startIncompleteLengthTracking()
+{
+    if (finalReply()->bodySize(request->method) < 0)
+        EBIT_SET(entry->flags, ENTRY_BAD_LENGTH);
+}
+
+void
+Client::stopIncompleteLengthTracking()
+{
+    if (!EBIT_TEST(entry->flags, ENTRY_BAD_LENGTH))
+        return;
+
+    if (lengthCompleted())
+         EBIT_CLR(entry->flags, ENTRY_BAD_LENGTH);
 }
 
 // called when no more server communication is expected; may quit
@@ -168,6 +195,8 @@ Client::serverComplete()
 
     completed = true;
     originalRequest()->hier.stopPeerClock(true);
+
+    stopIncompleteLengthTracking();
 
     if (requestBodySource != NULL)
         stopConsumingFrom(requestBodySource);

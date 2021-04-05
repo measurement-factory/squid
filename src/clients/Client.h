@@ -143,6 +143,7 @@ protected:
     HttpReply *setVirginReply(HttpReply *r);
 
     HttpReply *finalReply();
+    const HttpReply *finalReply() const;
     HttpReply *setFinalReply(HttpReply *r);
 
     // Kids use these to stuff data into the response instead of messing with the entry directly
@@ -155,6 +156,10 @@ protected:
     size_t calcBufferSpaceToReserve(const size_t space, const size_t wantSpace) const;
 
     void adjustBodyBytesRead(const int64_t delta);
+
+    void startIncompleteLengthTracking();
+    void stopIncompleteLengthTracking();
+    virtual bool lengthCompleted() const = 0;
 
     // These should be private
     int64_t currentOffset = 0;  /**< Our current offset in the StoreEntry */
