@@ -281,6 +281,8 @@ public:
         return !EBIT_TEST(flags, KEY_PRIVATE) || shareableWhenPrivate;
     }
 
+    bool validLength() const;
+
 #if USE_ADAPTATION
     /// call back producer when more buffer space is available
     void deferProducer(const AsyncCall::Pointer &producer);
@@ -324,7 +326,6 @@ private:
     AsyncCall::Pointer deferredProducer;
 #endif
 
-    bool validLength() const;
     bool hasOneOfEtags(const String &reqETags, const bool allowWeakMatch) const;
 
     friend std::ostream &operator <<(std::ostream &os, const StoreEntry &e);

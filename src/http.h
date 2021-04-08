@@ -109,7 +109,7 @@ private:
     virtual bool doneWithServer() const; // did we end communication?
     virtual void abortAll(const char *reason); // abnormal termination
     virtual bool mayReadVirginReplyBody() const;
-    virtual bool lengthCompleted() const;
+    virtual bool validLength() const;
 
     void abortTransaction(const char *reason) { abortAll(reason); } // abnormal termination
 

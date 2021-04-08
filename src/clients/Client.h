@@ -157,9 +157,8 @@ protected:
 
     void adjustBodyBytesRead(const int64_t delta);
 
-    void startIncompleteLengthTracking();
-    void stopIncompleteLengthTracking();
-    virtual bool lengthCompleted() const = 0;
+    void checkLength();
+    virtual bool validLength() const = 0;
 
     // These should be private
     int64_t currentOffset = 0;  /**< Our current offset in the StoreEntry */

@@ -162,8 +162,15 @@ HttpStateData::httpTimeout(const CommTimeoutCbParams &)
 {
     debugs(11, 4, serverConnection << ": '" << entry->url() << "'");
 
-    if (entry->store_status == STORE_PENDING)
+    if (entry->store_status == STORE_PENDING) {
+        // Inform everybody that this incomplete entry will never get the entire
+        // response (regardless of chunked encoding, Content-Length, or even
+        // RESPMOD). However, preserve the _empty_ entry state to avoid tainting
+        // the (full) error response that FwdState::completed() should store.
+        if (!entry->isEmpty())
+            entry->lengthWentBad(__FUNCTION__);
         fwd->fail(new ErrorState(ERR_READ_TIMEOUT, Http::scGatewayTimeout, fwd->request, fwd->al));
+    }
 
     closeServer();
     mustStop("HttpStateData::httpTimeout");
@@ -977,11 +984,10 @@ HttpStateData::peerSupportsConnectionPinning() const
 }
 
 bool
-HttpStateData::lengthCompleted() const
+HttpStateData::validLength() const
 {
     if (finalReply()->content_length >= 0)
-        return true;
-
+        return entry->validLength();
     return (flags.chunked && lastChunk) || (!flags.chunked && eof);
 }
 
