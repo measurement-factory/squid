@@ -9,6 +9,7 @@
 #ifndef SQUID_MEMOBJECT_H
 #define SQUID_MEMOBJECT_H
 
+#include "base/Optional.h"
 #include "CommRead.h"
 #include "dlink.h"
 #include "http/RequestMethod.h"
@@ -184,6 +185,18 @@ public:
         Io io = ioUndecided; ///< current I/O state
     };
     MemCache memCache; ///< current [shared] memory caching state for the entry
+
+    class CompleteResponse
+    {
+    public:
+        bool completed() const { return !reason.has_value() || reason.value(); }
+
+        /// non-nil or undefined means that a complete response has been received (from a peer or adaptation)
+        Optional<const char *> reason;
+        /// the number of bytes received (from a peer or adaptation)
+        int64_t length = -1;
+    };
+    CompleteResponse completeResponse;
 
     HttpRequestPointer request;
 

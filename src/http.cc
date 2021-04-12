@@ -163,12 +163,6 @@ HttpStateData::httpTimeout(const CommTimeoutCbParams &)
     debugs(11, 4, serverConnection << ": '" << entry->url() << "'");
 
     if (entry->store_status == STORE_PENDING) {
-        // Inform everybody that this incomplete entry will never get the entire
-        // response (regardless of chunked encoding, Content-Length, or even
-        // RESPMOD). However, preserve the _empty_ entry state to avoid tainting
-        // the (full) error response that FwdState::completed() should store.
-        if (!entry->isEmpty())
-            entry->lengthWentBad(__FUNCTION__);
         fwd->fail(new ErrorState(ERR_READ_TIMEOUT, Http::scGatewayTimeout, fwd->request, fwd->al));
     }
 
@@ -1528,6 +1522,7 @@ HttpStateData::processReplyBody()
         if (flags.chunked) {
             if (!decodeAndWriteReplyBody()) {
                 flags.do_next_read = false;
+                entry->fullyReceived(nullptr, currentOffset);
                 serverComplete();
                 return;
             }
@@ -1597,13 +1592,14 @@ HttpStateData::processReplyBody()
             } else {
                 fwdPconnPool->push(serverConnectionSaved, request->url.host());
             }
-
+            entry->fullyReceived("COMPLETE_PERSISTENT_MSG", currentOffset);
             serverComplete();
             return;
         }
 
         case COMPLETE_NONPERSISTENT_MSG:
             debugs(11, 5, "processReplyBody: COMPLETE_NONPERSISTENT_MSG from " << serverConnection);
+            entry->fullyReceived(flags.chunked && !lastChunk ? nullptr : "COMPLETE_NONPERSISTENT_MSG", currentOffset);
             serverComplete();
             return;
         }

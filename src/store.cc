@@ -1054,6 +1054,13 @@ StoreEntry::lengthWentBad(const char *reason)
 }
 
 void
+StoreEntry::fullyReceived(const char *reason, const int64_t length)
+{
+    mem_obj->completeResponse.reason = reason;
+    mem_obj->completeResponse.length = length;
+}
+
+void
 StoreEntry::complete()
 {
     debugs(20, 3, "storeComplete: '" << getMD5Text() << "'");
@@ -1247,7 +1254,7 @@ StoreEntry::validLength() const
 
     if (reply->content_length < 0) {
         debugs(20, 5, "storeEntryValidLength: Unspecified content length: " << getMD5Text());
-        return 1;
+        return mem_obj->completeResponse.completed();
     }
 
     if (reply->hdr_sz == 0) {
