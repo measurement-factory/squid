@@ -1056,7 +1056,7 @@ StoreEntry::lengthWentBad(const char *reason)
 void
 StoreEntry::fullyReceived(const char *reason, const int64_t length)
 {
-    mem_obj->completeResponse.reason = reason;
+    mem_obj->completeResponse.reason = Optional<const char *>(reason);
     mem_obj->completeResponse.length = length;
 }
 
