@@ -727,6 +727,18 @@ applyTlsDetailsToSSL(SSL *ssl, Security::TlsDetails::Pointer const &details, Ssl
 #if defined(TLSEXT_STATUSTYPE_ocsp)
     if (details->tlsStatusRequest)
         SSL_set_tlsext_status_type(ssl, TLSEXT_STATUSTYPE_ocsp);
+    else
+        SSL_set_tlsext_status_type(ssl, 0);
+#endif
+
+#if defined(SSL_OP_NO_TICKET)
+    if (!details->tlsTicketsExtension)
+        SSL_set_options(ssl, SSL_OP_NO_TICKET);
+#endif
+
+#if defined(SSL_OP_TLSEXT_PADDING)
+    if (details->tlsPadding)
+        SSL_set_options(ssl, SSL_OP_TLSEXT_PADDING);
 #endif
 
 #if defined(TLSEXT_TYPE_application_layer_protocol_negotiation)
