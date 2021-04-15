@@ -977,14 +977,6 @@ HttpStateData::peerSupportsConnectionPinning() const
     return false;
 }
 
-bool
-HttpStateData::validLength() const
-{
-    if (finalReply()->content_length >= 0)
-        return entry->validLength();
-    return (flags.chunked && lastChunk) || (!flags.chunked && eof);
-}
-
 // Called when we parsed (and possibly adapted) the headers but
 // had not starting storing (a.k.a., sending) the body yet.
 void
@@ -1305,7 +1297,12 @@ HttpStateData::readReply(const CommIoCbParams &io)
     case Comm::ENDFILE: // close detected by 0-byte read
         eof = 1;
         flags.do_next_read = false;
-
+        if (flags.headers_parsed && !flags.chunked && !startedAdaptation) {
+            HttpReply *vrep = virginReply();
+            int64_t clen = -1;
+            if (vrep->expectingBody(request->method, clen) && clen < 0)
+                entry->fullyReceived(payloadSeen, "the virgin reply without content length and chunking");
+        }
         /* Continue to process previously read data */
         break;
 
@@ -1485,6 +1482,8 @@ HttpStateData::decodeAndWriteReplyBody()
     if (doneParsing) {
         lastChunk = 1;
         flags.do_next_read = false;
+        if (!startedAdaptation)
+            entry->fullyWritten(httpChunkDecoder->parsedBodySize(), "the virgin chunked reply");
     }
     SQUID_EXIT_THROWING_CODE(wasThereAnException);
     return wasThereAnException;
@@ -1522,7 +1521,6 @@ HttpStateData::processReplyBody()
         if (flags.chunked) {
             if (!decodeAndWriteReplyBody()) {
                 flags.do_next_read = false;
-                entry->fullyReceived(nullptr, currentOffset);
                 serverComplete();
                 return;
             }
@@ -1592,14 +1590,12 @@ HttpStateData::processReplyBody()
             } else {
                 fwdPconnPool->push(serverConnectionSaved, request->url.host());
             }
-            entry->fullyReceived("COMPLETE_PERSISTENT_MSG", currentOffset);
             serverComplete();
             return;
         }
 
         case COMPLETE_NONPERSISTENT_MSG:
             debugs(11, 5, "processReplyBody: COMPLETE_NONPERSISTENT_MSG from " << serverConnection);
-            entry->fullyReceived(flags.chunked && !lastChunk ? nullptr : "COMPLETE_NONPERSISTENT_MSG", currentOffset);
             serverComplete();
             return;
         }

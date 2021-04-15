@@ -69,8 +69,11 @@ public:
     size_t bytesWanted(Range<size_t> const aRange, bool ignoreDelayPool = false) const;
     /// flags [truncated or too big] entry with ENTRY_BAD_LENGTH and releases it
     void lengthWentBad(const char *reason);
-    void fullyReceived(const char *reason, const int64_t length);
+    void fullyReceived(const int64_t length, const char *reason);
+    void fullyWritten(const int64_t length, const char *reason);
+    void resetResponseBodyLength() { mem_obj->responseBodyLength = Optional<uint64_t>(); }
     void complete();
+    void complete2();
     store_client_t storeClientType() const;
     /// \returns a malloc()ed buffer containing a length-long packed swap header
     const char *getSerialisedMetaData(size_t &length) const;
@@ -282,8 +285,6 @@ public:
         return !EBIT_TEST(flags, KEY_PRIVATE) || shareableWhenPrivate;
     }
 
-    bool validLength() const;
-
 #if USE_ADAPTATION
     /// call back producer when more buffer space is available
     void deferProducer(const AsyncCall::Pointer &producer);
@@ -310,6 +311,7 @@ private:
     void forcePublicKey(const cache_key *newkey);
     StoreEntry *adjustVary();
     const cache_key *calcPublicKey(const KeyScope keyScope);
+    void complete(bool checkBodyLength);
 
     static MemAllocator *pool;
 
@@ -327,6 +329,7 @@ private:
     AsyncCall::Pointer deferredProducer;
 #endif
 
+    bool validLength(const bool checkBodyLength) const;
     bool hasOneOfEtags(const String &reqETags, const bool allowWeakMatch) const;
 
     friend std::ostream &operator <<(std::ostream &os, const StoreEntry &e);

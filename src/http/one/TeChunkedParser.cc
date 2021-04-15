@@ -33,6 +33,7 @@ Http::One::TeChunkedParser::clear()
     parsingStage_ = Http1::HTTP_PARSE_NONE;
     buf_.clear();
     theChunkSize = theLeftBodySize = 0;
+    theParsedBodySize = 0;
     theOut = NULL;
     // XXX: We do not reset customExtensionValueParser here. Based on the
     // clear() API description, we must, but it makes little sense and could
@@ -191,6 +192,7 @@ Http::One::TeChunkedParser::parseChunkBody(Tokenizer &tok)
         theOut->append(buf_.rawContent(), safeSize);
         buf_.consume(safeSize);
         theLeftBodySize -= safeSize;
+        theParsedBodySize += safeSize;
 
         tok.reset(buf_); // sync buffers after consume()
     }

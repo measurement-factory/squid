@@ -67,6 +67,7 @@ public:
     virtual void clear();
     virtual bool parse(const SBuf &);
     virtual Parser::size_type firstLineSize() const {return 0;} // has no meaning with multiple chunks
+    uint64_t parsedBodySize() const { return theParsedBodySize; }
 
 private:
     bool parseChunkSize(Tokenizer &tok);
@@ -79,6 +80,7 @@ private:
     MemBuf *theOut;
     uint64_t theChunkSize;
     uint64_t theLeftBodySize;
+    uint64_t theParsedBodySize;
 
     /// An optional plugin for parsing and interpreting custom chunk-ext-val.
     /// This "visitor" object is owned by our creator.

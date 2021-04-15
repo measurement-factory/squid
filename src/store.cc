@@ -1054,14 +1054,35 @@ StoreEntry::lengthWentBad(const char *reason)
 }
 
 void
-StoreEntry::fullyReceived(const char *reason, const int64_t length)
+StoreEntry::fullyReceived(const int64_t length, const char *reason)
 {
-    mem_obj->completeResponse.reason = Optional<const char *>(reason);
-    mem_obj->completeResponse.length = length;
+    Must(!mem_obj->responseBodyLength.has_value());
+    debugs(20, 3, reason << " with " << length << "bytes: " << *this);
+    mem_obj->responseBodyLength = Optional<uint64_t>(length);
+}
+
+void
+StoreEntry::fullyWritten(const int64_t length, const char *reason)
+{
+    Must(!mem_obj->responseBodyLength.has_value());
+    debugs(20, 3, reason << " with " << length << "bytes: " << *this);
+    mem_obj->responseBodyLength = Optional<uint64_t>(length);
 }
 
 void
 StoreEntry::complete()
+{
+    complete(false);
+}
+
+void
+StoreEntry::complete2()
+{
+    complete(true);
+}
+
+void
+StoreEntry::complete(const bool checkBodyLength)
 {
     debugs(20, 3, "storeComplete: '" << getMD5Text() << "'");
 
@@ -1084,7 +1105,7 @@ StoreEntry::complete()
 
     assert(mem_status == NOT_IN_MEMORY);
 
-    if (!EBIT_TEST(flags, ENTRY_BAD_LENGTH) && !validLength())
+    if (!EBIT_TEST(flags, ENTRY_BAD_LENGTH) && !validLength(checkBodyLength))
         lengthWentBad("!validLength() in complete()");
 
 #if USE_CACHE_DIGESTS
@@ -1241,7 +1262,7 @@ storeLateRelease(void *)
 /// \returns true for responses with unknown/unspecified body length
 /// \returns true for responses with the right number of accumulated body bytes
 bool
-StoreEntry::validLength() const
+StoreEntry::validLength(const bool checkBodyLength) const
 {
     int64_t diff;
     assert(mem_obj != NULL);
@@ -1251,11 +1272,6 @@ StoreEntry::validLength() const
            objectLen());
     debugs(20, 5, "storeEntryValidLength:         hdr_sz = " << reply->hdr_sz);
     debugs(20, 5, "storeEntryValidLength: content_length = " << reply->content_length);
-
-    if (reply->content_length < 0) {
-        debugs(20, 5, "storeEntryValidLength: Unspecified content length: " << getMD5Text());
-        return mem_obj->completeResponse.completed();
-    }
 
     if (reply->hdr_sz == 0) {
         debugs(20, 5, "storeEntryValidLength: Zero header size: " << getMD5Text());
@@ -1272,6 +1288,11 @@ StoreEntry::validLength() const
 
     if (reply->sline.status() == Http::scNoContent)
         return 1;
+
+    if (checkBodyLength && !mem_obj->responseBodyLength.has_value()) {
+        debugs(20, 5, "unknown response body length" << getMD5Text());
+        return 0;
+    }
 
     diff = reply->hdr_sz + reply->content_length - objectLen();
 

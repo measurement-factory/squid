@@ -157,9 +157,6 @@ protected:
 
     void adjustBodyBytesRead(const int64_t delta);
 
-    void checkLength();
-    virtual bool validLength() const = 0;
-
     // These should be private
     int64_t currentOffset = 0;  /**< Our current offset in the StoreEntry */
     MemBuf *responseBodyBuffer = nullptr; /**< Data temporarily buffered for ICAP */

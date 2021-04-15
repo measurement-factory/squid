@@ -186,17 +186,8 @@ public:
     };
     MemCache memCache; ///< current [shared] memory caching state for the entry
 
-    class CompleteResponse
-    {
-    public:
-        bool completed() const { return !reason.has_value() || reason.value(); }
-
-        /// non-nil or undefined means that a complete response has been received (from a peer or adaptation)
-        Optional<const char *> reason;
-        /// the number of bytes received (from a peer or adaptation)
-        int64_t length = -1;
-    };
-    CompleteResponse completeResponse;
+    /// the number of body bytes received (from a peer or adaptation)
+    Optional<uint64_t> responseBodyLength;
 
     HttpRequestPointer request;
 

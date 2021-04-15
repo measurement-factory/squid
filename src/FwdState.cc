@@ -553,7 +553,7 @@ FwdState::complete()
             debugs(17, 3, "server FD " << serverConnection()->fd << " not re-forwarding status " << replyStatus);
         else
             debugs(17, 3, "server (FD closed) not re-forwarding status " << replyStatus);
-        entry->complete();
+        entry->complete2();
 
         if (!Comm::IsConnOpen(serverConn))
             completed();
