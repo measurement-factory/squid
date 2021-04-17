@@ -9,6 +9,7 @@
 #ifndef SQUID_STORECLIENT_H
 #define SQUID_STORECLIENT_H
 
+#include "base/AsyncCall.h"
 #include "base/forward.h"
 #include "dlink.h"
 #include "StoreIOBuffer.h"
@@ -61,17 +62,23 @@ class store_client
 public:
     store_client(StoreEntry *);
     ~store_client();
-    bool memReaderHasLowerOffset(int64_t) const;
+    /// \returns the smallest of the passed value and the memory offset of the client
+    int memHeaderOffsetLowerThan(const int64_t offset) const;
     int getType() const;
     void fail();
     void callback(ssize_t len, bool error = false);
+    void callbackClientSide();
     void doCopy (StoreEntry *e);
     void readHeader(const char *buf, ssize_t len);
     void readBody(const char *buf, ssize_t len);
     void copy(StoreEntry *, StoreIOBuffer, STCB *, void *);
     void dumpStats(MemBuf * output, int clientNumber) const;
+    /// whether doCopy() can be called
+    bool canCopy() const { return canScheduleCallback() && !flags.disk_io_pending; }
+    /// TODO: revise/verify all usages
+    /// whether callback() can be called
+    bool canScheduleCallback() const { return _callback.pending() && !clientSideCaller; }
 
-    int64_t cmp_offset;
 #if STORE_CLIENT_LIST_DEBUG
 
     void *owner;
@@ -82,18 +89,16 @@ public:
 
     struct {
         bool disk_io_pending;
-        bool store_copying;
-        bool copy_event_pending;
     } flags;
 
 #if USE_DELAY_POOLS
+    int bytesWanted() const { return delayId.bytesWanted(0, copyInto.length); }
     DelayId delayId;
     void setDelayId(DelayId delay_id);
 #endif
 
     dlink_node node;
     /* Below here is private - do no alter outside storeClient calls */
-    StoreIOBuffer copyInto;
 
 private:
     bool moreToSend() const;
@@ -107,6 +112,11 @@ private:
 
     int type;
     bool object_ok;
+
+    StoreIOBuffer copyInto;
+    /// the number of bytes effectively copied from Store into the I/O buffer
+    size_t copiedSize;
+    AsyncCall::Pointer clientSideCaller;
 
     /* Until we finish stuffing code into store_client */
 
