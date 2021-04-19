@@ -816,6 +816,10 @@ void Client::handleAdaptedBodyProducerAborted()
     if (abortOnBadEntry("entry went bad while waiting for the now-aborted adapted body"))
         return;
 
+    if (!entry->isEmpty())
+        entry->lengthWentBad("body adaptation aborted");
+    // empty entries are handled in handledEarlyAdaptationAbort() below
+
     Must(adaptedBodySource != nullptr);
     if (!adaptedBodySource->exhausted()) {
         debugs(11,5, "waiting to consume the remainder of the aborted adapted body");
@@ -827,7 +831,6 @@ void Client::handleAdaptedBodyProducerAborted()
     if (handledEarlyAdaptationAbort())
         return;
 
-    entry->lengthWentBad("body adaptation aborted");
     handleAdaptationCompleted(); // the user should get a truncated response
 }
 
