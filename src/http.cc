@@ -1297,11 +1297,11 @@ HttpStateData::readReply(const CommIoCbParams &io)
     case Comm::ENDFILE: // close detected by 0-byte read
         eof = 1;
         flags.do_next_read = false;
-        if (flags.headers_parsed && !flags.chunked && !startedAdaptation) {
+        if (flags.headers_parsed && !flags.chunked) {
             HttpReply *vrep = virginReply();
             int64_t clen = -1;
             if (vrep->expectingBody(request->method, clen) && clen < 0)
-                entry->fullyReceived(payloadSeen, "the virgin reply without content length and chunking");
+                vrep->fullyReceivedBody(payloadSeen, "the virgin reply without content length and chunking");
         }
         /* Continue to process previously read data */
         break;
@@ -1482,8 +1482,7 @@ HttpStateData::decodeAndWriteReplyBody()
     if (doneParsing) {
         lastChunk = 1;
         flags.do_next_read = false;
-        if (!startedAdaptation)
-            entry->fullyWritten(httpChunkDecoder->parsedBodySize(), "the virgin chunked reply");
+        virginReply()->fullyReceivedBody(httpChunkDecoder->parsedBodySize(), "the virgin chunked reply");
     }
     SQUID_EXIT_THROWING_CODE(wasThereAnException);
     return wasThereAnException;

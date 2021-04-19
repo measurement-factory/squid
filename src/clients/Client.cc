@@ -133,13 +133,6 @@ Client::finalReply()
     return theFinalReply;
 }
 
-const HttpReply *
-Client::finalReply() const
-{
-    assert(theFinalReply);
-    return theFinalReply;
-}
-
 HttpReply *
 Client::setFinalReply(HttpReply *rep)
 {
@@ -154,13 +147,9 @@ Client::setFinalReply(HttpReply *rep)
 
     // give entry the reply because haveParsedReplyHeaders() expects it there
     entry->replaceHttpReply(theFinalReply, false); // but do not write yet
-    int64_t clen = -1;
-    if (theFinalReply->expectingBody(request->method, clen) && clen > 0)
-        entry->fullyReceived(clen, "the final reply with content length");
     haveParsedReplyHeaders(); // update the entry/reply (e.g., set timestamps)
     if (!EBIT_TEST(entry->flags, RELEASE_REQUEST) && blockCaching())
         entry->release();
-
     entry->startWriting(); // write the updated entry to store
 
     return theFinalReply;
@@ -585,7 +574,6 @@ Client::startAdaptation(const Adaptation::ServiceGroupPointer &group, HttpReques
                             new Adaptation::Iterator(vrep, cause, fwd->al, group));
     startedAdaptation = initiated(adaptedHeadSource);
     Must(startedAdaptation);
-    entry->resetResponseBodyLength();
 }
 
 // properly cleans up ICAP-related state
@@ -818,7 +806,7 @@ Client::endAdaptedBodyConsumption()
     assert(theFinalReply);
     int64_t clen = -1;
     if (theFinalReply->expectingBody(request->method, clen) && clen < 0)
-        entry->fullyWritten(adaptedBodySource->consumedSize(), "the adapted reply without content length");
+        theFinalReply->fullyReceivedBody(adaptedBodySource->consumedSize(), "the adapted reply without content length");
     handleAdaptationCompleted();
 }
 

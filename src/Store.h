@@ -69,9 +69,6 @@ public:
     size_t bytesWanted(Range<size_t> const aRange, bool ignoreDelayPool = false) const;
     /// flags [truncated or too big] entry with ENTRY_BAD_LENGTH and releases it
     void lengthWentBad(const char *reason);
-    void fullyReceived(const int64_t length, const char *reason);
-    void fullyWritten(const int64_t length, const char *reason);
-    void resetResponseBodyLength() { mem_obj->responseBodyLength = Optional<uint64_t>(); }
     void complete();
     void complete2();
     store_client_t storeClientType() const;

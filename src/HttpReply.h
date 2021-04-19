@@ -9,6 +9,7 @@
 #ifndef SQUID_HTTPREPLY_H
 #define SQUID_HTTPREPLY_H
 
+#include "base/Optional.h"
 #include "http/StatusLine.h"
 #include "HttpBody.h"
 #include "HttpRequest.h"
@@ -131,6 +132,8 @@ public:
     virtual void configureContentLengthInterpreter(Http::ContentLengthInterpreter &);
     /// parses reply header using Parser
     bool parseHeader(Http1::Parser &hp);
+    /// set the (still unknown) body length after fully receiving it
+    void fullyReceivedBody(uint64_t length, const char *reason);
 
 private:
     /** initialize */
@@ -159,6 +162,8 @@ private:
     mutable int64_t bodySizeMax; /**< cached result of calcMaxBodySize */
 
     HttpHdrContRange *content_range; ///< parsed Content-Range; nil for non-206 responses!
+    /// the received body length (for responses with no Content-Length)
+    Optional<uint64_t> receivedBodyLength;
 
 protected:
     virtual void packFirstLineInto(Packable * p, bool) const { sline.packInto(p); }

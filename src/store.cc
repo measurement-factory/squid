@@ -1054,22 +1054,6 @@ StoreEntry::lengthWentBad(const char *reason)
 }
 
 void
-StoreEntry::fullyReceived(const int64_t length, const char *reason)
-{
-    Must(!mem_obj->responseBodyLength.has_value());
-    debugs(20, 3, reason << " with " << length << "bytes: " << *this);
-    mem_obj->responseBodyLength = Optional<uint64_t>(length);
-}
-
-void
-StoreEntry::fullyWritten(const int64_t length, const char *reason)
-{
-    Must(!mem_obj->responseBodyLength.has_value());
-    debugs(20, 3, reason << " with " << length << "bytes: " << *this);
-    mem_obj->responseBodyLength = Optional<uint64_t>(length);
-}
-
-void
 StoreEntry::complete()
 {
     complete(false);
@@ -1278,23 +1262,15 @@ StoreEntry::validLength(const bool checkBodyLength) const
         return 1;
     }
 
-    if (mem_obj->method == Http::METHOD_HEAD) {
-        debugs(20, 5, "storeEntryValidLength: HEAD request: " << getMD5Text());
-        return 1;
-    }
-
-    if (reply->sline.status() == Http::scNotModified)
-        return 1;
-
-    if (reply->sline.status() == Http::scNoContent)
-        return 1;
-
-    if (checkBodyLength && !mem_obj->responseBodyLength.has_value()) {
+    int64_t expectedBodyLength = 0;
+    if (!reply->expectingBody(mem_obj->method, expectedBodyLength)) {
+        expectedBodyLength = 0;
+    } else if (expectedBodyLength < 0) {
         debugs(20, 5, "unknown response body length" << getMD5Text());
         return 0;
     }
 
-    diff = reply->hdr_sz + reply->content_length - objectLen();
+    diff = reply->hdr_sz + expectedBodyLength - objectLen();
 
     if (diff == 0)
         return 1;

@@ -9,7 +9,6 @@
 #ifndef SQUID_MEMOBJECT_H
 #define SQUID_MEMOBJECT_H
 
-#include "base/Optional.h"
 #include "CommRead.h"
 #include "dlink.h"
 #include "http/RequestMethod.h"
@@ -185,9 +184,6 @@ public:
         Io io = ioUndecided; ///< current I/O state
     };
     MemCache memCache; ///< current [shared] memory caching state for the entry
-
-    /// the number of body bytes received (from a peer or adaptation)
-    Optional<uint64_t> responseBodyLength;
 
     HttpRequestPointer request;
 

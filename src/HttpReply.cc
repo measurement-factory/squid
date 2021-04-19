@@ -502,15 +502,20 @@ HttpReply::expectingBody(const HttpRequestMethod& req_method, int64_t& theSize) 
         expectBody = true;
 
     if (expectBody) {
-        if (header.chunked())
-            theSize = -1;
-        else if (content_length >= 0)
+        if (content_length >= 0)
             theSize = content_length;
         else
-            theSize = -1;
+            theSize = receivedBodyLength.has_value() ? receivedBodyLength.value() : -1;
     }
 
     return expectBody;
+}
+
+void
+HttpReply::fullyReceivedBody(const uint64_t length, const char *reason)
+{
+    debugs(58, 3, reason << " with " << length << "bytes");
+    receivedBodyLength = Optional<uint64_t>(length);
 }
 
 bool
