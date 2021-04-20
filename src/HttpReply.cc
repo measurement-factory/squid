@@ -512,8 +512,11 @@ HttpReply::expectingBody(const HttpRequestMethod& req_method, int64_t& theSize) 
 }
 
 void
-HttpReply::fullyReceivedBody(const uint64_t length, const char *reason)
+HttpReply::fullyReceivedBody(const uint64_t length, const HttpRequestMethod &reqMethod, const char *reason)
 {
+    int64_t clen = -1;
+    if (!expectingBody(reqMethod, clen) || clen >= 0)
+        return;
     debugs(58, 3, reason << " with " << length << "bytes");
     receivedBodyLength = Optional<uint64_t>(length);
 }

@@ -133,7 +133,7 @@ public:
     /// parses reply header using Parser
     bool parseHeader(Http1::Parser &hp);
     /// set the (still unknown) body length after fully receiving it
-    void fullyReceivedBody(uint64_t length, const char *reason);
+    void fullyReceivedBody(uint64_t length, const HttpRequestMethod &, const char *reason);
 
 private:
     /** initialize */

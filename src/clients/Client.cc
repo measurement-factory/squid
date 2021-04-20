@@ -804,9 +804,7 @@ Client::endAdaptedBodyConsumption()
 {
     stopConsumingFrom(adaptedBodySource);
     assert(theFinalReply);
-    int64_t clen = -1;
-    if (theFinalReply->expectingBody(request->method, clen) && clen < 0)
-        theFinalReply->fullyReceivedBody(adaptedBodySource->consumedSize(), "the adapted reply without content length");
+    theFinalReply->fullyReceivedBody(adaptedBodySource->consumedSize(), request->method, "the adapted reply without content length");
     handleAdaptationCompleted();
 }
 
