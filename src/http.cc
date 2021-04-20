@@ -729,9 +729,6 @@ HttpStateData::processReplyHeader()
            hp->mimeHeader() <<
            "----------");
 
-    // reset payload tracking to begin after message headers
-    payloadSeen = inBuf.length();
-
     HttpReply *newrep = new HttpReply;
     // XXX: RFC 7230 indicates we MAY ignore the reason phrase,
     //      and use an empty string on unknown status.
@@ -775,6 +772,8 @@ HttpStateData::processReplyHeader()
 
     HttpReply *vrep = setVirginReply(newrep);
     flags.headers_parsed = true;
+    if (!flags.chunked)
+        payloadSeen = inBuf.length();
 
     keepaliveAccounting(vrep);
 
@@ -1272,7 +1271,8 @@ HttpStateData::readReply(const CommIoCbParams &io)
 
     case Comm::OK:
     {
-        payloadSeen += rd.size;
+        if (flags.headers_parsed && !flags.chunked)
+            payloadSeen += rd.size;
 #if USE_DELAY_POOLS
         DelayId delayId = entry->mem_obj->mostBytesAllowed();
         delayId.bytesIn(rd.size);
@@ -1473,6 +1473,7 @@ HttpStateData::decodeAndWriteReplyBody()
     const bool doneParsing = httpChunkDecoder->parse(inBuf);
     inBuf = httpChunkDecoder->remaining(); // sync buffers after parse
     len = decodedData.contentSize();
+    payloadSeen += len;
     data=decodedData.content();
     addVirginReplyBody(data, len);
     if (doneParsing) {
