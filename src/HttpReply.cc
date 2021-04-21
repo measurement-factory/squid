@@ -371,23 +371,12 @@ HttpReply::hdrCacheClean()
 /*
  * Returns the body size of a HTTP response
  */
-int64_t
+Http::Message::BodyLength
 HttpReply::bodySize(const HttpRequestMethod& method) const
 {
-    if (sline.version.major < 1)
-        return -1;
-    else if (method.id() == Http::METHOD_HEAD)
-        return 0;
-    else if (sline.status() == Http::scOkay)
-        (void) 0;       /* common case, continue */
-    else if (sline.status() == Http::scNoContent)
-        return 0;
-    else if (sline.status() == Http::scNotModified)
-        return 0;
-    else if (sline.status() < Http::scOkay)
-        return 0;
-
-    return content_length;
+    BodyLength size;
+    (void)expectingBody(method, size);
+    return size;
 }
 
 /**
@@ -485,7 +474,7 @@ HttpReply::httpMsgParseError()
  * along with this response
  */
 bool
-HttpReply::expectingBody(const HttpRequestMethod& req_method, int64_t& theSize) const
+HttpReply::expectingBody(const HttpRequestMethod& req_method, BodyLength &theSize) const
 {
     bool expectBody = true;
 
@@ -501,12 +490,10 @@ HttpReply::expectingBody(const HttpRequestMethod& req_method, int64_t& theSize) 
     else
         expectBody = true;
 
-    if (expectBody) {
-        if (content_length >= 0)
-            theSize = content_length;
-        else
-            theSize = receivedBodyLength.has_value() ? receivedBodyLength.value() : -1;
-    }
+    if (expectBody)
+        theSize = (content_length >= 0) ? BodyLength(content_length) : receivedBodyLength;
+    else
+        theSize = BodyLength();
 
     return expectBody;
 }
@@ -514,11 +501,11 @@ HttpReply::expectingBody(const HttpRequestMethod& req_method, int64_t& theSize) 
 void
 HttpReply::fullyReceivedBody(const uint64_t length, const HttpRequestMethod &reqMethod, const char *reason)
 {
-    int64_t clen = -1;
-    if (!expectingBody(reqMethod, clen) || clen >= 0)
+    BodyLength bodySize;
+    if (!expectingBody(reqMethod, bodySize) || bodySize)
         return;
     debugs(58, 3, reason << " with " << length << "bytes");
-    receivedBodyLength = Optional<uint64_t>(length);
+    receivedBodyLength = BodyLength(length);
 }
 
 bool
@@ -538,16 +525,17 @@ HttpReply::expectedBodyTooLarge(HttpRequest& request)
     if (bodySizeMax < 0) // no body size limit
         return false;
 
-    int64_t expectedSize = -1;
-    if (!expectingBody(request.method, expectedSize))
+    BodyLength bodySize;
+    if (!expectingBody(request.method, bodySize))
         return false;
 
-    debugs(58, 6, HERE << expectedSize << " >? " << bodySizeMax);
-
-    if (expectedSize < 0) // expecting body of an unknown length
+    if (!bodySize) {
+        debugs(58, 6, "unknown body size");
         return false;
+    }
 
-    return expectedSize > bodySizeMax;
+    debugs(58, 6, bodySize.value() << " >? " << bodySizeMax);
+    return bodySize.value() > static_cast<uint64_t>(bodySizeMax);
 }
 
 void

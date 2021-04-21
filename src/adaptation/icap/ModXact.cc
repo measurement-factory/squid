@@ -1832,14 +1832,13 @@ void Adaptation::Icap::ModXact::estimateVirginBody()
     else
         method = Http::METHOD_NONE;
 
-    int64_t size;
+    Http::Message::BodyLength bodySize;
     // expectingBody returns true for zero-sized bodies, but we will not
     // get a pipe for that body, so we treat the message as bodyless
-    if (method != Http::METHOD_NONE && msg->expectingBody(method, size) && size) {
-        debugs(93, 6, HERE << "expects virgin body from " <<
-               virgin.body_pipe << "; size: " << size);
+    if (method != Http::METHOD_NONE && msg->expectingBody(method, bodySize) && (!bodySize || bodySize.value() > 0)) {
+        debugs(93, 6, "expects virgin body from " << virgin.body_pipe << " bodySize: " << bodySize);
 
-        virginBody.expect(size);
+        virginBody.expect(bodySize);
         virginBodyWriting.plan();
 
         // sign up as a body consumer
@@ -1872,9 +1871,9 @@ Adaptation::Icap::SizedEstimate::SizedEstimate()
     : theData(dtUnexpected)
 {}
 
-void Adaptation::Icap::SizedEstimate::expect(int64_t aSize)
+void Adaptation::Icap::SizedEstimate::expect(const Http::Message::BodyLength &aSize)
 {
-    theData = (aSize >= 0) ? aSize : (int64_t)dtUnknown;
+    theData = aSize ? aSize.value() : (int64_t)dtUnknown;
 }
 
 bool Adaptation::Icap::SizedEstimate::expected() const

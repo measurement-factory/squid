@@ -503,9 +503,10 @@ HttpRequest::packFirstLineInto(Packable * p, bool full_uri) const
  * along with this request
  */
 bool
-HttpRequest::expectingBody(const HttpRequestMethod &, int64_t &theSize) const
+HttpRequest::expectingBody(const HttpRequestMethod &, BodyLength &theSize) const
 {
     bool expectBody = false;
+    theSize = BodyLength();
 
     /*
      * Note: Checks for message validity is in clientIsContentLengthValid().
@@ -513,10 +514,9 @@ HttpRequest::expectingBody(const HttpRequestMethod &, int64_t &theSize) const
      */
     if (header.chunked()) {
         expectBody = true;
-        theSize = -1;
     } else if (content_length >= 0) {
         expectBody = true;
-        theSize = content_length;
+        theSize = BodyLength(content_length);
     } else {
         expectBody = false;
         // theSize undefined

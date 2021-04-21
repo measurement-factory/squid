@@ -10,6 +10,7 @@
 #define SQUID_HTTP_MESSAGE_H
 
 #include "base/Lock.h"
+#include "base/Optional.h"
 #include "BodyPipe.h"
 #include "enums.h"
 #include "http/forward.h"
@@ -45,6 +46,8 @@ public:
         srcUnsafe = 0xFFFF0000,  ///< Unsafe sources mask
         srcSafe = 0x0000FFFF ///< Safe sources mask
     };
+
+    typedef Optional<uint64_t> BodyLength;
 
     Message(http_hdr_owner_type);
     virtual ~Message();
@@ -113,7 +116,7 @@ public:
 
     virtual int httpMsgParseError();
 
-    virtual bool expectingBody(const HttpRequestMethod&, int64_t&) const = 0;
+    virtual bool expectingBody(const HttpRequestMethod&, BodyLength &) const = 0;
 
     void firstLineBuf(MemBuf&);
 
@@ -143,6 +146,14 @@ protected:
 };
 
 } // namespace Http
+
+inline std::ostream &
+operator <<(std::ostream &os, const Http::Message::BodyLength &bodySize)
+{
+    if (bodySize)
+        return os << bodySize;
+    return os << "unknown";
+}
 
 template <class M>
 inline void

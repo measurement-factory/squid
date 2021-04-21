@@ -639,7 +639,7 @@ HttpStateData::keepaliveAccounting(HttpReply *reply)
             ++ _peer->stats.n_keepalives_recv;
 
         if (Config.onoff.detect_broken_server_pconns
-                && reply->bodySize(request->method) == -1 && !flags.chunked) {
+                && !reply->bodySize(request->method) && !flags.chunked) {
             debugs(11, DBG_IMPORTANT, "keepaliveAccounting: Impossible keep-alive header from '" << entry->url() << "'" );
             // debugs(11, 2, "GOT HTTP REPLY HDR:\n---------\n" << readBuf->content() << "\n----------" );
             flags.keepalive_broken = true;
@@ -1187,20 +1187,20 @@ HttpStateData::persistentConnStatus() const
     const HttpReply *vrep = virginReply();
     debugs(11, 5, "persistentConnStatus: content_length=" << vrep->content_length);
 
-    const int64_t clen = vrep->bodySize(request->method);
+    const auto bodySize = vrep->bodySize(request->method);
 
-    debugs(11, 5, "persistentConnStatus: clen=" << clen);
+    debugs(11, 5, "body size=" << bodySize);
 
     /* If the body size is unknown we must wait for EOF */
-    if (clen < 0)
+    if (!bodySize)
         return INCOMPLETE_MSG;
 
     /** \par
      * If the body size is known, we must wait until we've gotten all of it. */
-    if (clen > 0) {
+    if (bodySize.value() > 0) {
         debugs(11,5, "payloadSeen=" << payloadSeen << " content_length=" << vrep->content_length);
 
-        if (payloadSeen < vrep->content_length)
+        if (payloadSeen < bodySize.value())
             return INCOMPLETE_MSG;
 
         if (payloadTruncated > 0) // already read more than needed
@@ -1426,22 +1426,21 @@ HttpStateData::truncateVirginBody()
     assert(flags.headers_parsed);
 
     HttpReply *vrep = virginReply();
-    int64_t clen = -1;
-    if (!vrep->expectingBody(request->method, clen) || clen < 0)
+    Http::Message::BodyLength bodySize;
+    if (!vrep->expectingBody(request->method, bodySize) || !bodySize)
         return; // no body or a body of unknown size, including chunked
 
-    if (payloadSeen - payloadTruncated <= clen)
+    if (payloadSeen - payloadTruncated <= bodySize.value())
         return; // we did not read too much or already took care of the extras
 
-    if (const int64_t extras = payloadSeen - payloadTruncated - clen) {
-        // server sent more that the advertised content length
-        debugs(11, 5, "payloadSeen=" << payloadSeen <<
-               " clen=" << clen << '/' << vrep->content_length <<
-               " truncated=" << payloadTruncated << '+' << extras);
+    const auto extras = payloadSeen - payloadTruncated - bodySize.value();
+    // server sent more that the advertised content length
+    debugs(11, 5, "payloadSeen=" << payloadSeen <<
+           " bodySize=" << bodySize <<
+           " truncated=" << payloadTruncated << '+' << extras);
 
-        inBuf.chop(0, inBuf.length() - extras);
-        payloadTruncated += extras;
-    }
+    inBuf.chop(0, inBuf.length() - extras);
+    payloadTruncated += extras;
 }
 
 /**
@@ -1462,7 +1461,6 @@ bool
 HttpStateData::decodeAndWriteReplyBody()
 {
     const char *data = NULL;
-    int len;
     bool wasThereAnException = false;
     assert(flags.chunked);
     assert(httpChunkDecoder);
@@ -1472,8 +1470,10 @@ HttpStateData::decodeAndWriteReplyBody()
     httpChunkDecoder->setPayloadBuffer(&decodedData);
     const bool doneParsing = httpChunkDecoder->parse(inBuf);
     inBuf = httpChunkDecoder->remaining(); // sync buffers after parse
-    len = decodedData.contentSize();
-    payloadSeen += len;
+    const auto len = decodedData.contentSize();
+    // TODO: decodedData.contentSize() should have returned unsigned
+    assert(len >= 0);
+    payloadSeen += static_cast<uint64_t>(len);
     data=decodedData.content();
     addVirginReplyBody(data, len);
     if (doneParsing) {

@@ -39,7 +39,7 @@ class SizedEstimate
 
 public:
     SizedEstimate(); // not expected by default
-    void expect(int64_t aSize); // expect with any, even unknown size
+    void expect(const Http::Message::BodyLength &aSize); // expect with any, even unknown size
     bool expected() const;
 
     /* other members can be accessed iff expected() */

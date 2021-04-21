@@ -1620,14 +1620,11 @@ bool
 ClientHttpRequest::gotEnough() const
 {
     // TODO: See also (and unify with) clientReplyContext::storeNotOKTransferDone()
-    int64_t contentLength =
-        memObject()->baseReply().bodySize(request->method);
-    assert(contentLength >= 0);
-
-    if (out.offset < contentLength)
-        return false;
-
-    return true;
+    const auto bodySize = memObject()->baseReply().bodySize(request->method);
+    assert(bodySize);
+    // TODO: out.offset should be unsigned
+    assert(out.offset >= 0);
+    return static_cast<uint64_t>(out.offset) >= bodySize.value();
 }
 
 void

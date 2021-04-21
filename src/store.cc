@@ -1262,15 +1262,15 @@ StoreEntry::validLength(const bool checkBodyLength) const
         return 1;
     }
 
-    int64_t expectedBodyLength = 0;
-    if (!reply->expectingBody(mem_obj->method, expectedBodyLength)) {
-        expectedBodyLength = 0;
-    } else if (expectedBodyLength < 0) {
+    Http::Message::BodyLength receivedBodyLength;
+    if (reply->expectingBody(mem_obj->method, receivedBodyLength) && !receivedBodyLength) {
         debugs(20, 5, "unknown response body length" << getMD5Text());
         return 0;
     }
 
-    diff = reply->hdr_sz + expectedBodyLength - objectLen();
+    // also check that we have not stored the body if we do not expect it
+    const auto effectiveBodyLength = receivedBodyLength ? receivedBodyLength.value() : 0;
+    diff = reply->hdr_sz + effectiveBodyLength - objectLen();
 
     if (diff == 0)
         return 1;

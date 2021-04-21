@@ -1214,9 +1214,7 @@ clientReplyContext::replyStatus()
         }
 
         // TODO: See also (and unify with) storeNotOKTransferDone() checks.
-        const int64_t expectedBodySize =
-            http->storeEntry()->mem().baseReply().bodySize(http->request->method);
-        if (expectedBodySize >= 0 && !http->gotEnough()) {
+        if (http->storeEntry()->mem().baseReply().bodySize(http->request->method) && !http->gotEnough()) {
             debugs(88, 5, "clientReplyStatus: client didn't get all it expected");
             return STREAM_UNPLANNED_COMPLETE;
         }
@@ -1479,7 +1477,7 @@ clientReplyContext::buildReplyHeader()
     } else if (request->flags.connectionAuth && !reply->keep_alive) {
         debugs(33, 2, "clientBuildReplyHeader: Connection oriented auth but server side non-persistent");
         request->flags.proxyKeepalive = false;
-    } else if (reply->bodySize(request->method) < 0 && !maySendChunkedReply) {
+    } else if (!reply->bodySize(request->method) && !maySendChunkedReply) {
         debugs(88, 3, "clientBuildReplyHeader: can't keep-alive, unknown body size" );
         request->flags.proxyKeepalive = false;
     } else if (fdUsageHigh()&& !request->flags.mustKeepalive) {
@@ -1503,7 +1501,7 @@ clientReplyContext::buildReplyHeader()
     }
 
     // Decide if we send chunked reply
-    if (maySendChunkedReply && reply->bodySize(request->method) < 0) {
+    if (maySendChunkedReply && !reply->bodySize(request->method)) {
         debugs(88, 3, "clientBuildReplyHeader: chunked reply");
         request->flags.chunkedReply = true;
         hdr->putStr(Http::HdrType::TRANSFER_ENCODING, "chunked");

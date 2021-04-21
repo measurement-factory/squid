@@ -150,9 +150,9 @@ private:
     Http1::TeChunkedParser *httpChunkDecoder;
 
     /// amount of message payload/body received so far.
-    int64_t payloadSeen;
+    uint64_t payloadSeen;
     /// positive when we read more than we wanted
-    int64_t payloadTruncated;
+    uint64_t payloadTruncated;
 
     /// Whether we received a Date header older than that of a matching
     /// cached response.

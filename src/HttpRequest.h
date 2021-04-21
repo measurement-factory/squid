@@ -199,7 +199,7 @@ public:
 
     bool parseFirstLine(const char *start, const char *end);
 
-    virtual bool expectingBody(const HttpRequestMethod& unused, int64_t&) const;
+    virtual bool expectingBody(const HttpRequestMethod& unused, BodyLength &) const;
 
     bool bodyNibbled() const; // the request has a [partially] consumed body
 

@@ -270,14 +270,14 @@ MemObject::expectedReplySize() const
     if (hdr_sz <= 0)
         return -1;
 
-    const auto clen = baseReply().bodySize(method);
-    if (clen < 0) {
+    const auto bodySize = baseReply().bodySize(method);
+    if (!bodySize) {
         debugs(20, 7, "unknown; hdr: " << hdr_sz);
         return -1;
     }
 
-    const auto messageSize = clen + hdr_sz;
-    debugs(20, 7, messageSize << " hdr: " << hdr_sz << " clen: " << clen);
+    const auto messageSize = bodySize.value() + hdr_sz;
+    debugs(20, 7, messageSize << " hdr: " << hdr_sz << " bodySize: " << bodySize);
     return messageSize;
 }
 

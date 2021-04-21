@@ -69,7 +69,7 @@ public:
 public:
     virtual int httpMsgParseError();
 
-    virtual bool expectingBody(const HttpRequestMethod&, int64_t&) const;
+    virtual bool expectingBody(const HttpRequestMethod&, BodyLength &) const;
 
     virtual bool inheritProperties(const Http::Message *);
 
@@ -92,7 +92,7 @@ public:
 
     void redirect(Http::StatusCode, const char *);
 
-    int64_t bodySize(const HttpRequestMethod&) const;
+    BodyLength bodySize(const HttpRequestMethod&) const;
 
     /** Checks whether received body exceeds known maximum size.
      * Requires a prior call to calcMaxBodySize().
@@ -162,8 +162,9 @@ private:
     mutable int64_t bodySizeMax; /**< cached result of calcMaxBodySize */
 
     HttpHdrContRange *content_range; ///< parsed Content-Range; nil for non-206 responses!
+    // TODO: merge with HttpMessage::content_length
     /// the received body length (for responses with no Content-Length)
-    Optional<uint64_t> receivedBodyLength;
+    BodyLength receivedBodyLength;
 
 protected:
     virtual void packFirstLineInto(Packable * p, bool) const { sline.packInto(p); }

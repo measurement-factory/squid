@@ -560,14 +560,14 @@ Client::startAdaptation(const Adaptation::ServiceGroupPointer &group, HttpReques
     assert(!virginBodyDestination);
     HttpReply *vrep = virginReply();
     assert(!vrep->body_pipe);
-    int64_t size = 0;
-    if (vrep->expectingBody(cause->method, size) && size) {
+    Http::Message::BodyLength bodySize;
+    if (vrep->expectingBody(cause->method, bodySize) && (!bodySize || bodySize.value() > 0)) {
         virginBodyDestination = new BodyPipe(this);
         vrep->body_pipe = virginBodyDestination;
-        debugs(93, 6, HERE << "will send virgin reply body to " <<
-               virginBodyDestination << "; size: " << size);
-        if (size > 0)
-            virginBodyDestination->setBodySize(size);
+        debugs(93, 6, "will send virgin reply body to " <<
+               virginBodyDestination << "; size: " << bodySize);
+        if (bodySize && bodySize.value() > 0)
+            virginBodyDestination->setBodySize(bodySize.value());
     }
 
     adaptedHeadSource = initiateAdaptation(
