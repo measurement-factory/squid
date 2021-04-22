@@ -591,6 +591,7 @@ Security::HandshakeParser::parseSupportedVersionsExtension(const SBuf &extension
                 continue;
             if (!supportedVersionMax || TlsVersionEarlierThan(supportedVersionMax, version))
                 supportedVersionMax = version;
+            details->supportedVersionsExtension.push_back(version);
         }
 
         // ignore empty and ignored-values-only supported_versions

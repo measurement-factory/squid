@@ -22,6 +22,7 @@
 #include "parser/BinaryTokenizer.h"
 #include "SquidTime.h"
 #include "ssl/bio.h"
+#include <algorithm>
 
 #if _SQUID_WINDOWS_
 extern int socket_read_method(int, char *, int);
@@ -679,6 +680,49 @@ squid_ssl_info(const SSL *ssl, int where, int ret)
     }
 }
 
+static int
+toOpenSSLVersion(const AnyP::ProtocolVersion &version) {
+#if defined(TLS1_3_VERSION)
+    if (version == AnyP::ProtocolVersion(AnyP::PROTO_TLS, 1, 3))
+        return TLS1_3_VERSION;
+#endif
+#if defined(TLS1_2_VERSION)
+    if (version == AnyP::ProtocolVersion(AnyP::PROTO_TLS, 1, 2))
+        return TLS1_2_VERSION;
+#endif
+#if defined(TLS1_1_VERSION)
+    if (version == AnyP::ProtocolVersion(AnyP::PROTO_TLS, 1, 1))
+        return TLS1_1_VERSION;
+#endif
+#if defined(TLS1_VERSION)
+    if (version == AnyP::ProtocolVersion(AnyP::PROTO_TLS, 1, 0))
+        return TLS1_VERSION;
+#endif
+#if defined(SSL3_VERSION)
+    if (version == AnyP::ProtocolVersion(AnyP::PROTO_SSL, 3, 0))
+        return SSL3_VERSION;
+#endif
+#if defined(SSL2_VERSION)
+    if (version == AnyP::ProtocolVersion(AnyP::PROTO_SSL, 2, 0))
+        return SSL2_VERSION;
+#endif
+    return 0;
+}
+
+static void
+setMinimumVersion(SSL *ssl, Security::TlsDetails::Pointer const &details)
+{
+    AnyP::ProtocolVersion minProto(AnyP::PROTO_TLS, 1, 3);
+    for (auto &it : details->supportedVersionsExtension) {
+        if (it < minProto)
+            minProto = it;
+    }
+
+    debugs(83, 4, "Minimum supported prototol " << minProto);
+    if (auto sslVersion = toOpenSSLVersion(minProto))
+        SSL_set_min_proto_version(ssl, sslVersion);
+}
+
 void
 applyTlsDetailsToSSL(SSL *ssl, Security::TlsDetails::Pointer const &details, Ssl::BumpMode bumpMode)
 {
@@ -696,6 +740,14 @@ applyTlsDetailsToSSL(SSL *ssl, Security::TlsDetails::Pointer const &details, Ssl
     }
 #endif
 
+    if (details->tlsSupportedVersion) {
+        if (auto openSslVersion = toOpenSSLVersion(details->tlsSupportedVersion)) {
+            SSL_set_max_proto_version(ssl, openSslVersion);
+            if (Security::Tls1p3orLater(details->tlsSupportedVersion) && !details->supportedVersionsExtension.empty())
+                setMinimumVersion(ssl, details);
+        }
+    }
+
     if (!details->ciphers.empty()) {
         SBuf strCiphers;
         for (auto cipherId: details->ciphers) {
@@ -709,19 +761,15 @@ applyTlsDetailsToSSL(SSL *ssl, Security::TlsDetails::Pointer const &details, Ssl
                 strCiphers.append(SSL_CIPHER_get_name(c));
             }
         }
-        if (!strCiphers.isEmpty())
+        if (!strCiphers.isEmpty()) {
             SSL_set_cipher_list(ssl, strCiphers.c_str());
+            debugs(83, 7, "Selected ciphers list is '" <<  strCiphers << "'");
+        }
     }
 
 #if defined(SSL_OP_NO_COMPRESSION) /* XXX: OpenSSL 0.9.8k lacks SSL_OP_NO_COMPRESSION */
     if (!details->compressionSupported)
         SSL_set_options(ssl, SSL_OP_NO_COMPRESSION);
-#endif
-
-#if defined(SSL_OP_NO_TLSv1_3)
-    // avoid "inappropriate fallback" OpenSSL error messages
-    if (details->tlsSupportedVersion && Security::Tls1p2orEarlier(details->tlsSupportedVersion))
-        SSL_set_options(ssl, SSL_OP_NO_TLSv1_3);
 #endif
 
 #if defined(TLSEXT_STATUSTYPE_ocsp)

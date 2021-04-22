@@ -43,6 +43,7 @@ public:
     bool unsupportedExtensions; ///< whether any unsupported by Squid extensions are used
     SBuf tlsAppLayerProtoNeg; ///< The value of the TLS application layer protocol extension if it is enabled
     bool tlsPadding = false;
+    std::vector<AnyP::ProtocolVersion> supportedVersionsExtension;
     /// The client random number
     SBuf clientRandom;
     SBuf sessionId;
