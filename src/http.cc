@@ -1457,6 +1457,7 @@ HttpStateData::decodeAndWriteReplyBody()
         if (doneParsing) {
             lastChunk = 1;
             flags.do_next_read = false;
+            completeVirginEntry();
         }
         return true;
     }
@@ -1503,6 +1504,11 @@ HttpStateData::processReplyBody()
             }
         } else
             writeReplyBody();
+            const auto clen =  virginReply()->content_length;
+            const auto completedClen = (clen >= 0 && clen == payloadSeen - payloadTruncated);
+            const auto completedEof = (clen < 0 && eof);
+            if (completedClen || completedEof)
+                completeVirginEntry();
     }
 
     // storing/sending methods like earlier adaptOrFinalizeReply() or
@@ -1574,8 +1580,6 @@ HttpStateData::processReplyBody()
 
         case COMPLETE_NONPERSISTENT_MSG:
             debugs(11, 5, "processReplyBody: COMPLETE_NONPERSISTENT_MSG from " << serverConnection);
-            if (flags.chunked && !lastChunk)
-                entry->lengthWentBad("missing last-chunk");
 
             serverComplete();
             return;

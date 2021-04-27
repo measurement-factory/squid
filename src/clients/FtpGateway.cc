@@ -2281,6 +2281,7 @@ ftpReadTransferDone(Ftp::Gateway * ftpState)
             /* QUIT operation handles sending the reply to client */
         }
         ftpSendQuit(ftpState);
+        ftpState->completeVirginEntry();
     } else {            /* != 226 */
         debugs(9, DBG_IMPORTANT, HERE << "Got code " << code << " after reading data");
         ftpState->failed(ERR_FTP_FAILURE, 0);

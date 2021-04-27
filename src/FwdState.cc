@@ -295,6 +295,7 @@ FwdState::completed()
             }
 #endif
         } else {
+            entry->lengthWentBad("truncated entry");
             entry->complete();
             entry->releaseRequest();
         }
@@ -552,13 +553,20 @@ FwdState::complete()
             debugs(17, 3, "server FD " << serverConnection()->fd << " not re-forwarding status " << replyStatus);
         else
             debugs(17, 3, "server (FD closed) not re-forwarding status " << replyStatus);
-        entry->complete();
 
         if (!Comm::IsConnOpen(serverConn))
             completed();
 
         stopAndDestroy("forwarding completed");
     }
+}
+
+void
+FwdState::completeEntry()
+{
+    debugs(17, 3, "reply status " << entry->mem().baseReply().sline.status() << " " << entry->url());
+    if (!reforward())
+        entry->complete();
 }
 
 void
@@ -1254,7 +1262,11 @@ FwdState::reforward()
         return 0;
     }
 
-    assert(e->store_status == STORE_PENDING);
+    if (e->store_status != STORE_PENDING) {
+        debugs(17, 3, "store_status != STORE_PENDING");
+        return 0;
+    }
+
     assert(e->mem_obj);
 #if URL_CHECKSUM_DEBUG
 

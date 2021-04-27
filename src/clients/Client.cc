@@ -155,6 +155,16 @@ Client::setFinalReply(HttpReply *rep)
     return theFinalReply;
 }
 
+void
+Client::completeVirginEntry()
+{
+#if USE_ADAPTATION
+    if (startedAdaptation)
+        return;
+#endif
+    fwd->completeEntry();
+}
+
 // called when no more server communication is expected; may quit
 void
 Client::serverComplete()
@@ -806,6 +816,7 @@ void
 Client::endAdaptedBodyConsumption()
 {
     stopConsumingFrom(adaptedBodySource);
+    completeAdaptedEntry();
     handleAdaptationCompleted();
 }
 

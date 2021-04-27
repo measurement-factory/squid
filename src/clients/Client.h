@@ -80,6 +80,8 @@ public:
 
 public: // should be protected
     void serverComplete();     /**< call when no server communication is expected */
+    /// is called when no more data is expected for the non-adapted entry
+    void completeVirginEntry();
 
 private:
     void serverComplete2();    /**< Continuation of serverComplete */
@@ -119,6 +121,8 @@ protected:
     void adaptVirginReplyBody(const char *buf, ssize_t len);
     void cleanAdaptation();
     virtual bool doneWithAdaptation() const;   /**< did we end ICAP communication? */
+    /// is called when no more data is expected for the adapted entry
+    void completeAdaptedEntry() { fwd->completeEntry(); }
 
     // BodyConsumer for ICAP: consume adapted response body.
     void handleMoreAdaptedBodyAvailable();
