@@ -296,8 +296,8 @@ FwdState::completed()
 #endif
         } else {
             entry->lengthWentBad("truncated entry");
-            entry->complete();
             entry->releaseRequest();
+            entry->complete();
         }
     }
 
