@@ -359,9 +359,3 @@ Http::NewServer(MasterXactionPointer &xact)
     return new Http1::Server(xact);
 }
 
-ConnStateData *
-Https::NewServer(MasterXactionPointer &xact)
-{
-    return new Http1::Server(xact);
-}
-

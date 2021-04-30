@@ -2328,9 +2328,9 @@ ConnStateData::whenClientIpKnown()
     // kids must extend to actually start doing something (e.g., reading)
 }
 
-/** Handle a new connection on an HTTP socket. */
+/// a common part for httpAccept() and httpsAccept()
 void
-httpAccept(const CommAcceptCbParams &params)
+httpAcceptCommon(const CommAcceptCbParams &params, const char *fdDesc)
 {
     MasterXaction::Pointer xact = params.xaction;
     AnyP::PortCfgPointer s = xact->squidPort;
@@ -2344,7 +2344,7 @@ httpAccept(const CommAcceptCbParams &params)
     }
 
     debugs(33, 4, params.conn << ": accepted");
-    fd_note(params.conn->fd, "client http connect");
+    fd_note(params.conn->fd, fdDesc);
 
     if (s->tcp_keepalive.enabled)
         commSetTcpKeepalive(params.conn->fd, s->tcp_keepalive.idle, s->tcp_keepalive.interval, s->tcp_keepalive.timeout);
@@ -2354,6 +2354,13 @@ httpAccept(const CommAcceptCbParams &params)
     // Socket is ready, setup the connection manager to start using it
     auto *srv = Http::NewServer(xact);
     AsyncJob::Start(srv); // usually async-calls readSomeData()
+}
+
+/** Handle a new connection on an HTTP socket. */
+void
+httpAccept(const CommAcceptCbParams &params)
+{
+    httpAcceptCommon(params, "client http connect");
 }
 
 /// Create TLS connection structure and update fd_table
@@ -2594,28 +2601,7 @@ ConnStateData::httpsSslBumpStep1AccessCheckDone(const Acl::Answer answer)
 static void
 httpsAccept(const CommAcceptCbParams &params)
 {
-    MasterXaction::Pointer xact = params.xaction;
-    const AnyP::PortCfgPointer s = xact->squidPort;
-
-    // NP: it is possible the port was reconfigured when the call or accept() was queued.
-
-    if (params.flag != Comm::OK) {
-        // Its possible the call was still queued when the client disconnected
-        debugs(33, 2, "httpsAccept: " << s->listenConn << ": accept failure: " << xstrerr(params.xerrno));
-        return;
-    }
-
-    debugs(33, 4, params.conn << ": accepted");
-    fd_note(params.conn->fd, "client https connect");
-
-    if (s->tcp_keepalive.enabled) {
-        commSetTcpKeepalive(params.conn->fd, s->tcp_keepalive.idle, s->tcp_keepalive.interval, s->tcp_keepalive.timeout);
-    }
-    ++incoming_sockets_accepted;
-
-    // Socket is ready, setup the connection manager to start using it
-    auto *srv = Https::NewServer(xact);
-    AsyncJob::Start(srv); // usually async-calls postHttpsAccept()
+    httpAcceptCommon(params, "client https connect");
 }
 
 void

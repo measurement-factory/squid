@@ -398,8 +398,8 @@ Comm::TcpAcceptor::oldAccept(Comm::ConnectionPointer &details)
     details->local = *gai;
     Ip::Address::FreeAddr(gai);
 
-    // Perform NAT or TPROXY operations to retrieve the real client/dest IP addresses
-    /* NP: try TPROXY first, its much quieter than NAT when non-matching */
+    // Handle interceptedLocally() traffic here. The PROXY protocol supplies original
+    // client and destination IP addresses later, after parsing the PROXY protocol prefix.
     if (listenPort_->flags.tproxyInterceptLocally()) {
         if (!Ip::Interceptor.LookupTproxy(details)) {
              debugs(50, DBG_IMPORTANT, "ERROR: TPROXY lookup failed to locate original IPs on " << details);
@@ -412,7 +412,7 @@ Comm::TcpAcceptor::oldAccept(Comm::ConnectionPointer &details)
             PROF_stop(comm_accept);
             return Comm::COMM_ERROR;
         }
-    } // else the PROXY protocol will supply the real client/dest IP addresses
+    }
 
 #if USE_SQUID_EUI
     if (Eui::TheConfig.euiLookup) {

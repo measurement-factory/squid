@@ -134,8 +134,7 @@ private:
      */
     bool PfInterception(const Comm::ConnectionPointer &newConn);
 
-    /// whether avoid printing level-1 error messages
-    static bool SuppressErrors();
+    int errorReportingLevel();
 
     int transparentActive_;
     int interceptActive_;

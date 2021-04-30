@@ -143,11 +143,9 @@ Ip::Intercept::NetfilterInterception(const Comm::ConnectionPointer &newConn)
                     newConn->local.isIPv6() ? IP6T_SO_ORIGINAL_DST : SO_ORIGINAL_DST,
                     &lookup,
                     &len) != 0) {
-        if (!SuppressErrors()) {
             int xerrno = errno;
-            debugs(89, DBG_IMPORTANT, "ERROR: NF getsockopt(ORIGINAL_DST) failed on " << newConn << ": " << xstrerr(xerrno));
+            debugs(89, errorReportingLevel(), "ERROR: NF getsockopt(ORIGINAL_DST) failed on " << newConn << ": " << xstrerr(xerrno));
             lastReported_ = squid_curtime;
-        }
         debugs(89, 9, "address: " << newConn);
         return false;
     } else {
@@ -162,6 +160,10 @@ Ip::Intercept::NetfilterInterception(const Comm::ConnectionPointer &newConn)
 bool
 Ip::Intercept::TproxyTransparent(const Comm::ConnectionPointer &newConn)
 {
+    /* --enable-linux-netfilter    */
+    /* --enable-ipfw-transparent   */
+    /* --enable-ipf-transparent    */
+    /* --enable-pf-transparent     */
 #if (LINUX_NETFILTER && defined(IP_TRANSPARENT)) || \
     (PF_TRANSPARENT && defined(SO_BINDANY)) || \
     (IPFW_TRANSPARENT && defined(IP_BINDANY))
@@ -171,9 +173,9 @@ Ip::Intercept::TproxyTransparent(const Comm::ConnectionPointer &newConn)
      */
     debugs(89, 5, HERE << "address TPROXY: " << newConn);
     return true;
-#else
-    return false;
 #endif
+    debugs(89, DBG_IMPORTANT, "WARNING: transparent proxying not supported");
+    return false;
 }
 
 bool
@@ -243,12 +245,10 @@ Ip::Intercept::IpfInterception(const Comm::ConnectionPointer &newConn)
     }
 
     if (natfd < 0) {
-        if (!SuppressErrors()) {
-            int xerrno = errno;
-            debugs(89, DBG_IMPORTANT, "IPF (IPFilter) NAT open failed: " << xstrerr(xerrno));
-            lastReported_ = squid_curtime;
-            return false;
-        }
+        const auto xerrno = errno;
+        debugs(89, errorReportingLevel(), "IPF (IPFilter) NAT open failed: " << xstrerr(xerrno));
+        lastReported_ = squid_curtime;
+        return false;
     }
 
 #if defined(IPFILTER_VERSION) && (IPFILTER_VERSION >= 4000027)
@@ -280,10 +280,8 @@ Ip::Intercept::IpfInterception(const Comm::ConnectionPointer &newConn)
     if (x < 0) {
         int xerrno = errno;
         if (xerrno != ESRCH) {
-            if (!SuppressErrors()) {
-                debugs(89, DBG_IMPORTANT, "IPF (IPFilter) NAT lookup failed: ioctl(SIOCGNATL) (v=" << IPFILTER_VERSION << "): " << xstrerr(xerrno));
-                lastReported_ = squid_curtime;
-            }
+            debugs(89, errorReportingLevel(), "IPF (IPFilter) NAT lookup failed: ioctl(SIOCGNATL) (v=" << IPFILTER_VERSION << "): " << xstrerr(xerrno));
+            lastReported_ = squid_curtime;
 
             close(natfd);
             natfd = -1;
@@ -333,11 +331,9 @@ Ip::Intercept::PfInterception(const Comm::ConnectionPointer &newConn)
         pffd = open("/dev/pf", O_RDONLY);
 
     if (pffd < 0) {
-        if (!SuppressErrors()) {
-            int xerrno = errno;
-            debugs(89, DBG_IMPORTANT, MYNAME << "PF open failed: " << xstrerr(xerrno));
-            lastReported_ = squid_curtime;
-        }
+        const auto xerrno = errno;
+        debugs(89, errorReportingLevel(), MYNAME << "PF open failed: " << xstrerr(xerrno));
+        lastReported_ = squid_curtime;
         return false;
     }
 
@@ -362,10 +358,8 @@ Ip::Intercept::PfInterception(const Comm::ConnectionPointer &newConn)
     if (ioctl(pffd, DIOCNATLOOK, &nl)) {
         int xerrno = errno;
         if (xerrno != ENOENT) {
-            if (!SuppressErrors()) {
-                debugs(89, DBG_IMPORTANT, HERE << "PF lookup failed: ioctl(DIOCNATLOOK): " << xstrerr(xerrno));
-                lastReported_ = squid_curtime;
-            }
+            debugs(89, errorReportingLevel(), HERE << "PF lookup failed: ioctl(DIOCNATLOOK): " << xstrerr(xerrno));
+            lastReported_ = squid_curtime;
             close(pffd);
             pffd = -1;
         }
@@ -421,35 +415,19 @@ Ip::Intercept::LookupNat(const Comm::ConnectionPointer &newConn)
 bool
 Ip::Intercept::LookupTproxy(const Comm::ConnectionPointer &newConn)
 {
-    /* --enable-linux-netfilter    */
-    /* --enable-ipfw-transparent   */
-    /* --enable-ipf-transparent    */
-    /* --enable-pf-transparent     */
-#if IPF_TRANSPARENT || LINUX_NETFILTER || IPFW_TRANSPARENT || PF_TRANSPARENT
-
-    debugs(89, 5, HERE << "address BEGIN: me/client= " << newConn->local << ", destination/me= " << newConn->remote);
-
-    /* NP: try TPROXY first, its much quieter than NAT when non-matching */
-    if (transparentActive_ && TproxyTransparent(newConn))
-        return true;
-
-#else /* none of the transparent options configured */
-    debugs(89, DBG_IMPORTANT, "WARNING: transparent proxying not supported");
-#endif
-
-    return false;
+    debugs(89, 5, "address BEGIN: me/client= " << newConn->local << ", destination/me= " << newConn->remote);
+    return transparentActive_ && TproxyTransparent(newConn);
 }
 
-bool
-Ip::Intercept::SuppressErrors()
+/// XXX: TcpAcceptor::oldAccept() reports "same" errors while ignoring this code.
+/// \returns debugs() level for reporting the current error
+int
+Ip::Intercept::errorReportingLevel()
 {
-#if 0
-    // Crop interception errors down to one per minute.
-    return squid_curtime - lastReported_ >= 60;
-#else
-    // Show all interception errors.
-    return false;
-#endif
+    // TODO: Consider limiting level-1 errors to, say, one per minute:
+    // const auto important = squid_curtime - lastReported_ > 60;
+    lastReported_ = squid_curtime;
+    return DBG_IMPORTANT;
 }
 
 bool
