@@ -35,7 +35,7 @@ public:
      *  - indirect client IP trust verification is mandatory
      *  - Same-Origin verification is mandatory
      *  - TLS is supported
-     *  - proxy authentication prohibited
+     *  - Squid authentication prohibited
      */
     bool proxySurrogateHttps = false;
 
@@ -46,7 +46,7 @@ public:
      *  - URL translation from relative to absolute form
      *  - Same-Origin verification is mandatory
      *  - destination pinning is recommended
-     *  - proxy authentication prohibited
+     *  - Squid authentication prohibited
      */
     bool natIntercept = false;
 
@@ -58,7 +58,7 @@ public:
      *  - URL translation from relative to absolute form
      *  - Same-Origin verification is mandatory
      *  - destination pinning is recommended
-     *  - proxy authentication prohibited
+     *  - Squid authentication prohibited
      */
     bool tproxyIntercept = false;
 
@@ -123,7 +123,7 @@ public:
      * Indicating the following are required:
      *  - decryption of CONNECT request
      *  - URL translation from relative to absolute form
-     *  - authentication prohibited on unwrapped requests (only on the CONNECT tunnel)
+     *  - Squid authentication prohibited on unwrapped requests (only on the CONNECT tunnel)
      *  - encrypted outbound server connections
      *  - peer relay prohibited. TODO: re-encrypt and re-wrap with CONNECT
      */
