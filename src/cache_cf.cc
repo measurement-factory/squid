@@ -3918,6 +3918,11 @@ parsePortCfg(AnyP::PortCfgPointer *head, const char *optionName)
             self_destruct();
             return;
         }
+        if (rawFlags.accelSurrogate) {
+            debugs(3,DBG_CRITICAL, "FATAL: Accelerator mode is not supported on ftp_port.");
+            self_destruct();
+            return;
+        }
     }
 
     if (s->secure.encryptTransport) {
