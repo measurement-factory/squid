@@ -808,7 +808,7 @@ gopherReadReply(const Comm::ConnectionPointer &conn, char *buf, size_t len, Comm
         entry->timestampsSet();
         entry->flush();
 
-        gopherState->fwd->completeEntry();
+        gopherState->fwd->bodyReceivedSuccessfully();
         gopherState->fwd->complete();
         gopherState->serverConn->close();
     } else {
@@ -960,7 +960,7 @@ gopherStart(FwdState * fwd)
         }
 
         gopherToHTML(gopherState, (char *) NULL, 0);
-        fwd->completeEntry();
+        fwd->bodyReceivedSuccessfully();
         fwd->complete();
         return;
     }

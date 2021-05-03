@@ -720,7 +720,7 @@ Ftp::Relay::readTransferDoneReply()
     debugs(9, 3, status());
 
     if (ctrl.replycode == 226 || ctrl.replycode == 250) {
-        completeVirginEntry();
+        virginBodyReceivedSuccessfully();
     } else {
         debugs(9, DBG_IMPORTANT, "got FTP code " << ctrl.replycode <<
                " after reading response data");

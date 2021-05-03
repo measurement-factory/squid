@@ -69,7 +69,12 @@ public:
     size_t bytesWanted(Range<size_t> const aRange, bool ignoreDelayPool = false) const;
     /// flags [truncated or too big] entry with ENTRY_BAD_LENGTH and releases it
     void lengthWentBad(const char *reason);
+    /// \deprecated use either completeSuccessfully() or completeUnsuccessfully() instead
     void complete();
+    /// all body bytes have been successfully received
+    void completeSuccessfully();
+    /// some of the body bytes have not been received
+    void completeUnsuccessfully();
     store_client_t storeClientType() const;
     /// \returns a malloc()ed buffer containing a length-long packed swap header
     const char *getSerialisedMetaData(size_t &length) const;

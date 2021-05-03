@@ -1457,7 +1457,7 @@ HttpStateData::decodeAndWriteReplyBody()
         if (doneParsing) {
             lastChunk = 1;
             flags.do_next_read = false;
-            completeVirginEntry();
+            virginBodyReceivedSuccessfully();
         }
         return true;
     }
@@ -1508,7 +1508,7 @@ HttpStateData::processReplyBody()
             const auto completedClen = (clen >= 0 && clen == payloadSeen - payloadTruncated);
             const auto completedEof = (clen < 0 && eof);
             if (completedClen || completedEof)
-                completeVirginEntry();
+                virginBodyReceivedSuccessfully();
     }
 
     // storing/sending methods like earlier adaptOrFinalizeReply() or

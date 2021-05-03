@@ -1054,6 +1054,20 @@ StoreEntry::lengthWentBad(const char *reason)
 }
 
 void
+StoreEntry::completeSuccessfully()
+{
+    complete();
+}
+
+void
+StoreEntry::completeUnsuccessfully()
+{
+    lengthWentBad("truncated entry");
+    releaseRequest();
+    complete();
+}
+
+void
 StoreEntry::complete()
 {
     debugs(20, 3, "storeComplete: '" << getMD5Text() << "'");

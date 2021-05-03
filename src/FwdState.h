@@ -79,8 +79,8 @@ public:
     void unregister(Comm::ConnectionPointer &conn);
     void unregister(int fd);
     void complete();
-    /// marks the entry as 'complete' if no reforwarding is expected
-    void completeEntry();
+    /// all body bytes have been received
+    void bodyReceivedSuccessfully();
     void handleUnregisteredServerEnd();
     int reforward();
     bool reforwardableStatus(const Http::StatusCode s) const;

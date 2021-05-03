@@ -156,13 +156,13 @@ Client::setFinalReply(HttpReply *rep)
 }
 
 void
-Client::completeVirginEntry()
+Client::virginBodyReceivedSuccessfully()
 {
 #if USE_ADAPTATION
     if (startedAdaptation)
         return;
 #endif
-    fwd->completeEntry();
+    fwd->bodyReceivedSuccessfully();
 }
 
 // called when no more server communication is expected; may quit

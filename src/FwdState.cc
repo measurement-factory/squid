@@ -295,9 +295,7 @@ FwdState::completed()
             }
 #endif
         } else {
-            entry->lengthWentBad("truncated entry");
-            entry->releaseRequest();
-            entry->complete();
+            entry->completeUnsuccessfully();
         }
     }
 
@@ -562,11 +560,11 @@ FwdState::complete()
 }
 
 void
-FwdState::completeEntry()
+FwdState::bodyReceivedSuccessfully()
 {
     debugs(17, 3, "reply status " << entry->mem().baseReply().sline.status() << " " << entry->url());
     if (!reforward())
-        entry->complete();
+        entry->completeSuccessfully();
 }
 
 void
