@@ -2595,6 +2595,7 @@ ConnStateData::postHttpsAccept()
         request->url.host(clientConnection->local.toStr(ip, sizeof(ip)));
         request->url.port(clientConnection->local.port());
         request->myportname = port->name;
+        // TODO: request->manager(this);
         const AccessLogEntry::Pointer connectAle = new AccessLogEntry;
         CodeContext::Reset(connectAle);
         // TODO: Use these request/ALE when waiting for new bumped transactions.
@@ -2602,6 +2603,7 @@ ConnStateData::postHttpsAccept()
         ACLFilledChecklist *acl_checklist = new ACLFilledChecklist(Config.accessList.ssl_bump, request, NULL);
         acl_checklist->src_addr = clientConnection->remote;
         acl_checklist->my_addr = port->s;
+        acl_checklist->conn(this);
         // Build a local AccessLogEntry to allow requiresAle() acls work
         acl_checklist->al = connectAle;
         acl_checklist->al->cache.start_time = current_time;
@@ -3085,6 +3087,7 @@ ConnStateData::startPeekAndSplice()
         acl_checklist->al = http ? http->al : nullptr;
         //acl_checklist->src_addr = params.conn->remote;
         //acl_checklist->my_addr = s->s;
+        acl_checklist->conn(this);
         acl_checklist->banAction(Acl::Answer(ACCESS_ALLOWED, Ssl::bumpNone));
         acl_checklist->banAction(Acl::Answer(ACCESS_ALLOWED, Ssl::bumpClientFirst));
         acl_checklist->banAction(Acl::Answer(ACCESS_ALLOWED, Ssl::bumpServerFirst));
