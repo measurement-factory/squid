@@ -163,6 +163,7 @@ public:
     // XXX: ACLs that need request or reply have to use ACLFilledChecklist and
     // should do their own checks so that we do not have to povide these two
     // for ACL::checklistMatches to use
+    virtual bool hasClientConnectionManager() const = 0;
     virtual bool hasRequest() const = 0;
     virtual bool hasReply() const = 0;
     virtual bool hasAle() const = 0;

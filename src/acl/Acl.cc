@@ -138,6 +138,9 @@ ACL::matches(ACLChecklist *checklist) const
     } else if (!checklist->hasReply() && requiresReply()) {
         debugs(28, DBG_IMPORTANT, "WARNING: " << name << " ACL is used in " <<
                "context without an HTTP response. Assuming mismatch.");
+    } else if (!checklist->hasClientConnectionManager() && requiresClientConnectionManager()) {
+        debugs(28, DBG_IMPORTANT, "WARNING: " << name << " ACL is used in " <<
+               "context without a Client-Squid connection. Assuming mismatch.");
     } else {
         // make sure the ALE has as much data as possible
         if (requiresAle())
@@ -372,6 +375,12 @@ aclCacheMatchFlush(dlink_list * cache)
         dlinkDelete(tmplink, cache);
         delete auth_match;
     }
+}
+
+bool
+ACL::requiresClientConnectionManager() const
+{
+    return false;
 }
 
 bool

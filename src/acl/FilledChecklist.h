@@ -63,6 +63,7 @@ public:
     void markSourceDomainChecked();
 
     // ACLChecklist API
+    virtual bool hasClientConnectionManager() const { return conn(); }
     virtual bool hasRequest() const { return request != NULL; }
     virtual bool hasReply() const { return reply != NULL; }
     virtual bool hasAle() const { return al != NULL; }
@@ -102,7 +103,7 @@ public:
     err_type requestErrorType;
 
 private:
-    ConnStateData * conn_;          /**< hack for ident and NTLM */
+    ConnStateData *conn_; ///< the manager of the client-Squid connection
     int fd_;                        /**< may be available when conn_ is not */
     bool destinationDomainChecked_;
     bool sourceDomainChecked_;

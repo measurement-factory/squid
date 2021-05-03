@@ -39,6 +39,8 @@ public:
     virtual char const *typeString() const;
     virtual void parseFlags();
 
+    virtual bool requiresClientConnectionManager() const { return matcher->requiresClientConnectionManager(); }
+
     virtual bool requiresRequest() const {return matcher->requiresRequest();}
 
     virtual bool requiresReply() const {return matcher->requiresReply();}

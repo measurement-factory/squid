@@ -16,7 +16,7 @@
 class ACLAnnotateClientStrategy : public Acl::AnnotationStrategy
 {
 public:
-    virtual bool requiresRequest() const { return true; }
+    virtual bool requiresClientConnectionManager() const { return true; }
     virtual int match(ACLData<MatchType> * &, ACLFilledChecklist *);
 };
 
