@@ -837,7 +837,6 @@ void Client::handleAdaptedBodyProducerAborted()
     if (handledEarlyAdaptationAbort())
         return;
 
-    entry->lengthWentBad("body adaptation aborted");
     handleAdaptationCompleted(); // the user should get a truncated response
 }
 

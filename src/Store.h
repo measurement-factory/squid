@@ -67,8 +67,6 @@ public:
     bool isEmpty() const { return mem().endOffset() == 0; }
     bool isAccepting() const;
     size_t bytesWanted(Range<size_t> const aRange, bool ignoreDelayPool = false) const;
-    /// flags [truncated or too big] entry with ENTRY_BAD_LENGTH and releases it
-    void lengthWentBad(const char *reason);
     /// \deprecated use either completeSuccessfully() or completeUnsuccessfully() instead
     void complete();
     /// all body bytes have been successfully received
@@ -312,6 +310,8 @@ private:
     void forcePublicKey(const cache_key *newkey);
     StoreEntry *adjustVary();
     const cache_key *calcPublicKey(const KeyScope keyScope);
+    /// flags [truncated or too big] entry with ENTRY_BAD_LENGTH and releases it
+    void lengthWentBad(const char *reason);
 
     static MemAllocator *pool;
 
