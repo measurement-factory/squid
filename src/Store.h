@@ -69,9 +69,10 @@ public:
     size_t bytesWanted(Range<size_t> const aRange, bool ignoreDelayPool = false) const;
     /// \deprecated use either completeSuccessfully() or completeUnsuccessfully() instead
     void complete();
-    /// all body bytes have been successfully received
+    /// mark the entry as 'completed' after the body has been fully received
     void completeSuccessfully();
-    /// some of the body bytes have not been received
+    /// Mark the entry as 'completed' when no more body bytes are expected for a partially
+    /// received body (e.g., due to a timeout or a preliminary connection closure).
     void completeUnsuccessfully();
     store_client_t storeClientType() const;
     /// \returns a malloc()ed buffer containing a length-long packed swap header

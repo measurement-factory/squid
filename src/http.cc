@@ -686,17 +686,17 @@ HttpStateData::processReplyHeader()
         inBuf = hp->remaining();
 
         if (hp->needsMoreData() && !eof) {
-            debugs(33, 5, "Incomplete response, waiting for end of response headers");
+            debugs(33, 5, "incomplete response, waiting for the headers end");
             ctx_exit(ctx);
             return;
         }
 
         if (!parsedOk) {
+            // unrecoverable parsing error
             const auto unexpectedEof = hp->needsMoreData() && eof;
             if (unexpectedEof) {
-                debugs(11, 3, "Unexpected end of reply header");
+                debugs(11, 3, "unexpected end of response header");
             } else {
-                // unrecoverable parsing error
                 // TODO: Use Raw! XXX: inBuf no longer has the [beginning of the] malformed header.
                 debugs(11, 3, "Non-HTTP-compliant header:\n---------\n" << inBuf << "\n----------");
             }

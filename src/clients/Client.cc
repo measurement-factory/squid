@@ -159,8 +159,10 @@ void
 Client::virginBodyReceivedSuccessfully()
 {
 #if USE_ADAPTATION
-    if (startedAdaptation)
+    if (startedAdaptation) {
+        debugs(11, 5 , "all virgin body bytes have been received but not adapted yet");
         return;
+    }
 #endif
     fwd->bodyReceivedSuccessfully();
 }
@@ -816,7 +818,7 @@ void
 Client::endAdaptedBodyConsumption()
 {
     stopConsumingFrom(adaptedBodySource);
-    completeAdaptedEntry();
+    adaptedBodyReceivedSuccessfully();
     handleAdaptationCompleted();
 }
 
