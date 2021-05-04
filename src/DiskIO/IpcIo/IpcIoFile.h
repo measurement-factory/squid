@@ -86,8 +86,10 @@ public:
     virtual bool canWrite() const;
     virtual bool ioInProgress() const;
 
-    /// handle open response from coordinator
-    static void HandleOpenResponse(const Ipc::StrandMessage &);
+    /// called when Coordinator reports that the strand exists and is usable
+    static void HandleStrandReadyResponse(const Ipc::StrandReady &);
+    /// called when Coordinator reports that the strand exists but is not usable (yet)
+    static void HandleStrandBusyResponse(const Ipc::StrandMessage &);
 
     /// handle queue push notifications from worker or disker
     static void HandleNotification(const Ipc::TypedMsgHdr &msg);
@@ -148,8 +150,12 @@ private:
 
     static const double Timeout; ///< timeout value in seconds
 
-    typedef std::list<Pointer> IpcIoFileList;
-    static IpcIoFileList WaitingForOpen; ///< pending open requests
+    typedef std::multimap<timeval, Pointer, std::less<timeval> > WaitingFiles;
+    typedef WaitingFiles::value_type FileWait;
+    /// being open diskers, ordered by their absolute deadlines
+    static WaitingFiles WaitingForOpen;
+    static void StartWaiting(const Pointer &);
+    static IpcIoFile::Pointer StopWaiting(const Ipc::StrandCoord &);
 
     ///< maps diskerId to IpcIoFile, cleared in destructor
     typedef std::map<int, IpcIoFile*> IpcIoFilesMap;

@@ -15,6 +15,7 @@
 #include "fs/rock/RockSwapDir.h"
 #include "fs_io.h"
 #include "globals.h"
+#include "ipc/StrandCoord.h"
 #include "md5.h"
 #include "sbuf/Stream.h"
 #include "SquidTime.h"
@@ -286,8 +287,13 @@ Rock::Rebuild::Start(SwapDir &dir)
     if (stats->completed(dir)) {
         debugs(47, 2, "already indexed cache_dir #" <<
                dir.index << " from " << dir.filePath);
+        dir.noteRebuildCompleted(stats->counts, true);
         return false;
     }
+
+    if (!opt_foreground_rebuild)
+        dir.startAcceptingRequests();
+    // else postpone until swanSong()
 
     Must(AsyncJob::Start(new Rebuild(&dir, stats)));
     return true;
@@ -395,6 +401,15 @@ Rock::Rebuild::doneAll() const
 }
 
 void
+Rock::Rebuild::extendWait()
+{
+    if (opt_foreground_rebuild && UsingSmp()) {
+        debugs(47, 7, "cache_dir #" << sd->index);
+        Ipc::StrandMessage::NotifyCoordinator(Ipc::mtForegroundRebuild, sd->filePath);
+    }
+}
+
+void
 Rock::Rebuild::Steps(void *data)
 {
     // use async call to enable job call protection that time events lack
@@ -418,10 +433,7 @@ Rock::Rebuild::loadingSteps()
     debugs(47,5, sd->index << " slot " << loadingPos << " at " <<
            dbOffset << " <= " << dbSize);
 
-    // Balance our desire to maximize the number of entries processed at once
-    // (and, hence, minimize overheads and total rebuild time) with a
-    // requirement to also process Coordinator events, disk I/Os, etc.
-    const int maxSpentMsec = 50; // keep small: most RAM I/Os are under 1ms
+    const auto maxSpentMsec = rebuildMaxBlockMsec();
     const timeval loopStart = current_time;
 
     int64_t loaded = 0;
@@ -434,9 +446,6 @@ Rock::Rebuild::loadingSteps()
         if (counts.scancount % 1000 == 0)
             storeRebuildProgress(sd->index, dbSlotLimit, counts.scancount);
 
-        if (opt_foreground_rebuild)
-            continue; // skip "few entries at a time" check below
-
         getCurrentTime();
         const double elapsedMsec = tvSubMsec(loopStart, current_time);
         if (elapsedMsec > maxSpentMsec || elapsedMsec < 0) {
@@ -445,6 +454,8 @@ Rock::Rebuild::loadingSteps()
             break;
         }
     }
+    // we may be done loading, but we extend the wait to buy the validation loop more time
+    extendWait();
 }
 
 Rock::LoadingEntry
@@ -538,8 +549,7 @@ Rock::Rebuild::validationSteps()
 {
     debugs(47, 5, sd->index << " validating from " << validationPos);
 
-    // see loadingSteps() for the rationale; TODO: avoid duplication
-    const int maxSpentMsec = 50; // keep small: validation does not do I/O
+    const auto maxSpentMsec = rebuildMaxBlockMsec();
     const timeval loopStart = current_time;
 
     int64_t validated = 0;
@@ -557,14 +567,12 @@ Rock::Rebuild::validationSteps()
         if (validationPos % 1000 == 0)
             debugs(20, 2, "validated: " << validationPos);
 
-        if (opt_foreground_rebuild)
-            continue; // skip "few entries at a time" check below
-
         getCurrentTime();
         const double elapsedMsec = tvSubMsec(loopStart, current_time);
         if (elapsedMsec > maxSpentMsec || elapsedMsec < 0) {
             debugs(47, 5, "pausing after " << validated << " entries in " <<
                    elapsedMsec << "ms; " << (elapsedMsec/validated) << "ms per entry");
+            extendWait();
             break;
         }
     }
@@ -667,9 +675,8 @@ Rock::Rebuild::freeBadEntry(const sfileno fileno, const char *eDescription)
 void
 Rock::Rebuild::swanSong()
 {
-    debugs(47,3, HERE << "cache_dir #" << sd->index << " rebuild level: " <<
-           StoreController::store_dirs_rebuilding);
-    storeRebuildComplete(&counts);
+    debugs(47, 3, "cache_dir #" << sd->index);
+    sd->noteRebuildCompleted(counts, opt_foreground_rebuild);
 }
 
 void

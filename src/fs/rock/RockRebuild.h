@@ -126,6 +126,9 @@ private:
     const bool resuming;
 
     static void Steps(void *data);
+
+    /// informs Coordinator that we are still foreground-rebuilding
+    void extendWait();
 };
 
 } // namespace Rock
