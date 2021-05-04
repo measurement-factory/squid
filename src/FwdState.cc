@@ -554,8 +554,7 @@ FwdState::complete()
         else
             debugs(17, 3, "server (FD closed) not re-forwarding status " << replyStatus);
 
-        if (!Comm::IsConnOpen(serverConn))
-            completed();
+        completed();
 
         stopAndDestroy("forwarding completed");
     }
