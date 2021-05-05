@@ -79,7 +79,7 @@ public:
     void unregister(Comm::ConnectionPointer &conn);
     void unregister(int fd);
     void complete();
-    /// all body bytes have been received
+    /// all body bytes (including empty body) have been received
     void bodyReceivedSuccessfully();
     void handleUnregisteredServerEnd();
     int reforward();

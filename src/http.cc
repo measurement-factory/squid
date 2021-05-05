@@ -1497,10 +1497,11 @@ HttpStateData::processReplyBody()
             }
         } else
             writeReplyBody();
-            const auto clen =  virginReply()->content_length;
+            int64_t clen = -1;
+            const auto expectingBody = virginReply()->expectingBody(request->method, clen);
             const auto completedClen = (clen >= 0 && clen == payloadSeen - payloadTruncated);
             const auto completedEof = (clen < 0 && eof);
-            if (completedClen || completedEof)
+            if (completedClen || completedEof || !expectingBody)
                 virginBodyReceivedSuccessfully();
     }
 

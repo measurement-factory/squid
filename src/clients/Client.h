@@ -80,7 +80,7 @@ public:
 
 public: // should be protected
     void serverComplete();     /**< call when no server communication is expected */
-    /// is called when all peer body bytes have been received
+    /// is called when all peer body bytes (including empty body) have been received
     void virginBodyReceivedSuccessfully();
 
 private:

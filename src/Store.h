@@ -71,8 +71,8 @@ public:
     void complete();
     /// mark the entry as 'completed' after the body has been fully received
     void completeSuccessfully();
-    /// Mark the entry as 'completed' when no more body bytes are expected for a partially
-    /// received body (e.g., due to a timeout or a preliminary connection closure).
+    /// Mark the entry as 'completed' if the body has been partially received and
+    /// no more body bytes are expected (e.g., due to a timeout or a preliminary connection closure).
     void completeUnsuccessfully();
     store_client_t storeClientType() const;
     /// \returns a malloc()ed buffer containing a length-long packed swap header
