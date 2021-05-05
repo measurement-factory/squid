@@ -387,6 +387,7 @@ Ftp::Relay::forwardReply()
 
     setVirginReply(reply);
     adaptOrFinalizeReply();
+    virginBodyReceivedSuccessfully();
 
     serverComplete();
 }
