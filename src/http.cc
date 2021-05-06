@@ -1495,7 +1495,7 @@ HttpStateData::processReplyBody()
                 serverComplete();
                 return;
             }
-        } else
+        } else {
             writeReplyBody();
             int64_t clen = -1;
             const auto expectingBody = virginReply()->expectingBody(request->method, clen);
@@ -1503,6 +1503,7 @@ HttpStateData::processReplyBody()
             const auto completedEof = (clen < 0 && eof);
             if (completedClen || completedEof || !expectingBody)
                 virginBodyReceivedSuccessfully();
+        }
     }
 
     // storing/sending methods like earlier adaptOrFinalizeReply() or
