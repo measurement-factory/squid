@@ -1462,9 +1462,7 @@ Ftp::Server::createDataConnection(Ip::Address cltAddr)
            conn->flags |= COMM_TRANSPARENT;
     } else {
         assert(!port->flags.accelSurrogate());
-        assert(port->flags.interceptedSomewhere());
-
-        // TODO: remove this condition after adding PROXY protocol support for ftp_port
+        // replace with interceptedSomewhere() when ftp_port supports PROXY protocol
         Must(port->flags.natInterceptLocally());
 
         // In the case of NAT interception conn->local value is not set

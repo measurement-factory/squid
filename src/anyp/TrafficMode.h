@@ -16,6 +16,13 @@ namespace AnyP
 class TrafficModeFlags
 {
 public:
+    /** marks HTTP accelerator (reverse/surrogate proxy) traffic
+     *
+     * Indicating the following are required:
+     *  - URL translation from relative to absolute form
+     *  - restriction to origin peer relay recommended
+     */
+    bool accelSurrogate = false;
     /** marks http ports receiving PROXY protocol traffic
      *
      * Indicating the following are required:
@@ -61,14 +68,6 @@ public:
      *  - Squid authentication prohibited
      */
     bool tproxyIntercept = false;
-
-    /** marks HTTP accelerator (reverse/surrogate proxy) traffic
-     *
-     * Indicating the following are required:
-     *  - URL translation from relative to absolute form
-     *  - restriction to origin peer relay recommended
-     */
-    bool accelSurrogate = false;
 };
 
 /**

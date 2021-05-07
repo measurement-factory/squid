@@ -1609,7 +1609,7 @@ ClientHttpRequest::sslBumpStart()
 
     // TODO: add a boolean ClientHttpRequest::faked field to mark
     // faked CONNECT requests instead of trying to guess whether a request was
-    // faked based on its port configuration and current state.
+    // faked based on its port configuration.
     if (request->masterXaction->hasListeningInterceptedPort()) {
         CommIoCbParams &params = GetCommParams<CommIoCbParams>(bumpCall);
         params.flag = Comm::OK;
