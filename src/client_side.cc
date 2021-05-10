@@ -653,6 +653,18 @@ ConnStateData::updateError(const Error &error)
     }
 }
 
+void
+ConnStateData::notePeerConnectionTimeout()
+{
+    if (const auto context = pipeline.front()) {
+        const auto http = context->http;
+        assert(http);
+        LogTagsErrors lte;
+        lte.timedout = true;
+        http->logType.err.update(lte);
+    }
+}
+
 bool
 ConnStateData::isOpen() const
 {

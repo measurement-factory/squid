@@ -23,7 +23,6 @@
 #include "comm/ConnOpener.h"
 #include "comm/Loops.h"
 #include "CommCalls.h"
-#include "error/SysErrorDetail.h"
 #include "errorpage.h"
 #include "event.h"
 #include "fd.h"
@@ -296,8 +295,9 @@ FwdState::completed()
             }
 #endif
         } else {
-            if (err)
-                al->updateError(Error(err->type, SysErrorDetail::NewIfAny(err->xerrno)));
+            if (request->clientConnectionManager.valid() && err && err->type == ERR_READ_TIMEOUT) {
+                CallJobHere(17, 4, request->clientConnectionManager, ConnStateData, notePeerConnectionTimeout);
+            }
             entry->completeUnsuccessfully();
         }
     }
