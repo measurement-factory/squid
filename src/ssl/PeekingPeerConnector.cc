@@ -138,6 +138,8 @@ Ssl::PeekingPeerConnector::getTlsContext()
 bool
 Ssl::PeekingPeerConnector::initialize(Security::SessionPointer &serverSession)
 {
+    Must(request->flags.sslPeek);
+
     if (!Security::PeerConnector::initialize(serverSession))
         return false;
 
@@ -162,7 +164,7 @@ Ssl::PeekingPeerConnector::initialize(Security::SessionPointer &serverSession)
             // name that the client will request (after interception or CONNECT)
             // unless it was the CONNECT request with a user-typed address.
             const bool isConnectRequest = !csd->port->flags.isIntercepted();
-            if (!request->flags.sslPeek || isConnectRequest)
+            if (isConnectRequest)
                 hostName = new SBuf(request->url.host());
         }
 
@@ -238,7 +240,7 @@ Ssl::PeekingPeerConnector::noteNegotiationDone(ErrorState *error)
         // certificate CN. Otherwise, we just hope that CONNECT is using
         // a user-entered address (a host name or a user-entered IP).
         const bool isConnectRequest = !request->clientConnectionManager->port->flags.isIntercepted();
-        if (request->flags.sslPeek && !isConnectRequest) {
+        if (!isConnectRequest) {
             if (X509 *srvX509 = serverBump->serverCert.get()) {
                 if (const char *name = Ssl::CommonHostName(srvX509)) {
                     request->url.host(name);
