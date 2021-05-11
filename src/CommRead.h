@@ -41,6 +41,7 @@ public:
     CommRead theRead;
     bool cancelled;
     AsyncCall::Pointer closer; ///< internal close handler used by Comm
+    CodeContext::Pointer codeContext; ///< creator's context
 
 private:
 };

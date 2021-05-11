@@ -1745,9 +1745,13 @@ CommRead::CommRead() : conn(NULL), buf(NULL), len(0), callback(NULL) {}
 CommRead::CommRead(const Comm::ConnectionPointer &c, char *buf_, int len_, AsyncCall::Pointer &callback_)
     : conn(c), buf(buf_), len(len_), callback(callback_) {}
 
-DeferredRead::DeferredRead () : theReader(NULL), theContext(NULL), theRead(), cancelled(false) {}
+DeferredRead::DeferredRead() :
+    theReader(nullptr), theContext(nullptr), theRead(), cancelled(false), codeContext(CodeContext::Current())
+{}
 
-DeferredRead::DeferredRead (DeferrableRead *aReader, void *data, CommRead const &aRead) : theReader(aReader), theContext (data), theRead(aRead), cancelled(false) {}
+DeferredRead::DeferredRead(DeferrableRead *aReader, void *data, CommRead const &aRead) :
+    theReader(aReader), theContext (data), theRead(aRead), cancelled(false), codeContext(CodeContext::Current())
+{}
 
 DeferredReadManager::~DeferredReadManager()
 {
@@ -1865,7 +1869,9 @@ DeferredReadManager::kickARead(DeferredRead const &aRead)
 
     debugs(5, 3, "Kicking deferred read on " << aRead.theRead.conn);
 
-    aRead.theReader(aRead.theContext, aRead.theRead);
+    CallBack(aRead.codeContext, [&aRead] {
+        aRead.theReader(aRead.theContext, aRead.theRead);
+    });
 }
 
 void
