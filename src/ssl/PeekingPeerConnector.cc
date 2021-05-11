@@ -47,9 +47,9 @@ Ssl::PeekingPeerConnector::checkForPeekAndSplice()
 {
     // Mark Step3 of bumping
     if (request->clientConnectionManager.valid()) {
-        if (Ssl::ServerBump *serverBump = request->clientConnectionManager->serverBump()) {
-            serverBump->step = XactionStep::tlsBump3;
-        }
+        auto serverBump = request->clientConnectionManager->serverBump();
+        Must(serverBump);
+        serverBump->step = XactionStep::tlsBump3;
     }
 
     handleServerCertificate();
@@ -169,10 +169,12 @@ Ssl::PeekingPeerConnector::initialize(Security::SessionPointer &serverSession)
         if (hostName)
             SSL_set_ex_data(serverSession.get(), ssl_ex_index_server, (void*)hostName);
 
+        auto serverBump = csd->serverBump();
+        Must(serverBump);
         // XXX: The serverBump step should never be tlsBump1 here however
         // for now the serverBump->step is not update correctly when
         // bump is decided at step1.
-        Must(!csd->serverBump() || csd->serverBump()->at(XactionStep::tlsBump1, XactionStep::tlsBump3));
+        Must(serverBump->at(XactionStep::tlsBump1, XactionStep::tlsBump3));
         if (csd->sslBumpMode == Ssl::bumpPeek || csd->sslBumpMode == Ssl::bumpStare) {
             auto clientSession = fd_table[clientConn->fd].ssl.get();
             Must(clientSession);
@@ -201,13 +203,11 @@ Ssl::PeekingPeerConnector::initialize(Security::SessionPointer &serverSession)
                 setClientSNI(serverSession.get(), sniServer);
         }
 
-        if (Ssl::ServerBump *serverBump = csd->serverBump()) {
-            serverBump->attachServerSession(serverSession);
-            // store peeked cert to check SQUID_X509_V_ERR_CERT_CHANGE
-            if (X509 *peeked_cert = serverBump->serverCert.get()) {
-                X509_up_ref(peeked_cert);
-                SSL_set_ex_data(serverSession.get(), ssl_ex_index_ssl_peeked_cert, peeked_cert);
-            }
+        serverBump->attachServerSession(serverSession);
+        // store peeked cert to check SQUID_X509_V_ERR_CERT_CHANGE
+        if (X509 *peeked_cert = serverBump->serverCert.get()) {
+            X509_up_ref(peeked_cert);
+            SSL_set_ex_data(serverSession.get(), ssl_ex_index_ssl_peeked_cert, peeked_cert);
         }
     }
 
@@ -221,34 +221,32 @@ Ssl::PeekingPeerConnector::noteNegotiationDone(ErrorState *error)
     if (!request->clientConnectionManager.valid() || !fd_table[serverConnection()->fd].ssl)
         return;
 
+    auto serverBump = request->clientConnectionManager->serverBump();
+    Must(serverBump);
     // remember the server certificate from the ErrorDetail object
-    if (Ssl::ServerBump *serverBump = request->clientConnectionManager->serverBump()) {
-        if (!serverBump->serverCert.get()) {
-            // remember the server certificate from the ErrorDetail object
-            if (error && error->detail && error->detail->peerCert())
-                serverBump->serverCert.resetAndLock(error->detail->peerCert());
-            else {
-                handleServerCertificate();
-            }
-        }
-
-        if (error) {
-            // For intercepted connections, set the host name to the server
-            // certificate CN. Otherwise, we just hope that CONNECT is using
-            // a user-entered address (a host name or a user-entered IP).
-            const bool isConnectRequest = !request->clientConnectionManager->port->flags.isIntercepted();
-            if (request->flags.sslPeek && !isConnectRequest) {
-                if (X509 *srvX509 = serverBump->serverCert.get()) {
-                    if (const char *name = Ssl::CommonHostName(srvX509)) {
-                        request->url.host(name);
-                        debugs(83, 3, "reset request host: " << name);
-                    }
-                }
-            }
+    if (!serverBump->serverCert.get()) {
+        // remember the server certificate from the ErrorDetail object
+        if (error && error->detail && error->detail->peerCert())
+            serverBump->serverCert.resetAndLock(error->detail->peerCert());
+        else {
+            handleServerCertificate();
         }
     }
 
-    if (!error) {
+    if (error) {
+        // For intercepted connections, set the host name to the server
+        // certificate CN. Otherwise, we just hope that CONNECT is using
+        // a user-entered address (a host name or a user-entered IP).
+        const bool isConnectRequest = !request->clientConnectionManager->port->flags.isIntercepted();
+        if (request->flags.sslPeek && !isConnectRequest) {
+            if (X509 *srvX509 = serverBump->serverCert.get()) {
+                if (const char *name = Ssl::CommonHostName(srvX509)) {
+                    request->url.host(name);
+                    debugs(83, 3, "reset request host: " << name);
+                }
+            }
+        }
+    } else {
         serverCertificateVerified();
         if (splice) {
             if (!Comm::IsConnOpen(clientConn)) {
@@ -369,9 +367,9 @@ Ssl::PeekingPeerConnector::handleServerCertificate()
         serverCertificateHandled = true;
 
         // remember the server certificate for later use
-        if (Ssl::ServerBump *serverBump = csd->serverBump()) {
-            serverBump->serverCert = std::move(serverCert);
-        }
+        auto serverBump = csd->serverBump();
+        Must(serverBump);
+        serverBump->serverCert = std::move(serverCert);
     }
 }
 
@@ -380,7 +378,9 @@ Ssl::PeekingPeerConnector::serverCertificateVerified()
 {
     if (ConnStateData *csd = request->clientConnectionManager.valid()) {
         Security::CertPointer serverCert;
-        if(Ssl::ServerBump *serverBump = csd->serverBump())
+        auto serverBump = csd->serverBump();
+        Must(serverBump);
+        if(serverBump->serverCert.get())
             serverCert.resetAndLock(serverBump->serverCert.get());
         else {
             const int fd = serverConnection()->fd;
