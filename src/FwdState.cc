@@ -24,6 +24,7 @@
 #include "comm/Loops.h"
 #include "CommCalls.h"
 #include "errorpage.h"
+#include "error/SysErrorDetail.h"
 #include "event.h"
 #include "fd.h"
 #include "fde.h"
@@ -259,6 +260,20 @@ FwdState::selectPeerForIntercepted()
 }
 #endif
 
+/// stores or updates the error information (if any)
+void
+FwdState::updateError()
+{
+    if (!err)
+        return;
+    LogTagsErrors lte;
+    lte.timedout = (err->xerrno == ETIMEDOUT || err->type == ERR_READ_TIMEOUT);
+    lte.aborted = !lte.timedout;
+    al->cache.code.err.update(lte);
+    const auto detail = err->xerrno ? SysErrorDetail::NewIfAny(err->xerrno) : MakeNamedErrorDetail("SRV_ERROR");
+    al->updateError(Error(err->type, detail));
+}
+
 void
 FwdState::completed()
 {
@@ -286,6 +301,7 @@ FwdState::completed()
             if (!err) // we quit (e.g., fd closed) before an error or content
                 fail(new ErrorState(ERR_READ_ERROR, Http::scBadGateway, request, al));
             assert(err);
+            updateError();
             errorAppendEntry(entry, err);
             err = NULL;
 #if USE_OPENSSL
@@ -295,9 +311,7 @@ FwdState::completed()
             }
 #endif
         } else {
-            if (request->clientConnectionManager.valid() && err && err->type == ERR_READ_TIMEOUT) {
-                CallJobHere(17, 4, request->clientConnectionManager, ConnStateData, notePeerConnectionTimeout);
-            }
+            updateError();
             entry->completeUnsuccessfully();
         }
     }

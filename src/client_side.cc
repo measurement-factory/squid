@@ -653,18 +653,6 @@ ConnStateData::updateError(const Error &error)
     }
 }
 
-void
-ConnStateData::notePeerConnectionTimeout()
-{
-    if (const auto context = pipeline.front()) {
-        const auto http = context->http;
-        assert(http);
-        LogTagsErrors lte;
-        lte.timedout = true;
-        http->logType.err.update(lte);
-    }
-}
-
 bool
 ConnStateData::isOpen() const
 {
@@ -4016,6 +4004,9 @@ void
 ConnStateData::terminateAll(const Error &error, const LogTagsErrors &lte)
 {
     debugs(33, 3, pipeline.count() << '/' << pipeline.nrequests << " after " << error);
+
+    if (!error.detail)
+        const_cast<Error &>(error).detail = MakeNamedErrorDetail("CLT_ERROR");
 
     if (pipeline.empty()) {
         bareError.update(error); // XXX: bareLogTagsErrors

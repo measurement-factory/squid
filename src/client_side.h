@@ -205,9 +205,6 @@ public:
     // pining related comm callbacks
     virtual void clientPinnedConnectionClosed(const CommCloseCbParams &io);
 
-    /// called by FwdState after peer I/O timeout occurred and no re-forwarding is expected
-    void notePeerConnectionTimeout();
-
     /// noteTakeServerConnectionControl() callback parameter
     class ServerConnectionContext {
     public:

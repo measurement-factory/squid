@@ -162,6 +162,8 @@ private:
 
     void notifyConnOpener();
 
+    void updateError();
+
 public:
     StoreEntry *entry;
     HttpRequest *request;

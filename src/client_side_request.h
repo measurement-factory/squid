@@ -119,11 +119,12 @@ public:
     HttpHdrRangeIter range_iter;    /* data for iterating thru range specs */
     size_t req_sz;      /* raw request size on input, not current request size */
 
-    /// the processing tags associated with this request transaction.
-    // NP: still an enum so each stage altering it must take care when replacing it.
-    LogTags logType;
-
     AccessLogEntry::Pointer al; ///< access.log entry
+
+    /// The processing tags associated with this request transaction,
+    /// actually a reference to the cache::code field of the ALE.
+    // NP: still an enum so each stage altering it must take care when replacing it.
+    LogTags &logType;
 
     struct Flags {
         Flags() : accel(false), internal(false), done_copying(false) {}
