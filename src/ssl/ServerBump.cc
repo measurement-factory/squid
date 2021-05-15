@@ -81,11 +81,11 @@ Ssl::ServerBump::resetStoreEntry(StoreEntry *e)
     assert(entry);
     assert(sc);
     storeUnregister(sc, entry, this);
-    entry->unlock("Ssl::ServerBump");
+    entry->unlock("Ssl::ServerBump#resetStoreEntry");
 
     assert(e);
     entry = e;
-    entry->lock("Ssl::ServerBump");
+    entry->lock("Ssl::ServerBump#resetStoreEntry");
     sc = storeClientListAdd(entry, this);
 #if USE_DELAY_POOLS
     sc->setDelayId(DelayId::DelayClient(http));
