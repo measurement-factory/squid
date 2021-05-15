@@ -2953,9 +2953,8 @@ ConnStateData::parseTlsHandshake()
     }
 
     Must(sslServerBump);
-    if (sslServerBump->act.step1 == Ssl::bumpClientFirst) {
-        getSslContextStart();
-        return;
+    if (sslServerBump->act.step1 == Ssl::bumpPeek || sslServerBump->act.step1 == Ssl::bumpStare) {
+        startPeekAndSpliceStep2();
     } else if (sslServerBump->act.step1 == Ssl::bumpServerFirst) {
         Http::StreamPointer context = pipeline.front();
         ClientHttpRequest *http = context ? context->http : nullptr;
@@ -2963,8 +2962,8 @@ ConnStateData::parseTlsHandshake()
         // will call httpsPeeked() with certificate and connection, eventually
         FwdState::Start(clientConnection, sslServerBump->entry, sslServerBump->request.getRaw(), http ? http->al : nullptr);
     } else {
-        Must(sslServerBump->act.step1 == Ssl::bumpPeek || sslServerBump->act.step1 == Ssl::bumpStare);
-        startPeekAndSpliceStep2();
+        Must (sslServerBump->act.step1 == Ssl::bumpBump || sslServerBump->act.step1 == Ssl::bumpClientFirst);
+        getSslContextStart();
     }
 }
 
