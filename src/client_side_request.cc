@@ -1866,19 +1866,19 @@ ClientHttpRequest::doCallouts()
         const char *storeUri = storeUriBuf.c_str();
         StoreEntry *e = storeCreateEntry(storeUri, storeUri, request->flags, request->method);
 #if USE_OPENSSL
+        // set final error but delay sending until we bump
+        if (Ssl::ServerBump *srvBump = getConn()->serverBump()) {
+            assert(srvBump->at(XactionStep::tlsBump2));
+            // Update request
+            srvBump->request = request;
+            srvBump->storeEntryError(e);
+        } else if (sslBumpNeeded()) {
+            // We have to serve an error, so bump the client first.
+            sslBumpNeed(Ssl::bumpClientFirst);
+            srvBump = new Ssl::ServerBump(this, e, Ssl::bumpClientFirst);
+            getConn()->setServerBump(srvBump);
+        }
         if (sslBumpNeeded()) {
-            // set final error but delay sending until we bump
-            if (Ssl::ServerBump *srvBump = getConn()->serverBump()) {
-                assert(srvBump->at(XactionStep::tlsBump2));
-                // Update request
-                srvBump->request = request;
-                srvBump->storeEntryError(e);
-            } else {
-                // We have to serve an error, so bump the client first.
-                sslBumpNeed(Ssl::bumpClientFirst);
-                srvBump = new Ssl::ServerBump(this, e, Ssl::bumpClientFirst);
-                getConn()->setServerBump(srvBump);
-            }
             errorAppendEntry(e, calloutContext->error);
             calloutContext->error = NULL;
             e->unlock("ClientHttpRequest::doCallouts+sslBumpNeeded");
