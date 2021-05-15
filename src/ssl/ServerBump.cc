@@ -76,7 +76,7 @@ Ssl::ServerBump::sslErrors() const
 }
 
 void
-Ssl::ServerBump::storeEntryError(StoreEntry *e)
+Ssl::ServerBump::resetStoreEntry(StoreEntry *e)
 {
     assert(entry);
     assert(sc);
