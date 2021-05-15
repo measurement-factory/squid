@@ -2746,7 +2746,11 @@ ConnStateData::getSslContextStart()
         Ssl::CertificateProperties certProperties;
         buildSslCertGenerationParams(certProperties);
 
-        // Disable caching if the SSL object exists and has attached a CTX object
+        // Do not use SSL_CTX objects cache if the SSL/SSL_CTX objects pair
+        // for this connection is already built. We can not(?) replace existing
+        // SSL_CTX object.
+        // TODO: recheck if we can replace the connection existing SSL_CTX
+        // object with a new one retrieved from cache.
         if (!(fd_table[clientConnection->fd].ssl)) {
             sslBumpCertKey.clear();
             Ssl::InRamCertificateDbKey(certProperties, sslBumpCertKey);
