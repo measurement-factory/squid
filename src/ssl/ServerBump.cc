@@ -78,11 +78,12 @@ Ssl::ServerBump::sslErrors() const
 void
 Ssl::ServerBump::storeEntryError(StoreEntry *e)
 {
-    if (entry) {
-        assert(sc);
-        storeUnregister(sc, entry, this);
-        entry->unlock("Ssl::ServerBump");
-    }
+    assert(entry);
+    assert(sc);
+    storeUnregister(sc, entry, this);
+    entry->unlock("Ssl::ServerBump");
+
+    assert(e);
     entry = e;
     entry->lock("Ssl::ServerBump");
     sc = storeClientListAdd(entry, this);
