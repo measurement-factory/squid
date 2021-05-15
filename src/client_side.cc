@@ -2432,6 +2432,9 @@ clientNegotiateSSL(int fd, void *data)
     Security::SessionPointer session(fd_table[fd].ssl);
 
 #if USE_OPENSSL
+    if (conn->serverBump())
+        conn->serverBump()->step = XactionStep::tlsBumpDone;
+
     if (Security::SessionIsResumed(session)) {
         debugs(83, 2, "Session " << SSL_get_session(session.get()) <<
                " reused on FD " << fd << " (" << fd_table[fd].ipaddr <<
@@ -2956,6 +2959,7 @@ ConnStateData::parseTlsHandshake()
     } else if (sslServerBump->act.step1 == Ssl::bumpServerFirst) {
         Http::StreamPointer context = pipeline.front();
         ClientHttpRequest *http = context ? context->http : nullptr;
+        sslServerBump->step = XactionStep::tlsBump3; // Jump directly to TLS bumping Step3
         // will call httpsPeeked() with certificate and connection, eventually
         FwdState::Start(clientConnection, sslServerBump->entry, sslServerBump->request.getRaw(), http ? http->al : nullptr);
     } else {
@@ -2971,7 +2975,7 @@ ConnStateData::splice()
     assert(sslServerBump);
 
     // Bump procedure finished, reset current bumping step
-    sslServerBump->step = XactionStep::unknown;
+    sslServerBump->step = XactionStep::tlsBumpDone;
 
     // fde::ssl/tls_read_method() probably reads from our own inBuf. If so, then
     // we should not lose any raw bytes when switching to raw I/O here.
@@ -3039,7 +3043,7 @@ ConnStateData::resumePeekAndSpliceStep2()
 
     sslBumpMode = sslServerBump->act.step2;
     if (sslBumpMode == Ssl::bumpTerminate) {
-        sslServerBump->step = XactionStep::unknown;
+        sslServerBump->step = XactionStep::tlsBumpDone;
         clientConnection->close();
     } else if (sslBumpMode != Ssl::bumpSplice) {
         finalizePeekAndSpliceStep2();

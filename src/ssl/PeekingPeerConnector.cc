@@ -45,12 +45,11 @@ Ssl::PeekingPeerConnector::checkForPeekAndSpliceDone(Acl::Answer answer)
 void
 Ssl::PeekingPeerConnector::checkForPeekAndSplice()
 {
-    // Mark Step3 of bumping
-    if (request->clientConnectionManager.valid()) {
-        auto serverBump = request->clientConnectionManager->serverBump();
-        Must(serverBump);
-        serverBump->step = XactionStep::tlsBump3;
-    }
+    if (!request->clientConnectionManager.valid())
+        return;
+    auto serverBump = request->clientConnectionManager->serverBump();
+    Must(serverBump);
+    Must(serverBump->step == XactionStep::tlsBump3);
 
     handleServerCertificate();
 
@@ -95,6 +94,8 @@ Ssl::PeekingPeerConnector::checkForPeekAndSpliceMatched(const Ssl::BumpMode acti
         bail(new ErrorState(ERR_SECURE_CONNECT_FAIL, Http::scForbidden, request.getRaw(), al));
         clientConn->close();
         clientConn = nullptr;
+        if (request->clientConnectionManager.valid())
+            request->clientConnectionManager->serverBump()->step = XactionStep::tlsBumpDone;
     } else if (finalAction != Ssl::bumpSplice) {
         //Allow write, proceed with the connection
         srvBio->holdWrite(false);
@@ -173,10 +174,7 @@ Ssl::PeekingPeerConnector::initialize(Security::SessionPointer &serverSession)
 
         auto serverBump = csd->serverBump();
         Must(serverBump);
-        // XXX: The serverBump step should never be tlsBump1 here however
-        // for now the serverBump->step is not update correctly when
-        // bump is decided at step1.
-        Must(serverBump->at(XactionStep::tlsBump1, XactionStep::tlsBump3));
+        Must(serverBump->at(XactionStep::tlsBump3));
         if (csd->sslBumpMode == Ssl::bumpPeek || csd->sslBumpMode == Ssl::bumpStare) {
             auto clientSession = fd_table[clientConn->fd].ssl.get();
             Must(clientSession);
@@ -251,6 +249,7 @@ Ssl::PeekingPeerConnector::noteNegotiationDone(ErrorState *error)
     } else {
         serverCertificateVerified();
         if (splice) {
+            serverBump->step = XactionStep::tlsBumpDone;
             if (!Comm::IsConnOpen(clientConn)) {
                 bail(new ErrorState(ERR_GATEWAY_FAILURE, Http::scInternalServerError, request.getRaw(), al));
                 throw TextException("from-client connection gone", Here());

@@ -17,6 +17,7 @@ enum class XactionStep  {
     tlsBump1,
     tlsBump2,
     tlsBump3,
+    tlsBumpDone,
 #endif
     enumEnd_ // for WholeEnum iteration
 };

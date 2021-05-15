@@ -1499,6 +1499,8 @@ ClientRequestContext::sslBumpAccessCheckDone(const Acl::Answer &answer)
             debugs(85, 3, "closing after Ssl::bumpTerminate ");
             clientConn->close();
         }
+        if (auto srvBump = http->getConn()->serverBump())
+            srvBump->step = XactionStep::tlsBumpDone;
         return;
     }
 
@@ -1520,8 +1522,6 @@ ClientHttpRequest::processRequest()
 
 #if USE_OPENSSL
     auto srvBump = getConn()->serverBump();
-    // XXX: The following "if" works however the bumping step is not updated
-    // correctly by peek-and-splice code.
     if (srvBump && srvBump->at(XactionStep::tlsBump2)) {
         // Update request object
         srvBump->request = request;
