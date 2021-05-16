@@ -209,14 +209,33 @@ StoreEntry::getMD5Text() const
 
 #include "comm.h"
 
-void
-StoreEntry::DeferReader(void *theContext, CommRead const &aRead)
+/// AsyncCall dialer for our deferred read callback
+class DeferredReadDialer: public CallDialer
 {
-    StoreEntry *anEntry = (StoreEntry *)theContext;
-    anEntry->delayAwareRead(aRead.conn,
-                            aRead.buf,
-                            aRead.len,
-                            aRead.callback);
+public:
+    typedef void (StoreEntry::*Method)(const CommRead &);
+
+    DeferredReadDialer(Method method, StoreEntry *entry, const CommRead &aRead):
+        method_(method), entry_(entry), commRead_(aRead) { entry_->lock("DeferredReadDialer"); }
+
+    ~DeferredReadDialer() { entry_->unlock("DeferredReadDialer"); }
+
+    virtual void print(std::ostream &os) const { os << '(' << commRead_ << ')'; }
+
+    virtual bool canDial(AsyncCall &) const { return true; }
+    virtual void dial(AsyncCall &) { (entry_->*method_)(commRead_); }
+
+public:
+    Method method_; ///< the deferred read method to call
+    StoreEntry *entry_; ///< the object receiving the deferred call
+    CommRead commRead_; ///< the method_ argument
+};
+
+/// a callback used by DeferredReadDialer
+void
+StoreEntry::readDelayed(CommRead const &aRead)
+{
+    delayAwareRead(aRead.conn, aRead.buf, aRead.len, aRead.callback);
 }
 
 void
@@ -229,7 +248,9 @@ StoreEntry::delayAwareRead(const Comm::ConnectionPointer &conn, char *buf, int l
 
     if (amountToRead <= 0) {
         assert (mem_obj);
-        mem_obj->delayRead(DeferredRead(DeferReader, this, CommRead(conn, buf, len, callback)));
+        AsyncCall::Pointer call = asyncCall(20, 5, "StoreEntry::readDelayed",
+                DeferredReadDialer(&StoreEntry::readDelayed, this, CommRead(conn, buf, len, callback)));
+        mem_obj->delayRead(DeferredRead(call, conn));
         return;
     }
 

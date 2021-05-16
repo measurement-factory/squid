@@ -42,7 +42,6 @@ class StoreEntry : public hash_link, public Packable
 {
 
 public:
-    static DeferredRead::DeferrableRead DeferReader;
     bool checkDeferRead(int fd) const;
 
     const char *getMD5Text() const;
@@ -307,6 +306,7 @@ private:
     void forcePublicKey(const cache_key *newkey);
     StoreEntry *adjustVary();
     const cache_key *calcPublicKey(const KeyScope keyScope);
+    void readDelayed(CommRead const &);
 
     static MemAllocator *pool;
 

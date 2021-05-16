@@ -1745,10 +1745,6 @@ CommRead::CommRead() : conn(NULL), buf(NULL), len(0), callback(NULL) {}
 CommRead::CommRead(const Comm::ConnectionPointer &c, char *buf_, int len_, AsyncCall::Pointer &callback_)
     : conn(c), buf(buf_), len(len_), callback(callback_) {}
 
-DeferredRead::DeferredRead () : theReader(NULL), theContext(NULL), theRead(), cancelled(false) {}
-
-DeferredRead::DeferredRead (DeferrableRead *aReader, void *data, CommRead const &aRead) : theReader(aReader), theContext (data), theRead(aRead), cancelled(false) {}
-
 DeferredReadManager::~DeferredReadManager()
 {
     flushReads();
@@ -1764,7 +1760,7 @@ template cbdata_type CbDataList<DeferredRead>::CBDATA_CbDataList;
 void
 DeferredReadManager::delayRead(DeferredRead const &aRead)
 {
-    debugs(5, 3, "Adding deferred read on " << aRead.theRead.conn);
+    debugs(5, 3, "Adding deferred read on " << aRead.conn);
     CbDataList<DeferredRead> *temp = deferredReads.push_back(aRead);
 
     // We have to use a global function as a closer and point to temp
@@ -1774,8 +1770,7 @@ DeferredReadManager::delayRead(DeferredRead const &aRead)
     AsyncCall::Pointer closer = commCbCall(5,4,
                                            "DeferredReadManager::CloseHandler",
                                            CommCloseCbPtrFun(&CloseHandler, temp));
-    comm_add_close_handler(aRead.theRead.conn->fd, closer);
-    temp->element.closer = closer; // remember so that we can cancel
+    temp->element.addCloseHandler(closer);
 }
 
 void
@@ -1785,38 +1780,25 @@ DeferredReadManager::CloseHandler(const CommCloseCbParams &params)
         return;
 
     CbDataList<DeferredRead> *temp = (CbDataList<DeferredRead> *)params.data;
-
-    temp->element.closer = NULL;
-    temp->element.markCancelled();
+    temp->element.closer = nullptr;
+    temp->element.cancel("connection was closed");
 }
 
 DeferredRead
 DeferredReadManager::popHead(CbDataListContainer<DeferredRead> &deferredReads)
 {
     assert (!deferredReads.empty());
+    if (auto &read = deferredReads.head->element) {
 
-    DeferredRead &read = deferredReads.head->element;
+        // NOTE: at this point the connection has been paused/stalled for an unknown
+        //       amount of time. We must re-validate that it is active and usable.
 
-    // NOTE: at this point the connection has been paused/stalled for an unknown
-    //       amount of time. We must re-validate that it is active and usable.
-
-    // If the connection has been closed already. Cancel this read.
-    if (!fd_table || !Comm::IsConnOpen(read.theRead.conn)) {
-        if (read.closer != NULL) {
-            read.closer->cancel("Connection closed before.");
-            read.closer = NULL;
-        }
-        read.markCancelled();
+        if (!fd_table || !Comm::IsConnOpen(read.conn))
+            read.cancel("connection has been closed already");
+        else
+            read.removeCloseHandler();
     }
-
-    if (!read.cancelled) {
-        comm_remove_close_handler(read.theRead.conn->fd, read.closer);
-        read.closer = NULL;
-    }
-
-    DeferredRead result = deferredReads.pop_front();
-
-    return result;
+    return deferredReads.pop_front();
 }
 
 void
@@ -1832,11 +1814,10 @@ DeferredReadManager::kickReads(int const count)
     size_t remaining = count;
 
     while (!deferredReads.empty() && remaining) {
-        DeferredRead aRead = popHead(deferredReads);
-        kickARead(aRead);
-
-        if (!aRead.cancelled)
+        if (auto aRead = popHead(deferredReads)) {
+            kickARead(aRead);
             --remaining;
+        }
     }
 }
 
@@ -1849,29 +1830,46 @@ DeferredReadManager::flushReads()
 
     // XXX: For fairness this SHOULD randomize the order
     while (!reads.empty()) {
-        DeferredRead aRead = popHead(reads);
-        kickARead(aRead);
+        if (auto aRead = popHead(reads))
+            kickARead(aRead);
     }
 }
 
 void
-DeferredReadManager::kickARead(DeferredRead const &aRead)
+DeferredReadManager::kickARead(DeferredRead &aRead)
 {
-    if (aRead.cancelled)
+    if (Comm::IsConnOpen(aRead.conn) && fd_table[aRead.conn->fd].closing())
         return;
-
-    if (Comm::IsConnOpen(aRead.theRead.conn) && fd_table[aRead.theRead.conn->fd].closing())
-        return;
-
-    debugs(5, 3, "Kicking deferred read on " << aRead.theRead.conn);
-
-    aRead.theReader(aRead.theContext, aRead.theRead);
+    ScheduleCallHere(aRead.reader);
 }
 
 void
-DeferredRead::markCancelled()
+DeferredRead::cancel(const char *reason)
 {
-    cancelled = true;
+    if (closer) {
+        closer->cancel(reason);
+        closer = nullptr;
+    }
+    if (reader) {
+        reader->cancel(reason);
+        reader = nullptr;
+    }
+}
+
+void
+DeferredRead::addCloseHandler(AsyncCall::Pointer &handler)
+{
+    Must(!closer);
+    comm_add_close_handler(conn->fd, handler);
+    closer = handler; // remember so that we can cancel
+}
+
+void
+DeferredRead::removeCloseHandler()
+{
+    Must(bool(closer));
+    comm_remove_close_handler(conn->fd, closer);
+    closer = nullptr;
 }
 
 int

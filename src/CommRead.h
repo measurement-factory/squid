@@ -22,25 +22,34 @@ class CommRead
 public:
     CommRead();
     CommRead(const Comm::ConnectionPointer &c, char *buf, int len, AsyncCall::Pointer &callback);
+
     Comm::ConnectionPointer conn;
     char *buf;
     int len;
     AsyncCall::Pointer callback;
 };
 
+inline
+std::ostream &
+operator <<(std::ostream &os, const CommRead &aRead)
+{
+    return os << aRead.conn << ", len=" << aRead.len << ", buf=" << aRead.buf;
+}
+
 class DeferredRead
 {
 
 public:
-    typedef void DeferrableRead(void *context, CommRead const &);
-    DeferredRead ();
-    DeferredRead (DeferrableRead *, void *, CommRead const &);
-    void markCancelled();
-    DeferrableRead *theReader;
-    void *theContext;
-    CommRead theRead;
-    bool cancelled;
+    DeferredRead() {}
+    DeferredRead(const AsyncCall::Pointer &aReader, const Comm::ConnectionPointer &c) : reader(aReader), conn(c) {}
+    void cancel(const char *reason);
+    explicit operator bool() const { return bool(reader); }
+    void addCloseHandler(AsyncCall::Pointer &);
+    void removeCloseHandler();
+
+    AsyncCall::Pointer reader; ///< pending reader callback
     AsyncCall::Pointer closer; ///< internal close handler used by Comm
+    Comm::ConnectionPointer conn;
 
 private:
 };
@@ -56,7 +65,7 @@ public:
 private:
     static CLCB CloseHandler;
     static DeferredRead popHead(CbDataListContainer<DeferredRead> &deferredReads);
-    void kickARead(DeferredRead const &);
+    void kickARead(DeferredRead &);
     void flushReads();
     CbDataListContainer<DeferredRead> deferredReads;
 };

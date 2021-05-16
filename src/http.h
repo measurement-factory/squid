@@ -11,6 +11,7 @@
 
 #include "clients/Client.h"
 #include "comm.h"
+#include "CommRead.h"
 #include "http/forward.h"
 #include "http/StateFlags.h"
 #include "sbuf/SBuf.h"
@@ -144,6 +145,7 @@ private:
     static bool decideIfWeDoRanges (HttpRequest * orig_request);
     bool peerSupportsConnectionPinning() const;
     const char *blockSwitchingProtocols(const HttpReply&) const;
+    void readDelayed(CommRead);
 
     /// Parser being used at present to parse the HTTP/ICY server response.
     Http1::ResponseParserPointer hp;
