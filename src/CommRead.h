@@ -22,7 +22,6 @@ class CommRead
 public:
     CommRead();
     CommRead(const Comm::ConnectionPointer &c, char *buf, int len, AsyncCall::Pointer &callback);
-
     Comm::ConnectionPointer conn;
     char *buf;
     int len;

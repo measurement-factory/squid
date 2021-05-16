@@ -1840,6 +1840,7 @@ DeferredReadManager::kickARead(DeferredRead &aRead)
 {
     if (Comm::IsConnOpen(aRead.conn) && fd_table[aRead.conn->fd].closing())
         return;
+    debugs(5, 3, "Kicking deferred read on " << aRead.conn);
     ScheduleCallHere(aRead.reader);
 }
 

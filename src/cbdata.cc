@@ -91,12 +91,12 @@ public:
     ~cbdata();
 
     static cbdata *FromUserData(const void *p) {
-//#if WITH_VALGRIND
-//        return cbdata_htable.at(p);
-//#else
-        const auto t = static_cast<const char *>(p) - offsetof(cbdata, data);
-        return reinterpret_cast<cbdata *>(const_cast<char *>(t));
-//#endif
+#if WITH_VALGRIND
+        return cbdata_htable.at(p);
+#else
+      const auto t = static_cast<const char *>(p) - offsetof(cbdata, data);
+      return reinterpret_cast<cbdata *>(const_cast<char *>(t));
+#endif
     }
 
     int valid;
