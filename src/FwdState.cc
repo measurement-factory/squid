@@ -269,7 +269,8 @@ FwdState::updateError()
     LogTagsErrors lte;
     lte.timedout = (err->xerrno == ETIMEDOUT || err->type == ERR_READ_TIMEOUT);
     al->cache.code.err.update(lte);
-    al->updateError(err->type);
+    // TODO: supply server-side specific error details
+    al->updateError(Error(err->type, err->detail));
 }
 
 void
