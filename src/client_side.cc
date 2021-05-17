@@ -4005,8 +4005,9 @@ ConnStateData::terminateAll(const Error &error, const LogTagsErrors &lte)
 {
     debugs(33, 3, pipeline.count() << '/' << pipeline.nrequests << " after " << error);
 
-    if (!error.detail)
-        const_cast<Error &>(error).detail = MakeNamedErrorDetail("CLT_ERROR");
+    // if (!error.detail) {
+    // TODO: supply/accumulate error details here
+    // }
 
     if (pipeline.empty()) {
         bareError.update(error); // XXX: bareLogTagsErrors
