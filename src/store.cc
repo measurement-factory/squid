@@ -218,6 +218,15 @@ public:
     DeferredReadDialer(Method method, StoreEntry *entry, const CommRead &aRead):
         method_(method), entry_(entry), commRead_(aRead) { entry_->lock("DeferredReadDialer"); }
 
+    DeferredReadDialer(const DeferredReadDialer &dialer) :
+        method_(dialer.method_), entry_(dialer.entry_), commRead_(dialer.commRead_) {
+        entry_->lock("DeferredReadDialer");
+    }
+
+    DeferredReadDialer &operator=(const DeferredReadDialer &dialer) = delete;
+    DeferredReadDialer(const DeferredReadDialer &&dialer) = delete;
+    DeferredReadDialer &operator=(const DeferredReadDialer &&dialer) = delete;
+
     ~DeferredReadDialer() { entry_->unlock("DeferredReadDialer"); }
 
     virtual void print(std::ostream &os) const { os << '(' << commRead_ << ')'; }
