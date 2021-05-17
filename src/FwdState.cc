@@ -268,10 +268,8 @@ FwdState::updateError()
         return;
     LogTagsErrors lte;
     lte.timedout = (err->xerrno == ETIMEDOUT || err->type == ERR_READ_TIMEOUT);
-    lte.aborted = !lte.timedout;
     al->cache.code.err.update(lte);
-    const auto detail = err->xerrno ? SysErrorDetail::NewIfAny(err->xerrno) : MakeNamedErrorDetail("SRV_ERROR");
-    al->updateError(Error(err->type, detail));
+    al->updateError(err->type);
 }
 
 void
