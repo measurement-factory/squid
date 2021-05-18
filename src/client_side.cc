@@ -4001,13 +4001,13 @@ ConnStateData::unpinConnection(const bool andClose)
 }
 
 void
-ConnStateData::terminateAll(const Error &error, const LogTagsErrors &lte)
+ConnStateData::terminateAll(const Error &anError, const LogTagsErrors &lte)
 {
-    debugs(33, 3, pipeline.count() << '/' << pipeline.nrequests << " after " << error);
+    auto error = anError;
+    if (!error.detail)
+        error.detail = MakeNamedErrorDetail("CLT_CONN");
 
-    // if (!error.detail) {
-    // TODO: supply/accumulate error details here
-    // }
+    debugs(33, 3, pipeline.count() << '/' << pipeline.nrequests << " after " << error);
 
     if (pipeline.empty()) {
         bareError.update(error); // XXX: bareLogTagsErrors
