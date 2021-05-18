@@ -121,9 +121,9 @@ public:
 
     const AccessLogEntry::Pointer al; ///< access.log entry
 
+    // TODO: create a method returning ALE::cache::code instead
     /// The processing tags associated with this request transaction,
     /// actually a reference to the cache::code field of the ALE.
-    // NP: still an enum so each stage altering it must take care when replacing it.
     LogTags &logType;
 
     struct Flags {
