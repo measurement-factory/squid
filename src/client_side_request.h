@@ -119,7 +119,7 @@ public:
     HttpHdrRangeIter range_iter;    /* data for iterating thru range specs */
     size_t req_sz;      /* raw request size on input, not current request size */
 
-    AccessLogEntry::Pointer al; ///< access.log entry
+    const AccessLogEntry::Pointer al; ///< access.log entry
 
     /// The processing tags associated with this request transaction,
     /// actually a reference to the cache::code field of the ALE.

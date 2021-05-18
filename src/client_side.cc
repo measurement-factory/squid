@@ -327,7 +327,7 @@ ClientHttpRequest::updateCounters()
 }
 
 void
-prepareLogWithRequestDetails(HttpRequest * request, AccessLogEntry::Pointer &aLogEntry)
+prepareLogWithRequestDetails(HttpRequest * request, const AccessLogEntry::Pointer &aLogEntry)
 {
     assert(request);
     assert(aLogEntry != NULL);
