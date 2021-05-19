@@ -208,6 +208,8 @@ public:
 
     /// allow or forbid collapsed requests feeding
     void setCollapsingRequirement(const bool required);
+    /// a callback used by DeferredReadDialer
+    void readDelayed(CommRead const &);
 
     MemObject *mem_obj;
     RemovalPolicyNode repl;
@@ -306,7 +308,6 @@ private:
     void forcePublicKey(const cache_key *newkey);
     StoreEntry *adjustVary();
     const cache_key *calcPublicKey(const KeyScope keyScope);
-    void readDelayed(CommRead const &);
 
     static MemAllocator *pool;
 

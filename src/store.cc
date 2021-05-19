@@ -213,34 +213,30 @@ StoreEntry::getMD5Text() const
 class DeferredReadDialer: public CallDialer
 {
 public:
-    typedef void (StoreEntry::*Method)(const CommRead &);
-
-    DeferredReadDialer(Method method, StoreEntry *entry, const CommRead &aRead):
-        method_(method), entry_(entry), commRead_(aRead) { entry_->lock("DeferredReadDialer"); }
+    DeferredReadDialer(StoreEntry &entry, const CommRead &aRead):
+        entry_(&entry), commRead_(aRead) { entry_->lock("DeferredReadDialer constructor"); }
 
     DeferredReadDialer(const DeferredReadDialer &dialer) :
-        method_(dialer.method_), entry_(dialer.entry_), commRead_(dialer.commRead_) {
-        entry_->lock("DeferredReadDialer");
+        entry_(dialer.entry_), commRead_(dialer.commRead_) {
+        entry_->lock("DeferredReadDialer copy constructor");
     }
 
-    DeferredReadDialer &operator=(const DeferredReadDialer &dialer) = delete;
-    DeferredReadDialer(const DeferredReadDialer &&dialer) = delete;
-    DeferredReadDialer &operator=(const DeferredReadDialer &&dialer) = delete;
+    DeferredReadDialer &operator=(const DeferredReadDialer &) = delete;
+    DeferredReadDialer(DeferredReadDialer &&) = delete;
+    DeferredReadDialer &operator=(DeferredReadDialer &&) = delete;
 
-    ~DeferredReadDialer() { entry_->unlock("DeferredReadDialer"); }
+    ~DeferredReadDialer() { entry_->unlock("DeferredReadDialer destructor"); }
 
     virtual void print(std::ostream &os) const { os << '(' << commRead_ << ')'; }
 
     virtual bool canDial(AsyncCall &) const { return true; }
-    virtual void dial(AsyncCall &) { (entry_->*method_)(commRead_); }
+    virtual void dial(AsyncCall &) { entry_->readDelayed(commRead_); }
 
 public:
-    Method method_; ///< the deferred read method to call
-    StoreEntry *entry_; ///< the object receiving the deferred call
-    CommRead commRead_; ///< the method_ argument
+    StoreEntry *entry_; ///< the entry receiving the deferred read call
+    CommRead commRead_; ///< the deferred read argument
 };
 
-/// a callback used by DeferredReadDialer
 void
 StoreEntry::readDelayed(CommRead const &aRead)
 {
@@ -258,7 +254,7 @@ StoreEntry::delayAwareRead(const Comm::ConnectionPointer &conn, char *buf, int l
     if (amountToRead <= 0) {
         assert (mem_obj);
         AsyncCall::Pointer call = asyncCall(20, 5, "StoreEntry::readDelayed",
-                DeferredReadDialer(&StoreEntry::readDelayed, this, CommRead(conn, buf, len, callback)));
+                DeferredReadDialer(*this, CommRead(conn, buf, len, callback)));
         mem_obj->delayRead(DeferredRead(call, conn));
         return;
     }
