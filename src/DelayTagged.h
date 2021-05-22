@@ -64,7 +64,7 @@ private:
         ~Id();
         virtual int bytesWanted (int min, int max) const;
         virtual void bytesIn(int qty);
-        virtual void delayRead(DeferredRead const &);
+        virtual void delayRead(const AsyncCall::Pointer &);
 
     private:
         RefCount<DelayTagged> theTagged;

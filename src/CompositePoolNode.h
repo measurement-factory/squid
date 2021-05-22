@@ -37,7 +37,7 @@ public:
 
     class CompositeSelectionDetails;
     virtual DelayIdComposite::Pointer id(CompositeSelectionDetails &) = 0;
-    void delayRead(DeferredRead const &);
+    void delayRead(const AsyncCall::Pointer &);
 
     /// \ingroup DelayPoolsAPI
     class CompositeSelectionDetails

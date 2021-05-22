@@ -1747,130 +1747,23 @@ CommRead::CommRead(const Comm::ConnectionPointer &c, char *buf_, int len_, Async
 
 DeferredReadManager::~DeferredReadManager()
 {
-    flushReads();
-    assert (deferredReads.empty());
-}
-
-/* explicit instantiation required for some systems */
-
-/// \cond AUTODOCS_IGNORE
-template cbdata_type CbDataList<DeferredRead>::CBDATA_CbDataList;
-/// \endcond
-
-void
-DeferredReadManager::delayRead(DeferredRead const &aRead)
-{
-    debugs(5, 3, "Adding deferred read on " << aRead.conn);
-    CbDataList<DeferredRead> *temp = deferredReads.push_back(aRead);
-
-    // We have to use a global function as a closer and point to temp
-    // instead of "this" because DeferredReadManager is not a job and
-    // is not even cbdata protected
-    // XXX: and yet we use cbdata protection functions on it??
-    AsyncCall::Pointer closer = commCbCall(5,4,
-                                           "DeferredReadManager::CloseHandler",
-                                           CommCloseCbPtrFun(&CloseHandler, temp));
-    temp->element.addCloseHandler(closer);
+    kickReads();
 }
 
 void
-DeferredReadManager::CloseHandler(const CommCloseCbParams &params)
+DeferredReadManager::delayRead(const AsyncCall::Pointer &aRead)
 {
-    if (!cbdataReferenceValid(params.data))
-        return;
-
-    CbDataList<DeferredRead> *temp = (CbDataList<DeferredRead> *)params.data;
-    temp->element.closer = nullptr;
-    temp->element.cancel("connection was closed");
-}
-
-DeferredRead
-DeferredReadManager::popHead(CbDataListContainer<DeferredRead> &deferredReads)
-{
-    assert (!deferredReads.empty());
-    if (auto &read = deferredReads.head->element) {
-
-        // NOTE: at this point the connection has been paused/stalled for an unknown
-        //       amount of time. We must re-validate that it is active and usable.
-
-        if (!fd_table || !Comm::IsConnOpen(read.conn))
-            read.cancel("connection has been closed already");
-        else
-            read.removeCloseHandler();
-    }
-    return deferredReads.pop_front();
+    deferredReads.push_back(aRead);
 }
 
 void
-DeferredReadManager::kickReads(int const count)
+DeferredReadManager::kickReads()
 {
-    /* if we had CbDataList::size() we could consolidate this and flushReads */
-
-    if (count < 1) {
-        flushReads();
-        return;
-    }
-
-    size_t remaining = count;
-
-    while (!deferredReads.empty() && remaining) {
-        if (auto aRead = popHead(deferredReads)) {
-            kickARead(aRead);
-            --remaining;
-        }
-    }
-}
-
-void
-DeferredReadManager::flushReads()
-{
-    CbDataListContainer<DeferredRead> reads;
-    reads = deferredReads;
-    deferredReads = CbDataListContainer<DeferredRead>();
-
     // XXX: For fairness this SHOULD randomize the order
-    while (!reads.empty()) {
-        if (auto aRead = popHead(reads))
-            kickARead(aRead);
-    }
-}
+    for (auto &read : deferredReads)
+        ScheduleCallHere(read);
 
-void
-DeferredReadManager::kickARead(DeferredRead &aRead)
-{
-    if (Comm::IsConnOpen(aRead.conn) && fd_table[aRead.conn->fd].closing())
-        return;
-    debugs(5, 3, "Kicking deferred read on " << aRead.conn);
-    ScheduleCallHere(aRead.reader);
-}
-
-void
-DeferredRead::cancel(const char *reason)
-{
-    if (closer) {
-        closer->cancel(reason);
-        closer = nullptr;
-    }
-    if (reader) {
-        reader->cancel(reason);
-        reader = nullptr;
-    }
-}
-
-void
-DeferredRead::addCloseHandler(AsyncCall::Pointer &handler)
-{
-    Must(!closer);
-    comm_add_close_handler(conn->fd, handler);
-    closer = handler; // remember so that we can cancel
-}
-
-void
-DeferredRead::removeCloseHandler()
-{
-    Must(bool(closer));
-    comm_remove_close_handler(conn->fd, closer);
-    closer = nullptr;
+    deferredReads.clear();
 }
 
 int

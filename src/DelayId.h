@@ -34,7 +34,7 @@ public:
     int bytesWanted(int min, int max) const;
     void bytesIn (int qty);
     void setNoDelay(bool const);
-    void delayRead(DeferredRead const &);
+    void delayRead(const AsyncCall::Pointer &);
 
 private:
     unsigned short pool_;

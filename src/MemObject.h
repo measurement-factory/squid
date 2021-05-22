@@ -203,7 +203,7 @@ public:
 
     SBuf vary_headers;
 
-    void delayRead(DeferredRead const &);
+    void delayRead(const AsyncCall::Pointer &);
     void kickReads();
 
 private:

@@ -71,7 +71,7 @@ private:
         AggregateId (RefCount<Aggregate>);
         virtual int bytesWanted (int min, int max) const;
         virtual void bytesIn(int qty);
-        virtual void delayRead(DeferredRead const &);
+        virtual void delayRead(const AsyncCall::Pointer &);
 
     private:
         RefCount<Aggregate> theAggregate;
@@ -240,7 +240,7 @@ protected:
 };
 
 void
-Aggregate::AggregateId::delayRead(DeferredRead const &aRead)
+Aggregate::AggregateId::delayRead(const AsyncCall::Pointer &aRead)
 {
     theAggregate->delayRead(aRead);
 }

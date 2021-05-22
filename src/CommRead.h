@@ -35,38 +35,16 @@ operator <<(std::ostream &os, const CommRead &aRead)
     return os << aRead.conn << ", len=" << aRead.len << ", buf=" << aRead.buf;
 }
 
-class DeferredRead
-{
-
-public:
-    DeferredRead() {}
-    DeferredRead(const AsyncCall::Pointer &aReader, const Comm::ConnectionPointer &c) : reader(aReader), conn(c) {}
-    void cancel(const char *reason);
-    explicit operator bool() const { return bool(reader); }
-    void addCloseHandler(AsyncCall::Pointer &);
-    void removeCloseHandler();
-
-    AsyncCall::Pointer reader; ///< pending reader callback
-    AsyncCall::Pointer closer; ///< internal close handler used by Comm
-    Comm::ConnectionPointer conn;
-
-private:
-};
-
 class DeferredReadManager
 {
 
 public:
     ~DeferredReadManager();
-    void delayRead(DeferredRead const &);
-    void kickReads(int const count);
+    void delayRead(const AsyncCall::Pointer &);
+    void kickReads();
 
 private:
-    static CLCB CloseHandler;
-    static DeferredRead popHead(CbDataListContainer<DeferredRead> &deferredReads);
-    void kickARead(DeferredRead &);
-    void flushReads();
-    CbDataListContainer<DeferredRead> deferredReads;
+    std::vector<AsyncCall::Pointer> deferredReads;
 };
 
 #endif /* COMMREAD_H */

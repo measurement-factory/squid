@@ -246,6 +246,15 @@ StoreEntry::readDelayed(CommRead const &aRead)
 void
 StoreEntry::delayAwareRead(const Comm::ConnectionPointer &conn, char *buf, int len, AsyncCall::Pointer callback)
 {
+    if (!Comm::IsConnOpen(conn) || fd_table[conn->fd].closing()) {
+        // Readers must have closing callbacks if they want to be notified. No
+        // readers appeared to care around 2009/12/14 as they skipped reading
+        // for other reasons. Closing may already be true at the delyaAwareRead
+        // call time or may happen while we wait after delayRead() above.
+        debugs(20, 3, "will not read from closing " << conn << " for " << callback);
+        return; // the read callback will never be called
+    }
+
     size_t amountToRead = bytesWanted(Range<size_t>(0, len));
     /* sketch: readdeferer* = getdeferer.
      * ->deferRead (fd, buf, len, callback, DelayAwareRead, this)
@@ -255,17 +264,8 @@ StoreEntry::delayAwareRead(const Comm::ConnectionPointer &conn, char *buf, int l
         assert (mem_obj);
         AsyncCall::Pointer call = asyncCall(20, 5, "StoreEntry::readDelayed",
                 DeferredReadDialer(*this, CommRead(conn, buf, len, callback)));
-        mem_obj->delayRead(DeferredRead(call, conn));
+        mem_obj->delayRead(call);
         return;
-    }
-
-    if (fd_table[conn->fd].closing()) {
-        // Readers must have closing callbacks if they want to be notified. No
-        // readers appeared to care around 2009/12/14 as they skipped reading
-        // for other reasons. Closing may already be true at the delyaAwareRead
-        // call time or may happen while we wait after delayRead() above.
-        debugs(20, 3, "will not read from closing " << conn << " for " << callback);
-        return; // the read callback will never be called
     }
 
     comm_read(conn, buf, amountToRead, callback);

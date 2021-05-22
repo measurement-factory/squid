@@ -1246,7 +1246,7 @@ HttpStateData::readReply(const CommIoCbParams &io)
         typedef UnaryMemFunT<HttpStateData, CommRead> DeferredReadDialer;
         AsyncCall::Pointer call = asyncCall(20, 5, "HttpStateData::readDelayed",
                 DeferredReadDialer(this, &HttpStateData::readDelayed, CommRead(io.conn, nullptr, 0, nilCall)));
-        entry->mem_obj->delayRead(DeferredRead(call, io.conn));
+        entry->mem_obj->delayRead(call);
         return;
     }
 

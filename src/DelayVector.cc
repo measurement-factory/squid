@@ -126,7 +126,7 @@ DelayVector::Id::bytesIn(int qty)
 }
 
 void
-DelayVector::Id::delayRead(DeferredRead const &aRead)
+DelayVector::Id::delayRead(const AsyncCall::Pointer &aRead)
 {
     theVector->delayRead(aRead);
 }
