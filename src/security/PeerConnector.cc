@@ -87,6 +87,24 @@ Security::PeerConnector::start()
 }
 
 void
+Security::PeerConnector::fillChecklist(ACLFilledChecklist &checklist) const
+{
+    if (!checklist.al)
+        checklist.al = al;
+    checklist.syncAle(request.getRaw(), nullptr);
+    // checklist.fd(fd); XXX: need client FD here
+
+#if USE_OPENSSL
+    if (!checklist.serverCert) {
+        if (const auto session = fd_table[serverConnection()->fd].ssl.get())
+            checklist.serverCert.resetWithoutLocking(SSL_get_peer_certificate(session));
+    }
+#else
+    // checklist.serverCert is not maintained in other builds
+#endif
+}
+
+void
 Security::PeerConnector::commCloseHandler(const CommCloseCbParams &params)
 {
     debugs(83, 5, "FD " << params.fd << ", Security::PeerConnector=" << params.data);
@@ -146,9 +164,7 @@ Security::PeerConnector::initialize(Security::SessionPointer &serverSession)
         // The list is used in ssl_verify_cb() and is freed in ssl_free().
         if (acl_access *acl = ::Config.ssl_client.cert_error) {
             ACLFilledChecklist *check = new ACLFilledChecklist(acl, request.getRaw(), dash_str);
-            check->al = al;
-            check->syncAle(request.getRaw(), nullptr);
-            // check->fd(fd); XXX: need client FD here
+            fillChecklist(*check);
             SSL_set_ex_data(serverSession.get(), ssl_ex_index_cert_error_check, check);
         }
     }
@@ -200,6 +216,9 @@ Security::PeerConnector::negotiate()
 
 #if USE_OPENSSL
     auto &sconn = *fd_table[fd].ssl;
+
+    // log ASAP, even if the handshake has not completed (or failed)
+    keyLogger.checkpoint(sconn, *this);
 
     // OpenSSL v1 APIs do not allow unthreaded applications like Squid to fetch
     // missing certificates _during_ OpenSSL certificate validation. Our
@@ -365,9 +384,7 @@ Security::PeerConnector::sslCrtvdCheckForErrors(Ssl::CertValidationResponse cons
 
     if (acl_access *acl = ::Config.ssl_client.cert_error) {
         check = new ACLFilledChecklist(acl, request.getRaw(), dash_str);
-        check->al = al;
-        check->syncAle(request.getRaw(), nullptr);
-        check->serverCert.resetWithoutLocking(SSL_get_peer_certificate(session.get()));
+        fillChecklist(*check);
     }
 
     Security::CertErrors *errs = nullptr;

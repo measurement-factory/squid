@@ -10,6 +10,7 @@
 #define SQUID_SRC_SECURITY_PEERCONNECTOR_H
 
 #include "acl/Acl.h"
+#include "acl/ChecklistFiller.h"
 #include "base/AsyncCbdataCalls.h"
 #include "base/AsyncJob.h"
 #include "base/JobWait.h"
@@ -17,6 +18,7 @@
 #include "http/forward.h"
 #include "security/EncryptorAnswer.h"
 #include "security/forward.h"
+#include "security/KeyLogger.h"
 #if USE_OPENSSL
 #include "ssl/support.h"
 #endif
@@ -43,7 +45,7 @@ typedef RefCount<IoResult> IoResultPointer;
  * Contains common code and interfaces of various specialized PeerConnector's,
  * including peer certificate validation code.
  */
-class PeerConnector: virtual public AsyncJob
+class PeerConnector: virtual public AsyncJob, public Acl::ChecklistFiller
 {
     CBDATA_CLASS(PeerConnector);
 
@@ -75,6 +77,9 @@ protected:
     virtual bool doneAll() const;
     virtual void swanSong();
     virtual const char *status() const;
+
+    /* Acl::ChecklistFiller API */
+    virtual void fillChecklist(ACLFilledChecklist &) const;
 
     /// The connection read timeout callback handler.
     void commTimeoutHandler(const CommTimeoutCbParams &);
@@ -195,6 +200,9 @@ private:
 
     /// The maximum number of inter-dependent Downloader jobs a worker may initiate
     static const unsigned int MaxNestedDownloads = 3;
+
+    /// managers logging of the being-established TLS connection secrets
+    Security::KeyLogger keyLogger;
 
     AsyncCall::Pointer closeHandler; ///< we call this when the connection closed
     time_t negotiationTimeout; ///< the SSL connection timeout to use

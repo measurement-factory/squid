@@ -1180,6 +1180,7 @@ tests_testRock_SOURCES = \
 	tests/stub_cache_manager.cc \
 	cbdata.cc \
 	tests/stub_client_db.cc \
+	tests/stub_client_side.cc \
 	tests/stub_client_side_request.cc \
 	tests/stub_debug.cc \
 	tests/stub_errorpage.cc \
@@ -1348,13 +1349,13 @@ tests_testUfs_SOURCES = \
 	tests/testUfs.cc \
 	tests/testUfs.h \
 	tests/stub_access_log.cc \
-	tests/stub_acl.cc \
 	tests/stub_cache_cf.cc \
 	cache_cf.h \
 	tests/stub_cache_manager.cc \
 	cbdata.cc \
 	tests/stub_client_db.cc \
 	client_db.h \
+	tests/stub_client_side.cc \
 	tests/stub_client_side_request.cc \
 	tests/stub_debug.cc \
 	tests/stub_errorpage.cc \
@@ -1530,11 +1531,11 @@ tests_testStore_SOURCES = \
 	Transients.cc \
 	tests/stub_UdsOp.cc \
 	tests/stub_access_log.cc \
-	tests/stub_acl.cc \
 	tests/stub_cache_cf.cc \
 	cache_cf.h \
 	tests/stub_cache_manager.cc \
 	cbdata.cc \
+	tests/stub_client_side.cc \
 	tests/stub_client_side_request.cc \
 	tests/stub_comm.cc \
 	tests/stub_debug.cc \
@@ -1697,13 +1698,13 @@ tests_testDiskIO_SOURCES = \
 	Transients.cc \
 	tests/stub_UdsOp.cc \
 	tests/stub_access_log.cc \
-	tests/stub_acl.cc \
 	tests/stub_cache_cf.cc \
 	cache_cf.h \
 	tests/stub_cache_manager.cc \
 	cbdata.cc \
 	tests/stub_client_db.cc \
 	client_db.h \
+	tests/stub_client_side.cc \
 	tests/stub_client_side_request.cc \
 	client_side_request.h \
 	tests/stub_debug.cc \
@@ -2194,6 +2195,7 @@ tests_testHttpReply_SOURCES = \
 	tests/stub_cache_cf.cc \
 	cache_cf.h \
 	tests/stub_cache_manager.cc \
+	tests/stub_client_side.cc \
 	cbdata.cc \
 	cbdata.h \
 	tests/stub_comm.cc \
@@ -2847,6 +2849,7 @@ tests_testConfigParser_SOURCES = \
 	tests/stub_MemBuf.cc \
 	tests/stub_SBufDetailedStats.cc \
 	String.cc \
+	tests/stub_acl.cc \
 	tests/stub_cache_cf.cc \
 	cache_cf.h \
 	tests/stub_cbdata.cc \
