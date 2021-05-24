@@ -32,7 +32,7 @@ inline
 std::ostream &
 operator <<(std::ostream &os, const CommRead &aRead)
 {
-    return os << aRead.conn << ", len=" << aRead.len << ", buf=" << aRead.buf;
+    return os << aRead.conn << ", len=" << aRead.len;
 }
 
 class DeferredReadManager

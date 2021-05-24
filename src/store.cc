@@ -249,9 +249,10 @@ StoreEntry::delayAwareRead(const Comm::ConnectionPointer &conn, char *buf, int l
     if (!Comm::IsConnOpen(conn) || fd_table[conn->fd].closing()) {
         // Readers must have closing callbacks if they want to be notified. No
         // readers appeared to care around 2009/12/14 as they skipped reading
-        // for other reasons. Closing may already be true at the delyaAwareRead
+        // for other reasons. Closing may already be true at the delayAwareRead
         // call time or may happen while we wait after delayRead() above.
-        debugs(20, 3, "will not read from closing " << conn << " for " << callback);
+        debugs(20, 3, "will not read from " << (fd_table[conn->fd].closing() ? "closing " : "closed ") <<
+                conn << " for " << callback);
         return; // the read callback will never be called
     }
 
