@@ -1519,6 +1519,8 @@ free_acl(ACL ** ae)
 void
 dump_acl_list(StoreEntry * entry, ACLList * head)
 {
+    // XXX: Should dump ACL names like "foo !bar" but dumps parsing context like
+    // "(clientside_tos 0x11 line)".
     dump_SBufList(entry, head->dump());
 }
 
@@ -2047,7 +2049,10 @@ ParseAclWithAction(acl_access **access, const Acl::Answer &action, const char *d
     Acl::AndNode *rule = new Acl::AndNode;
     name.Printf("(%s rule)", desc);
     rule->context(name.c_str(), config_input_line);
-    acl ? rule->add(acl) : rule->lineParse();
+    if (acl)
+        rule->add(acl);
+    else
+        rule->lineParse();
     (*access)->add(rule, action);
 }
 
