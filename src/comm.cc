@@ -1740,11 +1740,6 @@ commHalfClosedReader(const Comm::ConnectionPointer &conn, char *, size_t size, C
     commPlanHalfClosedCheck(); // make sure this fd will be checked again
 }
 
-CommRead::CommRead() : conn(NULL), buf(NULL), len(0), callback(NULL) {}
-
-CommRead::CommRead(const Comm::ConnectionPointer &c, char *buf_, int len_, AsyncCall::Pointer &callback_)
-    : conn(c), buf(buf_), len(len_), callback(callback_) {}
-
 DeferredReadManager::~DeferredReadManager()
 {
     kickReads();

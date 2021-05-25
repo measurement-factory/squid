@@ -139,6 +139,7 @@ public:
     void connectDataChannel();
     bool openListenSocket();
     void switchTimeoutToDataChannel();
+    void delayAwareRead();
 
     CtrlChannel ctrl; ///< FTP control channel state
     DataChannel data; ///< FTP data channel state

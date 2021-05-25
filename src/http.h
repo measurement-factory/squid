@@ -145,7 +145,7 @@ private:
     static bool decideIfWeDoRanges (HttpRequest * orig_request);
     bool peerSupportsConnectionPinning() const;
     const char *blockSwitchingProtocols(const HttpReply&) const;
-    void readDelayed(CommRead);
+    void readDelayed();
 
     /// Parser being used at present to parse the HTTP/ICY server response.
     Http1::ResponseParserPointer hp;

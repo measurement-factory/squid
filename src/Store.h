@@ -161,8 +161,6 @@ public:
     void destroyMemObject();
     int checkTooSmall();
 
-    void delayAwareRead(const Comm::ConnectionPointer &conn, char *buf, int len, AsyncCall::Pointer callback);
-
     void setNoDelay (bool const);
     void lastModified(const time_t when) { lastModified_ = when; }
     /// \returns entry's 'effective' modification time
@@ -208,8 +206,6 @@ public:
 
     /// allow or forbid collapsed requests feeding
     void setCollapsingRequirement(const bool required);
-    /// a callback used by DeferredReadDialer
-    void readDelayed(CommRead const &);
 
     MemObject *mem_obj;
     RemovalPolicyNode repl;

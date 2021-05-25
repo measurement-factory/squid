@@ -9,6 +9,7 @@
 /* DEBUG: section 10    Gopher */
 
 #include "squid.h"
+#include "base/AsyncCbdataCalls.h"
 #include "comm.h"
 #include "comm/Read.h"
 #include "comm/Write.h"
@@ -824,6 +825,28 @@ gopherReadReply(const Comm::ConnectionPointer &conn, char *buf, size_t len, Comm
     }
 }
 
+static void
+GopherReadDelayed(GopherStateData *gopherState)
+{
+    const auto &conn = gopherState->serverConn;
+    if (!Comm::IsConnOpen(conn) || fd_table[conn->fd].closing()) {
+        debugs(10, 3, "will not read from " << (fd_table[conn->fd].closing() ? "closing " : "closed ") << conn);
+        return;
+    }
+
+    const auto amountToRead = gopherState->entry->bytesWanted(Range<size_t>(0, BUFSIZ));
+
+    if (amountToRead <= 0) {
+        assert(gopherState->entry->mem_obj);
+        AsyncCall::Pointer delayCall = asyncCall(10, 3, "GopherReadDelayed", cbdataDialer(&GopherReadDelayed, gopherState));
+        gopherState->entry->mem_obj->delayRead(delayCall);
+        return;
+    }
+
+    AsyncCall::Pointer readCall = commCbCall(5, 5, "gopherReadReply", CommIoCbPtrFun(gopherReadReply, gopherState));
+    comm_read(conn, gopherState->replybuf, amountToRead, readCall);
+}
+
 /**
  * This will be called when request write is complete. Schedule read of reply.
  */
@@ -891,10 +914,7 @@ gopherSendComplete(const Comm::ConnectionPointer &conn, char *, size_t size, Com
         entry->flush();
     }
 
-    /* Schedule read reply. */
-    AsyncCall::Pointer call =  commCbCall(5,5, "gopherReadReply",
-                                          CommIoCbPtrFun(gopherReadReply, gopherState));
-    entry->delayAwareRead(conn, gopherState->replybuf, BUFSIZ, call);
+    GopherReadDelayed(gopherState);
 }
 
 /**

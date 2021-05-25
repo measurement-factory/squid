@@ -16,25 +16,6 @@
 #include "comm/forward.h"
 #include "CommCalls.h"
 
-class CommRead
-{
-
-public:
-    CommRead();
-    CommRead(const Comm::ConnectionPointer &c, char *buf, int len, AsyncCall::Pointer &callback);
-    Comm::ConnectionPointer conn;
-    char *buf;
-    int len;
-    AsyncCall::Pointer callback;
-};
-
-inline
-std::ostream &
-operator <<(std::ostream &os, const CommRead &aRead)
-{
-    return os << aRead.conn << ", len=" << aRead.len;
-}
-
 class DeferredReadManager
 {
 
