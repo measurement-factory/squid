@@ -16,8 +16,6 @@
 #include "base/RefCount.h"
 #include "fatal.h"
 
-class DeferredRead;
-
 class DelayIdComposite : public RefCountable
 {
 
@@ -28,7 +26,7 @@ public:
     virtual int bytesWanted (int min, int max) const =0;
     virtual void bytesIn(int qty) = 0;
     /* only aggregate and vector need this today */
-    virtual void delayRead(const AsyncCall::Pointer &) {fatal("Not implemented");}
+    virtual void delayRead(const AsyncCall::Pointer &) { fatal("Not implemented"); }
 };
 
 #endif /* USE_DELAY_POOLS */

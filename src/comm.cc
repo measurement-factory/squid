@@ -862,7 +862,7 @@ comm_close_complete(const FdeCbParams &params)
  * + call read handlers with ERR_CLOSING
  * + call closing handlers
  *
- * NOTE: Comm::ERR_CLOSING will NOT be called for CommReads' sitting in a
+ * NOTE: Comm::ERR_CLOSING will NOT be called for read handlers, sitting in a
  * DeferredReadManager.
  */
 void
