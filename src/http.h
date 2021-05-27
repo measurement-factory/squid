@@ -11,7 +11,6 @@
 
 #include "clients/Client.h"
 #include "comm.h"
-#include "CommRead.h"
 #include "http/forward.h"
 #include "http/StateFlags.h"
 #include "sbuf/SBuf.h"

@@ -1242,7 +1242,6 @@ HttpStateData::readReply(const CommIoCbParams &io)
 
     if (rd.size <= 0) {
         assert(entry->mem_obj);
-        AsyncCall::Pointer nilCall;
         typedef NullaryMemFunT<HttpStateData> DeferredReadDialer;
         AsyncCall::Pointer call = asyncCall(20, 5, "HttpStateData::readDelayed",
                 DeferredReadDialer(this, &HttpStateData::readDelayed));
