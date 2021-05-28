@@ -155,6 +155,18 @@ Client::setFinalReply(HttpReply *rep)
     return theFinalReply;
 }
 
+void
+Client::virginBodyReceivedSuccessfully()
+{
+#if USE_ADAPTATION
+    if (startedAdaptation) {
+        debugs(11, 5 , "all virgin body bytes have been received but not adapted yet");
+        return;
+    }
+#endif
+    fwd->bodyReceivedSuccessfully();
+}
+
 // called when no more server communication is expected; may quit
 void
 Client::serverComplete()
@@ -806,6 +818,7 @@ void
 Client::endAdaptedBodyConsumption()
 {
     stopConsumingFrom(adaptedBodySource);
+    adaptedBodyReceivedSuccessfully();
     handleAdaptationCompleted();
 }
 
@@ -826,7 +839,6 @@ void Client::handleAdaptedBodyProducerAborted()
     if (handledEarlyAdaptationAbort())
         return;
 
-    entry->lengthWentBad("body adaptation aborted");
     handleAdaptationCompleted(); // the user should get a truncated response
 }
 

@@ -79,6 +79,8 @@ public:
     void unregister(Comm::ConnectionPointer &conn);
     void unregister(int fd);
     void complete();
+    /// all body bytes (including empty body) have been received
+    void bodyReceivedSuccessfully();
     void handleUnregisteredServerEnd();
     int reforward();
     bool reforwardableStatus(const Http::StatusCode s) const;
@@ -159,6 +161,8 @@ private:
     void cancelOpening(const char *reason);
 
     void notifyConnOpener();
+
+    void updateError();
 
 public:
     StoreEntry *entry;

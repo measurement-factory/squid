@@ -675,31 +675,24 @@ HttpStateData::processReplyHeader()
         // sync the buffers after parsing.
         inBuf = hp->remaining();
 
-        if (hp->needsMoreData()) {
-            if (eof) { // no more data coming
-                /* Bug 2879: Replies may terminate with \r\n then EOF instead of \r\n\r\n.
-                 * We also may receive truncated responses.
-                 * Ensure here that we have at minimum two \r\n when EOF is seen.
-                 */
-                inBuf.append("\r\n\r\n", 4);
-                // retry the parse
-                parsedOk = hp->parse(inBuf);
-                // sync the buffers after parsing.
-                inBuf = hp->remaining();
-            } else {
-                debugs(33, 5, "Incomplete response, waiting for end of response headers");
-                ctx_exit(ctx);
-                return;
-            }
+        if (hp->needsMoreData() && !eof) {
+            debugs(33, 5, "incomplete response, waiting for the headers end");
+            ctx_exit(ctx);
+            return;
         }
 
         if (!parsedOk) {
             // unrecoverable parsing error
-            // TODO: Use Raw! XXX: inBuf no longer has the [beginning of the] malformed header.
-            debugs(11, 3, "Non-HTTP-compliant header:\n---------\n" << inBuf << "\n----------");
+            const auto unexpectedEof = hp->needsMoreData() && eof;
+            if (unexpectedEof) {
+                debugs(11, 3, "unexpected end of response header");
+            } else {
+                // TODO: Use Raw! XXX: inBuf no longer has the [beginning of the] malformed header.
+                debugs(11, 3, "Non-HTTP-compliant header:\n---------\n" << inBuf << "\n----------");
+            }
             flags.headers_parsed = true;
             HttpReply *newrep = new HttpReply;
-            newrep->sline.set(Http::ProtocolVersion(), hp->parseStatusCode);
+            newrep->sline.set(Http::ProtocolVersion(), unexpectedEof ? Http::scInvalidHeader : hp->parseStatusCode);
             setVirginReply(newrep);
             ctx_exit(ctx);
             return;
@@ -1452,6 +1445,7 @@ HttpStateData::decodeAndWriteReplyBody()
         if (doneParsing) {
             lastChunk = 1;
             flags.do_next_read = false;
+            virginBodyReceivedSuccessfully();
         }
         return true;
     }
@@ -1496,8 +1490,15 @@ HttpStateData::processReplyBody()
                 serverComplete();
                 return;
             }
-        } else
+        } else {
             writeReplyBody();
+            int64_t clen = -1;
+            const auto expectingBody = virginReply()->expectingBody(request->method, clen);
+            const auto completedClen = (clen >= 0 && clen == payloadSeen - payloadTruncated);
+            const auto completedEof = (clen < 0 && eof);
+            if (completedClen || completedEof || !expectingBody)
+                virginBodyReceivedSuccessfully();
+        }
     }
 
     // storing/sending methods like earlier adaptOrFinalizeReply() or
@@ -1569,8 +1570,6 @@ HttpStateData::processReplyBody()
 
         case COMPLETE_NONPERSISTENT_MSG:
             debugs(11, 5, "processReplyBody: COMPLETE_NONPERSISTENT_MSG from " << serverConnection);
-            if (flags.chunked && !lastChunk)
-                entry->lengthWentBad("missing last-chunk");
 
             serverComplete();
             return;

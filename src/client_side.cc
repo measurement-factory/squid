@@ -325,7 +325,7 @@ ClientHttpRequest::updateCounters()
 }
 
 void
-prepareLogWithRequestDetails(HttpRequest * request, AccessLogEntry::Pointer &aLogEntry)
+prepareLogWithRequestDetails(HttpRequest * request, const AccessLogEntry::Pointer &aLogEntry)
 {
     assert(request);
     assert(aLogEntry != NULL);
@@ -4037,8 +4037,12 @@ ConnStateData::unpinConnection(const bool andClose)
 }
 
 void
-ConnStateData::terminateAll(const Error &error, const LogTagsErrors &lte)
+ConnStateData::terminateAll(const Error &anError, const LogTagsErrors &lte)
 {
+    auto error = anError;
+    if (!error.detail)
+        error.detail = MakeNamedErrorDetail("CLT_CONN");
+
     debugs(33, 3, pipeline.count() << '/' << pipeline.nrequests << " after " << error);
 
     if (pipeline.empty()) {

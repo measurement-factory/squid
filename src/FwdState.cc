@@ -24,6 +24,7 @@
 #include "comm/Loops.h"
 #include "CommCalls.h"
 #include "errorpage.h"
+#include "error/SysErrorDetail.h"
 #include "event.h"
 #include "fd.h"
 #include "fde.h"
@@ -259,6 +260,19 @@ FwdState::selectPeerForIntercepted()
 }
 #endif
 
+/// stores or updates the error information (if any)
+void
+FwdState::updateError()
+{
+    if (!err)
+        return;
+    LogTagsErrors lte;
+    lte.timedout = (err->xerrno == ETIMEDOUT || err->type == ERR_READ_TIMEOUT);
+    al->cache.code.err.update(lte);
+    const auto detail = err->detail ? err->detail : MakeNamedErrorDetail("SRV_CONN");
+    al->updateError(Error(err->type, detail));
+}
+
 void
 FwdState::completed()
 {
@@ -286,6 +300,7 @@ FwdState::completed()
             if (!err) // we quit (e.g., fd closed) before an error or content
                 fail(new ErrorState(ERR_READ_ERROR, Http::scBadGateway, request, al));
             assert(err);
+            updateError();
             errorAppendEntry(entry, err);
             err = NULL;
 #if USE_OPENSSL
@@ -295,10 +310,12 @@ FwdState::completed()
             }
 #endif
         } else {
-            entry->complete();
-            entry->releaseRequest();
+            updateError();
+            entry->completeUnsuccessfully();
         }
     }
+
+    assert(entry->store_status == STORE_OK);
 
     if (storePendingNClients(entry) > 0)
         assert(!EBIT_TEST(entry->flags, ENTRY_FWD_HDR_WAIT));
@@ -552,13 +569,19 @@ FwdState::complete()
             debugs(17, 3, "server FD " << serverConnection()->fd << " not re-forwarding status " << replyStatus);
         else
             debugs(17, 3, "server (FD closed) not re-forwarding status " << replyStatus);
-        entry->complete();
 
-        if (!Comm::IsConnOpen(serverConn))
-            completed();
+        completed();
 
         stopAndDestroy("forwarding completed");
     }
+}
+
+void
+FwdState::bodyReceivedSuccessfully()
+{
+    debugs(17, 3, "reply status " << entry->mem().baseReply().sline.status() << " " << entry->url());
+    if (!reforward())
+        entry->completeSuccessfully();
 }
 
 void
@@ -1254,7 +1277,11 @@ FwdState::reforward()
         return 0;
     }
 
-    assert(e->store_status == STORE_PENDING);
+    if (e->store_status != STORE_PENDING) {
+        debugs(17, 3, "store_status != STORE_PENDING");
+        return 0;
+    }
+
     assert(e->mem_obj);
 #if URL_CHECKSUM_DEBUG
 

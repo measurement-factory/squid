@@ -80,6 +80,8 @@ public:
 
 public: // should be protected
     void serverComplete();     /**< call when no server communication is expected */
+    /// is called when all peer body bytes (including empty body) have been received
+    void virginBodyReceivedSuccessfully();
 
 private:
     void serverComplete2();    /**< Continuation of serverComplete */
@@ -119,6 +121,8 @@ protected:
     void adaptVirginReplyBody(const char *buf, ssize_t len);
     void cleanAdaptation();
     virtual bool doneWithAdaptation() const;   /**< did we end ICAP communication? */
+    /// is called when all adapted body bytes have been received
+    void adaptedBodyReceivedSuccessfully() { fwd->bodyReceivedSuccessfully(); }
 
     // BodyConsumer for ICAP: consume adapted response body.
     void handleMoreAdaptedBodyAvailable();
