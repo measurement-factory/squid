@@ -822,9 +822,7 @@ gopherReadReply(const Comm::ConnectionPointer &conn, char *buf, size_t len, Comm
         } else {
             entry->append(buf, len);
         }
-        AsyncCall::Pointer call = commCbCall(5,4, "gopherReadReply",
-                                             CommIoCbPtrFun(gopherReadReply, gopherState));
-        comm_read(conn, buf, read_sz, call);
+        GopherStateData::DelayAwareRead(gopherState);
     }
 }
 
