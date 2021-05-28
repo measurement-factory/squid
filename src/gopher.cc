@@ -104,6 +104,9 @@ public:
     void deleteThis(const char *aReason);
     void swanSong();
 
+    /// queues or defers a read call
+    static void DelayAwareRead(GopherStateData *);
+
 public:
     StoreEntry *entry;
     enum {
@@ -825,8 +828,8 @@ gopherReadReply(const Comm::ConnectionPointer &conn, char *buf, size_t len, Comm
     }
 }
 
-static void
-GopherReadDelayed(GopherStateData *gopherState)
+void
+GopherStateData::DelayAwareRead(GopherStateData *gopherState)
 {
     const auto &conn = gopherState->serverConn;
     if (!Comm::IsConnOpen(conn) || fd_table[conn->fd].closing()) {
@@ -838,7 +841,8 @@ GopherReadDelayed(GopherStateData *gopherState)
 
     if (amountToRead <= 0) {
         assert(gopherState->entry->mem_obj);
-        AsyncCall::Pointer delayCall = asyncCall(10, 3, "GopherReadDelayed", cbdataDialer(&GopherReadDelayed, gopherState));
+        AsyncCall::Pointer delayCall = asyncCall(10, 3, "GopherStateData::DelayAwareRead",
+                                                 cbdataDialer(&GopherStateData::DelayAwareRead, gopherState));
         gopherState->entry->mem_obj->delayRead(delayCall);
         return;
     }
@@ -914,7 +918,7 @@ gopherSendComplete(const Comm::ConnectionPointer &conn, char *, size_t size, Com
         entry->flush();
     }
 
-    GopherReadDelayed(gopherState);
+    GopherStateData::DelayAwareRead(gopherState);
 }
 
 /**
