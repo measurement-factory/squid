@@ -11,17 +11,19 @@
 #ifndef COMMREAD_H
 #define COMMREAD_H
 
-#include "base/CbDataList.h"
-#include "comm.h"
-#include "comm/forward.h"
-#include "CommCalls.h"
+#include "base/AsyncCall.h"
 
+#include <vector>
+
+// TODO: create dedicated header/source files
+/// maintains a list of async calls and schedules them at once
 class DeferredReadManager
 {
-
 public:
     ~DeferredReadManager();
+    /// stores an async call in a list
     void delayRead(const AsyncCall::Pointer &);
+    /// schedules all previously stored async calls and clears the list
     void kickReads();
 
 private:
