@@ -476,7 +476,6 @@ DelayPools::InitDelayData()
 void
 DelayPools::FreeDelayData()
 {
-    eventDelete(DelayPools::Update, NULL);
     delete[] DelayPools::delay_data;
     pools_ = 0;
 }
@@ -484,7 +483,12 @@ DelayPools::FreeDelayData()
 void
 DelayPools::Update(void *unused)
 {
-    if (!pools())
+    // if pools becomes empty (after being non-empty) and toUpdate is not empty,
+    // then some existing transactions still hold references to toUpdate elements.
+    // We need to keep the event mechanism running to finish these transactions
+    // (otherwise they get stuck). Once these pending transactions are completed,
+    // toUpdate becomes empty and no more events are scheduled.
+    if (!pools() && toUpdate.empty())
         return;
 
     eventAdd("DelayPools::Update", Update, NULL, 1.0, 1);
