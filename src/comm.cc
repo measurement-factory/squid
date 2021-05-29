@@ -1740,14 +1740,10 @@ commHalfClosedReader(const Comm::ConnectionPointer &conn, char *, size_t size, C
     commPlanHalfClosedCheck(); // make sure this fd will be checked again
 }
 
-DeferredReadManager::~DeferredReadManager()
-{
-    kickReads();
-}
-
 void
 DeferredReadManager::delayRead(const AsyncCall::Pointer &aRead)
 {
+    debugs(5, 3, "Deferring an async read call: " << aRead);
     deferredReads.push_back(aRead);
 }
 
@@ -1755,8 +1751,8 @@ void
 DeferredReadManager::kickReads()
 {
     // XXX: For fairness this SHOULD randomize the order
-    for (auto &read : deferredReads)
-        ScheduleCallHere(read);
+    for (auto &call : deferredReads)
+        ScheduleCallHere(call);
 
     deferredReads.clear();
 }

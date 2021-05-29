@@ -905,6 +905,21 @@ Ftp::Client::dataConnection() const
 }
 
 void
+Ftp::Client::maybeReadVirginBody()
+{
+    // too late to read
+    if (!Comm::IsConnOpen(data.conn) || fd_table[data.conn->fd].closing())
+        return;
+
+    if (data.read_pending)
+        return;
+
+    initReadBuf();
+
+    delayAwareRead();
+}
+
+void
 Ftp::Client::delayAwareRead()
 {
     const int read_sz = replyBodySpace(*data.readBuf, 0);
@@ -927,9 +942,9 @@ Ftp::Client::delayAwareRead()
 
     if (amountToRead <= 0) {
         assert(entry->mem_obj);
-        typedef NullaryMemFunT<Ftp::Client> DeferredReadDialer;
+        typedef NullaryMemFunT<Client> DeferredReadDialer;
         AsyncCall::Pointer call = asyncCall(9, 5, "Ftp::Client::delayAwareRead",
-                DeferredReadDialer(this, &Ftp::Client::delayAwareRead));
+                DeferredReadDialer(this, &Client::delayAwareRead));
         entry->mem_obj->delayRead(call);
         return;
     }
@@ -937,21 +952,6 @@ Ftp::Client::delayAwareRead()
     typedef CommCbMemFunT<Client, CommIoCbParams> ReadDialer;
     AsyncCall::Pointer readCallback = JobCallback(9, 5, ReadDialer, this, Ftp::Client::dataRead);
     comm_read(data.conn, data.readBuf->space(), read_sz, readCallback);
-}
-
-void
-Ftp::Client::maybeReadVirginBody()
-{
-    // too late to read
-    if (!Comm::IsConnOpen(data.conn) || fd_table[data.conn->fd].closing())
-        return;
-
-    if (data.read_pending)
-        return;
-
-    initReadBuf();
-
-    delayAwareRead();
 }
 
 void

@@ -20,7 +20,7 @@
 class DeferredReadManager
 {
 public:
-    ~DeferredReadManager();
+    ~DeferredReadManager() { kickReads(); }
     /// stores an async call in a list
     void delayRead(const AsyncCall::Pointer &);
     /// schedules all previously stored async calls and clears the list
