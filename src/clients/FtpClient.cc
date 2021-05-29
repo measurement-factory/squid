@@ -920,8 +920,23 @@ Ftp::Client::maybeReadVirginBody()
 }
 
 void
+Ftp::Client::noteDelayedRead()
+{
+    if (!Comm::IsConnOpen(data.conn) || fd_table[data.conn->fd].closing()) {
+        debugs(9, 3, "will not read from " << (fd_table[data.conn->fd].closing() ?
+                    "closing " : "closed ") << data.conn);
+        return;
+    }
+
+    delayAwareRead();
+}
+
+void
 Ftp::Client::delayAwareRead()
 {
+    assert(Comm::IsConnOpen(data.conn));
+    assert(!fd_table[data.conn->fd].closing());
+
     const int read_sz = replyBodySpace(*data.readBuf, 0);
 
     debugs(9, 9, "FTP may read up to " << read_sz << " bytes");
