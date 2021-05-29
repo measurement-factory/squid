@@ -155,6 +155,10 @@ protected:
     size_t calcBufferSpaceToReserve(const size_t space, const size_t wantSpace) const;
 
     void adjustBodyBytesRead(const int64_t delta);
+    /// A callback used by delayRead(); implement in sublclasses calling delayRead().
+    virtual void noteDelayedRead() { assert(false); }
+    /// Defer a noteDelayedRead() call, which must be implemented in subclasses.
+    void delayRead();
 
     // These should be private
     int64_t currentOffset = 0;  /**< Our current offset in the StoreEntry */

@@ -1198,9 +1198,8 @@ HttpStateData::persistentConnStatus() const
     return statusIfComplete();
 }
 
-/// a callback used by DeferredReadDialer
 void
-HttpStateData::readDelayed()
+HttpStateData::noteDelayedRead()
 {
     flags.do_next_read = true;
     maybeReadVirginBody();
@@ -1241,11 +1240,7 @@ HttpStateData::readReply(const CommIoCbParams &io)
     rd.size = entry->bytesWanted(Range<size_t>(0, inBuf.spaceSize()));
 
     if (rd.size <= 0) {
-        assert(entry->mem_obj);
-        typedef NullaryMemFunT<HttpStateData> DeferredReadDialer;
-        AsyncCall::Pointer call = asyncCall(11, 5, "HttpStateData::readDelayed",
-                DeferredReadDialer(this, &HttpStateData::readDelayed));
-        entry->mem_obj->delayRead(call);
+        delayRead();
         return;
     }
 

@@ -941,11 +941,7 @@ Ftp::Client::delayAwareRead()
     const auto amountToRead = entry->bytesWanted(Range<size_t>(0, read_sz));
 
     if (amountToRead <= 0) {
-        assert(entry->mem_obj);
-        typedef NullaryMemFunT<Client> DeferredReadDialer;
-        AsyncCall::Pointer call = asyncCall(9, 5, "Ftp::Client::delayAwareRead",
-                DeferredReadDialer(this, &Client::delayAwareRead));
-        entry->mem_obj->delayRead(call);
+        delayRead();
         return;
     }
 

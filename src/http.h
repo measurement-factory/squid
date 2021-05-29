@@ -80,6 +80,8 @@ protected:
     void proceedAfter1xx();
     void handle1xx(HttpReply *msg);
     void drop1xx(const char *reason);
+    /* Client API */
+    virtual void noteDelayedRead();
 
 private:
     /**
@@ -144,8 +146,6 @@ private:
     static bool decideIfWeDoRanges (HttpRequest * orig_request);
     bool peerSupportsConnectionPinning() const;
     const char *blockSwitchingProtocols(const HttpReply&) const;
-    void readDelayed();
-
     /// Parser being used at present to parse the HTTP/ICY server response.
     Http1::ResponseParserPointer hp;
     Http1::TeChunkedParser *httpChunkDecoder;
