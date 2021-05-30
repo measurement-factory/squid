@@ -961,8 +961,8 @@ Ftp::Client::delayAwareRead()
     }
 
     typedef CommCbMemFunT<Client, CommIoCbParams> ReadDialer;
-    AsyncCall::Pointer readCallback = JobCallback(9, 5, ReadDialer, this, Ftp::Client::dataRead);
-    comm_read(data.conn, data.readBuf->space(), read_sz, readCallback);
+    AsyncCall::Pointer readCallback = JobCallback(9, 5, ReadDialer, this, Client::dataRead);
+    comm_read(data.conn, data.readBuf->space(), amountToRead, readCallback);
 }
 
 void
