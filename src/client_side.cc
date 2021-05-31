@@ -2665,6 +2665,8 @@ ConnStateData::sslCrtdHandleReply(const Helper::Reply &reply)
 
                     Security::ContextPointer ctx(Security::GetFrom(fd_table[clientConnection->fd].ssl));
                     Ssl::configureUnconfiguredSslContext(ctx, signAlgorithm, *port);
+                    // Inherit the server-side negotiated TLS version
+                    Ssl::setVersion(ssl, SSL_version(sslServerBump->getServerSession().get()));
                 } else {
                     Security::ContextPointer ctx(Ssl::GenerateSslContextUsingPkeyAndCertFromMemory(reply_message.getBody().c_str(), port->secure, (signAlgorithm == Ssl::algSignTrusted)));
                     if (ctx && !sslBumpCertKey.isEmpty())
@@ -3109,6 +3111,9 @@ ConnStateData::startPeekAndSplice()
     bio->setReadBufData(inBuf);
     bio->hold(true);
 
+    // The following block of code in practice does nothing. Because of bio->hold
+    // the Security::Accept can not receive any bytes.
+#if 0
     // We have successfully parsed client Hello, but our TLS handshake parser is
     // forgiving. Now we use a TLS library to parse the same bytes, so that we
     // can honor on_unsupported_protocol if needed. If there are no errors, we
@@ -3118,6 +3123,7 @@ ConnStateData::startPeekAndSplice()
     const auto handshakeResult = Security::Accept(*clientConnection);
     if (!handshakeResult.wantsIo())
         return handleSslBumpHandshakeError(handshakeResult);
+#endif
 
     // We need to reset inBuf here, to be used by incoming requests in the case
     // of SSL bump
