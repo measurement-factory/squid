@@ -726,14 +726,6 @@ setMinimumVersion(SSL *ssl, Security::TlsDetails::Pointer const &details)
 void
 applyTlsDetailsToSSL(SSL *ssl, Security::TlsDetails::Pointer const &details, Ssl::BumpMode bumpMode)
 {
-    // To increase the possibility for bumping after peek mode selection or
-    // splicing after stare mode selection it is good to set the
-    // SSL protocol version.
-    // The SSL_set_ssl_method is wrong here because it will restrict the
-    // permitted transport version to be identical to the version used in the
-    // ClientHello message.
-    // For example will prevent comunnicating with a tls1.0 server if the
-    // client sent and tlsv1.2 Hello message.
 #if defined(TLSEXT_NAMETYPE_host_name)
     if (!details->serverName.isEmpty()) {
         SSL_set_tlsext_host_name(ssl, details->serverName.c_str());
