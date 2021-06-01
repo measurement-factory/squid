@@ -76,6 +76,11 @@ public:
     /// the request. To set the virgin request, use initRequest().
     void resetRequest(HttpRequest *);
 
+    /// Whether the client sent CONNECT to us, and we have not responded before TunnelStateData
+    /// got control. Once in control, TunnelStateData factors in its own state to answer this question.
+    /// TODO: (Re)move TunnelStateData::Connection::dirty flag to ConnStateData to simplify this.
+    bool clientExpectsConnectResponse() const;
+
     /** Details of the client socket which produced us.
      * Treat as read-only for the lifetime of this HTTP request.
      */

@@ -1697,6 +1697,26 @@ ClientHttpRequest::clearRequest()
     absorbLogUri(nullptr);
 }
 
+bool
+ClientHttpRequest::clientExpectsConnectResponse() const
+{
+    // If we are forcing a tunnel after receiving a client CONNECT, then we
+    // have already responded to that CONNECT
+    // TODO: While the above may be true today, the relationship between
+    // flags.forceTunnel and "ClientHttpRequest sent 200 Connection Established"
+    // state is very weak/indirect. Refactor to provide/assure strong guarantees.
+    if (request && request->flags.forceTunnel)
+        return false;
+#if USE_OPENSSL
+    if (const auto conn = getConn()) {
+        // We are bumping and we had already sent "OK CONNECTED"
+        if (conn && conn->serverBump() && conn->serverBump()->at(XactionStep::tlsBump2, XactionStep::tlsBump3))
+            return false;
+    }
+#endif
+    return !(request && (request->flags.interceptTproxy || request->flags.intercepted));
+}
+
 /*
  * doCallouts() - This function controls the order of "callout"
  * executions, including non-blocking access control checks, the
