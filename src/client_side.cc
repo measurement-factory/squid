@@ -2665,8 +2665,10 @@ ConnStateData::sslCrtdHandleReply(const Helper::Reply &reply)
 
                     Security::ContextPointer ctx(Security::GetFrom(fd_table[clientConnection->fd].ssl));
                     Ssl::configureUnconfiguredSslContext(ctx, signAlgorithm, *port);
-                    // Inherit the server-side negotiated TLS version
-                    Ssl::setVersion(ssl, SSL_version(sslServerBump->getServerSession().get()));
+                    if (auto serverSession = sslServerBump->getServerSession().get()) {
+                        // Inherit the server-side negotiated TLS version
+                        Ssl::setVersion(ssl, SSL_version(serverSession));
+                    }
                 } else {
                     Security::ContextPointer ctx(Ssl::GenerateSslContextUsingPkeyAndCertFromMemory(reply_message.getBody().c_str(), port->secure, (signAlgorithm == Ssl::algSignTrusted)));
                     if (ctx && !sslBumpCertKey.isEmpty())
