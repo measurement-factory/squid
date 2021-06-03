@@ -923,8 +923,7 @@ void
 Ftp::Client::noteDelayedRead()
 {
     if (!Comm::IsConnOpen(data.conn) || fd_table[data.conn->fd].closing()) {
-        debugs(9, 3, "will not read from " << (fd_table[data.conn->fd].closing() ?
-                    "closing " : "closed ") << data.conn);
+        debugs(9, 3, "will not read from " << data.conn);
         return;
     }
 

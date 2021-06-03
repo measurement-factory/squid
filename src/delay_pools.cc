@@ -483,11 +483,8 @@ DelayPools::FreeDelayData()
 void
 DelayPools::Update(void *unused)
 {
-    // if pools becomes zero (after being non-zero) and toUpdate is not empty,
-    // then some existing transactions still hold references to toUpdate elements.
-    // We need to keep the event mechanism running to finish these transactions
-    // (otherwise they get stuck). Once these pending transactions are completed,
-    // toUpdate becomes empty and no more events are scheduled.
+    // To prevent stuck transactions, stop updates only after no new transactions can
+    // register (because the pools were disabled) and the last registered transaction is gone.
     if (!pools() && toUpdate.empty())
         return;
 

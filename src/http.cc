@@ -1202,8 +1202,7 @@ void
 HttpStateData::noteDelayedRead()
 {
     if (!Comm::IsConnOpen(serverConnection) || fd_table[serverConnection->fd].closing()) {
-        debugs(11, 3, "will not read from " << (fd_table[serverConnection->fd].closing() ?
-                    "closing " : "closed ") << serverConnection);
+        debugs(11, 3, "will not read from " << serverConnection);
         return;
     }
 

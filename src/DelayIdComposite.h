@@ -12,7 +12,7 @@
 #define DELAYIDCOMPOSITE_H
 
 #if USE_DELAY_POOLS
-#include "base/AsyncCall.h"
+#include "base/forward.h"
 #include "base/RefCount.h"
 #include "fatal.h"
 
@@ -26,7 +26,7 @@ public:
     virtual int bytesWanted (int min, int max) const =0;
     virtual void bytesIn(int qty) = 0;
     /* only aggregate and vector need this today */
-    virtual void delayRead(const AsyncCall::Pointer &) { fatal("Not implemented"); }
+    virtual void delayRead(const AsyncCallPointer &) { fatal("Not implemented"); }
 };
 
 #endif /* USE_DELAY_POOLS */

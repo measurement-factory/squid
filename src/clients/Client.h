@@ -156,7 +156,7 @@ protected:
 
     void adjustBodyBytesRead(const int64_t delta);
     /// A callback used by delayRead(); implement in sublclasses calling delayRead().
-    virtual void noteDelayedRead() { assert(false); }
+    virtual void noteDelayedRead() = 0;
     /// Defer a noteDelayedRead() call, which must be implemented in subclasses.
     void delayRead();
 

@@ -833,7 +833,7 @@ GopherStateData::NoteDelayedRead(GopherStateData *gopherState)
 {
     const auto &conn = gopherState->serverConn;
     if (!Comm::IsConnOpen(conn) || fd_table[conn->fd].closing()) {
-        debugs(10, 3, "will not read from " << (fd_table[conn->fd].closing() ? "closing " : "closed ") << conn);
+        debugs(10, 3, "will not read from " << conn);
         return;
     }
     DelayAwareRead(gopherState);

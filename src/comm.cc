@@ -1743,7 +1743,7 @@ commHalfClosedReader(const Comm::ConnectionPointer &conn, char *, size_t size, C
 void
 DeferredReadManager::delayRead(const AsyncCall::Pointer &aRead)
 {
-    debugs(5, 3, "Deferring an async read call: " << aRead);
+    debugs(5, 3, aRead << " after " << deferredReads.size());
     deferredReads.push_back(aRead);
 }
 

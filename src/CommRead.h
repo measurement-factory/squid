@@ -11,7 +11,7 @@
 #ifndef COMMREAD_H
 #define COMMREAD_H
 
-#include "base/AsyncCall.h"
+#include "base/forward.h"
 
 #include <vector>
 
@@ -22,12 +22,12 @@ class DeferredReadManager
 public:
     ~DeferredReadManager() { kickReads(); }
     /// stores an async call in a list
-    void delayRead(const AsyncCall::Pointer &);
+    void delayRead(const AsyncCallPointer &);
     /// schedules all previously stored async calls and clears the list
     void kickReads();
 
 private:
-    std::vector<AsyncCall::Pointer> deferredReads;
+    std::vector<AsyncCallPointer> deferredReads;
 };
 
 #endif /* COMMREAD_H */
