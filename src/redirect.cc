@@ -54,8 +54,8 @@ public:
 
 static HLPCB redirectHandleReply;
 static HLPCB storeIdHandleReply;
-static helper *redirectors = NULL;
-static helper *storeIds = NULL;
+static helper::Pointer redirectors = nullptr;
+static helper::Pointer storeIds = nullptr;
 static OBJH redirectStats;
 static OBJH storeIdStats;
 static int redirectorBypassed = 0;
@@ -223,7 +223,7 @@ storeIdStats(StoreEntry * sentry)
 }
 
 static void
-constructHelperQuery(const char *name, helper *hlp, HLPCB *replyHandler, ClientHttpRequest * http, HLPCB *handler, void *data, Format::Format *requestExtrasFmt)
+constructHelperQuery(const char *name, const helper::Pointer &hlp, HLPCB *replyHandler, ClientHttpRequest * http, HLPCB *handler, void *data, Format::Format *requestExtrasFmt)
 {
     char buf[MAX_REDIRECTOR_REQUEST_STRLEN];
     int sz;
@@ -342,7 +342,7 @@ redirectInit(void)
     if (Config.Program.redirect) {
 
         if (redirectors == NULL)
-            redirectors = new helper("redirector");
+            redirectors = helper::Make("redirector");
 
         redirectors->cmdline = Config.Program.redirect;
 
@@ -369,7 +369,7 @@ redirectInit(void)
     if (Config.Program.store_id) {
 
         if (storeIds == NULL)
-            storeIds = new helper("store_id");
+            storeIds = helper::Make("store_id");
 
         storeIds->cmdline = Config.Program.store_id;
 
@@ -418,10 +418,7 @@ redirectShutdown(void)
     if (!shutting_down)
         return;
 
-    delete redirectors;
     redirectors = NULL;
-
-    delete storeIds;
     storeIds = NULL;
 
     delete redirectorExtrasFmt;
