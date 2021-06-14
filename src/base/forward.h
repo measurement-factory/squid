@@ -9,6 +9,7 @@
 #ifndef SQUID_SRC_BASE_FORWARD_H
 #define SQUID_SRC_BASE_FORWARD_H
 
+class AsyncCall;
 class AsyncCallQueue;
 class AsyncJob;
 class CallDialer;
@@ -23,6 +24,7 @@ template<class RefCountableKid> class RefCount;
 
 typedef CbcPointer<AsyncJob> AsyncJobPointer;
 typedef RefCount<CodeContext> CodeContextPointer;
+typedef RefCount <AsyncCall> AsyncCallPointer;
 
 #endif /* SQUID_SRC_BASE_FORWARD_H */
 

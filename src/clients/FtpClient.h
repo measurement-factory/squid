@@ -139,6 +139,7 @@ public:
     void connectDataChannel();
     bool openListenSocket();
     void switchTimeoutToDataChannel();
+    void delayAwareRead();
 
     CtrlChannel ctrl; ///< FTP control channel state
     DataChannel data; ///< FTP data channel state
@@ -187,6 +188,7 @@ protected:
     virtual bool doneWithServer() const;
     virtual const Comm::ConnectionPointer & dataConnection() const;
     virtual void abortAll(const char *reason);
+    virtual void noteDelayedRead();
 
     virtual Http::StatusCode failedHttpStatus(err_type &error);
     void ctrlClosed(const CommCloseCbParams &io);

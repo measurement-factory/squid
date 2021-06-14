@@ -21,12 +21,8 @@ void comm_read(const Comm::ConnectionPointer &conn, char*, int, AsyncCall::Point
 
 /* should be in stub_CommRead */
 #include "CommRead.h"
-CommRead::CommRead(const Comm::ConnectionPointer &, char *, int, AsyncCall::Pointer &) STUB
-CommRead::CommRead() STUB
-DeferredReadManager::~DeferredReadManager() STUB
-DeferredRead::DeferredRead(DeferrableRead *, void *, CommRead const &) STUB
-void DeferredReadManager::delayRead(DeferredRead const &aRead) STUB
-void DeferredReadManager::kickReads(int const count) STUB
+void DeferredReadManager::delayRead(const AsyncCall::Pointer &aRead) STUB
+void DeferredReadManager::kickReads() STUB
 
 #include "comm.h"
 bool comm_iocallbackpending(void) STUB_RETVAL(false)

@@ -441,7 +441,7 @@ MemObject::setNoDelay(bool const newValue)
 }
 
 void
-MemObject::delayRead(DeferredRead const &aRead)
+MemObject::delayRead(const AsyncCall::Pointer &aRead)
 {
 #if USE_DELAY_POOLS
     if (readAheadPolicyCanRead()) {
@@ -457,7 +457,7 @@ MemObject::delayRead(DeferredRead const &aRead)
 void
 MemObject::kickReads()
 {
-    deferredReads.kickReads(-1);
+    deferredReads.kickReads();
 }
 
 #if USE_DELAY_POOLS
