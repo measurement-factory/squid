@@ -3549,6 +3549,17 @@ parsePortProtocol(const SBuf &value)
     return AnyP::ProtocolVersion(); // not reached
 }
 
+static bool
+CheckTrafficModeFlags(const TrafficModeFlags &flags)
+{
+    if (std::any_of(std::begin(AnyP::AcceptableTrafficModeFlags), std::end(AnyP::AcceptableTrafficModeFlags),
+                [&](const AnyP::TrafficModeFlags &f)
+                { return flags == f; })) {
+        return true;
+    }
+    debugs(3, DBG_CRITICAL, "FATAL: invalid combination of flags for: " << flags);
+}
+
 static void
 parse_port_option(AnyP::PortCfgPointer &s, char *token)
 {
@@ -3828,20 +3839,21 @@ parsePortCfg(AnyP::PortCfgPointer *head, const char *optionName)
     if (s->transport.protocol == AnyP::PROTO_HTTPS) {
         s->secure.encryptTransport = true;
 #if USE_OPENSSL
-        /* ssl-bump on https_port configuration requires either tproxy or intercept, and vice versa */
-        if (rawFlags.tunnelSslBumping && !s->flags.interceptedSomewhere()) {
-            debugs(3, DBG_CRITICAL, "FATAL: ssl-bump on https_port requires tproxy/intercept which is missing.");
+        // https_port: ssl-bump requires one of: tproxy, intercept or require-proxy-header.
+        if (s->flags.tunnelSslBumping() && !s->flags.interceptedSomewhere()) {
+            debugs(3, DBG_CRITICAL, "FATAL: ssl-bump on https_port requires tproxy/intercept/require-proxy-header which is missing.");
             self_destruct();
             return;
         }
-        if (s->flags.interceptedSomewhere() && !rawFlags.tunnelSslBumping) {
-            debugs(3, DBG_CRITICAL, "FATAL: tproxy/intercept on https_port requires ssl-bump which is missing.");
+        // https_port: tproxy, intercept and require-proxy-header require ssl-bump
+        if (s->flags.interceptedSomewhere() && !s->flags.tunnelSslBumping()) {
+            debugs(3, DBG_CRITICAL, "FATAL: tproxy/intercept/require-proxy-header on https_port requires ssl-bump which is missing.");
             self_destruct();
             return;
         }
 #endif
-        if (rawFlags.proxySurrogateHttp) {
-            debugs(3,DBG_CRITICAL, "FATAL: https_port: require-proxy-header option is not supported on HTTPS ports.");
+        if (rawFlags.proxySurrogateHttpsSslBump() && (rawFlags.natIntercept || rawFlags.tproxyIntercept || rawFlags.accelSurrogate)) {
+            debugs(3, DBG_CRITICAL, "FATAL: require-proxy-header option is incompatible with tproxy/intercept/accel for https_port.");
             self_destruct();
             return;
         }

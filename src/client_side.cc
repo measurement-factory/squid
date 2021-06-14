@@ -1899,6 +1899,7 @@ ConnStateData::parseProxyProtocolHeader()
         }
     } catch (const Parser::BinaryTokenizer::InsufficientInput &) {
         debugs(33, 3, "PROXY protocol: waiting for more than " << inBuf.length() << " bytes");
+        readSomeData();
         return false;
     } catch (const std::exception &e) {
         return proxyProtocolError(e.what());
@@ -1943,21 +1944,6 @@ ConnStateData::clientParseRequests()
         if (concurrentRequestQueueFilled())
             break;
 
-        // try to parse the PROXY protocol header magic bytes
-        if (needProxyProtocolHeader_) {
-            if (!parseProxyProtocolHeader())
-                break;
-
-            // we have been waiting for PROXY to provide client-IP
-            // for some lookups, ie rDNS and IDENT.
-            whenClientIpKnown();
-
-            // Done with PROXY protocol which has cleared preservingClientData_.
-            // If the next protocol supports on_unsupported_protocol, then its
-            // parseOneRequest() must reset preservingClientData_.
-            assert(!preservingClientData_);
-        }
-
         if (Http::StreamPointer context = parseOneRequest()) {
             debugs(33, 5, clientConnection << ": done parsing a request");
             extendLifetime();
@@ -1991,9 +1977,28 @@ ConnStateData::clientParseRequests()
 void
 ConnStateData::afterClientRead()
 {
+    // try to parse the PROXY protocol header magic bytes
+    if (needProxyProtocolHeader_) {
+        if (!parseProxyProtocolHeader())
+            return;
+
+        // we have been waiting for PROXY to provide client-IP
+        // for some lookups, ie rDNS and IDENT.
+        whenClientIpKnown();
+
+        // Done with PROXY protocol which has cleared preservingClientData_.
+        // If the next protocol supports on_unsupported_protocol, then its
+        // parseOneRequest() must reset preservingClientData_.
+        assert(!preservingClientData_);
+    }
+
 #if USE_OPENSSL
     if (parsingTlsHandshake) {
         parseTlsHandshake();
+        return;
+    }
+    if (port->transport.protocol == AnyP::PROTO_HTTPS && !switchedToHttps_ && port->flags.tunnelSslBumping()) {
+        httpsSslBumpStep1AccessCheck();
         return;
     }
 #endif
@@ -2335,9 +2340,9 @@ ConnStateData::acceptTls()
     return handshakeResult;
 }
 
-/** Handle a new connection on an HTTP socket. */
+/// a common part for httpAccept() and httpsAccept()
 void
-httpAccept(const CommAcceptCbParams &params)
+httpAcceptCommon(const CommAcceptCbParams &params, const char *fdDesc)
 {
     MasterXaction::Pointer xact = params.xaction;
     AnyP::PortCfgPointer s = xact->squidPort;
@@ -2351,7 +2356,7 @@ httpAccept(const CommAcceptCbParams &params)
     }
 
     debugs(33, 4, params.conn << ": accepted");
-    fd_note(params.conn->fd, "client http connect");
+    fd_note(params.conn->fd, fdDesc);
 
     if (s->tcp_keepalive.enabled)
         commSetTcpKeepalive(params.conn->fd, s->tcp_keepalive.idle, s->tcp_keepalive.interval, s->tcp_keepalive.timeout);
@@ -2361,6 +2366,13 @@ httpAccept(const CommAcceptCbParams &params)
     // Socket is ready, setup the connection manager to start using it
     auto *srv = Http::NewServer(xact);
     AsyncJob::Start(srv); // usually async-calls readSomeData()
+}
+
+/** Handle a new connection on an HTTP socket. */
+void
+httpAccept(const CommAcceptCbParams &params)
+{
+    httpAcceptCommon(params, "client http connect");
 }
 
 /// Create TLS connection structure and update fd_table
@@ -2510,33 +2522,35 @@ httpsEstablish(ConnStateData *connState, const Security::ContextPointer &ctx)
 }
 
 #if USE_OPENSSL
-/**
- * A callback function to use with the ACLFilledChecklist callback.
- */
-static void
-httpsSslBumpAccessCheckDone(Acl::Answer answer, void *data)
+void
+HttpsSslBumpStep1AccessCheckDone(Acl::Answer answer, void *data)
 {
-    ConnStateData *connState = (ConnStateData *) data;
+    auto connState = static_cast<ConnStateData *>(data);
+    connState->httpsSslBumpStep1AccessCheckDone(answer);
+}
 
+void
+ConnStateData::httpsSslBumpStep1AccessCheckDone(const Acl::Answer answer)
+{
     // if the connection is closed or closing, just return.
-    if (!connState->isOpen())
+    if (!isOpen())
         return;
 
     if (answer.allowed()) {
-        debugs(33, 2, "sslBump action " << Ssl::bumpMode(answer.kind) << "needed for " << connState->clientConnection);
-        connState->sslBumpMode = static_cast<Ssl::BumpMode>(answer.kind);
+        debugs(33, 2, "sslBump action " << Ssl::bumpMode(answer.kind) << " needed for " << clientConnection);
+        sslBumpMode = static_cast<Ssl::BumpMode>(answer.kind);
     } else {
-        debugs(33, 3, "sslBump not needed for " << connState->clientConnection);
-        connState->sslBumpMode = Ssl::bumpSplice;
+        debugs(33, 3, "sslBump not needed for " << clientConnection);
+        sslBumpMode = Ssl::bumpSplice;
     }
 
-    if (connState->sslBumpMode == Ssl::bumpTerminate) {
-        connState->clientConnection->close();
+    if (sslBumpMode == Ssl::bumpTerminate) {
+        clientConnection->close();
         return;
     }
 
-    if (!connState->fakeAConnectRequest("ssl-bump", connState->inBuf))
-        connState->clientConnection->close();
+    if (!fakeAConnectRequest("ssl-bump", inBuf))
+        clientConnection->close();
 }
 #endif
 
@@ -2544,85 +2558,67 @@ httpsSslBumpAccessCheckDone(Acl::Answer answer, void *data)
 static void
 httpsAccept(const CommAcceptCbParams &params)
 {
-    MasterXaction::Pointer xact = params.xaction;
-    const AnyP::PortCfgPointer s = xact->squidPort;
-
-    // NP: it is possible the port was reconfigured when the call or accept() was queued.
-
-    if (params.flag != Comm::OK) {
-        // Its possible the call was still queued when the client disconnected
-        debugs(33, 2, "httpsAccept: " << s->listenConn << ": accept failure: " << xstrerr(params.xerrno));
-        return;
-    }
-
-    debugs(33, 4, HERE << params.conn << " accepted, starting SSL negotiation.");
-    fd_note(params.conn->fd, "client https connect");
-
-    if (s->tcp_keepalive.enabled) {
-        commSetTcpKeepalive(params.conn->fd, s->tcp_keepalive.idle, s->tcp_keepalive.interval, s->tcp_keepalive.timeout);
-    }
-    ++incoming_sockets_accepted;
-
-    // Socket is ready, setup the connection manager to start using it
-    auto *srv = Https::NewServer(xact);
-    AsyncJob::Start(srv); // usually async-calls postHttpsAccept()
+    httpAcceptCommon(params, "client https connect");
 }
 
 void
 ConnStateData::postHttpsAccept()
 {
-    if (port->flags.tunnelSslBumping()) {
-#if USE_OPENSSL
-        debugs(33, 5, "accept transparent connection: " << clientConnection);
-
-        if (!Config.accessList.ssl_bump) {
-            httpsSslBumpAccessCheckDone(ACCESS_DENIED, this);
-            return;
-        }
-
-        MasterXaction::Pointer mx = new MasterXaction(XactionInitiator::initClient);
-        mx->tcpClient = clientConnection;
-        // Create a fake HTTP request and ALE for the ssl_bump ACL check,
-        // using tproxy/intercept provided destination IP and port.
-        // XXX: Merge with subsequent fakeAConnectRequest(), buildFakeRequest().
-        // XXX: Do this earlier (e.g., in Http[s]::One::Server constructor).
-        HttpRequest *request = new HttpRequest(mx);
-        static char ip[MAX_IPSTRLEN];
-        request->url.host(clientConnection->local.toStr(ip, sizeof(ip)));
-        request->url.port(clientConnection->local.port());
-        request->myportname = port->name;
-        const AccessLogEntry::Pointer connectAle = new AccessLogEntry;
-        CodeContext::Reset(connectAle);
-        // TODO: Use these request/ALE when waiting for new bumped transactions.
-
-        ACLFilledChecklist *acl_checklist = new ACLFilledChecklist(Config.accessList.ssl_bump, request, NULL);
-        fillChecklist(*acl_checklist);
-        // Build a local AccessLogEntry to allow requiresAle() acls work
-        acl_checklist->al = connectAle;
-        acl_checklist->al->cache.start_time = current_time;
-        acl_checklist->al->tcpClient = clientConnection;
-        acl_checklist->al->cache.port = port;
-        acl_checklist->al->cache.caddr = log_addr;
-        acl_checklist->al->proxyProtocolHeader = proxyProtocolHeader_;
-        acl_checklist->al->updateError(bareError);
-        HTTPMSGUNLOCK(acl_checklist->al->request);
-        acl_checklist->al->request = request;
-        HTTPMSGLOCK(acl_checklist->al->request);
-        Http::StreamPointer context = pipeline.front();
-        ClientHttpRequest *http = context ? context->http : nullptr;
-        const char *log_uri = http ? http->log_uri : nullptr;
-        acl_checklist->syncAle(request, log_uri);
-        acl_checklist->nonBlockingCheck(httpsSslBumpAccessCheckDone, this);
-#else
-        fatal("FATAL: SSL-Bump requires --with-openssl");
-#endif
-        return;
-    } else {
-        httpsEstablish(this, port->secure.staticContext);
-    }
+    assert(port->transport.protocol == AnyP::PROTO_HTTPS);
+    assert(!port->flags.tunnelSslBumping());
+    httpsEstablish(this, port->secure.staticContext);
 }
 
 #if USE_OPENSSL
+void
+ConnStateData::httpsSslBumpStep1AccessCheck()
+{
+    debugs(33, 5, "accept transparent connection: " << clientConnection);
+    assert(port->transport.protocol == AnyP::PROTO_HTTPS);
+    assert(port->flags.tunnelSslBumping());
+    assert(!switchedToHttps_);
+    assert(!needProxyProtocolHeader_); // if we expect a PROXY protocol header, it must have been parsed already
+
+    if (!Config.accessList.ssl_bump) {
+        httpsSslBumpStep1AccessCheckDone(ACCESS_DENIED);
+        return;
+    }
+
+    assert(port->flags.interceptedSomewhere());
+    MasterXaction::Pointer mx = new MasterXaction(port);
+    mx->tcpClient = clientConnection;
+    // Create a fake HTTP request and ALE for the ssl_bump ACL check,
+    // using tproxy/intercept provided destination IP and port.
+    // XXX: Merge with subsequent fakeAConnectRequest(), buildFakeRequest().
+    // XXX: Do this earlier (e.g., in Http[s]::One::Server constructor).
+    HttpRequest *request = new HttpRequest(mx);
+    static char ip[MAX_IPSTRLEN];
+    request->url.host(clientConnection->local.toStr(ip, sizeof(ip)));
+    request->url.port(clientConnection->local.port());
+    request->myportname = port->name;
+    const AccessLogEntry::Pointer connectAle = new AccessLogEntry;
+    CodeContext::Reset(connectAle);
+    // TODO: Use these request/ALE when waiting for new bumped transactions.
+
+    ACLFilledChecklist *acl_checklist = new ACLFilledChecklist(Config.accessList.ssl_bump, request, NULL);
+    fillChecklist(*acl_checklist);
+    // Build a local AccessLogEntry to allow requiresAle() acls work
+    acl_checklist->al = connectAle;
+    acl_checklist->al->cache.start_time = current_time;
+    acl_checklist->al->tcpClient = clientConnection;
+    acl_checklist->al->cache.port = port;
+    acl_checklist->al->cache.caddr = log_addr;
+    acl_checklist->al->proxyProtocolHeader = proxyProtocolHeader_;
+    HTTPMSGUNLOCK(acl_checklist->al->request);
+    acl_checklist->al->request = request;
+    HTTPMSGLOCK(acl_checklist->al->request);
+    Http::StreamPointer context = pipeline.front();
+    ClientHttpRequest *http = context ? context->http : nullptr;
+    const char *log_uri = http ? http->log_uri : nullptr;
+    acl_checklist->syncAle(request, log_uri);
+    acl_checklist->nonBlockingCheck(HttpsSslBumpStep1AccessCheckDone, this);
+}
+
 void
 ConnStateData::sslCrtdHandleReplyWrapper(void *data, const Helper::Reply &reply)
 {
@@ -2924,7 +2920,10 @@ ConnStateData::switchToHttps(ClientHttpRequest *http, Ssl::BumpMode bumpServerMo
     if (insideConnectTunnel)
         preservingClientData_ = shouldPreserveClientData();
 
-    readSomeData();
+    if (inBuf.isEmpty())
+        readSomeData();
+    else
+        parseTlsHandshake();
 }
 
 void
@@ -2932,8 +2931,12 @@ ConnStateData::parseTlsHandshake()
 {
     Must(parsingTlsHandshake);
 
-    assert(!inBuf.isEmpty());
-    receivedFirstByte();
+    // TODO: Call receivedFirstByte() below at most once per connection.
+    // Addressing this correctly may be related to understanding and possibly
+    // changing what receivedFirstByte_ truly is and how it is managed.
+    if (!inBuf.isEmpty())
+        receivedFirstByte();
+    // XXX: Call fd_note() below at most once per connection. Its expensive.
     fd_note(clientConnection->fd, "Parsing TLS handshake");
 
     // stops being nil if we fail to parse the handshake
