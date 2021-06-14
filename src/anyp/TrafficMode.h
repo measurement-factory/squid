@@ -9,6 +9,9 @@
 #ifndef SQUID_ANYP_TRAFFIC_MODE_H
 #define SQUID_ANYP_TRAFFIC_MODE_H
 
+#include <array>
+#include <iostream>
+
 namespace AnyP
 {
 
@@ -17,10 +20,22 @@ class TrafficModeFlags
 {
 public:
     /// a parsed port type (http_port, https_port or ftp_port)
+
     typedef enum { httpPort, httpsPort, ftpPort } PortKind;
 
     /// \returns true for HTTPS ports with SSL bump receiving PROXY protocol traffic
     bool proxySurrogateHttpsSslBump() const { return proxySurrogateHttp && tunnelSslBumping && portKind == httpsPort; }
+
+    bool operator ==(const TrafficModeFlags &flags) const {
+        return flags.accelSurrogate == accelSurrogate &&
+            flags.proxySurrogateHttp == proxySurrogateHttp &&
+            flags.natIntercept == natIntercept &&
+            flags.tproxyIntercept == tproxyIntercept &&
+            flags.tunnelSslBumping == tunnelSslBumping &&
+            flags.portKind == portKind;
+    }
+
+    PortKind portKind; ///< the parsed port type value
 
     /** marks HTTP accelerator (reverse/surrogate proxy) traffic
      *
@@ -28,7 +43,7 @@ public:
      *  - URL translation from relative to absolute form
      *  - restriction to origin peer relay recommended
      */
-    bool accelSurrogate = false;
+    bool accelSurrogate;
 
     /** marks http ports receiving PROXY protocol traffic
      *
@@ -38,7 +53,7 @@ public:
      *  - indirect client IP trust verification is mandatory
      *  - TLS is not supported
      */
-    bool proxySurrogateHttp = false;
+    bool proxySurrogateHttp;
 
     /** marks NAT intercepted traffic
      *
@@ -49,7 +64,7 @@ public:
      *  - destination pinning is recommended
      *  - Squid authentication prohibited
      */
-    bool natIntercept = false;
+    bool natIntercept;
 
     /** marks TPROXY intercepted traffic
      *
@@ -61,7 +76,7 @@ public:
      *  - destination pinning is recommended
      *  - Squid authentication prohibited
      */
-    bool tproxyIntercept = false;
+    bool tproxyIntercept;
 
     /** marks intercept and decryption of CONNECT (tunnel) SSL traffic
      *
@@ -72,9 +87,61 @@ public:
      *  - encrypted outbound server connections
      *  - peer relay prohibited. TODO: re-encrypt and re-wrap with CONNECT
      */
-    bool tunnelSslBumping = false;
+    bool tunnelSslBumping;
+};
 
-    PortKind portKind; ///< the parsed port type value
+inline std::ostream &
+operator <<(std::ostream &os, const TrafficModeFlags &flags)
+{
+    const char *kindStr = nullptr;
+    if (flags.portKind == TrafficModeFlags::httpPort)
+        kindStr = "http_port";
+    else if (flags.portKind == TrafficModeFlags::httpsPort)
+        kindStr = "https_port";
+    else {
+        assert(flags.portKind == TrafficModeFlags::ftpPort);
+        kindStr = "ftp_port";
+    }
+    return os << kindStr << " with accel: " << flags.accelSurrogate <<
+        "require-proxy-header: " << flags.proxySurrogateHttp <<
+        "intercept: " << flags.natIntercept <<
+        "tproxy: " << flags.tproxyIntercept <<
+        "ssl-bump: " << flags.tunnelSslBumping;
+}
+
+constexpr std::array<TrafficModeFlags, 18> AcceptableTrafficModeFlags =
+{
+    {
+        // portKind; accelSurrogate, proxySurrogateHttp, natIntercept, tproxyIntercept, tunnelSslBumping
+
+        // accel
+        {TrafficModeFlags::httpPort, true, false, false, false, false},
+        {TrafficModeFlags::httpPort, true, false, true, false, false},
+        {TrafficModeFlags::httpPort, true, false, true, false, true},
+
+        // natIntercept
+        {TrafficModeFlags::httpPort, false, false, true, false, false},
+        {TrafficModeFlags::httpPort, false, false, true, false, true},
+        {TrafficModeFlags::httpPort, false, true, true, false, false},
+        {TrafficModeFlags::httpPort, false, true, true, false, true},
+
+        // tproxyIntercept
+        {TrafficModeFlags::httpPort, false, false, false, true, false},
+        {TrafficModeFlags::httpPort, false, false, false, true, true},
+        {TrafficModeFlags::httpPort, false, true, false, true, false},
+        {TrafficModeFlags::httpPort, false, true, false, true, true},
+
+        // proxySurrogateHttp
+        {TrafficModeFlags::httpPort, false, true, false, false, false},
+
+        {TrafficModeFlags::httpsPort, true, false, false, false, false},
+        {TrafficModeFlags::httpsPort, false, true, false, false, true},
+        {TrafficModeFlags::httpsPort, false, false, true, false, true},
+        {TrafficModeFlags::httpsPort, false, false, false, true, true},
+
+        {TrafficModeFlags::ftpPort, false, false, true, false, false},
+        {TrafficModeFlags::ftpPort, false, false, false, true, false}
+    }
 };
 
 /**

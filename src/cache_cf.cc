@@ -3549,6 +3549,17 @@ parsePortProtocol(const SBuf &value)
     return AnyP::ProtocolVersion(); // not reached
 }
 
+static bool
+CheckTrafficModeFlags(const TrafficModeFlags &flags)
+{
+    if (std::any_of(std::begin(AnyP::AcceptableTrafficModeFlags), std::end(AnyP::AcceptableTrafficModeFlags),
+                [&](const AnyP::TrafficModeFlags &f)
+                { return flags == f; })) {
+        return true;
+    }
+    debugs(3, DBG_CRITICAL, "FATAL: invalid combination of flags for: " << flags);
+}
+
 static void
 parse_port_option(AnyP::PortCfgPointer &s, char *token)
 {
