@@ -3550,7 +3550,7 @@ parsePortProtocol(const SBuf &value)
 }
 
 static bool
-CheckTrafficModeFlags(const TrafficModeFlags &flags)
+CheckTrafficModeFlags(const AnyP::TrafficModeFlags &flags)
 {
     if (std::any_of(std::begin(AnyP::AcceptableTrafficModeFlags), std::end(AnyP::AcceptableTrafficModeFlags),
                 [&](const AnyP::TrafficModeFlags &f)
@@ -3558,6 +3558,8 @@ CheckTrafficModeFlags(const TrafficModeFlags &flags)
         return true;
     }
     debugs(3, DBG_CRITICAL, "FATAL: invalid combination of flags for: " << flags);
+    self_destruct();
+    return false;
 }
 
 static void
@@ -3833,9 +3835,12 @@ parsePortCfg(AnyP::PortCfgPointer *head, const char *optionName)
         parse_port_option(s, token);
     }
 
+    const auto &rawFlags = s->flags.rawConfig();
+
+    CheckTrafficModeFlags(rawFlags);
+
     s->secure.syncCaFiles();
 
-    const auto &rawFlags = s->flags.rawConfig();
     if (s->transport.protocol == AnyP::PROTO_HTTPS) {
         s->secure.encryptTransport = true;
 #if USE_OPENSSL
