@@ -21,30 +21,18 @@ class TrafficModeFlags
 public:
     /// a parsed port type (http_port, https_port or ftp_port)
 
+    TrafficModeFlags(const uint64_t val = 0) : flags(val) {}
+
     typedef enum { httpPort, httpsPort, ftpPort } PortKind;
 
-    /// \returns true for HTTPS ports with SSL bump receiving PROXY protocol traffic
-    bool proxySurrogateHttpsSslBump() const { return proxySurrogateHttp && tunnelSslBumping && portKind == httpsPort; }
-
-    bool operator ==(const TrafficModeFlags &flags) const {
-        return flags.accelSurrogate == accelSurrogate &&
-            flags.proxySurrogateHttp == proxySurrogateHttp &&
-            flags.natIntercept == natIntercept &&
-            flags.tproxyIntercept == tproxyIntercept &&
-            flags.tunnelSslBumping == tunnelSslBumping &&
-            flags.portKind == portKind;
-    }
-
-    PortKind portKind; ///< the parsed port type value
-
+    typedef enum {
     /** marks HTTP accelerator (reverse/surrogate proxy) traffic
      *
      * Indicating the following are required:
      *  - URL translation from relative to absolute form
      *  - restriction to origin peer relay recommended
      */
-    bool accelSurrogate;
-
+    accelSurrogate = 0x01,
     /** marks http ports receiving PROXY protocol traffic
      *
      * Indicating the following are required:
@@ -53,8 +41,7 @@ public:
      *  - indirect client IP trust verification is mandatory
      *  - TLS is not supported
      */
-    bool proxySurrogateHttp;
-
+    proxySurrogateHttp = 0x02,
     /** marks NAT intercepted traffic
      *
      * Indicating the following are required:
@@ -64,8 +51,7 @@ public:
      *  - destination pinning is recommended
      *  - Squid authentication prohibited
      */
-    bool natIntercept;
-
+    natIntercept = 0x04,
     /** marks TPROXY intercepted traffic
      *
      * Indicating the following are required:
@@ -76,8 +62,7 @@ public:
      *  - destination pinning is recommended
      *  - Squid authentication prohibited
      */
-    bool tproxyIntercept;
-
+    tproxyIntercept = 0x08,
     /** marks intercept and decryption of CONNECT (tunnel) SSL traffic
      *
      * Indicating the following are required:
@@ -87,60 +72,37 @@ public:
      *  - encrypted outbound server connections
      *  - peer relay prohibited. TODO: re-encrypt and re-wrap with CONNECT
      */
-    bool tunnelSslBumping;
+    tunnelSslBumping = 0x10
+    } Flags;
+
+    /// \returns true for HTTPS ports with SSL bump receiving PROXY protocol traffic
+    bool proxySurrogateHttpsSslBump() const { return hasAll(proxySurrogateHttp | tunnelSslBumping) && portKind == httpsPort; }
+
+    operator uint64_t() const { return flags; }
+
+    void set(const Flags &flag) { flags |= flag; }
+    void reset(const Flags &flag) { flags &= ~flag; }
+    bool get(const Flags &flag) const { return flags & flag; }
+
+    bool moreThanOne() const { return (flags & (flags -1)) != 0; }
+    bool justOne() const { return !moreThanOne() && flags; }
+
+    bool hasAll(const TrafficModeFlags &other) const { return other.flags == (other.flags & flags); }
+    bool hasSome(const TrafficModeFlags &other) const { return flags & other.flags; }
+
+    uint64_t flags;
+    PortKind portKind; ///< the parsed port type value
 };
 
-inline std::ostream &
-operator <<(std::ostream &os, const TrafficModeFlags &flags)
-{
-    const char *kindStr = nullptr;
-    if (flags.portKind == TrafficModeFlags::httpPort)
-        kindStr = "http_port";
-    else if (flags.portKind == TrafficModeFlags::httpsPort)
-        kindStr = "https_port";
-    else {
-        assert(flags.portKind == TrafficModeFlags::ftpPort);
-        kindStr = "ftp_port";
-    }
-    return os << kindStr << " with accel: " << flags.accelSurrogate <<
-        "require-proxy-header: " << flags.proxySurrogateHttp <<
-        "intercept: " << flags.natIntercept <<
-        "tproxy: " << flags.tproxyIntercept <<
-        "ssl-bump: " << flags.tunnelSslBumping;
-}
-
-constexpr std::array<TrafficModeFlags, 18> AcceptableTrafficModeFlags =
+typedef std::pair<TrafficModeFlags::Flags, const char *> TrafficModeString;
+constexpr std::array<TrafficModeString, 5> TrafficModeStrings =
 {
     {
-        // portKind; accelSurrogate, proxySurrogateHttp, natIntercept, tproxyIntercept, tunnelSslBumping
-
-        // accel
-        {TrafficModeFlags::httpPort, true, false, false, false, false},
-        {TrafficModeFlags::httpPort, true, false, true, false, false},
-        {TrafficModeFlags::httpPort, true, false, true, false, true},
-
-        // natIntercept
-        {TrafficModeFlags::httpPort, false, false, true, false, false},
-        {TrafficModeFlags::httpPort, false, false, true, false, true},
-        {TrafficModeFlags::httpPort, false, true, true, false, false},
-        {TrafficModeFlags::httpPort, false, true, true, false, true},
-
-        // tproxyIntercept
-        {TrafficModeFlags::httpPort, false, false, false, true, false},
-        {TrafficModeFlags::httpPort, false, false, false, true, true},
-        {TrafficModeFlags::httpPort, false, true, false, true, false},
-        {TrafficModeFlags::httpPort, false, true, false, true, true},
-
-        // proxySurrogateHttp
-        {TrafficModeFlags::httpPort, false, true, false, false, false},
-
-        {TrafficModeFlags::httpsPort, true, false, false, false, false},
-        {TrafficModeFlags::httpsPort, false, true, false, false, true},
-        {TrafficModeFlags::httpsPort, false, false, true, false, true},
-        {TrafficModeFlags::httpsPort, false, false, false, true, true},
-
-        {TrafficModeFlags::ftpPort, false, false, true, false, false},
-        {TrafficModeFlags::ftpPort, false, false, false, true, false}
+        {TrafficModeFlags::accelSurrogate, "accel"},
+        {TrafficModeFlags::proxySurrogateHttp, "require-proxy-header"},
+        {TrafficModeFlags::natIntercept, "intercept"},
+        {TrafficModeFlags::tproxyIntercept, "tproxy"},
+        {TrafficModeFlags::tunnelSslBumping, "ssl-bump"}
     }
 };
 
@@ -157,7 +119,9 @@ public:
     /// to the TCP client of the accepted connection and/or to us. This port mode
     /// alone does not imply that the client of the accepted TCP connection was not
     /// connecting directly to this port (since commit 151ba0d).
-    bool interceptedSomewhere() const { return flags_.natIntercept || flags_.tproxyIntercept || flags_.proxySurrogateHttpsSslBump(); }
+    bool interceptedSomewhere() const {
+        return flags_.hasSome(TrafficModeFlags::natIntercept | TrafficModeFlags::tproxyIntercept) ||
+            flags_.proxySurrogateHttpsSslBump(); }
 
     /// The client of the accepted TCP connection was connecting to this port.
     /// The accepted traffic may have been intercepted earlier!
@@ -173,21 +137,21 @@ public:
     bool interceptedRemotely() const { return interceptedSomewhere() && tcpToUs(); }
 
     /// The client of the accepted TCP connection was connecting directly to this proxy port.
-    bool forwarded() const { return !interceptedSomewhere() && !flags_.accelSurrogate; }
+    bool forwarded() const { return !interceptedSomewhere() && !flags_.hasSome(TrafficModeFlags::accelSurrogate); }
 
     /// whether the PROXY protocol header is required
-    bool proxySurrogate() const { return flags_.proxySurrogateHttp || flags_.proxySurrogateHttpsSslBump(); }
+    bool proxySurrogate() const { return flags_.hasSome(TrafficModeFlags::proxySurrogateHttp) || flags_.proxySurrogateHttpsSslBump(); }
 
     /// interceptedLocally() with configured NAT interception
-    bool natInterceptLocally() const { return flags_.natIntercept && interceptedLocally(); }
+    bool natInterceptLocally() const { return flags_.hasSome(TrafficModeFlags::natIntercept) && interceptedLocally(); }
 
     /// interceptedLocally() with configured TPROXY interception
-    bool tproxyInterceptLocally() const { return flags_.tproxyIntercept && interceptedLocally(); }
+    bool tproxyInterceptLocally() const { return flags_.hasSome(TrafficModeFlags::tproxyIntercept) && interceptedLocally(); }
 
     /// whether the reverse proxy is configured
-    bool accelSurrogate() const { return flags_.accelSurrogate; }
+    bool accelSurrogate() const { return flags_.hasSome(TrafficModeFlags::accelSurrogate); }
 
-    bool tunnelSslBumping() const { return flags_.tunnelSslBumping; }
+    bool tunnelSslBumping() const { return flags_.hasSome(TrafficModeFlags::tunnelSslBumping); }
 
     TrafficModeFlags &rawConfig() { return flags_; }
 
