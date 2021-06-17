@@ -21,8 +21,6 @@ class TrafficModeFlags
 public:
     /// a parsed port type (http_port, https_port or ftp_port)
 
-    TrafficModeFlags(const uint64_t val = 0) : flags(val) {}
-
     typedef enum { httpPort, httpsPort, ftpPort } PortKind;
 
     typedef enum {
@@ -75,10 +73,13 @@ public:
     tunnelSslBumping = 0x10
     } Flags;
 
+    TrafficModeFlags(const uint64_t from, const PortKind kind) : flags(from), portKind(kind) {}
+
+    // TODO: remove
+    TrafficModeFlags() : flags(0), portKind(httpPort) {}
+
     /// \returns true for HTTPS ports with SSL bump receiving PROXY protocol traffic
     bool proxySurrogateHttpsSslBump() const { return hasAll(proxySurrogateHttp | tunnelSslBumping) && portKind == httpsPort; }
-
-    operator uint64_t() const { return flags; }
 
     void set(const Flags &flag) { flags |= flag; }
     void reset(const Flags &flag) { flags &= ~flag; }
@@ -87,23 +88,29 @@ public:
     bool moreThanOne() const { return (flags & (flags -1)) != 0; }
     bool justOne() const { return !moreThanOne() && flags; }
 
-    bool hasAll(const TrafficModeFlags &other) const { return other.flags == (other.flags & flags); }
-    bool hasSome(const TrafficModeFlags &other) const { return flags & other.flags; }
+    bool hasAll(const TrafficModeFlags &other) const {
+        assert (other.portKind == portKind);
+        return hasAll(other.flags);
+    }
+    bool hasAll(const uint64_t otherFlags) const { return otherFlags == (otherFlags & flags); }
+
+    bool commonMoreThanOne(const uint64_t otherFlags) const {
+        return TrafficModeFlags(flags & otherFlags, portKind).moreThanOne();
+    }
+    bool commonJustOne(const uint64_t otherFlags) const {
+        return TrafficModeFlags(flags & otherFlags, portKind).justOne();
+    }
+
+    bool hasSome(const TrafficModeFlags &other) const {
+        assert (other.portKind == portKind);
+        return hasSome(other.flags);
+    }
+    bool hasSome(const uint64_t otherFlags) const { return flags & otherFlags; }
+    bool has(const TrafficModeFlags &other) const { return hasSome(other); }
+    bool has(const uint64_t otherFlag) const { return hasSome(otherFlag); }
 
     uint64_t flags;
     PortKind portKind; ///< the parsed port type value
-};
-
-typedef std::pair<TrafficModeFlags::Flags, const char *> TrafficModeString;
-constexpr std::array<TrafficModeString, 5> TrafficModeStrings =
-{
-    {
-        {TrafficModeFlags::accelSurrogate, "accel"},
-        {TrafficModeFlags::proxySurrogateHttp, "require-proxy-header"},
-        {TrafficModeFlags::natIntercept, "intercept"},
-        {TrafficModeFlags::tproxyIntercept, "tproxy"},
-        {TrafficModeFlags::tunnelSslBumping, "ssl-bump"}
-    }
 };
 
 /**

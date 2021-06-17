@@ -31,6 +31,11 @@ public:
     virtual ScopedId codeContextGist() const override;
     virtual std::ostream &detailCodeContext(std::ostream &os) const override;
 
+    void rejectFlags(const uint64_t otherFlags, const char *detail = nullptr);
+    void allowEither(const uint64_t otherFlags, const char *detail = nullptr);
+    void requireAll(const uint64_t otherFlags, const char *detail = nullptr);
+    void requireEither(const uint64_t otherFlags, const char *detail = nullptr);
+
     PortCfgPointer next;
 
     Ip::Address s;

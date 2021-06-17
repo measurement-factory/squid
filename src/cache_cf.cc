@@ -3550,6 +3550,53 @@ parsePortProtocol(const SBuf &value)
 }
 
 static void
+CheckTrafficModeFlags(AnyP::PortCfgPointer &cfg)
+{
+    using Flags = AnyP::TrafficModeFlags;
+    const auto &flags = cfg->flags.rawConfig();
+
+    switch (flags.portKind) {
+
+    case Flags::httpPort: {
+        if (flags.has(Flags::accelSurrogate))
+            cfg->rejectFlags(Flags::natIntercept | Flags::tproxyIntercept, "accel");
+        else
+            cfg->allowEither(Flags::natIntercept | Flags::tproxyIntercept);
+    }
+    break;
+
+    case Flags::httpsPort: {
+        if (flags.has(Flags::accelSurrogate)) {
+            cfg->rejectFlags(Flags::natIntercept | Flags::tproxyIntercept | Flags::proxySurrogateHttp | Flags::tunnelSslBumping, "accel");
+        } else {
+            // XXX: https_port does not really _require_ acceleration. Without
+            // accelSurrogate, the port works as an HTTPS forward proxy. This
+            // condition should be removed AFAICT, but more refactoring is needed to
+            // support basic HTTPS forward proxy (without any other flags):
+            // {TrafficModeFlags::httpsPort, false, false, false, false, false},
+            cfg->requireAll(Flags::tunnelSslBumping);
+            cfg->requireEither(Flags::natIntercept | Flags::tproxyIntercept | Flags::proxySurrogateHttp);
+        }
+    }
+    break;
+
+    case Flags::ftpPort:
+        cfg->rejectFlags(Flags::accelSurrogate | Flags::proxySurrogateHttp | Flags::tunnelSslBumping);
+        cfg->allowEither(Flags::natIntercept | Flags::tproxyIntercept);
+        break;
+
+    default:
+        fatal("unreachable");
+    }
+
+    if (flags.hasAll(Flags::tproxyIntercept | Flags::proxySurrogateHttp)) {
+        // receiving is still permitted, so we do not unset the TPROXY flag
+        // spoofing access control override takes care of the spoof disable later
+        debugs(3, DBG_IMPORTANT, "Disabling TPROXY Spoofing on port " << cfg->s << " (require-proxy-header enabled)");
+    }
+}
+
+static void
 parse_port_option(AnyP::PortCfgPointer &s, char *token)
 {
     /* modes first */
@@ -3822,6 +3869,8 @@ parsePortCfg(AnyP::PortCfgPointer *head, const char *optionName)
     while ((token = ConfigParser::NextToken())) {
         parse_port_option(s, token);
     }
+
+    CheckTrafficModeFlags(s);
 
     const auto &rawFlags = s->flags.rawConfig();
     using Flags = AnyP::TrafficModeFlags;
