@@ -3359,14 +3359,13 @@ clientHttpConnectionsOpen(void)
 #if USE_OPENSSL
         if (s->flags.tunnelSslBumping()) {
             auto &rawFlags = s->flags.rawConfig();
-            using Flags = AnyP::TrafficModeFlags;
             if (!Config.accessList.ssl_bump) {
                 debugs(33, DBG_IMPORTANT, "WARNING: No ssl_bump configured. Disabling ssl-bump on " << scheme << "_port " << s->s);
-                rawFlags.reset(Flags::tunnelSslBumping);;
+                rawFlags.tunnelSslBumping = false;
             }
             if (!s->secure.staticContext && !s->secure.generateHostCertificates) {
                 debugs(1, DBG_IMPORTANT, "Will not bump SSL at " << scheme << "_port " << s->s << " due to TLS initialization failure.");
-                rawFlags.reset(Flags::tunnelSslBumping);
+                rawFlags.tunnelSslBumping = false;
                 if (s->transport.protocol == AnyP::PROTO_HTTP)
                     s->secure.encryptTransport = false;
             }

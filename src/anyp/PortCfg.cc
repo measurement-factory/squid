@@ -8,11 +8,8 @@
 
 #include "squid.h"
 #include "anyp/PortCfg.h"
-#include "cache_cf.h"
 #include "comm.h"
-#include "Debug.h"
 #include "fatal.h"
-#include "sbuf/SBuf.h"
 #include "security/PeerOptions.h"
 #if USE_OPENSSL
 #include "ssl/support.h"
@@ -102,101 +99,5 @@ AnyP::PortCfg::detailCodeContext(std::ostream &os) const
     else if (s.port())
         os << Debug::Extra << "listening port address: " << s;
     return os;
-}
-
-typedef std::pair<AnyP::TrafficModeFlags::Flags, const char *> PortOptionPair;
-constexpr std::array<PortOptionPair, 5> PortOptionStrings =
-{
-    {
-        {AnyP::TrafficModeFlags::accelSurrogate, "accel"},
-        {AnyP::TrafficModeFlags::proxySurrogateHttp, "require-proxy-header"},
-        {AnyP::TrafficModeFlags::natIntercept, "intercept"},
-        {AnyP::TrafficModeFlags::tproxyIntercept, "tproxy"},
-        {AnyP::TrafficModeFlags::tunnelSslBumping, "ssl-bump"}
-    }
-};
-
-typedef std::pair<AnyP::TrafficModeFlags::PortKind, const char *> PortKindPair;
-constexpr std::array<PortKindPair, 3> PortKindStrings =
-{
-    {
-        {AnyP::TrafficModeFlags::httpPort, "http_port"},
-        {AnyP::TrafficModeFlags::httpsPort, "https_port"},
-        {AnyP::TrafficModeFlags::ftpPort, "ftp_port"},
-    }
-};
-
-static SBuf
-PortOptionString(const AnyP::TrafficModeFlags &flags)
-{
-    SBuf str;
-    for (const auto &p: PortOptionStrings) {
-        if (flags.has(p.first)) {
-            if (!str.isEmpty())
-                str.append(',');
-            str.append(p.second);
-        }
-    }
-    assert(!str.isEmpty());
-    return str;
-}
-
-static const char *
-PortKindString(const AnyP::TrafficModeFlags &flags)
-{
-    for (const auto &p: PortKindStrings)
-        if (p.first == flags.portKind)
-            return p.second;
-    assert(false); // unreachable
-    return nullptr;
-}
-
-void
-AnyP::PortCfg::rejectFlags(const uint64_t otherFlags, const char *detail)
-{
-    const auto &rawFlags = flags.rawConfig();
-    const TrafficModeFlags other(otherFlags, rawFlags.portKind);
-    for (const auto &p: PortOptionStrings) {
-        if (rawFlags.has(p.first) && other.has(p.first)) {
-            debugs(3, DBG_CRITICAL, "FATAL: " << p.second << " is unsupported on " << PortKindString(rawFlags) <<  ' ' << detail);
-            self_destruct();
-        }
-    }
-}
-
-void
-AnyP::PortCfg::allowEither(const uint64_t otherFlags, const char *detail)
-{
-    const auto &rawFlags = flags.rawConfig();
-    if (rawFlags.commonMoreThanOne(otherFlags)) {
-        const TrafficModeFlags other(otherFlags, rawFlags.portKind);
-        debugs(3, DBG_CRITICAL, "FATAL: the combination of " << PortOptionString(other) <<
-                " is unsupported on " << PortKindString(rawFlags) << ' ' << detail);
-        self_destruct();
-    }
-}
-
-void
-AnyP::PortCfg::requireEither(const uint64_t otherFlags, const char *detail)
-{
-    const auto &rawFlags = flags.rawConfig();
-    if (rawFlags.commonMoreThanOne(otherFlags)) {
-        const TrafficModeFlags other(otherFlags, rawFlags.portKind);
-        debugs(3, DBG_CRITICAL, "FATAL: exactly one of " << PortOptionString(other) <<
-                " is required on " << PortKindString(rawFlags) << ' ' << detail);
-        self_destruct();
-    }
-}
-
-void
-AnyP::PortCfg::requireAll(const uint64_t otherFlags, const char *detail)
-{
-    if (!flags.rawConfig().hasAll(otherFlags)) {
-        const auto &rawFlags = flags.rawConfig();
-        const TrafficModeFlags other(otherFlags, rawFlags.portKind);
-        debugs(3, DBG_CRITICAL, "FATAL: " << PortOptionString(other) << " is required on "
-                << PortKindString(rawFlags) << ' ' << detail);
-        self_destruct();
-    }
 }
 

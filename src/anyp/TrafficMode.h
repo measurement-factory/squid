@@ -9,9 +9,6 @@
 #ifndef SQUID_ANYP_TRAFFIC_MODE_H
 #define SQUID_ANYP_TRAFFIC_MODE_H
 
-#include <array>
-#include <iostream>
-
 namespace AnyP
 {
 
@@ -20,17 +17,19 @@ class TrafficModeFlags
 {
 public:
     /// a parsed port type (http_port, https_port or ftp_port)
-
     typedef enum { httpPort, httpsPort, ftpPort } PortKind;
 
-    typedef enum {
+    /// \returns true for HTTPS ports with SSL bump receiving PROXY protocol traffic
+    bool proxySurrogateHttpsSslBump() const { return proxySurrogateHttp && tunnelSslBumping && portKind == httpsPort; }
+
     /** marks HTTP accelerator (reverse/surrogate proxy) traffic
      *
      * Indicating the following are required:
      *  - URL translation from relative to absolute form
      *  - restriction to origin peer relay recommended
      */
-    accelSurrogate = 0x01,
+    bool accelSurrogate = false;
+
     /** marks http ports receiving PROXY protocol traffic
      *
      * Indicating the following are required:
@@ -39,7 +38,8 @@ public:
      *  - indirect client IP trust verification is mandatory
      *  - TLS is not supported
      */
-    proxySurrogateHttp = 0x02,
+    bool proxySurrogateHttp = false;
+
     /** marks NAT intercepted traffic
      *
      * Indicating the following are required:
@@ -49,7 +49,8 @@ public:
      *  - destination pinning is recommended
      *  - Squid authentication prohibited
      */
-    natIntercept = 0x04,
+    bool natIntercept = false;
+
     /** marks TPROXY intercepted traffic
      *
      * Indicating the following are required:
@@ -60,7 +61,8 @@ public:
      *  - destination pinning is recommended
      *  - Squid authentication prohibited
      */
-    tproxyIntercept = 0x08,
+    bool tproxyIntercept = false;
+
     /** marks intercept and decryption of CONNECT (tunnel) SSL traffic
      *
      * Indicating the following are required:
@@ -70,46 +72,8 @@ public:
      *  - encrypted outbound server connections
      *  - peer relay prohibited. TODO: re-encrypt and re-wrap with CONNECT
      */
-    tunnelSslBumping = 0x10
-    } Flags;
+    bool tunnelSslBumping = false;
 
-    TrafficModeFlags(const uint64_t from, const PortKind kind) : flags(from), portKind(kind) {}
-
-    // TODO: remove
-    TrafficModeFlags() : flags(0), portKind(httpPort) {}
-
-    /// \returns true for HTTPS ports with SSL bump receiving PROXY protocol traffic
-    bool proxySurrogateHttpsSslBump() const { return hasAll(proxySurrogateHttp | tunnelSslBumping) && portKind == httpsPort; }
-
-    void set(const Flags &flag) { flags |= flag; }
-    void reset(const Flags &flag) { flags &= ~flag; }
-    bool get(const Flags &flag) const { return flags & flag; }
-
-    bool moreThanOne() const { return (flags & (flags -1)) != 0; }
-    bool justOne() const { return !moreThanOne() && flags; }
-
-    bool hasAll(const TrafficModeFlags &other) const {
-        assert (other.portKind == portKind);
-        return hasAll(other.flags);
-    }
-    bool hasAll(const uint64_t otherFlags) const { return otherFlags == (otherFlags & flags); }
-
-    bool commonMoreThanOne(const uint64_t otherFlags) const {
-        return TrafficModeFlags(flags & otherFlags, portKind).moreThanOne();
-    }
-    bool commonJustOne(const uint64_t otherFlags) const {
-        return TrafficModeFlags(flags & otherFlags, portKind).justOne();
-    }
-
-    bool hasSome(const TrafficModeFlags &other) const {
-        assert (other.portKind == portKind);
-        return hasSome(other.flags);
-    }
-    bool hasSome(const uint64_t otherFlags) const { return flags & otherFlags; }
-    bool has(const TrafficModeFlags &other) const { return hasSome(other); }
-    bool has(const uint64_t otherFlag) const { return hasSome(otherFlag); }
-
-    uint64_t flags;
     PortKind portKind; ///< the parsed port type value
 };
 
@@ -126,9 +90,7 @@ public:
     /// to the TCP client of the accepted connection and/or to us. This port mode
     /// alone does not imply that the client of the accepted TCP connection was not
     /// connecting directly to this port (since commit 151ba0d).
-    bool interceptedSomewhere() const {
-        return flags_.hasSome(TrafficModeFlags::natIntercept | TrafficModeFlags::tproxyIntercept) ||
-            flags_.proxySurrogateHttpsSslBump(); }
+    bool interceptedSomewhere() const { return flags_.natIntercept || flags_.tproxyIntercept || flags_.proxySurrogateHttpsSslBump(); }
 
     /// The client of the accepted TCP connection was connecting to this port.
     /// The accepted traffic may have been intercepted earlier!
@@ -144,21 +106,21 @@ public:
     bool interceptedRemotely() const { return interceptedSomewhere() && tcpToUs(); }
 
     /// The client of the accepted TCP connection was connecting directly to this proxy port.
-    bool forwarded() const { return !interceptedSomewhere() && !flags_.hasSome(TrafficModeFlags::accelSurrogate); }
+    bool forwarded() const { return !interceptedSomewhere() && !flags_.accelSurrogate; }
 
     /// whether the PROXY protocol header is required
-    bool proxySurrogate() const { return flags_.hasSome(TrafficModeFlags::proxySurrogateHttp) || flags_.proxySurrogateHttpsSslBump(); }
+    bool proxySurrogate() const { return flags_.proxySurrogateHttp || flags_.proxySurrogateHttpsSslBump(); }
 
     /// interceptedLocally() with configured NAT interception
-    bool natInterceptLocally() const { return flags_.hasSome(TrafficModeFlags::natIntercept) && interceptedLocally(); }
+    bool natInterceptLocally() const { return flags_.natIntercept && interceptedLocally(); }
 
     /// interceptedLocally() with configured TPROXY interception
-    bool tproxyInterceptLocally() const { return flags_.hasSome(TrafficModeFlags::tproxyIntercept) && interceptedLocally(); }
+    bool tproxyInterceptLocally() const { return flags_.tproxyIntercept && interceptedLocally(); }
 
     /// whether the reverse proxy is configured
-    bool accelSurrogate() const { return flags_.hasSome(TrafficModeFlags::accelSurrogate); }
+    bool accelSurrogate() const { return flags_.accelSurrogate; }
 
-    bool tunnelSslBumping() const { return flags_.hasSome(TrafficModeFlags::tunnelSslBumping); }
+    bool tunnelSslBumping() const { return flags_.tunnelSslBumping; }
 
     TrafficModeFlags &rawConfig() { return flags_; }
 

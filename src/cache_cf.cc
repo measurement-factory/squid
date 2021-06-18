@@ -3550,58 +3550,10 @@ parsePortProtocol(const SBuf &value)
 }
 
 static void
-CheckTrafficModeFlags(AnyP::PortCfgPointer &cfg)
-{
-    using Flags = AnyP::TrafficModeFlags;
-    const auto &flags = cfg->flags.rawConfig();
-
-    switch (flags.portKind) {
-
-    case Flags::httpPort: {
-        if (flags.has(Flags::accelSurrogate))
-            cfg->rejectFlags(Flags::natIntercept | Flags::tproxyIntercept, "accel");
-        else
-            cfg->allowEither(Flags::natIntercept | Flags::tproxyIntercept);
-    }
-    break;
-
-    case Flags::httpsPort: {
-        if (flags.has(Flags::accelSurrogate)) {
-            cfg->rejectFlags(Flags::natIntercept | Flags::tproxyIntercept | Flags::proxySurrogateHttp | Flags::tunnelSslBumping, "accel");
-        } else {
-            // XXX: https_port does not really _require_ acceleration. Without
-            // accelSurrogate, the port works as an HTTPS forward proxy. This
-            // condition should be removed AFAICT, but more refactoring is needed to
-            // support basic HTTPS forward proxy (without any other flags):
-            // {TrafficModeFlags::httpsPort, false, false, false, false, false},
-            cfg->requireAll(Flags::tunnelSslBumping);
-            cfg->requireEither(Flags::natIntercept | Flags::tproxyIntercept | Flags::proxySurrogateHttp);
-        }
-    }
-    break;
-
-    case Flags::ftpPort:
-        cfg->rejectFlags(Flags::accelSurrogate | Flags::proxySurrogateHttp | Flags::tunnelSslBumping);
-        cfg->allowEither(Flags::natIntercept | Flags::tproxyIntercept);
-        break;
-
-    default:
-        fatal("unreachable");
-    }
-
-    if (flags.hasAll(Flags::tproxyIntercept | Flags::proxySurrogateHttp)) {
-        // receiving is still permitted, so we do not unset the TPROXY flag
-        // spoofing access control override takes care of the spoof disable later
-        debugs(3, DBG_IMPORTANT, "Disabling TPROXY Spoofing on port " << cfg->s << " (require-proxy-header enabled)");
-    }
-}
-
-static void
 parse_port_option(AnyP::PortCfgPointer &s, char *token)
 {
     /* modes first */
 
-    using Flags = AnyP::TrafficModeFlags;
     auto &rawFlags = s->flags.rawConfig();
     if (strcmp(token, "accel") == 0) {
         if (s->flags.interceptedSomewhere()) {
@@ -3609,26 +3561,26 @@ parse_port_option(AnyP::PortCfgPointer &s, char *token)
             self_destruct();
             return;
         }
-        rawFlags.set(Flags::accelSurrogate);
+        rawFlags.accelSurrogate = true;
         s->vhost = true;
     } else if (strcmp(token, "transparent") == 0 || strcmp(token, "intercept") == 0) {
-        if (rawFlags.hasSome(Flags::accelSurrogate | Flags::tproxyIntercept)) {
+        if (rawFlags.accelSurrogate || rawFlags.tproxyIntercept) {
             debugs(3, DBG_CRITICAL, "FATAL: " << cfg_directive << ": Intercept mode requires its own interception port. It cannot be shared with other modes.");
             self_destruct();
             return;
         }
-        rawFlags.set(Flags::natIntercept);
+        rawFlags.natIntercept = true;
         Ip::Interceptor.StartInterception();
         /* Log information regarding the port modes under interception. */
         debugs(3, DBG_IMPORTANT, "Starting Authentication on port " << s->s);
         debugs(3, DBG_IMPORTANT, "Disabling Authentication on port " << s->s << " (interception enabled)");
     } else if (strcmp(token, "tproxy") == 0) {
-        if (rawFlags.hasSome(Flags::natIntercept | Flags::accelSurrogate)) {
+        if (rawFlags.natIntercept || rawFlags.accelSurrogate) {
             debugs(3,DBG_CRITICAL, "FATAL: " << cfg_directive << ": TPROXY option requires its own interception port. It cannot be shared with other modes.");
             self_destruct();
             return;
         }
-        rawFlags.set(Flags::tproxyIntercept);
+        rawFlags.tproxyIntercept = true;
         Ip::Interceptor.StartTransparency();
         /* Log information regarding the port modes under transparency. */
         debugs(3, DBG_IMPORTANT, "Disabling Authentication on port " << s->s << " (TPROXY enabled)");
@@ -3644,15 +3596,15 @@ parse_port_option(AnyP::PortCfgPointer &s, char *token)
         }
 
     } else if (strcmp(token, "require-proxy-header") == 0) {
-        rawFlags.set(Flags::proxySurrogateHttp);
-        if (rawFlags.hasSome(Flags::tproxyIntercept)) {
+        rawFlags.proxySurrogateHttp = true;
+        if (rawFlags.tproxyIntercept) {
             // receiving is still permitted, so we do not unset the TPROXY flag
             // spoofing access control override takes care of the spoof disable later
             debugs(3, DBG_IMPORTANT, "Disabling TPROXY Spoofing on port " << s->s << " (require-proxy-header enabled)");
         }
 
     } else if (strncmp(token, "defaultsite=", 12) == 0) {
-        if (!rawFlags.hasSome(Flags::accelSurrogate)) {
+        if (!rawFlags.accelSurrogate) {
             debugs(3, DBG_CRITICAL, "FATAL: " << cfg_directive << ": defaultsite option requires Acceleration mode flag.");
             self_destruct();
             return;
@@ -3660,52 +3612,52 @@ parse_port_option(AnyP::PortCfgPointer &s, char *token)
         safe_free(s->defaultsite);
         s->defaultsite = xstrdup(token + 12);
     } else if (strcmp(token, "vhost") == 0) {
-        if (!rawFlags.hasSome(Flags::accelSurrogate)) {
+        if (!rawFlags.accelSurrogate) {
             debugs(3, DBG_CRITICAL, "WARNING: " << cfg_directive << ": vhost option is deprecated. Use 'accel' mode flag instead.");
         }
-        rawFlags.set(Flags::accelSurrogate);
+        rawFlags.accelSurrogate = true;
         s->vhost = true;
     } else if (strcmp(token, "no-vhost") == 0) {
-        if (!rawFlags.hasSome(Flags::accelSurrogate)) {
+        if (!rawFlags.accelSurrogate) {
             debugs(3, DBG_IMPORTANT, "ERROR: " << cfg_directive << ": no-vhost option requires Acceleration mode flag.");
         }
         s->vhost = false;
     } else if (strcmp(token, "vport") == 0) {
-        if (!rawFlags.hasSome(Flags::accelSurrogate)) {
+        if (!rawFlags.accelSurrogate) {
             debugs(3, DBG_CRITICAL, "FATAL: " << cfg_directive << ": vport option requires Acceleration mode flag.");
             self_destruct();
             return;
         }
         s->vport = -1;
     } else if (strncmp(token, "vport=", 6) == 0) {
-        if (!rawFlags.hasSome(Flags::accelSurrogate)) {
+        if (!rawFlags.accelSurrogate) {
             debugs(3, DBG_CRITICAL, "FATAL: " << cfg_directive << ": vport option requires Acceleration mode flag.");
             self_destruct();
             return;
         }
         s->vport = xatos(token + 6);
     } else if (strncmp(token, "protocol=", 9) == 0) {
-        if (!rawFlags.hasSome(Flags::accelSurrogate)) {
+        if (!rawFlags.accelSurrogate) {
             debugs(3, DBG_CRITICAL, "FATAL: " << cfg_directive << ": protocol option requires Acceleration mode flag.");
             self_destruct();
             return;
         }
         s->transport = parsePortProtocol(ToUpper(SBuf(token + 9)));
     } else if (strcmp(token, "allow-direct") == 0) {
-        if (!rawFlags.hasSome(Flags::accelSurrogate)) {
+        if (!rawFlags.accelSurrogate) {
             debugs(3, DBG_CRITICAL, "FATAL: " << cfg_directive << ": allow-direct option requires Acceleration mode flag.");
             self_destruct();
             return;
         }
         s->allow_direct = true;
     } else if (strcmp(token, "act-as-origin") == 0) {
-        if (!rawFlags.hasSome(Flags::accelSurrogate)) {
+        if (!rawFlags.accelSurrogate) {
             debugs(3, DBG_IMPORTANT, "ERROR: " << cfg_directive << ": act-as-origin option requires Acceleration mode flag.");
         } else
             s->actAsOrigin = true;
     } else if (strcmp(token, "ignore-cc") == 0) {
 #if !USE_HTTP_VIOLATIONS
-        if (!rawFlags.hasSome(Flags::accelSurrogate)) {
+        if (!rawFlags.accelSurrogate) {
             debugs(3, DBG_CRITICAL, "FATAL: " << cfg_directive << ": ignore-cc option requires Acceleration mode flag.");
             self_destruct();
             return;
@@ -3760,9 +3712,9 @@ parse_port_option(AnyP::PortCfgPointer &s, char *token)
     } else if (strcmp(token, "sslBump") == 0) {
         debugs(3, DBG_PARSE_NOTE(1), "WARNING: '" << token << "' is deprecated " <<
                "in " << cfg_directive << ". Use 'ssl-bump' instead.");
-        rawFlags.set(Flags::tunnelSslBumping);
+        rawFlags.tunnelSslBumping = true;
     } else if (strcmp(token, "ssl-bump") == 0) {
-        rawFlags.set(Flags::tunnelSslBumping);
+        rawFlags.tunnelSslBumping = true;
     } else if (strncmp(token, "cert=", 5) == 0) {
         s->secure.parse(token);
     } else if (strncmp(token, "key=", 4) == 0) {
@@ -3870,13 +3822,9 @@ parsePortCfg(AnyP::PortCfgPointer *head, const char *optionName)
         parse_port_option(s, token);
     }
 
-    CheckTrafficModeFlags(s);
-
-    const auto &rawFlags = s->flags.rawConfig();
-    using Flags = AnyP::TrafficModeFlags;
-
     s->secure.syncCaFiles();
 
+    const auto &rawFlags = s->flags.rawConfig();
     if (s->transport.protocol == AnyP::PROTO_HTTPS) {
         s->secure.encryptTransport = true;
 #if USE_OPENSSL
@@ -3893,25 +3841,25 @@ parsePortCfg(AnyP::PortCfgPointer *head, const char *optionName)
             return;
         }
 #endif
-        if (rawFlags.proxySurrogateHttpsSslBump() && (rawFlags.hasSome(Flags::natIntercept|Flags::tproxyIntercept|Flags::accelSurrogate))) {
+        if (rawFlags.proxySurrogateHttpsSslBump() && (rawFlags.natIntercept || rawFlags.tproxyIntercept || rawFlags.accelSurrogate)) {
             debugs(3, DBG_CRITICAL, "FATAL: require-proxy-header option is incompatible with tproxy/intercept/accel for https_port.");
             self_destruct();
             return;
         }
     } else if (protoName.cmp("FTP") == 0) {
         /* ftp_port does not support ssl-bump */
-        if (rawFlags.hasSome(Flags::tunnelSslBumping)) {
+        if (rawFlags.tunnelSslBumping) {
             debugs(3, DBG_CRITICAL, "FATAL: ssl-bump is not supported for ftp_port.");
             self_destruct();
             return;
         }
-        if (rawFlags.hasSome(Flags::proxySurrogateHttp)) {
+        if (rawFlags.proxySurrogateHttp) {
             // Passive FTP data channel does not work without deep protocol inspection in the frontend.
             debugs(3,DBG_CRITICAL, "FATAL: require-proxy-header option is not supported on ftp_port.");
             self_destruct();
             return;
         }
-        if (rawFlags.hasSome(Flags::accelSurrogate)) {
+        if (rawFlags.accelSurrogate) {
             debugs(3,DBG_CRITICAL, "FATAL: Accelerator mode is not supported on ftp_port.");
             self_destruct();
             return;
@@ -3951,18 +3899,17 @@ dump_generic_port(StoreEntry * e, const char *n, const AnyP::PortCfgPointer &s)
                       s->s.toUrl(buf,MAX_IPSTRLEN));
 
     const auto &rawFlags = s->flags.rawConfig();
-    using Flags = AnyP::TrafficModeFlags;
     // MODES and specific sub-options.
-    if (rawFlags.hasSome(Flags::natIntercept))
+    if (rawFlags.natIntercept)
         storeAppendPrintf(e, " intercept");
 
-    else if (rawFlags.hasSome(Flags::tproxyIntercept))
+    else if (rawFlags.tproxyIntercept)
         storeAppendPrintf(e, " tproxy");
 
     else if (s->flags.proxySurrogate())
         storeAppendPrintf(e, " require-proxy-header");
 
-    else if (rawFlags.hasSome(Flags::accelSurrogate)) {
+    else if (rawFlags.accelSurrogate) {
         storeAppendPrintf(e, " accel");
 
         if (s->vhost)
@@ -3994,7 +3941,7 @@ dump_generic_port(StoreEntry * e, const char *n, const AnyP::PortCfgPointer &s)
         storeAppendPrintf(e, " name=%s", s->name);
 
 #if USE_HTTP_VIOLATIONS
-    if (!rawFlags.hasSome(Flags::accelSurrogate) && s->ignore_cc)
+    if (!rawFlags.accelSurrogate && s->ignore_cc)
         storeAppendPrintf(e, " ignore-cc");
 #endif
 
@@ -4026,7 +3973,7 @@ dump_generic_port(StoreEntry * e, const char *n, const AnyP::PortCfgPointer &s)
     }
 
 #if USE_OPENSSL
-    if (rawFlags.hasSome(Flags::tunnelSslBumping))
+    if (rawFlags.tunnelSslBumping)
         storeAppendPrintf(e, " ssl-bump");
 #endif
 
