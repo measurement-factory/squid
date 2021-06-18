@@ -3773,7 +3773,7 @@ parse_port_option(AnyP::PortCfgPointer &s, char *token)
 void
 add_http_port(char *portspec)
 {
-    AnyP::PortCfgPointer s = new AnyP::PortCfg();
+    AnyP::PortCfgPointer s = new AnyP::PortCfg(AnyP::TrafficModeFlags::httpPort);
     s->transport = parsePortProtocol(SBuf("HTTP"));
     parsePortSpecification(s, portspec);
     // we may need to merge better if the above returns a list with clones
@@ -3812,7 +3812,7 @@ parsePortCfg(AnyP::PortCfgPointer *head, const char *optionName)
         return;
     }
 
-    AnyP::PortCfgPointer s = new AnyP::PortCfg();
+    AnyP::PortCfgPointer s = new AnyP::PortCfg(portKind);
     s->flags.rawConfig().portKind = portKind;
     s->transport = parsePortProtocol(protoName); // default; protocol=... overwrites
     parsePortSpecification(s, token);
@@ -3821,6 +3821,8 @@ parsePortCfg(AnyP::PortCfgPointer *head, const char *optionName)
     while ((token = ConfigParser::NextToken())) {
         parse_port_option(s, token);
     }
+
+    s->checkFlags();
 
     s->secure.syncCaFiles();
 

@@ -23,13 +23,14 @@ namespace AnyP
 class PortCfg : public CodeContext
 {
 public:
-    PortCfg();
+    explicit PortCfg(const AnyP::TrafficModeFlags::PortKind aPortKind);
     ~PortCfg();
     AnyP::PortCfgPointer clone() const;
 
     /* CodeContext API */
     virtual ScopedId codeContextGist() const override;
     virtual std::ostream &detailCodeContext(std::ostream &os) const override;
+    void checkFlags();
 
     PortCfgPointer next;
 
@@ -69,6 +70,22 @@ public:
 
     /// TLS configuration options for this listening port
     Security::ServerOptions secure;
+
+private:
+    /// rejects flag combinations where any of the given flags is set
+    void rejectFlags(const TrafficModeFlags::List &, const char *detail = nullptr);
+    ///  rejects flag combinations where more than one flag is set
+    void allowEither(const AnyP::TrafficModeFlags::List &, const char *detail = nullptr);
+    /// as allowEither() that also rejects flag combinations where no flag is set
+    void requireEither(const AnyP::TrafficModeFlags::List &, const char *detail = nullptr);
+    ///  rejects flag combinations where at least one flag is unset
+    void requireAll(const AnyP::TrafficModeFlags::List &, const char *detail = nullptr);
+    /// rejects flags combinations where aFlag is set and all list flags are unset
+    void checkImplication(const AnyP::TrafficModeFlags::Pointer aFlag, const AnyP::TrafficModeFlags::List &list, const char *detail = nullptr);
+    /// rejects the a && !b combination only
+    void checkImplication(const AnyP::TrafficModeFlags::Pointer, const AnyP::TrafficModeFlags::Pointer, const char *detail = nullptr);
+    ///  checks whether all given flags are set
+    bool hasAll(const AnyP::TrafficModeFlags::List &);
 };
 
 } // namespace AnyP
