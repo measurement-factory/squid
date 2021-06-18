@@ -22,6 +22,7 @@
 #include "auth/Scheme.h"
 #include "AuthReg.h"
 #include "base/RunnersRegistry.h"
+#include "base/PackableStream.h"
 #include "cache_cf.h"
 #include "CachePeer.h"
 #include "ConfigParser.h"
@@ -1405,45 +1406,42 @@ free_SBufList(SBufList *list)
 }
 
 static void
-dump_acl(StoreEntry * entry, const char *name, ACL * ae)
+dump_acl(StoreEntry *entry, const char *directiveName, AclNamedRules *config)
 {
-    while (ae != NULL) {
-        debugs(3, 3, "dump_acl: " << name << " " << ae->name);
-        storeAppendPrintf(entry, "%s %s %s ",
-                          name,
-                          ae->name,
-                          ae->typeString());
-        SBufList tail;
-        tail.splice(tail.end(), ae->dumpOptions());
-        tail.splice(tail.end(), ae->dump()); // ACL parameters
-        dump_SBufList(entry, tail);
-        ae = ae->next;
-    }
+    assert(entry);
+    // This conversion is a bit premature -- Acl::DumpNamedRules() might want to
+    // have access to the future dumping-aware stream API rather than dealing
+    // with raw std::ostream, but it prevents ACLs exposure to StoreEntry API.
+    PackableStream os(*entry);
+    Acl::DumpNamedRules(os, directiveName, config);
 }
 
 static void
-parse_acl(ACL ** ae)
+parse_acl(AclNamedRules **config)
 {
-    ACL::ParseAclLine(LegacyParser, ae);
+    assert(config);
+    (void)Acl::ParseNamedRule(LegacyParser, *config);
 }
 
 static void
-free_acl(ACL ** ae)
+free_acl(AclNamedRules **config)
 {
-    aclDestroyAcls(ae);
+    assert(config);
+    Acl::FreeNamedRules(*config);
+    *config = nullptr;
 }
 
 void
 dump_acl_list(StoreEntry * entry, ACLList * head)
 {
-    dump_SBufList(entry, head->dump());
+    dump_SBufList(entry, head->raw->dump());
 }
 
 void
 dump_acl_access(StoreEntry * entry, const char *name, acl_access * head)
 {
     if (head)
-        dump_SBufList(entry, head->treeDump(name, &Acl::AllowOrDeny));
+        dump_SBufList(entry, head->raw->treeDump(name, &Acl::AllowOrDeny));
 }
 
 static void
@@ -1934,7 +1932,7 @@ static void
 dump_AuthSchemes(StoreEntry *entry, const char *name, acl_access *authSchemes)
 {
     if (authSchemes)
-        dump_SBufList(entry, authSchemes->treeDump(name, [](const Acl::Answer &action) {
+        dump_SBufList(entry, authSchemes->raw->treeDump(name, [](const Acl::Answer &action) {
         return Auth::TheConfig.schemeLists.at(action.kind).rawSchemes;
     }));
 }
@@ -1942,12 +1940,12 @@ dump_AuthSchemes(StoreEntry *entry, const char *name, acl_access *authSchemes)
 #endif /* USE_AUTH */
 
 static void
-ParseAclWithAction(acl_access **access, const Acl::Answer &action, const char *desc, ACL *acl)
+ParseAclWithAction(Acl::TreePointer *access, const Acl::Answer &action, const char *desc, ACL *acl)
 {
     assert(access);
     SBuf name;
     if (!*access) {
-        *access = new Acl::Tree;
+        *access = new Acl::Tree();
         name.Printf("(%s rules)", desc);
         (*access)->context(name.c_str(), config_input_line);
     }
@@ -1956,6 +1954,15 @@ ParseAclWithAction(acl_access **access, const Acl::Answer &action, const char *d
     rule->context(name.c_str(), config_input_line);
     acl ? rule->add(acl) : rule->lineParse();
     (*access)->add(rule, action);
+}
+
+static void
+ParseAclWithAction(acl_access **access, const Acl::Answer &action, const char *desc, ACL *acl)
+{
+    assert(access);
+    if (!*access)
+        *access = new acl_access();
+    ParseAclWithAction(&(*access)->raw, action, desc, acl);
 }
 
 static void
@@ -3946,6 +3953,7 @@ void
 configFreeMemory(void)
 {
     free_all();
+    Acl::Clear(); // after free_all() that clears all global raw ACL pointers
     Config.ssl_client.sslContext.reset();
 #if USE_OPENSSL
     Ssl::unloadSquidUntrusted();
@@ -4702,7 +4710,7 @@ static void parse_sslproxy_ssl_bump(acl_access **ssl_bump)
 static void dump_sslproxy_ssl_bump(StoreEntry *entry, const char *name, acl_access *ssl_bump)
 {
     if (ssl_bump)
-        dump_SBufList(entry, ssl_bump->treeDump(name, [](const Acl::Answer &action) {
+        dump_SBufList(entry, ssl_bump->raw->treeDump(name, [](const Acl::Answer &action) {
         return Ssl::BumpModeStr.at(action.kind);
     }));
 }
@@ -4850,7 +4858,7 @@ static void parse_ftp_epsv(acl_access **ftp_epsv)
 static void dump_ftp_epsv(StoreEntry *entry, const char *name, acl_access *ftp_epsv)
 {
     if (ftp_epsv)
-        dump_SBufList(entry, ftp_epsv->treeDump(name, Acl::AllowOrDeny));
+        dump_SBufList(entry, ftp_epsv->raw->treeDump(name, Acl::AllowOrDeny));
 }
 
 static void free_ftp_epsv(acl_access **ftp_epsv)
@@ -5021,7 +5029,7 @@ dump_on_unsupported_protocol(StoreEntry *entry, const char *name, acl_access *ac
         "respond"
     };
     if (access) {
-        SBufList lines = access->treeDump(name, [](const Acl::Answer &action) {
+        SBufList lines = access->raw->treeDump(name, [](const Acl::Answer &action) {
             return onErrorTunnelMode.at(action.kind);
         });
         dump_SBufList(entry, lines);
@@ -5055,7 +5063,7 @@ dump_http_upgrade_request_protocols(StoreEntry *entry, const char *rawName, Http
         SBufList line;
         line.push_back(name);
         line.push_back(proto);
-        const auto acld = acls->treeDump("", &Acl::AllowOrDeny);
+        const auto acld = acls->raw->treeDump("", &Acl::AllowOrDeny);
         line.insert(line.end(), acld.begin(), acld.end());
         dump_SBufList(entry, line);
     });

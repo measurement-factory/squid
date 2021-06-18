@@ -14,7 +14,6 @@
 class ACL;
 class ACLChecklist;
 class ACLFilledChecklist;
-class ACLList;
 
 class AclDenyInfoList;
 class AclSizeLimit;
@@ -30,6 +29,8 @@ class AndNode;
 class OrNode;
 class Tree;
 
+using TreePointer = RefCount<Acl::Tree>;
+
 /// prepares to parse ACLs configuration
 void Init(void);
 
@@ -39,13 +40,20 @@ typedef void ACLCB(Acl::Answer, void *);
 
 #define ACL_NAME_SZ 64
 
-// TODO: Consider renaming all users and removing. Cons: hides the difference
-// between ACLList tree without actions and acl_access Tree with actions.
-#define acl_access Acl::Tree
-#define ACLList Acl::Tree
+/// deprecated; use Acl::TreePointer directly
+class acl_access {
+public:
+    RefCount<Acl::Tree> raw;
+};
+/// deprecated; use Acl::TreePointer directly
+using ACLList = acl_access;
+
+// XXX: Move into Acl::NamedRules after migrating to master commit 2e6535a
+class AclNamedRules;
 
 class ExternalACLEntry;
 typedef RefCount<ExternalACLEntry> ExternalACLEntryPointer;
+using ACLPointer = RefCount<ACL>; // XXX: move into Acl; rename or perhaps even remove
 
 #endif /* SQUID_ACL_FORWARD_H */
 

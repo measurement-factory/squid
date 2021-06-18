@@ -29,12 +29,17 @@
 #include "HttpRequest.h"
 #include "src/sbuf/Stream.h"
 
-#include <set>
+#include <deque>
 #include <algorithm>
 
-typedef std::set<ACL*> AclSet;
-/// Accumulates all ACLs to facilitate their clean deletion despite reuse.
-static AclSet *RegisteredAcls; // TODO: Remove when ACLs are refcounted
+// TODO: Pool
+/// allocated ACLs in their registration order
+typedef std::deque<ACLPointer> RegisteredAcls;
+/// Prevents refcount-driven deletion of configured ACLs. We could store
+/// ACLPointer in Config instead, but our invasive RefCount<> pointers combined
+/// with APIs using raw ACL pointers (where?) would expose all ACL checking code
+/// to irrelevant ACL (destruction) details. TODO: Double check this.
+static RegisteredAcls *TheRegisteredAcls = nullptr;
 
 /* does name lookup, returns page_id */
 err_type
@@ -134,7 +139,7 @@ aclParseDenyInfoLine(AclDenyInfoList ** head)
 }
 
 void
-aclParseAccessLine(const char *directive, ConfigParser &, acl_access **treep)
+aclParseAccessLine(const char *directive, ConfigParser &, acl_access **config)
 {
     /* first expect either 'allow' or 'deny' */
     const char *t = ConfigParser::NextToken();
@@ -156,7 +161,8 @@ aclParseAccessLine(const char *directive, ConfigParser &, acl_access **treep)
         return;
     }
 
-    const int ruleId = ((treep && *treep) ? (*treep)->childrenCount() : 0) + 1;
+    assert(config);
+    const int ruleId = (*config ? (*config)->raw->childrenCount() : 0) + 1;
     MemBuf ctxBuf;
     ctxBuf.init();
     ctxBuf.appendf("%s#%d", directive, ruleId);
@@ -174,15 +180,17 @@ aclParseAccessLine(const char *directive, ConfigParser &, acl_access **treep)
 
     /* Append to the end of this list */
 
-    assert(treep);
-    if (!*treep) {
-        *treep = new Acl::Tree;
-        (*treep)->context(directive, config_input_line);
+    if (!*config)
+        *config = new acl_access();
+    auto &treep = (*config)->raw;
+
+    if (!treep) {
+        treep = new Acl::Tree();
+        treep->context(directive, config_input_line);
+        aclRegister(treep.getRaw());
     }
 
-    (*treep)->add(rule, action);
-
-    /* We lock _acl_access structures in ACLChecklist::matchNonBlocking() */
+    treep->add(rule, action);
 }
 
 // aclParseAclList does not expect or set actions (cf. aclParseAccessLine)
@@ -207,36 +215,40 @@ aclParseAclList(ConfigParser &, Acl::Tree **treep, const char *label)
     ctxTree.appendf("%s %s", cfg_directive, label);
     ctxTree.terminate();
 
-    // We want a cbdata-protected Tree (despite giving it only one child node).
+    // TODO: Remove this extra node after figuring what to do with ctxTree!
     Acl::Tree *tree = new Acl::Tree;
     tree->add(rule);
     tree->context(ctxTree.content(), config_input_line);
+    aclRegister(tree);
 
     assert(treep);
     assert(!*treep);
     *treep = tree;
 }
 
+// TODO: Who calls this new function? How did the code work before this?
+void
+aclParseAclList(ConfigParser &parser, ACLList **configPtr, const char *label)
+{
+    Acl::Tree *tree = nullptr; // the aclParseAclList() call below assumes this
+    aclParseAclList(parser, &tree, label);
+
+    assert(configPtr);
+    auto &config = *configPtr;
+    assert(!config);
+    config = new acl_access();
+    config->raw = tree;
+}
+
 void
 aclRegister(ACL *acl)
 {
+    debugs(28, 8, acl << ' ' << acl->registered);
     if (!acl->registered) {
-        if (!RegisteredAcls)
-            RegisteredAcls = new AclSet;
-        RegisteredAcls->insert(acl);
+        if (!TheRegisteredAcls)
+            TheRegisteredAcls = new RegisteredAcls;
+        TheRegisteredAcls->emplace_back(acl);
         acl->registered = true;
-    }
-}
-
-/// remove registered acl from the centralized deletion set
-static
-void
-aclDeregister(ACL *acl)
-{
-    if (acl->registered) {
-        if (RegisteredAcls)
-            RegisteredAcls->erase(acl);
-        acl->registered = false;
     }
 }
 
@@ -244,22 +256,20 @@ aclDeregister(ACL *acl)
 /* Destroy functions */
 /*********************/
 
-/// called to delete ALL Acls.
 void
-aclDestroyAcls(ACL ** head)
+Acl::Clear()
 {
-    *head = NULL; // Config.aclList
-    if (AclSet *acls = RegisteredAcls) {
-        debugs(28, 8, "deleting all " << acls->size() << " ACLs");
-        while (!acls->empty()) {
-            ACL *acl = *acls->begin();
-            // We use centralized deletion (this function) so ~ACL should not
-            // delete other ACLs, but we still deregister first to prevent any
-            // accesses to the being-deleted ACL via RegisteredAcls.
-            assert(acl->registered); // make sure we are making progress
-            aclDeregister(acl);
-            delete acl;
+    if (TheRegisteredAcls) {
+        debugs(28, 5, "forgetting registered ACLs: " << TheRegisteredAcls->size());
+        while (!TheRegisteredAcls->empty()) {
+            const auto &acl = TheRegisteredAcls->back();
+            assert(acl);
+            assert(acl->registered);
+            acl->registered = false;
+            TheRegisteredAcls->pop_back();
         }
+        delete TheRegisteredAcls;
+        TheRegisteredAcls = nullptr;
     }
 }
 
@@ -268,18 +278,19 @@ aclDestroyAclList(ACLList **list)
 {
     debugs(28, 8, "aclDestroyAclList: invoked");
     assert(list);
-    delete *list;
+    delete *list; // XXX
     *list = NULL;
 }
 
 void
-aclDestroyAccessList(acl_access ** list)
+aclDestroyAccessList(acl_access **config)
 {
-    assert(list);
-    if (*list)
-        debugs(28, 3, "destroying: " << *list << ' ' << (*list)->name);
-    delete *list;
-    *list = NULL;
+    assert(config);
+    if (const auto list = *config) {
+        debugs(28, 3, "destroying: " << list->raw << ' ' << list->raw->name);
+        delete list; // XXX
+        *config = nullptr;
+    }
 }
 
 /* maex@space.net (06.09.1996)

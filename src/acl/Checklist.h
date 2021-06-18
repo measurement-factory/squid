@@ -133,6 +133,14 @@ public:
      * If there are no ACLs to check at all, the result becomes ACCESS_ALLOWED.
      */
     Acl::Answer const & fastCheck(const Acl::Tree *list);
+    Acl::Answer const & fastCheck(const ACLList *list);
+
+    // TODO: When the last `Pointer != NULL` comparison is gone, add default
+    // conversion from RefCount<C> to a C pointer and remove this wrapper. With
+    // NULL (i.e. 0L), that cannot be done safely without triggering ambiguous
+    // overload for operator!= (operands are Pointer and `long int`) errors.
+    /// fastCheck(const Acl::Tree *) convenience wrapper
+    Acl::Answer const & fastCheck(const Acl::TreePointer &list);
 
     /// If slow lookups are allowed, switches into "async in progress" state.
     /// Otherwise, returns false; the caller is expected to handle the failure.
@@ -173,14 +181,9 @@ public:
 
     /// change the current ACL list
     /// \return a pointer to the old list value (may be nullptr)
-    const Acl::Tree *changeAcl(const Acl::Tree *t) {
-        const Acl::Tree *old = accessList;
-        if (t != accessList) {
-            cbdataReferenceDone(accessList);
-            accessList = cbdataReference(t);
-        }
-        return old;
-    }
+    void changeAcl(const Acl::Tree *);
+    void changeAcl(const acl_access *);
+    void changeAcl(nullptr_t);
 
 private:
     /// Calls non-blocking check callback with the answer and destroys self.
@@ -191,7 +194,7 @@ private:
     void changeState(AsyncState *);
     AsyncState *asyncState() const;
 
-    const Acl::Tree *accessList;
+    RefCount<const Acl::Tree> accessList;
 public:
 
     ACLCB *callback;
