@@ -179,32 +179,20 @@ AnyP::PortCfg::allowEither(const AnyP::TrafficModeFlags::List &list, const char 
 {
     const auto &rawFlags = flags.rawConfig();
     int flagsCount = 0;
+    SBuf conflicted;
     for (const auto &p: list) {
-        if (rawFlags.*p)
+        if (rawFlags.*p) {
             flagsCount++;
+            if (!conflicted.isEmpty())
+                conflicted.append(',');
+            conflicted.append(PortOptionStr(p));
+        }
     }
     if (flagsCount <= 1)
         return;
 
-    debugs(3, DBG_CRITICAL, "FATAL: the combination of " << PortOptionStrList(list) <<
+    debugs(3, DBG_CRITICAL, "FATAL: the combination of " << conflicted <<
             " is unsupported on " << PortKindString(rawFlags) << ' ' << detail);
-    self_destruct();
-}
-
-void
-AnyP::PortCfg::requireEither(const AnyP::TrafficModeFlags::List &list, const char *detail)
-{
-    const auto &rawFlags = flags.rawConfig();
-    int flagsCount = 0;
-    for (const auto &p: list) {
-        if (rawFlags.*p)
-            flagsCount++;
-    }
-    if (flagsCount == 1)
-        return;
-
-    debugs(3, DBG_CRITICAL, "FATAL: exactly one of " << PortOptionStrList(list) <<
-            " is required on " << PortKindString(rawFlags) << ' ' << detail);
     self_destruct();
 }
 
@@ -219,9 +207,11 @@ AnyP::PortCfg::checkImplication(const AnyP::TrafficModeFlags::Pointer aFlag, con
         if (rawFlags.*p)
             flagsCount++;
     }
-    if (!flagsCount)
+    if (!flagsCount) {
         debugs(3, DBG_CRITICAL, "FATAL: " << PortOptionStr(aFlag) << " requires one of " << PortOptionStrList(list) <<
                 " on " << PortKindString(rawFlags) << ' ' << detail);
+        self_destruct();
+    }
 }
 
 void
@@ -230,9 +220,11 @@ AnyP::PortCfg::checkImplication(const AnyP::TrafficModeFlags::Pointer aFlag, con
     const auto &rawFlags = flags.rawConfig();
     if (!(rawFlags.*aFlag))
         return;
-    if (!(rawFlags.*otherFlag))
+    if (!(rawFlags.*otherFlag)) {
         debugs(3, DBG_CRITICAL, "FATAL: " << PortOptionStr(aFlag) << " requires " << PortOptionStr(otherFlag) <<
                 " on " << PortKindString(rawFlags) << ' ' << detail);
+        self_destruct();
+    }
 }
 
 bool
@@ -251,8 +243,8 @@ AnyP::PortCfg::requireAll(const AnyP::TrafficModeFlags::List &list, const char *
 {
     if (!hasAll(list)) {
         const auto &rawFlags = flags.rawConfig();
-        debugs(3, DBG_CRITICAL, "FATAL: all of " << PortOptionStrList(list) << " required on "
-                << PortKindString(rawFlags) << ' ' << detail);
+        debugs(3, DBG_CRITICAL, "FATAL: all of " << PortOptionStrList(list) << " are required on " <<
+                PortKindString(rawFlags) << ' ' << detail);
         self_destruct();
     }
 }
@@ -278,11 +270,15 @@ AnyP::PortCfg::checkFlags()
             rejectFlags({&TrafficModeFlags::natIntercept, &TrafficModeFlags::tproxyIntercept,
                     &TrafficModeFlags::proxySurrogateHttp, &TrafficModeFlags::tunnelSslBumping}, "accel");
         } else {
+            // ssl-bump requires one of: tproxy, intercept or require-proxy-header
             checkImplication(&TrafficModeFlags::tunnelSslBumping,
                     {&TrafficModeFlags::natIntercept, &TrafficModeFlags::tproxyIntercept, &TrafficModeFlags::proxySurrogateHttp});
+
+            // tproxy, intercept and require-proxy-header require ssl-bump
             checkImplication(&TrafficModeFlags::natIntercept, &TrafficModeFlags::tunnelSslBumping);
             checkImplication(&TrafficModeFlags::tproxyIntercept, &TrafficModeFlags::tunnelSslBumping);
             checkImplication(&TrafficModeFlags::proxySurrogateHttp, &TrafficModeFlags::tunnelSslBumping);
+
             allowEither({&TrafficModeFlags::natIntercept, &TrafficModeFlags::tproxyIntercept, &TrafficModeFlags::proxySurrogateHttp});
         }
     }
