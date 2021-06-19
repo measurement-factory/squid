@@ -72,12 +72,11 @@ public:
     Security::ServerOptions secure;
 
 private:
+    /* TrafficModeFlags validation */
     /// rejects flag combinations where any of the given flags is set
     void rejectFlags(const TrafficModeFlags::List &, const char *detail = nullptr);
     ///  rejects flag combinations where more than one flag is set
     void allowEither(const AnyP::TrafficModeFlags::List &, const char *detail = nullptr);
-    ///  rejects flag combinations where at least one flag is unset
-    void requireAll(const AnyP::TrafficModeFlags::List &, const char *detail = nullptr);
     /// rejects flags combinations where aFlag is set and all list flags are unset
     void checkImplication(const AnyP::TrafficModeFlags::Pointer aFlag, const AnyP::TrafficModeFlags::List &list, const char *detail = nullptr);
     /// rejects the aFlag && !otherFlag combination only

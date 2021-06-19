@@ -151,9 +151,8 @@ PortOptionStrList(const AnyP::TrafficModeFlags::List &list)
     return str;
 }
 
-
 static const char *
-PortKindString(const AnyP::TrafficModeFlags &flags)
+PortKindStr(const AnyP::TrafficModeFlags &flags)
 {
     for (const auto &p: PortKindStrings)
         if (p.first == flags.portKind)
@@ -168,7 +167,7 @@ AnyP::PortCfg::rejectFlags(const AnyP::TrafficModeFlags::List &list, const char 
     const auto &rawFlags = flags.rawConfig();
     for (const auto &p: list) {
         if (rawFlags.*p) {
-            debugs(3, DBG_CRITICAL, "FATAL: " << PortOptionStr(p) << " is unsupported on " << PortKindString(rawFlags) <<  ' ' << detail);
+            debugs(3, DBG_CRITICAL, "FATAL: " << PortOptionStr(p) << " is unsupported on " << PortKindStr(rawFlags) <<  ' ' << detail);
             self_destruct();
         }
     }
@@ -178,21 +177,21 @@ void
 AnyP::PortCfg::allowEither(const AnyP::TrafficModeFlags::List &list, const char *detail)
 {
     const auto &rawFlags = flags.rawConfig();
-    int flagsCount = 0;
+    int conflictedCount = 0;
     SBuf conflicted;
     for (const auto &p: list) {
         if (rawFlags.*p) {
-            flagsCount++;
+            conflictedCount++;
             if (!conflicted.isEmpty())
                 conflicted.append(',');
             conflicted.append(PortOptionStr(p));
         }
     }
-    if (flagsCount <= 1)
+    if (conflictedCount <= 1)
         return;
 
     debugs(3, DBG_CRITICAL, "FATAL: the combination of " << conflicted <<
-            " is unsupported on " << PortKindString(rawFlags) << ' ' << detail);
+            " is unsupported on " << PortKindStr(rawFlags) << ' ' << detail);
     self_destruct();
 }
 
@@ -202,16 +201,15 @@ AnyP::PortCfg::checkImplication(const AnyP::TrafficModeFlags::Pointer aFlag, con
     const auto &rawFlags = flags.rawConfig();
     if (!(rawFlags.*aFlag))
         return;
-    int flagsCount = 0;
+
     for (const auto &p: list) {
         if (rawFlags.*p)
-            flagsCount++;
+            return;
     }
-    if (!flagsCount) {
-        debugs(3, DBG_CRITICAL, "FATAL: " << PortOptionStr(aFlag) << " requires one of " << PortOptionStrList(list) <<
-                " on " << PortKindString(rawFlags) << ' ' << detail);
-        self_destruct();
-    }
+
+    debugs(3, DBG_CRITICAL, "FATAL: " << PortOptionStr(aFlag) << " requires one of " << PortOptionStrList(list) <<
+            " on " << PortKindStr(rawFlags) << ' ' << detail);
+    self_destruct();
 }
 
 void
@@ -222,7 +220,7 @@ AnyP::PortCfg::checkImplication(const AnyP::TrafficModeFlags::Pointer aFlag, con
         return;
     if (!(rawFlags.*otherFlag)) {
         debugs(3, DBG_CRITICAL, "FATAL: " << PortOptionStr(aFlag) << " requires " << PortOptionStr(otherFlag) <<
-                " on " << PortKindString(rawFlags) << ' ' << detail);
+                " on " << PortKindStr(rawFlags) << ' ' << detail);
         self_destruct();
     }
 }
@@ -236,17 +234,6 @@ AnyP::PortCfg::hasAll(const AnyP::TrafficModeFlags::List &list)
             return false;
     }
     return true;
-}
-
-void
-AnyP::PortCfg::requireAll(const AnyP::TrafficModeFlags::List &list, const char *detail)
-{
-    if (!hasAll(list)) {
-        const auto &rawFlags = flags.rawConfig();
-        debugs(3, DBG_CRITICAL, "FATAL: all of " << PortOptionStrList(list) << " are required on " <<
-                PortKindString(rawFlags) << ' ' << detail);
-        self_destruct();
-    }
 }
 
 void
