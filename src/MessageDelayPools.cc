@@ -154,7 +154,8 @@ MessageDelayConfig::parseResponseDelayPool()
     }
 
     const char *fatalMsg = nullptr;
-    if ((params[bucketSpeedLimit] < 0) != (params[maxBucketSize] < 0))
+    if ((params[bucketSpeedLimit] < 0) != (params[maxBucketSize] < 0) ||
+            (params[bucketSpeedLimit] == 0) != (params[maxBucketSize] == 0))
         fatalMsg = "'individual-restore' and 'individual-maximum'";
     else if ((params[aggregateSpeedLimit] < 0) != (params[maxAggregateSize] < 0))
         fatalMsg = "'aggregate-restore' and 'aggregate-maximum'";
