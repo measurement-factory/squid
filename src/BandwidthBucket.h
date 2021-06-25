@@ -38,7 +38,7 @@ public:
     /// Decreases the bucket level.
     virtual void reduceBucket(const int len);
     /// Whether this bucket will not do bandwidth limiting.
-    bool noLimit() const { return writeSpeedLimit <= 0; }
+    bool noLimit() const { return writeSpeedLimit < 0; }
 
 protected:
     /// Increases the bucket level with the writeSpeedLimit speed.

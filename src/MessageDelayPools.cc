@@ -157,8 +157,11 @@ MessageDelayConfig::parseResponseDelayPool()
     if ((params[bucketSpeedLimit] < 0) != (params[maxBucketSize] < 0) ||
             (params[bucketSpeedLimit] == 0) != (params[maxBucketSize] == 0))
         fatalMsg = "'individual-restore' and 'individual-maximum'";
-    else if ((params[aggregateSpeedLimit] < 0) != (params[maxAggregateSize] < 0))
+    else if ((params[aggregateSpeedLimit] < 0) != (params[maxAggregateSize] < 0) ||
+            (params[aggregateSpeedLimit] == 0) != (params[aggregateSpeedLimit] == 0))
         fatalMsg = "'aggregate-restore' and 'aggregate-maximum'";
+    else if ((params[maxBucketSize] == 0) != (params[maxAggregateSize] == 0))
+        fatalMsg = "'individual-maximum' and 'aggregate-maximum'";
 
     if (fatalMsg) {
         debugs(3, DBG_CRITICAL, "FATAL: must use " << fatalMsg << " options in conjunction");
