@@ -243,6 +243,7 @@ ACLRegexData::parse()
 {
     debugs(28, 2, "new Regex line or file");
 
+    const auto oldSize = data.size();
     SBufList sl;
     while (char *t = ConfigParser::RegexStrtokFile()) {
         const char *clean = removeUnnecessaryWildcards(t);
@@ -259,6 +260,8 @@ ACLRegexData::parse()
         debugs(28, DBG_IMPORTANT, "WARNING: optimisation of regular expressions failed; using fallback method without optimisation");
         compileUnoptimisedREs(data, sl);
     }
+    if (oldSize == data.size())
+        throw TextException("Missing regular expression", Here());
 }
 
 bool

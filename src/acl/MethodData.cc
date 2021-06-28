@@ -54,6 +54,7 @@ ACLMethodData::dump() const
 void
 ACLMethodData::parse()
 {
+    const auto oldSize = values.size();
     while (char *t = ConfigParser::strtokFile()) {
         HttpRequestMethod m;
         m.HttpRequestMethodXXX(t);
@@ -61,6 +62,8 @@ ACLMethodData::parse()
         if (values.back() == Http::METHOD_PURGE)
             ++ThePurgeCount; // configuration code wants to know
     }
+    if (oldSize == values.size())
+        throw TextException("Missing method name", Here());
 }
 
 ACLData<HttpRequestMethod> *

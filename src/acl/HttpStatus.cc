@@ -119,10 +119,13 @@ ACLHTTPStatus::parse()
 void
 aclParseHTTPStatusList(Splay<acl_httpstatus_data *> **curlist)
 {
+    const auto oldSize = (*curlist)->size();
     while (char *t = ConfigParser::strtokFile()) {
         if (acl_httpstatus_data *q = aclParseHTTPStatusData(t))
             (*curlist)->insert(q, acl_httpstatus_data::compare);
     }
+    if ((*curlist)->size() == oldSize)
+        throw TextException("Missing HTTP status code", Here());
 }
 
 int

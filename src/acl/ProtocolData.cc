@@ -53,6 +53,7 @@ ACLProtocolData::dump() const
 void
 ACLProtocolData::parse()
 {
+    const auto oldSize = values.size();
     while (char *t = ConfigParser::strtokFile()) {
         int p = AnyP::PROTO_NONE;
         for (; p < AnyP::PROTO_UNKNOWN; ++p) {
@@ -66,6 +67,8 @@ ACLProtocolData::parse()
             // XXX: store the text pattern of this protocol name for live comparisons
         }
     }
+    if (oldSize == values.size())
+        throw TextException("Missing protocol", Here());
 }
 
 ACLData<AnyP::ProtocolType> *

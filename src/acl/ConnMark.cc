@@ -25,6 +25,7 @@ Acl::ConnMark::empty() const
 void
 Acl::ConnMark::parse()
 {
+    const auto oldSize = marks.size();
     while (const char *t = ConfigParser::strtokFile()) {
         SBuf token(t);
         Parser::Tokenizer tokenizer(token);
@@ -33,7 +34,7 @@ Acl::ConnMark::parse()
         debugs(28, 7, "added " << mc);
     }
 
-    if (marks.empty()) {
+    if (oldSize == marks.size()) {
         throw TexcHere(ToSBuf("acl ", typeString(), " requires at least one mark"));
     }
 }

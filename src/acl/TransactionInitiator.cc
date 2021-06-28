@@ -41,10 +41,13 @@ Acl::TransactionInitiator::empty () const
 void
 Acl::TransactionInitiator::parse()
 {
+    const auto oldSize = cfgWords.size();
     while (const char *s = ConfigParser::strtokFile()) {
         initiators_ |= XactionInitiator::ParseInitiators(s);
         cfgWords.push_back(SBuf(s));
     }
+    if (oldSize == cfgWords.size())
+        throw TextException("Missing transaction initiator name", Here());
 }
 
 int

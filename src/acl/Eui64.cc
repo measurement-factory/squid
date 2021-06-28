@@ -73,12 +73,15 @@ aclParseEuiData(const char *t)
 void
 ACLEui64::parse()
 {
+    const auto oldSize = eui64Data.size();
     while (const char * t = ConfigParser::strtokFile()) {
         if (Eui::Eui64 * q = aclParseEuiData(t)) {
             eui64Data.insert(*q);
             delete q;
         }
     }
+    if (oldSize != eui64Data.size())
+        throw TextException("Missing EUI-64 address", Here());
 }
 
 int

@@ -51,6 +51,7 @@ ACLHierCodeData::parse()
 {
     char *t = NULL;
 
+    auto parsedSome = false;
     while ((t = ConfigParser::strtokFile())) {
         for (hier_code iter = HIER_NONE; iter <= HIER_MAX; ++iter) {
             if (iter == HIER_MAX) {
@@ -59,10 +60,13 @@ ACLHierCodeData::parse()
             }
             if (strcmp(hier_code_str[iter],t) == 0) {
                 values[iter] = true;
+                parsedSome = true;
                 break; // back to while-loop
             }
         }
     }
+    if (!parsedSome)
+        throw TextException("Missing hier_code name", Here());
 }
 
 bool
