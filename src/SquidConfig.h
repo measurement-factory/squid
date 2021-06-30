@@ -194,6 +194,7 @@ public:
     char *effectiveUser;
     char *visible_appname_string;
     char *effectiveGroup;
+    int emptyAclAction;
 
     struct {
         wordlist *redirect;

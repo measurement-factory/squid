@@ -254,7 +254,18 @@ ACL::ParseAclLine(ConfigParser &parser, ACL ** head)
     A->parseFlags();
 
     /*split the function here */
-    A->parse();
+
+    try {
+        A->parse();
+    } catch (...) {
+        if (Config.emptyAclAction != 0) {
+            debugs(28, DBG_CRITICAL, "WARNING: invalid ACL argument" <<
+                    Debug::Extra << "line: " << A->cfgline <<
+                    Debug::Extra << "problem: " << CurrentException);
+            if (Config.emptyAclAction > 0)
+                self_destruct();
+        }
+    }
 
     /*
      * Clear AclMatchedName from our temporary hack
@@ -263,10 +274,6 @@ ACL::ParseAclLine(ConfigParser &parser, ACL ** head)
 
     if (!new_acl)
         return;
-
-    if (A->empty()) {
-        debugs(28, DBG_CRITICAL, "Warning: empty ACL: " << A->cfgline);
-    }
 
     if (!A->valid()) {
         fatalf("ERROR: Invalid ACL: %s\n",

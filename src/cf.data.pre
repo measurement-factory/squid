@@ -10092,6 +10092,18 @@ DOC_START
 	ad-hoc or zero-configuration network environment.
 DOC_END
 
+NAME: empty_acl_action
+COMMENT: on|off|warn
+TYPE: tristate
+DEFAULT: on
+LOC: Config.emptyAclAction
+DOC_START
+	This option specifies how Squid treats ACLs with empty arguments.
+	The default "on" setting makes Squid report all such problems
+	and exit, "warn" turns on reporting only, and "off" results
+	in ignoring these problems.
+DOC_END
+
 NAME: dns_nameservers
 TYPE: SBufList
 DEFAULT: none
