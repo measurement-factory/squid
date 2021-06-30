@@ -13,6 +13,7 @@
 #include "acl/MaxConnection.h"
 #include "client_db.h"
 #include "Debug.h"
+#include "parser/Tokenizer.h"
 #include "SquidConfig.h"
 
 ACL *
@@ -51,17 +52,19 @@ ACLMaxConnection::valid () const
 void
 ACLMaxConnection::parse()
 {
-    char *t = ConfigParser::strtokFile();
-
-    if (!t)
-        return;
-
-    limit = (atoi (t));
+    const auto tokens = ConfigParser::strtokFileMany();
+    const auto token = SBuf(tokens[0]);
+    Parser::Tokenizer tokenizer(token);
+    int64_t number = 0;
+    if (!tokenizer.int64(number, 0, false))
+        throw TextException("invalid number", Here());
+    limit = static_cast<int>(number);
 
     /* suck out file contents */
     // ignore comments
     bool ignore = false;
-    while ((t = ConfigParser::strtokFile())) {
+    for (size_t i = 1; i < tokens.size(); ++i) {
+        const auto t = tokens[i];
         ignore |= (*t != '#');
 
         if (ignore)

@@ -243,9 +243,9 @@ ACLRegexData::parse()
 {
     debugs(28, 2, "new Regex line or file");
 
-    const auto oldSize = data.size();
     SBufList sl;
-    while (char *t = ConfigParser::RegexStrtokFile()) {
+    const auto tokens = ConfigParser::RegexStrtokFileMany();
+    for (const auto t: tokens) {
         const char *clean = removeUnnecessaryWildcards(t);
         if (strlen(clean) > BUFSIZ-1) {
             debugs(28, DBG_CRITICAL, cfg_filename << " line " << config_lineno << ": " << config_input_line);
@@ -260,8 +260,6 @@ ACLRegexData::parse()
         debugs(28, DBG_IMPORTANT, "WARNING: optimisation of regular expressions failed; using fallback method without optimisation");
         compileUnoptimisedREs(data, sl);
     }
-    if (oldSize == data.size())
-        throw TextException("Missing regular expression", Here());
 }
 
 bool

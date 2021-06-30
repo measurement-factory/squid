@@ -106,12 +106,11 @@ ACLTimeData::parse()
 
     for (Tail = &next; *Tail; Tail = &((*Tail)->next));
     ACLTimeData *q = NULL;
-    auto hasSome = false;
 
     int h1, m1, h2, m2;
 
-    while (char *t = ConfigParser::strtokFile()) {
-        hasSome = true;
+    const auto tokens = ConfigParser::strtokFileMany();
+    for (auto t: tokens) {
         if (*t < '0' || *t > '9') {
             /* assume its day-of-week spec */
 
@@ -220,9 +219,6 @@ ACLTimeData::parse()
         *(Tail) = q;
         Tail = &q->next;
     }
-
-    if (!hasSome)
-        throw TextException("Missing time values", Here());
 }
 
 bool

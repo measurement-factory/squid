@@ -138,13 +138,11 @@ ACLDomainData::parse()
     if (!domains)
         domains = new Splay<char *>();
 
-    const auto oldSize = domains->size();
-    while (char *t = ConfigParser::strtokFile()) {
+    const auto tokens = ConfigParser::strtokFileMany();
+    for (const auto t : tokens) {
         Tolower(t);
         domains->insert(xstrdup(t), aclDomainCompare);
     }
-    if (oldSize == domains->size())
-        throw TextException("Missing domain name", Here());
 }
 
 bool

@@ -87,11 +87,9 @@ ACLUserData::parse()
 {
     debugs(28, 2, "parsing user list");
 
-    auto isRequired = false;
-    const auto oldSize = userDataNames.size();
-    char *t = NULL;
-    if ((t = ConfigParser::strtokFile())) {
-        SBuf s(t);
+    const auto tokens = ConfigParser::strtokFileMany();
+    {
+        SBuf s(tokens[0]);
         debugs(28, 5, "first token is " << s);
 
         if (s.cmp("-i",2) == 0) {
@@ -105,11 +103,9 @@ ACLUserData::parse()
         } else if (s.cmp("REQUIRED") == 0) {
             debugs(28, 5, "REQUIRED-type enabled");
             flags.required = true;
-            isRequired = true;
         } else {
             if (flags.case_insensitive)
                 s.toLower();
-
             debugs(28, 6, "Adding user " << s);
             userDataNames.insert(s);
         }
@@ -120,8 +116,8 @@ ACLUserData::parse()
 
     debugs(28, 4, "parsing following tokens");
 
-    while ((t = ConfigParser::strtokFile())) {
-        SBuf s(t);
+    for (size_t i = 0; i < tokens.size(); ++i) {
+        SBuf s(tokens[i]);
         debugs(28, 6, "Got token: " << s);
 
         if (flags.case_insensitive)
@@ -137,8 +133,6 @@ ACLUserData::parse()
     }
 
     debugs(28,4, "ACL contains " << userDataNames.size() << " users");
-    if (!isRequired && oldSize == userDataNames.size())
-        throw TextException("Missing a username or REQUIRED", Here());
 }
 
 bool

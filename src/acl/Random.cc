@@ -62,9 +62,8 @@ ACLRandom::parse()
 {
     char bufa[256], bufb[256];
 
-    char *t = ConfigParser::strtokFile();
-    if (!t)
-        throw TextException("Missing random pattern", Here());
+    const auto tokens = ConfigParser::strtokFileMany();
+    const auto t = tokens[0];
 
     debugs(28, 5, "aclParseRandomData: " << t);
 

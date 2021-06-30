@@ -56,11 +56,9 @@ ACLStringData::dump() const
 void
 ACLStringData::parse()
 {
-    const auto oldSize = stringValues.size();
-    while (const char *t = ConfigParser::strtokFile())
+    const auto tokens = ConfigParser::strtokFileMany();
+    for (const auto t: tokens)
         stringValues.insert(SBuf(t));
-    if (oldSize == stringValues.size())
-        throw TextException("Missing string value", Here());
 }
 
 bool

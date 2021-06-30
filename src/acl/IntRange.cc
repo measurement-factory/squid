@@ -19,8 +19,8 @@
 void
 ACLIntRange::parse()
 {
-    const auto oldSize = ranges.size();
-    while (char *a = ConfigParser::strtokFile()) {
+    const auto tokens = ConfigParser::strtokFileMany();
+    for (const auto a: tokens) {
         char *b = strchr(a, '-');
         unsigned short port1, port2;
 
@@ -44,8 +44,6 @@ ACLIntRange::parse()
             self_destruct();
         }
     }
-    if (oldSize == ranges.size())
-        throw TextException("Missing port value", Here());
 }
 
 bool

@@ -477,10 +477,9 @@ ACLIP::parse()
     if (data == NULL)
         data = new IPSplay();
 
-    auto hasSome = false;
-    while (char *t = ConfigParser::strtokFile()) {
+    const auto tokens = ConfigParser::strtokFileMany();
+    for (const auto t: tokens) {
         acl_ip_data *q = acl_ip_data::FactoryParse(t);
-        hasSome = true;
 
         while (q != NULL) {
             /* pop each result off the list and add it to the data tree individually */
@@ -491,8 +490,6 @@ ACLIP::parse()
             q = next_node;
         }
     }
-    if (!hasSome)
-        throw TextException("Missing ip-address/mask", Here());
 }
 
 ACLIP::~ACLIP()

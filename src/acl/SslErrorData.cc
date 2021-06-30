@@ -39,12 +39,10 @@ ACLSslErrorData::dump() const
 void
 ACLSslErrorData::parse()
 {
-    const auto oldSize = values.size();
-    while (char *t = ConfigParser::strtokFile()) {
+    const auto tokens = ConfigParser::strtokFileMany();
+    for (const auto t: tokens) {
         Ssl::ParseErrorString(t, values);
     }
-    if (oldSize == values.size())
-        throw TextException("Missing SSL error name", Here());
 }
 
 ACLSslErrorData *

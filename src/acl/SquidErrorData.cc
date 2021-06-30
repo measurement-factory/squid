@@ -47,22 +47,18 @@ ACLSquidErrorData::dump() const
 void
 ACLSquidErrorData::parse()
 {
-    auto parsedSome = false;
-    while (char *token = ConfigParser::NextToken()) {
+    const auto tokens = ConfigParser::strtokFileMany();
+    for (const auto token: tokens) {
         err_type err = errorTypeByName(token);
 
-        if (err < ERR_MAX) {
+        if (err < ERR_MAX)
             errors.push_back(err);
-            parsedSome = true;
-        }
         else {
             debugs(28, DBG_CRITICAL, "FATAL: Invalid squid error name");
             if (!opt_parse_cfg_only)
                 self_destruct();
         }
     }
-    if (!parsedSome)
-        throw TextException("Missing squid error name", Here());
 }
 
 bool

@@ -78,15 +78,13 @@ ACLAtStepData::dump() const
 void
 ACLAtStepData::parse()
 {
-    auto step = XactionStep::unknown;
-    while (const auto name = ConfigParser::strtokFile()) {
-        step = StepValue(name);
+    const auto names = ConfigParser::strtokFileMany();
+    for (const auto name: names) {
+        const auto step = StepValue(name);
         if (step == XactionStep::unknown)
             throw TextException(ToSBuf("prohibited at_step step name: ", name), Here());
         values.push_back(step);
     }
-    if (step == XactionStep::unknown)
-        throw TextException("Missing at_step value", Here());
 }
 
 bool

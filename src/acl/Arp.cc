@@ -101,15 +101,13 @@ aclParseArpData(const char *t)
 void
 ACLARP::parse()
 {
-    const auto oldSize = aclArpData.size();
-    while (const char *t = ConfigParser::strtokFile()) {
+    const auto tokens = ConfigParser::strtokFileMany();
+    for (const auto t: tokens) {
         if (Eui::Eui48 *q = aclParseArpData(t)) {
             aclArpData.insert(*q);
             delete q;
         }
     }
-    if (oldSize != aclArpData.size())
-        throw TextException("Missing ethernet address", Here());
 }
 
 int

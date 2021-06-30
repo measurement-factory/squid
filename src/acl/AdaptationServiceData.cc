@@ -22,7 +22,8 @@ void
 ACLAdaptationServiceData::parse()
 {
     Adaptation::Config::needHistory = true;
-    while (char *t = ConfigParser::strtokFile()) {
+    const auto services = ConfigParser::strtokFileMany();
+    for (const auto t: services) {
         if (
 #if USE_ECAP
             Adaptation::Ecap::TheConfig.findServiceConfig(t) == NULL &&

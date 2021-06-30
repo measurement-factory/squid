@@ -81,6 +81,12 @@ ConfigParser::Undo()
     return NULL;
 }
 
+const std::vector<char *>&
+ConfigParser::strtokFileMany()
+{
+    return StrtokMany(strtokFile);
+}
+
 char *
 ConfigParser::strtokFile()
 {
@@ -491,6 +497,30 @@ ConfigParser::NextKvPair(char * &key, char * &value)
     }
 
     return true;
+}
+
+const std::vector<char *> &
+ConfigParser::RegexStrtokFileMany()
+{
+    return StrtokMany(RegexStrtokFile);
+}
+
+const std::vector<char *> &
+ConfigParser::StrtokMany(const StrtokFileMethod method)
+{
+    static std::vector<char *> tokens;
+
+    for (const auto tok : tokens)
+        xfree(tok);
+    tokens.clear();
+
+    while (const auto tok = method()) {
+        char *token = xstrdup(tok);
+        tokens.push_back(token);
+    }
+    if (tokens.empty())
+        throw TextException("requires at least one token", Here());
+    return tokens;
 }
 
 char *

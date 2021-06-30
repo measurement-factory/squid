@@ -83,6 +83,9 @@ public:
      */
     static char * strtokFile();
 
+    /// \returns a token list obtained by successive strtokFile()
+    static const std::vector<char *>& strtokFileMany();
+
     /**
      * Returns the body of the next element. The element is either a token or
      * a quoted string with optional escape sequences and/or macros. The body
@@ -97,6 +100,9 @@ public:
      * set to 'off' this interprets the quoted tokens as filenames.
      */
     static char *RegexStrtokFile();
+
+    /// \returns a token list obtained by successive RegexStrtokFile()
+    static const std::vector<char *>& RegexStrtokFileMany();
 
     /**
      * Parse the next token as a regex pattern. The regex patterns are non quoted
@@ -222,6 +228,9 @@ protected:
      * \param type      The token type
      */
     static char *TokenParse(const char * &nextToken, TokenType &type);
+
+    typedef char *(StrtokFileMethod)();
+    static const std::vector<char *>& StrtokMany(const StrtokFileMethod);
 
     /// Wrapper method for TokenParse.
     static char *NextElement(TokenType &type);

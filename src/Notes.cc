@@ -241,7 +241,7 @@ Notes::parseKvPair() {
         parsedPairs++;
     }
     if (!parsedPairs)
-        throw TextException("Missing annotation kv pair", Here());
+        fatalf("FATAL: Missing annotation kv pair");
 }
 
 void

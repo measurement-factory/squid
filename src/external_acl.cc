@@ -514,14 +514,9 @@ ACLExternal::parse()
         return;
     }
 
-    char *token = ConfigParser::strtokFile();
+    const auto tokens = ConfigParser::strtokFileMany();
 
-    if (!token) {
-        self_destruct();
-        return;
-    }
-
-    data = new external_acl_data(find_externalAclHelper(token));
+    data = new external_acl_data(find_externalAclHelper(tokens[0]));
 
     if (!data->def) {
         delete data;
@@ -533,7 +528,8 @@ ACLExternal::parse()
     // this is the name of the 'acl' directive being tested
     data->name = xstrdup(AclMatchedName);
 
-    while ((token = ConfigParser::strtokFile())) {
+    for (size_t i = 1; i < tokens.size(); ++i) {
+        const auto token = tokens[i];
         wordlistAdd(&data->arguments, token);
     }
 }

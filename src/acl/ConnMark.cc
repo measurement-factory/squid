@@ -25,17 +25,12 @@ Acl::ConnMark::empty() const
 void
 Acl::ConnMark::parse()
 {
-    const auto oldSize = marks.size();
-    while (const char *t = ConfigParser::strtokFile()) {
+    const auto tokens = ConfigParser::strtokFileMany();
+    for (const auto t: tokens) {
         SBuf token(t);
-        Parser::Tokenizer tokenizer(token);
         const auto mc = Ip::NfMarkConfig::Parse(token);
         marks.push_back(mc);
         debugs(28, 7, "added " << mc);
-    }
-
-    if (oldSize == marks.size()) {
-        throw TexcHere(ToSBuf("acl ", typeString(), " requires at least one mark"));
     }
 }
 
