@@ -246,6 +246,8 @@ helperOpenServers(const helper::Pointer &hlp)
 
     assert(nargs <= HELPER_MAX_ARGS);
 
+    auto sawFailures = false;
+
     for (k = 0; k < need_new; ++k) {
         getCurrentTime();
         rfd = wfd = -1;
@@ -260,6 +262,8 @@ helperOpenServers(const helper::Pointer &hlp)
 
         if (pid < 0) {
             debugs(84, DBG_IMPORTANT, "WARNING: Cannot run '" << progname << "' process.");
+            // delay handleLackOfServers(); the loop might start enough helpers
+            sawFailures = true;
             continue;
         }
 
@@ -311,6 +315,13 @@ helperOpenServers(const helper::Pointer &hlp)
                                              CommIoCbPtrFun(helperHandleRead, srv));
         comm_read(srv->readPipe, srv->rbuf, srv->rbuf_sz - 1, call);
     }
+
+    // Call handleLackOfServers() before hlp->last_restart is updated because
+    // that method uses last_restart to measure the delay since previous start.
+    // TODO: Refactor last_restart code to measure failure frequency rather than
+    // detecting a helper X failure that is being close to a helper Y start.
+    if (sawFailures)
+        hlp->handleLackOfServers(false);
 
     hlp->last_restart = squid_curtime;
     safe_free(shortname);
@@ -371,6 +382,8 @@ helperStatefulOpenServers(const statefulhelper::Pointer &hlp)
 
     assert(nargs <= HELPER_MAX_ARGS);
 
+    auto sawFailures = false;
+
     for (int k = 0; k < need_new; ++k) {
         getCurrentTime();
         int rfd = -1;
@@ -387,6 +400,8 @@ helperStatefulOpenServers(const statefulhelper::Pointer &hlp)
 
         if (pid < 0) {
             debugs(84, DBG_IMPORTANT, "WARNING: Cannot run '" << progname << "' process.");
+            // delay handleLackOfServers(); the loop might start enough helpers
+            sawFailures = true;
             continue;
         }
 
@@ -430,6 +445,13 @@ helperStatefulOpenServers(const statefulhelper::Pointer &hlp)
                                              CommIoCbPtrFun(helperStatefulHandleRead, srv));
         comm_read(srv->readPipe, srv->rbuf, srv->rbuf_sz - 1, call);
     }
+
+    // Call handleLackOfServers() before hlp->last_restart is updated because
+    // that method uses last_restart to measure the delay since previous start.
+    // TODO: Refactor last_restart code to measure failure frequency rather than
+    // detecting a helper X failure that is being close to helper Y start.
+    if (sawFailures)
+        hlp->handleLackOfServers(false);
 
     hlp->last_restart = squid_curtime;
     safe_free(shortname);
@@ -848,17 +870,24 @@ helper::handleKilledServer(HelperServerBase *srv, bool &needsNewServers)
         debugs(84, DBG_CRITICAL, "WARNING: " << id_name << " #" << srv->index << " exited");
 
         if (childs.needNew() > 0) {
-            debugs(80, DBG_IMPORTANT, "Too few " << id_name << " processes are running (need " << childs.needNew() << "/" << childs.n_max << ")");
-
-            if (childs.n_active < childs.n_startup && last_restart > squid_curtime - 30) {
-                if (srv->stats.replies < 1)
-                    fatalf("The %s helpers are crashing too rapidly, need help!\n", id_name);
-                else
-                    debugs(80, DBG_CRITICAL, "ERROR: The " << id_name << " helpers are crashing too rapidly, need help!");
-            }
+            handleLackOfServers(srv->stats.replies >= 1);
             srv->flags.shutdown = true;
             needsNewServers = true;
         }
+    }
+}
+
+
+void
+helper::handleLackOfServers(const bool madeProgress)
+{
+    debugs(80, DBG_IMPORTANT, "Too few " << id_name << " processes are running (need " << childs.needNew() << "/" << childs.n_max << ")");
+    debugs(80, DBG_IMPORTANT, childs.n_active << "<" << childs.n_startup << " && " << squid_curtime - last_restart);
+    if (childs.n_active < childs.n_startup && last_restart > squid_curtime - 30) {
+        if (madeProgress)
+            debugs(80, DBG_CRITICAL, "ERROR: The " << id_name << " helpers are crashing too rapidly, need help!");
+        else
+            fatalf("The %s helpers are crashing too rapidly, need help!", id_name);
     }
 }
 
