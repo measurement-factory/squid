@@ -602,6 +602,8 @@ parseConfigFileOrThrow(const char *file_name)
 
     configFreeMemory();
 
+    Config.lifecycleStart();
+
     ACLMethodData::ThePurgeCount = 0;
     default_all();
 
@@ -3989,6 +3991,22 @@ configFreeMemory(void)
 #if USE_OPENSSL
     Ssl::unloadSquidUntrusted();
 #endif
+    Config.lifecycleEnd();
+}
+
+void
+SquidConfig::lifecycleStart()
+{
+    static uint64_t callCount = 0;
+    ++callCount;
+    lifecycles_ = callCount;
+}
+
+void
+SquidConfig::lifecycleEnd()
+{
+    // if we decide to cache an SBuf representation of lifecycles_, then we can
+    // delete that object here
 }
 
 void
