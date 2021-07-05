@@ -422,7 +422,7 @@ ACL::requiresRequest() const
 const Acl::Options &
 ACL::options()
 {
-    static const Acl::TextOption ArgumentActionOption;
+    static const Acl::TextOption ArgumentActionOption(Acl::Option::valueRequired);
     static const Acl::Options MyOptions = { { "--argument-action", &ArgumentActionOption } };
     ArgumentActionOption.linkWith(&argumentAction);
     return MyOptions;
