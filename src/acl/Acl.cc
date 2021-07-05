@@ -258,11 +258,13 @@ ACL::ParseAclLine(ConfigParser &parser, ACL ** head)
     try {
         A->parse();
     } catch (...) {
-        if (Config.emptyAclAction != 0) {
+        const auto action = A->calculateArgumentAction();
+        if (action != argIgnore) {
+            assert (action == argWarn || action == argFatal);
             debugs(28, DBG_CRITICAL, "WARNING: invalid ACL argument" <<
                     Debug::Extra << "line: " << A->cfgline <<
                     Debug::Extra << "problem: " << CurrentException);
-            if (Config.emptyAclAction > 0)
+            if (action == argFatal)
                 self_destruct();
         }
     }
@@ -287,6 +289,24 @@ ACL::ParseAclLine(ConfigParser &parser, ACL ** head)
 
     // register for centralized cleanup
     aclRegister(A);
+}
+
+ACL::ArgumentAction
+ACL::calculateArgumentAction() const
+{
+    if (argumentAction.value.cmp("ignore") == 0)
+        return argIgnore;
+    else if (argumentAction.value.cmp("warn") == 0)
+        return argWarn;
+    else if (argumentAction.value.cmp("fatal") == 0)
+        return argFatal;
+    else
+        Must (argumentAction.value.cmp("default") == 0);
+    if (Config.emptyAclAction > 0)
+        return argFatal;
+    else if (Config.emptyAclAction < 0)
+        return argWarn;
+    return argIgnore;
 }
 
 bool
@@ -397,6 +417,15 @@ bool
 ACL::requiresRequest() const
 {
     return false;
+}
+
+const Acl::Options &
+ACL::options()
+{
+    static const Acl::TextOption ArgumentActionOption;
+    static const Acl::Options MyOptions = { { "--argument-action", &ArgumentActionOption } };
+    ArgumentActionOption.linkWith(&argumentAction);
+    return MyOptions;
 }
 
 /*********************/

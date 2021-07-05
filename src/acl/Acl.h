@@ -14,7 +14,7 @@
 #include "cbdata.h"
 #include "defines.h"
 #include "dlink.h"
-#include "sbuf/forward.h"
+#include "sbuf/SBuf.h"
 
 #include <algorithm>
 #include <ostream>
@@ -60,7 +60,7 @@ public:
     bool matches(ACLChecklist *checklist) const;
 
     /// \returns (linked) Options supported by this ACL
-    virtual const Acl::Options &options() { return Acl::NoOptions(); }
+    virtual const Acl::Options &options();
 
     /// configures ACL options, throwing on configuration errors
     virtual void parseFlags();
@@ -84,6 +84,7 @@ public:
     char *cfgline;
     ACL *next; // XXX: remove or at least use refcounting
     bool registered; ///< added to the global list of ACLs via aclRegister()
+    Acl::TextOptionValue argumentAction;
 
 private:
     /// Matches the actual data in checklist against this ACL.
@@ -95,6 +96,10 @@ private:
     virtual bool requiresRequest() const;
     /// whether our (i.e. shallow) match() requires checklist to have a reply
     virtual bool requiresReply() const;
+
+    typedef enum { argIgnore = 1, argWarn, argFatal } ArgumentAction;
+
+    ArgumentAction calculateArgumentAction() const;
 };
 
 /// \ingroup ACLAPI
