@@ -47,7 +47,7 @@ ACLSquidErrorData::dump() const
 void
 ACLSquidErrorData::parse()
 {
-    const auto tokens = ConfigParser::strtokFileMany();
+    const ConfigParser::Tokens tokens;
     for (const auto token: tokens) {
         err_type err = errorTypeByName(token);
 

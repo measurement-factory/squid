@@ -562,7 +562,7 @@ ACLASN::parse()
     CbDataList<int> *q = NULL;
 
     for (Tail = curlist; *Tail; Tail = &((*Tail)->next));
-    const auto tokens = ConfigParser::strtokFileMany();
+    const ConfigParser::Tokens tokens;
     for (const auto t : tokens) {
         q = new CbDataList<int> (atoi(t));
         *(Tail) = q;

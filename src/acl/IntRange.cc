@@ -19,7 +19,7 @@
 void
 ACLIntRange::parse()
 {
-    const auto tokens = ConfigParser::strtokFileMany();
+    const ConfigParser::Tokens tokens;
     for (const auto a: tokens) {
         char *b = strchr(a, '-');
         unsigned short port1, port2;

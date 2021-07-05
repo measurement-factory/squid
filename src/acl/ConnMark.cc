@@ -25,7 +25,7 @@ Acl::ConnMark::empty() const
 void
 Acl::ConnMark::parse()
 {
-    const auto tokens = ConfigParser::strtokFileMany();
+    const ConfigParser::Tokens tokens;
     for (const auto t: tokens) {
         SBuf token(t);
         const auto mc = Ip::NfMarkConfig::Parse(token);

@@ -477,7 +477,7 @@ ACLIP::parse()
     if (data == NULL)
         data = new IPSplay();
 
-    const auto tokens = ConfigParser::strtokFileMany();
+    const ConfigParser::Tokens tokens;
     for (const auto t: tokens) {
         acl_ip_data *q = acl_ip_data::FactoryParse(t);
 

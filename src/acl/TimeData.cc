@@ -109,7 +109,7 @@ ACLTimeData::parse()
 
     int h1, m1, h2, m2;
 
-    const auto tokens = ConfigParser::strtokFileMany();
+    const ConfigParser::Tokens tokens;
     for (auto t: tokens) {
         if (*t < '0' || *t > '9') {
             /* assume its day-of-week spec */

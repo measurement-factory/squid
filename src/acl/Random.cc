@@ -62,8 +62,8 @@ ACLRandom::parse()
 {
     char bufa[256], bufb[256];
 
-    const auto tokens = ConfigParser::strtokFileMany();
-    const auto t = tokens[0];
+    const ConfigParser::Tokens tokens;
+    const auto t = *tokens.begin();
 
     debugs(28, 5, "aclParseRandomData: " << t);
 

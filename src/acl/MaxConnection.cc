@@ -52,19 +52,14 @@ ACLMaxConnection::valid () const
 void
 ACLMaxConnection::parse()
 {
-    const auto tokens = ConfigParser::strtokFileMany();
-    const auto token = SBuf(tokens[0]);
-    Parser::Tokenizer tokenizer(token);
-    int64_t number = 0;
-    if (!tokenizer.int64(number, 0, false))
-        throw TextException("invalid number", Here());
-    limit = static_cast<int>(number);
+    const ConfigParser::Tokens tokens;
+    limit = (atoi (*tokens.begin()));
 
     /* suck out file contents */
     // ignore comments
     bool ignore = false;
-    for (size_t i = 1; i < tokens.size(); ++i) {
-        const auto t = tokens[i];
+    char *t = nullptr;
+    while ((t = ConfigParser::strtokFile())) {
         ignore |= (*t != '#');
 
         if (ignore)

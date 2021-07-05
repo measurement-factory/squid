@@ -49,7 +49,7 @@ ACLHierCodeData::dump() const
 void
 ACLHierCodeData::parse()
 {
-    const auto tokens = ConfigParser::strtokFileMany();
+    const ConfigParser::Tokens tokens;
     for (const auto t: tokens) {
         for (hier_code iter = HIER_NONE; iter <= HIER_MAX; ++iter) {
             if (iter == HIER_MAX) {

@@ -53,7 +53,7 @@ ACLProtocolData::dump() const
 void
 ACLProtocolData::parse()
 {
-    const auto tokens = ConfigParser::strtokFileMany();
+    const ConfigParser::Tokens tokens;
     for (const auto t: tokens) {
         int p = AnyP::PROTO_NONE;
         for (; p < AnyP::PROTO_UNKNOWN; ++p) {

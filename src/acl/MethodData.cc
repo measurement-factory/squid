@@ -54,7 +54,7 @@ ACLMethodData::dump() const
 void
 ACLMethodData::parse()
 {
-    const auto tokens = ConfigParser::strtokFileMany();
+    const ConfigParser::Tokens tokens;
     for (const auto t: tokens) {
         HttpRequestMethod m;
         m.HttpRequestMethodXXX(t);

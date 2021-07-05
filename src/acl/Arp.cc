@@ -101,7 +101,7 @@ aclParseArpData(const char *t)
 void
 ACLARP::parse()
 {
-    const auto tokens = ConfigParser::strtokFileMany();
+    const ConfigParser::Tokens tokens;
     for (const auto t: tokens) {
         if (Eui::Eui48 *q = aclParseArpData(t)) {
             aclArpData.insert(*q);

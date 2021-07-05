@@ -83,9 +83,6 @@ public:
      */
     static char * strtokFile();
 
-    /// \returns a token list obtained by successive strtokFile()
-    static const std::vector<char *>& strtokFileMany();
-
     /**
      * Returns the body of the next element. The element is either a token or
      * a quoted string with optional escape sequences and/or macros. The body
@@ -100,9 +97,6 @@ public:
      * set to 'off' this interprets the quoted tokens as filenames.
      */
     static char *RegexStrtokFile();
-
-    /// \returns a token list obtained by successive RegexStrtokFile()
-    static const std::vector<char *>& RegexStrtokFileMany();
 
     /**
      * Parse the next token as a regex pattern. The regex patterns are non quoted
@@ -168,6 +162,53 @@ public:
      */
     static bool StrictMode;
 
+    typedef char *(*TokenExtractor)();
+
+    class TokenIterator
+    {
+    public:
+        using value_type = char *;
+        using reference = value_type &;
+
+        explicit TokenIterator(const TokenExtractor method) : method_(method), current_(method_ ? method_() : nullptr) {}
+
+        reference operator*() { return current_; }
+
+        TokenIterator& operator++() {
+            assert(method_);
+            current_ = method_();
+            return *this;
+        }
+
+        TokenIterator operator++(int) {
+            TokenIterator tmp = *this;
+            ++(*this);
+            return tmp;
+        }
+
+        bool operator== (const TokenIterator& other) const { return current_ == other.current_; }
+        bool operator!= (const TokenIterator& other) const { return current_ != other.current_; }
+
+    private:
+
+        TokenExtractor method_;
+        value_type current_;
+    };
+
+    class Tokens
+    {
+        public:
+            TokenIterator begin() const { return TokenIterator(strtokFile); }
+            TokenIterator end() const { return TokenIterator(nullptr); }
+    };
+
+    class RegexTokens
+    {
+        public:
+            TokenIterator begin() const { return TokenIterator(RegexStrtokFile); }
+            TokenIterator end() const { return TokenIterator(nullptr); }
+    };
+
 protected:
     /**
      * Class used to store required information for the current
@@ -228,9 +269,6 @@ protected:
      * \param type      The token type
      */
     static char *TokenParse(const char * &nextToken, TokenType &type);
-
-    typedef char *(StrtokFileMethod)();
-    static const std::vector<char *>& StrtokMany(const StrtokFileMethod);
 
     /// Wrapper method for TokenParse.
     static char *NextElement(TokenType &type);

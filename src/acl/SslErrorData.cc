@@ -39,7 +39,7 @@ ACLSslErrorData::dump() const
 void
 ACLSslErrorData::parse()
 {
-    const auto tokens = ConfigParser::strtokFileMany();
+    const ConfigParser::Tokens tokens;
     for (const auto t: tokens) {
         Ssl::ParseErrorString(t, values);
     }

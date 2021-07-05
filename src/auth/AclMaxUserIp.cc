@@ -64,12 +64,9 @@ ACLMaxUserIP::parse()
         return;
     }
 
-    const auto tokens = ConfigParser::strtokFileMany();
-    const auto t = tokens[0];
+    const ConfigParser::Tokens tokens;
 
-    debugs(28, 5, "aclParseUserMaxIP: First token is " << t);
-
-    maximum = xatoi(t);
+    maximum = xatoi(*tokens.begin());
 
     debugs(28, 5, "aclParseUserMaxIP: Max IP address's " << maximum);
 

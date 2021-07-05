@@ -78,8 +78,8 @@ ACLAtStepData::dump() const
 void
 ACLAtStepData::parse()
 {
-    const auto names = ConfigParser::strtokFileMany();
-    for (const auto name: names) {
+    const ConfigParser::Tokens tokens;
+    for (const auto name: tokens) {
         const auto step = StepValue(name);
         if (step == XactionStep::unknown)
             throw TextException(ToSBuf("prohibited at_step step name: ", name), Here());

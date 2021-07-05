@@ -244,7 +244,7 @@ ACLRegexData::parse()
     debugs(28, 2, "new Regex line or file");
 
     SBufList sl;
-    const auto tokens = ConfigParser::RegexStrtokFileMany();
+    const ConfigParser::RegexTokens tokens;
     for (const auto t: tokens) {
         const char *clean = removeUnnecessaryWildcards(t);
         if (strlen(clean) > BUFSIZ-1) {

@@ -41,7 +41,7 @@ Acl::TransactionInitiator::empty () const
 void
 Acl::TransactionInitiator::parse()
 {
-    const auto tokens = ConfigParser::strtokFileMany();
+    const ConfigParser::Tokens tokens;
     for (const auto s: tokens) {
         initiators_ |= XactionInitiator::ParseInitiators(s);
         cfgWords.push_back(SBuf(s));

@@ -73,7 +73,7 @@ aclParseEuiData(const char *t)
 void
 ACLEui64::parse()
 {
-    const auto tokens = ConfigParser::strtokFileMany();
+    const ConfigParser::Tokens tokens;
     for (const auto t : tokens) {
         if (Eui::Eui64 * q = aclParseEuiData(t)) {
             eui64Data.insert(*q);

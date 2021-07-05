@@ -86,9 +86,9 @@ void
 ACLUserData::parse()
 {
     debugs(28, 2, "parsing user list");
-    const auto tok = ConfigParser::PeekAtToken();
-    debugs(28, 5, "first token is " << tok);
-    if (strncmp(tok, "-i", 2) == 0) {
+    const auto peekedTok = ConfigParser::PeekAtToken();
+    debugs(28, 5, "first token is " << peekedTok);
+    if (strncmp(peekedTok, "-i", 2) == 0) {
         debugs(28, 5, "Going case-insensitive");
         flags.case_insensitive = true;
         // due to how the std::set API work, if we want to change
@@ -102,11 +102,12 @@ ACLUserData::parse()
     debugs(28, 3, "Case-insensitive-switch is " << flags.case_insensitive);
     /* we might inherit from a previous declaration */
 
-    const auto tokens = ConfigParser::strtokFileMany();
-    if (strncmp(tokens[0], "REQUIRED", 8) == 0) {
+    const ConfigParser::Tokens tokens;
+    if (strncmp(*tokens.begin(), "REQUIRED", 8) == 0) {
+        auto tok = tokens.begin();
         debugs(28, 5, "REQUIRED-type enabled");
         flags.required = true;
-        if (tokens.size() > 1)
+        if (++tok != tokens.end())
             debugs(28, DBG_PARSE_NOTE(1), "WARNING: detected attempt to add usernames to an acl of type REQUIRED");
     } else {
         for (const auto t: tokens) {
