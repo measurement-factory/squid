@@ -17,12 +17,6 @@
 int
 ACLSslErrorStrategy::match (ACLData<MatchType> * &data, ACLFilledChecklist *checklist)
 {
-    const Security::CertErrors *sslErrors = nullptr;
-    if (checklist->sslErrors)
-        sslErrors = checklist->sslErrors;
-    else if (checklist->conn() && checklist->conn()->serverBump())
-        sslErrors = checklist->conn()->serverBump()->sslErrors();
-
-    return data->match (sslErrors);
+    return data->match (checklist->sslErrors);
 }
 

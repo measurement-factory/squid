@@ -282,9 +282,9 @@ Security::PeerConnector::sslFinalized()
         validationRequest.ssl = session;
         if (SBuf *dName = (SBuf *)SSL_get_ex_data(session.get(), ssl_ex_index_server))
             validationRequest.domainName = dName->c_str();
-        if (Security::CertErrors *errs = static_cast<Security::CertErrors *>(SSL_get_ex_data(session.get(), ssl_ex_index_ssl_errors)))
+        if (Security::CertErrorsPointer *errs = static_cast<Security::CertErrorsPointer *>(SSL_get_ex_data(session.get(), ssl_ex_index_ssl_errors)))
             // validationRequest disappears on return so no need to cbdataReference
-            validationRequest.errors = errs;
+            validationRequest.errors = *errs;
         try {
             debugs(83, 5, "Sending SSL certificate for validation to ssl_crtvd.");
             AsyncCall::Pointer call = asyncCall(83,5, "Security::PeerConnector::sslCrtvdHandleReply", Ssl::CertValidationHelper::CbDialer(this, &Security::PeerConnector::sslCrtvdHandleReply, nullptr));
@@ -327,9 +327,9 @@ Security::PeerConnector::sslCrtvdHandleReply(Ssl::CertValidationResponse::Pointe
     if (validationResponse->resultCode == ::Helper::Error) {
         if (Security::CertErrors *errs = sslCrtvdCheckForErrors(*validationResponse, errDetails)) {
             Security::SessionPointer session(fd_table[serverConnection()->fd].ssl);
-            Security::CertErrors *oldErrs = static_cast<Security::CertErrors*>(SSL_get_ex_data(session.get(), ssl_ex_index_ssl_errors));
-            SSL_set_ex_data(session.get(), ssl_ex_index_ssl_errors,  (void *)errs);
-            delete oldErrs;
+            Security::CertErrorsPointer *errorsList = static_cast<Security::CertErrorsPointer *>(SSL_get_ex_data(session.get(), ssl_ex_index_ssl_errors));
+            (*errorsList).reset(errs);
+            SSL_set_ex_data(session.get(), ssl_ex_index_ssl_errors,  (void *)errorsList);
         }
     } else if (validationResponse->resultCode != ::Helper::Okay)
         validatorFailed = true;
@@ -384,12 +384,11 @@ Security::PeerConnector::sslCrtvdCheckForErrors(Ssl::CertValidationResponse cons
         if (!errDetails) {
             bool allowed = false;
             if (check) {
-                Security::CertErrors currentErrorList;
-                currentErrorList.push_back(rError);
-                check->sslErrors = &currentErrorList;
+                check->sslErrors.reset(new Security::CertErrors);
+                check->sslErrors->push_back(rError);
                 if (check->fastCheck().allowed())
                     allowed = true;
-                check->sslErrors = NULL;
+                check->sslErrors = nullptr;
             }
             // else the Config.ssl_client.cert_error access list is not defined
             // and the first error will cause the error page

@@ -16,7 +16,7 @@ ACLSslErrorData::ACLSslErrorData(ACLSslErrorData const &o) :
 {}
 
 bool
-ACLSslErrorData::match(const Security::CertErrors *toFind)
+ACLSslErrorData::match(const Security::CertErrorsPointer &toFind)
 {
     if (toFind) {
         for (const auto err : *toFind) {

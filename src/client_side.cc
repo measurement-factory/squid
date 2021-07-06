@@ -1548,12 +1548,11 @@ bool ConnStateData::serveDelayedError(Http::Stream *context)
             bool allowDomainMismatch = false;
             if (Config.ssl_client.cert_error) {
                 ACLFilledChecklist check(Config.ssl_client.cert_error, nullptr);
-                Security::CertErrors dMismatchErrorList;
-                dMismatchErrorList.push_back(errDetail);
-                check.sslErrors = &dMismatchErrorList;
+                check.sslErrors.reset(new Security::CertErrors);
+                check.sslErrors->push_back(errDetail);
                 clientAclChecklistFill(check, http);
                 allowDomainMismatch = check.fastCheck().allowed();
-                check.sslErrors = NULL;
+                check.sslErrors = nullptr;
             }
 
             if (!allowDomainMismatch) {
@@ -3634,6 +3633,11 @@ ConnStateData::fillConnectionLevelDetails(ACLFilledChecklist &checklist) const
         checklist.src_addr = clientConnection->remote;
         checklist.my_addr = clientConnection->local; // TODO: or port->s?
     }
+
+#if USE_OPENSSL
+    if (!checklist.sslErrors && sslServerBump)
+        checklist.sslErrors = sslServerBump->sslErrors();
+#endif
 
     if (!checklist.rfc931[0]) // checklist creator may have supplied it already
         checklist.setIdent(clientConnection->rfc931);

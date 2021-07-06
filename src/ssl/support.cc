@@ -329,19 +329,19 @@ ssl_verify_cb(int ok, X509_STORE_CTX * ctx)
         if (!broken_cert)
             broken_cert = peer_cert;
 
-        Security::CertErrors *errs = static_cast<Security::CertErrors *>(SSL_get_ex_data(ssl, ssl_ex_index_ssl_errors));
+        Security::CertErrorsPointer *errs = static_cast<Security::CertErrorsPointer *>(SSL_get_ex_data(ssl, ssl_ex_index_ssl_errors));
         const int depth = X509_STORE_CTX_get_error_depth(ctx);
         theError = new Security::ErrorDetail(error_no, peer_cert, broken_cert, depth);
         if (!errs) {
-            errs = new Security::CertErrors;
-            errs->push_back(theError);
+            errs = new Security::CertErrorsPointer(new Security::CertErrors);
+            (*errs)->push_back(theError);
             if (!SSL_set_ex_data(ssl, ssl_ex_index_ssl_errors,  (void *)errs)) {
                 debugs(83, 2, "Failed to set ssl error_no in ssl_verify_cb: Certificate " << buffer);
                 delete errs;
                 errs = NULL;
             }
         } else // remember another error number
-            errs->push_back(theError);
+            (*errs)->push_back(theError);
 
         if (const char *err_descr = Ssl::GetErrorDescr(error_no))
             debugs(83, 5, err_descr << ": " << buffer);
@@ -354,9 +354,8 @@ ssl_verify_cb(int ok, X509_STORE_CTX * ctx)
             if (check) {
                 ACLFilledChecklist *filledCheck = Filled(check);
                 assert(!filledCheck->sslErrors);
-                Security::CertErrors thisErrorList;
-                thisErrorList.push_back(theError);
-                filledCheck->sslErrors = &thisErrorList;
+                filledCheck->sslErrors.reset(new Security::CertErrors);
+                filledCheck->sslErrors->push_back(theError);
                 filledCheck->serverCert = peer_cert;
                 if (check->fastCheck().allowed()) {
                     debugs(83, 3, "bypassing SSL error " << error_no << " in " << buffer);
@@ -364,7 +363,7 @@ ssl_verify_cb(int ok, X509_STORE_CTX * ctx)
                 } else {
                     debugs(83, 5, "confirming SSL error " << error_no);
                 }
-                filledCheck->sslErrors = NULL;
+                filledCheck->sslErrors = nullptr;
                 filledCheck->serverCert.reset();
             }
             // If the certificate validator is used then we need to allow all errors and
@@ -597,7 +596,7 @@ static void
 ssl_free_SslErrors(void *, void *ptr, CRYPTO_EX_DATA *,
                    int, long, void *)
 {
-    Security::CertErrors *errs = static_cast <Security::CertErrors*>(ptr);
+    Security::CertErrorsPointer *errs = static_cast <Security::CertErrorsPointer *>(ptr);
     delete errs;
 }
 

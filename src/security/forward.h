@@ -186,6 +186,7 @@ class ErrorDetail;
 typedef RefCount<ErrorDetail> ErrorDetailPointer;
 /// Holds a list of X.509 certificate errors
 typedef std::list<ErrorDetailPointer> CertErrors;
+typedef std::shared_ptr<CertErrors> CertErrorsPointer;
 
 
 std::ostream &operator <<(std::ostream &, const KeyLog &);
