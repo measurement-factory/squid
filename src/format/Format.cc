@@ -25,7 +25,6 @@
 #include "rfc1738.h"
 #include "sbuf/Stream.h"
 #include "sbuf/StringConvert.h"
-#include "security/CertError.h"
 #include "security/NegotiationHistory.h"
 #include "SquidTime.h"
 #include "Store.h"
@@ -1293,12 +1292,14 @@ Format::Format::assemble(MemBuf &mb, const AccessLogEntry::Pointer &al, int logS
             if (al->request && al->request->clientConnectionManager.valid()) {
                 if (Ssl::ServerBump * srvBump = al->request->clientConnectionManager->serverBump()) {
                     const char *separator = fmt->data.string ? fmt->data.string : ":";
-                    for (const Security::CertErrors *sslError = srvBump->sslErrors(); sslError; sslError = sslError->next) {
-                        if (!sb.isEmpty())
-                            sb.append(separator);
-                        sb.append(Ssl::GetErrorName(sslError->element.code, true));
-                        if (sslError->element.depth >= 0)
-                            sb.appendf("@depth=%d", sslError->element.depth);
+                    if (srvBump->sslErrors()) {
+                        for (const auto sslError : *srvBump->sslErrors()) {
+                            if (!sb.isEmpty())
+                                sb.append(separator);
+                            sb.append(Ssl::GetErrorName(sslError->errorNo(), true));
+                            if (sslError->certDepth() >= 0)
+                                sb.appendf("@depth=%d", sslError->certDepth());
+                        }
                     }
                     if (!sb.isEmpty())
                         out = sb.c_str();

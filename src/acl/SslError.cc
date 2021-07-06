@@ -10,10 +10,19 @@
 #include "acl/FilledChecklist.h"
 #include "acl/SslError.h"
 #include "acl/SslErrorData.h"
+#include "client_side.h"
+#include "http/Stream.h"
+#include "ssl/ServerBump.h"
 
 int
 ACLSslErrorStrategy::match (ACLData<MatchType> * &data, ACLFilledChecklist *checklist)
 {
-    return data->match (checklist->sslErrors);
+    const Security::CertErrors *sslErrors = nullptr;
+    if (checklist->sslErrors)
+        sslErrors = checklist->sslErrors;
+    else if (checklist->conn() && checklist->conn()->serverBump())
+        sslErrors = checklist->conn()->serverBump()->sslErrors();
+
+    return data->match (sslErrors);
 }
 

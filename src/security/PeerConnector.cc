@@ -371,18 +371,25 @@ Security::PeerConnector::sslCrtvdCheckForErrors(Ssl::CertValidationResponse cons
     }
 
     Security::CertErrors *errs = nullptr;
+    Security::CertPointer peerCert(SSL_get_peer_certificate(session.get()));
     typedef Ssl::CertValidationResponse::RecvdErrors::const_iterator SVCRECI;
     for (SVCRECI i = resp.errors.begin(); i != resp.errors.end(); ++i) {
         debugs(83, 7, "Error item: " << i->error_no << " " << i->error_reason);
 
         assert(i->error_no != SSL_ERROR_NONE);
+        const auto &brokenCert = i->cert;
+        const char *aReason = i->error_reason.empty() ? NULL : i->error_reason.c_str();
+        Security::ErrorDetailPointer rError(new ErrorDetail(i->error_no, peerCert, brokenCert, i->error_depth, aReason));
 
         if (!errDetails) {
             bool allowed = false;
             if (check) {
-                check->sslErrors = new Security::CertErrors(Security::CertError(i->error_no, i->cert, i->error_depth));
+                Security::CertErrors currentErrorList;
+                currentErrorList.push_back(rError);
+                check->sslErrors = &currentErrorList;
                 if (check->fastCheck().allowed())
                     allowed = true;
+                check->sslErrors = NULL;
             }
             // else the Config.ssl_client.cert_error access list is not defined
             // and the first error will cause the error page
@@ -391,21 +398,13 @@ Security::PeerConnector::sslCrtvdCheckForErrors(Ssl::CertValidationResponse cons
                 debugs(83, 3, "bypassing SSL error " << i->error_no << " in " << "buffer");
             } else {
                 debugs(83, 5, "confirming SSL error " << i->error_no);
-                const auto &brokenCert = i->cert;
-                Security::CertPointer peerCert(SSL_get_peer_certificate(session.get()));
-                const char *aReason = i->error_reason.empty() ? NULL : i->error_reason.c_str();
-                errDetails = new ErrorDetail(i->error_no, peerCert, brokenCert, aReason);
-            }
-            if (check) {
-                delete check->sslErrors;
-                check->sslErrors = NULL;
+                errDetails = rError;
             }
         }
 
         if (!errs)
-            errs = new Security::CertErrors(Security::CertError(i->error_no, i->cert, i->error_depth));
-        else
-            errs->push_back_unique(Security::CertError(i->error_no, i->cert, i->error_depth));
+            errs = new Security::CertErrors;
+        errs->push_back(rError);
     }
     if (check)
         delete check;

@@ -18,7 +18,6 @@
 #if USE_AUTH
 #include "auth/UserRequest.h"
 #endif
-#include "security/CertError.h"
 
 class CachePeer;
 class ConnStateData;

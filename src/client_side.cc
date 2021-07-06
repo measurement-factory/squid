@@ -1541,13 +1541,18 @@ bool ConnStateData::serveDelayedError(Http::Stream *context)
             debugs(33, 2, "SQUID_X509_V_ERR_DOMAIN_MISMATCH: Certificate " <<
                    "does not match domainname " << request->url.host());
 
+            const Security::ErrorDetail::Pointer errDetail = new Security::ErrorDetail(
+                SQUID_X509_V_ERR_DOMAIN_MISMATCH,
+                srvCert, nullptr, 0);
+
             bool allowDomainMismatch = false;
             if (Config.ssl_client.cert_error) {
                 ACLFilledChecklist check(Config.ssl_client.cert_error, nullptr);
-                check.sslErrors = new Security::CertErrors(Security::CertError(SQUID_X509_V_ERR_DOMAIN_MISMATCH, srvCert));
+                Security::CertErrors dMismatchErrorList;
+                dMismatchErrorList.push_back(errDetail);
+                check.sslErrors = &dMismatchErrorList;
                 clientAclChecklistFill(check, http);
                 allowDomainMismatch = check.fastCheck().allowed();
-                delete check.sslErrors;
                 check.sslErrors = NULL;
             }
 
@@ -1563,9 +1568,6 @@ bool ConnStateData::serveDelayedError(Http::Stream *context)
                 // Create an error object and fill it
                 const auto err = new ErrorState(ERR_SECURE_CONNECT_FAIL, Http::scServiceUnavailable, request, http->al);
                 err->src_addr = clientConnection->remote;
-                const Security::ErrorDetail::Pointer errDetail = new Security::ErrorDetail(
-                    SQUID_X509_V_ERR_DOMAIN_MISMATCH,
-                    srvCert, nullptr);
                 updateError(ERR_SECURE_CONNECT_FAIL, errDetail);
                 repContext->setReplyToError(request->method, err);
                 assert(context->http->out.offset == 0);
@@ -3632,11 +3634,6 @@ ConnStateData::fillConnectionLevelDetails(ACLFilledChecklist &checklist) const
         checklist.src_addr = clientConnection->remote;
         checklist.my_addr = clientConnection->local; // TODO: or port->s?
     }
-
-#if USE_OPENSSL
-    if (!checklist.sslErrors && sslServerBump)
-        checklist.sslErrors = cbdataReference(sslServerBump->sslErrors());
-#endif
 
     if (!checklist.rfc931[0]) // checklist creator may have supplied it already
         checklist.setIdent(clientConnection->rfc931);

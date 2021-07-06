@@ -23,7 +23,6 @@
 #include "fde.h"
 #include "globals.h"
 #include "ipc/MemMap.h"
-#include "security/CertError.h"
 #include "security/ErrorDetail.h"
 #include "security/Session.h"
 #include "SquidConfig.h"
@@ -323,6 +322,7 @@ ssl_verify_cb(int ok, X509_STORE_CTX * ctx)
         }
     }
 
+    Security::ErrorDetail::Pointer theError;
     if (!ok) {
         Security::CertPointer broken_cert;
         broken_cert.resetAndLock(X509_STORE_CTX_get_current_cert(ctx));
@@ -331,15 +331,17 @@ ssl_verify_cb(int ok, X509_STORE_CTX * ctx)
 
         Security::CertErrors *errs = static_cast<Security::CertErrors *>(SSL_get_ex_data(ssl, ssl_ex_index_ssl_errors));
         const int depth = X509_STORE_CTX_get_error_depth(ctx);
+        theError = new Security::ErrorDetail(error_no, peer_cert, broken_cert, depth);
         if (!errs) {
-            errs = new Security::CertErrors(Security::CertError(error_no, broken_cert, depth));
+            errs = new Security::CertErrors;
+            errs->push_back(theError);
             if (!SSL_set_ex_data(ssl, ssl_ex_index_ssl_errors,  (void *)errs)) {
                 debugs(83, 2, "Failed to set ssl error_no in ssl_verify_cb: Certificate " << buffer);
                 delete errs;
                 errs = NULL;
             }
         } else // remember another error number
-            errs->push_back_unique(Security::CertError(error_no, broken_cert, depth));
+            errs->push_back(theError);
 
         if (const char *err_descr = Ssl::GetErrorDescr(error_no))
             debugs(83, 5, err_descr << ": " << buffer);
@@ -352,7 +354,9 @@ ssl_verify_cb(int ok, X509_STORE_CTX * ctx)
             if (check) {
                 ACLFilledChecklist *filledCheck = Filled(check);
                 assert(!filledCheck->sslErrors);
-                filledCheck->sslErrors = new Security::CertErrors(Security::CertError(error_no, broken_cert));
+                Security::CertErrors thisErrorList;
+                thisErrorList.push_back(theError);
+                filledCheck->sslErrors = &thisErrorList;
                 filledCheck->serverCert = peer_cert;
                 if (check->fastCheck().allowed()) {
                     debugs(83, 3, "bypassing SSL error " << error_no << " in " << buffer);
@@ -360,7 +364,6 @@ ssl_verify_cb(int ok, X509_STORE_CTX * ctx)
                 } else {
                     debugs(83, 5, "confirming SSL error " << error_no);
                 }
-                delete filledCheck->sslErrors;
                 filledCheck->sslErrors = NULL;
                 filledCheck->serverCert.reset();
             }
@@ -392,7 +395,7 @@ ssl_verify_cb(int ok, X509_STORE_CTX * ctx)
         }
 
         std::unique_ptr<Security::ErrorDetail::Pointer> edp(new Security::ErrorDetail::Pointer(
-                    new Security::ErrorDetail(error_no, peer_cert, broken_cert)));
+                    theError));
         if (SSL_set_ex_data(ssl, ssl_ex_index_ssl_error_detail, edp.get()))
             edp.release();
         else

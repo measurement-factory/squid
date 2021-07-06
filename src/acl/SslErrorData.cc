@@ -9,7 +9,6 @@
 #include "squid.h"
 #include "acl/Checklist.h"
 #include "acl/SslErrorData.h"
-#include "security/CertError.h"
 #include "ssl/ErrorDetail.h"
 
 ACLSslErrorData::ACLSslErrorData(ACLSslErrorData const &o) :
@@ -19,9 +18,11 @@ ACLSslErrorData::ACLSslErrorData(ACLSslErrorData const &o) :
 bool
 ACLSslErrorData::match(const Security::CertErrors *toFind)
 {
-    for (const auto *err = toFind; err; err = err->next) {
-        if (values.count(err->element.code))
-            return true;
+    if (toFind) {
+        for (const auto err : *toFind) {
+            if (values.count(err->errorNo()))
+                return true;
+        }
     }
     return false;
 }
