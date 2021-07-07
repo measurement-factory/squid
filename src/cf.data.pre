@@ -2076,6 +2076,9 @@ DOC_START
 			The ssl_bump option is required to fully enable
 			bumping of CONNECT requests.
 
+			The ssl-bump mode currently requires the tls-cert option. It also
+			sets the generate-host-certificates default to "on".
+
 	Omitting the mode flag causes default forward proxy mode to be used.
 
 
@@ -2121,28 +2124,35 @@ DOC_START
 			http_access rules when using this.
 
 
-	SSL Bump Mode Options:
-	    In addition to these options ssl-bump requires TLS/SSL options.
+	TLS / SSL Options:
 
 	   generate-host-certificates[=<on|off>]
-			Dynamically create SSL server certificates for the
-			destination hosts of bumped CONNECT requests.When 
-			enabled, the cert and key options are used to sign
-			generated certificates. Otherwise generated
-			certificate will be selfsigned.
-			If there is a CA certificate lifetime of the generated 
-			certificate equals lifetime of the CA certificate. If
-			generated certificate is selfsigned lifetime is three 
-			years.
-			This option is enabled by default when ssl-bump is used.
-			See the ssl-bump option above for more information.
+			Dynamically create SSL server certificates with Subject fields
+			based on the destination hosts. These generated certificates are
+			usually signed by the configured port certificate (see tls-cert).
+			When this option is not	enabled, Squid uses the same configured
+			port certificate regardless of the request destination.
+
+			The lifetime of the generated certificate is usually the same as
+			the lifetime of its signing certificate. The lifetime of a
+			self-signed generated certificate is three years.
+
+			This option is enabled by default when (and only when) the port
+			is configured to work in ssl-bump mode. Enabling this option
+			requires a port in ssl-bump mode or an https_port in accel mode.
+
+			Certificate generation is stable: Roughly speaking, identically
+			configured SMP workers and even independent Squid instances
+			generate identical (i.e. having the same fingerprint) SSL
+			certificates for the same destination host.
+
+			Generated certificates can be cached and reused. See the
+			dynamic_cert_mem_cache_size option for more information.
 			
 	   dynamic_cert_mem_cache_size=SIZE
 			Approximate total RAM size spent on cached generated
 			certificates. If set to zero, caching is disabled. The
 			default value is 4MB.
-
-	TLS / SSL Options:
 
 	   tls-cert=	Path to file containing an X.509 certificate (PEM format)
 			to be used in the TLS handshake ServerHello.

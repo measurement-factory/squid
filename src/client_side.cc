@@ -2829,12 +2829,44 @@ ConnStateData::postHttpsAccept()
         fatal("FATAL: SSL-Bump requires --with-openssl");
 #endif
         return;
-    } else {
-        httpsEstablish(this, port->secure.staticContext);
     }
+
+    if (port->secure.generateHostCertificates) {
+#if USE_OPENSSL
+        const auto ctx(port->secure.createBlankContext());
+        // finish configuring ctx before httpsEstablish() starts using it
+        SSL_CTX_set_tlsext_servername_callback(ctx.get(), &SetSniContext);
+        // sets fde::ssl that we update below; negotiation starts asynchronously
+        httpsEstablish(this, ctx);
+        // and finally supply the callback with the info it will use when called
+        if (const auto ssl = fd_table[clientConnection->fd].ssl.get())
+            SSL_set_ex_data(ssl, ssl_ex_index_client_connection_mgr, new Pointer(this));
+        return;
+#else
+        assert(!"unreachable: USE_OPENSSL checked at (re)configuration time");
+#endif
+    }
+
+    httpsEstablish(this, port->secure.staticContext);
 }
 
 #if USE_OPENSSL
+int
+ConnStateData::SetSniContext(SSL *ssl, int *, void *)
+{
+    const auto cbdata = static_cast<Pointer*>(SSL_get_ex_data(ssl, ssl_ex_index_client_connection_mgr));
+    assert(cbdata);
+    if (const auto conn = cbdata->valid()) {
+        if (const auto sni = SSL_get_servername(ssl, TLSEXT_NAMETYPE_host_name)) {
+            conn->resetSslCommonName(sni);
+            const auto wentAsync = !conn->getSslContextStart();
+            assert(!wentAsync);
+            return SSL_TLSEXT_ERR_OK;
+        }
+    }
+    return SSL_TLSEXT_ERR_ALERT_FATAL;
+}
+
 void
 ConnStateData::sslCrtdHandleReplyWrapper(void *data, const Helper::Reply &reply)
 {
@@ -2965,14 +2997,14 @@ void ConnStateData::buildSslCertGenerationParams(Ssl::CertificateProperties &cer
 Security::ContextPointer
 ConnStateData::getTlsContextFromCache(const SBuf &cacheKey, const Ssl::CertificateProperties &certProperties)
 {
-    debugs(33, 5, "Finding SSL certificate for " << cacheKey << " in cache");
+    debugs(33, 7, "looking for " << cacheKey);
     Ssl::LocalContextStorage * ssl_ctx_cache = Ssl::TheGlobalContextStorage.getLocalStorage(port->s);
     if (Security::ContextPointer *ctx = ssl_ctx_cache ? ssl_ctx_cache->get(cacheKey) : nullptr) {
         if (Ssl::verifySslCertificate(*ctx, certProperties)) {
-            debugs(33, 5, "Cached SSL certificate for " << certProperties.commonName << " is valid");
+            debugs(33, 7, "found valid for " << certProperties.commonName);
             return *ctx;
         } else {
-            debugs(33, 5, "Cached SSL certificate for " << certProperties.commonName << " is out of date. Delete this certificate from cache");
+            debugs(33, 5, "purging invalid for " << certProperties.commonName);
             if (ssl_ctx_cache)
                 ssl_ctx_cache->del(cacheKey);
         }
@@ -2990,7 +3022,7 @@ ConnStateData::storeTlsContextToCache(const SBuf &cacheKey, Security::ContextPoi
     }
 }
 
-void
+bool
 ConnStateData::getSslContextStart()
 {
     // If we are called, then CONNECT has succeeded. Finalize it.
@@ -3014,31 +3046,34 @@ ConnStateData::getSslContextStart()
 
             Security::ContextPointer ctx(getTlsContextFromCache(sslBumpCertKey, certProperties));
             if (ctx) {
+                debugs(33, 5, "memory-cache hit for " << certProperties.commonName);
                 getSslContextDone(ctx);
-                return;
+                return true;
             }
         }
 
 #if USE_SSL_CRTD
-        try {
-            debugs(33, 5, HERE << "Generating SSL certificate for " << certProperties.commonName << " using ssl_crtd.");
-            Ssl::CrtdMessage request_message(Ssl::CrtdMessage::REQUEST);
-            request_message.setCode(Ssl::CrtdMessage::code_new_certificate);
-            request_message.composeRequest(certProperties);
-            debugs(33, 5, HERE << "SSL crtd request: " << request_message.compose().c_str());
-            Ssl::Helper::Submit(request_message, sslCrtdHandleReplyWrapper, this);
-            return;
-        } catch (const std::exception &e) {
-            debugs(33, DBG_IMPORTANT, "ERROR: Failed to compose ssl_crtd " <<
-                   "request for " << certProperties.commonName <<
-                   " certificate: " << e.what() << "; will now block to " <<
-                   "generate that certificate.");
-            // fall through to do blocking in-process generation.
+        if (port->flags.tunnelSslBumping) {
+            try {
+                debugs(33, 5, "asynchronous generation for " << certProperties.commonName);
+                Ssl::CrtdMessage request_message(Ssl::CrtdMessage::REQUEST);
+                request_message.setCode(Ssl::CrtdMessage::code_new_certificate);
+                request_message.composeRequest(certProperties);
+                debugs(33, 7, "crtd request: " << request_message.compose());
+                Ssl::Helper::Submit(request_message, sslCrtdHandleReplyWrapper, this);
+                return false;
+            } catch (const std::exception &e) {
+                debugs(33, DBG_IMPORTANT, "ERROR: Failed to compose ssl_crtd " <<
+                       "request for " << certProperties.commonName <<
+                       " certificate: " << e.what() << "; will now block to " <<
+                       "generate that certificate.");
+                // fall through to do blocking in-process generation.
+            }
         }
 #endif // USE_SSL_CRTD
 
-        debugs(33, 5, HERE << "Generating SSL certificate for " << certProperties.commonName);
         if (sslServerBump && (sslServerBump->act.step1 == Ssl::bumpPeek || sslServerBump->act.step1 == Ssl::bumpStare)) {
+            debugs(33, 5, "synchronous generation for " << certProperties.commonName << " step1=" << sslServerBump->act.step1);
             doPeekAndSpliceStep();
             auto ssl = fd_table[clientConnection->fd].ssl.get();
             if (!Ssl::configureSSL(ssl, certProperties, *port))
@@ -3047,16 +3082,19 @@ ConnStateData::getSslContextStart()
             Security::ContextPointer ctx(Security::GetFrom(fd_table[clientConnection->fd].ssl));
             Ssl::configureUnconfiguredSslContext(ctx, certProperties.signAlgorithm, *port);
         } else {
+            debugs(33, 5, "synchronous generation for " << certProperties.commonName);
             Security::ContextPointer dynCtx(Ssl::GenerateSslContext(certProperties, port->secure, (signAlgorithm == Ssl::algSignTrusted)));
             if (dynCtx && !sslBumpCertKey.isEmpty())
                 storeTlsContextToCache(sslBumpCertKey, dynCtx);
             getSslContextDone(dynCtx);
         }
-        return;
+        return true;
     }
 
+    debugs(33, 5, "static port certificate reuse");
     Security::ContextPointer nil;
     getSslContextDone(nil);
+    return true;
 }
 
 void
@@ -3076,6 +3114,14 @@ ConnStateData::getSslContextDone(Security::ContextPointer &ctx)
             debugs(33, 5, "Using static TLS context.");
             ctx = port->secure.staticContext;
         }
+    }
+
+    if (port->secure.generateHostCertificates && !port->flags.tunnelSslBumping) {
+        // When dealing with a generate-host-certificates port without SslBump,
+        // just replace the SSL connection context.
+        const auto ssl = fd_table[clientConnection->fd].ssl.get();
+        SSL_set_SSL_CTX(ssl, ctx.get());
+        return;
     }
 
     if (!httpsCreate(this, ctx))
@@ -3551,10 +3597,10 @@ clientHttpConnectionsOpen(void)
                 if (s->transport.protocol == AnyP::PROTO_HTTP)
                     s->secure.encryptTransport = false;
             }
-            if (s->flags.tunnelSslBumping) {
-                // Create ssl_ctx cache for this port.
-                Ssl::TheGlobalContextStorage.addLocalStorage(s->s, s->secure.dynamicCertMemCacheSize);
-            }
+        }
+        if (const auto cacheSize = s->secure.dynamicCertMemCacheSize) {
+            if (s->flags.tunnelSslBumping || s->secure.generateHostCertificates)
+                Ssl::TheGlobalContextStorage.addLocalStorage(s->s, cacheSize);
         }
 #endif
 

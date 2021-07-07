@@ -71,6 +71,9 @@ class ConnStateData : public Server, public HttpControlMsgSink, private Independ
 {
 
 public:
+    typedef CbcPointer<ConnStateData> Pointer;
+
+public:
     explicit ConnStateData(const MasterXactionPointer &xact);
     virtual ~ConnStateData();
 
@@ -233,10 +236,11 @@ public:
     /// Splice a bumped client connection on peek-and-splice mode
     bool splice();
 
-    /// Start to create dynamic Security::ContextPointer for host or uses static port SSL context.
-    void getSslContextStart();
+    /// start obtaining a Security::ContextPointer for our connection
+    /// \returns whether the action has ended (w/o waiting for async helpers)
+    bool getSslContextStart();
 
-    /// finish configuring the newly created SSL context"
+    /// apply Security::ContextPointer obtained via getSslContextStart()
     void getSslContextDone(Security::ContextPointer &);
 
     /// Callback function. It is called when squid receive message from ssl_crtd.
@@ -330,6 +334,10 @@ protected:
     void startPinnedConnectionMonitoring();
     void clientPinnedConnectionRead(const CommIoCbParams &io);
 #if USE_OPENSSL
+    /// provides SNI-specific TLS context for the current TLS connection
+    /// using SSL_CTX_set_tlsext_servername_callback() API
+    static int SetSniContext(SSL *, int *, void *);
+
     /// Handles a ready-for-reading TLS squid-to-server connection that
     /// we thought was idle.
     /// \return false if and only if the connection should be closed.
