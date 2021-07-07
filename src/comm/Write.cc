@@ -37,6 +37,7 @@ Comm::Write(const Comm::ConnectionPointer &conn, const char *buf, int size, Asyn
     debugs(5, 5, HERE << conn << ": sz " << size << ": asynCall " << callback);
 
     /* Make sure we are open, not closing, and not writing */
+    assert(Comm::IsConnOpen(conn));
     assert(fd_table[conn->fd].flags.open);
     assert(!fd_table[conn->fd].closing());
     Comm::IoCallback *ccb = COMMIO_FD_WRITECB(conn->fd);
