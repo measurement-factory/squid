@@ -22,6 +22,9 @@
 #if HAVE_OPENSSL_ERR_H
 #include <openssl/err.h>
 #endif
+#if HAVE_OPENSSL_STORE_H
+#include <openssl/store.h>
+#endif
 #endif
 
 #include <limits>
@@ -353,6 +356,7 @@ Security::ServerOptions::loadDhParams()
         return;
 
 #if USE_OPENSSL
+#if OPENSSL_VERSION_MAJOR < 3
     DH *dhp = nullptr;
     if (FILE *in = fopen(dhParamsFile.c_str(), "r")) {
         dhp = PEM_read_DHparams(in, NULL, NULL, NULL);
@@ -372,8 +376,27 @@ Security::ServerOptions::loadDhParams()
             dhp = nullptr;
         }
     }
-
     parsedDhParams.resetWithoutLocking(dhp);
+#else
+    Ssl::BIO_Pointer bio(BIO_new_file(dhParamsFile.c_str(), "r"));
+    if (bio == NULL) {
+        debugs(83, DBG_IMPORTANT, "WARNING: Failed to open " << dhParamsFile << "to retrieve DH parameters");
+        return;
+    }
+    OSSL_LIB_CTX *libctx = OSSL_LIB_CTX_new();
+    OSSL_STORE_CTX *ctx = OSSL_STORE_attach(bio.get(), "file", libctx, nullptr,
+                                            nullptr, nullptr, nullptr, nullptr);
+    while (!parsedDhParams && !OSSL_STORE_eof(ctx)) {
+        OSSL_STORE_INFO *info = OSSL_STORE_load(ctx);
+        const auto type = OSSL_STORE_INFO_get_type(info);
+        if (type == OSSL_STORE_INFO_PARAMS)
+            parsedDhParams.resetWithoutLocking(OSSL_STORE_INFO_get1_PARAMS(info));
+        OSSL_STORE_INFO_free(info);
+    }
+    if (!parsedDhParams) {
+        debugs(83, DBG_IMPORTANT, "WARNING: not valid DH parameters found in " << dhParamsFile);
+    }
+#endif
 #endif
 }
 
@@ -450,13 +473,21 @@ Security::ServerOptions::updateContextEecdh(Security::ContextPointer &ctx)
     if (!eecdhCurve.isEmpty()) {
         debugs(83, 9, "Setting Ephemeral ECDH curve to " << eecdhCurve << ".");
 
-#if USE_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x0090800fL && !defined(OPENSSL_NO_ECDH)
+#if USE_OPENSSL
         int nid = OBJ_sn2nid(eecdhCurve.c_str());
         if (!nid) {
             debugs(83, DBG_CRITICAL, "ERROR: Unknown EECDH curve '" << eecdhCurve << "'");
             return;
         }
 
+#elif USE_OPENSSL && OPENSSL_VERSION_MAJOR >= 3
+         debugs(83, 5, "ERROR: going to set curve '" << eecdhCurve << "'");
+        if (SSL_CTX_set1_groups_list(ctx.get(), eecdhCurve.c_str()) <= 0) {
+            debugs(83, DBG_CRITICAL, "ERROR: Unable to set ECDH curve '" << eecdhCurve << "'");
+            return;
+        }
+
+#elif USE_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x0090800fL && !defined(OPENSSL_NO_ECDH)
         auto ecdh = EC_KEY_new_by_curve_name(nid);
         if (!ecdh) {
             const auto x = ERR_get_error();
@@ -479,7 +510,19 @@ Security::ServerOptions::updateContextEecdh(Security::ContextPointer &ctx)
     // set DH parameters into the server context
 #if USE_OPENSSL
     if (parsedDhParams) {
+#if OPENSSL_VERSION_MAJOR >= 3
+        if (!EVP_PKEY_up_ref(parsedDhParams.get())) {
+            debugs(83, DBG_CRITICAL, "ERROR: EVP_PKEY locking failure");
+            return;
+        }
+        if (!SSL_CTX_set0_tmp_dh_pkey(ctx.get(), parsedDhParams.get())) {
+            debugs(83, DBG_CRITICAL, "ERROR: Unable to set DH parameters");
+            EVP_PKEY_free(parsedDhParams.get());
+            return;
+        }
+#else
         SSL_CTX_set_tmp_dh(ctx.get(), parsedDhParams.get());
+#endif
     }
 #endif
 }

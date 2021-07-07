@@ -1298,6 +1298,7 @@ if test "x$with_openssl" = "xyes"; then
     openssl/opensslv.h \
     openssl/rsa.h \
     openssl/ssl.h \
+    openssl/store.h \
     openssl/x509.h \
     openssl/x509v3.h \
     openssl/engine.h \

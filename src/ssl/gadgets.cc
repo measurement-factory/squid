@@ -9,36 +9,30 @@
 #include "squid.h"
 #include "ssl/gadgets.h"
 
-EVP_PKEY * Ssl::createSslPrivateKey()
+static EVP_PKEY *
+CreateRsaPrivateKey()
 {
-    Security::PrivateKeyPointer pkey(EVP_PKEY_new());
-
-    if (!pkey)
-        return NULL;
-
-    BIGNUM_Pointer bn(BN_new());
-    if (!bn)
-        return NULL;
-
-    if (!BN_set_word(bn.get(), RSA_F4))
-        return NULL;
-
-    Ssl::RSA_Pointer rsa(RSA_new());
+#if OPENSSL_VERSION_MAJOR < 3
+    Ssl::EVP_PKEY_CTX_Pointer rsa(EVP_PKEY_CTX_new_id(EVP_PKEY_RSA, nullptr));
+#else
+    Ssl::EVP_PKEY_CTX_Pointer rsa(EVP_PKEY_CTX_new_from_name(NULL, "RSA", NULL));
+#endif
     if (!rsa)
-        return NULL;
+        return nullptr;
+
+    if (EVP_PKEY_keygen_init(rsa.get()) <= 0)
+        return nullptr;
 
     int num = 2048; // Maybe use 4096 RSA keys, or better make it configurable?
-    if (!RSA_generate_key_ex(rsa.get(), num, bn.get(), NULL))
-        return NULL;
+    if (EVP_PKEY_CTX_set_rsa_keygen_bits(rsa.get(), num) <= 0)
+        return nullptr;
 
-    if (!rsa)
-        return NULL;
+    /* Generate key */
+    EVP_PKEY *pkey = nullptr;
+    if (EVP_PKEY_keygen(rsa.get(), &pkey) <= 0)
+        return nullptr;
 
-    if (!EVP_PKEY_assign_RSA(pkey.get(), (rsa.get())))
-        return NULL;
-
-    rsa.release();
-    return pkey.release();
+    return pkey;
 }
 
 /**
@@ -55,9 +49,14 @@ static bool setSerialNumber(ASN1_INTEGER *ai, BIGNUM const* serial)
     } else {
         if (!bn)
             return false;
-
+#if OPENSSL_VERSION_MAJOR < 3
         if (!BN_pseudo_rand(bn.get(), 64, 0, 0))
             return false;
+#else
+        const int SERIAL_RAND_BITS = 159;
+        if (!BN_rand(bn.get(), SERIAL_RAND_BITS, BN_RAND_TOP_ANY, BN_RAND_BOTTOM_ANY))
+            return false;
+#endif
     }
 
     if (ai && !BN_to_ASN1_INTEGER(bn.get(), ai))
@@ -377,7 +376,11 @@ mimicExtensions(Security::CertPointer & cert, Security::CertPointer const &mimic
     };
 
     EVP_PKEY *certKey = X509_get_pubkey(mimicCert.get());
+#if OPENSSL_VERSION_MAJOR < 3
     const bool rsaPkey = (EVP_PKEY_get0_RSA(certKey) != nullptr);
+#else
+    const bool rsaPkey = EVP_PKEY_is_a(certKey, "RSA");
+#endif
 
     int added = 0;
     int nid;
@@ -551,7 +554,7 @@ static bool generateFakeSslCertificate(Security::CertPointer & certToStore, Secu
     if (properties.signWithPkey.get())
         pkey.resetAndLock(properties.signWithPkey.get());
     else // if not exist generate one
-        pkey.resetWithoutLocking(Ssl::createSslPrivateKey());
+        pkey.resetWithoutLocking(CreateRsaPrivateKey());
 
     if (!pkey)
         return false;
