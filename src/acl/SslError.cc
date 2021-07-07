@@ -10,9 +10,6 @@
 #include "acl/FilledChecklist.h"
 #include "acl/SslError.h"
 #include "acl/SslErrorData.h"
-#include "client_side.h"
-#include "http/Stream.h"
-#include "ssl/ServerBump.h"
 
 int
 ACLSslErrorStrategy::match (ACLData<MatchType> * &data, ACLFilledChecklist *checklist)
