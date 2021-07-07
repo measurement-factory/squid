@@ -209,7 +209,8 @@ Security::TlsDetails::TlsDetails():
     tlsTicketsExtension(false),
     hasTlsTicket(false),
     tlsStatusRequest(false),
-    unsupportedExtensions(false)
+    unsupportedExtensions(false),
+    tlsPadding(false)
 {
 }
 
@@ -459,6 +460,9 @@ Security::HandshakeParser::parseExtensions(const SBuf &raw)
             details->tlsAppLayerProtoNeg = tkAPN.pstring16("APN");
             break;
         }
+        case 21: // Padding extension RFC 7685
+            details->tlsPadding = true;
+            break;
         case 35: // SessionTicket TLS Extension; RFC 5077
             details->tlsTicketsExtension = true;
             details->hasTlsTicket = !extension.data.isEmpty();
@@ -481,7 +485,7 @@ Security::HandshakeParser::parseCiphers(const SBuf &raw)
     Parser::BinaryTokenizer tk(raw);
     while (!tk.atEnd()) {
         const uint16_t cipher = tk.uint16("cipher");
-        details->ciphers.insert(cipher); // including Squid-unsupported ones
+        details->ciphers.push_back(cipher); // including Squid-unsupported ones
     }
 }
 
@@ -499,7 +503,7 @@ Security::HandshakeParser::parseV23Ciphers(const SBuf &raw)
         const uint8_t prefix = tk.uint8("prefix");
         const uint16_t cipher = tk.uint16("cipher");
         if (prefix == 0)
-            details->ciphers.insert(cipher); // including Squid-unsupported ones
+            details->ciphers.push_back(cipher); // including Squid-unsupported ones
     }
 }
 
@@ -513,7 +517,7 @@ Security::HandshakeParser::parseServerHelloHandshakeMessage(const SBuf &raw)
     tk.skip(HelloRandomSize, ".random");
     details->sessionId = tk.pstring8(".session_id");
     // cipherSuite may be unsupported by a peeking Squid
-    details->ciphers.insert(tk.uint16(".cipher_suite"));
+    details->ciphers.push_back(tk.uint16(".cipher_suite"));
     details->compressionSupported = tk.uint8(".compression_method") != 0; // not null
     if (!tk.atEnd()) // extensions present
         parseExtensions(tk.pstring16(".extensions"));
@@ -587,6 +591,7 @@ Security::HandshakeParser::parseSupportedVersionsExtension(const SBuf &extension
                 continue;
             if (!supportedVersionMax || TlsVersionEarlierThan(supportedVersionMax, version))
                 supportedVersionMax = version;
+            details->supportedVersionsExtension.push_back(version);
         }
 
         // ignore empty and ignored-values-only supported_versions
