@@ -244,8 +244,7 @@ ACLRegexData::parse()
     debugs(28, 2, "new Regex line or file");
 
     SBufList sl;
-    const ConfigParser::RegexTokens tokens;
-    for (const auto t: tokens) {
+    for (const auto t: ConfigParser::RegexTokenList("regular expression")) {
         const char *clean = removeUnnecessaryWildcards(t);
         if (strlen(clean) > BUFSIZ-1) {
             debugs(28, DBG_CRITICAL, cfg_filename << " line " << config_lineno << ": " << config_input_line);

@@ -56,8 +56,7 @@ ACLStringData::dump() const
 void
 ACLStringData::parse()
 {
-    const ConfigParser::Tokens tokens;
-    for (const auto t: tokens)
+    for (const auto t: ConfigParser::TokenList("string value"))
         stringValues.insert(SBuf(t));
 }
 

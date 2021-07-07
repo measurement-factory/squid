@@ -22,8 +22,7 @@ void
 ACLAdaptationServiceData::parse()
 {
     Adaptation::Config::needHistory = true;
-    const ConfigParser::Tokens tokens;
-    for (const auto t: tokens) {
+    for (const auto t: ConfigParser::TokenList("adaptation service name")) {
         if (
 #if USE_ECAP
             Adaptation::Ecap::TheConfig.findServiceConfig(t) == NULL &&

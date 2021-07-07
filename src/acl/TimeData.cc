@@ -109,8 +109,7 @@ ACLTimeData::parse()
 
     int h1, m1, h2, m2;
 
-    const ConfigParser::Tokens tokens;
-    for (auto t: tokens) {
+    for (auto t: ConfigParser::TokenList("time value")) {
         if (*t < '0' || *t > '9') {
             /* assume its day-of-week spec */
 

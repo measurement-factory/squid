@@ -62,8 +62,7 @@ ACLRandom::parse()
 {
     char bufa[256], bufb[256];
 
-    const ConfigParser::Tokens tokens;
-    const auto t = *tokens.begin();
+    const auto t = ConfigParser::ExtractToken("probability value");
 
     debugs(28, 5, "aclParseRandomData: " << t);
 
