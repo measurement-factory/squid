@@ -164,7 +164,7 @@ typedef std::set<OptionName, OptionNameCmp> ParameterFlags;
 /// parses the flags part of the being-parsed ACL, filling Option values
 /// \param options options supported by the ACL as a whole (e.g., -n)
 /// \param flags options supported by ACL parameter(s) (e.g., -i)
-void ParseFlags(const Options &options, const ParameterFlags &flags);
+void ParseOptions(const Options &options, const ParameterFlags &flags);
 
 /* handy for Class::options() and Class::supportedFlags() defaults */
 const Options &NoOptions(); ///< \returns an empty Options container

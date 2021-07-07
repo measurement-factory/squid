@@ -237,7 +237,7 @@ Acl::OptionsParser::parse()
 }
 
 void
-Acl::ParseFlags(const Options &options, const ParameterFlags &flags)
+Acl::ParseOptions(const Options &options, const ParameterFlags &flags)
 {
     OptionsParser parser(options, flags);
     parser.parse();

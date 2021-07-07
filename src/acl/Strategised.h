@@ -81,7 +81,7 @@ template <class MatchType>
 void
 ACLStrategised<MatchType>::parseFlags()
 {
-    ParseFlags(options(), data->supportedFlags());
+    ACL::parseFlags(options(), data->supportedFlags());
 }
 
 template <class MatchType>

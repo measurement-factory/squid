@@ -294,18 +294,22 @@ ACL::ParseAclLine(ConfigParser &parser, ACL ** head)
 ACL::ArgumentAction
 ACL::calculateArgumentAction() const
 {
-    if (argumentAction.value.cmp("ignore") == 0)
-        return argIgnore;
-    else if (argumentAction.value.cmp("warn") == 0)
-        return argWarn;
-    else if (argumentAction.value.cmp("fatal") == 0)
-        return argFatal;
-    else
-        Must (argumentAction.value.cmp("default") == 0);
+    if (argumentAction) {
+        if (argumentAction.value.cmp("ignore") == 0)
+            return argIgnore;
+        else if (argumentAction.value.cmp("warn") == 0)
+            return argWarn;
+        else if (argumentAction.value.cmp("fatal") == 0)
+            return argFatal;
+        else
+            Must (argumentAction.value.cmp("default") == 0);
+    }
+
     if (Config.emptyAclAction > 0)
         return argFatal;
     else if (Config.emptyAclAction < 0)
         return argWarn;
+
     return argIgnore;
 }
 
@@ -315,11 +319,20 @@ ACL::isProxyAuth() const
     return false;
 }
 
+// ACL kids that carry ACLData which supports parameter flags override this
 void
 ACL::parseFlags()
 {
-    // ACL kids that carry ACLData which supports parameter flags override this
-    Acl::ParseFlags(options(), Acl::NoFlags());
+    parseFlags(options(), Acl::NoFlags());
+}
+
+void
+ACL::parseFlags(const Acl::Options &otherOptions, const Acl::ParameterFlags &otherFlags)
+{
+    Acl::Options resultOptions(ACL::options());
+    resultOptions.insert(otherOptions.begin(), otherOptions.end());
+    // ACL does not have flags to merge for now
+    Acl::ParseOptions(resultOptions, otherFlags);
 }
 
 SBufList
