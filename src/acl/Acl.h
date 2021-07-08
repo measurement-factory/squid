@@ -100,7 +100,7 @@ private:
     virtual bool requiresRequest() const;
     /// whether our (i.e. shallow) match() requires checklist to have a reply
     virtual bool requiresReply() const;
-
+    /// possible actions to handle a missing ACL configuration argument
     typedef enum { argIgnore = 1, argWarn, argFatal } ArgumentAction;
 
     ArgumentAction calculateArgumentAction() const;

@@ -257,7 +257,7 @@ ACL::ParseAclLine(ConfigParser &parser, ACL ** head)
 
     try {
         A->parse();
-    } catch (...) {
+    } catch (const Configuration::MissingTokenException &) {
         const auto action = A->calculateArgumentAction();
         if (action != argIgnore) {
             assert (action == argWarn || action == argFatal);
