@@ -138,7 +138,7 @@ ACLDomainData::parse()
     if (!domains)
         domains = new Splay<char *>();
 
-    for (const auto t : ConfigParser::TokenList("domain name")) {
+    for (auto t = ConfigParser::Token("domain name"); t; ++t) {
         Tolower(t);
         domains->insert(xstrdup(t), aclDomainCompare);
     }

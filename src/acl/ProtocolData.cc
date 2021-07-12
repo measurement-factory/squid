@@ -53,7 +53,7 @@ ACLProtocolData::dump() const
 void
 ACLProtocolData::parse()
 {
-    for (const auto t: ConfigParser::TokenList("protocol name")) {
+    for (auto t = ConfigParser::Token("protocol name"); t; ++t) {
         int p = AnyP::PROTO_NONE;
         for (; p < AnyP::PROTO_UNKNOWN; ++p) {
             if (strcasecmp(t, AnyP::ProtocolType_str[p]) == 0) {

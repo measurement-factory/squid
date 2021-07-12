@@ -49,10 +49,10 @@ ACLHierCodeData::dump() const
 void
 ACLHierCodeData::parse()
 {
-    for (const auto t: ConfigParser::TokenList("hier code name")) {
+    for (auto t = ConfigParser::Token("hier code name"); t; ++t) {
         for (hier_code iter = HIER_NONE; iter <= HIER_MAX; ++iter) {
             if (iter == HIER_MAX) {
-                fatalf("ERROR: No such hier_code '%s'",t);
+                fatalf("ERROR: No such hier_code '%s'", static_cast<char *>(t));
                 return;
             }
             if (strcmp(hier_code_str[iter],t) == 0) {

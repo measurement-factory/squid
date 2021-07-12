@@ -41,7 +41,7 @@ Acl::TransactionInitiator::empty () const
 void
 Acl::TransactionInitiator::parse()
 {
-    for (const auto s: ConfigParser::TokenList("transaction initiator")) {
+    for (auto s = ConfigParser::Token("transaction initiator"); s; ++s) {
         initiators_ |= XactionInitiator::ParseInitiators(s);
         cfgWords.push_back(SBuf(s));
     }
