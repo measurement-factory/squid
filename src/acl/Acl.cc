@@ -329,7 +329,11 @@ ACL::parseFlags()
 void
 ACL::parseFlags(const Acl::Options &otherOptions, const Acl::ParameterFlags &otherFlags)
 {
-    Acl::Options resultOptions(ACL::options());
+    static const Acl::TextOption ArgumentActionOption(Acl::Option::valueRequired);
+    static const Acl::Options MyOptions = { { "--argument-action", &ArgumentActionOption } };
+    ArgumentActionOption.linkWith(&argumentAction);
+
+    Acl::Options resultOptions(MyOptions);
     resultOptions.insert(otherOptions.begin(), otherOptions.end());
     // ACL does not have flags to merge for now
     Acl::ParseOptions(resultOptions, otherFlags);
@@ -430,15 +434,6 @@ bool
 ACL::requiresRequest() const
 {
     return false;
-}
-
-const Acl::Options &
-ACL::options()
-{
-    static const Acl::TextOption ArgumentActionOption(Acl::Option::valueRequired);
-    static const Acl::Options MyOptions = { { "--argument-action", &ArgumentActionOption } };
-    ArgumentActionOption.linkWith(&argumentAction);
-    return MyOptions;
 }
 
 /*********************/

@@ -60,7 +60,7 @@ public:
     bool matches(ACLChecklist *checklist) const;
 
     /// \returns (linked) Options supported by this ACL
-    virtual const Acl::Options &options();
+    virtual const Acl::Options &options() { return Acl::NoOptions(); }
 
     /// configures supported ACL options, throwing on configuration errors
     virtual void parseFlags();
