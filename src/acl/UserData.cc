@@ -102,21 +102,21 @@ ACLUserData::parse()
     debugs(28, 3, "Case-insensitive-switch is " << flags.case_insensitive);
     /* we might inherit from a previous declaration */
 
-    auto token = ConfigParser::Token("user name");
-    if (strncmp(token, "REQUIRED", 8) == 0) {
+    const auto tokens = ConfigParser::TokenList("user name");
+    if (strncmp(*tokens.begin(), "REQUIRED", 8) == 0) {
         debugs(28, 5, "REQUIRED-type enabled");
         flags.required = true;
-        if (++token)
+        auto tok = tokens.begin();
+        if (++tok != tokens.end())
             debugs(28, DBG_PARSE_NOTE(1), "WARNING: detected attempt to add usernames to an acl of type REQUIRED");
     } else {
-        while(token) {
-            SBuf s(token);
+        for (const auto t: tokens) {
+            SBuf s(t);
             debugs(28, 6, "Got token: " << s);
             if (flags.case_insensitive)
                 s.toLower();
             debugs(28, 6, "Adding user " << s);
             userDataNames.insert(s);
-            ++token;
         }
     }
     debugs(28,4, "ACL contains " << userDataNames.size() << " users");

@@ -21,16 +21,16 @@ class wordlist;
 
 namespace Configuration {
 
-/// Is thrown when a required token is missing
-class MissingTokenException : public TextException { using TextException::TextException; };
-
 typedef char *(*TokenExtractor)();
 
 /// Forward input iterator for tokens when parsing a configuration line
 class TokenIterator : public std::iterator<std::input_iterator_tag, char *>
 {
 public:
-    explicit TokenIterator(const TokenExtractor method, const char *desc);
+
+    explicit TokenIterator(const TokenExtractor method) : method_(method), current_(method_ ? method_() : nullptr) {}
+
+    reference operator*() { return current_; }
 
     TokenIterator& operator++() {
         assert(method_);
@@ -44,12 +44,30 @@ public:
         return tmp;
     }
 
-    operator char *() { return current_; }
+    bool operator== (const TokenIterator& other) const { return current_ == other.current_; }
+    bool operator!= (const TokenIterator& other) const { return current_ != other.current_; }
 
 private:
     TokenExtractor method_;
     value_type current_;
 };
+
+/// A container of tokens represented by TokenIterator objects
+class Tokens
+{
+public:
+    Tokens(const char *desc, const bool isRegex) : description(desc), expectRegex(isRegex), first(nullptr) {}
+    TokenIterator begin() const;
+    TokenIterator end() const { return TokenIterator(nullptr); }
+
+private:
+    const char *description; ///< a description of expected token(s)
+    const bool expectRegex; ///< whether the token parser expects regular expressions
+    mutable TokenIterator first; ///< caches the begin() result
+};
+
+/// Is thrown when a required token is missing
+class MissingTokenException : public TextException { using TextException::TextException; };
 
 }
 
@@ -186,10 +204,13 @@ public:
     static SBuf CurrentLocation();
 
     /// \returns a token sequence scanned by strtokFile()
-    static Configuration::TokenIterator Token(const char *description) { return Configuration::TokenIterator(strtokFile, description); }
+    static Configuration::Tokens TokenList(const char *description) { return Configuration::Tokens(description, false); }
 
     /// \returns a token sequence scanned by RegexStrtokFile()
-    static Configuration::TokenIterator RegexToken(const char *description) { return Configuration::TokenIterator(RegexStrtokFile, description); }
+    static Configuration::Tokens RegexTokenList(const char *description) { return Configuration::Tokens(description, true); }
+
+    /// \returns a token extracted by strtokFile() or throws
+    static const char * ExtractToken(const char *description) { return *Configuration::Tokens(description, false).begin(); }
 
     /// configuration_includes_quoted_values in squid.conf
     static bool RecognizeQuotedValues;

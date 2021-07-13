@@ -47,7 +47,7 @@ ACLSquidErrorData::dump() const
 void
 ACLSquidErrorData::parse()
 {
-    for (auto token = ConfigParser::Token("Squid error"); token; ++token) {
+    for (const auto token: ConfigParser::TokenList("Squid error")) {
         err_type err = errorTypeByName(token);
 
         if (err < ERR_MAX)

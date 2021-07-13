@@ -119,7 +119,7 @@ ACLHTTPStatus::parse()
 void
 aclParseHTTPStatusList(Splay<acl_httpstatus_data *> **curlist)
 {
-    for (auto t = ConfigParser::Token("http_status code"); t; ++t) {
+    for (const auto t : ConfigParser::TokenList("http_status code")) {
         if (acl_httpstatus_data *q = aclParseHTTPStatusData(t))
             (*curlist)->insert(q, acl_httpstatus_data::compare);
     }

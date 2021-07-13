@@ -514,9 +514,10 @@ ACLExternal::parse()
         return;
     }
 
-    ConfigParser::Token token("external acl name");
+    const auto tokenList = ConfigParser::TokenList("external acl name");
+    auto tok = tokenList.begin();
 
-    data = new external_acl_data(find_externalAclHelper(token));
+    data = new external_acl_data(find_externalAclHelper(*tok));
 
     if (!data->def) {
         delete data;
@@ -528,8 +529,8 @@ ACLExternal::parse()
     // this is the name of the 'acl' directive being tested
     data->name = xstrdup(AclMatchedName);
 
-    while (++token)
-        wordlistAdd(&data->arguments, token);
+    while (++tok != tokenList.end())
+        wordlistAdd(&data->arguments, *tok);
 }
 
 bool

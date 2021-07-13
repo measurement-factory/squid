@@ -101,7 +101,7 @@ aclParseArpData(const char *t)
 void
 ACLARP::parse()
 {
-    for (auto t = ConfigParser::Token("ethernet address"); t; ++t) {
+    for (const auto t: ConfigParser::TokenList("ethernet address")) {
         if (Eui::Eui48 *q = aclParseArpData(t)) {
             aclArpData.insert(*q);
             delete q;

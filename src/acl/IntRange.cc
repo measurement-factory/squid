@@ -19,7 +19,7 @@
 void
 ACLIntRange::parse()
 {
-    for (auto a = ConfigParser::Token("port value"); a; ++a) {
+    for (const auto a: ConfigParser::TokenList("port value")) {
         char *b = strchr(a, '-');
         unsigned short port1, port2;
 
