@@ -676,13 +676,12 @@ ConfigParser::CfgFile::~CfgFile()
         fclose(wordFile);
 }
 
-Configuration::TokenIterator
+Configuration::TokensIterator
 Configuration::Tokens::begin() const
 {
+    auto first = TokensIterator(method_);
     if (first == end())
-        first = TokenIterator(expectRegex ? ConfigParser::RegexStrtokFile : ConfigParser::strtokFile);
-    if (first == end())
-        throw MissingTokenException(ToSBuf("missing required argument: ", description), Here());
+        throw MissingTokenException(ToSBuf("missing required argument: ", description_), Here());
     return first;
 }
 

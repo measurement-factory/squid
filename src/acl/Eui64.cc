@@ -73,7 +73,7 @@ aclParseEuiData(const char *t)
 void
 ACLEui64::parse()
 {
-    for (const auto t : ConfigParser::TokenList("eui address")) {
+    for (const auto t : ConfigParser::Tokens("eui address")) {
         if (Eui::Eui64 * q = aclParseEuiData(t)) {
             eui64Data.insert(*q);
             delete q;

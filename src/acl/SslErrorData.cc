@@ -39,7 +39,7 @@ ACLSslErrorData::dump() const
 void
 ACLSslErrorData::parse()
 {
-    for (const auto t: ConfigParser::TokenList("SSL certificate validation error name"))
+    for (const auto t: ConfigParser::Tokens("SSL certificate validation error name"))
         Ssl::ParseErrorString(t, values);
 }
 
