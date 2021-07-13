@@ -12,7 +12,7 @@
 #include "acl/Strategy.h"
 #include "security/forward.h"
 
-class ACLSslErrorStrategy : public ACLStrategy<const Security::CertErrors *>
+class ACLSslErrorStrategy : public ACLStrategy<const Security::CertErrorsPointer &>
 {
 
 public:

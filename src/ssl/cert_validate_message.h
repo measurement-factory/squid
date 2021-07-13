@@ -27,7 +27,7 @@ class CertValidationRequest
 {
 public:
     Security::SessionPointer ssl;
-    Security::CertErrors *errors = nullptr; ///< The list of errors detected
+    Security::CertErrorsPointer errors; ///< The list of errors detected
     std::string domainName; ///< The server name
 };
 

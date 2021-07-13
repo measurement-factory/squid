@@ -41,7 +41,7 @@ public:
 
     /// Details a server-side certificate verification failure.
     /// If `broken` is nil, then the broken certificate is the peer certificate.
-    ErrorDetail(ErrorCode err_no, const CertPointer &peer, const CertPointer &broken, const char *aReason = NULL);
+    ErrorDetail(ErrorCode err_no, const CertPointer &peer, const CertPointer &broken, int depth, const char *aReason = NULL);
 
 #if USE_OPENSSL
     /// Details (or starts detailing) a non-validation failure.
@@ -73,6 +73,8 @@ public:
     /// peer or intermediate certificate that failed validation (or nil)
     Certificate *brokenCert() {return broken_cert.get(); }
 
+    int certDepth() {return cert_depth;}
+
     /// remember the SSL certificate of our peer; requires nil peerCert()
     /// unlike the cert-setting constructor, does not assume the cert is bad
     void setPeerCertificate(const CertPointer &);
@@ -91,8 +93,17 @@ private:
     const char *err_lib_error() const;
     size_t convert(const char *code, const char **value) const;
 
+    bool operator == (const ErrorDetail &ce) const {return false;}
+    bool operator != (const ErrorDetail &ce) const {return false;}
+
     CertPointer peer_cert; ///< A pointer to the peer certificate
     CertPointer broken_cert; ///< A pointer to the broken certificate (peer or intermediate)
+    /**
+     * Absolute cert position in the final certificate chain that may include
+     * intermediate certificates. Chain positions start with zero and increase
+     * towards the root certificate. Negative if unknown.
+     */
+    int cert_depth = -1;
 
     /// Squid-discovered error, validation error, or zero; \see ErrorCode
     ErrorCode error_no = 0;

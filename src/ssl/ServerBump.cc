@@ -65,13 +65,14 @@ Ssl::ServerBump::attachServerSession(const Security::SessionPointer &s)
     serverSession = s;
 }
 
-const Security::CertErrors *
+const Security::CertErrorsPointer &
 Ssl::ServerBump::sslErrors() const
 {
+    static Security::CertErrorsPointer nil;
     if (!serverSession)
-        return NULL;
+        return nil;
 
-    const Security::CertErrors *errs = static_cast<const Security::CertErrors*>(SSL_get_ex_data(serverSession.get(), ssl_ex_index_ssl_errors));
-    return errs;
+    const Security::CertErrorsPointer *errs = static_cast<const Security::CertErrorsPointer *>(SSL_get_ex_data(serverSession.get(), ssl_ex_index_ssl_errors));
+    return (errs ? *errs : nil);
 }
 
