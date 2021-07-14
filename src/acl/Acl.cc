@@ -257,13 +257,13 @@ ACL::ParseAclLine(ConfigParser &parser, ACL ** head)
 
     try {
         A->parse();
-    } catch (const Configuration::MissingTokenException &) {
+    } catch (const Configuration::MissingTokenException &e) {
         const auto action = A->calculateArgumentAction();
         if (action != argIgnore) {
             assert (action == argWarn || action == argFatal);
             debugs(28, DBG_CRITICAL, "WARNING: invalid ACL argument" <<
                     Debug::Extra << "line: " << A->cfgline <<
-                    Debug::Extra << "problem: " << CurrentException);
+                    Debug::Extra << "problem: " << e.what());
             if (action == argFatal)
                 self_destruct();
         }
