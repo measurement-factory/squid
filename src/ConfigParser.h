@@ -32,7 +32,7 @@ public:
 
     explicit TokensIterator(const TokenExtractor method):
         method_(method), current_(method_ ? method_() : nullptr)
-        {}
+    {}
 
     value_type operator*() { return current_; }
 
