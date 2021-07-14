@@ -302,7 +302,7 @@ ACL::calculateArgumentAction() const
         else if (argumentAction.value.cmp("fatal") == 0)
             return argFatal;
         else
-            Must (argumentAction.value.cmp("default") == 0);
+            Must (argumentAction.value.cmp("empty_acl_action") == 0);
     }
 
     if (Config.emptyAclAction > 0)
@@ -330,7 +330,7 @@ void
 ACL::parseFlags(const Acl::Options &otherOptions, const Acl::ParameterFlags &otherFlags)
 {
     static const Acl::TextOption ArgumentActionOption(Acl::Option::valueRequired);
-    static const Acl::Options MyOptions = { { "--argument-action", &ArgumentActionOption } };
+    static const Acl::Options MyOptions = { { "--missing-argument-action", &ArgumentActionOption } };
     ArgumentActionOption.linkWith(&argumentAction);
 
     Acl::Options resultOptions(MyOptions);

@@ -679,7 +679,7 @@ ConfigParser::CfgFile::~CfgFile()
 Configuration::TokensIterator
 Configuration::Tokens::begin() const
 {
-    auto first = TokensIterator(method_);
+    const auto first = TokensIterator(method_);
     if (first == end())
         throw MissingTokenException(ToSBuf("missing required argument: ", description_), Here());
     return first;

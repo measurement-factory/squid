@@ -1077,6 +1077,14 @@ DOC_START
 		alternative non-alphanumeric delimiter characters.
 		non-alphanumeric delimiter characters.
 
+	--missing-argument-action=
+		An action performed by the ACL parser when the ACL arguments are missing:
+		    ignore		ignore this problem
+		    warn		report a level-1 error message
+		    fatal		abort as a fatal configuration error
+		    empty-acl-action	adhere to the empty_acl_action configuration option
+		Takes precedence over the global empty_acl_action option.
+
 	--	Used to stop processing all options, in the case the first acl
 		value has '-' character as first character (for example the '-'
 		is a valid domain name)
