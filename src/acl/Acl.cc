@@ -264,6 +264,7 @@ ACL::ParseAclLine(ConfigParser &parser, ACL ** head)
             debugs(28, DBG_CRITICAL, "WARNING: invalid ACL argument" <<
                     Debug::Extra << "line: " << A->cfgline <<
                     Debug::Extra << "problem: " << e.what());
+            // TODO: accumulate all such errors before quitting
             if (action == argFatal)
                 self_destruct();
         }
