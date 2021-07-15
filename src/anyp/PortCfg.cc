@@ -13,11 +13,13 @@
 #include "Debug.h"
 #include "fatal.h"
 #include "sbuf/SBuf.h"
+#include "sbuf/Stream.h"
 #include "security/PeerOptions.h"
 #if USE_OPENSSL
 #include "ssl/support.h"
 #endif
 
+#include <algorithm>
 #include <cstring>
 #include <initializer_list>
 #include <limits>
@@ -117,14 +119,12 @@ constexpr std::array<PortOptionPair, 5> PortOptionStrings =
     }
 };
 
-typedef std::pair<AnyP::TrafficModeFlags::PortKind, const char *> PortKindPair;
-constexpr std::array<PortKindPair, 3> PortKindStrings =
+typedef std::map<AnyP::TrafficModeFlags::PortKind, const char *> PortKindMap;
+static const PortKindMap PortKindStrings =
 {
-    {
-        {AnyP::TrafficModeFlags::httpPort, "http_port"},
-        {AnyP::TrafficModeFlags::httpsPort, "https_port"},
-        {AnyP::TrafficModeFlags::ftpPort, "ftp_port"},
-    }
+    {AnyP::TrafficModeFlags::httpPort, "http_port"},
+    {AnyP::TrafficModeFlags::httpsPort, "https_port"},
+    {AnyP::TrafficModeFlags::ftpPort, "ftp_port"}
 };
 
 static const char *
@@ -138,8 +138,14 @@ PortOptionStr(const AnyP::TrafficModeFlags::Pointer flagPointer)
     return nullptr;
 }
 
-static SBuf
-PortOptionStrList(const AnyP::TrafficModeFlags::List &list)
+std::ostream &
+operator <<(std::ostream &os, const AnyP::TrafficModeFlags::Pointer flagPointer)
+{
+    return os << PortOptionStr(flagPointer);
+}
+
+std::ostream &
+operator <<(std::ostream &os, const AnyP::TrafficModeFlags::List &list)
 {
     SBuf str;
     for (const auto &p: list) {
@@ -148,17 +154,7 @@ PortOptionStrList(const AnyP::TrafficModeFlags::List &list)
         str.append(PortOptionStr(p));
     }
     assert(!str.isEmpty());
-    return str;
-}
-
-static const char *
-PortKindStr(const AnyP::TrafficModeFlags &flags)
-{
-    for (const auto &p: PortKindStrings)
-        if (p.first == flags.portKind)
-            return p.second;
-    assert(false); // unreachable
-    return nullptr;
+    return os << str;
 }
 
 void
@@ -166,74 +162,39 @@ AnyP::PortCfg::rejectFlags(const AnyP::TrafficModeFlags::List &list, const char 
 {
     const auto &rawFlags = flags.rawConfig();
     for (const auto &p: list) {
-        if (rawFlags.*p) {
-            debugs(3, DBG_CRITICAL, "FATAL: " << PortOptionStr(p) << " is unsupported on " << PortKindStr(rawFlags) <<  ' ' << detail);
-            self_destruct();
-        }
-    }
-}
-
-void
-AnyP::PortCfg::allowEither(const AnyP::TrafficModeFlags::List &list, const char *detail)
-{
-    const auto &rawFlags = flags.rawConfig();
-    int conflictedCount = 0;
-    SBuf conflicted;
-    for (const auto &p: list) {
-        if (rawFlags.*p) {
-            conflictedCount++;
-            if (!conflicted.isEmpty())
-                conflicted.append(',');
-            conflicted.append(PortOptionStr(p));
-        }
-    }
-    if (conflictedCount <= 1)
-        return;
-
-    debugs(3, DBG_CRITICAL, "FATAL: the combination of " << conflicted <<
-            " is unsupported on " << PortKindStr(rawFlags) << ' ' << detail);
-    self_destruct();
-}
-
-void
-AnyP::PortCfg::checkImplication(const AnyP::TrafficModeFlags::Pointer aFlag, const AnyP::TrafficModeFlags::List &list, const char *detail)
-{
-    const auto &rawFlags = flags.rawConfig();
-    if (!(rawFlags.*aFlag))
-        return;
-
-    for (const auto &p: list) {
         if (rawFlags.*p)
-            return;
+            throw TextException(ToSBuf(p, " is unsupported on ", PortKindStrings.at(rawFlags.portKind), " ", detail), Here());
     }
-
-    debugs(3, DBG_CRITICAL, "FATAL: " << PortOptionStr(aFlag) << " requires one of " << PortOptionStrList(list) <<
-            " on " << PortKindStr(rawFlags) << ' ' << detail);
-    self_destruct();
 }
 
 void
-AnyP::PortCfg::checkImplication(const AnyP::TrafficModeFlags::Pointer aFlag, const AnyP::TrafficModeFlags::Pointer otherFlag, const char *detail)
+AnyP::PortCfg::allowEither(const AnyP::TrafficModeFlags::List &list)
 {
     const auto &rawFlags = flags.rawConfig();
-    if (!(rawFlags.*aFlag))
-        return;
-    if (!(rawFlags.*otherFlag)) {
-        debugs(3, DBG_CRITICAL, "FATAL: " << PortOptionStr(aFlag) << " requires " << PortOptionStr(otherFlag) <<
-                " on " << PortKindStr(rawFlags) << ' ' << detail);
-        self_destruct();
+
+    if (std::count_if(list.begin(), list.end(),
+    [&rawFlags](const AnyP::TrafficModeFlags::Pointer p) { return rawFlags.*p; }) > 1) {
+        throw TextException(ToSBuf("the combination of ", list, " is unsupported on ",
+                    PortKindStrings.at(rawFlags.portKind)), Here());
     }
 }
 
-bool
-AnyP::PortCfg::hasAll(const AnyP::TrafficModeFlags::List &list)
+void
+AnyP::PortCfg::checkImplication(const AnyP::TrafficModeFlags::Pointer aFlag, const AnyP::TrafficModeFlags::List &list)
 {
+    assert(list.size());
+
     const auto &rawFlags = flags.rawConfig();
-    for (const auto &p: list) {
-        if (!(rawFlags.*p))
-            return false;
-    }
-    return true;
+    if (!(rawFlags.*aFlag))
+        return;
+
+    if (std::find_if(list.begin(), list.end(),
+    [&rawFlags](const AnyP::TrafficModeFlags::Pointer p) { return rawFlags.*p; }))
+        return;
+
+    const auto detail = (list.size() == 1) ? "" : "one of ";
+    throw TextException(ToSBuf(aFlag, " requires ", detail, list,
+                " on ", PortKindStrings.at(rawFlags.portKind)), Here());
 }
 
 void
@@ -244,13 +205,9 @@ AnyP::PortCfg::checkFlags()
 
     switch (rawFlags.portKind) {
 
-    case Flags::httpPort: {
-        if (rawFlags.accelSurrogate)
-            rejectFlags({&TrafficModeFlags::natIntercept, &TrafficModeFlags::tproxyIntercept}, "accel");
-        else
-            allowEither({&TrafficModeFlags::natIntercept, &TrafficModeFlags::tproxyIntercept});
-    }
-    break;
+    case Flags::httpPort:
+        allowEither({&TrafficModeFlags::accelSurrogate, &TrafficModeFlags::natIntercept, &TrafficModeFlags::tproxyIntercept});
+        break;
 
     case Flags::httpsPort: {
         if (rawFlags.accelSurrogate) {
@@ -262,9 +219,9 @@ AnyP::PortCfg::checkFlags()
                     {&TrafficModeFlags::natIntercept, &TrafficModeFlags::tproxyIntercept, &TrafficModeFlags::proxySurrogateHttp});
 
             // tproxy, intercept and require-proxy-header require ssl-bump
-            checkImplication(&TrafficModeFlags::natIntercept, &TrafficModeFlags::tunnelSslBumping);
-            checkImplication(&TrafficModeFlags::tproxyIntercept, &TrafficModeFlags::tunnelSslBumping);
-            checkImplication(&TrafficModeFlags::proxySurrogateHttp, &TrafficModeFlags::tunnelSslBumping);
+            checkImplication(&TrafficModeFlags::natIntercept, {&TrafficModeFlags::tunnelSslBumping});
+            checkImplication(&TrafficModeFlags::tproxyIntercept, {&TrafficModeFlags::tunnelSslBumping});
+            checkImplication(&TrafficModeFlags::proxySurrogateHttp, {&TrafficModeFlags::tunnelSslBumping});
 
             allowEither({&TrafficModeFlags::natIntercept, &TrafficModeFlags::tproxyIntercept, &TrafficModeFlags::proxySurrogateHttp});
         }
@@ -280,7 +237,7 @@ AnyP::PortCfg::checkFlags()
         fatal("unreachable");
     }
 
-    if (hasAll({&TrafficModeFlags::tproxyIntercept, &TrafficModeFlags::proxySurrogateHttp})) {
+    if (rawFlags.tproxyIntercept && rawFlags.proxySurrogateHttp) {
         // receiving is still permitted, so we do not unset the TPROXY flag
         // spoofing access control override takes care of the spoof disable later
         debugs(3, DBG_IMPORTANT, "Disabling TPROXY Spoofing on port " << s << " (require-proxy-header enabled)");
