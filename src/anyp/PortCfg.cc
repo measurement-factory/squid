@@ -107,18 +107,6 @@ AnyP::PortCfg::detailCodeContext(std::ostream &os) const
     return os;
 }
 
-typedef std::pair<AnyP::TrafficModeFlags::Pointer, const char *> PortOptionPair;
-constexpr std::array<PortOptionPair, 5> PortOptionStrings =
-{
-    {
-        {&AnyP::TrafficModeFlags::accelSurrogate, "accel"},
-        {&AnyP::TrafficModeFlags::proxySurrogateHttp, "require-proxy-header"},
-        {&AnyP::TrafficModeFlags::natIntercept, "intercept"},
-        {&AnyP::TrafficModeFlags::tproxyIntercept, "tproxy"},
-        {&AnyP::TrafficModeFlags::tunnelSslBumping, "ssl-bump"}
-    }
-};
-
 typedef std::map<AnyP::TrafficModeFlags::PortKind, const char *> PortKindMap;
 static const PortKindMap PortKindStrings =
 {
@@ -130,6 +118,16 @@ static const PortKindMap PortKindStrings =
 static const char *
 PortOptionStr(const AnyP::TrafficModeFlags::Pointer flagPointer)
 {
+    typedef std::pair<AnyP::TrafficModeFlags::Pointer, const char *> PortOptionPair;
+    static constexpr std::array<PortOptionPair, 5> PortOptionStrings = { {
+            {&AnyP::TrafficModeFlags::accelSurrogate, "accel"},
+            {&AnyP::TrafficModeFlags::proxySurrogateHttp, "require-proxy-header"},
+            {&AnyP::TrafficModeFlags::natIntercept, "intercept"},
+            {&AnyP::TrafficModeFlags::tproxyIntercept, "tproxy"},
+            {&AnyP::TrafficModeFlags::tunnelSslBumping, "ssl-bump"}
+        }
+    };
+
     for (const auto &p: PortOptionStrings) {
         if (p.first == flagPointer)
            return p.second;
