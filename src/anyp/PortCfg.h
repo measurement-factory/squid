@@ -77,10 +77,8 @@ private:
     void rejectFlags(const TrafficModeFlags::List &);
     ///  rejects flag combinations where more than one flag is set
     void allowEither(const AnyP::TrafficModeFlags::List &);
-    /// rejects flags combinations where aFlag is set and all list flags are unset
-    void checkFlagImplication(const AnyP::TrafficModeFlags::Pointer aFlag, const AnyP::TrafficModeFlags::List &list);
-    /// rejects flags combinations where some of list flags is set and aFlag is unset
-    void checkListImplication(const AnyP::TrafficModeFlags::List &list, const AnyP::TrafficModeFlags::Pointer aFlag);
+    /// rejects flags combinations where some of list1 flags are set and all of list2 flags are unset
+    void checkImplication(const AnyP::TrafficModeFlags::List &list1, const AnyP::TrafficModeFlags::List &list2);
 };
 
 } // namespace AnyP

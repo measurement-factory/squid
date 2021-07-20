@@ -178,40 +178,25 @@ AnyP::PortCfg::allowEither(const AnyP::TrafficModeFlags::List &list)
 }
 
 void
-AnyP::PortCfg::checkFlagImplication(const AnyP::TrafficModeFlags::Pointer aFlag, const AnyP::TrafficModeFlags::List &list)
+AnyP::PortCfg::checkImplication(const AnyP::TrafficModeFlags::List &list1, const AnyP::TrafficModeFlags::List &list2)
 {
-    assert(list.size());
+    assert(list1.size());
+    assert(list2.size());
 
     const auto &rawFlags = flags.rawConfig();
 
-    if (!(rawFlags.*aFlag))
+    if (std::find_if(list1.begin(), list1.end(),
+    [&rawFlags](const AnyP::TrafficModeFlags::Pointer p) { return rawFlags.*p; }) == list1.end())
         return;
 
-    if (std::find_if(list.begin(), list.end(),
-    [&rawFlags](const AnyP::TrafficModeFlags::Pointer p) { return rawFlags.*p; }) != list.end())
+    if (std::find_if(list2.begin(), list2.end(),
+    [&rawFlags](const AnyP::TrafficModeFlags::Pointer p) { return rawFlags.*p; }) != list2.end())
         return;
 
-    const auto detail = (list.size() == 1) ? "" : "one of ";
-    throw TextException(ToSBuf(aFlag, " requires ", detail, list,
-                " on ", PortKindStrings.at(rawFlags.portKind)), Here());
-}
+    const auto detail1 = (list1.size() == 1) ? "" : "any of ";
+    const auto detail2 = (list2.size() == 1) ? "" : "one of ";
 
-void
-AnyP::PortCfg::checkListImplication(const AnyP::TrafficModeFlags::List &list, const AnyP::TrafficModeFlags::Pointer aFlag)
-{
-    assert(list.size());
-
-    const auto &rawFlags = flags.rawConfig();
-
-    if (std::find_if(list.begin(), list.end(),
-    [&rawFlags](const AnyP::TrafficModeFlags::Pointer p) { return rawFlags.*p; }) == list.end())
-        return;
-
-    if (rawFlags.*aFlag)
-        return;
-
-    const auto detail = (list.size() == 1) ? "" : "any of ";
-    throw TextException(ToSBuf(detail, list, " requires ", aFlag,
+    throw TextException(ToSBuf(detail1, list1, " requires ", detail2, list2,
                 " on ", PortKindStrings.at(rawFlags.portKind)), Here());
 }
 
@@ -229,17 +214,16 @@ AnyP::PortCfg::checkFlags()
 
     case Flags::httpsPort: {
         allowEither({&TrafficModeFlags::accelSurrogate, &TrafficModeFlags::natIntercept, &TrafficModeFlags::tproxyIntercept, &TrafficModeFlags::proxySurrogateHttp});
-
-        checkFlagImplication(&TrafficModeFlags::tunnelSslBumping,
+        checkImplication({&TrafficModeFlags::tunnelSslBumping},
                 {&TrafficModeFlags::natIntercept, &TrafficModeFlags::tproxyIntercept, &TrafficModeFlags::proxySurrogateHttp});
-        checkListImplication({&TrafficModeFlags::natIntercept, &TrafficModeFlags::tproxyIntercept, &TrafficModeFlags::proxySurrogateHttp},
-                &TrafficModeFlags::tunnelSslBumping);
+        checkImplication({&TrafficModeFlags::natIntercept, &TrafficModeFlags::tproxyIntercept, &TrafficModeFlags::proxySurrogateHttp},
+                {&TrafficModeFlags::tunnelSslBumping});
     }
     break;
 
     case Flags::ftpPort:
-        rejectFlags({&TrafficModeFlags::accelSurrogate, &TrafficModeFlags::proxySurrogateHttp, &TrafficModeFlags::tunnelSslBumping});
         allowEither({&TrafficModeFlags::natIntercept, &TrafficModeFlags::tproxyIntercept});
+        rejectFlags({&TrafficModeFlags::accelSurrogate, &TrafficModeFlags::proxySurrogateHttp, &TrafficModeFlags::tunnelSslBumping});
         break;
 
     default:
