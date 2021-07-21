@@ -75,7 +75,7 @@ private:
     /* TrafficModeFlags validation */
     /// rejects flag combinations where any of the given flags is set
     void rejectFlags(const TrafficModeFlags::List &);
-    ///  rejects flag combinations where more than one flag is set
+    /// rejects flag combinations where more than one flag is set
     void allowEither(const AnyP::TrafficModeFlags::List &);
     /// rejects flags combinations where some of list1 flags are set and all of list2 flags are unset
     void checkImplication(const AnyP::TrafficModeFlags::List &list1, const AnyP::TrafficModeFlags::List &list2);

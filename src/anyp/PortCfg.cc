@@ -8,9 +8,7 @@
 
 #include "squid.h"
 #include "anyp/PortCfg.h"
-#include "cache_cf.h"
 #include "comm.h"
-#include "Debug.h"
 #include "fatal.h"
 #include "sbuf/SBuf.h"
 #include "sbuf/Stream.h"
@@ -116,7 +114,7 @@ static const PortKindMap PortKindStrings =
 };
 
 static const char *
-PortOptionStr(const AnyP::TrafficModeFlags::Pointer flagPointer)
+PortOption(const AnyP::TrafficModeFlags::Pointer flagPointer)
 {
     typedef std::pair<AnyP::TrafficModeFlags::Pointer, const char *> PortOptionPair;
     static constexpr std::array<PortOptionPair, 5> PortOptionStrings = { {
@@ -128,18 +126,16 @@ PortOptionStr(const AnyP::TrafficModeFlags::Pointer flagPointer)
         }
     };
 
-    for (const auto &p: PortOptionStrings) {
-        if (p.first == flagPointer)
-           return p.second;
-    }
-    assert(false); // unreachable
-    return nullptr;
+    const auto found = std::find_if(PortOptionStrings.begin(), PortOptionStrings.end(),
+            [&flagPointer](const PortOptionPair &p) { return p.first == flagPointer; });
+    assert(found != PortOptionStrings.end());
+    return found->second;
 }
 
 std::ostream &
 operator <<(std::ostream &os, const AnyP::TrafficModeFlags::Pointer flagPointer)
 {
-    return os << PortOptionStr(flagPointer);
+    return os << PortOption(flagPointer);
 }
 
 std::ostream &
@@ -149,15 +145,16 @@ operator <<(std::ostream &os, const AnyP::TrafficModeFlags::List &list)
     for (const auto &p: list) {
         if (!str.isEmpty())
             str.append(',');
-        str.append(PortOptionStr(p));
+        str.append(PortOption(p));
     }
-    assert(!str.isEmpty());
     return os << str;
 }
 
 void
 AnyP::PortCfg::rejectFlags(const AnyP::TrafficModeFlags::List &list)
 {
+    assert(list.size());
+
     const auto &rawFlags = flags.rawConfig();
     for (const auto &p: list) {
         if (rawFlags.*p)
@@ -168,8 +165,9 @@ AnyP::PortCfg::rejectFlags(const AnyP::TrafficModeFlags::List &list)
 void
 AnyP::PortCfg::allowEither(const AnyP::TrafficModeFlags::List &list)
 {
-    const auto &rawFlags = flags.rawConfig();
+    assert(list.size());
 
+    const auto &rawFlags = flags.rawConfig();
     if (std::count_if(list.begin(), list.end(),
     [&rawFlags](const AnyP::TrafficModeFlags::Pointer p) { return rawFlags.*p; }) > 1) {
         throw TextException(ToSBuf("the combination of ", list, " is unsupported on ",
@@ -184,7 +182,6 @@ AnyP::PortCfg::checkImplication(const AnyP::TrafficModeFlags::List &list1, const
     assert(list2.size());
 
     const auto &rawFlags = flags.rawConfig();
-
     if (std::find_if(list1.begin(), list1.end(),
     [&rawFlags](const AnyP::TrafficModeFlags::Pointer p) { return rawFlags.*p; }) == list1.end())
         return;
@@ -208,9 +205,10 @@ AnyP::PortCfg::checkFlags()
 
     switch (rawFlags.portKind) {
 
-    case Flags::httpPort:
+    case Flags::httpPort: {
         allowEither({&TrafficModeFlags::accelSurrogate, &TrafficModeFlags::natIntercept, &TrafficModeFlags::tproxyIntercept});
-        break;
+    }
+    break;
 
     case Flags::httpsPort: {
         allowEither({&TrafficModeFlags::accelSurrogate, &TrafficModeFlags::natIntercept, &TrafficModeFlags::tproxyIntercept, &TrafficModeFlags::proxySurrogateHttp});
@@ -221,13 +219,14 @@ AnyP::PortCfg::checkFlags()
     }
     break;
 
-    case Flags::ftpPort:
+    case Flags::ftpPort: {
         allowEither({&TrafficModeFlags::natIntercept, &TrafficModeFlags::tproxyIntercept});
         rejectFlags({&TrafficModeFlags::accelSurrogate, &TrafficModeFlags::proxySurrogateHttp, &TrafficModeFlags::tunnelSslBumping});
-        break;
+    }
+    break;
 
     default:
-        fatal("unreachable");
+        fatal("invalid PortKind");
     }
 
     if (rawFlags.tproxyIntercept && rawFlags.proxySurrogateHttp) {
