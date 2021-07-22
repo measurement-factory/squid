@@ -1077,6 +1077,14 @@ DOC_START
 		alternative non-alphanumeric delimiter characters.
 		non-alphanumeric delimiter characters.
 
+	--missing-argument-action=
+		An action performed by the ACL parser when the ACL arguments are missing:
+		    ignore		ignore this problem
+		    warn		report a level-1 error message
+		    fatal		abort as a fatal configuration error
+		    empty-acl-action	adhere to the empty_acl_action configuration option
+		Takes precedence over the global empty_acl_action option.
+
 	--	Used to stop processing all options, in the case the first acl
 		value has '-' character as first character (for example the '-'
 		is a valid domain name)
@@ -10090,6 +10098,18 @@ DOC_START
 	network for domains ending in .local and .arpa.
 	This enables local servers and devices to be contacted in an
 	ad-hoc or zero-configuration network environment.
+DOC_END
+
+NAME: empty_acl_action
+COMMENT: on|off|warn
+TYPE: tristate
+DEFAULT: on
+LOC: Config.emptyAclAction
+DOC_START
+	This option specifies how Squid treats ACLs with empty arguments.
+	The default "on" setting makes Squid report all such problems
+	and exit, "warn" turns on reporting only, and "off" results
+	in ignoring these problems.
 DOC_END
 
 NAME: dns_nameservers

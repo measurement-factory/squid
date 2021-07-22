@@ -559,6 +559,7 @@ parseOneConfigFile(const char *file_name, unsigned int depth)
                         ++err_count;
                     }
                 } catch (...) {
+                    // TODO: accumulate all Configuration::MissingTokenException errors before quitting
                     // fatal for now
                     debugs(3, DBG_CRITICAL, "configuration error: " << CurrentException);
                     self_destruct();
@@ -3181,6 +3182,12 @@ ConfigParser::ParseBool(bool *var)
         *var = true;
     else
         self_destruct();
+}
+
+ConfigParser &
+ConfigParser::Current()
+{
+    return LegacyParser;
 }
 
 static void

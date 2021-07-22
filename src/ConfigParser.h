@@ -19,6 +19,61 @@
 
 class wordlist;
 
+namespace Configuration {
+
+typedef char *(*TokenExtractor)();
+
+/// A single-pass input iterator reading tokens from a configuration line.
+/// The first read is performed when the object is constructed,
+/// further reads are done by increment operators.
+class TokensIterator : public std::iterator<std::input_iterator_tag, char *>
+{
+public:
+
+    explicit TokensIterator(const TokenExtractor method):
+        method_(method), current_(method_ ? method_() : nullptr)
+    {}
+
+    value_type operator*() { return current_; }
+
+    TokensIterator& operator++() {
+        assert(method_);
+        current_ = method_();
+        return *this;
+    }
+
+    TokensIterator operator++(int) {
+        TokensIterator tmp = *this;
+        ++(*this);
+        return tmp;
+    }
+
+    bool operator==(const TokensIterator& other) const { return current_ == other.current_; }
+    bool operator!=(const TokensIterator& other) const { return current_ != other.current_; }
+
+private:
+    TokenExtractor method_; ///< a ConfigParser static method for extracting tokens
+    value_type current_; ///< a token returned by method_ (or nil)
+};
+
+/// a non-empty [begin, end) sequence configuration tokens
+class Tokens
+{
+public:
+    Tokens(const TokenExtractor method, const char *desc) : method_(method), description_(desc) {}
+    TokensIterator begin() const;
+    TokensIterator end() const { return TokensIterator(nullptr); }
+
+private:
+    TokenExtractor method_; ///< a ConfigParser static method for extracting tokens
+    const char *description_; ///< a description of the expected token(s)
+};
+
+/// Is thrown when a required token is missing
+class MissingTokenException : public TextException { using TextException::TextException; };
+
+}
+
 /**
  * Limit to how long any given config line may be.
  * This affects squid.conf and all included files.
@@ -150,6 +205,18 @@ public:
     static void DisableMacros() {AllowMacros_ = false;}
 
     static SBuf CurrentLocation();
+
+    /// \returns a non-empty token sequence scanned by strtokFile()
+    Configuration::Tokens ftokens(const char *description) { return Configuration::Tokens(strtokFile, description); }
+
+    /// \returns a non-empty token sequence scanned by RegexStrtokFile()
+    Configuration::Tokens fregexTokens(const char *description) { return Configuration::Tokens(RegexStrtokFile, description); }
+
+    /// \returns a non-nil token extracted by strtokFile() or throws
+    const char *ftoken(const char *description) { return *Configuration::Tokens(strtokFile, description).begin(); }
+
+    /// \returns global LegacyParser
+    static ConfigParser &Current();
 
     /// configuration_includes_quoted_values in squid.conf
     static bool RecognizeQuotedValues;

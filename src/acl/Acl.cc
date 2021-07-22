@@ -254,7 +254,28 @@ ACL::ParseAclLine(ConfigParser &parser, ACL ** head)
     A->parseFlags();
 
     /*split the function here */
-    A->parse();
+
+    try {
+        A->parse();
+    } catch (const Configuration::MissingTokenException &e) {
+        const auto action = A->calculateArgumentAction();
+        switch (action) {
+        case argIgnore:
+            break;
+        case argWarn: {
+            debugs(28, DBG_CRITICAL, "WARNING: invalid ACL argument" <<
+                   Debug::Extra << "line: " << A->cfgline <<
+                   Debug::Extra << "problem: " << e.what());
+            break;
+        }
+        case argFatal:
+            throw;
+            break;
+        default:
+            assert(0);
+            break;
+        }
+    }
 
     /*
      * Clear AclMatchedName from our temporary hack
@@ -263,10 +284,6 @@ ACL::ParseAclLine(ConfigParser &parser, ACL ** head)
 
     if (!new_acl)
         return;
-
-    if (A->empty()) {
-        debugs(28, DBG_CRITICAL, "Warning: empty ACL: " << A->cfgline);
-    }
 
     if (!A->valid()) {
         fatalf("ERROR: Invalid ACL: %s\n",
@@ -282,17 +299,52 @@ ACL::ParseAclLine(ConfigParser &parser, ACL ** head)
     aclRegister(A);
 }
 
+ACL::ArgumentAction
+ACL::calculateArgumentAction() const
+{
+    if (argumentAction) {
+        if (argumentAction.value.cmp("ignore") == 0)
+            return argIgnore;
+        else if (argumentAction.value.cmp("warn") == 0)
+            return argWarn;
+        else if (argumentAction.value.cmp("fatal") == 0)
+            return argFatal;
+        else
+            Must (argumentAction.value.cmp("empty_acl_action") == 0);
+    }
+
+    if (Config.emptyAclAction > 0)
+        return argFatal;
+    else if (Config.emptyAclAction < 0)
+        return argWarn;
+
+    return argIgnore;
+}
+
 bool
 ACL::isProxyAuth() const
 {
     return false;
 }
 
+// ACL kids that carry ACLData which supports parameter flags override this
 void
 ACL::parseFlags()
 {
-    // ACL kids that carry ACLData which supports parameter flags override this
-    Acl::ParseFlags(options(), Acl::NoFlags());
+    parseFlags(options(), Acl::NoFlags());
+}
+
+void
+ACL::parseFlags(const Acl::Options &otherOptions, const Acl::ParameterFlags &otherFlags)
+{
+    static const Acl::TextOption ArgumentActionOption(Acl::Option::valueRequired);
+    static const Acl::Options MyOptions = { { "--missing-argument-action", &ArgumentActionOption } };
+    ArgumentActionOption.linkWith(&argumentAction);
+
+    Acl::Options resultOptions(MyOptions);
+    resultOptions.insert(otherOptions.begin(), otherOptions.end());
+    // ACL does not have flags to merge for now
+    Acl::ParseOptions(resultOptions, otherFlags);
 }
 
 SBufList

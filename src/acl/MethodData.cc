@@ -54,7 +54,7 @@ ACLMethodData::dump() const
 void
 ACLMethodData::parse()
 {
-    while (char *t = ConfigParser::strtokFile()) {
+    for (const auto t: ConfigParser::Current().ftokens("request method name")) {
         HttpRequestMethod m;
         m.HttpRequestMethodXXX(t);
         values.push_back(m);

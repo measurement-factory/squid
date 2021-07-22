@@ -514,12 +514,7 @@ ACLExternal::parse()
         return;
     }
 
-    char *token = ConfigParser::strtokFile();
-
-    if (!token) {
-        self_destruct();
-        return;
-    }
+    auto token = ConfigParser::Current().ftoken("external acl name");
 
     data = new external_acl_data(find_externalAclHelper(token));
 

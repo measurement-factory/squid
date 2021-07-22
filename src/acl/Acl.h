@@ -14,7 +14,7 @@
 #include "cbdata.h"
 #include "defines.h"
 #include "dlink.h"
-#include "sbuf/forward.h"
+#include "sbuf/SBuf.h"
 
 #include <algorithm>
 #include <ostream>
@@ -62,7 +62,7 @@ public:
     /// \returns (linked) Options supported by this ACL
     virtual const Acl::Options &options() { return Acl::NoOptions(); }
 
-    /// configures ACL options, throwing on configuration errors
+    /// configures supported ACL options, throwing on configuration errors
     virtual void parseFlags();
 
     /// parses node representation in squid.conf; dies on failures
@@ -84,6 +84,11 @@ public:
     char *cfgline;
     ACL *next; // XXX: remove or at least use refcounting
     bool registered; ///< added to the global list of ACLs via aclRegister()
+    Acl::TextOptionValue argumentAction;
+
+protected:
+    /// configures the passed ACL options and flags, throwing on configuration errors
+    void parseFlags(const Acl::Options &otherOptions, const Acl::ParameterFlags &otherFlags);
 
 private:
     /// Matches the actual data in checklist against this ACL.
@@ -95,6 +100,10 @@ private:
     virtual bool requiresRequest() const;
     /// whether our (i.e. shallow) match() requires checklist to have a reply
     virtual bool requiresReply() const;
+    /// possible actions to handle a missing ACL configuration argument
+    typedef enum { argIgnore = 1, argWarn, argFatal } ArgumentAction;
+
+    ArgumentAction calculateArgumentAction() const;
 };
 
 /// \ingroup ACLAPI
