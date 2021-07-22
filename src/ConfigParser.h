@@ -207,13 +207,16 @@ public:
     static SBuf CurrentLocation();
 
     /// \returns a non-empty token sequence scanned by strtokFile()
-    static Configuration::Tokens Tokens(const char *description) { return Configuration::Tokens(strtokFile, description); }
+    Configuration::Tokens ftokens(const char *description) { return Configuration::Tokens(strtokFile, description); }
 
     /// \returns a non-empty token sequence scanned by RegexStrtokFile()
-    static Configuration::Tokens RegexTokens(const char *description) { return Configuration::Tokens(RegexStrtokFile, description); }
+    Configuration::Tokens fregexTokens(const char *description) { return Configuration::Tokens(RegexStrtokFile, description); }
 
     /// \returns a non-nil token extracted by strtokFile() or throws
-    static const char *Token(const char *description) { return *Configuration::Tokens(strtokFile, description).begin(); }
+    const char *ftoken(const char *description) { return *Configuration::Tokens(strtokFile, description).begin(); }
+
+    /// \returns global LegacyParser
+    static ConfigParser &Current();
 
     /// configuration_includes_quoted_values in squid.conf
     static bool RecognizeQuotedValues;

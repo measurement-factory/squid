@@ -52,7 +52,7 @@ ACLMaxConnection::valid () const
 void
 ACLMaxConnection::parse()
 {
-    limit = atoi(ConfigParser::Token("maxconn number"));
+    limit = atoi(ConfigParser::Current().ftoken("maxconn number"));
 
     /* suck out file contents */
     // ignore comments

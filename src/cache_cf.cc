@@ -3184,6 +3184,12 @@ ConfigParser::ParseBool(bool *var)
         self_destruct();
 }
 
+ConfigParser &
+ConfigParser::Current()
+{
+    return LegacyParser;
+}
+
 static void
 dump_wordlist(StoreEntry * entry, const char *name, wordlist * list)
 {

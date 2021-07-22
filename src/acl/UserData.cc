@@ -102,7 +102,7 @@ ACLUserData::parse()
     debugs(28, 3, "Case-insensitive-switch is " << flags.case_insensitive);
     /* we might inherit from a previous declaration */
 
-    auto userName = ConfigParser::Token("user name");
+    auto userName = ConfigParser::Current().ftoken("user name");
     if (strncmp(userName, "REQUIRED", 8) == 0) {
         debugs(28, 5, "REQUIRED-type enabled");
         flags.required = true;
