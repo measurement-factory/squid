@@ -50,7 +50,7 @@ Acl::InnerNode::lineParse()
     // expect a list of ACL names, each possibly preceded by '!' for negation
 
     size_t count = 0;
-    while (const char *t = ConfigParser::strtokFile()) {
+    for (auto t: ConfigParser::Current().optionalTokens("a list of ACL names")) {
         const bool negated = (*t == '!');
         if (negated)
             ++t;

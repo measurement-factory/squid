@@ -46,9 +46,8 @@ Acl::ConnectionsEncrypted::empty () const
 void
 Acl::ConnectionsEncrypted::parse()
 {
-    if (ConfigParser::strtokFile()) {
+    if (ConfigParser::Current().optionalToken("connections_encrypted leftovers"))
         debugs(89, DBG_CRITICAL, "WARNING: connections_encrypted does not accept any value.");
-    }
 }
 
 int

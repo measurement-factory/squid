@@ -68,12 +68,7 @@ ACLHTTPHeaderData::dump() const
 void
 ACLHTTPHeaderData::parse()
 {
-    char* t = ConfigParser::strtokFile();
-    if (!t) {
-        debugs(28, DBG_CRITICAL, "ERROR: " << cfg_filename << " line " << config_lineno << ": " << config_input_line);
-        debugs(28, DBG_CRITICAL, "ERROR: Missing header name in ACL");
-        return;
-    }
+    const auto t = ConfigParser::Current().requiredToken("header name");
 
     if (hdrName.isEmpty()) {
         hdrName = t;

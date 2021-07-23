@@ -680,7 +680,7 @@ Configuration::TokensIterator
 Configuration::Tokens::begin() const
 {
     const auto first = TokensIterator(method_);
-    if (first == end())
+    if (!emptyAllowed_ && first == end())
         throw MissingTokenException(ToSBuf("missing required argument: ", description_), Here());
     return first;
 }

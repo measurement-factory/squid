@@ -31,6 +31,7 @@ public:
 
 private:
 
+    void insert(const char *);
     typedef std::set<SBuf,bool(*)(const SBuf&, const SBuf&)> UserDataNames_t;
     UserDataNames_t userDataNames;
 

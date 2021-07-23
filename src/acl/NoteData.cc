@@ -47,9 +47,7 @@ ACLNoteData::dump() const
 void
 ACLNoteData::parse()
 {
-    char* t = ConfigParser::strtokFile();
-    assert (t != NULL);
-    name = t;
+    name = ConfigParser::Current().requiredToken("note name");
     values->parse();
 }
 

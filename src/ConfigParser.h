@@ -56,17 +56,19 @@ private:
     value_type current_; ///< a token returned by method_ (or nil)
 };
 
-/// a non-empty [begin, end) sequence configuration tokens
+/// a [begin, end) sequence of configuration tokens
 class Tokens
 {
 public:
-    Tokens(const TokenExtractor method, const char *desc) : method_(method), description_(desc) {}
+    Tokens(const TokenExtractor method, const char *desc, const bool mayBeEmpty):
+        method_(method), description_(desc), emptyAllowed_(mayBeEmpty) {}
     TokensIterator begin() const;
     TokensIterator end() const { return TokensIterator(nullptr); }
 
 private:
     TokenExtractor method_; ///< a ConfigParser static method for extracting tokens
     const char *description_; ///< a description of the expected token(s)
+    const bool emptyAllowed_; ///< whether this sequence is allowed to have no elements
 };
 
 /// Is thrown when a required token is missing
@@ -132,26 +134,12 @@ public:
     static void ParseWordList(wordlist **list);
 
     /**
-     * Backward compatibility wrapper for the ConfigParser::NextToken method.
-     * If the configuration_includes_quoted_values configuration parameter is
-     * set to 'off' this interprets the quoted tokens as filenames.
-     */
-    static char * strtokFile();
-
-    /**
      * Returns the body of the next element. The element is either a token or
      * a quoted string with optional escape sequences and/or macros. The body
      * of a quoted string element does not include quotes or escape sequences.
      * Future code will want to see Elements and not just their bodies.
      */
     static char *NextToken();
-
-    /**
-     * Backward compatibility wrapper for ConfigParser::RegexPattern method.
-     * If the configuration_includes_quoted_values configuration parameter is
-     * set to 'off' this interprets the quoted tokens as filenames.
-     */
-    static char *RegexStrtokFile();
 
     /**
      * Parse the next token as a regex pattern. The regex patterns are non quoted
@@ -206,17 +194,21 @@ public:
 
     static SBuf CurrentLocation();
 
-    /// \returns a non-empty token sequence scanned by strtokFile()
-    Configuration::Tokens ftokens(const char *description) { return Configuration::Tokens(strtokFile, description); }
-
-    /// \returns a non-empty token sequence scanned by RegexStrtokFile()
-    Configuration::Tokens fregexTokens(const char *description) { return Configuration::Tokens(RegexStrtokFile, description); }
-
-    /// \returns a non-nil token extracted by strtokFile() or throws
-    const char *ftoken(const char *description) { return *Configuration::Tokens(strtokFile, description).begin(); }
-
     /// \returns global LegacyParser
     static ConfigParser &Current();
+
+    // The methods below interpret the quoted tokens as filenames if the
+    // configuration_includes_quoted_values configuration parameter is set to 'off'.
+    /// \returns a non-empty token sequence
+    Configuration::Tokens requiredTokens(const char *description) const { return Configuration::Tokens(strtokFile, description, false); }
+    /// \returns a possibly empty token sequence
+    Configuration::Tokens optionalTokens(const char *description) const { return Configuration::Tokens(strtokFile, description, true); }
+    /// \returns a non-empty token sequence, with tokens as regex patterns
+    Configuration::Tokens requiredRegexTokens(const char *description) const { return Configuration::Tokens(RegexStrtokFile, description, true); }
+    /// \returns a non-nil token
+    const char *requiredToken(const char *description) const { return *requiredTokens(description).begin(); }
+    /// \returns a possibly nil token
+    const char *optionalToken(const char *description) const { return *optionalTokens(description).begin(); }
 
     /// configuration_includes_quoted_values in squid.conf
     static bool RecognizeQuotedValues;
@@ -271,6 +263,20 @@ protected:
         std::string currentLine; ///< The current line to parse
         int lineNo; ///< Current line number
     };
+
+    /**
+     * Backward compatibility wrapper for the ConfigParser::NextToken method.
+     * If the configuration_includes_quoted_values configuration parameter is
+     * set to 'off' this interprets the quoted tokens as filenames.
+     */
+    static char * strtokFile();
+
+    /**
+     * Backward compatibility wrapper for ConfigParser::RegexPattern method.
+     * If the configuration_includes_quoted_values configuration parameter is
+     * set to 'off' this interprets the quoted tokens as filenames.
+     */
+    static char *RegexStrtokFile();
 
     /// Return the last TokenPutBack() queued element or NULL if none exist
     static char *Undo();
