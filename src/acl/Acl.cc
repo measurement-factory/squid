@@ -263,12 +263,13 @@ ACL::ParseAclLine(ConfigParser &parser, ACL ** head)
         case argIgnore:
             break;
         case argWarn: {
-            debugs(28, DBG_CRITICAL, "WARNING: invalid ACL argument" <<
+            // TODO: unify error reporting with parseOneConfigFile()
+            debugs(28, DBG_CRITICAL, "WARNING: invalid ACL" <<
                    Debug::Extra << "line: " << A->cfgline <<
-                   Debug::Extra << "problem: " << e.what());
+                   Debug::Extra << "problem: " << e);
             break;
         }
-        case argFatal:
+        case argErr:
             throw;
             break;
         default:
@@ -307,14 +308,14 @@ ACL::calculateArgumentAction() const
             return argIgnore;
         else if (argumentAction.value.cmp("warn") == 0)
             return argWarn;
-        else if (argumentAction.value.cmp("fatal") == 0)
-            return argFatal;
+        else if (argumentAction.value.cmp("err") == 0)
+            return argErr;
         else
             Must (argumentAction.value.cmp("empty_acl_action") == 0);
     }
 
     if (Config.emptyAclAction > 0)
-        return argFatal;
+        return argErr;
     else if (Config.emptyAclAction < 0)
         return argWarn;
 

@@ -1081,7 +1081,7 @@ DOC_START
 		An action performed by the ACL parser when the ACL arguments are missing:
 		    ignore		ignore this problem
 		    warn		report a level-1 error message
-		    fatal		abort as a fatal configuration error
+		    err			treat as a configuration error
 		    empty-acl-action	adhere to the empty_acl_action configuration option
 		Takes precedence over the global empty_acl_action option.
 
