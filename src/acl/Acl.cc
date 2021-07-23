@@ -164,6 +164,14 @@ ACL::context(const char *aName, const char *aCfgLine)
         cfgline = xstrdup(aCfgLine);
 }
 
+static void
+AclCleanup(ACL *acl, const bool newAcl)
+{
+    AclMatchedName = nullptr;
+    if (newAcl)
+        delete acl;
+}
+
 void
 ACL::ParseAclLine(ConfigParser &parser, ACL ** head)
 {
@@ -269,13 +277,18 @@ ACL::ParseAclLine(ConfigParser &parser, ACL ** head)
                    Debug::Extra << "problem: " << e);
             break;
         }
-        case argErr:
+        case argErr: {
+            AclCleanup(A, new_acl);;
             throw;
             break;
+        }
         default:
             assert(0);
             break;
         }
+    } catch (...) {
+        AclCleanup(A, new_acl);
+        throw;
     }
 
     /*
