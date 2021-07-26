@@ -165,11 +165,13 @@ ACL::context(const char *aName, const char *aCfgLine)
 }
 
 static void
-AclCleanup(ACL *acl, const bool newAcl)
+AclCleanup(ACL **acl)
 {
     AclMatchedName = nullptr;
-    if (newAcl)
-        delete acl;
+    if (acl) {
+        delete *acl;
+        *acl = nullptr;
+    }
 }
 
 void
@@ -278,7 +280,7 @@ ACL::ParseAclLine(ConfigParser &parser, ACL ** head)
             break;
         }
         case argErr: {
-            AclCleanup(A, new_acl);;
+            AclCleanup(new_acl ? &A : nullptr);
             throw;
             break;
         }
@@ -287,7 +289,7 @@ ACL::ParseAclLine(ConfigParser &parser, ACL ** head)
             break;
         }
     } catch (...) {
-        AclCleanup(A, new_acl);
+        AclCleanup(new_acl ? &A : nullptr);
         throw;
     }
 
@@ -324,7 +326,7 @@ ACL::calculateArgumentAction() const
         else if (argumentAction.value.cmp("err") == 0)
             return argErr;
         else
-            Must (argumentAction.value.cmp("empty_acl_action") == 0);
+            assert(argumentAction.value.cmp("empty_acl_action") == 0);
     }
 
     if (Config.emptyAclAction > 0)

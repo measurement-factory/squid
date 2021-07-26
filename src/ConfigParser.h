@@ -204,7 +204,7 @@ public:
     /// \returns a possibly empty token sequence
     Configuration::Tokens optionalTokens(const char *description) const { return Configuration::Tokens(strtokFile, description, true); }
     /// \returns a non-empty token sequence, with tokens as regex patterns
-    Configuration::Tokens requiredRegexTokens(const char *description) const { return Configuration::Tokens(RegexStrtokFile, description, true); }
+    Configuration::Tokens requiredRegexTokens(const char *description) const { return Configuration::Tokens(RegexStrtokFile, description, false); }
     /// \returns a non-nil token
     const char *requiredToken(const char *description) const { return *requiredTokens(description).begin(); }
     /// \returns a possibly nil token
