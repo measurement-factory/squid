@@ -200,15 +200,15 @@ public:
     // The methods below interpret the quoted tokens as filenames if the
     // configuration_includes_quoted_values configuration parameter is set to 'off'.
     /// \returns a non-empty token sequence
-    Configuration::Tokens requiredTokens(const char *description) const { return Configuration::Tokens(strtokFile, description, false); }
+    Configuration::Tokens requiredAclTokens(const char *description) const { return Configuration::Tokens(strtokFile, description, false); }
     /// \returns a possibly empty token sequence
-    Configuration::Tokens optionalTokens(const char *description) const { return Configuration::Tokens(strtokFile, description, true); }
+    Configuration::Tokens optionalAclTokens(const char *description) const { return Configuration::Tokens(strtokFile, description, true); }
     /// \returns a non-empty token sequence, with tokens as regex patterns
-    Configuration::Tokens requiredRegexTokens(const char *description) const { return Configuration::Tokens(RegexStrtokFile, description, false); }
+    Configuration::Tokens requiredAclRegexTokens(const char *description) const { return Configuration::Tokens(RegexStrtokFile, description, false); }
     /// \returns a non-nil token
-    const char *requiredToken(const char *description) const { return *requiredTokens(description).begin(); }
+    const char *requiredAclToken(const char *description) const { return *requiredAclTokens(description).begin(); }
     /// \returns a possibly nil token
-    const char *optionalToken(const char *description) const { return *optionalTokens(description).begin(); }
+    const char *optionalAclToken(const char *description) const { return *optionalAclTokens(description).begin(); }
 
     /// configuration_includes_quoted_values in squid.conf
     static bool RecognizeQuotedValues;
