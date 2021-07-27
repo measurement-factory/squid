@@ -27,7 +27,6 @@ public:
 
     virtual ACL *clone()const;
     virtual char const *typeString() const;
-    virtual void parse();
     virtual int match(ACLChecklist *checklist);
     virtual SBufList dump() const;
     virtual bool empty () const;

@@ -260,20 +260,16 @@ ACL::ParseAclLine(ConfigParser &parser, ACL ** head)
      * warning message in aclDomainCompare().
      */
     AclMatchedName = A->name;   /* ugly */
-
-    A->parseFlags();
-
-    /*split the function here */
-
     try {
+        A->parseFlags();
         A->parse();
     } catch (const Configuration::MissingTokenException &e) {
-        const auto action = A->calculateArgumentAction();
-        switch (action) {
+        switch (A->calculateArgumentAction()) {
         case argIgnore:
             break;
         case argWarn: {
-            // TODO: unify error reporting with parseOneConfigFile()
+            // TODO: unify reporting with parseOneConfigFile() and ConfigParser::destruct(), including
+            // avoiding DBG_CRITICAL for warnings (temporary kept for backward compatibility).
             debugs(28, DBG_CRITICAL, "WARNING: invalid ACL" <<
                    Debug::Extra << "line: " << A->cfgline <<
                    Debug::Extra << "problem: " << e);
@@ -284,9 +280,6 @@ ACL::ParseAclLine(ConfigParser &parser, ACL ** head)
             throw;
             break;
         }
-        default:
-            assert(0);
-            break;
         }
     } catch (...) {
         AclCleanup(new_acl ? &A : nullptr);
@@ -315,6 +308,14 @@ ACL::ParseAclLine(ConfigParser &parser, ACL ** head)
     aclRegister(A);
 }
 
+void
+ACL::parse()
+{
+    if (ConfigParser::Current().optionalToken("ACL leftovers"))
+        debugs(89, DBG_CRITICAL, "WARNING: ACL " << name <<
+                " leftovers are deprecated and will become a fatal configuration error.");
+}
+
 ACL::ArgumentAction
 ACL::calculateArgumentAction() const
 {
@@ -326,12 +327,12 @@ ACL::calculateArgumentAction() const
         else if (argumentAction.value.cmp("err") == 0)
             return argErr;
         else
-            assert(argumentAction.value.cmp("empty_acl_action") == 0);
+            assert(argumentAction.value.cmp("reject_acls_with_empty_parameter_list") == 0);
     }
 
-    if (Config.emptyAclAction > 0)
+    if (Config.rejectAclsWithEmptyParameterList > 0)
         return argErr;
-    else if (Config.emptyAclAction < 0)
+    else if (Config.rejectAclsWithEmptyParameterList < 0)
         return argWarn;
 
     return argIgnore;
@@ -347,11 +348,11 @@ ACL::isProxyAuth() const
 void
 ACL::parseFlags()
 {
-    parseFlags(options(), Acl::NoFlags());
+    parseOptionsAndFlags(options(), Acl::NoFlags());
 }
 
 void
-ACL::parseFlags(const Acl::Options &otherOptions, const Acl::ParameterFlags &otherFlags)
+ACL::parseOptionsAndFlags(const Acl::Options &otherOptions, const Acl::ParameterFlags &otherFlags)
 {
     static const Acl::TextOption ArgumentActionOption(Acl::Option::valueRequired);
     static const Acl::Options MyOptions = { { "--missing-argument-action", &ArgumentActionOption } };

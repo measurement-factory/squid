@@ -66,7 +66,7 @@ public:
     virtual void parseFlags();
 
     /// parses node representation in squid.conf; dies on failures
-    virtual void parse() = 0;
+    virtual void parse();
     virtual char const *typeString() const = 0;
     virtual bool isProxyAuth() const;
     virtual SBufList dump() const = 0;
@@ -88,7 +88,7 @@ public:
 
 protected:
     /// configures the passed ACL options and flags, throwing on configuration errors
-    void parseFlags(const Acl::Options &otherOptions, const Acl::ParameterFlags &otherFlags);
+    void parseOptionsAndFlags(const Acl::Options &otherOptions, const Acl::ParameterFlags &otherFlags);
 
 private:
     /// Matches the actual data in checklist against this ACL.

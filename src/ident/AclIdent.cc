@@ -49,7 +49,7 @@ ACLIdent::typeString() const
 void
 ACLIdent::parseFlags()
 {
-    ACL::parseFlags(Acl::NoOptions(), data->supportedFlags());
+    parseOptionsAndFlags(Acl::NoOptions(), data->supportedFlags());
 }
 
 void

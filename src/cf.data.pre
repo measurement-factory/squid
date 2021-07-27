@@ -1079,11 +1079,12 @@ DOC_START
 
 	--missing-argument-action=
 		An action performed by the ACL parser when the ACL arguments are missing:
-		    ignore		ignore this problem
-		    warn		report a level-1 error message
-		    err			treat as a configuration error
-		    empty-acl-action	adhere to the empty_acl_action configuration option
-		Takes precedence over the global empty_acl_action option.
+		    ignore	ignore this problem
+		    warn	report a level-1 error message
+		    err		treat as a configuration error
+		    reject_acls_with_empty_parameter_list  adhere to the
+		      reject_acls_with_empty_parameter_list configuration directive
+		Takes precedence over the global reject_acls_with_empty_parameter_list directive.
 
 	--	Used to stop processing all options, in the case the first acl
 		value has '-' character as first character (for example the '-'
@@ -10100,13 +10101,17 @@ DOC_START
 	ad-hoc or zero-configuration network environment.
 DOC_END
 
-NAME: empty_acl_action
+NAME: reject_acls_with_empty_parameter_list
 COMMENT: on|off|warn
 TYPE: tristate
 DEFAULT: on
-LOC: Config.emptyAclAction
+LOC: Config.rejectAclsWithEmptyParameterList
 DOC_START
-	This option specifies how Squid treats ACLs with empty arguments.
+	This directive specifies how Squid treats an ACL configuration line
+	with empty argument list. It covers both cases when ACL arguments are
+	obtained either directly from the inlined parameter list or read from a
+	quoted file name.
+
 	The default "on" setting makes Squid report all such problems
 	and exit, "warn" turns on reporting only, and "off" results
 	in ignoring these problems.

@@ -46,7 +46,7 @@ ACLExtUser::typeString() const
 void
 ACLExtUser::parseFlags()
 {
-    ACL::parseFlags(Acl::NoOptions(), data->supportedFlags());
+    parseOptionsAndFlags(Acl::NoOptions(), data->supportedFlags());
 }
 
 void
