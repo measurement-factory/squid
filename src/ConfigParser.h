@@ -200,8 +200,9 @@ public:
     /// \returns global LegacyParser
     static ConfigParser &Current();
 
-    // The methods below interpret the quoted tokens as filenames if the
-    // configuration_includes_quoted_values configuration parameter is set to 'off'.
+    // The methods below support reading configuration tokens from external files.
+    // External file names can be passed either via quoted tokens ('configuration_includes_quoted_values'
+    // is off) or via parameters("/path/filename") syntax.
     /// \returns a non-empty ACL parameter sequence
     Configuration::Tokens requiredAclTokens(const char *description) const { return Configuration::Tokens(this, &ConfigParser::aclToken, description, false); }
     /// \returns a possibly empty ACL parameter sequence
@@ -267,8 +268,6 @@ protected:
         int lineNo; ///< Current line number
     };
 
-    // The methods below interpret the quoted tokens as filenames if the
-    // configuration_includes_quoted_values configuration parameter is set to 'off'.
     /// parses the next ACL parameter
     char *aclToken() const;
     /// parses the next ACL parameter as a regex pattern
