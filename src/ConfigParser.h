@@ -54,7 +54,7 @@ public:
 
 private:
     const ConfigParser *parser_;
-    TokenExtractor method_; ///< a ConfigParser static method for extracting tokens
+    TokenExtractor method_; ///< a ConfigParser method for extracting tokens
     value_type current_; ///< a token returned by method_ (or nil)
 };
 
@@ -69,7 +69,7 @@ public:
 
 private:
     const ConfigParser *parser_;
-    TokenExtractor method_; ///< a ConfigParser static method for extracting tokens
+    TokenExtractor method_; ///< a ConfigParser method for extracting tokens
     const char *description_; ///< a description of the expected token(s)
     const bool emptyAllowed_; ///< whether this sequence is allowed to have no elements
 };
@@ -267,14 +267,11 @@ protected:
         int lineNo; ///< Current line number
     };
 
-    /// Parses the next ACL parameter.
-    /// If the configuration_includes_quoted_values configuration parameter is
-    /// set to 'off' the quoted tokens are interpreted as filenames.
+    // The methods below interpret the quoted tokens as filenames if the
+    // configuration_includes_quoted_values configuration parameter is set to 'off'.
+    /// parses the next ACL parameter
     char *aclToken() const;
-
-    /// Parses the next ACL parameter as a regex pattern.
-    /// If the configuration_includes_quoted_values configuration parameter is
-    /// set to 'off' the quoted tokens are interpreted as filenames.
+    /// parses the next ACL parameter as a regex pattern
     char *regexAclToken() const;
 
     /// Return the last TokenPutBack() queued element or NULL if none exist
