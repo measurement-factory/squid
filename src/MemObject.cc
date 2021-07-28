@@ -106,7 +106,6 @@ MemObject::MemObject()
 MemObject::~MemObject()
 {
     debugs(20, 3, "MemObject destructed, this=" << this);
-    const Ctx ctx = ctx_enter(hasUris() ? urlXXX() : "[unknown_ctx]");
 
 #if URL_CHECKSUM_DEBUG
     checkUrlChecksum();
@@ -128,8 +127,6 @@ MemObject::~MemObject()
     assert(clients.head == NULL);
 
 #endif
-
-    ctx_exit(ctx);              /* must exit before we free mem->url */
 }
 
 HttpReply &
