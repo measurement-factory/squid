@@ -313,7 +313,7 @@ ACL::parse()
 {
     if (ConfigParser::Current().optionalAclToken("ACL leftovers"))
         debugs(89, DBG_CRITICAL, "WARNING: ACL " << name <<
-                " leftovers are deprecated and will become a fatal configuration error.");
+               " leftovers are deprecated and will become a fatal configuration error.");
 }
 
 ACL::ArgumentAction
