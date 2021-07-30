@@ -47,7 +47,7 @@ ACLSquidErrorData::dump() const
 void
 ACLSquidErrorData::parse()
 {
-    while (char *token = ConfigParser::NextToken()) {
+    while (char *token = ConfigParser::strtokFile()) {
         err_type err = errorTypeByName(token);
 
         if (err < ERR_MAX)
