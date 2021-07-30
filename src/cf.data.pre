@@ -7053,17 +7053,18 @@ DOC_START
 
 	Examples:
 
-		# fix broken Cache-Control headers sent by a trusted user Foo
-		malformed_request_header_edit \
-			replace each re::"^Cache Control No-store:(.*)$" \
-			with lf::"Cache-Control: no-store, %regex_match{1}" \
-			if fromFoo
-
 		# fix repeated Transfer-Encoding headers sent by a trusted app Bar
 		malformed_request_header_edit \
 			replace all re::"^Transfer-Encoding:.*chunked.*$" \
 			with lf::"Transfer-Encoding: chunked" \
 			if fromBar
+
+		# fix broken Cache-Control headers sent by a trusted user Foo
+		malformed_request_header_edit \
+			replace each re::_"^Cache Control "No-store":(.*)$"_ \
+			with lf::"Cache-Control: no-store, %regex_match{1}" \
+			if fromFoo
+
 DOC_END
 
 NAME: note
