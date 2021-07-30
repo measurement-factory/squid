@@ -6994,6 +6994,78 @@ DOC_START
 	See also: request_header_add.
 DOC_END
 
+NAME: malformed_request_header_edit
+IFDEF: USE_HTTP_VIOLATIONS
+TYPE: Http::HeaderEditor
+LOC: Config.malformed_request_header_edit
+DEFAULT: none
+DOC_START
+	Controls adjustments of received HTTP request headers that Squid considers
+	so malformed that they have to be rejected. These optional adjustments are
+	performed once per request, as a last resort measure. If no adjustments
+	apply or if Squid still rejects the adjusted header, the whole request is
+	rejected.
+
+	Usage: malformed_request_header_edit <command> if [!]acl...
+
+	Editing commands with mismatching ACL(s) are ignored.
+
+	Multiple commands with matching ACL(s) are applied in configuration order.
+
+	The command part has the following syntax:
+
+		replace <how> <what>... with <replacement>
+
+	Supported <how> values:
+
+		first	Replaces the first match and stops processing the command.
+		each	Replaces each match.
+		all	Replaces the first match and removes other matches.
+
+	The <what> parameter specifies a POSIX regular expression to search for:
+
+		re(flags)::delimiter"PATTERN"delimiter    The repeated delimiter is
+		a possibly empty sequence of ASCII alphanumeric characters and "_".
+		The PATTERN itself must not contain the `"delimiter` sequence. If no
+		matching flags are necessary, the "(flags)" sequence can be omitted.
+		TODO: Document supported flags. TODO: Move this reusable documentation
+		to document preface?
+
+	If multiple <what> parameters are specified, they are interpreted as if
+	individual patterns were ORed together. However, Squid preserves
+	configured pattern evaluation order (which is important for some <how>
+	values) and each replacement pattern may carry distinct flags.
+
+	The <replacement> parameter is a logformat format specification. TODO:
+	Add/document %regex_match{n} logformat %code. TODO: Add/document
+	lf::"FORMAT" support to allow multiline format specifications with
+	comments.
+
+	The adjustments are applied to multiline input buffer containing request
+	headers without the request-line and without the terminating CRLF CRLF
+	sequence (or equivalent).
+	TODO: Apply to request-line as well?
+
+	TODO: Add malformed_reply_header_edit.
+
+	TODO: Add a "malformed_request" or similar ACL and apply to all received
+	requests despite performance costs of checking at least that ACL??
+
+	Examples:
+
+		# fix broken Cache-Control headers sent by a trusted user Foo
+		malformed_request_header_edit \
+			replace each re::"^Cache Control No-store:(.*)$" \
+			with lf::"Cache-Control: no-store, %regex_match{1}" \
+			if fromFoo
+
+		# fix repeated Transfer-Encoding headers sent by a trusted app Bar
+		malformed_request_header_edit \
+			replace all re::"^Transfer-Encoding:.*chunked.*$" \
+			with lf::"Transfer-Encoding: chunked" \
+			if fromBar
+DOC_END
+
 NAME: note
 TYPE: note
 LOC: Config.notes
