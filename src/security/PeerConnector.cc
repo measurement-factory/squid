@@ -509,15 +509,22 @@ Security::PeerConnector::callBack()
 void
 Security::PeerConnector::swanSong()
 {
-    // XXX: unregister fd-closure monitoring and CommSetSelect interest, if any
-    AsyncJob::swanSong();
-    if (callback != NULL) { // paranoid: we have left the caller waiting
-        debugs(83, DBG_IMPORTANT, "BUG: Unexpected state while connecting to a cache_peer or origin server");
-        const auto anErr = new ErrorState(ERR_GATEWAY_FAILURE, Http::scInternalServerError, request.getRaw(), al);
-        bail(anErr);
+    if (callback) {
+        // job-ending emergencies like callback cancellation and callException()
+        if (callback->canceled()) {
+            callback = nullptr;
+            disconnect();
+        } else {
+            // TODO: Remove. Left to debug why we got here.
+            debugs(83, DBG_IMPORTANT, "Former BUG: Unexpected state while connecting to a cache_peer or origin server: " <<
+                   (stopReason ? stopReason : "unknown reason"));
+            const auto anErr = new ErrorState(ERR_GATEWAY_FAILURE, Http::scInternalServerError, request.getRaw(), al);
+            bail(anErr);
+        }
         assert(!callback);
-        return;
     }
+
+    AsyncJob::swanSong();
 }
 
 const char *
