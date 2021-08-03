@@ -86,9 +86,10 @@ void
 ACLUserData::parse()
 {
     debugs(28, 2, "parsing user list");
-    const auto peekedTok = ConfigParser::PeekAtToken();
-    debugs(28, 5, "first token is " << peekedTok);
-    if (strncmp(peekedTok, "-i", 2) == 0) {
+    const auto &parser = ConfigParser::Current();
+    auto userNameOrOption = parser.requiredAclToken("user name or option");
+    debugs(28, 5, "first token is " << userNameOrOption);
+    if (strncmp(userNameOrOption, "-i", 2) == 0) {
         debugs(28, 5, "Going case-insensitive");
         flags.case_insensitive = true;
         // due to how the std::set API work, if we want to change
@@ -96,21 +97,22 @@ ACLUserData::parse()
         UserDataNames_t newUdn(CaseInsensitveSBufCompare);
         newUdn.insert(userDataNames.begin(), userDataNames.end());
         swap(userDataNames, newUdn);
-        (void) ConfigParser::NextToken();
+        userNameOrOption = nullptr;
     }
 
     debugs(28, 3, "Case-insensitive-switch is " << flags.case_insensitive);
     /* we might inherit from a previous declaration */
 
-    const auto userName = ConfigParser::Current().requiredAclToken("user name");
+    const auto userName = userNameOrOption ? userNameOrOption : parser.requiredAclToken("user name");
     if (strncmp(userName, "REQUIRED", 8) == 0) {
         debugs(28, 5, "REQUIRED-type enabled");
         flags.required = true;
-        while (ConfigParser::Current().optionalAclToken("REQUIRED-type leftovers"))
+        while (parser.optionalAclToken("REQUIRED-type leftovers"))
             debugs(28, DBG_PARSE_NOTE(1), "WARNING: detected attempt to add usernames to an acl of type REQUIRED");
     } else {
+        // TODO: parse multiple -i,+i options, if any
         insert(userName);
-        for (const auto user: ConfigParser::Current().optionalAclTokens("user names"))
+        for (const auto user: parser.optionalAclTokens("user names"))
             insert(user);
     }
     debugs(28,4, "ACL contains " << userDataNames.size() << " users");
