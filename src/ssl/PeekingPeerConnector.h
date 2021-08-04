@@ -37,6 +37,7 @@ public:
 
     /* Security::PeerConnector API */
     virtual bool initialize(Security::SessionPointer &);
+    virtual const SBuf &clientApplicationProtocols() const;
     virtual Security::ContextPointer getTlsContext();
     virtual void noteWantWrite();
     virtual void noteNegotiationError(const int result, const int ssl_error, const int ssl_lib_error);
