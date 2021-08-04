@@ -216,6 +216,25 @@ Ssl::PeekingPeerConnector::initialize(Security::SessionPointer &serverSession)
     return true;
 }
 
+const SBuf &
+Ssl::PeekingPeerConnector::clientApplicationProtocols() const
+{
+    // when peeking at the server, use the client-sent list (if any)
+    if (const auto * const csd = request->clientConnectionManager.valid()) {
+        if (csd->sslBumpMode == Ssl::bumpPeek) {
+            if (const auto &details = csd->tlsParser.details) {
+                if (details->tlsVersion.protocol != AnyP::PROTO_NONE) {
+                    if (!details->tlsAppLayerProtoNeg.isEmpty()) {
+                        debugs(83, 5, "mimicking client ALPN");
+                        return details->tlsAppLayerProtoNeg;
+                    }
+                }
+            }
+        }
+    }
+    return Security::PeerConnector::clientApplicationProtocols();
+}
+
 void
 Ssl::PeekingPeerConnector::noteNegotiationDone(ErrorState *error)
 {

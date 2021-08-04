@@ -80,6 +80,10 @@ protected:
     /// \returns true on successful TLS session initialization
     virtual bool initialize(Security::SessionPointer &);
 
+    /// computes a list of application protocols we can support on serverConn
+    /// \returns a non-empty list of application protocols in ALPN wire format
+    virtual const SBuf &clientApplicationProtocols() const;
+
     /// Performs a single secure connection negotiation step.
     /// It is called multiple times until the negotiation finishes or aborts.
     void negotiate();
@@ -170,6 +174,7 @@ private:
 
     static void NegotiateSsl(int fd, void *data);
     void negotiateSsl();
+    void offerClientApplicationProtocols(SessionPointer &, const SBuf &protocolList);
 
     /// The maximum allowed missing certificates downloads.
     static const unsigned int MaxCertsDownloads = 10;

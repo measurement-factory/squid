@@ -128,6 +128,8 @@ Security::PeerConnector::initialize(Security::SessionPointer &serverSession)
     serverSession = fd_table[serverConnection()->fd].ssl;
     debugs(83, 5, serverConnection() << ", session=" << (void*)serverSession.get());
 
+    offerClientApplicationProtocols(serverSession, clientApplicationProtocols());
+
 #if USE_OPENSSL
     // If CertValidation Helper used do not lookup checklist for errors,
     // but keep a list of errors to send it to CertValidator
@@ -145,6 +147,44 @@ Security::PeerConnector::initialize(Security::SessionPointer &serverSession)
 #endif
 
     return true;
+}
+
+const SBuf &
+Security::PeerConnector::clientApplicationProtocols() const
+{
+    static const SBuf supportedProtocols("\x08http/1.1", 9);
+    return supportedProtocols;
+}
+
+/// configure the session to offer the given application-layer protos (RFC 7301)
+/// \param protocolList a non-empty list of protocol names, in ALPN wire format
+void
+Security::PeerConnector::offerClientApplicationProtocols(SessionPointer &serverSession, const SBuf &protocolList)
+{
+    assert(serverSession); // TODO: Use Security::Connection instead of this pointer
+    assert(protocolList.length());
+    debugs(83, 5, Raw("ALPN", protocolList.rawContent(), protocolList.length()).hex());
+#if USE_OPENSSL
+
+#if defined(TLSEXT_TYPE_application_layer_protocol_negotiation)
+    SSL_set_alpn_protos(serverSession.get(),
+        reinterpret_cast<const unsigned char*>(protocolList.rawContent()),
+        protocolList.length());
+    // XXX: throw on errors
+#endif
+
+#elif USE_GNUTLS
+    // XXX: GnuTLS needs a different format:
+    // std::vector<gnutls_datum_t /* PoolingAllocator */> rawList(protoNames.size());
+    // for (const auto &proto: protoNames)
+    //     rawList.emplace_back(proto.rawContent(), proto.length());
+    // if (!gnutls_alpn_set_protocols(serverSession, rawList.data(), rawList.size(), 0))
+    //     throw ...
+    (void)serverSession;
+#else
+    (void)serverSession;
+    assert(false); // unreachable
+#endif // USE_OPENSSL
 }
 
 void
