@@ -67,6 +67,8 @@ public:
     /// hack: whether the connection requires fwdPconnPool->noteUses()
     bool noteFwdPconnUse;
 
+    virtual void callException(const std::exception &);
+
 protected:
     // AsyncJob API
     virtual void start();

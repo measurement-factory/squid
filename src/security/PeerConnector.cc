@@ -515,9 +515,6 @@ Security::PeerConnector::swanSong()
             callback = nullptr;
             disconnect();
         } else {
-            // TODO: Remove. Left to debug why we got here.
-            debugs(83, DBG_IMPORTANT, "Former BUG: Unexpected state while connecting to a cache_peer or origin server: " <<
-                   (stopReason ? stopReason : "unknown reason"));
             const auto anErr = new ErrorState(ERR_GATEWAY_FAILURE, Http::scInternalServerError, request.getRaw(), al);
             bail(anErr);
         }
@@ -525,6 +522,14 @@ Security::PeerConnector::swanSong()
     }
 
     AsyncJob::swanSong();
+}
+
+// TODO: Remove. Left to debug why we got here.
+void
+Security::PeerConnector::callException(const std::exception &ex)
+{
+    debugs(83, DBG_IMPORTANT, "Normally hidden failure: " << ex.what());
+    AsyncJob::callException(ex);
 }
 
 const char *
