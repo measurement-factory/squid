@@ -47,5 +47,7 @@ typedef RefCount<HttpRequest> HttpRequestPointer;
 class HttpReply;
 typedef RefCount<HttpReply> HttpReplyPointer;
 
+class HeaderEditor;
+
 #endif /* SQUID_SRC_HTTP_FORWARD_H */
 

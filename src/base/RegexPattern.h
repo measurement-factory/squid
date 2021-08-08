@@ -11,6 +11,9 @@
 
 #include "compat/GnuRegex.h"
 #include "mem/forward.h"
+#include "sbuf/SBuf.h"
+
+#include <vector>
 
 /**
  * A regular expression,
@@ -35,9 +38,18 @@ public:
     const char * c_str() const {return pattern;}
     bool match(const char *str) const {return regexec(&regex,str,0,NULL,0)==0;}
 
+    /// Match str against the expression with maximum maxGroups sub-expressions.
+    /// The result is stored in the groups array.
+    bool match(const char *str, const int maxGroups);
+
+    /// the matched sub-expression an captureNum position
+    SBuf capture(const uint64_t captureNum) const;
+
 public:
     int flags;
     regex_t regex;
+    /// matched sub-expression list after the last match(str, maxGroups) call
+    std::vector<regmatch_t> groups;
 
 private:
     char *pattern;

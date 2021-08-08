@@ -9,6 +9,7 @@
 #include "squid.h"
 #include "AccessLogEntry.h"
 #include "base64.h"
+#include "base/RegexPattern.h"
 #include "client_side.h"
 #include "comm/Connection.h"
 #include "error/Detail.h"
@@ -374,7 +375,7 @@ actualRequestHeader(const AccessLogEntry::Pointer &al)
 }
 
 void
-Format::Format::assemble(MemBuf &mb, const AccessLogEntry::Pointer &al, int logSequenceNumber) const
+Format::Format::assemble(MemBuf &mb, const AccessLogEntry::Pointer &al, int logSequenceNumber, const RegexPattern *pattern) const
 {
     static char tmp[1024];
     SBuf sb;
@@ -864,6 +865,13 @@ Format::Format::assemble(MemBuf &mb, const AccessLogEntry::Pointer &al, int logS
                 sb = al->proxyProtocolHeader->getElem(fmt->data.headerId, fmt->data.header.element, fmt->data.header.separator);
                 out = sb.c_str();
                 quote = 1;
+            }
+            break;
+
+        case LFT_REGEX_HEADER_EDIT:
+            if (pattern) {
+                sb = pattern->capture(fmt->data.reCaptureId);
+                out = sb.c_str();
             }
             break;
 

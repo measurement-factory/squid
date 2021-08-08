@@ -32,6 +32,21 @@ RegexPattern::~RegexPattern()
     regfree(&regex);
 }
 
+bool
+RegexPattern::match(const char *str, const int maxGroups)
+{
+    // Must((flags & REG_NOSUB) == 0);
+    groups.resize(maxGroups);
+    groups.clear();
+    return regexec(&regex, str, maxGroups, &groups[0], 0) == 0;
+}
+
+SBuf
+RegexPattern::capture(const uint64_t captureNum) const {
+    Must(captureNum < groups.size());
+    return SBuf(&pattern[groups[captureNum].rm_so], groups[captureNum].rm_eo - groups[captureNum].rm_so);
+}
+
 RegexPattern &
 RegexPattern::operator =(RegexPattern &&o)
 {
