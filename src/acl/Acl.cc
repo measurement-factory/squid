@@ -263,6 +263,11 @@ ACL::ParseAclLine(ConfigParser &parser, ACL ** head)
     try {
         A->parseFlags();
         A->parse();
+        if (parser.optionalAclToken("unexpected leftovers")) {
+            debugs(28, DBG_CRITICAL, "WARNING: ACL " << A->name <<
+                    " leftovers are deprecated and will become a fatal configuration error.");
+            while (parser.optionalAclToken("unexpected leftovers"));
+        }
     } catch (const Configuration::MissingTokenException &e) {
         switch (A->calculateArgumentAction()) {
         case argIgnore:
@@ -306,14 +311,6 @@ ACL::ParseAclLine(ConfigParser &parser, ACL ** head)
 
     // register for centralized cleanup
     aclRegister(A);
-}
-
-void
-ACL::parse()
-{
-    if (ConfigParser::Current().optionalAclToken("ACL leftovers"))
-        debugs(89, DBG_CRITICAL, "WARNING: ACL " << name <<
-               " leftovers are deprecated and will become a fatal configuration error.");
 }
 
 ACL::ArgumentAction

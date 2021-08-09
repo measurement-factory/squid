@@ -53,19 +53,6 @@ void
 ACLMaxConnection::parse()
 {
     limit = atoi(ConfigParser::Current().requiredAclToken("maxconn number"));
-
-    /* suck out file contents */
-    // ignore comments
-    bool ignore = false;
-    for (const auto t: ConfigParser::Current().optionalAclTokens("maxconn leftovers")) {
-        ignore |= (*t != '#');
-
-        if (ignore)
-            continue;
-
-        debugs(89, DBG_CRITICAL, "WARNING: max_conn only accepts a single limit value.");
-        limit = 0;
-    }
 }
 
 int

@@ -66,7 +66,7 @@ public:
     virtual void parseFlags();
 
     /// parses node representation in squid.conf; dies on failures
-    virtual void parse();
+    virtual void parse() {}
     virtual char const *typeString() const = 0;
     virtual bool isProxyAuth() const;
     virtual SBufList dump() const = 0;

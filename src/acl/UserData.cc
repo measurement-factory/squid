@@ -107,8 +107,6 @@ ACLUserData::parse()
     if (strncmp(userName, "REQUIRED", 8) == 0) {
         debugs(28, 5, "REQUIRED-type enabled");
         flags.required = true;
-        while (parser.optionalAclToken("REQUIRED-type leftovers"))
-            debugs(28, DBG_PARSE_NOTE(1), "WARNING: detected attempt to add usernames to an acl of type REQUIRED");
     } else {
         // TODO: parse multiple -i,+i options, if any
         insert(userName);
