@@ -263,10 +263,13 @@ ACL::ParseAclLine(ConfigParser &parser, ACL ** head)
     try {
         A->parseFlags();
         A->parse();
-        if (parser.optionalAclToken("unexpected leftovers")) {
-            debugs(28, DBG_CRITICAL, "WARNING: ACL " << A->name <<
-                    " leftovers are deprecated and will become a fatal configuration error.");
-            while (parser.optionalAclToken("unexpected leftovers"));
+        static const char *message = "unexpected leftovers";
+        if (parser.optionalAclToken(message)) {
+            // Extract all the remaining tokens: Without this, the parser would be
+            // left in an incoherent state an unable to parse correctly the following lines.
+            for (const auto tok: parser.optionalAclTokens(message))
+                (void)tok;
+            throw TextException(ToSBuf(message, " in ", A->name, " ACL"), Here());
         }
     } catch (const Configuration::MissingTokenException &e) {
         switch (A->calculateArgumentAction()) {
