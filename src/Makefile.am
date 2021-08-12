@@ -482,6 +482,7 @@ squid_SOURCES = \
 	tools.cc \
 	tools.h \
 	tunnel.cc \
+	tunnel.h \
 	typedefs.h \
 	urn.cc \
 	urn.h \
@@ -1095,6 +1096,7 @@ nodist_tests_testString_SOURCES = \
 	tests/stub_SBuf.cc \
 	String.cc \
 	tests/stub_debug.cc \
+	tests/stub_event.cc \
 	tests/stub_libmem.cc
 tests_testString_LDADD = \
 	base/libbase.la \
@@ -2042,6 +2044,7 @@ tests_test_http_range_SOURCES = \
 	tools.cc \
 	tools.h \
 	tests/stub_tunnel.cc \
+	tunnel.h \
 	urn.cc \
 	urn.h \
 	tests/stub_wccp2.cc \
@@ -2435,6 +2438,7 @@ tests_testHttpRequest_SOURCES = \
 	tools.cc \
 	tools.h \
 	tests/stub_tunnel.cc \
+	tunnel.h \
 	urn.cc \
 	urn.h \
 	tests/stub_wccp2.cc \
@@ -2740,6 +2744,7 @@ tests_testCacheManager_SOURCES = \
 	tools.cc \
 	tools.h \
 	tests/stub_tunnel.cc \
+	tunnel.h \
 	urn.cc \
 	urn.h \
 	tests/stub_wccp2.cc \
@@ -2854,6 +2859,7 @@ tests_testConfigParser_SOURCES = \
 	cache_cf.h \
 	tests/stub_cbdata.cc \
 	tests/stub_debug.cc \
+	tests/stub_event.cc \
 	tests/stub_fatal.cc \
 	fatal.h \
 	tests/stub_libmem.cc \
@@ -3067,6 +3073,7 @@ tests_testEvent_SOURCES = \
 	tools.cc \
 	tools.h \
 	tests/stub_tunnel.cc \
+	tunnel.h \
 	urn.cc \
 	urn.h \
 	tests/stub_wccp2.cc \

@@ -699,7 +699,7 @@ clientReplyContext::cacheHit(StoreIOBuffer result)
         return;
     } else if (r->conditional()) {
         debugs(88, 5, "conditional HIT");
-        if (processConditional(result))
+        if (processConditional())
             return;
     }
 
@@ -818,7 +818,7 @@ clientReplyContext::processOnlyIfCachedMiss()
 
 /// process conditional request from client
 bool
-clientReplyContext::processConditional(StoreIOBuffer &result)
+clientReplyContext::processConditional()
 {
     StoreEntry *const e = http->storeEntry();
 
@@ -916,6 +916,8 @@ purgeEntriesByUrl(HttpRequest * req, const char *url)
             debugs(88, 5, m << ' ' << url << ' ' << storeKeyText(key));
 #if USE_HTCP
             neighborsHtcpClear(nullptr, req, m, HTCP_CLR_INVALIDATION);
+#else
+            (void)req;
 #endif
             Store::Root().evictIfFound(key);
         }

@@ -57,5 +57,6 @@ void httpHdrScInitModule (void);
 HttpHdrSc *httpHdrScParseCreate(String const &);
 void httpHdrScSetMaxAge(HttpHdrSc *, char const *, int);
 
+http_hdr_sc_type &operator++(http_hdr_sc_type &);
 #endif /* SQUID_HTTPHDRSURROGATECONTROL_H */
 

@@ -253,7 +253,6 @@ static void
 sslCrtvdHandleReplyWrapper(void *data, const ::Helper::Reply &reply)
 {
     Ssl::CertValidationMsg replyMsg(Ssl::CrtdMessage::REPLY);
-    std::string error;
 
     submitData *crtdvdData = static_cast<submitData *>(data);
     assert(crtdvdData->ssl.get());
@@ -265,7 +264,7 @@ sslCrtvdHandleReplyWrapper(void *data, const ::Helper::Reply &reply)
         debugs(83, DBG_IMPORTANT, "\"ssl_crtvd\" helper returned NULL response");
         validationResponse->resultCode = ::Helper::BrokenHelper;
     } else if (replyMsg.parse(reply.other().content(), reply.other().contentSize()) != Ssl::CrtdMessage::OK ||
-               !replyMsg.parseResponse(*validationResponse, error) ) {
+               !replyMsg.parseResponse(*validationResponse) ) {
         debugs(83, DBG_IMPORTANT, "WARNING: Reply from ssl_crtvd for " << " is incorrect");
         debugs(83, DBG_IMPORTANT, "ERROR: Certificate cannot be validated. ssl_crtvd response: " << replyMsg.getBody());
         validationResponse->resultCode = ::Helper::BrokenHelper;

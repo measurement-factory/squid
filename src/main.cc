@@ -66,6 +66,7 @@
 #include "peer_userhash.h"
 #include "PeerSelectState.h"
 #include "profiler/Profiler.h"
+#include "protos.h"
 #include "redirect.h"
 #include "refresh.h"
 #include "sbuf/Stream.h"
@@ -647,6 +648,8 @@ mainHandleCommandLineOption(const int optId, const char *optValue)
          * then performs actions for -s option. */
         xfree(opt_syslog_facility); // ignore any previous options sent
         opt_syslog_facility = xstrdup(optValue);
+        Debug::ConfigureSyslog(opt_syslog_facility);
+        break;
 
     case 's':
         /** \par s
@@ -750,7 +753,7 @@ reconfigure(int sig)
 #endif
 }
 
-void
+static void
 master_revive_kids(int sig)
 {
     ReviveKidsSignal = sig;
@@ -764,7 +767,7 @@ master_revive_kids(int sig)
 }
 
 /// Shutdown signal handler for master process
-void
+static void
 master_shutdown(int sig)
 {
     do_shutdown = 1;
@@ -788,10 +791,8 @@ shut_down(int sig)
         shutdown_status = EXIT_FAILURE;
 #endif
 
-#if !_SQUID_WINDOWS_
-#if !HAVE_SIGACTION
+#if !defined(_SQUID_WINDOWS_) && !defined(HAVE_SIGACTION)
     signal(sig, shut_down);
-#endif
 #endif
 }
 
@@ -800,10 +801,10 @@ sig_child(int sig)
 {
     do_handle_stopped_child = 1;
 
-#if !_SQUID_WINDOWS_
-#if !HAVE_SIGACTION
+#if !defined(_SQUID_WINDOWS_) && !defined(HAVE_SIGACTION)
     signal(sig, sig_child);
-#endif
+#else
+    (void)sig;
 #endif
 }
 
