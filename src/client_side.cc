@@ -180,7 +180,6 @@ static IOACB httpAccept;
 #if USE_IDENT
 static IDCB clientIdentDone;
 #endif
-static int clientIsContentLengthValid(HttpRequest * r);
 static int clientIsRequestBodyTooLargeForPolicy(int64_t bodyLength);
 
 static void clientUpdateStatHistCounters(const LogTags &logType, int svc_time);
@@ -696,31 +695,6 @@ clientSetKeepaliveFlag(ClientHttpRequest * http)
 
     // TODO: move to HttpRequest::hdrCacheInit, just like HttpReply.
     request->flags.proxyKeepalive = request->persistent();
-}
-
-/// checks body length of non-chunked requests
-static int
-clientIsContentLengthValid(HttpRequest * r)
-{
-    // No Content-Length means this request just has no body, but conflicting
-    // Content-Lengths mean a message framing error (RFC 7230 Section 3.3.3 #4).
-    if (r->header.conflictingContentLength())
-        return 0;
-
-    switch (r->method.id()) {
-
-    case Http::METHOD_GET:
-
-    case Http::METHOD_HEAD:
-        /* We do not want to see a request entity on GET/HEAD requests */
-        return (r->content_length <= 0 || Config.onoff.request_entities);
-
-    default:
-        /* For other types of requests we don't care */
-        return 1;
-    }
-
-    /* NOT REACHED */
 }
 
 int
@@ -1579,18 +1553,9 @@ bool ConnStateData::serveDelayedError(Http::Stream *context)
 }
 #endif // USE_OPENSSL
 
-/// ConnStateData::tunnelOnError() wrapper. Reduces code changes. TODO: Remove.
-bool
-clientTunnelOnError(ConnStateData *conn, Http::StreamPointer &context, HttpRequest::Pointer &request, const HttpRequestMethod& method, err_type requestError)
-{
-    assert(conn);
-    assert(conn->pipeline.front() == context);
-    return conn->tunnelOnError(method, requestError);
-}
-
 /// initiate tunneling if possible or return false otherwise
 bool
-ConnStateData::tunnelOnError(const HttpRequestMethod &method, const err_type requestError)
+ConnStateData::tunnelOnError(const HttpRequestMethod &, const err_type requestError)
 {
     if (!Config.accessList.on_unsupported_protocol) {
         debugs(33, 5, "disabled; send error: " << requestError);
@@ -1697,11 +1662,9 @@ clientProcessRequest(ConnStateData *conn, const Http1::RequestParserPointer &hp,
         request->http_ver.minor = http_ver.minor;
     }
 
-    const auto unsupportedTe = request->header.unsupportedTe();
-
     mustReplyToOptions = (request->method == Http::METHOD_OPTIONS) &&
                          (request->header.getInt64(Http::HdrType::MAX_FORWARDS) == 0);
-    if (!urlCheckRequest(request.getRaw()) || mustReplyToOptions || unsupportedTe) {
+    if (!urlCheckRequest(request.getRaw()) || mustReplyToOptions) {
         clientStreamNode *node = context->getClientReplyContext();
         conn->quitAfterError(request.getRaw());
         clientReplyContext *repContext = dynamic_cast<clientReplyContext *>(node->data.getRaw());
@@ -1714,15 +1677,13 @@ clientProcessRequest(ConnStateData *conn, const Http1::RequestParserPointer &hp,
         return;
     }
 
-    const auto chunked = request->header.chunked();
-    if (!chunked && !clientIsContentLengthValid(request.getRaw())) {
+    const auto frameStatus = request->checkEntityFraming();
+    if (frameStatus != Http::scNone) {
         clientStreamNode *node = context->getClientReplyContext();
         clientReplyContext *repContext = dynamic_cast<clientReplyContext *>(node->data.getRaw());
         assert (repContext);
         conn->quitAfterError(request.getRaw());
-        repContext->setReplyToError(ERR_INVALID_REQ,
-                                    Http::scLengthRequired, request->method, NULL,
-                                    conn, request.getRaw(), nullptr, nullptr);
+        repContext->setReplyToError(ERR_INVALID_REQ, frameStatus, request->method, nullptr, conn, request.getRaw(), nullptr, nullptr);
         assert(context->http->out.offset == 0);
         context->pullData();
         clientProcessRequestFinished(conn, request);
@@ -1744,6 +1705,7 @@ clientProcessRequest(ConnStateData *conn, const Http1::RequestParserPointer &hp,
 #endif
 
     /* Do we expect a request-body? */
+    const auto chunked = request->header.chunked();
     expectBody = chunked || request->content_length > 0;
     if (!context->mayUseConnection() && expectBody) {
         request->body_pipe = conn->expectRequestBody(
@@ -2357,11 +2319,6 @@ httpAccept(const CommAcceptCbParams &params)
     debugs(33, 4, params.conn << ": accepted");
     fd_note(params.conn->fd, "client http connect");
 
-    if (s->tcp_keepalive.enabled)
-        commSetTcpKeepalive(params.conn->fd, s->tcp_keepalive.idle, s->tcp_keepalive.interval, s->tcp_keepalive.timeout);
-
-    ++incoming_sockets_accepted;
-
     // Socket is ready, setup the connection manager to start using it
     auto *srv = Http::NewServer(xact);
     AsyncJob::Start(srv); // usually async-calls readSomeData()
@@ -2561,11 +2518,6 @@ httpsAccept(const CommAcceptCbParams &params)
 
     debugs(33, 4, HERE << params.conn << " accepted, starting SSL negotiation.");
     fd_note(params.conn->fd, "client https connect");
-
-    if (s->tcp_keepalive.enabled) {
-        commSetTcpKeepalive(params.conn->fd, s->tcp_keepalive.idle, s->tcp_keepalive.interval, s->tcp_keepalive.timeout);
-    }
-    ++incoming_sockets_accepted;
 
     // Socket is ready, setup the connection manager to start using it
     auto *srv = Https::NewServer(xact);
@@ -2985,7 +2937,7 @@ ConnStateData::parseTlsHandshake()
         HttpRequest::Pointer request = context->http->request;
         debugs(83, 5, "Got something other than TLS Client Hello. Cannot SslBump.");
         updateError(ERR_PROTOCOL_UNKNOWN, parseErrorDetails);
-        if (!clientTunnelOnError(this, context, request, HttpRequestMethod(), ERR_PROTOCOL_UNKNOWN))
+        if (!tunnelOnError(HttpRequestMethod(), ERR_PROTOCOL_UNKNOWN))
             clientConnection->close();
         return;
     }
@@ -3004,7 +2956,8 @@ ConnStateData::parseTlsHandshake()
     }
 }
 
-void httpsSslBumpStep2AccessCheckDone(Acl::Answer answer, void *data)
+static void
+httpsSslBumpStep2AccessCheckDone(Acl::Answer answer, void *data)
 {
     ConnStateData *connState = (ConnStateData *) data;
 

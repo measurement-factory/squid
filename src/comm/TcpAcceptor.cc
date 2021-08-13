@@ -369,6 +369,7 @@ Comm::TcpAcceptor::oldAccept(Comm::ConnectionPointer &details)
     }
 
     Must(sock >= 0);
+    ++incoming_sockets_accepted;
 
     // Sync with Comm ASAP so that abandoned details can properly close().
     // XXX : these are not all HTTP requests. use a note about type and ip:port details->
@@ -429,6 +430,7 @@ Comm::TcpAcceptor::oldAccept(Comm::ConnectionPointer &details)
     // set socket flags
     commSetCloseOnExec(sock);
     commSetNonBlocking(sock);
+    Comm::ApplyTcpKeepAlive(sock, listenPort_->tcp_keepalive);
 
     /* IFF the socket is (tproxy) transparent, pass the flag down to allow spoofing */
     F->flags.transparent = fd_table[conn->fd].flags.transparent; // XXX: can we remove this line yet?
