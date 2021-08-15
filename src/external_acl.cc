@@ -528,7 +528,7 @@ ACLExternal::parse()
     // this is the name of the 'acl' directive being tested
     data->name = xstrdup(AclMatchedName);
 
-    for (const auto tok: ConfigParser::Current().optionalAclTokens("external acl arguments"))
+    for (const auto &tok: ConfigParser::Current().optionalAclTokens("external acl arguments"))
         wordlistAdd(&data->arguments, tok);
 }
 

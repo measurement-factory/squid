@@ -110,7 +110,7 @@ ACLUserData::parse()
     } else {
         // TODO: parse multiple -i,+i options, if any
         insert(userName);
-        for (const auto user: parser.optionalAclTokens("user names"))
+        for (const auto &user: parser.optionalAclTokens("user names"))
             insert(user);
     }
     debugs(28,4, "ACL contains " << userDataNames.size() << " users");

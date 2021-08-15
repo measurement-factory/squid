@@ -267,7 +267,7 @@ ACL::ParseAclLine(ConfigParser &parser, ACL ** head)
         if (parser.optionalAclToken(message)) {
             // Extract all the remaining tokens: Without this, the parser would be
             // left in an incoherent state an unable to parse correctly the following lines.
-            for (const auto tok: parser.optionalAclTokens(message))
+            for (const auto &tok: parser.optionalAclTokens(message))
                 (void)tok;
             throw TextException(ToSBuf(message, " in ", A->name, " ACL"), Here());
         }

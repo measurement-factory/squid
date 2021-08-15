@@ -477,7 +477,7 @@ ACLIP::parse()
     if (data == NULL)
         data = new IPSplay();
 
-    for (const auto t: ConfigParser::Current().requiredAclTokens("IP address")) {
+    for (const auto &t: ConfigParser::Current().requiredAclTokens("IP address")) {
         acl_ip_data *q = acl_ip_data::FactoryParse(t);
 
         while (q != NULL) {
