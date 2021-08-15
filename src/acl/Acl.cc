@@ -263,13 +263,14 @@ ACL::ParseAclLine(ConfigParser &parser, ACL ** head)
     try {
         A->parseFlags();
         A->parse();
-        static const char *message = "unexpected leftovers";
+        static const auto message = "unexpected leftovers";
         if (parser.optionalAclToken(message)) {
+            const auto errorMessage = ToSBuf(message, " in ", A->name, " ACL");
             // Extract all the remaining tokens: Without this, the parser would be
             // left in an incoherent state an unable to parse correctly the following lines.
             for (const auto &tok: parser.optionalAclTokens(message))
-                (void)tok;
-            throw TextException(ToSBuf(message, " in ", A->name, " ACL"), Here());
+                debugs(28, DBG_PARSE_NOTE(2), errorMessage << ": " << tok);
+            throw TextException(errorMessage, Here());
         }
     } catch (const Configuration::MissingTokenException &e) {
         switch (A->calculateArgumentAction()) {
