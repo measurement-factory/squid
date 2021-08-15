@@ -88,6 +88,11 @@ Http::One::ResponseParser::ParseResponseStatus(Tokenizer &tok, StatusCode &code)
     int64_t statusValue;
     if (tok.int64(statusValue, 10, false, 3) && tok.skipOne(Parser::DelimiterCharacters())) {
         debugs(74, 6, "raw status-code=" << statusValue);
+
+        // XXX: Temporary hack to handle HTTP 999 responses from a popular site.
+        if (statusValue == 999)
+            statusValue = 599;
+
         code = static_cast<StatusCode>(statusValue); // may be invalid
 
         // RFC 7230 Section 3.1.2 says status-code is exactly three DIGITs
