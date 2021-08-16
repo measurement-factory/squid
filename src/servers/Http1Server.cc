@@ -213,7 +213,7 @@ Http::One::Server::setReplyError(Http::StreamPointer &context, HttpRequest::Poin
     clientReplyContext *repContext = dynamic_cast<clientReplyContext *>(node->data.getRaw());
     assert (repContext);
 
-    repContext->setReplyToError(requestError, errStatusCode, Http::METHOD_NONE, context->http->uri, clientConnection->remote, nullptr, requestErrorBytes, nullptr);
+    repContext->setReplyToError(requestError, errStatusCode, context->http->uri, clientConnection->remote, nullptr, requestErrorBytes, nullptr);
 
     assert(context->http->out.offset == 0);
     context->pullData();
@@ -245,7 +245,7 @@ Http::One::Server::processParsedRequest(Http::StreamPointer &context)
             assert(http->log_uri);
             clientReplyContext *repContext = dynamic_cast<clientReplyContext *>(node->data.getRaw());
             assert (repContext);
-            repContext->setReplyToError(ERR_INVALID_REQ, Http::scExpectationFailed, request->method, http->uri,
+            repContext->setReplyToError(ERR_INVALID_REQ, Http::scExpectationFailed, http->uri,
                                         clientConnection->remote, request.getRaw(), NULL, NULL);
             assert(context->http->out.offset == 0);
             context->pullData();
