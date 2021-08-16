@@ -3408,7 +3408,7 @@ ConnStateData::initiateTunneledRequest(HttpRequest::Pointer const &cause, const 
     }
 
     debugs(33, 2, "Request tunneling for " << reason);
-    ClientHttpRequest *http = buildFakeRequest(HttpRequestMethod(Http::METHOD_CONNECT), connectHost, connectPort, payload);
+    ClientHttpRequest *http = buildFakeRequest(connectHost, connectPort, payload);
     HttpRequest::Pointer request = http->request;
     request->flags.forceTunnel = true;
     http->calloutContext = new ClientRequestContext(http);
@@ -3437,7 +3437,7 @@ ConnStateData::fakeAConnectRequest(const char *reason, const SBuf &payload)
         connectHost.assign(ip);
     }
 
-    ClientHttpRequest *http = buildFakeRequest(HttpRequestMethod(Http::METHOD_CONNECT), connectHost, connectPort, payload);
+    ClientHttpRequest *http = buildFakeRequest(connectHost, connectPort, payload);
 
     http->calloutContext = new ClientRequestContext(http);
     HttpRequest::Pointer request = http->request;
@@ -3447,7 +3447,7 @@ ConnStateData::fakeAConnectRequest(const char *reason, const SBuf &payload)
 }
 
 ClientHttpRequest *
-ConnStateData::buildFakeRequest(const HttpRequestMethod &method, SBuf &useHost, unsigned short usePort, const SBuf &payload)
+ConnStateData::buildFakeRequest(SBuf &useHost, unsigned short usePort, const SBuf &payload)
 {
     ClientHttpRequest *http = new ClientHttpRequest(this);
     Http::Stream *stream = new Http::Stream(clientConnection, http);
@@ -3476,9 +3476,9 @@ ConnStateData::buildFakeRequest(const HttpRequestMethod &method, SBuf &useHost, 
     // Setup Http::Request object. Maybe should be replaced by a call to (modified)
     // clientProcessRequest
     HttpRequest::Pointer request = new HttpRequest(mx);
-    AnyP::ProtocolType proto = (method == Http::METHOD_NONE) ? AnyP::PROTO_AUTHORITY_FORM : AnyP::PROTO_HTTP;
+    AnyP::ProtocolType proto = AnyP::PROTO_HTTP;
     request->url.setScheme(proto, nullptr);
-    request->method = method;
+    request->method = Http::METHOD_CONNECT;
     request->url.host(useHost.c_str());
     request->url.port(usePort);
 

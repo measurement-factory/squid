@@ -310,7 +310,7 @@ public:
     bool tunnelOnError(const err_type);
 
     /// build a fake http request
-    ClientHttpRequest *buildFakeRequest(const HttpRequestMethod &method, SBuf &useHost, unsigned short usePort, const SBuf &payload);
+    ClientHttpRequest *buildFakeRequest(SBuf &useHost, unsigned short usePort, const SBuf &payload);
 
     /// From-client handshake bytes (including bytes at the beginning of a
     /// CONNECT tunnel) which we may need to forward as-is if their syntax does
