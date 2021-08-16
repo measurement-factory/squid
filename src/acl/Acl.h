@@ -62,11 +62,11 @@ public:
     /// \returns (linked) Options supported by this ACL
     virtual const Acl::Options &options() { return Acl::NoOptions(); }
 
-    /// configures supported ACL options, throwing on configuration errors
+    /// configures ACL options, throwing on configuration errors
     virtual void parseFlags();
 
     /// parses node representation in squid.conf; dies on failures
-    virtual void parse() {}
+    virtual void parse() = 0;
     virtual char const *typeString() const = 0;
     virtual bool isProxyAuth() const;
     virtual SBufList dump() const = 0;

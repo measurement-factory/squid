@@ -88,43 +88,52 @@ ACLUserData::parse()
     debugs(28, 2, "parsing user list");
     const auto &parser = ConfigParser::Current();
     auto userNameOrOption = parser.requiredAclToken("user name or option");
-    debugs(28, 5, "first token is " << userNameOrOption);
-    if (strncmp(userNameOrOption, "-i", 2) == 0) {
-        debugs(28, 5, "Going case-insensitive");
-        flags.case_insensitive = true;
-        // due to how the std::set API work, if we want to change
-        // the comparison function we have to create a new std::set
-        UserDataNames_t newUdn(CaseInsensitveSBufCompare);
-        newUdn.insert(userDataNames.begin(), userDataNames.end());
-        swap(userDataNames, newUdn);
-        userNameOrOption = nullptr;
+    {
+        SBuf s(userNameOrOption);
+        debugs(28, 5, "first token is " << s);
+
+        // TODO: parse multiple -i,+i options, if any
+        if (s.cmp("-i",2) == 0) {
+            debugs(28, 5, "Going case-insensitive");
+            flags.case_insensitive = true;
+            // due to how the std::set API work, if we want to change
+            // the comparison function we have to create a new std::set
+            UserDataNames_t newUdn(CaseInsensitveSBufCompare);
+            newUdn.insert(userDataNames.begin(), userDataNames.end());
+            swap(userDataNames,newUdn);
+        } else if (s.cmp("REQUIRED") == 0) {
+            debugs(28, 5, "REQUIRED-type enabled");
+            flags.required = true;
+            return;
+        } else {
+            if (flags.case_insensitive)
+                s.toLower();
+
+            debugs(28, 6, "Adding user " << s);
+            userDataNames.insert(s);
+        }
     }
 
     debugs(28, 3, "Case-insensitive-switch is " << flags.case_insensitive);
     /* we might inherit from a previous declaration */
 
-    const auto userName = userNameOrOption ? userNameOrOption : parser.requiredAclToken("user name");
-    if (strncmp(userName, "REQUIRED", 8) == 0) {
-        debugs(28, 5, "REQUIRED-type enabled");
-        flags.required = true;
-    } else {
-        // TODO: parse multiple -i,+i options, if any
-        insert(userName);
-        for (const auto &user: parser.optionalAclTokens("user names"))
-            insert(user);
-    }
-    debugs(28,4, "ACL contains " << userDataNames.size() << " users");
-}
+    debugs(28, 4, "parsing following tokens");
 
-void
-ACLUserData::insert(const char *userName)
-{
-    SBuf s(userName);
-    debugs(28, 6, "Got token: " << s);
-    if (flags.case_insensitive)
-        s.toLower();
-    debugs(28, 6, "Adding user " << s);
-    userDataNames.insert(s);
+    const auto tokens = userDataNames.empty() ?
+        parser.requiredAclTokens("user name") : parser.optionalAclTokens("user name");
+
+    for (const auto &t: tokens) {
+        SBuf s(t);
+        debugs(28, 6, "Got token: " << s);
+
+        if (flags.case_insensitive)
+            s.toLower();
+
+        debugs(28, 6, "Adding user " << s);
+        userDataNames.insert(s);
+    }
+
+    debugs(28,4, "ACL contains " << userDataNames.size() << " users");
 }
 
 bool
