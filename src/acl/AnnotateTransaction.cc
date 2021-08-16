@@ -20,8 +20,9 @@ ACLAnnotateTransactionStrategy::match(ACLData<MatchType> * &data, ACLFilledCheck
         ACLAnnotationData *tdata = dynamic_cast<ACLAnnotationData*>(data);
         assert(tdata);
         tdata->annotate(request->notes(), &delimiters.value, checklist->al);
-        return 1;
     }
-    return 0;
+    // else there is a bug or misconfiguration; ACL::matches() warned the admin
+
+    return 1; // this is an always-matching ACL
 }
 

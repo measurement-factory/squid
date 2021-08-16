@@ -23,8 +23,11 @@ ACLAnnotateClientStrategy::match(ACLData<MatchType> * &data, ACLFilledChecklist 
         tdata->annotate(conn->notes(), &delimiters.value, checklist->al);
         if (const auto request = checklist->request)
             tdata->annotate(request->notes(), &delimiters.value, checklist->al);
-        return 1;
+        // else we have to assume the connection just has no current requests;
+        // future requests will inherit just-updated connection notes()
     }
-    return 0;
+    // else there is a bug or misconfiguration; ACL::matches() warned the admin
+
+    return 1; // this is an always-matching ACL
 }
 
