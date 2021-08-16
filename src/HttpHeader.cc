@@ -622,6 +622,49 @@ HttpHeader::packInto(Packable * p, bool mask_sensitive_info) const
     /* Cache-Control */
 }
 
+void
+HttpHeader::sortInto(Packable &p, const HttpHeader &model) const
+{
+    debugs(55, 7, this << " following " << &model);
+
+    // Form a to-do list.
+    // No "auto" here to avoid silent copying of (expected) entries changes;
+    // we want this container to be a fast index without entry (de)allocations.
+    using Index = std::vector<HttpHeaderEntry*, PoolingAllocator<HttpHeaderEntry*> >;
+    Index toPack(entries);
+
+    // pack those toPack entries that are present in the model, ~in model order
+    for (const auto modelE: model.entries) {
+        if (!modelE)
+            continue; // XXX: deleted in the original; an unwelcome change!
+
+        if (!CBIT_TEST(mask, modelE->id))
+            continue; // not forwarded
+
+        // linear search: pack the same entry if it is still on our to-do list
+        // XXX: This changes the original "A B A" field order into "A A B".
+        for (auto &e: toPack) {
+            if (!e)
+                continue; // already packed
+
+            const auto same = modelE->id == Http::HdrType::OTHER ?
+                (e->name.length() == modelE->name.length() && e->name.caseCmp(modelE->name) == 0):
+                (e->id == modelE->id);
+            if (same) {
+                e->packInto(&p);
+                e = nullptr; // remove from toPack
+                // and keep going, there might be more of these
+            }
+        }
+    }
+
+    // now pack all the remaining entries on the to-do list
+    for (const auto e: toPack) {
+        if (e)
+            e->packInto(&p);
+    }
+}
+
 /* returns next valid entry */
 HttpHeaderEntry *
 HttpHeader::getEntry(HttpHeaderPos * pos) const
@@ -1070,6 +1113,33 @@ HttpHeader::putStr(Http::HdrType id, const char *str)
     assert(Http::HeaderLookupTable.lookup(id).type == Http::HdrFieldType::ftStr);  /* must be of an appropriate type */
     assert(str);
     addEntry(new HttpHeaderEntry(id, SBuf(), str));
+}
+
+void
+HttpHeader::replaceStr(const Http::HdrType id, SBuf str)
+{
+    assert(any_registered_header(id));
+    assert(Http::HeaderLookupTable.lookup(id).type == Http::HdrFieldType::ftStr);  /* must be of an appropriate type */
+
+    bool replaced = false;
+    for (auto &e: entries) {
+        if (e && e->id == id) {
+            if (replaced) {
+                // remove repetitions of the matching header field
+                delete e;
+                e = nullptr;
+            } else {
+                e->value.assign(str.rawContent(), str.length());
+                replaced = true;
+            }
+        }
+    }
+
+
+    if (!replaced) {
+        // TODO: Optimize to avoid c_str() reallocation
+        addEntry(new HttpHeaderEntry(id, SBuf(), str.c_str()));
+    }
 }
 
 void

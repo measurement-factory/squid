@@ -96,6 +96,8 @@ public:
     /// \returns -1 on error
     int parse(const char *buf, size_t buf_len, bool atEnd, size_t &hdr_sz, Http::ContentLengthInterpreter &interpreter);
     void packInto(Packable * p, bool mask_sensitive_info=false) const;
+    /// pack the fields in the given name order
+    void sortInto(Packable &p, const HttpHeader &model) const;
     HttpHeaderEntry *getEntry(HttpHeaderPos * pos) const;
     HttpHeaderEntry *findEntry(Http::HdrType id) const;
     /// deletes all fields with a given name, if any.
@@ -137,6 +139,7 @@ public:
     void putInt64(Http::HdrType id, int64_t number);
     void putTime(Http::HdrType id, time_t htime);
     void putStr(Http::HdrType id, const char *str);
+    void replaceStr(Http::HdrType, SBuf);
     void putAuth(const char *auth_scheme, const char *realm);
     void putCc(const HttpHdrCc * cc);
     void putContRange(const HttpHdrContRange * cr);
