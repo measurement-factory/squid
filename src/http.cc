@@ -1964,21 +1964,13 @@ HttpStateData::httpBuildRequestHeader(HttpRequest * request,
     /* Fixup (Proxy-)Authorization special cases. Plain relaying dealt with above */
     httpFixupAuthentication(request, hdr_in, hdr_out, flags);
 
-    /* append Cache-Control, add max-age if not there already */
-    {
+    /* append Cache-Control and, if needed, obey sibling restrictions */
+    if (flags.only_if_cached || hdr_in->has(Http::HdrType::CACHE_CONTROL)) {
         HttpHdrCc *cc = hdr_in->getCc();
 
         if (!cc)
             cc = new HttpHdrCc();
 
-        /* Add max-age only without no-cache */
-        if (!cc->hasMaxAge() && !cc->hasNoCache()) {
-            // XXX: performance regression. c_str() reallocates
-            SBuf tmp(request->effectiveRequestUri());
-            cc->maxAge(getMaxAge(entry ? entry->url() : tmp.c_str()));
-        }
-
-        /* Enforce sibling relations */
         if (flags.only_if_cached)
             cc->onlyIfCached(true);
 
@@ -2330,7 +2322,7 @@ HttpStateData::buildRequestPrefix(MemBuf * mb)
             upgradeHeaderOut = new String(hdr.getList(Http::HdrType::UPGRADE));
         }
 
-        hdr.packInto(mb);
+        hdr.sortInto(*mb, request->header);
         hdr.clean();
     }
     /* append header terminator */
