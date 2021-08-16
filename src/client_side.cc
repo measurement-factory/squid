@@ -2550,6 +2550,7 @@ ConnStateData::postHttpsAccept()
         request->url.host(clientConnection->local.toStr(ip, sizeof(ip)));
         request->url.port(clientConnection->local.port());
         request->myportname = port->name;
+        // TODO: request->manager(this);
         const AccessLogEntry::Pointer connectAle = new AccessLogEntry;
         CodeContext::Reset(connectAle);
         // TODO: Use these request/ALE when waiting for new bumped transactions.
