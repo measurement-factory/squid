@@ -3475,7 +3475,7 @@ ConnStateData::buildFakeRequest(SBuf &useHost, unsigned short usePort, const SBu
     // Setup Http::Request object. Maybe should be replaced by a call to (modified)
     // clientProcessRequest
     HttpRequest::Pointer request = new HttpRequest(mx);
-    AnyP::ProtocolType proto = AnyP::PROTO_HTTP;
+    AnyP::ProtocolType proto = AnyP::PROTO_AUTHORITY_FORM;
     request->url.setScheme(proto, nullptr);
     request->method = Http::METHOD_CONNECT;
     request->url.host(useHost.c_str());
@@ -3486,8 +3486,7 @@ ConnStateData::buildFakeRequest(SBuf &useHost, unsigned short usePort, const SBu
 
     request->manager(this, http->al);
 
-    if (proto == AnyP::PROTO_HTTP)
-        request->header.putStr(Http::HOST, useHost.c_str());
+    request->header.putStr(Http::HOST, useHost.c_str());
 
     request->sources |= ((switchedToHttps() || port->transport.protocol == AnyP::PROTO_HTTPS) ? HttpMsg::srcHttps : HttpMsg::srcHttp);
 #if USE_AUTH
