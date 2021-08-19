@@ -86,7 +86,7 @@ void
 ACLUserData::parse()
 {
     debugs(28, 2, "parsing user list");
-    const auto &parser = ConfigParser::Current();
+    auto &parser = ConfigParser::Current();
     auto userNameOrOption = parser.requiredAclToken("user name or option");
     {
         SBuf s(userNameOrOption);

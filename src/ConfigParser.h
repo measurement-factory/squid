@@ -20,7 +20,7 @@
 class wordlist;
 
 class ConfigParser;
-typedef char *(ConfigParser::*TokenExtractor)() const;
+typedef char *(ConfigParser::*TokenExtractor)();
 
 namespace Configuration {
 
@@ -31,7 +31,7 @@ class TokensIterator : public std::iterator<std::input_iterator_tag, char *>
 {
 public:
 
-    explicit TokensIterator(const ConfigParser *parser, const TokenExtractor method):
+    explicit TokensIterator(ConfigParser *parser, const TokenExtractor method):
         parser_(parser), method_(method), current_(parser ? (parser_->*method_)() : nullptr)
     {}
 
@@ -53,7 +53,7 @@ public:
     bool operator!=(const TokensIterator& other) const { return current_ != other.current_; }
 
 private:
-    const ConfigParser *parser_;
+    ConfigParser *parser_;
     TokenExtractor method_; ///< a ConfigParser method for extracting tokens
     value_type current_; ///< a token returned by method_ (or nil)
 };
@@ -62,13 +62,13 @@ private:
 class Tokens
 {
 public:
-    Tokens(const ConfigParser *parser, const TokenExtractor method, const char *desc, const bool mayBeEmpty):
+    Tokens(ConfigParser *parser, const TokenExtractor method, const char *desc, const bool mayBeEmpty):
         parser_(parser), method_(method), description_(desc), emptyAllowed_(mayBeEmpty) {}
     TokensIterator begin() const;
     TokensIterator end() const { return TokensIterator(nullptr, nullptr); }
 
 private:
-    const ConfigParser *parser_;
+    ConfigParser *parser_;
     TokenExtractor method_; ///< a ConfigParser method for extracting tokens
     const char *description_; ///< a description of the expected token(s)
     const bool emptyAllowed_; ///< whether this sequence is allowed to have no elements
@@ -204,15 +204,15 @@ public:
     // External file names can be passed either via quoted tokens ('configuration_includes_quoted_values'
     // is off) or via parameters("/path/filename") syntax.
     /// \returns a non-empty ACL parameter sequence
-    Configuration::Tokens requiredAclTokens(const char *description) const { return Configuration::Tokens(this, &ConfigParser::aclToken, description, false); }
+    Configuration::Tokens requiredAclTokens(const char *description) { return Configuration::Tokens(this, &ConfigParser::aclToken, description, false); }
     /// \returns a possibly empty ACL parameter sequence
-    Configuration::Tokens optionalAclTokens(const char *description) const { return Configuration::Tokens(this, &ConfigParser::aclToken, description, true); }
+    Configuration::Tokens optionalAclTokens(const char *description) { return Configuration::Tokens(this, &ConfigParser::aclToken, description, true); }
     /// \returns a non-empty ACL parameter sequence, with elements as regex patterns
-    Configuration::Tokens requiredAclRegexTokens(const char *description) const { return Configuration::Tokens(this, &ConfigParser::regexAclToken, description, false); }
+    Configuration::Tokens requiredAclRegexTokens(const char *description) { return Configuration::Tokens(this, &ConfigParser::regexAclToken, description, false); }
     /// \returns a non-nil ACL parameter
-    const char *requiredAclToken(const char *description) const { return *requiredAclTokens(description).begin(); }
+    const char *requiredAclToken(const char *description) { return *requiredAclTokens(description).begin(); }
     /// \returns a possibly nil ACL parameter
-    const char *optionalAclToken(const char *description) const { return *optionalAclTokens(description).begin(); }
+    const char *optionalAclToken(const char *description) { return *optionalAclTokens(description).begin(); }
 
     /// configuration_includes_quoted_values in squid.conf
     static bool RecognizeQuotedValues;
@@ -269,9 +269,9 @@ protected:
     };
 
     /// parses the next ACL parameter
-    char *aclToken() const;
+    char *aclToken();
     /// parses the next ACL parameter as a regex pattern
-    char *regexAclToken() const;
+    char *regexAclToken();
 
     /// Return the last TokenPutBack() queued element or NULL if none exist
     static char *Undo();
