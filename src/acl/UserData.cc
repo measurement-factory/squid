@@ -88,12 +88,14 @@ ACLUserData::parse()
     debugs(28, 2, "parsing user list");
     auto &parser = ConfigParser::Current();
     auto userNameOrOption = parser.requiredAclToken("user name or option");
+    auto isOption = false;
     {
         SBuf s(userNameOrOption);
         debugs(28, 5, "first token is " << s);
 
         // TODO: parse multiple -i,+i options, if any
         if (s.cmp("-i",2) == 0) {
+            isOption = true;
             debugs(28, 5, "Going case-insensitive");
             flags.case_insensitive = true;
             // due to how the std::set API work, if we want to change
@@ -104,7 +106,6 @@ ACLUserData::parse()
         } else if (s.cmp("REQUIRED") == 0) {
             debugs(28, 5, "REQUIRED-type enabled");
             flags.required = true;
-            return;
         } else {
             if (flags.case_insensitive)
                 s.toLower();
@@ -119,8 +120,7 @@ ACLUserData::parse()
 
     debugs(28, 4, "parsing following tokens");
 
-    const auto tokens = userDataNames.empty() ?
-        parser.requiredAclTokens("user name") : parser.optionalAclTokens("user name");
+    const auto tokens = isOption ? parser.requiredAclTokens("user name") : parser.optionalAclTokens("user name");
 
     for (const auto &t: tokens) {
         SBuf s(t);
@@ -131,6 +131,11 @@ ACLUserData::parse()
 
         debugs(28, 6, "Adding user " << s);
         userDataNames.insert(s);
+    }
+
+    if (flags.required && !userDataNames.empty()) {
+        debugs(28, DBG_PARSE_NOTE(1), "WARNING: detected attempt to add usernames to an acl of type REQUIRED");
+        userDataNames.clear();
     }
 
     debugs(28,4, "ACL contains " << userDataNames.size() << " users");
