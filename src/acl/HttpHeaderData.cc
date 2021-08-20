@@ -68,7 +68,7 @@ ACLHTTPHeaderData::dump() const
 void
 ACLHTTPHeaderData::parse()
 {
-    const auto t = ConfigParser::Current().requiredAclToken("header name");
+    const auto &t = ConfigParser::Current().requiredAclToken("header name");
 
     if (hdrName.isEmpty()) {
         hdrName = t;

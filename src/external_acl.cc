@@ -514,7 +514,7 @@ ACLExternal::parse()
         return;
     }
 
-    const auto token = ConfigParser::Current().requiredAclToken("external acl name");
+    const auto &token = ConfigParser::Current().requiredAclToken("external acl name");
 
     data = new external_acl_data(find_externalAclHelper(token));
 

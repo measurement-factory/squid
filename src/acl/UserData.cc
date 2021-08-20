@@ -87,13 +87,12 @@ ACLUserData::parse()
 {
     debugs(28, 2, "parsing user list");
     auto &parser = ConfigParser::Current();
-    auto userNameOrOption = parser.requiredAclToken("user name or option");
+    const auto &userNameOrOption = parser.requiredAclToken("user name or option");
     auto isOption = false;
     {
         SBuf s(userNameOrOption);
         debugs(28, 5, "first token is " << s);
 
-        // TODO: parse multiple -i,+i options, if any
         if (s.cmp("-i",2) == 0) {
             isOption = true;
             debugs(28, 5, "Going case-insensitive");
@@ -129,6 +128,7 @@ ACLUserData::parse()
         if (flags.case_insensitive)
             s.toLower();
 
+        // XXX: do not treat 'REQUIRED' and -i,+i as usernames
         debugs(28, 6, "Adding user " << s);
         userDataNames.insert(s);
     }

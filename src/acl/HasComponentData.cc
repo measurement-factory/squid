@@ -23,12 +23,7 @@ ACLHasComponentData::ACLHasComponentData()
 void
 ACLHasComponentData::parse()
 {
-    const auto tok = ConfigParser::Current().requiredAclToken("transaction component name");
-    if (!tok) {
-        debugs(28, DBG_CRITICAL, "FATAL: \"has\" acl argument missing");
-        self_destruct();
-        return;
-    }
+    const auto &tok = ConfigParser::Current().requiredAclToken("transaction component name");
     parseComponent(tok);
 }
 

@@ -197,7 +197,7 @@ public:
 
     static SBuf CurrentLocation();
 
-    /// \returns global LegacyParser
+    /// \returns the global LegacyParser
     static ConfigParser &Current();
 
     // The methods below support reading configuration tokens from external files.

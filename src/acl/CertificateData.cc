@@ -88,11 +88,11 @@ ACLCertificateData::parse()
 {
     if (validAttributesStr) {
         auto &parser = ConfigParser::Current();
-        const auto newAttribute = attributeIsOptional ?
-                                  parser.optionalAclToken("SSL certificate attribute") :
-                                  parser.requiredAclToken("SSL certificate attribute");
+        const auto &newAttribute = attributeIsOptional ?
+                                   parser.optionalAclToken("SSL certificate attribute") :
+                                   parser.requiredAclToken("SSL certificate attribute");
 
-        if (!newAttribute)
+        if (!newAttribute) // optional attribute is missing
             return;
 
         // Handle the cases where we have optional -x type attributes

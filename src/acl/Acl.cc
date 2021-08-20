@@ -356,7 +356,7 @@ void
 ACL::parseOptionsAndFlags(const Acl::Options &otherOptions, const Acl::ParameterFlags &otherFlags)
 {
     static const Acl::TextOption ArgumentActionOption(Acl::Option::valueRequired);
-    static const Acl::Options MyOptions = { { "--missing-argument-action", &ArgumentActionOption } };
+    static const Acl::Options MyOptions = { { "--missing-parameter-action", &ArgumentActionOption } };
     ArgumentActionOption.linkWith(&argumentAction);
 
     Acl::Options resultOptions(MyOptions);

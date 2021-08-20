@@ -501,9 +501,9 @@ ConfigParser::regexAclToken()
         self_destruct();
     }
     ConfigParser::RecognizeQuotedPair_ = true;
-    auto tok = aclToken();
+    auto token = aclToken();
     ConfigParser::RecognizeQuotedPair_ = false;
-    return tok;
+    return token;
 }
 
 char *

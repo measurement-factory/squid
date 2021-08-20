@@ -1085,7 +1085,7 @@ DOC_START
 		alternative non-alphanumeric delimiter characters.
 		non-alphanumeric delimiter characters.
 
-	--missing-argument-action=
+	--missing-parameter-action=
 		An action performed by the ACL parser when the ACL arguments are missing:
 		    ignore	ignore this problem
 		    warn	report a level-1 error message
