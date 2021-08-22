@@ -50,10 +50,10 @@ testACLMaxUserIP::testParseLine()
     char * line = xstrdup("test max_user_ip -s 1");
     /* seed the parser */
     ConfigParser::SetCfgLine(line);
-    ACL *anACL = NULL;
+    AclNamedRules *namedRules = nullptr;
     ConfigParser LegacyParser;
-    ACL::ParseAclLine(LegacyParser, &anACL);
-    ACLMaxUserIP *maxUserIpACL = dynamic_cast<ACLMaxUserIP *>(anACL);
+    const auto acl = Acl::ParseNamedRule(LegacyParser, namedRules);
+    const auto maxUserIpACL = dynamic_cast<const ACLMaxUserIP*>(acl.getRaw());
     CPPUNIT_ASSERT(maxUserIpACL);
     if (maxUserIpACL) {
         /* we want a maximum of one, and strict to be true */
@@ -62,7 +62,8 @@ testACLMaxUserIP::testParseLine()
         /* the acl must be vaid */
         CPPUNIT_ASSERT_EQUAL(true, maxUserIpACL->valid());
     }
-    delete anACL;
+    Acl::FreeNamedRules(namedRules);
+    namedRules = nullptr;
     xfree(line);
 }
 
