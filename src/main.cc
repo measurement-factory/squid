@@ -27,7 +27,7 @@
 #include "client_side.h"
 #include "comm.h"
 #include "CommandLine.h"
-#include "ConfigParser.h"
+#include "configuration/forward.h"
 #include "CpuAffinity.h"
 #include "DiskIO/DiskIOModule.h"
 #include "dns/forward.h"
@@ -882,6 +882,9 @@ mainReconfigureStart(void)
     if (AvoidSignalAction("reconfiguration", do_reconfigure))
         return;
 
+    if (Configuration::AvoidFullReconfiguration(ConfigFile))
+        return;
+
     debugs(1, DBG_IMPORTANT, "Reconfiguring Squid Cache (version " << version_string << ")...");
     reconfiguring = 1;
 
@@ -926,7 +929,7 @@ mainReconfigureFinish(void *)
     // parse the config returns a count of errors encountered.
     const int oldWorkers = Config.workers;
     try {
-        if (parseConfigFile(ConfigFile) != 0) {
+        if (Configuration::PerformFullReconfiguration() != 0) {
             // for now any errors are a fatal condition...
             self_destruct();
         }
@@ -1600,7 +1603,7 @@ SquidMain(int argc, char **argv)
         Format::Token::Init(); // XXX: temporary. Use a runners registry of pre-parse runners instead.
 
         try {
-            parse_err = parseConfigFile(ConfigFile);
+            parse_err = Configuration::Configure(ConfigFile);
         } catch (...) {
             // for now any errors are a fatal condition...
             debugs(1, DBG_CRITICAL, "FATAL: Unhandled exception parsing config file." <<
