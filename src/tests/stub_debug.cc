@@ -94,6 +94,8 @@ _db_print_stderr(const char *format, va_list args)
     vfprintf(stderr, format, args);
 }
 
+void Debug::EarlyMessagesCheckpoint(int) STUB
+
 void
 Debug::parseOptions(char const *)
 {}
