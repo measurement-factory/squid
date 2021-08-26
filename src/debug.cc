@@ -176,19 +176,21 @@ ResyncDebugLog(FILE *newFile)
     TheLog.file_ = newFile;
 }
 
+// XXX: Besides flushing, this function also stops _collection_ of early
+// messages if all channels have been flushed. That side effect does not match
+// the general concept of "flushing" well. It is also incomplete -- missing
+// EarlyMessages destruction. Too messy!
 /// write all previously saved "early" messages into a specified channel
 static void
 FlushEarlyMessages(const DebugChannel ch)
 {
-    if (!SavingEarlyMessages || !EarlyMessages)
+    if (!SavingEarlyMessages)
         return;
 
-    if (EarlyMessages->flushed(ch))
-        return; // already flushed
+    if (EarlyMessages && !EarlyMessages->flushed(ch))
+        EarlyMessages->write(ch);
 
-    EarlyMessages->write(ch);
-
-    if (EarlyMessages->flushedAll())
+    if (!EarlyMessages || EarlyMessages->flushedAll())
         SavingEarlyMessages = false;
 }
 
