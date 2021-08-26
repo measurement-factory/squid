@@ -716,7 +716,7 @@ HttpStateData::processReplyHeader()
     newrep->sline.set(hp->messageProtocol(), hp->messageStatus() /* , hp->reasonPhrase() */);
 
     // parse headers
-    if (!newrep->parseHeader(*hp)) {
+    if (!newrep->parseHeader(*hp, fwd->al)) {
         newrep->sline.set(hp->messageProtocol(), Http::scInvalidHeader);
         debugs(11, 2, "error parsing response headers mime block");
     }

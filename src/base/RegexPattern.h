@@ -45,6 +45,12 @@ public:
     /// the matched sub-expression an captureNum position
     SBuf capture(const uint64_t captureNum) const;
 
+    /// the start offset of the matched expression
+    int startOffset();
+
+    /// the end offset of the matched expression
+    int endOffset();
+
 public:
     int flags;
     regex_t regex;

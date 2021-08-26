@@ -464,10 +464,10 @@ HttpReply::configureContentLengthInterpreter(Http::ContentLengthInterpreter &int
 }
 
 bool
-HttpReply::parseHeader(Http1::Parser &hp)
+HttpReply::parseHeader(Http1::Parser &hp, const AccessLogEntryPointer &al)
 {
     Http::ContentLengthInterpreter clen;
-    return Message::parseHeader(hp, clen);
+    return Message::parseHeader(hp, clen, al);
 }
 
 /* handy: resets and returns -1 */

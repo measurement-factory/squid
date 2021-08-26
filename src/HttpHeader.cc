@@ -484,19 +484,7 @@ HttpHeader::parse(const char *header_start, size_t hdrLen, Http::ContentLengthIn
             break;      /* terminating blank line */
         }
 
-        auto e = HttpHeaderEntry::parse(field_start, field_end, owner);
-
-        if (!e && Config.malformed_request_header_edit) {
-            debugs(55, 3, "attempting to adjust the unparsable HTTP header field {" <<
-                    getStringPrefix(field_start, field_end-field_start) << "}");
-            const auto action = Config.malformed_request_header_edit->fix(&field_start, &field_end);
-            if (action == Http::HeaderEditor::Action::remove)
-                continue;
-            else if (action == Http::HeaderEditor::Action::apply)
-                e = HttpHeaderEntry::parse(field_start, field_end, owner);
-            else
-                assert(action == Http::HeaderEditor::Action::ignore);
-        }
+        const auto e = HttpHeaderEntry::parse(field_start, field_end, owner);
 
         if (!e) {
             debugs(55, warnOnError, "WARNING: unparsable HTTP header field {" <<

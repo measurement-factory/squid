@@ -716,10 +716,10 @@ HttpRequest::checkEntityFraming() const
 }
 
 bool
-HttpRequest::parseHeader(Http1::Parser &hp)
+HttpRequest::parseHeader(Http1::Parser &hp, const AccessLogEntryPointer &al)
 {
     Http::ContentLengthInterpreter clen;
-    return Message::parseHeader(hp, clen);
+    return Message::parseHeader(hp, clen, al);
 }
 
 bool

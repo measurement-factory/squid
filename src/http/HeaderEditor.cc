@@ -83,37 +83,84 @@ Http::HeaderEditor::compileRE(SBuf &str, const int flags)
     return true;
 }
 
-Http::HeaderEditor::Action
-Http::HeaderEditor::fix(const char **fieldStart, const char **fieldEnd)
+SBuf
+Http::HeaderEditor::fix(const SBuf &input, const AccessLogEntryPointer &al)
 {
-    assert(fieldStart && *fieldStart);
-    assert(fieldEnd && *fieldEnd);
-
-    if (matchedCount_ && commandArgument_ == CommandArgument::first)
-        return Action::ignore;
-
-    SBuf input(*fieldStart, *fieldEnd - *fieldStart);
+    al_ = al;
+    auto output = input;
     for (auto &pattern : patterns_) {
-        if (pattern.match(input.c_str(), ReGroupMax)) {
-            matchedCount_++;
-            static MemBuf mb;
-            mb.reset();
-            // XXX: pass ALE here
-            format_->assemble(mb, AccessLogEntryPointer(), 0, &pattern);
-            *fieldStart = mb.content();
-            *fieldEnd = mb.space();
+        if (pattern.match(output.c_str(), ReGroupMax)) {
             switch (commandArgument_) {
-                case CommandArgument::first:
-                    assert(matchedCount_ == 1);
-                    return Action::apply;
-                case CommandArgument::all:
-                    return (matchedCount_ == 1) ? Action::apply : Action::remove;
-                case CommandArgument::each:
-                    return Action::apply;
-            }
+            case CommandArgument::first:
+                applyOne(output, pattern);
+                break;
+            case CommandArgument::all:
+                applyAll(output, pattern);
+                break;
+            case CommandArgument::each:
+                applyEach(output, pattern);
+                break;
+             }
         }
     }
-    return Action::ignore;
+    return output;
+}
+
+void
+Http::HeaderEditor::applyEach(SBuf &input, RegexPattern &pattern)
+{
+    auto s = input.c_str();
+    SBuf result;
+    while (s && pattern.match(s, ReGroupMax)) {
+        static MemBuf mb;
+        mb.reset();
+        matchedCount_++;
+        result.append(s, pattern.startOffset());
+        format_->assemble(mb, al_, 0, &pattern);
+        result.append(mb.content(), mb.contentSize());
+        s += pattern.endOffset();
+    }
+    result.append(s);
+    input = result;
+}
+
+void
+Http::HeaderEditor::applyAll(SBuf &input, RegexPattern &pattern)
+{
+    auto s = input.c_str();
+    SBuf result;
+
+    while (s && pattern.match(s, ReGroupMax)) {
+        matchedCount_++;
+        result.append(s, pattern.startOffset());
+        if (matchedCount_ == 1) {
+            static MemBuf mb;
+            mb.reset();
+            format_->assemble(mb, al_, 0, &pattern);
+            result.append(mb.content(), mb.contentSize());
+        }
+        s += pattern.endOffset();
+    }
+    result.append(s);
+    input = result;
+}
+
+void
+Http::HeaderEditor::applyOne(SBuf &input, RegexPattern &pattern)
+{
+    auto s = input.c_str();
+    SBuf result;
+
+    if (s && pattern.match(s, ReGroupMax)) {
+        static MemBuf mb;
+        mb.reset();
+        matchedCount_++;
+        result.append(s, pattern.startOffset());
+        format_->assemble(mb, al_, 0, &pattern);
+        result.append(s, pattern.startOffset());
+    }
+    result.append(s);
+    input = result;
 }
 
 uint64_t
@@ -137,43 +184,49 @@ Http::HeaderEditor::parseOptions(ConfigParser &parser)
     currentToken = parser.token("command argument");
     commandArgument_ = CommandArguments.at(SBuf(currentToken));
 
-    // TODO: add lf::"FORMAT" support to allow multiline format specifications with comments
-    static const SBuf rePrefix("re::");
-    static const SBuf lfPrefix("lf::");
+    static const SBuf reToken("re");
+    static const SBuf lfToken("lf");
     static const SBuf withToken("with");
 
-    while (const auto t = ConfigParser::NextToken()) {
-    	const SBuf token(t);
-        Parser::Tokenizer tok(token);
-        if (!tok.skip(rePrefix)) {
-            Must(tok.remaining() == withToken);
-            break;
-        }
-        auto flags = REG_EXTENDED;
-        const auto rawFlags = tok.prefix("flags", CharacterSet::ALPHA);
-        for (auto f: rawFlags) {
-            if (f == 'i')
-                flags |= REG_ICASE;
-            // TODO: parse other flags
-        }
-        Must(tok.skip('"'));
-        auto regEx = tok.prefix("regex", CharacterSet::DQUOTE.complement("non-dquote"));
-        compileRE(regEx, flags);
+    SBuf reNs;
+    currentToken = parser.delimitedToken(reNs, "regular expression");
+
+    Parser::Tokenizer reTok(reNs);
+    if (!reTok.skip(reToken))
+        throw TextException(ToSBuf("missing '", reToken, "' regex prefix"), Here());
+    SBuf rawFlags;
+    if (reTok.skip('(')) {
+        if (reTok.skipSuffix(SBuf(")")))
+            throw TextException(ToSBuf("missing ')' in regex prefix"), Here());
+        rawFlags = reTok.remaining();
     }
+
+    auto flags = REG_EXTENDED | REG_NEWLINE;
+    for (auto f: rawFlags) {
+        if (f == 'i')
+            flags |= REG_ICASE;
+        // TODO: parse other flags
+    }
+
+    compileRE(currentToken, flags);
 
     if (patterns_.empty())
         throw TextException("missing regular expression(s)", Here());
 
-    currentToken = parser.token("replacement expression");
+    currentToken = parser.token("'with' keyword");
+    if (currentToken != withToken)
+        throw TextException(ToSBuf("missing 'with' keyword"), Here());
 
-    Parser::Tokenizer tok(currentToken);
-    Must(!tok.skip(lfPrefix));
-    Must(tok.skip('"'));
-    formatString_ = tok.prefix("format string", CharacterSet::DQUOTE.complement("non-dquote"));
+    SBuf lfNs;
+    formatString_ = parser.delimitedToken(lfNs, "replacement expression");
+
+    Parser::Tokenizer lfTok(lfNs);
+    if (!lfTok.skip(lfToken))
+        throw TextException(ToSBuf("missing '", lfToken, "' format prefix"), Here());
 
     assert(!format_);
     format_ = new Format::Format(description_);
-    if (!format_->parse(formatString_.c_str())) {
+    if (!format_->parse(currentToken.c_str())) {
         delete format_;
         throw TextException(ToSBuf("invalid format line:", formatString_), Here());
     }

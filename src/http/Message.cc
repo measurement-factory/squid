@@ -216,15 +216,21 @@ Http::Message::httpMsgParseStep(const char *buf, int len, int atEnd)
 }
 
 bool
-Http::Message::parseHeader(Http1::Parser &hp, Http::ContentLengthInterpreter &clen)
+Http::Message::parseHeader(Http1::Parser &hp, Http::ContentLengthInterpreter &clen, const AccessLogEntryPointer &al)
 {
     // HTTP/1 message contains "zero or more header fields"
     // zero does not need parsing
     // XXX: c_str() reallocates. performance regression.
     configureContentLengthInterpreter(clen);
-    if (hp.headerBlockSize() && !header.parse(hp.mimeHeader().c_str(), hp.headerBlockSize(), clen)) {
-        pstate = Http::Message::psError;
-        return false;
+    pstate = Http::Message::psError;
+    if (hp.headerBlockSize()) {
+        if (!header.parse(hp.mimeHeader().c_str(), hp.headerBlockSize(), clen)) {
+            if (!Config.malformed_request_header_edit)
+                return false;
+            auto fixedHeaders = Config.malformed_request_header_edit->fix(hp.mimeHeader(), al);
+            if (!header.parse(fixedHeaders.c_str(), fixedHeaders.length(), clen))
+                return false;
+        }
     }
 
     // XXX: we are just parsing HTTP headers, not the whole message prefix here

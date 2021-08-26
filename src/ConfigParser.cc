@@ -17,6 +17,7 @@
 #include "sbuf/Stream.h"
 
 bool ConfigParser::RecognizeQuotedValues = true;
+bool ConfigParser::RecognizeDelimitedValues_ = false;
 bool ConfigParser::StrictMode = true;
 std::stack<ConfigParser::CfgFile *> ConfigParser::CfgFiles;
 ConfigParser::TokenType ConfigParser::LastTokenType = ConfigParser::SimpleToken;
@@ -223,6 +224,87 @@ ConfigParser::UnQuote(const char *token, const char **next)
     return UnQuoted;
 }
 
+// TODO: remove code duplication with UnQuote()
+char *
+ConfigParser::RemoveDelimiters(const char *token, const char **next)
+{
+    const char *errorStr = nullptr;
+    const char *errorPos = nullptr;
+    LOCAL_ARRAY(char, UnQuoted, CONFIG_LINE_LIMIT);
+    auto d = UnQuoted;
+
+    static const char *alphaNum = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_";
+    auto s = token;
+    s += strcspn(s, alphaNum);
+    if (*s != '"')
+        throw TextException(ToSBuf("missing quote char at the beginning of the delimited token: ", token), Here());
+    s += 1;
+
+    SBuf endDelimiter("\"");
+    endDelimiter.append(token, s-token);
+    const auto end = strstr(s, endDelimiter.c_str());
+
+    /* scan until the end of the quoted string, handling escape sequences*/
+    while (*s && !errorStr && s != end) {
+        if (*s == '\\') {
+            s++;
+            switch (*s) {
+            case 'r':
+                *d = '\r';
+                break;
+            case 'n':
+                *d = '\n';
+                break;
+            case 't':
+                *d = '\t';
+                break;
+            default:
+                if (isalnum(*s)) {
+                    errorStr = "Unsupported escape sequence";
+                    errorPos = s;
+                }
+                *d = *s;
+                break;
+            }
+        } else
+            *d = *s;
+        ++s;
+        ++d;
+    }
+
+    // The end of token
+    *d = '\0';
+
+    if (s != end && !errorPos) {
+        errorStr = "missing close delimiter at the end of the string";
+        errorPos = s - 1;
+    }
+
+    if (!errorPos) {
+        assert(s == end);
+        s += endDelimiter.length();
+        // We are expecting a separator after quoted string, space or one of "()#"
+        if (*s != '\0' && !strchr(w_space "()#", *s)) {
+            errorStr = "Expecting space after the end of quoted token";
+            errorPos = token;
+        }
+    }
+
+    if (errorPos) {
+        if (PreviewMode_)
+            xstrncpy(UnQuoted, SQUID_ERROR_TOKEN, sizeof(UnQuoted));
+        else {
+            debugs(3, DBG_CRITICAL, "FATAL: " << errorStr << ": " << errorPos);
+            self_destruct();
+        }
+    }
+
+    if (next)
+        *next = s + 1;
+
+    return UnQuoted;
+}
+
 void
 ConfigParser::SetCfgLine(char *line)
 {
@@ -242,7 +324,7 @@ ConfigParser::CurrentLocation()
 }
 
 char *
-ConfigParser::TokenParse(const char * &nextToken, ConfigParser::TokenType &type)
+ConfigParser::TokenParse(const char * &nextToken, ConfigParser::TokenType &type, const char **ns)
 {
     if (!nextToken || *nextToken == '\0')
         return NULL;
@@ -255,6 +337,19 @@ ConfigParser::TokenParse(const char * &nextToken, ConfigParser::TokenType &type)
     if (ConfigParser::RecognizeQuotedValues && (*nextToken == '"' || *nextToken == '\'')) {
         type = ConfigParser::QuotedToken;
         char *token = xstrdup(UnQuote(nextToken, &nextToken));
+        CfgLineTokens_.push(token);
+        return token;
+    }
+
+    if (ConfigParser::RecognizeDelimitedValues_)
+    {
+        const auto nsEnd = strstr(nextToken, "::");
+        if (!nsEnd)
+            throw TextException(ToSBuf("missing namespace '::' separator in the token: ", nextToken), Here());
+        if (ns)
+            *ns = nextToken;
+        nextToken = nsEnd + 2;
+        char *token = xstrdup(RemoveDelimiters(nextToken, &nextToken));
         CfgLineTokens_.push(token);
         return token;
     }
@@ -338,7 +433,7 @@ ConfigParser::TokenParse(const char * &nextToken, ConfigParser::TokenType &type)
 }
 
 char *
-ConfigParser::NextElement(ConfigParser::TokenType &type)
+ConfigParser::NextElement(ConfigParser::TokenType &type, const char **ns)
 {
     const char *pos = CfgPos;
     char *token = TokenParse(pos, type);
@@ -353,7 +448,7 @@ ConfigParser::NextElement(ConfigParser::TokenType &type)
 }
 
 char *
-ConfigParser::NextToken()
+ConfigParser::NextToken(const char **ns)
 {
     char *token = NULL;
     if ((token = ConfigParser::Undo())) {
@@ -374,14 +469,14 @@ ConfigParser::NextToken()
         }
 
         if (!token)
-            token = NextElement(LastTokenType);
+            token = NextElement(LastTokenType, ns);
 
         if (token &&  LastTokenType == ConfigParser::FunctionParameters) {
             //Disable temporary preview mode, we need to parse function parameters
             const bool savePreview = ConfigParser::PreviewMode_;
             ConfigParser::PreviewMode_ = false;
 
-            char *path = NextToken();
+            auto path = NextToken(ns);
             if (LastTokenType != ConfigParser::QuotedToken) {
                 debugs(3, DBG_CRITICAL, "FATAL: Quoted filename missing: " << token);
                 self_destruct();
@@ -389,7 +484,7 @@ ConfigParser::NextToken()
             }
 
             // The next token in current cfg file line must be a ")"
-            char *end = NextToken();
+            auto end = NextToken(ns);
             ConfigParser::PreviewMode_ = savePreview;
             if (LastTokenType != ConfigParser::SimpleToken || strcmp(end, ")") != 0) {
                 debugs(3, DBG_CRITICAL, "FATAL: missing ')' after " << token << "(\"" << path << "\"");
@@ -577,6 +672,22 @@ ConfigParser::token(const char *expectedTokenDescription)
         return SBuf(extractedToken);
     }
     throw TextException(ToSBuf("missing ", expectedTokenDescription), Here());
+}
+
+SBuf
+ConfigParser::delimitedToken(SBuf &ns, const char *expectedTokenDescription)
+{
+    ConfigParser::RecognizeDelimitedValues_ = true;
+    const char *nsStart = nullptr;
+    const auto extractedToken = NextToken(&nsStart);
+    ConfigParser::RecognizeDelimitedValues_ = false;
+    if (!extractedToken)
+        throw TextException(ToSBuf("missing ", expectedTokenDescription), Here());
+    debugs(3, 5, CurrentLocation() << ' ' << expectedTokenDescription << ": " << extractedToken);
+    const auto nsEnd = strstr(nsStart, "::");
+    assert(nsEnd);
+    ns.assign(nsStart, nsEnd - nsStart);
+    return SBuf(extractedToken);
 }
 
 bool

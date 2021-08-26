@@ -47,6 +47,20 @@ RegexPattern::capture(const uint64_t captureNum) const {
     return SBuf(&pattern[groups[captureNum].rm_so], groups[captureNum].rm_eo - groups[captureNum].rm_so);
 }
 
+int
+RegexPattern::startOffset()
+{
+    Must(groups.size());
+    return groups[0].rm_so;
+}
+
+int
+RegexPattern::endOffset()
+{
+    Must(groups.size());
+    return groups[0].rm_eo;
+}
+
 RegexPattern &
 RegexPattern::operator =(RegexPattern &&o)
 {

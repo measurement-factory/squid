@@ -49,5 +49,8 @@ typedef RefCount<HttpReply> HttpReplyPointer;
 
 class HeaderEditor;
 
+class AccessLogEntry;
+typedef RefCount<AccessLogEntry> AccessLogEntryPointer;
+
 #endif /* SQUID_SRC_HTTP_FORWARD_H */
 

@@ -11,6 +11,7 @@
 
 #include "base/RefCount.h"
 #include "format/Format.h"
+#include "http/forward.h"
 
 class RegexPattern;
 class SBuf;
@@ -31,12 +32,6 @@ public:
     /// all: fix only the first matched string (and signal the caller to delete any further matches)
     enum class CommandArgument { first, all, each };
 
-    /// How the caller should interpret the fix() results:
-    /// ignore: discard the returned string (and use the original string)
-    /// apply: use the returned string (instead of the original string)
-    /// remove: discard the returned string (and do not use the original string)
-    enum class Action { ignore, apply, remove };
-
     explicit HeaderEditor(ConfigParser &parser, const char *description);
 
     ~HeaderEditor();
@@ -51,7 +46,7 @@ public:
     /// location referenced by fieldEnd.
     /// The returned values point to an internal storage whose contents
     /// remain unchanged only until the next call.
-    Action fix(const char **fieldStart, const char **fieldEnd);
+    SBuf fix(const SBuf &input, const AccessLogEntryPointer &al);
 
     /// parses the regex group number
     static uint64_t ParseReGroupId(const char *);
@@ -61,6 +56,9 @@ public:
 
 private:
     bool compileRE(SBuf &, const int flags);
+    void applyOne(SBuf &input, RegexPattern &pattern);
+    void applyAll(SBuf &input, RegexPattern &pattern);
+    void applyEach(SBuf &input, RegexPattern &pattern);
 
     const char *description_;
     Command command_;
@@ -71,6 +69,7 @@ private:
     int matchedCount_ = 0;
     // for debugging only
     SBuf formatString_;
+    AccessLogEntryPointer al_;
 };
 
 } // namespace Http
