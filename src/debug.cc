@@ -322,6 +322,7 @@ _db_print(const bool forceAlert, const char *format,...)
     if (SavingEarlyMessages && Debug::Level() <= DBG_IMPORTANT) {
         va_list args4;
         va_start(args4, format);
+        // XXX: _db_print_syslog() uses format `format`, not `f`!
         _db_print_early_message(forceAlert, f, args4);
         va_end(args4);
     }
@@ -395,6 +396,7 @@ SysLogAllowed(const int forceAlert, const int level)
 static void
 _db_print_syslog(const bool forceAlert, const char *format, va_list args)
 {
+    // XXX: The old comment below is now misplaced. Remove?
     /* level 0,1 go to syslog */
 
     if (!SysLogAllowed(forceAlert, Debug::Level()))
@@ -603,6 +605,8 @@ _db_set_syslog(const char *facility)
 {
     Debug::log_syslog = true;
 
+    // XXX: Too early. Wait for syslog_facility=... below.
+    // XXX: Way too early. Wait for openlog(syslog_facility) in _db_init()!
     FlushEarlyMessages(SysChannel);
 
 #ifdef LOG_LOCAL4

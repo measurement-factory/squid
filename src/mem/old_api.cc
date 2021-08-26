@@ -445,7 +445,7 @@ Mem::Init(void)
      * NOTE: Mem::Init() is called before the config file is parsed
      * and before the debugging module has been initialized.  Any
      * debug messages here at level 0 or 1 will always be printed
-     * on stderr.
+     * on stderr. XXX: Stale comment.
      */
 
     /**
