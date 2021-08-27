@@ -1122,12 +1122,14 @@ DebugMessage::allowed(const DebugChannel ch) const
             // honor debug level, if specified
             return level <= Debug::log_stderr;
         }
+        // XXX: Overflow should go to stderr (at _least_ by default) but the
+        // check above overwrites overflow needs expressed by the check below.
         // If cache.log is unavailable, further output goes to stderr.
         // We need there early messages too.
         return TheLog.failed();
     }
     else if (ch == CacheChannel)
-        return !Debug::override_X && (level <= DBG_IMPORTANT);
+        return level <= DBG_IMPORTANT;
     else {
         assert(ch == SysChannel);
         return SysLogAllowed(forceAlert, level);
