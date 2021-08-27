@@ -479,6 +479,8 @@ debugOpenLog(const char *logfile)
 #endif
         TheLog.reset(log, logfilename);
     } else {
+        // XXX: Bypassing debugs() (with its early message buffering) results in
+        // out-of-order stderr lines (e.g. squid -NX prints these lines first).
         fprintf(stderr, "WARNING: Cannot write log file: %s\n", logfile);
         perror(logfile);
         fprintf(stderr, "         messages will be sent to 'stderr'.\n");
@@ -1101,6 +1103,8 @@ DebugMessages::insert(const int section, const int level, const bool forceAlert,
     const size_t limit = 1000;
     if (messages.size() >= limit) {
         if (flushed(ErrChannel)) {
+            // XXX: This avoids duplicates but may also lose messages if
+            // stderr is not logging them (e.g. no -d).
             dropped++;
             return;
         }
@@ -1129,7 +1133,7 @@ DebugMessage::allowed(const DebugChannel ch) const
         return TheLog.failed();
     }
     else if (ch == CacheChannel)
-        return level <= DBG_IMPORTANT;
+        return true; // we already checked level above
     else {
         assert(ch == SysChannel);
         return SysLogAllowed(forceAlert, level);
@@ -1193,7 +1197,7 @@ DebugMessages::write(const DebugChannel ch)
     if (log)
         fflush(log);
 
-    // print statistics only for cache.log
+    // XXX: This prints this ERROR thrice, once for each channel.
     const auto total = messages.size();
     if (dropped) {
         debugs(0, DBG_IMPORTANT, "ERROR: Too many early important messages: " << (total + dropped) <<
