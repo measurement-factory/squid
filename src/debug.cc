@@ -147,8 +147,9 @@ private:
 };
 
 /// Preserves important debugs() messages until the log file gets opened and
-/// then logs those messages.
-static DebugMessages *EarlyMessages = nullptr;
+/// then logs those messages. Must be accessed via EarlyMessages() except for
+/// assignment.
+static DebugMessages *EarlyMessagesOrNil = nullptr;
 
 // Becomes true during C++ constant initialization, before any debugs() calls.
 // Exists because EarlyMessages cannot be set during constant initialization.
@@ -176,6 +177,16 @@ ResyncDebugLog(FILE *newFile)
     TheLog.file_ = newFile;
 }
 
+/// Provides access to early messages in (and only in) SavingEarlyMessages mode.
+DebugMessages &
+EarlyMessages()
+{
+    assert(SavingEarlyMessages);
+    if (!EarlyMessagesOrNil)
+        EarlyMessagesOrNil = new DebugMessages;
+    return *EarlyMessagesOrNil;
+}
+
 // XXX: Besides flushing, this function also stops _collection_ of early
 // messages if all channels have been flushed. That side effect does not match
 // the general concept of "flushing" well. It is also incomplete -- missing
@@ -187,10 +198,10 @@ FlushEarlyMessages(const DebugChannel ch)
     if (!SavingEarlyMessages)
         return;
 
-    if (EarlyMessages && !EarlyMessages->flushed(ch))
-        EarlyMessages->write(ch);
+    if (!EarlyMessages().flushed(ch))
+        EarlyMessages().write(ch);
 
-    if (!EarlyMessages || EarlyMessages->flushedAll())
+    if (EarlyMessages().flushedAll())
         SavingEarlyMessages = false;
 }
 
@@ -208,19 +219,15 @@ Debug::EarlyMessagesCheckpoint(const int defaultErrLevel)
         FlushEarlyMessages(CacheChannel);
         assert(!SavingEarlyMessages);
     }
-    delete EarlyMessages;
-    EarlyMessages = nullptr;
+    delete EarlyMessagesOrNil;
+    EarlyMessagesOrNil = nullptr;
 }
 
 /// whether we are still saving early messages into a given channel
 static bool
 SavingEarlyMessagesToChannel(const DebugChannel &ch)
 {
-    if (SavingEarlyMessages) {
-        if (!EarlyMessages || !EarlyMessages->flushed(ch))
-            return true;
-    }
-    return false;
+    return SavingEarlyMessages && !EarlyMessages().flushed(ch);
 }
 
 void DebugFile::fail()
@@ -356,10 +363,7 @@ _db_print_file(const char *format, va_list args)
 static void
 _db_print_early_message(const bool forceAlert, const char *format, va_list args)
 {
-    assert(SavingEarlyMessages);
-    if (!EarlyMessages)
-        EarlyMessages = new DebugMessages;
-    EarlyMessages->insert(Debug::Section(), Debug::Level(), forceAlert, format, args);
+    EarlyMessages().insert(Debug::Section(), Debug::Level(), forceAlert, format, args);
 }
 
 static bool StdErrAllowed(const int level)
