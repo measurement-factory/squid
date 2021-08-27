@@ -136,7 +136,7 @@ public:
     void write(const DebugChannel);
 
 private:
-    void dumpToStderr() const;
+    void dropAllToStderr();
 
     typedef std::vector<DebugMessage> Storage;
     Storage messages;
@@ -200,9 +200,6 @@ FlushEarlyMessages(const DebugChannel ch)
 
     if (!EarlyMessages().flushed(ch))
         EarlyMessages().write(ch);
-
-    if (EarlyMessages().flushedAll())
-        SavingEarlyMessages = false;
 }
 
 /// ensure that all previously saved "early messages" are written
@@ -1108,9 +1105,7 @@ DebugMessages::insert(const int section, const int level, const bool forceAlert,
             dropped++;
             return;
         }
-        dumpToStderr();
-        messages.clear();
-        dropped += limit;
+        dropAllToStderr();
     }
     messages.emplace_back(section, level, forceAlert, format, args);
 }
@@ -1141,10 +1136,12 @@ DebugMessage::allowed(const DebugChannel ch) const
 }
 
 void
-DebugMessages::dumpToStderr() const
+DebugMessages::dropAllToStderr()
 {
     for (const auto &message: messages)
         fprintf(stderr, "%s", message.image);
+    dropped += messages.size();
+    messages.clear();
 }
 
 static FILE *
@@ -1197,13 +1194,22 @@ DebugMessages::write(const DebugChannel ch)
     if (log)
         fflush(log);
 
-    // XXX: This prints this ERROR thrice, once for each channel.
-    const auto total = messages.size();
-    if (dropped) {
-        debugs(0, DBG_IMPORTANT, "ERROR: Too many early important messages: " << (total + dropped) <<
-               "; cached " << total << " but dropped " << dropped);
-    } else if (logged) {
-        debugs(0, 2, logged << " " << ChannelName(ch) << " early messages");
+    if (flushedAll()) {
+        SavingEarlyMessages = false;
+        const auto saved = messages.size();
+        messages.clear();
+
+        // TODO: It would be nice to report logged count for each channel, not
+        // just the last one (i.e. even if still SavingEarlyMessages), but that
+        // requires a channel-specific logging interface. Without it, this
+        // debugs() might overflow the messages buffer, and dropAllToStderr()
+        // would report the same messages we just reported.
+        debugs(0, 2, "saved " << saved << " and wrote " << logged << " early messages to " << ChannelName(ch));
+
+        if (dropped) {
+            debugs(0, DBG_IMPORTANT, "ERROR: Too many early important messages: " << (saved + dropped) <<
+                   "; saved " << saved << " but dropped " << dropped);
+        }
     }
 }
 
