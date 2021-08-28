@@ -46,26 +46,35 @@ extern LPCRITICAL_SECTION dbg_mutex;
 typedef BOOL (WINAPI * PFInitializeCriticalSectionAndSpinCount) (LPCRITICAL_SECTION, DWORD);
 #endif
 
-static bool ResetSections(const int level = DBG_IMPORTANT);
-static bool Initialized = ResetSections();
+static void ResetSections(const int level = DBG_IMPORTANT);
 
+static void Initialize();
+static bool Initialized = (Initialize(), true);
+
+/// program termination callback for std::atexit()
 static void
 FlushEarlyMessagesAtExit()
 {
     Debug::EarlyMessagesCheckpoint(0);
 }
 
+/// used for the side effect: performs earliest module initialization possible
+static void
+Initialize()
+{
+    ResetSections();
+
+    (void)std::atexit(&FlushEarlyMessagesAtExit);
+
+    assert(sizeof(Initialized)); // avoids warnings about an unused static
+}
+
 /// used for the side effect: fills Debug::Levels with the given level
-static bool
+static void
 ResetSections(const int level)
 {
     for (auto i = 0; i < MAX_DEBUG_SECTIONS; ++i)
         Debug::Levels[i] = level;
-    assert(sizeof(Initialized)); // avoids warnings about an unused static
-
-    (void)std::atexit(&FlushEarlyMessagesAtExit);
-
-    return true; // simplifies invocation during dynamic initialization
 }
 
 /// a (FILE*, file name) pair
