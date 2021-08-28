@@ -588,6 +588,10 @@ mainHandleCommandLineOption(const int optId, const char *optValue)
         else
             usage();
 
+        // we will not be able to use cache.log
+        // XXX: Here and elsewhere, do not overwrite explicitly configured stderr logging level!
+        _db_set_stderr(DBG_IMPORTANT); // show major messages (by default)
+        _db_init(nullptr, nullptr); // stop waiting for cache.log to be opened
         break;
 
     case 'm':
@@ -1439,6 +1443,7 @@ ConfigureCurrentKid(const CommandLine &cmdLine)
 
 /// Start directing debugs() messages to the configured cache.log.
 /// Until this function is called, all allowed messages go to stderr.
+/// XXX: The comment line above is stale.
 static void
 ConfigureDebugging()
 {
@@ -1545,12 +1550,7 @@ SquidMain(int argc, char **argv)
         debugs(1, DBG_CRITICAL, "WARNING: --foreground command-line option has no effect with -N.");
     }
 
-    if (opt_parse_cfg_only) {
-        Debug::parseOptions("ALL,1");
-    }
-
-    if (opt_send_signal != -1)
-        _db_set_stderr(0); // allow critical messages to stderr
+    // TODO: Finalize stderr logging level. It will not change.
 
 #if USE_WIN32_SERVICE
 
