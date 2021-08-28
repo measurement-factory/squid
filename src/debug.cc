@@ -62,9 +62,9 @@ FlushEarlyMessagesAtExit()
 static void
 Initialize()
 {
-    ResetSections();
-
     (void)std::atexit(&FlushEarlyMessagesAtExit);
+
+    ResetSections();
 
     assert(sizeof(Initialized)); // avoids warnings about an unused static
 }
