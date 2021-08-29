@@ -64,6 +64,9 @@ FlushEarlyMessagesAtExit()
 static void
 Initialize()
 {
+    // explicit initialization, hopefully before any debugs() calls; see bug #2656
+    tzset();
+
     (void)std::atexit(&FlushEarlyMessagesAtExit);
 
     ResetSections();
@@ -717,9 +720,6 @@ _db_init(const char *logfile, const char *options)
 #endif /* HAVE_SYSLOG */
 
     Debug::EarlyMessagesCheckpoint(-1);
-
-    /* Pre-Init TZ env, see bug #2656 */
-    tzset();
 }
 
 void
