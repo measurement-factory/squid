@@ -22,11 +22,13 @@
 
 char *Debug::debugOptions = NULL;
 int Debug::override_X = 0;
-int Debug::log_stderr = -1;
 bool Debug::log_syslog = false;
 int Debug::Levels[MAX_DEBUG_SECTIONS];
 char *Debug::cache_log = NULL;
 int Debug::rotateNumber = -1;
+int Debug::MaxErrLogLevel = -1;
+int Debug::MaxErrLogLevelDefault = -1;
+
 static int Ctx_Lock = 0;
 static const char *debugLogTime(void);
 static const char *debugLogKid(void);
@@ -217,8 +219,6 @@ void
 Debug::EarlyMessagesCheckpoint(const int defaultErrLevel)
 {
     if (SavingEarlyMessages) {
-        if (Debug::log_stderr == -1 && defaultErrLevel != -1)
-            Debug::log_stderr = defaultErrLevel;
         // some of channels may not be flushed yet
         FlushEarlyMessages(ErrChannel);
         FlushEarlyMessages(SysChannel);
@@ -372,15 +372,16 @@ _db_print_early_message(const bool forceAlert, const char *format, va_list args)
     EarlyMessages().insert(Debug::Section(), Debug::Level(), forceAlert, format, args);
 }
 
-static bool StdErrAllowed(const int level)
+bool
+Debug::ErrLogEnabled(const int level)
 {
-    return level <= Debug::log_stderr || TheLog.failed();
+    return level <= MaxErrLogLevel || TheLog.failed();
 }
 
 static void
 _db_print_stderr(const char *format, va_list args)
 {
-    if (!StdErrAllowed(Debug::Level()))
+    if (!Debug::ErrLogEnabled(Debug::Level()))
         return;
 
     if (SavingEarlyMessagesToChannel(ErrChannel))
@@ -655,10 +656,27 @@ _db_set_syslog(const char *facility)
 #endif
 
 void
-_db_set_stderr(int level)
+Debug::EnsureDefaultErrLogLevel(const int maxDefault)
 {
-    Debug::log_stderr = level;
-    FlushEarlyMessages(ErrChannel); // before anything that logs, including fd_open()
+    if (MaxErrLogLevelDefault < maxDefault)
+        MaxErrLogLevelDefault = maxDefault; // may set or increase
+    // else: somebody has already requested a more permissive maximum
+}
+
+void
+Debug::ResetErrLogLevel(const int maxLevel)
+{
+    MaxErrLogLevel = maxLevel; // may set, increase, or decrease
+}
+
+void
+Debug::FinalizeErrLogLevel()
+{
+    if (MaxErrLogLevel < 0)
+        MaxErrLogLevel = MaxErrLogLevelDefault; // may remain disabled/negative
+
+    // XXX: This is too early iff TheLog.failed() becomes true later!
+    FlushEarlyMessages(ErrChannel);
 }
 
 void
@@ -1126,15 +1144,7 @@ DebugMessage::allowed(const DebugChannel ch) const
         return false;
 
     if (ch == ErrChannel) {
-        if (Debug::log_stderr > -1) {
-            // honor debug level, if specified
-            return level <= Debug::log_stderr;
-        }
-        // XXX: Overflow should go to stderr (at _least_ by default) but the
-        // check above overwrites overflow needs expressed by the check below.
-        // If cache.log is unavailable, further output goes to stderr.
-        // We need there early messages too.
-        return TheLog.failed();
+        return Debug::ErrLogEnabled(level);
     }
     else if (ch == CacheChannel)
         return true; // we already checked level above

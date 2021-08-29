@@ -523,8 +523,9 @@ mainHandleCommandLineOption(const int optId, const char *optValue)
 
     case 'd':
         /** \par d
-         * Set global option Debug::log_stderr to the number given following the option */
-        _db_set_stderr(xatoi(optValue));
+         * debugs() messages with the given debugging level (and the more
+         * important ones) should be written to stderr */
+        Debug::ResetErrLogLevel(xatoi(optValue));
         break;
 
     case 'f':
@@ -588,9 +589,9 @@ mainHandleCommandLineOption(const int optId, const char *optValue)
         else
             usage();
 
-        // we will not be able to use cache.log
-        // XXX: Here and elsewhere, do not overwrite explicitly configured stderr logging level!
-        _db_set_stderr(DBG_IMPORTANT); // show major messages (by default)
+        // cannot use cache.log; use stderr for important messages (by default)
+        Debug::EnsureDefaultErrLogLevel(DBG_IMPORTANT);
+
         _db_init(nullptr, nullptr); // stop waiting for cache.log to be opened
         break;
 
@@ -698,9 +699,11 @@ mainHandleCommandLineOption(const int optId, const char *optValue)
 
     case 'z':
         /** \par z
-         * Set global option Debug::log_stderr and opt_create_swap_dirs */
-        _db_set_stderr(1);
+         * Request cache_dir initialization */
         opt_create_swap_dirs = 1;
+        // We will use cache.log, but this command is often executed on the
+        // command line, so use stderr to show important messages (by default).
+        Debug::EnsureDefaultErrLogLevel(DBG_IMPORTANT);
         break;
 
     case optForeground:
@@ -1546,11 +1549,11 @@ SquidMain(int argc, char **argv)
 
     cmdLine.forEachOption(mainHandleCommandLineOption);
 
+    Debug::FinalizeErrLogLevel();
+
     if (opt_foreground && opt_no_daemon) {
         debugs(1, DBG_CRITICAL, "WARNING: --foreground command-line option has no effect with -N.");
     }
-
-    // TODO: Finalize stderr logging level. It will not change.
 
 #if USE_WIN32_SERVICE
 
@@ -1959,7 +1962,7 @@ watch_child(const CommandLine &masterCommand)
 
     dup2(nullfd, 0);
 
-    if (Debug::log_stderr < 0) {
+    if (!Debug::ErrLogEnabled()) {
         dup2(nullfd, 1);
         dup2(nullfd, 2);
     }

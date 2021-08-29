@@ -83,7 +83,6 @@ public:
     static int rotateNumber;
     static int Levels[MAX_DEBUG_SECTIONS];
     static int override_X;
-    static int log_stderr;
     static bool log_syslog;
 
     static void parseOptions(char const *);
@@ -105,11 +104,39 @@ public:
 
     /// prefixes each grouped debugs() line after the first one in the group
     static std::ostream& Extra(std::ostream &os) { return os << "\n    "; }
+
+    /// In the absence of ResetErrLogLevel() calls, future debugs() messages
+    /// with the given (or lower) level will be written to stderr (at least). If
+    /// called many times, the highest parameter wins. Calls have no effect if
+    /// ResetErrLogLevel() is called before/after this default-setting method.
+    static void EnsureDefaultErrLogLevel(int maxDefault);
+
+    /// Future debugs() messages with the given (or lower) level will be written
+    /// to stderr (at least). If called many times, the last call wins.
+    static void ResetErrLogLevel(int maxLevel);
+
+    /// called after the last EnsureDefaultErrLogLevel()/ResetErrLogLevel() call
+    static void FinalizeErrLogLevel();
+
+    /// Whether debugs() message with the given level will be written to errlog.
+    /// When called w/o a parameter, returns whether any message can be written.
+    /// Unreliable until FinalizeErrLogLevel().
+    /// XXX: A _db_init() call may change the answer!
+    static bool ErrLogEnabled(int level = DBG_CRITICAL);
+
     /// flushes early messages if needed
-    /// \param defaultErrLevel the value for log_stderr (if uninitialized)
+    /// \param defaultErrLevel the value for log_stderr (XXX) (if uninitialized)
     static void EarlyMessagesCheckpoint(const int defaultErrLevel);
 
 private:
+    /// debugs() messages with this (or lower) level will be written to stderr
+    /// (and possibly other channels). Negative values disable stderr logging.
+    /// This restriction is ignored if Squid tries but fails to open cache.log.
+    static int MaxErrLogLevel;
+
+    /// MaxErrLogLevel default; ignored after FinalizeErrLogLevel()
+    static int MaxErrLogLevelDefault;
+
     static Context *Current; ///< deepest active context; nil outside debugs()
 };
 
@@ -185,7 +212,6 @@ inline std::ostream& operator <<(std::ostream &os, const uint8_t d)
 /* Legacy debug function definitions */
 void _db_init(const char *logfile, const char *options);
 void _db_set_syslog(const char *facility);
-void _db_set_stderr(int level);
 void _db_rotate_log(void);
 
 /// Prints raw and/or non-terminated data safely, efficiently, and beautifully.
