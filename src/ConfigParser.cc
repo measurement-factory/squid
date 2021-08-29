@@ -235,11 +235,14 @@ ConfigParser::RemoveDelimiters(const char *token, const char **next)
     static const CharacterSet nsSet = CharacterSet("brackets", "()") + CharacterSet::ALPHA + CharacterSet::DIGIT;
     auto tok = Parser::Tokenizer(SBuf(token));
     LastParsedTokenNamespace = tok.prefix("ns", nsSet);
-    if (!tok.skip(':') && !tok.skip(':'))
+    if (!(tok.skip(':') && tok.skip(':')))
         throw TextException(ToSBuf("missing '::' namespace separator in", token), Here());
-    const auto delimiter = tok.prefix("delimiter", delimSet);
-    if (!tok.skip('"'))
-        throw TextException(ToSBuf("missing quote char at the beginning of the delimited token: ", token), Here());
+    SBuf delimiter;
+    if (!tok.skip('"')) {
+        delimiter = tok.prefix("delimiter", delimSet);
+        if (!tok.skip('"'))
+            throw TextException(ToSBuf("missing quote char at the beginning of the delimited token: ", token), Here());
+    }
     auto endDelimiter = SBuf("\"");
     endDelimiter.append(delimiter);
     const auto contents = tok.prefix("delimited token", endDelimiter);
