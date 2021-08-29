@@ -47,7 +47,7 @@ public:
      * Parsed tokens type: simple tokens, quoted tokens or function
      * like parameters.
      */
-    enum TokenType {SimpleToken, QuotedToken, FunctionParameters};
+    enum TokenType {SimpleToken, QuotedToken, FunctionParameters, DelimitedToken};
 
     void destruct();
 
@@ -60,7 +60,8 @@ public:
     /// extracts and returns a required token
     SBuf token(const char *expectedTokenDescription);
 
-    /// extracts and returns a delimited token and its namespace in a format of ns::delimiter"PATTERN"delimiter
+    /// extracts and returns a delimited token and its namespace in a format of ns(flags)::delimiter"PATTERN"delimiter
+    /// \param ns the expected namespace which is overwritten by the parsed flags (if any) or an empty string
     SBuf delimitedToken(SBuf &ns, const char *expectedTokenDescription);
 
     /// extracts an optional key=value token or returns false
@@ -92,7 +93,7 @@ public:
      * of a quoted string element does not include quotes or escape sequences.
      * Future code will want to see Elements and not just their bodies.
      */
-    static char *NextToken(const char **ns = nullptr);
+    static char *NextToken();
 
     /**
      * Backward compatibility wrapper for ConfigParser::RegexPattern method.
@@ -219,7 +220,7 @@ protected:
 
     /// Removes delimiters and quotes around the token, such as delimiter"token"delimiter.
     /// The repeated delimiter is a possibly empty sequence of ASCII alphanumeric characters and "_".
-    static char *RemoveDelimiters(const char *token, const char **next = nullptr);
+    static SBuf RemoveDelimiters(const char *token, const char **next = nullptr);
 
     /**
      * Does the real tokens parsing job: Ignore comments, unquote an
@@ -227,12 +228,11 @@ protected:
      * \return the next token, or NULL if there are no available tokens in the nextToken string.
      * \param nextToken updated to point to the pos after parsed token.
      * \param type      The token type
-     * \param ns if not nil, is set to point to the token namespace string
      */
-    static char *TokenParse(const char * &nextToken, TokenType &type, const char **ns = nullptr);
+    static char *TokenParse(const char * &nextToken, TokenType &type);
 
     /// Wrapper method for TokenParse.
-    static char *NextElement(TokenType &type, const char **ns = nullptr);
+    static char *NextElement(TokenType &type);
     static std::stack<CfgFile *> CfgFiles; ///< The stack of open cfg files
     static TokenType LastTokenType; ///< The type of last parsed element
     static const char *CfgLine; ///< The current line to parse
@@ -246,6 +246,7 @@ protected:
     static bool PreviewMode_; ///< The next token will not popped from cfg files, will just previewd.
     static bool ParseKvPair_; ///<The next token will be handled as kv-pair token
     static enum ParsingStates {atParseKey, atParseValue} KvPairState_; ///< Parsing state while parsing kv-pair tokens
+    static SBuf LastParsedTokenNamespace;
 };
 
 int parseConfigFile(const char *file_name);

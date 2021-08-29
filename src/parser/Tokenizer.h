@@ -70,6 +70,9 @@ public:
      */
     bool prefix(SBuf &returnedToken, const CharacterSet &tokenChars, SBuf::size_type limit = SBuf::npos);
 
+    /// extracts all characters up to the first occurrence of the substring needle
+    bool prefix(SBuf &returnedToken, const SBuf &needle);
+
     /** Extracts all sequential permitted characters up to an optional length limit.
      * Operates on the trailing end of the buffer.
      *
@@ -152,6 +155,10 @@ public:
     /// prefix() wrapper but throws InsufficientInput if input contains
     /// nothing but the prefix (i.e. if the prefix is not "terminated")
     SBuf prefix(const char *description, const CharacterSet &tokenChars, SBuf::size_type limit = SBuf::npos);
+
+    /// prefix(SBuf &, const SBuf&) wrapper but throws InsufficientInput if input contains
+    /// nothing but the prefix (i.e. if the prefix is not "terminated")
+    SBuf prefix(const char *description, const SBuf &needle);
 
     /// int64() wrapper but limited to unsigned decimal integers (for now)
     int64_t udec64(const char *description, SBuf::size_type limit = SBuf::npos);

@@ -176,36 +176,30 @@ Http::HeaderEditor::ParseReGroupId(const char *str)
 void
 Http::HeaderEditor::parseOptions(ConfigParser &parser)
 {
-    auto currentToken = parser.token("command");
+    static const SBuf reNs("re");
+    static const SBuf lfNs("lf");
+    static const SBuf withToken("with");
 
+    auto currentToken = parser.token("command");
+    // the only command for now
     Must(currentToken.cmp("replace") == 0);
     command_ = Command::replace;
         
     currentToken = parser.token("command argument");
     commandArgument_ = CommandArguments.at(SBuf(currentToken));
 
-    static const SBuf reToken("re");
-    static const SBuf lfToken("lf");
-    static const SBuf withToken("with");
-
-    SBuf reNs;
-    currentToken = parser.delimitedToken(reNs, "regular expression");
-
-    Parser::Tokenizer reTok(reNs);
-    if (!reTok.skip(reToken))
-        throw TextException(ToSBuf("missing '", reToken, "' regex prefix"), Here());
-    SBuf rawFlags;
-    if (reTok.skip('(')) {
-        if (reTok.skipSuffix(SBuf(")")))
-            throw TextException(ToSBuf("missing ')' in regex prefix"), Here());
-        rawFlags = reTok.remaining();
-    }
-
     auto flags = REG_EXTENDED | REG_NEWLINE;
-    for (auto f: rawFlags) {
-        if (f == 'i')
-            flags |= REG_ICASE;
-        // TODO: parse other flags
+    auto reExpr = reNs;
+    currentToken = parser.delimitedToken(reExpr, "regular expression");
+    if (reExpr.length()) {
+        if (reExpr[0] != '(' && reExpr[reExpr.length() - 1] != ')')
+            throw TextException(ToSBuf("missing flags brackets"), Here());
+        SBuf rawFlags = reExpr.substr(1, reExpr.length() - 1);
+        for (auto f: rawFlags) {
+            if (f == 'i')
+              flags |= REG_ICASE;
+              // TODO: parse other flags
+        }
     }
 
     compileRE(currentToken, flags);
@@ -217,12 +211,10 @@ Http::HeaderEditor::parseOptions(ConfigParser &parser)
     if (currentToken != withToken)
         throw TextException(ToSBuf("missing 'with' keyword"), Here());
 
-    SBuf lfNs;
-    formatString_ = parser.delimitedToken(lfNs, "replacement expression");
-
-    Parser::Tokenizer lfTok(lfNs);
-    if (!lfTok.skip(lfToken))
-        throw TextException(ToSBuf("missing '", lfToken, "' format prefix"), Here());
+    auto lfEpr = lfNs;
+    formatString_ = parser.delimitedToken(lfEpr, "replacement expression");
+    if (lfEpr.length())
+        throw TextException("the replacement expression does not expect flags", Here());
 
     assert(!format_);
     format_ = new Format::Format(description_);
