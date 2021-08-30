@@ -1502,8 +1502,6 @@ SquidMain(int argc, char **argv)
     const CommandLine cmdLine(argc, argv, shortOpStr, squidOptions);
     ConfigureCurrentKid(cmdLine);
 
-    Debug::parseOptions(NULL);
-
 #if defined(SQUID_MAXFD_LIMIT)
 
     if (SQUID_MAXFD_LIMIT < Squid_MaxFD)
