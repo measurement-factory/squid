@@ -283,6 +283,51 @@ DebugFile::reset(FILE *newFile, const char *newName)
     assert(!file_ == !name);
 }
 
+/// a cached calculateMyLeadingRole() result
+extern const char *XXX_Role;
+const char *XXX_Role = nullptr;
+
+/// Works around the fact that IamWorkerProcess() and such lie until
+/// command-line arguments are parsed.
+static const char*
+calculateMyLeadingRole()
+{
+    static bool Checked = false;
+    assert(!Checked); // no recursion
+    Checked = true;
+
+    const auto fd = open("/proc/self/cmdline", O_RDONLY);
+    assert(fd >= 0);
+    char buf[128];
+    const auto readBytes = read(fd, buf, sizeof(buf));
+    assert(readBytes > 13);
+    buf[readBytes-1] = '\0';
+
+    if (buf[0] != '(')
+        return "head"; // daemonized master overwrites in GoIntoBackground()
+
+    if (strncmp(buf, "(squid-coord-", 13) == 0)
+        return "coordinator";
+
+    if (strncmp(buf, "(squid-disk-", 12) == 0)
+        return "disker";
+
+    if (strncmp(buf, "(squid-", 7) == 0)
+        return "worker"; // XXX: did not check for a digit
+
+    return "other";
+}
+
+static const char*
+myLeadingRole()
+{
+    if (!XXX_Role) {
+        XXX_Role = calculateMyLeadingRole();
+        assert(XXX_Role);
+    }
+    return XXX_Role;
+}
+
 static
 void
 _db_print(const bool forceAlert, const char *format,...)
@@ -334,7 +379,8 @@ _db_print(const bool forceAlert, const char *format,...)
     va_start(args2, format);
     va_start(args3, format);
 
-    snprintf(f, BUFSIZ, "%s%s| %s",
+    snprintf(f, BUFSIZ, "role=%s %s%s| %s",
+             myLeadingRole(),
              debugLogTime(),
              debugLogKid(),
              format);
@@ -1258,6 +1304,8 @@ DebugMessages::flush(const DebugChannel ch)
     }
     if (log)
         fflush(log);
+
+if (stderr) fprintf(stderr, "role=%s XXX: DebugMessages::flush(%s) saved=%d, logged=%d\n", XXX_Role, ChannelName(ch), int(messages.size()), int(logged));
 
     // Use debugs() level that prevents message buffering. Otherwise, this could
     // overflow the messages buffer, and dropAllToStderr() could dump the lines
