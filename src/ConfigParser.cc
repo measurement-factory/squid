@@ -247,8 +247,6 @@ ConfigParser::RemoveDelimiters(const char *token, const char **next)
     endDelimiter.append(delimiter);
     const auto contents = tok.prefix("delimited token", endDelimiter);
     assert(tok.skip(endDelimiter));
-    if (!tok.skipOne(CharacterSet::SP + CharacterSet::HTAB))
-        throw TextException(ToSBuf("Expecting space after the end of delimited token: ", token), Here());
 
     if (next)
         *next = token + tok.parsedSize();

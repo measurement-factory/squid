@@ -36,15 +36,20 @@ bool
 RegexPattern::match(const char *str, const int maxGroups)
 {
     // Must((flags & REG_NOSUB) == 0);
-    groups.resize(maxGroups);
     groups.clear();
-    return regexec(&regex, str, maxGroups, &groups[0], 0) == 0;
+    groups.resize(maxGroups);
+    if (regexec(&regex, str, maxGroups, &groups[0], 0) == 0) {
+        matchedString = SBuf(str);
+        return true;
+    }
+    return false;
 }
 
 SBuf
 RegexPattern::capture(const uint64_t captureNum) const {
     Must(captureNum < groups.size());
-    return SBuf(&pattern[groups[captureNum].rm_so], groups[captureNum].rm_eo - groups[captureNum].rm_so);
+    Must(matchedString.length() > static_cast<SBuf::size_type>(groups[captureNum].rm_eo));
+    return matchedString.substr(groups[captureNum].rm_so, groups[captureNum].rm_eo - groups[captureNum].rm_so);
 }
 
 int

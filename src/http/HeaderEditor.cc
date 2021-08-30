@@ -218,7 +218,7 @@ Http::HeaderEditor::parseOptions(ConfigParser &parser)
 
     assert(!format_);
     format_ = new Format::Format(description_);
-    if (!format_->parse(currentToken.c_str())) {
+    if (!format_->parse(formatString_.c_str())) {
         delete format_;
         throw TextException(ToSBuf("invalid format line:", formatString_), Here());
     }

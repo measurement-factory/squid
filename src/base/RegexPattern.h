@@ -59,6 +59,7 @@ public:
 
 private:
     char *pattern;
+    SBuf matchedString;
 };
 
 #endif /* SQUID_SRC_BASE_REGEXPATTERN_H */
