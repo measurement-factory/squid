@@ -54,10 +54,6 @@ _db_init(const char *, const char *)
 {}
 
 void
-_db_set_syslog(const char *)
-{}
-
-void
 _db_rotate_log(void)
 {}
 
@@ -96,10 +92,10 @@ _db_print_stderr(const char *format, va_list args)
     vfprintf(stderr, format, args);
 }
 
-void Debug::EarlyMessagesCheckpoint(int) STUB
+void Debug::Flush() STUB
 
 void
-Debug::parseOptions(char const *)
+Debug::ConfigureOptions(char const *)
 {}
 
 Debug::Context *Debug::Current = nullptr;

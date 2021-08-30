@@ -50,15 +50,11 @@ typedef BOOL (WINAPI * PFInitializeCriticalSectionAndSpinCount) (LPCRITICAL_SECT
 
 static void ResetSections(const int level = DBG_IMPORTANT);
 
+/// early debugs() with higher level are not buffered and, hence, may be lost
+static constexpr int EarlyMessagesMaxLevel = DBG_IMPORTANT;
+
 static void Initialize();
 static bool Initialized = (Initialize(), true);
-
-/// program termination callback for std::atexit()
-static void
-FlushEarlyMessagesAtExit()
-{
-    Debug::EarlyMessagesCheckpoint(0);
-}
 
 /// used for the side effect: performs earliest module initialization possible
 static void
@@ -67,7 +63,7 @@ Initialize()
     // explicit initialization, hopefully before any debugs() calls; see bug #2656
     tzset();
 
-    (void)std::atexit(&FlushEarlyMessagesAtExit);
+    (void)std::atexit(&Debug::Flush);
 
     ResetSections();
 
@@ -136,10 +132,17 @@ public:
     char image[BUFSIZ]; ///< formatted message (including timestamp and context)
 };
 
+// TODO: Rename to EarlyDebugMessages or some such because the class has code
+// specific to handling early messages.
 /// preserves (a limited amount of) debugs() messages for delayed logging
 class DebugMessages
 {
 public:
+    DebugMessages() = default;
+    ~DebugMessages();
+    // no copying or moving or any kind (for simplicity sake and to prevent accidental copies)
+    DebugMessages(DebugMessages &&) = delete;
+
     /// stores the given message (if possible) or forgets it (otherwise)
     void insert(const int section, const int level, const bool forceAlert, const char *format, va_list args);
     /// whether the stored messages were written to a given channel
@@ -147,7 +150,7 @@ public:
     /// whether the stored messages were written to all channels
     bool flushedAll() const { return flushedChannels == (ErrChannel|CacheChannel|SysChannel); };
     /// logs all previously stored messages
-    void write(const DebugChannel);
+    void flush(const DebugChannel);
 
 private:
     void dropAllToStderr();
@@ -201,35 +204,46 @@ EarlyMessages()
     return *EarlyMessagesOrNil;
 }
 
-// XXX: Besides flushing, this function also stops _collection_ of early
-// messages if all channels have been flushed. That side effect does not match
-// the general concept of "flushing" well. It is also incomplete -- missing
-// EarlyMessages destruction. Too messy!
-/// write all previously saved "early" messages into a specified channel
+/// Write all saved but not yet written "early" messages into the given channel.
 static void
-FlushEarlyMessages(const DebugChannel ch)
+FlushEarlyMessagesTo(const DebugChannel ch)
 {
     if (!SavingEarlyMessages)
         return;
 
-    if (!EarlyMessages().flushed(ch))
-        EarlyMessages().write(ch);
+    // This may create an early message buffer, and we need that creation to
+    // keep track of what has been flushed. TODO: Refactor to avoid creation.
+    EarlyMessages().flush(ch);
 }
 
-/// ensure that all previously saved "early messages" are written
-/// and stop accumulating them
+/// End early message buffering for the given channel, flushing saved messages.
+/// If no channel still needs buffering, stop saving early messages.
+static void
+StopEarlyMessageCollectionFor(const DebugChannel ch)
+{
+    if (!SavingEarlyMessages)
+        return;
+
+    // This may create an early message buffer, and we need that creation to
+    // keep track of what has been flushed. TODO: Refactor to avoid creation.
+    FlushEarlyMessagesTo(ch);
+
+    if (EarlyMessages().flushedAll()) {
+        SavingEarlyMessages = false;
+        delete EarlyMessagesOrNil;
+        EarlyMessagesOrNil = nullptr;
+    }
+}
+
 void
-Debug::EarlyMessagesCheckpoint(const int defaultErrLevel)
+Debug::Flush()
 {
     if (SavingEarlyMessages) {
         // some of channels may not be flushed yet
-        FlushEarlyMessages(ErrChannel);
-        FlushEarlyMessages(SysChannel);
-        FlushEarlyMessages(CacheChannel);
-        assert(!SavingEarlyMessages);
+        FlushEarlyMessagesTo(ErrChannel);
+        FlushEarlyMessagesTo(SysChannel);
+        FlushEarlyMessagesTo(CacheChannel);
     }
-    delete EarlyMessagesOrNil;
-    EarlyMessagesOrNil = nullptr;
 }
 
 /// whether we are still saving early messages into a given channel
@@ -251,7 +265,6 @@ DebugFile::reset(FILE *newFile, const char *newName)
     // callers must use nullptr instead of the used-as-the-last-resort stderr
     assert(newFile != stderr || !stderr);
 
-    const bool wasLoggingToFile = file_;
     if (file_) {
         fd_close(fileno(file_));
         fclose(file_);
@@ -259,8 +272,6 @@ DebugFile::reset(FILE *newFile, const char *newName)
     file_ = newFile; // may be nil
 
     if (file_) {
-        if (!wasLoggingToFile)
-            FlushEarlyMessages(CacheChannel); // before anything that logs, including fd_open()
         fd_open(fileno(file_), FD_LOG, Debug::cache_log);
     }
 
@@ -335,7 +346,7 @@ _db_print(const bool forceAlert, const char *format,...)
     _db_print_syslog(forceAlert, format, args3);
 #endif
 
-    if (SavingEarlyMessages && Debug::Level() <= DBG_IMPORTANT) {
+    if (SavingEarlyMessages && Debug::Level() <= EarlyMessagesMaxLevel) {
         va_list args4;
         va_start(args4, format);
         // XXX: _db_print_syslog() uses format `format`, not `f`!
@@ -616,14 +627,10 @@ syslog_facility_names[] = {
 
 #endif
 
-void
+static void
 _db_set_syslog(const char *facility)
 {
     Debug::log_syslog = true;
-
-    // XXX: Too early. Wait for syslog_facility=... below.
-    // XXX: Way too early. Wait for openlog(syslog_facility) in _db_init()!
-    FlushEarlyMessages(SysChannel);
 
 #ifdef LOG_LOCAL4
 #ifdef LOG_DAEMON
@@ -659,6 +666,18 @@ _db_set_syslog(const char *facility)
 #endif
 
 void
+Debug::ConfigureSysLogging(const char *facility)
+{
+#if HAVE_SYSLOG
+    _db_set_syslog(facility);
+#else
+    (void)facility;
+    // TODO: Throw.
+    fatalf("Logging to syslog not available on this platform");
+#endif
+}
+
+void
 Debug::EnsureDefaultErrLogLevel(const int maxDefault)
 {
     if (MaxErrLogLevelDefault < maxDefault)
@@ -673,17 +692,19 @@ Debug::ResetErrLogLevel(const int maxLevel)
 }
 
 void
-Debug::FinalizeErrLogLevel()
+Debug::SettleErrLogging()
 {
     if (MaxErrLogLevel < 0)
         MaxErrLogLevel = MaxErrLogLevelDefault; // may remain disabled/negative
 
     // XXX: This is too early iff TheLog.failed() becomes true later!
-    FlushEarlyMessages(ErrChannel);
+    StopEarlyMessageCollectionFor(ErrChannel);
 }
 
+// TODO: Undo renaming. Go back to parseOptions() because this method semantics
+// has not changed and there are many (needlessly) affected callers.
 void
-Debug::parseOptions(char const *options)
+Debug::ConfigureOptions(char const *options)
 {
     char *p = NULL;
     char *s = NULL;
@@ -706,20 +727,31 @@ Debug::parseOptions(char const *options)
 }
 
 void
-_db_init(const char *logfile, const char *options)
+Debug::UseCacheLog()
 {
-    Debug::parseOptions(options);
+    Debug::ConfigureOptions(debugOptions);
+    debugOpenLog(cache_log);
+    StopEarlyMessageCollectionFor(CacheChannel);
+}
 
-    debugOpenLog(logfile);
+void
+Debug::BanCacheLogging()
+{
+    Debug::ConfigureOptions(debugOptions);
+    assert(!TheLog.file());
+    StopEarlyMessageCollectionFor(CacheChannel);
+}
 
+void
+Debug::SettleSysLogging()
+{
 #if HAVE_SYSLOG && defined(LOG_LOCAL4)
 
     if (Debug::log_syslog)
         openlog(APP_SHORTNAME, LOG_PID | LOG_NDELAY | LOG_CONS, syslog_facility);
 
 #endif /* HAVE_SYSLOG */
-
-    Debug::EarlyMessagesCheckpoint(-1);
+    StopEarlyMessageCollectionFor(SysChannel);
 }
 
 void
@@ -839,7 +871,7 @@ xassert(const char *msg, const char *file, int line)
     debugs(0, DBG_CRITICAL, "assertion failed: " << file << ":" << line << ": \"" << msg << "\"");
 
     if (!shutting_down) {
-        Debug::EarlyMessagesCheckpoint(0);
+        Debug::Flush();
         abort();
     }
 }
@@ -1119,6 +1151,15 @@ DebugMessage::DebugMessage(const int aSection, const int aLevel, const bool aFor
 
 /* DebugMessages */
 
+DebugMessages::~DebugMessages()
+{
+    if (dropped) {
+        const auto saved = messages.size();
+        debugs(0, DBG_IMPORTANT, "ERROR: Too many early important messages: " << (saved + dropped) <<
+               "; saved " << saved << " but dropped " << dropped);
+    }
+}
+
 void
 DebugMessages::insert(const int section, const int level, const bool forceAlert, const char *format, va_list args)
 {
@@ -1190,8 +1231,13 @@ ChannelName(const DebugChannel ch)
 }
 
 void
-DebugMessages::write(const DebugChannel ch)
+DebugMessages::flush(const DebugChannel ch)
 {
+    // Once a channel is flushed, it starts writing messages immediately (TODO:
+    // Check that!); no buffered message can be for that channel after that.
+    if (flushed(ch))
+        return;
+
     flushedChannels |= ch;
     const auto log = ChannelStream(ch);
     uint64_t logged = 0;
@@ -1213,23 +1259,11 @@ DebugMessages::write(const DebugChannel ch)
     if (log)
         fflush(log);
 
-    if (flushedAll()) {
-        SavingEarlyMessages = false;
-        const auto saved = messages.size();
-        messages.clear();
-
-        // TODO: It would be nice to report logged count for each channel, not
-        // just the last one (i.e. even if still SavingEarlyMessages), but that
-        // requires a channel-specific logging interface. Without it, this
-        // debugs() might overflow the messages buffer, and dropAllToStderr()
-        // would report the same messages we just reported.
-        debugs(0, 2, "saved " << saved << " and wrote " << logged << " early messages to " << ChannelName(ch));
-
-        if (dropped) {
-            debugs(0, DBG_IMPORTANT, "ERROR: Too many early important messages: " << (saved + dropped) <<
-                   "; saved " << saved << " but dropped " << dropped);
-        }
-    }
+    // Use debugs() level that prevents message buffering. Otherwise, this could
+    // overflow the messages buffer, and dropAllToStderr() could dump the lines
+    // we just reported above, possibly duplicating the lines on stderr.
+    debugs(0, EarlyMessagesMaxLevel+1, "wrote " << logged << " out of " <<
+           messages.size() << " early messages to " << ChannelName(ch));
 }
 
 /* Raw */

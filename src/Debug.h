@@ -85,7 +85,7 @@ public:
     static int override_X;
     static bool log_syslog;
 
-    static void parseOptions(char const *);
+    static void ConfigureOptions(char const *);
 
     /// debugging section of the current debugs() call
     static int Section() { return Current ? Current->section : 0; }
@@ -105,6 +105,23 @@ public:
     /// prefixes each grouped debugs() line after the first one in the group
     static std::ostream& Extra(std::ostream &os) { return os << "\n    "; }
 
+    /// Ensure that any previously buffered debugs() messages are written.
+    static void Flush();
+
+    /* cache.log */
+
+    /// Opens configured cache_log file (if any).
+    /// Also applies configured debug_options (if any).
+    /// Call this or BanCacheLogging() to stop early message accumulation.
+    static void UseCacheLog();
+
+    /// Ensures that cache_log file has not been opened.
+    /// Also applies configured debug_options (if any).
+    /// Call this or UseCacheLog() to stop early message accumulation.
+    static void BanCacheLogging();
+
+    /* errlog */
+
     /// In the absence of ResetErrLogLevel() calls, future debugs() messages
     /// with the given (or lower) level will be written to stderr (at least). If
     /// called many times, the highest parameter wins. Calls have no effect if
@@ -116,7 +133,7 @@ public:
     static void ResetErrLogLevel(int maxLevel);
 
     /// called after the last EnsureDefaultErrLogLevel()/ResetErrLogLevel() call
-    static void FinalizeErrLogLevel();
+    static void SettleErrLogging();
 
     /// Whether debugs() message with the given level will be written to errlog.
     /// When called w/o a parameter, returns whether any message can be written.
@@ -124,9 +141,13 @@ public:
     /// XXX: A _db_init() call may change the answer!
     static bool ErrLogEnabled(int level = DBG_CRITICAL);
 
-    /// flushes early messages if needed
-    /// \param defaultErrLevel the value for log_stderr (XXX) (if uninitialized)
-    static void EarlyMessagesCheckpoint(const int defaultErrLevel);
+    /* syslog */
+
+    /// enables logging to syslog (using the specified facility, when not nil)
+    static void ConfigureSysLogging(const char *facility);
+
+    /// called after the last ConfigureSysLogging() call (if any)
+    static void SettleSysLogging();
 
 private:
     /// debugs() messages with this (or lower) level will be written to stderr
@@ -210,8 +231,6 @@ inline std::ostream& operator <<(std::ostream &os, const uint8_t d)
 }
 
 /* Legacy debug function definitions */
-void _db_init(const char *logfile, const char *options);
-void _db_set_syslog(const char *facility);
 void _db_rotate_log(void);
 
 /// Prints raw and/or non-terminated data safely, efficiently, and beautifully.

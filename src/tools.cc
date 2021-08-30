@@ -356,7 +356,7 @@ death(int sig)
         puts(dead_msg());
     }
 
-    Debug::EarlyMessagesCheckpoint(0);
+    Debug::Flush();
 
     abort();
 }
@@ -385,10 +385,10 @@ sigusr2_handle(int sig)
     DebugSignal = sig;
 
     if (state == 0) {
-        Debug::parseOptions("ALL,7");
+        Debug::ConfigureOptions("ALL,7");
         state = 1;
     } else {
-        Debug::parseOptions(Debug::debugOptions);
+        Debug::ConfigureOptions(Debug::debugOptions);
         state = 0;
     }
 

@@ -490,7 +490,7 @@ mainHandleCommandLineOption(const int optId, const char *optValue)
     case 'X':
         /** \par X
          * Force full debugging */
-        Debug::parseOptions("rotate=0 ALL,9");
+        Debug::ConfigureOptions("rotate=0 ALL,9");
         Debug::override_X = 1;
         sigusr2_handle(SIGUSR2);
         break;
@@ -589,10 +589,10 @@ mainHandleCommandLineOption(const int optId, const char *optValue)
         else
             usage();
 
-        // cannot use cache.log; use stderr for important messages (by default)
+        // Cannot use cache.log: use stderr for important messages (by default)
+        // and stop expecting a Debug::SettleCacheLogging() call.
         Debug::EnsureDefaultErrLogLevel(DBG_IMPORTANT);
-
-        _db_init(nullptr, nullptr); // stop waiting for cache.log to be opened
+        Debug::BanCacheLogging();
         break;
 
     case 'm':
@@ -650,18 +650,8 @@ mainHandleCommandLineOption(const int optId, const char *optValue)
     case 's':
         /** \par s
          * Initialize the syslog for output */
-#if HAVE_SYSLOG
-
-        _db_set_syslog(opt_syslog_facility);
-
+        Debug::ConfigureSysLogging(opt_syslog_facility);
         break;
-
-#else
-
-        fatal("Logging to syslog not available on this platform");
-
-        /* NOTREACHED */
-#endif
 
     case 'u':
         /** \par u
@@ -960,7 +950,7 @@ mainReconfigureFinish(void *)
     setUmask(Config.umask);
     Mem::Report();
     setEffectiveUser();
-    _db_init(Debug::cache_log, Debug::debugOptions);
+    Debug::UseCacheLog();
     ipcache_restart();      /* clear stuck entries */
     fqdncache_restart();    /* sigh, fqdncache too */
     parseEtcHosts();
@@ -1366,7 +1356,7 @@ OnTerminate()
 
     debugs(1, DBG_CRITICAL, "FATAL: Dying from an exception handling failure; exception: " << CurrentException);
 
-    Debug::EarlyMessagesCheckpoint(0);
+    Debug::Flush();
 
     abort();
 }
@@ -1456,9 +1446,11 @@ ConfigureDebugging()
         fd_open(2, FD_LOG, "stderr");
     }
     // we should not create cache.log outside chroot environment, if any
-    // XXX: With Config.chroot_dir set, SMP master process never calls db_init().
+    // XXX: With Config.chroot_dir set, SMP master process calls BanCacheLogging() here.
     if (!Config.chroot_dir || Chrooted)
-        _db_init(Debug::cache_log, Debug::debugOptions);
+        Debug::UseCacheLog();
+    else
+        Debug::BanCacheLogging();
 }
 
 static void
@@ -1547,7 +1539,8 @@ SquidMain(int argc, char **argv)
 
     cmdLine.forEachOption(mainHandleCommandLineOption);
 
-    Debug::FinalizeErrLogLevel();
+    Debug::SettleErrLogging();
+    Debug::SettleSysLogging();
 
     if (opt_foreground && opt_no_daemon) {
         debugs(1, DBG_CRITICAL, "WARNING: --foreground command-line option has no effect with -N.");
