@@ -194,7 +194,7 @@ Http::HeaderEditor::parseOptions(ConfigParser &parser)
     if (reExpr.length()) {
         if (reExpr[0] != '(' && reExpr[reExpr.length() - 1] != ')')
             throw TextException(ToSBuf("missing flags brackets"), Here());
-        SBuf rawFlags = reExpr.substr(1, reExpr.length() - 1);
+        SBuf rawFlags = reExpr.substr(1, reExpr.length() - 2);
         for (auto f: rawFlags) {
             if (f == 'i')
               flags |= REG_ICASE;
