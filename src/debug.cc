@@ -353,6 +353,8 @@ ResyncDebugLog(FILE *newFile)
     TheLog.file_ = newFile;
 }
 
+/* DebugChannel */
+
 void
 DebugChannel::flush()
 {
@@ -400,6 +402,20 @@ CacheLogChannel::switchToErrLog()
     auto &module = Module();
     module.errLogChannel.takeOverCacheLog();
     module.checkEarlyMessageCollectionTermination();
+}
+
+void
+CacheLogChannel::maybeLog(const char *prefix, const std::string &suffix)
+{
+    if (!flushed)
+        return;
+
+    if (!TheLog.file())
+        return;
+
+    fprintf(TheLog.file(), "role=%s # %s%s\n", XXX_Role, prefix, suffix.c_str());
+    fflush(TheLog.file());
+    ++logged;
 }
 
 /* ErrLogChannel */
@@ -462,6 +478,36 @@ ErrLogChannel::writeAllSaved()
         maybeLog(message);
 }
 
+bool
+Debug::ErrLogEnabled(const int level)
+{
+    return level <= MaxErrLogLevel || TheLog.failed();
+}
+
+void
+Debug::EnsureDefaultErrLogLevel(const int maxDefault)
+{
+    if (MaxErrLogLevelDefault < maxDefault)
+        MaxErrLogLevelDefault = maxDefault; // may set or increase
+    // else: somebody has already requested a more permissive maximum
+}
+
+void
+Debug::ResetErrLogLevel(const int maxLevel)
+{
+    MaxErrLogLevel = maxLevel; // may set, increase, or decrease
+}
+
+void
+Debug::SettleErrLogging()
+{
+    if (MaxErrLogLevel < 0)
+        MaxErrLogLevel = MaxErrLogLevelDefault; // may remain disabled/negative
+
+    // XXX: This is too early iff TheLog.failed() becomes true later!
+    Module().errLogChannel.stopEarlyMessageCollection();
+}
+
 /* DebugFile */
 
 void DebugFile::fail()
@@ -482,9 +528,8 @@ DebugFile::reset(FILE *newFile, const char *newName)
     }
     file_ = newFile; // may be nil
 
-    if (file_) {
+    if (file_)
         fd_open(fileno(file_), FD_LOG, Debug::cache_log);
-    }
 
     xfree(name);
     name = newName ? xstrdup(newName) : nullptr;
@@ -594,26 +639,6 @@ LogMessage(const bool forceAlert, const std::string &message)
 #if _SQUID_WINDOWS_
     LeaveCriticalSection(dbg_mutex);
 #endif
-}
-
-void
-CacheLogChannel::maybeLog(const char *prefix, const std::string &suffix)
-{
-    if (!flushed)
-        return;
-
-    if (!TheLog.file())
-        return;
-
-    fprintf(TheLog.file(), "role=%s # %s%s\n", XXX_Role, prefix, suffix.c_str());
-    fflush(TheLog.file());
-    ++logged;
-}
-
-bool
-Debug::ErrLogEnabled(const int level)
-{
-    return level <= MaxErrLogLevel || TheLog.failed();
 }
 
 #if HAVE_SYSLOG
@@ -879,30 +904,6 @@ Debug::ConfigureSysLogging(const char *facility)
     // TODO: Throw.
     fatalf("Logging to syslog not available on this platform");
 #endif
-}
-
-void
-Debug::EnsureDefaultErrLogLevel(const int maxDefault)
-{
-    if (MaxErrLogLevelDefault < maxDefault)
-        MaxErrLogLevelDefault = maxDefault; // may set or increase
-    // else: somebody has already requested a more permissive maximum
-}
-
-void
-Debug::ResetErrLogLevel(const int maxLevel)
-{
-    MaxErrLogLevel = maxLevel; // may set, increase, or decrease
-}
-
-void
-Debug::SettleErrLogging()
-{
-    if (MaxErrLogLevel < 0)
-        MaxErrLogLevel = MaxErrLogLevelDefault; // may remain disabled/negative
-
-    // XXX: This is too early iff TheLog.failed() becomes true later!
-    Module().errLogChannel.stopEarlyMessageCollection();
 }
 
 // TODO: Undo renaming. Go back to parseOptions() because this method semantics
@@ -1275,3 +1276,4 @@ Raw::print(std::ostream &os) const
 
     return os;
 }
+

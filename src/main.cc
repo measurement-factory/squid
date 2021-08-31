@@ -1435,8 +1435,6 @@ ConfigureCurrentKid(const CommandLine &cmdLine)
 }
 
 /// Start directing debugs() messages to the configured cache.log.
-/// Until this function is called, all allowed messages go to stderr.
-/// XXX: The comment line above is stale.
 static void
 ConfigureDebugging()
 {
@@ -1492,6 +1490,7 @@ int
 SquidMain(int argc, char **argv)
 {
     const CommandLine cmdLine(argc, argv, shortOpStr, squidOptions);
+
     ConfigureCurrentKid(cmdLine);
 
 #if defined(SQUID_MAXFD_LIMIT)
