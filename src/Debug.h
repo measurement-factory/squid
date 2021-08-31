@@ -145,14 +145,6 @@ public:
     static void SettleSysLogging();
 
 private:
-    /// debugs() messages with this (or lower) level will be written to stderr
-    /// (and possibly other channels). Negative values disable stderr logging.
-    /// This restriction is ignored if Squid tries but fails to open cache.log.
-    static int MaxErrLogLevel;
-
-    /// MaxErrLogLevel default; ignored after FinalizeErrLogLevel()
-    static int MaxErrLogLevelDefault;
-
     static Context *Current; ///< deepest active context; nil outside debugs()
 };
 

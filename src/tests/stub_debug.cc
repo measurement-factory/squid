@@ -25,8 +25,6 @@ int Debug::rotateNumber = 0;
 int Debug::Levels[MAX_DEBUG_SECTIONS];
 int Debug::override_X = 0;
 bool Debug::log_syslog = false;
-int Debug::MaxErrLogLevel = DBG_IMPORTANT;
-int Debug::MaxErrLogLevelDefault = DBG_IMPORTANT;
 
 void Debug::ForceAlert() STUB
 
@@ -40,46 +38,27 @@ DebugStream()
 }
 
 void
-_db_init(const char *, const char *)
-{}
-
-void
 _db_rotate_log(void)
 {}
 
 static void
-_db_print_stderr(const char *format, va_list args);
-
-void
-_db_print(const char *format,...)
+LogMessage(const std::string &message)
 {
-    static char f[BUFSIZ];
-    va_list args1;
-    va_list args2;
-    va_list args3;
-
-    va_start(args1, format);
-    va_start(args2, format);
-    va_start(args3, format);
-
-    snprintf(f, BUFSIZ, "%s| %s",
-             "stub time", //debugLogTime(squid_curtime),
-             format);
-
-    _db_print_stderr(f, args2);
-
-    va_end(args1);
-    va_end(args2);
-    va_end(args3);
-}
-
-static void
-_db_print_stderr(const char *format, va_list args)
-{
-    if (1 < Debug::Level())
+    if (!Debug::ErrLogEnabled(Debug::Level()))
         return;
 
-    vfprintf(stderr, format, args);
+    if (!stderr)
+        return;
+
+    fprintf(stderr, "%s| %s\n",
+            "stub time", // debugLogTime(squid_curtime),
+            message.c_str());
+}
+
+bool
+Debug::ErrLogEnabled(const int level)
+{
+    return level <= DBG_IMPORTANT;
 }
 
 void Debug::Flush() STUB
@@ -112,7 +91,7 @@ void
 Debug::Finish()
 {
     if (Current) {
-        _db_print("%s\n", Current->buf.str().c_str());
+        LogMessage(Current->buf.str());
         delete Current;
         Current = nullptr;
     }
