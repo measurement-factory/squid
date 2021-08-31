@@ -31,6 +31,10 @@ class DebugModule;
 /// Debugging module singleton.
 static DebugModule *Module_ = nullptr;
 
+/// a cached calculateMyLeadingRole() result
+extern const char *XXX_Role;
+const char *XXX_Role = nullptr;
+
 /// debugs() messages with this (or lower) level will be written to stderr
 /// (and possibly other channels). Negative values disable stderr logging.
 /// This restriction is ignored if Squid tries but fails to open cache.log.
@@ -175,6 +179,9 @@ public:
     /// \copydoc DebugChannel::maybeLog()
     void maybeLog(const char *prefix, const std::string &suffix);
 
+    /// Allow errLogChannel to take over (e.g., after cache_log failed to open)
+    void switchToErrLog();
+
     /* DebugChannel API */
 
     virtual void maybeLog(const DebugMessage &m) final
@@ -198,6 +205,16 @@ public:
     {
         maybeLog(m.level, m.prefix.c_str(), m.suffix);
     }
+
+protected:
+    friend void CacheLogChannel::switchToErrLog();
+
+    /// Start to take care of past/saved and future cacheLogChannel messages.
+    /// Assumes that its caller will checkEarlyMessageCollectionTermination().
+    void takeOverCacheLog();
+
+    /// logs all previously saved early messages
+    void writeAllSaved();
 };
 
 /// syslog DebugChannel
@@ -371,6 +388,80 @@ Debug::Flush()
     Module().flush();
 }
 
+/* CacheLogChannel */
+
+void
+CacheLogChannel::switchToErrLog()
+{
+    if (flushed)
+        return;
+    flushed = true;
+
+    auto &module = Module();
+    module.errLogChannel.takeOverCacheLog();
+    module.checkEarlyMessageCollectionTermination();
+}
+
+/* ErrLogChannel */
+
+void
+ErrLogChannel::maybeLog(const int level, const char *prefix, const std::string &suffix)
+{
+    if (!stderr)
+        return;
+
+    if (!Debug::ErrLogEnabled(level))
+        return;
+
+    // Do not delay logging of immediately log-able messages. Some of them may
+    // not be saveable.
+    if (!flushed)
+        flush(); // avoid reordering messages
+
+    fprintf(stderr, "role=%s # %s%s\n", XXX_Role, prefix, suffix.c_str());
+    ++logged;
+}
+
+void
+ErrLogChannel::takeOverCacheLog()
+{
+    assert(!TheLog.file()); // we will allow future messages regardless of -dN
+
+    // we are settled because we are taking over a settled cacheLogChannel
+    flushed = true; // may already be true
+
+    const auto saved = EarlyMessages ? EarlyMessages->raw().size() : 0;
+    if (!saved) {
+        // no logging debt to worry about
+        return;
+    }
+
+    if (!logged) {
+        // no danger of reordering messages on stderr
+        writeAllSaved();
+        return;
+    }
+
+    // It is possible that we have logged some of the saved lines (e.g., -d1)
+    // and/or logged some of the lines that follow the saved lines (e.g., -Xd2).
+    // To reduce confusion, do not risk logging duplicate/out-of-order lines.
+    debugs(0, DBG_CRITICAL, "ERROR: Dropping " << saved << " early cache_log messages because " <<
+           "stderr may have logged some of them (or some of the subsequent messages) already");
+}
+
+void
+ErrLogChannel::writeAllSaved()
+{
+    assert(!logged); // no conflicts with past messages
+    assert(flushed); // no conflicts with messages that will be logged later
+
+    if (!EarlyMessages)
+        return; // nothing to write
+
+    for (const auto &message: EarlyMessages->raw())
+        maybeLog(message);
+}
+
 /* DebugFile */
 
 void DebugFile::fail()
@@ -402,10 +493,6 @@ DebugFile::reset(FILE *newFile, const char *newName)
     // all cleared files must not have a name
     assert(!file_ == !name);
 }
-
-/// a cached calculateMyLeadingRole() result
-extern const char *XXX_Role;
-const char *XXX_Role = nullptr;
 
 /// Works around the fact that IamWorkerProcess() and such lie until
 /// command-line arguments are parsed.
@@ -527,22 +614,6 @@ bool
 Debug::ErrLogEnabled(const int level)
 {
     return level <= MaxErrLogLevel || TheLog.failed();
-}
-
-void
-ErrLogChannel::maybeLog(const int level, const char *prefix, const std::string &suffix)
-{
-    if (!flushed)
-        return;
-
-    if (!stderr)
-        return;
-
-    if (!Debug::ErrLogEnabled(level))
-        return;
-
-    fprintf(stderr, "role=%s # %s%s\n", XXX_Role, prefix, suffix.c_str());
-    ++logged;
 }
 
 #if HAVE_SYSLOG
@@ -864,7 +935,10 @@ Debug::UseCacheLog()
 {
     Debug::ConfigureOptions(debugOptions);
     debugOpenLog(cache_log);
-    Module().cacheLogChannel.stopEarlyMessageCollection();
+    if (TheLog.file())
+        Module().cacheLogChannel.stopEarlyMessageCollection();
+    else
+        Module().cacheLogChannel.switchToErrLog();
 }
 
 void
@@ -872,7 +946,7 @@ Debug::BanCacheLogging()
 {
     Debug::ConfigureOptions(debugOptions);
     assert(!TheLog.file());
-    Module().cacheLogChannel.stopEarlyMessageCollection();
+    Module().cacheLogChannel.switchToErrLog();
 }
 
 void
