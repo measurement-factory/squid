@@ -504,7 +504,6 @@ Debug::SettleErrLogging()
     if (MaxErrLogLevel < 0)
         MaxErrLogLevel = MaxErrLogLevelDefault; // may remain disabled/negative
 
-    // XXX: This is too early iff TheLog.failed() becomes true later!
     Module().errLogChannel.stopEarlyMessageCollection();
 }
 
