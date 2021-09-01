@@ -133,8 +133,7 @@ public:
 
     /// Whether debugs() message with the given level will be written to errlog.
     /// When called w/o a parameter, returns whether any message can be written.
-    /// Unreliable until FinalizeErrLogLevel().
-    /// XXX: A _db_init() call may change the answer!
+    /// The result may change until UseCacheLog() error, FinalizeErrLogLevel().
     static bool ErrLogEnabled(int level = DBG_CRITICAL);
 
     /* syslog */
