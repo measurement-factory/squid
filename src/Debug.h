@@ -105,12 +105,13 @@ public:
 
     /* cache.log */
 
-    /// Opens configured cache_log file (if any).
+    /// Ensures that the cache_log file location has been specified.
+    /// Opens the configured cache_log file.
     /// Also applies configured debug_options (if any).
     /// Call this or BanCacheLogging() to stop early message accumulation.
     static void UseCacheLog();
 
-    /// Ensures that cache_log file has not been opened.
+    /// Ensures that the cache_log file has not been opened.
     /// Also applies configured debug_options (if any).
     /// Call this or UseCacheLog() to stop early message accumulation.
     static void BanCacheLogging();

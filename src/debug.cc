@@ -711,10 +711,7 @@ debugArg(const char *arg)
 static void
 debugOpenLog(const char *logfile)
 {
-    if (logfile == NULL) {
-        TheLog.clear();
-        return;
-    }
+    assert(logfile);
 
     // Bug 4423: ignore the stdio: logging module name if present
     const char *logfilename;
@@ -728,14 +725,16 @@ debugOpenLog(const char *logfile)
         setmode(fileno(log), O_TEXT);
 #endif
         TheLog.reset(log, logfilename);
+        Module().cacheLogChannel.stopEarlyMessageCollection();
     } else {
-        // XXX: Bypassing debugs() (with its early message buffering) results in
-        // out-of-order stderr lines (e.g. squid -NX prints these lines first).
-        fprintf(stderr, "WARNING: Cannot write log file: %s\n", logfile);
-        perror(logfile);
-        fprintf(stderr, "         messages will be sent to 'stderr'.\n");
-        fflush(stderr);
+        const auto xerrno = errno;
         TheLog.fail();
+        Module().cacheLogChannel.switchToErrLog();
+        // Report the problem after switchToErrLog() to improve our chances of
+        // also reporting early debugs() messages (that should be logged first).
+        debugs(0, DBG_CRITICAL, "ERROR: Cannot open cache_log (" << logfilename << ") for writing;" <<
+               Debug::Extra << "now using stderr instead;" <<
+               Debug::Extra << "fopen(3) error: " << xstrerr(xerrno));
     }
 }
 
@@ -936,10 +935,6 @@ Debug::UseCacheLog()
 {
     Debug::ConfigureOptions(debugOptions);
     debugOpenLog(cache_log);
-    if (TheLog.file())
-        Module().cacheLogChannel.stopEarlyMessageCollection();
-    else
-        Module().cacheLogChannel.switchToErrLog();
 }
 
 void
