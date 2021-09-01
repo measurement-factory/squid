@@ -447,16 +447,14 @@ ErrLogChannel::takeOverCacheLog()
     flushed = true; // may already be true
 
     const auto saved = EarlyMessages ? EarlyMessages->raw().size() : 0;
-    if (!saved) {
-        // no logging debt to worry about
-        return;
-    }
+    if (!saved)
+        return; // no logging debt to analyze
 
-    if (!logged) {
-        // no danger of reordering messages on stderr
-        writeAllSaved();
-        return;
-    }
+    if (!logged)
+        return writeAllSaved(); // no danger of reordering messages on stderr
+
+    if (MaxErrLogLevel >= EarlyMessagesMaxLevel)
+        return; // we would have logged any saved messages
 
     // It is possible that we have logged some of the saved lines (e.g., -d1)
     // and/or logged some of the lines that follow the saved lines (e.g., -Xd2).
