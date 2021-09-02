@@ -179,8 +179,9 @@ public:
     /// \copydoc DebugChannel::maybeLog()
     void maybeLog(const char *prefix, const std::string &suffix);
 
-    /// Allow errLogChannel to take over (e.g., after cache_log failed to open)
-    void switchToErrLog();
+    /// Reacts to a failure to open a cache_log file.
+    /// Assumes that the caller will checkEarlyMessageCollectionTermination().
+    void stopWaitingForFile();
 
     /* DebugChannel API */
 
@@ -196,8 +197,19 @@ class ErrLogChannel: public DebugChannel
 public:
     ErrLogChannel(): DebugChannel("errlog") {}
 
+    /// whether maybeLog() ought to log a debugs() message with a given level
+    /// (assuming some higher-level code applied cache.log section/level filter)
+    bool shouldLog(int level) const;
+
     /// \copydoc DebugChannel::maybeLog()
     void maybeLog(int level, const char *prefix, const std::string &suffix);
+
+    /// Start to take care of past/saved and future cacheLogChannel messages.
+    /// Assumes that the caller will checkEarlyMessageCollectionTermination().
+    void takeOverCacheLog();
+
+    /// Stop providing a cache_log replacement (if we were providing it).
+    void stopCoveringCacheLog();
 
     /* DebugChannel API */
 
@@ -207,13 +219,7 @@ public:
     }
 
 protected:
-    friend void CacheLogChannel::switchToErrLog();
-
     void noteRejected(int level);
-
-    /// Start to take care of past/saved and future cacheLogChannel messages.
-    /// Assumes that its caller will checkEarlyMessageCollectionTermination().
-    void takeOverCacheLog();
 
     /// logs all previously saved early messages
     void writeAllSaved();
@@ -223,7 +229,10 @@ private:
     bool rejectedShouldBeSavedMessages = false;
 
     /// whether maybeLog()ing already saved early messages is prohibited
-    bool rejectSavedMessages = false;
+    bool rejectSavedMessages = false; // TODO: Rename to rejectingSavedMessages
+
+    /// whether maybeLog() should accept messages that cache_log would log
+    bool coveringForCacheLog = false;
 };
 
 /// syslog DebugChannel
@@ -260,6 +269,9 @@ public:
 
     /// Stops saving early messages when all channels no longer need them.
     void checkEarlyMessageCollectionTermination();
+
+    /// give up on waiting for an open cache_log file and start using stderr
+    void switchFromCacheLogToErrLog();
 
     /// stores the given message (if possible) or forgets it (otherwise)
     void saveEarlyMessage(int section, int level, bool forceAlert, const char *prefix, const std::string &suffix);
@@ -337,6 +349,14 @@ DebugModule::flush()
     cacheLogChannel.flush();
 }
 
+void
+DebugModule::switchFromCacheLogToErrLog()
+{
+    cacheLogChannel.stopWaitingForFile();
+    errLogChannel.takeOverCacheLog();
+    checkEarlyMessageCollectionTermination();
+}
+
 /// safe access to the debugging module
 static
 DebugModule &
@@ -409,15 +429,11 @@ Debug::Flush()
 /* CacheLogChannel */
 
 void
-CacheLogChannel::switchToErrLog()
+CacheLogChannel::stopWaitingForFile()
 {
-    if (flushed)
-        return;
-    flushed = true;
-
-    auto &module = Module();
-    module.errLogChannel.takeOverCacheLog();
-    module.checkEarlyMessageCollectionTermination();
+    assert(!TheLog.file());
+    // we will not be able to log any saved messages
+    flushed = true; // may already be true
 }
 
 void
@@ -436,6 +452,19 @@ CacheLogChannel::maybeLog(const char *prefix, const std::string &suffix)
 
 /* ErrLogChannel */
 
+bool
+ErrLogChannel::shouldLog(const int level) const
+{
+    if (!stderr)
+        return false; // nowhere to log
+
+    if (level <= MaxErrLogLevel)
+        return true; // this level is allowed by our configuration: -d, -k, etc.
+
+    // whether we are used as the last logging resort for cache.log messages
+    return coveringForCacheLog;
+}
+
 void
 ErrLogChannel::noteRejected(const int level)
 {
@@ -445,10 +474,7 @@ ErrLogChannel::noteRejected(const int level)
 void
 ErrLogChannel::maybeLog(const int level, const char *prefix, const std::string &suffix)
 {
-    if (!stderr)
-        return noteRejected(level);
-
-    if (!Debug::ErrLogEnabled(level))
+    if (!shouldLog(level))
         return noteRejected(level);
 
     // Do not delay logging of immediately log-able messages. Some of them may
@@ -467,20 +493,40 @@ ErrLogChannel::maybeLog(const int level, const char *prefix, const std::string &
 void
 ErrLogChannel::takeOverCacheLog()
 {
-    assert(!TheLog.file()); // we will allow future messages regardless of -dN
+    coveringForCacheLog = true; // may already be true
 
-    // we are settled because we are taking over a settled cacheLogChannel
+    // simplification: do not support waiting for nil stderr to change
     flushed = true; // may already be true
 
-    if (!rejectSavedMessages)
+    const char *error = nullptr;
+
+    if (!stderr)
+        error = "stderr is not available";
+
+    // If we have logged only some of the saved lines (e.g., -d0) and/or logged
+    // some of the lines that follow the saved lines (e.g., -Xd2), then do not
+    // log duplicate and/or out-of-order lines to avoid confusion.
+    if (rejectSavedMessages && !error)
+        error = "stderr may have logged some of them (or some of the subsequent messages) already";
+
+    if (!error)
         return writeAllSaved(); // no danger of reordering messages on stderr
 
-    // We have logged only some of the saved lines (e.g., -d0) and/or logged
-    // some of the lines that follow the saved lines (e.g., -Xd2). To avoid
-    // confusion, do not log duplicate and/or out-of-order lines.
-    const auto saved = EarlyMessages ? EarlyMessages->raw().size() : 0;
-    debugs(0, DBG_CRITICAL, "ERROR: Dropping " << saved << " early cache_log messages because " <<
-           "stderr may have logged some of them (or some of the subsequent messages) already");
+    // Even if we have no stderr and no cache_log, we might have syslog (or
+    // perhaps some other future logging channel). We do not use syslog/etc. as
+    // a cache_log cover (yet?), but we do give it a chance to log the problem.
+    if (const auto saved = EarlyMessages ? EarlyMessages->raw().size() : 0)
+        debugs(0, DBG_CRITICAL, "ERROR: Dropping " << saved << " early cache_log messages because " << error);
+}
+
+void
+ErrLogChannel::stopCoveringCacheLog()
+{
+    if (!coveringForCacheLog)
+        return;
+
+    coveringForCacheLog = false;
+    debugs(0, DBG_IMPORTANT, "Resuming logging to cache_log");
 }
 
 void
@@ -490,7 +536,7 @@ ErrLogChannel::writeAllSaved()
     assert(flushed); // no conflicts with messages that will be logged later
 
     // maybeLog will not reject saved messages
-    assert(Debug::ErrLogEnabled(EarlyMessagesMaxLevel));
+    assert(shouldLog(EarlyMessagesMaxLevel));
 
     if (!EarlyMessages)
         return; // nothing to write
@@ -499,20 +545,6 @@ ErrLogChannel::writeAllSaved()
         if (Debug::Enabled(message.section, message.level))
             maybeLog(message);
     }
-}
-
-bool
-Debug::ErrLogEnabled(const int level)
-{
-    if (!stderr)
-        return false; // nowhere to log
-
-    if (level <= MaxErrLogLevel)
-        return true; // this level is allowed by our configuration: -d, -k, etc.
-
-    // whether we are used as the last logging resort for cache.log messages
-    // (higher-level callers have applied cache.log section/level filter)
-    return TheLog.failed();
 }
 
 void
@@ -536,6 +568,12 @@ Debug::SettleErrLogging()
         MaxErrLogLevel = MaxErrLogLevelDefault; // may remain disabled/negative
 
     Module().errLogChannel.stopEarlyMessageCollection();
+}
+
+bool
+Debug::ErrLogEnabled()
+{
+    return Module().errLogChannel.shouldLog(DBG_CRITICAL);
 }
 
 /* DebugFile */
@@ -756,12 +794,16 @@ debugOpenLog(const char *logfile)
         setmode(fileno(log), O_TEXT);
 #endif
         TheLog.reset(log, logfilename);
-        Module().cacheLogChannel.stopEarlyMessageCollection();
+
+        auto &module = Module();
+        module.errLogChannel.stopCoveringCacheLog();
+        module.cacheLogChannel.stopEarlyMessageCollection();
     } else {
         const auto xerrno = errno;
         TheLog.fail();
-        Module().cacheLogChannel.switchToErrLog();
-        // Report the problem after switchToErrLog() to improve our chances of
+        Module().switchFromCacheLogToErrLog();
+
+        // Report the problem after the switch above to improve our chances of
         // also reporting early debugs() messages (that should be logged first).
         debugs(0, DBG_CRITICAL, "ERROR: Cannot open cache_log (" << logfilename << ") for writing;" <<
                Debug::Extra << "now using stderr instead;" <<
@@ -973,7 +1015,7 @@ Debug::BanCacheLogging()
 {
     Debug::ConfigureOptions(debugOptions);
     assert(!TheLog.file());
-    Module().cacheLogChannel.switchToErrLog();
+    Module().switchFromCacheLogToErrLog();
 }
 
 void

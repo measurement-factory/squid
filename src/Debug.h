@@ -131,10 +131,9 @@ public:
     /// called after the last EnsureDefaultErrLogLevel()/ResetErrLogLevel() call
     static void SettleErrLogging();
 
-    /// Whether debugs() message with the given level will be written to errlog.
-    /// When called w/o a parameter, returns whether any message can be written.
+    /// Whether some debugs() messages may be written to errlog.
     /// The result may change until UseCacheLog() error, FinalizeErrLogLevel().
-    static bool ErrLogEnabled(int level = DBG_CRITICAL);
+    static bool ErrLogEnabled();
 
     /* syslog */
 

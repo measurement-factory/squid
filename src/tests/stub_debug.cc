@@ -44,7 +44,7 @@ _db_rotate_log(void)
 static void
 LogMessage(const std::string &message)
 {
-    if (!Debug::ErrLogEnabled(Debug::Level()))
+    if (Debug::Level() > DBG_IMPORTANT)
         return;
 
     if (!stderr)
@@ -56,10 +56,7 @@ LogMessage(const std::string &message)
 }
 
 bool
-Debug::ErrLogEnabled(const int level)
-{
-    return level <= DBG_IMPORTANT;
-}
+Debug::ErrLogEnabled() STUB_RETVAL(false)
 
 void Debug::Flush() STUB
 
