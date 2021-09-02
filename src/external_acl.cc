@@ -809,7 +809,7 @@ makeExternalAclKey(ACLFilledChecklist * ch, external_acl_data * acl_data)
     }
 
     // assemble the full helper lookup string
-    acl_data->def->format.assemble(mb, ch->al, 0);
+    acl_data->def->format.assemble(mb, ch->al, 0, nullptr);
 
     return mb.buf;
 }

@@ -23,7 +23,7 @@ Log::Format::SquidCustom(const AccessLogEntry::Pointer &al, CustomLog * log)
     mb.reset();
 
     // XXX: because we do not yet have a neutral form of transaction slab. use AccessLogEntry
-    log->logFormat->assemble(mb, al, log->logfile->sequence_number);
+    log->logFormat->assemble(mb, al, log->logfile->sequence_number, nullptr);
 
     logfilePrintf(log->logfile, "%s\n", mb.buf);
 }

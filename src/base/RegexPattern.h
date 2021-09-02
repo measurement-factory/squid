@@ -15,6 +15,19 @@
 
 #include <vector>
 
+class RegexMatch
+{
+public:
+    explicit RegexMatch(int maxGroups) : groups(maxGroups) {}
+
+    int maxGroups() const { return groups.size(); }
+    /// the matched sub-expression at the captureNum position
+    SBuf capture(uint64_t captureNum) const;
+
+    SBuf matchedString; ///< the entire matched string
+    std::vector<regmatch_t> groups; ///< the matched sub-expression list
+};
+
 /**
  * A regular expression,
  * plain text and compiled representations
@@ -38,9 +51,9 @@ public:
     const char * c_str() const {return pattern;}
     bool match(const char *str) const {return regexec(&regex,str,0,NULL,0)==0;}
 
-    /// Match str against the expression with maximum maxGroups sub-expressions.
-    /// The result is stored in the groups array.
-    bool match(const char *str, const int maxGroups);
+    /// Match str against the pattern.
+    /// If matched, the result is stored in regexMatch.
+    bool match(const char *str, RegexMatch &regexMatch);
 
     /// the matched sub-expression an captureNum position
     SBuf capture(const uint64_t captureNum) const;

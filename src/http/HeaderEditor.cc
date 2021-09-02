@@ -89,7 +89,7 @@ Http::HeaderEditor::fix(const SBuf &input, const AccessLogEntryPointer &al)
     al_ = al;
     auto output = input;
     for (auto &pattern : patterns_) {
-        if (pattern.match(output.c_str(), ReGroupMax)) {
+        if (pattern.match(output.c_str())) {
             switch (commandArgument_) {
             case CommandArgument::first:
                 applyOne(output, pattern);
@@ -111,12 +111,15 @@ Http::HeaderEditor::applyEach(SBuf &input, RegexPattern &pattern)
 {
     auto s = input.c_str();
     SBuf result;
-    while (s && pattern.match(s, ReGroupMax)) {
+    while (s) {
+        RegexMatch regexMatch(ReGroupMax);
+        if (!pattern.match(s, regexMatch))
+            break;
         static MemBuf mb;
         mb.reset();
         matchedCount_++;
         result.append(s, pattern.startOffset());
-        format_->assemble(mb, al_, 0, &pattern);
+        format_->assemble(mb, al_, 0, &regexMatch);
         result.append(mb.content(), mb.contentSize());
         s += pattern.endOffset();
     }
@@ -130,13 +133,16 @@ Http::HeaderEditor::applyAll(SBuf &input, RegexPattern &pattern)
     auto s = input.c_str();
     SBuf result;
 
-    while (s && pattern.match(s, ReGroupMax)) {
+    while (s) {
+        RegexMatch regexMatch(ReGroupMax);
+        if (!pattern.match(s, regexMatch))
+            break;
         matchedCount_++;
         result.append(s, pattern.startOffset());
         if (matchedCount_ == 1) {
             static MemBuf mb;
             mb.reset();
-            format_->assemble(mb, al_, 0, &pattern);
+            format_->assemble(mb, al_, 0, &regexMatch);
             result.append(mb.content(), mb.contentSize());
         }
         s += pattern.endOffset();
@@ -151,12 +157,13 @@ Http::HeaderEditor::applyOne(SBuf &input, RegexPattern &pattern)
     auto s = input.c_str();
     SBuf result;
 
-    if (s && pattern.match(s, ReGroupMax)) {
+    RegexMatch regexMatch(ReGroupMax);
+    if (s && pattern.match(s, regexMatch)) {
         static MemBuf mb;
         mb.reset();
         matchedCount_++;
         result.append(s, pattern.startOffset());
-        format_->assemble(mb, al_, 0, &pattern);
+        format_->assemble(mb, al_, 0, &regexMatch);
         result.append(s, pattern.startOffset());
     }
     result.append(s);

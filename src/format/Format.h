@@ -29,7 +29,7 @@ class AccessLogEntry;
 typedef RefCount<AccessLogEntry> AccessLogEntryPointer;
 class MemBuf;
 class StoreEntry;
-class RegexPattern;
+class RegexMatch;
 
 namespace Format
 {
@@ -52,7 +52,7 @@ public:
     bool parse(const char *def);
 
     /// assemble the state information into a formatted line.
-    void assemble(MemBuf &mb, const AccessLogEntryPointer &al, int logSequenceNumber, const RegexPattern *pattern = nullptr) const;
+    void assemble(MemBuf &mb, const AccessLogEntryPointer &al, int logSequenceNumber, const RegexMatch *) const;
 
     /// dump this whole list of formats into the provided StoreEntry
     void dump(StoreEntry * entry, const char *directiveName, bool eol = true) const;

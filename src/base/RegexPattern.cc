@@ -33,23 +33,14 @@ RegexPattern::~RegexPattern()
 }
 
 bool
-RegexPattern::match(const char *str, const int maxGroups)
+RegexPattern::match(const char *str, RegexMatch &regexMatch)
 {
     // Must((flags & REG_NOSUB) == 0);
-    groups.clear();
-    groups.resize(maxGroups);
-    if (regexec(&regex, str, maxGroups, &groups[0], 0) == 0) {
-        matchedString = SBuf(str);
+    if (regexec(&regex, str, regexMatch.maxGroups(), &regexMatch.groups[0], 0) == 0) {
+        regexMatch.matchedString = SBuf(str);
         return true;
     }
     return false;
-}
-
-SBuf
-RegexPattern::capture(const uint64_t captureNum) const {
-    Must(captureNum < groups.size());
-    Must(matchedString.length() > static_cast<SBuf::size_type>(groups[captureNum].rm_eo));
-    return matchedString.substr(groups[captureNum].rm_so, groups[captureNum].rm_eo - groups[captureNum].rm_so);
 }
 
 int
@@ -75,5 +66,12 @@ RegexPattern::operator =(RegexPattern &&o)
     pattern = std::move(o.pattern);
     o.pattern = nullptr;
     return *this;
+}
+
+SBuf
+RegexMatch::capture(const uint64_t captureNum) const {
+    Must(captureNum < groups.size());
+    Must(matchedString.length() > static_cast<SBuf::size_type>(groups[captureNum].rm_eo));
+    return matchedString.substr(groups[captureNum].rm_so, groups[captureNum].rm_eo - groups[captureNum].rm_so);
 }
 
