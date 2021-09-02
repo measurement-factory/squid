@@ -209,12 +209,21 @@ public:
 protected:
     friend void CacheLogChannel::switchToErrLog();
 
+    void noteRejected(int level);
+
     /// Start to take care of past/saved and future cacheLogChannel messages.
     /// Assumes that its caller will checkEarlyMessageCollectionTermination().
     void takeOverCacheLog();
 
     /// logs all previously saved early messages
     void writeAllSaved();
+
+private:
+    /// whether maybeLog() refused to log any ShouldBeSaved() messages
+    bool rejectedShouldBeSavedMessages = false;
+
+    /// whether maybeLog()ing already saved early messages is prohibited
+    bool rejectSavedMessages = false;
 };
 
 /// syslog DebugChannel
@@ -274,6 +283,13 @@ static bool SavingEarlyMessages = true;
 /// configured cache.log file or stderr
 /// safe during static initialization, even if it has not been constructed yet
 static DebugFile TheLog;
+
+static inline
+int
+ShouldBeSaved(const int level)
+{
+    return SavingEarlyMessages && level <= EarlyMessagesMaxLevel;
+}
 
 /* DebugModule */
 
@@ -421,13 +437,19 @@ CacheLogChannel::maybeLog(const char *prefix, const std::string &suffix)
 /* ErrLogChannel */
 
 void
+ErrLogChannel::noteRejected(const int level)
+{
+    rejectedShouldBeSavedMessages = rejectedShouldBeSavedMessages || ShouldBeSaved(level);
+}
+
+void
 ErrLogChannel::maybeLog(const int level, const char *prefix, const std::string &suffix)
 {
     if (!stderr)
-        return;
+        return noteRejected(level);
 
     if (!Debug::ErrLogEnabled(level))
-        return;
+        return noteRejected(level);
 
     // Do not delay logging of immediately log-able messages. Some of them may
     // not be saveable.
@@ -436,6 +458,10 @@ ErrLogChannel::maybeLog(const int level, const char *prefix, const std::string &
 
     fprintf(stderr, "role=%s # %s%s\n", XXX_Role, prefix, suffix.c_str());
     ++logged;
+
+    // If we logged anything after rejecting, then we cannot accept saved
+    // messages because doing so will reorder logged messages.
+    rejectSavedMessages = rejectedShouldBeSavedMessages; // may already be equal
 }
 
 void
@@ -446,19 +472,13 @@ ErrLogChannel::takeOverCacheLog()
     // we are settled because we are taking over a settled cacheLogChannel
     flushed = true; // may already be true
 
-    const auto saved = EarlyMessages ? EarlyMessages->raw().size() : 0;
-    if (!saved)
-        return; // no logging debt to analyze
-
-    if (!logged)
+    if (!rejectSavedMessages)
         return writeAllSaved(); // no danger of reordering messages on stderr
 
-    if (MaxErrLogLevel >= EarlyMessagesMaxLevel)
-        return; // we would have logged any saved messages
-
-    // It is possible that we have logged some of the saved lines (e.g., -d1)
-    // and/or logged some of the lines that follow the saved lines (e.g., -Xd2).
-    // To reduce confusion, do not risk logging duplicate/out-of-order lines.
+    // We have logged only some of the saved lines (e.g., -d0) and/or logged
+    // some of the lines that follow the saved lines (e.g., -Xd2). To avoid
+    // confusion, do not log duplicate and/or out-of-order lines.
+    const auto saved = EarlyMessages ? EarlyMessages->raw().size() : 0;
     debugs(0, DBG_CRITICAL, "ERROR: Dropping " << saved << " early cache_log messages because " <<
            "stderr may have logged some of them (or some of the subsequent messages) already");
 }
@@ -466,20 +486,33 @@ ErrLogChannel::takeOverCacheLog()
 void
 ErrLogChannel::writeAllSaved()
 {
-    assert(!logged); // no conflicts with past messages
+    assert(!rejectSavedMessages); // no conflicts with past messages
     assert(flushed); // no conflicts with messages that will be logged later
+
+    // maybeLog will not reject saved messages
+    assert(Debug::ErrLogEnabled(EarlyMessagesMaxLevel));
 
     if (!EarlyMessages)
         return; // nothing to write
 
-    for (const auto &message: EarlyMessages->raw())
-        maybeLog(message);
+    for (const auto &message: EarlyMessages->raw()) {
+        if (Debug::Enabled(message.section, message.level))
+            maybeLog(message);
+    }
 }
 
 bool
 Debug::ErrLogEnabled(const int level)
 {
-    return level <= MaxErrLogLevel || TheLog.failed();
+    if (!stderr)
+        return false; // nowhere to log
+
+    if (level <= MaxErrLogLevel)
+        return true; // this level is allowed by our configuration: -d, -k, etc.
+
+    // whether we are used as the last logging resort for cache.log messages
+    // (higher-level callers have applied cache.log section/level filter)
+    return TheLog.failed();
 }
 
 void
@@ -623,6 +656,7 @@ LogMessage(const bool forceAlert, const std::string &message)
 
     const auto level = Debug::Level();
     auto &module = Module();
+
     module.cacheLogChannel.maybeLog(prefix, message);
     module.errLogChannel.maybeLog(level, prefix, message);
 
@@ -630,7 +664,7 @@ LogMessage(const bool forceAlert, const std::string &message)
     module.sysLogChannel.maybeLog(forceAlert, level, message);
 #endif
 
-    if (SavingEarlyMessages && level <= EarlyMessagesMaxLevel)
+    if (ShouldBeSaved(level))
         module.saveEarlyMessage(Debug::Section(), level, forceAlert, prefix, message);
 
 #if _SQUID_WINDOWS_
