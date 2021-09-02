@@ -152,6 +152,12 @@ Ipc::JoinSharedListen(const OpenListenerParams &params, AsyncCall::Pointer &cb)
         debugs(54, 3, "waiting for " << TheSharedListenRequestMap.size() <<
                " active + " << TheDelayedRequests.size() << " delayed requests");
         TheDelayedRequests.push_back(por);
+
+        const auto maxConfigurePorts = 3u;
+        if (TheSharedListenRequestMap.size() + TheDelayedRequests.size() > maxConfigurePorts) {
+            debugs(54, DBG_CRITICAL, "ERROR: Suspiciously many pending requests for listening ports: " <<
+                   TheSharedListenRequestMap.size() << '+' << TheDelayedRequests.size() << ">" << maxConfigurePorts);
+        }
     } else {
         SendSharedListenRequest(por);
     }
