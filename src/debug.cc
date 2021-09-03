@@ -16,6 +16,7 @@
 #include "util.h"
 
 #include <algorithm>
+#include <deque>
 
 /* for shutting_down flag in xassert() */
 #include "globals.h"
@@ -142,36 +143,8 @@ public:
     std::string body; ///< the log line after the prefix (without the newline)
 };
 
-// TODO: Rename to EarlyDebugMessages or some such because the class has code
-// specific to handling early messages.
-/// preserves (a limited amount of) debugs() messages for delayed logging
-class DebugMessages
-{
-public:
-    using Storage = std::vector<DebugMessage>; // XXX: use std::deque
-
-    DebugMessages() = default;
-    // no copying or moving or any kind (for simplicity sake and to prevent accidental copies)
-    DebugMessages(DebugMessages &&) = delete;
-
-    /// stores the given message (if possible) or forgets it (otherwise)
-    void insert(const DebugMessageHeader &header, const std::string &body);
-
-    /// prints message buffering statistics
-    void report() const;
-
-    auto raw() const { return messages; }
-
-private:
-    Storage messages;
-
-    /// the total number of messages that reached insert()
-    uint64_t seen = 0;
-
-    /// the total number of messages that (due to capacity limits) we could not
-    /// store long enough to flush to cache_log when that becomes available
-    uint64_t purged = 0;
-};
+/// debugs() messages captured in LogMessage() call order
+using DebugMessages = std::deque<DebugMessage>;
 
 /// a receiver of debugs() messages (e.g., stderr or cache.log)
 class DebugChannel
@@ -202,19 +175,17 @@ public:
 
     uint64_t logged = 0; ///< the number of messages logged so far
 
-    /// the total number of messages logged by flush()
-    uint64_t flushedCount = 0; // TODO: Rename flushed and then flushedCount;
-
+    // TODO: Rename this and related
     bool flushed = false; ///< whether flush() has been called (XXX: not really)
 
 protected:
-    friend void DebugMessages::insert(const DebugMessageHeader &, const std::string &body);
+    friend class DebugModule;
 
     /// maybeLog() all saved but not yet written "early" messages
     void logAllSaved();
 
     /// maybeLog() the given (saved but not yet written "early") messages
-    void log(const DebugMessages::Storage &);
+    void log(const DebugMessages &);
 };
 
 /// cache_log DebugChannel
@@ -281,48 +252,40 @@ public:
     /// \copydoc Debug::Flush()
     void flush();
 
+    /// Log the given debugs() message to appropriate channel(s) (eventually).
+    /// Assumes the message has passed the global section/level filter.
+    void log(const DebugMessageHeader &header, const std::string &body);
+
     /// Stops saving early messages when all channels no longer need them.
     void checkEarlyMessageCollectionTermination();
 
     /// give up on waiting for an open cache_log file and start using stderr
     void switchFromCacheLogToErrLog();
 
-    /// stores the given message (if possible) or forgets it (otherwise)
-    void saveEarlyMessage(const DebugMessageHeader &header, const std::string &body);
-
 public:
     CacheLogChannel cacheLogChannel;
     ErrLogChannel errLogChannel;
     SysLogChannel sysLogChannel;
+
+/* XXX: private: */
+    /// debugs() messages waiting for all channels to become ready to log them
+    DebugMessages *earlyMessages = nullptr;
+
+private:
+    /// stores the given early message (if possible) or forgets it (otherwise)
+    void saveMessage(const DebugMessageHeader &header, const std::string &body);
 };
-
-/// Preserves important debugs() messages until the log file gets opened and
-/// then logs those messages. Must be accessed via EarlyMessages() except for
-/// assignment.
-static DebugMessages *EarlyMessages = nullptr;
-
-// Becomes true during C++ constant initialization, before any debugs() calls.
-// Exists because EarlyMessages cannot be set during constant initialization.
-/// whether "early" messages may need to be accumulated and/or logged
-static bool SavingEarlyMessages = true;
 
 /// configured cache.log file or stderr
 /// safe during static initialization, even if it has not been constructed yet
 static DebugFile TheLog;
-
-static inline
-int
-ShouldBeSaved(const int level)
-{
-    return SavingEarlyMessages && level <= EarlyMessagesMaxLevel;
-}
 
 /* DebugModule */
 
 // Depending on DBG_CRITICAL activity and command line options, this code may
 // run as early as static initialization during program startup or as late as
 // the first debugs(DBG_CRITICAL) call from the main loop.
-DebugModule::DebugModule()
+DebugModule::DebugModule(): earlyMessages(new DebugMessages())
 {
     // explicit initialization before any use by debugs() calls; see bug #2656
     tzset();
@@ -334,25 +297,46 @@ DebugModule::DebugModule()
 }
 
 void
-DebugModule::checkEarlyMessageCollectionTermination()
+DebugModule::log(const DebugMessageHeader &header, const std::string &body)
 {
-    if (SavingEarlyMessages && cacheLogChannel.flushed && errLogChannel.flushed && sysLogChannel.flushed) {
-        SavingEarlyMessages = false;
-        if (EarlyMessages) {
-            EarlyMessages->report();
-            delete EarlyMessages;
-            EarlyMessages = nullptr;
-        }
-    }
+    cacheLogChannel.maybeLog(header, body);
+    errLogChannel.maybeLog(header, body);
+
+#if HAVE_SYSLOG
+    sysLogChannel.maybeLog(header, body);
+#endif
+
+    if (earlyMessages && header.level <= EarlyMessagesMaxLevel)
+        saveMessage(header, body);
 }
 
 void
-DebugModule::saveEarlyMessage(const DebugMessageHeader &header, const std::string &body)
+DebugModule::saveMessage(const DebugMessageHeader &header, const std::string &body)
 {
-    assert(SavingEarlyMessages);
-    if (!EarlyMessages)
-        EarlyMessages = new DebugMessages();
-    EarlyMessages->insert(header, body);
+    assert(earlyMessages);
+
+    // There should not be a lot of messages because EarlyMessagesMaxLevel is
+    // small, but we limit their accumulation just in case.
+    const DebugMessages::size_type limit = 1000;
+    if (earlyMessages->size() >= limit) {
+        DebugMessages doomedMessages;
+        earlyMessages->swap(doomedMessages);
+        for (auto &message: doomedMessages)
+            message.header.scheduledToBeDropped = true;
+        errLogChannel.log(doomedMessages);
+        debugs(0, DBG_CRITICAL, "ERROR: Too many early important messages. Purged " << doomedMessages.size());
+    }
+
+    earlyMessages->emplace_back(header, body);
+}
+
+void
+DebugModule::checkEarlyMessageCollectionTermination()
+{
+    if (earlyMessages && cacheLogChannel.flushed && errLogChannel.flushed && sysLogChannel.flushed) {
+        delete earlyMessages;
+        earlyMessages = nullptr;
+    }
 }
 
 void
@@ -433,7 +417,7 @@ Debug::Flush()
 }
 
 void
-DebugChannel::log(const DebugMessages::Storage &messages)
+DebugChannel::log(const DebugMessages &messages)
 {
     const auto loggedEarlier = logged;
     for (const auto &message: messages) {
@@ -441,16 +425,16 @@ DebugChannel::log(const DebugMessages::Storage &messages)
             lastLoggedRecordNumber < message.header.recordNumber)
             maybeLog(message.header, message.body);
     }
-    flushedCount += logged - loggedEarlier;
-    debugs(0, 5, "wrote " << flushedCount << " out of " <<
+    const auto loggedNow = logged - loggedEarlier;
+    debugs(0, 5, "wrote " << loggedNow << " out of " <<
            messages.size() << " early messages to " << name);
 }
 
 void
 DebugChannel::logAllSaved()
 {
-    if (EarlyMessages)
-        log(EarlyMessages->raw());
+    if (const auto earlyMessages = Module().earlyMessages)
+        log(*earlyMessages);
 }
 
 /* CacheLogChannel */
@@ -682,18 +666,7 @@ LogMessage(const bool forceAlert, const std::string &message)
 
     static uint64_t LogMessageCalls = 0;
     const DebugMessageHeader header(++LogMessageCalls, forceAlert);
-
-    auto &module = Module();
-
-    module.cacheLogChannel.maybeLog(header, message);
-    module.errLogChannel.maybeLog(header, message);
-
-#if HAVE_SYSLOG
-    module.sysLogChannel.maybeLog(header, message);
-#endif
-
-    if (ShouldBeSaved(header.level))
-        module.saveEarlyMessage(header, message);
+    Module().log(header, message);
 
 #if _SQUID_WINDOWS_
     LeaveCriticalSection(dbg_mutex);
@@ -1257,42 +1230,6 @@ DebugMessage::DebugMessage(const Header &aHeader, const std::string &aBody):
     header(aHeader),
     body(aBody)
 {
-}
-
-/* DebugMessages */
-
-void
-DebugMessages::insert(const DebugMessageHeader &header, const std::string &body)
-{
-    // TODO: Split to move part of the functionality to DebugModule.
-
-    ++seen;
-
-    // There should not be a lot of messages since we are only accumulating
-    // level-0/1 messages, but we limit accumulation just in case.
-    const size_t limit = 1000;
-    if (messages.size() >= limit) {
-        Storage doomedMessages;
-        messages.swap(doomedMessages);
-        assert(!messages.size());
-        for (auto &message: doomedMessages)
-            message.header.scheduledToBeDropped = true;
-        Module().errLogChannel.log(doomedMessages);
-        purged += messages.size();
-    }
-    messages.emplace_back(header, body);
-}
-
-void
-DebugMessages::report() const
-{
-    if (purged) {
-        debugs(0, DBG_CRITICAL, "ERROR: Too many early important messages: " <<
-               Debug::Extra << "seen: " << seen <<
-               Debug::Extra << "purged to free storage: " << purged <<
-               Debug::Extra << "logged to stderr: " << Module().errLogChannel.flushedCount <<
-               Debug::Extra << "logged to cache_log: " << Module().cacheLogChannel.flushedCount);
-    }
 }
 
 /* Raw */
