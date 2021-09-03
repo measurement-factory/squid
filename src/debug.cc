@@ -43,7 +43,7 @@ static int MaxErrLogLevel = -1;
 /// MaxErrLogLevel default; ignored after FinalizeErrLogLevel()
 static int MaxErrLogLevelDefault = -1;
 
-static const char *debugLogTime(void);
+static const char *debugLogTime(time_t t);
 static const char *debugLogKid(void);
 #if HAVE_SYSLOG
 #ifdef LOG_LOCAL4
@@ -57,6 +57,8 @@ typedef BOOL (WINAPI * PFInitializeCriticalSectionAndSpinCount) (LPCRITICAL_SECT
 #endif
 
 static void ResetSections(const int level = DBG_IMPORTANT);
+
+static const char *myLeadingRole_XXX();
 
 /// early debugs() with higher level are not buffered and, hence, may be lost
 static constexpr int EarlyMessagesMaxLevel = DBG_IMPORTANT;
@@ -101,17 +103,36 @@ private:
     bool failed_ = false; ///< whether fail() was called
 };
 
+/// debugs() meta-information
+class DebugMessageHeader
+{
+public:
+    explicit DebugMessageHeader(const bool doForceAlert):
+        timestamp(getCurrentTime()),
+        section(Debug::Section()),
+        level(Debug::Level()),
+        forceAlert(doForceAlert),
+        role_XXX(myLeadingRole_XXX())
+    {
+    }
+
+    time_t timestamp; ///< approximate debugs() call time
+    int section; ///< debugs() section
+    int level; ///< debugs() level
+    bool forceAlert; ///< debugs() forceAlert flag
+
+    const char *role_XXX; ///< debugs() caller process role
+};
+
 /// a stored debugs() message
 class DebugMessage
 {
 public:
-    DebugMessage(int section, int level, bool forceAlert, const char *prefix, const std::string &suffix);
+    using Header = DebugMessageHeader;
+    DebugMessage(const Header &aHeader, const std::string &aBody);
 
-    int section; ///< the debug section
-    int level; ///< the debug level
-    bool forceAlert; ///< the debugs() forceAlert flag
-    std::string prefix; ///< the beginning of the log line
-    std::string suffix; ///< the log line after the prefix (without the newline)
+    Header header; ///< debugs() meta-information; reflected in log line prefix
+    std::string body; ///< the log line after the prefix (without the newline)
 };
 
 // TODO: Rename to EarlyDebugMessages or some such because the class has code
@@ -125,7 +146,7 @@ public:
     DebugMessages(DebugMessages &&) = delete;
 
     /// stores the given message (if possible) or forgets it (otherwise)
-    void insert(int section, int level, bool forceAlert, const char *prefix, const std::string &suffix);
+    void insert(const DebugMessageHeader &header, const std::string &body);
 
     /// prints message buffering statistics
     void report() const;
@@ -163,7 +184,7 @@ public:
 
     /// Log the message to the channel if the channel accepts (such) messages.
     /// Do nothing otherwise.
-    virtual void maybeLog(const DebugMessage &) = 0;
+    virtual void maybeLog(const DebugMessageHeader &, const std::string &body) = 0;
 
 public:
     const char * const name = nullptr; ///< unique channel label for debugging
@@ -187,19 +208,12 @@ class CacheLogChannel: public DebugChannel
 public:
     CacheLogChannel(): DebugChannel("cache_log") {}
 
-    /// \copydoc DebugChannel::maybeLog()
-    void maybeLog(const char *prefix, const std::string &suffix);
+    /* DebugChannel API */
+    virtual void maybeLog(const DebugMessageHeader &, const std::string &body) final;
 
     /// Reacts to a failure to open a cache_log file.
     /// Assumes that the caller will checkEarlyMessageCollectionTermination().
     void stopWaitingForFile();
-
-    /* DebugChannel API */
-
-    virtual void maybeLog(const DebugMessage &m) final
-    {
-        maybeLog(m.prefix.c_str(), m.suffix);
-    }
 };
 
 /// stderr DebugChannel
@@ -210,10 +224,10 @@ public:
 
     /// whether maybeLog() ought to log a debugs() message with a given level
     /// (assuming some higher-level code applied cache.log section/level filter)
-    bool shouldLog(int level) const;
+    bool shouldLog(const int level) const;
 
-    /// \copydoc DebugChannel::maybeLog()
-    void maybeLog(int level, const char *prefix, const std::string &suffix);
+    /* DebugChannel API */
+    virtual void maybeLog(const DebugMessageHeader &, const std::string &body) final;
 
     /// Start to take care of past/saved and future cacheLogChannel messages.
     /// Assumes that the caller will checkEarlyMessageCollectionTermination().
@@ -226,13 +240,6 @@ public:
     /// does not create duplicate or reordered log records. Otherwise, report a
     /// problem but log no saved messages.
     void logAllSaved();
-
-    /* DebugChannel API */
-
-    virtual void maybeLog(const DebugMessage &m) final
-    {
-        maybeLog(m.level, m.prefix.c_str(), m.suffix);
-    }
 
 protected:
     void noteRejected(int level);
@@ -261,15 +268,8 @@ class SysLogChannel: public DebugChannel
 public:
     SysLogChannel(): DebugChannel("syslog") {}
 
-    /// \copydoc DebugChannel::maybeLog()
-    void maybeLog(bool forceAlert, int level, const std::string &message);
-
     /* DebugChannel API */
-
-    virtual void maybeLog(const DebugMessage &m) final
-    {
-        maybeLog(m.forceAlert, m.level, m.suffix);
-    }
+    virtual void maybeLog(const DebugMessageHeader &, const std::string &body) final;
 };
 
 /// Manages private module state that must be available during program startup
@@ -294,7 +294,7 @@ public:
     void switchFromCacheLogToErrLog();
 
     /// stores the given message (if possible) or forgets it (otherwise)
-    void saveEarlyMessage(int section, int level, bool forceAlert, const char *prefix, const std::string &suffix);
+    void saveEarlyMessage(const DebugMessageHeader &header, const std::string &body);
 
 public:
     CacheLogChannel cacheLogChannel;
@@ -353,12 +353,12 @@ DebugModule::checkEarlyMessageCollectionTermination()
 }
 
 void
-DebugModule::saveEarlyMessage(const int section, const int level, const bool forceAlert, const char * const prefix, const std::string &suffix)
+DebugModule::saveEarlyMessage(const DebugMessageHeader &header, const std::string &body)
 {
     assert(SavingEarlyMessages);
     if (!EarlyMessages)
         EarlyMessages = new DebugMessages();
-    EarlyMessages->insert(section, level, forceAlert, prefix, suffix);
+    EarlyMessages->insert(header, body);
 }
 
 void
@@ -449,8 +449,8 @@ DebugChannel::logAllSavedCarelessly()
 
     const auto loggedEarlier = logged;
     for (const auto &message: EarlyMessages->raw()) {
-        if (Debug::Enabled(message.section, message.level))
-            maybeLog(message);
+        if (Debug::Enabled(message.header.section, message.header.level))
+            maybeLog(message.header, message.body);
     }
     flushedCount += logged - loggedEarlier;
 
@@ -472,7 +472,7 @@ CacheLogChannel::stopWaitingForFile()
 }
 
 void
-CacheLogChannel::maybeLog(const char *prefix, const std::string &suffix)
+CacheLogChannel::maybeLog(const DebugMessageHeader &header, const std::string &body)
 {
     if (!flushed)
         return;
@@ -480,7 +480,11 @@ CacheLogChannel::maybeLog(const char *prefix, const std::string &suffix)
     if (!TheLog.file())
         return;
 
-    fprintf(TheLog.file(), "role=%s # %s%s\n", XXX_Role, prefix, suffix.c_str());
+    fprintf(TheLog.file(), "role=%s # %s%s| %s\n",
+        header.role_XXX,
+        debugLogTime(header.timestamp),
+        debugLogKid(),
+        body.c_str());
     fflush(TheLog.file());
     ++logged;
 }
@@ -509,16 +513,20 @@ ErrLogChannel::noteRejected(const int level)
 }
 
 void
-ErrLogChannel::maybeLog(const int level, const char *prefix, const std::string &suffix)
+ErrLogChannel::maybeLog(const DebugMessageHeader &header, const std::string &body)
 {
-    if (!shouldLog(level))
-        return noteRejected(level);
+    if (!shouldLog(header.level))
+        return noteRejected(header.level);
 
     // Do not delay logging of immediately log-able messages. Some of them may
     // not be saveable. flush() prevents recursion by setting flushed.
     flush(); // before fprintf() below to avoid reordering messages
 
-    fprintf(stderr, "role=%s # %s%s\n", XXX_Role, prefix, suffix.c_str());
+    fprintf(stderr, "role=%s # %s%s| %s\n",
+        header.role_XXX,
+        debugLogTime(header.timestamp),
+        debugLogKid(),
+        body.c_str());
     ++logged;
 
     // If we logged anything after rejecting, then we cannot accept saved
@@ -674,7 +682,7 @@ calculateMyLeadingRole()
 }
 
 static const char*
-myLeadingRole()
+myLeadingRole_XXX()
 {
     if (!XXX_Role) {
         XXX_Role = calculateMyLeadingRole();
@@ -720,25 +728,18 @@ LogMessage(const bool forceAlert, const std::string &message)
     EnterCriticalSection(dbg_mutex);
 #endif
 
-    char prefix[BUFSIZ];
-    prefix[0] = '\0';
-    snprintf(prefix, sizeof(prefix), "role=%s %s%s| ",
-             myLeadingRole(),
-             debugLogTime(),
-             debugLogKid());
-
-    const auto level = Debug::Level();
+    const DebugMessageHeader header(forceAlert);
     auto &module = Module();
 
-    module.cacheLogChannel.maybeLog(prefix, message);
-    module.errLogChannel.maybeLog(level, prefix, message);
+    module.cacheLogChannel.maybeLog(header, message);
+    module.errLogChannel.maybeLog(header, message);
 
 #if HAVE_SYSLOG
-    module.sysLogChannel.maybeLog(forceAlert, level, message);
+    module.sysLogChannel.maybeLog(header, message);
 #endif
 
-    if (ShouldBeSaved(level))
-        module.saveEarlyMessage(Debug::Section(), level, forceAlert, prefix, message);
+    if (ShouldBeSaved(header.level))
+        module.saveEarlyMessage(header, message);
 
 #if _SQUID_WINDOWS_
     LeaveCriticalSection(dbg_mutex);
@@ -748,28 +749,29 @@ LogMessage(const bool forceAlert, const std::string &message)
 #if HAVE_SYSLOG
 
 static int
-SyslogLevel(const int forceAlert, const int level)
+SyslogLevel(const DebugMessageHeader &header)
 {
-    return forceAlert ? LOG_ALERT : (level == 0 ? LOG_WARNING : LOG_NOTICE);
+    return header.forceAlert ? LOG_ALERT :
+           (header.level == 0 ? LOG_WARNING : LOG_NOTICE);
 }
 
 void
-SysLogChannel::maybeLog(const bool forceAlert, const int level, const std::string &message)
+SysLogChannel::maybeLog(const DebugMessageHeader &header, const std::string &body)
 {
     if (!flushed)
         return;
 
     /* level 0,1 go to syslog */
 
-    if (!forceAlert) {
-        if (level > DBG_IMPORTANT)
+    if (!header.forceAlert) {
+        if (header.level > DBG_IMPORTANT)
             return;
 
         if (!Debug::log_syslog)
             return;
     }
 
-    syslog(SyslogLevel(forceAlert, level), "%s", message.c_str());
+    syslog(SyslogLevel(header), "%s", body.c_str());
     ++logged;
 }
 #endif /* HAVE_SYSLOG */
@@ -1133,11 +1135,8 @@ _db_rotate_log(void)
 }
 
 static const char *
-debugLogTime(void)
+debugLogTime(const time_t t)
 {
-
-    time_t t = getCurrentTime();
-
     struct tm *tm;
     static char buf[128]; // arbitrary size, big enough for the below timestamp strings.
     static time_t last_t = 0;
@@ -1296,19 +1295,16 @@ ForceAlert(std::ostream& s)
 
 /* DebugMessage */
 
-DebugMessage::DebugMessage(const int aSection, const int aLevel, const bool aForceAlert, const char *aPrefix, const std::string &aSuffix):
-    section(aSection),
-    level(aLevel),
-    forceAlert(aForceAlert),
-    prefix(aPrefix),
-    suffix(aSuffix)
+DebugMessage::DebugMessage(const Header &aHeader, const std::string &aBody):
+    header(aHeader),
+    body(aBody)
 {
 }
 
 /* DebugMessages */
 
 void
-DebugMessages::insert(const int section, const int level, const bool forceAlert, const char *prefix, const std::string &suffix)
+DebugMessages::insert(const DebugMessageHeader &header, const std::string &body)
 {
     // TODO: Split to move part of the functionality to DebugModule.
 
@@ -1322,7 +1318,7 @@ DebugMessages::insert(const int section, const int level, const bool forceAlert,
         purged += messages.size();
         messages.clear();
     }
-    messages.emplace_back(section, level, forceAlert, prefix, suffix);
+    messages.emplace_back(header, body);
 }
 
 void
