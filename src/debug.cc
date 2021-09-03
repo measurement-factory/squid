@@ -1141,15 +1141,28 @@ debugLogKid(void)
     return "";
 }
 
+/// The number of xassert() calls in the call stack. Treat as private to
+/// xassert(): It is moved out only to simplify the asserting code path.
+static auto Asserting_ = false;
+
 void
 xassert(const char *msg, const char *file, int line)
 {
+    // if the non-trivial code below has itself asserted, then simplify instead
+    // of running out of stack and complicating triage
+    if (Asserting_)
+        abort();
+
+    Asserting_ = true;
+
     debugs(0, DBG_CRITICAL, "assertion failed: " << file << ":" << line << ": \"" << msg << "\"");
 
     if (!shutting_down) {
         Debug::Flush();
         abort();
     }
+
+    Asserting_ = false;
 }
 
 Debug::Context *Debug::Current = nullptr;
