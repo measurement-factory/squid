@@ -133,13 +133,15 @@ public:
     auto raw() const { return messages; }
 
 private:
-    void dropAllToStderr();
-
     typedef std::vector<DebugMessage> Storage;
     Storage messages;
 
-    /// the total number of messages we could not store (due to capacity limits)
-    uint64_t dropped = 0;
+    /// the total number of messages that reached insert()
+    uint64_t seen = 0;
+
+    /// the total number of messages that (due to capacity limits) we could not
+    /// store long enough to flush to cache_log when that becomes available
+    uint64_t purged = 0;
 };
 
 /// a receiver of debugs() messages (e.g., stderr or cache.log)
@@ -152,7 +154,7 @@ public:
     // no copying or moving or any kind (for simplicity sake and to prevent accidental copies)
     DebugChannel(DebugChannel &&) = delete;
 
-    /// maybeLog() all saved but not yet written "early" messages (if any).
+    /// maybeLog() all saved but not yet written "early" messages (if any), once
     void flush();
 
     /// End early message buffering, flushing saved messages.
@@ -167,7 +169,16 @@ public:
     const char * const name = nullptr; ///< unique channel label for debugging
 
     uint64_t logged = 0; ///< the number of messages logged so far
-    bool flushed = false; ///< whether flush() has been called
+
+    /// the total number of messages logged by flush()
+    uint64_t flushedCount = 0; // TODO: Rename flushed and then flushedCount;
+
+    bool flushed = false; ///< whether flush() has been called (XXX: not really)
+
+protected:
+    /// maybeLog() all saved but not yet written "early" messages without
+    /// checking whether doing so may create duplicate or reordered log records.
+    void logAllSavedCarelessly();
 };
 
 /// cache_log DebugChannel
@@ -211,6 +222,11 @@ public:
     /// Stop providing a cache_log replacement (if we were providing it).
     void stopCoveringCacheLog();
 
+    /// maybeLog() all saved but not yet written "early" messages if doing so
+    /// does not create duplicate or reordered log records. Otherwise, report a
+    /// problem but log no saved messages.
+    void logAllSaved();
+
     /* DebugChannel API */
 
     virtual void maybeLog(const DebugMessage &m) final
@@ -221,17 +237,21 @@ public:
 protected:
     void noteRejected(int level);
 
-    /// logs all previously saved early messages
-    void writeAllSaved();
-
 private:
+    void relaxLevelRestrictions();
+    void tightenLevelRestrictions();
+
+    /// When positive, maybeLog() relies on cache_log section/level restrictions
+    /// (enforced by callers), ignoring MaxErrLogLevel. No effect when zero.
+    size_t waivingLevelRestrictions = 0;
+
     /// whether maybeLog() refused to log any ShouldBeSaved() messages
     bool rejectedShouldBeSavedMessages = false;
 
     /// whether maybeLog()ing already saved early messages is prohibited
     bool rejectSavedMessages = false; // TODO: Rename to rejectingSavedMessages
 
-    /// whether maybeLog() should accept messages that cache_log would log
+    /// whether we are the last resort for logging debugs() messages
     bool coveringForCacheLog = false;
 };
 
@@ -398,19 +418,8 @@ DebugChannel::flush()
         return;
     flushed = true;
 
-    if (!EarlyMessages)
-        return;
-
-    for (const auto &message: EarlyMessages->raw()) {
-        if (Debug::Enabled(message.section, message.level))
-            maybeLog(message);
-    }
-
-    // Use debugs() level that prevents message buffering. Otherwise, this could
-    // overflow the messages buffer, and dropAllToStderr() could dump the lines
-    // we just reported above, possibly duplicating the lines on stderr.
-    debugs(0, EarlyMessagesMaxLevel+1, "wrote " << logged << " out of " <<
-           EarlyMessages->raw().size() << " early messages to " << name);
+    assert(!logged);
+    logAllSavedCarelessly(); // no problems because we have logged nothing
 }
 
 void
@@ -420,10 +429,36 @@ DebugChannel::stopEarlyMessageCollection()
     Module().checkEarlyMessageCollectionTermination();
 }
 
+// TODO: Rename to Debug::ForceFlush() or similar and call
+// switchFromCacheLogToErrLog() if necessary to force logging of buffered
+// messages. Otherwise, they will not be shown if we have not opened cache_log
+// before abort()ing. Leave xabort() as TODO?
 void
 Debug::Flush()
 {
     Module().flush();
+}
+
+void
+DebugChannel::logAllSavedCarelessly()
+{
+    assert(flushed); // no conflicts with messages that will be logged later
+
+    if (!EarlyMessages)
+        return; // nothing to write
+
+    const auto loggedEarlier = logged;
+    for (const auto &message: EarlyMessages->raw()) {
+        if (Debug::Enabled(message.section, message.level))
+            maybeLog(message);
+    }
+    flushedCount += logged - loggedEarlier;
+
+    // We may be called from DebugMessages::insert() that has not cleared its
+    // overflow state yet. Use debugs() level that prevents reaching the same
+    // DebugMessages::insert() code. TODO: Find a better way to prevent loops.
+    debugs(0, EarlyMessagesMaxLevel+1, "wrote " << flushedCount << " out of " <<
+           EarlyMessages->raw().size() << " early messages to " << name);
 }
 
 /* CacheLogChannel */
@@ -458,17 +493,19 @@ ErrLogChannel::shouldLog(const int level) const
     if (!stderr)
         return false; // nowhere to log
 
-    if (level <= MaxErrLogLevel)
-        return true; // this level is allowed by our configuration: -d, -k, etc.
-
-    // whether we are used as the last logging resort for cache.log messages
-    return coveringForCacheLog;
+    // whether the given level is allowed by circumstances (coveringForCacheLog,
+    // early message storage overflow, etc.) or configuration (-d, -k, etc.)
+    return waivingLevelRestrictions || level <= MaxErrLogLevel;
 }
 
 void
 ErrLogChannel::noteRejected(const int level)
 {
-    rejectedShouldBeSavedMessages = rejectedShouldBeSavedMessages || ShouldBeSaved(level);
+    if (rejectedShouldBeSavedMessages)
+        return;
+
+    const auto cannotBeSavedForUs = flushed;
+    rejectedShouldBeSavedMessages = cannotBeSavedForUs && ShouldBeSaved(level);
 }
 
 void
@@ -478,9 +515,8 @@ ErrLogChannel::maybeLog(const int level, const char *prefix, const std::string &
         return noteRejected(level);
 
     // Do not delay logging of immediately log-able messages. Some of them may
-    // not be saveable.
-    if (!flushed)
-        flush(); // avoid reordering messages
+    // not be saveable. flush() prevents recursion by setting flushed.
+    flush(); // before fprintf() below to avoid reordering messages
 
     fprintf(stderr, "role=%s # %s%s\n", XXX_Role, prefix, suffix.c_str());
     ++logged;
@@ -490,33 +526,31 @@ ErrLogChannel::maybeLog(const int level, const char *prefix, const std::string &
     rejectSavedMessages = rejectedShouldBeSavedMessages; // may already be equal
 }
 
+/// safe waivingLevelRestrictions increment
+void
+ErrLogChannel::relaxLevelRestrictions()
+{
+    ++waivingLevelRestrictions;
+    assert(waivingLevelRestrictions); // paranoid: no overflows
+}
+
+/// safe waivingLevelRestrictions decrement
+void
+ErrLogChannel::tightenLevelRestrictions()
+{
+    assert(waivingLevelRestrictions); // paranoid: no underflows
+    --waivingLevelRestrictions;
+}
+
 void
 ErrLogChannel::takeOverCacheLog()
 {
-    coveringForCacheLog = true; // may already be true
+    if (coveringForCacheLog)
+        return;
 
-    // simplification: do not support waiting for nil stderr to change
-    flushed = true; // may already be true
-
-    const char *error = nullptr;
-
-    if (!stderr)
-        error = "stderr is not available";
-
-    // If we have logged only some of the saved lines (e.g., -d0) and/or logged
-    // some of the lines that follow the saved lines (e.g., -Xd2), then do not
-    // log duplicate and/or out-of-order lines to avoid confusion.
-    if (rejectSavedMessages && !error)
-        error = "stderr may have logged some of them (or some of the subsequent messages) already";
-
-    if (!error)
-        return writeAllSaved(); // no danger of reordering messages on stderr
-
-    // Even if we have no stderr and no cache_log, we might have syslog (or
-    // perhaps some other future logging channel). We do not use syslog/etc. as
-    // a cache_log cover (yet?), but we do give it a chance to log the problem.
-    if (const auto saved = EarlyMessages ? EarlyMessages->raw().size() : 0)
-        debugs(0, DBG_CRITICAL, "ERROR: Dropping " << saved << " early cache_log messages because " << error);
+    coveringForCacheLog = true;
+    relaxLevelRestrictions();
+    logAllSaved();
 }
 
 void
@@ -525,26 +559,27 @@ ErrLogChannel::stopCoveringCacheLog()
     if (!coveringForCacheLog)
         return;
 
+    tightenLevelRestrictions();
     coveringForCacheLog = false;
     debugs(0, DBG_IMPORTANT, "Resuming logging to cache_log");
 }
 
 void
-ErrLogChannel::writeAllSaved()
+ErrLogChannel::logAllSaved()
 {
-    assert(!rejectSavedMessages); // no conflicts with past messages
-    assert(flushed); // no conflicts with messages that will be logged later
+    // simplification: do not support waiting for nil stderr to change;
+    // also prevents logAllSaved()-...-maybeLog()-flush()-logAllSaved() loops
+    flushed = true; // may already be true
 
-    // maybeLog will not reject saved messages
-    assert(shouldLog(EarlyMessagesMaxLevel));
+    // If we have logged only some of the saved lines (e.g., -d0) and/or logged
+    // some of the lines that follow the saved lines (e.g., -Xd2), then do not
+    // log duplicate and/or out-of-order lines to avoid confusion.
+    if (rejectSavedMessages)
+        return;
 
-    if (!EarlyMessages)
-        return; // nothing to write
-
-    for (const auto &message: EarlyMessages->raw()) {
-        if (Debug::Enabled(message.section, message.level))
-            maybeLog(message);
-    }
+    relaxLevelRestrictions(); // callers are desperate to log saved messages
+    logAllSavedCarelessly(); // rejectSavedMessages checked order/dupes above
+    tightenLevelRestrictions();
 }
 
 void
@@ -1277,39 +1312,28 @@ DebugMessages::insert(const int section, const int level, const bool forceAlert,
 {
     // TODO: Split to move part of the functionality to DebugModule.
 
+    ++seen;
+
     // There should not be a lot of messages since we are only accumulating
     // level-0/1 messages, but we limit accumulation just in case.
     const size_t limit = 1000;
     if (messages.size() >= limit) {
-        const auto &errLogChannel = Module().errLogChannel;
-        if (errLogChannel.flushed && errLogChannel.logged) {
-            // we must just forget all messages to avoid duplicates on stderr
-            // XXX: but this does not forget any messages
-            dropped++;
-            return;
-        }
-        dropAllToStderr();
+        Module().errLogChannel.logAllSaved();
+        purged += messages.size();
+        messages.clear();
     }
     messages.emplace_back(section, level, forceAlert, prefix, suffix);
 }
 
 void
-DebugMessages::dropAllToStderr()
-{
-    // TODO: Can we reuse errLogChannel.maybeLog() here?
-    for (const auto &message: messages)
-        fprintf(stderr, "%s%s\n", message.prefix.c_str(), message.suffix.c_str());
-    dropped += messages.size();
-    messages.clear();
-}
-
-void
 DebugMessages::report() const
 {
-    if (dropped) {
-        const auto saved = messages.size();
-        debugs(0, DBG_IMPORTANT, "ERROR: Too many early important messages: " << (saved + dropped) <<
-               "; saved " << saved << " but dropped " << dropped);
+    if (purged) {
+        debugs(0, DBG_CRITICAL, "ERROR: Too many early important messages: " <<
+               Debug::Extra << "seen: " << seen <<
+               Debug::Extra << "purged to free storage: " << purged <<
+               Debug::Extra << "logged to stderr: " << Module().errLogChannel.flushedCount <<
+               Debug::Extra << "logged to cache_log: " << Module().cacheLogChannel.flushedCount);
     }
 }
 
