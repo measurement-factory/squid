@@ -107,7 +107,8 @@ private:
 class DebugMessageHeader
 {
 public:
-    explicit DebugMessageHeader(const bool doForceAlert):
+    DebugMessageHeader(const uint64_t aRecordNumber, const bool doForceAlert):
+        recordNumber(aRecordNumber),
         timestamp(getCurrentTime()),
         section(Debug::Section()),
         level(Debug::Level()),
@@ -117,6 +118,7 @@ public:
     {
     }
 
+    uint64_t recordNumber; ///< LogMessage() calls before this message
     time_t timestamp; ///< approximate debugs() call time
     int section; ///< debugs() section
     int level; ///< debugs() level
@@ -194,6 +196,9 @@ public:
 public:
     const char * const name = nullptr; ///< unique channel label for debugging
 
+    /// DebugMessageHeader::recordNumber of the last message we logged
+    uint64_t lastLoggedRecordNumber = 0; // TODO: typedef the type
+
     uint64_t logged = 0; ///< the number of messages logged so far
 
     /// the total number of messages logged by flush()
@@ -202,9 +207,10 @@ public:
     bool flushed = false; ///< whether flush() has been called (XXX: not really)
 
 protected:
-    /// maybeLog() all saved but not yet written "early" messages without
-    /// checking whether doing so may create duplicate or reordered log records.
-    void logAllSavedCarelessly();
+    friend void DebugMessages::insert(const DebugMessageHeader &, const std::string &body);
+
+    /// maybeLog() all saved but not yet written "early" messages
+    void logAllSaved();
 };
 
 /// cache_log DebugChannel
@@ -241,21 +247,7 @@ public:
     /// Stop providing a cache_log replacement (if we were providing it).
     void stopCoveringCacheLog();
 
-    /// maybeLog() all saved but not yet written "early" messages if doing so
-    /// does not create duplicate or reordered log records. Otherwise, report a
-    /// problem but log no saved messages.
-    void logAllSaved();
-
-protected:
-    void noteRejected(int level);
-
 private:
-    /// whether maybeLog() refused to log any ShouldBeSaved() messages
-    bool rejectedShouldBeSavedMessages = false;
-
-    /// whether maybeLog()ing already saved early messages is prohibited
-    bool rejectSavedMessages = false; // TODO: Rename to rejectingSavedMessages
-
     /// whether we are the last resort for logging debugs() messages
     bool coveringForCacheLog = false;
 };
@@ -416,8 +408,7 @@ DebugChannel::flush()
         return;
     flushed = true;
 
-    assert(!logged);
-    logAllSavedCarelessly(); // no problems because we have logged nothing
+    logAllSaved();
 }
 
 void
@@ -438,16 +429,15 @@ Debug::Flush()
 }
 
 void
-DebugChannel::logAllSavedCarelessly()
+DebugChannel::logAllSaved()
 {
-    assert(flushed); // no conflicts with messages that will be logged later
-
     if (!EarlyMessages)
         return; // nothing to write
 
     const auto loggedEarlier = logged;
     for (const auto &message: EarlyMessages->raw()) {
-        if (Debug::Enabled(message.header.section, message.header.level))
+        if (Debug::Enabled(message.header.section, message.header.level) &&
+            lastLoggedRecordNumber < message.header.recordNumber)
             maybeLog(message.header, message.body);
     }
     flushedCount += logged - loggedEarlier;
@@ -472,19 +462,25 @@ CacheLogChannel::stopWaitingForFile()
 void
 CacheLogChannel::maybeLog(const DebugMessageHeader &header, const std::string &body)
 {
+    assert(header.recordNumber > lastLoggedRecordNumber);
+
     if (!flushed)
         return;
 
     if (!TheLog.file())
         return;
 
+    // TODO: Reduce code duplication with ErrLogChannel?
     fprintf(TheLog.file(), "role=%s # %s%s| %s\n",
         header.role_XXX,
         debugLogTime(header.timestamp),
         debugLogKid(),
         body.c_str());
     fflush(TheLog.file());
+
+    // TODO: Reduce code duplication across channels
     ++logged;
+    lastLoggedRecordNumber = header.recordNumber;
 }
 
 /* ErrLogChannel */
@@ -503,6 +499,8 @@ ErrLogChannel::shouldLog(const int level, const bool scheduledToBeDropped) const
 void
 ErrLogChannel::maybeLog(const DebugMessageHeader &header, const std::string &body)
 {
+    assert(header.recordNumber > lastLoggedRecordNumber);
+
     if (!shouldLog(header.level, header.scheduledToBeDropped))
         return;
 
@@ -515,11 +513,9 @@ ErrLogChannel::maybeLog(const DebugMessageHeader &header, const std::string &bod
         debugLogTime(header.timestamp),
         debugLogKid(),
         body.c_str());
-    ++logged;
 
-    // If we logged anything after rejecting, then we cannot accept saved
-    // messages because doing so will reorder logged messages.
-    rejectSavedMessages = rejectedShouldBeSavedMessages; // may already be equal
+    ++logged;
+    lastLoggedRecordNumber = header.recordNumber;
 }
 
 void
@@ -540,22 +536,6 @@ ErrLogChannel::stopCoveringCacheLog()
 
     coveringForCacheLog = false;
     debugs(0, DBG_IMPORTANT, "Resuming logging to cache_log");
-}
-
-void
-ErrLogChannel::logAllSaved()
-{
-    // simplification: do not support waiting for nil stderr to change;
-    // also prevents logAllSaved()-...-maybeLog()-flush()-logAllSaved() loops
-    flushed = true; // may already be true
-
-    // If we have logged only some of the saved lines (e.g., -d0) and/or logged
-    // some of the lines that follow the saved lines (e.g., -Xd2), then do not
-    // log duplicate and/or out-of-order lines to avoid confusion.
-    if (rejectSavedMessages)
-        return;
-
-    logAllSavedCarelessly(); // rejectSavedMessages checked order/dupes above
 }
 
 void
@@ -696,7 +676,9 @@ LogMessage(const bool forceAlert, const std::string &message)
     EnterCriticalSection(dbg_mutex);
 #endif
 
-    const DebugMessageHeader header(forceAlert);
+    static uint64_t LogMessageCalls = 0;
+    const DebugMessageHeader header(++LogMessageCalls, forceAlert);
+
     auto &module = Module();
 
     module.cacheLogChannel.maybeLog(header, message);
@@ -726,6 +708,8 @@ SyslogLevel(const DebugMessageHeader &header)
 void
 SysLogChannel::maybeLog(const DebugMessageHeader &header, const std::string &body)
 {
+    assert(header.recordNumber > lastLoggedRecordNumber);
+
     if (!flushed)
         return;
 
@@ -740,7 +724,9 @@ SysLogChannel::maybeLog(const DebugMessageHeader &header, const std::string &bod
     }
 
     syslog(SyslogLevel(header), "%s", body.c_str());
+
     ++logged;
+    lastLoggedRecordNumber = header.recordNumber;
 }
 #endif /* HAVE_SYSLOG */
 
