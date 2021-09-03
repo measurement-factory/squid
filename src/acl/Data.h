@@ -12,6 +12,8 @@
 #include "acl/Options.h"
 #include "sbuf/List.h"
 
+class ACL;
+
 /// Configured ACL parameter(s) (e.g., domain names in dstdomain ACL).
 template <class M>
 class ACLData
@@ -21,12 +23,9 @@ public:
 
     virtual ~ACLData() {}
 
-    /// \returns the flags supported by these ACL parameters (e.g., "-i")
-    virtual const Acl::ParameterFlags &supportedFlags() const { return Acl::NoFlags(); }
-
     virtual bool match(M) =0;
     virtual SBufList dump() const =0;
-    virtual void parse() =0;
+    virtual void parse(const ACL *) =0;
     virtual ACLData *clone() const =0;
     virtual void prepareForUse() {}
 

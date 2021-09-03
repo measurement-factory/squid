@@ -33,10 +33,13 @@ public:
     virtual SBufList dump() const;
     virtual bool empty () const;
     virtual ACL *clone()const;
+    virtual const Acl::Options &options();
+    virtual bool isCaseIsensitive() const { return caseInsensitive.value; }
 
 private:
     ACLData<char const *> *data;
     char const *type_;
+    Acl::BooleanOptionValue caseInsensitive;
 };
 
 #endif /* USE_AUTH */

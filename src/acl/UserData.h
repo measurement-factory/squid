@@ -24,8 +24,7 @@ public:
     ACLUserData();
     bool match(char const *user);
     virtual SBufList dump() const;
-    void parse();
-    virtual const Acl::ParameterFlags &supportedFlags() const;
+    virtual void parse(const ACL *);
     bool empty() const;
     virtual ACLData<char const *> *clone() const;
 

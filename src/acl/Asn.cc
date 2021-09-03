@@ -555,7 +555,7 @@ ACLASN::empty () const
 }
 
 void
-ACLASN::parse()
+ACLASN::parse(const ACL *)
 {
     CbDataList<int> **curlist = &data;
     CbDataList<int> **Tail;

@@ -54,7 +54,7 @@ ACLStringData::dump() const
 }
 
 void
-ACLStringData::parse()
+ACLStringData::parse(const ACL *)
 {
     while (const char *t = ConfigParser::strtokFile())
         stringValues.insert(SBuf(t));

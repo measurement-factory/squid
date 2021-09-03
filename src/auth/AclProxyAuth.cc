@@ -53,13 +53,13 @@ ACLProxyAuth::typeString() const
 void
 ACLProxyAuth::parseFlags()
 {
-    ParseFlags(Acl::NoOptions(), data->supportedFlags());
+    ParseFlags(Acl::NoOptions());
 }
 
 void
 ACLProxyAuth::parse()
 {
-    data->parse();
+    data->parse(this);
 }
 
 int

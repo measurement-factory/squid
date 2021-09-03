@@ -49,7 +49,18 @@ ACLIdent::typeString() const
 void
 ACLIdent::parseFlags()
 {
-    ParseFlags(Acl::NoOptions(), data->supportedFlags());
+    ParseFlags(Acl::NoOptions());
+}
+
+const Acl::Options &
+ACLIdent::options()
+{
+    static const Acl::BooleanOption CaseInsensitiveOn;
+    static const Acl::BooleanOption CaseInsensitiveOff;
+    static const Acl::Options MyOptions = { { "-i", &CaseInsensitiveOn }, { "+i", &CaseInsensitiveOff } };
+    CaseInsensitiveOn.linkWith(&caseInsensitive);
+    CaseInsensitiveOff.linkWith(&caseInsensitive);
+    return MyOptions;
 }
 
 void
@@ -60,7 +71,7 @@ ACLIdent::parse()
         data = new ACLUserData;
     }
 
-    data->parse();
+    data->parse(this);
 }
 
 int

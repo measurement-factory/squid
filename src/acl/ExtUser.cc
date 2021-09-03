@@ -46,13 +46,24 @@ ACLExtUser::typeString() const
 void
 ACLExtUser::parseFlags()
 {
-    ParseFlags(Acl::NoOptions(), data->supportedFlags());
+    ParseFlags(Acl::NoOptions());
 }
 
 void
 ACLExtUser::parse()
 {
-    data->parse();
+    data->parse(this);
+}
+
+const Acl::Options &
+ACLExtUser::options()
+{
+    static const Acl::BooleanOption CaseInsensitiveOn;
+    static const Acl::BooleanOption CaseInsensitiveOff;
+    static const Acl::Options MyOptions = { { "-i", &CaseInsensitiveOn }, { "+i", &CaseInsensitiveOff } };
+    CaseInsensitiveOn.linkWith(&caseInsensitive);
+    CaseInsensitiveOff.linkWith(&caseInsensitive);
+    return MyOptions;
 }
 
 int

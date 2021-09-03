@@ -17,13 +17,6 @@
 #include "sbuf/Algorithms.h"
 #include "util.h"
 
-const Acl::ParameterFlags &
-ACLUserData::supportedFlags() const
-{
-    static const Acl::ParameterFlags flagNames = { "-i", "+i" };
-    return flagNames;
-}
-
 bool
 ACLUserData::match(char const *user)
 {
@@ -83,9 +76,10 @@ ACLUserData::ACLUserData() :
 }
 
 void
-ACLUserData::parse()
+ACLUserData::parse(const ACL *acl)
 {
     debugs(28, 2, "parsing user list");
+    flags.case_insensitive = acl->isCaseInsensitive();
 
     char *t = NULL;
     if ((t = ConfigParser::strtokFile())) {

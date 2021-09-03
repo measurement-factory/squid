@@ -29,6 +29,8 @@ public:
     SBuf name; ///< extracted option name, including dash(es)
     bool hasValue = false; ///< whether the option has a value (-x=value)
     const SBuf &value() const; ///< extracted option value (requires hasValue)
+    /// depending on the option name prefix, whether the option is set ('-', '--') or unset ('+')
+    bool isSet() const { return (prefix_[0] == '-'); }
 
 protected:
     bool advance();
@@ -46,7 +48,7 @@ private:
 class OptionsParser
 {
 public:
-    OptionsParser(const Options &options, const ParameterFlags &flags);
+    OptionsParser(const Options &options);
 
     // fill previously supplied options container, throwing on errors
     void parse();
@@ -56,11 +58,8 @@ private:
 
     /// ACL parameter flags in parsing order
     typedef std::vector<OptionName> Names;
-    /// parsed ACL parameter flags that must be preserved for ACLData::parse()
-    static Names flagsToSkip;
 
     const Options &options_; ///< caller-supported, linked options
-    const ParameterFlags &parameterFlags_; ///< caller-supported parameter flags
 };
 
 } // namespace Acl
@@ -168,12 +167,8 @@ Acl::OptionExtractor::extractShort()
 
 /* Acl::OptionsParser */
 
-// being "static" is an optimization to avoid paying for vector creation/growth
-Acl::OptionsParser::Names Acl::OptionsParser::flagsToSkip;
-
-Acl::OptionsParser::OptionsParser(const Options &options, const ParameterFlags &flags):
-    options_(options),
-    parameterFlags_(flags)
+Acl::OptionsParser::OptionsParser(const Options &options):
+    options_(options)
 {
 }
 
@@ -187,20 +182,12 @@ Acl::OptionsParser::findOption(/* const */ SBuf &rawNameBuf)
     if (optionPos != options_.end())
         return optionPos->second;
 
-    const auto flagPos = parameterFlags_.find(rawName);
-    if (flagPos != parameterFlags_.end()) {
-        flagsToSkip.push_back(*flagPos); // *flagPos is permanent unlike rawName
-        return nullptr;
-    }
-
     throw TexcHere(ToSBuf("unsupported ACL option: ", rawNameBuf));
 }
 
 void
 Acl::OptionsParser::parse()
 {
-    flagsToSkip.clear();
-
     OptionExtractor oex;
     while (oex.extractOne()) {
         /* const */ auto rawName = oex.name;
@@ -213,7 +200,7 @@ Acl::OptionsParser::parse()
             case Option::valueNone:
                 if (oex.hasValue)
                     throw TexcHere(ToSBuf("unexpected value for an ACL option: ", rawName, '=', oex.value()));
-                option.configureDefault();
+                option.configureFlag(oex.isSet());
                 break;
             case Option::valueRequired:
                 if (!oex.hasValue)
@@ -224,22 +211,18 @@ Acl::OptionsParser::parse()
                 if (oex.hasValue)
                     option.configureWith(oex.value());
                 else
-                    option.configureDefault();
+                    option.configureFlag(oex.isSet());
                 break;
             }
         }
         // else skip supported parameter flag
     }
-
-    /* hack: regex code wants to parse all -i and +i flags itself */
-    for (const auto name: flagsToSkip)
-        ConfigParser::TokenPutBack(name);
 }
 
 void
-Acl::ParseFlags(const Options &options, const ParameterFlags &flags)
+Acl::ParseFlags(const Options &options)
 {
-    OptionsParser parser(options, flags);
+    OptionsParser parser(options);
     parser.parse();
 }
 
@@ -247,13 +230,6 @@ const Acl::Options &
 Acl::NoOptions()
 {
     static const Options none;
-    return none;
-}
-
-const Acl::ParameterFlags &
-Acl::NoFlags()
-{
-    static const ParameterFlags none;
     return none;
 }
 

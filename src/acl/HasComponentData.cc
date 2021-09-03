@@ -21,7 +21,7 @@ ACLHasComponentData::ACLHasComponentData()
 { }
 
 void
-ACLHasComponentData::parse()
+ACLHasComponentData::parse(const ACL *)
 {
     const auto tok = ConfigParser::strtokFile();
     if (!tok) {

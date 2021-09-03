@@ -84,7 +84,7 @@ ACLCertificateData::dump() const
 }
 
 void
-ACLCertificateData::parse()
+ACLCertificateData::parse(const ACL *acl)
 {
     if (validAttributesStr) {
         char *newAttribute = ConfigParser::strtokFile();
@@ -150,7 +150,7 @@ ACLCertificateData::parse()
         }
     }
 
-    values.parse();
+    values.parse(acl);
 }
 
 bool

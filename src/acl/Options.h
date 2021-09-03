@@ -44,11 +44,11 @@ public:
     virtual ~Option() {}
 
     /// whether the admin explicitly specified this option
-    /// (i.e., whether configureWith() or configureDefault() has been called)
+    /// (i.e., whether configureWith() or configureFlag() has been called)
     virtual bool configured() const = 0;
 
     /// called after parsing -x or --name
-    virtual void configureDefault() const = 0;
+    virtual void configureFlag(bool flagValue) const = 0;
 
     /// called after parsing -x=value or --name=value
     virtual void configureWith(const SBuf &rawValue) const = 0;
@@ -99,13 +99,13 @@ public:
     virtual bool valued() const override { return recipient_ && recipient_->valued; }
 
     /// sets the default value when option is used without a value
-    virtual void configureDefault() const override
+    virtual void configureFlag(bool flagValue) const override
     {
         assert(recipient_);
         recipient_->configured = true;
         recipient_->valued = false;
         // sets recipient_->value to default
-        setDefault();
+        setFlag(flagValue);
     }
 
     /// sets the option value from rawValue
@@ -121,7 +121,7 @@ public:
 
 private:
     void import(const SBuf &rawValue) const { recipient_->value = rawValue; }
-    void setDefault() const { /*leave recipient_->value as is*/}
+    void setFlag(bool) const { /*leave recipient_->value as is*/}
 
     // The "mutable" specifier demarcates set-once Option kind/behavior from the
     // ever-changing recipient of the actual admin-configured option value.
@@ -145,9 +145,9 @@ BooleanOption::import(const SBuf &) const
 
 template <>
 inline void
-BooleanOption::setDefault() const
+BooleanOption::setFlag(bool flagValue) const
 {
-    recipient_->value = true;
+    recipient_->value = flagValue;
 }
 
 /// option name comparison functor
@@ -163,12 +163,10 @@ typedef std::set<OptionName, OptionNameCmp> ParameterFlags;
 
 /// parses the flags part of the being-parsed ACL, filling Option values
 /// \param options options supported by the ACL as a whole (e.g., -n)
-/// \param flags options supported by ACL parameter(s) (e.g., -i)
-void ParseFlags(const Options &options, const ParameterFlags &flags);
+void ParseFlags(const Options &options);
 
-/* handy for Class::options() and Class::supportedFlags() defaults */
+/* handy for Class::options() defaults */
 const Options &NoOptions(); ///< \returns an empty Options container
-const ParameterFlags &NoFlags(); ///< \returns an empty ParameterFlags container
 
 } // namespace Acl
 

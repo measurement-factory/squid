@@ -23,7 +23,7 @@ public:
     virtual ~ACLTimeData();
     bool match(time_t);
     virtual SBufList dump() const;
-    void parse();
+    void parse(const ACL *);
     bool empty() const;
     virtual ACLData<time_t> *clone() const;
 
