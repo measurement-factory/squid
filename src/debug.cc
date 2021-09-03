@@ -318,16 +318,22 @@ DebugModule::saveMessage(const DebugMessageHeader &header, const std::string &bo
     // There should not be a lot of messages because EarlyMessagesMaxLevel is
     // small, but we limit their accumulation just in case.
     const DebugMessages::size_type limit = 1000;
+    DebugMessages::size_type purged = 0;
     if (earlyMessages->size() >= limit) {
         DebugMessages doomedMessages;
         earlyMessages->swap(doomedMessages);
         for (auto &message: doomedMessages)
             message.header.scheduledToBeDropped = true;
         errLogChannel.log(doomedMessages);
-        debugs(0, DBG_CRITICAL, "ERROR: Too many early important messages. Purged " << doomedMessages.size());
+        purged = doomedMessages.size();
     }
 
     earlyMessages->emplace_back(header, body);
+
+    // Log/save the error message below _after_ saving the early message above,
+    // preserving the original event and LogMessage() order, like maybeLog().
+    if (purged)
+        debugs(0, DBG_CRITICAL, "ERROR: Too many early important messages. Purged " << purged);
 }
 
 void
