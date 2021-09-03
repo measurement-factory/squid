@@ -148,6 +148,8 @@ public:
 class DebugMessages
 {
 public:
+    using Storage = std::vector<DebugMessage>; // XXX: use std::deque
+
     DebugMessages() = default;
     // no copying or moving or any kind (for simplicity sake and to prevent accidental copies)
     DebugMessages(DebugMessages &&) = delete;
@@ -161,7 +163,6 @@ public:
     auto raw() const { return messages; }
 
 private:
-    typedef std::vector<DebugMessage> Storage;
     Storage messages;
 
     /// the total number of messages that reached insert()
@@ -211,6 +212,9 @@ protected:
 
     /// maybeLog() all saved but not yet written "early" messages
     void logAllSaved();
+
+    /// maybeLog() the given (saved but not yet written "early") messages
+    void log(const DebugMessages::Storage &);
 };
 
 /// cache_log DebugChannel
@@ -429,24 +433,24 @@ Debug::Flush()
 }
 
 void
-DebugChannel::logAllSaved()
+DebugChannel::log(const DebugMessages::Storage &messages)
 {
-    if (!EarlyMessages)
-        return; // nothing to write
-
     const auto loggedEarlier = logged;
-    for (const auto &message: EarlyMessages->raw()) {
+    for (const auto &message: messages) {
         if (Debug::Enabled(message.header.section, message.header.level) &&
             lastLoggedRecordNumber < message.header.recordNumber)
             maybeLog(message.header, message.body);
     }
     flushedCount += logged - loggedEarlier;
+    debugs(0, 5, "wrote " << flushedCount << " out of " <<
+           messages.size() << " early messages to " << name);
+}
 
-    // We may be called from DebugMessages::insert() that has not cleared its
-    // overflow state yet. Use debugs() level that prevents reaching the same
-    // DebugMessages::insert() code. TODO: Find a better way to prevent loops.
-    debugs(0, EarlyMessagesMaxLevel+1, "wrote " << flushedCount << " out of " <<
-           EarlyMessages->raw().size() << " early messages to " << name);
+void
+DebugChannel::logAllSaved()
+{
+    if (EarlyMessages)
+        log(EarlyMessages->raw());
 }
 
 /* CacheLogChannel */
@@ -1268,11 +1272,13 @@ DebugMessages::insert(const DebugMessageHeader &header, const std::string &body)
     // level-0/1 messages, but we limit accumulation just in case.
     const size_t limit = 1000;
     if (messages.size() >= limit) {
-        for (auto &message: messages)
+        Storage doomedMessages;
+        messages.swap(doomedMessages);
+        assert(!messages.size());
+        for (auto &message: doomedMessages)
             message.header.scheduledToBeDropped = true;
-        Module().errLogChannel.logAllSaved();
+        Module().errLogChannel.log(doomedMessages);
         purged += messages.size();
-        messages.clear();
     }
     messages.emplace_back(header, body);
 }
