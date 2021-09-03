@@ -112,6 +112,7 @@ public:
         section(Debug::Section()),
         level(Debug::Level()),
         forceAlert(doForceAlert),
+        scheduledToBeDropped(false),
         role_XXX(myLeadingRole_XXX())
     {
     }
@@ -120,6 +121,10 @@ public:
     int section; ///< debugs() section
     int level; ///< debugs() level
     bool forceAlert; ///< debugs() forceAlert flag
+
+    /// whether the message will be removed from the early saved messages buffer
+    /// after the current logging attempt
+    bool scheduledToBeDropped;
 
     const char *role_XXX; ///< debugs() caller process role
 };
@@ -222,9 +227,9 @@ class ErrLogChannel: public DebugChannel
 public:
     ErrLogChannel(): DebugChannel("errlog") {}
 
-    /// whether maybeLog() ought to log a debugs() message with a given level
+    /// whether maybeLog() ought to log a corresponding debugs() message
     /// (assuming some higher-level code applied cache.log section/level filter)
-    bool shouldLog(const int level) const;
+    bool shouldLog(const int level, const bool scheduledToBeDropped) const;
 
     /* DebugChannel API */
     virtual void maybeLog(const DebugMessageHeader &, const std::string &body) final;
@@ -245,13 +250,6 @@ protected:
     void noteRejected(int level);
 
 private:
-    void relaxLevelRestrictions();
-    void tightenLevelRestrictions();
-
-    /// When positive, maybeLog() relies on cache_log section/level restrictions
-    /// (enforced by callers), ignoring MaxErrLogLevel. No effect when zero.
-    size_t waivingLevelRestrictions = 0;
-
     /// whether maybeLog() refused to log any ShouldBeSaved() messages
     bool rejectedShouldBeSavedMessages = false;
 
@@ -492,31 +490,21 @@ CacheLogChannel::maybeLog(const DebugMessageHeader &header, const std::string &b
 /* ErrLogChannel */
 
 bool
-ErrLogChannel::shouldLog(const int level) const
+ErrLogChannel::shouldLog(const int level, const bool scheduledToBeDropped) const
 {
     if (!stderr)
         return false; // nowhere to log
 
     // whether the given level is allowed by circumstances (coveringForCacheLog,
     // early message storage overflow, etc.) or configuration (-d, -k, etc.)
-    return waivingLevelRestrictions || level <= MaxErrLogLevel;
-}
-
-void
-ErrLogChannel::noteRejected(const int level)
-{
-    if (rejectedShouldBeSavedMessages)
-        return;
-
-    const auto cannotBeSavedForUs = flushed;
-    rejectedShouldBeSavedMessages = cannotBeSavedForUs && ShouldBeSaved(level);
+    return coveringForCacheLog || scheduledToBeDropped || level <= MaxErrLogLevel;
 }
 
 void
 ErrLogChannel::maybeLog(const DebugMessageHeader &header, const std::string &body)
 {
-    if (!shouldLog(header.level))
-        return noteRejected(header.level);
+    if (!shouldLog(header.level, header.scheduledToBeDropped))
+        return;
 
     // Do not delay logging of immediately log-able messages. Some of them may
     // not be saveable. flush() prevents recursion by setting flushed.
@@ -534,22 +522,6 @@ ErrLogChannel::maybeLog(const DebugMessageHeader &header, const std::string &bod
     rejectSavedMessages = rejectedShouldBeSavedMessages; // may already be equal
 }
 
-/// safe waivingLevelRestrictions increment
-void
-ErrLogChannel::relaxLevelRestrictions()
-{
-    ++waivingLevelRestrictions;
-    assert(waivingLevelRestrictions); // paranoid: no overflows
-}
-
-/// safe waivingLevelRestrictions decrement
-void
-ErrLogChannel::tightenLevelRestrictions()
-{
-    assert(waivingLevelRestrictions); // paranoid: no underflows
-    --waivingLevelRestrictions;
-}
-
 void
 ErrLogChannel::takeOverCacheLog()
 {
@@ -557,7 +529,6 @@ ErrLogChannel::takeOverCacheLog()
         return;
 
     coveringForCacheLog = true;
-    relaxLevelRestrictions();
     logAllSaved();
 }
 
@@ -567,7 +538,6 @@ ErrLogChannel::stopCoveringCacheLog()
     if (!coveringForCacheLog)
         return;
 
-    tightenLevelRestrictions();
     coveringForCacheLog = false;
     debugs(0, DBG_IMPORTANT, "Resuming logging to cache_log");
 }
@@ -585,9 +555,7 @@ ErrLogChannel::logAllSaved()
     if (rejectSavedMessages)
         return;
 
-    relaxLevelRestrictions(); // callers are desperate to log saved messages
     logAllSavedCarelessly(); // rejectSavedMessages checked order/dupes above
-    tightenLevelRestrictions();
 }
 
 void
@@ -616,7 +584,7 @@ Debug::SettleErrLogging()
 bool
 Debug::ErrLogEnabled()
 {
-    return Module().errLogChannel.shouldLog(DBG_CRITICAL);
+    return Module().errLogChannel.shouldLog(DBG_CRITICAL, false);
 }
 
 /* DebugFile */
@@ -1314,6 +1282,8 @@ DebugMessages::insert(const DebugMessageHeader &header, const std::string &body)
     // level-0/1 messages, but we limit accumulation just in case.
     const size_t limit = 1000;
     if (messages.size() >= limit) {
+        for (auto &message: messages)
+            message.header.scheduledToBeDropped = true;
         Module().errLogChannel.logAllSaved();
         purged += messages.size();
         messages.clear();
