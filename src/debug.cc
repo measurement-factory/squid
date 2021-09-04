@@ -150,24 +150,37 @@ using DebugMessages = std::deque<DebugMessage>;
 class DebugChannel
 {
 public:
-    explicit DebugChannel(const char * const aName): name(aName) {}
+    using EarlyMessages = std::unique_ptr<DebugMessages>;
+
+    explicit DebugChannel(const char * const aName): name(aName), earlyMessages(new DebugMessages()) {}
     virtual ~DebugChannel() {}
 
     // no copying or moving or any kind (for simplicity sake and to prevent accidental copies)
     DebugChannel(DebugChannel &&) = delete;
 
-    /// maybeLog() all saved but not yet written "early" messages (if any), once
-    void flush();
-
-    /// End early message buffering, flushing saved messages.
-    /// Side effect: When no channel needs them, stops saving early messages.
+    /// end early message buffering, logging any saved messages
     void stopEarlyMessageCollection();
 
+    /// end early message buffering, without logging any saved messages
+    /// \returns any saved messages (or nil)
+    EarlyMessages releaseEarlyMessages() { return EarlyMessages(earlyMessages.release()); }
+
     /// Log the message to the channel if the channel accepts (such) messages.
-    /// Do nothing otherwise.
+    /// This logging may be delayed until the channel configuration is settled.
     virtual void maybeLog(const DebugMessageHeader &, const std::string &body) = 0;
 
-public:
+    /// maybeLog() the given (saved but not yet written "early") messages
+    void log(const DebugMessages &);
+
+protected:
+    /// stores the given early message (if possible) or forgets it (otherwise)
+    /// \returns whether the message was stored
+    bool saveMessage(const DebugMessageHeader &header, const std::string &body);
+
+    /// process previously saved messages purged due to capacity limits
+    virtual void handleOverflow(DebugMessages &) {}
+
+protected:
     const char * const name = nullptr; ///< unique channel label for debugging
 
     /// DebugMessageHeader::recordNumber of the last message we logged
@@ -175,17 +188,10 @@ public:
 
     uint64_t logged = 0; ///< the number of messages logged so far
 
-    // TODO: Rename this and related
-    bool flushed = false; ///< whether flush() has been called (XXX: not really)
-
-protected:
-    friend class DebugModule;
-
-    /// maybeLog() all saved but not yet written "early" messages
-    void logAllSaved();
-
-    /// maybeLog() the given (saved but not yet written "early") messages
-    void log(const DebugMessages &);
+    /// debugs() messages waiting for the channel configuration to settle (and
+    /// the channel to open) so that their eligibility for logging can be
+    /// determined (and the messages can be actually logged somewhere)
+    EarlyMessages earlyMessages;
 };
 
 /// cache_log DebugChannel
@@ -196,10 +202,7 @@ public:
 
     /* DebugChannel API */
     virtual void maybeLog(const DebugMessageHeader &, const std::string &body) final;
-
-    /// Reacts to a failure to open a cache_log file.
-    /// Assumes that the caller will checkEarlyMessageCollectionTermination().
-    void stopWaitingForFile();
+    virtual void handleOverflow(DebugMessages &) final;
 };
 
 /// stderr DebugChannel
@@ -216,8 +219,7 @@ public:
     virtual void maybeLog(const DebugMessageHeader &, const std::string &body) final;
 
     /// Start to take care of past/saved and future cacheLogChannel messages.
-    /// Assumes that the caller will checkEarlyMessageCollectionTermination().
-    void takeOverCacheLog();
+    void takeOver(CacheLogChannel &);
 
     /// Stop providing a cache_log replacement (if we were providing it).
     void stopCoveringCacheLog();
@@ -256,9 +258,6 @@ public:
     /// Assumes the message has passed the global section/level filter.
     void log(const DebugMessageHeader &header, const std::string &body);
 
-    /// Stops saving early messages when all channels no longer need them.
-    void checkEarlyMessageCollectionTermination();
-
     /// give up on waiting for an open cache_log file and start using stderr
     void switchFromCacheLogToErrLog();
 
@@ -266,14 +265,6 @@ public:
     CacheLogChannel cacheLogChannel;
     ErrLogChannel errLogChannel;
     SysLogChannel sysLogChannel;
-
-/* XXX: private: */
-    /// debugs() messages waiting for all channels to become ready to log them
-    DebugMessages *earlyMessages = nullptr;
-
-private:
-    /// stores the given early message (if possible) or forgets it (otherwise)
-    void saveMessage(const DebugMessageHeader &header, const std::string &body);
 };
 
 /// configured cache.log file or stderr
@@ -285,7 +276,7 @@ static DebugFile TheLog;
 // Depending on DBG_CRITICAL activity and command line options, this code may
 // run as early as static initialization during program startup or as late as
 // the first debugs(DBG_CRITICAL) call from the main loop.
-DebugModule::DebugModule(): earlyMessages(new DebugMessages())
+DebugModule::DebugModule()
 {
     // explicit initialization before any use by debugs() calls; see bug #2656
     tzset();
@@ -305,15 +296,18 @@ DebugModule::log(const DebugMessageHeader &header, const std::string &body)
 #if HAVE_SYSLOG
     sysLogChannel.maybeLog(header, body);
 #endif
-
-    if (earlyMessages && header.level <= EarlyMessagesMaxLevel)
-        saveMessage(header, body);
 }
 
-void
-DebugModule::saveMessage(const DebugMessageHeader &header, const std::string &body)
+// TODO: move
+static DebugModule &Module();
+bool
+DebugChannel::saveMessage(const DebugMessageHeader &header, const std::string &body)
 {
-    assert(earlyMessages);
+    if (!earlyMessages)
+        return false;
+
+    if (header.level > EarlyMessagesMaxLevel)
+        return false;
 
     // There should not be a lot of messages because EarlyMessagesMaxLevel is
     // small, but we limit their accumulation just in case.
@@ -322,9 +316,7 @@ DebugModule::saveMessage(const DebugMessageHeader &header, const std::string &bo
     if (earlyMessages->size() >= limit) {
         DebugMessages doomedMessages;
         earlyMessages->swap(doomedMessages);
-        for (auto &message: doomedMessages)
-            message.header.scheduledToBeDropped = true;
-        errLogChannel.log(doomedMessages);
+        handleOverflow(doomedMessages);
         purged = doomedMessages.size();
     }
 
@@ -332,33 +324,26 @@ DebugModule::saveMessage(const DebugMessageHeader &header, const std::string &bo
 
     // Log/save the error message below _after_ saving the early message above,
     // preserving the original event and LogMessage() order, like maybeLog().
-    if (purged)
-        debugs(0, DBG_CRITICAL, "ERROR: Too many early important messages. Purged " << purged);
-}
-
-void
-DebugModule::checkEarlyMessageCollectionTermination()
-{
-    if (earlyMessages && cacheLogChannel.flushed && errLogChannel.flushed && sysLogChannel.flushed) {
-        delete earlyMessages;
-        earlyMessages = nullptr;
+    if (purged) {
+        debugs(0, DBG_CRITICAL, "ERROR: Too many early important messages. " <<
+               "Purged " << purged << " from " << name);
     }
+
+    return true;
 }
 
 void
 DebugModule::flush()
 {
-    errLogChannel.flush();
-    sysLogChannel.flush();
-    cacheLogChannel.flush();
+    errLogChannel.stopEarlyMessageCollection();
+    sysLogChannel.stopEarlyMessageCollection();
+    cacheLogChannel.stopEarlyMessageCollection();
 }
 
 void
 DebugModule::switchFromCacheLogToErrLog()
 {
-    cacheLogChannel.stopWaitingForFile();
-    errLogChannel.takeOverCacheLog();
-    checkEarlyMessageCollectionTermination();
+    errLogChannel.takeOver(cacheLogChannel);
 }
 
 /// safe access to the debugging module
@@ -396,20 +381,10 @@ ResyncDebugLog(FILE *newFile)
 /* DebugChannel */
 
 void
-DebugChannel::flush()
-{
-    if (flushed)
-        return;
-    flushed = true;
-
-    logAllSaved();
-}
-
-void
 DebugChannel::stopEarlyMessageCollection()
 {
-    flush();
-    Module().checkEarlyMessageCollectionTermination();
+    if (const auto toLog = releaseEarlyMessages())
+        log(*toLog);
 }
 
 // TODO: Rename to Debug::ForceFlush() or similar and call
@@ -436,30 +411,15 @@ DebugChannel::log(const DebugMessages &messages)
            messages.size() << " early messages to " << name);
 }
 
-void
-DebugChannel::logAllSaved()
-{
-    if (const auto earlyMessages = Module().earlyMessages)
-        log(*earlyMessages);
-}
-
 /* CacheLogChannel */
-
-void
-CacheLogChannel::stopWaitingForFile()
-{
-    assert(!TheLog.file());
-    // we will not be able to log any saved messages
-    flushed = true; // may already be true
-}
 
 void
 CacheLogChannel::maybeLog(const DebugMessageHeader &header, const std::string &body)
 {
     assert(header.recordNumber > lastLoggedRecordNumber);
 
-    if (!flushed)
-        return;
+    if (earlyMessages)
+        return (void)saveMessage(header, body);
 
     if (!TheLog.file())
         return;
@@ -475,6 +435,14 @@ CacheLogChannel::maybeLog(const DebugMessageHeader &header, const std::string &b
     // TODO: Reduce code duplication across channels
     ++logged;
     lastLoggedRecordNumber = header.recordNumber;
+}
+
+void
+CacheLogChannel::handleOverflow(DebugMessages &doomedMessages)
+{
+    for (auto &message: doomedMessages)
+        message.header.scheduledToBeDropped = true;
+    Module().errLogChannel.log(doomedMessages);
 }
 
 /* ErrLogChannel */
@@ -495,12 +463,15 @@ ErrLogChannel::maybeLog(const DebugMessageHeader &header, const std::string &bod
 {
     assert(header.recordNumber > lastLoggedRecordNumber);
 
+    if (saveMessage(header, body))
+        return;
+
     if (!shouldLog(header.level, header.scheduledToBeDropped))
         return;
 
-    // Do not delay logging of immediately log-able messages. Some of them may
-    // not be saveable. flush() prevents recursion by setting flushed.
-    flush(); // before fprintf() below to avoid reordering messages
+    // We must log this eligible unsaved message, but we must log previously
+    // saved early messages before fprintf() below to avoid reordering messages.
+    stopEarlyMessageCollection();
 
     fprintf(stderr, "role=%s # %s%s| %s\n",
         header.role_XXX,
@@ -513,13 +484,18 @@ ErrLogChannel::maybeLog(const DebugMessageHeader &header, const std::string &bod
 }
 
 void
-ErrLogChannel::takeOverCacheLog()
+ErrLogChannel::takeOver(CacheLogChannel &cacheLogChannel)
 {
     if (coveringForCacheLog)
         return;
 
     coveringForCacheLog = true;
-    logAllSaved();
+
+    // Stop collecting before dumping cacheLogChannel messages so that we do not
+    // end up saving messages already saved by cacheLogChannel.
+    stopEarlyMessageCollection();
+    if (const auto theirs = cacheLogChannel.releaseEarlyMessages())
+        log(*theirs);
 }
 
 void
@@ -693,8 +669,8 @@ SysLogChannel::maybeLog(const DebugMessageHeader &header, const std::string &bod
 {
     assert(header.recordNumber > lastLoggedRecordNumber);
 
-    if (!flushed)
-        return;
+    if (earlyMessages)
+        return (void)saveMessage(header, body);
 
     /* level 0,1 go to syslog */
 
