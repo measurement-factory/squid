@@ -2166,18 +2166,6 @@ SquidShutdown()
 
     debugs(1, DBG_IMPORTANT, "Squid Cache (Version " << version_string << "): Exiting normally.");
 
-    /* TODO: (Re)move correct but increasingly misplaced comment: We
-     * exit() in many places, not just here.
-     * DPW 2006-10-23
-     * We used to fclose(debug_log) here if it was set, but then
-     * we forgot to set it to NULL.  That caused some coredumps
-     * because exit() ends up calling a bunch of destructors and
-     * such.   So rather than forcing the debug_log to close, we'll
-     * leave it open so that those destructors can write some
-     * debugging if necessary.  The file will be closed anyway when
-     * the process truly exits.
-     */
-
     exit(shutdown_status);
 }
 

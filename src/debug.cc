@@ -321,6 +321,10 @@ DebugModule::swanSong()
     cacheLogChannel.stopEarlyMessageCollection();
     stderrChannel.stopEarlyMessageCollection();
     syslogChannel.stopEarlyMessageCollection();
+
+    // Do not close/destroy channels: While the Debug module is not _guaranteed_
+    // to get control after swanSong(), debugs() calls are still very much
+    // _possible_, and we want to support/log them for as long as we can.
 }
 
 void
