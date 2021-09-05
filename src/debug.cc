@@ -741,7 +741,6 @@ debugOpenLog(const char *logfile)
         // Report the problem after the switch above to improve our chances of
         // also reporting early debugs() messages (that should be logged first).
         debugs(0, DBG_CRITICAL, "ERROR: Cannot open cache_log (" << logfilename << ") for writing;" <<
-               Debug::Extra << "now using stderr instead;" <<
                Debug::Extra << "fopen(3) error: " << xstrerr(xerrno));
     }
 }
