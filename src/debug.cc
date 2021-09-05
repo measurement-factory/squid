@@ -40,13 +40,20 @@ static DebugModule *Module_ = nullptr;
 extern const char *XXX_Role;
 const char *XXX_Role = nullptr;
 
-/// debugs() messages with this (or lower) level will be written to stderr
-/// (and possibly other channels). Negative values disable stderr logging.
-/// This restriction is ignored if Squid tries but fails to open cache.log.
-static int StderrChannelLevel = -1;
+/// Explicitly configured maximum level for debugs() messages written to stderr.
+/// debugs() messages with this (or lower) level will be written to stderr (and
+/// possibly other channels).
+static int ExplicitStderrChannelLevel = -1;
+// TODO: Use static Optional<int> ExplicitStderrChannelLevel;
+static bool ExplicitStderrChannelLevelSet = false;
 
-/// StderrChannelLevel default; ignored after FinalizeStderrChannelLevel()
-static int StderrChannelLevelDefault = -1;
+/// ExplicitStderrChannelLevel preference or default: Just like with
+/// ExplicitStderrChannelLevel, debugs() messages with this (or lower) level
+/// will be written to stderr (and possibly other channels), but this setting is
+/// ignored when ExplicitStderrChannelLevel is set. This setting is also ignored
+/// after major problems that prevent logging of important debugs() messages
+/// (e.g., failing to open cache_log or early message buffer overflow).
+static int DefaultStderrChannelLevel = -1;
 
 static const char *debugLogTime(time_t t);
 static const char *debugLogKid(void);
@@ -486,9 +493,12 @@ StderrChannel::shouldLog(const int level, const bool scheduledToBeDropped) const
     if (!stderr)
         return false; // nowhere to log
 
+    if (ExplicitStderrChannelLevelSet) // explicit admin restrictions (-d)
+        return level <= ExplicitStderrChannelLevel;
+
     // whether the given level is allowed by circumstances (coveringForCacheLog,
-    // early message storage overflow, etc.) or configuration (-d, -k, etc.)
-    return coveringForCacheLog || scheduledToBeDropped || level <= StderrChannelLevel;
+    // early message storage overflow, etc.) or configuration aspects (-k, -z).
+    return coveringForCacheLog || scheduledToBeDropped || level <= DefaultStderrChannelLevel;
 }
 
 void
@@ -537,23 +547,21 @@ StderrChannel::stopCoveringCacheLog()
 void
 Debug::EnsureDefaultStderrChannelLevel(const int maxDefault)
 {
-    if (StderrChannelLevelDefault < maxDefault)
-        StderrChannelLevelDefault = maxDefault; // may set or increase
+    if (DefaultStderrChannelLevel < maxDefault)
+        DefaultStderrChannelLevel = maxDefault; // may set or increase
     // else: somebody has already requested a more permissive maximum
 }
 
 void
 Debug::ResetStderrChannelLevel(const int maxLevel)
 {
-    StderrChannelLevel = maxLevel; // may set, increase, or decrease
+    ExplicitStderrChannelLevel = maxLevel; // may set, increase, or decrease
+    ExplicitStderrChannelLevelSet = true;
 }
 
 void
 Debug::SettleStderrChannel()
 {
-    if (StderrChannelLevel < 0)
-        StderrChannelLevel = StderrChannelLevelDefault; // may remain disabled/negative
-
     Module().stderrChannel.stopEarlyMessageCollection();
 }
 
