@@ -275,9 +275,15 @@ public:
     SyslogChannel syslogChannel;
 };
 
-/// configured cache.log file or stderr
+/// cache_log file
 /// safe during static initialization, even if it has not been constructed yet
+/// safe during program termination, even if it has been destructed already
 static DebugFile TheLog;
+
+FILE *
+DebugStream() {
+    return TheLog.file() ? TheLog.file() : stderr;
+}
 
 /* DebugModule */
 
@@ -348,11 +354,6 @@ Module() {
     }
 
     return *Module_;
-}
-
-FILE *
-DebugStream() {
-    return TheLog.file() ? TheLog.file() : stderr;
 }
 
 void
