@@ -155,6 +155,9 @@ public:
     // no copying or moving or any kind (for simplicity sake and to prevent accidental copies)
     DebugChannel(DebugChannel &&) = delete;
 
+    /// whether we are still expecting (and buffering) early messages
+    bool collectingEarlyMessages() const { return bool(earlyMessages); }
+
     /// end early message buffering, logging any saved messages
     void stopEarlyMessageCollection();
 
@@ -312,9 +315,9 @@ DebugModule::log(const DebugMessageHeader &header, const std::string &body)
 void
 DebugModule::swanSong()
 {
-    // If we have not opened cache_log yet, flushing its channel would do
-    // nothing. Switch to stderr to improve our chances to print saved messages.
-    if (!TheLog.file())
+    // Switch to stderr to improve our chances to log _early_ debugs(). However,
+    // use existing cache_log and/or stderr levels for post-open/close ones.
+    if (cacheLogChannel.collectingEarlyMessages() && !TheLog.file())
         banCacheLogUse();
 
     cacheLogChannel.stopEarlyMessageCollection();
@@ -331,7 +334,7 @@ DebugModule::useCacheLog()
 {
     assert(TheLog.file());
     stderrChannel.stopCoveringCacheLog(); // in case it was covering
-    cacheLogChannel.stopEarlyMessageCollection();
+    cacheLogChannel.stopEarlyMessageCollection(); // in case it was collecting
 }
 
 void
