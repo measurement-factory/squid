@@ -118,6 +118,9 @@ public:
     /// Call this or UseCacheLog() to stop early message accumulation.
     static void BanCacheLogging();
 
+    /// Stops using cache_log (if it was in use). No effect on stderr use.
+    static void StopCacheLogUse();
+
     /* stderr */
 
     /// In the absence of ResetErrChannelLevel() calls, future debugs() messages

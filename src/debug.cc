@@ -991,6 +991,13 @@ Debug::BanCacheLogging()
 }
 
 void
+Debug::StopCacheLogUse()
+{
+    TheLog.clear(); // may already be closed
+    Module().cacheLogChannel.stopEarlyMessageCollection(); // may already be stopped
+}
+
+void
 Debug::SettleSysLogChannel()
 {
 #if HAVE_SYSLOG && defined(LOG_LOCAL4)
