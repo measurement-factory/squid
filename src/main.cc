@@ -1726,8 +1726,6 @@ SquidMain(int argc, char **argv)
 static void
 sendSignal(void)
 {
-    StopUsingDebugLog();
-
 #if USE_WIN32_SERVICE
     // WIN32_sendSignal() does not need the PID value to signal,
     // but we must exit if there is no valid PID (TODO: Why?).

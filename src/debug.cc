@@ -354,12 +354,6 @@ DebugStream() {
 }
 
 void
-StopUsingDebugLog()
-{
-    TheLog.clear();
-}
-
-void
 ResyncDebugLog(FILE *newFile)
 {
     TheLog.file_ = newFile;

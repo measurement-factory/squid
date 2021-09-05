@@ -27,7 +27,6 @@ int Debug::override_X = 0;
 bool Debug::log_syslog = false;
 void Debug::ForceAlert() STUB
 
-void StopUsingDebugLog() STUB
 void ResyncDebugLog(FILE *) STUB
 
 FILE *

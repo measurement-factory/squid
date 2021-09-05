@@ -153,9 +153,6 @@ FILE *DebugStream();
 /// change-avoidance macro; new code should call DebugStream() instead
 #define debug_log DebugStream()
 
-/// start logging to stderr (instead of cache.log, if any)
-void StopUsingDebugLog();
-
 /// a hack for low-level file descriptor manipulations in ipcCreate()
 void ResyncDebugLog(FILE *newDestination);
 
