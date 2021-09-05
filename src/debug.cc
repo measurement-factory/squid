@@ -262,7 +262,7 @@ public:
     ~DebugModule() = delete;
 
     /// \copydoc Debug::SwanSong()
-    void flush();
+    void swanSong();
 
     /// Log the given debugs() message to appropriate channel(s) (eventually).
     /// Assumes the message has passed the global section/level filter.
@@ -311,11 +311,16 @@ DebugModule::log(const DebugMessageHeader &header, const std::string &body)
 }
 
 void
-DebugModule::flush()
+DebugModule::swanSong()
 {
+    // If we have not opened cache_log yet, flushing its channel would do
+    // nothing. Switch to stderr to improve our chances to print saved messages.
+    if (!TheLog.file())
+        banCacheLog();
+
+    cacheLogChannel.stopEarlyMessageCollection();
     stderrChannel.stopEarlyMessageCollection();
     syslogChannel.stopEarlyMessageCollection();
-    cacheLogChannel.stopEarlyMessageCollection();
 }
 
 void
@@ -368,13 +373,10 @@ DebugChannel::stopEarlyMessageCollection()
         log(*toLog);
 }
 
-// XXX: call banCacheLog() if necessary to force logging of buffered
-// messages. Otherwise, they will not be shown if we have not opened cache_log
-// before abort()ing.
 void
 Debug::SwanSong()
 {
-    Module().flush();
+    Module().swanSong();
 }
 
 void
