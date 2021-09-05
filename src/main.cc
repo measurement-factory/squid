@@ -490,7 +490,7 @@ mainHandleCommandLineOption(const int optId, const char *optValue)
     case 'X':
         /** \par X
          * Force full debugging */
-        Debug::ConfigureOptions("rotate=0 ALL,9");
+        Debug::parseOptions("rotate=0 ALL,9");
         Debug::override_X = 1;
         sigusr2_handle(SIGUSR2);
         break;
@@ -525,7 +525,7 @@ mainHandleCommandLineOption(const int optId, const char *optValue)
         /** \par d
          * debugs() messages with the given debugging level (and the more
          * important ones) should be written to stderr */
-        Debug::ResetErrLogLevel(xatoi(optValue));
+        Debug::ResetErrChannelLevel(xatoi(optValue));
         break;
 
     case 'f':
@@ -591,7 +591,7 @@ mainHandleCommandLineOption(const int optId, const char *optValue)
 
         // Cannot use cache.log: use stderr for important messages (by default)
         // and stop expecting a Debug::SettleCacheLogging() call.
-        Debug::EnsureDefaultErrLogLevel(DBG_IMPORTANT);
+        Debug::EnsureDefaultErrChannelLevel(DBG_IMPORTANT);
         Debug::BanCacheLogging();
         break;
 
@@ -650,7 +650,7 @@ mainHandleCommandLineOption(const int optId, const char *optValue)
     case 's':
         /** \par s
          * Initialize the syslog for output */
-        Debug::ConfigureSysLogging(opt_syslog_facility);
+        Debug::ConfigureSysLog(opt_syslog_facility);
         break;
 
     case 'u':
@@ -693,7 +693,7 @@ mainHandleCommandLineOption(const int optId, const char *optValue)
         opt_create_swap_dirs = 1;
         // We will use cache.log, but this command is often executed on the
         // command line, so use stderr to show important messages (by default).
-        Debug::EnsureDefaultErrLogLevel(DBG_IMPORTANT);
+        Debug::EnsureDefaultErrChannelLevel(DBG_IMPORTANT);
         break;
 
     case optForeground:
@@ -1356,7 +1356,7 @@ OnTerminate()
 
     debugs(1, DBG_CRITICAL, "FATAL: Dying from an exception handling failure; exception: " << CurrentException);
 
-    Debug::Flush();
+    Debug::SwanSong();
 
     abort();
 }
@@ -1444,7 +1444,7 @@ ConfigureDebugging()
         fd_open(2, FD_LOG, "stderr");
     }
     // we should not create cache.log outside chroot environment, if any
-    // XXX: With Config.chroot_dir set, SMP master process calls BanCacheLogging() here.
+    // XXX: With Config.chroot_dir set, SMP master process never calls Debug::UseCacheLog().
     if (!Config.chroot_dir || Chrooted)
         Debug::UseCacheLog();
     else
@@ -1538,8 +1538,8 @@ SquidMain(int argc, char **argv)
 
     cmdLine.forEachOption(mainHandleCommandLineOption);
 
-    Debug::SettleErrLogging();
-    Debug::SettleSysLogging();
+    Debug::SettleErrChannel();
+    Debug::SettleSysLogChannel();
 
     if (opt_foreground && opt_no_daemon) {
         debugs(1, DBG_CRITICAL, "WARNING: --foreground command-line option has no effect with -N.");
@@ -1954,7 +1954,7 @@ watch_child(const CommandLine &masterCommand)
 
     dup2(nullfd, 0);
 
-    if (!Debug::ErrLogEnabled()) {
+    if (!Debug::ErrChannelEnabled()) {
         dup2(nullfd, 1);
         dup2(nullfd, 2);
     }

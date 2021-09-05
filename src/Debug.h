@@ -80,7 +80,7 @@ public:
     static int override_X;
     static bool log_syslog;
 
-    static void ConfigureOptions(char const *);
+    static void parseOptions(char const *);
 
     /// debugging section of the current debugs() call
     static int Section() { return Current ? Current->section : 0; }
@@ -100,48 +100,48 @@ public:
     /// prefixes each grouped debugs() line after the first one in the group
     static std::ostream& Extra(std::ostream &os) { return os << "\n    "; }
 
-    /// Ensure that any previously buffered debugs() messages are written.
-    static void Flush();
+    /// reacts to ongoing program termination (e.g., flushes buffered messages)
+    static void SwanSong();
 
-    /* cache.log */
+    /* cache_log */
 
-    /// Ensures that the cache_log file location has been specified.
-    /// Opens the configured cache_log file.
+    /// Opens and starts using the configured cache_log file.
     /// Also applies configured debug_options (if any).
     /// Call this or BanCacheLogging() to stop early message accumulation.
     static void UseCacheLog();
 
-    /// Ensures that the cache_log file has not been opened.
+    /// Honors the decision to use stderr instead of a cache_log file.
     /// Also applies configured debug_options (if any).
     /// Call this or UseCacheLog() to stop early message accumulation.
     static void BanCacheLogging();
 
-    /* errlog */
+    /* stderr */
 
-    /// In the absence of ResetErrLogLevel() calls, future debugs() messages
+    /// In the absence of ResetErrChannelLevel() calls, future debugs() messages
     /// with the given (or lower) level will be written to stderr (at least). If
-    /// called many times, the highest parameter wins. Calls have no effect if
-    /// ResetErrLogLevel() is called before/after this default-setting method.
-    static void EnsureDefaultErrLogLevel(int maxDefault);
+    /// called many times, the highest parameter wins. ResetErrChannelLevel()
+    /// overwrites this default-setting method, regardless of the calls order.
+    static void EnsureDefaultErrChannelLevel(int maxDefault);
 
     /// Future debugs() messages with the given (or lower) level will be written
     /// to stderr (at least). If called many times, the last call wins.
-    static void ResetErrLogLevel(int maxLevel);
+    static void ResetErrChannelLevel(int maxLevel);
 
-    /// called after the last EnsureDefaultErrLogLevel()/ResetErrLogLevel() call
-    static void SettleErrLogging();
+    /// Finalizes stderr configuration when no (more) ResetErrChannelLevel() and
+    /// EnsureDefaultErrChannelLevel() calls are expected.
+    static void SettleErrChannel();
 
-    /// Whether some debugs() messages may be written to errlog.
-    /// The result may change until UseCacheLog() error, FinalizeErrLogLevel().
-    static bool ErrLogEnabled();
+    /// Whether at least some debugs() messages may be written to stderr. The
+    /// answer may be affected by BanCacheLogging() and SettleErrChannel().
+    static bool ErrChannelEnabled();
 
     /* syslog */
 
     /// enables logging to syslog (using the specified facility, when not nil)
-    static void ConfigureSysLogging(const char *facility);
+    static void ConfigureSysLog(const char *facility);
 
-    /// called after the last ConfigureSysLogging() call (if any)
-    static void SettleSysLogging();
+    /// called after the last ConfigureSysLog() call (if any)
+    static void SettleSysLogChannel();
 
 private:
     static Context *Current; ///< deepest active context; nil outside debugs()

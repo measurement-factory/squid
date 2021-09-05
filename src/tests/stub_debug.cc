@@ -25,7 +25,6 @@ int Debug::rotateNumber = 0;
 int Debug::Levels[MAX_DEBUG_SECTIONS];
 int Debug::override_X = 0;
 bool Debug::log_syslog = false;
-
 void Debug::ForceAlert() STUB
 
 void StopUsingDebugLog() STUB
@@ -56,12 +55,12 @@ LogMessage(const std::string &message)
 }
 
 bool
-Debug::ErrLogEnabled() STUB_RETVAL(false)
+Debug::ErrChannelEnabled() STUB_RETVAL(false)
 
-void Debug::Flush() STUB
+void Debug::SwanSong() STUB
 
 void
-Debug::ConfigureOptions(char const *)
+Debug::parseOptions(char const *)
 {}
 
 Debug::Context *Debug::Current = nullptr;
