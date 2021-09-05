@@ -76,7 +76,7 @@ ResetSections(const int level)
         Debug::Levels[i] = level;
 }
 
-/// a named FILE* that supports three states: closed/unopened, open, failed.
+/// a named C stream (a.k.a. FILE)
 class DebugFile
 {
 public:
@@ -90,12 +90,7 @@ public:
     /// go back to the initial state
     void clear() { reset(nullptr, nullptr); }
 
-    /// react to a failure to open the cache_log file
-    void noteFailure();
-
-    bool failed() { return failed_; }
-
-    /// cache_log stream or nil
+    /// an opened cache_log stream or nil
     FILE *file() { return file_; }
 
     char *name = nullptr;
@@ -104,8 +99,6 @@ private:
     friend void ResyncDebugLog(FILE *newFile);
 
     FILE *file_ = nullptr; ///< opened "real" file or nil; never stderr
-
-    bool failed_ = false; ///< whether noteFailure() was called
 };
 
 /// debugs() meta-information
@@ -576,12 +569,6 @@ DebugMessage::DebugMessage(const Header &aHeader, const std::string &aBody):
 
 /* DebugFile */
 
-void DebugFile::noteFailure()
-{
-    clear();
-    failed_ = true;
-}
-
 void
 DebugFile::reset(FILE *newFile, const char *newName)
 {
@@ -750,7 +737,7 @@ debugOpenLog(const char *logfile)
         Module().useCacheLog();
     } else {
         const auto xerrno = errno;
-        TheLog.noteFailure();
+        TheLog.clear();
         Module().banCacheLog();
 
         // Report the problem after the switch above to improve our chances of
