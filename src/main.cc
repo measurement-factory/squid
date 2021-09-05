@@ -1867,14 +1867,15 @@ masterSignaled()
 static void
 GoIntoBackground()
 {
-    // XXX: This fork() effectively dupes EarlyMessages in debug.cc. Both the
-    // head and master processes then dump them to stderr (squid -d1).
     pid_t pid;
     if ((pid = fork()) < 0) {
         int xerrno = errno;
         throw TexcHere(ToSBuf("failed to fork(2) the master process: ", xstrerr(xerrno)));
     } else if (pid > 0) {
         // parent
+        // The fork() effectively duped any saved debugs() messages. For
+        // simplicity sake, let the child process deal with them.
+        Debug::ForgetSaved();
         exit(EXIT_SUCCESS);
     }
     // child, running as a background daemon
@@ -2165,7 +2166,8 @@ SquidShutdown()
 
     debugs(1, DBG_IMPORTANT, "Squid Cache (Version " << version_string << "): Exiting normally.");
 
-    /*
+    /* TODO: (Re)move correct but increasingly misplaced comment: We
+     * exit() in many places, not just here.
      * DPW 2006-10-23
      * We used to fclose(debug_log) here if it was set, but then
      * we forgot to set it to NULL.  That caused some coredumps

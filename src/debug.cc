@@ -374,6 +374,15 @@ DebugChannel::stopEarlyMessageCollection()
 }
 
 void
+Debug::ForgetSaved()
+{
+    auto &module = Module();
+    (void)module.cacheLogChannel.releaseEarlyMessages();
+    (void)module.stderrChannel.releaseEarlyMessages();
+    (void)module.syslogChannel.releaseEarlyMessages();
+}
+
+void
 Debug::SwanSong()
 {
     Module().swanSong();

@@ -100,6 +100,9 @@ public:
     /// prefixes each grouped debugs() line after the first one in the group
     static std::ostream& Extra(std::ostream &os) { return os << "\n    "; }
 
+    /// silently erases saved early debugs() messages (if any)
+    static void ForgetSaved();
+
     /// reacts to ongoing program termination (e.g., flushes buffered messages)
     static void SwanSong();
 
