@@ -110,36 +110,36 @@ public:
 
     /// Opens and starts using the configured cache_log file.
     /// Also applies configured debug_options (if any).
-    /// Call this or BanCacheLogging() to stop early message accumulation.
+    /// Call this or BanCacheLogUse() to stop early message accumulation.
     static void UseCacheLog();
 
-    /// Honors the decision to use stderr instead of a cache_log file.
+    /// Stops using cache_log (if it was in use).
+    static void StopCacheLogUse();
+
+    /// Starts using stderr as a cache_log file replacement.
     /// Also applies configured debug_options (if any).
     /// Call this or UseCacheLog() to stop early message accumulation.
-    static void BanCacheLogging();
-
-    /// Stops using cache_log (if it was in use). No effect on stderr use.
-    static void StopCacheLogUse();
+    static void BanCacheLogUse();
 
     /* stderr */
 
-    /// In the absence of ResetErrChannelLevel() calls, future debugs() messages
-    /// with the given (or lower) level will be written to stderr (at least). If
-    /// called many times, the highest parameter wins. ResetErrChannelLevel()
+    /// In the absence of ResetStderrChannelLevel() calls, future debugs() with
+    /// the given (or lower) level will be written to stderr (at least). If
+    /// called many times, the highest parameter wins. ResetStderrChannelLevel()
     /// overwrites this default-setting method, regardless of the calls order.
-    static void EnsureDefaultErrChannelLevel(int maxDefault);
+    static void EnsureDefaultStderrChannelLevel(int maxDefault);
 
     /// Future debugs() messages with the given (or lower) level will be written
     /// to stderr (at least). If called many times, the last call wins.
-    static void ResetErrChannelLevel(int maxLevel);
+    static void ResetStderrChannelLevel(int maxLevel);
 
-    /// Finalizes stderr configuration when no (more) ResetErrChannelLevel() and
-    /// EnsureDefaultErrChannelLevel() calls are expected.
-    static void SettleErrChannel();
+    /// Finalizes stderr configuration when no (more) ResetStderrChannelLevel()
+    /// and EnsureDefaultStderrChannelLevel() calls are expected.
+    static void SettleStderrChannel();
 
     /// Whether at least some debugs() messages may be written to stderr. The
-    /// answer may be affected by BanCacheLogging() and SettleErrChannel().
-    static bool ErrChannelEnabled();
+    /// answer may be affected by BanCacheLogUse() and SettleStderrChannel().
+    static bool StderrChannelEnabled();
 
     /* syslog */
 

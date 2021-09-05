@@ -43,10 +43,10 @@ const char *XXX_Role = nullptr;
 /// debugs() messages with this (or lower) level will be written to stderr
 /// (and possibly other channels). Negative values disable stderr logging.
 /// This restriction is ignored if Squid tries but fails to open cache.log.
-static int MaxErrChannelLevel = -1;
+static int StderrChannelLevel = -1;
 
-/// MaxErrChannelLevel default; ignored after FinalizeErrChannelLevel()
-static int MaxErrChannelLevelDefault = -1;
+/// StderrChannelLevel default; ignored after FinalizeStderrChannelLevel()
+static int StderrChannelLevelDefault = -1;
 
 static const char *debugLogTime(time_t t);
 static const char *debugLogKid(void);
@@ -66,7 +66,7 @@ static void ResetSections(const int level = DBG_IMPORTANT);
 static const char *myLeadingRole_XXX();
 
 /// early debugs() with higher level are not buffered and, hence, may be lost
-static constexpr int EarlyMessagesMaxLevel = DBG_IMPORTANT;
+static constexpr int EarlyMessagesLevel = DBG_IMPORTANT;
 
 /// used for the side effect: fills Debug::Levels with the given level
 static void
@@ -209,10 +209,10 @@ public:
 };
 
 /// DebugChannel managing messages destined for "standard error stream" (stderr)
-class ErrChannel: public DebugChannel
+class StderrChannel: public DebugChannel
 {
 public:
-    ErrChannel(): DebugChannel("stderr") {}
+    StderrChannel(): DebugChannel("stderr") {}
 
     /// whether maybeLog() ought to log a corresponding debugs() message
     /// (assuming some higher-level code applied cache.log section/level filter)
@@ -267,11 +267,11 @@ public:
 
     /// Start using stderr as the primary debugs() destination.
     /// Stop waiting for an open cache_log file (if we were doing that).
-    void banCacheLog();
+    void banCacheLogUse();
 
 public:
     CacheLogChannel cacheLogChannel;
-    ErrChannel stderrChannel;
+    StderrChannel stderrChannel;
     SyslogChannel syslogChannel;
 };
 
@@ -315,7 +315,7 @@ DebugModule::swanSong()
     // If we have not opened cache_log yet, flushing its channel would do
     // nothing. Switch to stderr to improve our chances to print saved messages.
     if (!TheLog.file())
-        banCacheLog();
+        banCacheLogUse();
 
     cacheLogChannel.stopEarlyMessageCollection();
     stderrChannel.stopEarlyMessageCollection();
@@ -335,7 +335,7 @@ DebugModule::useCacheLog()
 }
 
 void
-DebugModule::banCacheLog()
+DebugModule::banCacheLogUse()
 {
     assert(!TheLog.file());
     stderrChannel.takeOver(cacheLogChannel);
@@ -406,10 +406,10 @@ DebugChannel::saveMessage(const DebugMessageHeader &header, const std::string &b
     if (!earlyMessages)
         return false;
 
-    if (header.level > EarlyMessagesMaxLevel)
+    if (header.level > EarlyMessagesLevel)
         return false;
 
-    // There should not be a lot of messages because EarlyMessagesMaxLevel is
+    // There should not be a lot of messages because EarlyMessagesLevel is
     // small, but we limit their accumulation just in case.
     const DebugMessages::size_type limit = 1000;
     DebugMessages::size_type purged = 0;
@@ -475,21 +475,21 @@ CacheLogChannel::handleOverflow(DebugMessages &doomedMessages)
     Module().stderrChannel.log(doomedMessages);
 }
 
-/* ErrChannel */
+/* StderrChannel */
 
 bool
-ErrChannel::shouldLog(const int level, const bool scheduledToBeDropped) const
+StderrChannel::shouldLog(const int level, const bool scheduledToBeDropped) const
 {
     if (!stderr)
         return false; // nowhere to log
 
     // whether the given level is allowed by circumstances (coveringForCacheLog,
     // early message storage overflow, etc.) or configuration (-d, -k, etc.)
-    return coveringForCacheLog || scheduledToBeDropped || level <= MaxErrChannelLevel;
+    return coveringForCacheLog || scheduledToBeDropped || level <= StderrChannelLevel;
 }
 
 void
-ErrChannel::maybeLog(const DebugMessageHeader &header, const std::string &body)
+StderrChannel::maybeLog(const DebugMessageHeader &header, const std::string &body)
 {
     assert(header.recordNumber > lastLoggedRecordNumber);
 
@@ -507,7 +507,7 @@ ErrChannel::maybeLog(const DebugMessageHeader &header, const std::string &body)
 }
 
 void
-ErrChannel::takeOver(CacheLogChannel &cacheLogChannel)
+StderrChannel::takeOver(CacheLogChannel &cacheLogChannel)
 {
     if (coveringForCacheLog)
         return;
@@ -522,7 +522,7 @@ ErrChannel::takeOver(CacheLogChannel &cacheLogChannel)
 }
 
 void
-ErrChannel::stopCoveringCacheLog()
+StderrChannel::stopCoveringCacheLog()
 {
     if (!coveringForCacheLog)
         return;
@@ -532,30 +532,30 @@ ErrChannel::stopCoveringCacheLog()
 }
 
 void
-Debug::EnsureDefaultErrChannelLevel(const int maxDefault)
+Debug::EnsureDefaultStderrChannelLevel(const int maxDefault)
 {
-    if (MaxErrChannelLevelDefault < maxDefault)
-        MaxErrChannelLevelDefault = maxDefault; // may set or increase
+    if (StderrChannelLevelDefault < maxDefault)
+        StderrChannelLevelDefault = maxDefault; // may set or increase
     // else: somebody has already requested a more permissive maximum
 }
 
 void
-Debug::ResetErrChannelLevel(const int maxLevel)
+Debug::ResetStderrChannelLevel(const int maxLevel)
 {
-    MaxErrChannelLevel = maxLevel; // may set, increase, or decrease
+    StderrChannelLevel = maxLevel; // may set, increase, or decrease
 }
 
 void
-Debug::SettleErrChannel()
+Debug::SettleStderrChannel()
 {
-    if (MaxErrChannelLevel < 0)
-        MaxErrChannelLevel = MaxErrChannelLevelDefault; // may remain disabled/negative
+    if (StderrChannelLevel < 0)
+        StderrChannelLevel = StderrChannelLevelDefault; // may remain disabled/negative
 
     Module().stderrChannel.stopEarlyMessageCollection();
 }
 
 bool
-Debug::ErrChannelEnabled()
+Debug::StderrChannelEnabled()
 {
     return Module().stderrChannel.shouldLog(DBG_CRITICAL, false);
 }
@@ -739,7 +739,7 @@ debugOpenLog(const char *logfile)
     } else {
         const auto xerrno = errno;
         TheLog.clear();
-        Module().banCacheLog();
+        Module().banCacheLogUse();
 
         // Report the problem after the switch above to improve our chances of
         // also reporting early debugs() messages (that should be logged first).
@@ -977,17 +977,17 @@ Debug::parseOptions(char const *options)
 }
 
 void
+Debug::BanCacheLogUse()
+{
+    Debug::parseOptions(debugOptions);
+    Module().banCacheLogUse();
+}
+
+void
 Debug::UseCacheLog()
 {
     Debug::parseOptions(debugOptions);
     debugOpenLog(cache_log);
-}
-
-void
-Debug::BanCacheLogging()
-{
-    Debug::parseOptions(debugOptions);
-    Module().banCacheLog();
 }
 
 void

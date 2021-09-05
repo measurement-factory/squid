@@ -525,7 +525,7 @@ mainHandleCommandLineOption(const int optId, const char *optValue)
         /** \par d
          * debugs() messages with the given debugging level (and the more
          * important ones) should be written to stderr */
-        Debug::ResetErrChannelLevel(xatoi(optValue));
+        Debug::ResetStderrChannelLevel(xatoi(optValue));
         break;
 
     case 'f':
@@ -591,8 +591,8 @@ mainHandleCommandLineOption(const int optId, const char *optValue)
 
         // Cannot use cache.log: use stderr for important messages (by default)
         // and stop expecting a Debug::SettleCacheLogging() call.
-        Debug::EnsureDefaultErrChannelLevel(DBG_IMPORTANT);
-        Debug::BanCacheLogging();
+        Debug::EnsureDefaultStderrChannelLevel(DBG_IMPORTANT);
+        Debug::BanCacheLogUse();
         break;
 
     case 'm':
@@ -693,7 +693,7 @@ mainHandleCommandLineOption(const int optId, const char *optValue)
         opt_create_swap_dirs = 1;
         // We will use cache.log, but this command is often executed on the
         // command line, so use stderr to show important messages (by default).
-        Debug::EnsureDefaultErrChannelLevel(DBG_IMPORTANT);
+        Debug::EnsureDefaultStderrChannelLevel(DBG_IMPORTANT);
         break;
 
     case optForeground:
@@ -1448,7 +1448,7 @@ ConfigureDebugging()
     if (!Config.chroot_dir || Chrooted)
         Debug::UseCacheLog();
     else
-        Debug::BanCacheLogging();
+        Debug::BanCacheLogUse();
 }
 
 static void
@@ -1538,7 +1538,7 @@ SquidMain(int argc, char **argv)
 
     cmdLine.forEachOption(mainHandleCommandLineOption);
 
-    Debug::SettleErrChannel();
+    Debug::SettleStderrChannel();
     Debug::SettleSysLogChannel();
 
     if (opt_foreground && opt_no_daemon) {
@@ -1953,7 +1953,7 @@ watch_child(const CommandLine &masterCommand)
 
     dup2(nullfd, 0);
 
-    if (!Debug::ErrChannelEnabled()) {
+    if (!Debug::StderrChannelEnabled()) {
         dup2(nullfd, 1);
         dup2(nullfd, 2);
     }
