@@ -119,7 +119,9 @@ Http::HeaderEditor::applyEach(SBuf &input, RegexPattern &pattern)
         mb.reset();
         matchedCount_++;
         result.append(s, pattern.startOffset());
-        format_->assemble(mb, al_, 0, &regexMatch);
+        ::Format::Format::AssembleParams params;
+        params.headerEditMatch = &regexMatch;
+        format_->assemble(mb, al_, &params);
         result.append(mb.content(), mb.contentSize());
         s += pattern.endOffset();
     }
@@ -142,7 +144,9 @@ Http::HeaderEditor::applyAll(SBuf &input, RegexPattern &pattern)
         if (matchedCount_ == 1) {
             static MemBuf mb;
             mb.reset();
-            format_->assemble(mb, al_, 0, &regexMatch);
+            ::Format::Format::AssembleParams params;
+            params.headerEditMatch = &regexMatch;
+            format_->assemble(mb, al_, &params);
             result.append(mb.content(), mb.contentSize());
         }
         s += pattern.endOffset();
@@ -163,7 +167,9 @@ Http::HeaderEditor::applyOne(SBuf &input, RegexPattern &pattern)
         mb.reset();
         matchedCount_++;
         result.append(s, pattern.startOffset());
-        format_->assemble(mb, al_, 0, &regexMatch);
+        ::Format::Format::AssembleParams params;
+        params.headerEditMatch = &regexMatch;
+        format_->assemble(mb, al_, &params);
         result.append(s, pattern.startOffset());
     }
     result.append(s);

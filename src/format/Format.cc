@@ -107,7 +107,7 @@ Format::AssembleOne(const char *token, MemBuf &mb, const AccessLogEntryPointer &
     if (ale != nullptr) {
         Format fmt("SimpleToken");
         fmt.format = &tkn;
-        fmt.assemble(mb, ale, 0, nullptr);
+        fmt.assemble(mb, ale, nullptr);
         fmt.format = nullptr;
     } else
         mb.append("-", 1);
@@ -375,7 +375,7 @@ actualRequestHeader(const AccessLogEntry::Pointer &al)
 }
 
 void
-Format::Format::assemble(MemBuf &mb, const AccessLogEntry::Pointer &al, int logSequenceNumber, const RegexMatch *regexMatch) const
+Format::Format::assemble(MemBuf &mb, const AccessLogEntry::Pointer &al, const AssembleParams *params) const
 {
     static char tmp[1024];
     SBuf sb;
@@ -869,8 +869,9 @@ Format::Format::assemble(MemBuf &mb, const AccessLogEntry::Pointer &al, int logS
             break;
 
         case LFT_REGEX_HEADER_EDIT:
-            if (regexMatch) {
-                sb = regexMatch->capture(fmt->data.reCaptureId);
+            assert(params);
+            if (params->headerEditMatch) {
+                sb = params->headerEditMatch->capture(fmt->data.reCaptureId);
                 out = sb.c_str();
             }
             break;
@@ -1212,7 +1213,8 @@ Format::Format::assemble(MemBuf &mb, const AccessLogEntry::Pointer &al, int logS
             break;
 
         case LFT_SEQUENCE_NUMBER:
-            outoff = logSequenceNumber;
+            assert(params);
+            outoff = params->logSequenceNumber;
             dooff = 1;
             break;
 
