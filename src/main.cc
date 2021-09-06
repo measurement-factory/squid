@@ -525,7 +525,7 @@ mainHandleCommandLineOption(const int optId, const char *optValue)
         /** \par d
          * debugs() messages with the given debugging level (and the more
          * important ones) should be written to stderr */
-        Debug::ResetStderrChannelLevel(xatoi(optValue));
+        Debug::ResetStderrLevel(xatoi(optValue));
         break;
 
     case 'f':
@@ -590,8 +590,8 @@ mainHandleCommandLineOption(const int optId, const char *optValue)
             usage();
 
         // Cannot use cache.log: use stderr for important messages (by default)
-        // and stop expecting a Debug::SettleCacheLogging() call.
-        Debug::EnsureDefaultStderrChannelLevel(DBG_IMPORTANT);
+        // and stop expecting a Debug::UseCacheLog() call.
+        Debug::EnsureDefaultStderrLevel(DBG_IMPORTANT);
         Debug::BanCacheLogUse();
         break;
 
@@ -650,7 +650,7 @@ mainHandleCommandLineOption(const int optId, const char *optValue)
     case 's':
         /** \par s
          * Initialize the syslog for output */
-        Debug::ConfigureSysLog(opt_syslog_facility);
+        Debug::ConfigureSyslog(opt_syslog_facility);
         break;
 
     case 'u':
@@ -693,7 +693,9 @@ mainHandleCommandLineOption(const int optId, const char *optValue)
         opt_create_swap_dirs = 1;
         // We will use cache.log, but this command is often executed on the
         // command line, so use stderr to show important messages (by default).
-        Debug::EnsureDefaultStderrChannelLevel(DBG_IMPORTANT);
+        // TODO: Generalize/fix this -z-specific and sometimes faulty logic with
+        // "use stderr when it is a tty [until we GoIntoBackground()]" logic.
+        Debug::EnsureDefaultStderrLevel(DBG_IMPORTANT);
         break;
 
     case optForeground:
@@ -1444,7 +1446,7 @@ ConfigureDebugging()
         fd_open(2, FD_LOG, "stderr");
     }
     // we should not create cache.log outside chroot environment, if any
-    // XXX: With Config.chroot_dir set, SMP master process never calls Debug::UseCacheLog().
+    // XXX: With Config.chroot_dir set, SMP master process calls Debug::BanCacheLogUse().
     if (!Config.chroot_dir || Chrooted)
         Debug::UseCacheLog();
     else
@@ -1538,8 +1540,8 @@ SquidMain(int argc, char **argv)
 
     cmdLine.forEachOption(mainHandleCommandLineOption);
 
-    Debug::SettleStderrChannel();
-    Debug::SettleSysLogChannel();
+    Debug::SettleStderr();
+    Debug::SettleSyslog();
 
     if (opt_foreground && opt_no_daemon) {
         debugs(1, DBG_CRITICAL, "WARNING: --foreground command-line option has no effect with -N.");
@@ -1953,7 +1955,7 @@ watch_child(const CommandLine &masterCommand)
 
     dup2(nullfd, 0);
 
-    if (!Debug::StderrChannelEnabled()) {
+    if (!Debug::StderrEnabled()) {
         dup2(nullfd, 1);
         dup2(nullfd, 2);
     }

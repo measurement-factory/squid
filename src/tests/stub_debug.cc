@@ -54,7 +54,7 @@ LogMessage(const std::string &message)
 }
 
 bool
-Debug::StderrChannelEnabled() STUB_RETVAL(false)
+Debug::StderrEnabled() STUB_RETVAL(false)
 
 void Debug::SwanSong() STUB
 

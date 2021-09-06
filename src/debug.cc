@@ -36,24 +36,23 @@ class DebugModule;
 /// Debugging module singleton.
 static DebugModule *Module_ = nullptr;
 
-/// a cached calculateMyLeadingRole() result
-extern const char *XXX_Role;
-const char *XXX_Role = nullptr;
-
 /// Explicitly configured maximum level for debugs() messages written to stderr.
 /// debugs() messages with this (or lower) level will be written to stderr (and
 /// possibly other channels).
-static int ExplicitStderrChannelLevel = -1;
-// TODO: Use static Optional<int> ExplicitStderrChannelLevel;
-static bool ExplicitStderrChannelLevelSet = false;
+static int ExplicitStderrLevel = -1;
+// TODO: Use static Optional<int> ExplicitStderrLevel;
+static bool ExplicitStderrLevelSet = false;
 
-/// ExplicitStderrChannelLevel preference or default: Just like with
-/// ExplicitStderrChannelLevel, debugs() messages with this (or lower) level
+/// ExplicitStderrLevel preference or default: Just like with
+/// ExplicitStderrLevel, debugs() messages with this (or lower) level
 /// will be written to stderr (and possibly other channels), but this setting is
-/// ignored when ExplicitStderrChannelLevel is set. This setting is also ignored
+/// ignored when ExplicitStderrLevel is set. This setting is also ignored
 /// after major problems that prevent logging of important debugs() messages
 /// (e.g., failing to open cache_log or early message buffer overflow).
-static int DefaultStderrChannelLevel = -1;
+static int DefaultStderrLevel = -1;
+
+/// early debugs() with higher level are not buffered and, hence, may be lost
+static constexpr int EarlyMessagesLevel = DBG_IMPORTANT;
 
 static const char *debugLogTime(time_t t);
 static const char *debugLogKid(void);
@@ -70,18 +69,10 @@ typedef BOOL (WINAPI * PFInitializeCriticalSectionAndSpinCount) (LPCRITICAL_SECT
 
 static void ResetSections(const int level = DBG_IMPORTANT);
 
+/// a cached calculateMyLeadingRole() result
+extern const char *XXX_Role;
+const char *XXX_Role = nullptr;
 static const char *myLeadingRole_XXX();
-
-/// early debugs() with higher level are not buffered and, hence, may be lost
-static constexpr int EarlyMessagesLevel = DBG_IMPORTANT;
-
-/// used for the side effect: fills Debug::Levels with the given level
-static void
-ResetSections(const int level)
-{
-    for (auto i = 0; i < MAX_DEBUG_SECTIONS; ++i)
-        Debug::Levels[i] = level;
-}
 
 /// a named C stream (a.k.a. FILE)
 class DebugFile
@@ -118,7 +109,7 @@ public:
         section(Debug::Section()),
         level(Debug::Level()),
         forceAlert(doForceAlert),
-        scheduledToBeDropped(false),
+        overflowed(false),
         role_XXX(myLeadingRole_XXX())
     {
     }
@@ -129,9 +120,9 @@ public:
     int level; ///< debugs() level
     bool forceAlert; ///< debugs() forceAlert flag
 
-    /// whether the message will be removed from the early saved messages buffer
-    /// after the current logging attempt
-    bool scheduledToBeDropped;
+    /// the message was deemed important enough to save earlier but was purged
+    /// from the early saved messages buffer now (to free space for new ones)
+    bool overflowed;
 
     const char *role_XXX; ///< debugs() caller process role
 };
@@ -169,15 +160,15 @@ public:
     void stopEarlyMessageCollection();
 
     /// end early message buffering, without logging any saved messages
-    /// \returns any saved messages (or nil)
+    /// \returns (a possibly empty container with) saved messages or nil
     EarlyMessages releaseEarlyMessages() { return EarlyMessages(earlyMessages.release()); }
 
     /// Log the message to the channel if the channel accepts (such) messages.
     /// This logging may be delayed until the channel configuration is settled.
-    virtual void maybeLog(const DebugMessageHeader &, const std::string &body) = 0;
+    virtual void log(const DebugMessageHeader &, const std::string &body) = 0;
 
-    /// maybeLog() the given (saved but not yet written "early") messages
-    void log(const DebugMessages &);
+    /// log() all the given (saved but not yet written "early") messages
+    void logSaved(const DebugMessages &);
 
 protected:
     /// stores the given early message (if possible) or forgets it (otherwise)
@@ -188,22 +179,23 @@ protected:
     virtual void handleOverflow(DebugMessages &) {}
 
     /// Formats a validated debugs() record and writes it to the given FILE.
-    void logToStream(FILE &, const DebugMessageHeader &, const std::string &body);
+    void writeToStream(FILE &, const DebugMessageHeader &, const std::string &body);
 
     /// reacts to a written a debugs() message
-    void noteLogged(const DebugMessageHeader &header);
+    void noteWritten(const DebugMessageHeader &header);
 
 protected:
     const char * const name = nullptr; ///< unique channel label for debugging
 
-    DebugRecordCount logged = 0; ///< the number of messages logged so far
+    /// the number of messages sent to the underlying channel so far
+    DebugRecordCount written = 0;
 
-    /// DebugMessageHeader::recordNumber of the last message we logged
-    DebugRecordCount lastLoggedRecordNumber = 0;
+    /// DebugMessageHeader::recordNumber of the last message we wrote
+    DebugRecordCount lastWrittenRecordNumber = 0;
 
     /// debugs() messages waiting for the channel configuration to settle (and
     /// the channel to open) so that their eligibility for logging can be
-    /// determined (and the messages can be actually logged somewhere)
+    /// determined (and the messages can be actually written somewhere)
     EarlyMessages earlyMessages;
 };
 
@@ -214,7 +206,7 @@ public:
     CacheLogChannel(): DebugChannel("cache_log") {}
 
     /* DebugChannel API */
-    virtual void maybeLog(const DebugMessageHeader &, const std::string &body) final;
+    virtual void log(const DebugMessageHeader &, const std::string &body) final;
     virtual void handleOverflow(DebugMessages &) final;
 };
 
@@ -224,18 +216,18 @@ class StderrChannel: public DebugChannel
 public:
     StderrChannel(): DebugChannel("stderr") {}
 
-    /// whether maybeLog() ought to log a corresponding debugs() message
+    /// whether log() ought to write the corresponding debugs() message
     /// (assuming some higher-level code applied cache.log section/level filter)
-    bool shouldLog(const int level, const bool scheduledToBeDropped) const;
+    bool shouldWrite(const int level, const bool overflowed) const;
 
     /* DebugChannel API */
-    virtual void maybeLog(const DebugMessageHeader &, const std::string &body) final;
+    virtual void log(const DebugMessageHeader &, const std::string &body) final;
 
-    /// Start to take care of past/saved and future cacheLogChannel messages.
+    /// start to take care of past/saved and future cacheLogChannel messages
     void takeOver(CacheLogChannel &);
 
-    /// Stop providing a cache_log replacement (if we were providing it).
-    void stopCoveringCacheLog();
+    /// stop providing a cache_log replacement (if we were providing it)
+    void stopCoveringForCacheLog();
 
 private:
     /// whether we are the last resort for logging debugs() messages
@@ -249,7 +241,7 @@ public:
     SyslogChannel(): DebugChannel("syslog") {}
 
     /* DebugChannel API */
-    virtual void maybeLog(const DebugMessageHeader &, const std::string &body) final;
+    virtual void log(const DebugMessageHeader &, const std::string &body) final;
 };
 
 /// Manages private module state that must be available during program startup
@@ -295,6 +287,14 @@ DebugStream() {
     return TheLog.file() ? TheLog.file() : stderr;
 }
 
+/// used for the side effect: fills Debug::Levels with the given level
+static void
+ResetSections(const int level)
+{
+    for (auto &sectionLevel: Debug::Levels)
+        sectionLevel = level;
+}
+
 /* DebugModule */
 
 // Depending on DBG_CRITICAL activity and command line options, this code may
@@ -314,9 +314,9 @@ DebugModule::DebugModule()
 void
 DebugModule::log(const DebugMessageHeader &header, const std::string &body)
 {
-    cacheLogChannel.maybeLog(header, body);
-    stderrChannel.maybeLog(header, body);
-    syslogChannel.maybeLog(header, body);
+    cacheLogChannel.log(header, body);
+    stderrChannel.log(header, body);
+    syslogChannel.log(header, body);
 }
 
 void
@@ -340,7 +340,7 @@ void
 DebugModule::useCacheLog()
 {
     assert(TheLog.file());
-    stderrChannel.stopCoveringCacheLog(); // in case it was covering
+    stderrChannel.stopCoveringForCacheLog(); // in case it was covering
     cacheLogChannel.stopEarlyMessageCollection(); // in case it was collecting
 }
 
@@ -359,7 +359,7 @@ Module() {
         Module_ = new DebugModule();
 #if !defined(HAVE_SYSLOG)
         // Optimization: Do not wait for others to tell us what we already know.
-        Debug::SettleSysLogChannel();
+        Debug::SettleSyslog();
 #endif
     }
 
@@ -378,7 +378,7 @@ void
 DebugChannel::stopEarlyMessageCollection()
 {
     if (const auto toLog = releaseEarlyMessages())
-        log(*toLog);
+        logSaved(*toLog);
 }
 
 void
@@ -397,16 +397,16 @@ Debug::SwanSong()
 }
 
 void
-DebugChannel::log(const DebugMessages &messages)
+DebugChannel::logSaved(const DebugMessages &messages)
 {
-    const auto loggedEarlier = logged;
+    const auto writtenEarlier = written;
     for (const auto &message: messages) {
         if (Debug::Enabled(message.header.section, message.header.level) &&
-                lastLoggedRecordNumber < message.header.recordNumber)
-            maybeLog(message.header, message.body);
+                lastWrittenRecordNumber < message.header.recordNumber)
+            log(message.header, message.body);
     }
-    const auto loggedNow = logged - loggedEarlier;
-    debugs(0, 5, "wrote " << loggedNow << " out of " <<
+    const auto writtenNow = written - writtenEarlier;
+    debugs(0, 5, "wrote " << writtenNow << " out of " <<
            messages.size() << " early messages to " << name);
 }
 
@@ -414,10 +414,10 @@ bool
 DebugChannel::saveMessage(const DebugMessageHeader &header, const std::string &body)
 {
     if (!earlyMessages)
-        return false;
+        return false; // we have stopped saving early messages
 
     if (header.level > EarlyMessagesLevel)
-        return false;
+        return false; // this message is not important enough to save
 
     // There should not be a lot of messages because EarlyMessagesLevel is
     // small, but we limit their accumulation just in case.
@@ -432,9 +432,9 @@ DebugChannel::saveMessage(const DebugMessageHeader &header, const std::string &b
 
     earlyMessages->emplace_back(header, body);
 
-    // Log/save the error message below _after_ saving the early message above,
-    // preserving the original event and LogMessage() order, like maybeLog().
     if (purged) {
+        // This debugs() should come _after_ we save the early message above,
+        // preserving the original event and LogMessage() order, like log().
         debugs(0, DBG_CRITICAL, "ERROR: Too many early important messages. " <<
                "Purged " << purged << " from " << name);
     }
@@ -443,29 +443,29 @@ DebugChannel::saveMessage(const DebugMessageHeader &header, const std::string &b
 }
 
 void
-DebugChannel::logToStream(FILE &destination, const DebugMessageHeader &header, const std::string &body)
+DebugChannel::writeToStream(FILE &destination, const DebugMessageHeader &header, const std::string &body)
 {
     fprintf(&destination, "role=%s # %s%s| %s\n",
             header.role_XXX,
             debugLogTime(header.timestamp),
             debugLogKid(),
             body.c_str());
-    noteLogged(header);
+    noteWritten(header);
 }
 
 void
-DebugChannel::noteLogged(const DebugMessageHeader &header)
+DebugChannel::noteWritten(const DebugMessageHeader &header)
 {
-    ++logged;
-    lastLoggedRecordNumber = header.recordNumber;
+    ++written;
+    lastWrittenRecordNumber = header.recordNumber;
 }
 
 /* CacheLogChannel */
 
 void
-CacheLogChannel::maybeLog(const DebugMessageHeader &header, const std::string &body)
+CacheLogChannel::log(const DebugMessageHeader &header, const std::string &body)
 {
-    assert(header.recordNumber > lastLoggedRecordNumber);
+    assert(header.recordNumber > lastWrittenRecordNumber);
 
     if (earlyMessages)
         return (void)saveMessage(header, body);
@@ -473,7 +473,7 @@ CacheLogChannel::maybeLog(const DebugMessageHeader &header, const std::string &b
     if (!TheLog.file())
         return;
 
-    logToStream(*TheLog.file(), header, body);
+    writeToStream(*TheLog.file(), header, body);
     fflush(TheLog.file());
 }
 
@@ -481,42 +481,42 @@ void
 CacheLogChannel::handleOverflow(DebugMessages &doomedMessages)
 {
     for (auto &message: doomedMessages)
-        message.header.scheduledToBeDropped = true;
-    Module().stderrChannel.log(doomedMessages);
+        message.header.overflowed = true;
+    Module().stderrChannel.logSaved(doomedMessages);
 }
 
 /* StderrChannel */
 
 bool
-StderrChannel::shouldLog(const int level, const bool scheduledToBeDropped) const
+StderrChannel::shouldWrite(const int level, const bool overflowed) const
 {
     if (!stderr)
-        return false; // nowhere to log
+        return false; // nowhere to write
 
-    if (ExplicitStderrChannelLevelSet) // explicit admin restrictions (-d)
-        return level <= ExplicitStderrChannelLevel;
+    if (ExplicitStderrLevelSet) // explicit admin restrictions (-d)
+        return level <= ExplicitStderrLevel;
 
     // whether the given level is allowed by circumstances (coveringForCacheLog,
-    // early message storage overflow, etc.) or configuration aspects (-k, -z).
-    return coveringForCacheLog || scheduledToBeDropped || level <= DefaultStderrChannelLevel;
+    // early message storage overflow, etc.) or configuration aspects (-k, -z)
+    return coveringForCacheLog || overflowed || level <= DefaultStderrLevel;
 }
 
 void
-StderrChannel::maybeLog(const DebugMessageHeader &header, const std::string &body)
+StderrChannel::log(const DebugMessageHeader &header, const std::string &body)
 {
-    assert(header.recordNumber > lastLoggedRecordNumber);
+    assert(header.recordNumber > lastWrittenRecordNumber);
 
     if (saveMessage(header, body))
         return;
 
-    if (!shouldLog(header.level, header.scheduledToBeDropped))
+    if (!shouldWrite(header.level, header.overflowed))
         return;
 
-    // We must log this eligible unsaved message, but we must log previously
-    // saved early messages before logToStream() below to avoid reordering.
+    // We must write this eligible unsaved message, but we must log previously
+    // saved early messages before writeToStream() below to avoid reordering.
     stopEarlyMessageCollection();
 
-    logToStream(*stderr, header, body);
+    writeToStream(*stderr, header, body);
 }
 
 void
@@ -524,18 +524,17 @@ StderrChannel::takeOver(CacheLogChannel &cacheLogChannel)
 {
     if (coveringForCacheLog)
         return;
-
     coveringForCacheLog = true;
 
     // Stop collecting before dumping cacheLogChannel messages so that we do not
     // end up saving messages already saved by cacheLogChannel.
     stopEarlyMessageCollection();
     if (const auto theirs = cacheLogChannel.releaseEarlyMessages())
-        log(*theirs);
+        logSaved(*theirs);
 }
 
 void
-StderrChannel::stopCoveringCacheLog()
+StderrChannel::stopCoveringForCacheLog()
 {
     if (!coveringForCacheLog)
         return;
@@ -545,30 +544,30 @@ StderrChannel::stopCoveringCacheLog()
 }
 
 void
-Debug::EnsureDefaultStderrChannelLevel(const int maxDefault)
+Debug::EnsureDefaultStderrLevel(const int maxDefault)
 {
-    if (DefaultStderrChannelLevel < maxDefault)
-        DefaultStderrChannelLevel = maxDefault; // may set or increase
+    if (DefaultStderrLevel < maxDefault)
+        DefaultStderrLevel = maxDefault; // may set or increase
     // else: somebody has already requested a more permissive maximum
 }
 
 void
-Debug::ResetStderrChannelLevel(const int maxLevel)
+Debug::ResetStderrLevel(const int maxLevel)
 {
-    ExplicitStderrChannelLevel = maxLevel; // may set, increase, or decrease
-    ExplicitStderrChannelLevelSet = true;
+    ExplicitStderrLevel = maxLevel; // may set, increase, or decrease
+    ExplicitStderrLevelSet = true;
 }
 
 void
-Debug::SettleStderrChannel()
+Debug::SettleStderr()
 {
     Module().stderrChannel.stopEarlyMessageCollection();
 }
 
 bool
-Debug::StderrChannelEnabled()
+Debug::StderrEnabled()
 {
-    return Module().stderrChannel.shouldLog(DBG_CRITICAL, false);
+    return Module().stderrChannel.shouldWrite(DBG_CRITICAL, false);
 }
 
 /* DebugMessage */
@@ -752,8 +751,8 @@ debugOpenLog(const char *logfile)
         TheLog.clear();
         Module().banCacheLogUse();
 
-        // Report the problem after the switch above to improve our chances of
-        // also reporting early debugs() messages (that should be logged first).
+        // report the problem after banCacheLogUse() to improve our chances of
+        // reporting earlier debugs() messages (that cannot be written after us)
         debugs(0, DBG_CRITICAL, "ERROR: Cannot open cache_log (" << logfilename << ") for writing;" <<
                Debug::Extra << "fopen(3) error: " << xstrerr(xerrno));
     }
@@ -922,14 +921,12 @@ SyslogPriority(const DebugMessageHeader &header)
 }
 
 void
-SyslogChannel::maybeLog(const DebugMessageHeader &header, const std::string &body)
+SyslogChannel::log(const DebugMessageHeader &header, const std::string &body)
 {
-    assert(header.recordNumber > lastLoggedRecordNumber);
+    assert(header.recordNumber > lastWrittenRecordNumber);
 
     if (earlyMessages)
         return (void)saveMessage(header, body);
-
-    /* level 0,1 go to syslog */
 
     if (!header.forceAlert) {
         if (header.level > DBG_IMPORTANT)
@@ -940,20 +937,20 @@ SyslogChannel::maybeLog(const DebugMessageHeader &header, const std::string &bod
     }
 
     syslog(SyslogPriority(header), "%s", body.c_str());
-    noteLogged(header);
+    noteWritten(header);
 }
 
 #else
 
 void
-SyslogChannel::maybeLog(const DebugMessageHeader &, const std::string &)
+SyslogChannel::log(const DebugMessageHeader &, const std::string &)
 {
     // nothing to do when we do not support logging to syslog
 }
 #endif /* HAVE_SYSLOG */
 
 void
-Debug::ConfigureSysLog(const char *facility)
+Debug::ConfigureSyslog(const char *facility)
 {
 #if HAVE_SYSLOG
     _db_set_syslog(facility);
@@ -1009,7 +1006,7 @@ Debug::StopCacheLogUse()
 }
 
 void
-Debug::SettleSysLogChannel()
+Debug::SettleSyslog()
 {
 #if HAVE_SYSLOG && defined(LOG_LOCAL4)
 

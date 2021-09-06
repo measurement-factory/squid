@@ -106,7 +106,7 @@ public:
     /// reacts to ongoing program termination (e.g., flushes buffered messages)
     static void SwanSong();
 
-    /* cache_log */
+    /* cache_log channel */
 
     /// Opens and starts using the configured cache_log file.
     /// Also applies configured debug_options (if any).
@@ -121,33 +121,34 @@ public:
     /// Call this or UseCacheLog() to stop early message accumulation.
     static void BanCacheLogUse();
 
-    /* stderr */
+    /* stderr channel */
 
-    /// In the absence of ResetStderrChannelLevel() calls, future debugs() with
+    /// In the absence of ResetStderrLevel() calls, future debugs() with
     /// the given (or lower) level will be written to stderr (at least). If
-    /// called many times, the highest parameter wins. ResetStderrChannelLevel()
+    /// called many times, the highest parameter wins. ResetStderrLevel()
     /// overwrites this default-setting method, regardless of the calls order.
-    static void EnsureDefaultStderrChannelLevel(int maxDefault);
+    static void EnsureDefaultStderrLevel(int maxDefault);
 
     /// Future debugs() messages with the given (or lower) level will be written
     /// to stderr (at least). If called many times, the last call wins.
-    static void ResetStderrChannelLevel(int maxLevel);
+    static void ResetStderrLevel(int maxLevel);
 
-    /// Finalizes stderr configuration when no (more) ResetStderrChannelLevel()
-    /// and EnsureDefaultStderrChannelLevel() calls are expected.
-    static void SettleStderrChannel();
+    /// Finalizes stderr configuration when no (more) ResetStderrLevel()
+    /// and EnsureDefaultStderrLevel() calls are expected.
+    static void SettleStderr();
 
     /// Whether at least some debugs() messages may be written to stderr. The
-    /// answer may be affected by BanCacheLogUse() and SettleStderrChannel().
-    static bool StderrChannelEnabled();
+    /// answer may be affected by BanCacheLogUse() and SettleStderr().
+    static bool StderrEnabled();
 
-    /* syslog */
+    /* syslog channel */
 
     /// enables logging to syslog (using the specified facility, when not nil)
-    static void ConfigureSysLog(const char *facility);
+    static void ConfigureSyslog(const char *facility);
 
-    /// called after the last ConfigureSysLog() call (if any)
-    static void SettleSysLogChannel();
+    /// Finalizes syslog configuration when no (more) ConfigureSyslog() calls
+    /// are expected.
+    static void SettleSyslog();
 
 private:
     static Context *Current; ///< deepest active context; nil outside debugs()
