@@ -37,25 +37,26 @@ public:
     ACLStrategised(ACLStrategised const &&) = delete;
 
     virtual char const *typeString() const;
-    virtual void parseFlags();
 
     virtual bool requiresRequest() const {return matcher->requiresRequest();}
 
     virtual bool requiresReply() const {return matcher->requiresReply();}
 
     virtual void prepareForUse() { data->prepareForUse();}
-    virtual const Acl::Options &options() { return matcher->options(); }
+    virtual const Acl::Options &options();
     virtual void parse();
     virtual int match(ACLChecklist *checklist);
     virtual int match (M const &);
     virtual SBufList dump() const;
     virtual bool empty () const;
     virtual bool valid () const;
+    virtual bool isCaseInsensitive() const { return caseInsensitive.configured && caseInsensitive.value; }
 
 private:
     ACLData<MatchType> *data;
     char const *type_;
     ACLStrategy<MatchType> *matcher;
+    Acl::BooleanOptionValue caseInsensitive;
 };
 
 /* implementation follows */
@@ -76,13 +77,6 @@ char const *
 ACLStrategised<MatchType>::typeString() const
 {
     return type_;
-}
-
-template <class MatchType>
-void
-ACLStrategised<MatchType>::parseFlags()
-{
-    ParseFlags(options());
 }
 
 template <class MatchType>
@@ -127,6 +121,19 @@ bool
 ACLStrategised<MatchType>::valid () const
 {
     return matcher->valid();
+}
+
+// XXX: not all ACLStrategised<> kids support this
+template <class MatchType>
+const Acl::Options &
+ACLStrategised<MatchType>::options()
+{
+    static const Acl::BooleanOption CaseInsensitiveOn;
+    static const Acl::BooleanOption CaseInsensitiveOff;
+    static const Acl::Options MyOptions = { { "-i", &CaseInsensitiveOn }, { "+i", &CaseInsensitiveOff } };
+    CaseInsensitiveOn.linkWith(&caseInsensitive);
+    CaseInsensitiveOff.linkWith(&caseInsensitive);
+    return MyOptions;
 }
 
 #endif /* SQUID_ACLSTRATEGISED_H */

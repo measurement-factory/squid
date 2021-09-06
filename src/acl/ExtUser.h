@@ -28,13 +28,12 @@ public:
     /* ACL API */
     virtual char const *typeString() const;
     virtual void parse();
-    virtual void parseFlags();
     virtual int match(ACLChecklist *checklist);
     virtual SBufList dump() const;
     virtual bool empty () const;
     virtual ACL *clone()const;
     virtual const Acl::Options &options();
-    virtual bool isCaseIsensitive() const { return caseInsensitive.value; }
+    virtual bool isCaseInsensitive() const { return caseInsensitive.configured && caseInsensitive.value; }
 
 private:
     ACLData<char const *> *data;

@@ -44,12 +44,6 @@ ACLExtUser::typeString() const
 }
 
 void
-ACLExtUser::parseFlags()
-{
-    ParseFlags(Acl::NoOptions());
-}
-
-void
 ACLExtUser::parse()
 {
     data->parse(this);

@@ -51,12 +51,6 @@ ACLProxyAuth::typeString() const
 }
 
 void
-ACLProxyAuth::parseFlags()
-{
-    ParseFlags(Acl::NoOptions());
-}
-
-void
 ACLProxyAuth::parse()
 {
     data->parse(this);
@@ -167,6 +161,18 @@ ACLProxyAuth::matchForCache(ACLChecklist *cl)
     ACLFilledChecklist *checklist = Filled(cl);
     assert (checklist->auth_user_request != NULL);
     return data->match(checklist->auth_user_request->username());
+}
+
+
+const Acl::Options &
+ACLProxyAuth::options()
+{
+    static const Acl::BooleanOption CaseInsensitiveOn;
+    static const Acl::BooleanOption CaseInsensitiveOff;
+    static const Acl::Options MyOptions = { { "-i", &CaseInsensitiveOn }, { "+i", &CaseInsensitiveOff } };
+    CaseInsensitiveOn.linkWith(&caseInsensitive);
+    CaseInsensitiveOff.linkWith(&caseInsensitive);
+    return MyOptions;
 }
 
 /* aclMatchProxyAuth can return two exit codes:

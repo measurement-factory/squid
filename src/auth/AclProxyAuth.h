@@ -41,7 +41,6 @@ public:
     virtual char const *typeString() const;
     virtual void parse();
     virtual bool isProxyAuth() const {return true;}
-    virtual void parseFlags();
     virtual int match(ACLChecklist *checklist);
     virtual SBufList dump() const;
     virtual bool valid() const;
@@ -49,11 +48,14 @@ public:
     virtual bool requiresRequest() const {return true;}
     virtual ACL *clone() const;
     virtual int matchForCache(ACLChecklist *checklist);
+    virtual const Acl::Options &options();
+    virtual bool isCaseInsensitive() const { return caseInsensitive.configured && caseInsensitive.value; }
 
 private:
     int matchProxyAuth(ACLChecklist *);
     ACLData<char const *> *data;
     char const *type_;
+    Acl::BooleanOptionValue caseInsensitive;
 };
 
 #endif /* USE_AUTH */

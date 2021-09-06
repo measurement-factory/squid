@@ -46,12 +46,6 @@ ACLIdent::typeString() const
     return type_;
 }
 
-void
-ACLIdent::parseFlags()
-{
-    ParseFlags(Acl::NoOptions());
-}
-
 const Acl::Options &
 ACLIdent::options()
 {
