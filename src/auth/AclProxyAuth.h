@@ -15,23 +15,13 @@
 #include "acl/Checklist.h"
 #include "acl/Data.h"
 
-class ProxyAuthLookup : public ACLChecklist::AsyncState
-{
-
-public:
-    static ProxyAuthLookup *Instance();
-    virtual void checkForAsync(ACLChecklist *) const;
-
-private:
-    static ProxyAuthLookup instance_;
-    static void LookupDone(void *data);
-};
-
 class ACLProxyAuth : public ACL
 {
     MEMPROXY_CLASS(ACLProxyAuth);
 
 public:
+    static ACLChecklist::AsyncStarter StartLookup;
+
     ~ACLProxyAuth();
     ACLProxyAuth(ACLData<char const *> *, char const *);
     ACLProxyAuth(ACLProxyAuth const &);
@@ -51,6 +41,8 @@ public:
     virtual int matchForCache(ACLChecklist *checklist);
 
 private:
+    static void LookupDone(void *data);
+
     int matchProxyAuth(ACLChecklist *);
     ACLData<char const *> *data;
     char const *type_;

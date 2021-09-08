@@ -29,18 +29,5 @@ private:
     Acl::BooleanOptionValue lookupBanned; ///< Are DNS lookups allowed?
 };
 
-/// \ingroup ACLAPI
-class DestinationDomainLookup : public ACLChecklist::AsyncState
-{
-
-public:
-    static DestinationDomainLookup *Instance();
-    virtual void checkForAsync(ACLChecklist *)const;
-
-private:
-    static DestinationDomainLookup instance_;
-    static void LookupDone(const char *, const Dns::LookupDetails &, void *);
-};
-
 #endif /* SQUID_ACLDESTINATIONDOMAIN_H */
 

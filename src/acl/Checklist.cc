@@ -102,9 +102,8 @@ ACLChecklist::matchChild(const Acl::InnerNode *current, Acl::Nodes::const_iterat
 }
 
 bool
-ACLChecklist::goAsync(AsyncState *state)
+ACLChecklist::goAsync(const AsyncStarter &starter, const ACL &acl)
 {
-    assert(state);
     assert(!asyncInProgress());
     assert(matchLoc_.parent);
 
@@ -128,8 +127,8 @@ ACLChecklist::goAsync(AsyncState *state)
     ++asyncLoopDepth_;
 
     asyncStage_ = asyncStarting;
-    changeState(state);
-    state->checkForAsync(this); // this is supposed to go async
+    changeState(&starter);
+    starter(*this, acl); // this is supposed to go async
 
     // Did AsyncState object actually go async? If not, tell the caller.
     if (asyncStage_ != asyncStarting) {
@@ -173,7 +172,7 @@ ACLChecklist::ACLChecklist() :
     finished_(false),
     answer_(ACCESS_DENIED),
     asyncStage_(asyncNone),
-    state_(NullState::Instance()),
+    state_(nullptr),
     asyncLoopDepth_(0)
 {
 }
@@ -187,20 +186,6 @@ ACLChecklist::~ACLChecklist()
     debugs(28, 4, "ACLChecklist::~ACLChecklist: destroyed " << this);
 }
 
-ACLChecklist::NullState *
-ACLChecklist::NullState::Instance()
-{
-    return &_instance;
-}
-
-void
-ACLChecklist::NullState::checkForAsync(ACLChecklist *) const
-{
-    assert(false); // or the Checklist will never get out of the async state
-}
-
-ACLChecklist::NullState ACLChecklist::NullState::_instance;
-
 void
 ACLChecklist::changeState (AsyncState *newState)
 {
@@ -209,7 +194,7 @@ ACLChecklist::changeState (AsyncState *newState)
      * relax this once conversion to states is complete
      * RBC 02 2003
      */
-    assert (state_ == NullState::Instance() || newState == NullState::Instance());
+    assert (!state_ || !newState);
     state_ = newState;
 }
 
@@ -267,10 +252,10 @@ ACLChecklist::nonBlockingCheck(ACLCB * callback_, void *callback_data_)
 }
 
 void
-ACLChecklist::resumeNonBlockingCheck(AsyncState *state)
+ACLChecklist::resumeNonBlockingCheck(const AsyncStarter &starter)
 {
-    assert(asyncState() == state);
-    changeState(NullState::Instance());
+    assert(asyncState() == &starter);
+    changeState(nullptr);
 
     if (asyncStage_ == asyncStarting) { // oops, we did not really go async
         asyncStage_ = asyncFailed; // goAsync() checks for that
