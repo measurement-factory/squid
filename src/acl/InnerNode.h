@@ -30,6 +30,7 @@ public:
 
     /* ACL API */
     virtual void prepareForUse();
+    virtual void syncReferences(bool dryRun);
     virtual bool empty() const;
     virtual SBufList dump() const;
 

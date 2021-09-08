@@ -16,6 +16,8 @@
 #include "ConfigParser.h"
 #include "Debug.h"
 #include "globals.h"
+#include "sbuf/Stream.h"
+
 #include <algorithm>
 
 void
@@ -36,6 +38,31 @@ Acl::InnerNode::add(ACL *node)
 {
     assert(node != NULL);
     nodes.push_back(node);
+}
+
+void
+Acl::InnerNode::syncReferences(const bool dryRun)
+{
+    debugs(28, 5, name << " with " << nodes.size() << " nodes");
+    for (auto &node: nodes) {
+
+        if (const auto newAcl = ACL::FindByName(node->name)) {
+            debugs(28, (dryRun ? 7:5), "found " << node->name << ' ' << node << "=>" << newAcl);
+            if (!dryRun)
+                node = newAcl;
+            continue;
+        }
+
+        if (const auto implicitAcl = dynamic_cast<InnerNode*>(node)) {
+            debugs(28, 7, "stepping into implicit " << node->name);
+            // these ACLs lack explicit "acl name..." lines and, hence, are not
+            // registered as such; we cannot partially reconfigure them yet
+            implicitAcl->syncReferences(dryRun);
+            continue;
+        }
+
+        throw TextException(ToSBuf("cannot find and sync ACL ", node->name), Here());
+    }
 }
 
 // one call parses one "acl name acltype name1 name2 ..." line

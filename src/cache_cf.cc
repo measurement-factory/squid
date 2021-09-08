@@ -582,6 +582,7 @@ namespace Configuration {
 /// last successful preprocessing results
 static PreprocessedCfg::Pointer ThePreprocessedCfg;
 static void PerformPartialReconfiguration();
+static void SyncReferencesToReconfiguredDirectives(bool dryRun);
 static int ParsePreprocessedConfiguration();
 static int ResetConfiguration();
 } // namespace Configuration
@@ -619,18 +620,49 @@ Configuration::PerformPartialReconfiguration()
     assert(ThePreprocessedCfg);
     assert(ThePreprocessedCfg->allowPartialReconfiguration);
 
+    // TODO: Make and use an exception-safe sequence-of-steps guard/flag.
     assert(!reconfiguring);
     reconfiguring = true;
 
     free_acl(&Config.namedAcls); // TODO: Check that this is OK/enough.
     Config.lifecycleEnd();
 
-    ParsePreprocessedConfiguration();
+    try {
+        if (const auto errors = ParsePreprocessedConfiguration()) {
+            // We may have loaded some new ACLs, but they are unused because we have
+            // not called SyncReferencesToReconfiguredDirectives() yet. Let them
+            // stay unused while we continue using the old (refcounted) ACLs.
+            throw TextException(ToSBuf(errors, " configuration parsing error(s)"), Here());
+        }
+
+        constexpr bool dryRun = true;
+        SyncReferencesToReconfiguredDirectives(dryRun);
+        SyncReferencesToReconfiguredDirectives(!dryRun);
+    } catch (...) {
+        debugs(3, DBG_CRITICAL, "ERROR: Aborting partial reconfiguration:" <<
+               Debug::Extra << "problem: " << CurrentException);
+    }
 
     assert(reconfiguring);
     reconfiguring = false;
 }
 
+/// updates rigid directives that use pliable reconfigured directives
+void
+Configuration::SyncReferencesToReconfiguredDirectives(const bool dryRun)
+{
+    assert(reconfiguring);
+
+    debugs(28, 3, "dryRun=" << dryRun);
+    // XXX: Checklist stores/locks Config.accessList.http. By substituting .http
+    // internals, we essentially break that lock, leading to
+    // ACLChecklist::matchChild() assertions.
+    if (const auto directive = Config.accessList.http)
+        if (const auto &tree = directive->raw)
+            tree->syncReferences(dryRun);
+
+    // XXX: Catalogue and sync all ACL-using directives.
+}
 
 int
 Configuration::PerformFullReconfiguration()
