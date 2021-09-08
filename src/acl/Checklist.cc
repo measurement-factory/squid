@@ -83,7 +83,7 @@ ACLChecklist::matchChild(const Acl::InnerNode *current, Acl::Nodes::const_iterat
         result = child->matches(this);
     } else {
         const Breadcrumb top(matchPath.top());
-        assert(child == top.parent);
+        assert(child == top.parent.getRaw());
         matchPath.pop();
         result = top.parent->resumeMatchingAt(this, top.position);
     }

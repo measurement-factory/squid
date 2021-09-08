@@ -214,7 +214,7 @@ private: /* internal methods */
         bool operator ==(const Breadcrumb &b) const { return parent == b.parent && (!parent || position == b.position); }
         bool operator !=(const Breadcrumb &b) const { return !this->operator ==(b); }
         void clear() { parent = NULL; }
-        const Acl::InnerNode *parent; ///< intermediate node in the ACL tree
+        RefCount<const Acl::InnerNode> parent; ///< intermediate node in the ACL tree
         Acl::Nodes::const_iterator position; ///< child position inside parent
     };
 
