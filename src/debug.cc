@@ -261,7 +261,7 @@ public:
 
     /// Log the given debugs() message to appropriate channel(s) (eventually).
     /// Assumes the message has passed the global section/level filter.
-    void log(const DebugMessageHeader &header, const std::string &body);
+    void log(const DebugMessageHeader &, const std::string &body);
 
     /// Start using an open cache_log file as the primary debugs() destination.
     /// Stop using stderr as a cache_log replacement (if we were doing that).
