@@ -40,29 +40,38 @@ Acl::InnerNode::add(ACL *node)
     nodes.push_back(node);
 }
 
+ACL *
+Acl::InnerNode::SyncedVersionOf(const ACL &staleAcl)
+{
+    if (const auto freshAcl = ACL::FindByName(staleAcl.name)) {
+        debugs(28, 7, "found " << staleAcl.name << ' ' << &staleAcl << "=>" << freshAcl);
+        return freshAcl;
+    }
+
+    if (const auto implicitAcl = dynamic_cast<const Acl::InnerNode*>(&staleAcl)) {
+        debugs(28, 7, "stepping into implicit " << staleAcl.name);
+        return implicitAcl->makeSyncedVersion();
+    }
+
+    throw TextException(ToSBuf("cannot find and sync ACL ", staleAcl.name), Here());
+}
+
+Acl::InnerNode *
+Acl::InnerNode::makeSyncedVersion() const
+{
+    std::unique_ptr<InnerNode> newMe(newToSync());
+    fillToSync(*newMe);
+    return newMe.release();
+}
+
 void
-Acl::InnerNode::syncReferences(const bool dryRun)
+Acl::InnerNode::fillToSync(InnerNode &newMe) const
 {
     debugs(28, 5, name << " with " << nodes.size() << " nodes");
-    for (auto &node: nodes) {
-
-        if (const auto newAcl = ACL::FindByName(node->name)) {
-            debugs(28, (dryRun ? 7:5), "found " << node->name << ' ' << node << "=>" << newAcl);
-            if (!dryRun)
-                node = newAcl;
-            continue;
-        }
-
-        if (const auto implicitAcl = dynamic_cast<InnerNode*>(node)) {
-            debugs(28, 7, "stepping into implicit " << node->name);
-            // these ACLs lack explicit "acl name..." lines and, hence, are not
-            // registered as such; we cannot partially reconfigure them yet
-            implicitAcl->syncReferences(dryRun);
-            continue;
-        }
-
-        throw TextException(ToSBuf("cannot find and sync ACL ", node->name), Here());
-    }
+    assert(this != &newMe);
+    newMe.context(name, cfgline);
+    for (const auto &staleNode: nodes)
+        newMe.add(SyncedVersionOf(*staleNode));
 }
 
 // one call parses one "acl name acltype name1 name2 ..." line
@@ -78,23 +87,24 @@ Acl::InnerNode::lineParse()
 
     while (const char *t = ConfigParser::strtokFile()) {
         const bool negated = (*t == '!');
-        if (negated)
-            ++t;
+        const auto aclName = negated ? t+1 : t;
 
-        debugs(28, 3, "looking for ACL " << t);
-        ACL *a = ACL::FindByName(t);
+        const auto a = ACL::FindByName(aclName);
 
         if (a == NULL) {
-            debugs(28, DBG_CRITICAL, "ACL not found: " << t);
+            debugs(28, DBG_CRITICAL, "ACL not found: " << aclName);
             self_destruct();
             return;
         }
 
-        // append(negated ? new NotNode(a) : a);
-        if (negated)
-            add(new NotNode(a));
-        else
+        if (negated) {
+            const auto negatingNode = new NotNode();
+            negatingNode->context(t, cfgline);
+            negatingNode->add(a);
+            add(negatingNode);
+        } else {
             add(a);
+        }
     }
 
     return;

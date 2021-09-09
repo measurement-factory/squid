@@ -624,7 +624,7 @@ Configuration::PerformPartialReconfiguration()
     assert(!reconfiguring);
     reconfiguring = true;
 
-    free_acl(&Config.namedAcls); // TODO: Check that this is OK/enough.
+    free_acl(&Config.namedAcls);
     Config.lifecycleEnd();
 
     try {
@@ -654,12 +654,17 @@ Configuration::SyncReferencesToReconfiguredDirectives(const bool dryRun)
     assert(reconfiguring);
 
     debugs(28, 3, "dryRun=" << dryRun);
-    // XXX: Checklist stores/locks Config.accessList.http. By substituting .http
-    // internals, we essentially break that lock, leading to
-    // ACLChecklist::matchChild() assertions.
     if (const auto directive = Config.accessList.http)
-        if (const auto &tree = directive->raw)
-            tree->syncReferences(dryRun);
+        if (const auto &tree = directive->raw) {
+            const auto syncedAcl = tree->makeSyncedVersion();
+            if (dryRun) {
+                delete syncedAcl;
+            } else {
+                const auto syncedTree = dynamic_cast<Acl::Tree*>(syncedAcl);
+                assert(syncedTree);
+                directive->raw = syncedTree;
+            }
+        }
 
     // XXX: Catalogue and sync all ACL-using directives.
 }

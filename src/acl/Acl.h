@@ -78,10 +78,6 @@ public:
 
     virtual void prepareForUse() {}
 
-    /// either check or update definitions of all stored ACLs
-    /// \param dryRun whether to just check the feasibility of the update
-    virtual void syncReferences(const bool dryRun) { (void)dryRun; }
-
     SBufList dumpOptions(); ///< \returns approximate options configuration
 
     char name[ACL_NAME_SZ];
