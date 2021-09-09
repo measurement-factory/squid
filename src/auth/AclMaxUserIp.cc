@@ -50,7 +50,7 @@ ACLMaxUserIP::valid() const
 const Acl::Options &
 ACLMaxUserIP::options()
 {
-    static const Acl::BooleanOption BeStrict;
+    static const Acl::BooleanOption BeStrict(Acl::Option::Owner::acl);
     static const Acl::Options MyOptions = { { "-s", &BeStrict } };
     BeStrict.linkWith(&beStrict);
     return MyOptions;

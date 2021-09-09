@@ -76,7 +76,7 @@ ACLAtStepData::dump() const
 }
 
 void
-ACLAtStepData::parse(const ACL *)
+ACLAtStepData::parse()
 {
     while (const auto name = ConfigParser::strtokFile()) {
         const auto step = StepValue(name);

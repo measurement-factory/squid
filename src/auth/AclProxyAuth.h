@@ -49,13 +49,11 @@ public:
     virtual ACL *clone() const;
     virtual int matchForCache(ACLChecklist *checklist);
     virtual const Acl::Options &options();
-    virtual bool isCaseInsensitive() const { return caseInsensitive.configured && caseInsensitive.value; }
 
 private:
     int matchProxyAuth(ACLChecklist *);
     ACLData<char const *> *data;
     char const *type_;
-    Acl::BooleanOptionValue caseInsensitive;
 };
 
 #endif /* USE_AUTH */

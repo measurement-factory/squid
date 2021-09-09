@@ -76,10 +76,9 @@ ACLUserData::ACLUserData() :
 }
 
 void
-ACLUserData::parse(const ACL *acl)
+ACLUserData::parse()
 {
     debugs(28, 2, "parsing user list");
-    flags.case_insensitive = acl->isCaseInsensitive();
 
     char *t = NULL;
     if ((t = ConfigParser::strtokFile())) {

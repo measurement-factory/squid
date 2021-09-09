@@ -17,10 +17,13 @@
 
 namespace Acl {
 
+class OptionsParser;
+
 /// low-level parser that extracts but does not interpret ACL options
 class OptionExtractor
 {
 public:
+    explicit OptionExtractor(OptionsParser *parser): parser_(parser) {}
     /// parses the next option and fills public members with its details
     /// \returns whether option extraction was successful
     bool extractOne();
@@ -42,6 +45,7 @@ private:
     SBuf value_; ///< the last seen value of some option
     SBuf::size_type letterPos_ = 0; ///< letter position inside an -xyz sequence
     bool sawValue_ = false; ///< the current option sequence had a value
+    OptionsParser *parser_;
 };
 
 /// parses/validates/stores ACL options; skips/preserves parameter flags
@@ -53,9 +57,9 @@ public:
     // fill previously supplied options container, throwing on errors
     void parse();
 
-private:
     const Option *findOption(/* const */ SBuf &rawName);
 
+private:
     /// ACL parameter flags in parsing order
     typedef std::vector<OptionName> Names;
 
@@ -125,6 +129,13 @@ Acl::OptionExtractor::advance()
     if (!(nextChar == '-' || nextChar == '+'))
         return false; // start of ACL parameters
 
+    assert(parser_);
+    SBuf rawOption(next);
+    if (const auto option = parser_->findOption(rawOption)) {
+        if (option->aclDataOption())
+            return false;
+    }
+
     sawValue_ = strchr(next, '='); // TODO: Make ConfigParser reject '^=.*' tokens
     if (sawValue_) {
         char *rawPrefix = nullptr;
@@ -188,7 +199,7 @@ Acl::OptionsParser::findOption(/* const */ SBuf &rawNameBuf)
 void
 Acl::OptionsParser::parse()
 {
-    OptionExtractor oex;
+    OptionExtractor oex(this);
     while (oex.extractOne()) {
         /* const */ auto rawName = oex.name;
         if (const Option *optionPtr = findOption(rawName)) {

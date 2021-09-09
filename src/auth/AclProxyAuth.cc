@@ -53,7 +53,7 @@ ACLProxyAuth::typeString() const
 void
 ACLProxyAuth::parse()
 {
-    data->parse(this);
+    data->parse();
 }
 
 int
@@ -167,11 +167,9 @@ ACLProxyAuth::matchForCache(ACLChecklist *cl)
 const Acl::Options &
 ACLProxyAuth::options()
 {
-    static const Acl::BooleanOption CaseInsensitiveOn;
-    static const Acl::BooleanOption CaseInsensitiveOff;
+    static const Acl::BooleanOption CaseInsensitiveOn(Acl::Option::Owner::aclData);
+    static const Acl::BooleanOption CaseInsensitiveOff(Acl::Option::Owner::aclData);
     static const Acl::Options MyOptions = { { "-i", &CaseInsensitiveOn }, { "+i", &CaseInsensitiveOff } };
-    CaseInsensitiveOn.linkWith(&caseInsensitive);
-    CaseInsensitiveOff.linkWith(&caseInsensitive);
     return MyOptions;
 }
 

@@ -52,7 +52,7 @@ ACLMethodData::dump() const
 }
 
 void
-ACLMethodData::parse(const ACL *)
+ACLMethodData::parse()
 {
     while (char *t = ConfigParser::strtokFile()) {
         HttpRequestMethod m;

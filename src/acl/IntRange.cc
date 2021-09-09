@@ -17,7 +17,7 @@
 #include "Parsing.h"
 
 void
-ACLIntRange::parse(const ACL *)
+ACLIntRange::parse()
 {
     while (char *a = ConfigParser::strtokFile()) {
         char *b = strchr(a, '-');

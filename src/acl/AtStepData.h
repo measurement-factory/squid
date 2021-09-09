@@ -25,7 +25,7 @@ public:
     virtual ~ACLAtStepData();
     bool match(XactionStep);
     virtual SBufList dump() const;
-    void parse(const ACL *);
+    void parse();
     bool empty() const;
     virtual ACLAtStepData *clone() const;
 

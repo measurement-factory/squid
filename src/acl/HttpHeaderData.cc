@@ -67,7 +67,7 @@ ACLHTTPHeaderData::dump() const
 }
 
 void
-ACLHTTPHeaderData::parse(const ACL *acl)
+ACLHTTPHeaderData::parse()
 {
     char* t = ConfigParser::strtokFile();
     if (!t) {
@@ -85,7 +85,7 @@ ACLHTTPHeaderData::parse(const ACL *acl)
         return;
     }
 
-    regex_rule->parse(acl);
+    regex_rule->parse();
 }
 
 bool

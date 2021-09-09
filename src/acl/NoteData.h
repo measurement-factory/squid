@@ -25,7 +25,7 @@ public:
     virtual ~ACLNoteData();
     virtual bool match(NotePairs::Entry *);
     virtual SBufList dump() const;
-    virtual void parse(const ACL *);
+    virtual void parse();
     virtual bool empty() const;
     virtual ACLData<NotePairs::Entry *> *clone() const;
 

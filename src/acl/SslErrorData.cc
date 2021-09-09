@@ -37,7 +37,7 @@ ACLSslErrorData::dump() const
 }
 
 void
-ACLSslErrorData::parse(const ACL *)
+ACLSslErrorData::parse()
 {
     while (char *t = ConfigParser::strtokFile()) {
         Ssl::ParseErrorString(t, values);

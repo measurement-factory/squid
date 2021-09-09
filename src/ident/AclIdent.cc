@@ -49,11 +49,9 @@ ACLIdent::typeString() const
 const Acl::Options &
 ACLIdent::options()
 {
-    static const Acl::BooleanOption CaseInsensitiveOn;
-    static const Acl::BooleanOption CaseInsensitiveOff;
+    static const Acl::BooleanOption CaseInsensitiveOn(Acl::Option::Owner::aclData);
+    static const Acl::BooleanOption CaseInsensitiveOff(Acl::Option::Owner::aclData);
     static const Acl::Options MyOptions = { { "-i", &CaseInsensitiveOn }, { "+i", &CaseInsensitiveOff } };
-    CaseInsensitiveOn.linkWith(&caseInsensitive);
-    CaseInsensitiveOff.linkWith(&caseInsensitive);
     return MyOptions;
 }
 
@@ -65,7 +63,7 @@ ACLIdent::parse()
         data = new ACLUserData;
     }
 
-    data->parse(this);
+    data->parse();
 }
 
 int

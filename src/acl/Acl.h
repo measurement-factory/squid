@@ -69,7 +69,6 @@ public:
     virtual void parse() = 0;
     virtual char const *typeString() const = 0;
     virtual bool isProxyAuth() const;
-    virtual bool isCaseInsensitive() const { return false; }
     virtual SBufList dump() const = 0;
     virtual bool empty() const = 0;
     virtual bool valid() const;

@@ -23,7 +23,7 @@ public:
     virtual ~ACLHTTPHeaderData();
     virtual bool match(HttpHeader* hdr);
     virtual SBufList dump() const;
-    virtual void parse(const ACL *);
+    virtual void parse();
     virtual bool empty() const;
     virtual ACLData<HttpHeader*> *clone() const;
 

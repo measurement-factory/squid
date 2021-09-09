@@ -24,7 +24,7 @@ public:
     virtual ~ACLSslErrorData() {}
     bool match(const Security::CertErrors *);
     virtual SBufList dump() const;
-    void parse(const ACL *);
+    void parse();
     bool empty() const { return values.empty(); }
     virtual  ACLSslErrorData *clone() const;
 

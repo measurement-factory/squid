@@ -23,7 +23,7 @@ public:
     virtual ~ACLSquidErrorData() {}
     virtual bool match(err_type err);
     virtual SBufList dump() const;
-    virtual void parse(const ACL *);
+    virtual void parse();
     virtual bool empty() const;
     virtual ACLData<err_type> *clone() const;
 

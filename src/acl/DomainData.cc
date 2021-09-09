@@ -133,7 +133,7 @@ ACLDomainData::dump() const
 }
 
 void
-ACLDomainData::parse(const ACL *)
+ACLDomainData::parse()
 {
     if (!domains)
         domains = new Splay<char *>();

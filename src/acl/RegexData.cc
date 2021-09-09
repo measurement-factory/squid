@@ -141,14 +141,12 @@ compileRE(std::list<RegexPattern> &curlist, const SBufList &RE, int flags)
  * called only once per ACL.
  */
 static int
-compileOptimisedREs(std::list<RegexPattern> &curlist, const SBufList &sl, const bool caseInsensitiveDefault)
+compileOptimisedREs(std::list<RegexPattern> &curlist, const SBufList &sl)
 {
     std::list<RegexPattern> newlist;
     SBufList accumulatedRE;
     int numREs = 0, reSize = 0;
     int flags = REG_EXTENDED | REG_NOSUB;
-    if (caseInsensitiveDefault)
-        flags |= REG_ICASE;
 
     for (const SBuf & configurationLineWord : sl) {
         static const SBuf minus_i("-i");
@@ -235,7 +233,7 @@ compileUnoptimisedREs(std::list<RegexPattern> &curlist, const SBufList &sl)
 }
 
 void
-ACLRegexData::parse(const ACL *acl)
+ACLRegexData::parse()
 {
     debugs(28, 2, "new Regex line or file");
 
@@ -251,7 +249,7 @@ ACLRegexData::parse(const ACL *acl)
         }
     }
 
-    if (!compileOptimisedREs(data, sl, acl->isCaseInsensitive())) {
+    if (!compileOptimisedREs(data, sl)) {
         debugs(28, DBG_IMPORTANT, "WARNING: optimisation of regular expressions failed; using fallback method without optimisation");
         compileUnoptimisedREs(data, sl);
     }

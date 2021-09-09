@@ -50,13 +50,11 @@ public:
     virtual SBufList dump() const;
     virtual bool empty () const;
     virtual bool valid () const;
-    virtual bool isCaseInsensitive() const { return caseInsensitive.configured && caseInsensitive.value; }
 
 private:
     ACLData<MatchType> *data;
     char const *type_;
     ACLStrategy<MatchType> *matcher;
-    Acl::BooleanOptionValue caseInsensitive;
 };
 
 /* implementation follows */
@@ -83,7 +81,7 @@ template <class MatchType>
 void
 ACLStrategised<MatchType>::parse()
 {
-    data->parse(this);
+    data->parse();
 }
 
 template <class MatchType>
@@ -128,11 +126,9 @@ template <class MatchType>
 const Acl::Options &
 ACLStrategised<MatchType>::options()
 {
-    static const Acl::BooleanOption CaseInsensitiveOn;
-    static const Acl::BooleanOption CaseInsensitiveOff;
-    static const Acl::Options MyOptions = { { "-i", &CaseInsensitiveOn }, { "+i", &CaseInsensitiveOff } };
-    CaseInsensitiveOn.linkWith(&caseInsensitive);
-    CaseInsensitiveOff.linkWith(&caseInsensitive);
+    static const Acl::BooleanOption CaseInsensitiveOn(Acl::Option::Owner::aclData);
+    static const Acl::BooleanOption CaseInsensitiveOff(Acl::Option::Owner::aclData);
+    static const Acl::Options MyOptions = { { "-i", &CaseInsensitiveOn }, { "+i", &CaseInsensitiveOff } };;
     return MyOptions;
 }
 

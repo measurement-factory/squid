@@ -33,12 +33,10 @@ public:
     virtual bool empty () const;
     virtual ACL *clone()const;
     virtual const Acl::Options &options();
-    virtual bool isCaseInsensitive() const { return caseInsensitive.configured && caseInsensitive.value; }
 
 private:
     ACLData<char const *> *data;
     char const *type_;
-    Acl::BooleanOptionValue caseInsensitive;
 };
 
 #endif /* USE_AUTH */
