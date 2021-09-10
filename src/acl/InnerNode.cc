@@ -74,7 +74,7 @@ Acl::InnerNode::fillToSync(InnerNode &newMe) const
         newMe.add(SyncedVersionOf(*staleNode));
 }
 
-// one call parses one "acl name acltype name1 name2 ..." line
+// one call parses one "aclName1 aclName2 ..." sequence
 // kids use this method to handle [multiple] parse() calls correctly
 void
 Acl::InnerNode::lineParse()
@@ -92,7 +92,7 @@ Acl::InnerNode::lineParse()
         const auto a = ACL::FindByName(aclName);
 
         if (a == NULL) {
-            debugs(28, DBG_CRITICAL, "ACL not found: " << aclName);
+            debugs(28, DBG_CRITICAL, "ERROR: Cannot find ACL named " << aclName);
             self_destruct();
             return;
         }

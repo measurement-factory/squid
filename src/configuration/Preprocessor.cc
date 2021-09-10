@@ -71,7 +71,7 @@ Configuration::Preprocessor::Preprocessor():
 
 void
 Configuration::Preprocessor::process(const char * const filename)
- {
+{
     debugs(3, DBG_PARSE_NOTE(2), "preprocessing defaults and " << filename);
     processInitialDefaults();
     processFile(filename, 0);
@@ -163,8 +163,8 @@ Configuration::Preprocessor::processUnfoldedLine(const SBuf &line)
 
     banPartialReconfiguraiton("saw an invalid configuration directive");
     ++invalidLines_;
-    debugs(3, DBG_CRITICAL, ConfigParser::CurrentLocation() << // XXX??
-           ": unrecognized configuration directive name: " << name);
+    debugs(3, DBG_CRITICAL, ConfigParser::CurrentLocation() <<
+           ": ERROR: unrecognized configuration directive name: " << name);
 }
 
 void
@@ -236,8 +236,8 @@ Configuration::DirectivesDiff::noteChange(const PreprocessedDirective &oldD, con
 {
     assert(changes_.isEmpty());
     changes_ = ToSBuf("directives or their order have changed:",
-        Debug::Extra, "old configuration has: ", oldD,
-        Debug::Extra, "new configuration has: ", newD);
+                      Debug::Extra, "old configuration has: ", oldD,
+                      Debug::Extra, "new configuration has: ", newD);
 }
 
 void
@@ -245,7 +245,7 @@ Configuration::DirectivesDiff::noteAppearance(const PreprocessedDirective &newD)
 {
     assert(changes_.isEmpty());
     changes_ = ToSBuf("new configuration has more directives:",
-        Debug::Extra, "the first directive missing from the old configuration: ", newD);
+                      Debug::Extra, "the first directive missing from the old configuration: ", newD);
 }
 
 void
@@ -253,7 +253,7 @@ Configuration::DirectivesDiff::noteDisappearance(const PreprocessedDirective &ol
 {
     assert(changes_.isEmpty());
     changes_ = ToSBuf("old configuration had more directives:",
-        Debug::Extra, "the first directive missing from the new configuration: ", oldD);
+                      Debug::Extra, "the first directive missing from the new configuration: ", oldD);
 }
 
 void

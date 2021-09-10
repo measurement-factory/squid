@@ -19,8 +19,7 @@
 
 namespace Configuration {
 
-
-/// artifacts of a successful preprocessing step
+/// artifacts of successful preprocessing; Preprocess() result
 class PreprocessedCfg: public RefCountable
 {
 public:
@@ -45,15 +44,16 @@ public:
     bool allowPartialReconfiguration = false;
 };
 
+/// Interprets Squid configuration up to (and excluding) parsing of individual
+/// directives. Returns a sequence of directives to parse, including various
+/// defaults. Facilitates partial reconfiguration. Does not affect current Squid
+/// configuration.
 PreprocessedCfg::Pointer Preprocess(const char *filename, PreprocessedCfg::Pointer previousCfg);
 
 class DirectivesDiff;
 
-// TODO: Move to Preprocessor.h
-/// Interprets Squid configuration up to (and excluding) parsing of individual
-/// directives. Provides configuration parser with a sequence of directives to
-/// parse, including various defaults. Facilitates partial reconfiguration.
-/// Preprocessor operations do not affect current Squid configuration.
+// TODO: Move to Preprocessor.cc together with its diff-reducing methods in cache_cf.cc.
+/// major Preprocess() implementation steps
 class Preprocessor
 {
 public:
@@ -61,11 +61,13 @@ public:
 
     Preprocessor();
 
-    // TODO: Describe.
+    /// preprocess all configuration directives, including various defaults
     void process(const char *filename);
 
+    /// decide whether to allow or ban partial reconfiguration support
     void assessPartialConfigurationTolerance(PreprocessedCfg::Pointer previousCfg);
 
+    /// export preprocessing artifacts for external/parser consumption
     PreprocessedCfg::Pointer finalize();
 
     /// preprocessed configuration directives in configuration order

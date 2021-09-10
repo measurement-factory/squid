@@ -16,7 +16,6 @@
 #include "fqdncache.h"
 #include "HttpRequest.h"
 
-
 static void LookupDone(const char *, const Dns::LookupDetails &, void *data);
 
 static void

@@ -588,7 +588,7 @@ static int ResetConfiguration();
 } // namespace Configuration
 
 bool
-Configuration::AvoidFullReconfiguration(const char *filename)
+Configuration::ShouldPerformHarshReconfiguration(const char *filename)
 {
     assert(ThePreprocessedCfg); // we have been configured before
 
@@ -596,19 +596,19 @@ Configuration::AvoidFullReconfiguration(const char *filename)
         ThePreprocessedCfg = Configuration::Preprocess(filename, ThePreprocessedCfg);
     }
     catch (...) {
-        debugs(3, DBG_CRITICAL, "Refusing to reconfigure after a preprocessing failure;" <<
-               Debug::Extra << "error: " << CurrentException);
+        debugs(3, DBG_CRITICAL, "ERROR: Refusing to reconfigure after a preprocessing failure;" <<
+               Debug::Extra << "problem: " << CurrentException);
         // keep old/valid ThePreprocessedCfg
-        return true;
+        return false;
     }
 
     assert(ThePreprocessedCfg);
     if (ThePreprocessedCfg->allowPartialReconfiguration) {
         PerformPartialReconfiguration();
-        return true;
+        return false;
     }
 
-    return false;
+    return true;
 }
 
 /// reconfigures preprocessed pliable directives

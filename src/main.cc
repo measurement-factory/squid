@@ -882,7 +882,7 @@ mainReconfigureStart(void)
     if (AvoidSignalAction("reconfiguration", do_reconfigure))
         return;
 
-    if (Configuration::AvoidFullReconfiguration(ConfigFile))
+    if (!Configuration::ShouldPerformHarshReconfiguration(ConfigFile))
         return;
 
     debugs(1, DBG_IMPORTANT, "Reconfiguring Squid Cache (version " << version_string << ")...");

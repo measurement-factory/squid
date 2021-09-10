@@ -10,16 +10,25 @@
 #define SQUID_SRC_CONFIGURATION_FORWARD_H
 
 namespace Configuration {
+
 class Preprocessor;
 class PreprocessedDirective;
 
-// XXX: Document
-bool AvoidFullReconfiguration(const char *filename);
-int PerformFullReconfiguration();
+/// Initial configuration: Parse (and typically apply) directives in filename.
 int Configure(const char *filename);
 
-} // namespace Configuration
+/// Whether the caller should commit to performing harsh reconfiguration,
+/// restarting major services and calling PerformFullReconfiguration().
+/// Side effect: Preprocesses configuration files.
+/// Side effect: Performs smooth reconfiguration (if possible).
+bool ShouldPerformHarshReconfiguration(const char *filename);
 
+/// Processes all configuration directives, both changed and unchanged ones. The
+/// list of (preprocessed) configuration directives is computed during an
+/// earlier ShouldPerformHarshReconfiguration() call that returned true.
+int PerformFullReconfiguration();
+
+} // namespace Configuration
 
 #endif /* SQUID_SRC_CONFIGURATION_FORWARD_H */
 
