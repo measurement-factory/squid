@@ -13,6 +13,7 @@
 #include "acl/AclDenyInfoList.h"
 #include "acl/AclSizeLimit.h"
 #include "acl/Address.h"
+#include "acl/DirectiveRules.h"
 #include "acl/Gadgets.h"
 #include "acl/MethodData.h"
 #include "acl/Tree.h"
@@ -582,7 +583,6 @@ namespace Configuration {
 /// last successful preprocessing results
 static PreprocessedCfg::Pointer ThePreprocessedCfg;
 static void PerformPartialReconfiguration();
-static void SyncReferencesToReconfiguredDirectives(bool dryRun);
 static int ParsePreprocessedConfiguration();
 static int ResetConfiguration();
 } // namespace Configuration
@@ -629,15 +629,15 @@ Configuration::PerformPartialReconfiguration()
 
     try {
         if (const auto errors = ParsePreprocessedConfiguration()) {
-            // We may have loaded some new ACLs, but they are unused because we have
-            // not called SyncReferencesToReconfiguredDirectives() yet. Let them
-            // stay unused while we continue using the old (refcounted) ACLs.
+            // We may have loaded some new ACLs, but they are unused because we
+            // have not called Acl::SyncDirectiveRules() yet. Let them stay
+            // unused while we continue using the old (refcounted) ACLs.
             throw TextException(ToSBuf(errors, " configuration parsing error(s)"), Here());
         }
 
         constexpr bool dryRun = true;
-        SyncReferencesToReconfiguredDirectives(dryRun);
-        SyncReferencesToReconfiguredDirectives(!dryRun);
+        Acl::SyncDirectiveRules(dryRun);
+        Acl::SyncDirectiveRules(!dryRun);
     } catch (...) {
         debugs(3, DBG_CRITICAL, "ERROR: Aborting partial reconfiguration:" <<
                Debug::Extra << "problem: " << CurrentException);
@@ -645,28 +645,6 @@ Configuration::PerformPartialReconfiguration()
 
     assert(reconfiguring);
     reconfiguring = false;
-}
-
-/// updates rigid directives that use pliable reconfigured directives
-void
-Configuration::SyncReferencesToReconfiguredDirectives(const bool dryRun)
-{
-    assert(reconfiguring);
-
-    debugs(28, 3, "dryRun=" << dryRun);
-    if (const auto directive = Config.accessList.http)
-        if (const auto &tree = directive->raw) {
-            const auto syncedAcl = tree->makeSyncedVersion();
-            if (dryRun) {
-                delete syncedAcl;
-            } else {
-                const auto syncedTree = dynamic_cast<Acl::Tree*>(syncedAcl);
-                assert(syncedTree);
-                directive->raw = syncedTree;
-            }
-        }
-
-    // XXX: Catalogue and sync all ACL-using directives.
 }
 
 int
@@ -2050,29 +2028,18 @@ dump_AuthSchemes(StoreEntry *entry, const char *name, acl_access *authSchemes)
 #endif /* USE_AUTH */
 
 static void
-ParseAclWithAction(Acl::TreePointer *access, const Acl::Answer &action, const char *desc, ACL *acl)
+ParseAclWithAction(acl_access **access, const Acl::Answer &action, const char *desc, ACL *acl)
 {
     assert(access);
     SBuf name;
-    if (!*access) {
-        *access = new Acl::Tree();
-        name.Printf("(%s rules)", desc);
-        (*access)->context(name.c_str(), config_input_line);
-    }
+    if (!*access)
+        *access = new Acl::DirectiveRules(desc, config_input_line);
+
     Acl::AndNode *rule = new Acl::AndNode;
     name.Printf("(%s rule)", desc);
     rule->context(name.c_str(), config_input_line);
     acl ? rule->add(acl) : rule->lineParse();
-    (*access)->add(rule, action);
-}
-
-static void
-ParseAclWithAction(acl_access **access, const Acl::Answer &action, const char *desc, ACL *acl)
-{
-    assert(access);
-    if (!*access)
-        *access = new acl_access();
-    ParseAclWithAction(&(*access)->raw, action, desc, acl);
+    (*access)->raw->add(rule, action);
 }
 
 static void

@@ -10,6 +10,7 @@
 
 #include "squid.h"
 #include "acl/Checklist.h"
+#include "acl/DirectiveRules.h"
 #include "acl/Tree.h"
 #include "cbdata.h"
 #include "Debug.h"
