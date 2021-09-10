@@ -82,7 +82,6 @@ public:
 
     char name[ACL_NAME_SZ];
     char *cfgline;
-    bool registered; ///< added to the global list of ACLs via aclRegister()
 
 protected:
     friend class RefCount<ACL>;

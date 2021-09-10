@@ -3953,7 +3953,6 @@ void
 configFreeMemory(void)
 {
     free_all();
-    Acl::Clear(); // after free_all() that clears all global raw ACL pointers
     Config.ssl_client.sslContext.reset();
 #if USE_OPENSSL
     Ssl::unloadSquidUntrusted();

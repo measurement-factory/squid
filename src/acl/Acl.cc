@@ -106,8 +106,7 @@ ACL::FindByName(const char *name)
 }
 
 ACL::ACL() :
-    cfgline(nullptr),
-    registered(false)
+    cfgline(nullptr)
 {
     debugs(28, 8, "constructing, this=" << this);
     *name = 0;
@@ -279,8 +278,6 @@ Acl::ParseNamedRule(ConfigParser &parser, NamedRules *&namedRules)
     const auto inserted = namedRules->emplace(SBuf(A->name), A);
     assert(inserted.second); // FindByName() above checked that A is a new ACL
 
-    // register for centralized cleanup
-    aclRegister(A);
     return A;
 }
 
@@ -426,7 +423,6 @@ ACL::~ACL()
     debugs(28, 3, "destructing this=" << this << ' ' << name);
     safe_free(cfgline);
     AclMatchedName = NULL; // in case it was pointing to our name
-    assert(!registered);
 }
 
 void

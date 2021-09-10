@@ -36,7 +36,6 @@ Acl::InnerNode::add(ACL *node)
 {
     assert(node != NULL);
     nodes.push_back(node);
-    aclRegister(node);
 }
 
 // one call parses one "acl name acltype name1 name2 ..." line

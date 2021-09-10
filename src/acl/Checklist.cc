@@ -68,8 +68,9 @@ ACLChecklist::preCheck(const char *what)
 }
 
 bool
-ACLChecklist::matchChild(const Acl::InnerNode *current, Acl::Nodes::const_iterator pos, const ACL *child)
+ACLChecklist::matchChild(const Acl::InnerNode *current, Acl::Nodes::const_iterator pos)
 {
+    const auto &child = *pos;
     assert(current && child);
 
     // Remember the current tree location to prevent "async loop" cases where
@@ -83,7 +84,7 @@ ACLChecklist::matchChild(const Acl::InnerNode *current, Acl::Nodes::const_iterat
         result = child->matches(this);
     } else {
         const Breadcrumb top(matchPath.top());
-        assert(child == top.parent.getRaw());
+        assert(child == top.parent);
         matchPath.pop();
         result = top.parent->resumeMatchingAt(this, top.position);
     }

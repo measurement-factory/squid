@@ -32,15 +32,6 @@
 #include <deque>
 #include <algorithm>
 
-// TODO: Pool
-/// allocated ACLs in their registration order
-typedef std::deque<ACLPointer> RegisteredAcls;
-/// Prevents refcount-driven deletion of configured ACLs. We could store
-/// ACLPointer in Config instead, but our invasive RefCount<> pointers combined
-/// with APIs using raw ACL pointers (where?) would expose all ACL checking code
-/// to irrelevant ACL (destruction) details. TODO: Double check this.
-static RegisteredAcls *TheRegisteredAcls = nullptr;
-
 /* does name lookup, returns page_id */
 err_type
 aclGetDenyInfoPage(AclDenyInfoList ** head, const char *name, int redirect_allowed)
@@ -187,7 +178,6 @@ aclParseAccessLine(const char *directive, ConfigParser &, acl_access **config)
     if (!treep) {
         treep = new Acl::Tree();
         treep->context(directive, config_input_line);
-        aclRegister(treep.getRaw());
     }
 
     treep->add(rule, action);
@@ -219,7 +209,6 @@ aclParseAclList(ConfigParser &, Acl::Tree **treep, const char *label)
     Acl::Tree *tree = new Acl::Tree;
     tree->add(rule);
     tree->context(ctxTree.content(), config_input_line);
-    aclRegister(tree);
 
     assert(treep);
     assert(!*treep);
@@ -240,38 +229,9 @@ aclParseAclList(ConfigParser &parser, ACLList **configPtr, const char *label)
     config->raw = tree;
 }
 
-void
-aclRegister(ACL *acl)
-{
-    debugs(28, 8, acl << ' ' << acl->registered);
-    if (!acl->registered) {
-        if (!TheRegisteredAcls)
-            TheRegisteredAcls = new RegisteredAcls;
-        TheRegisteredAcls->emplace_back(acl);
-        acl->registered = true;
-    }
-}
-
 /*********************/
 /* Destroy functions */
 /*********************/
-
-void
-Acl::Clear()
-{
-    if (TheRegisteredAcls) {
-        debugs(28, 5, "forgetting registered ACLs: " << TheRegisteredAcls->size());
-        while (!TheRegisteredAcls->empty()) {
-            const auto &acl = TheRegisteredAcls->back();
-            assert(acl);
-            assert(acl->registered);
-            acl->registered = false;
-            TheRegisteredAcls->pop_back();
-        }
-        delete TheRegisteredAcls;
-        TheRegisteredAcls = nullptr;
-    }
-}
 
 void
 aclDestroyAclList(ACLList **list)

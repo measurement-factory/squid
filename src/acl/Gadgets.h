@@ -20,16 +20,10 @@ class StoreEntry;
 class wordlist;
 
 namespace Acl {
-    /// free (unused) module-wide state
-    void Clear();
-
+    // TODO: Enable or remove.
     /// Makes the given rules inaccessible; deletes unused rules
     //void Forget(PermissionTreePointer&);
 }
-
-/// Register an ACL object for future deletion. Repeated registrations are OK.
-/// \ingroup ACLAPI
-void aclRegister(ACL *acl);
 
 /// Acl::Forget() wrapper used by legacy code
 void aclDestroyAccessList(acl_access **list);

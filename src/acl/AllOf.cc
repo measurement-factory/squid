@@ -40,7 +40,7 @@ Acl::AllOf::doMatch(ACLChecklist *checklist, Nodes::const_iterator start) const
     if (empty())
         return 1; // not 0 because in math empty product equals identity
 
-    if (checklist->matchChild(this, start, *start))
+    if (checklist->matchChild(this, start))
         return 1; // match
 
     return checklist->keepMatching() ? 0 : -1;
@@ -51,7 +51,7 @@ void
 Acl::AllOf::parse()
 {
     Acl::InnerNode *whole = NULL;
-    ACL *oldNode = empty() ? NULL : nodes.front();
+    const auto oldNode = empty() ? nullptr : nodes.front().getRaw();
 
     // optimization: this logic reduces subtree hight (number of tree levels)
     if (Acl::OrNode *oldWhole = dynamic_cast<Acl::OrNode*>(oldNode)) {

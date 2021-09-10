@@ -146,9 +146,9 @@ public:
     /// Otherwise, returns false; the caller is expected to handle the failure.
     bool goAsync(AsyncState *);
 
-    /// Matches (or resumes matching of) a child node while maintaning
+    /// Matches (or resumes matching of) a child node at pos while maintaining
     /// resumption breadcrumbs if a [grand]child node goes async.
-    bool matchChild(const Acl::InnerNode *parent, Acl::Nodes::const_iterator pos, const ACL *child);
+    bool matchChild(const Acl::InnerNode *parent, Acl::Nodes::const_iterator pos);
 
     /// Whether we should continue to match tree nodes or stop/pause.
     bool keepMatching() const { return !finished() && !asyncInProgress(); }
