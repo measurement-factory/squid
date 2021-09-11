@@ -13,6 +13,7 @@
 #include "acl/AclDenyInfoList.h"
 #include "acl/AclSizeLimit.h"
 #include "acl/Address.h"
+#include "acl/DirectiveRules.h"
 #include "acl/Gadgets.h"
 #include "acl/MethodData.h"
 #include "acl/Tree.h"
@@ -26,6 +27,7 @@
 #include "cache_cf.h"
 #include "CachePeer.h"
 #include "ConfigParser.h"
+#include "configuration/Preprocessor.h"
 #include "CpuAffinityMap.h"
 #include "DiskIO/DiskIOModule.h"
 #include "eui/Config.h"
@@ -162,7 +164,6 @@ static const char *const list_sep = ", \t\n\r";
 static const double HoursPerYear = 24*365.2522;
 
 static void parse_access_log(CustomLog ** customlog_definitions);
-static int check_null_access_log(CustomLog *customlog_definitions);
 static void dump_access_log(StoreEntry * entry, const char *name, CustomLog * definitions);
 static void free_access_log(CustomLog ** definitions);
 static bool setLogformat(CustomLog *cl, const char *name, const bool dieWhenMissing);
@@ -171,9 +172,6 @@ static void configDoConfigure(void);
 static void parse_refreshpattern(RefreshPattern **);
 static void parse_u_short(unsigned short * var);
 static void parse_string(char **);
-static void default_all(void);
-static void defaults_if_none(void);
-static void defaults_postscriptum(void);
 static int parse_line(char *);
 static void parse_obsolete(const char *);
 static void parseBytesLine(size_t * bptr, const char *units);
@@ -205,9 +203,6 @@ static void free_denyinfo(AclDenyInfoList ** var);
 static void parse_IpAddress_list(Ip::Address_list **);
 static void dump_IpAddress_list(StoreEntry *, const char *, const Ip::Address_list *);
 static void free_IpAddress_list(Ip::Address_list **);
-#if CURRENTLY_UNUSED
-static int check_null_IpAddress_list(const Ip::Address_list *);
-#endif /* CURRENTLY_UNUSED */
 #endif /* USE_WCCPv2 */
 
 static void parsePortCfg(AnyP::PortCfgPointer *, const char *protocol);
@@ -242,14 +237,13 @@ static void parse_UrlHelperTimeout(SquidConfig::UrlHelperTimeout *);
 static void dump_UrlHelperTimeout(StoreEntry *, const char *, SquidConfig::UrlHelperTimeout &);
 static void free_UrlHelperTimeout(SquidConfig::UrlHelperTimeout *);
 
-static int parseOneConfigFile(const char *file_name, unsigned int depth);
-
 static void parse_configuration_includes_quoted_values(bool *recognizeQuotedValues);
 static void dump_configuration_includes_quoted_values(StoreEntry *const entry, const char *const name, bool recognizeQuotedValues);
 static void free_configuration_includes_quoted_values(bool *recognizeQuotedValues);
 static void parse_on_unsupported_protocol(acl_access **access);
 static void dump_on_unsupported_protocol(StoreEntry *entry, const char *name, acl_access *access);
 static void free_on_unsupported_protocol(acl_access **access);
+static void free_acl(AclNamedRules **config);
 static void ParseAclWithAction(acl_access **access, const Acl::Answer &action, const char *desc, ACL *acl = nullptr);
 static void parse_http_upgrade_request_protocols(HttpUpgradeProtocolAccess **protoGuards);
 static void dump_http_upgrade_request_protocols(StoreEntry *entry, const char *name, HttpUpgradeProtocolAccess *protoGuards);
@@ -287,10 +281,10 @@ skip_ws(const char* s)
     return s;
 }
 
-static int
-parseManyConfigFiles(char* files, int depth)
+// Here for diff reduction. TODO: Move all to configuration/Preprocessor.cc.
+void
+Configuration::Preprocessor::processIncludedFiles(char * const files, const size_t depth)
 {
-    int error_count = 0;
     char* saveptr = NULL;
 #if HAVE_GLOB
     char *path;
@@ -304,17 +298,16 @@ parseManyConfigFiles(char* files, int depth)
         }
     }
     for (i = 0; i < (int)globbuf.gl_pathc; ++i) {
-        error_count += parseOneConfigFile(globbuf.gl_pathv[i], depth);
+        processFile(globbuf.gl_pathv[i], depth);
     }
     globfree(&globbuf);
 #else
     char* file = strwordtok(files, &saveptr);
     while (file != NULL) {
-        error_count += parseOneConfigFile(file, depth);
+        processFile(file, depth);
         file = strwordtok(NULL, &saveptr);
     }
 #endif /* HAVE_GLOB */
-    return error_count;
 }
 
 static void
@@ -422,8 +415,22 @@ EvalBoolExpr(const char* expr)
     return false; // this place cannot be reached
 }
 
-static int
-parseOneConfigFile(const char *file_name, unsigned int depth)
+// TODO: Diff reduction. Rename and move to configuration/Preprocessor.cc after
+// moving ProcessMacros() there.
+void
+Configuration::Preprocessor::default_line(const char *s)
+{
+    auto tmp_line = xstrdup(s);
+    int len = strlen(tmp_line); // TODO: auto; fix ProcessMacros() to use size_t
+    ProcessMacros(tmp_line, len);
+    xstrncpy(config_input_line, tmp_line, sizeof(config_input_line));
+    config_lineno++;
+    processUnfoldedLine(SBuf(tmp_line));
+    xfree(tmp_line);
+}
+
+void
+Configuration::Preprocessor::processFile(const char * const file_name, const size_t depth)
 {
     FILE *fp = NULL;
     const char *orig_cfg_filename = cfg_filename;
@@ -431,13 +438,11 @@ parseOneConfigFile(const char *file_name, unsigned int depth)
     char *token = NULL;
     char *tmp_line = NULL;
     int tmp_line_len = 0;
-    int err_count = 0;
     int is_pipe = 0;
 
     debugs(3, DBG_IMPORTANT, "Processing Configuration File: " << file_name << " (depth " << depth << ")");
     if (depth > 16) {
         fatalf("WARNING: can't include %s: includes are nested too deeply (>16)!\n", file_name);
-        return 1;
     }
 
     if (file_name[0] == '!' || file_name[0] == '|') {
@@ -546,18 +551,9 @@ parseOneConfigFile(const char *file_name, unsigned int depth)
         } else if (if_states.empty() || if_states.back()) { // test last if-statement meaning if present
             /* Handle includes here */
             if (tmp_line_len >= 9 && strncmp(tmp_line, "include", 7) == 0 && xisspace(tmp_line[7])) {
-                err_count += parseManyConfigFiles(tmp_line + 8, depth + 1);
+                processIncludedFiles(tmp_line + 8, depth + 1);
             } else {
-                try {
-                    if (!parse_line(tmp_line)) {
-                        debugs(3, DBG_CRITICAL, ConfigParser::CurrentLocation() << ": unrecognized: '" << tmp_line << "'");
-                        ++err_count;
-                    }
-                } catch (...) {
-                    // fatal for now
-                    debugs(3, DBG_CRITICAL, "configuration error: " << CurrentException);
-                    self_destruct();
-                }
+                processUnfoldedLine(SBuf(tmp_line)); // TODO: Use SBuf for lines.
             }
         }
 
@@ -581,29 +577,112 @@ parseOneConfigFile(const char *file_name, unsigned int depth)
     config_lineno = orig_config_lineno;
 
     xfree(tmp_line);
-    return err_count;
 }
 
-static
+namespace Configuration {
+/// last successful preprocessing results
+static PreprocessedCfg::Pointer ThePreprocessedCfg;
+static void PerformPartialReconfiguration();
+static int ParsePreprocessedConfiguration();
+static int ResetConfiguration();
+} // namespace Configuration
+
+bool
+Configuration::ShouldPerformHarshReconfiguration(const char *filename)
+{
+    assert(ThePreprocessedCfg); // we have been configured before
+
+    try {
+        ThePreprocessedCfg = Configuration::Preprocess(filename, ThePreprocessedCfg);
+    }
+    catch (...) {
+        debugs(3, DBG_CRITICAL, "ERROR: Refusing to reconfigure after a preprocessing failure;" <<
+               Debug::Extra << "problem: " << CurrentException);
+        // keep old/valid ThePreprocessedCfg
+        return false;
+    }
+
+    assert(ThePreprocessedCfg);
+    if (ThePreprocessedCfg->allowPartialReconfiguration) {
+        PerformPartialReconfiguration();
+        return false;
+    }
+
+    return true;
+}
+
+/// reconfigures preprocessed pliable directives
+static void
+Configuration::PerformPartialReconfiguration()
+{
+    debugs(3, DBG_IMPORTANT, "Performing smooth_reconfiguration");
+
+    assert(ThePreprocessedCfg);
+    assert(ThePreprocessedCfg->allowPartialReconfiguration);
+
+    // TODO: Make and use an exception-safe sequence-of-steps guard/flag.
+    assert(!reconfiguring);
+    reconfiguring = true;
+
+    free_acl(&Config.namedAcls);
+    Config.lifecycleEnd();
+
+    try {
+        if (const auto errors = ParsePreprocessedConfiguration()) {
+            // We may have loaded some new ACLs, but they are unused because we
+            // have not called Acl::SyncDirectiveRules() yet. Let them stay
+            // unused while we continue using the old (refcounted) ACLs.
+            throw TextException(ToSBuf(errors, " configuration parsing error(s)"), Here());
+        }
+
+        constexpr bool dryRun = true;
+        Acl::SyncDirectiveRules(dryRun);
+        Acl::SyncDirectiveRules(!dryRun);
+    } catch (...) {
+        debugs(3, DBG_CRITICAL, "ERROR: Aborting partial reconfiguration:" <<
+               Debug::Extra << "problem: " << CurrentException);
+    }
+
+    assert(reconfiguring);
+    reconfiguring = false;
+}
+
 int
-parseConfigFileOrThrow(const char *file_name)
+Configuration::PerformFullReconfiguration()
+{
+    assert(ThePreprocessedCfg);
+    assert(!ThePreprocessedCfg->allowPartialReconfiguration);
+    assert(reconfiguring);
+    return ResetConfiguration();
+}
+
+/// parses preprocessed directives
+static int
+Configuration::ParsePreprocessedConfiguration()
 {
     int err_count = 0;
 
-    debugs(5, 4, HERE);
-
-    configFreeMemory();
+    ACLMethodData::ThePurgeCount = 0;
 
     Config.lifecycleStart();
 
-    ACLMethodData::ThePurgeCount = 0;
-    default_all();
+    assert(ThePreprocessedCfg);
+    debugs(3, 5, ThePreprocessedCfg->activeDirectives.size());
+    for (const auto directive: ThePreprocessedCfg->activeDirectives) {
+        if (!parse_line(directive->editableBuf().get()))
+            ++err_count;
+    }
 
-    err_count = parseOneConfigFile(file_name, 0);
+    return err_count;
+}
 
-    defaults_if_none();
-
-    defaults_postscriptum();
+/// actions common to Configure() and PerformFullReconfiguration()
+static
+int
+Configuration::ResetConfiguration()
+{
+    configFreeMemory();
+    const auto errors = ParsePreprocessedConfiguration();
 
     /*
      * We must call configDoConfigure() before leave_suid() because
@@ -611,6 +690,21 @@ parseConfigFileOrThrow(const char *file_name)
      * uid values.
      */
     configDoConfigure();
+
+    return errors;
+}
+
+static
+int
+parseConfigFileOrThrow(const char * const filename)
+{
+    using namespace Configuration;
+    assert(!ThePreprocessedCfg);
+    ThePreprocessedCfg = Preprocess(filename, ThePreprocessedCfg);
+    assert(ThePreprocessedCfg);
+    assert(!ThePreprocessedCfg->allowPartialReconfiguration);
+
+    const auto err_count = ResetConfiguration();
 
     if (opt_send_signal == -1) {
         Mgr::RegisterAction("config",
@@ -624,7 +718,7 @@ parseConfigFileOrThrow(const char *file_name)
 
 // TODO: Refactor main.cc to centrally handle (and report) all exceptions.
 int
-parseConfigFile(const char *file_name)
+Configuration::Configure(const char *file_name)
 {
     try {
         return parseConfigFileOrThrow(file_name);
@@ -1841,12 +1935,6 @@ dump_cachedir(StoreEntry * entry, const char *name, const Store::DiskConfig &swa
     Store::Disks::Dump(swap, *entry, name);
 }
 
-static int
-check_null_string(char *s)
-{
-    return s == NULL;
-}
-
 #if USE_AUTH
 static void
 parse_authparam(Auth::ConfigVector * config)
@@ -1940,29 +2028,18 @@ dump_AuthSchemes(StoreEntry *entry, const char *name, acl_access *authSchemes)
 #endif /* USE_AUTH */
 
 static void
-ParseAclWithAction(Acl::TreePointer *access, const Acl::Answer &action, const char *desc, ACL *acl)
+ParseAclWithAction(acl_access **access, const Acl::Answer &action, const char *desc, ACL *acl)
 {
     assert(access);
     SBuf name;
-    if (!*access) {
-        *access = new Acl::Tree();
-        name.Printf("(%s rules)", desc);
-        (*access)->context(name.c_str(), config_input_line);
-    }
+    if (!*access)
+        *access = new Acl::DirectiveRules(desc, config_input_line);
+
     Acl::AndNode *rule = new Acl::AndNode;
     name.Printf("(%s rule)", desc);
     rule->context(name.c_str(), config_input_line);
     acl ? rule->add(acl) : rule->lineParse();
-    (*access)->add(rule, action);
-}
-
-static void
-ParseAclWithAction(acl_access **access, const Acl::Answer &action, const char *desc, ACL *acl)
-{
-    assert(access);
-    if (!*access)
-        *access = new acl_access();
-    ParseAclWithAction(&(*access)->raw, action, desc, acl);
+    (*access)->raw->add(rule, action);
 }
 
 static void
@@ -3169,20 +3246,6 @@ parse_wordlist(wordlist ** list)
         wordlistAdd(list, token);
 }
 
-#if 0 /* now unused */
-static int
-check_null_wordlist(wordlist * w)
-{
-    return w == NULL;
-}
-#endif
-
-static int
-check_null_acl_access(acl_access * a)
-{
-    return a == NULL;
-}
-
 #define free_wordlist wordlistDestroy
 
 #define free_uri_whitespace free_int
@@ -3409,17 +3472,6 @@ free_IpAddress_list(Ip::Address_list ** head)
     *head = NULL;
 }
 
-#if CURRENTLY_UNUSED
-/* This code was previously used by http_port. Left as it really should
- * be used by icp_port and htcp_port
- */
-static int
-check_null_IpAddress_list(const Ip::Address_list * s)
-{
-    return NULL == s;
-}
-
-#endif /* CURRENTLY_UNUSED */
 #endif /* USE_WCCPv2 */
 
 static void
@@ -4165,12 +4217,6 @@ setLogformat(CustomLog *cl, const char *logdef_name, const bool dieWhenMissing)
     }
 
     return true;
-}
-
-static int
-check_null_access_log(CustomLog *customlog_definitions)
-{
-    return customlog_definitions == NULL;
 }
 
 static void

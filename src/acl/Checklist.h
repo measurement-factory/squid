@@ -28,40 +28,8 @@ class ACLChecklist
 
 public:
 
-    /**
-     * State class.
-     * This abstract class defines the behaviour of
-     * async lookups - which can vary for different ACL types.
-     * Today, every state object must be a singleton.
-     * See NULLState for an example.
-     *
-     \note *no* state should be stored in the state object,
-     * they are used to change the behaviour of the checklist, not
-     * to hold information. If you need to store information in the
-     * state object, consider subclassing ACLChecklist, converting it
-     * to a composite, or changing the state objects from singletons to
-     * refcounted objects.
-     */
-
-    class AsyncState
-    {
-
-    public:
-        virtual void checkForAsync(ACLChecklist *) const = 0;
-        virtual ~AsyncState() {}
-    };
-
-    class NullState : public AsyncState
-    {
-
-    public:
-        static NullState *Instance();
-        virtual void checkForAsync(ACLChecklist *) const;
-        virtual ~NullState() {}
-
-    private:
-        static NullState _instance;
-    };
+    /// a function that initiates asynchronous ACL checks; see goAsync()
+    using AsyncStarter = void (ACLChecklist &, const ACL &acl);
 
 public:
     ACLChecklist();
@@ -144,7 +112,7 @@ public:
 
     /// If slow lookups are allowed, switches into "async in progress" state.
     /// Otherwise, returns false; the caller is expected to handle the failure.
-    bool goAsync(AsyncState *);
+    bool goAsync(const AsyncStarter &, const ACL &acl);
 
     /// Matches (or resumes matching of) a child node at pos while maintaining
     /// resumption breadcrumbs if a [grand]child node goes async.
@@ -186,6 +154,9 @@ public:
     void changeAcl(nullptr_t);
 
 private:
+    // TODO: Remove diff reduction.
+    using AsyncState = AsyncStarter;
+
     /// Calls non-blocking check callback with the answer and destroys self.
     void checkCallback(Acl::Answer answer);
 
@@ -202,7 +173,7 @@ public:
 
     /// Resumes non-blocking check started by nonBlockingCheck() and
     /// suspended until some async operation updated Squid state.
-    void resumeNonBlockingCheck(AsyncState *state);
+    void resumeNonBlockingCheck(const AsyncStarter &);
 
 private: /* internal methods */
     /// Position of a child node within an ACL tree.

@@ -34,6 +34,10 @@ public:
     virtual bool valid() const {return true;}
 
     virtual ~ACLStrategy() {}
+
+    // TODO: Diff reduction. Address class ACLStrategised design XXX to remove.
+    /// The last ACLStrategized object that called ACLStrategy::match().
+    const ACL *lastMatchCallerXXX = nullptr;
 };
 
 #endif /* SQUID_ACLSTRATEGY_H */

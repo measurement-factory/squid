@@ -8,7 +8,7 @@
 
 #include "squid.h"
 #include "acl/Gadgets.h"
-#include "acl/Tree.h"
+#include "acl/DirectiveRules.h"
 #include "adaptation/AccessRule.h"
 #include "adaptation/Service.h"
 #include "adaptation/ServiceGroups.h"

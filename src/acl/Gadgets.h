@@ -20,9 +20,9 @@ class StoreEntry;
 class wordlist;
 
 namespace Acl {
-    // TODO: Enable or remove.
-    /// Makes the given rules inaccessible; deletes unused rules
-    //void Forget(PermissionTreePointer&);
+// TODO: Enable or remove.
+/// Makes the given rules inaccessible; deletes unused rules
+//void Forget(PermissionTreePointer&);
 }
 
 /// Acl::Forget() wrapper used by legacy code
@@ -36,9 +36,7 @@ void aclDestroyAccessList(acl_access **list);
 /// Parses a single line of a "action followed by acls" directive (e.g., http_access).
 void aclParseAccessLine(const char *directive, ConfigParser &parser, acl_access **);
 /// parseAcls() wrapper used by legacy code
-void aclParseAclList(ConfigParser &parser, Acl::Tree **, const char *label);
 void aclParseAclList(ConfigParser &parser, ACLList **, const char *label);
-
 
 namespace Acl {
 

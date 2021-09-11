@@ -20,6 +20,7 @@
 #include "acl/Acl.h"
 #include "acl/AclDenyInfoList.h"
 #include "acl/Checklist.h"
+#include "acl/DirectiveRules.h"
 #include "acl/Gadgets.h"
 #include "acl/Strategised.h"
 #include "acl/Tree.h"
@@ -130,7 +131,7 @@ aclParseDenyInfoLine(AclDenyInfoList ** head)
 }
 
 void
-aclParseAccessLine(const char *directive, ConfigParser &, acl_access **config)
+aclParseAccessLine(const char *directive, ConfigParser &, acl_access **configPtr)
 {
     /* first expect either 'allow' or 'deny' */
     const char *t = ConfigParser::NextToken();
@@ -152,8 +153,9 @@ aclParseAccessLine(const char *directive, ConfigParser &, acl_access **config)
         return;
     }
 
-    assert(config);
-    const int ruleId = (*config ? (*config)->raw->childrenCount() : 0) + 1;
+    assert(configPtr);
+    auto &config = *configPtr;
+    const int ruleId = (config ? config->raw->childrenCount() : 0) + 1;
     MemBuf ctxBuf;
     ctxBuf.init();
     ctxBuf.appendf("%s#%d", directive, ruleId);
@@ -171,21 +173,15 @@ aclParseAccessLine(const char *directive, ConfigParser &, acl_access **config)
 
     /* Append to the end of this list */
 
-    if (!*config)
-        *config = new acl_access();
-    auto &treep = (*config)->raw;
+    if (!config)
+        config = new Acl::DirectiveRules(directive, config_input_line);
 
-    if (!treep) {
-        treep = new Acl::Tree();
-        treep->context(directive, config_input_line);
-    }
-
-    treep->add(rule, action);
+    config->raw->add(rule, action);
 }
 
 // aclParseAclList does not expect or set actions (cf. aclParseAccessLine)
 void
-aclParseAclList(ConfigParser &, Acl::Tree **treep, const char *label)
+aclParseAclList(ConfigParser &parser, ACLList **configPtr, const char *label)
 {
     // accommodate callers unable to convert their ACL list context to string
     if (!label)
@@ -196,6 +192,8 @@ aclParseAclList(ConfigParser &, Acl::Tree **treep, const char *label)
     ctxLine.appendf("(%s %s line)", cfg_directive, label);
     ctxLine.terminate();
 
+    // TODO: Refactor Acl::Tree so that it can also be an AndNode and then
+    // optimize by merging config->raw and this rule into an ACL tree root.
     Acl::AndNode *rule = new Acl::AndNode;
     rule->context(ctxLine.content(), config_input_line);
     rule->lineParse();
@@ -205,28 +203,11 @@ aclParseAclList(ConfigParser &, Acl::Tree **treep, const char *label)
     ctxTree.appendf("%s %s", cfg_directive, label);
     ctxTree.terminate();
 
-    // TODO: Remove this extra node after figuring what to do with ctxTree!
-    Acl::Tree *tree = new Acl::Tree;
-    tree->add(rule);
-    tree->context(ctxTree.content(), config_input_line);
-
-    assert(treep);
-    assert(!*treep);
-    *treep = tree;
-}
-
-// TODO: Who calls this new function? How did the code work before this?
-void
-aclParseAclList(ConfigParser &parser, ACLList **configPtr, const char *label)
-{
-    Acl::Tree *tree = nullptr; // the aclParseAclList() call below assumes this
-    aclParseAclList(parser, &tree, label);
-
     assert(configPtr);
     auto &config = *configPtr;
     assert(!config);
-    config = new acl_access();
-    config->raw = tree;
+    config = new Acl::DirectiveRules(ctxTree.content(), config_input_line);
+    config->raw->add(rule);
 }
 
 /*********************/
