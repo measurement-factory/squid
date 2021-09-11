@@ -59,6 +59,7 @@ void PeerConnector::commCloseHandler(const CommCloseCbParams &) STUB
 void PeerConnector::connectionClosed(const char *) STUB
 bool PeerConnector::prepareSocket() STUB_RETVAL(false)
 bool PeerConnector::initialize(Security::SessionPointer &) STUB_RETVAL(false)
+const SBuf &PeerConnector::clientApplicationProtocols() const STUB_RETREF(SBuf)
 void PeerConnector::negotiate() STUB
 bool PeerConnector::sslFinalized() STUB_RETVAL(false)
 void PeerConnector::handleNegotiateError(const int) STUB
