@@ -1,2 +1,2 @@
-expect-failure ERROR:.configuration.failure:.POSIX.regcomp.*failure
+expect-failure FATAL:.configuration.failure:.POSIX.regcomp.*failure
 

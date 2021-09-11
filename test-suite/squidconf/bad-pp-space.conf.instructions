@@ -1,6 +1,6 @@
-expect-failure FATAL:.*Found.3.unrecognized.directive.*
+expect-failure FATAL:.*Found.3.invalid.configuration.line.*
 expect-messages <<END
-ERROR: unrecognized directive .*http_access
-ERROR: unrecognized directive .*debug_options
-ERROR: unrecognized directive .*forward.*max_tries
+ERROR: Unrecognized configuration directive name: .*http_access
+ERROR: Unrecognized configuration directive name: .*debug_options
+ERROR: Unrecognized configuration directive name: .*forward.*max_tries
 END

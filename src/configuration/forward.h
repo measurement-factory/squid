@@ -11,6 +11,8 @@
 
 namespace Configuration {
 class Preprocessor;
+class PreprocessedCfg;
+class PreprocessedDirective;
 } // namespace Configuration
 
 #endif /* SQUID_SRC_CONFIGURATION_FORWARD_H */

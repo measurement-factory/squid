@@ -98,9 +98,13 @@ public:
     int array_flag = 0; ///< TYPE is a raw array[] declaration
 
     void genParse(std::ostream &fout) const;
+    void genValidDirectiveNameEntry(std::ostream &fout) const;
+    void genDefaultIfNone(std::ostream &fout) const;
 
 private:
     void genParseAlias(const std::string &, std::ostream &) const;
+    void genValidDirectiveNameCheck(const std::string &, std::ostream &) const;
+    void genDefaultIfNoneAlias(const std::string &, std::ostream &) const;
 };
 
 typedef std::list<class Entry> EntryList;
@@ -121,6 +125,7 @@ static int gen_default(const EntryList &, std::ostream &);
 static void gen_parse(const EntryList &, std::ostream &);
 static void gen_dump(const EntryList &, std::ostream&);
 static void gen_free(const EntryList &, std::ostream&);
+static void gen_find(const EntryList &, std::ostream &);
 static void gen_conf(const EntryList &, std::ostream&, bool verbose_output);
 static void gen_default_if_none(const EntryList &, std::ostream&);
 static void gen_default_postscriptum(const EntryList &, std::ostream&);
@@ -436,6 +441,8 @@ main(int argc, char *argv[])
 
     gen_free(entries, fout);
 
+    gen_find(entries, fout);
+
     fout.close();
 
     /* Open output x.conf file */
@@ -522,13 +529,27 @@ gen_default_if_none(const EntryList &head, std::ostream &fout)
          "    config_lineno = 0;" << std::endl;
 
     for (const auto &entry : head) {
+        entry.genDefaultIfNone(fout);
+    }
+
+    fout << "    cfg_filename = nullptr;" << std::endl <<
+         "}" << std::endl << std::endl;
+}
+
+void
+Entry::genDefaultIfNone(std::ostream &fout) const
+{
+    // TODO: Remove diff reduction.
+    {
+        const auto &entry = *this;
+
         assert(entry.name.size());
 
         if (!entry.loc.size())
-            continue;
+            return;
 
         if (entry.defaults.if_none.empty())
-            continue;
+            return;
 
         if (!entry.defaults.preset.empty()) {
             std::cerr << "ERROR: " << entry.name << " has preset defaults. DEFAULT_IF_NONE cannot be true." << std::endl;
@@ -538,7 +559,15 @@ gen_default_if_none(const EntryList &head, std::ostream &fout)
         if (entry.ifdef.size())
             fout << "#if " << entry.ifdef << std::endl;
 
-        fout << "    if (check_null_" << entry.type << "(" << entry.loc << ")) {" << std::endl;
+        fout << "    if (";
+        // Once for the current directive name
+        genDefaultIfNoneAlias(name, fout);
+
+        // All accepted aliases
+        for (const auto &a: alias)
+            genDefaultIfNoneAlias(a, fout << " && ");
+        fout << ") {" << std::endl;
+
         for (const auto &l : entry.defaults.if_none)
             fout << "        importDefaultDirective(\"" << entry.name << " " << gen_quote_escape(l) <<"\");" << std::endl;
         fout << "    }" << std::endl;
@@ -546,9 +575,12 @@ gen_default_if_none(const EntryList &head, std::ostream &fout)
         if (entry.ifdef.size())
             fout << "#endif" << std::endl;
     }
+}
 
-    fout << "    cfg_filename = nullptr;" << std::endl <<
-         "}" << std::endl << std::endl;
+void
+Entry::genDefaultIfNoneAlias(const std::string &knownName, std::ostream &fout) const
+{
+    fout << "!sawDirective(\"" << knownName << "\")";
 }
 
 /// append configuration options specified by POSTSCRIPTUM lines
@@ -614,7 +646,7 @@ Entry::genParseAlias(const std::string &aName, std::ostream &fout) const
              "    debugs(0, DBG_PARSE_NOTE(DBG_IMPORTANT), \"ERROR: '" << name << "' requires " << available_if(ifdef) << "\");" << std::endl <<
              "#endif" << std::endl;
     }
-    fout << "        return 1;" << std::endl;
+    fout << "        return;" << std::endl;
     fout << "    };" << std::endl;
 }
 
@@ -637,15 +669,16 @@ static void
 gen_parse(const EntryList &head, std::ostream &fout)
 {
     fout <<
-         "int\n"
-         "parse_line(const SBuf &buf)\n"
+         "void\n"
+         "Configuration::parseDirective(const PreprocessedDirective &directive)\n"
          "{\n"
+         "\tconst auto buf = directive.contents();\n"
          "\tconst auto directiveName = LegacyParser.openDirective(buf);\n";
 
     for (const auto &e : head)
         e.genParse(fout);
 
-    fout << "\treturn 0; /* failure */\n"
+    fout << "\tAssure(!\"PreprocessedDirective has ValidDirectiveName()\"); /* not reached */\n"
          "}\n\n";
 
 }
@@ -711,6 +744,53 @@ gen_free(const EntryList &head, std::ostream &fout)
     }
 
     fout << "}" << std::endl << std::endl;
+}
+
+/// generate Configuration::Preprocessor::ValidDirectiveName() code for the given knownName
+void
+Entry::genValidDirectiveNameCheck(const std::string &knownName, std::ostream &fout) const
+{
+    // genValidDirectiveNameCheck() ignores IFDEF restrictions (for now) because
+    // the parser currently accepts/ignores (with an ERROR) directives disabled
+    // by ./configure. See `ifdef` handling in genParseAlias().
+
+    // TODO: Add SBuf::equal() to encapsulate this length check optimization.
+    fout << "    if (name.length() == " << knownName.length() << " && name.cmp(\"" << knownName << "\", " << knownName.length() << ") == 0)\n";
+    fout << "        return true;\n";
+}
+
+/// generate Configuration::Preprocessor::ValidDirectiveName() code for this Entry
+void
+Entry::genValidDirectiveNameEntry(std::ostream &fout) const
+{
+    if (name.compare("comment") == 0)
+        return;
+
+    // ValidDirectiveName() does not treat type="obsolete" entries specially
+    // (yet) because the parser currently accepts them (with an ERROR) and even
+    // rewrites some). See parse_obsolete().
+
+    // one code block for the primary directive name
+    genValidDirectiveNameCheck(name, fout);
+
+    // and one code block for each of the accepted aliases (if any)
+    for (const auto &a: alias)
+        genValidDirectiveNameCheck(a, fout);
+}
+
+static void
+gen_find(const EntryList &head, std::ostream &fout)
+{
+    fout <<
+         "bool\n"
+         "Configuration::Preprocessor::ValidDirectiveName(const SBuf &name)\n"
+         "{\n";
+
+    for (const auto &e : head)
+        e.genValidDirectiveNameEntry(fout);
+
+    fout << "    return false;\n"
+         "}\n\n";
 }
 
 static bool

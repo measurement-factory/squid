@@ -10,9 +10,29 @@
 #define SQUID_SRC_CONFIGURATION_PREPROCESSOR_H
 
 #include "configuration/forward.h"
+#include "sbuf/Algorithms.h"
 #include "sbuf/forward.h"
 
+#include <deque>
+#include <memory>
+#include <unordered_set>
+
 namespace Configuration {
+
+/// artifacts of successful preprocessing; Preprocess() result
+class PreprocessedCfg: public RefCountable
+{
+public:
+    using Pointer = RefCount<PreprocessedCfg>;
+
+    using Directive = PreprocessedDirective;
+
+    /// preprocessed configuration directives in configuration order
+    using Directives = std::deque< /* const here XXX? */ Directive /* XXX: Pool */ >;
+
+    /// all successfully preprocessed directives; TODO: rename to directives
+    Directives allDirectives;
+};
 
 /// Processes Squid configuration up to (and excluding) parsing of individual
 /// directives (each described as a NAME:... blob in cf.data.pre). Handles
@@ -21,14 +41,15 @@ namespace Configuration {
 class Preprocessor
 {
 public:
+    Preprocessor();
+
     /// Provides configuration parser with a sequence of preprocessed
     /// directives, including various defaults.
-    /// \retval the total number of unrecognized directives found
-    int process(const char * const filename);
+    PreprocessedCfg::Pointer process(const char * const filename);
 
 private:
-    int processFile(const char *filename, size_t depth);
-    int processIncludedFiles(const SBuf &paths, size_t depth);
+    void processFile(const char *filename, size_t depth);
+    void processIncludedFiles(const SBuf &paths, size_t depth);
 
     void importDefaultDirective(const char *);
 
@@ -39,9 +60,65 @@ private:
     void processInitialDefaults();
     void processIfNoneDefaults();
     void processPostscriptumDefaults();
+
+    void processUnfoldedLine(const SBuf &line);
+    void addDirective(const SBuf &name, const SBuf &cfg);
+
+    bool sawDirective(const char *name) const;
+
+    void default_line(const char *s);
+
+    /// preprocessed configuration being built by this object
+    PreprocessedCfg::Pointer cfg_;
+
+    /// a collection of directives names with fast lookup
+    using SeenNames = std::unordered_set<SBuf /* Pool? */>;
+    /// directives names seen so far
+    SeenNames seenDirectives_;
+
+    /// The number of lines we could not preprocess so far. This counter
+    /// includes, without limitation, directives with misspelled names and
+    /// directives that are disabled in this particular Squid build.
+    size_t invalidLines_ = 0;
 };
 
+/// a single preprocessed configuration directive (supported or otherwise)
+class PreprocessedDirective
+{
+public:
+    PreprocessedDirective(const SBuf & /*XXX*/, const SBuf &cfg): buf_(cfg) {}
+
+    // XXX: Unused? Unimplemented?
+    /// the first token on a directive line
+    SBuf name() const;
+
+    /// whether the other directive is similar to this one
+    bool similarTo(const PreprocessedDirective &other) const;
+
+    /// entire preprocessed configuration, starting with the directive name
+    const SBuf &contents() const { return buf_; };
+
+    void print(std::ostream &) const;
+
+private:
+    SBuf buf_; ///< \copydoc contents()
+};
+
+/// Interprets Squid configuration up to (and excluding) parsing of individual
+/// directives. Returns a sequence of directives to parse, including various
+/// defaults. Does not affect current Squid configuration. Never returns nil.
+PreprocessedCfg::Pointer Preprocess(const char *filename);
+
 } // namespace Configuration
+
+// XXX: Move into Configuration; see commit 25ecffe5
+inline
+std::ostream&
+operator <<(std::ostream &os, const Configuration::PreprocessedDirective &d)
+{
+    d.print(os);
+    return os;
+}
 
 #endif /* SQUID_SRC_CONFIGURATION_PREPROCESSOR_H */
 
