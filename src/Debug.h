@@ -108,18 +108,19 @@ public:
 
     /* cache_log channel */
 
+    /// Starts using stderr as a cache_log file replacement.
+    /// Also applies configured debug_options (if any).
+    /// Call this or UseCacheLog() to stop early message accumulation.
+    static void BanCacheLogUse();
+
     /// Opens and starts using the configured cache_log file.
     /// Also applies configured debug_options (if any).
     /// Call this or BanCacheLogUse() to stop early message accumulation.
     static void UseCacheLog();
 
-    /// Stops using cache_log (if it was in use).
-    static void StopCacheLogUse();
-
+    /// Closes and stops using cache_log (if it was open).
     /// Starts using stderr as a cache_log file replacement.
-    /// Also applies configured debug_options (if any).
-    /// Call this or UseCacheLog() to stop early message accumulation.
-    static void BanCacheLogUse();
+    static void StopCacheLogUse();
 
     /* stderr channel */
 

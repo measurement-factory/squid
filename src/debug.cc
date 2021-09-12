@@ -1001,8 +1001,14 @@ Debug::UseCacheLog()
 void
 Debug::StopCacheLogUse()
 {
-    TheLog.clear(); // may already be closed
-    Module().cacheLogChannel.stopEarlyMessageCollection(); // may already be stopped
+    if (TheLog.file()) {
+        // UseCacheLog() was successful.
+        Module().cacheLogChannel.stopEarlyMessageCollection(); // paranoid
+        TheLog.clear();
+    } else {
+        // UseCacheLog() was not called at all or failed to open cache_log.
+        Module().banCacheLogUse(); // may already be banned
+    }
 }
 
 void
