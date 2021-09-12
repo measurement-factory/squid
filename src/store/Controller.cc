@@ -655,13 +655,6 @@ Store::Controller::transientsDisconnect(StoreEntry &e)
 }
 
 void
-Store::Controller::transientsClearCollapsingRequirement(StoreEntry &e)
-{
-    if (transients)
-        transients->clearCollapsingRequirement(e);
-}
-
-void
 Store::Controller::handleIdleEntry(StoreEntry &e)
 {
     bool keepInLocalMemory = false;
@@ -807,11 +800,6 @@ Store::Controller::syncCollapsed(const sfileno xitIndex)
     Transients::EntryStatus entryStatus;
     transients->status(*collapsed, entryStatus);
 
-    if (!entryStatus.collapsed) {
-        debugs(20, 5, "removing collapsing requirement for " << *collapsed << " since remote writer probably got headers");
-        collapsed->setCollapsingRequirement(false);
-    }
-
     if (entryStatus.waitingToBeFreed) {
         debugs(20, 3, "will release " << *collapsed << " due to waitingToBeFreed");
         collapsed->release(true); // may already be marked
@@ -821,12 +809,6 @@ Store::Controller::syncCollapsed(const sfileno xitIndex)
         return; // readers can only change our waitingToBeFreed flag
 
     assert(transients->isReader(*collapsed));
-
-    if (entryStatus.collapsed && !collapsed->hittingRequiresCollapsing()) {
-        debugs(20, 3, "aborting " << *collapsed << " due to writer/reader collapsing state mismatch");
-        collapsed->abort();
-        return;
-    }
 
     bool found = false;
     bool inSync = false;
@@ -854,6 +836,8 @@ Store::Controller::syncCollapsed(const sfileno xitIndex)
 
     if (inSync) {
         debugs(20, 5, "synced " << *collapsed);
+        assert(found);
+        collapsed->setCollapsingRequirement(false);
         collapsed->invokeHandlers();
         return;
     }
@@ -872,6 +856,7 @@ Store::Controller::syncCollapsed(const sfileno xitIndex)
 
     // the entry is still not in one of the caches
     debugs(20, 7, "waiting " << *collapsed);
+    collapsed->setCollapsingRequirement(true);
 }
 
 /// Called for Transients entries that are not yet anchored to a cache.
@@ -889,33 +874,37 @@ Store::Controller::anchorToCache(StoreEntry &entry, bool &inSync)
     Transients::EntryStatus entryStatus;
     transients->status(entry, entryStatus);
 
+    inSync = false;
     bool found = false;
     if (sharedMemStore)
         found = sharedMemStore->anchorToCache(entry, inSync);
     if (!found && swapDir)
         found = swapDir->anchorToCache(entry, inSync);
 
+    if (inSync) {
+        debugs(20, 7, "anchored " << entry);
+        assert(found);
+        entry.setCollapsingRequirement(false);
+        return true;
+    }
+
     if (found) {
-        if (inSync)
-            debugs(20, 7, "anchored " << entry);
-        else
-            debugs(20, 5, "failed to anchor " << entry);
+        debugs(20, 5, "failed to anchor " << entry);
         return true;
     }
 
     if (entryStatus.waitingToBeFreed) {
         debugs(20, 5, "failed on marked unattached " << entry);
-        inSync = false;
         return true;
     }
 
     if (!entryStatus.hasWriter) {
         debugs(20, 5, "failed on abandoned-by-writer " << entry);
-        inSync = false;
         return true;
     }
 
     debugs(20, 7, "skipping not yet cached " << entry);
+    entry.setCollapsingRequirement(true);
     return false;
 }
 
