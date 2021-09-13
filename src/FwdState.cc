@@ -260,12 +260,13 @@ FwdState::selectPeerForIntercepted()
 }
 #endif
 
-/// stores or updates the error information (if any)
+/// updates ALE when we decide to completeUnsuccessfully()
 void
-FwdState::updateError()
+FwdState::updateAleWithFinalError()
 {
     if (!err)
         return;
+
     LogTagsErrors lte;
     lte.timedout = (err->xerrno == ETIMEDOUT || err->type == ERR_READ_TIMEOUT);
     al->cache.code.err.update(lte);
@@ -300,7 +301,7 @@ FwdState::completed()
             if (!err) // we quit (e.g., fd closed) before an error or content
                 fail(new ErrorState(ERR_READ_ERROR, Http::scBadGateway, request, al));
             assert(err);
-            updateError();
+            updateAleWithFinalError();
             errorAppendEntry(entry, err);
             err = NULL;
 #if USE_OPENSSL
@@ -310,7 +311,7 @@ FwdState::completed()
             }
 #endif
         } else {
-            updateError();
+            updateAleWithFinalError();
             entry->completeUnsuccessfully();
         }
     }

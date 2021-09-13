@@ -162,7 +162,7 @@ private:
 
     void notifyConnOpener();
 
-    void updateError();
+    void updateAleWithFinalError();
 
 public:
     StoreEntry *entry;
