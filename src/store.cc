@@ -1063,7 +1063,6 @@ void
 StoreEntry::completeUnsuccessfully()
 {
     lengthWentBad("truncated entry");
-    releaseRequest();
     complete();
 }
 
