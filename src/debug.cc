@@ -401,8 +401,7 @@ DebugChannel::logSaved(const DebugMessages &messages)
 {
     const auto writtenEarlier = written;
     for (const auto &message: messages) {
-        if (Debug::Enabled(message.header.section, message.header.level) &&
-                lastWrittenRecordNumber < message.header.recordNumber)
+        if (Debug::Enabled(message.header.section, message.header.level))
             log(message.header, message.body);
     }
     const auto writtenNow = written - writtenEarlier;
@@ -465,7 +464,8 @@ DebugChannel::noteWritten(const DebugMessageHeader &header)
 void
 CacheLogChannel::log(const DebugMessageHeader &header, const std::string &body)
 {
-    assert(header.recordNumber > lastWrittenRecordNumber);
+    if (header.recordNumber <= lastWrittenRecordNumber)
+        return;
 
     if (earlyMessages)
         return (void)saveMessage(header, body);
@@ -504,7 +504,8 @@ StderrChannel::shouldWrite(const int level, const bool overflowed) const
 void
 StderrChannel::log(const DebugMessageHeader &header, const std::string &body)
 {
-    assert(header.recordNumber > lastWrittenRecordNumber);
+    if (header.recordNumber <= lastWrittenRecordNumber)
+        return;
 
     if (saveMessage(header, body))
         return;
@@ -923,7 +924,8 @@ SyslogPriority(const DebugMessageHeader &header)
 void
 SyslogChannel::log(const DebugMessageHeader &header, const std::string &body)
 {
-    assert(header.recordNumber > lastWrittenRecordNumber);
+    if (header.recordNumber <= lastWrittenRecordNumber)
+        return;
 
     if (earlyMessages)
         return (void)saveMessage(header, body);
