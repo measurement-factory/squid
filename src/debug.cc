@@ -425,8 +425,8 @@ DebugChannel::saveMessage(const DebugMessageHeader &header, const std::string &b
     if (earlyMessages->size() >= limit) {
         DebugMessages doomedMessages;
         earlyMessages->swap(doomedMessages);
+        purged = doomedMessages.size(); // before handleOverflow() may change it
         handleOverflow(doomedMessages);
-        purged = doomedMessages.size();
     }
 
     earlyMessages->emplace_back(header, body);
