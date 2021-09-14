@@ -685,10 +685,15 @@ HttpStateData::processReplyHeader()
         // sync the buffers after parsing.
         inBuf = hp->remaining();
 
-        if (hp->needsMoreData() && !eof) {
-            debugs(33, 5, "incomplete response, waiting for the headers end");
-            ctx_exit(ctx);
-            return;
+        if (hp->needsMoreData()) {
+            if (eof) { // no more data coming
+                assert(!parsedOk);
+                // fall through to handle this premature EOF as an error
+            } else {
+                debugs(33, 5, "Incomplete response, waiting for end of response headers");
+                ctx_exit(ctx);
+                return;
+            }
         }
 
         if (!parsedOk) {
@@ -698,7 +703,7 @@ HttpStateData::processReplyHeader()
             flags.headers_parsed = true;
             HttpReply *newrep = new HttpReply;
             // hp->needsMoreData() means hp->parseStatusCode is unusable, but it
-            // also means that the reply header got truncated by unexpected EOF
+            // also means that the reply header got truncated by a premature EOF
             assert(!hp->needsMoreData() || eof);
             const auto scode = hp->needsMoreData() ? Http::scInvalidHeader : hp->parseStatusCode;
             newrep->sline.set(Http::ProtocolVersion(), scode);
