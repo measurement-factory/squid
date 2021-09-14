@@ -321,10 +321,9 @@ FwdState::completed()
         }
     }
 
-    assert(entry->store_status == STORE_OK);
-
     if (storePendingNClients(entry) > 0)
         assert(!EBIT_TEST(entry->flags, ENTRY_FWD_HDR_WAIT));
+
 }
 
 FwdState::~FwdState()
