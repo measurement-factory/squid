@@ -4004,8 +4004,10 @@ void
 ConnStateData::terminateAll(const Error &anError, const LogTagsErrors &lte)
 {
     auto error = anError;
-    if (!error.detail)
-        error.detail = MakeNamedErrorDetail("CLT_CONN");
+    if (!error.detail) {
+        static const auto d = MakeNamedErrorDetail("CLT_CONN");
+        error.detail = d;
+    }
 
     debugs(33, 3, pipeline.count() << '/' << pipeline.nrequests << " after " << error);
 
