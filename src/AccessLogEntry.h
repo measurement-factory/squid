@@ -276,8 +276,8 @@ class ACLChecklist;
 class StoreEntry;
 
 /* Should be in 'AccessLog.h' as the driver */
-void accessLogLogTo(CustomLog *, const AccessLogEntry::Pointer &, ACLChecklist* checklist = NULL);
-void accessLogLog(const AccessLogEntry::Pointer &, ACLChecklist *);
+void accessLogLogTo(CustomLog* log, AccessLogEntry::Pointer &al, ACLChecklist* checklist = NULL);
+void accessLogLog(AccessLogEntry::Pointer &, ACLChecklist * checklist);
 void accessLogRotate(void);
 void accessLogClose(void);
 void accessLogInit(void);

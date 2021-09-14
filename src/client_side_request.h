@@ -119,9 +119,11 @@ public:
     HttpHdrRangeIter range_iter;    /* data for iterating thru range specs */
     size_t req_sz;      /* raw request size on input, not current request size */
 
-    const AccessLogEntry::Pointer al; ///< access.log entry
+    AccessLogEntry::Pointer al; ///< access.log entry
 
-    // The flags are stored in this->al as a diff reduction hack.
+    // The flags are stored in this->al as a temporary diff reduction hack.
+    // We have verified that this->al does not change by making it const,
+    // but that requires fixing a dozen of ALE-taking APIs (TODO).
     // TODO: Add a convenience method returning al->cache.code instead.
     /// The processing tags associated with this request transaction.
     LogTags &logType;
