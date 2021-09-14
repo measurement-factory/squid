@@ -271,8 +271,9 @@ FwdState::updateAleWithFinalError()
     LogTagsErrors lte;
     lte.timedout = (err->xerrno == ETIMEDOUT || err->type == ERR_READ_TIMEOUT);
     al->cache.code.err.update(lte);
-    const auto detail = err->detail ? err->detail : MakeNamedErrorDetail("SRV_CONN");
-    al->updateError(Error(err->type, detail));
+    if (!err->detail)
+        err->detail = MakeNamedErrorDetail("SRV_CONN"); // XXX: Create once!
+    al->updateError(Error(err->type, err->detail));
 }
 
 void
