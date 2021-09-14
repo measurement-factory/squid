@@ -693,16 +693,15 @@ HttpStateData::processReplyHeader()
 
         if (!parsedOk) {
             // unrecoverable parsing error
-            const auto unexpectedEof = hp->needsMoreData() && eof;
-            if (unexpectedEof) {
-                debugs(11, 3, "unexpected end of response header");
-            } else {
-                // TODO: Use Raw! XXX: inBuf no longer has the [beginning of the] malformed header.
-                debugs(11, 3, "Non-HTTP-compliant header:\n---------\n" << inBuf << "\n----------");
-            }
+            // TODO: Use Raw! XXX: inBuf no longer has the [beginning of the] malformed header.
+            debugs(11, 3, "Non-HTTP-compliant header:\n---------\n" << inBuf << "\n----------");
             flags.headers_parsed = true;
             HttpReply *newrep = new HttpReply;
-            newrep->sline.set(Http::ProtocolVersion(), unexpectedEof ? Http::scInvalidHeader : hp->parseStatusCode);
+            // hp->needsMoreData() means hp->parseStatusCode is unusable, but it
+            // also means that the reply header got truncated by unexpected EOF
+            assert(!hp->needsMoreData() || eof);
+            const auto scode = hp->needsMoreData() ? Http::scInvalidHeader : hp->parseStatusCode;
+            newrep->sline.set(Http::ProtocolVersion(), scode);
             setVirginReply(newrep);
             ctx_exit(ctx);
             return;
