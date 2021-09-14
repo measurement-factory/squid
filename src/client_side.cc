@@ -4001,9 +4001,11 @@ ConnStateData::unpinConnection(const bool andClose)
 }
 
 void
-ConnStateData::terminateAll(const Error &anError, const LogTagsErrors &lte)
+ConnStateData::terminateAll(const Error &rawError, const LogTagsErrors &lte)
 {
-    auto error = anError;
+    auto error = rawError; // (cheap) copy so that we can detail
+    // We detail even ERR_NONE: There should be no transactions left, and
+    // detailed ERR_NONE will be unused. Otherwise, this detail helps in triage.
     if (!error.detail) {
         static const auto d = MakeNamedErrorDetail("CLT_CONN");
         error.detail = d;

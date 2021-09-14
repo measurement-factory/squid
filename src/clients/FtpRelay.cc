@@ -388,6 +388,7 @@ Ftp::Relay::forwardReply()
     setVirginReply(reply);
     markParsedVirginReplyAsWhole("Ftp::Relay::handleControlReply() does not forward partial replies");
     adaptOrFinalizeReply();
+
     serverComplete();
 }
 

@@ -121,9 +121,9 @@ public:
 
     const AccessLogEntry::Pointer al; ///< access.log entry
 
-    // TODO: create a method returning ALE::cache::code instead
-    /// The processing tags associated with this request transaction,
-    /// actually a reference to the cache::code field of the ALE.
+    // The flags are stored in this->al as a diff reduction hack.
+    // TODO: Add a convenience method returning al->cache.code instead.
+    /// The processing tags associated with this request transaction.
     LogTags &logType;
 
     struct Flags {
