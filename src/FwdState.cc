@@ -265,7 +265,7 @@ FwdState::selectPeerForIntercepted()
 void
 FwdState::updateAleWithFinalError()
 {
-    if (!err)
+    if (!err || !al)
         return;
 
     LogTagsErrors lte;
