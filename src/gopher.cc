@@ -808,7 +808,9 @@ gopherReadReply(const Comm::ConnectionPointer &conn, char *buf, size_t len, Comm
         entry->timestampsSet();
         entry->flush();
 
-        gopherState->fwd->bodyReceivedSuccessfully();
+        // XXX: gopherToHTML() does not store everything we receive!
+        gopherState->fwd->markStoredReplyAsWhole("gopher EOF after receiving/storing some bytes");
+
         gopherState->fwd->complete();
         gopherState->serverConn->close();
     } else {
@@ -960,7 +962,7 @@ gopherStart(FwdState * fwd)
         }
 
         gopherToHTML(gopherState, (char *) NULL, 0);
-        fwd->bodyReceivedSuccessfully();
+        fwd->markStoredReplyAsWhole("gopher instant internal request satisfaction");
         fwd->complete();
         return;
     }

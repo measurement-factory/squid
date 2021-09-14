@@ -2280,8 +2280,8 @@ ftpReadTransferDone(Ftp::Gateway * ftpState)
             ftpState->completedListing();
             /* QUIT operation handles sending the reply to client */
         }
+        ftpState->markParsedVirginReplyAsWhole("ftpReadTransferDone code 226 or 250");
         ftpSendQuit(ftpState);
-        ftpState->virginBodyReceivedSuccessfully();
     } else {            /* != 226 */
         debugs(9, DBG_IMPORTANT, HERE << "Got code " << code << " after reading data");
         ftpState->failed(ERR_FTP_FAILURE, 0);

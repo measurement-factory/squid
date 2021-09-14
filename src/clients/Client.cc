@@ -156,15 +156,24 @@ Client::setFinalReply(HttpReply *rep)
 }
 
 void
-Client::virginBodyReceivedSuccessfully()
+Client::markParsedVirginReplyAsWhole(const char *reasonWeAreSure)
 {
+    assert(reasonWeAreSure);
+    debugs(11, 3, reasonWeAreSure);
+
+    // The code storing adapted reply takes care of markStoredReplyAsWhole().
+    // We need to take care of the remaining regular network-to-store case.
 #if USE_ADAPTATION
     if (startedAdaptation) {
-        debugs(11, 5 , "all virgin body bytes have been received but not adapted yet");
+        debugs(11, 5, "adaptation handles markStoredReplyAsWhole()");
         return;
     }
 #endif
-    fwd->bodyReceivedSuccessfully();
+
+    // Convert the "parsed whole virgin reply" event into the "stored..." event
+    // because, without adaptation, we store everything we parse: There is no
+    // buffer for parsed content; addVirginReplyBody() stores every parsed byte.
+    fwd->markStoredReplyAsWhole(reasonWeAreSure);
 }
 
 // called when no more server communication is expected; may quit
@@ -734,6 +743,7 @@ Client::handleAdaptedHeader(Http::Message *msg)
         assert(result);
     } else {
         // no body
+        fwd->markStoredReplyAsWhole("setFinalReply() stored header-only adapted reply");
         if (doneWithAdaptation()) // we may still be sending virgin response
             handleAdaptationCompleted();
     }
@@ -808,6 +818,9 @@ Client::handleAdaptedBodyProductionEnded()
     if (abortOnBadEntry("entry went bad while waiting for adapted body eof"))
         return;
 
+    // distinguish this code path from handleAdaptedBodyProducerAborted()
+    receivedWholeAdaptedReply_ = true;
+
     // end consumption if we consumed everything
     if (adaptedBodySource != NULL && adaptedBodySource->exhausted())
         endAdaptedBodyConsumption();
@@ -818,7 +831,16 @@ void
 Client::endAdaptedBodyConsumption()
 {
     stopConsumingFrom(adaptedBodySource);
-    adaptedBodyReceivedSuccessfully();
+
+    if (receivedWholeAdaptedReply_) {
+        // We received the entire adapted reply per receivedWholeAdaptedReply_.
+        // We are called when we consumed everything received (per our callers).
+        // We consume only what we store per handleMoreAdaptedBodyAvailable().
+        // TODO: After simplifying handleMoreAdaptedBodyAvailable(), move the
+        // entire endAdaptedBodyConsumption() code there to clarify this logic?
+        fwd->markStoredReplyAsWhole("received,consumed=>stored the entire adapted reply");
+    }
+
     handleAdaptationCompleted();
 }
 

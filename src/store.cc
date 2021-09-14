@@ -1054,15 +1054,16 @@ StoreEntry::lengthWentBad(const char *reason)
 }
 
 void
-StoreEntry::completeSuccessfully()
+StoreEntry::completeSuccessfully(const char * const whyWeAreSure)
 {
+    debugs(20, 3, whyWeAreSure << "; " << *this);
     complete();
 }
 
 void
-StoreEntry::completeUnsuccessfully()
+StoreEntry::completeUnsuccessfully(const char * const whyWeAreSure)
 {
-    lengthWentBad("truncated entry");
+    lengthWentBad(whyWeAreSure);
     complete();
 }
 

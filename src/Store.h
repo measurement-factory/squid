@@ -67,13 +67,17 @@ public:
     bool isEmpty() const { return mem().endOffset() == 0; }
     bool isAccepting() const;
     size_t bytesWanted(Range<size_t> const aRange, bool ignoreDelayPool = false) const;
-    /// \deprecated use either completeSuccessfully() or completeUnsuccessfully() instead
-    void complete();
+
     /// mark the entry as 'completed' after the body has been fully received
-    void completeSuccessfully();
+    void completeSuccessfully(const char *whyWeAreSure = nullptr /* XXX: remove default */);
+
     /// Mark the entry as 'completed' if the body has been partially received and
     /// no more body bytes are expected (e.g., due to a timeout or a preliminary connection closure).
-    void completeUnsuccessfully();
+    void completeUnsuccessfully(const char *whyWeAreSure = nullptr /* XXX: remove default */);
+
+    /// \deprecated use either completeSuccessfully() or completeUnsuccessfully() instead
+    void complete();
+
     store_client_t storeClientType() const;
     /// \returns a malloc()ed buffer containing a length-long packed swap header
     const char *getSerialisedMetaData(size_t &length) const;

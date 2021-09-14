@@ -386,9 +386,8 @@ Ftp::Relay::forwardReply()
     reply->sources |= Http::Message::srcFtp;
 
     setVirginReply(reply);
+    markParsedVirginReplyAsWhole("Ftp::Relay::handleControlReply() does not forward partial replies");
     adaptOrFinalizeReply();
-    virginBodyReceivedSuccessfully();
-
     serverComplete();
 }
 
@@ -720,8 +719,11 @@ Ftp::Relay::readTransferDoneReply()
 {
     debugs(9, 3, status());
 
+    // RFC 959 says that code 226 may indicate a successful response to a file
+    // transfer and file abort commands, but since we do not send abort
+    // commands, let's assume it was a successful file transfer.
     if (ctrl.replycode == 226 || ctrl.replycode == 250) {
-        virginBodyReceivedSuccessfully();
+        markParsedVirginReplyAsWhole("Ftp::Relay::readTransferDoneReply() code 226 or 250");
     } else {
         debugs(9, DBG_IMPORTANT, "got FTP code " << ctrl.replycode <<
                " after reading response data");

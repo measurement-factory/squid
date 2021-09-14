@@ -151,7 +151,8 @@ FwdState::FwdState(const Comm::ConnectionPointer &client, StoreEntry * e, HttpRe
     start_t(squid_curtime),
     n_tries(0),
     destinations(new ResolvedPeers()),
-    pconnRace(raceImpossible)
+    pconnRace(raceImpossible),
+    storedWholeReply_(nullptr)
 {
     debugs(17, 2, "Forwarding client request " << client << ", url=" << e->url());
     HTTPMSGLOCK(request);
@@ -298,6 +299,7 @@ FwdState::completed()
 
     if (entry->store_status == STORE_PENDING) {
         if (entry->isEmpty()) {
+            assert(!storedWholeReply_);
             if (!err) // we quit (e.g., fd closed) before an error or content
                 fail(new ErrorState(ERR_READ_ERROR, Http::scBadGateway, request, al));
             assert(err);
@@ -311,8 +313,11 @@ FwdState::completed()
             }
 #endif
         } else {
-            updateAleWithFinalError();
-            entry->completeUnsuccessfully();
+            updateAleWithFinalError(); // if any
+            if (storedWholeReply_)
+                entry->completeSuccessfully(storedWholeReply_);
+            else
+                entry->completeUnsuccessfully("FwdState conservative default");
         }
     }
 
@@ -320,7 +325,6 @@ FwdState::completed()
 
     if (storePendingNClients(entry) > 0)
         assert(!EBIT_TEST(entry->flags, ENTRY_FWD_HDR_WAIT));
-
 }
 
 FwdState::~FwdState()
@@ -561,6 +565,7 @@ FwdState::complete()
         if (Comm::IsConnOpen(serverConn))
             unregister(serverConn);
 
+        storedWholeReply_ = nullptr;
         entry->reset();
 
         useDestinations();
@@ -578,11 +583,10 @@ FwdState::complete()
 }
 
 void
-FwdState::bodyReceivedSuccessfully()
+FwdState::markStoredReplyAsWhole(const char * const whyWeAreSure)
 {
-    debugs(17, 3, "reply status " << entry->mem().baseReply().sline.status() << " " << entry->url());
-    if (!reforward())
-        entry->completeSuccessfully();
+    debugs(17, 5, whyWeAreSure << " for " << *entry);
+    storedWholeReply_ = whyWeAreSure;
 }
 
 void
