@@ -1437,6 +1437,19 @@ HttpStateData::writeReplyBody()
     int len = inBuf.length();
     addVirginReplyBody(data, len);
     inBuf.consume(len);
+
+    // after addVirginReplyBody() wrote (when not adapting) everything we have
+    // received to Store, check whether we have received/parsed the entire reply
+    int64_t clen = -1;
+    const char *parsedWhole = nullptr;
+    if (!virginReply()->expectingBody(request->method, clen))
+        parsedWhole = "http parsed header-only reply";
+    else if (clen >= 0 && clen == payloadSeen - payloadTruncated)
+        parsedWhole = "http parsed Content-Length body bytes";
+    else if (clen < 0 && eof)
+        parsedWhole = "http parsed body ending with expected/required EOF";
+    if (parsedWhole)
+        markParsedVirginReplyAsWhole(parsedWhole);
 }
 
 bool
@@ -1454,7 +1467,7 @@ HttpStateData::decodeAndWriteReplyBody()
         if (doneParsing) {
             lastChunk = 1;
             flags.do_next_read = false;
-            markParsedVirginReplyAsWhole("http last-chunk");
+            markParsedVirginReplyAsWhole("http parsed last-chunk");
         }
         return true;
     }
@@ -1499,22 +1512,8 @@ HttpStateData::processReplyBody()
                 serverComplete();
                 return;
             }
-        } else {
+        } else
             writeReplyBody();
-
-            // After writeReplyBody() above wrote everything we have received,
-            // check whether we have received/parsed the entire reply.
-            int64_t clen = -1;
-            const char *parsedWhole = nullptr;
-            if (!virginReply()->expectingBody(request->method, clen))
-                parsedWhole = "http parsed header-only reply";
-            else if (clen >= 0 && clen == payloadSeen - payloadTruncated)
-                parsedWhole = "http parsed Content-Length body bytes";
-            else if (clen < 0 && eof)
-                parsedWhole = "http saw expected/required EOF";
-            if (parsedWhole)
-                markParsedVirginReplyAsWhole(parsedWhole);
-        }
     }
 
     // storing/sending methods like earlier adaptOrFinalizeReply() or
