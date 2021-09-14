@@ -753,7 +753,7 @@ StoreEntry::adjustVary()
 
         pe->startWriting(); // after timestampsSet()
 
-        pe->complete();
+        pe->completeSuccessfully("wrote the entire Vary marker object");
 
         return pe;
     }
@@ -1761,7 +1761,7 @@ StoreEntry::storeErrorResponse(HttpReply *reply)
     buffer();
     replaceHttpReply(HttpReplyPointer(reply));
     flush();
-    complete();
+    completeSuccessfully("replaceHttpReply() stored the entire error");
     negativeCache();
     releaseRequest(false); // if it is safe to negatively cache, sharing is OK
     unlock("StoreEntry::storeErrorResponse");
