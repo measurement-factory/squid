@@ -1287,11 +1287,7 @@ FwdState::reforward()
         return 0;
     }
 
-    if (e->store_status != STORE_PENDING) {
-        debugs(17, 3, "store_status != STORE_PENDING");
-        return 0;
-    }
-
+    assert(e->store_status == STORE_PENDING);
     assert(e->mem_obj);
 #if URL_CHECKSUM_DEBUG
 
