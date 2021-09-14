@@ -1500,7 +1500,6 @@ HttpStateData::processReplyBody()
 
             // After writeReplyBody() above wrote everything we have received,
             // check whether we have received/parsed the entire reply.
-            // XXX: We did not write everything if ENTRY_ABORTED!
             int64_t clen = -1;
             const char *parsedWhole = nullptr;
             if (!virginReply()->expectingBody(request->method, clen))

@@ -586,6 +586,11 @@ void
 FwdState::markStoredReplyAsWhole(const char * const whyWeAreSure)
 {
     debugs(17, 5, whyWeAreSure << " for " << *entry);
+
+    // the caller wrote everything to Store, but Store may silently abort writes
+    if (EBIT_TEST(entry->flags, ENTRY_ABORTED))
+        return;
+
     storedWholeReply_ = whyWeAreSure;
 }
 
