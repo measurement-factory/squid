@@ -182,7 +182,7 @@ protected:
     bool startedAdaptation = false;
 
     /// handleAdaptedBodyProductionEnded() was called
-    bool receivedWholeAdaptedReply_ = false;
+    bool receivedWholeAdaptedReply = false;
 #endif
     bool receivedWholeRequestBody = false; ///< handleRequestBodyProductionEnded called
 

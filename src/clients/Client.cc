@@ -819,7 +819,7 @@ Client::handleAdaptedBodyProductionEnded()
         return;
 
     // distinguish this code path from handleAdaptedBodyProducerAborted()
-    receivedWholeAdaptedReply_ = true;
+    receivedWholeAdaptedReply = true;
 
     // end consumption if we consumed everything
     if (adaptedBodySource != NULL && adaptedBodySource->exhausted())
@@ -832,13 +832,11 @@ Client::endAdaptedBodyConsumption()
 {
     stopConsumingFrom(adaptedBodySource);
 
-    if (receivedWholeAdaptedReply_) {
-        // We received the entire adapted reply per receivedWholeAdaptedReply_.
+    if (receivedWholeAdaptedReply) {
+        // We received the entire adapted reply per receivedWholeAdaptedReply.
         // We are called when we consumed everything received (per our callers).
         // We consume only what we store per handleMoreAdaptedBodyAvailable().
-        // TODO: After simplifying handleMoreAdaptedBodyAvailable(), move the
-        // entire endAdaptedBodyConsumption() code there to clarify this logic?
-        fwd->markStoredReplyAsWhole("received,consumed=>stored the entire adapted reply");
+        fwd->markStoredReplyAsWhole("received,consumed=>stored the entire RESPMOD reply");
     }
 
     handleAdaptationCompleted();
