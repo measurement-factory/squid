@@ -54,6 +54,7 @@ public:
     public:
         Context(const int aSectionLevel, const int aLevel);
 
+        int section; ///< the debug section of the debugs() call
         int level; ///< minimum debugging level required by the debugs() call
         int sectionLevel; ///< maximum debugging level allowed during the call
 
@@ -77,11 +78,12 @@ public:
     static int rotateNumber;
     static int Levels[MAX_DEBUG_SECTIONS];
     static int override_X;
-    static int log_stderr;
     static bool log_syslog;
 
     static void parseOptions(char const *);
 
+    /// debugging section of the current debugs() call
+    static int Section() { return Current ? Current->section : 0; }
     /// minimum level required by the current debugs() call
     static int Level() { return Current ? Current->level : 1; }
     /// maximum level currently allowed
@@ -98,6 +100,57 @@ public:
     /// prefixes each grouped debugs() line after the first one in the group
     static std::ostream& Extra(std::ostream &os) { return os << "\n    "; }
 
+    /// silently erases saved early debugs() messages (if any)
+    static void ForgetSaved();
+
+    /// reacts to ongoing program termination (e.g., flushes buffered messages)
+    static void SwanSong();
+
+    /* cache_log channel */
+
+    /// Starts using stderr as a cache_log file replacement.
+    /// Also applies configured debug_options (if any).
+    /// Call this or UseCacheLog() to stop early message accumulation.
+    static void BanCacheLogUse();
+
+    /// Opens and starts using the configured cache_log file.
+    /// Also applies configured debug_options (if any).
+    /// Call this or BanCacheLogUse() to stop early message accumulation.
+    static void UseCacheLog();
+
+    /// Closes and stops using cache_log (if it was open).
+    /// Starts using stderr as a cache_log file replacement.
+    static void StopCacheLogUse();
+
+    /* stderr channel */
+
+    /// In the absence of ResetStderrLevel() calls, future debugs() with
+    /// the given (or lower) level will be written to stderr (at least). If
+    /// called many times, the highest parameter wins. ResetStderrLevel()
+    /// overwrites this default-setting method, regardless of the calls order.
+    static void EnsureDefaultStderrLevel(int maxDefault);
+
+    /// Future debugs() messages with the given (or lower) level will be written
+    /// to stderr (at least). If called many times, the last call wins.
+    static void ResetStderrLevel(int maxLevel);
+
+    /// Finalizes stderr configuration when no (more) ResetStderrLevel()
+    /// and EnsureDefaultStderrLevel() calls are expected.
+    static void SettleStderr();
+
+    /// Whether at least some debugs() messages may be written to stderr. The
+    /// answer may be affected by BanCacheLogUse() and SettleStderr().
+    static bool StderrEnabled();
+
+    /* syslog channel */
+
+    /// enables logging to syslog (using the specified facility, when not nil)
+    static void ConfigureSyslog(const char *facility);
+
+    /// Finalizes syslog configuration when no (more) ConfigureSyslog() calls
+    /// are expected.
+    static void SettleSyslog();
+
 private:
     static Context *Current; ///< deepest active context; nil outside debugs()
 };
@@ -107,9 +160,6 @@ private:
 FILE *DebugStream();
 /// change-avoidance macro; new code should call DebugStream() instead
 #define debug_log DebugStream()
-
-/// start logging to stderr (instead of cache.log, if any)
-void StopUsingDebugLog();
 
 /// a hack for low-level file descriptor manipulations in ipcCreate()
 void ResyncDebugLog(FILE *newDestination);
@@ -172,8 +222,6 @@ inline std::ostream& operator <<(std::ostream &os, const uint8_t d)
 }
 
 /* Legacy debug function definitions */
-void _db_init(const char *logfile, const char *options);
-void _db_set_syslog(const char *facility);
 void _db_rotate_log(void);
 
 /// Prints raw and/or non-terminated data safely, efficiently, and beautifully.

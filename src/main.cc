@@ -524,8 +524,9 @@ mainHandleCommandLineOption(const int optId, const char *optValue)
 
     case 'd':
         /** \par d
-         * Set global option Debug::log_stderr to the number given following the option */
-        Debug::log_stderr = xatoi(optValue);
+         * debugs() messages with the given debugging level (and the more
+         * important ones) should be written to stderr */
+        Debug::ResetStderrLevel(xatoi(optValue));
         break;
 
     case 'f':
@@ -589,6 +590,10 @@ mainHandleCommandLineOption(const int optId, const char *optValue)
         else
             usage();
 
+        // Cannot use cache.log: use stderr for important messages (by default)
+        // and stop expecting a Debug::UseCacheLog() call.
+        Debug::EnsureDefaultStderrLevel(DBG_IMPORTANT);
+        Debug::BanCacheLogUse();
         break;
 
     case 'm':
@@ -646,18 +651,8 @@ mainHandleCommandLineOption(const int optId, const char *optValue)
     case 's':
         /** \par s
          * Initialize the syslog for output */
-#if HAVE_SYSLOG
-
-        _db_set_syslog(opt_syslog_facility);
-
+        Debug::ConfigureSyslog(opt_syslog_facility);
         break;
-
-#else
-
-        fatal("Logging to syslog not available on this platform");
-
-        /* NOTREACHED */
-#endif
 
     case 'u':
         /** \par u
@@ -695,9 +690,13 @@ mainHandleCommandLineOption(const int optId, const char *optValue)
 
     case 'z':
         /** \par z
-         * Set global option Debug::log_stderr and opt_create_swap_dirs */
-        Debug::log_stderr = 1;
+         * Request cache_dir initialization */
         opt_create_swap_dirs = 1;
+        // We will use cache.log, but this command is often executed on the
+        // command line, so use stderr to show important messages (by default).
+        // TODO: Generalize/fix this -z-specific and sometimes faulty logic with
+        // "use stderr when it is a tty [until we GoIntoBackground()]" logic.
+        Debug::EnsureDefaultStderrLevel(DBG_IMPORTANT);
         break;
 
     case optForeground:
@@ -954,7 +953,7 @@ mainReconfigureFinish(void *)
     setUmask(Config.umask);
     Mem::Report();
     setEffectiveUser();
-    _db_init(Debug::cache_log, Debug::debugOptions);
+    Debug::UseCacheLog();
     ipcache_restart();      /* clear stuck entries */
     fqdncache_restart();    /* sigh, fqdncache too */
     parseEtcHosts();
@@ -1359,6 +1358,9 @@ OnTerminate()
     terminating = true;
 
     debugs(1, DBG_CRITICAL, "FATAL: Dying from an exception handling failure; exception: " << CurrentException);
+
+    Debug::SwanSong();
+
     abort();
 }
 
@@ -1436,7 +1438,6 @@ ConfigureCurrentKid(const CommandLine &cmdLine)
 }
 
 /// Start directing debugs() messages to the configured cache.log.
-/// Until this function is called, all allowed messages go to stderr.
 static void
 ConfigureDebugging()
 {
@@ -1446,9 +1447,11 @@ ConfigureDebugging()
         fd_open(2, FD_LOG, "stderr");
     }
     // we should not create cache.log outside chroot environment, if any
-    // XXX: With Config.chroot_dir set, SMP master process never calls db_init().
+    // XXX: With Config.chroot_dir set, SMP master process calls Debug::BanCacheLogUse().
     if (!Config.chroot_dir || Chrooted)
-        _db_init(Debug::cache_log, Debug::debugOptions);
+        Debug::UseCacheLog();
+    else
+        Debug::BanCacheLogUse();
 }
 
 static void
@@ -1492,8 +1495,6 @@ SquidMain(int argc, char **argv)
     const CommandLine cmdLine(argc, argv, shortOpStr, squidOptions);
 
     ConfigureCurrentKid(cmdLine);
-
-    Debug::parseOptions(NULL);
 
 #if defined(SQUID_MAXFD_LIMIT)
 
@@ -1540,12 +1541,11 @@ SquidMain(int argc, char **argv)
 
     cmdLine.forEachOption(mainHandleCommandLineOption);
 
+    Debug::SettleStderr();
+    Debug::SettleSyslog();
+
     if (opt_foreground && opt_no_daemon) {
         debugs(1, DBG_CRITICAL, "WARNING: --foreground command-line option has no effect with -N.");
-    }
-
-    if (opt_parse_cfg_only) {
-        Debug::parseOptions("ALL,1");
     }
 
 #if USE_WIN32_SERVICE
@@ -1729,8 +1729,6 @@ SquidMain(int argc, char **argv)
 static void
 sendSignal(void)
 {
-    StopUsingDebugLog();
-
 #if USE_WIN32_SERVICE
     // WIN32_sendSignal() does not need the PID value to signal,
     // but we must exit if there is no valid PID (TODO: Why?).
@@ -1878,6 +1876,9 @@ GoIntoBackground()
         throw TexcHere(ToSBuf("failed to fork(2) the master process: ", xstrerr(xerrno)));
     } else if (pid > 0) {
         // parent
+        // The fork() effectively duped any saved debugs() messages. For
+        // simplicity sake, let the child process deal with them.
+        Debug::ForgetSaved();
         exit(EXIT_SUCCESS);
     }
     // child, running as a background daemon
@@ -1953,7 +1954,7 @@ watch_child(const CommandLine &masterCommand)
 
     dup2(nullfd, 0);
 
-    if (Debug::log_stderr < 0) {
+    if (!Debug::StderrEnabled()) {
         dup2(nullfd, 1);
         dup2(nullfd, 2);
     }
@@ -2165,17 +2166,6 @@ SquidShutdown()
     memClean();
 
     debugs(1, Important(10), "Squid Cache (Version " << version_string << "): Exiting normally.");
-
-    /*
-     * DPW 2006-10-23
-     * We used to fclose(debug_log) here if it was set, but then
-     * we forgot to set it to NULL.  That caused some coredumps
-     * because exit() ends up calling a bunch of destructors and
-     * such.   So rather than forcing the debug_log to close, we'll
-     * leave it open so that those destructors can write some
-     * debugging if necessary.  The file will be closed anyway when
-     * the process truly exits.
-     */
 
     exit(shutdown_status);
 }
