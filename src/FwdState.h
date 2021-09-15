@@ -77,6 +77,11 @@ public:
     void unregister(Comm::ConnectionPointer &conn);
     void unregister(int fd);
     void complete();
+
+    /// Mark reply as written to Store in its entirety, including the header and
+    /// any body. If the reply has a body, the entire body has to be stored.
+    void markStoredReplyAsWhole(const char *whyWeAreSure);
+
     void handleUnregisteredServerEnd();
     int reforward();
     bool reforwardableStatus(const Http::StatusCode s) const;
@@ -158,6 +163,8 @@ private:
     void notifyConnOpener();
     void reactToZeroSizeObject();
 
+    void updateAleWithFinalError();
+
 public:
     StoreEntry *entry;
     HttpRequest *request;
@@ -199,6 +206,10 @@ private:
     /// possible pconn race states
     typedef enum { raceImpossible, racePossible, raceHappened } PconnRace;
     PconnRace pconnRace; ///< current pconn race state
+
+    /// Whether the entire reply (including any body) was written to Store.
+    /// The string literal value is only used for debugging.
+    const char *storedWholeReply_ = nullptr;
 };
 
 void getOutgoingAddress(HttpRequest * request, const Comm::ConnectionPointer &conn);

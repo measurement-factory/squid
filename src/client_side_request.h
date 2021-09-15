@@ -119,11 +119,14 @@ public:
     HttpHdrRangeIter range_iter;    /* data for iterating thru range specs */
     size_t req_sz;      /* raw request size on input, not current request size */
 
-    /// the processing tags associated with this request transaction.
-    // NP: still an enum so each stage altering it must take care when replacing it.
-    LogTags logType;
-
     AccessLogEntry::Pointer al; ///< access.log entry
+
+    // The flags are stored in this->al as a temporary diff reduction hack.
+    // We have verified that this->al does not change by making it const,
+    // but that requires fixing a dozen of ALE-taking APIs (TODO).
+    // TODO: Add a convenience method returning al->cache.code instead.
+    /// The processing tags associated with this request transaction.
+    LogTags &logType;
 
     struct Flags {
         Flags() : accel(false), internal(false), done_copying(false), purging(false) {}
@@ -238,6 +241,9 @@ private:
 private:
     CbcPointer<Adaptation::Initiate> virginHeadSource;
     BodyPipe::Pointer adaptedBodySource;
+
+    /// noteBodyProductionEnded() was called
+    bool receivedWholeAdaptedReply;
 
     bool request_satisfaction_mode;
     int64_t request_satisfaction_offset;
