@@ -24,7 +24,6 @@
 #include "comm/Loops.h"
 #include "CommCalls.h"
 #include "errorpage.h"
-#include "error/SysErrorDetail.h"
 #include "event.h"
 #include "fd.h"
 #include "fde.h"
