@@ -2137,15 +2137,15 @@ ClientHttpRequest::endRequestSatisfaction()
     assert(request_satisfaction_mode);
     stopConsumingFrom(adaptedBodySource);
 
+    // TODO: anything else needed to end store entry formation correctly?
     if (receivedWholeAdaptedReply) {
         // We received the entire reply per receivedWholeAdaptedReply.
         // We are called when we consumed everything received (per our callers).
         // We consume only what we store per noteMoreBodyDataAvailable().
         storeEntry()->completeSuccessfully("received,consumed=>stored the entire REQMOD reply");
+    } else {
+        storeEntry()->completeUnsuccessfully("truncated REQMOD reply");
     }
-
-    // TODO: anything else needed to end store entry formation correctly?
-    storeEntry()->complete();
 }
 
 void
