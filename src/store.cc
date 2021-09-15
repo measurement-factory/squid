@@ -1061,9 +1061,9 @@ StoreEntry::completeSuccessfully(const char * const whyWeAreSure)
 }
 
 void
-StoreEntry::completeUnsuccessfully(const char * const whyWeAreSure)
+StoreEntry::completeTruncated(const char * const truncationReason)
 {
-    lengthWentBad(whyWeAreSure);
+    lengthWentBad(truncationReason);
     complete();
 }
 

@@ -68,14 +68,15 @@ public:
     bool isAccepting() const;
     size_t bytesWanted(Range<size_t> const aRange, bool ignoreDelayPool = false) const;
 
-    /// mark the entry as 'completed' after the body has been fully received
-    void completeSuccessfully(const char *whyWeAreSure = nullptr /* XXX: remove default */);
+    /// Signals that the entire response has been stored and no more append()
+    /// calls should be expected; cf. completeTruncated().
+    void completeSuccessfully(const char *whyWeAreSureWeStoredTheWholeReply);
 
-    /// Mark the entry as 'completed' if the body has been partially received and
-    /// no more body bytes are expected (e.g., due to a timeout or a preliminary connection closure).
-    void completeUnsuccessfully(const char *whyWeAreSure = nullptr /* XXX: remove default */);
+    /// Signals that a partial response (if any) has been stored but no more
+    /// append() calls should be expected; cf. completeSuccessfully().
+    void completeTruncated(const char *whyWeConsiderTheReplyTruncated);
 
-    /// \deprecated use either completeSuccessfully() or completeUnsuccessfully() instead
+    /// \deprecated use either completeSuccessfully() or completeTruncated() instead
     void complete();
 
     store_client_t storeClientType() const;

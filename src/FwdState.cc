@@ -260,7 +260,7 @@ FwdState::selectPeerForIntercepted()
 }
 #endif
 
-/// updates ALE when we decide to completeUnsuccessfully()
+/// updates ALE when we finalize the transaction error (if any)
 void
 FwdState::updateAleWithFinalError()
 {
@@ -319,7 +319,7 @@ FwdState::completed()
             if (storedWholeReply_)
                 entry->completeSuccessfully(storedWholeReply_);
             else
-                entry->completeUnsuccessfully("FwdState conservative default");
+                entry->completeTruncated("FwdState default");
         }
     }
 

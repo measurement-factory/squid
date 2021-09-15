@@ -2144,7 +2144,7 @@ ClientHttpRequest::endRequestSatisfaction()
         // We consume only what we store per noteMoreBodyDataAvailable().
         storeEntry()->completeSuccessfully("received,consumed=>stored the entire REQMOD reply");
     } else {
-        storeEntry()->completeUnsuccessfully("truncated REQMOD reply");
+        storeEntry()->completeTruncated("REQMOD request satisfaction default");
     }
 }
 
