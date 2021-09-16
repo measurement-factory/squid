@@ -19,6 +19,7 @@
 #include "sbuf/Stream.h"
 
 #include <algorithm>
+#include <memory>
 
 void
 Acl::InnerNode::prepareForUse()
