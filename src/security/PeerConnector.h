@@ -118,10 +118,6 @@ protected:
     /// Resumes TLS negotiation paused by suspendNegotiation()
     void resumeNegotiation();
 
-    /// Revalidate TLS server certificates and continue with negotiation
-    /// \param lastError the last io error/state
-    void negotiateAfterRevalidateCertificates(const Security::IoResult &lastError);
-
     /// Either initiates fetching of missing certificates or bails with an error
     void handleMissingCertificates(const Security::IoResult &lastError);
 

@@ -715,10 +715,10 @@ Security::PeerConnector::handleMissingCertificates(const Security::IoResult &ioR
     Must(callerHandlesMissingCertificates);
     callerHandlesMissingCertificates = false;
 
-    if (!computeMissingCertificateUrls(sconn))
-        return negotiateAfterRevalidateCertificates(ioResult);
-
     suspendNegotiation(ioResult);
+
+    if (!computeMissingCertificateUrls(sconn))
+        return resumeNegotiation();
 
     assert(!urlsOfMissingCerts.empty());
     startCertDownloading(urlsOfMissingCerts.front());
@@ -760,27 +760,19 @@ Security::PeerConnector::resumeNegotiation()
 {
     Must(isSuspended());
 
-    auto lastError = suspendedError_;
+    auto lastError = suspendedError_; // may be reset below
     suspendedError_ = nullptr;
 
-    negotiateAfterRevalidateCertificates(*lastError);
-}
-
-void
-Security::PeerConnector::negotiateAfterRevalidateCertificates(const IoResult &lastError)
-{
     auto &sconn = *fd_table[serverConnection()->fd].ssl;
     if (!Ssl::VerifyConnCertificates(sconn, downloadedCerts)) {
         // simulate an earlier SSL_connect() failure with a new error
         // TODO: When we can use Security::ErrorDetail, we should resume with a
         // detailed _validation_ error, not just a generic SSL_ERROR_SSL!
         const ErrorDetail::Pointer errorDetail = new ErrorDetail(SQUID_TLS_ERR_CONNECT, SSL_ERROR_SSL, 0);
-        const IoResult ioError(errorDetail);
-        handleNegotiationResult(ioError);
-        return;
+        lastError = new Security::IoResult(errorDetail);
     }
 
-    handleNegotiationResult(lastError);
+    handleNegotiationResult(*lastError);
 }
 
 #endif //USE_OPENSSL
