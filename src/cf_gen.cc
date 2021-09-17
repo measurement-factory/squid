@@ -585,7 +585,7 @@ Entry::genDefaultIfNone(std::ostream &fout) const
 void
 Entry::genDefaultIfNoneAlias(const std::string &knownName, std::ostream &fout) const
 {
-    fout << "sawDirective(\"" << knownName << "\")";
+    fout << "!sawDirective(\"" << knownName << "\")";
 }
 
 /// append configuration options specified by POSTSCRIPTUM lines
