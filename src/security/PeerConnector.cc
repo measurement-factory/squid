@@ -716,7 +716,7 @@ Security::PeerConnector::handleMissingCertificates(const Security::IoResult &ioR
     callerHandlesMissingCertificates = false;
 
     if (!computeMissingCertificateUrls(sconn))
-        return handleNegotiationResult(ioResult);
+        return negotiateAfterRevalidateCertificates(ioResult);
 
     suspendNegotiation(ioResult);
 
@@ -777,6 +777,7 @@ Security::PeerConnector::negotiateAfterRevalidateCertificates(const Security::Io
         const ErrorDetail::Pointer errorDetail = new ErrorDetail(SQUID_TLS_ERR_CONNECT, SSL_ERROR_SSL, 0);
         Security::IoResult ioError(errorDetail);
         handleNegotiationResult(ioError);
+        return;
     }
 
     handleNegotiationResult(lastError);
