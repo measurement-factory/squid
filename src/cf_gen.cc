@@ -569,7 +569,7 @@ Entry::genDefaultIfNone(std::ostream &fout) const
 
         // All accepted aliases
         for (const auto &a: alias)
-            genDefaultIfNoneAlias(a, fout << " || ");
+            genDefaultIfNoneAlias(a, fout << " && ");
         fout << ") {" << std::endl;
 
         for (const auto &l : entry.defaults.if_none)
