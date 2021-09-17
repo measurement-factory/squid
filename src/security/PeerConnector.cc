@@ -767,7 +767,7 @@ Security::PeerConnector::resumeNegotiation()
 }
 
 void
-Security::PeerConnector::negotiateAfterRevalidateCertificates(const Security::IoResult &lastError)
+Security::PeerConnector::negotiateAfterRevalidateCertificates(const IoResult &lastError)
 {
     auto &sconn = *fd_table[serverConnection()->fd].ssl;
     if (!Ssl::VerifyConnCertificates(sconn, downloadedCerts)) {
@@ -775,7 +775,7 @@ Security::PeerConnector::negotiateAfterRevalidateCertificates(const Security::Io
         // TODO: When we can use Security::ErrorDetail, we should resume with a
         // detailed _validation_ error, not just a generic SSL_ERROR_SSL!
         const ErrorDetail::Pointer errorDetail = new ErrorDetail(SQUID_TLS_ERR_CONNECT, SSL_ERROR_SSL, 0);
-        Security::IoResult ioError(errorDetail);
+        const IoResult ioError(errorDetail);
         handleNegotiationResult(ioError);
         return;
     }
