@@ -760,7 +760,7 @@ Security::PeerConnector::resumeNegotiation()
 {
     Must(isSuspended());
 
-    auto lastError = suspendedError_; // may be reset below
+    auto lastError = suspendedError_;
     suspendedError_ = nullptr;
 
     negotiateAfterRevalidateCertificates(*lastError);
