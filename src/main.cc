@@ -1356,9 +1356,9 @@ OnTerminate()
         return;
     terminating = true;
 
-    debugs(1, DBG_CRITICAL, "FATAL: Dying from an exception handling failure; exception: " << CurrentException);
+    Debug::PrepareToDie();
 
-    Debug::SwanSong();
+    debugs(1, DBG_CRITICAL, "FATAL: Dying from an exception handling failure; exception: " << CurrentException);
 
     abort();
 }

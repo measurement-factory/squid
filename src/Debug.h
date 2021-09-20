@@ -103,8 +103,10 @@ public:
     /// silently erases saved early debugs() messages (if any)
     static void ForgetSaved();
 
-    /// reacts to ongoing program termination (e.g., flushes buffered messages)
-    static void SwanSong();
+    /// Reacts to ongoing program termination (e.g., flushes buffered messages).
+    /// Call this _before_ logging the termination reason to maximize the
+    /// chances of that valuable debugs() getting through to the admin.
+    static void PrepareToDie();
 
     /* cache_log channel */
 

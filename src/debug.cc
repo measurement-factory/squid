@@ -247,8 +247,8 @@ public:
     // we provide debugging services for the entire duration of the program
     ~DebugModule() = delete;
 
-    /// \copydoc Debug::SwanSong()
-    void swanSong();
+    /// \copydoc Debug::PrepareToDie()
+    void prepareToDie();
 
     /// Log the given debugs() message to appropriate channel(s) (eventually).
     /// Assumes the message has passed the global section/level filter.
@@ -296,7 +296,7 @@ DebugModule::DebugModule()
     // explicit initialization before any use by debugs() calls; see bug #2656
     tzset();
 
-    (void)std::atexit(&Debug::SwanSong);
+    (void)std::atexit(&Debug::PrepareToDie);
 
     if (!Debug::override_X)
         ResetSections();
@@ -311,7 +311,7 @@ DebugModule::log(const DebugMessageHeader &header, const std::string &body)
 }
 
 void
-DebugModule::swanSong()
+DebugModule::prepareToDie()
 {
     // Switch to stderr to improve our chances to log _early_ debugs(). However,
     // use existing cache_log and/or stderr levels for post-open/close ones.
@@ -323,7 +323,7 @@ DebugModule::swanSong()
     syslogChannel.stopEarlyMessageCollection();
 
     // Do not close/destroy channels: While the Debug module is not _guaranteed_
-    // to get control after swanSong(), debugs() calls are still very much
+    // to get control after prepareToDie(), debugs() calls are still very much
     // _possible_, and we want to support/log them for as long as we can.
 }
 
@@ -382,9 +382,9 @@ Debug::ForgetSaved()
 }
 
 void
-Debug::SwanSong()
+Debug::PrepareToDie()
 {
-    Module().swanSong();
+    Module().prepareToDie();
 }
 
 void
@@ -1119,12 +1119,12 @@ xassert(const char *msg, const char *file, int line)
 
     Asserting_ = true;
 
+    Debug::PrepareToDie();
+
     debugs(0, DBG_CRITICAL, "assertion failed: " << file << ":" << line << ": \"" << msg << "\"");
 
-    if (!shutting_down) {
-        Debug::SwanSong();
+    if (!shutting_down)
         abort();
-    }
 
     Asserting_ = false;
 }
