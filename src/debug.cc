@@ -499,10 +499,13 @@ StderrChannel::takeOver(CacheLogChannel &cacheLogChannel)
     coveringForCacheLog = true;
 
     // Stop collecting before dumping cacheLogChannel messages so that we do not
-    // end up saving messages already saved by cacheLogChannel.
-    stopEarlyMessageCollection();
+    // end up saving messages already saved by cacheLogChannel, but log their
+    // messages first because cacheLogChannel was the primary channel.
+    const auto ours = releaseEarlyMessages();
     if (const auto theirs = cacheLogChannel.releaseEarlyMessages())
         logSaved(*theirs);
+    if (ours)
+        logSaved(*ours);
 }
 
 void
