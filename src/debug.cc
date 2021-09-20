@@ -44,11 +44,11 @@ static int ExplicitStderrLevel = -1;
 static bool ExplicitStderrLevelSet = false;
 
 /// ExplicitStderrLevel preference or default: Just like with
-/// ExplicitStderrLevel, debugs() messages with this (or lower) level
-/// will be written to stderr (and possibly other channels), but this setting is
-/// ignored when ExplicitStderrLevel is set. This setting is also ignored
-/// after major problems that prevent logging of important debugs() messages
-/// (e.g., failing to open cache_log or early message buffer overflow).
+/// ExplicitStderrLevel, debugs() messages with this (or lower) level will be
+/// written to stderr (and possibly other channels), but this setting is ignored
+/// when ExplicitStderrLevel is set. This setting is also ignored after major
+/// problems that prevent logging of important debugs() messages (e.g., failing
+/// to open cache_log or assertions).
 static int DefaultStderrLevel = -1;
 
 /// early debugs() with higher level are not buffered and, hence, may be lost
@@ -109,7 +109,6 @@ public:
         section(Debug::Section()),
         level(Debug::Level()),
         forceAlert(doForceAlert),
-        overflowed(false),
         role_XXX(myLeadingRole_XXX())
     {
     }
@@ -119,10 +118,6 @@ public:
     int section; ///< debugs() section
     int level; ///< debugs() level
     bool forceAlert; ///< debugs() forceAlert flag
-
-    /// the message was deemed important enough to save earlier but was purged
-    /// from the early saved messages buffer now (to free space for new ones)
-    bool overflowed;
 
     const char *role_XXX; ///< debugs() caller process role
 };
@@ -175,9 +170,6 @@ protected:
     /// \returns whether the message was stored
     bool saveMessage(const DebugMessageHeader &header, const std::string &body);
 
-    /// process previously saved messages purged due to capacity limits
-    virtual void handleOverflow(DebugMessages &) {}
-
     /// Formats a validated debugs() record and writes it to the given FILE.
     void writeToStream(FILE &, const DebugMessageHeader &, const std::string &body);
 
@@ -207,7 +199,6 @@ public:
 
     /* DebugChannel API */
     virtual void log(const DebugMessageHeader &, const std::string &body) final;
-    virtual void handleOverflow(DebugMessages &) final;
 };
 
 /// DebugChannel managing messages destined for "standard error stream" (stderr)
@@ -218,7 +209,7 @@ public:
 
     /// whether log() ought to write the corresponding debugs() message
     /// (assuming some higher-level code applied cache.log section/level filter)
-    bool shouldWrite(const int level, const bool overflowed) const;
+    bool shouldWrite(int level) const;
 
     /* DebugChannel API */
     virtual void log(const DebugMessageHeader &, const std::string &body) final;
@@ -418,26 +409,14 @@ DebugChannel::saveMessage(const DebugMessageHeader &header, const std::string &b
     if (header.level > EarlyMessagesLevel)
         return false; // this message is not important enough to save
 
-    // There should not be a lot of messages because EarlyMessagesLevel is
-    // small, but we limit their accumulation just in case.
-    const DebugMessages::size_type limit = 1000;
-    DebugMessages::size_type purged = 0;
-    if (earlyMessages->size() >= limit) {
-        DebugMessages doomedMessages;
-        earlyMessages->swap(doomedMessages);
-        purged = doomedMessages.size(); // before handleOverflow() may change it
-        handleOverflow(doomedMessages);
-    }
+    // Given small EarlyMessagesLevel, only a Squid bug can cause so many
+    // earlyMessages. Saving/dumping excessive messages correctly is not only
+    // difficult but is more likely to complicate triage than help: It is the
+    // first earlyMessages that are going to be the most valuable. Our assert()
+    // will dump them if at all possible.
+    assert(earlyMessages->size() < 1000);
 
     earlyMessages->emplace_back(header, body);
-
-    if (purged) {
-        // This debugs() should come _after_ we save the early message above,
-        // preserving the original event and LogMessage() order, like log().
-        debugs(0, DBG_CRITICAL, "ERROR: Too many early important messages. " <<
-               "Purged " << purged << " from " << name);
-    }
-
     return true;
 }
 
@@ -477,18 +456,10 @@ CacheLogChannel::log(const DebugMessageHeader &header, const std::string &body)
     fflush(TheLog.file());
 }
 
-void
-CacheLogChannel::handleOverflow(DebugMessages &doomedMessages)
-{
-    for (auto &message: doomedMessages)
-        message.header.overflowed = true;
-    Module().stderrChannel.logSaved(doomedMessages);
-}
-
 /* StderrChannel */
 
 bool
-StderrChannel::shouldWrite(const int level, const bool overflowed) const
+StderrChannel::shouldWrite(const int level) const
 {
     if (!stderr)
         return false; // nowhere to write
@@ -496,9 +467,9 @@ StderrChannel::shouldWrite(const int level, const bool overflowed) const
     if (ExplicitStderrLevelSet) // explicit admin restrictions (-d)
         return level <= ExplicitStderrLevel;
 
-    // whether the given level is allowed by circumstances (coveringForCacheLog,
-    // early message storage overflow, etc.) or configuration aspects (-k, -z)
-    return coveringForCacheLog || overflowed || level <= DefaultStderrLevel;
+    // whether the given level is allowed by emergency handling circumstances
+    // (coveringForCacheLog) or configuration aspects (e.g., -k or -z)
+    return coveringForCacheLog || level <= DefaultStderrLevel;
 }
 
 void
@@ -510,7 +481,7 @@ StderrChannel::log(const DebugMessageHeader &header, const std::string &body)
     if (saveMessage(header, body))
         return;
 
-    if (!shouldWrite(header.level, header.overflowed))
+    if (!shouldWrite(header.level))
         return;
 
     // We must write this eligible unsaved message, but we must log previously
@@ -568,7 +539,7 @@ Debug::SettleStderr()
 bool
 Debug::StderrEnabled()
 {
-    return Module().stderrChannel.shouldWrite(DBG_CRITICAL, false);
+    return Module().stderrChannel.shouldWrite(DBG_CRITICAL);
 }
 
 /* DebugMessage */
