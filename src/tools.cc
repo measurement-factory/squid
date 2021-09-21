@@ -290,8 +290,6 @@ PrintRusage(void)
 void
 death(int sig)
 {
-    Debug::PrepareToDie();
-
     if (sig == SIGSEGV)
         debugs(1, DBG_CRITICAL, ForceAlert << "FATAL: Received Segment Violation...dying.");
     else if (sig == SIGBUS)
@@ -358,6 +356,7 @@ death(int sig)
         puts(dead_msg());
     }
 
+    Debug::PrepareToDie();
     abort();
 }
 

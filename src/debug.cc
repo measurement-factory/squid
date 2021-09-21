@@ -350,6 +350,8 @@ DebugModule::log(const DebugMessageHeader &header, const std::string &body)
 void
 DebugModule::prepareToDie()
 {
+    const LoggingSectionGuard sectionGuard;
+
     // Switch to stderr to improve our chances to log _early_ debugs(). However,
     // use existing cache_log and/or stderr levels for post-open/close ones.
     if (cacheLogChannel.collectingEarlyMessages() && !TheLog.file())
@@ -359,6 +361,14 @@ DebugModule::prepareToDie()
     stderrChannel.stopEarlyMessageCollection();
     syslogChannel.stopEarlyMessageCollection();
 
+    // Explicit last-resort call because we want to dump any pending messages
+    // (possibly including an assertion) even if another call, higher in the
+    // call stack, is currently in the sensitive section. Squid is dying, and
+    // that other caller (if any) will not get control back and, hence, will not
+    // trigger a Debug::LogWaitingForIdle() check. In most cases, we will log
+    // any pending messages successfully here. In the remaining few cases, we
+    // will lose them just like we would lose them without this call. The
+    // (small) risk here is that we might abort() or crash trying.
     Debug::LogWaitingForIdle();
 
     // Do not close/destroy channels: While the Debug module is not _guaranteed_
@@ -1163,12 +1173,10 @@ xassert(const char *msg, const char *file, int line)
 
     Asserting_ = true;
 
-    Debug::PrepareToDie();
-
     debugs(0, DBG_CRITICAL, "assertion failed: " << file << ":" << line << ": \"" << msg << "\"");
 
     if (!shutting_down) {
-        Debug::LogWaitingForIdle(); // in case the above assertion is waiting
+        Debug::PrepareToDie();
         abort();
     }
 

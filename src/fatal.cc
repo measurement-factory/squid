@@ -96,7 +96,6 @@ fatal_dump(const char *message)
         storeDirWriteCleanLogs(0);
 
     Debug::PrepareToDie();
-
     abort();
 }
 
