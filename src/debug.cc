@@ -162,13 +162,17 @@ public:
     /// This logging may be delayed until the channel configuration is settled.
     virtual void log(const DebugMessageHeader &, const std::string &body) = 0;
 
-    /// log() all the given (saved but not yet written "early") messages
-    void logSaved(const DebugMessages &);
-
 protected:
     /// stores the given early message (if possible) or forgets it (otherwise)
     /// \returns whether the message was stored
     bool saveMessage(const DebugMessageHeader &header, const std::string &body);
+
+    /// log() all (saved but not yet written "early") messages from this channel
+    /// and their channel (if given), in recordNumber order
+    void logSavedAnd(DebugChannel *theirChannelOrNil = nullptr);
+
+    /// log() all (saved but not yet written "early") messages from this channel
+    void logSaved() { logSavedAnd(nullptr); }
 
     /// Formats a validated debugs() record and writes it to the given FILE.
     void writeToStream(FILE &, const DebugMessageHeader &, const std::string &body);
@@ -417,9 +421,7 @@ ResyncDebugLog(FILE *newFile)
 void
 DebugChannel::stopEarlyMessageCollection()
 {
-    const LoggingSectionGuard sectionGuard;
-    if (const auto toLog = releaseEarlyMessages())
-        logSaved(*toLog);
+    logSaved();
 }
 
 void
@@ -438,16 +440,35 @@ Debug::PrepareToDie()
 }
 
 void
-DebugChannel::logSaved(const DebugMessages &messages)
+DebugChannel::logSavedAnd(DebugChannel *theirChannelOrNil)
 {
+    const LoggingSectionGuard sectionGuard;
+
+    assert(this != theirChannelOrNil);
+    const auto ours = releaseEarlyMessages();
+    const auto theirs = theirChannelOrNil ? theirChannelOrNil->releaseEarlyMessages() : nullptr;
+
+    size_t ourPos = 0;
+    size_t theirPos = 0;
+    size_t ourCount = ours ? ours->size() : 0;
+    size_t theirCount = theirs ? theirs->size() : 0;
+
     const auto writtenEarlier = written;
-    for (const auto &message: messages) {
+    while (ourPos < ourCount || theirPos < theirCount) {
+        // write in the order of increasing header.recordNumber;
+        // log() will filter out any duplicates
+        const auto &message = (ourPos < ourCount &&
+            !(theirPos < theirCount && (*theirs)[theirPos].header.recordNumber < (*ours)[ourPos].header.recordNumber)) ?
+            (*ours)[ourPos++] : (*theirs)[theirPos++];
         if (Debug::Enabled(message.header.section, message.header.level))
             log(message.header, message.body);
     }
     const auto writtenNow = written - writtenEarlier;
-    debugs(0, 5, "wrote " << writtenNow << " out of " <<
-           messages.size() << " early messages to " << name);
+
+    if (const auto totalCount = ourCount + theirCount) {
+        debugs(0, 5, "wrote " << writtenNow << " out of " << totalCount << '=' <<
+               ourCount << '+' << theirCount << " early messages to " << name);
+    }
 }
 
 bool
@@ -548,15 +569,7 @@ StderrChannel::takeOver(CacheLogChannel &cacheLogChannel)
         return;
     coveringForCacheLog = true;
 
-    const LoggingSectionGuard sectionGuard;
-    // Stop collecting before dumping cacheLogChannel messages so that we do not
-    // end up saving messages already saved by cacheLogChannel, but log their
-    // messages first because cacheLogChannel was the primary channel.
-    const auto ours = releaseEarlyMessages();
-    if (const auto theirs = cacheLogChannel.releaseEarlyMessages())
-        logSaved(*theirs);
-    if (ours)
-        logSaved(*ours);
+    logSavedAnd(&cacheLogChannel);
 }
 
 void
