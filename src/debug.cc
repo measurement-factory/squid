@@ -268,6 +268,30 @@ public:
     SyslogChannel syslogChannel;
 };
 
+/// Maintains the number of code paths on the current call stack that need
+/// protection from new debugs() calls. Squid cannot _block_ re-entrant debugs()
+/// calls, but the high-level debugs() handling code queues re-entrant logging
+/// attempts when Busy() instead of letting them through to sensitive code.
+class LoggingSectionGuard
+{
+public:
+    LoggingSectionGuard();
+    ~LoggingSectionGuard();
+
+    /// whether new debugs() messages must be queued
+    static bool Busy() { return LoggingConcurrencyLevel; }
+
+private:
+    /// the current number of protected callers
+    static size_t LoggingConcurrencyLevel;
+};
+
+size_t LoggingSectionGuard::LoggingConcurrencyLevel = 0;
+
+/// debugs() messages postponed due to LoggingSectionGuard::Busy(). This is the
+/// head of the invasive Context::upper FIFO list of such messages.
+static Debug::Context *WaitingForIdle = nullptr;
+
 /// cache_log file
 /// safe during static initialization, even if it has not been constructed yet
 /// safe during program termination, even if it has been destructed already
@@ -284,6 +308,19 @@ ResetSections(const int level)
 {
     for (auto &sectionLevel: Debug::Levels)
         sectionLevel = level;
+}
+
+/* LoggingSectionGuard */
+
+LoggingSectionGuard::LoggingSectionGuard()
+{
+    ++LoggingConcurrencyLevel;
+}
+
+LoggingSectionGuard::~LoggingSectionGuard()
+{
+    if (--LoggingConcurrencyLevel == 0)
+        Debug::LogWaitingForIdle();
 }
 
 /* DebugModule */
@@ -321,6 +358,8 @@ DebugModule::prepareToDie()
     cacheLogChannel.stopEarlyMessageCollection();
     stderrChannel.stopEarlyMessageCollection();
     syslogChannel.stopEarlyMessageCollection();
+
+    Debug::LogWaitingForIdle();
 
     // Do not close/destroy channels: While the Debug module is not _guaranteed_
     // to get control after prepareToDie(), debugs() calls are still very much
@@ -368,6 +407,7 @@ ResyncDebugLog(FILE *newFile)
 void
 DebugChannel::stopEarlyMessageCollection()
 {
+    const LoggingSectionGuard sectionGuard;
     if (const auto toLog = releaseEarlyMessages())
         logSaved(*toLog);
 }
@@ -498,6 +538,7 @@ StderrChannel::takeOver(CacheLogChannel &cacheLogChannel)
         return;
     coveringForCacheLog = true;
 
+    const LoggingSectionGuard sectionGuard;
     // Stop collecting before dumping cacheLogChannel messages so that we do not
     // end up saving messages already saved by cacheLogChannel, but log their
     // messages first because cacheLogChannel was the primary channel.
@@ -1126,8 +1167,10 @@ xassert(const char *msg, const char *file, int line)
 
     debugs(0, DBG_CRITICAL, "assertion failed: " << file << ":" << line << ": \"" << msg << "\"");
 
-    if (!shutting_down)
+    if (!shutting_down) {
+        Debug::LogWaitingForIdle(); // in case the above assertion is waiting
         abort();
+    }
 
     Asserting_ = false;
 }
@@ -1139,7 +1182,8 @@ Debug::Context::Context(const int aSection, const int aLevel):
     level(aLevel),
     sectionLevel(Levels[aSection]),
     upper(Current),
-    forceAlert(false)
+    forceAlert(false),
+    waitingForIdle(false)
 {
     formatStream();
 }
@@ -1152,6 +1196,7 @@ Debug::Context::rewind(const int aSection, const int aLevel)
     level = aLevel;
     sectionLevel = Levels[aSection];
     assert(upper == Current);
+    assert(!waitingForIdle);
 
     buf.str(std::string());
     buf.clear();
@@ -1172,14 +1217,35 @@ Debug::Context::formatStream()
     // If this is not enough, use copyfmt(cleanStream) which is ~10% slower.
 }
 
+void
+Debug::LogWaitingForIdle()
+{
+    if (!WaitingForIdle)
+        return; // do not lock in vain because unlocking would calls us
+
+    const LoggingSectionGuard sectionGuard;
+    const auto savedCurrent = Current; // TODO: Refactor to avoid
+    while (const auto current = WaitingForIdle) {
+        assert(current->waitingForIdle);
+        Current = current;
+        LogMessage(current->forceAlert, current->buf.str());
+        WaitingForIdle = current->upper;
+        Current = savedCurrent;
+        delete current;
+    }
+}
+
 std::ostringstream &
 Debug::Start(const int section, const int level)
 {
     Context *future = nullptr;
 
-    // prepare future context
-    if (Current) {
-        // all reentrant debugs() calls get here; create a dedicated context
+    if (LoggingSectionGuard::Busy()) {
+        // a very rare reentrant debugs() call that originated during Finish() and such
+        future = new Context(section, level);
+        future->waitingForIdle = true;
+    } else if (Current) {
+        // a rare reentrant debugs() call that originated between Start() and Finish()
         future = new Context(section, level);
     } else {
         // Optimization: Nearly all debugs() calls get here; avoid allocations
@@ -1196,10 +1262,29 @@ Debug::Start(const int section, const int level)
 void
 Debug::Finish()
 {
+    const LoggingSectionGuard sectionGuard;
+
     // TODO: #include "base/CodeContext.h" instead if doing so works well.
     extern std::ostream &CurrentCodeContextDetail(std::ostream &os);
     if (Current->level <= DBG_IMPORTANT)
         Current->buf << CurrentCodeContextDetail;
+
+    if (Current->waitingForIdle) {
+        const auto past = Current;
+        Current = past->upper;
+        past->upper = nullptr;
+        // do not delete `past` because we store it in WaitingForIdle below
+
+        // waitingForIdle messages are queued here instead of Start() because
+        // their correct order is determined by the Finish() call timing/order.
+        // Linear search, but this list ought to be very short (usually empty).
+        auto *last = &WaitingForIdle;
+        while (*last)
+            last = &(*last)->upper;
+        *last = past;
+
+        return;
+    }
 
     LogMessage(Current->forceAlert, Current->buf.str());
     Current->forceAlert = false;

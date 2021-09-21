@@ -65,6 +65,10 @@ public:
         Context *upper; ///< previous or parent record in nested debugging calls
         std::ostringstream buf; ///< debugs() output sink
         bool forceAlert; ///< the current debugs() will be a syslog ALERT
+
+        /// whether this debugs() call originated when we were too busy handling
+        /// other logging needs (e.g., logging another concurrent debugs() call)
+        bool waitingForIdle;
     };
 
     /// whether debugging the given section and the given level produces output
@@ -107,6 +111,9 @@ public:
     /// Call this _before_ logging the termination reason to maximize the
     /// chances of that valuable debugs() getting through to the admin.
     static void PrepareToDie();
+
+    /// Logs messages of Finish()ed debugs() calls that were queued earlier.
+    static void LogWaitingForIdle();
 
     /* cache_log channel */
 
