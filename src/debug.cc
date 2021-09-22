@@ -99,16 +99,16 @@ private:
     FILE *file_ = nullptr; ///< opened "real" file or nil; never stderr
 };
 
-/// debugs() meta-information
+/// meta-information of a Finish()ed debugs() message
 class DebugMessageHeader
 {
 public:
-    DebugMessageHeader(const DebugRecordCount aRecordNumber, const bool doForceAlert):
+    DebugMessageHeader(const DebugRecordCount aRecordNumber, const Debug::Context &context):
         recordNumber(aRecordNumber),
         timestamp(getCurrentTime()),
-        section(Debug::Section()),
-        level(Debug::Level()),
-        forceAlert(doForceAlert),
+        section(context.section),
+        level(context.level),
+        forceAlert(context.forceAlert),
         role_XXX(myLeadingRole_XXX())
     {
     }
@@ -683,9 +683,9 @@ myLeadingRole_XXX()
     return XXX_Role;
 }
 
-static
+/// broadcasts debugs() message to the logging channels
 void
-LogMessage(const bool forceAlert, const std::string &message)
+Debug::LogMessage(const Context &context)
 {
 #if _SQUID_WINDOWS_
     /* Multiple WIN32 threads may call this simultaneously */
@@ -721,8 +721,8 @@ LogMessage(const bool forceAlert, const std::string &message)
 #endif
 
     static DebugRecordCount LogMessageCalls = 0;
-    const DebugMessageHeader header(++LogMessageCalls, forceAlert);
-    Module().log(header, message);
+    const DebugMessageHeader header(++LogMessageCalls, context);
+    Module().log(header, context.buf.str());
 
 #if _SQUID_WINDOWS_
     LeaveCriticalSection(dbg_mutex);
@@ -1245,13 +1245,10 @@ Debug::LogWaitingForIdle()
         return; // do not lock in vain because unlocking would calls us
 
     const LoggingSectionGuard sectionGuard;
-    const auto savedCurrent = Current; // TODO: Refactor to avoid
     while (const auto current = WaitingForIdle) {
         assert(current->waitingForIdle);
-        Current = current;
-        LogMessage(current->forceAlert, current->buf.str());
+        LogMessage(*current);
         WaitingForIdle = current->upper;
-        Current = savedCurrent;
         delete current;
     }
 }
@@ -1307,7 +1304,7 @@ Debug::Finish()
         return;
     }
 
-    LogMessage(Current->forceAlert, Current->buf.str());
+    LogMessage(*Current);
     Current->forceAlert = false;
 
     Context *past = Current;

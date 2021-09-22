@@ -44,6 +44,8 @@
 
 #define DBG_PARSE_NOTE(x) (opt_parse_cfg_only?0:(x)) /**< output is always to be displayed on '-k parse' but at level-x normally. */
 
+class DebugMessageHeader;
+
 class Debug
 {
 
@@ -60,6 +62,8 @@ public:
 
     private:
         friend class Debug;
+        friend class DebugMessageHeader;
+
         void rewind(const int aSection, const int aLevel);
         void formatStream();
         Context *upper; ///< previous or parent record in nested debugging calls
@@ -161,6 +165,8 @@ public:
     static void SettleSyslog();
 
 private:
+    static void LogMessage(const Debug::Context &context);
+
     static Context *Current; ///< deepest active context; nil outside debugs()
 };
 

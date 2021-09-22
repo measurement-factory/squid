@@ -39,10 +39,10 @@ void
 _db_rotate_log(void)
 {}
 
-static void
-LogMessage(const std::string &message)
+void
+Debug::LogMessage(const Context &context)
 {
-    if (Debug::Level() > DBG_IMPORTANT)
+    if (context.level > DBG_IMPORTANT)
         return;
 
     if (!stderr)
@@ -50,7 +50,7 @@ LogMessage(const std::string &message)
 
     fprintf(stderr, "%s| %s\n",
             "stub time", // debugLogTime(squid_curtime),
-            message.c_str());
+            context.buf.str().c_str());
 }
 
 bool
@@ -86,7 +86,7 @@ void
 Debug::Finish()
 {
     if (Current) {
-        LogMessage(Current->buf.str());
+        LogMessage(*Current);
         delete Current;
         Current = nullptr;
     }
