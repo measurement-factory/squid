@@ -223,9 +223,6 @@ public:
     void saveError(ErrorState *finalError);
     void sendError(ErrorState *finalError, const char *reason);
 
-    /// the processing tags associated with this request transaction.
-    LogTags &logType() { return al->cache.code; }
-
 private:
     /// Gives Security::PeerConnector access to Answer in the TunnelStateData callback dialer.
     class MyAnswerDialer: public CallDialer, public Security::PeerConnector::CbDialer
@@ -492,8 +489,7 @@ void
 TunnelStateData::syncHierNote(const Comm::ConnectionPointer &conn, const char *origin)
 {
     request->hier.resetPeerNotes(conn, origin);
-    if (al)
-        al->hier.resetPeerNotes(conn, origin);
+    al->hier.resetPeerNotes(conn, origin);
 }
 
 int
@@ -917,7 +913,7 @@ tunnelStartShoveling(TunnelStateData *tunnelState)
     commSetConnTimeout(tunnelState->server.conn, Config.Timeout.read, timeoutCall);
 
     *tunnelState->status_ptr = Http::scOkay;
-    tunnelState->logType().update(LOG_TCP_TUNNEL);
+    tunnelState->al->cache.code.update(LOG_TCP_TUNNEL);
     if (cbdataReferenceValid(tunnelState)) {
 
         // Shovel any payload already pushed into reply buffer by the server response
@@ -970,7 +966,7 @@ TunnelStateData::tunnelEstablishmentDone(Http::TunnelerAnswer &answer)
     peerWait.finish();
     server.len = 0;
 
-    logType().update(LOG_TCP_TUNNEL);
+    al->cache.code.update(LOG_TCP_TUNNEL);
 
     if (answer.peerResponseStatus != Http::scNone)
         *status_ptr = answer.peerResponseStatus;
