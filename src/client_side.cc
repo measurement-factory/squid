@@ -313,12 +313,12 @@ clientUpdateHierCounters(HierarchyLogEntry * someEntry)
 void
 ClientHttpRequest::updateCounters()
 {
-    clientUpdateStatCounters(logType());
+    clientUpdateStatCounters(loggingTags());
 
     if (request->error)
         ++ statCounter.client_http.errors;
 
-    clientUpdateStatHistCounters(logType(),
+    clientUpdateStatHistCounters(loggingTags(),
                                  tvSubMsec(al->cache.start_time, current_time));
 
     clientUpdateHierCounters(&request->hier);
@@ -379,7 +379,7 @@ prepareLogWithRequestDetails(HttpRequest * request, AccessLogEntry::Pointer &aLo
 void
 ClientHttpRequest::logRequest()
 {
-    if (!out.size && logType().oldType == LOG_TAG_NONE)
+    if (!out.size && loggingTags().oldType == LOG_TAG_NONE)
         debugs(33, 5, "logging half-baked transaction: " << log_uri);
 
     al->icp.opcode = ICP_INVALID;
@@ -472,7 +472,7 @@ ClientHttpRequest::logRequest()
             updateCounters();
 
         if (getConn() != NULL && getConn()->clientConnection != NULL)
-            clientdbUpdate(getConn()->clientConnection->remote, logType(), AnyP::PROTO_HTTP, out.size);
+            clientdbUpdate(getConn()->clientConnection->remote, loggingTags(), AnyP::PROTO_HTTP, out.size);
     }
 }
 
@@ -1024,7 +1024,7 @@ ConnStateData::afterClientWrite(size_t size)
     auto ctx = pipeline.front();
     if (size) {
         statCounter.client_http.kbytes_out += size;
-        if (ctx->http->logType().isTcpHit())
+        if (ctx->http->loggingTags().isTcpHit())
             statCounter.client_http.hit_kbytes_out += size;
     }
     ctx->writeComplete(size);
