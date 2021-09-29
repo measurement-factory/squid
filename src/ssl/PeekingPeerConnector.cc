@@ -46,11 +46,11 @@ Ssl::PeekingPeerConnector::checkForPeekAndSpliceDone(Acl::Answer answer)
 void
 Ssl::PeekingPeerConnector::checkForPeekAndSplice()
 {
-    if (!request->clientConnectionManager.valid())
+    if (!request->clientConnectionManager)
         return;
-    auto serverBump = request->clientConnectionManager->serverBump();
+    const auto serverBump = request->clientConnectionManager->serverBump();
     Must(serverBump);
-    Must(serverBump->step == XactionStep::tlsBump3);
+    Must(serverBump->at(XactionStep::tlsBump3));
 
     handleServerCertificate();
 
