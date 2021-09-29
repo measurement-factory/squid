@@ -185,6 +185,7 @@ private:
         bool dont_retry;
         bool forward_completed;
         bool destinationsFound; ///< at least one candidate path found
+        bool abandonEntry; ///< leave this->entry as it is
     } flags;
 
     /// waits for a transport connection to the peer to be established/opened
