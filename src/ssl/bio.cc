@@ -468,10 +468,11 @@ Ssl::ServerBio::write(const char *buf, int size, BIO *table)
     }
 
     if (!helloBuild && (bumpMode_ == Ssl::bumpPeek || bumpMode_ == Ssl::bumpStare)) {
-        // buf contains OpenSSL-generated ClientHello if all are OK, or a valid
-        // TLS message (eg an Alert in the case of error) in the other cases.
-        // We only verify that buf starts with a v3+ record containing a valid
-        // TLS message.
+        // We have not seen any bytes, so the buffer must start with an
+        // OpenSSL-generated TLSPlaintext record containing, for example, a
+        // ClientHello or an alert message. We check these assumptions before we
+        // adjustSSL() and substitute that record/message with clientSentHello.
+        // TODO: Move these checks to where we actually rely on them.
         debugs(83, 7, "to-server" << Raw("TLSPlaintext", buf, size).hex());
         Must(size >= 2); // enough for version and content_type checks below
         Must(buf[1] >= 3); // record's version.major; determines buf[0] meaning
@@ -484,6 +485,7 @@ Ssl::ServerBio::write(const char *buf, int size, BIO *table)
             if (bumpMode_ == Ssl::bumpPeek) {
                 // we should not be here if we failed to parse the client-sent ClientHello
                 Must(!clientSentHello.isEmpty());
+                // XXX: Do not allowBump while peeking if buf[0] != 22 (handshake)
                 if (adjustSSL(ssl, clientTlsDetails, clientSentHello))
                     allowBump = true;
                 allowSplice = true;
@@ -492,6 +494,7 @@ Ssl::ServerBio::write(const char *buf, int size, BIO *table)
                 debugs(83, 7,  "FD " << fd_ << ": Using client-sent ClientHello for peek mode");
             } else { /*Ssl::bumpStare*/
                 allowBump = true;
+                // XXX: Do not allowSplice while bumping if buf[0] != 22 (handshake)
                 if (!clientSentHello.isEmpty() && adjustSSL(ssl, clientTlsDetails, clientSentHello)) {
                     allowSplice = true;
                     helloMsg.append(clientSentHello);
