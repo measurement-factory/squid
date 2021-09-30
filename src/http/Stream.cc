@@ -528,7 +528,7 @@ Http::Stream::noteIoError(const Error &error, const LogTagsErrors &lte)
 {
     if (http) {
         http->updateError(error);
-        http->updateLoggingTags(lte);
+        http->al->cache.code.err.update(lte);
     }
 }
 

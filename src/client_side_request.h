@@ -78,8 +78,6 @@ public:
 
     /// update the code in the transaction processing tags
     void updateLoggingTags(const LogTags_ot code) { al->cache.code.update(code); }
-    /// update error flags in the transaction processing tags
-    void updateLoggingTags(const LogTagsErrors &err) { al->cache.code.err.update(err); }
 
     /// the processing tags associated with this request transaction.
     const LogTags &loggingTags() const { return al->cache.code; }

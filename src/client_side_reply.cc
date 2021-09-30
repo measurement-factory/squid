@@ -485,9 +485,7 @@ clientReplyContext::handleIMSReply(StoreIOBuffer result)
         // RFC 7234 section 4: a cache MUST use the most recent response
         // (as determined by the Date header field)
         if (new_rep.olderThan(&old_entry->mem().freshestReply())) {
-            LogTagsErrors errors;
-            errors.ignored = true;
-            http->updateLoggingTags(errors);
+            http->al->cache.code.err.ignored = true;
             debugs(88, 3, "origin replied " << status << " but with an older date header, sending old entry (" << oldStatus << ") to client");
             sendClientOldEntry();
             return;
