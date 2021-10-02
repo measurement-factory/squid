@@ -123,7 +123,10 @@ public:
     bool overflowed;
 
     int cso_recno;
+
+    /// the number of not-yet-parsed Gopher line bytes in this->buf
     int len;
+
     char *buf;          /* pts to a 4k page */
     Comm::ConnectionPointer serverConn;
     FwdState::Pointer fwd;
