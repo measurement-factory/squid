@@ -9,11 +9,13 @@
 /* DEBUG: section 77    Delay Pools */
 
 #include "squid.h"
+#include <base/Optional.h>
 
 #if USE_DELAY_POOLS
 #include "DelayBucket.h"
 #include "DelaySpec.h"
 #include "SquidConfig.h"
+#include "SquidMath.h"
 #include "Store.h"
 
 void
@@ -25,9 +27,17 @@ DelayBucket::stats(StoreEntry *entry)const
 void
 DelayBucket::update(DelaySpec const &rate, int incr)
 {
-    if (rate.restore_bps != -1 &&
-            (level() += rate.restore_bps * incr) > rate.max_bytes)
-        level() = rate.max_bytes;
+    if (rate.restore_bps != -1) {
+        const auto product = IntegralProduct(static_cast<uint32_t>(rate.restore_bps), static_cast<uint32_t>(incr));
+        if (product.has_value()) {
+            const auto sum = IncreaseSum(level(), product.value());
+            if (sum.has_value()) {
+                level() += sum.value();
+                return;
+            }
+        }
+    }
+    level() = rate.max_bytes;
 }
 
 int

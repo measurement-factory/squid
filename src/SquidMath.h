@@ -123,5 +123,44 @@ SetToNaturalSumOrMax(S &var, Args... args)
     return var;
 }
 
+template <typename T>
+size_t
+HighestPower(T v)
+{
+    assert(v);
+
+    size_t power = -1;
+    while (v) {
+        ++power;
+        v >>= 1;
+    };
+    return power;
+}
+
+template <typename T>
+bool
+ProductIsSafe(const T &t1, const T &t2)
+{
+    static_assert(std::is_integral<T>::value, "the arguments are integral");
+    static_assert(std::is_unsigned<T>::value, "the arguments are unsigned");
+
+    const auto power1 = highestPower(t1);
+    const auto power2 = highestPower(t2);
+
+    const auto maxT = std::numeric_limits<T>::max();
+    size_t maxPower = HighestPower(maxT);
+
+    return power1 + power2 < maxPower + 1;
+}
+
+template <typename T>
+Optional<T>
+IntegralProduct(const T &t1, const T &t2)
+{
+    if (ProductIsSafe(t1, t2))
+        return Optional<T>(t1 * t2);
+    return Optional<T>();
+}
+
 #endif /* _SQUID_SRC_SQUIDMATH_H */
 
