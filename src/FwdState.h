@@ -192,7 +192,6 @@ private:
         bool dont_retry;
         bool forward_completed;
         bool destinationsFound; ///< at least one candidate path found
-        bool abandonEntry; ///< leave this->entry as it is
     } flags;
 
     HappyConnOpenerPointer connOpener; ///< current connection opening job
