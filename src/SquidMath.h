@@ -137,29 +137,25 @@ HighestPower(T v)
     return power;
 }
 
-template <typename T>
-bool
-ProductIsSafe(const T &t1, const T &t2)
+template <typename P, typename T, typename U>
+void
+IntegralProduct(Optional<P> &p, const T &t, const U &u)
 {
-    static_assert(std::is_integral<T>::value, "the arguments are integral");
-    static_assert(std::is_unsigned<T>::value, "the arguments are unsigned");
+    static_assert(std::is_integral<P>::value, "the result is integral");
+    static_assert(std::is_integral<T>::value, "the first argument is integral");
+    static_assert(std::is_integral<U>::value, "the second argument is integral");
 
-    const auto power1 = highestPower(t1);
-    const auto power2 = highestPower(t2);
-
-    const auto maxT = std::numeric_limits<T>::max();
-    size_t maxPower = HighestPower(maxT);
-
-    return power1 + power2 < maxPower + 1;
-}
-
-template <typename T>
-Optional<T>
-IntegralProduct(const T &t1, const T &t2)
-{
-    if (ProductIsSafe(t1, t2))
-        return Optional<T>(t1 * t2);
-    return Optional<T>();
+    if (!Less(t, 0) && !Less(u, 0)) {
+        const auto powerT = HighestPower(t);
+        const auto powerU = HighestPower(u);
+        const auto maxPower = HighestPower(std::numeric_limits<P>::max());
+        if (powerT + powerU < maxPower + 1) {
+            // no overflow here
+            p = Optional<P>(static_cast<P>(t) * static_cast<P>(u));
+            return;
+        }
+    }
+    p = Optional<P>();
 }
 
 #endif /* _SQUID_SRC_SQUIDMATH_H */

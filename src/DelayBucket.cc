@@ -27,14 +27,16 @@ DelayBucket::stats(StoreEntry *entry)const
 void
 DelayBucket::update(DelaySpec const &rate, int incr)
 {
-    if (rate.restore_bps != -1) {
-        const auto product = IntegralProduct(static_cast<uint32_t>(rate.restore_bps), static_cast<uint32_t>(incr));
-        if (product.has_value()) {
-            const auto sum = IncreaseSum(level(), product.value());
-            if (sum.has_value()) {
-                level() += sum.value();
-                return;
-            }
+    if (rate.restore_bps == -1)
+        return;
+
+    Optional<int> product;
+    IntegralProduct(product, rate.restore_bps, incr);
+    if (product.has_value()) {
+        const auto sum = NaturalSum<int>(level(), product.value());
+        if (sum.has_value()) {
+            level() = sum.value();
+            return;
         }
     }
     level() = rate.max_bytes;
