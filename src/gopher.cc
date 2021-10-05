@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1996-2020 The Squid Software Foundation and contributors
+ * Copyright (C) 1996-2021 The Squid Software Foundation and contributors
  *
  * Squid software is distributed under GPLv2+ license and includes
  * contributions from numerous individuals and organizations.
@@ -16,6 +16,7 @@
 #include "fd.h"
 #include "FwdState.h"
 #include "globals.h"
+#include "gopher.h"
 #include "html_quote.h"
 #include "HttpReply.h"
 #include "HttpRequest.h"
@@ -34,7 +35,7 @@
 #include "MemObject.h"
 #endif
 
-/* gopher type code from rfc. Anawat. */
+// RFC 1436 section 3.8 gopher item-type codes
 #define GOPHER_FILE         '0'
 #define GOPHER_DIRECTORY    '1'
 #define GOPHER_CSO          '2'
@@ -50,16 +51,17 @@
 #define GOPHER_GIF          'g'
 #define GOPHER_IMAGE        'I'
 
-#define GOPHER_HTML         'h'
-#define GOPHER_INFO         'i'
-
-///  W3 address
-#define GOPHER_WWW          'w'
-#define GOPHER_SOUND        's'
-
+// Gopher+ section 2.9 extension types
+// https://github.com/jgoerzen/pygopherd/blob/master/doc/standards/Gopher%2B.txt
 #define GOPHER_PLUS_IMAGE   ':'
 #define GOPHER_PLUS_MOVIE   ';'
 #define GOPHER_PLUS_SOUND   '<'
+
+// non-standard item-type codes
+#define GOPHER_HTML         'h'
+#define GOPHER_INFO         'i'
+#define GOPHER_WWW          'w'
+#define GOPHER_SOUND        's'
 
 #define GOPHER_PORT         70
 
@@ -98,11 +100,8 @@ public:
         entry->lock("gopherState");
         *replybuf = 0;
     }
-    ~GopherStateData() {if(buf) swanSong();}
 
-    /* AsyncJob API emulated */
-    void deleteThis(const char *aReason);
-    void swanSong();
+    ~GopherStateData();
 
 public:
     StoreEntry *entry;
@@ -156,30 +155,18 @@ static void
 gopherStateFree(const CommCloseCbParams &params)
 {
     GopherStateData *gopherState = (GopherStateData *)params.data;
-
-    if (gopherState == NULL)
-        return;
-
-    gopherState->deleteThis("gopherStateFree");
+    // Assume that FwdState is monitoring and calls noteClosure(). See XXX about
+    // Connection sharing with FwdState in gopherStart().
+    delete gopherState;
 }
 
-void
-GopherStateData::deleteThis(const char *)
-{
-    swanSong();
-    delete this;
-}
-
-void
-GopherStateData::swanSong()
+GopherStateData::~GopherStateData()
 {
     if (entry)
         entry->unlock("gopherState");
 
-    if (buf) {
+    if (buf)
         memFree(buf, MEM_4K_BUF);
-        buf = nullptr;
-    }
 }
 
 /**
@@ -587,6 +574,10 @@ gopherToHTML(GopherStateData * gopherState, char *inbuf, int len)
                         icon_url = NULL;
                         break;
 
+                    case GOPHER_WWW:
+                        icon_url = mimeGetIconURL("internal-link");
+                        break;
+
                     default:
                         icon_url = mimeGetIconURL("internal-unknown");
                         break;
@@ -611,6 +602,9 @@ gopherToHTML(GopherStateData * gopherState, char *inbuf, int len)
                             /* WWW link */
                             snprintf(tmpbuf, TEMP_BUF_SIZE, "<IMG border=\"0\" SRC=\"%s\"> <A HREF=\"http://%s/%s\">%s</A>\n",
                                      icon_url, host, rfc1738_escape_unescaped(selector + 5), html_quote(name));
+                         } else if (gtype == GOPHER_WWW) {
+                            snprintf(tmpbuf, TEMP_BUF_SIZE, "<IMG border=\"0\" SRC=\"%s\"> <A HREF=\"%s\">%s</A>\n",
+                                     icon_url, rfc1738_escape_unescaped(selector), html_quote(name));
                         } else {
                             /* Standard link */
                             snprintf(tmpbuf, TEMP_BUF_SIZE, "<IMG border=\"0\" SRC=\"%s\"> <A HREF=\"gopher://%s/%c%s\">%s</A>\n",
@@ -694,8 +688,8 @@ gopherToHTML(GopherStateData * gopherState, char *inbuf, int len)
                 }
             }
 
+            break;
             }           /* HTML_CSO_RESULT */
-
         default:
             break;      /* do nothing */
 
@@ -749,7 +743,10 @@ gopherReadReply(const Comm::ConnectionPointer &conn, char *buf, size_t len, Comm
 
     assert(buf == gopherState->replybuf);
 
-    if (EBIT_TEST(entry->flags, ENTRY_ABORTED)) {
+    // XXX: Should update delayId, statCounter, etc. before bailing
+    if (!entry->isAccepting()) {
+        debugs(10, 3, "terminating due to bad " << *entry);
+        // TODO: Do not abuse connection for triggering cleanup.
         gopherState->serverConn->close();
         return;
     }
@@ -848,6 +845,13 @@ gopherSendComplete(const Comm::ConnectionPointer &conn, char *, size_t size, Com
         fd_bytes(conn->fd, size, FD_WRITE);
         statCounter.server.all.kbytes_out += size;
         statCounter.server.other.kbytes_out += size;
+    }
+
+    if (!entry->isAccepting()) {
+        debugs(10, 3, "terminating due to bad " << *entry);
+        // TODO: Do not abuse connection for triggering cleanup.
+        gopherState->serverConn->close();
+        return;
     }
 
     if (errflag) {
@@ -976,6 +980,7 @@ gopherStart(FwdState * fwd)
         return;
     }
 
+    // XXX: Sharing open Connection with FwdState that has its own handlers/etc.
     gopherState->serverConn = fwd->serverConnection();
     gopherSendRequest(fwd->serverConnection()->fd, gopherState);
     AsyncCall::Pointer timeoutCall = commCbCall(5, 4, "gopherTimeout",

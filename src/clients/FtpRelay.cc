@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1996-2020 The Squid Software Foundation and contributors
+ * Copyright (C) 1996-2021 The Squid Software Foundation and contributors
  *
  * Squid software is distributed under GPLv2+ license and includes
  * contributions from numerous individuals and organizations.
@@ -160,8 +160,8 @@ Ftp::Relay::Relay(FwdState *const fwdState):
     savedReply.lastReply = NULL;
     savedReply.replyCode = 0;
 
-    // Nothing we can do at request creation time can mark the response as
-    // uncachable, unfortunately. This prevents "found KEY_PRIVATE" WARNINGs.
+    // Prevent the future response from becoming public and being shared/cached
+    // because FTP does not support response cachability and freshness checks.
     entry->releaseRequest();
     AsyncCall::Pointer call = asyncCall(9, 4, "Ftp::Relay::Abort", cbdataDialer(&Relay::HandleStoreAbort, this));
     entry->registerAbortCallback(call);
@@ -739,7 +739,7 @@ void
 Ftp::Relay::dataChannelConnected(const CommConnectCbParams &io)
 {
     debugs(9, 3, status());
-    data.opener = NULL;
+    dataConnWait.finish();
 
     if (io.flag != Comm::OK) {
         debugs(9, 2, "failed to connect FTP server data channel");
@@ -804,9 +804,9 @@ Ftp::Relay::HandleStoreAbort(Relay *ftpClient)
         ftpClient->dataComplete();
 }
 
-AsyncJob::Pointer
+void
 Ftp::StartRelay(FwdState *const fwdState)
 {
-    return AsyncJob::Start(new Ftp::Relay(fwdState));
+    AsyncJob::Start(new Ftp::Relay(fwdState));
 }
 

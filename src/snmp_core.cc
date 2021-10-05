@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1996-2020 The Squid Software Foundation and contributors
+ * Copyright (C) 1996-2021 The Squid Software Foundation and contributors
  *
  * Squid software is distributed under GPLv2+ license and includes
  * contributions from numerous individuals and organizations.
@@ -874,7 +874,7 @@ snmpTreeEntry(oid entry, snint len, mib_tree_entry * current)
     return (next);
 }
 
-void
+static void
 snmpAddNodeChild(mib_tree_entry *entry, mib_tree_entry *child)
 {
     debugs(49, 5, "snmpAddNodeChild: assigning " << child << " to parent " << entry);

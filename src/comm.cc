@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1996-2020 The Squid Software Foundation and contributors
+ * Copyright (C) 1996-2021 The Squid Software Foundation and contributors
  *
  * Squid software is distributed under GPLv2+ license and includes
  * contributions from numerous individuals and organizations.
@@ -266,7 +266,7 @@ limitError(int const anErrno)
     return anErrno == ENFILE || anErrno == EMFILE;
 }
 
-void
+static void
 comm_set_v6only(int fd, int tos)
 {
 #ifdef IPV6_V6ONLY
@@ -285,7 +285,7 @@ comm_set_v6only(int fd, int tos)
  * - OpenBSD divert-to support,
  * - FreeBSD IPFW TPROXY v4 support.
  */
-void
+static void
 comm_set_transparent(int fd)
 {
 #if _SQUID_LINUX_ && defined(IP_TRANSPARENT) // Linux
@@ -743,62 +743,14 @@ commCallCloseHandlers(int fd)
         // If call is not canceled schedule it for execution else ignore it
         if (!call->canceled()) {
             debugs(5, 5, "commCallCloseHandlers: ch->handler=" << call);
+            // XXX: Without the following code, callback fd may be -1.
+            // typedef CommCloseCbParams Params;
+            // auto &params = GetCommParams<Params>(call);
+            // params.fd = fd;
             ScheduleCallHere(call);
         }
     }
 }
-
-// XXX: This code has been broken, unused, and untested since 933dd09. Remove.
-#if LINGERING_CLOSE
-static void
-commLingerClose(int fd, void *unused)
-{
-    LOCAL_ARRAY(char, buf, 1024);
-    int n = FD_READ_METHOD(fd, buf, 1024);
-    if (n < 0) {
-        int xerrno = errno;
-        debugs(5, 3, "FD " << fd << " read: " << xstrerr(xerrno));
-    }
-    comm_close(fd);
-}
-
-static void
-commLingerTimeout(const FdeCbParams &params)
-{
-    debugs(5, 3, "commLingerTimeout: FD " << params.fd);
-    comm_close(params.fd);
-}
-
-/*
- * Inspired by apache
- */
-void
-comm_lingering_close(int fd)
-{
-    Security::SessionSendGoodbye(fd_table[fd].ssl);
-
-    if (shutdown(fd, 1) < 0) {
-        comm_close(fd);
-        return;
-    }
-
-    fd_note(fd, "lingering close");
-    AsyncCall::Pointer call = commCbCall(5,4, "commLingerTimeout", FdeCbPtrFun(commLingerTimeout, NULL));
-
-    debugs(5, 3, HERE << "FD " << fd << " timeout " << timeout);
-    assert(fd_table[fd].flags.open);
-    if (callback != NULL) {
-        typedef FdeCbParams Params;
-        Params &params = GetCommParams<Params>(callback);
-        params.fd = fd;
-        fd_table[fd].timeoutHandler = callback;
-        fd_table[fd].timeout = squid_curtime + static_cast<time_t>(10);
-    }
-
-    Comm::SetSelect(fd, COMM_SELECT_READ, commLingerClose, NULL, 0);
-}
-
-#endif
 
 /**
  * enable linger with time of 0 so that when the socket is
@@ -833,13 +785,13 @@ old_comm_reset_close(int fd)
     comm_close(fd);
 }
 
-void
+static void
 commStartTlsClose(const FdeCbParams &params)
 {
     Security::SessionSendGoodbye(fd_table[params.fd].ssl);
 }
 
-void
+static void
 comm_close_complete(const FdeCbParams &params)
 {
     fde *F = &fd_table[params.fd];
@@ -1195,41 +1147,6 @@ commSetTcpNoDelay(int fd)
 #endif
 
 void
-commSetTcpKeepalive(int fd, int idle, int interval, int timeout)
-{
-    int on = 1;
-#ifdef TCP_KEEPCNT
-    if (timeout && interval) {
-        int count = (timeout + interval - 1) / interval;
-        if (setsockopt(fd, IPPROTO_TCP, TCP_KEEPCNT, &count, sizeof(on)) < 0) {
-            int xerrno = errno;
-            debugs(5, DBG_IMPORTANT, MYNAME << "FD " << fd << ": " << xstrerr(xerrno));
-        }
-    }
-#endif
-#ifdef TCP_KEEPIDLE
-    if (idle) {
-        if (setsockopt(fd, IPPROTO_TCP, TCP_KEEPIDLE, &idle, sizeof(on)) < 0) {
-            int xerrno = errno;
-            debugs(5, DBG_IMPORTANT, MYNAME << "FD " << fd << ": " << xstrerr(xerrno));
-        }
-    }
-#endif
-#ifdef TCP_KEEPINTVL
-    if (interval) {
-        if (setsockopt(fd, IPPROTO_TCP, TCP_KEEPINTVL, &interval, sizeof(on)) < 0) {
-            int xerrno = errno;
-            debugs(5, DBG_IMPORTANT, MYNAME << "FD " << fd << ": " << xstrerr(xerrno));
-        }
-    }
-#endif
-    if (setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, (char *) &on, sizeof(on)) < 0) {
-        int xerrno = errno;
-        debugs(5, DBG_IMPORTANT, MYNAME << "FD " << fd << ": " << xstrerr(xerrno));
-    }
-}
-
-void
 comm_init(void)
 {
     assert(fd_table);
@@ -1297,8 +1214,8 @@ ClientInfo::writeOrDequeue()
         const auto ccb = COMMIO_FD_WRITECB(head);
         // check that the head descriptor is still relevant
         if (headFde.clientInfo == this &&
-        quotaPeekReserv() == ccb->quotaQueueReserv &&
-        !headFde.closing()) {
+                quotaPeekReserv() == ccb->quotaQueueReserv &&
+                !headFde.closing()) {
 
             // wait for the head descriptor to become ready for writing
             Comm::SetSelect(head, COMM_SELECT_WRITE, Comm::HandleWrite, ccb, 0);
@@ -1679,7 +1596,7 @@ commHalfClosedCheck(void *)
         if (!fd_table[c->fd].halfClosedReader) { // not reading already
             CallBack(fd_table[c->fd].codeContext, [&c] {
                 AsyncCall::Pointer call = commCbCall(5,4, "commHalfClosedReader",
-                CommIoCbPtrFun(&commHalfClosedReader, nullptr));
+                                                     CommIoCbPtrFun(&commHalfClosedReader, nullptr));
                 Comm::Read(c, call);
                 fd_table[c->fd].halfClosedReader = call;
             });
@@ -1787,6 +1704,10 @@ DeferredReadManager::CloseHandler(const CommCloseCbParams &params)
     CbDataList<DeferredRead> *temp = (CbDataList<DeferredRead> *)params.data;
 
     temp->element.closer = NULL;
+    if (temp->element.theRead.conn) {
+        temp->element.theRead.conn->noteClosure();
+        temp->element.theRead.conn = nullptr;
+    }
     temp->element.markCancelled();
 }
 
@@ -1860,6 +1781,11 @@ DeferredReadManager::kickARead(DeferredRead const &aRead)
     if (aRead.cancelled)
         return;
 
+    // TODO: This check still allows theReader call with a closed theRead.conn.
+    // If a delayRead() caller has a close connection handler, then such a call
+    // would be useless and dangerous. If a delayRead() caller does not have it,
+    // then the caller will get stuck when an external connection closure makes
+    // aRead.cancelled (checked above) true.
     if (Comm::IsConnOpen(aRead.theRead.conn) && fd_table[aRead.theRead.conn->fd].closing())
         return;
 

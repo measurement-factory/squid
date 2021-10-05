@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1996-2020 The Squid Software Foundation and contributors
+ * Copyright (C) 1996-2021 The Squid Software Foundation and contributors
  *
  * Squid software is distributed under GPLv2+ license and includes
  * contributions from numerous individuals and organizations.
@@ -33,6 +33,7 @@
 #include "fd.h"
 #include "fde.h"
 #include "format/Token.h"
+#include "FwdState.h"
 #include "gopher.h"
 #include "helper.h"
 #include "helper/Reply.h"
@@ -51,6 +52,7 @@
 #include "proxyp/Header.h"
 #include "redirect.h"
 #include "rfc1738.h"
+#include "sbuf/StringConvert.h"
 #include "SquidConfig.h"
 #include "SquidTime.h"
 #include "Store.h"
@@ -72,10 +74,6 @@
 #if USE_OPENSSL
 #include "ssl/ServerBump.h"
 #include "ssl/support.h"
-#endif
-
-#if LINGERING_CLOSE
-#define comm_close comm_lingering_close
 #endif
 
 static const char *const crlf = "\r\n";
@@ -154,7 +152,6 @@ ClientHttpRequest::ClientHttpRequest(ConnStateData * aConn) :
     log_uri(NULL),
     req_sz(0),
     al(new AccessLogEntry()),
-    logType(al->cache.code),
     calloutContext(NULL),
     maxReplyBodySize_(0),
     entry_(NULL),
@@ -777,7 +774,7 @@ ClientRequestContext::clientAccessCheckDone(const Acl::Answer &answer)
          */
         page_id = aclGetDenyInfoPage(&Config.denyInfoList, AclMatchedName, answer != ACCESS_AUTH_REQUIRED);
 
-        http->logType.update(LOG_TCP_DENIED);
+        http->updateLoggingTags(LOG_TCP_DENIED);
 
         if (auth_challenge) {
 #if USE_AUTH
@@ -1117,7 +1114,7 @@ clientInterpretRequestHeaders(ClientHttpRequest * http)
         }
 
 #if USE_FORW_VIA_DB
-        fvdbCountVia(s.termedBuf());
+        fvdbCountVia(StringToSBuf(s));
 
 #endif
 
@@ -1141,7 +1138,7 @@ clientInterpretRequestHeaders(ClientHttpRequest * http)
 
     if (req_hdr->has(Http::HdrType::X_FORWARDED_FOR)) {
         String s = req_hdr->getList(Http::HdrType::X_FORWARDED_FOR);
-        fvdbCountForw(s.termedBuf());
+        fvdbCountForwarded(StringToSBuf(s));
         s.clean();
     }
 
@@ -1533,8 +1530,8 @@ ClientHttpRequest::httpStart()
 {
     PROF_start(httpStart);
     // XXX: Re-initializes rather than updates. Should not be needed at all.
-    logType.update(LOG_TAG_NONE);
-    debugs(85, 4, logType.c_str() << " for '" << uri << "'");
+    updateLoggingTags(LOG_TAG_NONE);
+    debugs(85, 4, loggingTags().c_str() << " for '" << uri << "'");
 
     /* no one should have touched this */
     assert(out.offset == 0);
@@ -1735,9 +1732,6 @@ ClientHttpRequest::clearRequest()
  * the callout.  This is strictly for convenience.
  */
 
-tos_t aclMapTOS (acl_tos * head, ACLChecklist * ch);
-Ip::NfMarkConfig aclFindNfMarkConfig (acl_nfmark * head, ACLChecklist * ch);
-
 void
 ClientHttpRequest::doCallouts()
 {
@@ -1899,7 +1893,7 @@ ClientHttpRequest::doCallouts()
 #if ICAP_CLIENT
     Adaptation::Icap::History::Pointer ih = request->icapHistory();
     if (ih != NULL)
-        ih->logType = logType;
+        ih->logType = loggingTags();
 #endif
 }
 

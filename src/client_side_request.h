@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1996-2020 The Squid Software Foundation and contributors
+ * Copyright (C) 1996-2021 The Squid Software Foundation and contributors
  *
  * Squid software is distributed under GPLv2+ license and includes
  * contributions from numerous individuals and organizations.
@@ -10,11 +10,11 @@
 #define SQUID_CLIENTSIDEREQUEST_H
 
 #include "AccessLogEntry.h"
-#include "acl/forward.h"
 #include "client_side.h"
 #include "clientStream.h"
 #include "http/forward.h"
 #include "HttpHeaderRange.h"
+#include "log/forward.h"
 #include "LogTags.h"
 #include "Store.h"
 
@@ -76,6 +76,12 @@ public:
     /// the request. To set the virgin request, use initRequest().
     void resetRequest(HttpRequest *);
 
+    /// update the code in the transaction processing tags
+    void updateLoggingTags(const LogTags_ot code) { al->cache.code.update(code); }
+
+    /// the processing tags associated with this request transaction.
+    const LogTags &loggingTags() const { return al->cache.code; }
+
     /** Details of the client socket which produced us.
      * Treat as read-only for the lifetime of this HTTP request.
      */
@@ -119,14 +125,7 @@ public:
     HttpHdrRangeIter range_iter;    /* data for iterating thru range specs */
     size_t req_sz;      /* raw request size on input, not current request size */
 
-    AccessLogEntry::Pointer al; ///< access.log entry
-
-    // The flags are stored in this->al as a temporary diff reduction hack.
-    // We have verified that this->al does not change by making it const,
-    // but that requires fixing a dozen of ALE-taking APIs (TODO).
-    // TODO: Add a convenience method returning al->cache.code instead.
-    /// The processing tags associated with this request transaction.
-    LogTags &logType;
+    const AccessLogEntry::Pointer al; ///< access.log entry
 
     struct Flags {
         Flags() : accel(false), internal(false), done_copying(false) {}
@@ -254,7 +253,6 @@ char *clientConstructTraceEcho(ClientHttpRequest *);
 
 ACLFilledChecklist *clientAclChecklistCreate(const acl_access * acl,ClientHttpRequest * http);
 void clientAclChecklistFill(ACLFilledChecklist &, ClientHttpRequest *);
-int clientHttpRequestStatus(int fd, ClientHttpRequest const *http);
 void clientAccessCheck(ClientHttpRequest *);
 
 /* ones that should be elsewhere */
