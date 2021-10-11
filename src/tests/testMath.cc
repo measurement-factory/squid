@@ -16,10 +16,12 @@ class TestMath: public CPPUNIT_NS::TestFixture
 {
     CPPUNIT_TEST_SUITE( TestMath );
     CPPUNIT_TEST( testNaturalSum );
+    CPPUNIT_TEST( testIntegralProduct );
     CPPUNIT_TEST_SUITE_END();
 
 protected:
     void testNaturalSum();
+    void testIntegralProduct();
 };
 
 CPPUNIT_TEST_SUITE_REGISTRATION( TestMath );
@@ -38,6 +40,8 @@ static const auto one64s = int64_t(1);
 static const auto one64u = uint64_t(1);
 static const auto max8s = std::numeric_limits<int8_t>::max();
 static const auto max8u = std::numeric_limits<uint8_t>::max();
+static const auto max32s = std::numeric_limits<int32_t>::max();
+static const auto max32u = std::numeric_limits<uint32_t>::max();
 static const auto max64s = std::numeric_limits<int64_t>::max();
 static const auto max64u = std::numeric_limits<uint64_t>::max();
 /// @}
@@ -74,6 +78,13 @@ SumToString(const A a, const B b, const C c)
     return TypeToString<S>() + ": " + OperandToString(a) + " + " + OperandToString(b) + " + " + OperandToString(c);
 }
 
+template <typename P, typename A, typename B>
+static std::string
+ProductToString(const A a, const B b)
+{
+    return TypeToString<P>() + ": " + OperandToString(a) + " * " + OperandToString(b);
+}
+
 /// @}
 
 /// ends argument recursion for RawSum() with parameters
@@ -96,7 +107,7 @@ RawSum(A a, Args... args)
 /// Tests NaturalSum<S>() calls that are supposed to succeed.
 /// Implemented as a class to pass it as a template template parameter.
 template <typename S>
-class SuccessTester
+class SuccessSumTester
 {
 public:
     template <typename... Args>
@@ -122,7 +133,7 @@ public:
 /// Tests NaturalSum<S>() calls that are supposed to overflow.
 /// Implemented as a class to pass it as a template template parameter.
 template <typename S>
-class OverflowTester
+class OverflowSumTester
 {
 public:
     template <typename... Args>
@@ -171,8 +182,8 @@ template <typename A, typename B>
 static void
 TestOverflowForEitherSummationType(const A a, const B b)
 {
-    TestOrder<A, OverflowTester>(a, b);
-    TestOrder<B, OverflowTester>(a, b);
+    TestOrder<A, OverflowSumTester>(a, b);
+    TestOrder<B, OverflowSumTester>(a, b);
 }
 
 /// checks that a+b and similar sums succeed for summation type A but overflow
@@ -181,8 +192,8 @@ template <typename A, typename B>
 static void
 TestSuccessForFirstSummationType(const A a, const B b)
 {
-    TestOrder<A, SuccessTester>(a, b);
-    TestOrder<B, OverflowTester>(a, b);
+    TestOrder<A, SuccessSumTester>(a, b);
+    TestOrder<B, OverflowSumTester>(a, b);
 }
 
 /// \returns successful a+b value using summation type S (which defaults to A)
@@ -190,7 +201,7 @@ template <typename A, typename... Args, typename S = A>
 static S
 GoodSum(const A a, Args... args)
 {
-    return SuccessTester<S>::Test(a, args...);
+    return SuccessSumTester<S>::Test(a, args...);
 }
 
 void
@@ -264,5 +275,97 @@ TestMath::testNaturalSum()
     const auto result = SetToNaturalSumOrMax(expires, max64u, zero8u);
     CPPUNIT_ASSERT_EQUAL(std::numeric_limits<long>::max(), expires);
     CPPUNIT_ASSERT_EQUAL(expires, result);
+}
+
+/// helper function to multiply a pair of arbitrary-type integers
+/// while converting every number to type P and ignoring any under/overflows
+template <typename P, typename T, typename U>
+static P
+RawProduct(T t, U u)
+{
+    return P(t) * P(u);
+}
+
+/// Tests IntegralProduct<P>() calls that are supposed to succeed.
+/// Implemented as a class to pass it as a template template parameter.
+template <typename P>
+class SuccessProductTester
+{
+public:
+    template <typename T, typename U>
+    static P Test(const T t, const U u)
+    {
+        const auto result = IntegralProduct<P>(P(), t, u);
+        CPPUNIT_ASSERT_MESSAGE(ProductToString<P>(t, u) + " must overflow",
+                               result.has_value());
+
+        const auto product = result.value();
+
+        // to show every non-overflowing product to be tested:
+        //std::cout << ProductToString<P>(t, u) << " = " << product << "\n";
+
+        const auto expected = RawProduct<P>(t, u);
+        CPPUNIT_ASSERT_MESSAGE(
+            ProductToString<P>(t, u) + " = " + OperandToString(expected) + " rather than " + OperandToString(product),
+            product == expected);
+
+        return product;
+    }
+};
+
+/// Tests IntergralProduct<P>() calls that are supposed to overflow.
+/// Implemented as a class to pass it as a template template parameter.
+template <typename P>
+class OverflowProductTester
+{
+public:
+    template <typename T, typename U>
+    static void Test(const T t, const U u)
+    {
+        // to show every overflowing product to be tested:
+        //std::cout << ProductToString<P>(t, u) << " = overflow\n";
+
+        CPPUNIT_ASSERT_MESSAGE(ProductToString<P>(t, u) + " must overflow",
+                               !IntegralProduct<P>(P(), t, u).has_value());
+    }
+};
+
+/// checks that the summation outcome is unaffected by the order of operands
+template <typename P, template<typename> class Tester, typename T, typename U>
+static void
+TestProductOrder(const T t, const U u)
+{
+    Tester<P>::Test(t, u);
+    Tester<P>::Test(u, t);
+}
+
+/// checks that a+b and similar sums overflow for summation types T and U
+template <typename T, typename U>
+static void
+TestOverflowForEitherMultiplicationType(const T t, const U u)
+{
+    TestProductOrder<T, OverflowProductTester>(t, u);
+    TestProductOrder<U, OverflowProductTester>(t, u);
+}
+
+/// checks that a+b and similar sums succeed for summation type T but overflow
+/// for summation type U
+template <typename T, typename U>
+static void
+TestSuccessForEitherMultiplicationType(const T t, const U u)
+{
+    TestProductOrder<T, SuccessProductTester>(t, u);
+    TestProductOrder<U, SuccessProductTester>(t, u);
+}
+
+void
+TestMath::testIntegralProduct()
+{
+    TestOverflowForEitherMultiplicationType(max8u, max8u);
+    TestOverflowForEitherMultiplicationType(max64u, max64u);
+
+    TestSuccessForEitherMultiplicationType(max8u/2-1, 2);
+    TestSuccessForEitherMultiplicationType(max32u/2-1, 2u);
+    TestSuccessForEitherMultiplicationType(max64u/2-1, 2ul);
 }
 
