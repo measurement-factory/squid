@@ -123,39 +123,30 @@ SetToNaturalSumOrMax(S &var, Args... args)
     return var;
 }
 
-template <typename T>
-size_t
-HighestPower(T v)
-{
-    assert(v);
-
-    size_t power = -1;
-    while (v) {
-        ++power;
-        v >>= 1;
-    };
-    return power;
-}
-
 template <typename P, typename T, typename U>
-void
-IntegralProduct(Optional<P> &p, const T &t, const U &u)
+Optional<P>
+IntegralProduct(P s, T t, U u)
 {
-    static_assert(std::is_integral<P>::value, "the result is integral");
+    // ensure that the shifting below will work
     static_assert(std::is_integral<T>::value, "the first argument is integral");
     static_assert(std::is_integral<U>::value, "the second argument is integral");
 
-    if (!Less(t, 0) && !Less(u, 0)) {
-        const auto powerT = HighestPower(t);
-        const auto powerU = HighestPower(u);
-        const auto maxPower = HighestPower(std::numeric_limits<P>::max());
-        if (powerT + powerU < maxPower + 1) {
-            // no overflow here
-            p = Optional<P>(static_cast<P>(t) * static_cast<P>(u));
-            return;
+    auto result = Optional<P>(0);
+    while (u) {
+        if (u & 1) {
+            result = IncreaseSum<P>(result.value(), t);
+            if (!result.has_value())
+                return Optional<P>();
         }
+        u >>= 1;
+        if (!u)
+            break;
+        if (!IncreaseSum<T>(t, t).has_value())
+            return Optional<P>();
+        t <<= 1;
+
     }
-    p = Optional<P>();
+    return result;
 }
 
 #endif /* _SQUID_SRC_SQUIDMATH_H */
