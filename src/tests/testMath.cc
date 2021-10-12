@@ -38,10 +38,12 @@ static const auto one8s = int8_t(1);
 static const auto one8u = uint8_t(1);
 static const auto one64s = int64_t(1);
 static const auto one64u = uint64_t(1);
+static const auto two8s = int8_t(2);
+static const auto two8u = uint8_t(2);
+static const auto two64s = int64_t(2);
+static const auto two64u = uint64_t(2);
 static const auto max8s = std::numeric_limits<int8_t>::max();
 static const auto max8u = std::numeric_limits<uint8_t>::max();
-static const auto max32s = std::numeric_limits<int32_t>::max();
-static const auto max32u = std::numeric_limits<uint32_t>::max();
 static const auto max64s = std::numeric_limits<int64_t>::max();
 static const auto max64u = std::numeric_limits<uint64_t>::max();
 /// @}
@@ -296,13 +298,14 @@ public:
     static P Test(const T t, const U u)
     {
         const auto result = IntegralProduct<P>(P(), t, u);
+
         CPPUNIT_ASSERT_MESSAGE(ProductToString<P>(t, u) + " must overflow",
                                result.has_value());
 
         const auto product = result.value();
 
         // to show every non-overflowing product to be tested:
-        //std::cout << ProductToString<P>(t, u) << " = " << product << "\n";
+        //std::cout << ProductToString<P>(t, u) << " = " << +product << "\n";
 
         const auto expected = RawProduct<P>(t, u);
         CPPUNIT_ASSERT_MESSAGE(
@@ -330,7 +333,7 @@ public:
     }
 };
 
-/// checks that the summation outcome is unaffected by the order of operands
+/// checks that the multiplication outcome is unaffected by the order of operands
 template <typename P, template<typename> class Tester, typename T, typename U>
 static void
 TestProductOrder(const T t, const U u)
@@ -339,7 +342,7 @@ TestProductOrder(const T t, const U u)
     Tester<P>::Test(u, t);
 }
 
-/// checks that a+b and similar sums overflow for summation types T and U
+/// checks that t*u and similar products overflow for multiplication types T and U
 template <typename T, typename U>
 static void
 TestOverflowForEitherMultiplicationType(const T t, const U u)
@@ -348,24 +351,79 @@ TestOverflowForEitherMultiplicationType(const T t, const U u)
     TestProductOrder<U, OverflowProductTester>(t, u);
 }
 
-/// checks that a+b and similar sums succeed for summation type T but overflow
-/// for summation type U
+/// checks that t*u and similar products succeed for multiplication type T but overflow
+/// for multiplication type U
 template <typename T, typename U>
 static void
-TestSuccessForEitherMultiplicationType(const T t, const U u)
+TestSuccessForFirstMultiplicationType(const T t, const U u)
 {
     TestProductOrder<T, SuccessProductTester>(t, u);
-    TestProductOrder<U, SuccessProductTester>(t, u);
+    TestProductOrder<U, OverflowProductTester>(t, u);
+}
+
+/// \returns successful t*u value using multiplication type P (which defaults to T)
+template <typename T, typename U, typename P = T>
+static P
+GoodProduct(const T t, const U u)
+{
+    return SuccessProductTester<P>::Test(t, u);
 }
 
 void
 TestMath::testIntegralProduct()
 {
-    TestOverflowForEitherMultiplicationType(max8u, max8u);
-    TestOverflowForEitherMultiplicationType(max64u, max64u);
+    // negative parameters are banned in any position
+    TestOverflowForEitherMultiplicationType(min64s, zero8s);
+    TestOverflowForEitherMultiplicationType(min64s, zero8u);
+    TestOverflowForEitherMultiplicationType(min64s, max64s);
+    TestOverflowForEitherMultiplicationType(min64s, max64u);
+    TestOverflowForEitherMultiplicationType(min8s, zero8s);
+    TestOverflowForEitherMultiplicationType(min8s, zero8s);
+    TestOverflowForEitherMultiplicationType(min8s, zero8u);
+    TestOverflowForEitherMultiplicationType(min8s, max64s);
+    TestOverflowForEitherMultiplicationType(min8s, max64u);
+    TestOverflowForEitherMultiplicationType(-1, -1);
+    TestOverflowForEitherMultiplicationType(-1, zero8s);
+    TestOverflowForEitherMultiplicationType(-1, zero8u);
+    TestOverflowForEitherMultiplicationType(-1, max64s);
+    TestOverflowForEitherMultiplicationType(-1, max64u);
+    TestOverflowForEitherMultiplicationType(-1, one8s);
+    TestOverflowForEitherMultiplicationType(-1, one8u);
+    TestOverflowForEitherMultiplicationType(-1, one64s);
+    TestOverflowForEitherMultiplicationType(-1, one64u);
 
-    TestSuccessForEitherMultiplicationType(max8u/2-1, 2);
-    TestSuccessForEitherMultiplicationType(max32u/2-1, 2u);
-    TestSuccessForEitherMultiplicationType(max64u/2-1, 2ul);
+    // these overflow regardless of which parameter determines the product type
+    TestOverflowForEitherMultiplicationType(max8u, two8u);
+    TestOverflowForEitherMultiplicationType(max8u, two8s);
+    TestOverflowForEitherMultiplicationType(max8u, max8s);
+    TestOverflowForEitherMultiplicationType(max8s, two8s);
+    TestOverflowForEitherMultiplicationType(max64u, two8u);
+    TestOverflowForEitherMultiplicationType(max64u, two8s);
+    TestOverflowForEitherMultiplicationType(max64u, two64u);
+    TestOverflowForEitherMultiplicationType(max64u, two64s);
+    TestOverflowForEitherMultiplicationType(max64u, max64s);
+    TestOverflowForEitherMultiplicationType(max64s, two8u);
+    TestOverflowForEitherMultiplicationType(max64s, two8s);
+    TestOverflowForEitherMultiplicationType(max64s, two64s);
+
+    // these overflow only if the second parameter determines the product type
+    TestSuccessForFirstMultiplicationType(max8u, one8s);
+    TestSuccessForFirstMultiplicationType(max64u, one8s);
+    TestSuccessForFirstMultiplicationType(max64u, one8u);
+    TestSuccessForFirstMultiplicationType(max64u, one64s);
+    TestSuccessForFirstMultiplicationType(max64s, one8s);
+    TestSuccessForFirstMultiplicationType(max64s, one8u);
+    TestSuccessForFirstMultiplicationType(max64u, zero8u);
+    TestSuccessForFirstMultiplicationType(max64u, zero8s);
+    TestSuccessForFirstMultiplicationType(max64u, zero64s);
+
+    // a few products with known values
+    CPPUNIT_ASSERT_EQUAL(zero8s, GoodProduct(zero8s, zero8u));
+    CPPUNIT_ASSERT_EQUAL(zero64s, GoodProduct(zero64s, zero64u));
+    CPPUNIT_ASSERT_EQUAL(2, GoodProduct(2, 1));
+    CPPUNIT_ASSERT_EQUAL(uint64_t(2), GoodProduct(one64u, two64s));
+    CPPUNIT_ASSERT_EQUAL(6u, GoodProduct(2u, 3u));
+    CPPUNIT_ASSERT_EQUAL(max64u, GoodProduct(one64u, max64u));
+    CPPUNIT_ASSERT_EQUAL(max64u-1, GoodProduct(max64u>>1, two64u));
 }
 

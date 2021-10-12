@@ -31,11 +31,11 @@ DelayBucket::update(DelaySpec const &rate, int incr)
         return;
 
     const auto oldLevel = level();
-    const auto product = IntegralProduct(oldLevel, rate.restore_bps, incr);
-    if (product.has_value()) {
-        const auto sum = IncreaseSum(oldLevel, product.value());
-        if (sum.has_value()) {
-            level() = sum.value();
+    const auto delta = IntegralProduct(oldLevel, rate.restore_bps, incr);
+    if (delta.has_value()) {
+        const auto newLevel = IncreaseSum(oldLevel, delta.value());
+        if (newLevel.has_value()) {
+            level() = newLevel.value();
             return;
         }
     }

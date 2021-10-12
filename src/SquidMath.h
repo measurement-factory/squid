@@ -125,26 +125,35 @@ SetToNaturalSumOrMax(S &var, Args... args)
 
 template <typename P, typename T, typename U>
 Optional<P>
-IntegralProduct(P s, T t, U u)
+IntegralProduct(P, T t, U u)
 {
     // ensure that the shifting below will work
     static_assert(std::is_integral<T>::value, "the first argument is integral");
     static_assert(std::is_integral<U>::value, "the second argument is integral");
 
+    // assume that callers treat negative numbers specially (see IncreaseSum() for details)
+    if (Less(t, 0) || Less(u, 0))
+        return Optional<P>();
+
+    // check that both operands do not overflow the result type
+    if (!IncreaseSum(P(0), t).has_value() || !IncreaseSum(P(0), u).has_value())
+        return Optional<P>();
+
+    auto p = static_cast<P>(t);
     auto result = Optional<P>(0);
+
     while (u) {
         if (u & 1) {
-            result = IncreaseSum<P>(result.value(), t);
+            result = IncreaseSum(result.value(), p);
             if (!result.has_value())
                 return Optional<P>();
         }
         u >>= 1;
         if (!u)
             break;
-        if (!IncreaseSum<T>(t, t).has_value())
+        if (!IncreaseSum(p, p).has_value())
             return Optional<P>();
-        t <<= 1;
-
+        p <<= 1;
     }
     return result;
 }
