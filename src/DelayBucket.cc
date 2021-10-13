@@ -32,7 +32,7 @@ DelayBucket::update(DelaySpec const &rate, int incr)
         return;
 
     const auto oldLevel = level();
-    if (const auto delta = NaturalProduct(oldLevel, rate.restore_bps, incr)) {
+    if (const auto delta = IncreaseProduct(rate.restore_bps, incr)) {
         if (const auto newLevel = IncreaseSum(oldLevel, delta.value())) {
             level() = newLevel.value();
             return;

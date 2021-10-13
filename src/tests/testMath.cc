@@ -297,7 +297,7 @@ public:
     template <typename T, typename U>
     static P Test(const T t, const U u)
     {
-        const auto result = NaturalProduct<P>(P(), t, u);
+        const auto result = NaturalProduct<P>(t, u);
 
         CPPUNIT_ASSERT_MESSAGE(ProductToString<P>(t, u) + " must overflow",
                                result.has_value());
@@ -329,7 +329,7 @@ public:
         //std::cout << ProductToString<P>(t, u) << " = overflow\n";
 
         CPPUNIT_ASSERT_MESSAGE(ProductToString<P>(t, u) + " must overflow",
-                               !NaturalProduct<P>(P(), t, u).has_value());
+                               !NaturalProduct<P>(t, u).has_value());
     }
 };
 
@@ -362,11 +362,11 @@ TestSuccessForFirstMultiplicationType(const T t, const U u)
 }
 
 /// \returns successful t*u value using multiplication type P (which defaults to T)
-template <typename T, typename U, typename P = T>
-static P
+template <typename T, typename U>
+static T
 GoodProduct(const T t, const U u)
 {
-    return SuccessProductTester<P>::Test(t, u);
+    return SuccessProductTester<T>::Test(t, u);
 }
 
 void
@@ -419,7 +419,7 @@ TestMath::testNaturalProduct()
 
     // a few products with known values
     CPPUNIT_ASSERT_EQUAL(zero8s, GoodProduct(zero8s, zero8u));
-    CPPUNIT_ASSERT_EQUAL(zero64s, GoodProduct(zero64s, zero64u));
+    CPPUNIT_ASSERT_EQUAL(one8u, GoodProduct(one8u, one64s));
     CPPUNIT_ASSERT_EQUAL(2, GoodProduct(2, 1));
     CPPUNIT_ASSERT_EQUAL(uint64_t(2), GoodProduct(one64u, two64s));
     CPPUNIT_ASSERT_EQUAL(6u, GoodProduct(2u, 3u));

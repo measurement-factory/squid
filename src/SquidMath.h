@@ -123,9 +123,11 @@ SetToNaturalSumOrMax(S &var, Args... args)
     return var;
 }
 
+/// \returns an exact, non-overflowing product of the arguments (or nothing)
+/// \returns nothing if at least one of the arguments is negative
 template <typename P, typename T, typename U>
 Optional<P>
-NaturalProduct(P, T t, U u)
+NaturalProduct(T t, U u)
 {
     // ensure that the shifting below will work
     static_assert(std::is_integral<T>::value, "the first argument is integral");
@@ -156,6 +158,14 @@ NaturalProduct(P, T t, U u)
         p <<= 1;
     }
     return result;
+}
+
+/// \returns a non-overflowing product of the arguments (or nothing)
+template <typename T, typename U>
+Optional<T>
+IncreaseProduct(const T t, const U u)
+{
+    return NaturalProduct<T>(t, u);
 }
 
 #endif /* _SQUID_SRC_SQUIDMATH_H */
