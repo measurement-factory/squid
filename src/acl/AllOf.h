@@ -30,6 +30,7 @@ public:
 
 private:
     /* Acl::InnerNode API */
+    virtual InnerNode *newToSync() const { return new AllOf(); }
     virtual int doMatch(ACLChecklist *checklist, Nodes::const_iterator start) const;
 };
 

@@ -14,16 +14,6 @@
 
 /* Acl::NotNode */
 
-Acl::NotNode::NotNode(ACL *acl)
-{
-    assert(acl);
-    Must(strlen(acl->name) <= sizeof(name)-2);
-    name[0] = '!';
-    name[1] = '\0';
-    xstrncpy(&name[1], acl->name, sizeof(name)-1); // -1 for '!'
-    add(acl);
-}
-
 void
 Acl::NotNode::parse()
 {

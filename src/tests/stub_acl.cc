@@ -14,5 +14,5 @@
 #define STUB_API "acl/"
 #include "tests/STUB.h"
 
-size_t aclParseAclList(ConfigParser &, Acl::Tree **, const char *) STUB_RETVAL(0)
+size_t aclParseAclList(ConfigParser &, ACLList **, const char *) STUB_RETVAL(0)
 

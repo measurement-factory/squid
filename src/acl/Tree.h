@@ -39,6 +39,8 @@ public:
 
 protected:
     /// Acl::OrNode API
+    virtual InnerNode *newToSync() const final { return new Tree(); }
+    virtual void fillToSync(InnerNode &newMe) const final;
     virtual bool bannedAction(ACLChecklist *, Nodes::const_iterator) const override;
     Answer actionAt(const Nodes::size_type pos) const;
 

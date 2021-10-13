@@ -23,9 +23,6 @@ class NotNode: public InnerNode
 {
     MEMPROXY_CLASS(NotNode);
 
-public:
-    explicit NotNode(ACL *acl);
-
 private:
     /* ACL API */
     virtual char const *typeString() const;
@@ -34,6 +31,7 @@ private:
     virtual SBufList dump() const;
 
     /* Acl::InnerNode API */
+    virtual InnerNode *newToSync() const { return new NotNode(); }
     virtual int doMatch(ACLChecklist *checklist, Nodes::const_iterator start) const;
 };
 
@@ -51,6 +49,8 @@ public:
     virtual void parse();
 
 private:
+    /* Acl::InnerNode API */
+    virtual InnerNode *newToSync() const { return new AndNode(); }
     virtual int doMatch(ACLChecklist *checklist, Nodes::const_iterator start) const;
 };
 
@@ -75,6 +75,8 @@ protected:
     mutable Nodes::const_iterator lastMatch_;
 
 private:
+    /* Acl::InnerNode API */
+    virtual InnerNode *newToSync() const { return new OrNode(); }
     virtual int doMatch(ACLChecklist *checklist, Nodes::const_iterator start) const;
 };
 

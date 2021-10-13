@@ -105,7 +105,10 @@ ACLStrategised<MatchType>::match(ACLChecklist *cl)
 {
     ACLFilledChecklist *checklist = dynamic_cast<ACLFilledChecklist*>(cl);
     assert(checklist);
-    return matcher->match(data, checklist);
+    matcher->lastMatchCallerXXX = this;
+    const auto result = matcher->match(data, checklist);
+    matcher->lastMatchCallerXXX = nullptr;
+    return result;
 }
 
 template <class MatchType>

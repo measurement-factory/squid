@@ -40,7 +40,21 @@ public:
     /// appends the node to the collection and takes control over it
     void add(ACL *node);
 
+    /// recreate the same InnerNode ACL using up-to-date nodes
+    InnerNode *makeSyncedVersion() const;
+
 protected:
+    /// a fresh/post-reconfiguration version of the given [stale] ACL
+    /// \returns either an existing ACL object or a newly created ACL object
+    static ACL *SyncedVersionOf(const ACL &);
+
+    /// fills the given node with synced versions of our nodes and other details
+    virtual void fillToSync(InnerNode &) const;
+
+    /// Creates an ACL object with the C++ type of the method implementer.
+    /// The returned object is meant to be filled/configured using fillToSync().
+    virtual InnerNode *newToSync() const = 0;
+
     /// checks whether the nodes match, starting with the given one
     /// kids determine what a match means for their type of intermediate nodes
     virtual int doMatch(ACLChecklist *checklist, Nodes::const_iterator start) const = 0;

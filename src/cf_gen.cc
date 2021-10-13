@@ -98,9 +98,13 @@ public:
     int array_flag = 0; ///< TYPE is a raw array[] declaration
 
     void genParse(std::ostream &fout) const;
+    void genFind(std::ostream &fout) const;
+    void genDefaultIfNone(std::ostream &fout) const;
 
 private:
     void genParseAlias(const std::string &, std::ostream &) const;
+    void genFindAlias(const std::string &, std::ostream &) const;
+    void genDefaultIfNoneAlias(const std::string &, std::ostream &) const;
 };
 
 typedef std::list<class Entry> EntryList;
@@ -121,6 +125,7 @@ static int gen_default(const EntryList &, std::ostream &);
 static void gen_parse(const EntryList &, std::ostream &);
 static void gen_dump(const EntryList &, std::ostream&);
 static void gen_free(const EntryList &, std::ostream&);
+static void gen_find(const EntryList &, std::ostream &);
 static void gen_conf(const EntryList &, std::ostream&, bool verbose_output);
 static void gen_default_if_none(const EntryList &, std::ostream&);
 static void gen_default_postscriptum(const EntryList &, std::ostream&);
@@ -423,6 +428,9 @@ main(int argc, char *argv[])
          " */\n"
          "\n";
 
+    // TODO: We should be generating directives metadata instead of generating
+    // code that handles hard-coded (in that generated code) metadata.
+
     rc = gen_default(entries, fout);
 
     gen_default_if_none(entries, fout);
@@ -434,6 +442,8 @@ main(int argc, char *argv[])
     gen_dump(entries, fout);
 
     gen_free(entries, fout);
+
+    gen_find(entries, fout);
 
     fout.close();
 
@@ -465,19 +475,8 @@ static int
 gen_default(const EntryList &head, std::ostream &fout)
 {
     int rc = 0;
-    fout << "static void" << std::endl <<
-         "default_line(const char *s)" << std::endl <<
-         "{" << std::endl <<
-         "    char *tmp_line = xstrdup(s);" << std::endl <<
-         "    int len = strlen(tmp_line);" << std::endl <<
-         "    ProcessMacros(tmp_line, len);" << std::endl <<
-         "    xstrncpy(config_input_line, tmp_line, sizeof(config_input_line));" << std::endl <<
-         "    config_lineno++;" << std::endl <<
-         "    parse_line(tmp_line);" << std::endl <<
-         "    xfree(tmp_line);" << std::endl <<
-         "}" << std::endl << std::endl;
-    fout << "static void" << std::endl <<
-         "default_all(void)" << std::endl <<
+    fout << "void" << std::endl <<
+         "Configuration::Preprocessor::processInitialDefaults()" << std::endl <<
          "{" << std::endl <<
          "    cfg_filename = \"Default Configuration\";" << std::endl <<
          "    config_lineno = 0;" << std::endl;
@@ -525,20 +524,34 @@ gen_default(const EntryList &head, std::ostream &fout)
 static void
 gen_default_if_none(const EntryList &head, std::ostream &fout)
 {
-    fout << "static void" << std::endl <<
-         "defaults_if_none(void)" << std::endl <<
+    fout << "void" << std::endl <<
+         "Configuration::Preprocessor::processIfNoneDefaults()" << std::endl <<
          "{" << std::endl <<
          "    cfg_filename = \"Default Configuration (if absent)\";" << std::endl <<
          "    config_lineno = 0;" << std::endl;
 
     for (const auto &entry : head) {
+        entry.genDefaultIfNone(fout);
+    }
+
+    fout << "    cfg_filename = nullptr;" << std::endl <<
+         "}" << std::endl << std::endl;
+}
+
+void
+Entry::genDefaultIfNone(std::ostream &fout) const
+{
+    // TODO: Remove diff reduction.
+    {
+        const auto &entry = *this;
+
         assert(entry.name.size());
 
         if (!entry.loc.size())
-            continue;
+            return;
 
         if (entry.defaults.if_none.empty())
-            continue;
+            return;
 
         if (!entry.defaults.preset.empty()) {
             std::cerr << "ERROR: " << entry.name << " has preset defaults. DEFAULT_IF_NONE cannot be true." << std::endl;
@@ -548,25 +561,37 @@ gen_default_if_none(const EntryList &head, std::ostream &fout)
         if (entry.ifdef.size())
             fout << "#if " << entry.ifdef << std::endl;
 
-        fout << "    if (check_null_" << entry.type << "(" << entry.loc << ")) {" << std::endl;
+        fout << "    if (";
+        // Once for the current directive name
+        genDefaultIfNoneAlias(name, fout);
+
+        // All accepted aliases
+        for (const auto &a: alias)
+            genDefaultIfNoneAlias(a, fout << " && ");
+        fout << ") {" << std::endl;
+
         for (const auto &l : entry.defaults.if_none)
             fout << "        default_line(\"" << entry.name << " " << gen_quote_escape(l) <<"\");" << std::endl;
+
         fout << "    }" << std::endl;
 
         if (entry.ifdef.size())
             fout << "#endif" << std::endl;
     }
+}
 
-    fout << "    cfg_filename = NULL;" << std::endl <<
-         "}" << std::endl << std::endl;
+void
+Entry::genDefaultIfNoneAlias(const std::string &knownName, std::ostream &fout) const
+{
+    fout << "!sawDirective(\"" << knownName << "\")";
 }
 
 /// append configuration options specified by POSTSCRIPTUM lines
 static void
 gen_default_postscriptum(const EntryList &head, std::ostream &fout)
 {
-    fout << "static void" << std::endl <<
-         "defaults_postscriptum(void)" << std::endl <<
+    fout << "void" << std::endl <<
+         "Configuration::Preprocessor::processPostscriptumDefaults()" << std::endl <<
          "{" << std::endl <<
          "    cfg_filename = \"Default Configuration (postscriptum)\";" << std::endl <<
          "    config_lineno = 0;" << std::endl;
@@ -724,6 +749,54 @@ gen_free(const EntryList &head, std::ostream &fout)
     }
 
     fout << "}" << std::endl << std::endl;
+}
+
+void
+Entry::genFindAlias(const std::string &knownName, std::ostream &fout) const
+{
+    // type="obsolete" entries are valid (for now) because most of them are
+    // currently ignored (and some of them are even rewritten) by the parser
+    // XXX: However, some of them lead to self_destruct() in the parser.
+
+    if (ifdef.size())
+        fout << "#if " << ifdef << "\n";
+
+    // TODO: Add SBuf::equal() to encapsulate this length check optimization.
+    fout << "    if (name.length() == " << knownName.length() << " && name.cmp(\"" << knownName << "\", " << knownName.length() << ") == 0)\n";
+    fout << "        return true;\n";
+
+    if (ifdef.size())
+        fout << "#endif\n";
+}
+
+void
+Entry::genFind(std::ostream &fout) const
+{
+    if (name.compare("comment") == 0)
+        return;
+
+    // Once for the current directive name
+    genFindAlias(name, fout);
+
+    // All accepted aliases
+    for (const auto &a : alias)
+        genFindAlias(a, fout);
+}
+
+static void
+gen_find(const EntryList &head, std::ostream &fout)
+{
+    fout <<
+         "bool\n"
+         "Configuration::Preprocessor::ValidDirectiveName(const SBuf &name)\n"
+         "{\n";
+
+    for (const auto &e : head)
+        e.genFind(fout);
+
+    fout << "    return false;\n"
+         "}\n\n";
+
 }
 
 static bool

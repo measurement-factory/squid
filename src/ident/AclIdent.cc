@@ -72,7 +72,7 @@ ACLIdent::match(ACLChecklist *cl)
     } else if (checklist->conn() != NULL && checklist->conn()->clientConnection != NULL && checklist->conn()->clientConnection->rfc931[0]) {
         return data->match(checklist->conn()->clientConnection->rfc931);
     } else if (checklist->conn() != NULL && Comm::IsConnOpen(checklist->conn()->clientConnection)) {
-        if (checklist->goAsync(IdentLookup::Instance())) {
+        if (checklist->goAsync(StartLookup, *this)) {
             debugs(28, 3, "switching to ident lookup state");
             return -1;
         }
@@ -104,18 +104,10 @@ ACLIdent::clone() const
     return new ACLIdent(*this);
 }
 
-IdentLookup IdentLookup::instance_;
-
-IdentLookup *
-IdentLookup::Instance()
-{
-    return &instance_;
-}
-
 void
-IdentLookup::checkForAsync(ACLChecklist *cl)const
+ACLIdent::StartLookup(ACLChecklist &cl, const ACL &)
 {
-    ACLFilledChecklist *checklist = Filled(cl);
+    ACLFilledChecklist *checklist = Filled(&cl);
     const ConnStateData *conn = checklist->conn();
     // check that ACLIdent::match() tested this lookup precondition
     assert(conn && Comm::IsConnOpen(conn->clientConnection));
@@ -124,7 +116,7 @@ IdentLookup::checkForAsync(ACLChecklist *cl)const
 }
 
 void
-IdentLookup::LookupDone(const char *ident, void *data)
+ACLIdent::LookupDone(const char *ident, void *data)
 {
     ACLFilledChecklist *checklist = Filled(static_cast<ACLChecklist*>(data));
 
@@ -141,7 +133,7 @@ IdentLookup::LookupDone(const char *ident, void *data)
     if (checklist->conn() != NULL && checklist->conn()->clientConnection != NULL && !checklist->conn()->clientConnection->rfc931[0])
         xstrncpy(checklist->conn()->clientConnection->rfc931, checklist->rfc931, USER_IDENT_SZ);
 
-    checklist->resumeNonBlockingCheck(IdentLookup::Instance());
+    checklist->resumeNonBlockingCheck(ACLIdent::StartLookup);
 }
 
 #endif /* USE_IDENT */

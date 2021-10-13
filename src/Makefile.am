@@ -31,8 +31,8 @@ LOADABLE_MODULES_SOURCES = \
 	LoadableModules.cc \
 	LoadableModules.h
 
-SUBDIRS = mem base anyp helper dns ftp parser comm error eui acl format clients sbuf servers fs repl store DiskIO proxyp
-DIST_SUBDIRS = mem base anyp helper dns ftp parser comm error eui acl format clients sbuf servers fs repl store DiskIO proxyp
+SUBDIRS = mem base anyp helper dns ftp parser configuration comm error eui acl format clients sbuf servers fs repl store DiskIO proxyp
+DIST_SUBDIRS = mem base anyp helper dns ftp parser configuration comm error eui acl format clients sbuf servers fs repl store DiskIO proxyp
 
 if ENABLE_AUTH
 SUBDIRS += auth
@@ -528,6 +528,7 @@ squid_LDADD = \
 	$(AUTH_LIBS) \
 	acl/libapi.la \
 	clients/libclients.la \
+	configuration/libconfiguration.la \
 	servers/libservers.la \
 	ftp/libftp.la \
 	helper/libhelper.la \
@@ -1822,9 +1823,9 @@ nodist_tests_testACLMaxUserIP_SOURCES = \
 	tests/stub_libsecurity.cc
 tests_testACLMaxUserIP_LDADD = \
 	$(AUTH_ACL_LIBS) \
-	acl/libapi.la \
 	acl/libstate.la \
 	acl/libacls.la \
+	acl/libapi.la \
 	SquidConfig.o \
 	ip/libip.la \
 	parser/libparser.la \

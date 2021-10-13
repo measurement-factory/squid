@@ -29,8 +29,6 @@ void parse_wccp2_service(void *v);
 void free_wccp2_service(void *v);
 void dump_wccp2_service(StoreEntry * e, const char *label, void *v);
 
-int check_null_wccp2_service(void *v);
-
 void parse_wccp2_service_info(void *v);
 
 void free_wccp2_service_info(void *v);

@@ -55,6 +55,14 @@ Acl::Tree::add(ACL *rule)
     InnerNode::add(rule);
 }
 
+void
+Acl::Tree::fillToSync(InnerNode &newMe) const
+{
+    // fill nodes before actions so that Tree::add() does not assert on actions
+    InnerNode::fillToSync(newMe);
+    static_cast<Tree&>(newMe).actions = actions; // may be empty
+}
+
 bool
 Acl::Tree::bannedAction(ACLChecklist *checklist, Nodes::const_iterator node) const
 {

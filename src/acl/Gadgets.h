@@ -20,9 +20,9 @@ class StoreEntry;
 class wordlist;
 
 namespace Acl {
-    // TODO: Enable or remove.
-    /// Makes the given rules inaccessible; deletes unused rules
-    //void Forget(PermissionTreePointer&);
+// TODO: Enable or remove.
+/// Makes the given rules inaccessible; deletes unused rules
+//void Forget(PermissionTreePointer&);
 }
 
 /// Acl::Forget() wrapper used by legacy code
@@ -39,7 +39,7 @@ void aclParseAccessLine(const char *directive, ConfigParser &parser, acl_access 
 /// Parses a single line of a "some context followed by acls" directive (e.g., note n v).
 /// The label parameter identifies the context (for debugging).
 /// \returns the number of parsed ACL names
-size_t aclParseAclList(ConfigParser &parser, Acl::Tree **, const char *label);
+size_t aclParseAclList(ConfigParser &parser, ACLList **, const char *label);
 
 namespace Acl {
 

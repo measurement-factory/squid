@@ -29,6 +29,7 @@ class InnerNode;
 class NotNode;
 class OrNode;
 class Tree;
+class DirectiveRules;
 
 using TreePointer = RefCount<Acl::Tree>;
 
@@ -41,13 +42,9 @@ typedef void ACLCB(Acl::Answer, void *);
 
 #define ACL_NAME_SZ 64
 
-/// deprecated; use Acl::TreePointer directly
-class acl_access {
-public:
-    RefCount<Acl::Tree> raw;
-};
-/// deprecated; use Acl::TreePointer directly
-using ACLList = acl_access;
+// deprecated legacy names; use Acl::DirectiveRules instead
+using acl_access = Acl::DirectiveRules;
+using ACLList = Acl::DirectiveRules;
 
 // XXX: Move into Acl::NamedRules after migrating to master commit 2e6535a
 class AclNamedRules;

@@ -24,6 +24,10 @@ public:
     virtual char const *typeString() const;
     virtual ACL *clone() const;
     virtual void parse();
+
+private:
+    /* OrNode API */
+    virtual InnerNode *newToSync() const { return new AnyOf(); }
 };
 
 } // namespace Acl

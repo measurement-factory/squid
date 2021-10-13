@@ -7,6 +7,7 @@
  */
 
 #include "squid.h"
+#include "acl/DirectiveRules.h"
 #include "acl/FilledChecklist.h"
 #include "acl/Gadgets.h"
 #include "acl/Tree.h"

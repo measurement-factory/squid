@@ -16,7 +16,10 @@
 #include "ConfigParser.h"
 #include "Debug.h"
 #include "globals.h"
+#include "sbuf/Stream.h"
+
 #include <algorithm>
+#include <memory>
 
 void
 Acl::InnerNode::prepareForUse()
@@ -38,6 +41,41 @@ Acl::InnerNode::add(ACL *node)
     nodes.push_back(node);
 }
 
+ACL *
+Acl::InnerNode::SyncedVersionOf(const ACL &staleAcl)
+{
+    if (const auto freshAcl = ACL::FindByName(staleAcl.name)) {
+        debugs(28, 7, "found " << staleAcl.name << ' ' << &staleAcl << "=>" << freshAcl);
+        return freshAcl;
+    }
+
+    if (const auto implicitAcl = dynamic_cast<const Acl::InnerNode*>(&staleAcl)) {
+        debugs(28, 7, "stepping into implicit " << staleAcl.name);
+        return implicitAcl->makeSyncedVersion();
+    }
+
+    throw TextException(ToSBuf("cannot find and sync ACL ", staleAcl.name), Here());
+}
+
+Acl::InnerNode *
+Acl::InnerNode::makeSyncedVersion() const
+{
+    std::unique_ptr<InnerNode> newMe(newToSync());
+    fillToSync(*newMe);
+    return newMe.release();
+}
+
+void
+Acl::InnerNode::fillToSync(InnerNode &newMe) const
+{
+    debugs(28, 5, name << " with " << nodes.size() << " nodes");
+    assert(this != &newMe);
+    newMe.context(name, cfgline);
+    for (const auto &staleNode: nodes)
+        newMe.add(SyncedVersionOf(*staleNode));
+}
+
+// one call parses one "aclName1 aclName2 ..." sequence
 // kids use this method to handle [multiple] parse() calls correctly
 size_t
 Acl::InnerNode::lineParse()
@@ -51,23 +89,24 @@ Acl::InnerNode::lineParse()
     size_t count = 0;
     while (const char *t = ConfigParser::strtokFile()) {
         const bool negated = (*t == '!');
-        if (negated)
-            ++t;
+        const auto aclName = negated ? t+1 : t;
 
-        debugs(28, 3, "looking for ACL " << t);
-        ACL *a = ACL::FindByName(t);
+        const auto a = ACL::FindByName(aclName);
 
         if (a == NULL) {
-            debugs(28, DBG_CRITICAL, "ACL not found: " << t);
+            debugs(28, DBG_CRITICAL, "ERROR: Cannot find ACL named " << aclName);
             self_destruct();
             return count; // not reached
         }
 
-        // append(negated ? new NotNode(a) : a);
-        if (negated)
-            add(new NotNode(a));
-        else
+        if (negated) {
+            const auto negatingNode = new NotNode();
+            negatingNode->context(t, cfgline);
+            negatingNode->add(a);
+            add(negatingNode);
+        } else {
             add(a);
+        }
 
         ++count;
     }
