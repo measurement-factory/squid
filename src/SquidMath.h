@@ -123,6 +123,9 @@ SetToNaturalSumOrMax(S &var, Args... args)
     return var;
 }
 
+// If NaturalProduct() performance becomes important, consider using GCC and clang
+// built-ins like __builtin_mul_overflow() instead of manual overflow checks.
+
 /// \returns an exact, non-overflowing product of the arguments (or nothing)
 /// \returns nothing if at least one of the arguments is negative
 template <typename P, typename T, typename U>
