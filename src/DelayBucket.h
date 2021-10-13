@@ -19,20 +19,22 @@ class DelayBucket
 {
 
 public:
+    typedef int BucketLevel;
+
     DelayBucket() : level_(0) {}
 
-    int const& level() const {return level_;}
+    BucketLevel const& level() const { return level_; }
 
-    int & level() {return level_;}
+    BucketLevel &level() { return level_; }
 
     void stats(StoreEntry *)const;
     void update (DelaySpec const &, int incr);
-    int bytesWanted (int min, int max) const;
-    void bytesIn(int qty);
+    BucketLevel bytesWanted(BucketLevel min, BucketLevel max) const;
+    void bytesIn(BucketLevel qty);
     void init (DelaySpec const &);
 
 private:
-    int level_;
+    BucketLevel level_;
 };
 
 #endif /* SQUID_DELAYBUCKET_H */
