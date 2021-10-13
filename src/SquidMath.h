@@ -125,7 +125,7 @@ SetToNaturalSumOrMax(S &var, Args... args)
 
 template <typename P, typename T, typename U>
 Optional<P>
-IntegralProduct(P, T t, U u)
+NaturalProduct(P, T t, U u)
 {
     // ensure that the shifting below will work
     static_assert(std::is_integral<T>::value, "the first argument is integral");

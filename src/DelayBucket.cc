@@ -27,12 +27,12 @@ DelayBucket::stats(StoreEntry *entry)const
 void
 DelayBucket::update(DelaySpec const &rate, int incr)
 {
-    // make sure an undefined IntegralProduct() result (below) implies overflow
+    // make sure an undefined NaturalProduct() result (below) implies overflow
     if (rate.restore_bps < 0)
         return;
 
     const auto oldLevel = level();
-    if (const auto delta = IntegralProduct(oldLevel, rate.restore_bps, incr)) {
+    if (const auto delta = NaturalProduct(oldLevel, rate.restore_bps, incr)) {
         if (const auto newLevel = IncreaseSum(oldLevel, delta.value())) {
             level() = newLevel.value();
             return;

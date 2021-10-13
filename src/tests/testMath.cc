@@ -16,12 +16,12 @@ class TestMath: public CPPUNIT_NS::TestFixture
 {
     CPPUNIT_TEST_SUITE( TestMath );
     CPPUNIT_TEST( testNaturalSum );
-    CPPUNIT_TEST( testIntegralProduct );
+    CPPUNIT_TEST( testNaturalProduct );
     CPPUNIT_TEST_SUITE_END();
 
 protected:
     void testNaturalSum();
-    void testIntegralProduct();
+    void testNaturalProduct();
 };
 
 CPPUNIT_TEST_SUITE_REGISTRATION( TestMath );
@@ -288,7 +288,7 @@ RawProduct(T t, U u)
     return P(t) * P(u);
 }
 
-/// Tests IntegralProduct<P>() calls that are supposed to succeed.
+/// Tests NaturalProduct<P>() calls that are supposed to succeed.
 /// Implemented as a class to pass it as a template template parameter.
 template <typename P>
 class SuccessProductTester
@@ -297,7 +297,7 @@ public:
     template <typename T, typename U>
     static P Test(const T t, const U u)
     {
-        const auto result = IntegralProduct<P>(P(), t, u);
+        const auto result = NaturalProduct<P>(P(), t, u);
 
         CPPUNIT_ASSERT_MESSAGE(ProductToString<P>(t, u) + " must overflow",
                                result.has_value());
@@ -329,7 +329,7 @@ public:
         //std::cout << ProductToString<P>(t, u) << " = overflow\n";
 
         CPPUNIT_ASSERT_MESSAGE(ProductToString<P>(t, u) + " must overflow",
-                               !IntegralProduct<P>(P(), t, u).has_value());
+                               !NaturalProduct<P>(P(), t, u).has_value());
     }
 };
 
@@ -370,7 +370,7 @@ GoodProduct(const T t, const U u)
 }
 
 void
-TestMath::testIntegralProduct()
+TestMath::testNaturalProduct()
 {
     // negative parameters are banned in any position
     TestOverflowForEitherMultiplicationType(min64s, zero8s);
