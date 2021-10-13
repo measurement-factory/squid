@@ -682,7 +682,7 @@ squid_ssl_info(const SSL *ssl, int where, int ret)
 }
 
 void
-applyTlsDetailsToSSL(SSL *ssl, Security::TlsDetails::Pointer const &details, Ssl::BumpMode bumpMode)
+applyTlsDetailsToSSL(SSL *ssl, Security::TlsDetails::Pointer const &details, Ssl::BumpMode)
 {
     // To increase the possibility for bumping after peek mode selection or
     // splicing after stare mode selection it is good to set the
@@ -731,16 +731,7 @@ applyTlsDetailsToSSL(SSL *ssl, Security::TlsDetails::Pointer const &details, Ssl
         SSL_set_tlsext_status_type(ssl, TLSEXT_STATUSTYPE_ocsp);
 #endif
 
-#if defined(TLSEXT_TYPE_application_layer_protocol_negotiation)
-    if (!details->tlsAppLayerProtoNeg.isEmpty()) {
-        if (bumpMode == Ssl::bumpPeek)
-            SSL_set_alpn_protos(ssl, (const unsigned char*)details->tlsAppLayerProtoNeg.rawContent(), details->tlsAppLayerProtoNeg.length());
-        else {
-            static const unsigned char supported_protos[] = {8, 'h','t','t', 'p', '/', '1', '.', '1'};
-            SSL_set_alpn_protos(ssl, supported_protos, sizeof(supported_protos));
-        }
-    }
-#endif
+    // Security::PeerConnec1tor::offerClientApplicationProtocols() mimics ALPN
 }
 
 #endif // USE_OPENSSL

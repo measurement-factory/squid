@@ -82,6 +82,7 @@ void PeerConnector::fillChecklist(ACLFilledChecklist &) const STUB
 void PeerConnector::commCloseHandler(const CommCloseCbParams &) STUB
 void PeerConnector::commTimeoutHandler(const CommTimeoutCbParams &) STUB
 bool PeerConnector::initialize(Security::SessionPointer &) STUB_RETVAL(false)
+const SBuf &PeerConnector::clientApplicationProtocols() const STUB_RETREF(SBuf)
 void PeerConnector::negotiate() STUB
 bool PeerConnector::sslFinalized() STUB_RETVAL(false)
 void PeerConnector::handleNegotiationResult(const Security::IoResult &) STUB;
