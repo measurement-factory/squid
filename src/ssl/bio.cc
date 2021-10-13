@@ -687,7 +687,7 @@ squid_ssl_info(const SSL *ssl, int where, int ret)
 }
 
 void
-applyTlsDetailsToSSL(SSL *ssl, Security::TlsDetails::Pointer const &details, Ssl::BumpMode bumpMode)
+applyTlsDetailsToSSL(SSL *ssl, Security::TlsDetails::Pointer const &details, Ssl::BumpMode)
 {
     // To increase the possibility for bumping after peek mode selection or
     // splicing after stare mode selection it is good to set the
