@@ -15,14 +15,13 @@
 namespace Acl
 {
 
-typedef std::vector<ACL*> Nodes; ///< a collection of nodes
+/// operands of a boolean ACL expression, in configuration/evaluation order
+using Nodes = std::vector<ACL::Pointer>;
 
 /// An intermediate ACL tree node. Manages a collection of child tree nodes.
 class InnerNode: public ACL
 {
 public:
-    // No ~InnerNode() to delete children. They are aclRegister()ed instead.
-
     /// Resumes matching (suspended by an async call) at the given position.
     bool resumeMatchingAt(ACLChecklist *checklist, Acl::Nodes::const_iterator pos) const;
 
@@ -49,8 +48,7 @@ protected:
     /* ACL API */
     virtual int match(ACLChecklist *checklist);
 
-    // XXX: use refcounting instead of raw pointers
-    std::vector<ACL*> nodes; ///< children nodes of this intermediate node
+    Nodes nodes; ///< children of this intermediate node
 };
 
 } // namespace Acl

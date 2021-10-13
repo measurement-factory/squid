@@ -70,6 +70,7 @@ public:
     }
 
 private:
+    // XXX: Forgets to supply a case-insensitive equality operator!
     typedef std::unordered_map<const SBuf, EnumType, Hasher> lookupTable_t;
     lookupTable_t lookupTable;
     EnumType invalidValue;

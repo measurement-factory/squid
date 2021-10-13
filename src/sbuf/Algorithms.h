@@ -13,6 +13,7 @@
 
 #include <algorithm>
 #include <numeric>
+#include <utility>
 
 /// SBuf equality predicate for STL algorithms etc
 class SBufEqual
@@ -112,18 +113,36 @@ struct hash<SBuf>
 };
 }
 
-/** hash functor for SBufs, meant so support case-insensitive std::unordered_map
- *
- * Typical use:
- * \code
- * auto m = std::unordered_map<SBuf, ValueType, CaseInsensitiveSBufHash>();
- * \endcode
- */
+/// case-insensitive hashing functor for SBufs; \see CaseInsensitiveSBufMap
 class CaseInsensitiveSBufHash
 {
 public:
     std::size_t operator()(const SBuf &) const noexcept;
 };
+
+/// case-insensitive equality functor for SBufs; \see CaseInsensitiveSBufMap
+class CaseInsensitiveSBufEqual
+{
+public:
+    std::size_t operator()(const SBuf &a, const SBuf &b) const noexcept
+    {
+        return a.caseCmp(b) == 0;
+    }
+};
+
+/// Safety wrapper for declaring a case-insensitive pooled hash with SBuf keys.
+/// Simplifies declaration and avoids inconsistent hashing/equality functors.
+/// The Map parameter is expected to follow std::unordered_map API, but that
+/// obvious choice is not hard-coded to avoid spamming other header users.
+template <
+    template<typename,typename,typename,typename,typename> class Map,
+    typename Value,
+    template<typename> class Allocator>
+using CaseInsensitiveSBufMap = Map<SBuf, Value,
+    CaseInsensitiveSBufHash,
+    CaseInsensitiveSBufEqual,
+    Allocator< std::pair<const SBuf, Value> >
+>;
 
 #endif /* SQUID_SBUFALGOS_H_ */
 

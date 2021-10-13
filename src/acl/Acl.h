@@ -11,7 +11,7 @@
 
 #include "acl/forward.h"
 #include "acl/Options.h"
-#include "cbdata.h"
+#include "base/forward.h"
 #include "defines.h"
 #include "dlink.h"
 #include "sbuf/forward.h"
@@ -36,19 +36,19 @@ void RegisterMaker(TypeName typeName, Maker maker);
 /// Can evaluate itself in FilledChecklist context.
 /// Does not change during evaluation.
 /// \ingroup ACLAPI
-class ACL
+class ACL: public RefCountable
 {
 
 public:
-    void *operator new(size_t);
-    void operator delete(void *);
+    using Pointer = ACLPointer;
 
-    static void ParseAclLine(ConfigParser &parser, ACL ** head);
+    // force pooling of specific ACL types (e.g., via MEMPROXY_CLASS)
+    void *operator new(size_t) = delete;
+
     static void Initialize();
     static ACL *FindByName(const char *name);
 
     ACL();
-    virtual ~ACL();
 
     /// sets user-specified ACL name and squid.conf context
     void context(const char *name, const char *configuration);
@@ -82,8 +82,10 @@ public:
 
     char name[ACL_NAME_SZ];
     char *cfgline;
-    ACL *next; // XXX: remove or at least use refcounting
-    bool registered; ///< added to the global list of ACLs via aclRegister()
+
+protected:
+    friend class RefCount<ACL>;
+    virtual ~ACL();
 
 private:
     /// Matches the actual data in checklist against this ACL.
@@ -159,6 +161,11 @@ public:
     /// whether we were computed by the "negate the last explicit action" rule
     bool implicit = false;
 };
+
+/* named acls configuration handling; XXX: move to Acl.h */
+void DumpNamedRules(std::ostream &, const char *directiveName, AclNamedRules *);
+ACL::Pointer ParseNamedRule(ConfigParser &, AclNamedRules *&);
+void FreeNamedRules(AclNamedRules *);
 
 } // namespace Acl
 

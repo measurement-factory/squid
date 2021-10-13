@@ -36,7 +36,6 @@ Acl::InnerNode::add(ACL *node)
 {
     assert(node != NULL);
     nodes.push_back(node);
-    aclRegister(node);
 }
 
 // kids use this method to handle [multiple] parse() calls correctly

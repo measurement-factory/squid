@@ -222,6 +222,8 @@ void *cbdataInternalAlloc(cbdata_type type, const char *, int);
  * \note For internal CBDATA use only.
  */
 void *cbdataInternalFree(void *p, const char *, int);
+class ACL;
+void *cbdataInternalFree(ACL *, const char *, int) = delete;
 
 #if USE_CBDATA_DEBUG
 void cbdataInternalLockDbg(const void *p, const char *, int);
@@ -264,6 +266,7 @@ int cbdataInternalReferenceDoneValid(void **p, void **tp);
  * \retval true The reference is valid and active.
  */
 int cbdataReferenceValid(const void *p);
+int cbdataReferenceValid(const ACL *) = delete;
 
 /**
  * Create a run-time registration for the class type with cbdata memory allocator.
