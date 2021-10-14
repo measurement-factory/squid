@@ -153,7 +153,7 @@ acl_ip_data::NetworkCompare(acl_ip_data * const & a, acl_ip_data * const &b)
  * This function should NOT be called if 'asc' is a hostname!
  */
 bool
-acl_ip_data::DecodeMask(const char *asc, Ip::Address &mask, int ctype)
+ACLIP::DecodeMask(const char *asc, Ip::Address &mask, int ctype)
 {
     char junk;
     int a1 = 0;
@@ -205,8 +205,9 @@ acl_ip_data::DecodeMask(const char *asc, Ip::Address &mask, int ctype)
 #define SCAN_ACL3_4       "%[0123456789.]/%[0123456789.]"
 #define SCAN_ACL4_4       "%[0123456789.]/%c"
 
+/// interprets one configuration parameter (e.g., an IP address or domain name)
 acl_ip_data *
-acl_ip_data::FactoryParse(const char *t)
+ACLIP::parseParameter(const char *t) const
 {
     LOCAL_ARRAY(char, addr1, 256);
     LOCAL_ARRAY(char, addr2, 256);
@@ -376,6 +377,12 @@ acl_ip_data::FactoryParse(const char *t)
             delete q;
             if (strcmp(addr1, "::1") == 0) {
                 debugs(28, DBG_IMPORTANT, "aclIpParseIpData: IPv6 has not been enabled in host DNS resolver.");
+            } else if (skipUnresolvableConfiguredDomains) {
+                debugs(28, DBG_CRITICAL, "aclIpParseIpData: ERROR: skipping configured ACL address due to resolution failure:" <<
+                       Debug::Extra << "getaddrinfo() error: (" << errcode << ") " << gai_strerror(errcode) <<
+                       Debug::Extra << "address: " << addr1 << " near '" << t << "'" <<
+                       Debug::Extra << "acl name: " << name <<
+                       Debug::Extra << "configuration location: " << ConfigParser::CurrentLocation());
             } else {
                 debugs(28, DBG_CRITICAL, "aclIpParseIpData: Bad host/IP: '" << addr1 <<
                        "' in '" << t << "', flags=" << hints.ai_flags <<
@@ -471,6 +478,17 @@ acl_ip_data::FactoryParse(const char *t)
     return q;
 }
 
+const Acl::Options &
+ACLIP::options()
+{
+    static const Acl::BooleanOption SkipThem;
+    static const Acl::Options MyOptions = {
+        { "--skip-unresolvable-configured-domains", &SkipThem }
+    };
+    SkipThem.linkWith(&skipUnresolvableConfiguredDomains);
+    return MyOptions;
+}
+
 void
 ACLIP::parse()
 {
@@ -478,7 +496,7 @@ ACLIP::parse()
         data = new IPSplay();
 
     while (char *t = ConfigParser::strtokFile()) {
-        acl_ip_data *q = acl_ip_data::FactoryParse(t);
+        auto q = parseParameter(t);
 
         while (q != NULL) {
             /* pop each result off the list and add it to the data tree individually */

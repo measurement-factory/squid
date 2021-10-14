@@ -19,7 +19,6 @@ class acl_ip_data
     MEMPROXY_CLASS(acl_ip_data);
 
 public:
-    static acl_ip_data *FactoryParse(char const *);
     static int NetworkCompare(acl_ip_data * const & a, acl_ip_data * const &b);
 
     acl_ip_data ();
@@ -35,10 +34,6 @@ public:
     Ip::Address mask; // TODO: should use a CIDR range
 
     acl_ip_data *next;      /**< used for parsing, not for storing */
-
-private:
-
-    static bool DecodeMask(const char *asc, Ip::Address &mask, int string_format_type);
 };
 
 class ACLIP : public ACL
@@ -53,6 +48,7 @@ public:
     typedef Splay<acl_ip_data *> IPSplay;
 
     virtual char const *typeString() const = 0;
+    virtual const Acl::Options &options();
     virtual void parse();
     //    virtual bool isProxyAuth() const {return true;}
     virtual int match(ACLChecklist *checklist) = 0;
@@ -64,6 +60,13 @@ protected:
     int match(const Ip::Address &);
     IPSplay *data;
 
+    /// ignore domain name-like parameters that getaddrinfo() cannot resolve
+    Acl::BooleanOptionValue skipUnresolvableConfiguredDomains;
+
+private:
+    static bool DecodeMask(const char *asc, Ip::Address &mask, int string_format_type);
+
+    acl_ip_data *parseParameter(char const *) const;
 };
 
 #endif /* SQUID_ACLIP_H */

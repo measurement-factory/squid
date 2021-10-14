@@ -1066,7 +1066,9 @@ DOC_START
 		conversion is required because the parameter type (IP or
 		domain name) does not match the message address type (domain
 		name or IP), then the ACL would immediately declare a mismatch
-		without any warnings or lookups.
+		without any warnings or lookups. This runtime option is applied to the
+		entire named ACL, regardless of the number of "acl" directives/lines
+		that define that ACL and which directive/line(s) are using "-n".
 
 	-m[=delimiters]
 		Perform a list membership test, interpreting values as
@@ -1075,6 +1077,18 @@ DOC_START
 		The optional "delimiters" parameter specifies one or more
 		alternative non-alphanumeric delimiter characters.
 		non-alphanumeric delimiter characters.
+
+	--skip-unresolvable-configured-domains
+		Ignore configured addresses that cannot be immediately resolved by
+		getaddrinfo(3). This resolution is applied to configured ACL
+		parameters that do not look like IP addresses (or IP address ranges),
+		under the assumption that the parameter is an immediately resolvable
+		domain name. Without this ACL option, such resolution errors are
+		currently fatal (re)configuration errors. This configuration-time
+		option applies to the "acl" directive/line that uses it and all
+		subsequent "acl" directive/lines that configure the same named ACL.
+		Unlike other ACL options, this option is applied to addresses in
+		configuration files rather than to runtime transaction addresses.
 
 	--	Used to stop processing all options, in the case the first acl
 		value has '-' character as first character (for example the '-'
@@ -1094,10 +1108,15 @@ DOC_START
 
 	***** ACL TYPES AVAILABLE *****
 
-	acl aclname src ip-address/mask ...	# clients IP address [fast]
-	acl aclname src addr1-addr2/mask ...	# range of addresses [fast]
-	acl aclname dst [-n] ip-address/mask ...	# URL host's IP address [slow]
-	acl aclname localip ip-address/mask ... # IP address the client connected to [fast]
+	acl aclname src [option] ip-address/mask ... # clients IP address [fast]
+	acl aclname src [option] addr1-addr2/mask ... # range of addresses [fast]
+	acl aclname localip [option] ip-address/mask ... # IP address the client connected to [fast]
+	  # The above ACL types support --skip-unresolvable-configured-domains.
+
+	acl aclname dst [option...] ip-address/mask ...
+	  # URL host's IP address [slow]
+	  #
+	  # Supports -n and --skip-unresolvable-configured-domains options.
 
 if USE_SQUID_EUI
 	acl aclname arp      mac-address ...
