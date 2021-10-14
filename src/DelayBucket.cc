@@ -27,32 +27,29 @@ DelayBucket::stats(StoreEntry *entry)const
 void
 DelayBucket::update(DelaySpec const &rate, int incr)
 {
-    // make sure an undefined NaturalProduct() result (below) implies overflow
+    // make sure an undefined IncreaseProduct() result (below) implies overflow
     if (rate.restore_bps < 0)
         return;
 
-    const auto oldLevel = level();
     if (const auto delta = IncreaseProduct(rate.restore_bps, incr)) {
-        if (const auto newLevel = IncreaseSum(oldLevel, delta.value())) {
-            level() = newLevel.value();
+        if (const auto newLevel = IncreaseSum(level_, delta.value())) {
+            level_ = newLevel.value();
             return;
         }
     }
     // TODO: level() and rate.max_bytes should have the same type
-    const auto maxLevel = IncreaseSum(BucketLevel(0), rate.max_bytes);
-    assert(maxLevel);
-    level() = maxLevel.value();
+    SetToNaturalSumOrMax(level_, rate.max_bytes);
 }
 
-DelayBucket::BucketLevel
-DelayBucket::bytesWanted(BucketLevel minimum, BucketLevel maximum) const
+int
+DelayBucket::bytesWanted(int minimum, int maximum) const
 {
-    BucketLevel result = max(minimum, min(maximum, level()));
+    int result = max(minimum, min(maximum, level()));
     return result;
 }
 
 void
-DelayBucket::bytesIn(BucketLevel qty)
+DelayBucket::bytesIn(int qty)
 {
     level() -= qty;
 }
@@ -60,9 +57,8 @@ DelayBucket::bytesIn(BucketLevel qty)
 void
 DelayBucket::init(DelaySpec const &rate)
 {
-    const auto initialLevel = IncreaseSum(BucketLevel(0), rate.max_bytes * (Config.Delay.initial/100.));
-    assert(initialLevel);
-    level() = initialLevel.value();
+    const auto initialLevel = rate.max_bytes * (Config.Delay.initial/100.);
+    SetToNaturalSumOrMax(level_, initialLevel);
 }
 
 #endif /* USE_DELAY_POOLS */

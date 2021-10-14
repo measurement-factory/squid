@@ -421,6 +421,7 @@ TestMath::testNaturalProduct()
     CPPUNIT_ASSERT_EQUAL(zero8s, GoodProduct(zero8s, zero8u));
     CPPUNIT_ASSERT_EQUAL(one8u, GoodProduct(one8u, one64s));
     CPPUNIT_ASSERT_EQUAL(2, GoodProduct(2, 1));
+    CPPUNIT_ASSERT_EQUAL(zero64u, GoodProduct(zero64u, max64s));
     CPPUNIT_ASSERT_EQUAL(uint64_t(2), GoodProduct(one64u, two64s));
     CPPUNIT_ASSERT_EQUAL(6u, GoodProduct(2u, 3u));
     CPPUNIT_ASSERT_EQUAL(max64u, GoodProduct(one64u, max64u));
