@@ -27,8 +27,14 @@ const Acl::Options &
 ACLDestinationIP::options()
 {
     static const Acl::BooleanOption LookupBan;
-    static const Acl::Options MyOptions = { { "-n", &LookupBan } };
+    // TODO: Duplicate less parent/ACLIP::options() code.
+    static const Acl::BooleanOption SkipThem;
+    static const Acl::Options MyOptions = {
+        { "-n", &LookupBan },
+        { "--skip-unresolvable-configured-domains", &SkipThem }
+    };
     LookupBan.linkWith(&lookupBanned);
+    SkipThem.linkWith(&skipUnresolvableConfiguredDomains);
     return MyOptions;
 }
 
