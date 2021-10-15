@@ -27,8 +27,7 @@ DelayBucket::stats(StoreEntry *entry)const
 void
 DelayBucket::update(DelaySpec const &rate, int incr)
 {
-    // make sure an undefined IncreaseProduct() result (below) implies overflow
-    if (rate.restore_bps < 0)
+    if (rate.restore_bps == -1)
         return;
 
     if (const auto delta = IncreaseProduct(rate.restore_bps, incr)) {
