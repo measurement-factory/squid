@@ -588,8 +588,11 @@ ConnStateData::setAuth(const Auth::UserRequest::Pointer &aur, const char *by)
 #endif
 
 void
-ConnStateData::resetReadTimeout(const time_t timeout)
+ConnStateData::resetReadTimeout(const time_t timeout, const err_type timeoutError)
 {
+    // TODO: Try to make this a custom callback parameter so that the callback
+    // is guaranteed to get the matching/fresh value.
+    requestTimeoutError_ = timeoutError;
     typedef CommCbMemFunT<ConnStateData, CommTimeoutCbParams> TimeoutDialer;
     AsyncCall::Pointer callback = JobCallback(33, 5, TimeoutDialer, this, ConnStateData::requestTimeout);
     commSetConnTimeout(clientConnection, timeout, callback);
@@ -882,7 +885,7 @@ ConnStateData::readNextRequest()
     /**
      * Set the timeout BEFORE calling readSomeData().
      */
-    resetReadTimeout(clientConnection->timeLeft(idleTimeout()));
+    resetReadTimeout(clientConnection->timeLeft(idleTimeout()), ERR_NONE);
 
     readSomeData();
     /** Please don't do anything with the FD past here! */
@@ -1881,7 +1884,7 @@ ConnStateData::receivedFirstByte()
         return;
 
     receivedFirstByte_ = true;
-    resetReadTimeout(Config.Timeout.request);
+    resetReadTimeout(Config.Timeout.request, ERR_REQUEST_PARSE_TIMEOUT);
 }
 
 /**
@@ -2142,10 +2145,14 @@ ConnStateData::requestTimeout(const CommTimeoutCbParams &io)
     if (!Comm::IsConnOpen(io.conn))
         return;
 
-    const err_type error = receivedFirstByte_ ? ERR_REQUEST_PARSE_TIMEOUT : ERR_REQUEST_START_TIMEOUT;
-    updateError(error);
-    if (tunnelOnError(HttpRequestMethod(), error))
-        return;
+    debugs(33, 3, errorTypeName(requestTimeoutError_) << " on " << io.conn);
+
+    if (const auto error = requestTimeoutError_) {
+        requestTimeoutError_ = ERR_NONE;
+        updateError(error);
+        if (tunnelOnError(HttpRequestMethod(), error))
+            return;
+    }
 
     /*
     * Just close the connection to not confuse browsers
@@ -2155,7 +2162,6 @@ ConnStateData::requestTimeout(const CommTimeoutCbParams &io)
     * the open has already been completed on another
     * connection)
     */
-    debugs(33, 3, "requestTimeout: FD " << io.fd << ": lifetime is expired.");
     io.conn->close();
 }
 
@@ -2467,7 +2473,8 @@ httpsEstablish(ConnStateData *connState, const Security::ContextPointer &ctx)
     if (!ctx || !httpsCreate(connState, ctx))
         return;
 
-    connState->resetReadTimeout(Config.Timeout.request);
+    // TODO: We read nothing. Why not Config.Timeout.request_start_timeout?
+    connState->resetReadTimeout(Config.Timeout.request, ERR_REQUEST_PARSE_TIMEOUT);
 
     Comm::SetSelect(details->fd, COMM_SELECT_READ, clientNegotiateSSL, connState, 0);
 }
@@ -2822,7 +2829,8 @@ ConnStateData::getSslContextDone(Security::ContextPointer &ctx)
     // bumped intercepted conns should already have Config.Timeout.request set
     // but forwarded connections may only have Config.Timeout.lifetime. [Re]set
     // to make sure the connection does not get stuck on non-SSL clients.
-    resetReadTimeout(Config.Timeout.request);
+    // TODO: If we read nothing, use Config.Timeout.request_start_timeout?
+    resetReadTimeout(Config.Timeout.request, ERR_REQUEST_PARSE_TIMEOUT);
 
     switchedToHttps_ = true;
 
@@ -2871,7 +2879,7 @@ ConnStateData::switchToHttps(ClientHttpRequest *http, Ssl::BumpMode bumpServerMo
 
     // commSetConnTimeout() was called for this request before we switched.
     // Fix timeout to request_start_timeout
-    resetReadTimeout(Config.Timeout.request_start_timeout);
+    resetReadTimeout(Config.Timeout.request_start_timeout, ERR_REQUEST_START_TIMEOUT);
     // Also reset receivedFirstByte_ flag to allow this timeout work in the case we have
     // a bumbed "connect" request on non transparent port.
     receivedFirstByte_ = false;

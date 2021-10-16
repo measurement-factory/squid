@@ -166,8 +166,12 @@ public:
     void stopSending(const char *error);
 
     /// (re)sets timeout for receiving more bytes from the client
-    void resetReadTimeout(time_t timeout);
+    /// \param timeoutError \copydoc requestTimeoutError_
+    /// See also: extendLifetime()
+    void resetReadTimeout(time_t timeout, err_type timeoutError);
+
     /// (re)sets client_lifetime timeout
+    /// See also: resetReadTimeout()
     void extendLifetime();
 
     void expectNoForwarding(); ///< cleans up virgin request [body] forwarding state
@@ -502,6 +506,11 @@ private:
     /// If set, are propagated to the current and all future master transactions
     /// on the connection.
     NotePairs::Pointer theNotes;
+
+    /// Determines ConnStateData::requestTimeout() call meaning (if it happens).
+    /// ERR_NONE means it is just an idle persistent connection timeout.
+    /// Other values are specific errors determined by the timeout setter.
+    err_type requestTimeoutError_ = ERR_NONE;
 };
 
 const char *findTrailingHTTPVersion(const char *uriAndHTTPVersion, const char *end = NULL);

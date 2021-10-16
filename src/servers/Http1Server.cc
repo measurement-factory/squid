@@ -50,10 +50,7 @@ Http::One::Server::start()
         return;
     }
 
-    typedef CommCbMemFunT<Server, CommTimeoutCbParams> TimeoutDialer;
-    AsyncCall::Pointer timeoutCall =  JobCallback(33, 5,
-                                      TimeoutDialer, this, Http1::Server::requestTimeout);
-    commSetConnTimeout(clientConnection, Config.Timeout.request_start_timeout, timeoutCall);
+    resetReadTimeout(Config.Timeout.request_start_timeout, ERR_REQUEST_START_TIMEOUT);
     readSomeData();
 }
 
