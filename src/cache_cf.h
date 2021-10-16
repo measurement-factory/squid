@@ -11,6 +11,8 @@
 #ifndef SQUID_CACHE_CF_H_
 #define SQUID_CACHE_CF_H_
 
+#include "sbuf/forward.h"
+
 class wordlist;
 
 void configFreeMemory(void);
@@ -29,7 +31,7 @@ void parseBytesOptionValue(size_t * bptr, const char *units, char const * value)
 
 /// During parsing, the name of the current squid.conf directive being parsed.
 extern const char *cfg_directive;
-extern const char *cfg_filename;
+extern SBuf cfg_filename;
 extern int config_lineno;
 extern char config_input_line[BUFSIZ];
 

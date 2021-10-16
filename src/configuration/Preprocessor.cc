@@ -8,6 +8,7 @@
 
 #include "squid.h"
 #include "base/CharacterSet.h"
+#include "cache_cf.h"
 #include "ConfigParser.h" // TODO: Check whether this is needed
 #include "configuration/Preprocessor.h"
 #include "Debug.h"
@@ -62,11 +63,31 @@ Configuration::Preprocess(const char * const filename, const PreprocessedCfg::Po
     return pp.finalize();
 }
 
+// XXX: Get rid of these globals instead of trying to keep them in sync.
+void
+Configuration::ResetLocation()
+{
+    cfg_filename.clear();
+    config_lineno = 0;
+}
+
+void
+Configuration::ResetLocation(const Location &l)
+{
+    cfg_filename = l.fileName();
+    config_lineno = l.lineNumber();
+}
+
 /* Configuration::Preprocessor */
 
 Configuration::Preprocessor::Preprocessor():
     cfg_(new PreprocessedCfg())
 {
+}
+
+Configuration::Preprocessor::~Preprocessor()
+{
+    ResetLocation();
 }
 
 void
@@ -173,7 +194,7 @@ Configuration::Preprocessor::addDirective(const SBuf &name, const SBuf &directiv
     // TODO: Use std::reference_wrapper instead of Directive pointers.
 
     debugs(3, 5, directiveCfg);
-    cfg_->allDirectives.emplace_back(name, directiveCfg);
+    cfg_->allDirectives.emplace_back(currentLocation_, directiveCfg);
     seenDirectives_.emplace(name);
 
     // TODO: This should become an cf.data.pre Entry method.
@@ -229,6 +250,36 @@ Configuration::Preprocessor::findRigidChanges(const DirectiveIndex &previous) co
     return diff;
 }
 
+/// switches preprocessing context to the given location
+void
+Configuration::Preprocessor::resetContext(const Location &l) {
+    currentLocation_ = l;
+    ResetLocation(currentLocation_);
+}
+
+/// switches preprocessing to the given line within the current context
+void
+Configuration::Preprocessor::resetContextLine(const size_t newLineNo)
+{
+    currentLocation_.resetLine(newLineNo);
+    config_lineno = currentLocation_.lineNumber();
+}
+
+/// switches preprocessing to the next line within the current context
+void
+Configuration::Preprocessor::advanceContext()
+{
+    currentLocation_.nextLine();
+    config_lineno = currentLocation_.lineNumber();
+}
+
+/// stops preprocessing the current context
+void
+Configuration::Preprocessor::closeContext()
+{
+    resetContext(Location());
+}
+
 /* Configuration::DirectivesDiff */
 
 void
@@ -269,6 +320,12 @@ Configuration::DirectivesDiff::print(std::ostream &os) const
 }
 
 /* Configuration::PreprocessedDirective */
+
+Configuration::PreprocessedDirective::PreprocessedDirective(const Location &location, const SBuf &cfg):
+    location_(location),
+    buf_(cfg)
+{
+}
 
 bool
 Configuration::PreprocessedDirective::similarTo(const PreprocessedDirective &other) const

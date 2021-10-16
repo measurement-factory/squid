@@ -471,15 +471,30 @@ main(int argc, char *argv[])
     return (rc);
 }
 
+static void
+genContextPpFunctionStart(const char * const funName, const char *context, std::ostream &fout)
+{
+    fout << "void\n" <<
+        funName << "\n" <<
+        "{\n" <<
+        "    resetContext(Location(SBuf(" << '"' << context << '"' << ")));\n";
+}
+
+static void
+genContextPpFunctionFinish(std::ostream &fout)
+{
+    fout <<
+        "    closeContext();\n" <<
+        "}\n" <<
+        "\n";
+}
+
 static int
 gen_default(const EntryList &head, std::ostream &fout)
 {
     int rc = 0;
-    fout << "void" << std::endl <<
-         "Configuration::Preprocessor::processInitialDefaults()" << std::endl <<
-         "{" << std::endl <<
-         "    cfg_filename = \"Default Configuration\";" << std::endl <<
-         "    config_lineno = 0;" << std::endl;
+    genContextPpFunctionStart("Configuration::Preprocessor::processInitialDefaults()",
+                              "Default Configuration (initial)", fout);
 
     for (const auto &entry : head) {
         assert(entry.name.size());
@@ -516,26 +531,21 @@ gen_default(const EntryList &head, std::ostream &fout)
         }
     }
 
-    fout << "    cfg_filename = NULL;" << std::endl <<
-         "}" << std::endl << std::endl;
+    genContextPpFunctionFinish(fout);
     return rc;
 }
 
 static void
 gen_default_if_none(const EntryList &head, std::ostream &fout)
 {
-    fout << "void" << std::endl <<
-         "Configuration::Preprocessor::processIfNoneDefaults()" << std::endl <<
-         "{" << std::endl <<
-         "    cfg_filename = \"Default Configuration (if absent)\";" << std::endl <<
-         "    config_lineno = 0;" << std::endl;
+    genContextPpFunctionStart("Configuration::Preprocessor::processIfNoneDefaults()",
+                              "Default Configuration (if absent)", fout);
 
     for (const auto &entry : head) {
         entry.genDefaultIfNone(fout);
     }
 
-    fout << "    cfg_filename = nullptr;" << std::endl <<
-         "}" << std::endl << std::endl;
+    genContextPpFunctionFinish(fout);
 }
 
 void
@@ -590,11 +600,8 @@ Entry::genDefaultIfNoneAlias(const std::string &knownName, std::ostream &fout) c
 static void
 gen_default_postscriptum(const EntryList &head, std::ostream &fout)
 {
-    fout << "void" << std::endl <<
-         "Configuration::Preprocessor::processPostscriptumDefaults()" << std::endl <<
-         "{" << std::endl <<
-         "    cfg_filename = \"Default Configuration (postscriptum)\";" << std::endl <<
-         "    config_lineno = 0;" << std::endl;
+    genContextPpFunctionStart("Configuration::Preprocessor::processPostscriptumDefaults()",
+                              "Default Configuration (postscriptum)", fout);
 
     for (const auto &entry : head) {
         assert(entry.name.size());
@@ -615,8 +622,7 @@ gen_default_postscriptum(const EntryList &head, std::ostream &fout)
             fout << "#endif" << std::endl;
     }
 
-    fout << "    cfg_filename = NULL;" << std::endl <<
-         "}" << std::endl << std::endl;
+    genContextPpFunctionFinish(fout);
 }
 
 void
@@ -675,6 +681,7 @@ gen_parse(const EntryList &head, std::ostream &fout)
          "static int\n"
          "parse_line(char *buff)\n"
          "{\n"
+         "\txstrncpy(config_input_line, buff, sizeof(config_input_line));\n"
          "\tchar\t*token;\n"
          "\tif ((token = strtok(buff, w_space)) == NULL) \n"
          "\t\treturn 1;\t/* ignore empty lines */\n"

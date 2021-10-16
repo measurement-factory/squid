@@ -262,7 +262,7 @@ static void free_http_upgrade_request_protocols(HttpUpgradeProtocolAccess **prot
 static ConfigParser LegacyParser = ConfigParser();
 
 const char *cfg_directive = nullptr;
-const char *cfg_filename = nullptr;
+SBuf cfg_filename;
 int config_lineno = 0;
 char config_input_line[BUFSIZ] = {};
 
@@ -270,15 +270,6 @@ void
 self_destruct(void)
 {
     LegacyParser.destruct();
-}
-
-static void
-SetConfigFilename(char const *file_name, bool is_pipe)
-{
-    if (is_pipe)
-        cfg_filename = file_name + 1;
-    else
-        cfg_filename = file_name;
 }
 
 static const char*
@@ -432,8 +423,7 @@ Configuration::Preprocessor::default_line(const char *s)
     auto tmp_line = xstrdup(s);
     int len = strlen(tmp_line); // TODO: auto; fix ProcessMacros() to use size_t
     ProcessMacros(tmp_line, len);
-    xstrncpy(config_input_line, tmp_line, sizeof(config_input_line));
-    config_lineno++;
+    advanceContext();
     processUnfoldedLine(SBuf(tmp_line));
     xfree(tmp_line);
 }
@@ -442,8 +432,7 @@ void
 Configuration::Preprocessor::processFile(const char * const file_name, const size_t depth)
 {
     FILE *fp = NULL;
-    const char *orig_cfg_filename = cfg_filename;
-    const int orig_config_lineno = config_lineno;
+    const auto savedLocation = currentLocation_;
     char *token = NULL;
     char *tmp_line = NULL;
     int tmp_line_len = 0;
@@ -470,15 +459,16 @@ Configuration::Preprocessor::processFile(const char * const file_name, const siz
     setmode(fileno(fp), O_TEXT);
 #endif
 
-    SetConfigFilename(file_name, bool(is_pipe));
+    resetContext(Location(SBuf(file_name + is_pipe)));
 
+    // Diff reduction: This code continues to use the config_input_line global.
+    // TODO: Use a local buffer instead. The contents of this buffer is feeding
+    // the new preprocessor, not the parser code (that still uses this global).
     memset(config_input_line, '\0', BUFSIZ);
-
-    config_lineno = 0;
 
     std::vector<bool> if_states;
     while (fgets(config_input_line, BUFSIZ, fp)) {
-        ++config_lineno;
+        advanceContext();
 
         if ((token = strchr(config_input_line, '\n')))
             *token = '\0';
@@ -513,10 +503,10 @@ Configuration::Preprocessor::processFile(const char * const file_name, const siz
                 if ((token = strchr(new_file_name, '"')))
                     *token = '\0';
 
-                SetConfigFilename(new_file_name, false);
+                resetContext(Location(SBuf(new_file_name), new_lineno));
+            } else {
+                resetContextLine(new_lineno);
             }
-
-            config_lineno = new_lineno;
         }
 
         if (config_input_line[0] == '#')
@@ -582,8 +572,7 @@ Configuration::Preprocessor::processFile(const char * const file_name, const siz
         fclose(fp);
     }
 
-    SetConfigFilename(orig_cfg_filename, false);
-    config_lineno = orig_config_lineno;
+    resetContext(savedLocation);
 
     xfree(tmp_line);
 }
@@ -678,8 +667,10 @@ Configuration::ParsePreprocessedConfiguration()
     assert(ThePreprocessedCfg);
     debugs(3, 5, ThePreprocessedCfg->activeDirectives.size());
     for (const auto directive: ThePreprocessedCfg->activeDirectives) {
+        ResetLocation(directive->location());
         if (!parse_line(directive->editableBuf().get()))
             ++err_count;
+        ResetLocation(); // XXX: exception-unsafe!
     }
 
     return err_count;

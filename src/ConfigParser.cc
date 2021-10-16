@@ -11,6 +11,7 @@
 #include "base/Here.h"
 #include "cache_cf.h"
 #include "ConfigParser.h"
+#include "configuration/Preprocessor.h" /* TODO: Extract Location */
 #include "Debug.h"
 #include "fatal.h"
 #include "globals.h"
@@ -32,6 +33,16 @@ bool ConfigParser::RecognizeQuotedPair_ = false;
 bool ConfigParser::PreviewMode_ = false;
 
 static const char *SQUID_ERROR_TOKEN = "[invalid token]";
+
+// XXX: Move Location to configuration/Location.
+void
+Configuration::Location::print(std::ostream &os) const
+{
+    // Keep format in sync with SourceLocation::print()
+    os << context_;
+    if (lastLine_)
+        os << '(' << lastLine_ << ')';
+}
 
 void
 ConfigParser::destruct()
@@ -56,8 +67,8 @@ ConfigParser::destruct()
         std::string msg = message.str();
         fatalf("%s", msg.c_str());
     } else
-        fatalf("Bungled %s line %d: %s",
-               cfg_filename, config_lineno, config_input_line);
+        fatalf("Bungled " SQUIDSBUFPH " line %d: %s",
+               SQUIDSBUFPRINT(cfg_filename), config_lineno, config_input_line);
 }
 
 void
@@ -238,7 +249,17 @@ ConfigParser::SetCfgLine(char *line)
 SBuf
 ConfigParser::CurrentLocation()
 {
-    return ToSBuf(SourceLocation(cfg_directive, cfg_filename, config_lineno));
+    SBufStream os;
+    os << Configuration::Location(cfg_filename, config_lineno);
+
+    // TODO: Stop printing cfg_directive here. The caller should handle that.
+    if (cfg_directive) {
+        if (!os.buf().isEmpty())
+            os << ' ';
+        os << cfg_directive;
+    }
+
+    return os.buf();
 }
 
 char *

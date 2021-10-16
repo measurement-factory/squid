@@ -11,6 +11,7 @@
 
 namespace Configuration {
 
+class Location;
 class Preprocessor;
 class PreprocessedDirective;
 

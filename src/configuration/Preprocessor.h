@@ -52,6 +52,39 @@ PreprocessedCfg::Pointer Preprocess(const char *filename, PreprocessedCfg::Point
 
 class DirectivesDiff;
 
+/// address of a configuration place (e.g., "/usr/etc/squid.conf, line 5")
+class Location {
+public:
+    Location() = default;
+    explicit Location(const SBuf &context, const size_t lastLine = 0): context_(context), lastLine_(lastLine) {}
+
+    /// forget all previously stored information (if any)
+    void reset() { *this = Location(); }
+
+    /// change line number to any valid value (or just forget it)
+    void resetLine(const size_t lastLine = 0) { lastLine_ = lastLine; }
+
+    /// advance to the next line (including the very first line after reset)
+    void nextLine() { resetLine(lastLine_ + 1); }
+
+    // TODO: This method should not be needed/used in modern code.
+    /// \returns raw c-string describing the current context
+    const SBuf &fileName() const { return context_; }
+
+    // TODO: This method should not be needed/used in modern code.
+    /// \returns \copydoc lastLine_
+    size_t lineNumber() const { return lastLine_; }
+
+    void print(std::ostream &) const;
+
+private:
+    /// the name of a configuration file (or a similar source of directives)
+    SBuf context_;
+
+    /// the number of context lines above (and inside) this place (or 0)
+    size_t lastLine_ = 0;
+};
+
 // TODO: Move to Preprocessor.cc together with its diff-reducing methods in cache_cf.cc.
 /// major Preprocess() implementation steps
 class Preprocessor
@@ -60,6 +93,7 @@ public:
     using Directive = PreprocessedDirective;
 
     Preprocessor();
+    ~Preprocessor();
 
     /// preprocess all configuration directives, including various defaults
     void process(const char *filename);
@@ -78,6 +112,11 @@ public:
 
 private:
     static bool ValidDirectiveName(const SBuf &name);
+
+    void resetContext(const Location &);
+    void resetContextLine(const size_t);
+    void advanceContext();
+    void closeContext();
 
     void processInitialDefaults();
     void processIfNoneDefaults();
@@ -103,6 +142,9 @@ private:
     /// directives names seen so far
     SeenNames seenDirectives_;
 
+    /// address of the currently preprocessed directive
+    Location currentLocation_;
+
     /// The number of lines we could not preprocess so far. This counter
     /// includes, without limitation, directives with misspelled names and
     /// directives that are disabled in this particular Squid build.
@@ -117,10 +159,11 @@ private:
 class PreprocessedDirective
 {
 public:
-    PreprocessedDirective(const SBuf & /*XXX*/, const SBuf &cfg): buf_(cfg) {}
+    /// \param cfg \copydoc buf_
+    PreprocessedDirective(const Location &, const SBuf &cfg);
 
-    /// the first token on a directive line
-    SBuf name() const;
+    /// where this directive was found
+    const Location &location() const { return location_; }
 
     /// whether the other directive is similar to this one
     bool similarTo(const PreprocessedDirective &other) const;
@@ -134,9 +177,18 @@ public:
     EditableBuf editableBuf() const;
 
 private:
-    /// entire preprocessed configuration
+    /// the source of this directive
+    Location location_;
+
+    /// the entire preprocessed configuration directive
     SBuf buf_;
 };
+
+/// forgets globally-stored(XXX) configuration preprocessing/parsing location
+void ResetLocation();
+
+/// syncs globally-stored(XXX) configuration preprocessing/parsing location
+void ResetLocation(const Location &);
 
 } // namespace Configuration
 
@@ -145,6 +197,14 @@ std::ostream&
 operator <<(std::ostream &os, const Configuration::PreprocessedDirective &d)
 {
     d.print(os);
+    return os;
+}
+
+inline
+std::ostream&
+operator <<(std::ostream &os, const Configuration::Location &l)
+{
+    l.print(os);
     return os;
 }
 
