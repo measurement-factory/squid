@@ -321,8 +321,8 @@ Configuration::DirectivesDiff::print(std::ostream &os) const
 
 /* Configuration::PreprocessedDirective */
 
-Configuration::PreprocessedDirective::PreprocessedDirective(const Location &location, const SBuf &cfg):
-    location_(location),
+Configuration::PreprocessedDirective::PreprocessedDirective(const Location &aLocation, const SBuf &cfg):
+    location_(aLocation),
     buf_(cfg)
 {
 }
