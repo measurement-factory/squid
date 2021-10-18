@@ -34,10 +34,17 @@ static const auto zero8s = int8_t(0);
 static const auto zero8u = uint8_t(0);
 static const auto zero64s = int64_t(0);
 static const auto zero64u = uint64_t(0);
+static const auto zeroFloat = 0.f;
+static const auto zeroDouble = 0.;
+static const auto zeroLongDouble = 0.l;
 static const auto one8s = int8_t(1);
 static const auto one8u = uint8_t(1);
 static const auto one64s = int64_t(1);
 static const auto one64u = uint64_t(1);
+static const auto oneFloat = 1.f;
+static const auto oneDouble = 1.;
+static const auto oneLongDouble = 1.l;
+
 static const auto two8s = int8_t(2);
 static const auto two8u = uint8_t(2);
 static const auto two64s = int64_t(2);
@@ -46,6 +53,13 @@ static const auto max8s = std::numeric_limits<int8_t>::max();
 static const auto max8u = std::numeric_limits<uint8_t>::max();
 static const auto max64s = std::numeric_limits<int64_t>::max();
 static const auto max64u = std::numeric_limits<uint64_t>::max();
+
+static const auto maxFloat = std::numeric_limits<float>::max();
+static const auto maxDouble = std::numeric_limits<double>::max();
+static const auto maxLongDouble = std::numeric_limits<long double>::max();
+static const auto epsilonFloat = std::numeric_limits<float>::epsilon()*maxFloat;
+static const auto epsilonDouble = std::numeric_limits<double>::epsilon()*maxDouble;
+static const auto epsilonLongDouble = std::numeric_limits<long double>::epsilon()*maxLongDouble;
 /// @}
 
 /// helper functions to convert NaturalSum<S>(a,b,...) calls to strings
@@ -230,6 +244,14 @@ TestMath::testNaturalSum()
     TestOverflowForEitherSummationType(-1, zero8u);
     TestOverflowForEitherSummationType(-1, max64s);
     TestOverflowForEitherSummationType(-1, max64u);
+    TestOverflowForEitherSummationType(min64s, zeroFloat);
+    TestOverflowForEitherSummationType(min64s, zeroDouble);
+    TestOverflowForEitherSummationType(min64s, zeroLongDouble);
+    TestOverflowForEitherSummationType(-1., -1.);
+    TestOverflowForEitherSummationType(-1., zero8s);
+    TestOverflowForEitherSummationType(-1., zero8u);
+    TestOverflowForEitherSummationType(-1.f, max64s);
+    TestOverflowForEitherSummationType(-1.l, max64u);
 
     // these overflow regardless of which parameter determines the summation type
     TestOverflowForEitherSummationType(max8u, one8u);
@@ -244,6 +266,12 @@ TestMath::testNaturalSum()
     TestOverflowForEitherSummationType(max64s, one8u);
     TestOverflowForEitherSummationType(max64s, one8s);
     TestOverflowForEitherSummationType(max64s, one64s);
+    TestOverflowForEitherSummationType(maxFloat, maxFloat);
+    TestOverflowForEitherSummationType(maxDouble, maxDouble);
+    TestOverflowForEitherSummationType(maxLongDouble, maxLongDouble);
+    TestOverflowForEitherSummationType(maxFloat, epsilonFloat);
+    TestOverflowForEitherSummationType(maxDouble, epsilonDouble);
+    TestOverflowForEitherSummationType(maxLongDouble, epsilonLongDouble);
 
     // these overflow only if the second parameter determines the summation type
     TestSuccessForFirstSummationType(one8u, max8s);
@@ -255,6 +283,18 @@ TestMath::testNaturalSum()
     TestSuccessForFirstSummationType(max64u, zero8s);
     TestSuccessForFirstSummationType(max64s, zero8u);
     TestSuccessForFirstSummationType(max64s, zero8s);
+    TestSuccessForFirstSummationType(oneFloat, max8s);
+    TestSuccessForFirstSummationType(oneDouble, max8u);
+    TestSuccessForFirstSummationType(oneFloat, max64s);
+    TestSuccessForFirstSummationType(oneDouble, max64u);
+    TestSuccessForFirstSummationType(maxFloat, zero8u);
+    TestSuccessForFirstSummationType(maxDouble, zero8s);
+    TestSuccessForFirstSummationType(maxFloat, zero64u);
+    TestSuccessForFirstSummationType(maxDouble, zero64s);
+    TestSuccessForFirstSummationType(maxDouble, zeroFloat);
+    TestSuccessForFirstSummationType(maxLongDouble, zeroDouble);
+    TestSuccessForFirstSummationType(epsilonDouble, maxFloat);
+    TestSuccessForFirstSummationType(epsilonLongDouble, maxDouble);
 
     // a few sums with known values
     CPPUNIT_ASSERT_EQUAL(zero8s, GoodSum(zero8s, zero8u));
