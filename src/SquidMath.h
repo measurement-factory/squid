@@ -144,23 +144,10 @@ NaturalProduct(T t, U u)
     if (!IncreaseSum(P(0), t).has_value() || !IncreaseSum(P(0), u).has_value())
         return Optional<P>();
 
-    auto p = static_cast<P>(t);
-    auto result = Optional<P>(0);
+    if (t == 0 || u == 0)
+        return Optional<P>(0);
 
-    while (u) {
-        if (u & 1) {
-            result = IncreaseSum(result.value(), p);
-            if (!result.has_value())
-                return Optional<P>();
-        }
-        u >>= 1;
-        if (!u)
-            break;
-        if (!IncreaseSum(p, p).has_value())
-            return Optional<P>();
-        p <<= 1;
-    }
-    return result;
+    return Less(std::numeric_limits<P>::max()/t, u) ? Optional<P>() : Optional<P>(t*u);
 }
 
 /// \returns a non-overflowing product of the arguments (or nothing)
