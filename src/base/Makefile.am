@@ -39,6 +39,7 @@ libbase_la_SOURCES = \
 	Lock.h \
 	LookupTable.h \
 	LruMap.h \
+	Optional.h \
 	Packable.h \
 	PackableStream.h \
 	Range.h \
