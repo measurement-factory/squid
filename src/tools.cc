@@ -356,8 +356,7 @@ death(int sig)
         puts(dead_msg());
     }
 
-    Debug::SwanSong();
-
+    Debug::PrepareToDie();
     abort();
 }
 
