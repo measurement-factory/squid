@@ -263,7 +263,7 @@ AC_DEFUN([SQUID_CHECK_OPENSSL_CONST_SSL_SESSION_CB_ARG],[
   AC_COMPILE_IFELSE([AC_LANG_PROGRAM([
 #include <openssl/ssl.h>
 
-SSL_SESSION *get_session_cb(SSL *, const unsigned char *ID, int, int *) {
+SSL_SESSION *get_session_cb(SSL *, const unsigned char *, int, int *) {
     return NULL;
 }
     ],[
@@ -327,7 +327,7 @@ AC_DEFUN([SQUID_CHECK_OPENSSL_TXTDB],[
     ],
     [
     TXT_DB *db = NULL;
-    int i = sk_OPENSSL_PSTRING_num(db->data);
+    (void)sk_OPENSSL_PSTRING_num(db->data);
     return 0;
     ])
   ],

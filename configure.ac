@@ -417,7 +417,7 @@ AC_MSG_NOTICE([cbdata debugging enabled: $enable_debug_cbdata])
 
 dnl Nasty hack to get autoconf 2.64 on Linux to run.
 dnl all other uses of RUN_IFELSE are wrapped inside CACHE_CHECK which breaks on 2.64
-AC_RUN_IFELSE([AC_LANG_SOURCE([[ int main(int argc, char **argv) { return 0; } ]])],[],[],[:])
+AC_RUN_IFELSE([AC_LANG_SOURCE([[ int main() { return 0; } ]])],[],[],[:])
 
 AH_TEMPLATE(XMALLOC_STATISTICS,[Define to have malloc statistics])
 AC_ARG_ENABLE(xmalloc-statistics,
