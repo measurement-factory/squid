@@ -44,11 +44,11 @@ static int ExplicitStderrLevel = -1;
 static bool ExplicitStderrLevelSet = false;
 
 /// ExplicitStderrLevel preference or default: Just like with
-/// ExplicitStderrLevel, debugs() messages with this (or lower) level
-/// will be written to stderr (and possibly other channels), but this setting is
-/// ignored when ExplicitStderrLevel is set. This setting is also ignored
-/// after major problems that prevent logging of important debugs() messages
-/// (e.g., failing to open cache_log or early message buffer overflow).
+/// ExplicitStderrLevel, debugs() messages with this (or lower) level will be
+/// written to stderr (and possibly other channels), but this setting is ignored
+/// when ExplicitStderrLevel is set. This setting is also ignored after major
+/// problems that prevent logging of important debugs() messages (e.g., failing
+/// to open cache_log or assertions).
 static int DefaultStderrLevel = -1;
 
 /// early debugs() with higher level are not buffered and, hence, may be lost
@@ -94,17 +94,16 @@ private:
     FILE *file_ = nullptr; ///< opened "real" file or nil; never stderr
 };
 
-/// debugs() meta-information
+/// meta-information of a Finish()ed debugs() message
 class DebugMessageHeader
 {
 public:
-    DebugMessageHeader(const DebugRecordCount aRecordNumber, const bool doForceAlert):
+    DebugMessageHeader(const DebugRecordCount aRecordNumber, const Debug::Context &context):
         recordNumber(aRecordNumber),
         timestamp(getCurrentTime()),
-        section(Debug::Section()),
-        level(Debug::Level()),
-        forceAlert(doForceAlert),
-        overflowed(false)
+        section(context.section),
+        level(context.level),
+        forceAlert(context.forceAlert)
     {
     }
 
@@ -113,10 +112,6 @@ public:
     int section; ///< debugs() section
     int level; ///< debugs() level
     bool forceAlert; ///< debugs() forceAlert flag
-
-    /// the message was deemed important enough to save earlier but was purged
-    /// from the early saved messages buffer now (to free space for new ones)
-    bool overflowed;
 };
 
 /// a fully processed debugs(), ready to be logged
@@ -159,16 +154,17 @@ public:
     /// This logging may be delayed until the channel configuration is settled.
     virtual void log(const DebugMessageHeader &, const std::string &body) = 0;
 
-    /// log() all the given (saved but not yet written "early") messages
-    void logSaved(const SavedDebugMessages &);
-
 protected:
     /// stores the given early message (if possible) or forgets it (otherwise)
     /// \returns whether the message was stored
     bool saveMessage(const DebugMessageHeader &header, const std::string &body);
 
-    /// process previously saved messages purged due to capacity limits
-    virtual void handleOverflow(SavedDebugMessages &) {}
+    /// log() all (saved but not yet written "early") messages from this channel
+    /// and their channel (if given), in recordNumber order
+    void logSavedAnd(DebugChannel *theirChannelOrNil = nullptr);
+
+    /// log() all (saved but not yet written "early") messages from this channel
+    void logSaved() { logSavedAnd(nullptr); }
 
     /// Formats a validated debugs() record and writes it to the given FILE.
     void writeToStream(FILE &, const DebugMessageHeader &, const std::string &body);
@@ -199,7 +195,6 @@ public:
 
     /* DebugChannel API */
     virtual void log(const DebugMessageHeader &, const std::string &body) final;
-    virtual void handleOverflow(SavedDebugMessages &) final;
 };
 
 /// DebugChannel managing messages destined for "standard error stream" (stderr)
@@ -210,7 +205,7 @@ public:
 
     /// whether log() ought to write the corresponding debugs() message
     /// (assuming some higher-level code applied cache.log section/level filter)
-    bool shouldWrite(const int level, const bool overflowed) const;
+    bool shouldWrite(int level) const;
 
     /* DebugChannel API */
     virtual void log(const DebugMessageHeader &, const std::string &body) final;
@@ -248,8 +243,8 @@ public:
     // we provide debugging services for the entire duration of the program
     ~DebugModule() = delete;
 
-    /// \copydoc Debug::SwanSong()
-    void swanSong();
+    /// \copydoc Debug::PrepareToDie()
+    void prepareToDie();
 
     /// Log the given debugs() message to appropriate channel(s) (eventually).
     /// Assumes the message has passed the global section/level filter.
@@ -269,6 +264,30 @@ public:
     SyslogChannel syslogChannel;
 };
 
+/// Maintains the number of code paths on the current call stack that need
+/// protection from new debugs() calls. Squid cannot _block_ re-entrant debugs()
+/// calls, but the high-level debugs() handling code queues re-entrant logging
+/// attempts when Busy() instead of letting them through to sensitive code.
+class LoggingSectionGuard
+{
+public:
+    LoggingSectionGuard();
+    ~LoggingSectionGuard();
+
+    /// whether new debugs() messages must be queued
+    static bool Busy() { return LoggingConcurrencyLevel; }
+
+private:
+    /// the current number of protected callers
+    static size_t LoggingConcurrencyLevel;
+};
+
+size_t LoggingSectionGuard::LoggingConcurrencyLevel = 0;
+
+/// debugs() messages postponed due to LoggingSectionGuard::Busy(). This is the
+/// head of the invasive Context::upper FIFO list of such messages.
+static Debug::Context *WaitingForIdle = nullptr;
+
 /// cache_log file
 /// safe during static initialization, even if it has not been constructed yet
 /// safe during program termination, even if it has been destructed already
@@ -287,6 +306,19 @@ ResetSections(const int level)
         sectionLevel = level;
 }
 
+/* LoggingSectionGuard */
+
+LoggingSectionGuard::LoggingSectionGuard()
+{
+    ++LoggingConcurrencyLevel;
+}
+
+LoggingSectionGuard::~LoggingSectionGuard()
+{
+    if (--LoggingConcurrencyLevel == 0)
+        Debug::LogWaitingForIdle();
+}
+
 /* DebugModule */
 
 // Depending on DBG_CRITICAL activity and command line options, this code may
@@ -297,7 +329,7 @@ DebugModule::DebugModule()
     // explicit initialization before any use by debugs() calls; see bug #2656
     tzset();
 
-    (void)std::atexit(&Debug::SwanSong);
+    (void)std::atexit(&Debug::PrepareToDie);
 
     if (!Debug::override_X)
         ResetSections();
@@ -312,8 +344,10 @@ DebugModule::log(const DebugMessageHeader &header, const std::string &body)
 }
 
 void
-DebugModule::swanSong()
+DebugModule::prepareToDie()
 {
+    const LoggingSectionGuard sectionGuard;
+
     // Switch to stderr to improve our chances to log _early_ debugs(). However,
     // use existing cache_log and/or stderr levels for post-open/close ones.
     if (cacheLogChannel.collectingEarlyMessages() && !TheLog.file())
@@ -323,8 +357,18 @@ DebugModule::swanSong()
     stderrChannel.stopEarlyMessageCollection();
     syslogChannel.stopEarlyMessageCollection();
 
+    // Explicit last-resort call because we want to dump any pending messages
+    // (possibly including an assertion) even if another call, higher in the
+    // call stack, is currently in the sensitive section. Squid is dying, and
+    // that other caller (if any) will not get control back and, hence, will not
+    // trigger a Debug::LogWaitingForIdle() check. In most cases, we will log
+    // any pending messages successfully here. In the remaining few cases, we
+    // will lose them just like we would lose them without this call. The
+    // (small) risk here is that we might abort() or crash trying.
+    Debug::LogWaitingForIdle();
+
     // Do not close/destroy channels: While the Debug module is not _guaranteed_
-    // to get control after swanSong(), debugs() calls are still very much
+    // to get control after prepareToDie(), debugs() calls are still very much
     // _possible_, and we want to support/log them for as long as we can.
 }
 
@@ -369,8 +413,7 @@ ResyncDebugLog(FILE *newFile)
 void
 DebugChannel::stopEarlyMessageCollection()
 {
-    if (const auto toLog = releaseEarlyMessages())
-        logSaved(*toLog);
+    logSaved();
 }
 
 void
@@ -383,22 +426,41 @@ Debug::ForgetSaved()
 }
 
 void
-Debug::SwanSong()
+Debug::PrepareToDie()
 {
-    Module().swanSong();
+    Module().prepareToDie();
 }
 
 void
-DebugChannel::logSaved(const SavedDebugMessages &messages)
+DebugChannel::logSavedAnd(DebugChannel *theirChannelOrNil)
 {
+    const LoggingSectionGuard sectionGuard;
+
+    assert(this != theirChannelOrNil);
+    const auto ours = releaseEarlyMessages();
+    const auto theirs = theirChannelOrNil ? theirChannelOrNil->releaseEarlyMessages() : nullptr;
+
+    size_t ourPos = 0;
+    size_t theirPos = 0;
+    size_t ourCount = ours ? ours->size() : 0;
+    size_t theirCount = theirs ? theirs->size() : 0;
+
     const auto writtenEarlier = written;
-    for (const auto &message: messages) {
+    while (ourPos < ourCount || theirPos < theirCount) {
+        // write in the order of increasing header.recordNumber;
+        // log() will filter out any duplicates
+        const auto &message = (ourPos < ourCount &&
+            !(theirPos < theirCount && (*theirs)[theirPos].header.recordNumber < (*ours)[ourPos].header.recordNumber)) ?
+            (*ours)[ourPos++] : (*theirs)[theirPos++];
         if (Debug::Enabled(message.header.section, message.header.level))
             log(message.header, message.body);
     }
     const auto writtenNow = written - writtenEarlier;
-    debugs(0, 5, "wrote " << writtenNow << " out of " <<
-           messages.size() << " early messages to " << name);
+
+    if (const auto totalCount = ourCount + theirCount) {
+        debugs(0, 5, "wrote " << writtenNow << " out of " << totalCount << '=' <<
+               ourCount << '+' << theirCount << " early messages to " << name);
+    }
 }
 
 bool
@@ -410,26 +472,14 @@ DebugChannel::saveMessage(const DebugMessageHeader &header, const std::string &b
     if (header.level > EarlyMessagesLevel)
         return false; // this message is not important enough to save
 
-    // There should not be a lot of messages because EarlyMessagesLevel is
-    // small, but we limit their accumulation just in case.
-    const SavedDebugMessages::size_type limit = 1000;
-    SavedDebugMessages::size_type purged = 0;
-    if (earlyMessages->size() >= limit) {
-        SavedDebugMessages doomedMessages;
-        earlyMessages->swap(doomedMessages);
-        purged = doomedMessages.size(); // before handleOverflow() may change it
-        handleOverflow(doomedMessages);
-    }
+    // Given small EarlyMessagesLevel, only a Squid bug can cause so many
+    // earlyMessages. Saving/dumping excessive messages correctly is not only
+    // difficult but is more likely to complicate triage than help: It is the
+    // first earlyMessages that are going to be the most valuable. Our assert()
+    // will dump them if at all possible.
+    assert(earlyMessages->size() < 1000);
 
     earlyMessages->emplace_back(header, body);
-
-    if (purged) {
-        // This debugs() should come _after_ we save the early message above,
-        // preserving the original event and LogMessage() order, like log().
-        debugs(0, DBG_CRITICAL, "ERROR: Too many early important messages. " <<
-               "Purged " << purged << " from " << name);
-    }
-
     return true;
 }
 
@@ -468,18 +518,10 @@ CacheLogChannel::log(const DebugMessageHeader &header, const std::string &body)
     fflush(TheLog.file());
 }
 
-void
-CacheLogChannel::handleOverflow(SavedDebugMessages &doomedMessages)
-{
-    for (auto &message: doomedMessages)
-        message.header.overflowed = true;
-    Module().stderrChannel.logSaved(doomedMessages);
-}
-
 /* StderrChannel */
 
 bool
-StderrChannel::shouldWrite(const int level, const bool overflowed) const
+StderrChannel::shouldWrite(const int level) const
 {
     if (!stderr)
         return false; // nowhere to write
@@ -487,9 +529,9 @@ StderrChannel::shouldWrite(const int level, const bool overflowed) const
     if (ExplicitStderrLevelSet) // explicit admin restrictions (-d)
         return level <= ExplicitStderrLevel;
 
-    // whether the given level is allowed by circumstances (coveringForCacheLog,
-    // early message storage overflow, etc.) or configuration aspects (-k, -z)
-    return coveringForCacheLog || overflowed || level <= DefaultStderrLevel;
+    // whether the given level is allowed by emergency handling circumstances
+    // (coveringForCacheLog) or configuration aspects (e.g., -k or -z)
+    return coveringForCacheLog || level <= DefaultStderrLevel;
 }
 
 void
@@ -501,7 +543,7 @@ StderrChannel::log(const DebugMessageHeader &header, const std::string &body)
     if (saveMessage(header, body))
         return;
 
-    if (!shouldWrite(header.level, header.overflowed))
+    if (!shouldWrite(header.level))
         return;
 
     // We must write this eligible unsaved message, but we must log previously
@@ -518,11 +560,7 @@ StderrChannel::takeOver(CacheLogChannel &cacheLogChannel)
         return;
     coveringForCacheLog = true;
 
-    // Stop collecting before dumping cacheLogChannel messages so that we do not
-    // end up saving messages already saved by cacheLogChannel.
-    stopEarlyMessageCollection();
-    if (const auto theirs = cacheLogChannel.releaseEarlyMessages())
-        logSaved(*theirs);
+    logSavedAnd(&cacheLogChannel);
 }
 
 void
@@ -559,7 +597,7 @@ Debug::SettleStderr()
 bool
 Debug::StderrEnabled()
 {
-    return Module().stderrChannel.shouldWrite(DBG_CRITICAL, false);
+    return Module().stderrChannel.shouldWrite(DBG_CRITICAL);
 }
 
 /* CompiledDebugMessage */
@@ -595,9 +633,9 @@ DebugFile::reset(FILE *newFile, const char *newName)
     assert(!file_ == !name);
 }
 
-static
+/// broadcasts debugs() message to the logging channels
 void
-LogMessage(const bool forceAlert, const std::string &message)
+Debug::LogMessage(const Context &context)
 {
 #if _SQUID_WINDOWS_
     /* Multiple WIN32 threads may call this simultaneously */
@@ -633,8 +671,8 @@ LogMessage(const bool forceAlert, const std::string &message)
 #endif
 
     static DebugRecordCount LogMessageCalls = 0;
-    const DebugMessageHeader header(++LogMessageCalls, forceAlert);
-    Module().log(header, message);
+    const DebugMessageHeader header(++LogMessageCalls, context);
+    Module().log(header, context.buf.str());
 
 #if _SQUID_WINDOWS_
     LeaveCriticalSection(dbg_mutex);
@@ -1101,7 +1139,7 @@ xassert(const char *msg, const char *file, int line)
     debugs(0, DBG_CRITICAL, "assertion failed: " << file << ":" << line << ": \"" << msg << "\"");
 
     if (!shutting_down) {
-        Debug::SwanSong();
+        Debug::PrepareToDie();
         abort();
     }
 
@@ -1115,7 +1153,8 @@ Debug::Context::Context(const int aSection, const int aLevel):
     level(aLevel),
     sectionLevel(Levels[aSection]),
     upper(Current),
-    forceAlert(false)
+    forceAlert(false),
+    waitingForIdle(false)
 {
     formatStream();
 }
@@ -1128,6 +1167,7 @@ Debug::Context::rewind(const int aSection, const int aLevel)
     level = aLevel;
     sectionLevel = Levels[aSection];
     assert(upper == Current);
+    assert(!waitingForIdle);
 
     buf.str(std::string());
     buf.clear();
@@ -1148,14 +1188,32 @@ Debug::Context::formatStream()
     // If this is not enough, use copyfmt(cleanStream) which is ~10% slower.
 }
 
+void
+Debug::LogWaitingForIdle()
+{
+    if (!WaitingForIdle)
+        return; // do not lock in vain because unlocking would calls us
+
+    const LoggingSectionGuard sectionGuard;
+    while (const auto current = WaitingForIdle) {
+        assert(current->waitingForIdle);
+        LogMessage(*current);
+        WaitingForIdle = current->upper;
+        delete current;
+    }
+}
+
 std::ostringstream &
 Debug::Start(const int section, const int level)
 {
     Context *future = nullptr;
 
-    // prepare future context
-    if (Current) {
-        // all reentrant debugs() calls get here; create a dedicated context
+    if (LoggingSectionGuard::Busy()) {
+        // a very rare reentrant debugs() call that originated during Finish() and such
+        future = new Context(section, level);
+        future->waitingForIdle = true;
+    } else if (Current) {
+        // a rare reentrant debugs() call that originated between Start() and Finish()
         future = new Context(section, level);
     } else {
         // Optimization: Nearly all debugs() calls get here; avoid allocations
@@ -1172,12 +1230,31 @@ Debug::Start(const int section, const int level)
 void
 Debug::Finish()
 {
+    const LoggingSectionGuard sectionGuard;
+
     // TODO: #include "base/CodeContext.h" instead if doing so works well.
     extern std::ostream &CurrentCodeContextDetail(std::ostream &os);
     if (Current->level <= DBG_IMPORTANT)
         Current->buf << CurrentCodeContextDetail;
 
-    LogMessage(Current->forceAlert, Current->buf.str());
+    if (Current->waitingForIdle) {
+        const auto past = Current;
+        Current = past->upper;
+        past->upper = nullptr;
+        // do not delete `past` because we store it in WaitingForIdle below
+
+        // waitingForIdle messages are queued here instead of Start() because
+        // their correct order is determined by the Finish() call timing/order.
+        // Linear search, but this list ought to be very short (usually empty).
+        auto *last = &WaitingForIdle;
+        while (*last)
+            last = &(*last)->upper;
+        *last = past;
+
+        return;
+    }
+
+    LogMessage(*Current);
     Current->forceAlert = false;
 
     Context *past = Current;

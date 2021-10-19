@@ -44,6 +44,8 @@
 
 #define DBG_PARSE_NOTE(x) (opt_parse_cfg_only?0:(x)) /**< output is always to be displayed on '-k parse' but at level-x normally. */
 
+class DebugMessageHeader;
+
 class Debug
 {
 
@@ -60,11 +62,17 @@ public:
 
     private:
         friend class Debug;
+        friend class DebugMessageHeader;
+
         void rewind(const int aSection, const int aLevel);
         void formatStream();
         Context *upper; ///< previous or parent record in nested debugging calls
         std::ostringstream buf; ///< debugs() output sink
         bool forceAlert; ///< the current debugs() will be a syslog ALERT
+
+        /// whether this debugs() call originated when we were too busy handling
+        /// other logging needs (e.g., logging another concurrent debugs() call)
+        bool waitingForIdle;
     };
 
     /// whether debugging the given section and the given level produces output
@@ -103,8 +111,13 @@ public:
     /// silently erases saved early debugs() messages (if any)
     static void ForgetSaved();
 
-    /// reacts to ongoing program termination (e.g., flushes buffered messages)
-    static void SwanSong();
+    /// Reacts to ongoing program termination (e.g., flushes buffered messages).
+    /// Call this _before_ logging the termination reason to maximize the
+    /// chances of that valuable debugs() getting through to the admin.
+    static void PrepareToDie();
+
+    /// Logs messages of Finish()ed debugs() calls that were queued earlier.
+    static void LogWaitingForIdle();
 
     /* cache_log channel */
 
@@ -152,6 +165,8 @@ public:
     static void SettleSyslog();
 
 private:
+    static void LogMessage(const Debug::Context &context);
+
     static Context *Current; ///< deepest active context; nil outside debugs()
 };
 

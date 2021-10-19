@@ -95,8 +95,7 @@ fatal_dump(const char *message)
     if (opt_catch_signals)
         storeDirWriteCleanLogs(0);
 
-    Debug::SwanSong();
-
+    Debug::PrepareToDie();
     abort();
 }
 
