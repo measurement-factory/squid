@@ -59,13 +59,37 @@ Less(const A a, const B b) {
         /* (a >= 0) == (b >= 0) */ static_cast<AB>(a) < static_cast<AB>(b);
 }
 
+/// common requirements for types in this module
+template<typename T>
+constexpr bool ValidateTypeTraits()
+{
+    // require types with finite set of values
+    static_assert(std::numeric_limits<T>::is_bounded, "the argument is bounded");
+    // prohibit types with rounding errors
+    static_assert(std::numeric_limits<T>::is_exact, "the argument is exact");
+    // prohibit enumerations since they may represent non-consecutive values
+    static_assert(!std::is_enum<T>::value, "the argument is not enum");
+
+    return std::numeric_limits<T>::is_bounded &&
+        std::numeric_limits<T>::is_exact &&
+        !std::is_enum<T>::value;
+}
+
 /// \returns a non-overflowing sum of the two unsigned arguments (or nothing)
 template <typename S, typename T, EnableIfType<AllUnsigned<S,T>::value, int> = 0>
 Optional<S>
 IncreaseSum(const S s, const T t) {
+    static_assert(ValidateTypeTraits<S>(), "the first argument has a valid type");
+    static_assert(ValidateTypeTraits<T>(), "the second argument has a valid type");
+
     // this optimized implementation relies on unsigned overflows
     static_assert(std::is_unsigned<S>::value, "the first argument is unsigned");
     static_assert(std::is_unsigned<T>::value, "the second argument is unsigned");
+
+    // this optimized implementation expects that adding two unsigned
+    // numbers may wrap to a lesser number
+    static_assert(std::numeric_limits<S>::is_modulo, "the first argument is modulo");
+    static_assert(std::numeric_limits<T>::is_modulo, "the second argument is modulo");
     // For the sum overflow check below to work, we cannot restrict the sum
     // type which, due to integral promotions, may exceed common_type<S,T>!
     const auto sum = s + t;
@@ -81,6 +105,8 @@ IncreaseSum(const S s, const T t) {
 template <typename S, typename T, EnableIfType<!AllUnsigned<S,T>::value, int> = 0>
 Optional<S> constexpr
 IncreaseSum(const S s, const T t) {
+    static_assert(ValidateTypeTraits<S>(), "the first argument has a valid type");
+    static_assert(ValidateTypeTraits<T>(), "the second argument has a valid type");
     return
         // We could support a non-under/overflowing sum of negative numbers, but
         // our callers use negative values specially (e.g., for do-not-use or
