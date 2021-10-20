@@ -61,7 +61,8 @@ Less(const A a, const B b) {
 
 /// common requirements for types in this module
 template<typename T>
-constexpr bool ValidateTypeTraits()
+constexpr bool
+ValidateTypeTraits()
 {
     // require types with finite set of values
     static_assert(std::numeric_limits<T>::is_bounded, "the argument is bounded");
@@ -154,34 +155,60 @@ SetToNaturalSumOrMax(S &var, Args... args)
 
 /// \returns an exact, non-overflowing product of the arguments (or nothing)
 /// \returns nothing if at least one of the arguments is negative
-template <typename P, typename T, typename U>
-Optional<P>
-NaturalProduct(T t, U u)
+template <typename T, typename U>
+Optional<T>
+IncreaseProduct(T t, U u)
 {
-    // ensure that the shifting below will work
-    static_assert(std::is_integral<T>::value, "the first argument is integral");
-    static_assert(std::is_integral<U>::value, "the second argument is integral");
+    static_assert(ValidateTypeTraits<T>(), "the first argument has a valid type");
+    static_assert(ValidateTypeTraits<U>(), "the second argument has a valid type");
 
     // assume that callers treat negative numbers specially (see IncreaseSum() for details)
     if (Less(t, 0) || Less(u, 0))
-        return Optional<P>();
+        return Optional<T>();
 
     // check that both operands do not overflow the result type
-    if (!IncreaseSum(P(0), t).has_value() || !IncreaseSum(P(0), u).has_value())
-        return Optional<P>();
+    //if (!IncreaseSum(P(0), t).has_value() || !IncreaseSum(P(0), u).has_value())
+    //    return Optional<T>();
 
     if (t == 0 || u == 0)
-        return Optional<P>(0);
+        return Optional<T>(0);
 
-    return Less(std::numeric_limits<P>::max()/t, u) ? Optional<P>() : Optional<P>(t*u);
+    return Less(std::numeric_limits<T>::max()/t, u) ? Optional<T>() : Optional<T>(t*u);
 }
 
 /// \returns a non-overflowing product of the arguments (or nothing)
-template <typename T, typename U>
-Optional<T>
-IncreaseProduct(const T t, const U u)
+template <typename P, typename T, typename... Args>
+Optional<P>
+IncreaseProduct(const P product, const T t, Args... args) {
+    if (const auto head = IncreaseProduct<P>(product, t)) {
+        return IncreaseProduct<P>(head.value(), args...);
+    } else {
+        return Optional<P>();
+    }
+}
+
+/// \returns an exact, non-overflowing product of the arguments (or nothing)
+template <typename ProductType, typename... Args>
+Optional<ProductType>
+NaturalProduct(Args... args) {
+    return IncreaseProduct<ProductType>(1, args...);
+}
+
+/// Safely resets the given variable to NatrualProduct() of the given arguments.
+/// If the product overflows, resets to variable's maximum possible value.
+/// \returns the new variable value (like an assignment operator would)
+template <typename P, typename... Args>
+P
+SetToNaturalProductOrMax(P &var, Args... args)
 {
-    return NaturalProduct<T>(t, u);
+    var = NaturalProduct<P>(args...).value_or(std::numeric_limits<P>::max());
+    return var;
+}
+
+template<class T>
+T MaxValue(T&)
+{
+    return std::numeric_limits<T>::max();
 }
 
 #endif /* _SQUID_SRC_SQUIDMATH_H */

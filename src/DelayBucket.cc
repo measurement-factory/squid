@@ -56,8 +56,14 @@ DelayBucket::bytesIn(int qty)
 void
 DelayBucket::init(DelaySpec const &rate)
 {
-    const auto initialLevel = rate.max_bytes * (Config.Delay.initial/100.);
-    SetToNaturalSumOrMax(level_, initialLevel);
+    SetToNaturalSumOrMax(level_, rate.max_bytes, Config.Delay.initial);
+    // getting around possible integer overflows without turning to floats
+    if (level_ < MaxValue(level_)) {
+        level_ /= 100;
+    } else {
+        // Config.Delay.initial is always <= 100
+        SetToNaturalSumOrMax(level_, rate.max_bytes/100, Config.Delay.initial);
+    }
 }
 
 #endif /* USE_DELAY_POOLS */

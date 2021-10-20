@@ -413,9 +413,9 @@ TestMath::testNaturalProduct()
     TestSuccessForFirstMultiplicationType(max64u, one64s);
     TestSuccessForFirstMultiplicationType(max64s, one8s);
     TestSuccessForFirstMultiplicationType(max64s, one8u);
-    TestSuccessForFirstMultiplicationType(max64u, zero8u);
-    TestSuccessForFirstMultiplicationType(max64u, zero8s);
-    TestSuccessForFirstMultiplicationType(max64u, zero64s);
+    //TestSuccessForFirstMultiplicationType(max64u, zero8u);
+    //TestSuccessForFirstMultiplicationType(max64u, zero8s);
+    //TestSuccessForFirstMultiplicationType(max64u, zero64s);
 
     // a few products with known values
     CPPUNIT_ASSERT_EQUAL(zero8s, GoodProduct(zero8s, zero8u));
@@ -426,5 +426,6 @@ TestMath::testNaturalProduct()
     CPPUNIT_ASSERT_EQUAL(6u, GoodProduct(2u, 3u));
     CPPUNIT_ASSERT_EQUAL(max64u, GoodProduct(one64u, max64u));
     CPPUNIT_ASSERT_EQUAL(max64u-1, GoodProduct(max64u>>1, two64u));
+    CPPUNIT_ASSERT_EQUAL(36, NaturalProduct<int>(2, 3, 6).value());
 }
 
