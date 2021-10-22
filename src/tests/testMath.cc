@@ -413,9 +413,6 @@ TestMath::testNaturalProduct()
     TestSuccessForFirstMultiplicationType(max64u, one64s);
     TestSuccessForFirstMultiplicationType(max64s, one8s);
     TestSuccessForFirstMultiplicationType(max64s, one8u);
-    //TestSuccessForFirstMultiplicationType(max64u, zero8u);
-    //TestSuccessForFirstMultiplicationType(max64u, zero8s);
-    //TestSuccessForFirstMultiplicationType(max64u, zero64s);
 
     // a few products with known values
     CPPUNIT_ASSERT_EQUAL(zero8s, GoodProduct(zero8s, zero8u));
@@ -427,5 +424,14 @@ TestMath::testNaturalProduct()
     CPPUNIT_ASSERT_EQUAL(max64u, GoodProduct(one64u, max64u));
     CPPUNIT_ASSERT_EQUAL(max64u-1, GoodProduct(max64u>>1, two64u));
     CPPUNIT_ASSERT_EQUAL(36, NaturalProduct<int>(2, 3, 6).value());
+    CPPUNIT_ASSERT_EQUAL(zero8u, NaturalProduct<uint8_t>(max64u, zero64u).value());
+    CPPUNIT_ASSERT_EQUAL(zero8u, NaturalProduct<uint8_t>(max8u, max8u, zero64u).value());
+    CPPUNIT_ASSERT_EQUAL(zero8u, NaturalProduct<uint8_t>(zero8u, max8u, max8u).value());
+    CPPUNIT_ASSERT_EQUAL(zero8u, NaturalProduct<uint8_t>(max8u, zero64u, max64u, max8u).value());
+    CPPUNIT_ASSERT_EQUAL(zero8u, NaturalProduct<uint8_t>(max8u, max64u, max8u, max64u, 0).value());
+    CPPUNIT_ASSERT_MESSAGE("255*255*0*(-1) must overflow", !NaturalProduct<uint8_t>(max8u, max8u, 0, -1).has_value());
+    CPPUNIT_ASSERT_MESSAGE("255*255*(-1)*0 must overflow", !NaturalProduct<uint8_t>(max8u, max8u, -1, 0).has_value());
+    CPPUNIT_ASSERT_MESSAGE("0*(-1)*255*255 must overflow", !NaturalProduct<uint8_t>(0, -1, max8u, max8u).has_value());
+    CPPUNIT_ASSERT_MESSAGE("(-1)*0*255*255 must overflow", !NaturalProduct<uint8_t>(-1, 0, max8u, max8u).has_value());
 }
 

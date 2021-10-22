@@ -166,10 +166,6 @@ IncreaseProduct(T t, U u)
     if (Less(t, 0) || Less(u, 0))
         return Optional<T>();
 
-    // check that both operands do not overflow the result type
-    //if (!IncreaseSum(P(0), t).has_value() || !IncreaseSum(P(0), u).has_value())
-    //    return Optional<T>();
-
     if (t == 0 || u == 0)
         return Optional<T>(0);
 
@@ -180,11 +176,17 @@ IncreaseProduct(T t, U u)
 template <typename P, typename T, typename... Args>
 Optional<P>
 IncreaseProduct(const P product, const T t, Args... args) {
-    if (const auto head = IncreaseProduct<P>(product, t)) {
-        return IncreaseProduct<P>(head.value(), args...);
-    } else {
-        return Optional<P>();
+    if (!Less(product, 0) && !Less(t, 0)) {
+        if (const auto head = IncreaseProduct<P>(product, t)) {
+            return IncreaseProduct<P>(head.value(), args...);
+        } else {
+            // discard the current (overflowed) result and scan for zero
+            const auto temp = IncreaseProduct<P>(1, args...);
+            if (temp && !temp.value())
+                return temp; // zero cancels overflow
+        }
     }
+    return Optional<P>();
 }
 
 /// \returns an exact, non-overflowing product of the arguments (or nothing)
