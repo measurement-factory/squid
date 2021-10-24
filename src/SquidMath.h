@@ -87,10 +87,6 @@ IncreaseSum(const S s, const T t) {
     static_assert(std::is_unsigned<S>::value, "the first argument is unsigned");
     static_assert(std::is_unsigned<T>::value, "the second argument is unsigned");
 
-    // this optimized implementation expects that adding two unsigned
-    // numbers may wrap to a lesser number
-    static_assert(std::numeric_limits<S>::is_modulo, "the first argument is modulo");
-    static_assert(std::numeric_limits<T>::is_modulo, "the second argument is modulo");
     // For the sum overflow check below to work, we cannot restrict the sum
     // type which, due to integral promotions, may exceed common_type<S,T>!
     const auto sum = s + t;
