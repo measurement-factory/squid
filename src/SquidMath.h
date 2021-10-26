@@ -168,19 +168,48 @@ IncreaseProduct(T t, U u)
     return Less(std::numeric_limits<T>::max()/t, u) ? Optional<T>() : Optional<T>(t*u);
 }
 
+template <typename P, typename T>
+Optional<P>
+FindZeroOrNegatives(const T t)
+{
+    return Less(t, 0) ? Optional<P>() : Optional<P>(t);
+}
+
+/// \returns nothing if one of the arguments is negative otherwise
+/// \returns zero if one of the arguments is zero otherwize
+/// \returns a non-negative value
+template <typename P, typename T, typename... Args>
+Optional<P>
+FindZeroOrNegatives(const T t, Args... args)
+{
+    if (Less(t, 0))
+       return Optional<P>();
+    const auto sawZero = !t;
+    const auto temp = FindZeroOrNegatives<P>(args...);
+    if (!temp)
+       return Optional<P>();
+    return (sawZero || !temp.value()) ? Optional<P>(0) : Optional<P>(t);
+}
+
+/// \returns zero if one of the arguments is zero and none of the arguments is negative
+/// \returns nothing otherwise
+template <typename P, typename... Args>
+Optional<P>
+FindZeroWithoutNegatives(Args... args)
+{
+    const auto temp = FindZeroOrNegatives<P>(args...);
+    return (temp && !temp.value()) ? Optional<P>(0) : Optional<P>();
+}
+
 /// \returns a non-overflowing product of the arguments (or nothing)
 template <typename P, typename T, typename... Args>
 Optional<P>
 IncreaseProduct(const P product, const T t, Args... args) {
     if (!Less(product, 0) && !Less(t, 0)) {
-        if (const auto head = IncreaseProduct<P>(product, t)) {
+        if (const auto head = IncreaseProduct<P>(product, t))
             return IncreaseProduct<P>(head.value(), args...);
-        } else {
-            // discard the current (overflowed) result and scan for zero
-            const auto temp = IncreaseProduct<P>(1, args...);
-            if (temp && !temp.value())
-                return temp; // zero cancels overflow
-        }
+        else
+            return FindZeroWithoutNegatives<P>(args...);
     }
     return Optional<P>();
 }
