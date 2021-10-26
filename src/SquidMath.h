@@ -120,7 +120,7 @@ IncreaseSum(const S s, const T t) {
 /// \returns a non-overflowing sum of the arguments (or nothing)
 template <typename S, typename T, typename... Args>
 Optional<S>
-IncreaseSum(const S sum, const T t, Args... args) {
+IncreaseSum(const S sum, const T t, const Args... args) {
     if (const auto head = IncreaseSum<S>(sum, t)) {
         return IncreaseSum<S>(head.value(), args...);
     } else {
@@ -131,7 +131,7 @@ IncreaseSum(const S sum, const T t, Args... args) {
 /// \returns an exact, non-overflowing sum of the arguments (or nothing)
 template <typename SummationType, typename... Args>
 Optional<SummationType>
-NaturalSum(Args... args) {
+NaturalSum(const Args... args) {
     return IncreaseSum<SummationType>(0, args...);
 }
 
@@ -140,7 +140,7 @@ NaturalSum(Args... args) {
 /// \returns the new variable value (like an assignment operator would)
 template <typename S, typename... Args>
 S
-SetToNaturalSumOrMax(S &var, Args... args)
+SetToNaturalSumOrMax(S &var, const Args... args)
 {
     var = NaturalSum<S>(args...).value_or(std::numeric_limits<S>::max());
     return var;
@@ -153,7 +153,7 @@ SetToNaturalSumOrMax(S &var, Args... args)
 /// \returns nothing if at least one of the arguments is negative
 template <typename T, typename U>
 Optional<T>
-IncreaseProduct(T t, U u)
+IncreaseProduct(const T t, const U u)
 {
     static_assert(ValidateTypeTraits<T>(), "the first argument has a valid type");
     static_assert(ValidateTypeTraits<U>(), "the second argument has a valid type");
@@ -180,7 +180,7 @@ FindZeroOrNegatives(const T t)
 /// \returns a non-negative value
 template <typename P, typename T, typename... Args>
 Optional<P>
-FindZeroOrNegatives(const T t, Args... args)
+FindZeroOrNegatives(const T t, const Args... args)
 {
     if (Less(t, 0))
        return Optional<P>();
@@ -195,7 +195,7 @@ FindZeroOrNegatives(const T t, Args... args)
 /// \returns nothing otherwise
 template <typename P, typename... Args>
 Optional<P>
-FindZeroWithoutNegatives(Args... args)
+FindZeroWithoutNegatives(const Args... args)
 {
     const auto temp = FindZeroOrNegatives<P>(args...);
     return (temp && !temp.value()) ? Optional<P>(0) : Optional<P>();
@@ -204,7 +204,7 @@ FindZeroWithoutNegatives(Args... args)
 /// \returns a non-overflowing product of the arguments (or nothing)
 template <typename P, typename T, typename... Args>
 Optional<P>
-IncreaseProduct(const P product, const T t, Args... args) {
+IncreaseProduct(const P product, const T t, const Args... args) {
     if (!Less(product, 0) && !Less(t, 0)) {
         if (const auto head = IncreaseProduct<P>(product, t))
             return IncreaseProduct<P>(head.value(), args...);
@@ -217,7 +217,7 @@ IncreaseProduct(const P product, const T t, Args... args) {
 /// \returns an exact, non-overflowing product of the arguments (or nothing)
 template <typename ProductType, typename... Args>
 Optional<ProductType>
-NaturalProduct(Args... args) {
+NaturalProduct(const Args... args) {
     return IncreaseProduct<ProductType>(1, args...);
 }
 
@@ -226,7 +226,7 @@ NaturalProduct(Args... args) {
 /// \returns the new variable value (like an assignment operator would)
 template <typename P, typename... Args>
 P
-SetToNaturalProductOrMax(P &var, Args... args)
+SetToNaturalProductOrMax(P &var, const Args... args)
 {
     var = NaturalProduct<P>(args...).value_or(std::numeric_limits<P>::max());
     return var;
