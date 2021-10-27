@@ -79,7 +79,7 @@ ValidateTypeTraits()
 /// \returns a non-overflowing sum of the two unsigned arguments (or nothing)
 template <typename S, typename T, EnableIfType<AllUnsigned<S,T>::value, int> = 0>
 Optional<S>
-IncreaseSum(const S s, const T t) {
+IncreaseSumInternal(const S s, const T t) {
     static_assert(ValidateTypeTraits<S>(), "the first argument has a valid type");
     static_assert(ValidateTypeTraits<T>(), "the second argument has a valid type");
 
@@ -90,6 +90,9 @@ IncreaseSum(const S s, const T t) {
     // For the sum overflow check below to work, we cannot restrict the sum
     // type which, due to integral promotions, may exceed common_type<S,T>!
     const auto sum = s + t;
+    // this optimized implementation expects that adding two unsigned
+    // numbers may wrap to a lesser number
+    static_assert(std::numeric_limits<decltype(sum)>::is_modulo, "the sum is modulo");
     // 1. when summation overflows, the result becomes smaller than any operand
     // 2. the unknown (see above) "auto" type may hold more than S can hold
     return (s <= sum && sum <= std::numeric_limits<S>::max()) ?
@@ -101,7 +104,7 @@ IncreaseSum(const S s, const T t) {
 /// at least one of the arguments is signed
 template <typename S, typename T, EnableIfType<!AllUnsigned<S,T>::value, int> = 0>
 Optional<S> constexpr
-IncreaseSum(const S s, const T t) {
+IncreaseSumInternal(const S s, const T t) {
     static_assert(ValidateTypeTraits<S>(), "the first argument has a valid type");
     static_assert(ValidateTypeTraits<T>(), "the second argument has a valid type");
     return
@@ -117,15 +120,32 @@ IncreaseSum(const S s, const T t) {
         Optional<S>(s + t);
 }
 
+template <typename S, typename T>
+Optional<S>
+IncreaseSumWithPromotion(const S s, const T t)
+{
+    // do integral promotions explicitly in order to
+    // select the required version of IncreaseSumInternal()
+    return IncreaseSumInternal<S>(+s, +t);
+}
+
+/// \returns a non-overflowing sum of the arguments (or nothing)
+template <typename S, typename T, typename... Args>
+Optional<S>
+IncreaseSumWithPromotion(const S sum, const T t, const Args... args)
+{
+    if (const auto head = IncreaseSumWithPromotion<S>(sum, t)) {
+        return IncreaseSumWithPromotion<S>(head.value(), args...);
+    } else {
+        return Optional<S>();
+    }
+}
+
 /// \returns a non-overflowing sum of the arguments (or nothing)
 template <typename S, typename T, typename... Args>
 Optional<S>
 IncreaseSum(const S sum, const T t, const Args... args) {
-    if (const auto head = IncreaseSum<S>(sum, t)) {
-        return IncreaseSum<S>(head.value(), args...);
-    } else {
-        return Optional<S>();
-    }
+    return IncreaseSumWithPromotion<S>(sum, t, args...);
 }
 
 /// \returns an exact, non-overflowing sum of the arguments (or nothing)
