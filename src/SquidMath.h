@@ -90,10 +90,8 @@ IncreaseSumInternal(const S s, const T t) {
     // For the sum overflow check below to work, we cannot restrict the sum
     // type which, due to integral promotions, may exceed common_type<S,T>!
     const auto sum = s + t;
-    // this optimized implementation expects that adding two unsigned
-    // numbers may wrap to a lesser number
-    static_assert(std::numeric_limits<decltype(sum)>::is_modulo, "the sum is modulo");
-    // 1. when summation overflows, the result becomes smaller than any operand
+    static_assert(std::numeric_limits<decltype(sum)>::is_modulo, "we can detect overflows");
+    // 1. modulo math: overflowed sum is smaller than any of its operands
     // 2. the unknown (see above) "auto" type may hold more than S can hold
     return (s <= sum && sum <= std::numeric_limits<S>::max()) ?
            Optional<S>(sum) : Optional<S>();
