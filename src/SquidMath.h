@@ -122,30 +122,20 @@ IncreaseSumInternal(const S s, const T t) {
 
 template <typename S, typename T>
 Optional<S>
-IncreaseSumWithPromotion(const S s, const T t)
+IncreaseSum(const S s, const T t)
 {
-    // do integral promotions explicitly in order to
-    // select the required version of IncreaseSumInternal()
     return IncreaseSumInternal<S>(+s, +t);
 }
 
 /// \returns a non-overflowing sum of the arguments (or nothing)
 template <typename S, typename T, typename... Args>
 Optional<S>
-IncreaseSumWithPromotion(const S sum, const T t, const Args... args)
-{
-    if (const auto head = IncreaseSumWithPromotion<S>(sum, t)) {
-        return IncreaseSumWithPromotion<S>(head.value(), args...);
+IncreaseSum(const S sum, const T t, const Args... args) {
+    if (const auto head = IncreaseSumInternal<S>(+sum, +t)) {
+        return IncreaseSum<S>(head.value(), args...);
     } else {
         return Optional<S>();
     }
-}
-
-/// \returns a non-overflowing sum of the arguments (or nothing)
-template <typename S, typename T, typename... Args>
-Optional<S>
-IncreaseSum(const S sum, const T t, const Args... args) {
-    return IncreaseSumWithPromotion<S>(sum, t, args...);
 }
 
 /// \returns an exact, non-overflowing sum of the arguments (or nothing)
