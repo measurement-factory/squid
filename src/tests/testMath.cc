@@ -16,10 +16,12 @@ class TestMath: public CPPUNIT_NS::TestFixture
 {
     CPPUNIT_TEST_SUITE( TestMath );
     CPPUNIT_TEST( testNaturalSum );
+    CPPUNIT_TEST( testNaturalProduct );
     CPPUNIT_TEST_SUITE_END();
 
 protected:
     void testNaturalSum();
+    void testNaturalProduct();
 };
 
 CPPUNIT_TEST_SUITE_REGISTRATION( TestMath );
@@ -36,6 +38,10 @@ static const auto one8s = int8_t(1);
 static const auto one8u = uint8_t(1);
 static const auto one64s = int64_t(1);
 static const auto one64u = uint64_t(1);
+static const auto two8s = int8_t(2);
+static const auto two8u = uint8_t(2);
+static const auto two64s = int64_t(2);
+static const auto two64u = uint64_t(2);
 static const auto max8s = std::numeric_limits<int8_t>::max();
 static const auto max8u = std::numeric_limits<uint8_t>::max();
 static const auto max64s = std::numeric_limits<int64_t>::max();
@@ -74,6 +80,13 @@ SumToString(const A a, const B b, const C c)
     return TypeToString<S>() + ": " + OperandToString(a) + " + " + OperandToString(b) + " + " + OperandToString(c);
 }
 
+template <typename P, typename A, typename B>
+static std::string
+ProductToString(const A a, const B b)
+{
+    return TypeToString<P>() + ": " + OperandToString(a) + " * " + OperandToString(b);
+}
+
 /// @}
 
 /// ends argument recursion for RawSum() with parameters
@@ -96,7 +109,7 @@ RawSum(A a, Args... args)
 /// Tests NaturalSum<S>() calls that are supposed to succeed.
 /// Implemented as a class to pass it as a template template parameter.
 template <typename S>
-class SuccessTester
+class SuccessSumTester
 {
 public:
     template <typename... Args>
@@ -122,7 +135,7 @@ public:
 /// Tests NaturalSum<S>() calls that are supposed to overflow.
 /// Implemented as a class to pass it as a template template parameter.
 template <typename S>
-class OverflowTester
+class OverflowSumTester
 {
 public:
     template <typename... Args>
@@ -171,8 +184,8 @@ template <typename A, typename B>
 static void
 TestOverflowForEitherSummationType(const A a, const B b)
 {
-    TestOrder<A, OverflowTester>(a, b);
-    TestOrder<B, OverflowTester>(a, b);
+    TestOrder<A, OverflowSumTester>(a, b);
+    TestOrder<B, OverflowSumTester>(a, b);
 }
 
 /// checks that a+b and similar sums succeed for summation type A but overflow
@@ -181,8 +194,8 @@ template <typename A, typename B>
 static void
 TestSuccessForFirstSummationType(const A a, const B b)
 {
-    TestOrder<A, SuccessTester>(a, b);
-    TestOrder<B, OverflowTester>(a, b);
+    TestOrder<A, SuccessSumTester>(a, b);
+    TestOrder<B, OverflowSumTester>(a, b);
 }
 
 /// \returns successful a+b value using summation type S (which defaults to A)
@@ -190,7 +203,7 @@ template <typename A, typename... Args, typename S = A>
 static S
 GoodSum(const A a, Args... args)
 {
-    return SuccessTester<S>::Test(a, args...);
+    return SuccessSumTester<S>::Test(a, args...);
 }
 
 void
@@ -264,5 +277,161 @@ TestMath::testNaturalSum()
     const auto result = SetToNaturalSumOrMax(expires, max64u, zero8u);
     CPPUNIT_ASSERT_EQUAL(std::numeric_limits<long>::max(), expires);
     CPPUNIT_ASSERT_EQUAL(expires, result);
+}
+
+/// helper function to multiply a pair of arbitrary-type integers
+/// while converting every number to type P and ignoring any under/overflows
+template <typename P, typename T, typename U>
+static P
+RawProduct(T t, U u)
+{
+    return P(t) * P(u);
+}
+
+/// Tests NaturalProduct<P>() calls that are supposed to succeed.
+/// Implemented as a class to pass it as a template template parameter.
+template <typename P>
+class SuccessProductTester
+{
+public:
+    template <typename T, typename U>
+    static P Test(const T t, const U u)
+    {
+        const auto result = NaturalProduct<P>(t, u);
+
+        CPPUNIT_ASSERT_MESSAGE(ProductToString<P>(t, u) + " must overflow",
+                               result.has_value());
+
+        const auto product = result.value();
+
+        // to show every non-overflowing product to be tested:
+        //std::cout << ProductToString<P>(t, u) << " = " << +product << "\n";
+
+        const auto expected = RawProduct<P>(t, u);
+        CPPUNIT_ASSERT_MESSAGE(
+            ProductToString<P>(t, u) + " = " + OperandToString(expected) + " rather than " + OperandToString(product),
+            product == expected);
+
+        return product;
+    }
+};
+
+/// Tests IntergralProduct<P>() calls that are supposed to overflow.
+/// Implemented as a class to pass it as a template template parameter.
+template <typename P>
+class OverflowProductTester
+{
+public:
+    template <typename T, typename U>
+    static void Test(const T t, const U u)
+    {
+        // to show every overflowing product to be tested:
+        //std::cout << ProductToString<P>(t, u) << " = overflow\n";
+
+        CPPUNIT_ASSERT_MESSAGE(ProductToString<P>(t, u) + " must overflow",
+                               !NaturalProduct<P>(t, u).has_value());
+    }
+};
+
+/// checks that the multiplication outcome is unaffected by the order of operands
+template <typename P, template<typename> class Tester, typename T, typename U>
+static void
+TestProductOrder(const T t, const U u)
+{
+    Tester<P>::Test(t, u);
+    Tester<P>::Test(u, t);
+}
+
+/// checks that t*u and similar products overflow for multiplication types T and U
+template <typename T, typename U>
+static void
+TestOverflowForEitherMultiplicationType(const T t, const U u)
+{
+    TestProductOrder<T, OverflowProductTester>(t, u);
+    TestProductOrder<U, OverflowProductTester>(t, u);
+}
+
+/// checks that t*u and similar products succeed for multiplication type T but overflow
+/// for multiplication type U
+template <typename T, typename U>
+static void
+TestSuccessForFirstMultiplicationType(const T t, const U u)
+{
+    TestProductOrder<T, SuccessProductTester>(t, u);
+    TestProductOrder<U, OverflowProductTester>(t, u);
+}
+
+/// \returns successful t*u value using multiplication type P (which defaults to T)
+template <typename T, typename U>
+static T
+GoodProduct(const T t, const U u)
+{
+    return SuccessProductTester<T>::Test(t, u);
+}
+
+void
+TestMath::testNaturalProduct()
+{
+    // negative parameters are banned in any position
+    TestOverflowForEitherMultiplicationType(min64s, zero8s);
+    TestOverflowForEitherMultiplicationType(min64s, zero8u);
+    TestOverflowForEitherMultiplicationType(min64s, max64s);
+    TestOverflowForEitherMultiplicationType(min64s, max64u);
+    TestOverflowForEitherMultiplicationType(min8s, zero8s);
+    TestOverflowForEitherMultiplicationType(min8s, zero8s);
+    TestOverflowForEitherMultiplicationType(min8s, zero8u);
+    TestOverflowForEitherMultiplicationType(min8s, max64s);
+    TestOverflowForEitherMultiplicationType(min8s, max64u);
+    TestOverflowForEitherMultiplicationType(-1, -1);
+    TestOverflowForEitherMultiplicationType(-1, zero8s);
+    TestOverflowForEitherMultiplicationType(-1, zero8u);
+    TestOverflowForEitherMultiplicationType(-1, max64s);
+    TestOverflowForEitherMultiplicationType(-1, max64u);
+    TestOverflowForEitherMultiplicationType(-1, one8s);
+    TestOverflowForEitherMultiplicationType(-1, one8u);
+    TestOverflowForEitherMultiplicationType(-1, one64s);
+    TestOverflowForEitherMultiplicationType(-1, one64u);
+
+    // these overflow regardless of which parameter determines the product type
+    TestOverflowForEitherMultiplicationType(max8u, two8u);
+    TestOverflowForEitherMultiplicationType(max8u, two8s);
+    TestOverflowForEitherMultiplicationType(max8u, max8s);
+    TestOverflowForEitherMultiplicationType(max8s, two8s);
+    TestOverflowForEitherMultiplicationType(max64u, two8u);
+    TestOverflowForEitherMultiplicationType(max64u, two8s);
+    TestOverflowForEitherMultiplicationType(max64u, two64u);
+    TestOverflowForEitherMultiplicationType(max64u, two64s);
+    TestOverflowForEitherMultiplicationType(max64u, max64s);
+    TestOverflowForEitherMultiplicationType(max64s, two8u);
+    TestOverflowForEitherMultiplicationType(max64s, two8s);
+    TestOverflowForEitherMultiplicationType(max64s, two64s);
+
+    // these overflow only if the second parameter determines the product type
+    TestSuccessForFirstMultiplicationType(max8u, one8s);
+    TestSuccessForFirstMultiplicationType(max64u, one8s);
+    TestSuccessForFirstMultiplicationType(max64u, one8u);
+    TestSuccessForFirstMultiplicationType(max64u, one64s);
+    TestSuccessForFirstMultiplicationType(max64s, one8s);
+    TestSuccessForFirstMultiplicationType(max64s, one8u);
+
+    // a few products with known values
+    CPPUNIT_ASSERT_EQUAL(zero8s, GoodProduct(zero8s, zero8u));
+    CPPUNIT_ASSERT_EQUAL(one8u, GoodProduct(one8u, one64s));
+    CPPUNIT_ASSERT_EQUAL(2, GoodProduct(2, 1));
+    CPPUNIT_ASSERT_EQUAL(zero64u, GoodProduct(zero64u, max64s));
+    CPPUNIT_ASSERT_EQUAL(uint64_t(2), GoodProduct(one64u, two64s));
+    CPPUNIT_ASSERT_EQUAL(6u, GoodProduct(2u, 3u));
+    CPPUNIT_ASSERT_EQUAL(max64u, GoodProduct(one64u, max64u));
+    CPPUNIT_ASSERT_EQUAL(max64u-1, GoodProduct(max64u>>1, two64u));
+    CPPUNIT_ASSERT_EQUAL(36, NaturalProduct<int>(2, 3, 6).value());
+    CPPUNIT_ASSERT_EQUAL(zero8u, NaturalProduct<uint8_t>(max64u, zero64u).value());
+    CPPUNIT_ASSERT_EQUAL(zero8u, NaturalProduct<uint8_t>(max8u, max8u, zero64u).value());
+    CPPUNIT_ASSERT_EQUAL(zero8u, NaturalProduct<uint8_t>(zero8u, max8u, max8u).value());
+    CPPUNIT_ASSERT_EQUAL(zero8u, NaturalProduct<uint8_t>(max8u, zero64u, max64u, max8u).value());
+    CPPUNIT_ASSERT_EQUAL(zero8u, NaturalProduct<uint8_t>(max8u, max64u, max8u, max64u, 0).value());
+    CPPUNIT_ASSERT_MESSAGE("255*255*0*(-1) must overflow", !NaturalProduct<uint8_t>(max8u, max8u, 0, -1).has_value());
+    CPPUNIT_ASSERT_MESSAGE("255*255*(-1)*0 must overflow", !NaturalProduct<uint8_t>(max8u, max8u, -1, 0).has_value());
+    CPPUNIT_ASSERT_MESSAGE("0*(-1)*255*255 must overflow", !NaturalProduct<uint8_t>(0, -1, max8u, max8u).has_value());
+    CPPUNIT_ASSERT_MESSAGE("(-1)*0*255*255 must overflow", !NaturalProduct<uint8_t>(-1, 0, max8u, max8u).has_value());
 }
 
