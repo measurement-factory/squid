@@ -56,14 +56,15 @@ DelayBucket::bytesIn(int qty)
 void
 DelayBucket::init(DelaySpec const &rate)
 {
-    SetToNaturalSumOrMax(level_, rate.max_bytes, Config.Delay.initial);
+    // enforce the Config.Delay.initial (0-100) percent range requirement
+    // TODO: move this enforcement to the parser itself
+    const auto delayInitialPercent = Config.Delay.initial <= 100 ? Config.Delay.initial : 100;
+    SetToNaturalSumOrMax(level_, rate.max_bytes, delayInitialPercent);
     // getting around possible integer overflows without turning to floats
-    if (level_ < MaxValue(level_)) {
+    if (level_ < MaxValue(level_))
         level_ /= 100;
-    } else {
-        // Config.Delay.initial is always <= 100
-        SetToNaturalSumOrMax(level_, rate.max_bytes/100, Config.Delay.initial);
-    }
+    else
+        SetToNaturalSumOrMax(level_, rate.max_bytes/100, delayInitialPercent);
 }
 
 #endif /* USE_DELAY_POOLS */
