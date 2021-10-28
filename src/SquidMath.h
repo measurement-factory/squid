@@ -176,35 +176,35 @@ IncreaseProduct(const T t, const U u)
     return Less(std::numeric_limits<T>::max()/t, u) ? Optional<T>() : Optional<T>(t*u);
 }
 
-template <typename P, typename T>
-Optional<P>
-FindZeroOrNegatives(const T t)
+template <typename T>
+Optional<bool>
+NaturalValue(const T t)
 {
-    return t >= 0 ? Optional<P>(t) : Optional<P>();
+    return t >= 0 ? Optional<bool>(bool(t)) : Optional<bool>();
 }
 
 /// \returns nothing if one of the arguments is negative otherwise
-/// \returns zero if one of the arguments is zero otherwize
-/// \returns a non-negative value
-template <typename P, typename T, typename... Args>
-Optional<P>
-FindZeroOrNegatives(const T first, const Args... args)
+/// \returns false if one of the arguments is zero otherwize
+/// \returns true
+template <typename T, typename... Args>
+Optional<bool>
+NaturalValue(const T first, const Args... args)
 {
     if (first > 0)
-        return FindZeroOrNegatives<P>(args...);
+        return NaturalValue(args...);
     if (first == 0)
-        return FindZeroOrNegatives<P>(args...) ? Optional<P>(0) : Optional<P>();
-    return Optional<P>(); // t < 0
+        return NaturalValue(args...) ? Optional<bool>(false) : Optional<bool>();
+    return Optional<bool>(); // t < 0
 }
 
-/// \returns zero if one of the arguments is zero and none of the arguments is negative
+/// \returns true if one of the arguments is zero and none of the arguments is negative
 /// \returns nothing otherwise
-template <typename P, typename... Args>
-Optional<P>
-FindZeroWithoutNegatives(const Args... args)
+template <typename... Args>
+bool
+HaveNaturalZero(const Args... args)
 {
-    const auto temp = FindZeroOrNegatives<P>(args...);
-    return (temp && !temp.value()) ? Optional<P>(0) : Optional<P>();
+    const auto natural = NaturalValue(args...);
+    return natural && !natural.value();
 }
 
 /// \returns a non-overflowing product of the arguments (or nothing)
@@ -215,7 +215,7 @@ IncreaseProduct(const P product, const T t, const Args... args) {
         if (const auto head = IncreaseProduct<P>(product, t))
             return IncreaseProduct<P>(head.value(), args...);
         else
-            return FindZeroWithoutNegatives<P>(args...);
+            return HaveNaturalZero(args...) ? Optional<P>(0) : Optional<P>();
     }
     return Optional<P>();
 }
