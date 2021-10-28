@@ -180,7 +180,7 @@ template <typename P, typename T>
 Optional<P>
 FindZeroOrNegatives(const T t)
 {
-    return Less(t, 0) ? Optional<P>() : Optional<P>(t);
+    return t >= 0 ? Optional<P>(t) : Optional<P>();
 }
 
 /// \returns nothing if one of the arguments is negative otherwise
@@ -188,15 +188,13 @@ FindZeroOrNegatives(const T t)
 /// \returns a non-negative value
 template <typename P, typename T, typename... Args>
 Optional<P>
-FindZeroOrNegatives(const T t, const Args... args)
+FindZeroOrNegatives(const T first, const Args... args)
 {
-    if (Less(t, 0))
-       return Optional<P>();
-    const auto sawZero = !t;
-    const auto temp = FindZeroOrNegatives<P>(args...);
-    if (!temp)
-       return Optional<P>();
-    return (sawZero || !temp.value()) ? Optional<P>(0) : Optional<P>(t);
+    if (first > 0)
+        return FindZeroOrNegatives<P>(args...);
+    if (first == 0)
+        return FindZeroOrNegatives<P>(args...) ? Optional<P>(0) : Optional<P>();
+    return Optional<P>(); // t < 0
 }
 
 /// \returns zero if one of the arguments is zero and none of the arguments is negative
