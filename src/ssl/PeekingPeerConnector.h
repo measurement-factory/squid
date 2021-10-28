@@ -70,6 +70,7 @@ private:
     AsyncCall::Pointer closeHandler; ///< we call this when the connection closed
     bool splice; ///< whether we are going to splice or not
     bool serverCertificateHandled; ///< whether handleServerCertificate() succeeded
+    Ssl::BumpMode currentBumpMode = Ssl::bumpNone;
 };
 
 } // namespace Ssl
