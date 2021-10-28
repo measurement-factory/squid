@@ -155,28 +155,6 @@ SetToNaturalSumOrMax(S &var, const Args... args)
     return var;
 }
 
-// If NaturalProduct() performance becomes important, consider using GCC and clang
-// built-ins like __builtin_mul_overflow() instead of manual overflow checks.
-
-/// \returns an exact, non-overflowing product of the arguments (or nothing)
-/// \returns nothing if at least one of the arguments is negative
-template <typename T, typename U>
-Optional<T>
-IncreaseProduct(const T t, const U u)
-{
-    static_assert(ValidateTypeTraits<T>(), "the first argument has a valid type");
-    static_assert(ValidateTypeTraits<U>(), "the second argument has a valid type");
-
-    // assume that callers treat negative numbers specially (see IncreaseSum() for details)
-    if (Less(t, 0) || Less(u, 0))
-        return Optional<T>();
-
-    if (t == 0 || u == 0)
-        return Optional<T>(0);
-
-    return Less(std::numeric_limits<T>::max()/t, u) ? Optional<T>() : Optional<T>(t*u);
-}
-
 template <typename T>
 Optional<bool>
 NaturalValue(const T t)
@@ -208,6 +186,28 @@ HaveNaturalZero(const Args... args)
     return natural && !natural.value();
 }
 
+// If NaturalProduct() performance becomes important, consider using GCC and clang
+// built-ins like __builtin_mul_overflow() instead of manual overflow checks.
+
+/// \returns an exact, non-overflowing product of the arguments (or nothing)
+/// \returns nothing if at least one of the arguments is negative
+template <typename T, typename U>
+Optional<T>
+IncreaseProduct(const T t, const U u)
+{
+    static_assert(ValidateTypeTraits<T>(), "the first argument has a valid type");
+    static_assert(ValidateTypeTraits<U>(), "the second argument has a valid type");
+
+    // assume that callers treat negative numbers specially (see IncreaseSum() for details)
+    if (Less(t, 0) || Less(u, 0))
+        return Optional<T>();
+
+    if (t == 0 || u == 0)
+        return Optional<T>(0);
+
+    return Less(std::numeric_limits<T>::max()/t, u) ? Optional<T>() : Optional<T>(t*u);
+}
+
 /// \returns a non-overflowing product of the arguments (or nothing)
 template <typename P, typename T, typename... Args>
 Optional<P>
@@ -216,7 +216,7 @@ IncreaseProduct(const P product, const T t, const Args... args) {
         if (const auto head = IncreaseProduct<P>(product, t))
             return IncreaseProduct<P>(head.value(), args...);
         else
-            return HaveNaturalZero(args...) ? Optional<P>(0) : Optional<P>();
+            return HaveNaturalZero(t, args...) ? Optional<P>(0) : Optional<P>();
     }
     return Optional<P>();
 }
