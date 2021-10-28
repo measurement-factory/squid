@@ -769,11 +769,10 @@ HappyConnOpener::noteSpareAllowance()
 void
 HappyConnOpener::maybeOpenPrimeConnection()
 {
-    if (prime)
-        return; // nothing to do
+    Must(!prime);
 
     if (destinations->empty())
-        return; // nothing can be done (for now)
+        return;
 
     if (!currentPeer) {
         auto newPrime = destinations->extractFront();
@@ -787,6 +786,7 @@ HappyConnOpener::maybeOpenPrimeConnection()
 
         Must(prime);
         maybeGivePrimeItsChance();
+        return;
     }
 
     // currentPeer implies there is a spare attempt; meanwhile, the previous
@@ -841,6 +841,9 @@ HappyConnOpener::maybeOpenSpareConnection()
 
     if (ranOutOfTimeOrAttempts())
         return; // too late
+
+    if (destinations->empty())
+        return;
 
     // jobGotInstantAllowance() call conditions below rely on the readyNow() check here
     if (!ignoreSpareRestrictions && // we have to honor spare restrictions
