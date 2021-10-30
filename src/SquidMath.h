@@ -103,7 +103,7 @@ IncreaseSumInternal(const S s, const T t) {
         // We could support a non-under/overflowing sum of negative numbers, but
         // our callers use negative values specially (e.g., for do-not-use or
         // do-not-limit settings) and are not supposed to do math with them.
-        (Less(s, 0) || Less(t, 0)) ? Optional<S>() :
+        (s < 0 || t < 0) ? Optional<S>() :
         // Avoids undefined behavior of signed under/overflows. When S is not T,
         // s or t undergoes (safe) integral conversion in these expressions.
         // Sum overflow condition: s + t > maxS or, here, maxS - s < t.
@@ -192,7 +192,7 @@ IncreaseProduct(const T t, const U u)
     AssertNaturalType<U>();
 
     // assume that callers treat negative numbers specially (see IncreaseSum() for details)
-    if (Less(t, 0) || Less(u, 0))
+    if (t < 0 || u < 0)
         return Optional<T>();
 
     if (t == 0 || u == 0)
@@ -205,7 +205,7 @@ IncreaseProduct(const T t, const U u)
 template <typename P, typename T, typename... Args>
 Optional<P>
 IncreaseProduct(const P product, const T t, const Args... args) {
-    if (!Less(product, 0) && !Less(t, 0)) {
+    if (product >= 0 && t >= 0) {
         if (const auto head = IncreaseProduct<P>(product, t))
             return IncreaseProduct<P>(head.value(), args...);
         else
