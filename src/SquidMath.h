@@ -60,29 +60,22 @@ Less(const A a, const B b) {
         /* (a >= 0) == (b >= 0) */ static_cast<AB>(a) < static_cast<AB>(b);
 }
 
-/// common requirements for types in this module
+/// ensure that T is supported by NaturalSum() and friends
 template<typename T>
-constexpr bool
-ValidateTypeTraits()
+constexpr void
+AssertNaturalType()
 {
-    // require types with finite set of values
-    static_assert(std::numeric_limits<T>::is_bounded, "the argument is bounded");
-    // prohibit types with rounding errors
-    static_assert(std::numeric_limits<T>::is_exact, "the argument is exact");
-    // prohibit enumerations since they may represent non-consecutive values
-    static_assert(!std::is_enum<T>::value, "the argument is not enum");
-
-    return std::numeric_limits<T>::is_bounded &&
-        std::numeric_limits<T>::is_exact &&
-        !std::is_enum<T>::value;
+    static_assert(std::numeric_limits<T>::is_bounded, "std::numeric_limits<T>::max() is meaningful");
+    static_assert(std::numeric_limits<T>::is_exact, "no silent loss of precision");
+    static_assert(!std::is_enum<T>::value, "no silent creation of non-enumerated values");
 }
 
 /// \returns a non-overflowing sum of the two unsigned arguments (or nothing)
 template <typename S, typename T, EnableIfType<AllUnsigned<S,T>::value, int> = 0>
 Optional<S>
 IncreaseSumInternal(const S s, const T t) {
-    static_assert(ValidateTypeTraits<S>(), "the first argument has a valid type");
-    static_assert(ValidateTypeTraits<T>(), "the second argument has a valid type");
+    AssertNaturalType<S>();
+    AssertNaturalType<T>();
 
     // this optimized implementation relies on unsigned overflows
     static_assert(std::is_unsigned<S>::value, "the first argument is unsigned");
@@ -104,8 +97,8 @@ IncreaseSumInternal(const S s, const T t) {
 template <typename S, typename T, EnableIfType<!AllUnsigned<S,T>::value, int> = 0>
 Optional<S> constexpr
 IncreaseSumInternal(const S s, const T t) {
-    static_assert(ValidateTypeTraits<S>(), "the first argument has a valid type");
-    static_assert(ValidateTypeTraits<T>(), "the second argument has a valid type");
+    AssertNaturalType<S>();
+    AssertNaturalType<T>();
     return
         // We could support a non-under/overflowing sum of negative numbers, but
         // our callers use negative values specially (e.g., for do-not-use or
@@ -195,8 +188,8 @@ template <typename T, typename U>
 Optional<T>
 IncreaseProduct(const T t, const U u)
 {
-    static_assert(ValidateTypeTraits<T>(), "the first argument has a valid type");
-    static_assert(ValidateTypeTraits<U>(), "the second argument has a valid type");
+    AssertNaturalType<T>();
+    AssertNaturalType<U>();
 
     // assume that callers treat negative numbers specially (see IncreaseSum() for details)
     if (Less(t, 0) || Less(u, 0))
