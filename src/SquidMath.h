@@ -46,6 +46,7 @@ using AllUnsigned = typename std::conditional<
                     std::false_type
                     >::type;
 
+// TODO: Replace with std::cmp_less() after migrating to C++20.
 /// whether integer a is less than integer b, with correct overflow handling
 template <typename A, typename B>
 constexpr bool
