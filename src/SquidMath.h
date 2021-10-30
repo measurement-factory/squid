@@ -105,10 +105,14 @@ IncreaseSumInternal(const S s, const T t) {
         // our callers use negative values specially (e.g., for do-not-use or
         // do-not-limit settings) and are not supposed to do math with them.
         (s < 0 || t < 0) ? Optional<S>() :
-        // Avoids undefined behavior of signed under/overflows. When S is not T,
-        // s or t undergoes (safe) integral conversion in these expressions.
-        // Sum overflow condition: s + t > maxS or, here, maxS - s < t.
-        // If the sum exceeds maxT, integral conversions will use S, not T.
+        // To avoid undefined behavior of signed overflow, we must not compute
+        // the raw s+t sum if it may overflow. When S is not T, s or t undergoes
+        // (safe for non-negatives) integral conversion in these expressions, so
+        // we do not know the resulting s+t type ST and its maximum. We must
+        // also detect subsequent casting-to-S overflows.
+        // Overflow condition: (s + t > maxST) or (s + t > maxS).
+        // Since maxS <= maxST, it is sufficient to just check: s + t > maxS,
+        // which is the same as the overflow-safe condition here: maxS - s < t.
         Less(std::numeric_limits<S>::max() - s, t) ? Optional<S>() :
         Optional<S>(s + t);
 }
@@ -199,6 +203,10 @@ IncreaseProduct(const T t, const U u)
     if (t == 0 || u == 0)
         return Optional<T>(0);
 
+    // Overflow condition: (t * u > maxTU) or (t * u > maxT).
+    // Since maxT <= maxTU, it is sufficient to just check: t * u > maxT.
+    // We use its overflow-safe equivalent (for positive t): maxT/t < u.
+    // For details, see IncreaseSumInternal() for signed arguments.
     return Less(std::numeric_limits<T>::max()/t, u) ? Optional<T>() : Optional<T>(t*u);
 }
 
