@@ -46,11 +46,11 @@ ACLExtUser::typeString() const
 void
 ACLExtUser::parse()
 {
-    data->parse();
+    data->parse(this);
 }
 
 const Acl::Options &
-ACLExtUser::options()
+ACLExtUser::lineOptions()
 {
     static const Acl::BooleanOption CaseInsensitiveOn(Acl::Option::Owner::aclData);
     static const Acl::BooleanOption CaseInsensitiveOff(Acl::Option::Owner::aclData);

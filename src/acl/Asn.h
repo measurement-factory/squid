@@ -32,7 +32,7 @@ public:
 
     virtual bool match(Ip::Address);
     virtual SBufList dump() const;
-    virtual void parse();
+    virtual void parse(const ACL *);
     bool empty() const;
     virtual ACLData<Ip::Address> *clone() const;
     virtual void prepareForUse();

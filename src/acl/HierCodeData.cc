@@ -47,7 +47,7 @@ ACLHierCodeData::dump() const
 }
 
 void
-ACLHierCodeData::parse()
+ACLHierCodeData::parse(const ACL *)
 {
     char *t = NULL;
 

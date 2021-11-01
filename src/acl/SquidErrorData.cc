@@ -45,7 +45,7 @@ ACLSquidErrorData::dump() const
 }
 
 void
-ACLSquidErrorData::parse()
+ACLSquidErrorData::parse(const ACL *)
 {
     while (const auto token = ConfigParser::strtokFile()) {
         err_type err = errorTypeByName(token);

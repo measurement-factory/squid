@@ -45,12 +45,12 @@ ACLNoteData::dump() const
 }
 
 void
-ACLNoteData::parse()
+ACLNoteData::parse(const ACL *acl)
 {
     char* t = ConfigParser::strtokFile();
     assert (t != NULL);
     name = t;
-    values->parse();
+    values->parse(acl);
 }
 
 bool

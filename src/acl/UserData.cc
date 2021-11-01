@@ -76,7 +76,7 @@ ACLUserData::ACLUserData() :
 }
 
 void
-ACLUserData::parse()
+ACLUserData::parse(const ACL *)
 {
     debugs(28, 2, "parsing user list");
 

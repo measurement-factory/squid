@@ -32,7 +32,7 @@ public:
     virtual SBufList dump() const;
     virtual bool empty () const;
     virtual ACL *clone()const;
-    virtual const Acl::Options &options();
+    virtual const Acl::Options &lineOptions();
 
 private:
     ACLData<char const *> *data;

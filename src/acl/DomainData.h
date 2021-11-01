@@ -22,7 +22,7 @@ public:
     virtual ~ACLDomainData();
     virtual bool match(char const *);
     virtual SBufList dump() const;
-    void parse();
+    void parse(const ACL *);
     bool empty() const;
     virtual ACLData<char const *> *clone() const;
 

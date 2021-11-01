@@ -51,7 +51,7 @@ ACLProtocolData::dump() const
 }
 
 void
-ACLProtocolData::parse()
+ACLProtocolData::parse(const ACL *)
 {
     while (char *t = ConfigParser::strtokFile()) {
         int p = AnyP::PROTO_NONE;

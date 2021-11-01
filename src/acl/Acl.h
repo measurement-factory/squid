@@ -62,6 +62,9 @@ public:
     /// \returns (linked) Options supported by this ACL
     virtual const Acl::Options &options() { return Acl::NoOptions(); }
 
+    /// \returns (linked) Options supported by this ACL data (if any)
+    virtual const Acl::Options &lineOptions() { return Acl::NoOptions(); }
+
     /// configures ACL options, throwing on configuration errors
     virtual void parseFlags();
 

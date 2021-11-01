@@ -26,7 +26,7 @@ public:
     virtual ~ACLMethodData();
     bool match(HttpRequestMethod);
     virtual SBufList dump() const;
-    void parse();
+    void parse(const ACL *);
     bool empty() const {return values.empty();}
     virtual ACLData<HttpRequestMethod> *clone() const;
 
