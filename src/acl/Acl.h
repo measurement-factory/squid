@@ -30,6 +30,29 @@ typedef ACL *(*Maker)(TypeName typeName);
 /// use the given ACL Maker for all ACLs of the named type
 void RegisterMaker(TypeName typeName, Maker maker);
 
+class LineOptions
+{
+public:
+    virtual ~LineOptions() {}
+    virtual const Acl::Options &options() { return Acl::NoOptions(); }
+};
+
+class CaseLineOptions : public LineOptions
+{
+public:
+    CaseLineOptions();
+    virtual const Acl::Options &options() override;
+    Acl::BooleanOptionValue caseInsensitive;
+};
+
+class LineParser
+{
+public:
+    LineParser(ConfigParser *p, const LineOptions *opt) : parser(p), lineOptions(opt) {}
+    const LineOptions *lineOptions;
+    ConfigParser *parser;
+};
+
 } // namespace Acl
 
 /// A configurable condition. A node in the ACL expression tree.
@@ -62,14 +85,13 @@ public:
     /// \returns (linked) Options supported by this ACL
     virtual const Acl::Options &options() { return Acl::NoOptions(); }
 
-    /// \returns (linked) Options supported by this ACL data (if any)
-    virtual const Acl::Options &lineOptions() { return Acl::NoOptions(); }
+    virtual const Acl::LineOptions *lineOptions() { return nullptr; }
 
     /// configures ACL options, throwing on configuration errors
-    virtual void parseFlags();
+    void parseFlags();
 
     /// parses node representation in squid.conf; dies on failures
-    virtual void parse() = 0;
+    virtual void parse(Acl::LineParser &) = 0;
     virtual char const *typeString() const = 0;
     virtual bool isProxyAuth() const;
     virtual SBufList dump() const = 0;

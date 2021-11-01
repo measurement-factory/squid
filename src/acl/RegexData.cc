@@ -233,9 +233,13 @@ compileUnoptimisedREs(std::list<RegexPattern> &curlist, const SBufList &sl)
 }
 
 void
-ACLRegexData::parse(const ACL *)
+ACLRegexData::parse(const ACL *acl)
 {
     debugs(28, 2, "new Regex line or file");
+
+    const auto lineOptions = dynamic_cast<const Acl::CaseLineOptions *>(acl->lineOptions());
+    if (lineOptions->caseInsensitive)
+        flags |= REG_ICASE;
 
     SBufList sl;
     while (char *t = ConfigParser::RegexStrtokFile()) {

@@ -253,6 +253,10 @@ ACL::ParseAclLine(ConfigParser &parser, ACL ** head)
 
     A->parseFlags();
 
+    // do we really need lineParser here?
+    const auto lineOptions = A->lineOptions(); // get line options for the current ACL line (may be nil)
+    auto lineParser = Acl::LineParser(&parser, lineOptions); // TODO: pass to A->parse()
+
     /*split the function here */
     A->parse();
 
@@ -291,8 +295,12 @@ ACL::isProxyAuth() const
 void
 ACL::parseFlags()
 {
-    // ACL kids that carry ACLData which supports parameter flags override this
-    Acl::ParseFlags(options());
+    Acl::Options allOptions = options();
+    if (const auto lOptions = lineOptions()) {
+        for (const auto opt: lOptions->options())
+            allOptions.insert(opt);
+    }
+    Acl::ParseFlags(allOptions);
 }
 
 SBufList
@@ -413,5 +421,16 @@ ACL::Initialize()
         a->prepareForUse();
         a = a->next;
     }
+}
+
+const Acl::Options &
+Acl::CaseLineOptions::options()
+{
+    static const Acl::BooleanOption CaseInsensitiveOn(Acl::Option::Owner::aclData);
+    static const Acl::BooleanOption CaseInsensitiveOff(Acl::Option::Owner::aclData);
+    static const Acl::Options MyOptions = { { "-i", &CaseInsensitiveOn }, { "+i", &CaseInsensitiveOff } };
+    CaseInsensitiveOn.linkWith(&caseInsensitive);
+    CaseInsensitiveOff.linkWith(&caseInsensitive);
+    return MyOptions;
 }
 
