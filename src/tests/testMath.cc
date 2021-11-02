@@ -119,7 +119,7 @@ public:
         //std::cout << SumToString<S>(args...) << " = " << +sum << "\n";
 
         const auto ns = NaturalSum<S>(args...);
-        CPPUNIT_ASSERT_MESSAGE(SumToString<S>(args...) + " must overflow",
+        CPPUNIT_ASSERT_MESSAGE(SumToString<S>(args...) + " does not overflow",
                                ns.has_value());
 
         const auto sum = ns.value();
@@ -299,7 +299,7 @@ public:
     {
         const auto result = NaturalProduct<P>(t, u);
 
-        CPPUNIT_ASSERT_MESSAGE(ProductToString<P>(t, u) + " must overflow",
+        CPPUNIT_ASSERT_MESSAGE(ProductToString<P>(t, u) + " does not overflow",
                                result.has_value());
 
         const auto product = result.value();
