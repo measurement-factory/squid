@@ -157,47 +157,48 @@ SetToNaturalSumOrMax(S &var, const Args... args)
 // built-ins like __builtin_mul_overflow() instead of manual overflow checks.
 
 /// argument pack expansion termination for IncreaseProduct<P, T, Args...>()
-template <typename T, typename U>
-Optional<T>
-IncreaseProduct(const T t, const U u)
+template <typename P, typename T>
+Optional<P>
+IncreaseProduct(const P p, const T t)
 {
+    AssertNaturalType<P>();
     AssertNaturalType<T>();
-    AssertNaturalType<U>();
 
     // assume that callers treat negative numbers specially (see IncreaseSum() for details)
-    if (t < 0 || u < 0)
-        return Optional<T>();
+    if (p < 0 || t < 0)
+        return Optional<P>();
 
-    if (t == 0 || u == 0)
-        return Optional<T>(0);
+    if (p == 0 || t == 0)
+        return Optional<P>(0);
 
-    // Overflow condition: (t * u > maxTU) or (t * u > maxT).
-    // Since maxT <= maxTU, it is sufficient to just check: t * u > maxT.
-    // We use its overflow-safe equivalent (for positive t): maxT/t < u.
+    // Overflow condition: (p * t > maxTU) or (p * t > maxT).
+    // Since maxT <= maxTU, it is sufficient to just check: p * t > maxT.
+    // We use its overflow-safe equivalent (for positive p): maxT/p < t.
     // For details, see IncreaseSumInternal() for signed arguments.
-    return Less(std::numeric_limits<T>::max()/t, u) ? Optional<T>() : Optional<T>(t*u);
+    return Less(std::numeric_limits<P>::max()/p, t) ?
+        Optional<P>() : Optional<P>(p*t);
 }
 
 /// \returns an exact, non-overflowing product of the arguments (or nothing)
 /// using the first argument type for the underlying integer return type
 template <typename P, typename T, typename... Args>
 Optional<P>
-IncreaseProduct(const P product, const T t, const Args... args) {
-    if (const auto head = IncreaseProduct<P>(product, t))
+IncreaseProduct(const P p, const T t, const Args... args) {
+    if (const auto head = IncreaseProduct<P>(p, t))
         return IncreaseProduct(head.value(), args...); // common case
 
     // we are dealing with either negative argument(s) or overflow
 
-    if (product < 0 || t < 0)
+    if (p < 0 || t < 0)
         return Optional<P>();
 
-    // check whether product*t overflow above is cured by a subsequent zero
+    // check whether p*t overflow above is cured by a subsequent zero
 
     if (const auto tail = IncreaseProduct<P>(1, args...))
         if (tail.value() == 0)
             return tail; // Optional<P>(0)
 
-    return Optional<P>(); // product*t overflow without subsequent zeros
+    return Optional<P>(); // p*t overflow without subsequent zeros
 }
 
 /// \returns an exact, non-overflowing product of the arguments (or nothing)
