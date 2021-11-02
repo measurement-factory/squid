@@ -156,6 +156,10 @@ SetToNaturalSumOrMax(S &var, const Args... args)
 // If NaturalProduct() performance becomes important, consider using GCC and clang
 // built-ins like __builtin_mul_overflow() instead of manual overflow checks.
 
+template <typename ProductType, typename... Args>
+Optional<ProductType>
+NaturalProduct(const Args... args);
+
 /// argument pack expansion termination for IncreaseProduct<P, T, Args...>()
 template <typename P, typename T>
 Optional<P>
@@ -194,7 +198,7 @@ IncreaseProduct(const P p, const T t, const Args... args) {
 
     // check whether p*t overflow above is cured by a subsequent zero
 
-    if (const auto tail = IncreaseProduct<P>(1, args...))
+    if (const auto tail = NaturalProduct<P>(args...))
         if (tail.value() == 0)
             return tail; // Optional<P>(0)
 
@@ -206,6 +210,7 @@ IncreaseProduct(const P p, const T t, const Args... args) {
 template <typename ProductType, typename... Args>
 Optional<ProductType>
 NaturalProduct(const Args... args) {
+    static_assert(!Less(std::numeric_limits<ProductType>::max(), 1), "casting 1 to ProductType is safe");
     return IncreaseProduct<ProductType>(1, args...);
 }
 
