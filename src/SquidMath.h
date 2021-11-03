@@ -71,7 +71,11 @@ AssertNaturalType()
     static_assert(!std::is_enum<T>::value, "no silent creation of non-enumerated values");
 }
 
+// TODO: Investigate whether this optimization can be expanded to [signed] types
+// S and T when std::numeric_limits<decltype(S(0)+T(0))>::is_modulo is true.
+/// This IncreaseSumInternal() overload is optimized for speed.
 /// \returns a non-overflowing sum of the two unsigned arguments (or nothing)
+/// \prec both argument types are unsigned
 template <typename S, typename T, EnableIfType<AllUnsigned<S,T>::value, int> = 0>
 Optional<S>
 IncreaseSumInternal(const S s, const T t) {
@@ -88,9 +92,10 @@ IncreaseSumInternal(const S s, const T t) {
            Optional<S>(sum) : Optional<S>();
 }
 
+/// This IncreaseSumInternal() overload supports a larger variety of types.
 /// \returns a non-overflowing sum of the two arguments (or nothing)
 /// \returns nothing if at least one of the arguments is negative
-/// at least one of the arguments is signed
+/// \prec at least one of the argument types is signed
 template <typename S, typename T, EnableIfType<!AllUnsigned<S,T>::value, int> = 0>
 Optional<S> constexpr
 IncreaseSumInternal(const S s, const T t) {
