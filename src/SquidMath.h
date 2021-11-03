@@ -129,8 +129,8 @@ IncreaseSum(const S s, const T t)
 template <typename S, typename T, typename... Args>
 Optional<S>
 IncreaseSum(const S sum, const T t, const Args... args) {
-    if (const auto head = IncreaseSumInternal<S>(+sum, +t)) {
-        return IncreaseSum<S>(head.value(), args...);
+    if (const auto head = IncreaseSum(sum, t)) {
+        return IncreaseSum(head.value(), args...);
     } else {
         return Optional<S>();
     }
