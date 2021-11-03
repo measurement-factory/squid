@@ -78,10 +78,6 @@ IncreaseSumInternal(const S s, const T t) {
     AssertNaturalType<S>();
     AssertNaturalType<T>();
 
-    // this optimized implementation relies on unsigned overflows
-    static_assert(std::is_unsigned<S>::value, "the first argument is unsigned");
-    static_assert(std::is_unsigned<T>::value, "the second argument is unsigned");
-
     // For the sum overflow check below to work, we cannot restrict the sum
     // type which, due to integral promotions, may exceed common_type<S,T>!
     const auto sum = s + t;
