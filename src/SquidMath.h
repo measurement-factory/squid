@@ -29,16 +29,16 @@ double doubleAverage(const double, const double, int, const int);
 
 } // namespace Math
 
-// If Sum() performance becomes important, consider using GCC and clang
+// If IncreaseSumInternal() speed becomes important, consider using compiler
 // built-ins like __builtin_add_overflow() instead of manual overflow checks.
 
 /// std::enable_if_t replacement until C++14
-/// simplifies Sum() declarations below
+/// simplifies IncreaseSumInternal() declarations below
 template <bool B, class T = void>
 using EnableIfType = typename std::enable_if<B,T>::type;
 
 /// detects a pair of unsigned types
-/// reduces code duplication in Sum() declarations below
+/// reduces code duplication in IncreaseSumInternal() declarations below
 template <typename A, typename B>
 using AllUnsigned = typename std::conditional<
                     std::is_unsigned<A>::value && std::is_unsigned<B>::value,
@@ -149,7 +149,7 @@ SetToNaturalSumOrMax(S &var, const Args... args)
     return var;
 }
 
-// If NaturalProduct() performance becomes important, consider using GCC and clang
+// If NaturalProduct() speed becomes important, consider using compiler
 // built-ins like __builtin_mul_overflow() instead of manual overflow checks.
 
 template <typename ProductType, typename... Args>
