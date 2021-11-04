@@ -127,9 +127,9 @@ ACLServerNameStrategy::match (ACLData<MatchType> * &data, ACLFilledChecklist *ch
 const Acl::Options &
 ACLServerNameStrategy::options()
 {
-    static const Acl::BooleanOption ClientRequested(Acl::Option::Owner::acl);
-    static const Acl::BooleanOption ServerProvided(Acl::Option::Owner::acl);
-    static const Acl::BooleanOption Consensus(Acl::Option::Owner::acl);
+    static const Acl::BooleanOption ClientRequested;
+    static const Acl::BooleanOption ServerProvided;
+    static const Acl::BooleanOption Consensus;
     static const Acl::Options MyOptions = {
         {"--client-requested", &ClientRequested},
         {"--server-provided", &ServerProvided},

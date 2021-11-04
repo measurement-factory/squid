@@ -40,8 +40,7 @@ class Option
 {
 public:
     typedef enum { valueNone, valueOptional, valueRequired } ValueExpectation;
-    typedef enum { acl, aclData } Owner;
-    explicit Option(Owner owner, ValueExpectation vex = valueNone): owner_(owner), valueExpectation(vex) {}
+    explicit Option(ValueExpectation vex = valueNone): valueExpectation(vex) {}
     virtual ~Option() {}
 
     /// whether the admin explicitly specified this option
@@ -59,11 +58,7 @@ public:
     /// prints a configuration snippet (as an admin could have typed)
     virtual void print(std::ostream &os) const = 0;
 
-    bool aclDataOption() const { return owner_ == aclData; }
-
     ValueExpectation valueExpectation = valueNone; ///< expect "=value" part?
-private:
-    Owner owner_;
 };
 
 /// Stores configuration of a typical boolean flag or a single-value Option.
@@ -89,7 +84,7 @@ class TypedOption: public Option
 {
 public:
     //typedef typename Recipient::value_type value_type;
-    explicit TypedOption(Owner owner, ValueExpectation vex = valueNone): Option(owner, vex) {}
+    explicit TypedOption(ValueExpectation vex = valueNone): Option(vex) {}
 
     /// who to tell when this option is enabled
     void linkWith(Recipient *recipient) const

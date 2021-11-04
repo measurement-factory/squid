@@ -49,15 +49,6 @@ ACLExtUser::parse()
     data->parse(this);
 }
 
-const Acl::Options &
-ACLExtUser::lineOptions()
-{
-    static const Acl::BooleanOption CaseInsensitiveOn(Acl::Option::Owner::aclData);
-    static const Acl::BooleanOption CaseInsensitiveOff(Acl::Option::Owner::aclData);
-    static const Acl::Options MyOptions = { { "-i", &CaseInsensitiveOn }, { "+i", &CaseInsensitiveOff } };
-    return MyOptions;
-}
-
 int
 ACLExtUser::match(ACLChecklist *cl)
 {

@@ -129,13 +129,6 @@ Acl::OptionExtractor::advance()
     if (!(nextChar == '-' || nextChar == '+'))
         return false; // start of ACL parameters
 
-    assert(parser_);
-    SBuf rawOption(next);
-    if (const auto option = parser_->findOption(rawOption)) {
-        if (option->aclDataOption())
-            return false;
-    }
-
     sawValue_ = strchr(next, '='); // TODO: Make ConfigParser reject '^=.*' tokens
     if (sawValue_) {
         char *rawPrefix = nullptr;

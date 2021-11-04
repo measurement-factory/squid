@@ -45,7 +45,7 @@ DestinationDomainLookup::LookupDone(const char *, const Dns::LookupDetails &deta
 const Acl::Options &
 ACLDestinationDomainStrategy::options()
 {
-    static const Acl::BooleanOption LookupBanFlag(Acl::Option::Owner::acl);
+    static const Acl::BooleanOption LookupBanFlag;
     static const Acl::Options MyOptions = { { "-n", &LookupBanFlag } };
     LookupBanFlag.linkWith(&lookupBanned);
     return MyOptions;

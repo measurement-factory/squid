@@ -163,16 +163,6 @@ ACLProxyAuth::matchForCache(ACLChecklist *cl)
     return data->match(checklist->auth_user_request->username());
 }
 
-
-const Acl::Options &
-ACLProxyAuth::options()
-{
-    static const Acl::BooleanOption CaseInsensitiveOn(Acl::Option::Owner::aclData);
-    static const Acl::BooleanOption CaseInsensitiveOff(Acl::Option::Owner::aclData);
-    static const Acl::Options MyOptions = { { "-i", &CaseInsensitiveOn }, { "+i", &CaseInsensitiveOff } };
-    return MyOptions;
-}
-
 /* aclMatchProxyAuth can return two exit codes:
  * 0 : Authorisation for this ACL failed. (Did not match)
  * 1 : Authorisation OK. (Matched)

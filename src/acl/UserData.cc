@@ -9,6 +9,7 @@
 /* DEBUG: section 28    Access Control */
 
 #include "squid.h"
+#include "acl/Acl.h"
 #include "acl/Checklist.h"
 #include "acl/UserData.h"
 #include "ConfigParser.h"
@@ -79,6 +80,9 @@ void
 ACLUserData::parse(const ACL *)
 {
     debugs(28, 2, "parsing user list");
+    auto options = dynamic_cast<Acl::CaseLineOptions *>(lineOptions());
+    assert(options);
+    flags.case_insensitive = options->isCaseInsensitive();
 
     char *t = NULL;
     if ((t = ConfigParser::strtokFile())) {
@@ -136,6 +140,13 @@ ACLUserData::empty() const
     if (flags.required)
         return false;
     return userDataNames.empty();
+}
+
+Acl::LineOptions *
+ACLUserData::lineOptions()
+{
+    static Acl::CaseLineOptions myOptions;
+    return &myOptions;
 }
 
 ACLData<char const *> *

@@ -41,7 +41,7 @@ class CharacterSetOption: public TypedOption<CharacterSetOptionValue>
 {
 public:
     typedef TypedOption<CharacterSetOptionValue> Parent;
-    CharacterSetOption(Owner owner): Parent(owner, valueOptional) {}
+    CharacterSetOption(): Parent(valueOptional) {}
 };
 
 } // namespace Acl

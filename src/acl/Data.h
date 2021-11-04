@@ -12,6 +12,9 @@
 #include "acl/Options.h"
 #include "sbuf/List.h"
 
+namespace Acl {
+    class LineOptions;
+}
 class ACL;
 
 /// Configured ACL parameter(s) (e.g., domain names in dstdomain ACL).
@@ -28,6 +31,7 @@ public:
     virtual void parse(const ACL *) =0;
     virtual ACLData *clone() const =0;
     virtual void prepareForUse() {}
+    virtual Acl::LineOptions *lineOptions() { return nullptr; }
 
     virtual bool empty() const =0;
 };

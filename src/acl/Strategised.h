@@ -43,7 +43,8 @@ public:
     virtual bool requiresReply() const {return matcher->requiresReply();}
 
     virtual void prepareForUse() { data->prepareForUse();}
-    virtual const Acl::Options &options();
+    virtual const Acl::Options &options() { return matcher->options(); }
+    virtual Acl::LineOptions *lineOptions() { return data->lineOptions(); }
     virtual void parse();
     virtual int match(ACLChecklist *checklist);
     virtual int match (M const &);
@@ -119,17 +120,6 @@ bool
 ACLStrategised<MatchType>::valid () const
 {
     return matcher->valid();
-}
-
-// XXX: not all ACLStrategised<> kids support this
-template <class MatchType>
-const Acl::Options &
-ACLStrategised<MatchType>::options()
-{
-    static const Acl::BooleanOption CaseInsensitiveOn(Acl::Option::Owner::aclData);
-    static const Acl::BooleanOption CaseInsensitiveOff(Acl::Option::Owner::aclData);
-    static const Acl::Options MyOptions = { { "-i", &CaseInsensitiveOn }, { "+i", &CaseInsensitiveOff } };;
-    return MyOptions;
 }
 
 #endif /* SQUID_ACLSTRATEGISED_H */

@@ -26,6 +26,7 @@ public:
     virtual SBufList dump() const;
     virtual void parse(const ACL *);
     bool empty() const;
+    virtual Acl::LineOptions *lineOptions();
     virtual ACLData<char const *> *clone() const;
 
 private:

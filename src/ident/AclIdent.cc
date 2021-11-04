@@ -46,15 +46,6 @@ ACLIdent::typeString() const
     return type_;
 }
 
-const Acl::Options &
-ACLIdent::options()
-{
-    static const Acl::BooleanOption CaseInsensitiveOn(Acl::Option::Owner::aclData);
-    static const Acl::BooleanOption CaseInsensitiveOff(Acl::Option::Owner::aclData);
-    static const Acl::Options MyOptions = { { "-i", &CaseInsensitiveOn }, { "+i", &CaseInsensitiveOff } };
-    return MyOptions;
-}
-
 void
 ACLIdent::parse()
 {

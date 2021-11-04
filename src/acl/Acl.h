@@ -35,22 +35,17 @@ class LineOptions
 public:
     virtual ~LineOptions() {}
     virtual const Acl::Options &options() { return Acl::NoOptions(); }
+    virtual void reset() = 0;
 };
 
 class CaseLineOptions : public LineOptions
 {
 public:
-    CaseLineOptions();
     virtual const Acl::Options &options() override;
+    virtual void reset() override { caseInsensitive = Acl::BooleanOptionValue(); }
+    bool isCaseInsensitive() const { return caseInsensitive.configured && caseInsensitive.value; }
+private:
     Acl::BooleanOptionValue caseInsensitive;
-};
-
-class LineParser
-{
-public:
-    LineParser(ConfigParser *p, const LineOptions *opt) : parser(p), lineOptions(opt) {}
-    const LineOptions *lineOptions;
-    ConfigParser *parser;
 };
 
 } // namespace Acl
@@ -85,13 +80,13 @@ public:
     /// \returns (linked) Options supported by this ACL
     virtual const Acl::Options &options() { return Acl::NoOptions(); }
 
-    virtual const Acl::LineOptions *lineOptions() { return nullptr; }
+    virtual Acl::LineOptions *lineOptions() { return nullptr; }
 
     /// configures ACL options, throwing on configuration errors
     void parseFlags();
 
     /// parses node representation in squid.conf; dies on failures
-    virtual void parse(Acl::LineParser &) = 0;
+    virtual void parse() = 0;
     virtual char const *typeString() const = 0;
     virtual bool isProxyAuth() const;
     virtual SBufList dump() const = 0;
