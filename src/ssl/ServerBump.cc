@@ -75,3 +75,20 @@ Ssl::ServerBump::sslErrors() const
     return errs;
 }
 
+Ssl::BumpMode
+Ssl::ServerBump::bumpModeAtStep(const BumpStep stp)
+{
+    if (step < stp)
+        return Ssl::bumpNone; // The `stp` bumping step not reached yet
+
+    switch(stp) {
+    case XactionStep::tlsBump1:
+        return act.step1;
+    case XactionStep::tlsBump2:
+        return act.step2 == bumpNone ? act.step1 : act.step2;
+    case XactionStep::tlsBump3:
+        return act.step3 == bumpNone ? (act.step2 == bumpNone ? act.step1 : act.step2) : act.step3;
+    default:
+        return bumpNone;
+    }
+}
