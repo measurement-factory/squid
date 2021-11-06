@@ -133,6 +133,7 @@ Ssl::PeekingPeerConnector::checkForPeekAndSpliceGuess() const
         debugs(83,5, "default to bumping after staring");
         return Ssl::bumpBump;
     }
+    Must(currentBumpMode == Ssl::bumpPeek);
     debugs(83,5, "default to splicing after " << currentBumpMode);
     return Ssl::bumpSplice;
 }
@@ -194,6 +195,8 @@ Ssl::PeekingPeerConnector::initialize(Security::SessionPointer &serverSession)
             srvBio->recordInput(true);
             srvBio->mode(currentBumpMode);
         } else {
+            // Ssl::bumpServerFirst or Ssl::bumpBump bumping modes, bump is
+            // on the go.
             // Set client SSL options
             ::Security::ProxyOutgoingConfig.updateSessionOptions(serverSession);
 

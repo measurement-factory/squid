@@ -70,6 +70,9 @@ private:
     AsyncCall::Pointer closeHandler; ///< we call this when the connection closed
     bool splice; ///< whether we are going to splice or not
     bool serverCertificateHandled; ///< whether handleServerCertificate() succeeded
+
+    /// The bumping mode at the time the first PeekingPeerConnector attempt
+    /// is started
     Ssl::BumpMode currentBumpMode = Ssl::bumpNone;
 };
 
