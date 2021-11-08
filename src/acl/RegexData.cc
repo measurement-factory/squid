@@ -251,7 +251,7 @@ ACLRegexData::parse(const ACL *acl)
         }
     }
 
-    auto options = dynamic_cast<Acl::CaseLineOptions *>(lineOptions());
+    auto options = dynamic_cast<Acl::CaseLineOptions *>(dirtyLineOptions());
     assert(options);
     if (!compileOptimisedREs(data, sl, options->isCaseInsensitive())) {
         debugs(28, DBG_IMPORTANT, "WARNING: optimisation of regular expressions failed; using fallback method without optimisation");
@@ -266,7 +266,7 @@ ACLRegexData::empty() const
 }
 
 Acl::LineOptions *
-ACLRegexData::lineOptions()
+ACLRegexData::dirtyLineOptions()
 {
     static Acl::CaseLineOptions myOptions;
     return &myOptions;

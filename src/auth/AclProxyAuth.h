@@ -48,7 +48,7 @@ public:
     virtual bool requiresRequest() const {return true;}
     virtual ACL *clone() const;
     virtual int matchForCache(ACLChecklist *checklist);
-    virtual Acl::LineOptions *lineOptions() { return data->lineOptions(); }
+    virtual Acl::LineOptions *dirtyLineOptions() { return data->dirtyLineOptions(); }
 
 private:
     int matchProxyAuth(ACLChecklist *);

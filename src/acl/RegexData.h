@@ -26,7 +26,7 @@ public:
     virtual void parse(const ACL *);
     virtual bool empty() const;
     virtual ACLData<char const *> *clone() const;
-    virtual Acl::LineOptions *lineOptions();
+    virtual Acl::LineOptions *dirtyLineOptions();
 
 private:
     std::list<RegexPattern> data;

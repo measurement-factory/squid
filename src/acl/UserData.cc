@@ -80,7 +80,7 @@ void
 ACLUserData::parse(const ACL *)
 {
     debugs(28, 2, "parsing user list");
-    auto options = dynamic_cast<Acl::CaseLineOptions *>(lineOptions());
+    auto options = dynamic_cast<Acl::CaseLineOptions *>(dirtyLineOptions());
     assert(options);
     flags.case_insensitive = options->isCaseInsensitive();
 
@@ -143,7 +143,7 @@ ACLUserData::empty() const
 }
 
 Acl::LineOptions *
-ACLUserData::lineOptions()
+ACLUserData::dirtyLineOptions()
 {
     static Acl::CaseLineOptions myOptions;
     return &myOptions;

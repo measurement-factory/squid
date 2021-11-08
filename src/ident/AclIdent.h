@@ -48,7 +48,7 @@ public:
     virtual SBufList dump() const;
     virtual bool empty () const;
     virtual ACL *clone()const;
-    virtual Acl::LineOptions *lineOptions() { return data->lineOptions(); }
+    virtual Acl::LineOptions *dirtyLineOptions() { return data->dirtyLineOptions(); }
 
 private:
     ACLData<char const *> *data;

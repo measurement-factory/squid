@@ -30,6 +30,7 @@ class InnerNode;
 class NotNode;
 class OrNode;
 class Tree;
+class LineOptions;
 
 /// prepares to parse ACLs configuration
 void Init(void);

@@ -292,12 +292,19 @@ void
 ACL::parseFlags()
 {
     Acl::Options allOptions = options();
-    if (auto lOptions = lineOptions()) {
-        lOptions->reset();
-        for (const auto opt: lOptions->options())
-            allOptions.insert(opt);
-    }
+    for (const auto opt: lineOptions())
+        allOptions.insert(opt);
     Acl::ParseFlags(allOptions);
+}
+
+const Acl::Options &
+ACL::lineOptions()
+{
+    if (auto lOptions = dirtyLineOptions()) {
+        lOptions->reset();
+        return lOptions->options();
+    }
+    return Acl::NoOptions();
 }
 
 SBufList

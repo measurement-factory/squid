@@ -80,7 +80,9 @@ public:
     /// \returns (linked) Options supported by this ACL
     virtual const Acl::Options &options() { return Acl::NoOptions(); }
 
-    virtual Acl::LineOptions *lineOptions() { return nullptr; }
+    const Acl::Options &lineOptions();
+
+    virtual Acl::LineOptions *dirtyLineOptions() { return nullptr; }
 
     /// configures ACL options, throwing on configuration errors
     void parseFlags();
