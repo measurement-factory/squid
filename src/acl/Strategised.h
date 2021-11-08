@@ -44,7 +44,6 @@ public:
 
     virtual void prepareForUse() { data->prepareForUse();}
     virtual const Acl::Options &options() { return matcher->options(); }
-    virtual Acl::LineOptions *dirtyLineOptions() { return data->dirtyLineOptions(); }
     virtual void parse();
     virtual int match(ACLChecklist *checklist);
     virtual int match (M const &);
@@ -53,6 +52,8 @@ public:
     virtual bool valid () const;
 
 private:
+    virtual Acl::LineOptions *dirtyLineOptions() { return data->dirtyLineOptions(); }
+
     ACLData<MatchType> *data;
     char const *type_;
     ACLStrategy<MatchType> *matcher;
