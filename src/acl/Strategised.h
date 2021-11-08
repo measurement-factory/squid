@@ -83,7 +83,7 @@ template <class MatchType>
 void
 ACLStrategised<MatchType>::parse()
 {
-    data->parse(this);
+    data->parse();
 }
 
 template <class MatchType>

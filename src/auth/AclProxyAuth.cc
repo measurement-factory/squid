@@ -53,7 +53,7 @@ ACLProxyAuth::typeString() const
 void
 ACLProxyAuth::parse()
 {
-    data->parse(this);
+    data->parse();
 }
 
 int

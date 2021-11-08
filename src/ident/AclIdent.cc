@@ -54,7 +54,7 @@ ACLIdent::parse()
         data = new ACLUserData;
     }
 
-    data->parse(this);
+    data->parse();
 }
 
 int

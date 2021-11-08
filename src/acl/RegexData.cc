@@ -235,7 +235,7 @@ compileUnoptimisedREs(std::list<RegexPattern> &curlist, const SBufList &sl)
 }
 
 void
-ACLRegexData::parse(const ACL *acl)
+ACLRegexData::parse()
 {
     debugs(28, 2, "new Regex line or file");
 

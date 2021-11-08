@@ -28,7 +28,7 @@ public:
     virtual ~ACLCertificateData();
     bool match(X509 *);
     virtual SBufList dump() const;
-    void parse(const ACL *);
+    void parse();
     bool empty() const;
     virtual ACLData<X509 *> *clone() const;
 

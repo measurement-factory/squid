@@ -26,7 +26,7 @@ public:
     virtual ~ACLProtocolData();
     bool match(AnyP::ProtocolType);
     virtual SBufList dump() const;
-    void parse(const ACL *);
+    void parse();
     bool empty() const {return values.empty();}
     virtual ACLData<AnyP::ProtocolType> *clone() const;
 

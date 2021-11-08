@@ -28,7 +28,7 @@ public:
     bool match(char const *);
     bool match(const SBuf &);
     virtual SBufList dump() const;
-    virtual void parse(const ACL *);
+    virtual void parse();
     bool empty() const;
     virtual ACLData<char const *> *clone() const;
     /// Insert a string data value

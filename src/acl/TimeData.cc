@@ -109,7 +109,7 @@ ACLTimeData::dump() const
 }
 
 void
-ACLTimeData::parse(const ACL *)
+ACLTimeData::parse()
 {
     ACLTimeData **Tail;
     long parsed_weekbits = 0;

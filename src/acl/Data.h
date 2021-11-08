@@ -24,7 +24,7 @@ public:
 
     virtual bool match(M) =0;
     virtual SBufList dump() const =0;
-    virtual void parse(const ACL *) =0;
+    virtual void parse() =0;
     virtual ACLData *clone() const =0;
     virtual void prepareForUse() {}
     virtual Acl::LineOptions *dirtyLineOptions() { return nullptr; }

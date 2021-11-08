@@ -46,7 +46,7 @@ ACLExtUser::typeString() const
 void
 ACLExtUser::parse()
 {
-    data->parse(this);
+    data->parse();
 }
 
 int

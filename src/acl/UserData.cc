@@ -77,7 +77,7 @@ ACLUserData::ACLUserData() :
 }
 
 void
-ACLUserData::parse(const ACL *)
+ACLUserData::parse()
 {
     debugs(28, 2, "parsing user list");
     auto options = dynamic_cast<Acl::CaseLineOptions *>(dirtyLineOptions());

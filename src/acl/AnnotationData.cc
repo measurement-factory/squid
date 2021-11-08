@@ -29,7 +29,7 @@ ACLAnnotationData::dump() const
 }
 
 void
-ACLAnnotationData::parse(const ACL *)
+ACLAnnotationData::parse()
 {
     notes->parseKvPair();
     if (char *t = ConfigParser::PeekAtToken()) {

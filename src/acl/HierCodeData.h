@@ -24,7 +24,7 @@ public:
     virtual ~ACLHierCodeData();
     bool match(hier_code);
     virtual SBufList dump() const;
-    void parse(const ACL *);
+    void parse();
     bool empty() const;
     virtual ACLData<hier_code> *clone() const;
 
