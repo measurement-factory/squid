@@ -1113,6 +1113,7 @@ tests_testRock_SOURCES = \
 	AccessLogEntry.cc \
 	AccessLogEntry.h \
 	tests/stub_CacheDigest.cc \
+	tests/stub_CachePeer.cc \
 	CacheDigest.h \
 	CollapsedForwarding.cc \
 	CollapsedForwarding.h \
@@ -1285,6 +1286,7 @@ tests_testUfs_SOURCES = \
 	AccessLogEntry.cc \
 	AccessLogEntry.h \
 	tests/stub_CacheDigest.cc \
+	tests/stub_CachePeer.cc \
 	CacheDigest.h \
 	ClientInfo.h \
 	tests/stub_CollapsedForwarding.cc \
@@ -1630,6 +1632,7 @@ tests_testDiskIO_SOURCES = \
 	AccessLogEntry.h \
 	tests/stub_CacheDigest.cc \
 	CacheDigest.h \
+	tests/stub_CachePeer.cc \
 	ClientInfo.h \
 	tests/stub_CollapsedForwarding.cc \
 	ConfigOption.cc \
