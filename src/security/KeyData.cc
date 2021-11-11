@@ -35,6 +35,8 @@ Security::KeyData::loadX509CertFromFile()
 
     cert = Ssl::ReadX509Certificate(bio); // error detected/reported below
 
+    selfSigned = (X509_check_issued(cert.get(), cert.get()) == X509_V_OK);
+
 #elif USE_GNUTLS
     const char *certFilename = certFile.c_str();
     gnutls_datum_t data;
