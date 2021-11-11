@@ -48,7 +48,6 @@
 #include "log/access_log.h"
 #include "MemObject.h"
 #include "Parsing.h"
-#include "profiler/Profiler.h"
 #include "proxyp/Header.h"
 #include "redirect.h"
 #include "rfc1738.h"
@@ -268,7 +267,6 @@ checkFailureRatio(err_type etype, hier_code hcode)
 ClientHttpRequest::~ClientHttpRequest()
 {
     debugs(33, 3, "httpRequestFree: " << uri);
-    PROF_start(httpRequestFree);
 
     // Even though freeResources() below may destroy the request,
     // we no longer set request->body_pipe to NULL here
@@ -304,8 +302,6 @@ ClientHttpRequest::~ClientHttpRequest()
 
     /* moving to the next connection is handled by the context free */
     dlinkDelete(&active, &ClientActiveRequests);
-
-    PROF_stop(httpRequestFree);
 }
 
 /**
@@ -1533,7 +1529,6 @@ ClientHttpRequest::processRequest()
 void
 ClientHttpRequest::httpStart()
 {
-    PROF_start(httpStart);
     // XXX: Re-initializes rather than updates. Should not be needed at all.
     logType.update(LOG_TAG_NONE);
     debugs(85, 4, logType.c_str() << " for '" << uri << "'");
@@ -1543,7 +1538,6 @@ ClientHttpRequest::httpStart()
     /* Use the Stream Luke */
     clientStreamNode *node = (clientStreamNode *)client_stream.tail->data;
     clientStreamRead(node, this, node->readBuffer);
-    PROF_stop(httpStart);
 }
 
 #if USE_OPENSSL

@@ -17,7 +17,6 @@
 #include "HttpHeaderTools.h"
 #include "MemBuf.h"
 #include "mime_header.h"
-#include "profiler/Profiler.h"
 #include "SquidConfig.h"
 
 Http::Message::Message(http_hdr_owner_type owner):
@@ -178,16 +177,12 @@ Http::Message::httpMsgParseStep(const char *buf, int len, int atEnd)
 
     *parse_end_ptr = parse_start;
 
-    PROF_start(HttpMsg_httpMsgParseStep);
-
     if (pstate == Http::Message::psReadyToParseStartLine) {
         if (!httpMsgIsolateStart(&parse_start, &blk_start, &blk_end)) {
-            PROF_stop(HttpMsg_httpMsgParseStep);
             return 0;
         }
 
         if (!parseFirstLine(blk_start, blk_end)) {
-            PROF_stop(HttpMsg_httpMsgParseStep);
             return httpMsgParseError();
         }
 
@@ -210,7 +205,6 @@ Http::Message::httpMsgParseStep(const char *buf, int len, int atEnd)
         configureContentLengthInterpreter(interpreter);
         const int parsed = header.parse(parse_start, parse_len, atEnd, hsize, interpreter);
         if (parsed <= 0) {
-            PROF_stop(HttpMsg_httpMsgParseStep);
             return !parsed ? 0 : httpMsgParseError();
         }
         hdr_sz += hsize;
@@ -218,7 +212,6 @@ Http::Message::httpMsgParseStep(const char *buf, int len, int atEnd)
         pstate = Http::Message::psParsed;
     }
 
-    PROF_stop(HttpMsg_httpMsgParseStep);
     return 1;
 }
 

@@ -104,7 +104,6 @@
 #include "MemObject.h"
 #include "mime_header.h"
 #include "parser/Tokenizer.h"
-#include "profiler/Profiler.h"
 #include "proxyp/Header.h"
 #include "proxyp/Parser.h"
 #include "sbuf/Stream.h"
@@ -851,7 +850,6 @@ clientSocketRecipient(clientStreamNode * node, ClientHttpRequest * http,
 
     /* Test preconditions */
     assert(node != NULL);
-    PROF_start(clientSocketRecipient);
     /* TODO: handle this rather than asserting
      * - it should only ever happen if we cause an abort and
      * the callback chain loops back to here, so we can simply return.
@@ -871,8 +869,6 @@ clientSocketRecipient(clientStreamNode * node, ClientHttpRequest * http,
         context->deferRecipientForLater(node, rep, receivedData);
     else
         http->getConn()->handleReply(rep, receivedData);
-
-    PROF_stop(clientSocketRecipient);
 }
 
 /**
