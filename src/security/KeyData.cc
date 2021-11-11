@@ -86,51 +86,44 @@ Security::KeyData::loadX509ChainFromFile()
 {
 #if USE_OPENSSL
     const char *certFilename = certFile.c_str();
-    Ssl::BIO_Pointer bio(BIO_new(BIO_s_file()));
-    if (!bio || !BIO_read_filename(bio.get(), certFilename)) {
+    Ssl::BIO_Pointer bio;
+    if (!Ssl::OpenCertsFileForReading(bio, certFilename)) {
         const auto x = ERR_get_error();
         debugs(83, DBG_IMPORTANT, "ERROR: unable to load chain file '" << certFile << "': " << ErrorString(x));
         return;
     }
 
-#if TLS_CHAIN_NO_SELFSIGNED // ignore self-signed certs in the chain
-    if (X509_check_issued(cert.get(), cert.get()) == X509_V_OK) {
-        char *nameStr = X509_NAME_oneline(X509_get_subject_name(cert.get()), nullptr, 0);
-        debugs(83, DBG_PARSE_NOTE(2), "Certificate is self-signed, will not be chained: " << nameStr);
-        OPENSSL_free(nameStr);
-    } else
-#endif
-    {
-        debugs(83, DBG_PARSE_NOTE(3), "Using certificate chain in " << certFile);
-        // and add to the chain any other certificate exist in the file
-        CertPointer latestCert = cert;
+    debugs(83, DBG_PARSE_NOTE(3), "Using certificate chain in " << certFile);
+    // and add to the chain any other certificate exist in the file
+    CertList certsInFile;
 
-        while (const auto ca = Ssl::ReadX509Certificate(bio)) {
-            // get Issuer name of the cert for debug display
-            char *nameStr = X509_NAME_oneline(X509_get_subject_name(ca.get()), nullptr, 0);
-
-#if TLS_CHAIN_NO_SELFSIGNED // ignore self-signed certs in the chain
-            // self-signed certificates are not valid in a sent chain
-            if (X509_check_issued(ca.get(), ca.get()) == X509_V_OK) {
-                debugs(83, DBG_PARSE_NOTE(2), "CA " << nameStr << " is self-signed, will not be chained: " << nameStr);
-                OPENSSL_free(nameStr);
-                continue;
-            }
-#endif
-            // checks that the chained certs are actually part of a chain for validating cert
-            const auto checkCode = X509_check_issued(ca.get(), latestCert.get());
-            if (checkCode == X509_V_OK) {
-                debugs(83, DBG_PARSE_NOTE(3), "Adding issuer CA: " << nameStr);
-                // OpenSSL API requires that we order certificates such that the
-                // chain can be appended directly into the on-wire traffic.
-                latestCert = CertPointer(ca);
-                chain.emplace_front(latestCert);
-            } else {
-                debugs(83, DBG_PARSE_NOTE(2), certFile << ": Ignoring non-issuer CA " << nameStr << ": " << X509_verify_cert_error_string(checkCode) << " (" << checkCode << ")");
-            }
-            OPENSSL_free(nameStr);
-        }
+    while (const auto ca = Ssl::ReadX509Certificate(bio)) {
+        certsInFile.emplace_back(ca);
     }
+
+    CertPointer latestCert = cert;
+    do {
+        CertPointer anIssuer;
+        // get the cert name for debug display
+        char *nameStr = X509_NAME_oneline(X509_get_subject_name(latestCert.get()), nullptr, 0);
+        // self-signed certificate, probably the root certificate, must not chained.
+        if (X509_check_issued(latestCert.get(), latestCert.get()) == X509_V_OK) {
+            debugs(83, DBG_PARSE_NOTE(2), "CA " << nameStr << " is self-signed, will not be chained: " << nameStr);
+        } else {
+            for (auto candidateIssuer: certsInFile) {
+                const auto checkCode = X509_check_issued(candidateIssuer.get(), latestCert.get());
+                if (checkCode == X509_V_OK) {
+                    // We found an issuer add it to the chain.
+                    debugs(83, DBG_PARSE_NOTE(3), "Adding issuer CA: " << nameStr);
+                    anIssuer = CertPointer(candidateIssuer);
+                    chain.emplace_front(anIssuer);
+                    break;
+                }
+            }
+        }
+        latestCert = anIssuer;
+        OPENSSL_free(nameStr);
+    } while (latestCert != nullptr);
 
 #elif USE_GNUTLS
     // XXX: implement chain loading
@@ -151,14 +144,22 @@ Security::KeyData::loadX509PrivateKeyFromFile()
 
 #if USE_OPENSSL
     const char *keyFilename = privateKeyFile.c_str();
+    Ssl::BIO_Pointer bio;
+    if (!Ssl::OpenCertsFileForReading(bio, keyFilename)) {
+        const auto x = ERR_get_error();
+        debugs(83, DBG_IMPORTANT, "ERROR: unable to load key file '" << keyFilename << "': " << ErrorString(x));
+        return false;
+    }
     // XXX: Ssl::AskPasswordCb needs SSL_CTX_set_default_passwd_cb_userdata()
     // so this may not fully work iff Config.Program.ssl_password is set.
     pem_password_cb *cb = ::Config.Program.ssl_password ? &Ssl::AskPasswordCb : nullptr;
-    Ssl::ReadPrivateKeyFromFile(keyFilename, pkey, cb);
-
-    if (pkey && !X509_check_private_key(cert.get(), pkey.get())) {
-        debugs(83, DBG_IMPORTANT, "WARNING: '" << privateKeyFile << "' X509_check_private_key() failed");
-        pkey.reset();
+    while(!pkey && Ssl::ReadPrivateKey(bio, pkey, cb)) {
+        if (pkey && !X509_check_private_key(cert.get(), pkey.get()))
+            pkey.reset(); // check the next available
+    }
+    if (!pkey) {
+        const auto x = ERR_get_error();
+        debugs(83, DBG_IMPORTANT, "ERROR: '" << privateKeyFile << "' failed to load private key: " << ErrorString(x));
     }
 
 #elif USE_GNUTLS
