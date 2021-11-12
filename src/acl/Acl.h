@@ -30,24 +30,6 @@ typedef ACL *(*Maker)(TypeName typeName);
 /// use the given ACL Maker for all ACLs of the named type
 void RegisterMaker(TypeName typeName, Maker maker);
 
-class LineOptions
-{
-public:
-    virtual ~LineOptions() {}
-    virtual const Acl::Options &options() { return Acl::NoOptions(); }
-    virtual void reset() = 0;
-};
-
-class CaseLineOptions : public LineOptions
-{
-public:
-    virtual const Acl::Options &options() override;
-    virtual void reset() override { caseInsensitive = Acl::BooleanOptionValue(); }
-    bool isCaseInsensitive() const { return caseInsensitive.configured && caseInsensitive.value; }
-private:
-    Acl::BooleanOptionValue caseInsensitive;
-};
-
 } // namespace Acl
 
 /// A configurable condition. A node in the ACL expression tree.
@@ -77,7 +59,7 @@ public:
     /// Updates the checklist state on match, async, and failure.
     bool matches(ACLChecklist *checklist) const;
 
-    /// \returns (linked) 'global' Options supported by this ACL
+    /// \returns (linked) Options supported by this ACL
     virtual const Acl::Options &options() { return Acl::NoOptions(); }
     /// \returns (linked) 'line' Options supported by this ACL
     const Acl::Options &lineOptions();

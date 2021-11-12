@@ -23,7 +23,6 @@ class OptionsParser;
 class OptionExtractor
 {
 public:
-    explicit OptionExtractor(OptionsParser *parser): parser_(parser) {}
     /// parses the next option and fills public members with its details
     /// \returns whether option extraction was successful
     bool extractOne();
@@ -45,7 +44,6 @@ private:
     SBuf value_; ///< the last seen value of some option
     SBuf::size_type letterPos_ = 0; ///< letter position inside an -xyz sequence
     bool sawValue_ = false; ///< the current option sequence had a value
-    OptionsParser *parser_;
 };
 
 /// parses/validates/stores ACL options; skips/preserves parameter flags
@@ -57,9 +55,8 @@ public:
     // fill previously supplied options container, throwing on errors
     void parse();
 
-    const Option *findOption(/* const */ SBuf &rawName);
-
 private:
+    const Option *findOption(/* const */ SBuf &rawName);
     /// ACL parameter flags in parsing order
     typedef std::vector<OptionName> Names;
 
@@ -192,7 +189,7 @@ Acl::OptionsParser::findOption(/* const */ SBuf &rawNameBuf)
 void
 Acl::OptionsParser::parse()
 {
-    OptionExtractor oex(this);
+    OptionExtractor oex;
     while (oex.extractOne()) {
         /* const */ auto rawName = oex.name;
         if (const Option *optionPtr = findOption(rawName)) {
@@ -221,6 +218,18 @@ Acl::OptionsParser::parse()
         }
         // else skip supported parameter flag
     }
+}
+
+
+const Acl::Options &
+Acl::CaseLineOptions::options()
+{
+    static const Acl::BooleanOption CaseInsensitiveOn;
+    static const Acl::BooleanOption CaseInsensitiveOff;
+    static const Acl::Options MyOptions = { { "-i", &CaseInsensitiveOn }, { "+i", &CaseInsensitiveOff } };
+    CaseInsensitiveOn.linkWith(&caseInsensitive);
+    CaseInsensitiveOff.linkWith(&caseInsensitive);
+    return MyOptions;
 }
 
 void

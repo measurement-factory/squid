@@ -168,6 +168,30 @@ void ParseFlags(const Options &options);
 /* handy for Class::options() defaults */
 const Options &NoOptions(); ///< \returns an empty Options container
 
+/// Base class for ACL-line-specific options.
+/// Create a kid for each ACL which supports a unique set of line options.
+class LineOptions
+{
+public:
+    virtual ~LineOptions() {}
+    /// \returns (linked) 'line' Options supported by an ACL
+    virtual const Acl::Options &options() { return Acl::NoOptions(); }
+    /// resets parsed option value(s)
+    virtual void reset() = 0;
+};
+
+/// Line options for ACL supporting case insensitivity (-i,+i flags).
+class CaseLineOptions : public LineOptions
+{
+public:
+    virtual const Acl::Options &options() override;
+    virtual void reset() override { caseInsensitive = Acl::BooleanOptionValue(); }
+    bool isCaseInsensitive() const { return caseInsensitive.configured && caseInsensitive.value; }
+
+private:
+    Acl::BooleanOptionValue caseInsensitive;
+};
+
 } // namespace Acl
 
 std::ostream &operator <<(std::ostream &os, const Acl::Option &option);
