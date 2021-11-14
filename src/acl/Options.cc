@@ -17,8 +17,6 @@
 
 namespace Acl {
 
-class OptionsParser;
-
 /// low-level parser that extracts but does not interpret ACL options
 class OptionExtractor
 {

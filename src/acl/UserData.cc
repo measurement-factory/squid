@@ -9,8 +9,8 @@
 /* DEBUG: section 28    Access Control */
 
 #include "squid.h"
-#include "acl/Acl.h"
 #include "acl/Checklist.h"
+#include "acl/Options.h"
 #include "acl/UserData.h"
 #include "ConfigParser.h"
 #include "Debug.h"

@@ -47,7 +47,7 @@ public:
     /// (i.e., whether configureWith() or configureFlag() has been called)
     virtual bool configured() const = 0;
 
-    /// called after parsing -x or --name
+    /// called after parsing -x, +x, or --name
     virtual void configureFlag(bool flagValue) const = 0;
 
     /// called after parsing -x=value or --name=value
@@ -98,13 +98,12 @@ public:
     virtual bool configured() const override { return recipient_ && recipient_->configured; }
     virtual bool valued() const override { return recipient_ && recipient_->valued; }
 
-    /// sets the default value when option is used without a value
+    /// sets the flag value
     virtual void configureFlag(bool flagValue) const override
     {
         assert(recipient_);
         recipient_->configured = true;
         recipient_->valued = false;
-        // sets recipient_->value to default
         setFlag(flagValue);
     }
 

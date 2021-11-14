@@ -27,6 +27,8 @@ public:
     virtual void parse() =0;
     virtual ACLData *clone() const =0;
     virtual void prepareForUse() {}
+    /// \returns Acl::LineOptions supported by this ACL parameters (e.g., "-i")
+    /// The parsed option values are valid only during the current Acl::parse()!
     virtual Acl::LineOptions *dirtyLineOptions() { return nullptr; }
 
     virtual bool empty() const =0;
