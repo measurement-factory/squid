@@ -801,10 +801,10 @@ Security::PeerConnector::handleMissingCertificates(const TlsNegotiationDetails &
     Must(callerHandlesMissingCertificates);
     callerHandlesMissingCertificates = false;
 
-    if (!computeMissingCertificateUrls(sconn))
-        return handleNegotiateError(ed);
-
     suspendNegotiation(ed);
+
+    if (!computeMissingCertificateUrls(sconn))
+        return resumeNegotiation();
 
     assert(!urlsOfMissingCerts.empty());
     startCertDownloading(urlsOfMissingCerts.front());
