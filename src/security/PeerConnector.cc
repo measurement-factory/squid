@@ -32,6 +32,7 @@ class TlsNegotiationDetails: public RefCountable {
 public:
 #if USE_OPENSSL || USE_GNUTLS
     TlsNegotiationDetails(int ioResult, const Security::Connection &);
+    TlsNegotiationDetails(int ioResult, const int sslError, const int sslLibError, const Security::Connection &);
 #else
     TlsNegotiationDetails() = default;
 #endif
@@ -67,6 +68,13 @@ TlsNegotiationDetails::TlsNegotiationDetails(const int ioResult, const Security:
         break;
     }
 #endif
+}
+
+TlsNegotiationDetails::TlsNegotiationDetails(const int ioResult, const int sslError, const int sslLibError, const Security::Connection &sconn):
+    sslIoResult(ioResult),
+    ssl_error(sslError),
+    ssl_lib_error(sslLibError)
+{
 }
 #endif /* USE_OPENSSL || USE_GNUTLS */
 
@@ -854,7 +862,7 @@ Security::PeerConnector::resumeNegotiation()
         // simulate an earlier SSL_connect() failure with a new error
         // TODO: When we can use Security::ErrorDetail, we should resume with a
         // detailed _validation_ error, not just a generic SSL_ERROR_SSL!
-        lastError = new TlsNegotiationDetails(SSL_ERROR_SSL, sconn);
+        lastError = new TlsNegotiationDetails(-1, SSL_ERROR_SSL, 0, sconn);
     }
 
     assert(lastError); // implied by isSuspended()
