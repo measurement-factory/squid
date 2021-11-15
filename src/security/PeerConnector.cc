@@ -245,6 +245,16 @@ Security::PeerConnector::recordNegotiationDetails()
 #endif
 }
 
+static bool
+checkForValidationError(SSL *ssl, int error)
+{
+    if (Ssl::ErrorDetail *validationError = static_cast<Ssl::ErrorDetail *>(SSL_get_ex_data(ssl, ssl_ex_index_ssl_error_detail))) {
+        if (validationError->errorNo() == error)
+            return true;
+    }
+    return false;
+}
+
 void
 Security::PeerConnector::negotiate()
 {
@@ -280,7 +290,7 @@ Security::PeerConnector::negotiate()
     if (auto &hidMissingIssuer = Ssl::VerifyCallbackParameters::At(sconn).hidMissingIssuer) {
         hidMissingIssuer = false; // prep for the next SSL_connect()
 
-        if (ed.sslIoResult > 0 || ed.ssl_error != X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY)
+        if (ed.sslIoResult > 0 || !checkForValidationError(session, X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY))
             return handleMissingCertificates(ed);
 
         debugs(83, DBG_IMPORTANT, "BUG: Honoring unexpected SSL_connect() error: X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY");
