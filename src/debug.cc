@@ -17,6 +17,7 @@
 
 #include <algorithm>
 #include <deque>
+#include <memory>
 
 /* for shutting_down flag in xassert() */
 #include "globals.h"
