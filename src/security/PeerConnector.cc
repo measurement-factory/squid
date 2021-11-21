@@ -247,10 +247,10 @@ Security::PeerConnector::recordNegotiationDetails()
 
 /// whether the given TLS connection saw the given validation errorNo()
 static bool
-validationErrorIs(const SSL &sconn, const int error)
+validationErrorIs(const SSL &sconn, const Security::ErrorCode errorNo)
 {
     if (const auto validationError = static_cast<const Ssl::ErrorDetail *>(SSL_get_ex_data(&sconn, ssl_ex_index_ssl_error_detail))) {
-        if (validationError->errorNo() == error)
+        if (validationError->errorNo() == errorNo)
             return true;
     }
     return false;
