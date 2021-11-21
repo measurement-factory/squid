@@ -248,7 +248,7 @@ Security::PeerConnector::recordNegotiationDetails()
 static bool
 checkForValidationError(SSL *ssl, int error)
 {
-    if (Ssl::ErrorDetail *validationError = static_cast<Ssl::ErrorDetail *>(SSL_get_ex_data(ssl, ssl_ex_index_ssl_error_detail))) {
+    if (const auto validationError = static_cast<const Ssl::ErrorDetail *>(SSL_get_ex_data(ssl, ssl_ex_index_ssl_error_detail))) {
         if (validationError->errorNo() == error)
             return true;
     }
