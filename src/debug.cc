@@ -163,6 +163,28 @@ public:
     virtual void log(const DebugMessageHeader &, const std::string &body) = 0;
 
 protected:
+    /// output iterator for DebugMessages
+    class Logger
+    {
+    public:
+        using difference_type = std::ptrdiff_t;
+        using value_type = DebugMessage;
+        using pointer = DebugMessage *;
+        using reference = DebugMessage &;
+        using iterator_category = std::output_iterator_tag;
+
+        Logger(DebugChannel &ch) : channel(ch) {}
+        Logger &operator=(const DebugMessage &message) {
+            if (Debug::Enabled(message.header.section, message.header.level))
+                channel.log(message.header, message.body);
+            return *this;
+        }
+        Logger &operator*() { return *this; }
+        Logger &operator++() { return *this; }
+        Logger &operator++(int) { return *this; }
+    private:
+        DebugChannel &channel;
+    };
     /// stores the given early message (if possible) or forgets it (otherwise)
     /// \returns whether the message was stored
     bool saveMessage(const DebugMessageHeader &header, const std::string &body);
@@ -445,29 +467,22 @@ DebugChannel::logSavedAnd(DebugChannel *theirChannelOrNil)
     const LoggingSectionGuard sectionGuard;
 
     assert(this != theirChannelOrNil);
-    const auto ours = releaseEarlyMessages();
-    const auto theirs = theirChannelOrNil ? theirChannelOrNil->releaseEarlyMessages() : nullptr;
-
-    size_t ourPos = 0;
-    size_t theirPos = 0;
-    size_t ourCount = ours ? ours->size() : 0;
-    size_t theirCount = theirs ? theirs->size() : 0;
+    const auto ourEarlyMessages = releaseEarlyMessages();
+    const auto &ours = ourEarlyMessages ? *ourEarlyMessages : DebugMessages();
+    const auto theirEarlyMessages = theirChannelOrNil ? theirChannelOrNil->releaseEarlyMessages() : nullptr;
+    const auto &theirs = theirEarlyMessages ? *theirEarlyMessages : DebugMessages();
 
     const auto writtenEarlier = written;
-    while (ourPos < ourCount || theirPos < theirCount) {
-        // write in the order of increasing header.recordNumber;
-        // log() will filter out any duplicates
-        const auto &message = (ourPos < ourCount &&
-            !(theirPos < theirCount && (*theirs)[theirPos].header.recordNumber < (*ours)[ourPos].header.recordNumber)) ?
-            (*ours)[ourPos++] : (*theirs)[theirPos++];
-        if (Debug::Enabled(message.header.section, message.header.level))
-            log(message.header, message.body);
-    }
-    const auto writtenNow = written - writtenEarlier;
 
-    if (const auto totalCount = ourCount + theirCount) {
+    std::merge(ours.begin(), ours.end(), theirs.begin(), theirs.end(), Logger(*this),
+    [&](const DebugMessage &m1, const DebugMessage& m2) {
+    return m1.header.recordNumber < m2.header.recordNumber;
+    });
+
+    const auto writtenNow = written - writtenEarlier;
+    if (const auto totalCount = ours.size() + theirs.size()) {
         debugs(0, 5, "wrote " << writtenNow << " out of " << totalCount << '=' <<
-               ourCount << '+' << theirCount << " early messages to " << name);
+               ours.size() << '+' << theirs.size() << " early messages to " << name);
     }
 }
 
