@@ -443,7 +443,9 @@ ResyncDebugLog(FILE *newFile)
 void
 DebugChannel::stopEarlyMessageCollection()
 {
-    logSaved();
+    if (earlyMessages)
+        logSaved();
+    // else already stopped
 }
 
 void
