@@ -168,18 +168,20 @@ protected:
     class Logger
     {
     public:
-        using difference_type = std::ptrdiff_t;
-        using value_type = DebugMessage;
-        using pointer = DebugMessage *;
-        using reference = DebugMessage &;
+        using difference_type = void;
+        using value_type = void;
+        using pointer = void;
+        using reference = void;
         using iterator_category = std::output_iterator_tag;
 
-        Logger(DebugChannel &ch) : channel(ch) {}
+        explicit Logger(DebugChannel &ch) : channel(ch) {}
         Logger &operator=(const DebugMessage &message) {
             if (Debug::Enabled(message.header.section, message.header.level))
                 channel.log(message.header, message.body);
             return *this;
         }
+        // These no-op operators are provided to satisfy LegacyOutputIterator requirements,
+        // as is customary for similar STL output iterators like std::ostream_iterator.
         Logger &operator*() { return *this; }
         Logger &operator++() { return *this; }
         Logger &operator++(int) { return *this; }
@@ -190,12 +192,8 @@ protected:
     /// \returns whether the message was stored
     bool saveMessage(const DebugMessageHeader &header, const std::string &body);
 
-    /// log() all (saved but not yet written "early") messages from this channel
-    /// and their channel (if given), in recordNumber order
-    void logSavedAnd(DebugChannel *theirChannelOrNil = nullptr);
-
-    /// log() all (saved but not yet written "early") messages from this channel
-    void logSaved() { logSavedAnd(nullptr); }
+    /// stop saving and log() any "early" messages, in recordNumber order
+    static void StopSavingAndLog(DebugChannel &, DebugChannel * = nullptr);
 
     /// Formats a validated debugs() record and writes it to the given FILE.
     void writeToStream(FILE &, const DebugMessageHeader &, const std::string &body);
@@ -445,7 +443,7 @@ void
 DebugChannel::stopEarlyMessageCollection()
 {
     if (earlyMessages)
-        logSaved();
+        StopSavingAndLog(*this);
     // else already stopped
 }
 
@@ -465,27 +463,27 @@ Debug::PrepareToDie()
 }
 
 void
-DebugChannel::logSavedAnd(DebugChannel *theirChannelOrNil)
+DebugChannel::StopSavingAndLog(DebugChannel &channelA, DebugChannel *channelBOrNil)
 {
     const LoggingSectionGuard sectionGuard;
 
-    assert(this != theirChannelOrNil);
-    const auto ourEarlyMessages = releaseEarlyMessages();
-    const auto &ours = ourEarlyMessages ? *ourEarlyMessages : DebugMessages();
-    const auto theirEarlyMessages = theirChannelOrNil ? theirChannelOrNil->releaseEarlyMessages() : nullptr;
-    const auto &theirs = theirEarlyMessages ? *theirEarlyMessages : DebugMessages();
+    assert(&channelA != channelBOrNil);
+    const auto earlyMessagesA = channelA.releaseEarlyMessages();
+    const auto &a = earlyMessagesA ? *earlyMessagesA : DebugMessages();
+    const auto earlyMessagesB = channelBOrNil ? channelBOrNil->releaseEarlyMessages() : nullptr;
+    const auto &b = earlyMessagesB ? *earlyMessagesB : DebugMessages();
 
-    const auto writtenEarlier = written;
+    const auto writtenEarlier = channelA.written;
 
-    std::merge(ours.begin(), ours.end(), theirs.begin(), theirs.end(), Logger(*this),
-    [&](const DebugMessage &m1, const DebugMessage& m2) {
-    return m1.header.recordNumber < m2.header.recordNumber;
+    std::merge(a.begin(), a.end(), b.begin(), b.end(), Logger(channelA),
+    [&](const DebugMessage &mA, const DebugMessage& mB) {
+    return mA.header.recordNumber < mB.header.recordNumber;
     });
 
-    const auto writtenNow = written - writtenEarlier;
-    if (const auto totalCount = ours.size() + theirs.size()) {
+    const auto writtenNow = channelA.written - writtenEarlier;
+    if (const auto totalCount = a.size() + b.size()) {
         debugs(0, 5, "wrote " << writtenNow << " out of " << totalCount << '=' <<
-               ours.size() << '+' << theirs.size() << " early messages to " << name);
+               a.size() << '+' << b.size() << " early messages to " << channelA.name);
     }
 }
 
@@ -587,7 +585,7 @@ StderrChannel::takeOver(CacheLogChannel &cacheLogChannel)
         return;
     coveringForCacheLog = true;
 
-    logSavedAnd(&cacheLogChannel);
+    StopSavingAndLog(*this, &cacheLogChannel);
 }
 
 void
