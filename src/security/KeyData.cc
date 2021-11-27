@@ -108,7 +108,6 @@ Security::KeyData::loadX509ChainFromFile()
         CertPointer anIssuer;
         // get the cert name for debug display
         char *nameStr = X509_NAME_oneline(X509_get_subject_name(latestCert.get()), nullptr, 0);
-        // self-signed certificate, probably the root certificate, must not chained.
         if (X509_check_issued(latestCert.get(), latestCert.get()) == X509_V_OK) {
             debugs(83, DBG_PARSE_NOTE(2), "CA " << nameStr << " is self-signed, will not be chained: " << nameStr);
         } else {
