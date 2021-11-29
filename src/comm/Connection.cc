@@ -40,12 +40,12 @@ Comm::Connection::Connection() :
     tlsHistory(nullptr)
 {
     *rfc931 = 0; // quick init the head. the rest does not matter.
-    debugs(5, 8, "constructed, id=" << id);
+    debugs(5, 7, "constructed, id=" << id);
 }
 
 Comm::Connection::~Connection()
 {
-    debugs(5, 8, "destructing, id=" << id);
+    debugs(5, 7, "destructing, id=" << id);
 
     if (fd >= 0) {
         if (flags & COMM_ORPHANED) {
