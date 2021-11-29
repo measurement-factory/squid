@@ -318,6 +318,7 @@ void
 TunnelStateData::serverClosed()
 {
     server.noteClosure();
+    debugs(26, 5, "noConn=" << noConnections() << " client.conn=" << client.conn);
 }
 
 /// TunnelStateData::clientClosed() wrapper
@@ -333,6 +334,7 @@ TunnelStateData::clientClosed()
 {
     client.noteClosure();
 
+    debugs(26, 5, "noConn=" << noConnections() << " server.writer=" << server.writer << " server.conn=" << server.conn);
     if (noConnections())
         return deleteThis();
 
@@ -344,6 +346,8 @@ TunnelStateData::clientClosed()
 void
 TunnelStateData::deleteThis()
 {
+    debugs(26, 5, this);
+
     assert(noConnections());
     // ConnStateData pipeline should contain the CONNECT we are performing
     // but it may be invalid already (bug 4392)
@@ -591,7 +595,7 @@ TunnelStateData::readClient(char *, size_t len, Comm::Flag errcode, int xerrno)
 bool
 TunnelStateData::keepGoingAfterRead(size_t len, Comm::Flag errcode, int xerrno, Connection &from, Connection &to)
 {
-    debugs(26, 3, HERE << "from={" << from.conn << "}, to={" << to.conn << "}");
+    debugs(26, 3, "from={" << from.conn << " len=" << from.len << "}, to={" << to.conn << " len=" << to.len << "}");
 
     /* I think this is to prevent free-while-in-a-callback behaviour
      * - RBC 20030229
