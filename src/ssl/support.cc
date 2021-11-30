@@ -962,16 +962,17 @@ void
 Ssl::chainCertificatesToSSLContext(Security::ContextPointer &ctx, Security::ServerOptions &options)
 {
     assert(ctx);
-    if (!options.signingCa.selfSigned) {
-        // Add signing certificate to the certificates chain
-        X509 *signingCert = options.signingCa.cert.get();
-        if (SSL_CTX_add_extra_chain_cert(ctx.get(), signingCert)) {
-            // increase the certificate lock
-            X509_up_ref(signingCert);
-        } else {
-            const auto ssl_error = ERR_get_error();
-            debugs(33, DBG_IMPORTANT, "WARNING: can not add signing certificate to SSL context chain: " << Security::ErrorString(ssl_error));
-        }
+    if (options.signingCa.selfSigned)
+        return;
+
+    // Add signing certificate to the certificates chain
+    X509 *signingCert = options.signingCa.cert.get();
+    if (SSL_CTX_add_extra_chain_cert(ctx.get(), signingCert)) {
+        // increase the certificate lock
+        X509_up_ref(signingCert);
+    } else {
+        const auto ssl_error = ERR_get_error();
+        debugs(33, DBG_IMPORTANT, "WARNING: can not add signing certificate to SSL context chain: " << Security::ErrorString(ssl_error));
     }
 
     for (auto cert : options.signingCa.chain) {
