@@ -9,6 +9,7 @@
 #include "squid.h"
 #include "anyp/PortCfg.h"
 #include "fatal.h"
+#include "security/Io.h"
 #include "security/KeyData.h"
 #include "SquidConfig.h"
 #include "ssl/bio.h"
@@ -159,13 +160,18 @@ Security::KeyData::loadX509PrivateKeyFromFile()
     // XXX: Ssl::AskPasswordCb needs SSL_CTX_set_default_passwd_cb_userdata()
     // so this may not fully work iff Config.Program.ssl_password is set.
     pem_password_cb *cb = ::Config.Program.ssl_password ? &Ssl::AskPasswordCb : nullptr;
-    while(!pkey && Ssl::ReadPrivateKey(bio, pkey, cb)) {
-        if (pkey && !X509_check_private_key(cert.get(), pkey.get()))
-            pkey.reset(); // check the next available
-    }
-    if (!pkey) {
+    if (!Ssl::ReadPrivateKey(bio, pkey, cb)) {
         const auto x = ERR_get_error();
         debugs(83, DBG_IMPORTANT, "ERROR: '" << privateKeyFile << "' failed to load private key: " << ErrorString(x));
+        return false;
+    }
+
+    Security::ForgetErrors();
+    if (!X509_check_private_key(cert.get(), pkey.get())) {
+        const auto x = ERR_get_error();
+        const char *errStr =  x ? ErrorString(x) : "pkey/certificate mismatch";
+        debugs(83, DBG_IMPORTANT, "ERROR: '" << privateKeyFile << "' checking private key failed: " << errStr);
+        return false;
     }
 
 #elif USE_GNUTLS
