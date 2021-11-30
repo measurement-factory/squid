@@ -122,7 +122,7 @@ Security::KeyData::loadX509ChainFromFile()
                     // We found an issuer add it to the chain.
                     debugs(83, DBG_PARSE_NOTE(3), "Adding issuer CA: " << nameStr);
                     anIssuer = CertPointer(*candidateIssuer);
-                    chain.emplace_front(anIssuer);
+                    chain.emplace_back(anIssuer);
                     certsInFile.erase(candidateIssuer);
                     break;
                 }
