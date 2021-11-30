@@ -587,6 +587,20 @@ MemStore::shouldCache(StoreEntry &e) const
         return false;
     }
 
+    // Store::Root() in the next check below is FATALly missing during shutdown
+    if (shutting_down) {
+        debugs(20, 5, "yield to shutdown: " << e);
+        return false;
+    }
+
+    // To avoid SMP workers releasing each other caching attempts, restrict disk
+    // caching to StoreEntry publisher . This check goes before memoryCachable()
+    // that may incorrectly release() publisher's entry via checkCachable().
+    if (Store::Root().transientsReader(e)) {
+        debugs(20, 5, "yield to entry publisher: " << e);
+        return false;
+    }
+
     if (!e.memoryCachable()) {
         debugs(20, 7, HERE << "Not memory cachable: " << e);
         return false; // will not cache due to entry state or properties
@@ -597,19 +611,6 @@ MemStore::shouldCache(StoreEntry &e) const
     if (!e.mem_obj->vary_headers.isEmpty()) {
         // XXX: We must store/load SerialisedMetaData to cache Vary in RAM
         debugs(20, 5, "Vary not yet supported: " << e.mem_obj->vary_headers);
-        return false;
-    }
-
-    // Store::Root() in the next check below is FATALly missing during shutdown
-    if (shutting_down) {
-        debugs(20, 5, "yield to shutdown: " << e);
-        return false;
-    }
-
-    // in SMP mode, restrict caching to StoreEntry publisher to avoid
-    // workers releasing each other caching attempts
-    if (Store::Root().transientsReader(e)) {
-        debugs(20, 5, "yield to entry publisher: " << e);
         return false;
     }
 
