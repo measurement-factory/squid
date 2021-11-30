@@ -256,6 +256,9 @@ class SyslogChannel: public DebugChannel
 public:
     SyslogChannel(): DebugChannel("syslog") {}
 
+    /// whether log() ought to write the corresponding debugs() message
+    bool shouldWrite(const DebugMessageHeader &) const;
+
     /* DebugChannel API */
     virtual void log(const DebugMessageHeader &, const std::string &body) final;
 };
@@ -975,22 +978,28 @@ SyslogPriority(const DebugMessageHeader &header)
            (header.level == 0 ? LOG_WARNING : LOG_NOTICE);
 }
 
+bool
+SyslogChannel::shouldWrite(const DebugMessageHeader &header) const
+{
+    return header.forceAlert ||
+        header.level == DBG_CRITICAL ||
+        (Debug::log_syslog && header.level <= DBG_IMPORTANT);
+}
+
 void
 SyslogChannel::log(const DebugMessageHeader &header, const std::string &body)
 {
     if (header.recordNumber <= lastWrittenRecordNumber)
         return;
 
-    if (earlyMessages)
-        return (void)saveMessage(header, body);
-
-    if (!header.forceAlert) {
-        if (header.level > DBG_IMPORTANT)
-            return;
-
-        if (!Debug::log_syslog)
-            return;
+    if (!shouldWrite(header)) {
+        if (earlyMessages)
+            (void)saveMessage(header, body);
+        return;
     }
+
+    // Do not stopEarlyMessageCollection() here: The already saved earlier
+    // messages are doomed, but future early messages still have a chance.
 
     syslog(SyslogPriority(header), "%s", body.c_str());
     noteWritten(header);
