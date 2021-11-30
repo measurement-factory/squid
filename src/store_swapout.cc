@@ -349,6 +349,8 @@ StoreEntry::mayStartSwapOut()
         return false;
     }
 
+    // TODO: Store::Root() is FATALly missing during shutdown
+    // TODO: Move lower to avoid checking multiple times.
     // if there is a usable disk entry already, do not start over
     if (hasDisk() || Store::Root().hasReadableDiskEntry(*this)) {
         debugs(20, 3, "already did"); // we or somebody else created that entry
@@ -369,18 +371,19 @@ StoreEntry::mayStartSwapOut()
         return false;
     }
 
-    // in SMP mode, restrict disk caching to StoreEntry publisher to avoid
-    // workers releasing each other caching attempts
-    if (Store::Root().transientsReader(*this)) {
-        debugs(20, 5, "yield to entry publisher");
-        swapOutDecision(MemObject::SwapOut::swImpossible);
-        return false;
-    }
-
     // if we decided that swapout is possible, do not repeat same checks
     if (decision == MemObject::SwapOut::swPossible) {
         debugs(20, 3, "already allowed");
         return true;
+    }
+
+    // To avoid SMP workers releasing each other caching attempts, restrict disk
+    // caching to StoreEntry publisher . This check goes before checkCachable()
+    // that may incorrectly release() publisher's entry.
+    if (Store::Root().transientsReader(*this)) {
+        debugs(20, 5, "yield to entry publisher");
+        swapOutDecision(MemObject::SwapOut::swImpossible);
+        return false;
     }
 
     if (!checkCachable()) {
