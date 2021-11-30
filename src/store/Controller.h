@@ -111,10 +111,6 @@ public:
     /// marks the entry completed for collapsed requests
     void transientsCompleteWriting(StoreEntry &);
 
-    /// Whether the caller holds basic writing rights to the given entry. In
-    /// non-SMP (i.e. no transients) case, entry possession is enough to write.
-    bool cacheWriter(const StoreEntry &e) const { return transients ? transientsWriter(e) : true; }
-
     /// Update local intransit entry after changes made by appending worker.
     void syncCollapsed(const sfileno);
 
