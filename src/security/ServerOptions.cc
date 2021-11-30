@@ -212,6 +212,10 @@ Security::ServerOptions::createStaticServerContext(AnyP::PortCfg &)
 
     Security::ContextPointer t(createBlankContext());
     if (t) {
+        if (!updateContextConfig(t)) {
+            debugs(83, DBG_CRITICAL, "ERROR: Configuring static TLS context");
+            return false;
+        }
 
 #if USE_OPENSSL
         if (certs.size() > 1) {
@@ -264,12 +268,6 @@ Security::ServerOptions::createStaticServerContext(AnyP::PortCfg &)
 
         if (!loadClientCaFile())
             return false;
-
-        // by this point all config related files must be loaded
-        if (!updateContextConfig(t)) {
-            debugs(83, DBG_CRITICAL, "ERROR: Configuring static TLS context");
-            return false;
-        }
     }
 
     staticContext = std::move(t);
