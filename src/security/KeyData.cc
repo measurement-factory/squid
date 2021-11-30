@@ -115,13 +115,14 @@ Security::KeyData::loadX509ChainFromFile()
         if (X509_check_issued(latestCert.get(), latestCert.get()) == X509_V_OK) {
             debugs(83, DBG_PARSE_NOTE(2), "CA " << nameStr << " is self-signed, will not be chained: " << nameStr);
         } else {
-            for (auto candidateIssuer: certsInFile) {
-                const auto checkCode = X509_check_issued(candidateIssuer.get(), latestCert.get());
+            for (auto candidateIssuer = certsInFile.begin(); candidateIssuer != certsInFile.end(); ++candidateIssuer) {
+                const auto checkCode = X509_check_issued(candidateIssuer->get(), latestCert.get());
                 if (checkCode == X509_V_OK) {
                     // We found an issuer add it to the chain.
                     debugs(83, DBG_PARSE_NOTE(3), "Adding issuer CA: " << nameStr);
-                    anIssuer = CertPointer(candidateIssuer);
+                    anIssuer = CertPointer(*candidateIssuer);
                     chain.emplace_front(anIssuer);
+                    certsInFile.erase(candidateIssuer);
                     break;
                 }
             }
