@@ -190,7 +190,7 @@ protected:
     };
     /// stores the given early message (if possible) or forgets it (otherwise)
     /// \returns whether the message was stored
-    bool saveMessage(const DebugMessageHeader &header, const std::string &body);
+    void saveMessage(const DebugMessageHeader &header, const std::string &body);
 
     /// stop saving and log() any "early" messages, in recordNumber order
     static void StopSavingAndLog(DebugChannel &, DebugChannel * = nullptr);
@@ -490,14 +490,14 @@ DebugChannel::StopSavingAndLog(DebugChannel &channelA, DebugChannel *channelBOrN
     }
 }
 
-bool
+void
 DebugChannel::saveMessage(const DebugMessageHeader &header, const std::string &body)
 {
     if (!earlyMessages)
-        return false; // we have stopped saving early messages
+        return; // we have stopped saving early messages
 
     if (header.level > EarlyMessagesLevel)
-        return false; // this message is not important enough to save
+        return; // this message is not important enough to save
 
     // Given small EarlyMessagesLevel, only a Squid bug can cause so many
     // earlyMessages. Saving/dumping excessive messages correctly is not only
@@ -507,7 +507,6 @@ DebugChannel::saveMessage(const DebugMessageHeader &header, const std::string &b
     assert(earlyMessages->size() < 1000);
 
     earlyMessages->emplace_back(header, body);
-    return true;
 }
 
 void
@@ -537,7 +536,7 @@ CacheLogChannel::log(const DebugMessageHeader &header, const std::string &body)
         return;
 
     if (earlyMessages)
-        return (void)saveMessage(header, body);
+        return saveMessage(header, body);
 
     if (!TheLog.file())
         return;
@@ -568,10 +567,8 @@ StderrChannel::log(const DebugMessageHeader &header, const std::string &body)
     if (header.recordNumber <= lastWrittenRecordNumber)
         return;
 
-    if (!shouldWrite(header.level)) {
-        (void)saveMessage(header, body);
-        return;
-    }
+    if (!shouldWrite(header.level))
+        return saveMessage(header, body);
 
     // We must write this eligible unsaved message, but we must log previously
     // saved early messages before writeToStream() below to avoid reordering.
@@ -991,11 +988,8 @@ SyslogChannel::log(const DebugMessageHeader &header, const std::string &body)
     if (header.recordNumber <= lastWrittenRecordNumber)
         return;
 
-    if (!shouldWrite(header)) {
-        if (earlyMessages)
-            (void)saveMessage(header, body);
-        return;
-    }
+    if (!shouldWrite(header))
+        return saveMessage(header, body);
 
     // Do not stopEarlyMessageCollection() here: The already saved earlier
     // messages are doomed, but future early messages still have a chance.
