@@ -1414,6 +1414,42 @@ void Ssl::InRamCertificateDbKey(const Ssl::CertificateProperties &certProperties
     }
 }
 
+SBuf &
+Ssl::X509NameToSBuf(const X509_NAME *name)
+{
+    static SBuf out;
+    out.clear();
+#if 0
+    // OpenSSL manual says that the X509_NAME_oneline should not used but the
+    // X509_NAME_print_ex should used instead. Moreover the X509_NAME_print_ex
+    // allow us to print directly in an SBuf object.
+    // However replacing the X509_NAME_oneline calls in Squid means that the
+    // format of printed certificate subject in access.log will be changed.
+    // The X509_NAME_oneline prints something like the:
+    //     "/C=US/ST=Some-State/L=None/O=Squid/OU=IT/CN=squid-cache.org"
+    // where the  X509_NAME_print_ex(... XN_FLAG_SEP_COMMA_PLUS) prints:
+    //     "C=US,ST=Some-State,L=None,O=Squid,OU=IT,CN=squid-cache.org"
+    static BIO_Pointer outBio(Ssl::BIO_new_SBuf(&out));
+    auto ret = X509_NAME_print_ex(outBio.get(), name, 0, XN_FLAG_SEP_COMMA_PLUS);
+    if (ret < 0) {
+        const auto x = ERR_get_error();
+        debugs(83, DBG_PARSE_NOTE(2), "WARNING: cannot print certificate SubjectName: " << Security::ErrorString(x));
+        return out;
+    }
+#else
+    // Use a local static buffer to avoid memory allocation from X509_NAME_oneline
+    static char buffer[2048];
+    auto s = X509_NAME_oneline(name, buffer, sizeof(buffer));
+    if (!s) {
+        const auto x = ERR_get_error();
+        debugs(83, DBG_PARSE_NOTE(2), "WARNING: cannot get certificate SubjectName: " << Security::ErrorString(x));
+        return out;
+    }
+    out.append(s);
+#endif
+    return out;
+}
+
 static int
 bio_sbuf_create(BIO* bio)
 {

@@ -317,6 +317,12 @@ void setClientSNI(SSL *ssl, const char *fqdn);
 void InRamCertificateDbKey(const Ssl::CertificateProperties &certProperties, SBuf &key);
 
 /**
+ \ingroup ServerProtocolSSLAPI
+ \return An SBuf which stores the string representation of a X509_NAME
+*/
+SBuf &X509NameToSBuf(const X509_NAME *name);
+
+/**
   \ingroup ServerProtocolSSLAPI
   Creates and returns an OpenSSL BIO object for writing to `buf` (or throws).
   TODO: Add support for reading from `buf`.

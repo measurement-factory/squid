@@ -24,6 +24,9 @@ Security::ContextPointer BlindPeerConnector::getTlsContext() STUB_RETVAL(Securit
 void BlindPeerConnector::noteNegotiationDone(ErrorState *) STUB
 }
 
+#include "security/CertGadgets.h"
+bool Security::CertIsIssuedBy(Certificate &, Certificate &) STUB_RETVAL(false)
+
 #include "security/EncryptorAnswer.h"
 Security::EncryptorAnswer::~EncryptorAnswer() {}
 std::ostream &Security::operator <<(std::ostream &os, const Security::EncryptorAnswer &) STUB_RETVAL(os)

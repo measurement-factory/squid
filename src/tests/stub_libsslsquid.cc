@@ -74,6 +74,8 @@ bool checkX509ServerValidity(X509 *, const char *) STUB_RETVAL(false)
 int asn1timeToString(ASN1_TIME *, char *, int) STUB_RETVAL(0)
 void setClientSNI(SSL *, const char *) STUB
 SBuf GetX509PEM(X509 *) STUB_RETVAL(SBuf())
+static SBuf nilSBuf;
+SBuf & X509NameToSBuf(const X509_NAME *) STUB_RETVAL(nilSBuf)
 } //namespace Ssl
 
 #endif
