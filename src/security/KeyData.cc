@@ -9,6 +9,7 @@
 #include "squid.h"
 #include "anyp/PortCfg.h"
 #include "fatal.h"
+#include "security/CertGadgets.h"
 #include "security/Io.h"
 #include "security/KeyData.h"
 #include "SquidConfig.h"
@@ -35,8 +36,6 @@ Security::KeyData::loadX509CertFromFile()
     }
 
     cert = Ssl::ReadX509Certificate(bio); // error detected/reported below
-
-    selfSigned = (X509_check_issued(cert.get(), cert.get()) == X509_V_OK);
 
 #elif USE_GNUTLS
     const char *certFilename = certFile.c_str();
@@ -75,9 +74,11 @@ Security::KeyData::loadX509CertFromFile()
 
     if (!cert) {
         debugs(83, DBG_IMPORTANT, "ERROR: unable to load certificate from '" << certFile << "'");
+        return false;
     }
 
-    return bool(cert);
+    selfSigned = CertIsSelfSigned(*cert.get());
+    return true;
 }
 
 /**
@@ -111,16 +112,13 @@ Security::KeyData::loadX509ChainFromFile()
     CertPointer latestCert = cert;
     do {
         CertPointer anIssuer;
-        // get the cert name for debug display
-        char *nameStr = X509_NAME_oneline(X509_get_subject_name(latestCert.get()), nullptr, 0);
-        if (X509_check_issued(latestCert.get(), latestCert.get()) == X509_V_OK) {
-            debugs(83, DBG_PARSE_NOTE(2), "CA " << nameStr << " is self-signed, will not be chained: " << nameStr);
+        if (CertIsSelfSigned(*latestCert.get())) {
+            debugs(83, DBG_PARSE_NOTE(2), "CA " << CertSubjectName(*latestCert.get()) << " is self-signed, will not be chained.");
         } else {
             for (auto candidateIssuer = certsInFile.begin(); candidateIssuer != certsInFile.end(); ++candidateIssuer) {
-                const auto checkCode = X509_check_issued(candidateIssuer->get(), latestCert.get());
-                if (checkCode == X509_V_OK) {
+                if (CertIsIssuedBy(*latestCert.get(), *candidateIssuer->get())) {
                     // We found an issuer add it to the chain.
-                    debugs(83, DBG_PARSE_NOTE(3), "Adding issuer CA: " << nameStr);
+                    debugs(83, DBG_PARSE_NOTE(3), "Adding issuer CA: " << CertSubjectName(*latestCert.get()));
                     anIssuer = CertPointer(*candidateIssuer);
                     chain.emplace_back(anIssuer);
                     certsInFile.erase(candidateIssuer);
@@ -129,7 +127,6 @@ Security::KeyData::loadX509ChainFromFile()
             }
         }
         latestCert = anIssuer;
-        OPENSSL_free(nameStr);
     } while (latestCert != nullptr);
 
 #elif USE_GNUTLS
