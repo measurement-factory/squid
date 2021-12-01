@@ -105,7 +105,8 @@ Security::KeyData::loadX509ChainFromFile()
         certsInFile.emplace_back(ca);
     }
 
-    // OpenSSL does not take care for the certificates order.
+    // OpenSSL sends certificate in the order they are stored in the chain
+    // given to OpenSSL, so we must chain them in on-the-wire order.
     // RFC 8446 Section 4.4.2: "The sender's certificate MUST come in the first
     // CertificateEntry in the list.  Each following certificate SHOULD
     // directly certify the one immediately preceding it."
