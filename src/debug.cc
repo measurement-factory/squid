@@ -558,8 +558,8 @@ StderrChannel::shouldWrite(const int level) const
         return level <= ExplicitStderrLevel;
 
     // whether the given level is allowed by emergency handling circumstances
-    // (coveringForCacheLog) or configuration aspects (e.g., -k or -z)
-    return coveringForCacheLog || level <= DefaultStderrLevel;
+    // (coveringForCacheLog or DBG_CRITICAL messages) or configuration aspects (e.g., -k or -z)
+    return coveringForCacheLog || level == DBG_CRITICAL || level <= DefaultStderrLevel;
 }
 
 void
@@ -568,11 +568,10 @@ StderrChannel::log(const DebugMessageHeader &header, const std::string &body)
     if (header.recordNumber <= lastWrittenRecordNumber)
         return;
 
-    if (saveMessage(header, body))
+    if (!shouldWrite(header.level)) {
+        (void)saveMessage(header, body);
         return;
-
-    if (!shouldWrite(header.level))
-        return;
+    }
 
     // We must write this eligible unsaved message, but we must log previously
     // saved early messages before writeToStream() below to avoid reordering.
