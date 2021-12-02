@@ -15,7 +15,7 @@
 #endif
 
 SBuf
-Security::CertSubjectName(const Certificate &cert)
+Security::CertSubjectName(Certificate &cert)
 {
     SBuf out;
 #if USE_OPENSSL
@@ -43,7 +43,7 @@ Security::CertSubjectName(const Certificate &cert)
     gnutls_free(str.data);
 
 #else
-    debugs(83, DBG_PARSE_NOTE(2), "WARNING: cannot get certificate SubjectName: " << MissingLibraryError());
+    debugs(83, DBG_PARSE_NOTE(2), "WARNING: cannot get certificate SubjectName, no TLS library is configured");
     return out;
 #endif
 
@@ -67,7 +67,7 @@ Security::CertIsIssuedBy(Certificate &cert, Certificate &issuer)
         return true;
     debugs(83, DBG_PARSE_NOTE(3), CertSubjectName(issuer) << " did not sign " << CertSubjectName(cert));
 #else
-    debugs(83, DBG_PARSE_NOTE(2), "WARNING: cannot determine certificates relationship: " << MissingLibraryError());
+    debugs(83, DBG_PARSE_NOTE(2), "WARNING: cannot determine certificates relationship, no TLS library is configured");
 #endif
     return false;
 }
