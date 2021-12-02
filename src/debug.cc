@@ -557,8 +557,8 @@ StderrChannel::shouldWrite(const int level) const
         return level <= ExplicitStderrLevel;
 
     // whether the given level is allowed by emergency handling circumstances
-    // (coveringForCacheLog or DBG_CRITICAL messages) or configuration aspects (e.g., -k or -z)
-    return coveringForCacheLog || level == DBG_CRITICAL || level <= DefaultStderrLevel;
+    // (coveringForCacheLog) or configuration aspects (e.g., -k or -z)
+    return coveringForCacheLog || level <= DefaultStderrLevel;
 }
 
 void
