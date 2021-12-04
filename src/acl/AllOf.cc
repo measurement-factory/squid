@@ -19,12 +19,6 @@ Acl::AllOf::typeString() const
     return "all-of";
 }
 
-ACL *
-Acl::AllOf::clone() const
-{
-    return new AllOf;
-}
-
 SBufList
 Acl::AllOf::dump() const
 {
