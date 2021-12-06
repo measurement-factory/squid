@@ -159,6 +159,10 @@ public:
     /// \returns (a possibly empty container with) saved messages or nil
     EarlyMessages releaseEarlyMessages() { return EarlyMessages(earlyMessages.release()); }
 
+    /// whether log() ought to write the corresponding debugs() message
+    /// (assuming some higher-level code applied cache.log section/level filter)
+    virtual bool shouldWrite(const DebugMessageHeader &) const = 0;
+
     /// Log the message to the channel if the channel accepts (such) messages.
     /// This logging may be delayed until the channel configuration is settled.
     virtual void log(const DebugMessageHeader &, const std::string &body) = 0;
@@ -189,7 +193,6 @@ protected:
         DebugChannel &channel;
     };
     /// stores the given early message (if possible) or forgets it (otherwise)
-    /// \returns whether the message was stored
     void saveMessage(const DebugMessageHeader &header, const std::string &body);
 
     /// stop saving and log() any "early" messages, in recordNumber order
@@ -223,6 +226,7 @@ public:
     CacheLogChannel(): DebugChannel("cache_log") {}
 
     /* DebugChannel API */
+    virtual bool shouldWrite(const DebugMessageHeader &) const final;
     virtual void log(const DebugMessageHeader &, const std::string &body) final;
 };
 
@@ -232,18 +236,18 @@ class StderrChannel: public DebugChannel
 public:
     StderrChannel(): DebugChannel("stderr") {}
 
-    /// whether log() ought to write the corresponding debugs() message
-    /// (assuming some higher-level code applied cache.log section/level filter)
-    bool shouldWrite(int level) const;
-
     /* DebugChannel API */
+    virtual bool shouldWrite(const DebugMessageHeader &) const final;
     virtual void log(const DebugMessageHeader &, const std::string &body) final;
 
-    /// start to take care of past/saved and future cacheLogChannel messages
+    /// start to take care of past/saved and future cacheLovirtual gChannel messages
     void takeOver(CacheLogChannel &);
 
     /// stop providing a cache_log replacement (if we were providing it)
     void stopCoveringForCacheLog();
+
+    /// \copydoc DebugChannel::shouldWrite()
+    bool enabled(const int level) const;
 
 private:
     /// whether we are the last resort for logging debugs() messages
@@ -256,10 +260,8 @@ class SyslogChannel: public DebugChannel
 public:
     SyslogChannel(): DebugChannel("syslog") {}
 
-    /// whether log() ought to write the corresponding debugs() message
-    bool shouldWrite(const DebugMessageHeader &) const;
-
     /* DebugChannel API */
+    virtual bool shouldWrite(const DebugMessageHeader &) const final;
     virtual void log(const DebugMessageHeader &, const std::string &body) final;
 };
 
@@ -529,17 +531,20 @@ DebugChannel::noteWritten(const DebugMessageHeader &header)
 
 /* CacheLogChannel */
 
+bool
+CacheLogChannel::shouldWrite(const DebugMessageHeader &) const
+{
+    return TheLog.file();
+}
+
 void
 CacheLogChannel::log(const DebugMessageHeader &header, const std::string &body)
 {
     if (header.recordNumber <= lastWrittenRecordNumber)
         return;
 
-    if (earlyMessages)
+    if (!shouldWrite(header))
         return saveMessage(header, body);
-
-    if (!TheLog.file())
-        return;
 
     writeToStream(*TheLog.file(), header, body);
     fflush(TheLog.file());
@@ -548,7 +553,13 @@ CacheLogChannel::log(const DebugMessageHeader &header, const std::string &body)
 /* StderrChannel */
 
 bool
-StderrChannel::shouldWrite(const int level) const
+StderrChannel::shouldWrite(const DebugMessageHeader &header) const
+{
+    return enabled(header.level);
+}
+
+bool
+StderrChannel::enabled(const int level) const
 {
     if (!stderr)
         return false; // nowhere to write
@@ -567,7 +578,7 @@ StderrChannel::log(const DebugMessageHeader &header, const std::string &body)
     if (header.recordNumber <= lastWrittenRecordNumber)
         return;
 
-    if (!shouldWrite(header.level))
+    if (!shouldWrite(header))
         return saveMessage(header, body);
 
     // We must write this eligible unsaved message, but we must log previously
@@ -621,7 +632,7 @@ Debug::SettleStderr()
 bool
 Debug::StderrEnabled()
 {
-    return Module().stderrChannel.shouldWrite(DBG_CRITICAL);
+    return Module().stderrChannel.enabled(DBG_CRITICAL);
 }
 
 /* DebugMessage */
@@ -992,7 +1003,8 @@ SyslogChannel::log(const DebugMessageHeader &header, const std::string &body)
         return saveMessage(header, body);
 
     // Do not stopEarlyMessageCollection() here: The already saved earlier
-    // messages are doomed, but future early messages still have a chance.
+    // messages are doomed, but future early messages DBG_IMPORTANT messages should
+    // be saved in case Debug::log_syslog becomes true later.
 
     syslog(SyslogPriority(header), "%s", body.c_str());
     noteWritten(header);
