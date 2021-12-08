@@ -163,9 +163,12 @@ public:
     /// (assuming some higher-level code applied cache.log section/level filter)
     virtual bool shouldWrite(const DebugMessageHeader &) const = 0;
 
+    /// write the corresponding debugs() message into the channel
+    virtual void write(const DebugMessageHeader &, const std::string &body) = 0;
+
     /// Log the message to the channel if the channel accepts (such) messages.
     /// This logging may be delayed until the channel configuration is settled.
-    virtual void log(const DebugMessageHeader &, const std::string &body) = 0;
+    virtual void log(const DebugMessageHeader &, const std::string &body);
 
 protected:
     /// output iterator for DebugMessages
@@ -227,7 +230,7 @@ public:
 
     /* DebugChannel API */
     virtual bool shouldWrite(const DebugMessageHeader &) const final;
-    virtual void log(const DebugMessageHeader &, const std::string &body) final;
+    virtual void write(const DebugMessageHeader &, const std::string &body) final;
 };
 
 /// DebugChannel managing messages destined for "standard error stream" (stderr)
@@ -238,7 +241,7 @@ public:
 
     /* DebugChannel API */
     virtual bool shouldWrite(const DebugMessageHeader &) const final;
-    virtual void log(const DebugMessageHeader &, const std::string &body) final;
+    virtual void write(const DebugMessageHeader &, const std::string &body) final;
 
     /// start to take care of past/saved and future cacheLovirtual gChannel messages
     void takeOver(CacheLogChannel &);
@@ -260,9 +263,17 @@ class SyslogChannel: public DebugChannel
 public:
     SyslogChannel(): DebugChannel("syslog") {}
 
+    void markOpened() { opened = true; }
+
     /* DebugChannel API */
     virtual bool shouldWrite(const DebugMessageHeader &) const final;
+    virtual void write(const DebugMessageHeader &, const std::string &body) final;
+#if !HAVE_SYSLOG
     virtual void log(const DebugMessageHeader &, const std::string &body) final;
+#endif
+
+private:
+    bool opened = false; ///< whether openlog() was called
 };
 
 /// Manages private module state that must be available during program startup
@@ -453,6 +464,22 @@ DebugChannel::stopEarlyMessageCollection()
 }
 
 void
+DebugChannel::log(const DebugMessageHeader &header, const std::string &body)
+{
+    if (header.recordNumber <= lastWrittenRecordNumber)
+        return;
+
+    if (!shouldWrite(header))
+        return saveMessage(header, body);
+
+    // We must write this eligible unsaved message, but we must log previously
+    // saved early messages before write() below to avoid reordering.
+    stopEarlyMessageCollection();
+
+    write(header, body);
+}
+
+void
 Debug::ForgetSaved()
 {
     auto &module = Module();
@@ -538,14 +565,8 @@ CacheLogChannel::shouldWrite(const DebugMessageHeader &) const
 }
 
 void
-CacheLogChannel::log(const DebugMessageHeader &header, const std::string &body)
+CacheLogChannel::write(const DebugMessageHeader &header, const std::string &body)
 {
-    if (header.recordNumber <= lastWrittenRecordNumber)
-        return;
-
-    if (!shouldWrite(header))
-        return saveMessage(header, body);
-
     writeToStream(*TheLog.file(), header, body);
     fflush(TheLog.file());
 }
@@ -573,18 +594,8 @@ StderrChannel::enabled(const int level) const
 }
 
 void
-StderrChannel::log(const DebugMessageHeader &header, const std::string &body)
+StderrChannel::write(const DebugMessageHeader &header, const std::string &body)
 {
-    if (header.recordNumber <= lastWrittenRecordNumber)
-        return;
-
-    if (!shouldWrite(header))
-        return saveMessage(header, body);
-
-    // We must write this eligible unsaved message, but we must log previously
-    // saved early messages before writeToStream() below to avoid reordering.
-    stopEarlyMessageCollection();
-
     writeToStream(*stderr, header, body);
 }
 
@@ -988,24 +999,16 @@ SyslogPriority(const DebugMessageHeader &header)
 bool
 SyslogChannel::shouldWrite(const DebugMessageHeader &header) const
 {
-    return header.forceAlert ||
-        header.level == DBG_CRITICAL ||
-        (Debug::log_syslog && header.level <= DBG_IMPORTANT);
+    if (!opened)
+        return false;
+
+    assert(Debug::log_syslog);
+    return header.forceAlert || header.level <= DBG_IMPORTANT;
 }
 
 void
-SyslogChannel::log(const DebugMessageHeader &header, const std::string &body)
+SyslogChannel::write(const DebugMessageHeader &header, const std::string &body)
 {
-    if (header.recordNumber <= lastWrittenRecordNumber)
-        return;
-
-    if (!shouldWrite(header))
-        return saveMessage(header, body);
-
-    // Do not stopEarlyMessageCollection() here: The already saved earlier
-    // messages are doomed, but future early messages DBG_IMPORTANT messages should
-    // be saved in case Debug::log_syslog becomes true later.
-
     syslog(SyslogPriority(header), "%s", body.c_str());
     noteWritten(header);
 }
@@ -1086,8 +1089,10 @@ Debug::SettleSyslog()
 {
 #if HAVE_SYSLOG && defined(LOG_LOCAL4)
 
-    if (Debug::log_syslog)
+    if (Debug::log_syslog) {
         openlog(APP_SHORTNAME, LOG_PID | LOG_NDELAY | LOG_CONS, syslog_facility);
+        Module().syslogChannel.markOpened();
+    }
 
 #endif /* HAVE_SYSLOG */
 
