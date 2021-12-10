@@ -1012,8 +1012,7 @@ SyslogChannel::write(const DebugMessageHeader &header, const std::string &body)
 void
 SyslogChannel::write(const DebugMessageHeader &, const std::string &)
 {
-    // cannot get here because shouldWrite() is always false
-    assert(opened);
+    assert(!"unreachable code because opened, shouldWrite() are always false");
 }
 
 #endif /* HAVE_SYSLOG */
