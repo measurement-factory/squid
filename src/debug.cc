@@ -469,8 +469,9 @@ DebugChannel::log(const DebugMessageHeader &header, const std::string &body)
     if (!shouldWrite(header))
         return saveMessage(header, body);
 
-    // We must write this eligible unsaved message, but we must log previously
-    // saved early messages before write() below to avoid reordering.
+    // We only save messages before we learn whether the channel is going to be used.
+    // We now know that it will be used. Also logs saved early messages (if
+    // they became eligible now) before lastWrittenRecordNumber blocks them.
     stopEarlyMessageCollection();
 
     write(header, body);
