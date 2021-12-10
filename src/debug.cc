@@ -168,7 +168,7 @@ public:
 
     /// Log the message to the channel if the channel accepts (such) messages.
     /// This logging may be delayed until the channel configuration is settled.
-    virtual void log(const DebugMessageHeader &, const std::string &body);
+    void log(const DebugMessageHeader &, const std::string &body);
 
 protected:
     /// output iterator for DebugMessages
@@ -268,9 +268,6 @@ public:
     /* DebugChannel API */
     virtual bool shouldWrite(const DebugMessageHeader &) const final;
     virtual void write(const DebugMessageHeader &, const std::string &body) final;
-#if !HAVE_SYSLOG
-    virtual void log(const DebugMessageHeader &, const std::string &body) final;
-#endif
 
 private:
     bool opened = false; ///< whether openlog() was called
@@ -438,7 +435,7 @@ DebugModule &
 Module() {
     if (!Module_) {
         Module_ = new DebugModule();
-#if !defined(HAVE_SYSLOG)
+#if !HAVE_SYSLOG
         // Optimization: Do not wait for others to tell us what we already know.
         Debug::SettleSyslog();
 #endif
@@ -996,16 +993,6 @@ SyslogPriority(const DebugMessageHeader &header)
            (header.level == 0 ? LOG_WARNING : LOG_NOTICE);
 }
 
-bool
-SyslogChannel::shouldWrite(const DebugMessageHeader &header) const
-{
-    if (!opened)
-        return false;
-
-    assert(Debug::log_syslog);
-    return header.forceAlert || header.level <= DBG_IMPORTANT;
-}
-
 void
 SyslogChannel::write(const DebugMessageHeader &header, const std::string &body)
 {
@@ -1016,11 +1003,23 @@ SyslogChannel::write(const DebugMessageHeader &header, const std::string &body)
 #else
 
 void
-SyslogChannel::log(const DebugMessageHeader &, const std::string &)
+SyslogChannel::write(const DebugMessageHeader &, const std::string &)
 {
-    // nothing to do when we do not support logging to syslog
+    // cannot get here because shouldWrite() is always false
+    assert(opened);
 }
+
 #endif /* HAVE_SYSLOG */
+
+bool
+SyslogChannel::shouldWrite(const DebugMessageHeader &header) const
+{
+    if (!opened)
+        return false;
+
+    assert(Debug::log_syslog);
+    return header.forceAlert || header.level <= DBG_IMPORTANT;
+}
 
 void
 Debug::ConfigureSyslog(const char *facility)
