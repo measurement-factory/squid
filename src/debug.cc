@@ -17,6 +17,7 @@
 
 #include <algorithm>
 #include <deque>
+#include <functional>
 #include <memory>
 
 /* for shutting_down flag in xassert() */
@@ -184,7 +185,7 @@ protected:
         explicit Logger(DebugChannel &ch) : channel(ch) {}
         Logger &operator=(const DebugMessage &message) {
             if (Debug::Enabled(message.header.section, message.header.level))
-                channel.log(message.header, message.body);
+                channel.get().log(message.header, message.body);
             return *this;
         }
         // These no-op operators are provided to satisfy LegacyOutputIterator requirements,
@@ -193,7 +194,8 @@ protected:
         Logger &operator++() { return *this; }
         Logger &operator++(int) { return *this; }
     private:
-        DebugChannel &channel;
+        // wrap: output iterators must be CopyAssignable; raw references are not
+        std::reference_wrapper<DebugChannel> channel; ///< output destination
     };
     /// stores the given early message (if possible) or forgets it (otherwise)
     void saveMessage(const DebugMessageHeader &header, const std::string &body);
