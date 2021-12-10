@@ -160,15 +160,8 @@ public:
     /// \returns (a possibly empty container with) saved messages or nil
     EarlyMessages releaseEarlyMessages() { return EarlyMessages(earlyMessages.release()); }
 
-    /// whether log() ought to write the corresponding debugs() message
-    /// (assuming some higher-level code applied cache.log section/level filter)
-    virtual bool shouldWrite(const DebugMessageHeader &) const = 0;
-
-    /// write the corresponding debugs() message into the channel
-    virtual void write(const DebugMessageHeader &, const std::string &body) = 0;
-
-    /// Log the message to the channel if the channel accepts (such) messages.
-    /// This logging may be delayed until the channel configuration is settled.
+    /// Write the message to the channel if the channel accepts (such) messages.
+    /// This writing may be delayed until the channel configuration is settled.
     void log(const DebugMessageHeader &, const std::string &body);
 
 protected:
@@ -197,6 +190,14 @@ protected:
         // wrap: output iterators must be CopyAssignable; raw references are not
         std::reference_wrapper<DebugChannel> channel; ///< output destination
     };
+
+    /// whether we should write() the corresponding debugs() message now
+    /// (assumes some higher-level code applied cache.log section/level filter)
+    virtual bool shouldWrite(const DebugMessageHeader &) const = 0;
+
+    /// write the corresponding debugs() message into the channel
+    virtual void write(const DebugMessageHeader &, const std::string &body) = 0;
+
     /// stores the given early message (if possible) or forgets it (otherwise)
     void saveMessage(const DebugMessageHeader &header, const std::string &body);
 
@@ -230,6 +231,7 @@ class CacheLogChannel: public DebugChannel
 public:
     CacheLogChannel(): DebugChannel("cache_log") {}
 
+protected:
     /* DebugChannel API */
     virtual bool shouldWrite(const DebugMessageHeader &) const final;
     virtual void write(const DebugMessageHeader &, const std::string &body) final;
@@ -241,10 +243,6 @@ class StderrChannel: public DebugChannel
 public:
     StderrChannel(): DebugChannel("stderr") {}
 
-    /* DebugChannel API */
-    virtual bool shouldWrite(const DebugMessageHeader &) const final;
-    virtual void write(const DebugMessageHeader &, const std::string &body) final;
-
     /// start to take care of past/saved and future cacheLovirtual gChannel messages
     void takeOver(CacheLogChannel &);
 
@@ -252,7 +250,12 @@ public:
     void stopCoveringForCacheLog();
 
     /// \copydoc DebugChannel::shouldWrite()
-    bool enabled(const int level) const;
+    bool enabled(const int messageDebugLevel) const;
+
+protected:
+    /* DebugChannel API */
+    virtual bool shouldWrite(const DebugMessageHeader &) const final;
+    virtual void write(const DebugMessageHeader &, const std::string &body) final;
 
 private:
     /// whether we are the last resort for logging debugs() messages
@@ -267,6 +270,7 @@ public:
 
     void markOpened() { opened = true; }
 
+protected:
     /* DebugChannel API */
     virtual bool shouldWrite(const DebugMessageHeader &) const final;
     virtual void write(const DebugMessageHeader &, const std::string &body) final;
@@ -471,9 +475,9 @@ DebugChannel::log(const DebugMessageHeader &header, const std::string &body)
     if (!shouldWrite(header))
         return saveMessage(header, body);
 
-    // We only save messages before we learn whether the channel is going to be used.
-    // We now know that it will be used. Also logs saved early messages (if
-    // they became eligible now) before lastWrittenRecordNumber blocks them.
+    // We only save messages until we learn whether the channel is going to be
+    // used. We now know that it will be used. Also logs saved early messages
+    // (if they became eligible now) before lastWrittenRecordNumber blocks them.
     stopEarlyMessageCollection();
 
     write(header, body);
@@ -574,12 +578,6 @@ CacheLogChannel::write(const DebugMessageHeader &header, const std::string &body
 /* StderrChannel */
 
 bool
-StderrChannel::shouldWrite(const DebugMessageHeader &header) const
-{
-    return enabled(header.level);
-}
-
-bool
 StderrChannel::enabled(const int level) const
 {
     if (!stderr)
@@ -591,6 +589,12 @@ StderrChannel::enabled(const int level) const
     // whether the given level is allowed by emergency handling circumstances
     // (coveringForCacheLog) or configuration aspects (e.g., -k or -z)
     return coveringForCacheLog || level <= DefaultStderrLevel;
+}
+
+bool
+StderrChannel::shouldWrite(const DebugMessageHeader &header) const
+{
+    return enabled(header.level);
 }
 
 void
