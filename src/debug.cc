@@ -125,26 +125,26 @@ public:
 };
 
 /// a fully processed debugs(), ready to be logged
-class DebugMessage
+class CompiledDebugMessage
 {
 public:
     using Header = DebugMessageHeader;
-    DebugMessage(const Header &aHeader, const std::string &aBody);
+    CompiledDebugMessage(const Header &aHeader, const std::string &aBody);
 
     Header header; ///< debugs() meta-information; reflected in log line prefix
     std::string body; ///< the log line after the prefix (without the newline)
 };
 
 /// debugs() messages captured in LogMessage() call order
-using DebugMessages = std::deque<DebugMessage>;
+using CompiledDebugMessages = std::deque<CompiledDebugMessage>;
 
 /// a receiver of debugs() messages (e.g., stderr or cache.log)
 class DebugChannel
 {
 public:
-    using EarlyMessages = std::unique_ptr<DebugMessages>;
+    using EarlyMessages = std::unique_ptr<CompiledDebugMessages>;
 
-    explicit DebugChannel(const char * const aName): name(aName), earlyMessages(new DebugMessages()) {}
+    explicit DebugChannel(const char * const aName): name(aName), earlyMessages(new CompiledDebugMessages()) {}
     virtual ~DebugChannel() {}
 
     // no copying or moving or any kind (for simplicity sake and to prevent accidental copies)
@@ -165,7 +165,7 @@ public:
     void log(const DebugMessageHeader &, const std::string &body);
 
 protected:
-    /// output iterator for DebugMessages
+    /// output iterator for CompiledDebugMessages
     class Logger
     {
     public:
@@ -176,7 +176,7 @@ protected:
         using iterator_category = std::output_iterator_tag;
 
         explicit Logger(DebugChannel &ch) : channel(ch) {}
-        Logger &operator=(const DebugMessage &message) {
+        Logger &operator=(const CompiledDebugMessage &message) {
             if (Debug::Enabled(message.header.section, message.header.level))
                 channel.get().log(message.header, message.body);
             return *this;
@@ -505,14 +505,14 @@ DebugChannel::StopSavingAndLog(DebugChannel &channelA, DebugChannel *channelBOrN
 
     assert(&channelA != channelBOrNil);
     const auto earlyMessagesA = channelA.releaseEarlyMessages();
-    const auto &a = earlyMessagesA ? *earlyMessagesA : DebugMessages();
+    const auto &a = earlyMessagesA ? *earlyMessagesA : CompiledDebugMessages();
     const auto earlyMessagesB = channelBOrNil ? channelBOrNil->releaseEarlyMessages() : nullptr;
-    const auto &b = earlyMessagesB ? *earlyMessagesB : DebugMessages();
+    const auto &b = earlyMessagesB ? *earlyMessagesB : CompiledDebugMessages();
 
     const auto writtenEarlier = channelA.written;
 
     std::merge(a.begin(), a.end(), b.begin(), b.end(), Logger(channelA),
-    [&](const DebugMessage &mA, const DebugMessage& mB) {
+    [&](const CompiledDebugMessage &mA, const CompiledDebugMessage &mB) {
     return mA.header.recordNumber < mB.header.recordNumber;
     });
 
@@ -650,9 +650,9 @@ Debug::StderrEnabled()
     return Module().stderrChannel.enabled(DBG_CRITICAL);
 }
 
-/* DebugMessage */
+/* CompiledDebugMessage */
 
-DebugMessage::DebugMessage(const Header &aHeader, const std::string &aBody):
+CompiledDebugMessage::CompiledDebugMessage(const Header &aHeader, const std::string &aBody):
     header(aHeader),
     body(aBody)
 {
