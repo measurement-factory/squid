@@ -29,18 +29,18 @@ class RefCount
 public:
     RefCount () : p_ (NULL) {}
 
-    RefCount (C const *p) : p_(p) { reference (*this); }
-
     ~RefCount() {
         dereference();
     }
 
-    RefCount (const RefCount &p) : p_(p.p_) {
-        reference (p);
-    }
+    RefCount(nullptr_t) : p_(nullptr) {}
 
-    RefCount (RefCount &&p) : p_(std::move(p.p_)) {
-        p.p_=NULL;
+    template <class Other>
+    RefCount (Other const *p) : p_(p) { reference (*this); }
+
+    template <class Other>
+    RefCount (RefCount<Other> &&p) : p_(std::move(p.getRaw())) {
+        p.p_=nullptr;
     }
 
     /// Base::Pointer = Derived::Pointer
@@ -49,19 +49,21 @@ public:
         reference(*this);
     }
 
-    RefCount& operator = (const RefCount& p) {
+    template <class Other>
+    RefCount& operator=(const RefCount<Other> &p) {
         // DO NOT CHANGE THE ORDER HERE!!!
         // This preserves semantics on self assignment
-        C const *newP_ = p.p_;
+        C const *newP_ = p.getRaw();
         reference(p);
         dereference(newP_);
         return *this;
     }
 
-    RefCount& operator = (RefCount&& p) {
-        if (this != &p) {
+    template <class Other>
+    RefCount& operator=(RefCount<Other>&& p) {
+        if (p_ != p.getRaw()) {
             dereference(p.p_);
-            p.p_ = NULL;
+            p.p_ = nullptr;
         }
         return *this;
     }
@@ -80,11 +82,11 @@ public:
     C * getRaw() const { return const_cast<C *>(p_); }
 
     bool operator == (const RefCount& p) const {
-        return p.p_ == p_;
+        return p.getRaw() == p_;
     }
 
     bool operator != (const RefCount &p) const {
-        return p.p_ != p_;
+        return p.getRaw() != p_;
     }
 
 private:
