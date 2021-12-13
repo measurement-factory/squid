@@ -512,7 +512,7 @@ DebugChannel::StopSavingAndLog(DebugChannel &channelA, DebugChannel *channelBOrN
     const auto writtenEarlier = channelA.written;
 
     std::merge(as.begin(), as.end(), bs.begin(), bs.end(), Logger(channelA),
-    [&](const CompiledDebugMessage &mA, const CompiledDebugMessage &mB) {
+    [](const CompiledDebugMessage &mA, const CompiledDebugMessage &mB) {
     return mA.header.recordNumber < mB.header.recordNumber;
     });
 
