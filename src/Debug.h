@@ -90,8 +90,6 @@ public:
 
     static void parseOptions(char const *);
 
-    /// debugging section of the current debugs() call
-    static int Section() { return Current ? Current->section : 0; }
     /// minimum level required by the current debugs() call
     static int Level() { return Current ? Current->level : 1; }
     /// maximum level currently allowed
@@ -165,7 +163,7 @@ public:
     static void SettleSyslog();
 
 private:
-    static void LogMessage(const Debug::Context &context);
+    static void LogMessage(const Context &);
 
     static Context *Current; ///< deepest active context; nil outside debugs()
 };

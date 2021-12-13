@@ -145,7 +145,7 @@ public:
     using EarlyMessages = std::unique_ptr<CompiledDebugMessages>;
 
     explicit DebugChannel(const char * const aName): name(aName), earlyMessages(new CompiledDebugMessages()) {}
-    virtual ~DebugChannel() {}
+    virtual ~DebugChannel() = default;
 
     // no copying or moving or any kind (for simplicity sake and to prevent accidental copies)
     DebugChannel(DebugChannel &&) = delete;
@@ -165,7 +165,7 @@ public:
     void log(const DebugMessageHeader &, const std::string &body);
 
 protected:
-    /// output iterator for CompiledDebugMessages
+    /// output iterator for writing CompiledDebugMessages to a given channel
     class Logger
     {
     public:
@@ -504,22 +504,22 @@ DebugChannel::StopSavingAndLog(DebugChannel &channelA, DebugChannel *channelBOrN
     const LoggingSectionGuard sectionGuard;
 
     assert(&channelA != channelBOrNil);
-    const auto earlyMessagesA = channelA.releaseEarlyMessages();
-    const auto &a = earlyMessagesA ? *earlyMessagesA : CompiledDebugMessages();
-    const auto earlyMessagesB = channelBOrNil ? channelBOrNil->releaseEarlyMessages() : nullptr;
-    const auto &b = earlyMessagesB ? *earlyMessagesB : CompiledDebugMessages();
+    const auto asOrNil = channelA.releaseEarlyMessages();
+    const auto bsOrNil = channelBOrNil ? channelBOrNil->releaseEarlyMessages() : nullptr;
+    const auto &as = asOrNil ? *asOrNil : CompiledDebugMessages();
+    const auto &bs = bsOrNil ? *bsOrNil : CompiledDebugMessages();
 
     const auto writtenEarlier = channelA.written;
 
-    std::merge(a.begin(), a.end(), b.begin(), b.end(), Logger(channelA),
+    std::merge(as.begin(), as.end(), bs.begin(), bs.end(), Logger(channelA),
     [&](const CompiledDebugMessage &mA, const CompiledDebugMessage &mB) {
     return mA.header.recordNumber < mB.header.recordNumber;
     });
 
     const auto writtenNow = channelA.written - writtenEarlier;
-    if (const auto totalCount = a.size() + b.size()) {
+    if (const auto totalCount = as.size() + bs.size()) {
         debugs(0, 5, "wrote " << writtenNow << " out of " << totalCount << '=' <<
-               a.size() << '+' << b.size() << " early messages to " << channelA.name);
+               as.size() << '+' << bs.size() << " early messages to " << channelA.name);
     }
 }
 
