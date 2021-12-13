@@ -105,15 +105,7 @@ private:
 class DebugMessageHeader
 {
 public:
-    DebugMessageHeader(const DebugRecordCount aRecordNumber, const Debug::Context &context):
-        recordNumber(aRecordNumber),
-        timestamp(getCurrentTime()),
-        section(context.section),
-        level(context.level),
-        forceAlert(context.forceAlert),
-        role_XXX(myLeadingRole_XXX())
-    {
-    }
+    DebugMessageHeader(const DebugRecordCount aRecordNumber, const Debug::Context &);
 
     DebugRecordCount recordNumber; ///< LogMessage() calls before this message
     time_t timestamp; ///< approximate debugs() call time
@@ -175,17 +167,20 @@ protected:
         using reference = void;
         using iterator_category = std::output_iterator_tag;
 
-        explicit Logger(DebugChannel &ch) : channel(ch) {}
+        explicit Logger(DebugChannel &ch): channel(ch) {}
+
         Logger &operator=(const CompiledDebugMessage &message) {
             if (Debug::Enabled(message.header.section, message.header.level))
                 channel.get().log(message.header, message.body);
             return *this;
         }
+
         // These no-op operators are provided to satisfy LegacyOutputIterator requirements,
         // as is customary for similar STL output iterators like std::ostream_iterator.
         Logger &operator*() { return *this; }
         Logger &operator++() { return *this; }
         Logger &operator++(int) { return *this; }
+
     private:
         // wrap: output iterators must be CopyAssignable; raw references are not
         std::reference_wrapper<DebugChannel> channel; ///< output destination
@@ -199,7 +194,7 @@ protected:
     virtual void write(const DebugMessageHeader &, const std::string &body) = 0;
 
     /// stores the given early message (if possible) or forgets it (otherwise)
-    void saveMessage(const DebugMessageHeader &header, const std::string &body);
+    void saveMessage(const DebugMessageHeader &, const std::string &body);
 
     /// stop saving and log() any "early" messages, in recordNumber order
     static void StopSavingAndLog(DebugChannel &, DebugChannel * = nullptr);
@@ -208,7 +203,7 @@ protected:
     void writeToStream(FILE &, const DebugMessageHeader &, const std::string &body);
 
     /// reacts to a written a debugs() message
-    void noteWritten(const DebugMessageHeader &header);
+    void noteWritten(const DebugMessageHeader &);
 
 protected:
     const char * const name = nullptr; ///< unique channel label for debugging
@@ -513,7 +508,7 @@ DebugChannel::StopSavingAndLog(DebugChannel &channelA, DebugChannel *channelBOrN
 
     std::merge(as.begin(), as.end(), bs.begin(), bs.end(), Logger(channelA),
     [](const CompiledDebugMessage &mA, const CompiledDebugMessage &mB) {
-    return mA.header.recordNumber < mB.header.recordNumber;
+        return mA.header.recordNumber < mB.header.recordNumber;
     });
 
     const auto writtenNow = channelA.written - writtenEarlier;
@@ -648,6 +643,18 @@ bool
 Debug::StderrEnabled()
 {
     return Module().stderrChannel.enabled(DBG_CRITICAL);
+}
+
+/* DebugMessageHeader */
+
+DebugMessageHeader::DebugMessageHeader(const DebugRecordCount aRecordNumber, const Debug::Context &context):
+    recordNumber(aRecordNumber),
+    timestamp(getCurrentTime()),
+    section(context.section),
+    level(context.level),
+    forceAlert(context.forceAlert),
+    role_XXX(myLeadingRole_XXX())
+{
 }
 
 /* CompiledDebugMessage */
