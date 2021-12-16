@@ -89,6 +89,7 @@ void PeerConnector::sendSuccess() STUB
 void PeerConnector::callBack() STUB
 void PeerConnector::disconnect() STUB
 void PeerConnector::recordNegotiationDetails() STUB
+void PeerConnector::callException(const std::exception &) STUB
 }
 
 #include "security/PeerOptions.h"
