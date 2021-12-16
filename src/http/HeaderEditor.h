@@ -66,7 +66,6 @@ private:
     std::list<RegexPattern> patterns_;
     Format::Format *format_ = nullptr;
     ACLList *aclList = nullptr;
-    int matchedCount_ = 0;
     // for debugging only
     SBuf formatString_;
     AccessLogEntryPointer al_;

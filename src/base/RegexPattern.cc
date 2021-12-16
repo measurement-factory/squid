@@ -43,20 +43,6 @@ RegexPattern::match(const char *str, RegexMatch &regexMatch)
     return false;
 }
 
-int
-RegexPattern::startOffset()
-{
-    Must(groups.size());
-    return groups[0].rm_so;
-}
-
-int
-RegexPattern::endOffset()
-{
-    Must(groups.size());
-    return groups[0].rm_eo;
-}
-
 RegexPattern &
 RegexPattern::operator =(RegexPattern &&o)
 {
@@ -66,6 +52,20 @@ RegexPattern::operator =(RegexPattern &&o)
     pattern = std::move(o.pattern);
     o.pattern = nullptr;
     return *this;
+}
+
+int
+RegexMatch::startOffset()
+{
+    Must(groups.size());
+    return groups[0].rm_so;
+}
+
+int
+RegexMatch::endOffset()
+{
+    Must(groups.size());
+    return groups[0].rm_eo;
 }
 
 SBuf

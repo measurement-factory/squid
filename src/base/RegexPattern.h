@@ -23,6 +23,10 @@ public:
     int maxGroups() const { return groups.size(); }
     /// the matched sub-expression at the captureNum position
     SBuf capture(uint64_t captureNum) const;
+    /// the start offset of the matched expression
+    int startOffset();
+    /// the end offset of the matched expression
+    int endOffset();
 
     SBuf matchedString; ///< the entire matched string
     std::vector<regmatch_t> groups; ///< the matched sub-expression list
@@ -58,11 +62,6 @@ public:
     /// the matched sub-expression an captureNum position
     SBuf capture(const uint64_t captureNum) const;
 
-    /// the start offset of the matched expression
-    int startOffset();
-
-    /// the end offset of the matched expression
-    int endOffset();
 
 public:
     int flags;

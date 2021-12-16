@@ -117,13 +117,13 @@ Http::HeaderEditor::applyEach(SBuf &input, RegexPattern &pattern)
             break;
         static MemBuf mb;
         mb.reset();
-        matchedCount_++;
-        result.append(s, pattern.startOffset());
+        result.append(s, regexMatch.startOffset());
         ::Format::Format::AssembleParams params;
         params.headerEditMatch = &regexMatch;
         format_->assemble(mb, al_, &params);
         result.append(mb.content(), mb.contentSize());
-        s += pattern.endOffset();
+        result.append("\r\n");
+        s += regexMatch.endOffset();
     }
     result.append(s);
     input = result;
@@ -134,22 +134,24 @@ Http::HeaderEditor::applyAll(SBuf &input, RegexPattern &pattern)
 {
     auto s = input.c_str();
     SBuf result;
+    bool wasMatched = false;
 
     while (s) {
         RegexMatch regexMatch(ReGroupMax);
         if (!pattern.match(s, regexMatch))
             break;
-        matchedCount_++;
-        result.append(s, pattern.startOffset());
-        if (matchedCount_ == 1) {
+        result.append(s, regexMatch.startOffset());
+        if (!wasMatched) {
+            wasMatched = true;
             static MemBuf mb;
             mb.reset();
             ::Format::Format::AssembleParams params;
             params.headerEditMatch = &regexMatch;
             format_->assemble(mb, al_, &params);
             result.append(mb.content(), mb.contentSize());
+            result.append("\r\n");
         }
-        s += pattern.endOffset();
+        s += regexMatch.endOffset() + 1; /// XXX: skip the rest of the line instead
     }
     result.append(s);
     input = result;
@@ -165,12 +167,13 @@ Http::HeaderEditor::applyOne(SBuf &input, RegexPattern &pattern)
     if (s && pattern.match(s, regexMatch)) {
         static MemBuf mb;
         mb.reset();
-        matchedCount_++;
-        result.append(s, pattern.startOffset());
+        result.append(s, regexMatch.startOffset());
         ::Format::Format::AssembleParams params;
         params.headerEditMatch = &regexMatch;
         format_->assemble(mb, al_, &params);
-        result.append(s, pattern.startOffset());
+        result.append(mb.content(), mb.contentSize());
+        result.append("\r\n");
+        s += regexMatch.endOffset() + 1;
     }
     result.append(s);
     input = result;
