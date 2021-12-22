@@ -300,7 +300,7 @@ ACL::parseFlags()
 const Acl::Options &
 ACL::lineOptions()
 {
-    if (auto lOptions = dirtyLineOptions()) {
+    if (auto lOptions = currentLineOptions()) {
         lOptions->reset();
         return lOptions->options();
     }

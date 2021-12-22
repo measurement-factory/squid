@@ -50,7 +50,7 @@ public:
     virtual int matchForCache(ACLChecklist *checklist);
 
 private:
-    virtual Acl::LineOptions *dirtyLineOptions() { return data->dirtyLineOptions(); }
+    virtual Acl::LineOptions *currentLineOptions() { return data->currentLineOptions(); }
 
     int matchProxyAuth(ACLChecklist *);
     ACLData<char const *> *data;

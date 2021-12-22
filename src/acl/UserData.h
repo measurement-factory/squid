@@ -26,10 +26,11 @@ public:
     virtual SBufList dump() const;
     virtual void parse();
     bool empty() const;
-    virtual Acl::LineOptions *dirtyLineOptions();
     virtual ACLData<char const *> *clone() const;
 
 private:
+    virtual Acl::LineOptions *currentLineOptions() { return &MyLineOptions_; }
+    static Acl::CaseLineOptions MyLineOptions_;
 
     typedef std::set<SBuf,bool(*)(const SBuf&, const SBuf&)> UserDataNames_t;
     UserDataNames_t userDataNames;

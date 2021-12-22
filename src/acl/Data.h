@@ -29,7 +29,7 @@ public:
     virtual void prepareForUse() {}
     /// \returns Acl::LineOptions supported by this ACL parameters (e.g., "-i")
     /// The parsed option values are valid only during the current Acl::parse()!
-    virtual Acl::LineOptions *dirtyLineOptions() { return nullptr; }
+    virtual Acl::LineOptions *currentLineOptions() { return nullptr; }
 
     virtual bool empty() const =0;
 };

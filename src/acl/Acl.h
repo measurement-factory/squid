@@ -59,7 +59,7 @@ public:
     /// Updates the checklist state on match, async, and failure.
     bool matches(ACLChecklist *checklist) const;
 
-    /// \returns (linked) Options supported by this ACL
+    /// \returns (linked) 'global' Options supported by this ACL
     virtual const Acl::Options &options() { return Acl::NoOptions(); }
     /// \returns (linked) 'line' Options supported by this ACL
     const Acl::Options &lineOptions();
@@ -99,7 +99,7 @@ private:
     virtual bool requiresReply() const;
     /// \returns Acl::LineOptions supported by this ACL
     /// The parsed option values are valid only during the current Acl::parse()!
-    virtual Acl::LineOptions *dirtyLineOptions() { return nullptr; }
+    virtual Acl::LineOptions *currentLineOptions() { return nullptr; }
 };
 
 /// \ingroup ACLAPI

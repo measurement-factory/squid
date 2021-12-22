@@ -52,7 +52,7 @@ public:
     virtual bool valid () const;
 
 private:
-    virtual Acl::LineOptions *dirtyLineOptions() { return data->dirtyLineOptions(); }
+    virtual Acl::LineOptions *currentLineOptions() { return data->currentLineOptions(); }
 
     ACLData<MatchType> *data;
     char const *type_;

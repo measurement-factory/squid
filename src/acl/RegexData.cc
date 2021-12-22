@@ -25,6 +25,8 @@
 #include "sbuf/Algorithms.h"
 #include "sbuf/List.h"
 
+Acl::CaseLineOptions ACLRegexData::MyLineOptions_;
+
 ACLRegexData::~ACLRegexData()
 {
 }
@@ -141,14 +143,12 @@ compileRE(std::list<RegexPattern> &curlist, const SBufList &RE, int flags)
  * called only once per ACL.
  */
 static int
-compileOptimisedREs(std::list<RegexPattern> &curlist, const SBufList &sl, const bool caseInsensitiveDefault)
+compileOptimisedREs(std::list<RegexPattern> &curlist, const SBufList &sl, const int startFlags)
 {
+	auto flags = startFlags;
     std::list<RegexPattern> newlist;
     SBufList accumulatedRE;
     int numREs = 0, reSize = 0;
-    int flags = REG_EXTENDED | REG_NOSUB;
-    if (caseInsensitiveDefault)
-        flags |= REG_ICASE;
 
     for (const SBuf & configurationLineWord : sl) {
         static const SBuf minus_i("-i");
@@ -216,11 +216,10 @@ compileOptimisedREs(std::list<RegexPattern> &curlist, const SBufList &sl, const 
 }
 
 static void
-compileUnoptimisedREs(std::list<RegexPattern> &curlist, const SBufList &sl)
+compileUnoptimisedREs(std::list<RegexPattern> &curlist, const SBufList &sl, const int startFlags)
 {
-    int flags = REG_EXTENDED | REG_NOSUB;
-
     static const SBuf minus_i("-i"), plus_i("+i");
+    auto flags = startFlags;
     for (auto configurationLineWord : sl) {
         if (configurationLineWord == minus_i) {
             flags |= REG_ICASE;
@@ -239,6 +238,10 @@ ACLRegexData::parse()
 {
     debugs(28, 2, "new Regex line or file");
 
+    int startingFlags = REG_EXTENDED | REG_NOSUB;
+    if (MyLineOptions_.isCaseInsensitive())
+        startingFlags |= REG_ICASE;
+
     SBufList sl;
     while (char *t = ConfigParser::RegexStrtokFile()) {
         const char *clean = removeUnnecessaryWildcards(t);
@@ -251,11 +254,9 @@ ACLRegexData::parse()
         }
     }
 
-    auto options = dynamic_cast<Acl::CaseLineOptions *>(dirtyLineOptions());
-    assert(options);
-    if (!compileOptimisedREs(data, sl, options->isCaseInsensitive())) {
+    if (!compileOptimisedREs(data, sl, startingFlags)) {
         debugs(28, DBG_IMPORTANT, "WARNING: optimisation of regular expressions failed; using fallback method without optimisation");
-        compileUnoptimisedREs(data, sl);
+        compileUnoptimisedREs(data, sl, startingFlags);
     }
 }
 
@@ -263,13 +264,6 @@ bool
 ACLRegexData::empty() const
 {
     return data.empty();
-}
-
-Acl::LineOptions *
-ACLRegexData::dirtyLineOptions()
-{
-    static Acl::CaseLineOptions myOptions;
-    return &myOptions;
 }
 
 ACLData<char const *> *

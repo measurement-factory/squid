@@ -34,7 +34,7 @@ public:
     virtual ACL *clone()const;
 
 private:
-    virtual Acl::LineOptions *dirtyLineOptions() { return data->dirtyLineOptions(); }
+    virtual Acl::LineOptions *currentLineOptions() { return data->currentLineOptions(); }
 
     ACLData<char const *> *data;
     char const *type_;
