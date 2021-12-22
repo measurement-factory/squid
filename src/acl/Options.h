@@ -13,8 +13,7 @@
 #include "sbuf/forward.h"
 
 #include <iosfwd>
-#include <map>
-#include <set>
+#include <vector>
 
 // After all same-name acl configuration lines are merged into one ACL:
 //   configuration = acl name type [option...] [[flag...] parameter...]
@@ -31,8 +30,6 @@
 // for ACLData code to process.
 
 namespace Acl {
-
-typedef const char *OptionName;
 
 /// A single option supported by an ACL: -x[=value] or --name[=value]
 /// Unlike a parameter flag, this option applies to all ACL parameters.
@@ -127,6 +124,20 @@ private:
     mutable Recipient *recipient_ = nullptr; ///< parsing results storage
 };
 
+// Links an Option with its option/flag name(s), such as --enable-foo[=value], --disable-foo, or -x[=value].
+class OptionName
+{
+public:
+    OptionName(const Option *opt, const char *on, const char *off = nullptr):
+               option(opt), enable(on), disable(off) {}
+    /// whether name is one of the Option names
+    bool has(const SBuf &name) const;
+
+    const Option *option;
+    const char *enable; ///< an option/flag name, turning this Option on
+    const char *disable; ///< an option/flag name, resetting this Option to a default value
+};
+
 /* two typical option kinds: --foo and --bar=text  */
 typedef OptionValue<bool> BooleanOptionValue;
 typedef OptionValue<SBuf> TextOptionValue;
@@ -149,16 +160,7 @@ BooleanOption::setFlag(bool flagValue) const
     recipient_->value = flagValue;
 }
 
-/// option name comparison functor
-class OptionNameCmp {
-public:
-    bool operator()(const OptionName a, const OptionName b) const;
-};
-/// name:option map
-typedef std::map<OptionName, const Option*, OptionNameCmp> Options;
-
-/// a set of parameter flag names
-typedef std::set<OptionName, OptionNameCmp> ParameterFlags;
+typedef std::vector<OptionName> Options;
 
 /// parses the flags part of the being-parsed ACL, filling Option values
 /// \param options options supported by the ACL as a whole (e.g., -n)

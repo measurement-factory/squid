@@ -20,7 +20,7 @@ Acl::AnnotationStrategy::options()
 {
     static const Acl::CharacterSetOption Delimiters;
     static const Acl::Options MyOptions = {
-        { "-m", &Delimiters }
+        { &Delimiters, "-m" }
     };
     Delimiters.linkWith(&delimiters);
     return MyOptions;

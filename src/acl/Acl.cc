@@ -293,7 +293,7 @@ ACL::parseFlags()
 {
     Acl::Options allOptions = options();
     for (const auto opt: lineOptions())
-        allOptions.insert(opt);
+        allOptions.push_back(opt);
     Acl::ParseFlags(allOptions);
 }
 

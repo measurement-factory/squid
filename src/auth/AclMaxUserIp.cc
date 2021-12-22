@@ -51,7 +51,7 @@ const Acl::Options &
 ACLMaxUserIP::options()
 {
     static const Acl::BooleanOption BeStrict;
-    static const Acl::Options MyOptions = { { "-s", &BeStrict } };
+    static const Acl::Options MyOptions = { { &BeStrict, "-s" } };
     BeStrict.linkWith(&beStrict);
     return MyOptions;
 }

@@ -131,9 +131,9 @@ ACLServerNameStrategy::options()
     static const Acl::BooleanOption ServerProvided;
     static const Acl::BooleanOption Consensus;
     static const Acl::Options MyOptions = {
-        {"--client-requested", &ClientRequested},
-        {"--server-provided", &ServerProvided},
-        {"--consensus", &Consensus}
+        { &ClientRequested, "--client-requested" },
+        { &ServerProvided, "--server-provided" },
+        { &Consensus, "--consensus" }
     };
 
     ClientRequested.linkWith(&useClientRequested);

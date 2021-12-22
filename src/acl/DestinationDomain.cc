@@ -46,7 +46,7 @@ const Acl::Options &
 ACLDestinationDomainStrategy::options()
 {
     static const Acl::BooleanOption LookupBanFlag;
-    static const Acl::Options MyOptions = { { "-n", &LookupBanFlag } };
+    static const Acl::Options MyOptions = { {&LookupBanFlag, "-n" } };
     LookupBanFlag.linkWith(&lookupBanned);
     return MyOptions;
 }

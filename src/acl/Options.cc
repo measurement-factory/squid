@@ -63,14 +63,6 @@ private:
 
 } // namespace Acl
 
-/* Acl::OptionNameCmp */
-
-bool
-Acl::OptionNameCmp::operator()(const OptionName a, const OptionName b) const
-{
-    return strcmp(a, b) < 0;
-}
-
 /* Acl::OptionExtractor */
 
 const SBuf &
@@ -174,13 +166,10 @@ Acl::OptionsParser::OptionsParser(const Options &options):
 const Acl::Option *
 Acl::OptionsParser::findOption(/* const */ SBuf &rawNameBuf)
 {
-    // TODO: new std::map::find() in C++14 does not require this conversion
-    const auto rawName = rawNameBuf.c_str();
-
-    const auto optionPos = options_.find(rawName);
-    if (optionPos != options_.end())
-        return optionPos->second;
-
+    for (const auto opt: options_) {
+        if (opt.has(rawNameBuf))
+            return opt.option;
+    }
     throw TexcHere(ToSBuf("unsupported ACL option: ", rawNameBuf));
 }
 
@@ -222,11 +211,9 @@ Acl::OptionsParser::parse()
 const Acl::Options &
 Acl::CaseLineOptions::options()
 {
-    static const Acl::BooleanOption CaseInsensitiveOn;
-    static const Acl::BooleanOption CaseInsensitiveOff;
-    static const Acl::Options MyOptions = { { "-i", &CaseInsensitiveOn }, { "+i", &CaseInsensitiveOff } };
-    CaseInsensitiveOn.linkWith(&caseInsensitive);
-    CaseInsensitiveOff.linkWith(&caseInsensitive);
+    static const Acl::BooleanOption CaseInsensitive;
+    static const Acl::Options MyOptions = { { &CaseInsensitive, "-i", "+i" } };
+    CaseInsensitive.linkWith(&caseInsensitive);
     return MyOptions;
 }
 
@@ -244,6 +231,12 @@ Acl::NoOptions()
     return none;
 }
 
+bool
+Acl::OptionName::has(const SBuf &name) const
+{
+    return name.cmp(enable) == 0 || name.cmp(disable) == 0;
+}
+
 std::ostream &
 operator <<(std::ostream &os, const Acl::Option &option)
 {
@@ -257,11 +250,10 @@ operator <<(std::ostream &os, const Acl::Option &option)
 std::ostream &
 operator <<(std::ostream &os, const Acl::Options &options)
 {
-    for (const auto pos: options) {
-        assert(pos.second);
-        const auto &option = *pos.second;
-        if (option.configured())
-            os << pos.first << option;
+    for (const auto opt: options) {
+        assert(opt.option);
+        if (opt.option->configured())
+            os << opt.enable << opt.option;
     }
     // TODO: Remember "--" presence and print that delimiter when present.
     // Detecting its need is difficult because parameter flags start with "-".
