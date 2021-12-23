@@ -265,9 +265,6 @@ Security::ServerOptions::createStaticServerContext(AnyP::PortCfg &)
             // XXX: add cert chain to the context
         }
 #endif
-
-        if (!loadClientCaFile())
-            return false;
     }
 
     staticContext = std::move(t);
@@ -405,7 +402,8 @@ Security::ServerOptions::updateContextConfig(Security::ContextPointer &ctx)
 
     updateContextEecdh(ctx);
     updateContextCa(ctx);
-    updateContextClientCa(ctx);
+    if (!updateContextClientCa(ctx))
+        return false;
 
 #if USE_OPENSSL
     SSL_CTX_set_mode(ctx.get(), SSL_MODE_NO_AUTO_CHAIN);
@@ -417,9 +415,12 @@ Security::ServerOptions::updateContextConfig(Security::ContextPointer &ctx)
     return true;
 }
 
-void
+bool
 Security::ServerOptions::updateContextClientCa(Security::ContextPointer &ctx)
 {
+    if (!loadClientCaFile())
+        return false;
+
 #if USE_OPENSSL
     if (clientCaStack) {
         ERR_clear_error();
@@ -428,7 +429,7 @@ Security::ServerOptions::updateContextClientCa(Security::ContextPointer &ctx)
         } else {
             auto ssl_error = ERR_get_error();
             debugs(83, DBG_CRITICAL, "ERROR: Failed to dupe the client CA list: " << Security::ErrorString(ssl_error));
-            return;
+            return false;
         }
 
         Ssl::ConfigurePeerVerification(ctx, parsedFlags);
@@ -442,6 +443,7 @@ Security::ServerOptions::updateContextClientCa(Security::ContextPointer &ctx)
 #else
     (void)ctx;
 #endif
+    return true;
 }
 
 void

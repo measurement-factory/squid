@@ -58,7 +58,7 @@ public:
     void updateContextEecdh(Security::ContextPointer &);
 
     /// update the context with CA details used to verify client certificates
-    void updateContextClientCa(Security::ContextPointer &);
+    bool updateContextClientCa(Security::ContextPointer &);
 
     /// update the context with a configured session ID (if any)
     void updateContextSessionId(Security::ContextPointer &);
