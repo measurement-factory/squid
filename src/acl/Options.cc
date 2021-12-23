@@ -237,7 +237,7 @@ Acl::NoOptions()
 bool
 Acl::OptionName::has(const SBuf &name) const
 {
-    return name.cmp(enable) == 0 || name.cmp(disable) == 0;
+    return name.cmp(enable) == 0 || (disable && name.cmp(disable) == 0);
 }
 
 std::ostream &
