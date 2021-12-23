@@ -57,8 +57,6 @@ public:
 
 private:
     const Option *findOption(/* const */ SBuf &rawName);
-    /// ACL parameter flags in parsing order
-    typedef std::vector<OptionName> Names;
 
     const Options &options_; ///< caller-supported, linked options
 };
@@ -234,6 +232,13 @@ Acl::NoOptions()
     return none;
 }
 
+Acl::OptionName::OptionName(const Option *opt, const char *on, const char *off):
+    option(opt), enable(on), disable(off)
+{
+    assert(option);
+    assert(enable);
+}
+
 bool
 Acl::OptionName::has(const SBuf &name) const
 {
@@ -254,7 +259,6 @@ std::ostream &
 operator <<(std::ostream &os, const Acl::Options &options)
 {
     for (const auto opt: options) {
-        assert(opt.option);
         if (opt.option->configured())
             os << opt.enable << opt.option;
     }

@@ -128,8 +128,8 @@ private:
 class OptionName
 {
 public:
-    OptionName(const Option *opt, const char *on, const char *off = nullptr):
-               option(opt), enable(on), disable(off) { assert(enable); }
+    OptionName(const Option *, const char *on, const char *off = nullptr);
+
     /// whether name is one of the Option names
     bool has(const SBuf &name) const;
 
