@@ -145,7 +145,7 @@ compileRE(std::list<RegexPattern> &curlist, const SBufList &RE, int flags)
 static int
 compileOptimisedREs(std::list<RegexPattern> &curlist, const SBufList &sl, const int startFlags)
 {
-	auto flags = startFlags;
+    auto flags = startFlags;
     std::list<RegexPattern> newlist;
     SBufList accumulatedRE;
     int numREs = 0, reSize = 0;

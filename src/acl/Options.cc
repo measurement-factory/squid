@@ -29,8 +29,10 @@ public:
     SBuf name; ///< extracted option name, including dash(es)
     bool hasValue = false; ///< whether the option has a value (-x=value)
     const SBuf &value() const; ///< extracted option value (requires hasValue)
-    /// depending on the option name prefix, whether the option is set ('-', '--') or unset ('+')
-    bool isSet() const { return (prefix_[0] == '-'); }
+    /// whether the option is explicitly disabled.
+    // TODO: for this calculation, do not rely just on the name prefix
+    // (such as '-', '--', or '+') and cover other cases (such as --disable-foo) as well.
+    bool disabled() const { return (prefix_[0] == '+'); }
 
 protected:
     bool advance();
@@ -170,6 +172,7 @@ Acl::OptionsParser::findOption(/* const */ SBuf &rawNameBuf)
         if (opt.has(rawNameBuf))
             return opt.option;
     }
+
     throw TexcHere(ToSBuf("unsupported ACL option: ", rawNameBuf));
 }
 
@@ -188,7 +191,7 @@ Acl::OptionsParser::parse()
             case Option::valueNone:
                 if (oex.hasValue)
                     throw TexcHere(ToSBuf("unexpected value for an ACL option: ", rawName, '=', oex.value()));
-                option.configureFlag(oex.isSet());
+                option.configureFlag(!oex.disabled());
                 break;
             case Option::valueRequired:
                 if (!oex.hasValue)
@@ -199,7 +202,7 @@ Acl::OptionsParser::parse()
                 if (oex.hasValue)
                     option.configureWith(oex.value());
                 else
-                    option.configureFlag(oex.isSet());
+                    option.configureFlag(!oex.disabled());
                 break;
             }
         }
