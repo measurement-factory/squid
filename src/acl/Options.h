@@ -197,11 +197,11 @@ class CaseLineOption : public LineOptions
 {
 public:
     virtual const Acl::Options &options() override;
-    virtual void reset() override { caseInsensitive = Acl::BooleanOptionValue(); }
-    bool on() const { return caseInsensitive.configured && caseInsensitive.value; }
+    virtual void reset() override { flag = Acl::BooleanOptionValue(); }
+    bool on() const { return flag.configured && flag.value; }
 
 private:
-    Acl::BooleanOptionValue caseInsensitive;
+    Acl::BooleanOptionValue flag;
 };
 
 } // namespace Acl
