@@ -29,10 +29,6 @@ public:
     SBuf name; ///< extracted option name, including dash(es)
     bool hasValue = false; ///< whether the option has a value (-x=value)
     const SBuf &value() const; ///< extracted option value (requires hasValue)
-    /// whether the option is explicitly disabled.
-    // TODO: for this calculation, do not rely just on the name prefix
-    // (such as '-', '--', or '+') and cover other cases (such as --disable-foo) as well.
-    bool disabled() const { return (prefix_[0] == '+'); }
 
 protected:
     bool advance();
@@ -167,8 +163,8 @@ const Acl::Option *
 Acl::OptionsParser::findOption(/* const */ SBuf &rawNameBuf)
 {
     for (const auto opt: options_) {
-        if (opt.has(rawNameBuf))
-            return opt.option;
+        if (opt->hasName(rawNameBuf))
+            return opt;
     }
 
     throw TexcHere(ToSBuf("unsupported ACL option: ", rawNameBuf));
@@ -189,7 +185,7 @@ Acl::OptionsParser::parse()
             case Option::valueNone:
                 if (oex.hasValue)
                     throw TexcHere(ToSBuf("unexpected value for an ACL option: ", rawName, '=', oex.value()));
-                option.configureFlag(!oex.disabled());
+                option.configureDefault(oex.name);
                 break;
             case Option::valueRequired:
                 if (!oex.hasValue)
@@ -200,7 +196,7 @@ Acl::OptionsParser::parse()
                 if (oex.hasValue)
                     option.configureWith(oex.value());
                 else
-                    option.configureFlag(!oex.disabled());
+                    option.configureDefault(oex.name);
                 break;
             }
         }
@@ -212,9 +208,10 @@ Acl::OptionsParser::parse()
 const Acl::Options &
 Acl::CaseLineOptions::options()
 {
-    static const Acl::BooleanOption CaseInsensitive;
-    static const Acl::Options MyOptions = { { &CaseInsensitive, "-i", "+i" } };
+    static const Acl::BooleanOption CaseInsensitive("-i", "+i");
+    static const Acl::Options MyOptions = { &CaseInsensitive };
     CaseInsensitive.linkWith(&caseInsensitive);
+
     return MyOptions;
 }
 
@@ -232,17 +229,22 @@ Acl::NoOptions()
     return none;
 }
 
-Acl::OptionName::OptionName(const Option *opt, const char *on, const char *off):
-    option(opt), enable(on), disable(off)
+bool
+Acl::Option::hasName(const SBuf &optName) const
 {
-    assert(option);
-    assert(enable);
+    return optName.cmp(name) == 0;
 }
 
 bool
-Acl::OptionName::has(const SBuf &name) const
+Acl::BooleanOption::hasName(const SBuf &optName) const
 {
-    return name.cmp(enable) == 0 || (disable && name.cmp(disable) == 0);
+    BooleanTypedOption::hasName(optName) || (disableName && optName.cmp(disableName) == 0);
+}
+
+bool
+Acl::BooleanOption::disabled(const SBuf &optName) const
+{
+    return optName[0] == '+';
 }
 
 std::ostream &
@@ -259,8 +261,8 @@ std::ostream &
 operator <<(std::ostream &os, const Acl::Options &options)
 {
     for (const auto opt: options) {
-        if (opt.option->configured())
-            os << opt.enable << opt.option;
+        if (opt->configured())
+            os << opt;
     }
     // TODO: Remember "--" presence and print that delimiter when present.
     // Detecting its need is difficult because parameter flags start with "-".
