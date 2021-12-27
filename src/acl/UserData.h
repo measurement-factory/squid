@@ -30,7 +30,7 @@ public:
 
 private:
     virtual Acl::LineOptions *currentLineOptions() { return &MyLineOptions_; }
-    static Acl::CaseLineOptions MyLineOptions_;
+    static Acl::CaseLineOption MyLineOptions_;
 
     typedef std::set<SBuf,bool(*)(const SBuf&, const SBuf&)> UserDataNames_t;
     UserDataNames_t userDataNames;

@@ -127,7 +127,7 @@ public:
 
 protected:
     void import(const SBuf &rawValue) const { recipient_->value = rawValue; }
-    void setDefault(const SBuf &) const { /*leave recipient_->value as is*/}
+    virtual void setDefault(const SBuf &) const { /*leave recipient_->value as is*/}
 
     // The "mutable" specifier demarcates set-once Option kind/behavior from the
     // ever-changing recipient of the actual admin-configured option value.
@@ -163,6 +163,7 @@ public:
         BooleanTypedOption(optName, vex), disableName(disable) {}
     virtual bool valued() const override { return false; }
     virtual bool hasName(const SBuf &) const override;
+    virtual void setDefault(const SBuf &optName) const override { recipient_->value = !disabled(optName); }
 
 private:
     bool disabled(const SBuf &optName) const;
@@ -191,13 +192,13 @@ public:
     virtual void reset() = 0;
 };
 
-/// Line options for ACL supporting case insensitivity (-i,+i flags).
-class CaseLineOptions : public LineOptions
+/// the case insensitivity (-i,+i) option
+class CaseLineOption : public LineOptions
 {
 public:
     virtual const Acl::Options &options() override;
     virtual void reset() override { caseInsensitive = Acl::BooleanOptionValue(); }
-    bool isCaseInsensitive() const { return caseInsensitive.configured && caseInsensitive.value; }
+    bool on() const { return caseInsensitive.configured && caseInsensitive.value; }
 
 private:
     Acl::BooleanOptionValue caseInsensitive;

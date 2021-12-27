@@ -18,7 +18,7 @@
 #include "sbuf/Algorithms.h"
 #include "util.h"
 
-Acl::CaseLineOptions ACLUserData::MyLineOptions_;
+Acl::CaseLineOption ACLUserData::MyLineOptions_;
 
 bool
 ACLUserData::match(char const *user)
@@ -82,7 +82,7 @@ void
 ACLUserData::parse()
 {
     debugs(28, 2, "parsing user list");
-    flags.case_insensitive = MyLineOptions_.isCaseInsensitive();
+    flags.case_insensitive = MyLineOptions_.on();
 
     char *t = NULL;
     if ((t = ConfigParser::strtokFile())) {

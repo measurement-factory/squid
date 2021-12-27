@@ -25,7 +25,7 @@
 #include "sbuf/Algorithms.h"
 #include "sbuf/List.h"
 
-Acl::CaseLineOptions ACLRegexData::MyLineOptions_;
+Acl::CaseLineOption ACLRegexData::MyLineOptions_;
 
 ACLRegexData::~ACLRegexData()
 {
@@ -239,7 +239,7 @@ ACLRegexData::parse()
     debugs(28, 2, "new Regex line or file");
 
     int startingFlags = REG_EXTENDED | REG_NOSUB;
-    if (MyLineOptions_.isCaseInsensitive())
+    if (MyLineOptions_.on())
         startingFlags |= REG_ICASE;
 
     SBufList sl;

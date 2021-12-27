@@ -30,7 +30,7 @@ public:
 private:
     virtual Acl::LineOptions *currentLineOptions() { return &MyLineOptions_; }
 
-    static Acl::CaseLineOptions MyLineOptions_;
+    static Acl::CaseLineOption MyLineOptions_;
     std::list<RegexPattern> data;
 };
 

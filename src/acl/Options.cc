@@ -206,12 +206,11 @@ Acl::OptionsParser::parse()
 
 
 const Acl::Options &
-Acl::CaseLineOptions::options()
+Acl::CaseLineOption::options()
 {
     static const Acl::BooleanOption CaseInsensitive("-i", "+i");
     static const Acl::Options MyOptions = { &CaseInsensitive };
     CaseInsensitive.linkWith(&caseInsensitive);
-
     return MyOptions;
 }
 
@@ -238,7 +237,7 @@ Acl::Option::hasName(const SBuf &optName) const
 bool
 Acl::BooleanOption::hasName(const SBuf &optName) const
 {
-    BooleanTypedOption::hasName(optName) || (disableName && optName.cmp(disableName) == 0);
+    return BooleanTypedOption::hasName(optName) || (disableName && optName.cmp(disableName) == 0);
 }
 
 bool
