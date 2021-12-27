@@ -64,11 +64,13 @@ private:
     Command command_;
     CommandArgument commandArgument_;
     std::list<RegexPattern> patterns_;
+    RegexPattern *emptyLinePattern;
     Format::Format *format_ = nullptr;
     ACLList *aclList = nullptr;
     // for debugging only
     SBuf formatString_;
     AccessLogEntryPointer al_;
+    bool normalize_ = true;
 };
 
 } // namespace Http

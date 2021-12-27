@@ -57,15 +57,20 @@ CommandArgumentString(const Http::HeaderEditor::CommandArgument commandArgument)
 }
     
 Http::HeaderEditor::HeaderEditor(ConfigParser &parser, const char *desc):
-    description_(desc)
+    description_(desc), emptyLinePattern(new RegexPattern(REG_EXTENDED, "^[ \t\r]*\n"))
 {
     parseOptions(parser);
+
+    regex_t comp;
+    (void)regcomp(&comp, emptyLinePattern->c_str(), emptyLinePattern->flags);
+    emptyLinePattern->regex = comp;
 }
 
 Http::HeaderEditor::~HeaderEditor()
 {
     aclDestroyAclList(&aclList);
     delete format_;
+    delete emptyLinePattern;
 }
 
 bool
@@ -122,7 +127,6 @@ Http::HeaderEditor::applyEach(SBuf &input, RegexPattern &pattern)
         params.headerEditMatch = &regexMatch;
         format_->assemble(mb, al_, &params);
         result.append(mb.content(), mb.contentSize());
-        result.append("\r\n");
         s += regexMatch.endOffset();
     }
     result.append(s);
@@ -134,25 +138,35 @@ Http::HeaderEditor::applyAll(SBuf &input, RegexPattern &pattern)
 {
     auto s = input.c_str();
     SBuf result;
-    bool wasMatched = false;
+    bool onceMatched = false;
 
     while (s) {
         RegexMatch regexMatch(ReGroupMax);
         if (!pattern.match(s, regexMatch))
             break;
+
         result.append(s, regexMatch.startOffset());
-        if (!wasMatched) {
-            wasMatched = true;
+
+        if (!onceMatched) {
+            onceMatched = true;
             static MemBuf mb;
             mb.reset();
             ::Format::Format::AssembleParams params;
             params.headerEditMatch = &regexMatch;
             format_->assemble(mb, al_, &params);
             result.append(mb.content(), mb.contentSize());
-            result.append("\r\n");
         }
-        s += regexMatch.endOffset() + 1; /// XXX: skip the rest of the line instead
+
+        s += regexMatch.endOffset();
+
+        if (normalize_ && onceMatched) {
+            // skip an empty line, if any
+            RegexMatch emptyLineMatch(ReGroupMax);
+            if (emptyLinePattern->match(s, emptyLineMatch))
+                s += emptyLineMatch.endOffset();
+        }
     }
+    // XXX: put back a CRLF, if needed
     result.append(s);
     input = result;
 }
@@ -172,8 +186,7 @@ Http::HeaderEditor::applyOne(SBuf &input, RegexPattern &pattern)
         params.headerEditMatch = &regexMatch;
         format_->assemble(mb, al_, &params);
         result.append(mb.content(), mb.contentSize());
-        result.append("\r\n");
-        s += regexMatch.endOffset() + 1;
+        s += regexMatch.endOffset();
     }
     result.append(s);
     input = result;
@@ -213,8 +226,10 @@ Http::HeaderEditor::parseOptions(ConfigParser &parser)
         SBuf rawFlags = reExpr.substr(1, reExpr.length() - 2);
         for (auto f: rawFlags) {
             if (f == 'i')
-              flags |= REG_ICASE;
-              // TODO: parse other flags
+                flags |= REG_ICASE;
+            if (f == 'm')
+                flags &= ~REG_NEWLINE;
+            // TODO: parse other flags
         }
     }
 
