@@ -231,28 +231,13 @@ Acl::NoOptions()
 bool
 Acl::Option::hasName(const SBuf &optName) const
 {
-    return optName.cmp(name) == 0;
-}
-
-bool
-Acl::BooleanOption::hasName(const SBuf &optName) const
-{
-    return BooleanTypedOption::hasName(optName) || (disableName && optName.cmp(disableName) == 0);
-}
-
-bool
-Acl::BooleanOption::disabled(const SBuf &optName) const
-{
-    return optName[0] == '+';
+    return optName.cmp(enableName) == 0 || (disableName && optName.cmp(disableName) == 0);
 }
 
 std::ostream &
 operator <<(std::ostream &os, const Acl::Option &option)
 {
-    if (option.valued()) {
-        os << '=';
-        option.print(os);
-    }
+    option.print(os);
     return os;
 }
 

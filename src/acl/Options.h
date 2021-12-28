@@ -10,7 +10,7 @@
 #define SQUID_ACL_OPTIONS_H
 
 #include "acl/forward.h"
-#include "sbuf/forward.h"
+#include "sbuf/SBuf.h"
 
 #include <iosfwd>
 #include <vector>
@@ -36,7 +36,8 @@ class Option
 {
 public:
     typedef enum { valueNone, valueOptional, valueRequired } ValueExpectation;
-    explicit Option(const char *optName, ValueExpectation vex = valueNone): name(optName), valueExpectation(vex) {}
+    explicit Option(const char *onName, const char *offName = nullptr, ValueExpectation vex = valueNone):
+        enableName(onName), disableName(offName), valueExpectation(vex) { assert(enableName); }
     virtual ~Option() {}
 
     /// whether the admin explicitly specified this option
@@ -49,17 +50,19 @@ public:
     /// called after parsing -x=value or --name=value
     virtual void configureWith(const SBuf &rawValue) const = 0;
 
-    virtual bool hasName(const SBuf &) const;
+    /// whether optName is one of the supported Option names
+    virtual bool hasName(const SBuf &optName) const;
 
     virtual bool valued() const = 0;
 
     /// prints a configuration snippet (as an admin could have typed)
-    virtual void print(std::ostream &os) const { os << name; };
+    virtual void print(std::ostream &os) const  = 0;
 
     ValueExpectation valueExpectation = valueNone; ///< expect "=value" part?
 
-private:
-    const char *name; ///< an option name, turning this Option on
+protected:
+    const char *enableName; ///< an option name, turning this Option on
+    const char *disableName; ///< an option name, turning this Option off, may be nil
 };
 
 /// Stores configuration of a typical boolean flag or a single-value Option.
@@ -85,7 +88,8 @@ class TypedOption: public Option
 {
 public:
     //typedef typename Recipient::value_type value_type;
-    explicit TypedOption(const char *optName, ValueExpectation vex = valueNone): Option(optName, vex) {}
+    explicit TypedOption(const char *onName, const char *offName = nullptr, ValueExpectation vex = valueNone):
+        Option(onName, offName, vex) {}
 
     /// who to tell when this option is enabled
     void linkWith(Recipient *recipient) const
@@ -100,7 +104,6 @@ public:
     virtual bool valued() const override { return recipient_ && recipient_->valued; }
 
     /// sets the flag value
-    //virtual void configureFlag(bool flagValue) const override
     virtual void configureDefault(const SBuf &optName) const override
     {
         assert(recipient_);
@@ -120,12 +123,12 @@ public:
 
     virtual void print(std::ostream &os) const override
     {
-        Option::print(os);
+        os << enableName;
         if (valued())
-            os << " " << recipient_->value;
+            os << '=' << recipient_->value;
     }
 
-protected:
+private:
     void import(const SBuf &rawValue) const { recipient_->value = rawValue; }
     virtual void setDefault(const SBuf &) const { /*leave recipient_->value as is*/}
 
@@ -137,39 +140,38 @@ protected:
 /* two typical option kinds: --foo and --bar=text  */
 typedef OptionValue<bool> BooleanOptionValue;
 typedef OptionValue<SBuf> TextOptionValue;
-typedef TypedOption<BooleanOptionValue> BooleanTypedOption;
+typedef TypedOption<BooleanOptionValue> BooleanOption;
 typedef TypedOption<TextOptionValue> TextOption;
 
 // this specialization should never be called until we start supporting
 // boolean option values like --name=enable or --name=false
 template <>
 inline void
-BooleanTypedOption::import(const SBuf &) const
+BooleanOption::import(const SBuf &) const
 {
     assert(!"boolean options do not have ...=values (for now)");
 }
 
 template <>
 inline void
-BooleanTypedOption::setDefault(const SBuf &) const
+BooleanOption::setDefault(const SBuf &optName) const
 {
-    recipient_->value = true;
+    // Set the boolean value depending on the specified flag name prefix
+    // ('true' for '-' and 'false' otherwise, e.g., for '+').
+    // In future, we may need adding support for other flag names,
+    // such as --enable-foo and --disable-foo.
+    recipient_->value = (optName[0] == '-');
 }
 
-class BooleanOption: public BooleanTypedOption
+template <>
+inline void
+BooleanOption::print(std::ostream &os) const
 {
-public:
-    explicit BooleanOption(const char *optName, const char *disable = nullptr, ValueExpectation vex = valueNone):
-        BooleanTypedOption(optName, vex), disableName(disable) {}
-    virtual bool valued() const override { return false; }
-    virtual bool hasName(const SBuf &) const override;
-    virtual void setDefault(const SBuf &optName) const override { recipient_->value = !disabled(optName); }
-
-private:
-    bool disabled(const SBuf &optName) const;
-
-    const char *disableName; ///< an option name, turning this Option off
-};
+    if (configured() && !recipient_->value && disableName)
+        os << disableName;
+    else
+        os << enableName;
+}
 
 typedef std::vector<const Option *> Options;
 
@@ -192,7 +194,7 @@ public:
     virtual void reset() = 0;
 };
 
-/// the case insensitivity (-i,+i) option
+/// the case insensitivity (-i,+i) line option
 class CaseLineOption : public LineOptions
 {
 public:
