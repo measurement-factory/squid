@@ -56,7 +56,7 @@ public:
     virtual bool valued() const = 0;
 
     /// prints a configuration snippet (as an admin could have typed)
-    virtual void print(std::ostream &os) const  = 0;
+    virtual void print(std::ostream &os) const = 0;
 
     ValueExpectation valueExpectation = valueNone; ///< expect "=value" part?
 
@@ -123,6 +123,7 @@ public:
 
     virtual void print(std::ostream &os) const override
     {
+        // TODO: print disableName (if needed) when it is supported for non-boolean options.
         os << enableName;
         if (valued())
             os << '=' << recipient_->value;
@@ -167,10 +168,13 @@ template <>
 inline void
 BooleanOption::print(std::ostream &os) const
 {
-    if (configured() && !recipient_->value && disableName)
-        os << disableName;
-    else
+    Must(configured());
+    if (recipient_->value) {
         os << enableName;
+    } else {
+        Must(disableName);
+        os << disableName;
+    }
 }
 
 typedef std::vector<const Option *> Options;
