@@ -31,8 +31,6 @@ public:
     Security::CertPointer cert;
     /// private key from privateKeyFile
     Security::PrivateKeyPointer pkey;
-    /// whether the cert is a self signed certificate
-    bool selfSigned = false;
     /// any certificates which must be chained from cert
     Security::CertList chain;
 

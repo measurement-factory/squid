@@ -24,6 +24,7 @@
 #include "globals.h"
 #include "ipc/MemMap.h"
 #include "security/CertError.h"
+#include "security/CertGadgets.h"
 #include "security/ErrorDetail.h"
 #include "security/Session.h"
 #include "SquidConfig.h"
@@ -962,7 +963,8 @@ void
 Ssl::chainCertificatesToSSLContext(Security::ContextPointer &ctx, Security::ServerOptions &options)
 {
     assert(ctx);
-    if (options.signingCa.selfSigned)
+
+    if (Security::CertIsSelfSigned(*options.signingCa.cert))
         return;
 
     // Add signing certificate to the certificates chain

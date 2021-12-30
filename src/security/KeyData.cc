@@ -74,11 +74,9 @@ Security::KeyData::loadX509CertFromFile()
 
     if (!cert) {
         debugs(83, DBG_IMPORTANT, "ERROR: unable to load certificate from '" << certFile << "'");
-        return false;
     }
 
-    selfSigned = CertIsSelfSigned(*cert.get());
-    return true;
+    return bool(cert);
 }
 
 /**
