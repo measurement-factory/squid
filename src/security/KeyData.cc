@@ -88,8 +88,8 @@ Security::KeyData::loadX509ChainFromFile()
 {
 #if USE_OPENSSL
     const char *certFilename = certFile.c_str();
-    Ssl::BIO_Pointer bio;
-    if (!Ssl::OpenCertsFileForReading(bio, certFilename)) {
+    Ssl::BIO_Pointer bio(BIO_new(BIO_s_file()));
+    if (!bio || !BIO_read_filename(bio.get(), certFilename)) {
         const auto x = ERR_get_error();
         debugs(83, DBG_IMPORTANT, "ERROR: unable to load chain file '" << certFile << "': " << ErrorString(x));
         return;
