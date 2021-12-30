@@ -212,6 +212,9 @@ Security::ServerOptions::createStaticServerContext(AnyP::PortCfg &)
 
     Security::ContextPointer t(createBlankContext());
     if (t) {
+        // this updateContextConfig() must precede SSL_CTX_use_certificate()
+        // below because OpenSSL checks whether the certificate matches context
+        // options (e.g., the supported ciphers and the security level).
         if (!updateContextConfig(t)) {
             debugs(83, DBG_CRITICAL, "ERROR: Configuring static TLS context");
             return false;

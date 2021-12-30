@@ -919,13 +919,16 @@ Ssl::createSSLContext(Security::CertPointer & x509, Security::PrivateKeyPointer 
 {
     Security::ContextPointer ctx(options.createBlankContext());
 
+    // this updateContextConfig() must precede SSL_CTX_use_certificate() below
+    // because OpenSSL checks whether the certificate matches context options
+    // (e.g., the supported ciphers and the security level).
+    if (!options.updateContextConfig(ctx))
+        return Security::ContextPointer();
+
     if (!SSL_CTX_use_certificate(ctx.get(), x509.get()))
         return Security::ContextPointer();
 
     if (!SSL_CTX_use_PrivateKey(ctx.get(), pkey.get()))
-        return Security::ContextPointer();
-
-    if (!options.updateContextConfig(ctx))
         return Security::ContextPointer();
 
     return ctx;
