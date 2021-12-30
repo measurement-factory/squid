@@ -147,27 +147,14 @@ Security::KeyData::loadX509PrivateKeyFromFile()
 
 #if USE_OPENSSL
     const char *keyFilename = privateKeyFile.c_str();
-    Ssl::BIO_Pointer bio;
-    if (!Ssl::OpenCertsFileForReading(bio, keyFilename)) {
-        const auto x = ERR_get_error();
-        debugs(83, DBG_IMPORTANT, "ERROR: unable to load key file '" << keyFilename << "': " << ErrorString(x));
-        return false;
-    }
     // XXX: Ssl::AskPasswordCb needs SSL_CTX_set_default_passwd_cb_userdata()
     // so this may not fully work iff Config.Program.ssl_password is set.
     pem_password_cb *cb = ::Config.Program.ssl_password ? &Ssl::AskPasswordCb : nullptr;
-    if (!Ssl::ReadPrivateKey(bio, pkey, cb)) {
-        const auto x = ERR_get_error();
-        debugs(83, DBG_IMPORTANT, "ERROR: '" << privateKeyFile << "' failed to load private key: " << ErrorString(x));
-        return false;
-    }
+    Ssl::ReadPrivateKeyFromFile(keyFilename, pkey, cb);
 
-    Security::ForgetErrors();
-    if (!X509_check_private_key(cert.get(), pkey.get())) {
-        const auto x = ERR_get_error();
-        const char *errStr =  x ? ErrorString(x) : "pkey/certificate mismatch";
-        debugs(83, DBG_IMPORTANT, "ERROR: '" << privateKeyFile << "' checking private key failed: " << errStr);
-        return false;
+    if (pkey && !X509_check_private_key(cert.get(), pkey.get())) {
+        debugs(83, DBG_IMPORTANT, "WARNING: '" << privateKeyFile << "' X509_check_private_key() failed");
+        pkey.reset();
     }
 
 #elif USE_GNUTLS
