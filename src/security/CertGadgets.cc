@@ -10,8 +10,11 @@
 #include "Debug.h"
 #include "sbuf/SBuf.h"
 #include "security/CertGadgets.h"
+
 #if USE_OPENSSL
-#include "ssl/support.h"
+#if HAVE_OPENSSL_X509V3_H
+#include <openssl/x509v3.h>
+#endif
 #endif
 
 SBuf
@@ -19,12 +22,19 @@ Security::CertSubjectName(Certificate &cert)
 {
     SBuf out;
 #if USE_OPENSSL
-    X509_NAME *name = X509_get_subject_name(&cert);
+    const auto name = X509_get_subject_name(&cert);
     if (!name) {
-        debugs(83, DBG_PARSE_NOTE(2), "WARNING: cannot get certificate SubjectName");
+        debugs(83, DBG_PARSE_NOTE(2), "WARNING: certificate without a SubjectName");
         return out;
     }
-    out = Ssl::X509NameToSBuf(name);
+    const auto s = X509_NAME_oneline(name, nullptr, 0);
+    if (!s) {
+        const auto x = ERR_get_error();
+        debugs(83, DBG_PARSE_NOTE(2), "WARNING: cannot format certificate SubjectName: " << Security::ErrorString(x));
+        return out;
+    }
+    out.append(s);
+    OPENSSL_free(s);
 #elif USE_GNUTLS
     gnutls_x509_dn_t dn;
     auto x = gnutls_x509_crt_get_subject(&cert, &dn);
