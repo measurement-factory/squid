@@ -709,17 +709,6 @@ Ssl::ReadPrivateKey(Ssl::BIO_Pointer &bio, Security::PrivateKeyPointer &pkey, pe
     return false;
 }
 
-void
-Ssl::ReadPrivateKeyFromFile(char const * keyFilename, Security::PrivateKeyPointer &pkey, pem_password_cb *passwd_callback)
-{
-    if (!keyFilename)
-        return;
-    Ssl::BIO_Pointer bio;
-    if (!OpenCertsFileForReading(bio, keyFilename))
-        return;
-    ReadPrivateKey(bio, pkey, passwd_callback);
-}
-
 bool
 Ssl::OpenCertsFileForWriting(Ssl::BIO_Pointer &bio, const char *filename)
 {

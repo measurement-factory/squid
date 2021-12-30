@@ -104,12 +104,6 @@ bool readCertFromMemory(Security::CertPointer & cert, char const * bufferToRead)
 
 /**
  \ingroup SslCrtdSslAPI
- * Read private key from file.
- */
-void ReadPrivateKeyFromFile(char const * keyFilename, Security::PrivateKeyPointer &pkey, pem_password_cb *passwd_callback);
-
-/**
- \ingroup SslCrtdSslAPI
  * Initialize the bio with the file 'filename' opened for reading
  */
 bool OpenCertsFileForReading(BIO_Pointer &bio, const char *filename);
