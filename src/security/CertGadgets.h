@@ -14,8 +14,15 @@
 namespace Security
 {
 
-/// \return the SubjectName field of the given certificate (if found), or an empty SBuf
-SBuf CertSubjectName(Certificate &cert);
+// The accessing/testing functions below require a non-constant Certificate when
+// it is modified by an underlying library implementation (e.g., GnuTLS).
+
+/// The SubjectName field of the given certificate (if found) or an empty SBuf.
+SBuf CertSubjectName(Certificate &);
+
+/// The Issuer field of the given certificate (if found) or an empty SBuf.
+/// Some implementations modify the argument while searching (e.g., GnuTLS).
+SBuf CertIssuerName(Certificate &);
 
 /// \returns whether cert was (correctly) issued by the given issuer
 /// Due to complexity of the underlying checks, it is impossible to clearly
@@ -24,10 +31,9 @@ SBuf CertSubjectName(Certificate &cert);
 bool CertIsIssuedBy(Certificate &cert, Certificate &issuer);
 
 /// convenience wrapper for checking self-signed certificates
-inline bool CertIsSelfSigned(Certificate &cert) {
-    return CertIsIssuedBy(cert, cert);
-}
+inline bool CertIsSelfSigned(Certificate &c) { return CertIsIssuedBy(c, c); }
 
 } // namespace Security
 
 #endif /* SQUID_SRC_SECURITY_CERTGADGETS_H */
+
