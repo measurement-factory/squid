@@ -91,7 +91,6 @@ public:
     size_t dynamicCertMemCacheSize = 4*1024*1024;
 
 private:
-    bool loadClientCaFile();
     void loadDhParams();
 
     /// generate a security server-context from these configured options

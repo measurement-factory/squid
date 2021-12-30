@@ -321,26 +321,6 @@ Security::ServerOptions::syncCaFiles()
         caFiles.emplace_back(clientCaFile);
 }
 
-/// load clientca= file (if any) into memory.
-/// \retval true   clientca is not set, or loaded successfully
-/// \retval false  unable to load the file, or not using OpenSSL
-bool
-Security::ServerOptions::loadClientCaFile()
-{
-    if (clientCaFile.isEmpty())
-        return true;
-
-#if USE_OPENSSL
-    auto *stk = SSL_load_client_CA_file(clientCaFile.c_str());
-    clientCaStack = Security::ServerOptions::X509_NAME_STACK_Pointer(stk);
-#endif
-    if (!clientCaStack) {
-        debugs(83, DBG_CRITICAL, "FATAL: Unable to read client CAs from file: " << clientCaFile);
-    }
-
-    return bool(clientCaStack);
-}
-
 void
 Security::ServerOptions::loadDhParams()
 {
@@ -418,11 +398,23 @@ Security::ServerOptions::updateContextConfig(Security::ContextPointer &ctx)
 bool
 Security::ServerOptions::updateContextClientCa(Security::ContextPointer &ctx)
 {
-    if (!loadClientCaFile())
-        return false;
+    if (clientCaFile.isEmpty()) {
+#if USE_OPENSSL
+        Ssl::DisablePeerVerification(ctx);
+#elif USE_GNUTLS
+        // TODO: disable client verification
+#endif
+        return true;
+    }
 
 #if USE_OPENSSL
-    if (clientCaStack) {
+    clientCaStack.reset(SSL_load_client_CA_file(clientCaFile.c_str()));
+    if (!clientCaStack) {
+        const auto ssl_error = ERR_get_error();
+        debugs(83, DBG_CRITICAL, "FATAL: Failed to load client CAs from " << clientCaFile << ": " << Security::ErrorString(ssl_error));
+        // XXX: "return false" is not FATAL
+        return false;
+    } else {
         ERR_clear_error();
         if (STACK_OF(X509_NAME) *clientca = SSL_dup_CA_list(clientCaStack.get())) {
             SSL_CTX_set_client_CA_list(ctx.get(), clientca);
@@ -436,11 +428,9 @@ Security::ServerOptions::updateContextClientCa(Security::ContextPointer &ctx)
 
         updateContextCrl(ctx);
         updateContextTrust(ctx);
-
-    } else {
-        Ssl::DisablePeerVerification(ctx);
     }
 #else
+    // XXX: Inability to perform requested client authentication must be fatal!
     (void)ctx;
 #endif
     return true;
