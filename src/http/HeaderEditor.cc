@@ -92,7 +92,16 @@ SBuf
 Http::HeaderEditor::fix(const SBuf &input, const AccessLogEntryPointer &al)
 {
     al_ = al;
-    auto output = input;
+
+    Must(input.length());
+    auto chopLength = 1;
+    auto last = input.rbegin();
+    Must(*last == '\n');
+    if (input.length() > 1 && *(++last) == '\r')
+        chopLength = 2;
+    // exclude the header separator, which is either LF or CRLF
+    auto output = input.substr(0, input.length() - chopLength);
+
     for (auto &pattern : patterns_) {
         if (pattern.match(output.c_str())) {
             switch (commandArgument_) {
@@ -108,6 +117,8 @@ Http::HeaderEditor::fix(const SBuf &input, const AccessLogEntryPointer &al)
              }
         }
     }
+    // put back the header separator
+    output.append(input.substr(input.length() - chopLength));
     return output;
 }
 
@@ -123,11 +134,20 @@ Http::HeaderEditor::applyEach(SBuf &input, RegexPattern &pattern)
         static MemBuf mb;
         mb.reset();
         result.append(s, regexMatch.startOffset());
+
         ::Format::Format::AssembleParams params;
         params.headerEditMatch = &regexMatch;
         format_->assemble(mb, al_, &params);
-        result.append(mb.content(), mb.contentSize());
-        s += regexMatch.endOffset();
+        auto line = SBuf(mb.content(), mb.contentSize());
+
+        auto lineEnd = strchr(s, '\n');
+        Must(lineEnd);
+        lineEnd++;
+        line.append(s, lineEnd - s);
+
+        if (!isEmptyLine(line))
+            result.append(line);
+        s = lineEnd;
     }
     result.append(s);
     input = result;
@@ -147,6 +167,8 @@ Http::HeaderEditor::applyAll(SBuf &input, RegexPattern &pattern)
 
         result.append(s, regexMatch.startOffset());
 
+        SBuf line;
+
         if (!onceMatched) {
             onceMatched = true;
             static MemBuf mb;
@@ -154,20 +176,22 @@ Http::HeaderEditor::applyAll(SBuf &input, RegexPattern &pattern)
             ::Format::Format::AssembleParams params;
             params.headerEditMatch = &regexMatch;
             format_->assemble(mb, al_, &params);
-            result.append(mb.content(), mb.contentSize());
+            line.append(mb.content(), mb.contentSize());
         }
 
-        s += regexMatch.endOffset();
+        auto lineEnd = strchr(s, '\n');
+        Must(lineEnd);
+        lineEnd++;
+        line.append(s, lineEnd - s);
 
-        if (normalize_ && onceMatched) {
-            // skip an empty line, if any
-            RegexMatch emptyLineMatch(ReGroupMax);
-            if (emptyLinePattern->match(s, emptyLineMatch))
-                s += emptyLineMatch.endOffset();
-        }
+        if (!isEmptyLine(line))
+            result.append(line);
+        s = lineEnd;
     }
-    // XXX: put back a CRLF, if needed
-    result.append(s);
+
+    if (s)
+        result.append(s);
+
     input = result;
 }
 
@@ -178,18 +202,34 @@ Http::HeaderEditor::applyOne(SBuf &input, RegexPattern &pattern)
     SBuf result;
 
     RegexMatch regexMatch(ReGroupMax);
-    if (s && pattern.match(s, regexMatch)) {
+    if (pattern.match(s, regexMatch)) {
         static MemBuf mb;
         mb.reset();
         result.append(s, regexMatch.startOffset());
+
         ::Format::Format::AssembleParams params;
         params.headerEditMatch = &regexMatch;
         format_->assemble(mb, al_, &params);
-        result.append(mb.content(), mb.contentSize());
-        s += regexMatch.endOffset();
+        auto line = SBuf(mb.content(), mb.contentSize());
+
+        auto lineEnd = strchr(s, '\n');
+        Must(lineEnd);
+        lineEnd++;
+        line.append(s, lineEnd - s);
+
+        if (!isEmptyLine(line))
+            result.append(line);
+        s = lineEnd;
     }
     result.append(s);
     input = result;
+}
+
+bool
+Http::HeaderEditor::isEmptyLine(SBuf &line) const
+{
+    RegexMatch emptyLineMatch(ReGroupMax);
+    return emptyLinePattern->match(line.c_str(), emptyLineMatch);
 }
 
 uint64_t

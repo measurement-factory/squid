@@ -59,6 +59,7 @@ private:
     void applyOne(SBuf &input, RegexPattern &pattern);
     void applyAll(SBuf &input, RegexPattern &pattern);
     void applyEach(SBuf &input, RegexPattern &pattern);
+    bool isEmptyLine(SBuf &) const;
 
     const char *description_;
     Command command_;
