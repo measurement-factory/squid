@@ -917,6 +917,8 @@ sslGetUserCertificateChainPEM(SSL *ssl)
 Security::ContextPointer
 Ssl::createSSLContext(Security::CertPointer & x509, Security::PrivateKeyPointer & pkey, Security::ServerOptions &options)
 {
+    // TODO: Stop duplicating most of ServerOptions::createStaticServerContext()
+
     Security::ContextPointer ctx(options.createBlankContext());
 
     // this updateContextConfig() must precede SSL_CTX_use_certificate() below
