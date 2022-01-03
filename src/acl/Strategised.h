@@ -43,7 +43,6 @@ public:
     virtual bool requiresReply() const {return matcher->requiresReply();}
 
     virtual void prepareForUse() { data->prepareForUse();}
-    virtual const Acl::Options &options() { return matcher->options(); }
     virtual void parse();
     virtual int match(ACLChecklist *checklist);
     virtual int match (M const &);
@@ -52,6 +51,7 @@ public:
     virtual bool valid () const;
 
 private:
+    virtual const Acl::Options &options() { return matcher->options(); }
     virtual Acl::LineOptions *currentLineOptions() { return data->currentLineOptions(); }
 
     ACLData<MatchType> *data;
