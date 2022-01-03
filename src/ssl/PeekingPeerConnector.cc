@@ -50,7 +50,10 @@ Ssl::PeekingPeerConnector::LastSslBumpActionExtractor(const HttpRequest &request
         Must(serverBump->at(XactionStep::tlsBump3));
         return serverBump->lastBumpAction();
     }
-    // else the client is gone, and we cannot check the step, but must carry on
+    // else the client is gone, we cannot check the step, and will probably
+    // bail later.
+    // TODO: Refactor so that this job does not have to (re)check client
+    // existence!
     return Ssl::bumpEnd;
 }
 
