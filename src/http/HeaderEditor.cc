@@ -18,6 +18,8 @@
 #include "parser/Tokenizer.h"
 #include "sbuf/Stream.h"
 
+#include "rfc1738.h"
+
 #include <map>
 
 static const int ReGroupMax = 10;
@@ -103,19 +105,8 @@ Http::HeaderEditor::fix(const SBuf &input, const AccessLogEntryPointer &al)
     auto output = input.substr(0, input.length() - chopLength);
 
     for (auto &pattern : patterns_) {
-        if (pattern.match(output.c_str())) {
-            switch (commandArgument_) {
-            case CommandArgument::first:
-                applyOne(output, pattern);
-                break;
-            case CommandArgument::all:
-                applyAll(output, pattern);
-                break;
-            case CommandArgument::each:
-                applyEach(output, pattern);
-                break;
-             }
-        }
+        if (pattern.match(output.c_str()))
+            apply(output, pattern);
     }
     // put back the header separator
     output.append(input.substr(input.length() - chopLength));
@@ -123,106 +114,76 @@ Http::HeaderEditor::fix(const SBuf &input, const AccessLogEntryPointer &al)
 }
 
 void
-Http::HeaderEditor::applyEach(SBuf &input, RegexPattern &pattern)
+Http::HeaderEditor::applyFormat(SBuf &line, RegexMatch *match)
 {
-    auto s = input.c_str();
-    SBuf result;
-    while (s) {
-        RegexMatch regexMatch(ReGroupMax);
-        if (!pattern.match(s, regexMatch))
-            break;
-        static MemBuf mb;
-        mb.reset();
-        result.append(s, regexMatch.startOffset());
-
-        ::Format::Format::AssembleParams params;
-        params.headerEditMatch = &regexMatch;
-        format_->assemble(mb, al_, &params);
-        auto line = SBuf(mb.content(), mb.contentSize());
-
-        auto lineEnd = strchr(s, '\n');
-        Must(lineEnd);
-        lineEnd++;
-        line.append(s, lineEnd - s);
-
-        if (!isEmptyLine(line))
-            result.append(line);
-        s = lineEnd;
-    }
-    result.append(s);
-    input = result;
+    static RegexMatch regexMatch(ReGroupMax);
+    static MemBuf mb;
+    mb.reset();
+    regexMatch.clear();
+    ::Format::Format::AssembleParams params;
+    params.headerEditMatch = match;
+    format_->assemble(mb, al_, &params);
+    line.append(mb.content(), mb.contentSize());
 }
 
 void
-Http::HeaderEditor::applyAll(SBuf &input, RegexPattern &pattern)
+Http::HeaderEditor::addLineLeftovers(SBuf &line, SBuf &result, const char **s)
 {
-    auto s = input.c_str();
-    SBuf result;
-    bool onceMatched = false;
-
-    while (s) {
-        RegexMatch regexMatch(ReGroupMax);
-        if (!pattern.match(s, regexMatch))
-            break;
-
-        result.append(s, regexMatch.startOffset());
-
-        SBuf line;
-
-        if (!onceMatched) {
-            onceMatched = true;
-            static MemBuf mb;
-            mb.reset();
-            ::Format::Format::AssembleParams params;
-            params.headerEditMatch = &regexMatch;
-            format_->assemble(mb, al_, &params);
-            line.append(mb.content(), mb.contentSize());
-        }
-
-        auto lineEnd = strchr(s, '\n');
-        Must(lineEnd);
-        lineEnd++;
-        line.append(s, lineEnd - s);
-
-        if (!isEmptyLine(line))
-            result.append(line);
-        s = lineEnd;
-    }
-
-    if (s)
-        result.append(s);
-
-    input = result;
+    auto lineEnd = strchr(*s, '\n');
+    Must(lineEnd);
+    lineEnd++;
+    line.append(*s, lineEnd - *s);
+    removeEmptyLines(line);
+    *s = lineEnd;
+    result.append(line);
+    line.clear();
 }
 
 void
-Http::HeaderEditor::applyOne(SBuf &input, RegexPattern &pattern)
+Http::HeaderEditor::apply(SBuf &input, RegexPattern &pattern)
 {
     auto s = input.c_str();
     SBuf result;
-
+    SBuf line;
     RegexMatch regexMatch(ReGroupMax);
-    if (pattern.match(s, regexMatch)) {
-        static MemBuf mb;
-        mb.reset();
+    int matchedCount = 0;
+
+    while (pattern.match(s, regexMatch)) {
         result.append(s, regexMatch.startOffset());
-
-        ::Format::Format::AssembleParams params;
-        params.headerEditMatch = &regexMatch;
-        format_->assemble(mb, al_, &params);
-        auto line = SBuf(mb.content(), mb.contentSize());
-
-        auto lineEnd = strchr(s, '\n');
-        Must(lineEnd);
-        lineEnd++;
-        line.append(s, lineEnd - s);
-
-        if (!isEmptyLine(line))
-            result.append(line);
-        s = lineEnd;
+        switch (commandArgument_) {
+        case CommandArgument::all:
+            if (!matchedCount)
+                applyFormat(line, &regexMatch);
+            break;
+        default:
+            applyFormat(line, &regexMatch);
+        }
+        s += regexMatch.endOffset();
+        addLineLeftovers(line, result, &s);
+        regexMatch.clear();
+        matchedCount++;
+        if (commandArgument_ == CommandArgument::first)
+            break;
     }
     result.append(s);
     input = result;
+}
+
+void
+Http::HeaderEditor::removeEmptyLines(SBuf &buf) const
+{
+    SBuf result;
+    SBuf::size_type prevPos = 0;
+    SBuf::size_type pos = buf.find('\n');
+    Must(pos != SBuf::npos);
+    while ((pos = buf.find('\n', prevPos)) != SBuf::npos) {
+        auto line = buf.substr(prevPos, pos-prevPos+1); // including '\n'
+        if (!isEmptyLine(line))
+            result.append(line);
+        prevPos = pos+1;
+    }
+    if (result.length() != buf.length())
+        buf = result;
 }
 
 bool
@@ -289,11 +250,15 @@ Http::HeaderEditor::parseOptions(ConfigParser &parser)
 
     assert(!format_);
     format_ = new Format::Format(description_);
-    if (!format_->parse(formatString_.c_str())) {
-        delete format_;
-        throw TextException(ToSBuf("invalid format line:", formatString_), Here());
-    }
 
+    static char unescaped[256];
+    SBuf::size_type upto = formatString_.copy(myFormat, sizeof(myFormat)-1);
+    myFormat[upto]='\0';
+    rfc1738_unescape(unescaped);
+    if (!format_->parse(unescaped)) {
+         delete format_;
+         throw TextException(ToSBuf("invalid format line:", formatString_), Here());
+    }
     aclList = parser.optionalAclList();
 }
 

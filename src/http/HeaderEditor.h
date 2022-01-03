@@ -56,10 +56,11 @@ public:
 
 private:
     bool compileRE(SBuf &, const int flags);
-    void applyOne(SBuf &input, RegexPattern &pattern);
-    void applyAll(SBuf &input, RegexPattern &pattern);
-    void applyEach(SBuf &input, RegexPattern &pattern);
+    void apply(SBuf &input, RegexPattern &pattern);
+    void applyFormat(SBuf &, RegexMatch *);
+    void addLineLeftovers(SBuf &line, SBuf &result, const char **s);
     bool isEmptyLine(SBuf &) const;
+    void removeEmptyLines(SBuf &) const;
 
     const char *description_;
     Command command_;

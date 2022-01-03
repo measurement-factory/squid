@@ -28,6 +28,8 @@ public:
     /// the end offset of the matched expression
     int endOffset();
 
+    void clear();
+
     SBuf matchedString; ///< the entire matched string
     std::vector<regmatch_t> groups; ///< the matched sub-expression list
 };

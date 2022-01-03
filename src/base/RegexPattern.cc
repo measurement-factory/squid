@@ -68,6 +68,16 @@ RegexMatch::endOffset()
     return groups[0].rm_eo;
 }
 
+void
+RegexMatch::clear()
+{
+    matchedString.clear();
+    for (auto &group: groups) {
+        group.rm_eo = 0;
+        group.rm_so = 0;
+    }
+}
+
 SBuf
 RegexMatch::capture(const uint64_t captureNum) const {
     Must(captureNum < groups.size());
