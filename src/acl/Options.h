@@ -15,19 +15,40 @@
 #include <iosfwd>
 #include <vector>
 
-// After all same-name acl configuration lines are merged into one ACL:
-//   configuration = acl name type [option...] [[flag...] parameter...]
-//   option = -x[=value] | --name[=value]
-//   flag = option
+// After line continuation is handled by the preprocessor, an ACL object
+// configuration can be visualized as a sequence of same-name "acl ..." lines:
 //
-// Options and flags use the same syntax, but differ in scope and handling code:
-// * ACL options appear before all parameters and apply to all parameters.
-//   They are handled by ACL kids (or equivalent).
-// * Parameter flags may appear after some other parameters and apply only to
-//   the subsequent parameters (until they are overwritten by later flags).
-//   They are handled by ACLData kids.
-// ACL options parsing code skips and leaves leading parameter flags (if any)
-// for ACLData code to process.
+// L1: acl exampleA typeT parameter1 -i parameter2 parameter3
+// L2: acl exampleA typeT parameter4
+// L3: acl exampleA typeT -i -n parameter5 +i parameter6
+// L4: acl exampleA typeT -n parameter7
+//
+// There are two kinds of ACL options (a.k.a. flags):
+//
+// * Global (e.g., `-n`): Applies to all parameters regardless of where the
+//   option was discovered/parsed (e.g., `-n` on L3 affects parameter2 on L1).
+//   Declared by ACL class kids (or equivalent) via ACL::options().
+//
+// * Line: (e.g., `-i`) Applies to the yet unparsed ACL parameters of the
+//   current "acl ..." line (e.g., `-i` on L1 has no affect on parameter4 on L2)
+//   Declared by ACLData class kids (or equivalent) via currentLineOptions().
+//
+// Here is the option:explicitly-affected-parameters map for the above exampleA:
+//   `-n`: parameter1-7 (i.e. all parameters)
+//   `-i`: parameter2, parameter3; parameter5
+//   `+i`: parameter6
+//
+// The option name spelling determines the option kind and effect.
+// Both option kinds use the same general option configuration syntax:
+//   option = name[=value]
+// where "name" is option-specific spelling that looks like -x, +x, or --long
+//
+// On each "acl ..." line, global options can only appear before the first
+// parameter, while line options can go before any parameter.
+//
+// XXX: The fact that global options affect previous (and subsequent) same-name
+// "acl name ..." lines surprises and confuses those who comprehend ACLs in
+// terms of configuration lines (which Squid effectively merges together).
 
 namespace Acl {
 
@@ -41,10 +62,10 @@ public:
     virtual ~Option() {}
 
     /// whether the admin explicitly specified this option
-    /// (i.e., whether configureWith() or configureFlag() has been called)
+    /// (i.e., whether configureWith() or configureDefault() has been called)
     virtual bool configured() const = 0;
 
-    /// called after parsing -x, +x, or --name
+    /// called after parsing -x or --name
     virtual void configureDefault(const SBuf &optName) const = 0;
 
     /// called after parsing -x=value or --name=value
@@ -103,7 +124,6 @@ public:
     virtual bool configured() const override { return recipient_ && recipient_->configured; }
     virtual bool valued() const override { return recipient_ && recipient_->valued; }
 
-    /// sets the flag value
     virtual void configureDefault(const SBuf &optName) const override
     {
         assert(recipient_);
@@ -112,7 +132,6 @@ public:
         setDefault(optName);
     }
 
-    /// sets the option value from rawValue
     virtual void configureWith(const SBuf &rawValue) const override
     {
         assert(recipient_);
