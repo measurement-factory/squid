@@ -295,8 +295,9 @@ Ssl::PeekingPeerConnector::noteWantWrite()
     Security::SessionPointer session(fd_table[fd].ssl);
     BIO *b = SSL_get_rbio(session.get());
     Ssl::ServerBio *srvBio = static_cast<Ssl::ServerBio *>(BIO_get_data(b));
-
-    if ((currentBumpMode == Ssl::bumpPeek || currentBumpMode == Ssl::bumpStare) && srvBio->holdWrite()) {
+    assert(srvBio);
+    if (srvBio->holdWrite()) {
+        Must(currentBumpMode == Ssl::bumpPeek || currentBumpMode == Ssl::bumpStare);
         debugs(81, 3, "hold write on SSL connection on FD " << fd);
         checkForPeekAndSplice();
         return;
@@ -312,6 +313,7 @@ Ssl::PeekingPeerConnector::noteNegotiationError(const Security::ErrorDetailPoint
     Security::SessionPointer session(fd_table[fd].ssl);
     BIO *b = SSL_get_rbio(session.get());
     Ssl::ServerBio *srvBio = static_cast<Ssl::ServerBio *>(BIO_get_data(b));
+    assert(srvBio);
 
     if (currentBumpMode == Ssl::bumpPeek) {
         auto bypassValidator = false;
@@ -353,8 +355,8 @@ Ssl::PeekingPeerConnector::noteNegotiationError(const Security::ErrorDetailPoint
     // TODO: Add/use a positive "successfully validated server cert" signal
     // instead of relying on the "![presumably_]validation_error && serverCert"
     // signal combo.
-    if (!SSL_get_ex_data(session.get(), ssl_ex_index_ssl_error_detail) &&
-            (currentBumpMode == Ssl::bumpPeek  || currentBumpMode == Ssl::bumpStare) && srvBio->holdWrite()) {
+    if (!SSL_get_ex_data(session.get(), ssl_ex_index_ssl_error_detail) && srvBio->holdWrite()) {
+        Must(currentBumpMode == Ssl::bumpPeek  || currentBumpMode == Ssl::bumpStare);
         Security::CertPointer serverCert(SSL_get_peer_certificate(session.get()));
         if (serverCert) {
             debugs(81, 3, "hold TLS write on FD " << fd << " despite " << errorDetail);
