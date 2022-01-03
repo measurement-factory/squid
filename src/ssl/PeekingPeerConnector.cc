@@ -43,7 +43,7 @@ Ssl::PeekingPeerConnector::PeekingPeerConnector(HttpRequestPointer &aRequest,
         const auto serverBump = csd->serverBump();
         Must(serverBump);
         Must(serverBump->at(XactionStep::tlsBump3));
-        currentBumpMode = serverBump->bumpModeAtStep(XactionStep::tlsBump2);
+        currentBumpMode = serverBump->lastBumpAction();
     }
     // else the client is gone, and we cannot check the step, but must carry on
 }
