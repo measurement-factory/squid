@@ -238,8 +238,10 @@ Http::HeaderEditor::parseOptions(ConfigParser &parser)
         for (auto f: rawFlags) {
             if (f == 'i')
                 flags |= REG_ICASE;
-            if (f == 'm')
+            else if (f == 's')
                 flags &= ~REG_NEWLINE;
+            else if (f == 'm')
+                flags |= REG_NEWLINE;
             // TODO: parse other flags
         }
     }

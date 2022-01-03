@@ -7047,8 +7047,11 @@ DOC_START
 		a possibly empty sequence of ASCII alphanumeric characters and "_".
 		The PATTERN itself must not contain the `"delimiter` sequence. If no
 		matching flags are necessary, the "(flags)" sequence can be omitted.
-		TODO: Document supported flags. TODO: Move this reusable documentation
-		to document preface?
+		Supported flags are:
+		-i	Make the regular expression case-insensitive.
+		-m	Enable the multi-line mode. This is the default behavior.
+		-s	Enable the single-line mode, allowing '.' to match '\n'.
+		TODO: Move this reusable documentation to document preface?
 
 	If multiple <what> parameters are specified, they are interpreted as if
 	individual patterns were ORed together. However, Squid preserves
