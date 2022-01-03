@@ -24,12 +24,15 @@ Security::ContextPointer BlindPeerConnector::getTlsContext() STUB_RETVAL(Securit
 void BlindPeerConnector::noteNegotiationDone(ErrorState *) STUB
 }
 
-#include "security/CertGadgets.h"
-bool Security::CertIsIssuedBy(Certificate &, Certificate &) STUB_RETVAL(false)
-
 #include "security/EncryptorAnswer.h"
 Security::EncryptorAnswer::~EncryptorAnswer() {}
 std::ostream &Security::operator <<(std::ostream &os, const Security::EncryptorAnswer &) STUB_RETVAL(os)
+
+#include "security/CertGadgets.h"
+SBuf Security::CertSubjectName(Certificate &) STUB_RETVAL(SBuf())
+SBuf Security::CertIssuerName(Certificate &) STUB_RETVAL(SBuf())
+bool Security::CertIsIssuedBy(Certificate &, Certificate &) STUB_RETVAL(false)
+std::ostream &operator <<(std::ostream &os, Security::Certificate &) STUB_RETVAL(os)
 
 #include "security/Handshake.h"
 Security::HandshakeParser::HandshakeParser(MessageSource) STUB
