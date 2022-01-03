@@ -203,6 +203,16 @@ Http::HeaderEditor::ParseReGroupId(const char *str)
     return static_cast<uint64_t>(id);
 }
 
+const char *
+UnescapeXXX(SBuf &buf)
+{
+    static char unescaped[256];
+    SBuf::size_type upto = buf.copy(unescaped, sizeof(unescaped)-1);
+    unescaped[upto]='\0';
+    rfc1738_unescape(unescaped);
+    return unescaped;
+}
+
 void
 Http::HeaderEditor::parseOptions(ConfigParser &parser)
 {
@@ -251,11 +261,7 @@ Http::HeaderEditor::parseOptions(ConfigParser &parser)
     assert(!format_);
     format_ = new Format::Format(description_);
 
-    static char unescaped[256];
-    SBuf::size_type upto = formatString_.copy(myFormat, sizeof(myFormat)-1);
-    myFormat[upto]='\0';
-    rfc1738_unescape(unescaped);
-    if (!format_->parse(unescaped)) {
+    if (!format_->parse(UnescapeXXX(formatString_)/*formatString_.c_str()*/)) {
          delete format_;
          throw TextException(ToSBuf("invalid format line:", formatString_), Here());
     }
