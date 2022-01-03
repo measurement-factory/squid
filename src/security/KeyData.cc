@@ -95,44 +95,41 @@ Security::KeyData::loadX509ChainFromFile()
         return;
     }
 
-    CertList certsInFile;
+    CertList intermediates;
     debugs(83, DBG_PARSE_NOTE(3), "Building certificate chain from " << certFile);
     while (const auto ca = Ssl::ReadX509Certificate(bio)) {
         // We ignore a self-signed certificate because it should not be sent:
-        // The recipients that do not already have it will not trust it.
+        // The recipients that do not already have it should not trust it.
         if (CertIsSelfSigned(*ca)) {
-            debugs(83, DBG_PARSE_NOTE(2), "Ignoring a self-signed CA " << CertSubjectName(*ca));
+            debugs(83, DBG_PARSE_NOTE(2), "Ignoring a self-signed CA " << *ca);
             continue;
         }
 
-        certsInFile.emplace_back(ca);
+        intermediates.emplace_back(ca);
     }
 
     // OpenSSL sends `cert` first. After that, OpenSSL sends certificates in the
-    // order they are stored in the chain given to OpenSSL, so we must push them
-    // in on-the-wire order, as defined by RFC 8446 Section 4.4.2: "The sender's
-    // certificate MUST come in the first CertificateEntry in the list. Each
-    // following certificate SHOULD directly certify the one immediately
-    // preceding it."
+    // order they are stored in the chain, so we must push them in on-the-wire
+    // order, as defined by RFC 8446 Section 4.4.2: "The sender's certificate
+    // MUST come in the first CertificateEntry in the list. Each following
+    // certificate SHOULD directly certify the one immediately preceding it."
     for (auto precedingCert = cert; precedingCert;) {
         CertPointer issuer; // the issuer of the "preceding" certificate
-        for (auto i = certsInFile.begin(); i != certsInFile.end(); ++i) {
+        for (auto i = intermediates.begin(); i != intermediates.end(); ++i) {
             const auto &candidateIssuer = *i;
             if (CertIsIssuedBy(*precedingCert, *candidateIssuer)) {
                 issuer = candidateIssuer;
-                debugs(83, DBG_PARSE_NOTE(3), "Adding intermediate CA: " << CertSubjectName(*issuer));
+                debugs(83, DBG_PARSE_NOTE(3), "Adding intermediate CA: " << *issuer);
                 chain.emplace_back(issuer);
-                certsInFile.erase(i); // cannot match again
+                intermediates.erase(i); // cannot match again
                 break;
             }
         }
         precedingCert = issuer; // may be nil
     }
 
-    // TODO: Name each unused intermediate certificate.
-    if (!certsInFile.empty()) {
-        debugs(83, DBG_IMPORTANT, "WARNING: Unused intermediate certificates: " << certsInFile.size());
-    }
+    for (const auto &ic: intermediates)
+        debugs(83, DBG_IMPORTANT, "WARNING: Unused intermediate certificate: " << *ic);
 #elif USE_GNUTLS
     // XXX: implement chain loading
     debugs(83, 2, "Loading certificate chain from PEM files not implemented in this Squid.");
