@@ -18,7 +18,7 @@
 class RegexMatch
 {
 public:
-    explicit RegexMatch(int maxGroups) : groups(maxGroups) {}
+    explicit RegexMatch(int groupsLimit) : groups(groupsLimit) {}
 
     int maxGroups() const { return groups.size(); }
     /// the matched sub-expression at the captureNum position
