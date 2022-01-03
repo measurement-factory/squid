@@ -37,7 +37,7 @@ class Option
 public:
     typedef enum { valueNone, valueOptional, valueRequired } ValueExpectation;
     explicit Option(const char *onName, const char *offName = nullptr, ValueExpectation vex = valueNone):
-        enableName(onName), disableName(offName), valueExpectation(vex) { assert(enableName); }
+        valueExpectation(vex), enableName(onName), disableName(offName) { assert(enableName); }
     virtual ~Option() {}
 
     /// whether the admin explicitly specified this option
