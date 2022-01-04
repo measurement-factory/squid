@@ -99,6 +99,7 @@ public:
     OptionValue(): value {} {}
     explicit OptionValue(const Value &aValue): value(aValue) {}
 
+    // explicitly deleting a method allows its Value-based specialization
     explicit operator bool() const = delete;
 
     /// go back to the default-initialized state
@@ -213,13 +214,13 @@ BooleanOption::print(std::ostream &os) const
     }
 }
 
-typedef std::vector<const Option *> Options;
+using Options = std::vector<const Option *>;
 
 /// parses the flags part of the being-parsed ACL, filling Option values
 /// \param options options supported by the ACL as a whole (e.g., -n)
 void ParseFlags(const Options &options);
 
-/* handy for Class::options() defaults */
+/* handy for Class::options() and lineOptions() defaults */
 const Options &NoOptions(); ///< \returns an empty Options container
 
 /// A boolean option that controls case-sensitivity (-i/+i).

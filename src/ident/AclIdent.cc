@@ -46,6 +46,12 @@ ACLIdent::typeString() const
     return type_;
 }
 
+const Acl::Options &
+ACLIdent::lineOptions()
+{
+    return data->lineOptions();
+}
+
 void
 ACLIdent::parse()
 {

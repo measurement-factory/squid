@@ -152,12 +152,12 @@ compileRE(std::list<RegexPattern> &curlist, const SBufList &RE, int flags)
  * called only once per ACL.
  */
 static int
-compileOptimisedREs(std::list<RegexPattern> &curlist, const SBufList &sl, const int startFlags)
+compileOptimisedREs(std::list<RegexPattern> &curlist, const SBufList &sl, const int flagsAtLineStart)
 {
-    auto flags = startFlags;
     std::list<RegexPattern> newlist;
     SBufList accumulatedRE;
     int numREs = 0, reSize = 0;
+    auto flags = flagsAtLineStart;
 
     for (const SBuf & configurationLineWord : sl) {
         static const SBuf minus_i("-i");
@@ -225,10 +225,11 @@ compileOptimisedREs(std::list<RegexPattern> &curlist, const SBufList &sl, const 
 }
 
 static void
-compileUnoptimisedREs(std::list<RegexPattern> &curlist, const SBufList &sl, const int startFlags)
+compileUnoptimisedREs(std::list<RegexPattern> &curlist, const SBufList &sl, const int flagsAtLineStart)
 {
+    auto flags = flagsAtLineStart;
+
     static const SBuf minus_i("-i"), plus_i("+i");
-    auto flags = startFlags;
     for (auto configurationLineWord : sl) {
         if (configurationLineWord == minus_i) {
             flags |= REG_ICASE;
@@ -247,9 +248,9 @@ ACLRegexData::parse()
 {
     debugs(28, 2, "new Regex line or file");
 
-    int startingFlags = REG_EXTENDED | REG_NOSUB;
+    int flagsAtLineStart = REG_EXTENDED | REG_NOSUB;
     if (CaseInsensitive_)
-        startingFlags |= REG_ICASE;
+        flagsAtLineStart |= REG_ICASE;
 
     SBufList sl;
     while (char *t = ConfigParser::RegexStrtokFile()) {
@@ -263,9 +264,9 @@ ACLRegexData::parse()
         }
     }
 
-    if (!compileOptimisedREs(data, sl, startingFlags)) {
+    if (!compileOptimisedREs(data, sl, flagsAtLineStart)) {
         debugs(28, DBG_IMPORTANT, "WARNING: optimisation of regular expressions failed; using fallback method without optimisation");
-        compileUnoptimisedREs(data, sl, startingFlags);
+        compileUnoptimisedREs(data, sl, flagsAtLineStart);
     }
 }
 

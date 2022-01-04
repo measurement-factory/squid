@@ -31,6 +31,7 @@ private:
     /// whether parse() is called in a case insensitive context
     static Acl::BooleanOptionValue CaseInsensitive_;
 
+    /* ACLData API */
     virtual const Acl::Options &lineOptions();
 
     std::list<RegexPattern> data;

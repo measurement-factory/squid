@@ -51,6 +51,7 @@ public:
     virtual bool valid () const;
 
 private:
+    /* ACL API */
     virtual const Acl::Options &options() { return matcher->options(); }
     virtual const Acl::Options &lineOptions() { return data->lineOptions(); }
 

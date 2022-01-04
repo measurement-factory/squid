@@ -50,6 +50,12 @@ ACLProxyAuth::typeString() const
     return type_;
 }
 
+const Acl::Options &
+ACLProxyAuth::lineOptions()
+{
+    return data->lineOptions();
+}
+
 void
 ACLProxyAuth::parse()
 {

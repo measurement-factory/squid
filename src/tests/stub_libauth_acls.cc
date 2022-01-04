@@ -46,6 +46,7 @@ void ProxyAuthLookup::LookupDone(void *) STUB
 ACL * ACLProxyAuth::clone() const STUB_RETVAL(NULL)
 int ACLProxyAuth::matchForCache(ACLChecklist *) STUB_RETVAL(0)
 int ACLProxyAuth::matchProxyAuth(ACLChecklist *) STUB_RETVAL(0)
+const Acl::Options &ACLProxyAuth::lineOptions() STUB_RETVAL(Acl::NoOptions())
 
 #endif /* USE_AUTH */
 

@@ -43,6 +43,12 @@ ACLExtUser::typeString() const
     return type_;
 }
 
+const Acl::Options &
+ACLExtUser::lineOptions()
+{
+    return data->lineOptions();
+}
+
 void
 ACLExtUser::parse()
 {

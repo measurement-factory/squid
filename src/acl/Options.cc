@@ -46,7 +46,7 @@ private:
 class OptionsParser
 {
 public:
-    OptionsParser(const Options &options);
+    explicit OptionsParser(const Options &options);
 
     // fill previously supplied options container, throwing on errors
     void parse();
@@ -160,11 +160,11 @@ Acl::OptionsParser::OptionsParser(const Options &options):
 }
 
 const Acl::Option *
-Acl::OptionsParser::findOption(/* const */ SBuf &rawNameBuf)
+Acl::OptionsParser::findOption(/* TODO: const */ SBuf &rawNameBuf)
 {
-    for (const auto opt: options_) {
-        if (opt->hasName(rawNameBuf))
-            return opt;
+    for (const auto option: options_) {
+        if (option->hasName(rawNameBuf))
+            return option;
     }
 
     throw TexcHere(ToSBuf("unsupported ACL option: ", rawNameBuf));
@@ -241,9 +241,9 @@ operator <<(std::ostream &os, const Acl::Option &option)
 std::ostream &
 operator <<(std::ostream &os, const Acl::Options &options)
 {
-    for (const auto opt: options) {
-        if (opt->configured())
-            os << opt;
+    for (const auto option: options) {
+        if (option->configured())
+            os << *option;
     }
     // TODO: Remember "--" presence and print that delimiter when present.
     // Detecting its need is difficult because parameter flags start with "-".
