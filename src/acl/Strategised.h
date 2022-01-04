@@ -52,7 +52,7 @@ public:
 
 private:
     virtual const Acl::Options &options() { return matcher->options(); }
-    virtual Acl::LineOptions *currentLineOptions() { return data->currentLineOptions(); }
+    virtual const Acl::Options &lineOptions() { return data->lineOptions(); }
 
     ACLData<MatchType> *data;
     char const *type_;

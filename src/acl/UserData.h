@@ -29,8 +29,10 @@ public:
     virtual ACLData<char const *> *clone() const;
 
 private:
-    virtual Acl::LineOptions *currentLineOptions() { return &MyLineOptions_; }
-    static Acl::CaseLineOption MyLineOptions_;
+    /// whether parse() is called in a case insensitive context
+    static Acl::BooleanOptionValue CaseInsensitive_;
+
+    virtual const Acl::Options &lineOptions();
 
     typedef std::set<SBuf,bool(*)(const SBuf&, const SBuf&)> UserDataNames_t;
     UserDataNames_t userDataNames;

@@ -204,16 +204,6 @@ Acl::OptionsParser::parse()
     }
 }
 
-
-const Acl::Options &
-Acl::CaseLineOption::options()
-{
-    static const Acl::BooleanOption Flag("-i", "+i");
-    static const Acl::Options MyOptions = { &Flag };
-    Flag.linkWith(&flag);
-    return MyOptions;
-}
-
 void
 Acl::ParseFlags(const Options &options)
 {
@@ -226,6 +216,13 @@ Acl::NoOptions()
 {
     static const Options none;
     return none;
+}
+
+const Acl::BooleanOption &
+Acl::CaseSensitivityOption()
+{
+    static const BooleanOption MyOption("-i", "+i");
+    return MyOption;
 }
 
 bool

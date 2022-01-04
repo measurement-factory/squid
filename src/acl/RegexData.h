@@ -28,9 +28,11 @@ public:
     virtual ACLData<char const *> *clone() const;
 
 private:
-    virtual Acl::LineOptions *currentLineOptions() { return &MyLineOptions_; }
+    /// whether parse() is called in a case insensitive context
+    static Acl::BooleanOptionValue CaseInsensitive_;
 
-    static Acl::CaseLineOption MyLineOptions_;
+    virtual const Acl::Options &lineOptions();
+
     std::list<RegexPattern> data;
 };
 

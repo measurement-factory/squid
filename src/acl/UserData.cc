@@ -18,7 +18,7 @@
 #include "sbuf/Algorithms.h"
 #include "util.h"
 
-Acl::CaseLineOption ACLUserData::MyLineOptions_;
+Acl::BooleanOptionValue ACLUserData::CaseInsensitive_;
 
 bool
 ACLUserData::match(char const *user)
@@ -78,11 +78,20 @@ ACLUserData::ACLUserData() :
     flags.required = false;
 }
 
+const Acl::Options &
+ACLUserData::lineOptions()
+{
+    static auto MyCaseSensitivityOption = Acl::CaseSensitivityOption();
+    static const Acl::Options MyOptions = { &MyCaseSensitivityOption };
+    MyCaseSensitivityOption.linkWith(&CaseInsensitive_);
+    return MyOptions;
+}
+
 void
 ACLUserData::parse()
 {
     debugs(28, 2, "parsing user list");
-    flags.case_insensitive = MyLineOptions_.on();
+    flags.case_insensitive = bool(CaseInsensitive_);
 
     char *t = NULL;
     if ((t = ConfigParser::strtokFile())) {

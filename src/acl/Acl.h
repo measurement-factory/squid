@@ -97,10 +97,9 @@ private:
     /// \returns (linked) 'global' Options supported by this ACL
     virtual const Acl::Options &options() { return Acl::NoOptions(); }
 
-    /// \returns (linked) 'line' Options supported by this ACL (or nil)
-    /// The linked option values are valid only during an Acl::parse() call!
+    /// \returns (linked) "line" Options supported by this ACL
     /// See also: options()
-    virtual Acl::LineOptions *currentLineOptions() { return nullptr; }
+    virtual const Acl::Options &lineOptions() { return Acl::NoOptions(); }
 };
 
 /// \ingroup ACLAPI

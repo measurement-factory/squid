@@ -292,10 +292,9 @@ void
 ACL::parseFlags()
 {
     Acl::Options allOptions = options();
-    if (const auto lineOptions = currentLineOptions()) {
-        lineOptions->reset();
-        for (const auto &opt: lineOptions->options())
-            allOptions.push_back(opt);
+    for (const auto lineOption: lineOptions()) {
+        lineOption->unconfigure(); // forget any previous "acl ..." line effects
+        allOptions.push_back(lineOption);
     }
     Acl::ParseFlags(allOptions);
 }
@@ -306,8 +305,8 @@ ACL::dumpOptions()
     SBufList result;
 
     const auto &myOptions = options();
-    // XXX: No currentLineOptions() call here because we do not remember ACL
-    // "line" boundaries and associated "line" options; we cannot report them.
+    // XXX: No lineOptions() call here because we do not remember ACL "line"
+    // boundaries and associated "line" options; we cannot report them.
 
     // optimization: most ACLs do not have myOptions
     // this check also works around dump_SBufList() adding ' ' after empty items

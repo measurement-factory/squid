@@ -25,10 +25,19 @@
 #include "sbuf/Algorithms.h"
 #include "sbuf/List.h"
 
-Acl::CaseLineOption ACLRegexData::MyLineOptions_;
+Acl::BooleanOptionValue ACLRegexData::CaseInsensitive_;
 
 ACLRegexData::~ACLRegexData()
 {
+}
+
+const Acl::Options &
+ACLRegexData::lineOptions()
+{
+    static auto MyCaseSensitivityOption = Acl::CaseSensitivityOption();
+    static const Acl::Options MyOptions = { &MyCaseSensitivityOption };
+    MyCaseSensitivityOption.linkWith(&CaseInsensitive_);
+    return MyOptions;
 }
 
 bool
@@ -239,7 +248,7 @@ ACLRegexData::parse()
     debugs(28, 2, "new Regex line or file");
 
     int startingFlags = REG_EXTENDED | REG_NOSUB;
-    if (MyLineOptions_.on())
+    if (CaseInsensitive_)
         startingFlags |= REG_ICASE;
 
     SBufList sl;

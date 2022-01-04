@@ -26,7 +26,7 @@ public:
     virtual void parse();
     virtual bool empty() const;
     virtual ACLData<HttpHeader*> *clone() const;
-    virtual Acl::LineOptions *currentLineOptions() { return regex_rule->currentLineOptions(); }
+    virtual const Acl::Options &lineOptions() { return regex_rule->lineOptions(); }
 
 private:
     Http::HdrType hdrId;            /**< set if header is known */

@@ -31,7 +31,7 @@
 //
 // * Line: (e.g., `-i`) Applies to the yet unparsed ACL parameters of the
 //   current "acl ..." line (e.g., `-i` on L1 has no affect on parameter4 on L2)
-//   Declared by ACLData class kids (or equivalent) via currentLineOptions().
+//   Declared by ACLData class kids (or equivalent) via lineOptions().
 //
 // Here is the option:explicitly-affected-parameters map for the above exampleA:
 //   `-n`: parameter1-7 (i.e. all parameters)
@@ -60,6 +60,9 @@ public:
     explicit Option(const char *onName, const char *offName = nullptr, ValueExpectation vex = valueNone):
         valueExpectation(vex), enableName(onName), disableName(offName) { assert(enableName); }
     virtual ~Option() {}
+
+    /// clear configureDefault() and configureWith() effects
+    virtual void unconfigure() const = 0;
 
     /// whether the admin explicitly specified this option
     /// (i.e., whether configureWith() or configureDefault() has been called)
@@ -96,7 +99,10 @@ public:
     OptionValue(): value {} {}
     explicit OptionValue(const Value &aValue): value(aValue) {}
 
-    explicit operator bool() const { return configured; }
+    explicit operator bool() const = delete;
+
+    /// go back to the default-initialized state
+    void reset() { *this = OptionValue<Value>(); }
 
     Value value; ///< final value storage, possibly after conversions
     bool configured = false; ///< whether the option was present in squid.conf
@@ -123,6 +129,11 @@ public:
 
     virtual bool configured() const override { return recipient_ && recipient_->configured; }
     virtual bool valued() const override { return recipient_ && recipient_->valued; }
+
+    virtual void unconfigure() const override {
+        assert(recipient_);
+        recipient_->reset();
+    }
 
     virtual void configureDefault(const SBuf &optName) const override
     {
@@ -162,6 +173,12 @@ typedef OptionValue<bool> BooleanOptionValue;
 typedef OptionValue<SBuf> TextOptionValue;
 typedef TypedOption<BooleanOptionValue> BooleanOption;
 typedef TypedOption<TextOptionValue> TextOption;
+
+/// Convenience conversion to bool for boolean options. (False) boolean option
+/// value is considered usable/correct even when the option is not configured.
+template <>
+inline
+BooleanOptionValue::operator bool() const { return value; }
 
 // this specialization should never be called until we start supporting
 // boolean option values like --name=enable or --name=false
@@ -205,29 +222,9 @@ void ParseFlags(const Options &options);
 /* handy for Class::options() defaults */
 const Options &NoOptions(); ///< \returns an empty Options container
 
-/// Base class for ACL-line-specific options.
-/// Create a kid for each ACL which supports a unique set of line options.
-class LineOptions
-{
-public:
-    virtual ~LineOptions() {}
-    /// \returns (linked) 'line' Options supported by an ACL
-    virtual const Acl::Options &options() { return Acl::NoOptions(); }
-    /// resets parsed option value(s)
-    virtual void reset() = 0;
-};
-
-/// the case insensitivity (-i,+i) line option
-class CaseLineOption : public LineOptions
-{
-public:
-    virtual const Acl::Options &options() override;
-    virtual void reset() override { flag = Acl::BooleanOptionValue(); }
-    bool on() const { return flag.configured && flag.value; }
-
-private:
-    Acl::BooleanOptionValue flag;
-};
+/// A boolean option that controls case-sensitivity (-i/+i).
+/// Defaults to "case sensitive" (+i).
+const BooleanOption &CaseSensitivityOption();
 
 } // namespace Acl
 
