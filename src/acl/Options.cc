@@ -241,10 +241,9 @@ operator <<(std::ostream &os, const Acl::Option &option)
 std::ostream &
 operator <<(std::ostream &os, const Acl::Options &options)
 {
-    for (const auto option: options) {
-        if (option->configured())
-            os << *option;
-    }
+    for (const auto option: options)
+        os << *option;
+
     // TODO: Remember "--" presence and print that delimiter when present.
     // Detecting its need is difficult because parameter flags start with "-".
     return os;

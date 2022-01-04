@@ -154,10 +154,15 @@ public:
 
     virtual void print(std::ostream &os) const override
     {
-        // TODO: print disableName (if needed) when it is supported for non-boolean options.
-        os << enableName;
-        if (valued())
-            os << '=' << recipient_->value;
+        if (configured()) {
+            // No report of explicitly disabled options (using disableName) here
+            // because non-boolean options do not support that mechanism yet,
+            // and boolean options specialize this method.
+            os << enableName;
+            if (valued())
+                os << '=' << recipient_->value;
+        }
+        // else do not report the implicit default
     }
 
 private:
@@ -205,13 +210,13 @@ template <>
 inline void
 BooleanOption::print(std::ostream &os) const
 {
-    Must(configured());
-    if (recipient_->value) {
-        os << enableName;
-    } else {
-        Must(disableName);
-        os << disableName;
+    if (configured()) {
+        if (recipient_->value)
+            os << enableName;
+        else if (disableName) // paranoid safety check
+            os << disableName;
     }
+    // else do not report the implicit default
 }
 
 using Options = std::vector<const Option *>;
