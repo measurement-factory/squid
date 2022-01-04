@@ -61,21 +61,27 @@ public:
         valueExpectation(vex), enableName(onName), disableName(offName) { assert(enableName); }
     virtual ~Option() {}
 
-    /// clear configureDefault() and configureWith() effects
+    // In the descriptions below, configureX() stands for configureDefault(),
+    // configureWith(), and configureDisabled() methods.
+
+    /// clear configureX() effects
     virtual void unconfigure() const = 0;
 
     /// whether the admin explicitly specified this option
-    /// (i.e., whether configureWith() or configureDefault() has been called)
+    /// (i.e., whether configureX() has been called)
     virtual bool configured() const = 0;
 
-    /// called after parsing -x or --name
-    virtual void configureDefault(const SBuf &optName) const = 0;
+    /// called after parsing enableName without a value (e.g., -x or --enable-x)
+    virtual void configureDefault() const = 0;
 
-    /// called after parsing -x=value or --name=value
+    /// called after parsing enableName and a value (e.g., -x=v or --enable-x=v)
     virtual void configureWith(const SBuf &rawValue) const = 0;
 
-    /// whether optName is one of the supported Option names
-    virtual bool hasName(const SBuf &optName) const;
+    /// called after parsing disableName (e.g., +i or --disable-x)
+    virtual void configureDisabled() const = 0;
+
+    /// whether configureDisabled() has been called
+    virtual bool disabled() const = 0;
 
     virtual bool valued() const = 0;
 
@@ -84,7 +90,6 @@ public:
 
     ValueExpectation valueExpectation = valueNone; ///< expect "=value" part?
 
-protected:
     const char *enableName; ///< an option name, turning this Option on
     const char *disableName; ///< an option name, turning this Option off, may be nil
 };
@@ -108,6 +113,7 @@ public:
     Value value; ///< final value storage, possibly after conversions
     bool configured = false; ///< whether the option was present in squid.conf
     bool valued = false; ///< whether a configured option had a value
+    bool disabled = false; ///< whether the option was disabled
 };
 
 /// a type-specific Option (e.g., a boolean --toggle or -m=SBuf)
@@ -130,18 +136,19 @@ public:
 
     virtual bool configured() const override { return recipient_ && recipient_->configured; }
     virtual bool valued() const override { return recipient_ && recipient_->valued; }
+    virtual bool disabled() const override { return recipient_ && recipient_->disabled && /* paranoid: */ disableName; }
 
     virtual void unconfigure() const override {
         assert(recipient_);
         recipient_->reset();
     }
 
-    virtual void configureDefault(const SBuf &optName) const override
+    virtual void configureDefault() const override
     {
         assert(recipient_);
         recipient_->configured = true;
         recipient_->valued = false;
-        setDefault(optName);
+        setDefault();
     }
 
     virtual void configureWith(const SBuf &rawValue) const override
@@ -152,13 +159,18 @@ public:
         import(rawValue);
     }
 
+    virtual void configureDisabled() const override
+    {
+        assert(recipient_);
+        recipient_->configured = true;
+        recipient_->valued = false;
+        disable();
+    }
+
     virtual void print(std::ostream &os) const override
     {
         if (configured()) {
-            // No report of explicitly disabled options (using disableName) here
-            // because non-boolean options do not support that mechanism yet,
-            // and boolean options specialize this method.
-            os << enableName;
+            os << (disabled() ? disableName : enableName);
             if (valued())
                 os << '=' << recipient_->value;
         }
@@ -167,7 +179,8 @@ public:
 
 private:
     void import(const SBuf &rawValue) const { recipient_->value = rawValue; }
-    virtual void setDefault(const SBuf &) const { /*leave recipient_->value as is*/}
+    void setDefault() const { /*leave recipient_->value as is*/}
+    void disable() const { /*leave recipient_->value as is*/ }
 
     // The "mutable" specifier demarcates set-once Option kind/behavior from the
     // ever-changing recipient of the actual admin-configured option value.
@@ -197,13 +210,16 @@ BooleanOption::import(const SBuf &) const
 
 template <>
 inline void
-BooleanOption::setDefault(const SBuf &optName) const
+BooleanOption::setDefault() const
 {
-    // Set the boolean value depending on the specified flag name prefix
-    // ('true' for '-' and 'false' otherwise, e.g., for '+').
-    // In future, we may need adding support for other flag names,
-    // such as --enable-foo and --disable-foo.
-    recipient_->value = (optName[0] == '-');
+    recipient_->value = true;
+}
+
+template <>
+inline void
+BooleanOption::disable() const
+{
+    recipient_->value = false;
 }
 
 template <>

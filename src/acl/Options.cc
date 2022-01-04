@@ -13,6 +13,7 @@
 #include "sbuf/Stream.h"
 
 #include <iostream>
+#include <utility>
 #include <vector>
 
 namespace Acl {
@@ -52,7 +53,8 @@ public:
     void parse();
 
 private:
-    const Option *findOption(/* const */ SBuf &rawName);
+    using SupportedOption = std::pair<const Option *, bool /* enable */ >;
+    SupportedOption supportedOption(const SBuf &name) const;
 
     const Options &options_; ///< caller-supported, linked options
 };
@@ -159,15 +161,18 @@ Acl::OptionsParser::OptionsParser(const Options &options):
 {
 }
 
-const Acl::Option *
-Acl::OptionsParser::findOption(/* TODO: const */ SBuf &rawNameBuf)
+/// \returns a supported version along with the name-based enable/disable flag
+Acl::OptionsParser::SupportedOption
+Acl::OptionsParser::supportedOption(const SBuf &name) const
 {
     for (const auto option: options_) {
-        if (option->hasName(rawNameBuf))
-            return option;
+        if (name.cmp(option->enableName) == 0)
+            return SupportedOption(option, true);
+        if (option->disableName && name.cmp(option->disableName) == 0)
+            return SupportedOption(option, false);
     }
 
-    throw TexcHere(ToSBuf("unsupported ACL option: ", rawNameBuf));
+    throw TexcHere(ToSBuf("unsupported ACL option: ", name));
 }
 
 void
@@ -175,32 +180,36 @@ Acl::OptionsParser::parse()
 {
     OptionExtractor oex;
     while (oex.extractOne()) {
-        /* const */ auto rawName = oex.name;
-        if (const Option *optionPtr = findOption(rawName)) {
-            const Option &option = *optionPtr;
+        const auto explicitOption = supportedOption(oex.name);
+        const auto &option = *explicitOption.first;
+        if (explicitOption.second) {
+            /* configuration enables this option */
             if (option.configured())
-                debugs(28, 7, "acl uses multiple " << rawName << " options");
+                debugs(28, 7, "acl uses multiple " << oex.name << " options");
             switch (option.valueExpectation)
             {
             case Option::valueNone:
                 if (oex.hasValue)
-                    throw TexcHere(ToSBuf("unexpected value for an ACL option: ", rawName, '=', oex.value()));
-                option.configureDefault(oex.name);
+                    throw TexcHere(ToSBuf("unexpected value for an ACL option: ", oex.name, '=', oex.value()));
+                option.configureDefault();
                 break;
             case Option::valueRequired:
                 if (!oex.hasValue)
-                    throw TexcHere(ToSBuf("missing required value for ACL option ", rawName));
+                    throw TexcHere(ToSBuf("missing required value for ACL option ", oex.name));
                 option.configureWith(oex.value());
                 break;
             case Option::valueOptional:
                 if (oex.hasValue)
                     option.configureWith(oex.value());
                 else
-                    option.configureDefault(oex.name);
+                    option.configureDefault();
                 break;
             }
+        } else {
+            if (oex.hasValue)
+                throw TexcHere(ToSBuf("unexpected value when disabling an ACL option: ", oex.name, '=', oex.value()));
+            option.configureDisabled();
         }
-        // else skip supported parameter flag
     }
 }
 
@@ -223,12 +232,6 @@ Acl::CaseSensitivityOption()
 {
     static const BooleanOption MyOption("-i", "+i");
     return MyOption;
-}
-
-bool
-Acl::Option::hasName(const SBuf &optName) const
-{
-    return optName.cmp(enableName) == 0 || (disableName && optName.cmp(disableName) == 0);
 }
 
 std::ostream &
