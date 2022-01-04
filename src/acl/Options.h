@@ -10,7 +10,7 @@
 #define SQUID_ACL_OPTIONS_H
 
 #include "acl/forward.h"
-#include "sbuf/SBuf.h"
+#include "sbuf/forward.h"
 
 #include <iosfwd>
 #include <vector>
@@ -25,18 +25,18 @@
 //
 // There are two kinds of ACL options (a.k.a. flags):
 //
-// * Global (e.g., `-n`): Applies to all parameters regardless of where the
-//   option was discovered/parsed (e.g., `-n` on L3 affects parameter2 on L1).
+// * Global (e.g., "-n"): Applies to all parameters regardless of where the
+//   option was discovered/parsed (e.g., "-n" on L3 affects parameter2 on L1).
 //   Declared by ACL class kids (or equivalent) via ACL::options().
 //
-// * Line: (e.g., `-i`) Applies to the yet unparsed ACL parameters of the
-//   current "acl ..." line (e.g., `-i` on L1 has no affect on parameter4 on L2)
+// * Line: (e.g., "-i") Applies to the yet unparsed ACL parameters of the
+//   current "acl ..." line (e.g., "-i" on L1 has no affect on parameter4 on L2)
 //   Declared by ACLData class kids (or equivalent) via lineOptions().
 //
 // Here is the option:explicitly-affected-parameters map for the above exampleA:
-//   `-n`: parameter1-7 (i.e. all parameters)
-//   `-i`: parameter2, parameter3; parameter5
-//   `+i`: parameter6
+//   "-n": parameter1-7 (i.e. all parameters)
+//   "-i": parameter2, parameter3; parameter5
+//   "+i": parameter6
 //
 // The option name spelling determines the option kind and effect.
 // Both option kinds use the same general option configuration syntax:
@@ -64,9 +64,6 @@ public:
     // In the descriptions below, configureX() stands for configureDefault(),
     // configureWith(), and configureDisabled() methods.
 
-    /// clear configureX() effects
-    virtual void unconfigure() const = 0;
-
     /// whether the admin explicitly specified this option
     /// (i.e., whether configureX() has been called)
     virtual bool configured() const = 0;
@@ -79,6 +76,9 @@ public:
 
     /// called after parsing disableName (e.g., +i or --disable-x)
     virtual void configureDisabled() const = 0;
+
+    /// clear configureX() effects
+    virtual void unconfigure() const = 0;
 
     /// whether configureDisabled() has been called
     virtual bool disabled() const = 0;
@@ -104,7 +104,7 @@ public:
     OptionValue(): value {} {}
     explicit OptionValue(const Value &aValue): value(aValue) {}
 
-    // explicitly deleting a method allows its Value-based specialization
+    // explicitly deleting this non-generated method allows its specialization
     explicit operator bool() const = delete;
 
     /// go back to the default-initialized state
@@ -113,7 +113,7 @@ public:
     Value value; ///< final value storage, possibly after conversions
     bool configured = false; ///< whether the option was present in squid.conf
     bool valued = false; ///< whether a configured option had a value
-    bool disabled = false; ///< whether the option was disabled
+    bool disabled = false; ///< whether the option was explicitly turned off
 };
 
 /// a type-specific Option (e.g., a boolean --toggle or -m=SBuf)
@@ -197,7 +197,10 @@ typedef TypedOption<TextOptionValue> TextOption;
 /// value is considered usable/correct even when the option is not configured.
 template <>
 inline
-BooleanOptionValue::operator bool() const { return value; }
+BooleanOptionValue::operator bool() const
+{
+    return value;
+}
 
 // this specialization should never be called until we start supporting
 // boolean option values like --name=enable or --name=false
@@ -245,7 +248,8 @@ void ParseFlags(const Options &options);
 const Options &NoOptions(); ///< \returns an empty Options container
 
 /// A boolean option that controls case-sensitivity (-i/+i).
-/// Defaults to "case sensitive" (+i).
+/// An enabled (-i) state is "case insensitive".
+/// A disabled (+i) and default states are "case sensitive".
 const BooleanOption &CaseSensitivityOption();
 
 } // namespace Acl

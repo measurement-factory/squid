@@ -161,7 +161,7 @@ Acl::OptionsParser::OptionsParser(const Options &options):
 {
 }
 
-/// \returns a supported version along with the name-based enable/disable flag
+/// \returns a supported option paired with the name-based enable/disable flag
 Acl::OptionsParser::SupportedOption
 Acl::OptionsParser::supportedOption(const SBuf &name) const
 {
