@@ -225,19 +225,6 @@ BooleanOption::disable() const
     recipient_->value = false;
 }
 
-template <>
-inline void
-BooleanOption::print(std::ostream &os) const
-{
-    if (configured()) {
-        if (recipient_->value)
-            os << enableName;
-        else if (disableName) // paranoid safety check
-            os << disableName;
-    }
-    // else do not report the implicit default
-}
-
 using Options = std::vector<const Option *>;
 
 /// parses the flags part of the being-parsed ACL, filling Option values
