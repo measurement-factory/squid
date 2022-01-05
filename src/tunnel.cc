@@ -319,6 +319,8 @@ TunnelStateData::serverClosed()
 {
     server.noteClosure();
     debugs(26, 5, "noConn=" << noConnections() << " client.conn=" << client.conn);
+
+    retryOrBail(__FUNCTION__);
 }
 
 /// TunnelStateData::clientClosed() wrapper
@@ -421,9 +423,6 @@ TunnelStateData::checkRetry()
 void
 TunnelStateData::retryOrBail(const char *context)
 {
-    // Since no TCP payload has been passed to client or server, we may
-    // TCP-connect to other destinations (including alternate IPs).
-
     assert(!server.conn);
 
     const auto *bailDescription = checkRetry();
