@@ -191,7 +191,7 @@ Acl::OptionsParser::parse()
             case Option::valueNone:
                 if (oex.hasValue)
                     throw TexcHere(ToSBuf("unexpected value for an ACL option: ", oex.name, '=', oex.value()));
-                option.configureDefault();
+                option.enable();
                 break;
             case Option::valueRequired:
                 if (!oex.hasValue)
@@ -202,13 +202,13 @@ Acl::OptionsParser::parse()
                 if (oex.hasValue)
                     option.configureWith(oex.value());
                 else
-                    option.configureDefault();
+                    option.enable();
                 break;
             }
         } else {
             if (oex.hasValue)
                 throw TexcHere(ToSBuf("unexpected value when disabling an ACL option: ", oex.name, '=', oex.value()));
-            option.configureDisabled();
+            option.disable();
         }
     }
 }

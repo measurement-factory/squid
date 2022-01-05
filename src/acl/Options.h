@@ -61,26 +61,23 @@ public:
         valueExpectation(vex), enableName(onName), disableName(offName) { assert(enableName); }
     virtual ~Option() {}
 
-    // In the descriptions below, configureX() stands for configureDefault(),
-    // configureWith(), and configureDisabled() methods.
-
-    /// whether the admin explicitly specified this option
-    /// (i.e., whether configureX() has been called)
+    /// whether the admin explicitly specified this option (i.e., whether
+    /// enable(), configureWith(), or disable() has been called)
     virtual bool configured() const = 0;
 
     /// called after parsing enableName without a value (e.g., -x or --enable-x)
-    virtual void configureDefault() const = 0;
+    virtual void enable() const = 0;
 
     /// called after parsing enableName and a value (e.g., -x=v or --enable-x=v)
     virtual void configureWith(const SBuf &rawValue) const = 0;
 
     /// called after parsing disableName (e.g., +i or --disable-x)
-    virtual void configureDisabled() const = 0;
+    virtual void disable() const = 0;
 
-    /// clear configureX() effects
+    /// clear enable(), configureWith(), or disable() effects
     virtual void unconfigure() const = 0;
 
-    /// whether configureDisabled() has been called
+    /// whether disable() has been called
     virtual bool disabled() const = 0;
 
     virtual bool valued() const = 0;
@@ -143,12 +140,12 @@ public:
         recipient_->reset();
     }
 
-    virtual void configureDefault() const override
+    virtual void enable() const override
     {
         assert(recipient_);
         recipient_->configured = true;
         recipient_->valued = false;
-        setDefault();
+        postEnable();
     }
 
     virtual void configureWith(const SBuf &rawValue) const override
@@ -159,12 +156,12 @@ public:
         import(rawValue);
     }
 
-    virtual void configureDisabled() const override
+    virtual void disable() const override
     {
         assert(recipient_);
         recipient_->configured = true;
         recipient_->valued = false;
-        disable();
+        postDisable();
     }
 
     virtual void print(std::ostream &os) const override
@@ -179,8 +176,8 @@ public:
 
 private:
     void import(const SBuf &rawValue) const { recipient_->value = rawValue; }
-    void setDefault() const { /*leave recipient_->value as is*/}
-    void disable() const { /*leave recipient_->value as is*/ }
+    void postEnable() const { /* leave recipient_->value as is */ }
+    void postDisable() const { /* leave recipient_->value as is */ }
 
     // The "mutable" specifier demarcates set-once Option kind/behavior from the
     // ever-changing recipient of the actual admin-configured option value.
@@ -193,12 +190,13 @@ typedef OptionValue<SBuf> TextOptionValue;
 typedef TypedOption<BooleanOptionValue> BooleanOption;
 typedef TypedOption<TextOptionValue> TextOption;
 
-/// Convenience conversion to bool for boolean options. (False) boolean option
-/// value is considered usable/correct even when the option is not configured.
+/// whether the option is "enabled" (i.e. configured but not disabled)
 template <>
 inline
 BooleanOptionValue::operator bool() const
 {
+    /// default-initialization to false and specializations below make sure that
+    /// the value tells whether the option is "enabled"
     return value;
 }
 
@@ -213,14 +211,14 @@ BooleanOption::import(const SBuf &) const
 
 template <>
 inline void
-BooleanOption::setDefault() const
+BooleanOption::postEnable() const
 {
     recipient_->value = true;
 }
 
 template <>
 inline void
-BooleanOption::disable() const
+BooleanOption::postDisable() const
 {
     recipient_->value = false;
 }
