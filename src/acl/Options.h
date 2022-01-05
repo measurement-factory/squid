@@ -29,8 +29,8 @@
 //   option was discovered/parsed (e.g., "-n" on L3 affects parameter2 on L1).
 //   Declared by ACL class kids (or equivalent) via ACL::options().
 //
-// * Line: (e.g., "-i") Applies to the yet unparsed ACL parameters of the
-//   current "acl ..." line (e.g., "-i" on L1 has no affect on parameter4 on L2)
+// * Line (e.g., "-i"): Applies to the yet unparsed ACL parameters of the
+//   current "acl ..." line (e.g., "-i" on L1 has no effect on parameter4 on L2)
 //   Declared by ACLData class kids (or equivalent) via lineOptions().
 //
 // Here is the option:explicitly-affected-parameters map for the above exampleA:
