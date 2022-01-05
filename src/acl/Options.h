@@ -101,8 +101,9 @@ public:
     OptionValue(): value {} {}
     explicit OptionValue(const Value &aValue): value(aValue) {}
 
-    // explicitly deleting this non-generated method allows its specialization
-    explicit operator bool() const = delete;
+    /// whether the option is enabled (with or without a value)
+    bool enabled() const { return configured && !disabled; }
+    explicit operator bool() const { return enabled(); }
 
     /// go back to the default-initialized state
     void reset() { *this = OptionValue<Value>(); }
@@ -145,7 +146,7 @@ public:
         assert(recipient_);
         recipient_->configured = true;
         recipient_->valued = false;
-        postEnable();
+        // leave recipient_->value unchanged
     }
 
     virtual void configureWith(const SBuf &rawValue) const override
@@ -161,7 +162,7 @@ public:
         assert(recipient_);
         recipient_->configured = true;
         recipient_->valued = false;
-        postDisable();
+        // leave recipient_->value unchanged
     }
 
     virtual void print(std::ostream &os) const override
@@ -176,8 +177,6 @@ public:
 
 private:
     void import(const SBuf &rawValue) const { recipient_->value = rawValue; }
-    void postEnable() const { /* leave recipient_->value as is */ }
-    void postDisable() const { /* leave recipient_->value as is */ }
 
     // The "mutable" specifier demarcates set-once Option kind/behavior from the
     // ever-changing recipient of the actual admin-configured option value.
@@ -190,16 +189,6 @@ typedef OptionValue<SBuf> TextOptionValue;
 typedef TypedOption<BooleanOptionValue> BooleanOption;
 typedef TypedOption<TextOptionValue> TextOption;
 
-/// whether the option is "enabled" (i.e. configured but not disabled)
-template <>
-inline
-BooleanOptionValue::operator bool() const
-{
-    /// default-initialization to false and specializations below make sure that
-    /// the value tells whether the option is "enabled"
-    return value;
-}
-
 // this specialization should never be called until we start supporting
 // boolean option values like --name=enable or --name=false
 template <>
@@ -207,20 +196,6 @@ inline void
 BooleanOption::import(const SBuf &) const
 {
     assert(!"boolean options do not have ...=values (for now)");
-}
-
-template <>
-inline void
-BooleanOption::postEnable() const
-{
-    recipient_->value = true;
-}
-
-template <>
-inline void
-BooleanOption::postDisable() const
-{
-    recipient_->value = false;
 }
 
 using Options = std::vector<const Option *>;
