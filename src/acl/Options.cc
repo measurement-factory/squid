@@ -61,6 +61,16 @@ private:
 
 } // namespace Acl
 
+/* Acl::Option */
+
+Acl::Option::Option(const char * const nameThatEnables, const char * const nameThatDisables, const ValueExpectation vex):
+    onName(nameThatEnables),
+    offName(nameThatDisables),
+    valueExpectation(vex)
+{
+    assert(onName);
+}
+
 /* Acl::OptionExtractor */
 
 const SBuf &
@@ -161,14 +171,14 @@ Acl::OptionsParser::OptionsParser(const Options &options):
 {
 }
 
-/// \returns a supported option paired with the name-based enable/disable flag
+/// \returns named supported option paired with a name-based enable/disable flag
 Acl::OptionsParser::SupportedOption
 Acl::OptionsParser::supportedOption(const SBuf &name) const
 {
     for (const auto option: options_) {
-        if (name.cmp(option->enableName) == 0)
+        if (name.cmp(option->onName) == 0)
             return SupportedOption(option, true);
-        if (option->disableName && name.cmp(option->disableName) == 0)
+        if (option->offName && name.cmp(option->offName) == 0)
             return SupportedOption(option, false);
     }
 

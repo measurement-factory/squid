@@ -57,21 +57,20 @@ class Option
 {
 public:
     typedef enum { valueNone, valueOptional, valueRequired } ValueExpectation;
-    explicit Option(const char *onName, const char *offName = nullptr, ValueExpectation vex = valueNone):
-        valueExpectation(vex), enableName(onName), disableName(offName) { assert(enableName); }
+    explicit Option(const char *nameThatEnables, const char *nameThatDisables = nullptr, ValueExpectation vex = valueNone);
     virtual ~Option() {}
 
     /// whether the admin explicitly specified this option (i.e., whether
     /// enable(), configureWith(), or disable() has been called)
     virtual bool configured() const = 0;
 
-    /// called after parsing enableName without a value (e.g., -x or --enable-x)
+    /// called after parsing onName without a value (e.g., -x or --enable-x)
     virtual void enable() const = 0;
 
-    /// called after parsing enableName and a value (e.g., -x=v or --enable-x=v)
+    /// called after parsing onName and a value (e.g., -x=v or --enable-x=v)
     virtual void configureWith(const SBuf &rawValue) const = 0;
 
-    /// called after parsing disableName (e.g., +i or --disable-x)
+    /// called after parsing offName (e.g., +i or --disable-x)
     virtual void disable() const = 0;
 
     /// clear enable(), configureWith(), or disable() effects
@@ -85,10 +84,14 @@ public:
     /// prints a configuration snippet (as an admin could have typed)
     virtual void print(std::ostream &os) const = 0;
 
-    ValueExpectation valueExpectation = valueNone; ///< expect "=value" part?
+    /// A name that must be used to explicitly enable this Option (required).
+    const char * const onName = nullptr;
 
-    const char *enableName; ///< an option name, turning this Option on
-    const char *disableName; ///< an option name, turning this Option off, may be nil
+    /// A name that must be used to explicitly disable this Option (optional).
+    /// Nil for (and only for) options that cannot be disabled().
+    const char * const offName = nullptr;
+
+    ValueExpectation valueExpectation = valueNone; ///< expect "=value" part?
 };
 
 /// Stores configuration of a typical boolean flag or a single-value Option.
@@ -120,8 +123,8 @@ class TypedOption: public Option
 {
 public:
     //typedef typename Recipient::value_type value_type;
-    explicit TypedOption(const char *onName, const char *offName = nullptr, ValueExpectation vex = valueNone):
-        Option(onName, offName, vex) {}
+    explicit TypedOption(const char *nameThatEnables, const char *nameThatDisables = nullptr, ValueExpectation vex = valueNone):
+        Option(nameThatEnables, nameThatDisables, vex) {}
 
     /// who to tell when this option is enabled
     void linkWith(Recipient *recipient) const
@@ -134,7 +137,7 @@ public:
 
     virtual bool configured() const override { return recipient_ && recipient_->configured; }
     virtual bool valued() const override { return recipient_ && recipient_->valued; }
-    virtual bool disabled() const override { return recipient_ && recipient_->disabled && /* paranoid: */ disableName; }
+    virtual bool disabled() const override { return recipient_ && recipient_->disabled && /* paranoid: */ offName; }
 
     virtual void unconfigure() const override {
         assert(recipient_);
@@ -168,7 +171,7 @@ public:
     virtual void print(std::ostream &os) const override
     {
         if (configured()) {
-            os << (disabled() ? disableName : enableName);
+            os << (disabled() ? offName : onName);
             if (valued())
                 os << '=' << recipient_->value;
         }
