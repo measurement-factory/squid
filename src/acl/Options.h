@@ -110,7 +110,7 @@ public:
     OptionValue(): value {} {}
     explicit OptionValue(const Value &aValue): value(aValue) {}
 
-    /// whether the option is enabled (with or without a value)
+    /// whether the option is explicitly turned "on" (with or without a value)
     bool enabled() const { return configured && !disabled; }
     explicit operator bool() const { return enabled(); }
 
