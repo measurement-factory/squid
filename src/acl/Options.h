@@ -158,6 +158,7 @@ public:
         assert(recipient_);
         recipient_->configured = true;
         recipient_->valued = true;
+        recipient_->disabled = false;
         import(rawValue);
     }
 
