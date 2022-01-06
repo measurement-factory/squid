@@ -113,8 +113,9 @@ public:
 
     Value value; ///< final value storage, possibly after conversions
     bool configured = false; ///< whether the option was present in squid.conf
+    /* flags for configured options */
+    bool disabled = false; ///< whether the option was turned off
     bool valued = false; ///< whether a configured option had a value
-    bool disabled = false; ///< whether the option was explicitly turned off
 };
 
 /// a type-specific Option (e.g., a boolean --toggle or -m=SBuf)
@@ -136,8 +137,8 @@ public:
     /* Option API */
 
     virtual bool configured() const override { return recipient_ && recipient_->configured; }
-    virtual bool valued() const override { return recipient_ && recipient_->valued; }
     virtual bool disabled() const override { return recipient_ && recipient_->disabled && /* paranoid: */ offName; }
+    virtual bool valued() const override { return recipient_ && recipient_->valued; }
 
     virtual void unconfigure() const override {
         assert(recipient_);
@@ -148,8 +149,8 @@ public:
     {
         assert(recipient_);
         recipient_->configured = true;
-        recipient_->valued = false;
         recipient_->disabled = false;
+        recipient_->valued = false;
         // leave recipient_->value unchanged
     }
 
@@ -157,8 +158,8 @@ public:
     {
         assert(recipient_);
         recipient_->configured = true;
-        recipient_->valued = true;
         recipient_->disabled = false;
+        recipient_->valued = true;
         import(rawValue);
     }
 
@@ -166,8 +167,8 @@ public:
     {
         assert(recipient_);
         recipient_->configured = true;
-        recipient_->valued = false;
         recipient_->disabled = true;
+        recipient_->valued = false;
         // leave recipient_->value unchanged
     }
 
