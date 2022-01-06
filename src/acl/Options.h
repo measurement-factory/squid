@@ -101,6 +101,12 @@ class OptionValue
 public:
     typedef Value value_type;
 
+    // TODO: Some callers use .value without checking whether the option is
+    // enabled(), accessing the (default-initialized or customized) default
+    // value that way. This trick will stop working if we add valued options
+    // that can be disabled (e.g., --with-foo=x --without-foo). To support such
+    // options, store the default value separately and provide value accessor.
+
     OptionValue(): value {} {}
     explicit OptionValue(const Value &aValue): value(aValue) {}
 
