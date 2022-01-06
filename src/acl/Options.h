@@ -149,6 +149,7 @@ public:
         assert(recipient_);
         recipient_->configured = true;
         recipient_->valued = false;
+        recipient_->disabled = false;
         // leave recipient_->value unchanged
     }
 
@@ -165,6 +166,7 @@ public:
         assert(recipient_);
         recipient_->configured = true;
         recipient_->valued = false;
+        recipient_->disabled = true;
         // leave recipient_->value unchanged
     }
 
