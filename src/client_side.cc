@@ -104,7 +104,6 @@
 #include "MemObject.h"
 #include "mime_header.h"
 #include "parser/Tokenizer.h"
-#include "profiler/Profiler.h"
 #include "proxyp/Header.h"
 #include "proxyp/Parser.h"
 #include "sbuf/Stream.h"
@@ -186,7 +185,7 @@ static void clientUpdateStatHistCounters(const LogTags &logType, int svc_time);
 static void clientUpdateStatCounters(const LogTags &logType);
 static void clientUpdateHierCounters(HierarchyLogEntry *);
 static bool clientPingHasFinished(ping_data const *aPing);
-void prepareLogWithRequestDetails(HttpRequest *, AccessLogEntry::Pointer &);
+void prepareLogWithRequestDetails(HttpRequest *, const AccessLogEntryPointer &);
 static void ClientSocketContextPushDeferredIfNeeded(Http::StreamPointer deferredRequest, ConnStateData * conn);
 
 char *skipLeadingSpace(char *aString);
@@ -313,19 +312,19 @@ clientUpdateHierCounters(HierarchyLogEntry * someEntry)
 void
 ClientHttpRequest::updateCounters()
 {
-    clientUpdateStatCounters(logType);
+    clientUpdateStatCounters(loggingTags());
 
     if (request->error)
         ++ statCounter.client_http.errors;
 
-    clientUpdateStatHistCounters(logType,
+    clientUpdateStatHistCounters(loggingTags(),
                                  tvSubMsec(al->cache.start_time, current_time));
 
     clientUpdateHierCounters(&request->hier);
 }
 
 void
-prepareLogWithRequestDetails(HttpRequest * request, AccessLogEntry::Pointer &aLogEntry)
+prepareLogWithRequestDetails(HttpRequest *request, const AccessLogEntryPointer &aLogEntry)
 {
     assert(request);
     assert(aLogEntry != NULL);
@@ -379,7 +378,7 @@ prepareLogWithRequestDetails(HttpRequest * request, AccessLogEntry::Pointer &aLo
 void
 ClientHttpRequest::logRequest()
 {
-    if (!out.size && logType.oldType == LOG_TAG_NONE)
+    if (!out.size && loggingTags().oldType == LOG_TAG_NONE)
         debugs(33, 5, "logging half-baked transaction: " << log_uri);
 
     al->icp.opcode = ICP_INVALID;
@@ -412,8 +411,6 @@ ClientHttpRequest::logRequest()
     al->http.clientReplySz.payloadData = out.size - out.headers_sz; // pretend its all un-encoded data for now.
 
     al->cache.highOffset = out.offset;
-
-    al->cache.code = logType;
 
     tvSub(al->cache.trTime, al->cache.start_time, current_time);
 
@@ -474,7 +471,7 @@ ClientHttpRequest::logRequest()
             updateCounters();
 
         if (getConn() != NULL && getConn()->clientConnection != NULL)
-            clientdbUpdate(getConn()->clientConnection->remote, logType, AnyP::PROTO_HTTP, out.size);
+            clientdbUpdate(getConn()->clientConnection->remote, loggingTags(), AnyP::PROTO_HTTP, out.size);
     }
 }
 
@@ -825,7 +822,6 @@ clientSocketRecipient(clientStreamNode * node, ClientHttpRequest * http,
 
     /* Test preconditions */
     assert(node != NULL);
-    PROF_start(clientSocketRecipient);
     /* TODO: handle this rather than asserting
      * - it should only ever happen if we cause an abort and
      * the callback chain loops back to here, so we can simply return.
@@ -845,8 +841,6 @@ clientSocketRecipient(clientStreamNode * node, ClientHttpRequest * http,
         context->deferRecipientForLater(node, rep, receivedData);
     else
         http->getConn()->handleReply(rep, receivedData);
-
-    PROF_stop(clientSocketRecipient);
 }
 
 /**
@@ -1026,7 +1020,7 @@ ConnStateData::afterClientWrite(size_t size)
     auto ctx = pipeline.front();
     if (size) {
         statCounter.client_http.kbytes_out += size;
-        if (ctx->http->logType.isTcpHit())
+        if (ctx->http->loggingTags().isTcpHit())
             statCounter.client_http.hit_kbytes_out += size;
     }
     ctx->writeComplete(size);
@@ -2950,6 +2944,8 @@ ConnStateData::parseTlsHandshake()
         getSslContextStart();
         return;
     } else if (sslServerBump->act.step1 == Ssl::bumpServerFirst) {
+        debugs(83, 5, "server-first skips step2; start forwarding the request");
+        sslServerBump->step = XactionStep::tlsBump3;
         Http::StreamPointer context = pipeline.front();
         ClientHttpRequest *http = context ? context->http : nullptr;
         // will call httpsPeeked() with certificate and connection, eventually
@@ -3076,6 +3072,7 @@ ConnStateData::startPeekAndSplice()
     inBuf.clear();
 
     debugs(83, 5, "Peek and splice at step2 done. Start forwarding the request!!! ");
+    sslServerBump->step = XactionStep::tlsBump3;
     FwdState::Start(clientConnection, sslServerBump->entry, sslServerBump->request.getRaw(), http ? http->al : NULL);
 }
 
@@ -3995,8 +3992,16 @@ ConnStateData::unpinConnection(const bool andClose)
 }
 
 void
-ConnStateData::terminateAll(const Error &error, const LogTagsErrors &lte)
+ConnStateData::terminateAll(const Error &rawError, const LogTagsErrors &lte)
 {
+    auto error = rawError; // (cheap) copy so that we can detail
+    // We detail even ERR_NONE: There should be no transactions left, and
+    // detailed ERR_NONE will be unused. Otherwise, this detail helps in triage.
+    if (!error.detail) {
+        static const auto d = MakeNamedErrorDetail("WITH_CLIENT");
+        error.detail = d;
+    }
+
     debugs(33, 3, pipeline.count() << '/' << pipeline.nrequests << " after " << error);
 
     if (pipeline.empty()) {

@@ -25,7 +25,6 @@ public:
     virtual SBufList dump() const;
     virtual void parse();
     virtual bool empty() const;
-    virtual ACLData<char const *> *clone() const;
 
 private:
     /// whether parse() is called in a case insensitive context

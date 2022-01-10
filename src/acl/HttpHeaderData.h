@@ -25,7 +25,6 @@ public:
     virtual SBufList dump() const;
     virtual void parse();
     virtual bool empty() const;
-    virtual ACLData<HttpHeader*> *clone() const;
 
 private:
     /* ACLData API */
