@@ -73,12 +73,156 @@ COMMENT_START
 		year - 31557790080 milliseconds (just over 365 days)
 		decade
 
-  Values with spaces, quotes, and other special characters
+  Quoted values
 
-	Squid supports directive parameters with spaces, quotes, and other
-	special characters. Surround such parameters with "double quotes". Use
-	the configuration_includes_quoted_values directive to enable or
-	disable that support.
+	After configuration_includes_quoted_values directive is turned on, most
+	directive parameters may be surrounded by double quotes. Such a "quoted
+	parameter" is interpreted as a single parameter value even if it contains
+	whitespace. The parameter value does not include its surrounding quotes.
+	For example, the following adds a header field with a "one two" value
+	(when the ACL named "three" matches):
+
+		# Adds an "X-My-Ids: one two" field when ACL named "three" matches:
+	    request_header_add X-My-Ids "one two" three
+
+		# Adds an "X-My-Ids: one" field when ACLs "two" and "three" match:
+		request_header_add X-My-Ids one two three
+
+	The following two-character escape sequences are recognized inside quoted
+	strings:
+
+		* \t -- an ASCII HT character (i.e. horizontal tab)
+		* \n -- an ASCII LF character (i.e. new line)
+		* \r -- an ASCII CR character (i.e. carriage return)
+		* \" -- a double quote character (")
+		* \\ -- a backslash character (\)
+
+	Other two-character escape sequences formed by a backslash followed by
+	some byte X are treated as follows:
+
+		* If X is an ASCII NUL character (i.e. null): Syntax error.
+		* If X is an alphanumeric character: Syntax error.
+		* If X is any other byte: The whole sequence is replaced with X (i.e.
+		  the backslash is removed).
+
+	Quoted strings must be followed by whitespace or the end of the line/file.
+
+		configuration_includes_quoted_values on
+		# OK: Specifying two ext_user parameters, one with a space.
+		acl friend ext_user "John Doe" "Alice"
+		# FATAL: Expecting space after the end of quoted token
+		acl friend ext_user "John "Doe
+
+	Some directives support quoted strings as parameters regardless of the
+	configuration_includes_quoted_values setting.
+
+	Legacy regular expressions cannot be specified using quoted strings
+	regardless of the configuration_includes_quoted_values setting. Use modern
+	regular expressions instead.
+
+  Values with raw strings
+
+	Some configuration options support raw strings that eliminate the need to
+	guess and escape spaces, quotes, backslashes, and other "special"
+	characters. A raw string expression starts with an admin-specified prefix
+	that is then reused as a string value terminator:
+
+		raw-string = prefix <"> value <"> suffix
+		prefix = [A-Z_a-z]*
+		value = ; zero or more bytes that do not include a <"> suffix sequence
+		suffix = prefix; exactly the same sequence of characters as the prefix
+
+	To distinguish raw strings with an empty prefix (and, hence, an empty
+	suffix) from quoted strings, empty prefixes in raw strings are only
+	allowed in namespace-prefixed parameter values like regular expressions
+	and log formats.
+	TODO: Alternatively, we can avoid this dangerous ambiguity if
+
+		1. Raw strings use `backticks` instead of "quotes".
+		2. Raw strings require a prefix/suffix even in typed strings.
+		3. We remove (undocumented!) support for 'singly quoted strings' and
+		   give the freed single quote exclusively to 'raw strings'.
+
+		The key in this decision is not which quoting character looks better,
+		but how to avoid admins expecting one escaping mechanism but silently
+		getting another:
+			acl example1 type1 re::"Since this value keeps its backslash\..."
+			acl example2 type2 "Some will expect a backslash here as well\..."
+
+	For example:
+
+		* "" is an empty string (with an empty prefix/suffix sequence)
+		* foo""foo is also an empty string (with "foo" as the prefix/suffix)
+		* "a" is a single character "a"
+		* "\" is a single backslash character
+		* quote"\"quote is also a single backslash character
+		* "a b" is a 3-character sequence containing "a", space, and "b"
+		* x"ax"b"x is a 4-character sequence containing "a", "x", quote, "b"
+		* quoted"Escaping "quotes" is easy!"quoted is 26 chars from "E" to "!"
+		* quoted"Escaping "quoted text" is hard!"quoted is probably a
+		  configuration error: Squid will use the first 9 characters as the
+		  string value and then, depending on the context, will probably
+		  complain about the remaining garbage, starting with "text...".
+
+  Values with explicit types (a.k.a. typed parameter values)
+
+	All directives know what parameter types they require. For example, the
+	"browser" ACL expects a regular expression. In many cases, legacy syntax
+	does not allow the admin to express what parameter type they think they
+	are giving (and they think the directive needs). For example, an admin may
+	give the "browser" ACL a "Bat?" parameter and incorrectly expect the ACL
+	to only match agents named using those four characters. Typeless parameter
+	values also lead to directive proliferation: We have both proxy_auth and
+	proxy_auth_regex although the two ACLs differ only in parameter types.
+
+	Typed parameters solve these problems by specifying the value type as a
+	parameter prefix:
+
+		typed-parameter-value = type ["(" options ")"] "::" raw-string
+		options = ; a comma-separated list of option names
+
+	If a directive parameter value is not a typed-parameter-value, but starts
+	with a character sequence matching one of the typed-parameter-values, then
+	it should be wrapped using a raw string expression. This is especially
+	useful in generated configuration files that do not control parameter
+	value sources and might get values that look like typed-parameter-values.
+
+		acl example type raw"re::"this is not a regex""raw
+
+	Currently, two parameter value types are supported: regular expressions
+	and log formats. They are documented below.
+
+  Regular expression values
+
+	There are two ways to specify a regular expression:
+
+	* Modern regular expressions use typed-parameter-values with "re" as the
+	  value type.
+
+	* Legacy regular expressions end either at the first unescaped space
+	  character (ASCII SP or HT) or at the end of the line, whichever comes
+	  first. Spaces are escaped using backslashes. All backslashes are
+	  preserved in the regex. If a regex-using directive does not specify
+	  which regex style it supports, then it supports the legacy style.
+
+	The following options are supported for modern regular expressions:
+
+		* i: case-insensitive match (see POSIX REG_ICASE)
+		* s: treat input is a single line (this is the default)
+		* m: treat input as multiple lines (see POSIX REG_NEWLINE)
+
+	For example, given a multiline input, the following modern regular
+	expression matches the lines containing the specified single-valued
+	Transfer-Encoding header field, disregarding any letter case differences:
+
+		re(i,m)::"^Transfer-Encoding: *chunked$"
+
+  Log format values
+
+	Modern log format expressions use typed-parameter-values with "lf" as the
+	value type. Log format expressions do not support any options (yet).
+
+  Importing directive parameter values
 
 	Squid supports reading configuration option parameters from external
 	files using the syntax:
