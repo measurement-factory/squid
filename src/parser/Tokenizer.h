@@ -115,6 +115,23 @@ public:
      */
     SBuf::size_type skipAll(const CharacterSet &discardables);
 
+    /** Skips all sequential characters until the first terminator occurrence.
+     * Skips nothing if the entire terminator is not present.
+     * Does not skip the terminator itself.
+     *
+     * \returns the number of skipped characters
+     */
+    SBuf::size_type skipUpTo(const SBuf &terminator);
+
+    /** Skips all sequential characters until the first (a, b) sequence.
+     * Skips nothing if the entire sequence is not present.
+     * Does not skip the sequence itself.
+     * This is a faster version of skipUpTo(a+b) when you have not computed a+b.
+     *
+     * \returns the number of skipped characters
+     */
+    SBuf::size_type skipUpTo(char a, const SBuf &b);
+
     /** Removes a single trailing character from the set.
      *
      * \return whether a character was removed

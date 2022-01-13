@@ -199,6 +199,17 @@ protected:
         int lineNo; ///< Current line number
     };
 
+    /// the length of raw-string at the beginning of the given buffer
+    static size_t RawStringLength(const SBuf &buffer);
+
+    /// whether an explicit-type-value has been requested by ParseEtv_ and the
+    /// input looks like the beginning of that requested value
+    static bool MaybeAtEtvStart(const char *buffer);
+
+    /// The length of explicit-type-value at the beginning of the given buffer.
+    /// The value is assumed to have been requested by ParseEtv_.
+    static size_t EtvLength(const char *buffer);
+
     /**
      * Unquotes the token, which must be quoted.
      * \param next if it is not NULL, it is set after the end of token.
@@ -225,6 +236,7 @@ protected:
     static bool ParseQuotedOrToEol_; ///< The next tokens will be handled as quoted or to_eol token
     static bool RecognizeQuotedPair_; ///< The next tokens may contain quoted-pair (\-escaped) characters
     static bool PreviewMode_; ///< The next token will not popped from cfg files, will just previewd.
+    static SBuf ParseEtv_; ///< Require an explicit-type-value element of the given type
     static bool ParseKvPair_; ///<The next token will be handled as kv-pair token
     static enum ParsingStates {atParseKey, atParseValue} KvPairState_; ///< Parsing state while parsing kv-pair tokens
 };
