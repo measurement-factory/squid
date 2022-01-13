@@ -19,7 +19,7 @@ class SBuf;
 namespace Http
 {
 
-/// represents an editor for malformed request headers
+/// an editor of (malformed) request headers
 class HeaderEditor : public RefCountable
 {
 public:
@@ -27,25 +27,19 @@ public:
     enum class Command { replace };
 
     /// what fix() should do with the input string:
-    ///	first: fix only the first matched string (and ignore any further matches)
-    /// each: fix each matched string
-    /// all: fix only the first matched string (and signal the caller to delete any further matches)
+    ///	first: adjust only the first matched string (and ignore any further matches)
+    /// each: adjust each matched string
+    /// all: adjust only the first matched string (and signal the caller to delete any further matches)
     enum class CommandArgument { first, all, each };
 
-    explicit HeaderEditor(ConfigParser &parser, const char *description);
+    explicit HeaderEditor(ConfigParser &parser, const char *name);
 
     ~HeaderEditor();
 
     void parseOptions(ConfigParser &parser);
 
-    /// Attempts to match the input string and returns a new string on success.
-    /// \param fieldStart the start of the input string. On successful match,
-    /// the address of the new string begginning is copied to the location referenced by fieldStart.
-    /// \param fieldEnd the end of the input string. On successful match,
-    /// the address of the new string ending (the termination character) is copied to the
-    /// location referenced by fieldEnd.
-    /// The returned values point to an internal storage whose contents
-    /// remain unchanged only until the next call.
+    /// \param input the request headers needing modification
+    /// \returns the adjusted input according to the configured rules
     SBuf fix(const SBuf &input, const AccessLogEntryPointer &al);
 
     /// parses the regex group number
@@ -56,17 +50,16 @@ public:
 
 private:
     bool compileRE(SBuf &, const int flags);
-    void apply(SBuf &input, RegexPattern &pattern);
+    void adjust(SBuf &input, RegexPattern &pattern);
     void applyFormat(SBuf &, RegexMatch *);
-    void addLineLeftovers(SBuf &line, SBuf &result, const char **s);
-    bool isEmptyLine(SBuf &) const;
     void removeEmptyLines(SBuf &) const;
 
-    const char *description_;
-    Command command_;
-    CommandArgument commandArgument_;
+    // the corresponding configuration directive name
+    const char *directiveName;
+    Command command_; ///< the directive command
+    CommandArgument commandArgument_; // the configured command's argument
+    /// compiled representations of the configured list of regular expressions
     std::list<RegexPattern> patterns_;
-    RegexPattern *emptyLinePattern;
     Format::Format *format_ = nullptr;
     ACLList *aclList = nullptr;
     // for debugging only

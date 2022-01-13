@@ -57,24 +57,41 @@ CommandArgumentString(const Http::HeaderEditor::CommandArgument commandArgument)
     }
     return SBuf();
 }
+
+static RegexPattern &
+EmptyLinePattern()
+{
+    static auto pattern = RegexPattern(REG_EXTENDED, "^[ \t\r]*\n");
+    static bool compiled = false;
+    if (!compiled) {
+        compiled = true;
+        regex_t comp;
+        (void)regcomp(&comp, pattern.c_str(), pattern.flags);
+        pattern.regex = comp;
+    }
+    return pattern;
+}
+
+static bool
+IsEmptyLine(SBuf &line)
+{
+    static RegexMatch EmptyLineMatch(ReGroupMax);
+    return EmptyLinePattern().match(line.c_str(), EmptyLineMatch);
+}
     
-Http::HeaderEditor::HeaderEditor(ConfigParser &parser, const char *desc):
-    description_(desc), emptyLinePattern(new RegexPattern(REG_EXTENDED, "^[ \t\r]*\n"))
+Http::HeaderEditor::HeaderEditor(ConfigParser &parser, const char *name):
+    directiveName(name)
 {
     parseOptions(parser);
-
-    regex_t comp;
-    (void)regcomp(&comp, emptyLinePattern->c_str(), emptyLinePattern->flags);
-    emptyLinePattern->regex = comp;
 }
 
 Http::HeaderEditor::~HeaderEditor()
 {
     aclDestroyAclList(&aclList);
     delete format_;
-    delete emptyLinePattern;
 }
 
+/// fills patterns_ with compiled regular expressions
 bool
 Http::HeaderEditor::compileRE(SBuf &str, const int flags)
 {
@@ -106,13 +123,14 @@ Http::HeaderEditor::fix(const SBuf &input, const AccessLogEntryPointer &al)
 
     for (auto &pattern : patterns_) {
         if (pattern.match(output.c_str()))
-            apply(output, pattern);
+            adjust(output, pattern);
     }
     // put back the header separator
     output.append(input.substr(input.length() - chopLength));
     return output;
 }
 
+/// constructs a string based on the configured logformat rules and matched regular expressions
 void
 Http::HeaderEditor::applyFormat(SBuf &line, RegexMatch *match)
 {
@@ -126,21 +144,10 @@ Http::HeaderEditor::applyFormat(SBuf &line, RegexMatch *match)
     line.append(mb.content(), mb.contentSize());
 }
 
+/// Matches the input buffer with the compiled regex and replaces each
+/// match with the corresponding formatted string.
 void
-Http::HeaderEditor::addLineLeftovers(SBuf &line, SBuf &result, const char **s)
-{
-    auto lineEnd = strchr(*s, '\n');
-    Must(lineEnd);
-    lineEnd++;
-    line.append(*s, lineEnd - *s);
-    removeEmptyLines(line);
-    *s = lineEnd;
-    result.append(line);
-    line.clear();
-}
-
-void
-Http::HeaderEditor::apply(SBuf &input, RegexPattern &pattern)
+Http::HeaderEditor::adjust(SBuf &input, RegexPattern &pattern)
 {
     auto s = input.c_str();
     SBuf result;
@@ -159,7 +166,14 @@ Http::HeaderEditor::apply(SBuf &input, RegexPattern &pattern)
             applyFormat(line, &regexMatch);
         }
         s += regexMatch.endOffset();
-        addLineLeftovers(line, result, &s);
+        auto lineEnd = strchr(s, '\n');
+        Must(lineEnd);
+        lineEnd++;
+        line.append(s, lineEnd - s);
+        removeEmptyLines(line);
+        s = lineEnd;
+        result.append(line);
+        line.clear();
         regexMatch.clear();
         matchedCount++;
         if (commandArgument_ == CommandArgument::first)
@@ -169,6 +183,7 @@ Http::HeaderEditor::apply(SBuf &input, RegexPattern &pattern)
     input = result;
 }
 
+/// removes empty lines from the buffer (with leading separators, if any)
 void
 Http::HeaderEditor::removeEmptyLines(SBuf &buf) const
 {
@@ -178,19 +193,12 @@ Http::HeaderEditor::removeEmptyLines(SBuf &buf) const
     Must(pos != SBuf::npos);
     while ((pos = buf.find('\n', prevPos)) != SBuf::npos) {
         auto line = buf.substr(prevPos, pos-prevPos+1); // including '\n'
-        if (!isEmptyLine(line))
+        if (!IsEmptyLine(line))
             result.append(line);
         prevPos = pos+1;
     }
     if (result.length() != buf.length())
         buf = result;
-}
-
-bool
-Http::HeaderEditor::isEmptyLine(SBuf &line) const
-{
-    RegexMatch emptyLineMatch(ReGroupMax);
-    return emptyLinePattern->match(line.c_str(), emptyLineMatch);
 }
 
 uint64_t
@@ -261,7 +269,7 @@ Http::HeaderEditor::parseOptions(ConfigParser &parser)
         throw TextException("the replacement expression does not expect flags", Here());
 
     assert(!format_);
-    format_ = new Format::Format(description_);
+    format_ = new Format::Format(directiveName);
 
     if (!format_->parse(UnescapeXXX(formatString_)/*formatString_.c_str()*/)) {
          delete format_;
@@ -291,7 +299,7 @@ template <>
 Http::HeaderEditor *
 Configuration::Component<Http::HeaderEditor*>::Parse(ConfigParser &parser)
 {
-    return new Http::HeaderEditor(parser, "malformed_reply_header_edit");
+    return new Http::HeaderEditor(parser, cfg_directive);
 }
 
 template <>
