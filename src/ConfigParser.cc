@@ -27,7 +27,7 @@ const char *ConfigParser::CfgPos = NULL;
 std::queue<char *> ConfigParser::CfgLineTokens_;
 bool ConfigParser::AllowMacros_ = false;
 bool ConfigParser::ParseQuotedOrToEol_ = false;
-SBuf ConfigParser::ParseEtv_;
+Configuration::ExplicitTypeValueParser ConfigParser::ParseEtv_ = nullptr;
 bool ConfigParser::ParseKvPair_ = false;
 ConfigParser::ParsingStates ConfigParser::KvPairState_ = ConfigParser::atParseKey;
 bool ConfigParser::RecognizeQuotedPair_ = false;
@@ -219,15 +219,13 @@ ConfigParser::CurrentLocation()
     return ToSBuf(SourceLocation(cfg_directive, cfg_filename, config_lineno));
 }
 
-size_t
-ConfigParser::RawStringLength(const SBuf &start)
+SBuf
+ParseRawString(Parser::Tokenizer &tok)
 {
     // raw-string = prefix <"> value <"> suffix
     // prefix = [A-Z_a-z]*
     // value = ; zero or more bytes that do not include a <"> suffix sequence
     // suffix = prefix; exactly the same sequence of characters as the prefix
-
-    Parser::Tokenizer tok(start);
 
     static const auto prefixChars = (CharacterSet::ALPHA + CharacterSet::DIGIT +
         CharacterSet("underscore", "_")).rename("prefix");
@@ -238,26 +236,44 @@ ConfigParser::RawStringLength(const SBuf &start)
     if (!tok.skip('"'))
         throw TextException("raw-string is missing an opening quote (\")", Here());
 
-    (void)tok.skipUpTo('"', guard); // may be empty
+    SBuf rawString;
+    if (!tok.prefixUpTo(rawString, '"', guard))
+        throw TextException("raw-string is missing a closing guard", Here());
 
-    if (!tok.skip('"'))
-        throw TextException("raw-string is missing a closing quote (\")", Here());
-
-    return tok.parsedSize();
+    return rawString; // may be empty
 }
+
+namespace Configuration {
+
+class ExplicitTypeValue
+{
+    SBuf options; ///< value construction/application options (may be empty)
+    SBuf body; ///< unwrapped raw-string contents (may be empty)
+};
+
+class ExplicitTypeValueParser
+{
+    /// \returns explicit-type-value (if we successfully parsed rawInput) or nil
+    const ExplicitTypeValue *parsed(const void *rawInput);
+
+private:
+    /// the last interpreted explicit-type-value parts
+    ExplicitTypeValue parsed_; // safely exported by parsed()
+
+    /// the last successfully parsed raw explicit-type-value "token" image
+    const void *doneParsing_ = nullptr;
+};
+
+} // namespace Configuration
 
 bool
-ConfigParser::MaybeAtEtvStart(const char * const tokenStart)
+Configuration::ExplicitTypeValueParser::applicable(const char * const buffer)
 {
-    if (const auto typeLength = ParseEtv_.length()) {
-        if (strncmp(tokenStart, ParseEtv_.rawContent(), typeLength) == 0)
-            return true;
-    }
-    return false;
+    return strncmp(buffer, typeName.rawContent(), typeName.length()) == 0;
 }
 
-size_t
-ConfigParser::EtvLength(const char *start)
+void
+Configuration::ExplicitTypeValueParser::parse(const char * const start)
 {
     // explicit-type-value = type ["(" options ")"] "::" raw-string
     // options = ; a comma-separated list of option names
@@ -266,20 +282,19 @@ ConfigParser::EtvLength(const char *start)
     // storing preprocessed configuration text.
     Parser::Tokenizer tok{SBuf(start)};
 
-    const bool etvStartConfirmed = tok.skip(ParseEtv_);
-    assert(etvStartConfirmed);
+    // until our caller can get rid of applicable():
+    const auto startConfirmed = tok.skip(typeName);
+    assert(startConfirmed);
 
-    if (tok.skip('(')) {
-        static const auto optionChars = CharacterSet("options-terminator", ")").complement("options");
-        (void)tok.skipAll(optionChars); // there may be no options at all
-        if (!tok.skip(')'))
-            throw TextException("missing closing parenthesis after explicit-type-value options", Here());
-    }
+    if (tok.skip('(') && !tok.prefixUpTo(parsed_.options, ')/')
+        throw TextException("missing closing parenthesis after explicit-type-value options", Here());
 
     if (!(tok.skip(':') && tok.skip(':')))
         throw TextException("missing :: delimiter after explicit-type-value type/options", Here());
 
-    return tok.parsedSize() + RawStringLength(tok.remaining());
+    parsed_.body = ParseRawString(tok/);
+    doneParsing_ = start;
+    return tok.parsedSize();
 }
 
 char *
@@ -293,18 +308,19 @@ ConfigParser::TokenParse(const char * &nextToken, ConfigParser::TokenType &type)
     if (*nextToken == '#')
         return NULL;
 
-    if (MaybeAtEtvStart(nextToken)) {
+    if (ParseEtv_ && ParseEtv_->applicable(nextToken)) {
         // XXX: type = ConfigParser::EtvToken;?
-        const auto tokenLength = EtvLength(nextToken);
+        ParseEtv_->parse(nextToken);
+        const auto tokenLength = ParseEtv_->length();
         const auto token = xstrndup(nextToken, tokenLength);
         CfgLineTokens_.push(token);
         return token;
     }
-    // else: When ParseEtv_ is on: We might still find explicit-type-value after
-    // loading parameters(). TODO: Move parameters() handling at a higher level
-    // and then _require_ explicit-type-value here. This method should only
-    // parse grammar "values", as defined in the "Configuration syntax" section
-    // of cf.data.pre.
+    // else: When ParseEtv_ is set: We might still find explicit-type-value
+    // after loading parameters(). TODO: Move parameters() handling at a higher
+    // level and then _require_ explicit-type-value here. This method should
+    // only parse grammar "values", as defined in the "Configuration syntax"
+    // section of cf.data.pre.
 
     if (ConfigParser::RecognizeQuotedValues && (*nextToken == '"' || *nextToken == '\'')) {
         type = ConfigParser::QuotedToken;

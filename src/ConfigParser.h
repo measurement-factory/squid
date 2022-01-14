@@ -19,6 +19,10 @@
 
 class wordlist;
 
+namespace Configuration {
+    class ExplicitTypeValueParser;
+}
+
 /**
  * Limit to how long any given config line may be.
  * This affects squid.conf and all included files.
@@ -236,7 +240,7 @@ protected:
     static bool ParseQuotedOrToEol_; ///< The next tokens will be handled as quoted or to_eol token
     static bool RecognizeQuotedPair_; ///< The next tokens may contain quoted-pair (\-escaped) characters
     static bool PreviewMode_; ///< The next token will not popped from cfg files, will just previewd.
-    static SBuf ParseEtv_; ///< Require an explicit-type-value element of the given type
+    static Configuration::ExplicitTypeValueParser *ParseEtv_; ///< Require an explicit-type-value element of the given type
     static bool ParseKvPair_; ///<The next token will be handled as kv-pair token
     static enum ParsingStates {atParseKey, atParseValue} KvPairState_; ///< Parsing state while parsing kv-pair tokens
 };

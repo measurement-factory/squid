@@ -116,6 +116,59 @@ Parser::Tokenizer::prefix(const char *description, const CharacterSet &tokenChar
 }
 
 bool
+Parser::Tokenizer::prefixUpTo(SBuf &returnedToken, const char terminator)
+{
+    const auto tokenLength = buf_.find(terminator);
+    if (tokenLength == SBuf::npos) {
+        debugs(24, 8, "no " << terminator);
+        return false;
+    } else {
+        debugs(24, 8, "got " << tokenLength << " before " << terminator);
+        returnedToken = consume(tokenLength);
+        (void)consume(1u);
+        return true;
+    }
+}
+
+bool
+Parser::Tokenizer::prefixUpTo(SBuf &returnedToken, const SBuf &terminator)
+{
+    const auto tokenLength = buf_.find(terminator);
+    if (tokenLength == SBuf::npos) {
+        debugs(24, 8, "no " << terminator);
+        return false;
+    } else {
+        debugs(24, 8, "got " << tokenLength << " before " << terminator);
+        returnedToken = consume(tokenLength);
+        (void)consume(terminator.length());
+        return true;
+    }
+}
+
+bool
+Parser::Tokenizer::prefixUpTo(SBuf &returnedToken, const char a, const SBuf &b)
+{
+    SBuf::size_type offset = 0;
+    while (buf_.length() - offset > b.length()) {
+        const auto posOfA = buf_.find(a, offset);
+        if (posOfA == SBuf::npos) {
+            debugs(24, 8, "no " << a);
+            return false;
+        }
+        const auto posAfterA = posOfA + 1;
+        if (buf_.substr(posAfterA) == b) {
+            debugs(24, 8, "got " << posOfA << " before " << a << b);
+            returnedToken = consume(posOfA);
+            (void)consume(1u + b.length()); // a + b
+            return true;
+        }
+        offset = posAfterA; // keep looking after skipping a
+    }
+    debugs(24, 8, "no " << a << b);
+    return false;
+}
+
+bool
 Parser::Tokenizer::suffix(SBuf &returnedToken, const CharacterSet &tokenChars, const SBuf::size_type limit)
 {
     SBuf span = buf_;
@@ -195,40 +248,6 @@ Parser::Tokenizer::skip(const char tokenChar)
     }
     debugs(24, 8, "no match, not skipping char '" << tokenChar << '\'');
     return false;
-}
-
-SBuf::size_type
-Parser::Tokenizer::skipUpTo(const char a, const SBuf &b)
-{
-    SBuf::size_type offset = 0;
-    while (buf_.length() - offset > b.length()) {
-        const auto posOfA = buf_.find(a, offset);
-        if (posOfA == SBuf::npos) {
-            debugs(24, 8, "cannot find the beginning of " << a << b);
-            return 0;
-        }
-        const auto posAfterA = posOfA + 1;
-        if (buf_.substr(posAfterA) == b) {
-            debugs(24, 8, "skipping " << posOfA << ": " << a << b);
-            return success(posOfA);
-        }
-        offset = posAfterA; // keep looking after skipping a
-    }
-    debugs(24, 8, "cannot find " << a << b);
-    return 0;
-}
-
-SBuf::size_type
-Parser::Tokenizer::skipUpTo(const SBuf &terminator)
-{
-    const auto offset = buf_.find(terminator);
-    if (offset == SBuf::npos) {
-        debugs(24, 8, "cannot find " << terminator);
-        return 0;
-    } else {
-        debugs(24, 8, "skipping " << offset << ": " << terminator);
-        return success(offset);
-    }
 }
 
 bool
