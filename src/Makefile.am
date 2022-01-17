@@ -2830,6 +2830,7 @@ nodist_tests_testConfigParser_SOURCES = \
 	tests/stub_SBuf.cc
 tests_testConfigParser_LDADD = \
 	base/libbase.la \
+	parser/libparser.la \
 	$(LIBCPPUNIT_LIBS) \
 	$(COMPAT_LIB) \
 	$(XTRA_LIBS)

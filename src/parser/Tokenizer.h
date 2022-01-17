@@ -70,6 +70,30 @@ public:
      */
     bool prefix(SBuf &returnedToken, const CharacterSet &tokenChars, SBuf::size_type limit = SBuf::npos);
 
+    /** Extracts all sequential characters until the first terminator occurrence.
+     *
+     * If the terminator is found, skips it without adding it to returnedToken.
+     * Otherwise, extracts or skips nothing.
+     *
+     * \returns whether the terminator was found
+     */
+    bool prefixUpTo(SBuf &returnedToken, char terminator);
+
+    /// \copydoc prefixUpTo(SBuf &, char)
+    bool prefixUpTo(SBuf &returnedToken, const SBuf &terminator);
+
+    /** Skips all sequential characters until the first (a, b) sequence.
+     *
+     * If the sequence is found, skips it without adding it to returnedToken.
+     * Otherwise, extracts or skips nothing.
+     *
+     * Use this method instead of prefixUpTo(a+b) when you have not computed a+b
+     * already. The b part of the sequence may be empty.
+     *
+     * \returns whether the sequence was found
+     */
+    bool prefixUpTo(SBuf &returnedToken, const char a, const SBuf &b);
+
     /** Extracts all sequential permitted characters up to an optional length limit.
      * Operates on the trailing end of the buffer.
      *
@@ -84,6 +108,8 @@ public:
     /** skips a given suffix character sequence (string)
      * Operates on the trailing end of the buffer.
      *
+     * If tokenToSkip is empty, skips nothing and returns false.
+     *
      *  Note that Tokenizer cannot tell whether the buffer will
      *  gain more data when/if more input becomes available later.
      *
@@ -92,6 +118,8 @@ public:
     bool skipSuffix(const SBuf &tokenToSkip);
 
     /** skips a given character sequence (string)
+     *
+     * If tokenToSkip is empty, skips nothing and returns false.
      *
      * \return whether the exact character sequence was found and skipped
      */

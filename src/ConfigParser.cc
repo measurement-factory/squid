@@ -14,6 +14,8 @@
 #include "Debug.h"
 #include "fatal.h"
 #include "globals.h"
+#include "parser/Tokenizer.h"
+#include "sbuf/SBuf.h"
 #include "sbuf/Stream.h"
 
 bool ConfigParser::RecognizeQuotedValues = true;
@@ -25,6 +27,7 @@ const char *ConfigParser::CfgPos = NULL;
 std::queue<char *> ConfigParser::CfgLineTokens_;
 bool ConfigParser::AllowMacros_ = false;
 bool ConfigParser::ParseQuotedOrToEol_ = false;
+SBuf ConfigParser::ParseEtv_;
 bool ConfigParser::ParseKvPair_ = false;
 ConfigParser::ParsingStates ConfigParser::KvPairState_ = ConfigParser::atParseKey;
 bool ConfigParser::RecognizeQuotedPair_ = false;
@@ -216,6 +219,94 @@ ConfigParser::CurrentLocation()
     return ToSBuf(SourceLocation(cfg_directive, cfg_filename, config_lineno));
 }
 
+namespace Configuration {
+
+/// explicit-type-value structure (as defined in the configuration grammar)
+class ExplicitTypeValue
+{
+public:
+    SBuf typeName; ///< explicit value type
+    SBuf options; ///< value construction/application options (may be empty)
+    SBuf body; ///< unwrapped raw-string contents (may be empty)
+};
+
+/// the results of parsing explicit-type-value structure
+class ParsedExplicitTypeValue
+{
+public:
+    ExplicitTypeValue value; ///< information extracted from the input
+    size_t rawSize = 0; ///< the number of parsed input bytes
+};
+
+SBuf ParseRawString(Parser::Tokenizer &);
+static bool ShouldParseExplicitTypeValue(const char *buffer, const SBuf &typeName);
+static ParsedExplicitTypeValue ParseExplicitTypeValue(const char *buffer, const SBuf &typeName);
+
+} // namespace Configuration
+
+/// extracts raw-string and returns its value
+SBuf
+Configuration::ParseRawString(Parser::Tokenizer &tok)
+{
+    // raw-string = prefix <"> value <"> suffix
+    // prefix = [A-Z_a-z]*
+    // value = ; zero or more bytes that do not include a <"> suffix sequence
+    // suffix = prefix; exactly the same sequence of characters as the prefix
+
+    static const auto prefixChars = (CharacterSet::ALPHA + CharacterSet::DIGIT +
+        CharacterSet("underscore", "_")).rename("prefix");
+
+    SBuf guard;
+    (void)tok.prefix(guard, prefixChars); // may be empty
+
+    if (!tok.skip('"'))
+        throw TextException("raw-string is missing an opening quote (\")", Here());
+
+    SBuf value;
+    if (!tok.prefixUpTo(value, '"', guard))
+        throw TextException("raw-string is missing a closing guard", Here());
+
+    return value; // may be empty
+}
+
+/// whether the buffer starts with an explicit-type-value of a given type
+bool
+Configuration::ShouldParseExplicitTypeValue(const char * const buffer, const SBuf &typeName)
+{
+    if (const auto typeNameLength = typeName.length())
+        return strncmp(buffer, typeName.rawContent(), typeNameLength) == 0;
+    return false;
+}
+
+/// explicit-type-value (of a given type)
+Configuration::ParsedExplicitTypeValue
+Configuration::ParseExplicitTypeValue(const char * const start, const SBuf &typeName)
+{
+    // explicit-type-value = type ["(" options ")"] "::" raw-string
+    // options = ; a comma-separated list of option names
+
+    // This expensive SBuf creation will go away when we start using SBuf for
+    // storing preprocessed configuration text.
+    Parser::Tokenizer tok{SBuf(start)};
+
+    ParsedExplicitTypeValue result;
+
+    // until our caller can get rid of ShouldParseExplicitTypeValue():
+    const auto startConfirmed = tok.skip(typeName);
+    assert(startConfirmed);
+    result.value.typeName = typeName;
+
+    if (tok.skip('(') && !tok.prefixUpTo(result.value.options, ')'))
+        throw TextException("missing closing parenthesis after explicit-type-value options", Here());
+
+    if (!(tok.skip(':') && tok.skip(':')))
+        throw TextException("missing :: delimiter after explicit-type-value type/options", Here());
+
+    result.value.body = ParseRawString(tok);
+    result.rawSize = tok.parsedSize();
+    return result;
+}
+
 char *
 ConfigParser::TokenParse(const char * &nextToken, ConfigParser::TokenType &type)
 {
@@ -226,6 +317,20 @@ ConfigParser::TokenParse(const char * &nextToken, ConfigParser::TokenType &type)
 
     if (*nextToken == '#')
         return NULL;
+
+    if (Configuration::ShouldParseExplicitTypeValue(nextToken, ParseEtv_)) {
+        // this->type is only used for quoted values and parameters() detection
+        // so we leave it as is, like ParseQuotedOrToEol_ values do.
+        const auto parsedEtv = Configuration::ParseExplicitTypeValue(nextToken, ParseEtv_);
+        assert(parsedEtv.rawSize);
+        const auto token = xstrndup(nextToken, parsedEtv.rawSize);
+        CfgLineTokens_.push(token);
+        return token;
+    }
+    // else: When ParseEtv_ is set: We might still find explicit-type-value
+    // after loading parameters(). TODO: Separate handling of "internal"
+    // external-parameters-spec from extracting "external" grammar values, as
+    // those terms are defined in cf.data.pre "Configuration syntax" section.
 
     if (ConfigParser::RecognizeQuotedValues && (*nextToken == '"' || *nextToken == '\'')) {
         type = ConfigParser::QuotedToken;
@@ -414,6 +519,24 @@ ConfigParser::NextQuotedOrToEol()
     }
 
     return token;
+}
+
+::RegexPattern *
+ConfigParser::regex(const char *parameterDescription)
+{
+    try {
+        static const SBuf regexTypeName("re");
+        ParseEtv_ = regexTypeName;
+        const auto token = NextToken();
+        const auto parsedEtv = Configuration::ParseExplicitTypeValue(token, regexTypeName);
+        // TODO: convert parsedEtv.value to RegexPattern and use parameterDescription
+        ParseEtv_.clear();
+        return nullptr; // XXX
+    } catch (...) {
+        // TODO: Add scope_guard; do not wait until it is in the C++ standard.
+        ParseEtv_.clear();
+        throw;
+    }
 }
 
 bool
