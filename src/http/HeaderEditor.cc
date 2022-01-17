@@ -10,6 +10,7 @@
 #include "AccessLogEntry.h"
 #include "acl/Gadgets.h"
 #include "acl/Tree.h"
+#include "acl/FilledChecklist.h"
 #include "base/RegexPattern.h"
 #include "ConfigOption.h"
 #include "format/Format.h"
@@ -79,8 +80,7 @@ IsEmptyLine(SBuf &line)
     return EmptyLinePattern().match(line.c_str(), EmptyLineMatch);
 }
     
-Http::HeaderEditor::HeaderEditor(ConfigParser &parser, const char *name):
-    directiveName(name)
+Http::HeaderEditor::HeaderEditor(ConfigParser &parser)
 {
     parseOptions(parser);
 }
@@ -108,9 +108,12 @@ Http::HeaderEditor::compileRE(SBuf &str, const int flags)
 }
 
 SBuf
-Http::HeaderEditor::fix(const SBuf &input, const AccessLogEntryPointer &al)
+Http::HeaderEditor::fix(const SBuf &input, ACLFilledChecklist &checkList)
 {
-    al_ = al;
+    if (aclList && !checkList.fastCheck(aclList).allowed())
+        return input;
+
+    al_ = checkList.al;
 
     Must(input.length());
     auto chopLength = 1;
@@ -269,7 +272,7 @@ Http::HeaderEditor::parseOptions(ConfigParser &parser)
         throw TextException("the replacement expression does not expect flags", Here());
 
     assert(!format_);
-    format_ = new Format::Format(directiveName);
+    format_ = new Format::Format("malformed header editor");
 
     if (!format_->parse(UnescapeXXX(formatString_)/*formatString_.c_str()*/)) {
          delete format_;
@@ -299,7 +302,7 @@ template <>
 Http::HeaderEditor *
 Configuration::Component<Http::HeaderEditor*>::Parse(ConfigParser &parser)
 {
-    return new Http::HeaderEditor(parser, cfg_directive);
+    return new Http::HeaderEditor(parser);
 }
 
 template <>

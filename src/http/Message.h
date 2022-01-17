@@ -18,6 +18,8 @@
 #include "HttpHeader.h"
 #include <type_traits>
 
+class ACLFilledChecklist;
+
 namespace Http
 {
 
@@ -140,7 +142,7 @@ protected:
     virtual void configureContentLengthInterpreter(Http::ContentLengthInterpreter &) = 0;
 
     // Parser-NG transitional parsing of mime headers
-    bool parseHeader(Http1::Parser &, Http::ContentLengthInterpreter &, const AccessLogEntryPointer &); // TODO move this function to the parser
+    bool parseHeader(Http1::Parser &, Http::ContentLengthInterpreter &, ACLFilledChecklist &); // TODO move this function to the parser
 };
 
 } // namespace Http

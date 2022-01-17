@@ -719,7 +719,9 @@ bool
 HttpRequest::parseHeader(Http1::Parser &hp, const AccessLogEntryPointer &al)
 {
     Http::ContentLengthInterpreter clen;
-    return Message::parseHeader(hp, clen, al);
+    ACLFilledChecklist checkList(nullptr, this, nullptr);
+    checkList.al = al;
+    return Message::parseHeader(hp, clen, checkList);
 }
 
 bool

@@ -467,7 +467,12 @@ bool
 HttpReply::parseHeader(Http1::Parser &hp, const AccessLogEntryPointer &al)
 {
     Http::ContentLengthInterpreter clen;
-    return Message::parseHeader(hp, clen, al);
+    // TODO: pass request as the second argument
+    ACLFilledChecklist checkList(nullptr, nullptr, nullptr);
+    checkList.al = al;
+    checkList.reply = this;
+    HTTPMSGLOCK(checkList.reply);
+    return Message::parseHeader(hp, clen, checkList);
 }
 
 /* handy: resets and returns -1 */

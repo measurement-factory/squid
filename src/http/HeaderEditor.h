@@ -32,7 +32,7 @@ public:
     /// all: adjust only the first matched string (and signal the caller to delete any further matches)
     enum class CommandArgument { first, all, each };
 
-    explicit HeaderEditor(ConfigParser &parser, const char *name);
+    explicit HeaderEditor(ConfigParser &parser);
 
     ~HeaderEditor();
 
@@ -40,7 +40,7 @@ public:
 
     /// \param input the request headers needing modification
     /// \returns the adjusted input according to the configured rules
-    SBuf fix(const SBuf &input, const AccessLogEntryPointer &al);
+    SBuf fix(const SBuf &input, ACLFilledChecklist &);
 
     /// parses the regex group number
     static uint64_t ParseReGroupId(const char *);
@@ -54,8 +54,6 @@ private:
     void applyFormat(SBuf &, RegexMatch *);
     void removeEmptyLines(SBuf &) const;
 
-    // the corresponding configuration directive name
-    const char *directiveName;
     Command command_; ///< the directive command
     CommandArgument commandArgument_; // the configured command's argument
     /// compiled representations of the configured list of regular expressions

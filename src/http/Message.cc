@@ -216,7 +216,7 @@ Http::Message::httpMsgParseStep(const char *buf, int len, int atEnd)
 }
 
 bool
-Http::Message::parseHeader(Http1::Parser &hp, Http::ContentLengthInterpreter &clen, const AccessLogEntryPointer &al)
+Http::Message::parseHeader(Http1::Parser &hp, Http::ContentLengthInterpreter &clen, ACLFilledChecklist &checkList)
 {
     // HTTP/1 message contains "zero or more header fields"
     // zero does not need parsing
@@ -227,7 +227,7 @@ Http::Message::parseHeader(Http1::Parser &hp, Http::ContentLengthInterpreter &cl
         if (!header.parse(hp.mimeHeader().c_str(), hp.headerBlockSize(), clen)) {
             if (!Config.malformed_request_header_edit)
                 return false;
-            auto fixedHeaders = Config.malformed_request_header_edit->fix(hp.mimeHeader(), al);
+            auto fixedHeaders = Config.malformed_request_header_edit->fix(hp.mimeHeader(), checkList);
             if (!header.parse(fixedHeaders.c_str(), fixedHeaders.length(), clen))
                 return false;
         }
