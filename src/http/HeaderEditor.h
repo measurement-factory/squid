@@ -19,7 +19,7 @@ class SBuf;
 namespace Http
 {
 
-/// an editor of (malformed) request headers
+/// malformed headers editor
 class HeaderEditor : public RefCountable
 {
 public:
@@ -42,8 +42,8 @@ public:
     /// \returns the adjusted input according to the configured rules
     SBuf fix(const SBuf &input, ACLFilledChecklist &);
 
-    /// parses the regex group number
-    static uint64_t ParseReGroupId(const char *);
+    /// parses a single regex group number
+    static uint64_t ParseReGroupId(const SBuf &);
 
     /// reproduces the configured squid.conf settings
     void dump(std::ostream &os) const;
@@ -52,18 +52,16 @@ private:
     bool compileRE(SBuf &, const int flags);
     void adjust(SBuf &input, RegexPattern &pattern);
     void applyFormat(SBuf &, RegexMatch *);
-    void removeEmptyLines(SBuf &) const;
 
     Command command_; ///< the directive command
-    CommandArgument commandArgument_; // the configured command's argument
-    /// compiled representations of the configured list of regular expressions
+    CommandArgument commandArgument_; ///< the configured command's argument
+    /// compiled representations of the configured regular expressions
     std::list<RegexPattern> patterns_;
     Format::Format *format_ = nullptr;
     ACLList *aclList = nullptr;
     // for debugging only
     SBuf formatString_;
     AccessLogEntryPointer al_;
-    bool normalize_ = true;
 };
 
 } // namespace Http

@@ -556,7 +556,7 @@ Format::Token::parse(const char *def, Quoting *quoting)
             if (initialType == LFT_PROXY_PROTOCOL_RECEIVED_HEADER)
                 data.headerId = ProxyProtocol::FieldNameToFieldType(SBuf(header));
             else if (initialType == LFT_REGEX_HEADER_EDIT)
-                data.reCaptureId = Http::HeaderEditor::ParseReGroupId(header);
+                data.reCaptureId = Http::HeaderEditor::ParseReGroupId(SBuf(header));
             else if (pseudoHeader)
                 throw TexcHere(ToSBuf("Pseudo headers are not supported in this context; got: '", def, "'"));
 
