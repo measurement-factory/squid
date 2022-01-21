@@ -118,6 +118,7 @@ IncreaseSumInternal(const S s, const T t) {
         Optional<S>(s + t);
 }
 
+/// argument pack expansion termination for IncreaseSum<S, T, Args...>()
 template <typename S, typename T>
 Optional<S>
 IncreaseSum(const S s, const T t)
