@@ -176,7 +176,7 @@ ACL::ParseAclLine(ConfigParser &parser, ACL ** head)
     /* snarf the ACL name */
 
     if ((t = ConfigParser::NextToken()) == NULL) {
-        debugs(28, DBG_CRITICAL, "aclParseAclLine: missing ACL name.");
+        debugs(28, DBG_CRITICAL, "ERROR: aclParseAclLine: missing ACL name.");
         parser.destruct();
         return;
     }
@@ -193,7 +193,7 @@ ACL::ParseAclLine(ConfigParser &parser, ACL ** head)
     const char *theType;
 
     if ((theType = ConfigParser::NextToken()) == NULL) {
-        debugs(28, DBG_CRITICAL, "aclParseAclLine: missing ACL type.");
+        debugs(28, DBG_CRITICAL, "ERROR: aclParseAclLine: missing ACL type.");
         parser.destruct();
         return;
     }
@@ -207,7 +207,7 @@ ACL::ParseAclLine(ConfigParser &parser, ACL ** head)
                 debugs(28, DBG_CRITICAL, "WARNING: 'myip' ACL is not reliable for interception proxies. Please use 'myportname' instead.");
             p = p->next;
         }
-        debugs(28, DBG_IMPORTANT, "UPGRADE: ACL 'myip' type is has been renamed to 'localip' and matches the IP the client connected to.");
+        debugs(28, DBG_IMPORTANT, "WARNING: UPGRADE: ACL 'myip' type has been renamed to 'localip' and matches the IP the client connected to.");
         theType = "localip";
     } else if (strcmp(theType, "myport") == 0) {
         AnyP::PortCfgPointer p = HttpPortList;
@@ -219,13 +219,13 @@ ACL::ParseAclLine(ConfigParser &parser, ACL ** head)
             p = p->next;
         }
         theType = "localport";
-        debugs(28, DBG_IMPORTANT, "UPGRADE: ACL 'myport' type is has been renamed to 'localport' and matches the port the client connected to.");
+        debugs(28, DBG_IMPORTANT, "WARNING: UPGRADE: ACL 'myport' type has been renamed to 'localport' and matches the port the client connected to.");
     } else if (strcmp(theType, "proto") == 0 && strcmp(aclname, "manager") == 0) {
         // ACL manager is now a built-in and has a different type.
-        debugs(28, DBG_PARSE_NOTE(DBG_IMPORTANT), "UPGRADE: ACL 'manager' is now a built-in ACL. Remove it from your config file.");
+        debugs(28, DBG_PARSE_NOTE(DBG_IMPORTANT), "WARNING: UPGRADE: ACL 'manager' is now a built-in ACL. Remove it from your config file.");
         return; // ignore the line
     } else if (strcmp(theType, "clientside_mark") == 0) {
-        debugs(28, DBG_IMPORTANT, "UPGRADE: ACL 'clientside_mark' type has been renamed to 'client_connection_mark'.");
+        debugs(28, DBG_IMPORTANT, "WARNING: UPGRADE: ACL 'clientside_mark' type has been renamed to 'client_connection_mark'.");
         theType = "client_connection_mark";
     }
 
@@ -265,7 +265,7 @@ ACL::ParseAclLine(ConfigParser &parser, ACL ** head)
         return;
 
     if (A->empty()) {
-        debugs(28, DBG_CRITICAL, "Warning: empty ACL: " << A->cfgline);
+        debugs(28, DBG_CRITICAL, "WARNING: empty ACL: " << A->cfgline);
     }
 
     if (!A->valid()) {

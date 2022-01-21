@@ -108,7 +108,7 @@ unlinkdUnlink(const char *path)
 
     if (bytes_written < 0) {
         int xerrno = errno;
-        debugs(2, DBG_IMPORTANT, "unlinkdUnlink: write FD " << unlinkd_wfd << " failed: " << xstrerr(xerrno));
+        debugs(2, DBG_IMPORTANT, "ERROR: unlinkdUnlink: write FD " << unlinkd_wfd << " failed: " << xstrerr(xerrno));
         safeunlink(path, 0);
         return;
     } else if (bytes_written != l) {
@@ -148,7 +148,7 @@ unlinkdClose(void)
     if (hIpc) {
         if (WaitForSingleObject(hIpc, 5000) != WAIT_OBJECT_0) {
             getCurrentTime();
-            debugs(2, DBG_IMPORTANT, "unlinkdClose: WARNING: (unlinkd," << pid << "d) didn't exit in 5 seconds");
+            debugs(2, DBG_IMPORTANT, "WARNING: unlinkdClose: (unlinkd," << pid << "d) didn't exit in 5 seconds");
         }
 
         CloseHandle(hIpc);
