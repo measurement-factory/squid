@@ -122,6 +122,9 @@ template <typename S, typename T>
 Optional<S>
 IncreaseSum(const S s, const T t)
 {
+    // Force (always safe) integral promotions now, to give EnableIfType<>
+    // promoted types instead of entering IncreaseSumInternal<AllUnsigned>(s,t)
+    // but getting a _signed_ promoted value of s or t in s + t.
     return IncreaseSumInternal<S>(+s, +t);
 }
 
