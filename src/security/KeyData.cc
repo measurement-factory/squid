@@ -107,6 +107,12 @@ Security::KeyData::loadX509ChainFromFile()
 
         intermediates.emplace_back(ca);
     }
+    // ΧΧΧ: The Ssl::ReadX509Certificate terminated with an error,
+    // while tried to read the (last) certificate and failed, but does
+    // not handle OpenSSL errors. The indifferent for us error appended
+    // in the OpenSSL error queue and will remain here until an ERR_get_errror
+    // call pop it out. Flush the error queue:
+    while(ERR_get_error());
 
     // OpenSSL sends `cert` first. After that, OpenSSL sends certificates in the
     // order they are stored in the chain, so we must push them in on-the-wire
