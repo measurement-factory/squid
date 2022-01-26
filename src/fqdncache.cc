@@ -27,6 +27,8 @@
 #include "snmp_core.h"
 #endif
 
+bool Dns::ResolveClientAddressesAsap = false;
+
 /**
  \defgroup FQDNCacheAPI FQDN Cache API
  \ingroup Components
@@ -483,6 +485,7 @@ fqdncache_gethostbyaddr(const Ip::Address &addr, int flags)
     fqdncache_entry *f = NULL;
 
     if (addr.isAnyAddr() || addr.isNoAddr()) {
+        debugs(35, 7, "nothing to lookup: " << addr);
         return NULL;
     }
 
@@ -496,10 +499,12 @@ fqdncache_gethostbyaddr(const Ip::Address &addr, int flags)
         fqdncacheRelease(f);
         f = NULL;
     } else if (f->flags.negcached) {
+        debugs(35, 5, "negative HIT: " << addr);
         ++ FqdncacheStats.negative_hits;
         // ignore f->error_message: the caller just checks FQDN cache presence
         return NULL;
     } else {
+        debugs(35, 5, "HIT: " << addr);
         ++ FqdncacheStats.hits;
         f->lastref = squid_curtime;
         // ignore f->error_message: the caller just checks FQDN cache presence
@@ -507,7 +512,7 @@ fqdncache_gethostbyaddr(const Ip::Address &addr, int flags)
     }
 
     /* no entry [any more] */
-
+    debugs(35, 5, "MISS: " << addr);
     ++ FqdncacheStats.misses;
 
     if (flags & FQDN_LOOKUP_IF_MISS) {
