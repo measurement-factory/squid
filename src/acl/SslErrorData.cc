@@ -9,15 +9,16 @@
 #include "squid.h"
 #include "acl/Checklist.h"
 #include "acl/SslErrorData.h"
-#include "security/CertError.h"
 #include "ssl/ErrorDetail.h"
 
 bool
-ACLSslErrorData::match(const Security::CertErrors *toFind)
+ACLSslErrorData::match(const Security::CertErrorsPointer &toFind)
 {
-    for (const auto *err = toFind; err; err = err->next) {
-        if (values.count(err->element.code))
-            return true;
+    if (toFind) {
+        for (const auto err : *toFind) {
+            if (values.count(err->errorNo()))
+                return true;
+        }
     }
     return false;
 }

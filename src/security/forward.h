@@ -56,11 +56,6 @@
 /// Network/connection security abstraction layer
 namespace Security
 {
-
-class CertError;
-/// Holds a list of X.509 certificate errors
-typedef CbDataList<Security::CertError> CertErrors;
-
 #if USE_OPENSSL
 typedef X509 Certificate;
 #elif USE_GNUTLS
@@ -191,6 +186,10 @@ class ServerOptions;
 
 class ErrorDetail;
 typedef RefCount<ErrorDetail> ErrorDetailPointer;
+/// Holds a list of X.509 certificate errors
+typedef std::list<ErrorDetailPointer> CertErrors;
+typedef std::shared_ptr<CertErrors> CertErrorsPointer;
+
 
 std::ostream &operator <<(std::ostream &, const KeyLog &);
 

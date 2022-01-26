@@ -460,12 +460,13 @@ Security::ErrorDetail::ErrorDetail(const ErrorCode err, const int aSysErrorNo):
 #endif
 }
 
-Security::ErrorDetail::ErrorDetail(const ErrorCode anErrorCode, const CertPointer &cert, const CertPointer &broken, const char *aReason):
+Security::ErrorDetail::ErrorDetail(const ErrorCode anErrorCode, const CertPointer &cert, const CertPointer &broken, int depth, const char *aReason):
     ErrorDetail(anErrorCode, 0)
 {
     errReason = aReason;
     peer_cert = cert;
     broken_cert = broken ? broken : cert;
+    cert_depth = depth;
 }
 
 #if USE_OPENSSL

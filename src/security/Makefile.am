@@ -15,7 +15,6 @@ noinst_LTLIBRARIES = libsecurity.la
 libsecurity_la_SOURCES = \
 	BlindPeerConnector.cc \
 	BlindPeerConnector.h \
-	CertError.h \
 	CommunicationSecrets.cc \
 	CommunicationSecrets.h \
 	Context.h \

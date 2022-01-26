@@ -18,7 +18,6 @@
 #if USE_AUTH
 #include "auth/UserRequest.h"
 #endif
-#include "security/CertError.h"
 
 class CachePeer;
 class ConnStateData;
@@ -88,7 +87,7 @@ public:
 #endif
 
     /// SSL [certificate validation] errors, in undefined order
-    const Security::CertErrors *sslErrors;
+    Security::CertErrorsPointer sslErrors;
 
     /// Peer certificate being checked by ssl_verify_cb() and by
     /// Security::PeerConnector class. In other contexts, the peer

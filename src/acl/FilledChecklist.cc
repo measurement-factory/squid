@@ -61,10 +61,6 @@ ACLFilledChecklist::~ACLFilledChecklist()
 
     cbdataReferenceDone(conn_);
 
-#if USE_OPENSSL
-    cbdataReferenceDone(sslErrors);
-#endif
-
     debugs(28, 4, HERE << "ACLFilledChecklist destroyed " << this);
 }
 
