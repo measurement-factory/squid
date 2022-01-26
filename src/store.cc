@@ -631,7 +631,7 @@ StoreEntry::setPublicKey(const KeyScope scope)
 #if MORE_DEBUG_OUTPUT
 
     if (EBIT_TEST(flags, RELEASE_REQUEST))
-        debugs(20, DBG_IMPORTANT, "assertion failed: RELEASE key " << key << ", url " << mem_obj->url);
+        debugs(20, DBG_IMPORTANT, "FATAL: assertion failed: RELEASE key " << key << ", url " << mem_obj->url);
 
 #endif
 

@@ -1264,7 +1264,7 @@ wccp2HandleUdp(int sock, void *)
         offset += ntohs(header->length);
 
         if (offset > data_length) {
-            debugs(80, DBG_IMPORTANT, "Error: WCCPv2 packet tried to tell us there is data beyond the end of the packet");
+            debugs(80, DBG_IMPORTANT, "ERROR: WCCPv2 packet tried to tell us there is data beyond the end of the packet");
             return;
         }
     }
@@ -1309,7 +1309,7 @@ wccp2HandleUdp(int sock, void *)
     }
 
     if (router_list_ptr->next == NULL) {
-        debugs(80, DBG_IMPORTANT, "WCCPv2 Packet received from unknown router");
+        debugs(80, DBG_IMPORTANT, "ERROR: WCCPv2 Packet received from unknown router");
         return;
     }
 

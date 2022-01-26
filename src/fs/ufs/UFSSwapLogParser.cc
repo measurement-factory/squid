@@ -135,13 +135,13 @@ Fs::Ufs::UFSSwapLogParser::GetUFSSwapLogParser(FILE *fp)
         // 64-bit systems
         // sfileno was 64-bit for a some builds
         if (header.record_size == sizeof(struct UFSSwapLogParser_v1_64bfn::StoreSwapLogDataOld)) {
-            debugs(47, DBG_IMPORTANT, "Version 1 (64-bit) swap file with broken sfileno detected... ");
+            debugs(47, DBG_IMPORTANT, "ERROR: Version 1 (64-bit) swap file with broken sfileno detected... ");
             return new UFSSwapLogParser_v1_64bfn(fp);
         }
         // NP: 64-bit system with 32-bit size_t/time_t are not handled.
 
         debugs(47, DBG_IMPORTANT, "WARNING: The swap file has wrong format!... ");
-        debugs(47, DBG_IMPORTANT, "NOTE: Cannot safely downgrade caches to short (32-bit) timestamps.");
+        debugs(47, DBG_IMPORTANT, "ERROR: NOTE: Cannot safely downgrade caches to short (32-bit) timestamps.");
         return NULL;
 #endif
     }
