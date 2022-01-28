@@ -1472,7 +1472,7 @@ peerCountMcastPeersAbort(PeerSelector * const psstate)
 
     cbdataReferenceDone(psstate->peerCountMcastPeerXXX);
 
-    fake->abort(); // sets ENTRY_ABORTED and initiates releated cleanup
+    fake->abort(); // sets ENTRY_ABORTED and initiates related cleanup
     fake->mem_obj->request = nullptr;
     fake->unlock("peerCountMcastPeersDone");
 }

@@ -310,7 +310,7 @@ for FILENAME in `git ls-files`; do
 			md52=`cat  $FILENAME.astylebak| tr -d "\n \t\r" | $MD5`;
 
 			if test "$md51" != "$md52"; then
-				echo "ERROR: File $FILENAME not formating well";
+				echo "ERROR: File $FILENAME not formatting well";
 				mv $FILENAME $FILENAME.astylebad
 				mv $FILENAME.astylebak $FILENAME
 				git checkout -- ${FILENAME}

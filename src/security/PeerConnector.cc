@@ -502,7 +502,7 @@ Security::PeerConnector::answer()
 void
 Security::PeerConnector::bail(ErrorState *error)
 {
-    Must(error); // or the recepient will not know there was a problem
+    Must(error); // or the recipient will not know there was a problem
     answer().error = error;
 
     if (const auto failingConnection = serverConn) {

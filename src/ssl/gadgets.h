@@ -109,7 +109,7 @@ void ReadPrivateKeyFromFile(char const * keyFilename, Security::PrivateKeyPointe
 
 /**
  \ingroup SslCrtdSslAPI
- * Initialize the bio with the file 'filename' openned for reading
+ * Initialize the bio with the file 'filename' opened for reading
  */
 bool OpenCertsFileForReading(BIO_Pointer &bio, const char *filename);
 
@@ -127,7 +127,7 @@ bool ReadPrivateKey(BIO_Pointer &bio, Security::PrivateKeyPointer &pkey, pem_pas
 
 /**
  \ingroup SslCrtdSslAPI
- * Initialize the bio with the file 'filename' openned for writting
+ * Initialize the bio with the file 'filename' opened for writing
  */
 
 bool OpenCertsFileForWriting(BIO_Pointer &bio, const char *filename);
@@ -219,7 +219,7 @@ public:
     Security::PrivateKeyPointer signWithPkey; ///< The key of the signing certificate
     bool setValidAfter; ///< Do not mimic "Not Valid After" field
     bool setValidBefore; ///< Do not mimic "Not Valid Before" field
-    bool setCommonName; ///< Replace the CN field of the mimicing subject with the given
+    bool setCommonName; ///< Replace the CN field of the mimicking subject with the given
     std::string commonName; ///< A CN to use for the generated certificate
     CertSignAlgorithm signAlgorithm; ///< The signing algorithm to use
     const EVP_MD *signHash; ///< The signing hash to use

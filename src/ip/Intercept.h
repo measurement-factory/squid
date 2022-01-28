@@ -93,7 +93,7 @@ private:
      * Supports Netfilter, PF and IPFW.
      *
      * \param newConn  Details known, to be updated where relevant.
-     * \return         Whether successfuly located the new address.
+     * \return         Whether successfully located the new address.
      */
     bool TproxyTransparent(const Comm::ConnectionPointer &newConn);
 
@@ -101,7 +101,7 @@ private:
      * perform Lookups on Netfilter interception targets (REDIRECT, DNAT).
      *
      * \param newConn  Details known, to be updated where relevant.
-     * \return         Whether successfuly located the new address.
+     * \return         Whether successfully located the new address.
      */
     bool NetfilterInterception(const Comm::ConnectionPointer &newConn);
 
@@ -109,7 +109,7 @@ private:
      * perform Lookups on IPFW interception.
      *
      * \param newConn  Details known, to be updated where relevant.
-     * \return         Whether successfuly located the new address.
+     * \return         Whether successfully located the new address.
      */
     bool IpfwInterception(const Comm::ConnectionPointer &newConn);
 
@@ -117,7 +117,7 @@ private:
      * perform Lookups on IPF interception.
      *
      * \param newConn  Details known, to be updated where relevant.
-     * \return         Whether successfuly located the new address.
+     * \return         Whether successfully located the new address.
      */
     bool IpfInterception(const Comm::ConnectionPointer &newConn);
 
@@ -125,7 +125,7 @@ private:
      * perform Lookups on PF interception target (REDIRECT).
      *
      * \param newConn  Details known, to be updated where relevant.
-     * \return         Whether successfuly located the new address.
+     * \return         Whether successfully located the new address.
      */
     bool PfInterception(const Comm::ConnectionPointer &newConn);
 

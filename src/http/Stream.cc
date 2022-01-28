@@ -383,7 +383,7 @@ clientIfRangeMatch(ClientHttpRequest * http, HttpReply * rep)
 {
     const TimeOrTag spec = http->request->header.getTimeOrTag(Http::HdrType::IF_RANGE);
 
-    /* check for parsing falure */
+    /* check for parsing failure */
     if (!spec.valid)
         return false;
 
