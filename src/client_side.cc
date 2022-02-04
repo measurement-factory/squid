@@ -1592,12 +1592,12 @@ clientTunnelOnError(ConnStateData *conn, Http::StreamPointer &context, HttpReque
 {
     assert(conn);
     assert(conn->pipeline.front() == context);
-    return conn->tunnelOnError(method, requestError);
+    return conn->tunnelOnError(requestError);
 }
 
 /// initiate tunneling if possible or return false otherwise
 bool
-ConnStateData::tunnelOnError(const HttpRequestMethod &method, const err_type requestError)
+ConnStateData::tunnelOnError(const err_type requestError)
 {
     if (!Config.accessList.on_unsupported_protocol) {
         debugs(33, 5, "disabled; send error: " << requestError);
@@ -1627,7 +1627,7 @@ ConnStateData::tunnelOnError(const HttpRequestMethod &method, const err_type req
         if (context)
             context->finished(); // Will remove from pipeline queue
         Comm::SetSelect(clientConnection->fd, COMM_SELECT_READ, NULL, NULL, 0);
-        return initiateTunneledRequest(request, Http::METHOD_NONE, "unknown-protocol", preservedClientData);
+        return initiateTunneledRequest(request, "unknown-protocol", preservedClientData);
     }
     debugs(33, 3, "denied; send error: " << requestError);
     return false;
@@ -1719,7 +1719,7 @@ clientProcessRequest(ConnStateData *conn, const Http1::RequestParserPointer &hp,
         conn->quitAfterError(request.getRaw());
         clientReplyContext *repContext = dynamic_cast<clientReplyContext *>(node->data.getRaw());
         assert (repContext);
-        repContext->setReplyToError(ERR_UNSUP_REQ, Http::scNotImplemented, request->method, NULL,
+        repContext->setReplyToError(ERR_UNSUP_REQ, Http::scNotImplemented, nullptr,
                                     conn->clientConnection->remote, request.getRaw(), NULL, NULL);
         assert(context->http->out.offset == 0);
         context->pullData();
@@ -1734,7 +1734,7 @@ clientProcessRequest(ConnStateData *conn, const Http1::RequestParserPointer &hp,
         assert (repContext);
         conn->quitAfterError(request.getRaw());
         repContext->setReplyToError(ERR_INVALID_REQ,
-                                    Http::scLengthRequired, request->method, NULL,
+                                    Http::scLengthRequired, nullptr,
                                     conn->clientConnection->remote, request.getRaw(), NULL, NULL);
         assert(context->http->out.offset == 0);
         context->pullData();
@@ -1770,7 +1770,7 @@ clientProcessRequest(ConnStateData *conn, const Http1::RequestParserPointer &hp,
             assert (repContext);
             conn->quitAfterError(request.getRaw());
             repContext->setReplyToError(ERR_TOO_BIG,
-                                        Http::scPayloadTooLarge, Http::METHOD_NONE, NULL,
+                                        Http::scPayloadTooLarge, nullptr,
                                         conn->clientConnection->remote, http->request, NULL, NULL);
             assert(context->http->out.offset == 0);
             context->pullData();
@@ -2160,7 +2160,6 @@ ConnStateData::abortChunkedRequestBody(const err_type error)
         const Http::StatusCode scode = (error == ERR_TOO_BIG) ?
                                        Http::scPayloadTooLarge : HTTP_BAD_REQUEST;
         repContext->setReplyToError(error, scode,
-                                    repContext->http->request->method,
                                     repContext->http->uri,
                                     CachePeer,
                                     repContext->http->request,
@@ -2196,7 +2195,7 @@ ConnStateData::requestTimeout(const CommTimeoutCbParams &io)
 
     const err_type error = receivedFirstByte_ ? ERR_REQUEST_PARSE_TIMEOUT : ERR_REQUEST_START_TIMEOUT;
     updateError(error);
-    if (tunnelOnError(HttpRequestMethod(), error))
+    if (tunnelOnError(error))
         return;
 
     /*
@@ -2995,7 +2994,7 @@ ConnStateData::parseTlsHandshake()
         HttpRequest::Pointer request = context->http->request;
         debugs(83, 5, "Got something other than TLS Client Hello. Cannot SslBump.");
         updateError(ERR_PROTOCOL_UNKNOWN, parseErrorDetails);
-        if (!clientTunnelOnError(this, context, request, HttpRequestMethod(), ERR_PROTOCOL_UNKNOWN))
+        if (!tunnelOnError(ERR_PROTOCOL_UNKNOWN))
             clientConnection->close();
         return;
     }
@@ -3074,7 +3073,7 @@ ConnStateData::splice()
         // respond with "Connection Established" to the client.
         // This fake CONNECT request required to allow use of SNI in
         // doCallout() checks and adaptations.
-        return initiateTunneledRequest(request, Http::METHOD_CONNECT, "splice", preservedClientData);
+        return initiateTunneledRequest(request, "splice", preservedClientData);
     }
 }
 
@@ -3169,7 +3168,7 @@ ConnStateData::handleSslBumpHandshakeError(const Security::IoResult &handshakeRe
 
     }
 
-    if (!tunnelOnError(HttpRequestMethod(), errCategory))
+    if (!tunnelOnError(errCategory))
         clientConnection->close();
 }
 
@@ -3207,7 +3206,7 @@ ConnStateData::httpsPeeked(PinnedIdleContext pic)
 #endif /* USE_OPENSSL */
 
 bool
-ConnStateData::initiateTunneledRequest(HttpRequest::Pointer const &cause, Http::MethodType const method, const char *reason, const SBuf &payload)
+ConnStateData::initiateTunneledRequest(HttpRequest::Pointer const &cause, const char *reason, const SBuf &payload)
 {
     // fake a CONNECT request to force connState to tunnel
     SBuf connectHost;
@@ -3241,7 +3240,7 @@ ConnStateData::initiateTunneledRequest(HttpRequest::Pointer const &cause, Http::
     }
 
     debugs(33, 2, "Request tunneling for " << reason);
-    ClientHttpRequest *http = buildFakeRequest(method, connectHost, connectPort, payload);
+    ClientHttpRequest *http = buildFakeRequest(connectHost, connectPort, payload);
     HttpRequest::Pointer request = http->request;
     request->flags.forceTunnel = true;
     http->calloutContext = new ClientRequestContext(http);
@@ -3270,7 +3269,7 @@ ConnStateData::fakeAConnectRequest(const char *reason, const SBuf &payload)
         connectHost.assign(ip);
     }
 
-    ClientHttpRequest *http = buildFakeRequest(Http::METHOD_CONNECT, connectHost, connectPort, payload);
+    ClientHttpRequest *http = buildFakeRequest(connectHost, connectPort, payload);
 
     http->calloutContext = new ClientRequestContext(http);
     HttpRequest::Pointer request = http->request;
@@ -3280,7 +3279,7 @@ ConnStateData::fakeAConnectRequest(const char *reason, const SBuf &payload)
 }
 
 ClientHttpRequest *
-ConnStateData::buildFakeRequest(Http::MethodType const method, SBuf &useHost, unsigned short usePort, const SBuf &payload)
+ConnStateData::buildFakeRequest(SBuf &useHost, unsigned short usePort, const SBuf &payload)
 {
     ClientHttpRequest *http = new ClientHttpRequest(this);
     Http::Stream *stream = new Http::Stream(clientConnection, http);
@@ -3305,9 +3304,8 @@ ConnStateData::buildFakeRequest(Http::MethodType const method, SBuf &useHost, un
     // Setup Http::Request object. Maybe should be replaced by a call to (modified)
     // clientProcessRequest
     HttpRequest::Pointer request = new HttpRequest(mx);
-    AnyP::ProtocolType proto = (method == Http::METHOD_NONE) ? AnyP::PROTO_AUTHORITY_FORM : AnyP::PROTO_HTTP;
-    request->url.setScheme(proto, nullptr);
-    request->method = method;
+    request->url.setScheme(AnyP::PROTO_AUTHORITY_FORM, nullptr);
+    request->method = Http::METHOD_CONNECT;
     request->url.host(useHost.c_str());
     request->url.port(usePort);
 
@@ -3316,8 +3314,7 @@ ConnStateData::buildFakeRequest(Http::MethodType const method, SBuf &useHost, un
 
     request->manager(this, http->al);
 
-    if (proto == AnyP::PROTO_HTTP)
-        request->header.putStr(Http::HOST, useHost.c_str());
+    request->header.putStr(Http::HOST, useHost.c_str());
 
     request->sources |= ((switchedToHttps() || port->transport.protocol == AnyP::PROTO_HTTPS) ? Http::Message::srcHttps : Http::Message::srcHttp);
 #if USE_AUTH

@@ -102,7 +102,7 @@ clientReplyContext::clientReplyContext(ClientHttpRequest *clientContext) :
  */
 void
 clientReplyContext::setReplyToError(
-    err_type err, Http::StatusCode status, const HttpRequestMethod& method, char const *uri,
+    err_type err, Http::StatusCode status, char const *uri,
     Ip::Address &addr, HttpRequest * failedrequest, const char *unparsedrequest,
 #if USE_AUTH
     Auth::UserRequest::Pointer auth_user_request
@@ -119,7 +119,7 @@ clientReplyContext::setReplyToError(
 #if USE_AUTH
     errstate->auth_user_request = auth_user_request;
 #endif
-    setReplyToError(method, errstate);
+    setReplyToError(failedrequest ? failedrequest->method : HttpRequestMethod(Http::METHOD_NONE), errstate);
 }
 
 void clientReplyContext::setReplyToError(const HttpRequestMethod& method, ErrorState *errstate)

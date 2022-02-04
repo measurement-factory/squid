@@ -261,7 +261,7 @@ constructHelperQuery(const char *name, helper *hlp, HLPCB *replyHandler, ClientH
         Ip::Address tmpnoaddr;
         tmpnoaddr.setNoAddr();
         repContext->setReplyToError(ERR_GATEWAY_FAILURE, status,
-                                    http->request->method, NULL,
+                                    nullptr,
                                     http->getConn() != NULL && http->getConn()->clientConnection != NULL ?
                                     http->getConn()->clientConnection->remote : tmpnoaddr,
                                     http->request,
