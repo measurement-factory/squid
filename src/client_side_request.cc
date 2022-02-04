@@ -582,7 +582,7 @@ ClientRequestContext::hostHeaderVerifyFailed(const char *A, const char *B)
     clientReplyContext *repContext = dynamic_cast<clientReplyContext *>(node->data.getRaw());
     assert (repContext);
     repContext->setReplyToError(ERR_CONFLICT_HOST, Http::scConflict,
-                                http->request->method, NULL,
+                                nullptr,
                                 http->getConn()->clientConnection->remote,
                                 http->request,
                                 NULL,
