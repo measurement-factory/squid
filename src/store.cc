@@ -769,7 +769,7 @@ StoreEntry::adjustVary()
 
         pe->startWriting(); // after timestampsSet()
 
-        pe->completeSuccessfully("wrote the entire Vary marker object");
+        pe->complete();
 
         return pe;
     }
@@ -1052,20 +1052,6 @@ StoreEntry::lengthWentBad(const char *reason)
     debugs(20, 3, "because " << reason << ": " << *this);
     EBIT_SET(flags, ENTRY_BAD_LENGTH);
     releaseRequest();
-}
-
-void
-StoreEntry::completeSuccessfully(const char * const whyWeAreSure)
-{
-    debugs(20, 3, whyWeAreSure << "; " << *this);
-    complete();
-}
-
-void
-StoreEntry::completeTruncated(const char * const truncationReason)
-{
-    lengthWentBad(truncationReason);
-    complete();
 }
 
 void
@@ -1741,7 +1727,7 @@ StoreEntry::storeErrorResponse(HttpReply *reply)
     buffer();
     replaceHttpReply(HttpReplyPointer(reply));
     flush();
-    completeSuccessfully("replaceHttpReply() stored the entire error");
+    complete();
     negativeCache();
     releaseRequest(false); // if it is safe to negatively cache, sharing is OK
     unlock("StoreEntry::storeErrorResponse");

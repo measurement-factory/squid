@@ -150,8 +150,7 @@ FwdState::FwdState(const Comm::ConnectionPointer &client, StoreEntry * e, HttpRe
     start_t(squid_curtime),
     n_tries(0),
     destinations(new ResolvedPeers()),
-    pconnRace(raceImpossible),
-    storedWholeReply_(nullptr)
+    pconnRace(raceImpossible)
 {
     debugs(17, 2, "Forwarding client request " << client << ", url=" << e->url());
     HTTPMSGLOCK(request);
@@ -257,23 +256,6 @@ FwdState::selectPeerForIntercepted()
 }
 #endif
 
-/// updates ALE when we finalize the transaction error (if any)
-void
-FwdState::updateAleWithFinalError()
-{
-    if (!err || !al)
-        return;
-
-    LogTagsErrors lte;
-    lte.timedout = (err->xerrno == ETIMEDOUT || err->type == ERR_READ_TIMEOUT);
-    al->cache.code.err.update(lte);
-    if (!err->detail) {
-        static const auto d = MakeNamedErrorDetail("WITH_SRV");
-        err->detailError(d);
-    }
-    al->updateError(Error(err->type, err->detail));
-}
-
 void
 FwdState::completed()
 {
@@ -303,11 +285,9 @@ FwdState::completed()
 
     if (entry->store_status == STORE_PENDING) {
         if (entry->isEmpty()) {
-            assert(!storedWholeReply_);
             if (!err) // we quit (e.g., fd closed) before an error or content
                 fail(new ErrorState(ERR_READ_ERROR, Http::scBadGateway, request, al));
             assert(err);
-            updateAleWithFinalError();
             errorAppendEntry(entry, err);
             err = NULL;
 #if USE_OPENSSL
@@ -319,11 +299,8 @@ FwdState::completed()
             }
 #endif
         } else {
-            updateAleWithFinalError(); // if any
-            if (storedWholeReply_)
-                entry->completeSuccessfully(storedWholeReply_);
-            else
-                entry->completeTruncated("FwdState default");
+            entry->complete();
+            entry->releaseRequest();
         }
     }
 
@@ -580,7 +557,6 @@ FwdState::complete()
         serverConn = nullptr;
         destinationReceipt = nullptr;
 
-        storedWholeReply_ = nullptr;
         entry->reset();
 
         useDestinations();
@@ -590,8 +566,10 @@ FwdState::complete()
             debugs(17, 3, "server FD " << serverConnection()->fd << " not re-forwarding status " << replyStatus);
         else
             debugs(17, 3, "server (FD closed) not re-forwarding status " << replyStatus);
+        entry->complete();
 
-        completed();
+        if (!Comm::IsConnOpen(serverConn))
+            completed();
 
         stopAndDestroy("forwarding completed");
     }
@@ -601,18 +579,6 @@ bool
 FwdState::usingDestination() const
 {
     return encryptionWait || peerWait || Comm::IsConnOpen(serverConn);
-}
-
-void
-FwdState::markStoredReplyAsWhole(const char * const whyWeAreSure)
-{
-    debugs(17, 5, whyWeAreSure << " for " << *entry);
-
-    // the caller wrote everything to Store, but Store may silently abort writes
-    if (EBIT_TEST(entry->flags, ENTRY_ABORTED))
-        return;
-
-    storedWholeReply_ = whyWeAreSure;
 }
 
 void

@@ -81,10 +81,6 @@ public:
 public: // should be protected
     void serverComplete();     /**< call when no server communication is expected */
 
-    /// remember that the received virgin reply was parsed in its entirety,
-    /// including its body (if any)
-    void markParsedVirginReplyAsWhole(const char *reasonWeAreSure);
-
 private:
     void serverComplete2();    /**< Continuation of serverComplete */
     bool completed = false;            /**< serverComplete() has been called */
@@ -180,9 +176,6 @@ protected:
 
     bool adaptationAccessCheckPending = false;
     bool startedAdaptation = false;
-
-    /// handleAdaptedBodyProductionEnded() was called
-    bool receivedWholeAdaptedReply = false;
 #endif
     bool receivedWholeRequestBody = false; ///< handleRequestBodyProductionEnded called
 
