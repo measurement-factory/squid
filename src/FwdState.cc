@@ -159,7 +159,6 @@ FwdState::FwdState(const Comm::ConnectionPointer &client, StoreEntry * e, HttpRe
     flags.dont_retry = false;
     flags.forward_completed = false;
     flags.destinationsFound = false;
-    flags.abandonEntry = false;
     debugs(17, 3, "FwdState constructed, this=" << this);
 }
 
@@ -273,11 +272,6 @@ FwdState::completed()
         return ;
     }
 
-    if (flags.abandonEntry) {
-        debugs(17, 3, "abandoning " << *entry);
-        return ;
-    }
-
 #if URL_CHECKSUM_DEBUG
 
     entry->mem_obj->checkUrlChecksum();
@@ -294,8 +288,6 @@ FwdState::completed()
             if (request->flags.sslPeek && request->clientConnectionManager.valid()) {
                 CallJobHere1(17, 4, request->clientConnectionManager, ConnStateData,
                              ConnStateData::httpsPeeked, ConnStateData::PinnedIdleContext(Comm::ConnectionPointer(nullptr), request));
-                // no flags.abandonEntry: errorAppendEntry() completed the entry
-                // no flags.dont_retry: completed() is a post-reforward() act
             }
 #endif
         } else {
@@ -1018,8 +1010,6 @@ FwdState::connectedToPeer(Security::EncryptorAnswer &answer)
         // [in ways that may affect logging?]. Consider informing
         // ConnStateData about our tunnel or otherwise unifying tunnel
         // establishment [side effects].
-        flags.dont_retry = true; // TunnelStateData took forwarding control
-        flags.abandonEntry = true; // TODO: or should we abort it instead?
         complete(); // destroys us
         return;
     } else if (!Comm::IsConnOpen(answer.conn) || fd_table[answer.conn->fd].closing()) {
@@ -1213,12 +1203,9 @@ FwdState::dispatch()
 
 #if USE_OPENSSL
     if (request->flags.sslPeek) {
-        // we were just asked to peek at the server, and we did that
         CallJobHere1(17, 4, request->clientConnectionManager, ConnStateData,
                      ConnStateData::httpsPeeked, ConnStateData::PinnedIdleContext(serverConnection(), request));
         unregister(serverConn); // async call owns it now
-        flags.dont_retry = true; // we gave up forwarding control
-        flags.abandonEntry = true; // TODO: or should we abort it instead?
         complete(); // destroys us
         return;
     }
