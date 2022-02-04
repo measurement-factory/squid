@@ -24,9 +24,11 @@ char *Debug::cache_log= NULL;
 int Debug::rotateNumber = 0;
 int Debug::Levels[MAX_DEBUG_SECTIONS];
 int Debug::override_X = 0;
+int Debug::log_stderr = 1;
 bool Debug::log_syslog = false;
 void Debug::ForceAlert() STUB
 
+void StopUsingDebugLog() STUB
 void ResyncDebugLog(FILE *) STUB
 
 FILE *
@@ -36,27 +38,51 @@ DebugStream()
 }
 
 void
-_db_rotate_log(void)
+_db_init(const char *, const char *)
 {}
 
 void
-Debug::LogMessage(const Context &context)
+_db_set_syslog(const char *)
+{}
+
+void
+_db_rotate_log(void)
+{}
+
+static void
+_db_print_stderr(const char *format, va_list args);
+
+void
+_db_print(const char *format,...)
 {
-    if (context.level > DBG_IMPORTANT)
-        return;
+    static char f[BUFSIZ];
+    va_list args1;
+    va_list args2;
+    va_list args3;
 
-    if (!stderr)
-        return;
+    va_start(args1, format);
+    va_start(args2, format);
+    va_start(args3, format);
 
-    fprintf(stderr, "%s| %s\n",
-            "stub time", // debugLogTime(squid_curtime),
-            context.buf.str().c_str());
+    snprintf(f, BUFSIZ, "%s| %s",
+             "stub time", //debugLogTime(squid_curtime),
+             format);
+
+    _db_print_stderr(f, args2);
+
+    va_end(args1);
+    va_end(args2);
+    va_end(args3);
 }
 
-bool
-Debug::StderrEnabled() STUB_RETVAL(false)
+static void
+_db_print_stderr(const char *format, va_list args)
+{
+    if (1 < Debug::Level())
+        return;
 
-void Debug::PrepareToDie() STUB
+    vfprintf(stderr, format, args);
+}
 
 void
 Debug::parseOptions(char const *)
@@ -65,7 +91,6 @@ Debug::parseOptions(char const *)
 Debug::Context *Debug::Current = nullptr;
 
 Debug::Context::Context(const int aSection, const int aLevel):
-    section(aSection),
     level(aLevel),
     sectionLevel(Levels[aSection]),
     upper(Current),
@@ -86,7 +111,7 @@ void
 Debug::Finish()
 {
     if (Current) {
-        LogMessage(*Current);
+        _db_print("%s\n", Current->buf.str().c_str());
         delete Current;
         Current = nullptr;
     }

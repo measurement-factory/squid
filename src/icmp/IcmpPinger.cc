@@ -60,10 +60,7 @@ IcmpPinger::Open(void)
     atexit(Win32SockCleanup);
 
     getCurrentTime();
-
-    Debug::debugOptions = xstrdup("ALL,1");
-    Debug::BanCacheLogUse();
-
+    _db_init(NULL, "ALL,1");
     setmode(0, O_BINARY);
     setmode(1, O_BINARY);
     x = read(0, buf, sizeof(wpi));

@@ -105,6 +105,8 @@ main(int, char **)
     int max_fd = 0;
 
     struct timeval tv;
+    const char *debug_args = "ALL,10";
+    char *t;
     time_t last_check_time = 0;
 
     /*
@@ -116,15 +118,15 @@ main(int, char **)
     int squid_link = -1;
 
     /** start by initializing the pinger debug cache.log-pinger. */
-    const auto envOptions = getenv("SQUID_DEBUG");
-    Debug::debugOptions = xstrdup(envOptions ? envOptions : "ALL,10");
+    if ((t = getenv("SQUID_DEBUG")))
+        debug_args = xstrdup(t);
 
     getCurrentTime();
 
     // determine IPv4 or IPv6 capabilities before using sockets.
     Ip::ProbeTransport();
 
-    Debug::BanCacheLogUse();
+    _db_init(NULL, debug_args);
 
     debugs(42, DBG_CRITICAL, "pinger: Initialising ICMP pinger ...");
 
