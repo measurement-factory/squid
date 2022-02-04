@@ -8,10 +8,10 @@
 
 #include "squid.h"
 #include "repl_modules.h"
+#include "Store.h"
 #include "store_digest.h"
 #include "store_log.h"
 #include "store_rebuild.h"
-#include "Store.h"
 #include "StoreClient.h"
 
 #define STUB_API "store_client.cc"

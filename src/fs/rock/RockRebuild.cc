@@ -262,7 +262,7 @@ bool
 Rock::Rebuild::Stats::completed(const SwapDir &sd) const
 {
     return DoneLoading(counts.scancount, sd.slotLimitActual()) &&
-        DoneValidating(counts.validations, sd.slotLimitActual(), sd.entryLimitActual());
+           DoneValidating(counts.validations, sd.slotLimitActual(), sd.entryLimitActual());
 }
 
 /* Rebuild */

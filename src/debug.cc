@@ -451,8 +451,8 @@ DebugChannel::logSavedAnd(DebugChannel *theirChannelOrNil)
         // write in the order of increasing header.recordNumber;
         // log() will filter out any duplicates
         const auto &message = (ourPos < ourCount &&
-            !(theirPos < theirCount && (*theirs)[theirPos].header.recordNumber < (*ours)[ourPos].header.recordNumber)) ?
-            (*ours)[ourPos++] : (*theirs)[theirPos++];
+                               !(theirPos < theirCount && (*theirs)[theirPos].header.recordNumber < (*ours)[ourPos].header.recordNumber)) ?
+                              (*ours)[ourPos++] : (*theirs)[theirPos++];
         if (Debug::Enabled(message.header.section, message.header.level))
             log(message.header, message.body);
     }

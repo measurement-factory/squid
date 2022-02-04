@@ -25,7 +25,7 @@ typedef enum {
 class ESIElement;
 
 struct esiTreeParent : public RefCountable {
-    virtual void provideData (ESISegment::Pointer /* data  */ , ESIElement * /* source */ ) {
+    virtual void provideData (ESISegment::Pointer /* data  */, ESIElement * /* source */ ) {
         /* make abstract when all functionality complete */
         assert (0);
     }

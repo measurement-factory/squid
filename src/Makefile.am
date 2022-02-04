@@ -1116,8 +1116,8 @@ tests_testRock_SOURCES = \
 	AccessLogEntry.cc \
 	AccessLogEntry.h \
 	tests/stub_CacheDigest.cc \
-	tests/stub_CachePeer.cc \
 	CacheDigest.h \
+	tests/stub_CachePeer.cc \
 	CollapsedForwarding.cc \
 	CollapsedForwarding.h \
 	ConfigOption.cc \
@@ -1126,7 +1126,6 @@ tests_testRock_SOURCES = \
 	EventLoop.cc \
 	FadingCounter.cc \
 	FileMap.h \
-	tests/stub_fqdncache.cc \
 	tests/stub_HelperChildConfig.cc \
 	HttpBody.cc \
 	HttpBody.h \
@@ -1194,6 +1193,7 @@ tests_testRock_SOURCES = \
 	fde.cc \
 	fde.h \
 	filemap.cc \
+	tests/stub_fqdncache.cc \
 	fs_io.cc \
 	fs_io.h \
 	tests/stub_http.cc \
@@ -1291,8 +1291,8 @@ tests_testUfs_SOURCES = \
 	AccessLogEntry.cc \
 	AccessLogEntry.h \
 	tests/stub_CacheDigest.cc \
-	tests/stub_CachePeer.cc \
 	CacheDigest.h \
+	tests/stub_CachePeer.cc \
 	ClientInfo.h \
 	tests/stub_CollapsedForwarding.cc \
 	ConfigOption.cc \
@@ -1301,7 +1301,6 @@ tests_testUfs_SOURCES = \
 	EventLoop.cc \
 	FadingCounter.cc \
 	FileMap.h \
-	tests/stub_fqdncache.cc \
 	tests/stub_HelperChildConfig.cc \
 	HttpBody.cc \
 	HttpBody.h \
@@ -1369,6 +1368,7 @@ tests_testUfs_SOURCES = \
 	fde.cc \
 	fde.h \
 	filemap.cc \
+	tests/stub_fqdncache.cc \
 	fs_io.cc \
 	fs_io.h \
 	tests/stub_helper.cc \
@@ -1515,11 +1515,11 @@ tests_testStore_SOURCES = \
 	StatCounters.h \
 	StatHist.cc \
 	StatHist.h \
-	StoreFileSystem.cc \
 	tests/testStore.cc \
 	tests/testStore.h \
 	tests/testStoreController.cc \
 	tests/testStoreController.h \
+	StoreFileSystem.cc \
 	tests/testStoreHashIndex.cc \
 	tests/testStoreHashIndex.h \
 	StoreIOState.cc \
@@ -1650,7 +1650,6 @@ tests_testDiskIO_SOURCES = \
 	EventLoop.cc \
 	FadingCounter.cc \
 	FileMap.h \
-	tests/stub_fqdncache.cc \
 	tests/stub_HelperChildConfig.cc \
 	HttpBody.cc \
 	HttpBody.h \
@@ -1720,6 +1719,7 @@ tests_testDiskIO_SOURCES = \
 	fde.cc \
 	fde.h \
 	filemap.cc \
+	tests/stub_fqdncache.cc \
 	fs_io.cc \
 	fs_io.h \
 	tests/stub_helper.cc \
@@ -1912,6 +1912,7 @@ tests_test_http_range_SOURCES = \
 	HttpRequest.cc \
 	tests/stub_HttpUpgradeProtocolAccess.cc \
 	IoStats.h \
+	tests/stub_IpcIoFile.cc \
 	LogTags.cc \
 	MasterXaction.cc \
 	MasterXaction.h \
@@ -1967,7 +1968,6 @@ tests_test_http_range_SOURCES = \
 	event.cc \
 	tests/stub_external_acl.cc \
 	tests/stub_fatal.cc \
-	tests/stub_IpcIoFile.cc \
 	fatal.h \
 	fd.cc \
 	fd.h \
@@ -2198,9 +2198,9 @@ tests_testHttpReply_SOURCES = \
 	tests/stub_cache_cf.cc \
 	cache_cf.h \
 	tests/stub_cache_manager.cc \
-	tests/stub_client_side.cc \
 	cbdata.cc \
 	cbdata.h \
+	tests/stub_client_side.cc \
 	tests/stub_comm.cc \
 	tests/stub_debug.cc \
 	tests/stub_errorpage.cc \
@@ -2307,6 +2307,7 @@ tests_testHttpRequest_SOURCES = \
 	tests/testHttpRequestMethod.h \
 	tests/stub_HttpUpgradeProtocolAccess.cc \
 	IoStats.h \
+	tests/stub_IpcIoFile.cc \
 	LogTags.cc \
 	MasterXaction.cc \
 	MasterXaction.h \
@@ -2391,7 +2392,6 @@ tests_testHttpRequest_SOURCES = \
 	tests/stub_libsecurity.cc \
 	tests/stub_libstore.cc \
 	tests/stub_main_cc.cc \
-	tests/stub_IpcIoFile.cc \
 	mem_node.cc \
 	mime.cc \
 	mime.h \
@@ -2614,6 +2614,7 @@ tests_testCacheManager_SOURCES = \
 	HttpRequest.cc \
 	tests/stub_HttpUpgradeProtocolAccess.cc \
 	IoStats.h \
+	tests/stub_IpcIoFile.cc \
 	LogTags.cc \
 	MasterXaction.cc \
 	MasterXaction.h \
@@ -2697,7 +2698,6 @@ tests_testCacheManager_SOURCES = \
 	tests/stub_libsecurity.cc \
 	tests/stub_libstore.cc \
 	tests/stub_main_cc.cc \
-	tests/stub_IpcIoFile.cc \
 	mem_node.cc \
 	mime.cc \
 	mime.h \
@@ -2940,6 +2940,7 @@ tests_testEvent_SOURCES = \
 	HttpRequest.cc \
 	tests/stub_HttpUpgradeProtocolAccess.cc \
 	IoStats.h \
+	tests/stub_IpcIoFile.cc \
 	LogTags.cc \
 	MasterXaction.cc \
 	MasterXaction.h \
@@ -3025,7 +3026,6 @@ tests_testEvent_SOURCES = \
 	tests/stub_libsecurity.cc \
 	tests/stub_libstore.cc \
 	tests/stub_main_cc.cc \
-	tests/stub_IpcIoFile.cc \
 	mem_node.cc \
 	mime.cc \
 	mime.h \
@@ -3183,6 +3183,7 @@ tests_testEventLoop_SOURCES = \
 	HttpRequest.cc \
 	tests/stub_HttpUpgradeProtocolAccess.cc \
 	IoStats.h \
+	tests/stub_IpcIoFile.cc \
 	LogTags.cc \
 	MasterXaction.cc \
 	MasterXaction.h \
@@ -3237,7 +3238,6 @@ tests_testEventLoop_SOURCES = \
 	event.cc \
 	external_acl.cc \
 	tests/stub_fatal.cc \
-	tests/stub_IpcIoFile.cc \
 	fatal.h \
 	fd.cc \
 	fd.h \

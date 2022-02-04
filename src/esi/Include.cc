@@ -513,14 +513,14 @@ ESIInclude::subRequestDone (ESIStreamContext::Pointer stream, bool success)
          */
         if (parent.getRaw() == NULL) {
             debugs(86, DBG_CRITICAL, "ERROR: Squid Bug #951: ESIInclude::subRequestDone: Sub request completed "
-                    "after finish() called and parent unlinked. Unable to "
-                    "continue handling the request, and may be memory leaking. "
-                    "See http://www.squid-cache.org/bugs/show_bug.cgi?id=951 - we "
-                    "are looking for a reproducible test case. This will require "
-                    "an ESI template with includes, probably with alt-options, "
-                    "and we're likely to need traffic dumps to allow us to "
-                    "reconstruct the exact tcp handling sequences to trigger this "
-                    "rather elusive bug.");
+                   "after finish() called and parent unlinked. Unable to "
+                   "continue handling the request, and may be memory leaking. "
+                   "See http://www.squid-cache.org/bugs/show_bug.cgi?id=951 - we "
+                   "are looking for a reproducible test case. This will require "
+                   "an ESI template with includes, probably with alt-options, "
+                   "and we're likely to need traffic dumps to allow us to "
+                   "reconstruct the exact tcp handling sequences to trigger this "
+                   "rather elusive bug.");
             return;
         }
         assert (parent.getRaw());
