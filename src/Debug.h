@@ -207,7 +207,7 @@ std::ostream& ForceAlert(std::ostream& s);
  *
  * Its purpose is to inactivate calls made following previous debugs()
  * guidelines such as
- * debugs(1,2, HERE << "some message");
+ * debugs(1,2, "some message");
  *
  * His former objective is now absorbed in the debugs call itself
  */

@@ -602,7 +602,7 @@ MemStore::shouldCache(StoreEntry &e) const
     }
 
     if (!e.memoryCachable()) {
-        debugs(20, 7, HERE << "Not memory cachable: " << e);
+        debugs(20, 7, "Not memory cachable: " << e);
         return false; // will not cache due to entry state or properties
     }
 
@@ -618,7 +618,7 @@ MemStore::shouldCache(StoreEntry &e) const
     const int64_t loadedSize = e.mem_obj->endOffset();
     const int64_t ramSize = max(loadedSize, expectedSize);
     if (ramSize > maxObjectSize()) {
-        debugs(20, 5, HERE << "Too big max(" <<
+        debugs(20, 5, "Too big max(" <<
                loadedSize << ", " << expectedSize << "): " << e);
         return false; // will not cache due to cachable entry size limits
     }
@@ -629,7 +629,7 @@ MemStore::shouldCache(StoreEntry &e) const
     }
 
     if (!map) {
-        debugs(20, 5, HERE << "No map to mem-cache " << e);
+        debugs(20, 5, "No map to mem-cache " << e);
         return false;
     }
 
@@ -648,7 +648,7 @@ MemStore::startCaching(StoreEntry &e)
     sfileno index = 0;
     Ipc::StoreMapAnchor *slot = map->openForWriting(reinterpret_cast<const cache_key *>(e.key), index);
     if (!slot) {
-        debugs(20, 5, HERE << "No room in mem-cache map to index " << e);
+        debugs(20, 5, "No room in mem-cache map to index " << e);
         return false;
     }
 

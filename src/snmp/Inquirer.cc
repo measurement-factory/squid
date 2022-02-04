@@ -29,7 +29,7 @@ Snmp::Inquirer::Inquirer(const Request& aRequest, const Ipc::StrandCoords& coord
     conn->fd = aRequest.fd;
     ImportFdIntoComm(conn, SOCK_DGRAM, IPPROTO_UDP, Ipc::fdnInSnmpSocket);
 
-    debugs(49, 5, HERE);
+    debugs(49, 5, MYNAME);
     closer = asyncCall(49, 5, "Snmp::Inquirer::noteCommClosed",
                        CommCbMemFunT<Inquirer, CommCloseCbParams>(this, &Inquirer::noteCommClosed));
     comm_add_close_handler(conn->fd, closer);
@@ -56,7 +56,7 @@ Snmp::Inquirer::cleanup()
 void
 Snmp::Inquirer::start()
 {
-    debugs(49, 5, HERE);
+    debugs(49, 5, MYNAME);
     Ipc::Inquirer::start();
     Must(Comm::IsConnOpen(conn));
     inquire();
@@ -86,7 +86,7 @@ Snmp::Inquirer::aggregate(Response::Pointer aResponse)
 void
 Snmp::Inquirer::noteCommClosed(const CommCloseCbParams& params)
 {
-    debugs(49, 5, HERE);
+    debugs(49, 5, MYNAME);
     Must(!Comm::IsConnOpen(conn) || conn->fd == params.conn->fd);
     closer = nullptr;
     if (conn) {
@@ -105,7 +105,7 @@ Snmp::Inquirer::doneAll() const
 void
 Snmp::Inquirer::sendResponse()
 {
-    debugs(49, 5, HERE);
+    debugs(49, 5, MYNAME);
 
     if (!Comm::IsConnOpen(conn))
         return; // client gone

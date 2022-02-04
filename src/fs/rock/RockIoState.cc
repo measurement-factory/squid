@@ -311,7 +311,7 @@ Rock::IoState::writeToDisk()
     memcpy(wBuf, theBuf.mem, theBuf.size);
 
     const uint64_t diskOffset = dir->diskOffset(sidCurrent);
-    debugs(79, 5, HERE << swap_filen << " at " << diskOffset << '+' <<
+    debugs(79, 5, swap_filen << " at " << diskOffset << '+' <<
            theBuf.size);
     const auto id = ++requestsSent;
     WriteRequest *const r = new WriteRequest(
@@ -463,7 +463,7 @@ private:
 void
 Rock::IoState::callBack(int errflag)
 {
-    debugs(79,3, HERE << "errflag=" << errflag);
+    debugs(79,3, "errflag=" << errflag);
     theFile = NULL;
 
     AsyncCall::Pointer call = asyncCall(79,3, "SomeIoStateCloseCb",

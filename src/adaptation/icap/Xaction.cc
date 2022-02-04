@@ -226,7 +226,7 @@ void Adaptation::Icap::Xaction::closeConnection()
 
         if (reuseConnection && !doneWithIo()) {
             //status() adds leading spaces.
-            debugs(93,5, HERE << "not reusing pconn due to pending I/O" << status());
+            debugs(93,5, "not reusing pconn due to pending I/O" << status());
             reuseConnection = false;
         }
 
@@ -309,7 +309,7 @@ Adaptation::Icap::Xaction::useIcapConnection(const Comm::ConnectionPointer &conn
 
 void Adaptation::Icap::Xaction::dieOnConnectionFailure()
 {
-    debugs(93, 2, HERE << typeName <<
+    debugs(93, 2, typeName <<
            " failed to connect to " << service().cfg().uri);
     service().noteConnectionFailed("failure");
     static const auto d = MakeNamedErrorDetail("ICAP_XACT_START");
@@ -338,7 +338,7 @@ void Adaptation::Icap::Xaction::noteCommWrote(const CommIoCbParams &io)
     if (ignoreLastWrite) {
         // a hack due to comm inability to cancel a pending write
         ignoreLastWrite = false;
-        debugs(93, 7, HERE << "ignoring last write; status: " << io.flag);
+        debugs(93, 7, "ignoring last write; status: " << io.flag);
     } else {
         Must(io.flag == Comm::OK);
         al.icap.bytesSent += io.size;
@@ -350,7 +350,7 @@ void Adaptation::Icap::Xaction::noteCommWrote(const CommIoCbParams &io)
 // communication timeout with the ICAP service
 void Adaptation::Icap::Xaction::noteCommTimedout(const CommTimeoutCbParams &)
 {
-    debugs(93, 2, HERE << typeName << " failed: timeout with " <<
+    debugs(93, 2, typeName << " failed: timeout with " <<
            theService->cfg().methodStr() << " " <<
            theService->cfg().uri << status());
     reuseConnection = false;
@@ -384,7 +384,7 @@ void Adaptation::Icap::Xaction::callException(const std::exception  &e)
 void Adaptation::Icap::Xaction::callEnd()
 {
     if (doneWithIo()) {
-        debugs(93, 5, HERE << typeName << " done with I/O" << status());
+        debugs(93, 5, typeName << " done with I/O" << status());
         closeConnection();
     }
     Adaptation::Initiate::callEnd(); // may destroy us
@@ -551,7 +551,7 @@ void Adaptation::Icap::Xaction::noteInitiatorAborted()
 {
 
     if (theInitiator.set()) {
-        debugs(93,4, HERE << "Initiator gone before ICAP transaction ended");
+        debugs(93,4, "Initiator gone before ICAP transaction ended");
         clearInitiator();
         static const auto d = MakeNamedErrorDetail("ICAP_INIT_GONE");
         detailError(d);
@@ -566,7 +566,7 @@ void Adaptation::Icap::Xaction::setOutcome(const Adaptation::Icap::XactOutcome &
     if (al.icap.outcome != xoUnknown) {
         debugs(93, 3, "WARNING: resetting outcome: from " << al.icap.outcome << " to " << xo);
     } else {
-        debugs(93, 4, HERE << xo);
+        debugs(93, 4, xo);
     }
     al.icap.outcome = xo;
 }

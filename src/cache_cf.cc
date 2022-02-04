@@ -594,7 +594,7 @@ parseConfigFileOrThrow(const char *file_name)
 {
     int err_count = 0;
 
-    debugs(5, 4, HERE);
+    debugs(5, 4, MYNAME);
 
     configFreeMemory();
 

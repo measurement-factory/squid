@@ -31,13 +31,13 @@ Mgr::FunAction::FunAction(const Command::Pointer &aCmd, OBJH* aHandler):
     Action(aCmd), handler(aHandler)
 {
     Must(handler != NULL);
-    debugs(16, 5, HERE);
+    debugs(16, 5, MYNAME);
 }
 
 void
 Mgr::FunAction::respond(const Request& request)
 {
-    debugs(16, 5, HERE);
+    debugs(16, 5, MYNAME);
     Ipc::ImportFdIntoComm(request.conn, SOCK_STREAM, IPPROTO_TCP, Ipc::fdnHttpSocket);
     Must(Comm::IsConnOpen(request.conn));
     Must(request.requestId != 0);
@@ -47,7 +47,7 @@ Mgr::FunAction::respond(const Request& request)
 void
 Mgr::FunAction::dump(StoreEntry* entry)
 {
-    debugs(16, 5, HERE);
+    debugs(16, 5, MYNAME);
     Must(entry != NULL);
     if (UsingSmp())
         storeAppendPrintf(entry, "by kid%d {\n", KidIdentifier);

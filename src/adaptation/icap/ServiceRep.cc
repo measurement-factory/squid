@@ -95,7 +95,7 @@ Adaptation::Icap::ServiceRep::finalize()
 void Adaptation::Icap::ServiceRep::noteFailure()
 {
     const int failures = theSessionFailures.count(1);
-    debugs(93,4, HERE << " failure " << failures << " out of " <<
+    debugs(93,4, " failure " << failures << " out of " <<
            TheConfig.service_failure_limit << " allowed in " <<
            TheConfig.oldest_service_failure << "sec " << status());
 
@@ -137,7 +137,7 @@ Adaptation::Icap::ServiceRep::getIdleConnection(const bool retriableXact)
         theIdleConns->closeN(1);
 
     ++theBusyConns;
-    debugs(93,3, HERE << "got connection: " << connection);
+    debugs(93,3, "got connection: " << connection);
     return connection;
 }
 
@@ -147,10 +147,10 @@ void Adaptation::Icap::ServiceRep::putConnection(const Comm::ConnectionPointer &
     Must(Comm::IsConnOpen(conn));
     // do not pool an idle connection if we owe connections
     if (isReusable && excessConnections() == 0) {
-        debugs(93, 3, HERE << "pushing pconn" << comment);
+        debugs(93, 3, "pushing pconn" << comment);
         theIdleConns->push(conn);
     } else {
-        debugs(93, 3, HERE << (sendReset ? "RST" : "FIN") << "-closing " <<
+        debugs(93, 3, (sendReset ? "RST" : "FIN") << "-closing " <<
                comment);
         // comm_close called from Connection::close will clear timeout
         // TODO: add "bool sendReset = false" to Connection::close()?
@@ -175,7 +175,7 @@ void Adaptation::Icap::ServiceRep::noteConnectionUse(const Comm::ConnectionPoint
 
 void Adaptation::Icap::ServiceRep::noteConnectionFailed(const char *comment)
 {
-    debugs(93, 3, HERE << "Connection failed: " << comment);
+    debugs(93, 3, "Connection failed: " << comment);
     --theBusyConns;
 }
 
@@ -261,7 +261,7 @@ void Adaptation::Icap::ServiceRep::busyCheckpoint()
         freed = available - notifiedWaiters;
     }
 
-    debugs(93,7, HERE << "Available connections: " << available <<
+    debugs(93,7, "Available connections: " << available <<
            " freed slots: " << freed <<
            " waiting in queue: " << theNotificationWaiters.size());
 
@@ -277,7 +277,7 @@ void Adaptation::Icap::ServiceRep::busyCheckpoint()
 void Adaptation::Icap::ServiceRep::suspend(const char *reason)
 {
     if (isSuspended) {
-        debugs(93,4, HERE << "keeping suspended, also for " << reason);
+        debugs(93,4, "keeping suspended, also for " << reason);
     } else {
         isSuspended = reason;
         debugs(93, DBG_IMPORTANT, "suspending ICAP service for " << reason);
@@ -368,11 +368,11 @@ void Adaptation::Icap::ServiceRep::noteTimeToUpdate()
         updateScheduled = false;
 
     if (detached() || theOptionsFetcher.set()) {
-        debugs(93,5, HERE << "ignores options update " << status());
+        debugs(93,5, "ignores options update " << status());
         return;
     }
 
-    debugs(93,5, HERE << "performs a regular options update " << status());
+    debugs(93,5, "performs a regular options update " << status());
     startGettingOptions();
 }
 
@@ -380,7 +380,7 @@ void Adaptation::Icap::ServiceRep::noteTimeToNotify()
 {
     Must(!notifying);
     notifying = true;
-    debugs(93,7, HERE << "notifies " << theClients.size() << " clients " <<
+    debugs(93,7, "notifies " << theClients.size() << " clients " <<
            status());
 
     // note: we must notify even if we are invalidated
@@ -419,7 +419,7 @@ void Adaptation::Icap::ServiceRep::callWhenReady(AsyncCall::Pointer &cb)
 {
     Must(cb!=NULL);
 
-    debugs(93,5, HERE << "Adaptation::Icap::Service is asked to call " << *cb <<
+    debugs(93,5, "Adaptation::Icap::Service is asked to call " << *cb <<
            " when ready " << status());
 
     Must(!broken()); // we do not wait for a broken service
@@ -440,7 +440,7 @@ void Adaptation::Icap::ServiceRep::callWhenReady(AsyncCall::Pointer &cb)
 
 void Adaptation::Icap::ServiceRep::scheduleNotification()
 {
-    debugs(93,7, HERE << "will notify " << theClients.size() << " clients");
+    debugs(93,7, "will notify " << theClients.size() << " clients");
     CallJobHere(93, 5, this, Adaptation::Icap::ServiceRep, noteTimeToNotify);
 }
 
@@ -451,7 +451,7 @@ bool Adaptation::Icap::ServiceRep::needNewOptions() const
 
 void Adaptation::Icap::ServiceRep::changeOptions(Adaptation::Icap::Options *newOptions)
 {
-    debugs(93,8, HERE << "changes options from " << theOptions << " to " <<
+    debugs(93,8, "changes options from " << theOptions << " to " <<
            newOptions << ' ' << status());
 
     delete theOptions;
@@ -538,7 +538,7 @@ void Adaptation::Icap::ServiceRep::noteAdaptationAnswer(const Answer &answer)
     clearAdaptation(theOptionsFetcher);
 
     if (answer.kind == Answer::akError) {
-        debugs(93,3, HERE << "failed to fetch options " << status());
+        debugs(93,3, "failed to fetch options " << status());
         handleNewOptions(0);
         return;
     }
@@ -547,7 +547,7 @@ void Adaptation::Icap::ServiceRep::noteAdaptationAnswer(const Answer &answer)
     const Http::Message *msg = answer.message.getRaw();
     Must(msg);
 
-    debugs(93,5, HERE << "is interpreting new options " << status());
+    debugs(93,5, "is interpreting new options " << status());
 
     Adaptation::Icap::Options *newOptions = NULL;
     if (const HttpReply *r = dynamic_cast<const HttpReply*>(msg)) {
@@ -575,7 +575,7 @@ void Adaptation::Icap::ServiceRep::handleNewOptions(Adaptation::Icap::Options *n
     // new options may be NULL
     changeOptions(newOptions);
 
-    debugs(93,3, HERE << "got new options and is now " << status());
+    debugs(93,3, "got new options and is now " << status());
 
     scheduleUpdate(optionsFetchTime());
 
@@ -585,7 +585,7 @@ void Adaptation::Icap::ServiceRep::handleNewOptions(Adaptation::Icap::Options *n
     // if we owe connections and have idle pconns, close the latter
     if (excess && theIdleConns->count() > 0) {
         const int n = min(excess, theIdleConns->count());
-        debugs(93,5, HERE << "closing " << n << " pconns to relief debt");
+        debugs(93,5, "closing " << n << " pconns to relief debt");
         theIdleConns->closeN(n);
     }
 
@@ -595,7 +595,7 @@ void Adaptation::Icap::ServiceRep::handleNewOptions(Adaptation::Icap::Options *n
 void Adaptation::Icap::ServiceRep::startGettingOptions()
 {
     Must(!theOptionsFetcher);
-    debugs(93,6, HERE << "will get new options " << status());
+    debugs(93,6, "will get new options " << status());
 
     // XXX: "this" here is "self"; works until refcounting API changes
     theOptionsFetcher = initiateAdaptation(
@@ -607,7 +607,7 @@ void Adaptation::Icap::ServiceRep::startGettingOptions()
 void Adaptation::Icap::ServiceRep::scheduleUpdate(time_t when)
 {
     if (updateScheduled) {
-        debugs(93,7, HERE << "reschedules update");
+        debugs(93,7, "reschedules update");
         // XXX: check whether the event is there because AR saw
         // an unreproducible eventDelete assertion on 2007/06/18
         if (eventFind(&ServiceRep_noteTimeToUpdate, this))
@@ -617,9 +617,9 @@ void Adaptation::Icap::ServiceRep::scheduleUpdate(time_t when)
         updateScheduled = false;
     }
 
-    debugs(93,7, HERE << "raw OPTIONS fetch at " << when << " or in " <<
+    debugs(93,7, "raw OPTIONS fetch at " << when << " or in " <<
            (when - squid_curtime) << " sec");
-    debugs(93,9, HERE << "last fetched at " << theLastUpdate << " or " <<
+    debugs(93,9, "last fetched at " << theLastUpdate << " or " <<
            (squid_curtime - theLastUpdate) << " sec ago");
 
     /* adjust update time to prevent too-frequent updates */
@@ -633,7 +633,7 @@ void Adaptation::Icap::ServiceRep::scheduleUpdate(time_t when)
         when = theLastUpdate + minUpdateGap;
 
     const int delay = when - squid_curtime;
-    debugs(93,5, HERE << "will fetch OPTIONS in " << delay << " sec");
+    debugs(93,5, "will fetch OPTIONS in " << delay << " sec");
 
     eventAdd("Adaptation::Icap::ServiceRep::noteTimeToUpdate",
              &ServiceRep_noteTimeToUpdate, this, delay, 0, true);
@@ -646,7 +646,7 @@ Adaptation::Icap::ServiceRep::optionsFetchTime() const
 {
     if (theOptions && theOptions->valid()) {
         const time_t expire = theOptions->expire();
-        debugs(93,7, HERE << "options expire on " << expire << " >= " << squid_curtime);
+        debugs(93,7, "options expire on " << expire << " >= " << squid_curtime);
 
         // conservative estimate of how long the OPTIONS transaction will take
         // XXX: move hard-coded constants from here to Adaptation::Icap::TheConfig
@@ -715,7 +715,7 @@ const char *Adaptation::Icap::ServiceRep::status() const
 
 void Adaptation::Icap::ServiceRep::detach()
 {
-    debugs(93,3, HERE << "detaching ICAP service: " << cfg().uri <<
+    debugs(93,3, "detaching ICAP service: " << cfg().uri <<
            ' ' << status());
     isDetached = true;
 }

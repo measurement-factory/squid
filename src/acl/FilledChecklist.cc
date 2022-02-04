@@ -65,7 +65,7 @@ ACLFilledChecklist::~ACLFilledChecklist()
     cbdataReferenceDone(sslErrors);
 #endif
 
-    debugs(28, 4, HERE << "ACLFilledChecklist destroyed " << this);
+    debugs(28, 4, "ACLFilledChecklist destroyed " << this);
 }
 
 static void

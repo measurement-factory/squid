@@ -29,7 +29,7 @@ storeSwapInStart(store_client * sc)
     }
 
     if (e->mem_status != NOT_IN_MEMORY)
-        debugs(20, 3, HERE << "already IN_MEMORY");
+        debugs(20, 3, "already IN_MEMORY");
 
     debugs(20, 3, *e << " " <<  e->getMD5Text());
 

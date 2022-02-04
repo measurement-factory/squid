@@ -670,7 +670,7 @@ gen_dump(const EntryList &head, std::ostream &fout)
          "static void" << std::endl <<
          "dump_config(StoreEntry *entry)" << std::endl <<
          "{" << std::endl <<
-         "    debugs(5, 4, HERE);" << std::endl;
+         "    debugs(5, 4, MYNAME);" << std::endl;
 
     for (const auto &e : head) {
 
@@ -702,7 +702,7 @@ gen_free(const EntryList &head, std::ostream &fout)
          "static void" << std::endl <<
          "free_all(void)" << std::endl <<
          "{" << std::endl <<
-         "    debugs(5, 4, HERE);" << std::endl;
+         "    debugs(5, 4, MYNAME);" << std::endl;
 
     for (const auto &e : head) {
         if (!e.loc.size() || e.loc.compare("none") == 0)
