@@ -150,7 +150,28 @@ typedef std::shared_ptr<void> PrivateKeyPointer;
 
 class ServerOptions;
 
+// XXX: Move to src/security/time.*
+// TODO: Sync with Security::Certificate PRs
+#if USE_OPENSSL
+using Time = ASN1_TIME;
+#elif USE_GNUTLS
+using Time = class {}; // TODO: Add support
+#else
+using Time = class {};
+#endif
+
+using TimePointer = std::unique_ptr<Time>;
+
+/// creates a time object by parsing input in GeneralizedTime format
+/// \param description what is being parsed (for errors/debugging)
+TimePointer ParseTime(const char *input, const char *description);
+
 } // namespace Security
+
+// declared outside Security namespace because Security::Time is just an alias
+// for the underlying TLS library type (that is declared outside Security)
+/// a is earlier than b
+bool operator <(const Security::Time &a, const Security::Time &b);
 
 #endif /* SQUID_SRC_SECURITY_FORWARD_H */
 

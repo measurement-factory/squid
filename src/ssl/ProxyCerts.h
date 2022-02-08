@@ -20,11 +20,14 @@ public:
     sslproxy_cert_sign *next;
 };
 
+// TODO: Convert to a class that manages its components lifetime (at least)
 class sslproxy_cert_adapt
 {
 public:
     int alg;
-    char *param;
+    char *param; ///< all adaptation algorithm parameters (as configured)
+    char *param1; ///< the first parameter in multi-parameter algorithm config
+    char *param2; ///< the second parameter in multi-parameter algorithm config
     ACLList *aclList;
     sslproxy_cert_adapt *next;
 };
