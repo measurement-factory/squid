@@ -2919,6 +2919,7 @@ void ConnStateData::buildSslCertGenerationParams(Ssl::CertificateProperties &cer
                     certProperties.validityRangeFrom = Security::ParseTime(ca->param1, "validityRangeFrom");
                     certProperties.validityRangeTo = Security::ParseTime(ca->param2, "validityRangeTo");
                     certProperties.setValidityRange = true;
+                    CheckValidityRangeFreshness(*ca, *certProperties.validityRangeFrom, *certProperties.validityRangeTo);
                 } else if (ca->alg == Ssl::algSetValidAfter)
                     certProperties.setValidAfter = true;
                 else if (ca->alg == Ssl::algSetValidBefore)

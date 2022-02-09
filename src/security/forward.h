@@ -166,6 +166,9 @@ using TimePointer = std::unique_ptr<Time>;
 /// \param description what is being parsed (for errors/debugging)
 TimePointer ParseTime(const char *input, const char *description);
 
+/// POSIX time_t representation of the given certificate time
+time_t ToPosixTime(const Time &);
+
 } // namespace Security
 
 // declared outside Security namespace because Security::Time is just an alias

@@ -4431,6 +4431,57 @@ Security::ParseTime(const char * const generalizedTime, const char * const descr
 #endif
 }
 
+// XXX: Move to src/security/time.* and add GnuTLS/other support.
+// TODO: Consider adding an ASN1_TIME_to_tm() replacement, even though this
+// function is currently only used for better diagnostics of config problems?
+time_t
+Security::ToPosixTime(const Time &from)
+{
+#if HAVE_LIBCRYPTO_ASN1_TIME_TO_TM
+    std::tm resultTm = {};
+    if (!ASN1_TIME_to_tm(&from, &resultTm))
+        throw TextException("ASN1_TIME_to_tm() failure", Here());
+    const auto resultPosix = timegm(&resultTm);
+    if (resultPosix < 0)
+        throw TextException("timegm() failure", Here());
+    return resultPosix;
+#else
+    throw TextException("This OpenSSL version does not support ASN1_TIME_to_tm()", Here());
+#endif
+}
+
+// XXX: Move to ProxyCerts.cc or some such.
+void
+CheckValidityRangeFreshness(sslproxy_cert_adapt &ca, const Security::Time &from, const Security::Time &to)
+{
+    assert(ca.alg == Ssl::algSetValidityRange);
+    debugs(33, 5, ca.param << " at " << squid_curtime << '<' << ca.nextValidityRangeFreshnessCheck);
+    if (squid_curtime < ca.nextValidityRangeFreshnessCheck)
+        return; // either still fresh and good or stale and reported
+
+    try {
+        const Security::TimePointer now(ASN1_TIME_set(nullptr, squid_curtime));
+        if (!now)
+            throw TextException("ASN1_TIME_set(current_time) failure", Here());
+        if (*now < from)
+            throw TextException("setValidityRange has not started yet", Here());
+        if (to < *now)
+            throw TextException("setValidityRange has already ended", Here());
+
+        // looks good now, but check again when the validity period ends
+        ca.nextValidityRangeFreshnessCheck = Security::ToPosixTime(to);
+        return;
+    } catch (...) {
+        debugs(33, DBG_CRITICAL, "ERROR: Using problematic or unverifiable " <<
+               "sslproxy_cert_adapt setValidityRange {" << ca.param << '}' <<
+               Debug::Extra << "problem: " << CurrentException);
+    }
+
+    // do not check anymore (i.e. until the end of time)
+    ca.nextValidityRangeFreshnessCheck = std::numeric_limits<decltype(ca.nextValidityRangeFreshnessCheck)>::max();
+}
+
+
 static void parse_sslproxy_cert_adapt(sslproxy_cert_adapt **cert_adapt)
 {
     char *al;
@@ -4496,6 +4547,7 @@ static void parse_sslproxy_cert_adapt(sslproxy_cert_adapt **cert_adapt)
         const auto to = Security::ParseTime(ca->param2, "setValidityRange 'to' parameter");
         if (*to < *from)
             reject("setValidityRange 'from' parameter is greater than 'to': ", param);
+        CheckValidityRangeFreshness(*ca, *from, *to);
     } else {
         debugs(3, DBG_CRITICAL, "FATAL: sslproxy_cert_adapt: unknown cert adaptation algorithm: " << al);
         xfree(ca);
