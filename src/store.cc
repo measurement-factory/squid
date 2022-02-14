@@ -50,6 +50,7 @@
 #include "StoreClient.h"
 #include "StoreIOState.h"
 #include "StoreMeta.h"
+#include "StoreMetaUnpacker.h"
 #include "StrList.h"
 #include "swap_log_op.h"
 #include "tools.h"
@@ -1126,6 +1127,47 @@ StoreEntry::abort()
     swapOutFileClose(StoreIOState::writerGone);
 
     unlock("StoreEntry::abort");       /* unlock */
+}
+
+bool
+StoreEntry::unpackHeader(char const *buf, ssize_t len)
+{
+    debugs(90, 3, "len " << len << "");
+    assert(len >= 0);
+
+    int swap_hdr_sz = 0;
+    tlv *tlv_list = nullptr;
+    try {
+        StoreMetaUnpacker aBuilder(buf, len, &swap_hdr_sz);
+        tlv_list = aBuilder.createStoreMeta();
+    } catch (const std::exception &e) {
+        debugs(90, DBG_IMPORTANT, "WARNING: failed to unpack metadata because " << e.what());
+        return false;
+    }
+    assert(tlv_list);
+
+    /*
+     * Check the meta data and make sure we got the right object.
+     */
+    for (tlv *t = tlv_list; t; t = t->next) {
+        if (!t->checkConsistency(this)) {
+            storeSwapTLVFree(tlv_list);
+            return false;
+        }
+    }
+
+    storeSwapTLVFree(tlv_list);
+
+    assert(swap_hdr_sz >= 0);
+    mem_obj->swap_hdr_sz = swap_hdr_sz;
+    if (swap_file_sz > 0) { // collapsed hits may not know swap_file_sz
+        assert(swap_file_sz >= static_cast<uint64_t>(swap_hdr_sz));
+        mem_obj->object_sz = swap_file_sz - swap_hdr_sz;
+    }
+    debugs(90, 5, "swap_file_sz=" <<
+           swap_file_sz << "( " << swap_hdr_sz << " + " <<
+           mem_obj->object_sz << ")");
+    return true;
 }
 
 /**

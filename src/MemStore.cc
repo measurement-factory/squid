@@ -478,12 +478,19 @@ MemStore::copyFromShm(StoreEntry &e, const sfileno index, const Ipc::StoreMapAnc
 
         if (e.mem_obj->endOffset() < sliceOffset + wasSize) {
             // size of the slice data that we already copied
-            const size_t prefixSize = e.mem_obj->endOffset() - sliceOffset;
+            size_t prefixSize = e.mem_obj->endOffset() - sliceOffset;
             assert(prefixSize <= wasSize);
 
             const MemStoreMapExtras::Item &extra = extras->items[sid];
 
             char *page = static_cast<char*>(PagePointer(extra.page));
+            if (e.mem_obj->swap_hdr_sz == 0) {
+                assert(e.mem_obj->endOffset() == 0);
+                assert(prefixSize == 0);
+                if (!e.unpackHeader(page, wasSize))
+                    return false;
+                prefixSize += e.mem_obj->swap_hdr_sz;
+            }
             const StoreIOBuffer sliceBuf(wasSize - prefixSize,
                                          e.mem_obj->endOffset(),
                                          page + prefixSize);
@@ -499,7 +506,7 @@ MemStore::copyFromShm(StoreEntry &e, const sfileno index, const Ipc::StoreMapAnc
             assert(!wasEof);
             // here we know that slice.size may not change any more
             if (wasSize >= slice.size) { // did not grow since we started copying
-                sliceOffset += wasSize;
+                sliceOffset += sliceOffset ? wasSize - e.mem_obj->swap_hdr_sz : wasSize;
                 sid = slice.next;
             }
         } else if (wasSize >= slice.size) { // did not grow
@@ -588,12 +595,6 @@ MemStore::shouldCache(StoreEntry &e) const
 
     assert(e.mem_obj);
 
-    if (!e.mem_obj->vary_headers.isEmpty()) {
-        // XXX: We must store/load SerialisedMetaData to cache Vary in RAM
-        debugs(20, 5, "Vary not yet supported: " << e.mem_obj->vary_headers);
-        return false;
-    }
-
     const int64_t expectedSize = e.mem_obj->expectedReplySize(); // may be < 0
     const int64_t loadedSize = e.mem_obj->endOffset();
     const int64_t ramSize = max(loadedSize, expectedSize);
@@ -674,10 +675,29 @@ MemStore::copyToShm(StoreEntry &e)
                                           e.mem_obj->memCache.index, lastWritingSlice);
         if (anchor.start < 0)
             anchor.start = lastWritingSlice;
+        if (e.mem_obj->memCache.offset == 0)
+            copyMetaToShmSlice(e, anchor, slice);
         copyToShmSlice(e, anchor, slice);
     }
 
     debugs(20, 7, "mem-cached available " << eSize << " bytes of " << e);
+}
+
+void
+MemStore::copyMetaToShmSlice(StoreEntry &e, Ipc::StoreMapAnchor &anchor, Ipc::StoreMap::Slice &slice)
+{
+    assert(e.mem_obj);
+    assert(e.mem_obj->memCache.offset == 0);
+    const auto buf = e.getSerialisedMetaData(e.mem_obj->swap_hdr_sz);
+    assert(buf);
+    Ipc::Mem::PageId page = pageForSlice(lastWritingSlice);
+    debugs(20, 7, "entry " << e << " slice " << lastWritingSlice << " has " << page);
+    memcpy(PagePointer(page), buf, e.mem_obj->swap_hdr_sz);
+    slice.size += e.mem_obj->swap_hdr_sz;
+    e.mem_obj->memCache.offset = e.mem_obj->swap_hdr_sz;
+    anchor.basics.swap_file_sz = e.mem_obj->swap_hdr_sz;
+    xfree(buf);
+    debugs(20, 7, "mem-cached meta header of " << e.mem_obj->swap_hdr_sz << " bytes in " << page);
 }
 
 /// copies at most one slice worth of local memory to shared memory
@@ -690,7 +710,7 @@ MemStore::copyToShmSlice(StoreEntry &e, Ipc::StoreMapAnchor &anchor, Ipc::StoreM
 
     const int64_t bufSize = Ipc::Mem::PageSize();
     const int64_t sliceOffset = e.mem_obj->memCache.offset % bufSize;
-    StoreIOBuffer sharedSpace(bufSize - sliceOffset, e.mem_obj->memCache.offset,
+    StoreIOBuffer sharedSpace(bufSize - sliceOffset, e.mem_obj->memCache.offset - e.mem_obj->swap_hdr_sz,
                               static_cast<char*>(PagePointer(page)) + sliceOffset);
 
     // check that we kept everything or purge incomplete/sparse cached entry
