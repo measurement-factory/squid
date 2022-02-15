@@ -371,6 +371,231 @@ get_session_cb(SSL *, unsigned char *sessionID, int len, int *copy)
     return session;
 }
 
+#define KEY_RENEW_TIME 3*60*60
+#define KEY_STORE_ITEMS 3
+#define KEY_LIFE_TIME (KEY_STORE_ITEMS - 1) * KEY_RENEW_TIME
+class Rfc5077KeyStore {
+public:
+    struct TicketKey {
+        unsigned char name[16];
+        unsigned char aes_key[16];
+        unsigned char hmac_key[16];
+        time_t expire;
+        void renew() {
+            RAND_bytes(name, 16);
+            RAND_bytes(aes_key, 16);
+            RAND_bytes(hmac_key, 16);
+            //TODO: implement a way to build random octets.
+            expire = squid_curtime + KEY_LIFE_TIME;
+
+        }
+        bool expired() {
+            return expire < squid_curtime;
+        }
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+        void getMacParams(OSSL_PARAM &params[3]) {
+            params[0] = OSSL_PARAM_construct_octet_string(OSSL_MAC_PARAM_KEY, hmac_key, 16);
+            params[1] = OSSL_PARAM_construct_utf8_string(OSSL_MAC_PARAM_DIGEST, "sha256", 0);
+            params[2] = OSSL_PARAM_construct_end();
+        }
+#endif
+    };
+
+    class Store {
+    public:
+        Store(const int aLimit, const size_t anExtrasSize) {}
+        Store() {}
+
+        size_t sharedMemorySize() const {return SharedMemorySize(0, 0);}
+        static size_t SharedMemorySize(const int limit, const size_t extrasSize);
+        std::atomic<int64_t> count;
+        TicketKey keys[KEY_STORE_ITEMS];
+    };
+    typedef Ipc::Mem::Owner<Store> Owner;
+
+    class Manager {
+    public:
+        Manager(const Rfc5077KeyStore &keystore);
+        ~Manager();
+        void renew();
+        static void RenewEvent(void *);
+    public:
+        Ipc::Mem::Pointer<Store> store;
+    };
+
+    class Reader {
+    public:
+        Reader(const Rfc5077KeyStore &keystore);
+        bool isLatest(TicketKey &key);
+        TicketKey *currentKey();
+        TicketKey *findKey(unsigned char keyName[16]);
+    public:
+        Ipc::Mem::Pointer<Store> store;
+    };
+
+    Rfc5077KeyStore(const char *aName): name(aName), store(shm_old(Store)(aName)), reader(nullptr), manager(nullptr) {}
+    ~Rfc5077KeyStore(){
+        delete reader;
+        delete manager;
+    }
+
+public:
+
+    void initReader();
+    void initManager();
+    static Owner *Create(const char *aName);
+
+    std::string name;
+    Ipc::Mem::Pointer<Store> store;
+    Reader *reader;
+    Manager *manager;
+};
+
+void Rfc5077KeyStore::initReader()
+{
+    reader = new Reader(*this);
+}
+
+void Rfc5077KeyStore::initManager()
+{
+    manager = new Manager(*this);
+}
+
+Rfc5077KeyStore::Owner *Rfc5077KeyStore::Create(const char *aName)
+{
+    debugs(84, 3, "Build Key store\n");
+    auto owner = shm_new(Store)(aName, sizeof(Store), 0);
+    auto store = owner->object();
+    store->count.store(0);
+    for(int i = 0; i < KEY_STORE_ITEMS; i++)
+        store->keys[i].renew();
+    return owner;
+}
+
+size_t Rfc5077KeyStore::Store::SharedMemorySize(const int limit, const size_t extrasSize)
+{
+    return sizeof(Store);
+}
+
+Rfc5077KeyStore::Manager::Manager(const Rfc5077KeyStore &keystore): store(keystore.store)
+{
+    eventAdd("Rfc5077KeyStore::Renew", Rfc5077KeyStore::Manager::RenewEvent,  this, KEY_RENEW_TIME, 1, false);
+}
+
+Rfc5077KeyStore::Manager::~Manager() {
+    // The following probably will result to a crash if scheduler
+    // destructed before this object while squid shutdowns:
+    // eventDelete(Rfc5077KeyStore::Manager::RenewEvent,  this);
+}
+
+void Rfc5077KeyStore::Manager::renew()
+{
+    assert(store);
+    uint64_t indx = (store->count.load() + 1) % KEY_STORE_ITEMS;
+    store->keys[indx].renew();
+    store->count++;
+    debugs(83, 4, "New key generated in key store");
+    eventAdd("Rfc5077KeyStore::Renew", Rfc5077KeyStore::Manager::RenewEvent,  this, KEY_RENEW_TIME, 1, false);
+}
+
+void Rfc5077KeyStore::Manager::RenewEvent(void *data)
+{
+    if (!data)
+        return;
+    Rfc5077KeyStore::Manager *storeManager = static_cast<Rfc5077KeyStore::Manager *>(data);
+    storeManager->renew();
+}
+
+Rfc5077KeyStore::Reader::Reader(const Rfc5077KeyStore &keystore): store(keystore.store)
+{
+}
+
+bool Rfc5077KeyStore::Reader::isLatest(TicketKey &key) {
+    uint64_t indx = store->count.load() % KEY_STORE_ITEMS;
+    return (memcmp(store->keys[indx].name, key.name, sizeof(TicketKey::name)) == 0);
+}
+
+Rfc5077KeyStore::TicketKey *Rfc5077KeyStore::Reader::currentKey() {
+    uint64_t indx = store->count.load() % KEY_STORE_ITEMS;
+    TicketKey *key = &store->keys[indx];
+    return key->expired() ? nullptr : key;
+}
+
+Rfc5077KeyStore::TicketKey *Rfc5077KeyStore::Reader::findKey(unsigned char keyName[16])
+{
+    int64_t currCount = store->count.load();
+    int64_t lowerCount = currCount >= KEY_STORE_ITEMS - 1 ? currCount + 2 - KEY_STORE_ITEMS : 0;
+    for (int64_t i = currCount; i >= lowerCount; i--) {
+        TicketKey *key = &store->keys[i % KEY_STORE_ITEMS];
+        if (memcmp(keyName, key->name, sizeof(TicketKey::name)) == 0) {
+            debugs(83, 7, "Key found in cache");
+            return key->expired() ? nullptr : key;
+        }
+    }
+    debugs(83, 7, "Can not find given key");
+    return nullptr;
+}
+
+static const char *TicketKeyStoreName = "rfc5077_tickets_store";
+std::unique_ptr<Rfc5077KeyStore> TicketKeyStore(nullptr);
+
+static int squid_tlsext_ticket_key_cb(SSL *s, unsigned char key_name[16],
+                                      unsigned char *iv,
+                                      EVP_CIPHER_CTX *ctx,
+#if OPENSSL_VERSION_NUMBER < 0x30000000L
+                                      HMAC_CTX *hctx,
+#else
+                                      EVP_MAC_CTX *mac_ctx,
+#endif
+                                      int enc)
+{
+    if (!TicketKeyStore)
+        return 0;
+
+    auto ticketStoreReader = TicketKeyStore->reader;
+    if (!ticketStoreReader)
+        return 0;
+
+    debugs(83, 5, "Squid RFC 5077 shared session tickets, operation: " << enc << "Key name: " << Raw("", (const char *)key_name, 16).hex());
+    if (enc) { /* create new session */
+        if (RAND_bytes(iv, EVP_MAX_IV_LENGTH) <= 0)
+            return -1; /* insufficient random */
+
+        auto key = ticketStoreReader->currentKey();
+        if (!key)
+            return 0; //current key not updated?
+        memcpy(key_name, key->name, 16);
+        EVP_EncryptInit_ex(ctx, EVP_aes_128_cbc(), NULL, key->aes_key, iv);
+#if OPENSSL_VERSION_NUMBER < 0x30000000L
+        HMAC_Init_ex(hctx, key->hmac_key, 16, EVP_sha256(), NULL);
+#else
+        OSSL_PARAM params[3];
+        key->getMacParams(params);
+        EVP_MAC_CTX_set_params(mac_ctx, params);
+#endif
+        return 1;
+    } else { /* retrieve session */
+        auto key = ticketStoreReader->findKey(key_name);
+        if (key == nullptr || key->expired())
+            return 0;
+#if OPENSSL_VERSION_NUMBER < 0x30000000L
+        HMAC_Init_ex(hctx, key->hmac_key, 16, EVP_sha256(), NULL);
+#else
+        OSSL_PARAM mac_params[3];
+        key->getMacParams(mac_params);
+        EVP_MAC_CTX_set_params(mac_ctx, mac_params);
+#endif
+        EVP_DecryptInit_ex(ctx, EVP_aes_128_cbc(), NULL, key->aes_key, iv);
+
+        if (!ticketStoreReader->isLatest(*key)) {
+            // return 2 - This session will get a new ticket even though the
+            // current one is still valid.
+            return 2;
+        }
+        return 1;
+    }
+}
+
 void
 Security::SetSessionCacheCallbacks(Security::ContextPointer &ctx)
 {
@@ -379,6 +604,15 @@ Security::SetSessionCacheCallbacks(Security::ContextPointer &ctx)
         SSL_CTX_sess_set_new_cb(ctx.get(), store_session_cb);
         SSL_CTX_sess_set_remove_cb(ctx.get(), remove_session_cb);
         SSL_CTX_sess_set_get_cb(ctx.get(), get_session_cb);
+
+        // For tlsv1.2 and earlier releases to use RFC5077 tickets
+        // which shares sessions across processes we need to setup
+        // SSL_CTX_set_tlsext_ticket_key_cb
+#if OPENSSL_VERSION_NUMBER < 0x30000000L
+        SSL_CTX_set_tlsext_ticket_key_cb(ctx.get(), squid_tlsext_ticket_key_cb);
+#else
+        SSL_CTX_set_tlsext_ticket_key_evp_cb(ctx.get(), squid_tlsext_ticket_key_cb);
+#endif
     }
 }
 #endif /* USE_OPENSSL */
@@ -391,6 +625,12 @@ initializeSessionCache()
     // session ids and session data
     assert(SSL_SESSION_ID_SIZE >= MEMMAP_SLOT_KEY_SIZE);
     assert(SSL_SESSION_MAX_SIZE >= MEMMAP_SLOT_DATA_SIZE);
+
+    TicketKeyStore.reset(new Rfc5077KeyStore(TicketKeyStoreName));
+    if (IamPrimaryProcess())
+        TicketKeyStore->initManager();
+    if (IamWorkerProcess())
+        TicketKeyStore->initReader();
 
     int configuredItems = ::Config.SSL.sessionCacheSize / sizeof(Ipc::MemMap::Slot);
     if (IamWorkerProcess() && configuredItems)
@@ -412,7 +652,7 @@ class SharedSessionCacheRr: public Ipc::Mem::RegisteredRunner
 {
 public:
     /* RegisteredRunner API */
-    SharedSessionCacheRr(): owner(nullptr) {}
+    SharedSessionCacheRr(): owner(nullptr), ticketStoreOwner(nullptr) {}
     virtual void useConfig();
     virtual ~SharedSessionCacheRr();
 
@@ -421,6 +661,7 @@ protected:
 
 private:
     Ipc::MemMap::Owner *owner;
+    Rfc5077KeyStore::Owner *ticketStoreOwner;
 };
 
 RunnerRegistrationEntry(SharedSessionCacheRr);
@@ -446,6 +687,7 @@ SharedSessionCacheRr::create()
 #if USE_OPENSSL
     if (int items = Config.SSL.sessionCacheSize / sizeof(Ipc::MemMap::Slot))
         owner = Ipc::MemMap::Init(SessionCacheName, items);
+    ticketStoreOwner = Rfc5077KeyStore::Create(TicketKeyStoreName);
 #endif
 }
 
@@ -455,5 +697,6 @@ SharedSessionCacheRr::~SharedSessionCacheRr()
     // delete SessionCache;
 
     delete owner;
+    delete ticketStoreOwner;
 }
 
