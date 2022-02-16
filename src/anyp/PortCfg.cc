@@ -141,13 +141,14 @@ PortOption(const AnyP::TrafficModeFlags::Pointer flagPointer)
 }
 
 std::ostream &
-operator <<(std::ostream &os, const AnyP::TrafficModeFlags::Pointer flagPointer)
+AnyP::operator <<(std::ostream &os, const TrafficModeFlags::Pointer flagPointer)
 {
-    return os << PortOption(flagPointer);
+    os << PortOption(flagPointer);
+    return os;
 }
 
 std::ostream &
-operator <<(std::ostream &os, const AnyP::TrafficModeFlags::List &list)
+AnyP::operator <<(std::ostream &os, const TrafficModeFlags::List &list)
 {
     SBuf str;
     for (const auto &p: list) {
@@ -155,7 +156,8 @@ operator <<(std::ostream &os, const AnyP::TrafficModeFlags::List &list)
             str.append(',');
         str.append(PortOption(p));
     }
-    return os << str;
+    os << str;
+    return os;
 }
 
 void

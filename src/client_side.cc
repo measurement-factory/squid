@@ -2302,7 +2302,7 @@ ConnStateData::acceptTls()
 }
 
 /// a common part for httpAccept() and httpsAccept()
-void
+static void
 httpAcceptCommon(const CommAcceptCbParams &params, const char *fdDesc)
 {
     MasterXaction::Pointer xact = params.xaction;
@@ -2478,10 +2478,10 @@ httpsEstablish(ConnStateData *connState, const Security::ContextPointer &ctx)
 }
 
 #if USE_OPENSSL
-void
+static void
 HttpsSslBumpStep1AccessCheckDone(Acl::Answer answer, void *data)
 {
-    auto connState = static_cast<ConnStateData *>(data);
+    const auto connState = static_cast<ConnStateData *>(data);
     connState->httpsSslBumpStep1AccessCheckDone(answer);
 }
 

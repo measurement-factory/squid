@@ -169,6 +169,12 @@ operator <<(std::ostream &os, const TrafficMode &flags)
     return flags.print(os);
 }
 
+/// print *_port option name corresponding to the given TrafficModeFlags field
+std::ostream &operator <<(std::ostream &os, TrafficModeFlags::Pointer);
+
+/// print *_port option names corresponding to the given TrafficModeFlags fields
+std::ostream &operator <<(std::ostream &os, const TrafficModeFlags::List &);
+
 } // namespace AnyP
 
 #endif
