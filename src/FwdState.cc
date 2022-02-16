@@ -1066,6 +1066,12 @@ FwdState::connectedToPeer(Security::EncryptorAnswer &answer)
     }
 
     if (error) {
+        if (request->flags.sslPeek && request->clientConnectionManager.valid()) {
+            auto serverBump = request->clientConnectionManager->serverBump();
+            assert(serverBump);
+            // Reset bumping step mode.
+            serverBump->startStep(XactionStep::tlsBump3);
+        }
         fail(error);
         retryOrBail();
         return;

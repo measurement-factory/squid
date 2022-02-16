@@ -31,7 +31,7 @@ ACLAtStepStrategy::match(ACLData<XactionStep> * &data, ACLFilledChecklist *check
 
     if (const auto mgr = checklist->conn()) {
         if (const auto serverBump = mgr->serverBump())
-            currentSslBumpStep = serverBump->step;
+            currentSslBumpStep = serverBump->step();
     }
 
     if (data->match(currentSslBumpStep))

@@ -43,11 +43,19 @@ public:
     /// whether there was a successful connection to (and peeking at) the origin server
     bool connectedOk() const {return entry && entry->isEmpty();}
 
+    void startStep(const BumpStep step);
+
+    /// the TLS bumping step
+    BumpStep step() const { return lastStep_; }
+
     /// whether we are currently performing the given processing step
-    bool at(const BumpStep stp) const { return step == stp; }
+    bool at(const BumpStep stp) const { return lastStep_ == stp; }
 
     /// whether we are currently performing one of the given processing steps
     bool at(const BumpStep step1, const BumpStep step2) const { return at(step1) || at(step2); }
+
+    /// the current bumping mode
+    BumpMode lastBumpAction();
 
     /// faked, minimal request; required by Client API
     HttpRequest::Pointer request;
@@ -60,11 +68,11 @@ public:
         Ssl::BumpMode step2; ///< The SSL bump mode at step2
         Ssl::BumpMode step3; ///< The SSL bump mode at step3
     } act; ///< bumping actions at various bumping steps
-    Ssl::BumpStep step; ///< The SSL bumping step
 
 private:
     Security::SessionPointer serverSession; ///< The TLS session object on server side.
     store_client *sc; ///< dummy client to prevent entry trimming
+    Ssl::BumpStep lastStep_; ///< The TLS bumping step
 };
 
 } // namespace Ssl

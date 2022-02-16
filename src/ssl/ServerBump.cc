@@ -21,13 +21,13 @@
 CBDATA_NAMESPACED_CLASS_INIT(Ssl, ServerBump);
 
 Ssl::ServerBump::ServerBump(ClientHttpRequest *http, StoreEntry *e, Ssl::BumpMode md):
-    step(XactionStep::tlsBump1)
+    lastStep_(XactionStep::tlsBump1)
 {
     assert(http->request);
     request = http->request;
     debugs(33, 4, "will peek at " << request->url.authority(true));
     act.step1 = md;
-    act.step2 = act.step3 = Ssl::bumpNone;
+    act.step2 = act.step3 = Ssl::bumpEnd;
 
     if (e) {
         entry = e;
@@ -75,3 +75,42 @@ Ssl::ServerBump::sslErrors() const
     return errs;
 }
 
+Ssl::BumpMode
+Ssl::ServerBump::lastBumpAction()
+{
+    switch(lastStep_) {
+    case XactionStep::tlsBump3:
+        if (act.step3 != bumpEnd) return act.step3;
+        // [fallthrough]]
+    case XactionStep::tlsBump2:
+        if (act.step2 != bumpEnd) return act.step2;
+        // [fallthrough]]
+    case XactionStep::tlsBump1:
+        assert(act.step1 != bumpEnd);
+        return act.step1;
+    default:
+        assert(!"this method is meant for SslBump steps only");
+        return bumpEnd;
+    }
+    assert(!"unreachable code");
+    return bumpEnd;
+}
+
+void
+Ssl::ServerBump::startStep(const BumpStep step)
+{
+    // Reset current step or proceed to the next:
+    assert(step >= lastStep_);
+    lastStep_ = step;
+    switch(step) {
+    case XactionStep::tlsBump1:
+        act.step1 = bumpEnd;
+        break;
+    case XactionStep::tlsBump2:
+        act.step2 = bumpEnd;
+        break;
+    case XactionStep::tlsBump3:
+        act.step3 == bumpEnd;
+        break;
+    }
+}

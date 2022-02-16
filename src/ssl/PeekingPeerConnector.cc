@@ -35,16 +35,26 @@ Ssl::PeekingPeerConnector::PeekingPeerConnector(HttpRequestPointer &aRequest,
     Security::PeerConnector(aServerConn, aCallback, alp, timeout),
     clientConn(aClientConn),
     splice(false),
-    serverCertificateHandled(false)
+    serverCertificateHandled(false),
+    lastSslBumpAction(LastSslBumpActionExtractor(*aRequest.getRaw()))
 {
     request = aRequest;
+}
 
-    if (const auto csd = request->clientConnectionManager.valid()) {
+Ssl::BumpMode
+Ssl::PeekingPeerConnector::LastSslBumpActionExtractor(const HttpRequest &request)
+{
+    if (const auto csd = request.clientConnectionManager.valid()) {
         const auto serverBump = csd->serverBump();
         Must(serverBump);
         Must(serverBump->at(XactionStep::tlsBump3));
+        return serverBump->lastBumpAction();
     }
-    // else the client is gone, and we cannot check the step, but must carry on
+    // else the client is gone, we cannot check the step, and will probably
+    // bail later.
+    // TODO: Refactor so that this job does not have to (re)check client
+    // existence!
+    return Ssl::bumpEnd;
 }
 
 void
@@ -128,17 +138,12 @@ Ssl::PeekingPeerConnector::checkForPeekAndSpliceMatched(const Ssl::BumpMode acti
 Ssl::BumpMode
 Ssl::PeekingPeerConnector::checkForPeekAndSpliceGuess() const
 {
-    if (const ConnStateData *csd = request->clientConnectionManager.valid()) {
-        const Ssl::BumpMode currentMode = csd->sslBumpMode;
-        if (currentMode == Ssl::bumpStare) {
-            debugs(83,5, "default to bumping after staring");
-            return Ssl::bumpBump;
-        }
-        debugs(83,5, "default to splicing after " << currentMode);
-    } else {
-        debugs(83,3, "default to splicing due to missing info");
+    if (lastSslBumpAction == Ssl::bumpStare) {
+        debugs(83,5, "default to bumping after staring");
+        return Ssl::bumpBump;
     }
-
+    Must(lastSslBumpAction == Ssl::bumpPeek);
+    debugs(83,5, "default to splicing after " << lastSslBumpAction);
     return Ssl::bumpSplice;
 }
 
@@ -182,14 +187,14 @@ Ssl::PeekingPeerConnector::initialize(Security::SessionPointer &serverSession)
         if (hostName)
             SSL_set_ex_data(serverSession.get(), ssl_ex_index_server, (void*)hostName);
 
-        if (csd->sslBumpMode == Ssl::bumpPeek || csd->sslBumpMode == Ssl::bumpStare) {
+        if (lastSslBumpAction == Ssl::bumpPeek || lastSslBumpAction == Ssl::bumpStare) {
             auto clientSession = fd_table[clientConn->fd].ssl.get();
             Must(clientSession);
             BIO *bc = SSL_get_rbio(clientSession);
             Ssl::ClientBio *cltBio = static_cast<Ssl::ClientBio *>(BIO_get_data(bc));
             Must(cltBio);
             if (details && details->tlsVersion.protocol != AnyP::PROTO_NONE)
-                applyTlsDetailsToSSL(serverSession.get(), details, csd->sslBumpMode);
+                applyTlsDetailsToSSL(serverSession.get(), details, lastSslBumpAction);
 
             BIO *b = SSL_get_rbio(serverSession.get());
             Ssl::ServerBio *srvBio = static_cast<Ssl::ServerBio *>(BIO_get_data(b));
@@ -197,8 +202,10 @@ Ssl::PeekingPeerConnector::initialize(Security::SessionPointer &serverSession)
             // inherit client features such as TLS version and SNI
             srvBio->setClientFeatures(details, cltBio->rBufData());
             srvBio->recordInput(true);
-            srvBio->mode(csd->sslBumpMode);
+            srvBio->mode(lastSslBumpAction);
         } else {
+            // Ssl::bumpServerFirst or Ssl::bumpBump bumping modes, bump is
+            // on the go.
             // Set client SSL options
             ::Security::ProxyOutgoingConfig.updateSessionOptions(serverSession);
 
@@ -297,8 +304,9 @@ Ssl::PeekingPeerConnector::noteWantWrite()
     Security::SessionPointer session(fd_table[fd].ssl);
     BIO *b = SSL_get_rbio(session.get());
     Ssl::ServerBio *srvBio = static_cast<Ssl::ServerBio *>(BIO_get_data(b));
-
-    if ((srvBio->bumpMode() == Ssl::bumpPeek || srvBio->bumpMode() == Ssl::bumpStare) && srvBio->holdWrite()) {
+    assert(srvBio);
+    if (srvBio->holdWrite()) {
+        Must(lastSslBumpAction == Ssl::bumpPeek || lastSslBumpAction == Ssl::bumpStare);
         debugs(81, 3, "hold write on SSL connection on FD " << fd);
         checkForPeekAndSplice();
         return;
@@ -314,8 +322,9 @@ Ssl::PeekingPeerConnector::noteNegotiationError(const Security::ErrorDetailPoint
     Security::SessionPointer session(fd_table[fd].ssl);
     BIO *b = SSL_get_rbio(session.get());
     Ssl::ServerBio *srvBio = static_cast<Ssl::ServerBio *>(BIO_get_data(b));
+    assert(srvBio);
 
-    if (srvBio->bumpMode() == Ssl::bumpPeek) {
+    if (lastSslBumpAction == Ssl::bumpPeek) {
         auto bypassValidator = false;
         if (srvBio->encryptedCertificates()) {
             // it is pointless to peek at encrypted certificates
@@ -355,8 +364,8 @@ Ssl::PeekingPeerConnector::noteNegotiationError(const Security::ErrorDetailPoint
     // TODO: Add/use a positive "successfully validated server cert" signal
     // instead of relying on the "![presumably_]validation_error && serverCert"
     // signal combo.
-    if (!SSL_get_ex_data(session.get(), ssl_ex_index_ssl_error_detail) &&
-            (srvBio->bumpMode() == Ssl::bumpPeek  || srvBio->bumpMode() == Ssl::bumpStare) && srvBio->holdWrite()) {
+    if (!SSL_get_ex_data(session.get(), ssl_ex_index_ssl_error_detail) && srvBio->holdWrite()) {
+        Must(lastSslBumpAction == Ssl::bumpPeek  || lastSslBumpAction == Ssl::bumpStare);
         Security::CertPointer serverCert(SSL_get_peer_certificate(session.get()));
         if (serverCert) {
             debugs(81, 3, "hold TLS write on FD " << fd << " despite " << errorDetail);

@@ -66,10 +66,18 @@ private:
     /// Inform caller class that the SSL negotiation aborted
     void tunnelInsteadOfNegotiating();
 
+    /// Retrieves the last bumping mode from the given HttpRequest object.
+    static Ssl::BumpMode LastSslBumpActionExtractor(const HttpRequest &);
+
     Comm::ConnectionPointer clientConn; ///< TCP connection to the client
     AsyncCall::Pointer closeHandler; ///< we call this when the connection closed
     bool splice; ///< whether we are going to splice or not
     bool serverCertificateHandled; ///< whether handleServerCertificate() succeeded
+
+    /// An (explicit or implicit) ssl_bump action that led to our job creation.
+    /// Usually a step2 peek or stare action, but may be step1 server-first.
+    /// Caching this hard-to-compute action simplifies and optimizes our code.
+    const Ssl::BumpMode lastSslBumpAction;
 };
 
 } // namespace Ssl
