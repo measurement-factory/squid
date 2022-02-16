@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1996-2021 The Squid Software Foundation and contributors
+ * Copyright (C) 1996-2022 The Squid Software Foundation and contributors
  *
  * Squid software is distributed under GPLv2+ license and includes
  * contributions from numerous individuals and organizations.
@@ -18,6 +18,7 @@
 #include "comm/Loops.h"
 #include "comm/UdpOpenDialer.h"
 #include "compat/xalloc.h"
+#include "DebugMessages.h"
 #include "globals.h"
 #include "htcp.h"
 #include "http.h"
@@ -304,6 +305,10 @@ htcpHexdump(const char *tag, const char *s, int sz)
 
         memset(hex, '\0', sizeof(hex));
     }
+#else
+    (void)tag;
+    (void)s;
+    (void)sz;
 #endif
 }
 
@@ -697,7 +702,7 @@ htcpUnpackSpecifier(char *buf, int sz)
     // Parse the request
     method.HttpRequestMethodXXX(s->method);
 
-    const MasterXaction::Pointer mx = new MasterXaction(XactionInitiator::initHtcp);
+    const auto mx = MasterXaction::MakePortless<XactionInitiator::initHtcp>();
     s->request = HttpRequest::FromUrlXXX(s->uri, mx, method == Http::METHOD_NONE ? HttpRequestMethod(Http::METHOD_GET) : method);
     if (!s->request) {
         debugs(31, 3, "failed to create request. Invalid URI?");
@@ -1438,7 +1443,7 @@ void
 htcpOpenPorts(void)
 {
     if (Config.Port.htcp <= 0) {
-        debugs(31, DBG_IMPORTANT, "HTCP Disabled.");
+        debugs(31, Important(21), "HTCP Disabled.");
         return;
     }
 

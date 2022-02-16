@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1996-2021 The Squid Software Foundation and contributors
+ * Copyright (C) 1996-2022 The Squid Software Foundation and contributors
  *
  * Squid software is distributed under GPLv2+ license and includes
  * contributions from numerous individuals and organizations.
@@ -14,6 +14,7 @@
 #include "anyp/TrafficMode.h"
 #include "base/CodeContext.h"
 #include "comm/Connection.h"
+#include "comm/Tcp.h"
 #include "sbuf/SBuf.h"
 #include "security/ServerOptions.h"
 
@@ -23,9 +24,12 @@ namespace AnyP
 class PortCfg : public CodeContext
 {
 public:
-    explicit PortCfg(const AnyP::TrafficModeFlags::PortKind aPortKind);
+    explicit PortCfg(TrafficModeFlags::PortKind aPortKind);
+    PortCfg(PortCfg &&) = delete; // all other forms of copying prohibited
     ~PortCfg();
-    AnyP::PortCfgPointer clone() const;
+
+    /// creates the same port configuration but listening on any IPv4 address
+    PortCfg *ipV4clone() const;
 
     /* CodeContext API */
     virtual ScopedId codeContextGist() const override;
@@ -54,12 +58,7 @@ public:
     int disable_pmtu_discovery;
     bool workerQueues; ///< whether listening queues should be worker-specific
 
-    struct {
-        unsigned int idle;
-        unsigned int interval;
-        unsigned int timeout;
-        bool enabled;
-    } tcp_keepalive;
+    Comm::TcpKeepAlive tcp_keepalive;
 
     /**
      * The listening socket details.
@@ -72,6 +71,8 @@ public:
     Security::ServerOptions secure;
 
 private:
+    explicit PortCfg(const PortCfg &other); // for ipV4clone() needs only!
+
     /* TrafficModeFlags validation */
     /// rejects flag combinations where any of the given flags is set
     void rejectFlags(const TrafficModeFlags::List &);

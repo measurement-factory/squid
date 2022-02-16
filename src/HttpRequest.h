@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1996-2021 The Squid Software Foundation and contributors
+ * Copyright (C) 1996-2022 The Squid Software Foundation and contributors
  *
  * Squid software is distributed under GPLv2+ license and includes
  * contributions from numerous individuals and organizations.
@@ -104,7 +104,8 @@ public:
 
     /// associates the request with a from-client connection manager
     void manager(const CbcPointer<ConnStateData> &aMgr, const AccessLogEntryPointer &al);
-    /// should use the original server IP and port provided by the client
+    /// security issue or admin requires this message be sent
+    /// to the original server IP and port provided by the client
     bool mustGoToOriginalDestination() const;
 
 protected:
@@ -249,6 +250,10 @@ public:
     bool hasNotes() const { return bool(theNotes) && !theNotes->empty(); }
 
     virtual void configureContentLengthInterpreter(Http::ContentLengthInterpreter &) {}
+
+    /// Check whether the message framing headers are valid.
+    /// \returns Http::scNone or an HTTP error status
+    Http::StatusCode checkEntityFraming() const;
 
     /// Parses request header using Parser.
     /// Use it in contexts where the Parser object is available.

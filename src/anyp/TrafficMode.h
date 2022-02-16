@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1996-2021 The Squid Software Foundation and contributors
+ * Copyright (C) 1996-2022 The Squid Software Foundation and contributors
  *
  * Squid software is distributed under GPLv2+ license and includes
  * contributions from numerous individuals and organizations.
@@ -24,10 +24,10 @@ public:
     /// a parsed port type (http_port, https_port or ftp_port)
     typedef enum { httpPort, httpsPort, ftpPort } PortKind;
 
-    explicit TrafficModeFlags(const PortKind aPortKind) : portKind(aPortKind) {}
+    explicit TrafficModeFlags(const PortKind aPortKind): portKind(aPortKind) {}
 
     /// \returns true for HTTPS ports with SSL bump receiving PROXY protocol traffic
-    bool proxySurrogateHttpsSslBump() const { return proxySurrogateHttp && tunnelSslBumping && portKind == httpsPort; }
+    bool proxySurrogateHttpsSslBump() const { return proxySurrogate && tunnelSslBumping && portKind == httpsPort; }
 
     /** marks HTTP accelerator (reverse/surrogate proxy) traffic
      *
@@ -37,7 +37,7 @@ public:
      */
     bool accelSurrogate = false;
 
-    /** marks http ports receiving PROXY protocol traffic
+    /** marks ports receiving PROXY protocol traffic
      *
      * Indicating the following are required:
      *  - PROXY protocol magic header
@@ -45,7 +45,7 @@ public:
      *  - indirect client IP trust verification is mandatory
      *  - TLS is not supported
      */
-    bool proxySurrogateHttp = false;
+    bool proxySurrogate = false;
 
     /** marks NAT intercepted traffic
      *
@@ -54,7 +54,7 @@ public:
      *  - URL translation from relative to absolute form
      *  - Same-Origin verification is mandatory
      *  - destination pinning is recommended
-     *  - Squid authentication prohibited
+     *  - authentication prohibited
      */
     bool natIntercept = false;
 
@@ -66,7 +66,7 @@ public:
      *  - URL translation from relative to absolute form
      *  - Same-Origin verification is mandatory
      *  - destination pinning is recommended
-     *  - Squid authentication prohibited
+     *  - authentication prohibited
      */
     bool tproxyIntercept = false;
 
@@ -75,7 +75,7 @@ public:
      * Indicating the following are required:
      *  - decryption of CONNECT request
      *  - URL translation from relative to absolute form
-     *  - Squid authentication prohibited on unwrapped requests (only on the CONNECT tunnel)
+     *  - authentication prohibited on unwrapped requests (only on the CONNECT tunnel)
      *  - encrypted outbound server connections
      *  - peer relay prohibited. TODO: re-encrypt and re-wrap with CONNECT
      */
@@ -95,39 +95,35 @@ class TrafficMode
 public:
     explicit TrafficMode(const TrafficModeFlags::PortKind aPortKind) : flags_(aPortKind) {}
 
-    /// This port handles traffic that has been intercepted prior to being delivered
-    /// to the TCP client of the accepted connection and/or to us. This port mode
-    /// alone does not imply that the client of the accepted TCP connection was not
-    /// connecting directly to this port (since commit 151ba0d).
-    bool interceptedSomewhere() const { return flags_.natIntercept || flags_.tproxyIntercept || flags_.proxySurrogateHttpsSslBump(); }
+    /// This is a gateway (a.k.a. reverse proxy) port. TODO: Rename.
+    bool accelSurrogate() const { return flags_.accelSurrogate; }
 
-    /// The client of the accepted TCP connection was connecting to this port.
-    /// The accepted traffic may have been intercepted earlier!
-    bool tcpToUs() const { return proxySurrogate() || !interceptedSomewhere(); }
+    /// This port handles intercepted traffic. Traffic may be intercepted many
+    /// times (at various locations) before reaching this port, including:
+    /// * between the user agent and the connecting TCP client and/or
+    /// * between the connecting TCP client and this Squid port.
+    /// This port mode alone does not imply that the client of the accepted TCP
+    /// connection was not connecting directly to this port (since commit
+    /// 151ba0d). In other words, we may not be an interception proxy ourselves.
+    bool interceptedSomewhere() const { return flags_.natIntercept || flags_.tproxyIntercept || proxySurrogateHttpsSslBump(); }
 
-    /// The client of the accepted TCP connection was not connecting to this port.
-    /// The accepted traffic may have been intercepted earlier as well!
-    bool interceptedLocally() const { return interceptedSomewhere() && !tcpToUs(); }
-
-    // Unused yet.
-    /// This port handles traffic that has been intercepted prior to being delivered
-    /// to the TCP client of the accepted connection (which then connected to us).
-    bool interceptedRemotely() const { return interceptedSomewhere() && tcpToUs(); }
-
-    /// The client of the accepted TCP connection was connecting directly to this proxy port.
-    bool forwarded() const { return !interceptedSomewhere() && !flags_.accelSurrogate; }
+    /// The user agent was explicitly configured to use a proxy at this port. We
+    /// are configured to assume that no interception has happened on the way.
+    /// This port configuration is also known as a forward proxy.
+    bool explicitProxy() const { return !interceptedSomewhere() && !accelSurrogate(); }
 
     /// whether the PROXY protocol header is required
-    bool proxySurrogate() const { return flags_.proxySurrogateHttp || flags_.proxySurrogateHttpsSslBump(); }
+    bool proxySurrogate() const { return flags_.proxySurrogate; }
 
-    /// interceptedLocally() with configured NAT interception
-    bool natInterceptLocally() const { return flags_.natIntercept && interceptedLocally(); }
+    /// The client of the accepted connection was not connecting to this port,
+    /// but Squid used NAT interception to accept the client connection.
+    /// The accepted traffic may have been intercepted earlier as well!
+    bool natInterceptLocally() const { return flags_.natIntercept && !proxySurrogate(); }
 
-    /// interceptedLocally() with configured TPROXY interception
-    bool tproxyInterceptLocally() const { return flags_.tproxyIntercept && interceptedLocally(); }
-
-    /// whether the reverse proxy is configured
-    bool accelSurrogate() const { return flags_.accelSurrogate; }
+    /// The client of the accepted connection was not connecting to this port,
+    /// but Squid used TPROXY interception to accept the connection.
+    /// The accepted traffic may have been intercepted earlier as well!
+    bool tproxyInterceptLocally() const { return flags_.tproxyIntercept && !proxySurrogate(); }
 
     bool tunnelSslBumping() const { return flags_.tunnelSslBumping; }
 
@@ -137,6 +133,13 @@ public:
     std::ostream &print(std::ostream &) const;
 
 private:
+    /// \returns true for HTTPS ports with SSL bump receiving PROXY protocol traffic
+    bool proxySurrogateHttpsSslBump() const
+    {
+        return flags_.proxySurrogate && flags_.tunnelSslBumping &&
+               flags_.portKind == TrafficModeFlags::httpsPort;
+    }
+
     TrafficModeFlags flags_;
 };
 

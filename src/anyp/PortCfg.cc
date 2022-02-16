@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1996-2021 The Squid Software Foundation and contributors
+ * Copyright (C) 1996-2022 The Squid Software Foundation and contributors
  *
  * Squid software is distributed under GPLv2+ license and includes
  * contributions from numerous individuals and organizations.
@@ -28,7 +28,7 @@ AnyP::PortCfgPointer FtpPortList;
 int NHttpSockets = 0;
 int HttpSockets[MAXTCPLISTENPORTS];
 
-AnyP::PortCfg::PortCfg(const AnyP::TrafficModeFlags::PortKind aPortKind) :
+AnyP::PortCfg::PortCfg(const TrafficModeFlags::PortKind aPortKind):
     next(),
     s(),
     transport(AnyP::PROTO_HTTP,1,1), // "Squid is an HTTP proxy", etc.
@@ -46,7 +46,6 @@ AnyP::PortCfg::PortCfg(const AnyP::TrafficModeFlags::PortKind aPortKind) :
     workerQueues(false),
     listenConn()
 {
-    memset(&tcp_keepalive, 0, sizeof(tcp_keepalive));
 }
 
 AnyP::PortCfg::~PortCfg()
@@ -60,29 +59,38 @@ AnyP::PortCfg::~PortCfg()
     safe_free(defaultsite);
 }
 
-AnyP::PortCfgPointer
-AnyP::PortCfg::clone() const
+AnyP::PortCfg::PortCfg(const PortCfg &other):
+    next(),
+    s(other.s),
+    transport(other.transport),
+    name(other.name ? xstrdup(other.name) : nullptr),
+    defaultsite(other.defaultsite ? xstrdup(other.defaultsite) : nullptr),
+    flags(other.flags),
+    allow_direct(other.allow_direct),
+    vhost(other.vhost),
+    actAsOrigin(other.actAsOrigin),
+    ignore_cc(other.ignore_cc),
+    connection_auth_disabled(other.connection_auth_disabled),
+    ftp_track_dirs(other.ftp_track_dirs),
+    vport(other.vport),
+    disable_pmtu_discovery(other.disable_pmtu_discovery),
+    workerQueues(other.workerQueues),
+    tcp_keepalive(other.tcp_keepalive),
+    listenConn(),
+    secure(other.secure)
 {
-    AnyP::PortCfgPointer b = new AnyP::PortCfg(flags.rawConfig().portKind);
-    b->s = s;
-    if (name)
-        b->name = xstrdup(name);
-    if (defaultsite)
-        b->defaultsite = xstrdup(defaultsite);
+    // to simplify, we only support port copying during parsing
+    assert(!other.next);
+    assert(!other.listenConn);
+}
 
-    b->transport = transport;
-    b->flags = flags;
-    b->allow_direct = allow_direct;
-    b->vhost = vhost;
-    b->vport = vport;
-    b->connection_auth_disabled = connection_auth_disabled;
-    b->workerQueues = workerQueues;
-    b->ftp_track_dirs = ftp_track_dirs;
-    b->disable_pmtu_discovery = disable_pmtu_discovery;
-    b->tcp_keepalive = tcp_keepalive;
-    b->secure = secure;
-
-    return b;
+AnyP::PortCfg *
+AnyP::PortCfg::ipV4clone() const
+{
+    const auto clone = new PortCfg(*this);
+    clone->s.setIPv4();
+    debugs(3, 3, "made two wildcard port cfgs for split-stack: " << s << " and " << clone->s);
+    return clone;
 }
 
 ScopedId
@@ -119,7 +127,7 @@ PortOption(const AnyP::TrafficModeFlags::Pointer flagPointer)
     typedef std::pair<AnyP::TrafficModeFlags::Pointer, const char *> PortOptionPair;
     static constexpr std::array<PortOptionPair, 5> PortOptionStrings = { {
             {&AnyP::TrafficModeFlags::accelSurrogate, "accel"},
-            {&AnyP::TrafficModeFlags::proxySurrogateHttp, "require-proxy-header"},
+            {&AnyP::TrafficModeFlags::proxySurrogate, "require-proxy-header"},
             {&AnyP::TrafficModeFlags::natIntercept, "intercept"},
             {&AnyP::TrafficModeFlags::tproxyIntercept, "tproxy"},
             {&AnyP::TrafficModeFlags::tunnelSslBumping, "ssl-bump"}
@@ -211,17 +219,17 @@ AnyP::PortCfg::checkFlags()
     break;
 
     case Flags::httpsPort: {
-        allowEither({&TrafficModeFlags::accelSurrogate, &TrafficModeFlags::natIntercept, &TrafficModeFlags::tproxyIntercept, &TrafficModeFlags::proxySurrogateHttp});
+        allowEither({&TrafficModeFlags::accelSurrogate, &TrafficModeFlags::natIntercept, &TrafficModeFlags::tproxyIntercept, &TrafficModeFlags::proxySurrogate});
         checkImplication({&TrafficModeFlags::tunnelSslBumping},
-                {&TrafficModeFlags::natIntercept, &TrafficModeFlags::tproxyIntercept, &TrafficModeFlags::proxySurrogateHttp});
-        checkImplication({&TrafficModeFlags::natIntercept, &TrafficModeFlags::tproxyIntercept, &TrafficModeFlags::proxySurrogateHttp},
+                {&TrafficModeFlags::natIntercept, &TrafficModeFlags::tproxyIntercept, &TrafficModeFlags::proxySurrogate});
+        checkImplication({&TrafficModeFlags::natIntercept, &TrafficModeFlags::tproxyIntercept, &TrafficModeFlags::proxySurrogate},
                 {&TrafficModeFlags::tunnelSslBumping});
     }
     break;
 
     case Flags::ftpPort: {
         allowEither({&TrafficModeFlags::natIntercept, &TrafficModeFlags::tproxyIntercept});
-        rejectFlags({&TrafficModeFlags::accelSurrogate, &TrafficModeFlags::proxySurrogateHttp, &TrafficModeFlags::tunnelSslBumping});
+        rejectFlags({&TrafficModeFlags::accelSurrogate, &TrafficModeFlags::proxySurrogate, &TrafficModeFlags::tunnelSslBumping});
     }
     break;
 
@@ -229,7 +237,7 @@ AnyP::PortCfg::checkFlags()
         fatal("invalid PortKind");
     }
 
-    if (rawFlags.tproxyIntercept && rawFlags.proxySurrogateHttp) {
+    if (rawFlags.tproxyIntercept && rawFlags.proxySurrogate) {
         // receiving is still permitted, so we do not unset the TPROXY flag
         // spoofing access control override takes care of the spoof disable later
         debugs(3, DBG_IMPORTANT, "Disabling TPROXY Spoofing on port " << s << " (require-proxy-header enabled)");
