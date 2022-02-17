@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1996-2020 The Squid Software Foundation and contributors
+ * Copyright (C) 1996-2022 The Squid Software Foundation and contributors
  *
  * Squid software is distributed under GPLv2+ license and includes
  * contributions from numerous individuals and organizations.
@@ -45,6 +45,7 @@ class ActionPasswordList;
 class CachePeer;
 class CustomLog;
 class CpuAffinityMap;
+class DebugMessages;
 class external_acl;
 class HeaderManglers;
 class RefreshPattern;
@@ -184,6 +185,7 @@ public:
 #if ICAP_CLIENT
         CustomLog *icaplogs;
 #endif
+        Security::KeyLog *tlsKeys; ///< one optional tls_key_log
         int rotateNumber;
     } Log;
     char *adminEmail;
@@ -287,7 +289,6 @@ public:
         int buffered_logs;
         int common_log;
         int log_mime_hdrs;
-        int log_fqdn;
         int announce;
         int mem_pools;
         int test_reachability;
@@ -316,7 +317,6 @@ public:
 
         int vary_ignore_expire;
         int surrogate_is_remote;
-        int request_entities;
         int detect_broken_server_pconns;
         int relaxed_header_parser;
         int check_hostnames;
@@ -352,6 +352,8 @@ public:
 
     int pipeline_max_prefetch;
 
+    // these values are actually unsigned
+    // TODO: extend the parser to support more nuanced types
     int forward_max_tries;
     int connect_retries;
 
@@ -558,6 +560,8 @@ public:
         int connect_gap;
         int connect_timeout;
     } happyEyeballs;
+
+    DebugMessages *debugMessages; ///< cache_log_message
 };
 
 extern SquidConfig Config;

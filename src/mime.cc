@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1996-2020 The Squid Software Foundation and contributors
+ * Copyright (C) 1996-2022 The Squid Software Foundation and contributors
  *
  * Squid software is distributed under GPLv2+ license and includes
  * contributions from numerous individuals and organizations.
@@ -9,6 +9,7 @@
 /* DEBUG: section 25    MIME Parsing and Internal Icons */
 
 #include "squid.h"
+#include "DebugMessages.h"
 #include "fde.h"
 #include "fs_io.h"
 #include "globals.h"
@@ -45,8 +46,7 @@ public:
     void load();
 
     /* StoreClient API */
-    virtual void created(StoreEntry *);
-    virtual LogTags *loggingTags() { return nullptr; } // no access logging/ACLs
+    virtual LogTags *loggingTags() const { return nullptr; } // no access logging/ACLs
     virtual void fillChecklist(ACLFilledChecklist &) const;
 
 private:
@@ -277,27 +277,27 @@ mimeInit(char *filename)
         xstrncpy(chopbuf, buf, BUFSIZ);
 
         if ((pattern = strtok(chopbuf, w_space)) == NULL) {
-            debugs(25, DBG_IMPORTANT, "mimeInit: parse error: '" << buf << "'");
+            debugs(25, DBG_IMPORTANT, "ERROR: mimeInit: parse failure: '" << buf << "'");
             continue;
         }
 
         if ((type = strtok(NULL, w_space)) == NULL) {
-            debugs(25, DBG_IMPORTANT, "mimeInit: parse error: '" << buf << "'");
+            debugs(25, DBG_IMPORTANT, "ERROR: mimeInit: parse failure: '" << buf << "'");
             continue;
         }
 
         if ((icon = strtok(NULL, w_space)) == NULL) {
-            debugs(25, DBG_IMPORTANT, "mimeInit: parse error: '" << buf << "'");
+            debugs(25, DBG_IMPORTANT, "ERROR: mimeInit: parse failure: '" << buf << "'");
             continue;
         }
 
         if ((encoding = strtok(NULL, w_space)) == NULL) {
-            debugs(25, DBG_IMPORTANT, "mimeInit: parse error: '" << buf << "'");
+            debugs(25, DBG_IMPORTANT, "ERROR: mimeInit: parse failure: '" << buf << "'");
             continue;
         }
 
         if ((mode = strtok(NULL, w_space)) == NULL) {
-            debugs(25, DBG_IMPORTANT, "mimeInit: parse error: '" << buf << "'");
+            debugs(25, DBG_IMPORTANT, "ERROR: mimeInit: parse failure: '" << buf << "'");
             continue;
         }
 
@@ -310,11 +310,11 @@ mimeInit(char *filename)
             else if (!strcmp(option, "+view"))
                 view_option = 1;
             else
-                debugs(25, DBG_IMPORTANT, "mimeInit: unknown option: '" << buf << "' (" << option << ")");
+                debugs(25, DBG_IMPORTANT, "ERROR: mimeInit: unknown option: '" << buf << "' (" << option << ")");
         }
 
         if (regcomp(&re, pattern, re_flags) != 0) {
-            debugs(25, DBG_IMPORTANT, "mimeInit: regcomp error: '" << buf << "'");
+            debugs(25, DBG_IMPORTANT, "ERROR: mimeInit: regcomp failure: '" << buf << "'");
             continue;
         }
 
@@ -332,7 +332,7 @@ mimeInit(char *filename)
 
     for (m = MimeTable; m != NULL; m = m->next)
         m->theIcon.load();
-    debugs(25, DBG_IMPORTANT, "Finished loading MIME types and icons.");
+    debugs(25, Important(28), "Finished loading MIME types and icons.");
 }
 
 void
@@ -356,15 +356,12 @@ MimeIcon::load()
     if (type == NULL)
         fatal("Unknown icon format while reading mime.conf\n");
 
-    StoreEntry::getPublic(this, url_, Http::METHOD_GET);
-}
-
-void
-MimeIcon::created(StoreEntry *newEntry)
-{
-    /* if the icon is already in the store, do nothing */
-    if (newEntry)
+    if (const auto e = storeGetPublic(url_, Http::METHOD_GET)) {
+        // do not overwrite an already stored icon
+        e->abandon(__FUNCTION__);
         return;
+    }
+
     // XXX: if a 204 is cached due to earlier load 'failure' we should try to reload.
 
     // default is a 200 object with image data.

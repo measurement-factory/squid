@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1996-2020 The Squid Software Foundation and contributors
+ * Copyright (C) 1996-2022 The Squid Software Foundation and contributors
  *
  * Squid software is distributed under GPLv2+ license and includes
  * contributions from numerous individuals and organizations.
@@ -28,10 +28,13 @@ CBDATA_NAMESPACED_CLASS_INIT(Mgr, Forwarder);
 
 Mgr::Forwarder::Forwarder(const Comm::ConnectionPointer &aConn, const ActionParams &aParams,
                           HttpRequest* aRequest, StoreEntry* anEntry, const AccessLogEntryPointer &anAle):
-    Ipc::Forwarder(new Request(KidIdentifier, 0, aConn, aParams), 10),
+    // TODO: Add virtual Forwarder::makeRequest() to avoid prematurely creating
+    // this dummy request with a dummy ID that are finalized by Ipc::Forwarder.
+    // Same for Snmp::Forwarder.
+    Ipc::Forwarder(new Request(KidIdentifier, Ipc::RequestId(/*XXX*/), aConn, aParams), 10),
     httpRequest(aRequest), entry(anEntry), conn(aConn), ale(anAle)
 {
-    debugs(16, 5, HERE << conn);
+    debugs(16, 5, conn);
     Must(Comm::IsConnOpen(conn));
     Must(httpRequest != NULL);
     Must(entry != NULL);
@@ -96,8 +99,12 @@ Mgr::Forwarder::handleException(const std::exception &e)
 void
 Mgr::Forwarder::noteCommClosed(const CommCloseCbParams &)
 {
-    debugs(16, 5, HERE);
-    conn = NULL; // needed?
+    debugs(16, 5, MYNAME);
+    closer = nullptr;
+    if (conn) {
+        conn->noteClosure();
+        conn = nullptr;
+    }
     mustStop("commClosed");
 }
 
@@ -105,7 +112,7 @@ Mgr::Forwarder::noteCommClosed(const CommCloseCbParams &)
 void
 Mgr::Forwarder::sendError(ErrorState *error)
 {
-    debugs(16, 3, HERE);
+    debugs(16, 3, MYNAME);
     Must(error != NULL);
     Must(entry != NULL);
     Must(httpRequest != NULL);

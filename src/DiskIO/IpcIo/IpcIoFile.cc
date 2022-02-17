@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1996-2020 The Squid Software Foundation and contributors
+ * Copyright (C) 1996-2022 The Squid Software Foundation and contributors
  *
  * Squid software is distributed under GPLv2+ license and includes
  * contributions from numerous individuals and organizations.
@@ -23,6 +23,7 @@
 #include "ipc/Messages.h"
 #include "ipc/Port.h"
 #include "ipc/Queue.h"
+#include "ipc/StrandCoord.h"
 #include "ipc/StrandSearch.h"
 #include "ipc/UdsOp.h"
 #include "sbuf/SBuf.h"
@@ -63,7 +64,7 @@ struct SipcIo {
     int disker;
 };
 
-std::ostream &
+static std::ostream &
 operator <<(std::ostream &os, const SipcIo &sio)
 {
     return os << "ipcIo" << sio.worker << '.' << sio.msg.requestId <<
@@ -143,20 +144,13 @@ IpcIoFile::open(int flags, mode_t mode, RefCount<IORequestor> callback)
 
         queue->localRateLimit().store(config.ioRate);
 
-        Ipc::HereIamMessage ann(Ipc::StrandCoord(KidIdentifier, myPid));
-        ann.strand.tag = dbName;
-        Ipc::TypedMsgHdr message;
-        ann.pack(message);
-        SendMessage(Ipc::Port::CoordinatorAddr(), message);
+        Ipc::StrandMessage::NotifyCoordinator(Ipc::mtRegisterStrand, dbName.termedBuf());
 
         ioRequestor->ioCompletedNotification();
         return;
     }
 
-    Ipc::StrandSearchRequest request;
-    request.requestorId = KidIdentifier;
-    request.tag = dbName;
-
+    const Ipc::StrandSearchRequest request(dbName);
     Ipc::TypedMsgHdr msg;
     request.pack(msg);
     Ipc::SendMessage(Ipc::Port::CoordinatorAddr(), msg);
@@ -168,7 +162,7 @@ IpcIoFile::open(int flags, mode_t mode, RefCount<IORequestor> callback)
 }
 
 void
-IpcIoFile::openCompleted(const Ipc::StrandSearchResponse *const response)
+IpcIoFile::openCompleted(const Ipc::StrandMessage *const response)
 {
     Must(diskId < 0); // we do not know our disker yet
 
@@ -237,7 +231,7 @@ IpcIoFile::error() const
 void
 IpcIoFile::read(ReadRequest *readRequest)
 {
-    debugs(79,3, HERE << "(disker" << diskId << ", " << readRequest->len << ", " <<
+    debugs(79,3, "(disker" << diskId << ", " << readRequest->len << ", " <<
            readRequest->offset << ")");
 
     assert(ioRequestor != NULL);
@@ -258,7 +252,7 @@ IpcIoFile::readCompleted(ReadRequest *readRequest,
 {
     bool ioError = false;
     if (!response) {
-        debugs(79, 3, HERE << "error: timeout");
+        debugs(79, 3, "error: timeout");
         ioError = true; // I/O timeout does not warrant setting error_?
     } else {
         if (response->xerrno) {
@@ -285,7 +279,7 @@ IpcIoFile::readCompleted(ReadRequest *readRequest,
 void
 IpcIoFile::write(WriteRequest *writeRequest)
 {
-    debugs(79,3, HERE << "(disker" << diskId << ", " << writeRequest->len << ", " <<
+    debugs(79,3, "(disker" << diskId << ", " << writeRequest->len << ", " <<
            writeRequest->offset << ")");
 
     assert(ioRequestor != NULL);
@@ -327,7 +321,7 @@ IpcIoFile::writeCompleted(WriteRequest *writeRequest,
         (writeRequest->free_func)(const_cast<char*>(writeRequest->buf)); // broken API?
 
     if (!ioError) {
-        debugs(79,5, HERE << "wrote " << writeRequest->len << " to disker" <<
+        debugs(79,5, "wrote " << writeRequest->len << " to disker" <<
                diskId << " at " << writeRequest->offset);
     }
 
@@ -363,7 +357,7 @@ IpcIoFile::push(IpcIoPendingRequest *const pending)
         HandleResponses("before push");
     });
 
-    debugs(47, 7, HERE);
+    debugs(47, 7, MYNAME);
     Must(diskId >= 0);
     Must(pending);
     Must(pending->readRequest || pending->writeRequest);
@@ -392,7 +386,7 @@ IpcIoFile::push(IpcIoPendingRequest *const pending)
             memcpy(buf, pending->writeRequest->buf, ipcIo.len); // optimize away
         }
 
-        debugs(47, 7, HERE << "pushing " << SipcIo(KidIdentifier, ipcIo, diskId));
+        debugs(47, 7, "pushing " << SipcIo(KidIdentifier, ipcIo, diskId));
 
         // protect DiskerHandleRequest() from pop queue overflow
         if (pendingRequests() >= QueueCapacity)
@@ -448,16 +442,16 @@ IpcIoFile::canWait() const
             static_cast<time_msec_t>(expectedWait) < config.ioTimeout)
         return true; // expected wait time is acceptable
 
-    debugs(47,2, HERE << "cannot wait: " << expectedWait <<
+    debugs(47,2, "cannot wait: " << expectedWait <<
            " oldest: " << SipcIo(KidIdentifier, oldestIo, diskId));
     return false; // do not want to wait that long
 }
 
 /// called when coordinator responds to worker open request
 void
-IpcIoFile::HandleOpenResponse(const Ipc::StrandSearchResponse &response)
+IpcIoFile::HandleOpenResponse(const Ipc::StrandMessage &response)
 {
-    debugs(47, 7, HERE << "coordinator response to open request");
+    debugs(47, 7, "coordinator response to open request");
     for (IpcIoFileList::iterator i = WaitingForOpen.begin();
             i != WaitingForOpen.end(); ++i) {
         if (response.strand.tag == (*i)->dbName) {
@@ -467,7 +461,7 @@ IpcIoFile::HandleOpenResponse(const Ipc::StrandSearchResponse &response)
         }
     }
 
-    debugs(47, 4, HERE << "LATE disker response to open for " <<
+    debugs(47, 4, "LATE disker response to open for " <<
            response.strand.tag);
     // nothing we can do about it; completeIo() has been called already
 }
@@ -475,7 +469,7 @@ IpcIoFile::HandleOpenResponse(const Ipc::StrandSearchResponse &response)
 void
 IpcIoFile::HandleResponses(const char *const when)
 {
-    debugs(47, 4, HERE << "popping all " << when);
+    debugs(47, 4, "popping all " << when);
     IpcIoMsg ipcIo;
     // get all responses we can: since we are not pushing, this will stop
     int diskId;
@@ -511,7 +505,7 @@ void
 IpcIoFile::Notify(const int peerId)
 {
     // TODO: Count and report the total number of notifications, pops, pushes.
-    debugs(47, 7, HERE << "kid" << peerId);
+    debugs(47, 7, "kid" << peerId);
     Ipc::TypedMsgHdr msg;
     msg.setType(Ipc::mtIpcIoNotification); // TODO: add proper message type?
     msg.putInt(KidIdentifier);
@@ -523,7 +517,7 @@ void
 IpcIoFile::HandleNotification(const Ipc::TypedMsgHdr &msg)
 {
     const int from = msg.getInt();
-    debugs(47, 7, HERE << "from " << from);
+    debugs(47, 7, "from " << from);
     queue->clearReaderSignal(from);
     if (IamDiskProcess())
         DiskerHandleRequests();
@@ -564,7 +558,7 @@ IpcIoFile::CheckTimeouts(void *const param)
 {
     Must(param);
     const int diskId = reinterpret_cast<uintptr_t>(param);
-    debugs(47, 7, HERE << "diskId=" << diskId);
+    debugs(47, 7, "diskId=" << diskId);
     const IpcIoFilesMap::const_iterator i = IpcIoFiles.find(diskId);
     if (i != IpcIoFiles.end())
         i->second->checkTimeouts();
@@ -621,7 +615,7 @@ IpcIoFile::scheduleTimeoutCheck()
     CallService(nullptr, [&] {
         // we check all older requests at once so some may be wait for 2*Timeout
         eventAdd("IpcIoFile::CheckTimeouts", &IpcIoFile::CheckTimeouts,
-        reinterpret_cast<void *>(diskId), Timeout, 0, false);
+                 reinterpret_cast<void *>(diskId), Timeout, 0, false);
         timeoutCheckScheduled = true;
     });
 }
@@ -678,14 +672,14 @@ IpcIoMsg::stat(std::ostream &os)
     timeval elapsedTime;
     tvSub(elapsedTime, start, current_time);
     os << "id: " << requestId <<
-        ", offset: " << offset <<
-        ", size: " << len <<
-        ", workerPid: " << workerPid <<
-        ", page: " << page <<
-        ", command: " << command <<
-        ", start: " << start <<
-        ", elapsed: " << elapsedTime <<
-        ", errno: " << xerrno;
+       ", offset: " << offset <<
+       ", size: " << len <<
+       ", workerPid: " << workerPid <<
+       ", page: " << page <<
+       ", command: " << command <<
+       ", start: " << start <<
+       ", elapsed: " << elapsedTime <<
+       ", errno: " << xerrno;
 }
 
 /* IpcIoPendingRequest */
@@ -721,7 +715,7 @@ diskerRead(IpcIoMsg &ipcIo)
 {
     if (!Ipc::Mem::GetPage(Ipc::Mem::PageId::ioPage, ipcIo.page)) {
         ipcIo.len = 0;
-        debugs(47,2, HERE << "run out of shared memory pages for IPC I/O");
+        debugs(47,2, "run out of shared memory pages for IPC I/O");
         return;
     }
 
@@ -733,13 +727,13 @@ diskerRead(IpcIoMsg &ipcIo)
     if (read >= 0) {
         ipcIo.xerrno = 0;
         const size_t len = static_cast<size_t>(read); // safe because read > 0
-        debugs(47,8, HERE << "disker" << KidIdentifier << " read " <<
+        debugs(47,8, "disker" << KidIdentifier << " read " <<
                (len == ipcIo.len ? "all " : "just ") << read);
         ipcIo.len = len;
     } else {
         ipcIo.xerrno = errno;
         ipcIo.len = 0;
-        debugs(47,5, HERE << "disker" << KidIdentifier << " read error: " <<
+        debugs(47,5, "disker" << KidIdentifier << " read error: " <<
                ipcIo.xerrno);
     }
 }
@@ -812,7 +806,7 @@ diskerWrite(IpcIoMsg &ipcIo)
 void
 IpcIoFile::DiskerHandleMoreRequests(void *source)
 {
-    debugs(47, 7, HERE << "resuming handling requests after " <<
+    debugs(47, 7, "resuming handling requests after " <<
            static_cast<const char *>(source));
     DiskerHandleMoreRequestsScheduled = false;
     IpcIoFile::DiskerHandleRequests();
@@ -850,7 +844,7 @@ IpcIoFile::WaitBeforePop()
     Ipc::QueueReader::Balance &balance = queue->localBalance();
     balance += static_cast<int64_t>(credit - debit);
 
-    debugs(47, 7, HERE << "rate limiting balance: " << balance << " after +" << credit << " -" << debit);
+    debugs(47, 7, "rate limiting balance: " << balance << " after +" << credit << " -" << debit);
 
     if (ipcIo.command == IpcIo::cmdWrite && balance > maxImbalance) {
         // if the next request is (likely) write and we accumulated
@@ -863,7 +857,7 @@ IpcIoFile::WaitBeforePop()
                    "I/O requests for " << (toSpend/1e3) << " seconds " <<
                    "to obey " << ioRate << "/sec rate limit");
 
-        debugs(47, 3, HERE << "rate limiting by " << toSpend << " ms to get" <<
+        debugs(47, 3, "rate limiting by " << toSpend << " ms to get" <<
                (1e3*maxRate) << "/sec rate");
         eventAdd("IpcIoFile::DiskerHandleMoreRequests",
                  &IpcIoFile::DiskerHandleMoreRequests,
@@ -909,7 +903,7 @@ IpcIoFile::DiskerHandleRequests()
                          minBreakSecs, 0, false);
                 DiskerHandleMoreRequestsScheduled = true;
             }
-            debugs(47, 3, HERE << "pausing after " << popped << " I/Os in " <<
+            debugs(47, 3, "pausing after " << popped << " I/Os in " <<
                    elapsedMsec << "ms; " << (elapsedMsec/popped) << "ms per I/O");
             break;
         }
@@ -932,7 +926,7 @@ IpcIoFile::DiskerHandleRequest(const int workerId, IpcIoMsg &ipcIo)
         return;
     }
 
-    debugs(47,5, HERE << "disker" << KidIdentifier <<
+    debugs(47,5, "disker" << KidIdentifier <<
            (ipcIo.command == IpcIo::cmdRead ? " reads " : " writes ") <<
            ipcIo.len << " at " << ipcIo.offset <<
            " ipcIo" << workerId << '.' << ipcIo.requestId);
@@ -947,7 +941,7 @@ IpcIoFile::DiskerHandleRequest(const int workerId, IpcIoMsg &ipcIo)
 
     assert(ipcIo.workerPid == workerPid);
 
-    debugs(47, 7, HERE << "pushing " << SipcIo(workerId, ipcIo, KidIdentifier));
+    debugs(47, 7, "pushing " << SipcIo(workerId, ipcIo, KidIdentifier));
 
     try {
         if (queue->push(workerId, ipcIo))
@@ -955,7 +949,7 @@ IpcIoFile::DiskerHandleRequest(const int workerId, IpcIoMsg &ipcIo)
     } catch (const Queue::Full &) {
         // The worker pop queue should not overflow because the worker can
         // push only if pendingRequests() is less than QueueCapacity.
-        debugs(47, DBG_IMPORTANT, "BUG: Worker I/O pop queue for " <<
+        debugs(47, DBG_IMPORTANT, "ERROR: Squid BUG: Worker I/O pop queue for " <<
                DbName << " overflow: " <<
                SipcIo(workerId, ipcIo, KidIdentifier)); // TODO: report queue len
 
@@ -988,7 +982,7 @@ DiskerClose(const SBuf &path)
 {
     if (TheFile >= 0) {
         file_close(TheFile);
-        debugs(79,3, HERE << "rock db closed " << path << ": FD " << TheFile);
+        debugs(79,3, "rock db closed " << path << ": FD " << TheFile);
         TheFile = -1;
         --store_open_disk_fd;
     }

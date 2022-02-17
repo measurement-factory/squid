@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1996-2020 The Squid Software Foundation and contributors
+ * Copyright (C) 1996-2022 The Squid Software Foundation and contributors
  *
  * Squid software is distributed under GPLv2+ license and includes
  * contributions from numerous individuals and organizations.
@@ -11,9 +11,11 @@
 #ifndef SQUID_CLIENTSIDE_H
 #define SQUID_CLIENTSIDE_H
 
+#include "acl/ChecklistFiller.h"
 #include "base/RunnersRegistry.h"
 #include "clientStreamForward.h"
 #include "comm.h"
+#include "error/Error.h"
 #include "helper/forward.h"
 #include "http/forward.h"
 #include "HttpControlMsg.h"
@@ -25,7 +27,9 @@
 #if USE_AUTH
 #include "auth/UserRequest.h"
 #endif
+#include "security/KeyLogger.h"
 #if USE_OPENSSL
+#include "security/forward.h"
 #include "security/Handshake.h"
 #include "ssl/support.h"
 #endif
@@ -72,7 +76,11 @@ class ServerBump;
  * managing, or for graceful half-close use the stopReceiving() or
  * stopSending() methods.
  */
-class ConnStateData : public Server, public HttpControlMsgSink, private IndependentRunner
+class ConnStateData:
+    public Server,
+    public HttpControlMsgSink,
+    public Acl::ChecklistFiller,
+    private IndependentRunner
 {
 
 public:
@@ -157,6 +165,11 @@ public:
     /// note response sending error and close as soon as we read the request
     void stopSending(const char *error);
 
+    /// (re)sets timeout for receiving more bytes from the client
+    void resetReadTimeout(time_t timeout);
+    /// (re)sets client_lifetime timeout
+    void extendLifetime();
+
     void expectNoForwarding(); ///< cleans up virgin request [body] forwarding state
 
     /* BodyPipe API */
@@ -200,7 +213,7 @@ public:
     /// noteTakeServerConnectionControl() callback parameter
     class ServerConnectionContext {
     public:
-        ServerConnectionContext(const Comm::ConnectionPointer &conn, const HttpRequest::Pointer &req, const SBuf &post101Bytes): preReadServerBytes(post101Bytes), conn_(conn) { conn_->enterOrphanage(); }
+        ServerConnectionContext(const Comm::ConnectionPointer &conn, const SBuf &post101Bytes) : preReadServerBytes(post101Bytes), conn_(conn) { conn_->enterOrphanage(); }
 
         /// gives to-server connection to the new owner
         Comm::ConnectionPointer connection() { conn_->leaveOrphanage(); return conn_; }
@@ -220,11 +233,13 @@ public:
     void clientReadFtpData(const CommIoCbParams &io);
     void connStateClosed(const CommCloseCbParams &io);
     void requestTimeout(const CommTimeoutCbParams &params);
+    void lifetimeTimeout(const CommTimeoutCbParams &params);
 
     // AsyncJob API
     virtual void start();
     virtual bool doneAll() const { return BodyProducer::doneAll() && false;}
     virtual void swanSong();
+    virtual void callException(const std::exception &);
 
     /// Changes state so that we close the connection and quit after serving
     /// the client-side-detected error response instead of getting stuck.
@@ -232,6 +247,10 @@ public:
 
     /// The caller assumes responsibility for connection closure detection.
     void stopPinnedConnectionMonitoring();
+
+    /// Starts or resumes accepting a TLS connection. TODO: Make this helper
+    /// method protected after converting clientNegotiateSSL() into a method.
+    Security::IoResult acceptTls();
 
     /// the second part of old httpsAccept, waiting for future HttpsServer home
     void postHttpsAccept();
@@ -299,6 +318,9 @@ public:
 #endif
     char *prepareTlsSwitchingURL(const Http1::RequestParserPointer &hp);
 
+    /// registers a newly created stream
+    void add(const Http::StreamPointer &context);
+
     /// handle a control message received by context from a peer and call back
     virtual bool writeControlMsgAndCall(HttpReply *rep, AsyncCall::Pointer &call) = 0;
 
@@ -318,8 +340,8 @@ public:
     /// at the beginning of the client I/O buffer
     bool fakeAConnectRequest(const char *reason);
 
-    /// generates and sends to tunnel.cc a fake request with a given payload
-    bool initiateTunneledRequest(HttpRequest::Pointer const &cause, Http::MethodType const method, const char *reason);
+    /// generates and sends to tunnel.cc a fake request
+    bool initiateTunneledRequest(HttpRequest::Pointer const &cause, const char *reason);
 
     /// whether we should start saving inBuf client bytes in anticipation of
     /// tunneling them to the server later (on_unsupported_protocol)
@@ -328,8 +350,8 @@ public:
     // TODO: move to the protected section when removing clientTunnelOnError()
     bool tunnelOnError(const HttpRequestMethod &, const err_type);
 
-    /// build a fake client http request based on method, server and destination port
-    ClientHttpRequest *buildFakeRequest(Http::MethodType const method, SBuf &useHost, unsigned short usePort);
+    /// build a fake client http request based on server and destination port
+    ClientHttpRequest *buildFakeRequest(SBuf &useHost, unsigned short usePort);
 
     /// build a fake client http request based on an HttpRequest object
     ClientHttpRequest *buildFakeRequest(HttpRequest::Pointer &request);
@@ -349,6 +371,30 @@ public:
     bool hasNotes() const { return bool(theNotes) && !theNotes->empty(); }
 
     const ProxyProtocol::HeaderPointer &proxyProtocolHeader() const { return proxyProtocolHeader_; }
+
+    /// if necessary, stores new error information (if any)
+    void updateError(const Error &);
+
+    /// emplacement/convenience wrapper for updateError(const Error &)
+    void updateError(const err_type c, const ErrorDetailPointer &d) { updateError(Error(c, d)); }
+
+    /* Acl::ChecklistFiller API */
+    virtual void fillChecklist(ACLFilledChecklist &) const;
+
+    /// fillChecklist() obligations not fulfilled by the front request
+    /// TODO: This is a temporary ACLFilledChecklist::setConn() callback to
+    /// allow filling checklist using our non-public information sources. It
+    /// should be removed as unnecessary by making ACLs extract the information
+    /// they need from the ACLFilledChecklist::conn() without filling/copying.
+    void fillConnectionLevelDetails(ACLFilledChecklist &) const;
+
+    // Exposed to be accessible inside the ClientHttpRequest constructor.
+    // TODO: Remove. Make sure there is always a suitable ALE instead.
+    /// a problem that occurred without a request (e.g., while parsing headers)
+    Error bareError;
+
+    /// managers logging of the being-accepted TLS connection secrets
+    Security::KeyLogger keyLogger;
 
 protected:
     void startDechunkingRequest();
@@ -400,10 +446,14 @@ protected:
     /// whether preservedClientData is valid and should be kept up to date
     bool preservingClientData_ = false;
 
+    bool tunnelOnError(const err_type);
+
 private:
     /* ::Server API */
-    virtual bool connFinishedWithConn(int size);
-    virtual void checkLogging();
+    virtual void terminateAll(const Error &, const LogTagsErrors &);
+    virtual bool shouldCloseOnEof() const;
+
+    void checkLogging();
 
     void clientAfterReadingRequests();
     bool concurrentRequestQueueFilled() const;
@@ -422,6 +472,7 @@ private:
     /// Attempts to add a given TLS context to the cache, replacing the old
     /// same-key context, if any
     void storeTlsContextToCache(const SBuf &cacheKey, Security::ContextPointer &ctx);
+    void handleSslBumpHandshakeError(const Security::IoResult &);
 #endif
 
     /// whether PROXY protocol header is still expected
@@ -493,6 +544,7 @@ CSCB clientSocketRecipient;
 CSD clientSocketDetach;
 
 void clientProcessRequest(ConnStateData *, const Http1::RequestParserPointer &, Http::Stream *);
+void clientProcessRequestFinished(ConnStateData *, const HttpRequest::Pointer &);
 void clientPostHttpsAccept(ConnStateData *);
 
 std::ostream &operator <<(std::ostream &os, const ConnStateData::PinnedIdleContext &pic);

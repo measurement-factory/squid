@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1996-2020 The Squid Software Foundation and contributors
+ * Copyright (C) 1996-2022 The Squid Software Foundation and contributors
  *
  * Squid software is distributed under GPLv2+ license and includes
  * contributions from numerous individuals and organizations.
@@ -24,7 +24,6 @@
 #include "MemBuf.h"
 #include "mgr/Registration.h"
 #include "mime_header.h"
-#include "profiler/Profiler.h"
 #include "rfc1123.h"
 #include "sbuf/StringConvert.h"
 #include "SquidConfig.h"
@@ -35,6 +34,7 @@
 #include "util.h"
 
 #include <algorithm>
+#include <array>
 
 /* XXX: the whole set of API managing the entries vector should be rethought
  *      after the parse4r-ng effort is complete.
@@ -74,7 +74,7 @@ static HttpHeaderMask ReplyHeadersMask;     /* set run-time using ReplyHeaders *
 
 /* header accounting */
 // NP: keep in sync with enum http_hdr_owner_type
-static HttpHeaderStat HttpHeaderStats[] = {
+static std::array<HttpHeaderStat, hoEnd> HttpHeaderStats = {
     HttpHeaderStat(/*hoNone*/ "all", NULL),
 #if USE_HTCP
     HttpHeaderStat(/*hoHtcpReply*/ "HTCP reply", &ReplyHeadersMask),
@@ -82,11 +82,10 @@ static HttpHeaderStat HttpHeaderStats[] = {
     HttpHeaderStat(/*hoRequest*/ "request", &RequestHeadersMask),
     HttpHeaderStat(/*hoReply*/ "reply", &ReplyHeadersMask)
 #if USE_OPENSSL
-    /* hoErrorDetail */
+    , HttpHeaderStat(/*hoErrorDetail*/ "error detail templates", nullptr)
 #endif
     /* hoEnd */
 };
-static int HttpHeaderStatCount = countof(HttpHeaderStats);
 
 static int HeaderEntryParsedCount = 0;
 
@@ -129,8 +128,8 @@ httpHeaderInitModule(void)
             CBIT_SET(ReplyHeadersMask,h);
     }
 
-    /* header stats initialized by class constructor */
-    assert(HttpHeaderStatCount == hoReply + 1);
+    assert(HttpHeaderStats[0].label && "httpHeaderInitModule() called via main()");
+    assert(HttpHeaderStats[hoEnd-1].label && "HttpHeaderStats created with all elements");
 
     /* init dependent modules */
     httpHdrCcInitModule();
@@ -193,8 +192,6 @@ HttpHeader::clean()
     assert(owner > hoNone && owner < hoEnd);
     debugs(55, 7, "cleaning hdr: " << this << " owner: " << owner);
 
-    PROF_start(HttpHeaderClean);
-
     if (owner <= hoReply) {
         /*
          * An unfortunate bug.  The entries array is initialized
@@ -218,7 +215,7 @@ HttpHeader::clean()
         if (e == nullptr)
             continue;
         if (!Http::any_valid_header(e->id)) {
-            debugs(55, DBG_CRITICAL, "BUG: invalid entry (" << e->id << "). Ignored.");
+            debugs(55, DBG_CRITICAL, "ERROR: Squid BUG: invalid entry (" << e->id << "). Ignored.");
         } else {
             if (owner <= hoReply)
                 HttpHeaderStats[owner].fieldTypeDistr.count(e->id);
@@ -231,7 +228,6 @@ HttpHeader::clean()
     len = 0;
     conflictingContentLength_ = false;
     teUnsupported_ = false;
-    PROF_stop(HttpHeaderClean);
 }
 
 /* append entries (also see httpHeaderUpdate) */
@@ -384,8 +380,6 @@ HttpHeader::parse(const char *header_start, size_t hdrLen, Http::ContentLengthIn
     const char *header_end = header_start + hdrLen; // XXX: remove
     int warnOnError = (Config.onoff.relaxed_header_parser <= 0 ? DBG_IMPORTANT : 2);
 
-    PROF_start(HttpHeaderParse);
-
     assert(header_start && header_end);
     debugs(55, 7, "parsing hdr: (" << this << ")" << std::endl << getStringPrefix(header_start, hdrLen));
     ++ HttpHeaderStats[owner].parsedCount;
@@ -394,7 +388,6 @@ HttpHeader::parse(const char *header_start, size_t hdrLen, Http::ContentLengthIn
     if ((nulpos = (char*)memchr(header_start, '\0', hdrLen))) {
         debugs(55, DBG_IMPORTANT, "WARNING: HTTP header contains NULL characters {" <<
                getStringPrefix(header_start, nulpos-header_start) << "}\nNULL\n{" << getStringPrefix(nulpos+1, hdrLen-(nulpos-header_start)-1));
-        PROF_stop(HttpHeaderParse);
         clean();
         return 0;
     }
@@ -414,7 +407,6 @@ HttpHeader::parse(const char *header_start, size_t hdrLen, Http::ContentLengthIn
 
             if (!field_ptr) {
                 // missing <LF>
-                PROF_stop(HttpHeaderParse);
                 clean();
                 return 0;
             }
@@ -436,7 +428,6 @@ HttpHeader::parse(const char *header_start, size_t hdrLen, Http::ContentLengthIn
                         debugs(55, DBG_IMPORTANT, "SECURITY WARNING: Rejecting HTTP request with a CR+ "
                                "header field to prevent request smuggling attacks: {" <<
                                getStringPrefix(header_start, hdrLen) << "}");
-                        PROF_stop(HttpHeaderParse);
                         clean();
                         return 0;
                     }
@@ -457,7 +448,6 @@ HttpHeader::parse(const char *header_start, size_t hdrLen, Http::ContentLengthIn
                         ++p;
                     }
                 } else {
-                    PROF_stop(HttpHeaderParse);
                     clean();
                     return 0;
                 }
@@ -466,7 +456,6 @@ HttpHeader::parse(const char *header_start, size_t hdrLen, Http::ContentLengthIn
             if (this_line + 1 == field_end && this_line > field_start) {
                 debugs(55, warnOnError, "WARNING: Blank continuation line in HTTP header {" <<
                        getStringPrefix(header_start, hdrLen) << "}");
-                PROF_stop(HttpHeaderParse);
                 clean();
                 return 0;
             }
@@ -476,7 +465,6 @@ HttpHeader::parse(const char *header_start, size_t hdrLen, Http::ContentLengthIn
             if (field_ptr < header_end) {
                 debugs(55, warnOnError, "WARNING: unparsable HTTP header field near {" <<
                        getStringPrefix(field_start, hdrLen-(field_start-header_start)) << "}");
-                PROF_stop(HttpHeaderParse);
                 clean();
                 return 0;
             }
@@ -490,7 +478,6 @@ HttpHeader::parse(const char *header_start, size_t hdrLen, Http::ContentLengthIn
                    getStringPrefix(field_start, field_end-field_start) << "}");
             debugs(55, warnOnError, " in {" << getStringPrefix(header_start, hdrLen) << "}");
 
-            PROF_stop(HttpHeaderParse);
             clean();
             return 0;
         }
@@ -501,7 +488,6 @@ HttpHeader::parse(const char *header_start, size_t hdrLen, Http::ContentLengthIn
                 if (!hasBareCr) // already warned about bare CRs
                     debugs(55, warnOnError, "WARNING: obs-fold in framing-sensitive " << e->name << ": " << e->value);
                 delete e;
-                PROF_stop(HttpHeaderParse);
                 clean();
                 return 0;
             }
@@ -513,7 +499,6 @@ HttpHeader::parse(const char *header_start, size_t hdrLen, Http::ContentLengthIn
             if (Config.onoff.relaxed_header_parser)
                 continue; // clen has printed any necessary warnings
 
-            PROF_stop(HttpHeaderParse);
             clean();
             return 0;
         }
@@ -539,11 +524,10 @@ HttpHeader::parse(const char *header_start, size_t hdrLen, Http::ContentLengthIn
         if (delById(Http::HdrType::CONTENT_LENGTH))
             debugs(55, 3, "Content-Length is " << clen.prohibitedAndIgnored());
 
-        // RFC 7230 section 3.3.1 has the same criteria forbid Transfer-Encoding
-        if (delById(Http::HdrType::TRANSFER_ENCODING)) {
+        // The same RFC 7230 3.3.3#1-based logic applies to Transfer-Encoding
+        // banned by RFC 7230 section 3.3.1.
+        if (delById(Http::HdrType::TRANSFER_ENCODING))
             debugs(55, 3, "Transfer-Encoding is " << clen.prohibitedAndIgnored());
-            teUnsupported_ = true;
-        }
 
     } else if (getByIdIfPresent(Http::HdrType::TRANSFER_ENCODING, &rawTe)) {
         // RFC 2616 section 4.4: ignore Content-Length with Transfer-Encoding
@@ -575,7 +559,6 @@ HttpHeader::parse(const char *header_start, size_t hdrLen, Http::ContentLengthIn
         }
     }
 
-    PROF_stop(HttpHeaderParse);
     return 1;           /* even if no fields where found, it is a valid header */
 }
 
@@ -1240,7 +1223,6 @@ HttpHeader::getCc() const
 {
     if (!CBIT_TEST(mask, Http::HdrType::CACHE_CONTROL))
         return NULL;
-    PROF_start(HttpHeader_getCc);
 
     String s;
     getList(Http::HdrType::CACHE_CONTROL, &s);
@@ -1258,8 +1240,6 @@ HttpHeader::getCc() const
         httpHdrCcUpdateStats(cc, &HttpHeaderStats[owner].ccTypeDistr);
 
     httpHeaderNoteParsedEntry(Http::HdrType::CACHE_CONTROL, s, !cc);
-
-    PROF_stop(HttpHeader_getCc);
 
     return cc;
 }
@@ -1480,7 +1460,7 @@ HttpHeaderEntry::parse(const char *field_start, const char *field_end, const htt
             return nullptr; // reject if we cannot strip
 
         debugs(55, Config.onoff.relaxed_header_parser <= 0 ? 1 : 2,
-               "NOTICE: Whitespace after header name in '" << getStringPrefix(field_start, field_end-field_start) << "'");
+               "WARNING: Whitespace after header name in '" << getStringPrefix(field_start, field_end-field_start) << "'");
 
         while (name_len > 0 && xisspace(field_start[name_len - 1]))
             --name_len;
@@ -1608,7 +1588,7 @@ httpHeaderNoteParsedEntry(Http::HdrType id, String const &context, bool error)
 extern const HttpHeaderStat *dump_stat;     /* argh! */
 const HttpHeaderStat *dump_stat = NULL;
 
-void
+static void
 httpHeaderFieldStatDumper(StoreEntry * sentry, int, double val, double, int count)
 {
     const int id = static_cast<int>(val);
@@ -1640,6 +1620,9 @@ httpHeaderStatDump(const HttpHeaderStat * hs, StoreEntry * e)
     assert(hs);
     assert(e);
 
+    if (!hs->owner_mask)
+        return; // these HttpHeaderStat objects were not meant to be dumped here
+
     dump_stat = hs;
     storeAppendPrintf(e, "\nHeader Stats: %s\n", hs->label);
     storeAppendPrintf(e, "\nField type distribution\n");
@@ -1665,7 +1648,6 @@ httpHeaderStatDump(const HttpHeaderStat * hs, StoreEntry * e)
 void
 httpHeaderStoreReport(StoreEntry * e)
 {
-    int i;
     assert(e);
 
     HttpHeaderStats[0].parsedCount =
@@ -1677,9 +1659,8 @@ httpHeaderStoreReport(StoreEntry * e)
     HttpHeaderStats[0].busyDestroyedCount =
         HttpHeaderStats[hoRequest].busyDestroyedCount + HttpHeaderStats[hoReply].busyDestroyedCount;
 
-    for (i = 1; i < HttpHeaderStatCount; ++i) {
-        httpHeaderStatDump(HttpHeaderStats + i, e);
-    }
+    for (const auto &stats: HttpHeaderStats)
+        httpHeaderStatDump(&stats, e);
 
     /* field stats for all messages */
     storeAppendPrintf(e, "\nHttp Fields Stats (replies and requests)\n");

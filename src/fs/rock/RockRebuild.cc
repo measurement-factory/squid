@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1996-2020 The Squid Software Foundation and contributors
+ * Copyright (C) 1996-2022 The Squid Software Foundation and contributors
  *
  * Squid software is distributed under GPLv2+ license and includes
  * contributions from numerous individuals and organizations.
@@ -10,6 +10,7 @@
 
 #include "squid.h"
 #include "base/AsyncJobCalls.h"
+#include "DebugMessages.h"
 #include "fs/rock/RockDbCell.h"
 #include "fs/rock/RockRebuild.h"
 #include "fs/rock/RockSwapDir.h"
@@ -258,16 +259,16 @@ Rock::Rebuild::Stats::Init(const SwapDir &dir)
 }
 
 bool
-Rock::Rebuild::Stats::completed(const SwapDir &sd) const
+Rock::Rebuild::Stats::completed(const SwapDir &dir) const
 {
-    return DoneLoading(counts.scancount, sd.slotLimitActual()) &&
-        DoneValidating(counts.validations, sd.slotLimitActual(), sd.entryLimitActual());
+    return DoneLoading(counts.scancount, dir.slotLimitActual()) &&
+           DoneValidating(counts.validations, dir.slotLimitActual(), dir.entryLimitActual());
 }
 
 /* Rebuild */
 
 bool
-Rock::Rebuild::IsResponsible(const SwapDir &sd)
+Rock::Rebuild::IsResponsible(const SwapDir &)
 {
     // in SMP mode, only the disker is responsible for populating the map
     return !UsingSmp() || IamDiskProcess();
@@ -289,7 +290,7 @@ Rock::Rebuild::Start(SwapDir &dir)
         return false;
     }
 
-    Must(AsyncJob::Start(new Rebuild(&dir, stats)));
+    AsyncJob::Start(new Rebuild(&dir, stats));
     return true;
 }
 
@@ -339,11 +340,11 @@ Rock::Rebuild::start()
     assert(IsResponsible(*sd));
 
     if (!resuming) {
-        debugs(47, DBG_IMPORTANT, "Loading cache_dir #" << sd->index <<
+        debugs(47, Important(18), "Loading cache_dir #" << sd->index <<
                " from " << sd->filePath);
     } else {
-        debugs(47, DBG_IMPORTANT, "Resuming indexing cache_dir #" << sd->index <<
-            " from " << sd->filePath << ':' << progressDescription());
+        debugs(47, Important(63), "Resuming indexing cache_dir #" << sd->index <<
+               " from " << sd->filePath << ':' << progressDescription());
     }
 
     fd = file_open(sd->filePath, O_RDONLY | O_BINARY);
@@ -440,7 +441,7 @@ Rock::Rebuild::loadingSteps()
         getCurrentTime();
         const double elapsedMsec = tvSubMsec(loopStart, current_time);
         if (elapsedMsec > maxSpentMsec || elapsedMsec < 0) {
-            debugs(47, 5, HERE << "pausing after " << loaded << " entries in " <<
+            debugs(47, 5, "pausing after " << loaded << " entries in " <<
                    elapsedMsec << "ms; " << (elapsedMsec/loaded) << "ms per entry");
             break;
         }
@@ -667,7 +668,7 @@ Rock::Rebuild::freeBadEntry(const sfileno fileno, const char *eDescription)
 void
 Rock::Rebuild::swanSong()
 {
-    debugs(47,3, HERE << "cache_dir #" << sd->index << " rebuild level: " <<
+    debugs(47,3, "cache_dir #" << sd->index << " rebuild level: " <<
            StoreController::store_dirs_rebuilding);
     storeRebuildComplete(&counts);
 }
