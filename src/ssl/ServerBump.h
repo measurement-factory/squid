@@ -49,7 +49,7 @@ public:
     /// whether we are currently performing one of the given processing steps
     bool at(const BumpStep step1, const BumpStep step2) const { return at(step1) || at(step2); }
 
-    void resetStoreEntry(StoreEntry *r);
+    void resetStoreEntry(ClientHttpRequest *, StoreEntry *);
 
     /// faked, minimal request; required by Client API
     HttpRequest::Pointer request;

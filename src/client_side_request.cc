@@ -1862,7 +1862,7 @@ ClientHttpRequest::doCallouts()
             assert(srvBump->at(XactionStep::tlsBump2));
             // Update request
             srvBump->request = request;
-            srvBump->resetStoreEntry(e);
+            srvBump->resetStoreEntry(calloutContext->http, e);
         } else if (sslBumpNeeded()) {
             // We have to serve an error, so bump the client first.
             sslBumpNeed(Ssl::bumpClientFirst);
