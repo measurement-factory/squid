@@ -19,6 +19,7 @@
 #include "mime_header.h"
 #include "SquidConfig.h"
 #include "SquidMath.h"
+#include "store_key_md5.h"
 #include "StoreStats.h"
 #include "tools.h"
 
@@ -318,7 +319,13 @@ MemStore::get(const cache_key *key)
 
     anchorEntry(*e, index, *slot);
 
+    // XXX: Needed by e->unpackHeader() below. Invent a better way of passing
+    // the key there instead of polluting StoreEntry.
+    e->key = storeKeyDup(key);
     const bool copied = copyFromShm(*e, index, *slot);
+    // Controller expects nil key in order to assign properly the key, Transients, etc.
+    storeKeyFree((const cache_key *)e->key);
+    e->key = nullptr;
 
     if (copied)
         return e;
@@ -476,9 +483,9 @@ MemStore::copyFromShm(StoreEntry &e, const sfileno index, const Ipc::StoreMapAnc
                anchor.basics.swap_file_sz << " sliceOffset " << sliceOffset <<
                " mem.endOffset " << e.mem_obj->endOffset());
 
-        if (e.mem_obj->endOffset() < sliceOffset + wasSize) {
+        if (e.mem_obj->endOffset() + static_cast<int64_t>(e.mem_obj->swap_hdr_sz) < sliceOffset + wasSize) {
             // size of the slice data that we already copied
-            size_t prefixSize = e.mem_obj->endOffset() - sliceOffset;
+            size_t prefixSize = e.mem_obj->endOffset() + e.mem_obj->swap_hdr_sz - sliceOffset;
             assert(prefixSize <= wasSize);
 
             const MemStoreMapExtras::Item &extra = extras->items[sid];
@@ -506,7 +513,7 @@ MemStore::copyFromShm(StoreEntry &e, const sfileno index, const Ipc::StoreMapAnc
             assert(!wasEof);
             // here we know that slice.size may not change any more
             if (wasSize >= slice.size) { // did not grow since we started copying
-                sliceOffset += sliceOffset ? wasSize - e.mem_obj->swap_hdr_sz : wasSize;
+                sliceOffset += wasSize;
                 sid = slice.next;
             }
         } else if (wasSize >= slice.size) { // did not grow
@@ -524,7 +531,7 @@ MemStore::copyFromShm(StoreEntry &e, const sfileno index, const Ipc::StoreMapAnc
            anchor.basics.swap_file_sz << " bytes of " << e);
 
     // from StoreEntry::complete()
-    e.mem_obj->object_sz = e.mem_obj->endOffset();
+    e.mem_obj->object_sz = e.mem_obj->endOffset() + e.mem_obj->swap_hdr_sz;
     e.store_status = STORE_OK;
     e.setMemStatus(IN_MEMORY);
 
@@ -653,7 +660,7 @@ MemStore::copyToShm(StoreEntry &e)
     assert(e.mem_obj);
     Must(!EBIT_TEST(e.flags, ENTRY_FWD_HDR_WAIT));
 
-    const int64_t eSize = e.mem_obj->endOffset();
+    const int64_t eSize = e.mem_obj->endOffset() + e.mem_obj->swap_hdr_sz;
     if (e.mem_obj->memCache.offset >= eSize) {
         debugs(20, 5, "postponing copying " << e << " for lack of news: " <<
                e.mem_obj->memCache.offset << " >= " << eSize);
