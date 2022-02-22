@@ -142,7 +142,7 @@ ClientRequestContext::ClientRequestContext(ClientHttpRequest *anHttp) :
 
 CBDATA_CLASS_INIT(ClientHttpRequest);
 
-ClientHttpRequest::ClientHttpRequest(ConnStateData * aConn) :
+ClientHttpRequest::ClientHttpRequest(ConnStateData * const aConn, const bool isFake):
 #if USE_ADAPTATION
     AsyncJob("ClientHttpRequest"),
 #endif
@@ -155,7 +155,8 @@ ClientHttpRequest::ClientHttpRequest(ConnStateData * aConn) :
     maxReplyBodySize_(0),
     entry_(NULL),
     loggingEntry_(NULL),
-    conn_(cbdataReference(aConn))
+    conn_(cbdataReference(aConn)),
+    isFake_(isFake)
 #if USE_OPENSSL
     , sslBumpNeed_(Ssl::bumpEnd)
 #endif
@@ -1600,7 +1601,7 @@ ClientHttpRequest::sslBumpStart()
     AsyncCall::Pointer bumpCall = commCbCall(85, 5, "ClientSocketContext::sslBumpEstablish",
                                   CommIoCbPtrFun(&SslBumpEstablish, this));
 
-    if (request->flags.interceptTproxy || request->flags.intercepted) {
+    if (!clientExpectsConnectResponse()) {
         CommIoCbParams &params = GetCommParams<CommIoCbParams>(bumpCall);
         params.flag = Comm::OK;
         params.conn = getConn()->clientConnection;
@@ -1608,16 +1609,28 @@ ClientHttpRequest::sslBumpStart()
         return;
     }
 
-    al->reply = HttpReply::MakeConnectionEstablished();
-
-    const auto mb = al->reply->pack();
-    // send an HTTP 200 response to kick client SSL negotiation
-    // TODO: Unify with tunnel.cc and add a Server(?) header
-    Comm::Write(getConn()->clientConnection, mb, bumpCall);
-    delete mb;
+    const auto mb = commitToSendingConnectResponse();
+    Comm::Write(getConn()->clientConnection, mb.get(), bumpCall);
 }
 
 #endif
+
+bool
+ClientHttpRequest::clientExpectsConnectResponse() const
+{
+    return !isFake_ && request->method == Http::METHOD_CONNECT && !al->reply;
+}
+
+std::unique_ptr<MemBuf>
+ClientHttpRequest::commitToSendingConnectResponse()
+{
+    assert(clientExpectsConnectResponse());
+    debugs(33, 3, getConn()->clientConnection);
+    al->reply = HttpReply::MakeConnectionEstablished();
+    std::unique_ptr<MemBuf> mb(al->reply->pack());
+    assert(!clientExpectsConnectResponse()); // the caller will not send twice
+    return mb;
+}
 
 void
 ClientHttpRequest::updateError(const Error &error)

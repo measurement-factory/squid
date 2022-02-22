@@ -3197,7 +3197,7 @@ ConnStateData::buildFakeRequest(SBuf &useHost, unsigned short usePort)
 ClientHttpRequest *
 ConnStateData::buildFakeRequest(HttpRequest::Pointer &request)
 {
-    ClientHttpRequest *http = new ClientHttpRequest(this);
+    ClientHttpRequest *http = new ClientHttpRequest(this, true);
     Http::Stream *stream = new Http::Stream(clientConnection, http);
 
     StoreIOBuffer tempBuffer;
