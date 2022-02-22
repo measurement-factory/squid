@@ -319,8 +319,10 @@ MemStore::get(const cache_key *key)
 
     anchorEntry(*e, index, *slot);
 
-    // XXX: Needed by e->unpackHeader() below. Invent a better way of passing
-    // the key there instead of polluting StoreEntry.
+    // XXX: Needed by e->unpackHeader() below.
+    // TODO: copying the entire (and possibly huge) entry beforehand may be useless
+    // if client(s) are gone. Do it incrementally instead, postponing the initial
+    // copyFromShm() call.
     e->key = storeKeyDup(key);
     const bool copied = copyFromShm(*e, index, *slot);
     // Controller expects nil key in order to assign properly the key, Transients, etc.
@@ -477,27 +479,25 @@ MemStore::copyFromShm(StoreEntry &e, const sfileno index, const Ipc::StoreMapAnc
         // slice state may change during copying; take snapshots now
         wasEof = anchor.complete() && slice.next < 0;
         const Ipc::StoreMapSlice::Size wasSize = slice.size;
+        const MemStoreMapExtras::Item &extra = extras->items[sid];
+        char *page = static_cast<char*>(PagePointer(extra.page));
 
         debugs(20, 8, "entry " << index << " slice " << sid << " eof " <<
                wasEof << " wasSize " << wasSize << " <= " <<
                anchor.basics.swap_file_sz << " sliceOffset " << sliceOffset <<
                " mem.endOffset " << e.mem_obj->endOffset());
 
+        if (e.mem_obj->swap_hdr_sz == 0) {
+            assert(e.mem_obj->endOffset() == 0);
+            if (!e.unpackHeader(page, wasSize))
+                return false;
+        }
+
         if (e.mem_obj->endOffset() + static_cast<int64_t>(e.mem_obj->swap_hdr_sz) < sliceOffset + wasSize) {
             // size of the slice data that we already copied
             size_t prefixSize = e.mem_obj->endOffset() + e.mem_obj->swap_hdr_sz - sliceOffset;
             assert(prefixSize <= wasSize);
 
-            const MemStoreMapExtras::Item &extra = extras->items[sid];
-
-            char *page = static_cast<char*>(PagePointer(extra.page));
-            if (e.mem_obj->swap_hdr_sz == 0) {
-                assert(e.mem_obj->endOffset() == 0);
-                assert(prefixSize == 0);
-                if (!e.unpackHeader(page, wasSize))
-                    return false;
-                prefixSize += e.mem_obj->swap_hdr_sz;
-            }
             const StoreIOBuffer sliceBuf(wasSize - prefixSize,
                                          e.mem_obj->endOffset(),
                                          page + prefixSize);
