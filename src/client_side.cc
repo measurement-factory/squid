@@ -2906,6 +2906,7 @@ ConnStateData::splice()
 {
     // normally we can splice here, because we just got client hello message
     assert(sslServerBump);
+    debugs(83, 5, int(sslServerBump->step));
 
     // Bump procedure finished, reset current bumping step
     sslServerBump->step = XactionStep::tlsBumpDone;
@@ -2967,7 +2968,7 @@ ConnStateData::resumePeekAndSpliceStep2()
 
     assert(sslServerBump);
     if (!sslServerBump->connectedOk()) {
-        // This is an error. Stop peek and splice and serve the error
+        debugs(83, 5, "need to serve the saved error");
         getSslContextStart();
         // We have to read client request:
         flags.readMore = true;
@@ -2975,6 +2976,7 @@ ConnStateData::resumePeekAndSpliceStep2()
     }
 
     sslBumpMode = sslServerBump->act.step2;
+    debugs(83, 5, sslBumpMode);
     if (sslBumpMode == Ssl::bumpTerminate) {
         sslServerBump->step = XactionStep::tlsBumpDone;
         clientConnection->close();
