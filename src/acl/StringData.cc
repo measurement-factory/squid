@@ -12,7 +12,7 @@
 #include "acl/Checklist.h"
 #include "acl/StringData.h"
 #include "ConfigParser.h"
-#include "Debug.h"
+#include "debug/Stream.h"
 
 ACLStringData::ACLStringData(ACLStringData const &old) : stringValues(old.stringValues)
 {

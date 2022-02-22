@@ -8,6 +8,11 @@
 
 #include "squid.h"
 #include "base/RegexPattern.h"
+#include "base/TextException.h"
+#include "debug/Stream.h"
+#include "sbuf/Stream.h"
+
+#include <iostream>
 #include <utility>
 
 RegexPattern::RegexPattern(int aFlags, const char *aPattern) :

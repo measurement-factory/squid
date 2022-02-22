@@ -20,7 +20,7 @@
 #include "acl/RegexData.h"
 #include "base/RegexPattern.h"
 #include "ConfigParser.h"
-#include "Debug.h"
+#include "debug/Stream.h"
 #include "sbuf/Algorithms.h"
 #include "sbuf/List.h"
 

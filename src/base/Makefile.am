@@ -41,6 +41,8 @@ libbase_la_SOURCES = \
 	Here.h \
 	InstanceId.cc \
 	InstanceId.h \
+	IoManip.cc \
+	IoManip.h \
 	JobWait.cc \
 	JobWait.h \
 	Lock.h \
@@ -50,6 +52,8 @@ libbase_la_SOURCES = \
 	Packable.h \
 	PackableStream.h \
 	Range.h \
+	Raw.cc \
+	Raw.h \
 	RefCount.h \
 	RegexPattern.cc \
 	RegexPattern.h \

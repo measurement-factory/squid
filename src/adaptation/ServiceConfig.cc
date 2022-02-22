@@ -11,7 +11,7 @@
 #include "squid.h"
 #include "adaptation/ServiceConfig.h"
 #include "ConfigParser.h"
-#include "Debug.h"
+#include "debug/Stream.h"
 #include "globals.h"
 #include "ip/tools.h"
 #include <set>

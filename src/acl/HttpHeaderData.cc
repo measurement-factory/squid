@@ -15,7 +15,7 @@
 #include "acl/RegexData.h"
 #include "base/RegexPattern.h"
 #include "ConfigParser.h"
-#include "Debug.h"
+#include "debug/Stream.h"
 #include "HttpHeaderTools.h"
 #include "sbuf/SBuf.h"
 #include "sbuf/StringConvert.h"

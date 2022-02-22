@@ -9,7 +9,7 @@
 #include "squid.h"
 #include "base/AsyncCall.h"
 #include "base/DelayedAsyncCalls.h"
-#include "Debug.h"
+#include "debug/Stream.h"
 
 void
 DelayedAsyncCalls::delay(const AsyncCall::Pointer &call)

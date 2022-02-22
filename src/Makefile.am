@@ -31,8 +31,8 @@ LOADABLE_MODULES_SOURCES = \
 	LoadableModules.cc \
 	LoadableModules.h
 
-SUBDIRS = mem base anyp helper dns ftp parser comm error eui acl format clients sbuf servers fs repl store DiskIO proxyp
-DIST_SUBDIRS = mem base anyp helper dns ftp parser comm error eui acl format clients sbuf servers fs repl store DiskIO proxyp
+SUBDIRS = mem debug base anyp helper dns ftp parser comm error eui acl format clients sbuf servers fs repl store DiskIO proxyp
+DIST_SUBDIRS = mem debug base anyp helper dns ftp parser comm error eui acl format clients sbuf servers fs repl store DiskIO proxyp
 
 if ENABLE_AUTH
 SUBDIRS += auth
@@ -244,8 +244,6 @@ squid_SOURCES = \
 	CpuAffinityMap.h \
 	CpuAffinitySet.cc \
 	CpuAffinitySet.h \
-	Debug.h \
-	DebugMessages.h \
 	Downloader.cc \
 	Downloader.h \
 	ETag.cc \
@@ -374,7 +372,6 @@ squid_SOURCES = \
 	client_side_reply.h \
 	client_side_request.cc \
 	client_side_request.h \
-	debug.cc \
 	defines.h \
 	dlink.cc \
 	dlink.h \
@@ -541,6 +538,7 @@ squid_LDADD = \
 	log/liblog.la \
 	format/libformat.la \
 	sbuf/libsbuf.la \
+	debug/libdebug.la \
 	$(XTRA_OBJS) \
 	$(REPL_OBJS) \
 	$(NETTLELIB) \
@@ -614,7 +612,6 @@ ufsdump_SOURCES = \
 	String.cc \
 	cbdata.cc \
 	cbdata.h \
-	debug.cc \
 	dlink.cc \
 	dlink.h \
 	tests/stub_fd.cc \
@@ -639,6 +636,7 @@ ufsdump_LDADD = \
 	fs/libfs.la \
 	ipc/libipc.la \
 	mgr/libmgr.la \
+	debug/libdebug.la \
 	$(XTRA_OBJS) \
 	$(REPL_OBJS) \
 	$(NETTLELIB) \
@@ -1944,7 +1942,6 @@ tests_test_http_range_SOURCES = \
 	client_side.h \
 	client_side_reply.cc \
 	client_side_request.cc \
-	debug.cc \
 	dlink.cc \
 	dlink.h \
 	errorpage.cc \
@@ -2066,6 +2063,7 @@ tests_test_http_range_LDADD = \
 	base/libbase.la \
 	mgr/libmgr.la \
 	sbuf/libsbuf.la \
+	debug/libdebug.la \
 	store/libstore.la \
 	$(SNMP_LIBS) \
 	$(top_builddir)/lib/libmisccontainers.la \
@@ -2083,7 +2081,6 @@ tests_test_http_range_LDFLAGS = $(LIBADD_DL)
 
 check_PROGRAMS += tests/testHttp1Parser
 tests_testHttp1Parser_SOURCES = \
-	Debug.h \
 	tests/stub_HelperChildConfig.cc \
 	tests/testHttp1Parser.cc \
 	tests/testHttp1Parser.h \
@@ -2338,7 +2335,6 @@ tests_testHttpRequest_SOURCES = \
 	client_side.h \
 	client_side_reply.cc \
 	client_side_request.cc \
-	debug.cc \
 	dlink.cc \
 	dlink.h \
 	errorpage.cc \
@@ -2459,6 +2455,7 @@ tests_testHttpRequest_LDADD = \
 	format/libformat.la \
 	store/libstore.la \
 	sbuf/libsbuf.la \
+	debug/libdebug.la \
 	$(REPL_OBJS) \
 	$(ADAPTATION_LIBS) \
 	$(ESI_LIBS) \
@@ -2643,7 +2640,6 @@ tests_testCacheManager_SOURCES = \
 	client_side.h \
 	client_side_reply.cc \
 	client_side_request.cc \
-	debug.cc \
 	dlink.cc \
 	dlink.h \
 	errorpage.cc \
@@ -2768,6 +2764,7 @@ tests_testCacheManager_LDADD = \
 	mem/libmem.la \
 	store/libstore.la \
 	sbuf/libsbuf.la \
+	debug/libdebug.la \
 	$(top_builddir)/lib/libmisccontainers.la \
 	$(top_builddir)/lib/libmiscencoding.la \
 	$(top_builddir)/lib/libmiscutil.la \
@@ -2842,7 +2839,7 @@ tests_testConfigParser_SOURCES = \
 	tests/stub_fatal.cc \
 	fatal.h \
 	tests/stub_libmem.cc \
-	tests/stub_neighbors.cc
+	tests/stub_neighbors.cc \
 	tests/stub_time.cc \
 	tests/stub_tools.cc \
 	tools.h \
@@ -2889,6 +2886,7 @@ tests_testEvent_SOURCES = \
 	CpuAffinityMap.h \
 	CpuAffinitySet.cc \
 	CpuAffinitySet.h \
+	tests/stub_debug.cc \
 	tests/stub_ETag.cc \
 	tests/testEvent.cc \
 	tests/testEvent.h \
@@ -2968,7 +2966,6 @@ tests_testEvent_SOURCES = \
 	client_side.h \
 	client_side_reply.cc \
 	client_side_request.cc \
-	debug.cc \
 	dlink.cc \
 	dlink.h \
 	errorpage.cc \
@@ -3130,6 +3127,7 @@ tests_testEventLoop_SOURCES = \
 	CpuAffinityMap.h \
 	CpuAffinitySet.cc \
 	CpuAffinitySet.h \
+	tests/stub_debug.cc \
 	tests/stub_ETag.cc \
 	EventLoop.cc \
 	tests/testEventLoop.cc \
@@ -3209,7 +3207,6 @@ tests_testEventLoop_SOURCES = \
 	client_side.h \
 	client_side_reply.cc \
 	client_side_request.cc \
-	debug.cc \
 	dlink.cc \
 	dlink.h \
 	errorpage.cc \
