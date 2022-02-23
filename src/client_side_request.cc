@@ -156,7 +156,8 @@ ClientHttpRequest::ClientHttpRequest(ConnStateData * const aConn, const bool isF
     entry_(NULL),
     loggingEntry_(NULL),
     conn_(cbdataReference(aConn)),
-    isFake_(isFake)
+    isFake_(isFake),
+    commitedToSendingConnectResponse_(false)
 #if USE_OPENSSL
     , sslBumpNeed_(Ssl::bumpEnd)
 #endif
@@ -1641,14 +1642,18 @@ ClientHttpRequest::sslBumpStart()
 bool
 ClientHttpRequest::clientExpectsConnectResponse() const
 {
-    return !isFake_ && request->method == Http::METHOD_CONNECT && !al->reply;
+    return !isFake_ && request->method == Http::METHOD_CONNECT && !commitedToSendingConnectResponse_;
 }
 
 std::unique_ptr<MemBuf>
 ClientHttpRequest::commitToSendingConnectResponse()
 {
     assert(clientExpectsConnectResponse());
+    commitedToSendingConnectResponse_ = true;
     debugs(33, 3, getConn()->clientConnection);
+    // TODO: step1 REQMOD request satisfaction and doCallout() errors may also
+    // set al->reply. Consider not storing this reply, especially if we are
+    // serving one of those "earlier" replies after bumping the connection.
     al->reply = HttpReply::MakeConnectionEstablished();
     std::unique_ptr<MemBuf> mb(al->reply->pack());
     assert(!clientExpectsConnectResponse()); // the caller will not send twice
