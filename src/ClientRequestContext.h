@@ -18,6 +18,9 @@
 #if USE_ADAPTATION
 #include "adaptation/forward.h"
 #endif
+#if USE_OPENSSL
+#include "ssl/support.h"
+#endif
 
 class ACLChecklist;
 class ClientHttpRequest;
@@ -57,8 +60,12 @@ public:
     bool sslBumpAccessCheck();
     /// The callback function for ssl-bump access check list
     void sslBumpAccessCheckDone(const Acl::Answer &answer);
+
+private:
+    Ssl::BumpMode sslBumpActionAfterNoRulesMatched() const;
 #endif
 
+public:
     ClientHttpRequest *http;
     ACLChecklist *acl_checklist;        /* need ptr back so we can unreg if needed */
     int redirect_state;

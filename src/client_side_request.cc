@@ -1456,6 +1456,28 @@ ClientRequestContext::sslBumpAccessCheck()
     return true;
 }
 
+// TODO: Move this, Ssl::PeekingPeerConnector::checkForPeekAndSpliceGuess() to
+// ServerBump::actionAfterNoRulesMatched() after ensuring ServerBump existence.
+/// decide what to do after sslBumpAccessCheck() matched no ssl_bump rules
+Ssl::BumpMode
+ClientRequestContext::sslBumpActionAfterNoRulesMatched() const
+{
+    // TODO: Ensure srvBump existence on the entire SslBump code path.
+    const auto srvBump = http->getConn()->serverBump();
+    if (srvBump && srvBump->at(XactionStep::tlsBump2)) {
+        // step1 action determines what happens when no rules match at step2
+        if (srvBump->act.step1 == Ssl::bumpStare) {
+            debugs(85, 3, "bumping at no-match step2 because step1 stared");
+            return Ssl::bumpBump;
+        }
+        assert(srvBump->act.step1 == Ssl::bumpPeek);
+        debugs(85, 3, "splicing at no-match step2 because step1 peeked");
+        return Ssl::bumpSplice;
+    }
+    debugs(85, 3, "splicing at no-match step1");
+    return Ssl::bumpSplice;
+}
+
 /**
  * A wrapper function to use the ClientRequestContext::sslBumpAccessCheckDone method
  * as ACLFilledChecklist callback
@@ -1477,7 +1499,8 @@ ClientRequestContext::sslBumpAccessCheckDone(const Acl::Answer &answer)
         return;
 
     const Ssl::BumpMode bumpMode = answer.allowed() ?
-                                   static_cast<Ssl::BumpMode>(answer.kind) : Ssl::bumpSplice;
+                                   static_cast<Ssl::BumpMode>(answer.kind) :
+                                   sslBumpActionAfterNoRulesMatched();
     http->sslBumpNeed(bumpMode); // for processRequest() to bump if needed
     http->al->ssl.bumpMode = bumpMode; // for logging
 
