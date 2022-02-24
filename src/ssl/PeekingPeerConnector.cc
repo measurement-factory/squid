@@ -110,6 +110,8 @@ Ssl::PeekingPeerConnector::checkForPeekAndSpliceMatched(const Ssl::BumpMode acti
         bail(new ErrorState(ERR_SECURE_CONNECT_FAIL, Http::scForbidden, request.getRaw(), al));
         clientConn->close();
         clientConn = nullptr;
+        if (request->clientConnectionManager.valid())
+            request->clientConnectionManager->serverBump()->step = XactionStep::tlsBumpDone;
     } else if (finalAction != Ssl::bumpSplice) {
         //Allow write, proceed with the connection
         srvBio->holdWrite(false);
@@ -151,6 +153,8 @@ Ssl::PeekingPeerConnector::getTlsContext()
 bool
 Ssl::PeekingPeerConnector::initialize(Security::SessionPointer &serverSession)
 {
+    Must(request->flags.sslPeek);
+
     if (!Security::PeerConnector::initialize(serverSession))
         return false;
 
@@ -175,7 +179,7 @@ Ssl::PeekingPeerConnector::initialize(Security::SessionPointer &serverSession)
             // name that the client will request (after interception or CONNECT)
             // unless it was the CONNECT request with a user-typed address.
             const auto isConnectRequest = csd->port->flags.explicitProxy();
-            if (!request->flags.sslPeek || isConnectRequest)
+            if (isConnectRequest)
                 hostName = new SBuf(request->url.host());
         }
 
@@ -210,13 +214,14 @@ Ssl::PeekingPeerConnector::initialize(Security::SessionPointer &serverSession)
                 setClientSNI(serverSession.get(), sniServer);
         }
 
-        if (Ssl::ServerBump *serverBump = csd->serverBump()) {
-            serverBump->attachServerSession(serverSession);
-            // store peeked cert to check SQUID_X509_V_ERR_CERT_CHANGE
-            if (X509 *peeked_cert = serverBump->serverCert.get()) {
-                X509_up_ref(peeked_cert);
-                SSL_set_ex_data(serverSession.get(), ssl_ex_index_ssl_peeked_cert, peeked_cert);
-            }
+        const auto serverBump = csd->serverBump();
+        Must(serverBump);
+        Must(serverBump->at(XactionStep::tlsBump3));
+        serverBump->attachServerSession(serverSession);
+        // store peeked cert to check SQUID_X509_V_ERR_CERT_CHANGE
+        if (X509 *peeked_cert = serverBump->serverCert.get()) {
+            X509_up_ref(peeked_cert);
+            SSL_set_ex_data(serverSession.get(), ssl_ex_index_ssl_peeked_cert, peeked_cert);
         }
     }
 
@@ -230,37 +235,35 @@ Ssl::PeekingPeerConnector::noteNegotiationDone(ErrorState *error)
     if (!request->clientConnectionManager.valid() || !fd_table[serverConnection()->fd].ssl)
         return;
 
+    auto serverBump = request->clientConnectionManager->serverBump();
+    Must(serverBump);
     // remember the server certificate from the ErrorDetail object
-    if (Ssl::ServerBump *serverBump = request->clientConnectionManager->serverBump()) {
-        if (!serverBump->serverCert.get()) {
-            // remember the server certificate from the ErrorDetail object
-            const auto errDetail = dynamic_cast<Security::ErrorDetail *>(error ? error->detail.getRaw() : nullptr);
-            if (errDetail && errDetail->peerCert())
-                serverBump->serverCert.resetAndLock(errDetail->peerCert());
-            else {
-                handleServerCertificate();
-            }
-        }
+    if (!serverBump->serverCert.get()) {
+        // remember the server certificate from the ErrorDetail object
+        const auto errDetail = dynamic_cast<Security::ErrorDetail *>(error ? error->detail.getRaw() : nullptr);
+        if (errDetail && errDetail->peerCert())
+            serverBump->serverCert.resetAndLock(errDetail->peerCert());
+        else
+            handleServerCertificate();
+    }
 
-        if (error) {
-            // For intercepted connections, set the host name to the server
-            // certificate CN. Otherwise, we just hope that CONNECT is using
-            // a user-entered address (a host name or a user-entered IP).
-            const auto isConnectRequest = request->clientConnectionManager->port->flags.explicitProxy();
-            if (request->flags.sslPeek && !isConnectRequest) {
-                if (X509 *srvX509 = serverBump->serverCert.get()) {
-                    if (const char *name = Ssl::CommonHostName(srvX509)) {
-                        request->url.host(name);
-                        debugs(83, 3, "reset request host: " << name);
-                    }
+    if (error) {
+        // For intercepted connections, set the host name to the server
+        // certificate CN. Otherwise, we just hope that CONNECT is using
+        // a user-entered address (a host name or a user-entered IP).
+        const auto isConnectRequest = request->clientConnectionManager->port->flags.explicitProxy();
+        if (!isConnectRequest) {
+            if (X509 *srvX509 = serverBump->serverCert.get()) {
+                if (const char *name = Ssl::CommonHostName(srvX509)) {
+                    request->url.host(name);
+                    debugs(83, 3, "reset request host: " << name);
                 }
             }
         }
-    }
-
-    if (!error) {
+    } else {
         serverCertificateVerified();
         if (splice) {
+            serverBump->step = XactionStep::tlsBumpDone;
             if (!Comm::IsConnOpen(clientConn)) {
                 bail(new ErrorState(ERR_GATEWAY_FAILURE, Http::scInternalServerError, request.getRaw(), al));
                 throw TextException("from-client connection gone", Here());
@@ -385,9 +388,9 @@ Ssl::PeekingPeerConnector::handleServerCertificate()
         serverCertificateHandled = true;
 
         // remember the server certificate for later use
-        if (Ssl::ServerBump *serverBump = csd->serverBump()) {
-            serverBump->serverCert = std::move(serverCert);
-        }
+        auto serverBump = csd->serverBump();
+        Must(serverBump);
+        serverBump->serverCert = std::move(serverCert);
     }
 }
 
@@ -396,7 +399,9 @@ Ssl::PeekingPeerConnector::serverCertificateVerified()
 {
     if (ConnStateData *csd = request->clientConnectionManager.valid()) {
         Security::CertPointer serverCert;
-        if(Ssl::ServerBump *serverBump = csd->serverBump())
+        auto serverBump = csd->serverBump();
+        Must(serverBump);
+        if(serverBump->serverCert.get())
             serverCert.resetAndLock(serverBump->serverCert.get());
         else {
             const int fd = serverConnection()->fd;

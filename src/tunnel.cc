@@ -100,18 +100,15 @@ public:
 
     /// Whether the client sent a CONNECT request to us.
     bool clientExpectsConnectResponse() const {
-        // If we are forcing a tunnel after receiving a client CONNECT, then we
-        // have already responded to that CONNECT before tunnel.cc started.
+        // Only fake CONNECTs may _force_ a tunnel. Their clients do not send
+        // CONNECT requests and, hence, do not expect CONNECT responses.
         if (request && request->flags.forceTunnel)
             return false;
-#if USE_OPENSSL
-        // We are bumping and we had already send "OK CONNECTED"
-        if (http.valid() && http->getConn() && http->getConn()->serverBump() && http->getConn()->serverBump()->at(XactionStep::tlsBump2, XactionStep::tlsBump3))
-            return false;
-#endif
-        // TODO: add a boolean ClientHttpRequest::faked field to mark
-        // faked CONNECT requests instead of trying to guess whether a request was
-        // faked based on its port configuration.
+
+        // TODO: Protect *http lifetime and remove this method.
+        if (http.valid())
+            return http->clientExpectsConnectResponse();
+
         return !(request && request->masterXaction->hasListeningInterceptedPort());
     }
 
@@ -1016,10 +1013,9 @@ TunnelStateData::notePeerReadyToShovel(const Comm::ConnectionPointer &conn)
         *status_ptr = Http::scOkay;
         AsyncCall::Pointer call = commCbCall(5,5, "tunnelConnectedWriteDone",
                                              CommIoCbPtrFun(tunnelConnectedWriteDone, this));
-        al->reply = HttpReply::MakeConnectionEstablished();
-        const auto mb = al->reply->pack();
+
+        const auto mb = http->commitToSendingConnectResponse();
         client.write(mb->content(), mb->contentSize(), call, mb->freeFunc());
-        delete mb;
     }
 }
 
