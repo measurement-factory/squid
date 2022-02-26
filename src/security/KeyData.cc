@@ -21,7 +21,7 @@
  * See also: Ssl::ReadX509Certificate function, gadgets.cc file
  */
 bool
-Security::KeyData::loadX509CertFromFile()
+Security::KeyData::loadX509CertificatesFromFile()
 {
     debugs(83, DBG_IMPORTANT, "Using certificate in " << certFile);
     cert.reset(); // paranoid: ensure cert is unset
@@ -36,6 +36,42 @@ Security::KeyData::loadX509CertFromFile()
     }
 
     cert = Ssl::ReadX509Certificate(bio); // error detected/reported below
+
+    CertList otherCertificates;
+    debugs(83, DBG_PARSE_NOTE(3), "Building certificate chain from " << certFile);
+    while (const auto ca = Ssl::ReadX509Certificate(bio)) {
+        // We ignore a self-signed certificate because it should not be sent:
+        // The recipients that do not already have it should not trust it.
+        if (CertIsSelfSigned(*ca)) {
+            debugs(83, DBG_PARSE_NOTE(2), "Ignoring a self-signed CA " << *ca);
+            continue;
+        }
+
+        otherCertificates.emplace_back(ca);
+    }
+
+    // OpenSSL sends `cert` first. After that, OpenSSL sends certificates in the
+    // order they are stored in the chain, so we must push them in on-the-wire
+    // order, as defined by RFC 8446 Section 4.4.2: "The sender's certificate
+    // MUST come in the first CertificateEntry in the list. Each following
+    // certificate SHOULD directly certify the one immediately preceding it."
+    for (auto precedingCert = cert; precedingCert;) {
+        CertPointer issuer; // the issuer of the "preceding" certificate
+        for (auto i = otherCertificates.begin(); i != otherCertificates.end(); ++i) {
+            const auto &candidateIssuer = *i;
+            if (CertIsIssuedBy(*precedingCert, *candidateIssuer)) {
+                issuer = candidateIssuer;
+                debugs(83, DBG_PARSE_NOTE(3), "Adding intermediate CA: " << *issuer);
+                chain.emplace_back(issuer);
+                otherCertificates.erase(i); // cannot match again
+                break;
+            }
+        }
+        precedingCert = issuer; // may be nil
+    }
+
+    for (const auto &ic: otherCertificates)
+        debugs(83, DBG_IMPORTANT, "WARNING: Unused intermediate certificate: " << *ic);
 
 #elif USE_GNUTLS
     const char *certFilename = certFile.c_str();
@@ -68,6 +104,7 @@ Security::KeyData::loadX509CertFromFile()
         });
     }
 
+    debugs(83, 2, "Loading certificate chain from PEM files not implemented in this Squid.");
 #else
     // do nothing.
 #endif
@@ -77,66 +114,6 @@ Security::KeyData::loadX509CertFromFile()
     }
 
     return bool(cert);
-}
-
-/**
- * Read certificate from file.
- * See also: Ssl::ReadX509Certificate function, gadgets.cc file
- */
-void
-Security::KeyData::loadX509ChainFromFile()
-{
-#if USE_OPENSSL
-    const char *certFilename = certFile.c_str();
-    Ssl::BIO_Pointer bio(BIO_new(BIO_s_file()));
-    if (!bio || !BIO_read_filename(bio.get(), certFilename)) {
-        const auto x = ERR_get_error();
-        debugs(83, DBG_IMPORTANT, "ERROR: unable to load chain file '" << certFile << "': " << ErrorString(x));
-        return;
-    }
-
-    CertList intermediates;
-    debugs(83, DBG_PARSE_NOTE(3), "Building certificate chain from " << certFile);
-    while (const auto ca = Ssl::ReadX509Certificate(bio)) {
-        // We ignore a self-signed certificate because it should not be sent:
-        // The recipients that do not already have it should not trust it.
-        if (CertIsSelfSigned(*ca)) {
-            debugs(83, DBG_PARSE_NOTE(2), "Ignoring a self-signed CA " << *ca);
-            continue;
-        }
-
-        intermediates.emplace_back(ca);
-    }
-
-    // OpenSSL sends `cert` first. After that, OpenSSL sends certificates in the
-    // order they are stored in the chain, so we must push them in on-the-wire
-    // order, as defined by RFC 8446 Section 4.4.2: "The sender's certificate
-    // MUST come in the first CertificateEntry in the list. Each following
-    // certificate SHOULD directly certify the one immediately preceding it."
-    for (auto precedingCert = cert; precedingCert;) {
-        CertPointer issuer; // the issuer of the "preceding" certificate
-        for (auto i = intermediates.begin(); i != intermediates.end(); ++i) {
-            const auto &candidateIssuer = *i;
-            if (CertIsIssuedBy(*precedingCert, *candidateIssuer)) {
-                issuer = candidateIssuer;
-                debugs(83, DBG_PARSE_NOTE(3), "Adding intermediate CA: " << *issuer);
-                chain.emplace_back(issuer);
-                intermediates.erase(i); // cannot match again
-                break;
-            }
-        }
-        precedingCert = issuer; // may be nil
-    }
-
-    for (const auto &ic: intermediates)
-        debugs(83, DBG_IMPORTANT, "WARNING: Unused intermediate certificate: " << *ic);
-#elif USE_GNUTLS
-    // XXX: implement chain loading
-    debugs(83, 2, "Loading certificate chain from PEM files not implemented in this Squid.");
-
-#else
-    // nothing to do.
-#endif
 }
 
 /**
@@ -189,13 +166,10 @@ void
 Security::KeyData::loadFromFiles(const AnyP::PortCfg &port, const char *portType)
 {
     char buf[128];
-    if (!loadX509CertFromFile()) {
+    if (!loadX509CertificatesFromFile()) {
         debugs(83, DBG_IMPORTANT, "WARNING: '" << portType << "_port " << port.s.toUrl(buf, sizeof(buf)) << "' missing certificate in '" << certFile << "'");
         return;
     }
-
-    // certificate chain in the PEM file is optional
-    loadX509ChainFromFile();
 
     // pkey is mandatory, not having it makes cert and chain pointless.
     if (!loadX509PrivateKeyFromFile()) {
