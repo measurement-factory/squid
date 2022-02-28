@@ -185,5 +185,99 @@ SetToNaturalSumOrMax(S &var, const Args... args)
     return var;
 }
 
+// If NaturalProduct() speed becomes important, consider using compiler
+// built-ins like __builtin_mul_overflow() instead of manual overflow checks.
+
+template <typename ProductType, typename... Args>
+Optional<ProductType>
+NaturalProduct(const Args... args);
+
+/// argument pack expansion termination for IncreaseProduct<P, T, Args...>()
+template <typename P, typename A, typename B>
+Optional<P>
+IncreaseProductInternal(const A a, const B b)
+{
+    static_assert(AssertNaturalType<P>(), "P is a supported type");
+    static_assert(AssertNaturalType<A>(), "A is a supported type");
+    static_assert(AssertNaturalType<B>(), "B is a supported type");
+
+    // we should only be called by IncreaseProduct() that does integer promotion
+    static_assert(std::is_same<A, decltype(+a)>::value, "a will not be promoted");
+    static_assert(std::is_same<B, decltype(+b)>::value, "b will not be promoted");
+
+    // assume that callers treat negative numbers specially (see IncreaseSum() for details)
+    if (a < 0 || b < 0)
+        return Optional<P>();
+
+    if (a == 0 || b == 0)
+        return Optional<P>(0);
+
+    // Overflow condition: (a * b > maxAB) or (a * b > maxP).
+    // Since maxA <= maxAB, it is sufficient to just check: a * b > maxP.
+    // We use its overflow-safe equivalent (for positive p): maxP/a < b.
+    // For details, see IncreaseSumInternal() for signed arguments.
+    return Less(std::numeric_limits<P>::max()/a, b) ?
+        Optional<P>() : Optional<P>(a*b);
+}
+
+template <typename P, typename T>
+Optional<P>
+IncreaseProduct(const P p, const T t)
+{
+    // Force (always safe) integer promotions now,
+    // instead of entering IncreaseProductInternal<P>(p,t)
+    // but getting a promoted value of p or t in p * t.
+    return IncreaseProductInternal<P>(+p, +t);
+}
+
+/// \returns an exact, non-overflowing product of the arguments (or nothing)
+/// using the first argument type for the underlying integer return type
+template <typename P, typename T, typename... Args>
+Optional<P>
+IncreaseProduct(const P p, const T t, const Args... args) {
+    if (const auto head = IncreaseProduct<P>(p, t))
+        return IncreaseProduct(head.value(), args...); // common case
+
+    // we are dealing with either negative argument(s) or overflow
+
+    if (p < 0 || t < 0)
+        return Optional<P>();
+
+    // check whether p*t overflow above is cured by a subsequent zero
+
+    if (const auto tail = NaturalProduct<P>(args...))
+        if (tail.value() == 0)
+            return tail; // Optional<P>(0)
+
+    return Optional<P>(); // p*t overflow without subsequent zeros
+}
+
+/// \returns an exact, non-overflowing product of the arguments (or nothing)
+/// using ProductType for the underlying integer return type
+template <typename ProductType, typename... Args>
+Optional<ProductType>
+NaturalProduct(const Args... args) {
+    static_assert(!Less(std::numeric_limits<ProductType>::max(), 1), "casting 1 to ProductType is safe");
+    return IncreaseProduct<ProductType>(1, args...);
+}
+
+/// Safely resets the given variable to NatrualProduct() of the given arguments.
+/// If the product overflows, resets to variable's maximum possible value.
+/// \returns the new variable value (like an assignment operator would)
+template <typename P, typename... Args>
+P
+SetToNaturalProductOrMax(P &var, const Args... args)
+{
+    var = NaturalProduct<P>(args...).value_or(std::numeric_limits<P>::max());
+    return var;
+}
+
+template<class T>
+T MaxValue(T&)
+{
+    return std::numeric_limits<T>::max();
+}
+
+
 #endif /* _SQUID_SRC_SQUIDMATH_H */
 
