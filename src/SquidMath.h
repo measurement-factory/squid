@@ -272,12 +272,12 @@ SetToNaturalProductOrMax(P &var, const Args... args)
     return var;
 }
 
-template<class T>
+/// \returns the maximum of T
+template <class T>
 T MaxValue(T&)
 {
     return std::numeric_limits<T>::max();
 }
-
 
 #endif /* _SQUID_SRC_SQUIDMATH_H */
 
