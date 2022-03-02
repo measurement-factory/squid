@@ -23,6 +23,8 @@
 #include "adaptation/Initiator.h"
 #endif
 
+#include <memory>
+
 class ClientRequestContext;
 class ConnStateData;
 class MemObject;
@@ -39,7 +41,7 @@ class ClientHttpRequest
     CBDATA_CLASS(ClientHttpRequest);
 
 public:
-    ClientHttpRequest(ConnStateData *csd);
+    explicit ClientHttpRequest(ConnStateData *, bool isFake = false);
     ~ClientHttpRequest();
     /* Not implemented - present to prevent synthetic operations */
     ClientHttpRequest(ClientHttpRequest const &);
@@ -172,6 +174,13 @@ public:
     /// if necessary, stores new error information (if any)
     void updateError(const Error &error);
 
+    /// whether the next bytes sent to our client should be a CONNECT response
+    bool clientExpectsConnectResponse() const;
+
+    /// Create and commit to sending an HTTP 200 reply to a CONNECT request.
+    /// The caller must write the returned response buffer to the client.
+    std::unique_ptr<MemBuf> commitToSendingConnectResponse();
+
 #if USE_ADAPTATION
     // AsyncJob virtual methods
     virtual bool doneAll() const {
@@ -195,6 +204,15 @@ private:
     StoreEntry *loggingEntry_;
     ConnStateData * conn_;
 
+    /// Whether we are _not_ representing a real HTTP request sent by a client.
+    /// Fake requests are created to fool regular request processing code into
+    /// doing something it already does when processing similar real requests.
+    /// This flag triggers special processing within that regular code.
+    bool isFake_;
+
+    /// whether commitToSendingConnectResponse() has been called
+    bool commitedToSendingConnectResponse_;
+
 #if USE_OPENSSL
     /// whether (and how) the request needs to be bumped
     Ssl::BumpMode sslBumpNeed_;
@@ -203,7 +221,7 @@ public:
     /// returns raw sslBump mode value
     Ssl::BumpMode sslBumpNeed() const { return sslBumpNeed_; }
     /// returns true if and only if the request needs to be bumped
-    bool sslBumpNeeded() const { return sslBumpNeed_ == Ssl::bumpServerFirst || sslBumpNeed_ == Ssl::bumpClientFirst || sslBumpNeed_ == Ssl::bumpBump || sslBumpNeed_ == Ssl::bumpPeek || sslBumpNeed_ == Ssl::bumpStare; }
+    bool sslBumpNeeded() const { return Ssl::isBumpMode(sslBumpNeed_); }
     /// set the sslBumpNeeded state
     void sslBumpNeed(Ssl::BumpMode mode);
     void sslBumpStart();
