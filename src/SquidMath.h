@@ -276,7 +276,7 @@ SetToNaturalProductOrMax(P &var, const Args... args)
 
 /// \returns the maximum of T
 template <class T>
-T MaxValue(T&)
+T MaxValue(const T&)
 {
     return std::numeric_limits<T>::max();
 }
