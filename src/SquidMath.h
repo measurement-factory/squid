@@ -192,7 +192,8 @@ template <typename ProductType, typename... Args>
 Optional<ProductType>
 NaturalProduct(const Args... args);
 
-/// argument pack expansion termination for IncreaseProduct<P, T, Args...>()
+/// \returns a non-overflowing product of the two arguments (or nothing)
+/// \returns nothing if at least one of the arguments is negative
 template <typename P, typename A, typename B>
 Optional<P>
 IncreaseProductInternal(const A a, const B b)
@@ -220,6 +221,7 @@ IncreaseProductInternal(const A a, const B b)
         Optional<P>() : Optional<P>(a*b);
 }
 
+/// argument pack expansion termination for IncreaseProduct<P, T, Args...>()
 template <typename P, typename T>
 Optional<P>
 IncreaseProduct(const P p, const T t)
