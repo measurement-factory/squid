@@ -1394,12 +1394,12 @@ ClientRequestContext::sslBumpAccessCheck()
         return false;
     }
 
-    auto srvBump = http->getConn()->serverBump();
+    const auto srvBump = http->getConn()->serverBump();
+    if (!srvBump) {
+        debugs(85, 5, "not currently subject to ssl_bump: " << http->getConn());
+        return false;
+    }
 
-    if (srvBump && srvBump->at(XactionStep::tlsBump2)) {
-        assert(http->request->method == Http::METHOD_CONNECT);
-
-    } else {
     const Ssl::BumpMode bumpMode = http->getConn()->sslBumpMode;
     if (http->request->flags.forceTunnel) {
         debugs(85, 5, "not needed; already decided to tunnel " << http->getConn());
@@ -1436,7 +1436,6 @@ ClientRequestContext::sslBumpAccessCheck()
         debugs(85, 5, "no SslBump during proxy authentication");
         return false;
     }
-    }
 
     if (error) {
         debugs(85, 5, "SslBump applies. Force bump action on error " << errorTypeName(error->type));
@@ -1448,7 +1447,8 @@ ClientRequestContext::sslBumpAccessCheck()
     debugs(85, 5, "SslBump possible, checking ACL");
 
     ACLFilledChecklist *aclChecklist = clientAclChecklistCreate(Config.accessList.ssl_bump, http);
-    if (srvBump && srvBump->at(XactionStep::tlsBump2)) {
+
+    if (srvBump->at(XactionStep::tlsBump2)) {
         aclChecklist->banAction(Acl::Answer(ACCESS_ALLOWED, Ssl::bumpNone));
         aclChecklist->banAction(Acl::Answer(ACCESS_ALLOWED, Ssl::bumpClientFirst));
         aclChecklist->banAction(Acl::Answer(ACCESS_ALLOWED, Ssl::bumpServerFirst));
