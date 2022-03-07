@@ -314,6 +314,8 @@ squid_SOURCES = \
 	PingData.h \
 	Pipeline.cc \
 	Pipeline.h \
+	RandomUuid.cc \
+	RandomUuid.h \
 	RefreshPattern.h \
 	RemovalPolicy.cc \
 	RemovalPolicy.h \
