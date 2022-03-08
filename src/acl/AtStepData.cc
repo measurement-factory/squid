@@ -16,31 +16,13 @@
 #include "sbuf/Stream.h"
 #include "wordlist.h"
 
-static inline const char *
-StepName(const XactionStep xstep)
-{
-    // keep in sync with XactionStep
-    static const char *StepNames[static_cast<int>(XactionStep::enumEnd_)] = {
-        "[unknown step]"
-        ,"GeneratingCONNECT"
-#if USE_OPENSSL
-        ,"SslBump1"
-        ,"SslBump2"
-        ,"SslBump3"
-#endif
-    };
-
-    assert(XactionStep::enumBegin_ <= xstep && xstep < XactionStep::enumEnd_);
-    return StepNames[static_cast<int>(xstep)];
-}
-
 static XactionStep
 StepValue(const char *name)
 {
     assert(name);
 
     for (const auto step: WholeEnum<XactionStep>()) {
-        if (strcasecmp(StepName(step), name) == 0)
+        if (strcasecmp(XactionStepName(step), name) == 0)
             return static_cast<XactionStep>(step);
     }
 
@@ -66,7 +48,7 @@ ACLAtStepData::dump() const
 {
     SBufList sl;
     for (const auto value : values)
-        sl.push_back(SBuf(StepName(value)));
+        sl.push_back(SBuf(XactionStepName(value)));
     return sl;
 }
 

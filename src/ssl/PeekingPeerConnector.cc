@@ -39,12 +39,9 @@ Ssl::PeekingPeerConnector::PeekingPeerConnector(HttpRequestPointer &aRequest,
 {
     request = aRequest;
 
-    if (const auto csd = request->clientConnectionManager.valid()) {
-        const auto serverBump = csd->serverBump();
-        Must(serverBump);
-        Must(serverBump->at(XactionStep::tlsBump3));
-    }
-    // else the client is gone, and we cannot check the step, but must carry on
+    if (const auto csd = request->clientConnectionManager.valid())
+        Must(csd->serverBump());
+    // else the client is gone, and we cannot check but must carry on
 }
 
 void
@@ -68,6 +65,18 @@ void
 Ssl::PeekingPeerConnector::checkForPeekAndSplice()
 {
     handleServerCertificate();
+
+    if (const auto csd = request->clientConnectionManager.valid()) {
+        assert(csd->serverBump());
+        if (csd->serverBump()->currentNeed() == Ssl::bumpServerFirst) { 
+            // bumpServerFirst is the final decision; do not re-check ssl_bump
+            checkForPeekAndSpliceMatched(Ssl::bumpServerFirst);
+            return;
+        }
+    } else {
+        // TODO: Hide this inside this->serverBump() or similar.
+        throw TextException("client gone", Here());
+    }
 
     ACLFilledChecklist *acl_checklist = new ACLFilledChecklist(
         ::Config.accessList.ssl_bump,
@@ -101,8 +110,7 @@ Ssl::PeekingPeerConnector::checkForPeekAndSpliceMatched(const Ssl::BumpMode acti
     Must(finalAction == Ssl::bumpSplice || finalAction == Ssl::bumpBump || finalAction == Ssl::bumpTerminate);
     // Record final decision
     if (request->clientConnectionManager.valid()) {
-        request->clientConnectionManager->sslBumpMode = finalAction;
-        request->clientConnectionManager->serverBump()->act.step3 = finalAction;
+        request->clientConnectionManager->serverBump()->noteNeed(finalAction);
     }
     al->ssl.bumpMode = finalAction;
 
@@ -111,7 +119,7 @@ Ssl::PeekingPeerConnector::checkForPeekAndSpliceMatched(const Ssl::BumpMode acti
         clientConn->close();
         clientConn = nullptr;
         if (request->clientConnectionManager.valid())
-            request->clientConnectionManager->serverBump()->step = XactionStep::tlsBumpDone;
+            request->clientConnectionManager->serverBump()->noteFinished("honoring ssl_bump terminate");
     } else if (finalAction != Ssl::bumpSplice) {
         //Allow write, proceed with the connection
         srvBio->holdWrite(false);
@@ -131,17 +139,12 @@ Ssl::BumpMode
 Ssl::PeekingPeerConnector::checkForPeekAndSpliceGuess() const
 {
     if (const ConnStateData *csd = request->clientConnectionManager.valid()) {
-        const Ssl::BumpMode currentMode = csd->sslBumpMode;
-        if (currentMode == Ssl::bumpStare) {
-            debugs(83,5, "default to bumping after staring");
-            return Ssl::bumpBump;
-        }
-        debugs(83,5, "default to splicing after " << currentMode);
+        assert(csd->serverBump());
+        return csd->serverBump()->actionAfterNoRulesMatched();
     } else {
         debugs(83,3, "default to splicing due to missing info");
+        return Ssl::bumpSplice;
     }
-
-    return Ssl::bumpSplice;
 }
 
 Security::ContextPointer
@@ -216,7 +219,6 @@ Ssl::PeekingPeerConnector::initialize(Security::SessionPointer &serverSession)
 
         const auto serverBump = csd->serverBump();
         Must(serverBump);
-        Must(serverBump->at(XactionStep::tlsBump3));
         serverBump->attachServerSession(serverSession);
         // store peeked cert to check SQUID_X509_V_ERR_CERT_CHANGE
         if (X509 *peeked_cert = serverBump->serverCert.get()) {
@@ -263,7 +265,7 @@ Ssl::PeekingPeerConnector::noteNegotiationDone(ErrorState *error)
     } else {
         serverCertificateVerified();
         if (splice) {
-            serverBump->step = XactionStep::tlsBumpDone;
+            serverBump->noteFinished("honoring splice action after looking at TLS server Hello");
             if (!Comm::IsConnOpen(clientConn)) {
                 bail(new ErrorState(ERR_GATEWAY_FAILURE, Http::scInternalServerError, request.getRaw(), al));
                 throw TextException("from-client connection gone", Here());

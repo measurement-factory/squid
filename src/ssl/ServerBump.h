@@ -18,6 +18,8 @@
 #include "Store.h"
 #include "XactionStep.h"
 
+#include <iosfwd>
+
 class ConnStateData;
 class store_client;
 class ClientHttpRequest;
@@ -35,36 +37,107 @@ class ServerBump
     CBDATA_CLASS(ServerBump);
 
 public:
-    explicit ServerBump(ClientHttpRequest *http, StoreEntry *e = nullptr, Ssl::BumpMode mode = Ssl::bumpServerFirst);
+    /// starts the first SslBump step
+    /// \param reason why the caller initiated SslBump processing
+    explicit ServerBump(const char *reason);
     ~ServerBump();
     void attachServerSession(const Security::SessionPointer &); ///< Sets the server TLS session object
     const Security::CertErrors *sslErrors() const; ///< SSL [certificate validation] errors
 
+    // TODO: If entry_ may exist before step3, adjust entry_ and related docs.
+    // TODO: If entry_ only exists during step3, adjust these step-agnostic methods.
+
     /// whether there was a successful connection to (and peeking at) the origin server
-    bool connectedOk() const {return entry && entry->isEmpty();}
+    bool connectedOk() const {return entry_ && entry_->isEmpty();}
+
+    /// tests whether there was an error on the SslBump path
+    /// \returns nil if there was no error
+    /// \returns a non-empty StoreEntry if there was an error
+    StoreEntry *sawError() const;
+
+    // TODO: Make private?
+    /// Creates a StoreEntry for storing Squid-generated errors (when fetching
+    /// server certs from a peer). This entry is required by the FwdState API.
+    /// The ServerBump object retains a (shared) pointer to the new entry.
+    /// \returns the created entry
+    StoreEntry *createStoreEntry(ClientHttpRequest &);
+
+    /// TODO: describe
+    void clearStoreEntry();
+
+    /// TODO: describe
+    void useStoreEntry(ClientHttpRequest &, StoreEntry *);
 
     /// whether we are currently performing the given processing step
-    bool at(const BumpStep stp) const { return step == stp; }
+    bool at(const BumpStep step) const { return step_ == step; }
 
-    void resetStoreEntry(ClientHttpRequest *, StoreEntry *);
+    /// last started processing stage or, after, noteFinished(), tlsBumpDone
+    BumpStep currentStep() const { return step_; }
+
+    /// ssl_bump action that matched (explicitly or not) during the last
+    /// doCallouts(); thus, the need may change during each step
+    /// \returns bumpEnd before the first rule evaluation in doCallouts() and
+    /// after noteFinished().
+    BumpMode currentNeed() const;
+
+    /// implicit ssl_bump action to use when no ssl_bump rule matched
+    BumpMode actionAfterNoRulesMatched() const;
+
+    /// record the new matched (explicitly or not) ssl_bump action
+    void noteNeed(BumpMode);
+
+    /// advance to XactionStep::tlsBump3
+    /// \returns a freshly created StoreEntry for storing FwdState errors
+    StoreEntry *startStep3(ClientHttpRequest &);
+
+    /// advance to the given step; step2 may be skipped
+    void noteStepStart(BumpStep);
+
+    /// mark the ending of the current step; stop expecting more noteStepStart()s
+    void noteFinished(const char *reason);
+
+    /// reports ServerBump gist (for debugging)
+    void print(std::ostream &) const;
 
     /// faked, minimal request; required by Client API
     HttpRequest::Pointer request;
-    StoreEntry *entry; ///< for receiving Squid-generated error messages
+
     /// HTTPS server certificate. Maybe it is different than the one
     /// it is stored in serverSession object (error SQUID_X509_V_ERR_CERT_CHANGE)
     Security::CertPointer serverCert;
-    struct {
-        Ssl::BumpMode step1; ///< The SSL bump mode at step1
-        Ssl::BumpMode step2; ///< The SSL bump mode at step2
-        Ssl::BumpMode step3; ///< The SSL bump mode at step3
-    } act; ///< bumping actions at various bumping steps
-    Ssl::BumpStep step; ///< The SSL bumping step
 
 private:
     Security::SessionPointer serverSession; ///< The TLS session object on server side.
-    store_client *sc; ///< dummy client to prevent entry trimming
+
+    StoreEntry *entry_ = nullptr; ///< for receiving Squid-generated error messages
+    store_client *sc_ = nullptr; ///< dummy client to prevent entry_ trimming
+
+    /// SslBump action at each processing step.
+    /// XXX: Document Ssl::bumpEnd "default" or, better, block access to unknown values.
+    class Actions {
+    public:
+        Actions();
+        BumpMode step1; ///< action at the tlsBump1 step
+        BumpMode step2; ///< action at the tlsBump2 step
+        BumpMode step3; ///< action at the tlsBump3 step
+    };
+
+    /// Actions requested at each SslBump step
+    Actions requested_;
+
+    /// Actions applied at each SslBump step
+    Actions applied_;
+
+    /// current SslBump processing step or XactionStep::tlsBumpDone
+    BumpStep step_ = XactionStep::tlsBump1;
 };
+
+/// \copydoc ServerBump::print()
+inline std::ostream &operator <<(std::ostream &os, const ServerBump &sb)
+{
+    sb.print(os);
+    return os;
+}
 
 } // namespace Ssl
 

@@ -9,6 +9,8 @@
 #ifndef SQUID_XACTIONSTEPS_H
 #define SQUID_XACTIONSTEPS_H
 
+#include <iosfwd>
+
 enum class XactionStep  {
     enumBegin_ = 0, // for WholeEnum iteration
     unknown = enumBegin_,
@@ -21,6 +23,13 @@ enum class XactionStep  {
 #endif
     enumEnd_ // for WholeEnum iteration
 };
+
+/// Converts XactionStep value to its human-friendly name (with a string literal
+/// lifetime). These step names are those used for at_step rules in squid.conf.
+const char *XactionStepName(XactionStep);
+
+/// report a human-friendly transaction step name (for debugging)
+std::ostream &operator <<(std::ostream &, XactionStep);
 
 #endif /* SQUID_XACTIONSTEPS_H */
 

@@ -359,6 +359,8 @@ FwdState::~FwdState()
 void
 FwdState::Start(const Comm::ConnectionPointer &clientConn, StoreEntry *entry, HttpRequest *request, const AccessLogEntryPointer &al)
 {
+    assert(entry);
+
     /** \note
      * client_addr == no_addr indicates this is an "internal" request
      * from peer_digest.c, asn.c, netdb.c, etc and should always

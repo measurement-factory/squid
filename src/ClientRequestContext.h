@@ -60,9 +60,6 @@ public:
     bool sslBumpAccessCheck();
     /// The callback function for ssl-bump access check list
     void sslBumpAccessCheckDone(const Acl::Answer &answer);
-
-private:
-    Ssl::BumpMode sslBumpActionAfterNoRulesMatched() const;
 #endif
 
 public:

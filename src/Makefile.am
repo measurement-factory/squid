@@ -353,6 +353,7 @@ squid_SOURCES = \
 	Transients.h \
 	XactionInitiator.cc \
 	XactionInitiator.h \
+	XactionStep.cc \
 	XactionStep.h \
 	cache_cf.cc \
 	cache_cf.h \
@@ -2026,7 +2027,9 @@ tests_test_http_range_SOURCES = \
 	tests/stub_whois.cc \
 	whois.h \
 	wordlist.cc \
-	wordlist.h
+	wordlist.h \
+	XactionStep.cc \
+	XactionStep.h
 nodist_tests_test_http_range_SOURCES = \
 	$(BUILT_SOURCES)
 tests_test_http_range_LDADD = \
@@ -2420,7 +2423,9 @@ tests_testHttpRequest_SOURCES = \
 	tests/stub_whois.cc \
 	whois.h \
 	wordlist.cc \
-	wordlist.h
+	wordlist.h \
+	XactionStep.cc \
+	XactionStep.h
 nodist_tests_testHttpRequest_SOURCES = \
 	$(BUILT_SOURCES)
 tests_testHttpRequest_LDADD = \
@@ -2726,7 +2731,9 @@ tests_testCacheManager_SOURCES = \
 	tests/stub_whois.cc \
 	whois.h \
 	wordlist.cc \
-	wordlist.h
+	wordlist.h \
+	XactionStep.cc \
+	XactionStep.h
 nodist_tests_testCacheManager_SOURCES = \
 	$(BUILT_SOURCES)
 # comm.cc only requires comm/libcomm.la until fdc_table is dead.

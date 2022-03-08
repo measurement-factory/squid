@@ -21,17 +21,13 @@ int
 ACLAtStepStrategy::match(ACLData<XactionStep> * &data, ACLFilledChecklist *checklist)
 {
 #if USE_OPENSSL
-    // We use step1 for all these very different cases:
-    // - The transaction is not subject to ssl_bump rules (if any).
-    // - No ssl_bump action has matched yet.
-    // - The ssl_bump client-first action has already matched.
-    // - Another ssl_bump action has already matched, but
-    //   ConnStateData::serverBump() has not been built yet.
+    // We use step1 for transactions not subject to ssl_bump rules (if any) and
+    // for transactions/contexts that lack/lost access to SslBump info.
     auto currentSslBumpStep = XactionStep::tlsBump1;
 
     if (const auto mgr = checklist->conn()) {
         if (const auto serverBump = mgr->serverBump())
-            currentSslBumpStep = serverBump->step;
+            currentSslBumpStep = serverBump->currentStep();
     }
 
     if (data->match(currentSslBumpStep))
