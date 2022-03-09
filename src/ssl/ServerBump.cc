@@ -153,14 +153,14 @@ StoreEntry *
 Ssl::ServerBump::createStoreEntry(ClientHttpRequest &http)
 {
     assert(!entry_);
-    const auto request2_XXX = http.request;
-    assert(request2_XXX);
+    const auto request = http.request;
+    assert(request);
 
     // XXX: Performance regression. c_str() reallocates
-    auto uriBuf = request2_XXX->effectiveRequestUri();
+    auto uriBuf = request->effectiveRequestUri();
     const auto uri = uriBuf.c_str();
 
-    const auto newEntry = storeCreateEntry(uri, uri, request2_XXX->flags, request2_XXX->method);
+    const auto newEntry = storeCreateEntry(uri, uri, request->flags, request->method);
     useStoreEntry(http, newEntry);
     return newEntry;
 }

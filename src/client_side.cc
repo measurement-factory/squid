@@ -1496,8 +1496,6 @@ bool ConnStateData::serveDelayedError(Http::Stream *context)
         debugs(33, 5, "Responding with delated error for " << http->uri);
         repContext->setReplyToStoreEntry(errorEntry, "delayed SslBump error");
 
-        // Get error details from the fake certificate-peeking request.
-        http->request->error.update(sslServerBump->request->error);
         context->pullData();
         return true;
     }
@@ -1527,8 +1525,6 @@ bool ConnStateData::serveDelayedError(Http::Stream *context)
                 clientStreamNode *node = context->getClientReplyContext();
                 clientReplyContext *repContext = dynamic_cast<clientReplyContext *>(node->data.getRaw());
                 assert (repContext);
-
-                request->hier = sslServerBump->request->hier;
 
                 // Create an error object and fill it
                 const auto err = new ErrorState(ERR_SECURE_CONNECT_FAIL, Http::scServiceUnavailable, request, http->al);
@@ -2581,7 +2577,9 @@ void ConnStateData::buildSslCertGenerationParams(Ssl::CertificateProperties &cer
         if (X509 *mimicCert = sslServerBump->serverCert.get())
             certProperties.mimicCert.resetAndLock(mimicCert);
 
-        ACLFilledChecklist checklist(nullptr, sslServerBump->request.getRaw());
+        const auto request = frontRequest().request;
+        assert(request);
+        ACLFilledChecklist checklist(nullptr, request);
         fillChecklist(checklist);
 
         for (sslproxy_cert_adapt *ca = Config.ssl_client.cert_adapt; ca != NULL; ca = ca->next) {
@@ -2830,7 +2828,6 @@ ConnStateData::sslBumpAfterCalloutsAtStep1()
 
         case Ssl::bumpServerFirst: {
             auto &http = frontRequest();
-            sslServerBump->request = http.request;
             const auto errorEntry = sslServerBump->createStoreEntry(http);
             debugs(33, 5, "proceeding with ssl_bump server-first: " << *errorEntry);
             assert(http.request);
@@ -3141,9 +3138,7 @@ void
 ConnStateData::httpsPeeked(PinnedIdleContext pic)
 {
     Must(sslServerBump != NULL);
-    Must(sslServerBump->request);
     Must(pic.request);
-    Must(sslServerBump->request == pic.request);
     Must(pipeline.empty() || pipeline.front()->http == nullptr || pipeline.front()->http->request == pic.request.getRaw());
 
     if (Comm::IsConnOpen(pic.connection)) {
