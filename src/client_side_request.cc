@@ -158,9 +158,6 @@ ClientHttpRequest::ClientHttpRequest(ConnStateData * const aConn, const bool isF
     conn_(cbdataReference(aConn)),
     isFake_(isFake),
     commitedToSendingConnectResponse_(false)
-#if USE_OPENSSL
-    , sslBumpNeed_(Ssl::bumpEnd)
-#endif
 #if USE_ADAPTATION
     , receivedWholeAdaptedReply(false)
     , request_satisfaction_mode(false)
@@ -1415,7 +1412,8 @@ ClientRequestContext::sslBumpAccessCheck()
     // If we have not decided yet, decide whether to bump now.
 
     // ignore ssl_bump rules unless the request is on the SslBump path
-    if (!http->getConn()->serverBump()) {
+    const auto srvBump = http->getConn()->serverBump();
+    if (!srvBump) {
         http->al->ssl.bumpMode = Ssl::bumpEnd; // SslBump does not apply; log -
         debugs(85, 5, "cannot SslBump this request");
         return false;
@@ -1424,14 +1422,14 @@ ClientRequestContext::sslBumpAccessCheck()
     // Do not bump during authentication: clients would not proxy-authenticate
     // if we delay a 407 response and respond with 200 OK to CONNECT.
     if (error && error->httpStatus == Http::scProxyAuthenticationRequired) {
-        http->getConn()->serverBump()->noteFinished("authenticating CONNECT");
+        srvBump->noteFinished("authenticating CONNECT");
         http->al->ssl.bumpMode = Ssl::bumpEnd; // SslBump does not apply; log -
         return false;
     }
 
     if (error) {
         debugs(85, 5, "SslBump applies. Force bump action on error " << errorTypeName(error->type));
-        http->sslBumpNeed(Ssl::bumpBump);
+        srvBump->noteNeed(Ssl::bumpBump);
         http->al->ssl.bumpMode = Ssl::bumpBump;
         return false;
     }
@@ -1440,7 +1438,6 @@ ClientRequestContext::sslBumpAccessCheck()
 
     ACLFilledChecklist *aclChecklist = clientAclChecklistCreate(Config.accessList.ssl_bump, http);
 
-    const auto srvBump = http->getConn()->serverBump();
     if (srvBump->at(XactionStep::tlsBump2)) {
         aclChecklist->banAction(Acl::Answer(ACCESS_ALLOWED, Ssl::bumpNone));
         aclChecklist->banAction(Acl::Answer(ACCESS_ALLOWED, Ssl::bumpClientFirst));
@@ -1531,13 +1528,6 @@ ClientHttpRequest::httpStart()
 }
 
 #if USE_OPENSSL
-
-void
-ClientHttpRequest::sslBumpNeed(Ssl::BumpMode mode)
-{
-    debugs(83, 3, "sslBump required: "<< Ssl::bumpMode(mode));
-    sslBumpNeed_ = mode;
-}
 
 /// Comm::Write() handler for the CONNECT response
 void

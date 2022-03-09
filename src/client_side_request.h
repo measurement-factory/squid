@@ -220,16 +220,7 @@ private:
     bool commitedToSendingConnectResponse_;
 
 #if USE_OPENSSL
-    /// whether (and how) the request needs to be bumped
-    Ssl::BumpMode sslBumpNeed_;
-
 public:
-    /// returns raw sslBump mode value
-    Ssl::BumpMode sslBumpNeed() const { return sslBumpNeed_; }
-    /// returns true if and only if the request needs to be bumped
-    bool sslBumpNeeded() const { return Ssl::isBumpMode(sslBumpNeed_); }
-    /// set the sslBumpNeeded state
-    void sslBumpNeed(Ssl::BumpMode mode);
     void sslBumpStart();
     void sslBumpEstablish(Comm::Flag errflag);
 #endif
