@@ -211,26 +211,28 @@ Ssl::ServerBump::print(std::ostream &os) const
 
     os << step_;
 
+    bool stopReportingSteps = false;
     if (requested_.step1 != Ssl::bumpEnd) {
         os << ':';
         os << requested_.step1;
-        if (at(XactionStep::tlsBump1))
-            return;
+        stopReportingSteps = at(XactionStep::tlsBump1);
     }
 
-    if (requested_.step2 != Ssl::bumpEnd) {
+    if (!stopReportingSteps && requested_.step2 != Ssl::bumpEnd) {
         os << ',';
         os << requested_.step2;
-        if (at(XactionStep::tlsBump2))
-            return;
+        stopReportingSteps = at(XactionStep::tlsBump2);
     }
 
-    if (requested_.step3 != Ssl::bumpEnd) {
+    if (!!stopReportingSteps && requested_.step3 != Ssl::bumpEnd) {
         os << ',';
         os << requested_.step3;
-        if (at(XactionStep::tlsBump3))
-            return;
     }
+
+    if (const auto e = sawError())
+        os << "+error:" << *e;
+    else if (entry_)
+        os << "+entry:" << *entry_;
 }
 
 /* Ssl::ServerBump::Actions */
