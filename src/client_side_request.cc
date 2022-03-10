@@ -1391,33 +1391,31 @@ ClientRequestContext::sslBumpAccessCheck()
         return false;
     }
 
-    // XXX: Remove http->getConn()->sslBumpMode
-
-    const Ssl::BumpMode bumpMode = http->getConn()->sslBumpMode;
-    if (http->request->flags.forceTunnel) {
-        debugs(85, 5, "not needed; already decided to tunnel " << http->getConn());
-        if (bumpMode != Ssl::bumpEnd)
-            http->al->ssl.bumpMode = bumpMode; // inherited from bumped connection
+    // ignore ssl_bump rules unless the request is on the SslBump path
+    const auto srvBump = http->getConn()->serverBump();
+    if (!srvBump) {
+        debugs(85, 5, "not on SslBump path");
+        http->al->ssl.bumpMode = Ssl::bumpEnd; // SslBump does not apply; log -
         return false;
     }
 
-    // If SSL connection tunneling or bumping decision has been made, obey it.
-    if (bumpMode != Ssl::bumpEnd) {
-        debugs(85, 5, "SslBump already decided (" << bumpMode <<
-               "), " << "ignoring ssl_bump for " << http->getConn());
-        http->al->ssl.bumpMode = bumpMode; // inherited from bumped connection
+    if (http->request->flags.forceTunnel) {
+        debugs(85, 5, "not needed; already decided to tunnel " << http->getConn());
+        // XXX: Why were we updating ALE here?!
+        // if (bumpMode != Ssl::bumpEnd)
+        //     http->al->ssl.bumpMode = bumpMode; // inherited from bumped connection
+        return false;
+    }
+
+    // XXX: This "SslBump is not finished" condition is awkward! Add finished()?
+    if (srvBump->at(XactionStep::tlsBumpDone)) {
+        debugs(85, 5, "SslBump already finished");
+        // XXX: Why were we updating ALE here?!
+        // http->al->ssl.bumpMode = bumpMode; // inherited from bumped connection
         return false;
     }
 
     // If we have not decided yet, decide whether to bump now.
-
-    // ignore ssl_bump rules unless the request is on the SslBump path
-    const auto srvBump = http->getConn()->serverBump();
-    if (!srvBump) {
-        http->al->ssl.bumpMode = Ssl::bumpEnd; // SslBump does not apply; log -
-        debugs(85, 5, "cannot SslBump this request");
-        return false;
-    }
 
     // Do not bump during authentication: clients would not proxy-authenticate
     // if we delay a 407 response and respond with 200 OK to CONNECT.

@@ -310,8 +310,6 @@ public:
     /// for SQUID_X509_V_ERR_DOMAIN_MISMATCH on bumped requests.
     bool serveDelayedError(Http::Stream *);
 
-    Ssl::BumpMode sslBumpMode = Ssl::bumpEnd; ///< ssl_bump decision (Ssl::bumpEnd if n/a).
-
     /// Tls parser to use for client HELLO messages parsing on bumped
     /// connections.
     Security::HandshakeParser tlsParser;
