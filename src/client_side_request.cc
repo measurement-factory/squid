@@ -1382,6 +1382,18 @@ ClientRequestContext::checkNoCacheDone(const Acl::Answer &answer)
     http->doCallouts();
 }
 
+StoreEntry *
+ClientRequestContext::createStoreEntry()
+{
+    const auto &request = *http->request;
+
+    // XXX: performance regression. c_str() reallocates
+    auto storeUriBuf(request.storeId());
+    const char *storeUri = storeUriBuf.c_str();
+
+    return storeCreateEntry(storeUri, http->log_uri, request.flags, request.method);
+}
+
 #if USE_OPENSSL
 bool
 ClientRequestContext::sslBumpAccessCheck()
@@ -1429,6 +1441,12 @@ ClientRequestContext::sslBumpAccessCheck()
         debugs(85, 5, "SslBump applies. Force bump action on error " << errorTypeName(error->type));
         srvBump->noteNeed(Ssl::bumpBump);
         http->al->ssl.bumpMode = Ssl::bumpBump;
+        const auto errorEntry = createStoreEntry();
+        srvBump->useStoreEntry(*http, errorEntry);
+        errorAppendEntry(errorEntry, error);
+        error = nullptr;
+        errorEntry->unlock("ClientRequestContext::sslBumpAccessCheck");
+        // ConnStateData::sslBumpAfterCallouts() will notice the stored error
         return false;
     }
 
@@ -1834,19 +1852,7 @@ ClientHttpRequest::doCallouts()
 #endif
 
     if (calloutContext->error) {
-        // XXX: prformance regression. c_str() reallocates
-        SBuf storeUriBuf(request->storeId());
-        const char *storeUri = storeUriBuf.c_str();
-        StoreEntry *e = storeCreateEntry(storeUri, storeUri, request->flags, request->method);
-#if USE_OPENSSL
-        if (const auto serverBump = getConn()->serverBump()) {
-            serverBump->useStoreEntry(*this, e);
-            errorAppendEntry(e, calloutContext->error);
-            calloutContext->error = NULL;
-            e->unlock("ClientHttpRequest::doCallouts+sslBumpNeeded");
-            // processRequest() below will deliver the error or close
-        } else
-#endif
+        const auto e = calloutContext->createStoreEntry();
         {
             // send the error to the client now
             clientStreamNode *node = (clientStreamNode *)client_stream.tail->prev->data;
@@ -1859,7 +1865,7 @@ ClientHttpRequest::doCallouts()
                 getConn()->flags.readMore = true; // resume any pipeline reads.
             node = (clientStreamNode *)client_stream.tail->data;
             clientStreamRead(node, this, node->readBuffer);
-            e->unlock("ClientHttpRequest::doCallouts-sslBumpNeeded");
+            e->unlock("ClientHttpRequest::doCallouts");
             return;
         }
     }

@@ -225,7 +225,7 @@ public:
      * Always returns the current id for the request
      * (either the effective request URI or modified ID by the helper).
      */
-    const SBuf storeId();
+    SBuf storeId() const;
 
     /**
      * The client connection manager, if known;
