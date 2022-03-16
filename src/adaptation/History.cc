@@ -12,6 +12,7 @@
 #include "base/TextException.h"
 #include "Debug.h"
 #include "globals.h"
+#include "sbuf/StringConvert.h"
 #include "SquidTime.h"
 
 /// impossible services value to identify unset theNextServices
@@ -143,6 +144,21 @@ void Adaptation::History::recordMeta(const HttpHeader *lm)
 
     allMeta.update(lm);
     allMeta.compact();
+}
+
+void
+Adaptation::History::recordReceivedAnnotations(const HttpHeader &newAnnotations)
+{
+    HttpHeaderPos pos = HttpHeaderInitPos;
+    while (const auto e = newAnnotations.getEntry(&pos)) {
+        if (!transactionAnnotations)
+            transactionAnnotations = new NotePairs();
+
+        debugs(93, 3, e->name << ": " << e->value);
+        // TODO: Add NotePairs::replaceOrAdd(name, value).
+        transactionAnnotations->remove(e->name); // if any
+        transactionAnnotations->add(e->name, StringToSBuf(e->value));
+    }
 }
 
 void

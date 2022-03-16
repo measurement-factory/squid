@@ -36,6 +36,8 @@ ACLNoteStrategy::match(ACLData<MatchType> * &data, ACLFilledChecklist *checklist
         const Adaptation::History::Pointer ah = request->adaptLogHistory();
         if (ah != NULL && ah->metaHeaders != NULL && matchNotes(data, ah->metaHeaders.getRaw()))
             return 1;
+        if (ah && ah->transactionAnnotations && matchNotes(data, ah->transactionAnnotations.getRaw()))
+            return 1;
 #endif
     }
     return 0;

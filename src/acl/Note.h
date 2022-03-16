@@ -14,6 +14,8 @@
 #include "acl/Strategy.h"
 #include "Notes.h"
 
+class HttpHeader;
+
 namespace Acl {
 
 /// common parent of several ACLs dealing with transaction annotations
@@ -38,6 +40,7 @@ public:
     virtual bool requiresRequest() const { return true; }
 
 private:
+    bool matchHeaderEntries(ACLData<MatchType> *, const HttpHeader &) const;
     bool matchNotes(ACLData<MatchType> *, const NotePairs *) const;
 };
 

@@ -54,6 +54,9 @@ public:
     /// store the last meta header fields received from the adaptation service
     void recordMeta(const HttpHeader *lm);
 
+    /// remember annotations received from a REQMOD or RESPMOD transaction
+    void recordReceivedAnnotations(const HttpHeader &);
+
     void recordAdaptationService(SBuf &srvId);
 public:
     /// Last received meta header (REQMOD or RESPMOD, whichever comes last).
@@ -63,6 +66,12 @@ public:
     /// key:value pairs set by adaptation_meta, to be added to
     /// AccessLogEntry::notes when ALE becomes available
     NotePairs::Pointer metaHeaders;
+
+    /// Transaction annotations set by all REQMOD and RESPMOD responses. For
+    /// eCAP, all received meta headers are treated as such annotations. TODO:
+    /// Add recordReceivedAnnotations() to the ICAP code after deciding how to
+    /// identify which ICAP response header fields are annotations.
+    NotePairs::Pointer transactionAnnotations;
 
     typedef std::vector<SBuf> AdaptationServices;
     AdaptationServices theAdaptationServices; ///< The service groups used

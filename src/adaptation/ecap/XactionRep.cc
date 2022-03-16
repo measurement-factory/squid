@@ -498,6 +498,7 @@ Adaptation::Ecap::XactionRep::updateHistory(Http::Message *adapted)
         OptionsExtractor extractor(meta);
         theMaster->visitEachOption(extractor);
         ah->recordMeta(&meta);
+        ah->recordReceivedAnnotations(meta); // all meta-headers are annotations
     }
 
     // Add just-created history to the adapted/cloned request that lacks it.
