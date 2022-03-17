@@ -21,6 +21,7 @@
 #include <cstring>
 #include <initializer_list>
 #include <limits>
+#include <map>
 
 AnyP::PortCfgPointer HttpPortList;
 AnyP::PortCfgPointer FtpPortList;
