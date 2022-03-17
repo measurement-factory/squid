@@ -18,6 +18,8 @@
 
 #include <functional>
 
+class RandomUuid;
+
 namespace Ipc
 {
 
@@ -113,6 +115,8 @@ public:
     /// where the updated chain prefix containing metadata/headers ends [update]
     /// if unset, this anchor points to a chain that was never updated
     std::atomic<StoreMapSliceId> splicingPoint;
+
+    RandomUuid *varyUuid;
 };
 
 /// an array of shareable Items

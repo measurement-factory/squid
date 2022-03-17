@@ -23,7 +23,9 @@ STOREMETA_SOURCE = \
 	StoreMetaURL.cc \
 	StoreMetaURL.h \
 	StoreMetaVary.cc \
-	StoreMetaVary.h
+	StoreMetaVary.h \
+	StoreMetaVaryId.cc \
+	StoreMetaVaryId.h
 
 LOADABLE_MODULES_SOURCES = \
 	LoadableModule.cc \
@@ -314,6 +316,8 @@ squid_SOURCES = \
 	PingData.h \
 	Pipeline.cc \
 	Pipeline.h \
+	RandomUuid.cc \
+	RandomUuid.h \
 	RefreshPattern.h \
 	RemovalPolicy.cc \
 	RemovalPolicy.h \

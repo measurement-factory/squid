@@ -12,6 +12,7 @@
 #include "CommRead.h"
 #include "dlink.h"
 #include "http/RequestMethod.h"
+#include "RandomUuid.h"
 #include "RemovalPolicy.h"
 #include "SquidString.h"
 #include "stmem.h"
@@ -134,6 +135,13 @@ public:
     /// client request URI used for logging; storeId() by default
     const char *logUri() const;
 
+    /// generate a new vary identifier
+    void createVaryUuid();
+    /// copy an existing vary identifier
+    void takeVaryUuid(const RandomUuid &);
+    /// whether our and other vary identifiers are the same
+    bool varyUuidEqualsTo(const RandomUuid *other);
+
     HttpRequestMethod method;
     mem_hdr data_hdr;
     int64_t inmem_lo = 0;
@@ -202,6 +210,9 @@ public:
 #endif
 
     SBuf vary_headers;
+    /// Identifier for for vary-based entries, which is the same
+    /// for all entries with the same marker object.
+    RandomUuid *varyUuid;
 
     void delayRead(DeferredRead const &);
     void kickReads();

@@ -106,6 +106,10 @@ public:
 
     String store_id; /* StoreID for transactions where the request member is nil */
 
+    /// the identifier of the internal vary marker object, which
+    /// our storeEntry() relates to (may be nil).
+    RandomUuid *varyMarkerUuid;
+
     struct Out {
         Out() : offset(0), size(0), headers_sz(0) {}
 

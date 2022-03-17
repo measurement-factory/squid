@@ -45,6 +45,8 @@ class HttpHdrRangeSpec;
 class MasterXaction;
 typedef RefCount<MasterXaction> MasterXactionPointer;
 
+class RandomUuid;
+
 #if USE_OPENSSL
 namespace Ssl
 {
@@ -506,7 +508,7 @@ private:
 
 const char *findTrailingHTTPVersion(const char *uriAndHTTPVersion, const char *end = NULL);
 
-int varyEvaluateMatch(StoreEntry * entry, HttpRequest * req);
+int varyEvaluateMatch(StoreEntry *entry, RandomUuid *varyMarkerUuid, HttpRequest *req);
 
 /// accept requests to a given port and inform subCall about them
 void clientStartListeningOn(AnyP::PortCfgPointer &port, const RefCount< CommCbFunPtrCallT<CommAcceptCbPtrFun> > &subCall, const Ipc::FdNoteId noteId);

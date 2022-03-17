@@ -94,7 +94,29 @@ MemObject::setUris(char const *aStoreId, char const *aLogUri, const HttpRequestM
 #endif
 }
 
-MemObject::MemObject()
+void
+MemObject::createVaryUuid()
+{
+    delete varyUuid; // should be nil
+    varyUuid = new RandomUuid();
+}
+
+void
+MemObject::takeVaryUuid(const RandomUuid &other)
+{
+    delete varyUuid; // should be nil
+    varyUuid = new RandomUuid(other);
+}
+
+bool
+MemObject::varyUuidEqualsTo(const RandomUuid *other)
+{
+    Must(varyUuid);
+    Must(other);
+    return *varyUuid == *other;
+}
+
+MemObject::MemObject(): varyUuid(nullptr)
 {
     debugs(20, 3, "MemObject constructed, this=" << this);
     ping_reply_callback = nullptr;
@@ -117,6 +139,7 @@ MemObject::~MemObject()
     }
 
     data_hdr.freeContent();
+    delete varyUuid;
 }
 
 HttpReply &

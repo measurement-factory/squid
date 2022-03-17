@@ -3465,7 +3465,7 @@ clientConnectionsClose()
 }
 
 int
-varyEvaluateMatch(StoreEntry * entry, HttpRequest * request)
+varyEvaluateMatch(StoreEntry * entry, RandomUuid *varyMarkerUuid, HttpRequest * request)
 {
     SBuf vary(request->vary_headers);
     const auto &reply = entry->mem().freshestReply();
@@ -3514,6 +3514,8 @@ varyEvaluateMatch(StoreEntry * entry, HttpRequest * request)
         if (vary.isEmpty()) {
             /* Ouch.. we cannot handle this kind of variance */
             /* XXX This cannot really happen, but just to be complete */
+            return VARY_CANCEL;
+        } else if (!entry->mem_obj->varyUuidEqualsTo(varyMarkerUuid)) {
             return VARY_CANCEL;
         } else if (vary.cmp(entry->mem_obj->vary_headers) == 0) {
             return VARY_MATCH;

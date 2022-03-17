@@ -19,6 +19,7 @@
 #include "StoreMetaSTDLFS.h"
 #include "StoreMetaURL.h"
 #include "StoreMetaVary.h"
+#include "StoreMetaVaryId.h"
 
 bool
 StoreMeta::validType(char type)
@@ -30,9 +31,7 @@ StoreMeta::validType(char type)
     }
 
     /* Not yet implemented */
-    if (type >= STORE_META_END ||
-            type == STORE_META_STOREURL ||
-            type == STORE_META_VARY_ID) {
+    if (type >= STORE_META_END || type == STORE_META_STOREURL) {
         debugs(20, 3, "storeSwapMetaUnpack: Not yet implemented (" << type << ") in disk metadata");
         return false;
     }
@@ -98,6 +97,10 @@ StoreMeta::Factory (char type, size_t len, void const *value)
         result = new StoreMetaVary;
         break;
 
+    case STORE_META_VARY_ID:
+        result = new StoreMetaVaryId;
+        break;
+
     default:
         debugs(20, DBG_CRITICAL, "ERROR: Attempt to create unknown concrete StoreMeta");
         return NULL;
@@ -154,6 +157,9 @@ StoreMeta::checkConsistency(StoreEntry *) const
         break;
 
     case STORE_META_OBJSIZE:
+        break;
+
+    case STORE_META_VARY_ID:
         break;
 
     default:

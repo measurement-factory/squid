@@ -11,6 +11,7 @@
 #include "squid.h"
 #include "md5.h"
 #include "MemObject.h"
+#include "RandomUuid.h"
 #include "Store.h"
 #include "StoreMeta.h"
 #include "StoreMetaUnpacker.h"
@@ -96,7 +97,12 @@ storeSwapMetaBuild(const StoreEntry *e)
             return NULL;
         }
 
-        StoreMeta::Add (T, t);
+        T = StoreMeta::Add(T, t);
+    }
+
+    if (e->mem_obj->varyUuid) {
+        t = StoreMeta::Factory(STORE_META_VARY_ID, sizeof(RandomUuid), e->mem_obj->varyUuid);
+        StoreMeta::Add(T, t);
     }
 
     return TLV;

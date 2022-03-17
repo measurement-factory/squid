@@ -595,7 +595,7 @@ clientReplyContext::cacheHit(StoreIOBuffer result)
         return;
     }
 
-    switch (varyEvaluateMatch(e, r)) {
+    switch (varyEvaluateMatch(e, http->varyMarkerUuid , r)) {
 
     case VARY_NONE:
         /* No variance detected. Continue as normal */
@@ -610,6 +610,8 @@ clientReplyContext::cacheHit(StoreIOBuffer result)
         /* This is not the correct entity for this request. We need
          * to requery the cache.
          */
+        Must(e->mem_obj->varyUuid);
+        http->varyMarkerUuid = new RandomUuid(*e->mem_obj->varyUuid);
         removeClientStoreReference(&sc, http);
         e = NULL;
         /* Note: varyEvalyateMatch updates the request with vary information
@@ -2149,6 +2151,8 @@ clientReplyContext::createStoreEntry(const HttpRequestMethod& m, RequestFlags re
     }
 
     StoreEntry *e = storeCreateEntry(storeId(), http->log_uri, reqFlags, m);
+    if (http->varyMarkerUuid)
+        e->mem_obj->takeVaryUuid(*http->varyMarkerUuid);
 
     // Make entry collapsible ASAP, to increase collapsing chances for others,
     // TODO: every must-revalidate and similar request MUST reach the origin,
