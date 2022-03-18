@@ -611,8 +611,8 @@ clientReplyContext::cacheHit(StoreIOBuffer result)
         /* This is not the correct entity for this request. We need
          * to requery the cache.
          */
-        Must(e->mem_obj->varyUuid);
-        Must(!http->varyMarkerUuid);
+        assert(e->mem_obj->varyUuid);
+        assert(!http->varyMarkerUuid);
         http->varyMarkerUuid = e->mem_obj->varyUuid;
         removeClientStoreReference(&sc, http);
         e = NULL;

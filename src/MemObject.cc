@@ -97,7 +97,7 @@ MemObject::setUris(char const *aStoreId, char const *aLogUri, const HttpRequestM
 bool
 MemObject::varyUuidEqualsTo(const std::shared_ptr<RandomUuid> &other)
 {
-    Must(varyUuid);
+    assert(varyUuid);
     if (!other)
         return false;
     return *varyUuid == *other;
