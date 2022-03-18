@@ -23,6 +23,8 @@
 #include "adaptation/Initiator.h"
 #endif
 
+#include <memory>
+
 class ClientRequestContext;
 class ConnStateData;
 class MemObject;
@@ -108,7 +110,7 @@ public:
 
     /// the identifier of the internal vary marker object, which
     /// our storeEntry() relates to (may be nil).
-    RandomUuid *varyMarkerUuid;
+    std::shared_ptr<RandomUuid> varyMarkerUuid;
 
     struct Out {
         Out() : offset(0), size(0), headers_sz(0) {}

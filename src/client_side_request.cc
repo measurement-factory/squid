@@ -154,7 +154,6 @@ ClientHttpRequest::ClientHttpRequest(ConnStateData * aConn) :
     calloutContext(NULL),
     maxReplyBodySize_(0),
     entry_(NULL),
-    varyMarkerUuid(nullptr),
     loggingEntry_(NULL),
     conn_(cbdataReference(aConn))
 #if USE_OPENSSL
@@ -296,8 +295,6 @@ ClientHttpRequest::~ClientHttpRequest()
 
     if (calloutContext)
         delete calloutContext;
-
-    delete varyMarkerUuid;
 
     clientConnection = NULL;
 

@@ -709,8 +709,8 @@ StoreEntry::adjustVary()
     if (!mem_obj->vary_headers.isEmpty() && !storeGetPublic(mem_obj->storeId(), mem_obj->method)) {
         /* Create "vary" base object */
         StoreEntry *pe = storeCreateEntry(mem_obj->storeId(), mem_obj->logUri(), request->flags, request->method);
-        pe->mem_obj->createVaryUuid();
-        mem_obj->takeVaryUuid(*pe->mem_obj->varyUuid);
+        pe->mem_obj->varyUuid = std::make_shared<RandomUuid>();
+        mem_obj->varyUuid = pe->mem_obj->varyUuid;
         // XXX: storeCreateEntry() already tries to make `pe` public under
         // certain conditions. If those conditions do not apply to Vary markers,
         // then refactor to call storeCreatePureEntry() above.  Otherwise,

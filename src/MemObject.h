@@ -25,6 +25,8 @@
 #include "DelayId.h"
 #endif
 
+#include <memory>
+
 typedef void STMCB (void *data, StoreIOBuffer wroteBuffer);
 
 class store_client;
@@ -135,12 +137,8 @@ public:
     /// client request URI used for logging; storeId() by default
     const char *logUri() const;
 
-    /// generate a new vary identifier
-    void createVaryUuid();
-    /// copy an existing vary identifier
-    void takeVaryUuid(const RandomUuid &);
     /// whether our and other vary identifiers are the same
-    bool varyUuidEqualsTo(const RandomUuid *other);
+    bool varyUuidEqualsTo(const std::shared_ptr<RandomUuid> &);
 
     HttpRequestMethod method;
     mem_hdr data_hdr;
@@ -212,7 +210,7 @@ public:
     SBuf vary_headers;
     /// Identifier for for vary-based entries, which is the same
     /// for all entries with the same marker object.
-    RandomUuid *varyUuid;
+    std::shared_ptr<RandomUuid> varyUuid;
 
     void delayRead(DeferredRead const &);
     void kickReads();

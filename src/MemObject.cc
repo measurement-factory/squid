@@ -94,25 +94,12 @@ MemObject::setUris(char const *aStoreId, char const *aLogUri, const HttpRequestM
 #endif
 }
 
-void
-MemObject::createVaryUuid()
-{
-    delete varyUuid; // should be nil
-    varyUuid = new RandomUuid();
-}
-
-void
-MemObject::takeVaryUuid(const RandomUuid &other)
-{
-    delete varyUuid; // should be nil
-    varyUuid = other.duplicate();
-}
-
 bool
-MemObject::varyUuidEqualsTo(const RandomUuid *other)
+MemObject::varyUuidEqualsTo(const std::shared_ptr<RandomUuid> &other)
 {
     Must(varyUuid);
-    Must(other);
+    if (!other)
+        return false;
     return *varyUuid == *other;
 }
 
@@ -139,7 +126,6 @@ MemObject::~MemObject()
     }
 
     data_hdr.freeContent();
-    delete varyUuid;
 }
 
 HttpReply &

@@ -31,6 +31,7 @@
 #include "mime_header.h"
 #include "neighbors.h"
 #include "refresh.h"
+#include "RandomUuid.h"
 #include "RequestFlags.h"
 #include "SquidConfig.h"
 #include "SquidTime.h"
@@ -612,7 +613,7 @@ clientReplyContext::cacheHit(StoreIOBuffer result)
          */
         Must(e->mem_obj->varyUuid);
         Must(!http->varyMarkerUuid);
-        http->varyMarkerUuid = e->mem_obj->varyUuid->duplicate();
+        http->varyMarkerUuid = e->mem_obj->varyUuid;
         removeClientStoreReference(&sc, http);
         e = NULL;
         /* Note: varyEvalyateMatch updates the request with vary information
@@ -2152,8 +2153,7 @@ clientReplyContext::createStoreEntry(const HttpRequestMethod& m, RequestFlags re
     }
 
     StoreEntry *e = storeCreateEntry(storeId(), http->log_uri, reqFlags, m);
-    if (http->varyMarkerUuid)
-        e->mem_obj->takeVaryUuid(*http->varyMarkerUuid);
+    e->mem_obj->varyUuid = http->varyMarkerUuid; // in case there is a vary marker object
 
     // Make entry collapsible ASAP, to increase collapsing chances for others,
     // TODO: every must-revalidate and similar request MUST reach the origin,
