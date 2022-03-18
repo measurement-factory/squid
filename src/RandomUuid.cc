@@ -8,6 +8,7 @@
 
 #include "squid.h"
 
+#include "base/Raw.h"
 #include "defines.h"
 #include "RandomUuid.h"
 
@@ -15,17 +16,21 @@
 #include <iomanip>
 #include <random>
 
+static_assert(sizeof(RandomUuid) == 16, "RandomUuid expected size");
+
 RandomUuid::RandomUuid()
 {
     using ResultType = std::mt19937_64::result_type;
     const auto ResultSize = sizeof(ResultType);
-    static_assert(2*sizeof(ResultType) == sizeof(RandomUuid), "RandomUuid expected size");
-    const auto seed = std::chrono::system_clock::now().time_since_epoch().count();
-    std::mt19937_64 gen(seed);
+    static std::random_device dev;
+    static std::mt19937_64 gen(dev());
     const auto low = gen();
     const auto high = gen();
+
+    static_assert(2*sizeof(ResultType) == sizeof(RandomUuid), "RandomUuid expected size for generator");
     memcpy(reinterpret_cast<char *>(this), &low, ResultSize);
     memcpy(reinterpret_cast<char *>(this) + ResultSize, &high, ResultSize);
+
     // RFC4122 section 4.4
     EBIT_CLR(clockSeqHiAndReserved, 6);
     EBIT_SET(clockSeqHiAndReserved, 7);
@@ -36,21 +41,26 @@ RandomUuid::RandomUuid()
     EBIT_CLR(timeHiAndVersion, 16);
 }
 
-RandomUuid::RandomUuid(void *data, const int length)
+RandomUuid::RandomUuid(const void *data, const size_t length)
 {
     assert(length == sizeof(RandomUuid));
     memcpy(reinterpret_cast<char *>(this), data, sizeof(RandomUuid));
 }
 
 void
-RandomUuid::print(std::ostream &os)
+RandomUuid::print(std::ostream &os) const
 {
-    std::cout << "0x" << std::setfill('0') << std::hex << std::setw(16) <<
-        reinterpret_cast<uint64_t>(this+64) << reinterpret_cast<uint64_t>(this);
+    os << Raw("UUID", reinterpret_cast<const char *>(this), sizeof(RandomUuid)).hex();
+}
+
+RandomUuid *
+RandomUuid::duplicate() const
+{
+    return new RandomUuid(this, sizeof(RandomUuid));
 }
 
 bool
-RandomUuid::operator ==(const RandomUuid &other)
+RandomUuid::operator ==(const RandomUuid &other) const
 {
     return memcmp(this, &other, sizeof(RandomUuid)) == 0;
 }

@@ -105,7 +105,7 @@ void
 MemObject::takeVaryUuid(const RandomUuid &other)
 {
     delete varyUuid; // should be nil
-    varyUuid = new RandomUuid(other);
+    varyUuid = other.duplicate();
 }
 
 bool

@@ -16,11 +16,13 @@ class RandomUuid
 {
 public:
     RandomUuid();
-    RandomUuid(void *data, int length);
+    RandomUuid(const void *data, size_t length);
+    RandomUuid(RandomUuid &&) = delete; // no copying or moving
 
-    void print(std::ostream &os);
-    bool operator==(const RandomUuid&);
-    bool operator!=(const RandomUuid &other) { return !(*this == other); }
+    void print(std::ostream &os) const;
+    bool operator==(const RandomUuid&) const;
+    bool operator!=(const RandomUuid &other) const { return !(*this == other); }
+    RandomUuid *duplicate() const;
 
 private:
     uint32_t timeLow;

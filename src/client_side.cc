@@ -3515,7 +3515,7 @@ varyEvaluateMatch(StoreEntry * entry, RandomUuid *varyMarkerUuid, HttpRequest * 
             /* Ouch.. we cannot handle this kind of variance */
             /* XXX This cannot really happen, but just to be complete */
             return VARY_CANCEL;
-        } else if (!entry->mem_obj->varyUuidEqualsTo(varyMarkerUuid)) {
+        } else if (!entry->mem().varyUuidEqualsTo(varyMarkerUuid)) {
             return VARY_CANCEL;
         } else if (vary.cmp(entry->mem_obj->vary_headers) == 0) {
             return VARY_MATCH;

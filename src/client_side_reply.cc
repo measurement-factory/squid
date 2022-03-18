@@ -611,7 +611,8 @@ clientReplyContext::cacheHit(StoreIOBuffer result)
          * to requery the cache.
          */
         Must(e->mem_obj->varyUuid);
-        http->varyMarkerUuid = new RandomUuid(*e->mem_obj->varyUuid);
+        Must(!http->varyMarkerUuid);
+        http->varyMarkerUuid = e->mem_obj->varyUuid->duplicate();
         removeClientStoreReference(&sc, http);
         e = NULL;
         /* Note: varyEvalyateMatch updates the request with vary information
