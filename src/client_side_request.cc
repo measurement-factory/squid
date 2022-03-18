@@ -2004,7 +2004,11 @@ ClientHttpRequest::handleAdaptedHeader(Http::Message *msg)
 {
     assert(msg);
 
-    if (HttpRequest *new_req = dynamic_cast<HttpRequest*>(msg)) {
+    if (msg == request) {
+        debugs(85, 3, "REQMOD left the request object as is");
+        assert(request->method.id());
+    } else  if (const auto new_req = dynamic_cast<HttpRequest*>(msg)) {
+        debugs(85, 3, "REQMOD produced a new request object");
         // update the new message to flag whether URL re-writing was done on it
         if (request->effectiveRequestUri() != new_req->effectiveRequestUri())
             new_req->flags.redirected = true;
