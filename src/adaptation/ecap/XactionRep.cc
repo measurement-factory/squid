@@ -402,9 +402,12 @@ Adaptation::Ecap::XactionRep::useVirgin()
 
     preserveVb("useVirgin");
 
-    const auto virgin = theVirginRep.raw().header;
-    updateHistory(virgin);
-    sendAnswer(Answer::Forward(virgin));
+    Http::Message *clone = theVirginRep.raw().header->clone();
+    // check that clone() copies the pipe so that we do not have to
+    Must(!theVirginRep.raw().header->body_pipe == !clone->body_pipe);
+
+    updateHistory(clone);
+    sendAnswer(Answer::Forward(clone));
     Must(done());
 }
 
@@ -499,10 +502,8 @@ Adaptation::Ecap::XactionRep::updateHistory(Http::Message *adapted)
     }
 
     // Add just-created history to the adapted/cloned request that lacks it.
-    if (request != adapted) {
-        if (const auto adaptedReq = dynamic_cast<HttpRequest*>(adapted))
-            adaptedReq->adaptHistoryImport(*request);
-    }
+    if (HttpRequest *adaptedReq = dynamic_cast<HttpRequest*>(adapted))
+        adaptedReq->adaptHistoryImport(*request);
 }
 
 void
