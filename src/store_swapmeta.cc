@@ -9,9 +9,9 @@
 /* DEBUG: section 20    Storage Manager Swapfile Metadata */
 
 #include "squid.h"
+#include "base/RandomUuid.h"
 #include "md5.h"
 #include "MemObject.h"
-#include "RandomUuid.h"
 #include "Store.h"
 #include "StoreMeta.h"
 #include "StoreMetaUnpacker.h"

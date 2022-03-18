@@ -9,10 +9,10 @@
 #ifndef SQUID_MEMOBJECT_H
 #define SQUID_MEMOBJECT_H
 
+#include "base/RandomUuid.h"
 #include "CommRead.h"
 #include "dlink.h"
 #include "http/RequestMethod.h"
-#include "RandomUuid.h"
 #include "RemovalPolicy.h"
 #include "SquidString.h"
 #include "stmem.h"

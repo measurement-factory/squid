@@ -936,7 +936,7 @@ Ipc::StoreMap::sliceAt(const SliceId sliceId) const
 
 /* Ipc::StoreMapAnchor */
 
-Ipc::StoreMapAnchor::StoreMapAnchor(): start(0), splicingPoint(-1), varyUuid(nullptr)
+Ipc::StoreMapAnchor::StoreMapAnchor(): start(0), splicingPoint(-1)
 {
     // keep in sync with rewind()
 }
