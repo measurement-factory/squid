@@ -557,47 +557,6 @@ storeClientReadBody(void *data, const char *buf, ssize_t len, StoreIOState::Poin
     sc->readBody(buf, len);
 }
 
-bool
-store_client::unpackHeader(char const *buf, ssize_t len)
-{
-    debugs(90, 3, "store_client::unpackHeader: len " << len << "");
-    assert(len >= 0);
-
-    int swap_hdr_sz = 0;
-    tlv *tlv_list = nullptr;
-    try {
-        StoreMetaUnpacker aBuilder(buf, len, &swap_hdr_sz);
-        tlv_list = aBuilder.createStoreMeta();
-    } catch (const std::exception &e) {
-        debugs(90, DBG_IMPORTANT, "WARNING: failed to unpack metadata because " << e.what());
-        return false;
-    }
-    assert(tlv_list);
-
-    /*
-     * Check the meta data and make sure we got the right object.
-     */
-    for (tlv *t = tlv_list; t; t = t->next) {
-        if (!t->checkConsistency(entry)) {
-            storeSwapTLVFree(tlv_list);
-            return false;
-        }
-    }
-
-    storeSwapTLVFree(tlv_list);
-
-    assert(swap_hdr_sz >= 0);
-    entry->mem_obj->swap_hdr_sz = swap_hdr_sz;
-    if (entry->swap_file_sz > 0) { // collapsed hits may not know swap_file_sz
-        assert(entry->swap_file_sz >= static_cast<uint64_t>(swap_hdr_sz));
-        entry->mem_obj->object_sz = entry->swap_file_sz - swap_hdr_sz;
-    }
-    debugs(90, 5, "store_client::unpackHeader: swap_file_sz=" <<
-           entry->swap_file_sz << "( " << swap_hdr_sz << " + " <<
-           entry->mem_obj->object_sz << ")");
-    return true;
-}
-
 void
 store_client::readHeader(char const *buf, ssize_t len)
 {
@@ -614,7 +573,7 @@ store_client::readHeader(char const *buf, ssize_t len)
     if (len < 0)
         return fail();
 
-    if (!unpackHeader(buf, len)) {
+    if (!entry->unpackHeader(buf, len)) {
         fail();
         return;
     }

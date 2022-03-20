@@ -219,6 +219,9 @@ public:
     /// allow or forbid collapsed requests feeding
     void setCollapsingRequirement(const bool required);
 
+    /// unpack Store metadata
+    bool unpackHeader(char const *buf, ssize_t len);
+
     MemObject *mem_obj;
     RemovalPolicyNode repl;
     /* START OF ON-DISK STORE_META_STD TLV field */

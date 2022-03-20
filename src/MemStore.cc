@@ -19,6 +19,7 @@
 #include "mime_header.h"
 #include "SquidConfig.h"
 #include "SquidMath.h"
+#include "store_key_md5.h"
 #include "StoreStats.h"
 #include "tools.h"
 
@@ -318,7 +319,15 @@ MemStore::get(const cache_key *key)
 
     anchorEntry(*e, index, *slot);
 
+    // XXX: Needed by e->unpackHeader() below.
+    // TODO: copying the entire (and possibly huge) entry beforehand may be useless
+    // if client(s) are gone. Do it incrementally instead, postponing the initial
+    // copyFromShm() call.
+    e->key = storeKeyDup(key);
     const bool copied = copyFromShm(*e, index, *slot);
+    // Controller expects nil key in order to assign properly the key, Transients, etc.
+    storeKeyFree((const cache_key *)e->key);
+    e->key = nullptr;
 
     if (copied)
         return e;
@@ -470,20 +479,25 @@ MemStore::copyFromShm(StoreEntry &e, const sfileno index, const Ipc::StoreMapAnc
         // slice state may change during copying; take snapshots now
         wasEof = anchor.complete() && slice.next < 0;
         const Ipc::StoreMapSlice::Size wasSize = slice.size;
+        const MemStoreMapExtras::Item &extra = extras->items[sid];
+        char *page = static_cast<char*>(PagePointer(extra.page));
 
         debugs(20, 8, "entry " << index << " slice " << sid << " eof " <<
                wasEof << " wasSize " << wasSize << " <= " <<
                anchor.basics.swap_file_sz << " sliceOffset " << sliceOffset <<
                " mem.endOffset " << e.mem_obj->endOffset());
 
-        if (e.mem_obj->endOffset() < sliceOffset + wasSize) {
+        if (e.mem_obj->swap_hdr_sz == 0) {
+            assert(e.mem_obj->endOffset() == 0);
+            if (!e.unpackHeader(page, wasSize))
+                return false;
+        }
+
+        if (e.mem_obj->endOffset() + static_cast<int64_t>(e.mem_obj->swap_hdr_sz) < sliceOffset + wasSize) {
             // size of the slice data that we already copied
-            const size_t prefixSize = e.mem_obj->endOffset() - sliceOffset;
+            size_t prefixSize = e.mem_obj->endOffset() + e.mem_obj->swap_hdr_sz - sliceOffset;
             assert(prefixSize <= wasSize);
 
-            const MemStoreMapExtras::Item &extra = extras->items[sid];
-
-            char *page = static_cast<char*>(PagePointer(extra.page));
             const StoreIOBuffer sliceBuf(wasSize - prefixSize,
                                          e.mem_obj->endOffset(),
                                          page + prefixSize);
@@ -517,7 +531,7 @@ MemStore::copyFromShm(StoreEntry &e, const sfileno index, const Ipc::StoreMapAnc
            anchor.basics.swap_file_sz << " bytes of " << e);
 
     // from StoreEntry::complete()
-    e.mem_obj->object_sz = e.mem_obj->endOffset();
+    e.mem_obj->object_sz = e.mem_obj->endOffset() + e.mem_obj->swap_hdr_sz;
     e.store_status = STORE_OK;
     e.setMemStatus(IN_MEMORY);
 
@@ -588,12 +602,6 @@ MemStore::shouldCache(StoreEntry &e) const
 
     assert(e.mem_obj);
 
-    if (!e.mem_obj->vary_headers.isEmpty()) {
-        // XXX: We must store/load SerialisedMetaData to cache Vary in RAM
-        debugs(20, 5, "Vary not yet supported: " << e.mem_obj->vary_headers);
-        return false;
-    }
-
     const int64_t expectedSize = e.mem_obj->expectedReplySize(); // may be < 0
     const int64_t loadedSize = e.mem_obj->endOffset();
     const int64_t ramSize = max(loadedSize, expectedSize);
@@ -652,7 +660,7 @@ MemStore::copyToShm(StoreEntry &e)
     assert(e.mem_obj);
     Must(!EBIT_TEST(e.flags, ENTRY_FWD_HDR_WAIT));
 
-    const int64_t eSize = e.mem_obj->endOffset();
+    const int64_t eSize = e.mem_obj->endOffset() + e.mem_obj->swap_hdr_sz;
     if (e.mem_obj->memCache.offset >= eSize) {
         debugs(20, 5, "postponing copying " << e << " for lack of news: " <<
                e.mem_obj->memCache.offset << " >= " << eSize);
@@ -674,10 +682,29 @@ MemStore::copyToShm(StoreEntry &e)
                                           e.mem_obj->memCache.index, lastWritingSlice);
         if (anchor.start < 0)
             anchor.start = lastWritingSlice;
+        if (e.mem_obj->memCache.offset == 0)
+            copyMetaToShmSlice(e, anchor, slice);
         copyToShmSlice(e, anchor, slice);
     }
 
     debugs(20, 7, "mem-cached available " << eSize << " bytes of " << e);
+}
+
+void
+MemStore::copyMetaToShmSlice(StoreEntry &e, Ipc::StoreMapAnchor &anchor, Ipc::StoreMap::Slice &slice)
+{
+    assert(e.mem_obj);
+    assert(e.mem_obj->memCache.offset == 0);
+    const auto buf = e.getSerialisedMetaData(e.mem_obj->swap_hdr_sz);
+    assert(buf);
+    Ipc::Mem::PageId page = pageForSlice(lastWritingSlice);
+    debugs(20, 7, "entry " << e << " slice " << lastWritingSlice << " has " << page);
+    memcpy(PagePointer(page), buf, e.mem_obj->swap_hdr_sz);
+    slice.size += e.mem_obj->swap_hdr_sz;
+    e.mem_obj->memCache.offset = e.mem_obj->swap_hdr_sz;
+    anchor.basics.swap_file_sz = e.mem_obj->swap_hdr_sz;
+    xfree(buf);
+    debugs(20, 7, "mem-cached meta header of " << e.mem_obj->swap_hdr_sz << " bytes in " << page);
 }
 
 /// copies at most one slice worth of local memory to shared memory
@@ -690,7 +717,7 @@ MemStore::copyToShmSlice(StoreEntry &e, Ipc::StoreMapAnchor &anchor, Ipc::StoreM
 
     const int64_t bufSize = Ipc::Mem::PageSize();
     const int64_t sliceOffset = e.mem_obj->memCache.offset % bufSize;
-    StoreIOBuffer sharedSpace(bufSize - sliceOffset, e.mem_obj->memCache.offset,
+    StoreIOBuffer sharedSpace(bufSize - sliceOffset, e.mem_obj->memCache.offset - e.mem_obj->swap_hdr_sz,
                               static_cast<char*>(PagePointer(page)) + sliceOffset);
 
     // check that we kept everything or purge incomplete/sparse cached entry
