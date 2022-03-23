@@ -30,6 +30,7 @@
 #include <openssl/engine.h>
 #endif
 #include <queue>
+#include <iosfwd>
 #include <map>
 
 /**
@@ -374,6 +375,9 @@ public:
 };
 
 } //namespace Ssl
+
+/// prints a human-friendly BumpMode value representation (for debugging)
+std::ostream &operator <<(std::ostream &, Ssl::BumpMode);
 
 #if _SQUID_WINDOWS_
 

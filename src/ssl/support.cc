@@ -1411,6 +1411,19 @@ void Ssl::InRamCertificateDbKey(const Ssl::CertificateProperties &certProperties
     }
 }
 
+std::ostream &
+operator <<(std::ostream &os, const Ssl::BumpMode bm)
+{
+    if (const auto text = bumpMode(bm))
+        os << text;
+    else
+    if (bm == Ssl::bumpEnd) // bumpMode() does not support converting this value
+        os << "bumpEnd";
+    else
+        os << "bumpMode#" << static_cast<std::underlying_type<Ssl::BumpMode>::type>(bm);
+    return os;
+}
+
 static int
 bio_sbuf_create(BIO* bio)
 {
