@@ -41,12 +41,6 @@ RandomUuid::RandomUuid()
     EBIT_CLR(timeHiAndVersion, 16);
 }
 
-RandomUuid::RandomUuid(const void *data, const size_t length)
-{
-    assert(length == sizeof(RandomUuid));
-    memcpy(reinterpret_cast<char *>(this), data, sizeof(RandomUuid));
-}
-
 void
 RandomUuid::print(std::ostream &os) const
 {
@@ -56,7 +50,24 @@ RandomUuid::print(std::ostream &os) const
 RandomUuid *
 RandomUuid::duplicate() const
 {
-    return new RandomUuid(this, sizeof(RandomUuid));
+    auto *uuid = new RandomUuid();
+    memcpy(reinterpret_cast<char *>(uuid), reinterpret_cast<const char *>(this), sizeof(RandomUuid));
+    return uuid;
+}
+
+RandomUuid
+RandomUuid::clone() const
+{
+    RandomUuid uuid;
+    memcpy(reinterpret_cast<char *>(&uuid), reinterpret_cast<const char *>(this), sizeof(RandomUuid));
+    return uuid;
+}
+
+void
+RandomUuid::load(const void *data, const size_t length)
+{
+    assert(length == sizeof(RandomUuid));
+    memcpy(reinterpret_cast<char *>(this), data, sizeof(RandomUuid));
 }
 
 bool

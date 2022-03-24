@@ -95,15 +95,15 @@ MemObject::setUris(char const *aStoreId, char const *aLogUri, const HttpRequestM
 }
 
 bool
-MemObject::varyUuidEqualsTo(const std::shared_ptr<RandomUuid> &other)
+MemObject::varyUuidEqualsTo(const Optional<RandomUuid> &other)
 {
-    assert(varyUuid);
-    if (!other)
+    assert(varyUuid.has_value());
+    if (!other.has_value())
         return false;
-    return *varyUuid == *other;
+    return varyUuid.value() == other.value();
 }
 
-MemObject::MemObject(): varyUuid(nullptr)
+MemObject::MemObject()
 {
     debugs(20, 3, "MemObject constructed, this=" << this);
     ping_reply_callback = nullptr;

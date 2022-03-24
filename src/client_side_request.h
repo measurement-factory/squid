@@ -9,6 +9,7 @@
 #ifndef SQUID_CLIENTSIDEREQUEST_H
 #define SQUID_CLIENTSIDEREQUEST_H
 
+#include "base/Optional.h"
 #include "AccessLogEntry.h"
 #include "client_side.h"
 #include "clientStream.h"
@@ -109,8 +110,8 @@ public:
     String store_id; /* StoreID for transactions where the request member is nil */
 
     /// the identifier of the internal vary marker object, which
-    /// our storeEntry() relates to (may be nil).
-    std::shared_ptr<RandomUuid> varyMarkerUuid;
+    /// our storeEntry() relates to
+    Optional<RandomUuid> varyMarkerUuid;
 
     struct Out {
         Out() : offset(0), size(0), headers_sz(0) {}

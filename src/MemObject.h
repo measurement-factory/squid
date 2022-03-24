@@ -9,6 +9,7 @@
 #ifndef SQUID_MEMOBJECT_H
 #define SQUID_MEMOBJECT_H
 
+#include "base/Optional.h"
 #include "base/RandomUuid.h"
 #include "CommRead.h"
 #include "dlink.h"
@@ -138,7 +139,7 @@ public:
     const char *logUri() const;
 
     /// whether our and other vary identifiers are the same
-    bool varyUuidEqualsTo(const std::shared_ptr<RandomUuid> &);
+    bool varyUuidEqualsTo(const Optional<RandomUuid> &other);
 
     HttpRequestMethod method;
     mem_hdr data_hdr;
@@ -210,7 +211,7 @@ public:
     SBuf vary_headers;
     /// Identifier for for vary-based entries, which is the same
     /// for all entries with the same marker object.
-    std::shared_ptr<RandomUuid> varyUuid;
+    Optional<RandomUuid> varyUuid;
 
     void delayRead(DeferredRead const &);
     void kickReads();

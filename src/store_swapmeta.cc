@@ -100,8 +100,8 @@ storeSwapMetaBuild(const StoreEntry *e)
         T = StoreMeta::Add(T, t);
     }
 
-    if (e->mem_obj->varyUuid) {
-        t = StoreMeta::Factory(STORE_META_VARY_ID, sizeof(RandomUuid), e->mem_obj->varyUuid.get());
+    if (e->mem_obj->varyUuid.has_value()) {
+        t = StoreMeta::Factory(STORE_META_VARY_ID, sizeof(RandomUuid), &e->mem_obj->varyUuid.value());
         StoreMeta::Add(T, t);
     }
 
