@@ -16,8 +16,8 @@ class RandomUuid
 {
 public:
     RandomUuid();
-    RandomUuid(RandomUuid &) = delete;
-    RandomUuid &operator=(RandomUuid &) = delete;
+    RandomUuid(const RandomUuid &) = delete;
+    RandomUuid &operator=(const RandomUuid &) = delete;
     RandomUuid(RandomUuid &&) = default;
     RandomUuid &operator=(RandomUuid &&) = default;
 
