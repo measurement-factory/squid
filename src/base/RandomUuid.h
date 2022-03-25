@@ -6,8 +6,8 @@
  * Please see the COPYING and CONTRIBUTORS files for details.
  */
 
-#ifndef RANDOM_UUID_H
-#define RANDOM_UUID_H
+#ifndef SQUID_SRC_BASE_RANDOM_UUID_H
+#define SQUID_SRC_BASE_RANDOM_UUID_H
 
 #include <iostream>
 
@@ -24,7 +24,6 @@ public:
     void print(std::ostream &os) const;
     bool operator==(const RandomUuid&) const;
     bool operator!=(const RandomUuid &other) const { return !(*this == other); }
-    RandomUuid *duplicate() const;
     RandomUuid clone() const;
     void load(const void *data, size_t length);
 
@@ -37,5 +36,5 @@ private:
     int8_t node[6];
 };
 
-#endif
+#endif /* SQUID_SRC_BASE_RANDOM_UUID_H */
 

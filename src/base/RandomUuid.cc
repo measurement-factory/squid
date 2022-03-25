@@ -47,14 +47,6 @@ RandomUuid::print(std::ostream &os) const
     os << Raw("UUID", reinterpret_cast<const char *>(this), sizeof(RandomUuid)).hex();
 }
 
-RandomUuid *
-RandomUuid::duplicate() const
-{
-    auto *uuid = new RandomUuid();
-    memcpy(reinterpret_cast<char *>(uuid), reinterpret_cast<const char *>(this), sizeof(RandomUuid));
-    return uuid;
-}
-
 RandomUuid
 RandomUuid::clone() const
 {
