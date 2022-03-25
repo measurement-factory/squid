@@ -23,30 +23,31 @@ public:
     virtual ~BadOptionalAccess() noexcept = default;
 };
 
-template <class T>
-union OptionalStorage
-{
-    OptionalStorage() : dummy_(0) {};
-    OptionalStorage(const T& v) : value_(v) {};
-
-    ~OptionalStorage(){ value_.~T(); }
-
-    unsigned char dummy_;
-    T value_;
-};
-
 /// (limited) std::optional replacement (until we upgrade to C++17)
 template <typename Value>
 class Optional
 {
 public:
-    // std::optional supports non-trivial types as well, but we
-    // do not want to fiddle with unions to disable default Value constructor
-    // until that work becomes necessary
-//    static_assert(std::is_trivial<Value>::value, "Value is trivial");
+    constexpr Optional() noexcept : dummy_(0) {}
+    constexpr explicit Optional(const Value &v): value_(v), hasValue_(true) {}
+    ~Optional() { clear(); }
 
-    constexpr Optional() noexcept {}
-    constexpr explicit Optional(const Value &v): storage_(v), hasValue_(true) {}
+    Optional(const Optional &o) = delete;
+    Optional &operator=(const Optional &o) = delete;
+    constexpr Optional(Optional &&o) = default;
+
+    template <class Other = Value>
+    Optional &operator=(Optional<Other> &&o) {
+        if (this != &o) {
+            if (!o.has_value()) {
+                clear();
+            } else {
+                *this = o.value();
+                o.clear();
+            }
+        }
+        return *this;
+    }
 
     constexpr explicit operator bool() const noexcept { return hasValue_; }
     constexpr bool has_value() const noexcept { return hasValue_; }
@@ -55,25 +56,37 @@ public:
     {
         if (!hasValue_)
             throw BadOptionalAccess();
-        return storage_.value_;
+        return value_;
     }
 
     template <class Other>
     constexpr Value value_or(Other &&defaultValue) const &
     {
-        return hasValue_ ? storage_.value_ : static_cast<Value>(std::forward<Other>(defaultValue));
+        return hasValue_ ? value_ : static_cast<Value>(std::forward<Other>(defaultValue));
     }
 
     template <class Other = Value>
     Optional &operator =(Other &&otherValue)
     {
-        storage_.value_ = std::forward<Other>(otherValue);
+        value_ = std::forward<Other>(otherValue);
         hasValue_ = true;
         return *this;
     }
 
+    void clear() {
+        if (hasValue_) {
+            value_.~Value();
+            hasValue_ = false;
+        }
+    }
+
 private:
-    OptionalStorage<Value> storage_; // stored value; inaccessible/uninitialized unless hasValue_
+    union {
+        unsigned char dummy_;
+        // stored value; inaccessible/uninitialized unless hasValue_
+        Value value_;
+    };
+
     bool hasValue_ = false;
 };
 

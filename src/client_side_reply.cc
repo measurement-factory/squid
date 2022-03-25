@@ -2154,8 +2154,8 @@ clientReplyContext::createStoreEntry(const HttpRequestMethod& m, RequestFlags re
     }
 
     StoreEntry *e = storeCreateEntry(storeId(), http->log_uri, reqFlags, m);
-    assert(http->varyMarkerUuid.has_value());
-    e->mem_obj->varyUuid = http->varyMarkerUuid.value().clone(); // in case there is a vary marker object
+    if (http->varyMarkerUuid.has_value())
+        e->mem_obj->varyUuid = http->varyMarkerUuid.value().clone();
 
     // Make entry collapsible ASAP, to increase collapsing chances for others,
     // TODO: every must-revalidate and similar request MUST reach the origin,
