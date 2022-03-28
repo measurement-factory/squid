@@ -3465,7 +3465,7 @@ clientConnectionsClose()
 }
 
 int
-varyEvaluateMatch(StoreEntry * entry, const Optional<RandomUuid> &varyMarkerUuid, HttpRequest * request)
+varyEvaluateMatch(StoreEntry *entry, const Optional<RandomUuid> &varyMarkerUuid, HttpRequest *request)
 {
     SBuf vary(request->vary_headers);
     const auto &reply = entry->mem().freshestReply();

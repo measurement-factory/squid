@@ -15,6 +15,7 @@ class CallDialer;
 class CodeContext;
 class ScopedId;
 class BadOptionalAccess;
+class RandomUuid;
 class Raw;
 class RegexPattern;
 

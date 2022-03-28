@@ -9,8 +9,8 @@
 #ifndef SQUID_CLIENTSIDEREQUEST_H
 #define SQUID_CLIENTSIDEREQUEST_H
 
-#include "base/Optional.h"
 #include "AccessLogEntry.h"
+#include "base/Optional.h"
 #include "client_side.h"
 #include "clientStream.h"
 #include "http/forward.h"
@@ -23,8 +23,6 @@
 #include "adaptation/forward.h"
 #include "adaptation/Initiator.h"
 #endif
-
-#include <memory>
 
 class ClientRequestContext;
 class ConnStateData;

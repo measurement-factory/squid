@@ -18,8 +18,6 @@
 
 #include <functional>
 
-class RandomUuid;
-
 namespace Ipc
 {
 

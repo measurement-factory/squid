@@ -596,7 +596,7 @@ clientReplyContext::cacheHit(StoreIOBuffer result)
         return;
     }
 
-    switch (varyEvaluateMatch(e, http->varyMarkerUuid , r)) {
+    switch (varyEvaluateMatch(e, http->varyMarkerUuid, r)) {
 
     case VARY_NONE:
         /* No variance detected. Continue as normal */

@@ -480,7 +480,7 @@ MemStore::copyFromShm(StoreEntry &e, const sfileno index, const Ipc::StoreMapAnc
         wasEof = anchor.complete() && slice.next < 0;
         const Ipc::StoreMapSlice::Size wasSize = slice.size;
         const MemStoreMapExtras::Item &extra = extras->items[sid];
-        char *page = static_cast<char*>(PagePointer(extra.page));
+        auto page = static_cast<char*>(PagePointer(extra.page));
 
         debugs(20, 8, "entry " << index << " slice " << sid << " eof " <<
                wasEof << " wasSize " << wasSize << " <= " <<
@@ -495,7 +495,7 @@ MemStore::copyFromShm(StoreEntry &e, const sfileno index, const Ipc::StoreMapAnc
 
         if (e.mem_obj->endOffset() + static_cast<int64_t>(e.mem_obj->swap_hdr_sz) < sliceOffset + wasSize) {
             // size of the slice data that we already copied
-            size_t prefixSize = e.mem_obj->endOffset() + e.mem_obj->swap_hdr_sz - sliceOffset;
+            const size_t prefixSize = e.mem_obj->endOffset() + e.mem_obj->swap_hdr_sz - sliceOffset;
             assert(prefixSize <= wasSize);
 
             const StoreIOBuffer sliceBuf(wasSize - prefixSize,
@@ -697,7 +697,7 @@ MemStore::copyMetaToShmSlice(StoreEntry &e, Ipc::StoreMapAnchor &anchor, Ipc::St
     assert(e.mem_obj->memCache.offset == 0);
     const auto buf = e.getSerialisedMetaData(e.mem_obj->swap_hdr_sz);
     assert(buf);
-    Ipc::Mem::PageId page = pageForSlice(lastWritingSlice);
+    auto page = pageForSlice(lastWritingSlice);
     debugs(20, 7, "entry " << e << " slice " << lastWritingSlice << " has " << page);
     memcpy(PagePointer(page), buf, e.mem_obj->swap_hdr_sz);
     slice.size += e.mem_obj->swap_hdr_sz;

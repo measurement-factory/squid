@@ -32,18 +32,18 @@ public:
     constexpr explicit Optional(const Value &v): value_(v), hasValue_(true) {}
     ~Optional() { clear(); }
 
-    Optional(const Optional &o) = delete;
-    Optional &operator=(const Optional &o) = delete;
-    constexpr Optional(Optional &&o) = default;
+    Optional(const Optional &other) = delete;
+    Optional &operator=(const Optional &other) = delete;
+    constexpr Optional(Optional &&other) = default;
 
     template <class Other = Value>
-    Optional &operator=(Optional<Other> &&o) {
-        if (this != &o) {
-            if (!o.has_value()) {
+    Optional &operator=(Optional<Other> &&other) {
+        if (this != &other) {
+            if (!other.has_value()) {
                 clear();
             } else {
-                *this = o.value();
-                o.clear();
+                *this = other.value();
+                other.clear();
             }
         }
         return *this;

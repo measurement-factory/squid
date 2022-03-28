@@ -26,8 +26,6 @@
 #include "DelayId.h"
 #endif
 
-#include <memory>
-
 typedef void STMCB (void *data, StoreIOBuffer wroteBuffer);
 
 class store_client;

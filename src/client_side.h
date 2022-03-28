@@ -12,6 +12,7 @@
 #define SQUID_CLIENTSIDE_H
 
 #include "acl/ChecklistFiller.h"
+#include "base/forward.h"
 #include "base/RunnersRegistry.h"
 #include "clientStreamForward.h"
 #include "comm.h"
@@ -38,15 +39,12 @@
 #endif
 
 #include <iosfwd>
-#include <memory>
 
 class ClientHttpRequest;
 class HttpHdrRangeSpec;
 
 class MasterXaction;
 typedef RefCount<MasterXaction> MasterXactionPointer;
-
-class RandomUuid;
 
 #if USE_OPENSSL
 namespace Ssl
