@@ -47,14 +47,7 @@ CommandArgumentString(const Http::HeaderEditor::CommandArgument commandArgument)
 static bool
 IsEmptyLine(SBuf &line)
 {
-    static auto pattern = RegexPattern(REG_EXTENDED, "^[ \t\r]*\n");
-    static bool compiled = false;
-    if (!compiled) {
-        compiled = true;
-        regex_t comp;
-        (void)regcomp(&comp, pattern.c_str(), pattern.flags);
-        pattern.regex = comp;
-    }
+    static RegexPattern pattern{SBuf("^[ \t\r]*\n"), REG_EXTENDED};
     static RegexMatch match(ReGroupMax);
     return pattern.match(line.c_str(), match);
 }
@@ -97,22 +90,6 @@ Http::HeaderEditor::~HeaderEditor()
 {
     aclDestroyAclList(&aclList);
     delete format_;
-}
-
-// TODO: resolve code duplication with acl/RegexData.cc
-/// fills patterns_ with compiled regular expressions
-bool
-Http::HeaderEditor::compileRE(SBuf &str, const int flags)
-{
-    regex_t comp;
-    if (const auto errcode = regcomp(&comp, str.c_str(), flags)) {
-        char errbuf[256];
-        regerror(errcode, &comp, errbuf, sizeof errbuf);
-        throw TextException(ToSBuf("Invalid regular expression: ", errbuf), Here());
-    }
-    patterns_.emplace_back(flags, str.c_str());
-    patterns_.back().regex = comp;
-    return true;
 }
 
 SBuf
@@ -189,7 +166,7 @@ Http::HeaderEditor::ParseReGroupId(const SBuf &str)
     return static_cast<uint64_t>(id);
 }
 
-const char *
+static const char *
 UnescapeXXX(SBuf &buf)
 {
     static char unescaped[256];
@@ -231,7 +208,7 @@ Http::HeaderEditor::parseOptions(ConfigParser &parser)
         }
     }
 
-    compileRE(currentToken, flags);
+    patterns_.emplace_back(currentToken, flags);
 
     if (patterns_.empty())
         throw TextException("missing regular expression(s)", Here());
@@ -262,8 +239,11 @@ Http::HeaderEditor::dump(std::ostream &os) const
     os << " command argument: " << CommandArgumentString(commandArgument_) << "\n";
     // TODO: dump flags
     os << " regex patterns: \n";
-    for (const auto &p: patterns_)
-        os << p.c_str() << "\n";
+    const RegexPattern *previous = nullptr;
+    for (const auto &p: patterns_) {
+        p.print(os, previous);
+        previous = &p;
+     }
     os << " format: " << formatString_ << "\n";
     if (aclList) {
         for (const auto &acl: aclList->treeDump("if", &Acl::AllowOrDeny))

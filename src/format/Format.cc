@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1996-2021 The Squid Software Foundation and contributors
+ * Copyright (C) 1996-2022 The Squid Software Foundation and contributors
  *
  * Squid software is distributed under GPLv2+ license and includes
  * contributions from numerous individuals and organizations.
@@ -18,7 +18,6 @@
 #include "format/Format.h"
 #include "format/Quoting.h"
 #include "format/Token.h"
-#include "fqdncache.h"
 #include "http/Stream.h"
 #include "HttpRequest.h"
 #include "MemBuf.h"
@@ -71,7 +70,7 @@ Format::Format::parse(const char *def)
     Token *new_lt, *last_lt;
     enum Quoting quote = LOG_QUOTE_NONE;
 
-    debugs(46, 2, HERE << "got definition '" << def << "'");
+    debugs(46, 2, "got definition '" << def << "'");
 
     if (format) {
         debugs(46, DBG_IMPORTANT, "WARNING: existing format for '" << name << " " << def << "'");
@@ -109,19 +108,20 @@ Format::AssembleOne(const char *token, MemBuf &mb, const AccessLogEntryPointer &
         fmt.format = &tkn;
         fmt.assemble(mb, ale, nullptr);
         fmt.format = nullptr;
-    } else
+    } else {
         mb.append("-", 1);
+    }
     return static_cast<size_t>(tokenSize);
 }
 
 void
 Format::Format::dump(StoreEntry * entry, const char *directiveName, bool eol) const
 {
-    debugs(46, 4, HERE);
+    debugs(46, 4, MYNAME);
 
     // loop rather than recursing to conserve stack space.
     for (const Format *fmt = this; fmt; fmt = fmt->next) {
-        debugs(46, 3, HERE << "Dumping format definition for " << fmt->name);
+        debugs(46, 3, "Dumping format definition for " << fmt->name);
         if (directiveName)
             storeAppendPrintf(entry, "%s %s ", directiveName, fmt->name);
 
@@ -388,7 +388,7 @@ Format::Format::assemble(MemBuf &mb, const AccessLogEntry::Pointer &al, const As
         int dofree = 0;
         int64_t outoff = 0;
         int dooff = 0;
-        struct timeval outtv = {0, 0};
+        struct timeval outtv = {};
         int doMsec = 0;
         int doSec = 0;
         bool doUint64 = false;
@@ -410,14 +410,7 @@ Format::Format::assemble(MemBuf &mb, const AccessLogEntry::Pointer &al, const As
             break;
 
         case LFT_CLIENT_FQDN:
-            if (al->cache.caddr.isAnyAddr()) // e.g., ICAP OPTIONS lack client
-                out = "-";
-            else
-                out = fqdncache_gethostbyaddr(al->cache.caddr, FQDN_LOOKUP_IF_MISS);
-
-            if (!out) {
-                out = al->cache.caddr.toStr(tmp, sizeof(tmp));
-            }
+            out = al->getLogClientFqdn(tmp, sizeof(tmp));
             break;
 
         case LFT_CLIENT_PORT:
@@ -1380,6 +1373,7 @@ Format::Format::assemble(MemBuf &mb, const AccessLogEntry::Pointer &al, const As
 
         case LFT_REQUEST_URLGROUP_OLD_2X:
             assert(LFT_REQUEST_URLGROUP_OLD_2X == 0); // should never happen.
+            break;
 
         case LFT_NOTE:
             tmp[0] = fmt->data.header.separator;
