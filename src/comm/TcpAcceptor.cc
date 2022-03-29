@@ -73,7 +73,7 @@ Comm::TcpAcceptor::unsubscribe(const char *reason)
 void
 Comm::TcpAcceptor::start()
 {
-    if (listenPort_)
+    if (intendedForUserConnections())
         CodeContext::Reset(listenPort_);
     debugs(5, 5, status() << " AsyncCall Subscription: " << theCallSub);
 
@@ -297,7 +297,8 @@ Comm::TcpAcceptor::acceptOne()
                " accepted new connection " << newConnDetails <<
                " handler Subscription: " << theCallSub);
         notify(flag, newConnDetails);
-        CodeContext::Reset(listenPort_);
+        if (intendedForUserConnections())
+            CodeContext::Reset(listenPort_);
     }
 
     SetSelect(conn->fd, COMM_SELECT_READ, doAccept, this, 0);
@@ -426,7 +427,9 @@ Comm::TcpAcceptor::oldAccept(Comm::ConnectionPointer &details)
     // set socket flags
     commSetCloseOnExec(sock);
     commSetNonBlocking(sock);
-    Comm::ApplyTcpKeepAlive(sock, listenPort_->tcp_keepalive);
+
+    if (intendedForUserConnections())
+        Comm::ApplyTcpKeepAlive(sock, listenPort_->tcp_keepalive);
 
     /* IFF the socket is (tproxy) transparent, pass the flag down to allow spoofing */
     F->flags.transparent = fd_table[conn->fd].flags.transparent; // XXX: can we remove this line yet?

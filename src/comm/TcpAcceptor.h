@@ -51,7 +51,9 @@ private:
     TcpAcceptor(const TcpAcceptor &); // not implemented.
 
 public:
+    /// will listen on a random OS-assigned port number
     TcpAcceptor(const Comm::ConnectionPointer &conn, const char *note, const Subscription::Pointer &aSub);
+    /// will listen on a Squid-configured port number
     TcpAcceptor(const AnyP::PortCfgPointer &listenPort, const char *note, const Subscription::Pointer &aSub);
 
 protected:
