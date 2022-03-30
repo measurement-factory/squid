@@ -83,7 +83,7 @@ public:
 private:
     union {
         unsigned char dummy_;
-        // stored value; inaccessible/uninitialized unless hasValue_
+        /// stored value; inaccessible/uninitialized unless hasValue_
         Value value_;
     };
 
