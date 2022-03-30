@@ -49,7 +49,6 @@ public:
     void dump(std::ostream &os) const;
 
 private:
-    bool compileRE(SBuf &, const int flags);
     void adjust(SBuf &input, RegexPattern &pattern);
     void applyFormat(SBuf &, RegexMatch *);
 
