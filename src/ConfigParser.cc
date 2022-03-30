@@ -8,6 +8,7 @@
 
 #include "squid.h"
 #include "acl/Gadgets.h"
+#include "base/CharacterSet.h"
 #include "base/Here.h"
 #include "base/RegexPattern.h"
 #include "cache_cf.h"
@@ -15,12 +16,15 @@
 #include "debug/Stream.h"
 #include "fatal.h"
 #include "globals.h"
+#include "parser/Tokenizer.h"
 #include "sbuf/Stream.h"
 
 bool ConfigParser::RecognizeQuotedValues = true;
+bool ConfigParser::RecognizeDelimitedValues_ = false;
 bool ConfigParser::StrictMode = true;
 std::stack<ConfigParser::CfgFile *> ConfigParser::CfgFiles;
 ConfigParser::TokenType ConfigParser::LastTokenType = ConfigParser::SimpleToken;
+SBuf ConfigParser::LastParsedTokenNamespace;
 const char *ConfigParser::CfgLine = NULL;
 const char *ConfigParser::CfgPos = NULL;
 std::queue<char *> ConfigParser::CfgLineTokens_;
@@ -199,6 +203,32 @@ ConfigParser::UnQuote(const char *token, const char **next)
     return UnQuoted;
 }
 
+// TODO: remove code duplication with UnQuote()
+SBuf
+ConfigParser::RemoveDelimiters(const char *token, const char **next)
+{
+    static const CharacterSet delimSet = CharacterSet("underscore", "_") + CharacterSet::ALPHA + CharacterSet::DIGIT;
+    static const CharacterSet nsSet = CharacterSet("brackets", "()") + CharacterSet::ALPHA + CharacterSet::DIGIT;
+    auto tok = Parser::Tokenizer(SBuf(token));
+    LastParsedTokenNamespace = tok.prefix("ns", nsSet);
+    if (!(tok.skip(':') && tok.skip(':')))
+        throw TextException(ToSBuf("missing '::' namespace separator in", token), Here());
+    SBuf delimiter;
+    if (!tok.skip('"')) {
+        delimiter = tok.prefix("delimiter", delimSet);
+        if (!tok.skip('"'))
+            throw TextException(ToSBuf("missing quote char at the beginning of the delimited token: ", token), Here());
+    }
+    auto endDelimiter = SBuf("\"");
+    endDelimiter.append(delimiter);
+    const auto contents = tok.prefix("delimited token", endDelimiter);
+    assert(tok.skip(endDelimiter));
+
+    if (next)
+        *next = token + tok.parsedSize();
+    return contents;
+}
+
 void
 ConfigParser::SetCfgLine(char *line)
 {
@@ -227,6 +257,14 @@ ConfigParser::TokenParse(const char * &nextToken, ConfigParser::TokenType &type)
 
     if (*nextToken == '#')
         return NULL;
+
+    if (ConfigParser::RecognizeDelimitedValues_)
+    {
+        type = ConfigParser::DelimitedToken;
+        auto token = xstrdup(RemoveDelimiters(nextToken, &nextToken).c_str());
+        CfgLineTokens_.push(token);
+        return token;
+    }
 
     if (ConfigParser::RecognizeQuotedValues && (*nextToken == '"' || *nextToken == '\'')) {
         type = ConfigParser::QuotedToken;
@@ -353,7 +391,7 @@ ConfigParser::NextToken()
             const bool savePreview = ConfigParser::PreviewMode_;
             ConfigParser::PreviewMode_ = false;
 
-            char *path = NextToken();
+            auto path = NextToken();
             if (LastTokenType != ConfigParser::QuotedToken) {
                 debugs(3, DBG_CRITICAL, "FATAL: Quoted filename missing: " << token);
                 self_destruct();
@@ -361,7 +399,7 @@ ConfigParser::NextToken()
             }
 
             // The next token in current cfg file line must be a ")"
-            char *end = NextToken();
+            auto end = NextToken();
             ConfigParser::PreviewMode_ = savePreview;
             if (LastTokenType != ConfigParser::SimpleToken || strcmp(end, ")") != 0) {
                 debugs(3, DBG_CRITICAL, "FATAL: missing ')' after " << token << "(\"" << path << "\"");
@@ -561,6 +599,22 @@ ConfigParser::token(const char *expectedTokenDescription)
         return SBuf(extractedToken);
     }
     throw TextException(ToSBuf("missing ", expectedTokenDescription), Here());
+}
+
+SBuf
+ConfigParser::delimitedToken(SBuf &ns, const char *expectedTokenDescription)
+{
+    LastParsedTokenNamespace.clear();
+    ConfigParser::RecognizeDelimitedValues_ = true;
+    const auto extractedToken = NextToken();
+    ConfigParser::RecognizeDelimitedValues_ = false;
+    if (!extractedToken)
+        throw TextException(ToSBuf("missing ", expectedTokenDescription), Here());
+    if (!LastParsedTokenNamespace.startsWith(ns))
+        throw TextException(ToSBuf("unexpected namespace: ", LastParsedTokenNamespace, " when parsing ", expectedTokenDescription), Here());
+    debugs(3, 5, CurrentLocation() << ' ' << expectedTokenDescription << ": " << extractedToken);
+    ns = LastParsedTokenNamespace.substr(ns.length());
+    return SBuf(extractedToken);
 }
 
 bool

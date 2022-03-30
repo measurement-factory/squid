@@ -474,6 +474,7 @@ HttpHeader::parse(const char *header_start, size_t hdrLen, Http::ContentLengthIn
         }
 
         const auto e = HttpHeaderEntry::parse(field_start, field_end, owner);
+
         if (!e) {
             debugs(55, warnOnError, "WARNING: unparsable HTTP header field {" <<
                    getStringPrefix(field_start, field_end-field_start) << "}");

@@ -29,6 +29,7 @@ class AccessLogEntry;
 typedef RefCount<AccessLogEntry> AccessLogEntryPointer;
 class MemBuf;
 class StoreEntry;
+class RegexMatch;
 
 namespace Format
 {
@@ -41,6 +42,14 @@ class Token;
 class Format
 {
 public:
+
+    class AssembleParams
+    {
+    public:
+        int logSequenceNumber = 0;
+        RegexMatch *headerEditMatch = nullptr;
+    };
+
     Format(const char *name);
     virtual ~Format();
 
@@ -51,7 +60,7 @@ public:
     bool parse(const char *def);
 
     /// assemble the state information into a formatted line.
-    void assemble(MemBuf &mb, const AccessLogEntryPointer &al, int logSequenceNumber) const;
+    void assemble(MemBuf &, const AccessLogEntryPointer &, const AssembleParams *) const;
 
     /// dump this whole list of formats into the provided StoreEntry
     void dump(StoreEntry * entry, const char *directiveName, bool eol = true) const;

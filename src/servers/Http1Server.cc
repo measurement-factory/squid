@@ -169,7 +169,7 @@ Http::One::Server::buildHttpRequest(Http::StreamPointer &context)
     }
 
     /* compile headers */
-    if (parser_->messageProtocol().major >= 1 && !request->parseHeader(*parser_.getRaw())) {
+    if (parser_->messageProtocol().major >= 1 && !request->parseHeader(*parser_.getRaw(), http->al)) {
         debugs(33, 5, "Failed to parse request headers:\n" << parser_->mimeHeader());
         // setReplyToError() requires log_uri
         http->setLogUriToRawUri(http->uri, parser_->method());

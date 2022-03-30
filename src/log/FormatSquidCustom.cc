@@ -22,8 +22,10 @@ Log::Format::SquidCustom(const AccessLogEntry::Pointer &al, CustomLog * log)
     static MemBuf mb;
     mb.reset();
 
+    ::Format::Format::AssembleParams params;
+    params.logSequenceNumber = log->logfile->sequence_number;
     // XXX: because we do not yet have a neutral form of transaction slab. use AccessLogEntry
-    log->logFormat->assemble(mb, al, log->logfile->sequence_number);
+    log->logFormat->assemble(mb, al, &params);
 
     logfilePrintf(log->logfile, "%s\n", mb.buf);
 }

@@ -149,6 +149,7 @@ static TokenTableEntry TokenTableMisc[] = {
     TokenTableEntry("note", LFT_NOTE ),
     TokenTableEntry("credentials", LFT_CREDENTIALS),
     TokenTableEntry("master_xaction", LFT_MASTER_XACTION),
+    TokenTableEntry("regex_match", LFT_REGEX_HEADER_EDIT),
     /*
      * Legacy external_acl_type format tokens
      */
@@ -494,6 +495,8 @@ Format::Token::parse(const char *def, Quoting *quoting)
 
     case LFT_PROXY_PROTOCOL_RECEIVED_HEADER:
 
+    case LFT_REGEX_HEADER_EDIT:
+
         if (data.string) {
             char *header = data.string;
             const auto initialType = type;
@@ -552,6 +555,8 @@ Format::Token::parse(const char *def, Quoting *quoting)
 
             if (initialType == LFT_PROXY_PROTOCOL_RECEIVED_HEADER)
                 data.headerId = ProxyProtocol::FieldNameToFieldType(SBuf(header));
+            else if (initialType == LFT_REGEX_HEADER_EDIT)
+                data.reCaptureId = Http::HeaderEditor::ParseReGroupId(SBuf(header));
             else if (pseudoHeader)
                 throw TexcHere(ToSBuf("Pseudo headers are not supported in this context; got: '", def, "'"));
 
@@ -680,6 +685,7 @@ Format::Token::Token() : type(LFT_NONE),
     data.header.element = NULL;
     data.header.separator = ',';
     data.headerId = ProxyProtocol::Two::htUnknown;
+    data.reCaptureId = 0;
 }
 
 Format::Token::~Token()

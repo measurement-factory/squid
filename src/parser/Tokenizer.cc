@@ -98,6 +98,26 @@ Parser::Tokenizer::prefix(SBuf &returnedToken, const CharacterSet &tokenChars, c
     return true;
 }
 
+bool
+Parser::Tokenizer::prefix(SBuf &returnedToken, const SBuf &needle)
+{
+    if (atEnd())
+        return false;
+
+    SBuf::size_type prefixLen = buf_.find(needle);
+
+    if (prefixLen == 0) {
+        debugs(24, 8, "empty prefix");
+        return false;
+    } else  if (prefixLen == SBuf::npos) {
+        debugs(24, 8, "could not find '" << needle << "' while looking for prefix");
+        return false;
+    } else {
+        returnedToken = consume(prefixLen);
+        return true;
+    }
+}
+
 SBuf
 Parser::Tokenizer::prefix(const char *description, const CharacterSet &tokenChars, const SBuf::size_type limit)
 {
@@ -107,6 +127,23 @@ Parser::Tokenizer::prefix(const char *description, const CharacterSet &tokenChar
     SBuf result;
 
     if (!prefix(result, tokenChars, limit))
+        throw TexcHere(ToSBuf("cannot parse ", description));
+
+    if (atEnd())
+        throw InsufficientInput();
+
+    return result;
+}
+
+SBuf
+Parser::Tokenizer::prefix(const char *description, const SBuf &needle)
+{
+    if (atEnd())
+        throw InsufficientInput();
+
+    SBuf result;
+
+    if (!prefix(result, needle))
         throw TexcHere(ToSBuf("cannot parse ", description));
 
     if (atEnd())

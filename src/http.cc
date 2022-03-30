@@ -707,13 +707,16 @@ HttpStateData::processReplyHeader()
     payloadSeen = inBuf.length();
 
     HttpReply *newrep = new HttpReply;
+    // Lock until either he ownership is claimed or destroy as unused otherwise.
+    // TODO: refactor to avoid this hack.
+    HttpReply::Pointer newrepXXX(newrep);
     // XXX: RFC 7230 indicates we MAY ignore the reason phrase,
     //      and use an empty string on unknown status.
     //      We do that now to avoid performance regression from using SBuf::c_str()
     newrep->sline.set(hp->messageProtocol(), hp->messageStatus() /* , hp->reasonPhrase() */);
 
     // parse headers
-    if (!newrep->parseHeader(*hp)) {
+    if (!newrep->parseHeader(*hp, fwd->al)) {
         newrep->sline.set(hp->messageProtocol(), Http::scInvalidHeader);
         debugs(11, 2, "error parsing response headers mime block");
     }

@@ -502,7 +502,7 @@ httpHdrAdd(HttpHeader *heads, HttpRequest *request, const AccessLogEntryPointer 
             if (hwa->quoted) {
                 if (al != NULL) {
                     mb.init();
-                    hwa->valueFormat->assemble(mb, al, 0);
+                    hwa->valueFormat->assemble(mb, al, nullptr);
                     fieldValue = mb.content();
                 }
             } else {

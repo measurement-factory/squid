@@ -252,7 +252,9 @@ typedef enum {
     /* PROXY protocol details */
     LFT_PROXY_PROTOCOL_RECEIVED_HEADER,
     LFT_PROXY_PROTOCOL_RECEIVED_HEADER_ELEM,
-    LFT_PROXY_PROTOCOL_RECEIVED_ALL_HEADERS
+    LFT_PROXY_PROTOCOL_RECEIVED_ALL_HEADERS,
+
+    LFT_REGEX_HEADER_EDIT
 } ByteCode_t;
 
 /// Quoting style for a format output.

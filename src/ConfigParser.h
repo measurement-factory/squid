@@ -49,7 +49,7 @@ public:
      * Parsed tokens type: simple tokens, quoted tokens or function
      * like parameters.
      */
-    enum TokenType {SimpleToken, QuotedToken, FunctionParameters};
+    enum TokenType {SimpleToken, QuotedToken, FunctionParameters, DelimitedToken};
 
     void destruct();
 
@@ -61,6 +61,10 @@ public:
 
     /// extracts and returns a required token
     SBuf token(const char *expectedTokenDescription);
+
+    /// extracts and returns a delimited token and its namespace in a format of ns(flags)::delimiter"PATTERN"delimiter
+    /// \param ns the expected namespace which is overwritten by the parsed flags (if any) or an empty string
+    SBuf delimitedToken(SBuf &ns, const char *expectedTokenDescription);
 
     /// extracts an optional key=value token or returns false
     /// rejects configurations with empty keys or empty values
@@ -204,6 +208,10 @@ protected:
      */
     static char *UnQuote(const char *token, const char **next = NULL);
 
+    /// Removes delimiters and quotes around the token, such as delimiter"token"delimiter.
+    /// The repeated delimiter is a possibly empty sequence of ASCII alphanumeric characters and "_".
+    static SBuf RemoveDelimiters(const char *token, const char **next = nullptr);
+
     /**
      * Does the real tokens parsing job: Ignore comments, unquote an
      * element if required.
@@ -223,9 +231,11 @@ protected:
     static bool AllowMacros_;
     static bool ParseQuotedOrToEol_; ///< The next tokens will be handled as quoted or to_eol token
     static bool RecognizeQuotedPair_; ///< The next tokens may contain quoted-pair (\-escaped) characters
+    static bool RecognizeDelimitedValues_; ///< The next tokens will be handled as 'ns::delimiter"PATTERN"delimiter'
     static bool PreviewMode_; ///< The next token will not popped from cfg files, will just previewd.
     static bool ParseKvPair_; ///<The next token will be handled as kv-pair token
     static enum ParsingStates {atParseKey, atParseValue} KvPairState_; ///< Parsing state while parsing kv-pair tokens
+    static SBuf LastParsedTokenNamespace;
 };
 
 int parseConfigFile(const char *file_name);

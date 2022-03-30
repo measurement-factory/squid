@@ -13,6 +13,27 @@
 #include "mem/forward.h"
 #include "sbuf/SBuf.h"
 
+#include <vector>
+
+class RegexMatch
+{
+public:
+    explicit RegexMatch(int groupsLimit) : groups(groupsLimit) {}
+
+    int maxGroups() const { return groups.size(); }
+    /// the matched sub-expression at the captureNum position
+    SBuf capture(uint64_t captureNum) const;
+    /// the start offset of the matched expression
+    int startOffset();
+    /// the end offset of the matched expression
+    int endOffset();
+
+    void clear();
+
+    SBuf matchedString; ///< the entire matched string
+    std::vector<regmatch_t> groups; ///< the matched sub-expression list
+};
+
 /**
  * A regular expression,
  * plain text and compiled representations
@@ -36,6 +57,13 @@ public:
 
     bool match(const char *str) const {return regexec(&regex,str,0,NULL,0)==0;}
 
+    /// Match str against the pattern.
+    /// If matched, the result is stored in regexMatch.
+    bool match(const char *str, RegexMatch &regexMatch);
+
+    /// the matched sub-expression an captureNum position
+    SBuf capture(const uint64_t captureNum) const;
+
     /// Attempts to reproduce this regex (context-sensitive) configuration.
     /// If the previous regex is nil, may not report default flags.
     /// Otherwise, may not report same-as-previous flags (and prepends a space).
@@ -50,6 +78,9 @@ private:
 
     /// a "compiled pattern buffer" filled by regcomp(3) for regexec(3)
     regex_t regex;
+
+    /// matched sub-expression list after the last match(str, maxGroups) call
+    std::vector<regmatch_t> groups;
 };
 
 inline std::ostream &

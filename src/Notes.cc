@@ -52,7 +52,7 @@ Note::Value::format(const AccessLogEntryPointer &al)
     if (al && valueFormat) {
         static MemBuf mb;
         mb.reset();
-        valueFormat->assemble(mb, al, 0);
+        valueFormat->assemble(mb, al, nullptr);
         theFormattedValue.assign(mb.content());
         return theFormattedValue;
     }

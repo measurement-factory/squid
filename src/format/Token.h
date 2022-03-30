@@ -54,6 +54,8 @@ public:
         // TODO: Add ID caching for protocols other than PROXY protocol.
         /// the cached ID of the parsed header or zero
         ProxyProtocol::Two::FieldType headerId;
+        /// the specified regular expression's capture number (zero stands for the entire string match)
+        uint64_t reCaptureId;
 
         struct {
             char *header;

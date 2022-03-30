@@ -9,6 +9,7 @@
 #include "squid.h"
 #include "AccessLogEntry.h"
 #include "base64.h"
+#include "base/RegexPattern.h"
 #include "client_side.h"
 #include "comm/Connection.h"
 #include "error/Detail.h"
@@ -105,7 +106,7 @@ Format::AssembleOne(const char *token, MemBuf &mb, const AccessLogEntryPointer &
     if (ale != nullptr) {
         Format fmt("SimpleToken");
         fmt.format = &tkn;
-        fmt.assemble(mb, ale, 0);
+        fmt.assemble(mb, ale, nullptr);
         fmt.format = nullptr;
     } else {
         mb.append("-", 1);
@@ -374,7 +375,7 @@ actualRequestHeader(const AccessLogEntry::Pointer &al)
 }
 
 void
-Format::Format::assemble(MemBuf &mb, const AccessLogEntry::Pointer &al, int logSequenceNumber) const
+Format::Format::assemble(MemBuf &mb, const AccessLogEntry::Pointer &al, const AssembleParams *params) const
 {
     static char tmp[1024];
     SBuf sb;
@@ -860,6 +861,14 @@ Format::Format::assemble(MemBuf &mb, const AccessLogEntry::Pointer &al, int logS
             }
             break;
 
+        case LFT_REGEX_HEADER_EDIT:
+            assert(params);
+            if (params->headerEditMatch) {
+                sb = params->headerEditMatch->capture(fmt->data.reCaptureId);
+                out = sb.c_str();
+            }
+            break;
+
         case LFT_ADAPTED_REQUEST_HEADER_ELEM:
             if (al->adapted_request) {
                 sb = al->adapted_request->header.getByNameListMember(fmt->data.header.header, fmt->data.header.element, fmt->data.header.separator);
@@ -1197,7 +1206,8 @@ Format::Format::assemble(MemBuf &mb, const AccessLogEntry::Pointer &al, int logS
             break;
 
         case LFT_SEQUENCE_NUMBER:
-            outoff = logSequenceNumber;
+            assert(params);
+            outoff = params->logSequenceNumber;
             dooff = 1;
             break;
 

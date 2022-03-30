@@ -17,6 +17,7 @@
 #include "DelayConfig.h"
 #endif
 #include "helper/ChildConfig.h"
+#include "http/HeaderEditor.h"
 #include "HttpHeaderTools.h"
 #include "ip/Address.h"
 #if USE_DELAY_POOLS
@@ -485,6 +486,7 @@ public:
     HttpUpgradeProtocolAccess *http_upgrade_request_protocols;
     ///note
     Notes notes;
+    Http::HeaderEditor *malformed_request_header_edit;
     char *coredump_dir;
     char *chroot_dir;
 #if USE_CACHE_DIGESTS
