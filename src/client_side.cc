@@ -60,6 +60,7 @@
 #include "squid.h"
 #include "acl/FilledChecklist.h"
 #include "anyp/PortCfg.h"
+#include "base/CodeContext.h"
 #include "base/Subscription.h"
 #include "base/TextException.h"
 #include "CachePeer.h"
@@ -3405,8 +3406,10 @@ clientListenerConnectionOpened(AnyP::PortCfgPointer &s, const Ipc::FdNoteId port
 
     Must(Comm::IsConnOpen(s->listenConn));
 
-    // TCP: setup a job to handle accept() with subscribed handler
-    AsyncJob::Start(new Comm::TcpAcceptor(s, FdNote(portTypeNote), sub));
+    CallBack(s, [&] {
+        // TCP: setup a job to handle accept() with subscribed handler
+        AsyncJob::Start(new Comm::TcpAcceptor(s, FdNote(portTypeNote), sub));
+    });
 
     debugs(1, Important(13), "Accepting " <<
            (s->flags.natIntercept ? "NAT intercepted " : "") <<
