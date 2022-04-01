@@ -43,25 +43,16 @@ RandomUuid::RandomUuid()
     EBIT_CLR(timeHiAndVersion, 16);
 }
 
+RandomUuid::RandomUuid(const Serialized &bytes)
+{
+    static_assert(sizeof(*this) == sizeof(Serialized));
+    memcpy(raw(), bytes.data(), sizeof(*this));
+}
+
 void
 RandomUuid::print(std::ostream &os) const
 {
     os << Raw("UUID", raw(), sizeof(*this)).hex();
-}
-
-RandomUuid
-RandomUuid::clone() const
-{
-    RandomUuid uuid;
-    memcpy(uuid.raw(), raw(), sizeof(uuid));
-    return uuid;
-}
-
-void
-RandomUuid::load(const void *data, const size_t length)
-{
-    assert(length == sizeof(*this));
-    memcpy(raw(), data, sizeof(*this));
 }
 
 bool

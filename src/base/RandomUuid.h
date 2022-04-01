@@ -9,6 +9,7 @@
 #ifndef SQUID_SRC_BASE_RANDOM_UUID_H
 #define SQUID_SRC_BASE_RANDOM_UUID_H
 
+#include <array>
 #include <iosfwd>
 
 /// 128-bit Universally Unique IDentifier (UUID), version 4 (variant 1).
@@ -16,7 +17,14 @@
 class RandomUuid
 {
 public:
-    RandomUuid(); ///< creates a new unique ID (i.e. not a nil UUID)
+    using Serialized = std::array<char, 128/8>;
+
+    /// creates a new unique ID (i.e. not a nil UUID in RFC 4122 terminology)
+    RandomUuid();
+
+    /// imports a UUID value that was exported using the serialize() API
+    RandomUuid(const Serialized &);
+
     RandomUuid(RandomUuid &&) = default;
     RandomUuid &operator=(RandomUuid &&) = default;
 
@@ -25,16 +33,14 @@ public:
     RandomUuid(const RandomUuid &) = delete;
     RandomUuid &operator=(const RandomUuid &) = delete;
 
+    /// exports UUID value; suitable for long-term storage
+    Serialized serialize() const { return *reinterpret_cast<const Serialized *>(raw()); }
+
     bool operator ==(const RandomUuid &) const;
     bool operator !=(const RandomUuid &other) const { return !(*this == other); }
 
     /// creates a UUID object with the same value as this UUID
-    RandomUuid clone() const;
-
-    // XXX: We should not create a UUID and then overwrite it by deserializing.
-    /// De-serializes a UUID value from the given 128-bit storage. The length
-    /// argument is for sanity checking and must be equal to 16 (i.e. 128 bits).
-    void load(const void *data, size_t length);
+    RandomUuid clone() const { return RandomUuid(serialize()); }
 
     /// writes a human-readable version
     void print(std::ostream &os) const;

@@ -20,8 +20,17 @@ StoreMetaVaryId::checkConsistency(StoreEntry *e) const
 {
     assert(getType() == STORE_META_VARY_ID);
 
-    RandomUuid uuid;
-    uuid.load(value, length);
+    if (length < 0 || static_cast<size_t>(length) != sizeof(RandomUuid::Serialized))
+        return false;
+
+    if (!value)
+        return false;
+
+    const auto serialized = reinterpret_cast<const RandomUuid::Serialized*>(value);
+    RandomUuid uuid(*serialized);
+
+    // XXX: We should not be changing anything in a checkConsistency() method!
+
     if (!e->mem_obj->varyUuid.has_value()) {
         e->mem_obj->varyUuid = std::move(uuid);
         return true;
