@@ -29,8 +29,8 @@ RandomUuid::RandomUuid()
 
     // bullet 3 of RFC 4122 Section 4.4 algorithm but setting all bits (KISS)
     static_assert(2*sizeof(ResultType) == sizeof(RandomUuid), "enough randomness bits to fill a UUID");
-    memcpy(reinterpret_cast<char *>(this), &low, ResultSize);
-    memcpy(reinterpret_cast<char *>(this) + ResultSize, &high, ResultSize);
+    memcpy(raw(), &low, ResultSize);
+    memcpy(raw() + ResultSize, &high, ResultSize);
 
     // bullet 1 of RFC 4122 Section 4.4 algorithm
     EBIT_CLR(clockSeqHiAndReserved, 6);
@@ -46,27 +46,27 @@ RandomUuid::RandomUuid()
 void
 RandomUuid::print(std::ostream &os) const
 {
-    os << Raw("UUID", reinterpret_cast<const char *>(this), sizeof(RandomUuid)).hex();
+    os << Raw("UUID", raw(), sizeof(*this)).hex();
 }
 
 RandomUuid
 RandomUuid::clone() const
 {
     RandomUuid uuid;
-    memcpy(reinterpret_cast<char *>(&uuid), reinterpret_cast<const char *>(this), sizeof(RandomUuid));
+    memcpy(uuid.raw(), raw(), sizeof(uuid));
     return uuid;
 }
 
 void
 RandomUuid::load(const void *data, const size_t length)
 {
-    assert(length == sizeof(RandomUuid));
-    memcpy(reinterpret_cast<char *>(this), data, sizeof(RandomUuid));
+    assert(length == sizeof(*this));
+    memcpy(raw(), data, sizeof(*this));
 }
 
 bool
 RandomUuid::operator ==(const RandomUuid &other) const
 {
-    return memcmp(this, &other, sizeof(RandomUuid)) == 0;
+    return memcmp(raw(), other.raw(), sizeof(*this)) == 0;
 }
 

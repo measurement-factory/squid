@@ -32,13 +32,19 @@ public:
     RandomUuid clone() const;
 
     // XXX: We should not create a UUID and then overwrite it by deserializing.
-    /// de-serializes a UUID value from the given storage
+    /// De-serializes a UUID value from the given 128-bit storage. The length
+    /// argument is for sanity checking and must be equal to 16 (i.e. 128 bits).
     void load(const void *data, size_t length);
 
     /// writes a human-readable version
     void print(std::ostream &os) const;
 
 private:
+    /// read/write access to storage bytes
+    char *raw() { return reinterpret_cast<char*>(this); }
+    /// read-only access to storage bytes
+    const char *raw() const { return reinterpret_cast<const char*>(this); }
+
     /*
      * These field sizes and names come from RFC 4122 Section 4.1.2. They do not
      * accurately represent the actual UUID version 4 structure which, the six
