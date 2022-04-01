@@ -61,7 +61,7 @@ private:
     uint16_t timeHiAndVersion;
     uint8_t clockSeqHiAndReserved;
     uint8_t clockSeqLow;
-    int8_t node[6];
+    uint8_t node[6];
 };
 
 #endif /* SQUID_SRC_BASE_RANDOM_UUID_H */
