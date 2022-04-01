@@ -23,9 +23,6 @@
 #include <functional>
 #include <memory>
 
-/* for shutting_down flag in xassert() */
-#include "globals.h"
-
 char *Debug::debugOptions = NULL;
 int Debug::override_X = 0;
 bool Debug::log_syslog = false;
@@ -1221,12 +1218,8 @@ xassert(const char *msg, const char *file, int line)
 
     debugs(0, DBG_CRITICAL, "FATAL: assertion failed: " << file << ":" << line << ": \"" << msg << "\"");
 
-    if (!shutting_down) {
-        Debug::PrepareToDie();
-        abort();
-    }
-
-    Asserting_ = false;
+    Debug::PrepareToDie();
+    abort();
 }
 
 Debug::Context *Debug::Current = nullptr;
