@@ -8,8 +8,8 @@
 
 #include "squid.h"
 
+#include "base/IoManip.h"
 #include "base/RandomUuid.h"
-#include "base/Raw.h"
 #include "defines.h"
 
 #include <iostream>
@@ -52,7 +52,7 @@ RandomUuid::RandomUuid(const Serialized &bytes)
 void
 RandomUuid::print(std::ostream &os) const
 {
-    os << Raw("UUID", raw(), sizeof(*this)).hex();
+    PrintHex(os << "UUID:", raw(), sizeof(*this));
 }
 
 bool

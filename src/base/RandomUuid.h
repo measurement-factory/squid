@@ -42,7 +42,7 @@ public:
     /// creates a UUID object with the same value as this UUID
     RandomUuid clone() const { return RandomUuid(serialize()); }
 
-    /// writes a human-readable version
+    /// writes a human-readable representation
     void print(std::ostream &os) const;
 
 private:
