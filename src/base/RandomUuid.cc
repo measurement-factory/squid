@@ -19,18 +19,18 @@ static_assert(sizeof(RandomUuid) == 128/8, "RandomUuid has RFC 4122-prescribed 1
 
 RandomUuid::RandomUuid()
 {
-    // generate random bits for populating UUID
-    using ResultType = std::mt19937_64::result_type;
-    const auto ResultSize = sizeof(ResultType);
-    static std::random_device dev;
-    static std::mt19937_64 gen(dev());
-    const auto low = gen();
-    const auto high = gen();
+    // Generate random bits for populating our UUID.
+    // STL implementation bugs notwithstanding (e.g., MinGW bug #338), this is
+    // our best change of getting a non-deterministic seed value for the r.n.g.
+    static std::random_device dev; // unknown a priori size (sizeof(int)) values
+    static std::mt19937_64 rng(dev()); // known 64-bit size values
+    const auto rnd1 = rng();
+    const auto rnd2 = rng();
 
     // bullet 3 of RFC 4122 Section 4.4 algorithm but setting all bits (KISS)
-    static_assert(2*sizeof(ResultType) == sizeof(RandomUuid), "enough randomness bits to fill a UUID");
-    memcpy(raw(), &low, ResultSize);
-    memcpy(raw() + ResultSize, &high, ResultSize);
+    static_assert(sizeof(rnd1) + sizeof(rnd2) == sizeof(*this), "random bits fill a UUID");
+    memcpy(raw(), &rnd1, sizeof(rnd1));
+    memcpy(raw() + sizeof(rnd1), &rnd2, sizeof(rnd2));
 
     // bullet 1 of RFC 4122 Section 4.4 algorithm
     EBIT_CLR(clockSeqHiAndReserved, 6);
