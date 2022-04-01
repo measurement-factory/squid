@@ -12,14 +12,14 @@
 #include <array>
 #include <iosfwd>
 
-/// 128-bit Universally Unique IDentifier (UUID), version 4 (variant 1).
-/// These UUIDs are generated from pseudo-random numbers as defined by RFC 4122.
+/// 128-bit Universally Unique IDentifier (UUID), version 4 (variant 1) as
+/// defined by RFC 4122. These UUIDs are generated from pseudo-random numbers.
 class RandomUuid
 {
 public:
     using Serialized = std::array<char, 128/8>;
 
-    /// creates a new unique ID (i.e. not a nil UUID in RFC 4122 terminology)
+    /// creates a new unique ID (i.e. not a "nil UUID" in RFC 4122 terminology)
     RandomUuid();
 
     /// imports a UUID value that was exported using the serialize() API
@@ -28,8 +28,8 @@ public:
     RandomUuid(RandomUuid &&) = default;
     RandomUuid &operator=(RandomUuid &&) = default;
 
-    // (Implicit) copying of _unique_ IDs is prohibited to prevent accidents.
-    // Use clone() instead.
+    // (Implicit) copying is prohibited to prevent accidental duplication of
+    // supposed-to-be-unique values. Use clone() when duplication is needed.
     RandomUuid(const RandomUuid &) = delete;
     RandomUuid &operator=(const RandomUuid &) = delete;
 
@@ -48,6 +48,7 @@ public:
 private:
     /// read/write access to storage bytes
     char *raw() { return reinterpret_cast<char*>(this); }
+
     /// read-only access to storage bytes
     const char *raw() const { return reinterpret_cast<const char*>(this); }
 

@@ -27,7 +27,7 @@ RandomUuid::RandomUuid()
     const auto rnd1 = rng();
     const auto rnd2 = rng();
 
-    // bullet 3 of RFC 4122 Section 4.4 algorithm but setting all bits (KISS)
+    // bullet 3 of RFC 4122 Section 4.4 algorithm but setting _all_ bits (KISS)
     static_assert(sizeof(rnd1) + sizeof(rnd2) == sizeof(*this), "random bits fill a UUID");
     memcpy(raw(), &rnd1, sizeof(rnd1));
     memcpy(raw() + sizeof(rnd1), &rnd2, sizeof(rnd2));
