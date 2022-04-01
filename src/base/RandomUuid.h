@@ -9,7 +9,7 @@
 #ifndef SQUID_SRC_BASE_RANDOM_UUID_H
 #define SQUID_SRC_BASE_RANDOM_UUID_H
 
-#include <iostream>
+#include <iosfwd>
 
 /// 128-bit Universally Unique IDentifier (UUID), version 4 (variant 1).
 /// These UUIDs are generated from pseudo-random numbers as defined by RFC 4122.
