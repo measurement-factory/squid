@@ -15,10 +15,11 @@
 #include <iomanip>
 #include <random>
 
-static_assert(sizeof(RandomUuid) == 16, "RandomUuid expected size");
+static_assert(sizeof(RandomUuid) == 16, "RandomUuid has RFC 4122-prescribed size");
 
 RandomUuid::RandomUuid()
 {
+    // generate random bits for populating UUID
     using ResultType = std::mt19937_64::result_type;
     const auto ResultSize = sizeof(ResultType);
     static std::random_device dev;
@@ -26,14 +27,16 @@ RandomUuid::RandomUuid()
     const auto low = gen();
     const auto high = gen();
 
-    static_assert(2*sizeof(ResultType) == sizeof(RandomUuid), "RandomUuid expected size for generator");
+    // bullet 3 of RFC 4122 Section 4.4 algorithm but setting all bits (KISS)
+    static_assert(2*sizeof(ResultType) == sizeof(RandomUuid), "enough randomness bits to fill a UUID");
     memcpy(reinterpret_cast<char *>(this), &low, ResultSize);
     memcpy(reinterpret_cast<char *>(this) + ResultSize, &high, ResultSize);
 
-    // RFC4122 section 4.4
+    // bullet 1 of RFC 4122 Section 4.4 algorithm
     EBIT_CLR(clockSeqHiAndReserved, 6);
     EBIT_SET(clockSeqHiAndReserved, 7);
-    // section 4.1.3 variant 4 
+
+    // bullet 2 of RFC 4122 Section 4.4 algorithm
     EBIT_CLR(timeHiAndVersion, 13);
     EBIT_SET(timeHiAndVersion, 14);
     EBIT_CLR(timeHiAndVersion, 15);

@@ -11,23 +11,39 @@
 
 #include <iostream>
 
-// RFC4122: Universally Unique IDentifier (UUID)
+/// 128-bit Universally Unique IDentifier (UUID), version 4 (variant 1).
+/// These UUIDs are generated from pseudo-random numbers as defined by RFC 4122.
 class RandomUuid
 {
 public:
-    RandomUuid();
-    RandomUuid(const RandomUuid &) = delete;
-    RandomUuid &operator=(const RandomUuid &) = delete;
+    RandomUuid(); ///< creates a new unique ID (i.e. not a nil UUID)
     RandomUuid(RandomUuid &&) = default;
     RandomUuid &operator=(RandomUuid &&) = default;
 
-    void print(std::ostream &os) const;
-    bool operator==(const RandomUuid&) const;
-    bool operator!=(const RandomUuid &other) const { return !(*this == other); }
+    // (Implicit) copying of _unique_ IDs is prohibited to prevent accidents.
+    // Use clone() instead.
+    RandomUuid(const RandomUuid &) = delete;
+    RandomUuid &operator=(const RandomUuid &) = delete;
+
+    bool operator ==(const RandomUuid &) const;
+    bool operator !=(const RandomUuid &other) const { return !(*this == other); }
+
+    /// creates a UUID object with the same value as this UUID
     RandomUuid clone() const;
+
+    // XXX: We should not create a UUID and then overwrite it by deserializing.
+    /// de-serializes a UUID value from the given storage
     void load(const void *data, size_t length);
 
+    /// writes a human-readable version
+    void print(std::ostream &os) const;
+
 private:
+    /*
+     * These field sizes and names come from RFC 4122 Section 4.1.2. They do not
+     * accurately represent the actual UUID version 4 structure which, the six
+     * version/variant bits aside, contains just random bits.
+     */
     uint32_t timeLow;
     uint16_t timeMid;
     uint16_t timeHiAndVersion;
