@@ -15,7 +15,7 @@
 #include <iostream>
 #include <random>
 
-static_assert(sizeof(RandomUuid) == 16, "RandomUuid has RFC 4122-prescribed size");
+static_assert(sizeof(RandomUuid) == 128/8, "RandomUuid has RFC 4122-prescribed 128-bit size");
 
 RandomUuid::RandomUuid()
 {
