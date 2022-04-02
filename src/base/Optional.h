@@ -10,6 +10,7 @@
 #define SQUID__SRC_BASE_OPTIONAL_H
 
 #include <exception>
+#include <iostream>
 #include <type_traits>
 #include <utility>
 
@@ -31,9 +32,8 @@ public:
     constexpr Optional() noexcept : dummy_(0) {}
     constexpr explicit Optional(const Value &v): value_(v), hasValue_(true) {}
     ~Optional() { clear(); }
-
-    Optional(const Optional &other) = delete;
-    Optional &operator=(const Optional &other) = delete;
+    constexpr Optional(const Optional &other) = default;
+    Optional &operator=(const Optional &other) = default;
     constexpr Optional(Optional &&other) = default;
 
     template <class Other = Value>
@@ -80,6 +80,14 @@ public:
         }
     }
 
+    std::ostream &print(std::ostream &os) const {
+        if (hasValue_)
+            os << value_;
+        else
+            os << '-';
+        return os;
+    }
+
 private:
     union {
         unsigned char dummy_;
@@ -89,6 +97,13 @@ private:
 
     bool hasValue_ = false;
 };
+
+template <typename Value>
+inline
+std::ostream &operator <<(std::ostream &os, const Optional<Value> &opt)
+{
+    return opt.print(os);
+}
 
 #endif /* SQUID__SRC_BASE_OPTIONAL_H */
 
