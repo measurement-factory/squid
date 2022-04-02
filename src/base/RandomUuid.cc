@@ -45,7 +45,7 @@ RandomUuid::RandomUuid()
 
 RandomUuid::RandomUuid(const Serialized &bytes)
 {
-    static_assert(sizeof(*this) == sizeof(Serialized));
+    static_assert(sizeof(*this) == sizeof(Serialized), "RandomUuid is deserialized with 128/8 bytes");
     memcpy(raw(), bytes.data(), sizeof(*this));
 }
 
