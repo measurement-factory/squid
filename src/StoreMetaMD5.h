@@ -21,7 +21,7 @@ public:
     char getType() const {return STORE_META_KEY_MD5;}
 
     bool validLength(int) const;
-    bool checkConsistency(StoreEntry *) const;
+    void applyTo(StoreEntry *) const;
 
 private:
     static int md5_mismatches;

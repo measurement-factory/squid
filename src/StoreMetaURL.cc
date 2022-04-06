@@ -10,23 +10,19 @@
 
 #include "squid.h"
 #include "MemObject.h"
+#include "sbuf/Stream.h"
 #include "Store.h"
 #include "StoreMetaURL.h"
 
-bool
-StoreMetaURL::checkConsistency(StoreEntry *e) const
+void
+StoreMetaURL::applyTo(StoreEntry *e) const
 {
     assert (getType() == STORE_META_URL);
 
     if (!e->mem_obj->hasUris())
-        return true;
+        return;
 
-    if (strcasecmp(e->mem_obj->urlXXX(), (char *)value)) {
-        debugs(20, DBG_IMPORTANT, "storeClientReadHeader: URL mismatch");
-        debugs(20, DBG_IMPORTANT, "\t{" << (char *) value << "} != {" << e->mem_obj->urlXXX() << "}");
-        return false;
-    }
-
-    return true;
+    if (strcasecmp(e->mem_obj->urlXXX(), (char *)value))
+        throw TextException(ToSBuf("URL mismatch: {", static_cast<char*>(value), "} != {", e->mem_obj->urlXXX(), '}'), Here());
 }
 

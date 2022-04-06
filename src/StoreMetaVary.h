@@ -18,7 +18,7 @@ class StoreMetaVary : public StoreMeta
 public:
     char getType() const {return STORE_META_VARY_HEADERS;}
 
-    bool checkConsistency(StoreEntry *) const;
+    void applyTo(StoreEntry *) const;
 };
 
 #endif /* SQUID_STOREMETAVARY_H */

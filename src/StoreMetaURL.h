@@ -18,7 +18,7 @@ class StoreMetaURL : public StoreMeta
 public:
     char getType() const {return STORE_META_URL;}
 
-    bool checkConsistency(StoreEntry *) const;
+    void applyTo(StoreEntry *) const;
 };
 
 #endif /* SQUID_STOREMETAURL_H */

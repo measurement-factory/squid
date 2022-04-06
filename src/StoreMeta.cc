@@ -134,8 +134,8 @@ StoreMeta::Add(StoreMeta **tail, StoreMeta *aNode)
     return &aNode->next;        /* return new tail pointer */
 }
 
-bool
-StoreMeta::checkConsistency(StoreEntry *) const
+void
+StoreMeta::applyTo(StoreEntry *) const
 {
     switch (getType()) {
 
@@ -160,8 +160,6 @@ StoreMeta::checkConsistency(StoreEntry *) const
         debugs(20, DBG_IMPORTANT, "WARNING: got unused STORE_META type " << getType());
         break;
     }
-
-    return true;
 }
 
 StoreMeta::StoreMeta(const StoreMeta &s) :

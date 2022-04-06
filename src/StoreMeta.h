@@ -127,7 +127,9 @@ public:
 
     virtual char getType() const = 0;
     virtual bool validLength(int) const;
-    virtual bool checkConsistency(StoreEntry *) const;
+    /// Checks that this is a valid StoreMeta.
+    /// Kids may store value into StoreEntry.
+    virtual void applyTo(StoreEntry *) const;
     virtual ~StoreMeta() {}
 
     int length;

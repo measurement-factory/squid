@@ -577,14 +577,21 @@ store_client::unpackHeader(char const *buf, ssize_t len)
     /*
      * Check the meta data and make sure we got the right object.
      */
-    for (tlv *t = tlv_list; t; t = t->next) {
-        if (!t->checkConsistency(entry)) {
-            storeSwapTLVFree(tlv_list);
-            return false;
-        }
+    try {
+        for (auto t = tlv_list; t; t = t->next)
+            t->applyTo(entry);
+        // TODO: create a RAII wrapper for cleanup
+        storeSwapTLVFree(tlv_list);
     }
-
-    storeSwapTLVFree(tlv_list);
+    catch(const TextException &ex) {
+        debugs(83, 2, "TLV load error: " << ex);
+        storeSwapTLVFree(tlv_list);
+        return false;
+    }
+    catch(...) {
+        storeSwapTLVFree(tlv_list);
+        throw;
+    }
 
     assert(swap_hdr_sz >= 0);
     entry->mem_obj->swap_hdr_sz = swap_hdr_sz;

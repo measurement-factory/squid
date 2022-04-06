@@ -19,7 +19,6 @@ public:
     char getType() const {return STORE_META_STD;}
 
     bool validLength(int) const;
-    //    bool checkConsistency(StoreEntry *) const;
 };
 
 #endif /* SQUID_STOREMETASTD_H */
