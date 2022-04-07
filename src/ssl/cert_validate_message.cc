@@ -10,6 +10,7 @@
 #include "acl/FilledChecklist.h"
 #include "globals.h"
 #include "helper.h"
+#include "sbuf/Stream.h"
 #include "security/CertError.h"
 #include "ssl/cert_validate_message.h"
 #include "ssl/Config.h"
@@ -92,8 +93,9 @@ get_error_id(const char *label, size_t len)
     return strtol(e, 0 , 10);
 }
 
+/// TODO: Finish conversion to exception-based error handling.
 bool
-Ssl::CertValidationMsg::parseResponse(CertValidationResponse &resp, std::string &error)
+Ssl::CertValidationMsg::tryParsingResponse(CertValidationResponse &resp, std::string &error)
 {
     std::vector<CertItem> certs;
 
@@ -139,14 +141,29 @@ Ssl::CertValidationMsg::parseResponse(CertValidationResponse &resp, std::string 
 
         if (param_len == param_transactionNotes.length() &&
             strncmp(param, param_transactionNotes.c_str(), param_transactionNotes.length()) == 0) {
-            resp.transactionNotes = v; // XXX: split and set as notes
+            resp.transactionNotes = v;
+            resp.notes.importFromHelper(SBuf(v.c_str(), v.length()));
             param = value + value_len;
             continue;
         }
 
         if (param_len == param_clientNotes.length() &&
             strncmp(param, param_clientNotes.c_str(), param_clientNotes.length()) == 0) {
-            resp.clientNotes = v; // XXX: split and set as notes
+            resp.clientNotes = v;
+
+            // TODO: Support arbitrary client annotations when up-porting.
+            static std::string supportedName = "clt_conn_tag=";
+            if (v.compare(0, supportedName.size(), supportedName) != 0) {
+                throw TextException(ToSBuf("Only annotations named ", supportedName,
+                    " can be used for client connection annotation in this Squid version. ",
+                    "Found: ", v), Here());
+            }
+            if (v.find(' ') != std::string::npos) {
+                throw TextException(ToSBuf("Only one client connection annotation can be used in this Squid version. ",
+                    "Found: ", v), Here());
+            }
+            resp.notes.importFromHelper(SBuf(v.c_str(), v.length()));
+
             param = value + value_len;
             continue;
         }
@@ -202,6 +219,17 @@ Ssl::CertValidationMsg::parseResponse(CertValidationResponse &resp, std::string 
     }
 
     return true;
+}
+
+bool
+Ssl::CertValidationMsg::parseResponse(CertValidationResponse &resp, std::string &error)
+{
+    try {
+        return tryParsingResponse(resp, error);
+    } catch (...) {
+        debugs(83, DBG_IMPORTANT, "ERROR: cannot parse sslcrtvalidator_program response: " << CurrentException);
+        return false;
+    }
 }
 
 X509 *

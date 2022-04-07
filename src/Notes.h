@@ -13,6 +13,7 @@
 #include "base/RefCount.h"
 #include "format/Format.h"
 #include "mem/forward.h"
+#include "sbuf/forward.h"
 #include "SquidString.h"
 
 #include <string>
@@ -182,6 +183,10 @@ public:
      * of values.
      */
     void addStrList(const char *key, const char *values);
+
+    /// import space-separated name=single-value annotations sent by a helper,
+    /// overwriting any previously stored same-name annotations
+    void importFromHelper(const SBuf &notes);
 
     /**
      * Return true if the key/value pair is already stored

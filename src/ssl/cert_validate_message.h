@@ -100,6 +100,8 @@ private:
         void setCert(X509 *); ///< Sets cert to the given certificate
     };
 
+    bool tryParsingResponse(CertValidationResponse &resp, std::string &error);
+
 public:
     CertValidationMsg(MessageKind kind): CrtdMessage(kind) {}
 

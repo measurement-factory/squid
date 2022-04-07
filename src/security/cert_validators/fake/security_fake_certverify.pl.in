@@ -202,7 +202,7 @@ sub createResponse
 
     # add our own annotations
     $response .= "transaction_notes=validatorPid_=$$ validationErrorCount_=$i\n";
-    $response .= "client_notes=lastCertValidation=" . time() . "\n";
+    $response .= "client_notes=clt_conn_tag=" . time() . "\n";
 
     return $response;
 }
