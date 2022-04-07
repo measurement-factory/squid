@@ -3278,6 +3278,11 @@ DOC_START
 	Just like with access_log, a logformat %macro expands to a dash (-) if the
 	corresponding info is unavailable when Squid sends the helper request.
 
+	If caching of certificate validation helper responses is enabled, the
+	cache key includes the sent extras=value pair (if any).
+
+	By default, no extras a sent to the helper.
+
 	See also: sslcrtvalidator_program
 DOC_END
 
