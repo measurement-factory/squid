@@ -71,8 +71,6 @@ public:
 
     RecvdErrors errors; ///< The list of parsed errors
     Helper::ResultCode resultCode = Helper::Unknown; ///< The helper result code
-    std::string transactionNotes; ///< transaction annotations set by the helper
-    std::string clientNotes; ///< client connection annotations set by the helper
     Security::SessionPointer ssl;
 };
 

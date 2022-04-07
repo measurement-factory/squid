@@ -141,7 +141,6 @@ Ssl::CertValidationMsg::tryParsingResponse(CertValidationResponse &resp, std::st
 
         if (param_len == param_transactionNotes.length() &&
             strncmp(param, param_transactionNotes.c_str(), param_transactionNotes.length()) == 0) {
-            resp.transactionNotes = v;
             resp.notes.importFromHelper(SBuf(v.c_str(), v.length()));
             param = value + value_len;
             continue;
@@ -149,7 +148,6 @@ Ssl::CertValidationMsg::tryParsingResponse(CertValidationResponse &resp, std::st
 
         if (param_len == param_clientNotes.length() &&
             strncmp(param, param_clientNotes.c_str(), param_clientNotes.length()) == 0) {
-            resp.clientNotes = v;
 
             // TODO: Support arbitrary client annotations when up-porting.
             static std::string supportedName = "clt_conn_tag=";
