@@ -16,6 +16,7 @@
 #include "fd.h"
 #include "fde.h"
 #include "ipc/MemMap.h"
+#include "security/Io.h"
 #include "security/Session.h"
 #include "SquidConfig.h"
 #include "ssl/bio.h"
@@ -42,6 +43,9 @@ tls_read_method(int fd, char *buf, int len)
         return -1;
     }
 #endif
+
+    // ensure that SSL_get_error() below returns a fresh error (if any)
+    Security::ForgetErrors();
 
 #if USE_OPENSSL
     int i = SSL_read(session, buf, len);
