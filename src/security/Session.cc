@@ -24,6 +24,7 @@
 #define SSL_SESSION_MAX_SIZE 10*1024
 
 #if USE_OPENSSL
+#include "security/ErrorDetail.h"
 static Ipc::MemMap *SessionCache = nullptr;
 static const char *SessionCacheName = "tls_session_cache";
 #endif
@@ -44,6 +45,7 @@ tls_read_method(int fd, char *buf, int len)
 
 #if USE_OPENSSL
     int i = SSL_read(session, buf, len);
+    const auto savedErrno = errno;
 #elif USE_GNUTLS
     int i = gnutls_record_recv(session, buf, len);
 #endif
@@ -62,6 +64,47 @@ tls_read_method(int fd, char *buf, int len)
         fd_table[fd].flags.read_pending = true;
     } else
         fd_table[fd].flags.read_pending = false;
+
+#if USE_OPENSSL
+    // XXX: Avoid duplicating ConnStateData::handleIdleClientPinnedTlsRead()
+    // XXX: Avoid duplicating Security::Handshake()
+    if (i <= 0) {
+        const auto ioErrorNo = SSL_get_error(session, i);
+        debugs(83, 2, "SSL_read() returned " << i << "; TLS ioErrorNo: " << ioErrorNo);
+
+        // XXX: Our/FD_READ_METHOD() caller assumes socket I/O. Convert a
+        // TLS-layer error into a socket-layer error the caller understands.
+        // Most TLS errors can only be handled by a TLS-aware code, but some can
+        // be successfully converted. TODO: Improve support for I/O layers.
+        switch (ioErrorNo) {
+        case SSL_ERROR_WANT_READ:
+            debugs(83, 5, "converting to EAGAIN");
+            errno = EAGAIN;
+            return -1;
+
+        case SSL_ERROR_ZERO_RETURN:
+            debugs(83, 3, "converting to EOF");
+            return 0;
+
+        case SSL_ERROR_SYSCALL:
+            debugs(83, 3, "converting to I/O error: " << xstrerr(savedErrno));
+            errno = savedErrno; // may still be set to that value
+            return -1;
+
+        case SSL_ERROR_SSL:
+            // XXX: ErrorDetail::brief() will print misleading/unwanted
+            // SSL_ERROR_NONE prefix, but zero _is_ the right value to use here.
+            debugs(83, 3, "TLS error detail: " << Security::ErrorDetail(0, ioErrorNo, savedErrno));
+            // [fallthrough] for "unknown" error handling
+
+        case SSL_ERROR_WANT_WRITE: // the caller definitely mishandles this case
+        default:
+            debugs(83, 2, "converting to unknown I/O error");
+            errno = 0;
+            return -1;
+        }
+    }
+#endif
 
     return i;
 }
