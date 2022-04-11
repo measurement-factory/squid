@@ -11,6 +11,7 @@
 #include "squid.h"
 #include "acl/FilledChecklist.h"
 #include "base/CharacterSet.h"
+#include "base/CodeContext.h"
 #include "base/Raw.h"
 #include "base/RefCount.h"
 #include "base/Subscription.h"
@@ -269,11 +270,12 @@ Ftp::StartListening()
         }
 
         // direct new connections accepted by listenConn to Accept()
-        typedef CommCbFunPtrCallT<CommAcceptCbPtrFun> AcceptCall;
-        RefCount<AcceptCall> subCall = commCbCall(5, 5, "Ftp::Server::AcceptCtrlConnection",
-                                       CommAcceptCbPtrFun(Ftp::Server::AcceptCtrlConnection,
-                                               CommAcceptCbParams(NULL)));
-        clientStartListeningOn(s, subCall, Ipc::fdnFtpSocket);
+        CallBack(s, [&] {
+            using AcceptCall = CommCbFunPtrCallT<CommAcceptCbPtrFun>;
+            RefCount<AcceptCall> subCall = commCbCall(5, 5, "Ftp::Server::AcceptCtrlConnection",
+                    CommAcceptCbPtrFun(Ftp::Server::AcceptCtrlConnection, CommAcceptCbParams(nullptr)));
+            clientStartListeningOn(s, subCall, Ipc::fdnFtpSocket);
+        });
     }
 }
 

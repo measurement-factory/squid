@@ -3345,24 +3345,17 @@ clientHttpConnectionsOpen(void)
                                (s->workerQueues ? COMM_REUSEPORT : 0);
 
         typedef CommCbFunPtrCallT<CommAcceptCbPtrFun> AcceptCall;
-        if (s->transport.protocol == AnyP::PROTO_HTTP) {
-            // setup the subscriptions such that new connections accepted by listenConn are handled by HTTP
-            RefCount<AcceptCall> subCall = commCbCall(5, 5, "httpAccept", CommAcceptCbPtrFun(httpAccept, CommAcceptCbParams(NULL)));
-            Subscription::Pointer sub = new CallSubscription<AcceptCall>(subCall);
-
-            AsyncCall::Pointer listenCall = asyncCall(33,2, "clientListenerConnectionOpened",
-                                            ListeningStartedDialer(&clientListenerConnectionOpened, s, Ipc::fdnHttpSocket, sub));
-            Ipc::StartListening(SOCK_STREAM, IPPROTO_TCP, s->listenConn, Ipc::fdnHttpSocket, listenCall);
-
-        } else if (s->transport.protocol == AnyP::PROTO_HTTPS) {
-            // setup the subscriptions such that new connections accepted by listenConn are handled by HTTPS
-            RefCount<AcceptCall> subCall = commCbCall(5, 5, "httpsAccept", CommAcceptCbPtrFun(httpsAccept, CommAcceptCbParams(NULL)));
-            Subscription::Pointer sub = new CallSubscription<AcceptCall>(subCall);
-
-            AsyncCall::Pointer listenCall = asyncCall(33, 2, "clientListenerConnectionOpened",
-                                            ListeningStartedDialer(&clientListenerConnectionOpened,
-                                                    s, Ipc::fdnHttpsSocket, sub));
-            Ipc::StartListening(SOCK_STREAM, IPPROTO_TCP, s->listenConn, Ipc::fdnHttpsSocket, listenCall);
+        const auto &protocol = s->transport.protocol;
+        if (protocol == AnyP::PROTO_HTTP || protocol == AnyP::PROTO_HTTPS) {
+            const auto isHttp = protocol == AnyP::PROTO_HTTP;
+            CallBack(s, [&] {
+                RefCount<AcceptCall> subCall = commCbCall(5, 5, isHttp ? "httpAccept" : "httpsAccept",
+                        CommAcceptCbPtrFun(isHttp ? httpAccept : httpsAccept, CommAcceptCbParams(nullptr)));
+                Subscription::Pointer sub = new CallSubscription<AcceptCall>(subCall);
+                AsyncCall::Pointer listenCall = asyncCall(33,2, "clientListenerConnectionOpened",
+                        ListeningStartedDialer(&clientListenerConnectionOpened, s, Ipc::fdnHttpSocket, sub));
+                Ipc::StartListening(SOCK_STREAM, IPPROTO_TCP, s->listenConn, Ipc::fdnHttpSocket, listenCall);
+            });
         }
 
         HttpSockets[NHttpSockets] = -1; // set in clientListenerConnectionOpened
@@ -3406,10 +3399,8 @@ clientListenerConnectionOpened(AnyP::PortCfgPointer &s, const Ipc::FdNoteId port
 
     Must(Comm::IsConnOpen(s->listenConn));
 
-    CallBack(s, [&] {
-        // TCP: setup a job to handle accept() with subscribed handler
-        AsyncJob::Start(new Comm::TcpAcceptor(s, FdNote(portTypeNote), sub));
-    });
+    // TCP: setup a job to handle accept() with subscribed handler
+    AsyncJob::Start(new Comm::TcpAcceptor(s, FdNote(portTypeNote), sub));
 
     debugs(1, Important(13), "Accepting " <<
            (s->flags.natIntercept ? "NAT intercepted " : "") <<
