@@ -80,14 +80,6 @@ public:
         }
     }
 
-    std::ostream &print(std::ostream &os) const {
-        if (hasValue_)
-            os << value_;
-        else
-            os << '-';
-        return os;
-    }
-
 private:
     union {
         unsigned char dummy_;
@@ -102,7 +94,11 @@ template <typename Value>
 inline
 std::ostream &operator <<(std::ostream &os, const Optional<Value> &opt)
 {
-    return opt.print(os);
+    if (opt.has_value())
+        os << opt.value();
+    else
+        os << "[no value]";
+    return os;
 }
 
 #endif /* SQUID__SRC_BASE_OPTIONAL_H */
