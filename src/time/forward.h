@@ -6,15 +6,16 @@
  * Please see the COPYING and CONTRIBUTORS files for details.
  */
 
-/* DEBUG: section 28    Access Control */
+#ifndef SQUID__SRC_TIME_FORWARD_H
+#define SQUID__SRC_TIME_FORWARD_H
 
-#include "squid.h"
-#include "acl/Time.h"
-#include "acl/TimeData.h"
-
-int
-ACLTimeStrategy::match(ACLData<MatchType> * &data, ACLFilledChecklist *)
+/// Time and Date handling tools
+namespace Time
 {
-    return data->match(squid_curtime);
-}
+
+class Engine;
+
+} // namespace Time
+
+#endif /* SQUID__SRC_TIME_FORWARD_H */
 

@@ -9,7 +9,7 @@
 #ifndef SQUID_LRUMAP_H
 #define SQUID_LRUMAP_H
 
-#include "SquidTime.h"
+#include "time/gadgets.h"
 
 #include <list>
 #include <map>

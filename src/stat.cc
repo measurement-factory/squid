@@ -37,15 +37,12 @@
 #include "PeerDigest.h"
 #include "SquidConfig.h"
 #include "SquidMath.h"
-#include "SquidTime.h"
 #include "stat.h"
 #include "StatCounters.h"
 #include "Store.h"
 #include "store_digest.h"
 #include "StoreClient.h"
 #include "tools.h"
-// for tvSubDsec() which should be in SquidTime.h
-#include "util.h"
 #if USE_AUTH
 #include "auth/UserRequest.h"
 #endif
@@ -571,10 +568,10 @@ DumpInfo(Mgr::InfoActionData& stats, StoreEntry* sentry)
 #endif
 
     storeAppendPrintf(sentry, "Start Time:\t%s\n",
-                      mkrfc1123(stats.squid_start.tv_sec));
+                      Time::FormatRfc1123(stats.squid_start.tv_sec));
 
     storeAppendPrintf(sentry, "Current Time:\t%s\n",
-                      mkrfc1123(stats.current_time.tv_sec));
+                      Time::FormatRfc1123(stats.current_time.tv_sec));
 
     storeAppendPrintf(sentry, "Connection information for %s:\n",APP_SHORTNAME);
 
@@ -1004,11 +1001,11 @@ DumpAvgStat(Mgr::IntervalActionData& stats, StoreEntry* sentry)
     storeAppendPrintf(sentry, "sample_start_time = %d.%d (%s)\n",
                       (int)stats.sample_start_time.tv_sec,
                       (int)stats.sample_start_time.tv_usec,
-                      mkrfc1123(stats.sample_start_time.tv_sec));
+                      Time::FormatRfc1123(stats.sample_start_time.tv_sec));
     storeAppendPrintf(sentry, "sample_end_time = %d.%d (%s)\n",
                       (int)stats.sample_end_time.tv_sec,
                       (int)stats.sample_end_time.tv_usec,
-                      mkrfc1123(stats.sample_end_time.tv_sec));
+                      Time::FormatRfc1123(stats.sample_end_time.tv_sec));
 
     storeAppendPrintf(sentry, "client_http.requests = %f/sec\n",
                       stats.client_http_requests);
@@ -1441,7 +1438,7 @@ DumpCountersStats(Mgr::CountersActionData& stats, StoreEntry* sentry)
     storeAppendPrintf(sentry, "sample_time = %d.%d (%s)\n",
                       (int) stats.sample_time.tv_sec,
                       (int) stats.sample_time.tv_usec,
-                      mkrfc1123(stats.sample_time.tv_sec));
+                      Time::FormatRfc1123(stats.sample_time.tv_sec));
     storeAppendPrintf(sentry, "client_http.requests = %.0f\n",
                       stats.client_http_requests);
     storeAppendPrintf(sentry, "client_http.hits = %.0f\n",

@@ -13,9 +13,9 @@
 #include "AsyncEngine.h"
 #include "EventLoop.h"
 #include "mem/forward.h"
-#include "SquidTime.h"
 #include "stat.h"
-#include "testEventLoop.h"
+#include "tests/testEventLoop.h"
+#include "time/Engine.h"
 #include "unitTestMain.h"
 
 CPPUNIT_TEST_SUITE_REGISTRATION( testEventLoop );
@@ -225,10 +225,8 @@ testEventLoop::testStopOnIdle()
 /* An event loop has a time service which is like an async engine but never
  * generates events and there can only be one such service.
  */
-
-class StubTime : public TimeEngine
+class StubTime : public Time::Engine
 {
-
 public:
     StubTime() : calls(0) {}
 
