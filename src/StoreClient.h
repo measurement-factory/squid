@@ -60,8 +60,17 @@ class store_client
 public:
     store_client(StoreEntry *);
     ~store_client();
-    /// \returns the smallest of the passed value and the memory offset of the client
-    int memHeaderOffsetLowerThan(const int64_t offset) const;
+
+    /// Whether this Store client requires memory-stored response content. A
+    /// false result does not mean the client never reads from memory, only that
+    /// it has other means of getting the response content (e.g. from disk) and,
+    /// hence, will keep working even if unread content is purged from memory.
+    bool reliesOnReadingFromMemory() const;
+
+    // TODO: Document whether zero means the first HTTP response header byte.
+    /// the stored response offset the client is going to read next
+    int64_t readOffset() const { return copyInto.offset; }
+
     int getType() const;
     void fail();
     void callback(ssize_t len, bool error = false);

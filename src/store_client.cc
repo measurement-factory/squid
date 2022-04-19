@@ -85,12 +85,10 @@ StoreClient::startCollapsingOn(const StoreEntry &e, const bool doingRevalidation
 
 /* store_client */
 
-int
-store_client::memHeaderOffsetLowerThan(const int64_t anOffset) const
+bool
+store_client::reliesOnReadingFromMemory() const
 {
-    if (getType() == STORE_MEM_CLIENT && copyInto.offset < anOffset)
-        return copyInto.offset;
-    return anOffset;
+    return getType() == STORE_MEM_CLIENT;
 }
 
 int

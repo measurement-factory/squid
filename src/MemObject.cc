@@ -168,7 +168,8 @@ struct LowestMemReader : public unary_function<store_client, void> {
     LowestMemReader(int64_t seed):current(seed) {}
 
     void operator() (store_client const &x) {
-        current = x.memHeaderOffsetLowerThan(current);
+        if (x.reliesOnReadingFromMemory())
+            current = std::min(current, x.readOffset());
     }
 
     int64_t current;
