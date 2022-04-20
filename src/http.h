@@ -81,7 +81,7 @@ protected:
     void handle1xx(HttpReply *msg);
     void drop1xx(const char *reason);
     /* Client API */
-    virtual void noteDelayedRead();
+    virtual void noteDelayAwareReadChance();
 
 private:
     /**

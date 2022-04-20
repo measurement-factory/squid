@@ -998,9 +998,9 @@ void
 Client::delayRead()
 {
     assert(entry->mem_obj);
-    typedef NullaryMemFunT<Client> DeferredReadDialer;
-    AsyncCall::Pointer call = asyncCall(11, 5, "Client::noteDelayedRead",
-            DeferredReadDialer(this, &Client::noteDelayedRead));
+    using DeferredReadDialer = NullaryMemFunT<Client>;
+    AsyncCall::Pointer call = asyncCall(11, 5, "Client::noteDelayAwareReadChance",
+            DeferredReadDialer(this, &Client::noteDelayAwareReadChance));
     entry->mem_obj->delayRead(call);
 }
 

@@ -920,7 +920,7 @@ Ftp::Client::maybeReadVirginBody()
 }
 
 void
-Ftp::Client::noteDelayedRead()
+Ftp::Client::noteDelayAwareReadChance()
 {
     if (!Comm::IsConnOpen(data.conn) || fd_table[data.conn->fd].closing()) {
         debugs(9, 3, "will not read from " << data.conn);
@@ -959,7 +959,7 @@ Ftp::Client::delayAwareRead()
         return;
     }
 
-    typedef CommCbMemFunT<Client, CommIoCbParams> ReadDialer;
+    using ReadDialer = CommCbMemFunT<Client, CommIoCbParams>;
     AsyncCall::Pointer readCallback = JobCallback(9, 5, ReadDialer, this, Client::dataRead);
     comm_read(data.conn, data.readBuf->space(), amountToRead, readCallback);
 }

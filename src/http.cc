@@ -1199,7 +1199,7 @@ HttpStateData::persistentConnStatus() const
 }
 
 void
-HttpStateData::noteDelayedRead()
+HttpStateData::noteDelayAwareReadChance()
 {
     if (!Comm::IsConnOpen(serverConnection) || fd_table[serverConnection->fd].closing()) {
         debugs(11, 3, "will not read from " << serverConnection);

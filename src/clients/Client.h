@@ -155,9 +155,11 @@ protected:
     size_t calcBufferSpaceToReserve(const size_t space, const size_t wantSpace) const;
 
     void adjustBodyBytesRead(const int64_t delta);
-    /// A callback used by delayRead(); implement in sublclasses calling delayRead().
-    virtual void noteDelayedRead() = 0;
-    /// Defer a noteDelayedRead() call, which must be implemented in subclasses.
+    /// called when a previously delayed read may become possible
+    virtual void noteDelayAwareReadChance() = 0;
+
+    /// Defer reading until it is likely to become possible.
+    /// Eventually a noteDelayAwareReadChance() callback will be called.
     void delayRead();
 
     // These should be private
