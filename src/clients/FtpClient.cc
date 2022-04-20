@@ -933,8 +933,8 @@ Ftp::Client::noteDelayAwareReadChance()
 void
 Ftp::Client::delayAwareRead()
 {
-    assert(Comm::IsConnOpen(data.conn));
-    assert(!fd_table[data.conn->fd].closing());
+    Assure(Comm::IsConnOpen(data.conn));
+    Assure(!fd_table[data.conn->fd].closing());
 
     const int read_sz = replyBodySpace(*data.readBuf, 0);
 
