@@ -147,17 +147,17 @@ storeClientListAdd(StoreEntry * e, void *data)
 }
 
 static void
-CallbackClientSide(store_client *sc)
+FinishCallback(store_client *sc)
 {
-    sc->callbackClientSide();
+    sc->finishCallback();
 }
 
 void
-store_client::callbackClientSide()
+store_client::finishCallback()
 {
     assert(_callback.pending());
 
-    clientSideCaller = nullptr;
+    notifier = nullptr;
     StoreIOBuffer result(copiedSize, copyInto.offset, copyInto.data);
     result.flags.error = copyInto.flags.error;
 
@@ -185,11 +185,11 @@ store_client::callback(ssize_t sz, bool error)
     if (sz < 0 || error)
         copyInto.flags.error = 1;
 
-    if (clientSideCaller)
+    if (notifier)
         return;
 
-    clientSideCaller = asyncCall(17, 4, "Callback", cbdataDialer(CallbackClientSide, this));
-    ScheduleCallHere(clientSideCaller);
+    notifier = asyncCall(17, 4, "store_client::finishCallback", cbdataDialer(FinishCallback, this));
+    ScheduleCallHere(notifier);
 }
 
 store_client::store_client(StoreEntry *e) :

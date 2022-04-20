@@ -73,18 +73,28 @@ public:
 
     int getType() const;
     void fail();
+
+    /// schedules (or updates parameters of a pending) asynchronous STCB call
+    /// \param len XXX: Document
     void callback(ssize_t len, bool error = false);
-    void callbackClientSide();
+
+    /// finishes a copy()-callback()-STCB sequence by synchronously calling STCB
+    void finishCallback();
+
     void doCopy (StoreEntry *e);
     void readHeader(const char *buf, ssize_t len);
     void readBody(const char *buf, ssize_t len);
+
+    /// Request StoreIOBuffer-described response data via an asynchronous STCB
+    /// callback. At most one such outstanding request is allowed.
     void copy(StoreEntry *, StoreIOBuffer, STCB *, void *);
+
     void dumpStats(MemBuf * output, int clientNumber) const;
     /// whether doCopy() can be called
     bool canCopy() const { return canScheduleCallback() && !flags.disk_io_pending; }
     /// TODO: revise/verify all usages
     /// whether callback() can be called
-    bool canScheduleCallback() const { return _callback.pending() && !clientSideCaller; }
+    bool canScheduleCallback() const { return _callback.pending() && !notifier; }
 
 #if STORE_CLIENT_LIST_DEBUG
 
@@ -123,7 +133,9 @@ private:
     StoreIOBuffer copyInto;
     /// the number of bytes effectively copied from Store into the I/O buffer
     size_t copiedSize;
-    AsyncCall::Pointer clientSideCaller;
+
+    /// a scheduled asynchronous finishCallback() call (or nil)
+    AsyncCall::Pointer notifier;
 
     /* Until we finish stuffing code into store_client */
 
