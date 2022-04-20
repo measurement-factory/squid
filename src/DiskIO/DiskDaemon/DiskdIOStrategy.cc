@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1996-2021 The Squid Software Foundation and contributors
+ * Copyright (C) 1996-2022 The Squid Software Foundation and contributors
  *
  * Squid software is distributed under GPLv2+ license and includes
  * contributions from numerous individuals and organizations.
@@ -19,7 +19,6 @@
 #include "fd.h"
 #include "SquidConfig.h"
 #include "SquidIpc.h"
-#include "SquidTime.h"
 #include "StatCounters.h"
 #include "Store.h"
 #include "unlinkd.h"
@@ -545,10 +544,6 @@ DiskdIOStrategy::callback()
     }
 
     while (1) {
-#ifdef  ALWAYS_ZERO_BUFFERS
-        memset(&M, '\0', sizeof(M));
-#endif
-
         x = msgrcv(rmsgid, &M, diomsg::msg_snd_rcv_sz, 0, IPC_NOWAIT);
 
         if (x < 0)

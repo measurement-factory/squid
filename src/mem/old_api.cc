@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1996-2021 The Squid Software Foundation and contributors
+ * Copyright (C) 1996-2022 The Squid Software Foundation and contributors
  *
  * Squid software is distributed under GPLv2+ license and includes
  * contributions from numerous individuals and organizations.
@@ -22,7 +22,6 @@
 #include "MemBuf.h"
 #include "mgr/Registration.h"
 #include "SquidConfig.h"
-#include "SquidTime.h"
 #include "Store.h"
 
 #include <iomanip>
@@ -101,7 +100,7 @@ GetStrPool(size_t type)
             strPools[i]->zeroBlocks(false);
 
             if (strPools[i]->objectSize() != PoolAttrs[i].obj_size)
-                debugs(13, DBG_IMPORTANT, "NOTICE: " << PoolAttrs[i].name <<
+                debugs(13, DBG_IMPORTANT, "WARNING: " << PoolAttrs[i].name <<
                        " is " << strPools[i]->objectSize() <<
                        " bytes instead of requested " <<
                        PoolAttrs[i].obj_size << " bytes");
@@ -419,17 +418,6 @@ memConfigure(void)
         new_pool_limit = -1;
     }
 
-#if 0
-    /** \par
-     * DPW 2007-04-12
-     * No debugging here please because this method is called before
-     * the debug log is configured and we'll get the message on
-     * stderr when doing things like 'squid -k reconfigure'
-     */
-    if (MemPools::GetInstance().idleLimit() > new_pool_limit)
-        debugs(13, DBG_IMPORTANT, "Shrinking idle mem pools to "<< std::setprecision(3) << toMB(new_pool_limit) << " MB");
-#endif
-
     MemPools::GetInstance().setIdleLimit(new_pool_limit);
 }
 
@@ -440,13 +428,6 @@ Mem::Init(void)
     static bool MemIsInitialized = false;
     if (MemIsInitialized)
         return;
-
-    /** \par
-     * NOTE: Mem::Init() is called before the config file is parsed
-     * and before the debugging module has been initialized.  Any
-     * debug messages here at level 0 or 1 will always be printed
-     * on stderr.
-     */
 
     /**
      * Then initialize all pools.
@@ -484,7 +465,8 @@ Mem::Report()
            " MB");
 }
 
-mem_type &operator++ (mem_type &aMem)
+static mem_type &
+operator++(mem_type &aMem)
 {
     int tmp = (int)aMem;
     aMem = (mem_type)(++tmp);
@@ -691,17 +673,6 @@ MemPoolReportSorter(const void *a, const void *b)
 
     if (pb > pa)
         return 1;
-
-#if 0
-    // use this to sort on In Use high(hrs)
-    //
-    if (A->meter->inuse.peakTime() > B->meter->inuse.peakTime())
-        return -1;
-
-    if (B->meter->inuse.peakTime() > A->meter->inuse.peakTime())
-        return 1;
-
-#endif
 
     return 0;
 }

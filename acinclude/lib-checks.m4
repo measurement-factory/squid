@@ -1,4 +1,4 @@
-## Copyright (C) 1996-2021 The Squid Software Foundation and contributors
+## Copyright (C) 1996-2022 The Squid Software Foundation and contributors
 ##
 ## Squid software is distributed under GPLv2+ license and includes
 ## contributions from numerous individuals and organizations.
@@ -106,12 +106,16 @@ AC_DEFUN([SQUID_CHECK_LIBSSL_API],[
   AH_TEMPLATE(HAVE_LIBSSL_SSL_CIPHER_FIND, "Define to 1 if the SSL_CIPHER_find() OpenSSL API function exists")
   AH_TEMPLATE(HAVE_LIBSSL_SSL_CTX_SET_TMP_RSA_CALLBACK, "Define to 1 if the SSL_CTX_set_tmp_rsa_callback() OpenSSL API function exists")
   AH_TEMPLATE(HAVE_LIBSSL_SSL_SESSION_GET_ID, "Define to 1 if the SSL_SESSION_get_id() OpenSSL API function exists")
+  AH_TEMPLATE(HAVE_LIBSSL_SSL_GET_CLIENT_RANDOM, "Define to 1 if the SSL_get_client_random() OpenSSL API function exists")
+  AH_TEMPLATE(HAVE_LIBSSL_SSL_SESSION_GET_MASTER_KEY, "Define to 1 if the SSL_SESSION_get_master_key() OpenSSL API function exists")
   SQUID_STATE_SAVE(check_openssl_libssl_api)
   LIBS="$LIBS $SSLLIB"
   AC_CHECK_LIB(ssl, OPENSSL_init_ssl, AC_DEFINE(HAVE_LIBSSL_OPENSSL_INIT_SSL, 1))
   AC_CHECK_LIB(ssl, SSL_CIPHER_find, AC_DEFINE(HAVE_LIBSSL_SSL_CIPHER_FIND, 1))
   AC_CHECK_LIB(ssl, SSL_CTX_set_tmp_rsa_callback, AC_DEFINE(HAVE_LIBSSL_SSL_CTX_SET_TMP_RSA_CALLBACK, 1))
   AC_CHECK_LIB(ssl, SSL_SESSION_get_id, AC_DEFINE(HAVE_LIBSSL_SSL_SESSION_GET_ID, 1))
+  AC_CHECK_LIB(ssl, SSL_get_client_random, AC_DEFINE(HAVE_LIBSSL_SSL_GET_CLIENT_RANDOM, 1))
+  AC_CHECK_LIB(ssl, SSL_SESSION_get_master_key, AC_DEFINE(HAVE_LIBSSL_SSL_SESSION_GET_MASTER_KEY, 1))
   SQUID_STATE_ROLLBACK(check_openssl_libssl_api)
 ])
 
@@ -388,45 +392,3 @@ AC_DEFUN([SQUID_CHECK_OPENSSL_TXTDB],[
 SQUID_STATE_ROLLBACK(check_TXTDB)
 ])
 
-dnl Check if we can rewrite the hello message stored in an SSL object.
-dnl The tests are very basic, just check if the required members exist in
-dnl SSL structure.
-AC_DEFUN([SQUID_CHECK_OPENSSL_HELLO_OVERWRITE_HACK],[
-  AH_TEMPLATE(SQUID_USE_OPENSSL_HELLO_OVERWRITE_HACK, "Define to 1 if hello message can be overwritten in SSL struct")
-  SQUID_STATE_SAVE(check_openSSL_overwrite_hack)
-  AC_MSG_CHECKING(whether hello message can be overwritten in SSL struct)
-
-  AC_COMPILE_IFELSE([
-  AC_LANG_PROGRAM(
-    [
-     #include <openssl/ssl.h>
-     #include <openssl/err.h>
-     #include <assert.h>
-    ],
-    [
-    SSL *ssl;
-    char *random, *msg;
-    memcpy(ssl->s3->client_random, random, SSL3_RANDOM_SIZE);
-    SSL3_BUFFER *wb=&(ssl->s3->wbuf);
-    assert(wb->len == 0);
-    memcpy(wb->buf, msg, 0);
-    assert(wb->left == 0);
-    memcpy(ssl->init_buf->data, msg, 0);
-    ssl->init_num = 0;
-    ssl->s3->wpend_ret = 0;
-    ssl->s3->wpend_tot = 0;
-    SSL_CIPHER *cipher = 0;
-    assert(SSL_CIPHER_get_id(cipher));
-    ])
-  ],
-  [
-   AC_MSG_RESULT([possibly; to try, set SQUID_USE_OPENSSL_HELLO_OVERWRITE_HACK macro value to 1])
-  ],
-  [
-   AC_MSG_RESULT([no])
-  ],
-  [])
-
-SQUID_STATE_ROLLBACK(check_openSSL_overwrite_hack)
-]
-)

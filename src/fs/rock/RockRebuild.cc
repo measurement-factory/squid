@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1996-2021 The Squid Software Foundation and contributors
+ * Copyright (C) 1996-2022 The Squid Software Foundation and contributors
  *
  * Squid software is distributed under GPLv2+ license and includes
  * contributions from numerous individuals and organizations.
@@ -10,6 +10,7 @@
 
 #include "squid.h"
 #include "base/AsyncJobCalls.h"
+#include "debug/Messages.h"
 #include "fs/rock/RockDbCell.h"
 #include "fs/rock/RockRebuild.h"
 #include "fs/rock/RockSwapDir.h"
@@ -17,7 +18,6 @@
 #include "globals.h"
 #include "md5.h"
 #include "sbuf/Stream.h"
-#include "SquidTime.h"
 #include "Store.h"
 #include "tools.h"
 
@@ -267,7 +267,7 @@ Rock::Rebuild::Stats::completed(const SwapDir &dir) const
 /* Rebuild */
 
 bool
-Rock::Rebuild::IsResponsible(const SwapDir &dir)
+Rock::Rebuild::IsResponsible(const SwapDir &)
 {
     // in SMP mode, only the disker is responsible for populating the map
     return !UsingSmp() || IamDiskProcess();
@@ -289,7 +289,7 @@ Rock::Rebuild::Start(SwapDir &dir)
         return false;
     }
 
-    Must(AsyncJob::Start(new Rebuild(&dir, stats)));
+    AsyncJob::Start(new Rebuild(&dir, stats));
     return true;
 }
 
@@ -339,10 +339,10 @@ Rock::Rebuild::start()
     assert(IsResponsible(*sd));
 
     if (!resuming) {
-        debugs(47, DBG_IMPORTANT, "Loading cache_dir #" << sd->index <<
+        debugs(47, Important(18), "Loading cache_dir #" << sd->index <<
                " from " << sd->filePath);
     } else {
-        debugs(47, DBG_IMPORTANT, "Resuming indexing cache_dir #" << sd->index <<
+        debugs(47, Important(63), "Resuming indexing cache_dir #" << sd->index <<
                " from " << sd->filePath << ':' << progressDescription());
     }
 
@@ -440,7 +440,7 @@ Rock::Rebuild::loadingSteps()
         getCurrentTime();
         const double elapsedMsec = tvSubMsec(loopStart, current_time);
         if (elapsedMsec > maxSpentMsec || elapsedMsec < 0) {
-            debugs(47, 5, HERE << "pausing after " << loaded << " entries in " <<
+            debugs(47, 5, "pausing after " << loaded << " entries in " <<
                    elapsedMsec << "ms; " << (elapsedMsec/loaded) << "ms per entry");
             break;
         }
@@ -667,7 +667,7 @@ Rock::Rebuild::freeBadEntry(const sfileno fileno, const char *eDescription)
 void
 Rock::Rebuild::swanSong()
 {
-    debugs(47,3, HERE << "cache_dir #" << sd->index << " rebuild level: " <<
+    debugs(47,3, "cache_dir #" << sd->index << " rebuild level: " <<
            StoreController::store_dirs_rebuilding);
     storeRebuildComplete(&counts);
 }

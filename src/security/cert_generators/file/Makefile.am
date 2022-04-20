@@ -1,4 +1,4 @@
-## Copyright (C) 1996-2021 The Squid Software Foundation and contributors
+## Copyright (C) 1996-2022 The Squid Software Foundation and contributors
 ##
 ## Squid software is distributed under GPLv2+ license and includes
 ## contributions from numerous individuals and organizations.
@@ -25,6 +25,7 @@ security_file_certgen_SOURCES = \
 
 security_file_certgen_LDADD = \
 	$(top_builddir)/src/ssl/libsslutil.la \
+	$(top_builddir)/src/time/libtime.la \
 	$(SSLLIB) \
 	$(COMPAT_LIB)
 

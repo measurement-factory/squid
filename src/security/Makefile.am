@@ -1,4 +1,4 @@
-## Copyright (C) 1996-2021 The Squid Software Foundation and contributors
+## Copyright (C) 1996-2022 The Squid Software Foundation and contributors
 ##
 ## Squid software is distributed under GPLv2+ license and includes
 ## contributions from numerous individuals and organizations.
@@ -16,6 +16,8 @@ libsecurity_la_SOURCES = \
 	BlindPeerConnector.cc \
 	BlindPeerConnector.h \
 	CertError.h \
+	CommunicationSecrets.cc \
+	CommunicationSecrets.h \
 	Context.h \
 	EncryptorAnswer.cc \
 	EncryptorAnswer.h \
@@ -27,6 +29,10 @@ libsecurity_la_SOURCES = \
 	Io.h \
 	KeyData.cc \
 	KeyData.h \
+	KeyLog.cc \
+	KeyLog.h \
+	KeyLogger.cc \
+	KeyLogger.h \
 	LockingPointer.h \
 	NegotiationHistory.cc \
 	NegotiationHistory.h \

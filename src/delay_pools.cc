@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1996-2021 The Squid Software Foundation and contributors
+ * Copyright (C) 1996-2022 The Squid Software Foundation and contributors
  *
  * Squid software is distributed under GPLv2+ license and includes
  * contributions from numerous individuals and organizations.
@@ -36,7 +36,6 @@
 #include "mgr/Registration.h"
 #include "NullDelayId.h"
 #include "SquidString.h"
-#include "SquidTime.h"
 #include "Store.h"
 #include "StoreClient.h"
 
@@ -421,7 +420,7 @@ Aggregate::parse()
 }
 
 DelayIdComposite::Pointer
-Aggregate::id(CompositeSelectionDetails &details)
+Aggregate::id(CompositeSelectionDetails &)
 {
     if (rate()->restore_bps != -1)
         return new AggregateId (this);
@@ -481,7 +480,7 @@ DelayPools::FreeDelayData()
 }
 
 void
-DelayPools::Update(void *unused)
+DelayPools::Update(void *)
 {
     // To prevent stuck transactions, stop updates only after no new transactions can
     // register (because the pools were disabled) and the last registered transaction is gone.

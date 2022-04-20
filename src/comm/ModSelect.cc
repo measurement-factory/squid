@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1996-2021 The Squid Software Foundation and contributors
+ * Copyright (C) 1996-2022 The Squid Software Foundation and contributors
  *
  * Squid software is distributed under GPLv2+ license and includes
  * contributions from numerous individuals and organizations.
@@ -20,7 +20,6 @@
 #include "ICP.h"
 #include "mgr/Registration.h"
 #include "SquidConfig.h"
-#include "SquidTime.h"
 #include "StatCounters.h"
 #include "StatHist.h"
 #include "Store.h"
@@ -125,7 +124,7 @@ Comm::SetSelect(int fd, unsigned int type, PF * handler, void *client_data, time
     fde *F = &fd_table[fd];
     assert(fd >= 0);
     assert(F->flags.open || (!handler && !client_data && !timeout));
-    debugs(5, 5, HERE << "FD " << fd << ", type=" << type <<
+    debugs(5, 5, "FD " << fd << ", type=" << type <<
            ", handler=" << handler << ", client_data=" << client_data <<
            ", timeout=" << timeout);
 
@@ -317,7 +316,6 @@ comm_select_tcp_incoming(void)
     statCounter.comm_tcp_incoming.count(nevents);
 }
 
-#define DEBUG_FDBITS 0
 /* Select on all sockets; call handlers for those that are ready. */
 Comm::Flag
 Comm::DoSelect(int msec)
@@ -335,11 +333,6 @@ Comm::DoSelect(int msec)
     int maxindex;
     unsigned int k;
     int j;
-#if DEBUG_FDBITS
-
-    int i;
-#endif
-
     fd_mask *fdsp;
     fd_mask *pfdsp;
     fd_mask tmask;
@@ -399,20 +392,6 @@ Comm::DoSelect(int msec)
             }
         }
 
-#if DEBUG_FDBITS
-        for (i = 0; i < maxfd; ++i) {
-            /* Check each open socket for a handler. */
-
-            if (fd_table[i].read_handler) {
-                assert(FD_ISSET(i, &readfds));
-            }
-
-            if (fd_table[i].write_handler) {
-                assert(FD_ISSET(i, &writefds));
-            }
-        }
-
-#endif
         if (nreadfds + nwritefds == 0) {
             assert(shutting_down);
             return Comm::SHUTDOWN;
@@ -482,14 +461,6 @@ Comm::DoSelect(int msec)
 
                 EBIT_CLR(tmask, k); /* this will be done */
 
-#if DEBUG_FDBITS
-
-                debugs(5, 9, "FD " << fd << " bit set for reading");
-
-                assert(FD_ISSET(fd, &readfds));
-
-#endif
-
                 if (fdIsUdpListener(fd)) {
                     calludp = 1;
                     continue;
@@ -545,14 +516,6 @@ Comm::DoSelect(int msec)
                 fd = (j * FD_MASK_BITS) + k;
 
                 EBIT_CLR(tmask, k); /* this will be done */
-
-#if DEBUG_FDBITS
-
-                debugs(5, 9, "FD " << fd << " bit set for writing");
-
-                assert(FD_ISSET(fd, &writefds));
-
-#endif
 
                 if (fdIsUdpListener(fd)) {
                     calludp = 1;

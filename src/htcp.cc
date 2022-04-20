@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1996-2021 The Squid Software Foundation and contributors
+ * Copyright (C) 1996-2022 The Squid Software Foundation and contributors
  *
  * Squid software is distributed under GPLv2+ license and includes
  * contributions from numerous individuals and organizations.
@@ -18,6 +18,7 @@
 #include "comm/Loops.h"
 #include "comm/UdpOpenDialer.h"
 #include "compat/xalloc.h"
+#include "debug/Messages.h"
 #include "globals.h"
 #include "htcp.h"
 #include "http.h"
@@ -30,7 +31,6 @@
 #include "MemBuf.h"
 #include "refresh.h"
 #include "SquidConfig.h"
-#include "SquidTime.h"
 #include "StatCounters.h"
 #include "Store.h"
 #include "store_key_md5.h"
@@ -304,6 +304,10 @@ htcpHexdump(const char *tag, const char *s, int sz)
 
         memset(hex, '\0', sizeof(hex));
     }
+#else
+    (void)tag;
+    (void)s;
+    (void)sz;
 #endif
 }
 
@@ -1438,7 +1442,7 @@ void
 htcpOpenPorts(void)
 {
     if (Config.Port.htcp <= 0) {
-        debugs(31, DBG_IMPORTANT, "HTCP Disabled.");
+        debugs(31, Important(21), "HTCP Disabled.");
         return;
     }
 

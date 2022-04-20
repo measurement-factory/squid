@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1996-2021 The Squid Software Foundation and contributors
+ * Copyright (C) 1996-2022 The Squid Software Foundation and contributors
  *
  * Squid software is distributed under GPLv2+ license and includes
  * contributions from numerous individuals and organizations.
@@ -18,6 +18,7 @@
 #include "comm/Loops.h"
 #include "comm/Read.h"
 #include "comm/Write.h"
+#include "debug/Messages.h"
 #include "dlink.h"
 #include "dns/forward.h"
 #include "dns/rfc3596.h"
@@ -27,8 +28,8 @@
 #include "ip/tools.h"
 #include "MemBuf.h"
 #include "mgr/Registration.h"
+#include "snmp_agent.h"
 #include "SquidConfig.h"
-#include "SquidTime.h"
 #include "Store.h"
 #include "tools.h"
 #include "util.h"
@@ -395,7 +396,7 @@ idnsParseNameservers(void)
 {
     bool result = false;
     for (auto &i : Config.dns.nameservers) {
-        debugs(78, DBG_IMPORTANT, "Adding nameserver " << i << " from squid.conf");
+        debugs(78, Important(15), "Adding nameserver " << i << " from squid.conf");
         idnsAddNameserver(i.c_str());
         result = true;
     }
@@ -696,7 +697,7 @@ idnsParseWIN32Registry(void)
         break;
 
     default:
-        debugs(78, DBG_IMPORTANT, "Failed to read nameserver from Registry: Unknown System Type.");
+        debugs(78, DBG_IMPORTANT, "ERROR: Failed to read nameserver from Registry: Unknown System Type.");
     }
 
     return result;
@@ -854,7 +855,7 @@ idnsInitVCConnected(const Comm::ConnectionPointer &conn, Comm::Flag status, int,
         char buf[MAX_IPSTRLEN] = "";
         if (vc->ns < nameservers.size())
             nameservers[vc->ns].S.toStr(buf,MAX_IPSTRLEN);
-        debugs(78, DBG_IMPORTANT, HERE << "Failed to connect to nameserver " << buf << " using TCP.");
+        debugs(78, DBG_IMPORTANT, "ERROR: Failed to connect to nameserver " << buf << " using TCP.");
         return;
     }
 
@@ -872,6 +873,10 @@ static void
 idnsVCClosed(const CommCloseCbParams &params)
 {
     nsvc * vc = (nsvc *)params.data;
+    if (vc->conn) {
+        vc->conn->noteClosure();
+        vc->conn = nullptr;
+    }
     delete vc;
 }
 
@@ -919,7 +924,7 @@ idnsSendQueryVC(idns_query * q, size_t nsn)
 
     if (!vc) {
         char buf[MAX_IPSTRLEN];
-        debugs(78, DBG_IMPORTANT, "idnsSendQuery: Failed to initiate TCP connection to nameserver " << nameservers[nsn].S.toStr(buf,MAX_IPSTRLEN) << "!");
+        debugs(78, DBG_IMPORTANT, "ERROR: idnsSendQuery: Failed to initiate TCP connection to nameserver " << nameservers[nsn].S.toStr(buf,MAX_IPSTRLEN) << "!");
 
         return;
     }
@@ -1051,7 +1056,7 @@ idnsQueryID()
         ++id;
 
         if (id == first_id) {
-            debugs(78, DBG_IMPORTANT, "idnsQueryID: Warning, too many pending DNS requests");
+            debugs(78, DBG_IMPORTANT, "WARNING: idnsQueryID: too many pending DNS requests");
             break;
         }
     }
@@ -1125,7 +1130,7 @@ idnsCallbackAllCallersWithNewAnswer(const idns_query * const answered, const boo
     for (auto looker = master; looker; looker = looker->queue) {
         CallBack(looker->codeContext, [&] {
             (void)idnsCallbackOneWithAnswer(looker->callback, looker->callback_data,
-            *answered, lastAnswer);
+                                            *answered, lastAnswer);
         });
     }
 }
@@ -1160,7 +1165,7 @@ idnsGrokReply(const char *buf, size_t sz, int /*from_ns*/)
     int n = rfc1035MessageUnpack(buf, sz, &message);
 
     if (message == NULL) {
-        debugs(78, DBG_IMPORTANT, "idnsGrokReply: Malformed DNS response");
+        debugs(78, DBG_IMPORTANT, "ERROR: idnsGrokReply: Malformed DNS response");
         return;
     }
 
@@ -1208,7 +1213,7 @@ idnsGrokReply(const char *buf, size_t sz, int /*from_ns*/)
     q->pending = 0;
 
     if (message->tc) {
-        debugs(78, 3, HERE << "Resolver requested TC (" << q->query.name << ")");
+        debugs(78, 3, "Resolver requested TC (" << q->query.name << ")");
         rfc1035MessageDestroy(&message);
 
         if (!q->need_vc) {
@@ -1218,7 +1223,7 @@ idnsGrokReply(const char *buf, size_t sz, int /*from_ns*/)
         } else {
             // Strange: A TCP DNS response with the truncation bit (TC) set.
             // Return an error and cleanup; no point in trying TCP again.
-            debugs(78, 3, HERE << "TCP DNS response");
+            debugs(78, 3, "TCP DNS response");
             idnsCallback(q, "Truncated TCP DNS response");
         }
 
@@ -1466,7 +1471,7 @@ idnsReadVC(const Comm::ConnectionPointer &conn, char *buf, size_t len, Comm::Fla
     }
 
     assert(vc->ns < nameservers.size());
-    debugs(78, 3, HERE << conn << ": received " << vc->msg->contentSize() << " bytes via TCP from " << nameservers[vc->ns].S << ".");
+    debugs(78, 3, conn << ": received " << vc->msg->contentSize() << " bytes via TCP from " << nameservers[vc->ns].S << ".");
 
     idnsGrokReply(vc->msg->buf, vc->msg->contentSize(), vc->ns);
     vc->msg->clean();
@@ -1574,12 +1579,12 @@ Dns::Init(void)
          */
         if (DnsSocketB >= 0) {
             comm_local_port(DnsSocketB);
-            debugs(78, DBG_IMPORTANT, "DNS Socket created at " << addrV6 << ", FD " << DnsSocketB);
+            debugs(78, Important(16), "DNS IPv6 socket created at " << addrV6 << ", FD " << DnsSocketB);
             Comm::SetSelect(DnsSocketB, COMM_SELECT_READ, idnsRead, NULL, 0);
         }
         if (DnsSocketA >= 0) {
             comm_local_port(DnsSocketA);
-            debugs(78, DBG_IMPORTANT, "DNS Socket created at " << addrV4 << ", FD " << DnsSocketA);
+            debugs(78, Important(64), "DNS IPv4 socket created at " << addrV4 << ", FD " << DnsSocketA);
             Comm::SetSelect(DnsSocketA, COMM_SELECT_READ, idnsRead, NULL, 0);
         }
     }
@@ -1597,7 +1602,7 @@ Dns::Init(void)
 #endif
 
     if (!nsFound) {
-        debugs(78, DBG_IMPORTANT, "Warning: Could not find any nameservers. Trying to use localhost");
+        debugs(78, DBG_IMPORTANT, "WARNING: Could not find any nameservers. Trying to use localhost");
 #if _SQUID_WINDOWS_
         debugs(78, DBG_IMPORTANT, "Please check your TCP-IP settings or /etc/resolv.conf file");
 #else
@@ -1721,7 +1726,7 @@ idnsSendSlaveAAAAQuery(idns_query *master)
     q->query_id = idnsQueryID();
     q->sz = rfc3596BuildAAAAQuery(q->name, q->buf, sizeof(q->buf), q->query_id, &q->query, Config.dns.packet_max);
 
-    debugs(78, 3, HERE << "buf is " << q->sz << " bytes for " << q->name <<
+    debugs(78, 3, "buf is " << q->sz << " bytes for " << q->name <<
            ", id = 0x" << std::hex << q->query_id);
     if (!q->sz) {
         delete q;

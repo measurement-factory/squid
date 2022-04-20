@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1996-2021 The Squid Software Foundation and contributors
+ * Copyright (C) 1996-2022 The Squid Software Foundation and contributors
  *
  * Squid software is distributed under GPLv2+ license and includes
  * contributions from numerous individuals and organizations.
@@ -369,7 +369,7 @@ main(int argc, char *argv[])
                     state = sSTART;
                 } else if (strcmp(buff, "CONFIG_START") == 0) {
                     state = sCFGLINES;
-                } else { // if (buff != NULL) {
+                } else {
                     assert(buff != NULL);
                     entries.back().doc.push_back(buff);
                 }
@@ -378,16 +378,14 @@ main(int argc, char *argv[])
             case sCFGLINES:
                 if (strcmp(buff, "CONFIG_END") == 0) {
                     state = sDOC;
-                } else { // if (buff != NULL) {
+                } else {
                     assert(buff != NULL);
                     entries.back().cfgLines.push_back(buff);
                 }
                 break;
-#if 0
             case sEXIT:
                 assert(0);      /* should never get here */
                 break;
-#endif
             }
 
     }
@@ -672,7 +670,7 @@ gen_dump(const EntryList &head, std::ostream &fout)
          "static void" << std::endl <<
          "dump_config(StoreEntry *entry)" << std::endl <<
          "{" << std::endl <<
-         "    debugs(5, 4, HERE);" << std::endl;
+         "    debugs(5, 4, MYNAME);" << std::endl;
 
     for (const auto &e : head) {
 
@@ -704,7 +702,7 @@ gen_free(const EntryList &head, std::ostream &fout)
          "static void" << std::endl <<
          "free_all(void)" << std::endl <<
          "{" << std::endl <<
-         "    debugs(5, 4, HERE);" << std::endl;
+         "    debugs(5, 4, MYNAME);" << std::endl;
 
     for (const auto &e : head) {
         if (!e.loc.size() || e.loc.compare("none") == 0)
@@ -850,13 +848,14 @@ gen_quote_escape(const std::string &var)
     static std::string esc;
     esc.clear();
 
-    for (int i = 0; i < var.length(); ++i) {
-        switch (var[i]) {
+    for (const auto c : var) {
+        switch (c) {
         case '"':
         case '\\':
             esc += '\\';
+        /* [[fallthrough]] */
         default:
-            esc += var[i];
+            esc += c;
         }
     }
 

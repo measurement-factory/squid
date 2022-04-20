@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1996-2021 The Squid Software Foundation and contributors
+ * Copyright (C) 1996-2022 The Squid Software Foundation and contributors
  *
  * Squid software is distributed under GPLv2+ license and includes
  * contributions from numerous individuals and organizations.
@@ -10,6 +10,7 @@
 #include "helper/protocol_defines.h"
 #include "security/cert_generators/file/certificate_db.h"
 #include "ssl/crtd_message.h"
+#include "time/gadgets.h"
 
 #include <cstring>
 #include <iostream>
@@ -74,18 +75,6 @@ static const char *const B_KBYTES_STR = "KB";
 static const char *const B_MBYTES_STR = "MB";
 static const char *const B_GBYTES_STR = "GB";
 static const char *const B_BYTES_STR = "B";
-
-/// Get current time.
-time_t getCurrentTime(void)
-{
-    struct timeval current_time;
-#if GETTIMEOFDAY_NO_TZP
-    gettimeofday(&current_time);
-#else
-    gettimeofday(&current_time, NULL);
-#endif
-    return current_time.tv_sec;
-}
 
 /**
  * Parse bytes unit. It would be one of the next value: MB, GB, KB or B.

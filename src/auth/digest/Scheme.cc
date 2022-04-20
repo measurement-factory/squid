@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1996-2021 The Squid Software Foundation and contributors
+ * Copyright (C) 1996-2022 The Squid Software Foundation and contributors
  *
  * Squid software is distributed under GPLv2+ license and includes
  * contributions from numerous individuals and organizations.
@@ -9,7 +9,8 @@
 #include "squid.h"
 #include "auth/digest/Config.h"
 #include "auth/digest/Scheme.h"
-#include "Debug.h"
+#include "debug/Messages.h"
+#include "debug/Stream.h"
 #include "globals.h"
 #include "helper.h"
 
@@ -40,7 +41,7 @@ Auth::Digest::Scheme::shutdownCleanup()
     authenticateDigestNonceShutdown();
 
     _instance = NULL;
-    debugs(29, DBG_CRITICAL, "Shutdown: Digest authentication.");
+    debugs(29, Critical(59), "Shutdown: Digest authentication.");
 }
 
 Auth::SchemeConfig *
