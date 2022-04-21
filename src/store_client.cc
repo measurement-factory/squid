@@ -163,12 +163,12 @@ store_client::finishCallback()
 
     StoreIOBuffer result(copiedSize, copyInto.offset, copyInto.data);
     result.flags.error = copyInto.flags.error;
-
-    auto temphandler = _callback.callback_handler;
-    void *cbdata = _callback.callback_data;
-    _callback = store_client::Callback(nullptr, nullptr);
-    copyInto.data = nullptr;
     copiedSize = 0;
+
+    STCB *temphandler = _callback.callback_handler;
+    void *cbdata = _callback.callback_data;
+    _callback = Callback(NULL, NULL);
+    copyInto.data = NULL;
 
     if (cbdataReferenceValid(cbdata))
         temphandler(cbdata, result);
@@ -513,11 +513,8 @@ store_client::readBody(const char *, ssize_t len)
     if (len < 0)
         return fail();
 
-    if (len == 0)
-        return noteEof();
-
     const auto rep = entry->mem_obj ? &entry->mem().baseReply() : nullptr;
-    if (copyInto.offset == 0 && rep && rep->sline.status() == Http::scNone) {
+    if (copyInto.offset == 0 && len > 0 && rep && rep->sline.status() == Http::scNone) {
         /* Our structure ! */
         if (!entry->mem_obj->adjustableBaseReply().parseCharBuf(copyInto.data, headersEnd(copyInto.data, len))) {
             debugs(90, DBG_CRITICAL, "ERROR: Could not parse headers from on disk object");
@@ -526,7 +523,7 @@ store_client::readBody(const char *, ssize_t len)
         }
     }
 
-    if (rep && entry->mem_obj->inmem_lo == 0 && entry->objectLen() <= (int64_t)Config.Store.maxInMemObjSize && Config.onoff.memory_cache_disk) {
+    if (len > 0 && rep && entry->mem_obj->inmem_lo == 0 && entry->objectLen() <= (int64_t)Config.Store.maxInMemObjSize && Config.onoff.memory_cache_disk) {
         storeGetMemSpace(len);
         // The above may start to free our object so we need to check again
         if (entry->mem_obj->inmem_lo == 0) {
@@ -540,7 +537,7 @@ store_client::readBody(const char *, ssize_t len)
         }
     }
 
-    noteMoreCopiedBytes(len);
+    callback(len);
 }
 
 void
