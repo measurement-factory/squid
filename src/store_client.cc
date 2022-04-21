@@ -162,7 +162,7 @@ store_client::finishCallback()
     assert(_callback.notifier);
 
     StoreIOBuffer result(copiedSize, copyInto.offset, copyInto.data);
-    result.flags.error = copyInto.flags.error;
+    result.flags.error = object_ok ? 0 : 1;
     copiedSize = 0;
 
     STCB *temphandler = _callback.callback_handler;
@@ -287,7 +287,6 @@ store_client::copy(StoreEntry * anEntry,
     copyInto.data = copyRequest.data;
     copyInto.length = copyRequest.length;
     copyInto.offset = copyRequest.offset;
-    // copyInto.flags.error should persist between the calls, do not modify it.
 
     static bool copying (false);
     assert (!copying);
@@ -548,7 +547,6 @@ store_client::fail()
         return; // we failed earlier; nothing to do now
 
     object_ok = false;
-    copyInto.flags.error = 1;
 
     noteNews();
 }
