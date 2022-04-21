@@ -542,7 +542,7 @@ store_client::readBody(const char *, ssize_t len)
 void
 store_client::fail()
 {
-    debugs(90, 3, "new failure: " << object_ok);
+    debugs(90, 3, (object_ok ? "once" : "again"));
     if (!object_ok)
         return; // we failed earlier; nothing to do now
 
