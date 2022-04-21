@@ -85,8 +85,6 @@ public:
     void copy(StoreEntry *, StoreIOBuffer, STCB *, void *);
 
     void dumpStats(MemBuf * output, int clientNumber) const;
-    /// whether doCopy() can be called
-    bool canCopy() const { return canScheduleCallback() && !flags.disk_io_pending; }
 
 #if STORE_CLIENT_LIST_DEBUG
 
@@ -97,6 +95,8 @@ public:
     StoreIOState::Pointer swapin_sio;
 
     struct {
+        /// whether we are expecting a response to be swapped in from disk
+        /// (i.e. whether storeRead() is currently in progress)
         bool disk_io_pending;
     } flags;
 
@@ -119,10 +119,6 @@ private:
     bool startSwapin();
     bool unpackHeader(char const *buf, ssize_t len);
 
-    /// TODO: revise/verify all usages
-    /// whether callback() can be called
-    bool canScheduleCallback() const { return _callback.pending() && !notifier; }
-
     void fail();
     void callback(ssize_t len);
     void noteMoreCopiedBytes(size_t sz);
@@ -138,9 +134,6 @@ private:
     /// the number of bytes effectively copied from Store into the I/O buffer
     size_t copiedSize;
 
-    /// a scheduled asynchronous finishCallback() call (or nil)
-    AsyncCall::Pointer notifier;
-
     /* Until we finish stuffing code into store_client */
 
 public:
@@ -149,10 +142,16 @@ public:
         Callback ():callback_handler(NULL), callback_data(NULL) {}
 
         Callback (STCB *, void *);
+
+        /// whether the copy() answer is both absent and needed
         bool pending() const;
+
         STCB *callback_handler;
         void *callback_data;
         CodeContextPointer codeContext; ///< Store client context
+
+        /// a scheduled asynchronous finishCallback() call (or nil)
+        AsyncCall::Pointer notifier;
     } _callback;
 };
 

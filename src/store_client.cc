@@ -158,9 +158,9 @@ store_client::FinishCallback(store_client * const sc)
 void
 store_client::finishCallback()
 {
-    assert(_callback.pending());
+    assert(_callback.callback_handler);
+    assert(_callback.notifier);
 
-    notifier = nullptr;
     StoreIOBuffer result(copiedSize, copyInto.offset, copyInto.data);
     result.flags.error = copyInto.flags.error;
 
@@ -169,8 +169,6 @@ store_client::finishCallback()
     _callback = store_client::Callback(nullptr, nullptr);
     copyInto.data = nullptr;
     copiedSize = 0;
-
-    assert(!canScheduleCallback());
 
     if (cbdataReferenceValid(cbdata))
         temphandler(cbdata, result);
@@ -215,16 +213,18 @@ store_client::noteEof()
 void
 store_client::noteNews()
 {
-    if (!_callback.pending()) // XXX: wrap/name?
-        return; // we can only deliver news during the copy()-STCB sequence
-
-    if (notifier) {
-        debugs(90, 5, "these news should be delivered by scheduled " << notifier);
+    if (!_callback.callback_handler) {
+        debugs(90, 5, "nobody is interested in these news");
         return;
     }
 
-    notifier = asyncCall(17, 4, "store_client::FinishCallback", cbdataDialer(store_client::FinishCallback, this));
-    ScheduleCallHere(notifier);
+    if (_callback.notifier) {
+        debugs(90, 5, "these news should be delivered by scheduled " << _callback.notifier);
+        return;
+    }
+
+    _callback.notifier = asyncCall(17, 4, "store_client::FinishCallback", cbdataDialer(store_client::FinishCallback, this));
+    ScheduleCallHere(_callback.notifier);
 }
 
 store_client::store_client(StoreEntry *e) :
@@ -360,9 +360,11 @@ storeClientCopy2(StoreEntry * e, store_client * sc)
 void
 store_client::doCopy(StoreEntry *anEntry)
 {
+    assert(_callback.pending());
+    assert(!flags.disk_io_pending);
+
     assert (anEntry == entry);
     MemObject *mem = entry->mem_obj;
-    assert(canCopy());
 
     debugs(33, 5, "store_client::doCopy: co: " <<
            copyInto.offset << ", hi: " <<
@@ -481,7 +483,7 @@ store_client::fileRead()
 {
     MemObject *mem = entry->mem_obj;
 
-    assert(canScheduleCallback());
+    assert(_callback.pending());
     assert(!flags.disk_io_pending);
     flags.disk_io_pending = true;
 
@@ -505,7 +507,7 @@ store_client::readBody(const char *, ssize_t len)
 
     // Don't assert disk_io_pending here.. may be called by read_header
     flags.disk_io_pending = false;
-    assert(canScheduleCallback());
+    assert(_callback.pending());
     debugs(90, 3, "storeClientReadBody: len " << len << "");
 
     if (len < 0)
@@ -616,7 +618,7 @@ store_client::readHeader(char const *buf, ssize_t len)
 
     assert(flags.disk_io_pending);
     flags.disk_io_pending = false;
-    assert(canScheduleCallback());
+    assert(_callback.pending());
 
     // abort if we fail()'d earlier
     if (!object_ok)
@@ -770,11 +772,15 @@ StoreEntry::invokeHandlers()
         nx = node->next;
         ++i;
 
-        if (sc->canCopy()) {
-            CodeContext::Reset(sc->_callback.codeContext);
-            debugs(90, 3, "checking client #" << i);
-            storeClientCopy2(this, sc);
-        }
+        if (!sc->_callback.pending())
+            continue;
+
+        if (sc->flags.disk_io_pending)
+            continue;
+
+        CodeContext::Reset(sc->_callback.codeContext);
+        debugs(90, 3, "checking client #" << i);
+        storeClientCopy2(this, sc);
     }
     CodeContext::Reset(savedContext);
 }
@@ -903,13 +909,16 @@ store_client::dumpStats(MemBuf * output, int clientNumber) const
     if (flags.disk_io_pending)
         output->append(" disk_io_pending", 16);
 
+    if (_callback.notifier)
+        output->append(" notifying", 10);
+
     output->append("\n",1);
 }
 
 bool
 store_client::Callback::pending() const
 {
-    return callback_handler && callback_data;
+    return callback_handler && !notifier;
 }
 
 store_client::Callback::Callback(STCB *function, void *data):
