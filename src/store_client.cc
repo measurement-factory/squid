@@ -20,6 +20,7 @@
 #include "MemObject.h"
 #include "mime_header.h"
 #include "SquidConfig.h"
+#include "SquidMath.h"
 #include "StatCounters.h"
 #include "Store.h"
 #include "store_swapin.h"
@@ -146,12 +147,14 @@ storeClientListAdd(StoreEntry * e, void *data)
     return sc;
 }
 
-static void
-FinishCallback(store_client *sc)
+/// finishCallback() wrapper; TODO: Add NullaryMemFunT for non-jobs.
+void
+store_client::FinishCallback(store_client * const sc)
 {
     sc->finishCallback();
 }
 
+/// finishes a copy()-STCB sequence by synchronously calling STCB
 void
 store_client::finishCallback()
 {
@@ -175,20 +178,52 @@ store_client::finishCallback()
     cbdataReferenceDone(cbdata);
 }
 
+/// schedules (or updates parameters of a pending) asynchronous STCB call
+/// \param sz XXX: Document (signed type because callers use signed type)
 void
-store_client::callback(ssize_t sz, bool error)
+store_client::callback(const ssize_t sz)
 {
-    assert(canScheduleCallback());
+    if (sz > 0)
+        return noteMoreCopiedBytes(sz);
 
-    copiedSize = (sz > 0 && !error) ? sz : 0;
+    if (sz < 0)
+        return fail();
 
-    if (sz < 0 || error)
-        copyInto.flags.error = 1;
+    noteEof();
+}
 
-    if (notifier)
+void
+store_client::noteMoreCopiedBytes(const size_t sz)
+{
+    debugs(90, 5, copiedSize << "+=" << sz);
+    Assure(sz > 0);
+    copiedSize = IncreaseSum(copiedSize, sz).value();
+    noteNews();
+}
+
+void
+store_client::noteEof()
+{
+    debugs(90, 5, copiedSize);
+    // XXX: Cannot inform the reader about EOF after accumulating something.
+    // TODO: Protect from multiple EOF notifications and read-after-EOF: sawEof.
+    Assure(!copiedSize);
+    noteNews();
+}
+
+/// if necessary and possible, informs the Store reader about copy() result
+void
+store_client::noteNews()
+{
+    if (!_callback.pending()) // XXX: wrap/name?
+        return; // we can only deliver news during the copy()-STCB sequence
+
+    if (notifier) {
+        debugs(90, 5, "these news should be delivered by scheduled " << notifier);
         return;
+    }
 
-    notifier = asyncCall(17, 4, "store_client::finishCallback", cbdataDialer(FinishCallback, this));
+    notifier = asyncCall(17, 4, "store_client::FinishCallback", cbdataDialer(store_client::FinishCallback, this));
     ScheduleCallHere(notifier);
 }
 
@@ -336,7 +371,7 @@ store_client::doCopy(StoreEntry *anEntry)
     if (!moreToSend()) {
         /* There is no more to send! */
         debugs(33, 3, "There is no more to send!");
-        callback(0);
+        noteEof();
         return;
     }
 
@@ -393,6 +428,15 @@ store_client::startSwapin()
 }
 
 void
+store_client::noteSwapInDone(const bool error)
+{
+    if (error)
+        fail();
+    else
+        noteEof();
+}
+
+void
 store_client::scheduleRead()
 {
     MemObject *mem = entry->mem_obj;
@@ -428,7 +472,7 @@ store_client::scheduleMemRead()
     /* What the client wants is in memory */
     /* Old style */
     debugs(90, 3, "store_client::doCopy: Copying normal from memory");
-    size_t sz = entry->mem_obj->data_hdr.copy(copyInto);
+    const auto sz = entry->mem_obj->data_hdr.copy(copyInto); // may be <= 0
     callback(sz);
 }
 
@@ -467,8 +511,11 @@ store_client::readBody(const char *, ssize_t len)
     if (len < 0)
         return fail();
 
+    if (len == 0)
+        return noteEof();
+
     const auto rep = entry->mem_obj ? &entry->mem().baseReply() : nullptr;
-    if (copyInto.offset == 0 && len > 0 && rep && rep->sline.status() == Http::scNone) {
+    if (copyInto.offset == 0 && rep && rep->sline.status() == Http::scNone) {
         /* Our structure ! */
         if (!entry->mem_obj->adjustableBaseReply().parseCharBuf(copyInto.data, headersEnd(copyInto.data, len))) {
             debugs(90, DBG_CRITICAL, "ERROR: Could not parse headers from on disk object");
@@ -477,7 +524,7 @@ store_client::readBody(const char *, ssize_t len)
         }
     }
 
-    if (len > 0 && rep && entry->mem_obj->inmem_lo == 0 && entry->objectLen() <= (int64_t)Config.Store.maxInMemObjSize && Config.onoff.memory_cache_disk) {
+    if (rep && entry->mem_obj->inmem_lo == 0 && entry->objectLen() <= (int64_t)Config.Store.maxInMemObjSize && Config.onoff.memory_cache_disk) {
         storeGetMemSpace(len);
         // The above may start to free our object so we need to check again
         if (entry->mem_obj->inmem_lo == 0) {
@@ -491,22 +538,20 @@ store_client::readBody(const char *, ssize_t len)
         }
     }
 
-    callback(len);
+    noteMoreCopiedBytes(len);
 }
 
 void
 store_client::fail()
 {
-    object_ok = false;
-    /* synchronous open failures callback from the store,
-     * before startSwapin detects the failure.
-     * TODO: fix this inconsistent behaviour - probably by
-     * having storeSwapInStart become a callback functions,
-     * not synchronous
-     */
+    debugs(90, 3, "new failure: " << object_ok);
+    if (!object_ok)
+        return; // we failed earlier; nothing to do now
 
-    if (canScheduleCallback())
-        callback(0, true);
+    object_ok = false;
+    copyInto.flags.error = 1;
+
+    noteNews();
 }
 
 static void

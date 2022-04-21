@@ -72,14 +72,9 @@ public:
     int64_t readOffset() const { return copyInto.offset; }
 
     int getType() const;
-    void fail();
 
-    /// schedules (or updates parameters of a pending) asynchronous STCB call
-    /// \param len XXX: Document
-    void callback(ssize_t len, bool error = false);
-
-    /// finishes a copy()-callback()-STCB sequence by synchronously calling STCB
-    void finishCallback();
+    /// react to the end of reading the response from disk
+    void noteSwapInDone(bool error);
 
     void doCopy (StoreEntry *e);
     void readHeader(const char *buf, ssize_t len);
@@ -92,9 +87,6 @@ public:
     void dumpStats(MemBuf * output, int clientNumber) const;
     /// whether doCopy() can be called
     bool canCopy() const { return canScheduleCallback() && !flags.disk_io_pending; }
-    /// TODO: revise/verify all usages
-    /// whether callback() can be called
-    bool canScheduleCallback() const { return _callback.pending() && !notifier; }
 
 #if STORE_CLIENT_LIST_DEBUG
 
@@ -126,6 +118,18 @@ private:
     void scheduleRead();
     bool startSwapin();
     bool unpackHeader(char const *buf, ssize_t len);
+
+    /// TODO: revise/verify all usages
+    /// whether callback() can be called
+    bool canScheduleCallback() const { return _callback.pending() && !notifier; }
+
+    void fail();
+    void callback(ssize_t len);
+    void noteMoreCopiedBytes(size_t sz);
+    void noteEof();
+    void noteNews();
+    void finishCallback();
+    static void FinishCallback(store_client *);
 
     int type;
     bool object_ok;
