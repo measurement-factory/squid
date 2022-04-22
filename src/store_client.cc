@@ -20,7 +20,6 @@
 #include "MemObject.h"
 #include "mime_header.h"
 #include "SquidConfig.h"
-#include "SquidMath.h"
 #include "StatCounters.h"
 #include "Store.h"
 #include "store_swapin.h"
@@ -176,13 +175,13 @@ store_client::finishCallback()
     cbdataReferenceDone(cbdata);
 }
 
-/// schedules (or updates parameters of a pending) asynchronous STCB call
-/// \param sz XXX: Document (signed type because callers use signed type)
+/// schedules asynchronous STCB call to relay disk or memory read results
+/// \param sz an error signal (if negative), EOF signal (if zero), or bytes read
 void
 store_client::callback(const ssize_t sz)
 {
     if (sz > 0)
-        return noteMoreCopiedBytes(sz);
+        return noteCopiedBytes(sz);
 
     if (sz < 0)
         return fail();
@@ -190,12 +189,15 @@ store_client::callback(const ssize_t sz)
     noteEof();
 }
 
+/// schedules asynchronous STCB call to relay a successful disk or memory read
+/// \param bytesCopied the number of response bytes copied into copyInto
 void
-store_client::noteMoreCopiedBytes(const size_t sz)
+store_client::noteCopiedBytes(const size_t bytesCopied)
 {
-    debugs(90, 5, copiedSize << "+=" << sz);
-    Assure(sz > 0);
-    copiedSize = IncreaseSum(copiedSize, sz).value();
+    debugs(90, 5, bytesCopied);
+    Assure(bytesCopied > 0);
+    Assure(!copiedSize);
+    copiedSize = bytesCopied;
     noteNews();
 }
 
@@ -203,8 +205,6 @@ void
 store_client::noteEof()
 {
     debugs(90, 5, copiedSize);
-    // XXX: Cannot inform the reader about EOF after accumulating something.
-    // TODO: Protect from multiple EOF notifications and read-after-EOF: sawEof.
     Assure(!copiedSize);
     noteNews();
 }
@@ -225,6 +225,8 @@ store_client::noteNews()
 
     _callback.notifier = asyncCall(17, 4, "store_client::FinishCallback", cbdataDialer(store_client::FinishCallback, this));
     ScheduleCallHere(_callback.notifier);
+
+    assert(!_callback.pending());
 }
 
 store_client::store_client(StoreEntry *e) :

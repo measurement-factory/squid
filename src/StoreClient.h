@@ -120,8 +120,8 @@ private:
     bool unpackHeader(char const *buf, ssize_t len);
 
     void fail();
-    void callback(ssize_t len);
-    void noteMoreCopiedBytes(size_t sz);
+    void callback(ssize_t);
+    void noteCopiedBytes(size_t);
     void noteEof();
     void noteNews();
     void finishCallback();
