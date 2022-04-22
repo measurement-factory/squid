@@ -347,6 +347,7 @@ static void
 storeClientCopy2(StoreEntry * e, store_client * sc)
 {
     debugs(90, 3, "storeClientCopy2: " << e->getMD5Text());
+    assert(sc->_callback.pending());
     /*
      * We used to check for ENTRY_ABORTED here.  But there were some
      * problems.  For example, we might have a slow client (or two) and
@@ -354,8 +355,7 @@ storeClientCopy2(StoreEntry * e, store_client * sc)
      * if the peer aborts, we want to give the client(s)
      * everything we got before the abort condition occurred.
      */
-
-    sc->doCopy(sc->entry);
+    sc->doCopy(e);
 }
 
 void
