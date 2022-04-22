@@ -776,6 +776,16 @@ StoreEntry::invokeHandlers()
         if (sc->flags.disk_io_pending)
             continue;
 
+        // XXX: If invokeHandlers() is (indirectly) called from a store_client
+        // method, then the above two conditions may not be sufficient to
+        // prevent us reentering the same store_client object! This probably
+        // does not happen in the current code, but no observed invariant
+        // prevents this from (accidentally) happening in the future.
+
+        // TODO: Make this call asynchronous after making sure that no indirect
+        // invokeHandlers() caller assumes that newly added data is consumed
+        // immediately if it is needed by current store_clients. We do not want
+        // our callers to swap new data out following no-claim==no-need logic.
         CodeContext::Reset(sc->_callback.codeContext);
         debugs(90, 3, "checking client #" << i);
         storeClientCopy2(this, sc);
