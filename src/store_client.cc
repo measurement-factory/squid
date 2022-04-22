@@ -433,6 +433,7 @@ store_client::startSwapin()
 void
 store_client::noteSwapInDone(const bool error)
 {
+    Assure(_callback.pending());
     if (error)
         fail();
     else
