@@ -176,14 +176,14 @@ store_client::finishCallback()
 }
 
 /// schedules asynchronous STCB call to relay disk or memory read results
-/// \param sz an error signal (if negative), EOF signal (if zero), or bytes read
+/// \param outcome an error signal (if negative), an EOF signal (if zero), or the number of bytes read
 void
-store_client::callback(const ssize_t sz)
+store_client::callback(const ssize_t outcome)
 {
-    if (sz > 0)
-        return noteCopiedBytes(sz);
+    if (outcome > 0)
+        return noteCopiedBytes(outcome);
 
-    if (sz < 0)
+    if (outcome < 0)
         return fail();
 
     noteEof();
@@ -214,12 +214,12 @@ void
 store_client::noteNews()
 {
     if (!_callback.callback_handler) {
-        debugs(90, 5, "nobody is interested in these news");
+        debugs(90, 5, "nobody is interested in this news anymore");
         return;
     }
 
     if (_callback.notifier) {
-        debugs(90, 5, "these news should be delivered by scheduled " << _callback.notifier);
+        debugs(90, 5, "earlier news is being delivered by " << _callback.notifier);
         return;
     }
 
@@ -927,6 +927,13 @@ store_client::Callback::Callback(STCB *function, void *data):
 }
 
 #if USE_DELAY_POOLS
+int
+store_client::bytesWanted() const
+{
+    // TODO: Just return zero unless _callback.pending()?
+    return delayId.bytesWanted(0, copyInto.length);
+}
+
 void
 store_client::setDelayId(DelayId delay_id)
 {

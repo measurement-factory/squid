@@ -25,6 +25,8 @@ void storeDigestInit(void) STUB
 void storeRebuildStart(void) STUB
 void storeReplSetup(void) STUB
 bool store_client::reliesOnReadingFromMemory() const STUB_RETVAL(false)
+void store_client::noteSwapInDone(bool) STUB
+int store_client::bytesWanted() const STUB_RETVAL(0)
 void store_client::dumpStats(MemBuf *, int) const STUB
 int store_client::getType() const STUB_RETVAL(0)
 

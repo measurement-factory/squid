@@ -67,13 +67,15 @@ public:
     /// hence, will keep working even if unread content is purged from memory.
     bool reliesOnReadingFromMemory() const;
 
-    // TODO: Document whether zero means the first HTTP response header byte.
-    /// the stored response offset the client is going to read next
+    /// The offset of the stored response that the client wants to read next.
+    /// A zero offset means the client wants to read HTTP response headers.
     int64_t readOffset() const { return copyInto.offset; }
 
     int getType() const;
 
-    /// react to the end of reading the response from disk
+    /// React to the end of reading the response from disk. There will be no
+    /// (more) readHeader() and readBody() callbacks for the current storeRead()
+    /// swapin after this notification.
     void noteSwapInDone(bool error);
 
     void doCopy (StoreEntry *e);
@@ -81,7 +83,7 @@ public:
     void readBody(const char *buf, ssize_t len);
 
     /// Request StoreIOBuffer-described response data via an asynchronous STCB
-    /// callback. At most one such outstanding request is allowed.
+    /// callback. At most one outstanding request is allowed per store_client.
     void copy(StoreEntry *, StoreIOBuffer, STCB *, void *);
 
     void dumpStats(MemBuf * output, int clientNumber) const;
@@ -101,13 +103,15 @@ public:
     } flags;
 
 #if USE_DELAY_POOLS
-    int bytesWanted() const { return delayId.bytesWanted(0, copyInto.length); }
     DelayId delayId;
+
+    /// the number of bytes we can read without violating delay pool limits
+    int bytesWanted() const;
+
     void setDelayId(DelayId delay_id);
 #endif
 
     dlink_node node;
-    /* Below here is private - do no alter outside storeClient calls */
 
 private:
     bool moreToSend() const;
@@ -130,8 +134,12 @@ private:
     int type;
     bool object_ok;
 
+    /// Storage and metadata associated with the current copy() request. Ought
+    /// to be ignored when not answering a copy() request.
     StoreIOBuffer copyInto;
-    /// the number of bytes effectively copied from Store into the I/O buffer
+
+    /// The number of bytes loaded from Store into copyInto while answering the
+    /// current copy() request. Ought to be ignored when not answering.
     size_t copiedSize;
 
     /* Until we finish stuffing code into store_client */
@@ -143,7 +151,9 @@ public:
 
         Callback (STCB *, void *);
 
-        /// whether the copy() answer is both absent and needed
+        /// Whether the copy() answer is needed/expected (by the client) and has
+        /// not been computed (by us). False during (asynchronous) answer
+        /// delivery to the STCB callback_handler.
         bool pending() const;
 
         STCB *callback_handler;
