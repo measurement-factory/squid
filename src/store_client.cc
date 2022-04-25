@@ -157,8 +157,8 @@ store_client::FinishCallback(store_client * const sc)
 void
 store_client::finishCallback()
 {
-    assert(_callback.callback_handler);
-    assert(_callback.notifier);
+    Assure(_callback.callback_handler);
+    Assure(_callback.notifier);
 
     StoreIOBuffer result(copiedSize, copyInto.offset, copyInto.data);
     result.flags.error = object_ok ? 0 : 1;
@@ -358,9 +358,9 @@ storeClientCopy2(StoreEntry * e, store_client * sc)
 void
 store_client::doCopy(StoreEntry *anEntry)
 {
-    assert(_callback.pending());
-    assert(!flags.disk_io_pending);
-    assert(!flags.store_copying);
+    Assure(_callback.pending());
+    Assure(!flags.disk_io_pending);
+    Assure(!flags.store_copying);
 
     assert (anEntry == entry);
     flags.store_copying = true;
@@ -586,7 +586,7 @@ store_client::noteNews()
     _callback.notifier = asyncCall(17, 4, "store_client::FinishCallback", cbdataDialer(store_client::FinishCallback, this));
     ScheduleCallHere(_callback.notifier);
 
-    assert(!_callback.pending());
+    Assure(!_callback.pending());
 }
 
 static void
