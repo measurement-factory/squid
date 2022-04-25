@@ -160,6 +160,9 @@ store_client::finishCallback()
     Assure(_callback.callback_handler);
     Assure(_callback.notifier);
 
+    // callers are not ready to handle a content+error combination
+    Assure(object_ok || !copiedSize);
+
     StoreIOBuffer result(copiedSize, copyInto.offset, copyInto.data);
     result.flags.error = object_ok ? 0 : 1;
     copiedSize = 0;
