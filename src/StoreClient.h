@@ -58,8 +58,10 @@ class store_client
     CBDATA_CLASS(store_client);
 
 public:
+    /// destroys the given object; use storeUnregister() instead
+    static void storeUnregisterFinish(store_client *);
+
     store_client(StoreEntry *);
-    ~store_client();
 
     /// Whether this Store client requires memory-stored response content. A
     /// false result does not mean the client never reads from memory, only that
@@ -115,6 +117,8 @@ public:
     dlink_node node;
 
 private:
+    ~store_client();
+
     bool moreToSend() const;
 
     void fileRead();
