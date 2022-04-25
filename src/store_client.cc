@@ -210,26 +210,6 @@ store_client::noteEof()
     noteNews();
 }
 
-/// if necessary and possible, informs the Store reader about copy() result
-void
-store_client::noteNews()
-{
-    if (!_callback.callback_handler) {
-        debugs(90, 5, "nobody is interested in this news anymore");
-        return;
-    }
-
-    if (_callback.notifier) {
-        debugs(90, 5, "earlier news is being delivered by " << _callback.notifier);
-        return;
-    }
-
-    _callback.notifier = asyncCall(17, 4, "store_client::FinishCallback", cbdataDialer(store_client::FinishCallback, this));
-    ScheduleCallHere(_callback.notifier);
-
-    assert(!_callback.pending());
-}
-
 store_client::store_client(StoreEntry *e) :
     cmp_offset(0),
 #if STORE_CLIENT_LIST_DEBUG
@@ -580,6 +560,33 @@ store_client::fail()
     object_ok = false;
 
     noteNews();
+}
+
+/// if necessary and possible, informs the Store reader about copy() result
+void
+store_client::noteNews()
+{
+    /* synchronous open failures callback from the store,
+     * before startSwapin detects the failure.
+     * TODO: fix this inconsistent behaviour - probably by
+     * having storeSwapInStart become a callback functions,
+     * not synchronous
+     */
+
+    if (!_callback.callback_handler) {
+        debugs(90, 5, "nobody is interested in this news anymore");
+        return;
+    }
+
+    if (_callback.notifier) {
+        debugs(90, 5, "earlier news is being delivered by " << _callback.notifier);
+        return;
+    }
+
+    _callback.notifier = asyncCall(17, 4, "store_client::FinishCallback", cbdataDialer(store_client::FinishCallback, this));
+    ScheduleCallHere(_callback.notifier);
+
+    assert(!_callback.pending());
 }
 
 static void
