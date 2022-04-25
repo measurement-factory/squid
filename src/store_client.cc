@@ -791,10 +791,7 @@ StoreEntry::invokeHandlers()
         // does not happen in the current code, but no observed invariant
         // prevents this from (accidentally) happening in the future.
 
-        // TODO: Make this call asynchronous after making sure that no indirect
-        // invokeHandlers() caller assumes that newly added data is consumed
-        // immediately if it is needed by current store_clients. We do not want
-        // our callers to swap new data out following no-claim==no-need logic.
+        // TODO: Convert store_client into AsyncJob; make this call asynchronous
         CodeContext::Reset(sc->_callback.codeContext);
         debugs(90, 3, "checking client #" << i);
         storeClientCopy2(this, sc);
