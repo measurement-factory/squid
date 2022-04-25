@@ -253,12 +253,6 @@ store_client::store_client(StoreEntry *e) :
 store_client::~store_client()
 {}
 
-void
-store_client::storeUnregisterFinish(store_client * const sc)
-{
-    delete sc;
-}
-
 /* copy bytes requested by the client */
 void
 storeClientCopy(store_client * sc,
@@ -734,10 +728,9 @@ storeUnregister(store_client * sc, StoreEntry * e, void *data)
 
 #endif
 
-    // delete sc asynchronously so that if this code is synchronously reached
-    // while inside a store_client method, that call sequence can finish safely
-    AsyncCall::Pointer asyncDestructor = asyncCall(17, 3, "store_client::storeUnregisterFinish", cbdataDialer(store_client::storeUnregisterFinish, sc));
-    ScheduleCallHere(asyncDestructor);
+    // XXX: We might be inside this store_client method somewhere up the calls
+    // stack. TODO: Convert store_client to AsyncJob to make destruction async.
+    delete sc;
 
     assert(e->locked());
     // An entry locked by others may be unlocked (and destructed) by others, so
