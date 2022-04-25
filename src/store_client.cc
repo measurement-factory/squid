@@ -241,6 +241,7 @@ store_client::store_client(StoreEntry *e) :
     copiedSize(0)
 {
     flags.disk_io_pending = false;
+    flags.store_copying = false;
     ++ entry->refcount;
 
     if (getType() == STORE_DISK_CLIENT) {
@@ -353,6 +354,15 @@ store_client::moreToSend() const
 static void
 storeClientCopy2(StoreEntry * e, store_client * sc)
 {
+    /* reentrancy not allowed  - note this could lead to
+     * dropped events
+     */
+
+    if (sc->flags.store_copying) {
+        debugs(90, 3, "prevented recursive copying for " << *e);
+        return;
+    }
+
     debugs(90, 3, "storeClientCopy2: " << e->getMD5Text());
     assert(sc->_callback.pending());
     /*
@@ -370,8 +380,10 @@ store_client::doCopy(StoreEntry *anEntry)
 {
     assert(_callback.pending());
     assert(!flags.disk_io_pending);
+    assert(!flags.store_copying);
 
     assert (anEntry == entry);
+    flags.store_copying = true;
     MemObject *mem = entry->mem_obj;
 
     debugs(33, 5, "store_client::doCopy: co: " <<
@@ -382,12 +394,14 @@ store_client::doCopy(StoreEntry *anEntry)
         /* There is no more to send! */
         debugs(33, 3, "There is no more to send!");
         noteEof();
+        flags.store_copying = false;
         return;
     }
 
     /* Check that we actually have data */
     if (anEntry->store_status == STORE_PENDING && copyInto.offset >= mem->endOffset()) {
         debugs(90, 3, "store_client::doCopy: Waiting for more");
+        flags.store_copying = false;
         return;
     }
 
@@ -420,6 +434,7 @@ store_client::startSwapin()
     if (storeTooManyDiskFilesOpen()) {
         /* yuck -- this causes a TCP_SWAPFAIL_MISS on the client side */
         fail();
+        flags.store_copying = false;
         return false;
     } else if (!flags.disk_io_pending) {
         /* Don't set store_io_pending here */
@@ -427,12 +442,14 @@ store_client::startSwapin()
 
         if (swapin_sio == NULL) {
             fail();
+            flags.store_copying = false;
             return false;
         }
 
         return true;
     } else {
         debugs(90, DBG_IMPORTANT, "WARNING: Averted multiple fd operation (1)");
+        flags.store_copying = false;
         return false;
     }
 }
@@ -467,6 +484,7 @@ store_client::scheduleDiskRead()
         assert(swapin_sio != NULL);
     } else if (!swapin_sio && !startSwapin()) {
         debugs(90, 3, "bailing after swapin start failure for " << *entry);
+        assert(!flags.store_copying);
         return;
     }
 
@@ -475,6 +493,8 @@ store_client::scheduleDiskRead()
     debugs(90, 3, "reading " << *entry << " from disk");
 
     fileRead();
+
+    flags.store_copying = false;
 }
 
 void
@@ -485,6 +505,7 @@ store_client::scheduleMemRead()
     debugs(90, 3, "store_client::doCopy: Copying normal from memory");
     const auto sz = entry->mem_obj->data_hdr.copy(copyInto); // may be <= 0
     callback(sz);
+    flags.store_copying = false;
 }
 
 void
@@ -785,11 +806,14 @@ StoreEntry::invokeHandlers()
         if (sc->flags.disk_io_pending)
             continue;
 
+        if (sc->flags.store_copying)
+            continue;
+
         // XXX: If invokeHandlers() is (indirectly) called from a store_client
-        // method, then the above two conditions may not be sufficient to
-        // prevent us reentering the same store_client object! This probably
-        // does not happen in the current code, but no observed invariant
-        // prevents this from (accidentally) happening in the future.
+        // method, then the above three conditions may not be sufficient to
+        // prevent us from reentering the same store_client object! This
+        // probably does not happen in the current code, but no observed
+        // invariant prevents this from (accidentally) happening in the future.
 
         // TODO: Convert store_client into AsyncJob; make this call asynchronous
         CodeContext::Reset(sc->_callback.codeContext);
@@ -922,6 +946,9 @@ store_client::dumpStats(MemBuf * output, int clientNumber) const
 
     if (flags.disk_io_pending)
         output->append(" disk_io_pending", 16);
+
+    if (flags.store_copying)
+        output->append(" store_copying", 14);
 
     if (_callback.notifier)
         output->append(" notifying", 10);
