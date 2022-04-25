@@ -751,12 +751,20 @@ storeUnregister(store_client * sc, StoreEntry * e, void *data)
         ++statCounter.swap.ins;
     }
 
+    if (sc->_callback.callback_handler || sc->_callback.notifier) {
+        debugs(90, 3, "forgetting store_client callback for " << *e);
+        // Do not notify: Callers want to stop copying and forget about this
+        // pending copy request. Some would mishandle a notification from here.
+        if (sc->_callback.notifier)
+            sc->_callback.notifier->cancel("storeUnregister");
+    }
+
 #if STORE_CLIENT_LIST_DEBUG
     cbdataReferenceDone(sc->owner);
 
 #endif
 
-    // XXX: We might be inside this store_client method somewhere up the calls
+    // XXX: We might be inside sc store_client method somewhere up the call
     // stack. TODO: Convert store_client to AsyncJob to make destruction async.
     delete sc;
 
