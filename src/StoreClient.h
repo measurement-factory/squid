@@ -61,14 +61,14 @@ public:
     store_client(StoreEntry *);
     ~store_client();
 
-    /// Whether this Store client requires memory-stored response content. A
-    /// false result does not mean the client never reads from memory, only that
-    /// it has other means of getting the response content (e.g. from disk) and,
+    /// Whether this Store client requires memory-stored response content.
+    /// \retval false does not mean the client never reads from memory, only
+    /// that it has other means of getting that content (e.g., from disk) and,
     /// hence, will keep working even if unread content is purged from memory.
     bool reliesOnReadingFromMemory() const;
 
     /// The offset of the stored response that the client wants to read next.
-    /// A zero offset means the client wants to read HTTP response headers.
+    /// \retval 0 means the client wants to read HTTP response headers.
     int64_t readOffset() const { return copyInto.offset; }
 
     int getType() const;
@@ -99,7 +99,7 @@ public:
 
     struct {
         /// whether we are expecting a response to be swapped in from disk
-        /// (i.e. whether storeRead() is currently in progress)
+        /// (i.e. whether async storeRead() is currently in progress)
         bool disk_io_pending;
 
         /// whether store_client::doCopy() is currently in progress
@@ -109,7 +109,10 @@ public:
 #if USE_DELAY_POOLS
     DelayId delayId;
 
-    /// the number of bytes we can read without violating delay pool limits
+    /// The maximum number of bytes the Store client can read/copy next without
+    /// overflowing its buffer and without violating delay pool limits. Store
+    /// I/O is not rate-limited, but we assume that the same number of bytes may
+    /// be read from the Squid-to-server connection that may be rate-limited.
     int bytesWanted() const;
 
     void setDelayId(DelayId delay_id);

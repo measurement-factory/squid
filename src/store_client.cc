@@ -146,6 +146,20 @@ storeClientListAdd(StoreEntry * e, void *data)
     return sc;
 }
 
+/// schedules asynchronous STCB call to relay disk or memory read results
+/// \param outcome an error signal (if negative), an EOF signal (if zero), or the number of bytes read
+void
+store_client::callback(const ssize_t outcome)
+{
+    if (outcome > 0)
+        return noteCopiedBytes(outcome);
+
+    if (outcome < 0)
+        return fail();
+
+    noteEof();
+}
+
 /// finishCallback() wrapper; TODO: Add NullaryMemFunT for non-jobs.
 void
 store_client::FinishCallback(store_client * const sc)
@@ -177,20 +191,6 @@ store_client::finishCallback()
         temphandler(cbdata, result);
 
     cbdataReferenceDone(cbdata);
-}
-
-/// schedules asynchronous STCB call to relay disk or memory read results
-/// \param outcome an error signal (if negative), an EOF signal (if zero), or the number of bytes read
-void
-store_client::callback(const ssize_t outcome)
-{
-    if (outcome > 0)
-        return noteCopiedBytes(outcome);
-
-    if (outcome < 0)
-        return fail();
-
-    noteEof();
 }
 
 /// schedules asynchronous STCB call to relay a successful disk or memory read
@@ -577,7 +577,7 @@ store_client::noteNews()
      */
 
     if (!_callback.callback_handler) {
-        debugs(90, 5, "nobody is interested in this news anymore");
+        debugs(90, 5, "client lost interest");
         return;
     }
 
@@ -991,7 +991,7 @@ store_client::Callback::Callback(STCB *function, void *data):
 int
 store_client::bytesWanted() const
 {
-    // TODO: Just return zero unless _callback.pending()?
+    // TODO: To avoid using stale copyInto, return zero if !_callback.pending()?
     return delayId.bytesWanted(0, copyInto.length);
 }
 
