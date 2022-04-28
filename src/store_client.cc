@@ -586,7 +586,7 @@ store_client::noteNews()
         return;
     }
 
-    _callback.notifier = asyncCall(17, 4, "store_client::FinishCallback", cbdataDialer(store_client::FinishCallback, this));
+    _callback.notifier = asyncCall(90, 4, "store_client::FinishCallback", cbdataDialer(store_client::FinishCallback, this));
     ScheduleCallHere(_callback.notifier);
 
     Assure(!_callback.pending());
