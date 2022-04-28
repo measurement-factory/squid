@@ -9,6 +9,8 @@
 #ifndef SQUID_ANYP_TRAFFIC_MODE_H
 #define SQUID_ANYP_TRAFFIC_MODE_H
 
+#include <initializer_list>
+
 namespace AnyP
 {
 
@@ -16,10 +18,16 @@ namespace AnyP
 class TrafficModeFlags
 {
 public:
+    typedef bool TrafficModeFlags::*Pointer;
+    typedef std::initializer_list<Pointer> List;
+
     /// a parsed port type (http_port, https_port or ftp_port)
     typedef enum { httpPort, httpsPort, ftpPort } PortKind;
 
     explicit TrafficModeFlags(const PortKind aPortKind): portKind(aPortKind) {}
+
+    /// \returns true for HTTPS ports with SSL bump receiving PROXY protocol traffic
+    bool proxySurrogateHttpsSslBump() const { return proxySurrogate && tunnelSslBumping && portKind == httpsPort; }
 
     /** marks HTTP accelerator (reverse/surrogate proxy) traffic
      *
@@ -121,6 +129,7 @@ public:
     bool tunnelSslBumping() const { return flags_.tunnelSslBumping; }
 
     TrafficModeFlags &rawConfig() { return flags_; }
+    const TrafficModeFlags &rawConfig() const { return flags_; }
 
     std::ostream &print(std::ostream &) const;
 
@@ -160,6 +169,12 @@ operator <<(std::ostream &os, const TrafficMode &flags)
 {
     return flags.print(os);
 }
+
+/// print *_port option name corresponding to the given TrafficModeFlags field
+std::ostream &operator <<(std::ostream &os, TrafficModeFlags::Pointer);
+
+/// print *_port option names corresponding to the given TrafficModeFlags fields
+std::ostream &operator <<(std::ostream &os, const TrafficModeFlags::List &);
 
 } // namespace AnyP
 
