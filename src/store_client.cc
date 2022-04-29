@@ -181,7 +181,7 @@ store_client::finishCallback()
     result.flags.error = object_ok ? 0 : 1;
     copiedSize = 0;
 
-    cmp_offset = copyInto.offset + copyInto.length;
+    cmp_offset = result.offset + result.length;
     STCB *temphandler = _callback.callback_handler;
     void *cbdata = _callback.callback_data;
     _callback = Callback(NULL, NULL);
