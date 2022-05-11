@@ -240,26 +240,29 @@ Ftp::Server::noteBodyConsumerAborted(BodyPipe::Pointer ptr)
 void
 Ftp::Server::AcceptCtrlConnection(const CommAcceptCbParams &params)
 {
-    MasterXaction::Pointer xact = params.xaction;
-    AnyP::PortCfgPointer s = xact->squidPort;
+    Assure(params.port);
 
     // NP: it is possible the port was reconfigured when the call or accept() was queued.
 
     if (params.flag != Comm::OK) {
         // Its possible the call was still queued when the client disconnected
-        debugs(33, 2, s->listenConn << ": FTP accept failure: " << xstrerr(params.xerrno));
+        debugs(33, 2, params.port->listenConn << ": FTP accept failure: " << xstrerr(params.xerrno));
         return;
     }
 
     debugs(33, 4, params.conn << ": accepted");
     fd_note(params.conn->fd, "client ftp connect");
 
-    if (s->tcp_keepalive.enabled)
-        commSetTcpKeepalive(params.conn->fd, s->tcp_keepalive.idle, s->tcp_keepalive.interval, s->tcp_keepalive.timeout);
+    if (params.port->tcp_keepalive.enabled)
+        commSetTcpKeepalive(params.conn->fd, params.port->tcp_keepalive.idle, params.port->tcp_keepalive.interval, params.port->tcp_keepalive.timeout);
 
     ++incoming_sockets_accepted;
 
+    const auto xact = MasterXaction::MakePortful(params.port);
+    xact->tcpClient = params.conn;
+
     AsyncJob::Start(new Server(xact));
+    // XXX: do not abandon the MasterXaction object
 }
 
 void
@@ -724,7 +727,7 @@ Ftp::Server::parseOneRequest()
     const SBuf *path = (params.length() && CommandHasPathParameter(cmd)) ?
                        &params : NULL;
     calcUri(path);
-    MasterXaction::Pointer mx = new MasterXaction(XactionInitiator::initClient);
+    const auto mx = MasterXaction::MakePortful(port);
     mx->tcpClient = clientConnection;
     auto * const request = HttpRequest::FromUrl(uri, mx, method);
     if (!request) {
