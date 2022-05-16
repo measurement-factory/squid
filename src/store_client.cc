@@ -486,7 +486,7 @@ store_client::scheduleMemRead()
     /* What the client wants is in memory */
     /* Old style */
     debugs(90, 3, "store_client::doCopy: Copying normal from memory");
-    const auto sz = entry->mem_obj->data_hdr.copy(copyInto); // may be <= 0
+    const auto sz = entry->mem_obj->data_hdr.copy(copyInto); // may be <= 0 per copy() API
     callback(sz);
     flags.store_copying = false;
 }
