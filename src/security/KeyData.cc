@@ -9,6 +9,8 @@
 #include "squid.h"
 #include "anyp/PortCfg.h"
 #include "fatal.h"
+#include "security/CertGadgets.h"
+#include "security/Io.h"
 #include "security/KeyData.h"
 #include "SquidConfig.h"
 #include "ssl/bio.h"
@@ -93,44 +95,47 @@ Security::KeyData::loadX509ChainFromFile()
         return;
     }
 
-#if TLS_CHAIN_NO_SELFSIGNED // ignore self-signed certs in the chain
-    if (X509_check_issued(cert.get(), cert.get()) == X509_V_OK) {
-        char *nameStr = X509_NAME_oneline(X509_get_subject_name(cert.get()), nullptr, 0);
-        debugs(83, DBG_PARSE_NOTE(2), "Certificate is self-signed, will not be chained: " << nameStr);
-        OPENSSL_free(nameStr);
-    } else
-#endif
-    {
-        debugs(83, DBG_PARSE_NOTE(3), "Using certificate chain in " << certFile);
-        // and add to the chain any other certificate exist in the file
-        CertPointer latestCert = cert;
-
-        while (const auto ca = Ssl::ReadX509Certificate(bio)) {
-            // get Issuer name of the cert for debug display
-            char *nameStr = X509_NAME_oneline(X509_get_subject_name(ca.get()), nullptr, 0);
-
-#if TLS_CHAIN_NO_SELFSIGNED // ignore self-signed certs in the chain
-            // self-signed certificates are not valid in a sent chain
-            if (X509_check_issued(ca.get(), ca.get()) == X509_V_OK) {
-                debugs(83, DBG_PARSE_NOTE(2), "CA " << nameStr << " is self-signed, will not be chained: " << nameStr);
-                OPENSSL_free(nameStr);
-                continue;
-            }
-#endif
-            // checks that the chained certs are actually part of a chain for validating cert
-            const auto checkCode = X509_check_issued(ca.get(), latestCert.get());
-            if (checkCode == X509_V_OK) {
-                debugs(83, DBG_PARSE_NOTE(3), "Adding issuer CA: " << nameStr);
-                // OpenSSL API requires that we order certificates such that the
-                // chain can be appended directly into the on-wire traffic.
-                latestCert = CertPointer(ca);
-                chain.emplace_back(latestCert);
-            } else {
-                debugs(83, DBG_PARSE_NOTE(2), certFile << ": Ignoring non-issuer CA " << nameStr << ": " << X509_verify_cert_error_string(checkCode) << " (" << checkCode << ")");
-            }
-            OPENSSL_free(nameStr);
+    CertList intermediates;
+    debugs(83, DBG_PARSE_NOTE(3), "Building certificate chain from " << certFile);
+    while (const auto ca = Ssl::ReadX509Certificate(bio)) {
+        // We ignore a self-signed certificate because it should not be sent:
+        // The recipients that do not already have it should not trust it.
+        if (CertIsSelfSigned(*ca)) {
+            debugs(83, DBG_PARSE_NOTE(2), "Ignoring a self-signed CA " << *ca);
+            continue;
         }
+
+        intermediates.emplace_back(ca);
     }
+    // ΧΧΧ: The Ssl::ReadX509Certificate terminated with an error,
+    // while tried to read the (last) certificate and failed, but does
+    // not handle OpenSSL errors. The indifferent for us error appended
+    // in the OpenSSL error queue and will remain here until an ERR_get_errror
+    // call pop it out. Flush the error queue:
+    while(ERR_get_error());
+
+    // OpenSSL sends `cert` first. After that, OpenSSL sends certificates in the
+    // order they are stored in the chain, so we must push them in on-the-wire
+    // order, as defined by RFC 8446 Section 4.4.2: "The sender's certificate
+    // MUST come in the first CertificateEntry in the list. Each following
+    // certificate SHOULD directly certify the one immediately preceding it."
+    for (auto precedingCert = cert; precedingCert;) {
+        CertPointer issuer; // the issuer of the "preceding" certificate
+        for (auto i = intermediates.begin(); i != intermediates.end(); ++i) {
+            const auto &candidateIssuer = *i;
+            if (CertIsIssuedBy(*precedingCert, *candidateIssuer)) {
+                issuer = candidateIssuer;
+                debugs(83, DBG_PARSE_NOTE(3), "Adding intermediate CA: " << *issuer);
+                chain.emplace_back(issuer);
+                intermediates.erase(i); // cannot match again
+                break;
+            }
+        }
+        precedingCert = issuer; // may be nil
+    }
+
+    for (const auto &ic: intermediates)
+        debugs(83, DBG_IMPORTANT, "WARNING: Unused intermediate certificate: " << *ic);
 
 #elif USE_GNUTLS
     // XXX: implement chain loading
