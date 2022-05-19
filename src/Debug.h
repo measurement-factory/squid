@@ -284,14 +284,20 @@ std::ostream &operator <<(std::ostream &os, const Raw &raw)
     return raw.print(os);
 }
 
-/// debugs objects pointed by possibly nil pointers: label=object
+/// Safely prints an object pointed to by the given pointer: [label]<object>
+/// Prints nothing at all if the pointer is nil.
 template <class Pointer>
 class RawPointerT {
 public:
     RawPointerT(const char *aLabel, const Pointer &aPtr):
         label(aLabel), ptr(aPtr) {}
+
+    /// Report the pointed-to-object on a dedicated Debug::Extra line.
+    RawPointerT<Pointer> &asExtra() { onExtraLine = true; return *this; }
+
     const char *label; /// the name or description of the being-debugged object
     const Pointer &ptr; /// a possibly nil pointer to the being-debugged object
+    bool onExtraLine = false;
 };
 
 /// convenience wrapper for creating  RawPointerT<> objects
@@ -307,11 +313,18 @@ template <class Pointer>
 inline std::ostream &
 operator <<(std::ostream &os, const RawPointerT<Pointer> &pd)
 {
-    os << pd.label << '=';
-    if (pd.ptr)
-        return os << *pd.ptr;
-    else
-        return os << "[nil]";
+    if (!pd.ptr)
+        return os;
+
+    if (pd.onExtraLine)
+        os << Debug::Extra;
+
+    if (pd.label)
+        os << pd.label;
+
+    os << *pd.ptr;
+
+    return os;
 }
 
 /// std::ostream manipulator to print integers as hex numbers prefixed by 0x
