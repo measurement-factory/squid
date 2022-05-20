@@ -10,6 +10,7 @@
 #include "anyp/PortCfg.h"
 #include "base/Assure.h"
 #include "fatal.h"
+#include "security/Certificate.h"
 #include "security/KeyData.h"
 #include "SquidConfig.h"
 #include "ssl/bio.h"
@@ -84,15 +85,6 @@ Security::KeyData::loadX509CertFromFile()
     return bool(cert);
 }
 
-#if USE_OPENSSL
-// a simpler replacement of SelfSigned() from master/v6 commit 907831e
-static bool
-SelfSigned(Security::Certificate &cert)
-{
-    return X509_check_issued(&cert, &cert) == X509_V_OK;
-}
-#endif
-
 /// load any intermediate certs that form the chain with the loaded signing cert
 void
 Security::KeyData::loadX509ChainFromFile()
@@ -107,40 +99,32 @@ Security::KeyData::loadX509ChainFromFile()
     }
 
     if (SelfSigned(*cert)) {
-        char *nameStr = X509_NAME_oneline(X509_get_subject_name(cert.get()), nullptr, 0);
-        debugs(83, DBG_PARSE_NOTE(2), "Signing certificate is self-signed: " << nameStr);
-        OPENSSL_free(nameStr);
-        // TODO: Warn if there are other (unusable) certificates present.
+        debugs(83, DBG_PARSE_NOTE(2), "Certificate is self-signed, will not be chained: " << *cert);
     } else {
         debugs(83, DBG_PARSE_NOTE(3), "Using certificate chain in " << certFile);
         // and add to the chain any other certificate exist in the file
         CertPointer latestCert = cert;
 
         while (const auto ca = Ssl::ReadOptionalCertificate(bio)) {
-            // get Issuer name of the cert for debug display
-            char *nameStr = X509_NAME_oneline(X509_get_subject_name(ca.get()), nullptr, 0);
 
             // checks that the chained certs are actually part of a chain for validating cert
-            const auto checkCode = X509_check_issued(ca.get(), latestCert.get());
-            if (checkCode == X509_V_OK) {
+            if (IssuedBy(*latestCert, *ca)) {
 
                 if (SelfSigned(*latestCert)) {
                     Assure(SelfSigned(*ca));
                     Assure(!SelfSigned(*cert)); // TODO: Rename to leafCert or signingCert
-                    debugs(83, DBG_PARSE_NOTE(2), "WARNING: Ignoring repeated Root CA: " << nameStr);
-                    OPENSSL_free(nameStr);
+                    debugs(83, DBG_PARSE_NOTE(2), "WARNING: Ignoring repeated Root CA: " << *ca);
                     continue;
                 }
 
-                debugs(83, DBG_PARSE_NOTE(3), "Adding issuer CA: " << nameStr);
+                debugs(83, DBG_PARSE_NOTE(3), "Adding issuer CA: " << *ca);
                 // OpenSSL API requires that we order certificates such that the
                 // chain can be appended directly into the on-wire traffic.
                 latestCert = CertPointer(ca);
                 chain.emplace_back(latestCert);
             } else {
-                debugs(83, DBG_PARSE_NOTE(2), certFile << ": Ignoring non-issuer CA " << nameStr << ": " << X509_verify_cert_error_string(checkCode) << " (" << checkCode << ")");
+                debugs(83, DBG_PARSE_NOTE(2), certFile << ": Ignoring non-issuer CA " << *ca);
             }
-            OPENSSL_free(nameStr);
         }
     }
 
