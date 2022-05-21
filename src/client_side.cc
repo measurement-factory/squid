@@ -3344,13 +3344,15 @@ clientHttpConnectionsOpen(void)
                                (s->flags.natIntercept ? COMM_INTERCEPTION : 0) |
                                (s->workerQueues ? COMM_REUSEPORT : 0);
 
-        typedef CommCbFunPtrCallT<CommAcceptCbPtrFun> AcceptCall;
         const auto &protocol = s->transport.protocol;
         if (protocol == AnyP::PROTO_HTTP || protocol == AnyP::PROTO_HTTPS) {
-            const auto isHttp = protocol == AnyP::PROTO_HTTP;
+            const auto isHttps = protocol == AnyP::PROTO_HTTPS;
+            // TODO: Define RunInContext() to provide CallBack()-like functionality
+            // for cases not dealing with calling a callback, like this one.
             CallBack(s, [&] {
-                RefCount<AcceptCall> subCall = commCbCall(5, 5, isHttp ? "httpAccept" : "httpsAccept",
-                        CommAcceptCbPtrFun(isHttp ? httpAccept : httpsAccept, CommAcceptCbParams(nullptr)));
+                using AcceptCall = CommCbFunPtrCallT<CommAcceptCbPtrFun>;
+                RefCount<AcceptCall> subCall = commCbCall(5, 5, isHttps ? "httpsAccept" : "httpAccept",
+                        CommAcceptCbPtrFun(isHttps ? httpsAccept : httpAccept, CommAcceptCbParams(nullptr)));
                 Subscription::Pointer sub = new CallSubscription<AcceptCall>(subCall);
                 AsyncCall::Pointer listenCall = asyncCall(33,2, "clientListenerConnectionOpened",
                         ListeningStartedDialer(&clientListenerConnectionOpened, s, Ipc::fdnHttpSocket, sub));
