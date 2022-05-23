@@ -9,6 +9,7 @@
 #include "squid.h"
 #include "anyp/PortCfg.h"
 #include "anyp/UriScheme.h"
+#include "base/CodeContext.h"
 #include "comm.h"
 #include "fatal.h"
 #include "security/PeerOptions.h"
@@ -111,3 +112,25 @@ AnyP::PortCfg::detailCodeContext(std::ostream &os) const
     return os;
 }
 
+AnyP::PortIterator&
+AnyP::PortIterator::operator++() {
+    // TODO: Define RunInContext() to provide CallBack()-like functionality
+    // for cases not dealing with calling a callback, like this one.
+    CallBack(position_, [&] {
+        runInContext();
+    });
+    position_ = position_->next;
+    return *this;
+}
+
+AnyP::PortCfgSelector<AnyP::PortIterator>
+HttpPorts()
+{
+    return AnyP::PortCfgSelector<AnyP::PortIterator>{HttpPortList};
+}
+
+AnyP::PortCfgSelector<AnyP::PortIterator>
+FtpPorts()
+{
+    return AnyP::PortCfgSelector<AnyP::PortIterator>{FtpPortList};
+}

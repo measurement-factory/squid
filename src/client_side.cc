@@ -3299,16 +3299,44 @@ AddOpenedHttpSocket(const Comm::ConnectionPointer &conn)
     return found;
 }
 
+class HttpListeningPortIterator : public AnyP::PortIterator
+{
+public:
+    HttpListeningPortIterator(AnyP::PortCfgPointer first): PortIterator(first) {}
+    HttpListeningPortIterator() {}
+
+protected:
+    virtual void runInContext() override {
+        const SBuf &scheme = AnyP::UriScheme(position_->transport.protocol).image();
+        // XXX: this check does not belong to the PortCfg context
+        if (position_->secure.encryptTransport && !position_->secure.staticContext) {
+            debugs(1, DBG_CRITICAL, "ERROR: Ignoring " << scheme << "_port " << position_->s << " due to TLS context initialization failure.");
+            return;
+        }
+        const auto isHttps = position_->transport.protocol == AnyP::PROTO_HTTPS;
+        using AcceptCall = CommCbFunPtrCallT<CommAcceptCbPtrFun>;
+        RefCount<AcceptCall> subCall = commCbCall(5, 5, isHttps ? "httpsAccept" : "httpAccept",
+                CommAcceptCbPtrFun(isHttps ? httpsAccept : httpAccept, CommAcceptCbParams(nullptr)));
+        clientStartListeningOn(position_, subCall, Ipc::fdnHttpSocket);
+    }
+};
+
+static AnyP::PortCfgSelector<HttpListeningPortIterator>
+HttpContextAwarePorts()
+{
+    return AnyP::PortCfgSelector<HttpListeningPortIterator>{HttpPortList};
+}
+
 static void
 clientHttpConnectionsOpen(void)
 {
-    for (AnyP::PortCfgPointer s = HttpPortList; s != NULL; s = s->next) {
+    for (auto s: HttpContextAwarePorts()) {
         const SBuf &scheme = AnyP::UriScheme(s->transport.protocol).image();
 
         if (MAXTCPLISTENPORTS == NHttpSockets) {
             debugs(1, DBG_IMPORTANT, "WARNING: You have too many '" << scheme << "_port' lines." <<
                    Debug::Extra << "The limit is " << MAXTCPLISTENPORTS << " HTTP ports.");
-            continue;
+            break;
         }
 
 #if USE_OPENSSL
@@ -3330,38 +3358,10 @@ clientHttpConnectionsOpen(void)
         }
 #endif
 
-        if (s->secure.encryptTransport && !s->secure.staticContext) {
-            debugs(1, DBG_CRITICAL, "ERROR: Ignoring " << scheme << "_port " << s->s << " due to TLS context initialization failure.");
-            continue;
-        }
-
-        // Fill out a Comm::Connection which IPC will open as a listener for us
-        //  then pass back when active so we can start a TcpAcceptor subscription.
-        s->listenConn = new Comm::Connection;
-        s->listenConn->local = s->s;
-
-        s->listenConn->flags = COMM_NONBLOCKING | (s->flags.tproxyIntercept ? COMM_TRANSPARENT : 0) |
-                               (s->flags.natIntercept ? COMM_INTERCEPTION : 0) |
-                               (s->workerQueues ? COMM_REUSEPORT : 0);
-
         const auto &protocol = s->transport.protocol;
-        if (protocol == AnyP::PROTO_HTTP || protocol == AnyP::PROTO_HTTPS) {
-            const auto isHttps = protocol == AnyP::PROTO_HTTPS;
-            // TODO: Define RunInContext() to provide CallBack()-like functionality
-            // for cases not dealing with calling a callback, like this one.
-            CallBack(s, [&] {
-                using AcceptCall = CommCbFunPtrCallT<CommAcceptCbPtrFun>;
-                RefCount<AcceptCall> subCall = commCbCall(5, 5, isHttps ? "httpsAccept" : "httpAccept",
-                        CommAcceptCbPtrFun(isHttps ? httpsAccept : httpAccept, CommAcceptCbParams(nullptr)));
-                Subscription::Pointer sub = new CallSubscription<AcceptCall>(subCall);
-                AsyncCall::Pointer listenCall = asyncCall(33,2, "clientListenerConnectionOpened",
-                        ListeningStartedDialer(&clientListenerConnectionOpened, s, Ipc::fdnHttpSocket, sub));
-                Ipc::StartListening(SOCK_STREAM, IPPROTO_TCP, s->listenConn, Ipc::fdnHttpSocket, listenCall);
-            });
-        }
+        assert(protocol == AnyP::PROTO_HTTP || protocol == AnyP::PROTO_HTTPS);
 
-        HttpSockets[NHttpSockets] = -1; // set in clientListenerConnectionOpened
-        ++NHttpSockets;
+        // the rest of the work is done by HttpListeningPortIterator::runInContext()
     }
 }
 
@@ -3374,7 +3374,8 @@ clientStartListeningOn(AnyP::PortCfgPointer &port, const RefCount< CommCbFunPtrC
     port->listenConn->flags =
         COMM_NONBLOCKING |
         (port->flags.tproxyIntercept ? COMM_TRANSPARENT : 0) |
-        (port->flags.natIntercept ? COMM_INTERCEPTION : 0);
+        (port->flags.natIntercept ? COMM_INTERCEPTION : 0) |
+        (port->workerQueues ? COMM_REUSEPORT : 0);
 
     // route new connections to subCall
     typedef CommCbFunPtrCallT<CommAcceptCbPtrFun> AcceptCall;
@@ -3442,7 +3443,7 @@ clientOpenListenSockets(void)
 void
 clientConnectionsClose()
 {
-    for (AnyP::PortCfgPointer s = HttpPortList; s != NULL; s = s->next) {
+    for (auto s: HttpPorts()) {
         if (s->listenConn != NULL) {
             debugs(1, Important(14), "Closing HTTP(S) port " << s->listenConn->local);
             s->listenConn->close();

@@ -569,7 +569,7 @@ neighbors_init(void)
             if (0 != strcmp(thisPeer->host, me))
                 continue;
 
-            for (AnyP::PortCfgPointer s = HttpPortList; s != NULL; s = s->next) {
+            for (auto s : HttpPorts()) {
                 if (thisPeer->http_port != s->s.port())
                     continue;
 
