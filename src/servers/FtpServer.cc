@@ -259,30 +259,23 @@ Ftp::Server::AcceptCtrlConnection(const CommAcceptCbParams &params)
     AsyncJob::Start(new Server(xact));
 }
 
-void Ftp::ListeningPortIterator::runInContext() {
-    // direct new connections accepted by listenConn to Accept()
-    using AcceptCall = CommCbFunPtrCallT<CommAcceptCbPtrFun>;
-    RefCount<AcceptCall> subCall = commCbCall(5, 5, "Ftp::Server::AcceptCtrlConnection",
-              CommAcceptCbPtrFun(Ftp::Server::AcceptCtrlConnection, CommAcceptCbParams(nullptr)));
-    clientStartListeningOn(position_, subCall, Ipc::fdnFtpSocket);
-}
-
-static AnyP::PortCfgSelector<Ftp::ListeningPortIterator>
-FtpContextAwarePorts()
-{
-    return AnyP::PortCfgSelector<Ftp::ListeningPortIterator>{FtpPortList};
-}
-
 void
 Ftp::StartListening()
 {
-    for (auto s: FtpContextAwarePorts()) {
+    for (AnyP::PortCfgPointer s = FtpPortList; s != NULL; s = s->next) {
         if (MAXTCPLISTENPORTS == NHttpSockets) {
             debugs(1, DBG_IMPORTANT, "Ignoring ftp_port lines exceeding the" <<
                    " limit of " << MAXTCPLISTENPORTS << " ports.");
             break;
         }
-        // the rest of the work is done by ListeningPortIterator::runInContext()
+
+        // direct new connections accepted by listenConn to Accept()
+        CallBack(s, [&] {
+            using AcceptCall = CommCbFunPtrCallT<CommAcceptCbPtrFun>;
+            RefCount<AcceptCall> subCall = commCbCall(5, 5, "Ftp::Server::AcceptCtrlConnection",
+                    CommAcceptCbPtrFun(Ftp::Server::AcceptCtrlConnection, CommAcceptCbParams(nullptr)));
+            clientStartListeningOn(s, subCall, Ipc::fdnFtpSocket);
+        });
     }
 }
 

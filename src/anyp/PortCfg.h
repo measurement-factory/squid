@@ -74,64 +74,13 @@ private:
     explicit PortCfg(const PortCfg &other); // for ipV4clone() needs only!
 };
 
-/// Decides which list of port configurations to iterate in range-based for loops.
-template <class Iterator>
-class PortCfgSelector
-{
-public:
-    explicit PortCfgSelector(AnyP::PortCfgPointer &p): beg_(p) {}
-
-    Iterator begin() const noexcept { return Iterator(beg_); }
-    Iterator end() const noexcept { return Iterator(); }
-
-private:
-    AnyP::PortCfgPointer  beg_;
-};
-
-/// iterates over a PortCfg list
-class PortIterator
-{
-public:
-    // some of the standard iterator traits
-    using iterator_category = std::forward_iterator_tag;
-    using value_type = PortCfgPointer;
-    using pointer = value_type *;
-    using reference = value_type &;
-
-    PortIterator(PortCfgPointer first): position_(first) {}
-    // special constructor for end() iterator
-    explicit PortIterator(): position_(nullptr) {}
-
-    reference operator *() { return position_; }
-    pointer operator ->() { return &position_; }
-
-    PortIterator& operator++();
-    PortIterator operator++(int) { const auto oldMe = *this; ++(*this); return oldMe; }
-
-    bool operator ==(const PortIterator them) const { return position_ == them.position_; }
-    bool operator !=(const PortIterator them) const { return !(*this == them); }
-
-protected:
-    /// Specifies what should be run in the corresponding PortCfg context.
-    /// Starts just before the iterator moves to the next element.
-    virtual void runInContext() {}
-
-    value_type position_; ///< current iteration location
-};
-
 } // namespace AnyP
 
 /// list of Squid http(s)_port configured
 extern AnyP::PortCfgPointer HttpPortList;
 
-AnyP::PortCfgSelector<AnyP::PortIterator>
-HttpPorts();
-
 /// list of Squid ftp_port configured
 extern AnyP::PortCfgPointer FtpPortList;
-
-AnyP::PortCfgSelector<AnyP::PortIterator>
-FtpPorts();
 
 #if !defined(MAXTCPLISTENPORTS)
 // Max number of TCP listening ports

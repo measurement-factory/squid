@@ -11,7 +11,6 @@
 #ifndef SQUID_SERVERS_FTP_SERVER_H
 #define SQUID_SERVERS_FTP_SERVER_H
 
-#include <anyp/PortCfg.h>
 #include "base/JobWait.h"
 #include "base/Lock.h"
 #include "client_side.h"
@@ -54,16 +53,6 @@ public:
     int userDataDone;
 };
 
-class ListeningPortIterator : public AnyP::PortIterator
-{
-public:
-    ListeningPortIterator(AnyP::PortCfgPointer first): PortIterator(first) {}
-    ListeningPortIterator() {}
-
-protected:
-    virtual void runInContext() override;
-};
-
 /// Manages a control connection from an FTP client.
 class Server: public ConnStateData
 {
@@ -90,7 +79,7 @@ public:
     MasterState::Pointer master; ///< info shared among our FTP client and server jobs
 
 protected:
-    friend class ListeningPortIterator;
+    friend void StartListening();
 
     // errors detected before it is possible to create an HTTP request wrapper
     enum class EarlyErrorKind {
