@@ -3342,6 +3342,7 @@ clientHttpConnectionsOpen(void)
         s->listenConn->flags = COMM_NONBLOCKING | (s->flags.tproxyIntercept ? COMM_TRANSPARENT : 0) |
                                (s->flags.natIntercept ? COMM_INTERCEPTION : 0) |
                                (s->workerQueues ? COMM_REUSEPORT : 0);
+
         typedef CommCbFunPtrCallT<CommAcceptCbPtrFun> AcceptCall;
         if (s->transport.protocol == AnyP::PROTO_HTTP) {
             // setup the subscriptions such that new connections accepted by listenConn are handled by HTTP
