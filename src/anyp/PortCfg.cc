@@ -111,3 +111,15 @@ AnyP::PortCfg::detailCodeContext(std::ostream &os) const
     return os;
 }
 
+AnyP::PortCfgSelector
+HttpPorts()
+{
+    return AnyP::PortCfgSelector{HttpPortList};
+}
+
+AnyP::PortCfgSelector
+FtpPorts()
+{
+    return AnyP::PortCfgSelector{FtpPortList};
+}
+
