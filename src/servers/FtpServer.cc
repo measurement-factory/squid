@@ -11,7 +11,6 @@
 #include "squid.h"
 #include "acl/FilledChecklist.h"
 #include "base/CharacterSet.h"
-#include "base/CodeContext.h"
 #include "base/Raw.h"
 #include "base/RefCount.h"
 #include "base/Subscription.h"
