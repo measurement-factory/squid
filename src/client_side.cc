@@ -3446,7 +3446,7 @@ clientOpenListenSockets(void)
 void
 clientConnectionsClose()
 {
-    for (AnyP::PortCfgPointer s = HttpPortList; s != NULL; s = s->next) {
+    for (auto &s: HttpPorts()) {
         if (s->listenConn != NULL) {
             debugs(1, Important(14), "Closing HTTP(S) port " << s->listenConn->local);
             s->listenConn->close();

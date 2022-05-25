@@ -281,7 +281,7 @@ Ftp::StartListening()
 void
 Ftp::StopListening()
 {
-    for (AnyP::PortCfgPointer s = FtpPortList; s != NULL; s = s->next) {
+    for (auto &s: FtpPorts()) {
         if (s->listenConn != NULL) {
             debugs(1, DBG_IMPORTANT, "Closing FTP port " << s->listenConn->local);
             s->listenConn->close();
