@@ -74,7 +74,7 @@ private:
     explicit PortCfg(const PortCfg &other); // for ipV4clone() needs only!
 };
 
-/// iterates over a PortCfg list
+/// Iterates over a PortCfg list and sets the corresponding CodeContext before each iteration.
 class PortIterator
 {
 public:
@@ -84,7 +84,7 @@ public:
     using pointer = value_type *;
     using reference = value_type &;
 
-    explicit PortIterator(const PortCfgPointer &first): position_(first) {}
+    explicit PortIterator(const PortCfgPointer &first): position_(first) { setContext(); }
     // special constructor for end() iterator
     PortIterator(): position_(nullptr) {}
 
@@ -105,13 +105,14 @@ protected:
 };
 
 /// Decides which list of port configurations to iterate in range-based for loops.
+/// Restores the saved CodeContext at the end of the loop.
 class PortCfgSelector
 {
 public:
     explicit PortCfgSelector(AnyP::PortCfgPointer &p): first_(p), savedContext(CodeContext::Current()) {}
     ~PortCfgSelector() { CodeContext::Reset(savedContext); }
 
-    PortIterator begin() const { PortIterator it{first_}; it.setContext(); return it; }
+    PortIterator begin() const { return PortIterator {first_}; }
     PortIterator end() const { return PortIterator(); }
 
 private:
