@@ -3313,11 +3313,11 @@ clientHttpConnectionsOpen(void)
 #if USE_OPENSSL
         if (s->flags.tunnelSslBumping) {
             if (!Config.accessList.ssl_bump) {
-                debugs(33, DBG_IMPORTANT, "WARNING: No ssl_bump configured. Disabling ssl-bump on " << scheme);
+                debugs(33, DBG_IMPORTANT, "WARNING: No ssl_bump configured. Disabling ssl-bump");
                 s->flags.tunnelSslBumping = false;
             }
             if (!s->secure.staticContext && !s->secure.generateHostCertificates) {
-                debugs(1, DBG_IMPORTANT, "Will not bump SSL at " << scheme << " due to TLS initialization failure.");
+                debugs(1, DBG_IMPORTANT, "Will not bump SSL due to TLS initialization failure.");
                 s->flags.tunnelSslBumping = false;
                 if (s->transport.protocol == AnyP::PROTO_HTTP)
                     s->secure.encryptTransport = false;
@@ -3330,7 +3330,7 @@ clientHttpConnectionsOpen(void)
 #endif
 
         if (s->secure.encryptTransport && !s->secure.staticContext) {
-            debugs(1, DBG_CRITICAL, "ERROR: Ignoring " << scheme << " due to TLS context initialization failure.");
+            debugs(1, DBG_CRITICAL, "ERROR: Will not open for listening due to TLS context initialization failure.");
             continue;
         }
 

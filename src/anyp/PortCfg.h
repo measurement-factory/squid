@@ -100,12 +100,11 @@ public:
     void setContext() { if (position_) CodeContext::Reset(position_); }
 
 protected:
-
     value_type position_; ///< current iteration location
 };
 
 /// Decides which list of port configurations to iterate in range-based for loops.
-/// Restores the saved CodeContext at the end of the loop.
+/// Saves and restores the current CodeContext.
 class PortCfgSelector
 {
 public:
