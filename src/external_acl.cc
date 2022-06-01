@@ -905,7 +905,8 @@ public:
         callback_data(NULL),
         key(xstrdup(aKey)),
         def(cbdataReference(aDef)),
-        queue(NULL)
+        queue(nullptr),
+        codeContext(CodeContext::Current())
     {}
     ~externalAclState();
 
@@ -915,6 +916,7 @@ public:
     external_acl *def;
     dlink_node list;
     externalAclState *queue;
+    CodeContextPointer codeContext;
 };
 
 CBDATA_CLASS_INIT(externalAclState);
@@ -999,9 +1001,11 @@ externalAclHandleReply(void *data, const Helper::Reply &reply)
         entry = external_acl_cache_add(state->def, state->key, entryData);
 
     do {
-        void *cbdata;
-        if (state->callback && cbdataReferenceValidDone(state->callback_data, &cbdata))
-            state->callback(cbdata, entry);
+        CallBack(state->codeContext, [&] {
+            void *cbdata = nullptr;
+            if (state->callback && cbdataReferenceValidDone(state->callback_data, &cbdata))
+                state->callback(cbdata, entry);
+        });
 
         next = state->queue;
         state->queue = NULL;
