@@ -85,7 +85,7 @@ HandleBadRawType(const RawSwapMetaType type)
     // with that type (or even the whole Store entry with that field).
 
     if (type > SwapMetaTypeMax + 10) {
-        debugs(20, DBG_CRITICAL, "ERROR: Malformed cache storage; ignoring swap meta field with unexpected type: " << int(type));
+        debugs(20, DBG_CRITICAL, "ERROR: Malformed cache storage; ignoring swap meta field with an unexpected type: " << int(type));
         return;
     }
 
@@ -95,7 +95,7 @@ HandleBadRawType(const RawSwapMetaType type)
     }
 
     Assure(type <= 0);
-    debugs(20, DBG_CRITICAL, "ERROR: Malformed cache storage; ignoring swap meta field with invalid type: " << int(type));
+    debugs(20, DBG_CRITICAL, "ERROR: Malformed cache storage; ignoring swap meta field with an invalid type: " << int(type));
 }
 
 /// a helper function to safely extract one item from raw bounded input

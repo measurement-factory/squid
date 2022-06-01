@@ -25,7 +25,7 @@ PackSwapMeta(std::ostream &os, const SwapMetaType type, const size_t length, con
 {
     // Outside of packing/unpacking code, we correctly use SwapMetaType for
     // valid swap meta types now, but we store these values as "char".
-    static_assert(SwapMetaTypeMax <= std::numeric_limits<char>::max());
+    static_assert(SwapMetaTypeMax <= std::numeric_limits<char>::max(), "char fits all SwapMetaType values");
     const auto rawType = static_cast<char>(type);
 
     if (length > SwapMetaFieldValueLengthMax)
@@ -34,7 +34,7 @@ PackSwapMeta(std::ostream &os, const SwapMetaType type, const size_t length, con
     // Outside of packing/unpacking code, we correctly use size_t for value
     // sizes now, but old code stored these values as "int" (of an unknown size)
     // so we continue to do so to be able to load meta fields from old caches.
-    static_assert(SwapMetaFieldValueLengthMax <= uint64_t(std::numeric_limits<int>::max()));
+    static_assert(SwapMetaFieldValueLengthMax <= uint64_t(std::numeric_limits<int>::max()), "int fits all SwapMeta value sizes");
     const auto rawLength = static_cast<int>(length);
 
     if (!os.write(reinterpret_cast<const char*>(&rawType), sizeof(rawType)) ||
