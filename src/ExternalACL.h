@@ -26,10 +26,11 @@ public:
     // If possible, starts an asynchronous lookup of an external ACL.
     // Otherwise, asserts (or bails if background refresh is requested).
     static void Start(ACLChecklist *checklist, external_acl_data *acl, bool bg);
+    /// called when an async lookup returns
+    static void LookupDone(void *data, const ExternalACLEntryPointer &result);
 
 private:
     static ExternalACLLookup instance_;
-    static void LookupDone(void *data, const ExternalACLEntryPointer &result);
 };
 
 #include "acl/Acl.h"

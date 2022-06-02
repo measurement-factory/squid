@@ -11,6 +11,7 @@
 #include "squid.h"
 #include "acl/Acl.h"
 #include "acl/FilledChecklist.h"
+#include "base/AsyncCbdataCalls.h"
 #include "cache_cf.h"
 #include "client_side.h"
 #include "client_side_request.h"
@@ -901,22 +902,26 @@ class externalAclState
 
 public:
     externalAclState(external_acl* aDef, const char *aKey) :
-        callback(NULL),
         callback_data(NULL),
         key(xstrdup(aKey)),
         def(cbdataReference(aDef)),
-        queue(nullptr),
-        codeContext(CodeContext::Current())
+        queue(nullptr)
     {}
     ~externalAclState();
 
-    EAH *callback;
+    static void Callback(externalAclState *state) {
+        void *cbdata = nullptr;
+        if (cbdataReferenceValidDone(state->callback_data, &cbdata))
+            ExternalACLLookup::LookupDone(cbdata, state->entry);
+    }
+
+    AsyncCall::Pointer callback;
     void *callback_data;
     char *key;
     external_acl *def;
     dlink_node list;
     externalAclState *queue;
-    CodeContextPointer codeContext;
+    ExternalACLEntryPointer entry;
 };
 
 CBDATA_CLASS_INIT(externalAclState);
@@ -1001,11 +1006,10 @@ externalAclHandleReply(void *data, const Helper::Reply &reply)
         entry = external_acl_cache_add(state->def, state->key, entryData);
 
     do {
-        CallBack(state->codeContext, [&] {
-            void *cbdata = nullptr;
-            if (state->callback && cbdataReferenceValidDone(state->callback_data, &cbdata))
-                state->callback(cbdata, entry);
-        });
+        state->entry = entry;
+        if (state->callback) {
+            ScheduleCallHere(state->callback);
+        }
 
         next = state->queue;
         state->queue = NULL;
@@ -1058,7 +1062,7 @@ ExternalACLLookup::Start(ACLChecklist *checklist, external_acl_data *acl, bool i
     externalAclState *state = new externalAclState(def, key);
 
     if (!inBackground) {
-        state->callback = &ExternalACLLookup::LookupDone;
+        state->callback = asyncCall(82, 4, "externalAclState::Callback", cbdataDialer(externalAclState::Callback, state));
         state->callback_data = cbdataReference(checklist);
     }
 
@@ -1163,7 +1167,6 @@ ExternalACLLookup::checkForAsync(ACLChecklist *checklist)const
     ACLExternal::ExternalAclLookup(checklist, me);
 }
 
-/// Called when an async lookup returns
 void
 ExternalACLLookup::LookupDone(void *data, const ExternalACLEntryPointer &result)
 {
