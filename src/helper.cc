@@ -449,8 +449,11 @@ helper::submitRequest(Helper::Xaction *r)
 
     if ((srv = GetFirstAvailable(this)))
         helperDispatch(srv, r);
-    else
-        Enqueue(this, r);
+    else {
+        CallService(nullptr, [&] {
+            Enqueue(this, r);
+        });
+    }
 
     syncQueueStats();
 }
@@ -663,8 +666,11 @@ statefulhelper::submit(const char *buf, HLPCB * callback, void *data, const Help
         if ((srv = StatefulGetFirstAvailable(this))) {
             reserveServer(srv);
             helperStatefulDispatch(srv, r);
-        } else
-            StatefulEnqueue(this, r);
+        } else {
+            CallService(nullptr, [&] {
+                StatefulEnqueue(this, r);
+            });
+        }
     }
 
     debugs(84, DBG_DATA, "placeholder: '" << r->request.placeholder <<
@@ -1207,10 +1213,8 @@ Enqueue(helper * hlp, Helper::Xaction * r)
 
     /* do this first so idle=N has a chance to grow the child pool before it hits critical. */
     if (hlp->childs.needNew() > 0) {
-        CallService(nullptr, [&hlp] {
-            debugs(84, DBG_CRITICAL, "Starting new " << hlp->id_name << " helpers...");
-            helperOpenServers(hlp);
-        });
+        debugs(84, DBG_CRITICAL, "Starting new " << hlp->id_name << " helpers...");
+        helperOpenServers(hlp);
         return;
     }
 
