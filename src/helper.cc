@@ -449,11 +449,8 @@ helper::submitRequest(Helper::Xaction *r)
 
     if ((srv = GetFirstAvailable(this)))
         helperDispatch(srv, r);
-    else {
-        CallService(nullptr, [&] {
-            Enqueue(this, r);
-        });
-    }
+    else
+        Enqueue(this, r);
 
     syncQueueStats();
 }
@@ -548,11 +545,12 @@ helper::prepSubmit()
 bool
 helper::trySubmit(const char *buf, HLPCB * callback, void *data)
 {
-    if (!prepSubmit())
-        return false; // request was dropped
-
-    submit(buf, callback, data); // will send or queue
-    return true; // request submitted or queued
+    auto preparedForSubmission = false;
+    CallService(nullptr, [&] {
+        if ((preparedForSubmission = prepSubmit()))
+            submit(buf, callback, data); // will send or queue
+    });
+    return preparedForSubmission;
 }
 
 /// dispatches or enqueues a helper requests; does not enforce queue limits
@@ -577,11 +575,12 @@ helperStatefulSubmit(statefulhelper * hlp, const char *buf, HLPCB * callback, vo
 bool
 statefulhelper::trySubmit(const char *buf, HLPCB * callback, void *data, const Helper::ReservationId & reservation)
 {
-    if (!prepSubmit())
-        return false; // request was dropped
-
-    submit(buf, callback, data, reservation); // will send or queue
-    return true; // request submitted or queued
+    auto preparedForSubmission = false;
+    CallService(nullptr, [&] {
+        if ((preparedForSubmission = prepSubmit()))
+            submit(buf, callback, data, reservation); // will send or queue
+    });
+    return preparedForSubmission;
 }
 
 void
@@ -967,7 +966,9 @@ helperReturnBuffer(helper_server * srv, helper * hlp, char * msg, size_t msgSize
         srv->replyXaction = nullptr;
         if (retry) {
             ++r->request.retries;
-            hlp->submitRequest(r);
+            CallService(nullptr, [&] {
+                hlp->submitRequest(r);
+            });
         } else
             delete r;
     }
@@ -1536,7 +1537,9 @@ helper_server::checkForTimedOutRequests(bool const retry)
         if (retry && r->request.retries < MAX_RETRIES && cbdataReferenceValid(r->request.data)) {
             debugs(84, 2, "Retry request " << r->request.Id);
             ++r->request.retries;
-            parent->submitRequest(r);
+            CallService(nullptr, [&] {
+                parent->submitRequest(r);
+            });
             retried = true;
         } else if (cbdataReferenceValidDone(r->request.data, &cbdata)) {
             if (!parent->onTimedOutResponse.isEmpty()) {
