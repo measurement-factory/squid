@@ -545,6 +545,7 @@ helper::prepSubmit()
 bool
 helper::trySubmit(const char *buf, HLPCB * callback, void *data)
 {
+    // TODO: Simplify to `return CallService(...)` with C++17 auto return types
     auto preparedForSubmission = false;
     CallService(nullptr, [&] {
         if ((preparedForSubmission = prepSubmit()))
@@ -665,11 +666,8 @@ statefulhelper::submit(const char *buf, HLPCB * callback, void *data, const Help
         if ((srv = StatefulGetFirstAvailable(this))) {
             reserveServer(srv);
             helperStatefulDispatch(srv, r);
-        } else {
-            CallService(nullptr, [&] {
-                StatefulEnqueue(this, r);
-            });
-        }
+        } else
+            StatefulEnqueue(this, r);
     }
 
     debugs(84, DBG_DATA, "placeholder: '" << r->request.placeholder <<
@@ -966,9 +964,7 @@ helperReturnBuffer(helper_server * srv, helper * hlp, char * msg, size_t msgSize
         srv->replyXaction = nullptr;
         if (retry) {
             ++r->request.retries;
-            CallService(nullptr, [&] {
-                hlp->submitRequest(r);
-            });
+            hlp->submitRequest(r);
         } else
             delete r;
     }
@@ -1537,9 +1533,7 @@ helper_server::checkForTimedOutRequests(bool const retry)
         if (retry && r->request.retries < MAX_RETRIES && cbdataReferenceValid(r->request.data)) {
             debugs(84, 2, "Retry request " << r->request.Id);
             ++r->request.retries;
-            CallService(nullptr, [&] {
-                parent->submitRequest(r);
-            });
+            parent->submitRequest(r);
             retried = true;
         } else if (cbdataReferenceValidDone(r->request.data, &cbdata)) {
             if (!parent->onTimedOutResponse.isEmpty()) {
