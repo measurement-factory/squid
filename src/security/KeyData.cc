@@ -99,18 +99,18 @@ Security::KeyData::loadX509ChainFromFile()
     }
 
     if (SelfSigned(*cert)) {
-        debugs(83, DBG_PARSE_NOTE(2), "Certificate is self-signed, will not be chained: " << *cert);
+        debugs(83, DBG_PARSE_NOTE(2), "Signing certificate is self-signed: " << *cert);
+        // TODO: Warn if there are other (unusable) certificates present.
     } else {
         debugs(83, DBG_PARSE_NOTE(3), "Using certificate chain in " << certFile);
         // and add to the chain any other certificate exist in the file
         CertPointer latestCert = cert;
 
         while (const auto ca = Ssl::ReadOptionalCertificate(bio)) {
-
             // checks that the chained certs are actually part of a chain for validating cert
             if (IssuedBy(*latestCert, *ca)) {
 
-                if (SelfSigned(*latestCert)) {
+                if (SelfSigned(*latestCert)) { // TODO: Rename to lastChained
                     Assure(SelfSigned(*ca));
                     Assure(!SelfSigned(*cert)); // TODO: Rename to leafCert or signingCert
                     debugs(83, DBG_PARSE_NOTE(2), "WARNING: Ignoring repeated Root CA: " << *ca);
