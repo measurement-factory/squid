@@ -8,6 +8,7 @@
 
 #include "squid.h"
 #include "anyp/PortCfg.h"
+#include "base/Assure.h"
 #include "fatal.h"
 #include "security/KeyData.h"
 #include "SquidConfig.h"
@@ -77,6 +78,15 @@ Security::KeyData::loadX509CertFromFile()
     return bool(cert);
 }
 
+#if USE_OPENSSL
+// a simpler replacement of SelfSigned() from master/v6 commit 907831e
+static bool
+SelfSigned(Security::Certificate &cert)
+{
+    return X509_check_issued(&cert, &cert) == X509_V_OK;
+}
+#endif
+
 /**
  * Read certificate from file.
  * See also: Ssl::ReadX509Certificate function, gadgets.cc file
@@ -93,14 +103,12 @@ Security::KeyData::loadX509ChainFromFile()
         return;
     }
 
-#if TLS_CHAIN_NO_SELFSIGNED // ignore self-signed certs in the chain
-    if (X509_check_issued(cert.get(), cert.get()) == X509_V_OK) {
+    if (SelfSigned(*cert)) {
         char *nameStr = X509_NAME_oneline(X509_get_subject_name(cert.get()), nullptr, 0);
-        debugs(83, DBG_PARSE_NOTE(2), "Certificate is self-signed, will not be chained: " << nameStr);
+        debugs(83, DBG_PARSE_NOTE(2), "Signing certificate is self-signed: " << nameStr);
         OPENSSL_free(nameStr);
-    } else
-#endif
-    {
+        // TODO: Warn if there are other (unusable) certificates present.
+    } else {
         debugs(83, DBG_PARSE_NOTE(3), "Using certificate chain in " << certFile);
         // and add to the chain any other certificate exist in the file
         CertPointer latestCert = cert;
@@ -109,17 +117,18 @@ Security::KeyData::loadX509ChainFromFile()
             // get Issuer name of the cert for debug display
             char *nameStr = X509_NAME_oneline(X509_get_subject_name(ca.get()), nullptr, 0);
 
-#if TLS_CHAIN_NO_SELFSIGNED // ignore self-signed certs in the chain
-            // self-signed certificates are not valid in a sent chain
-            if (X509_check_issued(ca.get(), ca.get()) == X509_V_OK) {
-                debugs(83, DBG_PARSE_NOTE(2), "CA " << nameStr << " is self-signed, will not be chained: " << nameStr);
-                OPENSSL_free(nameStr);
-                continue;
-            }
-#endif
             // checks that the chained certs are actually part of a chain for validating cert
             const auto checkCode = X509_check_issued(ca.get(), latestCert.get());
             if (checkCode == X509_V_OK) {
+
+                if (SelfSigned(*latestCert)) {
+                    Assure(SelfSigned(*ca));
+                    Assure(!SelfSigned(*cert)); // TODO: Rename to leafCert or signingCert
+                    debugs(83, DBG_PARSE_NOTE(2), "WARNING: Ignoring repeated Root CA: " << nameStr);
+                    OPENSSL_free(nameStr);
+                    continue;
+                }
+
                 debugs(83, DBG_PARSE_NOTE(3), "Adding issuer CA: " << nameStr);
                 // OpenSSL API requires that we order certificates such that the
                 // chain can be appended directly into the on-wire traffic.
