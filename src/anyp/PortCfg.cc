@@ -119,12 +119,12 @@ AnyP::PortCfg::detailCodeContext(std::ostream &os) const
 AnyP::PortCfgSelector
 HttpPorts()
 {
-    return AnyP::PortCfgSelector{HttpPortList};
+    return AnyP::PortCfgSelector(HttpPortList, true);
 }
 
 AnyP::PortCfgSelector
 FtpPorts()
 {
-    return AnyP::PortCfgSelector{FtpPortList};
+    return AnyP::PortCfgSelector(FtpPortList, true);
 }
 
