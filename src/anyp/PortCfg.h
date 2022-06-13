@@ -122,14 +122,15 @@ protected:
     CodeContext::Pointer savedContext; ///< the old context
 };
 
-/// Decides which list of port configurations to iterate in range-based for loops.
-/// Saves and restores the current CodeContext.
-class PortCfgSelector
+/// A range of port configurations.
+class PortCfgRange
 {
 public:
-    explicit PortCfgSelector(AnyP::PortCfgPointer &p, bool restoreContext):
-        first_(p), restoreSavedContext(restoreContext), savedContext(CodeContext::Current()) {}
-    ~PortCfgSelector() { if (restoreSavedContext) CodeContext::Reset(savedContext); }
+    /// \param first the start of the range
+    /// \param restoreContext whether to reset context to its original value on destruction
+    explicit PortCfgRange(AnyP::PortCfgPointer &first, bool restoreContext):
+        first_(first), restoreSavedContext(restoreContext), savedContext(CodeContext::Current()) {}
+    ~PortCfgRange() { if (restoreSavedContext) CodeContext::Reset(savedContext); }
 
     PortIterator begin() const {
         // do not restore the context twice
@@ -148,12 +149,12 @@ private:
 /// list of Squid http(s)_port configured
 extern AnyP::PortCfgPointer HttpPortList;
 
-AnyP::PortCfgSelector HttpPorts();
+AnyP::PortCfgRange HttpPorts();
 
 /// list of Squid ftp_port configured
 extern AnyP::PortCfgPointer FtpPortList;
 
-AnyP::PortCfgSelector FtpPorts();
+AnyP::PortCfgRange FtpPorts();
 
 #if !defined(MAXTCPLISTENPORTS)
 // Max number of TCP listening ports
