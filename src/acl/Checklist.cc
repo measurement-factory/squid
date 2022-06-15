@@ -230,6 +230,7 @@ ACLChecklist::asyncState() const
 
 /**
  * Kick off a non-blocking (slow) ACL access list test
+ * Requires the object configured with a non-nil ACL list.
  *
  * NP: this should probably be made Async now.
  */
