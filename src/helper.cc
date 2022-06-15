@@ -134,7 +134,9 @@ HelperServerBase::dropQueued()
         void *cbdata;
         if (cbdataReferenceValidDone(r->request.data, &cbdata)) {
             r->reply.result = Helper::Unknown;
-            r->request.callback(cbdata, r->reply);
+            CallBack(nullptr, [&] {
+                r->request.callback(cbdata, r->reply);
+            });
         }
 
         delete r;
@@ -655,7 +657,9 @@ statefulhelper::submit(const char *buf, HLPCB * callback, void *data, const Help
         if (!lastServer) {
             debugs(84, DBG_CRITICAL, "ERROR: Helper " << id_name << " reservation expired (" << reservation << ")");
             r->reply.result = Helper::TimedOut;
-            r->request.callback(r->request.data, r->reply);
+            CallBack(nullptr, [&] {
+                r->request.callback(r->request.data, r->reply);
+            });
             delete r;
             return;
         }
@@ -941,8 +945,11 @@ helperReturnBuffer(helper_server * srv, helper * hlp, char * msg, size_t msgSize
                 HLPCB *callback = r->request.callback;
                 r->request.callback = nullptr;
                 void *cbdata = nullptr;
-                if (cbdataReferenceValidDone(r->request.data, &cbdata))
-                    callback(cbdata, r->reply);
+                if (cbdataReferenceValidDone(r->request.data, &cbdata)) {
+                    CallBack(nullptr, [&] {
+                        callback(cbdata, r->reply);
+                    });
+                }
             }
         }
 
@@ -1168,7 +1175,9 @@ helperStatefulHandleRead(const Comm::ConnectionPointer &conn, char *, size_t len
         if (r && cbdataReferenceValid(r->request.data)) {
             r->reply.finalize();
             r->reply.reservationId = srv->reservationId;
-            r->request.callback(r->request.data, r->reply);
+            CallBack(nullptr, [&] {
+                r->request.callback(r->request.data, r->reply);
+            });
         } else {
             debugs(84, DBG_IMPORTANT, "StatefulHandleRead: no callback data registered");
             called = 0;
@@ -1457,7 +1466,9 @@ helperStatefulDispatch(helper_stateful_server * srv, Helper::Xaction * r)
         /* we don't care about releasing this helper. The request NEVER
          * gets to the helper. So we throw away the return code */
         r->reply.result = Helper::Unknown;
-        r->request.callback(r->request.data, r->reply);
+        CallBack(nullptr, [&] {
+            r->request.callback(r->request.data, r->reply);
+        });
         /* throw away the placeholder */
         delete r;
         /* and push the queue. Note that the callback may have submitted a new
@@ -1541,10 +1552,14 @@ helper_server::checkForTimedOutRequests(bool const retry)
                     r->reply.finalize();
                 else
                     r->reply.result = Helper::TimedOut;
-                r->request.callback(cbdata, r->reply);
+                CallBack(nullptr, [&] {
+                    r->request.callback(cbdata, r->reply);
+                });
             } else {
                 r->reply.result = Helper::TimedOut;
-                r->request.callback(cbdata, r->reply);
+                CallBack(nullptr, [&] {
+                    r->request.callback(cbdata, r->reply);
+                });
             }
         }
         --stats.pending;
