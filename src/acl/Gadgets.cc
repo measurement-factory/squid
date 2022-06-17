@@ -32,6 +32,7 @@
 
 #include <set>
 #include <algorithm>
+#include <memory>
 
 typedef std::set<ACL*> AclSet;
 /// Accumulates all ACLs to facilitate their clean deletion despite reuse.
@@ -140,22 +141,16 @@ aclParseAccessLine(const char *directive, ConfigParser &, acl_access **treep)
     /* first expect either 'allow' or 'deny' */
     const char *t = ConfigParser::NextToken();
 
-    if (!t) {
-        debugs(28, DBG_CRITICAL, "aclParseAccessLine: " << cfg_filename << " line " << config_lineno << ": " << config_input_line);
-        debugs(28, DBG_CRITICAL, "ERROR: aclParseAccessLine: missing 'allow' or 'deny'.");
-        return;
-    }
+    if (!t)
+        throw TextException("missing 'allow' or 'deny'", Here());
 
     auto action = Acl::Answer(ACCESS_DUNNO);
     if (!strcmp(t, "allow"))
         action = Acl::Answer(ACCESS_ALLOWED);
     else if (!strcmp(t, "deny"))
         action = Acl::Answer(ACCESS_DENIED);
-    else {
-        debugs(28, DBG_CRITICAL, "aclParseAccessLine: " << cfg_filename << " line " << config_lineno << ": " << config_input_line);
-        debugs(28, DBG_CRITICAL, "aclParseAccessLine: expecting 'allow' or 'deny', got '" << t << "'.");
-        return;
-    }
+    else
+        throw TextException(ToSBuf("unexpected '", t, "' instead of 'allow' or 'deny'"), Here());
 
     const int ruleId = ((treep && *treep) ? (*treep)->childrenCount() : 0) + 1;
     MemBuf ctxBuf;
@@ -163,15 +158,11 @@ aclParseAccessLine(const char *directive, ConfigParser &, acl_access **treep)
     ctxBuf.appendf("%s#%d", directive, ruleId);
     ctxBuf.terminate();
 
-    Acl::AndNode *rule = new Acl::AndNode;
+    std::unique_ptr<Acl::AndNode> rule(new Acl::AndNode);
     rule->context(ctxBuf.content(), config_input_line);
     rule->lineParse();
-    if (rule->empty()) {
-        debugs(28, DBG_CRITICAL, "aclParseAccessLine: " << cfg_filename << " line " << config_lineno << ": " << config_input_line);
-        debugs(28, DBG_CRITICAL, "aclParseAccessLine: Access line contains no ACL's, skipping");
-        delete rule;
-        return;
-    }
+    if (rule->empty())
+        throw TextException("must specify at least one ACL", Here());
 
     /* Append to the end of this list */
 
@@ -181,7 +172,7 @@ aclParseAccessLine(const char *directive, ConfigParser &, acl_access **treep)
         (*treep)->context(directive, config_input_line);
     }
 
-    (*treep)->add(rule, action);
+    (*treep)->add(rule.release(), action);
 
     /* We lock _acl_access structures in ACLChecklist::matchNonBlocking() */
 }
