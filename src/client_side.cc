@@ -2568,8 +2568,8 @@ ConnStateData::postHttpsAccept()
         const char *log_uri = http ? http->log_uri : nullptr;
         acl_checklist->syncAle(request, log_uri);
         AsyncCall::Pointer callback = asyncCall(88, 4,
-                "ConnStateData::httpsSslBumpAccessCheckDone",
-                CheckListAnswerDialer<ConnStateData>(&ConnStateData::httpsSslBumpAccessCheckDone, this));
+                                                "ConnStateData::httpsSslBumpAccessCheckDone",
+                                                CheckListAnswerDialer<ConnStateData>(&ConnStateData::httpsSslBumpAccessCheckDone, this));
 
         acl_checklist->nonBlockingCheck(callback);
 #else
@@ -3042,7 +3042,7 @@ ConnStateData::startPeekAndSplice()
         fillChecklist(*acl_checklist);
         AsyncCall::Pointer callback = asyncCall(88, 4,
                                                 "ConnStateData::httpsSslBumpStep2AccessCheckDone",
-												CheckListAnswerDialer<ConnStateData>(&ConnStateData::httpsSslBumpStep2AccessCheckDone, this));
+                                                CheckListAnswerDialer<ConnStateData>(&ConnStateData::httpsSslBumpStep2AccessCheckDone, this));
 
         acl_checklist->nonBlockingCheck(callback);
         return;
@@ -3345,7 +3345,7 @@ clientHttpConnectionsOpen(void)
         const auto isHttps = protocol == AnyP::PROTO_HTTPS;
         using AcceptCall = CommCbFunPtrCallT<CommAcceptCbPtrFun>;
         RefCount<AcceptCall> subCall = commCbCall(5, 5, isHttps ? "httpsAccept" : "httpAccept",
-                CommAcceptCbPtrFun(isHttps ? httpsAccept : httpAccept, CommAcceptCbParams(nullptr)));
+                                       CommAcceptCbPtrFun(isHttps ? httpsAccept : httpAccept, CommAcceptCbParams(nullptr)));
         clientStartListeningOn(s, subCall, isHttps ? Ipc::fdnHttpsSocket : Ipc::fdnHttpSocket);
     }
 }

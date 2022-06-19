@@ -9,8 +9,8 @@
 #ifndef SQUID_CLIENTSIDEREPLY_H
 #define SQUID_CLIENTSIDEREPLY_H
 
-#include "acl/forward.h"
 #include "acl/Checklist.h"
+#include "acl/forward.h"
 #include "base/AsyncCall.h"
 #include "client_side_request.h"
 #include "ip/forward.h"

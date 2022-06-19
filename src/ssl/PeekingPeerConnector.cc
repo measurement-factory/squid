@@ -31,7 +31,7 @@ class PeekingPeerConnectorAnswerDialer: public UnaryMemFunT<Ssl::PeekingPeerConn
     public ACLChecklist::CbDialer
 {
 public:
-	PeekingPeerConnectorAnswerDialer(const JobPointer &aJob, Method aMethod):
+    PeekingPeerConnectorAnswerDialer(const JobPointer &aJob, Method aMethod):
         UnaryMemFunT<Ssl::PeekingPeerConnector, Acl::Answer, const Acl::Answer&>(aJob, aMethod, Acl::Answer()) {}
 
     /* Security::PeerConnector::CbDialer API */
@@ -93,8 +93,8 @@ Ssl::PeekingPeerConnector::checkForPeekAndSplice()
     acl_checklist->syncAle(request.getRaw(), nullptr);
 
     AsyncCall::Pointer cb = asyncCall(83, 4,
-                                        "Ssl::PeekingPeerConnector::checkForPeekAndSpliceDone",
-										 PeekingPeerConnectorAnswerDialer(this, &PeekingPeerConnector::checkForPeekAndSpliceDone));
+                                      "Ssl::PeekingPeerConnector::checkForPeekAndSpliceDone",
+                                      PeekingPeerConnectorAnswerDialer(this, &PeekingPeerConnector::checkForPeekAndSpliceDone));
 
     acl_checklist->nonBlockingCheck(cb);
 }

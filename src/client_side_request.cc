@@ -656,7 +656,6 @@ ClientRequestContext::clientAccessCheck()
                                                 "ClientRequestContext::clientAccessCheckDone",
                                                 CheckListAnswerDialer<ClientRequestContext>(&ClientRequestContext::clientAccessCheckDone, this));
 
-
         acl_checklist = clientAclChecklistCreate(Config.accessList.http, http);
         acl_checklist->nonBlockingCheck(callback);
     } else {
