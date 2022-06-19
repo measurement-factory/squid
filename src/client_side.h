@@ -461,6 +461,8 @@ private:
     /// same-key context, if any
     void storeTlsContextToCache(const SBuf &cacheKey, Security::ContextPointer &ctx);
     void handleSslBumpHandshakeError(const Security::IoResult &);
+    void httpsSslBumpAccessCheckDone(const Acl::Answer &);
+    void httpsSslBumpStep2AccessCheckDone(const Acl::Answer &);
 #endif
 
     /// whether PROXY protocol header is still expected

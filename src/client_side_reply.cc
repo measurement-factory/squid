@@ -54,6 +54,8 @@ CBDATA_CLASS_INIT(clientReplyContext);
 extern "C" CSS clientReplyStatus;
 ErrorState *clientBuildError(err_type, Http::StatusCode, char const *, const ConnStateData *, HttpRequest *, const AccessLogEntry::Pointer &);
 
+
+
 /* privates */
 
 clientReplyContext::~clientReplyContext()
@@ -1926,19 +1928,17 @@ clientReplyContext::processReplyAccess ()
         return;
     }
 
+    AsyncCall::Pointer callback = asyncCall(88, 4,
+                                            "clientReplyContext::processReplyAccessResult",
+                                            CheckListAnswerDialer<clientReplyContext>(&clientReplyContext::processReplyAccessResult, this));
+
+
     /** Process http_reply_access lists */
     ACLFilledChecklist *replyChecklist =
         clientAclChecklistCreate(Config.accessList.reply, http);
     replyChecklist->reply = reply;
     HTTPMSGLOCK(replyChecklist->reply);
-    replyChecklist->nonBlockingCheck(ProcessReplyAccessResult, this);
-}
-
-void
-clientReplyContext::ProcessReplyAccessResult(Acl::Answer rv, void *voidMe)
-{
-    clientReplyContext *me = static_cast<clientReplyContext *>(voidMe);
-    me->processReplyAccessResult(rv);
+    replyChecklist->nonBlockingCheck(callback);
 }
 
 void

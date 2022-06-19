@@ -10,6 +10,7 @@
 
 #include "squid.h"
 #include "acl/FilledChecklist.h"
+#include "base/AsyncJobCalls.h"
 #include "client_side.h"
 #include "errorpage.h"
 #include "fde.h"
@@ -24,6 +25,18 @@
 #include "tunnel.h"
 
 CBDATA_NAMESPACED_CLASS_INIT(Ssl, PeekingPeerConnector);
+
+/// AsyncCall dialer, supplying an Ssl::PeekingPeerConnector callback with Acl::Answer
+class PeekingPeerConnectorAnswerDialer: public UnaryMemFunT<Ssl::PeekingPeerConnector, Acl::Answer, const Acl::Answer &>,
+    public ACLChecklist::CbDialer
+{
+public:
+	PeekingPeerConnectorAnswerDialer(const JobPointer &aJob, Method aMethod):
+        UnaryMemFunT<Ssl::PeekingPeerConnector, Acl::Answer, const Acl::Answer&>(aJob, aMethod, Acl::Answer()) {}
+
+    /* Security::PeerConnector::CbDialer API */
+    virtual Acl::Answer &answer() { return arg1; }
+};
 
 Ssl::PeekingPeerConnector::PeekingPeerConnector(HttpRequestPointer &aRequest,
         const Comm::ConnectionPointer &aServerConn,
@@ -48,15 +61,7 @@ Ssl::PeekingPeerConnector::PeekingPeerConnector(HttpRequestPointer &aRequest,
 }
 
 void
-Ssl::PeekingPeerConnector::cbCheckForPeekAndSpliceDone(const Acl::Answer aclAnswer, void *data)
-{
-    Ssl::PeekingPeerConnector *peerConnect = (Ssl::PeekingPeerConnector *) data;
-    // Use job calls to add done() checks and other job logic/protections.
-    CallJobHere1(83, 7, CbcPointer<PeekingPeerConnector>(peerConnect), Ssl::PeekingPeerConnector, checkForPeekAndSpliceDone, aclAnswer);
-}
-
-void
-Ssl::PeekingPeerConnector::checkForPeekAndSpliceDone(const Acl::Answer aclAnswer)
+Ssl::PeekingPeerConnector::checkForPeekAndSpliceDone(const Acl::Answer &aclAnswer)
 {
     const Ssl::BumpMode finalAction = aclAnswer.allowed() ?
                                       static_cast<Ssl::BumpMode>(aclAnswer.kind):
@@ -86,7 +91,12 @@ Ssl::PeekingPeerConnector::checkForPeekAndSplice()
     if (!srvBio->canBump())
         acl_checklist->banAction(Acl::Answer(ACCESS_ALLOWED, Ssl::bumpBump));
     acl_checklist->syncAle(request.getRaw(), nullptr);
-    acl_checklist->nonBlockingCheck(Ssl::PeekingPeerConnector::cbCheckForPeekAndSpliceDone, this);
+
+    AsyncCall::Pointer cb = asyncCall(83, 4,
+                                        "Ssl::PeekingPeerConnector::checkForPeekAndSpliceDone",
+										 PeekingPeerConnectorAnswerDialer(this, &PeekingPeerConnector::checkForPeekAndSpliceDone));
+
+    acl_checklist->nonBlockingCheck(cb);
 }
 
 void

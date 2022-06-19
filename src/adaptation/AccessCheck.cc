@@ -135,7 +135,10 @@ Adaptation::AccessCheck::checkCandidates()
                 HTTPMSGLOCK(acl_checklist->reply);
             acl_checklist->al = filter.al;
             acl_checklist->syncAle(filter.request, nullptr);
-            acl_checklist->nonBlockingCheck(AccessCheckCallbackWrapper, this);
+            AsyncCall::Pointer callback = asyncCall(93, 4,
+                                                    "Adaptation::AccessCheck::noteAnswer",
+                                                    CheckListAnswerDialer<AccessCheck>(&AccessCheck::noteAnswer, this));
+            acl_checklist->nonBlockingCheck(callback);
             return;
         }
 
@@ -148,31 +151,15 @@ Adaptation::AccessCheck::checkCandidates()
 }
 
 void
-Adaptation::AccessCheck::AccessCheckCallbackWrapper(Acl::Answer answer, void *data)
+Adaptation::AccessCheck::noteAnswer(const Acl::Answer &answer)
 {
-    debugs(93, 8, "callback answer=" << answer);
-    AccessCheck *ac = (AccessCheck*)data;
+    Must(!candidates.empty()); // the candidate we were checking must be there
+    debugs(93,5, topCandidate() << " answer=" << answer);
 
     /* TODO: AYJ 2008-06-12: If answer == ACCESS_AUTH_REQUIRED
      * we should be kicking off an authentication before continuing
      * with this request. see bug 2400 for details.
      */
-
-    // convert to async call to get async call protections and features
-    typedef UnaryMemFunT<AccessCheck, Acl::Answer> MyDialer;
-    AsyncCall::Pointer call =
-        asyncCall(93,7, "Adaptation::AccessCheck::noteAnswer",
-                  MyDialer(ac, &Adaptation::AccessCheck::noteAnswer, answer));
-    ScheduleCallHere(call);
-
-}
-
-/// process the results of the ACL check
-void
-Adaptation::AccessCheck::noteAnswer(Acl::Answer answer)
-{
-    Must(!candidates.empty()); // the candidate we were checking must be there
-    debugs(93,5, topCandidate() << " answer=" << answer);
 
     if (answer.allowed()) { // the rule matched
         ServiceGroupPointer g = topGroup();

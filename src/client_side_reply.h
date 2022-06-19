@@ -10,6 +10,8 @@
 #define SQUID_CLIENTSIDEREPLY_H
 
 #include "acl/forward.h"
+#include "acl/Checklist.h"
+#include "base/AsyncCall.h"
 #include "client_side_request.h"
 #include "ip/forward.h"
 #include "RequestFlags.h"
@@ -102,7 +104,6 @@ private:
     StoreIOBuffer holdingBuffer;
     HttpReply *reply;
     void processReplyAccess();
-    static ACLCB ProcessReplyAccessResult;
     void processReplyAccessResult(const Acl::Answer &accessAllowed);
     void cloneReply();
     void buildReplyHeader ();

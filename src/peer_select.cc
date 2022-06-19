@@ -339,7 +339,7 @@ PeerSelectionInitiator::startSelectingDestinations(HttpRequest *request, const A
 }
 
 void
-PeerSelector::checkNeverDirectDone(const Acl::Answer answer)
+PeerSelector::checkNeverDirectDone(const Acl::Answer &answer)
 {
     acl_checklist = nullptr;
     debugs(44, 3, answer);
@@ -361,13 +361,7 @@ PeerSelector::checkNeverDirectDone(const Acl::Answer answer)
 }
 
 void
-PeerSelector::CheckNeverDirectDone(Acl::Answer answer, void *data)
-{
-    static_cast<PeerSelector*>(data)->checkNeverDirectDone(answer);
-}
-
-void
-PeerSelector::checkAlwaysDirectDone(const Acl::Answer answer)
+PeerSelector::checkAlwaysDirectDone(const Acl::Answer &answer)
 {
     acl_checklist = nullptr;
     debugs(44, 3, answer);
@@ -386,12 +380,6 @@ PeerSelector::checkAlwaysDirectDone(const Acl::Answer answer)
         break;
     }
     selectMore();
-}
-
-void
-PeerSelector::CheckAlwaysDirectDone(Acl::Answer answer, void *data)
-{
-    static_cast<PeerSelector*>(data)->checkAlwaysDirectDone(answer);
 }
 
 /// \returns true (after destroying "this") if the peer initiator is gone
@@ -620,7 +608,11 @@ PeerSelector::selectMore()
             ch->al = al;
             acl_checklist = ch;
             acl_checklist->syncAle(request, nullptr);
-            acl_checklist->nonBlockingCheck(CheckAlwaysDirectDone, this);
+            AsyncCall::Pointer callback = asyncCall(88, 4,
+                                                    "PeerSelector::checkAlwaysDirectDone",
+                                                    CheckListAnswerDialer<PeerSelector>(&PeerSelector::checkAlwaysDirectDone, this));
+
+            acl_checklist->nonBlockingCheck(callback);
             return;
         } else if (never_direct == ACCESS_DUNNO) {
             debugs(44, 3, "direct = " << DirectStr[direct] << " (never_direct to be checked)");
@@ -629,7 +621,10 @@ PeerSelector::selectMore()
             ch->al = al;
             acl_checklist = ch;
             acl_checklist->syncAle(request, nullptr);
-            acl_checklist->nonBlockingCheck(CheckNeverDirectDone, this);
+            AsyncCall::Pointer callback = asyncCall(88, 4,
+                                                    "PeerSelector::checkAlwaysDirectDone",
+                                                    CheckListAnswerDialer<PeerSelector>(&PeerSelector::checkNeverDirectDone, this));
+            acl_checklist->nonBlockingCheck(callback);
             return;
         } else if (request->flags.noDirect) {
             /** if we are accelerating, direct is not an option. */
