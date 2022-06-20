@@ -37,13 +37,13 @@ public:
     void hostHeaderVerifyFailed(const char *A, const char *B);
     void clientAccessCheck();
     void clientAccessCheck2();
+    /// callback for http access check list
     void clientAccessCheckDone(const Acl::Answer &);
     void clientRedirectStart();
     void clientRedirectDone(const Helper::Reply &);
     void clientStoreIdStart();
     void clientStoreIdDone(const Helper::Reply &);
     void checkNoCache();
-    void checkNoCacheDone(const Acl::Answer &);
 #if USE_ADAPTATION
     void adaptationAccessCheck();
 #endif
@@ -79,6 +79,7 @@ public:
     bool readNextRequest = false; ///< whether Squid should read after error handling
 
 private:
+    void checkNoCacheDone(const Acl::Answer &);
     void storeIdAccessCheckDone(const Acl::Answer &);
     void redirectAccessCheckDone(const Acl::Answer &);
 #if USE_OPENSSL

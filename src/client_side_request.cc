@@ -429,7 +429,7 @@ ClientRequestContext::followXForwardedForCheck(const Acl::Answer &answer)
                 /* override the default src_addr tested if we have to go deeper than one level into XFF */
                 Filled(acl_checklist)->src_addr = request->indirect_client_addr;
             }
-            AsyncCall::Pointer callback = asyncCall(88, 4,
+            AsyncCall::Pointer callback = asyncCall(28, 4,
                                                     "ClientRequestContext::clientFollowXForwardedForCheck",
                                                     CheckListAnswerDialer<ClientRequestContext>(&ClientRequestContext::followXForwardedForCheck, this));
 
@@ -640,7 +640,7 @@ ClientRequestContext::clientAccessCheck()
         /* setup the XFF iterator for processing */
         http->request->x_forwarded_for_iterator = http->request->header.getList(Http::HdrType::X_FORWARDED_FOR);
 
-        AsyncCall::Pointer callback = asyncCall(88, 4,
+        AsyncCall::Pointer callback = asyncCall(85, 4,
                                                 "ClientRequestContext::followXForwardedForCheck",
                                                 CheckListAnswerDialer<ClientRequestContext>(&ClientRequestContext::followXForwardedForCheck, this));
 
@@ -652,7 +652,7 @@ ClientRequestContext::clientAccessCheck()
 #endif
 
     if (Config.accessList.http) {
-        AsyncCall::Pointer callback = asyncCall(88, 4,
+        AsyncCall::Pointer callback = asyncCall(85, 4,
                                                 "ClientRequestContext::clientAccessCheckDone",
                                                 CheckListAnswerDialer<ClientRequestContext>(&ClientRequestContext::clientAccessCheckDone, this));
 
@@ -674,7 +674,7 @@ ClientRequestContext::clientAccessCheck2()
 {
     if (Config.accessList.adapted_http) {
         acl_checklist = clientAclChecklistCreate(Config.accessList.adapted_http, http);
-        AsyncCall::Pointer callback = asyncCall(88, 4,
+        AsyncCall::Pointer callback = asyncCall(85, 4,
                                                 "ClientRequestContext::clientAccessCheckDone",
                                                 CheckListAnswerDialer<ClientRequestContext>(&ClientRequestContext::clientAccessCheckDone, this));
 
@@ -822,7 +822,7 @@ ClientRequestContext::clientRedirectStart()
     http->al->syncNotes(http->request);
     if (Config.accessList.redirector) {
         acl_checklist = clientAclChecklistCreate(Config.accessList.redirector, http);
-        AsyncCall::Pointer callback = asyncCall(88, 4,
+        AsyncCall::Pointer callback = asyncCall(33, 4,
                                                 "ClientRequestContext::clientRedirectAccessCheckDone",
                                                 CheckListAnswerDialer<ClientRequestContext>(&ClientRequestContext::redirectAccessCheckDone, this));
 
@@ -861,7 +861,7 @@ ClientRequestContext::clientStoreIdStart()
 
     if (Config.accessList.store_id) {
         acl_checklist = clientAclChecklistCreate(Config.accessList.store_id, http);
-        AsyncCall::Pointer callback = asyncCall(88, 4,
+        AsyncCall::Pointer callback = asyncCall(33, 4,
                                                 "ClientRequestContext::storeIdAccessCheckDone",
                                                 CheckListAnswerDialer<ClientRequestContext>(&ClientRequestContext::storeIdAccessCheckDone, this));
 
@@ -1312,7 +1312,7 @@ ClientRequestContext::checkNoCache()
 {
     if (Config.accessList.noCache) {
         acl_checklist = clientAclChecklistCreate(Config.accessList.noCache, http);
-        AsyncCall::Pointer callback = asyncCall(88, 4,
+        AsyncCall::Pointer callback = asyncCall(85, 4,
                                                 "ClientRequestContext::checkNoCacheDone",
                                                 CheckListAnswerDialer<ClientRequestContext>(&ClientRequestContext::checkNoCacheDone, this));
 
@@ -1323,6 +1323,7 @@ ClientRequestContext::checkNoCache()
     }
 }
 
+/// callback for cache/no_cache access check list
 void
 ClientRequestContext::checkNoCacheDone(const Acl::Answer &answer)
 {
@@ -1402,7 +1403,7 @@ ClientRequestContext::sslBumpAccessCheck()
     debugs(85, 5, "SslBump possible, checking ACL");
 
     ACLFilledChecklist *aclChecklist = clientAclChecklistCreate(Config.accessList.ssl_bump, http);
-    AsyncCall::Pointer callback = asyncCall(88, 4,
+    AsyncCall::Pointer callback = asyncCall(85, 4,
                                             "ClientRequestContext::sslBumpAccessCheckDone",
                                             CheckListAnswerDialer<ClientRequestContext>(&ClientRequestContext::sslBumpAccessCheckDone, this));
     aclChecklist->nonBlockingCheck(callback);

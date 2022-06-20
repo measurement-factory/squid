@@ -34,7 +34,7 @@ public:
     PeekingPeerConnectorAnswerDialer(const JobPointer &aJob, Method aMethod):
         UnaryMemFunT<Ssl::PeekingPeerConnector, Acl::Answer, const Acl::Answer&>(aJob, aMethod, Acl::Answer()) {}
 
-    /* Security::PeerConnector::CbDialer API */
+    /* ACLCheckList::CbDialer API */
     virtual Acl::Answer &answer() { return arg1; }
 };
 

@@ -608,7 +608,7 @@ PeerSelector::selectMore()
             ch->al = al;
             acl_checklist = ch;
             acl_checklist->syncAle(request, nullptr);
-            AsyncCall::Pointer callback = asyncCall(88, 4,
+            AsyncCall::Pointer callback = asyncCall(44, 4,
                                                     "PeerSelector::checkAlwaysDirectDone",
                                                     CheckListAnswerDialer<PeerSelector>(&PeerSelector::checkAlwaysDirectDone, this));
 
@@ -621,7 +621,7 @@ PeerSelector::selectMore()
             ch->al = al;
             acl_checklist = ch;
             acl_checklist->syncAle(request, nullptr);
-            AsyncCall::Pointer callback = asyncCall(88, 4,
+            AsyncCall::Pointer callback = asyncCall(44, 4,
                                                     "PeerSelector::checkAlwaysDirectDone",
                                                     CheckListAnswerDialer<PeerSelector>(&PeerSelector::checkNeverDirectDone, this));
             acl_checklist->nonBlockingCheck(callback);

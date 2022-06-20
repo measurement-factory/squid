@@ -2567,7 +2567,7 @@ ConnStateData::postHttpsAccept()
         ClientHttpRequest *http = context ? context->http : nullptr;
         const char *log_uri = http ? http->log_uri : nullptr;
         acl_checklist->syncAle(request, log_uri);
-        AsyncCall::Pointer callback = asyncCall(88, 4,
+        AsyncCall::Pointer callback = asyncCall(33, 4,
                                                 "ConnStateData::httpsSslBumpAccessCheckDone",
                                                 CheckListAnswerDialer<ConnStateData>(&ConnStateData::httpsSslBumpAccessCheckDone, this));
 
@@ -3040,7 +3040,7 @@ ConnStateData::startPeekAndSplice()
         acl_checklist->banAction(Acl::Answer(ACCESS_ALLOWED, Ssl::bumpClientFirst));
         acl_checklist->banAction(Acl::Answer(ACCESS_ALLOWED, Ssl::bumpServerFirst));
         fillChecklist(*acl_checklist);
-        AsyncCall::Pointer callback = asyncCall(88, 4,
+        AsyncCall::Pointer callback = asyncCall(83, 4,
                                                 "ConnStateData::httpsSslBumpStep2AccessCheckDone",
                                                 CheckListAnswerDialer<ConnStateData>(&ConnStateData::httpsSslBumpStep2AccessCheckDone, this));
 

@@ -227,7 +227,8 @@ ACLChecklist::nonBlockingCheck(const AsyncCall::Pointer &callback)
 {
     preCheck("slow rules");
 
-    assert(!callback_);
+    Assure(callback);
+    Assure(!callback_);
     callback_ = callback;
 
     /** The ACL List should NEVER be NULL when calling this method.
