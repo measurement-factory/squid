@@ -3035,6 +3035,14 @@ ConnStateData::startPeekAndSplice()
         sslServerBump->step = XactionStep::tlsBump2;
         // Run a accessList check to check if want to splice or continue bumping
 
+        Assure(Config.accessList.ssl_bump);
+
+        if (!Config.accessList.ssl_bump) { // reconfiguration disabled ssl_bump
+            // emulate no ssl_bump rule matching (until old ACLs survive reconfiguration)
+            httpsSslBumpStep2AccessCheckDone(ACCESS_DUNNO, this);
+            return;
+        }
+
         ACLFilledChecklist *acl_checklist = new ACLFilledChecklist(Config.accessList.ssl_bump, sslServerBump->request.getRaw(), nullptr);
         acl_checklist->banAction(Acl::Answer(ACCESS_ALLOWED, Ssl::bumpNone));
         acl_checklist->banAction(Acl::Answer(ACCESS_ALLOWED, Ssl::bumpClientFirst));

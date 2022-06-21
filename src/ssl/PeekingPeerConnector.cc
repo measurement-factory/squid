@@ -69,6 +69,12 @@ Ssl::PeekingPeerConnector::checkForPeekAndSplice()
 {
     handleServerCertificate();
 
+    if (!Config.accessList.ssl_bump) { // reconfigure disabled ssl_bump
+        // emulate no ssl_bump rule matching (until old ACLs survive reconfiguration)
+        checkForPeekAndSpliceMatched(checkForPeekAndSpliceGuess());
+        return;
+    }
+
     ACLFilledChecklist *acl_checklist = new ACLFilledChecklist(
         ::Config.accessList.ssl_bump,
         request.getRaw(), NULL);
