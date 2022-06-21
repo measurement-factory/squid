@@ -11,6 +11,7 @@
 
 #include "acl/InnerNode.h"
 #include "base/AsyncCbdataCalls.h"
+#include "base/AsyncJobCalls.h"
 #include <stack>
 #include <vector>
 
@@ -273,6 +274,21 @@ private:
     Method method_;
     CbcPointer<Context> context_;
     Acl::Answer answer_;
+};
+
+/// AsyncCall dialer, supplying a Job callback with Acl::Answer
+template <typename Context>
+class CheckListAnswerJobDialer: public UnaryMemFunT<Context, Acl::Answer, const Acl::Answer &>,
+    public ACLChecklist::CbDialer
+{
+public:
+    using Base = UnaryMemFunT<Context, Acl::Answer, const Acl::Answer &>;
+
+    CheckListAnswerJobDialer(const typename Base::JobPointer &aJob, typename Base::Method aMethod):
+        UnaryMemFunT<Context, Acl::Answer, const Acl::Answer&>(aJob, aMethod, Acl::Answer()) {}
+
+    /* ACLCheckList::CbDialer API */
+    virtual Acl::Answer &answer() { return Base::arg1; }
 };
 
 #endif /* SQUID_ACLCHECKLIST_H */

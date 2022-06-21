@@ -10,7 +10,6 @@
 
 #include "squid.h"
 #include "acl/FilledChecklist.h"
-#include "base/AsyncJobCalls.h"
 #include "client_side.h"
 #include "errorpage.h"
 #include "fde.h"
@@ -25,18 +24,6 @@
 #include "tunnel.h"
 
 CBDATA_NAMESPACED_CLASS_INIT(Ssl, PeekingPeerConnector);
-
-/// AsyncCall dialer, supplying an Ssl::PeekingPeerConnector callback with Acl::Answer
-class PeekingPeerConnectorAnswerDialer: public UnaryMemFunT<Ssl::PeekingPeerConnector, Acl::Answer, const Acl::Answer &>,
-    public ACLChecklist::CbDialer
-{
-public:
-    PeekingPeerConnectorAnswerDialer(const JobPointer &aJob, Method aMethod):
-        UnaryMemFunT<Ssl::PeekingPeerConnector, Acl::Answer, const Acl::Answer&>(aJob, aMethod, Acl::Answer()) {}
-
-    /* ACLCheckList::CbDialer API */
-    virtual Acl::Answer &answer() { return arg1; }
-};
 
 Ssl::PeekingPeerConnector::PeekingPeerConnector(HttpRequestPointer &aRequest,
         const Comm::ConnectionPointer &aServerConn,
@@ -94,7 +81,7 @@ Ssl::PeekingPeerConnector::checkForPeekAndSplice()
 
     AsyncCall::Pointer cb = asyncCall(83, 4,
                                       "Ssl::PeekingPeerConnector::checkForPeekAndSpliceDone",
-                                      PeekingPeerConnectorAnswerDialer(this, &PeekingPeerConnector::checkForPeekAndSpliceDone));
+                                      CheckListAnswerJobDialer<Ssl::PeekingPeerConnector>(this, &PeekingPeerConnector::checkForPeekAndSpliceDone));
 
     acl_checklist->nonBlockingCheck(cb);
 }

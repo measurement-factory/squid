@@ -153,7 +153,7 @@ Adaptation::AccessCheck::checkCandidates()
 void
 Adaptation::AccessCheck::noteAnswer(const Acl::Answer &answer)
 {
-    Must(!candidates.empty()); // the candidate we were checking must be there
+    Assure(!candidates.empty()); // the candidate we were checking must be there
     debugs(93,5, topCandidate() << " answer=" << answer);
 
     /* TODO: AYJ 2008-06-12: If answer == ACCESS_AUTH_REQUIRED
