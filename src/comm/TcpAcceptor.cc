@@ -331,6 +331,47 @@ Comm::TcpAcceptor::notify(const Comm::Flag flag, const Comm::ConnectionPointer &
     }
 }
 
+// TODO: Move this Descriptor section to comm/fd.{h,cc}.
+#include "error/SysErrorDetail.h"
+namespace Comm {
+
+/// a cheap unique pointer to an open Comm-registered socket or file descriptor
+class Descriptor
+{
+public:
+    /// Starts owning the given FD of a given type, with a given description.
+    /// Assumes the given descriptor is open and calls legacy fd_open().
+    Descriptor(int fd, unsigned int type, const char *description);
+    Descriptor(Descriptor &&) = delete; // no copying (and, for now, moving) of any kind
+
+    /// Closes and calls legacy fd_close() unless release() was called earlier.
+    ~Descriptor();
+
+    /// Forgets the descriptor and prevents its automatic closure (by us).
+    int release() { const auto result = fd_; fd_ = -1; return result; }
+
+private:
+    int fd_;
+};
+
+Descriptor::Descriptor(const int fd, const unsigned int type, const char * const description): fd_(fd)
+{
+    fd_open(fd_, type, description);
+}
+
+Descriptor::~Descriptor()
+{
+    if (fd_ >= 0) {
+        fd_close(fd_);
+        if (close(fd_) != 0) {
+            const auto savedErrno = errno;
+            debugs(5, 7, "failed to close FD " << fd_ << ReportSysError(savedErrno));
+        }
+    }
+}
+
+} // namespace Comm
+
 /**
  * accept() and process
  * Wait for an incoming connection on our listener socket.
@@ -372,9 +413,8 @@ Comm::TcpAcceptor::oldAccept(Comm::ConnectionPointer &details)
     // Sync with Comm ASAP so that abandoned details can properly close().
     // XXX : these are not all HTTP requests. use a note about type and ip:port details->
     // so we end up with a uniform "(HTTP|FTP-data|HTTPS|...) remote-ip:remote-port"
-    fd_open(sock, FD_SOCKET, "HTTP Request");
-    details->fd = sock;
-    details->enterOrphanage();
+    Descriptor fd(sock, FD_SOCKET, "HTTP Request");
+    // TODO: Use fd instead of raw "sock" below.
 
     details->remote = *gai;
 
@@ -439,6 +479,8 @@ Comm::TcpAcceptor::oldAccept(Comm::ConnectionPointer &details)
     /* IFF the socket is (tproxy) transparent, pass the flag down to allow spoofing */
     F->flags.transparent = fd_table[conn->fd].flags.transparent; // XXX: can we remove this line yet?
 
+    details->fd = fd.release();
+    details->enterOrphanage();
     return Comm::OK;
 }
 
