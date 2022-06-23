@@ -331,47 +331,6 @@ Comm::TcpAcceptor::notify(const Comm::Flag flag, const Comm::ConnectionPointer &
     }
 }
 
-// TODO: Move this Descriptor section to comm/fd.{h,cc}.
-#include "error/SysErrorDetail.h"
-namespace Comm {
-
-/// a cheap unique pointer to an open Comm-registered socket or file descriptor
-class Descriptor
-{
-public:
-    /// Starts owning the given FD of a given type, with a given description.
-    /// Assumes the given descriptor is open and calls legacy fd_open().
-    Descriptor(int fd, unsigned int type, const char *description);
-    Descriptor(Descriptor &&) = delete; // no copying (and, for now, moving) of any kind
-
-    /// Closes and calls legacy fd_close() unless release() was called earlier.
-    ~Descriptor();
-
-    /// Forgets the descriptor and prevents its automatic closure (by us).
-    int release() { const auto result = fd_; fd_ = -1; return result; }
-
-private:
-    int fd_;
-};
-
-Descriptor::Descriptor(const int fd, const unsigned int type, const char * const description): fd_(fd)
-{
-    fd_open(fd_, type, description);
-}
-
-Descriptor::~Descriptor()
-{
-    if (fd_ >= 0) {
-        fd_close(fd_);
-        if (close(fd_) != 0) {
-            const auto savedErrno = errno;
-            debugs(5, 7, "failed to close FD " << fd_ << ReportSysError(savedErrno));
-        }
-    }
-}
-
-} // namespace Comm
-
 /**
  * accept() and process
  * Wait for an incoming connection on our listener socket.
