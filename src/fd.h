@@ -25,6 +25,10 @@ public:
     /// Closes and calls legacy fd_close() unless release() was called earlier.
     ~Descriptor();
 
+    /// A copy of the descriptor for use in system calls and such.
+    /// Future versions of this method may assert on closed descriptors (TODO).
+    operator int() const { return fd_; }
+
     /// Forgets the descriptor and prevents its automatic closure (by us).
     int release() { const auto result = fd_; fd_ = -1; return result; }
 

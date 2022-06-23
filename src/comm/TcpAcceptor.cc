@@ -344,12 +344,12 @@ Comm::Flag
 Comm::TcpAcceptor::oldAccept(Comm::ConnectionPointer &details)
 {
     ++statCounter.syscalls.sock.accepts;
-    int sock;
     struct addrinfo *gai = NULL;
     Ip::Address::InitAddr(gai);
 
     errcode = 0; // reset local errno copy.
-    if ((sock = accept(conn->fd, gai->ai_addr, &gai->ai_addrlen)) < 0) {
+    const auto rawSock = accept(conn->fd, gai->ai_addr, &gai->ai_addrlen);
+    if (rawSock < 0) {
         errcode = errno; // store last accept errno locally.
 
         Ip::Address::FreeAddr(gai);
@@ -366,14 +366,12 @@ Comm::TcpAcceptor::oldAccept(Comm::ConnectionPointer &details)
         }
     }
 
-    Must(sock >= 0);
     ++incoming_sockets_accepted;
 
     // Sync with Comm ASAP so that abandoned details can properly close().
     // XXX : these are not all HTTP requests. use a note about type and ip:port details->
     // so we end up with a uniform "(HTTP|FTP-data|HTTPS|...) remote-ip:remote-port"
-    Descriptor fd(sock, FD_SOCKET, "HTTP Request");
-    // TODO: Use fd instead of raw "sock" below.
+    Descriptor sock(rawSock, FD_SOCKET, "HTTP Request");
 
     details->remote = *gai;
 
@@ -438,7 +436,7 @@ Comm::TcpAcceptor::oldAccept(Comm::ConnectionPointer &details)
     /* IFF the socket is (tproxy) transparent, pass the flag down to allow spoofing */
     F->flags.transparent = fd_table[conn->fd].flags.transparent; // XXX: can we remove this line yet?
 
-    details->fd = fd.release();
+    details->fd = sock.release();
     details->enterOrphanage();
     return Comm::OK;
 }
