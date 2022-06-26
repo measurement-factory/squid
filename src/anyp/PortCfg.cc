@@ -111,3 +111,9 @@ AnyP::PortCfg::detailCodeContext(std::ostream &os) const
     return os;
 }
 
+std::ostream &
+AnyP::PortCfg::print(std::ostream &os) const
+{
+    return os << s << " " << flags;
+}
+

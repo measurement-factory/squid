@@ -9,6 +9,10 @@
 #ifndef SQUID_ANYP_TRAFFIC_MODE_H
 #define SQUID_ANYP_TRAFFIC_MODE_H
 
+#include "sbuf/Stream.h"
+
+#include <ostream>
+
 namespace AnyP
 {
 
@@ -138,21 +142,22 @@ private:
 inline std::ostream &
 TrafficMode::print(std::ostream &os) const
 {
+    SBufStream str;
     if (flags_.natIntercept)
-        os << " NAT intercepted";
+        str << "intercept";
     else if (flags_.tproxyIntercept)
-        os << " TPROXY intercepted";
+        str << "tproxy";
     else if (flags_.accelSurrogate)
-        os << " reverse-proxy";
-    else
-        os << " forward-proxy";
+        str << "accel";
+
+    const auto sep = str.buf().isEmpty() ? "" : " ";
 
     if (flags_.tunnelSslBumping)
-        os << " SSL bumped";
+        str << sep << "ssl-bump";
     if (proxySurrogate())
-        os << " (with PROXY protocol header)";
+        str << sep << "require-proxy-header";
 
-    return os;
+    return os << str.buf();
 }
 
 inline std::ostream &

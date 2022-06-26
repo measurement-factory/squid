@@ -36,6 +36,8 @@ public:
     virtual ScopedId codeContextGist() const override;
     virtual std::ostream &detailCodeContext(std::ostream &os) const override;
 
+    std::ostream &print(std::ostream &) const;
+
     PortCfgPointer next;
 
     Ip::Address s;
@@ -75,6 +77,12 @@ private:
 };
 
 } // namespace AnyP
+
+inline std::ostream &
+operator <<(std::ostream &os, const AnyP::PortCfg &p)
+{
+    return p.print(os);
+}
 
 /// list of Squid http(s)_port configured
 extern AnyP::PortCfgPointer HttpPortList;
