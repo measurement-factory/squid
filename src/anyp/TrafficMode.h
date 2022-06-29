@@ -126,7 +126,13 @@ public:
 
     TrafficModeFlags &rawConfig() { return flags_; }
 
-    std::ostream &print(std::ostream &) const;
+    /// the parsed port type (http, ftp, etc)
+    TrafficModeFlags::PortKind portKind() const { return flags_.portKind; }
+
+    /// whether at least one flag is configured
+    bool specified() const { return flags_.natIntercept || flags_.tproxyIntercept || flags_.accelSurrogate || flags_.tunnelSslBumping || flags_.proxySurrogate; }
+
+    void print(std::ostream &) const;
 
 private:
     /// \returns true for HTTPS ports with SSL bump receiving PROXY protocol traffic
@@ -139,31 +145,27 @@ private:
     TrafficModeFlags flags_;
 };
 
-inline std::ostream &
+inline void
 TrafficMode::print(std::ostream &os) const
 {
-    SBufStream str;
     if (flags_.natIntercept)
-        str << "intercept";
+        os << "intercept ";
     else if (flags_.tproxyIntercept)
-        str << "tproxy";
+        os << "tproxy ";
     else if (flags_.accelSurrogate)
-        str << "accel";
-
-    const auto sep = str.buf().isEmpty() ? "" : " ";
+        os << "accel ";
 
     if (flags_.tunnelSslBumping)
-        str << sep << "ssl-bump";
-    if (proxySurrogate())
-        str << sep << "require-proxy-header";
-
-    return os << str.buf();
+        os << "ssl-bump ";
+    if (flags_.proxySurrogate)
+        os << "require-proxy-header ";
 }
 
 inline std::ostream &
 operator <<(std::ostream &os, const TrafficMode &flags)
 {
-    return flags.print(os);
+    flags.print(os);
+    return os;
 }
 
 } // namespace AnyP

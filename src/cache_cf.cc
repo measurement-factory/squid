@@ -3763,8 +3763,8 @@ parse_port_option(AnyP::PortCfgPointer &s, char *token)
 void
 add_http_port(char *portspec)
 {
-    AnyP::PortCfgPointer s = new AnyP::PortCfg(AnyP::TrafficModeFlags::httpPort);
-    s->transport = parsePortProtocol(SBuf("HTTP"));
+    AnyP::PortCfgPointer s = new AnyP::PortCfg(SBuf("http_port"));
+    s->transport = parsePortProtocol(SBuf(s->defaultProtocolName()));
     parsePortSpecification(s, portspec);
     // we may need to merge better if the above returns a list with clones
     assert(s->next == NULL);
@@ -3775,25 +3775,9 @@ add_http_port(char *portspec)
 static void
 parsePortCfg(AnyP::PortCfgPointer *head, const char *optionName)
 {
-    SBuf protoName;
-    AnyP::TrafficModeFlags::PortKind portKind;
-    if (strcmp(optionName, "http_port") == 0 ||
-            strcmp(optionName, "ascii_port") == 0) {
-        protoName = "HTTP";
-        portKind = AnyP::TrafficModeFlags::httpPort;
-    }
-    else if (strcmp(optionName, "https_port") == 0) {
-        protoName = "HTTPS";
-        portKind = AnyP::TrafficModeFlags::httpsPort;
-    } else {
-        assert(strcmp(optionName, "ftp_port") == 0);
-        protoName = "FTP";
-        portKind = AnyP::TrafficModeFlags::ftpPort;
-    }
-    if (protoName.isEmpty()) {
-        self_destruct();
-        return;
-    }
+    SBuf directive(optionName);
+    if (directive.cmp("ascii_port") == 0)
+        directive.assign("http_port");
 
     char *token = ConfigParser::NextToken();
 
@@ -3802,8 +3786,8 @@ parsePortCfg(AnyP::PortCfgPointer *head, const char *optionName)
         return;
     }
 
-    AnyP::PortCfgPointer s = new AnyP::PortCfg(portKind);
-    s->transport = parsePortProtocol(protoName); // default; protocol=... overwrites
+    AnyP::PortCfgPointer s = new AnyP::PortCfg(directive);
+    s->transport = parsePortProtocol(SBuf(s->defaultProtocolName())); // default; protocol=... overwrites
     parsePortSpecification(s, token);
 
     /* parse options ... */
@@ -3834,7 +3818,7 @@ parsePortCfg(AnyP::PortCfgPointer *head, const char *optionName)
             self_destruct();
             return;
         }
-    } else if (protoName.cmp("FTP") == 0) {
+    } else if (s->transport.protocol == AnyP::PROTO_FTP) {
         /* ftp_port does not support ssl-bump */
         if (rawFlags.tunnelSslBumping) {
             debugs(3, DBG_CRITICAL, "FATAL: ssl-bump is not supported for ftp_port.");
@@ -3879,88 +3863,72 @@ dump_generic_port(StoreEntry * e, const char *n, const AnyP::PortCfgPointer &s)
 {
     char buf[MAX_IPSTRLEN];
 
-    storeAppendPrintf(e, "%s %s",
-                      n,
-                      s->s.toUrl(buf,MAX_IPSTRLEN));
+    SBufStream out;
+
+    out << n << ' ' << s->s.toUrl(buf,MAX_IPSTRLEN) << ' ';
 
     const auto &rawFlags = s->flags.rawConfig();
+
     // MODES and specific sub-options.
-    if (rawFlags.natIntercept)
-        storeAppendPrintf(e, " intercept");
 
-    else if (rawFlags.tproxyIntercept)
-        storeAppendPrintf(e, " tproxy");
+    out << s->flags;
 
-    else if (s->flags.proxySurrogate())
-        storeAppendPrintf(e, " require-proxy-header");
-
-    else if (rawFlags.accelSurrogate) {
-        storeAppendPrintf(e, " accel");
-
+    if (rawFlags.accelSurrogate) {
         if (s->vhost)
-            storeAppendPrintf(e, " vhost");
+            out << "vhost ";
 
         if (s->vport < 0)
-            storeAppendPrintf(e, " vport");
+            out << "vport ";
         else if (s->vport > 0)
-            storeAppendPrintf(e, " vport=%d", s->vport);
+            out <<  "vport=" << s->vport << ' ';
 
         if (s->defaultsite)
-            storeAppendPrintf(e, " defaultsite=%s", s->defaultsite);
+            out <<  "defaultsite=" << s->defaultsite << ' ';
 
         // TODO: compare against prefix of 'n' instead of assuming http_port
         if (s->transport.protocol != AnyP::PROTO_HTTP)
-            storeAppendPrintf(e, " protocol=%s", AnyP::ProtocolType_str[s->transport.protocol]);
+            out << "protocol=" << AnyP::ProtocolType_str[s->transport.protocol];
 
         if (s->allow_direct)
-            storeAppendPrintf(e, " allow-direct");
+            out << "allow-direct ";
 
         if (s->ignore_cc)
-            storeAppendPrintf(e, " ignore-cc");
+            out << "ignore-cc ";
 
     }
 
     // Generic independent options
 
     if (s->name)
-        storeAppendPrintf(e, " name=%s", s->name);
+        out << "name=" << s->name << ' ';
 
 #if USE_HTTP_VIOLATIONS
     if (!rawFlags.accelSurrogate && s->ignore_cc)
-        storeAppendPrintf(e, " ignore-cc");
+        out << "ignore-cc ";
 #endif
 
-    if (s->connection_auth_disabled)
-        storeAppendPrintf(e, " connection-auth=off");
-    else
-        storeAppendPrintf(e, " connection-auth=on");
+    out << "connection-auth=" << (s->connection_auth_disabled ? "off" : "on") << ' ';
 
-    if (s->disable_pmtu_discovery != DISABLE_PMTU_OFF) {
-        const char *pmtu;
-
-        if (s->disable_pmtu_discovery == DISABLE_PMTU_ALWAYS)
-            pmtu = "always";
-        else
-            pmtu = "transparent";
-
-        storeAppendPrintf(e, " disable-pmtu-discovery=%s", pmtu);
-    }
+    if (s->disable_pmtu_discovery != DISABLE_PMTU_OFF)
+        out << "disable-pmtu-discovery=" << (s->disable_pmtu_discovery == DISABLE_PMTU_ALWAYS ? "always" : "transparent")  << ' ';
 
     if (s->s.isAnyAddr() && !s->s.isIPv6())
-        storeAppendPrintf(e, " ipv4");
+        out << "ipv4 ";
 
     if (s->tcp_keepalive.enabled) {
-        if (s->tcp_keepalive.idle || s->tcp_keepalive.interval || s->tcp_keepalive.timeout) {
-            storeAppendPrintf(e, " tcpkeepalive=%d,%d,%d", s->tcp_keepalive.idle, s->tcp_keepalive.interval, s->tcp_keepalive.timeout);
-        } else {
-            storeAppendPrintf(e, " tcpkeepalive");
-        }
+        out << "tcpkeepalive";
+        if (s->tcp_keepalive.idle || s->tcp_keepalive.interval || s->tcp_keepalive.timeout)
+            out << "=" << s->tcp_keepalive.idle << ',' <<  s->tcp_keepalive.interval << ',' << s->tcp_keepalive.timeout;
+        out << ' ';
     }
 
-#if USE_OPENSSL
-    if (rawFlags.tunnelSslBumping)
-        storeAppendPrintf(e, " ssl-bump");
-#endif
+    auto outBuf = out.buf();
+    // Remove the trailing whitespace because ServerOptions::dumpCfg() below does not expect it.
+    // TODO: refactor to avoid this hack.
+    static const SBuf whiteSpace(" ");
+    outBuf.trim(whiteSpace, false, true);
+
+    e->append(outBuf.rawContent(), outBuf.length());
 
     s->secure.dumpCfg(e, "tls-");
 }

@@ -24,7 +24,7 @@ namespace AnyP
 class PortCfg : public CodeContext
 {
 public:
-    explicit PortCfg(TrafficModeFlags::PortKind aPortKind);
+    explicit PortCfg(const SBuf &directiveName);
     // no public copying/moving but see ipV4clone()
     PortCfg(PortCfg &&) = delete;
     ~PortCfg();
@@ -36,10 +36,14 @@ public:
     virtual ScopedId codeContextGist() const override;
     virtual std::ostream &detailCodeContext(std::ostream &os) const override;
 
-    std::ostream &print(std::ostream &) const;
+    void print(std::ostream &) const;
+
+    /// the protocol name associated with this port type
+    const char *defaultProtocolName() const;
 
     PortCfgPointer next;
 
+    SBuf directive; ///< the corresponding configuration directive name
     Ip::Address s;
     AnyP::ProtocolVersion transport; ///< transport protocol and version received by this port
     char *name;                /* visible name */
@@ -81,7 +85,8 @@ private:
 inline std::ostream &
 operator <<(std::ostream &os, const AnyP::PortCfg &p)
 {
-    return p.print(os);
+    p.print(os);
+    return os;
 }
 
 /// list of Squid http(s)_port configured

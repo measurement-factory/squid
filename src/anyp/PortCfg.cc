@@ -9,8 +9,10 @@
 #include "squid.h"
 #include "anyp/PortCfg.h"
 #include "anyp/UriScheme.h"
+#include "base/TextException.h"
 #include "comm.h"
 #include "fatal.h"
+#include "sbuf/Stream.h"
 #include "security/PeerOptions.h"
 #if USE_OPENSSL
 #include "ssl/support.h"
@@ -25,13 +27,27 @@ AnyP::PortCfgPointer FtpPortList;
 int NHttpSockets = 0;
 int HttpSockets[MAXTCPLISTENPORTS];
 
-AnyP::PortCfg::PortCfg(const TrafficModeFlags::PortKind aPortKind):
+static AnyP::TrafficModeFlags::PortKind
+ParseDirective(const SBuf &directive)
+{
+    if (directive.cmp("http_port") == 0)
+        return AnyP::TrafficModeFlags::httpPort;
+    else if (directive.cmp("https_port") == 0)
+        return AnyP::TrafficModeFlags::httpsPort;
+    else {
+        assert(directive.cmp("ftp_port") == 0);
+        return AnyP::TrafficModeFlags::ftpPort;
+    }
+}
+
+AnyP::PortCfg::PortCfg(const SBuf &directiveName):
     next(),
     s(),
+    directive(directiveName.cmp("ascii_port") == 0 ? SBuf("http_port") : directiveName),
     transport(AnyP::PROTO_HTTP,1,1), // "Squid is an HTTP proxy", etc.
     name(NULL),
     defaultsite(NULL),
-    flags(aPortKind),
+    flags(ParseDirective(directive)),
     allow_direct(false),
     vhost(false),
     actAsOrigin(false),
@@ -43,6 +59,20 @@ AnyP::PortCfg::PortCfg(const TrafficModeFlags::PortKind aPortKind):
     workerQueues(false),
     listenConn()
 {
+}
+
+const char *
+AnyP::PortCfg::defaultProtocolName() const
+{
+    switch(flags.portKind())
+    {
+    case AnyP::TrafficModeFlags::httpPort:
+        return "HTTP";
+    case AnyP::TrafficModeFlags::httpsPort:
+        return "HTTPS";
+    case AnyP::TrafficModeFlags::ftpPort:
+        return "FTP";
+    }
 }
 
 AnyP::PortCfg::~PortCfg()
@@ -102,18 +132,18 @@ AnyP::PortCfg::codeContextGist() const
 std::ostream &
 AnyP::PortCfg::detailCodeContext(std::ostream &os) const
 {
-    // parsePortSpecification() defaults optional port name to the required
-    // listening address so we cannot easily distinguish one from the other.
-    if (name)
-        os << Debug::Extra << "listening port: " << name;
-    else if (s.port())
-        os << Debug::Extra << "listening port address: " << s;
+    os << Debug::Extra << "listening port: " << *this;
     return os;
 }
 
-std::ostream &
+void
 AnyP::PortCfg::print(std::ostream &os) const
 {
-    return os << s << " " << flags;
+    // parsePortSpecification() defaults optional port name to the required
+    // listening address so we cannot easily distinguish one from the other.
+    if (name)
+        os << name;
+    else
+        os << s;
 }
 
