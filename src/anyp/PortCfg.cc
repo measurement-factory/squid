@@ -43,7 +43,7 @@ ParseDirective(const SBuf &directive)
 AnyP::PortCfg::PortCfg(const SBuf &directiveName):
     next(),
     s(),
-    directive(directiveName.cmp("ascii_port") == 0 ? SBuf("http_port") : directiveName),
+    directive(directiveName),
     transport(AnyP::PROTO_HTTP,1,1), // "Squid is an HTTP proxy", etc.
     name(NULL),
     defaultsite(NULL),
@@ -139,6 +139,7 @@ AnyP::PortCfg::detailCodeContext(std::ostream &os) const
 void
 AnyP::PortCfg::print(std::ostream &os) const
 {
+    os << directive << ' ';
     // parsePortSpecification() defaults optional port name to the required
     // listening address so we cannot easily distinguish one from the other.
     if (name)

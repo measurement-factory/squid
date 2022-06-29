@@ -3863,72 +3863,77 @@ dump_generic_port(StoreEntry * e, const char *n, const AnyP::PortCfgPointer &s)
 {
     char buf[MAX_IPSTRLEN];
 
-    SBufStream out;
-
-    out << n << ' ' << s->s.toUrl(buf,MAX_IPSTRLEN) << ' ';
+    storeAppendPrintf(e, "%s %s",
+                      n,
+                      s->s.toUrl(buf,MAX_IPSTRLEN));
 
     const auto &rawFlags = s->flags.rawConfig();
-
     // MODES and specific sub-options.
 
-    out << s->flags;
+    PackableStream os(*e);
+    os << s->flags;
+    os.flush();
 
     if (rawFlags.accelSurrogate) {
         if (s->vhost)
-            out << "vhost ";
+            storeAppendPrintf(e, " vhost");
 
         if (s->vport < 0)
-            out << "vport ";
+            storeAppendPrintf(e, " vport");
         else if (s->vport > 0)
-            out <<  "vport=" << s->vport << ' ';
+            storeAppendPrintf(e, " vport=%d", s->vport);
 
         if (s->defaultsite)
-            out <<  "defaultsite=" << s->defaultsite << ' ';
+            storeAppendPrintf(e, " defaultsite=%s", s->defaultsite);
 
         // TODO: compare against prefix of 'n' instead of assuming http_port
         if (s->transport.protocol != AnyP::PROTO_HTTP)
-            out << "protocol=" << AnyP::ProtocolType_str[s->transport.protocol];
+            storeAppendPrintf(e, " protocol=%s", AnyP::ProtocolType_str[s->transport.protocol]);
 
         if (s->allow_direct)
-            out << "allow-direct ";
+            storeAppendPrintf(e, " allow-direct");
 
         if (s->ignore_cc)
-            out << "ignore-cc ";
+            storeAppendPrintf(e, " ignore-cc");
 
     }
 
     // Generic independent options
 
     if (s->name)
-        out << "name=" << s->name << ' ';
+        storeAppendPrintf(e, " name=%s", s->name);
 
 #if USE_HTTP_VIOLATIONS
     if (!rawFlags.accelSurrogate && s->ignore_cc)
-        out << "ignore-cc ";
+        storeAppendPrintf(e, " ignore-cc");
 #endif
 
-    out << "connection-auth=" << (s->connection_auth_disabled ? "off" : "on") << ' ';
+    if (s->connection_auth_disabled)
+        storeAppendPrintf(e, " connection-auth=off");
+    else
+        storeAppendPrintf(e, " connection-auth=on");
 
-    if (s->disable_pmtu_discovery != DISABLE_PMTU_OFF)
-        out << "disable-pmtu-discovery=" << (s->disable_pmtu_discovery == DISABLE_PMTU_ALWAYS ? "always" : "transparent")  << ' ';
+    if (s->disable_pmtu_discovery != DISABLE_PMTU_OFF) {
+        const char *pmtu;
 
-    if (s->s.isAnyAddr() && !s->s.isIPv6())
-        out << "ipv4 ";
+        if (s->disable_pmtu_discovery == DISABLE_PMTU_ALWAYS)
+            pmtu = "always";
+        else
+            pmtu = "transparent";
 
-    if (s->tcp_keepalive.enabled) {
-        out << "tcpkeepalive";
-        if (s->tcp_keepalive.idle || s->tcp_keepalive.interval || s->tcp_keepalive.timeout)
-            out << "=" << s->tcp_keepalive.idle << ',' <<  s->tcp_keepalive.interval << ',' << s->tcp_keepalive.timeout;
-        out << ' ';
+        storeAppendPrintf(e, " disable-pmtu-discovery=%s", pmtu);
     }
 
-    auto outBuf = out.buf();
-    // Remove the trailing whitespace because ServerOptions::dumpCfg() below does not expect it.
-    // TODO: refactor to avoid this hack.
-    static const SBuf whiteSpace(" ");
-    outBuf.trim(whiteSpace, false, true);
+    if (s->s.isAnyAddr() && !s->s.isIPv6())
+        storeAppendPrintf(e, " ipv4");
 
-    e->append(outBuf.rawContent(), outBuf.length());
+    if (s->tcp_keepalive.enabled) {
+        if (s->tcp_keepalive.idle || s->tcp_keepalive.interval || s->tcp_keepalive.timeout) {
+            storeAppendPrintf(e, " tcpkeepalive=%d,%d,%d", s->tcp_keepalive.idle, s->tcp_keepalive.interval, s->tcp_keepalive.timeout);
+        } else {
+            storeAppendPrintf(e, " tcpkeepalive");
+        }
+    }
 
     s->secure.dumpCfg(e, "tls-");
 }

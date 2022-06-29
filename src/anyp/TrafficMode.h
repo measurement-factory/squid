@@ -129,9 +129,6 @@ public:
     /// the parsed port type (http, ftp, etc)
     TrafficModeFlags::PortKind portKind() const { return flags_.portKind; }
 
-    /// whether at least one flag is configured
-    bool specified() const { return flags_.natIntercept || flags_.tproxyIntercept || flags_.accelSurrogate || flags_.tunnelSslBumping || flags_.proxySurrogate; }
-
     void print(std::ostream &) const;
 
 private:
@@ -149,16 +146,16 @@ inline void
 TrafficMode::print(std::ostream &os) const
 {
     if (flags_.natIntercept)
-        os << "intercept ";
+        os << " intercept";
     else if (flags_.tproxyIntercept)
-        os << "tproxy ";
+        os << " tproxy";
     else if (flags_.accelSurrogate)
-        os << "accel ";
+        os << " accel";
 
     if (flags_.tunnelSslBumping)
-        os << "ssl-bump ";
+        os << " ssl-bump";
     if (flags_.proxySurrogate)
-        os << "require-proxy-header ";
+        os << " require-proxy-header";
 }
 
 inline std::ostream &

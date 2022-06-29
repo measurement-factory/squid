@@ -3385,11 +3385,7 @@ clientListenerConnectionOpened(AnyP::PortCfgPointer &s, const Ipc::FdNoteId port
     // TCP: setup a job to handle accept() with subscribed handler
     AsyncJob::Start(new Comm::TcpAcceptor(s, FdNote(portTypeNote), sub));
 
-    SBufStream out;
-    out << "Accepting connections at " << s->directive << ' ' << *s;
-    if (s->flags.specified())
-        out << " ... " << s->flags;
-    debugs(1, Important(13), out.buf());
+    debugs(1, Important(13), "Accepting connections at " << *s << s->flags << " ...");
 
     Must(AddOpenedHttpSocket(s->listenConn)); // otherwise, we have received a fd we did not ask for
 
