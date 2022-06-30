@@ -89,6 +89,7 @@ AnyP::PortCfg::~PortCfg()
 
 AnyP::PortCfg::PortCfg(const PortCfg &other):
     next(), // special case; see assert() below
+    directiveName(other.directiveName),
     s(other.s),
     transport(other.transport),
     name(other.name ? xstrdup(other.name) : nullptr),
