@@ -3761,7 +3761,6 @@ void
 add_http_port(char *portspec)
 {
     AnyP::PortCfgPointer s = new AnyP::PortCfg(SBuf("http_port"));
-    s->transport = parsePortProtocol(SBuf(s->defaultProtocolName()));
     parsePortSpecification(s, portspec);
     // we may need to merge better if the above returns a list with clones
     assert(s->next == NULL);
@@ -3784,7 +3783,6 @@ parsePortCfg(AnyP::PortCfgPointer *head, const char *optionName)
     }
 
     AnyP::PortCfgPointer s = new AnyP::PortCfg(directive);
-    s->transport = parsePortProtocol(SBuf(s->defaultProtocolName())); // default; protocol=... overwrites
     parsePortSpecification(s, token);
 
     /* parse options ... */

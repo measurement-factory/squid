@@ -38,9 +38,6 @@ public:
 
     void print(std::ostream &) const;
 
-    /// the protocol name associated with this port type
-    const char *defaultProtocolName() const;
-
     PortCfgPointer next;
 
     /// actual or implied (by squid -a) squid.conf directive name

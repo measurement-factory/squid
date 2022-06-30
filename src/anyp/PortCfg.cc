@@ -12,6 +12,8 @@
 #include "base/TextException.h"
 #include "comm.h"
 #include "fatal.h"
+#include "ftp/Elements.h"
+#include "http/ProtocolVersion.h"
 #include "sbuf/Stream.h"
 #include "security/PeerOptions.h"
 #if USE_OPENSSL
@@ -40,11 +42,24 @@ ParseDirective(const SBuf &directive)
     }
 }
 
+static AnyP::ProtocolVersion
+DefaultProtocol(const SBuf &directive)
+{
+    if (directive.cmp("http_port") == 0)
+        return Http::ProtocolVersion(1,1);
+    else if (directive.cmp("https_port") == 0)
+        return AnyP::ProtocolVersion(AnyP::PROTO_HTTPS, 1,1);
+    else {
+        assert(directive.cmp("ftp_port") == 0);
+        return Ftp::ProtocolVersion();
+    }
+}
+
 AnyP::PortCfg::PortCfg(const SBuf &directive):
     next(),
     s(),
     directiveName(directive),
-    transport(AnyP::PROTO_HTTP,1,1), // "Squid is an HTTP proxy", etc.
+    transport(DefaultProtocol(directive)), // "Squid is an HTTP proxy", etc.
     name(NULL),
     defaultsite(NULL),
     flags(ParseDirective(directiveName)),
@@ -59,20 +74,6 @@ AnyP::PortCfg::PortCfg(const SBuf &directive):
     workerQueues(false),
     listenConn()
 {
-}
-
-const char *
-AnyP::PortCfg::defaultProtocolName() const
-{
-    switch(flags.portKind())
-    {
-    case AnyP::TrafficModeFlags::httpPort:
-        return "HTTP";
-    case AnyP::TrafficModeFlags::httpsPort:
-        return "HTTPS";
-    case AnyP::TrafficModeFlags::ftpPort:
-        return "FTP";
-    }
 }
 
 AnyP::PortCfg::~PortCfg()
