@@ -40,7 +40,7 @@ void Security::ForgetErrors() STUB
 #include "security/KeyData.h"
 namespace Security
 {
-void KeyData::loadFromFiles(const AnyP::PortCfg &, const char *) STUB
+void KeyData::loadFromFiles(const AnyP::PortCfg &) STUB
 }
 
 #include "security/KeyLogger.h"

@@ -24,7 +24,7 @@ namespace AnyP
 class PortCfg : public CodeContext
 {
 public:
-    explicit PortCfg(const SBuf &directiveName);
+    explicit PortCfg(const SBuf &directive);
     // no public copying/moving but see ipV4clone()
     PortCfg(PortCfg &&) = delete;
     ~PortCfg();
@@ -43,7 +43,8 @@ public:
 
     PortCfgPointer next;
 
-    SBuf directive; ///< the corresponding configuration directive name
+    /// actual or implied (by squid -a) squid.conf directive name
+    SBuf directiveName;
     Ip::Address s;
     AnyP::ProtocolVersion transport; ///< transport protocol and version received by this port
     char *name;                /* visible name */

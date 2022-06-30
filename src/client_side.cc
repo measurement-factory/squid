@@ -3296,10 +3296,9 @@ static void
 clientHttpConnectionsOpen(void)
 {
     for (AnyP::PortCfgPointer s = HttpPortList; s != NULL; s = s->next) {
-        const SBuf &scheme = AnyP::UriScheme(s->transport.protocol).image();
 
         if (MAXTCPLISTENPORTS == NHttpSockets) {
-            debugs(1, DBG_IMPORTANT, "WARNING: You have too many '" << scheme << "_port' lines." <<
+            debugs(1, DBG_IMPORTANT, "WARNING: You have too many '" << s->directiveName << "' lines." <<
                    Debug::Extra << "The limit is " << MAXTCPLISTENPORTS << " HTTP ports.");
             continue;
         }
@@ -3312,7 +3311,7 @@ clientHttpConnectionsOpen(void)
 #endif
 
         if (s->secure.encryptTransport && !s->secure.staticContext) {
-            debugs(1, DBG_CRITICAL, "ERROR: Ignoring " << scheme << "_port " << s->s << " due to TLS context initialization failure.");
+            debugs(1, DBG_CRITICAL, "ERROR: Ignoring " << s << " due to TLS context initialization failure.");
             continue;
         }
 
@@ -3419,7 +3418,7 @@ clientConnectionsClose()
 {
     for (AnyP::PortCfgPointer s = HttpPortList; s != NULL; s = s->next) {
         if (s->listenConn != NULL) {
-            debugs(1, Important(14), "Closing HTTP(S) port " << s->listenConn->local);
+            debugs(1, Important(14), "Closing " << *s);
             s->listenConn->close();
             s->listenConn = NULL;
         }

@@ -9,9 +9,7 @@
 #ifndef SQUID_ANYP_TRAFFIC_MODE_H
 #define SQUID_ANYP_TRAFFIC_MODE_H
 
-#include "sbuf/Stream.h"
-
-#include <ostream>
+#include <iosfwd>
 
 namespace AnyP
 {
@@ -126,7 +124,7 @@ public:
 
     TrafficModeFlags &rawConfig() { return flags_; }
 
-    /// the parsed port type (http, ftp, etc)
+    /// \copydoc TrafficModeFlags::portKind
     TrafficModeFlags::PortKind portKind() const { return flags_.portKind; }
 
     void print(std::ostream &) const;
@@ -141,22 +139,6 @@ private:
 
     TrafficModeFlags flags_;
 };
-
-inline void
-TrafficMode::print(std::ostream &os) const
-{
-    if (flags_.natIntercept)
-        os << " intercept";
-    else if (flags_.tproxyIntercept)
-        os << " tproxy";
-    else if (flags_.accelSurrogate)
-        os << " accel";
-
-    if (flags_.tunnelSslBumping)
-        os << " ssl-bump";
-    if (flags_.proxySurrogate)
-        os << " require-proxy-header";
-}
 
 inline std::ostream &
 operator <<(std::ostream &os, const TrafficMode &flags)

@@ -1002,21 +1002,20 @@ configDoConfigure(void)
     for (AnyP::PortCfgPointer s = HttpPortList; s != NULL; s = s->next) {
         if (!s->secure.encryptTransport)
             continue;
-        debugs(3, DBG_IMPORTANT, "Initializing " << AnyP::UriScheme(s->transport.protocol) << "_port " << s->s << " TLS contexts");
+        debugs(3, DBG_IMPORTANT, "Initializing " << *s << " TLS contexts");
         s->secure.initServerContexts(*s);
     }
 
 #if USE_OPENSSL
     for (auto s = HttpPortList; s; s = s->next) {
-        const auto &scheme = AnyP::UriScheme(s->transport.protocol).image();
         if (s->flags.tunnelSslBumping()) {
             auto &rawFlags = s->flags.rawConfig();
             if (!Config.accessList.ssl_bump) {
-                debugs(3, DBG_IMPORTANT, "WARNING: No ssl_bump configured. Disabling ssl-bump on " << scheme << "_port " << s->s);
+                debugs(3, DBG_IMPORTANT, "WARNING: No ssl_bump configured. Disabling ssl-bump on " << *s);
                 rawFlags.tunnelSslBumping = false;
             }
             if (!s->secure.staticContext && !s->secure.generateHostCertificates) {
-                debugs(3, DBG_IMPORTANT, "Will not bump SSL at " << scheme << "_port " << s->s << " due to TLS initialization failure.");
+                debugs(3, DBG_IMPORTANT, "Will not bump SSL at " << *s << " due to TLS initialization failure.");
                 rawFlags.tunnelSslBumping = false;
                 if (s->transport.protocol == AnyP::PROTO_HTTP)
                     s->secure.encryptTransport = false;
@@ -3448,26 +3447,24 @@ parsePortSpecification(const AnyP::PortCfgPointer &s, char *token)
     s->name = xstrdup(token);
     s->connection_auth_disabled = false;
 
-    const SBuf &portType = AnyP::UriScheme(s->transport.protocol).image();
-
     if (*token == '[') {
         /* [ipv6]:port */
         host = token + 1;
         t = strchr(host, ']');
         if (!t) {
-            debugs(3, DBG_CRITICAL, "FATAL: " << portType << "_port: missing ']' on IPv6 address: " << token);
+            debugs(3, DBG_CRITICAL, "FATAL: " << s->directiveName << ": missing ']' on IPv6 address: " << token);
             self_destruct();
             return;
         }
         *t = '\0';
         ++t;
         if (*t != ':') {
-            debugs(3, DBG_CRITICAL, "FATAL: " << portType << "_port: missing Port in: " << token);
+            debugs(3, DBG_CRITICAL, "FATAL: " << s->directiveName << ": missing Port in: " << token);
             self_destruct();
             return;
         }
         if (!Ip::EnableIpv6) {
-            debugs(3, DBG_CRITICAL, "FATAL: " << portType << "_port: IPv6 is not available.");
+            debugs(3, DBG_CRITICAL, "FATAL: " << s->directiveName << ": IPv6 is not available.");
             self_destruct();
             return;
         }
@@ -3481,15 +3478,15 @@ parsePortSpecification(const AnyP::PortCfgPointer &s, char *token)
 
     } else if (strtol(token, &junk, 10) && !*junk) {
         port = xatos(token);
-        debugs(3, 3, portType << "_port: found Listen on Port: " << port);
+        debugs(3, 3, s->directiveName << ": found Listen on Port: " << port);
     } else {
-        debugs(3, DBG_CRITICAL, "FATAL: " << portType << "_port: missing Port: " << token);
+        debugs(3, DBG_CRITICAL, "FATAL: " << s->directiveName << ": missing Port: " << token);
         self_destruct();
         return;
     }
 
     if (port == 0 && host != NULL) {
-        debugs(3, DBG_CRITICAL, "FATAL: " << portType << "_port: Port cannot be 0: " << token);
+        debugs(3, DBG_CRITICAL, "FATAL: " << s->directiveName << ": Port cannot be 0: " << token);
         self_destruct();
         return;
     }
@@ -3499,21 +3496,21 @@ parsePortSpecification(const AnyP::PortCfgPointer &s, char *token)
         s->s.port(port);
         if (!Ip::EnableIpv6)
             s->s.setIPv4();
-        debugs(3, 3, portType << "_port: found Listen on wildcard address: *:" << s->s.port());
+        debugs(3, 3, s->directiveName << ": found Listen on wildcard address: *:" << s->s.port());
     } else if ( (s->s = host) ) { /* check/parse numeric IPA */
         s->s.port(port);
         if (!Ip::EnableIpv6)
             s->s.setIPv4();
-        debugs(3, 3, portType << "_port: Listen on Host/IP: " << host << " --> " << s->s);
+        debugs(3, 3, s->directiveName << ": Listen on Host/IP: " << host << " --> " << s->s);
     } else if ( s->s.GetHostByName(host) ) { /* check/parse for FQDN */
         /* do not use ipcache */
         s->defaultsite = xstrdup(host);
         s->s.port(port);
         if (!Ip::EnableIpv6)
             s->s.setIPv4();
-        debugs(3, 3, portType << "_port: found Listen as Host " << s->defaultsite << " on IP: " << s->s);
+        debugs(3, 3, s->directiveName << ": found Listen as Host " << s->defaultsite << " on IP: " << s->s);
     } else {
-        debugs(3, DBG_CRITICAL, "FATAL: " << portType << "_port: failed to resolve Host/IP: " << host);
+        debugs(3, DBG_CRITICAL, "FATAL: " << s->directiveName << ": failed to resolve Host/IP: " << host);
         self_destruct();
     }
 }
@@ -3840,7 +3837,7 @@ parsePortCfg(AnyP::PortCfgPointer *head, const char *optionName)
 
     if (s->secure.encryptTransport) {
         if (s->secure.certs.empty()) {
-            debugs(3, DBG_CRITICAL, "FATAL: " << AnyP::UriScheme(s->transport.protocol) << "_port requires a cert= parameter");
+            debugs(3, DBG_CRITICAL, "FATAL: " << s->directiveName << " requires a cert= parameter");
             self_destruct();
             return;
         }

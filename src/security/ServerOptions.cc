@@ -187,9 +187,8 @@ Security::ServerOptions::createBlankContext() const
 void
 Security::ServerOptions::initServerContexts(AnyP::PortCfg &port)
 {
-    const char *portType = AnyP::ProtocolType_str[port.transport.protocol];
     for (auto &keyData : certs) {
-        keyData.loadFromFiles(port, portType);
+        keyData.loadFromFiles(port);
     }
 
     if (generateHostCertificates) {
@@ -198,7 +197,7 @@ Security::ServerOptions::initServerContexts(AnyP::PortCfg &port)
 
     if (!certs.empty() && !createStaticServerContext(port)) {
         char buf[128];
-        fatalf("%s_port %s initialization error", portType, port.s.toUrl(buf, sizeof(buf)));
+        fatalf("%.*s %s initialization error", port.directiveName.length(), port.directiveName.rawContent(), port.s.toUrl(buf, sizeof(buf)));
     }
 
     // if generate-host-certificates=off and certs is empty, no contexts may be created.
@@ -285,15 +284,14 @@ Security::ServerOptions::createSigningContexts(const AnyP::PortCfg &port)
 
     signingCa = certs.front();
 
-    const char *portType = AnyP::ProtocolType_str[port.transport.protocol];
     if (!signingCa.cert) {
         char buf[128];
         // XXX: we never actually checked that the cert is capable of signing!
-        fatalf("No valid signing certificate configured for %s_port %s", portType, port.s.toUrl(buf, sizeof(buf)));
+        fatalf("No valid signing certificate configured for %.*s %s", port.directiveName.length(), port.directiveName.rawContent(), port.s.toUrl(buf, sizeof(buf)));
     }
 
     if (!signingCa.pkey)
-        debugs(3, DBG_IMPORTANT, "No TLS private key configured for  " << portType << "_port " << port.s);
+        debugs(3, DBG_IMPORTANT, "No TLS private key configured for  " << port);
 
 #if USE_OPENSSL
     Ssl::generateUntrustedCert(untrustedSigningCa.cert, untrustedSigningCa.pkey, signingCa.cert, signingCa.pkey);
@@ -310,7 +308,7 @@ Security::ServerOptions::createSigningContexts(const AnyP::PortCfg &port)
 
     if (!untrustedSigningCa.cert) {
         char buf[128];
-        fatalf("Unable to generate signing certificate for untrusted sites for %s_port %s", portType, port.s.toUrl(buf, sizeof(buf)));
+        fatalf("Unable to generate signing certificate for untrusted sites for %.*s %s", port.directiveName.length(), port.directiveName.rawContent(), port.s.toUrl(buf, sizeof(buf)));
     }
 }
 

@@ -40,14 +40,14 @@ ParseDirective(const SBuf &directive)
     }
 }
 
-AnyP::PortCfg::PortCfg(const SBuf &directiveName):
+AnyP::PortCfg::PortCfg(const SBuf &directive):
     next(),
     s(),
-    directive(directiveName),
+    directiveName(directive),
     transport(AnyP::PROTO_HTTP,1,1), // "Squid is an HTTP proxy", etc.
     name(NULL),
     defaultsite(NULL),
-    flags(ParseDirective(directive)),
+    flags(ParseDirective(directiveName)),
     allow_direct(false),
     vhost(false),
     actAsOrigin(false),
@@ -116,8 +116,7 @@ AnyP::PortCfg::ipV4clone() const
 {
     const auto clone = new PortCfg(*this);
     clone->s.setIPv4();
-    debugs(3, 3, AnyP::UriScheme(transport.protocol).image() << "_port: " <<
-           "cloned wildcard address for split-stack: " << s << " and " << clone->s);
+    debugs(3, 3, directiveName << " cloned wildcard address for split-stack: " << s << " and " << clone->s);
     return clone;
 }
 
@@ -139,7 +138,7 @@ AnyP::PortCfg::detailCodeContext(std::ostream &os) const
 void
 AnyP::PortCfg::print(std::ostream &os) const
 {
-    os << directive << ' ';
+    os << directiveName << ' ';
     // parsePortSpecification() defaults optional port name to the required
     // listening address so we cannot easily distinguish one from the other.
     if (name)
