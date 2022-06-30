@@ -190,9 +190,8 @@ Security::KeyData::loadX509PrivateKeyFromFile()
 void
 Security::KeyData::loadFromFiles(const AnyP::PortCfg &port)
 {
-    char buf[128];
     if (!loadX509CertFromFile()) {
-        debugs(83, DBG_IMPORTANT, "WARNING: '" << port.directiveName << ' ' << port.s.toUrl(buf, sizeof(buf)) << "' missing certificate in '" << certFile << "'");
+        debugs(83, DBG_IMPORTANT, "WARNING: missing certificate in '" << certFile << "' for " << port);
         return;
     }
 
@@ -201,7 +200,7 @@ Security::KeyData::loadFromFiles(const AnyP::PortCfg &port)
 
     // pkey is mandatory, not having it makes cert and chain pointless.
     if (!loadX509PrivateKeyFromFile()) {
-        debugs(83, DBG_IMPORTANT, "WARNING: '" << port.directiveName << ' ' << port.s.toUrl(buf, sizeof(buf)) << "' missing private key in '" << privateKeyFile << "'");
+        debugs(83, DBG_IMPORTANT, "WARNING: missing private key in '" << privateKeyFile << "' for " << port);
         cert.reset();
         chain.clear();
     }

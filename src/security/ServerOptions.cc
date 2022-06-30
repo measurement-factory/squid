@@ -12,6 +12,7 @@
 #include "cache_cf.h"
 #include "fatal.h"
 #include "globals.h"
+#include "sbuf/Stream.h"
 #include "security/ServerOptions.h"
 #include "security/Session.h"
 #include "SquidConfig.h"
@@ -195,10 +196,8 @@ Security::ServerOptions::initServerContexts(AnyP::PortCfg &port)
         createSigningContexts(port);
     }
 
-    if (!certs.empty() && !createStaticServerContext(port)) {
-        char buf[128];
-        fatalf("%.*s %s initialization error", port.directiveName.length(), port.directiveName.rawContent(), port.s.toUrl(buf, sizeof(buf)));
-    }
+    if (!certs.empty() && !createStaticServerContext(port))
+        throw TextException(ToSBuf("initialization error for ", port), Here());
 
     // if generate-host-certificates=off and certs is empty, no contexts may be created.
     // features depending on contexts do their own checks and error messages later.
@@ -285,9 +284,8 @@ Security::ServerOptions::createSigningContexts(const AnyP::PortCfg &port)
     signingCa = certs.front();
 
     if (!signingCa.cert) {
-        char buf[128];
         // XXX: we never actually checked that the cert is capable of signing!
-        fatalf("No valid signing certificate configured for %.*s %s", port.directiveName.length(), port.directiveName.rawContent(), port.s.toUrl(buf, sizeof(buf)));
+        throw TextException(ToSBuf("No valid signing certificate configured for ", port), Here());
     }
 
     if (!signingCa.pkey)
@@ -306,10 +304,8 @@ Security::ServerOptions::createSigningContexts(const AnyP::PortCfg &port)
     return;
 #endif
 
-    if (!untrustedSigningCa.cert) {
-        char buf[128];
-        fatalf("Unable to generate signing certificate for untrusted sites for %.*s %s", port.directiveName.length(), port.directiveName.rawContent(), port.s.toUrl(buf, sizeof(buf)));
-    }
+    if (!untrustedSigningCa.cert)
+        throw TextException(ToSBuf("Unable to generate signing certificate for untrusted sites for ", port), Here());
 }
 
 void
