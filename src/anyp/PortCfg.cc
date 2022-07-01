@@ -14,7 +14,6 @@
 #include "fatal.h"
 #include "ftp/Elements.h"
 #include "http/ProtocolVersion.h"
-#include "sbuf/Stream.h"
 #include "security/PeerOptions.h"
 #if USE_OPENSSL
 #include "ssl/support.h"
