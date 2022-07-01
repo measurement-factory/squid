@@ -3311,7 +3311,7 @@ clientHttpConnectionsOpen(void)
 #endif
 
         if (s->secure.encryptTransport && !s->secure.staticContext) {
-            debugs(1, DBG_CRITICAL, "ERROR: Ignoring " << s << " due to TLS context initialization failure.");
+            debugs(1, DBG_CRITICAL, "ERROR: Ignoring " << *s << " due to TLS context initialization failure.");
             continue;
         }
 
