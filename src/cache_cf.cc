@@ -3854,21 +3854,17 @@ parsePortCfg(AnyP::PortCfgPointer *head, const char *optionName)
 }
 
 static void
-dump_generic_port(StoreEntry * e, const char *n, const AnyP::PortCfgPointer &s)
+dump_generic_port(StoreEntry * e, const AnyP::PortCfgPointer &s)
 {
-    char buf[MAX_IPSTRLEN];
+    PackableStream os(*e);
+    os << *s;
 
-    storeAppendPrintf(e, "%s %s",
-                      n,
-                      s->s.toUrl(buf,MAX_IPSTRLEN));
-
-    const auto &rawFlags = s->flags.rawConfig();
     // MODES and specific sub-options.
 
-    PackableStream os(*e);
     os << s->flags;
     os.flush();
 
+    const auto &rawFlags = s->flags.rawConfig();
     if (rawFlags.accelSurrogate) {
         if (s->vhost)
             storeAppendPrintf(e, " vhost");
@@ -3937,8 +3933,10 @@ static void
 dump_PortCfg(StoreEntry * e, const char *n, const AnyP::PortCfgPointer &s)
 {
     for (AnyP::PortCfgPointer p = s; p != NULL; p = p->next) {
-        dump_generic_port(e, n, p);
-        storeAppendPrintf(e, "\n");
+        if (p->directiveName.cmp(n) == 0) {
+            dump_generic_port(e, p);
+            storeAppendPrintf(e, "\n");
+        }
     }
 }
 
