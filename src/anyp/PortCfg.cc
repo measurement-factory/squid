@@ -59,7 +59,7 @@ AnyP::PortCfg::PortCfg(const SBuf &directive):
     next(),
     s(),
     directiveName(directive),
-    transport(DefaultProtocol(directive)), // "Squid is an HTTP proxy", etc.
+    transport(DefaultProtocol(directive)),
     name(NULL),
     defaultsite(NULL),
     flags(ParseDirective(directiveName)),
