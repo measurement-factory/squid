@@ -30,7 +30,7 @@ int NHttpSockets = 0;
 int HttpSockets[MAXTCPLISTENPORTS];
 
 static AnyP::TrafficModeFlags::PortKind
-ParseDirective(const SBuf &directive)
+PortKind(const SBuf &directive)
 {
     if (directive.cmp("http_port") == 0)
         return AnyP::TrafficModeFlags::httpPort;
@@ -43,14 +43,15 @@ ParseDirective(const SBuf &directive)
 }
 
 static AnyP::ProtocolVersion
-DefaultProtocol(const SBuf &directive)
+DefaultTransport(const AnyP::TrafficModeFlags::PortKind &portKind)
 {
-    if (directive.cmp("http_port") == 0)
+    switch(portKind)
+    {
+    case AnyP::TrafficModeFlags::httpPort:
         return Http::ProtocolVersion(1,1);
-    else if (directive.cmp("https_port") == 0)
+    case AnyP::TrafficModeFlags::httpsPort:
         return AnyP::ProtocolVersion(AnyP::PROTO_HTTPS, 1,1);
-    else {
-        assert(directive.cmp("ftp_port") == 0);
+    case AnyP::TrafficModeFlags::ftpPort:
         return Ftp::ProtocolVersion();
     }
 }
@@ -59,10 +60,10 @@ AnyP::PortCfg::PortCfg(const SBuf &directive):
     next(),
     s(),
     directiveName(directive),
-    transport(DefaultProtocol(directive)),
+    flags(PortKind(directiveName)),
+    transport(DefaultTransport(flags.portKind())),
     name(NULL),
     defaultsite(NULL),
-    flags(ParseDirective(directiveName)),
     allow_direct(false),
     vhost(false),
     actAsOrigin(false),
@@ -90,11 +91,11 @@ AnyP::PortCfg::~PortCfg()
 AnyP::PortCfg::PortCfg(const PortCfg &other):
     next(), // special case; see assert() below
     directiveName(other.directiveName),
+    flags(other.flags),
     s(other.s),
     transport(other.transport),
     name(other.name ? xstrdup(other.name) : nullptr),
     defaultsite(other.defaultsite ? xstrdup(other.defaultsite) : nullptr),
-    flags(other.flags),
     allow_direct(other.allow_direct),
     vhost(other.vhost),
     actAsOrigin(other.actAsOrigin),

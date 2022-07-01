@@ -42,13 +42,11 @@ public:
 
     /// actual or implied (by squid -a) squid.conf directive name
     SBuf directiveName;
+    TrafficMode flags;  ///< flags indicating what type of traffic to expect via this port
     Ip::Address s;
     AnyP::ProtocolVersion transport; ///< transport protocol and version received by this port
     char *name;                /* visible name */
     char *defaultsite;         /* default web site */
-
-    TrafficMode flags;  ///< flags indicating what type of traffic to expect via this port.
-
     bool allow_direct;       ///< Allow direct forwarding in accelerator mode
     bool vhost;              ///< uses host header
     bool actAsOrigin;        ///< update replies to conform with RFC 2616
