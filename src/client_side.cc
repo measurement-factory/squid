@@ -157,8 +157,7 @@ public:
         handler(aHandler), portCfg(aPortCfg), portTypeNote(note), sub(aSub) {}
 
     virtual void print(std::ostream &os) const {
-        startPrint(os) <<
-                       ", " << FdNote(portTypeNote) << " port=" << (void*)&portCfg << ')';
+        startPrint(os) << ", " << *portCfg << ' ' << (void*)&portCfg << ')';
     }
 
     virtual bool canDial(AsyncCall &) const { return true; }
@@ -1329,7 +1328,7 @@ ConnStateData::parseHttpRequest(const Http1::RequestParserPointer &hp)
 
     /* deny CONNECT via accelerated ports */
     if (hp->method() == Http::METHOD_CONNECT && port && port->flags.accelSurrogate()) {
-        debugs(33, DBG_IMPORTANT, "WARNING: CONNECT method received on " << transferProtocol << " Accelerator port " << port->s.port());
+        debugs(33, DBG_IMPORTANT, "WARNING: CONNECT method received on accelerator " << *port);
         debugs(33, DBG_IMPORTANT, "WARNING: for request: " << hp->method() << " " << hp->requestUri() << " " << hp->messageProtocol());
         hp->parseStatusCode = Http::scMethodNotAllowed;
         return abortRequestParsing("error:method-not-allowed");
@@ -1340,7 +1339,7 @@ ConnStateData::parseHttpRequest(const Http1::RequestParserPointer &hp)
      * If seen it signals a broken client or proxy has corrupted the traffic.
      */
     if (hp->method() == Http::METHOD_PRI && hp->messageProtocol() < Http::ProtocolVersion(2,0)) {
-        debugs(33, DBG_IMPORTANT, "WARNING: PRI method received on " << transferProtocol << " port " << port->s.port());
+        debugs(33, DBG_IMPORTANT, "WARNING: PRI method received on " << *port);
         debugs(33, DBG_IMPORTANT, "WARNING: for request: " << hp->method() << " " << hp->requestUri() << " " << hp->messageProtocol());
         hp->parseStatusCode = Http::scMethodNotAllowed;
         return abortRequestParsing("error:method-not-allowed");
