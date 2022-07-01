@@ -242,13 +242,12 @@ void
 Ftp::Server::AcceptCtrlConnection(const CommAcceptCbParams &params)
 {
     MasterXaction::Pointer xact = params.xaction;
-    AnyP::PortCfgPointer s = xact->squidPort;
 
     // NP: it is possible the port was reconfigured when the call or accept() was queued.
 
     if (params.flag != Comm::OK) {
         // Its possible the call was still queued when the client disconnected
-        debugs(33, 2, s->listenConn << ": FTP accept failure: " << xstrerr(params.xerrno));
+        debugs(33, 2, *(xact->squidPort) << ": FTP accept failure: " << xstrerr(params.xerrno));
         return;
     }
 

@@ -2298,13 +2298,12 @@ void
 httpAccept(const CommAcceptCbParams &params)
 {
     MasterXaction::Pointer xact = params.xaction;
-    AnyP::PortCfgPointer s = xact->squidPort;
 
     // NP: it is possible the port was reconfigured when the call or accept() was queued.
 
     if (params.flag != Comm::OK) {
         // Its possible the call was still queued when the client disconnected
-        debugs(33, 2, s->listenConn << ": accept failure: " << xstrerr(params.xerrno));
+        debugs(33, 2, *(xact->squidPort) << ": accept failure: " << xstrerr(params.xerrno));
         return;
     }
 
@@ -2498,13 +2497,12 @@ static void
 httpsAccept(const CommAcceptCbParams &params)
 {
     MasterXaction::Pointer xact = params.xaction;
-    const AnyP::PortCfgPointer s = xact->squidPort;
 
     // NP: it is possible the port was reconfigured when the call or accept() was queued.
 
     if (params.flag != Comm::OK) {
         // Its possible the call was still queued when the client disconnected
-        debugs(33, 2, "httpsAccept: " << s->listenConn << ": accept failure: " << xstrerr(params.xerrno));
+        debugs(33, 2, *(xact->squidPort) << ": accept failure: " << xstrerr(params.xerrno));
         return;
     }
 
