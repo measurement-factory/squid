@@ -119,7 +119,7 @@ AnyP::PortCfg::ipV4clone() const
 {
     const auto clone = new PortCfg(*this);
     clone->s.setIPv4();
-    debugs(3, 3, directiveName << " cloned wildcard address for split-stack: " << s << " and " << clone->s);
+    debugs(3, 3, *this << ": cloned wildcard address for split-stack: " << s << " and " << clone->s);
     return clone;
 }
 
