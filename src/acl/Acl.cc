@@ -201,7 +201,7 @@ ACL::ParseAclLine(ConfigParser &parser, ACL ** head)
         while (p != NULL) {
             // Bug 3239: not reliable when there is interception traffic coming
             if (p->flags.interceptedSomewhere())
-                debugs(28, DBG_CRITICAL, "WARNING: 'myport' ACL is not reliable for intercepting " << *p << ". Please use 'myportname' instead.");
+                debugs(28, DBG_CRITICAL, "WARNING: 'myip' ACL is not reliable for intercepting " << *p << ". Please use 'myportname' instead.");
 
             p = p->next;
         }
