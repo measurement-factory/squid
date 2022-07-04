@@ -157,9 +157,7 @@ public:
         handler(aHandler), portCfg(aPortCfg), portTypeNote(note), sub(aSub) {}
 
     virtual void print(std::ostream &os) const {
-        // TODO: refactor to print portCfg here
-        startPrint(os) <<
-                       ", " << FdNote(portTypeNote) << " port=" << (void*)&portCfg << ')';
+        startPrint(os) << ", port=" << *portCfg << ')';
     }
 
     virtual bool canDial(AsyncCall &) const { return true; }
