@@ -28,31 +28,36 @@ AnyP::PortCfgPointer FtpPortList;
 int NHttpSockets = 0;
 int HttpSockets[MAXTCPLISTENPORTS];
 
-static AnyP::TrafficModeFlags::PortKind
+namespace AnyP
+{
+
+static TrafficModeFlags::PortKind
 PortKind(const SBuf &directive)
 {
     if (directive.cmp("http_port") == 0)
-        return AnyP::TrafficModeFlags::httpPort;
+        return TrafficModeFlags::httpPort;
     else if (directive.cmp("https_port") == 0)
-        return AnyP::TrafficModeFlags::httpsPort;
+        return TrafficModeFlags::httpsPort;
     else {
         assert(directive.cmp("ftp_port") == 0);
-        return AnyP::TrafficModeFlags::ftpPort;
+        return TrafficModeFlags::ftpPort;
     }
 }
 
-static AnyP::ProtocolVersion
-DefaultTransport(const AnyP::TrafficModeFlags::PortKind &portKind)
+static ProtocolVersion
+DefaultTransport(const TrafficModeFlags::PortKind &portKind)
 {
     switch(portKind)
     {
-    case AnyP::TrafficModeFlags::httpPort:
+    case TrafficModeFlags::httpPort:
         return Http::ProtocolVersion(1,1);
-    case AnyP::TrafficModeFlags::httpsPort:
-        return AnyP::ProtocolVersion(AnyP::PROTO_HTTPS, 1,1);
-    case AnyP::TrafficModeFlags::ftpPort:
+    case TrafficModeFlags::httpsPort:
+        return ProtocolVersion(PROTO_HTTPS, 1,1);
+    case TrafficModeFlags::ftpPort:
         return Ftp::ProtocolVersion();
     }
+}
+
 }
 
 AnyP::PortCfg::PortCfg(const SBuf &directive):

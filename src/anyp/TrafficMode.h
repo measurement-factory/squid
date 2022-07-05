@@ -127,6 +127,7 @@ public:
     /// \copydoc TrafficModeFlags::portKind
     TrafficModeFlags::PortKind portKind() const { return flags_.portKind; }
 
+    /// reports configured port flags using squid.conf names/syntax
     void print(std::ostream &) const;
 
 private:

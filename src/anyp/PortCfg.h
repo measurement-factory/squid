@@ -42,7 +42,10 @@ public:
 
     /// actual or implied (by squid -a) squid.conf directive name
     SBuf directiveName;
-    TrafficMode flags;  ///< flags indicating what type of traffic to expect via this port
+
+    /// the kind of traffic this port expects
+    TrafficMode flags;
+
     Ip::Address s;
     AnyP::ProtocolVersion transport; ///< transport protocol and version received by this port
     char *name;                /* visible name */
