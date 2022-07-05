@@ -573,7 +573,7 @@ neighbors_init(void)
                 if (thisPeer->http_port != s->s.port())
                     continue;
 
-                debugs(15, DBG_IMPORTANT, "WARNING: Peer looks like this host." <<
+                debugs(15, DBG_IMPORTANT, "WARNING: Peer looks like our own port: " << *s <<
                        Debug::Extra << "Ignoring " <<
                        neighborTypeStr(thisPeer) << " " << thisPeer->host <<
                        "/" << thisPeer->http_port << "/" <<
