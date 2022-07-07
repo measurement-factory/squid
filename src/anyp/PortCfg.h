@@ -96,7 +96,9 @@ public:
 
     /// \param first the PortCfg this iterator points to
     PortIterator(const PortCfgPointer &first): position_(first) { setContext(); }
-    // special constructor for end() iterator
+
+    /// Special constructor for end() iterator.
+    /// This iterator does not point to an object and should never be dereferenced.
     PortIterator(): position_(nullptr) {}
 
     reference operator *() { return position_; }
@@ -108,9 +110,9 @@ public:
     bool operator ==(const PortIterator &them) const { return position_ == them.position_; }
     bool operator !=(const PortIterator &them) const { return !(*this == them); }
 
+private:
     void setContext() { if (position_) CodeContext::Reset(position_); }
 
-protected:
     value_type position_; ///< current iteration location
 };
 
@@ -122,7 +124,9 @@ public:
     explicit PortCfgRange(AnyP::PortCfgPointer &first): first_(first), savedContext(CodeContext::Current()) {}
     ~PortCfgRange() { CodeContext::Reset(savedContext); }
 
+    /// returns an iterator pointing to the first element of the range
     PortIterator begin() const { return PortIterator(first_); }
+    /// returns an iterator pointing to the 'past-the-end' element of the range
     PortIterator end() const { return PortIterator(); }
 
 private:
