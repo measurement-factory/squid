@@ -95,15 +95,9 @@ public:
     using reference = value_type &;
 
     /// \param first the PortCfg this iterator points to
-    /// \param restoreContext whether to reset context to its original value on destruction
-    PortIterator(const PortCfgPointer &first, bool restoreContext): position_(first), restoreSavedContext(restoreContext) {
-        if (restoreSavedContext)
-            savedContext = CodeContext::Current();
-        setContext();
-    }
+    PortIterator(const PortCfgPointer &first): position_(first) { setContext(); }
     // special constructor for end() iterator
-    PortIterator(): position_(nullptr), restoreSavedContext(false) {}
-    ~PortIterator() { if (restoreSavedContext) CodeContext::Reset(savedContext); }
+    PortIterator(): position_(nullptr) {}
 
     reference operator *() { return position_; }
     pointer operator ->() { return &position_; }
@@ -118,8 +112,6 @@ public:
 
 protected:
     value_type position_; ///< current iteration location
-    bool restoreSavedContext; ///< whether to switch back to saveContext
-    CodeContext::Pointer savedContext; ///< the old context
 };
 
 /// A range of port configurations.
@@ -127,20 +119,14 @@ class PortCfgRange
 {
 public:
     /// \param first the start of the range
-    /// \param restoreContext whether to reset context to its original value on destruction
-    explicit PortCfgRange(AnyP::PortCfgPointer &first, bool restoreContext):
-        first_(first), restoreSavedContext(restoreContext), savedContext(CodeContext::Current()) {}
-    ~PortCfgRange() { if (restoreSavedContext) CodeContext::Reset(savedContext); }
+    explicit PortCfgRange(AnyP::PortCfgPointer &first): first_(first), savedContext(CodeContext::Current()) {}
+    ~PortCfgRange() { CodeContext::Reset(savedContext); }
 
-    PortIterator begin() const {
-        // do not restore the context twice
-        return PortIterator(first_, !restoreSavedContext);
-    }
+    PortIterator begin() const { return PortIterator(first_); }
     PortIterator end() const { return PortIterator(); }
 
 private:
     AnyP::PortCfgPointer first_;
-    bool restoreSavedContext; ///< whether to switch back to saveContext
     CodeContext::Pointer savedContext; ///< the old context
 };
 
