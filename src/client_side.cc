@@ -2545,7 +2545,7 @@ ConnStateData::postHttpsAccept()
         assert(clientConnection->flags & (COMM_TRANSPARENT | COMM_INTERCEPTION));
         request->url.host(clientConnection->local.toStr(ip, sizeof(ip)));
         request->url.port(clientConnection->local.port());
-        request->myportname = port->name();
+        request->myportname = port->name;
         const AccessLogEntry::Pointer connectAle = new AccessLogEntry;
         CodeContext::Reset(connectAle);
         // TODO: Use these request/ALE when waiting for new bumped transactions.
@@ -3313,11 +3313,11 @@ clientHttpConnectionsOpen(void)
 #if USE_OPENSSL
         if (s->flags.tunnelSslBumping) {
             if (!Config.accessList.ssl_bump) {
-                debugs(33, DBG_IMPORTANT, "WARNING: No ssl_bump configured. Disabling ssl-bump");
+                debugs(33, DBG_IMPORTANT, "WARNING: No ssl_bump configured. Disabling ssl-bump on " << scheme << "_port " << s->s);
                 s->flags.tunnelSslBumping = false;
             }
             if (!s->secure.staticContext && !s->secure.generateHostCertificates) {
-                debugs(1, DBG_IMPORTANT, "Will not bump SSL due to TLS initialization failure.");
+                debugs(1, DBG_IMPORTANT, "Will not bump SSL at " << scheme << "_port " << s->s << " due to TLS initialization failure.");
                 s->flags.tunnelSslBumping = false;
                 if (s->transport.protocol == AnyP::PROTO_HTTP)
                     s->secure.encryptTransport = false;
@@ -3330,7 +3330,7 @@ clientHttpConnectionsOpen(void)
 #endif
 
         if (s->secure.encryptTransport && !s->secure.staticContext) {
-            debugs(1, DBG_CRITICAL, "ERROR: Will not open for listening due to TLS context initialization failure.");
+            debugs(1, DBG_CRITICAL, "ERROR: Ignoring " << scheme << "_port " << s->s << " due to TLS context initialization failure.");
             continue;
         }
 
@@ -3448,7 +3448,7 @@ clientConnectionsClose()
 {
     for (auto &s: HttpPorts()) {
         if (s->listenConn != NULL) {
-            debugs(1, Important(14), "Closing HTTP(S) port");
+            debugs(1, Important(14), "Closing HTTP(S) port " << s->listenConn->local);
             s->listenConn->close();
             s->listenConn = NULL;
         }

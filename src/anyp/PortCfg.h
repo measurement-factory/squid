@@ -36,19 +36,11 @@ public:
     virtual ScopedId codeContextGist() const override;
     virtual std::ostream &detailCodeContext(std::ostream &os) const override;
 
-    /// internal name (if provided) or specification
-    const char *name() const  { return name_ ? name_ : spec_; }
-
-    /// assigns the internal name
-    void initName(const char *aName) { assert(!name_); name_ = xstrdup(aName); }
-
-    /// assigns the specification
-    void initSpec(const char *aSpec) { assert(!spec_); spec_ = xstrdup(aSpec); }
-
     PortCfgPointer next;
 
     Ip::Address s;
     AnyP::ProtocolVersion transport; ///< transport protocol and version received by this port
+    char *name;                /* visible name */
     char *defaultsite;         /* default web site */
 
     TrafficMode flags;  ///< flags indicating what type of traffic to expect via this port.
@@ -80,8 +72,6 @@ public:
 
 private:
     explicit PortCfg(const PortCfg &other); // for ipV4clone() needs only!
-    char *name_; ///< internal name for the port
-    char *spec_; ///< the port specification (port or addr:port)
 };
 
 /// Iterates over a PortCfg list and sets the corresponding CodeContext before each iteration.

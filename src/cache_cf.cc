@@ -3426,7 +3426,7 @@ parsePortSpecification(const AnyP::PortCfgPointer &s, char *token)
     char *junk = NULL;
 
     s->disable_pmtu_discovery = DISABLE_PMTU_OFF;
-    s->initSpec(token);
+    s->name = xstrdup(token);
     s->connection_auth_disabled = false;
 
     const SBuf &portType = AnyP::UriScheme(s->transport.protocol).image();
@@ -3635,7 +3635,8 @@ parse_port_option(AnyP::PortCfgPointer &s, char *token)
 #endif
         s->ignore_cc = true;
     } else if (strncmp(token, "name=", 5) == 0) {
-        s->initName(token + 5);
+        safe_free(s->name);
+        s->name = xstrdup(token + 5);
     } else if (strcmp(token, "no-connection-auth") == 0) {
         s->connection_auth_disabled = true;
     } else if (strcmp(token, "connection-auth=off") == 0) {
@@ -3888,8 +3889,8 @@ dump_generic_port(StoreEntry * e, const char *n, const AnyP::PortCfgPointer &s)
 
     // Generic independent options
 
-    if (s->name())
-        storeAppendPrintf(e, " name=%s", s->name());
+    if (s->name)
+        storeAppendPrintf(e, " name=%s", s->name);
 
 #if USE_HTTP_VIOLATIONS
     if (!s->flags.accelSurrogate && s->ignore_cc)

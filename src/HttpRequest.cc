@@ -788,7 +788,7 @@ HttpRequest::manager(const CbcPointer<ConnStateData> &aMgr, const AccessLogEntry
 
     AnyP::PortCfgPointer port = clientConnectionManager->port;
     if (port) {
-        myportname = port->name();
+        myportname = port->name;
         flags.ignoreCc = port->ignore_cc;
     }
 
