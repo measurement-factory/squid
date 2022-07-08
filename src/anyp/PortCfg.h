@@ -95,7 +95,7 @@ public:
     using reference = value_type &;
 
     /// \param first the PortCfg this iterator points to
-    PortIterator(const PortCfgPointer &first): position_(first) { setContext(); }
+    explicit PortIterator(const PortCfgPointer &position): position_(position) { setContext(); }
 
     /// Special constructor for end() iterator.
     /// This iterator does not point to an object and should never be dereferenced.
@@ -113,7 +113,7 @@ public:
 private:
     void setContext() { if (position_) CodeContext::Reset(position_); }
 
-    value_type position_; ///< current iteration location
+    PortCfgPointer position_; ///< current iteration location
 };
 
 /// A range of port configurations.
