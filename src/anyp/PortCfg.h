@@ -85,24 +85,22 @@ public:
     using reference = value_type &;
 
     /// \param first the PortCfg this iterator points to
-    explicit PortIterator(const PortCfgPointer &position): position_(position) { setContext(); }
+    explicit PortIterator(const PortCfgPointer &position): position_(position) {}
 
     /// Special constructor for end() iterator.
     /// This iterator does not point to an object and should never be dereferenced.
     PortIterator(): position_(nullptr) {}
 
-    reference operator *() { return *position_; }
-    pointer operator ->() { return position_.getRaw(); }
+    reference operator *() { Must(position_); CodeContext::Reset(position_); return *position_; }
+    pointer operator ->() { return &(operator*()); }
 
-    PortIterator& operator++() { position_ = position_->next; setContext(); return *this; }
+    PortIterator& operator++() { position_ = position_->next; return *this; }
     PortIterator operator++(int) { const auto oldMe = *this; ++(*this); return oldMe; }
 
     bool operator ==(const PortIterator &them) const { return position_ == them.position_; }
     bool operator !=(const PortIterator &them) const { return !(*this == them); }
 
 private:
-    void setContext() { if (position_) CodeContext::Reset(position_); }
-
     PortCfgPointer position_; ///< current iteration location
 };
 
