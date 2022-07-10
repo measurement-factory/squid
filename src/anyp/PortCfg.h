@@ -91,7 +91,7 @@ public:
     /// This iterator does not point to an object and should never be dereferenced.
     PortIterator(): position_(nullptr) {}
 
-    reference operator *() { Must(position_); CodeContext::Reset(position_); return *position_; }
+    reference operator *() { Assure(position_); CodeContext::Reset(position_); return *position_; }
     pointer operator ->() { return &(operator*()); }
 
     PortIterator& operator++() { position_ = position_->next; return *this; }
