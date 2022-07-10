@@ -11,8 +11,12 @@ include $(top_srcdir)/src/TestHeaders.am
 noinst_LTLIBRARIES = libbase.la
 
 libbase_la_SOURCES = \
+	Assure.cc \
+	Assure.h \
 	AsyncCall.cc \
 	AsyncCall.h \
+	AsyncCallList.cc \
+	AsyncCallList.h \
 	AsyncCallQueue.cc \
 	AsyncCallQueue.h \
 	AsyncCbdataCalls.h \
@@ -28,6 +32,8 @@ libbase_la_SOURCES = \
 	ClpMap.h \
 	CodeContext.cc \
 	CodeContext.h \
+	DelayedAsyncCalls.cc \
+	DelayedAsyncCalls.h \
 	EnumIterator.h \
 	File.cc \
 	File.h \
@@ -45,6 +51,8 @@ libbase_la_SOURCES = \
 	Optional.h \
 	Packable.h \
 	PackableStream.h \
+	RandomUuid.cc \
+	RandomUuid.h \
 	Range.h \
 	Raw.cc \
 	Raw.h \

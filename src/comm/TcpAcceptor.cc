@@ -29,7 +29,6 @@
 #include "log/access_log.h"
 #include "MasterXaction.h"
 #include "SquidConfig.h"
-#include "SquidTime.h"
 #include "StatCounters.h"
 
 #include <cerrno>
@@ -321,10 +320,9 @@ Comm::TcpAcceptor::notify(const Comm::Flag flag, const Comm::ConnectionPointer &
     if (theCallSub != NULL) {
         AsyncCall::Pointer call = theCallSub->callback();
         CommAcceptCbParams &params = GetCommParams<CommAcceptCbParams>(call);
-        params.xaction = new MasterXaction(XactionInitiator::initClient);
-        params.xaction->squidPort = listenPort_;
+        params.port = listenPort_;
         params.fd = conn->fd;
-        params.conn = params.xaction->tcpClient = newConnDetails;
+        params.conn = newConnDetails;
         params.flag = flag;
         params.xerrno = errcode;
         ScheduleCallHere(call);
@@ -424,7 +422,8 @@ Comm::TcpAcceptor::oldAccept(Comm::ConnectionPointer &details)
     // set socket flags
     commSetCloseOnExec(sock);
     commSetNonBlocking(sock);
-    Comm::ApplyTcpKeepAlive(sock, listenPort_->tcp_keepalive);
+    if (listenPort_)
+        Comm::ApplyTcpKeepAlive(sock, listenPort_->tcp_keepalive);
 
     /* IFF the socket is (tproxy) transparent, pass the flag down to allow spoofing */
     F->flags.transparent = fd_table[conn->fd].flags.transparent; // XXX: can we remove this line yet?

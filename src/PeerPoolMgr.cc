@@ -24,7 +24,6 @@
 #include "PeerPoolMgr.h"
 #include "security/BlindPeerConnector.h"
 #include "SquidConfig.h"
-#include "SquidTime.h"
 
 CBDATA_CLASS_INIT(PeerPoolMgr);
 
@@ -59,7 +58,7 @@ PeerPoolMgr::start()
 {
     AsyncJob::start();
 
-    const MasterXaction::Pointer mx = new MasterXaction(XactionInitiator::initPeerPool);
+    const auto mx = MasterXaction::MakePortless<XactionInitiator::initPeerPool>();
     // ErrorState, getOutgoingAddress(), and other APIs may require a request.
     // We fake one. TODO: Optionally send this request to peers?
     request = new HttpRequest(Http::METHOD_OPTIONS, AnyP::PROTO_HTTP, "http", "*", mx);

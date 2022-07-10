@@ -30,7 +30,6 @@
 #include "PeerDigest.h"
 #include "refresh.h"
 #include "SquidConfig.h"
-#include "SquidTime.h"
 #include "Store.h"
 #include "StoreSearch.h"
 #include "util.h"
@@ -418,7 +417,7 @@ storeDigestRewriteStart(void *)
     debugs(71, 2, "storeDigestRewrite: start rewrite #" << sd_state.rewrite_count + 1);
 
     const char *url = internalLocalUri("/squid-internal-periodic/", SBuf(StoreDigestFileName));
-    const MasterXaction::Pointer mx = new MasterXaction(XactionInitiator::initCacheDigest);
+    const auto mx = MasterXaction::MakePortless<XactionInitiator::initCacheDigest>();
     auto req = HttpRequest::FromUrlXXX(url, mx);
 
     RequestFlags flags;
