@@ -109,8 +109,7 @@ class PortCfgRange
 {
 public:
     /// \param first the start of the range
-    explicit PortCfgRange(AnyP::PortCfgPointer &first): first_(first), savedContext(CodeContext::Current()) {}
-    ~PortCfgRange() { CodeContext::Reset(savedContext); }
+    explicit PortCfgRange(AnyP::PortCfgPointer &first): first_(first) {}
 
     /// returns an iterator pointing to the first element of the range
     PortIterator begin() const { return PortIterator(first_); }
@@ -119,7 +118,8 @@ public:
 
 private:
     AnyP::PortCfgPointer first_;
-    CodeContext::Pointer savedContext; ///< the old context
+    /// prevents iteration step context from leaking outside the loop
+    CodeContextGuard contextGuard;
 };
 
 } // namespace AnyP

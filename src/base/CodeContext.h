@@ -94,10 +94,14 @@ class CodeContextGuard
 {
 public:
     CodeContextGuard(const CodeContext::Pointer &newContext): savedCodeContext(CodeContext::Current()) { CodeContext::Reset(newContext); }
+    CodeContextGuard(): savedCodeContext(CodeContext::Current()) {}
     ~CodeContextGuard() { CodeContext::Reset(savedCodeContext); }
 
-    // no copying of any kind (for simplicity and to prevent accidental copies)
-    CodeContextGuard(CodeContextGuard &&) = delete;
+    // forbid copying but allow moving
+    CodeContextGuard(const CodeContextGuard &) = delete;
+    CodeContextGuard &operator=(const CodeContextGuard &) = delete;
+    CodeContextGuard(CodeContextGuard &&) = default;
+    CodeContextGuard &operator=(CodeContextGuard &&) = default;
 
     CodeContext::Pointer savedCodeContext;
 };
