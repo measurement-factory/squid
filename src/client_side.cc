@@ -3301,7 +3301,8 @@ AddOpenedHttpSocket(const Comm::ConnectionPointer &conn)
 static void
 clientHttpConnectionsOpen(void)
 {
-    for (auto &s: HttpPorts()) {
+    for (auto &port: HttpPorts()) {
+        AnyP::PortCfgPointer s(&port);
         const SBuf &scheme = AnyP::UriScheme(s->transport.protocol).image();
 
         if (MAXTCPLISTENPORTS == NHttpSockets) {
@@ -3446,7 +3447,8 @@ clientOpenListenSockets(void)
 void
 clientConnectionsClose()
 {
-    for (auto &s: HttpPorts()) {
+    for (auto &port: HttpPorts()) {
+        const auto s = &port; // XXX: Remove diff-reducer before merging this PR
         if (s->listenConn != NULL) {
             debugs(1, Important(14), "Closing HTTP(S) port " << s->listenConn->local);
             s->listenConn->close();

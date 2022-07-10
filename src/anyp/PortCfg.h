@@ -80,7 +80,7 @@ class PortIterator
 public:
     // some of the standard iterator traits
     using iterator_category = std::forward_iterator_tag;
-    using value_type = PortCfgPointer;
+    using value_type = PortCfg;
     using pointer = value_type *;
     using reference = value_type &;
 
@@ -91,8 +91,8 @@ public:
     /// This iterator does not point to an object and should never be dereferenced.
     PortIterator(): position_(nullptr) {}
 
-    reference operator *() { return position_; }
-    pointer operator ->() { return &position_; }
+    reference operator *() { return *position_; }
+    pointer operator ->() { return position_.getRaw(); }
 
     PortIterator& operator++() { position_ = position_->next; setContext(); return *this; }
     PortIterator operator++(int) { const auto oldMe = *this; ++(*this); return oldMe; }
