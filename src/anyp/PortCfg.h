@@ -127,11 +127,15 @@ private:
 /// list of Squid http(s)_port configured
 extern AnyP::PortCfgPointer HttpPortList;
 
+/// A sequence of current http_port and https_port configurations, in configuration order.
+/// Handy for range-based for loops.
 AnyP::PortCfgRange HttpPorts();
 
 /// list of Squid ftp_port configured
 extern AnyP::PortCfgPointer FtpPortList;
 
+/// A sequence of current ftp_port configurations, in configuration order.
+/// Handy for range-based for loops.
 AnyP::PortCfgRange FtpPorts();
 
 #if !defined(MAXTCPLISTENPORTS)
