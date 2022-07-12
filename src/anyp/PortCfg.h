@@ -74,69 +74,13 @@ private:
     explicit PortCfg(const PortCfg &other); // for ipV4clone() needs only!
 };
 
-/// Iterates over a PortCfg list and sets the corresponding CodeContext before each iteration.
-class PortIterator
-{
-public:
-    // some of the standard iterator traits
-    using iterator_category = std::forward_iterator_tag;
-    using value_type = PortCfg;
-    using pointer = value_type *;
-    using reference = value_type &;
-
-    /// \param first the PortCfg this iterator points to
-    explicit PortIterator(const PortCfgPointer &position): position_(position) {}
-
-    /// Special constructor for end() iterator.
-    /// This iterator does not point to an object and should never be dereferenced.
-    PortIterator(): position_(nullptr) {}
-
-    reference operator *() { Assure(position_); CodeContext::Reset(position_); return *position_; }
-    pointer operator ->() { return &(operator*()); }
-
-    PortIterator& operator++() { position_ = position_->next; return *this; }
-    PortIterator operator++(int) { const auto oldMe = *this; ++(*this); return oldMe; }
-
-    bool operator ==(const PortIterator &them) const { return position_ == them.position_; }
-    bool operator !=(const PortIterator &them) const { return !(*this == them); }
-
-private:
-    PortCfgPointer position_; ///< current iteration location
-};
-
-/// A range of port configurations.
-class PortCfgRange
-{
-public:
-    /// \param first the start of the range
-    explicit PortCfgRange(AnyP::PortCfgPointer &first): first_(first) {}
-
-    /// returns an iterator pointing to the first element of the range
-    PortIterator begin() const { return PortIterator(first_); }
-    /// returns an iterator pointing to the 'past-the-end' element of the range
-    PortIterator end() const { return PortIterator(); }
-
-private:
-    AnyP::PortCfgPointer first_;
-    /// prevents iteration step context from leaking outside the loop
-    CodeContextGuard contextGuard;
-};
-
 } // namespace AnyP
 
 /// list of Squid http(s)_port configured
 extern AnyP::PortCfgPointer HttpPortList;
 
-/// A sequence of current http_port and https_port configurations, in configuration order.
-/// Handy for range-based for loops.
-AnyP::PortCfgRange HttpPorts();
-
 /// list of Squid ftp_port configured
 extern AnyP::PortCfgPointer FtpPortList;
-
-/// A sequence of current ftp_port configurations, in configuration order.
-/// Handy for range-based for loops.
-AnyP::PortCfgRange FtpPorts();
 
 #if !defined(MAXTCPLISTENPORTS)
 // Max number of TCP listening ports

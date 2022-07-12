@@ -264,8 +264,8 @@ Ftp::Server::AcceptCtrlConnection(const CommAcceptCbParams &params)
 void
 Ftp::StartListening()
 {
-    for (auto &port: FtpPorts()) {
-        AnyP::PortCfgPointer s(&port);
+    for (AnyP::PortCfgPointer s = FtpPortList; s != NULL; s = s->next) {
+        CodeContextGuard guard(s);
         if (MAXTCPLISTENPORTS == NHttpSockets) {
             debugs(1, DBG_IMPORTANT, "Ignoring ftp_port lines exceeding the" <<
                    " limit of " << MAXTCPLISTENPORTS << " ports.");
@@ -284,8 +284,8 @@ Ftp::StartListening()
 void
 Ftp::StopListening()
 {
-    for (auto &port: FtpPorts()) {
-        const auto s = &port; // TODO: Remove this diff-reducer before merging this PR
+    for (AnyP::PortCfgPointer s = FtpPortList; s != NULL; s = s->next) {
+        CodeContextGuard guard(s);
         if (s->listenConn != NULL) {
             debugs(1, DBG_IMPORTANT, "Closing FTP port " << s->listenConn->local);
             s->listenConn->close();
