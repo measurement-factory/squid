@@ -3347,7 +3347,9 @@ AddOpenedHttpSocket(const Comm::ConnectionPointer &conn)
 static void
 clientHttpConnectionsOpen(void)
 {
-    for (AnyP::PortCfgPointer s = HttpPortList; s != NULL; s = s->next) {
+    const auto savedContext = CodeContext::Current();
+    for (AnyP::PortCfgPointer s = HttpPortList; s != nullptr; s = s->next) {
+        CodeContext::Reset(s);
         const SBuf &scheme = AnyP::UriScheme(s->transport.protocol).image();
 
         if (MAXTCPLISTENPORTS == NHttpSockets) {
@@ -3388,6 +3390,7 @@ clientHttpConnectionsOpen(void)
                 CommAcceptCbPtrFun(isHttps ? httpsAccept : httpAccept, CommAcceptCbParams(nullptr)));
         clientStartListeningOn(s, subCall, isHttps ? Ipc::fdnHttpsSocket : Ipc::fdnHttpSocket);
     }
+    CodeContext::Reset(savedContext);
 }
 
 void
@@ -3468,13 +3471,16 @@ clientOpenListenSockets(void)
 void
 clientConnectionsClose()
 {
-    for (AnyP::PortCfgPointer s = HttpPortList; s != NULL; s = s->next) {
-        if (s->listenConn != NULL) {
+    const auto savedContext = CodeContext::Current();
+    for (AnyP::PortCfgPointer s = HttpPortList; s != nullptr; s = s->next) {
+        CodeContext::Reset(s);
+        if (s->listenConn != nullptr) {
             debugs(1, Important(14), "Closing HTTP(S) port " << s->listenConn->local);
             s->listenConn->close();
             s->listenConn = NULL;
         }
     }
+    CodeContext::Reset(savedContext);
 
     Ftp::StopListening();
 

@@ -268,7 +268,9 @@ Ftp::Server::AcceptCtrlConnection(const CommAcceptCbParams &params)
 void
 Ftp::StartListening()
 {
-    for (AnyP::PortCfgPointer s = FtpPortList; s != NULL; s = s->next) {
+    const auto savedContext = CodeContext::Current();
+    for (AnyP::PortCfgPointer s = FtpPortList; s != nullptr; s = s->next) {
+        CodeContext::Reset(s);
         if (MAXTCPLISTENPORTS == NHttpSockets) {
             debugs(1, DBG_IMPORTANT, "Ignoring ftp_port lines exceeding the" <<
                    " limit of " << MAXTCPLISTENPORTS << " ports.");
@@ -282,18 +284,22 @@ Ftp::StartListening()
                                                CommAcceptCbParams(NULL)));
         clientStartListeningOn(s, subCall, Ipc::fdnFtpSocket);
     }
+    CodeContext::Reset(savedContext);
 }
 
 void
 Ftp::StopListening()
 {
-    for (AnyP::PortCfgPointer s = FtpPortList; s != NULL; s = s->next) {
-        if (s->listenConn != NULL) {
+    const auto savedContext = CodeContext::Current();
+    for (AnyP::PortCfgPointer s = FtpPortList; s != nullptr; s = s->next) {
+        CodeContext::Reset(s);
+        if (s->listenConn != nullptr) {
             debugs(1, DBG_IMPORTANT, "Closing FTP port " << s->listenConn->local);
             s->listenConn->close();
             s->listenConn = NULL;
         }
     }
+    CodeContext::Reset(savedContext);
 }
 
 void
