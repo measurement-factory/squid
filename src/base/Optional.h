@@ -75,8 +75,8 @@ public:
 
     void clear() {
         if (hasValue_) {
-            value_.~Value();
             hasValue_ = false;
+            value_.~Value();
         }
     }
 
