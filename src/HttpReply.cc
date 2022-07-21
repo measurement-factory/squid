@@ -22,7 +22,6 @@
 #include "HttpRequest.h"
 #include "MemBuf.h"
 #include "SquidConfig.h"
-#include "SquidTime.h"
 #include "Store.h"
 #include "StrList.h"
 
@@ -73,7 +72,7 @@ HttpReply::clean()
 {
     // we used to assert that the pipe is NULL, but now the message only
     // points to a pipe that is owned and initiated by another object.
-    body_pipe = NULL;
+    body_pipe = nullptr;
 
     body.clear();
     hdrCacheClean();
@@ -140,7 +139,7 @@ HttpReply::make304() const
     rv->content_type = content_type;
     /* rv->content_range */
     /* rv->keep_alive */
-    rv->sline.set(Http::ProtocolVersion(), Http::scNotModified, NULL);
+    rv->sline.set(Http::ProtocolVersion(), Http::scNotModified, nullptr);
 
     for (t = 0; ImsEntries[t] != Http::HdrType::OTHER; ++t) {
         if ((e = header.findEntry(ImsEntries[t])))
@@ -203,7 +202,7 @@ void
 HttpReply::redirect(Http::StatusCode status, const char *loc)
 {
     HttpHeader *hdr;
-    sline.set(Http::ProtocolVersion(), status, NULL);
+    sline.set(Http::ProtocolVersion(), status, nullptr);
     hdr = &header;
     hdr->putStr(Http::HdrType::SERVER, APP_FULLNAME);
     hdr->putTime(Http::HdrType::DATE, squid_curtime);
@@ -354,17 +353,17 @@ HttpReply::hdrCacheClean()
 
     if (cache_control) {
         delete cache_control;
-        cache_control = NULL;
+        cache_control = nullptr;
     }
 
     if (surrogate_control) {
         delete surrogate_control;
-        surrogate_control = NULL;
+        surrogate_control = nullptr;
     }
 
     if (content_range) {
         delete content_range;
-        content_range = NULL;
+        content_range = nullptr;
     }
 }
 
@@ -554,7 +553,7 @@ HttpReply::calcMaxBodySize(HttpRequest& request) const
     if (!Config.ReplyBodySize)
         return;
 
-    ACLFilledChecklist ch(NULL, &request, NULL);
+    ACLFilledChecklist ch(nullptr, &request, nullptr);
     // XXX: cont-cast becomes irrelevant when checklist is HttpReply::Pointer
     ch.reply = const_cast<HttpReply *>(this);
     HTTPMSGLOCK(ch.reply);
@@ -619,9 +618,9 @@ void HttpReply::removeStaleWarnings()
 String HttpReply::removeStaleWarningValues(const String &value)
 {
     String newValue;
-    const char *item = 0;
+    const char *item = nullptr;
     int len = 0;
-    const char *pos = 0;
+    const char *pos = nullptr;
     while (strListGetItem(&value, ',', &item, &len, &pos)) {
         bool keep = true;
         // Does warning-value have warn-date (which contains quoted date)?
@@ -645,7 +644,7 @@ String HttpReply::removeStaleWarningValues(const String &value)
                 // found warn-text
                 String warnDate;
                 warnDate.append(warnDateBeg, warnDateEnd - warnDateBeg);
-                const time_t time = parse_rfc1123(warnDate.termedBuf());
+                const time_t time = Time::ParseRfc1123(warnDate.termedBuf());
                 keep = (time > 0 && time == date); // keep valid and matching date
             }
         }

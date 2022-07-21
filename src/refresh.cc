@@ -22,7 +22,6 @@
 #include "refresh.h"
 #include "RefreshPattern.h"
 #include "SquidConfig.h"
-#include "SquidTime.h"
 #include "Store.h"
 #include "util.h"
 
@@ -287,16 +286,16 @@ refreshCheck(const StoreEntry * entry, HttpRequest * request, time_t delta)
      */
     // XXX: performance regression. c_str() reallocates
     const RefreshPattern *R = (uri != nilUri) ? refreshLimits(uri.c_str()) : refreshFirstDotRule();
-    if (NULL == R)
+    if (nullptr == R)
         R = &DefaultRefresh;
 
     debugs(22, 3, "Matched '" << *R << '\'');
 
     debugs(22, 3, "\tage:\t" << age);
 
-    debugs(22, 3, "\tcheck_time:\t" << mkrfc1123(check_time));
+    debugs(22, 3, "\tcheck_time:\t" << Time::FormatRfc1123(check_time));
 
-    debugs(22, 3, "\tentry->timestamp:\t" << mkrfc1123(entry->timestamp));
+    debugs(22, 3, "\tentry->timestamp:\t" << Time::FormatRfc1123(entry->timestamp));
 
     if (request && !request->flags.ignoreCc) {
         const HttpHdrCc *const cc = request->cache_control;
@@ -306,7 +305,7 @@ refreshCheck(const StoreEntry * entry, HttpRequest * request, time_t delta)
                    minFresh << " = " << age + minFresh);
             debugs(22, 3, "\tcheck_time + min-fresh:\t" << check_time << " + "
                    << minFresh << " = " <<
-                   mkrfc1123(check_time + minFresh));
+                   Time::FormatRfc1123(check_time + minFresh));
             age += minFresh;
             check_time += minFresh;
         }
@@ -405,7 +404,7 @@ refreshCheck(const StoreEntry * entry, HttpRequest * request, time_t delta)
 #endif
 
         // Check the Cache-Control client request header
-        if (NULL != cc) {
+        if (nullptr != cc) {
 
             // max-age directive
             int maxAge = -1;
@@ -526,7 +525,7 @@ refreshIsCachable(const StoreEntry * entry)
      * avoid objects which expire almost immediately, and which can't
      * be refreshed.
      */
-    int reason = refreshCheck(entry, NULL, Config.minimum_expiry_time);
+    int reason = refreshCheck(entry, nullptr, Config.minimum_expiry_time);
     ++ refreshCounts[rcStore].total;
     ++ refreshCounts[rcStore].status[reason];
 
@@ -538,7 +537,7 @@ refreshIsCachable(const StoreEntry * entry)
         /* We should know entry's modification time to do a refresh */
         return false;
 
-    if (entry->mem_obj == NULL)
+    if (entry->mem_obj == nullptr)
         /* no mem_obj? */
         return true;
 

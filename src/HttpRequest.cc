@@ -79,22 +79,22 @@ HttpRequest::init()
     method = Http::METHOD_NONE;
     url.clear();
 #if USE_AUTH
-    auth_user_request = NULL;
+    auth_user_request = nullptr;
 #endif
     flags = RequestFlags();
-    range = NULL;
+    range = nullptr;
     ims = -1;
     imslen = 0;
     lastmod = -1;
     client_addr.setEmpty();
     my_addr.setEmpty();
-    body_pipe = NULL;
+    body_pipe = nullptr;
     // hier
     dnsWait = -1;
     error.clear();
-    peer_login = NULL;      // not allocated/deallocated by this class
-    peer_domain = NULL;     // not allocated/deallocated by this class
-    peer_host = NULL;
+    peer_login = nullptr;      // not allocated/deallocated by this class
+    peer_domain = nullptr;     // not allocated/deallocated by this class
+    peer_host = nullptr;
     vary_headers = SBuf();
     myportname = null_string;
     tag = null_string;
@@ -109,10 +109,10 @@ HttpRequest::init()
     indirect_client_addr.setEmpty();
 #endif /* FOLLOW_X_FORWARDED_FOR */
 #if USE_ADAPTATION
-    adaptHistory_ = NULL;
+    adaptHistory_ = nullptr;
 #endif
 #if ICAP_CLIENT
-    icapHistory_ = NULL;
+    icapHistory_ = nullptr;
 #endif
     rangeOffsetLimit = -2; //a value of -2 means not checked yet
     forcedBodyContinuation = false;
@@ -123,9 +123,9 @@ HttpRequest::clean()
 {
     // we used to assert that the pipe is NULL, but now the request only
     // points to a pipe that is owned and initiated by another object.
-    body_pipe = NULL;
+    body_pipe = nullptr;
 #if USE_AUTH
-    auth_user_request = NULL;
+    auth_user_request = nullptr;
 #endif
     vary_headers.clear();
     url.clear();
@@ -134,12 +134,12 @@ HttpRequest::clean()
 
     if (cache_control) {
         delete cache_control;
-        cache_control = NULL;
+        cache_control = nullptr;
     }
 
     if (range) {
         delete range;
-        range = NULL;
+        range = nullptr;
     }
 
     myportname.clean();
@@ -158,10 +158,10 @@ HttpRequest::clean()
     etag.clean();
 
 #if USE_ADAPTATION
-    adaptHistory_ = NULL;
+    adaptHistory_ = nullptr;
 #endif
 #if ICAP_CLIENT
-    icapHistory_ = NULL;
+    icapHistory_ = nullptr;
 #endif
 }
 
@@ -440,7 +440,7 @@ HttpRequest::multipartRangeRequest() const
 bool
 HttpRequest::bodyNibbled() const
 {
-    return body_pipe != NULL && body_pipe->consumedSize() > 0;
+    return body_pipe != nullptr && body_pipe->consumedSize() > 0;
 }
 
 void
@@ -609,7 +609,7 @@ HttpRequest::getRangeOffsetLimit()
 
     rangeOffsetLimit = 0; // default value for rangeOffsetLimit
 
-    ACLFilledChecklist ch(NULL, this, NULL);
+    ACLFilledChecklist ch(nullptr, this, nullptr);
     ch.src_addr = client_addr;
     ch.my_addr =  my_addr;
 
@@ -631,7 +631,7 @@ HttpRequest::ignoreRange(const char *reason)
     if (range) {
         debugs(73, 3, static_cast<void*>(range) << " for " << reason);
         delete range;
-        range = NULL;
+        range = nullptr;
     }
     // Some callers also reset isRanged but it may not be safe for all callers:
     // isRanged is used to determine whether a weak ETag comparison is allowed,
@@ -734,7 +734,7 @@ HttpRequest::pinnedConnection()
 {
     if (clientConnectionManager.valid() && clientConnectionManager->pinning.pinned)
         return clientConnectionManager.get();
-    return NULL;
+    return nullptr;
 }
 
 const SBuf
@@ -824,30 +824,25 @@ HttpRequest::canonicalCleanUrl() const
     return urlCanonicalCleanWithoutRequest(effectiveRequestUri(), method, url.getScheme());
 }
 
-/// a helper for validating FindListeningPortAddress()-found address candidates
-static const Ip::Address *
-FindListeningPortAddressInAddress(const Ip::Address *ip)
-{
-    // FindListeningPortAddress() callers do not want INADDR_ANY addresses
-    return (ip && !ip->isAnyAddr()) ? ip : nullptr;
-}
-
 /// a helper for handling PortCfg cases of FindListeningPortAddress()
+template <typename Filter>
 static const Ip::Address *
-FindListeningPortAddressInPort(const AnyP::PortCfgPointer &port)
+FindGoodListeningPortAddressInPort(const AnyP::PortCfgPointer &port, const Filter isGood)
 {
-    return port ? FindListeningPortAddressInAddress(&port->s) : nullptr;
+    return (port && isGood(port->s)) ? &port->s : nullptr;
 }
 
 /// a helper for handling Connection cases of FindListeningPortAddress()
+template <typename Filter>
 static const Ip::Address *
-FindListeningPortAddressInConn(const Comm::ConnectionPointer &conn)
+FindGoodListeningPortAddressInConn(const Comm::ConnectionPointer &conn, const Filter isGood)
 {
-    return conn ? FindListeningPortAddressInAddress(&conn->local) : nullptr;
+    return (conn && isGood(conn->local)) ? &conn->local : nullptr;
 }
 
+template <typename Filter>
 const Ip::Address *
-FindListeningPortAddress(const HttpRequest *callerRequest, const AccessLogEntry *ale)
+FindGoodListeningPortAddress(const HttpRequest *callerRequest, const AccessLogEntry *ale, const Filter filter)
 {
     // Check all sources of usable listening port information, giving
     // HttpRequest and masterXaction a preference over ALE.
@@ -858,18 +853,35 @@ FindListeningPortAddress(const HttpRequest *callerRequest, const AccessLogEntry 
     if (!request)
         return nullptr; // not enough information
 
-    const Ip::Address *ip = FindListeningPortAddressInPort(request->masterXaction->squidPort);
+    auto ip = FindGoodListeningPortAddressInPort(request->masterXaction->squidPort, filter);
     if (!ip && ale)
-        ip = FindListeningPortAddressInPort(ale->cache.port);
+        ip = FindGoodListeningPortAddressInPort(ale->cache.port, filter);
 
     // XXX: also handle PROXY protocol here when we have a flag to identify such request
     if (ip || request->flags.interceptTproxy || request->flags.intercepted)
         return ip;
 
     /* handle non-intercepted cases that were not handled above */
-    ip = FindListeningPortAddressInConn(request->masterXaction->tcpClient);
+    ip = FindGoodListeningPortAddressInConn(request->masterXaction->tcpClient, filter);
     if (!ip && ale)
-        ip = FindListeningPortAddressInConn(ale->tcpClient);
+        ip = FindGoodListeningPortAddressInConn(ale->tcpClient, filter);
     return ip; // may still be nil
 }
 
+const Ip::Address *
+FindListeningPortAddress(const HttpRequest *callerRequest, const AccessLogEntry *ale)
+{
+    return FindGoodListeningPortAddress(callerRequest, ale, [](const Ip::Address &address) {
+        // FindListeningPortAddress() callers do not want INADDR_ANY addresses
+        return !address.isAnyAddr();
+    });
+}
+
+unsigned short
+FindListeningPortNumber(const HttpRequest *callerRequest, const AccessLogEntry *ale)
+{
+    const auto ip = FindGoodListeningPortAddress(callerRequest, ale, [](const Ip::Address &address) {
+        return address.port() > 0;
+    });
+    return ip ? ip->port() : 0;
+}

@@ -505,7 +505,7 @@ private:
     NotePairs::Pointer theNotes;
 };
 
-const char *findTrailingHTTPVersion(const char *uriAndHTTPVersion, const char *end = NULL);
+const char *findTrailingHTTPVersion(const char *uriAndHTTPVersion, const char *end = nullptr);
 
 int varyEvaluateMatch(StoreEntry *entry, const Optional<RandomUuid> &varyMarkerUuid, HttpRequest *req);
 

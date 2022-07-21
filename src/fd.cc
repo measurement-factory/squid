@@ -16,7 +16,6 @@
 #include "fd.h"
 #include "fde.h"
 #include "globals.h"
-#include "SquidTime.h"
 
 // Solaris and possibly others lack MSG_NOSIGNAL optimization
 // TODO: move this into compat/? Use a dedicated compat file to avoid dragging
@@ -87,8 +86,8 @@ fd_close(int fd)
     assert(F->flags.open);
 
     if (F->type == FD_FILE) {
-        assert(F->read_handler == NULL);
-        assert(F->write_handler == NULL);
+        assert(F->read_handler == nullptr);
+        assert(F->write_handler == nullptr);
     }
 
     debugs(51, 3, "fd_close FD " << fd << " " << F->desc);

@@ -23,7 +23,7 @@
 #include "ip/Address.h"
 #include "ip/forward.h"
 #include "mem/forward.h"
-#include "SquidTime.h"
+#include "time/gadgets.h"
 
 #include <iosfwd>
 #include <ostream>
@@ -198,7 +198,7 @@ std::ostream &operator << (std::ostream &os, const Comm::Connection &conn);
 inline std::ostream &
 operator << (std::ostream &os, const Comm::ConnectionPointer &conn)
 {
-    if (conn != NULL)
+    if (conn != nullptr)
         os << *conn;
     return os;
 }

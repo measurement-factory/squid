@@ -23,7 +23,6 @@
 #include "StoreFileSystem.h"
 #include "swap_log_op.h"
 #include "tools.h"
-#include "util.h" // for tvSubDsec() which should be in SquidTime.h
 
 typedef SwapDir *STDIRSELECT(const StoreEntry *e);
 
@@ -696,7 +695,7 @@ storeDirCloseSwapLogs()
 int
 storeDirWriteCleanLogs(int reopen)
 {
-    const StoreEntry *e = NULL;
+    const StoreEntry *e = nullptr;
     int n = 0;
 
     struct timeval start;

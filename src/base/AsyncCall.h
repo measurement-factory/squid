@@ -35,13 +35,11 @@
  */
 
 class CallDialer;
-class AsyncCallQueue;
 
 class AsyncCall: public RefCountable
 {
 public:
     typedef RefCount <AsyncCall> Pointer;
-    friend class AsyncCallQueue;
 
     AsyncCall(int aDebugSection, int aDebugLevel, const char *aName);
     virtual ~AsyncCall();
@@ -51,7 +49,7 @@ public:
     // can be called from canFire() for debugging; always returns false
     bool cancel(const char *reason);
 
-    bool canceled() { return isCanceled != NULL; }
+    bool canceled() { return isCanceled != nullptr; }
 
     virtual CallDialer *getDialer() = 0;
 
@@ -83,7 +81,7 @@ protected:
 
     virtual void fire() = 0;
 
-    AsyncCall::Pointer theNext; // used exclusively by AsyncCallQueue
+    AsyncCall::Pointer theNext; ///< for AsyncCallList and similar lists
 
 private:
     const char *isCanceled; // set to the cancellation reason by cancel()

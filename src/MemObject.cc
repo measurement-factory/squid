@@ -41,7 +41,7 @@ url_checksum(const char *url)
 
 #endif
 
-RemovalPolicy * mem_policy = NULL;
+RemovalPolicy * mem_policy = nullptr;
 
 size_t
 MemObject::inUseCount()
@@ -122,7 +122,7 @@ MemObject::~MemObject()
     if (!shutting_down) { // Store::Root() is FATALly missing during shutdown
         assert(xitTable.index < 0);
         assert(memCache.index < 0);
-        assert(swapout.sio == NULL);
+        assert(swapout.sio == nullptr);
     }
 
     data_hdr.freeContent();
@@ -177,8 +177,8 @@ struct LowestMemReader : public unary_function<store_client, void> {
     LowestMemReader(int64_t seed):current(seed) {}
 
     void operator() (store_client const &x) {
-        if (x.memReaderHasLowerOffset(current))
-            current = x.copyInto.offset;
+        if (x.getType() == STORE_MEM_CLIENT)
+            current = std::min(current, x.readOffset());
     }
 
     int64_t current;
@@ -274,7 +274,7 @@ MemObject::expectedReplySize() const
 void
 MemObject::reset()
 {
-    assert(swapout.sio == NULL);
+    assert(swapout.sio == nullptr);
     data_hdr.freeContent();
     inmem_lo = 0;
     /* Should we check for clients? */
@@ -344,7 +344,7 @@ MemObject::objectBytesOnDisk() const
      * yet.
      */
 
-    if (swapout.sio.getRaw() == NULL)
+    if (swapout.sio.getRaw() == nullptr)
         return 0;
 
     int64_t nwritten = swapout.sio->offset();
@@ -447,7 +447,7 @@ MemObject::setNoDelay(bool const newValue)
 }
 
 void
-MemObject::delayRead(DeferredRead const &aRead)
+MemObject::delayRead(const AsyncCall::Pointer &aRead)
 {
 #if USE_DELAY_POOLS
     if (readAheadPolicyCanRead()) {
@@ -457,13 +457,13 @@ MemObject::delayRead(DeferredRead const &aRead)
         }
     }
 #endif
-    deferredReads.delayRead(aRead);
+    deferredReads.delay(aRead);
 }
 
 void
 MemObject::kickReads()
 {
-    deferredReads.kickReads(-1);
+    deferredReads.schedule();
 }
 
 #if USE_DELAY_POOLS
@@ -477,7 +477,7 @@ MemObject::mostBytesAllowed() const
     for (dlink_node *node = clients.head; node; node = node->next) {
         store_client *sc = (store_client *) node->data;
 
-        j = sc->delayId.bytesWanted(0, sc->copyInto.length);
+        j = sc->bytesWanted();
 
         if (j > jmax) {
             jmax = j;
