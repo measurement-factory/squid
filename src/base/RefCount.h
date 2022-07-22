@@ -14,6 +14,7 @@
 // reference counting requires the Lock API on base classes
 #include "base/Lock.h"
 
+#include <cstddef>
 #include <iostream>
 
 /**
@@ -49,6 +50,9 @@ public:
         reference(*this);
     }
 
+    RefCount(std::nullptr_t): p_(nullptr) {
+    }
+
     RefCount& operator = (const RefCount& p) {
         // DO NOT CHANGE THE ORDER HERE!!!
         // This preserves semantics on self assignment
@@ -63,6 +67,11 @@ public:
             dereference(p.p_);
             p.p_ = nullptr;
         }
+        return *this;
+    }
+
+    RefCount& operator =(std::nullptr_t) {
+        dereference();
         return *this;
     }
 
