@@ -1456,6 +1456,7 @@ tests_testDiskIO_SOURCES = \
 	fde.cc \
 	FileMap.h \
 	filemap.cc \
+	tests/stub_fqdncache.cc \
 	HttpBody.h \
 	HttpBody.cc \
 	HttpHeaderFieldStat.h \
@@ -2944,6 +2945,7 @@ tests_testUfs_SOURCES = \
 	fs_io.cc \
 	FileMap.h \
 	filemap.cc \
+	tests/stub_fqdncache.cc \
 	HttpBody.h \
 	HttpBody.cc \
 	HttpReply.cc \
@@ -3118,6 +3120,7 @@ tests_testRock_SOURCES = \
 	fde.cc \
 	FileMap.h \
 	filemap.cc \
+	tests/stub_fqdncache.cc \
 	HttpHeaderFieldStat.h \
 	HttpBody.h \
 	HttpBody.cc \
