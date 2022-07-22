@@ -34,15 +34,18 @@ public:
     ~Optional() { clear(); }
     constexpr Optional(const Optional &other) = default;
     Optional &operator=(const Optional &other) = default;
-    constexpr Optional(Optional &&other) = default;
 
-    template <class Other = Value>
-    Optional &operator=(Optional<Other> &&other) {
+    Optional(Optional<Value> &&other) {
+        *this = std::move(other.value_);
+        other.clear();
+    }
+
+    Optional &operator=(Optional<Value> &&other) {
         if (this != &other) {
             if (!other.has_value()) {
                 clear();
             } else {
-                *this = std::forward<Other>(other.value_);
+                *this = std::move(other.value_);
                 other.clear();
             }
         }
