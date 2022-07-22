@@ -21,6 +21,7 @@
 #include "SquidMath.h"
 #include "store_key_md5.h"
 #include "StoreStats.h"
+#include "store/SwapMetaIn.h"
 #include "tools.h"
 
 /// shared memory segment path to use for MemStore maps
@@ -489,8 +490,7 @@ MemStore::copyFromShm(StoreEntry &e, const sfileno index, const Ipc::StoreMapAnc
 
         if (e.mem_obj->swap_hdr_sz == 0) {
             assert(e.mem_obj->endOffset() == 0);
-            if (!e.unpackHeader(page, wasSize))
-                return false;
+            Store::UnpackHitSwapMeta(page, wasSize, e);
         }
 
         if (e.mem_obj->endOffset() + static_cast<int64_t>(e.mem_obj->swap_hdr_sz) < sliceOffset + wasSize) {

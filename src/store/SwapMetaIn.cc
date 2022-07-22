@@ -145,6 +145,24 @@ UnpackNewSwapMetaVaryHeaders(const SwapMetaView &meta, const StoreEntry &entry)
     throw TextException("Vary mismatch", Here());
 }
 
+static Optional<RandomUuid>
+UnpackNewSwapMetaVaryUuid(const SwapMetaView &meta, const StoreEntry &entry)
+{
+    Assure(meta.type == STORE_META_VARY_ID);
+
+    Optional<RandomUuid> result;
+    const auto serialized = static_cast<const RandomUuid::Serialized *>(meta.rawValue);
+    RandomUuid uuid(*serialized);
+    const auto &knownVaryUuid = entry.mem().varyUuid;
+
+    if (!knownVaryUuid.has_value())
+        result = std::move(uuid);
+    else if (knownVaryUuid.value() != uuid)
+        throw TextException("Vary UUID mismatch", Here());
+
+    return result;
+}
+
 /// deserializes entry metadata size from the given buffer
 /// \retval total swap metadata size (a.k.a. swap_hdr_sz)
 static size_t
@@ -297,6 +315,7 @@ Store::UnpackIndexSwapMeta(const MemBuf &buf, StoreEntry &tmpe, cache_key * cons
         case STORE_META_URL:
         case STORE_META_VARY_HEADERS:
         case STORE_META_OBJSIZE:
+        case STORE_META_VARY_ID:
             // We do not load this information at cache index rebuild time;
             // UnpackHitSwapMeta() handles these MemObject fields.
             break;
@@ -314,6 +333,7 @@ Store::UnpackHitSwapMeta(char const * const buf, const ssize_t len, StoreEntry &
 
     size_t swap_hdr_sz = 0;
     SBuf varyHeaders;
+    Optional<RandomUuid> varyUuid;
 
     const SwapMetaUnpacker metaFields(buf, len, swap_hdr_sz);
     for (const auto &meta: metaFields) {
@@ -328,6 +348,10 @@ Store::UnpackHitSwapMeta(char const * const buf, const ssize_t len, StoreEntry &
 
         case STORE_META_VARY_HEADERS:
             varyHeaders = UnpackNewSwapMetaVaryHeaders(meta, entry);
+            break;
+
+        case STORE_META_VARY_ID:
+            varyUuid = UnpackNewSwapMetaVaryUuid(meta, entry);
             break;
 
         case STORE_META_OBJSIZE:
@@ -358,5 +382,8 @@ Store::UnpackHitSwapMeta(char const * const buf, const ssize_t len, StoreEntry &
 
     if (!varyHeaders.isEmpty())
         emem.vary_headers = varyHeaders;
+
+    if (varyUuid.has_value())
+        emem.varyUuid = std::move(varyUuid);
 }
 

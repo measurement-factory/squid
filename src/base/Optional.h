@@ -42,7 +42,7 @@ public:
             if (!other.has_value()) {
                 clear();
             } else {
-                *this = other.value();
+                *this = std::forward<Other>(other.value_);
                 other.clear();
             }
         }

@@ -87,7 +87,11 @@ enum SwapMetaType {
     STORE_META_STD_LFS = 9,
 
     // TODO: Document this type after we start using it; see UnpackHitSwapMeta()
-    STORE_META_OBJSIZE = 10
+    STORE_META_OBJSIZE = 10,
+
+    /// unique ID linking variants
+    STORE_META_VARY_ID = 12
+
 };
 
 /// The type of a serialized swap meta field part called "type" (i.e. T in TLV).
@@ -180,12 +184,9 @@ ReservedSwapMetaType(const RawSwapMetaType type)
     enum class ReservedMetas {
         /// the Store-ID url, if different from the normal URL
         STORE_META_STOREURL = 11,
-        /// unique ID linking variants
-        STORE_META_VARY_ID = 12
     };
     return
-        type == static_cast<RawSwapMetaType>(ReservedMetas::STORE_META_STOREURL) ||
-        type == static_cast<RawSwapMetaType>(ReservedMetas::STORE_META_VARY_ID);
+        type == static_cast<RawSwapMetaType>(ReservedMetas::STORE_META_STOREURL);
 }
 
 /// Whether we store the given swap meta field type (and also interpret the
