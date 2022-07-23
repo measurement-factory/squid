@@ -92,7 +92,6 @@ Upgrade, Http::HdrType::UPGRADE, Http::HdrFieldType::ftStr, HdrKind::ListHeader|
 User-Agent, Http::HdrType::USER_AGENT, Http::HdrFieldType::ftStr, HdrKind::RequestHeader
 Vary, Http::HdrType::VARY, Http::HdrFieldType::ftStr, HdrKind::ListHeader|HdrKind::ReplyHeader
 Via, Http::HdrType::VIA, Http::HdrFieldType::ftStr, HdrKind::ListHeader|HdrKind::GeneralHeader
-Warning, Http::HdrType::WARNING, Http::HdrFieldType::ftStr, HdrKind::ListHeader|HdrKind::ReplyHeader
 WWW-Authenticate, Http::HdrType::WWW_AUTHENTICATE, Http::HdrFieldType::ftStr, HdrKind::ListHeader|HdrKind::ReplyHeader
 X-Cache, Http::HdrType::X_CACHE, Http::HdrFieldType::ftStr, HdrKind::ReplyHeader
 X-Cache-Lookup, Http::HdrType::X_CACHE_LOOKUP, Http::HdrFieldType::ftStr, HdrKind::ReplyHeader

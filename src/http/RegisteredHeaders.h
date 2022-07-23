@@ -26,12 +26,12 @@ enum HdrType {
     /*ACCEPT_FEATURES,*/            /* RFC 2295 */
     ACCEPT_LANGUAGE,                /**< RFC 7231 */
     ACCEPT_RANGES,                  /**< RFC 7233 */
-    AGE,                            /**< RFC 7234 */
+    AGE,                            /**< RFC 9111 */
     ALLOW,                          /**< RFC 7231 */
     ALTERNATE_PROTOCOL,             /**< GFE custom header we may have to erase */
     AUTHENTICATION_INFO,            /**< RFC 2617 */
     AUTHORIZATION,                  /**< RFC 7235, 4559 */
-    CACHE_CONTROL,                  /**< RFC 7234 */
+    CACHE_CONTROL,                  /**< RFC 9111 */
     CDN_LOOP,                       /**< RFC 8586 */
     CONNECTION,                     /**< RFC 7230 */
     CONTENT_BASE,                   /**< obsoleted RFC 2068 */
@@ -52,7 +52,7 @@ enum HdrType {
     /*DESTINATION,*/                /* RFC 2518 */
     ETAG,                           /**< RFC 7232 */
     EXPECT,                         /**< RFC 7231 */
-    EXPIRES,                        /**< RFC 7234 */
+    EXPIRES,                        /**< RFC 9111 */
     FORWARDED,                      /**< RFC 7239 */
     FROM,                           /**< RFC 7231 */
     HOST,                           /**< RFC 7230 */
@@ -74,7 +74,7 @@ enum HdrType {
     NEGOTIATE,                      /**< experimental RFC 2295. Why only this one from 2295? */
     /*OVERWRITE,*/                  /* RFC 2518 */
     ORIGIN,                         /* CORS Draft specification (see http://www.w3.org/TR/cors/) */
-    PRAGMA,                         /**< RFC 7234 */
+    PRAGMA,                         /**< deprecated RFC 7234 header */
     PROXY_AUTHENTICATE,             /**< RFC 7235 */
     PROXY_AUTHENTICATION_INFO,      /**< RFC 2617 */
     PROXY_AUTHORIZATION,            /**< RFC 7235 */
@@ -102,7 +102,6 @@ enum HdrType {
     /*VARIANT_VARY,*/               /* experimental RFC 2295 */
     VARY,                           /**< RFC 7231 */
     VIA,                            /**< RFC 7230 */
-    WARNING,                        /**< RFC 7234 */
     WWW_AUTHENTICATE,               /**< RFC 7235, 4559 */
     X_CACHE,                        /**< Squid custom header */
     X_CACHE_LOOKUP,                 /**< Squid custom header. temporary hack that became de-facto. TODO remove */

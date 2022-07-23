@@ -116,9 +116,6 @@ public:
      */
     HttpReply *clone() const;
 
-    /// Remove Warnings with warn-date different from Date value
-    void removeStaleWarnings();
-
     virtual void hdrCacheInit();
 
     /// whether our Date header value is smaller than theirs
@@ -153,8 +150,6 @@ private:
      * Used by receivedBodyTooLarge() and expectedBodyTooLarge().
      */
     void calcMaxBodySize(HttpRequest& request) const;
-
-    String removeStaleWarningValues(const String &value);
 
     mutable int64_t bodySizeMax; /**< cached result of calcMaxBodySize */
 
