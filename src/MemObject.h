@@ -207,7 +207,7 @@ public:
 #endif
 
     SBuf vary_headers;
-    /// Identifier for for vary-based entries, which is the same
+    /// Identifier for vary-based entries, which is the same
     /// for all entries with the same marker object.
     Optional<RandomUuid> varyUuid;
 

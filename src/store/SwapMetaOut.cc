@@ -69,6 +69,11 @@ PackFields(const StoreEntry &entry, std::ostream &os)
     const auto &vary = emem.vary_headers;
     if (!vary.isEmpty())
         PackField(os, STORE_META_VARY_HEADERS, vary.length(), vary.rawContent());
+
+    if (emem.varyUuid.has_value()) {
+        const auto serialized = emem.varyUuid.value().serialize();
+        PackField(os, STORE_META_VARY_ID, sizeof(serialized), &serialized);
+    }
 }
 
 } // namespace Store

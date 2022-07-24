@@ -148,8 +148,9 @@ RawSwapMetaTypeTop()
     case STORE_META_VARY_HEADERS:
     case STORE_META_STD_LFS:
     case STORE_META_OBJSIZE:
+    case STORE_META_VARY_ID:
         // always return the last/maximum enum value
-        return STORE_META_OBJSIZE;
+        return STORE_META_VARY_ID;
     }
 }
 
@@ -205,6 +206,7 @@ HonoredSwapMetaType(const RawSwapMetaType type)
     case STORE_META_VARY_HEADERS:
     case STORE_META_STD_LFS:
     case STORE_META_OBJSIZE:
+    case STORE_META_VARY_ID:
         return true;
 
     default:
