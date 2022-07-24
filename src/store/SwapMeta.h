@@ -91,7 +91,6 @@ enum SwapMetaType {
 
     /// unique ID linking variants
     STORE_META_VARY_ID = 12
-
 };
 
 /// The type of a serialized swap meta field part called "type" (i.e. T in TLV).

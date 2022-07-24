@@ -320,7 +320,7 @@ MemStore::get(const cache_key *key)
 
     anchorEntry(*e, index, *slot);
 
-    // XXX: Needed by e->unpackHeader() below.
+    // XXX: Needed by Store::UnpackHitSwapMeta() below.
     // TODO: copying the entire (and possibly huge) entry beforehand may be useless
     // if client(s) are gone. Do it incrementally instead, postponing the initial
     // copyFromShm() call.

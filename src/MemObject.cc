@@ -98,9 +98,7 @@ bool
 MemObject::varyUuidEqualsTo(const Optional<RandomUuid> &other)
 {
     assert(varyUuid.has_value());
-    if (!other.has_value())
-        return false;
-    return varyUuid.value() == other.value();
+    return other.has_value() ? varyUuid.value() == other.value() : false;
 }
 
 MemObject::MemObject()
