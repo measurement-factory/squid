@@ -1227,8 +1227,7 @@ snmp_netIpFn(variable_list * Var, snint * ErrP)
 
     default:
         *ErrP = SNMP_ERR_NOSUCHNAME;
-        snmp_var_free(Answer);
-        return (NULL);
+        assert(!Answer);
     }
 
     return Answer;
