@@ -13,7 +13,9 @@
 
 namespace Comm {
 
-/// a cheap unique pointer to an open Comm-registered socket or file descriptor
+/// An open Comm-registered file descriptor guard that, upon creation, registers
+/// the descriptor with Comm and, upon destruction, unregisters and closes the
+/// descriptor (unless the descriptor has been release()d by then).
 class Descriptor
 {
 public:
