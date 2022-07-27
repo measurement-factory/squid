@@ -35,17 +35,15 @@ public:
     constexpr Optional(const Optional &other) = default;
     Optional &operator=(const Optional &other) = default;
 
-    Optional(Optional<Value> &&other) {
-        *this = std::move(other.value_);
-        other.clear();
-    }
+    Optional(Optional<Value> &&other) { *this = std::move(other); }
 
     Optional &operator=(Optional<Value> &&other) {
         if (this != &other) {
             if (!other.has_value()) {
                 clear();
             } else {
-                *this = std::move(other.value_);
+                value_ = std::move(other.value_);
+                hasValue_ = true;
                 other.clear();
             }
         }
@@ -80,6 +78,7 @@ public:
         if (hasValue_) {
             hasValue_ = false;
             value_.~Value();
+            dummy_ = 0;
         }
     }
 
