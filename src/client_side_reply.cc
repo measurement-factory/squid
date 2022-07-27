@@ -612,9 +612,9 @@ clientReplyContext::cacheHit(StoreIOBuffer result)
         /* This is not the correct entity for this request. We need
          * to requery the cache.
          */
-        assert(e->mem_obj->varyUuid.has_value());
+        assert(e->mem().varyUuid.has_value());
         assert(!http->varyMarkerUuid.has_value());
-        http->varyMarkerUuid = e->mem_obj->varyUuid.value().clone();
+        http->varyMarkerUuid = e->mem().varyUuid.value().clone();
 
         removeClientStoreReference(&sc, http);
         e = nullptr;
@@ -2139,7 +2139,7 @@ clientReplyContext::createStoreEntry(const HttpRequestMethod& m, RequestFlags re
 
     StoreEntry *e = storeCreateEntry(storeId(), http->log_uri, reqFlags, m);
     if (http->varyMarkerUuid.has_value())
-        e->mem_obj->varyUuid = http->varyMarkerUuid.value().clone();
+        e->mem().varyUuid = http->varyMarkerUuid.value().clone();
 
     // Make entry collapsible ASAP, to increase collapsing chances for others,
     // TODO: every must-revalidate and similar request MUST reach the origin,

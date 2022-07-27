@@ -480,7 +480,7 @@ MemStore::copyFromShm(StoreEntry &e, const sfileno index, const Ipc::StoreMapAnc
         // slice state may change during copying; take snapshots now
         wasEof = anchor.complete() && slice.next < 0;
         const Ipc::StoreMapSlice::Size wasSize = slice.size;
-        const MemStoreMapExtras::Item &extra = extras->items[sid];
+        const auto &extra = extras->items[sid];
         auto page = static_cast<char*>(PagePointer(extra.page));
 
         debugs(20, 8, "entry " << index << " slice " << sid << " eof " <<
@@ -693,18 +693,18 @@ MemStore::copyToShm(StoreEntry &e)
 void
 MemStore::copyMetaToShmSlice(StoreEntry &e, Ipc::StoreMapAnchor &anchor, Ipc::StoreMap::Slice &slice)
 {
-    assert(e.mem_obj);
-    assert(e.mem_obj->memCache.offset == 0);
-    const auto buf = e.getSerialisedMetaData(e.mem_obj->swap_hdr_sz);
+    auto &mem = e.mem();
+    assert(mem.memCache.offset == 0);
+    const auto buf = e.getSerialisedMetaData(mem.swap_hdr_sz);
     assert(buf);
     auto page = pageForSlice(lastWritingSlice);
     debugs(20, 7, "entry " << e << " slice " << lastWritingSlice << " has " << page);
-    memcpy(PagePointer(page), buf, e.mem_obj->swap_hdr_sz);
-    slice.size += e.mem_obj->swap_hdr_sz;
-    e.mem_obj->memCache.offset = e.mem_obj->swap_hdr_sz;
-    anchor.basics.swap_file_sz = e.mem_obj->swap_hdr_sz;
+    memcpy(PagePointer(page), buf, mem.swap_hdr_sz);
+    slice.size += mem.swap_hdr_sz;
+    mem.memCache.offset = mem.swap_hdr_sz;
+    anchor.basics.swap_file_sz = mem.swap_hdr_sz;
     xfree(buf);
-    debugs(20, 7, "mem-cached meta header of " << e.mem_obj->swap_hdr_sz << " bytes in " << page);
+    debugs(20, 7, "mem-cached meta header of " << mem.swap_hdr_sz << " bytes in " << page);
 }
 
 /// copies at most one slice worth of local memory to shared memory

@@ -670,7 +670,7 @@ StoreEntry::adjustVary()
     if (!mem_obj->vary_headers.isEmpty() && !storeGetPublic(mem_obj->storeId(), mem_obj->method)) {
         /* Create "vary" base object */
         StoreEntry *pe = storeCreateEntry(mem_obj->storeId(), mem_obj->logUri(), request->flags, request->method);
-        pe->mem_obj->varyUuid = RandomUuid();
+        pe->mem().varyUuid = RandomUuid();
         mem_obj->varyUuid = pe->mem_obj->varyUuid.value().clone();
         // XXX: storeCreateEntry() already tries to make `pe` public under
         // certain conditions. If those conditions do not apply to Vary markers,

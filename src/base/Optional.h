@@ -10,7 +10,7 @@
 #define SQUID__SRC_BASE_OPTIONAL_H
 
 #include <exception>
-#include <iostream>
+#include <ostream>
 #include <type_traits>
 #include <utility>
 
