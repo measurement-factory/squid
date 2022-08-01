@@ -29,22 +29,51 @@ template <typename Value>
 class Optional
 {
 public:
-    constexpr Optional() noexcept : dummy_(0) {}
+    constexpr Optional() noexcept: dummy_() {}
     constexpr explicit Optional(const Value &v): value_(v), hasValue_(true) {}
-    ~Optional() { clear(); }
-    constexpr Optional(const Optional &other) = default;
-    Optional &operator=(const Optional &other) = default;
 
-    Optional(Optional<Value> &&other) { *this = std::move(other); }
+    ~Optional()
+    {
+        // XXX: This simplified implementation does not keep the destructor
+        // trivial for trivial Value types, but optimizing compilers still
+        // optimize such destruction away, and that is sufficient for our
+        // current needs.
+        reset();
+    }
 
-    Optional &operator=(Optional<Value> &&other) {
+    Optional(const Optional &other): Optional()
+    {
+        if (other.hasValue_)
+            *this = other.value_;
+    }
+
+    Optional &operator =(const Optional &other)
+    {
         if (this != &other) {
-            if (!other.has_value()) {
-                clear();
+            if (other.hasValue_)
+                *this = other.value_;
+            else
+                reset();
+        }
+        return *this;
+    }
+
+    Optional(Optional<Value> &&other): Optional()
+    {
+        if (other.hasValue_) {
+            *this = std::move(other.value_);
+            // no other.reset() per std::optional move semantics
+        }
+    }
+
+    Optional &operator =(Optional<Value> &&other)
+    {
+        if (this != &other) {
+            if (other.hasValue_) {
+                *this = std::move(other.value_);
+                // no other.reset() per std::optional move semantics
             } else {
-                value_ = std::move(other.value_);
-                hasValue_ = true;
-                other.clear();
+                reset();
             }
         }
         return *this;
@@ -74,17 +103,18 @@ public:
         return *this;
     }
 
-    void clear() {
+    void reset() {
         if (hasValue_) {
             hasValue_ = false;
             value_.~Value();
-            dummy_ = 0;
         }
     }
 
 private:
     union {
-        unsigned char dummy_;
+        /// unused member that helps satisfy various C++ union requirements
+        struct {} dummy_;
+
         /// stored value; inaccessible/uninitialized unless hasValue_
         Value value_;
     };

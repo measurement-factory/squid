@@ -139,7 +139,11 @@ RawSwapMetaTypeTop()
     // marker because it does not force us to add that marker to every switch
     // statement, with an assert(false) or similar "unreachable code" handler.
     // Optimizing compilers optimize this statement away into a constant.
-    switch (STORE_META_VOID) {
+    // The non-constant variable is needed for older compilers.
+
+    // always use the last/maximum enum value here
+    auto top = STORE_META_VARY_ID;
+    switch (top) {
     case STORE_META_VOID:
     case STORE_META_KEY_MD5:
     case STORE_META_URL:
@@ -148,9 +152,9 @@ RawSwapMetaTypeTop()
     case STORE_META_STD_LFS:
     case STORE_META_OBJSIZE:
     case STORE_META_VARY_ID:
-        // always return the last/maximum enum value
-        return STORE_META_VARY_ID;
+        break;
     }
+    return top;
 }
 
 /// Whether the given raw swap meta field type represents a type that we should
