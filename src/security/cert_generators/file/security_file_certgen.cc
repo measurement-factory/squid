@@ -307,6 +307,9 @@ int main(int argc, char *argv[])
             exit(EXIT_SUCCESS);
         }
 
+        // Initialize SSL subsystem
+        SQUID_OPENSSL_init_ssl();
+
         // only do filesystem checks when a path (-s) is given
         if (!db_path.empty()) {
             if (fs_block_size == 0) {
@@ -324,8 +327,6 @@ int main(int argc, char *argv[])
             Ssl::CertificateDb::Check(db_path, max_db_size, fs_block_size);
         }
 
-        // Initialize SSL subsystem
-        SQUID_OPENSSL_init_ssl();
         // process request.
         for (;;) {
             char request[HELPER_INPUT_BUFFER];
