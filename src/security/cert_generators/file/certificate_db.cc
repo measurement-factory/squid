@@ -24,6 +24,9 @@
 #include <sys/file.h>
 #endif
 
+#include <sstream>
+#include <iomanip>
+
 #define HERE "(security_file_certgen) " << __FILE__ << ':' << __LINE__ << ": "
 
 Ssl::Lock::Lock(std::string const &aFilename) :
@@ -492,26 +495,61 @@ size_t Ssl::CertificateDb::getFileSize(std::string const & filename) {
     return ((static_cast<size_t>(file_size) + fs_block_size - 1) / fs_block_size) * fs_block_size;
 }
 
+// Mimics master/v6 Ssl::ForgetErrors()
+static void
+ForgetErrors()
+{
+   if (ERR_peek_last_error()) {
+       while (ERR_get_error()) {}
+   }
+    errno = 0;
+}
+
+// Based on master/v6 Ssl::ReportAndForgetErrors()
+static std::string
+ExtractAndForgetErrors(const char *operation, const long int dbError, const int savedErrno)
+{
+    std::stringstream os;
+
+    if (dbError)
+        os << "    db error: " << dbError << "\n";
+
+    if (savedErrno)
+        os << "    system call error: " << strerror(savedErrno) << "\n";
+
+    unsigned int reported = 0; // efficiently marks ForgetErrors() call boundary
+    while (const auto errorToForget = ERR_get_error())
+        os << "    OpenSSL-saved error #" << (++reported) << ": " << std::hex << errorToForget << std::dec << "\n";
+
+    os << "    failed op: " << operation;
+    return os.str();
+}
+
 void Ssl::CertificateDb::load() {
     // Load db from file.
     Ssl::BIO_Pointer in(BIO_new(BIO_s_file()));
     if (!in || BIO_read_filename(in.get(), db_full.c_str()) <= 0)
         throw std::runtime_error("Uninitialized SSL certificate database directory: " + db_path + ". To initialize, run \"security_file_certgen -c -s " + db_path + "\".");
 
-    bool corrupt = false;
+    ForgetErrors();
+
+    const char *corrupt = nullptr;
     Ssl::TXT_DB_Pointer temp_db(TXT_DB_read(in.get(), cnlNumber));
     if (!temp_db)
-        corrupt = true;
+        corrupt = "TXT_DB_read()";
 
     // Create indexes in db.
     if (!corrupt && !TXT_DB_create_index(temp_db.get(), cnlSerial, NULL, LHASH_HASH_FN(index_serial_hash), LHASH_COMP_FN(index_serial_cmp)))
-        corrupt = true;
+        corrupt = "TXT_DB_create_index(cnlSerial)";
 
     if (!corrupt && !TXT_DB_create_index(temp_db.get(), cnlKey, NULL, LHASH_HASH_FN(index_name_hash), LHASH_COMP_FN(index_name_cmp)))
-        corrupt = true;
+        corrupt = "TXT_DB_create_index(cnlKey)";
 
-    if (corrupt)
-        throw std::runtime_error("The SSL certificate database " + db_path + " is corrupted. Please rebuild");
+    if (corrupt) {
+        const auto savedErrno = errno;
+        throw std::runtime_error("The SSL certificate database " + db_full + " is corrupted. Please rebuild.\n" +
+            ExtractAndForgetErrors(corrupt, (temp_db ? temp_db->error : 0), savedErrno));
+    }
 
     db.reset(temp_db.release());
 }
