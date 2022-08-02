@@ -52,7 +52,7 @@ public:
         void setCert(X509 *);  ///< Sets cert to the given certificate
         int id = 0; ///<  The id of the error
         Security::ErrorCode error_no = 0; ///< The OpenSSL error code
-        std::string error_reason; ///< A string describing the error
+        SBuf error_reason; ///< A string describing the error
         Security::CertPointer cert; ///< The broken certificate
         int error_depth = -1; ///< The error depth
     };
@@ -93,7 +93,7 @@ private:
     class CertItem
     {
     public:
-        std::string name; ///< The certificate Id to use
+        SBuf name; ///< The certificate Id to use
         Security::CertPointer cert;       ///< A pointer to certificate
         void setCert(X509 *); ///< Sets cert to the given certificate
     };
@@ -109,7 +109,7 @@ public:
     bool parseResponse(CertValidationResponse &resp);
 
     /// Search a CertItems list for the certificate with ID "name"
-    X509 *getCertByName(std::vector<CertItem> const &, std::string const & name);
+    X509 *getCertByName(std::vector<CertItem> const &, SBuf const & name);
 
     /// String code for "cert_validate" messages
     static const std::string code_cert_validate;

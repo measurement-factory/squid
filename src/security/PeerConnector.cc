@@ -420,7 +420,7 @@ Security::PeerConnector::sslCrtvdCheckForErrors(Ssl::CertValidationResponse cons
                 debugs(83, 5, "confirming SSL error " << i->error_no);
                 const auto &brokenCert = i->cert;
                 Security::CertPointer peerCert(SSL_get_peer_certificate(session.get()));
-                const char *aReason = i->error_reason.empty() ? nullptr : i->error_reason.c_str();
+                const char *aReason = i->error_reason.isEmpty() ? nullptr : const_cast<SBuf &>(i->error_reason).c_str();
                 errDetails = new ErrorDetail(i->error_no, peerCert, brokenCert, aReason);
             }
             if (check) {
