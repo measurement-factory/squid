@@ -85,6 +85,7 @@ protected:
     void updateHeadersOrThrow(Ipc::StoreMapUpdate &update);
 
     void anchorEntry(StoreEntry &e, const sfileno index, const Ipc::StoreMapAnchor &anchor);
+    bool updateAnchoredWith(StoreEntry &, const sfileno, const Ipc::StoreMapAnchor &);
 
     Ipc::Mem::PageId pageForSlice(Ipc::StoreMapSliceId sliceId);
     Ipc::StoreMap::Slice &nextAppendableSlice(const sfileno entryIndex, sfileno &sliceOffset);

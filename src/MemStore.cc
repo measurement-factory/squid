@@ -405,6 +405,8 @@ MemStore::anchorToCache(StoreEntry &entry)
         return false;
 
     anchorEntry(entry, index, *slot);
+    if (!updateAnchoredWith(entry, index, *slot))
+        throw TextException("updateAnchoredWith() failure", Here());
     return true;
 }
 
@@ -418,6 +420,13 @@ MemStore::updateAnchored(StoreEntry &entry)
     assert(entry.hasMemStore());
     const sfileno index = entry.mem_obj->memCache.index;
     const Ipc::StoreMapAnchor &anchor = map->readableEntry(index);
+    return updateAnchoredWith(entry, index, anchor);
+}
+
+/// updates Transients entry after its anchor has been located
+bool
+MemStore::updateAnchoredWith(StoreEntry &entry, const sfileno index, const Ipc::StoreMapAnchor &anchor)
+{
     entry.swap_file_sz = anchor.basics.swap_file_sz;
     const bool copied = copyFromShm(entry, index, anchor);
     return copied;
