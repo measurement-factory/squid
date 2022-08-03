@@ -74,8 +74,7 @@ Rock::SwapDir::get(const cache_key *key)
 bool
 Rock::SwapDir::anchorToCache(StoreEntry &entry)
 {
-    if (entry.hasDisk())
-        return entry.hasDisk(index); // already anchored (not necessarily to us)
+    Assure(!entry.hasDisk());
 
     if (!map || !theFile || !theFile->canRead())
         return false;

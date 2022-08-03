@@ -860,6 +860,20 @@ Store::Controller::anchorToCache(StoreEntry &entry)
     assert(entry.hasTransients());
     assert(transientsReader(entry));
 
+    // TODO: Attach entries to both memory and disk
+
+    // TODO: Reduce code duplication with syncCollapsed()
+    if (sharedMemStore && entry.mem().memCache.io == MemObject::ioDone) {
+        debugs(20, 5, "was anchored and fully mem-loaded " << entry);
+        return true;
+    } else if (sharedMemStore && entry.hasMemStore()) {
+        debugs(20, 5, "already anchored; partially mem-loaded " << entry);
+        return true;
+    } else if (swapDir && entry.hasDisk()) {
+        debugs(20, 5, "already anchored to disk " << entry);
+        return true;
+    }
+
     debugs(20, 7, "anchoring " << entry);
 
     Transients::EntryStatus entryStatus;

@@ -392,8 +392,8 @@ MemStore::updateHeadersOrThrow(Ipc::StoreMapUpdate &update)
 bool
 MemStore::anchorToCache(StoreEntry &entry)
 {
-    if (entry.hasMemStore())
-        return true; // already anchored
+    Assure(!entry.hasMemStore());
+    Assure(entry.mem().memCache.io != MemObject::ioDone);
 
     if (!map)
         return false;

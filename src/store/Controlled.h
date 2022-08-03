@@ -34,8 +34,8 @@ public:
     /// make stored metadata and HTTP headers the same as in the given entry
     virtual void updateHeaders(StoreEntry *) {}
 
-    /// tie the entry to this storage (if it is not tied already)
-    /// \retval true this storage has a matching entry
+    /// tie StoreEntry to this storage if this storage has a matching entry
+    /// \retval true if this storage has a matching entry
     virtual bool anchorToCache(StoreEntry &) { return false; }
 
     /// Update a local Transients entry with fresh info from this cache (if any).
