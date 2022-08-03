@@ -390,8 +390,11 @@ MemStore::updateHeadersOrThrow(Ipc::StoreMapUpdate &update)
 }
 
 bool
-MemStore::anchorToCache(StoreEntry &entry, bool &inSync)
+MemStore::anchorToCache(StoreEntry &entry)
 {
+    if (entry.hasMemStore())
+        return true; // already anchored
+
     if (!map)
         return false;
 
@@ -402,8 +405,7 @@ MemStore::anchorToCache(StoreEntry &entry, bool &inSync)
         return false;
 
     anchorEntry(entry, index, *slot);
-    inSync = updateAnchoredWith(entry, index, *slot);
-    return true; // even if inSync is false
+    return true;
 }
 
 bool
@@ -416,13 +418,6 @@ MemStore::updateAnchored(StoreEntry &entry)
     assert(entry.hasMemStore());
     const sfileno index = entry.mem_obj->memCache.index;
     const Ipc::StoreMapAnchor &anchor = map->readableEntry(index);
-    return updateAnchoredWith(entry, index, anchor);
-}
-
-/// updates Transients entry after its anchor has been located
-bool
-MemStore::updateAnchoredWith(StoreEntry &entry, const sfileno index, const Ipc::StoreMapAnchor &anchor)
-{
     entry.swap_file_sz = anchor.basics.swap_file_sz;
     const bool copied = copyFromShm(entry, index, anchor);
     return copied;

@@ -72,8 +72,11 @@ Rock::SwapDir::get(const cache_key *key)
 }
 
 bool
-Rock::SwapDir::anchorToCache(StoreEntry &entry, bool &inSync)
+Rock::SwapDir::anchorToCache(StoreEntry &entry)
 {
+    if (entry.hasDisk())
+        return entry.hasDisk(index); // already anchored (not necessarily to us)
+
     if (!map || !theFile || !theFile->canRead())
         return false;
 
@@ -84,8 +87,7 @@ Rock::SwapDir::anchorToCache(StoreEntry &entry, bool &inSync)
         return false;
 
     anchorEntry(entry, filen, *slot);
-    inSync = updateAnchoredWith(entry, *slot);
-    return true; // even if inSync is false
+    return true;
 }
 
 bool
@@ -96,13 +98,7 @@ Rock::SwapDir::updateAnchored(StoreEntry &entry)
 
     assert(entry.hasDisk(index));
 
-    const Ipc::StoreMapAnchor &s = map->readableEntry(entry.swap_filen);
-    return updateAnchoredWith(entry, s);
-}
-
-bool
-Rock::SwapDir::updateAnchoredWith(StoreEntry &entry, const Ipc::StoreMapAnchor &anchor)
-{
+    const auto &anchor = map->readableEntry(entry.swap_filen);
     entry.swap_file_sz = anchor.basics.swap_file_sz;
     return true;
 }
