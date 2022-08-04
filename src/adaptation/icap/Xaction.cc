@@ -179,7 +179,7 @@ Adaptation::Icap::Xaction::openConnection()
 }
 
 void
-Adaptation::Icap::Xaction::dnsLookupDone(Optional<Ip::Address> addr)
+Adaptation::Icap::Xaction::dnsLookupDone(const ipcache_addrs *ia)
 {
     assert(waitingForDns);
     waitingForDns = false;
