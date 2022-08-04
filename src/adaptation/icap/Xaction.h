@@ -117,7 +117,7 @@ public:
     /// clear stored error details, if any; used for retries/repeats
     virtual void clearError() {}
     virtual AccessLogEntry::Pointer masterLogEntry();
-    void dnsLookupDone(Optional<Ip::Address>);
+    void dnsLookupDone(const ipcache_addrs *ia);
 
 protected:
     // logging
