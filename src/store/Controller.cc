@@ -371,7 +371,7 @@ Store::Controller::allowSharing(StoreEntry &entry, const cache_key *key)
     if (entry.hasTransients()) {
         // store hadWriter before computing `found`; \see Transients::get()
         const auto hadWriter = transients->hasWriter(entry);
-        const bool found = anchorToCache(entry);
+        const auto found = anchorToCache(entry);
         if (!found) {
             // !found should imply hittingRequiresCollapsing() regardless of writer presence
             if (!entry.hittingRequiresCollapsing()) {
@@ -864,13 +864,13 @@ Store::Controller::anchorToCache(StoreEntry &entry)
 
     // TODO: Reduce code duplication with syncCollapsed()
     if (sharedMemStore && entry.mem().memCache.io == MemObject::ioDone) {
-        debugs(20, 5, "was anchored and fully mem-loaded " << entry);
+        debugs(20, 5, "already handled by memory store: " << entry);
         return true;
     } else if (sharedMemStore && entry.hasMemStore()) {
-        debugs(20, 5, "already anchored; partially mem-loaded " << entry);
+        debugs(20, 5, "already anchored to memory store: " << entry);
         return true;
     } else if (swapDir && entry.hasDisk()) {
-        debugs(20, 5, "already anchored to disk " << entry);
+        debugs(20, 5, "already anchored to disk: " << entry);
         return true;
     }
 
