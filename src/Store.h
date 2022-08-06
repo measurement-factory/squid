@@ -394,6 +394,29 @@ private:
     const char *context_; ///< default unlock() message
 };
 
+/// a functor that unlocks StoreEntry objects (for a given reason)
+class EntryUnlocker {
+public:
+    explicit EntryUnlocker(const char *aReason): reason(aReason) {}
+
+    void operator()(StoreEntry * const e) { if (e) e->unlock(reason); }
+
+public:
+    const char *reason; // hard-coded StoreEntry::unlock() reason
+};
+
+using EntryPointer = std::unique_ptr<StoreEntry, EntryUnlocker>;
+
+/// Makes an EntryPointer from a (possibly nil or unlocked) StoreEntry pointer.
+/// Unlocking previously set StoreEntry locks is caller's responsibility.
+inline EntryPointer
+MakeUnique(StoreEntry *e, const char * const reason)
+{
+    if (e)
+        e->lock(reason);
+    return Store::EntryPointer(e, Store::EntryUnlocker(reason));
+}
+
 void Stats(StoreEntry *output);
 void Maintain(void *unused);
 }; // namespace Store

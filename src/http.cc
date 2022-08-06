@@ -70,7 +70,6 @@ CBDATA_CLASS_INIT(HttpStateData);
 
 static const char *const crlf = "\r\n";
 
-static void httpMaybeRemovePublic(StoreEntry *, Http::StatusCode);
 static void copyOneHeaderFromClientsideRequestToUpstreamRequest(const HttpHeaderEntry *e, const String strConnection, const HttpRequest * request,
         HttpHeader * hdr_out, const int we_do_ranges, const Http::StateFlags &);
 
@@ -153,18 +152,19 @@ HttpStateData::httpTimeout(const CommTimeoutCbParams &)
     mustStop("HttpStateData::httpTimeout");
 }
 
-static StoreEntry *
-findPreviouslyCachedEntry(StoreEntry *newEntry) {
+static Store::EntryPointer
+findPreviouslyCachedEntry(StoreEntry * const newEntry, const char * const reason) {
     assert(newEntry->mem_obj);
-    return newEntry->mem_obj->request ?
+    const auto e = newEntry->mem_obj->request ?
            storeGetPublicByRequest(newEntry->mem_obj->request.getRaw()) :
            storeGetPublic(newEntry->mem_obj->storeId(), newEntry->mem_obj->method);
+    return Store::MakeUnique(e, reason);
 }
 
 /// Remove an existing public store entry if the incoming response (to be
 /// stored in a currently private entry) is going to invalidate it.
 static void
-httpMaybeRemovePublic(StoreEntry * e, Http::StatusCode status)
+httpMaybeRemovePublic(StoreEntry * const e, const Http::StatusCode status, StoreEntry *pe)
 {
     int remove = 0;
     int forbidden = 0;
@@ -223,8 +223,6 @@ httpMaybeRemovePublic(StoreEntry * e, Http::StatusCode status)
 
     if (!remove && !forbidden)
         return;
-
-    StoreEntry *pe = findPreviouslyCachedEntry(e);
 
     if (pe != NULL) {
         assert(e != pe);
@@ -949,14 +947,14 @@ HttpStateData::haveParsedReplyHeaders()
     /* Check if object is cacheable or not based on reply code */
     debugs(11, 3, "HTTP CODE: " << statusCode);
 
-    if (StoreEntry *oldEntry = findPreviouslyCachedEntry(entry)) {
-        oldEntry->lock("HttpStateData::haveParsedReplyHeaders");
-        sawDateGoBack = rep->olderThan(oldEntry->hasFreshestReply());
-        oldEntry->unlock("HttpStateData::haveParsedReplyHeaders");
-    }
+    // this scope limits the duration of us holding the oldEnry lock
+    {
+        const auto oldEntry = findPreviouslyCachedEntry(entry, "HttpStateData::haveParsedReplyHeaders");
+        sawDateGoBack = oldEntry && rep->olderThan(oldEntry->hasFreshestReply());
 
-    if (neighbors_do_private_keys && !sawDateGoBack)
-        httpMaybeRemovePublic(entry, rep->sline.status());
+        if (neighbors_do_private_keys && !sawDateGoBack)
+            httpMaybeRemovePublic(entry, rep->sline.status(), oldEntry.get());
+    }
 
     bool varyFailure = false;
     if (rep->header.has(Http::HdrType::VARY)
