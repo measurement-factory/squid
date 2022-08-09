@@ -439,8 +439,6 @@ squid_SOURCES = \
 	refresh.h \
 	repl_modules.h \
 	sbuf/StringConvert.h \
-	send-announce.cc \
-	send-announce.h \
 	stat.cc \
 	stat.h \
 	stmem.cc \
