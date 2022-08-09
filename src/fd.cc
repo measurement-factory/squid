@@ -320,3 +320,21 @@ fdAdjustReserved(void)
     RESERVED_FD = newReserve;
 }
 
+/* Comm::Descriptor */
+
+Comm::Descriptor::Descriptor(const int fd, const unsigned int type, const char * const description): fd_(fd)
+{
+    fd_open(fd_, type, description);
+}
+
+Comm::Descriptor::~Descriptor()
+{
+    if (fd_ >= 0) {
+        fd_close(fd_);
+        if (close(fd_) != 0) {
+            const auto savedErrno = errno;
+            debugs(51, 7, "failed to close FD " << fd_ << ": " << xstrerr(savedErrno));
+        }
+    }
+}
+
