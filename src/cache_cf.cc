@@ -5160,36 +5160,49 @@ free_http_upgrade_request_protocols(HttpUpgradeProtocolAccess **protoGuardsPtr)
 }
 
 #if USE_OPENSSL && FOLLOW_X_FORWARDED_FOR
-static std::vector<std::string> BumpedXffSource_str = {{
-    std::string("none"),
-    std::string("tunnel"),
-    std::string("self")
-}};
+
+// TODO: Move to base/Algorithms.h or similar
+/// creates an inverted version of the given 1:1 default-allocator std::map
+template <typename Key, typename Value>
+static std::map<Value, Key>
+invert(const std::map<Key, Value> &m)
+{
+    std::map<Value, Key> result;
+    for (const auto &item: m)
+        result.insert({ item.second, item.first });
+    assert(result.size() == m.size());
+    return result;
+}
+
+static const std::map<SBuf, Ssl::Config::BumpedXffSource> BumpedXffSources = {
+    { SBuf("none"), Ssl::Config::bxffNone },
+    { SBuf("tunnel"), Ssl::Config::bxffTunnel },
+    { SBuf("self"), Ssl::Config::bxffSelf }
+};
+static const auto BumpedXffNames = invert(BumpedXffSources);
 
 static void parse_bumped_traffic_uses_indirect_client_from(Ssl::Config::BumpedXffSource *value)
 {
-    std::string token(ConfigParser::NextToken());
-    if (token.empty()) {
-        self_destruct();
-        return;
-    }
+    const auto source = ConfigParser::NextToken();
+    if (!source)
+        throw TextException("missing a required directive parameter", Here());
 
-    auto it = std::find(BumpedXffSource_str.begin(), BumpedXffSource_str.end(), token);
-    if (it == BumpedXffSource_str.end()) {
-        self_destruct();
-        return;
-    }
-    *value = static_cast<Ssl::Config::BumpedXffSource>(it - BumpedXffSource_str.begin());
+    const auto search = BumpedXffSources.find(SBuf(source));
+    if (search == BumpedXffSources.end())
+        throw TextException(ToSBuf("invalid source value: ", source), Here());
+
+    *value = search->second;
 }
 
 static void dump_bumped_traffic_uses_indirect_client_from(StoreEntry *entry, const char *name, Ssl::Config::BumpedXffSource value)
 {
-    storeAppendPrintf(entry, "%s %s\n", name, BumpedXffSource_str.at(value).c_str());
+    storeAppendPrintf(entry, "%s " SQUIDSBUFPH "\n", name, SQUIDSBUFPRINT(BumpedXffNames.at(value)));
 }
 
 static void free_bumped_traffic_uses_indirect_client_from(Ssl::Config::BumpedXffSource *value)
 {
     *value = Ssl::Config::bxffNone;
 }
+
 #endif // USE_OPENSSL && FOLLOW_X_FORWARDED_FOR
 
