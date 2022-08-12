@@ -3238,7 +3238,7 @@ ConnStateData::initiateTunneledRequest(HttpRequest::Pointer const &cause, Http::
     debugs(33, 2, "Request tunneling for " << reason);
     ClientHttpRequest *http = buildFakeRequest(method, connectHost, connectPort, payload);
     HttpRequest::Pointer request = http->request;
-#if FOLLOW_X_FORWARDED_FOR
+#if USE_OPENSSL && FOLLOW_X_FORWARDED_FOR
     if (cause)
         request->indirect_client_addr = cause->indirect_client_addr;
 #endif
