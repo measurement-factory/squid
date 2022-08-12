@@ -2908,15 +2908,14 @@ ConnStateData::switchToHttps(ClientHttpRequest *http, Ssl::BumpMode bumpServerMo
     // but we are now performing the HTTPS handshake traffic
     transferProtocol.protocol = AnyP::PROTO_HTTPS;
 
-    // XXX: The following statement is (probably) wrong, the sslServerBump
-    // is always nil here:
     // If sslServerBump is set, then we have decided to deny CONNECT
     // and now want to switch to SSL to send the error to the client
     // without even peeking at the origin server certificate.
-    if (!sslServerBump) {
-        request->flags.sslPeek = bumpServerMode == Ssl::bumpServerFirst ||
-                                 bumpServerMode == Ssl::bumpPeek ||
-                                 bumpServerMode == Ssl::bumpStare;
+    if (bumpServerMode == Ssl::bumpServerFirst && !sslServerBump) {
+        request->flags.sslPeek = true;
+        sslServerBump = new Ssl::ServerBump(http);
+    } else if (bumpServerMode == Ssl::bumpPeek || bumpServerMode == Ssl::bumpStare) {
+        request->flags.sslPeek = true;
         sslServerBump = new Ssl::ServerBump(http, nullptr, bumpServerMode);
     }
 
@@ -2996,8 +2995,7 @@ ConnStateData::parseTlsHandshake()
         return;
     }
 
-    Must(sslServerBump);
-    if (sslServerBump->act.step1 == Ssl::bumpBump || sslServerBump->act.step1 == Ssl::bumpClientFirst) { // Either means client-first.
+    if (!sslServerBump || sslServerBump->act.step1 == Ssl::bumpClientFirst) { // Either means client-first.
         getSslContextStart();
         return;
     } else if (sslServerBump->act.step1 == Ssl::bumpServerFirst) {
