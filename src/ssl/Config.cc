@@ -12,6 +12,9 @@
 Ssl::Config Ssl::TheConfig;
 
 Ssl::Config::Config():
+#if FOLLOW_X_FORWARDED_FOR
+    bumped_traffic_uses_indirect_client_from(bxffNone),
+#endif
 #if USE_SSL_CRTD
     ssl_crtd(NULL),
 #endif

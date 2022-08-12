@@ -17,6 +17,11 @@ namespace Ssl
 class Config
 {
 public:
+#if FOLLOW_X_FORWARDED_FOR
+    enum BumpedXffSource { bxffNone = 0, bxffTunnel, bxffSelf };
+    BumpedXffSource bumped_traffic_uses_indirect_client_from;
+#endif
+
 #if USE_SSL_CRTD
     char *ssl_crtd; ///< Name of external ssl_crtd application.
     /// The number of processes spawn for ssl_crtd.
@@ -24,11 +29,6 @@ public:
 #endif
     char *ssl_crt_validator;
     ::Helper::ChildConfig ssl_crt_validator_Children;
-
-#if FOLLOW_X_FORWARDED_FOR
-    enum BumpedXffSource { bxffNone = 0, bxffTunnel, bxffSelf };
-    BumpedXffSource bumped_traffic_uses_indirect_client_from;
-#endif
 
     Config();
     ~Config();
