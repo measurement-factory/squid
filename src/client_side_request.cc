@@ -513,7 +513,7 @@ clientFollowXForwardedForCheck(Acl::Answer answer, void *data)
     if (!request->flags.sslBumped &&
             request->method == Http::METHOD_CONNECT &&
             Ssl::TheConfig.bumped_traffic_uses_indirect_client_from == Ssl::Config::bxffTunnel) {
-        // remember CONNECT's address to pass onto bumped requests
+        // remember the last CONNECT's indirect address to pass onto bumped requests
         if (const auto conn = http->getConn()) {
             conn->indirectConnectionWideClient = request->indirect_client_addr;
             debugs(28, 3, "set indirectConnectionWideClient: " << conn->indirectConnectionWideClient);
