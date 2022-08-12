@@ -705,8 +705,8 @@ ClientRequestContext::clientAccessCheck()
     } else // !http->request->flags.sslBumped || Ssl::TheConfig.bumped_traffic_uses_indirect_client_from == Ssl::Config::bxffSelf
 #endif
     if (!http->request->flags.doneFollowXff() &&
-        Config.accessList.followXFF &&
-        http->request->header.has(Http::HdrType::X_FORWARDED_FOR)) {
+            Config.accessList.followXFF &&
+            http->request->header.has(Http::HdrType::X_FORWARDED_FOR)) {
 
         /* we always trust the direct client address for actual use */
         http->request->indirect_client_addr = http->request->client_addr;
