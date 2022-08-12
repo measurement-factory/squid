@@ -5160,11 +5160,11 @@ free_http_upgrade_request_protocols(HttpUpgradeProtocolAccess **protoGuardsPtr)
 }
 
 #if USE_OPENSSL && FOLLOW_X_FORWARDED_FOR
-static std::vector<std::string> BumpedXffSource_str = {
+static std::vector<std::string> BumpedXffSource_str = {{
     std::string("none"),
     std::string("tunnel"),
     std::string("self")
-};
+}};
 
 static void parse_bumped_traffic_uses_indirect_client_from(Ssl::Config::BumpedXffSource *value)
 {
