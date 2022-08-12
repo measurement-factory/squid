@@ -298,6 +298,12 @@ public:
     /// Tls parser to use for client HELLO messages parsing on bumped
     /// connections.
     Security::HandshakeParser tlsParser;
+
+#if FOLLOW_X_FORWARDED_FOR
+    /// assumed IP address of originator of the bumped tunneled requests
+    Ip::Address indirectConnectionWideClient;
+#endif
+
 #else
     bool switchedToHttps() const { return false; }
 #endif
