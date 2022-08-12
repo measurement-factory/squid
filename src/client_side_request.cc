@@ -512,7 +512,7 @@ clientFollowXForwardedForCheck(Acl::Answer answer, void *data)
 #if USE_OPENSSL
     if (!request->flags.sslBumped &&
         request->method == Http::METHOD_CONNECT &&
-        Ssl::TheConfig.bumped_traffic_indirect_client_address == Ssl::Config::xffTunnel) {
+        Ssl::TheConfig.bumped_traffic_uses_indirect_client_from == Ssl::Config::bxffTunnel) {
         // remember CONNECT's address to pass onto bumped requests
         if (const auto conn = http->getConn()) {
             conn->indirectConnectionWideClient = request->indirect_client_addr;
@@ -696,13 +696,13 @@ ClientRequestContext::clientAccessCheck()
 {
 #if FOLLOW_X_FORWARDED_FOR
 #if USE_OPENSSL
-    if (http->request->flags.sslBumped && Ssl::TheConfig.bumped_traffic_indirect_client_address == Ssl::Config::xffTunnel) {
+    if (http->request->flags.sslBumped && Ssl::TheConfig.bumped_traffic_uses_indirect_client_from == Ssl::Config::bxffTunnel) {
         http->request->indirect_client_addr = http->getConn()->indirectConnectionWideClient;
         debugs(28, 3, "using indirectConnectionWideClient: " << http->request->indirect_client_addr);
-    } else if (http->request->flags.sslBumped && Ssl::TheConfig.bumped_traffic_indirect_client_address == Ssl::Config::xffNone) {
+    } else if (http->request->flags.sslBumped && Ssl::TheConfig.bumped_traffic_uses_indirect_client_from == Ssl::Config::bxffNone) {
         // let the default indirect client which is the client ip address
         debugs(28, 3, "using direct client: " << http->request->client_addr);
-    } else // !http->request->flags.sslBumped || Ssl::TheConfig.bumped_traffic_indirect_client_address == Ssl::Config::xffFollowXForwaredFor
+    } else // !http->request->flags.sslBumped || Ssl::TheConfig.bumped_traffic_uses_indirect_client_from == Ssl::Config::bxffSelf
 #endif
     if (!http->request->flags.doneFollowXff() &&
         Config.accessList.followXFF &&

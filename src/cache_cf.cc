@@ -227,9 +227,9 @@ static void parse_sslproxy_ssl_bump(acl_access **ssl_bump);
 static void dump_sslproxy_ssl_bump(StoreEntry *entry, const char *name, acl_access *ssl_bump);
 static void free_sslproxy_ssl_bump(acl_access **ssl_bump);
 #if FOLLOW_X_FORWARDED_FOR
-static void parse_bumped_traffic_indirect_client_address(Ssl::Config::BumpedXFFMode *value);
-static void dump_bumped_traffic_indirect_client_address(StoreEntry *entry, const char *name, Ssl::Config::BumpedXFFMode value);
-static void free_bumped_traffic_indirect_client_address(Ssl::Config::BumpedXFFMode *value);
+static void parse_bumped_traffic_uses_indirect_client_from(Ssl::Config::BumpedXffSource *value);
+static void dump_bumped_traffic_uses_indirect_client_from(StoreEntry *entry, const char *name, Ssl::Config::BumpedXffSource value);
+static void free_bumped_traffic_uses_indirect_client_from(Ssl::Config::BumpedXffSource *value);
 #endif
 #endif /* USE_OPENSSL */
 
@@ -5160,13 +5160,13 @@ free_http_upgrade_request_protocols(HttpUpgradeProtocolAccess **protoGuardsPtr)
 }
 
 #if USE_OPENSSL && FOLLOW_X_FORWARDED_FOR
-static std::vector<std::string> BumpedXFFMode_str = {
+static std::vector<std::string> BumpedXffSource_str = {
     std::string("none"),
     std::string("tunnel"),
-    std::string("follow_x_forwarded_for")
+    std::string("self")
 };
 
-static void parse_bumped_traffic_indirect_client_address(Ssl::Config::BumpedXFFMode *value)
+static void parse_bumped_traffic_uses_indirect_client_from(Ssl::Config::BumpedXffSource *value)
 {
     std::string token(ConfigParser::NextToken());
     if (token.empty()) {
@@ -5174,22 +5174,22 @@ static void parse_bumped_traffic_indirect_client_address(Ssl::Config::BumpedXFFM
         return;
     }
 
-    auto it = std::find(BumpedXFFMode_str.begin(), BumpedXFFMode_str.end(), token);
-    if (it == BumpedXFFMode_str.end()) {
+    auto it = std::find(BumpedXffSource_str.begin(), BumpedXffSource_str.end(), token);
+    if (it == BumpedXffSource_str.end()) {
         self_destruct();
         return;
     }
-    *value = static_cast<Ssl::Config::BumpedXFFMode>(it - BumpedXFFMode_str.begin());
+    *value = static_cast<Ssl::Config::BumpedXffSource>(it - BumpedXffSource_str.begin());
 }
 
-static void dump_bumped_traffic_indirect_client_address(StoreEntry *entry, const char *name, Ssl::Config::BumpedXFFMode value)
+static void dump_bumped_traffic_uses_indirect_client_from(StoreEntry *entry, const char *name, Ssl::Config::BumpedXffSource value)
 {
-    storeAppendPrintf(entry, "%s %s\n", name, BumpedXFFMode_str.at(value).c_str());
+    storeAppendPrintf(entry, "%s %s\n", name, BumpedXffSource_str.at(value).c_str());
 }
 
-static void free_bumped_traffic_indirect_client_address(Ssl::Config::BumpedXFFMode *value)
+static void free_bumped_traffic_uses_indirect_client_from(Ssl::Config::BumpedXffSource *value)
 {
-    *value = Ssl::Config::xffNone;
+    *value = Ssl::Config::bxffNone;
 }
 #endif // USE_OPENSSL && FOLLOW_X_FORWARDED_FOR
 

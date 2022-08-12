@@ -1716,6 +1716,10 @@ DOC_START
 	icap_uses_indirect_client, delay_pool_uses_indirect_client,
 	log_uses_indirect_client and tproxy_uses_indirect_client options.
 
+	X-Forwarded-For header in encrypted requests bumped by ssl_bump is
+	processed according to the bumped_traffic_uses_indirect_client_from
+	directive.
+
 	This clause only supports fast acl types.
 	See http://wiki.squid-cache.org/SquidFaq/SquidAcl for details.
 
@@ -1795,29 +1799,53 @@ DOC_START
 	sources is required to prevent abuse of your proxy.
 DOC_END
 
-NAME: bumped_traffic_indirect_client_address
-TYPE: bumped_traffic_indirect_client_address
-COMMENT: none|tunnel|follow_x_forwarded_for
+NAME: bumped_traffic_uses_indirect_client_from
+TYPE: bumped_traffic_uses_indirect_client_from
+COMMENT: none|tunnel|self
 IFDEF: FOLLOW_X_FORWARDED_FOR&&USE_OPENSSL
 DEFAULT: none
-LOC: Ssl::TheConfig.bumped_traffic_indirect_client_address
+LOC: Ssl::TheConfig.bumped_traffic_uses_indirect_client_from
 DOC_START
-	Controls which address will be used as indirect client address
-	for the HTTP requests tunneled through a bumped connection.
+	Controls the indirect client address of encrypted HTTP requests that were
+	successfully bumped (i.e. decrypted) by ssl_bump. These requests are
+	received inside real CONNECT tunnels or intercepted TLS connections
+	(represented by fake CONNECT tunnels). This directive does not affect the
+	indirect address of the corresponding CONNECT request itself.
 
-		bumped_traffic_indirect_client_address <mode>
+		bumped_traffic_uses_indirect_client_from <source>
 
-	Supported modes are:
+	The "source" parameter determines where bumped requests get their indirect
+	client address from:
 
-	none	Use the direct client IP address as indirect
-		client address
+	none	The indirect client address of a bumped request will be empty. The
+		effective client address will be the actual source address of the
+		corresponding TCP connection. Squid ignores X-Forwarded-For headers in
+		the bumped request. X-Forwarded-For headers in CONNECT requests do not
+		affect bumped requests in this case.
 
-	tunnel	Use the indirect client address of the bumped CONNECT
-		request
+	tunnel	The indirect client address of a bumped request will be the
+		indirect source address of the corresponding CONNECT request (obtained
+		while honoring the follow_x_forwarded_for directive). Squid ignores
+		X-Forwarded-For headers in the bumped request. This setting is useful
+		when a trusted child proxy sends X-Forwarded-For in CONNECT requests
+		but does not inspect or alter tunneled requests.
 
-	follow_x_forwarded_for
-		The indirect client address computed for each tunneled
-		HTTP request from its XFF headers
+	self	The indirect client address of a bumped request will be computed
+	    based on that request X-Forward-For headers (while honoring the
+	    follow_x_forwarded_for directive). X-Forwarded-For headers in CONNECT
+	    requests do not affect bumped requests in this case. This setting is
+	    useful when a trusted child proxy sends X-Forwarded-For in tunneled
+	    requests that it may coalesce from various clients into one tunnel.
+
+	Currently, this directive does not affect the indirect address of a bumped
+	request received after a bumping failure. Squid parsers such a request in
+	order to properly send an error response to the client, but the parsed
+	request itself is nearly ignored (e.g., it does not go through the regular
+	http_access checks and X-Forwarded-For processing logic). Squid does log
+	these parsed requests though (with their actual client IPs). This
+	exception may be removed in future Squid versions.
+
+	See also: follow_x_forwarded_for and ssl_bump.
 DOC_END
 
 NAME: spoof_client_ip

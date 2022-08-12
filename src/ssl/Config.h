@@ -26,8 +26,8 @@ public:
     ::Helper::ChildConfig ssl_crt_validator_Children;
 
 #if FOLLOW_X_FORWARDED_FOR
-    enum BumpedXFFMode { xffNone = 0, xffTunnel, xffFollowXForwaredFor };
-    BumpedXFFMode bumped_traffic_indirect_client_address;
+    enum BumpedXffSource { bxffNone = 0, bxffTunnel, bxffSelf };
+    BumpedXffSource bumped_traffic_uses_indirect_client_from;
 #endif
 
     Config();

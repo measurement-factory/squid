@@ -20,7 +20,7 @@ AuthSchemes		acl auth_param
 b_int64_t
 b_size_t
 b_ssize_t
-bumped_traffic_indirect_client_address
+bumped_traffic_uses_indirect_client_from
 cachedir		cache_replacement_policy
 cachemgrpasswd
 ConfigAclTos
