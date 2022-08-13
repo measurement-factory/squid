@@ -1803,7 +1803,7 @@ NAME: bumped_traffic_uses_indirect_client_from
 TYPE: bumped_traffic_uses_indirect_client_from
 COMMENT: none|tunnel|self
 IFDEF: FOLLOW_X_FORWARDED_FOR&&USE_OPENSSL
-DEFAULT: none
+DEFAULT: self
 LOC: Ssl::TheConfig.bumped_traffic_uses_indirect_client_from
 DOC_START
 	Controls the indirect client address of encrypted HTTP requests that were
