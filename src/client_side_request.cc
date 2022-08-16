@@ -1441,6 +1441,11 @@ ClientRequestContext::sslBumpAccessCheck()
         debugs(85, 5, "SslBump applies. Force bump action on error " << errorTypeName(error->type));
         srvBump->noteNeed(Ssl::bumpBump);
         http->al->ssl.bumpMode = Ssl::bumpBump;
+
+        // mangle now, using the current CONNECT transaction context; do not
+        // wait for the bumped GET which will mangle in its own context
+        error->mangleHeaders = true;
+
         const auto errorEntry = createStoreEntry();
         srvBump->useStoreEntry(*http, errorEntry);
         errorAppendEntry(errorEntry, error);
