@@ -647,11 +647,11 @@ StoreEntry::adjustVary()
     HttpRequestPointer request(mem_obj->request);
     const auto &reply = mem_obj->freshestReply();
 
-    if (mem_obj->vary_headers.isEmpty()) {
+    if (!mem_obj->varyDetails().has_value()) {
         /* First handle the case where the object no longer varies */
         request->vary_headers.clear();
     } else {
-        if (!request->vary_headers.isEmpty() && request->vary_headers.cmp(mem_obj->vary_headers) != 0) {
+        if (!request->vary_headers.isEmpty() && request->vary_headers.cmp(mem_obj->varyDetails().value().headers()) != 0) {
             /* Oops.. the variance has changed. Kill the base object
              * to record the new variance key
              */
@@ -667,11 +667,10 @@ StoreEntry::adjustVary()
 
     // TODO: storeGetPublic() calls below may create unlocked entries.
     // We should add/use storeHas() API or lock/unlock those entries.
-    if (!mem_obj->vary_headers.isEmpty() && !storeGetPublic(mem_obj->storeId(), mem_obj->method)) {
+    if (mem_obj->varyDetails().has_value() && !storeGetPublic(mem_obj->storeId(), mem_obj->method)) {
         /* Create "vary" base object */
         StoreEntry *pe = storeCreateEntry(mem_obj->storeId(), mem_obj->logUri(), request->flags, request->method);
-        pe->mem().varyUuid = RandomUuid();
-        mem_obj->varyUuid = pe->mem_obj->varyUuid.value().clone();
+        pe->mem().initializeVary(VaryDetails(mem_obj->varyDetails().value().uuid()));
         // XXX: storeCreateEntry() already tries to make `pe` public under
         // certain conditions. If those conditions do not apply to Vary markers,
         // then refactor to call storeCreatePureEntry() above.  Otherwise,

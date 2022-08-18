@@ -3449,18 +3449,25 @@ clientConnectionsClose()
 }
 
 int
-varyEvaluateMatch(StoreEntry *entry, const Optional<RandomUuid> &varyMarkerUuid, HttpRequest *request)
+varyEvaluateMatch(ClientHttpRequest *http)
 {
+    auto entry = http->storeEntry();
+    auto request = http->request;
     SBuf vary(request->vary_headers);
     const auto &reply = entry->mem().freshestReply();
     auto has_vary = reply.header.has(Http::HdrType::VARY);
+    const auto &varyDetails = entry->mem().varyDetails();
 #if X_ACCELERATOR_VARY
 
     has_vary |=
         reply.header.has(Http::HdrType::HDR_X_ACCELERATOR_VARY);
 #endif
 
-    if (!has_vary || entry->mem_obj->vary_headers.isEmpty()) {
+    Assure((has_vary && varyDetails.has_value()) || (!has_vary && !varyDetails.has_value()));
+
+    const auto isLeafEntry = varyDetails.has_value() && !varyDetails.value().marker();
+
+    if (!has_vary || !isLeafEntry) {
         if (!vary.isEmpty()) {
             /* Oops... something odd is going on here.. */
             debugs(33, DBG_IMPORTANT, "varyEvaluateMatch: Oops. Not a Vary object on second attempt, '" <<
@@ -3499,10 +3506,9 @@ varyEvaluateMatch(StoreEntry *entry, const Optional<RandomUuid> &varyMarkerUuid,
             /* Ouch.. we cannot handle this kind of variance */
             /* XXX This cannot really happen, but just to be complete */
             return VARY_CANCEL;
-        } else if (!entry->mem().varyUuidEqualsTo(varyMarkerUuid)) {
-            return VARY_CANCEL;
-        } else if (vary.cmp(entry->mem_obj->vary_headers) == 0) {
-            return VARY_MATCH;
+        } else if (http->varyDetailsBase.has_value()) {
+            // check whether the found leaf entry is not stale
+            return http->varyDetailsBase.value().uuid() == varyDetails.value().uuid() ? VARY_MATCH : VARY_CANCEL;
         } else {
             /* Oops.. we have already been here and still haven't
              * found the requested variant. Bail out

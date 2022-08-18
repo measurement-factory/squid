@@ -507,7 +507,7 @@ private:
 
 const char *findTrailingHTTPVersion(const char *uriAndHTTPVersion, const char *end = nullptr);
 
-int varyEvaluateMatch(StoreEntry *entry, const Optional<RandomUuid> &varyMarkerUuid, HttpRequest *req);
+int varyEvaluateMatch(ClientHttpRequest *);
 
 /// accept requests to a given port and inform subCall about them
 void clientStartListeningOn(AnyP::PortCfgPointer &port, const RefCount< CommCbFunPtrCallT<CommAcceptCbPtrFun> > &subCall, const Ipc::FdNoteId noteId);

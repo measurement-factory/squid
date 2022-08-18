@@ -66,12 +66,12 @@ PackFields(const StoreEntry &entry, std::ostream &os)
     if (objsize >= 0)
         PackField(os, STORE_META_OBJSIZE, sizeof(objsize), &objsize);
 
-    const auto &vary = emem.vary_headers;
-    if (!vary.isEmpty())
-        PackField(os, STORE_META_VARY_HEADERS, vary.length(), vary.rawContent());
-
-    if (emem.varyUuid.has_value()) {
-        const auto serialized = emem.varyUuid.value().serialize();
+    if (emem.varyDetails().has_value()) {
+        const auto &details = emem.varyDetails().value();
+        const auto &headers = details.headers();
+        Assure((details.marker() && headers.isEmpty()) || (!details.marker() && !headers.isEmpty()));
+        PackField(os, STORE_META_VARY_HEADERS, headers.length(), headers.rawContent());
+        const auto serialized = details.uuid().serialize();
         PackField(os, STORE_META_VARY_ID, sizeof(serialized), &serialized);
     }
 }

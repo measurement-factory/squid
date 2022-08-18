@@ -54,7 +54,7 @@ bool ConnStateData::serveDelayedError(Http::Stream *) STUB_RETVAL(false)
 #endif
 
 const char *findTrailingHTTPVersion(const char *, const char *) STUB_RETVAL(nullptr)
-int varyEvaluateMatch(StoreEntry *, const Optional<RandomUuid> &, HttpRequest *) STUB_RETVAL(0)
+int varyEvaluateMatch(ClientHttpRequest *) STUB_RETVAL(0)
 void clientOpenListenSockets(void) STUB
 void httpRequestFree(void *) STUB
 void clientPackRangeHdr(const HttpReplyPointer &, const HttpHdrRangeSpec *, String, MemBuf *) STUB

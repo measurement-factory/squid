@@ -597,7 +597,7 @@ clientReplyContext::cacheHit(StoreIOBuffer result)
         return;
     }
 
-    switch (varyEvaluateMatch(e, http->varyMarkerUuid, r)) {
+    switch (varyEvaluateMatch(http)) {
 
     case VARY_NONE:
         /* No variance detected. Continue as normal */
@@ -612,9 +612,9 @@ clientReplyContext::cacheHit(StoreIOBuffer result)
         /* This is not the correct entity for this request. We need
          * to requery the cache.
          */
-        assert(e->mem().varyUuid.has_value());
-        assert(!http->varyMarkerUuid.has_value());
-        http->varyMarkerUuid = e->mem().varyUuid.value().clone();
+        assert(e->mem().varyDetails().has_value());
+        assert(!http->varyDetailsBase.has_value());
+        http->varyDetailsBase = e->mem().varyDetails().value().clone();
 
         removeClientStoreReference(&sc, http);
         e = nullptr;
@@ -2138,8 +2138,8 @@ clientReplyContext::createStoreEntry(const HttpRequestMethod& m, RequestFlags re
     }
 
     StoreEntry *e = storeCreateEntry(storeId(), http->log_uri, reqFlags, m);
-    if (http->varyMarkerUuid.has_value())
-        e->mem().varyUuid = http->varyMarkerUuid.value().clone();
+    if (http->varyDetailsBase.has_value())
+        e->mem().initializeVary(VaryDetails(SBuf(), http->varyDetailsBase.value().uuid()));
 
     // Make entry collapsible ASAP, to increase collapsing chances for others,
     // TODO: every must-revalidate and similar request MUST reach the origin,
