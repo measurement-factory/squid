@@ -824,7 +824,7 @@ String
 ClientHttpRequest::rangeBoundaryStr() const
 {
     const char *key;
-    String b(APP_FULLNAME);
+    String b(visible_appname_string);
     b.append(":",1);
     key = storeEntry()->getMD5Text();
     b.append(key, strlen(key));
