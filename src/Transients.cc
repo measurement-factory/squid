@@ -175,7 +175,7 @@ Transients::get(const cache_key *key)
 
     StoreEntry *e = new StoreEntry();
     e->createMemObject();
-    anchorEntry(*e, index, *anchor);
+    e->mem_obj->xitTable.reset(Store::ioReading, index);
 
     // keep read lock to receive updates from others
     return e;
@@ -243,9 +243,7 @@ Transients::addWriterEntry(StoreEntry &e, const cache_key *key)
 
     // set ASAP in hope to unlock the slot if something throws
     // and to provide index to such methods as hasWriter()
-    auto &xitTable = e.mem_obj->xitTable;
-    xitTable.index = index;
-    xitTable.io = Store::ioWriting;
+    e.mem_obj->xitTable.reset(Store::ioWriting, index);
 
     anchor->set(e, key);
     // allow reading and receive remote DELETE events, but do not switch to
@@ -263,21 +261,8 @@ Transients::addReaderEntry(StoreEntry &e, const cache_key *key)
     if (!anchor)
         throw TextException("reader collision", Here());
 
-    anchorEntry(e, index, *anchor);
+    e.mem_obj->xitTable.reset(Store::ioReading, index);
     // keep the entry locked (for reading) to receive remote DELETE events
-}
-
-/// fills (recently created) StoreEntry with information currently in Transients
-void
-Transients::anchorEntry(StoreEntry &e, const sfileno index, const Ipc::StoreMapAnchor &anchor)
-{
-    // set ASAP in hope to unlock the slot if something throws
-    // and to provide index to such methods as hasWriter()
-    auto &xitTable = e.mem_obj->xitTable;
-    xitTable.index = index;
-    xitTable.io = Store::ioReading;
-
-    anchor.exportInto(e);
 }
 
 bool
@@ -372,8 +357,7 @@ Transients::disconnect(StoreEntry &entry)
             map->closeForReadingAndFreeIdle(xitTable.index);
         }
         locals->at(xitTable.index) = nullptr;
-        xitTable.index = -1;
-        xitTable.io = Store::ioDone;
+        xitTable.reset(Store::ioDone, -1);
     }
 }
 
