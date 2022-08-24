@@ -169,6 +169,8 @@ public:
     class XitTable
     {
     public:
+        void reset(const Store::IoStatus st, const int32_t idx) { index = idx; io = st; }
+
         int32_t index = -1; ///< entry position inside the in-transit table
         Io io = ioUndecided; ///< current I/O state
     };

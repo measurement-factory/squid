@@ -98,7 +98,6 @@ protected:
     void addEntry(StoreEntry*, const cache_key *, const Store::IoStatus);
     void addWriterEntry(StoreEntry &, const cache_key *);
     void addReaderEntry(StoreEntry &, const cache_key *);
-    void anchorEntry(StoreEntry &, const sfileno, const Ipc::StoreMapAnchor &);
 
     // Ipc::StoreMapCleaner API
     virtual void noteFreeMapSlice(const Ipc::StoreMapSliceId sliceId) override;
