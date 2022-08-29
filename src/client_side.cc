@@ -3448,76 +3448,61 @@ clientConnectionsClose()
     NHttpSockets = 0;
 }
 
-int
-varyEvaluateMatch(ClientHttpRequest *http)
+static void
+ensureRequestVarydetails(Optional<VaryDetails> &requestVaryDetails, HttpRequest *request, const HttpReply *reply, const RandomUuid &uuid)
 {
-    auto entry = http->storeEntry();
-    auto request = http->request;
-    SBuf vary(request->vary_headers);
+    if (requestVaryDetails.has_value())
+        return;
+    const auto vary = httpMakeVaryMark(request, reply);
+    if (vary.isEmpty()) // request lacks any cached vary header
+        return;
+    requestVaryDetails = VaryDetails(vary, uuid);
+}
+
+int
+varyEvaluateMatch(StoreEntry * entry, HttpRequest * request)
+{
     const auto &reply = entry->mem().freshestReply();
     auto has_vary = reply.header.has(Http::HdrType::VARY);
-    const auto &varyDetails = entry->mem().varyDetails();
 #if X_ACCELERATOR_VARY
 
     has_vary |=
         reply.header.has(Http::HdrType::HDR_X_ACCELERATOR_VARY);
 #endif
 
-    Assure((has_vary && varyDetails.has_value()) || (!has_vary && !varyDetails.has_value()));
+    if (!has_vary) // This is not a varying object
+        return VARY_NONE;
 
-    const auto isLeafEntry = varyDetails.has_value() && !varyDetails.value().marker();
+    const auto &memVaryDetails = entry->mem().varyDetails();
+    auto &requestVaryDetails = request->varyDetails;
 
-    if (!has_vary || !isLeafEntry) {
-        if (!vary.isEmpty()) {
-            /* Oops... something odd is going on here.. */
-            debugs(33, DBG_IMPORTANT, "varyEvaluateMatch: Oops. Not a Vary object on second attempt, '" <<
-                   entry->mem_obj->urlXXX() << "' '" << vary << "'");
-            request->vary_headers.clear();
-            return VARY_CANCEL;
-        }
+    Assure(memVaryDetails.has_value());
 
-        if (!has_vary) {
-            /* This is not a varying object */
-            return VARY_NONE;
-        }
-
-        /* virtual "vary" object found. Calculate the vary key and
-         * continue the search
-         */
-        vary = httpMakeVaryMark(request, &reply);
-
-        if (!vary.isEmpty()) {
-            request->vary_headers = vary;
-            return VARY_OTHER;
-        } else {
-            /* Ouch.. we cannot handle this kind of variance */
-            /* XXX This cannot really happen, but just to be complete */
-            return VARY_CANCEL;
-        }
-    } else {
-        if (vary.isEmpty()) {
-            vary = httpMakeVaryMark(request, &reply);
-
-            if (!vary.isEmpty())
-                request->vary_headers = vary;
-        }
-
-        if (vary.isEmpty()) {
-            /* Ouch.. we cannot handle this kind of variance */
-            /* XXX This cannot really happen, but just to be complete */
-            return VARY_CANCEL;
-        } else if (http->varyDetailsBase.has_value()) {
-            // check whether the found leaf entry is not stale
-            return http->varyDetailsBase.value().uuid() == varyDetails.value().uuid() ? VARY_MATCH : VARY_CANCEL;
-        } else {
-            /* Oops.. we have already been here and still haven't
-             * found the requested variant. Bail out
-             */
-            debugs(33, DBG_IMPORTANT, "varyEvaluateMatch: Oops. Not a Vary match on second attempt, '" <<
-                   entry->mem_obj->urlXXX() << "' '" << vary << "'");
-            return VARY_CANCEL;
-        }
+    if (memVaryDetails.value().isBase()) {
+        Assure(!requestVaryDetails.has_value());
+        // vary first stage
+        // virtual "vary" object found. Calculate the vary key and
+        // continue the search
+        ensureRequestVarydetails(requestVaryDetails, request, &reply, memVaryDetails.value().uuid());
+        return requestVaryDetails.has_value() ? VARY_OTHER : VARY_CANCEL;
     }
+
+    // vary second stage
+    // Leaf entry was found, check whether it still matches the request.
+    ensureRequestVarydetails(requestVaryDetails, request, &reply, memVaryDetails.value().uuid());
+
+    Assure(requestVaryDetails.has_value());
+
+    Assure(requestVaryDetails.value().headers() == memVaryDetails.value().headers());
+
+    if (requestVaryDetails.value().uuid() != memVaryDetails.value().uuid()) {
+        debugs(33, 2, "Vary mismatch: " << entry->mem_obj->urlXXX() <<
+                Debug::Extra << " request: " << requestVaryDetails.value() <<
+                Debug::Extra << " cached: " << memVaryDetails.value());
+        return VARY_CANCEL;
+    }
+
+    return VARY_MATCH;
 }
 
 ACLFilledChecklist *

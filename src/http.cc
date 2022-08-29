@@ -971,11 +971,7 @@ HttpStateData::haveParsedReplyHeaders()
                 EBIT_SET(entry->flags, ENTRY_FWD_HDR_WAIT);
             varyFailure = true;
         } else {
-            auto &emem = entry->mem();
-            if (emem.varyDetails().has_value()) // has been copied from the base entry
-                emem.updateVary(vary);
-            else
-                emem.initializeVary(VaryDetails(vary, RandomUuid()));
+            entry->mem_obj->initializeVary(VaryDetails(vary, request->varyDetails.has_value() ? request->varyDetails.value().uuid().clone() : RandomUuid()));
 
             // RFC 7231 section 7.1.4
             // Vary:* can be cached, but has mandatory revalidation

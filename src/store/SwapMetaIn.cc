@@ -365,9 +365,12 @@ Store::UnpackHitSwapMeta(char const * const buf, const ssize_t len, StoreEntry &
 
     if (varyUuid.has_value()) {
         auto varyDetails = CreateVaryDetails(varyHeaders, varyUuid.value());
-        if (emem.varyDetails().has_value() && emem.varyDetails().value() != varyDetails)
-            throw TextException("Vary mismatch", Here());
-        emem.initializeVary(std::move(varyDetails));
+        if (emem.varyDetails().has_value()) {
+            if (emem.varyDetails().value() != varyDetails)
+                throw TextException("Vary mismatch", Here());
+        } else {
+            emem.initializeVary(std::move(varyDetails));
+        }
     }
 }
 

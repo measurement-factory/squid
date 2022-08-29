@@ -470,16 +470,6 @@ MemObject::initializeVary(VaryDetails &&details)
     varyDetails_ = std::move(details);
 }
 
-void
-MemObject::updateVary(const SBuf &headers)
-{
-    Assure(varyDetails_.has_value());
-    Assure(!varyDetails_.value().marker());
-    Assure(varyDetails_.value().headers().isEmpty());
-
-    varyDetails_ = VaryDetails(headers, varyDetails_.value().uuid());
-}
-
 #if USE_DELAY_POOLS
 DelayId
 MemObject::mostBytesAllowed() const

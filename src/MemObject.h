@@ -31,44 +31,6 @@ typedef void STMCB (void *data, StoreIOBuffer wroteBuffer);
 class store_client;
 class PeerSelector;
 
-/// Variant entry attributes
-class VaryDetails
-{
-
-public:
-    /// constructs details for a leaf entry
-    VaryDetails(const SBuf &h, const RandomUuid &id):
-        headers_(h), uuid_(id.clone()) {}
-
-    /// constructs details for a base entry
-    explicit VaryDetails(const RandomUuid &id):
-        uuid_(id.clone()), marker_(true) {}
-
-    VaryDetails(VaryDetails &&) = default;
-    VaryDetails &operator=(VaryDetails &&) = default;
-
-    VaryDetails &operator=(const VaryDetails &) = delete;
-
-    VaryDetails clone() const { return VaryDetails(headers_, uuid_); }
-
-    bool operator ==(const VaryDetails &other) const { return uuid_ == other.uuid_ && headers_ == other.headers_ && marker_ == other.marker_; }
-    bool operator !=(const VaryDetails &other) const { return !(*this == other); }
-
-    const SBuf &headers() const { return headers_; }
-    const RandomUuid &uuid() const { return uuid_; }
-    bool marker() const { return marker_; }
-
-private:
-    VaryDetails(const VaryDetails &other) : headers_(other.headers_), uuid_(other.uuid_.clone()), marker_(other.marker_) {}
-
-    /// a vary-mark for leaf entries, may be empty for base/not_cached entries
-    SBuf headers_;
-    /// vary-based identifier, shared by all leaf entries having the same base entry
-    RandomUuid uuid_;
-    /// whether the entry that owns us is the base entry
-    bool marker_ = false;
-};
-
 class MemObject
 {
     MEMPROXY_CLASS(MemObject);
@@ -243,8 +205,6 @@ public:
 
     /// initializes vary attributes
     void initializeVary(VaryDetails &&);
-    /// sets vary-mark for the existing vary attributes without vary-mark
-    void updateVary(const SBuf &);
     /// vary attributes (vary-mark, uuid, etc.), if any
     const Optional<VaryDetails> &varyDetails() const { return varyDetails_; }
 
@@ -260,7 +220,7 @@ private:
 
     DelayedAsyncCalls deferredReads;
 
-    Optional<VaryDetails> varyDetails_; ///< vary attributes
+    Optional<VaryDetails> varyDetails_; ///< cached or to-be-cached vary attributes
 };
 
 /** global current memory removal policy */

@@ -130,11 +130,6 @@ public:
 
     String store_id; /* StoreID for transactions where the request member is nil */
 
-    /// Vary details, copied from the marker(base) entry.
-    /// The details cannot be obtained from the base entry itself, because
-    /// it becomes unavailable while requerying the cache (see clientReplyContext::cacheHit()).
-    Optional<VaryDetails> varyDetailsBase;
-
     struct Out {
         /// Roughly speaking, this offset points to the next body byte we want
         /// to receive from Store. Without Ranges (and I/O errors), we should

@@ -11,6 +11,8 @@
 
 #include "anyp/Uri.h"
 #include "base/CbcPointer.h"
+#include "base/Optional.h"
+#include "base/RandomUuid.h"
 #include "dns/forward.h"
 #include "error/Error.h"
 #include "HierarchyLogEntry.h"
@@ -166,8 +168,8 @@ public:
 
     time_t lastmod;     /* Used on refreshes */
 
-    /// The variant second-stage cache key. Generated from Vary header pattern for this request.
-    SBuf vary_headers;
+    /// variant first-stage or second-stage attributes for this request
+    Optional<VaryDetails> varyDetails;
 
     char *peer_domain;      /* Configured peer forceddomain */
 

@@ -649,20 +649,20 @@ StoreEntry::adjustVary()
 
     if (!mem_obj->varyDetails().has_value()) {
         /* First handle the case where the object no longer varies */
-        request->vary_headers.clear();
+        request->varyDetails.reset();
     } else {
-        if (!request->vary_headers.isEmpty() && request->vary_headers.cmp(mem_obj->varyDetails().value().headers()) != 0) {
+        if (request->varyDetails.has_value() && request->varyDetails.value() != mem_obj->varyDetails().value()) {
             /* Oops.. the variance has changed. Kill the base object
              * to record the new variance key
              */
-            request->vary_headers.clear();       /* free old "bad" variance key */
+            request->varyDetails.reset();       /* free old "bad" variance key */
             if (StoreEntry *pe = storeGetPublic(mem_obj->storeId(), mem_obj->method))
                 pe->release(true);
         }
 
         /* Make sure the request knows the variance status */
-        if (request->vary_headers.isEmpty())
-            request->vary_headers = httpMakeVaryMark(request.getRaw(), &reply);
+        if (!request->varyDetails.has_value())
+            request->varyDetails = mem_obj->varyDetails().value().clone();
     }
 
     // TODO: storeGetPublic() calls below may create unlocked entries.

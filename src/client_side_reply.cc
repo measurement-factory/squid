@@ -295,7 +295,7 @@ clientReplyContext::processExpired()
     // TODO: support collapsed revalidation for Vary-controlled entries
     bool collapsingAllowed = Config.onoff.collapsed_forwarding &&
                              !Store::Controller::SmpAware() &&
-                             http->request->vary_headers.isEmpty();
+                             !http->request->varyDetails.has_value();
 
     StoreEntry *entry = nullptr;
     if (collapsingAllowed) {
@@ -597,7 +597,7 @@ clientReplyContext::cacheHit(StoreIOBuffer result)
         return;
     }
 
-    switch (varyEvaluateMatch(http)) {
+    switch (varyEvaluateMatch(e, r)) {
 
     case VARY_NONE:
         /* No variance detected. Continue as normal */
@@ -613,8 +613,6 @@ clientReplyContext::cacheHit(StoreIOBuffer result)
          * to requery the cache.
          */
         assert(e->mem().varyDetails().has_value());
-        assert(!http->varyDetailsBase.has_value());
-        http->varyDetailsBase = e->mem().varyDetails().value().clone();
 
         removeClientStoreReference(&sc, http);
         e = nullptr;
@@ -974,8 +972,8 @@ clientReplyContext::purgeDoPurge()
     }
 
     /* And for Vary, release the base URI if none of the headers was included in the request */
-    if (!http->request->vary_headers.isEmpty()
-            && http->request->vary_headers.find('=') != SBuf::npos) {
+    if (http->request->varyDetails.has_value()
+            && http->request->varyDetails.value().headers().find('=') != SBuf::npos) {
         // XXX: performance regression, c_str() reallocates
         SBuf tmp(http->request->effectiveRequestUri());
 
@@ -2138,8 +2136,6 @@ clientReplyContext::createStoreEntry(const HttpRequestMethod& m, RequestFlags re
     }
 
     StoreEntry *e = storeCreateEntry(storeId(), http->log_uri, reqFlags, m);
-    if (http->varyDetailsBase.has_value())
-        e->mem().initializeVary(VaryDetails(SBuf(), http->varyDetailsBase.value().uuid()));
 
     // Make entry collapsible ASAP, to increase collapsing chances for others,
     // TODO: every must-revalidate and similar request MUST reach the origin,

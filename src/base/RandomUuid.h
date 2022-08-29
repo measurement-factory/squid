@@ -9,6 +9,8 @@
 #ifndef SQUID_SRC_BASE_RANDOMUUID_H
 #define SQUID_SRC_BASE_RANDOMUUID_H
 
+#include <sbuf/SBuf.h>
+
 #include <array>
 #include <iosfwd>
 
@@ -71,6 +73,45 @@ private:
 };
 
 std::ostream &operator<<(std::ostream &os, const RandomUuid &uuid);
+
+// TODO: move to a separate header
+/// Variant entry attributes
+class VaryDetails
+{
+
+public:
+    /// constructs details for a leaf entry
+    VaryDetails(const SBuf &h, const RandomUuid &id):
+        headers_(h), uuid_(id.clone()) {}
+
+    /// constructs details for a base entry
+    explicit VaryDetails(const RandomUuid &id):
+        uuid_(id.clone()) {}
+
+    VaryDetails(VaryDetails &&) = default;
+    VaryDetails &operator=(VaryDetails &&) = default;
+
+    VaryDetails &operator=(const VaryDetails &) = delete;
+
+    VaryDetails clone() const { return VaryDetails(headers_, uuid_); }
+
+    bool operator ==(const VaryDetails &other) const { return uuid_ == other.uuid_ && headers_ == other.headers_; }
+    bool operator !=(const VaryDetails &other) const { return !(*this == other); }
+
+    const SBuf &headers() const { return headers_; }
+    const RandomUuid &uuid() const { return uuid_; }
+    bool isBase() const { return headers_.isEmpty(); }
+
+private:
+    VaryDetails(const VaryDetails &other) : headers_(other.headers_), uuid_(other.uuid_.clone()) {}
+
+    /// a vary-mark for leaf entries, may be empty for base/not_cached entries
+    SBuf headers_;
+    /// vary-based identifier, shared by all leaf entries having the same base entry
+    RandomUuid uuid_;
+};
+
+std::ostream &operator<<(std::ostream &, const VaryDetails &);
 
 #endif /* SQUID_SRC_BASE_RANDOMUUID_H */
 

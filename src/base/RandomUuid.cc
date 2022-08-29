@@ -117,3 +117,10 @@ operator<<(std::ostream &os, const RandomUuid &uuid)
     return os;
 }
 
+std::ostream &
+operator<<(std::ostream &os, const VaryDetails &details)
+{
+    os << details.uuid() << " " << details.headers();
+    return os;
+}
+
