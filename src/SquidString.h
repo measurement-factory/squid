@@ -105,6 +105,11 @@ public:
     /// returns String::npos if ch is not found
     size_type find(char const ch) const;
     size_type find(char const *aString) const;
+
+    /// case-insensitive search for ASCII strings
+    /// this method should not be used because its implementation is too slow
+    size_type findCaseXXX(char const *aString) const;
+
     const char * rpos(char const ch) const;
     size_type rfind(char const ch) const;
     int cmp(char const *) const;

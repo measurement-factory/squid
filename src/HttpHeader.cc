@@ -556,7 +556,9 @@ HttpHeader::parse(const char *header_start, size_t hdrLen, Http::ContentLengthIn
             delById(Http::HdrType::TRANSFER_ENCODING);
         } else {
             // This also rejects multiple encodings until we support them properly.
-            debugs(55, warnOnError, "WARNING: unsupported Transfer-Encoding used by client: " << rawTe);
+            debugs(55, warnOnError, "WARNING: Received unsupported " <<
+                   (owner == hoRequest ? "request" : "response") <<
+                   " Transfer-Encoding: " << rawTe);
             teUnsupported_ = true;
         }
 
@@ -576,6 +578,24 @@ HttpHeader::parse(const char *header_start, size_t hdrLen, Http::ContentLengthIn
 
     PROF_stop(HttpHeaderParse);
     return 1;           /* even if no fields where found, it is a valid header */
+}
+
+void
+HttpHeader::forceFraming(const bool useChunked)
+{
+    debugs(55, 3, (useChunked ? "chunked" : "default"));
+    delById(Http::HdrType::CONTENT_LENGTH); // if any
+    delById(Http::HdrType::TRANSFER_ENCODING); // if any
+    if (useChunked)
+        putStr(Http::HdrType::TRANSFER_ENCODING, "chunked");
+
+    conflictingContentLength_ = false;
+    teUnsupported_ = false;
+    // Http::Message::content_length should be negative but we cannot check here
+    assert(!badFraming());
+
+    // a hack to prevent persistent connections
+    putStr(Http::HdrType::CONNECTION, "close");
 }
 
 /* packs all the entries using supplied packer */

@@ -1709,6 +1709,9 @@ clientProcessRequest(ConnStateData *conn, const Http1::RequestParserPointer &hp,
         request->http_ver.minor = http_ver.minor;
     }
 
+    if (Config.accessList.repairHttpFraming && request->header.badFraming())
+        http->repairFraming();
+
     const auto unsupportedTe = request->header.unsupportedTe();
 
     mustReplyToOptions = (request->method == Http::METHOD_OPTIONS) &&

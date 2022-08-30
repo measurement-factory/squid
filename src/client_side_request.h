@@ -76,6 +76,9 @@ public:
     /// the request. To set the virgin request, use initRequest().
     void resetRequest(HttpRequest *);
 
+    /// fixes a subset of request framing problems if allowed to do so
+    void repairFraming();
+
     /** Details of the client socket which produced us.
      * Treat as read-only for the lifetime of this HTTP request.
      */

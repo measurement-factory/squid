@@ -167,6 +167,13 @@ public:
     /// whether message used an unsupported and/or invalid Transfer-Encoding
     bool unsupportedTe() const { return teUnsupported_; }
 
+    /// aggregates framing-related errors (for caller convenience)
+    bool badFraming() const { return unsupportedTe() || conflictingContentLength(); }
+
+    /// replaces existing Transfer-Encoding and/or Content-Length-based framing
+    /// with either chunked or identity encoding (without Content-Length)
+    void forceFraming(const bool useChunked);
+
     /* protected, do not use these, use interface functions instead */
     std::vector<HttpHeaderEntry*, PoolingAllocator<HttpHeaderEntry*> > entries; /**< parsed fields in raw format */
     HttpHeaderMask mask;    /**< bit set <=> entry present */
