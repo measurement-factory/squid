@@ -96,10 +96,7 @@ Http::One::ResponseParser::ParseResponseStatus(Tokenizer &tok, StatusCode &code)
 
         // e.g., 999 Request denied ... X-Li-Proto: http/1.1
         if (code == 999 && Config.accessList.repairHttpFraming) {
-            // We cannot check repair_http_framing ACLs here, and we do not want
-            // to change the API too much to make the code optional, so we use a
-            // custom code to relay the problem up, risking its leakage.
-            assert(code == Http::scUnknownStatusCodeClass);
+            // risk leaking this unknown-class status code to general code
             return;
         }
 

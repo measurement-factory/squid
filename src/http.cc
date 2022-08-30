@@ -730,16 +730,10 @@ HttpStateData::processReplyHeader()
     payloadSeen = inBuf.length();
 
     HttpReplyPointer newrep = new HttpReply;
-
-    // stop propagation of response status codes with undefined classes
-    const auto scFromParser = hp->messageStatus();
-    const auto scWithUnknownClass = scFromParser == Http::scUnknownStatusCodeClass;
-    const auto scToUse = scWithUnknownClass ? Http::scBadGateway : scFromParser;
-
     // XXX: RFC 7230 indicates we MAY ignore the reason phrase,
     //      and use an empty string on unknown status.
     //      We do that now to avoid performance regression from using SBuf::c_str()
-    newrep->sline.set(hp->messageProtocol(), scToUse /* , hp->reasonPhrase() */);
+    newrep->sline.set(hp->messageProtocol(), hp->messageStatus() /* , hp->reasonPhrase() */);
 
     // parse headers
     if (!newrep->parseHeader(*hp)) {
@@ -752,18 +746,8 @@ HttpStateData::processReplyHeader()
 
     newrep->sources |= request->url.getScheme() == AnyP::PROTO_HTTPS ? Http::Message::srcHttps : Http::Message::srcHttp;
 
-    if (scWithUnknownClass || newrep->header.badFraming()) {
-        repairFraming(*newrep, scWithUnknownClass);
-        if (!repairedBadFraming) {
-            // XXX: Duplicates earlier "unrecoverable parsing error" code
-            flags.headers_parsed = true;
-            HttpReplyPointer badRep = new HttpReply;
-            badRep->sline.set(Http::ProtocolVersion(), Http::scInvalidHeader);
-            setVirginReply(badRep.getRaw());
-            ctx_exit(ctx);
-            return;
-        }
-    }
+    if (!newrep->sline.hasKnownStatusClass() || newrep->header.badFraming())
+        repairFraming(*newrep);
 
     newrep->removeStaleWarnings();
 
@@ -1360,7 +1344,7 @@ HttpStateData::processReply()
 
 /// fixes a subset of request framing problems if allowed to do so
 void
-HttpStateData::repairFraming(HttpReply &reply, const bool badStatusCode)
+HttpStateData::repairFraming(HttpReply &reply)
 {
 #if !USE_HTTP_VIOLATIONS
     return; // no HTTP-violating repairs in this build
@@ -1381,6 +1365,9 @@ HttpStateData::repairFraming(HttpReply &reply, const bool badStatusCode)
 
     // XXX: duplicates a lot of ClientHttpRequest::repairFraming().
 
+    if (reply.sline.hasKnownStatusClass())
+        reply.sline.resetStatus(Http::scBadGateway, "Received bad response status code");
+
     if (reply.header.unsupportedTe()) {
         String rawTe;
         const auto gotTe = reply.header.getByIdIfPresent(Http::HdrType::TRANSFER_ENCODING, &rawTe);
@@ -1391,13 +1378,6 @@ HttpStateData::repairFraming(HttpReply &reply, const bool badStatusCode)
     } else if (reply.header.conflictingContentLength()) {
         reply.header.forceFraming(false);
         // "removed" Content-Length problems
-    } else {
-        // we should only be called when the caller knows that repairs are needed
-        assert(badStatusCode);
-        // no header manipulations are needed in this case because we are so
-        // worried about leaking bad status codes that the parser sets the code
-        // to Http::scUnknownStatusCodeClass when discovering a bad status code,
-        // and we use Http::scBadGateway instead of scUnknownStatusCodeClass.
     }
 
     // reduce cache poisoning risks posed by this malformed reply
@@ -1453,6 +1433,9 @@ HttpStateData::continueAfterParsingHeader()
             } else if (s == Http::scHeaderTooLarge) {
                 fwd->dontRetry(true);
                 error = ERR_TOO_BIG;
+            } else if (!vrep->sline.hasKnownStatusClass()) {
+                fwd->dontRetry(true);
+                error = ERR_INVALID_RESP;
             } else if (vrep->header.conflictingContentLength()) {
                 fwd->dontRetry(true);
                 error = ERR_INVALID_RESP;

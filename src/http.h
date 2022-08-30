@@ -100,7 +100,7 @@ private:
     void checkDateSkew(HttpReply *);
 
     bool continueAfterParsingHeader();
-    void repairFraming(HttpReply &, bool badStatusCode);
+    void repairFraming(HttpReply &);
     void truncateVirginBody();
 
     virtual void start();

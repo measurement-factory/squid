@@ -6918,7 +6918,7 @@ DOC_START
 	  TODO: Do not repair at all?
 
 	* Upon discovering an HTTP 999 response status code: An allow match treats
-	  this case as if a 500 status code was received. Per HTTP WG consensus,
+	  this case as if a 502 status code was received. Per HTTP WG consensus,
 	  any 3-digit code above 599 is considered semantically invalid:
 	  https://lists.w3.org/Archives/Public/ietf-http-wg/2010AprJun/0354.html
 

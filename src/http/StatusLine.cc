@@ -35,6 +35,12 @@ void
 Http::StatusLine::set(const AnyP::ProtocolVersion &newVersion, const Http::StatusCode newStatus, const char *newReason)
 {
     version = newVersion;
+    resetStatus(newStatus, newReason);
+}
+
+void
+Http::StatusLine::resetStatus(const Http::StatusCode newStatus, const char * const newReason)
+{
     status_ = newStatus;
     /* Note: no xstrdup for 'reason', assumes constant 'reasons' */
     reason_ = newReason;
