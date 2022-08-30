@@ -84,7 +84,8 @@ typedef enum {
     // in scBadRequest; bad responses in scGatewayTimeout.
 
     scInvalidHeader = 600,          /**< Squid header parsing error */
-    scHeaderTooLarge = 601         /* Header too large to process */
+    scHeaderTooLarge = 601,         /* Header too large to process */
+    scUnknownStatusCodeClass = 999  ///< 3-digit code with an unknown class
 } StatusCode;
 
 const char *StatusCodeString(const Http::StatusCode status);
