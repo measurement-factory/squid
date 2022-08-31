@@ -1083,15 +1083,6 @@ ipcache_entry::~ipcache_entry()
     xfree(hash.key);
 }
 
-/// \ingroup IPCacheAPI
-void
-ipcacheFreeMemory(void)
-{
-    hashFreeItems(ip_table, ipcacheFreeEntry);
-    hashFreeMemory(ip_table);
-    ip_table = NULL;
-}
-
 /**
  \ingroup IPCacheAPI
  *

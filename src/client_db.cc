@@ -347,14 +347,6 @@ ClientInfo::~ClientInfo()
     debugs(77, 9, "ClientInfo destructed, this=" << static_cast<void*>(this));
 }
 
-void
-clientdbFreeMemory(void)
-{
-    hashFreeItems(client_table, clientdbFreeItem);
-    hashFreeMemory(client_table);
-    client_table = NULL;
-}
-
 static void
 clientdbScheduledGC(void *)
 {
