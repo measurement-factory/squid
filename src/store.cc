@@ -294,18 +294,13 @@ StoreEntry::storeClientType() const
         return STORE_MEM_CLIENT;
 
     /*
-     * If there is no disk file to open yet, we must make this a
+     * TODO: Refactor to avoid guessing whether we will be able to open.
+     * If we are not reasonably sure that we can swap in, then make this a
      * mem client.  If we can't open the swapin file before writing
      * to the client, there is no guarantee that we will be able
      * to open it later when we really need it.
-     *
-     * XXX: This check is meant to reduce swapIN failures, but swap_status is
-     * about swapOUT! Our STORE_DISK_CLIENT result below forces
-     * store_client::doCopy() to startSwapin(), which, in SWAPOUT_WRITING cases,
-     * fails inside Rock::SwapDir::openStoreIO() that currently bans reading
-     * being-swapped out entries. TODO: Start swapin or return STORE_MEM_CLIENT.
      */
-    if (swap_status == SWAPOUT_NONE)
+    if (swap_status != SWAPOUT_DONE)
         return STORE_MEM_CLIENT;
 
     /*
