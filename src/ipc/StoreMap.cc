@@ -141,14 +141,101 @@ Ipc::StoreMap::openForWriting(const cache_key *const key, sfileno &fileno)
 {
     debugs(54, 5, "opening entry with key " << storeKeyText(key)
            << " for writing " << path);
-    const int idx = fileNoByKey(key);
 
-    if (Anchor *anchor = openForWritingAt(idx)) {
-        fileno = idx;
+    const auto name = nameByKey(key);
+    const int currentIdx = fileNoByName(name);
+    if (Anchor *anchor = openForWritingAt(currentIdx)) {
+        fileno = currentIdx;
         return anchor;
     }
 
-    return NULL;
+    debugs(54, 5, "replacing stale entry " << currentIdx << " to write " << path);
+
+    const auto staleAnchor = openForReplacingAt(currentIdx, key);
+    if (!staleAnchor)
+        return nullptr;
+
+    Update::Edition available;
+    if (!openKeyless(available)) { // XXX: debugs() will say "for updating"
+        debugs(54, 5, "no anchors to replace stale entry " << currentIdx << " to write " << path);
+        closeForReading(currentIdx);
+        return nullptr;
+    }
+
+    if (!staleAnchor->lock.lockHeaders()) {
+        debugs(54, 5, "no access to replace stale entry " << currentIdx << " to write " << path);
+        closeForReading(currentIdx);
+        return nullptr;
+    }
+
+    // fileNos[name] may have been updated many times before our lockHeaders(),
+    // including ABA-like updates that restore the same index value, but we do
+    // not care about past updates as long as the now-locked fileNos[name] value
+    // currently points to the previously locked stale entry (i.e. that the swap
+    // below swaps two locked fileNos entries).
+    if (fileNoByName(name) != currentIdx) {
+        debugs(54, 5, "somebody else replaced stale entry " << currentIdx << " to write " << path);
+        closeForReading(currentIdx);
+        return nullptr;
+    }
+
+    // swap anchor "pointers": fileNos[name] <-> fileNos[available.name]
+    relocate(name, available.fileNo);
+    relocate(available.name, currentIdx);
+
+    staleAnchor->lock.unlockHeaders();
+    closeForReading(currentIdx);
+
+    // XXX: Do we need to broadcast? Twice??
+
+    debugs(54, 5, "opened entry " << available.fileNo << " under name " << name << " for writing " << path <<
+           " after moving marked entry " << currentIdx << " to name " << available.name);
+
+    fileno = available.fileNo;
+    return available.anchor;
+}
+
+/// TODO: Redocument.
+/// XXX: Refactor to avoid assuming that openForWritingAt() works this way:
+/// openForWritingAt(.., true) only fails if we cannot lock the entry for
+/// writing. Thus, somebody is writing or reading currentIdx. If somebody is
+/// writing, we do not want to compete and bail. If somebody is reading a
+/// different-key entry, we also bail (key collision resolution requires very
+/// different code to work well). If somebody is reading a fresh same-key
+/// entry, we also bail (the higher-level code should have marked that entry
+/// if it wanted us to replace it). If somebody is reading a same-key marked
+/// entry, we join to obtain the lock on that stale entry.
+Ipc::StoreMap::Anchor *
+Ipc::StoreMap::openForReplacingAt(const sfileno fileno, const cache_key *const key)
+{
+    debugs(54, 5, "opening entry " << fileno << " for reading " << path);
+    Anchor &s = anchorAt(fileno);
+
+    if (!s.lock.lockShared()) {
+        debugs(54, 5, "cannot open busy entry " << fileno << " for reading " << path);
+        return nullptr;
+    }
+
+    if (!s.waitingToBeFreed) {
+        s.lock.unlockShared();
+        debugs(54, 7, "cannot open unmarked entry " << fileno << " for reading " << path);
+        return nullptr;
+    }
+
+    if (!s.sameKey(key)) {
+        s.lock.unlockShared();
+        debugs(54, 5, "cannot open wrong-key entry " << fileno << " for reading " << path);
+        return nullptr;
+    }
+
+    if (Config.paranoid_hit_validation.count() && hitValidation && !validateHit(fileno)) {
+        s.lock.unlockShared();
+        debugs(54, 5, "cannot open corrupted entry " << fileno << " for reading " << path);
+        return nullptr;
+    }
+
+    debugs(54, 5, "opened marked entry " << fileno << " for reading " << path);
+    return &s;
 }
 
 Ipc::StoreMap::Anchor *
