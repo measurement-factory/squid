@@ -175,6 +175,7 @@ Ipc::StoreMap::openForWriting(const cache_key *const key, sfileno &fileno)
     // below swaps two locked fileNos entries).
     if (fileNoByName(name) != currentIdx) {
         debugs(54, 5, "somebody else replaced stale entry " << currentIdx << " to write " << path);
+        staleAnchor->lock.unlockHeaders();
         closeForReading(currentIdx);
         return nullptr;
     }
