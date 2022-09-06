@@ -164,6 +164,7 @@ Ipc::StoreMap::openForWriting(const cache_key *const key, sfileno &fileno)
 
     if (!staleAnchor->lock.lockHeaders()) {
         debugs(54, 5, "no access to replace stale entry " << currentIdx << " to write " << path);
+        abortWriting(available.fileNo);
         closeForReading(currentIdx);
         return nullptr;
     }
@@ -175,6 +176,7 @@ Ipc::StoreMap::openForWriting(const cache_key *const key, sfileno &fileno)
     // below swaps two locked fileNos entries).
     if (fileNoByName(name) != currentIdx) {
         debugs(54, 5, "somebody else replaced stale entry " << currentIdx << " to write " << path);
+        abortWriting(available.fileNo);
         staleAnchor->lock.unlockHeaders();
         closeForReading(currentIdx);
         return nullptr;
@@ -192,6 +194,7 @@ Ipc::StoreMap::openForWriting(const cache_key *const key, sfileno &fileno)
     debugs(54, 5, "opened entry " << available.fileNo << " under name " << name << " for writing " << path <<
            " after moving marked entry " << currentIdx << " to name " << available.name);
 
+    // available.fileNo is left locked for writing
     fileno = available.fileNo;
     return available.anchor;
 }
