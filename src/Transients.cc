@@ -164,15 +164,6 @@ Transients::get(const cache_key *key)
         return nullptr;
     }
 
-    // store hadWriter before checking ENTRY_REQUIRES_COLLAPSING to avoid racing
-    // the writer that clears that flag and then leaves
-    const auto hadWriter = map->peekAtWriter(index);
-    if (!hadWriter && EBIT_TEST(anchor->basics.flags, ENTRY_REQUIRES_COLLAPSING)) {
-        debugs(20, 3, "not joining abandoned entry " << index);
-        map->closeForReadingAndFreeIdle(index);
-        return nullptr;
-    }
-
     StoreEntry *e = new StoreEntry();
     e->createMemObject();
     e->mem_obj->xitTable.reset(Store::ioReading, index);
@@ -289,7 +280,6 @@ Transients::status(const StoreEntry &entry, Transients::EntryStatus &entryStatus
                          map->writeableEntry(idx) : map->readableEntry(idx);
     entryStatus.hasWriter = anchor.writing();
     entryStatus.waitingToBeFreed = anchor.waitingToBeFreed;
-    entryStatus.collapsed = EBIT_TEST(anchor.basics.flags, ENTRY_REQUIRES_COLLAPSING);
 }
 
 void
