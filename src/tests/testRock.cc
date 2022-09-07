@@ -238,13 +238,6 @@ testRock::testRockSwapOut()
 {
     storeInit();
 
-    // // XXX:
-    // Debug::parseOptions("ALL,9");
-    // Debug::override_X = 1;
-    // Debug::BanCacheLogUse();
-    // Debug::ResetStderrLevel(9);
-    // Debug::SettleStderr();
-
     // add few entries to prime the database
     for (int i = 0; i < 5; ++i) {
         CPPUNIT_ASSERT_EQUAL((uint64_t)i, store->currentCount());
