@@ -296,33 +296,51 @@ testRock::testRockSwapOut()
         CPPUNIT_ASSERT_EQUAL(0, pe->swap_dirn);
         CPPUNIT_ASSERT(pe->swap_filen >= 0);
 
-        // the slot is locked here because the async calls have not run yet
+        // The e#5[.1] transients slot is still locked for reading here because
+        // the async calls have not run yet. The corresponding StoreEntry object
+        // is still in store_table. addEntry(5) below creates a new StoreEntry
+        // object with the same public key, marking conflicting e#5.1 StoreEntry
+        // for release. Thus, the "already did" check in mayStartSwapOut() does
+        // not match, allowing e#5.2 to start the swapout. Later,
+        // Ipc::StoreMap::openForWriting() for transients moves marked e#5.1
+        // away, allowing e#5.2 swapout to proceed. This is similar to a cache
+        // refresh request (for e#5.1) that brings in a 200 OK response (e#5.2).
         StoreEntry *const pe2 = addEntry(5);
-        CPPUNIT_ASSERT_EQUAL(SWAPOUT_NONE, pe2->swap_status);
-        CPPUNIT_ASSERT_EQUAL(MemObject::SwapOut::swImpossible, pe2->mem_obj->swapout.decision);
-        CPPUNIT_ASSERT_EQUAL(-1, pe2->swap_dirn);
-        CPPUNIT_ASSERT_EQUAL(-1, pe2->swap_filen);
+        CPPUNIT_ASSERT(EBIT_TEST(pe->flags, RELEASE_REQUEST)); // e#5.1
+        CPPUNIT_ASSERT_EQUAL(SWAPOUT_WRITING, pe2->swap_status);
+        CPPUNIT_ASSERT_EQUAL(0, pe2->swap_dirn);
+        CPPUNIT_ASSERT(pe->swap_filen >= 0);
+        CPPUNIT_ASSERT(pe->swap_filen != pe2->swap_filen);
 
         StockEventLoop loop;
         loop.run();
 
+        CPPUNIT_ASSERT_EQUAL(SWAPOUT_DONE, pe->swap_status);
         pe->unlock("testRock::testRockSwapOut e#5.1");
+
+        CPPUNIT_ASSERT(!EBIT_TEST(pe->flags, RELEASE_REQUEST));
+        CPPUNIT_ASSERT_EQUAL(SWAPOUT_DONE, pe2->swap_status);
         pe2->unlock("testRock::testRockSwapOut e#5.2");
 
-        // pe2 has the same public key as pe so it marks old pe for release
-        // here, we add another entry #5 into the now-available slot
+        // Add another entry with the same key (#5.3). Now, there is no matching
+        // StoreEntry in store_table, so #5.2 is not marked for release and the
+        // "already did" check in mayStartSwapOut() blocks e#5.3 swapout. This
+        // sequence may not model a known real scenario, but it may be useful
+        // for detecting subtle (and possibly unwanted Store logic changes).
         StoreEntry *const pe3 = addEntry(5);
-        CPPUNIT_ASSERT_EQUAL(SWAPOUT_WRITING, pe3->swap_status);
-        CPPUNIT_ASSERT_EQUAL(0, pe3->swap_dirn);
-        CPPUNIT_ASSERT(pe3->swap_filen >= 0);
+        CPPUNIT_ASSERT_EQUAL(SWAPOUT_NONE, pe3->swap_status);
+        CPPUNIT_ASSERT_EQUAL(-1, pe3->swap_dirn);
+        CPPUNIT_ASSERT_EQUAL(-1, pe3->swap_filen);
         loop.run();
-        CPPUNIT_ASSERT_EQUAL(SWAPOUT_DONE, pe3->swap_status);
         pe3->unlock("testRock::testRockSwapOut e#5.3");
     }
 
-    CPPUNIT_ASSERT_EQUAL((uint64_t)6, store->currentCount());
+    // We primed storage with 5 entries and also swapped out e#5.1 and e#5.2.
+    // XXX: StoreMap counts unlocked and unreachable e#5.1. This happens because
+    // its anchor/chain has not been freed yet -- nobody needed their space.
+    CPPUNIT_ASSERT_EQUAL((uint64_t)7, store->currentCount());
 
-    // try to get and release all entries
+    // try to get and release all reachable entries
     for (int i = 0; i < 6; ++i) {
         StoreEntry *const pe = getEntry(i);
         CPPUNIT_ASSERT(pe != NULL);

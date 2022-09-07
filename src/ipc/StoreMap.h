@@ -383,6 +383,8 @@ private:
     bool openKeyless(Update::Edition &edition);
     void closeForUpdateFinal(Update &update);
 
+    Anchor *openForReplacingAt(sfileno, const cache_key *);
+
     typedef std::function<bool (const sfileno name)> NameFilter; // a "name"-based test
     bool visitVictims(const NameFilter filter);
 
