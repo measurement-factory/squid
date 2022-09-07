@@ -189,8 +189,6 @@ Ipc::StoreMap::openForWriting(const cache_key *const key, sfileno &fileno)
     staleAnchor->lock.unlockHeaders();
     closeForReading(currentIdx);
 
-    // XXX: Do we need to broadcast? Twice??
-
     debugs(54, 5, "opened entry " << available.fileNo << " under name " << name << " for writing " << path <<
            " after moving marked entry " << currentIdx << " to name " << available.name);
 
