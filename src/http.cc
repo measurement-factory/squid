@@ -70,7 +70,6 @@ CBDATA_CLASS_INIT(HttpStateData);
 
 static const char *const crlf = "\r\n";
 
-static void httpMaybeRemovePublic(StoreEntry *, Http::StatusCode);
 static void copyOneHeaderFromClientsideRequestToUpstreamRequest(const HttpHeaderEntry *e, const String strConnection, const HttpRequest * request,
         HttpHeader * hdr_out, const int we_do_ranges, const Http::StateFlags &);
 
@@ -161,24 +160,35 @@ findPreviouslyCachedEntry(StoreEntry *newEntry) {
            storeGetPublic(newEntry->mem_obj->storeId(), newEntry->mem_obj->method);
 }
 
-/// Remove an existing public store entry if the incoming response (to be
-/// stored in a currently private entry) is going to invalidate it.
-static void
-httpMaybeRemovePublic(StoreEntry * e, Http::StatusCode status)
+/// whether the incoming response (to be stored in a currently private entry)
+/// obsoletes the existing matching public cache entries
+bool
+HttpStateData::incomingInvalidates(const Http::StatusCode status) const
 {
+    // Stop incoming response from purging a _newer_ stored entry per RFC 9111
+    // section 4: "When more than one suitable response is stored, a cache MUST
+    // use the most recent one (as determined by the Date header)."
+    if (sawDateGoBack)
+        return false;
+
+    if (!neighbors_do_private_keys)
+        return false;
+
+    // TODO: Refactor, removing these three(?) diff-reducer lines before merging:
+    const auto e = entry;
     int remove = 0;
     int forbidden = 0;
 
     // If the incoming response already goes into a public entry, then there is
     // nothing to remove. This protects ready-for-collapsing entries as well.
     if (!EBIT_TEST(e->flags, KEY_PRIVATE))
-        return;
+        return false;
 
     // If the new/incoming response cannot be stored, then it does not
     // compete with the old stored response for the public key, and the
     // old stored response should be left as is.
     if (e->mem_obj->request && !e->mem_obj->request->flags.cachable)
-        return;
+        return false;
 
     switch (status) {
 
@@ -222,9 +232,25 @@ httpMaybeRemovePublic(StoreEntry * e, Http::StatusCode status)
     }
 
     if (!remove && !forbidden)
-        return;
+        return false;
 
-    StoreEntry *pe = findPreviouslyCachedEntry(e);
+    return true;
+}
+
+void
+HttpStateData::maybeRemovePublic(const Http::StatusCode status)
+{
+    auto pe = findPreviouslyCachedEntry(entry);
+
+    sawDateGoBack = pe && finalReply()->olderThan(pe->hasFreshestReply());
+
+    if (!incomingInvalidates(status)) {
+        if (pe)
+            pe->abandon("HttpStateData::maybeRemovePublic");
+        return;
+    }
+
+    const auto e = entry; // TODO: Remove this diff-reducer before merging.
 
     if (pe != NULL) {
         assert(e != pe);
@@ -949,14 +975,7 @@ HttpStateData::haveParsedReplyHeaders()
     /* Check if object is cacheable or not based on reply code */
     debugs(11, 3, "HTTP CODE: " << statusCode);
 
-    if (StoreEntry *oldEntry = findPreviouslyCachedEntry(entry)) {
-        oldEntry->lock("HttpStateData::haveParsedReplyHeaders");
-        sawDateGoBack = rep->olderThan(oldEntry->hasFreshestReply());
-        oldEntry->unlock("HttpStateData::haveParsedReplyHeaders");
-    }
-
-    if (neighbors_do_private_keys && !sawDateGoBack)
-        httpMaybeRemovePublic(entry, rep->sline.status());
+    maybeRemovePublic(statusCode);
 
     bool varyFailure = false;
     if (rep->header.has(Http::HdrType::VARY)
