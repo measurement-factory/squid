@@ -230,12 +230,6 @@ Ipc::StoreMap::openForReplacingAt(const sfileno fileno, const cache_key *const k
         return nullptr;
     }
 
-    if (Config.paranoid_hit_validation.count() && hitValidation && !validateHit(fileno)) {
-        s.lock.unlockShared();
-        debugs(54, 5, "cannot open corrupted entry " << fileno << " for reading " << path);
-        return nullptr;
-    }
-
     debugs(54, 5, "opened marked entry " << fileno << " for reading " << path);
     return &s;
 }
