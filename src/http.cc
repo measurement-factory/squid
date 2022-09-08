@@ -1363,9 +1363,11 @@ HttpStateData::repairFraming(HttpReply &reply)
     if (!checklist.fastCheck().allowed())
         return; // repairs prohibited by the admin
 
+    debugs(11, 3, "problems: " << int(!reply.sline.hasKnownStatusClass()) << int(reply.header.unsupportedTe()));
+
     // XXX: duplicates a lot of ClientHttpRequest::repairFraming().
 
-    if (reply.sline.hasKnownStatusClass())
+    if (!reply.sline.hasKnownStatusClass())
         reply.sline.resetStatus(Http::scBadGateway, "Received bad response status code");
 
     if (reply.header.unsupportedTe()) {
