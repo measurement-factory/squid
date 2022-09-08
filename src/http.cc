@@ -746,7 +746,8 @@ HttpStateData::processReplyHeader()
 
     newrep->sources |= request->url.getScheme() == AnyP::PROTO_HTTPS ? Http::Message::srcHttps : Http::Message::srcHttp;
 
-    if (!newrep->sline.hasKnownStatusClass() || newrep->header.badFraming())
+    // TODO: Add HttpReply::needsRepairs() and rename repairFraming() to repairReplyPrefix()
+    if (!newrep->sline.hasKnownStatusClass() || newrep->header.hasMalformedField() || newrep->header.badFraming())
         repairFraming(*newrep);
 
     newrep->removeStaleWarnings();
@@ -1363,12 +1364,21 @@ HttpStateData::repairFraming(HttpReply &reply)
     if (!checklist.fastCheck().allowed())
         return; // repairs prohibited by the admin
 
-    debugs(11, 3, "problems: " << int(!reply.sline.hasKnownStatusClass()) << int(reply.header.unsupportedTe()));
+    const auto badStatus = !reply.sline.hasKnownStatusClass();
 
     // XXX: duplicates a lot of ClientHttpRequest::repairFraming().
 
-    if (!reply.sline.hasKnownStatusClass())
+    debugs(11, 3, "problems:" <<
+           (badStatus ? " scode" : "") <<
+           (reply.header.hasMalformedField() ? " field" : "") <<
+           (reply.header.unsupportedTe() ? " te" : "") <<
+           (reply.header.conflictingContentLength() ? " clen" : ""));
+
+    if (badStatus)
         reply.sline.resetStatus(Http::scBadGateway, "Received bad response status code");
+
+    if (reply.header.hasMalformedField())
+        reply.header.ignoreMalformedField();
 
     if (reply.header.unsupportedTe()) {
         String rawTe;
@@ -1436,6 +1446,9 @@ HttpStateData::continueAfterParsingHeader()
                 fwd->dontRetry(true);
                 error = ERR_TOO_BIG;
             } else if (!vrep->sline.hasKnownStatusClass()) {
+                fwd->dontRetry(true);
+                error = ERR_INVALID_RESP;
+            } else if (vrep->header.hasMalformedField()) {
                 fwd->dontRetry(true);
                 error = ERR_INVALID_RESP;
             } else if (vrep->header.conflictingContentLength()) {

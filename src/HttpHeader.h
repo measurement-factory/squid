@@ -167,6 +167,13 @@ public:
     /// whether message used an unsupported and/or invalid Transfer-Encoding
     bool unsupportedTe() const { return teUnsupported_; }
 
+    /// whether the message is marked to prevent forwarding due to the presence
+    /// of a header field that we could not parse; TODO: Rename.
+    bool hasMalformedField() const { return hasMalformedField_; }
+
+    /// makes hasMalformedField() false
+    void ignoreMalformedField() { hasMalformedField_ = false; }
+
     /// aggregates framing-related errors (for caller convenience)
     bool badFraming() const { return unsupportedTe() || conflictingContentLength(); }
 
@@ -199,6 +206,8 @@ private:
     /// unsupported encoding, unnecessary syntax characters, and/or
     /// invalid field-value found in Transfer-Encoding header
     bool teUnsupported_ = false;
+    /// \copydoc hasMalformedField()
+    bool hasMalformedField_ = false;
 };
 
 int httpHeaderParseQuotedString(const char *start, const int len, String *val);

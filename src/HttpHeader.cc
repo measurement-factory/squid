@@ -484,7 +484,20 @@ HttpHeader::parse(const char *header_start, size_t hdrLen, Http::ContentLengthIn
             break;      /* terminating blank line */
         }
 
-        const auto e = HttpHeaderEntry::parse(field_start, field_end, owner);
+        HttpHeaderEntry *field = nullptr;
+        try {
+            field = HttpHeaderEntry::parse(field_start, field_end, owner);
+        } catch (...) {
+            debugs(55, 2, "(possibly bypassable) field parsing error: " << CurrentException);
+            hasMalformedField_ = true;
+            // We do not just skip this malformed field to reduce chances that
+            // stripping it allows the attacker to fool some recipients that may
+            // incorrectly "join" the surrounding (less malformed) fields.
+            static const HttpHeaderEntry replacement(Http::HdrType::OTHER, SBuf("X-Name"), "value");
+            field = replacement.clone();
+        }
+
+        const auto e = field;
         if (!e) {
             debugs(55, warnOnError, "WARNING: unparseable HTTP header field {" <<
                    getStringPrefix(field_start, field_end-field_start) << "}");
@@ -1520,6 +1533,8 @@ HttpHeaderEntry::parse(const char *field_start, const char *field_end, const htt
         if (!CharacterSet::TCHAR[*pos]) {
             debugs(55, 2, "found header with invalid characters in " <<
                    Raw("field-name", field_start, min(name_len,100)) << "...");
+            if (Config.accessList.repairHttpFraming)
+                throw TextException("invalid characters in header name", Here());
             return nullptr;
         }
     }
