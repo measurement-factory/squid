@@ -10,21 +10,6 @@ include $(top_srcdir)/src/Common.am
 DNSSOURCE = \
 	dns_internal.cc
 
-STOREMETA_SOURCE = \
-	StoreMeta.cc \
-	StoreMeta.h \
-	StoreMetaMD5.cc \
-	StoreMetaMD5.h \
-	StoreMetaSTD.cc \
-	StoreMetaSTD.h \
-	StoreMetaSTDLFS.cc \
-	StoreMetaSTDLFS.h \
-	StoreMetaObjSize.h \
-	StoreMetaURL.cc \
-	StoreMetaURL.h \
-	StoreMetaVary.cc \
-	StoreMetaVary.h
-
 LOADABLE_MODULES_SOURCES = \
 	LoadableModule.cc \
 	LoadableModule.h \
@@ -206,7 +191,6 @@ squid_SOURCES = \
 	$(HTCPSOURCE) \
 	$(IPC_SOURCE) \
 	$(SNMP_SOURCE) \
-	$(STOREMETA_SOURCE) \
 	$(UNLINKDSOURCE) \
 	$(WIN32_SOURCE) \
 	$(WINSVC_SOURCE) \
@@ -332,8 +316,6 @@ squid_SOURCES = \
 	StoreIOBuffer.h \
 	StoreIOState.cc \
 	StoreIOState.h \
-	StoreMetaUnpacker.cc \
-	StoreMetaUnpacker.h \
 	StoreSearch.h \
 	StoreStats.cc \
 	StoreStats.h \
@@ -387,8 +369,6 @@ squid_SOURCES = \
 	fs_io.cc \
 	fs_io.h \
 	globals.h \
-	gopher.cc \
-	gopher.h \
 	helper.cc \
 	helper.h \
 	hier_code.h \
@@ -432,8 +412,6 @@ squid_SOURCES = \
 	refresh.h \
 	repl_modules.h \
 	sbuf/StringConvert.h \
-	send-announce.cc \
-	send-announce.h \
 	stat.cc \
 	stat.h \
 	stmem.cc \
@@ -451,7 +429,6 @@ squid_SOURCES = \
 	store_rebuild.h \
 	store_swapin.cc \
 	store_swapin.h \
-	store_swapmeta.cc \
 	store_swapout.cc \
 	swap_log_op.h \
 	tools.cc \
@@ -1023,7 +1000,6 @@ if ENABLE_FS_ROCK
 check_PROGRAMS += tests/testRock
 tests_testRock_SOURCES = \
 	$(DELAY_POOL_SOURCE) \
-	$(STOREMETA_SOURCE) \
 	$(UNLINKDSOURCE) \
 	AccessLogEntry.cc \
 	AccessLogEntry.h \
@@ -1077,7 +1053,6 @@ tests_testRock_SOURCES = \
 	StatHist.h \
 	StoreFileSystem.cc \
 	StoreIOState.cc \
-	StoreMetaUnpacker.cc \
 	tests/testStoreSupport.cc \
 	tests/testStoreSupport.h \
 	StoreSwapLogData.cc \
@@ -1139,7 +1114,6 @@ tests_testRock_SOURCES = \
 	tests/stub_store_rebuild.cc \
 	store_rebuild.h \
 	tests/stub_store_stats.cc \
-	store_swapmeta.cc \
 	store_swapout.cc \
 	tests/stub_tools.cc \
 	tools.h \
@@ -1196,7 +1170,6 @@ if ENABLE_FS_UFS
 check_PROGRAMS += tests/testUfs
 tests_testUfs_SOURCES = \
 	$(DELAY_POOL_SOURCE) \
-	$(STOREMETA_SOURCE) \
 	$(UNLINKDSOURCE) \
 	$(WIN32_SOURCE) \
 	AccessLogEntry.cc \
@@ -1248,7 +1221,6 @@ tests_testUfs_SOURCES = \
 	StatHist.h \
 	StoreFileSystem.cc \
 	StoreIOState.cc \
-	StoreMetaUnpacker.cc \
 	tests/testStoreSupport.cc \
 	tests/testStoreSupport.h \
 	StoreSwapLogData.cc \
@@ -1317,7 +1289,6 @@ tests_testUfs_SOURCES = \
 	tests/stub_store_rebuild.cc \
 	store_rebuild.h \
 	tests/stub_store_stats.cc \
-	store_swapmeta.cc \
 	store_swapout.cc \
 	tests/stub_tools.cc \
 	tools.h \
@@ -1432,8 +1403,6 @@ tests_testStore_SOURCES = \
 	tests/testStoreHashIndex.cc \
 	tests/testStoreHashIndex.h \
 	StoreIOState.cc \
-	tests/stub_StoreMeta.cc \
-	StoreMetaUnpacker.cc \
 	tests/testStoreSupport.cc \
 	tests/testStoreSupport.h \
 	StoreSwapLogData.cc \
@@ -1492,7 +1461,6 @@ tests_testStore_SOURCES = \
 	store_rebuild.h \
 	tests/stub_store_stats.cc \
 	store_swapout.cc \
-	tests/stub_store_swapout.cc \
 	tests/CapturingStoreEntry.h \
 	tests/TestSwapDir.cc \
 	tests/TestSwapDir.h \
@@ -1597,8 +1565,6 @@ tests_testDiskIO_SOURCES = \
 	StatHist.h \
 	StoreFileSystem.cc \
 	StoreIOState.cc \
-	tests/stub_StoreMeta.cc \
-	StoreMetaUnpacker.cc \
 	tests/testStoreSupport.cc \
 	tests/testStoreSupport.h \
 	StoreSwapLogData.cc \
@@ -1668,7 +1634,6 @@ tests_testDiskIO_SOURCES = \
 	tests/stub_store_rebuild.cc \
 	store_rebuild.h \
 	tests/stub_store_stats.cc \
-	store_swapmeta.cc \
 	store_swapout.cc \
 	tests/stub_tools.cc \
 	tools.h \
@@ -1848,8 +1813,6 @@ tests_test_http_range_SOURCES = \
 	StatHist.h \
 	StoreFileSystem.cc \
 	StoreIOState.cc \
-	tests/stub_StoreMeta.cc \
-	StoreMetaUnpacker.cc \
 	StoreSwapLogData.cc \
 	StrList.cc \
 	StrList.h \
@@ -1883,8 +1846,6 @@ tests_test_http_range_SOURCES = \
 	fqdncache.h \
 	fs_io.cc \
 	fs_io.h \
-	tests/stub_gopher.cc \
-	gopher.h \
 	helper.cc \
 	hier_code.h \
 	http.cc \
@@ -1944,7 +1905,6 @@ tests_test_http_range_SOURCES = \
 	tests/stub_store_stats.cc \
 	store_swapin.cc \
 	store_swapin.h \
-	store_swapmeta.cc \
 	store_swapout.cc \
 	tools.cc \
 	tools.h \
@@ -2238,8 +2198,6 @@ tests_testHttpRequest_SOURCES = \
 	StatHist.h \
 	StoreFileSystem.cc \
 	StoreIOState.cc \
-	tests/stub_StoreMeta.cc \
-	StoreMetaUnpacker.cc \
 	StoreSwapLogData.cc \
 	StrList.cc \
 	StrList.h \
@@ -2271,8 +2229,6 @@ tests_testHttpRequest_SOURCES = \
 	fqdncache.h \
 	fs_io.cc \
 	fs_io.h \
-	tests/stub_gopher.cc \
-	gopher.h \
 	helper.cc \
 	hier_code.h \
 	http.cc \
@@ -2333,7 +2289,6 @@ tests_testHttpRequest_SOURCES = \
 	tests/stub_store_stats.cc \
 	store_swapin.cc \
 	store_swapin.h \
-	store_swapmeta.cc \
 	store_swapout.cc \
 	tools.cc \
 	tools.h \
@@ -2540,8 +2495,6 @@ tests_testCacheManager_SOURCES = \
 	StatHist.h \
 	StoreFileSystem.cc \
 	StoreIOState.cc \
-	tests/stub_StoreMeta.cc \
-	StoreMetaUnpacker.cc \
 	StoreSwapLogData.cc \
 	StrList.cc \
 	StrList.h \
@@ -2574,8 +2527,6 @@ tests_testCacheManager_SOURCES = \
 	fqdncache.h \
 	fs_io.cc \
 	fs_io.h \
-	tests/stub_gopher.cc \
-	gopher.h \
 	helper.cc \
 	hier_code.h \
 	http.cc \
@@ -2634,7 +2585,6 @@ tests_testCacheManager_SOURCES = \
 	tests/stub_store_stats.cc \
 	store_swapin.cc \
 	store_swapin.h \
-	store_swapmeta.cc \
 	store_swapout.cc \
 	tools.cc \
 	tools.h \
@@ -2789,10 +2739,10 @@ tests_testEventLoop_SOURCES = \
 	tests/testEventLoop.h
 nodist_tests_testEventLoop_SOURCES = \
 	EventLoop.cc \
+	tests/stub_SBuf.cc \
 	tests/stub_debug.cc \
 	tests/stub_fatal.cc \
-	tests/stub_libtime.cc \
-	tests/stub_SBuf.cc
+	tests/stub_libtime.cc
 tests_testEventLoop_LDADD = \
 	base/libbase.la \
 	$(LIBCPPUNIT_LIBS) \

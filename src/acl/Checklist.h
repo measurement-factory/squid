@@ -211,11 +211,11 @@ private: /* internal methods */
     class Breadcrumb
     {
     public:
-        Breadcrumb(): parent(NULL) {}
+        Breadcrumb(): parent(nullptr) {}
         Breadcrumb(const Acl::InnerNode *aParent, Acl::Nodes::const_iterator aPos): parent(aParent), position(aPos) {}
         bool operator ==(const Breadcrumb &b) const { return parent == b.parent && (!parent || position == b.position); }
         bool operator !=(const Breadcrumb &b) const { return !this->operator ==(b); }
-        void clear() { parent = NULL; }
+        void clear() { parent = nullptr; }
         const Acl::InnerNode *parent; ///< intermediate node in the ACL tree
         Acl::Nodes::const_iterator position; ///< child position inside parent
     };
@@ -248,47 +248,6 @@ private: /* internal methods */
     std::stack<Breadcrumb> matchPath;
     /// the list of actions which must ignored during acl checks
     std::vector<Acl::Answer> bannedActions_;
-};
-
-/// AsyncCall dialer, supplying Context's callbacks with Acl::Answer
-template <typename Context>
-class CheckListAnswerDialer: public CallDialer, public ACLChecklist::CbDialer
-{
-public:
-    typedef void (Context::*Method)(const Acl::Answer &);
-
-    CheckListAnswerDialer(Method method, Context *context):
-        method_(method), context_(context), answer_(ACCESS_DUNNO) {}
-
-    /* CallDialer API */
-    virtual bool canDial(AsyncCall &) { return context_.valid(); }
-    void dial(AsyncCall &) { ((&(*context_))->*method_)(answer_); }
-    virtual void print(std::ostream &os) const {
-        os << '(' << context_.get() << ", " << answer_ << ')';
-    }
-
-    /* ACLCheckList::CbDialer API */
-    virtual Acl::Answer &answer() { return answer_; }
-
-private:
-    Method method_;
-    CbcPointer<Context> context_;
-    Acl::Answer answer_;
-};
-
-/// AsyncCall dialer, supplying a Job callback with Acl::Answer
-template <typename Context>
-class CheckListAnswerJobDialer: public UnaryMemFunT<Context, Acl::Answer, const Acl::Answer &>,
-    public ACLChecklist::CbDialer
-{
-public:
-    using Base = UnaryMemFunT<Context, Acl::Answer, const Acl::Answer &>;
-
-    CheckListAnswerJobDialer(const typename Base::JobPointer &aJob, typename Base::Method aMethod):
-        UnaryMemFunT<Context, Acl::Answer, const Acl::Answer&>(aJob, aMethod, Acl::Answer()) {}
-
-    /* ACLCheckList::CbDialer API */
-    virtual Acl::Answer &answer() { return Base::arg1; }
 };
 
 #endif /* SQUID_ACLCHECKLIST_H */

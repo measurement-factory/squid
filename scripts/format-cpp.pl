@@ -6,27 +6,9 @@
 ## contributions from numerous individuals and organizations.
 ## Please see the COPYING and CONTRIBUTORS files for details.
 ##
-#
-# Author: Tsantilas Christos
-# email:  christos@chtsanti.net
-#
-# Distributed under the terms of the GNU General Public License as published
-# by the Free Software Foundation; either version 2 of the License, or
-# (at your option) any later version.
-#
-# Distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-# Library General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
-#
-# See COPYING or http://www.gnu.org/licenses/gpl.html for details.
-#
 
 use strict;
+use warnings;
 use IPC::Open2;
 use Getopt::Long;
 
@@ -42,45 +24,33 @@ GetOptions(
 
 $ASTYLE_BIN=$ASTYLE_BIN." ".$ASTYLE_ARGS;
 
-my $INDENT = "";
+if (@ARGV <= 0) {
+    usage($0);
+    die("ERROR: Missing required filename parameter.\n");
+} elsif (@ARGV == 1) {
+    &main(shift @ARGV);
+    exit 0;
+} else {
+    usage($0);
+    die("ERROR: Too many filename parameters.\n");
+}
 
-my $out = shift @ARGV;
-while($out){
-
-    if( $out !~ /\.cc$|\.cci$|\.h$|\.c$/) {
-        print "Unknown suffix for file $out, ignoring....\n";
-        $out = shift @ARGV;
-        next;
-    }
-
-    die("Cannot format a non-existent file: $out\n") unless -e $out;
-
-    my $in= "$out.astylebak";
-    my($new_in) = $in;
-    my($i) = 0;
-    while(-e $new_in) {
-        $new_in=$in.".".$i;
-        $i++;
-    }
-    $in=$new_in;
-    rename($out, $in);
+sub main
+{
+    my ($out) = @_;
 
     local (*FROM_ASTYLE, *TO_ASTYLE);
     my $pid_style=open2(\*FROM_ASTYLE, \*TO_ASTYLE, $ASTYLE_BIN);
-
-    if(!$pid_style){
-        print "An error while running $ASTYLE_BIN\n";
-        exit -1;
-    }
+    die() unless $pid_style; # paranoid: open2() does not return on failures
 
     my $pid;
     if($pid=fork()){
         #do parent staf
         close(FROM_ASTYLE);
 
+        my $in = $out;
         if (!open(IN, "<$in")) {
-            print "Can not open input file: $in\n";
-            exit -1;
+            die("ERROR: Cannot open input file: $in\n");
         }
         my $line = '';
         while (<IN>) {
@@ -96,32 +66,71 @@ while($out){
         }
         close(TO_ASTYLE);
         waitpid($pid,0);
+        waitpid($pid_style, 0);
     }
     else{
         # child staf
         close(TO_ASTYLE);
 
-        if(!open(OUT,">$out")){
-            print "Can't open output file: $out\n";
-            exit -1;
-        }
+        my $formattedCode = '';
         my($line)='';
         while(<FROM_ASTYLE>){
             $line = $line.$_;
             if(output_filter(\$line)==0){
                 next;
             }
-            print OUT $line;
+            $formattedCode .= $line;
             $line = '';
         }
         if($line){
-            print OUT $line;
+            $formattedCode .= $line;
         }
-        close(OUT);
-        exit 0;
-    }
 
-    $out = shift @ARGV;
+        my $originalCode = &slurpFile($out);
+
+        if (!length $formattedCode) {
+            warn("ERROR: Running astyle produced no output while formatting $out\n".
+                 "    astyle command: $ASTYLE_BIN\n");
+            print $originalCode;
+            return;
+        }
+
+        my $originalEssence = &sourceCodeEssense($originalCode);
+        my $formattedEssence = &sourceCodeEssense($formattedCode);
+        if ($originalEssence eq $formattedEssence) {
+            print $formattedCode;
+            return;
+        }
+
+        warn("ERROR: Unexpected source code changes while formatting $out\n");
+        eval { &createFile($formattedCode, "$out.astylebad") };
+        warn("WARNING: Cannot keep a copy of malformed $out: $@\n") if $@;
+        print $originalCode;
+    }
+}
+
+# strips all space characters from the given input
+sub sourceCodeEssense
+{
+    my ($sourceCode) = @_;
+    $sourceCode =~ s/\s+//g;
+    return $sourceCode;
+}
+
+# reads and returns the entire file contents
+sub slurpFile {
+    my ($fname) = @_;
+    local $/ = undef;
+    open(my $input, "<", $fname) or die("Cannot open $fname for reading: $!\n");
+    return <$input>;
+}
+
+# (re)creates a file with the given name, filling it with the given content
+sub createFile {
+    my ($content, $fname) = @_;
+    open(my $output, ">", $fname) or die("Cannot create $fname: $!\n");
+    print($output $content) or die("Cannot write to $fname: $!\n");
+    close($output) or die("Cannot finalize $fname: $!\n");
 }
 
 sub input_filter{
@@ -152,7 +161,6 @@ sub input_filter{
         elsif($$line =~ /\s*unsigned\s+([^:]*):\s*(\w+)\s*\;(.*)/s){
             # print ">>>>> ".$$line."    ($1)\n";
             my ($name,$val,$extra)=($1,$2,$3);
-            my $prx =~ s/\s*$//g;
             $$line= "unsigned ".$name."__FORASTYLE__".$val.";".$extra;
             # print "----->".$$line."\n";
         }
@@ -203,7 +211,7 @@ sub output_filter{
 sub usage{
     my($name)=@_;
     print "Usage:\n";
-    print "   $name [options] file1 file2 file3 ....\n";
+    print "   $name [options] <filename-to-format>\n";
     print "\n";
     print "Options:\n";
     print "    --help              This usage text.\n";

@@ -19,6 +19,7 @@ libbase_la_SOURCES = \
 	AsyncCallList.h \
 	AsyncCallQueue.cc \
 	AsyncCallQueue.h \
+	AsyncCallbacks.h \
 	AsyncCbdataCalls.h \
 	AsyncFunCalls.h \
 	AsyncJob.cc \
@@ -51,6 +52,8 @@ libbase_la_SOURCES = \
 	Optional.h \
 	Packable.h \
 	PackableStream.h \
+	Random.cc \
+	Random.h \
 	RandomUuid.cc \
 	RandomUuid.h \
 	Range.h \

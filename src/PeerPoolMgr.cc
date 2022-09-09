@@ -8,7 +8,7 @@
 
 #include "squid.h"
 #include "AccessLogEntry.h"
-#include "base/AsyncJobCalls.h"
+#include "base/AsyncCallbacks.h"
 #include "base/RunnersRegistry.h"
 #include "CachePeer.h"
 #include "comm/Connection.h"
@@ -26,18 +26,6 @@
 #include "SquidConfig.h"
 
 CBDATA_CLASS_INIT(PeerPoolMgr);
-
-/// Gives Security::PeerConnector access to Answer in the PeerPoolMgr callback dialer.
-class MyAnswerDialer: public UnaryMemFunT<PeerPoolMgr, Security::EncryptorAnswer, Security::EncryptorAnswer&>,
-    public Security::PeerConnector::CbDialer
-{
-public:
-    MyAnswerDialer(const JobPointer &aJob, Method aMethod):
-        UnaryMemFunT<PeerPoolMgr, Security::EncryptorAnswer, Security::EncryptorAnswer&>(aJob, aMethod, Security::EncryptorAnswer()) {}
-
-    /* Security::PeerConnector::CbDialer API */
-    virtual Security::EncryptorAnswer &answer() { return arg1; }
-};
 
 PeerPoolMgr::PeerPoolMgr(CachePeer *aPeer): AsyncJob("PeerPoolMgr"),
     peer(cbdataReference(aPeer)),
@@ -92,7 +80,7 @@ PeerPoolMgr::handleOpenedConnection(const CommConnectCbParams &params)
 
     if (!validPeer()) {
         debugs(48, 3, "peer gone");
-        if (params.conn != NULL)
+        if (params.conn != nullptr)
             params.conn->close();
         return;
     }
@@ -103,13 +91,12 @@ PeerPoolMgr::handleOpenedConnection(const CommConnectCbParams &params)
         return;
     }
 
-    Must(params.conn != NULL);
+    Must(params.conn != nullptr);
 
     // Handle TLS peers.
     if (peer->secure.encryptTransport) {
         // XXX: Exceptions orphan params.conn
-        AsyncCall::Pointer callback = asyncCall(48, 4, "PeerPoolMgr::handleSecuredPeer",
-                                                MyAnswerDialer(this, &PeerPoolMgr::handleSecuredPeer));
+        const auto callback = asyncCallback(48, 4, PeerPoolMgr::handleSecuredPeer, this);
 
         const auto peerTimeout = peer->connectTimeout();
         const int timeUsed = squid_curtime - params.conn->startTime();
@@ -128,7 +115,7 @@ PeerPoolMgr::pushNewConnection(const Comm::ConnectionPointer &conn)
 {
     Must(validPeer());
     Must(Comm::IsConnOpen(conn));
-    peer->standby.pool->push(conn, NULL /* domain */);
+    peer->standby.pool->push(conn, nullptr /* domain */);
     // push() will trigger a checkpoint()
 }
 
@@ -139,7 +126,7 @@ PeerPoolMgr::handleSecuredPeer(Security::EncryptorAnswer &answer)
 
     if (!validPeer()) {
         debugs(48, 3, "peer gone");
-        if (answer.conn != NULL)
+        if (answer.conn != nullptr)
             answer.conn->close();
         return;
     }

@@ -130,7 +130,6 @@ private:
     void scheduleMemRead();
     void scheduleRead();
     bool startSwapin();
-    bool unpackHeader(char const *buf, ssize_t len);
 
     void fail();
     void callback(ssize_t);
@@ -156,7 +155,7 @@ private:
 public:
 
     struct Callback {
-        Callback ():callback_handler(NULL), callback_data(NULL) {}
+        Callback ():callback_handler(nullptr), callback_data(nullptr) {}
 
         Callback (STCB *, void *);
 

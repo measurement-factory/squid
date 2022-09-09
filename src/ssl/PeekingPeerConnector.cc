@@ -10,6 +10,7 @@
 
 #include "squid.h"
 #include "acl/FilledChecklist.h"
+#include "base/AsyncCallbacks.h"
 #include "client_side.h"
 #include "errorpage.h"
 #include "fde.h"
@@ -28,7 +29,7 @@ CBDATA_NAMESPACED_CLASS_INIT(Ssl, PeekingPeerConnector);
 Ssl::PeekingPeerConnector::PeekingPeerConnector(HttpRequestPointer &aRequest,
         const Comm::ConnectionPointer &aServerConn,
         const Comm::ConnectionPointer &aClientConn,
-        AsyncCall::Pointer &aCallback,
+        const AsyncCallback<Security::EncryptorAnswer> &aCallback,
         const AccessLogEntryPointer &alp,
         const time_t timeout):
     AsyncJob("Ssl::PeekingPeerConnector"),
@@ -63,7 +64,7 @@ Ssl::PeekingPeerConnector::checkForPeekAndSplice()
 
     ACLFilledChecklist *acl_checklist = new ACLFilledChecklist(
         ::Config.accessList.ssl_bump,
-        request.getRaw(), NULL);
+        request.getRaw(), nullptr);
     acl_checklist->al = al;
     acl_checklist->banAction(Acl::Answer(ACCESS_ALLOWED, Ssl::bumpNone));
     acl_checklist->banAction(Acl::Answer(ACCESS_ALLOWED, Ssl::bumpPeek));
@@ -79,9 +80,7 @@ Ssl::PeekingPeerConnector::checkForPeekAndSplice()
         acl_checklist->banAction(Acl::Answer(ACCESS_ALLOWED, Ssl::bumpBump));
     acl_checklist->syncAle(request.getRaw(), nullptr);
 
-    AsyncCall::Pointer cb = asyncCall(83, 4,
-                                      "Ssl::PeekingPeerConnector::checkForPeekAndSpliceDone",
-                                      CheckListAnswerJobDialer<Ssl::PeekingPeerConnector>(this, &PeekingPeerConnector::checkForPeekAndSpliceDone));
+    const auto cb = asyncCallback(83, 4, PeekingPeerConnector::checkForPeekAndSpliceDone, this);
 
     acl_checklist->nonBlockingCheck(cb);
 }
@@ -158,7 +157,7 @@ Ssl::PeekingPeerConnector::initialize(Security::SessionPointer &serverSession)
 
     if (ConnStateData *csd = request->clientConnectionManager.valid()) {
 
-        SBuf *hostName = NULL;
+        SBuf *hostName = nullptr;
 
         //Enable Status_request TLS extension, required to bump some clients
         SSL_set_tlsext_status_type(serverSession.get(), TLSEXT_STATUSTYPE_ocsp);

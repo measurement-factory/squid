@@ -58,7 +58,7 @@ typedef std::unique_ptr<TXT_DB, HardFun<void, TXT_DB*, &TXT_DB_free>> TXT_DB_Poi
 
 typedef std::unique_ptr<X509_NAME, HardFun<void, X509_NAME*, &X509_NAME_free>> X509_NAME_Pointer;
 
-typedef std::unique_ptr<RSA, HardFun<void, RSA*, &RSA_free>> RSA_Pointer;
+using EVP_PKEY_CTX_Pointer = std::unique_ptr<EVP_PKEY_CTX, HardFun<void, EVP_PKEY_CTX*, &EVP_PKEY_CTX_free>>;
 
 typedef std::unique_ptr<X509_REQ, HardFun<void, X509_REQ*, &X509_REQ_free>> X509_REQ_Pointer;
 
@@ -85,12 +85,6 @@ void ForgetErrors();
 /// Nothing is reported if there are no errors.
 /// Also clears all reported errors.
 std::ostream &ReportAndForgetErrors(std::ostream &);
-
-/**
- \ingroup SslCrtdSslAPI
- * Create 1024 bits rsa key.
- */
-EVP_PKEY * createSslPrivateKey();
 
 /**
  \ingroup SslCrtdSslAPI
@@ -184,7 +178,7 @@ inline const char *certSignAlgorithm(int sg)
     if (sg >=0 && sg < Ssl::algSignEnd)
         return Ssl::CertSignAlgorithmStr[sg];
 
-    return NULL;
+    return nullptr;
 }
 
 /**
@@ -193,7 +187,7 @@ inline const char *certSignAlgorithm(int sg)
  */
 inline CertSignAlgorithm certSignAlgorithmId(const char *sg)
 {
-    for (int i = 0; i < algSignEnd && Ssl::CertSignAlgorithmStr[i] != NULL; i++)
+    for (int i = 0; i < algSignEnd && Ssl::CertSignAlgorithmStr[i] != nullptr; i++)
         if (strcmp(Ssl::CertSignAlgorithmStr[i], sg) == 0)
             return (CertSignAlgorithm)i;
 
@@ -221,7 +215,7 @@ inline const char *sslCertAdaptAlgoritm(int alg)
     if (alg >=0 && alg < Ssl::algSetEnd)
         return Ssl::CertAdaptAlgorithmStr[alg];
 
-    return NULL;
+    return nullptr;
 }
 
 /**

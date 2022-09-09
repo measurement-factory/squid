@@ -41,7 +41,7 @@ url_checksum(const char *url)
 
 #endif
 
-RemovalPolicy * mem_policy = NULL;
+RemovalPolicy * mem_policy = nullptr;
 
 size_t
 MemObject::inUseCount()
@@ -110,11 +110,9 @@ MemObject::~MemObject()
     checkUrlChecksum();
 #endif
 
-    if (!shutting_down) { // Store::Root() is FATALly missing during shutdown
-        assert(xitTable.index < 0);
-        assert(memCache.index < 0);
-        assert(swapout.sio == NULL);
-    }
+    assert(xitTable.index < 0);
+    assert(memCache.index < 0);
+    assert(swapout.sio == nullptr);
 
     data_hdr.freeContent();
 }
@@ -265,7 +263,7 @@ MemObject::expectedReplySize() const
 void
 MemObject::reset()
 {
-    assert(swapout.sio == NULL);
+    assert(swapout.sio == nullptr);
     data_hdr.freeContent();
     inmem_lo = 0;
     /* Should we check for clients? */
@@ -335,7 +333,7 @@ MemObject::objectBytesOnDisk() const
      * yet.
      */
 
-    if (swapout.sio.getRaw() == NULL)
+    if (swapout.sio.getRaw() == nullptr)
         return 0;
 
     int64_t nwritten = swapout.sio->offset();

@@ -15,6 +15,7 @@
 #include "adaptation/Initiator.h"
 #include "adaptation/Service.h"
 #include "adaptation/ServiceGroups.h"
+#include "base/AsyncCallbacks.h"
 #include "base/AsyncJobCalls.h"
 #include "base/TextException.h"
 #include "ConfigParser.h"
@@ -47,11 +48,11 @@ Adaptation::AccessCheck::AccessCheck(const ServiceFilter &aFilter,
                                      Adaptation::Initiator *initiator):
     AsyncJob("AccessCheck"), filter(aFilter),
     theInitiator(initiator),
-    acl_checklist(NULL)
+    acl_checklist(nullptr)
 {
 #if ICAP_CLIENT
     Adaptation::Icap::History::Pointer h = filter.request->icapHistory();
-    if (h != NULL)
+    if (h != nullptr)
         h->start("ACL");
 #endif
 
@@ -62,7 +63,7 @@ Adaptation::AccessCheck::~AccessCheck()
 {
 #if ICAP_CLIENT
     Adaptation::Icap::History::Pointer h = filter.request->icapHistory();
-    if (h != NULL)
+    if (h != nullptr)
         h->stop("ACL");
 #endif
 }
@@ -135,9 +136,7 @@ Adaptation::AccessCheck::checkCandidates()
                 HTTPMSGLOCK(acl_checklist->reply);
             acl_checklist->al = filter.al;
             acl_checklist->syncAle(filter.request, nullptr);
-            AsyncCall::Pointer callback = asyncCall(93, 4,
-                                                    "Adaptation::AccessCheck::noteAnswer",
-                                                    CheckListAnswerDialer<AccessCheck>(&AccessCheck::noteAnswer, this));
+            const auto callback = asyncCallback(93, 4, AccessCheck::noteAnswer, this);
             acl_checklist->nonBlockingCheck(callback);
             return;
         }
@@ -146,7 +145,7 @@ Adaptation::AccessCheck::checkCandidates()
     }
 
     debugs(93, 4, "NO candidates left");
-    callBack(NULL);
+    callBack(nullptr);
     Must(done());
 }
 
@@ -163,7 +162,7 @@ Adaptation::AccessCheck::noteAnswer(const Acl::Answer &answer)
 
     if (answer.allowed()) { // the rule matched
         ServiceGroupPointer g = topGroup();
-        if (g != NULL) { // the corresponding group found
+        if (g != nullptr) { // the corresponding group found
             callBack(g);
             Must(done());
             return;

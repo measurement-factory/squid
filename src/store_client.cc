@@ -22,10 +22,9 @@
 #include "SquidConfig.h"
 #include "StatCounters.h"
 #include "Store.h"
+#include "store/SwapMetaIn.h"
 #include "store_swapin.h"
 #include "StoreClient.h"
-#include "StoreMeta.h"
-#include "StoreMetaUnpacker.h"
 #if USE_DELAY_POOLS
 #include "DelayPools.h"
 #endif
@@ -178,8 +177,8 @@ store_client::finishCallback()
     cmp_offset = result.offset + result.length;
     STCB *temphandler = _callback.callback_handler;
     void *cbdata = _callback.callback_data;
-    _callback = Callback(NULL, NULL);
-    copyInto.data = NULL;
+    _callback = Callback(nullptr, nullptr);
+    copyInto.data = nullptr;
 
     if (cbdataReferenceValid(cbdata))
         temphandler(cbdata, result);
@@ -239,7 +238,7 @@ storeClientCopy(store_client * sc,
                 STCB * callback,
                 void *data)
 {
-    assert (sc != NULL);
+    assert (sc != nullptr);
     sc->copy(e, copyInto,callback,data);
 }
 
@@ -394,7 +393,7 @@ store_client::doCopy(StoreEntry *anEntry)
      * if needed.
      */
 
-    if (STORE_DISK_CLIENT == getType() && swapin_sio == NULL) {
+    if (STORE_DISK_CLIENT == getType() && swapin_sio == nullptr) {
         if (!startSwapin())
             return; // failure
     }
@@ -417,7 +416,7 @@ store_client::startSwapin()
         /* Don't set store_io_pending here */
         storeSwapInStart(this);
 
-        if (swapin_sio == NULL) {
+        if (swapin_sio == nullptr) {
             fail();
             flags.store_copying = false;
             return false;
@@ -458,7 +457,7 @@ store_client::scheduleDiskRead()
     /* What the client wants is not in memory. Schedule a disk read */
     if (getType() == STORE_DISK_CLIENT) {
         // we should have called startSwapin() already
-        assert(swapin_sio != NULL);
+        assert(swapin_sio != nullptr);
     } else if (!swapin_sio && !startSwapin()) {
         debugs(90, 3, "bailing after swapin start failure for " << *entry);
         assert(!flags.store_copying);
@@ -510,8 +509,6 @@ store_client::fileRead()
 void
 store_client::readBody(const char *, ssize_t len)
 {
-    int parsed_header = 0;
-
     // Don't assert disk_io_pending here.. may be called by read_header
     flags.disk_io_pending = false;
     assert(_callback.pending());
@@ -525,8 +522,6 @@ store_client::readBody(const char *, ssize_t len)
         /* Our structure ! */
         if (!entry->mem_obj->adjustableBaseReply().parseCharBuf(copyInto.data, headersEnd(copyInto.data, len))) {
             debugs(90, DBG_CRITICAL, "ERROR: Could not parse headers from on disk object");
-        } else {
-            parsed_header = 1;
         }
     }
 
@@ -537,8 +532,7 @@ store_client::readBody(const char *, ssize_t len)
             /* Copy read data back into memory.
              * copyInto.offset includes headers, which is what mem cache needs
              */
-            int64_t mem_offset = entry->mem_obj->endOffset();
-            if ((copyInto.offset == mem_offset) || (parsed_header && mem_offset == rep->hdr_sz)) {
+            if (copyInto.offset == entry->mem_obj->endOffset()) {
                 entry->mem_obj->write(StoreIOBuffer(len, copyInto.offset, copyInto.data));
             }
         }
@@ -600,47 +594,6 @@ storeClientReadBody(void *data, const char *buf, ssize_t len, StoreIOState::Poin
     sc->readBody(buf, len);
 }
 
-bool
-store_client::unpackHeader(char const *buf, ssize_t len)
-{
-    debugs(90, 3, "store_client::unpackHeader: len " << len << "");
-    assert(len >= 0);
-
-    int swap_hdr_sz = 0;
-    tlv *tlv_list = nullptr;
-    try {
-        StoreMetaUnpacker aBuilder(buf, len, &swap_hdr_sz);
-        tlv_list = aBuilder.createStoreMeta();
-    } catch (const std::exception &e) {
-        debugs(90, DBG_IMPORTANT, "WARNING: failed to unpack metadata because " << e.what());
-        return false;
-    }
-    assert(tlv_list);
-
-    /*
-     * Check the meta data and make sure we got the right object.
-     */
-    for (tlv *t = tlv_list; t; t = t->next) {
-        if (!t->checkConsistency(entry)) {
-            storeSwapTLVFree(tlv_list);
-            return false;
-        }
-    }
-
-    storeSwapTLVFree(tlv_list);
-
-    assert(swap_hdr_sz >= 0);
-    entry->mem_obj->swap_hdr_sz = swap_hdr_sz;
-    if (entry->swap_file_sz > 0) { // collapsed hits may not know swap_file_sz
-        assert(entry->swap_file_sz >= static_cast<uint64_t>(swap_hdr_sz));
-        entry->mem_obj->object_sz = entry->swap_file_sz - swap_hdr_sz;
-    }
-    debugs(90, 5, "store_client::unpackHeader: swap_file_sz=" <<
-           entry->swap_file_sz << "( " << swap_hdr_sz << " + " <<
-           entry->mem_obj->object_sz << ")");
-    return true;
-}
-
 void
 store_client::readHeader(char const *buf, ssize_t len)
 {
@@ -657,7 +610,10 @@ store_client::readHeader(char const *buf, ssize_t len)
     if (len < 0)
         return fail();
 
-    if (!unpackHeader(buf, len)) {
+    try {
+        Store::UnpackHitSwapMeta(buf, len, *entry);
+    } catch (...) {
+        debugs(90, DBG_IMPORTANT, "ERROR: Failed to unpack Store entry metadata: " << CurrentException);
         fail();
         return;
     }
@@ -720,12 +676,12 @@ storeUnregister(store_client * sc, StoreEntry * e, void *data)
     (void)data;
 #endif
 
-    if (mem == NULL)
+    if (mem == nullptr)
         return 0;
 
     debugs(90, 3, "storeUnregister: called for '" << e->getMD5Text() << "'");
 
-    if (sc == NULL) {
+    if (sc == nullptr) {
         debugs(90, 3, "storeUnregister: No matching client for '" << e->getMD5Text() << "'");
         return 0;
     }
@@ -742,9 +698,9 @@ storeUnregister(store_client * sc, StoreEntry * e, void *data)
     if (e->store_status == STORE_OK && !swapoutFinished)
         e->swapOut();
 
-    if (sc->swapin_sio != NULL) {
+    if (sc->swapin_sio != nullptr) {
         storeClose(sc->swapin_sio, StoreIOState::readerDone);
-        sc->swapin_sio = NULL;
+        sc->swapin_sio = nullptr;
         ++statCounter.swap.ins;
     }
 
@@ -800,7 +756,7 @@ StoreEntry::invokeHandlers()
     swapOut();
     int i = 0;
     store_client *sc;
-    dlink_node *nx = NULL;
+    dlink_node *nx = nullptr;
     dlink_node *node;
 
     debugs(90, 3, mem_obj->nclients << " clients; " << *this << ' ' << getMD5Text());
@@ -840,7 +796,7 @@ int
 storePendingNClients(const StoreEntry * e)
 {
     MemObject *mem = e->mem_obj;
-    int npend = NULL == mem ? 0 : mem->nclients;
+    int npend = nullptr == mem ? 0 : mem->nclients;
     debugs(90, 3, "storePendingNClients: returning " << npend);
     return npend;
 }
@@ -857,7 +813,7 @@ CheckQuickAbortIsReasonable(StoreEntry * entry)
         return false;
     }
 
-    if (!shutting_down && Store::Root().transientReaders(*entry)) {
+    if (Store::Root().transientReaders(*entry)) {
         debugs(90, 3, "quick-abort? NO still have one or more transient readers");
         return false;
     }
@@ -870,6 +826,11 @@ CheckQuickAbortIsReasonable(StoreEntry * entry)
     if (EBIT_TEST(entry->flags, ENTRY_SPECIAL)) {
         debugs(90, 3, "quick-abort? NO ENTRY_SPECIAL");
         return false;
+    }
+
+    if (shutting_down) {
+        debugs(90, 3, "quick-abort? YES avoid heavy optional work during shutdown");
+        return true;
     }
 
     MemObject * const mem = entry->mem_obj;
