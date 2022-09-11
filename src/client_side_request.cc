@@ -428,7 +428,6 @@ ClientRequestContext::followXForwardedForCheck(const Acl::Answer &answer)
                 Filled(acl_checklist)->src_addr = request->indirect_client_addr;
             }
             const auto callback = asyncCallback(28, 4, ClientRequestContext::followXForwardedForCheck, this);
-
             acl_checklist->nonBlockingCheck(callback);
             return;
         }
@@ -636,10 +635,9 @@ ClientRequestContext::clientAccessCheck()
         /* setup the XFF iterator for processing */
         http->request->x_forwarded_for_iterator = http->request->header.getList(Http::HdrType::X_FORWARDED_FOR);
 
-        AsyncCall::Pointer callback = asyncCallback(85, 4, ClientRequestContext::followXForwardedForCheck, this);
-
         /* begin by checking to see if we trust direct client enough to walk XFF */
         acl_checklist = clientAclChecklistCreate(Config.accessList.followXFF, http);
+        AsyncCall::Pointer callback = asyncCallback(85, 4, ClientRequestContext::followXForwardedForCheck, this);
         acl_checklist->nonBlockingCheck(callback);
         return;
     }
@@ -647,7 +645,6 @@ ClientRequestContext::clientAccessCheck()
 
     if (Config.accessList.http) {
         const auto callback = asyncCallback(85, 4, ClientRequestContext::clientAccessCheckDone, this);
-
         acl_checklist = clientAclChecklistCreate(Config.accessList.http, http);
         acl_checklist->nonBlockingCheck(callback);
     } else {
@@ -667,7 +664,6 @@ ClientRequestContext::clientAccessCheck2()
     if (Config.accessList.adapted_http) {
         acl_checklist = clientAclChecklistCreate(Config.accessList.adapted_http, http);
         const auto callback = asyncCallback(85, 4, ClientRequestContext::clientAccessCheckDone, this);
-
         acl_checklist->nonBlockingCheck(callback);
     } else {
         debugs(85, 2, "No adapted_http_access configuration. default: ALLOW");
@@ -813,7 +809,6 @@ ClientRequestContext::clientRedirectStart()
     if (Config.accessList.redirector) {
         acl_checklist = clientAclChecklistCreate(Config.accessList.redirector, http);
         const auto callback = asyncCallback(33, 4, ClientRequestContext::redirectAccessCheckDone, this);
-
         acl_checklist->nonBlockingCheck(callback);
     } else
         redirectStart(http, clientRedirectDoneWrapper, this);
@@ -850,7 +845,6 @@ ClientRequestContext::clientStoreIdStart()
     if (Config.accessList.store_id) {
         acl_checklist = clientAclChecklistCreate(Config.accessList.store_id, http);
         const auto callback = asyncCallback(33, 4, ClientRequestContext::storeIdAccessCheckDone, this);
-
         acl_checklist->nonBlockingCheck(callback);
     } else
         storeIdStart(http, clientStoreIdDoneWrapper, this);
@@ -1296,7 +1290,6 @@ ClientRequestContext::checkNoCache()
     if (Config.accessList.noCache) {
         acl_checklist = clientAclChecklistCreate(Config.accessList.noCache, http);
         const auto callback = asyncCallback(85, 4, ClientRequestContext::checkNoCacheDone, this);
-
         acl_checklist->nonBlockingCheck(callback);
     } else {
         /* unless otherwise specified, we try to cache. */

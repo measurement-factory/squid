@@ -10,8 +10,7 @@
 #define SQUID_ACLCHECKLIST_H
 
 #include "acl/InnerNode.h"
-#include "base/AsyncCbdataCalls.h"
-#include "base/AsyncJobCalls.h"
+#include "base/AsyncCall.h"
 #include <stack>
 #include <vector>
 
@@ -60,15 +59,6 @@ public:
 
     private:
         static NullState _instance;
-    };
-
-    /// Callback dialer API to allow ACLChecklist to set the answer.
-    class CbDialer
-    {
-    public:
-        virtual ~CbDialer() {}
-        /// gives ACLChecklist access to the in-dialer answer
-        virtual Acl::Answer &answer() = 0;
     };
 
 public:

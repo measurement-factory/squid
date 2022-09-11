@@ -1911,13 +1911,12 @@ clientReplyContext::processReplyAccess ()
         return;
     }
 
-    const auto callback = asyncCallback(88, 4, clientReplyContext::processReplyAccessResult, this);
-
     /** Process http_reply_access lists */
     ACLFilledChecklist *replyChecklist =
         clientAclChecklistCreate(Config.accessList.reply, http);
     replyChecklist->reply = reply;
     HTTPMSGLOCK(replyChecklist->reply);
+    const auto callback = asyncCallback(88, 4, clientReplyContext::processReplyAccessResult, this);
     replyChecklist->nonBlockingCheck(callback);
 }
 

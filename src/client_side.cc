@@ -2490,7 +2490,7 @@ ConnStateData::httpsSslBumpAccessCheckDone(const Acl::Answer &answer)
         return;
 
     if (answer.allowed()) {
-        debugs(33, 2, "sslBump action " << Ssl::bumpMode(answer.kind) << "needed for " << clientConnection);
+        debugs(33, 2, "sslBump action " << Ssl::bumpMode(answer.kind) << " needed for " << clientConnection);
         sslBumpMode = static_cast<Ssl::BumpMode>(answer.kind);
     } else {
         debugs(33, 3, "sslBump not needed for " << clientConnection);
