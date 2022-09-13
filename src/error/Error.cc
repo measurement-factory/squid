@@ -10,6 +10,7 @@
 
 #include "squid.h"
 #include "Debug.h"
+#include "error/Details.h"
 #include "error/Error.h"
 
 void
@@ -26,6 +27,8 @@ Error::update(const Error &recent)
         category = recent.category; // may still be ERR_NONE
     if (!detail)
         detail = recent.detail; // may still be nil
+    else if (recent.detail)
+        ErrorDetails::Merge(detail, recent.detail); // TODO: Use Merge() for the above as well?
 }
 
 std::ostream &
