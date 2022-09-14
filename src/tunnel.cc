@@ -181,7 +181,6 @@ public:
 
     Connection client, server;
     int *status_ptr;        ///< pointer for logging HTTP status
-    LogTags *logTag_ptr;    ///< pointer for logging Squid processing code
 
     SBuf preReadClientData;
     SBuf preReadServerData;
@@ -384,7 +383,8 @@ TunnelStateData::TunnelStateData(ClientHttpRequest *clientRequest) :
     server.size_ptr = &clientRequest->out.size;
     client.size_ptr = &clientRequest->al->http.clientRequestSz.payloadData;
     status_ptr = &clientRequest->al->http.code;
-    logTag_ptr = &clientRequest->logType;
+
+    clientRequest->logType.update(LOG_TCP_TUNNEL);
     al = clientRequest->al;
     http = clientRequest;
 
@@ -926,8 +926,6 @@ tunnelStartShoveling(TunnelStateData *tunnelState)
     commSetConnTimeout(tunnelState->server.conn, Config.Timeout.read, timeoutCall);
 
     *tunnelState->status_ptr = Http::scOkay;
-    if (tunnelState->logTag_ptr)
-        tunnelState->logTag_ptr->update(LOG_TCP_TUNNEL);
     if (cbdataReferenceValid(tunnelState)) {
 
         // Shovel any payload already pushed into reply buffer by the server response
@@ -979,9 +977,6 @@ TunnelStateData::tunnelEstablishmentDone(Http::TunnelerAnswer &answer)
 {
     peerWait.finish();
     server.len = 0;
-
-    if (logTag_ptr)
-        logTag_ptr->update(LOG_TCP_TUNNEL);
 
     if (answer.peerResponseStatus != Http::scNone)
         *status_ptr = answer.peerResponseStatus;
@@ -1150,6 +1145,7 @@ tunnelStart(ClientHttpRequest * http)
         ch.syncAle(request, http->log_uri);
         if (ch.fastCheck().denied()) {
             debugs(26, 4, "MISS access forbidden.");
+            http->logType.update(LOG_TCP_TUNNEL);
             err = new ErrorState(ERR_FORWARDING_DENIED, Http::scForbidden, request, http->al);
             http->al->http.code = Http::scForbidden;
             errorSend(http->getConn()->clientConnection, err);
