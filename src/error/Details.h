@@ -35,8 +35,8 @@ protected:
     void mergeMany(const ErrorDetails &);
 
     /* ErrorDetail API */
-    virtual SBuf brief() const;
-    virtual SBuf verbose(const HttpRequestPointer &) const;
+    virtual SBuf brief() const override;
+    virtual SBuf verbose(const HttpRequestPointer &) const override;
 
 private:
     /// known unique details in canonical order
