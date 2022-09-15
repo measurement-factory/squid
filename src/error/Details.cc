@@ -49,8 +49,12 @@ ErrorDetails::Merge(ErrorDetailPointer &storage, const ErrorDetailPointer &lates
     if (!storedGroup && !latestGroup && Same(*storage, *latest))
         return; // 1 + 1 but both are the same
 
-    if (!storedGroup)
-        storage = storedGroup = new ErrorDetails(*storage);
+    if (!storedGroup) {
+        // move a single stored detail into ErrorDetails storage we can merge into
+        storedGroup = new ErrorDetails();
+        storedGroup->mergeOne(*storage);
+        storage = storedGroup;
+    }
 
     if (!latestGroup)
         storedGroup->mergeOne(*latest); // x + 1
@@ -58,15 +62,12 @@ ErrorDetails::Merge(ErrorDetailPointer &storage, const ErrorDetailPointer &lates
         storedGroup->mergeMany(*latestGroup); // x + n
 }
 
-ErrorDetails::ErrorDetails(const ErrorDetail &detail):
-    details({&detail})
-{
-}
-
 /// adds the given detail unless we already have it
 void
 ErrorDetails::mergeOne(const ErrorDetail &detail)
 {
+    Assure(!Same(*this, detail)); // nobody should add a detail to itself
+
     // an error can only have a few details so vector+linear search is faster
     for (const auto &existingDetail: details) {
         if (Same(*existingDetail, detail))

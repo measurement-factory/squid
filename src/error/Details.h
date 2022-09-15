@@ -28,8 +28,8 @@ public:
     virtual ~ErrorDetails() = default;
 
 protected:
-    // use ErrorDetails::Merge() instead
-    ErrorDetails(const ErrorDetail &);
+    // use Merge() instead
+    ErrorDetails() = default;
 
     void mergeOne(const ErrorDetail &);
     void mergeMany(const ErrorDetails &);
