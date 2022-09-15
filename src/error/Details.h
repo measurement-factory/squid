@@ -29,14 +29,17 @@ public:
 
 protected:
     // use ErrorDetails::Merge() instead
-    ErrorDetails(const ErrorDetailPointer &earlier, const ErrorDetailPointer &later);
+    ErrorDetails(const ErrorDetail &);
+
+    void mergeOne(const ErrorDetail &);
+    void mergeMany(const ErrorDetails &);
 
     /* ErrorDetail API */
     virtual SBuf brief() const;
     virtual SBuf verbose(const HttpRequestPointer &) const;
 
 private:
-    /// known detail(s) in canonical order
+    /// known unique details in canonical order
     std::vector<ErrorDetailPointer> details;
 };
 

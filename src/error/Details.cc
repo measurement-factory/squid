@@ -12,54 +12,75 @@
 #include "error/Details.h"
 #include "sbuf/SBuf.h"
 
+static inline
+bool
+Same(const ErrorDetail &d1, const ErrorDetail &d2)
+{
+    // Duplicate details for the same error typically happen when we update some
+    // error storage (e.g., ALE) twice from the same source or when we retag the
+    // error with the same context information (e.g., WITH_CLIENT). In all those
+    // cases, comparing detail object addresses is enough to detect duplicates.
+    return &d1 == &d2;
+}
+
 void
 ErrorDetails::Merge(ErrorDetailPointer &storage, const ErrorDetailPointer &latest)
 {
+    // The checks below avoid creating new ErrorDetails storage until we have
+    // multiple _unique_ details to store.
+
     if (!latest)
         return; // x + 0
 
-    if (!storage) {
-        storage = latest; // 0 + x
-        return;
-    }
-
-    // XXX: Weed out duplicates at the individual detail level instead.
-    if (storage == latest)
-        return; // we re-discovered an already stored detail object
-
-    Assure(storage);
-    const auto storedGroup = dynamic_cast<ErrorDetails*>(storage.getRaw());
-
-    Assure(latest);
     const auto latestGroup = dynamic_cast<const ErrorDetails*>(latest.getRaw());
 
-    if (!storedGroup && !latestGroup) {
-        debugs(4, 7, "1+1");
-        storage = new ErrorDetails(storage, latest);
-        return;
+    if (!storage && !latestGroup) {
+        storage = latest;
+        return; // 0 + 1
     }
 
-    if (storedGroup) {
-        if (latestGroup)
-            storedGroup->details.insert(storedGroup->details.end(), latestGroup->details.begin(), latestGroup->details.end()); // n + k
-        else
-            storedGroup->details.push_back(latest); // n + 1
-        debugs(4, 7, storedGroup->details.size());
-        return;
+    if (!storage) {
+        storage = new ErrorDetails(*latestGroup);
+        return; // 0 + n
     }
 
-    // 1 + n
-    Assure(latestGroup); // or we would have handled the two singles above
-    Assure(latestGroup->details.size()); // front() and begin()+1 below are valid
-    const RefCount<ErrorDetails> result = new ErrorDetails(storage, latestGroup->details.front());
-    result->details.insert(result->details.end(), latestGroup->details.begin() + 1, latestGroup->details.end());
-    storage = result;
-    debugs(4, 7, result->details.size());
+    auto storedGroup = dynamic_cast<ErrorDetails*>(storage.getRaw()); // may be set later
+
+    if (!storedGroup && !latestGroup && Same(*storage, *latest))
+        return; // 1 + 1 but both are the same
+
+    if (!storedGroup)
+        storage = storedGroup = new ErrorDetails(*storage);
+
+    if (!latestGroup)
+        storedGroup->mergeOne(*latest); // x + 1
+    else
+        storedGroup->mergeMany(*latestGroup); // x + n
 }
 
-ErrorDetails::ErrorDetails(const ErrorDetailPointer &earlier, const ErrorDetailPointer &later):
-    details({earlier, later})
+ErrorDetails::ErrorDetails(const ErrorDetail &detail):
+    details({&detail})
 {
+}
+
+/// adds the given detail unless we already have it
+void
+ErrorDetails::mergeOne(const ErrorDetail &detail)
+{
+    // an error can only have a few details so vector+linear search is faster
+    for (const auto &existingDetail: details) {
+        if (Same(*existingDetail, detail))
+            return; // already covered
+    }
+    details.emplace_back(&detail);
+}
+
+/// adds unique details (if any) from the given collection
+void
+ErrorDetails::mergeMany(const ErrorDetails &others)
+{
+    for (const auto &other: others.details)
+        mergeOne(*other);
 }
 
 SBuf
