@@ -15,6 +15,14 @@
 void
 ErrorDetails::Merge(ErrorDetailPointer &storage, const ErrorDetailPointer &latest)
 {
+    if (!latest)
+        return; // x + 0
+
+    if (!storage) {
+        storage = latest; // 0 + x
+        return;
+    }
+
     // XXX: Weed out duplicates at the individual detail level instead.
     if (storage == latest)
         return; // we re-discovered an already stored detail object

@@ -25,10 +25,7 @@ Error::update(const Error &recent)
     // may result in more details available if they only become available later
     if (category == ERR_NONE)
         category = recent.category; // may still be ERR_NONE
-    if (!detail)
-        detail = recent.detail; // may still be nil
-    else if (recent.detail)
-        ErrorDetails::Merge(detail, recent.detail); // TODO: Use Merge() for the above as well?
+    ErrorDetails::Merge(detail, recent.detail); // may still be nil
 }
 
 std::ostream &
