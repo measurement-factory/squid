@@ -8,7 +8,6 @@
 
 #include "squid.h"
 #include "base/Assure.h"
-#include "Debug.h"
 #include "error/Details.h"
 #include "sbuf/SBuf.h"
 
@@ -17,8 +16,8 @@ bool
 Same(const ErrorDetail &d1, const ErrorDetail &d2)
 {
     // Duplicate details for the same error typically happen when we update some
-    // error storage (e.g., ALE) twice from the same source or when we retag the
-    // error with the same context information (e.g., WITH_CLIENT). In all those
+    // error storage (e.g., ALE) twice from the same source or retag the error
+    // with the same context information (e.g., WITH_CLIENT). In all those
     // cases, comparing detail object addresses is enough to detect duplicates.
     return &d1 == &d2;
 }
@@ -109,3 +108,4 @@ ErrorDetails::verbose(const HttpRequestPointer &request) const
     }
     return buf;
 }
+
