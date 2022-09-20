@@ -1409,7 +1409,7 @@ clientReplyContext::buildReplyHeader()
 #if USE_ADAPTATION
         // but allow adaptation services to authenticate clients
         // via request satisfaction
-        if (!http->requestSatisfactionMode())
+        if (!http->usingRequestSatisfactionEntry())
 #endif
             reply->header.delById(Http::HdrType::PROXY_AUTHENTICATE);
     }

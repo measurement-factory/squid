@@ -216,12 +216,16 @@ public:
 
 public:
     void startAdaptation(const Adaptation::ServiceGroupPointer &g);
-    bool requestSatisfactionMode() const { return request_satisfaction_mode; }
+
+    /// whether current storeEntry() is a product of a REQMOD adaptation service
+    bool usingRequestSatisfactionEntry() const { return usingRequestSatisfactionEntry_; }
 
 private:
     /// Handles an adaptation client request failure.
     /// Bypasses the error if possible, or build an error reply.
     void handleAdaptationFailure(const ErrorDetail::Pointer &errDetail, bool bypassable = false);
+
+    bool abortedRequestSatisfaction();
 
     // Adaptation::Initiator API
     virtual void noteAdaptationAnswer(const Adaptation::Answer &answer);
@@ -245,7 +249,12 @@ private:
     /// noteBodyProductionEnded() was called
     bool receivedWholeAdaptedReply;
 
-    bool request_satisfaction_mode;
+    /// whether the REQMOD response contained an HTTP response
+    bool startedRequestSatisfaction_;
+
+    /// \copydoc usingRequestSatisfactionEntry()
+    bool usingRequestSatisfactionEntry_;
+
     int64_t request_satisfaction_offset;
 #endif
 };

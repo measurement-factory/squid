@@ -163,7 +163,7 @@ ClientHttpRequest::ClientHttpRequest(ConnStateData * aConn) :
 #endif
 #if USE_ADAPTATION
     , receivedWholeAdaptedReply(false)
-    , request_satisfaction_mode(false)
+    , usingRequestSatisfactionEntry_(false)
     , request_satisfaction_offset(0)
 #endif
 {
@@ -1691,7 +1691,18 @@ ClientHttpRequest::gotEnough() const
 void
 ClientHttpRequest::storeEntry(StoreEntry *newEntry)
 {
-    entry_ = newEntry;
+    if (entry_ != newEntry) {
+#if USE_ADAPTATION
+        if (usingRequestSatisfactionEntry_) {
+            // Hopefully, the caller did storeUnregister() first so that
+            // StoreEntry::complete() inside endRequestSatisfaction() does not
+            // immediately call us back in the middle of this entry change!
+            endRequestSatisfaction(); // before we update entry_ and clear usingRequestSatisfactionEntry_!
+            usingRequestSatisfactionEntry_ = false;
+        }
+#endif
+        entry_ = newEntry; // may become nil
+    }
 }
 
 void
@@ -2067,6 +2078,7 @@ void
 ClientHttpRequest::handleAdaptedHeader(Http::Message *msg)
 {
     assert(msg);
+    assert(!startedRequestSatisfaction_);
 
     if (HttpRequest *new_req = dynamic_cast<HttpRequest*>(msg)) {
         // update the new message to flag whether URL re-writing was done on it
@@ -2076,6 +2088,7 @@ ClientHttpRequest::handleAdaptedHeader(Http::Message *msg)
         assert(request->method.id());
     } else if (HttpReply *new_rep = dynamic_cast<HttpReply*>(msg)) {
         debugs(85,3,HERE << "REQMOD reply is HTTP reply");
+        startedRequestSatisfaction_ = true;
 
         // subscribe to receive reply body
         if (new_rep->body_pipe != NULL) {
@@ -2089,7 +2102,8 @@ ClientHttpRequest::handleAdaptedHeader(Http::Message *msg)
         assert(repContext);
         repContext->createStoreEntry(request->method, request->flags);
 
-        request_satisfaction_mode = true;
+        assert(!usingRequestSatisfactionEntry_);
+        usingRequestSatisfactionEntry_ = true;
         request_satisfaction_offset = 0;
         storeEntry()->replaceHttpReply(new_rep);
         storeEntry()->timestampsSet();
@@ -2104,7 +2118,7 @@ ClientHttpRequest::handleAdaptedHeader(Http::Message *msg)
     // we are done with getting headers (but may be receiving body)
     clearAdaptation(virginHeadSource);
 
-    if (!request_satisfaction_mode)
+    if (!startedRequestSatisfaction_)
         doCallouts();
 }
 
@@ -2128,14 +2142,43 @@ ClientHttpRequest::resumeBodyStorage()
     noteMoreBodyDataAvailable(adaptedBodySource);
 }
 
+/// whether we stopped receiving a REQMOD response body (now or in the past)
+bool
+ClientHttpRequest::abortedRequestSatisfaction()
+{
+    if (!startedRequestSatisfaction_)
+        return false; // not on a request satisfaction path
+
+    if (!usingRequestSatisfactionEntry_) {
+        debugs(85, 5, "yes, some time ago; " << RawPointer("current entry", storeEntry()));
+        return true;
+    }
+
+    assert(storeEntry());
+    const auto &e = *storeEntry();
+    if (!e.isAccepting()) {
+        debugs(85, 3, "yes, now; bad entry: " << e);
+        endRequestSatisfaction(); // before we clear usingRequestSatisfactionEntry_
+        usingRequestSatisfactionEntry_ = false;
+        return true;
+    }
+
+    debugs(85, 7, "no; " << e);
+    return false;
+}
+
 void
 ClientHttpRequest::noteMoreBodyDataAvailable(BodyPipe::Pointer)
 {
-    assert(request_satisfaction_mode);
+    if (abortedRequestSatisfaction())
+        return;
+
+    assert(usingRequestSatisfactionEntry_);
     assert(adaptedBodySource != NULL);
 
     if (size_t contentSize = adaptedBodySource->buf().contentSize()) {
         const size_t spaceAvailable = storeEntry()->bytesWanted(Range<size_t>(0,contentSize));
+        debugs(85, 7, "spaceAvailable=" << spaceAvailable << " contentSize=" << contentSize << " entry: " << *storeEntry());
 
         if (spaceAvailable < contentSize ) {
             // No or partial body data consuming
@@ -2168,6 +2211,9 @@ ClientHttpRequest::noteMoreBodyDataAvailable(BodyPipe::Pointer)
 void
 ClientHttpRequest::noteBodyProductionEnded(BodyPipe::Pointer)
 {
+    if (abortedRequestSatisfaction())
+        return;
+
     assert(!virginHeadSource);
 
     // distinguish this code path from future noteBodyProducerAborted() that
@@ -2183,7 +2229,8 @@ void
 ClientHttpRequest::endRequestSatisfaction()
 {
     debugs(85,4, HERE << this << " ends request satisfaction");
-    assert(request_satisfaction_mode);
+    assert(startedRequestSatisfaction_);
+    assert(usingRequestSatisfactionEntry_);
     stopConsumingFrom(adaptedBodySource);
 
     // TODO: anything else needed to end store entry formation correctly?
@@ -2200,11 +2247,14 @@ ClientHttpRequest::endRequestSatisfaction()
 void
 ClientHttpRequest::noteBodyProducerAborted(BodyPipe::Pointer)
 {
+    if (abortedRequestSatisfaction())
+        return;
+
     assert(!virginHeadSource);
     stopConsumingFrom(adaptedBodySource);
 
     debugs(85,3, HERE << "REQMOD body production failed");
-    if (request_satisfaction_mode) { // too late to recover or serve an error
+    if (startedRequestSatisfaction_) { // too late to recover or serve an error
         static const auto d = MakeNamedErrorDetail("CLT_REQMOD_RESP_BODY");
         request->detailError(ERR_ICAP_FAILURE, d);
         const Comm::ConnectionPointer c = getConn()->clientConnection;
