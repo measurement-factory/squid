@@ -1694,10 +1694,18 @@ ClientHttpRequest::storeEntry(StoreEntry *newEntry)
     if (entry_ != newEntry) {
 #if USE_ADAPTATION
         if (usingRequestSatisfactionEntry_) {
-            // Hopefully, the caller did storeUnregister() first so that
-            // StoreEntry::complete() inside endRequestSatisfaction() does not
-            // immediately call us back in the middle of this entry change!
-            endRequestSatisfaction(); // before we update entry_ and clear usingRequestSatisfactionEntry_!
+            if (adaptedBodySource) {
+                // Hopefully, the caller did storeUnregister() first so that
+                // StoreEntry::complete() in endRequestSatisfaction() does not
+                // immediately call us back in the middle of this entry change!
+
+                // before we update entry_ and clear usingRequestSatisfactionEntry_ below
+                endRequestSatisfaction();
+            } else {
+                // the REQMOD transaction was completed some time ago, and we
+                // will just stop using the entry it created
+            }
+
             usingRequestSatisfactionEntry_ = false;
         }
 #endif
@@ -2136,7 +2144,7 @@ ClientHttpRequest::handleAdaptationBlock(const Adaptation::Answer &answer)
 void
 ClientHttpRequest::resumeBodyStorage()
 {
-    if (!adaptedBodySource)
+    if (abortedRequestSatisfaction())
         return;
 
     noteMoreBodyDataAvailable(adaptedBodySource);
@@ -2146,16 +2154,21 @@ ClientHttpRequest::resumeBodyStorage()
 bool
 ClientHttpRequest::abortedRequestSatisfaction()
 {
-    if (!startedRequestSatisfaction_)
-        return false; // not on a request satisfaction path
+    assert(startedRequestSatisfaction_);
 
     if (!usingRequestSatisfactionEntry_) {
-        debugs(85, 5, "yes, some time ago; " << RawPointer("current entry", storeEntry()));
+        debugs(85, 5, "yes, switched entry some time ago; " << RawPointer("current entry", storeEntry()));
         return true;
     }
 
     assert(storeEntry());
     const auto &e = *storeEntry();
+
+    if (!adaptedBodySource) {
+        debugs(85, 5, "yes, completed some time ago: " << e);
+        return true;
+    }
+
     if (!e.isAccepting()) {
         debugs(85, 3, "yes, now; bad entry: " << e);
         endRequestSatisfaction(); // before we clear usingRequestSatisfactionEntry_
@@ -2225,13 +2238,19 @@ ClientHttpRequest::noteBodyProductionEnded(BodyPipe::Pointer)
         endRequestSatisfaction();
 }
 
+/// stop receiving the body of the response that satisfies the request
 void
 ClientHttpRequest::endRequestSatisfaction()
 {
     debugs(85,4, HERE << this << " ends request satisfaction");
-    assert(startedRequestSatisfaction_);
-    assert(usingRequestSatisfactionEntry_);
+    assert(startedRequestSatisfaction_); // on a request satisfaction path
+
+    assert(adaptedBodySource); // still receiving the response body
     stopConsumingFrom(adaptedBodySource);
+
+    assert(usingRequestSatisfactionEntry_); // can access the current entry
+    if (storeEntry()->store_status != STORE_PENDING)
+        return; // already "completed", successfully or not
 
     // TODO: anything else needed to end store entry formation correctly?
     if (receivedWholeAdaptedReply) {
