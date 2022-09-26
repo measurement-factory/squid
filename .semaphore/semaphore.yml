@@ -1,0 +1,17 @@
+version: v1.0
+name: Initial Pipeline
+agent:
+  machine:
+    type: e1-standard-2
+    os_image: ubuntu2004
+blocks:
+  - name: Build and Install for Functionality Checks
+    task:
+      jobs:
+        - name: build_and_install_for_functionality_checks
+          commands:
+            - checkout
+            - echo build_and_install_for_functionality_checks
+        - name: check_basic_functionality
+          commands:
+            - echo check_basic_functionality
