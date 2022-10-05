@@ -2922,9 +2922,10 @@ ConnStateData::configureCertAdaptation(Ssl::CertificateProperties &cfg, ACLFille
 
 void ConnStateData::buildSslCertGenerationParams(Ssl::CertificateProperties &certProperties)
 {
-    const auto context = pipeline.front();
-    const auto http = context ? context->http : nullptr;
-    const auto request = http ? http->request : nullptr;
+    // Our caller -- getSslContextStart() -- empties the pipeline, so we use the
+    // request preserved inside sslServerBump (if any) instead of http->request.
+    // XXX: Finish TLS negotiations inside the http->request context instead!
+    const auto request = sslServerBump ? sslServerBump->request.getRaw() : nullptr;
     ACLFilledChecklist checklist(nullptr, request,
                                  clientConnection ? clientConnection->rfc931 : dash_str);
     checklist.sslErrors = sslServerBump ? cbdataReference(sslServerBump->sslErrors()) : nullptr;
