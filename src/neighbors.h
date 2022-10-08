@@ -24,6 +24,10 @@ class StoreEntry;
 class PeerSelector;
 
 CachePeer *getFirstPeer(void);
+
+/// a peerHTTPOkay() cache_peer with a given name (or nullptr)
+CachePeer *findNamedPeer(PeerSelector&, const char *name);
+
 CachePeer *getFirstUpParent(PeerSelector *);
 CachePeer *getNextPeer(CachePeer *);
 CachePeer *getSingleParent(PeerSelector *);

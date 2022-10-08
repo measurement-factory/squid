@@ -652,6 +652,9 @@ PeerSelector::selectMore()
 
     if (!entry || entry->ping_status == PING_NONE)
         selectPinned();
+
+    // TODO: Refactor this diff-reducer before merging
+    if (!selectByAnnotation()) {
     if (entry == nullptr) {
         (void) 0;
     } else if (entry->ping_status == PING_NONE) {
@@ -691,9 +694,30 @@ PeerSelector::selectMore()
 
         break;
     }
+    }
 
     // end peer selection; start resolving selected peers
     resolveSelected();
+}
+
+/// selects peers using a go_to annotation (if any) or does nothing (otherwise)
+bool
+PeerSelector::selectByAnnotation()
+{
+    if (!al || !al->notes)
+        return false;
+
+    if (const auto rawPeerNames = al->notes->findFirst("go_to")) {
+        // TODO: Support multiple peer names
+        if (const auto p = findNamedPeer(*this, rawPeerNames))
+            addSelection(p, HIER_GOTO);
+
+        // go_to=peers replaces all built-in selection algorithms rather than
+        // adding a yet another one, so we return true even if we added no peers
+        return true;
+    }
+
+    return false;
 }
 
 bool peerAllowedToUse(const CachePeer *, PeerSelector*);

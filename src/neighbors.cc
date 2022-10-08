@@ -285,6 +285,28 @@ neighborsCount(PeerSelector *ps)
 }
 
 CachePeer *
+findNamedPeer(PeerSelector &ps, const char * const name)
+{
+    for (auto p = Config.peers; p; p = p->next) {
+        if (strcmp(p->name, name) != 0)
+            continue;
+
+        if (!peerHTTPOkay(p, &ps)) {
+            debugs(15, 3, "found unusable " << p->name);
+            return nullptr;
+        }
+
+        debugs(15, 3, "found usable " << p->name);
+        return p;
+    }
+
+    // Either there is a typo in the annotation-setting configuration/helper or
+    // the named cache_peer disappeared during Squid reconfiguration.
+    debugs(15, DBG_IMPORTANT, "ERROR: No go_to cache_peer named " << name);
+    return nullptr;
+}
+
+CachePeer *
 getFirstUpParent(PeerSelector *ps)
 {
     assert(ps);

@@ -1042,6 +1042,14 @@ DOC_START
 			Please see url_rewrite_program related documentation
 			for this kv-pair.
 
+		go_to=peerA,peerB,... A comma-separated list of cache_peer names to use,
+			in the listed order, when/if forwarding this request. Providing
+			cache_peer names via this transaction annotation disables built-in peer
+			selection algorithms that normally form such a list. However, the usual
+			preconditions for using a cache_peer still apply. See always_direct,
+			cache_peer_access, cache_peer connect-fail-limit=N, and cache_peer
+			max-conn=N for some of those still-applicable checks.
+
 	Any keywords may be sent on any response whether OK, ERR or BH.
 
 	All response keyword values need to be a single token with URL
