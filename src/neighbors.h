@@ -26,7 +26,7 @@ class PeerSelector;
 CachePeer *getFirstPeer(void);
 
 /// a peerHTTPOkay() cache_peer with a given name (or nullptr)
-CachePeer *findNamedPeer(PeerSelector&, const char *name);
+CachePeer *findNamedPeer(PeerSelector&, const SBuf &name);
 
 CachePeer *getFirstUpParent(PeerSelector *);
 CachePeer *getNextPeer(CachePeer *);

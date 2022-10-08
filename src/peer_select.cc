@@ -35,6 +35,7 @@
 #include "PeerSelectState.h"
 #include "SquidConfig.h"
 #include "Store.h"
+#include "StrList.h"
 #include "time/gadgets.h"
 
 /**
@@ -708,9 +709,18 @@ PeerSelector::selectByAnnotation()
         return false;
 
     if (const auto rawPeerNames = al->notes->findFirst("go_to")) {
-        // TODO: Support multiple peer names
-        if (const auto p = findNamedPeer(*this, rawPeerNames))
-            addSelection(p, HIER_GOTO);
+
+        // iterate through peer names
+        // XXX: Avoid deprecated and slow String. Add SBuf-based item iterator.
+        const String peerNames = rawPeerNames;
+        const char *item = nullptr;
+        const char *pos = nullptr;
+        int ilen = 0;
+        while (strListGetItem(&peerNames, ',', &item, &ilen, &pos)) {
+            const SBuf name(item, ilen);
+            if (const auto peer = findNamedPeer(*this, name))
+                addSelection(peer, HIER_GOTO);
+        }
 
         // go_to=peers replaces all built-in selection algorithms rather than
         // adding a yet another one, so we return true even if we added no peers

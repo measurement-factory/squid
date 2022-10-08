@@ -285,10 +285,10 @@ neighborsCount(PeerSelector *ps)
 }
 
 CachePeer *
-findNamedPeer(PeerSelector &ps, const char * const name)
+findNamedPeer(PeerSelector &ps, const SBuf &name)
 {
     for (auto p = Config.peers; p; p = p->next) {
-        if (strcmp(p->name, name) != 0)
+        if (name.cmp(p->name) != 0)
             continue;
 
         if (!peerHTTPOkay(p, &ps)) {
