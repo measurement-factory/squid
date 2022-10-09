@@ -703,15 +703,15 @@ PeerSelector::selectMore()
 }
 
 /// cache_peer selection methods. The absolute values are not important.
-/// Currently, this enum only contains values supported by
-/// PeerSelector::selectByAnnotation().
+/// Currently, this enum only contains values supported by the go_to_how feature
+/// of PeerSelector::selectByAnnotation().
 using PeerSelectionMethod = enum {
     psmFirstUp,
     psmRoundRobin
 };
 
-/// Parses a cache_peer selection method name, treating a nil name as "default".
-/// The current support is limited to methods supported by selectByAnnotation().
+/// Parses a cache_peer method algorithm name, treating a nil name as "default".
+/// The current support is limited to methods supported by go_to_how=name.
 static PeerSelectionMethod
 PeerSelectionMethodFromName(const char * const methodName)
 {
