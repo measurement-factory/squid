@@ -350,17 +350,12 @@ getRoundRobinParent(PeerSelector *ps)
         if (!peerHTTPOkay(p, ps))
             continue;
 
+        // TODO: Here and elsewhere, stop checking for impossible weight values.
         if (p->weight == 0)
             continue;
 
-        if (q) {
-            if (p->weight == q->weight) {
-                if (q->rr_count < p->rr_count)
-                    continue;
-            } else if ( ((double) q->rr_count / q->weight) < ((double) p->rr_count / p->weight)) {
-                continue;
-            }
-        }
+        if (q && q->lessUsedThan(*p))
+            continue;
 
         q = p;
     }

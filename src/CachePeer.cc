@@ -55,3 +55,12 @@ CachePeer::connectTimeout() const
     return Config.Timeout.peer_connect;
 }
 
+bool
+CachePeer::lessUsedThan(const CachePeer &them) const
+{
+    if (this->weight == them.weight)
+        return this->rr_count < them.rr_count;
+    else
+        return this->weightedRrCount() < them.weightedRrCount();
+}
+

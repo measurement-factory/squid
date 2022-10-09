@@ -35,6 +35,10 @@ public:
     /// \returns the effective connect timeout for the given peer
     time_t connectTimeout() const;
 
+    /// whether a round-robin algorithm prefers us to the given peer, including
+    /// any configured weight=N bias
+    bool lessUsedThan(const CachePeer &) const;
+
     u_int index = 0;
     char *name = nullptr;
     char *host = nullptr;
@@ -197,6 +201,13 @@ public:
 
     int front_end_https = 0; ///< 0 - off, 1 - on, 2 - auto
     int connection_auth = 2; ///< 0 - off, 1 - on, 2 - auto
+
+protected:
+    /// round-robin access counter adjusted for this cache_peer weight
+    double weightedRrCount() const
+    {
+        return static_cast<double>(rr_count) / weight;
+    }
 };
 
 #endif /* SQUID_CACHEPEER_H_ */

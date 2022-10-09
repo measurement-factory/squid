@@ -33,6 +33,7 @@
 #include "peer_sourcehash.h"
 #include "peer_userhash.h"
 #include "PeerSelectState.h"
+#include "sbuf/Stream.h"
 #include "SquidConfig.h"
 #include "Store.h"
 #include "StrList.h"
@@ -701,7 +702,28 @@ PeerSelector::selectMore()
     resolveSelected();
 }
 
+/// cache_peer selection methods. The absolute values are not important.
+/// Currently, this enum only contains values supported by
+/// PeerSelector::selectByAnnotation().
+using PeerSelectionMethod = enum {
+    psmFirstUp,
+    psmRoundRobin
+};
+
+/// Parses a cache_peer selection method name, treating a nil name as "default".
+/// The current support is limited to methods supported by selectByAnnotation().
+static PeerSelectionMethod
+PeerSelectionMethodFromName(const char * const methodName)
+{
+    if (!methodName || strcmp(methodName, "default") == 0)
+        return psmFirstUp;
+    if (strcmp(methodName, "round-robin") == 0)
+        return psmRoundRobin;
+    throw TextException(ToSBuf("unsupported cache_peer selection method: go_to_how=", methodName), Here());
+}
+
 /// selects peers using a go_to annotation (if any) or does nothing (otherwise)
+/// \returns whether this call ends peer selection
 bool
 PeerSelector::selectByAnnotation()
 {
@@ -709,6 +731,12 @@ PeerSelector::selectByAnnotation()
         return false;
 
     if (const auto rawPeerNames = al->notes->findFirst("go_to")) {
+
+        const auto algorithmNameOrNil = al->notes->findFirst("go_to_how");
+        const auto algorithm = PeerSelectionMethodFromName(algorithmNameOrNil);
+        debugs(44, 5, rawPeerNames << " how=" << algorithm);
+
+        CachePeer *bestSoFar = nullptr;
 
         // iterate through peer names
         // XXX: Avoid deprecated and slow String. Add SBuf-based item iterator.
@@ -718,8 +746,27 @@ PeerSelector::selectByAnnotation()
         int ilen = 0;
         while (strListGetItem(&peerNames, ',', &item, &ilen, &pos)) {
             const SBuf name(item, ilen);
-            if (const auto peer = findNamedPeer(*this, name))
-                addSelection(peer, HIER_GOTO);
+            if (const auto peer = findNamedPeer(*this, name)) {
+                switch (algorithm) {
+                case psmFirstUp:
+                    addSelection(peer, HIER_GOTO);
+                    return true;
+                case psmRoundRobin:
+                    // TODO: Either simplify or explain why same-use peer should
+                    // replace bestSoFar (here and in getRoundRobinParent()).
+                    if (!bestSoFar || !bestSoFar->lessUsedThan(*peer))
+                        bestSoFar = peer;
+                    break; // but keep looping
+                }
+                assert(bestSoFar);
+                debugs(44, 5, "bestSoFar: " << bestSoFar->name << " rr_count=" << bestSoFar->rr_count << '/' << bestSoFar->weight);
+            }
+        }
+
+        if (const auto bestOverall = bestSoFar) {
+            if (algorithm == psmRoundRobin)
+                ++bestOverall->rr_count;
+            addSelection(bestSoFar, HIER_GOTO);
         }
 
         // go_to=peers replaces all built-in selection algorithms rather than

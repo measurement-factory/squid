@@ -3666,6 +3666,7 @@ DOC_START
 			peer-selection mechanisms.
 			The weight must be an integer; default is 1,
 			larger weights are favored more.
+			Negative and zero weights are silently converted to 1.
 			This option does not affect parent selection if a peering
 			protocol is not in use.
 
