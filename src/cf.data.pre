@@ -1055,34 +1055,27 @@ DOC_START
 	    If the go_to list is empty or if each named cache_peer fails the above
 	    preconditions, then request forwarding fails.
 
-	    The cache_peer use order is determined by the optional go_to_how
-	    annotation.
+	    When multiple named cache_peers are used due to reforwarding attempts,
+	    their use order is determined by the optional go_to_how annotation. By
+	    default, cache_peers are used in the go_to listing order.
 
-	  go_to_how=method A cache_peer selection method name. Two method names are
-	  currently supported:
+	  go_to_how=algorithm How to use cache_peers named in a go_to annotation.
+	    Please see the go_to annotation for the preconditions that are used to
+	    filter named peers before applying the specified algorithm:
 
-	    "default": Selects the first usable go_to cache_peer, in their naming
-	    order. If the selection fails (i.e. go_to named no cache_peers, all the
-	    named cache_peers are denied or deemed unsuitable for the current
-	    transaction), then forwarding fails. If the selected cache_peer fails,
-	    then no other cache_peer is tried. XXX: This is not what admins want!
-	    They want "all usable named cache_peers" instead of "the first one".
+	    "as-ordered": Uses named peers in their go_to naming order. Squid uses
+	    this algorithm when the go_to annotation lacks a go_to_how annotation.
 
-	    "round-robin": Selects the first usable named go_to cache_peer, in rough
-	    round-robin order (i.e. the least used cache_peer among the usable ones
-	    is selected). A cache_peer weight option (if any) is honored. The
-	    cache_peer does not have to be configured with a round-robin option.
-	    XXX: This is not what admins want! They want "all usable named
-	    cache_peers" instead of "the first one".
+	    "least-used": Uses named peers ordered by their approximate use count,
+	    with the least used cache_peer placed first. For a given isolated stable
+	    group of go_to peers, the end result should resemble a round-robin
+	    cache_peer selection. A cache_peer with weight=W increments its use
+	    count by 1/W (instead of by 1), allowing "heavyweight" peers to be
+	    reused more often than "lightweight" ones.
 
-	    If the selection fails (i.e. go_to named no cache_peers, all the named
-	    cache_peers are denied or deemed unsuitable for the current
-	    transaction), then forwarding fails. If the selected cache_peer fails,
-	    then no other cache_peer is tried.
-
-	    If this annotation is returned without a go_to annotation, then Squid
-	    currently does not treat this annotation specially, but future Squid
-	    versions may start complain (at least) about such bare go_to_how notes.
+	    If a transactions is annotated with go_to_how but without go_to, then
+	    Squid does not treat the bare go_to_how annotation specially today, but
+	    that behavior may change without notice.
 
 	Any keywords may be sent on any response whether OK, ERR or BH.
 

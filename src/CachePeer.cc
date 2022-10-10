@@ -55,12 +55,20 @@ CachePeer::connectTimeout() const
     return Config.Timeout.peer_connect;
 }
 
+// TODO: Now that we have correct comparison, fix peerClearRR() to reset
+// rr_count to 0 (and stop calling it at startup) without recreating bug 4065.
 bool
 CachePeer::lessUsedThan(const CachePeer &them) const
 {
-    if (this->weight == them.weight)
-        return this->rr_count < them.rr_count;
-    else
-        return this->weightedRrCount() < them.weightedRrCount();
+    const auto thisUsed = this->weightedRrCount();
+    const auto themUsed = them.weightedRrCount();
+
+    if (thisUsed == themUsed) {
+        if (this->weight == them.weight)
+            return this->index < them.index; // guarantee stable order
+        return this->weight > them.weight; // heavyweight bias
+    }
+
+    return thisUsed < themUsed;
 }
 

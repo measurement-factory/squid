@@ -705,21 +705,21 @@ PeerSelector::selectMore()
 /// cache_peer selection methods. The absolute values are not important.
 /// Currently, this enum only contains values supported by the go_to_how feature
 /// of PeerSelector::selectByAnnotation().
-using PeerSelectionMethod = enum {
-    psmFirstUp,
-    psmRoundRobin
+using GotToHowAlgorithm = enum {
+    psaAsOrdered,
+    psmLeastUsed
 };
 
-/// Parses a cache_peer method algorithm name, treating a nil name as "default".
+/// Parses algorithm name in a go_to_how=name annotation  method algorithm name, treating a nil name as "default".
 /// The current support is limited to methods supported by go_to_how=name.
-static PeerSelectionMethod
-PeerSelectionMethodFromName(const char * const methodName)
+static GotToHowAlgorithm
+GotToHowAlgorithmFromName(const char * const algorithmName)
 {
-    if (!methodName || strcmp(methodName, "default") == 0)
-        return psmFirstUp;
-    if (strcmp(methodName, "round-robin") == 0)
-        return psmRoundRobin;
-    throw TextException(ToSBuf("unsupported cache_peer selection method: go_to_how=", methodName), Here());
+    if (!algorithmName || strcmp(algorithmName, "as-ordered") == 0)
+        return psaAsOrdered;
+    if (strcmp(algorithmName, "least-used") == 0)
+        return psmLeastUsed;
+    throw TextException(ToSBuf("unsupported algorithm in go_to_how=", algorithmName), Here());
 }
 
 /// selects peers using a go_to annotation (if any) or does nothing (otherwise)
@@ -733,12 +733,12 @@ PeerSelector::selectByAnnotation()
     if (const auto rawPeerNames = al->notes->findFirst("go_to")) {
 
         const auto algorithmNameOrNil = al->notes->findFirst("go_to_how");
-        const auto algorithm = PeerSelectionMethodFromName(algorithmNameOrNil);
+        const auto algorithm = GotToHowAlgorithmFromName(algorithmNameOrNil);
         debugs(44, 5, rawPeerNames << " how=" << algorithm);
 
-        CachePeer *bestSoFar = nullptr;
 
-        // iterate through peer names
+        // collect all named peers, in naming order, by iterating through names
+        std::deque<CachePeer*> selected; // TODO: Add Allocator
         // XXX: Avoid deprecated and slow String. Add SBuf-based item iterator.
         const String peerNames = rawPeerNames;
         const char *item = nullptr;
@@ -746,27 +746,22 @@ PeerSelector::selectByAnnotation()
         int ilen = 0;
         while (strListGetItem(&peerNames, ',', &item, &ilen, &pos)) {
             const SBuf name(item, ilen);
-            if (const auto peer = findNamedPeer(*this, name)) {
-                switch (algorithm) {
-                case psmFirstUp:
-                    addSelection(peer, HIER_GOTO);
-                    return true;
-                case psmRoundRobin:
-                    // TODO: Either simplify or explain why same-use peer should
-                    // replace bestSoFar (here and in getRoundRobinParent()).
-                    if (!bestSoFar || !bestSoFar->lessUsedThan(*peer))
-                        bestSoFar = peer;
-                    break; // but keep looping
-                }
-                assert(bestSoFar);
-                debugs(44, 5, "bestSoFar: " << bestSoFar->name << " rr_count=" << bestSoFar->rr_count << '/' << bestSoFar->weight);
-            }
+            if (const auto peer = findNamedPeer(*this, name))
+                selected.push_back(peer);
+        }
+        debugs(44, 7, "usable peers: " << selected.size());
+
+        if (algorithm == psmLeastUsed) {
+            sort(selected.begin(), selected.end(), [](CachePeer *a, CachePeer *b) {
+                return a->lessUsedThan(*b);
+            });
+            if (!selected.empty())
+                ++selected[0]->rr_count; // TODO: The others are counted if used (during reforwarding)
         }
 
-        if (const auto bestOverall = bestSoFar) {
-            if (algorithm == psmRoundRobin)
-                ++bestOverall->rr_count;
-            addSelection(bestSoFar, HIER_GOTO);
+        for (const auto peer: selected) {
+            debugs(44, 5, "XXX peer: " << peer->name << " rr_count=" << peer->rr_count << '/' << peer->weight);
+            addSelection(peer, HIER_GOTO);
         }
 
         // go_to=peers replaces all built-in selection algorithms rather than
