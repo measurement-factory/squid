@@ -755,8 +755,16 @@ PeerSelector::selectByAnnotation()
             sort(selected.begin(), selected.end(), [](CachePeer *a, CachePeer *b) {
                 return a->lessUsedThan(*b);
             });
-            if (!selected.empty())
-                ++selected[0]->rr_count; // TODO: The others are counted if used (during reforwarding)
+
+            if (!selected.empty()) {
+                // Do not increment rr_count of the other selected peers, if
+                // any, because those spare peers are unlikely to be actually
+                // used. TODO: Do we want or need to increment it, despite the
+                // fact that built-in peer selection algorithms do not increment
+                // it for _used_ options.roundrobin peers if those peers were
+                // selected by an algorithm other than getRoundRobinParent()?
+                ++(selected[0]->rr_count);
+            }
         }
 
         for (const auto peer: selected) {
