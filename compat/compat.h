@@ -96,6 +96,14 @@
 /* POSIX statvfs() is still not universal */
 #include "compat/statvfs.h"
 
+// XXX: Move to compat/time.h
+#if HAVE_TIME_H
+#include <time.h>
+#endif
+#ifndef HAVE_TIMEGM
+extern "C" time_t timegm(const struct *tm);
+#endif
+
 /*****************************************************/
 /* component-specific portabilities                  */
 /*****************************************************/

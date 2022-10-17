@@ -1401,7 +1401,15 @@ void Ssl::InRamCertificateDbKey(const Ssl::CertificateProperties &certProperties
         // Use common name instead
         key.append(certProperties.commonName.c_str());
     }
+
+    // XXX: Prefix each key component with its length. Currently, both keys for
+    // two two-component inputs "a","bc" and "ab","c" are spelled "abc"!
+    // Alternatively, we can refactor to use CertificateProperties as a key.
+    if (certProperties.setValidityRange)
+        key.append(certProperties.validityRange.data(), certProperties.validityRange.length());
+
     key.append(certProperties.setCommonName ? '1' : '0');
+    key.append(certProperties.setValidityRange ? '1' : '0');
     key.append(certProperties.setValidAfter ? '1' : '0');
     key.append(certProperties.setValidBefore ? '1' : '0');
     key.append(certProperties.signAlgorithm != Ssl:: algSignEnd ? certSignAlgorithm(certProperties.signAlgorithm) : "-");

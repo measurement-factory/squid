@@ -62,6 +62,7 @@
 #include "rfc1738.h"
 #include "sbuf/List.h"
 #include "sbuf/Stream.h"
+#include "security/Time.h"
 #include "SquidConfig.h"
 #include "SquidString.h"
 #include "ssl/ProxyCerts.h"
@@ -4301,6 +4302,30 @@ static void parse_sslproxy_cert_adapt(sslproxy_cert_adapt **cert_adapt)
             }
             ca->param = xstrdup(param);
         }
+    } else if (strcmp(al, Ssl::CertAdaptAlgorithmStr[Ssl::algSetValidityRange]) == 0) {
+        ca->alg = Ssl::algSetValidityRange;
+
+        const auto reject = [](const char * const error, const char * const detail = "") {
+            throw TextException(ToSBuf(error, detail), Here());
+        };
+        if (!param)
+            reject("setValidityRange is missing required {from,to} parameters");
+
+        // TODO: Use Tokenizer after upgrading sslproxy_cert_adapt from a POD.
+        if (const auto comma = strchr(param, ',')) {
+            ca->param = xstrdup(param);
+            ca->param1 = xstrndup(param, comma - param + 1);
+            ca->param2 = xstrdup(comma + 1);
+        } else {
+            reject("setValidityRange is missing a comma between {from,to} parameters", param);
+        }
+
+        // TODO: Upgrade sslproxy_cert_adapt from a POD and store these there.
+        const auto from = Security::ParseTime(ca->param1, "setValidityRange 'from' parameter");
+        const auto to = Security::ParseTime(ca->param2, "setValidityRange 'to' parameter");
+        if (*to < *from)
+            reject("setValidityRange 'from' parameter is greater than 'to': ", param);
+        CheckValidityRangeFreshness(*ca, *from, *to);
     } else {
         debugs(3, DBG_CRITICAL, "FATAL: sslproxy_cert_adapt: unknown cert adaptation algorithm: " << al);
         self_destruct();

@@ -113,6 +113,7 @@
 #include "security/Io.h"
 #include "security/KeyLog.h"
 #include "security/NegotiationHistory.h"
+#include "security/Time.h"
 #include "servers/forward.h"
 #include "SquidConfig.h"
 #include "StatCounters.h"
@@ -2660,10 +2661,7 @@ void ConnStateData::buildSslCertGenerationParams(Ssl::CertificateProperties &cer
         fillChecklist(checklist);
 
         for (sslproxy_cert_adapt *ca = Config.ssl_client.cert_adapt; ca != nullptr; ca = ca->next) {
-            // If the algorithm already set, then ignore it.
-            if ((ca->alg == Ssl::algSetCommonName && certProperties.setCommonName) ||
-                    (ca->alg == Ssl::algSetValidAfter && certProperties.setValidAfter) ||
-                    (ca->alg == Ssl::algSetValidBefore && certProperties.setValidBefore) )
+            if (certProperties.skipRule(ca->alg))
                 continue;
 
             if (ca->aclList && checklist.fastCheck(ca->aclList).allowed()) {
@@ -2677,6 +2675,12 @@ void ConnStateData::buildSslCertGenerationParams(Ssl::CertificateProperties &cer
                         param = tlsConnectHostOrIp.c_str();
                     certProperties.commonName = param;
                     certProperties.setCommonName = true;
+                } else if (ca->alg == Ssl::algSetValidityRange) {
+                    certProperties.validityRange = param;
+                    certProperties.validityRangeFrom = Security::ParseTime(ca->param1, "validityRangeFrom");
+                    certProperties.validityRangeTo = Security::ParseTime(ca->param2, "validityRangeTo");
+                    certProperties.setValidityRange = true;
+                    CheckValidityRangeFreshness(*ca, *certProperties.validityRangeFrom, *certProperties.validityRangeTo);
                 } else if (ca->alg == Ssl::algSetValidAfter)
                     certProperties.setValidAfter = true;
                 else if (ca->alg == Ssl::algSetValidBefore)

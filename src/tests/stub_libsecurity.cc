@@ -149,5 +149,11 @@ void SetSessionResumeData(const Security::SessionPointer &, const Security::Sess
 void SetSessionCacheCallbacks(Security::ContextPointer &) STUB
 Security::SessionPointer NewSessionObject(const Security::ContextPointer &) STUB_RETVAL(nullptr)
 #endif
+
 } // namespace Security
+
+#include "security/Time.h"
+Security::TimePointer Security::ParseTime(const char *, const char *) STUB_RETVAL(nullptr)
+time_t Security::ToPosixTime(const Security::Time &) STUB_RETVAL(0)
+bool operator <(const Security::Time &, const Security::Time &) STUB_RETVAL(false)
 

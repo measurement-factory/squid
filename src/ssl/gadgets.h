@@ -198,7 +198,13 @@ inline CertSignAlgorithm certSignAlgorithmId(const char *sg)
  \ingroup SslCrtdSslAPI
  * Supported certificate adaptation algorithms
  */
-enum CertAdaptAlgorithm {algSetValidAfter = 0, algSetValidBefore, algSetCommonName, algSetEnd};
+enum CertAdaptAlgorithm {
+    algSetValidAfter = 0,
+    algSetValidBefore,
+    algSetCommonName,
+    algSetValidityRange,
+    algSetEnd
+};
 
 /**
  \ingroup SslCrtdSslAPI
@@ -232,9 +238,18 @@ public:
     bool setValidAfter; ///< Do not mimic "Not Valid After" field
     bool setValidBefore; ///< Do not mimic "Not Valid Before" field
     bool setCommonName; ///< Replace the CN field of the mimicking subject with the given
+    bool setValidityRange; ///< Set "Not Valid Before/After" fields to validityRange
     std::string commonName; ///< A CN to use for the generated certificate
+    std::string validityRange; ///< configured setValidityRange parameters
+    Security::TimePointer validityRangeFrom; ///< setValidityRange 'from'
+    Security::TimePointer validityRangeTo; ///< setValidityRange 'to'
     CertSignAlgorithm signAlgorithm; ///< The signing algorithm to use
     const EVP_MD *signHash; ///< The signing hash to use
+
+    /// whether the given algorithm rule should be ignored (e.g., because an
+    /// earlier same-algorithm rule has already been applied to this task)
+    bool skipRule(int algorithm) const;
+
 private:
     CertificateProperties(CertificateProperties &);
     CertificateProperties &operator =(CertificateProperties const &);
@@ -259,14 +274,6 @@ bool generateSslCertificate(Security::CertPointer & cert, Security::PrivateKeyPo
  * return false.
 */
 bool sslDateIsInTheFuture(char const * date);
-
-/**
- \ingroup SslCrtdSslAPI
- * Check if the major fields of a certificates matches the properties given by
- * a CertficateProperties object
- \return true if the certificates matches false otherwise.
-*/
-bool certificateMatchesProperties(X509 *peer_cert, CertificateProperties const &properties);
 
 /**
    \ingroup ServerProtocolSSLAPI

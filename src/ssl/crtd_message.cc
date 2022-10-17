@@ -177,6 +177,61 @@ void Ssl::CrtdMessage::composeBody(CrtdMessage::BodyParams const & map, std::str
         body += '\n' + other_part;
 }
 
+// XXX: Duplicates Security::ParseTime(). TODO: Allow helpers to use src/base+.
+static std::unique_ptr<Security::Time>
+parseTime(const std::string generalizedTime, std::string &error)
+{
+    std::unique_ptr<ASN1_TIME> t(ASN1_TIME_set(nullptr, 0));
+    if (!t) {
+        error = "ASN1_TIME_set() failed to allocate an ASN1_TIME structure";
+        return nullptr;
+    }
+#if HAVE_LIBCRYPTO_ASN1_TIME_SET_STRING
+    if (!ASN1_TIME_set_string(t.get(), generalizedTime.c_str())) {
+        error = "ASN1_TIME_set_string() failed to parse ";
+        error += generalizedTime;
+        return nullptr;
+    }
+    return t;
+#else
+    error = "Need OpenSSL version providing ASN1_TIME_set_string() to parse helper messages with setValidityRange parameters";
+    return nullptr;
+#endif
+}
+
+// This helper parser is not an Ssl::CertificateProperties method because
+// primary Squid code uses (and must use) a different parser to properly report
+// configuration errors (see parse_sslproxy_cert_adapt). We cannot reuse that
+// different parser here because that parser relies on src/base and other
+// primary Squid code not (yet) accessible in helpers. If we make this code a
+// method, then the primary Squid code will be tempted to reuse it instead of
+// parse_sslproxy_cert_adapt() with its proper error reporting.
+static bool
+parseValidityRange(Ssl::CertificateProperties &certProperties, std::string &error)
+{
+    const auto &params = certProperties.validityRange;
+
+    // Unlike parse_sslproxy_cert_adapt() that deals with human input, we
+    // receive trusted requests formed by Squid (from validated configuration),
+    // so we only check what is necessary to parse/de-serialize the parameters.
+    const auto comma = params.find(',');
+    if (comma == std::string::npos) {
+        error = Ssl::CrtdMessage::param_SetValidityRange;
+        error += " parameter value is missing a comma between to and from";
+        return false;
+    }
+
+    certProperties.validityRangeFrom = parseTime(params.substr(0, comma), error);
+    if (!certProperties.validityRangeFrom)
+        return false;
+
+    certProperties.validityRangeTo = parseTime(params.substr(comma+1), error);
+    if (!certProperties.validityRangeTo)
+        return false;
+
+    return true;
+}
+
 void
 Ssl::CrtdMessage::parseRequest(CertificateProperties &certProperties)
 {
@@ -203,6 +258,18 @@ Ssl::CrtdMessage::parseRequest(CertificateProperties &certProperties)
         // defined with host or Common Name from mimic cert
         certProperties.commonName = i->second;
         certProperties.setCommonName = true;
+    }
+
+    // XXX: Reject unknown parameters
+    i = map.find(Ssl::CrtdMessage::param_SetValidityRange);
+    if (i != map.end()) {
+        certProperties.validityRange = i->second;
+        std::string error; // TODO: Throw deeper when upporting!
+        if (!parseValidityRange(certProperties, error)) {
+            throw TextException(ToSBuf("Bad validity range: ", certProperties.validityRange,
+                                       Debug::Extra, "parsing error: ", error), Here());
+        }
+        certProperties.setValidityRange = true;
     }
 
     i = map.find(Ssl::CrtdMessage::param_Sign);
@@ -238,6 +305,8 @@ void Ssl::CrtdMessage::composeRequest(Ssl::CertificateProperties const &certProp
     body = Ssl::CrtdMessage::param_host + "=" + certProperties.commonName;
     if (certProperties.setCommonName)
         body +=  "\n" + Ssl::CrtdMessage::param_SetCommonName + "=" + certProperties.commonName;
+    if (certProperties.setValidityRange)
+        body +=  "\n" + Ssl::CrtdMessage::param_SetValidityRange + "=" + certProperties.validityRange;
     if (certProperties.setValidAfter)
         body +=  "\n" + Ssl::CrtdMessage::param_SetValidAfter + "=on";
     if (certProperties.setValidBefore)
@@ -262,6 +331,7 @@ const std::string Ssl::CrtdMessage::param_host("host");
 const std::string Ssl::CrtdMessage::param_SetValidAfter(Ssl::CertAdaptAlgorithmStr[algSetValidAfter]);
 const std::string Ssl::CrtdMessage::param_SetValidBefore(Ssl::CertAdaptAlgorithmStr[algSetValidBefore]);
 const std::string Ssl::CrtdMessage::param_SetCommonName(Ssl::CertAdaptAlgorithmStr[algSetCommonName]);
+const std::string Ssl::CrtdMessage::param_SetValidityRange(Ssl::CertAdaptAlgorithmStr[algSetValidityRange]);
 const std::string Ssl::CrtdMessage::param_Sign("Sign");
 const std::string Ssl::CrtdMessage::param_SignHash("SignHash");
 

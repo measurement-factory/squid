@@ -42,6 +42,9 @@ Ssl::LocalContextStorage *Ssl::GlobalContextStorage::getLocalStorage(Ip::Address
 void Ssl::GlobalContextStorage::reconfigureStart() STUB
 //Ssl::GlobalContextStorage Ssl::TheGlobalContextStorage;
 
+#include "ssl/ProxyCerts.h"
+void CheckValidityRangeFreshness(sslproxy_cert_adapt &, const Security::Time &, const Security::Time &) STUB
+
 #include "ssl/ErrorDetail.h"
 #include "ssl/support.h"
 namespace Ssl

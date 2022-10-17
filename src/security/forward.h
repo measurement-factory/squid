@@ -212,6 +212,17 @@ void OpenLogs(); ///< opens logs enabled in the current configuration
 void RotateLogs(); ///< rotates logs opened by OpenLogs()
 void CloseLogs(); ///< closes logs opened by OpenLogs()
 
+// TODO: Sync with Security::Certificate PRs
+#if USE_OPENSSL
+using Time = ASN1_TIME;
+#elif USE_GNUTLS
+using Time = class {}; // TODO: Add support
+#else
+using Time = class {};
+#endif
+
+using TimePointer = std::unique_ptr<Time>;
+
 } // namespace Security
 
 /// Squid-specific TLS handling errors (a subset of ErrorCode)
