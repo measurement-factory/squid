@@ -17,6 +17,10 @@
 #include "HttpReply.h"
 #include "HttpRequest.h"
 #include "parser/Tokenizer.h"
+#include "sbuf/SBuf.h"
+#include "sbuf/Stream.h"
+#include "sbuf/StringConvert.h"
+#include "parser/Tokenizer.h"
 #include "sbuf/Stream.h"
 #include "sbuf/StringConvert.h"
 #include "SquidConfig.h"
@@ -305,6 +309,7 @@ NotePairs::findFirst(const char *noteKey) const
 void
 NotePairs::add(const char *key, const char *note)
 {
+    debugs(93, 7, key << '=' << note << " at " << entries.size());
     entries.push_back(new NotePairs::Entry(key, note));
 }
 
@@ -359,6 +364,47 @@ void
 NotePairs::addStrList(const SBuf &key, const SBuf &values, const CharacterSet &delimiters)
 {
     AppendTokens(entries, key, values, delimiters);
+}
+
+void
+NotePairs::importFromHelper(const SBuf &rawNotes)
+{
+    // XXX: Reduce code duplication with Notes::parse()
+    Parser::Tokenizer tok(rawNotes);
+    while (!tok.atEnd()) {
+        static const auto nameChars = (
+            CharacterSet::ALPHA +
+            CharacterSet::DIGIT +
+            CharacterSet("other", "-._")
+        ).rename("helper-note-name");
+
+        static const auto valueChars = (
+            CharacterSet::WSP +
+            CharacterSet("comma", ",") // we do not support CSVs (yet?)
+        ).complement("helper-note-value");
+
+        SBuf name;
+        if (!tok.prefix(name, nameChars))
+            throw TextException(ToSBuf("malformed from-helper annotation name near: ", tok.remaining()), Here());
+
+        if (!tok.skip('='))
+            throw TextException(ToSBuf("missing '=' after from-helper annotation near: ", tok.remaining()), Here());
+
+        SBuf value;
+        if (!tok.prefix(value, valueChars))
+            throw TextException(ToSBuf("malformed from-helper annotation value: ", tok.remaining()), Here());
+
+        const auto start = value.at(0);
+        if (start == '"' || start == '`' || start == '\'' || start == '\\')
+            throw TextException(ToSBuf("unsupported complex from-helper annotation value near: ", value), Here());
+
+        if (!tok.atEnd() && !tok.skipAll(CharacterSet::WSP))
+            throw TextException(ToSBuf("from-helper annotation missing whitespace after name=value near: ", tok.remaining()), Here());
+
+        // TODO: reject blacklisted names?
+        remove(name.c_str()); // overwrite same-name values, if any
+        add(name.c_str(), value.c_str());
+    }
 }
 
 bool

@@ -15,7 +15,8 @@ Ssl::Config::Config():
 #if USE_SSL_CRTD
     ssl_crtd(NULL),
 #endif
-    ssl_crt_validator(NULL)
+    ssl_crt_validator(nullptr),
+    ssl_crt_validator_extras(nullptr)
 {
     ssl_crt_validator_Children.concurrency = 1;
 }
@@ -26,5 +27,6 @@ Ssl::Config::~Config()
     xfree(ssl_crtd);
 #endif
     xfree(ssl_crt_validator);
+    xfree(ssl_crt_validator_extras);
 }
 
