@@ -7,7 +7,10 @@
  */
 
 #include "squid.h"
+#include "acl/Checklist.h"
+#include "SquidConfig.h"
 #include "ssl/gadgets.h"
+#include "ssl/ProxyCerts.h"
 
 static Security::PrivateKeyPointer
 CreateRsaPrivateKey()
@@ -189,6 +192,7 @@ const char *Ssl::CertAdaptAlgorithmStr[] = {
     "setValidAfter",
     "setValidBefore",
     "setCommonName",
+    "setValidityRange",
     NULL
 };
 
@@ -196,9 +200,30 @@ Ssl::CertificateProperties::CertificateProperties():
     setValidAfter(false),
     setValidBefore(false),
     setCommonName(false),
+    setValidityRange(false),
     signAlgorithm(Ssl::algSignEnd),
     signHash(NULL)
 {}
+
+bool
+Ssl::CertificateProperties::skipRule(const int algorithm) const
+{
+    switch (algorithm) {
+    case Ssl::algSetValidAfter:
+        return setValidAfter || setValidityRange;
+    case Ssl::algSetValidBefore:
+        return setValidBefore || setValidityRange;
+    case Ssl::algSetCommonName:
+        return setCommonName;
+    case Ssl::algSetValidityRange:
+        return setValidityRange || setValidAfter || setValidBefore;
+    case Ssl::algSetEnd:
+    default:
+        break;
+    }
+    assert(!"invalid or mishandled CertAdaptAlgorithm value");
+    return false; // unreachable
+}
 
 static void
 printX509Signature(const Security::CertPointer &cert, std::string &out)
@@ -237,6 +262,11 @@ Ssl::OnDiskCertificateDbKey(const Ssl::CertificateProperties &properties)
     if (properties.setCommonName) {
         certKey.append("+SetCommonName=", 15);
         certKey.append(properties.commonName);
+    }
+
+    if (properties.setValidityRange) {
+        certKey.append("+SetValidityRange=", 18);
+        certKey.append(properties.validityRange);
     }
 
     if (properties.signAlgorithm != Ssl::algSignEnd) {
@@ -476,8 +506,8 @@ static bool buildCertificate(Security::CertPointer & cert, Ssl::CertificatePrope
     // fields from caCert.
     // Currently there is not any way in openssl tollkit to compare two ASN1_TIME
     // objects.
-    ASN1_TIME *aTime = NULL;
-    if (!properties.setValidBefore && properties.mimicCert.get())
+    auto aTime = properties.validityRangeFrom.get();
+    if (!aTime && !properties.setValidBefore && properties.mimicCert.get())
         aTime = X509_getm_notBefore(properties.mimicCert.get());
     if (!aTime && properties.signWithX509.get())
         aTime = X509_getm_notBefore(properties.signWithX509.get());
@@ -488,8 +518,8 @@ static bool buildCertificate(Security::CertPointer & cert, Ssl::CertificatePrope
     } else if (!X509_gmtime_adj(X509_getm_notBefore(cert.get()), (-2)*24*60*60))
         return false;
 
-    aTime = NULL;
-    if (!properties.setValidAfter && properties.mimicCert.get())
+    aTime = properties.validityRangeTo.get();
+    if (!aTime && !properties.setValidAfter && properties.mimicCert.get())
         aTime = X509_getm_notAfter(properties.mimicCert.get());
     if (!aTime && properties.signWithX509.get())
         aTime = X509_getm_notAfter(properties.signWithX509.get());
@@ -752,7 +782,8 @@ bool Ssl::sslDateIsInTheFuture(char const * date)
 }
 
 /// Print the time represented by a ASN1_TIME struct to a string using GeneralizedTime format
-static bool asn1timeToGeneralizedTimeStr(ASN1_TIME *aTime, char *buf, int bufLen)
+static bool
+asn1timeToGeneralizedTimeStr(const ASN1_TIME *aTime, char *buf, const int bufLen)
 {
     // ASN1_Time  holds time to UTCTime or GeneralizedTime form.
     // UTCTime has the form YYMMDDHHMMSS[Z | [+|-]offset]
@@ -781,8 +812,11 @@ static bool asn1timeToGeneralizedTimeStr(ASN1_TIME *aTime, char *buf, int bufLen
     return true;
 }
 
-static int asn1time_cmp(ASN1_TIME *asnTime1, ASN1_TIME *asnTime2)
+static int
+asn1time_cmp(const ASN1_TIME *asnTime1, const ASN1_TIME *asnTime2)
 {
+    // TODO: Use ASN1_TIME_compare() when built with OpenSSL v1.1.1 or later.
+    // TODO: Throw on failures instead of lying about asnTime1 < asnTime2!
     char strTime1[64], strTime2[64];
     if (!asn1timeToGeneralizedTimeStr(asnTime1, strTime1, sizeof(strTime1)))
         return -1;
@@ -792,6 +826,13 @@ static int asn1time_cmp(ASN1_TIME *asnTime1, ASN1_TIME *asnTime2)
     return strcmp(strTime1, strTime2);
 }
 
+bool
+operator <(const ASN1_TIME &a, const ASN1_TIME &b)
+{
+    return asn1time_cmp(&a, &b) < 0;
+}
+
+// XXX: Unused since 5cc5783. Ignores properties.setValidityRange. Remove.
 bool Ssl::certificateMatchesProperties(X509 *cert, CertificateProperties const &properties)
 {
     assert(cert);
