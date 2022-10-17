@@ -38,4 +38,6 @@ libsecurity_la_SOURCES = \
 	ServerOptions.h \
 	Session.cc \
 	Session.h \
+	Time.cc \
+	Time.h \
 	forward.h

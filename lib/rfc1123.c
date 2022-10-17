@@ -165,16 +165,25 @@ time_t
 parse_rfc1123(const char *str)
 {
     struct tm *tm;
-    time_t t;
     if (NULL == str)
         return -1;
     tm = parse_date(str);
     if (!tm)
         return -1;
+    return timegm(tm);
+}
+
+// XXX: Move to compat/time.h
+#ifndef HAVE_TIMEGM
+time_t
+timegm(const struct *tm)
+{
+    time_t t;
+    if (!tm)
+        return -1;
+
     tm->tm_isdst = -1;
-#if HAVE_TIMEGM
-    t = timegm(tm);
-#elif HAVE_TM_TM_GMTOFF
+#if HAVE_TM_TM_GMTOFF
     t = mktime(tm);
     if (t != -1) {
         struct tm *local = localtime(&t);
@@ -203,6 +212,7 @@ parse_rfc1123(const char *str)
 #endif
     return t;
 }
+#endif /* HAVE_TIMEGM */
 
 const char *
 mkrfc1123(time_t t)

@@ -7,7 +7,10 @@
  */
 
 #include "squid.h"
+#include "acl/Checklist.h"
+#include "SquidConfig.h"
 #include "ssl/gadgets.h"
+#include "ssl/ProxyCerts.h"
 
 static Security::PrivateKeyPointer
 CreateRsaPrivateKey()
@@ -189,6 +192,7 @@ const char *Ssl::CertAdaptAlgorithmStr[] = {
     "setValidAfter",
     "setValidBefore",
     "setCommonName",
+    "setValidityRange",
     NULL
 };
 
@@ -196,9 +200,30 @@ Ssl::CertificateProperties::CertificateProperties():
     setValidAfter(false),
     setValidBefore(false),
     setCommonName(false),
+    setValidityRange(false),
     signAlgorithm(Ssl::algSignEnd),
     signHash(NULL)
 {}
+
+bool
+Ssl::CertificateProperties::skipRule(const int algorithm) const
+{
+    switch (algorithm) {
+    case Ssl::algSetValidAfter:
+        return setValidAfter || setValidityRange;
+    case Ssl::algSetValidBefore:
+        return setValidBefore || setValidityRange;
+    case Ssl::algSetCommonName:
+        return setCommonName;
+    case Ssl::algSetValidityRange:
+        return setValidityRange || setValidAfter || setValidBefore;
+    case Ssl::algSetEnd:
+    default:
+        break;
+    }
+    assert(!"invalid or mishandled CertAdaptAlgorithm value");
+    return false; // unreachable
+}
 
 static void
 printX509Signature(const Security::CertPointer &cert, std::string &out)
@@ -237,6 +262,11 @@ Ssl::OnDiskCertificateDbKey(const Ssl::CertificateProperties &properties)
     if (properties.setCommonName) {
         certKey.append("+SetCommonName=", 15);
         certKey.append(properties.commonName);
+    }
+
+    if (properties.setValidityRange) {
+        certKey.append("+SetValidityRange=", 18);
+        certKey.append(properties.validityRange);
     }
 
     if (properties.signAlgorithm != Ssl::algSignEnd) {
@@ -476,8 +506,8 @@ static bool buildCertificate(Security::CertPointer & cert, Ssl::CertificatePrope
     // fields from caCert.
     // Currently there is not any way in openssl tollkit to compare two ASN1_TIME
     // objects.
-    ASN1_TIME *aTime = NULL;
-    if (!properties.setValidBefore && properties.mimicCert.get())
+    auto aTime = properties.validityRangeFrom.get();
+    if (!aTime && !properties.setValidBefore && properties.mimicCert.get())
         aTime = X509_getm_notBefore(properties.mimicCert.get());
     if (!aTime && properties.signWithX509.get())
         aTime = X509_getm_notBefore(properties.signWithX509.get());
@@ -488,8 +518,8 @@ static bool buildCertificate(Security::CertPointer & cert, Ssl::CertificatePrope
     } else if (!X509_gmtime_adj(X509_getm_notBefore(cert.get()), (-2)*24*60*60))
         return false;
 
-    aTime = NULL;
-    if (!properties.setValidAfter && properties.mimicCert.get())
+    aTime = properties.validityRangeTo.get();
+    if (!aTime && !properties.setValidAfter && properties.mimicCert.get())
         aTime = X509_getm_notAfter(properties.mimicCert.get());
     if (!aTime && properties.signWithX509.get())
         aTime = X509_getm_notAfter(properties.signWithX509.get());
@@ -749,120 +779,6 @@ bool Ssl::sslDateIsInTheFuture(char const * date)
     tm.length = strlen(date);
 
     return (X509_cmp_current_time(&tm) > 0);
-}
-
-/// Print the time represented by a ASN1_TIME struct to a string using GeneralizedTime format
-static bool asn1timeToGeneralizedTimeStr(ASN1_TIME *aTime, char *buf, int bufLen)
-{
-    // ASN1_Time  holds time to UTCTime or GeneralizedTime form.
-    // UTCTime has the form YYMMDDHHMMSS[Z | [+|-]offset]
-    // GeneralizedTime has the form YYYYMMDDHHMMSS[Z | [+|-] offset]
-
-    // length should have space for data plus 2 extra bytes for the two extra year fields
-    // plus the '\0' char.
-    if ((aTime->length + 3) > bufLen)
-        return false;
-
-    char *str;
-    if (aTime->type == V_ASN1_UTCTIME) {
-        if (aTime->data[0] > '5') { // RFC 2459, section 4.1.2.5.1
-            buf[0] = '1';
-            buf[1] = '9';
-        } else {
-            buf[0] = '2';
-            buf[1] = '0';
-        }
-        str = buf +2;
-    } else // if (aTime->type == V_ASN1_GENERALIZEDTIME)
-        str = buf;
-
-    memcpy(str, aTime->data, aTime->length);
-    str[aTime->length] = '\0';
-    return true;
-}
-
-static int asn1time_cmp(ASN1_TIME *asnTime1, ASN1_TIME *asnTime2)
-{
-    char strTime1[64], strTime2[64];
-    if (!asn1timeToGeneralizedTimeStr(asnTime1, strTime1, sizeof(strTime1)))
-        return -1;
-    if (!asn1timeToGeneralizedTimeStr(asnTime2, strTime2, sizeof(strTime2)))
-        return -1;
-
-    return strcmp(strTime1, strTime2);
-}
-
-bool Ssl::certificateMatchesProperties(X509 *cert, CertificateProperties const &properties)
-{
-    assert(cert);
-
-    // For non self-signed certificates we have to check if the signing certificate changed
-    if (properties.signAlgorithm != Ssl::algSignSelf) {
-        assert(properties.signWithX509.get());
-        if (X509_check_issued(properties.signWithX509.get(), cert) != X509_V_OK)
-            return false;
-    }
-
-    X509 *cert2 = properties.mimicCert.get();
-    // If there is not certificate to mimic stop here
-    if (!cert2)
-        return true;
-
-    if (!properties.setCommonName) {
-        X509_NAME *cert1_name = X509_get_subject_name(cert);
-        X509_NAME *cert2_name = X509_get_subject_name(cert2);
-        if (X509_NAME_cmp(cert1_name, cert2_name) != 0)
-            return false;
-    } else if (properties.commonName != CommonHostName(cert))
-        return false;
-
-    if (!properties.setValidBefore) {
-        const auto aTime = X509_getm_notBefore(cert);
-        const auto bTime = X509_getm_notBefore(cert2);
-        if (asn1time_cmp(aTime, bTime) != 0)
-            return false;
-    } else if (X509_cmp_current_time(X509_getm_notBefore(cert)) >= 0) {
-        // notBefore does not exist (=0) or it is in the future (>0)
-        return false;
-    }
-
-    if (!properties.setValidAfter) {
-        const auto aTime = X509_getm_notAfter(cert);
-        const auto bTime = X509_getm_notAfter(cert2);
-        if (asn1time_cmp(aTime, bTime) != 0)
-            return false;
-    } else if (X509_cmp_current_time(X509_getm_notAfter(cert)) <= 0) {
-        // notAfter does not exist (0) or  it is in the past (<0)
-        return false;
-    }
-
-    char *alStr1;
-    int alLen;
-    alStr1 = (char *)X509_alias_get0(cert, &alLen);
-    char *alStr2  = (char *)X509_alias_get0(cert2, &alLen);
-    if ((!alStr1 && alStr2) || (alStr1 && !alStr2) ||
-            (alStr1 && alStr2 && strcmp(alStr1, alStr2)) != 0)
-        return false;
-
-    // Compare subjectAltName extension
-    STACK_OF(GENERAL_NAME) * cert1_altnames;
-    cert1_altnames = (STACK_OF(GENERAL_NAME)*)X509_get_ext_d2i(cert, NID_subject_alt_name, NULL, NULL);
-    STACK_OF(GENERAL_NAME) * cert2_altnames;
-    cert2_altnames = (STACK_OF(GENERAL_NAME)*)X509_get_ext_d2i(cert2, NID_subject_alt_name, NULL, NULL);
-    bool match = true;
-    if (cert1_altnames) {
-        int numalts = sk_GENERAL_NAME_num(cert1_altnames);
-        for (int i = 0; match && i < numalts; ++i) {
-            GENERAL_NAME *aName = sk_GENERAL_NAME_value(cert1_altnames, i);
-            match = sk_GENERAL_NAME_find(cert2_altnames, aName);
-        }
-    } else if (cert2_altnames)
-        match = false;
-
-    sk_GENERAL_NAME_pop_free(cert1_altnames, GENERAL_NAME_free);
-    sk_GENERAL_NAME_pop_free(cert2_altnames, GENERAL_NAME_free);
-
-    return match;
 }
 
 static const char *getSubjectEntry(X509 *x509, int nid)

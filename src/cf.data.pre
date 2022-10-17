@@ -3315,14 +3315,33 @@ DOC_START
 		to use setCommonName without an explicit parameter for
 		intercepted or tproxied SSL connections.
 
+	   setValidityRange{from,to}
+		Sets the "Not Before" and "Not After" validity times of the generated
+		certificate to the configured absolute values. If "from" time is
+		greater than "to" time, Squid rejects the configuration. If the
+		configured interval does not include the current time, then Squid logs
+		a one-time warning but still uses the configured validity period.
+		Squid does not currently check whether the configured interval
+		overlaps with the CA certificate used to sign generated certificates.
+
+		The "from" and "to" values should use YYYYMMDDHHMMSSZ format (a.k.a.
+		GeneralizedTime in RFC 5280). When parsing these values, Squid is at
+		the mercy of the TLS library: Squid accepts/rejects values
+		accepted/rejected by the library which may also accept other formats.
+
+		This adaptation algorithm requires OpenSSL v1.0.0 or later.
+
 	This clause only supports fast acl types.
 
-	Squid first groups sslproxy_cert_adapt options by adaptation algorithm.
-	Within a group, when sslproxy_cert_adapt acl(s) match, Squid uses the
-	corresponding adaptation algorithm to generate the certificate and
-	ignores all subsequent sslproxy_cert_adapt options in that algorithm's
-	group (i.e., the first match wins within each algorithm group). If no
-	acl(s) match, the default mimicking action takes place.
+	Algorithm rules are checked in configuration order. When all ACLs of an
+	algorithm rule match, Squid uses the corresponding adaptation algorithm for
+	certificate generation and silently ignores all the subsequent rules with
+	the same algorithm. Furthermore, after a setValidAfter or setValidBefore
+	rule match, Squid ignores all subsequent setValidityRange rules. And vice
+	versa: After a setValidityRange rule match, Squid ignores all subsequent
+	setValidAfter and setValidBefore rules.
+
+	If no rules match, the default mimicking action takes place.
 
 	WARNING: SQUID_X509_V_ERR_DOMAIN_MISMATCH and ssl:certDomainMismatch can
 	be used with sslproxy_cert_adapt, but if and only if Squid is bumping a
