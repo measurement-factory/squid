@@ -3552,6 +3552,27 @@ DOC_START
 	operation. The default value is set to 2*numberofchildren.
 
 	You must have at least one ssl_crt_validator process.
+
+	See also: sslcrtvalidator_extras
+DOC_END
+
+NAME: sslcrtvalidator_extras
+TYPE: TokenOrQuotedString
+IFDEF: USE_OPENSSL
+LOC: Ssl::TheConfig.ssl_crt_validator_extras
+DEFAULT: none
+DOC_START
+	Specifies the value part of the extras=value pair sent to the validator
+	helper. "Quoted" format values may contain spaces and logformat %macros.
+	Just like with access_log, a logformat %macro expands to a dash (-) if the
+	corresponding info is unavailable when Squid sends the helper request.
+
+	If caching of certificate validation helper responses is enabled, the
+	cache key includes the sent extras=value pair (if any).
+
+	By default, no extras a sent to the helper.
+
+	See also: sslcrtvalidator_program
 DOC_END
 
 COMMENT_START

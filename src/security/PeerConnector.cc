@@ -304,6 +304,7 @@ Security::PeerConnector::sslFinalized()
             // validationRequest disappears on return so no need to cbdataReference
             validationRequest.errors = errs;
         try {
+            validationRequest.ale = al;
             debugs(83, 5, "Sending SSL certificate for validation to ssl_crtvd.");
             const auto call = asyncCallback(83, 5, Security::PeerConnector::sslCrtvdHandleReply, this);
             Ssl::CertValidationHelper::Submit(validationRequest, call);
@@ -342,6 +343,9 @@ Security::PeerConnector::sslCrtvdHandleReply(Ssl::CertValidationResponse::Pointe
         SBuf *server = static_cast<SBuf *>(SSL_get_ex_data(ssl.get(), ssl_ex_index_server));
         debugs(83, 5, "cert validation result: " << validationResponse->resultCode << RawPointer(" host: ", server));
     }
+
+    if (request)
+        UpdateRequestNotes(request->clientConnectionManager.get(), *request, validationResponse->notes);
 
     if (validationResponse->resultCode == ::Helper::Error) {
         if (Security::CertErrors *errs = sslCrtvdCheckForErrors(*validationResponse, errDetails)) {

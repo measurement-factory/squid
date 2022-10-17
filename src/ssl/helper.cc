@@ -168,6 +168,7 @@ Ssl::HandleGeneratorReply(void *data, const ::Helper::Reply &reply)
 #endif //USE_SSL_CRTD
 
 helper *Ssl::CertValidationHelper::ssl_crt_validator = nullptr;
+Format::Format *Ssl::CertValidationHelper::ExtrasFormat = nullptr;
 
 void Ssl::CertValidationHelper::Init()
 {
@@ -228,6 +229,11 @@ void Ssl::CertValidationHelper::Init()
     //WARNING: initializing static member in an object initialization method
     assert(HelperCache == nullptr);
     HelperCache = new CacheType(cache, ttl);
+    if (const auto extras = Ssl::TheConfig.ssl_crt_validator_extras) {
+        delete ExtrasFormat;
+        ExtrasFormat = new ::Format::Format("sslcrtvalidator_extras");
+        (void)ExtrasFormat->parse(extras);
+    }
 }
 
 void Ssl::CertValidationHelper::Shutdown()
@@ -238,6 +244,9 @@ void Ssl::CertValidationHelper::Shutdown()
     wordlistDestroy(&ssl_crt_validator->cmdline);
     delete ssl_crt_validator;
     ssl_crt_validator = nullptr;
+
+    delete ExtrasFormat;
+    ExtrasFormat = nullptr;
 
     // CertValidationHelper::HelperCache is a static member, it is not good policy to
     // reset it here. Will work because the current Ssl::CertValidationHelper is
@@ -302,7 +311,17 @@ Ssl::CertValidationHelper::Submit(const Ssl::CertValidationRequest &request, con
 {
     Ssl::CertValidationMsg message(Ssl::CrtdMessage::REQUEST);
     message.setCode(Ssl::CertValidationMsg::code_cert_validate);
-    message.composeRequest(request);
+
+    std::unique_ptr<std::string> extras;
+    if (ExtrasFormat) {
+        static MemBuf buf;
+        buf.reset();
+        ExtrasFormat->assemble(buf, request.ale, 0);
+        extras.reset(new std::string(buf.content(), buf.contentSize()));
+    }
+
+    message.composeRequest(request, extras.get());
+
     debugs(83, 5, "SSL crtvd request: " << message.compose().c_str());
 
     submitData *crtdvdData = new submitData;

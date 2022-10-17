@@ -11,6 +11,7 @@
 
 #include "base/RefCount.h"
 #include "helper/ResultCode.h"
+#include "log/Formats.h"
 #include "ssl/crtd_message.h"
 #include "ssl/support.h"
 
@@ -29,6 +30,7 @@ public:
     Security::SessionPointer ssl;
     Security::CertErrors *errors = nullptr; ///< The list of errors detected
     std::string domainName; ///< The server name
+    AccessLogEntryPointer ale; ///< requestor's ALE
 };
 
 /**
@@ -63,6 +65,10 @@ public:
     /// Search in errors list for the error item with id=errorId.
     /// If none found a new RecvdError item added with the given id;
     RecvdError &getError(int errorId);
+
+    /// parsed transaction_annotations and client_annotations
+    NotePairs notes;
+
     RecvdErrors errors; ///< The list of parsed errors
     Helper::ResultCode resultCode = Helper::Unknown; ///< The helper result code
     Security::SessionPointer ssl;
@@ -96,8 +102,8 @@ public:
     CertValidationMsg(MessageKind kind): CrtdMessage(kind) {}
 
     /// Build a request message for the cert validation helper
-    /// using information provided by vcert object
-    void composeRequest(CertValidationRequest const &vcert);
+    /// \param extras compiled sslcrtvalidator_extras value or nil
+    void composeRequest(const CertValidationRequest &, const std::string *extras);
 
     /// Parse a response message and fill the resp object with parsed information
     bool parseResponse(CertValidationResponse &resp);
@@ -123,6 +129,12 @@ public:
     static const std::string param_proto_version;
     /// Parameter name for SSL cipher
     static const std::string param_cipher;
+    /// Parameter name for configurable transaction details sent to the helper
+    static const std::string param_extras;
+    /// Parameter name for transaction annotations sent by the helper
+    static const std::string param_transactionNotes;
+    /// Parameter name for client (connection) annotations sent by the helper
+    static const std::string param_clientNotes;
 
 private:
     void tryParsingResponse(CertValidationResponse &);

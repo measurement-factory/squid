@@ -13,6 +13,7 @@
 #include "sbuf/Stream.h"
 #include "security/CertError.h"
 #include "ssl/cert_validate_message.h"
+#include "ssl/Config.h"
 #include "ssl/ErrorDetail.h"
 #include "ssl/support.h"
 #include "util.h"
@@ -35,7 +36,7 @@ PeerValidationCertificatesChain(const Security::SessionPointer &ssl)
 }
 
 void
-Ssl::CertValidationMsg::composeRequest(CertValidationRequest const &vcert)
+Ssl::CertValidationMsg::composeRequest(const CertValidationRequest &vcert, const std::string *extras)
 {
     body.clear();
     body += Ssl::CertValidationMsg::param_host + "=" + vcert.domainName;
@@ -45,6 +46,9 @@ Ssl::CertValidationMsg::composeRequest(CertValidationRequest const &vcert)
 
     if (const char *cipherName = SSL_CIPHER_get_name(SSL_get_current_cipher(vcert.ssl.get())))
         body += "\n" +  Ssl::CertValidationMsg::param_cipher + "=" + cipherName;
+
+    if (extras)
+        body += "\n" +  Ssl::CertValidationMsg::param_extras + "=" + *extras;
 
     STACK_OF(X509) *peerCerts = PeerValidationCertificatesChain(vcert.ssl);
     if (peerCerts) {
@@ -89,6 +93,7 @@ get_error_id(const char *label, size_t len)
     return strtol(e, nullptr, 10);
 }
 
+/// TODO: Finish conversion to exception-based error handling.
 bool
 Ssl::CertValidationMsg::parseResponse(CertValidationResponse &resp)
 {
@@ -146,6 +151,33 @@ Ssl::CertValidationMsg::tryParsingResponse(CertValidationResponse &resp)
 
         debugs(83, 5, "Returned value: " << std::string(param, param_len).c_str() << ": " <<
                v.c_str());
+
+        if (param_len == param_transactionNotes.length() &&
+            strncmp(param, param_transactionNotes.c_str(), param_transactionNotes.length()) == 0) {
+            resp.notes.importFromHelper(SBuf(v.c_str(), v.length()));
+            param = value + value_len;
+            continue;
+        }
+
+        if (param_len == param_clientNotes.length() &&
+            strncmp(param, param_clientNotes.c_str(), param_clientNotes.length()) == 0) {
+
+            // TODO: Support arbitrary client annotations when up-porting.
+            static std::string supportedName = "clt_conn_tag=";
+            if (v.compare(0, supportedName.size(), supportedName) != 0) {
+                throw TextException(ToSBuf("Only annotations named ", supportedName,
+                    " can be used for client connection annotation in this Squid version. ",
+                    "Found: ", v), Here());
+            }
+            if (v.find(' ') != std::string::npos) {
+                throw TextException(ToSBuf("Only one client connection annotation can be used in this Squid version. ",
+                    "Found: ", v), Here());
+            }
+            resp.notes.importFromHelper(SBuf(v.c_str(), v.length()));
+
+            param = value + value_len;
+            continue;
+        }
 
         int errorId = get_error_id(param, param_len);
         Ssl::CertValidationResponse::RecvdError &currentItem = resp.getError(errorId);
@@ -248,4 +280,7 @@ const std::string Ssl::CertValidationMsg::param_error_cert("error_cert_");
 const std::string Ssl::CertValidationMsg::param_error_depth("error_depth_");
 const std::string Ssl::CertValidationMsg::param_proto_version("proto_version");
 const std::string Ssl::CertValidationMsg::param_cipher("cipher");
+const std::string Ssl::CertValidationMsg::param_extras("extras");
+const std::string Ssl::CertValidationMsg::param_transactionNotes("transaction_notes");
+const std::string Ssl::CertValidationMsg::param_clientNotes("client_notes");
 

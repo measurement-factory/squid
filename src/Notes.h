@@ -13,6 +13,7 @@
 #include "base/RefCount.h"
 #include "format/Format.h"
 #include "mem/forward.h"
+#include "sbuf/forward.h"
 #include "SquidString.h"
 
 #include <string>
@@ -241,6 +242,10 @@ public:
     /// If the key name already exists in the list, add the new values to its set
     /// of values.
     void addStrList(const SBuf &key, const SBuf &values, const CharacterSet &delimiters);
+
+    /// import space-separated name=single-value annotations sent by a helper,
+    /// overwriting any previously stored same-name annotations
+    void importFromHelper(const SBuf &notes);
 
     /// \returns true if the key/value pair is already stored
     bool hasPair(const SBuf &key, const SBuf &value) const;

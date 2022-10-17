@@ -24,6 +24,7 @@ public:
 #endif
     char *ssl_crt_validator;
     ::Helper::ChildConfig ssl_crt_validator_Children;
+    char *ssl_crt_validator_extras;
     Config();
     ~Config();
 private:
