@@ -20,6 +20,7 @@ libsslsquid_la_SOURCES = \
 	ErrorDetailManager.h \
 	PeekingPeerConnector.cc \
 	PeekingPeerConnector.h \
+	ProxyCerts.cc \
 	ProxyCerts.h \
 	ServerBump.cc \
 	ServerBump.h \

@@ -195,7 +195,6 @@ class ServerOptions;
 class ErrorDetail;
 typedef RefCount<ErrorDetail> ErrorDetailPointer;
 
-// XXX: Move to src/security/time.*
 // TODO: Sync with Security::Certificate PRs
 #if USE_OPENSSL
 using Time = ASN1_TIME;
@@ -207,19 +206,7 @@ using Time = class {};
 
 using TimePointer = std::unique_ptr<Time>;
 
-/// creates a time object by parsing input in GeneralizedTime format
-/// \param description what is being parsed (for errors/debugging)
-TimePointer ParseTime(const char *input, const char *description);
-
-/// POSIX time_t representation of the given certificate time
-time_t ToPosixTime(const Time &);
-
 } // namespace Security
-
-// declared outside Security namespace because Security::Time is just an alias
-// for the underlying TLS library type (that is declared outside Security)
-/// a is earlier than b
-bool operator <(const Security::Time &a, const Security::Time &b);
 
 /// Squid-specific TLS handling errors (a subset of ErrorCode)
 /// These errors either distinguish high-level library calls/contexts or

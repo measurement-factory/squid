@@ -109,6 +109,7 @@
 #include "sbuf/Stream.h"
 #include "security/Io.h"
 #include "security/NegotiationHistory.h"
+#include "security/Time.h"
 #include "servers/forward.h"
 #include "SquidConfig.h"
 #include "SquidTime.h"

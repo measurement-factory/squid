@@ -59,6 +59,7 @@
 #include "rfc1738.h"
 #include "sbuf/List.h"
 #include "sbuf/Stream.h"
+#include "security/Time.h"
 #include "SquidConfig.h"
 #include "SquidString.h"
 #include "ssl/ProxyCerts.h"
@@ -4533,84 +4534,6 @@ static void free_icap_service_failure_limit(Adaptation::Icap::Config *cfg)
 #endif
 
 #if USE_OPENSSL
-// XXX: Move to src/security/time.*
-Security::TimePointer
-Security::ParseTime(const char * const generalizedTime, const char * const description)
-{
-    assert(generalizedTime);
-    debugs(33, DBG_PARSE_NOTE(2), description << ": " << generalizedTime);
-
-#if USE_OPENSSL
-    std::unique_ptr<ASN1_TIME> t(ASN1_TIME_set(nullptr, 0));
-    if (!t)
-        throw TextException(ToSBuf("ASN1_TIME_set() failed to allocate an ASN1_TIME structure for parsing ", description), Here());
-#if HAVE_LIBCRYPTO_ASN1_TIME_SET_STRING
-    if (!ASN1_TIME_set_string(t.get(), generalizedTime))
-        throw TextException(ToSBuf("ASN1_TIME_set_string() failed to parse ", description, ": ", generalizedTime), Here());
-#else
-    throw TextException(ToSBuf("Need OpenSSL version providing ASN1_TIME_set_string() to parse ", description), Here());
-#endif
-    return t;
-#elif USE_GNUTLS
-    throw TextException(ToSBuf("Missing GnuTLS support for parsing ", description), Here());
-    return nullptr;
-#else
-    throw TextException(ToSBuf("TLS library required to parse ", description), Here());
-    return nullptr;
-#endif
-}
-
-// XXX: Move to src/security/time.* and add GnuTLS/other support.
-// TODO: Consider adding an ASN1_TIME_to_tm() replacement, even though this
-// function is currently only used for better diagnostics of config problems?
-time_t
-Security::ToPosixTime(const Time &from)
-{
-#if HAVE_LIBCRYPTO_ASN1_TIME_TO_TM
-    std::tm resultTm = {};
-    if (!ASN1_TIME_to_tm(&from, &resultTm))
-        throw TextException("ASN1_TIME_to_tm() failure", Here());
-    const auto resultPosix = timegm(&resultTm);
-    if (resultPosix < 0)
-        throw TextException("timegm() failure", Here());
-    return resultPosix;
-#else
-    throw TextException("This OpenSSL version does not support ASN1_TIME_to_tm()", Here());
-#endif
-}
-
-// XXX: Move to ProxyCerts.cc or some such.
-void
-CheckValidityRangeFreshness(sslproxy_cert_adapt &ca, const Security::Time &from, const Security::Time &to)
-{
-    assert(ca.alg == Ssl::algSetValidityRange);
-    debugs(33, 5, ca.param << " at " << squid_curtime << '<' << ca.nextValidityRangeFreshnessCheck);
-    if (squid_curtime < ca.nextValidityRangeFreshnessCheck)
-        return; // either still fresh and good or stale and reported
-
-    try {
-        const Security::TimePointer now(ASN1_TIME_set(nullptr, squid_curtime));
-        if (!now)
-            throw TextException("ASN1_TIME_set(current_time) failure", Here());
-        if (*now < from)
-            throw TextException("setValidityRange has not started yet", Here());
-        if (to < *now)
-            throw TextException("setValidityRange has already ended", Here());
-
-        // looks good now, but check again when the validity period ends
-        ca.nextValidityRangeFreshnessCheck = Security::ToPosixTime(to);
-        return;
-    } catch (...) {
-        debugs(33, DBG_CRITICAL, "ERROR: Using problematic or unverifiable " <<
-               "sslproxy_cert_adapt setValidityRange {" << ca.param << '}' <<
-               Debug::Extra << "problem: " << CurrentException);
-    }
-
-    // do not check anymore (i.e. until the end of time)
-    ca.nextValidityRangeFreshnessCheck = std::numeric_limits<decltype(ca.nextValidityRangeFreshnessCheck)>::max();
-}
-
-
 static void parse_sslproxy_cert_adapt(sslproxy_cert_adapt **cert_adapt)
 {
     char *al;
