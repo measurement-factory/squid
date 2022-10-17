@@ -127,7 +127,8 @@ while (<>) {
         my $hostname;
         my $sslVersion = "-";
         my $sslCipher = "-";
-        parseRequest($body, \$hostname, \$sslVersion, \$sslCipher, \%errors, \%certs);
+        my $extras = undef();
+        parseRequest($body, \$hostname, \$sslVersion, \$sslCipher, \%errors, \%certs, \$extras);
         print(STDERR logPrefix()."Parse result: \n") if ($debug);
         print(STDERR logPrefix()."\tFOUND host:".$hostname."\n") if ($debug);
         print(STDERR logPrefix()."\tFOUND ssl version:".$sslVersion."\n") if ($debug);
@@ -141,6 +142,8 @@ while (<>) {
             ## Use "perldoc Crypt::OpenSSL::X509" for X509 available methods.
             print(STDERR logPrefix()."\tFOUND cert ".$key.": ".$certs{$key}->subject() . "\n") if ($debug);
         }
+
+        print(STDERR logPrefix()."\tFOUND custom metadata: extras=$extras\n") if defined($extras) && $debug;
 
 #got the peer certificate ID. Assume that the peer certificate is the first one.
         my $peerCertId = (keys %certs)[0];
@@ -196,6 +199,11 @@ sub createResponse
             "error_cert_".$i."=".$err->{"error_cert"}."\n";
         $i++;
     }
+
+    # add our own annotations
+    $response .= "transaction_notes=validatorPid_=$$ validationErrorCount_=$i\n";
+    $response .= "client_notes=clt_conn_tag=" . time() . "\n";
+
     return $response;
 }
 
@@ -207,6 +215,7 @@ sub parseRequest
     my $sslCipher = shift;
     my $errors = shift;
     my $certs = shift;
+    my $extras = shift;
     while ($request !~ /^\s*$/) {
         $request = trim($request);
         if ($request =~ /^host=/) {
@@ -220,6 +229,9 @@ sub parseRequest
         }
         if ($request =~ s/^cipher=(.*?)$//m) {
             $$sslCipher = $1;
+        }
+        if ($request =~ s/^extras=(.*?)$//m) {
+            $$extras = $1;
         }
         if ($request =~ /^cert_(\d+)=/) {
             my $certId = "cert_".$1;
