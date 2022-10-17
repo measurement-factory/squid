@@ -44,6 +44,9 @@ void Ssl::GlobalContextStorage::reconfigureStart() STUB
 #include "ssl/ErrorDetail.h"
 Security::ErrorCode parseErrorString(const char *name) STUB_RETVAL(0)
 
+#include "ssl/ProxyCerts.h"
+void CheckValidityRangeFreshness(sslproxy_cert_adapt &, const Security::Time &, const Security::Time &) STUB
+
 #include "ssl/support.h"
 namespace Ssl
 {
