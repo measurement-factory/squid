@@ -1222,7 +1222,6 @@ _db_rotate_log(void)
 static const char *
 debugLogTime(const timeval &t)
 {
-    struct tm *tm;
     static char buf[128]; // arbitrary size, big enough for the below timestamp strings.
     static time_t last_t = 0;
 
@@ -1230,14 +1229,15 @@ debugLogTime(const timeval &t)
         // 4 bytes smaller than buf to ensure .NNN catenation by snprintf()
         // is safe and works even if strftime() fills its buffer.
         char buf2[sizeof(buf)-4];
-        tm = localtime(&(t.tv_sec));
+        const auto tm = localtime(&t.tv_sec);
         strftime(buf2, sizeof(buf2), "%Y/%m/%d %H:%M:%S", tm);
         buf2[sizeof(buf2)-1] = '\0';
         const auto sz = snprintf(buf, sizeof(buf), "%s.%03d", buf2, static_cast<int>(t.tv_usec / 1000));
         assert(0 < sz && sz < static_cast<int>(sizeof(buf)));
-        last_t = t.tv_sec;
+        // force buf reset for subsequent level-0/1 messages that should have no milliseconds
+        last_t = 0;
     } else if (t.tv_sec != last_t) {
-        tm = localtime(&(t.tv_sec));
+        const auto tm = localtime(&t.tv_sec);
         const int sz = strftime(buf, sizeof(buf), "%Y/%m/%d %H:%M:%S", tm);
         assert(0 < sz && sz <= static_cast<int>(sizeof(buf)));
         last_t = t.tv_sec;
