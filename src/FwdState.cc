@@ -1367,7 +1367,7 @@ FwdState::reforward()
 
     const auto s = entry->mem().baseReply().sline.status();
     debugs(17, 3, "status " << s);
-    return reforwardableStatus(s);
+    return Http::IsReforwardableStatus(s);
 }
 
 static void
@@ -1398,32 +1398,6 @@ fwdStats(StoreEntry * s)
 }
 
 /**** STATIC MEMBER FUNCTIONS *************************************************/
-
-bool
-FwdState::reforwardableStatus(const Http::StatusCode s) const
-{
-    switch (s) {
-
-    case Http::scBadGateway:
-
-    case Http::scGatewayTimeout:
-        return true;
-
-    case Http::scForbidden:
-
-    case Http::scInternalServerError:
-
-    case Http::scNotImplemented:
-
-    case Http::scServiceUnavailable:
-        return Config.retry.onerror;
-
-    default:
-        return false;
-    }
-
-    /* NOTREACHED */
-}
 
 void
 FwdState::initModule()
