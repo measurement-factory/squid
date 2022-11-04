@@ -2786,6 +2786,13 @@ ConnStateData::sslBumpAfterCallouts()
         return;
     }
 
+    // We can be done when, for example, sslBumpSentConnectResponse() sent a 407
+    // AUTH_REQUIRED CONNECT response. We could avoid scheduling an async call,
+    // but since this method is called asynchronously, it feels safer to handle
+    // this "all done" state here.
+    if (sslServerBump->at(XactionStep::tlsBumpDone))
+        return;
+
     if (sslServerBump->at(XactionStep::tlsBump1))
         sslBumpAfterCalloutsAtStep1();
     else
