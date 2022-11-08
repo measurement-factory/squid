@@ -33,8 +33,10 @@
 #include "peer_sourcehash.h"
 #include "peer_userhash.h"
 #include "PeerSelectState.h"
+#include "sbuf/Stream.h"
 #include "SquidConfig.h"
 #include "Store.h"
+#include "StrList.h"
 #include "time/gadgets.h"
 
 /**
@@ -652,6 +654,9 @@ PeerSelector::selectMore()
 
     if (!entry || entry->ping_status == PING_NONE)
         selectPinned();
+
+    // TODO: Refactor this diff-reducer before merging
+    if (!selectByAnnotation()) {
     if (entry == nullptr) {
         (void) 0;
     } else if (entry->ping_status == PING_NONE) {
@@ -691,9 +696,88 @@ PeerSelector::selectMore()
 
         break;
     }
+    }
 
     // end peer selection; start resolving selected peers
     resolveSelected();
+}
+
+/// cache_peer selection methods. The absolute values are not important.
+/// Currently, this enum only contains values supported by the go_to_how feature
+/// of PeerSelector::selectByAnnotation().
+using GotToHowAlgorithm = enum {
+    psaAsOrdered,
+    psmLeastUsed
+};
+
+/// Parses algorithm name in a go_to_how=name annotation  method algorithm name, treating a nil name as "default".
+/// The current support is limited to methods supported by go_to_how=name.
+static GotToHowAlgorithm
+GotToHowAlgorithmFromName(const char * const algorithmName)
+{
+    if (!algorithmName || strcmp(algorithmName, "as-ordered") == 0)
+        return psaAsOrdered;
+    if (strcmp(algorithmName, "least-used") == 0)
+        return psmLeastUsed;
+    throw TextException(ToSBuf("unsupported algorithm in go_to_how=", algorithmName), Here());
+}
+
+/// selects peers using a go_to annotation (if any) or does nothing (otherwise)
+/// \returns whether this call ends peer selection
+bool
+PeerSelector::selectByAnnotation()
+{
+    if (!al || !al->notes)
+        return false;
+
+    if (const auto rawPeerNames = al->notes->findFirst("go_to")) {
+
+        const auto algorithmNameOrNil = al->notes->findFirst("go_to_how");
+        const auto algorithm = GotToHowAlgorithmFromName(algorithmNameOrNil);
+        debugs(44, 5, rawPeerNames << " how=" << algorithm);
+
+
+        // collect all named peers, in naming order, by iterating through names
+        std::deque<CachePeer*> selected; // TODO: Add Allocator
+        // XXX: Avoid deprecated and slow String. Add SBuf-based item iterator.
+        const String peerNames = rawPeerNames;
+        const char *item = nullptr;
+        const char *pos = nullptr;
+        int ilen = 0;
+        while (strListGetItem(&peerNames, ',', &item, &ilen, &pos)) {
+            const SBuf name(item, ilen);
+            if (const auto peer = findNamedPeer(*this, name))
+                selected.push_back(peer);
+        }
+        debugs(44, 7, "usable peers: " << selected.size());
+
+        if (algorithm == psmLeastUsed) {
+            sort(selected.begin(), selected.end(), [](CachePeer *a, CachePeer *b) {
+                return a->lessUsedThan(*b);
+            });
+
+            if (!selected.empty()) {
+                // Do not increment rr_count of the other selected peers, if
+                // any, because those spare peers are unlikely to be actually
+                // used. TODO: Do we want or need to increment it, despite the
+                // fact that built-in peer selection algorithms do not increment
+                // it for _used_ options.roundrobin peers if those peers were
+                // selected by an algorithm other than getRoundRobinParent()?
+                ++(selected[0]->rr_count);
+            }
+        }
+
+        for (const auto peer: selected) {
+            debugs(44, 5, "XXX peer: " << peer->name << " rr_count=" << peer->rr_count << '/' << peer->weight);
+            addSelection(peer, HIER_GOTO);
+        }
+
+        // go_to=peers replaces all built-in selection algorithms rather than
+        // adding a yet another one, so we return true even if we added no peers
+        return true;
+    }
+
+    return false;
 }
 
 bool peerAllowedToUse(const CachePeer *, PeerSelector*);

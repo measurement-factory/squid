@@ -117,6 +117,7 @@ protected:
     void checkAlwaysDirectDone(const Acl::Answer answer);
     void checkNeverDirectDone(const Acl::Answer answer);
 
+    bool selectByAnnotation();
     void selectSomeNeighbor();
     void selectSomeNeighborReplies();
     void selectSomeDirect();

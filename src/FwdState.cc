@@ -275,8 +275,13 @@ FwdState::completed()
     if (entry->store_status == STORE_PENDING) {
         if (entry->isEmpty()) {
             assert(!storedWholeReply_);
-            if (!err) // we quit (e.g., fd closed) before an error or content
+            if (!err) {
+                // We quit before an error or content. XXX: Cannot distinguish:
+                // * ERR_READ_ERROR/Http::scBadGateway (e.g., fd closed)
+                // * ERR_CANNOT_FORWARD/Http::scBadGateway (e.g., cache_peers are down)
+                // * ERR_CANNOT_FORWARD/Http::scInternalServerError (e.g., go_to=typo)
                 fail(new ErrorState(ERR_READ_ERROR, Http::scBadGateway, request, al));
+            }
             assert(err);
             updateAleWithFinalError();
             errorAppendEntry(entry, err);

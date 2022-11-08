@@ -1042,6 +1042,41 @@ DOC_START
 			Please see url_rewrite_program related documentation
 			for this kv-pair.
 
+	  go_to=peerA,peerB... A comma-separated list of cache_peer names to use
+	    when/if forwarding this request. Providing cache_peer names via this
+	    transaction annotation disables built-in peer selection algorithms that
+	    normally form such a list.
+
+	    The usual cache_peer-type-agnostic preconditions for using a cache_peer
+	    still apply: See always_direct, cache_peer_access, cache_peer
+	    connect-fail-limit=N, and cache_peer max-conn=N for the documented
+	    cache_peer checks applicable here.
+
+	    If the go_to list is empty or if each named cache_peer fails the above
+	    preconditions, then request forwarding fails.
+
+	    When multiple named cache_peers are used due to reforwarding attempts,
+	    their use order is determined by the optional go_to_how annotation. By
+	    default, cache_peers are used in the go_to listing order.
+
+	  go_to_how=algorithm How to use cache_peers named in a go_to annotation.
+	    Please see the go_to annotation for the preconditions that are used to
+	    filter named peers before applying the specified algorithm:
+
+	    "as-ordered": Uses named peers in their go_to naming order. Squid uses
+	    this algorithm when the go_to annotation lacks a go_to_how annotation.
+
+	    "least-used": Uses named peers ordered by their approximate use count,
+	    with the least used cache_peer placed first. For a given isolated stable
+	    group of go_to peers, the end result should resemble a round-robin
+	    cache_peer selection. A cache_peer with weight=W increments its use
+	    count by 1/W (instead of by 1), allowing "heavyweight" peers to be
+	    reused more often than "lightweight" ones.
+
+	    If a transactions is annotated with go_to_how but without go_to, then
+	    Squid does not treat the bare go_to_how annotation specially today, but
+	    that behavior may change without notice.
+
 	Any keywords may be sent on any response whether OK, ERR or BH.
 
 	All response keyword values need to be a single token with URL
@@ -3669,6 +3704,7 @@ DOC_START
 			peer-selection mechanisms.
 			The weight must be an integer; default is 1,
 			larger weights are favored more.
+			Negative and zero weights are silently converted to 1.
 			This option does not affect parent selection if a peering
 			protocol is not in use.
 

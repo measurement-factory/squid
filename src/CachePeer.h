@@ -35,6 +35,12 @@ public:
     /// \returns the effective connect timeout for the given peer
     time_t connectTimeout() const;
 
+    /// Whether we were "used" less than the given CachePeer. An rr_count-based
+    /// implementation accounts for the configured weight=N bias (if any) and
+    /// guarantees stable sort order (i.e. for any two different CachePeer
+    /// objects a and b from the same configuration: a<b || b<a).
+    bool lessUsedThan(const CachePeer &) const;
+
     u_int index = 0;
     char *name = nullptr;
     char *host = nullptr;
@@ -153,7 +159,7 @@ public:
 
     Ip::Address addresses[10];
     int n_addresses = 0;
-    int rr_count = 0;
+    uint64_t rr_count = 0;
     CachePeer *next = nullptr;
     int testing_now = 0;
 
@@ -197,6 +203,10 @@ public:
 
     int front_end_https = 0; ///< 0 - off, 1 - on, 2 - auto
     int connection_auth = 2; ///< 0 - off, 1 - on, 2 - auto
+
+protected:
+    /// round-robin access counter adjusted for this cache_peer weight
+    uint64_t weightedRrCount() const { return rr_count / weight; }
 };
 
 #endif /* SQUID_CACHEPEER_H_ */
