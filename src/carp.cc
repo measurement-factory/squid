@@ -142,7 +142,7 @@ carpInit(void)
 }
 
 CachePeer *
-carpSelectParent(HttpRequest * request)
+carpSelectParent(HttpRequest * request, ps_state *ps)
 {
     int k;
     CachePeer *p = NULL;
@@ -203,7 +203,7 @@ carpSelectParent(HttpRequest * request)
         debugs(39, 3, "carpSelectParent: key=" << key << " name=" << tp->name << " combined_hash=" << combined_hash  <<
                " score=" << std::setprecision(0) << score);
 
-        if ((score > high_score) && peerHTTPOkay(tp, request)) {
+        if ((score > high_score) && peerHTTPOkay(tp, request, ps)) {
             p = tp;
             high_score = score;
         }
