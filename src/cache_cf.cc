@@ -3734,6 +3734,18 @@ parsePortCfg(AnyP::PortCfgPointer *head, const char *optionName)
 
     s->secure.syncCaFiles();
 
+    if (s->secure.generateHostCertificates) {
+#if USE_OPENSSL
+        if (!s->flags.accelSurrogate && !s->flags.tunnelSslBumping)
+            throw TextException("generate-host-certificates requires accel or ssl-bump port mode", Here());
+        // TODO: Prohibit "http_port ssl-bump accel" combo and remove !s->flags.tunnelSslBumping.
+        if (s->flags.accelSurrogate && !s->flags.tunnelSslBumping && protoName.cmp("HTTPS") != 0)
+            throw TextException("using generate-host-certificates in reverse proxy ('accel') mode requires https_port", Here());
+#else
+        throw TextException("generate-host-certificates currently requires --with-openssl", Here());
+#endif
+    }
+
     if (s->transport.protocol == AnyP::PROTO_HTTPS) {
         s->secure.encryptTransport = true;
 #if USE_OPENSSL
@@ -3778,6 +3790,10 @@ parsePortCfg(AnyP::PortCfgPointer *head, const char *optionName)
         }
         s->secure.parseOptions();
     }
+
+    /* defaults that depend on the (already validated) port options */
+    if (!s->secure.generateHostCertificates.configured())
+        s->secure.generateHostCertificates.defaultTo(s->flags.tunnelSslBumping);
 
     // *_port line should now be fully valid so we can clone it if necessary
     if (Ip::EnableIpv6&IPV6_SPECIAL_SPLITSTACK && s->s.isAnyAddr()) {
