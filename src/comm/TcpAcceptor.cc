@@ -155,7 +155,8 @@ Comm::TcpAcceptor::setListen()
     errcode = errno = 0;
     if (listen(conn->fd, Squid_MaxFD >> 2) < 0) {
         errcode = errno;
-        debugs(50, DBG_CRITICAL, "ERROR: listen(" << status() << ", " << (Squid_MaxFD >> 2) << "): " << xstrerr(errcode));
+        // TODO: abort only if all ports failed to listen()
+        fatalf("listen(%s, %d): %s", status(), (Squid_MaxFD >> 2), xstrerr(errcode));
         return;
     }
 
