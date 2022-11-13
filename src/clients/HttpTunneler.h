@@ -101,7 +101,7 @@ private:
     void disconnect();
 
     /// updates connection usage history before the connection is closed
-    void countFailingConnection();
+    void countFailingConnection(const ErrorState *);
 
     TunnelerAnswer &answer();
 

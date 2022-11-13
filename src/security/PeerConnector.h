@@ -26,7 +26,6 @@
 #include <iosfwd>
 #include <queue>
 
-class ErrorState;
 class Downloader;
 class AccessLogEntry;
 typedef RefCount<AccessLogEntry> AccessLogEntryPointer;
@@ -160,7 +159,7 @@ protected:
     void disconnect();
 
     /// updates connection usage history before the connection is closed
-    void countFailingConnection();
+    void countFailingConnection(const ErrorState *);
 
     /// If called the certificates validator will not used
     void bypassCertValidator() {useCertValidator_ = false;}

@@ -632,8 +632,6 @@ HappyConnOpener::handleConnOpenerAnswer(Attempt &attempt, const CommConnectCbPar
     }
 
     debugs(17, 8, what << " failed: " << params.conn);
-    if (const auto peer = params.conn->getPeer())
-        peerConnectFailed(peer);
 
     // remember the last failure (we forward it if we cannot connect anywhere)
     lastFailedConnection = handledPath;
@@ -641,6 +639,8 @@ HappyConnOpener::handleConnOpenerAnswer(Attempt &attempt, const CommConnectCbPar
     lastError = nullptr; // in case makeError() throws
     lastError = makeError(ERR_CONNECT_FAIL);
     lastError->xerrno = params.xerrno;
+
+    NoteOutgoingConnectionFailure(params.conn->getPeer(), lastError->httpStatus);
 
     if (spareWaiting)
         updateSpareWaitAfterPrimeFailure();
