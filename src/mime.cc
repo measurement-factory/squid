@@ -78,7 +78,7 @@ public:
     MimeEntry *next;
 };
 
-static MimeEntry *MimeTable = NULL;
+static MimeEntry *MimeTable = nullptr;
 static MimeEntry **MimeTableTail = &MimeTable;
 
 static MimeEntry *
@@ -89,16 +89,16 @@ mimeGetEntry(const char *fn, int skip_encodings)
     char *name = xstrdup(fn);
 
     do {
-        t = NULL;
+        t = nullptr;
 
         for (m = MimeTable; m; m = m->next) {
-            if (regexec(&m->compiled_pattern, name, 0, 0, 0) == 0)
+            if (regexec(&m->compiled_pattern, name, 0, nullptr, 0) == 0)
                 break;
         }
 
         if (!skip_encodings)
             (void) 0;
-        else if (m == NULL)
+        else if (m == nullptr)
             (void) 0;
         else if (strcmp(m->content_type, dash_str))
             (void) 0;
@@ -110,7 +110,7 @@ mimeGetEntry(const char *fn, int skip_encodings)
                 *t = '\0';
             } else {
                 /* What? A encoding without a extension? */
-                m = NULL;
+                m = nullptr;
             }
         }
     } while (t);
@@ -179,11 +179,11 @@ mimeGetContentType(const char *fn)
 {
     MimeEntry *m = mimeGetEntry(fn, 1);
 
-    if (m == NULL)
-        return NULL;
+    if (m == nullptr)
+        return nullptr;
 
     if (!strcmp(m->content_type, dash_str))
-        return NULL;
+        return nullptr;
 
     return m->content_type;
 }
@@ -193,11 +193,11 @@ mimeGetContentEncoding(const char *fn)
 {
     MimeEntry *m = mimeGetEntry(fn, 0);
 
-    if (m == NULL)
-        return NULL;
+    if (m == nullptr)
+        return nullptr;
 
     if (!strcmp(m->content_encoding, dash_str))
-        return NULL;
+        return nullptr;
 
     return m->content_encoding;
 }
@@ -220,7 +220,7 @@ bool
 mimeGetViewOption(const char *fn)
 {
     MimeEntry *m = mimeGetEntry(fn, 0);
-    return m != 0 ? m->view_option : false;
+    return m != nullptr ? m->view_option : false;
 }
 
 /* Initializes/reloads the mime table
@@ -247,10 +247,10 @@ mimeInit(char *filename)
     MimeEntry *m;
     int re_flags = REG_EXTENDED | REG_NOSUB | REG_ICASE;
 
-    if (filename == NULL)
+    if (filename == nullptr)
         return;
 
-    if ((fp = fopen(filename, "r")) == NULL) {
+    if ((fp = fopen(filename, "r")) == nullptr) {
         int xerrno = errno;
         debugs(25, DBG_IMPORTANT, "mimeInit: " << filename << ": " << xstrerr(xerrno));
         return;
@@ -277,27 +277,27 @@ mimeInit(char *filename)
 
         xstrncpy(chopbuf, buf, BUFSIZ);
 
-        if ((pattern = strtok(chopbuf, w_space)) == NULL) {
+        if ((pattern = strtok(chopbuf, w_space)) == nullptr) {
             debugs(25, DBG_IMPORTANT, "ERROR: mimeInit: parse failure: '" << buf << "'");
             continue;
         }
 
-        if ((type = strtok(NULL, w_space)) == NULL) {
+        if ((type = strtok(nullptr, w_space)) == nullptr) {
             debugs(25, DBG_IMPORTANT, "ERROR: mimeInit: parse failure: '" << buf << "'");
             continue;
         }
 
-        if ((icon = strtok(NULL, w_space)) == NULL) {
+        if ((icon = strtok(nullptr, w_space)) == nullptr) {
             debugs(25, DBG_IMPORTANT, "ERROR: mimeInit: parse failure: '" << buf << "'");
             continue;
         }
 
-        if ((encoding = strtok(NULL, w_space)) == NULL) {
+        if ((encoding = strtok(nullptr, w_space)) == nullptr) {
             debugs(25, DBG_IMPORTANT, "ERROR: mimeInit: parse failure: '" << buf << "'");
             continue;
         }
 
-        if ((mode = strtok(NULL, w_space)) == NULL) {
+        if ((mode = strtok(nullptr, w_space)) == nullptr) {
             debugs(25, DBG_IMPORTANT, "ERROR: mimeInit: parse failure: '" << buf << "'");
             continue;
         }
@@ -305,7 +305,7 @@ mimeInit(char *filename)
         download_option = 0;
         view_option = 0;
 
-        while ((option = strtok(NULL, w_space)) != NULL) {
+        while ((option = strtok(nullptr, w_space)) != nullptr) {
             if (!strcmp(option, "+download"))
                 download_option = 1;
             else if (!strcmp(option, "+view"))
@@ -331,7 +331,7 @@ mimeInit(char *filename)
 
     fclose(fp);
 
-    for (m = MimeTable; m != NULL; m = m->next)
+    for (m = MimeTable; m != nullptr; m = m->next)
         m->theIcon.load();
     debugs(25, Important(28), "Finished loading MIME types and icons.");
 }
@@ -354,7 +354,7 @@ MimeIcon::load()
 {
     const char *type = mimeGetContentType(icon_.c_str());
 
-    if (type == NULL)
+    if (type == nullptr)
         fatal("Unknown icon format while reading mime.conf\n");
 
     StoreEntry::getPublic(this, url_, Http::METHOD_GET);
@@ -416,9 +416,9 @@ MimeIcon::created(StoreEntry *newEntry)
     HttpReplyPointer reply(new HttpReply);
 
     if (status == Http::scNoContent)
-        reply->setHeaders(status, NULL, NULL, 0, -1, -1);
+        reply->setHeaders(status, nullptr, nullptr, 0, -1, -1);
     else
-        reply->setHeaders(status, NULL, mimeGetContentType(icon_.c_str()), sb.st_size, sb.st_mtime, -1);
+        reply->setHeaders(status, nullptr, mimeGetContentType(icon_.c_str()), sb.st_size, sb.st_mtime, -1);
     reply->cache_control = new HttpHdrCc();
     reply->cache_control->maxAge(86400);
     reply->header.putCc(reply->cache_control);
@@ -467,7 +467,7 @@ MimeEntry::MimeEntry(const char *aPattern, const regex_t &compiledPattern,
     content_encoding(xstrdup(aContentEncoding)),
     view_option(optionViewEnable),
     download_option(optionDownloadEnable),
-    theIcon(anIconName), next(NULL)
+    theIcon(anIconName), next(nullptr)
 {
     if (!strcasecmp(aTransferMode, "ascii"))
         transfer_mode = 'A';

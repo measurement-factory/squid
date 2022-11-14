@@ -24,8 +24,8 @@
 
 Mgr::Action::Action(const Command::Pointer &aCmd): cmd(aCmd)
 {
-    Must(cmd != NULL);
-    Must(cmd->profile != NULL);
+    Must(cmd != nullptr);
+    Must(cmd->profile != nullptr);
 }
 
 Mgr::Action::~Action()
@@ -35,7 +35,7 @@ Mgr::Action::~Action()
 const Mgr::Command &
 Mgr::Action::command() const
 {
-    Must(cmd != NULL);
+    Must(cmd != nullptr);
     return *cmd;
 }
 
@@ -103,7 +103,7 @@ Mgr::Action::fillEntry(StoreEntry* entry, bool writeHttpHeader)
 
     if (writeHttpHeader) {
         HttpReply *rep = new HttpReply;
-        rep->setHeaders(Http::scOkay, NULL, contentType(), -1, squid_curtime, squid_curtime);
+        rep->setHeaders(Http::scOkay, nullptr, contentType(), -1, squid_curtime, squid_curtime);
         // Allow cachemgr and other XHR scripts access to our version string
         const ActionParams &params = command().params;
         if (params.httpOrigin.size() > 0) {

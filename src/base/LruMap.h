@@ -132,7 +132,7 @@ LruMap<Key, EntryValue, EntryCost>::get(const Key &key)
         Entry *e = *i->second;
         return e->value;
     }
-    return NULL;
+    return nullptr;
 }
 
 template <class Key, class EntryValue, size_t EntryCost>

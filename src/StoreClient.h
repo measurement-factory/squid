@@ -162,7 +162,7 @@ private:
 public:
 
     struct Callback {
-        Callback ():callback_handler(NULL), callback_data(NULL) {}
+        Callback ():callback_handler(nullptr), callback_data(nullptr) {}
 
         Callback (STCB *, void *);
 

@@ -93,7 +93,7 @@ PeerPoolMgr::handleOpenedConnection(const CommConnectCbParams &params)
 
     if (!validPeer()) {
         debugs(48, 3, "peer gone");
-        if (params.conn != NULL)
+        if (params.conn != nullptr)
             params.conn->close();
         return;
     }
@@ -104,7 +104,7 @@ PeerPoolMgr::handleOpenedConnection(const CommConnectCbParams &params)
         return;
     }
 
-    Must(params.conn != NULL);
+    Must(params.conn != nullptr);
 
     // Handle TLS peers.
     if (peer->secure.encryptTransport) {
@@ -129,7 +129,7 @@ PeerPoolMgr::pushNewConnection(const Comm::ConnectionPointer &conn)
 {
     Must(validPeer());
     Must(Comm::IsConnOpen(conn));
-    peer->standby.pool->push(conn, NULL /* domain */);
+    peer->standby.pool->push(conn, nullptr /* domain */);
     // push() will trigger a checkpoint()
 }
 
@@ -140,7 +140,7 @@ PeerPoolMgr::handleSecuredPeer(Security::EncryptorAnswer &answer)
 
     if (!validPeer()) {
         debugs(48, 3, "peer gone");
-        if (answer.conn != NULL)
+        if (answer.conn != nullptr)
             answer.conn->close();
         return;
     }

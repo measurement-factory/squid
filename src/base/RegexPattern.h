@@ -33,7 +33,7 @@ public:
     RegexPattern &operator =(RegexPattern &&);
 
     const char * c_str() const {return pattern;}
-    bool match(const char *str) const {return regexec(&regex,str,0,NULL,0)==0;}
+    bool match(const char *str) const {return regexec(&regex,str,0,nullptr,0)==0;}
 
 public:
     int flags;

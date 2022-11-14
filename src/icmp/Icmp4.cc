@@ -85,10 +85,10 @@ Icmp4::SendEcho(Ip::Address &to, int opcode, const char *payload, int len)
     int x;
     LOCAL_ARRAY(char, pkt, MAX_PKT4_SZ);
 
-    struct icmphdr *icmp = NULL;
+    struct icmphdr *icmp = nullptr;
     icmpEchoData *echo;
     size_t icmp_pktsize = sizeof(struct icmphdr);
-    struct addrinfo *S = NULL;
+    struct addrinfo *S = nullptr;
 
     memset(pkt, '\0', MAX_PKT4_SZ);
 
@@ -146,7 +146,7 @@ Icmp4::SendEcho(Ip::Address &to, int opcode, const char *payload, int len)
         debugs(42, DBG_IMPORTANT, MYNAME << "ERROR: sending to ICMP packet to " << to << ": " << xstrerr(xerrno));
     }
 
-    Log(to, ' ', NULL, 0, 0);
+    Log(to, ' ', nullptr, 0, 0);
     Ip::Address::FreeAddr(S);
 }
 
@@ -154,11 +154,11 @@ void
 Icmp4::Recv(void)
 {
     int n;
-    struct addrinfo *from = NULL;
+    struct addrinfo *from = nullptr;
     int iphdrlen = sizeof(iphdr);
-    struct iphdr *ip = NULL;
-    struct icmphdr *icmp = NULL;
-    static char *pkt = NULL;
+    struct iphdr *ip = nullptr;
+    struct icmphdr *icmp = nullptr;
+    static char *pkt = nullptr;
     struct timeval now;
     icmpEchoData *echo;
     static pingerReplyData preply;
@@ -168,7 +168,7 @@ Icmp4::Recv(void)
         return;
     }
 
-    if (pkt == NULL)
+    if (pkt == nullptr)
         pkt = (char *)xmalloc(MAX_PKT4_SZ);
 
     Ip::Address::InitAddr(from);
@@ -193,7 +193,7 @@ Icmp4::Recv(void)
 
 #else
 
-    gettimeofday(&now, NULL);
+    gettimeofday(&now, nullptr);
 
 #endif
 

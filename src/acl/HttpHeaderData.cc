@@ -37,7 +37,7 @@ ACLHTTPHeaderData::~ACLHTTPHeaderData()
 bool
 ACLHTTPHeaderData::match(HttpHeader* hdr)
 {
-    if (hdr == NULL)
+    if (hdr == nullptr)
         return false;
 
     debugs(28, 3, "aclHeaderData::match: checking '" << hdrName << "'");

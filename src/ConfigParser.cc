@@ -21,8 +21,8 @@ bool ConfigParser::RecognizeQuotedValues = true;
 bool ConfigParser::StrictMode = true;
 std::stack<ConfigParser::CfgFile *> ConfigParser::CfgFiles;
 ConfigParser::TokenType ConfigParser::LastTokenType = ConfigParser::SimpleToken;
-const char *ConfigParser::CfgLine = NULL;
-const char *ConfigParser::CfgPos = NULL;
+const char *ConfigParser::CfgLine = nullptr;
+const char *ConfigParser::CfgPos = nullptr;
 std::queue<char *> ConfigParser::CfgLineTokens_;
 std::queue<std::string> ConfigParser::Undo_;
 bool ConfigParser::AllowMacros_ = false;
@@ -79,7 +79,7 @@ ConfigParser::Undo()
             Undo_.pop();
         return undoToken;
     }
-    return NULL;
+    return nullptr;
 }
 
 char *
@@ -89,7 +89,7 @@ ConfigParser::strtokFile()
         return ConfigParser::NextToken();
 
     static int fromFile = 0;
-    static FILE *wordFile = NULL;
+    static FILE *wordFile = nullptr;
 
     char *t;
     static char buf[CONFIG_LINE_LIMIT];
@@ -103,7 +103,7 @@ ConfigParser::strtokFile()
             ConfigParser::TokenType tokenType;
             t = ConfigParser::NextElement(tokenType);
             if (!t) {
-                return NULL;
+                return nullptr;
             } else if (*t == '\"' || *t == '\'') {
                 /* quote found, start reading from file */
                 debugs(3, 8,"Quoted token found : " << t);
@@ -114,9 +114,9 @@ ConfigParser::strtokFile()
 
                 *t = '\0';
 
-                if ((wordFile = fopen(fn, "r")) == NULL) {
+                if ((wordFile = fopen(fn, "r")) == nullptr) {
                     debugs(3, DBG_CRITICAL, "ERROR: Can not open file " << fn << " for reading");
-                    return NULL;
+                    return nullptr;
                 }
 
 #if _SQUID_WINDOWS_
@@ -130,12 +130,12 @@ ConfigParser::strtokFile()
         }
 
         /* fromFile */
-        if (fgets(buf, sizeof(buf), wordFile) == NULL) {
+        if (fgets(buf, sizeof(buf), wordFile) == nullptr) {
             /* stop reading from file */
             fclose(wordFile);
-            wordFile = NULL;
+            wordFile = nullptr;
             fromFile = 0;
-            return NULL;
+            return nullptr;
         } else {
             char *t2, *t3;
             t = buf;
@@ -162,8 +162,8 @@ ConfigParser::strtokFile()
 char *
 ConfigParser::UnQuote(const char *token, const char **next)
 {
-    const char *errorStr = NULL;
-    const char *errorPos = NULL;
+    const char *errorStr = nullptr;
+    const char *errorPos = nullptr;
     char quoteChar = *token;
     assert(quoteChar == '"' || quoteChar == '\'');
     LOCAL_ARRAY(char, UnQuoted, CONFIG_LINE_LIMIT);
@@ -246,12 +246,12 @@ char *
 ConfigParser::TokenParse(const char * &nextToken, ConfigParser::TokenType &type)
 {
     if (!nextToken || *nextToken == '\0')
-        return NULL;
+        return nullptr;
     type = ConfigParser::SimpleToken;
     nextToken += strspn(nextToken, w_space);
 
     if (*nextToken == '#')
-        return NULL;
+        return nullptr;
 
     if (ConfigParser::RecognizeQuotedValues && (*nextToken == '"' || *nextToken == '\'')) {
         type = ConfigParser::QuotedToken;
@@ -304,7 +304,7 @@ ConfigParser::TokenParse(const char * &nextToken, ConfigParser::TokenType &type)
     } else
         type = ConfigParser::SimpleToken;
 
-    char *token = NULL;
+    char *token = nullptr;
     if (nextToken - tokenStart) {
         if (ConfigParser::StrictMode && type == ConfigParser::SimpleToken) {
             bool tokenIsNumber = true;
@@ -356,14 +356,14 @@ ConfigParser::NextElement(ConfigParser::TokenType &type)
 char *
 ConfigParser::NextToken()
 {
-    char *token = NULL;
+    char *token = nullptr;
     if ((token = ConfigParser::Undo())) {
         debugs(3, 6, "TOKEN (undone): " << token);
         return token;
     }
 
     do {
-        while (token == NULL && !CfgFiles.empty()) {
+        while (token == nullptr && !CfgFiles.empty()) {
             ConfigParser::CfgFile *wordfile = CfgFiles.top();
             token = wordfile->parse(LastTokenType);
             if (!token) {
@@ -386,7 +386,7 @@ ConfigParser::NextToken()
             if (LastTokenType != ConfigParser::QuotedToken) {
                 debugs(3, DBG_CRITICAL, "FATAL: Quoted filename missing: " << token);
                 self_destruct();
-                return NULL;
+                return nullptr;
             }
 
             // The next token in current cfg file line must be a ")"
@@ -395,13 +395,13 @@ ConfigParser::NextToken()
             if (LastTokenType != ConfigParser::SimpleToken || strcmp(end, ")") != 0) {
                 debugs(3, DBG_CRITICAL, "FATAL: missing ')' after " << token << "(\"" << path << "\"");
                 self_destruct();
-                return NULL;
+                return nullptr;
             }
 
             if (CfgFiles.size() > 16) {
                 debugs(3, DBG_CRITICAL, "FATAL: can't open %s for reading parameters: includes are nested too deeply (>16)!\n" << path);
                 self_destruct();
-                return NULL;
+                return nullptr;
             }
 
             ConfigParser::CfgFile *wordfile = new ConfigParser::CfgFile();
@@ -409,12 +409,12 @@ ConfigParser::NextToken()
                 debugs(3, DBG_CRITICAL, "FATAL: Error opening config file: " << token);
                 delete wordfile;
                 self_destruct();
-                return NULL;
+                return nullptr;
             }
             CfgFiles.push(wordfile);
-            token = NULL;
+            token = nullptr;
         }
-    } while (token == NULL && !CfgFiles.empty());
+    } while (token == nullptr && !CfgFiles.empty());
 
     return token;
 }
@@ -475,10 +475,10 @@ ConfigParser::optionalKvPair(char * &key, char * &value)
 bool
 ConfigParser::NextKvPair(char * &key, char * &value)
 {
-    key = value = NULL;
+    key = value = nullptr;
     ParseKvPair_ = true;
     KvPairState_ = ConfigParser::atParseKey;
-    if ((key = NextToken()) != NULL) {
+    if ((key = NextToken()) != nullptr) {
         KvPairState_ = ConfigParser::atParseValue;
         value = NextQuotedToken();
     }
@@ -627,9 +627,9 @@ ConfigParser::optionalAclList()
 bool
 ConfigParser::CfgFile::startParse(char *path)
 {
-    assert(wordFile == NULL);
+    assert(wordFile == nullptr);
     debugs(3, 3, "Parsing from " << path);
-    if ((wordFile = fopen(path, "r")) == NULL) {
+    if ((wordFile = fopen(path, "r")) == nullptr) {
         debugs(3, DBG_CRITICAL, "WARNING: file :" << path << " not found");
         return false;
     }
@@ -646,10 +646,10 @@ bool
 ConfigParser::CfgFile::getFileLine()
 {
     // Else get the next line
-    if (fgets(parseBuffer, CONFIG_LINE_LIMIT, wordFile) == NULL) {
+    if (fgets(parseBuffer, CONFIG_LINE_LIMIT, wordFile) == nullptr) {
         /* stop reading from file */
         fclose(wordFile);
-        wordFile = NULL;
+        wordFile = nullptr;
         parseBuffer[0] = '\0';
         return false;
     }
@@ -663,15 +663,15 @@ char *
 ConfigParser::CfgFile::parse(ConfigParser::TokenType &type)
 {
     if (!wordFile)
-        return NULL;
+        return nullptr;
 
     if (!*parseBuffer)
-        return NULL;
+        return nullptr;
 
     char *token;
     while (!(token = nextElement(type))) {
         if (!getFileLine())
-            return NULL;
+            return nullptr;
     }
     return token;
 }

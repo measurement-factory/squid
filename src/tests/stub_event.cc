@@ -31,5 +31,5 @@ void EventScheduler::dump(StoreEntry *) STUB
 bool EventScheduler::find(EVH *, void *) STUB_RETVAL(false)
 void EventScheduler::schedule(const char *, EVH *, void *, double, int, bool) STUB
 int EventScheduler::checkEvents(int) STUB_RETVAL(-1)
-EventScheduler *EventScheduler::GetInstance() STUB_RETVAL(NULL)
+EventScheduler *EventScheduler::GetInstance() STUB_RETVAL(nullptr)
 

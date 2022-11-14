@@ -62,10 +62,10 @@ ACLHTTPStatus::clone() const
     return new ACLHTTPStatus(*this);
 }
 
-ACLHTTPStatus::ACLHTTPStatus (char const *theClass) : data(NULL), class_ (theClass)
+ACLHTTPStatus::ACLHTTPStatus (char const *theClass) : data(nullptr), class_ (theClass)
 {}
 
-ACLHTTPStatus::ACLHTTPStatus (ACLHTTPStatus const & old) : data(NULL), class_ (old.class_)
+ACLHTTPStatus::ACLHTTPStatus (ACLHTTPStatus const & old) : data(nullptr), class_ (old.class_)
 {
     /* we don't have copy constructors for the data yet */
     assert(!old.data);
@@ -138,7 +138,7 @@ aclMatchHTTPStatus(Splay<acl_httpstatus_data*> **dataptr, const Http::StatusCode
     const acl_httpstatus_data * const * result = (*dataptr)->find(&X, aclHTTPStatusCompare);
 
     debugs(28, 3, "aclMatchHTTPStatus: '" << status << "' " << (result ? "found" : "NOT found"));
-    return (result != NULL);
+    return (result != nullptr);
 }
 
 static int

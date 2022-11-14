@@ -119,9 +119,9 @@ Icmp6::SendEcho(Ip::Address &to, int opcode, const char *payload, int len)
 {
     int x;
     LOCAL_ARRAY(char, pkt, MAX_PKT6_SZ);
-    struct icmp6_hdr *icmp = NULL;
-    icmpEchoData *echo = NULL;
-    struct addrinfo *S = NULL;
+    struct icmp6_hdr *icmp = nullptr;
+    icmpEchoData *echo = nullptr;
+    struct addrinfo *S = nullptr;
     size_t icmp6_pktsize = 0;
 
     memset(pkt, '\0', MAX_PKT6_SZ);
@@ -183,7 +183,7 @@ Icmp6::SendEcho(Ip::Address &to, int opcode, const char *payload, int len)
     }
     debugs(42,9, "x=" << x);
 
-    Log(to, 0, NULL, 0, 0);
+    Log(to, 0, nullptr, 0, 0);
     Ip::Address::FreeAddr(S);
 }
 
@@ -194,11 +194,11 @@ void
 Icmp6::Recv(void)
 {
     int n;
-    struct addrinfo *from = NULL;
+    struct addrinfo *from = nullptr;
 //    struct ip6_hdr *ip = NULL;
-    static char *pkt = NULL;
-    struct icmp6_hdr *icmp6header = NULL;
-    icmpEchoData *echo = NULL;
+    static char *pkt = nullptr;
+    struct icmp6_hdr *icmp6header = nullptr;
+    icmpEchoData *echo = nullptr;
     struct timeval now;
     static pingerReplyData preply;
 
@@ -207,7 +207,7 @@ Icmp6::Recv(void)
         return;
     }
 
-    if (pkt == NULL) {
+    if (pkt == nullptr) {
         pkt = (char *)xmalloc(MAX_PKT6_SZ);
     }
 
@@ -234,7 +234,7 @@ Icmp6::Recv(void)
 
 #else
 
-    gettimeofday(&now, NULL);
+    gettimeofday(&now, nullptr);
 
 #endif
 

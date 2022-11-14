@@ -135,7 +135,7 @@ public:
     } flags;
 
     struct Redirect {
-        Redirect() : status(Http::scNone), location(NULL) {}
+        Redirect() : status(Http::scNone), location(nullptr) {}
 
         Http::StatusCode status;
         char *location;

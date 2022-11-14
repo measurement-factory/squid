@@ -97,7 +97,7 @@ public:
     AccessLogEntryPointer al;
 
     const char * getHost() const {
-        return (server.conn != NULL && server.conn->getPeer() ? server.conn->getPeer()->host : request->url.host());
+        return (server.conn != nullptr && server.conn->getPeer() ? server.conn->getPeer()->host : request->url.host());
     };
 
     /// store the given to-server connection; prohibit retries and do not look
@@ -115,7 +115,7 @@ public:
         if (http.valid() && http->getConn() && http->getConn()->serverBump() && http->getConn()->serverBump()->at(XactionStep::tlsBump2, XactionStep::tlsBump3))
             return false;
 #endif
-        return !(request != NULL &&
+        return !(request != nullptr &&
                  (request->flags.interceptTproxy || request->flags.intercepted));
     }
 
@@ -131,9 +131,9 @@ public:
     {
 
     public:
-        Connection() : len (0), buf ((char *)xmalloc(SQUID_TCP_SO_RCVBUF)), size_ptr(NULL), delayedLoops(0),
+        Connection() : len (0), buf ((char *)xmalloc(SQUID_TCP_SO_RCVBUF)), size_ptr(nullptr), delayedLoops(0),
             dirty(false),
-            readPending(NULL), readPendingFunc(NULL) {}
+            readPending(nullptr), readPendingFunc(nullptr) {}
 
         ~Connection();
 
@@ -666,7 +666,7 @@ TunnelStateData::copy(size_t len, Connection &from, Connection &to, IOCB *comple
     debugs(26, 3, "Schedule Write");
     AsyncCall::Pointer call = commCbCall(5,5, "TunnelBlindCopyWriteHandler",
                                          CommIoCbPtrFun(completion, this));
-    to.write(from.buf, len, call, NULL);
+    to.write(from.buf, len, call, nullptr);
 }
 
 /* Writes data from the client buffer to the server side */
@@ -675,7 +675,7 @@ TunnelStateData::WriteServerDone(const Comm::ConnectionPointer &, char *buf, siz
 {
     TunnelStateData *tunnelState = (TunnelStateData *)data;
     assert (cbdataReferenceValid (tunnelState));
-    tunnelState->server.writer = NULL;
+    tunnelState->server.writer = nullptr;
 
     tunnelState->writeServerDone(buf, len, flag, xerrno);
 }
@@ -728,7 +728,7 @@ TunnelStateData::WriteClientDone(const Comm::ConnectionPointer &, char *buf, siz
 {
     TunnelStateData *tunnelState = (TunnelStateData *)data;
     assert (cbdataReferenceValid (tunnelState));
-    tunnelState->client.writer = NULL;
+    tunnelState->client.writer = nullptr;
 
     tunnelState->writeClientDone(buf, len, flag, xerrno);
 }
@@ -852,7 +852,7 @@ tunnelDelayedClientRead(void *data)
     TunnelStateData *tunnel = static_cast<TunnelStateData*>(data);
     const auto savedContext = CodeContext::Current();
     CodeContext::Reset(tunnel->codeContext);
-    tunnel->client.readPending = NULL;
+    tunnel->client.readPending = nullptr;
     static uint64_t counter=0;
     debugs(26, 7, "Client read(2) delayed " << ++counter << " times");
     tunnel->copyRead(tunnel->client, TunnelStateData::ReadClient);
@@ -868,7 +868,7 @@ tunnelDelayedServerRead(void *data)
     TunnelStateData *tunnel = static_cast<TunnelStateData*>(data);
     const auto savedContext = CodeContext::Current();
     CodeContext::Reset(tunnel->codeContext);
-    tunnel->server.readPending = NULL;
+    tunnel->server.readPending = nullptr;
     static uint64_t counter=0;
     debugs(26, 7, "Server read(2) delayed " << ++counter << " times");
     tunnel->copyRead(tunnel->server, TunnelStateData::ReadServer);
@@ -972,7 +972,7 @@ tunnelConnectedWriteDone(const Comm::ConnectionPointer &conn, char *, size_t len
 {
     TunnelStateData *tunnelState = (TunnelStateData *)data;
     debugs(26, 3, conn << ", flag=" << flag);
-    tunnelState->client.writer = NULL;
+    tunnelState->client.writer = nullptr;
 
     if (flag != Comm::OK) {
         *tunnelState->status_ptr = Http::scInternalServerError;
@@ -1064,7 +1064,7 @@ tunnelErrorComplete(int fd/*const Comm::ConnectionPointer &*/, void *data, size_
 {
     TunnelStateData *tunnelState = (TunnelStateData *)data;
     debugs(26, 3, "FD " << fd);
-    assert(tunnelState != NULL);
+    assert(tunnelState != nullptr);
     /* temporary lock to save our own feets (comm_close -> tunnelClientClosed -> Free) */
     CbcPointer<TunnelStateData> safetyLock(tunnelState);
 
@@ -1154,8 +1154,8 @@ tunnelStart(ClientHttpRequest * http)
 {
     debugs(26, 3, MYNAME);
     /* Create state structure. */
-    TunnelStateData *tunnelState = NULL;
-    ErrorState *err = NULL;
+    TunnelStateData *tunnelState = nullptr;
+    ErrorState *err = nullptr;
     HttpRequest *request = http->request;
     char *url = http->uri;
 
@@ -1170,7 +1170,7 @@ tunnelStart(ClientHttpRequest * http)
          * Check if this host is allowed to fetch MISSES from us (miss_access)
          * default is to allow.
          */
-        ACLFilledChecklist ch(Config.accessList.miss, request, NULL);
+        ACLFilledChecklist ch(Config.accessList.miss, request, nullptr);
         ch.al = http->al;
         ch.src_addr = request->client_addr;
         ch.my_addr = request->my_addr;

@@ -59,7 +59,7 @@ Acl::NotNode::clone() const
     // should try to create a NotNode instance by ACL type name (which is
     // what clone() API is for -- it does not really clone anything).
     assert(false);
-    return NULL;
+    return nullptr;
 }
 
 SBufList

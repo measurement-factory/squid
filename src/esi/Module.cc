@@ -14,10 +14,10 @@
 #include "esi/ExpatParser.h"
 
 #if HAVE_LIBXML2
-static ESIParser::Register *prLibxml = 0;
+static ESIParser::Register *prLibxml = nullptr;
 #endif
 #if HAVE_LIBEXPAT
-static ESIParser::Register *prExpat = 0;
+static ESIParser::Register *prExpat = nullptr;
 #endif
 
 void Esi::Init()
@@ -37,12 +37,12 @@ void Esi::Clean()
 {
 #if HAVE_LIBEXPAT
     delete prExpat;
-    prExpat = NULL;
+    prExpat = nullptr;
 #endif
 
 #if HAVE_LIBXML2
     delete prLibxml;
-    prLibxml = NULL;
+    prLibxml = nullptr;
 #endif
 }
 

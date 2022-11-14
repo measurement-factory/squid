@@ -90,13 +90,13 @@ public:
      * The supplied SBuf copied: in order to retrieve the written-to contents
      * they must be later fetched using the buf() class method.
      */
-    SBufStream(SBuf aBuf): std::ostream(0), theBuffer(aBuf) {
+    SBufStream(SBuf aBuf): std::ostream(nullptr), theBuffer(aBuf) {
         rdbuf(&theBuffer); // set the buffer to now-initialized theBuffer
         clear(); //clear badbit set by calling init(0)
     }
 
     /// Create an empty SBufStream
-    SBufStream(): std::ostream(0), theBuffer(SBuf()) {
+    SBufStream(): std::ostream(nullptr), theBuffer(SBuf()) {
         rdbuf(&theBuffer); // set the buffer to now-initialized theBuffer
         clear(); //clear badbit set by calling init(0)
     }

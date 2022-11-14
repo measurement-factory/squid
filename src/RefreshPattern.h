@@ -29,7 +29,7 @@ public:
     RefreshPattern(const char *aPattern, const decltype(RegexPattern::flags) &reFlags) :
         pattern(reFlags, aPattern),
         min(0), pct(0.20), max(REFRESH_DEFAULT_MAX),
-        next(NULL),
+        next(nullptr),
         max_stale(0)
     {
         memset(&flags, 0, sizeof(flags));

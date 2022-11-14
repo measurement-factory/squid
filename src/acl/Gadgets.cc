@@ -45,7 +45,7 @@ aclGetDenyInfoPage(AclDenyInfoList ** head, const char *name, int redirect_allow
         return ERR_NONE;
     }
 
-    AclDenyInfoList *A = NULL;
+    AclDenyInfoList *A = nullptr;
 
     debugs(28, 8, "got called for " << name);
 
@@ -101,13 +101,13 @@ aclIsProxyAuth(const char *name)
 void
 aclParseDenyInfoLine(AclDenyInfoList ** head)
 {
-    char *t = NULL;
+    char *t = nullptr;
     AclDenyInfoList *B;
     AclDenyInfoList **T;
 
     /* first expect a page name */
 
-    if ((t = ConfigParser::NextToken()) == NULL) {
+    if ((t = ConfigParser::NextToken()) == nullptr) {
         debugs(28, DBG_CRITICAL, "aclParseDenyInfoLine: " << cfg_filename << " line " << config_lineno << ": " << config_input_line);
         debugs(28, DBG_CRITICAL, "ERROR: aclParseDenyInfoLine: missing 'error page' parameter.");
         return;
@@ -250,7 +250,7 @@ aclDeregister(ACL *acl)
 void
 aclDestroyAcls(ACL ** head)
 {
-    *head = NULL; // Config.aclList
+    *head = nullptr; // Config.aclList
     if (AclSet *acls = RegisteredAcls) {
         debugs(28, 8, "deleting all " << acls->size() << " ACLs");
         while (!acls->empty()) {
@@ -271,7 +271,7 @@ aclDestroyAclList(ACLList **list)
     debugs(28, 8, "aclDestroyAclList: invoked");
     assert(list);
     delete *list;
-    *list = NULL;
+    *list = nullptr;
 }
 
 void
@@ -281,7 +281,7 @@ aclDestroyAccessList(acl_access ** list)
     if (*list)
         debugs(28, 3, "destroying: " << *list << ' ' << (*list)->name);
     delete *list;
-    *list = NULL;
+    *list = nullptr;
 }
 
 /* maex@space.net (06.09.1996)
@@ -290,8 +290,8 @@ aclDestroyAccessList(acl_access ** list)
 void
 aclDestroyDenyInfoList(AclDenyInfoList ** list)
 {
-    AclDenyInfoList *a = NULL;
-    AclDenyInfoList *a_next = NULL;
+    AclDenyInfoList *a = nullptr;
+    AclDenyInfoList *a_next = nullptr;
 
     debugs(28, 8, "aclDestroyDenyInfoList: invoked");
 
@@ -300,6 +300,6 @@ aclDestroyDenyInfoList(AclDenyInfoList ** list)
         delete a;
     }
 
-    *list = NULL;
+    *list = nullptr;
 }
 

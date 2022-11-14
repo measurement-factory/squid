@@ -59,7 +59,7 @@ Server::stopReading()
 {
     if (reading()) {
         Comm::ReadCancel(clientConnection->fd, reader);
-        reader = NULL;
+        reader = nullptr;
     }
 }
 
@@ -105,7 +105,7 @@ Server::doClientRead(const CommIoCbParams &io)
 {
     debugs(33,5, io.conn);
     Must(reading());
-    reader = NULL;
+    reader = nullptr;
 
     /* Bail out quickly on Comm::ERR_CLOSING - close handlers will tidy up */
     if (io.flag == Comm::ERR_CLOSING) {

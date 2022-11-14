@@ -13,12 +13,12 @@
 #include "debug/Stream.h"
 #include "helper.h"
 
-Auth::Scheme::Pointer Auth::Ntlm::Scheme::_instance = NULL;
+Auth::Scheme::Pointer Auth::Ntlm::Scheme::_instance = nullptr;
 
 Auth::Scheme::Pointer
 Auth::Ntlm::Scheme::GetInstance()
 {
-    if (_instance == NULL) {
+    if (_instance == nullptr) {
         _instance = new Auth::Ntlm::Scheme();
         AddScheme(_instance);
     }
@@ -34,10 +34,10 @@ Auth::Ntlm::Scheme::type() const
 void
 Auth::Ntlm::Scheme::shutdownCleanup()
 {
-    if (_instance == NULL)
+    if (_instance == nullptr)
         return;
 
-    _instance = NULL;
+    _instance = nullptr;
     debugs(29, Critical(61), "Shutdown: NTLM authentication.");
 }
 

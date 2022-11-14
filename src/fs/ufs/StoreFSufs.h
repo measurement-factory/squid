@@ -49,7 +49,7 @@ protected:
 };
 
 template <class C>
-StoreFSufs<C>::StoreFSufs(char const *defaultModuleName, char const *aLabel) : IO(NULL), moduleName(defaultModuleName), label(aLabel)
+StoreFSufs<C>::StoreFSufs(char const *defaultModuleName, char const *aLabel) : IO(nullptr), moduleName(defaultModuleName), label(aLabel)
 {
     FsAdd(*this);
 }

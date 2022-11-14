@@ -145,7 +145,7 @@ void WINAPI WIN32_svcHandler(DWORD);
 #endif
 
 static int opt_signal_service = FALSE;
-static char *opt_syslog_facility = NULL;
+static char *opt_syslog_facility = nullptr;
 static int icpPortNumOverride = 1;  /* Want to detect "-u 0" */
 static int configured_once = 0;
 #if MALLOC_DBG
@@ -224,7 +224,7 @@ private:
         Auth::Scheme::FreeAll();
 #endif
 
-        eventAdd("SquidTerminate", &StopEventLoop, NULL, 0, 1, false);
+        eventAdd("SquidTerminate", &StopEventLoop, nullptr, 0, 1, false);
     }
 
     void doShutdown(time_t wait);
@@ -426,11 +426,11 @@ static const char *shortOpStr =
 
 // long options
 static struct option squidOptions[] = {
-    {"foreground", no_argument, 0,  optForeground},
-    {"kid",        required_argument, 0, optKid},
-    {"help",       no_argument, 0, 'h'},
-    {"version",    no_argument, 0, 'v'},
-    {0, 0, 0, 0}
+    {"foreground", no_argument, nullptr,  optForeground},
+    {"kid",        required_argument, nullptr, optKid},
+    {"help",       no_argument, nullptr, 'h'},
+    {"version",    no_argument, nullptr, 'v'},
+    {nullptr, 0, nullptr, 0}
 };
 
 // handle a command line parameter
@@ -906,7 +906,7 @@ mainReconfigureStart(void)
 #endif
     Security::CloseLogs();
 
-    eventAdd("mainReconfigureFinish", &mainReconfigureFinish, NULL, 0, 1,
+    eventAdd("mainReconfigureFinish", &mainReconfigureFinish, nullptr, 0, 1,
              false);
 }
 
@@ -1757,7 +1757,7 @@ mainStartScript(const char *prog)
 
     if ((cpid = fork()) == 0) {
         /* child */
-        execl(script, squid_start_script, (char *)NULL);
+        execl(script, squid_start_script, (char *)nullptr);
         _exit(-1);
     } else {
         do {

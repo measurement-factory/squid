@@ -40,7 +40,7 @@ MessageDelayPools::pool(const SBuf &name)
 {
     auto it = std::find_if(pools.begin(), pools.end(),
     [&name](const MessageDelayPool::Pointer p) { return p->poolName == name; });
-    return it == pools.end() ? 0 : *it;
+    return it == pools.end() ? nullptr : *it;
 }
 
 void
@@ -63,7 +63,7 @@ MessageDelayPools::freePools()
 
 MessageDelayPool::MessageDelayPool(const SBuf &name, int64_t bucketSpeed, int64_t bucketSize,
                                    int64_t aggregateSpeed, int64_t aggregateSize, uint16_t initialBucketPercent):
-    access(0),
+    access(nullptr),
     poolName(name),
     individualRestore(bucketSpeed),
     individualMaximum(bucketSize),

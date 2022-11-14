@@ -30,7 +30,7 @@ void
 testStoreHashIndex::testStats()
 {
     StoreEntry *logEntry = new StoreEntry;
-    logEntry->createMemObject("dummy_storeId", NULL, HttpRequestMethod());
+    logEntry->createMemObject("dummy_storeId", nullptr, HttpRequestMethod());
     logEntry->store_status = STORE_PENDING;
     Store::Init();
     TestSwapDirPointer aStore (new TestSwapDir);
@@ -50,7 +50,7 @@ void
 testStoreHashIndex::testMaxSize()
 {
     StoreEntry *logEntry = new StoreEntry;
-    logEntry->createMemObject("dummy_storeId", NULL, HttpRequestMethod());
+    logEntry->createMemObject("dummy_storeId", nullptr, HttpRequestMethod());
     logEntry->store_status = STORE_PENDING;
     Store::Init();
     TestSwapDirPointer aStore (new TestSwapDir);
@@ -136,18 +136,18 @@ testStoreHashIndex::testSearch()
     addSwapDir(aStore);
     addSwapDir(aStore2);
     Store::Root().init();
-    StoreEntry * entry1 = addedEntry(aStore.getRaw(), "name", NULL, NULL);
-    StoreEntry * entry2 = addedEntry(aStore2.getRaw(), "name2", NULL, NULL);
+    StoreEntry * entry1 = addedEntry(aStore.getRaw(), "name", nullptr, nullptr);
+    StoreEntry * entry2 = addedEntry(aStore2.getRaw(), "name2", nullptr, nullptr);
     StoreSearchPointer search = Store::Root().search(); /* search for everything in the store */
 
     /* nothing should be immediately available */
     CPPUNIT_ASSERT_EQUAL(false, search->error());
     CPPUNIT_ASSERT_EQUAL(false, search->isDone());
-    CPPUNIT_ASSERT_EQUAL(static_cast<StoreEntry *>(NULL), search->currentItem());
+    CPPUNIT_ASSERT_EQUAL(static_cast<StoreEntry *>(nullptr), search->currentItem());
 
     /* trigger a callback */
     cbcalled = false;
-    search->next(searchCallback, NULL);
+    search->next(searchCallback, nullptr);
     CPPUNIT_ASSERT_EQUAL(true, cbcalled);
 
     /* we should have access to a entry now, that matches the entry we had before */
@@ -159,7 +159,7 @@ testStoreHashIndex::testSearch()
 
     /* trigger another callback */
     cbcalled = false;
-    search->next(searchCallback, NULL);
+    search->next(searchCallback, nullptr);
     CPPUNIT_ASSERT_EQUAL(true, cbcalled);
 
     /* we should have access to a entry now, that matches the entry we had before */
@@ -170,13 +170,13 @@ testStoreHashIndex::testSearch()
 
     /* trigger another callback */
     cbcalled = false;
-    search->next(searchCallback, NULL);
+    search->next(searchCallback, nullptr);
     CPPUNIT_ASSERT_EQUAL(true, cbcalled);
 
     /* now we should have no error, we should have finished and have no current item */
     CPPUNIT_ASSERT_EQUAL(false, search->error());
     CPPUNIT_ASSERT_EQUAL(true, search->isDone());
-    CPPUNIT_ASSERT_EQUAL(static_cast<StoreEntry *>(NULL), search->currentItem());
+    CPPUNIT_ASSERT_EQUAL(static_cast<StoreEntry *>(nullptr), search->currentItem());
     //CPPUNIT_ASSERT_EQUAL(false, search->next());
 
     Store::FreeMemory();
