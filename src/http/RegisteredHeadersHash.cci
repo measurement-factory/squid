@@ -376,7 +376,7 @@ const class HeaderTableRecord *
                     return &HttpHeaderDefinitionsTable[key];
             }
     }
-    return nullptr;
+    return 0;
 }
 #line 111 "RegisteredHeadersHash.gperf"
 
