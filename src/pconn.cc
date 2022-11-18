@@ -281,16 +281,32 @@ IdleConnList::findUseable(const Comm::ConnectionPointer &aKey)
 
 /* might delete list */
 void
-IdleConnList::findAndClose(const Comm::ConnectionPointer &conn)
+IdleConnList::closeByIndex(const int index)
 {
-    const int index = findIndexOf(conn);
     if (index >= 0) {
+        const auto conn = theList_[index];
         if (parent_)
             parent_->notifyManager("idle conn closure");
         clearHandlers(conn);
         /* might delete this */
         removeAt(index);
         conn->close();
+    }
+}
+
+void
+IdleConnList::findAndClose(const Comm::ConnectionPointer &conn)
+{
+    closeByIndex(findIndexOf(conn));
+}
+
+void
+IdleConnList::notePeerRemoved(const CachePeer *peer)
+{
+    for (int index = size_ - 1; index >= 0; --index) {
+        const auto conn = theList_[index];
+        if (conn->getPeer() == peer)
+            closeByIndex(index);
     }
 }
 
@@ -521,6 +537,17 @@ PconnPool::closeN(int n)
 
         // may delete current
         static_cast<IdleConnList*>(current)->closeN(1);
+    }
+}
+
+void
+PconnPool::notePeerRemoved(const CachePeer *peer)
+{
+    auto *hid = table;
+    hash_first(hid);
+    for (hash_link *walker = hash_next(hid); walker; walker = hash_next(hid)) {
+        auto list = static_cast<IdleConnList*>(walker);
+        list->notePeerRemoved(peer);
     }
 }
 

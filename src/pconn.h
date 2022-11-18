@@ -61,6 +61,9 @@ public:
     int count() const { return size_; }
     void closeN(size_t count);
 
+    // closes idle connections to a CachePeer before its deletion
+    void notePeerRemoved(const CachePeer *);
+
     // IndependentRunner API
     virtual void endingShutdown();
 private:
@@ -68,6 +71,7 @@ private:
     bool removeAt(int index);
     int findIndexOf(const Comm::ConnectionPointer &conn) const;
     void findAndClose(const Comm::ConnectionPointer &conn);
+    void closeByIndex(int);
     static IOCB Read;
     static CTCB Timeout;
 
@@ -145,6 +149,8 @@ public:
 
     // sends an async message to the pool manager, if any
     void notifyManager(const char *reason);
+    // adjusts idle connections to a CachePeer before its deletion
+    void notePeerRemoved(const CachePeer *);
 
 private:
 

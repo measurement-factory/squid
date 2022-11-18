@@ -10,6 +10,7 @@
 #include "acl/Gadgets.h"
 #include "CachePeer.h"
 #include "defines.h"
+#include "FwdState.h"
 #include "neighbors.h"
 #include "NeighborTypeDomainList.h"
 #include "pconn.h"
@@ -28,6 +29,8 @@ CachePeer::CachePeer(const char * const hostname):
 
 CachePeer::~CachePeer()
 {
+    fwdPconnPool->notePeerRemoved(this);
+
     xfree(name);
     xfree(host);
 
