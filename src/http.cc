@@ -164,7 +164,7 @@ findPreviouslyCachedEntry(StoreEntry *newEntry) {
 /// whether the incoming response (to be stored in a currently private entry)
 /// obsoletes the existing matching public cache entries
 bool
-HttpStateData::incomingInvalidates(const Http::StatusCode status) const
+HttpStateData::incomingInvalidates(const Http::StatusCode statusCode) const
 {
     // Stop incoming response from purging a _newer_ stored entry per RFC 9111
     // section 4: "When more than one suitable response is stored, a cache MUST
@@ -191,7 +191,7 @@ HttpStateData::incomingInvalidates(const Http::StatusCode status) const
     if (e->mem_obj->request && !e->mem_obj->request->flags.cachable)
         return false;
 
-    switch (status) {
+    switch (statusCode) {
 
     case Http::scOkay:
 
@@ -239,13 +239,13 @@ HttpStateData::incomingInvalidates(const Http::StatusCode status) const
 }
 
 void
-HttpStateData::maybeRemovePublic(const Http::StatusCode status)
+HttpStateData::maybeRemovePublic(const Http::StatusCode statusCode)
 {
     auto pe = findPreviouslyCachedEntry(entry);
 
     sawDateGoBack = pe && finalReply()->olderThan(pe->hasFreshestReply());
 
-    if (!incomingInvalidates(status)) {
+    if (!incomingInvalidates(statusCode)) {
         if (pe)
             pe->abandon("HttpStateData::maybeRemovePublic");
         return;
