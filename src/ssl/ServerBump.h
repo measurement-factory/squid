@@ -62,6 +62,10 @@ public:
     } act; ///< bumping actions at various bumping steps
     Ssl::BumpStep step; ///< The SSL bumping step
 
+#if FOLLOW_X_FORWARDED_FOR
+    Ip::Address indirectClient;
+#endif
+
 private:
     Security::SessionPointer serverSession; ///< The TLS session object on server side.
     store_client *sc; ///< dummy client to prevent entry trimming
