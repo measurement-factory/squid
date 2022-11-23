@@ -60,6 +60,12 @@ CBDATA_CLASS_INIT(helper_stateful_server);
 
 InstanceIdDefinitions(HelperServerBase, "Hlpr");
 
+bool
+HelperServerBase::available() const
+{
+    return !flags.closing && !flags.shutdown && Comm::IsConnOpen(writePipe) && !writePipe->closing();
+}
+
 void
 HelperServerBase::initStats()
 {
@@ -177,6 +183,18 @@ helper_server::dropQueued()
 {
     HelperServerBase::dropQueued();
     requestsIndex.clear();
+}
+
+bool
+helper_stateful_server::available() const
+{
+    if (stats.pending)
+        return false;
+
+    if (reserved() && (squid_curtime - reservationStart) <= parent->childs.reservationTimeout)
+        return false;
+
+    return HelperServerBase::available();
 }
 
 helper_stateful_server::~helper_stateful_server()
@@ -1082,7 +1100,7 @@ helperHandleRead(const Comm::ConnectionPointer &conn, char *, size_t len, Comm::
         srv->roffset = 0;
     }
 
-    if (Comm::IsConnOpen(srv->readPipe) && !fd_table[srv->readPipe->fd].closing()) {
+    if (!srv->readPipe->closing()) {
         int spaceSize = srv->rbuf_sz - srv->roffset - 1;
         assert(spaceSize >= 0);
 
@@ -1189,7 +1207,7 @@ helperStatefulHandleRead(const Comm::ConnectionPointer &conn, char *, size_t len
             hlp->cancelReservation(srv->reservationId);
     }
 
-    if (Comm::IsConnOpen(srv->readPipe) && !fd_table[srv->readPipe->fd].closing()) {
+    if (!srv->readPipe->closing()) {
         int spaceSize = srv->rbuf_sz - 1;
 
         AsyncCall::Pointer call = commCbCall(5,4, "helperStatefulHandleRead",
@@ -1287,7 +1305,7 @@ GetFirstAvailable(const helper * hlp)
         if (selected && selected->stats.pending <= srv->stats.pending)
             continue;
 
-        if (srv->flags.shutdown)
+        if (!srv->available())
             continue;
 
         if (!srv->stats.pending)
@@ -1329,22 +1347,17 @@ StatefulGetFirstAvailable(statefulhelper * hlp)
     for (n = hlp->servers.head; n != nullptr; n = n->next) {
         srv = (helper_stateful_server *)n->data;
 
-        if (srv->stats.pending)
+        if (!srv->available())
             continue;
 
         if (srv->reserved()) {
-            if ((squid_curtime - srv->reservationStart) > hlp->childs.reservationTimeout) {
-                if (!oldestReservedServer)
-                    oldestReservedServer = srv;
-                else if (oldestReservedServer->reservationStart < srv->reservationStart)
-                    oldestReservedServer = srv;
-                debugs(84, 5, "the earlier reserved server is the srv-" << oldestReservedServer->index);
-            }
+            if (!oldestReservedServer)
+                oldestReservedServer = srv;
+            else if (oldestReservedServer->reservationStart < srv->reservationStart)
+                oldestReservedServer = srv;
+            debugs(84, 5, "the earlier reserved server is the srv-" << oldestReservedServer->index);
             continue;
         }
-
-        if (srv->flags.shutdown)
-            continue;
 
         debugs(84, 5, "StatefulGetFirstAvailable: returning srv-" << srv->index);
         return srv;

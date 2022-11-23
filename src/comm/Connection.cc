@@ -191,6 +191,13 @@ Comm::Connection::detailCodeContext(std::ostream &os) const
     return os << Debug::Extra << "connection: " << *this;
 }
 
+bool
+Comm::Connection::closing() const
+{
+    assert(isOpen());
+    return fd_table[fd].closing();
+}
+
 std::ostream &
 operator << (std::ostream &os, const Comm::Connection &conn)
 {
