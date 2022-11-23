@@ -125,9 +125,10 @@ storeKeyPublicByRequestMethod(HttpRequest * request, const HttpRequestMethod& me
     if (keyScope)
         SquidMD5Update(&M, &keyScope, sizeof(keyScope));
 
-    if (!request->vary_headers.isEmpty()) {
-        SquidMD5Update(&M, request->vary_headers.rawContent(), request->vary_headers.length());
-        debugs(20, 3, "updating public key by vary headers: " << request->vary_headers << " for: " << url);
+    if (request->varyDetails.has_value()) {
+        const auto &headers = request->varyDetails.value().headers();
+        SquidMD5Update(&M, headers .rawContent(), headers.length());
+        debugs(20, 3, "updating public key by vary headers: " << headers << " for: " << url);
     }
 
     SquidMD5Final(digest, &M);

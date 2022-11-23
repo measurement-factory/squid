@@ -12,6 +12,7 @@
 #include "acl/FilledChecklist.h"
 #include "acl/Gadgets.h"
 #include "anyp/PortCfg.h"
+#include "base/RandomUuid.h"
 #include "client_side_reply.h"
 #include "errorpage.h"
 #include "ETag.h"
@@ -294,7 +295,7 @@ clientReplyContext::processExpired()
     // TODO: support collapsed revalidation for Vary-controlled entries
     bool collapsingAllowed = Config.onoff.collapsed_forwarding &&
                              !Store::Controller::SmpAware() &&
-                             http->request->vary_headers.isEmpty();
+                             !http->request->varyDetails.has_value();
 
     StoreEntry *entry = nullptr;
     if (collapsingAllowed) {
@@ -611,6 +612,8 @@ clientReplyContext::cacheHit(StoreIOBuffer result)
         /* This is not the correct entity for this request. We need
          * to requery the cache.
          */
+        assert(e->mem().varyDetails().has_value());
+
         removeClientStoreReference(&sc, http);
         e = nullptr;
         /* Note: varyEvalyateMatch updates the request with vary information
@@ -969,8 +972,8 @@ clientReplyContext::purgeDoPurge()
     }
 
     /* And for Vary, release the base URI if none of the headers was included in the request */
-    if (!http->request->vary_headers.isEmpty()
-            && http->request->vary_headers.find('=') != SBuf::npos) {
+    if (http->request->varyDetails.has_value()
+            && http->request->varyDetails.value().headers().find('=') != SBuf::npos) {
         // XXX: performance regression, c_str() reallocates
         SBuf tmp(http->request->effectiveRequestUri());
 

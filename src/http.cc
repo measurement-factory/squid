@@ -972,7 +972,7 @@ HttpStateData::haveParsedReplyHeaders()
                 EBIT_SET(entry->flags, ENTRY_FWD_HDR_WAIT);
             varyFailure = true;
         } else {
-            entry->mem_obj->vary_headers = vary;
+            entry->mem_obj->initializeVary(VaryDetails(vary, request->varyDetails.has_value() ? request->varyDetails.value().uuid().clone() : RandomUuid()));
 
             // RFC 7231 section 7.1.4
             // Vary:* can be cached, but has mandatory revalidation

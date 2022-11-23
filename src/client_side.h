@@ -12,6 +12,7 @@
 #define SQUID_CLIENTSIDE_H
 
 #include "acl/ChecklistFiller.h"
+#include "base/forward.h"
 #include "base/RunnersRegistry.h"
 #include "clientStreamForward.h"
 #include "comm.h"

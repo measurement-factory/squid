@@ -10,6 +10,7 @@
 #define SQUID_CLIENTSIDEREQUEST_H
 
 #include "AccessLogEntry.h"
+#include "base/Optional.h"
 #include "client_side.h"
 #include "clientStream.h"
 #include "http/forward.h"

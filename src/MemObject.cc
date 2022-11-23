@@ -15,6 +15,7 @@
 #include "HttpReply.h"
 #include "MemBuf.h"
 #include "MemObject.h"
+#include "sbuf/Stream.h"
 #include "SquidConfig.h"
 #include "Store.h"
 #include "StoreClient.h"
@@ -189,8 +190,13 @@ void
 MemObject::stat(MemBuf * mb) const
 {
     mb->appendf("\t" SQUIDSBUFPH " %s\n", SQUIDSBUFPRINT(method.image()), logUri());
-    if (!vary_headers.isEmpty())
-        mb->appendf("\tvary_headers: " SQUIDSBUFPH "\n", SQUIDSBUFPRINT(vary_headers));
+    if (varyDetails_.has_value()) {
+        if (!varyDetails_.value().headers().isEmpty())
+            mb->appendf("\tvary_headers: " SQUIDSBUFPH "\n", SQUIDSBUFPRINT(varyDetails_.value().headers()));
+        SBufStream stream;
+        stream << varyDetails_.value().uuid();
+        mb->appendf("\tvary_uuid: " SQUIDSBUFPH "\n", SQUIDSBUFPRINT(stream.buf()));
+    }
     mb->appendf("\tinmem_lo: %" PRId64 "\n", inmem_lo);
     mb->appendf("\tinmem_hi: %" PRId64 "\n", data_hdr.endOffset());
     mb->appendf("\tswapout: %" PRId64 " bytes queued\n", swapout.queue_offset);
@@ -453,6 +459,13 @@ void
 MemObject::kickReads()
 {
     deferredReads.schedule();
+}
+
+void
+MemObject::initializeVary(VaryDetails &&details)
+{
+    Assure(!varyDetails_.has_value());
+    varyDetails_ = std::move(details);
 }
 
 #if USE_DELAY_POOLS

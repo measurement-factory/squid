@@ -127,22 +127,14 @@ CheckSwapMetaUrl(const SwapMetaView &meta, const StoreEntry &entry)
 
 /// deserializes STORE_META_VARY_HEADERS swap meta field
 static SBuf
-UnpackNewSwapMetaVaryHeaders(const SwapMetaView &meta, const StoreEntry &entry)
+UnpackNewSwapMetaVaryHeaders(const SwapMetaView &meta)
 {
     Assure(meta.type == STORE_META_VARY_HEADERS);
     SBuf rawVary(static_cast<const char *>(meta.rawValue), meta.rawLength);
     // entries created before SBuf-based Vary may include string terminator
     static const SBuf nul("\0", 1);
     rawVary.trim(nul, false, true);
-
-    const auto &knownVary = entry.mem().vary_headers;
-    if (knownVary.isEmpty())
-        return rawVary; // new Vary (that we cannot validate)
-
-    if (knownVary == rawVary)
-        return SBuf(); // OK: no new Vary
-
-    throw TextException("Vary mismatch", Here());
+    return rawVary;
 }
 
 /// deserializes entry metadata size from the given buffer
@@ -167,6 +159,15 @@ UnpackPrefix(const char * const buf, const size_t size)
         throw TextException("store entry metadata length is corrupted", Here());
 
     return rawMetaSize; // now safe to use within (buf, buf+size)
+}
+
+static VaryDetails
+CreateVaryDetails(const SBuf &varyHeaders, const RandomUuid &varyUuid)
+{
+    if (varyHeaders.isEmpty())
+        return VaryDetails(varyUuid);
+    else
+        return VaryDetails(varyHeaders, varyUuid);
 }
 
 } // namespace Store
@@ -297,6 +298,7 @@ Store::UnpackIndexSwapMeta(const MemBuf &buf, StoreEntry &tmpe, cache_key * cons
         case STORE_META_URL:
         case STORE_META_VARY_HEADERS:
         case STORE_META_OBJSIZE:
+        case STORE_META_VARY_ID:
             // We do not load this information at cache index rebuild time;
             // UnpackHitSwapMeta() handles these MemObject fields.
             break;
@@ -314,6 +316,7 @@ Store::UnpackHitSwapMeta(char const * const buf, const ssize_t len, StoreEntry &
 
     size_t swap_hdr_sz = 0;
     SBuf varyHeaders;
+    Optional<RandomUuid> varyUuid;
 
     const SwapMetaUnpacker metaFields(buf, len, swap_hdr_sz);
     for (const auto &meta: metaFields) {
@@ -327,7 +330,11 @@ Store::UnpackHitSwapMeta(char const * const buf, const ssize_t len, StoreEntry &
             break;
 
         case STORE_META_VARY_HEADERS:
-            varyHeaders = UnpackNewSwapMetaVaryHeaders(meta, entry);
+            varyHeaders = UnpackNewSwapMetaVaryHeaders(meta);
+            break;
+
+        case STORE_META_VARY_ID:
+            varyUuid = RandomUuid(*static_cast<const RandomUuid::Serialized *>(meta.rawValue));
             break;
 
         case STORE_META_OBJSIZE:
@@ -356,7 +363,14 @@ Store::UnpackHitSwapMeta(char const * const buf, const ssize_t len, StoreEntry &
     debugs(90, 5, "swap_file_sz=" << entry.swap_file_sz <<
            " (" << swap_hdr_sz << " + " << emem.object_sz << ")");
 
-    if (!varyHeaders.isEmpty())
-        emem.vary_headers = varyHeaders;
+    if (varyUuid.has_value()) {
+        auto varyDetails = CreateVaryDetails(varyHeaders, varyUuid.value());
+        if (emem.varyDetails().has_value()) {
+            if (emem.varyDetails().value() != varyDetails)
+                throw TextException("Vary mismatch", Here());
+        } else {
+            emem.initializeVary(std::move(varyDetails));
+        }
+    }
 }
 

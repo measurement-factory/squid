@@ -17,6 +17,7 @@ class CodeContext;
 class DelayedAsyncCalls;
 class ScopedId;
 class BadOptionalAccess;
+class RandomUuid;
 class Raw;
 class RegexPattern;
 

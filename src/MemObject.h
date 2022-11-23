@@ -10,6 +10,8 @@
 #define SQUID_MEMOBJECT_H
 
 #include "base/DelayedAsyncCalls.h"
+#include "base/Optional.h"
+#include "base/RandomUuid.h"
 #include "dlink.h"
 #include "http/RequestMethod.h"
 #include "RemovalPolicy.h"
@@ -201,7 +203,10 @@ public:
     unsigned int chksum = 0;
 #endif
 
-    SBuf vary_headers;
+    /// initializes vary attributes
+    void initializeVary(VaryDetails &&);
+    /// vary attributes (vary-mark, uuid, etc.), if any
+    const Optional<VaryDetails> &varyDetails() const { return varyDetails_; }
 
     void delayRead(const AsyncCallPointer &);
     void kickReads();
@@ -214,6 +219,8 @@ private:
     mutable String logUri_;  ///< URI used for logging (usually request URI)
 
     DelayedAsyncCalls deferredReads;
+
+    Optional<VaryDetails> varyDetails_; ///< cached or to-be-cached vary attributes
 };
 
 /** global current memory removal policy */
