@@ -147,13 +147,13 @@ Ssl::CertValidationMsg::tryParsingResponse(CertValidationResponse &resp)
         }
 
         size_t value_len = strcspn(value, "\r\n");
-        SBuf v(value, value_len);
+        std::string v(value, value_len);
 
         debugs(83, 5, "Returned value: " << SBuf(param, param_len) << ": " << v);
 
         if (param_len == param_transactionNotes.length() &&
             strncmp(param, param_transactionNotes.c_str(), param_transactionNotes.length()) == 0) {
-            resp.notes.importFromHelper(v);
+            resp.notes.importFromHelper(SBuf(v.c_str(), v.length()));
             param = value + value_len;
             continue;
         }
@@ -162,17 +162,17 @@ Ssl::CertValidationMsg::tryParsingResponse(CertValidationResponse &resp)
             strncmp(param, param_clientNotes.c_str(), param_clientNotes.length()) == 0) {
 
             // TODO: Support arbitrary client annotations when up-porting.
-            static SBuf supportedName("clt_conn_tag=");
-            if (!v.startsWith(supportedName)) {
+            static std::string supportedName = "clt_conn_tag=";
+            if (v.compare(0, supportedName.size(), supportedName) != 0) {
                 throw TextException(ToSBuf("Only annotations named ", supportedName,
                     " can be used for client connection annotation in this Squid version. ",
                     "Found: ", v), Here());
             }
-            if (v.find(' ') != SBuf::npos) {
+            if (v.find(' ') != std::string::npos) {
                 throw TextException(ToSBuf("Only one client connection annotation can be used in this Squid version. ",
                     "Found: ", v), Here());
             }
-            resp.notes.importFromHelper(v);
+            resp.notes.importFromHelper(SBuf(v.c_str(), v.length()));
 
             param = value + value_len;
             continue;
@@ -208,7 +208,7 @@ Ssl::CertValidationMsg::tryParsingResponse(CertValidationResponse &resp)
             }
         } else if (param_len > param_error_depth.length() &&
                    strncmp(param, param_error_depth.c_str(), param_error_depth.length()) == 0 &&
-                   v.findFirstNotOf(CharacterSet::DIGIT) == SBuf::npos) {
+                   std::all_of(v.begin(), v.end(), isdigit)) {
             currentItem.error_depth = atoi(v.c_str());
         } else {
             throw TextException(ToSBuf("Unknown parameter name: ", std::string(param, param_len)), Here());
@@ -227,11 +227,11 @@ Ssl::CertValidationMsg::tryParsingResponse(CertValidationResponse &resp)
 }
 
 X509 *
-Ssl::CertValidationMsg::getCertByName(std::vector<CertItem> const &certs, SBuf const & name)
+Ssl::CertValidationMsg::getCertByName(std::vector<CertItem> const &certs, std::string const & name)
 {
     typedef std::vector<CertItem>::const_iterator SVCI;
     for (SVCI ci = certs.begin(); ci != certs.end(); ++ci) {
-        if (ci->name == name)
+        if (ci->name.compare(name) == 0)
             return ci->cert.get();
     }
     return nullptr;

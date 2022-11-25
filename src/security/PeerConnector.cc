@@ -299,13 +299,13 @@ Security::PeerConnector::sslFinalized()
         // Ssl::CertValidationRequest object used only to pass data to
         // Ssl::CertValidationHelper::submit method.
         validationRequest.ssl = session;
+        validationRequest.ale = al;
         if (SBuf *dName = (SBuf *)SSL_get_ex_data(session.get(), ssl_ex_index_server))
             validationRequest.domainName = dName->c_str();
         if (Security::CertErrors *errs = static_cast<Security::CertErrors *>(SSL_get_ex_data(session.get(), ssl_ex_index_ssl_errors)))
             // validationRequest disappears on return so no need to cbdataReference
             validationRequest.errors = errs;
         try {
-            validationRequest.ale = al;
             debugs(83, 5, "Sending SSL certificate for validation to ssl_crtvd.");
             AsyncCall::Pointer call = asyncCall(83,5, "Security::PeerConnector::sslCrtvdHandleReply", Ssl::CertValidationHelper::CbDialer(this, &Security::PeerConnector::sslCrtvdHandleReply, nullptr));
             Ssl::CertValidationHelper::Submit(validationRequest, call);
@@ -420,7 +420,7 @@ Security::PeerConnector::sslCrtvdCheckForErrors(Ssl::CertValidationResponse cons
                 debugs(83, 5, "confirming SSL error " << i->error_no);
                 const auto &brokenCert = i->cert;
                 Security::CertPointer peerCert(SSL_get_peer_certificate(session.get()));
-                const char *aReason = i->error_reason.isEmpty() ? nullptr : const_cast<SBuf &>(i->error_reason).c_str();
+                const char *aReason = i->error_reason.empty() ? nullptr : i->error_reason.c_str();
                 errDetails = new ErrorDetail(i->error_no, peerCert, brokenCert, aReason);
             }
             if (check) {
