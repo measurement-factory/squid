@@ -498,7 +498,7 @@ private:
     const char *stoppedSending_ = nullptr;
     /// the reason why we no longer read the request or nil
     const char *stoppedReceiving_ = nullptr;
-    /// Connection annotations, clt_conn_tag and other tags are stored here.
+    /// Connection annotations, such as clt_conn_* tags are stored here.
     /// If set, are propagated to the current and all future master transactions
     /// on the connection.
     NotePairs::Pointer theNotes;
