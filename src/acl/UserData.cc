@@ -128,7 +128,7 @@ ACLUserData::parse()
         if (flags.case_insensitive)
             s.toLower();
 
-        // XXX: do not treat 'REQUIRED' and -i,+i as usernames
+        // XXX: do not treat 'REQUIRED', '-i', and '+i' tokens as usernames
         debugs(28, 6, "Adding user " << s);
         userDataNames.insert(s);
     }

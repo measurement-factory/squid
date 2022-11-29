@@ -24,33 +24,35 @@ typedef char *(ConfigParser::*TokenExtractor)();
 
 namespace Configuration {
 
+// TODO: Get rid of deprecated std::iterator<>.
 /// A single-pass input iterator reading tokens from a configuration line.
-/// The first read is performed when the object is constructed,
-/// further reads are done by increment operators.
-class TokensIterator : public std::iterator<std::input_iterator_tag, char *>
+/// The first read is performed when the object is constructed.
+/// Further reads, if any, are done by increment operators.
+class TokensIterator: public std::iterator<std::input_iterator_tag, char *>
 {
 public:
-
-    explicit TokensIterator(ConfigParser *parser, const TokenExtractor method):
-        parser_(parser), method_(method), current_(parser ? (parser_->*method_)() : nullptr)
+    TokensIterator(ConfigParser * const parser, const TokenExtractor method):
+        parser_(parser),
+        method_(method),
+        current_(parser ? (parser_->*method_)() : nullptr)
     {}
 
-    value_type operator*() { return current_; }
+    value_type operator *() { return current_; }
 
-    TokensIterator& operator++() {
+    TokensIterator& operator ++() {
         assert(method_);
         current_ = (parser_->*method_)();
         return *this;
     }
 
-    TokensIterator operator++(int) {
+    TokensIterator operator ++(int) {
         TokensIterator tmp = *this;
         ++(*this);
         return tmp;
     }
 
-    bool operator==(const TokensIterator& other) const { return current_ == other.current_; }
-    bool operator!=(const TokensIterator& other) const { return current_ != other.current_; }
+    bool operator ==(const TokensIterator& other) const { return current_ == other.current_; }
+    bool operator !=(const TokensIterator& other) const { return current_ != other.current_; }
 
 private:
     ConfigParser *parser_;
@@ -74,8 +76,8 @@ private:
     const bool emptyAllowed_; ///< whether this sequence is allowed to have no elements
 };
 
-/// Is thrown when a required token is missing
-class MissingTokenException : public TextException { using TextException::TextException; };
+/// thrown when a configuration parser fails to extract a required token
+class MissingTokenException: public TextException { using TextException::TextException; };
 
 }
 
