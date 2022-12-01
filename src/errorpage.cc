@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1996-2021 The Squid Software Foundation and contributors
+ * Copyright (C) 1996-2022 The Squid Software Foundation and contributors
  *
  * Squid software is distributed under GPLv2+ license and includes
  * contributions from numerous individuals and organizations.
@@ -29,7 +29,6 @@
 #include "rfc1738.h"
 #include "sbuf/Stream.h"
 #include "SquidConfig.h"
-#include "SquidTime.h"
 #include "Store.h"
 #include "tools.h"
 #include "wordlist.h"
@@ -196,7 +195,7 @@ static std::vector<ErrorDynamicPageInfo *> ErrorDynamicPages;
 static const int error_hard_text_count = sizeof(error_hard_text) / sizeof(*error_hard_text);
 
 /// \ingroup ErrorPageInternal
-static char **error_text = NULL;
+static char **error_text = nullptr;
 
 /// \ingroup ErrorPageInternal
 static int error_page_count = 0;
@@ -346,7 +345,7 @@ errorFindHardText(err_type type)
         if (error_hard_text[i].type == type)
             return error_hard_text[i].text;
 
-    return NULL;
+    return nullptr;
 }
 
 TemplateFile::TemplateFile(const char *name, const err_type code): silent(false), wasLoaded(false), templateName(name), templateCode(code)
@@ -371,7 +370,7 @@ TemplateFile::loadDefault()
     /** test error_default_language location */
     if (!loaded() && Config.errorDefaultLanguage) {
         if (!tryLoadTemplate(Config.errorDefaultLanguage)) {
-            debugs(1, (templateCode < TCP_RESET ? DBG_CRITICAL : 3), "Unable to load default error language files. Reset to backups.");
+            debugs(1, (templateCode < TCP_RESET ? DBG_CRITICAL : 3), "ERROR: Unable to load default error language files. Reset to backups.");
         }
     }
 #endif
@@ -408,7 +407,7 @@ TemplateFile::tryLoadTemplate(const char *lang)
     if ( strlen(lang) == 2) {
         /* TODO glob the error directory for sub-dirs matching: <tag> '-*'   */
         /* use first result. */
-        debugs(4,2, HERE << "wildcard fallback errors not coded yet.");
+        debugs(4,2, "wildcard fallback errors not coded yet.");
     }
 #endif
 
@@ -532,17 +531,17 @@ TemplateFile::loadFor(const HttpRequest *request)
     char lang[256];
     size_t pos = 0; // current parsing position in header string
 
-    debugs(4, 6, HERE << "Testing Header: '" << hdr << "'");
+    debugs(4, 6, "Testing Header: '" << hdr << "'");
 
     while ( strHdrAcptLangGetItem(hdr, lang, 256, pos) ) {
 
         /* wildcard uses the configured default language */
         if (lang[0] == '*' && lang[1] == '\0') {
-            debugs(4, 6, HERE << "Found language '" << lang << "'. Using configured default.");
+            debugs(4, 6, "Found language '" << lang << "'. Using configured default.");
             return false;
         }
 
-        debugs(4, 6, HERE << "Found language '" << lang << "', testing for available template");
+        debugs(4, 6, "Found language '" << lang << "', testing for available template");
 
         if (tryLoadTemplate(lang)) {
             /* store the language we found for the Content-Language reply header */
@@ -719,7 +718,7 @@ ErrorState::ErrorState(HttpRequest * req, HttpReply *errorReply) :
 void
 errorAppendEntry(StoreEntry * entry, ErrorState * err)
 {
-    assert(entry->mem_obj != NULL);
+    assert(entry->mem_obj != nullptr);
     assert (entry->isEmpty());
     debugs(4, 4, "storing " << err << " in " << *entry);
 
@@ -775,7 +774,7 @@ static void
 errorSendComplete(const Comm::ConnectionPointer &conn, char *, size_t size, Comm::Flag errflag, int, void *data)
 {
     ErrorState *err = static_cast<ErrorState *>(data);
-    debugs(4, 3, HERE << conn << ", size=" << size);
+    debugs(4, 3, conn << ", size=" << size);
 
     if (errflag != Comm::ERR_CLOSING) {
         if (err->callback) {
@@ -834,7 +833,7 @@ ErrorState::Dump(MemBuf * mb)
         str.appendf("DNS ErrMsg: %s\r\n", dnsError.termedBuf());
 
     /* - TimeStamp */
-    str.appendf("TimeStamp: %s\r\n\r\n", mkrfc1123(squid_curtime));
+    str.appendf("TimeStamp: %s\r\n\r\n", Time::FormatRfc1123(squid_curtime));
 
     /* - IP stuff */
     str.appendf("ClientIP: %s\r\n", src_addr.toStr(ntoabuf,MAX_IPSTRLEN));
@@ -915,7 +914,7 @@ void
 ErrorState::compileLegacyCode(Build &build)
 {
     static MemBuf mb;
-    const char *p = NULL;   /* takes priority over mb if set */
+    const char *p = nullptr;   /* takes priority over mb if set */
     int do_quote = 1;
     int no_urlescape = 0;       /* if true then item is NOT to be further URL-encoded */
     char ntoabuf[MAX_IPSTRLEN];
@@ -1106,7 +1105,7 @@ ErrorState::compileLegacyCode(Build &build)
 
     case 'R':
         if (building_deny_info_url) {
-            if (request != NULL) {
+            if (request != nullptr) {
                 const SBuf &tmp = request->url.path();
                 mb.append(tmp.rawContent(), tmp.length());
                 no_urlescape = 1;
@@ -1165,7 +1164,7 @@ ErrorState::compileLegacyCode(Build &build)
         break;
 
     case 'T':
-        mb.appendf("%s", mkrfc1123(squid_curtime));
+        mb.appendf("%s", Time::FormatRfc1123(squid_curtime));
         break;
 
     case 'U':
@@ -1298,7 +1297,7 @@ ErrorState::BuildHttpReply()
                 status = Http::scTemporaryRedirect;
         }
 
-        rep->setHeaders(status, NULL, "text/html;charset=utf-8", 0, 0, -1);
+        rep->setHeaders(status, nullptr, "text/html;charset=utf-8", 0, 0, -1);
 
         if (request) {
             auto location = compile(urlTemplate, true, true);
@@ -1308,7 +1307,7 @@ ErrorState::BuildHttpReply()
         httpHeaderPutStrf(&rep->header, Http::HdrType::X_SQUID_ERROR, "%d %s", httpStatus, "Access Denied");
     } else {
         const auto body = buildBody();
-        rep->setHeaders(httpStatus, NULL, "text/html;charset=utf-8", body.length(), 0, -1);
+        rep->setHeaders(httpStatus, nullptr, "text/html;charset=utf-8", body.length(), 0, -1);
         /*
          * include some information for downstream caches. Implicit
          * replaceable content. This isn't quite sufficient. xerrno is not

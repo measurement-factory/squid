@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1996-2021 The Squid Software Foundation and contributors
+ * Copyright (C) 1996-2022 The Squid Software Foundation and contributors
  *
  * Squid software is distributed under GPLv2+ license and includes
  * contributions from numerous individuals and organizations.
@@ -40,7 +40,10 @@ ErrorDetail::Pointer MakeNamedErrorDetail(const char *name);
 /// dump the given ErrorDetail (for debugging)
 std::ostream &operator <<(std::ostream &os, const ErrorDetail &);
 
-/// dump the given ErrorDetail pointer which may be nil (for debugging)
+// XXX: Every ErrorDetail child, especially those declaring their own Pointer
+// types should overload this operator. The compiler will not find this overload
+// for child pointers. See Security::ErrorDetail overload for an example.
+/// dump the given ErrorDetail via a possibly nil pointer (for debugging)
 std::ostream &operator <<(std::ostream &os, const ErrorDetail::Pointer &);
 
 #endif /* _SQUID_SRC_ERROR_DETAIL_H */

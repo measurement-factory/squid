@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1996-2021 The Squid Software Foundation and contributors
+ * Copyright (C) 1996-2022 The Squid Software Foundation and contributors
  *
  * Squid software is distributed under GPLv2+ license and includes
  * contributions from numerous individuals and organizations.
@@ -37,13 +37,13 @@ storeCreate(StoreEntry * e, StoreIOState::STFNCB * file_callback, StoreIOState::
     if (!sd) {
         debugs(20, 2, "storeCreate: no swapdirs for " << *e);
         ++store_io_stats.create.select_fail;
-        return NULL;
+        return nullptr;
     }
 
     /* Now that we have a fs to use, call its storeCreate function */
     StoreIOState::Pointer sio = sd->createStoreIO(*e, file_callback, close_callback, callback_data);
 
-    if (sio == NULL)
+    if (sio == nullptr)
         ++store_io_stats.create.create_fail;
     else
         ++store_io_stats.create.success;
@@ -65,13 +65,13 @@ void
 storeClose(StoreIOState::Pointer sio, int how)
 {
     if (sio->flags.closing) {
-        debugs(20,3,HERE << "storeClose: flags.closing already set, bailing");
+        debugs(20,3, "storeClose: flags.closing already set, bailing");
         return;
     }
 
     sio->flags.closing = true;
 
-    debugs(20,3,HERE << "storeClose: calling sio->close(" << how << ")");
+    debugs(20,3, "storeClose: calling sio->close(" << how << ")");
     sio->close(how);
 }
 

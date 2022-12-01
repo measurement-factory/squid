@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1996-2021 The Squid Software Foundation and contributors
+ * Copyright (C) 1996-2022 The Squid Software Foundation and contributors
  *
  * Squid software is distributed under GPLv2+ license and includes
  * contributions from numerous individuals and organizations.
@@ -34,7 +34,6 @@
 #include "rfc1738.h"
 #include "sbuf/SBuf.h"
 #include "SquidConfig.h"
-#include "SquidTime.h"
 #include "Store.h"
 
 #if USE_SQUID_EUI
@@ -57,7 +56,7 @@ static void mcast_encode(unsigned int *, size_t, const unsigned int *);
 
 #if USE_FORW_VIA_DB
 
-using HeaderValueCountsElement = std::pair<SBuf, uint64_t>;
+using HeaderValueCountsElement = std::pair<const SBuf, uint64_t>;
 /// counts the number of header field value occurrences
 using HeaderValueCounts = std::unordered_map<SBuf, uint64_t, std::hash<SBuf>, std::equal_to<SBuf>, PoolingAllocator<HeaderValueCountsElement> >;
 
@@ -75,7 +74,7 @@ static void fvdbRegisterWithCacheManager();
 int LogfileStatus = LOG_DISABLE;
 
 void
-accessLogLogTo(CustomLog* log, AccessLogEntry::Pointer &al, ACLChecklist * checklist)
+accessLogLogTo(CustomLog *log, const AccessLogEntryPointer &al, ACLChecklist *checklist)
 {
 
     if (al->url.isEmpty())
@@ -145,7 +144,7 @@ accessLogLogTo(CustomLog* log, AccessLogEntry::Pointer &al, ACLChecklist * check
 }
 
 void
-accessLogLog(AccessLogEntry::Pointer &al, ACLChecklist * checklist)
+accessLogLog(const AccessLogEntryPointer &al, ACLChecklist *checklist)
 {
     if (LogfileStatus != LOG_ENABLE)
         return;
@@ -207,7 +206,7 @@ accessLogClose(void)
     for (log = Config.Log.accesslogs; log; log = log->next) {
         if (log->logfile) {
             logfileClose(log->logfile);
-            log->logfile = NULL;
+            log->logfile = nullptr;
         }
     }
 
@@ -226,7 +225,7 @@ HierarchyLogEntry::HierarchyLogEntry() :
     n_choices(0),
     n_ichoices(0),
     peer_reply_status(Http::scNone),
-    tcpServer(NULL),
+    tcpServer(nullptr),
     bodyBytesRead(-1)
 {
     memset(host, '\0', SQUIDHOSTNAMELEN);
@@ -253,7 +252,7 @@ HierarchyLogEntry::resetPeerNotes(const Comm::ConnectionPointer &server, const c
     clearPeerNotes();
 
     tcpServer = server;
-    if (tcpServer == NULL) {
+    if (tcpServer == nullptr) {
         code = HIER_NONE;
         xstrncpy(host, requestedHost, sizeof(host));
     } else {
@@ -384,7 +383,7 @@ accessLogInit(void)
         LogfileStatus = LOG_ENABLE;
 
 #if USE_ADAPTATION
-        for (Format::Token * curr_token = (log->logFormat?log->logFormat->format:NULL); curr_token; curr_token = curr_token->next) {
+        for (Format::Token * curr_token = (log->logFormat?log->logFormat->format:nullptr); curr_token; curr_token = curr_token->next) {
             if (curr_token->type == Format::LFT_ADAPTATION_SUM_XACT_TIMES ||
                     curr_token->type == Format::LFT_ADAPTATION_ALL_XACT_TIMES ||
                     curr_token->type == Format::LFT_ADAPTATION_LAST_HEADER ||

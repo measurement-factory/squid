@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1996-2021 The Squid Software Foundation and contributors
+ * Copyright (C) 1996-2022 The Squid Software Foundation and contributors
  *
  * Squid software is distributed under GPLv2+ license and includes
  * contributions from numerous individuals and organizations.
@@ -48,6 +48,7 @@ public:
     static ACL *FindByName(const char *name);
 
     ACL();
+    ACL(ACL &&) = delete; // no copying of any kind
     virtual ~ACL();
 
     /// sets user-specified ACL name and squid.conf context
@@ -59,11 +60,8 @@ public:
     /// Updates the checklist state on match, async, and failure.
     bool matches(ACLChecklist *checklist) const;
 
-    /// \returns (linked) Options supported by this ACL
-    virtual const Acl::Options &options() { return Acl::NoOptions(); }
-
     /// configures ACL options, throwing on configuration errors
-    virtual void parseFlags();
+    void parseFlags();
 
     /// parses node representation in squid.conf; dies on failures
     virtual void parse() = 0;
@@ -86,10 +84,6 @@ public:
     bool registered; ///< added to the global list of ACLs via aclRegister()
     Acl::TextOptionValue argumentAction;
 
-protected:
-    /// configures the passed ACL options and flags, throwing on configuration errors
-    void parseOptionsAndFlags(const Acl::Options &otherOptions, const Acl::ParameterFlags &otherFlags);
-
 private:
     /// Matches the actual data in checklist against this ACL.
     virtual int match(ACLChecklist *checklist) = 0; // XXX: missing const
@@ -104,6 +98,14 @@ private:
     typedef enum { argIgnore = 1, argWarn, argErr } ArgumentAction;
 
     ArgumentAction calculateArgumentAction() const;
+
+    // TODO: Rename to globalOptions(); these are not the only supported options
+    /// \returns (linked) 'global' Options supported by this ACL
+    virtual const Acl::Options &options() { return Acl::NoOptions(); }
+
+    /// \returns (linked) "line" Options supported by this ACL
+    /// \see ACL::options()
+    virtual const Acl::Options &lineOptions() { return Acl::NoOptions(); }
 };
 
 /// \ingroup ACLAPI
@@ -124,7 +126,8 @@ namespace Acl {
 class Answer
 {
 public:
-    // not explicit: allow "aclMatchCode to Acl::Answer" conversions (for now)
+    // TODO: Find a good way to avoid implicit conversion (without explicitly
+    // casting every ACCESS_ argument in implicit constructor calls).
     Answer(const aclMatchCode aCode, int aKind = 0): code(aCode), kind(aKind) {}
 
     Answer() = default;

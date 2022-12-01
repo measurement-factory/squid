@@ -1,4 +1,4 @@
-## Copyright (C) 1996-2021 The Squid Software Foundation and contributors
+## Copyright (C) 1996-2022 The Squid Software Foundation and contributors
 ##
 ## Squid software is distributed under GPLv2+ license and includes
 ## contributions from numerous individuals and organizations.
@@ -23,4 +23,12 @@ libstore_la_SOURCES = \
 	LocalSearch.cc \
 	LocalSearch.h \
 	Storage.h \
+	SwapMeta.cc \
+	SwapMeta.h \
+	SwapMetaIn.cc \
+	SwapMetaIn.h \
+	SwapMetaOut.cc \
+	SwapMetaOut.h \
+	SwapMetaView.cc \
+	SwapMetaView.h \
 	forward.h

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1996-2021 The Squid Software Foundation and contributors
+ * Copyright (C) 1996-2022 The Squid Software Foundation and contributors
  *
  * Squid software is distributed under GPLv2+ license and includes
  * contributions from numerous individuals and organizations.
@@ -24,12 +24,12 @@
 #endif
 #include "Notes.h"
 #include "security/forward.h"
-#include "SquidTime.h"
 #if USE_OPENSSL
 #include "ssl/support.h"
 #endif
 #include "store/Disk.h"
 #include "store/forward.h"
+#include "time/gadgets.h"
 
 #include <chrono>
 
@@ -230,13 +230,6 @@ public:
     char *errHtmlText;
 
     struct {
-        char *host;
-        char *file;
-        time_t period;
-        unsigned short port;
-    } Announce;
-
-    struct {
 
         Ip::Address udp_incoming;
         Ip::Address udp_outgoing;
@@ -290,8 +283,6 @@ public:
         int buffered_logs;
         int common_log;
         int log_mime_hdrs;
-        int log_fqdn;
-        int announce;
         int mem_pools;
         int test_reachability;
         int half_closed_clients;

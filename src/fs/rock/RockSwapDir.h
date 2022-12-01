@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1996-2021 The Squid Software Foundation and contributors
+ * Copyright (C) 1996-2022 The Squid Software Foundation and contributors
  *
  * Squid software is distributed under GPLv2+ license and includes
  * contributions from numerous individuals and organizations.
@@ -84,7 +84,7 @@ public:
 
 protected:
     /* Store API */
-    virtual bool anchorToCache(StoreEntry &entry, bool &inSync);
+    virtual bool anchorToCache(StoreEntry &);
     virtual bool updateAnchored(StoreEntry &);
 
     /* protected ::SwapDir API */
@@ -128,7 +128,6 @@ protected:
     StoreIOState::Pointer createUpdateIO(const Ipc::StoreMapUpdate &update, StoreIOState::STFNCB *, StoreIOState::STIOCB *, void *);
 
     void anchorEntry(StoreEntry &e, const sfileno filen, const Ipc::StoreMapAnchor &anchor);
-    bool updateAnchoredWith(StoreEntry &, const Ipc::StoreMapAnchor &);
 
     friend class Rebuild;
     friend class IoState;

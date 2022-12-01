@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1996-2021 The Squid Software Foundation and contributors
+ * Copyright (C) 1996-2022 The Squid Software Foundation and contributors
  *
  * Squid software is distributed under GPLv2+ license and includes
  * contributions from numerous individuals and organizations.
@@ -8,6 +8,8 @@
 
 #ifndef SQUID_SRC_BASE_TYPETRAITS_H
 #define SQUID_SRC_BASE_TYPETRAITS_H
+
+#include <type_traits>
 
 namespace TypeTraits_ { // a hack to prevent "unintended ADL"
 
@@ -36,6 +38,10 @@ protected: // prevents accidental creation of Interface instances
 } // namespace TypeTraits_
 
 using Interface = TypeTraits_::Interface;
+
+/// std::enable_if_t replacement until C++14
+template <bool B, class T = void>
+using EnableIfType = typename std::enable_if<B,T>::type;
 
 #endif /* SQUID_SRC_BASE_TYPETRAITS_H */
 

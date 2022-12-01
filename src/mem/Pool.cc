@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1996-2021 The Squid Software Foundation and contributors
+ * Copyright (C) 1996-2022 The Squid Software Foundation and contributors
  *
  * Squid software is distributed under GPLv2+ license and includes
  * contributions from numerous individuals and organizations.
@@ -7,7 +7,6 @@
  */
 
 /*
- * DEBUG: section 63    Low Level Memory Pool Management
  * AUTHOR: Alex Rousskov, Andres Kroonmaa, Robert Collins
  */
 
@@ -22,7 +21,7 @@
 
 extern time_t squid_curtime;
 
-static MemPoolMeter TheMeter;
+static Mem::PoolMeter TheMeter;
 static MemPoolIterator Iterator;
 static int Pool_id_counter = 0;
 
@@ -46,35 +45,23 @@ memPoolIterate(void)
 void
 memPoolIterateDone(MemPoolIterator ** iter)
 {
-    assert(iter != NULL);
-    Iterator.pool = NULL;
-    *iter = NULL;
+    assert(iter != nullptr);
+    Iterator.pool = nullptr;
+    *iter = nullptr;
 }
 
 MemImplementingAllocator *
 memPoolIterateNext(MemPoolIterator * iter)
 {
     MemImplementingAllocator *pool;
-    assert(iter != NULL);
+    assert(iter != nullptr);
 
     pool = iter->pool;
     if (!pool)
-        return NULL;
+        return nullptr;
 
     iter->pool = pool->next;
     return pool;
-}
-
-void
-MemPools::setIdleLimit(ssize_t new_idle_limit)
-{
-    mem_idle_limit = new_idle_limit;
-}
-
-ssize_t
-MemPools::idleLimit() const
-{
-    return mem_idle_limit;
 }
 
 /* Change the default value of defaultIsChunked to override
@@ -101,18 +88,6 @@ void
 MemPools::setDefaultPoolChunking(bool const &aBool)
 {
     defaultIsChunked = aBool;
-}
-
-char const *
-MemAllocator::objectType() const
-{
-    return label;
-}
-
-int
-MemAllocator::inUseCount()
-{
-    return getInUseCount();
 }
 
 void
@@ -144,27 +119,6 @@ MemImplementingAllocator::flushMetersFull()
     getMeter().gb_allocated.bytes = getMeter().gb_allocated.count * obj_size;
     getMeter().gb_saved.bytes = getMeter().gb_saved.count * obj_size;
     getMeter().gb_freed.bytes = getMeter().gb_freed.count * obj_size;
-}
-
-void
-MemPoolMeter::flush()
-{
-    alloc.flush();
-    inuse.flush();
-    idle.flush();
-    gb_allocated.count = 0;
-    gb_allocated.bytes = 0;
-    gb_oallocated.count = 0;
-    gb_oallocated.bytes = 0;
-    gb_saved.count = 0;
-    gb_saved.bytes = 0;
-    gb_freed.count = 0;
-    gb_freed.bytes = 0;
-}
-
-MemPoolMeter::MemPoolMeter()
-{
-    flush();
 }
 
 /*
@@ -205,9 +159,9 @@ MemImplementingAllocator::alloc()
 void
 MemImplementingAllocator::freeOne(void *obj)
 {
-    assert(obj != NULL);
+    assert(obj != nullptr);
     (void) VALGRIND_CHECK_MEM_IS_ADDRESSABLE(obj, obj_size);
-    deallocate(obj, MemPools::GetInstance().mem_idle_limit == 0);
+    deallocate(obj, MemPools::GetInstance().idleLimit() == 0);
     ++free_calls;
 }
 
@@ -224,11 +178,11 @@ void
 MemPools::clean(time_t maxage)
 {
     flushMeters();
-    if (mem_idle_limit < 0) // no limit to enforce
+    if (idleLimit() < 0) // no limit to enforce
         return;
 
     int shift = 1;
-    if (TheMeter.idle.currentLevel() > mem_idle_limit)
+    if (TheMeter.idle.currentLevel() > idleLimit())
         maxage = shift = 0;
 
     MemImplementingAllocator *pool;
@@ -250,7 +204,6 @@ int
 memPoolGetGlobalStats(MemPoolGlobalStats * stats)
 {
     int pools_inuse = 0;
-    MemAllocator *pool;
     MemPoolIterator *iter;
 
     memset(stats, 0, sizeof(MemPoolGlobalStats));
@@ -260,7 +213,7 @@ memPoolGetGlobalStats(MemPoolGlobalStats * stats)
 
     /* gather all stats for Totals */
     iter = memPoolIterate();
-    while ((pool = memPoolIterateNext(iter))) {
+    while (const auto pool = memPoolIterateNext(iter)) {
         if (pool->getStats(&pp_stats, 1) > 0)
             ++pools_inuse;
     }
@@ -280,19 +233,10 @@ memPoolGetGlobalStats(MemPoolGlobalStats * stats)
     stats->tot_items_inuse = pp_stats.items_inuse;
     stats->tot_items_idle = pp_stats.items_idle;
 
-    stats->tot_overhead += pp_stats.overhead + MemPools::GetInstance().poolCount * sizeof(MemAllocator *);
-    stats->mem_idle_limit = MemPools::GetInstance().mem_idle_limit;
+    stats->tot_overhead += pp_stats.overhead + MemPools::GetInstance().poolCount * sizeof(Mem::Allocator *);
+    stats->mem_idle_limit = MemPools::GetInstance().idleLimit();
 
     return pools_inuse;
-}
-
-MemAllocator::MemAllocator(char const *aLabel) : doZero(true), label(aLabel)
-{
-}
-
-size_t MemAllocator::RoundedSize(size_t s)
-{
-    return ((s + sizeof(void*) - 1) / sizeof(void*)) * sizeof(void*);
 }
 
 int
@@ -303,8 +247,9 @@ memPoolsTotalAllocated(void)
     return stats.TheMeter->alloc.currentLevel();
 }
 
-MemImplementingAllocator::MemImplementingAllocator(char const *aLabel, size_t aSize) : MemAllocator(aLabel),
-    next(NULL),
+MemImplementingAllocator::MemImplementingAllocator(char const * const aLabel, const size_t aSize):
+    Mem::Allocator(aLabel),
+    next(nullptr),
     alloc_calls(0),
     free_calls(0),
     saved_calls(0),
@@ -314,7 +259,7 @@ MemImplementingAllocator::MemImplementingAllocator(char const *aLabel, size_t aS
 
     MemImplementingAllocator *last_pool;
 
-    assert(aLabel != NULL && aSize);
+    assert(aLabel != nullptr && aSize);
     /* Append as Last */
     for (last_pool = MemPools::GetInstance().pools; last_pool && last_pool->next;)
         last_pool = last_pool->next;
@@ -329,14 +274,14 @@ MemImplementingAllocator::~MemImplementingAllocator()
     MemImplementingAllocator *find_pool, *prev_pool;
 
     /* Abort if the associated pool doesn't exist */
-    assert(MemPools::GetInstance().pools != NULL );
+    assert(MemPools::GetInstance().pools != nullptr );
 
     /* Pool clean, remove it from List and free */
-    for (find_pool = MemPools::GetInstance().pools, prev_pool = NULL; (find_pool && this != find_pool); find_pool = find_pool->next)
+    for (find_pool = MemPools::GetInstance().pools, prev_pool = nullptr; (find_pool && this != find_pool); find_pool = find_pool->next)
         prev_pool = find_pool;
 
     /* make sure that we found the pool to destroy */
-    assert(find_pool != NULL);
+    assert(find_pool != nullptr);
 
     if (prev_pool)
         prev_pool->next = next;
@@ -345,13 +290,13 @@ MemImplementingAllocator::~MemImplementingAllocator()
     --MemPools::GetInstance().poolCount;
 }
 
-MemPoolMeter const &
+Mem::PoolMeter const &
 MemImplementingAllocator::getMeter() const
 {
     return meter;
 }
 
-MemPoolMeter &
+Mem::PoolMeter &
 MemImplementingAllocator::getMeter()
 {
     return meter;

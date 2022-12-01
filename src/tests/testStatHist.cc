@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1996-2021 The Squid Software Foundation and contributors
+ * Copyright (C) 1996-2022 The Squid Software Foundation and contributors
  *
  * Squid software is distributed under GPLv2+ license and includes
  * contributions from numerous individuals and organizations.
@@ -29,7 +29,7 @@ public:
 bool
 InspectingStatHist::operator ==(const InspectingStatHist & src)
 {
-    assert(bins != NULL && src.bins != NULL); // TODO: remove after initializing bins at construction time
+    assert(bins != nullptr && src.bins != nullptr); // TODO: remove after initializing bins at construction time
     if (capacity_ != src.capacity_ ||
             min_!=src.min_ ||
             max_!=src.max_ ||

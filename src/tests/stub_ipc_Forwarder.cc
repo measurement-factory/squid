@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1996-2021 The Squid Software Foundation and contributors
+ * Copyright (C) 1996-2022 The Squid Software Foundation and contributors
  *
  * Squid software is distributed under GPLv2+ license and includes
  * contributions from numerous individuals and organizations.
@@ -13,6 +13,6 @@
 void foo_stub_ipc_forwarder();
 void foo_stub_ipc_forwarder()
 {
-    Ipc::Forwarder foo(NULL,1.0);
+    Ipc::Forwarder foo(nullptr,1.0);
 }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1996-2021 The Squid Software Foundation and contributors
+ * Copyright (C) 1996-2022 The Squid Software Foundation and contributors
  *
  * Squid software is distributed under GPLv2+ license and includes
  * contributions from numerous individuals and organizations.
@@ -10,6 +10,7 @@
 
 #include "squid.h"
 #include "anyp/Uri.h"
+#include "base/Raw.h"
 #include "globals.h"
 #include "HttpRequest.h"
 #include "parser/Tokenizer.h"
@@ -97,8 +98,7 @@ AnyP::Uri::SlashPath()
 void
 AnyP::Uri::host(const char *src)
 {
-    hostAddr_.setEmpty();
-    hostAddr_ = src;
+    hostAddr_.fromHost(src);
     if (hostAddr_.isAnyAddr()) {
         xstrncpy(host_, src, sizeof(host_));
         hostIsNumeric_ = false;
@@ -113,10 +113,11 @@ AnyP::Uri::host(const char *src)
 SBuf
 AnyP::Uri::hostOrIp() const
 {
-    static char ip[MAX_IPSTRLEN];
-    if (hostIsNumeric())
-        return SBuf(hostIP().toStr(ip, sizeof(ip)));
-    else
+    if (hostIsNumeric()) {
+        static char ip[MAX_IPSTRLEN];
+        const auto hostStrLen = hostIP().toHostStr(ip, sizeof(ip));
+        return SBuf(ip, hostStrLen);
+    } else
         return SBuf(host());
 }
 
@@ -257,8 +258,8 @@ AnyP::Uri::parse(const HttpRequestMethod& method, const SBuf &rawUrl)
         LOCAL_ARRAY(char, login, MAX_URL);
         LOCAL_ARRAY(char, foundHost, MAX_URL);
         LOCAL_ARRAY(char, urlpath, MAX_URL);
-        char *t = NULL;
-        char *q = NULL;
+        char *t = nullptr;
+        char *q = nullptr;
         int foundPort;
         int l;
         int i;
@@ -365,7 +366,7 @@ AnyP::Uri::parse(const HttpRequestMethod& method, const SBuf &rawUrl)
 
             /* Is there any login information? (we should eventually parse it above) */
             t = strrchr(foundHost, '@');
-            if (t != NULL) {
+            if (t != nullptr) {
                 strncpy((char *) login, (char *) foundHost, sizeof(login)-1);
                 login[sizeof(login)-1] = '\0';
                 t = strrchr(login, '@');
@@ -404,7 +405,7 @@ AnyP::Uri::parse(const HttpRequestMethod& method, const SBuf &rawUrl)
                     /* RFC 2732 states IPv6 "SHOULD" be bracketed. allowing for times when its not. */
                     /* RFC 3986 'update' simply modifies this to an "is" with no emphasis at all! */
                     /* therefore we MUST accept the case where they are not bracketed at all. */
-                    t = NULL;
+                    t = nullptr;
                 }
             }
 
@@ -868,7 +869,6 @@ urlCheckRequest(const HttpRequest * r)
             return true;
         return false;
 
-    case AnyP::PROTO_GOPHER:
     case AnyP::PROTO_WAIS:
     case AnyP::PROTO_WHOIS:
         if (r->method == Http::METHOD_GET ||

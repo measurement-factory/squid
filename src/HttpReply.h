@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1996-2021 The Squid Software Foundation and contributors
+ * Copyright (C) 1996-2022 The Squid Software Foundation and contributors
  *
  * Squid software is distributed under GPLv2+ license and includes
  * contributions from numerous individuals and organizations.
@@ -112,9 +112,6 @@ public:
      */
     HttpReply *clone() const;
 
-    /// Remove Warnings with warn-date different from Date value
-    void removeStaleWarnings();
-
     virtual void hdrCacheInit();
 
     /// whether our Date header value is smaller than theirs
@@ -149,8 +146,6 @@ private:
      * Used by receivedBodyTooLarge() and expectedBodyTooLarge().
      */
     void calcMaxBodySize(HttpRequest& request) const;
-
-    String removeStaleWarningValues(const String &value);
 
     mutable int64_t bodySizeMax; /**< cached result of calcMaxBodySize */
 

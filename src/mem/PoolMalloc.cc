@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1996-2021 The Squid Software Foundation and contributors
+ * Copyright (C) 1996-2022 The Squid Software Foundation and contributors
  *
  * Squid software is distributed under GPLv2+ license and includes
  * contributions from numerous individuals and organizations.
@@ -7,7 +7,6 @@
  */
 
 /*
- * DEBUG: section 63    Low Level Memory Pool Management
  * AUTHOR: Alex Rousskov, Andres Kroonmaa, Robert Collins, Henrik Nordstrom
  */
 
@@ -22,7 +21,7 @@ extern time_t squid_curtime;
 void *
 MemPoolMalloc::allocate()
 {
-    void *obj = NULL;
+    void *obj = nullptr;
     if (!freelist.empty()) {
         obj = freelist.top();
         freelist.pop();

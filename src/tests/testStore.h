@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1996-2021 The Squid Software Foundation and contributors
+ * Copyright (C) 1996-2022 The Squid Software Foundation and contributors
  *
  * Squid software is distributed under GPLv2+ license and includes
  * contributions from numerous individuals and organizations.
@@ -25,6 +25,7 @@ class testStore : public CPPUNIT_NS::TestFixture
     CPPUNIT_TEST( testUnsetRoot );
     CPPUNIT_TEST( testStats );
     CPPUNIT_TEST( testMaxSize );
+    CPPUNIT_TEST( testSwapMetaTypeClassification );
     CPPUNIT_TEST_SUITE_END();
 
 public:
@@ -34,6 +35,7 @@ protected:
     void testUnsetRoot();
     void testStats();
     void testMaxSize();
+    void testSwapMetaTypeClassification();
 };
 
 /// allows testing of methods without having all the other components live

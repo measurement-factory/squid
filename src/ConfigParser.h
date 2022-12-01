@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1996-2021 The Squid Software Foundation and contributors
+ * Copyright (C) 1996-2022 The Squid Software Foundation and contributors
  *
  * Squid software is distributed under GPLv2+ license and includes
  * contributions from numerous individuals and organizations.
@@ -10,13 +10,16 @@
 #define SQUID_CONFIGPARSER_H
 
 #include "acl/forward.h"
+#include "base/forward.h"
 #include "sbuf/forward.h"
 #include "SquidString.h"
 
+#include <memory>
 #include <queue>
 #include <stack>
 #include <string>
 
+class CachePeer;
 class wordlist;
 
 class ConfigParser;
@@ -133,6 +136,12 @@ public:
     /// parses an [if [!]<acl>...] construct
     Acl::Tree *optionalAclList();
 
+    /// extracts and returns a regex (including any optional flags)
+    std::unique_ptr<RegexPattern> regex(const char *expectedRegexDescription);
+
+    /// extracts a cache_peer name token and returns the corresponding CachePeer
+    CachePeer &cachePeer(const char *peerNameTokenDescription);
+
     static void ParseUShort(unsigned short *var);
     static void ParseBool(bool *var);
     static const char *QuoteString(const String &var);
@@ -145,12 +154,6 @@ public:
      * Future code will want to see Elements and not just their bodies.
      */
     static char *NextToken();
-
-    /**
-     * Parse the next token as a regex pattern. The regex patterns are non quoted
-     * tokens.
-     */
-    static char *RegexPattern();
 
     /**
      * Parse the next token with support for quoted values enabled even if
@@ -181,12 +184,6 @@ public:
      * error message as token.
      */
     static char *PeekAtToken();
-
-    /**
-     * The next NextToken call will return the token as next element
-     * It can be used repeatedly to add more than one tokens in a FIFO list.
-     */
-    static void TokenPutBack(const char *token);
 
     /// Set the configuration file line to parse.
     static void SetCfgLine(char *line);
@@ -235,10 +232,10 @@ protected:
     class CfgFile
     {
     public:
-        CfgFile(): wordFile(NULL), parsePos(NULL), lineNo(0) { parseBuffer[0] = '\0';}
+        CfgFile(): wordFile(nullptr), parsePos(nullptr), lineNo(0) { parseBuffer[0] = '\0';}
         ~CfgFile();
         /// True if the configuration file is open
-        bool isOpen() {return wordFile != NULL;}
+        bool isOpen() {return wordFile != nullptr;}
 
         /**
          * Open the file given by 'path' and initializes the CfgFile object
@@ -275,14 +272,11 @@ protected:
     /// parses the next ACL parameter as a regex pattern
     char *regexAclToken();
 
-    /// Return the last TokenPutBack() queued element or NULL if none exist
-    static char *Undo();
-
     /**
      * Unquotes the token, which must be quoted.
      * \param next if it is not NULL, it is set after the end of token.
      */
-    static char *UnQuote(const char *token, const char **next = NULL);
+    static char *UnQuote(const char *token, const char **next = nullptr);
 
     /**
      * Does the real tokens parsing job: Ignore comments, unquote an
@@ -300,7 +294,6 @@ protected:
     static const char *CfgLine; ///< The current line to parse
     static const char *CfgPos; ///< Pointer to the next element in cfgLine string
     static std::queue<char *> CfgLineTokens_; ///< Store the list of tokens for current configuration line
-    static std::queue<std::string> Undo_; ///< The list with TokenPutBack() queued elements
     static bool AllowMacros_;
     static bool ParseQuotedOrToEol_; ///< The next tokens will be handled as quoted or to_eol token
     static bool RecognizeQuotedPair_; ///< The next tokens may contain quoted-pair (\-escaped) characters

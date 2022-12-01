@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1996-2021 The Squid Software Foundation and contributors
+ * Copyright (C) 1996-2022 The Squid Software Foundation and contributors
  *
  * Squid software is distributed under GPLv2+ license and includes
  * contributions from numerous individuals and organizations.
@@ -67,7 +67,7 @@ testSBuf::testSBufConstructDestruct()
 
     // TEST: copy-construct NULL string (implicit destructor non-crash test)
     {
-        SBuf s1(NULL);
+        SBuf s1(nullptr);
         CPPUNIT_ASSERT_EQUAL(0U,s1.length());
         CPPUNIT_ASSERT_EQUAL(SBuf(""),s1);
         CPPUNIT_ASSERT_EQUAL(empty_sbuf,s1);

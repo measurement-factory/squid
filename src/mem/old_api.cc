@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1996-2021 The Squid Software Foundation and contributors
+ * Copyright (C) 1996-2022 The Squid Software Foundation and contributors
  *
  * Squid software is distributed under GPLv2+ license and includes
  * contributions from numerous individuals and organizations.
@@ -22,7 +22,6 @@
 #include "MemBuf.h"
 #include "mgr/Registration.h"
 #include "SquidConfig.h"
-#include "SquidTime.h"
 #include "Store.h"
 
 #include <iomanip>
@@ -60,10 +59,10 @@ static Mem::Meter HugeBufVolumeMeter;
 
 // XXX: refactor objects using these pools to use MEMPROXY classes instead
 // then remove this function entirely
-static MemAllocator *&
+static Mem::Allocator *&
 GetPool(size_t type)
 {
-    static MemAllocator *pools[MEM_MAX];
+    static Mem::Allocator *pools[MEM_MAX];
     static bool initialized = false;
 
     if (!initialized) {
@@ -77,19 +76,19 @@ GetPool(size_t type)
     return pools[type];
 }
 
-static MemAllocator &
+static Mem::Allocator &
 GetStrPool(size_t type)
 {
-    static MemAllocator *strPools[mem_str_pool_count];
+    static Mem::Allocator *strPools[mem_str_pool_count];
     static bool initialized = false;
 
     static const PoolMeta PoolAttrs[mem_str_pool_count] = {
-        {"Short Strings", MemAllocator::RoundedSize(36)},      /* to fit rfc1123 and similar */
-        {"Medium Strings", MemAllocator::RoundedSize(128)},    /* to fit most urls */
-        {"Long Strings", MemAllocator::RoundedSize(512)},
-        {"1KB Strings", MemAllocator::RoundedSize(1024)},
-        {"4KB Strings", MemAllocator::RoundedSize(4*1024)},
-        {"16KB Strings", MemAllocator::RoundedSize(16*1024)}
+        {"Short Strings", Mem::Allocator::RoundedSize(36)}, /* to fit rfc1123 and similar */
+        {"Medium Strings", Mem::Allocator::RoundedSize(128)}, /* to fit most urls */
+        {"Long Strings", Mem::Allocator::RoundedSize(512)},
+        {"1KB Strings", Mem::Allocator::RoundedSize(1024)},
+        {"4KB Strings", Mem::Allocator::RoundedSize(4*1024)},
+        {"16KB Strings", Mem::Allocator::RoundedSize(16*1024)}
     };
 
     if (!initialized) {
@@ -101,7 +100,7 @@ GetStrPool(size_t type)
             strPools[i]->zeroBlocks(false);
 
             if (strPools[i]->objectSize() != PoolAttrs[i].obj_size)
-                debugs(13, DBG_IMPORTANT, "NOTICE: " << PoolAttrs[i].name <<
+                debugs(13, DBG_IMPORTANT, "WARNING: " << PoolAttrs[i].name <<
                        " is " << strPools[i]->objectSize() <<
                        " bytes instead of requested " <<
                        PoolAttrs[i].obj_size << " bytes");
@@ -114,7 +113,7 @@ GetStrPool(size_t type)
 }
 
 /// \returns the best-fit string pool or nil
-static MemAllocator *
+static Mem::Allocator *
 memFindStringPool(size_t net_size, bool fuzzy)
 {
     for (unsigned int i = 0; i < mem_str_pool_count; ++i) {
@@ -202,7 +201,7 @@ memDataInit(mem_type type, const char *name, size_t size, int, bool doZero)
 {
     assert(name && size);
 
-    if (GetPool(type) != NULL)
+    if (GetPool(type) != nullptr)
         return;
 
     GetPool(type) = memPoolCreate(name, size);
@@ -383,7 +382,7 @@ memReallocBuf(void *oldbuf, size_t net_size, size_t * gross_size)
 void
 memFreeBuf(size_t size, void *buf)
 {
-    mem_type type = memFindBufSizeType(size, NULL);
+    mem_type type = memFindBufSizeType(size, nullptr);
 
     if (type != MEM_NONE)
         memFree(buf, type);
@@ -400,7 +399,7 @@ void
 Mem::CleanIdlePools(void *)
 {
     MemPools::GetInstance().clean(static_cast<time_t>(clean_interval));
-    eventAdd("memPoolCleanIdlePools", CleanIdlePools, NULL, clean_interval, 1);
+    eventAdd("memPoolCleanIdlePools", CleanIdlePools, nullptr, clean_interval, 1);
 }
 
 void
@@ -430,13 +429,6 @@ Mem::Init(void)
     if (MemIsInitialized)
         return;
 
-    /** \par
-     * NOTE: Mem::Init() is called before the config file is parsed
-     * and before the debugging module has been initialized.  Any
-     * debug messages here at level 0 or 1 will always be printed
-     * on stderr.
-     */
-
     /**
      * Then initialize all pools.
      * \par
@@ -462,15 +454,6 @@ Mem::Init(void)
 
     // finally register with the cache manager
     Mgr::RegisterAction("mem", "Memory Utilization", Mem::Stats, 0, 1);
-}
-
-void
-Mem::Report()
-{
-    debugs(13, 3, "Memory pools are '" <<
-           (Config.onoff.mem_pools ? "on" : "off")  << "'; limit: " <<
-           std::setprecision(3) << toMB(MemPools::GetInstance().idleLimit()) <<
-           " MB");
 }
 
 static mem_type &
@@ -593,14 +576,12 @@ memFreeBufFunc(size_t size)
     }
 }
 
-/* MemPoolMeter */
-
 void
-Mem::PoolReport(const MemPoolStats * mp_st, const MemPoolMeter * AllMeter, std::ostream &stream)
+Mem::PoolReport(const MemPoolStats * mp_st, const PoolMeter * AllMeter, std::ostream &stream)
 {
     int excess = 0;
     int needed = 0;
-    MemPoolMeter *pm = mp_st->meter;
+    PoolMeter *pm = mp_st->meter;
     const char *delim = "\t ";
 
     stream.setf(std::ios_base::fixed);
@@ -693,7 +674,6 @@ Mem::Report(std::ostream &stream)
     static MemPoolGlobalStats mp_total;
     int not_used = 0;
     MemPoolIterator *iter;
-    MemAllocator *pool;
 
     /* caption */
     stream << "Current memory usage:\n";
@@ -727,7 +707,7 @@ Mem::Report(std::ostream &stream)
     /* main table */
     iter = memPoolIterate();
 
-    while ((pool = memPoolIterateNext(iter))) {
+    while (const auto pool = memPoolIterateNext(iter)) {
         pool->getStats(&mp_stats);
 
         if (!mp_stats.pool) /* pool destroyed */
@@ -752,7 +732,7 @@ Mem::Report(std::ostream &stream)
 
     xfree(sortme);
 
-    mp_stats.pool = NULL;
+    mp_stats.pool = nullptr;
     mp_stats.label = "Total";
     mp_stats.meter = mp_total.TheMeter;
     mp_stats.obj_size = 1;

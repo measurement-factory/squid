@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1996-2021 The Squid Software Foundation and contributors
+ * Copyright (C) 1996-2022 The Squid Software Foundation and contributors
  *
  * Squid software is distributed under GPLv2+ license and includes
  * contributions from numerous individuals and organizations.
@@ -36,7 +36,7 @@ public:
     virtual bool dereference(StoreEntry &e) override;
     virtual void updateHeaders(StoreEntry *) override;
     virtual void maintain() override;
-    virtual bool anchorToCache(StoreEntry &e, bool &inSync) override;
+    virtual bool anchorToCache(StoreEntry &) override;
     virtual bool updateAnchored(StoreEntry &) override;
     virtual void evictCached(StoreEntry &) override;
     virtual void evictIfFound(const cache_key *) override;
