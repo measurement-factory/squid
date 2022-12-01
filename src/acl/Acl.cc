@@ -342,7 +342,6 @@ ACL::isProxyAuth() const
     return false;
 }
 
-// ACL kids that carry ACLData which supports parameter flags override this
 void
 ACL::parseFlags()
 {
