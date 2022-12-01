@@ -17,6 +17,8 @@
 #define STUB_API "cache_cf.cc"
 #include "tests/STUB.h"
 
+ConfigParser LegacyParser;
+
 #include "cache_cf.h"
 const char *cfg_directive = nullptr;
 const char *cfg_filename = nullptr;
@@ -31,6 +33,7 @@ void requirePathnameExists(const char *, const char *) STUB_NOP
 void parse_time_t(time_t *) STUB
 void ConfigParser::ParseUShort(unsigned short *) STUB
 void ConfigParser::ParseWordList(wordlist **) STUB
+ConfigParser &ConfigParser::Current() { return LegacyParser; }
 void parseBytesOptionValue(size_t *, const char *, char const *) STUB
 void dump_acl_access(StoreEntry *, const char *, acl_access *) STUB
 void dump_acl_list(StoreEntry*, ACLList*) STUB
