@@ -27,13 +27,19 @@ typedef char *(ConfigParser::*TokenExtractor)();
 
 namespace Configuration {
 
-// TODO: Get rid of deprecated std::iterator<>.
 /// A single-pass input iterator reading tokens from a configuration line.
 /// The first read is performed when the object is constructed.
 /// Further reads, if any, are done by increment operators.
-class TokensIterator: public std::iterator<std::input_iterator_tag, char *>
+class TokensIterator
 {
 public:
+    // iterator traits
+    using iterator_category = std::input_iterator_tag;
+    using value_type = char *;
+    using difference_type = std::ptrdiff_t;
+    using pointer = char **;
+    using reference = char *&;
+
     TokensIterator(ConfigParser * const parser, const TokenExtractor method):
         parser_(parser),
         method_(method),
