@@ -28,6 +28,8 @@
 
 const char *AclMatchedName = nullptr;
 
+static const char *MissingParameterAction = "--missing-parameter-action";
+
 namespace Acl {
 
 /// ACL type name comparison functor
@@ -324,8 +326,10 @@ ACL::calculateArgumentAction() const
             return argWarn;
         else if (argumentAction.value.cmp("err") == 0)
             return argErr;
-        else
-            assert(argumentAction.value.cmp("reject_acls_with_empty_parameter_list") == 0);
+        else if (argumentAction.value.cmp("reject_acls_with_empty_parameter_list") != 0)
+            throw TextException(ToSBuf("unsupported ", MissingParameterAction, " option value: ", argumentAction.value), Here());
+
+        assert(argumentAction.value.cmp("reject_acls_with_empty_parameter_list") == 0);
     }
 
     if (Config.rejectAclsWithEmptyParameterList > 0)
@@ -351,7 +355,7 @@ ACL::parseFlags()
         allOptions.push_back(lineOption);
     }
 
-    static const Acl::TextOption ArgumentActionOption("--missing-parameter-action", nullptr, Acl::Option::valueRequired);
+    static const Acl::TextOption ArgumentActionOption(MissingParameterAction, nullptr, Acl::Option::valueRequired);
     ArgumentActionOption.linkWith(&argumentAction);
     // do not unconfigure() because argumentAction is not static
     allOptions.push_back(&ArgumentActionOption);
