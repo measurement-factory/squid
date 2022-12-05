@@ -353,6 +353,7 @@ ACL::parseFlags()
 
     static const Acl::TextOption ArgumentActionOption("--missing-parameter-action", nullptr, Acl::Option::valueRequired);
     ArgumentActionOption.linkWith(&argumentAction);
+    // do not unconfigure() because argumentAction is not static
     allOptions.push_back(&ArgumentActionOption);
 
     Acl::ParseFlags(allOptions);
