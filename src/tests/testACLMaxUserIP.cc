@@ -46,6 +46,31 @@ testACLMaxUserIP::setUp()
 }
 
 void
+testACLMaxUserIP::testParseInvalidLineIgnore() {
+    char * line = xstrdup("test max_user_ip --missing-parameter-action=ignore");
+    ConfigParser::SetCfgLine(line);
+    ACL *anACL = nullptr;
+    ACL::ParseAclLine(LegacyParser, &anACL);
+    ACLMaxUserIP *maxUserIpACL = dynamic_cast<ACLMaxUserIP *>(anACL);
+    CPPUNIT_ASSERT(maxUserIpACL);
+    delete anACL;
+    xfree(line);
+}
+
+void
+testACLMaxUserIP::testParseInvalidLineAbort() {
+    char * line = xstrdup("test max_user_ip --missing-parameter-action=err");
+    try {
+        ConfigParser::SetCfgLine(line);
+        ACL *anACL = nullptr;
+        ACL::ParseAclLine(LegacyParser, &anACL);
+    } catch (const TextException &) {
+        // success
+    }
+    xfree(line);
+}
+
+void
 testACLMaxUserIP::testParseLine()
 {
     /* a config line to pass with a lead-in token to seed the parser. */
