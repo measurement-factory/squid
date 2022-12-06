@@ -326,10 +326,12 @@ ACL::calculateArgumentAction() const
             return argWarn;
         else if (argumentAction.value.cmp("err") == 0)
             return argErr;
-        else if (argumentAction.value.cmp("reject_acls_with_empty_parameter_list") != 0)
+
+        const auto isDefault = (argumentAction.value.cmp("reject_acls_with_empty_parameter_list") == 0);
+        if (!isDefault)
             throw TextException(ToSBuf("unsupported ", MissingParameterAction, " option value: ", argumentAction.value), Here());
 
-        assert(argumentAction.value.cmp("reject_acls_with_empty_parameter_list") == 0);
+        // obey the global configuration setting
     }
 
     if (Config.rejectAclsWithEmptyParameterList > 0)
