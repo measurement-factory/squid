@@ -201,7 +201,7 @@ ConfigParser::UnQuote(const char *token, const char **next)
 }
 
 void
-ConfigParser::SetCfgLine(char *line)
+ConfigParser::SetCfgLine(const char *line)
 {
     CfgLine = line;
     CfgPos = line;

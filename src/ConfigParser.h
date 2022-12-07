@@ -192,7 +192,7 @@ public:
     static char *PeekAtToken();
 
     /// Set the configuration file line to parse.
-    static void SetCfgLine(char *line);
+    static void SetCfgLine(const char *line);
 
     /// Allow %macros inside quoted strings
     static void EnableMacros() {AllowMacros_ = true;}
