@@ -81,7 +81,7 @@ testACL::testMissingParametersAbort()
                 ConfigParser::SetCfgLine("test src --missing-parameter-action=err");
                 ACL::ParseAclLine(LegacyParser, &Config.aclList);
                 CPPUNIT_ASSERT_MESSAGE("expects a configuration error", false);
-            } catch (const TextException &) {
+            } catch (const Configuration::MissingTokenException &) {
                 // success
                 aclDestroyAcls(&Config.aclList);
                 Config.aclList = nullptr;
@@ -97,7 +97,7 @@ testACL::testMissingParametersAbort()
         // should not be affected by the first line and obey the global setting
         ACL::ParseAclLine(LegacyParser, &Config.aclList);
         CPPUNIT_ASSERT_MESSAGE("expects a configuration error", false);
-    } catch (const TextException &) {
+    } catch (const Configuration::MissingTokenException &) {
         // success
         aclDestroyAcls(&Config.aclList);
         Config.aclList = nullptr;
