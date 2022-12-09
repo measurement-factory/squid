@@ -942,48 +942,6 @@ tests_testTokenizer_LDADD = \
 	$(XTRA_LIBS)
 tests_testTokenizer_LDFLAGS = $(LIBADD_DL)
 
-## Tests of acl/*
-
-check_PROGRAMS += tests/testACL
-tests_testACL_SOURCES = \
-	tests/testACL.cc \
-	tests/testACL.h
-nodist_tests_testACL_SOURCES = \
-	ConfigParser.cc \
-	tests/stub_CachePeer.cc \
-	tests/stub_HelperChildConfig.cc \
-	tests/stub_HttpHeader.cc \
-	tests/stub_HttpRequest.cc \
-	tests/stub_MemBuf.cc \
-	tests/stub_cache_cf.cc \
-	tests/stub_client_side.cc \
-	tests/stub_debug.cc \
-	dlink.cc \
-	tests/stub_errorpage.cc \
-	tests/stub_fatal.cc \
-	globals.cc \
-	tests/stub_libhttp.cc \
-	String.cc \
-	tests/stub_access_log.cc \
-	tests/stub_cbdata.cc \
-	tests/stub_libmem.cc \
-	tests/stub_neighbors.cc
-tests_testACL_LDADD = \
-	acl/libacls.la \
-	acl/libapi.la \
-	acl/libstate.la \
-	SquidConfig.o \
-	ip/libip.la \
-	parser/libparser.la \
-	sbuf/libsbuf.la \
-	base/libbase.la \
-	$(top_builddir)/lib/libmiscutil.la \
-	$(SSLLIB) \
-	$(LIBCPPUNIT_LIBS) \
-	$(COMPAT_LIB) \
-	$(XTRA_LIBS)
-tests_testACL_LDFLAGS = $(LIBADD_DL)
-
 ## Tests of sbuf/* and String handling objects
 
 check_PROGRAMS += tests/testSBuf
