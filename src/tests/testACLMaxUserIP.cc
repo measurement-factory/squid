@@ -24,8 +24,6 @@ CPPUNIT_TEST_SUITE_REGISTRATION( testACLMaxUserIP );
 /* globals required to resolve link issues */
 AnyP::PortCfgPointer HttpPortList;
 
-extern ConfigParser LegacyParser;
-
 void
 testACLMaxUserIP::testDefaults()
 {
@@ -53,6 +51,7 @@ testACLMaxUserIP::testParseLine()
     /* seed the parser */
     ConfigParser::SetCfgLine(line);
     ACL *anACL = nullptr;
+    ConfigParser LegacyParser;
     ACL::ParseAclLine(LegacyParser, &anACL);
     ACLMaxUserIP *maxUserIpACL = dynamic_cast<ACLMaxUserIP *>(anACL);
     CPPUNIT_ASSERT(maxUserIpACL);

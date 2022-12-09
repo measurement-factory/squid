@@ -26,7 +26,7 @@ Acl::ConnMark::empty() const
 void
 Acl::ConnMark::parse()
 {
-    for (const auto &t: ConfigParser::Current().requiredAclTokens("connection mark")) {
+    for (const auto t: ConfigParser::Current().requiredAclTokens("connection mark")) {
         SBuf token(t);
         const auto mc = Ip::NfMarkConfig::Parse(token);
         marks.push_back(mc);

@@ -23,7 +23,7 @@ ACLHasComponentData::ACLHasComponentData()
 void
 ACLHasComponentData::parse()
 {
-    const auto &tok = ConfigParser::Current().requiredAclToken("transaction component name");
+    const auto tok = ConfigParser::Current().requiredAclToken("transaction component name");
     parseComponent(tok);
 }
 

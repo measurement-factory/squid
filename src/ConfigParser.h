@@ -209,14 +209,16 @@ public:
     // External file names can be passed either via quoted tokens ('configuration_includes_quoted_values'
     // is off) or via parameters("/path/filename") syntax.
     /// \returns a non-empty ACL parameter sequence
-    Configuration::Tokens requiredAclTokens(const char *description) { return Configuration::Tokens(this, &ConfigParser::aclToken, description, false); }
+    Configuration::Tokens requiredAclTokens(const char *description) { return Configuration::Tokens(this, &ConfigParser::optionalAclArgument, description, false); }
     /// \returns a possibly empty ACL parameter sequence
-    Configuration::Tokens optionalAclTokens(const char *description) { return Configuration::Tokens(this, &ConfigParser::aclToken, description, true); }
+    Configuration::Tokens optionalAclTokens(const char *description) { return Configuration::Tokens(this, &ConfigParser::optionalAclArgument, description, true); }
     /// \returns a non-empty ACL parameter sequence, with elements as regex patterns
-    Configuration::Tokens requiredAclRegexTokens(const char *description) { return Configuration::Tokens(this, &ConfigParser::regexAclToken, description, false); }
+    Configuration::Tokens requiredAclRegexTokens(const char *description) { return Configuration::Tokens(this, &ConfigParser::optionalAclRegexArgument, description, false); }
     /// \returns a non-nil ACL parameter
     const char *requiredAclToken(const char *description) { return *requiredAclTokens(description).begin(); }
-    /// \returns a possibly nil ACL parameter
+    /// Extracts and returns the next ACL argument.
+    /// If the current ACL directive has no more arguments, returns nil.
+    /// XXX: The difference compared to optionalAclToken() is not clear.
     const char *optionalAclToken(const char *description) { return *optionalAclTokens(description).begin(); }
 
     /// configuration_includes_quoted_values in squid.conf
@@ -273,10 +275,13 @@ protected:
         int lineNo; ///< Current line number
     };
 
-    /// parses the next ACL parameter
-    char *aclToken();
+    /// Extracts and returns the next ACL argument.
+    /// If the current ACL directive has no more arguments, returns nil.
+    /// XXX: The difference compared to optionalAclToken() is not clear.
+    char *optionalAclArgument();
     /// parses the next ACL parameter as a regex pattern
-    char *regexAclToken();
+    /// optionalAclArgument() for an ACL that expects regex arguments
+    char *optionalAclRegexArgument();
 
     /**
      * Unquotes the token, which must be quoted.

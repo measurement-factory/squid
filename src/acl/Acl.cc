@@ -267,7 +267,7 @@ ACL::ParseAclLine(ConfigParser &parser, ACL ** head)
             const auto errorMessage = ToSBuf(message, " in ", A->name, " ACL");
             // Extract all the remaining tokens: Without this, the parser would be
             // left in an incoherent state an unable to parse correctly the following lines.
-            for (const auto &tok: parser.optionalAclTokens(message))
+            for (const auto tok: parser.optionalAclTokens(message))
                 debugs(28, DBG_PARSE_NOTE(2), errorMessage << ": " << tok);
             throw TextException(errorMessage, Here());
         }

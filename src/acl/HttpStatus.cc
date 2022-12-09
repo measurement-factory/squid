@@ -107,7 +107,7 @@ ACLHTTPStatus::parse()
 void
 aclParseHTTPStatusList(Splay<acl_httpstatus_data *> **curlist)
 {
-    for (const auto &t: ConfigParser::Current().requiredAclTokens("http_status code")) {
+    for (const auto t: ConfigParser::Current().requiredAclTokens("http_status code")) {
         if (acl_httpstatus_data *q = aclParseHTTPStatusData(t))
             (*curlist)->insert(q, acl_httpstatus_data::compare);
     }
