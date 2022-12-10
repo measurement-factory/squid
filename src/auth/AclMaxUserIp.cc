@@ -58,7 +58,7 @@ ACLMaxUserIP::parse()
         return;
     }
 
-    maximum = xatoi(ConfigParser::Current().requiredAclToken("IP addresses max number"));
+    maximum = xatoi(ConfigParser::Current().requiredAclValue("IP addresses max number"));
 
     debugs(28, 5, "aclParseUserMaxIP: Max IP address's " << maximum);
 

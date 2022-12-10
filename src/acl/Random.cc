@@ -51,7 +51,7 @@ ACLRandom::parse()
 {
     char bufa[256], bufb[256];
 
-    const auto t = ConfigParser::Current().requiredAclToken("probability value");
+    const auto t = ConfigParser::Current().requiredAclValue("probability value");
 
     debugs(28, 5, "aclParseRandomData: " << t);
 

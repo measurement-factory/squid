@@ -562,7 +562,7 @@ ACLASN::parse()
     CbDataList<int> *q = nullptr;
 
     for (Tail = curlist; *Tail; Tail = &((*Tail)->next));
-    for (const auto t: ConfigParser::Current().requiredAclTokens("AS number")) {
+    for (const auto t: ConfigParser::Current().aclValues("AS number")) {
         q = new CbDataList<int> (atoi(t));
         *(Tail) = q;
         Tail = &q->next;

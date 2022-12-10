@@ -209,17 +209,15 @@ public:
     // External file names can be passed either via quoted tokens ('configuration_includes_quoted_values'
     // is off) or via parameters("/path/filename") syntax.
     /// \returns a non-empty ACL parameter sequence
-    Configuration::Tokens requiredAclTokens(const char *description) { return Configuration::Tokens(this, &ConfigParser::optionalAclArgument, description, false); }
+    Configuration::Tokens aclValues(const char *description) { return Configuration::Tokens(this, &ConfigParser::optionalAclArgument, description, false); }
     /// \returns a possibly empty ACL parameter sequence
-    Configuration::Tokens optionalAclTokens(const char *description) { return Configuration::Tokens(this, &ConfigParser::optionalAclArgument, description, true); }
+    Configuration::Tokens optionalAclValues(const char *description) { return Configuration::Tokens(this, &ConfigParser::optionalAclArgument, description, true); }
     /// \returns a non-empty ACL parameter sequence, with elements as regex patterns
-    Configuration::Tokens requiredAclRegexTokens(const char *description) { return Configuration::Tokens(this, &ConfigParser::optionalAclRegexArgument, description, false); }
+    Configuration::Tokens aclRegexValues(const char *description) { return Configuration::Tokens(this, &ConfigParser::optionalAclRegexArgument, description, false); }
     /// \returns a non-nil ACL parameter
-    const char *requiredAclToken(const char *description) { return *requiredAclTokens(description).begin(); }
-    /// Extracts and returns the next ACL argument.
-    /// If the current ACL directive has no more arguments, returns nil.
-    /// XXX: The difference compared to optionalAclToken() is not clear.
-    const char *optionalAclToken(const char *description) { return *optionalAclTokens(description).begin(); }
+    const char *requiredAclValue(const char *description) { return *aclValues(description).begin(); }
+    /// \returns a possibly nil ACL parameter
+    const char *optionalAclValue(const char *description) { return *optionalAclValues(description).begin(); }
 
     /// configuration_includes_quoted_values in squid.conf
     static bool RecognizeQuotedValues;

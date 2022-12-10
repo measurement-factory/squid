@@ -47,7 +47,7 @@ ACLNoteData::dump() const
 void
 ACLNoteData::parse()
 {
-    name = ConfigParser::Current().requiredAclToken("note name");
+    name = ConfigParser::Current().requiredAclValue("note name");
     values->parse();
 }
 

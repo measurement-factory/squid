@@ -50,7 +50,7 @@ Acl::InnerNode::lineParse()
     // expect a list of ACL names, each possibly preceded by '!' for negation
 
     size_t count = 0;
-    for (auto t: ConfigParser::Current().optionalAclTokens("a list of ACL names")) {
+    for (auto t: ConfigParser::Current().optionalAclValues("a list of ACL names")) {
         const bool negated = (*t == '!');
         if (negated)
             ++t;

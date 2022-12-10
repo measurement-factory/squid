@@ -75,7 +75,7 @@ ACLHTTPHeaderData::lineOptions()
 void
 ACLHTTPHeaderData::parse()
 {
-    const auto t = ConfigParser::Current().requiredAclToken("header name");
+    const auto t = ConfigParser::Current().requiredAclValue("header name");
 
     if (hdrName.isEmpty()) {
         hdrName = t;

@@ -93,7 +93,7 @@ ACLUserData::parse()
     debugs(28, 2, "parsing user list");
     flags.case_insensitive = bool(CaseInsensitive_);
     auto &parser = ConfigParser::Current();
-    const auto userNameOrOption = parser.requiredAclToken("user name or option");
+    const auto userNameOrOption = parser.requiredAclValue("user name or option");
     auto isOption = false;
     {
         SBuf s(userNameOrOption);
@@ -125,7 +125,7 @@ ACLUserData::parse()
 
     debugs(28, 4, "parsing following tokens");
 
-    const auto tokens = isOption ? parser.requiredAclTokens("user name") : parser.optionalAclTokens("user name");
+    const auto tokens = isOption ? parser.aclValues("user name") : parser.optionalAclValues("user name");
 
     for (const auto &t: tokens) {
         SBuf s(t);
