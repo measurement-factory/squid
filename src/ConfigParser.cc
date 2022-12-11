@@ -7,6 +7,7 @@
  */
 
 #include "squid.h"
+#include "acl/Acl.h"
 #include "acl/Gadgets.h"
 #include "base/Here.h"
 #include "base/RegexPattern.h"
@@ -62,7 +63,7 @@ ConfigParser::destruct()
 }
 
 char *
-ConfigParser::optionalAclArgument()
+ConfigParser::aclToken()
 {
     if (RecognizeQuotedValues)
         return ConfigParser::NextToken();
@@ -133,6 +134,15 @@ ConfigParser::optionalAclArgument()
     } while ( *t == '#' || !*t );
 
     return t;
+}
+
+char *
+ConfigParser::optionalAclArgument()
+{
+    auto token = aclToken();
+    if (ACL::IsOption(token))
+        throw Configuration::InvalidTokenException(ToSBuf("unexpected token: ", token), Here());
+    return token;
 }
 
 char *

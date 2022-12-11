@@ -46,6 +46,10 @@ public:
     static void ParseAclLine(ConfigParser &parser, ACL ** head);
     static void Initialize();
     static ACL *FindByName(const char *name);
+    // TODO: for now, only the ACLs common options are checked,
+    // check the ACL-specific options as well.
+    /// whether option is an ACL option name
+    static bool IsOption(const char *option);
 
     ACL();
     ACL(ACL &&) = delete; // no copying of any kind

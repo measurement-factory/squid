@@ -24,11 +24,15 @@
 #include "SquidConfig.h"
 
 #include <algorithm>
+#include <array>
 #include <map>
 
 const char *AclMatchedName = nullptr;
 
 static const char *MissingParameterAction = "--missing-parameter-action";
+
+/// options shared by all ACLs
+static const std::array<const char*, 1> AclCommonOptions = { MissingParameterAction };
 
 namespace Acl {
 
@@ -103,6 +107,19 @@ ACL::FindByName(const char *name)
     debugs(28, 9, "ACL::FindByName found no match");
 
     return nullptr;
+}
+
+bool
+ACL::IsOption(const char *token)
+{
+    if (token) {
+        for (const auto option: AclCommonOptions)
+            // TODO: try to extract and compare the name of the option from the token,
+            // instead of comparing the entire token
+            if (!strncasecmp(option, token, strlen(option)))
+                return true;
+    }
+    return false;
 }
 
 ACL::ACL() :

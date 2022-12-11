@@ -88,6 +88,9 @@ private:
 /// thrown when a configuration parser fails to extract a required token
 class MissingTokenException: public TextException { using TextException::TextException; };
 
+/// thrown when a configuration parser fails to validate a required token
+class InvalidTokenException: public TextException { using TextException::TextException; };
+
 }
 
 /**
@@ -280,6 +283,9 @@ protected:
     /// parses the next ACL parameter as a regex pattern
     /// optionalAclArgument() for an ACL that expects regex arguments
     char *optionalAclRegexArgument();
+
+    /// extracts and returns the next ACL token (option or argument value)
+    char *aclToken();
 
     /**
      * Unquotes the token, which must be quoted.
