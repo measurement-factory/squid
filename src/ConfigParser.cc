@@ -63,7 +63,7 @@ ConfigParser::destruct()
 }
 
 char *
-ConfigParser::aclToken()
+ConfigParser::optionalAclToken()
 {
     if (RecognizeQuotedValues)
         return ConfigParser::NextToken();
@@ -139,7 +139,7 @@ ConfigParser::aclToken()
 char *
 ConfigParser::optionalAclArgument()
 {
-    auto token = aclToken();
+    auto token = optionalAclToken();
     if (ACL::IsOption(token))
         throw Configuration::InvalidTokenException(ToSBuf("unexpected token: ", token), Here());
     return token;
@@ -685,6 +685,14 @@ ConfigParser::CfgFile::~CfgFile()
 {
     if (wordFile)
         fclose(wordFile);
+}
+
+const char *
+ConfigParser::optionalAclValue(const char *description)
+{
+    const auto optionalValues = optionalAclValues(description);
+    auto first = optionalValues.begin();
+    return (first == optionalValues.end()) ? nullptr : *first;
 }
 
 Configuration::TokensIterator

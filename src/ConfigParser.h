@@ -220,7 +220,7 @@ public:
     /// \returns a non-nil ACL parameter
     const char *requiredAclValue(const char *description) { return *aclValues(description).begin(); }
     /// \returns a possibly nil ACL parameter
-    const char *optionalAclValue(const char *description) { return *optionalAclValues(description).begin(); }
+    const char *optionalAclValue(const char *description);
 
     /// configuration_includes_quoted_values in squid.conf
     static bool RecognizeQuotedValues;
@@ -277,15 +277,14 @@ protected:
     };
 
     /// Extracts and returns the next ACL argument.
-    /// If the current ACL directive has no more arguments, returns nil.
-    /// XXX: The difference compared to optionalAclToken() is not clear.
+    /// If the current acl directive has no more arguments, returns nil.
+    char *optionalAclToken();
+
+    /// optionalAclToken() that prohibits ACL options
     char *optionalAclArgument();
-    /// parses the next ACL parameter as a regex pattern
+
     /// optionalAclArgument() for an ACL that expects regex arguments
     char *optionalAclRegexArgument();
-
-    /// extracts and returns the next ACL token (option or argument value)
-    char *aclToken();
 
     /**
      * Unquotes the token, which must be quoted.
