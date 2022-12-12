@@ -9,10 +9,12 @@
 /* DEBUG: section 28    Access Control */
 
 #include "squid.h"
+#include "acl/Acl.h"
 #include "acl/Gadgets.h"
 
 #define STUB_API "acl/"
 #include "tests/STUB.h"
 
 size_t aclParseAclList(ConfigParser &, Acl::Tree **, const char *) STUB_RETVAL(0)
+bool ACL::IsOption(const char *) STUB_RETVAL(false)
 
