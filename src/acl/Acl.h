@@ -14,7 +14,7 @@
 #include "cbdata.h"
 #include "defines.h"
 #include "dlink.h"
-#include "sbuf/forward.h"
+#include "sbuf/SBuf.h"
 
 #include <algorithm>
 #include <ostream>
@@ -46,6 +46,10 @@ public:
     static void ParseAclLine(ConfigParser &parser, ACL ** head);
     static void Initialize();
     static ACL *FindByName(const char *name);
+    // TODO: for now, only the ACLs common options are checked,
+    // check the ACL-specific options as well.
+    /// whether option is an ACL option name
+    static bool IsOption(const char *option);
 
     ACL();
     ACL(ACL &&) = delete; // no copying of any kind
@@ -82,6 +86,7 @@ public:
     char *cfgline;
     ACL *next; // XXX: remove or at least use refcounting
     bool registered; ///< added to the global list of ACLs via aclRegister()
+    Acl::TextOptionValue argumentAction;
 
 private:
     /// Matches the actual data in checklist against this ACL.
@@ -93,6 +98,10 @@ private:
     virtual bool requiresRequest() const;
     /// whether our (i.e. shallow) match() requires checklist to have a reply
     virtual bool requiresReply() const;
+    /// possible actions to handle a missing ACL configuration argument
+    typedef enum { argIgnore = 1, argWarn, argErr } ArgumentAction;
+
+    ArgumentAction calculateArgumentAction() const;
 
     // TODO: Rename to globalOptions(); these are not the only supported options
     /// \returns (linked) 'global' Options supported by this ACL

@@ -24,9 +24,15 @@
 #include "SquidConfig.h"
 
 #include <algorithm>
+#include <array>
 #include <map>
 
 const char *AclMatchedName = nullptr;
+
+static const char *MissingParameterAction = "--missing-parameter-action";
+
+/// options shared by all ACLs
+static const std::array<const char*, 1> AclCommonOptions = { MissingParameterAction };
 
 namespace Acl {
 
@@ -103,6 +109,19 @@ ACL::FindByName(const char *name)
     return nullptr;
 }
 
+bool
+ACL::IsOption(const char *token)
+{
+    if (token) {
+        for (const auto option: AclCommonOptions)
+            // TODO: try to extract and compare the name of the option from the token,
+            // instead of comparing the entire token
+            if (!strncasecmp(option, token, strlen(option)))
+                return true;
+    }
+    return false;
+}
+
 ACL::ACL() :
     cfgline(nullptr),
     next(nullptr),
@@ -159,6 +178,16 @@ ACL::context(const char *aName, const char *aCfgLine)
     safe_free(cfgline);
     if (aCfgLine)
         cfgline = xstrdup(aCfgLine);
+}
+
+static void
+AclCleanup(ACL **acl)
+{
+    AclMatchedName = nullptr;
+    if (acl) {
+        delete *acl;
+        *acl = nullptr;
+    }
 }
 
 void
@@ -247,11 +276,40 @@ ACL::ParseAclLine(ConfigParser &parser, ACL ** head)
      * warning message in aclDomainCompare().
      */
     AclMatchedName = A->name;   /* ugly */
-
-    A->parseFlags();
-
-    /*split the function here */
-    A->parse();
+    try {
+        A->parseFlags();
+        A->parse();
+        static const auto message = "unexpected leftovers";
+        if (parser.optionalAclValue(message)) {
+            const auto errorMessage = ToSBuf(message, " in ", A->name, " ACL");
+            // Extract all the remaining tokens: Without this, the parser would be
+            // left in an incoherent state an unable to parse correctly the following lines.
+            for (const auto tok: parser.optionalAclValues(message))
+                debugs(28, DBG_PARSE_NOTE(2), errorMessage << ": " << tok);
+            throw TextException(errorMessage, Here());
+        }
+    } catch (const Configuration::MissingTokenException &e) {
+        switch (A->calculateArgumentAction()) {
+        case argIgnore:
+            break;
+        case argWarn: {
+            // TODO: unify reporting with parseOneConfigFile() and ConfigParser::destruct(), including
+            // avoiding DBG_CRITICAL for warnings (temporary kept for backward compatibility).
+            debugs(28, DBG_CRITICAL, "WARNING: invalid ACL" <<
+                   Debug::Extra << "line: " << A->cfgline <<
+                   Debug::Extra << "problem: " << e);
+            break;
+        }
+        case argErr: {
+            AclCleanup(new_acl ? &A : nullptr);
+            throw;
+            break;
+        }
+        }
+    } catch (...) {
+        AclCleanup(new_acl ? &A : nullptr);
+        throw;
+    }
 
     /*
      * Clear AclMatchedName from our temporary hack
@@ -260,10 +318,6 @@ ACL::ParseAclLine(ConfigParser &parser, ACL ** head)
 
     if (!new_acl)
         return;
-
-    if (A->empty()) {
-        debugs(28, DBG_CRITICAL, "WARNING: empty ACL: " << A->cfgline);
-    }
 
     if (!A->valid()) {
         fatalf("ERROR: Invalid ACL: %s\n",
@@ -277,6 +331,32 @@ ACL::ParseAclLine(ConfigParser &parser, ACL ** head)
 
     // register for centralized cleanup
     aclRegister(A);
+}
+
+ACL::ArgumentAction
+ACL::calculateArgumentAction() const
+{
+    if (argumentAction) {
+        if (argumentAction.value.cmp("ignore") == 0)
+            return argIgnore;
+        else if (argumentAction.value.cmp("warn") == 0)
+            return argWarn;
+        else if (argumentAction.value.cmp("err") == 0)
+            return argErr;
+
+        const auto isDefault = (argumentAction.value.cmp("reject_acls_with_empty_parameter_list") == 0);
+        if (!isDefault)
+            throw TextException(ToSBuf("unsupported ", MissingParameterAction, " option value: ", argumentAction.value), Here());
+
+        // obey the global configuration setting
+    }
+
+    if (Config.rejectAclsWithEmptyParameterList > 0)
+        return argErr;
+    else if (Config.rejectAclsWithEmptyParameterList < 0)
+        return argWarn;
+
+    return argIgnore;
 }
 
 bool
@@ -293,6 +373,12 @@ ACL::parseFlags()
         lineOption->unconfigure(); // forget any previous "acl ..." line effects
         allOptions.push_back(lineOption);
     }
+
+    static const Acl::TextOption ArgumentActionOption(MissingParameterAction, nullptr, Acl::Option::valueRequired);
+    ArgumentActionOption.linkWith(&argumentAction);
+    ArgumentActionOption.unconfigure();
+    allOptions.push_back(&ArgumentActionOption);
+
     Acl::ParseFlags(allOptions);
 }
 

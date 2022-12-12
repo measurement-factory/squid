@@ -34,14 +34,6 @@ Acl::ConnectionsEncrypted::empty () const
     return false;
 }
 
-void
-Acl::ConnectionsEncrypted::parse()
-{
-    if (ConfigParser::strtokFile()) {
-        debugs(89, DBG_CRITICAL, "WARNING: connections_encrypted does not accept any value.");
-    }
-}
-
 int
 Acl::ConnectionsEncrypted::match(ACLChecklist *checklist)
 {

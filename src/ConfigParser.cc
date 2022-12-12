@@ -7,6 +7,7 @@
  */
 
 #include "squid.h"
+#include "acl/Acl.h"
 #include "acl/Gadgets.h"
 #include "base/Here.h"
 #include "base/RegexPattern.h"
@@ -62,7 +63,7 @@ ConfigParser::destruct()
 }
 
 char *
-ConfigParser::strtokFile()
+ConfigParser::optionalAclToken()
 {
     if (RecognizeQuotedValues)
         return ConfigParser::NextToken();
@@ -136,6 +137,15 @@ ConfigParser::strtokFile()
 }
 
 char *
+ConfigParser::optionalAclArgument()
+{
+    auto token = optionalAclToken();
+    if (ACL::IsOption(token))
+        throw Configuration::InvalidTokenException(ToSBuf("unexpected token: ", token), Here());
+    return token;
+}
+
+char *
 ConfigParser::UnQuote(const char *token, const char **next)
 {
     const char *errorStr = nullptr;
@@ -201,7 +211,7 @@ ConfigParser::UnQuote(const char *token, const char **next)
 }
 
 void
-ConfigParser::SetCfgLine(char *line)
+ConfigParser::SetCfgLine(const char *line)
 {
     CfgLine = line;
     CfgPos = line;
@@ -467,16 +477,16 @@ ConfigParser::NextKvPair(char * &key, char * &value)
 }
 
 char *
-ConfigParser::RegexStrtokFile()
+ConfigParser::optionalAclRegexArgument()
 {
     if (ConfigParser::RecognizeQuotedValues) {
         debugs(3, DBG_CRITICAL, "FATAL: Can not read regex expression while configuration_includes_quoted_values is enabled");
         self_destruct();
     }
     ConfigParser::RecognizeQuotedPair_ = true;
-    char * token = strtokFile();
+    auto tok = optionalAclArgument();
     ConfigParser::RecognizeQuotedPair_ = false;
-    return token;
+    return tok;
 }
 
 std::unique_ptr<RegexPattern>
@@ -675,5 +685,22 @@ ConfigParser::CfgFile::~CfgFile()
 {
     if (wordFile)
         fclose(wordFile);
+}
+
+const char *
+ConfigParser::optionalAclValue(const char *description)
+{
+    const auto optionalValues = optionalAclValues(description);
+    auto first = optionalValues.begin();
+    return (first == optionalValues.end()) ? nullptr : *first;
+}
+
+Configuration::TokensIterator
+Configuration::Tokens::begin() const
+{
+    const auto first = TokensIterator(parser_, method_);
+    if (!emptyAllowed_ && first == end())
+        throw MissingTokenException(ToSBuf("missing ", description_), Here());
+    return first;
 }
 

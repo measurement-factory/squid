@@ -23,20 +23,8 @@ ACLHasComponentData::ACLHasComponentData()
 void
 ACLHasComponentData::parse()
 {
-    const auto tok = ConfigParser::strtokFile();
-    if (!tok) {
-        debugs(28, DBG_CRITICAL, "FATAL: \"has\" acl argument missing");
-        self_destruct();
-        return;
-    }
-
+    const auto tok = ConfigParser::Current().requiredAclValue("transaction component name");
     parseComponent(tok);
-
-    if (ConfigParser::strtokFile()) {
-        debugs(28, DBG_CRITICAL, "FATAL: multiple components not supported for \"has\" acl");
-        self_destruct();
-        return;
-    }
 }
 
 bool

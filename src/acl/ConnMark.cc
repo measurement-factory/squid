@@ -26,16 +26,11 @@ Acl::ConnMark::empty() const
 void
 Acl::ConnMark::parse()
 {
-    while (const char *t = ConfigParser::strtokFile()) {
+    for (const auto t: ConfigParser::Current().aclValues("connection mark")) {
         SBuf token(t);
-        Parser::Tokenizer tokenizer(token);
         const auto mc = Ip::NfMarkConfig::Parse(token);
         marks.push_back(mc);
         debugs(28, 7, "added " << mc);
-    }
-
-    if (marks.empty()) {
-        throw TexcHere(ToSBuf("acl ", typeString(), " requires at least one mark"));
     }
 }
 

@@ -1110,6 +1110,20 @@ DOC_START
 		alternative non-alphanumeric delimiter characters.
 		non-alphanumeric delimiter characters.
 
+	--missing-parameter-action=
+		Specifies Squid treatment of missing ACL arguments during
+		(re)configuration:
+		    ignore: Silently ignore this problem.
+		    warn: Report a level-1 error message to cache.log.
+		    err: Treat as a configuration error.
+		    reject_acls_with_empty_parameter_list: Act as prescribed by the
+		        reject_acls_with_empty_parameter_list configuration directive.
+		        This is the default behavior.
+
+		This ACL-specific option takes precedence over the global
+		reject_acls_with_empty_parameter_list directive. See that directive
+		documentation for more information.
+
 	--	Used to stop processing all options, in the case the first acl
 		value has '-' character as first character (for example the '-'
 		is a valid domain name)
@@ -10097,6 +10111,41 @@ DOC_START
 	network for domains ending in .local and .arpa.
 	This enables local servers and devices to be contacted in an
 	ad-hoc or zero-configuration network environment.
+DOC_END
+
+NAME: reject_acls_with_empty_parameter_list
+COMMENT: on|off|warn
+TYPE: tristate
+DEFAULT: on
+LOC: Config.rejectAclsWithEmptyParameterList
+DOC_START
+	This directive specifies how Squid treats an ACL configuration line with
+	an empty argument list:
+
+		on: Report the problem and exit. This is the default.
+		warn: Just report the problem.
+		off: Silently ignore the problem.
+
+	The directive applies to cases where an ACL configuration line contains no
+	parameters at all and cases where an ACL configuration line instructs
+	Squid to import arguments from an external file but that file ends up
+	containing no ACL arguments.
+
+	An ACL that expects arguments but accepts an empty argument list should
+	not match any transactions. However, that principle applies to an ACL as a
+	whole, while this directive works at ACL configuration line level. An ACL
+	may be configured using multiple configuration lines. If only one line is
+	missing arguments while other line(s) do provide them, then the ACL will
+	sometimes match, obscuring the problem:
+
+		# This ACL will always match 10.0.0.1 but, if an external error
+		# results in generation of an empty really-bad-sites.acl file, then
+		# the ACL will not match the really bad sites it is intended to match.
+		acl badSites dst 10.0.0.1
+		acl badSites dst "really-bad-sites.acl"
+
+	Squid behavior can also be customized for a specific ACL: See the
+	--missing-parameter-action ACL option.
 DOC_END
 
 NAME: dns_nameservers

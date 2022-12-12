@@ -92,13 +92,15 @@ ACLUserData::parse()
 {
     debugs(28, 2, "parsing user list");
     flags.case_insensitive = bool(CaseInsensitive_);
-
-    char *t = nullptr;
-    if ((t = ConfigParser::strtokFile())) {
-        SBuf s(t);
+    auto &parser = ConfigParser::Current();
+    const auto userNameOrOption = parser.requiredAclValue("user name or option");
+    auto isOption = false;
+    {
+        SBuf s(userNameOrOption);
         debugs(28, 5, "first token is " << s);
 
         if (s.cmp("-i",2) == 0) {
+            isOption = true;
             debugs(28, 5, "Going case-insensitive");
             flags.case_insensitive = true;
             // due to how the std::set API work, if we want to change
@@ -123,13 +125,16 @@ ACLUserData::parse()
 
     debugs(28, 4, "parsing following tokens");
 
-    while ((t = ConfigParser::strtokFile())) {
+    const auto tokens = isOption ? parser.aclValues("user name") : parser.optionalAclValues("user name");
+
+    for (const auto &t: tokens) {
         SBuf s(t);
         debugs(28, 6, "Got token: " << s);
 
         if (flags.case_insensitive)
             s.toLower();
 
+        // XXX: do not treat 'REQUIRED', '-i', and '+i' tokens as usernames
         debugs(28, 6, "Adding user " << s);
         userDataNames.insert(s);
     }

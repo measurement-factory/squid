@@ -92,7 +92,7 @@ aclParseArpData(const char *t)
 void
 ACLARP::parse()
 {
-    while (const char *t = ConfigParser::strtokFile()) {
+    for (const auto t: ConfigParser::Current().aclValues("ethernet address")) {
         if (Eui::Eui48 *q = aclParseArpData(t)) {
             aclArpData.insert(*q);
             delete q;

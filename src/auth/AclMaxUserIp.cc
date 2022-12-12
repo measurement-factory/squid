@@ -58,14 +58,7 @@ ACLMaxUserIP::parse()
         return;
     }
 
-    char *t = ConfigParser::strtokFile();
-
-    if (!t)
-        return;
-
-    debugs(28, 5, "aclParseUserMaxIP: First token is " << t);
-
-    maximum = xatoi(t);
+    maximum = xatoi(ConfigParser::Current().requiredAclValue("IP addresses max number"));
 
     debugs(28, 5, "aclParseUserMaxIP: Max IP address's " << maximum);
 

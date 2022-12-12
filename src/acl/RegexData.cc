@@ -227,7 +227,7 @@ ACLRegexData::parse()
         flagsAtLineStart |= REG_ICASE;
 
     SBufList sl;
-    while (char *t = ConfigParser::RegexStrtokFile()) {
+    for (const auto t: ConfigParser::Current().aclRegexValues("regular expression")) {
         const char *clean = removeUnnecessaryWildcards(t);
         debugs(28, 3, "buffering RE '" << clean << "'");
         sl.emplace_back(clean);

@@ -13,6 +13,7 @@
 #include "acl/MaxConnection.h"
 #include "client_db.h"
 #include "debug/Stream.h"
+#include "parser/Tokenizer.h"
 #include "SquidConfig.h"
 
 ACLMaxConnection::ACLMaxConnection (char const *theClass) : class_ (theClass), limit(-1)
@@ -42,25 +43,7 @@ ACLMaxConnection::valid () const
 void
 ACLMaxConnection::parse()
 {
-    char *t = ConfigParser::strtokFile();
-
-    if (!t)
-        return;
-
-    limit = (atoi (t));
-
-    /* suck out file contents */
-    // ignore comments
-    bool ignore = false;
-    while ((t = ConfigParser::strtokFile())) {
-        ignore |= (*t != '#');
-
-        if (ignore)
-            continue;
-
-        debugs(89, DBG_CRITICAL, "WARNING: max_conn only accepts a single limit value.");
-        limit = 0;
-    }
+    limit = atoi(ConfigParser::Current().requiredAclValue("maxconn number"));
 }
 
 int

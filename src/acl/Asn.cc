@@ -560,10 +560,9 @@ ACLASN::parse()
     CbDataList<int> **curlist = &data;
     CbDataList<int> **Tail;
     CbDataList<int> *q = nullptr;
-    char *t = nullptr;
 
     for (Tail = curlist; *Tail; Tail = &((*Tail)->next));
-    while ((t = ConfigParser::strtokFile())) {
+    for (const auto t: ConfigParser::Current().aclValues("AS number")) {
         q = new CbDataList<int> (atoi(t));
         *(Tail) = q;
         Tail = &q->next;

@@ -24,7 +24,7 @@ public:
     virtual ~ConnectionsEncrypted();
 
     virtual char const *typeString() const;
-    virtual void parse();
+    virtual void parse() {}
     virtual int match(ACLChecklist *checklist);
     virtual SBufList dump() const;
     virtual bool empty () const;

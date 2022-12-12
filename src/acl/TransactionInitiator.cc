@@ -35,7 +35,7 @@ Acl::TransactionInitiator::empty () const
 void
 Acl::TransactionInitiator::parse()
 {
-    while (const char *s = ConfigParser::strtokFile()) {
+    for (const auto s: ConfigParser::Current().aclValues("transaction initiator")) {
         initiators_ |= XactionInitiator::ParseInitiators(s);
         cfgWords.push_back(SBuf(s));
     }

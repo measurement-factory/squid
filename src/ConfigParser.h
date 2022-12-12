@@ -22,6 +22,77 @@
 class CachePeer;
 class wordlist;
 
+class ConfigParser;
+typedef char *(ConfigParser::*TokenExtractor)();
+
+namespace Configuration {
+
+/// A single-pass input iterator reading tokens from a configuration line.
+/// The first read is performed when the object is constructed.
+/// Further reads, if any, are done by increment operators.
+class TokensIterator
+{
+public:
+    // iterator traits
+    using iterator_category = std::input_iterator_tag;
+    using value_type = char *;
+    using difference_type = std::ptrdiff_t;
+    using pointer = char **;
+    using reference = char *&;
+
+    TokensIterator(ConfigParser * const parser, const TokenExtractor method):
+        parser_(parser),
+        method_(method),
+        current_(parser ? (parser_->*method_)() : nullptr)
+    {}
+
+    value_type operator *() { return current_; }
+
+    TokensIterator& operator ++() {
+        assert(method_);
+        current_ = (parser_->*method_)();
+        return *this;
+    }
+
+    TokensIterator operator ++(int) {
+        TokensIterator tmp = *this;
+        ++(*this);
+        return tmp;
+    }
+
+    bool operator ==(const TokensIterator& other) const { return current_ == other.current_; }
+    bool operator !=(const TokensIterator& other) const { return current_ != other.current_; }
+
+private:
+    ConfigParser *parser_;
+    TokenExtractor method_; ///< a ConfigParser method for extracting tokens
+    value_type current_; ///< a token returned by method_ (or nil)
+};
+
+/// a [begin, end) sequence of configuration tokens
+class Tokens
+{
+public:
+    Tokens(ConfigParser *parser, const TokenExtractor method, const char *desc, const bool mayBeEmpty):
+        parser_(parser), method_(method), description_(desc), emptyAllowed_(mayBeEmpty) {}
+    TokensIterator begin() const;
+    TokensIterator end() const { return TokensIterator(nullptr, nullptr); }
+
+private:
+    ConfigParser *parser_;
+    TokenExtractor method_; ///< a ConfigParser method for extracting tokens
+    const char *description_; ///< a description of the expected token(s)
+    const bool emptyAllowed_; ///< whether this sequence is allowed to have no elements
+};
+
+/// thrown when a configuration parser fails to extract a required token
+class MissingTokenException: public TextException { using TextException::TextException; };
+
+/// thrown when a configuration parser fails to validate a required token
+class InvalidTokenException: public TextException { using TextException::TextException; };
+
+}
+
 /**
  * Limit to how long any given config line may be.
  * This affects squid.conf and all included files.
@@ -86,26 +157,12 @@ public:
     static void ParseWordList(wordlist **list);
 
     /**
-     * Backward compatibility wrapper for the ConfigParser::NextToken method.
-     * If the configuration_includes_quoted_values configuration parameter is
-     * set to 'off' this interprets the quoted tokens as filenames.
-     */
-    static char * strtokFile();
-
-    /**
      * Returns the body of the next element. The element is either a token or
      * a quoted string with optional escape sequences and/or macros. The body
      * of a quoted string element does not include quotes or escape sequences.
      * Future code will want to see Elements and not just their bodies.
      */
     static char *NextToken();
-
-    /**
-     * Backward compatibility wrapper for ConfigParser::RegexPattern method.
-     * If the configuration_includes_quoted_values configuration parameter is
-     * set to 'off' this interprets the quoted tokens as filenames.
-     */
-    static char *RegexStrtokFile();
 
     /**
      * Parse the next token with support for quoted values enabled even if
@@ -130,7 +187,7 @@ public:
     static bool NextKvPair(char * &key, char * &value);
 
     /**
-     * Preview the next token. The next NextToken() and strtokFile() call
+     * Preview the next token. The next NextToken() call
      * will return the same token.
      * On parse error (eg invalid characters in token) will return an
      * error message as token.
@@ -138,7 +195,7 @@ public:
     static char *PeekAtToken();
 
     /// Set the configuration file line to parse.
-    static void SetCfgLine(char *line);
+    static void SetCfgLine(const char *line);
 
     /// Allow %macros inside quoted strings
     static void EnableMacros() {AllowMacros_ = true;}
@@ -147,6 +204,23 @@ public:
     static void DisableMacros() {AllowMacros_ = false;}
 
     static SBuf CurrentLocation();
+
+    /// \returns the global LegacyParser
+    static ConfigParser &Current();
+
+    // The methods below support reading configuration tokens from external files.
+    // External file names can be passed either via quoted tokens ('configuration_includes_quoted_values'
+    // is off) or via parameters("/path/filename") syntax.
+    /// \returns a non-empty ACL parameter sequence
+    Configuration::Tokens aclValues(const char *description) { return Configuration::Tokens(this, &ConfigParser::optionalAclArgument, description, false); }
+    /// \returns a possibly empty ACL parameter sequence
+    Configuration::Tokens optionalAclValues(const char *description) { return Configuration::Tokens(this, &ConfigParser::optionalAclArgument, description, true); }
+    /// \returns a non-empty ACL parameter sequence, with elements as regex patterns
+    Configuration::Tokens aclRegexValues(const char *description) { return Configuration::Tokens(this, &ConfigParser::optionalAclRegexArgument, description, false); }
+    /// \returns a non-nil ACL parameter
+    const char *requiredAclValue(const char *description) { return *aclValues(description).begin(); }
+    /// \returns a possibly nil ACL parameter
+    const char *optionalAclValue(const char *description);
 
     /// configuration_includes_quoted_values in squid.conf
     static bool RecognizeQuotedValues;
@@ -201,6 +275,16 @@ protected:
         std::string currentLine; ///< The current line to parse
         int lineNo; ///< Current line number
     };
+
+    /// Extracts and returns the next ACL argument.
+    /// If the current acl directive has no more arguments, returns nil.
+    char *optionalAclToken();
+
+    /// optionalAclToken() that prohibits ACL options
+    char *optionalAclArgument();
+
+    /// optionalAclArgument() for an ACL that expects regex arguments
+    char *optionalAclRegexArgument();
 
     /**
      * Unquotes the token, which must be quoted.

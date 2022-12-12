@@ -78,15 +78,13 @@ void
 ACLCertificateData::parse()
 {
     if (validAttributesStr) {
-        char *newAttribute = ConfigParser::strtokFile();
+        auto &parser = ConfigParser::Current();
+        const auto newAttribute = attributeIsOptional ?
+                                  parser.optionalAclValue("SSL certificate attribute") :
+                                  parser.requiredAclValue("SSL certificate attribute");
 
-        if (!newAttribute) {
-            if (!attributeIsOptional) {
-                debugs(28, DBG_CRITICAL, "FATAL: required attribute argument missing");
-                self_destruct();
-            }
+        if (!newAttribute) // optional attribute is missing
             return;
-        }
 
         // Handle the cases where we have optional -x type attributes
         if (attributeIsOptional && newAttribute[0] != '-')

@@ -51,11 +51,7 @@ ACLRandom::parse()
 {
     char bufa[256], bufb[256];
 
-    char *t = ConfigParser::strtokFile();
-    if (!t) {
-        debugs(28, DBG_PARSE_NOTE(DBG_IMPORTANT), "ERROR: ACL random missing pattern");
-        return;
-    }
+    const auto t = ConfigParser::Current().requiredAclValue("probability value");
 
     debugs(28, 5, "aclParseRandomData: " << t);
 

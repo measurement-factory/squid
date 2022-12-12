@@ -44,9 +44,7 @@ ACLHierCodeData::dump() const
 void
 ACLHierCodeData::parse()
 {
-    char *t = nullptr;
-
-    while ((t = ConfigParser::strtokFile())) {
+    for (const auto t: ConfigParser::Current().aclValues("hier code name")) {
         for (hier_code iter = HIER_NONE; iter <= HIER_MAX; ++iter) {
             if (iter == HIER_MAX) {
                 fatalf("ERROR: No such hier_code '%s'",t);
