@@ -24,7 +24,7 @@ public:
     virtual ~ACLProtocolData();
     bool match(AnyP::ProtocolType);
     virtual SBufList dump() const;
-    void parse();
+    void parse(Acl::ArgumentParser &);
     bool empty() const {return values.empty();}
 
     std::list<AnyP::ProtocolType> values;

@@ -51,14 +51,14 @@ ACLMaxUserIP::options()
 }
 
 void
-ACLMaxUserIP::parse()
+ACLMaxUserIP::parse(Acl::ArgumentParser &parser)
 {
     if (maximum) {
         debugs(28, DBG_IMPORTANT, "Attempting to alter already set User max IP acl");
         return;
     }
 
-    char *t = ConfigParser::strtokFile();
+    auto t = parser.strtokFile();
 
     if (!t)
         return;

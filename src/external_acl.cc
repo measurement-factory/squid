@@ -506,14 +506,14 @@ external_acl_data::~external_acl_data()
 }
 
 void
-ACLExternal::parse()
+ACLExternal::parse(Acl::ArgumentParser &parser)
 {
     if (data) {
         self_destruct();
         return;
     }
 
-    char *token = ConfigParser::strtokFile();
+    char *token = parser.strtokFile();
 
     if (!token) {
         self_destruct();
@@ -532,7 +532,7 @@ ACLExternal::parse()
     // this is the name of the 'acl' directive being tested
     data->name = xstrdup(AclMatchedName);
 
-    while ((token = ConfigParser::strtokFile())) {
+    while ((token = parser.strtokFile())) {
         wordlistAdd(&data->arguments, token);
     }
 }

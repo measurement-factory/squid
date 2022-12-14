@@ -75,10 +75,10 @@ ACLCertificateData::dump() const
 }
 
 void
-ACLCertificateData::parse()
+ACLCertificateData::parse(Acl::ArgumentParser &parser)
 {
     if (validAttributesStr) {
-        char *newAttribute = ConfigParser::strtokFile();
+        auto newAttribute = parser.strtokFile();
 
         if (!newAttribute) {
             if (!attributeIsOptional) {
@@ -141,7 +141,7 @@ ACLCertificateData::parse()
         }
     }
 
-    values.parse();
+    values.parse(parser);
 }
 
 bool

@@ -90,9 +90,9 @@ aclParseArpData(const char *t)
 /* aclParseArpList */
 /*******************/
 void
-ACLARP::parse()
+ACLARP::parse(Acl::ArgumentParser &parser)
 {
-    while (const char *t = ConfigParser::strtokFile()) {
+    while (const char *t = parser.strtokFile()) {
         if (Eui::Eui48 *q = aclParseArpData(t)) {
             aclArpData.insert(*q);
             delete q;

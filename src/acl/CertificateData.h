@@ -26,7 +26,7 @@ public:
     virtual ~ACLCertificateData();
     bool match(X509 *);
     virtual SBufList dump() const;
-    void parse();
+    void parse(Acl::ArgumentParser &);
     bool empty() const;
 
     /// A '|'-delimited list of valid ACL attributes.

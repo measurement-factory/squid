@@ -25,7 +25,7 @@ public:
     TransactionInitiator(char const *);
 
     virtual char const *typeString() const;
-    virtual void parse();
+    virtual void parse(Acl::ArgumentParser &);
     virtual int match(ACLChecklist *checklist);
     virtual bool requiresRequest() const { return true; }
     virtual SBufList dump() const;

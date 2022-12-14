@@ -62,9 +62,9 @@ aclParseEuiData(const char *t)
 /* aclParseEuiList */
 /*******************/
 void
-ACLEui64::parse()
+ACLEui64::parse(Acl::ArgumentParser &parser)
 {
-    while (const char * t = ConfigParser::strtokFile()) {
+    while (const auto t = parser.strtokFile()) {
         if (Eui::Eui64 * q = aclParseEuiData(t)) {
             eui64Data.insert(*q);
             delete q;

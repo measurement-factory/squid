@@ -40,9 +40,9 @@ ACLMaxConnection::valid () const
 }
 
 void
-ACLMaxConnection::parse()
+ACLMaxConnection::parse(Acl::ArgumentParser &parser)
 {
-    char *t = ConfigParser::strtokFile();
+    auto t = parser.strtokFile();
 
     if (!t)
         return;
@@ -52,7 +52,7 @@ ACLMaxConnection::parse()
     /* suck out file contents */
     // ignore comments
     bool ignore = false;
-    while ((t = ConfigParser::strtokFile())) {
+    while ((t = parser.strtokFile())) {
         ignore |= (*t != '#');
 
         if (ignore)

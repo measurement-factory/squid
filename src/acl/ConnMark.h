@@ -25,7 +25,7 @@ class ConnMark : public ACL
 public:
     /* ACL API */
     virtual char const *typeString() const override;
-    virtual void parse() override;
+    virtual void parse(Acl::ArgumentParser &) override;
     virtual int match(ACLChecklist *checklist) override;
     virtual SBufList dump() const override;
     virtual bool empty() const override;

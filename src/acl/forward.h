@@ -25,6 +25,7 @@ namespace Acl
 class Address;
 class AndNode;
 class Answer;
+class ArgumentParser;
 class ChecklistFiller;
 class InnerNode;
 class NotNode;

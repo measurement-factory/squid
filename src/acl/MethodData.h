@@ -24,7 +24,7 @@ public:
     virtual ~ACLMethodData();
     bool match(HttpRequestMethod);
     virtual SBufList dump() const;
-    void parse();
+    void parse(Acl::ArgumentParser &);
     bool empty() const {return values.empty();}
 
     std::list<HttpRequestMethod> values;

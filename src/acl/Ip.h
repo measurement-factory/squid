@@ -53,7 +53,7 @@ public:
     typedef Splay<acl_ip_data *> IPSplay;
 
     virtual char const *typeString() const = 0;
-    virtual void parse();
+    virtual void parse(Acl::ArgumentParser &);
     //    virtual bool isProxyAuth() const {return true;}
     virtual int match(ACLChecklist *checklist) = 0;
     virtual SBufList dump() const;

@@ -23,7 +23,7 @@ public:
 
     virtual char const *typeString() const;
     virtual const Acl::Options &options();
-    virtual void parse();
+    virtual void parse(Acl::ArgumentParser &);
     virtual int match(ACLChecklist *cl);
     virtual SBufList dump() const;
     virtual bool empty() const;

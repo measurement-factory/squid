@@ -23,7 +23,7 @@ public:
     /* ACLData<M> API */
     virtual bool match(ACLChecklist *) override;
     virtual SBufList dump() const override;
-    virtual void parse() override;
+    virtual void parse(Acl::ArgumentParser &) override;
     virtual bool empty() const override { return false; }
 
 private:

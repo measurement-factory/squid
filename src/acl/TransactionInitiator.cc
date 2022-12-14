@@ -33,9 +33,9 @@ Acl::TransactionInitiator::empty () const
 }
 
 void
-Acl::TransactionInitiator::parse()
+Acl::TransactionInitiator::parse(Acl::ArgumentParser &parser)
 {
-    while (const char *s = ConfigParser::strtokFile()) {
+    while (const auto s = parser.strtokFile()) {
         initiators_ |= XactionInitiator::ParseInitiators(s);
         cfgWords.push_back(SBuf(s));
     }

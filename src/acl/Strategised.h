@@ -42,7 +42,7 @@ public:
     virtual bool requiresReply() const {return matcher->requiresReply();}
 
     virtual void prepareForUse() { data->prepareForUse();}
-    virtual void parse();
+    virtual void parse(Acl::ArgumentParser &);
     virtual int match(ACLChecklist *checklist);
     virtual int match (M const &);
     virtual SBufList dump() const;
@@ -81,9 +81,9 @@ ACLStrategised<MatchType>::typeString() const
 
 template <class MatchType>
 void
-ACLStrategised<MatchType>::parse()
+ACLStrategised<MatchType>::parse(Acl::ArgumentParser &parser)
 {
-    data->parse();
+    data->parse(parser);
 }
 
 template <class MatchType>

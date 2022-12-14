@@ -35,9 +35,9 @@ Acl::ConnectionsEncrypted::empty () const
 }
 
 void
-Acl::ConnectionsEncrypted::parse()
+Acl::ConnectionsEncrypted::parse(Acl::ArgumentParser &parser)
 {
-    if (ConfigParser::strtokFile()) {
+    if (parser.strtokFile()) {
         debugs(89, DBG_CRITICAL, "WARNING: connections_encrypted does not accept any value.");
     }
 }

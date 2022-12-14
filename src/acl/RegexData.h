@@ -23,7 +23,7 @@ public:
     virtual ~ACLRegexData();
     virtual bool match(char const *user);
     virtual SBufList dump() const;
-    virtual void parse();
+    virtual void parse(Acl::ArgumentParser &);
     virtual bool empty() const;
 
 private:

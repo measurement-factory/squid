@@ -22,7 +22,7 @@ public:
     virtual ~ACLDomainData();
     virtual bool match(char const *);
     virtual SBufList dump() const;
-    void parse();
+    void parse(Acl::ArgumentParser &);
     bool empty() const;
 
     Splay<char *> *domains;

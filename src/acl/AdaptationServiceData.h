@@ -18,7 +18,7 @@ class ACLAdaptationServiceData : public ACLStringData
 {
 public:
     ACLAdaptationServiceData() : ACLStringData() {}
-    virtual void parse();
+    virtual void parse(Acl::ArgumentParser &);
 };
 
 #endif /* SQUID_ADAPTATIONSERVICEDATA_H */

@@ -47,11 +47,11 @@ ACLRandom::valid() const
 /* aclParseRandomList */
 /*******************/
 void
-ACLRandom::parse()
+ACLRandom::parse(Acl::ArgumentParser &parser)
 {
     char bufa[256], bufb[256];
 
-    char *t = ConfigParser::strtokFile();
+    const auto t = parser.strtokFile();
     if (!t) {
         debugs(28, DBG_PARSE_NOTE(DBG_IMPORTANT), "ERROR: ACL random missing pattern");
         return;

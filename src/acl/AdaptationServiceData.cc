@@ -19,10 +19,10 @@
 #include "debug/Stream.h"
 
 void
-ACLAdaptationServiceData::parse()
+ACLAdaptationServiceData::parse(Acl::ArgumentParser &parser)
 {
     Adaptation::Config::needHistory = true;
-    while (char *t = ConfigParser::strtokFile()) {
+    while (const auto t = parser.strtokFile()) {
         if (
 #if USE_ECAP
             Adaptation::Ecap::TheConfig.findServiceConfig(t) == nullptr &&

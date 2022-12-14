@@ -555,7 +555,7 @@ ACLASN::empty () const
 }
 
 void
-ACLASN::parse()
+ACLASN::parse(Acl::ArgumentParser &parser)
 {
     CbDataList<int> **curlist = &data;
     CbDataList<int> **Tail;
@@ -563,7 +563,7 @@ ACLASN::parse()
     char *t = nullptr;
 
     for (Tail = curlist; *Tail; Tail = &((*Tail)->next));
-    while ((t = ConfigParser::strtokFile())) {
+    while ((t = parser.strtokFile())) {
         q = new CbDataList<int> (atoi(t));
         *(Tail) = q;
         Tail = &q->next;

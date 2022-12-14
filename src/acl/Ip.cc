@@ -472,12 +472,12 @@ acl_ip_data::FactoryParse(const char *t)
 }
 
 void
-ACLIP::parse()
+ACLIP::parse(Acl::ArgumentParser &parser)
 {
     if (data == nullptr)
         data = new IPSplay();
 
-    while (char *t = ConfigParser::strtokFile()) {
+    while (const auto t = parser.strtokFile()) {
         acl_ip_data *q = acl_ip_data::FactoryParse(t);
 
         while (q != nullptr) {

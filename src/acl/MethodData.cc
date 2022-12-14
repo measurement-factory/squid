@@ -47,9 +47,9 @@ ACLMethodData::dump() const
 }
 
 void
-ACLMethodData::parse()
+ACLMethodData::parse(Acl::ArgumentParser &parser)
 {
-    while (char *t = ConfigParser::strtokFile()) {
+    while (const auto t = parser.strtokFile()) {
         HttpRequestMethod m;
         m.HttpRequestMethodXXX(t);
         values.push_back(m);

@@ -37,7 +37,7 @@ public:
 
     /* ACL API */
     virtual char const *typeString() const;
-    virtual void parse();
+    virtual void parse(Acl::ArgumentParser &);
     virtual bool isProxyAuth() const {return true;}
     virtual int match(ACLChecklist *checklist);
     virtual SBufList dump() const;

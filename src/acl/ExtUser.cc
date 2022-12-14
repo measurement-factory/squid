@@ -39,9 +39,9 @@ ACLExtUser::lineOptions()
 }
 
 void
-ACLExtUser::parse()
+ACLExtUser::parse(Acl::ArgumentParser &parser)
 {
-    data->parse();
+    data->parse(parser);
 }
 
 int

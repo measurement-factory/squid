@@ -17,9 +17,9 @@
 #include "Parsing.h"
 
 void
-ACLIntRange::parse()
+ACLIntRange::parse(Acl::ArgumentParser &parser)
 {
-    while (char *a = ConfigParser::strtokFile()) {
+    while (const auto a = parser.strtokFile()) {
         char *b = strchr(a, '-');
         unsigned short port1, port2;
 

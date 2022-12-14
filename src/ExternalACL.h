@@ -45,7 +45,7 @@ public:
     ~ACLExternal();
 
     virtual char const *typeString() const;
-    virtual void parse();
+    virtual void parse(Acl::ArgumentParser &);
     virtual int match(ACLChecklist *checklist);
     /* This really should be dynamic based on the external class defn */
     virtual bool requiresAle() const {return true;}

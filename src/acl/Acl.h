@@ -30,6 +30,35 @@ typedef ACL *(*Maker)(TypeName typeName);
 /// use the given ACL Maker for all ACLs of the named type
 void RegisterMaker(TypeName typeName, Maker maker);
 
+class ArgumentParser
+{
+public:
+    ArgumentParser(ConfigParser &aParser, ACL &anAcl)
+        : parser(aParser), acl(anAcl) {}
+
+    // TODO: rename
+
+    /// Backward compatibility wrapper for the ConfigParser::NextToken method.
+    /// If the configuration_includes_quoted_values configuration parameter is
+    /// set to 'off' this interprets the quoted tokens as filenames.
+    char * strtokFile();
+
+    /// Backward compatibility wrapper for ConfigParser::RegexPattern method.
+    /// If the configuration_includes_quoted_values configuration parameter is
+    /// set to 'off' this interprets the quoted tokens as filenames.
+    char * regexStrtokFile();
+
+    /// Extract, validate, and store the ACL key parameter for ACL types
+    /// declared using "acl aclname type key argument..." declaration that
+    /// require unique key values for each aclname+type combination.
+    /// Key comparison is case-insensitive.
+    void setAclKey(SBuf &keyStorage, const char *keyParameterName);
+
+private:
+    ConfigParser &parser;
+    ACL &acl;
+};
+
 } // namespace Acl
 
 /// A configurable condition. A node in the ACL expression tree.
@@ -64,7 +93,7 @@ public:
     void parseFlags();
 
     /// parses node representation in squid.conf; dies on failures
-    virtual void parse() = 0;
+    virtual void parse(Acl::ArgumentParser &parser) = 0;
     virtual char const *typeString() const = 0;
     virtual bool isProxyAuth() const;
     virtual SBufList dump() const = 0;

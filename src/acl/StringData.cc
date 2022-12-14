@@ -50,9 +50,9 @@ ACLStringData::dump() const
 }
 
 void
-ACLStringData::parse()
+ACLStringData::parse(Acl::ArgumentParser &parser)
 {
-    while (const char *t = ConfigParser::strtokFile())
+    while (const auto t = parser.strtokFile())
         stringValues.insert(SBuf(t));
 }
 

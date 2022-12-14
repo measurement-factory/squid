@@ -218,7 +218,7 @@ compileUnoptimisedREs(std::list<RegexPattern> &curlist, const SBufList &sl, cons
 }
 
 void
-ACLRegexData::parse()
+ACLRegexData::parse(Acl::ArgumentParser &parser)
 {
     debugs(28, 2, "new Regex line or file");
 
@@ -227,7 +227,7 @@ ACLRegexData::parse()
         flagsAtLineStart |= REG_ICASE;
 
     SBufList sl;
-    while (char *t = ConfigParser::RegexStrtokFile()) {
+    while (auto t = parser.regexStrtokFile()) {
         const char *clean = removeUnnecessaryWildcards(t);
         debugs(28, 3, "buffering RE '" << clean << "'");
         sl.emplace_back(clean);

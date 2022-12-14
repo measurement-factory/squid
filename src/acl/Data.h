@@ -27,7 +27,7 @@ public:
 
     virtual bool match(M) =0;
     virtual SBufList dump() const =0;
-    virtual void parse() =0;
+    virtual void parse(Acl::ArgumentParser &) =0;
     virtual void prepareForUse() {}
 
     virtual bool empty() const =0;

@@ -133,12 +133,12 @@ ACLDomainData::dump() const
 }
 
 void
-ACLDomainData::parse()
+ACLDomainData::parse(Acl::ArgumentParser &parser)
 {
     if (!domains)
         domains = new Splay<char *>();
 
-    while (char *t = ConfigParser::strtokFile()) {
+    while (auto t = parser.strtokFile()) {
         Tolower(t);
         domains->insert(xstrdup(t), aclDomainCompare);
     }

@@ -24,9 +24,9 @@ Acl::ConnMark::empty() const
 }
 
 void
-Acl::ConnMark::parse()
+Acl::ConnMark::parse(Acl::ArgumentParser &parser)
 {
-    while (const char *t = ConfigParser::strtokFile()) {
+    while (const auto t = parser.strtokFile()) {
         SBuf token(t);
         Parser::Tokenizer tokenizer(token);
         const auto mc = Ip::NfMarkConfig::Parse(token);

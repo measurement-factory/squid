@@ -23,7 +23,7 @@ public:
     virtual ~ACLAtStepData();
     bool match(XactionStep);
     virtual SBufList dump() const;
-    void parse();
+    void parse(Acl::ArgumentParser &);
     bool empty() const;
 
     std::list<XactionStep> values;

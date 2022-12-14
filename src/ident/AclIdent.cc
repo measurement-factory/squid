@@ -42,14 +42,14 @@ ACLIdent::lineOptions()
 }
 
 void
-ACLIdent::parse()
+ACLIdent::parse(Acl::ArgumentParser &parser)
 {
     if (!data) {
         debugs(28, 3, "current is null. Creating");
         data = new ACLUserData;
     }
 
-    data->parse();
+    data->parse(parser);
 }
 
 int

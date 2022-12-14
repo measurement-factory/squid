@@ -24,7 +24,7 @@ class AllOf: public Acl::InnerNode
 public:
     /* ACL API */
     virtual char const *typeString() const;
-    virtual void parse();
+    virtual void parse(Acl::ArgumentParser &);
     virtual SBufList dump() const;
 
 private:

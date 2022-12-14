@@ -22,7 +22,7 @@ public:
     virtual ~ACLHierCodeData();
     bool match(hier_code);
     virtual SBufList dump() const;
-    void parse();
+    void parse(Acl::ArgumentParser &);
     bool empty() const;
 
     /// mask of codes this ACL might match.

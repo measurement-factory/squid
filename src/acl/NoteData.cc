@@ -45,10 +45,10 @@ ACLNoteData::dump() const
 }
 
 void
-ACLNoteData::parse()
+ACLNoteData::parse(Acl::ArgumentParser &parser)
 {
-    ConfigParser::SetAclKey(name, "annotation name");
-    values->parse();
+    parser.setAclKey(name, "annotation name");
+    values->parse(parser);
 }
 
 bool
