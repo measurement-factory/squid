@@ -14,6 +14,7 @@
 #include "acl/Gadgets.h"
 #include "acl/Options.h"
 #include "anyp/PortCfg.h"
+#include "debug/Messages.h"
 #include "cache_cf.h"
 #include "ConfigParser.h"
 #include "debug/Stream.h"
@@ -75,8 +76,43 @@ Acl::RegisterMaker(TypeName typeName, Maker maker)
     TheMakers().emplace(typeName, maker);
 }
 
+bool
+Acl::ArgumentParser::isOption(const char *name) const
+{
+    assert(name);
+    return name[0] == '-' && (strlen(name) == 2 || (strlen(name) > 2 && name[1] == '-'));
+}
+
+bool
+Acl::ArgumentParser::isAclOption(const char *name, const Acl::Options &options) const
+{
+    assert(name);
+    for (const auto opt: options) {
+        if (opt->onName && strcmp(name, opt->onName) == 0)
+            return true;
+        if (opt->offName && strcmp(name, opt->offName) == 0)
+            return true;
+    }
+    return false;
+}
+
 char *
 Acl::ArgumentParser::strtokFile()
+{
+    if (auto token = optionalAclToken()) {
+        if (isAclOption(token, acl.lineOptions()))
+            return token;
+        else if (isAclOption(token, acl.options()))
+            throw TextException(ToSBuf("the ACL option ", token, " must be placed before other non-option arguments"), Here());
+        else if (isOption(token))
+            debugs(28, Important(66), "WARNING: suspicious option-like ACL argument " << token);
+        return token;
+    }
+    return nullptr;
+}
+
+char *
+Acl::ArgumentParser::optionalAclToken()
 {
     if (ConfigParser::RecognizeQuotedValues)
         return ConfigParser::NextToken();

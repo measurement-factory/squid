@@ -36,16 +36,13 @@ public:
     ArgumentParser(ConfigParser &aParser, ACL &anAcl)
         : parser(aParser), acl(anAcl) {}
 
-    // TODO: rename
+    void prohibitOption(const char *) const;
 
-    /// Backward compatibility wrapper for the ConfigParser::NextToken method.
-    /// If the configuration_includes_quoted_values configuration parameter is
-    /// set to 'off' this interprets the quoted tokens as filenames.
+    /// Extracts and returns the next ACL argument, that is not a ACL option.
+    /// If the current acl directive has no more arguments, returns nil.
     char * strtokFile();
 
-    /// Backward compatibility wrapper for ConfigParser::RegexPattern method.
-    /// If the configuration_includes_quoted_values configuration parameter is
-    /// set to 'off' this interprets the quoted tokens as filenames.
+    /// strtokFile() for an ACL that expects regex arguments
     char * regexStrtokFile();
 
     /// Extract, validate, and store the ACL key parameter for ACL types
@@ -55,6 +52,18 @@ public:
     void setAclKey(SBuf &keyStorage, const char *keyParameterName);
 
 private:
+
+    /// Extracts and returns the next ACL argument.
+    /// If the current acl directive has no more arguments, returns nil.
+    char *optionalAclToken();
+
+    /// whether token either a two-character short option starting with '-'
+    /// or a multi-character long option, starting with "--"
+    bool isOption(const char *token) const;
+
+    /// whether token is a 'global' option, supported by acl
+    bool isAclOption(const char *taken, const Acl::Options &options) const;
+
     ConfigParser &parser;
     ACL &acl;
 };
@@ -127,9 +136,13 @@ private:
     /// \returns (linked) 'global' Options supported by this ACL
     virtual const Acl::Options &options() { return Acl::NoOptions(); }
 
+    bool hasOption(const char *name) const;
+
     /// \returns (linked) "line" Options supported by this ACL
     /// \see ACL::options()
     virtual const Acl::Options &lineOptions() { return Acl::NoOptions(); }
+
+    friend class Acl::ArgumentParser;
 };
 
 /// \ingroup ACLAPI
