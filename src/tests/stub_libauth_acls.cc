@@ -22,7 +22,7 @@ ACLMaxUserIP::ACLMaxUserIP (char const *) STUB
 char const * ACLMaxUserIP::typeString() const STUB_RETVAL(nullptr)
 bool ACLMaxUserIP::empty () const STUB_RETVAL(false)
 bool ACLMaxUserIP::valid () const STUB_RETVAL(false)
-void ACLMaxUserIP::parse() STUB
+void ACLMaxUserIP::parse(Acl::ArgumentParser &) STUB
 int ACLMaxUserIP::match(Auth::UserRequest::Pointer, Ip::Address const &) STUB_RETVAL(0)
 int ACLMaxUserIP::match(ACLChecklist *) STUB_RETVAL(0)
 SBufList ACLMaxUserIP::dump() const STUB_RETVAL(SBufList())
@@ -32,7 +32,7 @@ const Acl::Options &ACLMaxUserIP::options() STUB_RETVAL(Acl::NoOptions())
 ACLProxyAuth::~ACLProxyAuth() STUB
 ACLProxyAuth::ACLProxyAuth(ACLData<char const *> *, char const *) STUB
 char const * ACLProxyAuth::typeString() const STUB_RETVAL(nullptr)
-void ACLProxyAuth::parse() STUB
+void ACLProxyAuth::parse(Acl::ArgumentParser &) STUB
 int ACLProxyAuth::match(ACLChecklist *) STUB_RETVAL(0)
 SBufList ACLProxyAuth::dump() const STUB_RETVAL(SBufList())
 bool ACLProxyAuth::empty () const STUB_RETVAL(false)
