@@ -9,6 +9,7 @@
 /* DEBUG: section 28    Access Control */
 
 #include "squid.h"
+#include "acl/ArgumentParser.h"
 #include "acl/IntRange.h"
 #include "cache_cf.h"
 #include "ConfigParser.h"

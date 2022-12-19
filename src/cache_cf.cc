@@ -13,6 +13,7 @@
 #include "acl/AclDenyInfoList.h"
 #include "acl/AclSizeLimit.h"
 #include "acl/Address.h"
+#include "acl/ArgumentParser.h"
 #include "acl/Gadgets.h"
 #include "acl/MethodData.h"
 #include "acl/Tree.h"

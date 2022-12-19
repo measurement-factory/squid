@@ -9,6 +9,7 @@
 /* DEBUG: section 28    Access Control */
 
 #include "squid.h"
+#include "acl/ArgumentParser.h"
 #include "acl/Checklist.h"
 #include "acl/MethodData.h"
 #include "ConfigParser.h"

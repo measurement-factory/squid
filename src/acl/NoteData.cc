@@ -8,6 +8,7 @@
 
 #include "squid.h"
 #include "acl/Acl.h"
+#include "acl/ArgumentParser.h"
 #include "acl/Checklist.h"
 #include "acl/NoteData.h"
 #include "acl/StringData.h"

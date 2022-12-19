@@ -8,6 +8,7 @@
 
 #include "squid.h"
 #include "acl/AdaptationServiceData.h"
+#include "acl/ArgumentParser.h"
 #include "acl/Checklist.h"
 #include "adaptation/Config.h"
 #include "adaptation/ecap/Config.h"

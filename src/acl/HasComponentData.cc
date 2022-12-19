@@ -7,6 +7,7 @@
  */
 
 #include "squid.h"
+#include "acl/ArgumentParser.h"
 #include "acl/HasComponentData.h"
 #include "cache_cf.h"
 #include "ConfigParser.h"

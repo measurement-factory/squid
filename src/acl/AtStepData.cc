@@ -7,6 +7,7 @@
  */
 
 #include "squid.h"
+#include "acl/ArgumentParser.h"
 #include "acl/AtStepData.h"
 #include "acl/Checklist.h"
 #include "base/EnumIterator.h"

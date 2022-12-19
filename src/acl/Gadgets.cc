@@ -19,6 +19,7 @@
 #include "squid.h"
 #include "acl/Acl.h"
 #include "acl/AclDenyInfoList.h"
+#include "acl/ArgumentParser.h"
 #include "acl/Checklist.h"
 #include "acl/Gadgets.h"
 #include "acl/Strategised.h"

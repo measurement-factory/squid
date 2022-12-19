@@ -7,6 +7,7 @@
  */
 
 #include "squid.h"
+#include "acl/ArgumentParser.h"
 #include "acl/Checklist.h"
 #include "acl/HierCodeData.h"
 #include "ConfigParser.h"

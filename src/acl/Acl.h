@@ -30,44 +30,6 @@ typedef ACL *(*Maker)(TypeName typeName);
 /// use the given ACL Maker for all ACLs of the named type
 void RegisterMaker(TypeName typeName, Maker maker);
 
-class ArgumentParser
-{
-public:
-    ArgumentParser(ConfigParser &aParser, ACL &anAcl)
-        : parser(aParser), acl(anAcl) {}
-
-    void prohibitOption(const char *) const;
-
-    /// Extracts and returns the next ACL argument, that is not a ACL option.
-    /// If the current acl directive has no more arguments, returns nil.
-    char * strtokFile();
-
-    /// strtokFile() for an ACL that expects regex arguments
-    char * regexStrtokFile();
-
-    /// Extract, validate, and store the ACL key parameter for ACL types
-    /// declared using "acl aclname type key argument..." declaration that
-    /// require unique key values for each aclname+type combination.
-    /// Key comparison is case-insensitive.
-    void setAclKey(SBuf &keyStorage, const char *keyParameterName);
-
-private:
-
-    /// Extracts and returns the next ACL argument.
-    /// If the current acl directive has no more arguments, returns nil.
-    char *optionalAclToken();
-
-    /// whether token either a two-character short option starting with '-'
-    /// or a multi-character long option, starting with "--"
-    bool isOption(const char *token) const;
-
-    /// whether token is a 'global' option, supported by acl
-    bool isAclOption(const char *taken, const Acl::Options &options) const;
-
-    ConfigParser &parser;
-    ACL &acl;
-};
-
 } // namespace Acl
 
 /// A configurable condition. A node in the ACL expression tree.
