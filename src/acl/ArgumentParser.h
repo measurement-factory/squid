@@ -12,7 +12,6 @@
 #include "acl/forward.h"
 #include "sbuf/forward.h"
 
-
 class ConfigParser;
 
 namespace Acl {
@@ -42,19 +41,11 @@ public:
     void setAclKey(SBuf &keyStorage, const char *keyParameterName);
 
 private:
-
     /// verifies that token is not a flag and returns it
     char *asValue(char *token);
 
-    /// Extracts and returns the next ACL argument (or nil)
+    /// extracts and returns the next ACL argument (or nil)
     char *optionalAclToken();
-
-    /// whether token either a two-character short option starting with '-'
-    /// or a multi-character long option, starting with "--"
-    bool isOption(const char *token) const;
-
-    /// whether token is a 'global' option, supported by acl
-    bool isAclOption(const char *taken, const Acl::Options &options) const;
 
     ConfigParser &parser;
     ACL &acl;

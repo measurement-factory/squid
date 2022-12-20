@@ -16,15 +16,18 @@
 #include "debug/Messages.h"
 #include "sbuf/Stream.h"
 
-bool
-Acl::ArgumentParser::isOption(const char *name) const
+/// whether token either a two-character short option starting with '-'
+/// or a multi-character long option, starting with "--"
+static bool
+IsOption(const char *name)
 {
     assert(name);
     return name[0] == '-' && (strlen(name) == 2 || (strlen(name) > 2 && name[1] == '-'));
 }
 
-bool
-Acl::ArgumentParser::isAclOption(const char *name, const Acl::Options &options) const
+/// whether token is a 'global' option, supported by acl
+static bool
+IsAclOption(const char *name, const Acl::Options &options)
 {
     assert(name);
     for (const auto opt: options) {
@@ -40,7 +43,7 @@ char *
 Acl::ArgumentParser::optionalValueOrMiddleOption()
 {
     if (auto token = optionalAclToken()) {
-        if (isAclOption(token, acl.lineOptions())) {
+        if (IsAclOption(token, acl.lineOptions())) {
             if (!ConfigParser::PeekAtToken())
                 debugs(28, DBG_IMPORTANT, "WARNING: suspicious ACL line option " << token << " at the end of the line");
             return token;
@@ -62,9 +65,9 @@ Acl::ArgumentParser::optionalValue()
 char *
 Acl::ArgumentParser::asValue(char *token)
 {
-    if (isAclOption(token, acl.options()))
+    if (IsAclOption(token, acl.options()))
         throw TextException(ToSBuf("the ACL option ", token, " must be placed before other non-option arguments"), Here());
-    else if (isOption(token))
+    else if (IsOption(token))
         debugs(28, Important(66), "WARNING: suspicious option-like ACL argument " << token);
     return token;
 }

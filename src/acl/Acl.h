@@ -98,8 +98,6 @@ private:
     /// \returns (linked) 'global' Options supported by this ACL
     virtual const Acl::Options &options() { return Acl::NoOptions(); }
 
-    bool hasOption(const char *name) const;
-
     /// \returns (linked) "line" Options supported by this ACL
     /// \see ACL::options()
     virtual const Acl::Options &lineOptions() { return Acl::NoOptions(); }
