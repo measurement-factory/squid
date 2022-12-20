@@ -43,7 +43,7 @@ ACLMaxConnection::valid () const
 void
 ACLMaxConnection::parse(Acl::ArgumentParser &parser)
 {
-    auto t = parser.strtokFile();
+    auto t = parser.optionalValue();
 
     if (!t)
         return;
@@ -53,7 +53,7 @@ ACLMaxConnection::parse(Acl::ArgumentParser &parser)
     /* suck out file contents */
     // ignore comments
     bool ignore = false;
-    while ((t = parser.strtokFile())) {
+    while ((t = parser.optionalValue())) {
         ignore |= (*t != '#');
 
         if (ignore)

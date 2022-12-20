@@ -564,7 +564,7 @@ ACLASN::parse(Acl::ArgumentParser &parser)
     char *t = nullptr;
 
     for (Tail = curlist; *Tail; Tail = &((*Tail)->next));
-    while ((t = parser.strtokFile())) {
+    while ((t = parser.optionalValue())) {
         q = new CbDataList<int> (atoi(t));
         *(Tail) = q;
         Tail = &q->next;

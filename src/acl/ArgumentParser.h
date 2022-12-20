@@ -23,14 +23,17 @@ public:
     ArgumentParser(ConfigParser &aParser, ACL &anAcl)
         : parser(aParser), acl(anAcl) {}
 
-    void prohibitOption(const char *) const;
-
-    /// Extracts and returns the next ACL argument, that is not a ACL option.
+    /// Extracts and returns the next ACL argument, that is not an ACL option.
     /// If the current acl directive has no more arguments, returns nil.
-    char * strtokFile();
+    char * optionalValue();
 
-    /// strtokFile() for an ACL that expects regex arguments
-    char * regexStrtokFile();
+    /// optionalValue() that also supports ACL line options (may be provided
+    /// in-between ACL values)
+    /// \see ACL::lineOptions()
+    char * optionalValueOrMiddleOption();
+
+    /// optionalValueOrMiddleOption() for an ACL that expects regex arguments
+    char * optionalRegexValueOrMiddleOption();
 
     /// Extract, validate, and store the ACL key parameter for ACL types
     /// declared using "acl aclname type key argument..." declaration that
@@ -40,8 +43,10 @@ public:
 
 private:
 
-    /// Extracts and returns the next ACL argument.
-    /// If the current acl directive has no more arguments, returns nil.
+    /// verifies that token is not a flag and returns it
+    char *asValue(char *token);
+
+    /// Extracts and returns the next ACL argument (or nil)
     char *optionalAclToken();
 
     /// whether token either a two-character short option starting with '-'

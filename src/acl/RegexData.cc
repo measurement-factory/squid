@@ -228,7 +228,7 @@ ACLRegexData::parse(Acl::ArgumentParser &parser)
         flagsAtLineStart |= REG_ICASE;
 
     SBufList sl;
-    while (auto t = parser.regexStrtokFile()) {
+    while (auto t = parser.optionalRegexValueOrMiddleOption()) {
         const char *clean = removeUnnecessaryWildcards(t);
         debugs(28, 3, "buffering RE '" << clean << "'");
         sl.emplace_back(clean);

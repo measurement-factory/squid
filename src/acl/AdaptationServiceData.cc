@@ -23,7 +23,7 @@ void
 ACLAdaptationServiceData::parse(Acl::ArgumentParser &parser)
 {
     Adaptation::Config::needHistory = true;
-    while (const auto t = parser.strtokFile()) {
+    while (const auto t = parser.optionalValue()) {
         if (
 #if USE_ECAP
             Adaptation::Ecap::TheConfig.findServiceConfig(t) == nullptr &&

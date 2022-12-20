@@ -100,7 +100,7 @@ ACLTimeData::parse(Acl::ArgumentParser &parser)
 
     int h1, m1, h2, m2;
 
-    while (auto t = parser.strtokFile()) {
+    while (auto t = parser.optionalValue()) {
         if (*t < '0' || *t > '9') {
             /* assume its day-of-week spec */
 

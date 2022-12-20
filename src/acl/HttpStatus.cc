@@ -108,7 +108,7 @@ ACLHTTPStatus::parse(Acl::ArgumentParser &parser)
 void
 aclParseHTTPStatusList(Splay<acl_httpstatus_data *> **curlist, Acl::ArgumentParser &parser)
 {
-    while (const auto t = parser.strtokFile()) {
+    while (const auto t = parser.optionalValue()) {
         if (acl_httpstatus_data *q = aclParseHTTPStatusData(t))
             (*curlist)->insert(q, acl_httpstatus_data::compare);
     }

@@ -49,7 +49,7 @@ ACLProtocolData::dump() const
 void
 ACLProtocolData::parse(Acl::ArgumentParser &parser)
 {
-    while (const auto t = parser.strtokFile()) {
+    while (const auto t = parser.optionalValue()) {
         int p = AnyP::PROTO_NONE;
         for (; p < AnyP::PROTO_UNKNOWN; ++p) {
             if (strcasecmp(t, AnyP::ProtocolType_str[p]) == 0) {

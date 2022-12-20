@@ -37,18 +37,36 @@ Acl::ArgumentParser::isAclOption(const char *name, const Acl::Options &options) 
 }
 
 char *
-Acl::ArgumentParser::strtokFile()
+Acl::ArgumentParser::optionalValueOrMiddleOption()
 {
     if (auto token = optionalAclToken()) {
-        if (isAclOption(token, acl.lineOptions()))
+        if (isAclOption(token, acl.lineOptions())) {
+            if (!ConfigParser::PeekAtToken())
+                debugs(28, DBG_IMPORTANT, "WARNING: suspicious ACL line option " << token << " at the end of the line");
             return token;
-        else if (isAclOption(token, acl.options()))
-            throw TextException(ToSBuf("the ACL option ", token, " must be placed before other non-option arguments"), Here());
-        else if (isOption(token))
-            debugs(28, Important(66), "WARNING: suspicious option-like ACL argument " << token);
-        return token;
+        }
+        return asValue(token);
     }
     return nullptr;
+}
+
+char *
+Acl::ArgumentParser::optionalValue()
+{
+    Assure(acl.lineOptions() == Acl::NoOptions());
+    if (auto token = optionalAclToken())
+        return asValue(token);
+    return nullptr;
+}
+
+char *
+Acl::ArgumentParser::asValue(char *token)
+{
+    if (isAclOption(token, acl.options()))
+        throw TextException(ToSBuf("the ACL option ", token, " must be placed before other non-option arguments"), Here());
+    else if (isOption(token))
+        debugs(28, Important(66), "WARNING: suspicious option-like ACL argument " << token);
+    return token;
 }
 
 char *
@@ -126,14 +144,14 @@ Acl::ArgumentParser::optionalAclToken()
 }
 
 char *
-Acl::ArgumentParser::regexStrtokFile()
+Acl::ArgumentParser::optionalRegexValueOrMiddleOption()
 {
     if (ConfigParser::RecognizeQuotedValues) {
         debugs(3, DBG_CRITICAL, "FATAL: Can not read regex expression while configuration_includes_quoted_values is enabled");
         self_destruct();
     }
     ConfigParser::RecognizeQuotedPair_ = true;
-    auto token = strtokFile();
+    auto token = optionalValueOrMiddleOption();
     ConfigParser::RecognizeQuotedPair_ = false;
     return token;
 }
@@ -141,7 +159,7 @@ Acl::ArgumentParser::regexStrtokFile()
 void
 Acl::ArgumentParser::setAclKey(SBuf &keyStorage, const char *keyParameterName)
 {
-    const auto newKey = strtokFile();
+    const auto newKey = optionalValue();
     if (!newKey) {
         throw TextException(ToSBuf("An acl declaration is missing a ", keyParameterName,
                                    Debug::Extra, "ACL name: ", AclMatchedName),

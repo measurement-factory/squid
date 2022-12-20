@@ -139,7 +139,7 @@ ACLDomainData::parse(Acl::ArgumentParser &parser)
     if (!domains)
         domains = new Splay<char *>();
 
-    while (auto t = parser.strtokFile()) {
+    while (auto t = parser.optionalValue()) {
         Tolower(t);
         domains->insert(xstrdup(t), aclDomainCompare);
     }

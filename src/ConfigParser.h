@@ -123,7 +123,7 @@ public:
     static void SetAclKey(SBuf &keyStorage, const char *keyParameterName);
 
     /**
-     * Preview the next token. The next NextToken() and strtokFile() call
+     * Preview the next token. The next NextToken() and NextElement() call
      * will return the same token.
      * On parse error (eg invalid characters in token) will return an
      * error message as token.

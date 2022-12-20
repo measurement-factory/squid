@@ -24,7 +24,7 @@ ACLHasComponentData::ACLHasComponentData()
 void
 ACLHasComponentData::parse(Acl::ArgumentParser &parser)
 {
-    const auto tok = parser.strtokFile();
+    const auto tok = parser.optionalValue();
     if (!tok) {
         debugs(28, DBG_CRITICAL, "FATAL: \"has\" acl argument missing");
         self_destruct();
@@ -33,7 +33,7 @@ ACLHasComponentData::parse(Acl::ArgumentParser &parser)
 
     parseComponent(tok);
 
-    if (parser.strtokFile()) {
+    if (parser.optionalValue()) {
         debugs(28, DBG_CRITICAL, "FATAL: multiple components not supported for \"has\" acl");
         self_destruct();
         return;

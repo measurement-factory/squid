@@ -20,7 +20,7 @@
 void
 ACLIntRange::parse(Acl::ArgumentParser &parser)
 {
-    while (const auto a = parser.strtokFile()) {
+    while (const auto a = parser.optionalValue()) {
         char *b = strchr(a, '-');
         unsigned short port1, port2;
 

@@ -59,7 +59,7 @@ ACLMaxUserIP::parse(Acl::ArgumentParser &parser)
         return;
     }
 
-    auto t = parser.strtokFile();
+    auto t = parser.optionalValue();
 
     if (!t)
         return;

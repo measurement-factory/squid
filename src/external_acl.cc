@@ -514,7 +514,7 @@ ACLExternal::parse(Acl::ArgumentParser &parser)
         return;
     }
 
-    char *token = parser.strtokFile();
+    auto token = parser.optionalValue();
 
     if (!token) {
         self_destruct();
@@ -533,7 +533,7 @@ ACLExternal::parse(Acl::ArgumentParser &parser)
     // this is the name of the 'acl' directive being tested
     data->name = xstrdup(AclMatchedName);
 
-    while ((token = parser.strtokFile())) {
+    while ((token = parser.optionalValue())) {
         wordlistAdd(&data->arguments, token);
     }
 }

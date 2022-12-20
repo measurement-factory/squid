@@ -95,7 +95,7 @@ ACLUserData::parse(Acl::ArgumentParser &parser)
     flags.case_insensitive = bool(CaseInsensitive_);
 
     char *t = nullptr;
-    if ((t = parser.strtokFile())) {
+    if ((t = parser.optionalValueOrMiddleOption())) {
         SBuf s(t);
         debugs(28, 5, "first token is " << s);
 
@@ -124,7 +124,7 @@ ACLUserData::parse(Acl::ArgumentParser &parser)
 
     debugs(28, 4, "parsing following tokens");
 
-    while ((t = parser.strtokFile())) {
+    while ((t = parser.optionalValueOrMiddleOption())) {
         SBuf s(t);
         debugs(28, 6, "Got token: " << s);
 

@@ -478,7 +478,7 @@ ACLIP::parse(Acl::ArgumentParser &parser)
     if (data == nullptr)
         data = new IPSplay();
 
-    while (const auto t = parser.strtokFile()) {
+    while (const auto t = parser.optionalValue()) {
         acl_ip_data *q = acl_ip_data::FactoryParse(t);
 
         while (q != nullptr) {

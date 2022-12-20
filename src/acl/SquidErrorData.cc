@@ -49,7 +49,7 @@ ACLSquidErrorData::dump() const
 void
 ACLSquidErrorData::parse(Acl::ArgumentParser &parser)
 {
-    while (const auto token = parser.strtokFile()) {
+    while (const auto token = parser.optionalValue()) {
         err_type err = errorTypeByName(token);
 
         if (err < ERR_MAX)

@@ -47,7 +47,7 @@ ACLHierCodeData::parse(Acl::ArgumentParser &parser)
 {
     char *t = nullptr;
 
-    while ((t = parser.strtokFile())) {
+    while ((t = parser.optionalValue())) {
         for (hier_code iter = HIER_NONE; iter <= HIER_MAX; ++iter) {
             if (iter == HIER_MAX) {
                 fatalf("ERROR: No such hier_code '%s'",t);

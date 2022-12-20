@@ -53,7 +53,7 @@ ACLStringData::dump() const
 void
 ACLStringData::parse(Acl::ArgumentParser &parser)
 {
-    while (const auto t = parser.strtokFile())
+    while (const auto t = parser.optionalValue())
         stringValues.insert(SBuf(t));
 }
 

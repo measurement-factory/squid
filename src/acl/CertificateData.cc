@@ -79,7 +79,7 @@ void
 ACLCertificateData::parse(Acl::ArgumentParser &parser)
 {
     if (validAttributesStr) {
-        auto newAttribute = parser.strtokFile();
+        auto newAttribute = parser.optionalValue();
 
         if (!newAttribute) {
             if (!attributeIsOptional) {

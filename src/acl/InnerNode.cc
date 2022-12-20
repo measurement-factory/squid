@@ -51,7 +51,7 @@ Acl::InnerNode::lineParse(Acl::ArgumentParser &parser)
     // expect a list of ACL names, each possibly preceded by '!' for negation
 
     size_t count = 0;
-    while (auto t = parser.strtokFile()) {
+    while (auto t = parser.optionalValue()) {
         const bool negated = (*t == '!');
         if (negated)
             ++t;

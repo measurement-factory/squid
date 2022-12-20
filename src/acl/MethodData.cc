@@ -50,7 +50,7 @@ ACLMethodData::dump() const
 void
 ACLMethodData::parse(Acl::ArgumentParser &parser)
 {
-    while (const auto t = parser.strtokFile()) {
+    while (const auto t = parser.optionalValue()) {
         HttpRequestMethod m;
         m.HttpRequestMethodXXX(t);
         values.push_back(m);
