@@ -9,8 +9,8 @@
 #ifndef SQUID_ACLINTRANGE_H
 #define SQUID_ACLINTRANGE_H
 
-#include "acl/forward.h"
 #include "acl/Data.h"
+#include "acl/forward.h"
 #include "base/Range.h"
 
 #include <list>
