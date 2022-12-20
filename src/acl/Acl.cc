@@ -249,9 +249,6 @@ ACL::ParseAclLine(ConfigParser &parser, ACL ** head)
      */
     AclMatchedName = A->name;   /* ugly */
 
-    // TODO: merge merge Acl::OptionsParser into Acl::ArgumentParser
-    // and use this class for parsing any ACL argument, such as flag or value
-
     A->parseFlags();
 
     /*split the function here */
