@@ -968,27 +968,31 @@ externalAclHandleReply(void *data, const Helper::Reply &reply)
 
     entryData.notes.append(&reply.notes);
 
-    const char *label = reply.notes.findFirst("tag");
-    if (label != nullptr && *label != '\0')
-        entryData.tag = label;
+    NotePairs replyNotes;
+    replyNotes.append(&reply.notes);
 
-    label = reply.notes.findFirst("message");
-    if (label != nullptr && *label != '\0')
-        entryData.message = label;
+    auto label = replyNotes.findFirstAndRemove("tag");
+    if (label.length())
+        entryData.tag.assign(label.rawContent(), label.length());
 
-    label = reply.notes.findFirst("log");
-    if (label != nullptr && *label != '\0')
-        entryData.log = label;
+    label = replyNotes.findFirstAndRemove("message");
+    if (label.length())
+        entryData.message.assign(label.rawContent(), label.length());
 
+    label = replyNotes.findFirstAndRemove("log");
+    if (label.length())
+        entryData.log.assign(label.rawContent(), label.length());
 #if USE_AUTH
-    label = reply.notes.findFirst("user");
-    if (label != nullptr && *label != '\0')
-        entryData.user = label;
+    label = replyNotes.findFirstAndRemove("user");
+    if (label.length())
+        entryData.user.assign(label.rawContent(), label.length());
 
-    label = reply.notes.findFirst("password");
-    if (label != nullptr && *label != '\0')
-        entryData.password = label;
+    label = replyNotes.findFirstAndRemove("password");
+    if (label.length())
+        entryData.password.assign(label.rawContent(), label.length());
 #endif
+
+    Helper::checkForUnsupportedAnnotations(replyNotes, "external ACL");
 
     // XXX: This state->def access conflicts with the cbdata validity check
     // below.

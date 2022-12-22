@@ -226,6 +226,12 @@ public:
     /// \returns the first note value for this key or an empty string.
     const char *findFirst(const char *noteKey) const;
 
+    /// \returns the first note value for noteKey and removes all notes with the key
+    SBuf findFirstAndRemove(const char *noteKey);
+
+    /// \returns a comma separated list of notes with noteKey and removes all notes the key
+    SBuf findAndRemove(const char *noteKey);
+
     /// Adds a note key and value to the notes list.
     /// If the key name already exists in the list, add the given value to its set
     /// of values.

@@ -192,6 +192,20 @@ Helper::Reply::emptyBuf() const
     return empty;
 }
 
+void
+Helper::checkForUnsupportedAnnotations(const NotePairs &notes, const char *context)
+{
+    const auto entries = notes.expandListEntries(nullptr);
+    for (const auto &e: entries) {
+        const auto &name = e->name();
+        if (!name.length())
+            continue;
+        if (!name.cmp("clt_conn_tag") || *name.rbegin() == '_')
+            continue;
+        debugs(29, DBG_IMPORTANT, "WARNING: unsupported annotation from " << context << " helper: " << name);
+    }
+}
+
 std::ostream &
 operator <<(std::ostream &os, const Helper::Reply &r)
 {

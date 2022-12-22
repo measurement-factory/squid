@@ -73,6 +73,11 @@ private:
     MemBuf other_;
 };
 
+/// checks whether notes contains an annotation unsupported by helpers
+/// \param notes the key=value pair list, returned from a helper with all
+/// helper-specific annotations removed
+void checkForUnsupportedAnnotations(const NotePairs &notes, const char *context);
+
 } // namespace Helper
 
 std::ostream &operator <<(std::ostream &os, const Helper::Reply &r);

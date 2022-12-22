@@ -1152,6 +1152,9 @@ ClientRequestContext::clientRedirectDone(const Helper::Reply &reply)
 
     UpdateRequestNotes(http->getConn(), *old_request, reply.notes);
 
+    NotePairs replyNotes;
+    replyNotes.append(&reply.notes);
+
     switch (reply.result) {
     case Helper::TimedOut:
         if (Config.onUrlRewriteTimeout.action != toutActBypass) {
@@ -1181,10 +1184,10 @@ ClientRequestContext::clientRedirectDone(const Helper::Reply &reply)
         // #2: redirect with a default status code     OK url="..."
         // #3: re-write the URL                        OK rewrite-url="..."
 
-        const char *statusNote = reply.notes.findFirst("status");
-        const char *urlNote = reply.notes.findFirst("url");
+        auto statusNote = replyNotes.findFirstAndRemove("status");
+        auto urlNote = replyNotes.findFirstAndRemove("url");
 
-        if (urlNote != nullptr) {
+        if (urlNote.length()) {
             // HTTP protocol redirect to be done.
 
             // TODO: change default redirect status for appropriate requests
@@ -1193,8 +1196,8 @@ ClientRequestContext::clientRedirectDone(const Helper::Reply &reply)
             // HTTP/1.1 client contacting reverse-proxy should get 307 (Http::scTemporaryRedirect)
             // HTTP/1.1 client being diverted by forward-proxy should get 303 (Http::scSeeOther)
             Http::StatusCode status = Http::scFound;
-            if (statusNote != nullptr) {
-                const char * result = statusNote;
+            if (statusNote.length()) {
+                const char * result = statusNote.c_str();
                 status = static_cast<Http::StatusCode>(atoi(result));
             }
 
@@ -1204,17 +1207,17 @@ ClientRequestContext::clientRedirectDone(const Helper::Reply &reply)
                     || status == Http::scPermanentRedirect
                     || status == Http::scTemporaryRedirect) {
                 http->redirect.status = status;
-                http->redirect.location = xstrdup(urlNote);
+                http->redirect.location = xstrdup(urlNote.c_str());
                 // TODO: validate the URL produced here is RFC 2616 compliant absolute URI
             } else {
                 debugs(85, DBG_CRITICAL, "ERROR: URL-rewrite produces invalid " << status << " redirect Location: " << urlNote);
             }
         } else {
             // URL-rewrite wanted. Ew.
-            urlNote = reply.notes.findFirst("rewrite-url");
+            urlNote = replyNotes.findFirstAndRemove("rewrite-url");
 
             // prevent broken helpers causing too much damage. If old URL == new URL skip the re-write.
-            if (urlNote != nullptr && strcmp(urlNote, http->uri)) {
+            if (urlNote.length() && urlNote.cmp(http->uri)) {
                 AnyP::Uri tmpUrl;
                 if (tmpUrl.parse(old_request->method, SBuf(urlNote))) {
                     HttpRequest *new_request = old_request->clone();
@@ -1242,6 +1245,8 @@ ClientRequestContext::clientRedirectDone(const Helper::Reply &reply)
     }
     break;
     }
+
+    Helper::checkForUnsupportedAnnotations(replyNotes, "redirect");
 
     /* XXX PIPELINE: This is inaccurate during pipelining */
 
@@ -1271,6 +1276,9 @@ ClientRequestContext::clientStoreIdDone(const Helper::Reply &reply)
 
     UpdateRequestNotes(http->getConn(), *old_request, reply.notes);
 
+    NotePairs replyNotes;
+    replyNotes.append(&reply.notes);
+
     switch (reply.result) {
     case Helper::Unknown:
     case Helper::TT:
@@ -1290,18 +1298,20 @@ ClientRequestContext::clientStoreIdDone(const Helper::Reply &reply)
         break;
 
     case Helper::Okay: {
-        const char *urlNote = reply.notes.findFirst("store-id");
+        auto urlNote = replyNotes.findFirstAndRemove("store-id");
 
         // prevent broken helpers causing too much damage. If old URL == new URL skip the re-write.
-        if (urlNote != nullptr && strcmp(urlNote, http->uri) ) {
+        if (urlNote.length() && urlNote.cmp(http->uri)) {
             // Debug section required for some very specific cases.
             debugs(85, 9, "Setting storeID with: " << urlNote );
-            http->request->store_id = urlNote;
-            http->store_id = urlNote;
+            http->request->store_id.assign(urlNote.rawContent(), urlNote.length());
+            http->store_id.assign(urlNote.rawContent(), urlNote.length());
         }
     }
     break;
     }
+
+    Helper::checkForUnsupportedAnnotations(replyNotes, "store-id");
 
     http->doCallouts();
 }

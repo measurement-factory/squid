@@ -321,6 +321,8 @@ Auth::Digest::UserRequest::HandleReply(void *data, const Helper::Reply &reply)
     // remove any private credentials detail which got added.
     auth_user_request->user()->notes.remove("ha1");
 
+    NotePairs replyNotes;
+    replyNotes.append(&reply.notes);
     static bool oldHelperWarningDone = false;
     switch (reply.result) {
     case Helper::Unknown: {
@@ -345,8 +347,9 @@ Auth::Digest::UserRequest::HandleReply(void *data, const Helper::Reply &reply)
         Auth::Digest::User *digest_user = dynamic_cast<Auth::Digest::User *>(auth_user_request->user().getRaw());
         assert(digest_user != nullptr);
 
-        if (const char *ha1Note = reply.notes.findFirst("ha1")) {
-            CvtBin(ha1Note, digest_user->HA1);
+        auto ha1Note = replyNotes.findFirstAndRemove("ha1");
+        if (ha1Note.length()) {
+            CvtBin(ha1Note.c_str(), digest_user->HA1);
             digest_user->HA1created = 1;
         } else {
             debugs(29, DBG_IMPORTANT, "ERROR: Digest auth helper did not produce a HA1. Using the wrong helper program? received: " << reply);
@@ -371,8 +374,8 @@ Auth::Digest::UserRequest::HandleReply(void *data, const Helper::Reply &reply)
         digest_request->user()->credentials(Auth::Failed);
         digest_request->flags.invalid_password = true;
 
-        SBuf msgNote;
-        if (reply.notes.find(msgNote, "message")) {
+        auto msgNote = replyNotes.findAndRemove("message");
+        if (msgNote.length()) {
             digest_request->setDenyMessage(msgNote.c_str());
         } else if (reply.other().hasContent()) {
             // old helpers did send ERR result but a bare message string instead of message= key name.
@@ -386,6 +389,8 @@ Auth::Digest::UserRequest::HandleReply(void *data, const Helper::Reply &reply)
     }
     break;
     }
+
+    Helper::checkForUnsupportedAnnotations(replyNotes, "digest");
 
     void *cbdata = nullptr;
     if (cbdataReferenceValidDone(replyData->data, &cbdata))
