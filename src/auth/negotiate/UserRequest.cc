@@ -299,7 +299,7 @@ Auth::Negotiate::UserRequest::HandleReply(void *data, const Helper::Reply &reply
 
     NotePairs replyNotes;
     replyNotes.append(&reply.notes);
- 
+
     switch (reply.result) {
     case Helper::TT:
         /* we have been given a blob to send to the client */
