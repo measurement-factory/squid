@@ -209,7 +209,7 @@ public:
     const char *helperRequestKeyExtras(HttpRequest *, AccessLogEntry::Pointer &al);
 
     /// Sets the reason of 'authentication denied' helper response.
-    void denyMessageFromHelper(char const *proto, const Helper::Reply &reply);
+    void denyMessageFromHelper(char const *proto, SBuf &messageNote);
 
 protected:
     /**

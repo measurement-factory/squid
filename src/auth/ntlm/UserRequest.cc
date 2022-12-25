@@ -253,6 +253,13 @@ Auth::Ntlm::UserRequest::authenticate(HttpRequest * aRequest, ConnStateData * co
     }
 }
 
+static const NotePairs::Names &
+NoteNames()
+{
+    static const NotePairs::Names allNames = { SBuf("group"), SBuf("tag"), SBuf("user"), SBuf("token"), SBuf("message") };
+    return allNames;
+}
+
 void
 Auth::Ntlm::UserRequest::HandleReply(void *data, const Helper::Reply &reply)
 {
@@ -272,9 +279,10 @@ Auth::Ntlm::UserRequest::HandleReply(void *data, const Helper::Reply &reply)
     // add new helper kv-pair notes to the credentials object
     // so that any transaction using those credentials can access them
     static const NotePairs::Names appendables = { SBuf("group"), SBuf("tag") };
-    auth_user_request->user()->notes.replaceOrAddOrAppend(&reply.notes, appendables);
+    auto &notes = auth_user_request->user()->notes;
+    notes.replaceOrAddOrAppend(&reply.notes, appendables);
     // remove any private credentials detail which got added.
-    auth_user_request->user()->notes.remove("token");
+    notes.remove("token");
 
     Auth::Ntlm::UserRequest *lm_request = dynamic_cast<Auth::Ntlm::UserRequest *>(auth_user_request.getRaw());
     assert(lm_request != nullptr);
@@ -297,11 +305,17 @@ Auth::Ntlm::UserRequest::HandleReply(void *data, const Helper::Reply &reply)
         safe_free(lm_request->server_blob);
         lm_request->request->flags.mustKeepalive = true;
         if (lm_request->request->flags.proxyKeepalive) {
-            const char *serverBlob = reply.notes.findFirst("token");
-            lm_request->server_blob = xstrdup(serverBlob);
+            notes.importIf("ntlm", NoteNames(), [&](const auto &note) {
+                const auto &name = note->name();
+                if (!lm_request->server_blob && !name.cmp("token")) {
+                    lm_request->server_blob = xstrndup(name.rawContent(), name.length());
+                    debugs(29, 4, "Need to challenge the client with a server token: '" << name << "'");
+                    return true;
+                }
+                return false;
+            });
             auth_user_request->user()->credentials(Auth::Handshake);
             auth_user_request->setDenyMessage("Authentication in progress");
-            debugs(29, 4, "Need to challenge the client with a server token: '" << serverBlob << "'");
         } else {
             auth_user_request->user()->credentials(Auth::Failed);
             auth_user_request->setDenyMessage("NTLM authentication requires a persistent connection");
@@ -310,19 +324,29 @@ Auth::Ntlm::UserRequest::HandleReply(void *data, const Helper::Reply &reply)
 
     case Helper::Okay: {
         /* we're finished, release the helper */
-        const char *userLabel = reply.notes.findFirst("user");
-        if (!userLabel) {
+
+        SBuf userLabel;
+        notes.importIf("ntlm", NoteNames(), [&](const auto &note) {
+            const auto &name = note->name();
+            if (userLabel.isEmpty() && !name.cmp("user")) {
+                userLabel = name;
+                auth_user_request->user()->username(userLabel.c_str());
+                auth_user_request->setDenyMessage("Login successful");
+                return true;
+            }
+            return false;
+        });
+
+        if (userLabel.isEmpty()) {
             auth_user_request->user()->credentials(Auth::Failed);
             safe_free(lm_request->server_blob);
             lm_request->releaseAuthServer();
             debugs(29, DBG_CRITICAL, "ERROR: NTLM Authentication helper returned no username. Result: " << reply);
             break;
         }
-        auth_user_request->user()->username(userLabel);
-        auth_user_request->setDenyMessage("Login successful");
+
         safe_free(lm_request->server_blob);
         lm_request->releaseAuthServer();
-
         debugs(29, 4, "Successfully validated user via NTLM. Username '" << userLabel << "'");
         /* connection is authenticated */
         debugs(29, 4, "authenticated user " << auth_user_request->user()->username());
@@ -349,14 +373,23 @@ Auth::Ntlm::UserRequest::HandleReply(void *data, const Helper::Reply &reply)
     }
     break;
 
-    case Helper::Error:
+    case Helper::Error: {
         /* authentication failure (wrong password, etc.) */
-        auth_user_request->denyMessageFromHelper("NTLM", reply);
+        SBuf messageNote;
+        reply.notes.find(messageNote, "message");
+        notes.importIf("negotiate", NoteNames(), [&](const auto &note) {
+            const auto &name = note->name();
+            if (!name.cmp("message")) // already handled
+                return true;
+            return false;
+        });
+        auth_user_request->denyMessageFromHelper("NTLM", messageNote);
         auth_user_request->user()->credentials(Auth::Failed);
         safe_free(lm_request->server_blob);
         lm_request->releaseAuthServer();
         debugs(29, 4, "Failed validating user via NTLM. Result: " << reply);
-        break;
+    }
+    break;
 
     case Helper::Unknown:
         debugs(29, DBG_IMPORTANT, "ERROR: NTLM Authentication Helper crashed (" << reply.reservationId << ")");
@@ -371,8 +404,17 @@ Auth::Ntlm::UserRequest::HandleReply(void *data, const Helper::Reply &reply)
          * Needing YR. */
         if (reply.result == Helper::Unknown)
             auth_user_request->setDenyMessage("Internal Error");
-        else
-            auth_user_request->denyMessageFromHelper("NTLM", reply);
+        else {
+        SBuf messageNote;
+            reply.notes.find(messageNote, "message");
+            notes.importIf("negotiate", NoteNames(), [&](const auto &note) {
+                const auto &name = note->name();
+                if (!name.cmp("message")) // already handled
+                    return true;
+                return false;
+            });
+            auth_user_request->denyMessageFromHelper("NTLM", messageNote);
+        }
         auth_user_request->user()->credentials(Auth::Failed);
         safe_free(lm_request->server_blob);
         lm_request->releaseAuthServer();

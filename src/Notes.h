@@ -226,6 +226,9 @@ public:
     /// \returns the first note value for this key or an empty string.
     const char *findFirst(const char *noteKey) const;
 
+    template <typename NameList, typename Importer>
+    void importIf(const char *context, const NameList &,  const Importer &);
+
     /// Adds a note key and value to the notes list.
     /// If the key name already exists in the list, add the given value to its set
     /// of values.
@@ -258,9 +261,28 @@ public:
     /// pair to multiple single-token pairs; returns existing entries otherwise.
     const Entries &expandListEntries(const CharacterSet *delimiters) const;
 
+    static void CheckForCustomAnnotation(const SBuf &name, const char *context);
+
 private:
     Entries entries; ///< The key/value pair entries
 };
+
+template <typename NameList, typename Importer>
+void
+NotePairs::importIf(const char *context, const NameList &nameList, const Importer &importer)
+{
+    for (const auto &e: entries) {
+        if (e->name().isEmpty())
+            continue;
+        if (!importer(e)) {
+            const auto unexpectedName = std::find(nameList.begin(), nameList.end(), e->name());
+            if (unexpectedName != nameList.end())
+                debugs(29, DBG_IMPORTANT, "WARNING: unexpected annotation from " << context << " helper: " << *unexpectedName);
+            else
+                CheckForCustomAnnotation(e->name(), context);
+        }
+    }
+}
 
 #endif
 

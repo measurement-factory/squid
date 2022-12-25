@@ -356,6 +356,13 @@ NotePairs::expandListEntries(const CharacterSet *delimiters) const
 }
 
 void
+NotePairs::CheckForCustomAnnotation(const SBuf &name, const char *context)
+{
+    if (name.cmp("clt_conn_tag") && *name.rbegin() != '_')
+        debugs(29, DBG_IMPORTANT, "WARNING: unsupported annotation from " << context << " helper: " << name);
+}
+
+void
 NotePairs::addStrList(const SBuf &key, const SBuf &values, const CharacterSet &delimiters)
 {
     AppendTokens(entries, key, values, delimiters);

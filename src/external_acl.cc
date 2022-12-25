@@ -926,6 +926,13 @@ externalAclState::~externalAclState()
     cbdataReferenceDone(def);
 }
 
+static const NotePairs::Names &
+NoteNames()
+{
+    static const NotePairs::Names allNames = { SBuf("tag"), SBuf("message"), SBuf("log"), SBuf("user"), SBuf("password") };
+    return allNames;
+}
+
 /*
  * The helper program receives queries on stdin, one
  * per line, and must return the result on on stdout
@@ -968,27 +975,35 @@ externalAclHandleReply(void *data, const Helper::Reply &reply)
 
     entryData.notes.append(&reply.notes);
 
-    const char *label = reply.notes.findFirst("tag");
-    if (label != nullptr && *label != '\0')
-        entryData.tag = label;
+    entryData.notes.importIf("external ACL", NoteNames(), [&] (const auto &note) {
+        const auto &name = note->name();
+        if (!entryData.tag.size() && !name.cmp("tag")) {
+            entryData.tag.assign(name.rawContent(), name.length());
+            return true;
+        }
 
-    label = reply.notes.findFirst("message");
-    if (label != nullptr && *label != '\0')
-        entryData.message = label;
+        if (!entryData.message.size() && name.cmp("message")) {
+            entryData.message.assign(name.rawContent(), name.length());
+            return true;
+        }
 
-    label = reply.notes.findFirst("log");
-    if (label != nullptr && *label != '\0')
-        entryData.log = label;
-
+        if (!entryData.log.size() && !name.cmp("log")) {
+            entryData.log.assign(name.rawContent(), name.length());
+            return true;
+        }
 #if USE_AUTH
-    label = reply.notes.findFirst("user");
-    if (label != nullptr && *label != '\0')
-        entryData.user = label;
+        if (!entryData.user.size() && !name.cmp("user")) {
+            entryData.user.assign(name.rawContent(), name.length());
+            return true;
+        }
 
-    label = reply.notes.findFirst("password");
-    if (label != nullptr && *label != '\0')
-        entryData.password = label;
+        if (!entryData.password.size() && !name.cmp("password")) {
+            entryData.password.assign(name.rawContent(), name.length());
+            return true;
+        }
 #endif
+        return false;
+    });
 
     // XXX: This state->def access conflicts with the cbdata validity check
     // below.

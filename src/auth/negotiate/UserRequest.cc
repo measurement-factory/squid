@@ -259,6 +259,13 @@ Auth::Negotiate::UserRequest::authenticate(HttpRequest * aRequest, ConnStateData
     }
 }
 
+static const NotePairs::Names &
+NoteNames()
+{
+    static const NotePairs::Names allNames = { SBuf("group"), SBuf("tag"), SBuf("user"), SBuf("token"), SBuf("message") };
+    return allNames;
+}
+
 void
 Auth::Negotiate::UserRequest::HandleReply(void *data, const Helper::Reply &reply)
 {
@@ -278,9 +285,10 @@ Auth::Negotiate::UserRequest::HandleReply(void *data, const Helper::Reply &reply
     // add new helper kv-pair notes to the credentials object
     // so that any transaction using those credentials can access them
     static const NotePairs::Names appendables = { SBuf("group"), SBuf("tag") };
-    auth_user_request->user()->notes.replaceOrAddOrAppend(&reply.notes, appendables);
+    auto &notes = auth_user_request->user()->notes;
+    notes.replaceOrAddOrAppend(&reply.notes, appendables);
     // remove any private credentials detail which got added.
-    auth_user_request->user()->notes.remove("token");
+    notes.remove("token");
 
     Auth::Negotiate::UserRequest *lm_request = dynamic_cast<Auth::Negotiate::UserRequest *>(auth_user_request.getRaw());
     assert(lm_request != nullptr);
@@ -303,11 +311,17 @@ Auth::Negotiate::UserRequest::HandleReply(void *data, const Helper::Reply &reply
         safe_free(lm_request->server_blob);
         lm_request->request->flags.mustKeepalive = true;
         if (lm_request->request->flags.proxyKeepalive) {
-            const char *tokenNote = reply.notes.findFirst("token");
-            lm_request->server_blob = xstrdup(tokenNote);
+             notes.importIf("negotiate", NoteNames(), [&](const auto &note) {
+                 const auto &name = note->name();
+                 if (!lm_request->server_blob && !name.cmp("token")) {
+                     lm_request->server_blob = xstrndup(name.rawContent(), name.length());
+                     debugs(29, 4, "Need to challenge the client with a server token: '" << name << "'");
+                     return true;
+                 }
+                 return false;
+            });
             auth_user_request->user()->credentials(Auth::Handshake);
             auth_user_request->setDenyMessage("Authentication in progress");
-            debugs(29, 4, "Need to challenge the client with a server token: '" << tokenNote << "'");
         } else {
             auth_user_request->user()->credentials(Auth::Failed);
             auth_user_request->setDenyMessage("Negotiate authentication requires a persistent connection");
@@ -355,16 +369,27 @@ Auth::Negotiate::UserRequest::HandleReply(void *data, const Helper::Reply &reply
     }
     break;
 
-    case Helper::Error:
+    case Helper::Error: {
         /* authentication failure (wrong password, etc.) */
-        auth_user_request->denyMessageFromHelper("Negotiate", reply);
-        auth_user_request->user()->credentials(Auth::Failed);
+        SBuf messageNote;
+        reply.notes.find(messageNote, "message");
         safe_free(lm_request->server_blob);
-        if (const char *tokenNote = reply.notes.findFirst("token"))
-            lm_request->server_blob = xstrdup(tokenNote);
+        notes.importIf("negotiate", NoteNames(), [&](const auto &note) {
+            const auto &name = note->name();
+            if (!name.cmp("message")) // already handled
+                return true;
+            if (!lm_request->server_blob && !name.cmp("token")) {
+                lm_request->server_blob = xstrndup(name.rawContent(), name.length());
+                return true;
+            }
+            return false;
+        });
+        auth_user_request->denyMessageFromHelper("Negotiate", messageNote);
+        auth_user_request->user()->credentials(Auth::Failed);
         lm_request->releaseAuthServer();
         debugs(29, 4, "Failed validating user via Negotiate. Result: " << reply);
-        break;
+    }
+    break;
 
     case Helper::Unknown:
         debugs(29, DBG_IMPORTANT, "ERROR: Negotiate Authentication Helper crashed (" << reply.reservationId << ")");
@@ -379,8 +404,16 @@ Auth::Negotiate::UserRequest::HandleReply(void *data, const Helper::Reply &reply
          * Needing YR. */
         if (reply.result == Helper::Unknown)
             auth_user_request->setDenyMessage("Internal Error");
-        else
-            auth_user_request->denyMessageFromHelper("Negotiate", reply);
+        else {
+            SBuf messageNote;
+            reply.notes.find(messageNote, "message");
+            notes.importIf("negotiate", NoteNames(), [&](const auto &note) {
+                const auto &name = note->name();
+                if (!name.cmp("message")) // already handled
+                    return true;
+                return false;
+            });
+        }
         auth_user_request->user()->credentials(Auth::Failed);
         safe_free(lm_request->server_blob);
         lm_request->releaseAuthServer();
