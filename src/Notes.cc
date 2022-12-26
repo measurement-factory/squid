@@ -302,6 +302,29 @@ NotePairs::findFirst(const char *noteKey) const
     return nullptr;
 }
 
+const char *
+NotePairs::useFirst(const char * const noteKey) const
+{
+    const char *found = nullptr;
+    for (const auto &e: entries) {
+        if (e->name().cmp(noteKey) == 0) {
+            if (found) {
+                debugs(84, DBG_IMPORTANT, "WARNING: Ignoring repeated annotation from a helper: " <<
+                       e->name() << '=' << found << " and " <<
+                       e->name() << '=' << e->value());
+                // continue to warn about other annotations with this noteKey
+            } else {
+                // Return std::optional<SBuf> or throw instead.
+                found = const_cast<SBuf &>(e->value()).c_str();
+                if (e->used()) // already checked for repeated annotations
+                    return found;
+                e->markAsUsed();
+            }
+        }
+    }
+    return found; // may still be nil
+}
+
 void
 NotePairs::add(const char *key, const char *note)
 {

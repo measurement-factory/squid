@@ -191,9 +191,17 @@ public:
         const SBuf &name() const { return theName; }
         const SBuf &value() const { return theValue; }
 
+        /// whether markAsUsed() has been called
+        bool used() const { return used_; }
+
+        /// whether response processing code has requested this note by name
+        void markAsUsed() { used_ = true; }
+
     private:
         SBuf theName;
         SBuf theValue;
+
+        mutable bool used_ = false; ///< \copydoc markAsUsed()
     };
     typedef std::vector<Entry::Pointer> Entries;      ///< The key/value pair entries
     typedef std::vector<SBuf> Names;
@@ -225,6 +233,10 @@ public:
 
     /// \returns the first note value for this key or an empty string.
     const char *findFirst(const char *noteKey) const;
+
+    /// The value of the first note with the given name (or nil).
+    /// Side effect: Marks the matching note as used.
+    const char *useFirst(const char *noteKey) const;
 
     /// Adds a note key and value to the notes list.
     /// If the key name already exists in the list, add the given value to its set

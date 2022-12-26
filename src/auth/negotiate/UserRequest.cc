@@ -303,7 +303,7 @@ Auth::Negotiate::UserRequest::HandleReply(void *data, const Helper::Reply &reply
         safe_free(lm_request->server_blob);
         lm_request->request->flags.mustKeepalive = true;
         if (lm_request->request->flags.proxyKeepalive) {
-            const char *tokenNote = reply.notes.findFirst("token");
+            const char *tokenNote = reply.notes.useFirst("token");
             lm_request->server_blob = xstrdup(tokenNote);
             auth_user_request->user()->credentials(Auth::Handshake);
             auth_user_request->setDenyMessage("Authentication in progress");
@@ -315,8 +315,8 @@ Auth::Negotiate::UserRequest::HandleReply(void *data, const Helper::Reply &reply
         break;
 
     case Helper::Okay: {
-        const char *userNote = reply.notes.findFirst("user");
-        const char *tokenNote = reply.notes.findFirst("token");
+        const char *userNote = reply.notes.useFirst("user");
+        const char *tokenNote = reply.notes.useFirst("token");
         if (userNote == nullptr || tokenNote == nullptr) {
             // XXX: handle a success with no username better
             /* protocol error */
@@ -360,7 +360,7 @@ Auth::Negotiate::UserRequest::HandleReply(void *data, const Helper::Reply &reply
         auth_user_request->denyMessageFromHelper("Negotiate", reply);
         auth_user_request->user()->credentials(Auth::Failed);
         safe_free(lm_request->server_blob);
-        if (const char *tokenNote = reply.notes.findFirst("token"))
+        if (const char *tokenNote = reply.notes.useFirst("token"))
             lm_request->server_blob = xstrdup(tokenNote);
         lm_request->releaseAuthServer();
         debugs(29, 4, "Failed validating user via Negotiate. Result: " << reply);
