@@ -226,10 +226,15 @@ public:
     /// Entries which already exist in the destination set are ignored.
     void appendNewOnly(const NotePairs *src);
 
-    /// \param resultNote a comma separated list of notes with key 'noteKey'.
-    /// \returns true if there are entries with the given 'noteKey'.
-    /// Use findFirst() instead when a unique kv-pair is needed.
-    bool find(SBuf &resultNote, const char *noteKey, const char *sep = ",") const;
+    /// writes all note values with a given key into the given buffer
+    /// \param result a sep-delimited list of note values with the given key
+    /// \param sep value delimiter to use between written values
+    /// \returns true if at least one value was written
+    bool collectAllNamed(SBuf &result, const char *noteKey, const char *sep = ",") const;
+
+    /// \copydoc collectAllNamed()
+    /// Side effect: Marks the matching notes as used.
+    bool useAllNamed(SBuf &result, const char *noteKey, const char *sep = ",") const;
 
     /// \returns the first note value for this key or an empty string.
     [[deprecated("use useFirst() instead")]] const char *findFirst(const char *noteKey) const;

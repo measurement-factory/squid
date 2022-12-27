@@ -564,7 +564,7 @@ void
 Auth::UserRequest::denyMessageFromHelper(const char *proto, const Helper::Reply &reply)
 {
     static SBuf messageNote;
-    if (!reply.notes.find(messageNote, "message")) {
+    if (!reply.notes.useAllNamed(messageNote, "message")) {
         messageNote.append(proto);
         messageNote.append(" Authentication denied with no reason given");
     }

@@ -269,7 +269,7 @@ Notes::toString(const char *sep) const
 }
 
 bool
-NotePairs::find(SBuf &resultNote, const char *noteKey, const char *sep) const
+NotePairs::collectAllNamed(SBuf &resultNote, const char *noteKey, const char *sep) const
 {
     resultNote.clear();
     for (const auto &e: entries) {
@@ -280,6 +280,21 @@ NotePairs::find(SBuf &resultNote, const char *noteKey, const char *sep) const
         }
     }
     return resultNote.length();
+}
+
+bool
+NotePairs::useAllNamed(SBuf &result, const char *noteKey, const char *sep) const
+{
+    result.clear();
+    for (const auto &e: entries) {
+        if (e->name().cmp(noteKey) == 0) {
+            if (!result.isEmpty())
+                result.append(sep);
+            result.append(e->value());
+            e->markAsUsed();
+        }
+    }
+    return result.length();
 }
 
 const char *
