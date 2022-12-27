@@ -9,6 +9,7 @@
 /* DEBUG: section 28    Access Control */
 
 #include "squid.h"
+#include "acl/ArgumentParser.h"
 #include "acl/FilledChecklist.h"
 #include "auth/Acl.h"
 #include "auth/AclMaxUserIp.h"
@@ -51,14 +52,14 @@ ACLMaxUserIP::options()
 }
 
 void
-ACLMaxUserIP::parse()
+ACLMaxUserIP::parse(Acl::ArgumentParser &parser)
 {
     if (maximum) {
         debugs(28, DBG_IMPORTANT, "Attempting to alter already set User max IP acl");
         return;
     }
 
-    char *t = ConfigParser::strtokFile();
+    auto t = parser.optionalValue();
 
     if (!t)
         return;

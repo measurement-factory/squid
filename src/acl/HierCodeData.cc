@@ -7,6 +7,7 @@
  */
 
 #include "squid.h"
+#include "acl/ArgumentParser.h"
 #include "acl/Checklist.h"
 #include "acl/HierCodeData.h"
 #include "ConfigParser.h"
@@ -42,11 +43,11 @@ ACLHierCodeData::dump() const
 }
 
 void
-ACLHierCodeData::parse()
+ACLHierCodeData::parse(Acl::ArgumentParser &parser)
 {
     char *t = nullptr;
 
-    while ((t = ConfigParser::strtokFile())) {
+    while ((t = parser.optionalValue())) {
         for (hier_code iter = HIER_NONE; iter <= HIER_MAX; ++iter) {
             if (iter == HIER_MAX) {
                 fatalf("ERROR: No such hier_code '%s'",t);

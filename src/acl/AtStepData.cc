@@ -7,6 +7,7 @@
  */
 
 #include "squid.h"
+#include "acl/ArgumentParser.h"
 #include "acl/AtStepData.h"
 #include "acl/Checklist.h"
 #include "base/EnumIterator.h"
@@ -71,9 +72,9 @@ ACLAtStepData::dump() const
 }
 
 void
-ACLAtStepData::parse()
+ACLAtStepData::parse(Acl::ArgumentParser &parser)
 {
-    while (const auto name = ConfigParser::strtokFile()) {
+    while (const auto name = parser.optionalValue()) {
         const auto step = StepValue(name);
         if (step == XactionStep::unknown)
             throw TextException(ToSBuf("prohibited at_step step name: ", name), Here());

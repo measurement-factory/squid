@@ -7,6 +7,7 @@
  */
 
 #include "squid.h"
+#include "acl/ArgumentParser.h"
 #include "acl/Checklist.h"
 #include "acl/SslErrorData.h"
 #include "security/CertError.h"
@@ -33,9 +34,9 @@ ACLSslErrorData::dump() const
 }
 
 void
-ACLSslErrorData::parse()
+ACLSslErrorData::parse(Acl::ArgumentParser &parser)
 {
-    while (char *t = ConfigParser::strtokFile()) {
+    while (const auto t = parser.optionalValue()) {
         Ssl::ParseErrorString(t, values);
     }
 }

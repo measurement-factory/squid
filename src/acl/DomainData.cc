@@ -9,6 +9,7 @@
 /* DEBUG: section 28    Access Control */
 
 #include "squid.h"
+#include "acl/ArgumentParser.h"
 #include "acl/Checklist.h"
 #include "acl/DomainData.h"
 #include "anyp/Uri.h"
@@ -133,12 +134,12 @@ ACLDomainData::dump() const
 }
 
 void
-ACLDomainData::parse()
+ACLDomainData::parse(Acl::ArgumentParser &parser)
 {
     if (!domains)
         domains = new Splay<char *>();
 
-    while (char *t = ConfigParser::strtokFile()) {
+    while (auto t = parser.optionalValue()) {
         Tolower(t);
         domains->insert(xstrdup(t), aclDomainCompare);
     }

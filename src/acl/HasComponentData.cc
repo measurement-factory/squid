@@ -7,6 +7,7 @@
  */
 
 #include "squid.h"
+#include "acl/ArgumentParser.h"
 #include "acl/HasComponentData.h"
 #include "cache_cf.h"
 #include "ConfigParser.h"
@@ -21,9 +22,9 @@ ACLHasComponentData::ACLHasComponentData()
 { }
 
 void
-ACLHasComponentData::parse()
+ACLHasComponentData::parse(Acl::ArgumentParser &parser)
 {
-    const auto tok = ConfigParser::strtokFile();
+    const auto tok = parser.optionalValue();
     if (!tok) {
         debugs(28, DBG_CRITICAL, "FATAL: \"has\" acl argument missing");
         self_destruct();
@@ -32,7 +33,7 @@ ACLHasComponentData::parse()
 
     parseComponent(tok);
 
-    if (ConfigParser::strtokFile()) {
+    if (parser.optionalValue()) {
         debugs(28, DBG_CRITICAL, "FATAL: multiple components not supported for \"has\" acl");
         self_destruct();
         return;

@@ -25,7 +25,7 @@ Acl::NotNode::NotNode(ACL *acl)
 }
 
 void
-Acl::NotNode::parse()
+Acl::NotNode::parse(Acl::ArgumentParser &)
 {
     // Not implemented: by the time an upper level parser discovers
     // an '!' operator, there is nothing left for us to parse.
@@ -82,7 +82,7 @@ Acl::AndNode::doMatch(ACLChecklist *checklist, Nodes::const_iterator start) cons
 }
 
 void
-Acl::AndNode::parse()
+Acl::AndNode::parse(Acl::ArgumentParser &)
 {
     // Not implemented: AndNode cannot be configured directly. See Acl::AllOf.
     assert(false);
@@ -125,7 +125,7 @@ Acl::OrNode::doMatch(ACLChecklist *checklist, Nodes::const_iterator start) const
 }
 
 void
-Acl::OrNode::parse()
+Acl::OrNode::parse(Acl::ArgumentParser &)
 {
     // Not implemented: OrNode cannot be configured directly. See Acl::AnyOf.
     assert(false);

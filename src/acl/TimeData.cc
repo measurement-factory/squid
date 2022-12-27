@@ -9,6 +9,7 @@
 /* DEBUG: section 28    Access Control */
 
 #include "squid.h"
+#include "acl/ArgumentParser.h"
 #include "acl/Checklist.h"
 #include "acl/TimeData.h"
 #include "cache_cf.h"
@@ -89,7 +90,7 @@ ACLTimeData::dump() const
 }
 
 void
-ACLTimeData::parse()
+ACLTimeData::parse(Acl::ArgumentParser &parser)
 {
     ACLTimeData **Tail;
     long parsed_weekbits = 0;
@@ -99,7 +100,7 @@ ACLTimeData::parse()
 
     int h1, m1, h2, m2;
 
-    while (char *t = ConfigParser::strtokFile()) {
+    while (auto t = parser.optionalValue()) {
         if (*t < '0' || *t > '9') {
             /* assume its day-of-week spec */
 

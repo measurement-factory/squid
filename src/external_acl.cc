@@ -10,6 +10,7 @@
 
 #include "squid.h"
 #include "acl/Acl.h"
+#include "acl/ArgumentParser.h"
 #include "acl/FilledChecklist.h"
 #include "cache_cf.h"
 #include "client_side.h"
@@ -506,14 +507,14 @@ external_acl_data::~external_acl_data()
 }
 
 void
-ACLExternal::parse()
+ACLExternal::parse(Acl::ArgumentParser &parser)
 {
     if (data) {
         self_destruct();
         return;
     }
 
-    char *token = ConfigParser::strtokFile();
+    auto token = parser.optionalValue();
 
     if (!token) {
         self_destruct();
@@ -532,7 +533,7 @@ ACLExternal::parse()
     // this is the name of the 'acl' directive being tested
     data->name = xstrdup(AclMatchedName);
 
-    while ((token = ConfigParser::strtokFile())) {
+    while ((token = parser.optionalValue())) {
         wordlistAdd(&data->arguments, token);
     }
 }

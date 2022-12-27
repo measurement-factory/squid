@@ -9,6 +9,7 @@
 /* DEBUG: section 28    Access Control */
 
 #include "squid.h"
+#include "acl/ArgumentParser.h"
 #include "acl/FilledChecklist.h"
 #include "acl/HttpStatus.h"
 #include "debug/Stream.h"
@@ -16,7 +17,7 @@
 
 #include <climits>
 
-static void aclParseHTTPStatusList(Splay<acl_httpstatus_data *> **curlist);
+static void aclParseHTTPStatusList(Splay<acl_httpstatus_data *> **curlist, Acl::ArgumentParser &);
 static int aclHTTPStatusCompare(acl_httpstatus_data * const &a, acl_httpstatus_data * const &b);
 static int aclMatchHTTPStatus(Splay<acl_httpstatus_data*> **dataptr, Http::StatusCode status);
 
@@ -96,18 +97,18 @@ aclParseHTTPStatusData(const char *t)
 }
 
 void
-ACLHTTPStatus::parse()
+ACLHTTPStatus::parse(Acl::ArgumentParser &parser)
 {
     if (!data)
         data = new Splay<acl_httpstatus_data*>();
 
-    aclParseHTTPStatusList (&data);
+    aclParseHTTPStatusList (&data, parser);
 }
 
 void
-aclParseHTTPStatusList(Splay<acl_httpstatus_data *> **curlist)
+aclParseHTTPStatusList(Splay<acl_httpstatus_data *> **curlist, Acl::ArgumentParser &parser)
 {
-    while (char *t = ConfigParser::strtokFile()) {
+    while (const auto t = parser.optionalValue()) {
         if (acl_httpstatus_data *q = aclParseHTTPStatusData(t))
             (*curlist)->insert(q, acl_httpstatus_data::compare);
     }

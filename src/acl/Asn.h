@@ -32,7 +32,7 @@ public:
 
     virtual bool match(Ip::Address);
     virtual SBufList dump() const;
-    virtual void parse();
+    virtual void parse(Acl::ArgumentParser &);
     bool empty() const;
     virtual void prepareForUse();
 

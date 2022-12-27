@@ -22,7 +22,7 @@ class AnyOf: public Acl::OrNode
 public:
     /* ACL API */
     virtual char const *typeString() const;
-    virtual void parse();
+    virtual void parse(Acl::ArgumentParser &);
 };
 
 } // namespace Acl

@@ -9,6 +9,7 @@
 /* DEBUG: section 28    Access Control */
 
 #include "squid.h"
+#include "acl/ArgumentParser.h"
 #include "acl/FilledChecklist.h"
 #include "acl/TransactionInitiator.h"
 #include "cache_cf.h"
@@ -33,9 +34,9 @@ Acl::TransactionInitiator::empty () const
 }
 
 void
-Acl::TransactionInitiator::parse()
+Acl::TransactionInitiator::parse(Acl::ArgumentParser &parser)
 {
-    while (const char *s = ConfigParser::strtokFile()) {
+    while (const auto s = parser.optionalValue()) {
         initiators_ |= XactionInitiator::ParseInitiators(s);
         cfgWords.push_back(SBuf(s));
     }

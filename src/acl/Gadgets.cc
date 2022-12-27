@@ -19,6 +19,7 @@
 #include "squid.h"
 #include "acl/Acl.h"
 #include "acl/AclDenyInfoList.h"
+#include "acl/ArgumentParser.h"
 #include "acl/Checklist.h"
 #include "acl/Gadgets.h"
 #include "acl/Strategised.h"
@@ -135,7 +136,7 @@ aclParseDenyInfoLine(AclDenyInfoList ** head)
 }
 
 void
-aclParseAccessLine(const char *directive, ConfigParser &, acl_access **treep)
+aclParseAccessLine(const char *directive, ConfigParser &parser, acl_access **treep)
 {
     /* first expect either 'allow' or 'deny' */
     const char *t = ConfigParser::NextToken();
@@ -165,7 +166,8 @@ aclParseAccessLine(const char *directive, ConfigParser &, acl_access **treep)
 
     Acl::AndNode *rule = new Acl::AndNode;
     rule->context(ctxBuf.content(), config_input_line);
-    rule->lineParse();
+    Acl::ArgumentParser argumentParser(parser, *rule);
+    rule->lineParse(argumentParser);
     if (rule->empty()) {
         debugs(28, DBG_CRITICAL, "aclParseAccessLine: " << cfg_filename << " line " << config_lineno << ": " << config_input_line);
         debugs(28, DBG_CRITICAL, "aclParseAccessLine: Access line contains no ACL's, skipping");
@@ -188,7 +190,7 @@ aclParseAccessLine(const char *directive, ConfigParser &, acl_access **treep)
 
 // aclParseAclList does not expect or set actions (cf. aclParseAccessLine)
 size_t
-aclParseAclList(ConfigParser &, Acl::Tree **treep, const char *label)
+aclParseAclList(ConfigParser &parser, Acl::Tree **treep, const char *label)
 {
     // accommodate callers unable to convert their ACL list context to string
     if (!label)
@@ -201,7 +203,8 @@ aclParseAclList(ConfigParser &, Acl::Tree **treep, const char *label)
 
     Acl::AndNode *rule = new Acl::AndNode;
     rule->context(ctxLine.content(), config_input_line);
-    const auto aclCount = rule->lineParse();
+    Acl::ArgumentParser argumentParser(parser, *rule);
+    const auto aclCount = rule->lineParse(argumentParser);
 
     MemBuf ctxTree;
     ctxTree.init();

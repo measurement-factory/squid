@@ -10,6 +10,7 @@
 
 #include "squid.h"
 #include "acl/Acl.h"
+#include "acl/ArgumentParser.h"
 #include "acl/Checklist.h"
 #include "acl/Gadgets.h"
 #include "acl/Options.h"
@@ -251,7 +252,8 @@ ACL::ParseAclLine(ConfigParser &parser, ACL ** head)
     A->parseFlags();
 
     /*split the function here */
-    A->parse();
+    Acl::ArgumentParser argumentParser(parser, *A);
+    A->parse(argumentParser);
 
     /*
      * Clear AclMatchedName from our temporary hack

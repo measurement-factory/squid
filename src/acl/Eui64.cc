@@ -12,6 +12,7 @@
 
 #if USE_SQUID_EUI
 
+#include "acl/ArgumentParser.h"
 #include "acl/Eui64.h"
 #include "acl/FilledChecklist.h"
 #include "cache_cf.h"
@@ -62,9 +63,9 @@ aclParseEuiData(const char *t)
 /* aclParseEuiList */
 /*******************/
 void
-ACLEui64::parse()
+ACLEui64::parse(Acl::ArgumentParser &parser)
 {
-    while (const char * t = ConfigParser::strtokFile()) {
+    while (const auto t = parser.optionalValue()) {
         if (Eui::Eui64 * q = aclParseEuiData(t)) {
             eui64Data.insert(*q);
             delete q;

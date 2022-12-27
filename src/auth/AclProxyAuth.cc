@@ -44,9 +44,9 @@ ACLProxyAuth::lineOptions()
 }
 
 void
-ACLProxyAuth::parse()
+ACLProxyAuth::parse(Acl::ArgumentParser &parser)
 {
-    data->parse();
+    data->parse(parser);
 }
 
 int

@@ -9,6 +9,7 @@
 /* DEBUG: section 28    Access Control */
 
 #include "squid.h"
+#include "acl/ArgumentParser.h"
 #include "acl/Checklist.h"
 #include "acl/StringData.h"
 #include "ConfigParser.h"
@@ -50,9 +51,9 @@ ACLStringData::dump() const
 }
 
 void
-ACLStringData::parse()
+ACLStringData::parse(Acl::ArgumentParser &parser)
 {
-    while (const char *t = ConfigParser::strtokFile())
+    while (const auto t = parser.optionalValue())
         stringValues.insert(SBuf(t));
 }
 

@@ -9,6 +9,7 @@
 /* DEBUG: section 28    Access Control */
 
 #include "squid.h"
+#include "acl/ArgumentParser.h"
 #include "acl/CertificateData.h"
 #include "acl/Checklist.h"
 #include "cache_cf.h"
@@ -75,10 +76,10 @@ ACLCertificateData::dump() const
 }
 
 void
-ACLCertificateData::parse()
+ACLCertificateData::parse(Acl::ArgumentParser &parser)
 {
     if (validAttributesStr) {
-        char *newAttribute = ConfigParser::strtokFile();
+        auto newAttribute = parser.optionalValue();
 
         if (!newAttribute) {
             if (!attributeIsOptional) {
@@ -141,7 +142,7 @@ ACLCertificateData::parse()
         }
     }
 
-    values.parse();
+    values.parse(parser);
 }
 
 bool

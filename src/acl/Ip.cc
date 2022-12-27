@@ -9,6 +9,7 @@
 /* DEBUG: section 28    Access Control */
 
 #include "squid.h"
+#include "acl/ArgumentParser.h"
 #include "acl/Checklist.h"
 #include "acl/Ip.h"
 #include "cache_cf.h"
@@ -472,12 +473,12 @@ acl_ip_data::FactoryParse(const char *t)
 }
 
 void
-ACLIP::parse()
+ACLIP::parse(Acl::ArgumentParser &parser)
 {
     if (data == nullptr)
         data = new IPSplay();
 
-    while (char *t = ConfigParser::strtokFile()) {
+    while (const auto t = parser.optionalValue()) {
         acl_ip_data *q = acl_ip_data::FactoryParse(t);
 
         while (q != nullptr) {

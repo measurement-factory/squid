@@ -17,7 +17,7 @@
 void parse_externalAclHelper(external_acl ** ) STUB
 void dump_externalAclHelper(StoreEntry *, const char *, const external_acl *) STUB
 void free_externalAclHelper(external_acl **) STUB
-void ACLExternal::parse() STUB
+void ACLExternal::parse(Acl::ArgumentParser &) STUB
 bool ACLExternal::valid () const STUB_RETVAL(false)
 bool ACLExternal::empty () const STUB_RETVAL(false)
 int ACLExternal::match(ACLChecklist *) STUB_RETVAL(0)

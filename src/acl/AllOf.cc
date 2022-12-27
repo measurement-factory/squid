@@ -43,7 +43,7 @@ Acl::AllOf::doMatch(ACLChecklist *checklist, Nodes::const_iterator start) const
 
 // called once per "acl name all-of name1 name2 ...." line
 void
-Acl::AllOf::parse()
+Acl::AllOf::parse(Acl::ArgumentParser &parser)
 {
     Acl::InnerNode *whole = nullptr;
     ACL *oldNode = empty() ? nullptr : nodes.front();
@@ -79,7 +79,7 @@ Acl::AllOf::parse()
 
     Acl::AndNode *line = new AndNode;
     line->context(lineCtx.content(), config_input_line);
-    line->lineParse();
+    line->lineParse(parser);
 
     whole->add(line);
 }

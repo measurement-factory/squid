@@ -10,6 +10,7 @@
 #define SQUID_ACLINTRANGE_H
 
 #include "acl/Data.h"
+#include "acl/forward.h"
 #include "base/Range.h"
 
 #include <list>
@@ -23,7 +24,7 @@ public:
     virtual ~ACLIntRange();
     virtual bool match(int);
     virtual SBufList dump() const;
-    virtual void parse();
+    virtual void parse(Acl::ArgumentParser &);
     virtual bool empty() const;
 
 private:

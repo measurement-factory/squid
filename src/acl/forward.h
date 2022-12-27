@@ -11,6 +11,8 @@
 
 #include "base/RefCount.h"
 
+#include <vector>
+
 class ACL;
 class ACLChecklist;
 class ACLFilledChecklist;
@@ -25,11 +27,15 @@ namespace Acl
 class Address;
 class AndNode;
 class Answer;
+class ArgumentParser;
 class ChecklistFiller;
 class InnerNode;
 class NotNode;
+class Option;
 class OrNode;
 class Tree;
+
+using Options = std::vector<const Option *>;
 
 /// prepares to parse ACLs configuration
 void Init(void);

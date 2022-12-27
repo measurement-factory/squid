@@ -9,6 +9,7 @@
 /* DEBUG: section 28    Access Control */
 
 #include "squid.h"
+#include "acl/ArgumentParser.h"
 #include "acl/ConnectionsEncrypted.h"
 #include "acl/FilledChecklist.h"
 #include "debug/Stream.h"
@@ -35,9 +36,9 @@ Acl::ConnectionsEncrypted::empty () const
 }
 
 void
-Acl::ConnectionsEncrypted::parse()
+Acl::ConnectionsEncrypted::parse(Acl::ArgumentParser &parser)
 {
-    if (ConfigParser::strtokFile()) {
+    if (parser.optionalValue()) {
         debugs(89, DBG_CRITICAL, "WARNING: connections_encrypted does not accept any value.");
     }
 }

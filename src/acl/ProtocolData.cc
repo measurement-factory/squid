@@ -9,6 +9,7 @@
 /* DEBUG: section 28    Access Control */
 
 #include "squid.h"
+#include "acl/ArgumentParser.h"
 #include "acl/Checklist.h"
 #include "acl/ProtocolData.h"
 #include "ConfigParser.h"
@@ -46,9 +47,9 @@ ACLProtocolData::dump() const
 }
 
 void
-ACLProtocolData::parse()
+ACLProtocolData::parse(Acl::ArgumentParser &parser)
 {
-    while (char *t = ConfigParser::strtokFile()) {
+    while (const auto t = parser.optionalValue()) {
         int p = AnyP::PROTO_NONE;
         for (; p < AnyP::PROTO_UNKNOWN; ++p) {
             if (strcasecmp(t, AnyP::ProtocolType_str[p]) == 0) {

@@ -10,6 +10,7 @@
 
 #include "squid.h"
 #include "acl/Acl.h"
+#include "acl/ArgumentParser.h"
 #include "acl/Checklist.h"
 #include "acl/HttpHeaderData.h"
 #include "acl/RegexData.h"
@@ -73,11 +74,11 @@ ACLHTTPHeaderData::lineOptions()
 }
 
 void
-ACLHTTPHeaderData::parse()
+ACLHTTPHeaderData::parse(Acl::ArgumentParser &parser)
 {
-    ConfigParser::SetAclKey(hdrName, "header-name");
+    parser.setAclKey(hdrName, "header-name");
     hdrId = Http::HeaderLookupTable.lookup(hdrName).id;
-    regex_rule->parse();
+    regex_rule->parse(parser);
 }
 
 bool

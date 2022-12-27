@@ -9,6 +9,7 @@
 /* DEBUG: section 28    Access Control */
 
 #include "squid.h"
+#include "acl/ArgumentParser.h"
 #include "acl/Checklist.h"
 #include "acl/Options.h"
 #include "acl/UserData.h"
@@ -88,13 +89,13 @@ ACLUserData::lineOptions()
 }
 
 void
-ACLUserData::parse()
+ACLUserData::parse(Acl::ArgumentParser &parser)
 {
     debugs(28, 2, "parsing user list");
     flags.case_insensitive = bool(CaseInsensitive_);
 
     char *t = nullptr;
-    if ((t = ConfigParser::strtokFile())) {
+    if ((t = parser.optionalValueOrMiddleOption())) {
         SBuf s(t);
         debugs(28, 5, "first token is " << s);
 
@@ -123,7 +124,7 @@ ACLUserData::parse()
 
     debugs(28, 4, "parsing following tokens");
 
-    while ((t = ConfigParser::strtokFile())) {
+    while ((t = parser.optionalValueOrMiddleOption())) {
         SBuf s(t);
         debugs(28, 6, "Got token: " << s);
 

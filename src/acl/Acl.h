@@ -64,7 +64,7 @@ public:
     void parseFlags();
 
     /// parses node representation in squid.conf; dies on failures
-    virtual void parse() = 0;
+    virtual void parse(Acl::ArgumentParser &parser) = 0;
     virtual char const *typeString() const = 0;
     virtual bool isProxyAuth() const;
     virtual SBufList dump() const = 0;
@@ -101,6 +101,8 @@ private:
     /// \returns (linked) "line" Options supported by this ACL
     /// \see ACL::options()
     virtual const Acl::Options &lineOptions() { return Acl::NoOptions(); }
+
+    friend class Acl::ArgumentParser;
 };
 
 /// \ingroup ACLAPI

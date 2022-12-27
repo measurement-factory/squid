@@ -86,26 +86,12 @@ public:
     static void ParseWordList(wordlist **list);
 
     /**
-     * Backward compatibility wrapper for the ConfigParser::NextToken method.
-     * If the configuration_includes_quoted_values configuration parameter is
-     * set to 'off' this interprets the quoted tokens as filenames.
-     */
-    static char * strtokFile();
-
-    /**
      * Returns the body of the next element. The element is either a token or
      * a quoted string with optional escape sequences and/or macros. The body
      * of a quoted string element does not include quotes or escape sequences.
      * Future code will want to see Elements and not just their bodies.
      */
     static char *NextToken();
-
-    /**
-     * Backward compatibility wrapper for ConfigParser::RegexPattern method.
-     * If the configuration_includes_quoted_values configuration parameter is
-     * set to 'off' this interprets the quoted tokens as filenames.
-     */
-    static char *RegexStrtokFile();
 
     /**
      * Parse the next token with support for quoted values enabled even if
@@ -137,7 +123,7 @@ public:
     static void SetAclKey(SBuf &keyStorage, const char *keyParameterName);
 
     /**
-     * Preview the next token. The next NextToken() and strtokFile() call
+     * Preview the next token. The next NextToken() and NextElement() call
      * will return the same token.
      * On parse error (eg invalid characters in token) will return an
      * error message as token.
@@ -237,6 +223,8 @@ protected:
     static bool PreviewMode_; ///< The next token will not popped from cfg files, will just previewd.
     static bool ParseKvPair_; ///<The next token will be handled as kv-pair token
     static enum ParsingStates {atParseKey, atParseValue} KvPairState_; ///< Parsing state while parsing kv-pair tokens
+
+    friend class Acl::ArgumentParser;
 };
 
 int parseConfigFile(const char *file_name);

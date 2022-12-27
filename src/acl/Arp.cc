@@ -12,6 +12,7 @@
 
 #if USE_SQUID_EUI
 
+#include "acl/ArgumentParser.h"
 #include "acl/Arp.h"
 #include "acl/FilledChecklist.h"
 #include "cache_cf.h"
@@ -90,9 +91,9 @@ aclParseArpData(const char *t)
 /* aclParseArpList */
 /*******************/
 void
-ACLARP::parse()
+ACLARP::parse(Acl::ArgumentParser &parser)
 {
-    while (const char *t = ConfigParser::strtokFile()) {
+    while (const auto t = parser.optionalValue()) {
         if (Eui::Eui48 *q = aclParseArpData(t)) {
             aclArpData.insert(*q);
             delete q;

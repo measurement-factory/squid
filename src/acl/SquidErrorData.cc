@@ -7,6 +7,7 @@
  */
 
 #include "squid.h"
+#include "acl/ArgumentParser.h"
 #include "acl/Data.h"
 #include "acl/SquidErrorData.h"
 #include "cache_cf.h"
@@ -45,9 +46,9 @@ ACLSquidErrorData::dump() const
 }
 
 void
-ACLSquidErrorData::parse()
+ACLSquidErrorData::parse(Acl::ArgumentParser &parser)
 {
-    while (const auto token = ConfigParser::strtokFile()) {
+    while (const auto token = parser.optionalValue()) {
         err_type err = errorTypeByName(token);
 
         if (err < ERR_MAX)

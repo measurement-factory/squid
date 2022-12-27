@@ -9,6 +9,7 @@
 /* DEBUG: section 28    Access Control */
 
 #include "squid.h"
+#include "acl/ArgumentParser.h"
 #include "acl/FilledChecklist.h"
 #include "acl/MaxConnection.h"
 #include "client_db.h"
@@ -40,9 +41,9 @@ ACLMaxConnection::valid () const
 }
 
 void
-ACLMaxConnection::parse()
+ACLMaxConnection::parse(Acl::ArgumentParser &parser)
 {
-    char *t = ConfigParser::strtokFile();
+    auto t = parser.optionalValue();
 
     if (!t)
         return;
@@ -52,7 +53,7 @@ ACLMaxConnection::parse()
     /* suck out file contents */
     // ignore comments
     bool ignore = false;
-    while ((t = ConfigParser::strtokFile())) {
+    while ((t = parser.optionalValue())) {
         ignore |= (*t != '#');
 
         if (ignore)

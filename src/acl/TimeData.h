@@ -21,7 +21,7 @@ public:
     virtual ~ACLTimeData();
     bool match(time_t);
     virtual SBufList dump() const;
-    void parse();
+    void parse(Acl::ArgumentParser &);
     bool empty() const;
 
 private:

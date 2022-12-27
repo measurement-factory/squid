@@ -29,7 +29,7 @@ public:
 private:
     /* ACL API */
     virtual char const *typeString() const;
-    virtual void parse();
+    virtual void parse(Acl::ArgumentParser &);
     virtual SBufList dump() const;
 
     /* Acl::InnerNode API */
@@ -46,7 +46,7 @@ class AndNode: public InnerNode
 public:
     /* ACL API */
     virtual char const *typeString() const;
-    virtual void parse();
+    virtual void parse(Acl::ArgumentParser &);
 
 private:
     virtual int doMatch(ACLChecklist *checklist, Nodes::const_iterator start) const;
@@ -66,7 +66,7 @@ public:
 
     /* ACL API */
     virtual char const *typeString() const;
-    virtual void parse();
+    virtual void parse(Acl::ArgumentParser &);
 
 protected:
     mutable Nodes::const_iterator lastMatch_;

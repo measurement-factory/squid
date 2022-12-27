@@ -9,6 +9,7 @@
 /* DEBUG: section 28    Access Control */
 
 #include "squid.h"
+#include "acl/ArgumentParser.h"
 #include "acl/Checklist.h"
 #include "acl/MethodData.h"
 #include "ConfigParser.h"
@@ -47,9 +48,9 @@ ACLMethodData::dump() const
 }
 
 void
-ACLMethodData::parse()
+ACLMethodData::parse(Acl::ArgumentParser &parser)
 {
-    while (char *t = ConfigParser::strtokFile()) {
+    while (const auto t = parser.optionalValue()) {
         HttpRequestMethod m;
         m.HttpRequestMethodXXX(t);
         values.push_back(m);

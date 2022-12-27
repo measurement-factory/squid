@@ -9,6 +9,7 @@
 /* DEBUG: section 28    Access Control */
 
 #include "squid.h"
+#include "acl/ArgumentParser.h"
 #include "acl/IntRange.h"
 #include "cache_cf.h"
 #include "ConfigParser.h"
@@ -17,9 +18,9 @@
 #include "Parsing.h"
 
 void
-ACLIntRange::parse()
+ACLIntRange::parse(Acl::ArgumentParser &parser)
 {
-    while (char *a = ConfigParser::strtokFile()) {
+    while (const auto a = parser.optionalValue()) {
         char *b = strchr(a, '-');
         unsigned short port1, port2;
 

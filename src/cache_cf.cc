@@ -13,6 +13,7 @@
 #include "acl/AclDenyInfoList.h"
 #include "acl/AclSizeLimit.h"
 #include "acl/Address.h"
+#include "acl/ArgumentParser.h"
 #include "acl/Gadgets.h"
 #include "acl/MethodData.h"
 #include "acl/Tree.h"
@@ -2026,10 +2027,12 @@ ParseAclWithAction(acl_access **access, const Acl::Answer &action, const char *d
     Acl::AndNode *rule = new Acl::AndNode;
     name.Printf("(%s rule)", desc);
     rule->context(name.c_str(), config_input_line);
-    if (acl)
+    if (acl) {
         rule->add(acl);
-    else
-        rule->lineParse();
+    } else {
+        Acl::ArgumentParser argumentParser(LegacyParser, *rule);
+        rule->lineParse(argumentParser);
+    }
     (*access)->add(rule, action);
 }
 

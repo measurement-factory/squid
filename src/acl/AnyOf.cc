@@ -19,8 +19,8 @@ Acl::AnyOf::typeString() const
 // but since multiple lines are ORed, the line boundary does not matter,
 // so we flatten the tree into one line/level here to minimize overheads
 void
-Acl::AnyOf::parse()
+Acl::AnyOf::parse(Acl::ArgumentParser &parser)
 {
-    lineParse();
+    lineParse(parser);
 }
 

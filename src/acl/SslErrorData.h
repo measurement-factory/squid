@@ -22,7 +22,7 @@ public:
     virtual ~ACLSslErrorData() {}
     bool match(const Security::CertErrors *);
     virtual SBufList dump() const;
-    void parse();
+    void parse(Acl::ArgumentParser &);
     bool empty() const { return values.empty(); }
 
     Security::Errors values;

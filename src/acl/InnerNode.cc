@@ -8,6 +8,7 @@
 
 #include "squid.h"
 #include "acl/Acl.h"
+#include "acl/ArgumentParser.h"
 #include "acl/BoolOps.h"
 #include "acl/Checklist.h"
 #include "acl/Gadgets.h"
@@ -41,7 +42,7 @@ Acl::InnerNode::add(ACL *node)
 
 // kids use this method to handle [multiple] parse() calls correctly
 size_t
-Acl::InnerNode::lineParse()
+Acl::InnerNode::lineParse(Acl::ArgumentParser &parser)
 {
     // XXX: not precise, may change when looping or parsing multiple lines
     if (!cfgline)
@@ -50,7 +51,7 @@ Acl::InnerNode::lineParse()
     // expect a list of ACL names, each possibly preceded by '!' for negation
 
     size_t count = 0;
-    while (const char *t = ConfigParser::strtokFile()) {
+    while (auto t = parser.optionalValue()) {
         const bool negated = (*t == '!');
         if (negated)
             ++t;

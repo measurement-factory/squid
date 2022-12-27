@@ -13,7 +13,6 @@
 #include "sbuf/forward.h"
 
 #include <iosfwd>
-#include <vector>
 
 // After line continuation is handled by the preprocessor, an ACL object
 // configuration can be visualized as a sequence of same-name "acl ..." lines:
@@ -210,8 +209,6 @@ BooleanOption::import(const SBuf &) const
 {
     assert(!"boolean options do not have ...=values (for now)");
 }
-
-using Options = std::vector<const Option *>;
 
 /// parses the flags part of the being-parsed ACL, filling Option values
 /// \param options options supported by the ACL as a whole (e.g., -n)

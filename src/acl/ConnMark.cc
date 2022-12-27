@@ -9,6 +9,7 @@
 /* DEBUG: section 28    Access Control */
 
 #include "squid.h"
+#include "acl/ArgumentParser.h"
 #include "acl/ConnMark.h"
 #include "acl/FilledChecklist.h"
 #include "base/IoManip.h"
@@ -24,9 +25,9 @@ Acl::ConnMark::empty() const
 }
 
 void
-Acl::ConnMark::parse()
+Acl::ConnMark::parse(Acl::ArgumentParser &parser)
 {
-    while (const char *t = ConfigParser::strtokFile()) {
+    while (const auto t = parser.optionalValue()) {
         SBuf token(t);
         Parser::Tokenizer tokenizer(token);
         const auto mc = Ip::NfMarkConfig::Parse(token);
