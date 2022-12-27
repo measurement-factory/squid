@@ -241,6 +241,9 @@ public:
     /// Side effect: Warns about multiple same-name notes.
     const char *useFirst(const char *noteKey) const;
 
+    /// inform the admin about any unused entries
+    void checkForUnused() const;
+
     /// Adds a note key and value to the notes list.
     /// If the key name already exists in the list, add the given value to its set
     /// of values.

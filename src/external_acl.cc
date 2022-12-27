@@ -968,6 +968,10 @@ externalAclHandleReply(void *data, const Helper::Reply &reply)
 
     entryData.notes.append(&reply.notes);
 
+    // Mark this annotations as recognized. If everything goes well, its _copy_
+    // (see XXX and append() above) will be used later, in UpdateRequestNotes().
+    (void)reply.notes.useFirst("clt_conn_tag");
+
     const char *label = reply.notes.useFirst("tag");
     if (label != nullptr && *label != '\0')
         entryData.tag = label;

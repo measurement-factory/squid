@@ -332,6 +332,25 @@ NotePairs::useFirst(const char * const noteKey) const
 }
 
 void
+NotePairs::checkForUnused() const
+{
+    for (const auto &e: entries) {
+        if (e->used())
+            continue;
+
+        if (!e->name().isEmpty() && *e->name().rbegin() == '_')
+            continue; // reserved for admin use which may happen later
+
+        debugs(84, DBG_IMPORTANT, "WARNING: Unsupported or unexpected helper annotation with a name reserved for Squid use: " <<
+               e->name() << '=' << e->value() <<
+               Debug::Extra << "advice: If this is a custom annotation, rename it to add a trailing underscore: " <<
+               e->name() << '_');
+
+        // continue to warn about other unused annotations
+    }
+}
+
+void
 NotePairs::add(const char *key, const char *note)
 {
     entries.push_back(new NotePairs::Entry(key, note));

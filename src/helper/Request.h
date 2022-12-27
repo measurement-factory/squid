@@ -44,12 +44,11 @@ public:
 
         assert(callback_);
 
-        // TODO: Warn about unused recognized annotations:
-        // reply.notes.checkForUnused();
-
         const auto cb = callback_;
         callback_ = nullptr;
         cb(validatedCbdata, reply);
+
+        reply.notes.checkForUnused();
     }
 
     char *buf;
