@@ -297,14 +297,18 @@ Auth::Negotiate::UserRequest::HandleReply(void *data, const Helper::Reply &reply
     else
         assert(reply.reservationId == lm_request->reservationId);
 
+    NotePairs replyNotes;
+    replyNotes.append(&reply.notes);
+
     switch (reply.result) {
     case Helper::TT:
         /* we have been given a blob to send to the client */
         safe_free(lm_request->server_blob);
         lm_request->request->flags.mustKeepalive = true;
         if (lm_request->request->flags.proxyKeepalive) {
-            const char *tokenNote = reply.notes.findFirst("token");
-            lm_request->server_blob = xstrdup(tokenNote);
+            auto tokenNote = replyNotes.findFirstAndRemove("token");
+            if (tokenNote.length())
+                lm_request->server_blob = xstrdup(tokenNote.c_str());
             auth_user_request->user()->credentials(Auth::Handshake);
             auth_user_request->setDenyMessage("Authentication in progress");
             debugs(29, 4, "Need to challenge the client with a server token: '" << tokenNote << "'");
@@ -315,9 +319,9 @@ Auth::Negotiate::UserRequest::HandleReply(void *data, const Helper::Reply &reply
         break;
 
     case Helper::Okay: {
-        const char *userNote = reply.notes.findFirst("user");
-        const char *tokenNote = reply.notes.findFirst("token");
-        if (userNote == nullptr || tokenNote == nullptr) {
+        auto userNote = replyNotes.findFirstAndRemove("user");
+        auto tokenNote = replyNotes.findFirstAndRemove("token");
+        if (userNote.isEmpty() || tokenNote.isEmpty()) {
             // XXX: handle a success with no username better
             /* protocol error */
             fatalf("authenticateNegotiateHandleReply: *** Unsupported helper response ***, '%s'\n", reply.other().content());
@@ -325,10 +329,10 @@ Auth::Negotiate::UserRequest::HandleReply(void *data, const Helper::Reply &reply
         }
 
         /* we're finished, release the helper */
-        auth_user_request->user()->username(userNote);
+        auth_user_request->user()->username(userNote.c_str());
         auth_user_request->setDenyMessage("Login successful");
         safe_free(lm_request->server_blob);
-        lm_request->server_blob = xstrdup(tokenNote);
+        lm_request->server_blob = xstrdup(tokenNote.c_str());
         lm_request->releaseAuthServer();
 
         /* connection is authenticated */
@@ -355,16 +359,18 @@ Auth::Negotiate::UserRequest::HandleReply(void *data, const Helper::Reply &reply
     }
     break;
 
-    case Helper::Error:
+    case Helper::Error: {
         /* authentication failure (wrong password, etc.) */
-        auth_user_request->denyMessageFromHelper("Negotiate", reply);
+        auth_user_request->denyMessageFromHelper("Negotiate", replyNotes);
         auth_user_request->user()->credentials(Auth::Failed);
         safe_free(lm_request->server_blob);
-        if (const char *tokenNote = reply.notes.findFirst("token"))
-            lm_request->server_blob = xstrdup(tokenNote);
+        auto tokenNote = replyNotes.findFirstAndRemove("token");
+        if (tokenNote.length())
+            lm_request->server_blob = xstrdup(tokenNote.c_str());
         lm_request->releaseAuthServer();
         debugs(29, 4, "Failed validating user via Negotiate. Result: " << reply);
-        break;
+    }
+    break;
 
     case Helper::Unknown:
         debugs(29, DBG_IMPORTANT, "ERROR: Negotiate Authentication Helper crashed (" << reply.reservationId << ")");
@@ -380,13 +386,15 @@ Auth::Negotiate::UserRequest::HandleReply(void *data, const Helper::Reply &reply
         if (reply.result == Helper::Unknown)
             auth_user_request->setDenyMessage("Internal Error");
         else
-            auth_user_request->denyMessageFromHelper("Negotiate", reply);
+            auth_user_request->denyMessageFromHelper("Negotiate", replyNotes);
         auth_user_request->user()->credentials(Auth::Failed);
         safe_free(lm_request->server_blob);
         lm_request->releaseAuthServer();
         debugs(29, DBG_IMPORTANT, "ERROR: Negotiate Authentication validating user. Result: " << reply);
         break;
     }
+
+    Helper::checkForUnsupportedAnnotations(replyNotes, "negotiate");
 
     if (lm_request->request) {
         HTTPMSGUNLOCK(lm_request->request);

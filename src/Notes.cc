@@ -302,6 +302,26 @@ NotePairs::findFirst(const char *noteKey) const
     return nullptr;
 }
 
+SBuf
+NotePairs::findFirstAndRemove(const char *noteKey)
+{
+    SBuf result;
+    for (const auto &e: entries)
+        if (!e->name().cmp(noteKey))
+            result = e->value();
+    remove(noteKey);
+    return result;
+}
+
+SBuf
+NotePairs::findAndRemove(const char *noteKey)
+{
+    SBuf result;
+    if (find(result, noteKey))
+        remove(noteKey);
+    return result;
+}
+
 void
 NotePairs::add(const char *key, const char *note)
 {

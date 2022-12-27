@@ -291,14 +291,17 @@ Auth::Ntlm::UserRequest::HandleReply(void *data, const Helper::Reply &reply)
     else
         assert(lm_request->reservationId == reply.reservationId);
 
+    NotePairs replyNotes;
+    replyNotes.append(&reply.notes);
     switch (reply.result) {
     case Helper::TT:
         /* we have been given a blob to send to the client */
         safe_free(lm_request->server_blob);
         lm_request->request->flags.mustKeepalive = true;
         if (lm_request->request->flags.proxyKeepalive) {
-            const char *serverBlob = reply.notes.findFirst("token");
-            lm_request->server_blob = xstrdup(serverBlob);
+            auto serverBlob = replyNotes.findFirstAndRemove("token");
+            if (serverBlob.length())
+                lm_request->server_blob = xstrdup(serverBlob.c_str());
             auth_user_request->user()->credentials(Auth::Handshake);
             auth_user_request->setDenyMessage("Authentication in progress");
             debugs(29, 4, "Need to challenge the client with a server token: '" << serverBlob << "'");
@@ -310,15 +313,15 @@ Auth::Ntlm::UserRequest::HandleReply(void *data, const Helper::Reply &reply)
 
     case Helper::Okay: {
         /* we're finished, release the helper */
-        const char *userLabel = reply.notes.findFirst("user");
-        if (!userLabel) {
+        auto userLabel = replyNotes.findFirstAndRemove("user");
+        if (userLabel.isEmpty()) {
             auth_user_request->user()->credentials(Auth::Failed);
             safe_free(lm_request->server_blob);
             lm_request->releaseAuthServer();
             debugs(29, DBG_CRITICAL, "ERROR: NTLM Authentication helper returned no username. Result: " << reply);
             break;
         }
-        auth_user_request->user()->username(userLabel);
+        auth_user_request->user()->username(userLabel.c_str());
         auth_user_request->setDenyMessage("Login successful");
         safe_free(lm_request->server_blob);
         lm_request->releaseAuthServer();
@@ -351,7 +354,7 @@ Auth::Ntlm::UserRequest::HandleReply(void *data, const Helper::Reply &reply)
 
     case Helper::Error:
         /* authentication failure (wrong password, etc.) */
-        auth_user_request->denyMessageFromHelper("NTLM", reply);
+        auth_user_request->denyMessageFromHelper("NTLM", replyNotes);
         auth_user_request->user()->credentials(Auth::Failed);
         safe_free(lm_request->server_blob);
         lm_request->releaseAuthServer();
@@ -372,13 +375,15 @@ Auth::Ntlm::UserRequest::HandleReply(void *data, const Helper::Reply &reply)
         if (reply.result == Helper::Unknown)
             auth_user_request->setDenyMessage("Internal Error");
         else
-            auth_user_request->denyMessageFromHelper("NTLM", reply);
+            auth_user_request->denyMessageFromHelper("NTLM", replyNotes);
         auth_user_request->user()->credentials(Auth::Failed);
         safe_free(lm_request->server_blob);
         lm_request->releaseAuthServer();
         debugs(29, DBG_IMPORTANT, "ERROR: NTLM Authentication validating user. Result: " << reply);
         break;
     }
+
+    Helper::checkForUnsupportedAnnotations(replyNotes, "NTLM");
 
     if (lm_request->request) {
         HTTPMSGUNLOCK(lm_request->request);

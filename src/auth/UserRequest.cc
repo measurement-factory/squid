@@ -561,10 +561,10 @@ Auth::UserRequest::helperRequestKeyExtras(HttpRequest *request, AccessLogEntry::
 }
 
 void
-Auth::UserRequest::denyMessageFromHelper(const char *proto, const Helper::Reply &reply)
+Auth::UserRequest::denyMessageFromHelper(const char *proto, NotePairs &replyNotes)
 {
-    static SBuf messageNote;
-    if (!reply.notes.find(messageNote, "message")) {
+    auto messageNote = replyNotes.findAndRemove("message");
+    if (messageNote.isEmpty()) {
         messageNote.append(proto);
         messageNote.append(" Authentication denied with no reason given");
     }
