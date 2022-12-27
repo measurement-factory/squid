@@ -764,7 +764,7 @@ UpdateRequestNotes(ConnStateData *csd, HttpRequest &request, NotePairs const &he
 {
     // Tag client connection if the helper responded with clt_conn_tag=tag.
     const char *cltTag = "clt_conn_tag";
-    if (const char *connTag = helperNotes.findFirst(cltTag)) {
+    if (const char *connTag = helperNotes.useFirst(cltTag)) {
         if (csd) {
             csd->notes()->remove(cltTag);
             csd->notes()->add(cltTag, connTag);

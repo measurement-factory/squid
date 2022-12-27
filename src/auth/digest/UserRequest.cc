@@ -345,7 +345,7 @@ Auth::Digest::UserRequest::HandleReply(void *data, const Helper::Reply &reply)
         Auth::Digest::User *digest_user = dynamic_cast<Auth::Digest::User *>(auth_user_request->user().getRaw());
         assert(digest_user != nullptr);
 
-        if (const char *ha1Note = reply.notes.findFirst("ha1")) {
+        if (const char *ha1Note = reply.notes.useFirst("ha1")) {
             CvtBin(ha1Note, digest_user->HA1);
             digest_user->HA1created = 1;
         } else {

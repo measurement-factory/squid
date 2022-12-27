@@ -1181,8 +1181,8 @@ ClientRequestContext::clientRedirectDone(const Helper::Reply &reply)
         // #2: redirect with a default status code     OK url="..."
         // #3: re-write the URL                        OK rewrite-url="..."
 
-        const char *statusNote = reply.notes.findFirst("status");
-        const char *urlNote = reply.notes.findFirst("url");
+        const char *statusNote = reply.notes.useFirst("status");
+        const char *urlNote = reply.notes.useFirst("url");
 
         if (urlNote != nullptr) {
             // HTTP protocol redirect to be done.
@@ -1211,7 +1211,7 @@ ClientRequestContext::clientRedirectDone(const Helper::Reply &reply)
             }
         } else {
             // URL-rewrite wanted. Ew.
-            urlNote = reply.notes.findFirst("rewrite-url");
+            urlNote = reply.notes.useFirst("rewrite-url");
 
             // prevent broken helpers causing too much damage. If old URL == new URL skip the re-write.
             if (urlNote != nullptr && strcmp(urlNote, http->uri)) {
@@ -1290,7 +1290,7 @@ ClientRequestContext::clientStoreIdDone(const Helper::Reply &reply)
         break;
 
     case Helper::Okay: {
-        const char *urlNote = reply.notes.findFirst("store-id");
+        const char *urlNote = reply.notes.useFirst("store-id");
 
         // prevent broken helpers causing too much damage. If old URL == new URL skip the re-write.
         if (urlNote != nullptr && strcmp(urlNote, http->uri) ) {
