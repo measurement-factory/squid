@@ -236,9 +236,6 @@ public:
     /// Side effect: Marks the matching notes as used.
     bool useAllNamed(SBuf &result, const char *noteKey, const char *sep = ",") const;
 
-    /// \returns the first note value for this key or an empty string.
-    [[deprecated("use useFirst() instead")]] const char *findFirst(const char *noteKey) const;
-
     /// The value of the first note with the given name (or nil).
     /// Side effect: Marks the matching note as used.
     /// Side effect: Warns about multiple same-name notes.

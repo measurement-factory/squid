@@ -309,15 +309,6 @@ NotePairs::toString(const char *sep) const
 }
 
 const char *
-NotePairs::findFirst(const char *noteKey) const
-{
-    for (const auto &e: entries)
-        if (!e->name().cmp(noteKey))
-            return const_cast<SBuf &>(e->value()).c_str();
-    return nullptr;
-}
-
-const char *
 NotePairs::useFirst(const char * const noteKey) const
 {
     const char *found = nullptr;
