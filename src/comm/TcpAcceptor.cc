@@ -292,7 +292,8 @@ Comm::TcpAcceptor::acceptOne()
 
     if (flag == Comm::COMM_ERROR) {
         // A non-recoverable error; notify the caller */
-        debugs(5, 5, HERE << "non-recoverable error:" << status() << " handler Subscription: " << theCallSub);
+        const auto debugLevel = intendedForUserConnections() ? DBG_CRITICAL : 3;
+        debugs(5, debugLevel, "ERROR: Stopped accepting connections");
         if (intendedForUserConnections())
             logAcceptError(newConnDetails);
         notify(flag, newConnDetails);
@@ -319,9 +320,17 @@ Comm::TcpAcceptor::acceptOne()
 void
 Comm::TcpAcceptor::acceptNext()
 {
-    Must(IsConnOpen(conn));
-    debugs(5, 2, HERE << "connection on " << conn);
-    acceptOne();
+    try {
+        Must(IsConnOpen(conn));
+        debugs(5, 2, "connection on " << conn);
+        acceptOne();
+    } catch (...) {
+        // XXX: Catch/handle this re-thrown exception [in AcceptLimiter::kick()]
+        const auto debugLevel = intendedForUserConnections() ? DBG_CRITICAL : 3;
+        debugs(5, debugLevel, "ERROR: Stopped accepting connections after an internal error" <<
+               Debug::Extra << "exception: " << CurrentException);
+        throw;
+    }
 }
 
 void
@@ -376,7 +385,8 @@ Comm::TcpAcceptor::oldAccept(Comm::ConnectionPointer &details)
             debugs(50, 5, status() << ": " << xstrerr(errcode));
             return Comm::NOMESSAGE;
         } else if (errcode == ENFILE || errcode == EMFILE) {
-            debugs(50, 3, status() << ": " << xstrerr(errcode));
+            const auto debugLevel = intendedForUserConnections() ? DBG_IMPORTANT : 3;
+            debugs(50, debugLevel, "ERROR: Failed to accept an incoming connection: " << xstrerr(errcode));
             return Comm::COMM_ERROR;
         } else {
             debugs(50, DBG_IMPORTANT, "ERROR: failed to accept an incoming connection: " << xstrerr(errcode));
