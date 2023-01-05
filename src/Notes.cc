@@ -269,7 +269,7 @@ Notes::toString(const char *sep) const
 }
 
 bool
-NotePairs::find(SBuf &resultNote, const char *noteKey, const char *sep) const
+NotePairs::collectAllNamed(SBuf &resultNote, const char *noteKey, const char *sep) const
 {
     resultNote.clear();
     for (const auto &e: entries) {
@@ -280,6 +280,21 @@ NotePairs::find(SBuf &resultNote, const char *noteKey, const char *sep) const
         }
     }
     return resultNote.length();
+}
+
+bool
+NotePairs::useAllNamed(SBuf &result, const char *noteKey, const char *sep) const
+{
+    result.clear();
+    for (const auto &e: entries) {
+        if (e->name().cmp(noteKey) == 0) {
+            if (!result.isEmpty())
+                result.append(sep);
+            result.append(e->value());
+            e->markAsUsed();
+        }
+    }
+    return result.length();
 }
 
 const char *
@@ -294,12 +309,45 @@ NotePairs::toString(const char *sep) const
 }
 
 const char *
-NotePairs::findFirst(const char *noteKey) const
+NotePairs::useFirst(const char * const noteKey) const
 {
-    for (const auto &e: entries)
-        if (!e->name().cmp(noteKey))
-            return const_cast<SBuf &>(e->value()).c_str();
-    return nullptr;
+    const char *found = nullptr;
+    for (const auto &e: entries) {
+        if (e->name().cmp(noteKey) == 0) {
+            if (found) {
+                debugs(84, DBG_IMPORTANT, "WARNING: Ignoring repeated annotation from a helper: " <<
+                       e->name() << '=' << found << " and " <<
+                       e->name() << '=' << e->value());
+                // continue to warn about other annotations with this noteKey
+            } else {
+                // Return std::optional<SBuf> or throw instead.
+                found = const_cast<SBuf &>(e->value()).c_str();
+                if (e->used()) // already checked for repeated annotations
+                    return found;
+                e->markAsUsed();
+            }
+        }
+    }
+    return found; // may still be nil
+}
+
+void
+NotePairs::checkForUnused() const
+{
+    for (const auto &e: entries) {
+        if (e->used())
+            continue;
+
+        if (!e->name().isEmpty() && *e->name().rbegin() == '_')
+            continue; // reserved for admin use which may happen later
+
+        debugs(84, DBG_IMPORTANT, "WARNING: Unsupported or unexpected helper annotation with a name reserved for Squid use: " <<
+               e->name() << '=' << e->value() <<
+               Debug::Extra << "advice: If this is a custom annotation, rename it to add a trailing underscore: " <<
+               e->name() << '_');
+
+        // continue to warn about other unused annotations
+    }
 }
 
 void

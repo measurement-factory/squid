@@ -22,11 +22,11 @@ class Request
 public:
     Request(HLPCB *c, void *d, const char *b) :
         buf(b ? xstrdup(b) : nullptr),
-        callback(c),
         data(cbdataReference(d)),
         placeholder(b == nullptr),
         Id(0),
-        retries(0)
+        retries(0),
+        callback_(c)
     {
         memset(&dispatch_time, 0, sizeof(dispatch_time));
     }
@@ -36,8 +36,22 @@ public:
         xfree(buf);
     }
 
+    /// Forward helper response (or its equivalent) to the requestor. XXX: The
+    /// caller must check the cbdataReferenceValid() precondition. TODO: Move
+    /// that checking code into this method by refactoring callers.
+    void callback(void * const validatedCbdata, const Reply &reply) {
+        // TODO: Move to a src/helper/Request.cc.
+
+        assert(callback_);
+
+        const auto cb = callback_;
+        callback_ = nullptr;
+        cb(validatedCbdata, reply);
+
+        reply.notes.checkForUnused();
+    }
+
     char *buf;
-    HLPCB *callback;
     void *data;
 
     int placeholder;            /* if 1, this is a dummy request waiting for a stateful helper to become available */
@@ -51,6 +65,9 @@ public:
      */
     int retries;
     bool timedOut(time_t timeout) {return (squid_curtime - dispatch_time.tv_sec) > timeout;}
+
+private:
+    HLPCB *callback_; ///< where to send the final outcome of helper transaction(s)
 };
 
 } // namespace Helper

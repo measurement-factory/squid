@@ -191,9 +191,17 @@ public:
         const SBuf &name() const { return theName; }
         const SBuf &value() const { return theValue; }
 
+        /// whether markAsUsed() has been called
+        bool used() const { return used_; }
+
+        /// whether response processing code has requested this note by name
+        void markAsUsed() { used_ = true; }
+
     private:
         SBuf theName;
         SBuf theValue;
+
+        mutable bool used_ = false; ///< \copydoc markAsUsed()
     };
     typedef std::vector<Entry::Pointer> Entries;      ///< The key/value pair entries
     typedef std::vector<SBuf> Names;
@@ -218,13 +226,23 @@ public:
     /// Entries which already exist in the destination set are ignored.
     void appendNewOnly(const NotePairs *src);
 
-    /// \param resultNote a comma separated list of notes with key 'noteKey'.
-    /// \returns true if there are entries with the given 'noteKey'.
-    /// Use findFirst() instead when a unique kv-pair is needed.
-    bool find(SBuf &resultNote, const char *noteKey, const char *sep = ",") const;
+    /// writes all note values with a given key into the given buffer
+    /// \param result a sep-delimited list of note values with the given key
+    /// \param sep value delimiter to use between written values
+    /// \returns true if at least one value was written
+    bool collectAllNamed(SBuf &result, const char *noteKey, const char *sep = ",") const;
 
-    /// \returns the first note value for this key or an empty string.
-    const char *findFirst(const char *noteKey) const;
+    /// \copydoc collectAllNamed()
+    /// Side effect: Marks the matching notes as used.
+    bool useAllNamed(SBuf &result, const char *noteKey, const char *sep = ",") const;
+
+    /// The value of the first note with the given name (or nil).
+    /// Side effect: Marks the matching note as used.
+    /// Side effect: Warns about multiple same-name notes.
+    const char *useFirst(const char *noteKey) const;
+
+    /// inform the admin about any unused entries
+    void checkForUnused() const;
 
     /// Adds a note key and value to the notes list.
     /// If the key name already exists in the list, add the given value to its set

@@ -297,7 +297,7 @@ Auth::Ntlm::UserRequest::HandleReply(void *data, const Helper::Reply &reply)
         safe_free(lm_request->server_blob);
         lm_request->request->flags.mustKeepalive = true;
         if (lm_request->request->flags.proxyKeepalive) {
-            const char *serverBlob = reply.notes.findFirst("token");
+            const char *serverBlob = reply.notes.useFirst("token");
             lm_request->server_blob = xstrdup(serverBlob);
             auth_user_request->user()->credentials(Auth::Handshake);
             auth_user_request->setDenyMessage("Authentication in progress");
@@ -310,7 +310,7 @@ Auth::Ntlm::UserRequest::HandleReply(void *data, const Helper::Reply &reply)
 
     case Helper::Okay: {
         /* we're finished, release the helper */
-        const char *userLabel = reply.notes.findFirst("user");
+        const char *userLabel = reply.notes.useFirst("user");
         if (!userLabel) {
             auth_user_request->user()->credentials(Auth::Failed);
             safe_free(lm_request->server_blob);

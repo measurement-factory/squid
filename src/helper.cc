@@ -935,11 +935,9 @@ helperReturnBuffer(helper_server * srv, helper * hlp, char * msg, size_t msgSize
                 debugs(84, DBG_IMPORTANT, "ERROR: helper: " << r->reply << ", attempt #" << (r->request.retries + 1) << " of 2");
                 retry = true;
             } else {
-                HLPCB *callback = r->request.callback;
-                r->request.callback = nullptr;
                 void *cbdata = nullptr;
                 if (cbdataReferenceValidDone(r->request.data, &cbdata))
-                    callback(cbdata, r->reply);
+                    r->request.callback(cbdata, r->reply);
             }
         }
 

@@ -1382,12 +1382,12 @@ Format::Format::assemble(MemBuf &mb, const AccessLogEntry::Pointer &al, int logS
 #if USE_ADAPTATION
                 Adaptation::History::Pointer ah = al->request ? al->request->adaptHistory() : Adaptation::History::Pointer();
                 if (ah && ah->metaHeaders) {
-                    if (ah->metaHeaders->find(note, fmt->data.header.header, separator))
+                    if (ah->metaHeaders->collectAllNamed(note, fmt->data.header.header, separator))
                         sb.append(note);
                 }
 #endif
                 if (al->notes) {
-                    if (al->notes->find(note, fmt->data.header.header, separator)) {
+                    if (al->notes->collectAllNamed(note, fmt->data.header.header, separator)) {
                         if (!sb.isEmpty())
                             sb.append(separator);
                         sb.append(note);
