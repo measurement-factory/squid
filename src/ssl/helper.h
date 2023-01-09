@@ -54,6 +54,8 @@ public:
     static void Submit(const Ssl::CertValidationRequest &, const Callback &);
 private:
     static helper * ssl_crt_validator; ///< helper for management of ssl_crtd.
+    static Format::Format *ExtrasFormat; ///< parsed sslcrtvalidator_extras
+
 public:
     typedef ClpMap<SBuf, CertValidationResponse::Pointer, CertValidationResponse::MemoryUsedByResponse> CacheType;
     static CacheType *HelperCache; ///< cache for cert validation helper
