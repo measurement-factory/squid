@@ -263,7 +263,10 @@ FwdState::updateAleWithFinalError()
         return;
 
     LogTagsErrors lte;
-    lte.timedout = (err->xerrno == ETIMEDOUT || err->type == ERR_READ_TIMEOUT);
+    if (err->xerrno == ETIMEDOUT || err->type == ERR_READ_TIMEOUT)
+        lte.timedout = true;
+    else if (err->type != ERR_NONE)
+        lte.aborted = true;
     al->cache.code.err.update(lte);
     if (!err->detail) {
         static const auto d = MakeNamedErrorDetail("WITH_SERVER");
@@ -310,12 +313,15 @@ FwdState::completed()
                 // no flags.dont_retry: completed() is a post-reforward() act
             }
 #endif
+        } else if (!storedWholeReply_) {
+            if (!err) // message ended prematurely (due to EOF)
+                fail(new ErrorState(ERR_READ_ERROR, Http::scInternalServerError, request, al));
+            assert(err);
+            updateAleWithFinalError();
+            entry->completeTruncated("FwdState default");
         } else {
             updateAleWithFinalError(); // if any
-            if (storedWholeReply_)
-                entry->completeSuccessfully(storedWholeReply_);
-            else
-                entry->completeTruncated("FwdState default");
+            entry->completeSuccessfully(storedWholeReply_);
         }
     }
 
