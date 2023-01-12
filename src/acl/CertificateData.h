@@ -23,7 +23,6 @@ class ACLCertificateData : public ACLData<X509 *>
 
 public:
     ACLCertificateData(Ssl::GETX509ATTRIBUTE *, const char *attributes, bool optionalAttr = false);
-    virtual ~ACLCertificateData();
     bool match(X509 *);
     virtual SBufList dump() const;
     void parse();
@@ -35,10 +34,10 @@ public:
     /// Nil unless ACL form is: acl Name type attribute value1 ...
     const char *validAttributesStr;
     /// Parsed list of valid attribute names
-    std::list<std::string> validAttributes;
+    std::list<SBuf> validAttributes;
     /// True if the attribute is optional (-xxx options)
     bool attributeIsOptional;
-    char *attribute;
+    SBuf attribute;
     ACLStringData values;
 
 private:

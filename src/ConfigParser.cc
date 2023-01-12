@@ -505,12 +505,16 @@ ConfigParser::regex(const char *expectedRegexDescription)
 }
 
 void
-ConfigParser::SetAclKey(SBuf &keyStorage, const char *keyParameterName)
+ConfigParser::SetAclKey(SBuf &keyStorage, const char *keyParameterName, const bool isOptional)
 {
     extern const char *AclMatchedName;
 
     const auto newKey = strtokFile();
     if (!newKey) {
+        if (isOptional) {
+            keyStorage.clear();
+            return;
+        }
         throw TextException(ToSBuf("An acl declaration is missing a ", keyParameterName,
                                    Debug::Extra, "ACL name: ", AclMatchedName),
                             Here());
