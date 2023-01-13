@@ -34,7 +34,7 @@ public:
     /// Nil unless ACL form is: acl Name type attribute value1 ...
     const char *validAttributesStr;
     /// Parsed list of valid attribute names
-    std::list<SBuf> validAttributes;
+    std::list<std::string> validAttributes;
     /// True if the attribute is optional (-xxx options)
     bool attributeIsOptional;
     SBuf attribute;
