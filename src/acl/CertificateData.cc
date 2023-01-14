@@ -51,7 +51,7 @@ ACLCertificateData::match(X509 *cert)
     if (!cert)
         return 0;
 
-    char const *value = sslAttributeCall(cert, attribute.c_str());
+    const auto value = sslAttributeCall(cert, attribute.c_str());
     debugs(28, 6, (attribute.isEmpty() ? attribute.c_str() : "value") << "=" << value);
     if (value == nullptr)
         return 0;
