@@ -47,8 +47,7 @@ ACLNoteData::dump() const
 void
 ACLNoteData::parse()
 {
-    const auto newName = ConfigParser::strtokFile();
-    Acl::SetKey(name, "annotation name", newName);
+    Acl::SetKey(name, "annotation name", ConfigParser::strtokFile());
     values->parse();
 }
 
