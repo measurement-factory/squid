@@ -102,6 +102,8 @@ libacls_la_SOURCES = \
 	LocalIp.h \
 	LocalPort.cc \
 	LocalPort.h \
+	Manager.cc \
+	Manager.h \
 	MaxConnection.cc \
 	MaxConnection.h \
 	Method.cc \

@@ -604,6 +604,11 @@ parseConfigFileOrThrow(const char *file_name)
     configFreeMemory();
 
     ACLMethodData::ThePurgeCount = 0;
+
+    // hard-coded ACLs must be created before parsing
+    // ACL-related configuration lines
+    ACL::CreatePredefined();
+
     default_all();
 
     err_count = parseOneConfigFile(file_name, 0);

@@ -65,6 +65,20 @@ Make(TypeName typeName)
     return result;
 }
 
+/// a list of hard-coded ACL types
+static std::array<const char*, 1> PredefinedTypes = {
+    "manager_type"
+};
+
+static bool
+IsPredefined(const char *aType)
+{
+    for (const auto t: PredefinedTypes)
+        if (strcmp(t, aType) == 0)
+            return true;
+    return false;
+}
+
 } // namespace Acl
 
 void
@@ -101,6 +115,24 @@ ACL::FindByName(const char *name)
     debugs(28, 9, "ACL::FindByName found no match");
 
     return nullptr;
+}
+
+static void
+AddToList(ACL *acl)
+{
+    // add to the global list for searching explicit ACLs by name
+    auto head = &Config.aclList;
+    acl->next = *head;
+    *head = acl;
+    // register for centralized cleanup
+    aclRegister(acl);
+}
+
+void
+ACL::CreatePredefined()
+{
+    for (const auto aclType: Acl::PredefinedTypes)
+        AddToList(Acl::Make(aclType));
 }
 
 ACL::ACL() :
@@ -162,7 +194,7 @@ ACL::context(const char *aName, const char *aCfgLine)
 }
 
 void
-ACL::ParseAclLine(ConfigParser &parser, ACL ** head)
+ACL::ParseAclLine(ConfigParser &parser, ACL **)
 {
     /* we're already using strtok() to grok the line */
     char *t = nullptr;
@@ -194,6 +226,9 @@ ACL::ParseAclLine(ConfigParser &parser, ACL ** head)
         parser.destruct();
         return;
     }
+
+    if (Acl::IsPredefined(theType))
+        throw TextException(ToSBuf("ACL line with predefined type: ", theType), Here());
 
     // Is this ACL going to work?
     if (strcmp(theType, "myip") == 0) {
@@ -271,12 +306,7 @@ ACL::ParseAclLine(ConfigParser &parser, ACL ** head)
     }
 
     // add to the global list for searching explicit ACLs by name
-    assert(head && *head == Config.aclList);
-    A->next = *head;
-    *head = A;
-
-    // register for centralized cleanup
-    aclRegister(A);
+    AddToList(A);
 }
 
 bool

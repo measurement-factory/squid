@@ -46,6 +46,8 @@ public:
     static void ParseAclLine(ConfigParser &parser, ACL ** head);
     static void Initialize();
     static ACL *FindByName(const char *name);
+    /// creates hard-coded ACLs such as manager ACL
+    static void CreatePredefined();
 
     ACL();
     ACL(ACL &&) = delete; // no copying of any kind
