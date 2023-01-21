@@ -33,6 +33,6 @@ ACLManager::match(ACLChecklist *checklist)
 void
 ACLManager::parse()
 {
-    TextException(ToSBuf("cannot parse predefined ", class_), Here());
+    TextException(ToSBuf("cannot parse pre-sdefined ", class_), Here());
 }
 
