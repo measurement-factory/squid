@@ -118,10 +118,8 @@ ACL::FindByName(const char *name)
 }
 
 static void
-AddToList(ACL *acl)
+AddToList(ACL *acl, ACL **head)
 {
-    // add to the global list for searching explicit ACLs by name
-    auto head = &Config.aclList;
     acl->next = *head;
     *head = acl;
     // register for centralized cleanup
@@ -132,7 +130,7 @@ void
 ACL::CreatePredefined()
 {
     for (const auto aclType: Acl::PredefinedTypes)
-        AddToList(Acl::Make(aclType));
+        AddToList(Acl::Make(aclType), &Config.aclList);
 }
 
 ACL::ACL() :
@@ -194,7 +192,7 @@ ACL::context(const char *aName, const char *aCfgLine)
 }
 
 void
-ACL::ParseAclLine(ConfigParser &parser, ACL **)
+ACL::ParseAclLine(ConfigParser &parser, ACL ** head)
 {
     /* we're already using strtok() to grok the line */
     char *t = nullptr;
@@ -305,7 +303,7 @@ ACL::ParseAclLine(ConfigParser &parser, ACL **)
     }
 
     // add to the global list for searching explicit ACLs by name
-    AddToList(A);
+    AddToList(A, head);
 }
 
 bool
