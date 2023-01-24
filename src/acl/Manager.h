@@ -27,6 +27,8 @@ public:
     bool empty () const override { return false; }
 
 private:
+    void prohibitTypeChange() const override;
+
     char const *class_;
 };
 

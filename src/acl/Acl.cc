@@ -65,20 +65,6 @@ Make(TypeName typeName)
     return result;
 }
 
-/// a list of hard-coded ACL types
-static std::array<const char*, 1> PredefinedTypes = {
-    "manager_type"
-};
-
-static bool
-IsPredefined(const char *aType)
-{
-    for (const auto t: PredefinedTypes)
-        if (strcmp(t, aType) == 0)
-            return true;
-    return false;
-}
-
 } // namespace Acl
 
 void
@@ -129,8 +115,8 @@ AddToList(ACL *acl, ACL **head)
 void
 ACL::CreatePredefined()
 {
-    for (const auto aclType: Acl::PredefinedTypes)
-        AddToList(Acl::Make(aclType), &Config.aclList);
+    AddToList(Acl::Make("manager_type"), &Config.aclList);
+    // add other predefined types here
 }
 
 ACL::ACL() :
@@ -225,9 +211,6 @@ ACL::ParseAclLine(ConfigParser &parser, ACL ** head)
         return;
     }
 
-    if (Acl::IsPredefined(theType))
-        throw TextException(ToSBuf("ACL line with predefined type: ", theType), Here());
-
     // Is this ACL going to work?
     if (strcmp(theType, "myip") == 0) {
         AnyP::PortCfgPointer p = HttpPortList;
@@ -261,15 +244,10 @@ ACL::ParseAclLine(ConfigParser &parser, ACL ** head)
         A->context(aclname, config_input_line);
         new_acl = 1;
     } else {
-        if (Acl::IsPredefined(A->typeString())) {
-            debugs(28, DBG_IMPORTANT, "WARNING: ACL " << A->name << " is now a pre-defined ACL. Remove it from your config file.");
-            return; // ignore the line
-        } else if (strcmp (A->typeString(),theType) ) {
-            debugs(28, DBG_CRITICAL, "aclParseAclLine: ACL '" << A->name << "' already exists with different type.");
-            parser.destruct();
+        if (strcmp (A->typeString(),theType) ) {
+            A->prohibitTypeChange();
             return;
         }
-
         debugs(28, 3, "aclParseAclLine: Appending to '" << aclname << "'");
         new_acl = 0;
     }
@@ -303,6 +281,7 @@ ACL::ParseAclLine(ConfigParser &parser, ACL ** head)
     }
 
     // add to the global list for searching explicit ACLs by name
+    assert(head && *head == Config.aclList);
     AddToList(A, head);
 }
 
@@ -422,6 +401,12 @@ bool
 ACL::requiresRequest() const
 {
     return false;
+}
+
+void
+ACL::prohibitTypeChange() const
+{
+    throw TextException(ToSBuf("ACL ", name, " already exists with different type"), Here());
 }
 
 /*********************/

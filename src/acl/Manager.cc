@@ -33,6 +33,11 @@ ACLManager::match(ACLChecklist *checklist)
 void
 ACLManager::parse()
 {
-    TextException(ToSBuf("cannot parse pre-sdefined ", class_), Here());
+    throw TextException(ToSBuf("cannot parse ACL ", name, " with pre-defined ", class_, " type"), Here());
 }
 
+void
+ACLManager::prohibitTypeChange() const
+{
+    throw TextException(ToSBuf("ACL ", name, " already exists with a pre-defined type"), Here());
+}

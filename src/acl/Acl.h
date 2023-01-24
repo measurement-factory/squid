@@ -103,6 +103,10 @@ private:
     /// \returns (linked) "line" Options supported by this ACL
     /// \see ACL::options()
     virtual const Acl::Options &lineOptions() { return Acl::NoOptions(); }
+
+    /// an action performed if parser encounters an ACL line
+    /// with an already existing ACL name but a different type
+    virtual void prohibitTypeChange() const;
 };
 
 /// \ingroup ACLAPI
