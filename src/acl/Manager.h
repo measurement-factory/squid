@@ -25,6 +25,7 @@ public:
     bool requiresRequest() const override { return true; }
     SBufList dump() const override;
     bool empty () const override { return false; }
+    void dumpAll(const char *, StoreEntry *) override;
 
 private:
     void prohibitTypeChange() const override;

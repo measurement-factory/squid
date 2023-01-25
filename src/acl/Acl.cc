@@ -22,6 +22,7 @@
 #include "sbuf/List.h"
 #include "sbuf/Stream.h"
 #include "SquidConfig.h"
+#include "Store.h"
 
 #include <algorithm>
 #include <map>
@@ -321,6 +322,17 @@ ACL::dumpOptions()
             result.push_back(optionsImage);
     }
     return result;
+}
+
+void
+ACL::dumpAll(const char *directiveName, StoreEntry *entry)
+{
+    debugs(3, 3, "dump_acl: acl " << name);
+    entry->appendf("%s %s %s ", directiveName, name, typeString());
+    SBufList result;
+    result.splice(result.end(), dumpOptions());
+    result.splice(result.end(), dump());
+    entry->appendList(result);
 }
 
 /* ACL result caching routines */

@@ -1454,11 +1454,7 @@ parse_SBufList(SBufList * list)
 static void
 dump_SBufList(StoreEntry * entry, const SBufList &words)
 {
-    for (const auto &i : words) {
-        entry->append(i.rawContent(), i.length());
-        entry->append(" ",1);
-    }
-    entry->append("\n",1);
+    entry->appendList(words);
 }
 
 // dump a SBufList type directive with name
@@ -1483,15 +1479,7 @@ static void
 dump_acl(StoreEntry * entry, const char *name, ACL * ae)
 {
     while (ae != nullptr) {
-        debugs(3, 3, "dump_acl: " << name << " " << ae->name);
-        storeAppendPrintf(entry, "%s %s %s ",
-                          name,
-                          ae->name,
-                          ae->typeString());
-        SBufList tail;
-        tail.splice(tail.end(), ae->dumpOptions());
-        tail.splice(tail.end(), ae->dump()); // ACL parameters
-        dump_SBufList(entry, tail);
+        ae->dumpAll(name, entry);
         ae = ae->next;
     }
 }

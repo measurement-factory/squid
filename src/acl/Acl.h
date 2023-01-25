@@ -15,6 +15,7 @@
 #include "defines.h"
 #include "dlink.h"
 #include "sbuf/forward.h"
+#include "store/forward.h"
 
 #include <algorithm>
 #include <ostream>
@@ -69,7 +70,7 @@ public:
     virtual void parse() = 0;
     virtual char const *typeString() const = 0;
     virtual bool isProxyAuth() const;
-    virtual SBufList dump() const = 0;
+    virtual SBufList dump() const = 0; ///< \returns arguments configuration
     virtual bool empty() const = 0;
     virtual bool valid() const;
 
@@ -79,6 +80,9 @@ public:
     virtual void prepareForUse() {}
 
     SBufList dumpOptions(); ///< \returns approximate options configuration
+
+    /// appends the entire configuration into the entry
+    virtual void dumpAll(const char *directiveName, StoreEntry *);
 
     char name[ACL_NAME_SZ];
     char *cfgline;

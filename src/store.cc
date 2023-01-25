@@ -1592,6 +1592,16 @@ StoreEntry::reset()
     expires = lastModified_ = timestamp = -1;
 }
 
+void
+StoreEntry::appendList(const SBufList &list)
+{
+    for (const auto &word : list) {
+        append(word.rawContent(), word.length());
+        append(" ", 1);
+    }
+    append("\n", 1);
+}
+
 /*
  * storeFsInit
  *

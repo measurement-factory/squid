@@ -17,9 +17,7 @@
 SBufList
 ACLManager::dump() const
 {
-    SBufList sl;
-    sl.push_back(SBuf(name));
-    return sl;
+    throw TextException(ToSBuf("cannot dump ACL ", name, " with pre-defined ", class_, " type"), Here());
 }
 
 int
@@ -34,6 +32,12 @@ void
 ACLManager::parse()
 {
     throw TextException(ToSBuf("cannot parse ACL ", name, " with pre-defined ", class_, " type"), Here());
+}
+
+void
+ACLManager::dumpAll(const char *, StoreEntry *)
+{
+    debugs(3, 3, "skip pre-defined ACL " << name);
 }
 
 void

@@ -302,6 +302,8 @@ public:
     void buffer() override;
     void flush() override;
 
+    void appendList(const SBufList &);
+
 protected:
     typedef Store::EntryGuard EntryGuard;
 
