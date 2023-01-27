@@ -182,6 +182,15 @@ check_proxy_collapsed_forwarding() {
     run_confirmed_test proxy-collapsed-forwarding
 }
 
+check_cache_refresh_response() {
+    if ! has_commit_by_message bf2aecc 'Cache SMP refresh misses'
+    then
+        echo "No cache-refresh-response due to stale entries holding the map entry"
+        return 0;
+    fi
+    run_confirmed_test cache-refresh-response
+}
+
 check_proxy_update_headers_after_304() {
     if grep 'AC_INIT.*Proxy.,.[1234][.]' configure.ac
     then
@@ -247,6 +256,7 @@ main() {
             proxy-update-headers-after-304
             upgrade-protocols
             proxy-collapsed-forwarding
+            cache-refresh-response
             busy-restart
         "
         tests="$default_tests"
