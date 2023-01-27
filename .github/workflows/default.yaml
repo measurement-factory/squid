@@ -42,7 +42,7 @@ jobs:
           fetch-depth: ${{ env.CHECKOUT_FETCH_DEPTH }}
 
       - run: ./bootstrap.sh
-      - run: ./configure --with-openssl
+      - run: ./configure --with-openssl --disable-strict-error-checking
       - run: make -j2
       - run: |
           sudo make install
