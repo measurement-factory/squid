@@ -20,11 +20,13 @@ env:
   CHECKOUT_FETCH_DEPTH: 1001
 
   # OpenSSL version to download, build, and use with Squid.
+  # XXX: If you update this, update OPENSSL_DIR below as well!
   OPENSSL_VERSION: 1.1.1s
 
   # OpenSSL installation prefix.
   # Also used as a GitHub Actions cache key for caching OpenSSL installation.
-  OPENSSL_DIR: /opt/openssl-${{ env.OPENSSL_VERSION }}
+  # TODO: How to avoid hard-coding OPENSSL_VERSION value?
+  OPENSSL_DIR: /opt/openssl-1.1.1s
 
 jobs:
 
