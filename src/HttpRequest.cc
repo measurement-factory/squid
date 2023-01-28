@@ -762,14 +762,9 @@ HttpRequest::notes()
 void
 UpdateRequestNotes(ConnStateData *csd, HttpRequest &request, NotePairs const &helperNotes)
 {
-    // Tag client connection if the helper responded with clt_conn_tag=tag.
-    const char *cltTag = "clt_conn_tag";
-    if (const char *connTag = helperNotes.findFirst(cltTag)) {
-        if (csd) {
-            csd->notes()->remove(cltTag);
-            csd->notes()->add(cltTag, connTag);
-        }
-    }
+    // Tag client connection with all clt_conn_*=tag pairs.
+    static const SBuf cltConnPrefix("clt_conn_");
+    csd->notes()->replaceOrAddIf(&helperNotes, [&](const NotePairs::Entry::Pointer e) { return e->name().startsWith(cltConnPrefix); });
     request.notes()->replaceOrAdd(&helperNotes);
 }
 

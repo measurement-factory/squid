@@ -1038,7 +1038,7 @@ DOC_START
 	  log=		String to be logged in access.log. Available as
 			%ea in logformat specifications.
 
-	  clt_conn_tag= Associates a TAG with the client TCP connection.
+	  clt_conn_*=	Associates a TAG with the client TCP connection.
 			Please see url_rewrite_program related documentation
 			for this kv-pair.
 
@@ -5979,10 +5979,10 @@ DOC_START
 	In addition to the kv-pairs mentioned above, Squid also understands
 	the following optional kv-pairs in URL rewriter responses:
 
-	  clt_conn_tag=TAG
+	  clt_conn_*=TAG
 		Associates a TAG with the client TCP connection.
 
-		The clt_conn_tag=TAG pair is treated as a regular transaction
+		Each clt_conn_*=TAG pair is treated as a regular transaction
 		annotation for the current request and also annotates future
 		requests on the same client connection. A helper may update
 		the TAG during subsequent requests by returning a new kv-pair.
@@ -6191,7 +6191,7 @@ DOC_START
 
 	In addition to the above kv-pairs Squid also understands the following
 	optional kv-pairs received from URL rewriters:
-	  clt_conn_tag=TAG
+	  clt_conn_*=TAG
 		Associates a TAG with the client TCP connection.
 		Please see url_rewrite_program related documentation for this
 		kv-pair

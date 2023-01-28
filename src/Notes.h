@@ -214,6 +214,11 @@ public:
     /// Entries which do not exist in the destination set are added.
     void replaceOrAdd(const NotePairs *src);
 
+    /// same as replaceOrAdd() but ignore source elements for which
+    /// cond returns false
+    template <class Cond>
+    void replaceOrAddIf(const NotePairs *src, Cond cond);
+
     /// Append any new entries of the src NotePairs list to our list.
     /// Entries which already exist in the destination set are ignored.
     void appendNewOnly(const NotePairs *src);
@@ -261,6 +266,19 @@ public:
 private:
     Entries entries; ///< The key/value pair entries
 };
+
+
+template <class Cond>
+void
+NotePairs::replaceOrAddIf(const NotePairs *src, const Cond cond)
+{
+    for (const auto &e: src->entries) {
+        if (cond(e)) {
+            remove(e->name());
+            add(e->name(), e->value());
+        }
+    }
+}
 
 #endif
 
