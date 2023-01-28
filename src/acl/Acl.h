@@ -81,7 +81,7 @@ public:
 
     SBufList dumpOptions(); ///< \returns approximate options configuration
 
-    /// appends the entire configuration into the entry
+    /// appends the entire configuration to the entry
     virtual void dumpAll(const char *directiveName, StoreEntry *);
 
     char name[ACL_NAME_SZ];

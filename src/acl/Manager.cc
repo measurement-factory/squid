@@ -12,6 +12,7 @@
 #include "anyp/ProtocolType.h"
 #include "base/TextException.h"
 #include "HttpRequest.h"
+#include "internal.h"
 #include "sbuf/Stream.h"
 
 SBufList
@@ -23,9 +24,8 @@ ACLManager::dump() const
 int
 ACLManager::match(ACLChecklist *checklist)
 {
-    static const SBuf mgrPfx("/squid-internal-mgr/");
     const auto request = Filled(checklist)->request;
-    return request->url.path().startsWith(mgrPfx) || request->url.getScheme() == AnyP::PROTO_CACHE_OBJECT;
+    return request->url.getScheme() == AnyP::PROTO_CACHE_OBJECT || ForSomeCacheManager(request->url.path());
 }
 
 void
