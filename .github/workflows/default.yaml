@@ -19,6 +19,9 @@ env:
   # tries to balance the two concerns.
   CHECKOUT_FETCH_DEPTH: 1001
 
+  # OpenSSL installation prefix
+  OPENSSL_DIR: /opt/openssl
+
 jobs:
 
   functionality-tests:
@@ -41,8 +44,17 @@ jobs:
         with:
           fetch-depth: ${{ env.CHECKOUT_FETCH_DEPTH }}
 
+      - name: Install OpenSSL v1
+        run: |
+          mkdir /tmp/build
+          cd /tmp/build
+          curl -L https://www.openssl.org/source/openssl-1.1.1s.tar.gz | tar --strip-components=1 -xzf -
+          ./Configure shared --prefix=$OPENSSL_DIR linux-x86_64
+          make
+          make install_sw
+
       - run: ./bootstrap.sh
-      - run: ./configure --with-openssl --disable-strict-error-checking
+      - run: ./configure --with-openssl=$OPENSSL_DIR --disable-strict-error-checking
       - run: make -j2
       - run: |
           sudo make install
