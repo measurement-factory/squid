@@ -45,14 +45,14 @@ jobs:
         with:
           node-version: 16
 
-      - name: Check cached OpenSSL v${{ env.OPENSSL_VERSION }} installation
+      - name: Check cached OpenSSL installation
         id: openssl-cache-check
         uses: actions/cache@v3
         with:
           key: ${{ env.OPENSSL_DIR }}-${{ runner.os }}
           path: ${{ env.OPENSSL_DIR }}
 
-      - name: Install OpenSSL v${{ env.OPENSSL_VERSION }}
+      - name: Install OpenSSL
         if: ${{ steps.openssl-cache-check.outputs.cache-hit != 'true' }}
         run: |
           mkdir /tmp/build
@@ -134,7 +134,7 @@ jobs:
           sudo apt-get --quiet=2 build-dep squid
 
       # Duplicates a test-functionality job step
-      - name: Check cached OpenSSL v${{ env.OPENSSL_VERSION }} installation
+      - name: Check cached OpenSSL installation
         id: openssl-cache-check
         uses: actions/cache@v3
         with:
@@ -142,7 +142,7 @@ jobs:
           path: ${{ env.OPENSSL_DIR }}
 
       # Duplicates a test-functionality job step
-      - name: Install OpenSSL v${{ env.OPENSSL_VERSION }}
+      - name: Install OpenSSL
         if: ${{ steps.openssl-cache-check.outputs.cache-hit != 'true' }}
         run: |
           mkdir /tmp/build
