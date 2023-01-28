@@ -19,12 +19,16 @@ env:
   # tries to balance the two concerns.
   CHECKOUT_FETCH_DEPTH: 1001
 
-  # OpenSSL installation prefix
-  OPENSSL_DIR: /opt/openssl
+  # OpenSSL version to download, build, and use with Squid.
+  OPENSSL_VERSION: 1.1.1s
+
+  # OpenSSL installation prefix.
+  # Also used as a GitHub Actions cache key for caching OpenSSL installation.
+  OPENSSL_DIR: /opt/openssl-${{ env.OPENSSL_VERSION }}
 
 jobs:
 
-  functionality-tests:
+    functionality-tests:
 
     runs-on: ubuntu-22.04
 
@@ -39,19 +43,27 @@ jobs:
         with:
           node-version: 16
 
+      - name: Check cached OpenSSL v${{ env.OPENSSL_VERSION }} installation
+        id: openssl-cache-check
+        uses: actions/cache@v3
+        with:
+          key: ${{ env.OPENSSL_DIR }}-${{ runner.os }}
+          path: ${{ env.OPENSSL_DIR }}
+
+      - name: Install OpenSSL v${{ env.OPENSSL_VERSION }}
+        if: ${{ steps.openssl-cache-check.outputs.cache-hit != 'true' }}
+        run: |
+          mkdir /tmp/build
+          cd /tmp/build
+          curl -L https://www.openssl.org/source/openssl-$OPENSSL_VERSION.tar.gz | tar --strip-components=1 -xzf -
+          ./Configure shared --prefix=$OPENSSL_DIR linux-x86_64
+          make
+          make install_sw
+
       - name: Checkout Squid sources
         uses: actions/checkout@v3
         with:
           fetch-depth: ${{ env.CHECKOUT_FETCH_DEPTH }}
-
-      - name: Install OpenSSL v1
-        run: |
-          mkdir /tmp/build
-          cd /tmp/build
-          curl -L https://www.openssl.org/source/openssl-1.1.1s.tar.gz | tar --strip-components=1 -xzf -
-          ./Configure shared --prefix=$OPENSSL_DIR linux-x86_64
-          make
-          make install_sw
 
       - run: ./bootstrap.sh
       - run: ./configure --with-openssl=$OPENSSL_DIR --disable-strict-error-checking
@@ -119,10 +131,37 @@ jobs:
           sudo apt-get --quiet=2 update
           sudo apt-get --quiet=2 build-dep squid
 
+ - uses: actions/cache/restore@v3
+    id: cache
+    with:
+      path: path/to/dependencies
+      key: ${{ runner.os }}-${{ hashFiles('**/lockfiles') }}
+
+      # Duplicates a test-functionality job step
+      - name: Check cached OpenSSL v${{ env.OPENSSL_VERSION }} installation
+        id: openssl-cache-check
+        uses: actions/cache@v3
+        with:
+          key: ${{ env.OPENSSL_DIR }}-${{ runner.os }}
+          path: ${{ env.OPENSSL_DIR }}
+
+      # Duplicates a test-functionality job step
+      - name: Install OpenSSL v${{ env.OPENSSL_VERSION }}
+        if: ${{ steps.openssl-cache-check.outputs.cache-hit != 'true' }}
+        run: |
+          mkdir /tmp/build
+          cd /tmp/build
+          curl -L https://www.openssl.org/source/openssl-$OPENSSL_VERSION.tar.gz | tar --strip-components=1 -xzf -
+          ./Configure shared --prefix=$OPENSSL_DIR linux-x86_64
+          make
+          make install_sw
+
       - name: Checkout sources
         uses: actions/checkout@v3
 
-      - run: ./test-builds.sh
+      - run: |
+          export PKG_CONFIG_PATH="$OPENSSL_DIR/lib/pkgconfig:$PKG_CONFIG_PATH"
+          ./test-builds.sh
 
       - name: Publish build logs
         if: success() || failure()
