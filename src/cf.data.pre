@@ -1641,6 +1641,14 @@ ENDIF
 		acl fileupload req_mime_type -i ^multipart/form-data$
 		acl javascript rep_mime_type -i ^application/x-javascript$
 
+	Hard-coded ACLs
+
+	Squid has Some predefined ACLs that can be specified in access lists the same way
+	as other ACLs. Their names and types are reserved for internal Squid use:
+
+	manager manager_type
+			Match cache manager requests directed to this Squid instance.
+
 CONFIG_START
 #
 # Recommended minimum configuration:

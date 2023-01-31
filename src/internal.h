@@ -33,5 +33,9 @@ int internalHostnameIs(const char *);
 /// necessarily running on this Squid instance)
 bool ForSomeCacheManager(const SBuf &urlPath);
 
+/// whether the given request is directed to the cache manager
+/// running on this Squid instance
+bool ForThisCacheManager(const HttpRequest *);
+
 #endif /* SQUID_INTERNAL_H_ */
 
