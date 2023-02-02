@@ -392,7 +392,7 @@ TunnelStateData::TunnelStateData(ClientHttpRequest *clientRequest) :
     client.size_ptr = &clientRequest->al->http.clientRequestSz.payloadData;
     status_ptr = &clientRequest->al->http.code;
 
-    clientRequest->logType.update(LOG_TCP_TUNNEL);
+    al->cache.code.update(LOG_TCP_TUNNEL);
     al = clientRequest->al;
     http = clientRequest;
 
@@ -517,8 +517,7 @@ void
 TunnelStateData::syncHierNote(const Comm::ConnectionPointer &conn, const char *origin)
 {
     request->hier.resetPeerNotes(conn, origin);
-    if (al)
-        al->hier.resetPeerNotes(conn, origin);
+    al->hier.resetPeerNotes(conn, origin);
 }
 
 /// sets n_tries to the given value (while keeping ALE in sync)
@@ -1191,7 +1190,7 @@ tunnelStart(ClientHttpRequest * http)
         ch.syncAle(request, http->log_uri);
         if (ch.fastCheck().denied()) {
             debugs(26, 4, "MISS access forbidden.");
-            http->logType.update(LOG_TCP_TUNNEL);
+            tunnelState->al->cache.code.update(LOG_TCP_TUNNEL);
             err = new ErrorState(ERR_FORWARDING_DENIED, Http::scForbidden, request, http->al);
             http->al->http.code = Http::scForbidden;
             errorSend(http->getConn()->clientConnection, err);

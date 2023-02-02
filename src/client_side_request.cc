@@ -765,7 +765,7 @@ ClientRequestContext::clientAccessCheckDone(const Acl::Answer &answer)
          */
         page_id = aclGetDenyInfoPage(&Config.denyInfoList, AclMatchedName, answer != ACCESS_AUTH_REQUIRED);
 
-        http->logType.update(LOG_TCP_DENIED);
+        http->updateLoggingTags(LOG_TCP_DENIED);
 
         if (auth_challenge) {
 #if USE_AUTH
@@ -1523,8 +1523,8 @@ void
 ClientHttpRequest::httpStart()
 {
     // XXX: Re-initializes rather than updates. Should not be needed at all.
-    logType.update(LOG_TAG_NONE);
-    debugs(85, 4, logType.c_str() << " for '" << uri << "'");
+    updateLoggingTags(LOG_TAG_NONE);
+    debugs(85, 4, loggingTags().c_str() << " for '" << uri << "'");
 
     /* no one should have touched this */
     assert(out.offset == 0);
@@ -1885,7 +1885,7 @@ ClientHttpRequest::doCallouts()
 #if ICAP_CLIENT
     Adaptation::Icap::History::Pointer ih = request->icapHistory();
     if (ih != nullptr)
-        ih->logType = logType;
+        ih->logType = loggingTags();
 #endif
 }
 
