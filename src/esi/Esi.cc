@@ -37,6 +37,7 @@
 #include "HttpReply.h"
 #include "HttpRequest.h"
 #include "ip/Address.h"
+#include "log/forward.h"
 #include "MemBuf.h"
 #include "SquidConfig.h"
 
@@ -1402,7 +1403,7 @@ ESIContext::freeResources ()
     /* don't touch incoming, it's a pointer into buffered anyway */
 }
 
-ErrorState *clientBuildError(err_type, Http::StatusCode, char const *, Ip::Address &, HttpRequest *, const AccessLogEntry::Pointer &);
+ErrorState *clientBuildError(err_type, Http::StatusCode, char const *, Ip::Address &, HttpRequest *, const AccessLogEntryPointer &);
 
 /* This can ONLY be used before we have sent *any* data to the client */
 void
