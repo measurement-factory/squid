@@ -410,7 +410,10 @@ ClientHttpRequest::logRequest()
 
     al->cache.highOffset = out.offset;
 
-    al->cache.code = logType;
+    // TODO: move into a new LogTags method
+    al->cache.code.update(logType.oldType);
+    al->cache.code.err.update(logType.err);
+    al->cache.code.collapsingHistory = logType.collapsingHistory;
 
     tvSub(al->cache.trTime, al->cache.start_time, current_time);
 
