@@ -36,6 +36,15 @@ public:
     /// whether SwapDir may benefit from unlinkd
     virtual bool unlinkdUseful() const = 0;
 
+    /// add the StoreEntry to the replacement policy for all entries
+    virtual void addToReplacementWalkPolicy(StoreEntry &) = 0;
+    /// add the StoreEntry to the replacement policy for idle entries
+    virtual void addToReplacementPurgePolicy(StoreEntry &) = 0;
+    /// remove the StoreEntry from the replacement policy for all entries
+    virtual void removeFromReplacementWalkPolicy(StoreEntry &) = 0;
+    /// remove the StoreEntry from the replacement policy for idle entries
+    virtual void removeFromReplacementPurgePolicy(StoreEntry &) = 0;
+
     /**
      * Notify this disk that it is full.
      * XXX move into a protected api call between store files and their stores, rather than a top level api call
@@ -50,8 +59,7 @@ public:
     int64_t maxObjectSize() const override;
     void getStats(StoreInfoStats &stats) const override;
     void stat(StoreEntry &) const override;
-    void reference(StoreEntry &e) override;
-    bool dereference(StoreEntry &e) override;
+    bool keepIdle() const override;
     void maintain() override;
     /// whether this disk storage is capable of serving multiple workers
     virtual bool smpAware() const = 0;
@@ -102,7 +110,8 @@ public:
     char *path;
     int index;          /* This entry's index into the swapDirs array */
     int disker; ///< disker kid id dedicated to this SwapDir or -1
-    RemovalPolicy *repl;
+    RemovalPolicy *replWalk; ///< contains all entries (idle and locked)
+    RemovalPolicy *replPurge; ///< contains idle entries only
     int removals;
     int scanned;
 

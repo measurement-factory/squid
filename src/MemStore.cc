@@ -285,13 +285,8 @@ MemStore::maxObjectSize() const
     return min(Config.Store.maxInMemObjSize, Config.memMaxSize);
 }
 
-void
-MemStore::reference(StoreEntry &)
-{
-}
-
 bool
-MemStore::dereference(StoreEntry &)
+MemStore::keepIdle() const
 {
     // no need to keep e in the global store_table for us; we have our own map
     return false;

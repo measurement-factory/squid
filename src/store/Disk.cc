@@ -24,7 +24,7 @@
 Store::Disk::Disk(char const *aType): theType(aType),
     max_size(0), min_objsize(-1), max_objsize (-1),
     path(nullptr), index(-1), disker(-1),
-    repl(nullptr), removals(0), scanned(0),
+    replWalk(nullptr), replPurge(nullptr), removals(0), scanned(0),
     cleanLog(nullptr)
 {
     fs.blksize = 1024;
@@ -71,11 +71,17 @@ Store::Disk::stat(StoreEntry &output) const
                       fs.blksize);
     statfs(output);
 
-    if (repl) {
-        storeAppendPrintf(&output, "Removal policy: %s\n", repl->_type);
+    if (replPurge) {
+        storeAppendPrintf(&output, "Removal policy (purge): %s\n", replPurge->_type);
 
-        if (repl->Stats)
-            repl->Stats(repl, &output);
+        if (replPurge->Stats)
+            replPurge->Stats(replPurge, &output);
+    }
+    if (replWalk) {
+        storeAppendPrintf(&output, "Removal policy (walk): %s\n", replWalk->_type);
+
+        if (replWalk->Stats)
+            replWalk->Stats(replWalk, &output);
     }
 }
 
@@ -132,11 +138,8 @@ Store::Disk::maxObjectSize(int64_t newMax)
     max_objsize = newMax;
 }
 
-void
-Store::Disk::reference(StoreEntry &) {}
-
 bool
-Store::Disk::dereference(StoreEntry &)
+Store::Disk::keepIdle() const
 {
     return true; // keep in global store_table
 }

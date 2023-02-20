@@ -17,7 +17,7 @@ CBDATA_NAMESPACED_CLASS_INIT(Fs::Ufs,StoreSearchUFS);
 
 Fs::Ufs::StoreSearchUFS::StoreSearchUFS(RefCount<UFSSwapDir> aSwapDir) :
     sd(aSwapDir),
-    walker(sd->repl->WalkInit(sd->repl)),
+    walker(sd->replWalk->WalkInit(sd->replWalk)),
     cbdata(nullptr),
     current(nullptr),
     _done(false)

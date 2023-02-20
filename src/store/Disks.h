@@ -32,8 +32,7 @@ public:
     void getStats(StoreInfoStats &stats) const override;
     void stat(StoreEntry &) const override;
     void sync() override;
-    void reference(StoreEntry &) override;
-    bool dereference(StoreEntry &e) override;
+    bool keepIdle() const;
     void updateHeaders(StoreEntry *) override;
     void maintain() override;
     bool anchorToCache(StoreEntry &) override;
@@ -57,6 +56,10 @@ public:
     static SwapDir *SelectSwapDir(const StoreEntry *);
     /// whether any of disk caches has entry with e.key
     bool hasReadableEntry(const StoreEntry &) const;
+    /// (re)insert the (unlocked) entry into the replacement policy for idle entries
+    void ensureInReplacementPurgePolicy(StoreEntry &);
+    /// delete the entry from the replacement policy for idle entries
+    void removeFromReplacementPurgePolicy(StoreEntry &);
 
 private:
     /* migration logic */

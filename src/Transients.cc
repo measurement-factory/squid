@@ -129,14 +129,8 @@ Transients::maxObjectSize() const
     return std::numeric_limits<uint64_t>::max();
 }
 
-void
-Transients::reference(StoreEntry &)
-{
-    // no replacement policy (but the cache(s) storing the entry may have one)
-}
-
 bool
-Transients::dereference(StoreEntry &)
+Transients::keepIdle() const
 {
     // no need to keep e in the global store_table for us; we have our own map
     return false;

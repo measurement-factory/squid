@@ -218,8 +218,14 @@ public:
     /// allow or forbid collapsed requests feeding
     void setCollapsingRequirement(const bool required);
 
+    /// (re)insert the (unlocked) entry into the memory replacement policy
+    void ensureInMemReplacementPurgePolicy();
+    /// delete the entry from the memory replacement policy
+    void removeFromMemReplacementPurgePolicy();
+
     MemObject *mem_obj;
-    RemovalPolicyNode repl;
+    RemovalPolicyNode replWalk;
+    RemovalPolicyNode replPurge;
     /* START OF ON-DISK STORE_META_STD TLV field */
     time_t timestamp;
     time_t lastref;

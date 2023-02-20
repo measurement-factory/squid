@@ -55,8 +55,7 @@ public:
     int64_t maxObjectSize() const override;
     void getStats(StoreInfoStats &stats) const override;
     void stat(StoreEntry &e) const override;
-    void reference(StoreEntry &e) override;
-    bool dereference(StoreEntry &e) override;
+    bool keepIdle() const override;
     void updateHeaders(StoreEntry *e) override;
     void maintain() override;
     bool anchorToCache(StoreEntry &) override;

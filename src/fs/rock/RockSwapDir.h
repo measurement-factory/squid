@@ -97,8 +97,11 @@ protected:
     StoreIOState::Pointer openStoreIO(StoreEntry &, StoreIOState::STFNCB *, StoreIOState::STIOCB *, void *) override;
     void maintain() override;
     void diskFull() override;
-    void reference(StoreEntry &e) override;
-    bool dereference(StoreEntry &e) override;
+    bool keepIdle() const override;
+    void addToReplacementWalkPolicy(StoreEntry &) override {}
+    void addToReplacementPurgePolicy(StoreEntry &) override {}
+    void removeFromReplacementWalkPolicy(StoreEntry &) override {}
+    void removeFromReplacementPurgePolicy(StoreEntry &) override {}
     void updateHeaders(StoreEntry *e) override;
     bool unlinkdUseful() const override;
     void statfs(StoreEntry &e) const override;

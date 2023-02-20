@@ -541,16 +541,33 @@ Store::Disks::stat(StoreEntry & output) const
     }
 }
 
-void
-Store::Disks::reference(StoreEntry &e)
+bool
+Store::Disks::keepIdle() const
 {
-    e.disk().reference(e);
+    for (int i = 0; i < Config.cacheSwap.n_configured; ++i) {
+        if (Dir(i).keepIdle())
+            return true;
+    }
+    return false;
 }
 
-bool
-Store::Disks::dereference(StoreEntry &e)
+void
+Store::Disks::ensureInReplacementPurgePolicy(StoreEntry &e)
 {
-    return e.disk().dereference(e);
+    assert(!e.locked());
+    assert(e.hasDisk());
+    for (int i = 0; i < Config.cacheSwap.n_configured; ++i) {
+        Dir(i).removeFromReplacementPurgePolicy(e);
+        Dir(i).addToReplacementPurgePolicy(e);
+    }
+}
+
+void
+Store::Disks::removeFromReplacementPurgePolicy(StoreEntry &e)
+{
+    assert(e.hasDisk());
+    for (int i = 0; i < Config.cacheSwap.n_configured; ++i)
+        Dir(i).removeFromReplacementPurgePolicy(e);
 }
 
 void

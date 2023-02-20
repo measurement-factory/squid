@@ -232,34 +232,9 @@ Store::Controller::callback()
     return swapDir->callback();
 }
 
-/// update reference counters of the recently touched entry
-void
-Store::Controller::referenceBusy(StoreEntry &e)
-{
-    // special entries do not belong to any specific Store, but are IN_MEMORY
-    if (EBIT_TEST(e.flags, ENTRY_SPECIAL))
-        return;
-
-    /* Notify the fs that we're referencing this object again */
-
-    if (e.hasDisk())
-        swapDir->reference(e);
-
-    // Notify the memory cache that we're referencing this object again
-    if (sharedMemStore && e.mem_status == IN_MEMORY)
-        sharedMemStore->reference(e);
-
-    // TODO: move this code to a non-shared memory cache class when we have it
-    if (e.mem_obj) {
-        if (mem_policy->Referenced)
-            mem_policy->Referenced(mem_policy, &e, &e.mem_obj->repl);
-    }
-}
-
-/// dereference()s an idle entry
 /// \returns false if and only if the entry should be deleted
 bool
-Store::Controller::dereferenceIdle(StoreEntry &e, bool wantsLocalMemory)
+Store::Controller::keepIdle(StoreEntry &e, const bool wantsLocalMemory) const
 {
     // special entries do not belong to any specific Store, but are IN_MEMORY
     if (EBIT_TEST(e.flags, ENTRY_SPECIAL))
@@ -275,16 +250,14 @@ Store::Controller::dereferenceIdle(StoreEntry &e, bool wantsLocalMemory)
     // should be done even if we overwrite keepInStoreTable afterwards.
 
     if (e.hasDisk())
-        keepInStoreTable = swapDir->dereference(e) || keepInStoreTable;
+        keepInStoreTable = swapDir->keepIdle() || keepInStoreTable;
 
     // Notify the memory cache that we're not referencing this object any more
     if (sharedMemStore && e.mem_status == IN_MEMORY)
-        keepInStoreTable = sharedMemStore->dereference(e) || keepInStoreTable;
+        keepInStoreTable = sharedMemStore->keepIdle() || keepInStoreTable;
 
     // TODO: move this code to a non-shared memory cache class when we have it
     if (e.mem_obj) {
-        if (mem_policy->Dereferenced)
-            mem_policy->Dereferenced(mem_policy, &e, &e.mem_obj->repl);
         // non-shared memory cache relies on store_table
         if (localMemStore)
             keepInStoreTable = wantsLocalMemory || keepInStoreTable;
@@ -345,6 +318,17 @@ Store::Controller::checkFoundCandidate(const StoreEntry &entry) const
     }
 }
 
+/// deletes the entry from replacement policies before find() returns
+/// the entry to the recipient
+void
+Store::Controller::removeFromReplacementPurgePolicies(StoreEntry &entry)
+{
+    if (entry.hasDisk())
+        swapDir->removeFromReplacementPurgePolicy(entry);
+    if (entry.mem_obj)
+        entry.removeFromMemReplacementPurgePolicy();
+}
+
 StoreEntry *
 Store::Controller::find(const cache_key *key)
 {
@@ -354,7 +338,7 @@ Store::Controller::find(const cache_key *key)
                 allowSharing(*entry, key);
             checkFoundCandidate(*entry);
             entry->touch();
-            referenceBusy(*entry);
+            removeFromReplacementPurgePolicies(*entry);
             return entry;
         } catch (const std::exception &ex) {
             debugs(20, 2, "failed with " << *entry << ": " << ex.what());
@@ -553,6 +537,7 @@ Store::Controller::freeMemorySpace(const int bytesRequired)
     const auto walker = mem_policy->PurgeInit(mem_policy, 100000);
     int removed = 0;
     while (const auto entry = walker->Next(walker)) {
+        assert(!entry->locked());
         // Abandoned memory cache entries are purged during memory shortage.
         entry->abandon(__FUNCTION__); // may delete entry
         ++removed;
@@ -662,7 +647,7 @@ Store::Controller::handleIdleEntry(StoreEntry &e)
 
     // An idle, unlocked entry that only belongs to a SwapDir which controls
     // its own index, should not stay in the global store_table.
-    if (!dereferenceIdle(e, keepInLocalMemory)) {
+    if (!keepIdle(e, keepInLocalMemory)) {
         debugs(20, 5, "destroying unlocked entry: " << &e << ' ' << e);
         destroyStoreEntry(static_cast<hash_link*>(&e));
         return;
@@ -673,9 +658,13 @@ Store::Controller::handleIdleEntry(StoreEntry &e)
     // formerly known as "WARNING: found KEY_PRIVATE"
     assert(!EBIT_TEST(e.flags, KEY_PRIVATE));
 
+    if (e.hasDisk())
+        swapDir->ensureInReplacementPurgePolicy(e);
+
     // TODO: move this into [non-shared] memory cache class when we have one
     if (keepInLocalMemory) {
         e.setMemStatus(IN_MEMORY);
+        e.ensureInMemReplacementPurgePolicy();
         e.mem_obj->unlinkRequest();
         return;
     }

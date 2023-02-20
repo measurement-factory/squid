@@ -70,7 +70,7 @@ class RemovalPurgeWalker
 public:
     RemovalPolicy *_policy;
     void *_data;
-    int scanned, max_scan, locked;
+    int scanned, max_scan;
     StoreEntry *(*Next) (RemovalPurgeWalker * walker);
     void (*Done) (RemovalPurgeWalker * walker);
 };

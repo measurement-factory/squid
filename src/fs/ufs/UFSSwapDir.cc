@@ -185,7 +185,8 @@ Fs::Ufs::UFSSwapDir::parse (int anIndex, char *aPath)
     parseSizeL1L2();
 
     /* Initialise replacement policy stuff */
-    repl = createRemovalPolicy(Config.replPolicy);
+    replWalk = createRemovalPolicy(Config.replPolicy);
+    replPurge = createRemovalPolicy(Config.replPolicy);
 
     parseOptions(0);
 }
@@ -487,7 +488,7 @@ Fs::Ufs::UFSSwapDir::maintain()
      */
     debugs(47, 3, "f=" << f << ", max_scan=" << max_scan << ", max_remove=" << max_remove);
 
-    RemovalPurgeWalker *walker = repl->PurgeInit(repl, max_scan);
+    auto walker = replPurge->PurgeInit(replPurge, max_scan);
 
     int removed = 0;
     // only purge while above low-water
@@ -500,6 +501,7 @@ Fs::Ufs::UFSSwapDir::maintain()
             break;
 
         StoreEntry *e = walker->Next(walker);
+        assert(!e->locked());
 
         // stop if all objects are locked / in-use,
         // or the cache is empty
@@ -520,25 +522,9 @@ Fs::Ufs::UFSSwapDir::maintain()
     // Store::Maintain() schedules another purge in 1 second.
 }
 
-void
-Fs::Ufs::UFSSwapDir::reference(StoreEntry &e)
-{
-    debugs(47, 3, "referencing " << &e << " " <<
-           e.swap_dirn << "/" << e.swap_filen);
-
-    if (repl->Referenced)
-        repl->Referenced(repl, &e, &e.repl);
-}
-
 bool
-Fs::Ufs::UFSSwapDir::dereference(StoreEntry & e)
+Fs::Ufs::UFSSwapDir::keepIdle() const
 {
-    debugs(47, 3, "dereferencing " << &e << " " <<
-           e.swap_dirn << "/" << e.swap_filen);
-
-    if (repl->Dereferenced)
-        repl->Dereferenced(repl, &e, &e.repl);
-
     return true; // keep e in the global store_table
 }
 
@@ -818,7 +804,8 @@ Fs::Ufs::UFSSwapDir::addDiskRestore(const cache_key * key,
     cur_size += fs.blksize * sizeInBlocks(e->swap_file_sz);
     ++n_disk_objects;
     e->hashInsert(key);
-    replacementAdd (e);
+    addToReplacementWalkPolicy(*e);
+    addToReplacementPurgePolicy(*e);
     return e;
 }
 
@@ -959,7 +946,7 @@ Fs::Ufs::UFSSwapDir::writeCleanStart()
     memset(state->outbuf + sizeof(StoreSwapLogHeader), 0, header.gapSize());
     state->outbuf_offset += header.record_size;
 
-    state->walker = repl->WalkInit(repl);
+    state->walker = replWalk->WalkInit(replWalk);
     ::unlink(state->cln.c_str());
     debugs(47, 3, "opened " << state->newLog << ", FD " << state->fd);
 #if HAVE_FCHMOD
@@ -1192,7 +1179,8 @@ Fs::Ufs::UFSSwapDir::evictCached(StoreEntry & e)
         cur_size -= fs.blksize * sizeInBlocks(e.swap_file_sz);
         --n_disk_objects;
     }
-    replacementRemove(&e);
+    removeFromReplacementWalkPolicy(e);
+    removeFromReplacementPurgePolicy(e);
     mapBitReset(e.swap_filen);
     UFSSwapDir::unlinkFile(e.swap_filen);
     e.detachFromDisk();
@@ -1206,24 +1194,46 @@ Fs::Ufs::UFSSwapDir::evictIfFound(const cache_key *)
 }
 
 void
-Fs::Ufs::UFSSwapDir::replacementAdd(StoreEntry * e)
+Fs::Ufs::UFSSwapDir::addToReplacementWalkPolicy(StoreEntry &e)
 {
-    debugs(47, 4, "added node " << e << " to dir " << index);
-    repl->Add(repl, e, &e->repl);
+    debugs(47, 4, "added node " << &e << " to dir " << index);
+    replWalk->Add(replWalk, &e, &e.replWalk);
 }
 
 void
-Fs::Ufs::UFSSwapDir::replacementRemove(StoreEntry * e)
+Fs::Ufs::UFSSwapDir::addToReplacementPurgePolicy(StoreEntry &e)
 {
-    assert(e->hasDisk());
+    debugs(47, 4, "added node " << &e << " to dir " << index);
+    assert(!e.locked());
+    replPurge->Add(replPurge, &e, &e.replPurge);
+}
 
-    SwapDirPointer SD = INDEXSD(e->swap_dirn);
+void
+Fs::Ufs::UFSSwapDir::removeFromReplacementWalkPolicy(StoreEntry &e)
+{
+    assert(e.hasDisk());
+
+    SwapDirPointer SD = INDEXSD(e.swap_dirn);
 
     assert (dynamic_cast<UFSSwapDir *>(SD.getRaw()) == this);
 
     debugs(47, 4, "remove node " << e << " from dir " << index);
 
-    repl->Remove(repl, e, &e->repl);
+    replWalk->Remove(replWalk, &e, &e.replWalk);
+}
+
+void
+Fs::Ufs::UFSSwapDir::removeFromReplacementPurgePolicy(StoreEntry &e)
+{
+    assert(e.hasDisk());
+
+    SwapDirPointer SD = INDEXSD(e.swap_dirn);
+
+    assert (dynamic_cast<UFSSwapDir *>(SD.getRaw()) == this);
+
+    debugs(47, 4, "remove node " << e << " from dir " << index);
+
+    replPurge->Remove(replPurge, &e, &e.replPurge);
 }
 
 void

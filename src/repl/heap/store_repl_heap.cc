@@ -48,7 +48,7 @@ struct HeapPolicyData {
 static enum HeapPolicyData::heap_entry_type
 heap_guessType(StoreEntry * entry, RemovalPolicyNode * node)
 {
-    if (node == &entry->repl)
+    if (node == &entry->replWalk || node == &entry->replPurge)
         return HeapPolicyData::TYPE_STORE_ENTRY;
 
     if (entry->mem_obj && node == &entry->mem_obj->repl)
@@ -65,7 +65,8 @@ HeapPolicyData::setPolicyNode (StoreEntry *entry, void *value) const
     switch (type) {
 
     case TYPE_STORE_ENTRY:
-        entry->repl.data = value;
+        entry->replWalk.data = value;
+        entry->replPurge.data = value;
         break ;
 
     case TYPE_STORE_MEM:
@@ -112,19 +113,6 @@ heap_remove(RemovalPolicy * policy, StoreEntry *,
     node->data = nullptr;
 
     h->count -= 1;
-}
-
-static void
-heap_referenced(RemovalPolicy * policy, const StoreEntry * entry,
-                RemovalPolicyNode * node)
-{
-    HeapPolicyData *h = (HeapPolicyData *)policy->_data;
-    heap_node *hnode = (heap_node *)node->data;
-
-    if (!hnode)
-        return;
-
-    heap_update(h->theHeap, hnode, (StoreEntry *) entry);
 }
 
 /** RemovalPolicyWalker **/
@@ -185,7 +173,6 @@ heap_walkInit(RemovalPolicy * policy)
 class HeapPurgeData
 {
 public:
-    std::queue<StoreEntry *> locked_entries;
     heap_key min_age = 0.0;
 };
 
@@ -198,8 +185,6 @@ heap_purgeNext(RemovalPurgeWalker * walker)
     StoreEntry *entry;
     heap_key age;
 
-try_again:
-
     if (heap_empty(h->theHeap))
         return nullptr;        /* done */
 
@@ -207,13 +192,7 @@ try_again:
 
     entry = (StoreEntry *)heap_extractmin(h->theHeap);
 
-    if (entry->locked()) {
-
-        entry->lock("heap_purgeNext");
-        heap_walker->locked_entries.push(entry);
-
-        goto try_again;
-    }
+    assert(!entry->locked());
 
     heap_walker->min_age = age;
     h->setPolicyNode(entry, nullptr);
@@ -233,15 +212,6 @@ heap_purgeDone(RemovalPurgeWalker * walker)
     if (heap_walker->min_age > 0) {
         h->theHeap->age = heap_walker->min_age;
         debugs(81, 3, "Heap age set to " << h->theHeap->age);
-    }
-
-    // Reinsert the locked entries
-    while (!heap_walker->locked_entries.empty()) {
-        StoreEntry *entry = heap_walker->locked_entries.front();
-        heap_node *node = heap_insert(h->theHeap, entry);
-        h->setPolicyNode(entry, node);
-        entry->unlock("heap_purgeDone");
-        heap_walker->locked_entries.pop();
     }
 
     delete heap_walker;
@@ -330,10 +300,6 @@ createRemovalPolicy_heap(wordlist * args)
     policy->Add = heap_add;
 
     policy->Remove = heap_remove;
-
-    policy->Referenced = nullptr;
-
-    policy->Dereferenced = heap_referenced;
 
     policy->WalkInit = heap_walkInit;
 

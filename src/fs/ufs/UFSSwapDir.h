@@ -54,8 +54,11 @@ public:
     void evictCached(StoreEntry &) override;
     void evictIfFound(const cache_key *) override;
     bool canStore(const StoreEntry &e, int64_t diskSpaceNeeded, int &load) const override;
-    void reference(StoreEntry &) override;
-    bool dereference(StoreEntry &) override;
+    bool keepIdle() const override;
+    void addToReplacementWalkPolicy(StoreEntry &) override;
+    void addToReplacementPurgePolicy(StoreEntry &) override;
+    void removeFromReplacementWalkPolicy(StoreEntry &) override;
+    void removeFromReplacementPurgePolicy(StoreEntry &) override;
     StoreIOState::Pointer createStoreIO(StoreEntry &, StoreIOState::STFNCB *, StoreIOState::STIOCB *, void *) override;
     StoreIOState::Pointer openStoreIO(StoreEntry &, StoreIOState::STFNCB *, StoreIOState::STIOCB *, void *) override;
     void openLog() override;
@@ -110,10 +113,6 @@ public:
 
     bool validL2(int) const;
     bool validL1(int) const;
-
-    /** Add and remove the given StoreEntry from the replacement policy in use */
-    void replacementAdd(StoreEntry *e);
-    void replacementRemove(StoreEntry *e);
 
 protected:
     FileMap *map;

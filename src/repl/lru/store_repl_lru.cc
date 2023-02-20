@@ -31,7 +31,7 @@ struct LruPolicyData {
 static enum LruPolicyData::heap_entry_type
 repl_guessType(StoreEntry * entry, RemovalPolicyNode * node)
 {
-    if (node == &entry->repl)
+    if (node == &entry->replWalk || node == &entry->replPurge)
         return LruPolicyData::TYPE_STORE_ENTRY;
 
     if (entry->mem_obj && node == &entry->mem_obj->repl)
@@ -48,7 +48,8 @@ LruPolicyData::setPolicyNode (StoreEntry *entry, void *value) const
     switch (type) {
 
     case TYPE_STORE_ENTRY:
-        entry->repl.data = value;
+        entry->replWalk.data = value;
+        entry->replPurge.data = value;
         break ;
 
     case TYPE_STORE_MEM:
@@ -113,21 +114,6 @@ lru_remove(RemovalPolicy * policy, StoreEntry * entry, RemovalPolicyNode * node)
     delete lru_node;
 
     lru->count -= 1;
-}
-
-static void
-lru_referenced(RemovalPolicy * policy, const StoreEntry * entry,
-               RemovalPolicyNode * node)
-{
-    LruPolicyData *lru = (LruPolicyData *)policy->_data;
-    LruNode *lru_node = (LruNode *)node->data;
-
-    if (!lru_node)
-        return;
-
-    dlinkDelete(&lru_node->node, &lru->list);
-
-    dlinkAddTail((void *) entry, &lru_node->node, &lru->list);
 }
 
 /** RemovalPolicyWalker **/
@@ -199,7 +185,6 @@ lru_purgeNext(RemovalPurgeWalker * walker)
     LruNode *lru_node;
     StoreEntry *entry;
 
-try_again:
     lru_node = lru_walker->current;
 
     if (!lru_node || walker->scanned >= walker->max_scan)
@@ -217,12 +202,7 @@ try_again:
     entry = (StoreEntry *) lru_node->node.data;
     dlinkDelete(&lru_node->node, &lru->list);
 
-    if (entry->locked()) {
-        /* Shit, it is locked. we can't return this one */
-        ++ walker->locked;
-        dlinkAddTail(entry, &lru_node->node, &lru->list);
-        goto try_again;
-    }
+    assert(!entry->locked());
 
     delete lru_node;
     lru->count -= 1;
@@ -266,16 +246,8 @@ lru_stats(RemovalPolicy * policy, StoreEntry * sentry)
     LruPolicyData *lru = (LruPolicyData *)policy->_data;
     LruNode *lru_node = (LruNode *) lru->list.head;
 
-again:
-
     if (lru_node) {
         StoreEntry *entry = (StoreEntry *) lru_node->node.data;
-
-        if (entry->locked()) {
-            lru_node = (LruNode *) lru_node->node.next;
-            goto again;
-        }
-
         storeAppendPrintf(sentry, "LRU reference age: %.2f days\n", (double) (squid_curtime - entry->lastref) / (double) (24 * 60 * 60));
     }
 }
@@ -320,10 +292,6 @@ createRemovalPolicy_lru(wordlist * args)
     policy->Add = lru_add;
 
     policy->Remove = lru_remove;
-
-    policy->Referenced = lru_referenced;
-
-    policy->Dereferenced = lru_referenced;
 
     policy->WalkInit = lru_walkInit;
 

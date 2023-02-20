@@ -368,6 +368,7 @@ StoreEntry::destroyMemObject()
 
     if (auto memObj = mem_obj) {
         setMemStatus(NOT_IN_MEMORY);
+        removeFromMemReplacementPurgePolicy();
         mem_obj = nullptr;
         delete memObj;
     }
@@ -1066,6 +1067,7 @@ StoreEntry::abort()
     EBIT_CLR(flags, ENTRY_FWD_HDR_WAIT);
 
     setMemStatus(NOT_IN_MEMORY);
+    removeFromMemReplacementPurgePolicy();
 
     store_status = STORE_OK;
 
@@ -1493,41 +1495,42 @@ StoreEntry::setMemStatus(mem_status_t new_status)
 {
     if (new_status == mem_status)
         return;
-
-    // are we using a shared memory cache?
-    if (MemStore::Enabled()) {
-        // This method was designed to update replacement policy, not to
-        // actually purge something from the memory cache (TODO: rename?).
-        // Shared memory cache does not have a policy that needs updates.
-        mem_status = new_status;
-        return;
-    }
-
-    assert(mem_obj != nullptr);
-
-    if (new_status == IN_MEMORY) {
-        assert(mem_obj->inmem_lo == 0);
-
-        if (EBIT_TEST(flags, ENTRY_SPECIAL)) {
-            debugs(20, 4, "not inserting special " << *this << " into policy");
-        } else {
-            mem_policy->Add(mem_policy, this, &mem_obj->repl);
-            debugs(20, 4, "inserted " << *this << " key: " << getMD5Text());
-        }
-
-        ++hot_obj_count; // TODO: maintain for the shared hot cache as well
-    } else {
-        if (EBIT_TEST(flags, ENTRY_SPECIAL)) {
-            debugs(20, 4, "not removing special " << *this << " from policy");
-        } else {
-            mem_policy->Remove(mem_policy, this, &mem_obj->repl);
-            debugs(20, 4, "removed " << *this);
-        }
-
-        --hot_obj_count;
-    }
-
     mem_status = new_status;
+    if (!MemStore::Enabled()) {
+        // TODO: maintain for the shared hot cache as well
+        new_status == IN_MEMORY ? ++hot_obj_count : --hot_obj_count;
+    }
+}
+
+void
+StoreEntry::ensureInMemReplacementPurgePolicy()
+{
+    if (MemStore::Enabled())
+        return;
+    assert(mem_obj);
+    assert(mem_obj->inmem_lo == 0);
+    if (EBIT_TEST(flags, ENTRY_SPECIAL)) {
+        debugs(20, 4, "not inserting special " << *this << " into policy");
+    } else {
+        assert(!locked());
+        mem_policy->Remove(mem_policy, this, &mem_obj->repl);
+        mem_policy->Add(mem_policy, this, &mem_obj->repl);
+        debugs(20, 4, "(re)inserted " << *this << " key: " << getMD5Text());
+    }
+}
+
+void
+StoreEntry::removeFromMemReplacementPurgePolicy()
+{
+    if (MemStore::Enabled())
+        return;
+    assert(mem_obj);
+    if (EBIT_TEST(flags, ENTRY_SPECIAL)) {
+        debugs(20, 4, "not removing special " << *this << " from policy");
+    } else {
+        mem_policy->Remove(mem_policy, this, &mem_obj->repl);
+        debugs(20, 4, "removed " << *this);
+    }
 }
 
 const char *

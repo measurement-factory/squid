@@ -333,7 +333,7 @@ Rock::SwapDir::parse(int anIndex, char *aPath)
 
     // Current openForWriting() code overwrites the old slot if needed
     // and possible, so proactively removing old slots is probably useless.
-    assert(!repl); // repl = createRemovalPolicy(Config.replPolicy);
+    assert(!replWalk); // repl = createRemovalPolicy(Config.replPolicy);
 
     validateOptions();
 }
@@ -975,21 +975,9 @@ Rock::SwapDir::maintain()
     // TODO: Disable maintain() requests when they are pointless.
 }
 
-void
-Rock::SwapDir::reference(StoreEntry &e)
-{
-    debugs(47, 5, &e << ' ' << e.swap_dirn << ' ' << e.swap_filen);
-    if (repl && repl->Referenced)
-        repl->Referenced(repl, &e, &e.repl);
-}
-
 bool
-Rock::SwapDir::dereference(StoreEntry &e)
+Rock::SwapDir::keepIdle() const
 {
-    debugs(47, 5, &e << ' ' << e.swap_dirn << ' ' << e.swap_filen);
-    if (repl && repl->Dereferenced)
-        repl->Dereferenced(repl, &e, &e.repl);
-
     // no need to keep e in the global store_table for us; we have our own map
     return false;
 }
@@ -1026,16 +1014,16 @@ void
 Rock::SwapDir::trackReferences(StoreEntry &e)
 {
     debugs(47, 5, e);
-    if (repl)
-        repl->Add(repl, &e, &e.repl);
+    if (replWalk)
+        replWalk->Add(replWalk, &e, &e.replWalk);
 }
 
 void
 Rock::SwapDir::ignoreReferences(StoreEntry &e)
 {
     debugs(47, 5, e);
-    if (repl)
-        repl->Remove(repl, &e, &e.repl);
+    if (replWalk)
+        replWalk->Remove(replWalk, &e, &e.replWalk);
 }
 
 void
