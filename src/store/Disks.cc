@@ -552,22 +552,33 @@ Store::Disks::keepIdle() const
 }
 
 void
-Store::Disks::ensureInReplacementPurgePolicy(StoreEntry &e)
+Store::Disks::ensureInReplacementIdlePolicy(StoreEntry &e)
 {
     assert(!e.locked());
     assert(e.hasDisk());
-    for (int i = 0; i < Config.cacheSwap.n_configured; ++i) {
-        Dir(i).removeFromReplacementPurgePolicy(e);
-        Dir(i).addToReplacementPurgePolicy(e);
-    }
+    e.disk().removeFromReplacementIdlePolicy(e);
+    e.disk().addToReplacementIdlePolicy(e);
 }
 
 void
-Store::Disks::removeFromReplacementPurgePolicy(StoreEntry &e)
+Store::Disks::removeFromReplacementIdlePolicy(StoreEntry &e)
 {
     assert(e.hasDisk());
-    for (int i = 0; i < Config.cacheSwap.n_configured; ++i)
-        Dir(i).removeFromReplacementPurgePolicy(e);
+    e.disk().removeFromReplacementIdlePolicy(e);
+}
+
+void
+Store::Disks::addToReplacementBusyPolicy(StoreEntry &e)
+{
+    assert(e.hasDisk());
+    e.disk().addToReplacementBusyPolicy(e);
+}
+
+void
+Store::Disks::removeFromReplacementBusyPolicy(StoreEntry &e)
+{
+    assert(e.hasDisk());
+    e.disk().removeFromReplacementBusyPolicy(e);
 }
 
 void

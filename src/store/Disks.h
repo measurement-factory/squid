@@ -57,9 +57,13 @@ public:
     /// whether any of disk caches has entry with e.key
     bool hasReadableEntry(const StoreEntry &) const;
     /// (re)insert the (unlocked) entry into the replacement policy for idle entries
-    void ensureInReplacementPurgePolicy(StoreEntry &);
+    void ensureInReplacementIdlePolicy(StoreEntry &);
     /// delete the entry from the replacement policy for idle entries
-    void removeFromReplacementPurgePolicy(StoreEntry &);
+    void removeFromReplacementIdlePolicy(StoreEntry &);
+    /// append the (to-be-locked) entry into the replacement policy for busy entries
+    void addToReplacementBusyPolicy(StoreEntry &);
+    /// delete the entry from the replacement policy for busy entries
+    void removeFromReplacementBusyPolicy(StoreEntry &);
 
 private:
     /* migration logic */

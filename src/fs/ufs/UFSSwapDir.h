@@ -55,10 +55,10 @@ public:
     void evictIfFound(const cache_key *) override;
     bool canStore(const StoreEntry &e, int64_t diskSpaceNeeded, int &load) const override;
     bool keepIdle() const override;
-    void addToReplacementWalkPolicy(StoreEntry &) override;
-    void addToReplacementPurgePolicy(StoreEntry &) override;
-    void removeFromReplacementWalkPolicy(StoreEntry &) override;
-    void removeFromReplacementPurgePolicy(StoreEntry &) override;
+    void addToReplacementBusyPolicy(StoreEntry &) override;
+    void removeFromReplacementBusyPolicy(StoreEntry &) override;
+    void addToReplacementIdlePolicy(StoreEntry &) override;
+    void removeFromReplacementIdlePolicy(StoreEntry &) override;
     StoreIOState::Pointer createStoreIO(StoreEntry &, StoreIOState::STFNCB *, StoreIOState::STIOCB *, void *) override;
     StoreIOState::Pointer openStoreIO(StoreEntry &, StoreIOState::STFNCB *, StoreIOState::STIOCB *, void *) override;
     void openLog() override;

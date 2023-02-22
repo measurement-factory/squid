@@ -368,7 +368,7 @@ StoreEntry::destroyMemObject()
 
     if (auto memObj = mem_obj) {
         setMemStatus(NOT_IN_MEMORY);
-        removeFromMemReplacementPurgePolicy();
+        removeFromMemReplacementIdlePolicy();
         mem_obj = nullptr;
         delete memObj;
     }
@@ -1067,7 +1067,7 @@ StoreEntry::abort()
     EBIT_CLR(flags, ENTRY_FWD_HDR_WAIT);
 
     setMemStatus(NOT_IN_MEMORY);
-    removeFromMemReplacementPurgePolicy();
+    removeFromMemReplacementIdlePolicy();
 
     store_status = STORE_OK;
 
@@ -1503,7 +1503,7 @@ StoreEntry::setMemStatus(mem_status_t new_status)
 }
 
 void
-StoreEntry::ensureInMemReplacementPurgePolicy()
+StoreEntry::ensureInMemReplacementIdlePolicy()
 {
     if (MemStore::Enabled())
         return;
@@ -1520,7 +1520,7 @@ StoreEntry::ensureInMemReplacementPurgePolicy()
 }
 
 void
-StoreEntry::removeFromMemReplacementPurgePolicy()
+StoreEntry::removeFromMemReplacementIdlePolicy()
 {
     if (MemStore::Enabled())
         return;

@@ -37,13 +37,13 @@ public:
     virtual bool unlinkdUseful() const = 0;
 
     /// add the StoreEntry to the replacement policy for all entries
-    virtual void addToReplacementWalkPolicy(StoreEntry &) = 0;
+    virtual void addToReplacementBusyPolicy(StoreEntry &) = 0;
     /// add the StoreEntry to the replacement policy for idle entries
-    virtual void addToReplacementPurgePolicy(StoreEntry &) = 0;
+    virtual void addToReplacementIdlePolicy(StoreEntry &) = 0;
     /// remove the StoreEntry from the replacement policy for all entries
-    virtual void removeFromReplacementWalkPolicy(StoreEntry &) = 0;
+    virtual void removeFromReplacementBusyPolicy(StoreEntry &) = 0;
     /// remove the StoreEntry from the replacement policy for idle entries
-    virtual void removeFromReplacementPurgePolicy(StoreEntry &) = 0;
+    virtual void removeFromReplacementIdlePolicy(StoreEntry &) = 0;
 
     /**
      * Notify this disk that it is full.
@@ -110,8 +110,8 @@ public:
     char *path;
     int index;          /* This entry's index into the swapDirs array */
     int disker; ///< disker kid id dedicated to this SwapDir or -1
-    RemovalPolicy *replWalk; ///< contains all entries (idle and locked)
-    RemovalPolicy *replPurge; ///< contains idle entries only
+    RemovalPolicy *replBusy; ///< contains busy (locked or to-be-locked) entries
+    RemovalPolicy *replIdle; ///< contains idle (unlocked) entries only
     int removals;
     int scanned;
 

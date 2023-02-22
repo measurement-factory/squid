@@ -232,6 +232,18 @@ Store::Controller::callback()
     return swapDir->callback();
 }
 
+void
+Store::Controller::referenceBusy(StoreEntry &e)
+{
+    if (e.hasDisk()) {
+        swapDir->removeFromReplacementIdlePolicy(e);
+        swapDir->addToReplacementBusyPolicy(e);
+    }
+    // TODO: move this code to a non-shared memory cache class when we have it
+    if (e.mem_obj)
+        e.removeFromMemReplacementIdlePolicy();
+}
+
 /// \returns false if and only if the entry should be deleted
 bool
 Store::Controller::keepIdle(StoreEntry &e, const bool wantsLocalMemory) const
@@ -318,17 +330,6 @@ Store::Controller::checkFoundCandidate(const StoreEntry &entry) const
     }
 }
 
-/// deletes the entry from replacement policies before find() returns
-/// the entry to the recipient
-void
-Store::Controller::removeFromReplacementPurgePolicies(StoreEntry &entry)
-{
-    if (entry.hasDisk())
-        swapDir->removeFromReplacementPurgePolicy(entry);
-    if (entry.mem_obj)
-        entry.removeFromMemReplacementPurgePolicy();
-}
-
 StoreEntry *
 Store::Controller::find(const cache_key *key)
 {
@@ -338,7 +339,7 @@ Store::Controller::find(const cache_key *key)
                 allowSharing(*entry, key);
             checkFoundCandidate(*entry);
             entry->touch();
-            removeFromReplacementPurgePolicies(*entry);
+            referenceBusy(*entry);
             return entry;
         } catch (const std::exception &ex) {
             debugs(20, 2, "failed with " << *entry << ": " << ex.what());
@@ -658,13 +659,15 @@ Store::Controller::handleIdleEntry(StoreEntry &e)
     // formerly known as "WARNING: found KEY_PRIVATE"
     assert(!EBIT_TEST(e.flags, KEY_PRIVATE));
 
-    if (e.hasDisk())
-        swapDir->ensureInReplacementPurgePolicy(e);
+    if (e.hasDisk()) {
+        swapDir->removeFromReplacementBusyPolicy(e);
+        swapDir->ensureInReplacementIdlePolicy(e);
+    }
 
     // TODO: move this into [non-shared] memory cache class when we have one
     if (keepInLocalMemory) {
         e.setMemStatus(IN_MEMORY);
-        e.ensureInMemReplacementPurgePolicy();
+        e.ensureInMemReplacementIdlePolicy();
         e.mem_obj->unlinkRequest();
         return;
     }

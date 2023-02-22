@@ -98,10 +98,10 @@ protected:
     void maintain() override;
     void diskFull() override;
     bool keepIdle() const override;
-    void addToReplacementWalkPolicy(StoreEntry &) override {}
-    void addToReplacementPurgePolicy(StoreEntry &) override {}
-    void removeFromReplacementWalkPolicy(StoreEntry &) override {}
-    void removeFromReplacementPurgePolicy(StoreEntry &) override {}
+    void addToReplacementBusyPolicy(StoreEntry &) override {}
+    void addToReplacementIdlePolicy(StoreEntry &) override {}
+    void removeFromReplacementBusyPolicy(StoreEntry &) override {}
+    void removeFromReplacementIdlePolicy(StoreEntry &) override {}
     void updateHeaders(StoreEntry *e) override;
     bool unlinkdUseful() const override;
     void statfs(StoreEntry &e) const override;

@@ -132,7 +132,7 @@ Fs::Ufs::UFSStrategy::create(SwapDir * SD, StoreEntry * e, StoreIOState::STFNCB 
     }
 
     /* now insert into the replacement policy */
-    SD->addToReplacementWalkPolicy(*e);
+    SD->addToReplacementBusyPolicy(*e);
 
     return sio;
 }

@@ -333,7 +333,7 @@ Rock::SwapDir::parse(int anIndex, char *aPath)
 
     // Current openForWriting() code overwrites the old slot if needed
     // and possible, so proactively removing old slots is probably useless.
-    assert(!replWalk); // repl = createRemovalPolicy(Config.replPolicy);
+    assert(!replBusy); // repl = createRemovalPolicy(Config.replPolicy);
 
     validateOptions();
 }
@@ -1014,16 +1014,16 @@ void
 Rock::SwapDir::trackReferences(StoreEntry &e)
 {
     debugs(47, 5, e);
-    if (replWalk)
-        replWalk->Add(replWalk, &e, &e.replWalk);
+    if (replBusy)
+        replBusy->Add(replBusy, &e, &e.replWalk);
 }
 
 void
 Rock::SwapDir::ignoreReferences(StoreEntry &e)
 {
     debugs(47, 5, e);
-    if (replWalk)
-        replWalk->Remove(replWalk, &e, &e.replWalk);
+    if (replBusy)
+        replBusy->Remove(replBusy, &e, &e.replWalk);
 }
 
 void

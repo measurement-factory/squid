@@ -219,9 +219,9 @@ public:
     void setCollapsingRequirement(const bool required);
 
     /// (re)insert the (unlocked) entry into the memory replacement policy
-    void ensureInMemReplacementPurgePolicy();
+    void ensureInMemReplacementIdlePolicy();
     /// delete the entry from the memory replacement policy
-    void removeFromMemReplacementPurgePolicy();
+    void removeFromMemReplacementIdlePolicy();
 
     MemObject *mem_obj;
     RemovalPolicyNode replWalk;

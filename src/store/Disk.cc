@@ -24,7 +24,7 @@
 Store::Disk::Disk(char const *aType): theType(aType),
     max_size(0), min_objsize(-1), max_objsize (-1),
     path(nullptr), index(-1), disker(-1),
-    replWalk(nullptr), replPurge(nullptr), removals(0), scanned(0),
+    replBusy(nullptr), replIdle(nullptr), removals(0), scanned(0),
     cleanLog(nullptr)
 {
     fs.blksize = 1024;
@@ -71,17 +71,17 @@ Store::Disk::stat(StoreEntry &output) const
                       fs.blksize);
     statfs(output);
 
-    if (replPurge) {
-        storeAppendPrintf(&output, "Removal policy (purge): %s\n", replPurge->_type);
+    if (replIdle) {
+        storeAppendPrintf(&output, "Removal policy (idle): %s\n", replIdle->_type);
 
-        if (replPurge->Stats)
-            replPurge->Stats(replPurge, &output);
+        if (replIdle->Stats)
+            replIdle->Stats(replIdle, &output);
     }
-    if (replWalk) {
-        storeAppendPrintf(&output, "Removal policy (walk): %s\n", replWalk->_type);
+    if (replBusy) {
+        storeAppendPrintf(&output, "Removal policy (busy): %s\n", replBusy->_type);
 
-        if (replWalk->Stats)
-            replWalk->Stats(replWalk, &output);
+        if (replBusy->Stats)
+            replBusy->Stats(replBusy, &output);
     }
 }
 

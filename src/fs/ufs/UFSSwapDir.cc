@@ -58,7 +58,8 @@ public:
     char *outbuf = nullptr;
     off_t outbuf_offset = 0;
     int fd = -1;
-    RemovalPolicyWalker *walker = nullptr;
+    RemovalPolicyWalker *idleWalker = nullptr;
+    RemovalPolicyWalker *busyWalker = nullptr;
     SwapDir *sd = nullptr;
 };
 
@@ -67,8 +68,11 @@ UFSCleanLog::nextEntry()
 {
     const StoreEntry *entry = nullptr;
 
-    if (walker)
-        entry = walker->Next(walker);
+    if (idleWalker)
+        entry = idleWalker->Next(idleWalker);
+
+    if (!entry && busyWalker)
+        entry = busyWalker->Next(busyWalker);
 
     return entry;
 }
@@ -185,8 +189,8 @@ Fs::Ufs::UFSSwapDir::parse (int anIndex, char *aPath)
     parseSizeL1L2();
 
     /* Initialise replacement policy stuff */
-    replWalk = createRemovalPolicy(Config.replPolicy);
-    replPurge = createRemovalPolicy(Config.replPolicy);
+    replBusy = createRemovalPolicy(Config.replPolicy);
+    replIdle = createRemovalPolicy(Config.replPolicy);
 
     parseOptions(0);
 }
@@ -488,7 +492,7 @@ Fs::Ufs::UFSSwapDir::maintain()
      */
     debugs(47, 3, "f=" << f << ", max_scan=" << max_scan << ", max_remove=" << max_remove);
 
-    auto walker = replPurge->PurgeInit(replPurge, max_scan);
+    auto walker = replIdle->PurgeInit(replIdle, max_scan);
 
     int removed = 0;
     // only purge while above low-water
@@ -804,8 +808,7 @@ Fs::Ufs::UFSSwapDir::addDiskRestore(const cache_key * key,
     cur_size += fs.blksize * sizeInBlocks(e->swap_file_sz);
     ++n_disk_objects;
     e->hashInsert(key);
-    addToReplacementWalkPolicy(*e);
-    addToReplacementPurgePolicy(*e);
+    addToReplacementIdlePolicy(*e);
     return e;
 }
 
@@ -946,7 +949,8 @@ Fs::Ufs::UFSSwapDir::writeCleanStart()
     memset(state->outbuf + sizeof(StoreSwapLogHeader), 0, header.gapSize());
     state->outbuf_offset += header.record_size;
 
-    state->walker = replWalk->WalkInit(replWalk);
+    state->idleWalker = replIdle->WalkInit(replIdle);
+    state->busyWalker = replBusy->WalkInit(replBusy);
     ::unlink(state->cln.c_str());
     debugs(47, 3, "opened " << state->newLog << ", FD " << state->fd);
 #if HAVE_FCHMOD
@@ -972,7 +976,8 @@ Fs::Ufs::UFSSwapDir::writeCleanDone()
     if (state->fd < 0)
         return;
 
-    state->walker->Done(state->walker);
+    state->idleWalker->Done(state->idleWalker);
+    state->busyWalker->Done(state->busyWalker);
 
     if (FD_WRITE_METHOD(state->fd, state->outbuf, state->outbuf_offset) < 0) {
         int xerrno = errno;
@@ -1179,8 +1184,8 @@ Fs::Ufs::UFSSwapDir::evictCached(StoreEntry & e)
         cur_size -= fs.blksize * sizeInBlocks(e.swap_file_sz);
         --n_disk_objects;
     }
-    removeFromReplacementWalkPolicy(e);
-    removeFromReplacementPurgePolicy(e);
+    removeFromReplacementBusyPolicy(e);
+    removeFromReplacementIdlePolicy(e);
     mapBitReset(e.swap_filen);
     UFSSwapDir::unlinkFile(e.swap_filen);
     e.detachFromDisk();
@@ -1194,22 +1199,22 @@ Fs::Ufs::UFSSwapDir::evictIfFound(const cache_key *)
 }
 
 void
-Fs::Ufs::UFSSwapDir::addToReplacementWalkPolicy(StoreEntry &e)
+Fs::Ufs::UFSSwapDir::addToReplacementBusyPolicy(StoreEntry &e)
 {
     debugs(47, 4, "added node " << &e << " to dir " << index);
-    replWalk->Add(replWalk, &e, &e.replWalk);
+    replBusy->Add(replBusy, &e, &e.replWalk);
 }
 
 void
-Fs::Ufs::UFSSwapDir::addToReplacementPurgePolicy(StoreEntry &e)
+Fs::Ufs::UFSSwapDir::addToReplacementIdlePolicy(StoreEntry &e)
 {
     debugs(47, 4, "added node " << &e << " to dir " << index);
     assert(!e.locked());
-    replPurge->Add(replPurge, &e, &e.replPurge);
+    replIdle->Add(replIdle, &e, &e.replPurge);
 }
 
 void
-Fs::Ufs::UFSSwapDir::removeFromReplacementWalkPolicy(StoreEntry &e)
+Fs::Ufs::UFSSwapDir::removeFromReplacementBusyPolicy(StoreEntry &e)
 {
     assert(e.hasDisk());
 
@@ -1219,11 +1224,11 @@ Fs::Ufs::UFSSwapDir::removeFromReplacementWalkPolicy(StoreEntry &e)
 
     debugs(47, 4, "remove node " << e << " from dir " << index);
 
-    replWalk->Remove(replWalk, &e, &e.replWalk);
+    replBusy->Remove(replBusy, &e, &e.replWalk);
 }
 
 void
-Fs::Ufs::UFSSwapDir::removeFromReplacementPurgePolicy(StoreEntry &e)
+Fs::Ufs::UFSSwapDir::removeFromReplacementIdlePolicy(StoreEntry &e)
 {
     assert(e.hasDisk());
 
@@ -1233,7 +1238,7 @@ Fs::Ufs::UFSSwapDir::removeFromReplacementPurgePolicy(StoreEntry &e)
 
     debugs(47, 4, "remove node " << e << " from dir " << index);
 
-    replPurge->Remove(replPurge, &e, &e.replPurge);
+    replIdle->Remove(replIdle, &e, &e.replPurge);
 }
 
 void
