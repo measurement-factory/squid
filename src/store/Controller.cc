@@ -235,6 +235,10 @@ Store::Controller::callback()
 void
 Store::Controller::referenceBusy(StoreEntry &e)
 {
+    // special entries do not belong to any specific Store, but are IN_MEMORY
+    if (EBIT_TEST(e.flags, ENTRY_SPECIAL))
+        return;
+
     if (e.hasDisk()) {
         swapDir->removeFromReplacementIdlePolicy(e);
         swapDir->addToReplacementBusyPolicy(e);
