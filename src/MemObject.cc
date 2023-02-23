@@ -43,6 +43,8 @@ url_checksum(const char *url)
 
 RemovalPolicy * mem_policy = nullptr;
 
+size_t MemObject::IdlePagesCount = 0;
+
 size_t
 MemObject::inUseCount()
 {

@@ -165,6 +165,12 @@ public:
     static constexpr Io ioWriting = Store::ioWriting;
     static constexpr Io ioDone = Store::ioDone;
 
+    size_t pages() const { return (endOffset() + SM_PAGE_SIZE-1) / SM_PAGE_SIZE; }
+    void markPagesIdle() { IdlePagesCount += pages(); }
+    void markPagesBusy() { assert(IdlePagesCount > pages()); IdlePagesCount -= pages(); }
+
+    static size_t IdlePagesCount;
+
     /// State of an entry with regards to the [shared] in-transit table.
     class XitTable
     {
