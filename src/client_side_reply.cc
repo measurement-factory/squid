@@ -162,7 +162,7 @@ clientReplyContext::setReplyToReply(HttpReply *futureReply)
 void clientReplyContext::setReplyToStoreEntry(StoreEntry *entry, const char *reason)
 {
     entry->lock("clientReplyContext::setReplyToStoreEntry"); // removeClientStoreReference() unlocks
-    sc = storeClientListAdd(entry, this);
+    sc = storeClientListAdd(entry, this, http->al);
 #if USE_DELAY_POOLS
     sc->setDelayId(DelayId::DelayClient(http));
 #endif
@@ -327,7 +327,7 @@ clientReplyContext::processExpired()
         }
     }
 
-    sc = storeClientListAdd(entry, this);
+    sc = storeClientListAdd(entry, this, http->al);
 #if USE_DELAY_POOLS
     /* delay_id is already set on original store client */
     sc->setDelayId(DelayId::DelayClient(http));
@@ -991,7 +991,7 @@ clientReplyContext::purgeFoundObject(StoreEntry *entry)
     http->storeEntry()->createMemObject(storeId(), http->log_uri,
                                         http->request->method);
 
-    sc = storeClientListAdd(http->storeEntry(), this);
+    sc = storeClientListAdd(http->storeEntry(), this, http->al);
 
     http->logType.assign(LOG_TCP_HIT, collapsedStats);
 
@@ -1870,7 +1870,7 @@ clientReplyContext::doGetMoreData()
             debugs(88, 3, "storeId: " << http->storeEntry()->mem_obj->storeId());
         }
 
-        sc = storeClientListAdd(http->storeEntry(), this);
+        sc = storeClientListAdd(http->storeEntry(), this, http->al);
 #if USE_DELAY_POOLS
         sc->setDelayId(DelayId::DelayClient(http));
 #endif
@@ -2324,7 +2324,7 @@ clientReplyContext::createStoreEntry(const HttpRequestMethod& m, RequestFlags re
         Store::Root().allowCollapsing(e, reqFlags, m);
     }
 
-    sc = storeClientListAdd(e, this);
+    sc = storeClientListAdd(e, this, http->al);
 
 #if USE_DELAY_POOLS
     sc->setDelayId(DelayId::DelayClient(http));

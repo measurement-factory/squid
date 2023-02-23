@@ -980,6 +980,16 @@ Format::Format::assemble(MemBuf &mb, const AccessLogEntry::Pointer &al, int logS
             // or internal error messages).
             break;
 
+        case LFT_HTTP_REPLY_BYTES_FROM_DISK:
+            outoff = al->replyBytesFromDisk;
+            dooff = 1;
+            break;
+
+        case LFT_HTTP_REPLY_BYTES_FROM_MEMORY:
+            outoff = al->replyBytesFromMemory;
+            dooff = 1;
+            break;
+
         case LFT_SQUID_STATUS:
             out = al->cache.code.c_str();
             break;
