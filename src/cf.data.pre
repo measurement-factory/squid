@@ -4358,6 +4358,8 @@ DOC_START
 				include hits, misses, responses to Squid-initiated HTTP
 				revalidation requests, generated FTP listings, errors, etc.
 
+				The text below is related to both %<sd and %<sm codes.
+
 				Pure disk cache hits have a positive %<sd value and zero %<sm
 				value, but that logic does not work in reverse: A transaction
 				that has a positive %<sd value and zero %<sm value may not be
