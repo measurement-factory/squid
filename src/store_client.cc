@@ -9,8 +9,8 @@
 /* DEBUG: section 90    Storage Manager Client-Side Interface */
 
 #include "squid.h"
-#include "acl/FilledChecklist.h"
 #include "AccessLogEntry.h"
+#include "acl/FilledChecklist.h"
 #include "event.h"
 #include "globals.h"
 #include "HttpReply.h"
