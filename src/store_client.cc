@@ -9,6 +9,7 @@
 /* DEBUG: section 90    Storage Manager Client-Side Interface */
 
 #include "squid.h"
+#include "AccessLogEntry.h"
 #include "acl/FilledChecklist.h"
 #include "event.h"
 #include "globals.h"
@@ -142,6 +143,15 @@ storeClientListAdd(StoreEntry * e, void *data)
 
     mem->addClient(sc);
 
+    return sc;
+}
+
+store_client *
+storeClientListAdd(StoreEntry * e, void *data, const AccessLogEntryPointer &ale)
+{
+    assert(ale);
+    const auto sc = storeClientListAdd(e, data);
+    sc->ale = ale;
     return sc;
 }
 
@@ -468,6 +478,10 @@ store_client::scheduleMemRead()
     /* Old style */
     debugs(90, 3, "store_client::doCopy: Copying normal from memory");
     size_t sz = entry->mem_obj->data_hdr.copy(copyInto);
+
+    if (ale && sz > 0)
+        ale->replyBytesFromMemory += sz;
+
     callback(sz);
     flags.store_copying = false;
 }
@@ -498,6 +512,9 @@ void
 store_client::readBody(const char *, ssize_t len)
 {
     int parsed_header = 0;
+
+    if (ale && len > 0 && flags.disk_io_pending)
+        ale->replyBytesFromDisk += len;
 
     // Don't assert disk_io_pending here.. may be called by read_header
     flags.disk_io_pending = false;
@@ -621,6 +638,9 @@ store_client::readHeader(char const *buf, ssize_t len)
 
     if (len < 0)
         return fail();
+
+    if (ale)
+        ale->replyBytesFromDisk += len;
 
     if (!unpackHeader(buf, len)) {
         fail();

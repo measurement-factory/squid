@@ -120,6 +120,8 @@ typedef enum {
     LFT_HTTP_RECEIVED_STATUS_CODE,
     /*LFT_HTTP_STATUS, */
     LFT_HTTP_BODY_BYTES_READ,
+    LFT_HTTP_REPLY_BYTES_FROM_DISK,
+    LFT_HTTP_REPLY_BYTES_FROM_MEMORY,
 
     /* response header details pre-adaptation */
     LFT_REPLY_HEADER,
