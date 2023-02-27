@@ -30,9 +30,13 @@ class RemovalPolicyNode
 {
 
 public:
-    RemovalPolicyNode() : data(nullptr) {}
+    RemovalPolicyNode() : data(nullptr), owner(nullptr) {}
+
+    bool inited() const { assert(valid()); return bool(data); }
+    bool valid() const { return (data && owner) || (!data && !owner); }
 
     void *data;
+    void *owner;
 };
 
 class RemovalPolicy
@@ -41,12 +45,13 @@ class RemovalPolicy
 
 public:
     const char *_type;
-    void *_data;
+    void *_dataIdle;
+    void *_dataBusy;
     void (*Free) (RemovalPolicy * policy);
     void (*Add) (RemovalPolicy * policy, StoreEntry * entry, RemovalPolicyNode * node);
     void (*Remove) (RemovalPolicy * policy, StoreEntry * entry, RemovalPolicyNode * node);
-    void (*Referenced) (RemovalPolicy * policy, const StoreEntry * entry, RemovalPolicyNode * node);
-    void (*Dereferenced) (RemovalPolicy * policy, const StoreEntry * entry, RemovalPolicyNode * node);
+    void (*Referenced) (RemovalPolicy * policy, StoreEntry * entry, RemovalPolicyNode * node);
+    void (*Dereferenced) (RemovalPolicy * policy, StoreEntry * entry, RemovalPolicyNode * node);
     RemovalPolicyWalker *(*WalkInit) (RemovalPolicy * policy);
     RemovalPurgeWalker *(*PurgeInit) (RemovalPolicy * policy, int max_scan);
     void (*Stats) (RemovalPolicy * policy, StoreEntry * entry);
@@ -58,7 +63,8 @@ class RemovalPolicyWalker
 
 public:
     RemovalPolicy *_policy;
-    void *_data;
+    void *_dataIdle;
+    void *_dataBusy;
     const StoreEntry *(*Next) (RemovalPolicyWalker * walker);
     void (*Done) (RemovalPolicyWalker * walker);
 };
@@ -69,8 +75,8 @@ class RemovalPurgeWalker
 
 public:
     RemovalPolicy *_policy;
-    void *_data;
-    int scanned, max_scan, locked;
+    void *_dataIdle;
+    int scanned, max_scan;
     StoreEntry *(*Next) (RemovalPurgeWalker * walker);
     void (*Done) (RemovalPurgeWalker * walker);
 };

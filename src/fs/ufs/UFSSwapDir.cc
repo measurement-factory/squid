@@ -818,7 +818,7 @@ Fs::Ufs::UFSSwapDir::addDiskRestore(const cache_key * key,
     cur_size += fs.blksize * sizeInBlocks(e->swap_file_sz);
     ++n_disk_objects;
     e->hashInsert(key);
-    replacementAdd (e);
+    replacementAdd(e, false);
     return e;
 }
 
@@ -1206,10 +1206,12 @@ Fs::Ufs::UFSSwapDir::evictIfFound(const cache_key *)
 }
 
 void
-Fs::Ufs::UFSSwapDir::replacementAdd(StoreEntry * e)
+Fs::Ufs::UFSSwapDir::replacementAdd(StoreEntry *e, const bool referenced)
 {
     debugs(47, 4, "added node " << e << " to dir " << index);
     repl->Add(repl, e, &e->repl);
+    if (referenced)
+        repl->Referenced(repl, e, &e->repl);
 }
 
 void

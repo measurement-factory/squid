@@ -112,7 +112,7 @@ public:
     bool validL1(int) const;
 
     /** Add and remove the given StoreEntry from the replacement policy in use */
-    void replacementAdd(StoreEntry *e);
+    void replacementAdd(StoreEntry *e, bool referenced);
     void replacementRemove(StoreEntry *e);
 
 protected:
