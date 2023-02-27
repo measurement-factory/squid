@@ -96,7 +96,7 @@ lru_add_to(StoreEntry * entry, RemovalPolicyNode * node, LruPolicyData *policyDa
 static void
 lru_add(RemovalPolicy * policy, StoreEntry * entry, RemovalPolicyNode * node)
 {
-	auto lruIdle = (LruPolicyData *)policy->_dataIdle;
+    auto lruIdle = (LruPolicyData *)policy->_dataIdle;
     lru_add_to(entry, node, lruIdle);
 }
 
@@ -164,8 +164,8 @@ static void
 lru_dereferenced(RemovalPolicy * policy, StoreEntry * entry,
                RemovalPolicyNode * node)
 {
-	auto lruIdle = (LruPolicyData *)policy->_dataIdle;
-	auto lruBusy = (LruPolicyData *)policy->_dataBusy;
+    auto lruIdle = (LruPolicyData *)policy->_dataIdle;
+    auto lruBusy = (LruPolicyData *)policy->_dataBusy;
 
     LruNode *lru_node = (LruNode *)node->data;
 
@@ -188,8 +188,8 @@ struct _LruWalkData {
 static const StoreEntry *
 lru_walkNext(RemovalPolicyWalker * walker)
 {
-	auto lru_walk_idle = (LruWalkData *)walker->_dataIdle;
-	auto lru_walk_busy = (LruWalkData *)walker->_dataBusy;
+    auto lru_walk_idle = (LruWalkData *)walker->_dataIdle;
+    auto lru_walk_busy = (LruWalkData *)walker->_dataBusy;
     LruNode *lru_node = lru_walk_idle->current;
 
     if (lru_node) {
@@ -223,8 +223,8 @@ lru_walkDone(RemovalPolicyWalker * walker)
 static RemovalPolicyWalker *
 lru_walkInit(RemovalPolicy * policy)
 {
-	auto lruIdle = (LruPolicyData *)policy->_dataIdle;
-	auto lruBusy = (LruPolicyData *)policy->_dataBusy;
+    auto lruIdle = (LruPolicyData *)policy->_dataIdle;
+    auto lruBusy = (LruPolicyData *)policy->_dataBusy;
     RemovalPolicyWalker *walker;
     LruWalkData *lru_walk_idle;
     LruWalkData *lru_walk_busy;
@@ -255,7 +255,7 @@ struct _LruPurgeData {
 static StoreEntry *
 lru_purgeNext(RemovalPurgeWalker * walker)
 {
-	auto lru_walker = (LruPurgeData *)walker->_dataIdle;
+    auto lru_walker = (LruPurgeData *)walker->_dataIdle;
     RemovalPolicy *policy = walker->_policy;
     auto lru = (LruPolicyData *)policy->_dataIdle;
     LruNode *lru_node;
@@ -295,7 +295,7 @@ lru_purgeDone(RemovalPurgeWalker * walker)
 static RemovalPurgeWalker *
 lru_purgeInit(RemovalPolicy * policy, int max_scan)
 {
-	auto lru = (LruPolicyData *)policy->_dataIdle;
+    auto lru = (LruPolicyData *)policy->_dataIdle;
     RemovalPurgeWalker *walker;
     LruPurgeData *lru_walk;
     lru->nwalkers += 1;
@@ -325,7 +325,7 @@ lru_stats(RemovalPolicy * policy, StoreEntry * sentry)
 static void
 lru_free(RemovalPolicy * policy)
 {
-	auto lru = (LruPolicyData *)policy->_dataIdle;
+    auto lru = (LruPolicyData *)policy->_dataIdle;
     /* Make some verification of the policy state */
     assert(strcmp(policy->_type, "lru") == 0);
     assert(lru->nwalkers);
