@@ -18,26 +18,6 @@
 
 ACLTimeData::ACLTimeData () : weekbits (0), start (0), stop (0), next (nullptr) {}
 
-ACLTimeData::ACLTimeData(ACLTimeData const &old) : weekbits(old.weekbits), start (old.start), stop (old.stop), next (nullptr)
-{
-    if (old.next)
-        next = (ACLTimeData *)old.next->clone();
-}
-
-ACLTimeData&
-ACLTimeData::operator=(ACLTimeData const &old)
-{
-    weekbits = old.weekbits;
-    start = old.start;
-    stop = old.stop;
-    next = nullptr;
-
-    if (old.next)
-        next = (ACLTimeData *)old.next->clone();
-
-    return *this;
-}
-
 ACLTimeData::~ACLTimeData()
 {
     if (next)
@@ -224,11 +204,5 @@ bool
 ACLTimeData::empty() const
 {
     return false;
-}
-
-ACLData<time_t> *
-ACLTimeData::clone() const
-{
-    return new ACLTimeData(*this);
 }
 
