@@ -68,7 +68,7 @@ ACLHTTPHeaderData::dump() const
 void
 ACLHTTPHeaderData::parse()
 {
-    ConfigParser::SetAclKey(hdrName, "header-name");
+    Acl::SetKey(hdrName, "header-name", ConfigParser::strtokFile());
     hdrId = Http::HeaderLookupTable.lookup(hdrName).id;
     regex_rule->parse();
 }
