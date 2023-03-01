@@ -58,7 +58,10 @@ mem_hdr::endOffset () const
 void
 mem_hdr::freeContent()
 {
+    const auto initialNodes = size();
     nodes.destroy();
+    if (isIdle)
+        updateIdleNodesNumber(initialNodes);
     inmem_hi = 0;
     debugs(19, 9, this << " hi: " << inmem_hi);
 }
@@ -79,6 +82,16 @@ mem_hdr::unlink(mem_node *aNode)
 
 int64_t
 mem_hdr::freeDataUpto(int64_t target_offset)
+{
+    const auto initialNodes = size();
+    const auto offset = freeDataUptoImpl(target_offset);
+    if (isIdle)
+        updateIdleNodesNumber(initialNodes);
+    return offset;
+}
+
+int64_t
+mem_hdr::freeDataUptoImpl(int64_t target_offset)
 {
     debugs(19, 8, this << " up to " << target_offset);
     /* keep the last one to avoid change to other part of code */
@@ -137,35 +150,6 @@ void
 mem_hdr::appendNode (mem_node *aNode)
 {
     nodes.insert (aNode, NodeCompare);
-}
-
-void
-mem_hdr::makeAppendSpace()
-{
-    if (!nodes.size()) {
-        appendNode (new mem_node (0));
-        return;
-    }
-
-    if (!nodes.finish()->data->space())
-        appendNode (new mem_node (endOffset()));
-
-    assert (nodes.finish()->data->space());
-}
-
-void
-mem_hdr::internalAppend(const char *data, int len)
-{
-    debugs(19, 6, "memInternalAppend: " << this << " len " << len);
-
-    while (len > 0) {
-        makeAppendSpace();
-        int copied = appendToNode (nodes.finish()->data, data, len);
-        assert (copied);
-
-        len -= copied;
-        data += copied;
-    }
 }
 
 /* returns a mem_node that contains location..
@@ -337,8 +321,17 @@ mem_hdr::nodeToRecieve(int64_t offset)
     return candidate;
 }
 
+void
+mem_hdr::write(const StoreIOBuffer &writeBuffer, const bool locked)
+{
+    const auto initialNodes = size();
+    assert(writeImpl(writeBuffer));
+    if (!locked)
+        updateIdleNodesNumber(initialNodes);
+}
+
 bool
-mem_hdr::write (StoreIOBuffer const &writeBuffer)
+mem_hdr::writeImpl(StoreIOBuffer const &writeBuffer)
 {
     debugs(19, 6, "mem_hdr::write: " << this << " " << writeBuffer.range() << " object end " << endOffset());
 
@@ -367,7 +360,7 @@ mem_hdr::write (StoreIOBuffer const &writeBuffer)
     return true;
 }
 
-mem_hdr::mem_hdr() : inmem_hi(0)
+mem_hdr::mem_hdr() : inmem_hi(0), isIdle(false)
 {
     debugs(19, 9, this << " hi: " << inmem_hi);
 }
@@ -421,5 +414,33 @@ const Splay<mem_node *> &
 mem_hdr::getNodes() const
 {
     return nodes;
+}
+
+void
+mem_hdr::markBusy()
+{
+    isIdle = false;
+    assert(mem_node::IdleNodes >= size());
+    mem_node::IdleNodes -= size();
+}
+
+void
+mem_hdr::markIdle()
+{
+    isIdle = true;
+    mem_node::IdleNodes += size();
+}
+
+void
+mem_hdr::updateIdleNodesNumber(const size_t oldSize)
+{
+    const auto newSize = size();
+    const auto delta = newSize > oldSize ? newSize - oldSize : oldSize - newSize;
+    if (newSize > oldSize) {
+        mem_node::IdleNodes += delta;
+    } else if (newSize < oldSize) {
+        assert(mem_node::IdleNodes >= delta);
+        mem_node::IdleNodes -= delta;
+    }
 }
 

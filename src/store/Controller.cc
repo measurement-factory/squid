@@ -253,7 +253,6 @@ Store::Controller::referenceBusy(StoreEntry &e)
     if (e.mem_obj) {
         if (mem_policy->Referenced)
             mem_policy->Referenced(mem_policy, &e, &e.mem_obj->repl);
-        e.mem_obj->markPagesBusy();
     }
 }
 
@@ -535,7 +534,7 @@ Store::Controller::freeMemorySpace(const int bytesRequired)
     if (memoryCacheHasSpaceFor(pagesRequired))
         return;
 
-    if (MemObject::IdlePagesCount < static_cast<size_t>(pagesRequired))
+    if (mem_node::IdleNodes < static_cast<size_t>(pagesRequired))
         return;
 
     // XXX: When store_pages_max is smaller than pagesRequired, we should not
@@ -681,9 +680,6 @@ Store::Controller::handleIdleEntry(StoreEntry &e)
     if (keepInLocalMemory) {
         e.setMemStatus(IN_MEMORY);
         e.mem_obj->unlinkRequest();
-        if (!EBIT_TEST(e.flags, ENTRY_SPECIAL)) {
-            e.mem_obj->markPagesIdle();
-        }
         return;
     }
 

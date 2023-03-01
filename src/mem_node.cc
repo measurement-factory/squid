@@ -16,6 +16,8 @@ static ptrdiff_t makeMemNodeDataOffset();
 
 static ptrdiff_t _mem_node_data_offset = makeMemNodeDataOffset();
 
+size_t mem_node::IdleNodes = 0;
+
 /*
  * Calculate the offset between the start of a mem_node and
  * its 'data' member

@@ -539,7 +539,7 @@ store_client::readBody(const char *, ssize_t len)
              * copyInto.offset includes headers, which is what mem cache needs
              */
             if (copyInto.offset == entry->mem_obj->endOffset()) {
-                entry->mem_obj->write(StoreIOBuffer(len, copyInto.offset, copyInto.data));
+                entry->mem_obj->write(StoreIOBuffer(len, copyInto.offset, copyInto.data), entry->locked());
             }
         }
     }

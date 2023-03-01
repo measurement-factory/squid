@@ -43,8 +43,6 @@ url_checksum(const char *url)
 
 RemovalPolicy * mem_policy = nullptr;
 
-size_t MemObject::IdlePagesCount = 0;
-
 size_t
 MemObject::inUseCount()
 {
@@ -134,8 +132,9 @@ MemObject::replaceBaseReply(const HttpReplyPointer &r)
     updatedReply_ = nullptr;
 }
 
+/// TODO: remove the second argument if only locked entries do write() calls
 void
-MemObject::write(const StoreIOBuffer &writeBuffer)
+MemObject::write(const StoreIOBuffer &writeBuffer, const bool locked)
 {
     debugs(19, 6, "memWrite: offset " << writeBuffer.offset << " len " << writeBuffer.length);
 
@@ -144,7 +143,7 @@ MemObject::write(const StoreIOBuffer &writeBuffer)
      */
     assert (data_hdr.endOffset() || writeBuffer.offset == 0);
 
-    assert (data_hdr.write (writeBuffer));
+    data_hdr.write(writeBuffer, locked);
 }
 
 void

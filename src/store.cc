@@ -418,6 +418,8 @@ StoreEntry::hashDelete()
 void
 StoreEntry::lock(const char *context)
 {
+    if (!lock_count && mem_obj && !EBIT_TEST(flags, ENTRY_SPECIAL))
+        mem_obj->data_hdr.markBusy();
     ++lock_count;
     debugs(20, 3, context << " locked key " << getMD5Text() << ' ' << *this);
 }
@@ -449,6 +451,10 @@ StoreEntry::unlock(const char *context)
 
     if (lock_count)
         return (int) lock_count;
+
+    if (!EBIT_TEST(flags, ENTRY_SPECIAL)) {
+        mem_obj->data_hdr.markIdle();
+    }
 
     abandon(context);
     return 0;
@@ -762,7 +768,7 @@ StoreEntry::write (StoreIOBuffer writeBuffer)
 
     debugs(20, 5, "storeWrite: writing " << writeBuffer.length << " bytes for '" << getMD5Text() << "'");
     storeGetMemSpace(writeBuffer.length);
-    mem_obj->write(writeBuffer);
+    mem_obj->write(writeBuffer, locked());
 
     if (EBIT_TEST(flags, ENTRY_FWD_HDR_WAIT) && !mem_obj->readAheadPolicyCanRead()) {
         debugs(20, 3, "allow Store clients to get entry content after buffering too much for " << *this);
