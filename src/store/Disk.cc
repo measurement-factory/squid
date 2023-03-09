@@ -135,12 +135,6 @@ Store::Disk::maxObjectSize(int64_t newMax)
 void
 Store::Disk::reference(StoreEntry &) {}
 
-bool
-Store::Disk::dereference(StoreEntry &)
-{
-    return true; // keep in global store_table
-}
-
 void
 Store::Disk::diskFull()
 {

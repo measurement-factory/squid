@@ -33,7 +33,7 @@ public:
     void stat(StoreEntry &) const override;
     void sync() override;
     void reference(StoreEntry &) override;
-    bool dereference(StoreEntry &e) override;
+    bool keepIdle(const StoreEntry &) const;
     void updateHeaders(StoreEntry *) override;
     void maintain() override;
     bool anchorToCache(StoreEntry &) override;

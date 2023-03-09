@@ -548,10 +548,11 @@ Store::Disks::reference(StoreEntry &e)
 }
 
 bool
-Store::Disks::dereference(StoreEntry &e)
+Store::Disks::keepIdle(const StoreEntry &e) const
 {
-    return e.disk().dereference(e);
+    return e.disk().keepIdle(e);
 }
+
 
 void
 Store::Disks::updateHeaders(StoreEntry *e)

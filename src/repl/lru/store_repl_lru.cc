@@ -323,8 +323,6 @@ createRemovalPolicy_lru(wordlist * args)
 
     policy->Referenced = lru_referenced;
 
-    policy->Dereferenced = lru_referenced;
-
     policy->WalkInit = lru_walkInit;
 
     policy->PurgeInit = lru_purgeInit;

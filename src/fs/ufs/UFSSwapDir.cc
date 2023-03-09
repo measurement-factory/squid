@@ -529,18 +529,6 @@ Fs::Ufs::UFSSwapDir::reference(StoreEntry &e)
         repl->Referenced(repl, &e, &e.repl);
 }
 
-bool
-Fs::Ufs::UFSSwapDir::dereference(StoreEntry & e)
-{
-    debugs(47, 3, "dereferencing " << &e << " " <<
-           e.swap_dirn << "/" << e.swap_filen);
-
-    if (repl->Dereferenced)
-        repl->Dereferenced(repl, &e, &e.repl);
-
-    return true; // keep e in the global store_table
-}
-
 StoreIOState::Pointer
 Fs::Ufs::UFSSwapDir::createStoreIO(StoreEntry &e, StoreIOState::STIOCB * const aCallback, void * const callback_data)
 {

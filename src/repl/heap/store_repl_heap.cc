@@ -114,19 +114,6 @@ heap_remove(RemovalPolicy * policy, StoreEntry *,
     h->count -= 1;
 }
 
-static void
-heap_referenced(RemovalPolicy * policy, const StoreEntry * entry,
-                RemovalPolicyNode * node)
-{
-    HeapPolicyData *h = (HeapPolicyData *)policy->_data;
-    heap_node *hnode = (heap_node *)node->data;
-
-    if (!hnode)
-        return;
-
-    heap_update(h->theHeap, hnode, (StoreEntry *) entry);
-}
-
 /** RemovalPolicyWalker **/
 
 typedef struct _HeapWalkData HeapWalkData;
@@ -332,8 +319,6 @@ createRemovalPolicy_heap(wordlist * args)
     policy->Remove = heap_remove;
 
     policy->Referenced = nullptr;
-
-    policy->Dereferenced = heap_referenced;
 
     policy->WalkInit = heap_walkInit;
 

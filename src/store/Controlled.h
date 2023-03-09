@@ -27,9 +27,8 @@ public:
     /// somebody needs this entry (many cache replacement policies need to know)
     virtual void reference(StoreEntry &e) = 0;
 
-    /// somebody no longer needs this entry (usually after calling reference())
-    /// return false iff the idle entry should be destroyed
-    virtual bool dereference(StoreEntry &e) = 0;
+    /// whether this this idle entry should be kept in store_table
+    virtual bool keepIdle(const StoreEntry &) const = 0;
 
     /// make stored metadata and HTTP headers the same as in the given entry
     virtual void updateHeaders(StoreEntry *) {}

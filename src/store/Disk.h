@@ -51,7 +51,7 @@ public:
     void getStats(StoreInfoStats &stats) const override;
     void stat(StoreEntry &) const override;
     void reference(StoreEntry &e) override;
-    bool dereference(StoreEntry &e) override;
+    bool keepIdle(const StoreEntry &) const override { return true; }
     void maintain() override;
     /// whether this disk storage is capable of serving multiple workers
     virtual bool smpAware() const = 0;

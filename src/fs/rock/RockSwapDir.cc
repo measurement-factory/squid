@@ -984,17 +984,6 @@ Rock::SwapDir::reference(StoreEntry &e)
 }
 
 bool
-Rock::SwapDir::dereference(StoreEntry &e)
-{
-    debugs(47, 5, &e << ' ' << e.swap_dirn << ' ' << e.swap_filen);
-    if (repl && repl->Dereferenced)
-        repl->Dereferenced(repl, &e, &e.repl);
-
-    // no need to keep e in the global store_table for us; we have our own map
-    return false;
-}
-
-bool
 Rock::SwapDir::unlinkdUseful() const
 {
     // no entry-specific files to unlink

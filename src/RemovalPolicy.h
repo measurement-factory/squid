@@ -46,7 +46,6 @@ public:
     void (*Add) (RemovalPolicy * policy, StoreEntry * entry, RemovalPolicyNode * node);
     void (*Remove) (RemovalPolicy * policy, StoreEntry * entry, RemovalPolicyNode * node);
     void (*Referenced) (RemovalPolicy * policy, const StoreEntry * entry, RemovalPolicyNode * node);
-    void (*Dereferenced) (RemovalPolicy * policy, const StoreEntry * entry, RemovalPolicyNode * node);
     RemovalPolicyWalker *(*WalkInit) (RemovalPolicy * policy);
     RemovalPurgeWalker *(*PurgeInit) (RemovalPolicy * policy, int max_scan);
     void (*Stats) (RemovalPolicy * policy, StoreEntry * entry);

@@ -136,7 +136,7 @@ private:
     bool memoryCacheHasSpaceFor(const int pagesRequired) const;
 
     void referenceBusy(StoreEntry &e);
-    bool dereferenceIdle(StoreEntry &, bool wantsLocalMemory);
+    bool keepIdle(StoreEntry &, bool wantsLocalMemory);
 
     void allowSharing(StoreEntry &, const cache_key *);
     StoreEntry *peekAtLocal(const cache_key *);

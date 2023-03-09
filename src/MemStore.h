@@ -56,7 +56,7 @@ public:
     void getStats(StoreInfoStats &stats) const override;
     void stat(StoreEntry &e) const override;
     void reference(StoreEntry &e) override;
-    bool dereference(StoreEntry &e) override;
+    bool keepIdle(const StoreEntry &) const override { return false; }
     void updateHeaders(StoreEntry *e) override;
     void maintain() override;
     bool anchorToCache(StoreEntry &) override;
