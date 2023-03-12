@@ -113,13 +113,6 @@ mem_hdr::freeDataUptoImpl(int64_t target_offset)
     return lowestOffset ();
 }
 
-int
-mem_hdr::appendToNode(mem_node *aNode, const char *data, int maxLength)
-{
-    size_t result = writeAvailable (aNode, aNode->nodeBuffer.offset + aNode->nodeBuffer.length,maxLength, data);
-    return result;
-}
-
 size_t
 mem_hdr::writeAvailable(mem_node *aNode, int64_t location, size_t amount, char const *source)
 {
@@ -397,17 +390,6 @@ size_t
 mem_hdr::size() const
 {
     return nodes.size();
-}
-
-mem_node const *
-mem_hdr::start() const
-{
-    const SplayNode<mem_node *> * result = nodes.start();
-
-    if (result)
-        return result->data;
-
-    return nullptr;
 }
 
 const Splay<mem_node *> &

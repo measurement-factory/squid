@@ -32,8 +32,6 @@ public:
     void write(StoreIOBuffer const &, bool locked);
     void dump() const;
     size_t size() const;
-    /* Not an iterator - thus the start, not begin() */
-    mem_node const *start() const;
     mem_node *getBlockContainingLocation (int64_t location) const;
     /// called when the possessing entry becomes busy/locked
     void markBusy();
@@ -50,7 +48,6 @@ public:
 private:
     void debugDump() const;
     bool unlink(mem_node *aNode);
-    int appendToNode(mem_node *aNode, const char *data, int maxLength);
     void appendNode (mem_node *aNode);
     size_t copyAvailable(mem_node *aNode, int64_t location, size_t amount, char *target) const;
     bool unionNotEmpty (StoreIOBuffer const &);
