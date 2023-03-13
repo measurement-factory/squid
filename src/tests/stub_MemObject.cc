@@ -29,7 +29,7 @@ MemObject::endOffset() const
 void MemObject::trimSwappable() STUB
 void MemObject::trimUnSwappable() STUB
 int64_t MemObject::policyLowestOffsetToKeep(bool) const STUB_RETVAL(-1)
-MemObject::MemObject() {
+MemObject::MemObject(bool locked) : data_hdr(locked) {
     ping_reply_callback = nullptr;
     memset(&start_ping, 0, sizeof(start_ping));
 } // NOP instead of elided due to Store
