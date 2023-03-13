@@ -60,8 +60,7 @@ mem_hdr::freeContent()
 {
     const auto initialNodes = size();
     nodes.destroy();
-    if (isIdle)
-        updateIdleNodesNumber(initialNodes);
+    updateIdleNodes(initialNodes);
     inmem_hi = 0;
     debugs(19, 9, this << " hi: " << inmem_hi);
 }
@@ -75,23 +74,15 @@ mem_hdr::unlink(mem_node *aNode)
     }
 
     debugs(19, 8, this << " removing " << aNode);
+    const auto initialNodes = size();
     nodes.remove (aNode, NodeCompare);
     delete aNode;
+    updateIdleNodes(initialNodes);
     return true;
 }
 
 int64_t
 mem_hdr::freeDataUpto(int64_t target_offset)
-{
-    const auto initialNodes = size();
-    const auto offset = freeDataUptoImpl(target_offset);
-    if (isIdle)
-        updateIdleNodesNumber(initialNodes);
-    return offset;
-}
-
-int64_t
-mem_hdr::freeDataUptoImpl(int64_t target_offset)
 {
     debugs(19, 8, this << " up to " << target_offset);
     /* keep the last one to avoid change to other part of code */
@@ -314,17 +305,8 @@ mem_hdr::nodeToRecieve(int64_t offset)
     return candidate;
 }
 
-void
-mem_hdr::write(const StoreIOBuffer &writeBuffer, const bool locked)
-{
-    const auto initialNodes = size();
-    assert(writeImpl(writeBuffer));
-    if (!locked)
-        updateIdleNodesNumber(initialNodes);
-}
-
 bool
-mem_hdr::writeImpl(StoreIOBuffer const &writeBuffer)
+mem_hdr::write(const StoreIOBuffer &writeBuffer)
 {
     debugs(19, 6, "mem_hdr::write: " << this << " " << writeBuffer.range() << " object end " << endOffset());
 
@@ -353,7 +335,7 @@ mem_hdr::writeImpl(StoreIOBuffer const &writeBuffer)
     return true;
 }
 
-mem_hdr::mem_hdr() : inmem_hi(0), isIdle(false)
+mem_hdr::mem_hdr() : inmem_hi(0), isIdle(true)
 {
     debugs(19, 9, this << " hi: " << inmem_hi);
 }
@@ -399,23 +381,22 @@ mem_hdr::getNodes() const
 }
 
 void
-mem_hdr::markBusy()
+mem_hdr::setIdleness(bool idle)
 {
-    isIdle = false;
-    assert(mem_node::IdleNodes >= size());
-    mem_node::IdleNodes -= size();
+    // TODO: rework to assert
+    if (idle == isIdle)
+    	return;
+    if (isIdle)
+        mem_node::IdleNodes += size();
+    else
+        mem_node::IdleNodes -= size();
 }
 
 void
-mem_hdr::markIdle()
+mem_hdr::updateIdleNodes(const size_t oldSize)
 {
-    isIdle = true;
-    mem_node::IdleNodes += size();
-}
-
-void
-mem_hdr::updateIdleNodesNumber(const size_t oldSize)
-{
+    if (!isIdle)
+        return;
     const auto newSize = size();
     const auto delta = newSize > oldSize ? newSize - oldSize : oldSize - newSize;
     if (newSize > oldSize) {

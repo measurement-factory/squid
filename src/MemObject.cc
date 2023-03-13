@@ -132,9 +132,8 @@ MemObject::replaceBaseReply(const HttpReplyPointer &r)
     updatedReply_ = nullptr;
 }
 
-/// TODO: remove the second argument if only locked entries do write() calls
 void
-MemObject::write(const StoreIOBuffer &writeBuffer, const bool locked)
+MemObject::write(const StoreIOBuffer &writeBuffer)
 {
     debugs(19, 6, "memWrite: offset " << writeBuffer.offset << " len " << writeBuffer.length);
 
@@ -143,7 +142,7 @@ MemObject::write(const StoreIOBuffer &writeBuffer, const bool locked)
      */
     assert (data_hdr.endOffset() || writeBuffer.offset == 0);
 
-    data_hdr.write(writeBuffer, locked);
+    assert(data_hdr.write(writeBuffer));
 }
 
 void

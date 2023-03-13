@@ -419,7 +419,7 @@ void
 StoreEntry::lock(const char *context)
 {
     if (!lock_count && mem_obj && !EBIT_TEST(flags, ENTRY_SPECIAL))
-        mem_obj->data_hdr.markBusy();
+        mem_obj->data_hdr.setIdleness(false);
     ++lock_count;
     debugs(20, 3, context << " locked key " << getMD5Text() << ' ' << *this);
 }
@@ -452,8 +452,8 @@ StoreEntry::unlock(const char *context)
     if (lock_count)
         return (int) lock_count;
 
-    if (!EBIT_TEST(flags, ENTRY_SPECIAL)) {
-        mem_obj->data_hdr.markIdle();
+    if (mem_obj && !EBIT_TEST(flags, ENTRY_SPECIAL)) {
+        mem_obj->data_hdr.setIdleness(true);
     }
 
     abandon(context);
@@ -761,14 +761,14 @@ StoreEntry::write (StoreIOBuffer writeBuffer)
 {
     assert(mem_obj != nullptr);
     /* This assert will change when we teach the store to update */
-    assert(store_status == STORE_PENDING);
+    assert(isLocalWriter());
 
     // XXX: caller uses content offset, but we also store headers
     writeBuffer.offset += mem_obj->baseReply().hdr_sz;
 
     debugs(20, 5, "storeWrite: writing " << writeBuffer.length << " bytes for '" << getMD5Text() << "'");
     storeGetMemSpace(writeBuffer.length);
-    mem_obj->write(writeBuffer, locked());
+    writeData(writeBuffer);
 
     if (EBIT_TEST(flags, ENTRY_FWD_HDR_WAIT) && !mem_obj->readAheadPolicyCanRead()) {
         debugs(20, 3, "allow Store clients to get entry content after buffering too much for " << *this);
@@ -776,6 +776,15 @@ StoreEntry::write (StoreIOBuffer writeBuffer)
     }
 
     invokeHandlers();
+}
+
+void
+StoreEntry::writeData(StoreIOBuffer writeBuffer)
+{
+    const auto oldSize = mem_obj->data_hdr.size();
+    mem_obj->write(writeBuffer);
+    if (!locked())
+        mem_obj->data_hdr.updateIdleNodes(oldSize);
 }
 
 /* Append incoming data from a primary server to an entry. */
@@ -1550,6 +1559,8 @@ StoreEntry::createMemObject()
 {
     assert(!mem_obj);
     mem_obj = new MemObject();
+    if (locked())
+        mem_obj->data_hdr.setIdleness(false);
 }
 
 void
@@ -1562,8 +1573,11 @@ StoreEntry::createMemObject(const char *aUrl, const char *aLogUrl, const HttpReq
 void
 StoreEntry::ensureMemObject(const char *aUrl, const char *aLogUrl, const HttpRequestMethod &aMethod)
 {
-    if (!mem_obj)
+    if (!mem_obj) {
         mem_obj = new MemObject();
+        if (locked())
+            mem_obj->data_hdr.setIdleness(false);
+    }
     mem_obj->setUris(aUrl, aLogUrl, aMethod);
 }
 

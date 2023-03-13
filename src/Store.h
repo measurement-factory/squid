@@ -56,6 +56,10 @@ public:
     /// \see MemObject::freshestReply()
     const HttpReply *hasFreshestReply() const { return mem_obj ? &mem_obj->freshestReply() : nullptr; }
 
+    /// writes to local memory store
+    void writeData(StoreIOBuffer);
+
+    /// writeData() and calls awaiting handlers
     void write(StoreIOBuffer);
 
     /** Check if the Store entry is empty
@@ -66,6 +70,9 @@ public:
     bool isEmpty() const { return mem().endOffset() == 0; }
     bool isAccepting() const;
     size_t bytesWanted(Range<size_t> const aRange, bool ignoreDelayPool = false) const;
+
+    /// whether write() can be called
+    bool isLocalWriter() const { return locked() && isAccepting(); }
 
     /// Signals that the entire response has been stored and no more append()
     /// calls should be expected; cf. completeTruncated().

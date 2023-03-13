@@ -29,14 +29,14 @@ public:
     ssize_t copy (StoreIOBuffer const &) const;
     bool hasContigousContentRange(Range<int64_t> const &range) const;
     /* success or fail */
-    void write(StoreIOBuffer const &, bool locked);
+    bool write (StoreIOBuffer const &);
     void dump() const;
     size_t size() const;
     mem_node *getBlockContainingLocation (int64_t location) const;
-    /// called when the possessing entry becomes busy/locked
-    void markBusy();
-    /// called when the possessing entry becomes idle
-    void markIdle();
+    /// switches the 'idleness' status of or all nodes
+    void setIdleness(bool idle);
+    /// adjust idle nodes counter
+    void updateIdleNodes(const size_t oldSize);
     /* access the contained nodes - easier than punning
      * as a container ourselves
      */
@@ -53,9 +53,6 @@ private:
     bool unionNotEmpty (StoreIOBuffer const &);
     mem_node *nodeToRecieve(int64_t offset);
     size_t writeAvailable(mem_node *aNode, int64_t location, size_t amount, char const *source);
-    int64_t freeDataUptoImpl(int64_t);
-    bool writeImpl(const StoreIOBuffer &);
-    void updateIdleNodesNumber(const size_t oldSize);
     int64_t inmem_hi;
     Splay<mem_node *> nodes;
     bool isIdle; ///< whether the associated pages belong to an unlocked StoreEntry

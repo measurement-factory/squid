@@ -339,7 +339,7 @@ Store::Controller::checkFoundCandidate(const StoreEntry &entry) const
             // Transients do check when they setCollapsingRequirement().
         } else {
             // a local writer must hold a lock on its writable entry
-            if (!(entry.locked() && entry.isAccepting()))
+            if (!(entry.isLocalWriter()))
                 throw TextException("no local writer", Here());
         }
     }
