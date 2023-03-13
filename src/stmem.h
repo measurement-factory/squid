@@ -20,7 +20,8 @@ class mem_hdr
 {
 
 public:
-    mem_hdr();
+    /// \param locked whether the associated StoreEntry is locked
+    mem_hdr(bool locked);
     ~mem_hdr();
     void freeContent();
     int64_t lowestOffset () const;

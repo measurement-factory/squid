@@ -783,6 +783,7 @@ StoreEntry::writeData(StoreIOBuffer writeBuffer)
 {
     const auto oldSize = mem_obj->data_hdr.size();
     mem_obj->write(writeBuffer);
+    // the entry may be still unlocked when it is (initially) copied from a shared storage
     if (!locked())
         mem_obj->data_hdr.updateIdleNodes(oldSize);
 }
@@ -1558,9 +1559,7 @@ void
 StoreEntry::createMemObject()
 {
     assert(!mem_obj);
-    mem_obj = new MemObject();
-    if (locked())
-        mem_obj->data_hdr.setIdleness(false);
+    mem_obj = new MemObject(locked());
 }
 
 void
@@ -1573,11 +1572,8 @@ StoreEntry::createMemObject(const char *aUrl, const char *aLogUrl, const HttpReq
 void
 StoreEntry::ensureMemObject(const char *aUrl, const char *aLogUrl, const HttpRequestMethod &aMethod)
 {
-    if (!mem_obj) {
-        mem_obj = new MemObject();
-        if (locked())
-            mem_obj->data_hdr.setIdleness(false);
-    }
+    if (!mem_obj)
+        createMemObject();
     mem_obj->setUris(aUrl, aLogUrl, aMethod);
 }
 

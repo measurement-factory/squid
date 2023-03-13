@@ -569,7 +569,7 @@ MemStore::copyFromShmSlice(StoreEntry &e, const StoreIOBuffer &buf, bool eof)
 
     // local memory stores both headers and body so copy regardless of pstate
     const int64_t offBefore = e.mem_obj->endOffset();
-    e.writeData(buf); // from MemObject::write()
+    e.writeData(buf);
     const int64_t offAfter = e.mem_obj->endOffset();
     // expect to write the entire buf because StoreEntry::write() never fails
     assert(offAfter >= 0 && offBefore <= offAfter &&

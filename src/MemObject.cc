@@ -94,7 +94,7 @@ MemObject::setUris(char const *aStoreId, char const *aLogUri, const HttpRequestM
 #endif
 }
 
-MemObject::MemObject()
+MemObject::MemObject(const bool locked) : data_hdr(locked)
 {
     debugs(20, 3, "MemObject constructed, this=" << this);
     ping_reply_callback = nullptr;
@@ -142,7 +142,7 @@ MemObject::write(const StoreIOBuffer &writeBuffer)
      */
     assert (data_hdr.endOffset() || writeBuffer.offset == 0);
 
-    assert(data_hdr.write(writeBuffer));
+    assert (data_hdr.write (writeBuffer));
 }
 
 void

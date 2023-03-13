@@ -335,7 +335,7 @@ mem_hdr::write(const StoreIOBuffer &writeBuffer)
     return true;
 }
 
-mem_hdr::mem_hdr() : inmem_hi(0), isIdle(true)
+mem_hdr::mem_hdr(const bool locked) : inmem_hi(0), isIdle(!locked)
 {
     debugs(19, 9, this << " hi: " << inmem_hi);
 }
@@ -381,15 +381,16 @@ mem_hdr::getNodes() const
 }
 
 void
-mem_hdr::setIdleness(bool idle)
+mem_hdr::setIdleness(const bool idle)
 {
-    // TODO: rework to assert
-    if (idle == isIdle)
-    	return;
-    if (isIdle)
+    assert(idle != isIdle);
+    isIdle = idle;
+    if (isIdle) {
         mem_node::IdleNodes += size();
-    else
+    } else {
+        assert(mem_node::IdleNodes >= size());
         mem_node::IdleNodes -= size();
+    }
 }
 
 void
