@@ -30,6 +30,7 @@ TestStoreController::testStats()
 {
     Store::Init();
     StoreEntry *logEntry = new StoreEntry;
+    logEntry->lock("TestStoreController::testStats");
     logEntry->createMemObject("dummy_storeId", nullptr, HttpRequestMethod());
     logEntry->store_status = STORE_PENDING;
     TestSwapDirPointer aStore (new TestSwapDir);
