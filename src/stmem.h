@@ -36,7 +36,8 @@ public:
     mem_node *getBlockContainingLocation (int64_t location) const;
     /// switches the 'idleness' status of or all nodes
     void setIdleness(bool idle);
-    /// adjust idle nodes counter
+    /// Adjusts IdleNodes counter by the difference
+    /// between the current size() and oldSize.
     void updateIdleNodes(const size_t oldSize);
     /* access the contained nodes - easier than punning
      * as a container ourselves
@@ -45,6 +46,9 @@ public:
     char * NodeGet(mem_node * aNode);
 
     static Splay<mem_node *>::SPLAYCMP NodeCompare;
+
+    /// the total number of pages belonging to unlocked StoreEntries
+    static size_t IdleNodes;
 
 private:
     void debugDump() const;

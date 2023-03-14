@@ -15,6 +15,8 @@
 #include "MemObject.h"
 #include "stmem.h"
 
+size_t mem_hdr::IdleNodes = 0;
+
 /*
  * NodeGet() is called to get the data buffer to pass to storeIOWrite().
  * By setting the write_pending flag here we are assuming that there
@@ -386,10 +388,10 @@ mem_hdr::setIdleness(const bool idle)
     assert(idle != isIdle);
     isIdle = idle;
     if (isIdle) {
-        mem_node::IdleNodes += size();
+        IdleNodes += size();
     } else {
-        assert(mem_node::IdleNodes >= size());
-        mem_node::IdleNodes -= size();
+        assert(IdleNodes >= size());
+        IdleNodes -= size();
     }
 }
 
@@ -401,10 +403,10 @@ mem_hdr::updateIdleNodes(const size_t oldSize)
     const auto newSize = size();
     const auto delta = newSize > oldSize ? newSize - oldSize : oldSize - newSize;
     if (newSize > oldSize) {
-        mem_node::IdleNodes += delta;
+        IdleNodes += delta;
     } else if (newSize < oldSize) {
-        assert(mem_node::IdleNodes >= delta);
-        mem_node::IdleNodes -= delta;
+        assert(IdleNodes >= delta);
+        IdleNodes -= delta;
     }
 }
 

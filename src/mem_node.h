@@ -31,9 +31,6 @@ public:
     bool contains (int64_t const &location) const;
     bool canAccept (int64_t const &location) const;
     bool operator < (mem_node const & rhs) const;
-    /// the total number of pages belonging to unlocked StoreEntries
-    static size_t IdleNodes;
-
     /* public */
     StoreIOBuffer nodeBuffer;
     /* Private */

@@ -783,7 +783,7 @@ StoreEntry::writeData(StoreIOBuffer writeBuffer)
 {
     const auto oldSize = mem_obj->data_hdr.size();
     mem_obj->write(writeBuffer);
-    // the entry may be still unlocked when it is (initially) copied from a shared storage
+    // the entry may be still unlocked when it is being copied from a shared storage
     if (!locked())
         mem_obj->data_hdr.updateIdleNodes(oldSize);
 }
