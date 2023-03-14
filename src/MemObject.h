@@ -52,9 +52,6 @@ public:
     /// whether setUris() has been called
     bool hasUris() const;
 
-    /// \copydoc StoreEntry::writeData()
-    /// Do not call directly - use StoreEntry::writeData() instead.
-    void write(const StoreIOBuffer &buf);
     void unlinkRequest() { request = nullptr; }
 
     /// HTTP response before 304 (Not Modified) updates

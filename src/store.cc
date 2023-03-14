@@ -418,7 +418,7 @@ StoreEntry::hashDelete()
 void
 StoreEntry::lock(const char *context)
 {
-    if (!lock_count && mem_obj && !EBIT_TEST(flags, ENTRY_SPECIAL))
+    if (needsIdlePagesUpdating())
         mem_obj->data_hdr.setIdleness(false);
     ++lock_count;
     debugs(20, 3, context << " locked key " << getMD5Text() << ' ' << *this);
@@ -452,9 +452,8 @@ StoreEntry::unlock(const char *context)
     if (lock_count)
         return (int) lock_count;
 
-    if (mem_obj && !EBIT_TEST(flags, ENTRY_SPECIAL)) {
+    if (needsIdlePagesUpdating())
         mem_obj->data_hdr.setIdleness(true);
-    }
 
     abandon(context);
     return 0;
@@ -781,11 +780,14 @@ StoreEntry::write (StoreIOBuffer writeBuffer)
 void
 StoreEntry::writeData(StoreIOBuffer writeBuffer)
 {
-    const auto oldSize = mem_obj->data_hdr.size();
-    mem_obj->write(writeBuffer);
-    // the entry may be still unlocked when it is being copied from a shared storage
-    if (!locked())
-        mem_obj->data_hdr.updateIdleNodes(oldSize);
+    assert(mem_obj);
+    debugs(20, 6, "offset " << writeBuffer.offset << " len " << writeBuffer.length);
+    auto &dataHdr = mem_obj->data_hdr;
+    assert (dataHdr.endOffset() || writeBuffer.offset == 0);
+    const auto oldSize = dataHdr.size();
+    assert(dataHdr.write(writeBuffer));
+    if (needsIdlePagesUpdating())
+        dataHdr.updateIdleNodes(oldSize);
 }
 
 /* Append incoming data from a primary server to an entry. */
