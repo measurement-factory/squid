@@ -791,7 +791,13 @@ Rock::SwapDir::openStoreIO(StoreEntry &e, StoreIOState::STFNCB *cbFile, StoreIOS
            std::setfill('0') << std::hex << std::uppercase << std::setw(8) <<
            sio->swap_filen);
 
-    assert(slot->sameKey(static_cast<const cache_key*>(e.key)));
+    if (!slot->sameKey(static_cast<const cache_key*>(e.key)))
+        debugs(47, 1, "former fatal: " << e);
+
+    // when the entry got its swap_filen, it had a public key, but it could have
+    // been gone private since then (while still keeping our get() lock)
+    assert(EBIT_TEST(e.flags, KEY_PRIVATE) || slot->sameKey(static_cast<const cache_key*>(e.key)));
+
     // For collapsed disk hits: e.swap_file_sz and slot->basics.swap_file_sz
     // may still be zero and basics.swap_file_sz may grow.
     assert(slot->basics.swap_file_sz >= e.swap_file_sz);
