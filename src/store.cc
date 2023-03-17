@@ -289,7 +289,7 @@ StoreEntry::storeClientType() const
     /*
      * If this is the first client, let it be the mem client
      */
-    if (mem_obj->nclients == 1)
+    if (mem_obj->nclients == 0)
         return STORE_MEM_CLIENT;
 
     /*
