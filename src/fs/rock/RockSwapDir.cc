@@ -792,7 +792,18 @@ Rock::SwapDir::openStoreIO(StoreEntry &e, StoreIOState::STFNCB *cbFile, StoreIOS
            sio->swap_filen);
 
     if (!slot->sameKey(static_cast<const cache_key*>(e.key)))
-        debugs(47, 1, "former fatal: " << e);
+        debugs(47, 1, "former2 fatal: " << e);
+
+    // When StoreEntry::swap_filen for e was set by our anchorEntry(), e had a
+    // public key, but it could have gone private since then (while keeping the
+    // anchor lock). The stale anchor key is not (and cannot be) erased (until
+    // the marked-for-deletion/release anchor/entry is unlocked is recycled).
+    const auto matchingAnchor = [&]() {
+        if (const auto publicKey = e.publicKey())
+            return slot->sameKey(publicKey);
+        return true; // cannot check
+    };
+    assert(matchingAnchor());
 
     // when the entry got its swap_filen, it had a public key, but it could have
     // been gone private since then (while still keeping our get() lock)
