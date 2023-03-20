@@ -15,7 +15,7 @@
 #include "MemObject.h"
 #include "stmem.h"
 
-size_t mem_hdr::IdleNodes = 0;
+size_t mem_hdr::ReplPolicyIdleNodesCount = 0;
 
 /*
  * NodeGet() is called to get the data buffer to pass to storeIOWrite().
@@ -308,7 +308,7 @@ mem_hdr::nodeToRecieve(int64_t offset)
 }
 
 bool
-mem_hdr::write(const StoreIOBuffer &writeBuffer)
+mem_hdr::write (StoreIOBuffer const &writeBuffer)
 {
     debugs(19, 6, "mem_hdr::write: " << this << " " << writeBuffer.range() << " object end " << endOffset());
 
@@ -326,6 +326,7 @@ mem_hdr::write(const StoreIOBuffer &writeBuffer)
     char *currentSource = writeBuffer.data;
     size_t len = writeBuffer.length;
 
+    const auto initialNodes = size();
     while (len && (target = nodeToRecieve(currentOffset))) {
         size_t wrote = writeAvailable(target, currentOffset, len, currentSource);
         assert (wrote);
@@ -333,11 +334,12 @@ mem_hdr::write(const StoreIOBuffer &writeBuffer)
         currentOffset += wrote;
         currentSource += wrote;
     }
+    updateIdleNodes(initialNodes);
 
     return true;
 }
 
-mem_hdr::mem_hdr(const bool locked) : inmem_hi(0), isIdle(!locked)
+mem_hdr::mem_hdr() : inmem_hi(0), removableByReplPolicy(false)
 {
     debugs(19, 9, this << " hi: " << inmem_hi);
 }
@@ -383,30 +385,39 @@ mem_hdr::getNodes() const
 }
 
 void
-mem_hdr::setIdleness(const bool idle)
+mem_hdr::allowedToFreeWithReplPolicy(const bool allowed)
 {
-    assert(idle != isIdle);
-    isIdle = idle;
-    if (isIdle) {
-        IdleNodes += size();
-    } else {
-        assert(IdleNodes >= size());
-        IdleNodes -= size();
+    if (removableByReplPolicy == allowed)
+        return;
+    removableByReplPolicy = allowed;
+    const auto oldCount = ReplPolicyIdleNodesCount;
+    if (removableByReplPolicy)
+        ReplPolicyIdleNodesCount += size();
+    else {
+        assert(ReplPolicyIdleNodesCount >= size());
+        ReplPolicyIdleNodesCount -= size();
     }
+    debugs(19, 5, this << " modified ReplPolicyIdleNodesCount from " << oldCount << " to " << ReplPolicyIdleNodesCount);
 }
 
+/// Adjusts the ReplPolicyIdleNodesCount counter by the difference
+/// between the current size() and oldSize.
 void
 mem_hdr::updateIdleNodes(const size_t oldSize)
 {
-    if (!isIdle)
+    if (!removableByReplPolicy)
         return;
     const auto newSize = size();
     const auto delta = newSize > oldSize ? newSize - oldSize : oldSize - newSize;
+    if (newSize == oldSize)
+        return;
+    const auto oldCount = ReplPolicyIdleNodesCount;
     if (newSize > oldSize) {
-        IdleNodes += delta;
-    } else if (newSize < oldSize) {
-        assert(IdleNodes >= delta);
-        IdleNodes -= delta;
+        ReplPolicyIdleNodesCount += delta;
+    } else {
+        assert(ReplPolicyIdleNodesCount >= delta);
+        ReplPolicyIdleNodesCount -= delta;
     }
+    debugs(19, 5, this << " updated ReplPolicyIdleNodesCount from " << oldCount << " to " << ReplPolicyIdleNodesCount);
 }
 

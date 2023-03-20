@@ -534,7 +534,7 @@ Store::Controller::freeMemorySpace(const int bytesRequired)
     if (memoryCacheHasSpaceFor(pagesRequired))
         return;
 
-    if (mem_hdr::IdleNodes < static_cast<size_t>(pagesRequired))
+    if (mem_hdr::ReplPolicyIdleNodesCount < static_cast<size_t>(pagesRequired))
         return;
 
     // XXX: When store_pages_max is smaller than pagesRequired, we should not

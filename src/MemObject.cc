@@ -94,12 +94,13 @@ MemObject::setUris(char const *aStoreId, char const *aLogUri, const HttpRequestM
 #endif
 }
 
-MemObject::MemObject(const bool locked) : data_hdr(locked)
+MemObject::MemObject()
 {
     debugs(20, 3, "MemObject constructed, this=" << this);
     ping_reply_callback = nullptr;
     memset(&start_ping, 0, sizeof(start_ping));
     reply_ = new HttpReply;
+    assert(!repl.data);
 }
 
 MemObject::~MemObject()

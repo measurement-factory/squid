@@ -327,8 +327,7 @@ private:
     /// flags [truncated or too big] entry with ENTRY_BAD_LENGTH and releases it
     void lengthWentBad(const char *reason);
 
-    /// whether methods such as lock()/unlock() also require mem_hdr::IdleNodes counter updating
-    bool needsIdlePagesUpdating() const { return !lock_count && mem_obj && !EBIT_TEST(flags, ENTRY_SPECIAL); }
+    bool hasReplPolicy() const;
 
     static Mem::Allocator *pool;
 

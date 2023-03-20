@@ -37,8 +37,7 @@ public:
     static size_t inUseCount();
 
     void dump() const;
-    /// \param locked whether the associated StoreEntry is locked
-    MemObject(bool locked);
+    MemObject();
     ~MemObject();
 
     /// Sets store ID, log URI, and request method (unless already set). Does

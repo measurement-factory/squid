@@ -20,8 +20,7 @@ class mem_hdr
 {
 
 public:
-    /// \param locked whether the associated StoreEntry is locked
-    mem_hdr(bool locked);
+    mem_hdr();
     ~mem_hdr();
     void freeContent();
     int64_t lowestOffset () const;
@@ -35,11 +34,7 @@ public:
     void dump() const;
     size_t size() const;
     mem_node *getBlockContainingLocation (int64_t location) const;
-    /// switches the 'idleness' status of or all nodes
-    void setIdleness(bool idle);
-    /// Adjusts IdleNodes counter by the difference
-    /// between the current size() and oldSize.
-    void updateIdleNodes(const size_t oldSize);
+    void allowedToFreeWithReplPolicy(const bool allowed);
     /* access the contained nodes - easier than punning
      * as a container ourselves
      */
@@ -48,8 +43,9 @@ public:
 
     static Splay<mem_node *>::SPLAYCMP NodeCompare;
 
-    /// the total number of pages belonging to unlocked StoreEntries
-    static size_t IdleNodes;
+    /// the total number of pages that allowed to be purged by
+    /// the associated replacement policy
+    static size_t ReplPolicyIdleNodesCount;
 
 private:
     void debugDump() const;
@@ -59,9 +55,10 @@ private:
     bool unionNotEmpty (StoreIOBuffer const &);
     mem_node *nodeToRecieve(int64_t offset);
     size_t writeAvailable(mem_node *aNode, int64_t location, size_t amount, char const *source);
+    void updateIdleNodes(const size_t oldSize);
     int64_t inmem_hi;
     Splay<mem_node *> nodes;
-    bool isIdle; ///< whether the associated pages belong to an unlocked StoreEntry
+    bool removableByReplPolicy; ///< whether nodes allowed to be purged by the associated replacement policy
 };
 
 #endif /* SQUID_STMEM_H */

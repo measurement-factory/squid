@@ -418,8 +418,8 @@ StoreEntry::hashDelete()
 void
 StoreEntry::lock(const char *context)
 {
-    if (needsIdlePagesUpdating())
-        mem_obj->data_hdr.setIdleness(false);
+    if (!lock_count && hasReplPolicy())
+        mem_obj->data_hdr.allowedToFreeWithReplPolicy(false);
     ++lock_count;
     debugs(20, 3, context << " locked key " << getMD5Text() << ' ' << *this);
 }
@@ -452,8 +452,8 @@ StoreEntry::unlock(const char *context)
     if (lock_count)
         return (int) lock_count;
 
-    if (needsIdlePagesUpdating())
-        mem_obj->data_hdr.setIdleness(true);
+    if (hasReplPolicy())
+        mem_obj->data_hdr.allowedToFreeWithReplPolicy(true);
 
     abandon(context);
     return 0;
@@ -784,10 +784,7 @@ StoreEntry::writeData(StoreIOBuffer writeBuffer)
     debugs(20, 6, "offset " << writeBuffer.offset << " len " << writeBuffer.length);
     auto &dataHdr = mem_obj->data_hdr;
     assert (dataHdr.endOffset() || writeBuffer.offset == 0);
-    const auto oldSize = dataHdr.size();
     assert(dataHdr.write(writeBuffer));
-    if (needsIdlePagesUpdating())
-        dataHdr.updateIdleNodes(oldSize);
 }
 
 /* Append incoming data from a primary server to an entry. */
@@ -1531,6 +1528,8 @@ StoreEntry::setMemStatus(mem_status_t new_status)
         } else {
             mem_policy->Add(mem_policy, this, &mem_obj->repl);
             debugs(20, 4, "inserted " << *this << " key: " << getMD5Text());
+            if (!locked())
+                mem_obj->data_hdr.allowedToFreeWithReplPolicy(true);
         }
 
         ++hot_obj_count; // TODO: maintain for the shared hot cache as well
@@ -1538,8 +1537,11 @@ StoreEntry::setMemStatus(mem_status_t new_status)
         if (EBIT_TEST(flags, ENTRY_SPECIAL)) {
             debugs(20, 4, "not removing special " << *this << " from policy");
         } else {
-            mem_policy->Remove(mem_policy, this, &mem_obj->repl);
-            debugs(20, 4, "removed " << *this);
+            if (hasReplPolicy()) {
+                mem_obj->data_hdr.allowedToFreeWithReplPolicy(false);
+                mem_policy->Remove(mem_policy, this, &mem_obj->repl);
+                debugs(20, 4, "removed " << *this);
+            }
         }
 
         --hot_obj_count;
@@ -1561,7 +1563,7 @@ void
 StoreEntry::createMemObject()
 {
     assert(!mem_obj);
-    mem_obj = new MemObject(locked());
+    mem_obj = new MemObject();
 }
 
 void
@@ -1965,6 +1967,19 @@ StoreEntry::checkDisk() const
                *this << "; problem: " << CurrentException);
         throw;
     }
+}
+
+/// whether the entry was added to a memory replacement policy
+bool
+StoreEntry::hasReplPolicy() const
+{
+    if (!mem_obj)
+        return false;
+    if (mem_obj->repl.data) {
+        assert(!EBIT_TEST(flags, ENTRY_SPECIAL));
+        return true;
+    }
+    return false;
 }
 
 /*
