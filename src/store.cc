@@ -418,7 +418,7 @@ StoreEntry::hashDelete()
 void
 StoreEntry::lock(const char *context)
 {
-    if (!lock_count && hasReplPolicy())
+    if (!lock_count && mem_obj && mem_obj->repl.data)
         mem_obj->data_hdr.allowedToFreeWithReplPolicy(false);
     ++lock_count;
     debugs(20, 3, context << " locked key " << getMD5Text() << ' ' << *this);
@@ -452,7 +452,7 @@ StoreEntry::unlock(const char *context)
     if (lock_count)
         return (int) lock_count;
 
-    if (hasReplPolicy())
+    if (mem_obj && mem_obj->repl.data)
         mem_obj->data_hdr.allowedToFreeWithReplPolicy(true);
 
     abandon(context);
@@ -760,7 +760,7 @@ StoreEntry::write (StoreIOBuffer writeBuffer)
 {
     assert(mem_obj != nullptr);
     /* This assert will change when we teach the store to update */
-    assert(isLocalWriter());
+    assert(locked());
 
     // XXX: caller uses content offset, but we also store headers
     writeBuffer.offset += mem_obj->baseReply().hdr_sz;
@@ -1537,11 +1537,10 @@ StoreEntry::setMemStatus(mem_status_t new_status)
         if (EBIT_TEST(flags, ENTRY_SPECIAL)) {
             debugs(20, 4, "not removing special " << *this << " from policy");
         } else {
-            if (hasReplPolicy()) {
+            if (mem_obj->repl.data)
                 mem_obj->data_hdr.allowedToFreeWithReplPolicy(false);
-                mem_policy->Remove(mem_policy, this, &mem_obj->repl);
-                debugs(20, 4, "removed " << *this);
-            }
+            mem_policy->Remove(mem_policy, this, &mem_obj->repl);
+            debugs(20, 4, "removed " << *this);
         }
 
         --hot_obj_count;
@@ -1973,13 +1972,7 @@ StoreEntry::checkDisk() const
 bool
 StoreEntry::hasReplPolicy() const
 {
-    if (!mem_obj)
-        return false;
-    if (mem_obj->repl.data) {
-        assert(!EBIT_TEST(flags, ENTRY_SPECIAL));
-        return true;
-    }
-    return false;
+    return mem_obj && mem_obj->repl.data;
 }
 
 /*

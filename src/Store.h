@@ -72,9 +72,6 @@ public:
     bool isAccepting() const;
     size_t bytesWanted(Range<size_t> const aRange, bool ignoreDelayPool = false) const;
 
-    /// whether a non-completed (STORE_PENDING) entry is being written to the local memory store
-    bool isLocalWriter() const { return locked() && isAccepting(); }
-
     /// Signals that the entire response has been stored and no more append()
     /// calls should be expected; cf. completeTruncated().
     void completeSuccessfully(const char *whyWeAreSureWeStoredTheWholeReply);

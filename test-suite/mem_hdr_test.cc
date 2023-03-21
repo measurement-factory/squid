@@ -19,7 +19,7 @@
 static void
 testLowAndHigh()
 {
-    mem_hdr aHeader(true);
+    mem_hdr aHeader;
     assert (aHeader.lowestOffset() == 0);
     assert (aHeader.write (StoreIOBuffer()));
     assert (aHeader.lowestOffset() == 0);
@@ -74,7 +74,7 @@ testSplayOfNodes()
 static void
 testHdrVisit()
 {
-    mem_hdr aHeader(true);
+    mem_hdr aHeader;
     char * sampleData = xstrdup ("A");
     assert (aHeader.write (StoreIOBuffer(1, 100, sampleData)));
     safe_free (sampleData);

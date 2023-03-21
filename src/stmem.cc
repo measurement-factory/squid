@@ -13,6 +13,7 @@
 #include "HttpReply.h"
 #include "mem_node.h"
 #include "MemObject.h"
+#include "SquidMath.h"
 #include "stmem.h"
 
 size_t mem_hdr::ReplPolicyIdleNodesCount = 0;
@@ -384,20 +385,31 @@ mem_hdr::getNodes() const
     return nodes;
 }
 
+static void
+UpdateIdleNodesCounter(const size_t oldSize, const size_t newSize)
+{
+    if (newSize == oldSize)
+        return;
+    const auto delta = newSize > oldSize ? newSize - oldSize : oldSize - newSize;
+    const auto oldCount = mem_hdr::ReplPolicyIdleNodesCount;
+    if (newSize > oldSize) {
+        mem_hdr::ReplPolicyIdleNodesCount = IncreaseSum(mem_hdr::ReplPolicyIdleNodesCount, delta).value();
+    } else {
+        assert(mem_hdr::ReplPolicyIdleNodesCount >= delta);
+        mem_hdr::ReplPolicyIdleNodesCount -= delta;
+    }
+    debugs(19, 5, "Updated ReplPolicyIdleNodesCount from " << oldCount << " to " << mem_hdr::ReplPolicyIdleNodesCount);
+}
+
 void
 mem_hdr::allowedToFreeWithReplPolicy(const bool allowed)
 {
     if (removableByReplPolicy == allowed)
         return;
     removableByReplPolicy = allowed;
-    const auto oldCount = ReplPolicyIdleNodesCount;
-    if (removableByReplPolicy)
-        ReplPolicyIdleNodesCount += size();
-    else {
-        assert(ReplPolicyIdleNodesCount >= size());
-        ReplPolicyIdleNodesCount -= size();
-    }
-    debugs(19, 5, this << " modified ReplPolicyIdleNodesCount from " << oldCount << " to " << ReplPolicyIdleNodesCount);
+    const auto oldSize = removableByReplPolicy ? 0 : size();
+    const auto newSize = removableByReplPolicy ? size() : 0;
+    UpdateIdleNodesCounter(oldSize, newSize);
 }
 
 /// Adjusts the ReplPolicyIdleNodesCount counter by the difference
@@ -407,17 +419,6 @@ mem_hdr::updateIdleNodes(const size_t oldSize)
 {
     if (!removableByReplPolicy)
         return;
-    const auto newSize = size();
-    const auto delta = newSize > oldSize ? newSize - oldSize : oldSize - newSize;
-    if (newSize == oldSize)
-        return;
-    const auto oldCount = ReplPolicyIdleNodesCount;
-    if (newSize > oldSize) {
-        ReplPolicyIdleNodesCount += delta;
-    } else {
-        assert(ReplPolicyIdleNodesCount >= delta);
-        ReplPolicyIdleNodesCount -= delta;
-    }
-    debugs(19, 5, this << " updated ReplPolicyIdleNodesCount from " << oldCount << " to " << ReplPolicyIdleNodesCount);
+    UpdateIdleNodesCounter(oldSize, size());
 }
 

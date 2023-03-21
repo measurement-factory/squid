@@ -339,7 +339,7 @@ Store::Controller::checkFoundCandidate(const StoreEntry &entry) const
             // Transients do check when they setCollapsingRequirement().
         } else {
             // a local writer must hold a lock on its writable entry
-            if (!(entry.isLocalWriter()))
+            if (!(entry.locked() && entry.isAccepting()))
                 throw TextException("no local writer", Here());
         }
     }
@@ -534,7 +534,8 @@ Store::Controller::freeMemorySpace(const int bytesRequired)
     if (memoryCacheHasSpaceFor(pagesRequired))
         return;
 
-    if (mem_hdr::ReplPolicyIdleNodesCount < static_cast<size_t>(pagesRequired))
+    // do not free anything if freeing everything freeable would not be enough
+    if (Less(mem_hdr::ReplPolicyIdleNodesCount, pagesRequired))
         return;
 
     // XXX: When store_pages_max is smaller than pagesRequired, we should not
