@@ -46,6 +46,7 @@ int MemObject::mostBytesWanted(int, bool) const STUB_RETVAL(-1)
 #if USE_DELAY_POOLS
 DelayId MemObject::mostBytesAllowed() const STUB_RETVAL(DelayId())
 #endif
+void MemObject::write(const StoreIOBuffer &) STUB
 int64_t MemObject::lowestMemReaderOffset() const STUB_RETVAL(0)
 void MemObject::kickReads() STUB
 int64_t MemObject::objectBytesOnDisk() const STUB_RETVAL(0)

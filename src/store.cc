@@ -418,9 +418,9 @@ StoreEntry::hashDelete()
 void
 StoreEntry::lock(const char *context)
 {
-    if (!lock_count && mem_obj && mem_obj->repl.data)
-        mem_obj->data_hdr.allowedToFreeWithReplPolicy(false);
     ++lock_count;
+    if (mem_obj)
+        mem_obj->data_hdr.allowedToFreeWithReplPolicy(false);
     debugs(20, 3, context << " locked key " << getMD5Text() << ' ' << *this);
 }
 
@@ -452,8 +452,8 @@ StoreEntry::unlock(const char *context)
     if (lock_count)
         return (int) lock_count;
 
-    if (mem_obj && mem_obj->repl.data)
-        mem_obj->data_hdr.allowedToFreeWithReplPolicy(true);
+    if (mem_obj)
+        mem_obj->data_hdr.allowedToFreeWithReplPolicy(mem_obj->repl.data);
 
     abandon(context);
     return 0;
@@ -760,6 +760,7 @@ StoreEntry::write (StoreIOBuffer writeBuffer)
 {
     assert(mem_obj != nullptr);
     /* This assert will change when we teach the store to update */
+    assert(store_status == STORE_PENDING);
     assert(locked());
 
     // XXX: caller uses content offset, but we also store headers
@@ -767,7 +768,7 @@ StoreEntry::write (StoreIOBuffer writeBuffer)
 
     debugs(20, 5, "storeWrite: writing " << writeBuffer.length << " bytes for '" << getMD5Text() << "'");
     storeGetMemSpace(writeBuffer.length);
-    writeData(writeBuffer);
+    mem_obj->write(writeBuffer);
 
     if (EBIT_TEST(flags, ENTRY_FWD_HDR_WAIT) && !mem_obj->readAheadPolicyCanRead()) {
         debugs(20, 3, "allow Store clients to get entry content after buffering too much for " << *this);
@@ -775,16 +776,6 @@ StoreEntry::write (StoreIOBuffer writeBuffer)
     }
 
     invokeHandlers();
-}
-
-void
-StoreEntry::writeData(StoreIOBuffer writeBuffer)
-{
-    assert(mem_obj);
-    debugs(20, 6, "offset " << writeBuffer.offset << " len " << writeBuffer.length);
-    auto &dataHdr = mem_obj->data_hdr;
-    assert (dataHdr.endOffset() || writeBuffer.offset == 0);
-    assert(dataHdr.write(writeBuffer));
 }
 
 /* Append incoming data from a primary server to an entry. */
@@ -1528,8 +1519,8 @@ StoreEntry::setMemStatus(mem_status_t new_status)
         } else {
             mem_policy->Add(mem_policy, this, &mem_obj->repl);
             debugs(20, 4, "inserted " << *this << " key: " << getMD5Text());
-            if (!locked())
-                mem_obj->data_hdr.allowedToFreeWithReplPolicy(true);
+            // only idle entries can be freed by the replacement policy
+            mem_obj->data_hdr.allowedToFreeWithReplPolicy(!locked());
         }
 
         ++hot_obj_count; // TODO: maintain for the shared hot cache as well
@@ -1537,8 +1528,7 @@ StoreEntry::setMemStatus(mem_status_t new_status)
         if (EBIT_TEST(flags, ENTRY_SPECIAL)) {
             debugs(20, 4, "not removing special " << *this << " from policy");
         } else {
-            if (mem_obj->repl.data)
-                mem_obj->data_hdr.allowedToFreeWithReplPolicy(false);
+            mem_obj->data_hdr.allowedToFreeWithReplPolicy(false);
             mem_policy->Remove(mem_policy, this, &mem_obj->repl);
             debugs(20, 4, "removed " << *this);
         }
@@ -1576,7 +1566,7 @@ void
 StoreEntry::ensureMemObject(const char *aUrl, const char *aLogUrl, const HttpRequestMethod &aMethod)
 {
     if (!mem_obj)
-        createMemObject();
+        mem_obj = new MemObject();
     mem_obj->setUris(aUrl, aLogUrl, aMethod);
 }
 
@@ -1966,13 +1956,6 @@ StoreEntry::checkDisk() const
                *this << "; problem: " << CurrentException);
         throw;
     }
-}
-
-/// whether the entry was added to a memory replacement policy
-bool
-StoreEntry::hasReplPolicy() const
-{
-    return mem_obj && mem_obj->repl.data;
 }
 
 /*

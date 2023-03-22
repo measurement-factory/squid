@@ -56,11 +56,6 @@ public:
     /// \see MemObject::freshestReply()
     const HttpReply *hasFreshestReply() const { return mem_obj ? &mem_obj->freshestReply() : nullptr; }
 
-    /// writes to local memory store
-    void writeData(StoreIOBuffer);
-
-    /// writeData() and calls awaiting handlers.
-    /// Should be called for non-completed (STORE_PENDING) entries only.
     void write(StoreIOBuffer);
 
     /** Check if the Store entry is empty
@@ -323,8 +318,6 @@ private:
 
     /// flags [truncated or too big] entry with ENTRY_BAD_LENGTH and releases it
     void lengthWentBad(const char *reason);
-
-    bool hasReplPolicy() const;
 
     static Mem::Allocator *pool;
 

@@ -28,8 +28,7 @@ public:
     int64_t freeDataUpto (int64_t);
     ssize_t copy (StoreIOBuffer const &) const;
     bool hasContigousContentRange(Range<int64_t> const &range) const;
-    /// Saves the buffer into the internal storage.
-    /// Do not call directly - use StoreEntry::writeData() instead.
+    /* success or fail */
     bool write (StoreIOBuffer const &);
     void dump() const;
     size_t size() const;
