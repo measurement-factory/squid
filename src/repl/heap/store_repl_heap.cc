@@ -78,7 +78,6 @@ HeapPolicyData::resetPolicyNode(StoreEntry *entry) const
     }
     assert(node);
     node->data = nullptr;
-    node->owner = nullptr;
 }
 
 static void
@@ -87,13 +86,9 @@ heap_add_to(StoreEntry *entry, RemovalPolicyNode *node, HeapPolicyData *policyDa
     if (EBIT_TEST(entry->flags, ENTRY_SPECIAL))
         return;         /* We won't manage these.. they messes things up */
 
-    if (node->owner == policyData) // already added
-        return;
-
-    assert(!node->inited());
+    assert(!node->data);
 
     node->data = heap_insert(policyData->theHeap, entry);
-    node->owner = policyData;
 
     policyData->count += 1;
 
@@ -113,20 +108,15 @@ heap_add(RemovalPolicy *policy, StoreEntry *entry, RemovalPolicyNode *node)
 static void
 heap_remove_from(RemovalPolicyNode *node, HeapPolicyData *policyData)
 {
-    if (!node->inited()) // already deleted
-        return;
+    assert(node->data);
 
     heap_node *hnode = (heap_node *)node->data;
     if (!hnode)
         return;
 
-    if (node->owner != policyData) // already moved to another heap
-        return;
-
     heap_delete(policyData->theHeap, hnode);
 
     node->data = nullptr;
-    node->owner = nullptr;
 
     policyData->count -= 1;
 }

@@ -78,14 +78,10 @@ lru_add_to(StoreEntry * entry, RemovalPolicyNode * node, LruPolicyData *policyDa
     if (EBIT_TEST(entry->flags, ENTRY_SPECIAL))
         return;
 
-    if (node->owner == policyData) // already added
-        return;
-
-    assert(!node->inited());
+    assert(!node->data);
 
     LruNode *lru_node;
     node->data = lru_node = new LruNode;
-    node->owner = policyData;
     dlinkAddTail(entry, &lru_node->node, &policyData->list);
     policyData->count += 1;
 
@@ -103,15 +99,11 @@ lru_add(RemovalPolicy * policy, StoreEntry * entry, RemovalPolicyNode * node)
 static void
 lru_remove_from(StoreEntry * entry, RemovalPolicyNode * node, LruPolicyData *policyData)
 {
-    if (!node->inited()) // already deleted
-        return;
+    assert(node->data);
 
     LruNode *lru_node = (LruNode *)node->data;
 
     if (!lru_node)
-        return;
-
-    if (node->owner != policyData) // already moved to another list
         return;
 
     /*
@@ -125,7 +117,6 @@ lru_remove_from(StoreEntry * entry, RemovalPolicyNode * node, LruPolicyData *pol
     assert(lru_node->node.data == entry);
 
     node->data = nullptr;
-    node->owner = nullptr;
 
     dlinkDelete(&lru_node->node, &policyData->list);
 

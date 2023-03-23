@@ -30,10 +30,7 @@ class RemovalPolicyNode
 {
 
 public:
-    RemovalPolicyNode() : data(nullptr), owner(nullptr) {}
-
-    bool inited() const { assert(valid()); return bool(data); }
-    bool valid() const { return (data && owner) || (!data && !owner); }
+    RemovalPolicyNode() : data(nullptr) {}
 
     void *data;
     void *owner;
