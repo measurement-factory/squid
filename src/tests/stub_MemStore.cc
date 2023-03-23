@@ -33,7 +33,7 @@ uint64_t MemStore::minSize() const STUB_RETVAL(0)
 uint64_t MemStore::currentSize() const STUB_RETVAL(0)
 uint64_t MemStore::currentCount() const STUB_RETVAL(0)
 int64_t MemStore::maxObjectSize() const STUB_RETVAL(0)
-bool MemStore::dereference(StoreEntry &) STUB_RETVAL(false)
+void MemStore::dereference(StoreEntry &) STUB
 void MemStore::evictCached(StoreEntry&) STUB
 void MemStore::evictIfFound(const cache_key *) STUB
 bool MemStore::anchorToCache(StoreEntry&) STUB_RETVAL(false)

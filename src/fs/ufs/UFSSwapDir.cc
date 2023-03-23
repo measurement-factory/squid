@@ -529,7 +529,7 @@ Fs::Ufs::UFSSwapDir::reference(StoreEntry &e)
         repl->Referenced(repl, &e, &e.repl);
 }
 
-bool
+void
 Fs::Ufs::UFSSwapDir::dereference(StoreEntry & e)
 {
     debugs(47, 3, "dereferencing " << &e << " " <<
@@ -537,8 +537,6 @@ Fs::Ufs::UFSSwapDir::dereference(StoreEntry & e)
 
     if (repl->Dereferenced)
         repl->Dereferenced(repl, &e, &e.repl);
-
-    return true; // keep e in the global store_table
 }
 
 StoreIOState::Pointer

@@ -232,7 +232,6 @@ Store::Controller::callback()
     return swapDir->callback();
 }
 
-/// update reference counters of the recently touched entry
 void
 Store::Controller::referenceBusy(StoreEntry &e)
 {
@@ -256,10 +255,32 @@ Store::Controller::referenceBusy(StoreEntry &e)
     }
 }
 
-/// dereference()s an idle entry
-/// \returns false if and only if the entry should be deleted
+void
+Store::Controller::dereferenceIdle(StoreEntry &e)
+{
+    if (EBIT_TEST(e.flags, ENTRY_SPECIAL))
+        return;
+
+    if (EBIT_TEST(e.flags, KEY_PRIVATE))
+        return;
+
+    // Notify the fs that we are not referencing this object any more. This
+    // should be done even if we overwrite keepInStoreTable afterwards.
+
+    if (e.hasDisk())
+        swapDir->dereference(e);
+
+    // Notify the memory cache that we're not referencing this object any more
+    if (sharedMemStore && e.mem_status == IN_MEMORY)
+        sharedMemStore->dereference(e);
+
+    // TODO: move this code to a non-shared memory cache class when we have it
+    if (e.mem_obj && mem_policy->Dereferenced)
+        mem_policy->Dereferenced(mem_policy, &e, &e.mem_obj->repl);
+}
+
 bool
-Store::Controller::dereferenceIdle(StoreEntry &e, bool wantsLocalMemory)
+Store::Controller::keepIdle(StoreEntry &e, bool wantsLocalMemory)
 {
     // special entries do not belong to any specific Store, but are IN_MEMORY
     if (EBIT_TEST(e.flags, ENTRY_SPECIAL))
@@ -269,34 +290,25 @@ Store::Controller::dereferenceIdle(StoreEntry &e, bool wantsLocalMemory)
     if (EBIT_TEST(e.flags, KEY_PRIVATE))
         return false;
 
-    bool keepInStoreTable = false; // keep only if somebody needs it there
-
-    // Notify the fs that we are not referencing this object any more. This
-    // should be done even if we overwrite keepInStoreTable afterwards.
-
-    if (e.hasDisk())
-        keepInStoreTable = swapDir->dereference(e) || keepInStoreTable;
-
-    // Notify the memory cache that we're not referencing this object any more
-    if (sharedMemStore && e.mem_status == IN_MEMORY)
-        keepInStoreTable = sharedMemStore->dereference(e) || keepInStoreTable;
-
-    // TODO: move this code to a non-shared memory cache class when we have it
-    if (e.mem_obj) {
-        if (mem_policy->Dereferenced)
-            mem_policy->Dereferenced(mem_policy, &e, &e.mem_obj->repl);
-        // non-shared memory cache relies on store_table
-        if (localMemStore)
-            keepInStoreTable = wantsLocalMemory || keepInStoreTable;
-    }
-
     if (e.hittingRequiresCollapsing()) {
         // If we were writing this now-locally-idle entry, then we did not
         // finish and should now destroy an incomplete entry. Otherwise, do not
         // leave this idle StoreEntry behind because handleIMSReply() lacks
         // freshness checks when hitting a collapsed revalidation entry.
-        keepInStoreTable = false; // may overrule fs decisions made above
+        return false; // may overrule fs decisions made above
     }
+
+    bool keepInStoreTable = false; // keep only if somebody needs it there
+
+    if (e.hasDisk())
+        keepInStoreTable = swapDir->keepIdle(e);
+
+    if (sharedMemStore && e.mem_status == IN_MEMORY)
+        keepInStoreTable = sharedMemStore->keepIdle(e) || keepInStoreTable;
+
+    // non-shared memory cache relies on store_table
+    if (e.mem_obj && localMemStore)
+        keepInStoreTable = wantsLocalMemory || keepInStoreTable;
 
     return keepInStoreTable;
 }
@@ -354,7 +366,6 @@ Store::Controller::find(const cache_key *key)
                 allowSharing(*entry, key);
             checkFoundCandidate(*entry);
             entry->touch();
-            referenceBusy(*entry);
             return entry;
         } catch (const std::exception &ex) {
             debugs(20, 2, "failed with " << *entry << ": " << ex.what());
@@ -662,7 +673,7 @@ Store::Controller::handleIdleEntry(StoreEntry &e)
 
     // An idle, unlocked entry that only belongs to a SwapDir which controls
     // its own index, should not stay in the global store_table.
-    if (!dereferenceIdle(e, keepInLocalMemory)) {
+    if (!keepIdle(e, keepInLocalMemory)) {
         debugs(20, 5, "destroying unlocked entry: " << &e << ' ' << e);
         destroyStoreEntry(static_cast<hash_link*>(&e));
         return;

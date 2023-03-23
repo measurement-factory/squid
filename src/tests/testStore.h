@@ -73,7 +73,7 @@ public:
 
     virtual void reference(StoreEntry &) {} /* Reference this object */
 
-    virtual bool dereference(StoreEntry &) { return true; }
+    virtual void dereference(StoreEntry &) {}
 
     virtual StoreSearch *search();
 };

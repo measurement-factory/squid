@@ -129,14 +129,16 @@ public:
     /// whether there are any SMP-aware storages
     static bool SmpAware();
 
+    /// update reference counters of the recently touched entry
+    void referenceBusy(StoreEntry &e);
+    /// dereference()s an idle entry
+    void dereferenceIdle(StoreEntry &);
+
     /// the number of cache_dirs being rebuilt; TODO: move to Disks::Rebuilding
     static int store_dirs_rebuilding;
 
 private:
     bool memoryCacheHasSpaceFor(const int pagesRequired) const;
-
-    void referenceBusy(StoreEntry &e);
-    bool dereferenceIdle(StoreEntry &, bool wantsLocalMemory);
 
     void allowSharing(StoreEntry &, const cache_key *);
     StoreEntry *peekAtLocal(const cache_key *);
@@ -147,6 +149,7 @@ private:
     bool anchorToCache(StoreEntry &);
     void checkTransients(const StoreEntry &) const;
     void checkFoundCandidate(const StoreEntry &) const;
+    bool keepIdle(StoreEntry &, bool wantsLocalMemory);
 
     Disks *swapDir; ///< summary view of all disk caches
     Memory *sharedMemStore; ///< memory cache that multiple workers can use

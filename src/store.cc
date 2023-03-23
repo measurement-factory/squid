@@ -418,6 +418,8 @@ StoreEntry::hashDelete()
 void
 StoreEntry::lock(const char *context)
 {
+    if (!lock_count)
+        Store::Root().referenceBusy(*this);
     ++lock_count;
     debugs(20, 3, context << " locked key " << getMD5Text() << ' ' << *this);
 }
@@ -449,6 +451,8 @@ StoreEntry::unlock(const char *context)
 
     if (lock_count)
         return (int) lock_count;
+
+    Store::Root().dereferenceIdle(*this);
 
     abandon(context);
     return 0;

@@ -547,10 +547,16 @@ Store::Disks::reference(StoreEntry &e)
     e.disk().reference(e);
 }
 
-bool
+void
 Store::Disks::dereference(StoreEntry &e)
 {
-    return e.disk().dereference(e);
+    e.disk().dereference(e);
+}
+
+bool
+Store::Disks::keepIdle(const StoreEntry &e) const
+{
+    return e.disk().keepIdle(e);
 }
 
 void

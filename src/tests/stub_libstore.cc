@@ -77,7 +77,7 @@ int64_t Disk::maxObjectSize() const STUB_RETVAL(0)
 void Disk::getStats(StoreInfoStats &) const STUB
 void Disk::stat(StoreEntry &) const STUB
 void Disk::reference(StoreEntry &) STUB
-bool Disk::dereference(StoreEntry &) STUB_RETVAL(false)
+void Disk::dereference(StoreEntry &) STUB
 void Disk::maintain() STUB
 int64_t Disk::minObjectSize() const STUB_RETVAL(0)
 void Disk::maxObjectSize(int64_t) STUB
@@ -112,7 +112,7 @@ void Disks::getStats(StoreInfoStats &) const STUB
 void Disks::stat(StoreEntry &) const STUB
 void Disks::sync() STUB
 void Disks::reference(StoreEntry &) STUB
-bool Disks::dereference(StoreEntry &) STUB_RETVAL(false)
+void Disks::dereference(StoreEntry &) STUB
 void Disks::updateHeaders(StoreEntry *) STUB
 void Disks::maintain() STUB
 bool Disks::anchorToCache(StoreEntry &) STUB_RETVAL(false)

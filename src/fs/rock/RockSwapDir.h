@@ -98,7 +98,8 @@ protected:
     void maintain() override;
     void diskFull() override;
     void reference(StoreEntry &e) override;
-    bool dereference(StoreEntry &e) override;
+    void dereference(StoreEntry &e) override;
+    bool keepIdle(const StoreEntry &) const override { return false; }
     void updateHeaders(StoreEntry *e) override;
     bool unlinkdUseful() const override;
     void statfs(StoreEntry &e) const override;
