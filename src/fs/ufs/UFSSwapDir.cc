@@ -547,7 +547,7 @@ Fs::Ufs::UFSSwapDir::lockInPolicy(StoreEntry &e)
 {
     debugs(47, 3, &e << " " <<  e.swap_dirn << "/" << e.swap_filen);
 
-    if (repl->Locked)
+    if (repl && repl->Locked)
         repl->Locked(repl, &e, &e.repl);
 }
 
@@ -556,7 +556,7 @@ Fs::Ufs::UFSSwapDir::unlockInPolicy(StoreEntry &e)
 {
     debugs(47, 3, &e << " " << e.swap_dirn << "/" << e.swap_filen);
 
-    if (repl->Unlocked)
+    if (repl && repl->Unlocked)
         repl->Unlocked(repl, &e, &e.repl);
 }
 
@@ -836,7 +836,7 @@ Fs::Ufs::UFSSwapDir::addDiskRestore(const cache_key * key,
     cur_size += fs.blksize * sizeInBlocks(e->swap_file_sz);
     ++n_disk_objects;
     e->hashInsert(key);
-    replacementAdd(e);
+    replacementAdd (e);
     return e;
 }
 
@@ -1224,7 +1224,7 @@ Fs::Ufs::UFSSwapDir::evictIfFound(const cache_key *)
 }
 
 void
-Fs::Ufs::UFSSwapDir::replacementAdd(StoreEntry *e)
+Fs::Ufs::UFSSwapDir::replacementAdd(StoreEntry * e)
 {
     debugs(47, 4, "added node " << e << " to dir " << index);
     repl->Add(repl, e, &e->repl);

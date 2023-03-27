@@ -999,7 +999,7 @@ Rock::SwapDir::lockInPolicy(StoreEntry &e)
 {
     debugs(47, 5, &e << ' ' << e.swap_dirn << ' ' << e.swap_filen);
 
-    if (repl->Locked)
+    if (repl && repl->Locked)
         repl->Locked(repl, &e, &e.repl);
 }
 
@@ -1008,7 +1008,7 @@ Rock::SwapDir::unlockInPolicy(StoreEntry & e)
 {
     debugs(47, 5, &e << ' ' << e.swap_dirn << ' ' << e.swap_filen);
 
-    if (repl->Unlocked)
+    if (repl && repl->Unlocked)
         repl->Unlocked(repl, &e, &e.repl);
 }
 
