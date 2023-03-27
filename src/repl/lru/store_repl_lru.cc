@@ -92,17 +92,14 @@ lru_add_to(StoreEntry * entry, RemovalPolicyNode * node, LruPolicyData *policyDa
 static void
 lru_add(RemovalPolicy * policy, StoreEntry * entry, RemovalPolicyNode * node)
 {
-    auto lruIdle = (LruPolicyData *)policy->_dataIdle;
-    lru_add_to(entry, node, lruIdle);
+    auto lru = entry->locked() ? (LruPolicyData *)policy->_dataBusy : (LruPolicyData *)policy->_dataIdle;
+    lru_add_to(entry, node, lru);
 }
 
 static void
 lru_remove_from(StoreEntry * entry, RemovalPolicyNode * node, LruPolicyData *policyData)
 {
-    assert(node->data);
-
-    LruNode *lru_node = (LruNode *)node->data;
-
+    auto lru_node = reinterpret_cast<LruNode *>(node->data);
     if (!lru_node)
         return;
 
@@ -122,20 +119,34 @@ lru_remove_from(StoreEntry * entry, RemovalPolicyNode * node, LruPolicyData *pol
 
     delete lru_node;
 
+    assert(policyData->count > 0);
     policyData->count -= 1;
-
 }
 
 static void
 lru_remove(RemovalPolicy * policy, StoreEntry * entry, RemovalPolicyNode * node)
 {
-    assert(!entry->locked());
-    auto lruIdle = (LruPolicyData *)policy->_dataIdle;
-    lru_remove_from(entry, node, lruIdle);
+    auto lru = entry->locked() ? (LruPolicyData *)policy->_dataBusy : (LruPolicyData *)policy->_dataIdle;
+    lru_remove_from(entry, node, lru);
 }
 
 static void
 lru_referenced(RemovalPolicy * policy, StoreEntry * entry,
+               RemovalPolicyNode * node)
+{
+    auto lru = entry->locked() ? (LruPolicyData *)policy->_dataBusy : (LruPolicyData *)policy->_dataIdle;
+    LruNode *lru_node = (LruNode *)node->data;
+
+    if (!lru_node)
+        return;
+
+    dlinkDelete(&lru_node->node, &lru->list);
+
+    dlinkAddTail((void *) entry, &lru_node->node, &lru->list);
+}
+
+static void
+lru_locked(RemovalPolicy * policy, StoreEntry * entry,
                RemovalPolicyNode * node)
 {
     auto lruIdle = (LruPolicyData *)policy->_dataIdle;
@@ -152,7 +163,7 @@ lru_referenced(RemovalPolicy * policy, StoreEntry * entry,
 }
 
 static void
-lru_dereferenced(RemovalPolicy * policy, StoreEntry * entry,
+lru_unlocked(RemovalPolicy * policy, StoreEntry * entry,
                RemovalPolicyNode * node)
 {
     auto lruIdle = (LruPolicyData *)policy->_dataIdle;
@@ -364,7 +375,11 @@ createRemovalPolicy_lru(wordlist * args)
 
     policy->Referenced = lru_referenced;
 
-    policy->Dereferenced = lru_dereferenced;
+    policy->Dereferenced = lru_referenced;
+
+    policy->Locked = lru_locked;
+
+    policy->Unlocked = lru_unlocked;
 
     policy->WalkInit = lru_walkInit;
 

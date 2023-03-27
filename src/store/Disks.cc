@@ -554,6 +554,18 @@ Store::Disks::dereference(StoreEntry &e)
 }
 
 void
+Store::Disks::lockInPolicy(StoreEntry &e)
+{
+    e.disk().lockInPolicy(e);
+}
+
+void
+Store::Disks::unlockInPolicy(StoreEntry &e)
+{
+    return e.disk().unlockInPolicy(e);
+}
+
+void
 Store::Disks::updateHeaders(StoreEntry *e)
 {
     Must(e);

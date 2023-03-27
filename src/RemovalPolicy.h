@@ -33,7 +33,6 @@ public:
     RemovalPolicyNode() : data(nullptr) {}
 
     void *data;
-    void *owner;
 };
 
 class RemovalPolicy
@@ -49,6 +48,8 @@ public:
     void (*Remove) (RemovalPolicy * policy, StoreEntry * entry, RemovalPolicyNode * node);
     void (*Referenced) (RemovalPolicy * policy, StoreEntry * entry, RemovalPolicyNode * node);
     void (*Dereferenced) (RemovalPolicy * policy, StoreEntry * entry, RemovalPolicyNode * node);
+    void (*Locked) (RemovalPolicy * policy, StoreEntry * entry, RemovalPolicyNode * node);
+    void (*Unlocked) (RemovalPolicy * policy, StoreEntry * entry, RemovalPolicyNode * node);
     RemovalPolicyWalker *(*WalkInit) (RemovalPolicy * policy);
     RemovalPurgeWalker *(*PurgeInit) (RemovalPolicy * policy, int max_scan);
     void (*Stats) (RemovalPolicy * policy, StoreEntry * entry);

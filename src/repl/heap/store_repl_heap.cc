@@ -102,15 +102,14 @@ heap_add_to(StoreEntry *entry, RemovalPolicyNode *node, HeapPolicyData *policyDa
 static void
 heap_add(RemovalPolicy *policy, StoreEntry *entry, RemovalPolicyNode *node)
 {
-    heap_add_to(entry, node, (HeapPolicyData *)policy->_dataIdle);
+    auto h = entry->locked() ? (HeapPolicyData *)policy->_dataBusy : (HeapPolicyData *)policy->_dataIdle;
+    heap_add_to(entry, node, h);
 }
 
 static void
 heap_remove_from(RemovalPolicyNode *node, HeapPolicyData *policyData)
 {
-    assert(node->data);
-
-    heap_node *hnode = (heap_node *)node->data;
+    auto hnode = reinterpret_cast<heap_node *>(node->data);
     if (!hnode)
         return;
 
@@ -118,6 +117,7 @@ heap_remove_from(RemovalPolicyNode *node, HeapPolicyData *policyData)
 
     node->data = nullptr;
 
+    assert(policyData->count > 0);
     policyData->count -= 1;
 }
 
@@ -125,12 +125,25 @@ static void
 heap_remove(RemovalPolicy * policy, StoreEntry *e,
             RemovalPolicyNode * node)
 {
-    assert(!e->locked());
-    heap_remove_from(node, (HeapPolicyData *)policy->_dataIdle);
+    auto h = e->locked() ? (HeapPolicyData *)policy->_dataBusy : (HeapPolicyData *)policy->_dataIdle;
+    heap_remove_from(node, h);
 }
 
 static void
 heap_referenced(RemovalPolicy * policy, StoreEntry * entry,
+                RemovalPolicyNode * node)
+{
+    auto h = entry->locked() ? (HeapPolicyData *)policy->_dataBusy : (HeapPolicyData *)policy->_dataIdle;
+    heap_node *hnode = (heap_node *)node->data;
+
+    if (!hnode)
+        return;
+
+    heap_update(h->theHeap, hnode, (StoreEntry *) entry);
+}
+
+static void
+heap_locked(RemovalPolicy * policy, StoreEntry * entry,
                 RemovalPolicyNode * node)
 {
     auto hIdle = (HeapPolicyData *)policy->_dataIdle;
@@ -143,7 +156,7 @@ heap_referenced(RemovalPolicy * policy, StoreEntry * entry,
 }
 
 static void
-heap_dereferenced(RemovalPolicy * policy, StoreEntry * entry,
+heap_unlocked(RemovalPolicy * policy, StoreEntry * entry,
                 RemovalPolicyNode * node)
 {
     auto hIdle = (HeapPolicyData *)policy->_dataIdle;
@@ -368,9 +381,13 @@ createRemovalPolicy_heap(wordlist * args)
 
     policy->Remove = heap_remove;
 
-    policy->Referenced = heap_referenced;
+    policy->Referenced = nullptr;
 
-    policy->Dereferenced = heap_dereferenced;
+    policy->Dereferenced = heap_referenced;
+
+    policy->Locked = heap_locked;
+
+    policy->Unlocked = heap_unlocked;
 
     policy->WalkInit = heap_walkInit;
 
