@@ -27,14 +27,14 @@ struct LruPolicyData {
 
 static LruPolicyData *
 PolicyData(RemovalPolicy *policy, const StoreEntry *e) {
-    return reinterpret_cast<LruPolicyData *>(e->locked() ? policy->_dataBusy : policy->_dataIdle);
+    return static_cast<LruPolicyData *>(e->locked() ? policy->_dataBusy : policy->_dataIdle);
 }
 
 static LruPolicyData *
-DataIdle(RemovalPolicy *policy) { return reinterpret_cast<LruPolicyData *>(policy->_dataIdle); }
+DataIdle(RemovalPolicy *policy) { return static_cast<LruPolicyData *>(policy->_dataIdle); }
 
 static LruPolicyData *
-DataBusy(RemovalPolicy *policy) { return reinterpret_cast<LruPolicyData *>(policy->_dataBusy); }
+DataBusy(RemovalPolicy *policy) { return static_cast<LruPolicyData *>(policy->_dataBusy); }
 
 /* Hack to avoid having to remember the RemovalPolicyNode location.
  * Needed by the purge walker to clear the policy information
@@ -108,7 +108,7 @@ lru_add(RemovalPolicy *policy, StoreEntry *entry, RemovalPolicyNode *node)
 static void
 lru_remove_from(StoreEntry *entry, RemovalPolicyNode *node, LruPolicyData *policyData)
 {
-    auto lru_node = reinterpret_cast<LruNode *>(node->data);
+    auto lru_node = static_cast<LruNode *>(node->data);
     if (!lru_node)
         return;
 
@@ -143,7 +143,7 @@ lru_referenced(RemovalPolicy * policy, const StoreEntry * entry,
                RemovalPolicyNode * node)
 {
     auto lru = PolicyData(policy, entry);
-    if (auto lru_node = reinterpret_cast<LruNode *>(node->data)) {
+    if (auto lru_node = static_cast<LruNode *>(node->data)) {
         dlinkDelete(&lru_node->node, &lru->list);
         dlinkAddTail(const_cast<StoreEntry*>(entry), &lru_node->node, &lru->list);
     }
@@ -178,8 +178,8 @@ struct _LruWalkData {
 static const StoreEntry *
 lru_walkNext(RemovalPolicyWalker * walker)
 {
-    auto walkIdle = reinterpret_cast<LruWalkData *>(walker->_dataIdle);
-    auto walkBusy = reinterpret_cast<LruWalkData *>(walker->_dataBusy);
+    auto walkIdle = static_cast<LruWalkData *>(walker->_dataIdle);
+    auto walkBusy = static_cast<LruWalkData *>(walker->_dataBusy);
     auto lru_node = walkIdle->current;
 
     if (lru_node) {
@@ -191,7 +191,7 @@ lru_walkNext(RemovalPolicyWalker * walker)
         walkBusy->current = reinterpret_cast<LruNode *>(lru_node->node.next);
     }
 
-    return reinterpret_cast<StoreEntry *>(lru_node->node.data);
+    return static_cast<StoreEntry *>(lru_node->node.data);
 }
 
 static void
@@ -222,8 +222,8 @@ lru_walkInit(RemovalPolicy * policy)
     auto lruBusy = DataBusy(policy);
     lruBusy->nwalkers += 1;
 
-    auto lru_walk_idle = reinterpret_cast<LruWalkData *>(xcalloc(1, sizeof(LruWalkData)));
-    auto lru_walk_busy = reinterpret_cast<LruWalkData *>(xcalloc(1, sizeof(LruWalkData)));
+    auto lru_walk_idle = static_cast<LruWalkData *>(xcalloc(1, sizeof(LruWalkData)));
+    auto lru_walk_busy = static_cast<LruWalkData *>(xcalloc(1, sizeof(LruWalkData)));
 
     auto walker = new RemovalPolicyWalker;
     walker->_policy = policy;
@@ -248,7 +248,7 @@ struct _LruPurgeData {
 static StoreEntry *
 lru_purgeNext(RemovalPurgeWalker * walker)
 {
-    auto lru_walker = reinterpret_cast<LruPurgeData *>(walker->_dataIdle);
+    auto lru_walker = static_cast<LruPurgeData *>(walker->_dataIdle);
     auto lru_node = lru_walker->current;
 
     if (!lru_node || walker->scanned >= walker->max_scan)
@@ -263,7 +263,7 @@ lru_purgeNext(RemovalPurgeWalker * walker)
         lru_walker->current = nullptr;
     }
 
-    auto entry = reinterpret_cast<StoreEntry *>(lru_node->node.data);
+    auto entry = static_cast<StoreEntry *>(lru_node->node.data);
     auto lru = DataIdle(walker->_policy);
     auto policyNode = lru->getPolicyNode(entry);
     assert(policyNode);
@@ -289,7 +289,7 @@ lru_purgeInit(RemovalPolicy * policy, int max_scan)
     auto lru = DataIdle(policy);
     lru->nwalkers += 1;
     auto walker = new RemovalPurgeWalker;
-    auto lru_walk = reinterpret_cast<LruPurgeData *>(xcalloc(1, sizeof(LruPurgeData)));
+    auto lru_walk = static_cast<LruPurgeData *>(xcalloc(1, sizeof(LruPurgeData)));
     walker->_policy = policy;
     walker->_dataIdle = lru_walk;
     walker->max_scan = max_scan;
@@ -303,7 +303,7 @@ static void
 lru_stats(RemovalPolicy * policy, StoreEntry * sentry)
 {
     if (auto lru_node = reinterpret_cast<LruNode *>(DataIdle(policy)->list.head)) {
-        auto entry = reinterpret_cast<StoreEntry *>(lru_node->node.data);
+        auto entry = static_cast<StoreEntry *>(lru_node->node.data);
         storeAppendPrintf(sentry, "LRU reference age: %.2f days\n", (double) (squid_curtime - entry->lastref) / (double) (24 * 60 * 60));
     }
 }
@@ -334,8 +334,8 @@ createRemovalPolicy_lru(wordlist * args)
     assert(!args);
 
     /* Allocate the needed structures */
-    auto dataIdle = reinterpret_cast<LruPolicyData *>(xcalloc(1, sizeof(LruPolicyData)));
-    auto dataBusy = reinterpret_cast<LruPolicyData *>(xcalloc(1, sizeof(LruPolicyData)));
+    auto dataIdle = static_cast<LruPolicyData *>(xcalloc(1, sizeof(LruPolicyData)));
+    auto dataBusy = static_cast<LruPolicyData *>(xcalloc(1, sizeof(LruPolicyData)));
 
     auto policy = new RemovalPolicy;
 

@@ -44,14 +44,14 @@ struct HeapPolicyData {
 
 static HeapPolicyData *
 PolicyData(RemovalPolicy *policy, const StoreEntry *e) {
-    return reinterpret_cast<HeapPolicyData *>(e->locked() ? policy->_dataBusy : policy->_dataIdle);
+    return static_cast<HeapPolicyData *>(e->locked() ? policy->_dataBusy : policy->_dataIdle);
 }
 
 static HeapPolicyData *
-DataIdle(RemovalPolicy *policy) { return reinterpret_cast<HeapPolicyData *>(policy->_dataIdle); }
+DataIdle(RemovalPolicy *policy) { return static_cast<HeapPolicyData *>(policy->_dataIdle); }
 
 static HeapPolicyData *
-DataBusy(RemovalPolicy *policy) { return reinterpret_cast<HeapPolicyData *>(policy->_dataBusy); }
+DataBusy(RemovalPolicy *policy) { return static_cast<HeapPolicyData *>(policy->_dataBusy); }
 
 /* Hack to avoid having to remember the RemovalPolicyNode location.
  * Needed by the purge walker.
@@ -119,7 +119,7 @@ heap_add(RemovalPolicy *policy, StoreEntry *entry, RemovalPolicyNode *node)
 static void
 heap_remove_from(RemovalPolicyNode *node, HeapPolicyData *policyData)
 {
-    if (auto hnode = reinterpret_cast<heap_node *>(node->data)) {
+    if (auto hnode = static_cast<heap_node *>(node->data)) {
         heap_delete(policyData->theHeap, hnode);
         node->data = nullptr;
         assert(policyData->count > 0);
@@ -138,7 +138,7 @@ static void
 heap_referenced(RemovalPolicy * policy, const StoreEntry * entry,
                 RemovalPolicyNode * node)
 {
-    if (auto hnode = reinterpret_cast<heap_node *>(node->data))
+    if (auto hnode = static_cast<heap_node *>(node->data))
         heap_update(PolicyData(policy, entry)->theHeap, hnode, const_cast<StoreEntry *>(entry));
 }
 
@@ -171,8 +171,8 @@ struct _HeapWalkData {
 static const StoreEntry *
 heap_walkNext(RemovalPolicyWalker * walker)
 {
-    auto hIdle = reinterpret_cast<HeapWalkData *>(walker->_dataIdle);
-    auto hBusy = reinterpret_cast<HeapWalkData *>(walker->_dataBusy);
+    auto hIdle = static_cast<HeapWalkData *>(walker->_dataIdle);
+    auto hBusy = static_cast<HeapWalkData *>(walker->_dataBusy);
     auto policy = walker->_policy;
     auto dataIdle = DataIdle(policy);
     auto dataBusy = DataBusy(policy);
@@ -182,7 +182,7 @@ heap_walkNext(RemovalPolicyWalker * walker)
         entry = heap_peep(dataIdle->theHeap, hIdle->current++);
     else if (hBusy->current < heap_nodes(dataBusy->theHeap))
         entry = heap_peep(dataBusy->theHeap, hBusy->current++);
-    return reinterpret_cast<StoreEntry *>(entry);
+    return static_cast<StoreEntry *>(entry);
 }
 
 static void
@@ -210,9 +210,9 @@ heap_walkInit(RemovalPolicy * policy)
     DataIdle(policy)->nwalkers += 1;
     DataBusy(policy)->nwalkers += 1;
     auto walker = new RemovalPolicyWalker;
-    auto dataIdle = reinterpret_cast<HeapWalkData *>(xcalloc(1, sizeof(HeapWalkData)));
+    auto dataIdle = static_cast<HeapWalkData *>(xcalloc(1, sizeof(HeapWalkData)));
     dataIdle->current = 0;
-    auto dataBusy = reinterpret_cast<HeapWalkData *>(xcalloc(1, sizeof(HeapWalkData)));
+    auto dataBusy = static_cast<HeapWalkData *>(xcalloc(1, sizeof(HeapWalkData)));
     dataBusy->current = 0;
     walker->_policy = policy;
     walker->_dataIdle = dataIdle;
@@ -234,7 +234,7 @@ public:
 static StoreEntry *
 heap_purgeNext(RemovalPurgeWalker * walker)
 {
-    auto heap_walker = reinterpret_cast<HeapPurgeData *>(walker->_dataIdle);
+    auto heap_walker = static_cast<HeapPurgeData *>(walker->_dataIdle);
     auto policy = walker->_policy;
     auto data = DataIdle(policy);
 
@@ -243,7 +243,7 @@ heap_purgeNext(RemovalPurgeWalker * walker)
 
     const auto age = heap_peepminkey(data->theHeap);
 
-    auto entry = reinterpret_cast<StoreEntry *>(heap_extractmin(data->theHeap));
+    auto entry = static_cast<StoreEntry *>(heap_extractmin(data->theHeap));
 
     heap_walker->min_age = age;
     data->resetPolicyNode(entry);
@@ -253,7 +253,7 @@ heap_purgeNext(RemovalPurgeWalker * walker)
 static void
 heap_purgeDone(RemovalPurgeWalker * walker)
 {
-    auto heap_walker = reinterpret_cast<HeapPurgeData *>(walker->_dataIdle);
+    auto heap_walker = static_cast<HeapPurgeData *>(walker->_dataIdle);
     auto policy = walker->_policy;
     auto data = DataIdle(policy);
     assert(strcmp(policy->_type, "heap") == 0);
@@ -305,7 +305,7 @@ heap_free(RemovalPolicy * policy)
 static HeapPolicyData *
 createHeapData(RemovalPolicy *policy, const char *keytype)
 {
-    auto heap_data = reinterpret_cast<HeapPolicyData *>(xcalloc(1, sizeof(HeapPolicyData)));
+    auto heap_data = static_cast<HeapPolicyData *>(xcalloc(1, sizeof(HeapPolicyData)));
     /* Initialize the policy data */
     heap_data->policy = policy;
 
