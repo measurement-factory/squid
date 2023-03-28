@@ -180,7 +180,7 @@ heap_walkNext(RemovalPolicyWalker * walker)
     void *entry = nullptr;
     if (hIdle->current < heap_nodes(dataIdle->theHeap))
         entry = heap_peep(dataIdle->theHeap, hIdle->current++);
-    if (hBusy->current < heap_nodes(dataBusy->theHeap))
+    else if (hBusy->current < heap_nodes(dataBusy->theHeap))
         entry = heap_peep(dataBusy->theHeap, hBusy->current++);
     return reinterpret_cast<StoreEntry *>(entry);
 }

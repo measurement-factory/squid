@@ -65,7 +65,6 @@ LruPolicyData::getPolicyNode(StoreEntry *entry) const
         return &entry->mem_obj->repl;
 
     default:
-        assert(0);
         return nullptr;
     }
 }
@@ -266,7 +265,9 @@ lru_purgeNext(RemovalPurgeWalker * walker)
 
     auto entry = reinterpret_cast<StoreEntry *>(lru_node->node.data);
     auto lru = DataIdle(walker->_policy);
-    lru_remove_from(entry, lru->getPolicyNode(entry), lru);
+    auto policyNode = lru->getPolicyNode(entry);
+    assert(policyNode);
+    lru_remove_from(entry, policyNode, lru);
     return entry;
 }
 
@@ -286,17 +287,15 @@ static RemovalPurgeWalker *
 lru_purgeInit(RemovalPolicy * policy, int max_scan)
 {
     auto lru = DataIdle(policy);
-    RemovalPurgeWalker *walker;
-    LruPurgeData *lru_walk;
     lru->nwalkers += 1;
-    walker = new RemovalPurgeWalker;
-    lru_walk = (LruPurgeData *)xcalloc(1, sizeof(*lru_walk));
+    auto walker = new RemovalPurgeWalker;
+    auto lru_walk = reinterpret_cast<LruPurgeData *>(xcalloc(1, sizeof(LruPurgeData)));
     walker->_policy = policy;
     walker->_dataIdle = lru_walk;
     walker->max_scan = max_scan;
     walker->Next = lru_purgeNext;
     walker->Done = lru_purgeDone;
-    lru_walk->start = lru_walk->current = (LruNode *) lru->list.head;
+    lru_walk->start = lru_walk->current = reinterpret_cast<LruNode *>(lru->list.head);
     return walker;
 }
 
