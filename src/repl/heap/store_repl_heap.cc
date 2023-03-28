@@ -43,7 +43,7 @@ struct HeapPolicyData {
 };
 
 static HeapPolicyData *
-PolicyData(RemovalPolicy *policy, StoreEntry *e) {
+PolicyData(RemovalPolicy *policy, const StoreEntry *e) {
     return reinterpret_cast<HeapPolicyData *>(e->locked() ? policy->_dataBusy : policy->_dataIdle);
 }
 
@@ -92,22 +92,22 @@ HeapPolicyData::resetPolicyNode(StoreEntry *entry) const
 }
 
 static void
-heap_add_to(StoreEntry *entry, RemovalPolicyNode *node, HeapPolicyData *policyData)
+heap_add_to(StoreEntry *entry, RemovalPolicyNode *node, HeapPolicyData *h)
 {
+    assert(!node->data);
+
     if (EBIT_TEST(entry->flags, ENTRY_SPECIAL))
         return;         /* We won't manage these.. they messes things up */
 
-    assert(!node->data);
+    node->data = heap_insert(h->theHeap, entry);
 
-    node->data = heap_insert(policyData->theHeap, entry);
+    h->count += 1;
 
-    policyData->count += 1;
-
-    if (!policyData->type)
-        policyData->type = heap_guessType(entry, node);
+    if (!h->type)
+        h->type = heap_guessType(entry, node);
 
     /* Add a little more variance to the aging factor */
-    policyData->theHeap->age += policyData->theHeap->age / 100000000;
+    h->theHeap->age += h->theHeap->age / 100000000;
 }
 
 static void
@@ -135,16 +135,15 @@ heap_remove(RemovalPolicy * policy, StoreEntry *e,
 }
 
 static void
-heap_referenced(RemovalPolicy * policy, StoreEntry * entry,
+heap_referenced(RemovalPolicy * policy, const StoreEntry * entry,
                 RemovalPolicyNode * node)
 {
     if (auto hnode = reinterpret_cast<heap_node *>(node->data))
-        heap_update(PolicyData(policy, entry)->theHeap, hnode, entry);
+        heap_update(PolicyData(policy, entry)->theHeap, hnode, const_cast<StoreEntry *>(entry));
 }
 
 static void
-heap_locked(RemovalPolicy * policy, StoreEntry * entry,
-                RemovalPolicyNode * node)
+heap_locked(RemovalPolicy *policy, StoreEntry *entry, RemovalPolicyNode *node)
 {
     if (node->data) {
         heap_remove_from(node, DataIdle(policy));
@@ -153,8 +152,7 @@ heap_locked(RemovalPolicy * policy, StoreEntry * entry,
 }
 
 static void
-heap_unlocked(RemovalPolicy * policy, StoreEntry * entry,
-                RemovalPolicyNode * node)
+heap_unlocked(RemovalPolicy *policy, StoreEntry *entry, RemovalPolicyNode *node)
 {
     if (node->data) {
         heap_remove_from(node, DataBusy(policy));
@@ -179,26 +177,30 @@ heap_walkNext(RemovalPolicyWalker * walker)
     auto dataIdle = DataIdle(policy);
     auto dataBusy = DataBusy(policy);
 
+    void *entry = nullptr;
     if (hIdle->current < heap_nodes(dataIdle->theHeap))
-        return (StoreEntry *)heap_peep(dataIdle->theHeap, hIdle->current++);
+        entry = heap_peep(dataIdle->theHeap, hIdle->current++);
     if (hBusy->current < heap_nodes(dataBusy->theHeap))
-        return (StoreEntry *)heap_peep(dataBusy->theHeap, hBusy->current++);
-    return nullptr;
+        entry = heap_peep(dataBusy->theHeap, hBusy->current++);
+    return reinterpret_cast<StoreEntry *>(entry);
 }
 
 static void
 heap_walkDone(RemovalPolicyWalker * walker)
 {
     auto policy = walker->_policy;
-    auto dataIdle = DataIdle(policy);
-    auto dataBusy = DataBusy(policy);
     assert(strcmp(policy->_type, "heap") == 0);
+
+    auto dataIdle = DataIdle(policy);
     assert(dataIdle->nwalkers > 0);
-    assert(dataBusy->nwalkers > 0);
     dataIdle->nwalkers -= 1;
-    dataBusy->nwalkers -= 1;
     safe_free(walker->_dataIdle);
+
+    auto dataBusy = DataBusy(policy);
+    assert(dataBusy->nwalkers > 0);
+    dataBusy->nwalkers -= 1;
     safe_free(walker->_dataBusy);
+
     delete walker;
 }
 
@@ -303,10 +305,7 @@ heap_free(RemovalPolicy * policy)
 static HeapPolicyData *
 createHeapData(RemovalPolicy *policy, const char *keytype)
 {
-
-    /* Allocate the needed structures */
-
-    auto heap_data = (HeapPolicyData *)xcalloc(1, sizeof(HeapPolicyData));
+    auto heap_data = reinterpret_cast<HeapPolicyData *>(xcalloc(1, sizeof(HeapPolicyData)));
     /* Initialize the policy data */
     heap_data->policy = policy;
 
@@ -343,9 +342,6 @@ createRemovalPolicy_heap(wordlist * args)
         keytype = "LRU";
     }
 
-    HeapPolicyData *heap_data_idle = createHeapData(policy, keytype);
-    HeapPolicyData *heap_data_busy = createHeapData(policy, keytype);
-
     /* No additional arguments expected */
     while (args) {
         debugs(81, DBG_IMPORTANT, "WARNING: discarding unknown removal policy '" << args->key << "'");
@@ -355,9 +351,9 @@ createRemovalPolicy_heap(wordlist * args)
     /* Populate the policy structure */
     policy->_type = "heap";
 
-    policy->_dataIdle = heap_data_idle;
+    policy->_dataIdle = createHeapData(policy, keytype);
 
-    policy->_dataBusy = heap_data_busy;
+    policy->_dataBusy = createHeapData(policy, keytype);
 
     policy->Free = heap_free;
 
