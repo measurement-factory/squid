@@ -100,6 +100,7 @@ MemObject::MemObject()
     ping_reply_callback = nullptr;
     memset(&start_ping, 0, sizeof(start_ping));
     reply_ = new HttpReply;
+    assert(!repl.data);
 }
 
 MemObject::~MemObject()

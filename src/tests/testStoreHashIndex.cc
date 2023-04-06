@@ -29,6 +29,7 @@ void
 TestStoreHashIndex::testStats()
 {
     StoreEntry *logEntry = new StoreEntry;
+    logEntry->lock("TestStoreHashIndex::testStats");
     logEntry->createMemObject("dummy_storeId", nullptr, HttpRequestMethod());
     logEntry->store_status = STORE_PENDING;
     Store::Init();

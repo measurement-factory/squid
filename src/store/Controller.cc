@@ -534,6 +534,10 @@ Store::Controller::freeMemorySpace(const int bytesRequired)
     if (memoryCacheHasSpaceFor(pagesRequired))
         return;
 
+    // do not free anything if freeing everything freeable would not be enough
+    if (Less(mem_hdr::ReplPolicyIdleNodesCount, pagesRequired))
+        return;
+
     // XXX: When store_pages_max is smaller than pagesRequired, we should not
     // look for more space (but we do because we want to abandon idle entries?).
 

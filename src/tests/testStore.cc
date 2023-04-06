@@ -112,6 +112,7 @@ TestStore::testStats()
     Store::Init(aStore);
     CPPUNIT_ASSERT_EQUAL(false, aStore->statsCalled);
     StoreEntry entry;
+    entry.lock("TestStore::testStats");
     Store::Stats(&entry);
     CPPUNIT_ASSERT_EQUAL(true, aStore->statsCalled);
     Store::FreeMemory();

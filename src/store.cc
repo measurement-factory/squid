@@ -419,6 +419,8 @@ void
 StoreEntry::lock(const char *context)
 {
     ++lock_count;
+    if (mem_obj)
+        mem_obj->data_hdr.allowedToFreeWithReplPolicy(false);
     debugs(20, 3, context << " locked key " << getMD5Text() << ' ' << *this);
 }
 
@@ -449,6 +451,9 @@ StoreEntry::unlock(const char *context)
 
     if (lock_count)
         return (int) lock_count;
+
+    if (mem_obj)
+        mem_obj->data_hdr.allowedToFreeWithReplPolicy(mem_obj->repl.data);
 
     abandon(context);
     return 0;
@@ -756,6 +761,7 @@ StoreEntry::write (StoreIOBuffer writeBuffer)
     assert(mem_obj != nullptr);
     /* This assert will change when we teach the store to update */
     assert(store_status == STORE_PENDING);
+    assert(locked());
 
     // XXX: caller uses content offset, but we also store headers
     writeBuffer.offset += mem_obj->baseReply().hdr_sz;
@@ -1513,6 +1519,8 @@ StoreEntry::setMemStatus(mem_status_t new_status)
         } else {
             mem_policy->Add(mem_policy, this, &mem_obj->repl);
             debugs(20, 4, "inserted " << *this << " key: " << getMD5Text());
+            // only idle entries can be freed by the replacement policy
+            mem_obj->data_hdr.allowedToFreeWithReplPolicy(!locked());
         }
 
         ++hot_obj_count; // TODO: maintain for the shared hot cache as well
@@ -1520,6 +1528,7 @@ StoreEntry::setMemStatus(mem_status_t new_status)
         if (EBIT_TEST(flags, ENTRY_SPECIAL)) {
             debugs(20, 4, "not removing special " << *this << " from policy");
         } else {
+            mem_obj->data_hdr.allowedToFreeWithReplPolicy(false);
             mem_policy->Remove(mem_policy, this, &mem_obj->repl);
             debugs(20, 4, "removed " << *this);
         }

@@ -13,7 +13,10 @@
 #include "HttpReply.h"
 #include "mem_node.h"
 #include "MemObject.h"
+#include "SquidMath.h"
 #include "stmem.h"
+
+size_t mem_hdr::ReplPolicyIdleNodesCount = 0;
 
 /*
  * NodeGet() is called to get the data buffer to pass to storeIOWrite().
@@ -58,7 +61,9 @@ mem_hdr::endOffset () const
 void
 mem_hdr::freeContent()
 {
+    const auto initialNodes = size();
     nodes.destroy();
+    updateIdleNodes(initialNodes);
     inmem_hi = 0;
     debugs(19, 9, this << " hi: " << inmem_hi);
 }
@@ -72,8 +77,10 @@ mem_hdr::unlink(mem_node *aNode)
     }
 
     debugs(19, 8, this << " removing " << aNode);
+    const auto initialNodes = size();
     nodes.remove (aNode, NodeCompare);
     delete aNode;
+    updateIdleNodes(initialNodes);
     return true;
 }
 
@@ -320,6 +327,7 @@ mem_hdr::write (StoreIOBuffer const &writeBuffer)
     char *currentSource = writeBuffer.data;
     size_t len = writeBuffer.length;
 
+    const auto initialNodes = size();
     while (len && (target = nodeToRecieve(currentOffset))) {
         size_t wrote = writeAvailable(target, currentOffset, len, currentSource);
         assert (wrote);
@@ -327,11 +335,12 @@ mem_hdr::write (StoreIOBuffer const &writeBuffer)
         currentOffset += wrote;
         currentSource += wrote;
     }
+    updateIdleNodes(initialNodes);
 
     return true;
 }
 
-mem_hdr::mem_hdr() : inmem_hi(0)
+mem_hdr::mem_hdr() : inmem_hi(0), removableByReplPolicy(false)
 {
     debugs(19, 9, this << " hi: " << inmem_hi);
 }
@@ -374,5 +383,42 @@ const Splay<mem_node *> &
 mem_hdr::getNodes() const
 {
     return nodes;
+}
+
+static void
+UpdateIdleNodesCounter(const size_t oldSize, const size_t newSize)
+{
+    if (newSize == oldSize)
+        return;
+    const auto delta = newSize > oldSize ? newSize - oldSize : oldSize - newSize;
+    const auto oldCount = mem_hdr::ReplPolicyIdleNodesCount;
+    if (newSize > oldSize) {
+        mem_hdr::ReplPolicyIdleNodesCount = IncreaseSum(mem_hdr::ReplPolicyIdleNodesCount, delta).value();
+    } else {
+        assert(mem_hdr::ReplPolicyIdleNodesCount >= delta);
+        mem_hdr::ReplPolicyIdleNodesCount -= delta;
+    }
+    debugs(19, 5, "Updated ReplPolicyIdleNodesCount from " << oldCount << " to " << mem_hdr::ReplPolicyIdleNodesCount);
+}
+
+void
+mem_hdr::allowedToFreeWithReplPolicy(const bool allowed)
+{
+    if (removableByReplPolicy == allowed)
+        return;
+    removableByReplPolicy = allowed;
+    const auto oldSize = removableByReplPolicy ? 0 : size();
+    const auto newSize = removableByReplPolicy ? size() : 0;
+    UpdateIdleNodesCounter(oldSize, newSize);
+}
+
+/// Adjusts the ReplPolicyIdleNodesCount counter by the difference
+/// between the current size() and oldSize.
+void
+mem_hdr::updateIdleNodes(const size_t oldSize)
+{
+    if (!removableByReplPolicy)
+        return;
+    UpdateIdleNodesCounter(oldSize, size());
 }
 
