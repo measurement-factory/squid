@@ -282,6 +282,8 @@ Security::HandshakeParser::parseModernRecord()
         fragments.append(record.fragment);
     }
 
+    // XXX: parseMessages() assumes that no more same-type fragments are coming,
+    // but tkRecords.atEnd() does not actually imply that. See commit e287364.
     if (tkRecords.atEnd() && !done)
         parseMessages();
 }
@@ -291,6 +293,8 @@ void
 Security::HandshakeParser::parseMessages()
 {
     tkMessages.reset(fragments, false);
+    fragments.clear(); // avoid re-parsing these fragments on the next call
+
     for (; !tkMessages.atEnd(); tkMessages.commit()) {
         switch (currentContentType) {
         case ContentType::ctChangeCipherSpec:
