@@ -14,10 +14,13 @@
  * not abort the unit test.
  */
 #include "squid.h"
+#include "debug/Messages.h"
 #include "debug/Stream.h"
 
 #define STUB_API "debug/libdebug.la"
 #include "tests/STUB.h"
+
+DebugMessages *DebugMessagesConfig = nullptr;
 
 char *Debug::debugOptions;
 char *Debug::cache_log= nullptr;

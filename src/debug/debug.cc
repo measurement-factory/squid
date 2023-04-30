@@ -11,6 +11,7 @@
 #include "squid.h"
 #include "base/Optional.h"
 #include "base/TextException.h"
+#include "debug/Messages.h"
 #include "debug/Stream.h"
 #include "fd.h"
 #include "ipc/Kids.h"
@@ -21,6 +22,8 @@
 #include <deque>
 #include <functional>
 #include <memory>
+
+DebugMessages *DebugMessagesConfig = nullptr;
 
 char *Debug::debugOptions = nullptr;
 int Debug::override_X = 0;
