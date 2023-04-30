@@ -1,3 +1,30 @@
+Changes in squid-5.9 (30 Apr 2023):
+
+	- Improve reply_body_max_size matching accuracy
+	- ... and some documentation changes
+	- ... and many portability fixes
+
+Changes in squid-5.8 (28 Feb 2023):
+
+	- Bug 5162: mgr:index URL do not produce MGR_INDEX template
+	- Bug 5241: Block all non-localhost requests by default
+	- Bug 5241: Block to-localhost, to-link-local requests by default
+	- ext_kerberos_ldap_group_acl: Support -b with -D
+	- Fix ACL type typo in req_header, rep_header key-changing ERRORs
+	- ... and several compile fixes
+	- ... and some code cleanup and polishing
+
+Changes in squid-5.7 (05 Sep 2022):
+
+	- Regression Fix: Typo in manager ACL
+	- Bug 5186: noteDestinationsEnd check failed: transportWait
+	- Bug 5160: Test suite fails with -flto=auto
+	- Bug 3193 pt2: NTLM decoder truncating strings
+	- Bug 5133: OpenSSL 3.0 support
+	- ext_session_acl: fix TDB key lookup
+	- forward_max_tries: Do not count discarded connections
+	- ... and many compile and debugging fixes
+
 Changes in squid-5.6 (06 Jun 2022):
 
 	- Bug 5208: Part 1: Restart kids killed by SIGKILL
