@@ -56,8 +56,8 @@ public:
     virtual bool canStore(const StoreEntry &e, int64_t diskSpaceNeeded, int &load) const override;
     virtual void reference(StoreEntry &) override;
     virtual bool dereference(StoreEntry &) override;
-    virtual StoreIOState::Pointer createStoreIO(StoreEntry &, StoreIOState::STFNCB *, StoreIOState::STIOCB *, void *) override;
-    virtual StoreIOState::Pointer openStoreIO(StoreEntry &, StoreIOState::STFNCB *, StoreIOState::STIOCB *, void *) override;
+    virtual StoreIOState::Pointer createStoreIO(StoreEntry &, StoreIOState::STIOCB *, void *) override;
+    virtual StoreIOState::Pointer openStoreIO(StoreEntry &, StoreIOState::STIOCB *, void *) override;
     virtual void openLog() override;
     virtual void closeLog() override;
     virtual int writeCleanStart() override;

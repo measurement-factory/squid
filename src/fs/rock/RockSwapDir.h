@@ -93,8 +93,8 @@ protected:
     virtual ConfigOption *getOptionTree() const;
     virtual bool allowOptionReconfigure(const char *const option) const;
     virtual bool canStore(const StoreEntry &e, int64_t diskSpaceNeeded, int &load) const;
-    virtual StoreIOState::Pointer createStoreIO(StoreEntry &, StoreIOState::STFNCB *, StoreIOState::STIOCB *, void *);
-    virtual StoreIOState::Pointer openStoreIO(StoreEntry &, StoreIOState::STFNCB *, StoreIOState::STIOCB *, void *);
+    virtual StoreIOState::Pointer createStoreIO(StoreEntry &, StoreIOState::STIOCB *, void *);
+    virtual StoreIOState::Pointer openStoreIO(StoreEntry &, StoreIOState::STIOCB *, void *);
     virtual void maintain();
     virtual void diskFull();
     virtual void reference(StoreEntry &e);
@@ -125,7 +125,7 @@ protected:
     int64_t diskOffsetLimit() const;
 
     void updateHeadersOrThrow(Ipc::StoreMapUpdate &update);
-    StoreIOState::Pointer createUpdateIO(const Ipc::StoreMapUpdate &update, StoreIOState::STFNCB *, StoreIOState::STIOCB *, void *);
+    StoreIOState::Pointer createUpdateIO(const Ipc::StoreMapUpdate &, StoreIOState::STIOCB *, void *);
 
     void anchorEntry(StoreEntry &e, const sfileno filen, const Ipc::StoreMapAnchor &anchor);
 

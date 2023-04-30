@@ -30,8 +30,8 @@ public:
     virtual void init() override;
     virtual bool unlinkdUseful() const override;
     virtual bool canStore(const StoreEntry &e, int64_t diskSpaceNeeded, int &load) const override;
-    virtual StoreIOState::Pointer createStoreIO(StoreEntry &, StoreIOState::STFNCB *, StoreIOState::STIOCB *, void *) override;
-    virtual StoreIOState::Pointer openStoreIO(StoreEntry &, StoreIOState::STFNCB *, StoreIOState::STIOCB *, void *) override;
+    virtual StoreIOState::Pointer createStoreIO(StoreEntry &, StoreIOState::STIOCB *, void *) override;
+    virtual StoreIOState::Pointer openStoreIO(StoreEntry &, StoreIOState::STIOCB *, void *) override;
     virtual void parse(int, char*) override;
     virtual void evictCached(StoreEntry &) override {}
     virtual void evictIfFound(const cache_key *) override {}
