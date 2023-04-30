@@ -2207,7 +2207,6 @@ clientReplyContext::sendMoreData (StoreIOBuffer result)
         sc->setDelayId(DelayId::DelayClient(http,reply));
 #endif
 
-    holdingBuffer = result;
     processReplyAccess();
     return;
 }
