@@ -33,9 +33,6 @@ const char *accessLogTime(time_t) STUB_RETVAL(nullptr)
 #include "log/access_log.h"
 void fvdbCountVia(const char *) STUB
 void fvdbCountForw(const char *) STUB
-#if HEADERS_LOG
-void headersLog(int, int, const HttpRequestMethod &, void *) STUB
-#endif
 
 #include "log/Config.h"
 namespace Log
