@@ -85,8 +85,6 @@ public:
     /// Not to be confused with ClientHttpRequest::Out::headers_sz.
     int headers_sz;
     store_client *sc;       /* The store_client we're using */
-    StoreIOBuffer tempBuffer;   /* For use in validating requests via IMS */
-    int old_reqsize;        /* ... again, for the buffer */
     size_t reqsize;
     size_t reqofs;
     char tempbuf[HTTP_REQBUF_SZ];   ///< a temporary buffer if we need working storage
@@ -138,11 +136,13 @@ private:
     void sendNotModified();
     void sendNotModifiedOrPreconditionFailedError();
 
+    /* (stale) cache hit information preserved during IMS revalidation */
     StoreEntry *old_entry;
-    /* ... for entry to be validated */
     store_client *old_sc;
     time_t old_lastmod;
     String old_etag;
+    size_t old_reqofs;
+    size_t old_reqsize;
 
     bool deleting;
 
