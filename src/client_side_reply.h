@@ -86,6 +86,10 @@ public:
     /// because the latter keeps the contents of the stale HTTP response during
     /// revalidation. sendClientOldEntry() uses that contents.
     char tempbuf[HTTP_REQBUF_SZ];
+#if USE_CACHE_DIGESTS
+
+    const char *lookup_type;    /* temporary hack: storeGet() result: HIT/MISS/NONE */
+#endif
 
     struct Flags {
         Flags() : storelogiccomplete(0), complete(0), headersSent(false) {}
