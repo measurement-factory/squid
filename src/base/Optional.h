@@ -88,6 +88,11 @@ public:
         return value_;
     }
 
+    const Value *operator ->() const & { return &value_; }
+    const Value &operator *() const & { return value_; }
+    Value *operator ->() & { return &value_; }
+    Value &operator *() & { return value_; }
+
     template <class Other>
     constexpr Value value_or(Other &&defaultValue) const &
     {

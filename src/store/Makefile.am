@@ -22,5 +22,7 @@ libstore_la_SOURCES = \
 	Disks.h \
 	LocalSearch.cc \
 	LocalSearch.h \
+	ParsingBuffer.cc \
+	ParsingBuffer.h \
 	Storage.h \
 	forward.h
