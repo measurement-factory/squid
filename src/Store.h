@@ -42,6 +42,8 @@ class StoreEntry : public hash_link, public Packable
 {
 
 public:
+    std::stack<SourceLocation> breadcrumbs;
+
     bool checkDeferRead(int fd) const;
 
     const char *getMD5Text() const;

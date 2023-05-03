@@ -1039,6 +1039,9 @@ StoreEntry::complete()
     if (!EBIT_TEST(flags, ENTRY_BAD_LENGTH) && !validLength())
         lengthWentBad("!validLength() in complete()");
 
+    if (objectLen() < 0)
+        breadcrumbs.push(Here());
+
 #if USE_CACHE_DIGESTS
     if (mem_obj->request)
         mem_obj->request->hier.store_complete_stop = current_time;

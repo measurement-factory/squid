@@ -1948,6 +1948,9 @@ clientReplyContext::processReplyAccessResult(const Acl::Answer &accessAllowed)
         localTempBuffer.data = body_buf;
     }
 
+    if (http->storeEntry()->objectLen() < 0)
+        http->storeEntry()->breadcrumbs.push(Here());
+
     clientStreamCallback((clientStreamNode *)http->client_stream.head->data,
                          http, reply, localTempBuffer);
 

@@ -356,6 +356,9 @@ Store::UnpackHitSwapMeta(char const * const buf, const ssize_t len, StoreEntry &
     debugs(90, 5, "swap_file_sz=" << entry.swap_file_sz <<
            " (" << swap_hdr_sz << " + " << emem.object_sz << ")");
 
+    if (entry.objectLen() < 0)
+        entry.breadcrumbs.push(Here());
+
     if (!varyHeaders.isEmpty())
         emem.vary_headers = varyHeaders;
 }

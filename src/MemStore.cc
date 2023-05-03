@@ -452,10 +452,15 @@ MemStore::anchorEntry(StoreEntry &e, const sfileno index, const Ipc::StoreMapAnc
         e.store_status = STORE_OK;
         e.mem_obj->object_sz = e.swap_file_sz;
         e.setMemStatus(IN_MEMORY);
+
+        if (e.objectLen() < 0)
+            e.breadcrumbs.push(Here());
     } else {
         e.store_status = STORE_PENDING;
         assert(e.mem_obj->object_sz < 0);
         e.setMemStatus(NOT_IN_MEMORY);
+
+        e.breadcrumbs.push(Here());
     }
 
     EBIT_SET(e.flags, ENTRY_VALIDATED);
