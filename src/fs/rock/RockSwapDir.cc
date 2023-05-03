@@ -115,6 +115,20 @@ Rock::SwapDir::anchorEntry(StoreEntry &e, const sfileno filen, const Ipc::StoreM
     e.ping_status = PING_NONE;
 
     EBIT_SET(e.flags, ENTRY_VALIDATED);
+
+    if (e.objectLen() < 0) {
+        if (complete)
+            e.breadcrumbs.push(Here());
+        else
+            e.breadcrumbs.push(Here());
+    }
+
+    if (e.swap_file_sz <= 0) {
+        if (complete)
+            e.breadcrumbs.push(Here());
+        else
+            e.breadcrumbs.push(Here());
+    }
 }
 
 void Rock::SwapDir::disconnect(StoreEntry &e)
