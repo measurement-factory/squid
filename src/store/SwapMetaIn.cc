@@ -312,6 +312,9 @@ Store::UnpackHitSwapMeta(char const * const buf, const ssize_t len, StoreEntry &
     debugs(90, 7, entry << " buf len: " << len);
     assert(len >= 0);
 
+    if (entry.swap_file_sz <= 0)
+        entry.breadcrumbs.push(Here());
+
     size_t swap_hdr_sz = 0;
     SBuf varyHeaders;
 
@@ -346,12 +349,16 @@ Store::UnpackHitSwapMeta(char const * const buf, const ssize_t len, StoreEntry &
         }
     }
 
+    if (entry.objectLen() < 0)
+        entry.breadcrumbs.push(Here());
+
     auto &emem = entry.mem();
 
     emem.swap_hdr_sz = swap_hdr_sz;
     if (entry.swap_file_sz > 0) { // collapsed hits may not know swap_file_sz
         Assure(entry.swap_file_sz >= swap_hdr_sz);
         emem.object_sz = entry.swap_file_sz - swap_hdr_sz;
+        entry.breadcrumbs.push(Here());
     }
     debugs(90, 5, "swap_file_sz=" << entry.swap_file_sz <<
            " (" << swap_hdr_sz << " + " << emem.object_sz << ")");
