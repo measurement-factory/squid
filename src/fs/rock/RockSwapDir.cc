@@ -98,7 +98,12 @@ Rock::SwapDir::updateAnchored(StoreEntry &entry)
     assert(entry.hasDisk(index));
 
     const auto &anchor = map->readableEntry(entry.swap_filen);
+
+    const auto wasSet = entry.swap_file_sz > 0;
     entry.swap_file_sz = anchor.basics.swap_file_sz;
+    if (wasSet && entry.swap_file_sz <= 0)
+        entry.breadcrumbs.push(Here());
+
     return true;
 }
 
@@ -917,8 +922,12 @@ Rock::SwapDir::handleWriteCompletionSuccess(const WriteRequest &request)
     if (request.eof) {
         assert(sio.e);
         if (sio.touchingStoreEntry()) {
+            const auto wasSet = sio.e->swap_file_sz > 0;
             sio.e->swap_file_sz = sio.writeableAnchor_->basics.swap_file_sz =
                                       sio.offset_;
+
+            if (wasSet && sio.e->swap_file_sz <= 0)
+                sio.e->breadcrumbs.push(Here());
 
             map->switchWritingToReading(sio.swap_filen);
             // sio.e keeps the (now read) lock on the anchor

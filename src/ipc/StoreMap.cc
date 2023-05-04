@@ -983,7 +983,12 @@ Ipc::StoreMapAnchor::exportInto(StoreEntry &into) const
     into.lastref = basics.lastref;
     into.expires = basics.expires;
     into.lastModified(basics.lastmod);
+
+    const auto wasSet = into.swap_file_sz > 0;
     into.swap_file_sz = basics.swap_file_sz;
+    if (wasSet && into.swap_file_sz <= 0)
+        into.breadcrumbs.push(Here());
+
     into.refcount = basics.refcount;
 
     // Some basics.flags are not meaningful and should not be overwritten here.

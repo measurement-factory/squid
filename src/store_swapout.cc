@@ -303,7 +303,11 @@ storeSwapOutFileClosed(void *data, int errflag, StoreIOState::Pointer self)
         debugs(20, 5, "swap_file_sz = " <<
                e->objectLen() << " + " << mem->swap_hdr_sz);
 
+        const auto wasSet = e->swap_file_sz > 0;
         e->swap_file_sz = e->objectLen() + mem->swap_hdr_sz;
+        if (wasSet && e->swap_file_sz <= 0)
+            e->breadcrumbs.push(Here());
+
         e->swap_status = SWAPOUT_DONE;
         e->disk().finalizeSwapoutSuccess(*e);
 
