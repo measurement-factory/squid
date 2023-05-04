@@ -254,7 +254,10 @@ Transients::addReaderEntry(StoreEntry &e, const cache_key *key)
     if (!anchor)
         throw TextException("reader collision", Here());
 
+    const auto wasSet = e.swap_file_sz > 0;
     anchorEntry(e, index, *anchor);
+    if (wasSet && e.swap_file_sz <= 0)
+        e.breadcrumbs.push(Here());
     // keep the entry locked (for reading) to receive remote DELETE events
 }
 
@@ -268,7 +271,10 @@ Transients::anchorEntry(StoreEntry &e, const sfileno index, const Ipc::StoreMapA
     xitTable.index = index;
     xitTable.io = Store::ioReading;
 
+    const auto wasSet = e.swap_file_sz > 0;
     anchor.exportInto(e);
+    if (wasSet && e.swap_file_sz <= 0)
+        e.breadcrumbs.push(Here());
 }
 
 bool

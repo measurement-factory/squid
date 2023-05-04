@@ -369,8 +369,11 @@ Store::Controller::find(const cache_key *key)
 void
 Store::Controller::allowSharing(StoreEntry &entry, const cache_key *key)
 {
+    const auto wasSet = entry.swap_file_sz > 0;
     // anchorToCache() below and many find() callers expect a registered entry
     addReading(&entry, key);
+    if (wasSet && entry.swap_file_sz <= 0)
+        entry.breadcrumbs.push(Here());
 
     if (entry.hasTransients()) {
         // store hadWriter before computing `found`; \see Transients::get()
