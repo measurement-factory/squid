@@ -238,7 +238,7 @@ Transients::addWriterEntry(StoreEntry &e, const cache_key *key)
     xitTable.index = index;
     xitTable.io = Store::ioWriting;
 
-    anchor->set(e, key);
+    anchor->setKey(key);
     // allow reading and receive remote DELETE events, but do not switch to
     // the reading lock because transientReaders() callers want true readers
     map->startAppending(index);
@@ -261,20 +261,16 @@ Transients::addReaderEntry(StoreEntry &e, const cache_key *key)
     // keep the entry locked (for reading) to receive remote DELETE events
 }
 
+// XXX: Not anymore:
 /// fills (recently created) StoreEntry with information currently in Transients
 void
-Transients::anchorEntry(StoreEntry &e, const sfileno index, const Ipc::StoreMapAnchor &anchor)
+Transients::anchorEntry(StoreEntry &e, const sfileno index, const Ipc::StoreMapAnchor & /* XXX: remove */)
 {
     // set ASAP in hope to unlock the slot if something throws
     // and to provide index to such methods as hasWriter()
     auto &xitTable = e.mem_obj->xitTable;
     xitTable.index = index;
     xitTable.io = Store::ioReading;
-
-    const auto wasSet = e.swap_file_sz > 0;
-    anchor.exportInto(e);
-    if (wasSet && e.swap_file_sz <= 0)
-        e.breadcrumbs.push(Here());
 }
 
 bool
@@ -361,7 +357,9 @@ Transients::disconnect(StoreEntry &entry)
             // Store writer out there, but we should not abortWriting() here
             // because another writer may have succeeded, making readers happy.
             // If none succeeded, the readers will notice the lack of writers.
-            map->closeForWriting(xitTable.index);
+            // XXX: The paragraph above implies there could be a Store writer
+            // without a Transients entry. That should not be possible.
+            map->closeForWriting(xitTable.index); // TODO: ...AndFreeIdle()?
             CollapsedForwarding::Broadcast(entry);
         } else {
             assert(isReader(entry));
