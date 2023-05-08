@@ -1165,8 +1165,10 @@ HttpHeader::updateOrAddStr(const Http::HdrType id, const SBuf &newValue)
 
     // XXX: HttpHeaderEntry::value suffers from String size limits
     if (newValue.length() >= String::SizeMaxXXX()) {
-        debugs(55, DBG_IMPORTANT, "too long " <<  Http::HeaderLookupTable.lookup(id).name << " header value");
-        throw TextException("too long header value", Here());
+        // emulate Assure(newValue.length() < String::SizeMaxXXX());
+        const TextException ex("assurance failed: newValue.length() < String::SizeMaxXXX()", Here());
+        debugs(0, DBG_CRITICAL, "ERROR: Squid BUG: " << ex);
+        throw ex;
     }
 
     if (!CBIT_TEST(mask, id)) {
