@@ -1190,7 +1190,7 @@ tunnelStart(ClientHttpRequest * http)
         ch.syncAle(request, http->log_uri);
         if (ch.fastCheck().denied()) {
             debugs(26, 4, "MISS access forbidden.");
-            tunnelState->al->cache.code.update(LOG_TCP_TUNNEL);
+            http->updateLoggingTags(LOG_TCP_TUNNEL);
             err = new ErrorState(ERR_FORWARDING_DENIED, Http::scForbidden, request, http->al);
             http->al->http.code = Http::scForbidden;
             errorSend(http->getConn()->clientConnection, err);
