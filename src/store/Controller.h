@@ -80,11 +80,6 @@ public:
     /// called when the entry is no longer needed by any transaction
     void handleIdleEntry(StoreEntry &);
 
-    /// Evict memory cache entries to free at least `spaceRequired` bytes.
-    /// Should be called via storeGetMemSpace().
-    /// Unreliable: Fails if enough victims cannot be found fast enough.
-    void freeMemorySpace(const int spaceRequired);
-
     /// called to get rid of no longer needed entry data in RAM, if any
     void memoryOut(StoreEntry &, const bool preserveSwappable);
 
@@ -133,8 +128,6 @@ public:
     static int store_dirs_rebuilding;
 
 private:
-    bool memoryCacheHasSpaceFor(const int pagesRequired) const;
-
     void referenceBusy(StoreEntry &e);
     bool dereferenceIdle(StoreEntry &, bool wantsLocalMemory);
 

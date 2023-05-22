@@ -1088,13 +1088,51 @@ StoreEntry::abort()
     unlock("StoreEntry::abort");       /* unlock */
 }
 
+/// whether the local memory cache is allowed to store that many additional pages
+static bool
+LocalMemoryCacheHasSpaceFor(const int pagesRequired)
+{
+    const auto fits = mem_node::InUseCount() + pagesRequired <= store_pages_max;
+    debugs(20, 7, fits << ": " << mem_node::InUseCount() << '+' << pagesRequired << '?' << store_pages_max);
+    return fits;
+}
+
 /**
  * Clear Memory storage to accommodate the given object len
  */
 void
-storeGetMemSpace(int size)
+storeGetMemSpace(int bytesRequired)
 {
-    Store::Root().freeMemorySpace(size);
+    const auto pagesRequired = (bytesRequired + SM_PAGE_SIZE-1) / SM_PAGE_SIZE;
+
+    if (LocalMemoryCacheHasSpaceFor(pagesRequired))
+        return;
+
+    // XXX: When store_pages_max is smaller than pagesRequired, we should not
+    // look for more space (but we do because we want to abandon idle entries?).
+
+    // limit our performance impact to one walk per second
+    static time_t lastWalk = 0;
+    if (lastWalk == squid_curtime)
+        return;
+    lastWalk = squid_curtime;
+
+    debugs(20, 2, "need " << pagesRequired << " pages");
+
+    // XXX: Limit iterations by time, not arbitrary count.
+    const auto walker = mem_policy->PurgeInit(mem_policy, 100000);
+    int removed = 0;
+    while (const auto entry = walker->Next(walker)) {
+        if (entry->locked())
+            continue;
+        entry->destroyMemObject();
+        ++removed;
+        if (LocalMemoryCacheHasSpaceFor(pagesRequired))
+            break;
+    }
+    // TODO: Move to RemovalPolicyWalker::Done() that has more/better details.
+    debugs(20, 3, "removed " << removed << " out of " << hot_obj_count  << " memory-cached entries");
+    walker->Done(walker);
 }
 
 /* thunk through to Store::Root().maintain(). Note that this would be better still
