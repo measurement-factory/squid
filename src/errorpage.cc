@@ -701,7 +701,7 @@ ErrorState::ErrorState(err_type t, Http::StatusCode status, HttpRequest * req, c
     ale = anAle;
 }
 
-ErrorState::ErrorState(HttpRequest * req, HttpReply *errorReply) :
+ErrorState::ErrorState(HttpRequest * req, HttpReply *errorReply, const AccessLogEntry::Pointer &anAle):
     ErrorState(ERR_RELAY_REMOTE)
 {
     Must(errorReply);
@@ -712,6 +712,8 @@ ErrorState::ErrorState(HttpRequest * req, HttpReply *errorReply) :
         request = req;
         src_addr = req->client_addr;
     }
+
+    ale = anAle;
 }
 
 void

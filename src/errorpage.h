@@ -95,7 +95,7 @@ public:
     ErrorState() = delete; // not implemented.
 
     /// creates an ERR_RELAY_REMOTE error
-    ErrorState(HttpRequest * request, HttpReply *);
+    ErrorState(HttpRequest * request, HttpReply *, const AccessLogEntryPointer &);
 
     ~ErrorState();
 
