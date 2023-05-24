@@ -678,15 +678,16 @@ ErrorState::NewForwarding(err_type type, HttpRequestPointer &request, const Acce
     return new ErrorState(type, status, request.getRaw(), ale);
 }
 
-ErrorState::ErrorState(err_type t) :
+ErrorState::ErrorState(const err_type t, const AccessLogEntry::Pointer &anAle):
     type(t),
     page_id(t),
-    callback(nullptr)
+    callback(nullptr),
+    ale(anAle)
 {
 }
 
 ErrorState::ErrorState(err_type t, Http::StatusCode status, HttpRequest * req, const AccessLogEntry::Pointer &anAle) :
-    ErrorState(t)
+    ErrorState(t, anAle)
 {
     if (page_id >= ERR_MAX && ErrorDynamicPages[page_id - ERR_MAX]->page_redirect != Http::scNone)
         httpStatus = ErrorDynamicPages[page_id - ERR_MAX]->page_redirect;
@@ -697,12 +698,10 @@ ErrorState::ErrorState(err_type t, Http::StatusCode status, HttpRequest * req, c
         request = req;
         src_addr = req->client_addr;
     }
-
-    ale = anAle;
 }
 
 ErrorState::ErrorState(HttpRequest * req, HttpReply *errorReply, const AccessLogEntry::Pointer &anAle):
-    ErrorState(ERR_RELAY_REMOTE)
+    ErrorState(ERR_RELAY_REMOTE, anAle)
 {
     Must(errorReply);
     response_ = errorReply;
@@ -712,8 +711,6 @@ ErrorState::ErrorState(HttpRequest * req, HttpReply *errorReply, const AccessLog
         request = req;
         src_addr = req->client_addr;
     }
-
-    ale = anAle;
 }
 
 void

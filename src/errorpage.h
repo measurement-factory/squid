@@ -120,7 +120,7 @@ private:
     typedef ErrorPage::Build Build;
 
     /// initializations shared by public constructors
-    explicit ErrorState(err_type type);
+    ErrorState(err_type, const AccessLogEntry::Pointer &);
 
     /// locates the right error page template for this error and compiles it
     SBuf buildBody();
