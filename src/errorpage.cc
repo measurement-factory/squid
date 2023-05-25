@@ -1276,6 +1276,16 @@ ErrorState::validate()
 HttpReply *
 ErrorState::BuildHttpReply()
 {
+    // Make sure error codes get back to the client side for logging and error
+    // tracking. XXX: ErrorState should only reflect already recorded
+    // information instead of being responsible for updating records.
+    if (request) {
+        if (detail)
+            request->detailError(type, detail);
+        if (const auto errnoDetail = SysErrorDetail::NewIfAny(xerrno))
+            request->detailError(type, errnoDetail);
+    }
+
     if (response_)
         return response_.getRaw();
 
@@ -1342,15 +1352,6 @@ ErrorState::BuildHttpReply()
         }
 
         rep->body.set(body);
-    }
-
-    // Make sure error codes get back to the client side for logging and
-    // error tracking.
-    if (request) {
-        if (detail)
-            request->detailError(type, detail);
-        if (const auto errnoDetail = SysErrorDetail::NewIfAny(xerrno))
-            request->detailError(type, errnoDetail);
     }
 
     return rep;
