@@ -69,11 +69,6 @@ PeerDigest::PeerDigest(CachePeer * p)
 {
     assert(p);
 
-    /*
-     * DPW 2007-04-12
-     * Lock on to the peer here.  The corresponding cbdataReferenceDone()
-     * is in peerDigestDestroy().
-     */
     peer = cbdataReference(p);
     /* if peer disappears, we will know it's name */
     host = p->host;
@@ -134,40 +129,20 @@ peerDigestCreate(CachePeer * p)
 
     // TODO: make CachePeer member a CbcPointer
     p->digest = cbdataReference(pd);
-
-    // lock a reference to pd again to prevent the PeerDigest
-    // disappearing during peerDigestDestroy() when
-    // cbdataReferenceValidDone is called.
-    // TODO test if it can be moved into peerDigestDestroy() or
-    //      if things can break earlier (eg CachePeer death).
-    (void)cbdataReference(pd);
 }
 
 /* call Clean and free/unlock everything */
 static void
 peerDigestDestroy(PeerDigest * pd)
 {
-    void *p;
     assert(pd);
-    void * peerTmp = pd->peer;
-
-    /*
-     * DPW 2007-04-12
-     * We locked the peer in PeerDigest constructor, this is
-     * where we unlock it.
-     */
-    if (cbdataReferenceValidDone(peerTmp, &p)) {
-        // we locked the p->digest in peerDigestCreate()
-        // this is where we unlock that
-        cbdataReferenceDone(static_cast<CachePeer *>(p)->digest);
-    }
-
     delete pd;
 }
 
 PeerDigest::~PeerDigest()
 {
     delete cd;
+    cbdataReferenceDone(peer);
     // req_result pointer is not owned by us
 }
 
