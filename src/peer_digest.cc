@@ -65,14 +65,10 @@ static const time_t GlobDigestReqMinGap = 1 * 60;   /* seconds */
 
 static time_t pd_last_req_time = 0; /* last call to Check */
 
-PeerDigest::PeerDigest(CachePeer * p)
+PeerDigest::PeerDigest(CachePeer *p) :
+    peer(p),
+    host(peer->host) // if peer disappears, we will know it's name
 {
-    assert(p);
-
-    peer = cbdataReference(p);
-    /* if peer disappears, we will know it's name */
-    host = p->host;
-
     times.initialized = squid_curtime;
 }
 
@@ -122,7 +118,6 @@ DigestFetchState::~DigestFetchState()
 PeerDigest::~PeerDigest()
 {
     delete cd;
-    cbdataReferenceDone(peer);
     // req_result pointer is not owned by us
 }
 
@@ -199,7 +194,7 @@ peerDigestCheck(void *data)
 
     pd->times.next_check = 0;   /* unknown */
 
-    if (!cbdataReferenceValid(pd->peer)) {
+    if (!pd->peer.valid()) {
         peerDigestNotePeerGone(pd);
         return;
     }
@@ -244,7 +239,7 @@ peerDigestCheck(void *data)
 static void
 peerDigestRequest(PeerDigest * pd)
 {
-    CachePeer *p = pd->peer;
+    CachePeer *p = pd->peer.get();
     StoreEntry *e, *old_e;
     char *url = nullptr;
     HttpRequest *req;
@@ -654,7 +649,7 @@ peerDigestFetchedEnough(DigestFetchState * fetch, char *buf, ssize_t size, const
     const char *reason = nullptr;  /* reason for completion */
     const char *no_bug = nullptr;  /* successful completion if set */
     const int pdcb_valid = cbdataReferenceValid(fetch->pd);
-    const int pcb_valid = cbdataReferenceValid(fetch->pd->peer);
+    const int pcb_valid = fetch->pd->peer.valid() ? 1 : 0;
 
     /* test possible exiting conditions (the same for most steps!)
      * cases marked with '?!' should not happen */
@@ -672,7 +667,7 @@ peerDigestFetchedEnough(DigestFetchState * fetch, char *buf, ssize_t size, const
     /* continue checking (with pd and host known and valid) */
 
     if (!reason) {
-        if (!cbdataReferenceValid(pd->peer))
+        if (!pd->peer.valid())
             reason = "peer disappeared";
         else if (size < 0)
             reason = "swap failure";

@@ -2391,9 +2391,8 @@ parse_peer(CachePeer ** head)
 
 #if USE_CACHE_DIGESTS
     if (!p->options.no_digest) {
-        PeerDigest *pd = new PeerDigest(p);
-        // TODO: make CachePeer member a CbcPointer
-        p->digest = cbdataReference(pd);
+        auto pd = new PeerDigest(p);
+        p->digest = pd;
     }
 #endif
 
