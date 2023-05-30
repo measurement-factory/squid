@@ -131,14 +131,6 @@ peerDigestCreate(CachePeer * p)
     p->digest = cbdataReference(pd);
 }
 
-/* call Clean and free/unlock everything */
-static void
-peerDigestDestroy(PeerDigest * pd)
-{
-    assert(pd);
-    delete pd;
-}
-
 PeerDigest::~PeerDigest()
 {
     delete cd;
@@ -202,7 +194,7 @@ peerDigestNotePeerGone(PeerDigest * pd)
         /* do nothing now, the fetching chain will notice and take action */
     } else {
         debugs(72, 2, "peerDigest: peer " << pd->host << " is gone, destroying now.");
-        peerDigestDestroy(pd);
+        delete pd;
     }
 }
 
