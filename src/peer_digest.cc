@@ -119,18 +119,6 @@ DigestFetchState::~DigestFetchState()
     assert(pd == nullptr);
 }
 
-/* allocate new peer digest, call Init, and lock everything */
-void
-peerDigestCreate(CachePeer * p)
-{
-    assert(p);
-
-    PeerDigest *pd = new PeerDigest(p);
-
-    // TODO: make CachePeer member a CbcPointer
-    p->digest = cbdataReference(pd);
-}
-
 PeerDigest::~PeerDigest()
 {
     delete cd;

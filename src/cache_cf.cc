@@ -2390,8 +2390,11 @@ parse_peer(CachePeer ** head)
         p->connect_fail_limit = 10;
 
 #if USE_CACHE_DIGESTS
-    if (!p->options.no_digest)
-        peerDigestCreate(p);
+    if (!p->options.no_digest) {
+        PeerDigest *pd = new PeerDigest(p);
+        // TODO: make CachePeer member a CbcPointer
+        p->digest = cbdataReference(pd);
+    }
 #endif
 
     if (p->secure.encryptTransport)
