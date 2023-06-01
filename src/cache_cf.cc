@@ -2390,9 +2390,8 @@ parse_peer(CachePeer ** head)
         p->connect_fail_limit = 10;
 
 #if USE_CACHE_DIGESTS
-    if (!p->options.no_digest) {
+    if (!p->options.no_digest)
         p->digest = new PeerDigest(p);
-    }
 #endif
 
     if (p->secure.encryptTransport)

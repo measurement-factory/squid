@@ -66,9 +66,9 @@ static const time_t GlobDigestReqMinGap = 1 * 60;   /* seconds */
 
 static time_t pd_last_req_time = 0; /* last call to Check */
 
-PeerDigest::PeerDigest(CachePeer *p) :
+PeerDigest::PeerDigest(CachePeer * const p):
     peer(p),
-    host(peer->host) // if peer disappears, we will know it's name
+    host(peer->host) // if peer disappears, we will know its name
 {
     times.initialized = squid_curtime;
 }
@@ -200,7 +200,7 @@ peerDigestCheck(void *data)
         return;
     }
 
-    debugs(72, 3, "cache_peer " << RawPointer(pd->peer.raw()).orNil());
+    debugs(72, 3, "cache_peer " << RawPointer(pd->peer).orNil());
     debugs(72, 3, "peerDigestCheck: time: " << squid_curtime <<
            ", last received: " << (long int) pd->times.received << "  (" <<
            std::showpos << (int) (squid_curtime - pd->times.received) << ")");
