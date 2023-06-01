@@ -2391,8 +2391,7 @@ parse_peer(CachePeer ** head)
 
 #if USE_CACHE_DIGESTS
     if (!p->options.no_digest) {
-        auto pd = new PeerDigest(p);
-        p->digest = pd;
+        p->digest = new PeerDigest(p);
     }
 #endif
 

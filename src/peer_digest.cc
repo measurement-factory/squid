@@ -10,6 +10,7 @@
 
 #include "squid.h"
 #if USE_CACHE_DIGESTS
+#include "base/IoManip.h"
 #include "CacheDigest.h"
 #include "CachePeer.h"
 #include "event.h"
@@ -194,12 +195,12 @@ peerDigestCheck(void *data)
 
     pd->times.next_check = 0;   /* unknown */
 
-    if (!pd->peer.valid()) {
+    if (pd->peer.set() && !pd->peer.valid()) {
         peerDigestNotePeerGone(pd);
         return;
     }
 
-    debugs(72, 3, "cache_peer " << *pd->peer);
+    debugs(72, 3, "cache_peer " << RawPointer(pd->peer.raw()).orNil());
     debugs(72, 3, "peerDigestCheck: time: " << squid_curtime <<
            ", last received: " << (long int) pd->times.received << "  (" <<
            std::showpos << (int) (squid_curtime - pd->times.received) << ")");
@@ -239,7 +240,7 @@ peerDigestCheck(void *data)
 static void
 peerDigestRequest(PeerDigest * pd)
 {
-    CachePeer *p = pd->peer.get();
+    const auto p = pd->peer.get(); // TODO: Replace with a reference.
     StoreEntry *e, *old_e;
     char *url = nullptr;
     HttpRequest *req;
@@ -649,7 +650,7 @@ peerDigestFetchedEnough(DigestFetchState * fetch, char *buf, ssize_t size, const
     const char *reason = nullptr;  /* reason for completion */
     const char *no_bug = nullptr;  /* successful completion if set */
     const int pdcb_valid = cbdataReferenceValid(fetch->pd);
-    const int pcb_valid = fetch->pd->peer.valid() ? 1 : 0;
+    const int pcb_valid = pdcb_valid && fetch->pd->peer.valid();
 
     /* test possible exiting conditions (the same for most steps!)
      * cases marked with '?!' should not happen */
@@ -667,7 +668,7 @@ peerDigestFetchedEnough(DigestFetchState * fetch, char *buf, ssize_t size, const
     /* continue checking (with pd and host known and valid) */
 
     if (!reason) {
-        if (!pd->peer.valid())
+        if (!pd->peer)
             reason = "peer disappeared";
         else if (size < 0)
             reason = "swap failure";

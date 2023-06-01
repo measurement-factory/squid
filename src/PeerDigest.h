@@ -81,7 +81,7 @@ public:
 
     CbcPointer<CachePeer> peer;           /**< pointer back to peer structure, argh */
     CacheDigest *cd = nullptr;            /**< actual digest structure */
-    SBuf host;                        ///< copy of peer->host
+    const SBuf host;                      ///< copy of peer->host
     const char *req_result = nullptr;     /**< text status of the last request */
 
     struct {
