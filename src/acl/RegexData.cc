@@ -136,7 +136,8 @@ compileRE(std::list<RegexPattern> &curlist, const char * RE, int flags)
 static bool
 compileRE(std::list<RegexPattern> &curlist, const SBufList &RE, int flags)
 {
-    assert(!RE.empty());
+    if (RE.empty())
+        return curlist.empty(); // XXX: old code did this. It looks wrong.
     SBuf regexp;
     static const SBuf openparen("("), closeparen(")"), separator(")|(");
     JoinContainerIntoSBuf(regexp, RE.begin(), RE.end(), separator, openparen,
@@ -165,7 +166,7 @@ compileOptimisedREs(std::list<RegexPattern> &curlist, const SBufList &sl)
                 debugs(28, 2, "optimisation of -i ... -i" );
             } else {
                 debugs(28, 2, "-i" );
-                if (!accumulatedRE.empty() && !compileRE(newlist, accumulatedRE, flags))
+                if (!compileRE(newlist, accumulatedRE, flags))
                     return 0;
                 flags |= REG_ICASE;
                 accumulatedRE.clear();
@@ -178,7 +179,7 @@ compileOptimisedREs(std::list<RegexPattern> &curlist, const SBufList &sl)
                 debugs(28, 2, "optimisation of +i ... +i");
             } else {
                 debugs(28, 2, "+i");
-                if (!accumulatedRE.empty() && !compileRE(newlist, accumulatedRE, flags))
+                if (!compileRE(newlist, accumulatedRE, flags))
                     return 0;
                 flags &= ~REG_ICASE;
                 accumulatedRE.clear();
@@ -202,7 +203,7 @@ compileOptimisedREs(std::list<RegexPattern> &curlist, const SBufList &sl)
         }
     }
 
-    if (!accumulatedRE.empty() && !compileRE(newlist, accumulatedRE, flags))
+    if (!compileRE(newlist, accumulatedRE, flags))
         return 0;
 
     accumulatedRE.clear();
