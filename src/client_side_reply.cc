@@ -244,7 +244,7 @@ clientReplyContext::triggerInitialStoreRead(STCB recipient)
     Assure(recipient != HandleIMSReply);
     lastStreamBufferedBytes = StoreIOBuffer(); // storeClientCopy(next()->readBuffer) invalidates
     StoreIOBuffer localTempBuffer (next()->readBuffer.length, 0, next()->readBuffer.data);
-    storeClientCopy(sc, http->storeEntry(), localTempBuffer, recipient, this);
+    ::storeClientCopy(sc, http->storeEntry(), localTempBuffer, recipient, this);
 }
 
 /// Request HTTP response body bytes from Store into next()->readBuffer. This
@@ -255,7 +255,7 @@ void
 clientReplyContext::requestMoreBodyFromStore()
 {
     lastStreamBufferedBytes = StoreIOBuffer(); // storeClientCopy(next()->readBuffer) invalidates
-    storeClientCopy(sc, http->storeEntry(), next()->readBuffer, SendMoreData, this);
+    ::storeClientCopy(sc, http->storeEntry(), next()->readBuffer, SendMoreData, this);
 }
 
 /* there is an expired entry in the store.
@@ -362,7 +362,8 @@ clientReplyContext::processExpired()
     {
         /* start counting the length from 0 */
         StoreIOBuffer localTempBuffer(HTTP_REQBUF_SZ, 0, tempbuf);
-        storeClientCopy(sc, entry, localTempBuffer, HandleIMSReply, this);
+        // keep lastStreamBufferedBytes: tempbuf is not a Client Stream buffer
+        ::storeClientCopy(sc, entry, localTempBuffer, HandleIMSReply, this);
     }
 }
 
@@ -500,7 +501,7 @@ clientReplyContext::handleIMSReply(const StoreIOBuffer result)
 SQUIDCEXTERN CSR clientGetMoreData;
 SQUIDCEXTERN CSD clientReplyDetach;
 
-/// Only used once, to process HTTP reply headers received from Store.
+/// \copydoc clientReplyContext::cacheHit()
 void
 clientReplyContext::CacheHit(void *data, StoreIOBuffer result)
 {
@@ -508,11 +509,11 @@ clientReplyContext::CacheHit(void *data, StoreIOBuffer result)
     context->cacheHit(result);
 }
 
-/**
- * Process a possible cache HIT.
- */
+/// Processes HTTP response headers received from Store on a suspected cache hit
+/// path. May be called several times (e.g., a Vary marker object hit followed
+/// by the corresponding variant hit).
 void
-clientReplyContext::cacheHit(StoreIOBuffer result)
+clientReplyContext::cacheHit(const StoreIOBuffer result)
 {
     /** Ignore if the HIT object is being deleted. */
     if (deleting) {

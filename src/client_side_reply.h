@@ -138,6 +138,12 @@ private:
     void sendNotModifiedOrPreconditionFailedError();
     void sendClientUpstreamResponse(const StoreIOBuffer &upstreamResponse);
 
+    /// Reduces a chance of an accidental direct storeClientCopy() call that
+    /// (should but) forgets to invalidate our lastStreamBufferedBytes. This
+    /// function is not defined; decltype() syntax prohibits "= delete", but
+    /// function usage will trigger deprecation warnings and linking errors.
+    static decltype(::storeClientCopy) storeClientCopy [[deprecated]];
+
     /* (stale) cache hit information preserved during IMS revalidation */
     StoreEntry *old_entry;
     store_client *old_sc;
