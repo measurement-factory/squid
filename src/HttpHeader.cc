@@ -622,6 +622,46 @@ HttpHeader::packInto(Packable * p, bool mask_sensitive_info) const
     /* Cache-Control */
 }
 
+void
+HttpHeader::sortInto(Packable &p, const HttpHeader &model) const
+{
+    debugs(55, 7, this << " following " << &model);
+
+    // form to-do list
+    auto toPack(entries);
+
+    // pack those toPack entries that are present in the model, ~in model order
+    for (const auto modelE: model.entries) {
+        if (!modelE)
+            continue; // XXX: deleted in the original; an unwelcome change!
+
+        if (!CBIT_TEST(mask, modelE->id))
+            continue; // not forwarded
+
+        // linear search: pack the same entry if it is still on our to-do list
+        // XXX: This changes the original "A B A" field order into "A A B".
+        for (auto &e: toPack) {
+            if (!e)
+                continue; // already packed
+
+            const auto same = modelE->id == Http::HdrType::OTHER ?
+                (e->name.length() == modelE->name.length() && e->name.caseCmp(modelE->name) == 0):
+                (e->id == modelE->id);
+            if (same) {
+                e->packInto(&p);
+                e = nullptr; // remove from toPack
+                // and keep going, there might be more of these
+            }
+        }
+    }
+
+    // now pack all the remaining entries on the to-do list
+    for (const auto e: toPack) {
+        if (e)
+            e->packInto(&p);
+    }
+}
+
 /* returns next valid entry */
 HttpHeaderEntry *
 HttpHeader::getEntry(HttpHeaderPos * pos) const
