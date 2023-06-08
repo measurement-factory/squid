@@ -68,7 +68,7 @@ static void peerCountMcastPeersAbort(PeerSelector *);
 static void peerCountMcastPeersCreateAndSend(CachePeer *p);
 static IRCB peerCountHandleIcpReply;
 
-static void neighborIgnoreNonPeer();
+static void neighborIgnoreNonPeer(const Ip::Address &, icp_opcode);
 static OBJH neighborDumpPeers;
 static void dump_peers(StoreEntry * sentry, CachePeer * peers);
 
@@ -936,11 +936,14 @@ neighborCountIgnored(CachePeer * p)
 }
 
 static void
-neighborIgnoreNonPeer()
+neighborIgnoreNonPeer(const Ip::Address &from, icp_opcode opcode)
 {
     static uint64_t ignoredReplies = 0;
-    if (isPowTen(++ignoredReplies))
-        debugs(15, DBG_IMPORTANT, "WARNING: Ignored " << ignoredReplies << " replies overall from non-peers");
+    if (isPowTen(++ignoredReplies)) {
+        debugs(15, DBG_IMPORTANT, "WARNING: Ignored " << ignoredReplies << " replies overall from non-peers" <<
+               Debug::Extra << "Last ignored address: " << from <<
+               Debug::Extra << "OPPCODE: " << icp_opcode_str[opcode]);
+    }
 }
 
 /* ignoreMulticastReply
@@ -1045,20 +1048,20 @@ neighborsUdpAck(const cache_key * key, icp_common_t * header, const Ip::Address 
         neighborCountIgnored(p);
     } else if (opcode == ICP_MISS) {
         if (p == nullptr) {
-            neighborIgnoreNonPeer();
+            neighborIgnoreNonPeer(from, opcode);
         } else {
             mem->ping_reply_callback(p, ntype, AnyP::PROTO_ICP, header, mem->ircb_data);
         }
     } else if (opcode == ICP_HIT) {
         if (p == nullptr) {
-            neighborIgnoreNonPeer();
+            neighborIgnoreNonPeer(from, opcode);
         } else {
             header->opcode = ICP_HIT;
             mem->ping_reply_callback(p, ntype, AnyP::PROTO_ICP, header, mem->ircb_data);
         }
     } else if (opcode == ICP_DECHO) {
         if (p == nullptr) {
-            neighborIgnoreNonPeer();
+            neighborIgnoreNonPeer(from, opcode);
         } else if (ntype == PEER_SIBLING) {
             debug_trap("neighborsUdpAck: Found non-ICP cache as SIBLING\n");
             debug_trap("neighborsUdpAck: non-ICP neighbors must be a PARENT\n");
@@ -1074,7 +1077,7 @@ neighborsUdpAck(const cache_key * key, icp_common_t * header, const Ip::Address 
         }
     } else if (opcode == ICP_DENIED) {
         if (p == nullptr) {
-            neighborIgnoreNonPeer();
+            neighborIgnoreNonPeer(from, opcode);
         } else if (p->stats.pings_acked > 100) {
             if (100 * p->icp.counts[ICP_DENIED] / p->stats.pings_acked > 95) {
                 debugs(15, DBG_CRITICAL, "Disabling cache_peer " << *p <<
