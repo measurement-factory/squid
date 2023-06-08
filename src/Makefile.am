@@ -2077,8 +2077,6 @@ tests_test_http_range_LDADD = \
 	mgr/libmgr.la \
 	sbuf/libsbuf.la \
 	store/libstore.la \
-	tests/stub_libsecurity.cc \
-	tests/stub_libsslsquid.cc \
 	$(SNMP_LIBS) \
 	$(top_builddir)/lib/libmisccontainers.la \
 	$(top_builddir)/lib/libmiscencoding.la \
