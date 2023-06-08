@@ -68,9 +68,8 @@ static void peerCountMcastPeersAbort(PeerSelector *);
 static void peerCountMcastPeersCreateAndSend(CachePeer *p);
 static IRCB peerCountHandleIcpReply;
 
-static void neighborIgnoreNonPeer(const Ip::Address &, icp_opcode);
+static void neighborIgnoreNonPeer();
 static OBJH neighborDumpPeers;
-static OBJH neighborDumpNonPeers;
 static void dump_peers(StoreEntry * sentry, CachePeer * peers);
 
 static unsigned short echo_port;
@@ -545,12 +544,6 @@ neighborsRegisterWithCacheManager()
     Mgr::RegisterAction("server_list",
                         "Peer Cache Statistics",
                         neighborDumpPeers, 0, 1);
-
-    if (Comm::IsConnOpen(icpIncomingConn)) {
-        Mgr::RegisterAction("non_peers",
-                            "List of Unknown sites sending ICP messages",
-                            neighborDumpNonPeers, 0, 1);
-    }
 }
 
 void
@@ -942,38 +935,12 @@ neighborCountIgnored(CachePeer * p)
     ++NLateReplies;
 }
 
-static CachePeer *non_peers = nullptr;
-
 static void
-neighborIgnoreNonPeer(const Ip::Address &from, icp_opcode opcode)
+neighborIgnoreNonPeer()
 {
-    CachePeer *np;
-
-    for (np = non_peers; np; np = np->next) {
-        if (np->in_addr != from)
-            continue;
-
-        if (np->in_addr.port() != from.port())
-            continue;
-
-        break;
-    }
-
-    if (np == nullptr) {
-        char fromStr[MAX_IPSTRLEN];
-        from.toStr(fromStr, sizeof(fromStr));
-        np = new CachePeer(fromStr);
-        np->in_addr = from;
-        np->icp.port = from.port();
-        np->type = PEER_NONE;
-        np->next = non_peers;
-        non_peers = np;
-    }
-
-    ++ np->icp.counts[opcode];
-
-    if (isPowTen(++np->stats.ignored_replies))
-        debugs(15, DBG_IMPORTANT, "WARNING: Ignored " << np->stats.ignored_replies << " replies from non-peer " << *np);
+    static uint64_t ignoredReplies = 0;
+    if (isPowTen(++ignoredReplies))
+        debugs(15, DBG_IMPORTANT, "WARNING: Ignored " << ignoredReplies << " replies overall from non-peers");
 }
 
 /* ignoreMulticastReply
@@ -1078,20 +1045,20 @@ neighborsUdpAck(const cache_key * key, icp_common_t * header, const Ip::Address 
         neighborCountIgnored(p);
     } else if (opcode == ICP_MISS) {
         if (p == nullptr) {
-            neighborIgnoreNonPeer(from, opcode);
+            neighborIgnoreNonPeer();
         } else {
             mem->ping_reply_callback(p, ntype, AnyP::PROTO_ICP, header, mem->ircb_data);
         }
     } else if (opcode == ICP_HIT) {
         if (p == nullptr) {
-            neighborIgnoreNonPeer(from, opcode);
+            neighborIgnoreNonPeer();
         } else {
             header->opcode = ICP_HIT;
             mem->ping_reply_callback(p, ntype, AnyP::PROTO_ICP, header, mem->ircb_data);
         }
     } else if (opcode == ICP_DECHO) {
         if (p == nullptr) {
-            neighborIgnoreNonPeer(from, opcode);
+            neighborIgnoreNonPeer();
         } else if (ntype == PEER_SIBLING) {
             debug_trap("neighborsUdpAck: Found non-ICP cache as SIBLING\n");
             debug_trap("neighborsUdpAck: non-ICP neighbors must be a PARENT\n");
@@ -1107,7 +1074,7 @@ neighborsUdpAck(const cache_key * key, icp_common_t * header, const Ip::Address 
         }
     } else if (opcode == ICP_DENIED) {
         if (p == nullptr) {
-            neighborIgnoreNonPeer(from, opcode);
+            neighborIgnoreNonPeer();
         } else if (p->stats.pings_acked > 100) {
             if (100 * p->icp.counts[ICP_DENIED] / p->stats.pings_acked > 95) {
                 debugs(15, DBG_CRITICAL, "Disabling cache_peer " << *p <<
@@ -1449,12 +1416,6 @@ static void
 neighborDumpPeers(StoreEntry * sentry)
 {
     dump_peers(sentry, Config.peers);
-}
-
-static void
-neighborDumpNonPeers(StoreEntry * sentry)
-{
-    dump_peers(sentry, non_peers);
 }
 
 void
