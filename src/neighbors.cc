@@ -940,9 +940,9 @@ neighborIgnoreNonPeer(const Ip::Address &from, icp_opcode opcode)
 {
     static uint64_t ignoredReplies = 0;
     if (isPowTen(++ignoredReplies)) {
-        debugs(15, DBG_IMPORTANT, "WARNING: Ignored " << ignoredReplies << " replies overall from non-peers" <<
-               Debug::Extra << "Last ignored address: " << from <<
-               Debug::Extra << "OPPCODE: " << icp_opcode_str[opcode]);
+        debugs(15, DBG_IMPORTANT, "WARNING: Ignored " << ignoredReplies << " ICP replies from non-peers" <<
+               Debug::Extra << "last seen non-peer source address: " << from <<
+               Debug::Extra << "last seen ICP reply opcode: " << icp_opcode_str[opcode]);
     }
 }
 
