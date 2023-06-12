@@ -12,6 +12,7 @@
 #include "CachePeer.h"
 #include "HttpRequest.h"
 #include "mgr/Registration.h"
+#include "mem/PoolingAllocator.h"
 #include "neighbors.h"
 #include "peer_sourcehash.h"
 #include "PeerSelectState.h"
@@ -23,7 +24,7 @@
 
 #define ROTATE_LEFT(x, n) (((x) << (n)) | ((x) >> (32-(n))))
 
-static std::vector< CbcPointer<CachePeer> > SourceHashPeers;
+static std::vector< CbcPointer<CachePeer>, PoolingAllocator< CbcPointer<CachePeer> > > SourceHashPeers;
 static OBJH peerSourceHashCachemgr;
 static void peerSourceHashRegisterWithCacheManager(void);
 

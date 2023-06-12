@@ -13,6 +13,7 @@
 #include "carp.h"
 #include "HttpRequest.h"
 #include "mgr/Registration.h"
+#include "mem/PoolingAllocator.h"
 #include "neighbors.h"
 #include "PeerSelectState.h"
 #include "SquidConfig.h"
@@ -23,7 +24,7 @@
 
 #define ROTATE_LEFT(x, n) (((x) << (n)) | ((x) >> (32-(n))))
 
-static std::vector< CbcPointer<CachePeer> > CarpPeers;
+static std::vector< CbcPointer<CachePeer>, PoolingAllocator< CbcPointer<CachePeer> > > CarpPeers;
 
 static OBJH carpCachemgr;
 
