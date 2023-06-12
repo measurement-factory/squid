@@ -144,9 +144,8 @@ carpSelectParent(PeerSelector *ps)
     debugs(39, 2, "carpSelectParent: Calculating hash for " << request->effectiveRequestUri());
 
     /* select CachePeer */
-    for (size_t k = 0; k < CarpPeers.size(); ++k) {
+    for (auto &tp: CarpPeers) {
         SBuf key;
-        auto tp = CarpPeers[k];
         if (tp->options.carp_key.set) {
             // this code follows URI syntax pattern.
             // corner cases should use the full effective request URI
