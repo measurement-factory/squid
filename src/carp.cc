@@ -23,7 +23,7 @@
 
 #define ROTATE_LEFT(x, n) (((x) << (n)) | ((x) >> (32-(n))))
 
-std::vector< CbcPointer<CachePeer> > CarpPeers;
+static std::vector< CbcPointer<CachePeer> > CarpPeers;
 
 static OBJH carpCachemgr;
 
