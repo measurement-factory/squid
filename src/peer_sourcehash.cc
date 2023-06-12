@@ -19,6 +19,7 @@
 #include "Store.h"
 
 #include <cmath>
+#include <vector>
 
 #define ROTATE_LEFT(x, n) (((x) << (n)) | ((x) >> (32-(n))))
 
@@ -54,6 +55,9 @@ peerSourceHashInit(void)
         SourceHashPeers.emplace_back(p);
     }
 
+    if (SourceHashPeers.empty())
+        return;
+
     /* Build a list of the found peers and calculate hashes and load factors */
     for (p = Config.peers; p; p = p->next) {
         /* calculate this peers hash */
@@ -71,9 +75,6 @@ peerSourceHashInit(void)
 
         if (floor(p->sourcehash.load_factor * 1000.0) == 0.0)
             p->sourcehash.load_factor = 0.0;
-
-        /* add it to our list of peers */
-        SourceHashPeers.emplace_back(p);
     }
 
     /* Sort our list on weight */

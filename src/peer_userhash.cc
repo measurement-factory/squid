@@ -24,6 +24,7 @@
 #include "Store.h"
 
 #include <cmath>
+#include <vector>
 
 #define ROTATE_LEFT(x, n) (((x) << (n)) | ((x) >> (32-(n))))
 
