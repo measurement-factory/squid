@@ -635,8 +635,9 @@ HttpHeader::sortInto(Packable &p, const HttpHeader &model) const
         if (!modelE)
             continue; // XXX: deleted in the original; an unwelcome change!
 
-        if (!CBIT_TEST(mask, modelE->id))
-            continue; // not forwarded
+        const auto proxyConnection = modelE->id == Http::HdrType::PROXY_CONNECTION;
+        if (!CBIT_TEST(mask, modelE->id) && !proxyConnection)
+            continue; // not forwarded (except Proxy-Connection, which is treated as Connection below)
 
         // linear search: pack the same entry if it is still on our to-do list
         // XXX: This changes the original "A B A" field order into "A A B".
@@ -646,7 +647,8 @@ HttpHeader::sortInto(Packable &p, const HttpHeader &model) const
 
             const auto same = modelE->id == Http::HdrType::OTHER ?
                 (e->name.length() == modelE->name.length() && e->name.caseCmp(modelE->name) == 0):
-                (e->id == modelE->id);
+                (e->id == modelE->id ||
+                (proxyConnection && e->id == Http::HdrType::CONNECTION));
             if (same) {
                 e->packInto(&p);
                 e = nullptr; // remove from toPack
