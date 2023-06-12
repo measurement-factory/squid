@@ -19,20 +19,13 @@
 #include "Store.h"
 
 #include <cmath>
+#include <vector>
 
 #define ROTATE_LEFT(x, n) (((x) << (n)) | ((x) >> (32-(n))))
 
-static int n_carp_peers = 0;
-static CachePeer **carp_peers = nullptr;
-static OBJH carpCachemgr;
+std::vector< CbcPointer<CachePeer> > CarpPeers;
 
-static int
-peerSortWeight(const void *a, const void *b)
-{
-    const CachePeer *const *p1 = (const CachePeer *const *)a;
-    const CachePeer *const *p2 = (const CachePeer *const *)b;
-    return (*p1)->weight - (*p2)->weight;
-}
+static OBJH carpCachemgr;
 
 static void
 carpRegisterWithCacheManager(void)
@@ -44,20 +37,12 @@ void
 carpInit(void)
 {
     int W = 0;
-    int K;
-    int k;
     double P_last, X_last, Xn;
     CachePeer *p;
-    CachePeer **P;
     char *t;
     /* Clean up */
 
-    for (k = 0; k < n_carp_peers; ++k) {
-        cbdataReferenceDone(carp_peers[k]);
-    }
-
-    safe_free(carp_peers);
-    n_carp_peers = 0;
+    CarpPeers.clear();
 
     /* initialize cache manager before we have a chance to leave the execution path */
     carpRegisterWithCacheManager();
@@ -73,18 +58,11 @@ carpInit(void)
         if (p->weight == 0)
             continue;
 
-        ++n_carp_peers;
-
         W += p->weight;
     }
 
-    if (n_carp_peers == 0)
-        return;
-
-    carp_peers = (CachePeer **)xcalloc(n_carp_peers, sizeof(*carp_peers));
-
     /* Build a list of the found peers and calculate hashes and load factors */
-    for (P = carp_peers, p = Config.peers; p; p = p->next) {
+    for (p = Config.peers; p; p = p->next) {
         if (!p->options.carp)
             continue;
 
@@ -108,12 +86,16 @@ carpInit(void)
             p->carp.load_factor = 0.0;
 
         /* add it to our list of peers */
-        *P = cbdataReference(p);
-        ++P;
+        CarpPeers.emplace_back(p);
     }
 
+    if (CarpPeers.empty())
+        return;
+
     /* Sort our list on weight */
-    qsort(carp_peers, n_carp_peers, sizeof(*carp_peers), peerSortWeight);
+    std::sort(CarpPeers.begin(), CarpPeers.end(), [](const auto &p1, const auto &p2) {
+        return p1->weight - p2->weight;
+    });
 
     /* Calculate the load factor multipliers X_k
      *
@@ -123,7 +105,7 @@ carpInit(void)
      * X_k = pow (X_k, {1/(K-k+1)})
      * simplified to have X_1 part of the loop
      */
-    K = n_carp_peers;
+    const auto K = CarpPeers.size();
 
     P_last = 0.0;       /* Empty P_0 */
 
@@ -131,9 +113,9 @@ carpInit(void)
 
     X_last = 0.0;       /* Empty X_0, nullifies the first pow statement */
 
-    for (k = 1; k <= K; ++k) {
+    for (size_t k = 1; k <= K; ++k) {
         double Kk1 = (double) (K - k + 1);
-        p = carp_peers[k - 1];
+        p = CarpPeers[k - 1].get();
         p->carp.load_multiplier = (Kk1 * (p->carp.load_factor - P_last)) / Xn;
         p->carp.load_multiplier += pow(X_last, Kk1);
         p->carp.load_multiplier = pow(p->carp.load_multiplier, 1.0 / Kk1);
@@ -149,24 +131,22 @@ carpSelectParent(PeerSelector *ps)
     assert(ps);
     HttpRequest *request = ps->request;
 
-    int k;
     CachePeer *p = nullptr;
-    CachePeer *tp;
     unsigned int user_hash = 0;
     unsigned int combined_hash;
     double score;
     double high_score = 0;
 
-    if (n_carp_peers == 0)
+    if (CarpPeers.empty())
         return nullptr;
 
     /* calculate hash key */
     debugs(39, 2, "carpSelectParent: Calculating hash for " << request->effectiveRequestUri());
 
     /* select CachePeer */
-    for (k = 0; k < n_carp_peers; ++k) {
+    for (size_t k = 0; k < CarpPeers.size(); ++k) {
         SBuf key;
-        tp = carp_peers[k];
+        auto tp = CarpPeers[k];
         if (tp->options.carp_key.set) {
             // this code follows URI syntax pattern.
             // corner cases should use the full effective request URI
@@ -208,8 +188,8 @@ carpSelectParent(PeerSelector *ps)
         debugs(39, 3, *tp << " key=" << key << " combined_hash=" << combined_hash  <<
                " score=" << std::setprecision(0) << score);
 
-        if ((score > high_score) && peerHTTPOkay(tp, ps)) {
-            p = tp;
+        if ((score > high_score) && peerHTTPOkay(tp.get(), ps)) {
+            p = tp.get();
             high_score = score;
         }
     }
