@@ -38,7 +38,6 @@ carpInit(void)
 {
     int W = 0;
     double P_last, X_last, Xn;
-    CachePeer *p;
     char *t;
     /* Clean up */
 
@@ -49,7 +48,7 @@ carpInit(void)
 
     /* find out which peers we have */
 
-    for (p = Config.peers; p; p = p->next) {
+    for (auto p = Config.peers; p; p = p->next) {
         if (!p->options.carp)
             continue;
 
@@ -59,16 +58,15 @@ carpInit(void)
             continue;
 
         W += p->weight;
+
+        CarpPeers.emplace_back(p);
     }
 
+    if (CarpPeers.empty())
+        return;
+
     /* Build a list of the found peers and calculate hashes and load factors */
-    for (p = Config.peers; p; p = p->next) {
-        if (!p->options.carp)
-            continue;
-
-        if (p->weight == 0)
-            continue;
-
+    for (auto &p: CarpPeers) {
         /* calculate this peers hash */
         p->carp.hash = 0;
 
@@ -84,13 +82,7 @@ carpInit(void)
 
         if (floor(p->carp.load_factor * 1000.0) == 0.0)
             p->carp.load_factor = 0.0;
-
-        /* add it to our list of peers */
-        CarpPeers.emplace_back(p);
     }
-
-    if (CarpPeers.empty())
-        return;
 
     /* Sort our list on weight */
     std::sort(CarpPeers.begin(), CarpPeers.end(), [](const auto &p1, const auto &p2) {
@@ -115,7 +107,7 @@ carpInit(void)
 
     for (size_t k = 1; k <= K; ++k) {
         double Kk1 = (double) (K - k + 1);
-        p = CarpPeers[k - 1].get();
+        auto p = CarpPeers[k - 1].get();
         p->carp.load_multiplier = (Kk1 * (p->carp.load_factor - P_last)) / Xn;
         p->carp.load_multiplier += pow(X_last, Kk1);
         p->carp.load_multiplier = pow(p->carp.load_multiplier, 1.0 / Kk1);

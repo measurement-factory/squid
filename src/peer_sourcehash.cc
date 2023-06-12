@@ -36,6 +36,8 @@ peerSourceHashInit(void)
 
     SourceHashPeers.clear();
 
+    peerSourceHashRegisterWithCacheManager();
+
     /* find out which peers we have */
 
     for (p = Config.peers; p; p = p->next) {
@@ -48,18 +50,12 @@ peerSourceHashInit(void)
             continue;
 
         W += p->weight;
-    }
 
-    peerSourceHashRegisterWithCacheManager();
+        SourceHashPeers.emplace_back(p);
+    }
 
     /* Build a list of the found peers and calculate hashes and load factors */
     for (p = Config.peers; p; p = p->next) {
-        if (!p->options.sourcehash)
-            continue;
-
-        if (p->weight == 0)
-            continue;
-
         /* calculate this peers hash */
         p->sourcehash.hash = 0;
 
