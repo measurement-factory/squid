@@ -10,9 +10,9 @@
 
 #include "squid.h"
 #include "CachePeer.h"
+#include "CachePeers.h"
 #include "carp.h"
 #include "HttpRequest.h"
-#include "mem/PoolingAllocator.h"
 #include "mgr/Registration.h"
 #include "neighbors.h"
 #include "PeerSelectState.h"
@@ -20,13 +20,19 @@
 #include "Store.h"
 
 #include <cmath>
-#include <vector>
 
 #define ROTATE_LEFT(x, n) (((x) << (n)) | ((x) >> (32-(n))))
 
-static std::vector< CbcPointer<CachePeer>, PoolingAllocator< CbcPointer<CachePeer> > > CarpPeers;
-
+static SelectedCachePeers TheCarpPeers;
 static OBJH carpCachemgr;
+
+static int
+peerSortWeight(const void *a, const void *b)
+{
+    const CachePeer *const *p1 = (const CachePeer *const *)a;
+    const CachePeer *const *p2 = (const CachePeer *const *)b;
+    return (*p1)->weight - (*p2)->weight;
+}
 
 static void
 carpRegisterWithCacheManager(void)
@@ -42,14 +48,18 @@ carpInit(void)
     char *t;
     /* Clean up */
 
-    CarpPeers.clear();
+    TheCarpPeers.clear();
 
     /* initialize cache manager before we have a chance to leave the execution path */
     carpRegisterWithCacheManager();
 
     /* find out which peers we have */
 
+    RawCachePeers rawCarpPeers;
     for (auto p = Config.peers; p; p = p->next) {
+        if (!cbdataReferenceValid(p))
+            continue;
+
         if (!p->options.carp)
             continue;
 
@@ -58,16 +68,16 @@ carpInit(void)
         if (p->weight == 0)
             continue;
 
-        W += p->weight;
+        rawCarpPeers.push_back(p);
 
-        CarpPeers.emplace_back(p);
+        W += p->weight;
     }
 
-    if (CarpPeers.empty())
+    if (rawCarpPeers.empty())
         return;
 
     /* Build a list of the found peers and calculate hashes and load factors */
-    for (auto &p: CarpPeers) {
+    for (const auto &p: rawCarpPeers) {
         /* calculate this peers hash */
         p->carp.hash = 0;
 
@@ -86,9 +96,7 @@ carpInit(void)
     }
 
     /* Sort our list on weight */
-    std::sort(CarpPeers.begin(), CarpPeers.end(), [](const auto &p1, const auto &p2) {
-        return p1->weight - p2->weight;
-    });
+    qsort(rawCarpPeers.data(), rawCarpPeers.size(), sizeof(RawCachePeers::value_type), peerSortWeight);
 
     /* Calculate the load factor multipliers X_k
      *
@@ -98,7 +106,7 @@ carpInit(void)
      * X_k = pow (X_k, {1/(K-k+1)})
      * simplified to have X_1 part of the loop
      */
-    const auto K = CarpPeers.size();
+    const auto K = rawCarpPeers.size();
 
     P_last = 0.0;       /* Empty P_0 */
 
@@ -108,7 +116,7 @@ carpInit(void)
 
     for (size_t k = 1; k <= K; ++k) {
         double Kk1 = (double) (K - k + 1);
-        auto p = CarpPeers[k - 1].get();
+        const auto p = rawCarpPeers[k - 1];
         p->carp.load_multiplier = (Kk1 * (p->carp.load_factor - P_last)) / Xn;
         p->carp.load_multiplier += pow(X_last, Kk1);
         p->carp.load_multiplier = pow(p->carp.load_multiplier, 1.0 / Kk1);
@@ -116,6 +124,9 @@ carpInit(void)
         X_last = p->carp.load_multiplier;
         P_last = p->carp.load_factor;
     }
+
+    for (const auto &p: rawCarpPeers)
+        TheCarpPeers.emplace_back(p);
 }
 
 CachePeer *
@@ -130,14 +141,14 @@ carpSelectParent(PeerSelector *ps)
     double score;
     double high_score = 0;
 
-    if (CarpPeers.empty())
+    if (TheCarpPeers.empty())
         return nullptr;
 
     /* calculate hash key */
     debugs(39, 2, "carpSelectParent: Calculating hash for " << request->effectiveRequestUri());
 
     /* select CachePeer */
-    for (auto &tp: CarpPeers) {
+    for (const auto &tp: TheCarpPeers) {
         SBuf key;
         if (tp->options.carp_key.set) {
             // this code follows URI syntax pattern.
@@ -203,10 +214,15 @@ carpCachemgr(StoreEntry * sentry)
                       "Factor",
                       "Actual");
 
-    for (const auto &p: CarpPeers)
+    for (const auto &p: TheCarpPeers) {
+        if (!p.valid())
+            continue;
         sumfetches += p->stats.fetches;
+    }
 
-    for (const auto &p: CarpPeers) {
+    for (const auto &p: TheCarpPeers) {
+        if (!p.valid())
+            continue;
         storeAppendPrintf(sentry, "%24s %10x %10f %10f %10f\n",
                           p->name, p->carp.hash,
                           p->carp.load_multiplier,
