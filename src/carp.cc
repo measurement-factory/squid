@@ -23,7 +23,9 @@
 
 #define ROTATE_LEFT(x, n) (((x) << (n)) | ((x) >> (32-(n))))
 
+/// CARP cache_peers ordered by their CARP weight
 static SelectedCachePeers TheCarpPeers;
+
 static OBJH carpCachemgr;
 
 static int
@@ -77,7 +79,7 @@ carpInit(void)
         return;
 
     /* Build a list of the found peers and calculate hashes and load factors */
-    for (const auto &p: rawCarpPeers) {
+    for (const auto p: rawCarpPeers) {
         /* calculate this peers hash */
         p->carp.hash = 0;
 
@@ -96,7 +98,7 @@ carpInit(void)
     }
 
     /* Sort our list on weight */
-    qsort(rawCarpPeers.data(), rawCarpPeers.size(), sizeof(RawCachePeers::value_type), peerSortWeight);
+    qsort(rawCarpPeers.data(), rawCarpPeers.size(), sizeof(decltype(rawCarpPeers)::value_type), peerSortWeight);
 
     /* Calculate the load factor multipliers X_k
      *
@@ -125,8 +127,7 @@ carpInit(void)
         P_last = p->carp.load_factor;
     }
 
-    for (const auto &p: rawCarpPeers)
-        TheCarpPeers.emplace_back(p);
+    TheCarpPeers.assign(rawCarpPeers.begin(), rawCarpPeers.end());
 }
 
 CachePeer *
@@ -149,6 +150,9 @@ carpSelectParent(PeerSelector *ps)
 
     /* select CachePeer */
     for (const auto &tp: TheCarpPeers) {
+        if (!tp)
+            continue; // peer gone
+
         SBuf key;
         if (tp->options.carp_key.set) {
             // this code follows URI syntax pattern.
@@ -215,13 +219,13 @@ carpCachemgr(StoreEntry * sentry)
                       "Actual");
 
     for (const auto &p: TheCarpPeers) {
-        if (!p.valid())
+        if (!p)
             continue;
         sumfetches += p->stats.fetches;
     }
 
     for (const auto &p: TheCarpPeers) {
-        if (!p.valid())
+        if (!p)
             continue;
         storeAppendPrintf(sentry, "%24s %10x %10f %10f %10f\n",
                           p->name, p->carp.hash,
