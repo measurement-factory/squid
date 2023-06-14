@@ -635,9 +635,8 @@ HttpHeader::sortInto(Packable &p, const HttpHeader &model) const
         if (!modelE)
             continue; // XXX: deleted in the original; an unwelcome change!
 
-        const auto proxyConnection = modelE->id == Http::HdrType::PROXY_CONNECTION;
-        if (!CBIT_TEST(mask, modelE->id) && !proxyConnection)
-            continue; // not forwarded (except Proxy-Connection, which is treated as Connection below)
+        if (!CBIT_TEST(mask, modelE->id) && !CBIT_TEST(mask, modelE->alternateId))
+            continue; // not forwarded
 
         // linear search: pack the same entry if it is still on our to-do list
         // XXX: This changes the original "A B A" field order into "A A B".
@@ -647,8 +646,7 @@ HttpHeader::sortInto(Packable &p, const HttpHeader &model) const
 
             const auto same = modelE->id == Http::HdrType::OTHER ?
                 (e->name.length() == modelE->name.length() && e->name.caseCmp(modelE->name) == 0):
-                (e->id == modelE->id ||
-                (proxyConnection && e->id == Http::HdrType::CONNECTION));
+                e->hasId(modelE->id);
             if (same) {
                 e->packInto(&p);
                 e = nullptr; // remove from toPack
@@ -1500,6 +1498,13 @@ HttpHeaderEntry::HttpHeaderEntry(Http::HdrType anId, const SBuf &aName, const ch
     if (id != Http::HdrType::BAD_HDR)
         ++ headerStatsTable[id].aliveCount;
 
+    if (id == Http::HdrType::CONNECTION)
+        alternateId = Http::HdrType::PROXY_CONNECTION;
+    else if (id == Http::HdrType::PROXY_CONNECTION)
+        alternateId = Http::HdrType::CONNECTION;
+    else // TODO: add other alternate ids here
+        alternateId = id;
+
     debugs(55, 9, "created HttpHeaderEntry " << this << ": '" << name << " : " << value );
 }
 
@@ -1511,6 +1516,7 @@ HttpHeaderEntry::~HttpHeaderEntry()
         assert(headerStatsTable[id].aliveCount);
         -- headerStatsTable[id].aliveCount;
         id = Http::HdrType::BAD_HDR; // it already is BAD_HDR, no sense in resetting it
+        alternateId = Http::HdrType::BAD_HDR;
     }
 
 }

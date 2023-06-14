@@ -60,7 +60,10 @@ public:
     int getInt() const;
     int64_t getInt64() const;
 
+    bool hasId(const Http::HdrType other) const { return other == id || other == alternateId; }
+
     Http::HdrType id;
+    Http::HdrType alternateId;
     SBuf name;
     String value;
 };
