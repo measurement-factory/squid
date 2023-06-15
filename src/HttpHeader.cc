@@ -627,8 +627,11 @@ HttpHeader::sortInto(Packable &p, const HttpHeader &model) const
 {
     debugs(55, 7, this << " following " << &model);
 
-    // form to-do list
-    auto toPack(entries);
+    // Form a to-do list.
+    // No "auto" here to avoid silent copying of (expected) entries changes;
+    // we want this container to be a fast index without entry (de)allocations.
+    using Index = std::vector<HttpHeaderEntry*, PoolingAllocator<HttpHeaderEntry*> >;
+    Index toPack(entries);
 
     // pack those toPack entries that are present in the model, ~in model order
     for (const auto modelE: model.entries) {
