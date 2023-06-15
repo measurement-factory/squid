@@ -78,7 +78,7 @@ carpInit(void)
     if (rawCarpPeers.empty())
         return;
 
-    /* Build a list of the found peers and calculate hashes and load factors */
+    /* calculate hashes and load factors */
     for (const auto p: rawCarpPeers) {
         /* calculate this peers hash */
         p->carp.hash = 0;
