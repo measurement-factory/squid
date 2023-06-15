@@ -13,6 +13,7 @@
 
 #include "base/AsyncCall.h"
 #include "base/InstanceId.h"
+#include "base/RefCount.h"
 #include "cbdata.h"
 #include "comm/forward.h"
 #include "dlink.h"
@@ -60,26 +61,15 @@ class HelperServerBase;
  * If an overloaded helper has been overloaded for 3+ minutes, an attempt to use
  *   it results in on-persistent-overload action, which may kill worker.
  */
-class helper
+class helper: public RefCountable
 {
-    CBDATA_CLASS(helper);
-
 public:
+    using Pointer = RefCount<helper>;
+
+    /// \returns a newly created instance of the named helper
     /// \param name admin-visible helper category (with this process lifetime)
-    inline helper(const char *name) :
-        cmdline(nullptr),
-        id_name(name),
-        ipc_type(0),
-        droppedRequests(0),
-        overloadStart(0),
-        last_queue_warn(0),
-        last_restart(0),
-        timeout(0),
-        retryTimedOut(false),
-        retryBrokenHelper(false),
-        eom('\n') {
-        memset(&stats, 0, sizeof(stats));
-    }
+    static Pointer Make(const char *name);
+
     ~helper();
 
     /// \returns next request in the queue, or nil.
@@ -130,7 +120,24 @@ public:
     } stats;
 
 protected:
-    friend void helperSubmit(helper * hlp, const char *buf, HLPCB * callback, void *data);
+    friend void helperSubmit(const helper::Pointer &, const char *buf, HLPCB * callback, void *data);
+
+    /// \param name admin-visible helper category (with this process lifetime)
+    explicit helper(const char *name):
+        cmdline(nullptr),
+        id_name(name),
+        ipc_type(0),
+        droppedRequests(0),
+        overloadStart(0),
+        last_queue_warn(0),
+        last_restart(0),
+        timeout(0),
+        retryTimedOut(false),
+        retryBrokenHelper(false),
+        eom('\n') {
+        memset(&stats, 0, sizeof(stats));
+    }
+
     bool queueFull() const;
     bool overloaded() const;
     void syncQueueStats();
@@ -140,15 +147,15 @@ protected:
 
 class statefulhelper : public helper
 {
-    CBDATA_CLASS(statefulhelper);
-
 public:
+    using Pointer = RefCount<statefulhelper>;
     typedef std::unordered_map<Helper::ReservationId, helper_stateful_server *> Reservations;
 
-    inline statefulhelper(const char *name) : helper(name) {}
     inline ~statefulhelper() {}
 
 public:
+    static Pointer Make(const char *name);
+
     /// reserve the given server
     void reserveServer(helper_stateful_server * srv);
 
@@ -156,7 +163,9 @@ public:
     void cancelReservation(const Helper::ReservationId reservation);
 
 private:
-    friend void helperStatefulSubmit(statefulhelper * hlp, const char *buf, HLPCB * callback, void *data, const Helper::ReservationId & reservation);
+    friend void helperStatefulSubmit(const statefulhelper::Pointer &, const char *buf, HLPCB * callback, void *data, const Helper::ReservationId & reservation);
+
+    explicit statefulhelper(const char *name): helper(name) {}
 
     /// \return the previously reserved server (if the reservation is still valid) or nil
     helper_stateful_server *findServer(const Helper::ReservationId & reservation);
@@ -194,9 +203,6 @@ public:
 
     /// dequeues and sends a Helper::Unknown answer to all queued requests
     virtual void dropQueued();
-
-    /// the helper object that created this server
-    virtual helper *getParent() const = 0;
 
 public:
     /// Helper program identifier; does not change when contents do,
@@ -251,7 +257,7 @@ public:
     MemBuf *wqueue;
     MemBuf *writebuf;
 
-    helper *parent;
+    helper::Pointer parent;
 
     /// The helper request Xaction object for the current reply .
     /// A helper reply may be distributed to more than one of the retrieved
@@ -280,7 +286,6 @@ public:
     /*HelperServerBase API*/
     bool reserved() override {return false;}
     void dropQueued() override;
-    helper *getParent() const override {return parent;}
 
     /// Read timeout handler
     static void requestTimeout(const CommTimeoutCbParams &io);
@@ -302,12 +307,11 @@ public:
 
     /* HelperServerBase API */
     bool reserved() override {return reservationId.reserved();}
-    helper *getParent() const override {return parent;}
 
     /// close handler to handle exited server processes
     static void HelperServerClosed(helper_stateful_server *srv);
 
-    statefulhelper *parent;
+    statefulhelper::Pointer parent;
 
     // Reservations temporary lock the server for an exclusive "client" use. The
     // client keeps the reservation ID as a proof of her reservation. If a
@@ -317,13 +321,13 @@ public:
     time_t reservationStart; ///< when the last `reservation` was made
 };
 
-/* helper.c */
-void helperOpenServers(helper * hlp);
-void helperStatefulOpenServers(statefulhelper * hlp);
-void helperSubmit(helper * hlp, const char *buf, HLPCB * callback, void *data);
-void helperStatefulSubmit(statefulhelper * hlp, const char *buf, HLPCB * callback, void *data, uint64_t reservation);
-void helperShutdown(helper * hlp);
-void helperStatefulShutdown(statefulhelper * hlp);
+// TODO: Replace T::Pointers (except those in *Shutdown()?) with T references.
+void helperOpenServers(const helper::Pointer &);
+void helperStatefulOpenServers(const statefulhelper::Pointer &);
+void helperSubmit(const helper::Pointer &, const char *buf, HLPCB *, void *cbData);
+void helperStatefulSubmit(const statefulhelper::Pointer &, const char *buf, HLPCB *, void *cbData, uint64_t reservation);
+void helperShutdown(const helper::Pointer &);
+void helperStatefulShutdown(const statefulhelper::Pointer &);
 
 #endif /* SQUID_HELPER_H */
 
