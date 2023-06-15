@@ -627,9 +627,10 @@ HttpHeader::sortInto(Packable &p, const HttpHeader &model) const
 {
     debugs(55, 7, this << " following " << &model);
 
-    // Form a to-do list.
-    // No "auto" here to avoid silent copying of (expected) entries changes;
-    // we want this container to be a fast index without entry (de)allocations.
+    // Form a to-do list. No "auto" here to avoid future copying of entries if
+    // their container type changes (e.g., to store HttpHeaderEntry rather than
+    // pointers). That type is expected to change. This to-do container needs to
+    // be a fast (partial) index without HttpHeaderEntry (de)allocations.
     using Index = std::vector<HttpHeaderEntry*, PoolingAllocator<HttpHeaderEntry*> >;
     Index toPack(entries);
 
@@ -646,16 +647,18 @@ HttpHeader::sortInto(Packable &p, const HttpHeader &model) const
         if (!CBIT_TEST(mask, modelE->id) && !CBIT_TEST(mask, modelAlternateId))
             continue; // not forwarded
 
-        // linear search: pack the same entry if it is still on our to-do list
+        // Pack the matching entry if it is still on our to-do list.
         // XXX: This changes the original "A B A" field order into "A A B".
+        // TODO: Linear search may be OK here due to a small number of fields,
+        // but consider optimizing (e.g., start with the expected position).
         for (auto &e: toPack) {
             if (!e)
                 continue; // already packed
 
-            const auto same = modelE->id == Http::HdrType::OTHER ?
+            const auto matching = modelE->id == Http::HdrType::OTHER ?
                 (e->name.length() == modelE->name.length() && e->name.caseCmp(modelE->name) == 0):
                 (e->id == modelE->id || e->id == modelAlternateId);
-            if (same) {
+            if (matching) {
                 e->packInto(&p);
                 e = nullptr; // remove from toPack
                 // and keep going, there might be more of these
@@ -663,7 +666,8 @@ HttpHeader::sortInto(Packable &p, const HttpHeader &model) const
         }
     }
 
-    // now pack all the remaining entries on the to-do list
+    // pack all the entries remaining on our to-do list;
+    // these remaining entries have no matches in the model
     for (const auto e: toPack) {
         if (e)
             e->packInto(&p);
