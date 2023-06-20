@@ -319,7 +319,7 @@ helperOpenServers(const helper::Pointer &hlp)
     // Call handleLackOfServers() before hlp->last_restart is updated because
     // that method uses last_restart to measure the delay since previous start.
     // TODO: Refactor last_restart code to measure failure frequency rather than
-    // detecting a helper X failure that is being close to a helper Y start.
+    // detecting a helper X failure that is being close to the helper Y start.
     if (sawFailures)
         hlp->handleLackOfServers(false);
 
@@ -449,7 +449,7 @@ helperStatefulOpenServers(const statefulhelper::Pointer &hlp)
     // Call handleLackOfServers() before hlp->last_restart is updated because
     // that method uses last_restart to measure the delay since previous start.
     // TODO: Refactor last_restart code to measure failure frequency rather than
-    // detecting a helper X failure that is being close to helper Y start.
+    // detecting a helper X failure that is being close to the helper Y start.
     if (sawFailures)
         hlp->handleLackOfServers(false);
 
@@ -880,8 +880,10 @@ helper::handleKilledServer(HelperServerBase *srv, bool &needsNewServers)
 void
 helper::handleLackOfServers(const bool madeProgress)
 {
-    debugs(80, DBG_IMPORTANT, "Too few " << id_name << " processes are running (need " << childs.needNew() << "/" << childs.n_max << ")");
-    debugs(80, DBG_IMPORTANT, childs.n_active << "<" << childs.n_startup << " && " << squid_curtime - last_restart);
+    debugs(80, DBG_IMPORTANT, "Too few " << id_name << " processes are running (need " << childs.needNew() << "/" << childs.n_max << ")" <<
+           Debug::Extra << "active processes: " << childs.n_active <<
+           Debug::Extra << "startup processes: " << childs.n_startup <<
+           Debug::Extra << "seconds since startup: " << squid_curtime - last_restart);
     if (childs.n_active < childs.n_startup && last_restart > squid_curtime - 30) {
         if (madeProgress)
             debugs(80, DBG_CRITICAL, "ERROR: The " << id_name << " helpers are crashing too rapidly, need help!");
