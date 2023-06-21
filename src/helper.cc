@@ -832,8 +832,6 @@ helper::~helper()
     /* note, don't free id_name, it probably points to static memory */
 
     // TODO: if the queue is not empty it will leak Helper::Request's
-    // TODO: Use DBG_IMPORTANT (WARNING) during and after shutdown.
-    // TODO: Use (DBG_CRITICAL) ERROR or even BUG before shutting_down.
     if (!queue.empty())
         debugs(84, DBG_CRITICAL, "WARNING: freeing " << id_name << " helper with " << stats.queue_size << " requests queued");
 }

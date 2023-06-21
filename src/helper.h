@@ -94,49 +94,36 @@ public:
     void handleKilledServer(HelperServerBase *srv, bool &needsNewServers);
 
 public:
-    wordlist *cmdline;
+    wordlist *cmdline = nullptr;
     dlink_list servers;
     std::queue<Helper::Xaction *> queue;
-    const char *id_name;
+    const char *id_name = nullptr;
     Helper::ChildConfig childs;    ///< Configuration settings for number running.
-    int ipc_type;
+    int ipc_type = 0;
     Ip::Address addr;
-    unsigned int droppedRequests; ///< requests not sent during helper overload
-    time_t overloadStart; ///< when the helper became overloaded (zero if it is not)
-    time_t last_queue_warn;
-    time_t last_restart;
-    time_t timeout; ///< Requests timeout
-    bool retryTimedOut; ///< Whether the timed-out requests must retried
-    bool retryBrokenHelper; ///< Whether the requests must retried on BH replies
+    unsigned int droppedRequests = 0; ///< requests not sent during helper overload
+    time_t overloadStart = 0; ///< when the helper became overloaded (zero if it is not)
+    time_t last_queue_warn = 0;
+    time_t last_restart = 0;
+    time_t timeout = 0; ///< Requests timeout
+    bool retryTimedOut = false; ///< Whether the timed-out requests must retried
+    bool retryBrokenHelper = false; ///< Whether the requests must retried on BH replies
     SBuf onTimedOutResponse; ///< The response to use when helper response timedout
-    char eom;   ///< The char which marks the end of (response) message, normally '\n'
+    char eom = '\n';   ///< The char which marks the end of (response) message, normally '\n'
 
     struct _stats {
-        int requests;
-        int replies;
-        int timedout;
-        int queue_size;
-        int avg_svc_time;
+        int requests = 0;
+        int replies = 0;
+        int timedout = 0;
+        int queue_size = 0;
+        int avg_svc_time = 0;
     } stats;
 
 protected:
     friend void helperSubmit(const helper::Pointer &, const char *buf, HLPCB * callback, void *data);
 
     /// \param name admin-visible helper category (with this process lifetime)
-    explicit helper(const char *name):
-        cmdline(nullptr),
-        id_name(name),
-        ipc_type(0),
-        droppedRequests(0),
-        overloadStart(0),
-        last_queue_warn(0),
-        last_restart(0),
-        timeout(0),
-        retryTimedOut(false),
-        retryBrokenHelper(false),
-        eom('\n') {
-        memset(&stats, 0, sizeof(stats));
-    }
+    explicit helper(const char *name): id_name(name) {}
 
     bool queueFull() const;
     bool overloaded() const;
@@ -163,7 +150,7 @@ public:
     void cancelReservation(const Helper::ReservationId reservation);
 
 private:
-    friend void helperStatefulSubmit(const statefulhelper::Pointer &, const char *buf, HLPCB * callback, void *data, const Helper::ReservationId & reservation);
+    friend void helperStatefulSubmit(const statefulhelper::Pointer &, const char *buf, HLPCB *, void *cbData, const Helper::ReservationId &);
 
     explicit statefulhelper(const char *name): helper(name) {}
 
@@ -321,7 +308,6 @@ public:
     time_t reservationStart; ///< when the last `reservation` was made
 };
 
-// TODO: Replace T::Pointers (except those in *Shutdown()?) with T references.
 void helperOpenServers(const helper::Pointer &);
 void helperStatefulOpenServers(const statefulhelper::Pointer &);
 void helperSubmit(const helper::Pointer &, const char *buf, HLPCB *, void *cbData);
