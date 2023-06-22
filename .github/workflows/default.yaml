@@ -2,12 +2,12 @@ name: GitHub CI
 
 on:
   push:
-    # test this branch and staged PRs based on this branch code
-    branches: [ "master", "auto" ]
+    # test this branch code
+    branches: [ "SQUID-518-test-daft-production-upgrade" ]
 
   pull_request:
     # test PRs targeting this branch code
-    branches: [ "master" ]
+    branches: [ "SQUID-518-test-daft-production-upgrade" ]
 
 env:
   # empty except for pull_request events
