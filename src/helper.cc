@@ -246,7 +246,7 @@ helperOpenServers(const helper::Pointer &hlp)
 
     assert(nargs <= HELPER_MAX_ARGS);
 
-    auto sawFailures = false;
+    int successfullyStarted = 0;
 
     for (k = 0; k < need_new; ++k) {
         getCurrentTime();
@@ -262,11 +262,10 @@ helperOpenServers(const helper::Pointer &hlp)
 
         if (pid < 0) {
             debugs(84, DBG_IMPORTANT, "WARNING: Cannot run '" << progname << "' process.");
-            // delay handleLackOfServers(); the loop might start enough helpers
-            sawFailures = true;
             continue;
         }
 
+        ++successfullyStarted;
         ++ hlp->childs.n_running;
         ++ hlp->childs.n_active;
         srv = new helper_server;
@@ -320,7 +319,7 @@ helperOpenServers(const helper::Pointer &hlp)
     // that method uses last_restart to measure the delay since previous start.
     // TODO: Refactor last_restart code to measure failure frequency rather than
     // detecting a helper #X failure that is being close to the helper #Y start.
-    if (sawFailures)
+    if (successfullyStarted < need_new)
         hlp->handleLackOfServers(false);
 
     hlp->last_restart = squid_curtime;
@@ -382,7 +381,7 @@ helperStatefulOpenServers(const statefulhelper::Pointer &hlp)
 
     assert(nargs <= HELPER_MAX_ARGS);
 
-    auto sawFailures = false;
+    int successfullyStarted = 0;
 
     for (int k = 0; k < need_new; ++k) {
         getCurrentTime();
@@ -400,11 +399,10 @@ helperStatefulOpenServers(const statefulhelper::Pointer &hlp)
 
         if (pid < 0) {
             debugs(84, DBG_IMPORTANT, "WARNING: Cannot run '" << progname << "' process.");
-            // delay handleLackOfServers(); the loop might start enough helpers
-            sawFailures = true;
             continue;
         }
 
+        ++successfullyStarted;
         ++ hlp->childs.n_running;
         ++ hlp->childs.n_active;
         helper_stateful_server *srv = new helper_stateful_server;
@@ -450,7 +448,7 @@ helperStatefulOpenServers(const statefulhelper::Pointer &hlp)
     // that method uses last_restart to measure the delay since previous start.
     // TODO: Refactor last_restart code to measure failure frequency rather than
     // detecting a helper #X failure that is being close to the helper #Y start.
-    if (sawFailures)
+    if (successfullyStarted < need_new)
         hlp->handleLackOfServers(false);
 
     hlp->last_restart = squid_curtime;
@@ -880,9 +878,12 @@ helper::handleKilledServer(HelperServerBase *srv, bool &needsNewServers)
 void
 helper::handleLackOfServers(const bool madeProgress)
 {
-    debugs(80, DBG_IMPORTANT, "Too few " << id_name << " processes are running (need " << childs.needNew() << "/" << childs.n_max << ")" <<
+    const auto needNew = childs.needNew();
+    Assure(needNew > 0);
+    debugs(80, DBG_IMPORTANT, "Too few " << id_name << " processes are running (need " << needNew << "/" << childs.n_max << ")" <<
            Debug::Extra << "active processes: " << childs.n_active <<
            Debug::Extra << "processes configured to start at (re)configuration: " << childs.n_startup);
+
     if (childs.n_active < childs.n_startup && last_restart > squid_curtime - 30) {
         if (madeProgress)
             debugs(80, DBG_CRITICAL, "ERROR: The " << id_name << " helpers are crashing too rapidly, need help!");
