@@ -93,9 +93,10 @@ public:
     /// \param needsNewServers true if new servers must started, false otherwise
     void handleKilledServer(HelperServerBase *srv, bool &needsNewServers);
 
-    /// Reacts to an insufficient number of servers after a server death
+    /// Reacts to unexpected server death(s), including a failure to start server(s)
+    /// and an unexpected exit of a previously started server. \sa handleKilledServer()
     /// \param madeProgress whether the died server responded to any requests
-    void handleLackOfServers(bool madeProgress);
+    void handleFewerServers(bool madeProgress);
 
 public:
     wordlist *cmdline;

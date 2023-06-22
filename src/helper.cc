@@ -315,12 +315,12 @@ helperOpenServers(const helper::Pointer &hlp)
         comm_read(srv->readPipe, srv->rbuf, srv->rbuf_sz - 1, call);
     }
 
-    // Call handleLackOfServers() before hlp->last_restart is updated because
+    // Call handleFewerServers() before hlp->last_restart is updated because
     // that method uses last_restart to measure the delay since previous start.
     // TODO: Refactor last_restart code to measure failure frequency rather than
     // detecting a helper #X failure that is being close to the helper #Y start.
     if (successfullyStarted < need_new)
-        hlp->handleLackOfServers(false);
+        hlp->handleFewerServers(false);
 
     hlp->last_restart = squid_curtime;
     safe_free(shortname);
@@ -444,12 +444,12 @@ helperStatefulOpenServers(const statefulhelper::Pointer &hlp)
         comm_read(srv->readPipe, srv->rbuf, srv->rbuf_sz - 1, call);
     }
 
-    // Call handleLackOfServers() before hlp->last_restart is updated because
+    // Call handleFewerServers() before hlp->last_restart is updated because
     // that method uses last_restart to measure the delay since previous start.
     // TODO: Refactor last_restart code to measure failure frequency rather than
     // detecting a helper #X failure that is being close to the helper #Y start.
     if (successfullyStarted < need_new)
-        hlp->handleLackOfServers(false);
+        hlp->handleFewerServers(false);
 
     hlp->last_restart = squid_curtime;
     safe_free(shortname);
@@ -867,8 +867,9 @@ helper::handleKilledServer(HelperServerBase *srv, bool &needsNewServers)
         --childs.n_active;
         debugs(84, DBG_CRITICAL, "WARNING: " << id_name << " #" << srv->index << " exited");
 
+        handleFewerServers(srv->stats.replies >= 1);
+
         if (childs.needNew() > 0) {
-            handleLackOfServers(srv->stats.replies >= 1);
             srv->flags.shutdown = true;
             needsNewServers = true;
         }
@@ -876,10 +877,13 @@ helper::handleKilledServer(HelperServerBase *srv, bool &needsNewServers)
 }
 
 void
-helper::handleLackOfServers(const bool madeProgress)
+helper::handleFewerServers(const bool madeProgress)
 {
     const auto needNew = childs.needNew();
-    Assure(needNew > 0);
+
+    if (!needNew)
+        return; // some server(s) have died, but we still have enough
+
     debugs(80, DBG_IMPORTANT, "Too few " << id_name << " processes are running (need " << needNew << "/" << childs.n_max << ")" <<
            Debug::Extra << "active processes: " << childs.n_active <<
            Debug::Extra << "processes configured to start at (re)configuration: " << childs.n_startup);
