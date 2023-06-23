@@ -20,7 +20,7 @@
 
 #include <ostream>
 
-InstanceIdDefinitions(Comm::Connection, "conn");
+InstanceIdDefinitions(Comm::Connection, "conn", uint64_t);
 
 class CachePeer;
 bool
