@@ -263,7 +263,7 @@ store_client::copy(StoreEntry * anEntry,
     // when we already can respond with HTTP headers.
     Assure(!copyInto.offset || answeredOnce());
 
-    parsingBuffer = Store::ParsingBuffer(copyInto); // poor man's .emplace(copyInto)
+    parsingBuffer.emplace(copyInto);
 
     static bool copying (false);
     assert (!copying);

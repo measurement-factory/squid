@@ -34,7 +34,6 @@ public:
     void saveState();
     void restoreState();
     void purgeRequest ();
-    void sendClientUpstreamResponse();
     void doGetMoreData();
     void identifyStoreObject();
     void identifyFoundObject(StoreEntry *entry, const char *detail);

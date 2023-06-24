@@ -17,8 +17,6 @@
 #include "StoreIOBuffer.h"
 #include "StoreIOState.h"
 
-#include <optional>
-
 /// A storeClientCopy() callback function.
 ///
 /// Upon storeClientCopy() success, StoreIOBuffer::flags.error is zero, and
@@ -155,8 +153,6 @@ private:
     void readFromMemory();
     void scheduleRead();
     bool startSwapin();
-
-    void unpackHeader(char const *buf, ssize_t len);
     void handleBodyFromDisk();
     void maybeWriteFromDiskToMemory(const StoreIOBuffer &);
 
