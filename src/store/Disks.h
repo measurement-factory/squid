@@ -34,6 +34,8 @@ public:
     void sync() override;
     void reference(StoreEntry &) override;
     bool dereference(StoreEntry &e) override;
+    void lockInPolicy(StoreEntry &) override;
+    void unlockInPolicy(StoreEntry &) override;
     void updateHeaders(StoreEntry *) override;
     void maintain() override;
     bool anchorToCache(StoreEntry &) override;

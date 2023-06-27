@@ -52,6 +52,8 @@ public:
     void stat(StoreEntry &) const override;
     void reference(StoreEntry &e) override;
     bool dereference(StoreEntry &e) override;
+    void lockInPolicy(StoreEntry &) override {}
+    void unlockInPolicy(StoreEntry &) override {}
     void maintain() override;
     /// whether this disk storage is capable of serving multiple workers
     virtual bool smpAware() const = 0;
