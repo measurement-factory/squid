@@ -217,6 +217,7 @@ main() {
             proxy-update-headers-after-304
             upgrade-protocols
             proxy-collapsed-forwarding
+            cache-response
             cache-refresh-response
             busy-restart
             truncated-responses
