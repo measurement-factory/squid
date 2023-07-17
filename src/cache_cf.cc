@@ -605,9 +605,9 @@ parseConfigFileOrThrow(const char *file_name)
 
     ACLMethodData::ThePurgeCount = 0;
 
-    // hard-coded ACLs must be created before parsing
-    // ACL-related configuration lines
-    ACL::CreatePredefined();
+    // add built-in ACLs before parsing directives that might use them
+    // and to detect same-name conflicts with admin-configured ACLs
+    Acl::RegisterBuiltInChecks();
 
     default_all();
 

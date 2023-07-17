@@ -16,32 +16,26 @@
 #include "sbuf/Stream.h"
 
 SBufList
-ACLManager::dump() const
+Acl::CacheManagerCheck::dump() const
 {
-    throw TextException(ToSBuf("cannot dump ACL ", name, " with pre-defined ", class_, " type"), Here());
+    Assure(!"unreachable code: hard-coded ACLs cannot be represented using squid.conf syntax");
 }
 
 int
-ACLManager::match(ACLChecklist *checklist)
+Acl::CacheManagerCheck::match(ACLChecklist *checklist)
 {
     const auto request = Filled(checklist)->request;
     return request->url.getScheme() == AnyP::PROTO_CACHE_OBJECT || ForThisCacheManager(request);
 }
 
 void
-ACLManager::parse()
+Acl::CacheManagerCheck::parse()
 {
     throw TextException(ToSBuf("cannot parse ACL ", name, " with pre-defined ", class_, " type"), Here());
 }
 
 void
-ACLManager::dumpAll(const char *, StoreEntry *)
+Acl::CacheManagerCheck::dumpAll(const char *, StoreEntry *)
 {
     debugs(3, 3, "skip pre-defined ACL " << name);
-}
-
-void
-ACLManager::prohibitTypeChange() const
-{
-    throw TextException(ToSBuf("ACL ", name, " already exists with a pre-defined type"), Here());
 }

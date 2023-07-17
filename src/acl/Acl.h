@@ -47,8 +47,6 @@ public:
     static void ParseAclLine(ConfigParser &parser, ACL ** head);
     static void Initialize();
     static ACL *FindByName(const char *name);
-    /// creates hard-coded ACLs such as manager ACL
-    static void CreatePredefined();
 
     ACL();
     ACL(ACL &&) = delete; // no copying of any kind
@@ -79,8 +77,6 @@ public:
 
     virtual void prepareForUse() {}
 
-    SBufList dumpOptions(); ///< \returns approximate options configuration
-
     /// appends the entire configuration to the entry
     virtual void dumpAll(const char *directiveName, StoreEntry *);
 
@@ -108,9 +104,7 @@ private:
     /// \see ACL::options()
     virtual const Acl::Options &lineOptions() { return Acl::NoOptions(); }
 
-    /// an action performed if parser encounters an ACL line
-    /// with an already existing ACL name but a different type
-    virtual void prohibitTypeChange() const;
+    SBufList dumpOptions(); ///< \returns approximate options configuration
 };
 
 /// \ingroup ACLAPI
@@ -196,6 +190,9 @@ operator <<(std::ostream &o, const Answer a)
     }
     return o;
 }
+
+/// creates hard-coded ACLs such as manager ACL
+void RegisterBuiltInChecks();
 
 } // namespace Acl
 

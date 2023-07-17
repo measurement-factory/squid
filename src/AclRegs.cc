@@ -161,7 +161,7 @@ Acl::Init()
     RegisterMaker("annotate_transaction", [](TypeName name)->ACL* { return new ACLStrategised<NotePairs::Entry*>(new ACLAnnotationData, new ACLAnnotateTransactionStrategy, name); });
     RegisterMaker("has", [](TypeName name)->ACL* {return new ACLStrategised<ACLChecklist *>(new ACLHasComponentData, new ACLHasComponentStrategy, name); });
     RegisterMaker("transaction_initiator", [](TypeName name)->ACL* {return new TransactionInitiator(name);});
-    RegisterMaker("manager_type", [](TypeName name)->ACL* {return new ACLManager(name);});
+    RegisterMaker("built-in Cache Manager ACL", [](TypeName name)->ACL* {return new CacheManagerCheck(name);});
 
 #if USE_LIBNETFILTERCONNTRACK
     RegisterMaker("clientside_mark", [](TypeName)->ACL* { return new Acl::ConnMark; }); // XXX: Add name parameter to ctor

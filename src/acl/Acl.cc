@@ -14,6 +14,7 @@
 #include "acl/Gadgets.h"
 #include "acl/Options.h"
 #include "anyp/PortCfg.h"
+#include "base/TextException.h"
 #include "cache_cf.h"
 #include "ConfigParser.h"
 #include "debug/Stream.h"
@@ -28,6 +29,17 @@
 #include <map>
 
 const char *AclMatchedName = nullptr;
+
+static void
+RegisterNamed(ACL *acl)
+{
+    // add to the global list for searching explicit ACLs by name
+    auto head = &Config.aclList;
+    acl->next = *head;
+    *head = acl;
+    // register for centralized cleanup
+    aclRegister(acl);
+}
 
 namespace Acl {
 
@@ -66,6 +78,13 @@ Make(TypeName typeName)
     return result;
 }
 
+void
+RegisterBuiltInChecks()
+{
+    RegisterNamed(Make("manager_type"));
+    // add other predefined types here
+}
+
 } // namespace Acl
 
 void
@@ -102,22 +121,6 @@ ACL::FindByName(const char *name)
     debugs(28, 9, "ACL::FindByName found no match");
 
     return nullptr;
-}
-
-static void
-AddToList(ACL *acl, ACL **head)
-{
-    acl->next = *head;
-    *head = acl;
-    // register for centralized cleanup
-    aclRegister(acl);
-}
-
-void
-ACL::CreatePredefined()
-{
-    AddToList(Acl::Make("manager_type"), &Config.aclList);
-    // add other predefined types here
 }
 
 ACL::ACL() :
@@ -246,9 +249,12 @@ ACL::ParseAclLine(ConfigParser &parser, ACL ** head)
         new_acl = 1;
     } else {
         if (strcmp (A->typeString(),theType) ) {
-            A->prohibitTypeChange();
+            throw TextException(ToSBuf("new ACL declaration type conflicts with an existing ", A->name, " ACL:",
+                                       Debug::Extra, "new ACL type: ", theType,
+                                       Debug::Extra, "existing ACL type: ", A->typeString()), Here());
             return;
         }
+
         debugs(28, 3, "aclParseAclLine: Appending to '" << aclname << "'");
         new_acl = 0;
     }
@@ -283,7 +289,7 @@ ACL::ParseAclLine(ConfigParser &parser, ACL ** head)
 
     // add to the global list for searching explicit ACLs by name
     assert(head && *head == Config.aclList);
-    AddToList(A, head);
+    RegisterNamed(A);
 }
 
 bool
@@ -413,12 +419,6 @@ bool
 ACL::requiresRequest() const
 {
     return false;
-}
-
-void
-ACL::prohibitTypeChange() const
-{
-    throw TextException(ToSBuf("ACL ", name, " already exists with different type"), Here());
 }
 
 /*********************/
