@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1996-2022 The Squid Software Foundation and contributors
+ * Copyright (C) 1996-2023 The Squid Software Foundation and contributors
  *
  * Squid software is distributed under GPLv2+ license and includes
  * contributions from numerous individuals and organizations.
@@ -454,16 +454,6 @@ public:
     int max_open_disk_fds;
     int uri_whitespace;
     AclSizeLimit *rangeOffsetLimit;
-#if MULTICAST_MISS_STREAM
-
-    struct {
-
-        Ip::Address addr;
-        int ttl;
-        unsigned short port;
-        char *encode_key;
-    } mcast_miss;
-#endif
 
     /// request_header_access and request_header_replace
     HeaderManglers *request_header_access;
@@ -552,8 +542,6 @@ public:
         int connect_gap;
         int connect_timeout;
     } happyEyeballs;
-
-    DebugMessages *debugMessages; ///< cache_log_message
 };
 
 extern SquidConfig Config;

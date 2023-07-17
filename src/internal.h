@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1996-2022 The Squid Software Foundation and contributors
+ * Copyright (C) 1996-2023 The Squid Software Foundation and contributors
  *
  * Squid software is distributed under GPLv2+ license and includes
  * contributions from numerous individuals and organizations.
@@ -31,7 +31,7 @@ int internalHostnameIs(const char *);
 
 /// whether the given request URL path points to a cache manager (not
 /// necessarily running on this Squid instance)
-bool ForSomeCacheManager(const SBuf &urlPath);
+bool ForSomeCacheManager(const SBuf &);
 
 /// whether the given request is directed to the cache manager
 /// running on this Squid instance

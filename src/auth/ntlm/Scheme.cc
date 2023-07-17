@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1996-2022 The Squid Software Foundation and contributors
+ * Copyright (C) 1996-2023 The Squid Software Foundation and contributors
  *
  * Squid software is distributed under GPLv2+ license and includes
  * contributions from numerous individuals and organizations.
@@ -23,7 +23,8 @@ public:
         debugs(29, 2, "Initialized Authentication Scheme '" << type << "'");
     }
 };
-RunnerRegistrationEntry(NtlmAuthRr);
+
+DefineRunnerRegistrator(NtlmAuthRr);
 
 Auth::Scheme::Pointer
 Auth::Ntlm::Scheme::GetInstance()

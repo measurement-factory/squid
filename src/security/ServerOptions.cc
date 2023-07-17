@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1996-2022 The Squid Software Foundation and contributors
+ * Copyright (C) 1996-2023 The Squid Software Foundation and contributors
  *
  * Squid software is distributed under GPLv2+ license and includes
  * contributions from numerous individuals and organizations.
@@ -152,7 +152,7 @@ Security::ServerOptions::dumpCfg(Packable *p, const char *pfx) const
         p->appendf(" %sgenerate-host-certificates=off", pfx);
 
     if (dynamicCertMemCacheSize != 4*1024*1024) // 4MB default, no 'tls-' prefix
-        p->appendf(" dynamic_cert_mem_cache_size=%" PRIuSIZE "bytes", dynamicCertMemCacheSize);
+        p->appendf(" dynamic_cert_mem_cache_size=%zubytes", dynamicCertMemCacheSize);
 
     if (!staticContextSessionId.isEmpty())
         p->appendf(" %scontext=" SQUIDSBUFPH, pfx, SQUIDSBUFPRINT(staticContextSessionId));

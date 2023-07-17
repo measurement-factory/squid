@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1996-2022 The Squid Software Foundation and contributors
+ * Copyright (C) 1996-2023 The Squid Software Foundation and contributors
  *
  * Squid software is distributed under GPLv2+ license and includes
  * contributions from numerous individuals and organizations.
@@ -72,7 +72,6 @@ class HttpHeader
 {
 
 public:
-    HttpHeader();
     explicit HttpHeader(const http_hdr_owner_type owner);
     HttpHeader(const HttpHeader &other);
     ~HttpHeader();
@@ -106,7 +105,6 @@ public:
     void delAt(HttpHeaderPos pos, int &headers_deleted);
     void refreshMask();
     void addEntry(HttpHeaderEntry * e);
-    void insertEntry(HttpHeaderEntry * e);
     String getList(Http::HdrType id) const;
     bool getList(Http::HdrType id, String *s) const;
     bool conflictingContentLength() const { return conflictingContentLength_; }
@@ -137,7 +135,7 @@ public:
     void putTime(Http::HdrType id, time_t htime);
     void putStr(Http::HdrType id, const char *str);
     void putAuth(const char *auth_scheme, const char *realm);
-    void putCc(const HttpHdrCc * cc);
+    void putCc(const HttpHdrCc &cc);
     void putContRange(const HttpHdrContRange * cr);
     void putRange(const HttpHdrRange * range);
     void putSc(HttpHdrSc *sc);

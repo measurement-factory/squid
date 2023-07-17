@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1996-2022 The Squid Software Foundation and contributors
+ * Copyright (C) 1996-2023 The Squid Software Foundation and contributors
  *
  * Squid software is distributed under GPLv2+ license and includes
  * contributions from numerous individuals and organizations.
@@ -147,7 +147,6 @@ public:
         /// Response header and body bytes written to the client connection.
         uint64_t size = 0;
         /// Response header bytes written to the client connection.
-        /// Not to be confused with clientReplyContext::headers_sz.
         size_t headers_sz = 0;
     } out;
 
@@ -158,7 +157,6 @@ public:
 
     struct Flags {
         bool accel = false;
-        bool internal = false;
         bool done_copying = false;
     } flags;
 

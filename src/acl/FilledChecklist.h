@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1996-2022 The Squid Software Foundation and contributors
+ * Copyright (C) 1996-2023 The Squid Software Foundation and contributors
  *
  * Squid software is distributed under GPLv2+ license and includes
  * contributions from numerous individuals and organizations.
@@ -87,11 +87,12 @@ public:
     char *snmp_community;
 #endif
 
+    // TODO: RefCount errors; do not ignore them because their "owner" is gone!
     /// TLS server [certificate validation] errors, in undefined order.
     /// The errors are accumulated as Squid goes through validation steps
     /// and server certificates. They are cleared on connection retries.
     /// For sslproxy_cert_error checks, contains just the current/last error.
-    const Security::CertErrors *sslErrors;
+    CbcPointer<Security::CertErrors> sslErrors;
 
     /// Peer certificate being checked by ssl_verify_cb() and by
     /// Security::PeerConnector class. In other contexts, the peer

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1996-2022 The Squid Software Foundation and contributors
+ * Copyright (C) 1996-2023 The Squid Software Foundation and contributors
  *
  * Squid software is distributed under GPLv2+ license and includes
  * contributions from numerous individuals and organizations.
@@ -241,7 +241,10 @@ FwdState::updateAleWithFinalError()
         return;
 
     LogTagsErrors lte;
-    lte.timedout = (err->xerrno == ETIMEDOUT || err->type == ERR_READ_TIMEOUT);
+    if (err->xerrno == ETIMEDOUT || err->type == ERR_READ_TIMEOUT)
+        lte.timedout = true;
+    else if (err->type != ERR_NONE)
+        lte.aborted = true;
     al->cache.code.err.update(lte);
     if (!err->detail) {
         static const auto d = MakeNamedErrorDetail("WITH_SERVER");
@@ -343,8 +346,7 @@ FwdState::Start(const Comm::ConnectionPointer &clientConn, StoreEntry *entry, Ht
      * be allowed.  yuck, I know.
      */
 
-    if ( Config.accessList.miss && !request->client_addr.isNoAddr() &&
-            !request->flags.internal && request->url.getScheme() != AnyP::PROTO_CACHE_OBJECT) {
+    if ( Config.accessList.miss && !request->client_addr.isNoAddr() && !request->flags.internal) {
         /**
          * Check if this host is allowed to fetch MISSES from us (miss_access).
          * Intentionally replace the src_addr automatically selected by the checklist code
@@ -392,11 +394,6 @@ FwdState::Start(const Comm::ConnectionPointer &clientConn, StoreEntry *entry, Ht
     }
 
     switch (request->url.getScheme()) {
-
-    case AnyP::PROTO_CACHE_OBJECT:
-        debugs(17, 2, "calling CacheManager due to request scheme " << request->url.getScheme());
-        CacheManager::GetInstance()->start(clientConn, request, entry, al);
-        return;
 
     case AnyP::PROTO_URN:
         urnStart(request, entry, al);
@@ -1277,8 +1274,6 @@ FwdState::dispatch()
             else
                 Ftp::StartGateway(this);
             break;
-
-        case AnyP::PROTO_CACHE_OBJECT:
 
         case AnyP::PROTO_URN:
             fatal_dump("Should never get here");

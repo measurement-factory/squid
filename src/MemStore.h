@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1996-2022 The Squid Software Foundation and contributors
+ * Copyright (C) 1996-2023 The Squid Software Foundation and contributors
  *
  * Squid software is distributed under GPLv2+ license and includes
  * contributions from numerous individuals and organizations.
@@ -80,7 +80,7 @@ protected:
     void copyToShm(StoreEntry &e);
     void copyToShmSlice(StoreEntry &e, Ipc::StoreMapAnchor &anchor, Ipc::StoreMap::Slice &slice);
     bool copyFromShm(StoreEntry &e, const sfileno index, const Ipc::StoreMapAnchor &anchor);
-    bool copyFromShmSlice(StoreEntry &e, const StoreIOBuffer &buf, bool eof);
+    void copyFromShmSlice(StoreEntry &, const StoreIOBuffer &);
 
     void updateHeadersOrThrow(Ipc::StoreMapUpdate &update);
 

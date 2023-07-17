@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1996-2022 The Squid Software Foundation and contributors
+ * Copyright (C) 1996-2023 The Squid Software Foundation and contributors
  *
  * Squid software is distributed under GPLv2+ license and includes
  * contributions from numerous individuals and organizations.
@@ -124,6 +124,13 @@ public:
     void configureContentLengthInterpreter(Http::ContentLengthInterpreter &) override;
     /// parses reply header using Parser
     bool parseHeader(Http1::Parser &hp);
+
+    /// Parses response status line and headers at the start of the given
+    /// NUL-terminated buffer of the given size. Respects reply_header_max_size.
+    /// Assures pstate becomes Http::Message::psParsed on (and only on) success.
+    /// \returns the number of bytes in a successfully parsed prefix (or zero)
+    /// \retval 0 implies that more data is needed to parse the response prefix
+    size_t parseTerminatedPrefix(const char *, size_t);
 
 private:
     /** initialize */

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1996-2022 The Squid Software Foundation and contributors
+ * Copyright (C) 1996-2023 The Squid Software Foundation and contributors
  *
  * Squid software is distributed under GPLv2+ license and includes
  * contributions from numerous individuals and organizations.
@@ -72,8 +72,13 @@ public:
     /// This applies to TPROXY traffic that has not had spoofing disabled through
     /// the spoof_client_ip squid.conf ACL.
     bool spoofClientIp = false;
-    /** set if the request is internal (\see ClientHttpRequest::flags.internal)*/
+
+    /// whether the request targets a /squid-internal- resource (e.g., a MIME
+    /// icon or a cache manager page) served by this Squid instance
+    /// TODO: Rename to avoid a false implication that this flag is true for
+    /// requests for /squid-internal- resources served by other Squid instances.
     bool internal = false;
+
     /** if set, request to try very hard to keep the connection alive */
     bool mustKeepalive = false;
     /** set if the request wants connection oriented auth */

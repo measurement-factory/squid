@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1996-2022 The Squid Software Foundation and contributors
+ * Copyright (C) 1996-2023 The Squid Software Foundation and contributors
  *
  * Squid software is distributed under GPLv2+ license and includes
  * contributions from numerous individuals and organizations.
@@ -144,12 +144,6 @@ httpHeaderInitModule(void)
 /*
  * HttpHeader Implementation
  */
-
-HttpHeader::HttpHeader() : owner (hoNone), len (0), conflictingContentLength_(false)
-{
-    entries.reserve(32);
-    httpHeaderMaskInit(&mask, 0);
-}
 
 HttpHeader::HttpHeader(const http_hdr_owner_type anOwner): owner(anOwner), len(0), conflictingContentLength_(false)
 {
@@ -762,30 +756,6 @@ HttpHeader::addEntry(HttpHeaderEntry * e)
     len += e->name.length() + 2 + e->value.size() + 2;
 }
 
-/* inserts an entry;
- * does not call e->clone() so one should not reuse "*e"
- */
-void
-HttpHeader::insertEntry(HttpHeaderEntry * e)
-{
-    assert(e);
-    assert(any_valid_header(e->id));
-
-    debugs(55, 7, this << " adding entry: " << e->id << " at " << entries.size());
-
-    // Http::HdrType::BAD_HDR is filtered out by assert_any_valid_header
-    if (CBIT_TEST(mask, e->id)) {
-        ++ headerStatsTable[e->id].repCount;
-    } else {
-        CBIT_SET(mask, e->id);
-    }
-
-    entries.insert(entries.begin(),e);
-
-    /* increment header length, allow for ": " and crlf */
-    len += e->name.length() + 2 + e->value.size() + 2;
-}
-
 bool
 HttpHeader::getList(Http::HdrType id, String *s) const
 {
@@ -1040,15 +1010,14 @@ HttpHeader::putAuth(const char *auth_scheme, const char *realm)
 }
 
 void
-HttpHeader::putCc(const HttpHdrCc * cc)
+HttpHeader::putCc(const HttpHdrCc &cc)
 {
-    assert(cc);
     /* remove old directives if any */
     delById(Http::HdrType::CACHE_CONTROL);
     /* pack into mb */
     MemBuf mb;
     mb.init();
-    cc->packInto(&mb);
+    cc.packInto(&mb);
     /* put */
     addEntry(new HttpHeaderEntry(Http::HdrType::CACHE_CONTROL, SBuf(), mb.buf));
     /* cleanup */

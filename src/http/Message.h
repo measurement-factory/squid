@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1996-2022 The Squid Software Foundation and contributors
+ * Copyright (C) 1996-2023 The Squid Software Foundation and contributors
  *
  * Squid software is distributed under GPLv2+ license and includes
  * contributions from numerous individuals and organizations.
@@ -98,8 +98,9 @@ public:
 
     uint32_t sources = 0; ///< The message sources
 
-    /// copies Cache-Control header to this message
-    void putCc(const HttpHdrCc *otherCc);
+    /// copies Cache-Control header to this message,
+    /// overwriting existing Cache-Control header(s), if any
+    void putCc(const HttpHdrCc &);
 
     // returns true and sets hdr_sz on success
     // returns false and sets *error to zero when needs more data

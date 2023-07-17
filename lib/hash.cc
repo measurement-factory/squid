@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1996-2022 The Squid Software Foundation and contributors
+ * Copyright (C) 1996-2023 The Squid Software Foundation and contributors
  *
  * Squid software is distributed under GPLv2+ license and includes
  * contributions from numerous individuals and organizations.
@@ -327,7 +327,7 @@ main(void)
     hash_table *hid;
     LOCAL_ARRAY(char, buf, BUFSIZ);
     LOCAL_ARRAY(char, todelete, BUFSIZ);
-    hash_link *walker = NULL;
+    hash_link *walker = nullptr;
 
     todelete[0] = '\0';
     printf("init\n");

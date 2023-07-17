@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1996-2022 The Squid Software Foundation and contributors
+ * Copyright (C) 1996-2023 The Squid Software Foundation and contributors
  *
  * Squid software is distributed under GPLv2+ license and includes
  * contributions from numerous individuals and organizations.
@@ -59,6 +59,7 @@
 /** StoreEntry uses explicit new/delete operators, which set pool chunk size to 2MB
  * XXX: convert to MEMPROXY_CLASS() API
  */
+#include "mem/Allocator.h"
 #include "mem/Pool.h"
 
 #include <climits>
@@ -255,6 +256,8 @@ StoreEntry::storeClientType() const
 
     assert(mem_obj);
 
+    debugs(20, 7, *this << " inmem_lo=" << mem_obj->inmem_lo);
+
     if (mem_obj->inmem_lo)
         return STORE_DISK_CLIENT;
 
@@ -282,6 +285,7 @@ StoreEntry::storeClientType() const
                 return STORE_MEM_CLIENT;
             }
         }
+        debugs(20, 7, "STORE_OK STORE_DISK_CLIENT");
         return STORE_DISK_CLIENT;
     }
 
@@ -289,7 +293,7 @@ StoreEntry::storeClientType() const
     /*
      * If this is the first client, let it be the mem client
      */
-    if (mem_obj->nclients == 1)
+    if (mem_obj->nclients == 0)
         return STORE_MEM_CLIENT;
 
     /*
@@ -301,10 +305,18 @@ StoreEntry::storeClientType() const
     if (swap_status == SWAPOUT_NONE)
         return STORE_MEM_CLIENT;
 
+    // TODO: The above "must make this a mem client" logic contradicts "Slight
+    // weirdness" logic in store_client::doCopy() that converts hits to misses
+    // on startSwapin() failures. We should probably attempt to open a swapin
+    // file _here_ instead (and avoid STORE_DISK_CLIENT designation for clients
+    // that fail to do so). That would also address a similar problem with Rock
+    // store that does not yet support swapin during SWAPOUT_WRITING.
+
     /*
      * otherwise, make subsequent clients read from disk so they
      * can not delay the first, and vice-versa.
      */
+    debugs(20, 7, "STORE_PENDING STORE_DISK_CLIENT");
     return STORE_DISK_CLIENT;
 }
 
@@ -914,7 +926,7 @@ StoreEntry::checkCachable()
         return 0; // avoid rerequesting release below
     }
 
-    if (store_status == STORE_OK && EBIT_TEST(flags, ENTRY_BAD_LENGTH)) {
+    if (EBIT_TEST(flags, ENTRY_BAD_LENGTH)) {
         debugs(20, 2, "StoreEntry::checkCachable: NO: wrong content-length");
         ++store_check_cachable_hist.no.wrong_content_length;
     } else if (!mem_obj) {

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1996-2022 The Squid Software Foundation and contributors
+ * Copyright (C) 1996-2023 The Squid Software Foundation and contributors
  *
  * Squid software is distributed under GPLv2+ license and includes
  * contributions from numerous individuals and organizations.
@@ -369,6 +369,8 @@ TunnelStateData::TunnelStateData(ClientHttpRequest *clientRequest) :
     status_ptr = &clientRequest->al->http.code;
     al = clientRequest->al;
     http = clientRequest;
+
+    al->cache.code.update(LOG_TCP_TUNNEL);
 
     client.initConnection(clientRequest->getConn()->clientConnection, tunnelClientClosed, "tunnelClientClosed", this);
 
@@ -927,7 +929,6 @@ tunnelStartShoveling(TunnelStateData *tunnelState)
     commSetConnTimeout(tunnelState->server.conn, Config.Timeout.read, timeoutCall);
 
     *tunnelState->status_ptr = Http::scOkay;
-    tunnelState->al->cache.code.update(LOG_TCP_TUNNEL);
     if (cbdataReferenceValid(tunnelState)) {
 
         // Shovel any payload already pushed into reply buffer by the server response
@@ -979,8 +980,6 @@ TunnelStateData::tunnelEstablishmentDone(Http::TunnelerAnswer &answer)
 {
     peerWait.finish();
     server.len = 0;
-
-    al->cache.code.update(LOG_TCP_TUNNEL);
 
     // XXX: al->http.code (i.e. *status_ptr) should not be (re)set
     // until we actually start responding to the client. Right here/now, we only
@@ -1164,6 +1163,7 @@ tunnelStart(ClientHttpRequest * http)
         ch.syncAle(request, http->log_uri);
         if (ch.fastCheck().denied()) {
             debugs(26, 4, "MISS access forbidden.");
+            http->updateLoggingTags(LOG_TCP_TUNNEL);
             err = new ErrorState(ERR_FORWARDING_DENIED, Http::scForbidden, request, http->al);
             http->al->http.code = Http::scForbidden;
             errorSend(http->getConn()->clientConnection, err);

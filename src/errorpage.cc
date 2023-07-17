@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1996-2022 The Squid Software Foundation and contributors
+ * Copyright (C) 1996-2023 The Squid Software Foundation and contributors
  *
  * Squid software is distributed under GPLv2+ license and includes
  * contributions from numerous individuals and organizations.
@@ -828,8 +828,8 @@ ErrorState::Dump(MemBuf * mb)
     if (auth_user_request.getRaw() && auth_user_request->denyMessage())
         str.appendf("Auth ErrMsg: %s\r\n", auth_user_request->denyMessage());
 #endif
-    if (dnsError.size() > 0)
-        str.appendf("DNS ErrMsg: %s\r\n", dnsError.termedBuf());
+    if (dnsError)
+        str.appendf("DNS ErrMsg: " SQUIDSBUFPH "\r\n", SQUIDSBUFPRINT(*dnsError));
 
     /* - TimeStamp */
     str.appendf("TimeStamp: %s\r\n\r\n", Time::FormatRfc1123(squid_curtime));
@@ -1086,8 +1086,8 @@ ErrorState::compileLegacyCode(Build &build)
         break;
 
     case 'p':
-        if (request) {
-            mb.appendf("%u", request->url.port());
+        if (request && request->url.port()) {
+            mb.appendf("%hu", *request->url.port());
         } else if (!building_deny_info_url) {
             p = "[unknown port]";
         }
@@ -1212,8 +1212,8 @@ ErrorState::compileLegacyCode(Build &build)
 
     case 'z':
         if (building_deny_info_url) break;
-        if (dnsError.size() > 0)
-            p = dnsError.termedBuf();
+        if (dnsError)
+            p = dnsError->c_str();
         else if (ftp.cwd_msg)
             p = ftp.cwd_msg;
         else
@@ -1352,6 +1352,11 @@ ErrorState::BuildHttpReply()
             request->detailError(type, detail);
         else
             request->detailError(type, SysErrorDetail::NewIfAny(xerrno));
+    } else if (ale) {
+        if (detail)
+            ale->updateError(Error(type, detail));
+        else
+            ale->updateError(Error(type, SysErrorDetail::NewIfAny(xerrno)));
     }
 
     return rep;

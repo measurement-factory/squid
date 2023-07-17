@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1996-2022 The Squid Software Foundation and contributors
+ * Copyright (C) 1996-2023 The Squid Software Foundation and contributors
  *
  * Squid software is distributed under GPLv2+ license and includes
  * contributions from numerous individuals and organizations.
@@ -10,6 +10,7 @@
 
 #include "squid.h"
 #include "AccessLogEntry.h"
+#include "base/Assure.h"
 #include "CacheManager.h"
 #include "comm/Connection.h"
 #include "errorpage.h"
@@ -32,8 +33,12 @@ void
 internalStart(const Comm::ConnectionPointer &clientConn, HttpRequest * request, StoreEntry * entry, const AccessLogEntry::Pointer &ale)
 {
     ErrorState *err;
+
+    Assure(request);
     const SBuf upath = request->url.path();
     debugs(76, 3, clientConn << " requesting '" << upath << "'");
+
+    Assure(request->flags.internal);
 
     static const SBuf netdbUri("/squid-internal-dynamic/netdb");
     static const SBuf storeDigestUri("/squid-internal-periodic/store_digest");
@@ -54,7 +59,7 @@ internalStart(const Comm::ConnectionPointer &clientConn, HttpRequest * request, 
         entry->append(msgbuf, strlen(msgbuf));
         entry->complete();
     } else if (ForSomeCacheManager(upath)) {
-        debugs(17, 2, "calling CacheManager due to URL-path " << upath);
+        debugs(17, 2, "calling CacheManager due to URL-path");
         CacheManager::GetInstance()->start(clientConn, request, entry, ale);
     } else {
         debugObj(76, 1, "internalStart: unknown request:\n",
@@ -85,12 +90,15 @@ ForSomeCacheManager(const SBuf &urlPath)
     return urlPath.startsWith(mgrPfx);
 }
 
+<<<<<<< HEAD
 bool
 ForThisCacheManager(const HttpRequest *request)
 {
     return request->flags.internal && ForSomeCacheManager(request->url.path());
 }
 
+=======
+>>>>>>> official/master
 /*
  * makes internal url with a given host and port (remote internal url)
  */

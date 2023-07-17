@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1996-2022 The Squid Software Foundation and contributors
+ * Copyright (C) 1996-2023 The Squid Software Foundation and contributors
  *
  * Squid software is distributed under GPLv2+ license and includes
  * contributions from numerous individuals and organizations.
@@ -267,7 +267,7 @@ constructHelperQuery(const char *name, helper *hlp, HLPCB *replyHandler, ClientH
                                     http->getConn() != nullptr && http->getConn()->getAuth() != nullptr ?
                                     http->getConn()->getAuth() : http->request->auth_user_request);
 #else
-                                    NULL);
+                                    nullptr);
 #endif
 
         node = (clientStreamNode *)http->client_stream.tail->data;
