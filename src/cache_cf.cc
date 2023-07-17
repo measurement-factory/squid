@@ -1485,9 +1485,9 @@ dump_acl(StoreEntry * entry, const char *name, ACL * ae)
 }
 
 static void
-parse_acl(ACL ** ae)
+parse_acl(ACL **)
 {
-    ACL::ParseAclLine(LegacyParser, ae);
+    ACL::ParseAclLine(LegacyParser);
 }
 
 static void

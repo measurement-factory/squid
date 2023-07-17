@@ -44,7 +44,7 @@ public:
     void *operator new(size_t);
     void operator delete(void *);
 
-    static void ParseAclLine(ConfigParser &parser, ACL ** head);
+    static void ParseAclLine(ConfigParser &parser);
     static void Initialize();
     static ACL *FindByName(const char *name);
 

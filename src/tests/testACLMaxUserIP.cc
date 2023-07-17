@@ -52,8 +52,9 @@ testACLMaxUserIP::testParseLine()
     /* seed the parser */
     ConfigParser::SetCfgLine(line);
     ConfigParser LegacyParser;
-    ACL::ParseAclLine(LegacyParser, &Config.aclList);
+    ACL::ParseAclLine(LegacyParser);
     auto anACL = Config.aclList;
+    CPPUNIT_ASSERT(anACL);
     ACLMaxUserIP *maxUserIpACL = dynamic_cast<ACLMaxUserIP *>(anACL);
     CPPUNIT_ASSERT(maxUserIpACL);
     if (maxUserIpACL) {

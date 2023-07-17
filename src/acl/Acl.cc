@@ -182,7 +182,7 @@ ACL::context(const char *aName, const char *aCfgLine)
 }
 
 void
-ACL::ParseAclLine(ConfigParser &parser, ACL ** head)
+ACL::ParseAclLine(ConfigParser &parser)
 {
     /* we're already using strtok() to grok the line */
     char *t = nullptr;
@@ -287,8 +287,6 @@ ACL::ParseAclLine(ConfigParser &parser, ACL ** head)
                A->cfgline);
     }
 
-    // add to the global list for searching explicit ACLs by name
-    assert(head && *head == Config.aclList);
     RegisterNamed(A);
 }
 
