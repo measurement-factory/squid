@@ -54,7 +54,7 @@
 #include "acl/Ip.h"
 #include "acl/LocalIp.h"
 #include "acl/LocalPort.h"
-#include "acl/Manager.h"
+#include "acl/CacheManagerCheck.h"
 #include "acl/MaxConnection.h"
 #include "acl/Method.h"
 #include "acl/MethodData.h"

@@ -8,7 +8,7 @@
 
 #include "squid.h"
 #include "acl/FilledChecklist.h"
-#include "acl/Manager.h"
+#include "acl/CacheManagerCheck.h"
 #include "anyp/ProtocolType.h"
 #include "base/TextException.h"
 #include "HttpRequest.h"
