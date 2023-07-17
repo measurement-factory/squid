@@ -90,15 +90,12 @@ ForSomeCacheManager(const SBuf &urlPath)
     return urlPath.startsWith(mgrPfx);
 }
 
-<<<<<<< HEAD
 bool
 ForThisCacheManager(const HttpRequest *request)
 {
     return request->flags.internal && ForSomeCacheManager(request->url.path());
 }
 
-=======
->>>>>>> official/master
 /*
  * makes internal url with a given host and port (remote internal url)
  */
