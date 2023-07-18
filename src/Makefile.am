@@ -1025,6 +1025,7 @@ tests_testRock_SOURCES = \
 	HttpHeaderTools.cc \
 	HttpHeaderTools.h \
 	HttpReply.cc \
+	tests/stub_internal.cc \
 	tests/stub_HttpRequest.cc \
 	LogTags.cc \
 	MasterXaction.cc \
@@ -1410,6 +1411,7 @@ tests_testStore_SOURCES = \
 	tests/stub_comm.cc \
 	tests/stub_debug.cc \
 	tests/stub_errorpage.cc \
+	tests/stub_internal.cc \
 	event.cc \
 	tests/stub_fatal.cc \
 	fatal.h \
@@ -1695,6 +1697,7 @@ nodist_tests_testACLMaxUserIP_SOURCES = \
 	dlink.cc \
 	tests/stub_errorpage.cc \
 	tests/stub_fatal.cc \
+	tests/stub_internal.cc \
 	tests/stub_store.cc \
 	tests/stub_store_stats.cc \
 	globals.cc \
@@ -2064,6 +2067,7 @@ tests_testHttpReply_SOURCES = \
 	tests/stub_fatal.cc \
 	fatal.h \
 	tests/stub_fd.cc \
+	tests/stub_internal.cc \
 	tests/stub_libanyp.cc \
 	tests/stub_libauth.cc \
 	tests/stub_libcomm.cc \
