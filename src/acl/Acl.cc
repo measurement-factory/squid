@@ -359,9 +359,9 @@ void
 ACL::dumpAll(const char *directiveName, StoreEntry * const entry)
 {
     debugs(3, 3, "dump_acl: acl " << name);
-    SBufStream os;
+    PackableStream os(*entry);
     os << directiveName << ' ' << name << ' ' << typeString() << ' ';
-    SBufList result = { os.buf() };
+    SBufList result;
     result.splice(result.end(), dumpOptions());
     result.splice(result.end(), dump());
     entry->appendList(result);
