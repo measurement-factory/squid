@@ -359,7 +359,6 @@ ACL::dumpOptions()
 void
 ACL::dumpAll(const char *directiveName, StoreEntry * const entry)
 {
-    debugs(3, 3, "dump_acl: acl " << name);
     PackableStream os(*entry);
     os << directiveName << ' ' << name << ' ' << typeString();
     os << asList(dumpOptions()).prefixedBy(' ');

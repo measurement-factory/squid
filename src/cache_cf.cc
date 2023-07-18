@@ -1481,6 +1481,7 @@ static void
 dump_acl(StoreEntry * entry, const char *name, ACL * ae)
 {
     while (ae != nullptr) {
+        debugs(3, 3, "dump_acl: " << name << " " << ae->name);
         ae->dumpAll(name, entry);
         ae = ae->next;
     }
