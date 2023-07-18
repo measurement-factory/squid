@@ -32,10 +32,10 @@
 const char *AclMatchedName = nullptr;
 
 static void
-RegisterNamed(ACL *acl)
+RegisterNamed(ACL * const acl)
 {
     // add to the global list for searching explicit ACLs by name
-    auto head = &Config.aclList;
+    const auto head = &Config.aclList;
     acl->next = *head;
     *head = acl;
     // register for centralized cleanup
@@ -356,7 +356,7 @@ ACL::dumpOptions()
 }
 
 void
-ACL::dumpAll(const char *directiveName, StoreEntry *entry)
+ACL::dumpAll(const char *directiveName, StoreEntry * const entry)
 {
     debugs(3, 3, "dump_acl: acl " << name);
     entry->appendf("%s %s %s ", directiveName, name, typeString());

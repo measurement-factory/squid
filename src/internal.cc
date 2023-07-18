@@ -91,7 +91,7 @@ ForSomeCacheManager(const SBuf &urlPath)
 }
 
 bool
-ForThisCacheManager(const HttpRequest *request)
+ForThisCacheManager(const HttpRequest * const request)
 {
     return request->flags.internal && ForSomeCacheManager(request->url.path());
 }
