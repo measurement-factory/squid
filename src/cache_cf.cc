@@ -21,6 +21,7 @@
 #include "auth/Config.h"
 #include "auth/Scheme.h"
 #include "AuthReg.h"
+#include "base/IoManip.h"
 #include "base/PackableStream.h"
 #include "base/RunnersRegistry.h"
 #include "cache_cf.h"
@@ -1454,7 +1455,8 @@ parse_SBufList(SBufList * list)
 static void
 dump_SBufList(StoreEntry * entry, const SBufList &words)
 {
-    entry->appendList(words);
+    PackableStream os(*entry);
+    os << asList(words) << '\n';
 }
 
 // dump a SBufList type directive with name

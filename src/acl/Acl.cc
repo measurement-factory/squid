@@ -15,6 +15,7 @@
 #include "acl/Gadgets.h"
 #include "acl/Options.h"
 #include "anyp/PortCfg.h"
+#include "base/IoManip.h"
 #include "base/TextException.h"
 #include "cache_cf.h"
 #include "ConfigParser.h"
@@ -360,11 +361,10 @@ ACL::dumpAll(const char *directiveName, StoreEntry * const entry)
 {
     debugs(3, 3, "dump_acl: acl " << name);
     PackableStream os(*entry);
-    os << directiveName << ' ' << name << ' ' << typeString() << ' ';
-    SBufList result;
-    result.splice(result.end(), dumpOptions());
-    result.splice(result.end(), dump());
-    entry->appendList(result);
+    os << directiveName << ' ' << name << ' ' << typeString();
+    os << asList(dumpOptions()).prefixedBy(' ');
+    os << asList(dump()).prefixedBy(' '); // ACL parameters
+    os << '\n';
 }
 
 /* ACL result caching routines */
