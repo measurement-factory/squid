@@ -10,6 +10,7 @@
 
 #include "squid.h"
 #include "acl/Acl.h"
+#include "acl/CacheManagerCheck.h"
 #include "acl/Checklist.h"
 #include "acl/Gadgets.h"
 #include "acl/Options.h"
@@ -81,7 +82,7 @@ Make(TypeName typeName)
 void
 RegisterBuiltInChecks()
 {
-    RegisterNamed(Make("manager_type"));
+    RegisterNamed(new CacheManagerCheck("manager_type"));
     // add other predefined types here
 }
 

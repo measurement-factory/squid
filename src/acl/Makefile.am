@@ -18,6 +18,8 @@ libapi_la_SOURCES = \
 	Acl.h \
 	BoolOps.cc \
 	BoolOps.h \
+	CacheManagerCheck.cc \
+	CacheManagerCheck.h \
 	Checklist.cc \
 	Checklist.h \
 	ChecklistFiller.h \
@@ -102,8 +104,6 @@ libacls_la_SOURCES = \
 	LocalIp.h \
 	LocalPort.cc \
 	LocalPort.h \
-	CacheManagerCheck.cc \
-	CacheManagerCheck.h \
 	MaxConnection.cc \
 	MaxConnection.h \
 	Method.cc \

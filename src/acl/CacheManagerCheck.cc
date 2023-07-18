@@ -7,13 +7,14 @@
  */
 
 #include "squid.h"
-#include "acl/FilledChecklist.h"
 #include "acl/CacheManagerCheck.h"
+#include "acl/FilledChecklist.h"
 #include "anyp/ProtocolType.h"
 #include "base/TextException.h"
 #include "HttpRequest.h"
 #include "internal.h"
 #include "sbuf/Stream.h"
+
 
 SBufList
 Acl::CacheManagerCheck::dump() const

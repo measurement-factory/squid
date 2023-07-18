@@ -6,8 +6,8 @@
  * Please see the COPYING and CONTRIBUTORS files for details.
  */
 
-#ifndef SQUID_ACLMANAGER_H
-#define SQUID_ACLMANAGER_H
+#ifndef SQUID_ACLCACHEMANAGERCHECK_H
+#define SQUID_ACLCACHEMANAGERCHECK_H
 
 #include "acl/Acl.h"
 
@@ -18,7 +18,8 @@ class CacheManagerCheck : public ACL
     MEMPROXY_CLASS(CacheManagerCheck);
 
 public:
-    CacheManagerCheck(char const *aClass) : class_(aClass) { context("manager", "built-in"); }
+    explicit CacheManagerCheck(char const *aClass) : class_(aClass) { context("manager", "built-in"); }
+    ~CacheManagerCheck() override {}
 
     /* ACL API */
     char const *typeString() const override { return class_; }
@@ -36,5 +37,5 @@ private:
 
 } // namespace Acl
 
-#endif
+#endif /* SQUID_ACLCACHEMANAGERCHECK_H */
 
