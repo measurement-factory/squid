@@ -32,7 +32,7 @@ Acl::CacheManagerCheck::match(ACLChecklist * const checklist)
 void
 Acl::CacheManagerCheck::parse()
 {
-    throw TextException(ToSBuf("cannot parse built-in ACL ", name), Here());
+    Assure(!"unreachable code: built-in ACLs cannot be defined using squid.conf syntax");
 }
 
 void
