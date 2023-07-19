@@ -83,8 +83,14 @@ Make(TypeName typeName)
 void
 RegisterBuiltInChecks()
 {
+    // Register all built-in ACLs here, in case-insensitive alphabetical order
+    // of their registration code lines (code editors automate such sorting).
+    // The registration order does not affect functionality. Until by-name
+    // lookup is optimized, the linear search in FindByName() will first see
+    // ACLs registered later. Thus, the registration order affects squid.conf
+    // parsing speed, but ACL name lookup frequency varies with the deployment
+    // environment and, in most environments, the effect is too small to matter.
     RegisterNamed(new CacheManagerCheck("manager_type"));
-    // register other built-in ACLs here
 }
 
 } // namespace Acl
