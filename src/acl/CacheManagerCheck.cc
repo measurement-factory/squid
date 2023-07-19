@@ -19,7 +19,7 @@
 SBufList
 Acl::CacheManagerCheck::dump() const
 {
-    Assure(!"unreachable code: built-in ACLs cannot be reported using squid.conf syntax");
+    return SBufList();
 }
 
 int
