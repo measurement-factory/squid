@@ -19,7 +19,7 @@
 SBufList
 Acl::CacheManagerCheck::dump() const
 {
-    Assure(!"unreachable code: built-in ACLs cannot be represented using squid.conf syntax");
+    Assure(!"unreachable code: built-in ACLs cannot be reported using squid.conf syntax");
 }
 
 int
@@ -32,11 +32,11 @@ Acl::CacheManagerCheck::match(ACLChecklist * const checklist)
 void
 Acl::CacheManagerCheck::parse()
 {
-    Assure(!"unreachable code: built-in ACLs cannot be defined using squid.conf syntax");
+    Assure(!"unreachable code: squid.conf syntax does not support built-in ACL types");
 }
 
 void
 Acl::CacheManagerCheck::dumpAll(const char *, StoreEntry *)
 {
-    debugs(3, 7, "no configuration to dump for built-in ACL " << name);
+    debugs(3, 7, "built-in ACLs have no squid.conf definition: " << name);
 }
