@@ -84,7 +84,7 @@ void
 RegisterBuiltInChecks()
 {
     RegisterNamed(new CacheManagerCheck("manager_type"));
-    // add other predefined types here
+    // register other built-in ACLs here
 }
 
 } // namespace Acl

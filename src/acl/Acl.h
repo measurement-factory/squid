@@ -197,7 +197,7 @@ operator <<(std::ostream &o, const Answer a)
     return o;
 }
 
-/// creates hard-coded ACLs such as manager ACL
+/// creates and registers built-in ACLs such as the "manager" ACL
 void RegisterBuiltInChecks();
 
 } // namespace Acl
