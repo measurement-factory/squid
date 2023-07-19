@@ -283,9 +283,11 @@ ACL::ParseAclLine(ConfigParser &parser)
         new_acl = 1;
     } else {
         if (strcmp (A->typeString(),theType) ) {
-            throw TextException(ToSBuf("new ACL declaration type conflicts with an existing ", A->name, " ACL:",
-                                       Debug::Extra, "new ACL type: ", theType,
-                                       Debug::Extra, "existing ACL type: ", A->typeString()), Here());
+            // this error covers both ACL type change (bad-acl-type-change.conf)
+            // and built-in ACL adjustment attempt (bad-manager.conf) use cases
+            throw TextException(ToSBuf("ACL type conflicts with an existing ACL named ", A->name, ":",
+                                       Debug::Extra, "existing ACL type: ", A->typeString(),
+                                       Debug::Extra, "conflicting ACL type: ", theType), Here());
             return;
         }
 
