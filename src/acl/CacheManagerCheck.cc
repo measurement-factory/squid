@@ -15,6 +15,10 @@
 #include "internal.h"
 #include "sbuf/Stream.h"
 
+Acl::CacheManagerCheck::CacheManagerCheck()
+{
+    context("manager", "built-in");
+}
 
 SBufList
 Acl::CacheManagerCheck::dump() const

@@ -90,7 +90,7 @@ RegisterBuiltInChecks()
     // ACLs registered later. Thus, the registration order affects squid.conf
     // parsing speed, but ACL name lookup frequency varies with the deployment
     // environment and, in most environments, the effect is too small to matter.
-    RegisterNamed(new CacheManagerCheck("manager_type"));
+    RegisterNamed(new CacheManagerCheck());
 }
 
 } // namespace Acl

@@ -1653,7 +1653,7 @@ ENDIF
 	adjusted using "acl" directives. Configurable ACLs cannot be named using
 	the names of these built-in ACLs.
 
-	manager manager_type
+	manager
 			Match cache manager requests directed to this Squid instance.
 
 CONFIG_START
