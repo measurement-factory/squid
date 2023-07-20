@@ -26,6 +26,7 @@ Acl::CacheManagerCheck::dump() const
 int
 Acl::CacheManagerCheck::match(ACLChecklist * const checklist)
 {
+    // This check must match the one in internalStart().
     return ForThisCacheManager(*Filled(checklist)->request);
 }
 

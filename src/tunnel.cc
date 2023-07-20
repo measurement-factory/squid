@@ -35,6 +35,7 @@
 #include "http/Stream.h"
 #include "HttpRequest.h"
 #include "icmp/net_db.h"
+#include "internal.h"
 #include "ip/QosConfig.h"
 #include "LogTags.h"
 #include "MemBuf.h"
@@ -371,6 +372,10 @@ TunnelStateData::TunnelStateData(ClientHttpRequest *clientRequest) :
     http = clientRequest;
 
     al->cache.code.update(LOG_TCP_TUNNEL);
+
+    // do not let requests allowed due to the "manager" ACL match go somewhere
+    // else even if our bugs let them reach this tunneling code
+    Assure(!ForThisCacheManager(*request));
 
     client.initConnection(clientRequest->getConn()->clientConnection, tunnelClientClosed, "tunnelClientClosed", this);
 
