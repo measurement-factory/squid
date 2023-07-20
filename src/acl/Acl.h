@@ -74,7 +74,6 @@ public:
     virtual void parse() = 0;
     virtual char const *typeString() const = 0;
     virtual bool isProxyAuth() const;
-    virtual SBufList dump() const = 0; ///< \returns arguments configuration
     virtual bool empty() const = 0;
     virtual bool valid() const;
 
@@ -83,8 +82,17 @@ public:
 
     virtual void prepareForUse() {}
 
-    /// appends the entire configuration to the entry
+    /// reports configuration using squid.conf "acl" directive(s) syntax
     virtual void dumpAll(const char *directiveName, StoreEntry *);
+
+    // TODO: Refactor. This API is not compatible with squid.conf semantics that
+    // always ORes multiple same-name ACL directives but may, for some ACL
+    // types, AND parameters within the same directive. For example, parameters
+    // of a two-line all-of ACL cannot be expressed as a single flat SBufList.
+    /// A list of ACL parameters using squid.conf syntax: Everything after the
+    /// acltype (i.e. typeString()) and global options(). XXX: Also (ab)used to
+    /// report the list of ACL names in an Acl::Tree of a squid.conf directive.
+    virtual SBufList dump() const = 0;
 
     char name[ACL_NAME_SZ];
     char *cfgline;
