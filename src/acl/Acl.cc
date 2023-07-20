@@ -25,7 +25,6 @@
 #include "sbuf/List.h"
 #include "sbuf/Stream.h"
 #include "SquidConfig.h"
-#include "Store.h"
 
 #include <algorithm>
 #include <map>
@@ -344,10 +343,8 @@ ACL::parseFlags()
 }
 
 void
-ACL::dumpAll(const char *directiveName, StoreEntry * const entry)
+ACL::dumpConfiguration(const char * const directiveName, std::ostream &os)
 {
-    PackableStream os(*entry);
-
     os << directiveName << ' ' << name << ' ' << typeString();
 
     // XXX: No lineOptions() call here because we do not remember ACL "line"

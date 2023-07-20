@@ -1480,9 +1480,10 @@ free_SBufList(SBufList *list)
 static void
 dump_acl(StoreEntry * entry, const char *name, ACL * ae)
 {
+    PackableStream os(*entry);
     while (ae != nullptr) {
         debugs(3, 3, "dump_acl: " << name << " " << ae->name);
-        ae->dumpAll(name, entry);
+        ae->dumpConfiguration(name, os);
         ae = ae->next;
     }
 }

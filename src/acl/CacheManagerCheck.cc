@@ -40,7 +40,7 @@ Acl::CacheManagerCheck::parse()
 }
 
 void
-Acl::CacheManagerCheck::dumpAll(const char *, StoreEntry *)
+Acl::CacheManagerCheck::dumpConfiguration(const char *, std::ostream &)
 {
     debugs(3, 7, "built-in ACLs have no squid.conf definition: " << name);
 }

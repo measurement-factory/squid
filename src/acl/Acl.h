@@ -15,7 +15,6 @@
 #include "defines.h"
 #include "dlink.h"
 #include "sbuf/forward.h"
-#include "store/forward.h"
 
 #include <algorithm>
 #include <ostream>
@@ -82,8 +81,9 @@ public:
 
     virtual void prepareForUse() {}
 
+    // TODO: Make constant after making options() constant.
     /// reports configuration using squid.conf "acl" directive(s) syntax
-    virtual void dumpAll(const char *directiveName, StoreEntry *);
+    virtual void dumpConfiguration(const char *directiveName, std::ostream &);
 
     // TODO: Refactor. This API is not compatible with squid.conf semantics that
     // always ORes multiple same-name ACL directives but may, for some ACL
