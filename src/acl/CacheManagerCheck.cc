@@ -9,11 +9,8 @@
 #include "squid.h"
 #include "acl/CacheManagerCheck.h"
 #include "acl/FilledChecklist.h"
-#include "anyp/ProtocolType.h"
-#include "base/TextException.h"
 #include "HttpRequest.h"
 #include "internal.h"
-#include "sbuf/Stream.h"
 
 Acl::CacheManagerCheck::CacheManagerCheck()
 {
@@ -39,8 +36,3 @@ Acl::CacheManagerCheck::parse()
     Assure(!"unreachable code: squid.conf syntax does not support built-in ACL types");
 }
 
-void
-Acl::CacheManagerCheck::dumpConfiguration(const char *, std::ostream &)
-{
-    Assure(!"unreachable code: squid.conf syntax does not support built-in ACL types");
-}

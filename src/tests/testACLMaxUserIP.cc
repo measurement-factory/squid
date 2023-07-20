@@ -15,7 +15,6 @@
 #include "auth/UserRequest.h"
 #include "compat/cppunit.h"
 #include "ConfigParser.h"
-#include "SquidConfig.h"
 #include "unitTestMain.h"
 
 #include <stdexcept>
@@ -71,10 +70,9 @@ TestACLMaxUserIP::testParseLine()
     char * line = xstrdup("test max_user_ip -s 1");
     /* seed the parser */
     ConfigParser::SetCfgLine(line);
+    ACL *anACL = nullptr;
     ConfigParser LegacyParser;
-    ACL::ParseAclLine(LegacyParser);
-    auto anACL = Config.aclList;
-    CPPUNIT_ASSERT(anACL);
+    ACL::ParseAclLine(LegacyParser, &anACL);
     ACLMaxUserIP *maxUserIpACL = dynamic_cast<ACLMaxUserIP *>(anACL);
     CPPUNIT_ASSERT(maxUserIpACL);
     if (maxUserIpACL) {

@@ -15,8 +15,6 @@
 #include "acl/Gadgets.h"
 #include "acl/Options.h"
 #include "anyp/PortCfg.h"
-#include "base/IoManip.h"
-#include "base/TextException.h"
 #include "cache_cf.h"
 #include "ConfigParser.h"
 #include "debug/Stream.h"
@@ -30,17 +28,6 @@
 #include <map>
 
 const char *AclMatchedName = nullptr;
-
-static void
-RegisterNamed(ACL * const acl)
-{
-    // add to the global list for searching explicit ACLs by name
-    const auto head = &Config.aclList;
-    acl->next = *head;
-    *head = acl;
-    // register for centralized cleanup
-    aclRegister(acl);
-}
 
 namespace Acl {
 
@@ -225,7 +212,7 @@ ACL::context(const char *aName, const char *aCfgLine)
 }
 
 void
-ACL::ParseAclLine(ConfigParser &parser)
+ACL::ParseAclLine(ConfigParser &parser, ACL ** head)
 {
     /* we're already using strtok() to grok the line */
     char *t = nullptr;
@@ -332,7 +319,13 @@ ACL::ParseAclLine(ConfigParser &parser)
                A->cfgline);
     }
 
-    RegisterNamed(A);
+    // add to the global list for searching explicit ACLs by name
+    assert(head && *head == Config.aclList);
+    A->next = *head;
+    *head = A;
+
+    // register for centralized cleanup
+    aclRegister(A);
 }
 
 bool
@@ -352,23 +345,25 @@ ACL::parseFlags()
     Acl::ParseFlags(allOptions);
 }
 
-void
-ACL::dumpConfiguration(const char * const directiveName, std::ostream &os)
+SBufList
+ACL::dumpOptions()
 {
-    os << directiveName << ' ' << name << ' ' << typeString();
+    SBufList result;
 
+    const auto &myOptions = options();
     // XXX: No lineOptions() call here because we do not remember ACL "line"
     // boundaries and associated "line" options; we cannot report them.
-    const auto &myOptions = options();
+
+    // optimization: most ACLs do not have myOptions
+    // this check also works around dump_SBufList() adding ' ' after empty items
     if (!myOptions.empty()) {
-        os << ' ';
-        os << myOptions; // TODO: Drop leading ' ' from Acl::TypedOption::print()
+        SBufStream stream;
+        stream << myOptions;
+        const SBuf optionsImage = stream.buf();
+        if (!optionsImage.isEmpty())
+            result.push_back(optionsImage);
     }
-
-    // ACL parameters
-    os << asList(dump()).prefixedBy(' ');
-
-    os << '\n';
+    return result;
 }
 
 /* ACL result caching routines */

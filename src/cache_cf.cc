@@ -21,7 +21,6 @@
 #include "auth/Config.h"
 #include "auth/Scheme.h"
 #include "AuthReg.h"
-#include "base/IoManip.h"
 #include "base/PackableStream.h"
 #include "base/RunnersRegistry.h"
 #include "cache_cf.h"
@@ -1455,8 +1454,11 @@ parse_SBufList(SBufList * list)
 static void
 dump_SBufList(StoreEntry * entry, const SBufList &words)
 {
-    PackableStream os(*entry);
-    os << asList(words) << '\n';
+    for (const auto &i : words) {
+        entry->append(i.rawContent(), i.length());
+        entry->append(" ",1);
+    }
+    entry->append("\n",1);
 }
 
 // dump a SBufList type directive with name
@@ -1480,18 +1482,24 @@ free_SBufList(SBufList *list)
 static void
 dump_acl(StoreEntry * entry, const char *name, ACL * ae)
 {
-    PackableStream os(*entry);
     while (ae != nullptr) {
         debugs(3, 3, "dump_acl: " << name << " " << ae->name);
-        ae->dumpConfiguration(name, os);
+        storeAppendPrintf(entry, "%s %s %s ",
+                          name,
+                          ae->name,
+                          ae->typeString());
+        SBufList tail;
+        tail.splice(tail.end(), ae->dumpOptions());
+        tail.splice(tail.end(), ae->dump()); // ACL parameters
+        dump_SBufList(entry, tail);
         ae = ae->next;
     }
 }
 
 static void
-parse_acl(ACL **)
+parse_acl(ACL ** ae)
 {
-    ACL::ParseAclLine(LegacyParser);
+    ACL::ParseAclLine(LegacyParser, ae);
 }
 
 static void

@@ -1698,8 +1698,6 @@ nodist_tests_testACLMaxUserIP_SOURCES = \
 	tests/stub_errorpage.cc \
 	tests/stub_fatal.cc \
 	tests/stub_internal.cc \
-	tests/stub_store.cc \
-	tests/stub_store_stats.cc \
 	globals.cc \
 	tests/stub_libauth.cc \
 	tests/stub_libcomm.cc \

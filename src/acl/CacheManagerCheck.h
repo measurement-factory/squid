@@ -28,7 +28,6 @@ public:
     bool requiresRequest() const override { return true; }
     SBufList dump() const override;
     bool empty() const override { return false; }
-    void dumpConfiguration(const char *, std::ostream &) override;
 };
 
 } // namespace Acl

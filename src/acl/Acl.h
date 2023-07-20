@@ -49,7 +49,7 @@ public:
     void *operator new(size_t);
     void operator delete(void *);
 
-    static void ParseAclLine(ConfigParser &parser);
+    static void ParseAclLine(ConfigParser &parser, ACL ** head);
     static void Initialize();
     static ACL *FindByName(const char *name);
 
@@ -73,6 +73,7 @@ public:
     virtual void parse() = 0;
     virtual char const *typeString() const = 0;
     virtual bool isProxyAuth() const;
+    virtual SBufList dump() const = 0;
     virtual bool empty() const = 0;
     virtual bool valid() const;
 
@@ -81,18 +82,7 @@ public:
 
     virtual void prepareForUse() {}
 
-    // TODO: Make constant after making options() constant.
-    /// reports configuration using squid.conf "acl" directive(s) syntax
-    virtual void dumpConfiguration(const char *directiveName, std::ostream &);
-
-    // TODO: Refactor. This API is not compatible with squid.conf semantics that
-    // always ORes multiple same-name ACL directives but may, for some ACL
-    // types, AND parameters within the same directive. For example, parameters
-    // of a two-line all-of ACL cannot be expressed as a single flat SBufList.
-    /// A list of ACL parameters using squid.conf syntax: Everything after the
-    /// acltype (i.e. typeString()) and global options(). XXX: Also (ab)used to
-    /// report the list of ACL names in an Acl::Tree of a squid.conf directive.
-    virtual SBufList dump() const = 0;
+    SBufList dumpOptions(); ///< \returns approximate options configuration
 
     char name[ACL_NAME_SZ];
     char *cfgline;
