@@ -10,7 +10,6 @@
 
 #include "squid.h"
 #include "acl/Acl.h"
-#include "acl/CacheManagerCheck.h"
 #include "acl/Checklist.h"
 #include "acl/Gadgets.h"
 #include "acl/Options.h"
@@ -64,25 +63,6 @@ Make(TypeName typeName)
     debugs(28, 4, typeName << '=' << result);
     assert(result);
     return result;
-}
-
-/// registers a given built-in ACL
-static void
-RegisterBuiltInCheck(ACL * const acl)
-{
-    // register for centralized cleanup
-    aclRegister(acl);
-
-    MakeDiscoverableByName(acl);
-}
-
-void
-RegisterBuiltInChecks()
-{
-    // Register all built-in ACLs here, in case-insensitive alphabetical order
-    // of their registration code lines (code editors automate such sorting).
-    // The registration order does not affect functionality or performance.
-    RegisterBuiltInCheck(new CacheManagerCheck());
 }
 
 } // namespace Acl

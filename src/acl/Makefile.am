@@ -18,8 +18,6 @@ libapi_la_SOURCES = \
 	Acl.h \
 	BoolOps.cc \
 	BoolOps.h \
-	CacheManagerCheck.cc \
-	CacheManagerCheck.h \
 	Checklist.cc \
 	Checklist.h \
 	ChecklistFiller.h \
@@ -65,6 +63,8 @@ libacls_la_SOURCES = \
 	AtStep.h \
 	AtStepData.cc \
 	AtStepData.h \
+	CacheManagerCheck.cc \
+	CacheManagerCheck.h \
 	ConnMark.cc \
 	ConnMark.h \
 	ConnectionsEncrypted.cc \

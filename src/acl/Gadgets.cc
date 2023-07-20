@@ -19,6 +19,7 @@
 #include "squid.h"
 #include "acl/Acl.h"
 #include "acl/AclDenyInfoList.h"
+#include "acl/CacheManagerCheck.h"
 #include "acl/Checklist.h"
 #include "acl/Gadgets.h"
 #include "acl/Strategised.h"
@@ -263,6 +264,25 @@ Acl::FindByName(const char * const name)
     if (pos != ByNameIndex_.end())
         return pos->second;
     return nullptr;
+}
+
+/// registers a given built-in ACL
+static void
+RegisterBuiltInCheck(ACL * const acl)
+{
+    // register for centralized cleanup
+    aclRegister(acl);
+
+    Acl::MakeDiscoverableByName(acl);
+}
+
+void
+Acl::RegisterBuiltInChecks()
+{
+    // Register all built-in ACLs here, in case-insensitive alphabetical order
+    // of their registration code lines (code editors automate such sorting).
+    // The registration order does not affect functionality or performance.
+    RegisterBuiltInCheck(new CacheManagerCheck());
 }
 
 /*********************/

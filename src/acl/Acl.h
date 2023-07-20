@@ -193,9 +193,6 @@ operator <<(std::ostream &o, const Answer a)
     return o;
 }
 
-/// creates and registers built-in ACLs such as the "manager" ACL
-void RegisterBuiltInChecks();
-
 } // namespace Acl
 
 /// \ingroup ACLAPI
