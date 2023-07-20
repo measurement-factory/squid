@@ -1026,7 +1026,6 @@ tests_testRock_SOURCES = \
 	HttpHeaderTools.h \
 	HttpReply.cc \
 	tests/stub_HttpRequest.cc \
-	tests/stub_internal.cc \
 	LogTags.cc \
 	MasterXaction.cc \
 	MasterXaction.h \
@@ -1082,6 +1081,7 @@ tests_testRock_SOURCES = \
 	tests/stub_icp.cc \
 	int.cc \
 	int.h \
+	tests/stub_internal.cc \
 	tests/stub_ipc.cc \
 	tests/stub_ipcache.cc \
 	tests/stub_libanyp.cc \
@@ -1411,7 +1411,6 @@ tests_testStore_SOURCES = \
 	tests/stub_comm.cc \
 	tests/stub_debug.cc \
 	tests/stub_errorpage.cc \
-	tests/stub_internal.cc \
 	event.cc \
 	tests/stub_fatal.cc \
 	fatal.h \
@@ -1425,6 +1424,7 @@ tests_testStore_SOURCES = \
 	tests/stub_http.cc \
 	int.cc \
 	int.h \
+	tests/stub_internal.cc \
 	tests/stub_libanyp.cc \
 	tests/stub_libauth.cc \
 	tests/stub_libcomm.cc \
