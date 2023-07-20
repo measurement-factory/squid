@@ -1025,8 +1025,8 @@ tests_testRock_SOURCES = \
 	HttpHeaderTools.cc \
 	HttpHeaderTools.h \
 	HttpReply.cc \
-	tests/stub_internal.cc \
 	tests/stub_HttpRequest.cc \
+	tests/stub_internal.cc \
 	LogTags.cc \
 	MasterXaction.cc \
 	MasterXaction.h \
@@ -1697,8 +1697,8 @@ nodist_tests_testACLMaxUserIP_SOURCES = \
 	dlink.cc \
 	tests/stub_errorpage.cc \
 	tests/stub_fatal.cc \
-	tests/stub_internal.cc \
 	globals.cc \
+	tests/stub_internal.cc \
 	tests/stub_libauth.cc \
 	tests/stub_libcomm.cc \
 	tests/stub_libhttp.cc \
