@@ -117,8 +117,6 @@ private:
     /// \returns (linked) "line" Options supported by this ACL
     /// \see ACL::options()
     virtual const Acl::Options &lineOptions() { return Acl::NoOptions(); }
-
-    SBufList dumpOptions(); ///< \returns approximate options configuration
 };
 
 /// \ingroup ACLAPI

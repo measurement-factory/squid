@@ -343,34 +343,24 @@ ACL::parseFlags()
     Acl::ParseFlags(allOptions);
 }
 
-SBufList
-ACL::dumpOptions()
-{
-    SBufList result;
-
-    const auto &myOptions = options();
-    // XXX: No lineOptions() call here because we do not remember ACL "line"
-    // boundaries and associated "line" options; we cannot report them.
-
-    // optimization: most ACLs do not have myOptions
-    // this check also works around dump_SBufList() adding ' ' after empty items
-    if (!myOptions.empty()) {
-        SBufStream stream;
-        stream << myOptions;
-        const SBuf optionsImage = stream.buf();
-        if (!optionsImage.isEmpty())
-            result.push_back(optionsImage);
-    }
-    return result;
-}
-
 void
 ACL::dumpAll(const char *directiveName, StoreEntry * const entry)
 {
     PackableStream os(*entry);
+
     os << directiveName << ' ' << name << ' ' << typeString();
-    os << asList(dumpOptions()).prefixedBy(' ');
-    os << asList(dump()).prefixedBy(' '); // ACL parameters
+
+    // XXX: No lineOptions() call here because we do not remember ACL "line"
+    // boundaries and associated "line" options; we cannot report them.
+    const auto &myOptions = options();
+    if (!myOptions.empty()) {
+        os << ' ';
+        os << myOptions; // TODO: Drop leading ' ' from Acl::TypedOption::print()
+    }
+
+    // ACL parameters
+    os << asList(dump()).prefixedBy(' ');
+
     os << '\n';
 }
 
