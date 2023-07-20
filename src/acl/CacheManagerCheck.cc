@@ -33,6 +33,6 @@ Acl::CacheManagerCheck::match(ACLChecklist * const checklist)
 void
 Acl::CacheManagerCheck::parse()
 {
-    Assure(!"unreachable code: squid.conf syntax does not support built-in ACL types");
+    assert(!"unreachable code: squid.conf syntax does not support built-in ACL types");
 }
 
