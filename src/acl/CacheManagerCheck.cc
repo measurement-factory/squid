@@ -27,7 +27,7 @@ int
 Acl::CacheManagerCheck::match(ACLChecklist * const checklist)
 {
     const auto request = Filled(checklist)->request;
-    return request->url.getScheme() == ForThisCacheManager(request);
+    return ForThisCacheManager(request);
 }
 
 void
