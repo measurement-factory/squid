@@ -39,7 +39,7 @@ bool ForSomeCacheManager(const SBuf &);
 /// Whether the given request targets the cache manager running on this Squid
 /// instance. Whether the built-in "manager" ACL should match. The two
 /// conditions must yield identical results for any given request.
-bool ForThisCacheManager(const HttpRequest *);
+bool ForThisCacheManager(const HttpRequest &);
 
 #endif /* SQUID_INTERNAL_H_ */
 

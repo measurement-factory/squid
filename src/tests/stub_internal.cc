@@ -14,5 +14,5 @@
 
 char *internalLocalUri(const char *, const SBuf &) STUB_RETVAL(nullptr)
 bool ForSomeCacheManager(const SBuf &) STUB_RETVAL(false)
-bool ForThisCacheManager(const HttpRequest *) STUB_RETVAL(false)
+bool ForThisCacheManager(const HttpRequest &) STUB_RETVAL(false)
 

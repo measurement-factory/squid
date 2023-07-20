@@ -26,8 +26,7 @@ Acl::CacheManagerCheck::dump() const
 int
 Acl::CacheManagerCheck::match(ACLChecklist * const checklist)
 {
-    const auto request = Filled(checklist)->request;
-    return ForThisCacheManager(request);
+    return ForThisCacheManager(*Filled(checklist)->request);
 }
 
 void
