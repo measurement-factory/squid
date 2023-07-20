@@ -62,5 +62,15 @@ void dump_acl_access(StoreEntry * entry, const char *name, acl_access * head);
 /// \ingroup ACLAPI
 void dump_acl_list(StoreEntry * entry, ACLList * head);
 
+namespace Acl {
+
+/// let FindByName() match the given acl
+void MakeDiscoverableByName(ACL *);
+
+/// a named ACL, previously registered by MakeDiscoverableByName() (or nil)
+ACL *FindByName(const char *name);
+
+}
+
 #endif /* SQUID_ACL_GADGETS_H */
 

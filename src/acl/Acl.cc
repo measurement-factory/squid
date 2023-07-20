@@ -79,17 +79,23 @@ Make(TypeName typeName)
     return result;
 }
 
+/// registers a given built-in ACL
+static void
+RegisterBuiltInCheck(ACL * const acl)
+{
+    // register for centralized cleanup
+    aclRegister(acl);
+
+    MakeDiscoverableByName(acl);
+}
+
 void
 RegisterBuiltInChecks()
 {
     // Register all built-in ACLs here, in case-insensitive alphabetical order
     // of their registration code lines (code editors automate such sorting).
-    // The registration order does not affect functionality. Until by-name
-    // lookup is optimized, the linear search in FindByName() will first see
-    // ACLs registered later. Thus, the registration order affects squid.conf
-    // parsing speed, but ACL name lookup frequency varies with the deployment
-    // environment and, in most environments, the effect is too small to matter.
-    RegisterNamed(new CacheManagerCheck());
+    // The registration order does not affect functionality or performance.
+    RegisterBuiltInCheck(new CacheManagerCheck());
 }
 
 } // namespace Acl
@@ -147,9 +153,13 @@ ACL::FindByName(const char *name)
     ACL *a;
     debugs(28, 9, "ACL::FindByName '" << name << "'");
 
+    // TODO: Send configured ACLs to Acl::MakeDiscoverableByName() instead of this linear search
     for (a = Config.aclList; a; a = a->next)
         if (!strcasecmp(a->name, name))
             return a;
+
+    if (const auto named = Acl::FindByName(name))
+        return named;
 
     debugs(28, 9, "ACL::FindByName found no match");
 

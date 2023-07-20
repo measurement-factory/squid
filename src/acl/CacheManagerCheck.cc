@@ -42,5 +42,5 @@ Acl::CacheManagerCheck::parse()
 void
 Acl::CacheManagerCheck::dumpConfiguration(const char *, std::ostream &)
 {
-    debugs(3, 7, "built-in ACLs have no squid.conf definition: " << name);
+    Assure(!"unreachable code: squid.conf syntax does not support built-in ACL types");
 }

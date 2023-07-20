@@ -37,6 +37,12 @@ typedef std::set<ACL*> AclSet;
 /// Accumulates all ACLs to facilitate their clean deletion despite reuse.
 static AclSet *RegisteredAcls; // TODO: Remove when ACLs are refcounted
 
+// TODO: Upgrade ACL::name to SBuf and switch to std::unordered_map<SBuf,...>
+static auto AclNameLess = [](const char *a, const char *b) { return strcmp(a, b) < 0; };
+using ByNameIndex = std::map<const char *, ACL *, decltype(AclNameLess)>;
+/// ACLs that may be mentioned in squid.conf directives by name
+static ByNameIndex ByNameIndex_(AclNameLess);
+
 /* does name lookup, returns page_id */
 err_type
 aclGetDenyInfoPage(AclDenyInfoList ** head, const char *name, int redirect_allowed)
@@ -243,6 +249,22 @@ aclDeregister(ACL *acl)
     }
 }
 
+void
+Acl::MakeDiscoverableByName(ACL * const acl)
+{
+    const auto result = ByNameIndex_.try_emplace(acl->name, acl);
+    assert(result.second); // ban duplicates to simplify, detect more caller bugs
+}
+
+ACL *
+Acl::FindByName(const char * const name)
+{
+    const auto pos = ByNameIndex_.find(name);
+    if (pos != ByNameIndex_.end())
+        return pos->second;
+    return nullptr;
+}
+
 /*********************/
 /* Destroy functions */
 /*********************/
@@ -252,6 +274,7 @@ void
 aclDestroyAcls(ACL ** head)
 {
     *head = nullptr; // Config.aclList
+    ByNameIndex_.clear();
     if (AclSet *acls = RegisteredAcls) {
         debugs(28, 8, "deleting all " << acls->size() << " ACLs");
         while (!acls->empty()) {
