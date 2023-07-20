@@ -120,7 +120,7 @@ ACL::FindByName(const char *name)
     ACL *a;
     debugs(28, 9, "ACL::FindByName '" << name << "'");
 
-    // TODO: Send configured ACLs to Acl::MakeDiscoverableByName() instead of this linear search
+    // TODO: Avoid linear search by sending configured ACLs to MakeDiscoverableByName()
     for (a = Config.aclList; a; a = a->next)
         if (!strcasecmp(a->name, name))
             return a;

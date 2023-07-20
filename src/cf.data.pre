@@ -1072,7 +1072,7 @@ DEFAULT: localhost src 127.0.0.1/32 ::1
 DEFAULT: to_localhost dst 127.0.0.0/8 0.0.0.0/32 ::1/128 ::/128
 DEFAULT: to_linklocal dst 169.254.0.0/16 fe80::/10
 DEFAULT: CONNECT method CONNECT
-DEFAULT_DOC: ACLs all, manager, localhost, to_localhost, to_linklocal, and CONNECT are predefined.
+DEFAULT_DOC: ACLs all, manager, localhost, to_localhost, to_linklocal, and CONNECT are either built-in or predefined.
 DOC_START
 	Defining an Access List
 
@@ -1654,7 +1654,11 @@ ENDIF
 	the names of these built-in ACLs.
 
 	manager
-			Match cache manager requests directed to this Squid instance.
+		Matches cache manager requests targeting this Squid instance. [fast]
+		Squid does not forward matching requests and, if possible, satisfies
+		them by responding with the requested cache manager report. Currently,
+		this ACL may ignore the mismatch between the listening port the
+		request was received on and the port targeted by the received request.
 
 CONFIG_START
 #

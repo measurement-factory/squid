@@ -279,8 +279,7 @@ RegisterBuiltInCheck(ACL * const acl)
 void
 Acl::RegisterBuiltInChecks()
 {
-    // Register all built-in ACLs here, in case-insensitive alphabetical order
-    // of their registration code lines (code editors automate such sorting).
+    // Register all built-in ACLs here.
     // The registration order does not affect functionality or performance.
     RegisterBuiltInCheck(new CacheManagerCheck());
 }
@@ -295,6 +294,7 @@ aclDestroyAcls(ACL ** head)
 {
     *head = nullptr; // Config.aclList
     ByNameIndex_.clear();
+
     if (AclSet *acls = RegisteredAcls) {
         debugs(28, 8, "deleting all " << acls->size() << " ACLs");
         while (!acls->empty()) {

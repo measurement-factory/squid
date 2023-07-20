@@ -88,6 +88,7 @@ void StoreEntry::release(const bool) STUB
 void StoreEntry::append(char const *, int) STUB
 void StoreEntry::vappendf(const char *, va_list) STUB
 void StoreEntry::setCollapsingRequirement(const bool) STUB
+
 void Store::Maintain(void *) STUB
 
 std::ostream &operator <<(std::ostream &os, const StoreEntry &)
