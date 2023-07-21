@@ -373,8 +373,7 @@ TunnelStateData::TunnelStateData(ClientHttpRequest *clientRequest) :
 
     al->cache.code.update(LOG_TCP_TUNNEL);
 
-    // do not let requests allowed due to the "manager" ACL match go somewhere
-    // else even if our bugs let them reach this tunneling code
+    // requests for our cache manager must never be tunneled
     Assure(!ForThisCacheManager(*request));
 
     client.initConnection(clientRequest->getConn()->clientConnection, tunnelClientClosed, "tunnelClientClosed", this);

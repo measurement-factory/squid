@@ -392,8 +392,8 @@ FwdState::Start(const Comm::ConnectionPointer &clientConn, StoreEntry *entry, Ht
         internalStart(clientConn, request, entry, al);
         return;
     }
-    // do not let requests allowed due to the "manager" ACL match go somewhere
-    // else even if our bugs let them bypass or escape internalStart() above
+    // Requests for our cache manager must never be forwarded elsewhere. If
+    // reach this method, the internalStart() call above must satisfy them.
     Assure(!ForThisCacheManager(*request));
 
     switch (request->url.getScheme()) {
