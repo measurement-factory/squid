@@ -40,19 +40,15 @@ internalStart(const Comm::ConnectionPointer &clientConn, HttpRequest * request, 
 
     Assure(request->flags.internal);
 
-    // Check this first because admins often allow access based on manager ACL;
-    // reduce the chance that the allowed request will do something else. For
-    // similar reasons, Acl::CacheManagerCheck::match() must use the same check.
-    if (ForThisCacheManager(*request)) {
-        debugs(17, 2, "calling CacheManager");
-        CacheManager::GetInstance()->start(clientConn, request, entry, ale);
-        return;
-    }
-
     static const SBuf netdbUri("/squid-internal-dynamic/netdb");
     static const SBuf storeDigestUri("/squid-internal-periodic/store_digest");
 
     if (upath == netdbUri) {
+        // Admins often allow access based on the "manager" ACL, assuming that
+        // matching requests are routed to the cache manager. This check reduces
+        // chances that the allowed matching request gets to any other service.
+        Assure(!ForThisCacheManager(*request));
+
         netdbBinaryExchange(entry);
     } else if (upath == storeDigestUri) {
 #if USE_CACHE_DIGESTS
@@ -67,6 +63,10 @@ internalStart(const Comm::ConnectionPointer &clientConn, HttpRequest * request, 
         entry->replaceHttpReply(reply);
         entry->append(msgbuf, strlen(msgbuf));
         entry->complete();
+    } else if (ForSomeCacheManager(upath)) {
+        debugs(17, 2, "calling CacheManager due to URL-path");
+        Assure(ForThisCacheManager(*request));
+        CacheManager::GetInstance()->start(clientConn, request, entry, ale);
     } else {
         debugObj(76, 1, "internalStart: unknown request:\n",
                  request, (ObjPackMethod) & httpRequestPack);
