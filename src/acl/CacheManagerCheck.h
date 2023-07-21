@@ -24,7 +24,7 @@ public:
     /* ACL API */
     char const *typeString() const override { return "built-in manager ACL"; }
     void parse() override;
-    int match(ACLChecklist *checklist) override;
+    int match(ACLChecklist *) override;
     bool requiresRequest() const override { return true; }
     SBufList dump() const override;
     bool empty() const override { return false; }

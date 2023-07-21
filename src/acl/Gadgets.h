@@ -68,7 +68,7 @@ namespace Acl {
 void MakeDiscoverableByName(ACL *);
 
 /// a named ACL, previously registered by MakeDiscoverableByName() (or nil)
-ACL *FindByName(const char *name);
+ACL *FindByName(const char *);
 
 /// creates and registers built-in ACLs such as the "manager" ACL
 void RegisterBuiltInChecks();

@@ -264,7 +264,7 @@ Acl::FindByName(const char * const name)
     const auto pos = ByNameIndex_.find(name);
     if (pos != ByNameIndex_.end())
         return pos->second;
-    return nullptr;
+    return (pos == ByNameIndex_.end()) ? nullptr : pos->second;
 }
 
 /// registers a given built-in ACL
