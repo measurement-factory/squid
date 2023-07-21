@@ -39,7 +39,7 @@ typedef std::set<ACL*> AclSet;
 static AclSet *RegisteredAcls; // TODO: Remove when ACLs are refcounted
 
 // TODO: Upgrade ACL::name to SBuf and switch to std::unordered_map<SBuf,...>
-static auto AclNameLess = [](const char *a, const char *b) { return strcmp(a, b) < 0; };
+static auto AclNameLess = [](const char *a, const char *b) { return strcasecmp(a, b) < 0; };
 using ByNameIndexItem = std::pair<const char * const, ACL *>;
 using ByNameIndex = std::map<const char *, ACL *, decltype(AclNameLess), PoolingAllocator<ByNameIndexItem> >;
 /// ACLs that may be mentioned in squid.conf directives by name
