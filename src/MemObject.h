@@ -167,6 +167,16 @@ public:
 
     SwapOut swapout;
 
+    // IO for Rock::HeaderUpdater
+    class Update
+    {
+    public:
+        StoreIOState::Pointer reader; ///< reads old headers and old data
+        StoreIOState::Pointer writer; ///< writes new headers and old data
+    };
+
+    Update update;
+
     /* TODO: Remove this change-minimizing hack */
     using Io = Store::IoStatus;
     static constexpr Io ioUndecided = Store::ioUndecided;
