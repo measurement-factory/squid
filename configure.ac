@@ -5,7 +5,7 @@
 ## Please see the COPYING and CONTRIBUTORS files for details.
 ##
 
-AC_INIT([Squid Web Proxy],[6.1-VCS],[http://bugs.squid-cache.org/],[squid])
+AC_INIT([Squid Web Proxy],[bag63],[http://bugs.squid-cache.org/],[squid])
 AC_PREREQ(2.61)
 AC_CONFIG_HEADERS([include/autoconf.h])
 AC_CONFIG_AUX_DIR(cfgaux)
@@ -132,7 +132,7 @@ AC_SUBST(AR_R)
 AC_PATH_PROG(LINUXDOC, linuxdoc, $FALSE)
 AM_CONDITIONAL(ENABLE_RELEASE_DOCS, test "x${ac_cv_path_LINUXDOC}" != "x$FALSE")
 
-SQUID_RELEASE=`echo $VERSION | cut -d. -f1`
+SQUID_RELEASE=`echo $VERSION | sed 's/bag\(.\).*/\1/'`
 AC_SUBST(SQUID_RELEASE)
 
 # pre-define DEFAULT_PREFIX, some modules need it.
