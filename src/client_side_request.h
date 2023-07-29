@@ -211,18 +211,8 @@ private:
 
 #if USE_OPENSSL
 public:
-    /// returns raw sslBump mode value
-    Ssl::BumpMode sslBumpNeed() const { return sslBumpNeed_; }
-    /// returns true if and only if the request needs to be bumped
-    bool sslBumpNeeded() const { return Ssl::isBumpMode(sslBumpNeed_); }
-    /// set the sslBumpNeeded state
-    void sslBumpNeed(Ssl::BumpMode);
     void sslBumpStart();
     void sslBumpEstablish(Comm::Flag);
-
-private:
-    /// whether (and how) the request needs to be bumped
-    Ssl::BumpMode sslBumpNeed_ = Ssl::bumpEnd;
 #endif
 
 #if USE_ADAPTATION
