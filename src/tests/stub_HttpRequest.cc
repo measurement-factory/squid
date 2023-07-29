@@ -50,7 +50,7 @@ void HttpRequest::httpRequestPack(void *, Packable *) STUB
 HttpRequest * HttpRequest::FromUrl(const SBuf &, const MasterXaction::Pointer &, const HttpRequestMethod &) STUB_RETVAL(nullptr)
 HttpRequest * HttpRequest::FromUrlXXX(const char *, const MasterXaction::Pointer &, const HttpRequestMethod &) STUB_RETVAL(nullptr)
 ConnStateData *HttpRequest::pinnedConnection() STUB_RETVAL(nullptr)
-const SBuf HttpRequest::storeId() STUB_RETVAL(SBuf("."))
+SBuf HttpRequest::storeId() const STUB_RETVAL(SBuf("."))
 void HttpRequest::ignoreRange(const char *) STUB
 int64_t HttpRequest::getRangeOffsetLimit() STUB_RETVAL(0)
 void HttpRequest::packFirstLineInto(Packable *, bool) const STUB

@@ -732,8 +732,8 @@ HttpRequest::pinnedConnection()
     return nullptr;
 }
 
-const SBuf
-HttpRequest::storeId()
+SBuf
+HttpRequest::storeId() const
 {
     if (store_id.size() != 0) {
         debugs(73, 3, "sent back store_id: " << store_id);

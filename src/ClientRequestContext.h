@@ -14,6 +14,7 @@
 #include "dns/forward.h"
 #include "helper/forward.h"
 #include "ipcache.h"
+#include "store/forward.h"
 
 #if USE_ADAPTATION
 #include "adaptation/forward.h"
@@ -47,6 +48,11 @@ public:
     void clientStoreIdDone(const Helper::Reply &);
     void checkNoCache();
     void checkNoCacheDone(const Acl::Answer &);
+
+    /// storeCreateEntry() convenience wrapper that creates a StoreEntry for
+    /// keeping the (internally-generated error) response to our request
+    StoreEntry *createStoreEntry();
+
 #if USE_ADAPTATION
     void adaptationAccessCheck();
 #endif
