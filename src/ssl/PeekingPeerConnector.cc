@@ -189,14 +189,15 @@ Ssl::PeekingPeerConnector::initialize(Security::SessionPointer &serverSession)
         if (hostName)
             SSL_set_ex_data(serverSession.get(), ssl_ex_index_server, (void*)hostName);
 
-        if (csd->sslBumpMode == Ssl::bumpPeek || csd->sslBumpMode == Ssl::bumpStare) {
+        const auto sslBumpMode = csd->serverBump()->currentNeed();
+        if (sslBumpMode == Ssl::bumpPeek || sslBumpMode == Ssl::bumpStare) {
             auto clientSession = fd_table[clientConn->fd].ssl.get();
             Must(clientSession);
             BIO *bc = SSL_get_rbio(clientSession);
             Ssl::ClientBio *cltBio = static_cast<Ssl::ClientBio *>(BIO_get_data(bc));
             Must(cltBio);
             if (details && details->tlsVersion.protocol != AnyP::PROTO_NONE)
-                applyTlsDetailsToSSL(serverSession.get(), details, csd->sslBumpMode);
+                applyTlsDetailsToSSL(serverSession.get(), details, sslBumpMode);
 
             BIO *b = SSL_get_rbio(serverSession.get());
             Ssl::ServerBio *srvBio = static_cast<Ssl::ServerBio *>(BIO_get_data(b));
@@ -204,7 +205,7 @@ Ssl::PeekingPeerConnector::initialize(Security::SessionPointer &serverSession)
             // inherit client features such as TLS version and SNI
             srvBio->setClientFeatures(details, cltBio->rBufData());
             srvBio->recordInput(true);
-            srvBio->mode(csd->sslBumpMode);
+            srvBio->mode(sslBumpMode);
         } else {
             // Set client SSL options
             ::Security::ProxyOutgoingConfig.updateSessionOptions(serverSession);

@@ -122,8 +122,7 @@ private:
     /// Actions requested at each SslBump step
     Actions requested_;
 
-    /// Actions applied at each SslBump step
-    Actions applied_;
+    BumpMode currentMode_; ///< the last requested action or Ssl::bumpEnd;
 
     /// current SslBump processing step or XactionStep::tlsBumpDone
     BumpStep step_ = XactionStep::tlsBump1;

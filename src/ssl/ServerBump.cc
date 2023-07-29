@@ -83,6 +83,7 @@ void
 Ssl::ServerBump::noteNeed(const BumpMode mode)
 {
     debugs(83, 3, mode << " at " << step_);
+    currentMode_ = mode;
     if (at(XactionStep::tlsBump1)) {
         requested_.step1 = mode;
     } else if (at(XactionStep::tlsBump2)) {
@@ -94,17 +95,9 @@ Ssl::ServerBump::noteNeed(const BumpMode mode)
 }
 
 Ssl::BumpMode
-Ssl::ServerBump::currentNeed() const
+Ssl::ServerBump::currentNeed() const // TODO: Rename
 {
-    auto mode = Ssl::bumpEnd;
-    if (at(XactionStep::tlsBump1)) {
-        mode = requested_.step1;
-    } else if (at(XactionStep::tlsBump2)) {
-        mode = requested_.step2;
-    } else {
-        assert(at(XactionStep::tlsBump3));
-        mode = requested_.step3;
-    }
+    const auto mode = currentMode_;
     debugs(83, 5, mode << " at " << step_);
     // TODO: assert(mode != Ssl::bumpEnd);
     return mode;
@@ -205,7 +198,7 @@ Ssl::ServerBump::print(std::ostream &os) const
     // TODO: If future steps are impossible, stop ignoring them.
     // TODO: If step retries are possible, make sure they clear stale needs.
 
-    os << step_;
+    os << currentMode_ << '@' << step_;
 
     bool stopReportingSteps = false;
     if (requested_.step1 != Ssl::bumpEnd) {
