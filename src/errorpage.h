@@ -205,6 +205,9 @@ public:
     /// overwrites xerrno;
     ErrorDetail::Pointer detail;
 
+    /// whether to apply httpHdrMangleList() to the generated response
+    bool mangleHeaders = false;
+
     HttpReplyPointer response_;
 
 private:

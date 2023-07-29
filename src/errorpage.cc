@@ -1359,6 +1359,11 @@ ErrorState::BuildHttpReply()
             ale->updateError(Error(type, SysErrorDetail::NewIfAny(xerrno)));
     }
 
+    if (mangleHeaders) {
+        debugs(4, 5, "mangling headers early; request=" << request);
+        httpHdrMangleList(&rep->header, request.getRaw(), ale, ROR_REPLY);
+    }
+
     return rep;
 }
 
