@@ -1493,9 +1493,8 @@ bool ConnStateData::serveDelayedError(Http::Stream *context)
     if (!sslServerBump)
         return false;
 
-    assert(sslServerBump->entry);
     // Did we create an error entry while processing CONNECT?
-    if (!sslServerBump->entry->isEmpty()) {
+    if (const auto errorEntry = sslServerBump->sawError()) {
         quitAfterError(http->request);
 
         // Get the saved error entry and send it to the client by replacing the
@@ -1504,7 +1503,7 @@ bool ConnStateData::serveDelayedError(Http::Stream *context)
         clientReplyContext *repContext = dynamic_cast<clientReplyContext *>(node->data.getRaw());
         assert(repContext);
         debugs(33, 5, "Responding with delated error for " << http->uri);
-        repContext->setReplyToStoreEntry(sslServerBump->entry, "delayed SslBump error");
+        repContext->setReplyToStoreEntry(errorEntry, "delayed SslBump error");
 
         // Get error details from the fake certificate-peeking request.
         http->request->error.update(sslServerBump->request->error);
@@ -1754,6 +1753,18 @@ clientProcessRequest(ConnStateData *conn, const Http1::RequestParserPointer &hp,
             }
         }
     }
+
+#if USE_OPENSSL
+    if (http->request->method == Http::METHOD_CONNECT &&
+        !http->redirect.status &&
+        conn->port->transport.protocol == AnyP::PROTO_HTTP &&
+        conn->port->flags.tunnelSslBumping &&
+        Config.accessList.ssl_bump &&
+        !conn->serverBump()) {
+        conn->startSslBumpProcessing("first non-redirected CONNECT on http_port");
+    }
+#endif
+
 
     http->calloutContext = new ClientRequestContext(http);
 
@@ -2391,7 +2402,7 @@ clientNegotiateSSL(int fd, void *data)
 
 #if USE_OPENSSL
     if (conn->serverBump())
-        conn->serverBump()->step = XactionStep::tlsBumpDone;
+        conn->serverBump()->noteFinished("successfully bumped TLS client connection");
 
     if (Security::SessionIsResumed(session)) {
         debugs(83, 2, "Session " << SSL_get_session(session.get()) <<
@@ -2471,6 +2482,7 @@ clientNegotiateSSL(int fd, void *data)
     }
     /* careful: finished() above frees request, host, etc. */
 
+    conn->flags.readMore = true; // may already be true
     conn->readSomeData();
 }
 
@@ -2527,6 +2539,13 @@ ConnStateData::postHttpsAccept()
 }
 
 #if USE_OPENSSL
+void
+ConnStateData::startSslBumpProcessing(const char * const reason)
+{
+    assert(!sslServerBump);
+    sslServerBump = new Ssl::ServerBump(reason);
+}
+
 void
 ConnStateData::sslCrtdHandleReplyWrapper(void *data, const Helper::Reply &reply)
 {
@@ -2783,11 +2802,83 @@ ConnStateData::getSslContextDone(Security::ContextPointer &ctx)
 }
 
 void
-ConnStateData::switchToHttps(ClientHttpRequest *http, Ssl::BumpMode bumpServerMode)
+ConnStateData::sslBumpAfterCallouts()
+{
+    assert(sslServerBump);
+    debugs(85, 5, *sslServerBump << " on " << clientConnection);
+
+    // XXX: Should all async-called methods quit if (!isOpen())?
+
+    // errors require the same bump-GET-serve processing regardless of the step
+    if (sslServerBump->sawError()) {
+        getSslContextStart();
+        // XXX: Move this to getSslContextStart!
+        // We have to read client request:
+        flags.readMore = true;
+        return;
+    }
+
+    if (sslServerBump->at(XactionStep::tlsBump1))
+        sslBumpAfterCalloutsAtStep1();
+    else
+        sslBumpAfterCalloutsAtStep2();
+}
+
+void
+ConnStateData::sslBumpAfterCalloutsAtStep1()
+{
+    assert(sslServerBump);
+    assert(sslServerBump->at(XactionStep::tlsBump1));
+ 
+    switch (sslServerBump->currentNeed()) {
+        case Ssl::bumpPeek:
+        case Ssl::bumpStare:
+            switchToHttps(); // starts step2
+            break;
+
+        case Ssl::bumpSplice:
+        case Ssl::bumpNone:
+            if (!splice()) // TODO: Check. TODO: Add noteFinished() here?
+                clientConnection->close();
+            break;
+
+        case Ssl::bumpBump:
+        case Ssl::bumpClientFirst:
+            getSslContextStart();
+            break;
+
+        case Ssl::bumpTerminate:
+            sslServerBump->noteFinished("honoring ssl_bump terminate at step1");
+            if (Comm::IsConnOpen(clientConnection))
+                clientConnection->close();
+            break;
+
+        case Ssl::bumpServerFirst: {
+            auto &http = frontRequest();
+            sslServerBump->request = http.request;
+            const auto errorEntry = sslServerBump->createStoreEntry(http);
+            debugs(33, 5, "proceeding with ssl_bump server-first: " << *errorEntry);
+            assert(http.request);
+            http.request->flags.sslPeek = true; // do not dispatch() this HTTP request to peers
+            // will call httpsPeeked() with certificate and connection, eventually
+            FwdState::Start(clientConnection, errorEntry, http.request, http.al);
+            break;
+        }
+
+        case Ssl::bumpEnd:
+            assert(false); // unreachable code
+    }
+}
+
+void
+ConnStateData::switchToHttps()
 {
     assert(!switchedToHttps_);
-    Must(http->request);
-    auto &request = http->request;
+
+    assert(sslServerBump);
+    sslServerBump->noteStepStart(XactionStep::tlsBump2);
+
+    const auto request = frontRequest().request;
 
     // Depending on receivedFirstByte_, we are at the start of either an
     // established CONNECT tunnel with the client or an intercepted TCP (and
@@ -2805,21 +2896,6 @@ ConnStateData::switchToHttps(ClientHttpRequest *http, Ssl::BumpMode bumpServerMo
     // keep version major.minor details the same.
     // but we are now performing the HTTPS handshake traffic
     transferProtocol.protocol = AnyP::PROTO_HTTPS;
-
-    if (sslServerBump) {
-        // If sslServerBump is set, then we have decided to deny CONNECT
-        // and now want to switch to SSL to send the error to the client
-        // without even peeking at the origin server certificate.
-        Must(bumpServerMode == Ssl::bumpClientFirst);
-        Must(sslServerBump->at(XactionStep::tlsBump1));
-        Must(!sslServerBump->connectedOk());
-    } else {
-        Must(Ssl::isBumpMode(bumpServerMode));
-        if (bumpServerMode == Ssl::bumpServerFirst || bumpServerMode == Ssl::bumpPeek || bumpServerMode == Ssl::bumpStare)
-            request->flags.sslPeek = true;
-
-        sslServerBump = new Ssl::ServerBump(http, nullptr, bumpServerMode);
-    }
 
     // commSetConnTimeout() was called for this request before we switched.
     // Fix timeout to request_start_timeout
@@ -2887,9 +2963,6 @@ ConnStateData::parseTlsHandshake()
     Comm::ResetSelect(clientConnection->fd);
 
     if (parseErrorDetails) {
-        Http::StreamPointer context = pipeline.front();
-        Must(context && context->http);
-        HttpRequest::Pointer request = context->http->request;
         debugs(83, 5, "Got something other than TLS Client Hello. Cannot SslBump.");
         updateError(ERR_PROTOCOL_UNKNOWN, parseErrorDetails);
         if (!tunnelOnError(ERR_PROTOCOL_UNKNOWN))
@@ -2897,20 +2970,72 @@ ConnStateData::parseTlsHandshake()
         return;
     }
 
-    Must(sslServerBump);
-    if (sslServerBump->act.step1 == Ssl::bumpPeek || sslServerBump->act.step1 == Ssl::bumpStare) {
-        startPeekAndSpliceStep2();
-    } else if (sslServerBump->act.step1 == Ssl::bumpServerFirst) {
-        debugs(83, 5, "server-first skips step2; start forwarding the request");
-        sslServerBump->step = XactionStep::tlsBump3;
+    HttpRequest::Pointer cause;
+    {
+        assert(!pipeline.empty());
         Http::StreamPointer context = pipeline.front();
-        ClientHttpRequest *http = context ? context->http : nullptr;
-        sslServerBump->step = XactionStep::tlsBump3; // Jump directly to TLS bumping Step3
-        // will call httpsPeeked() with certificate and connection, eventually
-        FwdState::Start(clientConnection, sslServerBump->entry, sslServerBump->request.getRaw(), http ? http->al : nullptr);
-    } else {
-        Must (sslServerBump->act.step1 == Ssl::bumpBump || sslServerBump->act.step1 == Ssl::bumpClientFirst);
-        getSslContextStart();
+        Must(context);
+        ClientHttpRequest *http = context->http;
+        Must(http);
+        cause = http->request;
+        context->finished();
+    }
+
+    // We have extracted info from the TLS client Hello (e.g., SNI). Now
+    // doCallouts() with a new ClientHttpRequest based on that new info.
+
+    assert(sslServerBump);
+    assert(sslServerBump->at(XactionStep::tlsBump2));
+
+    HttpRequest::Pointer request = cause->clone();
+    if (request->url.hostIsNumeric() && !tlsClientSni_.isEmpty()) {
+        request->url.host(tlsClientSni_.c_str());
+        // also replace host header
+        request->header.delById(Http::HOST);
+        request->header.putStr(Http::HOST, tlsClientSni_.c_str());
+    }
+    request->flags.sslPeek = true;
+    const auto http = buildFakeRequest(request);
+    http->calloutContext = new ClientRequestContext(http);
+    http->doCallouts();
+    clientProcessRequestFinished(this, request);
+}
+
+void
+ConnStateData::sslBumpAfterCalloutsAtStep2()
+{
+    assert(sslServerBump);
+    assert(sslServerBump->at(XactionStep::tlsBump2));
+
+    switch (sslServerBump->currentNeed()) {
+        case Ssl::bumpPeek:
+        case Ssl::bumpStare:
+            finalizePeekAndSpliceStep2();
+            break;
+
+        case Ssl::bumpSplice:
+            if (!splice()) // TODO: Check. TODO: Add noteFinished() here?
+                clientConnection->close();
+            break;
+
+        case Ssl::bumpBump:
+            getSslContextStart();
+            break;
+
+        case Ssl::bumpTerminate:
+            sslServerBump->noteFinished("honoring ssl_bump terminate at step2");
+            if (Comm::IsConnOpen(clientConnection))
+                clientConnection->close();
+            break;
+
+        case Ssl::bumpNone:
+        case Ssl::bumpClientFirst:
+        case Ssl::bumpServerFirst:
+            assert(!"all legacy actions complete before step2");
+            break;
+
+        case Ssl::bumpEnd:
+            assert(false); // unreachable code
     }
 }
 
@@ -2919,10 +3044,7 @@ ConnStateData::splice()
 {
     // normally we can splice here, because we just got client hello message
     assert(sslServerBump);
-    debugs(83, 5, int(sslServerBump->step));
-
-    // Bump procedure finished, reset current bumping step
-    sslServerBump->step = XactionStep::tlsBumpDone;
+    sslServerBump->noteFinished("spliced");
 
     // fde::ssl/tls_read_method() probably reads from our own inBuf. If so, then
     // we should not lose any raw bytes when switching to raw I/O here.
@@ -2937,68 +3059,11 @@ ConnStateData::splice()
     Must(context);
     Must(context->http);
     ClientHttpRequest *http = context->http;
-    inBuf = preservedClientData;
-    http->processRequest();
+    if (preservingClientData_)
+        inBuf = preservedClientData;
+    stopReading(); // tunnels read for themselves
+    tunnelStart(http);
     return true;
-}
-
-void
-ConnStateData::startPeekAndSpliceStep2()
-{
-    // This is the Step2 of the SSL bumping
-    assert(sslServerBump);
-    debugs(83, 5, "step2");
-
-    Must(sslServerBump->at(XactionStep::tlsBump1));
-    sslServerBump->step = XactionStep::tlsBump2;
-
-    Http::StreamPointer context = pipeline.front();
-    Must(context);
-    ClientHttpRequest *http = context->http;
-    Must(http);
-    assert(!pipeline.empty());
-    HttpRequest::Pointer cause = http->request;
-    context->finished();
-    HttpRequest::Pointer request = cause->clone();
-    if (request->url.hostIsNumeric() && !tlsClientSni_.isEmpty()) {
-        request->url.host(tlsClientSni_.c_str());
-        // also replace host header
-        request->header.delById(Http::HOST);
-        request->header.putStr(Http::HOST, tlsClientSni_.c_str());
-    }
-    request->flags.sslPeek = true;
-    http = buildFakeRequest(request);
-    http->calloutContext = new ClientRequestContext(http);
-    http->doCallouts();
-    clientProcessRequestFinished(this, request);
-}
-
-void
-ConnStateData::resumePeekAndSpliceStep2()
-{
-    if (!isOpen())
-        return;
-
-    assert(sslServerBump);
-    if (!sslServerBump->connectedOk()) {
-        debugs(83, 5, "need to serve the saved error");
-        getSslContextStart();
-        // We have to read client request:
-        flags.readMore = true;
-        return;
-    }
-
-    sslBumpMode = sslServerBump->act.step2;
-    debugs(83, 5, sslBumpMode);
-    if (sslBumpMode == Ssl::bumpTerminate) {
-        sslServerBump->step = XactionStep::tlsBumpDone;
-        clientConnection->close();
-    } else if (sslBumpMode != Ssl::bumpSplice) {
-        finalizePeekAndSpliceStep2();
-    } else if (!splice())
-        clientConnection->close();
-
-    return;
 }
 
 void
@@ -3033,11 +3098,9 @@ ConnStateData::finalizePeekAndSpliceStep2()
     // of SSL bump
     inBuf.clear();
 
-    debugs(83, 5, "Peek and splice at step2 done. Start forwarding the request!!! ");
-    sslServerBump->step = XactionStep::tlsBump3;
-    const auto &context = pipeline.front();
-    const auto http = context ? context->http : nullptr;
-    FwdState::Start(clientConnection, sslServerBump->entry, sslServerBump->request.getRaw(), http ? http->al : nullptr);
+    auto &http = frontRequest();
+    const auto errorEntry = sslServerBump->startStep3(http);
+    FwdState::Start(clientConnection, errorEntry, http.request, http.al);
 }
 
 /// process a problematic Security::Accept() result on the SslBump code path
@@ -3095,7 +3158,9 @@ ConnStateData::restartTlsNegotiation()
 void
 ConnStateData::httpsPeeked(PinnedIdleContext pic)
 {
-    Must(sslServerBump != nullptr);
+    Must(sslServerBump != NULL);
+    Must(sslServerBump->request);
+    Must(pic.request);
     Must(sslServerBump->request == pic.request);
     Must(pipeline.empty() || pipeline.front()->http == nullptr || pipeline.front()->http->request == pic.request.getRaw());
 
@@ -3108,6 +3173,15 @@ ConnStateData::httpsPeeked(PinnedIdleContext pic)
     // We are going to read new requests
     flags.readMore = true;
     getSslContextStart();
+}
+
+ClientHttpRequest &
+ConnStateData::frontRequest()
+{
+    assert(!pipeline.empty());
+    const auto http = pipeline.front()->http;
+    assert(http);
+    return *http;
 }
 
 #endif /* USE_OPENSSL */

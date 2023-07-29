@@ -45,8 +45,13 @@ Http::One::Server::start()
     // XXX: Until we create an HttpsServer class, use this hack to allow old
     // client_side.cc code to manipulate ConnStateData object directly
     if (isHttpsServer) {
-        postHttpsAccept();
-        return;
+        if (!port->flags.tunnelSslBumping)
+            return postHttpsAccept();
+
+#if USE_OPENSSL
+        if (!port->flags.proxySurrogate)
+            startSslBumpProcessing("https_port connection without the PROXY protocol header");
+#endif
     }
 
     typedef CommCbMemFunT<Server, CommTimeoutCbParams> TimeoutDialer;

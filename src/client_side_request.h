@@ -36,6 +36,8 @@ class ClientHttpRequest
 #if USE_ADAPTATION
     : public Adaptation::Initiator, // to start adaptation transactions
       public BodyConsumer     // to receive reply bodies in request satisf. mode
+#elif USE_OPENSSL
+    : public AsyncJob
 #endif
 {
 #if USE_ADAPTATION
@@ -188,6 +190,10 @@ private:
     /// initializes the current unassigned request to the virgin request
     /// sets the current request, asserting that it was unset
     void assignRequest(HttpRequest *);
+
+    void sslBumpSendConnectResponse();
+    void sslBumpSentConnectResponse(const CommIoCbParams &);
+    void sslBumpAfterCallouts();
 
     int64_t maxReplyBodySize_ = 0;
     StoreEntry *entry_ = nullptr;

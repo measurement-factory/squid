@@ -256,10 +256,10 @@ public:
     void postHttpsAccept();
 
 #if USE_OPENSSL
+    void sslBumpAfterCallouts();
+
     /// Initializes the Step2 bumping step
     void startPeekAndSpliceStep2();
-
-    void resumePeekAndSpliceStep2();
 
     /// Initializes and starts a peek-and-splice negotiation with the SSL client
     void finalizePeekAndSpliceStep2();
@@ -286,16 +286,16 @@ public:
     /// Process response from ssl_crtd.
     void sslCrtdHandleReply(const Helper::Reply &reply);
 
-    void switchToHttps(ClientHttpRequest *, Ssl::BumpMode bumpServerMode);
+    void sslBumpFinishStep1();
+    void switchToHttps();
     void parseTlsHandshake();
     bool switchedToHttps() const { return switchedToHttps_; }
     Ssl::ServerBump *serverBump() {return sslServerBump;}
-    inline void setServerBump(Ssl::ServerBump *srvBump) {
-        if (!sslServerBump)
-            sslServerBump = srvBump;
-        else
-            assert(sslServerBump == srvBump);
-    }
+    const Ssl::ServerBump *serverBump() const { return sslServerBump; }
+
+    /// \copydoc Ssl::ServerBump::ServerBump()
+    void startSslBumpProcessing(const char *reason);
+
     const SBuf &sslCommonName() const {return sslCommonName_;}
     void resetSslCommonName(const char *name) {sslCommonName_ = name;}
     const SBuf &tlsClientSni() const { return tlsClientSni_; }
@@ -465,7 +465,13 @@ private:
     bool parseProxyProtocolHeader();
     bool proxyProtocolError(const char *reason);
 
+    /// the earliest (not fully processed) requests in the current pipeline
+    ClientHttpRequest &frontRequest();
+
 #if USE_OPENSSL
+    void sslBumpAfterCalloutsAtStep1();
+    void sslBumpAfterCalloutsAtStep2();
+
     /// \returns a pointer to the matching cached TLS context or nil
     Security::ContextPointer getTlsContextFromCache(const SBuf &cacheKey, const Ssl::CertificateProperties &certProperties);
 

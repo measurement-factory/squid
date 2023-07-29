@@ -120,7 +120,7 @@ ClientRequestContext::ClientRequestContext(ClientHttpRequest *anHttp) :
 CBDATA_CLASS_INIT(ClientHttpRequest);
 
 ClientHttpRequest::ClientHttpRequest(ConnStateData * const aConn, const bool isFake):
-#if USE_ADAPTATION
+#if USE_ADAPTATION || USE_OPENSSL
     AsyncJob("ClientHttpRequest"),
 #endif
     al(new AccessLogEntry()),
@@ -1350,11 +1350,7 @@ ClientRequestContext::sslBumpAccessCheck()
         return false;
     }
 
-    const auto srvBump = http->getConn()->serverBump();
-    if (!srvBump) {
-        debugs(85, 5, "not currently subject to ssl_bump: " << http->getConn());
-        return false;
-    }
+    // XXX: Remove http->getConn()->sslBumpMode
 
     const Ssl::BumpMode bumpMode = http->getConn()->sslBumpMode;
     if (http->request->flags.forceTunnel) {
@@ -1374,12 +1370,8 @@ ClientRequestContext::sslBumpAccessCheck()
 
     // If we have not decided yet, decide whether to bump now.
 
-    // Bumping here can only start with a CONNECT request on a bumping port
-    // (bumping of intercepted SSL conns is decided before we get 1st request).
-    // We also do not bump redirected CONNECT requests.
-    if (http->request->method != Http::METHOD_CONNECT || http->redirect.status ||
-            !Config.accessList.ssl_bump ||
-            !http->getConn()->port->flags.tunnelSslBumping) {
+    // ignore ssl_bump rules unless the request is on the SslBump path
+    if (!http->getConn()->serverBump()) {
         http->al->ssl.bumpMode = Ssl::bumpEnd; // SslBump does not apply; log -
         debugs(85, 5, "cannot SslBump this request");
         return false;
@@ -1388,8 +1380,8 @@ ClientRequestContext::sslBumpAccessCheck()
     // Do not bump during authentication: clients would not proxy-authenticate
     // if we delay a 407 response and respond with 200 OK to CONNECT.
     if (error && error->httpStatus == Http::scProxyAuthenticationRequired) {
+        http->getConn()->serverBump()->noteFinished("authenticating CONNECT");
         http->al->ssl.bumpMode = Ssl::bumpEnd; // SslBump does not apply; log -
-        debugs(85, 5, "no SslBump during proxy authentication");
         return false;
     }
 
@@ -1404,6 +1396,7 @@ ClientRequestContext::sslBumpAccessCheck()
 
     ACLFilledChecklist *aclChecklist = clientAclChecklistCreate(Config.accessList.ssl_bump, http);
 
+    const auto srvBump = http->getConn()->serverBump();
     if (srvBump->at(XactionStep::tlsBump2)) {
         aclChecklist->banAction(Acl::Answer(ACCESS_ALLOWED, Ssl::bumpNone));
         aclChecklist->banAction(Acl::Answer(ACCESS_ALLOWED, Ssl::bumpClientFirst));
@@ -1415,28 +1408,6 @@ ClientRequestContext::sslBumpAccessCheck()
 
     aclChecklist->nonBlockingCheck(sslBumpAccessCheckDoneWrapper, this);
     return true;
-}
-
-// TODO: Move this, Ssl::PeekingPeerConnector::checkForPeekAndSpliceGuess() to
-// ServerBump::actionAfterNoRulesMatched() after ensuring ServerBump existence.
-/// decide what to do after sslBumpAccessCheck() matched no ssl_bump rules
-Ssl::BumpMode
-ClientRequestContext::sslBumpActionAfterNoRulesMatched() const
-{
-    // TODO: Ensure srvBump existence on the entire SslBump code path.
-    const auto srvBump = http->getConn()->serverBump();
-    if (srvBump && srvBump->at(XactionStep::tlsBump2)) {
-        // step1 action determines what happens when no rules match at step2
-        if (srvBump->act.step1 == Ssl::bumpStare) {
-            debugs(85, 3, "bumping at no-match step2 because step1 stared");
-            return Ssl::bumpBump;
-        }
-        assert(srvBump->act.step1 == Ssl::bumpPeek);
-        debugs(85, 3, "splicing at no-match step2 because step1 peeked");
-        return Ssl::bumpSplice;
-    }
-    debugs(85, 3, "splicing at no-match step1");
-    return Ssl::bumpSplice;
 }
 
 /**
@@ -1459,23 +1430,14 @@ ClientRequestContext::sslBumpAccessCheckDone(const Acl::Answer &answer)
     if (!httpStateIsValid())
         return;
 
+    assert(http->getConn());
+    const auto serverBump = http->getConn()->serverBump();
+
     const Ssl::BumpMode bumpMode = answer.allowed() ?
                                    static_cast<Ssl::BumpMode>(answer.kind) :
-                                   sslBumpActionAfterNoRulesMatched();
-    http->sslBumpNeed(bumpMode); // for processRequest() to bump if needed
+                                   serverBump->actionAfterNoRulesMatched();
+    serverBump->noteNeed(bumpMode);
     http->al->ssl.bumpMode = bumpMode; // for logging
-
-    if (bumpMode == Ssl::bumpTerminate) {
-        const Comm::ConnectionPointer clientConn = http->getConn() ? http->getConn()->clientConnection : nullptr;
-        if (Comm::IsConnOpen(clientConn)) {
-            debugs(85, 3, "closing after Ssl::bumpTerminate ");
-            clientConn->close();
-        }
-        if (auto srvBump = http->getConn()->serverBump())
-            srvBump->step = XactionStep::tlsBumpDone;
-        return;
-    }
-
     http->doCallouts();
 }
 #endif
@@ -1493,18 +1455,10 @@ ClientHttpRequest::processRequest()
     const bool untouchedConnect = request->method == Http::METHOD_CONNECT && !redirect.status;
 
 #if USE_OPENSSL
-    auto srvBump = getConn()->serverBump();
-    if (srvBump && srvBump->at(XactionStep::tlsBump2)) {
-        // Update request object
-        srvBump->request = request;
-        srvBump->act.step2 = sslBumpNeed_;
-        CallJobHere(85, 4, getConn(), ConnStateData, resumePeekAndSpliceStep2);
-        return;
-    }
-
-    if (untouchedConnect && sslBumpNeeded()) {
-        assert(!request->flags.forceTunnel);
-        sslBumpStart();
+    // XXX: Do not send a second/rogue CONNECT to sslBumpAfterCallouts() if it
+    // can reach here.
+    if (untouchedConnect && getConn()->serverBump() && !request->flags.forceTunnel) {
+        sslBumpAfterCallouts();
         return;
     }
 #endif
@@ -1541,60 +1495,55 @@ ClientHttpRequest::sslBumpNeed(Ssl::BumpMode mode)
     sslBumpNeed_ = mode;
 }
 
-// called when comm_write has completed
-static void
-SslBumpEstablish(const Comm::ConnectionPointer &, char *, size_t, Comm::Flag errflag, int, void *data)
-{
-    ClientHttpRequest *r = static_cast<ClientHttpRequest*>(data);
-    debugs(85, 5, "responded to CONNECT: " << r << " ? " << errflag);
-
-    assert(r && cbdataReferenceValid(r));
-    r->sslBumpEstablish(errflag);
-}
-
+/// Comm::Write() handler for the CONNECT response
 void
-ClientHttpRequest::sslBumpEstablish(Comm::Flag errflag)
+ClientHttpRequest::sslBumpSentConnectResponse(const CommIoCbParams &io)
 {
     // Bail out quickly on Comm::ERR_CLOSING - close handlers will tidy up
-    if (errflag == Comm::ERR_CLOSING)
+    if (io.flag == Comm::ERR_CLOSING)
         return;
 
-    if (errflag) {
-        debugs(85, 3, "CONNECT response failure in SslBump: " << errflag);
+    if (io.flag) {
+        debugs(85, 3, "failed to write CONNECT response: " << io.flag);
         getConn()->clientConnection->close();
         return;
     }
 
 #if USE_AUTH
+    // XXX: Misplaced or duplicated.
     // Preserve authentication info for the ssl-bumped request
     if (request->auth_user_request != nullptr)
         getConn()->setAuth(request->auth_user_request, "SSL-bumped CONNECT");
 #endif
 
-    assert(sslBumpNeeded());
-    getConn()->switchToHttps(this, sslBumpNeed_);
+    CallJobHere(85, 4, getConn(), ConnStateData, sslBumpAfterCallouts);
 }
 
 void
-ClientHttpRequest::sslBumpStart()
+ClientHttpRequest::sslBumpAfterCallouts()
 {
-    debugs(85, 5, "Confirming " << Ssl::bumpMode(sslBumpNeed_) <<
-           "-bumped CONNECT tunnel on FD " << getConn()->clientConnection);
-    getConn()->sslBumpMode = sslBumpNeed_;
-
-    AsyncCall::Pointer bumpCall = commCbCall(85, 5, "ClientSocketContext::sslBumpEstablish",
-                                  CommIoCbPtrFun(&SslBumpEstablish, this));
-
-    if (!clientExpectsConnectResponse()) {
-        CommIoCbParams &params = GetCommParams<CommIoCbParams>(bumpCall);
-        params.flag = Comm::OK;
-        params.conn = getConn()->clientConnection;
-        ScheduleCallHere(bumpCall);
-        return;
+    // if clientExpectsConnectResponse(), send it unless we are going to close
+    // the client connection (due to ssl_bump terminate)
+    if (clientExpectsConnectResponse() && getConn()) {
+        assert(getConn()->serverBump());
+        if (getConn()->serverBump()->currentNeed() != Ssl::bumpTerminate) {
+            sslBumpSendConnectResponse();
+            return;
+        }
     }
+    CallJobHere(85, 4, getConn(), ConnStateData, sslBumpAfterCallouts);
+}
 
+void
+ClientHttpRequest::sslBumpSendConnectResponse()
+{
+    assert(clientExpectsConnectResponse());
+
+    typedef CommCbMemFunT<ClientHttpRequest, CommIoCbParams> Dialer;
+    AsyncCall::Pointer call = JobCallback(85, 5, Dialer, this,
+                                          ClientHttpRequest::sslBumpSentConnectResponse);
     const auto mb = commitToSendingConnectResponse();
-    Comm::Write(getConn()->clientConnection, mb.get(), bumpCall);
+    Comm::Write(getConn()->clientConnection, mb.get(), call);
 }
 
 #endif
@@ -1860,7 +1809,7 @@ ClientHttpRequest::doCallouts()
 #if USE_OPENSSL
         if (const auto serverBump = getConn()->serverBump()) {
             serverBump->request = request;
-            serverBump->resetStoreEntry(calloutContext->http, e);
+            serverBump->useStoreEntry(*this, e);
             errorAppendEntry(e, calloutContext->error);
             calloutContext->error = nullptr;
             e->unlock("ClientHttpRequest::doCallouts+sslBumpNeeded");

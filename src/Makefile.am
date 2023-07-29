@@ -329,6 +329,7 @@ squid_SOURCES = \
 	Transients.h \
 	XactionInitiator.cc \
 	XactionInitiator.h \
+	XactionStep.cc \
 	XactionStep.h \
 	cache_cf.cc \
 	cache_cf.h \
@@ -1922,7 +1923,9 @@ tests_test_http_range_SOURCES = \
 	tests/stub_whois.cc \
 	whois.h \
 	wordlist.cc \
-	wordlist.h
+	wordlist.h \
+	XactionStep.cc \
+	XactionStep.h
 nodist_tests_test_http_range_SOURCES = \
 	$(BUILT_SOURCES) \
 	tests/stub_libtime.cc
@@ -2309,7 +2312,9 @@ tests_testHttpRequest_SOURCES = \
 	tests/stub_whois.cc \
 	whois.h \
 	wordlist.cc \
-	wordlist.h
+	wordlist.h \
+	XactionStep.cc \
+	XactionStep.h
 nodist_tests_testHttpRequest_SOURCES = \
 	$(BUILT_SOURCES) \
 	tests/stub_libtime.cc
@@ -2606,7 +2611,9 @@ tests_testCacheManager_SOURCES = \
 	tests/stub_whois.cc \
 	whois.h \
 	wordlist.cc \
-	wordlist.h
+	wordlist.h \
+	XactionStep.cc \
+	XactionStep.h
 nodist_tests_testCacheManager_SOURCES = \
 	$(BUILT_SOURCES) \
 	tests/stub_libtime.cc
