@@ -99,9 +99,6 @@ public:
     /// reports ServerBump gist (for debugging)
     void print(std::ostream &) const;
 
-    /// faked, minimal request; required by Client API
-    HttpRequest::Pointer request;
-
     /// HTTPS server certificate. Maybe it is different than the one
     /// it is stored in serverSession object (error SQUID_X509_V_ERR_CERT_CHANGE)
     Security::CertPointer serverCert;

@@ -1808,7 +1808,6 @@ ClientHttpRequest::doCallouts()
         StoreEntry *e = storeCreateEntry(storeUri, storeUri, request->flags, request->method);
 #if USE_OPENSSL
         if (const auto serverBump = getConn()->serverBump()) {
-            serverBump->request = request;
             serverBump->useStoreEntry(*this, e);
             errorAppendEntry(e, calloutContext->error);
             calloutContext->error = nullptr;
