@@ -18,6 +18,7 @@
 
 #include <cstring>
 #include <limits>
+#include <map>
 
 AnyP::PortCfgPointer HttpPortList;
 AnyP::PortCfgPointer FtpPortList;
