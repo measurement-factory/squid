@@ -1408,6 +1408,9 @@ ClientRequestContext::sslBumpAccessCheck()
         aclChecklist->banAction(Acl::Answer(ACCESS_ALLOWED, Ssl::bumpNone));
         aclChecklist->banAction(Acl::Answer(ACCESS_ALLOWED, Ssl::bumpClientFirst));
         aclChecklist->banAction(Acl::Answer(ACCESS_ALLOWED, Ssl::bumpServerFirst));
+    } else {
+        assert(srvBump->at(XactionStep::tlsBump1));
+        // no ssl_bump action restrictions during step1
     }
 
     aclChecklist->nonBlockingCheck(sslBumpAccessCheckDoneWrapper, this);
