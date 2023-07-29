@@ -58,16 +58,16 @@ typedef std::unordered_map<SBuf, GeneratorRequest*> GeneratorRequests;
 
 static void HandleGeneratorReply(void *data, const ::Helper::Reply &reply);
 
-} // namespace Ssl
-
-CBDATA_NAMESPACED_CLASS_INIT(Ssl, GeneratorRequest);
-
-/// prints Ssl::GeneratorRequest for debugging
+/// prints GeneratorRequest for debugging
 static std::ostream &
-operator <<(std::ostream &os, const Ssl::GeneratorRequest &gr)
+operator <<(std::ostream &os, const GeneratorRequest &gr)
 {
     return os << "crtGenRq" << gr.query.id.value << "/" << gr.requestors.size();
 }
+
+} // namespace Ssl
+
+CBDATA_NAMESPACED_CLASS_INIT(Ssl, GeneratorRequest);
 
 /// pending Ssl::Helper requests (to all certificate generator helpers combined)
 static Ssl::GeneratorRequests TheGeneratorRequests;

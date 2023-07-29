@@ -30,6 +30,7 @@
 #include <openssl/engine.h>
 #endif
 #include <queue>
+#include <iosfwd>
 #include <map>
 
 /**
@@ -372,6 +373,9 @@ public:
     /// certificate chain has to be deemed untrusted until revalidation (if any)
     bool hidMissingIssuer = false;
 };
+
+/// prints a human-friendly BumpMode value representation (for debugging)
+std::ostream &operator <<(std::ostream &, BumpMode);
 
 } //namespace Ssl
 
