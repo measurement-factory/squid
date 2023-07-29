@@ -1390,6 +1390,13 @@ Format::Format::assemble(MemBuf &mb, const AccessLogEntry::Pointer &al, int logS
                     if (ah->metaHeaders->find(note, fmt->data.header.header, separator))
                         sb.append(note);
                 }
+                if (ah && ah->transactionAnnotations) {
+                    if (ah->transactionAnnotations->find(note, fmt->data.header.header, separator)) {
+                        if (!sb.isEmpty())
+                            sb.append(separator);
+                        sb.append(note);
+                    }
+                }
 #endif
                 if (al->notes) {
                     if (al->notes->find(note, fmt->data.header.header, separator)) {
@@ -1407,6 +1414,8 @@ Format::Format::assemble(MemBuf &mb, const AccessLogEntry::Pointer &al, int logS
                 Adaptation::History::Pointer ah = al->request ? al->request->adaptHistory() : Adaptation::History::Pointer();
                 if (ah && ah->metaHeaders && !ah->metaHeaders->empty())
                     sb.append(ah->metaHeaders->toString(separator));
+                if (ah && ah->transactionAnnotations && !ah->transactionAnnotations->empty())
+                    sb.append(ah->transactionAnnotations->toString(separator));
 #endif
                 if (al->notes && !al->notes->empty())
                     sb.append(al->notes->toString(separator));

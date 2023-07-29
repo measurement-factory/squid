@@ -14,6 +14,7 @@
 #include "debug/Stream.h"
 #include "globals.h"
 #include "time/gadgets.h"
+#include "sbuf/StringConvert.h"
 
 /// impossible services value to identify unset theNextServices
 const static char *TheNullServices = ",null,";
@@ -144,6 +145,21 @@ void Adaptation::History::recordMeta(const HttpHeader *lm)
 
     allMeta.update(lm);
     allMeta.compact();
+}
+
+void
+Adaptation::History::recordReceivedAnnotations(const HttpHeader &newAnnotations)
+{
+    HttpHeaderPos pos = HttpHeaderInitPos;
+    while (const auto e = newAnnotations.getEntry(&pos)) {
+        if (!transactionAnnotations)
+            transactionAnnotations = new NotePairs();
+
+        debugs(93, 3, e->name << ": " << e->value);
+        // TODO: Add NotePairs::replaceOrAdd(name, value).
+        transactionAnnotations->remove(e->name); // if any
+        transactionAnnotations->add(e->name, StringToSBuf(e->value));
+    }
 }
 
 void
