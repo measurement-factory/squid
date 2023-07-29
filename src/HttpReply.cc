@@ -120,6 +120,7 @@ HttpReply::MakeConnectionEstablished() {
 
     HttpReplyPointer rep(new HttpReply);
     rep->sline.set(Http::ProtocolVersion(), Http::scOkay, "Connection established");
+    // TODO: Add a Server(?) header
     return rep;
 }
 

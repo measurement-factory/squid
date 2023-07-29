@@ -140,6 +140,15 @@ inline const char *bumpMode(int bm)
     return (0 <= bm && bm < Ssl::bumpEnd) ? Ssl::BumpModeStr.at(bm) : nullptr;
 }
 
+/**
+ \ingroup ServerProtocolSSLAPI
+ \return true if bm is one of the bumping modes
+ */
+inline bool isBumpMode(int bm)
+{
+    return bm == Ssl::bumpServerFirst || bm == Ssl::bumpClientFirst || bm == Ssl::bumpBump || bm == Ssl::bumpPeek || bm == Ssl::bumpStare;
+}
+
 /// certificates indexed by issuer name
 typedef std::multimap<SBuf, X509 *> CertsIndexedList;
 
