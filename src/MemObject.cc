@@ -195,6 +195,9 @@ MemObject::stat(MemBuf * mb) const
     mb->appendf("\tinmem_hi: %" PRId64 "\n", data_hdr.endOffset());
     mb->appendf("\tswapout: %" PRId64 " bytes queued\n", swapout.queue_offset);
 
+    if (swapoutInterest.LockCount())
+        mb->appendf("\tswapout interest: %u\n", swapoutInterest.LockCount());
+
     if (swapout.sio.getRaw())
         mb->appendf("\tswapout: %" PRId64 " bytes written\n", (int64_t) swapout.sio->offset());
 

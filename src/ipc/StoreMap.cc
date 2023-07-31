@@ -1017,6 +1017,7 @@ Ipc::StoreMapUpdate::StoreMapUpdate(StoreEntry *anEntry):
     entry(anEntry)
 {
     entry->lock("Ipc::StoreMapUpdate1");
+    entry->mem().swapoutInterest.lock();
 }
 
 Ipc::StoreMapUpdate::StoreMapUpdate(const StoreMapUpdate &other):
@@ -1025,11 +1026,13 @@ Ipc::StoreMapUpdate::StoreMapUpdate(const StoreMapUpdate &other):
     fresh(other.fresh)
 {
     entry->lock("Ipc::StoreMapUpdate2");
+    entry->mem().swapoutInterest.lock();
 }
 
 Ipc::StoreMapUpdate::~StoreMapUpdate()
 {
     entry->unlock("Ipc::StoreMapUpdate");
+    entry->mem().swapoutInterest.unlock();
 }
 
 /* Ipc::StoreMap::Owner */

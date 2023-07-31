@@ -207,6 +207,9 @@ public:
     /// the corresponding disk store entry.
     void detachFromDisk();
 
+    /// \copydoc MemObject::diskWriting()
+    bool diskWriting() const { return mem().diskWriting(); }
+
     /// whether there is a corresponding locked transients table entry
     bool hasTransients() const { return mem_obj && mem_obj->xitTable.index >= 0; }
     /// whether there is a corresponding locked shared memory table entry
