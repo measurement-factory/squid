@@ -215,6 +215,7 @@ main() {
         local default_tests="
             pconn
             proxy-update-headers-after-304
+            accumulate-headers-after-304
             upgrade-protocols
             proxy-collapsed-forwarding
             busy-restart
