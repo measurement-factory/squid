@@ -212,6 +212,13 @@ main() {
 
     if test -z "$tests"
     then
+        # TODO: Check/adjust and add these:
+        # cache-refresh-response
+        # stored-header
+        # dead-peer
+        # urn-forwarding
+        # bad-framing
+        # test-proxy-delays
         local default_tests="
             pconn
             proxy-update-headers-after-304
