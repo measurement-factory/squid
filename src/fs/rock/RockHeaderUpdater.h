@@ -61,8 +61,8 @@ private:
     Rock::SwapDir::Pointer store; ///< cache_dir where the entry is stored
     Ipc::StoreMapUpdate update; ///< Ipc::StoreMap update reservation
 
-    StoreIOState::Pointer reader() const;
-    StoreIOState::Pointer writer() const;
+    StoreIOState::Pointer reader; ///< reads old headers and old data
+    StoreIOState::Pointer writer; ///< writes new headers and old data
 
     SBuf readerBuffer; ///< I/O buffer for a single read operation
     SBuf exchangeBuffer; ///< bytes read but not yet discarded or written

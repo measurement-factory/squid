@@ -113,7 +113,6 @@ MemObject::~MemObject()
     assert(xitTable.index < 0);
     assert(memCache.index < 0);
     assert(swapout.sio == nullptr);
-    assert(!update.reader && !update.writer);
 
     data_hdr.freeContent();
 }
@@ -199,12 +198,6 @@ MemObject::stat(MemBuf * mb) const
     if (swapout.sio.getRaw())
         mb->appendf("\tswapout: %" PRId64 " bytes written\n", (int64_t) swapout.sio->offset());
 
-    if (update.reader)
-        mb->appendf("\tupdate: %" PRId64 " bytes read\n", update.reader->offset());
-
-    if (update.writer)
-        mb->appendf("\tupdate: %" PRId64 " bytes written\n", update.reader->offset());
-
     if (xitTable.index >= 0)
         mb->appendf("\ttransient index: %d state: %d\n", xitTable.index, xitTable.io);
     if (memCache.index >= 0)
@@ -271,7 +264,6 @@ void
 MemObject::reset()
 {
     assert(swapout.sio == nullptr);
-    assert(!update.reader && !update.writer);
     data_hdr.freeContent();
     inmem_lo = 0;
     /* Should we check for clients? */

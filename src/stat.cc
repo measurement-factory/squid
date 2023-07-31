@@ -401,13 +401,10 @@ statObjectsOpenfdFilter(const StoreEntry * e)
     if (e->mem_obj == nullptr)
         return 0;
 
-    if (e->mem_obj->swapout.sio)
-        return 1;
+    if (e->mem_obj->swapout.sio == nullptr)
+        return 0;
 
-    if (e->mem_obj->update.reader || e->mem_obj->update.writer)
-        return 1;
-
-    return 0;
+    return 1;
 }
 
 static void
