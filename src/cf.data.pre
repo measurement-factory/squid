@@ -1655,9 +1655,12 @@ ENDIF
 
 	manager
 		Matches cache manager requests targeting this Squid instance. [fast]
-		Squid does not forward matching requests and, if possible, satisfies
-		them by responding with the requested cache manager report. Currently,
-		this ACL may ignore the mismatch between the listening port the
+		When deciding how to route a transaction, Squid does not forward matching
+		requests and, if possible, satisfies them by responding with the requested
+		cache manager report. This ACL is typically used in http_access rules, but it
+		may be used in any context with access to an HTTP request. Squid routing
+		decisions do not depend on whether this ACL has been used or evaluated.
+		Currently, this ACL may ignore the mismatch between the listening port the
 		request was received on and the port targeted by the received request.
 
 CONFIG_START

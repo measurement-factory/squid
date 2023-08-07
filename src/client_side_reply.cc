@@ -1484,17 +1484,15 @@ clientReplyContext::identifyStoreObject()
 {
     HttpRequest *r = http->request;
 
-    // client sent CC:no-cache or some other condition has been
-    // encountered which prevents delivering a public/cached object.
-    // XXX: The above text does not match the condition below. It might describe
-    // the opposite condition, but the condition itself should be adjusted
-    // (e.g., to honor flags.noCache in cache manager requests).
-    if (!r->flags.noCache || r->flags.internal) {
+    if (r->flags.noCache) {
+        // no-cache requests skip Store lookups
+        identifyFoundObject(nullptr, "no-cache");
+    } else {
+        // cache manager requests ought to have flags.noCache (handled above)
+        Assure(!ForThisCacheManager(*r));
+
         const auto e = storeGetPublicByRequest(r);
         identifyFoundObject(e, storeLookupString(bool(e)));
-    } else {
-        // "external" no-cache requests skip Store lookups
-        identifyFoundObject(nullptr, "no-cache");
     }
 }
 
