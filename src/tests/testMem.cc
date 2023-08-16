@@ -8,14 +8,27 @@
 
 #include "squid.h"
 #include "mem/forward.h"
+#include "compat/cppunit.h"
 #include "mem/Pool.h"
-#include "tests/testMem.h"
 #include "unitTestMain.h"
 
 #include <iostream>
 #include <stdexcept>
 
-CPPUNIT_TEST_SUITE_REGISTRATION( TestMem );
+class TestMem : public CPPUNIT_NS::TestFixture
+{
+    CPPUNIT_TEST_SUITE(TestMem);
+    /* note the statement here and then the actual prototype below */
+    CPPUNIT_TEST(testMemPool);
+    CPPUNIT_TEST(testMemProxy);
+    CPPUNIT_TEST_SUITE_END();
+
+public:
+protected:
+    void testMemPool();
+    void testMemProxy();
+};
+CPPUNIT_TEST_SUITE_REGISTRATION(TestMem);
 
 class SomethingToAlloc
 {
