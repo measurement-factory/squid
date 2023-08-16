@@ -393,8 +393,9 @@ TunnelStateData::TunnelStateData(ClientHttpRequest *clientRequest) :
     status_ptr = &clientRequest->al->http.code;
 
     al = clientRequest->al;
-    al->cache.code.update(LOG_TCP_TUNNEL);
     http = clientRequest;
+
+    al->cache.code.update(LOG_TCP_TUNNEL);
 
     client.initConnection(clientRequest->getConn()->clientConnection, tunnelClientClosed, "tunnelClientClosed", this);
 
