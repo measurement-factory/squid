@@ -13,6 +13,7 @@
 #include "base/TextException.h"
 #include "debug/Messages.h"
 #include "debug/Stream.h"
+#include "fatal.h"
 #include "fd.h"
 #include "ipc/Kids.h"
 #include "time/gadgets.h"
