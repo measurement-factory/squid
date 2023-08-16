@@ -1280,7 +1280,7 @@ Debug::Context::Context(const int aSection, const int aLevel):
     forceAlert(false),
     waitingForIdle(false)
 {
-    formatStream();
+    FormatStream(buf);
 }
 
 /// Optimization: avoids new Context creation for every debugs().
@@ -1295,14 +1295,12 @@ Debug::Context::rewind(const int aSection, const int aLevel)
 
     buf.str(CompiledDebugMessageBody());
     buf.clear();
-    // debugs() users are supposed to preserve format, but
-    // some do not, so we have to waste cycles resetting it for all.
-    formatStream();
+    FormatStream(buf);
 }
 
 /// configures default formatting for the debugging stream
 void
-Debug::Context::formatStream()
+Debug::FormatStream(std::ostream &buf)
 {
     const static std::ostringstream cleanStream;
     buf.flags(cleanStream.flags() | std::ios::fixed);
@@ -1310,6 +1308,17 @@ Debug::Context::formatStream()
     buf.precision(2);
     buf.fill(' ');
     // If this is not enough, use copyfmt(cleanStream) which is ~10% slower.
+}
+
+std::ostream &
+Debug::Extra(std::ostream &os)
+{
+    // Prevent previous line formats bleeding onto this line: Previous line code
+    // may not even be aware of some detailing code automatically adding extras.
+    FormatStream(os);
+
+    os << "\n    ";
+    return os;
 }
 
 void
