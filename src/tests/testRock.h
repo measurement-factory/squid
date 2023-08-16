@@ -15,17 +15,17 @@
  * test the store framework
  */
 
-class testRock : public CPPUNIT_NS::TestFixture
+class TestRock: public CPPUNIT_NS::TestFixture
 {
-    CPPUNIT_TEST_SUITE( testRock );
+    CPPUNIT_TEST_SUITE( TestRock );
     CPPUNIT_TEST( testRockCreate );
     CPPUNIT_TEST( testRockSwapOut );
     CPPUNIT_TEST_SUITE_END();
 
 public:
-    testRock() : rr(nullptr) {}
-    virtual void setUp();
-    virtual void tearDown();
+    TestRock() : rr(nullptr) {}
+    void setUp() override;
+    void tearDown() override;
 
     typedef RefCount<Rock::SwapDir> SwapDirPointer;
 

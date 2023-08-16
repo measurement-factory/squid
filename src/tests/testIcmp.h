@@ -15,13 +15,13 @@
 
 #include "icmp/Icmp.h"
 
-class stubIcmp : public Icmp
+class IcmpStub: public Icmp
 {
 public:
-    stubIcmp() {};
-    virtual ~stubIcmp() {};
-    virtual int Open() { return 0; };
-    virtual void Close() {};
+    IcmpStub() {};
+    ~IcmpStub() override {};
+    int Open() override { return 0; };
+    void Close() override {};
 
     /// Construct ECHO request
     virtual void SendEcho(Ip::Address &, int, const char *, int) {}
@@ -38,9 +38,9 @@ public:
 /**
  * test the ICMP base class.
  */
-class testIcmp : public CPPUNIT_NS::TestFixture
+class TestIcmp: public CPPUNIT_NS::TestFixture
 {
-    CPPUNIT_TEST_SUITE( testIcmp );
+    CPPUNIT_TEST_SUITE( TestIcmp );
     CPPUNIT_TEST( testChecksum );
     CPPUNIT_TEST( testHops );
     CPPUNIT_TEST_SUITE_END();

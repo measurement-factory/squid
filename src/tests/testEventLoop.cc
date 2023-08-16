@@ -18,12 +18,14 @@
 #include "time/Engine.h"
 #include "unitTestMain.h"
 
-CPPUNIT_TEST_SUITE_REGISTRATION( testEventLoop );
+#include <cppunit/TestAssert.h>
+
+CPPUNIT_TEST_SUITE_REGISTRATION( TestEventLoop );
 
 /* init legacy static-initialized modules */
 
 void
-testEventLoop::setUp()
+TestEventLoop::setUp()
 {
     Mem::Init();
     statInit();
@@ -33,7 +35,7 @@ testEventLoop::setUp()
  * Test creating a EventLoop
  */
 void
-testEventLoop::testCreate()
+TestEventLoop::testCreate()
 {
     EventLoop();
 }
@@ -84,7 +86,7 @@ public:
 #if POLISHED_MAIN_LOOP
 
 void
-testEventLoop::testRunOnce()
+TestEventLoop::testRunOnce()
 {
     EventLoop theLoop;
     RecordDispatcher dispatcher;
@@ -124,7 +126,7 @@ public:
 };
 
 void
-testEventLoop::testRegisterDispatcher()
+TestEventLoop::testRegisterDispatcher()
 {
     EventLoop theLoop;
     ShutdownDispatcher testDispatcher(theLoop);
@@ -140,7 +142,7 @@ testEventLoop::testRegisterDispatcher()
  * we do this with an intstrumented async engine.
  */
 void
-testEventLoop::testRegisterEngine()
+TestEventLoop::testRegisterEngine()
 {
     EventLoop theLoop;
     ShutdownDispatcher testDispatcher(theLoop);
@@ -162,7 +164,7 @@ testEventLoop::testRegisterEngine()
  * tracked, and the lowest non-negative value given to the last engine.
  */
 void
-testEventLoop::testEngineTimeout()
+TestEventLoop::testEngineTimeout()
 {
     EventLoop theLoop;
     RecordingEngine engineOne(5);
@@ -179,7 +181,7 @@ testEventLoop::testEngineTimeout()
  * entirely idle to make it easy for people running the loop by hand.
  */
 void
-testEventLoop::testStopOnIdle()
+TestEventLoop::testStopOnIdle()
 {
     EventLoop theLoop;
     /* trivial case - no dispatchers or engines, should quit immediately */
@@ -237,7 +239,7 @@ public:
 };
 
 void
-testEventLoop::testSetTimeService()
+TestEventLoop::testSetTimeService()
 {
     EventLoop theLoop;
     StubTime myTime;
@@ -257,7 +259,7 @@ testEventLoop::testSetTimeService()
  * this defaults to the last added one, but can be explicitly nominated
  */
 void
-testEventLoop::testSetPrimaryEngine()
+TestEventLoop::testSetPrimaryEngine()
 {
     EventLoop theLoop;
     RecordingEngine first_engine(10);

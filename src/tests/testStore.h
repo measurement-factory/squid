@@ -18,9 +18,9 @@
  * test the store framework
  */
 
-class testStore : public CPPUNIT_NS::TestFixture
+class TestStore: public CPPUNIT_NS::TestFixture
 {
-    CPPUNIT_TEST_SUITE( testStore );
+    CPPUNIT_TEST_SUITE( TestStore );
     CPPUNIT_TEST( testSetRoot );
     CPPUNIT_TEST( testUnsetRoot );
     CPPUNIT_TEST( testStats );
@@ -37,11 +37,11 @@ protected:
 };
 
 /// allows testing of methods without having all the other components live
-class TestStore : public Store::Controller
+class StoreControllerStub : public Store::Controller
 {
 
 public:
-    TestStore() : statsCalled (false) {}
+    StoreControllerStub() : statsCalled (false) {}
 
     bool statsCalled;
 
@@ -76,7 +76,7 @@ public:
     virtual StoreSearch *search();
 };
 
-typedef RefCount<TestStore> TestStorePointer;
+typedef RefCount<StoreControllerStub> StoreControllerStubPointer;
 
 #endif
 

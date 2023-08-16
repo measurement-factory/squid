@@ -11,79 +11,81 @@
 #include "testStore.h"
 #include "unitTestMain.h"
 
-CPPUNIT_TEST_SUITE_REGISTRATION( testStore );
+#include <limits>
+
+CPPUNIT_TEST_SUITE_REGISTRATION( TestStore );
 
 int
-TestStore::callback()
+StoreControllerStub::callback()
 {
     return 1;
 }
 
 StoreEntry*
-TestStore::get(const cache_key*)
+StoreControllerStub::get(const cache_key*)
 {
     return nullptr;
 }
 
 void
-TestStore::get(String, void (*)(StoreEntry*, void*), void*)
+StoreControllerStub::get(String, void (*)(StoreEntry*, void*), void*)
 {}
 
 void
-TestStore::init()
+StoreControllerStub::init()
 {}
 
 uint64_t
-TestStore::maxSize() const
+StoreControllerStub::maxSize() const
 {
     return 3;
 }
 
 uint64_t
-TestStore::minSize() const
+StoreControllerStub::minSize() const
 {
     return 1;
 }
 
 uint64_t
-TestStore::currentSize() const
+StoreControllerStub::currentSize() const
 {
     return 2;
 }
 
 uint64_t
-TestStore::currentCount() const
+StoreControllerStub::currentCount() const
 {
     return 2;
 }
 
 int64_t
-TestStore::maxObjectSize() const
+StoreControllerStub::maxObjectSize() const
 {
     return 1;
 }
 
 void
-TestStore::getStats(StoreInfoStats &) const
+StoreControllerStub::getStats(StoreInfoStats &) const
 {
 }
 
 void
-TestStore::stat(StoreEntry &) const
+StoreControllerStub::stat(StoreEntry &) const
 {
-    const_cast<TestStore *>(this)->statsCalled = true;
+    const_cast<StoreControllerStub *>(this)->statsCalled = true;
 }
 
 StoreSearch *
-TestStore::search()
+StoreControllerStub::search()
 {
     return nullptr;
 }
 
 void
-testStore::testSetRoot()
+TestStore::testSetRoot()
 {
-    Store::Controller *aStore(new TestStore);
+    Store::Controller *aStore(new StoreControllerStub);
     Store::Init(aStore);
 
     CPPUNIT_ASSERT_EQUAL(&Store::Root(), aStore);
@@ -91,10 +93,10 @@ testStore::testSetRoot()
 }
 
 void
-testStore::testUnsetRoot()
+TestStore::testUnsetRoot()
 {
-    Store::Controller *aStore(new TestStore);
-    Store::Controller *aStore2(new TestStore);
+    Store::Controller *aStore(new StoreControllerStub);
+    Store::Controller *aStore2(new StoreControllerStub);
     Store::Init(aStore);
     Store::FreeMemory();
     Store::Init(aStore2);
@@ -103,9 +105,9 @@ testStore::testUnsetRoot()
 }
 
 void
-testStore::testStats()
+TestStore::testStats()
 {
-    TestStore *aStore(new TestStore);
+    StoreControllerStub *aStore(new StoreControllerStub);
     Store::Init(aStore);
     CPPUNIT_ASSERT_EQUAL(false, aStore->statsCalled);
     StoreEntry entry;
@@ -115,9 +117,9 @@ testStore::testStats()
 }
 
 void
-testStore::testMaxSize()
+TestStore::testMaxSize()
 {
-    Store::Controller *aStore(new TestStore);
+    Store::Controller *aStore(new StoreControllerStub);
     Store::Init(aStore);
     CPPUNIT_ASSERT_EQUAL(static_cast<uint64_t>(3), aStore->maxSize());
     Store::FreeMemory();
