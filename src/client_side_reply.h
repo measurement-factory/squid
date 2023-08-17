@@ -86,10 +86,6 @@ public:
     /// because the latter keeps the contents of the stale HTTP response during
     /// revalidation. sendClientOldEntry() uses that contents.
     char tempbuf[HTTP_REQBUF_SZ];
-#if USE_CACHE_DIGESTS
-
-    const char *lookup_type;    /* temporary hack: storeGet() result: HIT/MISS/NONE */
-#endif
 
     struct Flags {
         Flags() : storelogiccomplete(0), complete(0), headersSent(false) {}
@@ -131,6 +127,7 @@ private:
     void purgeAllCached();
     void forgetHit();
     bool blockedHit() const;
+    void detailStoreLookup(const char *detail);
 
     void sendBodyTooLargeError();
     void sendPreconditionFailedError();
@@ -143,6 +140,11 @@ private:
     /// function is not defined; decltype() syntax prohibits "= delete", but
     /// function usage will trigger deprecation warnings and linking errors.
     static decltype(::storeClientCopy) storeClientCopy [[deprecated]];
+
+    /// Classification of the initial Store lookup.
+    /// This very first lookup happens without the Vary-driven key augmentation.
+    /// TODO: Exclude internal Store match bans from the "mismatch" category.
+    const char *firstStoreLookup_ = nullptr;
 
     /* (stale) cache hit information preserved during IMS revalidation */
     StoreEntry *old_entry;
