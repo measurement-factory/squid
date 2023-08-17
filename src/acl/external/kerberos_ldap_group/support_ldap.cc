@@ -433,21 +433,18 @@ search_group_tree(struct main_args *margs, LDAP * ld, char *bindp,
         }
         if (debug_enabled) {
             int n;
-            debug((char *) "%s| %s: DEBUG: Entry %" PRIuSIZE
-                  " \"%s\" in hex UTF-8 is ", LogTime(), PROGRAM, j + 1, av);
+            debug((char *) "%s| %s: DEBUG: Entry %zu \"%s\" in hex UTF-8 is ", LogTime(), PROGRAM, j + 1, av);
             for (n = 0; av[n] != '\0'; ++n)
                 fprintf(stderr, "%02x", (unsigned char) av[n]);
             fprintf(stderr, "\n");
         }
         if (!strcasecmp(group, av)) {
             retval = 1;
-            debug((char *) "%s| %s: DEBUG: Entry %" PRIuSIZE
-                  " \"%s\" matches group name \"%s\"\n", LogTime(), PROGRAM,
+            debug((char *) "%s| %s: DEBUG: Entry %zu \"%s\" matches group name \"%s\"\n", LogTime(), PROGRAM,
                   j + 1, av, group);
             break;
         } else
-            debug((char *) "%s| %s: DEBUG: Entry %" PRIuSIZE
-                  " \"%s\" does not match group name \"%s\"\n", LogTime(),
+            debug((char *) "%s| %s: DEBUG: Entry %zu \"%s\" does not match group name \"%s\"\n", LogTime(),
                   PROGRAM, j + 1, av, group);
         /*
          * Do recursive group search
@@ -466,8 +463,7 @@ search_group_tree(struct main_args *margs, LDAP * ld, char *bindp,
                 }
             }
             if (debug_enabled)
-                debug((char *) "%s| %s: DEBUG: Entry %" PRIuSIZE
-                      " \"%s\" is member of group named \"%s\"\n", LogTime(),
+                debug((char *) "%s| %s: DEBUG: Entry %zu \"%s\" is member of group named \"%s\"\n", LogTime(),
                       PROGRAM, j + 1, av, group);
             else
                 break;
@@ -714,8 +710,7 @@ get_attributes(LDAP * ld, LDAPMessage * res, const char *attribute,
         }
     }
 
-    debug((char *) "%s| %s: DEBUG: %" PRIuSIZE
-          " ldap entr%s found with attribute : %s\n", LogTime(), PROGRAM,
+    debug((char *) "%s| %s: DEBUG: %zu ldap entr%s found with attribute : %s\n", LogTime(), PROGRAM,
           max_attr, max_attr > 1 || max_attr == 0 ? "ies" : "y", attribute);
 
     *ret_value = attr_value;
@@ -794,8 +789,7 @@ get_bin_attributes(LDAP * ld, LDAPMessage * res, const char *attribute,
         }
     }
 
-    debug((char *) "%s| %s: DEBUG: %" PRIuSIZE
-          " ldap entr%s found with attribute : %s\n", LogTime(), PROGRAM,
+    debug((char *) "%s| %s: DEBUG: %zu ldap entr%s found with attribute : %s\n", LogTime(), PROGRAM,
           max_attr, max_attr > 1 || max_attr == 0 ? "ies" : "y", attribute);
 
     *ret_value = attr_value;
@@ -1271,8 +1265,7 @@ get_memberof(struct main_args *margs, char *user, char *domain, char *group)
                 }
             }
             if (debug_enabled) {
-                debug((char *) "%s| %s: DEBUG: Entry %" PRIuSIZE
-                      " \"%s\" in hex UTF-8 is ", LogTime(), PROGRAM, k + 1, av);
+                debug((char *) "%s| %s: DEBUG: Entry %zu \"%s\" in hex UTF-8 is ", LogTime(), PROGRAM, k + 1, av);
                 for (unsigned int n = 0; av[n] != '\0'; ++n)
                     fprintf(stderr, "%02x", (unsigned char) av[n]);
                 fprintf(stderr, "\n");
@@ -1280,14 +1273,12 @@ get_memberof(struct main_args *margs, char *user, char *domain, char *group)
             if (!strcasecmp(group, av)) {
                 retval = 1;
                 if (debug_enabled)
-                    debug((char *) "%s| %s: DEBUG: Entry %" PRIuSIZE
-                          " \"%s\" matches group name \"%s\"\n", LogTime(),
+                    debug((char *) "%s| %s: DEBUG: Entry %zu \"%s\" matches group name \"%s\"\n", LogTime(),
                           PROGRAM, k + 1, av, group);
                 else
                     break;
             } else
-                debug((char *) "%s| %s: DEBUG: Entry %" PRIuSIZE
-                      " \"%s\" does not match group name \"%s\"\n", LogTime(),
+                debug((char *) "%s| %s: DEBUG: Entry %zu \"%s\" does not match group name \"%s\"\n", LogTime(),
                       PROGRAM, k + 1, av, group);
         }
         /*
@@ -1313,8 +1304,7 @@ get_memberof(struct main_args *margs, char *user, char *domain, char *group)
                         }
                     }
                     if (debug_enabled)
-                        debug((char *) "%s| %s: DEBUG: Entry %" PRIuSIZE
-                              " group \"%s\" is (in)direct member of group \"%s\"\n",
+                        debug((char *) "%s| %s: DEBUG: Entry %zu group \"%s\" is (in)direct member of group \"%s\"\n",
                               LogTime(), PROGRAM, j + 1, av, group);
                     else
                         break;
@@ -1539,8 +1529,7 @@ get_memberof(struct main_args *margs, char *user, char *domain, char *group)
                             }
                         }
                         if (debug_enabled) {
-                            debug((char *) "%s| %s: DEBUG: Entry %" PRIuSIZE
-                                  " group \"%s\" is (in)direct member of group \"%s\"\n",
+                            debug((char *) "%s| %s: DEBUG: Entry %zu group \"%s\" is (in)direct member of group \"%s\"\n",
                                   LogTime(), PROGRAM, j + 1, av, group);
                         } else {
                             break;
