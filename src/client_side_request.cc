@@ -76,7 +76,7 @@
 static void clientFollowXForwardedForCheck(Acl::Answer answer, void *data);
 #endif /* FOLLOW_X_FORWARDED_FOR */
 
-ErrorState *clientBuildError(err_type, Http::StatusCode, char const *url, Ip::Address &, HttpRequest *, const AccessLogEntry::Pointer &);
+ErrorState *clientBuildError(err_type, Http::StatusCode, char const *url, const ConnStateData *, HttpRequest *, const AccessLogEntry::Pointer &);
 
 CBDATA_CLASS_INIT(ClientRequestContext);
 
@@ -562,7 +562,7 @@ ClientRequestContext::hostHeaderVerifyFailed(const char *A, const char *B)
     assert (repContext);
     repContext->setReplyToError(ERR_CONFLICT_HOST, Http::scConflict,
                                 http->request->method, nullptr,
-                                http->getConn()->clientConnection->remote,
+                                http->getConn(),
                                 http->request,
                                 nullptr,
 #if USE_AUTH
@@ -795,13 +795,7 @@ ClientRequestContext::clientAccessCheckDone(const Acl::Answer &answer)
                 page_id = ERR_ACCESS_DENIED;
         }
 
-        Ip::Address tmpnoaddr;
-        tmpnoaddr.setNoAddr();
-        error = clientBuildError(page_id, status,
-                                 nullptr,
-                                 http->getConn() != nullptr ? http->getConn()->clientConnection->remote : tmpnoaddr,
-                                 http->request, http->al
-                                );
+        error = clientBuildError(page_id, status, nullptr, http->getConn(), http->request, http->al);
 
 #if USE_AUTH
         error->auth_user_request =
@@ -2205,15 +2199,9 @@ ClientHttpRequest::calloutsError(const err_type error, const ErrorDetail::Pointe
     // setReplyToError, but it seems unlikely that the errno reflects the
     // true cause of the error at this point, so I did not pass it.
     if (calloutContext) {
-        Ip::Address noAddr;
-        noAddr.setNoAddr();
         ConnStateData * c = getConn();
         calloutContext->error = clientBuildError(error, Http::scInternalServerError,
-                                nullptr,
-                                c != nullptr ? c->clientConnection->remote : noAddr,
-                                request,
-                                al
-                                                );
+                                nullptr, c, request, al);
 #if USE_AUTH
         calloutContext->error->auth_user_request =
             c != nullptr && c->getAuth() != nullptr ? c->getAuth() : request->auth_user_request;

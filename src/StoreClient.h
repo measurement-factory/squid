@@ -36,27 +36,21 @@ class StoreEntry;
 class ACLFilledChecklist;
 class LogTags;
 
-/// A StoreEntry::getPublic*() caller.
+/// a storeGetPublic*() caller
 class StoreClient: public Acl::ChecklistFiller
 {
 
 public:
     virtual ~StoreClient () {}
 
-    // TODO: Remove? Probably added to make lookups asynchronous, but they are
-    // still blocking. A lot more is needed to support async callbacks.
-    /// Handle a StoreEntry::getPublic*() result.
-    /// A nil entry indicates a cache miss.
-    virtual void created(StoreEntry *) = 0;
-
     /// \return LogTags (if the class logs transactions) or nil (otherwise)
-    virtual LogTags *loggingTags() = 0;
+    virtual LogTags *loggingTags() const = 0;
 
 protected:
     /// \returns whether the caller must collapse on the given entry
     /// Before returning true, updates common collapsing-related stats.
     /// See also: StoreEntry::hittingRequiresCollapsing().
-    bool startCollapsingOn(const StoreEntry &, const bool doingRevalidation);
+    bool startCollapsingOn(const StoreEntry &, const bool doingRevalidation) const;
 
     // These methods only interpret Squid configuration. Their allowances are
     // provisional -- other factors may prevent collapsed forwarding. The first

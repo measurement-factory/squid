@@ -64,7 +64,7 @@ StoreClient::onCollapsingPath() const
 }
 
 bool
-StoreClient::startCollapsingOn(const StoreEntry &e, const bool doingRevalidation)
+StoreClient::startCollapsingOn(const StoreEntry &e, const bool doingRevalidation) const
 {
     if (!e.hittingRequiresCollapsing())
         return false; // collapsing is impossible due to the entry state

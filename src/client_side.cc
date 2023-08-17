@@ -1698,7 +1698,7 @@ clientProcessRequest(ConnStateData *conn, const Http1::RequestParserPointer &hp,
         clientReplyContext *repContext = dynamic_cast<clientReplyContext *>(node->data.getRaw());
         assert (repContext);
         repContext->setReplyToError(ERR_UNSUP_REQ, Http::scNotImplemented, request->method, nullptr,
-                                    conn->clientConnection->remote, request.getRaw(), nullptr, nullptr);
+                                    conn, request.getRaw(), nullptr, nullptr);
         assert(context->http->out.offset == 0);
         context->pullData();
         clientProcessRequestFinished(conn, request);
@@ -1713,7 +1713,7 @@ clientProcessRequest(ConnStateData *conn, const Http1::RequestParserPointer &hp,
         conn->quitAfterError(request.getRaw());
         repContext->setReplyToError(ERR_INVALID_REQ,
                                     Http::scLengthRequired, request->method, nullptr,
-                                    conn->clientConnection->remote, request.getRaw(), nullptr, nullptr);
+                                    conn, request.getRaw(), nullptr, nullptr);
         assert(context->http->out.offset == 0);
         context->pullData();
         clientProcessRequestFinished(conn, request);
@@ -1749,7 +1749,7 @@ clientProcessRequest(ConnStateData *conn, const Http1::RequestParserPointer &hp,
             conn->quitAfterError(request.getRaw());
             repContext->setReplyToError(ERR_TOO_BIG,
                                         Http::scPayloadTooLarge, Http::METHOD_NONE, nullptr,
-                                        conn->clientConnection->remote, http->request, nullptr, nullptr);
+                                        conn, http->request, nullptr, nullptr);
             assert(context->http->out.offset == 0);
             context->pullData();
             clientProcessRequestFinished(conn, request);

@@ -34,22 +34,16 @@ public:
     void saveState();
     void restoreState();
     void purgeRequest ();
-    void purgeRequestFindObjectToPurge();
-    void purgeDoMissPurge();
-    void purgeFoundGet(StoreEntry *newEntry);
-    void purgeFoundHead(StoreEntry *newEntry);
-    void purgeFoundObject(StoreEntry *entry);
-    void purgeDoPurgeGet(StoreEntry *entry);
-    void purgeDoPurgeHead(StoreEntry *entry);
+    void sendClientUpstreamResponse();
     void doGetMoreData();
     void identifyStoreObject();
-    void identifyFoundObject(StoreEntry *entry);
+    void identifyFoundObject(StoreEntry *entry, const char *detail);
     int storeOKTransferDone() const;
     int storeNotOKTransferDone() const;
     /// replaces current response store entry with the given one
     void setReplyToStoreEntry(StoreEntry *e, const char *reason);
     /// builds error using clientBuildError() and calls setReplyToError() below
-    void setReplyToError(err_type, Http::StatusCode, const HttpRequestMethod&, char const *, Ip::Address &, HttpRequest *, const char *,
+    void setReplyToError(err_type, Http::StatusCode, const HttpRequestMethod&, char const *, const ConnStateData *, HttpRequest *, const char *,
 #if USE_AUTH
                          Auth::UserRequest::Pointer);
 #else
@@ -71,12 +65,8 @@ public:
 
     Http::StatusCode purgeStatus;
 
-    /* state variable - replace with class to handle storeentries at some point */
-    int lookingforstore;
-
     /* StoreClient API */
-    virtual void created (StoreEntry *newEntry);
-    virtual LogTags *loggingTags();
+    virtual LogTags *loggingTags() const;
 
     ClientHttpRequest *http;
     store_client *sc;       /* The store_client we're using */
@@ -125,8 +115,14 @@ private:
     void requestMoreBodyFromStore();
     void sendClientOldEntry();
     void purgeAllCached();
+    /// attempts to release the cached entry
+    /// \returns whether the entry was released
+    bool purgeEntry(StoreEntry &, const Http::MethodType, const char *descriptionPrefix = "");
+    /// releases both cached GET and HEAD entries
+    void purgeDoPurge();
     void forgetHit();
     bool blockedHit() const;
+    const char *storeLookupString(bool found) const { return found ? "match" : "mismatch"; }
     void detailStoreLookup(const char *detail);
 
     void sendBodyTooLargeError();

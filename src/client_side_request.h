@@ -127,12 +127,11 @@ public:
     const AccessLogEntry::Pointer al; ///< access.log entry
 
     struct Flags {
-        Flags() : accel(false), internal(false), done_copying(false), purging(false) {}
+        Flags() : accel(false), internal(false), done_copying(false) {}
 
         bool accel;
         bool internal;
         bool done_copying;
-        bool purging;
     } flags;
 
     struct Redirect {
