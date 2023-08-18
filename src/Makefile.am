@@ -547,7 +547,7 @@ squid_LDADD = \
 	$(EPOLL_LIBS) \
 	$(MINGW_LIBS) \
 	$(KRB5LIBS) \
-	$(SYSTEMD_LIBS) \
+	$(LIBSYSTEMD_LIBS) \
 	$(COMPAT_LIB) \
 	$(LIBNETTLE_LIBS) \
 	$(XTRA_LIBS)
@@ -2036,7 +2036,7 @@ tests_test_http_range_LDADD = \
 	$(SSLLIB) \
 	$(KRB5LIBS) \
 	$(LIBCPPUNIT_LIBS) \
-	$(SYSTEMD_LIBS) \
+	$(LIBSYSTEMD_LIBS) \
 	$(COMPAT_LIB) \
 	$(LIBNETTLE_LIBS) \
 	$(XTRA_LIBS)
@@ -2421,7 +2421,7 @@ tests_testHttpRequest_LDADD = \
 	$(SSLLIB) \
 	$(KRB5LIBS) \
 	$(LIBCPPUNIT_LIBS) \
-	$(SYSTEMD_LIBS) \
+	$(LIBSYSTEMD_LIBS) \
 	$(COMPAT_LIB) \
 	$(LIBNETTLE_LIBS) \
 	$(XTRA_LIBS)
@@ -2720,7 +2720,7 @@ tests_testCacheManager_LDADD = \
 	$(SSLLIB) \
 	$(KRB5LIBS) \
 	$(LIBCPPUNIT_LIBS) \
-	$(SYSTEMD_LIBS) \
+	$(LIBSYSTEMD_LIBS) \
 	$(COMPAT_LIB) \
 	$(LIBNETTLE_LIBS) \
 	$(XTRA_LIBS)
