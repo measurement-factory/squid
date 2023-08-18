@@ -10,6 +10,7 @@
 #define SQUID__SRC_BASE_OPTIONAL_H
 
 #include <exception>
+#include <ostream>
 #include <type_traits>
 #include <utility>
 
@@ -125,6 +126,64 @@ private:
 
     bool hasValue_ = false;
 };
+
+/// Specialization to make Optional<bool> trivially-copyable. XXX: Keep this
+/// temporary (until we switch to C++17 std::optional) hack in sync with the
+/// generic Optional above, copying generic methods where possible.
+template <>
+class Optional<bool>
+{
+public:
+    using Value = bool;
+
+    constexpr Optional() noexcept = default;
+    constexpr explicit Optional(const Value &v): value_(v), hasValue_(true) {}
+
+    constexpr explicit operator bool() const noexcept { return hasValue_; }
+    constexpr bool has_value() const noexcept { return hasValue_; }
+
+    const Value &value() const &
+    {
+        if (!hasValue_)
+            throw BadOptionalAccess();
+        return value_;
+    }
+
+    template <class Other>
+    constexpr Value value_or(Other &&defaultValue) const &
+    {
+        return hasValue_ ? value_ : static_cast<Value>(std::forward<Other>(defaultValue));
+    }
+
+    template <class Other = Value>
+    Optional &operator =(Other &&otherValue)
+    {
+        value_ = std::forward<Other>(otherValue);
+        hasValue_ = true;
+        return *this;
+    }
+
+    void reset() {
+        if (hasValue_) {
+            hasValue_ = false;
+        }
+    }
+
+private:
+    Value value_ = false;
+    bool hasValue_ = false;
+};
+
+template <typename Value>
+inline
+std::ostream &operator <<(std::ostream &os, const Optional<Value> &opt)
+{
+    if (opt.has_value())
+        os << opt.value();
+    else
+        os << "[no value]";
+    return os;
+}
 
 #endif /* SQUID__SRC_BASE_OPTIONAL_H */
 
