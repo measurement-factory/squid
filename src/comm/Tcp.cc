@@ -15,6 +15,7 @@
 #if HAVE_NETINET_TCP_H
 #include <netinet/tcp.h>
 #endif
+
 #if HAVE_NETINET_IN_H
 #include <netinet/in.h>
 #endif
@@ -45,7 +46,7 @@ SetSocketOption(const int fd, const int level, const int optName, const Option &
 static bool
 SetBooleanSocketOption(const int fd, const int level, const int optName, const bool enable)
 {
-    const int optValue = enable ? 1 :0;
+    const int optValue = enable ? 1 : 0;
     return SetSocketOption(fd, level, optName, optValue);
 }
 

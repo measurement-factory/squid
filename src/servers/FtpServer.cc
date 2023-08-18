@@ -254,9 +254,6 @@ Ftp::Server::AcceptCtrlConnection(const CommAcceptCbParams &params)
     debugs(33, 4, params.conn << ": accepted");
     fd_note(params.conn->fd, "client ftp connect");
 
-    if (params.port->tcp_keepalive.enabled)
-        commSetTcpKeepalive(params.conn->fd, params.port->tcp_keepalive.idle, params.port->tcp_keepalive.interval, params.port->tcp_keepalive.timeout);
-
     const auto xact = MasterXaction::MakePortful(params.port);
     xact->tcpClient = params.conn;
 

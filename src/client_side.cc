@@ -2350,9 +2350,6 @@ httpAccept(const CommAcceptCbParams &params)
     const auto xact = MasterXaction::MakePortful(params.port);
     xact->tcpClient = params.conn;
 
-    if (params.port->tcp_keepalive.enabled)
-        commSetTcpKeepalive(params.conn->fd, params.port->tcp_keepalive.idle, params.port->tcp_keepalive.interval, params.port->tcp_keepalive.timeout);
-
     // Socket is ready, setup the connection manager to start using it
     auto *srv = Http::NewServer(xact);
     // XXX: do not abandon the MasterXaction object
@@ -2555,10 +2552,6 @@ httpsAccept(const CommAcceptCbParams &params)
 
     debugs(33, 4, params.conn << " accepted, starting SSL negotiation.");
     fd_note(params.conn->fd, "client https connect");
-
-    if (params.port->tcp_keepalive.enabled) {
-        commSetTcpKeepalive(params.conn->fd, params.port->tcp_keepalive.idle, params.port->tcp_keepalive.interval, params.port->tcp_keepalive.timeout);
-    }
 
     // Socket is ready, setup the connection manager to start using it
     auto *srv = Https::NewServer(xact);
