@@ -2709,6 +2709,7 @@ AC_CHECK_HEADERS( \
   netinet/tcp.h \
   paths.h \
   poll.h \
+  priv.h \
   pwd.h \
   regex.h \
   sched.h \
@@ -2726,6 +2727,7 @@ AC_CHECK_HEADERS( \
   sys/ipc.cc \
   sys/param.h \
   sys/prctl.h \
+  sys/procctl.h \
   sys/md5.h \
   sys/mman.h \
   sys/msg.h \
@@ -3181,6 +3183,7 @@ AC_CHECK_FUNCS(\
 	mstats \
 	poll \
 	prctl \
+	procctl \
 	pthread_attr_setschedparam \
 	pthread_attr_setscope \
 	pthread_setschedparam \
@@ -3197,6 +3200,7 @@ AC_CHECK_FUNCS(\
 	select \
 	seteuid \
 	setgroups \
+	setpflags \
 	setpgrp \
 	setsid \
 	sigaction \
