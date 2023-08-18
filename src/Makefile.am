@@ -73,7 +73,7 @@ SUBDIRS += esi
 ESI_LIBS = \
 	esi/libesi.la \
 	$(top_builddir)/lib/libTrie/libTrie.a \
-	$(XMLLIB) \
+	$(LIBXML2_LIBS) \
 	$(EXPATLIB)
 else
 ESI_LIBS =
