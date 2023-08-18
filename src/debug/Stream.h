@@ -22,7 +22,6 @@
 #if defined(assert)
 #undef assert
 #endif
-
 #if PURIFY
 #define assert(EX) ((void)0)
 #elif defined(NODEBUG)
