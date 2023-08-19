@@ -24,7 +24,7 @@ public:
 
     BlindPeerConnector(HttpRequestPointer &aRequest,
                        const Comm::ConnectionPointer &aServerConn,
-                       AsyncCall::Pointer &aCallback,
+                       const AsyncCallback<EncryptorAnswer> &aCallback,
                        const AccessLogEntryPointer &alp,
                        const time_t timeout = 0) :
         AsyncJob("Security::BlindPeerConnector"),

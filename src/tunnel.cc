@@ -10,6 +10,7 @@
 
 #include "squid.h"
 #include "acl/FilledChecklist.h"
+#include "base/AsyncCallbacks.h"
 #include "base/CbcPointer.h"
 #include "base/JobWait.h"
 #include "base/Raw.h"
@@ -235,31 +236,6 @@ public:
     void sendError(ErrorState *finalError, const char *reason);
 
 private:
-    /// Gives Security::PeerConnector access to Answer in the TunnelStateData callback dialer.
-    class MyAnswerDialer: public CallDialer, public Security::PeerConnector::CbDialer
-    {
-    public:
-        typedef void (TunnelStateData::*Method)(Security::EncryptorAnswer &);
-
-        MyAnswerDialer(Method method, TunnelStateData *tunnel):
-            method_(method), tunnel_(tunnel), answer_() {}
-
-        /* CallDialer API */
-        virtual bool canDial(AsyncCall &) { return tunnel_.valid(); }
-        void dial(AsyncCall &) { ((&(*tunnel_))->*method_)(answer_); }
-        virtual void print(std::ostream &os) const {
-            os << '(' << tunnel_.get() << ", " << answer_ << ')';
-        }
-
-        /* Security::PeerConnector::CbDialer API */
-        virtual Security::EncryptorAnswer &answer() { return answer_; }
-
-    private:
-        Method method_;
-        CbcPointer<TunnelStateData> tunnel_;
-        Security::EncryptorAnswer answer_;
-    };
-
     void usePinned();
 
     /// callback handler for the Security::PeerConnector encryptor
@@ -1227,8 +1203,7 @@ TunnelStateData::connectToPeer(const Comm::ConnectionPointer &conn)
 void
 TunnelStateData::secureConnectionToPeer(const Comm::ConnectionPointer &conn)
 {
-    AsyncCall::Pointer callback = asyncCall(5,4, "TunnelStateData::noteSecurityPeerConnectorAnswer",
-                                            MyAnswerDialer(&TunnelStateData::noteSecurityPeerConnectorAnswer, this));
+    const auto callback = asyncCallback(5, 4, TunnelStateData::noteSecurityPeerConnectorAnswer, this);
     const auto connector = new Security::BlindPeerConnector(request, conn, callback, al);
     encryptionWait.start(connector, callback);
 }
@@ -1289,9 +1264,7 @@ TunnelStateData::connectedToPeer(const Comm::ConnectionPointer &conn)
 void
 TunnelStateData::establishTunnelThruProxy(const Comm::ConnectionPointer &conn)
 {
-    AsyncCall::Pointer callback = asyncCall(5,4,
-                                            "TunnelStateData::tunnelEstablishmentDone",
-                                            Http::Tunneler::CbDialer<TunnelStateData>(&TunnelStateData::tunnelEstablishmentDone, this));
+    const auto callback = asyncCallback(5, 4, TunnelStateData::tunnelEstablishmentDone, this);
     const auto tunneler = new Http::Tunneler(conn, request, callback, Config.Timeout.lifetime, al);
 #if USE_DELAY_POOLS
     tunneler->setDelayId(server.delayId);
@@ -1439,7 +1412,7 @@ TunnelStateData::startConnecting()
     savedError = nullptr;
     request->hier.peer_reply_status = Http::scNone; // TODO: Move to startPeerClock()?
 
-    AsyncCall::Pointer callback = asyncCall(17, 5, "TunnelStateData::noteConnection", HappyConnOpener::CbDialer<TunnelStateData>(&TunnelStateData::noteConnection, this));
+    const auto callback = asyncCallback(17, 5, TunnelStateData::noteConnection, this);
     const auto cs = new HappyConnOpener(destinations, callback, request, startTime, n_tries, al);
     cs->setHost(request->url.host());
     cs->setRetriable(false);
