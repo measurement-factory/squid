@@ -9,9 +9,10 @@
 #ifndef SQUID_SRC_STORE_PARSINGBUFFER_H
 #define SQUID_SRC_STORE_PARSINGBUFFER_H
 
-#include "base/Optional.h"
 #include "sbuf/SBuf.h"
 #include "StoreIOBuffer.h"
+
+#include <optional>
 
 namespace Store
 {
@@ -111,7 +112,7 @@ private:
 
     /// our internal buffer that takes over readerSuppliedMemory_ when the
     /// latter becomes full and more memory is needed
-    Optional<SBuf> extraMemory_;
+    std::optional<SBuf> extraMemory_;
 };
 
 inline std::ostream &

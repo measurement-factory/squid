@@ -12,11 +12,12 @@
 #include "acl/ChecklistFiller.h"
 #include "base/AsyncCall.h"
 #include "base/forward.h"
-#include "base/Optional.h"
 #include "dlink.h"
 #include "store/ParsingBuffer.h"
 #include "StoreIOBuffer.h"
 #include "StoreIOState.h"
+
+#include <optional>
 
 /// A storeClientCopy() callback function.
 ///
@@ -187,7 +188,7 @@ private:
     /// request. Buffer contents depends on the source and parsing stage; it may
     /// hold (parts of) swap metadata, HTTP response headers, and/or HTTP
     /// response body bytes.
-    Optional<Store::ParsingBuffer> parsingBuffer;
+    std::optional<Store::ParsingBuffer> parsingBuffer;
 
     StoreIOBuffer lastDiskRead; ///< buffer used for the last storeRead() call
 
