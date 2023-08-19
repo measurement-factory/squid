@@ -42,7 +42,7 @@ public:
     void clean(time_t maxage) override;
 
     /* Mem::Allocator API */
-    int getStats(MemPoolStats *, int) override;
+    size_t getStats(Mem::PoolStats &) override;
     int getInUseCount() override;
 
 protected:

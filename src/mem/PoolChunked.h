@@ -26,15 +26,14 @@ public:
     ~MemPoolChunked() override;
     void convertFreeCacheToChunkFreeCache();
     void clean(time_t maxage) override;
-
     void createChunk();
     void *get();
     void push(void *obj);
 
     /* Mem::Allocator API */
-    int getStats(MemPoolStats *, int) override;
+    size_t getStats(Mem::PoolStats &) override;
     int getInUseCount() override;
-    void setChunkSize(size_t chunksize) override;
+    void setChunkSize(size_t) override;
 
 protected:
     void *allocate() override;
