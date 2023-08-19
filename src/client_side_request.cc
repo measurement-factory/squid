@@ -112,26 +112,7 @@ ClientRequestContext::~ClientRequestContext()
 }
 
 ClientRequestContext::ClientRequestContext(ClientHttpRequest *anHttp) :
-    http(cbdataReference(anHttp)),
-    acl_checklist(nullptr),
-    redirect_state(REDIRECT_NONE),
-    store_id_state(REDIRECT_NONE),
-    host_header_verify_done(false),
-    http_access_done(false),
-    adapted_http_access_done(false),
-#if USE_ADAPTATION
-    adaptation_acl_check_done(false),
-#endif
-    redirect_done(false),
-    store_id_done(false),
-    no_cache_done(false),
-    interpreted_req_hdrs(false),
-    toClientMarkingDone(false),
-#if USE_OPENSSL
-    sslBumpCheckDone(false),
-#endif
-    error(nullptr),
-    readNextRequest(false)
+    http(cbdataReference(anHttp))
 {
     debugs(85, 3, "ClientRequestContext constructed, this=" << this);
 }
@@ -142,29 +123,13 @@ ClientHttpRequest::ClientHttpRequest(ConnStateData * aConn) :
 #if USE_ADAPTATION
     AsyncJob("ClientHttpRequest"),
 #endif
-    request(nullptr),
-    uri(nullptr),
-    log_uri(nullptr),
-    req_sz(0),
     al(new AccessLogEntry()),
-    calloutContext(nullptr),
-    maxReplyBodySize_(0),
-    entry_(nullptr),
-    loggingEntry_(nullptr),
     conn_(cbdataReference(aConn))
-#if USE_OPENSSL
-    , sslBumpNeed_(Ssl::bumpEnd)
-#endif
-#if USE_ADAPTATION
-    , receivedWholeAdaptedReply(false)
-    , request_satisfaction_mode(false)
-    , request_satisfaction_offset(0)
-#endif
 {
     CodeContext::Reset(al);
     al->cache.start_time = current_time;
     if (aConn) {
-        al->tcpClient = clientConnection = aConn->clientConnection;
+        al->tcpClient = aConn->clientConnection;
         al->cache.port = aConn->port;
         al->cache.caddr = aConn->log_addr;
         al->proxyProtocolHeader = aConn->proxyProtocolHeader();
@@ -289,10 +254,7 @@ ClientHttpRequest::~ClientHttpRequest()
         stopConsumingFrom(adaptedBodySource);
 #endif
 
-    if (calloutContext)
-        delete calloutContext;
-
-    clientConnection = nullptr;
+    delete calloutContext;
 
     if (conn_)
         cbdataReferenceDone(conn_);
@@ -570,7 +532,7 @@ ClientRequestContext::hostHeaderVerifyFailed(const char *A, const char *B)
                                 http->getConn() != nullptr && http->getConn()->getAuth() != nullptr ?
                                 http->getConn()->getAuth() : http->request->auth_user_request);
 #else
-                                NULL);
+                                nullptr);
 #endif
     node = (clientStreamNode *)http->client_stream.tail->data;
     clientStreamRead(node, http, node->readBuffer);
