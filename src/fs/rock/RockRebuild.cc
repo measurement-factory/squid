@@ -260,10 +260,10 @@ Rock::Rebuild::Stats::Init(const SwapDir &dir)
 }
 
 bool
-Rock::Rebuild::Stats::completed(const SwapDir &sd) const
+Rock::Rebuild::Stats::completed(const SwapDir &dir) const
 {
-    return DoneLoading(counts.scancount, sd.slotLimitActual()) &&
-           DoneValidating(counts.validations, sd.slotLimitActual(), sd.entryLimitActual());
+    return DoneLoading(counts.scancount, dir.slotLimitActual()) &&
+           DoneValidating(counts.validations, dir.slotLimitActual(), dir.entryLimitActual());
 }
 
 /* Rebuild */
