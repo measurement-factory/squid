@@ -279,6 +279,7 @@ Comm::TcpAcceptor::acceptOne()
         if (intendedForUserConnections())
             logAcceptError(newConnDetails);
         notify(flag, newConnDetails);
+        // XXX: not under async job call protections
         mustStop("Listener socket closed");
         return;
     }
@@ -387,8 +388,7 @@ Comm::TcpAcceptor::oldAccept(Comm::ConnectionPointer &details)
     // Perform NAT or TPROXY operations to retrieve the real client/dest IP addresses
     if (conn->flags&(COMM_TRANSPARENT|COMM_INTERCEPTION) && !Ip::Interceptor.Lookup(details, conn)) {
         debugs(50, DBG_IMPORTANT, "ERROR: NAT/TPROXY lookup failed to locate original IPs on " << details);
-        // Failed.
-        return Comm::COMM_ERROR;
+        return Comm::NOMESSAGE;
     }
 
 #if USE_SQUID_EUI
