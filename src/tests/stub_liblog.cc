@@ -31,7 +31,7 @@ void accessLogInit(void) STUB
 const char *accessLogTime(time_t) STUB_RETVAL(nullptr)
 
 #include "log/access_log.h"
-void fvdbCountVia(const char *) STUB
+void fvdbCountVia(const SBuf &) STUB
 void fvdbCountForw(const char *) STUB
 
 #include "log/Config.h"
