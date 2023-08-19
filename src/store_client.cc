@@ -24,10 +24,9 @@
 #include "SquidMath.h"
 #include "StatCounters.h"
 #include "Store.h"
+#include "store/SwapMetaIn.h"
 #include "store_swapin.h"
 #include "StoreClient.h"
-#include "StoreMeta.h"
-#include "StoreMetaUnpacker.h"
 #if USE_DELAY_POOLS
 #include "DelayPools.h"
 #endif
@@ -709,40 +708,6 @@ storeClientReadBody(void *data, const char *buf, ssize_t len, StoreIOState::Poin
 }
 
 void
-store_client::unpackHeader(char const *buf, ssize_t len)
-{
-    debugs(90, 3, "store_client::unpackHeader: len " << len << "");
-    assert(len >= 0);
-
-    int swap_hdr_sz = 0;
-    StoreMetaUnpacker aBuilder(buf, len, &swap_hdr_sz);
-    const auto tlv_list = aBuilder.createStoreMeta();
-    assert(tlv_list);
-
-    /*
-     * Check the meta data and make sure we got the right object.
-     */
-    for (tlv *t = tlv_list; t; t = t->next) {
-        if (!t->checkConsistency(entry)) {
-            storeSwapTLVFree(tlv_list);
-            throw TextException("malformed swap metadata", Here());
-        }
-    }
-
-    storeSwapTLVFree(tlv_list);
-
-    assert(swap_hdr_sz >= 0);
-    entry->mem_obj->swap_hdr_sz = swap_hdr_sz;
-    if (entry->swap_file_sz > 0) { // collapsed hits may not know swap_file_sz
-        assert(entry->swap_file_sz >= static_cast<uint64_t>(swap_hdr_sz));
-        entry->mem_obj->object_sz = entry->swap_file_sz - swap_hdr_sz;
-    }
-    debugs(90, 5, "store_client::unpackHeader: swap_file_sz=" <<
-           entry->swap_file_sz << "( " << swap_hdr_sz << " + " <<
-           entry->mem_obj->object_sz << ")");
-}
-
-void
 store_client::readHeader(char const *buf, ssize_t len)
 {
     MemObject *const mem = entry->mem_obj;
@@ -764,7 +729,7 @@ store_client::readHeader(char const *buf, ssize_t len)
     try {
         Assure(!parsingBuffer->contentSize());
         parsingBuffer->appended(buf, len);
-        unpackHeader(buf, len);
+        Store::UnpackHitSwapMeta(buf, len, *entry);
         parsingBuffer->consume(mem->swap_hdr_sz);
     } catch (...) {
         debugs(90, DBG_IMPORTANT, "ERROR: Failed to unpack Store entry metadata: " << CurrentException);

@@ -138,7 +138,6 @@
 #define VIEWEXCLUDED    2
 #endif
 
-#define STORE_META_OK     0x03
 #define STORE_META_DIRTY  0x04
 #define STORE_META_BAD    0x05
 
@@ -162,15 +161,11 @@
 #define IPC_DGRAM IPC_UDP_SOCKET
 #endif
 
-#define STORE_META_KEY STORE_META_KEY_MD5
-
 #define STORE_META_TLD_START sizeof(int)+sizeof(char)
 #define STORE_META_TLD_SIZE STORE_META_TLD_START
 #define SwapMetaType(x) (char)x[0]
 #define SwapMetaSize(x) &x[sizeof(char)]
 #define SwapMetaData(x) &x[STORE_META_TLD_START]
-#define STORE_HDR_METASIZE (4*sizeof(time_t)+2*sizeof(uint16_t)+sizeof(uint64_t))
-#define STORE_HDR_METASIZE_OLD (4*sizeof(time_t)+2*sizeof(uint16_t)+sizeof(size_t))
 
 #define COUNT_INTERVAL 60
 /*
