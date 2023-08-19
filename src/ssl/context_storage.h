@@ -11,7 +11,7 @@
 
 #if USE_OPENSSL
 
-#include "base/LruMap.h"
+#include "base/ClpMap.h"
 #include "CacheManager.h"
 #include "compat/openssl.h"
 #include "ip/Address.h"
@@ -25,9 +25,6 @@
 #if HAVE_OPENSSL_SSL_H
 #include <openssl/ssl.h>
 #endif
-
-/// TODO: Replace on real size.
-#define SSL_CTX_SIZE 1024
 
 namespace  Ssl
 {
@@ -48,7 +45,10 @@ public:
     virtual bool aggregatable() const { return false; }
 };
 
-typedef LruMap<SBuf, Security::ContextPointer, SSL_CTX_SIZE> LocalContextStorage;
+inline uint64_t MemoryUsedByContext(const Security::ContextPointer &) {
+    return 1024; // TODO: Calculate approximate memory usage by the context.
+}
+using LocalContextStorage = ClpMap<SBuf, Security::ContextPointer, MemoryUsedByContext>;
 
 /// Class for storing/manipulating LocalContextStorage per local listening address/port.
 class GlobalContextStorage

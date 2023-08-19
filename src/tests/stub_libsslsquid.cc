@@ -11,6 +11,7 @@
 #if USE_OPENSSL
 
 #include "fatal.h"
+#include "sbuf/Algorithms.h"
 #include "sbuf/SBuf.h"
 
 /* Stub File for the ssl/libsslsquid.la convenience library */
@@ -37,7 +38,7 @@ Ssl::CertificateStorageAction::Pointer Ssl::CertificateStorageAction::Create(con
 void Ssl::CertificateStorageAction::dump(StoreEntry *) STUB
 void Ssl::GlobalContextStorage::addLocalStorage(Ip::Address const &, size_t ) STUB
 Ssl::LocalContextStorage *Ssl::GlobalContextStorage::getLocalStorage(Ip::Address const &)
-{ fatal(STUB_API " required"); static LocalContextStorage v(0,0); return &v; }
+{ fatal(STUB_API " required"); static LocalContextStorage v(0); return &v; }
 void Ssl::GlobalContextStorage::reconfigureStart() STUB
 //Ssl::GlobalContextStorage Ssl::TheGlobalContextStorage;
 

@@ -29,6 +29,7 @@ libbase_la_SOURCES = \
 	CbcPointer.h \
 	CharacterSet.cc \
 	CharacterSet.h \
+	ClpMap.h \
 	CodeContext.cc \
 	CodeContext.h \
 	DelayedAsyncCalls.cc \
@@ -47,7 +48,6 @@ libbase_la_SOURCES = \
 	JobWait.h \
 	Lock.h \
 	LookupTable.h \
-	LruMap.h \
 	Optional.h \
 	Packable.h \
 	PackableStream.h \
