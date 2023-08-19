@@ -2055,6 +2055,7 @@ tests_testHttpReply_SOURCES = \
 	tests/stub_libcomm.cc \
 	tests/stub_liberror.cc \
 	tests/stub_libformat.cc \
+	tests/stub_libmem.cc \
 	tests/stub_libmgr.cc \
 	tests/stub_libsecurity.cc \
 	tests/stub_libsslsquid.cc \
@@ -2084,7 +2085,6 @@ tests_testHttpReply_LDADD=\
 	ip/libip.la \
 	base/libbase.la \
 	ipc/libipc.la \
-	mem/libmem.la \
 	sbuf/libsbuf.la \
 	$(top_builddir)/lib/libmisccontainers.la \
 	$(top_builddir)/lib/libmiscencoding.la \
