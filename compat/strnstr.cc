@@ -84,12 +84,12 @@ squid_strnstr(const char *s, const char *find, size_t slen)
         do {
             do {
                 if (slen < 1 || (sc = *s) == '\0')
-                    return (nullptr);
+                    return nullptr;
                 --slen;
                 ++s;
             } while (sc != c);
             if (len > slen)
-                return (nullptr);
+                return nullptr;
         } while (strncmp(s, find, len) != 0);
         --s;
     }

@@ -68,13 +68,13 @@ xstrtoul(const char *s, char **end, unsigned long *value,
 
     if (my_end == s)
         return false;
-    if (end != nullptr)
+    if (end)
         *end = my_end;
 
     if (errno != ERANGE && min <= v && (max == 0 || v <= max)) {
-        if (value != nullptr)
+        if (value)
             *value = v;
-        if (end == nullptr)
+        if (!end)
             return *my_end == '\0';
         return true;
     }
@@ -88,7 +88,7 @@ xstrtoui(const char *s, char **end, unsigned int *value,
 {
     unsigned long v = 0;
     bool ret = xstrtoul(s, end, &v, min, max);
-    if (value != nullptr) {
+    if (value) {
         *value = v;
 
         if (v != static_cast<unsigned long>(*value)) {

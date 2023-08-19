@@ -78,7 +78,7 @@ xcalloc(size_t n, size_t sz)
 
     void *p = calloc(n, sz);
 
-    if (p == nullptr) {
+    if (!p) {
         if (failure_notify) {
             static char msg[128];
             snprintf(msg, 128, "xcalloc: Unable to allocate %zu blocks of %zu bytes!\n", n, sz);
@@ -104,7 +104,7 @@ xmalloc(size_t sz)
 
     void *p = malloc(sz);
 
-    if (p == nullptr) {
+    if (!p) {
         if (failure_notify) {
             static char msg[128];
             snprintf(msg, 128, "xmalloc: Unable to allocate %zu bytes!\n", sz);
@@ -130,7 +130,7 @@ xrealloc(void *s, size_t sz)
 
     void *p= realloc(s, sz);
 
-    if (p == nullptr) {
+    if (!p) {
         if (failure_notify) {
             static char msg[128];
             snprintf(msg, 128, "xrealloc: Unable to reallocate %zu bytes!\n", sz);

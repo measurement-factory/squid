@@ -99,7 +99,7 @@ static const char *inet_ntop6 (const u_char *src, char *dst, size_t size);
  * inet_ntop(af, src, dst, size)
  *  convert a network format address to presentation format.
  * return:
- *  pointer to presentation format address (`dst'), or NULL (see errno).
+ *  pointer to presentation format address (`dst'), or nullptr (see errno).
  * author:
  *  Paul Vixie, 1996.
  */
@@ -113,7 +113,7 @@ xinet_ntop(int af, const void *src, char *dst, size_t size)
         return (inet_ntop6((const u_char*)src, dst, size));
     default:
         errno = EAFNOSUPPORT;
-        return (NULL);
+        return nullptr;
     }
     /* NOTREACHED */
 }
@@ -137,7 +137,7 @@ inet_ntop4(const u_char *src, char *dst, size_t size)
 
     if ((size_t)snprintf(tmp, min(sizeof(tmp),size), fmt, src[0], src[1], src[2], src[3]) >= size) {
         errno = ENOSPC;
-        return (NULL);
+        return nullptr;
     }
     strcpy(dst, tmp);
     return (dst);
@@ -217,7 +217,7 @@ inet_ntop6(const u_char *src, char *dst, size_t size)
                                          (best.len == 7 && words[7] != 0x0001) ||
                                          (best.len == 5 && words[5] == 0xffff))) {
             if (!inet_ntop4(src+12, tp, sizeof tmp - (tp - tmp)))
-                return (NULL);
+                return nullptr;
             tp += strlen(tp);
             break;
         }
@@ -234,7 +234,7 @@ inet_ntop6(const u_char *src, char *dst, size_t size)
      */
     if ((size_t)(tp - tmp) > size) {
         errno = ENOSPC;
-        return (NULL);
+        return nullptr;
     }
     strcpy(dst, tmp);
     return (dst);
