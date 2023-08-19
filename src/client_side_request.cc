@@ -1130,7 +1130,7 @@ clientInterpretRequestHeaders(ClientHttpRequest * http)
 
     if (req_hdr->has(Http::HdrType::X_FORWARDED_FOR)) {
         String s = req_hdr->getList(Http::HdrType::X_FORWARDED_FOR);
-        fvdbCountForw(s.termedBuf());
+        fvdbCountForwarded(StringToSBuf(s));
         s.clean();
     }
 
