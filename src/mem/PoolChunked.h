@@ -27,32 +27,19 @@ public:
     void convertFreeCacheToChunkFreeCache();
     void clean(time_t maxage) override;
 
-    /**
-     \param stats   Object to be filled with statistical data about pool.
-     \retval        Number of objects in use, ie. allocated.
-     */
-    int getStats(MemPoolStats * stats, int accumulate) override;
-
     void createChunk();
     void *get();
     void push(void *obj);
+
+    /* Mem::Allocator API */
+    int getStats(MemPoolStats *, int) override;
     int getInUseCount() override;
+    void setChunkSize(size_t chunksize) override;
+
 protected:
     void *allocate() override;
     void deallocate(void *, bool aggressive) override;
 public:
-    /**
-     * Allows you tune chunk size of pooling. Objects are allocated in chunks
-     * instead of individually. This conserves memory, reduces fragmentation.
-     * Because of that memory can be freed also only in chunks. Therefore
-     * there is tradeoff between memory conservation due to chunking and free
-     * memory fragmentation.
-     *
-     \note  As a general guideline, increase chunk size only for pools that keep
-     *      very many items for relatively long time.
-     */
-    void setChunkSize(size_t chunksize) override;
-
     bool idleTrigger(int shift) const override;
 
     size_t chunk_size;

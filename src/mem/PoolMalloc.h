@@ -41,13 +41,10 @@ public:
     bool idleTrigger(int shift) const override;
     void clean(time_t maxage) override;
 
-    /**
-     \param stats   Object to be filled with statistical data about pool.
-     \retval        Number of objects in use, ie. allocated.
-     */
-    int getStats(MemPoolStats * stats, int accumulate) override;
-
+    /* Mem::Allocator API */
+    int getStats(MemPoolStats *, int) override;
     int getInUseCount() override;
+
 protected:
     void *allocate() override;
     void deallocate(void *, bool aggressive) override;

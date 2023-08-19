@@ -82,7 +82,7 @@ static_assert(std::is_standard_layout<cbdata>::value, "the behavior of offsetof(
 const long cbdata::Cookie((long)0xDEADBEEF);
 
 struct CBDataIndex {
-    MemAllocator *pool;
+    Mem::Allocator *pool;
 }
 *cbdata_index = nullptr;
 
