@@ -29,7 +29,7 @@ public:
     static STCB SendMoreData;
 
     clientReplyContext(ClientHttpRequest *);
-    ~clientReplyContext();
+    ~clientReplyContext() override;
 
     void saveState();
     void restoreState();
@@ -66,7 +66,7 @@ public:
     Http::StatusCode purgeStatus;
 
     /* StoreClient API */
-    virtual LogTags *loggingTags() const;
+    LogTags *loggingTags() const override;
 
     ClientHttpRequest *http;
     store_client *sc;       /* The store_client we're using */
@@ -88,7 +88,7 @@ public:
 
 private:
     /* StoreClient API */
-    virtual void fillChecklist(ACLFilledChecklist &) const;
+    void fillChecklist(ACLFilledChecklist &) const override;
 
     clientStreamNode *getNextNode() const;
     void makeThisHead();

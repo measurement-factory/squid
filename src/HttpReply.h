@@ -29,16 +29,16 @@ public:
     typedef RefCount<HttpReply> Pointer;
 
     HttpReply();
-    ~HttpReply();
+    ~HttpReply() override;
 
-    virtual void reset();
+    void reset() override;
 
     /**
      \retval true on success
      \retval false and sets *error to zero when needs more data
      \retval false and sets *error to a positive Http::StatusCode on error
      */
-    virtual bool sanityCheckStartLine(const char *buf, const size_t hdr_len, Http::StatusCode *error);
+    bool sanityCheckStartLine(const char *buf, const size_t hdr_len, Http::StatusCode *error) override;
 
     /** \par public, readable; never update these or their .hdr equivalents directly */
     time_t date;
@@ -66,11 +66,11 @@ public:
     bool do_clean;
 
 public:
-    virtual int httpMsgParseError();
+    int httpMsgParseError() override;
 
-    virtual bool expectingBody(const HttpRequestMethod&, int64_t&) const;
+    bool expectingBody(const HttpRequestMethod&, int64_t&) const override;
 
-    virtual bool inheritProperties(const Http::Message *);
+    bool inheritProperties(const Http::Message *) override;
 
     /// \returns nil (if no updates are necessary)
     /// \returns a new reply combining this reply with 304 updates (otherwise)
@@ -114,9 +114,9 @@ public:
     /** Clone this reply.
      *  Could be done as a copy-contructor but we do not want to accidentally copy a HttpReply..
      */
-    HttpReply *clone() const;
+    HttpReply *clone() const override;
 
-    virtual void hdrCacheInit();
+    void hdrCacheInit() override;
 
     /// whether our Date header value is smaller than theirs
     /// \returns false if any information is missing
@@ -125,7 +125,7 @@ public:
     /// Some response status codes prohibit sending Content-Length (RFC 7230 section 3.3.2).
     void removeIrrelevantContentLength();
 
-    virtual void configureContentLengthInterpreter(Http::ContentLengthInterpreter &);
+    void configureContentLengthInterpreter(Http::ContentLengthInterpreter &) override;
     /// parses reply header using Parser
     bool parseHeader(Http1::Parser &hp);
 
@@ -163,9 +163,9 @@ private:
     HttpHdrContRange *content_range; ///< parsed Content-Range; nil for non-206 responses!
 
 protected:
-    virtual void packFirstLineInto(Packable * p, bool) const { sline.packInto(p); }
+    void packFirstLineInto(Packable * p, bool) const override { sline.packInto(p); }
 
-    virtual bool parseFirstLine(const char *start, const char *end);
+    bool parseFirstLine(const char *start, const char *end) override;
 };
 
 #endif /* SQUID_HTTPREPLY_H */

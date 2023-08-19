@@ -25,7 +25,7 @@ public:
     /// single detail or to an ErrorDetails object (with multiple details).
     static void Merge(ErrorDetailPointer &storage, const ErrorDetailPointer &latest);
 
-    virtual ~ErrorDetails() = default;
+    ~ErrorDetails() override = default;
 
 protected:
     // use Merge() instead
@@ -35,8 +35,8 @@ protected:
     void mergeMany(const ErrorDetails &);
 
     /* ErrorDetail API */
-    virtual SBuf brief() const override;
-    virtual SBuf verbose(const HttpRequestPointer &) const override;
+    SBuf brief() const override;
+    SBuf verbose(const HttpRequestPointer &) const override;
 
 private:
     /// known unique details in canonical order

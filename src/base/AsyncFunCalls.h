@@ -24,7 +24,7 @@ public:
     /* CallDialer API */
     bool canDial(AsyncCall &) { return bool(handler); }
     void dial(AsyncCall &) { handler(); }
-    virtual void print(std::ostream &os) const override { os << "()"; }
+    void print(std::ostream &os) const override { os << "()"; }
 
 private:
     Handler *handler; ///< the function to call (or nil)

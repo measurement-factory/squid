@@ -43,7 +43,7 @@ public:
     void operator delete (void *address);
 
     StoreIOState(StoreIOState::STIOCB *, void *cbData);
-    virtual ~StoreIOState();
+    ~StoreIOState() override;
 
     off_t offset() const {return offset_;}
 
