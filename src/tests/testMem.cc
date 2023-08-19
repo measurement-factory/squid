@@ -7,8 +7,8 @@
  */
 
 #include "squid.h"
-#include "mem/forward.h"
 #include "compat/cppunit.h"
+#include "mem/forward.h"
 #include "mem/Pool.h"
 #include "unitTestMain.h"
 
