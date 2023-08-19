@@ -137,7 +137,6 @@ noinst_LTLIBRARIES = libsquid.la
 
 EXTRA_PROGRAMS = \
 	unlinkd \
-	recv-announce \
 	ufsdump
 
 ## cfgen is used when building squid
@@ -551,8 +550,6 @@ unlinkd_SOURCES = unlinkd_daemon.cc
 unlinkd_LDADD = \
 	$(COMPAT_LIB) \
 	$(XTRA_LIBS)
-
-recv_announce_SOURCES = recv-announce.cc
 
 ## What requires what..
 ## many things want ACLChecklist.cc
