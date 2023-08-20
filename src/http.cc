@@ -1997,7 +1997,7 @@ HttpStateData::httpBuildRequestHeader(HttpRequest * request,
         if (flags.only_if_cached)
             cc->onlyIfCached(true);
 
-        hdr_out->putCc(cc);
+        hdr_out->putCc(*cc);
 
         delete cc;
     }
