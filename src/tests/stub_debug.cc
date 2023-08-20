@@ -20,8 +20,6 @@
 #define STUB_API "debug/libdebug.la"
 #include "tests/STUB.h"
 
-DebugMessages *DebugMessagesConfig = nullptr;
-
 char *Debug::debugOptions;
 char *Debug::cache_log= nullptr;
 int Debug::rotateNumber = 0;

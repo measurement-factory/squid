@@ -24,8 +24,6 @@
 #include <memory>
 #include <optional>
 
-DebugMessages *DebugMessagesConfig = nullptr;
-
 char *Debug::debugOptions = nullptr;
 int Debug::override_X = 0;
 bool Debug::log_syslog = false;
