@@ -1077,6 +1077,7 @@ tests_testRock_SOURCES = \
 	tests/stub_libeui.cc \
 	tests/stub_libformat.cc \
 	tests/stub_libicmp.cc \
+	tests/stub_libip.cc \
 	tests/stub_liblog.cc \
 	tests/stub_libmgr.cc \
 	tests/stub_libsecurity.cc \
@@ -1113,7 +1114,6 @@ tests_testRock_LDADD = \
 	parser/libparser.la \
 	libsquid.la \
 	comm/libcomm.la \
-	ip/libip.la \
 	fs/libfs.la \
 	$(COMMON_LIBS) \
 	$(REPL_OBJS) \
@@ -1249,6 +1249,7 @@ tests_testUfs_SOURCES = \
 	tests/stub_libeui.cc \
 	tests/stub_libformat.cc \
 	tests/stub_libicmp.cc \
+	tests/stub_libip.cc \
 	tests/stub_liblog.cc \
 	tests/stub_libsecurity.cc \
 	log/access_log.h \
@@ -1290,7 +1291,6 @@ tests_testUfs_LDADD = \
 	acl/libstate.la \
 	acl/libapi.la \
 	libsquid.la \
-	ip/libip.la \
 	fs/libfs.la \
 	mgr/libmgr.la \
 	$(REPL_OBJS) \
@@ -1303,7 +1303,6 @@ tests_testUfs_LDADD = \
 	comm/libcomm.la \
 	dns/libdns.la \
 	base/libbase.la \
-	ip/libip.la \
 	mem/libmem.la \
 	store/libstore.la \
 	$(ADAPTATION_LIBS) \
@@ -1590,6 +1589,7 @@ tests_testDiskIO_SOURCES = \
 	tests/stub_libeui.cc \
 	tests/stub_libformat.cc \
 	tests/stub_libicmp.cc \
+	tests/stub_libip.cc \
 	tests/stub_liblog.cc \
 	tests/stub_libsecurity.cc \
 	tests/stub_libstore.cc \
@@ -1634,7 +1634,6 @@ tests_testDiskIO_LDADD = \
 	acl/libacls.la \
 	acl/libstate.la \
 	comm/libcomm.la \
-	ip/libip.la \
 	fs/libfs.la \
 	ipc/libipc.la \
 	$(REPL_OBJS) \
