@@ -9,8 +9,8 @@
 #ifndef SQUID_SBUFSTREAM_H
 #define SQUID_SBUFSTREAM_H
 
-#include "sbuf/SBuf.h"
 #include "base/PackableStream.h"
+#include "sbuf/SBuf.h"
 
 /** Stream interface to write to a SBuf.
  *
