@@ -221,6 +221,7 @@ main() {
             cache-refresh-response
             busy-restart
             truncated-responses
+            malformed-request
         "
         tests="$default_tests"
     fi
