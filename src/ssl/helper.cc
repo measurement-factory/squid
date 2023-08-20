@@ -70,7 +70,7 @@ operator <<(std::ostream &os, const Ssl::GeneratorRequest &gr)
 /// pending Ssl::Helper requests (to all certificate generator helpers combined)
 static Ssl::GeneratorRequests TheGeneratorRequests;
 
-helper *Ssl::Helper::ssl_crtd = nullptr;
+helper::Pointer Ssl::Helper::ssl_crtd = nullptr;
 
 void Ssl::Helper::Init()
 {
@@ -84,7 +84,7 @@ void Ssl::Helper::Init()
     if (!found)
         return;
 
-    ssl_crtd = new helper("sslcrtd_program");
+    ssl_crtd = helper::Make("sslcrtd_program");
     ssl_crtd->childs.updateLimits(Ssl::TheConfig.ssl_crtdChildren);
     ssl_crtd->ipc_type = IPC_STREAM;
     // The crtd messages may contain the eol ('\n') character. We are
@@ -109,7 +109,6 @@ void Ssl::Helper::Shutdown()
         return;
     helperShutdown(ssl_crtd);
     wordlistDestroy(&ssl_crtd->cmdline);
-    delete ssl_crtd;
     ssl_crtd = nullptr;
 }
 
@@ -165,7 +164,7 @@ Ssl::HandleGeneratorReply(void *data, const ::Helper::Reply &reply)
 }
 #endif //USE_SSL_CRTD
 
-helper *Ssl::CertValidationHelper::ssl_crt_validator = nullptr;
+helper::Pointer Ssl::CertValidationHelper::ssl_crt_validator = nullptr;
 
 void Ssl::CertValidationHelper::Init()
 {
@@ -181,7 +180,7 @@ void Ssl::CertValidationHelper::Init()
     if (!found)
         return;
 
-    ssl_crt_validator = new helper("ssl_crt_validator");
+    ssl_crt_validator = helper::Make("ssl_crt_validator");
     ssl_crt_validator->childs.updateLimits(Ssl::TheConfig.ssl_crt_validator_Children);
     ssl_crt_validator->ipc_type = IPC_STREAM;
     // The crtd messages may contain the eol ('\n') character. We are
@@ -234,7 +233,6 @@ void Ssl::CertValidationHelper::Shutdown()
         return;
     helperShutdown(ssl_crt_validator);
     wordlistDestroy(&ssl_crt_validator->cmdline);
-    delete ssl_crt_validator;
     ssl_crt_validator = nullptr;
 
     // CertValidationHelper::HelperCache is a static member, it is not good policy to
