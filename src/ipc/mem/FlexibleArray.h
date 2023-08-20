@@ -35,7 +35,7 @@ public:
     Item *raw() { return reinterpret_cast<Item*>(&start_); }
 
 private:
-    alignas(Item) char start_; ///< the first byte of the first array item
+    alignas(Item) std::byte start_; ///< the first byte of the first array item
 };
 
 } // namespace Mem
