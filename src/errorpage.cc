@@ -1350,13 +1350,13 @@ ErrorState::BuildHttpReply()
     if (request) {
         if (detail)
             request->detailError(type, detail);
-        if (const auto errNoDetail = SysErrorDetail::NewIfAny(xerrno))
-            request->detailError(type, errNoDetail);
+        // updates %err_code even if there is no xerrno (XXX: fragile!)
+        request->detailError(type, SysErrorDetail::NewIfAny(xerrno));
     } else if (ale) {
         if (detail)
             ale->updateError(Error(type, detail));
-        if (const auto errNoDetail = SysErrorDetail::NewIfAny(xerrno))
-            ale->updateError(Error(type, errNoDetail));
+        // updates %err_code even if there is no xerrno (XXX: fragile!)
+        ale->updateError(Error(type, SysErrorDetail::NewIfAny(xerrno)));
     }
 
     return rep;
