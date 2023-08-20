@@ -116,9 +116,6 @@
 #if USE_ADAPTATION
 #include "adaptation/Config.h"
 #endif
-#if USE_SQUID_ESI
-#include "esi/Module.h"
-#endif
 #if SQUID_SNMP
 #include "snmp_core.h"
 #endif
@@ -1289,10 +1286,6 @@ mainInitialize(void)
     Adaptation::Config::Finalize(enableAdaptation);
 #endif
 
-#if USE_SQUID_ESI
-    Esi::Init();
-#endif
-
 #if USE_DELAY_POOLS
     Config.ClientDelay.finalize();
 #endif
@@ -2064,10 +2057,6 @@ SquidShutdown()
 
     releaseServerSockets();
     commCloseAllSockets();
-
-#if USE_SQUID_ESI
-    Esi::Clean();
-#endif
 
 #if USE_DELAY_POOLS
     DelayPools::FreePools();
