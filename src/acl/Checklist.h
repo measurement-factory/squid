@@ -10,13 +10,11 @@
 #define SQUID_ACLCHECKLIST_H
 
 #include "acl/InnerNode.h"
+#include "base/AsyncCall.h"
 #include <stack>
 #include <vector>
 
 class HttpRequest;
-
-/// ACL checklist callback
-typedef void ACLCB(Acl::Answer, void *);
 
 /** \ingroup ACLAPI
     Base class for maintaining Squid and transaction state for access checks.
@@ -87,7 +85,7 @@ public:
      * Calling this method with no rules to check wastes a lot of CPU cycles
      * and will result in a DBG_CRITICAL debugging message.
      */
-    void nonBlockingCheck(ACLCB * callback, void *callback_data);
+    void nonBlockingCheck(const AsyncCall::Pointer &);
 
     /**
      * Perform a blocking (immediate) check for a list of allow/deny rules.
@@ -194,9 +192,6 @@ private:
     const Acl::Tree *accessList;
 public:
 
-    ACLCB *callback;
-    void *callback_data;
-
     /// Resumes non-blocking check started by nonBlockingCheck() and
     /// suspended until some async operation updated Squid state.
     void resumeNonBlockingCheck(AsyncState *state);
@@ -225,10 +220,10 @@ private: /* internal methods */
     void completeNonBlocking();
     void calcImplicitAnswer();
 
-    bool asyncCaller_; ///< whether the caller supports async/slow ACLs
     bool occupied_; ///< whether a check (fast or non-blocking) is in progress
     bool finished_;
     Acl::Answer answer_;
+    AsyncCall::Pointer callback_; ///< handler that is called upon the non-blocking check completion
 
     enum AsyncStage { asyncNone, asyncStarting, asyncRunning, asyncFailed };
     AsyncStage asyncStage_;

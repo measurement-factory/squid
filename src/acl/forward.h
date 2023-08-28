@@ -36,8 +36,6 @@ void Init(void);
 
 } // namespace Acl
 
-typedef void ACLCB(Acl::Answer, void *);
-
 #define ACL_NAME_SZ 64
 
 // TODO: Consider renaming all users and removing. Cons: hides the difference

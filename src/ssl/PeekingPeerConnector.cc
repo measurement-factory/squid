@@ -10,6 +10,7 @@
 
 #include "squid.h"
 #include "acl/FilledChecklist.h"
+#include "base/AsyncCallbacks.h"
 #include "client_side.h"
 #include "errorpage.h"
 #include "fde.h"
@@ -48,15 +49,7 @@ Ssl::PeekingPeerConnector::PeekingPeerConnector(HttpRequestPointer &aRequest,
 }
 
 void
-Ssl::PeekingPeerConnector::cbCheckForPeekAndSpliceDone(const Acl::Answer aclAnswer, void *data)
-{
-    Ssl::PeekingPeerConnector *peerConnect = (Ssl::PeekingPeerConnector *) data;
-    // Use job calls to add done() checks and other job logic/protections.
-    CallJobHere1(83, 7, CbcPointer<PeekingPeerConnector>(peerConnect), Ssl::PeekingPeerConnector, checkForPeekAndSpliceDone, aclAnswer);
-}
-
-void
-Ssl::PeekingPeerConnector::checkForPeekAndSpliceDone(const Acl::Answer aclAnswer)
+Ssl::PeekingPeerConnector::checkForPeekAndSpliceDone(const Acl::Answer &aclAnswer)
 {
     const Ssl::BumpMode finalAction = aclAnswer.allowed() ?
                                       static_cast<Ssl::BumpMode>(aclAnswer.kind):
@@ -86,7 +79,10 @@ Ssl::PeekingPeerConnector::checkForPeekAndSplice()
     if (!srvBio->canBump())
         acl_checklist->banAction(Acl::Answer(ACCESS_ALLOWED, Ssl::bumpBump));
     acl_checklist->syncAle(request.getRaw(), nullptr);
-    acl_checklist->nonBlockingCheck(Ssl::PeekingPeerConnector::cbCheckForPeekAndSpliceDone, this);
+
+    const auto cb = asyncCallback(83, 4, PeekingPeerConnector::checkForPeekAndSpliceDone, this);
+
+    acl_checklist->nonBlockingCheck(cb);
 }
 
 void

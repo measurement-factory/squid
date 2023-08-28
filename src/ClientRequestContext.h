@@ -37,28 +37,16 @@ public:
     void hostHeaderVerifyFailed(const char *A, const char *B);
     void clientAccessCheck();
     void clientAccessCheck2();
+    /// callback for http access check list
     void clientAccessCheckDone(const Acl::Answer &);
     void clientRedirectStart();
     void clientRedirectDone(const Helper::Reply &);
     void clientStoreIdStart();
     void clientStoreIdDone(const Helper::Reply &);
     void checkNoCache();
-    void checkNoCacheDone(const Acl::Answer &);
 #if USE_ADAPTATION
     void adaptationAccessCheck();
 #endif
-#if USE_OPENSSL
-    /**
-     * Initiates and start the acl checklist to check if the CONNECT
-     * request must be bumped.
-     * \retval true if the acl check scheduled
-     * \retval false if no ssl-bump required
-     */
-    bool sslBumpAccessCheck();
-    /// The callback function for ssl-bump access check list
-    void sslBumpAccessCheckDone(const Acl::Answer &answer);
-#endif
-
     ClientHttpRequest *http;
     ACLChecklist *acl_checklist = nullptr; ///< need ptr back so we can unregister if needed
     int redirect_state = REDIRECT_NONE;
@@ -70,6 +58,15 @@ public:
 #if USE_ADAPTATION
     bool adaptation_acl_check_done = false;
 #endif
+#if USE_OPENSSL
+    /**
+     * Initiates and start the acl checklist to check if the CONNECT
+     * request must be bumped.
+     * \retval true if the acl check scheduled
+     * \retval false if no ssl-bump required
+     */
+    bool sslBumpAccessCheck();
+#endif
     bool redirect_done = false;
     bool store_id_done = false;
     bool no_cache_done = false;
@@ -80,6 +77,17 @@ public:
 #endif
     ErrorState *error = nullptr; ///< saved error page for centralized/delayed processing
     bool readNextRequest = false; ///< whether Squid should read after error handling
+
+private:
+    void checkNoCacheDone(const Acl::Answer &);
+    void storeIdAccessCheckDone(const Acl::Answer &);
+    void redirectAccessCheckDone(const Acl::Answer &);
+#if USE_OPENSSL
+    void sslBumpAccessCheckDone(const Acl::Answer &answer);
+#endif
+#if FOLLOW_X_FORWARDED_FOR
+    void followXForwardedForCheck(const Acl::Answer &);
+#endif
 };
 
 #endif /* SQUID_CLIENTREQUESTCONTEXT_H */

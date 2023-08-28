@@ -21,11 +21,6 @@ ACLChecklist::prepNonBlocking()
 {
     assert(accessList);
 
-    if (callerGone()) {
-        checkCallback(ACCESS_DUNNO); // the answer does not really matter
-        return false;
-    }
-
     /** \par
      * If the accessList is no longer valid (i.e. its been
      * freed because of a reconfigure), then bail with ACCESS_DUNNO.
@@ -118,7 +113,7 @@ ACLChecklist::goAsync(AsyncState *state)
     assert(matchLoc_.parent);
 
     // TODO: add a once-in-a-while WARNING about fast directive using slow ACL?
-    if (!asyncCaller_) {
+    if (!callback_) {
         debugs(28, 2, this << " a fast-only directive uses a slow ACL!");
         return false;
     }
@@ -152,20 +147,13 @@ ACLChecklist::goAsync(AsyncState *state)
     return true;
 }
 
-// ACLFilledChecklist overwrites this to unclock something before we
-// "delete this"
 void
 ACLChecklist::checkCallback(Acl::Answer answer)
 {
-    ACLCB *callback_;
-    void *cbdata_;
     debugs(28, 3, "ACLChecklist::checkCallback: " << this << " answer=" << answer);
 
-    callback_ = callback;
-    callback = nullptr;
-
-    if (cbdataReferenceValidDone(callback_data, &cbdata_))
-        callback_(answer, cbdata_);
+    assert(callback_);
+    ScheduleCallHere(callback_);
 
     // not really meaningful just before delete, but here for completeness sake
     occupied_ = false;
@@ -175,9 +163,6 @@ ACLChecklist::checkCallback(Acl::Answer answer)
 
 ACLChecklist::ACLChecklist() :
     accessList (nullptr),
-    callback (nullptr),
-    callback_data (nullptr),
-    asyncCaller_(false),
     occupied_(false),
     finished_(false),
     answer_(ACCESS_DENIED),
@@ -234,12 +219,13 @@ ACLChecklist::asyncState() const
  * NP: this should probably be made Async now.
  */
 void
-ACLChecklist::nonBlockingCheck(ACLCB * callback_, void *callback_data_)
+ACLChecklist::nonBlockingCheck(const AsyncCall::Pointer &callback)
 {
     preCheck("slow rules");
-    callback = callback_;
-    callback_data = cbdataReference(callback_data_);
-    asyncCaller_ = true;
+
+    Assure(callback);
+    Assure(!callback_);
+    callback_ = callback;
 
     /** The ACL List should NEVER be NULL when calling this method.
      * Always caller should check for NULL and handle appropriate to its needs first.
@@ -307,7 +293,6 @@ Acl::Answer const &
 ACLChecklist::fastCheck(const Acl::Tree * list)
 {
     preCheck("fast ACLs");
-    asyncCaller_ = false;
 
     // Concurrent checks are not supported, but sequential checks are, and they
     // may use a mixture of fastCheck(void) and fastCheck(list) calls.
@@ -332,7 +317,6 @@ Acl::Answer const &
 ACLChecklist::fastCheck()
 {
     preCheck("fast rules");
-    asyncCaller_ = false;
 
     debugs(28, 5, "aclCheckFast: list: " << accessList);
     const Acl::Tree *acl = cbdataReference(accessList);
@@ -375,12 +359,6 @@ ACLChecklist::calcImplicitAnswer()
     debugs(28, 3, this << " NO match found, last action " <<
            lastAction << " so returning " << implicitRuleAnswer);
     markFinished(implicitRuleAnswer, "implicit rule won");
-}
-
-bool
-ACLChecklist::callerGone()
-{
-    return !cbdataReferenceValid(callback_data);
 }
 
 bool

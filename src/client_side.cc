@@ -2476,30 +2476,28 @@ httpsEstablish(ConnStateData *connState, const Security::ContextPointer &ctx)
 /**
  * A callback function to use with the ACLFilledChecklist callback.
  */
-static void
-httpsSslBumpAccessCheckDone(Acl::Answer answer, void *data)
+void
+ConnStateData::httpsSslBumpAccessCheckDone(const Acl::Answer &answer)
 {
-    ConnStateData *connState = (ConnStateData *) data;
-
     // if the connection is closed or closing, just return.
-    if (!connState->isOpen())
+    if (!isOpen())
         return;
 
     if (answer.allowed()) {
-        debugs(33, 2, "sslBump action " << Ssl::bumpMode(answer.kind) << "needed for " << connState->clientConnection);
-        connState->sslBumpMode = static_cast<Ssl::BumpMode>(answer.kind);
+        debugs(33, 2, "sslBump action " << Ssl::bumpMode(answer.kind) << " needed for " << clientConnection);
+        sslBumpMode = static_cast<Ssl::BumpMode>(answer.kind);
     } else {
-        debugs(33, 3, "sslBump not needed for " << connState->clientConnection);
-        connState->sslBumpMode = Ssl::bumpSplice;
+        debugs(33, 3, "sslBump not needed for " << clientConnection);
+        sslBumpMode = Ssl::bumpSplice;
     }
 
-    if (connState->sslBumpMode == Ssl::bumpTerminate) {
-        connState->clientConnection->close();
+    if (sslBumpMode == Ssl::bumpTerminate) {
+        clientConnection->close();
         return;
     }
 
-    if (!connState->fakeAConnectRequest("ssl-bump", connState->inBuf))
-        connState->clientConnection->close();
+    if (!fakeAConnectRequest("ssl-bump", inBuf))
+        clientConnection->close();
 }
 #endif
 
@@ -2537,7 +2535,7 @@ ConnStateData::postHttpsAccept()
         debugs(33, 5, "accept transparent connection: " << clientConnection);
 
         if (!Config.accessList.ssl_bump) {
-            httpsSslBumpAccessCheckDone(ACCESS_DENIED, this);
+            httpsSslBumpAccessCheckDone(ACCESS_DENIED);
             return;
         }
 
@@ -2574,7 +2572,9 @@ ConnStateData::postHttpsAccept()
         ClientHttpRequest *http = context ? context->http : nullptr;
         const char *log_uri = http ? http->log_uri : nullptr;
         acl_checklist->syncAle(request, log_uri);
-        acl_checklist->nonBlockingCheck(httpsSslBumpAccessCheckDone, this);
+        const auto callback = asyncCallback(33, 4, ConnStateData::httpsSslBumpAccessCheckDone, this);
+
+        acl_checklist->nonBlockingCheck(callback);
 #else
         fatal("FATAL: SSL-Bump requires --with-openssl");
 #endif
@@ -2963,35 +2963,33 @@ ConnStateData::parseTlsHandshake()
     }
 }
 
-static void
-httpsSslBumpStep2AccessCheckDone(Acl::Answer answer, void *data)
+void
+ConnStateData::httpsSslBumpStep2AccessCheckDone(const Acl::Answer &answer)
 {
-    ConnStateData *connState = (ConnStateData *) data;
-
     // if the connection is closed or closing, just return.
-    if (!connState->isOpen())
+    if (!isOpen())
         return;
 
     debugs(33, 5, "Answer: " << answer << " kind:" << answer.kind);
-    assert(connState->serverBump());
+    assert(serverBump());
     Ssl::BumpMode bumpAction;
     if (answer.allowed()) {
         bumpAction = (Ssl::BumpMode)answer.kind;
     } else
         bumpAction = Ssl::bumpSplice;
 
-    connState->serverBump()->act.step2 = bumpAction;
-    connState->sslBumpMode = bumpAction;
-    Http::StreamPointer context = connState->pipeline.front();
+    serverBump()->act.step2 = bumpAction;
+    sslBumpMode = bumpAction;
+    Http::StreamPointer context = pipeline.front();
     if (ClientHttpRequest *http = (context ? context->http : nullptr))
         http->al->ssl.bumpMode = bumpAction;
 
     if (bumpAction == Ssl::bumpTerminate) {
-        connState->clientConnection->close();
+        clientConnection->close();
     } else if (bumpAction != Ssl::bumpSplice) {
-        connState->startPeekAndSplice();
-    } else if (!connState->splice())
-        connState->clientConnection->close();
+        startPeekAndSplice();
+    } else if (!splice())
+        clientConnection->close();
 }
 
 bool
@@ -3045,7 +3043,9 @@ ConnStateData::startPeekAndSplice()
         acl_checklist->banAction(Acl::Answer(ACCESS_ALLOWED, Ssl::bumpClientFirst));
         acl_checklist->banAction(Acl::Answer(ACCESS_ALLOWED, Ssl::bumpServerFirst));
         fillChecklist(*acl_checklist);
-        acl_checklist->nonBlockingCheck(httpsSslBumpStep2AccessCheckDone, this);
+        const auto callback = asyncCallback(83, 4, ConnStateData::httpsSslBumpStep2AccessCheckDone, this);
+
+        acl_checklist->nonBlockingCheck(callback);
         return;
     }
 

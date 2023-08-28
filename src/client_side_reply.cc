@@ -12,6 +12,7 @@
 #include "acl/FilledChecklist.h"
 #include "acl/Gadgets.h"
 #include "anyp/PortCfg.h"
+#include "base/AsyncCallbacks.h"
 #include "client_side_reply.h"
 #include "errorpage.h"
 #include "ETag.h"
@@ -1852,14 +1853,8 @@ clientReplyContext::processReplyAccess ()
         clientAclChecklistCreate(Config.accessList.reply, http);
     replyChecklist->reply = reply;
     HTTPMSGLOCK(replyChecklist->reply);
-    replyChecklist->nonBlockingCheck(ProcessReplyAccessResult, this);
-}
-
-void
-clientReplyContext::ProcessReplyAccessResult(Acl::Answer rv, void *voidMe)
-{
-    clientReplyContext *me = static_cast<clientReplyContext *>(voidMe);
-    me->processReplyAccessResult(rv);
+    const auto callback = asyncCallback(88, 4, clientReplyContext::processReplyAccessResult, this);
+    replyChecklist->nonBlockingCheck(callback);
 }
 
 void

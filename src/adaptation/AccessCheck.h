@@ -59,8 +59,6 @@ private:
 
 public:
     void checkCandidates();
-    static void AccessCheckCallbackWrapper(Acl::Answer, void*);
-    void noteAnswer(Acl::Answer answer);
 
 protected:
     // AsyncJob API
@@ -69,6 +67,8 @@ protected:
 
     bool usedDynamicRules();
     void check();
+    /// callback for adaptation access check list
+    void noteAnswer(const Acl::Answer &);
 };
 
 } // namespace Adaptation

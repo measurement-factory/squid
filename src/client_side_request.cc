@@ -20,6 +20,7 @@
 #include "acl/FilledChecklist.h"
 #include "acl/Gadgets.h"
 #include "anyp/PortCfg.h"
+#include "base/AsyncCallbacks.h"
 #include "base/AsyncJobCalls.h"
 #include "client_side.h"
 #include "client_side_reply.h"
@@ -73,25 +74,16 @@
 #include "ssl/support.h"
 #endif
 
-#if FOLLOW_X_FORWARDED_FOR
-static void clientFollowXForwardedForCheck(Acl::Answer answer, void *data);
-#endif /* FOLLOW_X_FORWARDED_FOR */
-
 ErrorState *clientBuildError(err_type, Http::StatusCode, char const *url, const ConnStateData *, HttpRequest *, const AccessLogEntry::Pointer &);
 
 CBDATA_CLASS_INIT(ClientRequestContext);
 
 /* Local functions */
 /* other */
-static void clientAccessCheckDoneWrapper(Acl::Answer, void *);
-#if USE_OPENSSL
-static void sslBumpAccessCheckDoneWrapper(Acl::Answer, void *);
-#endif
 static int clientHierarchical(ClientHttpRequest * http);
 static void clientInterpretRequestHeaders(ClientHttpRequest * http);
 static HLPCB clientRedirectDoneWrapper;
 static HLPCB clientStoreIdDoneWrapper;
-static void checkNoCacheDoneWrapper(Acl::Answer, void *);
 SQUIDCEXTERN CSR clientGetMoreData;
 SQUIDCEXTERN CSS clientReplyStatus;
 SQUIDCEXTERN CSD clientReplyDetach;
@@ -375,7 +367,7 @@ ClientRequestContext::httpStateIsValid()
 
 #if FOLLOW_X_FORWARDED_FOR
 /**
- * clientFollowXForwardedForCheck() checks the content of X-Forwarded-For:
+ * checks the content of X-Forwarded-For:
  * against the followXFF ACL, or cleans up and passes control to
  * clientAccessCheck().
  *
@@ -388,15 +380,12 @@ ClientRequestContext::httpStateIsValid()
  *   by the last previously trusted IP.
  * ++ indirect_client_addr contains the remote direct client from the trusted peers viewpoint.
  */
-static void
-clientFollowXForwardedForCheck(Acl::Answer answer, void *data)
+void
+ClientRequestContext::followXForwardedForCheck(const Acl::Answer &answer)
 {
-    ClientRequestContext *calloutContext = (ClientRequestContext *) data;
-
-    if (!calloutContext->httpStateIsValid())
+    if (!httpStateIsValid())
         return;
 
-    ClientHttpRequest *http = calloutContext->http;
     HttpRequest *request = http->request;
 
     if (answer.allowed() && request->x_forwarded_for_iterator.size() != 0) {
@@ -433,12 +422,13 @@ clientFollowXForwardedForCheck(Acl::Answer answer, void *data)
         if ((addr = asciiaddr)) {
             request->indirect_client_addr = addr;
             request->x_forwarded_for_iterator.cut(l);
-            calloutContext->acl_checklist = clientAclChecklistCreate(Config.accessList.followXFF, http);
+            acl_checklist = clientAclChecklistCreate(Config.accessList.followXFF, http);
             if (!Config.onoff.acl_uses_indirect_client) {
                 /* override the default src_addr tested if we have to go deeper than one level into XFF */
-                Filled(calloutContext->acl_checklist)->src_addr = request->indirect_client_addr;
+                Filled(acl_checklist)->src_addr = request->indirect_client_addr;
             }
-            calloutContext->acl_checklist->nonBlockingCheck(clientFollowXForwardedForCheck, data);
+            const auto callback = asyncCallback(28, 4, ClientRequestContext::followXForwardedForCheck, this);
+            acl_checklist->nonBlockingCheck(callback);
             return;
         }
     }
@@ -461,7 +451,7 @@ clientFollowXForwardedForCheck(Acl::Answer answer, void *data)
     }
 
     /* process actual access ACL as normal. */
-    calloutContext->clientAccessCheck();
+    clientAccessCheck();
 }
 #endif /* FOLLOW_X_FORWARDED_FOR */
 
@@ -654,14 +644,16 @@ ClientRequestContext::clientAccessCheck()
 
         /* begin by checking to see if we trust direct client enough to walk XFF */
         acl_checklist = clientAclChecklistCreate(Config.accessList.followXFF, http);
-        acl_checklist->nonBlockingCheck(clientFollowXForwardedForCheck, this);
+        AsyncCall::Pointer callback = asyncCallback(85, 4, ClientRequestContext::followXForwardedForCheck, this);
+        acl_checklist->nonBlockingCheck(callback);
         return;
     }
 #endif
 
     if (Config.accessList.http) {
+        const auto callback = asyncCallback(85, 4, ClientRequestContext::clientAccessCheckDone, this);
         acl_checklist = clientAclChecklistCreate(Config.accessList.http, http);
-        acl_checklist->nonBlockingCheck(clientAccessCheckDoneWrapper, this);
+        acl_checklist->nonBlockingCheck(callback);
     } else {
         debugs(0, DBG_CRITICAL, "No http_access configuration found. This will block ALL traffic");
         clientAccessCheckDone(ACCESS_DENIED);
@@ -678,22 +670,12 @@ ClientRequestContext::clientAccessCheck2()
 {
     if (Config.accessList.adapted_http) {
         acl_checklist = clientAclChecklistCreate(Config.accessList.adapted_http, http);
-        acl_checklist->nonBlockingCheck(clientAccessCheckDoneWrapper, this);
+        const auto callback = asyncCallback(85, 4, ClientRequestContext::clientAccessCheckDone, this);
+        acl_checklist->nonBlockingCheck(callback);
     } else {
         debugs(85, 2, "No adapted_http_access configuration. default: ALLOW");
         clientAccessCheckDone(ACCESS_ALLOWED);
     }
-}
-
-void
-clientAccessCheckDoneWrapper(Acl::Answer answer, void *data)
-{
-    ClientRequestContext *calloutContext = (ClientRequestContext *) data;
-
-    if (!calloutContext->httpStateIsValid())
-        return;
-
-    calloutContext->clientAccessCheckDone(answer);
 }
 
 void
@@ -812,18 +794,17 @@ ClientHttpRequest::noteAdaptationAclCheckDone(Adaptation::ServiceGroupPointer g)
 
 #endif
 
-static void
-clientRedirectAccessCheckDone(Acl::Answer answer, void *data)
+/// callback for redirector access check list
+void
+ClientRequestContext::redirectAccessCheckDone(const Acl::Answer &answer)
 {
-    ClientRequestContext *context = (ClientRequestContext *)data;
-    ClientHttpRequest *http = context->http;
-    context->acl_checklist = nullptr;
+    acl_checklist = nullptr;
 
     if (answer.allowed())
-        redirectStart(http, clientRedirectDoneWrapper, context);
+        redirectStart(http, clientRedirectDoneWrapper, this);
     else {
         Helper::Reply const nilReply(Helper::Error);
-        context->clientRedirectDone(nilReply);
+        clientRedirectDone(nilReply);
     }
 }
 
@@ -834,7 +815,8 @@ ClientRequestContext::clientRedirectStart()
     http->al->syncNotes(http->request);
     if (Config.accessList.redirector) {
         acl_checklist = clientAclChecklistCreate(Config.accessList.redirector, http);
-        acl_checklist->nonBlockingCheck(clientRedirectAccessCheckDone, this);
+        const auto callback = asyncCallback(33, 4, ClientRequestContext::redirectAccessCheckDone, this);
+        acl_checklist->nonBlockingCheck(callback);
     } else
         redirectStart(http, clientRedirectDoneWrapper, this);
 }
@@ -843,19 +825,17 @@ ClientRequestContext::clientRedirectStart()
  * This methods handles Access checks result of StoreId access list.
  * Will handle as "ERR" (no change) in a case Access is not allowed.
  */
-static void
-clientStoreIdAccessCheckDone(Acl::Answer answer, void *data)
+void
+ClientRequestContext::storeIdAccessCheckDone(const Acl::Answer &answer)
 {
-    ClientRequestContext *context = static_cast<ClientRequestContext *>(data);
-    ClientHttpRequest *http = context->http;
-    context->acl_checklist = nullptr;
+    acl_checklist = nullptr;
 
     if (answer.allowed())
-        storeIdStart(http, clientStoreIdDoneWrapper, context);
+        storeIdStart(http, clientStoreIdDoneWrapper, this);
     else {
         debugs(85, 3, "access denied expected ERR reply handling: " << answer);
         Helper::Reply const nilReply(Helper::Error);
-        context->clientStoreIdDone(nilReply);
+        clientStoreIdDone(nilReply);
     }
 }
 
@@ -871,7 +851,8 @@ ClientRequestContext::clientStoreIdStart()
 
     if (Config.accessList.store_id) {
         acl_checklist = clientAclChecklistCreate(Config.accessList.store_id, http);
-        acl_checklist->nonBlockingCheck(clientStoreIdAccessCheckDone, this);
+        const auto callback = asyncCallback(33, 4, ClientRequestContext::storeIdAccessCheckDone, this);
+        acl_checklist->nonBlockingCheck(callback);
     } else
         storeIdStart(http, clientStoreIdDoneWrapper, this);
 }
@@ -1313,24 +1294,15 @@ ClientRequestContext::checkNoCache()
 {
     if (Config.accessList.noCache) {
         acl_checklist = clientAclChecklistCreate(Config.accessList.noCache, http);
-        acl_checklist->nonBlockingCheck(checkNoCacheDoneWrapper, this);
+        const auto callback = asyncCallback(85, 4, ClientRequestContext::checkNoCacheDone, this);
+        acl_checklist->nonBlockingCheck(callback);
     } else {
         /* unless otherwise specified, we try to cache. */
         checkNoCacheDone(ACCESS_ALLOWED);
     }
 }
 
-static void
-checkNoCacheDoneWrapper(Acl::Answer answer, void *data)
-{
-    ClientRequestContext *calloutContext = (ClientRequestContext *) data;
-
-    if (!calloutContext->httpStateIsValid())
-        return;
-
-    calloutContext->checkNoCacheDone(answer);
-}
-
+/// callback for cache/no_cache access check list
 void
 ClientRequestContext::checkNoCacheDone(const Acl::Answer &answer)
 {
@@ -1409,24 +1381,12 @@ ClientRequestContext::sslBumpAccessCheck()
     debugs(85, 5, "SslBump possible, checking ACL");
 
     ACLFilledChecklist *aclChecklist = clientAclChecklistCreate(Config.accessList.ssl_bump, http);
-    aclChecklist->nonBlockingCheck(sslBumpAccessCheckDoneWrapper, this);
+    const auto callback = asyncCallback(85, 4, ClientRequestContext::sslBumpAccessCheckDone, this);
+    aclChecklist->nonBlockingCheck(callback);
     return true;
 }
 
-/**
- * A wrapper function to use the ClientRequestContext::sslBumpAccessCheckDone method
- * as ACLFilledChecklist callback
- */
-static void
-sslBumpAccessCheckDoneWrapper(Acl::Answer answer, void *data)
-{
-    ClientRequestContext *calloutContext = static_cast<ClientRequestContext *>(data);
-
-    if (!calloutContext->httpStateIsValid())
-        return;
-    calloutContext->sslBumpAccessCheckDone(answer);
-}
-
+/// callback for ssl-bump access check list
 void
 ClientRequestContext::sslBumpAccessCheckDone(const Acl::Answer &answer)
 {

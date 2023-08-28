@@ -114,8 +114,8 @@ protected:
 #endif
 
     int checkNetdbDirect();
-    void checkAlwaysDirectDone(const Acl::Answer answer);
-    void checkNeverDirectDone(const Acl::Answer answer);
+    void checkAlwaysDirectDone(const Acl::Answer &);
+    void checkNeverDirectDone(const Acl::Answer &);
 
     void selectSomeNeighbor();
     void selectSomeNeighborReplies();
@@ -129,8 +129,6 @@ protected:
     void resolveSelected();
 
     static IRCB HandlePingReply;
-    static ACLCB CheckAlwaysDirectDone;
-    static ACLCB CheckNeverDirectDone;
 
 private:
     Acl::Answer always_direct;

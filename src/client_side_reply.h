@@ -98,7 +98,6 @@ private:
     clientStreamNode * next() const;
     HttpReply *reply;
     void processReplyAccess();
-    static ACLCB ProcessReplyAccessResult;
     void processReplyAccessResult(const Acl::Answer &accessAllowed);
     void cloneReply();
     void buildReplyHeader ();
