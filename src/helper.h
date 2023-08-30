@@ -40,6 +40,9 @@ class Xaction {
     MEMPROXY_CLASS(Helper::Xaction);
 public:
     Xaction(HLPCB *c, void *d, const char *b): request(c, d, b) {}
+    /// calls back the transaction, initiated this helper request
+    void callBack(ResultCode);
+
     Helper::Request request;
     Helper::Reply reply;
 };
