@@ -392,7 +392,7 @@ FwdState::Start(const Comm::ConnectionPointer &clientConn, StoreEntry *entry, Ht
         internalStart(clientConn, request, entry, al);
         return;
     }
-    // Requests for our cache manager must never be forwarded elsewhere. If
+    // Requests for our cache manager must never be forwarded elsewhere. If they
     // reach this method, the internalStart() call above must satisfy them.
     Assure(!ForThisCacheManager(*request));
 
