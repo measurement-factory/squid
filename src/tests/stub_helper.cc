@@ -16,9 +16,9 @@ void helperSubmit(const helper::Pointer &, const char *, HLPCB *, void *) STUB
 void helperStatefulSubmit(const statefulhelper::Pointer &, const char *, HLPCB *, void *, const Helper::ReservationId &) STUB
 helper::~helper() STUB
 void helper::packStatsInto(Packable *, const char *) const STUB
+void helper::callBack(HLPCB *, void *, const Helper::Reply &) STUB
 
 void helperShutdown(const helper::Pointer &) STUB
 void helperStatefulShutdown(const statefulhelper::Pointer &) STUB
 void helperOpenServers(const helper::Pointer &) STUB
 void helperStatefulOpenServers(const statefulhelper::Pointer &) STUB
-
