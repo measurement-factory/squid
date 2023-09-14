@@ -12,6 +12,7 @@
 
 #include "HttpHeader.h"
 #include "HttpRequest.h"
+#include "ip/tools.h"
 #include "MasterXaction.h"
 #include "mime_header.h"
 #include "testHttpRequest.h"
@@ -33,6 +34,7 @@ void
 testHttpRequest::setUp()
 {
     Mem::Init();
+    Ip::ProbeTransport();
     AnyP::UriScheme::Init();
     httpHeaderInitModule();
 }
@@ -107,36 +109,51 @@ testHttpRequest::testIPv6HostColonBug()
     unsigned short expected_port;
     HttpRequest *aRequest = NULL;
 
-    /* valid IPv6 address without port */
+    /* bracketed IPv6 address without port */
     SBuf url("http://[2000:800::45]/foo");
     const MasterXaction::Pointer mx = new MasterXaction(XactionInitiator::initClient);
     aRequest = HttpRequest::FromUrl(url, mx, Http::METHOD_GET);
-    expected_port = 80;
-    CPPUNIT_ASSERT_EQUAL(expected_port, aRequest->url.port());
-    CPPUNIT_ASSERT(aRequest->method == Http::METHOD_GET);
-    CPPUNIT_ASSERT_EQUAL(String("[2000:800::45]"), String(aRequest->url.host()));
-    CPPUNIT_ASSERT_EQUAL(SBuf("/foo"), aRequest->url.path());
-    CPPUNIT_ASSERT_EQUAL(AnyP::PROTO_HTTP, static_cast<AnyP::ProtocolType>(aRequest->url.getScheme()));
+    if (Ip::EnableIpv6) {
+        CPPUNIT_ASSERT(aRequest != nullptr);
+        expected_port = 80;
+        CPPUNIT_ASSERT_EQUAL(expected_port, aRequest->url.port());
+        CPPUNIT_ASSERT(aRequest->method == Http::METHOD_GET);
+        CPPUNIT_ASSERT_EQUAL(String("[2000:800::45]"), String(aRequest->url.host()));
+        CPPUNIT_ASSERT_EQUAL(SBuf("/foo"), aRequest->url.path());
+        CPPUNIT_ASSERT_EQUAL(AnyP::PROTO_HTTP, static_cast<AnyP::ProtocolType>(aRequest->url.getScheme()));
+    } else {
+        CPPUNIT_ASSERT(!aRequest);
+    }
 
-    /* valid IPv6 address with port */
+    /* bracketed IPv6 address with port */
     url = "http://[2000:800::45]:90/foo";
     aRequest = HttpRequest::FromUrl(url, mx, Http::METHOD_GET);
-    expected_port = 90;
-    CPPUNIT_ASSERT_EQUAL(expected_port, aRequest->url.port());
-    CPPUNIT_ASSERT(aRequest->method == Http::METHOD_GET);
-    CPPUNIT_ASSERT_EQUAL(String("[2000:800::45]"), String(aRequest->url.host()));
-    CPPUNIT_ASSERT_EQUAL(SBuf("/foo"), aRequest->url.path());
-    CPPUNIT_ASSERT_EQUAL(AnyP::PROTO_HTTP, static_cast<AnyP::ProtocolType>(aRequest->url.getScheme()));
+    if (Ip::EnableIpv6) {
+        CPPUNIT_ASSERT(aRequest != nullptr);
+        expected_port = 90;
+        CPPUNIT_ASSERT_EQUAL(expected_port, aRequest->url.port());
+        CPPUNIT_ASSERT(aRequest->method == Http::METHOD_GET);
+        CPPUNIT_ASSERT_EQUAL(String("[2000:800::45]"), String(aRequest->url.host()));
+        CPPUNIT_ASSERT_EQUAL(SBuf("/foo"), aRequest->url.path());
+        CPPUNIT_ASSERT_EQUAL(AnyP::PROTO_HTTP, static_cast<AnyP::ProtocolType>(aRequest->url.getScheme()));
+    } else {
+        CPPUNIT_ASSERT(!aRequest);
+    }
 
     /* IPv6 address as invalid (bug trigger) */
     url = "http://2000:800::45/foo";
     aRequest = HttpRequest::FromUrl(url, mx, Http::METHOD_GET);
-    expected_port = 80;
-    CPPUNIT_ASSERT_EQUAL(expected_port, aRequest->url.port());
-    CPPUNIT_ASSERT(aRequest->method == Http::METHOD_GET);
-    CPPUNIT_ASSERT_EQUAL(String("[2000:800::45]"), String(aRequest->url.host()));
-    CPPUNIT_ASSERT_EQUAL(SBuf("/foo"), aRequest->url.path());
-    CPPUNIT_ASSERT_EQUAL(AnyP::PROTO_HTTP, static_cast<AnyP::ProtocolType>(aRequest->url.getScheme()));
+    if (Ip::EnableIpv6) {
+        CPPUNIT_ASSERT(aRequest != nullptr);
+        expected_port = 80;
+        CPPUNIT_ASSERT_EQUAL(expected_port, aRequest->url.port());
+        CPPUNIT_ASSERT(aRequest->method == Http::METHOD_GET);
+        CPPUNIT_ASSERT_EQUAL(String("[2000:800::45]"), String(aRequest->url.host()));
+        CPPUNIT_ASSERT_EQUAL(SBuf("/foo"), aRequest->url.path());
+        CPPUNIT_ASSERT_EQUAL(AnyP::PROTO_HTTP, static_cast<AnyP::ProtocolType>(aRequest->url.getScheme()));
+    } else {
+        CPPUNIT_ASSERT(!aRequest);
+    }
 }
 
 void

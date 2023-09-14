@@ -34,6 +34,12 @@ time_t squid_curtime = 0;
 int shutting_down = 0;
 
 void
+testIpAddress::setUp()
+{
+    Ip::ProbeTransport();
+}
+
+void
 testIpAddress::testDefaults()
 {
     Ip::Address anIPA;
@@ -238,6 +244,17 @@ testIpAddress::testStringConstructor()
     expectv6.s6_addr32[3] = htonl(0x00000045);
 
     Ip::Address bnIPA = "2000:800::45";
+
+    if (!Ip::EnableIpv6) {
+        // TODO: The above converting constructor should throw instead.
+        CPPUNIT_ASSERT(bnIPA.isAnyAddr());
+        CPPUNIT_ASSERT(!bnIPA.isNoAddr());
+        CPPUNIT_ASSERT(!bnIPA.isIPv4());
+        CPPUNIT_ASSERT(bnIPA.isIPv6());
+        CPPUNIT_ASSERT(!bnIPA.isSockAddr());
+        CPPUNIT_ASSERT_EQUAL(static_cast<unsigned short>(0), bnIPA.port());
+        return;
+    }
 
 //char test[256];
 //bnIPA.toStr(test, 256);
@@ -591,6 +608,9 @@ testIpAddress::testMasking()
 
     anIPA.setNoAddr();
     maskIPA.setNoAddr();
+
+    if (!Ip::EnableIpv6)
+        return; // testStringConstructor() has already tested IPv6 cases below
 
     /* IPv6 masks MUST be CIDR representations. */
     /* however as with IPv4 they can technically be represented as a bitmask */

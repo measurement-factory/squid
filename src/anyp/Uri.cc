@@ -12,10 +12,10 @@
 #include "anyp/Uri.h"
 #include "globals.h"
 #include "HttpRequest.h"
+#include "ip/tools.h"
 #include "parser/Tokenizer.h"
 #include "rfc1738.h"
 #include "SquidConfig.h"
-#include "SquidMath.h"
 #include "SquidString.h"
 
 static const char valid_hostname_chars_u[] =
@@ -289,7 +289,7 @@ AnyP::Uri::parse(const HttpRequestMethod& method, const SBuf &rawUrl)
             // port number of the tunnel destination, separated by a colon".
 
             const auto rawHost = parseHost(tok);
-            Assure(rawHost.length() < sizeof(foundHost));
+            assert(rawHost.length() < sizeof(foundHost));
             SBufToCstring(foundHost, rawHost);
 
             if (!tok.skip(':'))
@@ -372,6 +372,8 @@ AnyP::Uri::parse(const HttpRequestMethod& method, const SBuf &rawUrl)
                 rfc1738_unescape(login);
             }
 
+            auto validateAsIpv6 = false;
+
             /* Is there any host information? (we should eventually parse it above) */
             if (*foundHost == '[') {
                 /* strip any IPA brackets. valid under IPv6. */
@@ -389,6 +391,10 @@ AnyP::Uri::parse(const HttpRequestMethod& method, const SBuf &rawUrl)
                 *dst = '\0';
                 ++dst;
 
+                // validate to reject bracketed non-IPv6 addresses (e.g., '[127.0.0:1]')
+                // and unsupported bracketed IPv6 addresses
+                validateAsIpv6 = true;
+
                 /* skip ahead to either start of port, or original EOS */
                 while (*dst != '\0' && *dst != ':')
                     ++dst;
@@ -401,6 +407,9 @@ AnyP::Uri::parse(const HttpRequestMethod& method, const SBuf &rawUrl)
                     /* RFC 3986 'update' simply modifies this to an "is" with no emphasis at all! */
                     /* therefore we MUST accept the case where they are not bracketed at all. */
                     t = NULL;
+                    // validate to reject non-bracketed non-IPv6 addresses (e.g., '127.0:0:1')
+                    // and unsupported non-bracketed IPv6 addresses
+                    validateAsIpv6 = true;
                 }
             }
 
@@ -414,6 +423,22 @@ AnyP::Uri::parse(const HttpRequestMethod& method, const SBuf &rawUrl)
                 *t = '\0';
                 ++t;
                 foundPort = atoi(t);
+            }
+
+            if (validateAsIpv6) {
+                // TODO: Remove these parseHost() code snippets after converting to call parseHost().
+
+                // We say "IPv6-like" because we do not know whether foundHost
+                // is IPv6. We only know that it came from URI context where we
+                // expect to find an IPv6 address.
+                if (!Ip::EnableIpv6)
+                    throw TextException("unsupported IPv6-like address in uri-host", Here());
+
+                Ip::Address ipv6check;
+                if (!ipv6check.fromHost(foundHost))
+                    throw TextException("malformed IPv6 address in uri-host", Here());
+
+                assert(ipv6check.isIPv6());
             }
         }
 
@@ -574,6 +599,10 @@ AnyP::Uri::parseHost(Parser::Tokenizer &tok) const
 
     // IP-literal = "[" ( IPv6address / IPvFuture  ) "]"
     if (tok.skip('[')) {
+        // Do not say "IPv6" here: We do not yet know what follows the bracket.
+        if (!Ip::EnableIpv6)
+            throw TextException("unsupported bracketed IP address in uri-host", Here());
+
         // Add "." because IPv6address in RFC 3986 includes ls32, which includes
         // IPv4address: ls32 = ( h16 ":" h16 ) / IPv4address
         // This set rejects IPvFuture that needs a "v" character.
@@ -596,6 +625,7 @@ AnyP::Uri::parseHost(Parser::Tokenizer &tok) const
         if (!ipv6check.fromHost(ipv6ish.c_str()))
             throw TextException("malformed bracketed IPv6 address in uri-host", Here());
 
+        assert(ipv6check.isIPv6());
         return ipv6ish;
     }
 
@@ -606,7 +636,8 @@ AnyP::Uri::parseHost(Parser::Tokenizer &tok) const
     // non-CONNECT uri-host parsing code to use us.
 
     SBuf otherHost; // IPv4address-ish or reg-name-ish;
-    // ":" is not in TCHAR so we will stop before any port specification
+    // Since ":" is not in TCHAR, we will stop before any port specification
+    // (and will never match an IPv6 address -- no Ip::EnableIpv6 check needed).
     if (tok.prefix(otherHost, CharacterSet::TCHAR))
         return otherHost;
 
@@ -629,16 +660,14 @@ AnyP::Uri::parsePort(Parser::Tokenizer &tok) const
     if (!tok.int64(rawPort, 10, false)) // port = *DIGIT
         throw TextException("malformed or missing port", Here());
 
-    Assure(rawPort > 0);
-    constexpr KnownPort portMax = 65535; // TODO: Make this a class-scope constant and REuse it.
-    constexpr auto portStorageMax = std::numeric_limits<Port::value_type>::max();
-    static_assert(!Less(portStorageMax, portMax), "Port type can represent the maximum valid port number");
-    if (Less(portMax, rawPort))
+    assert(rawPort > 0);
+    const int64_t portMax = 65535; // TODO: Make this a class-scope constant and REuse it.
+    if (portMax < rawPort)
         throw TextException("huge port", Here());
 
     // TODO: Return KnownPort after migrating the non-CONNECT uri-host parsing
     // code to use us (so that foundPort "int" disappears or starts using Port).
-    return NaturalCast<int>(rawPort);
+    return int(rawPort);
 }
 
 void
