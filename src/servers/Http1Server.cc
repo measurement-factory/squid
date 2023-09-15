@@ -49,8 +49,11 @@ Http::One::Server::start()
             return postHttpsAccept();
 
 #if USE_OPENSSL
-        if (!port->flags.proxySurrogate)
+        if (!port->flags.proxySurrogate) {
             startSslBumpProcessing("https_port connection without the PROXY protocol header");
+            fakeAConnectRequest("https_port+ssl-bump");
+            return; // not reading [TLS Client Hello] until SslBump step2
+        }
 #endif
     }
 
