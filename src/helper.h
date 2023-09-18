@@ -99,6 +99,9 @@ public:
     /// \param madeProgress whether the died helper(s) responded to any requests
     void handleFewerServers(bool madeProgress);
 
+    /// creates helper processes
+    virtual void openServers();
+
 public:
     wordlist *cmdline = nullptr;
     dlink_list servers;
@@ -155,6 +158,8 @@ public:
 
     /// undo reserveServer(), clear the reservation and kick the queue
     void cancelReservation(const Helper::ReservationId reservation);
+
+    void openServers() override;
 
 private:
     friend void helperStatefulSubmit(const statefulhelper::Pointer &, const char *buf, HLPCB *, void *cbData, const Helper::ReservationId &);
@@ -317,8 +322,6 @@ public:
     time_t reservationStart; ///< when the last `reservation` was made
 };
 
-void helperOpenServers(const Helper::Client::Pointer &);
-void helperStatefulOpenServers(const statefulhelper::Pointer &);
 void helperSubmit(const Helper::Client::Pointer &, const char *buf, HLPCB *, void *cbData);
 void helperStatefulSubmit(const statefulhelper::Pointer &, const char *buf, HLPCB *, void *cbData, uint64_t reservation);
 void helperShutdown(const Helper::Client::Pointer &);

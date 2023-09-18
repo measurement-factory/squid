@@ -193,26 +193,23 @@ helper_stateful_server::~helper_stateful_server()
 }
 
 void
-helperOpenServers(const Helper::Client::Pointer &hlp)
+Helper::Client::openServers()
 {
     char *s;
-    char *progname;
     char *shortname;
     char *procname;
     const char *args[HELPER_MAX_ARGS+1]; // save space for a NULL terminator
     char fd_note_buf[FD_DESC_SZ];
     int nargs = 0;
     int k;
-    pid_t pid;
     int rfd;
     int wfd;
     void * hIpc;
-    wordlist *w;
 
-    if (hlp->cmdline == nullptr)
+    if (cmdline == nullptr)
         return;
 
-    progname = hlp->cmdline->key;
+    auto progname = cmdline->key;
 
     if ((s = strrchr(progname, '/')))
         shortname = xstrdup(s + 1);
@@ -220,12 +217,12 @@ helperOpenServers(const Helper::Client::Pointer &hlp)
         shortname = xstrdup(progname);
 
     /* figure out how many new child are actually needed. */
-    int need_new = hlp->childs.needNew();
+    const int need_new = childs.needNew();
 
-    debugs(84, Important(19), "helperOpenServers: Starting " << need_new << "/" << hlp->childs.n_max << " '" << shortname << "' processes");
+    debugs(84, Important(19), "Helper::Client::openServers: Starting " << need_new << "/" << childs.n_max << " '" << shortname << "' processes");
 
     if (need_new < 1) {
-        debugs(84, Important(20), "helperOpenServers: No '" << shortname << "' processes needed.");
+        debugs(84, Important(20), "Helper::Client::openServers: No '" << shortname << "' processes needed.");
     }
 
     procname = (char *)xmalloc(strlen(shortname) + 3);
@@ -235,7 +232,7 @@ helperOpenServers(const Helper::Client::Pointer &hlp)
     args[nargs] = procname;
     ++nargs;
 
-    for (w = hlp->cmdline->next; w && nargs < HELPER_MAX_ARGS; w = w->next) {
+    for (auto w = cmdline->next; w && nargs < HELPER_MAX_ARGS; w = w->next) {
         args[nargs] = w->key;
         ++nargs;
     }
@@ -250,11 +247,11 @@ helperOpenServers(const Helper::Client::Pointer &hlp)
     for (k = 0; k < need_new; ++k) {
         getCurrentTime();
         rfd = wfd = -1;
-        pid = ipcCreate(hlp->ipc_type,
+        const auto pid = ipcCreate(ipc_type,
                         progname,
                         args,
                         shortname,
-                        hlp->addr,
+                        addr,
                         &rfd,
                         &wfd,
                         &hIpc);
@@ -265,13 +262,13 @@ helperOpenServers(const Helper::Client::Pointer &hlp)
         }
 
         ++successfullyStarted;
-        ++ hlp->childs.n_running;
-        ++ hlp->childs.n_active;
+        ++childs.n_running;
+        ++childs.n_active;
         const auto srv = new Helper::Session;
         srv->hIpc = hIpc;
         srv->pid = pid;
         srv->initStats();
-        srv->addr = hlp->addr;
+        srv->addr = addr;
         srv->readPipe = new Comm::Connection;
         srv->readPipe->fd = rfd;
         srv->writePipe = new Comm::Connection;
@@ -282,8 +279,8 @@ helperOpenServers(const Helper::Client::Pointer &hlp)
         srv->nextRequestId = 0;
         srv->replyXaction = nullptr;
         srv->ignoreToEom = false;
-        srv->parent = hlp;
-        dlinkAddTail(srv, &srv->link, &hlp->servers);
+        srv->parent = this;
+        dlinkAddTail(srv, &srv->link, &servers);
 
         if (rfd == wfd) {
             snprintf(fd_note_buf, FD_DESC_SZ, "%s #%d", shortname, k + 1);
@@ -303,10 +300,10 @@ helperOpenServers(const Helper::Client::Pointer &hlp)
         AsyncCall::Pointer closeCall = asyncCall(5,4, "Helper::Session::HelperServerClosed", cbdataDialer(Helper::Session::HelperServerClosed, srv));
         comm_add_close_handler(rfd, closeCall);
 
-        if (hlp->timeout && hlp->childs.concurrency) {
+        if (timeout && childs.concurrency) {
             AsyncCall::Pointer timeoutCall = commCbCall(84, 4, "Helper::Session::requestTimeout",
                                              CommTimeoutCbPtrFun(Helper::Session::requestTimeout, srv));
-            commSetConnTimeout(srv->readPipe, hlp->timeout, timeoutCall);
+            commSetConnTimeout(srv->readPipe, timeout, timeoutCall);
         }
 
         AsyncCall::Pointer call = commCbCall(5,4, "helperHandleRead",
@@ -319,34 +316,29 @@ helperOpenServers(const Helper::Client::Pointer &hlp)
     // TODO: Refactor last_restart code to measure failure frequency rather than
     // detecting a helper #X failure that is being close to the helper #Y start.
     if (successfullyStarted < need_new)
-        hlp->handleFewerServers(false);
+        handleFewerServers(false);
 
-    hlp->last_restart = squid_curtime;
+    last_restart = squid_curtime;
     safe_free(shortname);
     safe_free(procname);
-    helperKickQueue(hlp);
+    helperKickQueue(this);
 }
 
-/**
- * DPW 2007-05-08
- *
- * helperStatefulOpenServers: create the stateful child helper processes
- */
 void
-helperStatefulOpenServers(const statefulhelper::Pointer &hlp)
+statefulhelper::openServers()
 {
     char *shortname;
     const char *args[HELPER_MAX_ARGS+1]; // save space for a NULL terminator
     char fd_note_buf[FD_DESC_SZ];
     int nargs = 0;
 
-    if (hlp->cmdline == nullptr)
+    if (cmdline == nullptr)
         return;
 
-    if (hlp->childs.concurrency)
-        debugs(84, DBG_CRITICAL, "ERROR: concurrency= is not yet supported for stateful helpers ('" << hlp->cmdline << "')");
+    if (childs.concurrency)
+        debugs(84, DBG_CRITICAL, "ERROR: concurrency= is not yet supported for stateful helpers ('" << cmdline << "')");
 
-    char *progname = hlp->cmdline->key;
+    auto progname = cmdline->key;
 
     char *s;
     if ((s = strrchr(progname, '/')))
@@ -355,12 +347,12 @@ helperStatefulOpenServers(const statefulhelper::Pointer &hlp)
         shortname = xstrdup(progname);
 
     /* figure out haw mant new helpers are needed. */
-    int need_new = hlp->childs.needNew();
+    const auto need_new = childs.needNew();
 
-    debugs(84, DBG_IMPORTANT, "helperOpenServers: Starting " << need_new << "/" << hlp->childs.n_max << " '" << shortname << "' processes");
+    debugs(84, DBG_IMPORTANT, "Helper::Client::openServers: Starting " << need_new << "/" << childs.n_max << " '" << shortname << "' processes");
 
     if (need_new < 1) {
-        debugs(84, DBG_IMPORTANT, "helperStatefulOpenServers: No '" << shortname << "' processes needed.");
+        debugs(84, DBG_IMPORTANT, "statefulhelper::openServers: No '" << shortname << "' processes needed.");
     }
 
     char *procname = (char *)xmalloc(strlen(shortname) + 3);
@@ -370,7 +362,7 @@ helperStatefulOpenServers(const statefulhelper::Pointer &hlp)
     args[nargs] = procname;
     ++nargs;
 
-    for (wordlist *w = hlp->cmdline->next; w && nargs < HELPER_MAX_ARGS; w = w->next) {
+    for (auto w = cmdline->next; w && nargs < HELPER_MAX_ARGS; w = w->next) {
         args[nargs] = w->key;
         ++nargs;
     }
@@ -387,11 +379,11 @@ helperStatefulOpenServers(const statefulhelper::Pointer &hlp)
         int rfd = -1;
         int wfd = -1;
         void * hIpc;
-        pid_t pid = ipcCreate(hlp->ipc_type,
+        const auto pid = ipcCreate(ipc_type,
                               progname,
                               args,
                               shortname,
-                              hlp->addr,
+                              addr,
                               &rfd,
                               &wfd,
                               &hIpc);
@@ -402,23 +394,23 @@ helperStatefulOpenServers(const statefulhelper::Pointer &hlp)
         }
 
         ++successfullyStarted;
-        ++ hlp->childs.n_running;
-        ++ hlp->childs.n_active;
+        ++childs.n_running;
+        ++childs.n_active;
         helper_stateful_server *srv = new helper_stateful_server;
         srv->hIpc = hIpc;
         srv->pid = pid;
         srv->initStats();
-        srv->addr = hlp->addr;
+        srv->addr = addr;
         srv->readPipe = new Comm::Connection;
         srv->readPipe->fd = rfd;
         srv->writePipe = new Comm::Connection;
         srv->writePipe->fd = wfd;
         srv->rbuf = (char *)memAllocBuf(ReadBufSize, &srv->rbuf_sz);
         srv->roffset = 0;
-        srv->parent = hlp;
+        srv->parent = this;
         srv->reservationStart = 0;
 
-        dlinkAddTail(srv, &srv->link, &hlp->servers);
+        dlinkAddTail(srv, &srv->link, &servers);
 
         if (rfd == wfd) {
             snprintf(fd_note_buf, FD_DESC_SZ, "%s #%d", shortname, k + 1);
@@ -448,12 +440,12 @@ helperStatefulOpenServers(const statefulhelper::Pointer &hlp)
     // TODO: Refactor last_restart code to measure failure frequency rather than
     // detecting a helper #X failure that is being close to the helper #Y start.
     if (successfullyStarted < need_new)
-        hlp->handleFewerServers(false);
+        handleFewerServers(false);
 
-    hlp->last_restart = squid_curtime;
+    last_restart = squid_curtime;
     safe_free(shortname);
     safe_free(procname);
-    helperStatefulKickQueue(hlp);
+    helperStatefulKickQueue(this);
 }
 
 void
@@ -899,7 +891,7 @@ Helper::Session::HelperServerClosed(Session * const srv)
     hlp->handleKilledServer(srv, needsNewServers);
     if (needsNewServers) {
         debugs(80, DBG_IMPORTANT, "Starting new helpers");
-        helperOpenServers(hlp);
+        hlp->openServers();
     }
 
     srv->dropQueued();
@@ -907,7 +899,7 @@ Helper::Session::HelperServerClosed(Session * const srv)
     delete srv;
 }
 
-// XXX: Almost duplicates Helper::Session::HelperServerClosed() because helperOpenServers() is not a virtual method of the `Helper::Client` class
+// XXX: Almost duplicates Helper::Session::HelperServerClosed()
 // TODO: Fix the `Helper::Client` class hierarchy to use virtual functions.
 void
 helper_stateful_server::HelperServerClosed(helper_stateful_server *srv)
@@ -918,7 +910,7 @@ helper_stateful_server::HelperServerClosed(helper_stateful_server *srv)
     hlp->handleKilledServer(srv, needsNewServers);
     if (needsNewServers) {
         debugs(80, DBG_IMPORTANT, "Starting new helpers");
-        helperStatefulOpenServers(hlp);
+        hlp->openServers();
     }
 
     srv->dropQueued();
@@ -1245,7 +1237,7 @@ Enqueue(Helper::Client * const hlp, Helper::Xaction * const r)
     /* do this first so idle=N has a chance to grow the child pool before it hits critical. */
     if (hlp->childs.needNew() > 0) {
         debugs(84, DBG_CRITICAL, "Starting new " << hlp->id_name << " helpers...");
-        helperOpenServers(hlp);
+        hlp->openServers();
         return;
     }
 
@@ -1274,7 +1266,7 @@ StatefulEnqueue(statefulhelper * hlp, Helper::Xaction * r)
     /* do this first so idle=N has a chance to grow the child pool before it hits critical. */
     if (hlp->childs.needNew() > 0) {
         debugs(84, DBG_CRITICAL, "Starting new " << hlp->id_name << " helpers...");
-        helperStatefulOpenServers(hlp);
+        hlp->openServers();
         return;
     }
 
