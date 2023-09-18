@@ -99,6 +99,9 @@ public:
     /// \param madeProgress whether the died helper(s) responded to any requests
     void handleFewerServers(bool madeProgress);
 
+    /// informs the request initiator with helper response
+    void callBack(Xaction *);
+
 public:
     wordlist *cmdline = nullptr;
     dlink_list servers;
@@ -198,7 +201,7 @@ public:
     virtual bool reserved() = 0;
 
     /// dequeues and sends a Helper::Unknown answer to all queued requests
-    virtual void dropQueued();
+    virtual void dropQueued(Client &);
 
 public:
     /// Helper program identifier; does not change when contents do,
@@ -278,7 +281,7 @@ public:
 
     /* SessionBase API */
     bool reserved() override {return false;}
-    void dropQueued() override;
+    void dropQueued(Client &) override;
 
     /// Read timeout handler
     static void requestTimeout(const CommTimeoutCbParams &io);
