@@ -208,7 +208,7 @@ Helper::Client::openServers()
     int wfd;
     void * hIpc;
     wordlist *w;
-    // Helps reducing diff change. TODO: remove
+    // Helps reducing diff. TODO: remove
     const auto hlp = this;
 
     if (hlp->cmdline == nullptr)
@@ -336,7 +336,7 @@ statefulhelper::openServers()
     const char *args[HELPER_MAX_ARGS+1]; // save space for a NULL terminator
     char fd_note_buf[FD_DESC_SZ];
     int nargs = 0;
-    // Helps reducing diff change. TODO: remove
+    // Helps reducing diff. TODO: remove
     const auto hlp = this;
 
     if (hlp->cmdline == nullptr)
@@ -890,7 +890,7 @@ Helper::Client::handleFewerServers(const bool madeProgress)
 }
 
 void
-Helper::Client::serverClosed(SessionBase *srv)
+Helper::Client::serverClosed(SessionBase * const srv)
 {
     bool needsNewServers = false;
     handleKilledServer(srv, needsNewServers);
