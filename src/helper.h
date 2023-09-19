@@ -102,6 +102,9 @@ public:
     /// creates helper processes
     virtual void openServers();
 
+    /// handles exited helper process
+    void serverClosed(SessionBase *);
+
 public:
     wordlist *cmdline = nullptr;
     dlink_list servers;

@@ -890,38 +890,30 @@ Helper::Client::handleFewerServers(const bool madeProgress)
 }
 
 void
-Helper::Session::HelperServerClosed(Session * const srv)
+Helper::Client::serverClosed(SessionBase *srv)
 {
-    const auto hlp = srv->parent;
-
     bool needsNewServers = false;
-    hlp->handleKilledServer(srv, needsNewServers);
+    handleKilledServer(srv, needsNewServers);
     if (needsNewServers) {
         debugs(80, DBG_IMPORTANT, "Starting new helpers");
-        hlp->openServers();
+        openServers();
     }
+}
 
+void
+Helper::Session::HelperServerClosed(Session * const srv)
+{
+    srv->parent->serverClosed(srv);
     srv->dropQueued();
-
     delete srv;
 }
 
-// XXX: Almost duplicates Helper::Session::HelperServerClosed()
-// TODO: Fix the `Helper::Client` class hierarchy to use virtual functions.
+// XXX: duplicates Helper::Session::HelperServerClosed()
 void
 helper_stateful_server::HelperServerClosed(helper_stateful_server *srv)
 {
-    const auto hlp = srv->parent;
-
-    bool needsNewServers = false;
-    hlp->handleKilledServer(srv, needsNewServers);
-    if (needsNewServers) {
-        debugs(80, DBG_IMPORTANT, "Starting new helpers");
-        hlp->openServers();
-    }
-
+    srv->parent->serverClosed(srv);
     srv->dropQueued();
-
     delete srv;
 }
 
