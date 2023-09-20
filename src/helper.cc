@@ -971,14 +971,12 @@ helperReturnBuffer(Helper::Session * srv, const Helper::Client::Pointer &hlp, ch
             return; // We are waiting for more data.
 
         bool retry = false;
-        if (cbdataReferenceValid(r->request.data)) {
-            r->reply.finalize();
-            if (r->reply.result == Helper::BrokenHelper && r->request.retries < MAX_RETRIES) {
-                debugs(84, DBG_IMPORTANT, "ERROR: helper: " << r->reply << ", attempt #" << (r->request.retries + 1) << " of 2");
-                retry = true;
-            } else {
-                hlp->callBack(r);
-            }
+        r->reply.finalize();
+        if (r->reply.result == Helper::BrokenHelper && r->request.retries < MAX_RETRIES && cbdataReferenceValid(r->request.data)) {
+            debugs(84, DBG_IMPORTANT, "ERROR: helper: " << r->reply << ", attempt #" << (r->request.retries + 1) << " of 2");
+            retry = true;
+        } else {
+            hlp->callBack(r);
         }
 
         -- srv->stats.pending;
@@ -1200,17 +1198,11 @@ helperStatefulHandleRead(const Comm::ConnectionPointer &conn, char *, size_t len
     if (t) {
         /* end of reply found */
         srv->requests.pop_front(); // we already have it in 'r'
-        int called = 1;
 
-        if (cbdataReferenceValid(r->request.data)) {
-            r->reply.finalize();
-            r->reply.reservationId = srv->reservationId;
-            hlp->callBack(r);
-        } else {
-            debugs(84, DBG_IMPORTANT, "StatefulHandleRead: no callback data registered");
-            called = 0;
-        }
-
+        r->reply.finalize();
+        r->reply.reservationId = srv->reservationId;
+        const auto dataValid = cbdataReferenceValid(r->request.data);
+        hlp->callBack(r);
         delete r;
 
         -- srv->stats.pending;
@@ -1223,10 +1215,12 @@ helperStatefulHandleRead(const Comm::ConnectionPointer &conn, char *, size_t len
                              tvSubMsec(srv->dispatch_time, current_time),
                              hlp->stats.replies, REDIRECT_AV_FACTOR);
 
-        if (called)
+        if (dataValid)
             helperStatefulServerDone(srv);
-        else
+        else {
+            debugs(84, DBG_IMPORTANT, "StatefulHandleRead: no callback data registered");
             hlp->cancelReservation(srv->reservationId);
+        }
     }
 
     if (Comm::IsConnOpen(srv->readPipe) && !fd_table[srv->readPipe->fd].closing()) {
