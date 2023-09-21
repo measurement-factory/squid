@@ -312,7 +312,7 @@ Auth::Basic::Config::init(Auth::SchemeConfig *)
 
         basicauthenticators->ipc_type = IPC_STREAM;
 
-        basicauthenticators->openServers();
+        basicauthenticators->openSessions();
     }
 }
 

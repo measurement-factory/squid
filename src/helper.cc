@@ -193,7 +193,7 @@ helper_stateful_server::~helper_stateful_server()
 }
 
 void
-Helper::Client::openServers()
+Helper::Client::openSessions()
 {
     char *s;
     char *progname;
@@ -330,7 +330,7 @@ Helper::Client::openServers()
 }
 
 void
-statefulhelper::openServers()
+statefulhelper::openSessions()
 {
     char *shortname;
     const char *args[HELPER_MAX_ARGS+1]; // save space for a NULL terminator
@@ -890,20 +890,20 @@ Helper::Client::handleFewerServers(const bool madeProgress)
 }
 
 void
-Helper::Client::serverClosed(SessionBase * const srv)
+Helper::Client::sessionClosed(SessionBase &srv)
 {
     bool needsNewServers = false;
-    handleKilledServer(srv, needsNewServers);
+    handleKilledServer(&srv, needsNewServers);
     if (needsNewServers) {
         debugs(80, DBG_IMPORTANT, "Starting new helpers");
-        openServers();
+        openSessions();
     }
 }
 
 void
 Helper::Session::HelperServerClosed(Session * const srv)
 {
-    srv->parent->serverClosed(srv);
+    srv->parent->sessionClosed(*srv);
     srv->dropQueued();
     delete srv;
 }
@@ -912,7 +912,7 @@ Helper::Session::HelperServerClosed(Session * const srv)
 void
 helper_stateful_server::HelperServerClosed(helper_stateful_server *srv)
 {
-    srv->parent->serverClosed(srv);
+    srv->parent->sessionClosed(*srv);
     srv->dropQueued();
     delete srv;
 }
@@ -1236,7 +1236,7 @@ Enqueue(Helper::Client * const hlp, Helper::Xaction * const r)
     /* do this first so idle=N has a chance to grow the child pool before it hits critical. */
     if (hlp->childs.needNew() > 0) {
         debugs(84, DBG_CRITICAL, "Starting new " << hlp->id_name << " helpers...");
-        hlp->openServers();
+        hlp->openSessions();
         return;
     }
 
@@ -1265,7 +1265,7 @@ StatefulEnqueue(statefulhelper * hlp, Helper::Xaction * r)
     /* do this first so idle=N has a chance to grow the child pool before it hits critical. */
     if (hlp->childs.needNew() > 0) {
         debugs(84, DBG_CRITICAL, "Starting new " << hlp->id_name << " helpers...");
-        hlp->openServers();
+        hlp->openSessions();
         return;
     }
 

@@ -99,11 +99,12 @@ public:
     /// \param madeProgress whether the died helper(s) responded to any requests
     void handleFewerServers(bool madeProgress);
 
-    /// creates helper processes
-    virtual void openServers();
+    /// Starts required helper process(es).
+    /// The caller is responsible for checking that new processes are needed.
+    virtual void openSessions();
 
     /// handles exited helper process
-    void serverClosed(SessionBase *);
+    void sessionClosed(SessionBase &);
 
 public:
     wordlist *cmdline = nullptr;
@@ -162,7 +163,8 @@ public:
     /// undo reserveServer(), clear the reservation and kick the queue
     void cancelReservation(const Helper::ReservationId reservation);
 
-    void openServers() override;
+    /* Helper::Client API */
+    void openSessions() override;
 
 private:
     friend void helperStatefulSubmit(const statefulhelper::Pointer &, const char *buf, HLPCB *, void *cbData, const Helper::ReservationId &);

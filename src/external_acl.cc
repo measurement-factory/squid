@@ -1123,7 +1123,7 @@ externalAclInit(void)
 
         p->theHelper->addr = p->local_addr;
 
-        p->theHelper->openServers();
+        p->theHelper->openSessions();
     }
 
     externalAclRegisterWithCacheManager();
