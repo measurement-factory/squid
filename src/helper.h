@@ -99,8 +99,8 @@ public:
     /// \param madeProgress whether the died helper(s) responded to any requests
     void handleFewerServers(bool madeProgress);
 
-    /// informs the request initiator with helper response
-    void callBack(Xaction *);
+    /// sends transaction response to the transaction initiator
+    void callBack(Xaction &);
 
 public:
     wordlist *cmdline = nullptr;

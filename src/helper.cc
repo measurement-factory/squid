@@ -130,7 +130,7 @@ Helper::SessionBase::dropQueued(Client &client)
         const auto r = requests.front();
         requests.pop_front();
         r->reply.result = Helper::Unknown;
-        client.callBack(r);
+        client.callBack(*r);
         delete r;
     }
 }
@@ -570,13 +570,13 @@ Helper::Client::submit(const char * const buf, HLPCB * const callback, void *dat
 }
 
 void
-Helper::Client::callBack(Xaction *r)
+Helper::Client::callBack(Xaction &r)
 {
-    const auto callback = r->request.callback;
-    r->request.callback = nullptr;
+    const auto callback = r.request.callback;
+    r.request.callback = nullptr;
     void *cbdata = nullptr;
-    if (cbdataReferenceValidDone(r->request.data, &cbdata))
-        callback(cbdata, r->reply);
+    if (cbdataReferenceValidDone(r.request.data, &cbdata))
+        callback(cbdata, r.reply);
 }
 
 /// Submit request or callback the caller with a Helper::Error error.
@@ -670,7 +670,7 @@ statefulhelper::submit(const char *buf, HLPCB * callback, void *data, const Help
         if (!lastServer) {
             debugs(84, DBG_CRITICAL, "ERROR: Helper " << id_name << " reservation expired (" << reservation << ")");
             r->reply.result = Helper::TimedOut;
-            callBack(r);
+            callBack(*r);
             delete r;
             return;
         }
@@ -971,12 +971,14 @@ helperReturnBuffer(Helper::Session * srv, const Helper::Client::Pointer &hlp, ch
             return; // We are waiting for more data.
 
         bool retry = false;
-        r->reply.finalize();
-        if (r->reply.result == Helper::BrokenHelper && r->request.retries < MAX_RETRIES && cbdataReferenceValid(r->request.data)) {
-            debugs(84, DBG_IMPORTANT, "ERROR: helper: " << r->reply << ", attempt #" << (r->request.retries + 1) << " of 2");
-            retry = true;
-        } else {
-            hlp->callBack(r);
+        if (cbdataReferenceValid(r->request.data)) {
+            r->reply.finalize();
+            if (r->reply.result == Helper::BrokenHelper && r->request.retries < MAX_RETRIES) {
+                debugs(84, DBG_IMPORTANT, "ERROR: helper: " << r->reply << ", attempt #" << (r->request.retries + 1) << " of 2");
+                retry = true;
+            } else {
+            	hlp->callBack(*r);
+            }
         }
 
         -- srv->stats.pending;
@@ -1198,11 +1200,17 @@ helperStatefulHandleRead(const Comm::ConnectionPointer &conn, char *, size_t len
     if (t) {
         /* end of reply found */
         srv->requests.pop_front(); // we already have it in 'r'
+        int called = 1;
 
-        r->reply.finalize();
-        r->reply.reservationId = srv->reservationId;
-        const auto dataValid = cbdataReferenceValid(r->request.data);
-        hlp->callBack(r);
+        if (cbdataReferenceValid(r->request.data)) {
+            r->reply.finalize();
+            r->reply.reservationId = srv->reservationId;
+            hlp->callBack(*r);
+        } else {
+            debugs(84, DBG_IMPORTANT, "StatefulHandleRead: no callback data registered");
+            called = 0;
+        }
+
         delete r;
 
         -- srv->stats.pending;
@@ -1215,12 +1223,10 @@ helperStatefulHandleRead(const Comm::ConnectionPointer &conn, char *, size_t len
                              tvSubMsec(srv->dispatch_time, current_time),
                              hlp->stats.replies, REDIRECT_AV_FACTOR);
 
-        if (dataValid)
+        if (called)
             helperStatefulServerDone(srv);
-        else {
-            debugs(84, DBG_IMPORTANT, "StatefulHandleRead: no callback data registered");
+        else
             hlp->cancelReservation(srv->reservationId);
-        }
     }
 
     if (Comm::IsConnOpen(srv->readPipe) && !fd_table[srv->readPipe->fd].closing()) {
@@ -1488,7 +1494,7 @@ helperStatefulDispatch(helper_stateful_server * srv, Helper::Xaction * r)
         /* we don't care about releasing this helper. The request NEVER
          * gets to the helper. So we throw away the return code */
         r->reply.result = Helper::Unknown;
-        hlp->callBack(r);
+        hlp->callBack(*r);
         /* throw away the placeholder */
         delete r;
         /* and push the queue. Note that the callback may have submitted a new
@@ -1559,25 +1565,30 @@ Helper::Session::checkForTimedOutRequests(bool const retry)
         requestsIndex.erase(it);
         requests.pop_front();
         debugs(84, 2, "Request " << r->request.Id << " timed-out, remove it from queue");
+        bool retried = false;
         if (retry && r->request.retries < MAX_RETRIES && cbdataReferenceValid(r->request.data)) {
             debugs(84, 2, "Retry request " << r->request.Id);
             ++r->request.retries;
             parent->submitRequest(r);
-        } else {
+            retried = true;
+        } else if (cbdataReferenceValid(r->request.data)) {
             if (!parent->onTimedOutResponse.isEmpty()) {
                 if (r->reply.accumulate(parent->onTimedOutResponse.rawContent(), parent->onTimedOutResponse.length()))
                     r->reply.finalize();
                 else
                     r->reply.result = Helper::TimedOut;
+                parent->callBack(*r);
             } else {
                 r->reply.result = Helper::TimedOut;
+                parent->callBack(*r);
             }
-            parent->callBack(r);
             delete r;
         }
         --stats.pending;
         ++stats.timedout;
         ++parent->stats.timedout;
+        if (!retried)
+            delete r;
     }
 }
 
