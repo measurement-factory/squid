@@ -57,16 +57,19 @@ DownloaderContext::finished()
     http = nullptr;
 }
 
-void
-Downloader::CbDialer::print(std::ostream &os) const
+std::ostream &
+operator <<(std::ostream &os, const DownloaderAnswer &answer)
 {
-    os << " Http Status:" << status << Raw("body data", object.rawContent(), 64).hex();
+    os << "outcome=" << answer.outcome;
+    if (answer.outcome == Http::scOkay)
+        os << ", resource.size=" << answer.resource.length();
+    return os;
 }
 
-Downloader::Downloader(SBuf &url, AsyncCall::Pointer &aCallback, const XactionInitiator initiator, unsigned int level):
+Downloader::Downloader(const SBuf &url, const AsyncCallback<Answer> &cb, const XactionInitiator initiator, unsigned int level):
     AsyncJob("Downloader"),
     url_(url),
-    callback_(aCallback),
+    callback_(cb),
     level_(level),
     initiator_(initiator)
 {
@@ -256,13 +259,11 @@ void
 Downloader::callBack(Http::StatusCode const statusCode)
 {
     assert(callback_);
-    CbDialer *dialer = dynamic_cast<CbDialer*>(callback_->getDialer());
-    Must(dialer);
-    dialer->status = statusCode;
+    auto &answer = callback_.answer();
+    answer.outcome = statusCode;
     if (statusCode == Http::scOkay)
-        dialer->object = object_;
-    ScheduleCallHere(callback_);
-    callback_ = nullptr;
+        answer.resource = object_;
+    ScheduleCallHere(callback_.release());
 
     // We cannot deleteThis() because we may be called synchronously from
     // doCallouts() via handleReply() (XXX), and doCallouts() may crash if we

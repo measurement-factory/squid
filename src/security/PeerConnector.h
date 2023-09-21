@@ -10,7 +10,7 @@
 #define SQUID_SRC_SECURITY_PEERCONNECTOR_H
 
 #include "acl/Acl.h"
-#include "base/AsyncCbdataCalls.h"
+#include "base/AsyncCallbacks.h"
 #include "base/AsyncJob.h"
 #include "base/JobWait.h"
 #include "CommCalls.h"
@@ -26,6 +26,7 @@
 
 class ErrorState;
 class Downloader;
+class DownloaderAnswer;
 class AccessLogEntry;
 typedef RefCount<AccessLogEntry> AccessLogEntryPointer;
 
@@ -120,7 +121,7 @@ protected:
     void startCertDownloading(SBuf &url);
 
     /// Called by Downloader after a certificate object downloaded.
-    void certDownloadingDone(SBuf &object, int status);
+    void certDownloadingDone(DownloaderAnswer &);
 #endif
 
     /// Called when the openSSL SSL_connect function needs to write data to
@@ -171,6 +172,7 @@ protected:
     Comm::ConnectionPointer serverConn; ///< TCP connection to the peer
     AccessLogEntryPointer al; ///< info for the future access.log entry
     AsyncCall::Pointer callback; ///< we call this with the results
+
 private:
     PeerConnector(const PeerConnector &); // not implemented
     PeerConnector &operator =(const PeerConnector &); // not implemented

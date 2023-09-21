@@ -22,7 +22,7 @@ public:
     static AsyncCallQueue &Instance();
 
     // make this async call when we get a chance
-    void schedule(AsyncCall::Pointer &call);
+    void schedule(const AsyncCall::Pointer &call);
 
     // fire all scheduled calls; returns true if at least one was fired
     bool fire();

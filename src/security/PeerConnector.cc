@@ -10,6 +10,7 @@
 
 #include "squid.h"
 #include "acl/FilledChecklist.h"
+#include "base/AsyncCallbacks.h"
 #include "comm/Loops.h"
 #include "comm/Read.h"
 #include "Downloader.h"
@@ -583,23 +584,6 @@ Security::PeerConnector::status() const
 }
 
 #if USE_OPENSSL
-/// CallDialer to allow use Downloader objects within PeerConnector class.
-class PeerConnectorCertDownloaderDialer: public Downloader::CbDialer
-{
-public:
-    typedef void (Security::PeerConnector::*Method)(SBuf &object, int status);
-
-    PeerConnectorCertDownloaderDialer(Method method, Security::PeerConnector *pc):
-        method_(method),
-        peerConnector_(pc) {}
-
-    /* CallDialer API */
-    virtual bool canDial(AsyncCall &call) { return peerConnector_.valid(); }
-    virtual void dial(AsyncCall &call) { ((&(*peerConnector_))->*method_)(object, status); }
-    Method method_; ///< The Security::PeerConnector method to dial
-    CbcPointer<Security::PeerConnector> peerConnector_; ///< The Security::PeerConnector object
-};
-
 /// the number of concurrent PeerConnector jobs waiting for us
 unsigned int
 Security::PeerConnector::certDownloadNestingLevel() const
@@ -617,25 +601,25 @@ Security::PeerConnector::certDownloadNestingLevel() const
 void
 Security::PeerConnector::startCertDownloading(SBuf &url)
 {
-    AsyncCall::Pointer certCallback = asyncCall(81, 4,
-                                      "Security::PeerConnector::certDownloadingDone",
-                                      PeerConnectorCertDownloaderDialer(&Security::PeerConnector::certDownloadingDone, this));
-
-    const auto dl = new Downloader(url, certCallback, XactionInitiator::initCertFetcher, certDownloadNestingLevel() + 1);
+    const auto certCallback = asyncCallback(81, 4, Security::PeerConnector::certDownloadingDone, this);
+    const auto dl = new Downloader(url, certCallback,
+                                   XactionInitiator::initCertFetcher,
+                                   certDownloadNestingLevel() + 1);
     certDownloadWait.start(dl, certCallback);
 }
 
 void
-Security::PeerConnector::certDownloadingDone(SBuf &obj, int downloadStatus)
+Security::PeerConnector::certDownloadingDone(DownloaderAnswer &downloaderAnswer)
 {
     certDownloadWait.finish();
 
     ++certsDownloads;
-    debugs(81, 5, "Certificate downloading status: " << downloadStatus << " certificate size: " << obj.length());
+    debugs(81, 5, "outcome: " << downloaderAnswer.outcome << "; certificate size: " << downloaderAnswer.resource.length());
 
     Must(Comm::IsConnOpen(serverConnection()));
     const auto &sconn = *fd_table[serverConnection()->fd].ssl;
 
+    // XXX: Do not parse the response when the download has failed.
     // Parse Certificate. Assume that it is in DER format.
     // According to RFC 4325:
     //  The server must provide a DER encoded certificate or a collection
@@ -643,8 +627,8 @@ Security::PeerConnector::certDownloadingDone(SBuf &obj, int downloadStatus)
     //  The applications MUST accept DER encoded certificates and SHOULD
     // be able to accept collection of certificates.
     // TODO: support collection of certificates
-    const unsigned char *raw = (const unsigned char*)obj.rawContent();
-    if (X509 *cert = d2i_X509(NULL, &raw, obj.length())) {
+    auto raw = reinterpret_cast<const unsigned char*>(downloaderAnswer.resource.rawContent());
+    if (auto cert = d2i_X509(nullptr, &raw, downloaderAnswer.resource.length())) {
         char buffer[1024];
         debugs(81, 5, "Retrieved certificate: " << X509_NAME_oneline(X509_get_subject_name(cert), buffer, 1024));
 

@@ -19,7 +19,7 @@ AsyncCallQueue::AsyncCallQueue(): theHead(NULL), theTail(NULL)
 {
 }
 
-void AsyncCallQueue::schedule(AsyncCall::Pointer &call)
+void AsyncCallQueue::schedule(const AsyncCall::Pointer &call)
 {
     assert(call != NULL);
     assert(!call->theNext);
