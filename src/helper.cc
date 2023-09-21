@@ -1156,16 +1156,16 @@ helperStatefulHandleRead(const Comm::ConnectionPointer &conn, char *, size_t len
 
     srv->roffset += len;
     srv->rbuf[srv->roffset] = '\0';
+    Helper::Xaction *r = srv->requests.front();
     debugs(84, DBG_DATA, Raw("accumulated", srv->rbuf, srv->roffset));
 
-    if (srv->requests.empty()) {
+    if (r == nullptr) {
         /* someone spoke without being spoken to */
         debugs(84, DBG_IMPORTANT, "ERROR: helperStatefulHandleRead: unexpected read from " <<
                hlp->id_name << " #" << srv->index << ", " << (int)len <<
                " bytes '" << srv->rbuf << "'");
 
-        srv->closePipesSafely(hlp->id_name);
-        return;
+        srv->roffset = 0;
     }
 
     if ((t = strchr(srv->rbuf, hlp->eom))) {
@@ -1180,9 +1180,7 @@ helperStatefulHandleRead(const Comm::ConnectionPointer &conn, char *, size_t len
         *t = '\0';
     }
 
-    const auto r = srv->requests.front();
-
-    if (!r->reply.accumulate(srv->rbuf, t ? (t - srv->rbuf) : srv->roffset)) {
+    if (r && !r->reply.accumulate(srv->rbuf, t ? (t - srv->rbuf) : srv->roffset)) {
         debugs(84, DBG_IMPORTANT, "ERROR: Disconnecting from a " <<
                "helper that overflowed " << srv->rbuf_sz << "-byte " <<
                "Squid input buffer: " << hlp->id_name << " #" << srv->index);
@@ -1202,7 +1200,7 @@ helperStatefulHandleRead(const Comm::ConnectionPointer &conn, char *, size_t len
         srv->requests.pop_front(); // we already have it in 'r'
         int called = 1;
 
-        if (cbdataReferenceValid(r->request.data)) {
+        if (r && cbdataReferenceValid(r->request.data)) {
             r->reply.finalize();
             r->reply.reservationId = srv->reservationId;
             hlp->callBack(*r);
