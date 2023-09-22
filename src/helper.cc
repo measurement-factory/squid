@@ -890,10 +890,10 @@ Helper::Client::handleFewerServers(const bool madeProgress)
 }
 
 void
-Helper::Client::sessionClosed(SessionBase &srv)
+Helper::Client::sessionClosed(SessionBase &session)
 {
     bool needsNewServers = false;
-    handleKilledServer(&srv, needsNewServers);
+    handleKilledServer(&session, needsNewServers);
     if (needsNewServers) {
         debugs(80, DBG_IMPORTANT, "Starting new helpers");
         openSessions();
@@ -908,7 +908,7 @@ Helper::Session::HelperServerClosed(Session * const srv)
     delete srv;
 }
 
-// XXX: duplicates Helper::Session::HelperServerClosed()
+// XXX: Essentially duplicates Helper::Session::HelperServerClosed() until we add SessionBase::helper().
 void
 helper_stateful_server::HelperServerClosed(helper_stateful_server *srv)
 {
