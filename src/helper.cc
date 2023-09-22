@@ -574,6 +574,7 @@ Helper::Client::callBack(Xaction &r)
 {
     const auto callback = r.request.callback;
     Assure(callback);
+
     r.request.callback = nullptr;
     void *cbdata = nullptr;
     if (cbdataReferenceValidDone(r.request.data, &cbdata))
