@@ -21,3 +21,4 @@ void helperShutdown(const Helper::Client::Pointer &) STUB
 void helperStatefulShutdown(const statefulhelper::Pointer &) STUB
 void helperOpenServers(const Helper::Client::Pointer &) STUB
 void helperStatefulOpenServers(const statefulhelper::Pointer &) STUB
+
