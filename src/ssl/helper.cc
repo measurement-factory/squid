@@ -65,7 +65,10 @@ operator <<(std::ostream &os, const Ssl::GeneratorRequest &gr)
     return os << "crtGenRq" << gr.query.id.value << "/" << gr.requestors.size();
 }
 
-Ssl::Helper::Pointer Ssl::Helper::ssl_crtd = nullptr;
+/// pending Ssl::Helper requests (to all certificate generator helpers combined)
+static Ssl::GeneratorRequests TheGeneratorRequests;
+
+Helper::Client::Pointer Ssl::Helper::ssl_crtd;
 
 void Ssl::Helper::Init()
 {
@@ -79,7 +82,7 @@ void Ssl::Helper::Init()
     if (!found)
         return;
 
-    ssl_crtd = Helper::Make("sslcrtd_program");
+    ssl_crtd = ::Helper::Client::Make("sslcrtd_program");
     ssl_crtd->childs.updateLimits(Ssl::TheConfig.ssl_crtdChildren);
     ssl_crtd->ipc_type = IPC_STREAM;
     // The crtd messages may contain the eol ('\n') character. We are
@@ -170,7 +173,7 @@ Ssl::HandleGeneratorReply(void *data, const ::Helper::Reply &reply)
 }
 #endif //USE_SSL_CRTD
 
-helper::Pointer Ssl::CertValidationHelper::ssl_crt_validator = nullptr;
+Helper::Client::Pointer Ssl::CertValidationHelper::ssl_crt_validator;
 
 void Ssl::CertValidationHelper::Init()
 {
@@ -186,7 +189,7 @@ void Ssl::CertValidationHelper::Init()
     if (!found)
         return;
 
-    ssl_crt_validator = helper::Make("ssl_crt_validator");
+    ssl_crt_validator = ::Helper::Client::Make("ssl_crt_validator");
     ssl_crt_validator->childs.updateLimits(Ssl::TheConfig.ssl_crt_validator_Children);
     ssl_crt_validator->ipc_type = IPC_STREAM;
     // The crtd messages may contain the eol ('\n') character. We are
