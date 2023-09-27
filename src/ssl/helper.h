@@ -29,14 +29,14 @@ class GeneratorRequest;
  * Set of thread for ssl_crtd. This class is singleton.
  * This class use helper structure for threads management.
  */
-class Helper : public helper
+class Helper : public ::Helper::Client
 {
 public:
     using Pointer = RefCount<Helper>;
     /// query:GeneratorRequest map
     using GeneratorRequests = std::unordered_map<SBuf, GeneratorRequest*>;
 
-    explicit Helper(const char *name): helper(name) {}
+    explicit Helper(const char *name): Helper::Client(name) {}
 
     static void Init(); ///< Init helper structure.
     static void Shutdown(); ///< Shutdown helper structure.
@@ -46,8 +46,6 @@ public:
 
     /// \copydoc helper::Make()
     static Pointer Make(const char *name) { return new Helper(name); }
-
-    void callBack(HLPCB *, void *, const ::Helper::Reply &) override;
 
     /// pending Helper requests (to all certificate generator helpers combined)
     GeneratorRequests generatorRequests;

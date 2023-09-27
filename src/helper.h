@@ -100,9 +100,6 @@ public:
     /// \param madeProgress whether the died helper(s) responded to any requests
     void handleFewerServers(bool madeProgress);
 
-    /// informs the request initiator with helper response
-    virtual void callBack(HLPCB *, void *, const Helper::Reply &);
-
 public:
     wordlist *cmdline = nullptr;
     dlink_list servers;
@@ -205,9 +202,6 @@ public:
     /// dequeues and sends an Unknown answer to all queued requests
     virtual void dropQueued();
 
-    /// the corresponding helper object
-    virtual helper *parentHelper() = 0;
-
 public:
     /// Helper program identifier; does not change when contents do,
     ///   including during assignment
@@ -289,7 +283,6 @@ public:
     /* SessionBase API */
     bool reserved() override {return false;}
     void dropQueued() override;
-    helper *parentHelper() override { assert(parent); return parent.getRaw(); }
 
     /// Read timeout handler
     static void requestTimeout(const CommTimeoutCbParams &io);
@@ -311,8 +304,6 @@ public:
     ~helper_stateful_server() override;
     void reserve();
     void clearReservation();
-
-    helper *parentHelper() override { assert(parent); return parent.getRaw(); }
 
     /* HelperServerBase API */
     bool reserved() override {return reservationId.reserved();}

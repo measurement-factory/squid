@@ -65,10 +65,7 @@ operator <<(std::ostream &os, const Ssl::GeneratorRequest &gr)
     return os << "crtGenRq" << gr.query.id.value << "/" << gr.requestors.size();
 }
 
-/// pending Ssl::Helper requests (to all certificate generator helpers combined)
-static Ssl::GeneratorRequests TheGeneratorRequests;
-
-Helper::Client::Pointer Ssl::Helper::ssl_crtd;
+Ssl::Helper::Pointer Ssl::Helper::ssl_crtd;
 
 void Ssl::Helper::Init()
 {
@@ -82,7 +79,7 @@ void Ssl::Helper::Init()
     if (!found)
         return;
 
-    ssl_crtd = ::Helper::Client::Make("sslcrtd_program");
+    ssl_crtd = Make("sslcrtd_program");
     ssl_crtd->childs.updateLimits(Ssl::TheConfig.ssl_crtdChildren);
     ssl_crtd->ipc_type = IPC_STREAM;
     // The crtd messages may contain the eol ('\n') character. We are
@@ -148,16 +145,6 @@ void Ssl::Helper::Submit(CrtdMessage const & message, HLPCB * callback, void * d
     HandleGeneratorReply(request, failReply);
 }
 
-void
-Ssl::Helper::callBack(HLPCB *, void *data, const ::Helper::Reply &reply)
-{
-    const std::unique_ptr<Ssl::GeneratorRequest> request(static_cast<Ssl::GeneratorRequest*>(data));
-    assert(request);
-    const auto erased = generatorRequests.erase(request->query);
-    assert(erased);
-    HandleGeneratorReply(data, reply);
-
-}
 /// receives helper response
 static void
 Ssl::HandleGeneratorReply(void *data, const ::Helper::Reply &reply)
