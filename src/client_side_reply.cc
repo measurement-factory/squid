@@ -24,7 +24,6 @@
 #include "HttpHeaderTools.h"
 #include "HttpReply.h"
 #include "HttpRequest.h"
-#include "internal.h"
 #include "ip/QosConfig.h"
 #include "ipcache.h"
 #include "log/access_log.h"
@@ -1485,15 +1484,17 @@ clientReplyContext::identifyStoreObject()
 {
     HttpRequest *r = http->request;
 
-    if (r->flags.noCache) {
-        // no-cache requests skip Store lookups
-        identifyFoundObject(nullptr, "no-cache");
-    } else {
-        // cache manager requests ought to have flags.noCache (handled above)
-        Assure(!ForThisCacheManager(*r));
-
+    // client sent CC:no-cache or some other condition has been
+    // encountered which prevents delivering a public/cached object.
+    // XXX: The above text does not match the condition below. It might describe
+    // the opposite condition, but the condition itself should be adjusted
+    // (e.g., to honor flags.noCache in cache manager requests).
+    if (!r->flags.noCache || r->flags.internal) {
         const auto e = storeGetPublicByRequest(r);
         identifyFoundObject(e, storeLookupString(bool(e)));
+    } else {
+        // "external" no-cache requests skip Store lookups
+        identifyFoundObject(nullptr, "no-cache");
     }
 }
 
