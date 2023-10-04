@@ -95,7 +95,7 @@ void Ssl::Helper::Init()
         }
         safe_free(tmp_begin);
     }
-    helperOpenServers(ssl_crtd);
+    ssl_crtd->openSessions();
 }
 
 void Ssl::Helper::Shutdown()
@@ -216,7 +216,7 @@ void Ssl::CertValidationHelper::Init()
         }
         xfree(tmp_begin);
     }
-    helperOpenServers(ssl_crt_validator);
+    ssl_crt_validator->openSessions();
 
     //WARNING: initializing static member in an object initialization method
     assert(HelperCache == nullptr);
