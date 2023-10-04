@@ -116,29 +116,31 @@ Ssl::Helper::Reconfigure()
 
 void Ssl::Helper::Submit(CrtdMessage const & message, HLPCB * callback, void * data)
 {
+    if (!ssl_crtd) {
+        // A before-reconfiguration transaction may be using a PortCfg that
+        // requires certificate generation when reconfiguration makes ssl_crtd
+        // nil. TODO: Preserve the helper for such transactions.
+        throw TextException("Squid BUG: A transaction-required ssl_crtd helper disappeared during reconfiguration", Here());
+    }
+
     SBuf rawMessage(message.compose().c_str()); // XXX: helpers cannot use SBuf
     rawMessage.append("\n", 1);
 
-    if (ssl_crtd) {
-        const auto pending = ssl_crtd->generatorRequests.find(rawMessage);
-        if (pending != ssl_crtd->generatorRequests.end()) {
-            pending->second->emplace(callback, data);
-            debugs(83, 5, "collapsed request from " << data << " onto " << *pending->second);
-            return;
-        }
+    const auto pending = ssl_crtd->generatorRequests.find(rawMessage);
+    if (pending != ssl_crtd->generatorRequests.end()) {
+        pending->second->emplace(callback, data);
+        debugs(83, 5, "collapsed request from " << data << " onto " << *pending->second);
+        return;
     }
 
     GeneratorRequest *request = new GeneratorRequest;
     request->query = rawMessage;
     request->emplace(callback, data);
     debugs(83, 5, "request from " << data << " as " << *request);
-    // ssl_crtd becomes nil if Squid is reconfigured without SslBump or
-    // certificate generation disabled in the new configuration
-    if (ssl_crtd) {
-        ssl_crtd->generatorRequests.emplace(request->query, request);
-        if (ssl_crtd->trySubmit(request->query.c_str(), HandleGeneratorReply, request))
-            return;
-    }
+
+    ssl_crtd->generatorRequests.emplace(request->query, request);
+    if (ssl_crtd->trySubmit(request->query.c_str(), HandleGeneratorReply, request))
+        return;
 
     ::Helper::Reply failReply(::Helper::BrokenHelper);
     failReply.notes.add("message", "error 45 Temporary network problem, please retry later");
