@@ -17,6 +17,7 @@ void helperStatefulSubmit(const statefulhelper::Pointer &, const char *, HLPCB *
 Helper::Client::~Client() STUB
 void Helper::Client::packStatsInto(Packable *, const char *) const STUB
 void Helper::Client::openSessions() STUB
+void Helper::Client::callBack(Xaction &) STUB
 
 void helperShutdown(const Helper::Client::Pointer &) STUB
 void helperStatefulShutdown(const statefulhelper::Pointer &) STUB
