@@ -145,6 +145,23 @@ void Ssl::Helper::Submit(CrtdMessage const & message, HLPCB * callback, void * d
     HandleGeneratorReply(request, failReply);
 }
 
+void
+Ssl::Helper::callBack(::Helper::Xaction &r)
+{
+    const auto callback = r.request.callback;
+    Assure(callback);
+    r.request.callback = nullptr;
+
+    void *cbdata = nullptr;
+    if (cbdataReferenceValidDone(r.request.data, &cbdata)) {
+        const auto request = static_cast<const Ssl::GeneratorRequest*>(cbdata);
+        assert(request);
+        const auto erased = generatorRequests.erase(request->query);
+        assert(erased);
+        HandleGeneratorReply(cbdata, r.reply);
+    }
+}
+
 /// receives helper response
 static void
 Ssl::HandleGeneratorReply(void *data, const ::Helper::Reply &reply)

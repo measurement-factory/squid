@@ -47,6 +47,9 @@ public:
     /// \copydoc helper::Make()
     static Pointer Make(const char *name) { return new Helper(name); }
 
+    /* Helper::Client API */
+    void callBack(::Helper::Xaction &) override;
+
     /// pending Helper requests (to all certificate generator helpers combined)
     GeneratorRequests generatorRequests;
 
