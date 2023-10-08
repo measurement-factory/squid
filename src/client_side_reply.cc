@@ -1485,12 +1485,16 @@ clientReplyContext::identifyStoreObject()
 {
     HttpRequest *r = http->request;
 
-    // client sent CC:no-cache or some other condition has been
-    // encountered which prevents delivering a public/cached object.
-    // cache manager requests ought to have flags.noCache
-    if (r->flags.noCache && (!r->flags.internal || ForSomeCacheManager(r->url.path()))) {
-        identifyFoundObject(nullptr, "no-cache"); // skip Store lookup
-    } else {
+    if (r->flags.noCache && !r->flags.internal) {
+        identifyFoundObject(nullptr, "no-cache"); // skip Store lookup for  "external" no-cache requests
+    } else if (ForSomeCacheManager(r->url.path())) { // cache manager requests ought to have flags.noCache
+        identifyFoundObject(nullptr, "no-cache"); // skip Store lookup for cache manager requests
+    } else if (r->flags.internal) {
+        // All internal requests, other from CacheManager (such as netdb or store_digest) are cacheable.
+        // Ignore "no-cache" for such requests.
+        const auto e = storeGetPublicByRequest(r);
+        identifyFoundObject(e, storeLookupString(bool(e)));
+    } else  { // "external" requests without no-cache
         const auto e = storeGetPublicByRequest(r);
         identifyFoundObject(e, storeLookupString(bool(e)));
     }
