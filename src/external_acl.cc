@@ -570,7 +570,7 @@ ACLExternal::~ACLExternal()
 }
 
 static void
-copyResultsFromEntry(HttpRequest *req, const ExternalACLEntryPointer &entry)
+copyResultsFromEntry(const HttpRequest::Pointer &req, const ExternalACLEntryPointer &entry)
 {
     if (req) {
 #if USE_AUTH
