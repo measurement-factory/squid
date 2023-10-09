@@ -33,5 +33,13 @@ int internalHostnameIs(const char *);
 /// necessarily running on this Squid instance)
 bool ForSomeCacheManager(const SBuf &);
 
+// TODO: Reduce "instance" to just the listening port (that received the
+// request) by making flags.internal false for requests that (target getMyPort()
+// but) do not target Squid listening port they were received on.
+/// Whether the given request targets the cache manager running on this Squid
+/// instance. Whether the built-in "manager" ACL should match. The two
+/// conditions must yield identical results for any given request.
+bool ForThisCacheManager(const HttpRequest &);
+
 #endif /* SQUID_INTERNAL_H_ */
 

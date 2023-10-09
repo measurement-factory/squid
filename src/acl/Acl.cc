@@ -120,9 +120,13 @@ ACL::FindByName(const char *name)
     ACL *a;
     debugs(28, 9, "ACL::FindByName '" << name << "'");
 
+    // TODO: Avoid linear search by sending configured ACLs to MakeDiscoverableByName()
     for (a = Config.aclList; a; a = a->next)
         if (!strcasecmp(a->name, name))
             return a;
+
+    if (const auto named = Acl::FindByName(name))
+        return named;
 
     debugs(28, 9, "ACL::FindByName found no match");
 
@@ -243,10 +247,6 @@ ACL::ParseAclLine(ConfigParser &parser, ACL ** head)
         }
         theType = "localport";
         debugs(28, DBG_IMPORTANT, "WARNING: UPGRADE: ACL 'myport' type has been renamed to 'localport' and matches the port the client connected to.");
-    } else if (strcmp(theType, "proto") == 0 && strcmp(aclname, "manager") == 0) {
-        // ACL manager is now a built-in and has a different type.
-        debugs(28, DBG_PARSE_NOTE(DBG_IMPORTANT), "WARNING: UPGRADE: ACL 'manager' is now a built-in ACL. Remove it from your config file.");
-        return; // ignore the line
     } else if (strcmp(theType, "clientside_mark") == 0) {
         debugs(28, DBG_IMPORTANT, "WARNING: UPGRADE: ACL 'clientside_mark' type has been renamed to 'client_connection_mark'.");
         theType = "client_connection_mark";
@@ -259,8 +259,11 @@ ACL::ParseAclLine(ConfigParser &parser, ACL ** head)
         new_acl = 1;
     } else {
         if (strcmp (A->typeString(),theType) ) {
-            debugs(28, DBG_CRITICAL, "aclParseAclLine: ACL '" << A->name << "' already exists with different type.");
-            parser.destruct();
+            // this error covers both ACL type change (bad-acl-type-change.conf)
+            // and built-in ACL adjustment attempt (bad-manager.conf) use cases
+            throw TextException(ToSBuf("ACL type conflicts with an existing ACL named ", A->name, ":",
+                                       Debug::Extra, "existing ACL type: ", A->typeString(),
+                                       Debug::Extra, "conflicting ACL type: ", theType), Here());
             return;
         }
 

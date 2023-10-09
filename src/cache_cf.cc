@@ -605,6 +605,13 @@ parseConfigFileOrThrow(const char *file_name)
     configFreeMemory();
 
     ACLMethodData::ThePurgeCount = 0;
+
+    // Registers all built-in ACLs before parsing any directives that might use them
+    // and to detect same-name conflicts with admin-configured ACLs. We could
+    // register built-in ACLs _once_ (and protect them during reconfigure), but
+    // the associated ACL lifetime management complications are not worth it.
+    Acl::RegisterBuiltInChecks();
+
     default_all();
 
     err_count = parseOneConfigFile(file_name, 0);

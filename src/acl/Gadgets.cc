@@ -18,6 +18,7 @@
 
 #include "squid.h"
 #include "acl/AclDenyInfoList.h"
+#include "acl/CacheManagerCheck.h"
 #include "acl/Gadgets.h"
 #include "acl/Tree.h"
 #include "cache_cf.h"
@@ -33,6 +34,17 @@
 typedef std::set<ACL*> AclSet;
 /// Accumulates all ACLs to facilitate their clean deletion despite reuse.
 static AclSet *RegisteredAcls; // TODO: Remove when ACLs are refcounted
+
+/// ACLs that may be mentioned in squid.conf directives by name
+static auto &
+ByNameIndex()
+{
+    using item = std::pair<const char * const, ACL *>;
+    static auto AclNameLess = [](const char *a, const char *b) { return strcasecmp(a, b) < 0; };
+    // TODO: Upgrade ACL::name to SBuf and switch to std::unordered_map<SBuf,...>
+    static auto index = new std::map<const char *, ACL *, decltype(AclNameLess), PoolingAllocator<item> >(AclNameLess);
+    return *index;
+}
 
 /* does name lookup, returns page_id */
 err_type
@@ -240,6 +252,38 @@ aclDeregister(ACL *acl)
     }
 }
 
+void
+Acl::MakeDiscoverableByName(ACL * const acl)
+{
+    const auto result = ByNameIndex().try_emplace(acl->name, acl);
+    assert(result.second); // ban duplicates to simplify, detect more caller bugs
+}
+
+ACL *
+Acl::FindByName(const char * const name)
+{
+    const auto pos = ByNameIndex().find(name);
+    return (pos == ByNameIndex().end()) ? nullptr : pos->second;
+}
+
+/// registers a given built-in ACL
+static void
+RegisterBuiltInCheck(ACL * const acl)
+{
+    // register for centralized cleanup
+    aclRegister(acl);
+
+    Acl::MakeDiscoverableByName(acl);
+}
+
+void
+Acl::RegisterBuiltInChecks()
+{
+    // Register all built-in ACLs here.
+    // The registration order does not affect functionality or performance.
+    RegisterBuiltInCheck(new CacheManagerCheck());
+}
+
 /*********************/
 /* Destroy functions */
 /*********************/
@@ -249,6 +293,8 @@ void
 aclDestroyAcls(ACL ** head)
 {
     *head = nullptr; // Config.aclList
+    ByNameIndex().clear();
+
     if (AclSet *acls = RegisteredAcls) {
         debugs(28, 8, "deleting all " << acls->size() << " ACLs");
         while (!acls->empty()) {

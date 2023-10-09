@@ -35,6 +35,7 @@
 #include "http/Stream.h"
 #include "HttpRequest.h"
 #include "icmp/net_db.h"
+#include "internal.h"
 #include "ip/QosConfig.h"
 #include "LogTags.h"
 #include "MemBuf.h"
@@ -371,6 +372,9 @@ TunnelStateData::TunnelStateData(ClientHttpRequest *clientRequest) :
     http = clientRequest;
 
     al->cache.code.update(LOG_TCP_TUNNEL);
+
+    // requests for our cache manager must never be tunneled
+    Assure(!ForThisCacheManager(*request));
 
     client.initConnection(clientRequest->getConn()->clientConnection, tunnelClientClosed, "tunnelClientClosed", this);
 

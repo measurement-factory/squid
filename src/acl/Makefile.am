@@ -60,6 +60,8 @@ libacls_la_SOURCES = \
 	AtStep.h \
 	AtStepData.cc \
 	AtStepData.h \
+	CacheManagerCheck.cc \
+	CacheManagerCheck.h \
 	ConnMark.cc \
 	ConnMark.h \
 	ConnectionsEncrypted.cc \

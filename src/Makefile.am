@@ -1089,6 +1089,7 @@ tests_testRock_SOURCES = \
 	tests/stub_icp.cc \
 	int.cc \
 	int.h \
+	tests/stub_internal.cc \
 	tests/stub_ipc.cc \
 	tests/stub_ipcache.cc \
 	tests/stub_libanyp.cc \
@@ -1431,6 +1432,7 @@ tests_testStore_SOURCES = \
 	tests/stub_http.cc \
 	int.cc \
 	int.h \
+	tests/stub_internal.cc \
 	tests/stub_libanyp.cc \
 	tests/stub_libauth.cc \
 	tests/stub_libcomm.cc \
@@ -1705,6 +1707,7 @@ nodist_tests_testACLMaxUserIP_SOURCES = \
 	tests/stub_errorpage.cc \
 	tests/stub_fatal.cc \
 	globals.cc \
+	tests/stub_internal.cc \
 	tests/stub_libauth.cc \
 	tests/stub_libcomm.cc \
 	tests/stub_libhttp.cc \
@@ -2073,6 +2076,7 @@ tests_testHttpReply_SOURCES = \
 	tests/stub_fatal.cc \
 	fatal.h \
 	tests/stub_fd.cc \
+	tests/stub_internal.cc \
 	tests/stub_libanyp.cc \
 	tests/stub_libauth.cc \
 	tests/stub_libcomm.cc \
