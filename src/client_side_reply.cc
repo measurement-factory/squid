@@ -1485,19 +1485,27 @@ clientReplyContext::identifyStoreObject()
 {
     HttpRequest *r = http->request;
 
-    if (r->flags.noCache && !r->flags.internal) {
-        identifyFoundObject(nullptr, "no-cache"); // skip Store lookup for  "external" no-cache requests
-    } else if (ForSomeCacheManager(r->url.path())) { // cache manager requests ought to have flags.noCache
-        identifyFoundObject(nullptr, "no-cache"); // skip Store lookup for cache manager requests
-    } else if (r->flags.internal) {
-        // All internal requests, other from CacheManager (such as netdb or store_digest) are cacheable.
-        // Ignore "no-cache" for such requests.
-        const auto e = storeGetPublicByRequest(r);
-        identifyFoundObject(e, storeLookupString(bool(e)));
-    } else  { // "external" requests without no-cache
-        const auto e = storeGetPublicByRequest(r);
-        identifyFoundObject(e, storeLookupString(bool(e)));
+    if (ForSomeCacheManager(r->url.path()))
+        return identifyFoundObject(nullptr, "mgr"); // all cache manager requests skip Store lookup
+
+    if (r->flags.internal) {
+        // internal requests other than cache manager requests (e.g., icons and netdb)
+        // must be satisfied through our cache, even if flags.noCache is true
+        return lookupInCache("Store-dependent internal request");
     }
+
+    if (r->flags.noCache)
+        return identifyFoundObject(nullptr, "no-cache"); // no-cache and similar requests skip Store lookup
+
+    lookupInCache("ordinary external request");
+}
+
+void
+clientReplyContext::lookupInCache(const char * const description)
+{
+    debugs(88, 5, description);
+    const auto e = storeGetPublicByRequest(http->request);
+    identifyFoundObject(e, storeLookupString(bool(e)));
 }
 
 /**
