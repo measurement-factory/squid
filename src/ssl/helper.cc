@@ -154,13 +154,15 @@ Ssl::Helper::callBack(::Helper::Xaction &r)
     Assure(callback);
     r.request.callback = nullptr;
 
-    // caller must not delete our GeneratorRequest
-    assert(cbdataReferenceValid(r.request.data));
-    const auto request = static_cast<const Ssl::GeneratorRequest*>(r.request.data);
+    void *cbdata = nullptr;
+    // locked by ::Helper::Xaction::request constructor
+    const auto valid = cbdataReferenceValidDone(r.request.data, &cbdata);
+    assert(valid);
+    const auto request = static_cast<const Ssl::GeneratorRequest*>(cbdata);
     assert(request);
     const auto erased = generatorRequests.erase(request->query);
     assert(erased);
-    HandleGeneratorReply(r.request.data, r.reply);
+    HandleGeneratorReply(cbdata, r.reply);
 }
 
 /// receives helper response
