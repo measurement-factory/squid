@@ -139,8 +139,18 @@ void Ssl::Helper::Submit(CrtdMessage const & message, HLPCB * callback, void * d
     debugs(83, 5, "request from " << data << " as " << *request);
 
     ssl_crtd->generatorRequests.emplace(request->query, request);
-    if (ssl_crtd->trySubmit(request->query.c_str(), HandleGeneratorReply, request))
-        return;
+
+    try {
+        if (ssl_crtd->trySubmit(request->query.c_str(), HandleGeneratorReply, request))
+            return;
+    } catch (...) {
+        if (ssl_crtd->generatorRequests.erase(rawMessage)) // else request has been deleted already by callBack()
+            delete request;
+        throw;
+    }
+
+    if (!ssl_crtd->generatorRequests.erase(rawMessage))
+        return; // request has been deleted already by callBack()
 
     ::Helper::Reply failReply(::Helper::BrokenHelper);
     failReply.notes.add("message", "error 45 Temporary network problem, please retry later");
