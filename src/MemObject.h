@@ -168,6 +168,13 @@ public:
 
     SwapOut swapout;
 
+    /// whether the object is being updated on disk
+    // TODO: expand the scope to common swapouts as well
+    Lock swapoutInterest;
+
+    /// whether the object is being written on disk
+    bool diskWriting() const { return swapoutInterest.LockCount() || swapout.sio; }
+
     /* TODO: Remove this change-minimizing hack */
     using Io = Store::IoStatus;
     static constexpr Io ioUndecided = Store::ioUndecided;

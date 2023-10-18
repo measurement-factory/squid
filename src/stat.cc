@@ -399,13 +399,7 @@ stat_vmobjects_get(StoreEntry * sentry)
 static int
 statObjectsOpenfdFilter(const StoreEntry * e)
 {
-    if (e->mem_obj == nullptr)
-        return 0;
-
-    if (e->mem_obj->swapout.sio == nullptr)
-        return 0;
-
-    return 1;
+    return e->diskWriting() ? 1 : 0;
 }
 
 static void
