@@ -15,7 +15,7 @@
 #include "base/ClpMap.h"
 #include "../helper.h"
 #include "helper/forward.h"
-//#include "sbuf/Algorithms.h"
+#include "sbuf/Algorithms.h"
 #include "security/forward.h"
 #include "ssl/cert_validate_message.h"
 #include "ssl/crtd_message.h"
