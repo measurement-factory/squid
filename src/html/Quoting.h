@@ -6,9 +6,10 @@
  * Please see the COPYING and CONTRIBUTORS files for details.
  */
 
-#if HAVE_LDAP_H
-#include <ldap.h>
-#endif
+#ifndef SQUID__SRC_HTML_QUOTING_H
+#define SQUID__SRC_HTML_QUOTING_H
 
-int nds_get_password(LDAP *ld, char *object_dn, size_t * pwd_len, char *pwd);
+char *html_quote(const char *);
+
+#endif /* SQUID__SRC_HTML_QUOTING_H */
 

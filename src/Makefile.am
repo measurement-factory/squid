@@ -16,7 +16,7 @@ LOADABLE_MODULES_SOURCES = \
 	LoadableModules.cc \
 	LoadableModules.h
 
-SUBDIRS = mem time debug base anyp helper dns ftp parser comm error eui acl format clients sbuf servers fs repl store DiskIO proxyp
+SUBDIRS = mem time debug base anyp helper dns html ftp parser comm error eui acl format clients sbuf servers fs repl store DiskIO proxyp
 
 if ENABLE_AUTH
 SUBDIRS += auth
@@ -41,12 +41,14 @@ SNMP_ALL_SOURCE = \
 	snmp_core.cc \
 	snmp_agent.h \
 	snmp_agent.cc
+
 if ENABLE_SNMP
 SNMP_SOURCE = $(SNMP_ALL_SOURCE)
 SUBDIRS += snmp
 SNMP_LIBS = snmp/libsnmp.la $(SNMPLIB)
 else
 SNMP_SOURCE =
+EXCLUDE_FROM_HDR_TESTING += $(SNMP_ALL_SOURCE)
 endif
 
 if ENABLE_ADAPTATION
@@ -100,10 +102,14 @@ if ENABLE_DELAY_POOLS
 DELAY_POOL_SOURCE = $(DELAY_POOL_ALL_SOURCE)
 else
 DELAY_POOL_SOURCE =
+EXCLUDE_FROM_HDR_TESTING += $(DELAY_POOL_ALL_SOURCE)
 endif
 
+KNOWN_HTCP_SOURCE = htcp.cc htcp.h
 if ENABLE_HTCP
-HTCPSOURCE = htcp.cc htcp.h
+HTCPSOURCE = $(KNOWN_HTCP_SOURCE)
+else
+EXCLUDE_FROM_HDR_TESTING += $(KNOWN_HTCP_SOURCE)
 endif
 
 if ENABLE_UNLINKD
@@ -250,7 +256,6 @@ squid_SOURCES = \
 	HttpHdrScTarget.h \
 	HttpHeader.cc \
 	HttpHeader.h \
-	HttpHeaderFieldInfo.h \
 	HttpHeaderFieldStat.h \
 	HttpHeaderMask.h \
 	HttpHeaderRange.h \
@@ -513,6 +518,7 @@ squid_LDADD = \
 	$(REGEXLIB) \
 	$(ADAPTATION_LIBS) \
 	$(ESI_LIBS) \
+	html/libhtml.la \
 	$(SNMP_LIBS) \
 	mem/libmem.la \
 	store/libstore.la \
@@ -772,7 +778,7 @@ check_PROGRAMS += tests/testRandomUuid
 tests_testRandomUuid_SOURCES = \
 	tests/testRandomUuid.cc
 nodist_tests_testRandomUuid_SOURCES = \
-	RandomUuid.h \
+	base/RandomUuid.h \
 	tests/stub_debug.cc \
 	tests/stub_libmem.cc
 tests_testRandomUuid_LDADD = \
@@ -1022,7 +1028,6 @@ tests_testRock_SOURCES = \
 	HttpHdrScTarget.cc \
 	HttpHeader.cc \
 	HttpHeader.h \
-	HttpHeaderFieldInfo.h \
 	HttpHeaderFieldStat.h \
 	HttpHeaderTools.cc \
 	HttpHeaderTools.h \
@@ -1192,7 +1197,6 @@ tests_testUfs_SOURCES = \
 	HttpHdrScTarget.cc \
 	HttpHeader.cc \
 	HttpHeader.h \
-	HttpHeaderFieldInfo.h \
 	HttpHeaderFieldStat.h \
 	HttpHeaderTools.cc \
 	HttpHeaderTools.h \
@@ -1365,7 +1369,6 @@ tests_testStore_SOURCES = \
 	HttpHdrScTarget.cc \
 	HttpHeader.cc \
 	HttpHeader.h \
-	HttpHeaderFieldInfo.h \
 	HttpHeaderFieldStat.h \
 	HttpHeaderTools.cc \
 	HttpHeaderTools.h \
@@ -1529,7 +1532,6 @@ tests_testDiskIO_SOURCES = \
 	HttpHdrScTarget.cc \
 	HttpHeader.cc \
 	HttpHeader.h \
-	HttpHeaderFieldInfo.h \
 	HttpHeaderFieldStat.h \
 	HttpHeaderTools.cc \
 	HttpHeaderTools.h \
@@ -1772,7 +1774,6 @@ tests_test_http_range_SOURCES = \
 	HttpHdrScTarget.cc \
 	HttpHeader.cc \
 	HttpHeader.h \
-	HttpHeaderFieldInfo.h \
 	HttpHeaderFieldStat.h \
 	HttpHeaderTools.cc \
 	HttpHeaderTools.h \
@@ -1945,6 +1946,7 @@ tests_test_http_range_LDADD = \
 	dns/libdns.la \
 	base/libbase.la \
 	mgr/libmgr.la \
+	html/libhtml.la \
 	sbuf/libsbuf.la \
 	debug/libdebug.la \
 	store/libstore.la \
@@ -2030,7 +2032,6 @@ tests_testHttpReply_SOURCES = \
 	HttpHdrScTarget.h \
 	HttpHeader.cc \
 	HttpHeader.h \
-	HttpHeaderFieldInfo.h \
 	HttpHeaderFieldStat.h \
 	HttpHeaderMask.h \
 	HttpHeaderTools.cc \
@@ -2157,7 +2158,6 @@ tests_testHttpRequest_SOURCES = \
 	HttpHdrScTarget.cc \
 	HttpHeader.cc \
 	HttpHeader.h \
-	HttpHeaderFieldInfo.h \
 	HttpHeaderFieldStat.h \
 	HttpHeaderTools.cc \
 	HttpHeaderTools.h \
@@ -2323,6 +2323,7 @@ tests_testHttpRequest_LDADD = \
 	dns/libdns.la \
 	base/libbase.la \
 	mgr/libmgr.la \
+	html/libhtml.la \
 	anyp/libanyp.la \
 	$(SNMP_LIBS) \
 	icmp/libicmp.la \
@@ -2456,7 +2457,6 @@ tests_testCacheManager_SOURCES = \
 	HttpHdrScTarget.cc \
 	HttpHeader.cc \
 	HttpHeader.h \
-	HttpHeaderFieldInfo.h \
 	HttpHeaderFieldStat.h \
 	HttpHeaderTools.cc \
 	HttpHeaderTools.h \
@@ -2627,6 +2627,7 @@ tests_testCacheManager_LDADD = \
 	anyp/libanyp.la \
 	ipc/libipc.la \
 	mgr/libmgr.la \
+	html/libhtml.la \
 	$(SNMP_LIBS) \
 	mem/libmem.la \
 	store/libstore.la \
@@ -2745,16 +2746,3 @@ tests_testEventLoop_LDADD = \
 	$(COMPAT_LIB) \
 	$(XTRA_LIBS)
 tests_testEventLoop_LDFLAGS = $(LIBADD_DL)
-
-## Run the unit tests. check_PROGRAMS only builds the binaries.
-TESTS += $(check_PROGRAMS) testHeaders
-
-## Special Universal .h dependency test script
-## aborts if error encountered
-testHeaders: $(srcdir)/*.h $(srcdir)/DiskIO/*.h $(srcdir)/DiskIO/*/*.h
-	$(SHELL) $(top_srcdir)/test-suite/testheaders.sh "$(CXXCOMPILE)" $^ || exit 1
-## src/repl/ has no .h files and its own makefile.
-
-CLEANFILES += testHeaders
-.PHONY: testHeaders
-

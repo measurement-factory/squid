@@ -7,18 +7,8 @@
 
 include $(top_srcdir)/src/Common.am
 
-DIST_SUBDIRS= eDirectory file LDAP
-SUBDIRS= $(DIGEST_AUTH_HELPERS)
-EXTRA_DIST= helpers.m4
+noinst_LTLIBRARIES = libhtml.la
 
-noinst_LTLIBRARIES= libdigest.la
-
-libdigest_la_SOURCES = \
-	Config.cc \
-	Config.h \
-	Scheme.cc \
-	Scheme.h \
-	User.cc \
-	User.h \
-	UserRequest.cc \
-	UserRequest.h
+libhtml_la_SOURCES = \
+	Quoting.cc \
+	Quoting.h
