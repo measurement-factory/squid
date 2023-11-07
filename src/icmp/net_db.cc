@@ -91,7 +91,7 @@ CBDATA_CLASS_INIT(netdbExchangeState);
 static hash_table *addr_table = nullptr;
 static hash_table *host_table = nullptr;
 
-Ip::Address networkFromInaddr(const Ip::Address &a);
+static Ip::Address networkFromInaddr(const Ip::Address &a);
 static void netdbRelease(netdbEntry * n);
 
 static void netdbHashInsert(netdbEntry * n, Ip::Address &addr);
@@ -344,7 +344,7 @@ netdbSendPing(const ipcache_addrs *ia, const Dns::LookupDetails &, void *data)
     xfree(hostname);
 }
 
-Ip::Address
+static Ip::Address
 networkFromInaddr(const Ip::Address &in)
 {
     Ip::Address out;
@@ -357,22 +357,6 @@ networkFromInaddr(const Ip::Address &in)
         debugs(14, 5, "networkFromInaddr : Masked IPv6 Address to " << in << "/64 routing part.");
         return out;
     }
-
-#if USE_CLASSFUL
-    struct in_addr b;
-
-    in.getInAddr(b);
-
-    if (IN_CLASSC(b.s_addr))
-        b.s_addr &= IN_CLASSC_NET;
-    else if (IN_CLASSB(b.s_addr))
-        b.s_addr &= IN_CLASSB_NET;
-    else if (IN_CLASSA(b.s_addr))
-        b.s_addr &= IN_CLASSA_NET;
-
-    out = b;
-
-#endif
 
     debugs(14, 5, "networkFromInaddr : Masked IPv4 Address to " << out << "/24.");
 
