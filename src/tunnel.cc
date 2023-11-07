@@ -367,7 +367,6 @@ TunnelStateData::TunnelStateData(ClientHttpRequest *clientRequest) :
     server.size_ptr = &clientRequest->out.size;
     client.size_ptr = &clientRequest->al->http.clientRequestSz.payloadData;
     status_ptr = &clientRequest->al->http.code;
-
     al = clientRequest->al;
     http = clientRequest;
 
