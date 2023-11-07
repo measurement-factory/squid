@@ -248,7 +248,6 @@ squid_SOURCES = \
 	HttpHdrScTarget.h \
 	HttpHeader.cc \
 	HttpHeader.h \
-	HttpHeaderFieldInfo.h \
 	HttpHeaderFieldStat.h \
 	HttpHeaderMask.h \
 	HttpHeaderRange.h \
@@ -1022,7 +1021,6 @@ tests_testRock_SOURCES = \
 	HttpHdrScTarget.cc \
 	HttpHeader.cc \
 	HttpHeader.h \
-	HttpHeaderFieldInfo.h \
 	HttpHeaderFieldStat.h \
 	HttpHeaderTools.cc \
 	HttpHeaderTools.h \
@@ -1192,7 +1190,6 @@ tests_testUfs_SOURCES = \
 	HttpHdrScTarget.cc \
 	HttpHeader.cc \
 	HttpHeader.h \
-	HttpHeaderFieldInfo.h \
 	HttpHeaderFieldStat.h \
 	HttpHeaderTools.cc \
 	HttpHeaderTools.h \
@@ -1365,7 +1362,6 @@ tests_testStore_SOURCES = \
 	HttpHdrScTarget.cc \
 	HttpHeader.cc \
 	HttpHeader.h \
-	HttpHeaderFieldInfo.h \
 	HttpHeaderFieldStat.h \
 	HttpHeaderTools.cc \
 	HttpHeaderTools.h \
@@ -1529,7 +1525,6 @@ tests_testDiskIO_SOURCES = \
 	HttpHdrScTarget.cc \
 	HttpHeader.cc \
 	HttpHeader.h \
-	HttpHeaderFieldInfo.h \
 	HttpHeaderFieldStat.h \
 	HttpHeaderTools.cc \
 	HttpHeaderTools.h \
@@ -1770,7 +1765,6 @@ tests_test_http_range_SOURCES = \
 	HttpHdrScTarget.cc \
 	HttpHeader.cc \
 	HttpHeader.h \
-	HttpHeaderFieldInfo.h \
 	HttpHeaderFieldStat.h \
 	HttpHeaderTools.cc \
 	HttpHeaderTools.h \
@@ -2027,7 +2021,6 @@ tests_testHttpReply_SOURCES = \
 	HttpHdrScTarget.h \
 	HttpHeader.cc \
 	HttpHeader.h \
-	HttpHeaderFieldInfo.h \
 	HttpHeaderFieldStat.h \
 	HttpHeaderMask.h \
 	HttpHeaderTools.cc \
@@ -2152,7 +2145,6 @@ tests_testHttpRequest_SOURCES = \
 	HttpHdrScTarget.cc \
 	HttpHeader.cc \
 	HttpHeader.h \
-	HttpHeaderFieldInfo.h \
 	HttpHeaderFieldStat.h \
 	HttpHeaderTools.cc \
 	HttpHeaderTools.h \
@@ -2450,7 +2442,6 @@ tests_testCacheManager_SOURCES = \
 	HttpHdrScTarget.cc \
 	HttpHeader.cc \
 	HttpHeader.h \
-	HttpHeaderFieldInfo.h \
 	HttpHeaderFieldStat.h \
 	HttpHeaderTools.cc \
 	HttpHeaderTools.h \
