@@ -1208,6 +1208,8 @@ mainInitialize(void)
     FwdState::initModule();
     SBufStatsAction::RegisterWithCacheManager();
 
+    AsyncJob::RegisterWithCacheManager();
+
     /* These use separate calls so that the comm loops can eventually
      * coexist.
      */
