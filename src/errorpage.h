@@ -93,7 +93,7 @@ public:
     ErrorState() = delete; // not implemented.
 
     /// creates an ERR_RELAY_REMOTE error
-    ErrorState(HttpRequest * request, HttpReply *);
+    ErrorState(HttpRequest * request, HttpReply *, const AccessLogEntryPointer &);
 
     ~ErrorState();
 
@@ -118,7 +118,7 @@ private:
     typedef ErrorPage::Build Build;
 
     /// initializations shared by public constructors
-    explicit ErrorState(err_type type);
+    ErrorState(err_type, const AccessLogEntryPointer &);
 
     /// locates the right error page template for this error and compiles it
     SBuf buildBody();
