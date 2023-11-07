@@ -1605,8 +1605,9 @@ helper_server::requestTimeout(const CommTimeoutCbParams &io)
     AsyncCall::Pointer timeoutCall = commCbCall(84, 4, "helper_server::requestTimeout",
                                      CommTimeoutCbPtrFun(helper_server::requestTimeout, srv));
 
-    const int timeSpent = srv->requests.empty() ? 0 : (squid_curtime - srv->requests.front()->request.dispatch_time.tv_sec);
-    const int timeLeft = max(1, (static_cast<int>(srv->parent->timeout) - timeSpent));
+    const time_t timeSpent = srv->requests.empty() ? 0 : (squid_curtime - srv->requests.front()->request.dispatch_time.tv_sec);
+    const time_t minimumNewTimeout = 1; // second
+    const auto timeLeft = max(minimumNewTimeout, srv->parent->timeout - timeSpent);
 
     commSetConnTimeout(io.conn, timeLeft, timeoutCall);
 }
