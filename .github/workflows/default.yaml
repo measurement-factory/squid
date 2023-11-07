@@ -132,6 +132,7 @@ jobs:
           sudo sed --in-place -E 's/# (deb-src.*updates main)/  \1/g' /etc/apt/sources.list
           sudo apt-get --quiet=2 update
           sudo apt-get --quiet=2 build-dep squid
+          sudo apt-get --quiet=2 install linuxdoc-tools libtool-bin
 
       # Duplicates a test-functionality job step
       - name: Check cached OpenSSL installation
@@ -166,3 +167,55 @@ jobs:
         with:
           name: build-logs-${{ runner.os }}
           path: btlayer-*.log
+
+  CodeQL-tests:
+
+    runs-on: [ ubuntu-22.04 ]
+
+    permissions:
+      security-events: write
+
+    steps:
+
+      - name: Install Squid prerequisite Linux packages
+        if: runner.os == 'Linux'
+        run: |
+          # required for "apt-get build-dep" to work
+          sudo sed --in-place -E 's/# (deb-src.*updates main)/  \1/g' /etc/apt/sources.list
+          sudo apt-get --quiet=2 update
+          sudo apt-get --quiet=2 build-dep squid
+          sudo apt-get --quiet=2 install linuxdoc-tools libtool-bin
+
+      # Duplicates a test-functionality job step
+      - name: Check cached OpenSSL installation
+        id: openssl-cache-check
+        uses: actions/cache@v3
+        with:
+          key: ${{ env.OPENSSL_DIR }}-${{ runner.os }}
+          path: ${{ env.OPENSSL_DIR }}
+
+      # Duplicates a test-functionality job step
+      - name: Install OpenSSL
+        if: ${{ steps.openssl-cache-check.outputs.cache-hit != 'true' }}
+        run: |
+          mkdir /tmp/build
+          cd /tmp/build
+          curl -L https://www.openssl.org/source/openssl-$OPENSSL_VERSION.tar.gz | tar --strip-components=1 -xzf -
+          ./Configure shared --prefix=$OPENSSL_DIR linux-x86_64
+          make
+          make install_sw
+
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v2
+
+      - name: Build Squid
+        run: |
+          export PKG_CONFIG_PATH="$OPENSSL_DIR/lib/pkgconfig:$PKG_CONFIG_PATH"
+          sed --in-place "s@with-openssl@with-openssl=$OPENSSL_DIR@" test-suite/buildtests/layer-02-maximus.opts
+          ./test-builds.sh ./test-suite/buildtests/layer-02-maximus.opts
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v2
