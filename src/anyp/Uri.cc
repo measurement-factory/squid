@@ -289,7 +289,7 @@ AnyP::Uri::parse(const HttpRequestMethod& method, const SBuf &rawUrl)
             // port number of the tunnel destination, separated by a colon".
 
             const auto rawHost = parseHost(tok);
-            Assure(rawHost.length() < sizeof(foundHost));
+            assert(rawHost.length() < sizeof(foundHost));
             SBufToCstring(foundHost, rawHost);
 
             if (!tok.skip(':'))
@@ -629,16 +629,14 @@ AnyP::Uri::parsePort(Parser::Tokenizer &tok) const
     if (!tok.int64(rawPort, 10, false)) // port = *DIGIT
         throw TextException("malformed or missing port", Here());
 
-    Assure(rawPort > 0);
-    constexpr KnownPort portMax = 65535; // TODO: Make this a class-scope constant and REuse it.
-    constexpr auto portStorageMax = std::numeric_limits<Port::value_type>::max();
-    static_assert(!Less(portStorageMax, portMax), "Port type can represent the maximum valid port number");
-    if (Less(portMax, rawPort))
+    assert(rawPort > 0);
+    const int64_t portMax = 65535; // TODO: Make this a class-scope constant and REuse it.
+    if (portMax < rawPort)
         throw TextException("huge port", Here());
 
     // TODO: Return KnownPort after migrating the non-CONNECT uri-host parsing
     // code to use us (so that foundPort "int" disappears or starts using Port).
-    return NaturalCast<int>(rawPort);
+    return int(rawPort);
 }
 
 void
