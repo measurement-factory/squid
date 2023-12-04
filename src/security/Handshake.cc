@@ -276,15 +276,19 @@ Security::HandshakeParser::parseModernRecord()
     if (currentContentType != record.type) {
         parseMessages();
         Must(tkMessages.atEnd()); // no currentContentType leftovers
-        fragments = record.fragment;
+        tkMessages.reset(record.fragment, true);
         currentContentType = record.type;
     } else {
-        fragments.append(record.fragment);
+        if (tkMessages.expectMore())
+            tkMessages.reset(tkMessages.leftovers().append(record.fragment), true);
+        else
+            tkMessages.reset(record.fragment, true);
     }
 
     // XXX: parseMessages() assumes that no more same-type fragments are coming,
     // but tkRecords.atEnd() does not actually imply that. See commit e287364.
-    if (tkRecords.atEnd() && !done)
+   // if (tkRecords.atEnd() && !done)
+    if (!done)
         parseMessages();
 }
 
@@ -292,25 +296,30 @@ Security::HandshakeParser::parseModernRecord()
 void
 Security::HandshakeParser::parseMessages()
 {
-    tkMessages.reset(fragments, false);
-    fragments.clear(); // avoid re-parsing these fragments on the next call
-
-    for (; !tkMessages.atEnd(); tkMessages.commit()) {
-        switch (currentContentType) {
-        case ContentType::ctChangeCipherSpec:
-            parseChangeCipherCpecMessage();
-            continue;
-        case ContentType::ctAlert:
-            parseAlertMessage();
-            continue;
-        case ContentType::ctHandshake:
-            parseHandshakeMessage();
-            continue;
-        case ContentType::ctApplicationData:
-            parseApplicationDataMessage();
-            continue;
+    try {
+        for (; !tkMessages.atEnd(); tkMessages.expectMore(false), tkMessages.commit()) {
+            switch (currentContentType) {
+                case ContentType::ctChangeCipherSpec:
+                    parseChangeCipherCpecMessage();
+                    continue;
+                case ContentType::ctAlert:
+                    parseAlertMessage();
+                    continue;
+                case ContentType::ctHandshake:
+                    parseHandshakeMessage();
+                    continue;
+                case ContentType::ctApplicationData:
+                    parseApplicationDataMessage();
+                    continue;
+            }
+            skipMessage("unknown ContentType msg [fragment]");
         }
-        skipMessage("unknown ContentType msg [fragment]");
+    }
+    catch (const Parser::BinaryTokenizer::InsufficientInput &) {
+        tkMessages.rollback();
+        tkMessages.expectMore(true);
+        debugs(83, 5, "need more data");
+        return;
     }
 }
 

@@ -110,6 +110,9 @@ public:
     /// debugging helper for parsed multi-field structures
     void got(uint64_t size, const char *description) const;
 
+    bool expectMore() const { return expectMore_; }
+    void expectMore(bool val) { expectMore_ = val; }
+
     const BinaryTokenizerContext *context; ///< debugging: thing being parsed
 
 protected:
