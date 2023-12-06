@@ -356,6 +356,7 @@ Security::HandshakeParser::parseHandshakeMessage()
     Must(currentContentType == ContentType::ctHandshake);
 
     const Handshake message(tkMessages);
+
     switch (message.msg_type) {
     case HandshakeType::hskClientHello:
         Must(state < atHelloReceived);
