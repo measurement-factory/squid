@@ -110,7 +110,9 @@ public:
     /// debugging helper for parsed multi-field structures
     void got(uint64_t size, const char *description) const;
 
+    /// whether more data bytes may arrive in the future
     bool expectMore() const { return expectMore_; }
+    /// allow or prohibit arriving more data bytes in the future
     void expectMore(bool val) { expectMore_ = val; }
 
     const BinaryTokenizerContext *context; ///< debugging: thing being parsed

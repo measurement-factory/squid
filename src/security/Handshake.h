@@ -115,9 +115,6 @@ private:
 
     const char *done; ///< not nil if we got what we were looking for
 
-    /// concatenated TLSPlaintext.fragments of TLSPlaintext.type
-    SBuf fragments;
-
     /// TLS record layer (parsing uninterpreted data)
     Parser::BinaryTokenizer tkRecords;
 

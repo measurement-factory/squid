@@ -265,7 +265,6 @@ Security::HandshakeParser::parseModernRecord()
 {
     const TLSPlaintext record(tkRecords);
     tkRecords.commit();
-
     details->tlsVersion = record.version;
 
     // RFC 5246: length MUST NOT exceed 2^14
@@ -274,20 +273,15 @@ Security::HandshakeParser::parseModernRecord()
     Must(record.fragment.length() || record.type == ContentType::ctApplicationData);
 
     if (currentContentType != record.type) {
+        tkMessages.expectMore(false);
         parseMessages();
         Must(tkMessages.atEnd()); // no currentContentType leftovers
         tkMessages.reset(record.fragment, true);
         currentContentType = record.type;
     } else {
-        if (tkMessages.expectMore())
-            tkMessages.reset(tkMessages.leftovers().append(record.fragment), true);
-        else
-            tkMessages.reset(record.fragment, true);
+        tkMessages.reset(tkMessages.leftovers().append(record.fragment), true);
     }
 
-    // XXX: parseMessages() assumes that no more same-type fragments are coming,
-    // but tkRecords.atEnd() does not actually imply that. See commit e287364.
-   // if (tkRecords.atEnd() && !done)
     if (!done)
         parseMessages();
 }
@@ -317,7 +311,7 @@ Security::HandshakeParser::parseMessages()
     }
     catch (const Parser::BinaryTokenizer::InsufficientInput &) {
         tkMessages.rollback();
-        tkMessages.expectMore(true);
+        Assure(tkMessages.expectMore());
         debugs(83, 5, "need more data");
         return;
     }
@@ -362,7 +356,6 @@ Security::HandshakeParser::parseHandshakeMessage()
     Must(currentContentType == ContentType::ctHandshake);
 
     const Handshake message(tkMessages);
-
     switch (message.msg_type) {
     case HandshakeType::hskClientHello:
         Must(state < atHelloReceived);
@@ -644,7 +637,7 @@ Security::HandshakeParser::parseSupportedVersionsExtension(const SBuf &extension
 void
 Security::HandshakeParser::skipMessage(const char *description)
 {
-    // tkMessages/fragments can only contain messages of the same ContentType.
+    // tkMessages can only contain messages of the same ContentType.
     // To skip a message, we can and should skip everything we have [left]. If
     // we have partial messages, debugging will mislead about their boundaries.
     tkMessages.skip(tkMessages.leftovers().length(), description);
