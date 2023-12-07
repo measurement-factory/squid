@@ -265,6 +265,7 @@ Security::HandshakeParser::parseModernRecord()
 {
     const TLSPlaintext record(tkRecords);
     tkRecords.commit();
+
     details->tlsVersion = record.version;
 
     // RFC 5246: length MUST NOT exceed 2^14
