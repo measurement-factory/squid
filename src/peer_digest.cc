@@ -112,7 +112,7 @@ DigestFetchState::~DigestFetchState()
 
     HTTPMSGUNLOCK(request);
 
-    assert(pd == nullptr);
+    cbdataReferenceDone(pd);
 }
 
 PeerDigest::~PeerDigest()
@@ -168,21 +168,6 @@ peerDigestSetCheck(PeerDigest * pd, time_t delay)
     debugs(72, 3, "peerDigestSetCheck: will check peer " << pd->host << " in " << delay << " secs");
 }
 
-/*
- * called when peer is about to disappear or have already disappeared
- */
-void
-peerDigestNotePeerGone(PeerDigest * pd)
-{
-    if (pd->flags.requested) {
-        debugs(72, 2, "peerDigest: peer " << pd->host << " gone, will destroy after fetch.");
-        /* do nothing now, the fetching chain will notice and take action */
-    } else {
-        debugs(72, 2, "peerDigest: peer " << pd->host << " is gone, destroying now.");
-        delete pd;
-    }
-}
-
 /* callback for eventAdd() (with peer digest locked)
  * request new digest if our copy is too old or if we lack one;
  * schedule next check otherwise */
@@ -196,10 +181,8 @@ peerDigestCheck(void *data)
 
     pd->times.next_check = 0;   /* unknown */
 
-    if (pd->peer.set() && !pd->peer.valid()) {
-        peerDigestNotePeerGone(pd);
+    if (pd->peer.set() && !pd->peer.valid())
         return;
-    }
 
     debugs(72, 3, "cache_peer " << RawPointer(pd->peer).orNil());
     debugs(72, 3, "peerDigestCheck: time: " << squid_curtime <<
@@ -739,9 +722,6 @@ peerDigestPDFinish(DigestFetchState * fetch, int pcb_valid, int err)
         pd->cd = nullptr;
 
         pd->flags.usable = false;
-
-        if (!pcb_valid)
-            peerDigestNotePeerGone(pd);
     } else {
         assert(pcb_valid);
 
@@ -754,8 +734,6 @@ peerDigestPDFinish(DigestFetchState * fetch, int pcb_valid, int err)
         else
             debugs(72, 2, "received valid digest from " << host);
     }
-
-    cbdataReferenceDone(fetch->pd);
 }
 
 /* free fetch state structures

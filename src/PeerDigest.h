@@ -116,7 +116,6 @@ public:
 extern const Version CacheDigestVer;
 
 void peerDigestNeeded(PeerDigest * pd);
-void peerDigestNotePeerGone(PeerDigest * pd);
 void peerDigestStatsReport(const PeerDigest * pd, StoreEntry * e);
 
 #endif /* USE_CACHE_DIGESTS */
