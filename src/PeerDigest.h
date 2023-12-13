@@ -49,7 +49,7 @@ public:
     DigestFetchState(PeerDigest *,HttpRequest *);
     ~DigestFetchState();
 
-    PeerDigest *pd;
+    CbcPointer<PeerDigest> pd;
     StoreEntry *entry;
     StoreEntry *old_entry;
     store_client *sc;

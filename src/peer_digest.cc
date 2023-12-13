@@ -77,7 +77,7 @@ CBDATA_CLASS_INIT(PeerDigest);
 CBDATA_CLASS_INIT(DigestFetchState);
 
 DigestFetchState::DigestFetchState(PeerDigest *aPd, HttpRequest *req) :
-    pd(cbdataReference(aPd)),
+    pd(aPd),
     entry(nullptr),
     old_entry(nullptr),
     sc(nullptr),
@@ -111,8 +111,6 @@ DigestFetchState::~DigestFetchState()
     entry = nullptr;
 
     HTTPMSGUNLOCK(request);
-
-    cbdataReferenceDone(pd);
 }
 
 PeerDigest::~PeerDigest()
@@ -332,7 +330,7 @@ peerDigestHandleReply(void *data, StoreIOBuffer receivedData)
         return;
     }
 
-    assert(fetch->pd);
+    assert(fetch->pd.raw());
     /* The existing code assumes that the received pointer is
      * where we asked the data to be put
      */
@@ -431,7 +429,7 @@ static int
 peerDigestFetchReply(void *data, char *buf, ssize_t size)
 {
     DigestFetchState *fetch = (DigestFetchState *)data;
-    PeerDigest *pd = fetch->pd;
+    const auto pd = fetch->pd.get();
     assert(pd && buf);
     assert(!fetch->offset);
 
@@ -518,7 +516,7 @@ peerDigestSwapInCBlock(void *data, char *buf, ssize_t size)
         return -1;
 
     if (size >= (ssize_t)StoreDigestCBlockSize) {
-        PeerDigest *pd = fetch->pd;
+        const auto pd = fetch->pd.get();
 
         assert(pd);
         assert(fetch->entry->mem_obj);
@@ -549,9 +547,8 @@ int
 peerDigestSwapInMask(void *data, char *buf, ssize_t size)
 {
     DigestFetchState *fetch = (DigestFetchState *)data;
-    PeerDigest *pd;
+    const auto pd = fetch->pd.get();
 
-    pd = fetch->pd;
     assert(pd->cd && pd->cd->mask);
 
     /*
@@ -585,17 +582,17 @@ peerDigestFetchedEnough(DigestFetchState * fetch, char *buf, ssize_t size, const
     static const SBuf hostUnknown("<unknown>"); // peer host (if any)
     SBuf host = hostUnknown;
 
-    PeerDigest *pd = nullptr;
+    const auto pd = fetch->pd.get();
     const char *reason = nullptr;  /* reason for completion */
     const char *no_bug = nullptr;  /* successful completion if set */
-    const int pdcb_valid = cbdataReferenceValid(fetch->pd);
+    const int pdcb_valid = fetch->pd.valid() ? 1 : 0;
     const int pcb_valid = pdcb_valid && fetch->pd->peer.valid();
 
     /* test possible exiting conditions (the same for most steps!)
      * cases marked with '?!' should not happen */
 
     if (!reason) {
-        if (!pdcb_valid || !(pd = fetch->pd))
+        if (!pd)
             reason = "peer digest disappeared?!";
         else
             host = pd->host;
@@ -679,7 +676,7 @@ peerDigestReqFinish(DigestFetchState * fetch, char * /* buf */,
 
     /* schedule next check if peer is still out there */
     if (pcb_valid) {
-        PeerDigest *pd = fetch->pd;
+        const auto pd = fetch->pd.get();
 
         if (err) {
             pd->times.retry_delay = peerDigestIncDelay(pd);
@@ -706,7 +703,7 @@ peerDigestReqFinish(DigestFetchState * fetch, char * /* buf */,
 static void
 peerDigestPDFinish(DigestFetchState * fetch, int pcb_valid, int err)
 {
-    PeerDigest *pd = fetch->pd;
+    const auto pd = fetch->pd.get();
     const auto host = pd->host;
     pd->times.received = squid_curtime;
     pd->times.req_delay = fetch->resp_time;
