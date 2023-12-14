@@ -38,9 +38,9 @@ static void peerDigestSetCheck(PeerDigest * pd, time_t delay);
 static EVH peerDigestCheck;
 static void peerDigestRequest(PeerDigest * pd);
 static STCB peerDigestHandleReply;
-static int peerDigestFetchReply(void *, char *, ssize_t);
-int peerDigestSwapInCBlock(void *, char *, ssize_t);
-int peerDigestSwapInMask(void *, char *, ssize_t);
+static int peerDigestFetchReply(DigestFetchState *, char *, ssize_t);
+int peerDigestSwapInCBlock(DigestFetchState *, char *, ssize_t);
+int peerDigestSwapInMask(DigestFetchState *, char *, ssize_t);
 static int peerDigestFetchedEnough(DigestFetchState * fetch, char *buf, ssize_t size, const char *step_name);
 static void peerDigestFetchStop(DigestFetchState * fetch, char *buf, const char *reason);
 static void peerDigestFetchAbort(DigestFetchState * fetch, char *buf, const char *reason);
@@ -422,9 +422,8 @@ peerDigestHandleReply(void *data, StoreIOBuffer receivedData)
 
 /// handle HTTP response headers in the initial storeClientCopy() response
 static int
-peerDigestFetchReply(void *data, char *buf, ssize_t size)
+peerDigestFetchReply(DigestFetchState *fetch, char *buf, ssize_t size)
 {
-    DigestFetchState *fetch = (DigestFetchState *)data;
     const auto pd = fetch->pd.get();
     assert(pd && buf);
     assert(!fetch->offset);
@@ -502,10 +501,8 @@ peerDigestFetchReply(void *data, char *buf, ssize_t size)
 }
 
 int
-peerDigestSwapInCBlock(void *data, char *buf, ssize_t size)
+peerDigestSwapInCBlock(DigestFetchState *fetch, char *buf, ssize_t size)
 {
-    DigestFetchState *fetch = (DigestFetchState *)data;
-
     assert(fetch->state == DIGEST_READ_CBLOCK);
 
     if (peerDigestFetchedEnough(fetch, buf, size, "peerDigestSwapInCBlock"))
@@ -540,9 +537,8 @@ peerDigestSwapInCBlock(void *data, char *buf, ssize_t size)
 }
 
 int
-peerDigestSwapInMask(void *data, char *buf, ssize_t size)
+peerDigestSwapInMask(DigestFetchState *fetch, char *buf, ssize_t size)
 {
-    DigestFetchState *fetch = (DigestFetchState *)data;
     const auto pd = fetch->pd.get();
 
     assert(pd->cd && pd->cd->mask);
