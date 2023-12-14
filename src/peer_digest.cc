@@ -572,21 +572,14 @@ static int
 peerDigestFetchedEnough(DigestFetchState * fetch, char *buf, ssize_t size, const char *step_name)
 {
     static const SBuf hostUnknown("<unknown>"); // peer host (if any)
-    SBuf host = hostUnknown;
 
     const auto pd = fetch->pd.get();
-    const char *reason = nullptr;  /* reason for completion */
+    const char *reason = pd ? nullptr : "peer digest disappeared?!";  /* reason for completion */
+    const auto host = pd ? pd->host : hostUnknown;
     const char *no_bug = nullptr;  /* successful completion if set */
 
     /* test possible exiting conditions (the same for most steps!)
      * cases marked with '?!' should not happen */
-
-    if (!reason) {
-        if (!pd)
-            reason = "peer digest disappeared?!";
-        else
-            host = pd->host;
-    }
 
     debugs(72, 6, step_name << ": peer " << host << ", offset: " <<
            fetch->offset << " size: " << size << ".");
