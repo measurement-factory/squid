@@ -80,7 +80,7 @@ public:
     ~PeerDigest();
 
     /// updates stats when digest transfer is complete
-    void peerDigestPDFinish(DigestFetchState *, int err);
+    void finish(DigestFetchState *, int err);
 
     CbcPointer<CachePeer> peer; ///< pointer back to peer structure, argh
     CacheDigest *cd = nullptr;            /**< actual digest structure */

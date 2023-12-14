@@ -664,7 +664,7 @@ peerDigestReqFinish(DigestFetchState * fetch, char * /* buf */,
 {
     assert(reason);
 
-    /* must go before peerDigestPDFinish */
+    /* must go before PeerDigest::finish() */
 
     if (pdcb_valid) {
         fetch->pd->flags.requested = false;
@@ -689,14 +689,14 @@ peerDigestReqFinish(DigestFetchState * fetch, char * /* buf */,
         peerDigestFetchSetStats(fetch);
 
     if (const auto pd = fetch->pd.get())
-        pd->peerDigestPDFinish(fetch, err);
+        pd->finish(fetch, err);
 
     if (fcb_valid)
         peerDigestFetchFinish(fetch, err);
 }
 
 void
-PeerDigest::peerDigestPDFinish(DigestFetchState * fetch, int err)
+PeerDigest::finish(DigestFetchState * fetch, int err)
 {
     const auto pd = this; // TODO: remove this diff reducer
     pd->times.received = squid_curtime;
