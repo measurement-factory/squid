@@ -45,7 +45,6 @@ static int peerDigestFetchedEnough(DigestFetchState * fetch, char *buf, ssize_t 
 static void peerDigestFetchStop(DigestFetchState * fetch, char *buf, const char *reason);
 static void peerDigestFetchAbort(DigestFetchState * fetch, char *buf, const char *reason);
 static void peerDigestReqFinish(DigestFetchState * fetch, char *buf, int, int, int, const char *reason, int err);
-static void peerDigestPDFinish(DigestFetchState * fetch, int pcb_valid, int err);
 static void peerDigestFetchFinish(DigestFetchState * fetch, int err);
 static void peerDigestFetchSetStats(DigestFetchState * fetch);
 static int peerDigestSetCBlock(PeerDigest * pd, const char *buf);
@@ -179,11 +178,9 @@ peerDigestCheck(void *data)
 
     pd->times.next_check = 0;   /* unknown */
 
-    if (pd->peer.set() && !pd->peer.valid())
-        return;
+    Assure(pd->peer.valid());
 
-    debugs(72, 3, "cache_peer " << RawPointer(pd->peer).orNil());
-    debugs(72, 3, "peerDigestCheck: time: " << squid_curtime <<
+    debugs(72, 3, "cache_peer " << *pd->peer << " now: " << squid_curtime <<
            ", last received: " << (long int) pd->times.received << "  (" <<
            std::showpos << (int) (squid_curtime - pd->times.received) << ")");
 
@@ -691,20 +688,17 @@ peerDigestReqFinish(DigestFetchState * fetch, char * /* buf */,
     if (fcb_valid)
         peerDigestFetchSetStats(fetch);
 
-    if (pdcb_valid)
-        peerDigestPDFinish(fetch, pcb_valid, err);
+    if (const auto pd = fetch->pd.get())
+        pd->peerDigestPDFinish(fetch, err);
 
     if (fcb_valid)
         peerDigestFetchFinish(fetch, err);
 }
 
-/* destroys digest if peer disappeared
- * must be called only when fetch and pd cbdata are valid */
-static void
-peerDigestPDFinish(DigestFetchState * fetch, int pcb_valid, int err)
+void
+PeerDigest::peerDigestPDFinish(DigestFetchState * fetch, int err)
 {
-    const auto pd = fetch->pd.get();
-    const auto host = pd->host;
+    const auto pd = this; // TODO: remove this diff reducer
     pd->times.received = squid_curtime;
     pd->times.req_delay = fetch->resp_time;
     pd->stats.sent.kbytes += fetch->sent.bytes;
@@ -713,23 +707,21 @@ peerDigestPDFinish(DigestFetchState * fetch, int pcb_valid, int err)
     pd->stats.recv.msgs += fetch->recv.msg;
 
     if (err) {
-        debugs(72, DBG_IMPORTANT, "" << (pcb_valid ? "temporary " : "" ) << "disabling (" << pd->req_result << ") digest from " << host);
+        debugs(72, DBG_IMPORTANT, "disabling (" << pd->req_result << ") digest from " << pd->host);
 
         delete pd->cd;
         pd->cd = nullptr;
 
         pd->flags.usable = false;
     } else {
-        assert(pcb_valid);
-
         pd->flags.usable = true;
 
         /* XXX: ugly condition, but how? */
 
         if (fetch->entry->store_status == STORE_OK)
-            debugs(72, 2, "re-used old digest from " << host);
+            debugs(72, 2, "re-used old digest from " << pd->host);
         else
-            debugs(72, 2, "received valid digest from " << host);
+            debugs(72, 2, "received valid digest from " << pd->host);
     }
 }
 

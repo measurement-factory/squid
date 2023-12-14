@@ -79,6 +79,9 @@ public:
     PeerDigest(CachePeer *);
     ~PeerDigest();
 
+    /// updates stats when digest transfer is complete
+    void peerDigestPDFinish(DigestFetchState *, int err);
+
     CbcPointer<CachePeer> peer; ///< pointer back to peer structure, argh
     CacheDigest *cd = nullptr;            /**< actual digest structure */
     const SBuf host; ///< copy of peer->host
