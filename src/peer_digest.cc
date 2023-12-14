@@ -44,7 +44,7 @@ int peerDigestSwapInMask(void *, char *, ssize_t);
 static int peerDigestFetchedEnough(DigestFetchState * fetch, char *buf, ssize_t size, const char *step_name);
 static void peerDigestFetchStop(DigestFetchState * fetch, char *buf, const char *reason);
 static void peerDigestFetchAbort(DigestFetchState * fetch, char *buf, const char *reason);
-static void peerDigestReqFinish(DigestFetchState * fetch, char *buf, int, int, int, const char *reason, int err);
+static void peerDigestReqFinish(DigestFetchState *, char *buf, const char *reason, int err);
 static void peerDigestFetchFinish(DigestFetchState * fetch, int err);
 static void peerDigestFetchSetStats(DigestFetchState * fetch);
 static int peerDigestSetCBlock(PeerDigest * pd, const char *buf);
@@ -327,7 +327,6 @@ peerDigestHandleReply(void *data, StoreIOBuffer receivedData)
         return;
     }
 
-    assert(fetch->pd.raw());
     /* The existing code assumes that the received pointer is
      * where we asked the data to be put
      */
@@ -582,8 +581,6 @@ peerDigestFetchedEnough(DigestFetchState * fetch, char *buf, ssize_t size, const
     const auto pd = fetch->pd.get();
     const char *reason = nullptr;  /* reason for completion */
     const char *no_bug = nullptr;  /* successful completion if set */
-    const int pdcb_valid = fetch->pd.valid() ? 1 : 0;
-    const int pcb_valid = pdcb_valid && fetch->pd->peer.valid();
 
     /* test possible exiting conditions (the same for most steps!)
      * cases marked with '?!' should not happen */
@@ -627,11 +624,7 @@ peerDigestFetchedEnough(DigestFetchState * fetch, char *buf, ssize_t size, const
     if (reason) {
         const int level = strstr(reason, "?!") ? 1 : 3;
         debugs(72, level, "" << step_name << ": peer " << host << ", exiting after '" << reason << "'");
-        peerDigestReqFinish(fetch, buf,
-                            1, pdcb_valid, pcb_valid, reason, !no_bug);
-    } else {
-        /* paranoid check */
-        assert(pdcb_valid && pcb_valid);
+        peerDigestReqFinish(fetch, buf, reason, !no_bug);
     }
 
     return reason != nullptr;
@@ -644,7 +637,7 @@ peerDigestFetchStop(DigestFetchState * fetch, char *buf, const char *reason)
 {
     assert(reason);
     debugs(72, 2, "peerDigestFetchStop: peer " << fetch->pd->host << ", reason: " << reason);
-    peerDigestReqFinish(fetch, buf, 1, 1, 1, reason, 0);
+    peerDigestReqFinish(fetch, buf, reason, 0);
 }
 
 /* call this when all callback data is valid but something bad happened */
@@ -653,28 +646,24 @@ peerDigestFetchAbort(DigestFetchState * fetch, char *buf, const char *reason)
 {
     assert(reason);
     debugs(72, 2, "peerDigestFetchAbort: peer " << fetch->pd->host << ", reason: " << reason);
-    peerDigestReqFinish(fetch, buf, 1, 1, 1, reason, 1);
+    peerDigestReqFinish(fetch, buf, reason, 1);
 }
 
 /* complete the digest transfer, update stats, unlock/release everything */
 static void
 peerDigestReqFinish(DigestFetchState * fetch, char * /* buf */,
-                    int fcb_valid, int pdcb_valid, int pcb_valid,
                     const char *reason, int err)
 {
     assert(reason);
+    const auto pd = fetch->pd.get();
 
     /* must go before PeerDigest::finish() */
 
-    if (pdcb_valid) {
-        fetch->pd->flags.requested = false;
-        fetch->pd->req_result = reason;
-    }
+    if (pd) {
+        pd->flags.requested = false;
+        pd->req_result = reason;
 
-    /* schedule next check if peer is still out there */
-    if (pcb_valid) {
-        const auto pd = fetch->pd.get();
-
+        /* schedule next check if peer is still out there */
         if (err) {
             pd->times.retry_delay = peerDigestIncDelay(pd);
             peerDigestSetCheck(pd, pd->times.retry_delay);
@@ -685,14 +674,13 @@ peerDigestReqFinish(DigestFetchState * fetch, char * /* buf */,
     }
 
     /* note: order is significant */
-    if (fcb_valid)
-        peerDigestFetchSetStats(fetch);
 
-    if (const auto pd = fetch->pd.get())
+    peerDigestFetchSetStats(fetch);
+
+    if (pd)
         pd->finish(fetch, err);
 
-    if (fcb_valid)
-        peerDigestFetchFinish(fetch, err);
+    peerDigestFetchFinish(fetch, err);
 }
 
 void
