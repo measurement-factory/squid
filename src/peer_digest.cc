@@ -424,8 +424,6 @@ peerDigestHandleReply(void *data, StoreIOBuffer receivedData)
 static int
 peerDigestFetchReply(DigestFetchState * const fetch, const ssize_t size)
 {
-    const auto pd = fetch->pd.get();
-    assert(pd);
     assert(!fetch->offset);
 
     assert(fetch->state == DIGEST_READ_REPLY);
@@ -437,7 +435,7 @@ peerDigestFetchReply(DigestFetchState * const fetch, const ssize_t size)
         const auto &reply = fetch->entry->mem().freshestReply();
         const auto status = reply.sline.status();
         assert(status != Http::scNone);
-        debugs(72, 3, "peerDigestFetchReply: " << pd->host << " status: " << status <<
+        debugs(72, 3, "peerDigestFetchReply: " << fetch->pd->host << " status: " << status <<
                ", expires: " << (long int) reply.expires << " (" << std::showpos <<
                (int) (reply.expires - squid_curtime) << ")");
 
@@ -511,7 +509,6 @@ peerDigestSwapInCBlock(DigestFetchState * const fetch, const char *buf, const ss
     if (size >= (ssize_t)StoreDigestCBlockSize) {
         const auto pd = fetch->pd.get();
 
-        assert(pd);
         assert(fetch->entry->mem_obj);
 
         if (peerDigestSetCBlock(pd, buf)) {
