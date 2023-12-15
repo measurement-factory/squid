@@ -651,11 +651,11 @@ static void
 peerDigestReqFinish(DigestFetchState * fetch, const char *reason, int err)
 {
     assert(reason);
-    const auto pd = fetch->pd.get();
 
     /* must go before PeerDigest::finish() */
+    peerDigestFetchSetStats(fetch);
 
-    if (pd) {
+    if (const auto pd = fetch->pd.get()) {
         pd->flags.requested = false;
         pd->req_result = reason;
 
@@ -666,14 +666,8 @@ peerDigestReqFinish(DigestFetchState * fetch, const char *reason, int err)
             pd->times.retry_delay = 0;
             peerDigestSetCheck(pd, peerDigestNewDelay(fetch->entry));
         }
-    }
-
-    /* note: order is significant */
-
-    peerDigestFetchSetStats(fetch);
-
-    if (pd)
         pd->finish(fetch, err);
+    }
 
     peerDigestFetchFinish(fetch, err);
 }
