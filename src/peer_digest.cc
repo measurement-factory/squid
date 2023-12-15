@@ -239,7 +239,6 @@ peerDigestRequest(PeerDigest * pd)
     const auto mx = MasterXaction::MakePortless<XactionInitiator::initCacheDigest>();
     req = HttpRequest::FromUrlXXX(url, mx);
 
-    sleep(7);
     assert(req);
 
     /* add custom headers */
