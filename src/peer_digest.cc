@@ -571,7 +571,7 @@ peerDigestFetchedEnough(DigestFetchState * const fetch, const ssize_t size, cons
     static const SBuf hostUnknown("<unknown>"); // peer host (if any)
     SBuf host = hostUnknown;
 
-    PeerDigest *pd = fetch->pd.get();
+    const auto pd = fetch->pd.get();
     const char *reason = nullptr;  /* reason for completion */
     const char *no_bug = nullptr;  /* successful completion if set */
 
