@@ -38,12 +38,12 @@ static void peerDigestSetCheck(PeerDigest * pd, time_t delay);
 static EVH peerDigestCheck;
 static void peerDigestRequest(PeerDigest * pd);
 static STCB peerDigestHandleReply;
-static int peerDigestFetchReply(DigestFetchState *, char *, ssize_t);
-int peerDigestSwapInCBlock(DigestFetchState *, char *, ssize_t);
-int peerDigestSwapInMask(DigestFetchState *, char *, ssize_t);
-static int peerDigestFetchedEnough(DigestFetchState * fetch, ssize_t size, const char *step_name);
-static void peerDigestFetchStop(DigestFetchState * fetch, const char *reason);
-static void peerDigestFetchAbort(DigestFetchState * fetch, const char *reason);
+static int peerDigestFetchReply(DigestFetchState *, const char *, ssize_t);
+int peerDigestSwapInCBlock(DigestFetchState *, const char *, ssize_t);
+int peerDigestSwapInMask(DigestFetchState *, const char *, ssize_t);
+static int peerDigestFetchedEnough(DigestFetchState *, ssize_t size, const char *step_name);
+static void peerDigestFetchStop(DigestFetchState *, const char *reason);
+static void peerDigestFetchAbort(DigestFetchState *, const char *reason);
 static void peerDigestReqFinish(DigestFetchState *, const char *reason, int err);
 static void peerDigestFetchFinish(DigestFetchState * fetch, int err);
 static void peerDigestFetchSetStats(DigestFetchState * fetch);
@@ -422,7 +422,7 @@ peerDigestHandleReply(void *data, StoreIOBuffer receivedData)
 
 /// handle HTTP response headers in the initial storeClientCopy() response
 static int
-peerDigestFetchReply(DigestFetchState *fetch, char *buf, ssize_t size)
+peerDigestFetchReply(DigestFetchState * const fetch, const char * const buf, const ssize_t size)
 {
     const auto pd = fetch->pd.get();
     assert(pd && buf);
@@ -501,7 +501,7 @@ peerDigestFetchReply(DigestFetchState *fetch, char *buf, ssize_t size)
 }
 
 int
-peerDigestSwapInCBlock(DigestFetchState *fetch, char *buf, ssize_t size)
+peerDigestSwapInCBlock(DigestFetchState * const fetch, const char *buf, const ssize_t size)
 {
     assert(fetch->state == DIGEST_READ_CBLOCK);
 
@@ -537,7 +537,7 @@ peerDigestSwapInCBlock(DigestFetchState *fetch, char *buf, ssize_t size)
 }
 
 int
-peerDigestSwapInMask(DigestFetchState *fetch, char *buf, ssize_t size)
+peerDigestSwapInMask(DigestFetchState * const fetch, const char * const buf, const ssize_t size)
 {
     const auto pd = fetch->pd.get();
 
@@ -569,7 +569,7 @@ peerDigestSwapInMask(DigestFetchState *fetch, char *buf, ssize_t size)
 }
 
 static int
-peerDigestFetchedEnough(DigestFetchState * fetch, ssize_t size, const char *step_name)
+peerDigestFetchedEnough(DigestFetchState * const fetch, const ssize_t size, const char * const step_name)
 {
     static const SBuf hostUnknown("<unknown>"); // peer host (if any)
     SBuf host = hostUnknown;
@@ -629,7 +629,7 @@ peerDigestFetchedEnough(DigestFetchState * fetch, ssize_t size, const char *step
 /* call this when all callback data is valid and fetch must be stopped but
  * no error has occurred (e.g. we received 304 reply and reuse old digest) */
 static void
-peerDigestFetchStop(DigestFetchState * fetch, const char *reason)
+peerDigestFetchStop(DigestFetchState * const fetch, const char * const reason)
 {
     assert(reason);
     debugs(72, 2, "peerDigestFetchStop: peer " << fetch->pd->host << ", reason: " << reason);
@@ -638,7 +638,7 @@ peerDigestFetchStop(DigestFetchState * fetch, const char *reason)
 
 /* call this when all callback data is valid but something bad happened */
 static void
-peerDigestFetchAbort(DigestFetchState * fetch, const char *reason)
+peerDigestFetchAbort(DigestFetchState * const fetch, const char * const reason)
 {
     assert(reason);
     debugs(72, 2, "peerDigestFetchAbort: peer " << fetch->pd->host << ", reason: " << reason);
@@ -647,7 +647,7 @@ peerDigestFetchAbort(DigestFetchState * fetch, const char *reason)
 
 /* complete the digest transfer, update stats, unlock/release everything */
 static void
-peerDigestReqFinish(DigestFetchState * fetch, const char *reason, int err)
+peerDigestReqFinish(DigestFetchState * const fetch, const char * const reason, const int err)
 {
     assert(reason);
 
@@ -672,7 +672,7 @@ peerDigestReqFinish(DigestFetchState * fetch, const char *reason, int err)
 }
 
 void
-PeerDigest::finish(DigestFetchState * fetch, int err)
+PeerDigest::finish(DigestFetchState * const fetch, const int err)
 {
     const auto pd = this; // TODO: remove this diff reducer
     pd->times.received = squid_curtime;
