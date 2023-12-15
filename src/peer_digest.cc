@@ -38,7 +38,7 @@ static void peerDigestSetCheck(PeerDigest * pd, time_t delay);
 static EVH peerDigestCheck;
 static void peerDigestRequest(PeerDigest * pd);
 static STCB peerDigestHandleReply;
-static int peerDigestFetchReply(DigestFetchState *, const char *, ssize_t);
+static int peerDigestFetchReply(DigestFetchState *, ssize_t);
 int peerDigestSwapInCBlock(DigestFetchState *, const char *, ssize_t);
 int peerDigestSwapInMask(DigestFetchState *, const char *, ssize_t);
 static int peerDigestFetchedEnough(DigestFetchState *, ssize_t size, const char *step_name);
@@ -359,7 +359,7 @@ peerDigestHandleReply(void *data, StoreIOBuffer receivedData)
         switch (fetch->state) {
 
         case DIGEST_READ_REPLY:
-            retsize = peerDigestFetchReply(fetch, fetch->buf, fetch->bufofs);
+            retsize = peerDigestFetchReply(fetch, fetch->bufofs);
             break;
 
         case DIGEST_READ_CBLOCK:
@@ -422,10 +422,10 @@ peerDigestHandleReply(void *data, StoreIOBuffer receivedData)
 
 /// handle HTTP response headers in the initial storeClientCopy() response
 static int
-peerDigestFetchReply(DigestFetchState * const fetch, const char * const buf, const ssize_t size)
+peerDigestFetchReply(DigestFetchState * const fetch, const ssize_t size)
 {
     const auto pd = fetch->pd.get();
-    assert(pd && buf);
+    assert(pd);
     assert(!fetch->offset);
 
     assert(fetch->state == DIGEST_READ_REPLY);
