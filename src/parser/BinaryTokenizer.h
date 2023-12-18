@@ -60,6 +60,9 @@ public:
     /// this method avoids append overheads during incremental parsing
     void reinput(const SBuf &data, const bool expectMore) { data_ = data; expectMore_ = expectMore; }
 
+    /// adds more data bytes to parse
+    void append(const SBuf &data) { data_.append(data); }
+
     /// make progress: future parsing failures will not rollback beyond this point
     void commit();
 
