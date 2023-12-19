@@ -273,20 +273,22 @@ Security::HandshakeParser::parseModernRecord()
     // RFC 5246: MUST NOT send zero-length [non-application] fragments
     Must(record.fragment.length() || record.type == ContentType::ctApplicationData);
 
-    const auto expectMoreRecordBytes = !(tkRecords.atEnd() && !tkRecords.expectMore());
     if (currentContentType != record.type) {
         tkMessages.expectMore(false);
         parseMessages();
         Must(tkMessages.atEnd()); // no currentContentType leftovers
-        tkMessages.reset(record.fragment, expectMoreRecordBytes);
         currentContentType = record.type;
-    } else {
-        tkMessages.expectMore(expectMoreRecordBytes);
-        tkMessages.append(record.fragment);
     }
 
-    if (!done)
-        parseMessages();
+    const auto haveUnparsedRecordBytes = !tkRecords.atEnd();
+    const auto expectMoreRecordLayerBytes = tkRecords.expectMore();
+    // TODO: consider adding BinaryTokenizer::exhausted() instead
+    const auto expectMoreMessageLayerBytes = haveUnparsedRecordBytes || expectMoreRecordLayerBytes;
+
+    tkMessages.expectMore(expectMoreMessageLayerBytes);
+    tkMessages.append(record.fragment);
+
+    parseMessages();
 }
 
 /// parses one or more "higher-level protocol" frames of currentContentType
@@ -295,7 +297,7 @@ Security::HandshakeParser::parseMessages()
 {
     tkMessages.rollback();
 
-    for (; !tkMessages.atEnd(); tkMessages.commit()) {
+    while (!tkMessages.atEnd() && !done) {
         switch (currentContentType) {
         case ContentType::ctChangeCipherSpec:
             parseChangeCipherCpecMessage();
@@ -312,7 +314,6 @@ Security::HandshakeParser::parseMessages()
         }
         skipMessage("unknown ContentType msg [fragment]");
     }
-
 }
 
 void
@@ -340,6 +341,7 @@ Security::HandshakeParser::parseAlertMessage()
 {
     Must(currentContentType == ContentType::ctAlert);
     const Alert alert(tkMessages);
+    tkMessages.commit();
     debugs(83, (alert.fatal() ? 2:3),
            "level " << static_cast<int>(alert.level) <<
            " description " << static_cast<int>(alert.description));
@@ -354,6 +356,7 @@ Security::HandshakeParser::parseHandshakeMessage()
     Must(currentContentType == ContentType::ctHandshake);
 
     const Handshake message(tkMessages);
+    tkMessages.commit();
 
     switch (message.msg_type) {
     case HandshakeType::hskClientHello:
@@ -640,6 +643,7 @@ Security::HandshakeParser::skipMessage(const char *description)
     // To skip a message, we can and should skip everything we have [left]. If
     // we have partial messages, debugging will mislead about their boundaries.
     tkMessages.skip(tkMessages.leftovers().length(), description);
+    tkMessages.commit();
 }
 
 bool
