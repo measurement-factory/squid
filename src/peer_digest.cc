@@ -518,6 +518,7 @@ peerDigestSwapInCBlock(DigestFetchState * const fetch, const char *buf, const ss
     if (size >= (ssize_t)StoreDigestCBlockSize) {
         const auto pd = fetch->pd.get();
 
+        assert(pd);
         assert(fetch->entry->mem_obj);
 
         if (peerDigestSetCBlock(pd, buf)) {
@@ -546,7 +547,7 @@ int
 peerDigestSwapInMask(DigestFetchState * const fetch, const char * const buf, const ssize_t size)
 {
     const auto pd = fetch->pd.get();
-
+    assert(pd);
     assert(pd->cd && pd->cd->mask);
 
     /*
