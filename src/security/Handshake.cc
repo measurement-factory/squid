@@ -10,6 +10,7 @@
 
 #include "squid.h"
 #include "base/IoManip.h"
+#include "parser/forward.h"
 #include "sbuf/Stream.h"
 #include "security/Handshake.h"
 #if USE_OPENSSL
@@ -297,7 +298,7 @@ Security::HandshakeParser::parseMessages()
 {
     tkMessages.rollback();
 
-    while (!tkMessages.atEnd() && !done) {
+    while (!done) {
         switch (currentContentType) {
         case ContentType::ctChangeCipherSpec:
             parseChangeCipherCpecMessage();
@@ -639,6 +640,9 @@ Security::HandshakeParser::parseSupportedVersionsExtension(const SBuf &extension
 void
 Security::HandshakeParser::skipMessage(const char *description)
 {
+    // skip at least one byte
+    if (tkMessages.atEnd())
+        throw Parser::InsufficientInput();
     // tkMessages can only contain messages of the same ContentType.
     // To skip a message, we can and should skip everything we have [left]. If
     // we have partial messages, debugging will mislead about their boundaries.
