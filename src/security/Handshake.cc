@@ -296,9 +296,7 @@ Security::HandshakeParser::parseModernRecord()
 void
 Security::HandshakeParser::parseMessages()
 {
-    tkMessages.rollback();
-
-    while (!done) {
+    for (tkMessages.rollback(); !tkMessages.atEnd() && !done; tkMessages.commit()) {
         switch (currentContentType) {
         case ContentType::ctChangeCipherSpec:
             parseChangeCipherCpecMessage();
@@ -342,7 +340,6 @@ Security::HandshakeParser::parseAlertMessage()
 {
     Must(currentContentType == ContentType::ctAlert);
     const Alert alert(tkMessages);
-    tkMessages.commit();
     debugs(83, (alert.fatal() ? 2:3),
            "level " << static_cast<int>(alert.level) <<
            " description " << static_cast<int>(alert.description));
@@ -357,7 +354,6 @@ Security::HandshakeParser::parseHandshakeMessage()
     Must(currentContentType == ContentType::ctHandshake);
 
     const Handshake message(tkMessages);
-    tkMessages.commit();
 
     switch (message.msg_type) {
     case HandshakeType::hskClientHello:
@@ -647,7 +643,6 @@ Security::HandshakeParser::skipMessage(const char *description)
     // To skip a message, we can and should skip everything we have [left]. If
     // we have partial messages, debugging will mislead about their boundaries.
     tkMessages.skip(tkMessages.leftovers().length(), description);
-    tkMessages.commit();
 }
 
 bool
