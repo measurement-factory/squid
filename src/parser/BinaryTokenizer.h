@@ -114,7 +114,7 @@ public:
     void got(uint64_t size, const char *description) const;
 
     /// whether more data bytes may arrive in the future
-    bool expectingMore() const { return expectMore_; }
+    auto expectingMore() const { return expectMore_; }
     /// allow or prohibit arriving more data bytes in the future
     void expectingMore(bool val) { expectMore_ = val; }
 
