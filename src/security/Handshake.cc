@@ -280,11 +280,11 @@ Security::HandshakeParser::parseModernRecord()
     }
 
     const auto haveUnparsedRecordBytes = !tkRecords.atEnd();
-    const auto expectMoreRecordLayerBytes = tkRecords.expectMore();
+    const auto expectMoreRecordLayerBytes = tkRecords.expectingMore();
     // TODO: consider adding BinaryTokenizer::exhausted() instead
     const auto expectMoreMessageLayerBytes = haveUnparsedRecordBytes || expectMoreRecordLayerBytes;
 
-    tkMessages.expectMore(expectMoreMessageLayerBytes);
+    tkMessages.expectingMore(expectMoreMessageLayerBytes);
     tkMessages.append(record.fragment);
 
     parseMessages();
@@ -639,7 +639,7 @@ Security::HandshakeParser::skipMessage(const char *description)
         throw Parser::InsufficientInput();
     // tkMessages can only contain messages of the same ContentType.
     // To skip a message, we can and should skip everything we have [left]. If
-    // we have partial messages, debugging will mislead about their boundaries.
+    // we buffered a partial message, we will need to read/skip multiple times.
     tkMessages.skip(tkMessages.leftovers().length(), description);
 }
 
