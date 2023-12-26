@@ -646,15 +646,14 @@ Security::HandshakeParser::skipMessage(const char *description)
 bool
 Security::HandshakeParser::parseHello(const SBuf &data)
 {
-    {
-        if (!expectingModernRecords.configured())
-            expectingModernRecords.configure(!isSslv2Record(data));
+    if (!expectingModernRecords.configured())
+        expectingModernRecords.configure(!isSslv2Record(data));
 
-        // data contains everything read so far, but we may read more later
-        tkRecords.reinput(data, true);
-        tkRecords.rollback();
+    // data contains everything read so far, but we may read more later
+    tkRecords.reinput(data, true);
+    tkRecords.rollback();
     while (!done) {
-        try{
+        try {
             if (tkRecords.atEnd())
                 return false;
 
