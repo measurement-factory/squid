@@ -275,8 +275,6 @@ Security::HandshakeParser::parseModernRecord()
     Must(record.fragment.length() || record.type == ContentType::ctApplicationData);
 
     if (currentContentType != record.type) {
-        tkMessages.expectMore(false);
-        parseMessages();
         Must(tkMessages.atEnd()); // no currentContentType leftovers
         currentContentType = record.type;
     }
@@ -296,7 +294,7 @@ Security::HandshakeParser::parseModernRecord()
 void
 Security::HandshakeParser::parseMessages()
 {
-    for (tkMessages.rollback(); !tkMessages.atEnd() && !done; tkMessages.commit()) {
+    for (tkMessages.rollback(); !done; tkMessages.commit()) {
         switch (currentContentType) {
         case ContentType::ctChangeCipherSpec:
             parseChangeCipherCpecMessage();
@@ -648,24 +646,26 @@ Security::HandshakeParser::skipMessage(const char *description)
 bool
 Security::HandshakeParser::parseHello(const SBuf &data)
 {
-    try {
+    {
         if (!expectingModernRecords.configured())
             expectingModernRecords.configure(!isSslv2Record(data));
 
         // data contains everything read so far, but we may read more later
         tkRecords.reinput(data, true);
         tkRecords.rollback();
-        while (!done)
+    while (!done) {
+        try{
+            if (tkRecords.atEnd())
+                return false;
+
             parseRecord();
-        debugs(83, 7, "success; got: " << done);
-        // we are done; tkRecords may have leftovers we are not interested in
-        return true;
+        }
+        catch (const Parser::BinaryTokenizer::InsufficientInput &) {
+            debugs(83, 5, "need more data");
+        }
     }
-    catch (const Parser::BinaryTokenizer::InsufficientInput &) {
-        debugs(83, 5, "need more data");
-        return false;
-    }
-    return false; // unreached
+    // we are done; tkRecords may have leftovers we are not interested in
+    return true;
 }
 
 /// A helper function to create a set of all supported TLS extensions
