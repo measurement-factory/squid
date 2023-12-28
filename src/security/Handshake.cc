@@ -275,7 +275,13 @@ Security::HandshakeParser::parseModernRecord()
     Must(record.fragment.length() || record.type == ContentType::ctApplicationData);
 
     if (currentContentType != record.type) {
-        Must(tkMessages.atEnd()); // no currentContentType leftovers
+        if (!tkMessages.atEnd()) {
+            // We could not parse these leftovers before. Since every serialized TLS construct has a
+            // known size (constant or sent-in-advance), parsing these bytes now cannot succeed either.
+            throw TextException(ToSBuf("truncated TLS message;",
+                " leftovers size=", tkMessages.leftovers().length(),
+                " type=", currentContentType), Here());
+        }
         currentContentType = record.type;
     }
 
@@ -284,10 +290,14 @@ Security::HandshakeParser::parseModernRecord()
     // TODO: consider adding BinaryTokenizer::exhausted() instead
     const auto expectMoreMessageLayerBytes = haveUnparsedRecordBytes || expectMoreRecordLayerBytes;
 
-    tkMessages.expectingMore(expectMoreMessageLayerBytes);
+    tkMessages.expectMore(expectMoreMessageLayerBytes);
     tkMessages.append(record.fragment);
 
-    parseMessages();
+    try {
+        parseMessages();
+    } catch (const Parser::BinaryTokenizer::InsufficientInput &) {
+        // proceed to the next record
+    }
 }
 
 /// parses one or more "higher-level protocol" frames of currentContentType
@@ -646,25 +656,24 @@ Security::HandshakeParser::skipMessage(const char *description)
 bool
 Security::HandshakeParser::parseHello(const SBuf &data)
 {
-    if (!expectingModernRecords.configured())
-        expectingModernRecords.configure(!isSslv2Record(data));
+    try {
+        if (!expectingModernRecords.configured())
+            expectingModernRecords.configure(!isSslv2Record(data));
 
-    // data contains everything read so far, but we may read more later
-    tkRecords.reinput(data, true);
-    tkRecords.rollback();
-    while (!done) {
-        try {
-            if (tkRecords.atEnd())
-                return false;
-
+        // data contains everything read so far, but we may read more later
+        tkRecords.reinput(data, true);
+        tkRecords.rollback();
+        while (!done)
             parseRecord();
-        }
-        catch (const Parser::BinaryTokenizer::InsufficientInput &) {
-            debugs(83, 5, "need more data");
-        }
+        debugs(83, 7, "success; got: " << done);
+        // we are done; tkRecords may have leftovers we are not interested in
+        return true;
     }
-    // we are done; tkRecords may have leftovers we are not interested in
-    return true;
+    catch (const Parser::BinaryTokenizer::InsufficientInput &) {
+        debugs(83, 5, "need more data");
+        return false;
+    }
+    return false; // unreached
 }
 
 /// A helper function to create a set of all supported TLS extensions

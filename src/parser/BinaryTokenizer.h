@@ -116,7 +116,7 @@ public:
     /// whether more data bytes may arrive in the future
     auto expectingMore() const { return expectMore_; }
     /// allow or prohibit arriving more data bytes in the future
-    void expectingMore(bool val) { expectMore_ = val; }
+    void expectMore(const bool em) { expectMore_ = em; }
 
     const BinaryTokenizerContext *context; ///< debugging: thing being parsed
 
