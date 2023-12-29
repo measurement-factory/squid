@@ -232,7 +232,6 @@ void
 Security::HandshakeParser::parseVersion2Record()
 {
     const Sslv2Record record(tkRecords);
-    tkRecords.commit();
     details->tlsVersion = AnyP::ProtocolVersion(AnyP::PROTO_SSL, 2, 0);
     parseVersion2HandshakeMessage(record.fragment);
     state = atHelloReceived;
@@ -265,7 +264,6 @@ void
 Security::HandshakeParser::parseModernRecord()
 {
     const TLSPlaintext record(tkRecords);
-    tkRecords.commit();
 
     details->tlsVersion = record.version;
 
@@ -661,8 +659,7 @@ Security::HandshakeParser::parseHello(const SBuf &data)
 
         // data contains everything read so far, but we may read more later
         tkRecords.reinput(data, true);
-        tkRecords.rollback();
-        while (!done)
+        for (tkRecords.rollback(); !done; tkRecords.commit())
             parseRecord();
         debugs(83, 7, "success; got: " << done);
         // we are done; tkRecords may have leftovers we are not interested in
