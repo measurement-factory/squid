@@ -274,16 +274,15 @@ Security::HandshakeParser::parseModernRecord()
     // RFC 5246: MUST NOT send zero-length [non-application] fragments
     Must(record.fragment.length() || record.type == ContentType::ctApplicationData);
 
-    if (currentContentType != record.type) {
-        if (!tkMessages.atEnd()) {
-            // We could not parse these leftovers before. Since every serialized TLS construct has a
-            // known size (constant or sent-in-advance), parsing these bytes now cannot succeed either.
-            throw TextException(ToSBuf("truncated TLS message;",
-                " leftovers size=", tkMessages.leftovers().length(),
-                " type=", currentContentType), Here());
-        }
-        currentContentType = record.type;
+    if (currentContentType != record.type && !tkMessages.atEnd()) {
+        // We could not parse these leftovers before. Since every serialized TLS construct has a
+        // known size (constant or sent-in-advance), parsing these bytes now cannot succeed either.
+        throw TextException(ToSBuf("truncated TLS message;",
+            " leftovers size=", tkMessages.leftovers().length(),
+            " type=", currentContentType), Here());
     }
+
+    currentContentType = record.type;
 
     const auto haveUnparsedRecordBytes = !tkRecords.atEnd();
     const auto expectMoreRecordLayerBytes = tkRecords.expectingMore();
@@ -296,7 +295,7 @@ Security::HandshakeParser::parseModernRecord()
     try {
         parseMessages();
     } catch (const Parser::BinaryTokenizer::InsufficientInput &) {
-        // proceed to the next record
+        debugs(83, 3, "need more records");
     }
 }
 
