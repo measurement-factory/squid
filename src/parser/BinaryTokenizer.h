@@ -72,6 +72,9 @@ public:
     /// no more bytes to parse or skip
     bool atEnd() const;
 
+    /// whether all available bytes have been parsed and no more bytes are expected
+    bool exhausted() const { return atEnd() && !expectingMore(); }
+
     /// parse a single-byte unsigned integer
     uint8_t uint8(const char *description);
 
@@ -114,7 +117,7 @@ public:
     void got(uint64_t size, const char *description) const;
 
     /// whether more data bytes may arrive in the future
-    auto expectingMore() const { return expectMore_; }
+    bool expectingMore() const { return expectMore_; }
     /// allow or prohibit arriving more data bytes in the future
     void expectMore(const bool em) { expectMore_ = em; }
 

@@ -84,17 +84,19 @@ public:
     MessageSource messageSource;
 
 private:
+    using ParseMethod = void (HandshakeParser::*)();
+
     bool isSslv2Record(const SBuf &raw) const;
     void parseRecord();
     void parseModernRecord();
     void parseVersion2Record();
     void parseMessages();
+    void parseNonEmptyMessages(ParseMethod);
 
     void parseChangeCipherCpecMessage();
     void parseAlertMessage();
     void parseHandshakeMessage();
-    void parseApplicationDataMessage();
-    void skipMessage(const char *msgType);
+    void skipPossiblyEmptyMessages(const char *msgType);
 
     bool parseRecordVersion2Try();
     void parseVersion2HandshakeMessage(const SBuf &raw);

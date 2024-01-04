@@ -85,6 +85,17 @@ public:
     uint8_t description; ///< close_notify, unexpected_message, etc.
 };
 
+/// TLS ChangeCipherSpec protocol frame from RFC 8446 Section 5.
+class ChangeCipherSpec
+{
+public:
+    explicit ChangeCipherSpec(Parser::BinaryTokenizer &tk);
+
+    bool fatal() const { return value == 0x1; }
+
+    uint8_t value;
+};
+
 /// The size of the TLS Random structure from RFC 5246 Section 7.4.1.2.
 static const uint64_t HelloRandomSize = 32;
 
@@ -177,6 +188,13 @@ Security::Alert::Alert(Parser::BinaryTokenizer &tk)
     Parser::BinaryTokenizerContext context(tk, "Alert");
     level = tk.uint8(".level");
     description = tk.uint8(".description");
+    context.success();
+}
+
+Security::ChangeCipherSpec::ChangeCipherSpec(Parser::BinaryTokenizer &tk)
+{
+    Parser::BinaryTokenizerContext context(tk, "ChangeCipherSpec");
+    value = tk.uint8(".value");
     context.success();
 }
 
@@ -282,12 +300,7 @@ Security::HandshakeParser::parseModernRecord()
 
     currentContentType = record.type;
 
-    const auto haveUnparsedRecordBytes = !tkRecords.atEnd();
-    const auto expectMoreRecordLayerBytes = tkRecords.expectingMore();
-    // TODO: consider adding BinaryTokenizer::exhausted() instead
-    const auto expectMoreMessageLayerBytes = haveUnparsedRecordBytes || expectMoreRecordLayerBytes;
-
-    tkMessages.expectMore(expectMoreMessageLayerBytes);
+    tkMessages.expectMore(!tkRecords.exhausted());
     tkMessages.append(record.fragment);
 
     try {
@@ -297,35 +310,45 @@ Security::HandshakeParser::parseModernRecord()
     }
 }
 
-/// parses one or more "higher-level protocol" frames of currentContentType
+/// Incrementally parses all sequential currentContentType TLS fragments.
+/// Successfully stops parsing earlier if `done` becomes set.
 void
 Security::HandshakeParser::parseMessages()
 {
-    for (tkMessages.rollback(); !done; tkMessages.commit()) {
-        switch (currentContentType) {
-        case ContentType::ctChangeCipherSpec:
-            parseChangeCipherCpecMessage();
-            continue;
-        case ContentType::ctAlert:
-            parseAlertMessage();
-            continue;
-        case ContentType::ctHandshake:
-            parseHandshakeMessage();
-            continue;
-        case ContentType::ctApplicationData:
-            parseApplicationDataMessage();
-            continue;
-        }
-        skipMessage("unknown ContentType msg [fragment]");
+    switch (currentContentType) {
+    case ContentType::ctChangeCipherSpec:
+        return parseNonEmptyMessages(&HandshakeParser::parseChangeCipherCpecMessage);
+    case ContentType::ctAlert:
+        return parseNonEmptyMessages(&HandshakeParser::parseAlertMessage);
+    case ContentType::ctHandshake:
+        return parseNonEmptyMessages(&HandshakeParser::parseHandshakeMessage);
+    case ContentType::ctApplicationData:
+        return skipPossiblyEmptyMessages("app data [fragment]");
     }
+    return skipPossiblyEmptyMessages("unknown ContentType msg [fragment]");
+}
+
+/// Incrementally parses all sequential currentContentType messages using the given TLS message parser.
+/// Each message is assumed to be serialized using at least one byte.
+/// At least one message is expected per sequence.
+/// Successfully stops parsing earlier if `done` becomes set.
+void
+Security::HandshakeParser::parseNonEmptyMessages(const ParseMethod messageParser)
+{
+    // XXX: We should not silently ignore empty message sequences
+    for (tkMessages.rollback(); !done && !tkMessages.exhausted(); tkMessages.commit())
+        (this->*messageParser)();
 }
 
 void
 Security::HandshakeParser::parseChangeCipherCpecMessage()
 {
     Must(currentContentType == ContentType::ctChangeCipherSpec);
-    // We are currently ignoring Change Cipher Spec Protocol messages.
-    skipMessage("ChangeCipherSpec msg [fragment]");
+    const ChangeCipherSpec changeCipherSpec(tkMessages);
+    debugs(83, (changeCipherSpec.fatal() ? 2:3),
+           "value " << static_cast<int>(changeCipherSpec.value));
+    if (changeCipherSpec.fatal())
+        throw TextException(ToSBuf("unsupported ChangeCipherSpec value: ", changeCipherSpec.value), Here());
 
     // In TLS v1.2 and earlier, ChangeCipherSpec is sent after Hello (when
     // tlsSupportedVersion is already known) and indicates session resumption.
@@ -386,13 +409,6 @@ Security::HandshakeParser::parseHandshakeMessage()
     }
     debugs(83, 5, "ignoring " << message.msg_body.length() << "-byte type-" <<
            static_cast<unsigned int>(message.msg_type) << " handshake message");
-}
-
-void
-Security::HandshakeParser::parseApplicationDataMessage()
-{
-    Must(currentContentType == ContentType::ctApplicationData);
-    skipMessage("app data [fragment]");
 }
 
 void
@@ -639,15 +655,15 @@ Security::HandshakeParser::parseSupportedVersionsExtension(const SBuf &extension
 }
 
 void
-Security::HandshakeParser::skipMessage(const char *description)
+Security::HandshakeParser::skipPossiblyEmptyMessages(const char *description)
 {
-    // skip at least one byte
-    if (tkMessages.atEnd())
+    if (tkMessages.exhausted())
         throw Parser::InsufficientInput();
     // tkMessages can only contain messages of the same ContentType.
     // To skip a message, we can and should skip everything we have [left]. If
     // we buffered a partial message, we will need to read/skip multiple times.
     tkMessages.skip(tkMessages.leftovers().length(), description);
+    tkMessages.commit();
 }
 
 bool
