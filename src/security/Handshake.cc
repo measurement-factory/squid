@@ -272,11 +272,11 @@ Security::HandshakeParser::parseModernRecord()
     // RFC 5246: MUST NOT send zero-length [non-application] fragments
     Must(record.fragment.length() || record.type == ContentType::ctApplicationData);
 
-    if (currentContentType != record.type && !tkMessages.atEnd()) {
+    if (currentContentType != record.type && tkMessages.uncommitted() > 0) {
         // We could not parse these leftovers before. Since every serialized TLS construct has a
         // known size (constant or sent-in-advance), parsing these bytes now cannot succeed either.
         throw TextException(ToSBuf("truncated TLS message;",
-            " leftovers size=", tkMessages.leftovers().length(),
+            " leftovers size=", tkMessages.uncommitted(),
             " type=", currentContentType), Here());
     }
 
@@ -636,6 +636,7 @@ Security::HandshakeParser::parseSupportedVersionsExtension(const SBuf &extension
 void
 Security::HandshakeParser::skipPossiblyEmptyMessages(const char *description)
 {
+    Assure(tkMessages.uncommitted() == 0);
     // tkMessages can only contain messages of the same ContentType.
     // To skip a message, we can and should skip everything we have [left]. If
     // we buffered a partial message, we will need to read/skip multiple times.

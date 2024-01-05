@@ -66,6 +66,9 @@ public:
     /// make progress: future parsing failures will not rollback beyond this point
     void commit();
 
+    /// the number of bytes that were parsed but not committed yet
+    auto uncommitted() const { assert(parsed_ >= syncPoint_); return parsed_ - syncPoint_; }
+
     /// resume [incremental] parsing from the last commit point
     void rollback();
 
