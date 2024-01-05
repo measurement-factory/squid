@@ -93,7 +93,7 @@ private:
     void parseMessages();
     void parseNonEmptyMessages(ParseMethod);
 
-    void parseChangeCipherCpecMessage();
+    void parseChangeCipherSpecMessage();
     void parseAlertMessage();
     void parseHandshakeMessage();
     void skipPossiblyEmptyMessages(const char *msgType);
