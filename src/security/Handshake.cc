@@ -317,9 +317,11 @@ Security::HandshakeParser::parseMessages()
 void
 Security::HandshakeParser::parseNonEmptyMessages(const ParseMethod messageParser)
 {
-    // XXX: We should not silently ignore empty message sequences
-    for (tkMessages.rollback(); !done && !tkMessages.exhausted(); tkMessages.commit())
+    tkMessages.rollback();
+    do {
         (this->*messageParser)();
+        tkMessages.commit();
+    } while (!done && !tkMessages.exhausted());
 }
 
 void
