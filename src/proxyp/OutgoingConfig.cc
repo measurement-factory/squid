@@ -25,6 +25,8 @@
 #include "sbuf/StringConvert.h"
 #include "SquidConfig.h"
 
+#include <algorithm>
+
 namespace ProxyProtocol
 {
 
