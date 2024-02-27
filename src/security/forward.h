@@ -216,9 +216,9 @@ void CloseLogs(); ///< closes logs opened by OpenLogs()
 #if USE_OPENSSL
 using Time = ASN1_TIME;
 #elif USE_GNUTLS
-using Time = class {}; // TODO: Add support
+class Time {}; // TODO: Add support
 #else
-using Time = class {};
+class Time {};
 #endif
 
 using TimePointer = std::unique_ptr<Time>;
