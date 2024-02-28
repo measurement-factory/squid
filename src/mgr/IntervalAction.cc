@@ -86,6 +86,7 @@ Mgr::IntervalActionData::operator += (const IntervalActionData& stats)
     swap_files_cleaned += stats.swap_files_cleaned;
     aborted_requests += stats.aborted_requests;
     hitValidationAttempts += stats.hitValidationAttempts;
+    hitValidationRefusalsDueToAppending += stats.hitValidationRefusalsDueToAppending;
     hitValidationRefusalsDueToLocking += stats.hitValidationRefusalsDueToLocking;
     hitValidationRefusalsDueToZeroSize += stats.hitValidationRefusalsDueToZeroSize;
     hitValidationRefusalsDueToTimeLimit += stats.hitValidationRefusalsDueToTimeLimit;

@@ -159,6 +159,7 @@ public:
 
     struct {
         uint64_t attempts = 0;
+        uint64_t refusalsDueToAppending = 0;
         uint64_t refusalsDueToLocking = 0;
         uint64_t refusalsDueToZeroSize = 0;
         uint64_t refusalsDueToTimeLimit = 0;

@@ -889,14 +889,35 @@ Ipc::StoreMap::validateHit(const sfileno fileno)
 
     ++statCounter.hitValidation.attempts;
 
+    // Quickly (i.e. without lockHeaders()) exclude entries that we cannot validate.
+
     if (!anchor.basics.swap_file_sz) {
         ++statCounter.hitValidation.refusalsDueToZeroSize;
         return true; // presume valid; cannot validate w/o known swap_file_sz
     }
 
+    if (anchor.lock.appending) {
+        ++statCounter.hitValidation.refusalsDueToAppending;
+        return true; // presume valid; cannot fully validate a being-appended entry
+    }
+
+    // Proceed with slower checks that require (also relatively slow) locking.
+
     if (!anchor.lock.lockHeaders()) {
         ++statCounter.hitValidation.refusalsDueToLocking;
         return true; // presume valid; cannot validate changing entry
+    }
+
+    // We recheck lock.appending because another worker might start appending
+    // after our previous fast check and before we slowly lockHeaders(). It is
+    // not possible to start appending an entry with lockHeaders() so this check
+    // is reliable. We do not recheck swap_file_sz because it cannot decrease: A
+    // cache hit has at least one reader lock; nobody can erase this entry while
+    // we are looking at it.
+    if (anchor.lock.appending) {
+        anchor.lock.unlockHeaders();
+        ++statCounter.hitValidation.refusalsDueToAppending;
+        return true; // presume valid; cannot fully validate a being-appended entry
     }
 
     const uint64_t expectedByteCount = anchor.basics.swap_file_sz;
@@ -920,14 +941,15 @@ Ipc::StoreMap::validateHit(const sfileno fileno)
         }
     }
 
-    anchor.lock.unlockHeaders();
+    if (actualByteCount == expectedByteCount && lastSeenSlice < 0) {
+        anchor.lock.unlockHeaders();
+        return true; // successfully validated
+    }
 
-    if (actualByteCount == expectedByteCount && lastSeenSlice < 0)
-        return true;
-
-    ++statCounter.hitValidation.failures;
-
-    debugs(54, DBG_IMPORTANT, "ERROR: Squid BUG: purging corrupted cache entry " << fileno <<
+    // Report while we still lockHeaders() to avoid reporting stale info.
+    // Unlocking this _doomed_ entry earlier is not going to help anybody.
+    // TODO: Use Debugs::Extra for reporting each low-level entry detail (and remove a trailing empty line).
+    debugs(54, DBG_IMPORTANT, "ERROR: Squid BUG: Purging corrupted cache entry " << fileno <<
            " from " << path <<
            " expected swap_file_sz=" << expectedByteCount <<
            " actual swap_file_sz=" << actualByteCount <<
@@ -945,6 +967,11 @@ Ipc::StoreMap::validateHit(const sfileno fileno)
            "    lock=" << anchor.lock << "\n" <<
            "    waitingToBeFreed=" << (anchor.waitingToBeFreed ? 1 : 0) << "\n"
           );
+
+    anchor.lock.unlockHeaders();
+
+    ++statCounter.hitValidation.failures;
+
     freeEntry(fileno);
     return false;
 }

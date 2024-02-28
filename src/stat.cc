@@ -970,6 +970,7 @@ GetAvgStat(Mgr::IntervalActionData& stats, int minutes, int hours)
     stats.aborted_requests = XAVG(aborted_requests);
 
     stats.hitValidationAttempts = XAVG(hitValidation.attempts);
+    stats.hitValidationRefusalsDueToAppending = XAVG(hitValidation.refusalsDueToAppending);
     stats.hitValidationRefusalsDueToLocking = XAVG(hitValidation.refusalsDueToLocking);
     stats.hitValidationRefusalsDueToZeroSize = XAVG(hitValidation.refusalsDueToZeroSize);
     stats.hitValidationRefusalsDueToTimeLimit = XAVG(hitValidation.refusalsDueToTimeLimit);
@@ -1124,6 +1125,8 @@ DumpAvgStat(Mgr::IntervalActionData& stats, StoreEntry* sentry)
 
     storeAppendPrintf(sentry, "hit_validation.attempts = %f/sec\n",
                       stats.hitValidationAttempts);
+    storeAppendPrintf(sentry, "hit_validation.refusals.due_to_appending = %f/sec\n",
+                      stats.hitValidationRefusalsDueToAppending);
     storeAppendPrintf(sentry, "hit_validation.refusals.due_to_locking = %f/sec\n",
                       stats.hitValidationRefusalsDueToLocking);
     storeAppendPrintf(sentry, "hit_validation.refusals.due_to_zeroSize = %f/sec\n",
@@ -1427,6 +1430,7 @@ GetCountersStats(Mgr::CountersActionData& stats)
     stats.aborted_requests = f->aborted_requests;
 
     stats.hitValidationAttempts = f->hitValidation.attempts;
+    stats.hitValidationRefusalsDueToAppending = f->hitValidation.refusalsDueToAppending;
     stats.hitValidationRefusalsDueToLocking = f->hitValidation.refusalsDueToLocking;
     stats.hitValidationRefusalsDueToZeroSize = f->hitValidation.refusalsDueToZeroSize;
     stats.hitValidationRefusalsDueToTimeLimit = f->hitValidation.refusalsDueToTimeLimit;
@@ -1559,6 +1563,8 @@ DumpCountersStats(Mgr::CountersActionData& stats, StoreEntry* sentry)
 
     storeAppendPrintf(sentry, "hit_validation.attempts = %.0f\n",
                       stats.hitValidationAttempts);
+    storeAppendPrintf(sentry, "hit_validation.refusals.due_to_appending = %.0f\n",
+                      stats.hitValidationRefusalsDueToAppending);
     storeAppendPrintf(sentry, "hit_validation.refusals.due_to_locking = %.0f\n",
                       stats.hitValidationRefusalsDueToLocking);
     storeAppendPrintf(sentry, "hit_validation.refusals.due_to_zeroSize = %.0f\n",

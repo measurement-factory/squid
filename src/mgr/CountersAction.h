@@ -81,6 +81,7 @@ public:
     double swap_files_cleaned;
     double aborted_requests;
     double hitValidationAttempts;
+    double hitValidationRefusalsDueToAppending;
     double hitValidationRefusalsDueToLocking;
     double hitValidationRefusalsDueToZeroSize;
     double hitValidationRefusalsDueToTimeLimit;
