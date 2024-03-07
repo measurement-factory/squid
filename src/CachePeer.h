@@ -38,15 +38,14 @@ public:
     /// reacts to a successful establishment of a connection to this cache_peer
     void noteSuccess();
 
-    /// reacts to a failure on a connection to this cache_peer
-    /// \param code a received response status code, if any
-    void noteFailure(Http::StatusCode code);
-
     /// (re)configure cache_peer name=value
     void rename(const char *);
 
     /// \returns the effective connect timeout for the given peer
     time_t connectTimeout() const;
+
+    /// whether the admin is likely to believe that this peer is not marked as DEAD
+    bool consideredAliveByAdmin() const { return stats.logged_state == PEER_ALIVE; }
 
     u_int index = 0;
 
@@ -224,29 +223,47 @@ public:
     int connection_auth = 2; ///< 0 - off, 1 - on, 2 - auto
 
 private:
-    void countFailure();
+    friend class OutgoingConnectionFailure;
+
+    /// reacts to a failure on a connection to this cache_peer
+    /// \param code a received response status code, if any
+    void noteFailure();
 };
-
-/// reacts to a successful establishment of a connection to an origin server or cache_peer
-/// \param peer nil if Squid established a connection to an origin server
-inline void
-NoteOutgoingConnectionSuccess(CachePeer * const peer)
-{
-    if (peer)
-        peer->noteSuccess();
-}
-
-/// reacts to a failure on a connection to an origin server or cache_peer
-/// \param peer nil if the connection is to an origin server
-/// \param code a received response status code, if any
-inline void
-NoteOutgoingConnectionFailure(CachePeer * const peer, const Http::StatusCode code)
-{
-    if (peer)
-        peer->noteFailure(code);
-}
 
 /// identify the given cache peer in cache.log messages and such
 std::ostream &operator <<(std::ostream &, const CachePeer &);
+
+// TODO: Move the code below into a src/Peering.h or some such.
+
+/// Reacts to a successful establishment of a connection to an origin server or
+/// cache_peer. Should be called after completion of _all_ TCP, TLS, and HTTP
+/// CONNECT tunnel negotiations (as applicable); just before sending HTTP
+/// messages (or tunneling raw client/peer bytes).
+/// \param conn a connection to an origin server or cache_peer (nil if unknown)
+void CountOutgoingConnectionSuccess(const Comm::ConnectionPointer &conn);
+
+/// Helps manage three stages of Squid-to-peer connection failure handling:
+/// 1. decide whether the failure is important (i.e. affects cache_peer health)
+/// 2. report failure details (required for important failures)
+/// 3. count the failure against cache_peer health (may mark cache_peer as DEAD)
+class OutgoingConnectionFailure
+{
+public:
+    /// Decides failure importance
+    /// \param conn a connection to an origin server or cache_peer (nil if unknown)
+    /// \param code a received response status code, if any
+    OutgoingConnectionFailure(const Comm::ConnectionPointer &conn, Http::StatusCode code);
+    ~OutgoingConnectionFailure();
+
+    /// Counts important failure against cache_peer health. Ignores other
+    /// failures. The caller must report important failure details so that
+    /// admins have enough information to triage them.
+    void countAfterReport() const;
+
+    const bool important; /// whether this failure affects cache_peer health
+
+private:
+    mutable Comm::ConnectionPointer conn_;
+};
 
 #endif /* SQUID_CACHEPEER_H_ */

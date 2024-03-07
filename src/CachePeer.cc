@@ -72,34 +72,18 @@ CachePeer::noteSuccess()
 }
 
 void
-CachePeer::noteFailure(const Http::StatusCode code)
-{
-    if (Http::Is4xx(code))
-        return; // this failure is not our fault
-
-    countFailure();
-}
-
-// TODO: Require callers to detail failures instead of using one (and often
-// misleading!) "connection failed" phrase for all of them.
-/// noteFailure() helper for handling failures attributed to this peer
-void
-CachePeer::countFailure()
+CachePeer::noteFailure()
 {
     stats.last_connect_failure = squid_curtime;
     if (tcp_up > 0)
         --tcp_up;
 
-    const auto consideredAliveByAdmin = (stats.logged_state == PEER_ALIVE);
-    const auto level = consideredAliveByAdmin ? DBG_IMPORTANT : 2;
-    debugs(15, level, "ERROR: Connection to " << *this << " failed");
-
-    if (consideredAliveByAdmin) {
+    if (consideredAliveByAdmin()) {
         if (!tcp_up) {
             debugs(15, DBG_IMPORTANT, "Detected DEAD " << neighborTypeStr(this) << ": " << name);
             stats.logged_state = PEER_DEAD;
         } else {
-            debugs(15, 2, "additional failures needed to mark this cache_peer DEAD: " << tcp_up);
+            debugs(15, 2, "additional failures needed to mark cache_peer " << *this << " DEAD: " << tcp_up);
         }
     } else {
         assert(!tcp_up);
@@ -123,6 +107,52 @@ CachePeer::connectTimeout() const
     if (connect_timeout_raw > 0)
         return connect_timeout_raw;
     return Config.Timeout.peer_connect;
+}
+
+void
+CountOutgoingConnectionSuccess(const Comm::ConnectionPointer &conn)
+{
+    if (conn) {
+        if (const auto peer = conn->getPeer())
+            peer->noteSuccess();
+    }
+}
+
+static bool
+OutgoingConnectionFailureIsImportant(const Comm::ConnectionPointer &conn, const Http::StatusCode code)
+{
+    if (Http::Is4xx(code))
+        return false; // 4xx responses are not cache_peer fault
+
+    if (const auto peer = conn ? conn->getPeer() : nullptr)
+        return peer->consideredAliveByAdmin();
+
+    // a DIRECT connection or a connection to a DEAD cache_peer
+    return false;
+}
+
+OutgoingConnectionFailure::OutgoingConnectionFailure(const Comm::ConnectionPointer &conn, const Http::StatusCode code):
+    important(OutgoingConnectionFailureIsImportant(conn, code)),
+    conn_(conn)
+{
+}
+
+OutgoingConnectionFailure::~OutgoingConnectionFailure()
+{
+    if (important && conn_) {
+        debugs(15, DBG_IMPORTANT, "ERROR: Squid BUG: Missing OutgoingConnectionFailure::countAfterReport() call");
+        countAfterReport(); // work around the problem
+    }
+}
+
+void
+OutgoingConnectionFailure::countAfterReport() const
+{
+    if (important && conn_) {
+        if (const auto peer = conn_->getPeer())
+            peer->noteFailure();
+    }
+    conn_ = nullptr; // signal destructor that countAfterReport() has been called
 }
 
 std::ostream &

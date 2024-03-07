@@ -10,6 +10,7 @@
 
 #include "squid.h"
 #include "anyp/PortCfg.h"
+#include "base/IoManip.h"
 #include "base/RunnersRegistry.h"
 #include "CachePeer.h"
 #include "debug/Stream.h"
@@ -98,11 +99,28 @@ Security::NewSessionObject(const Security::ContextPointer &ctx)
 }
 #endif
 
+static void
+handleConnectionFailure(const Comm::ConnectionPointer &conn, const char * const squidCtx, const char *errAction, const Security::LibErrorCode errCode)
+{
+    const auto debugDetails = [&](std::ostream &os) {
+        if (errCode)
+           os << Debug::Extra << "TLS library-reported error: " << Security::ErrorString(errCode);
+
+        if (conn)
+           os << Debug::Extra << "transport connection: " << conn;
+    };
+
+    const auto failure = OutgoingConnectionFailure(conn, Http::scNone);
+    // Report all session creation failures, not just failure.important (for peering) ones.
+    debugs(83, DBG_IMPORTANT, "ERROR: " << squidCtx << ' ' << errAction << CallToPrint(debugDetails));
+    failure.countAfterReport();
+}
+
 static bool
 CreateSession(const Security::ContextPointer &ctx, const Comm::ConnectionPointer &conn, Security::PeerOptions &opts, Security::Io::Type type, const char *squidCtx)
 {
     if (!Comm::IsConnOpen(conn)) {
-        debugs(83, DBG_IMPORTANT, "Gone connection");
+        handleConnectionFailure(conn, squidCtx, "unexpected connection closure", 0);
         return false;
     }
 
@@ -168,8 +186,7 @@ CreateSession(const Security::ContextPointer &ctx, const Comm::ConnectionPointer
 #endif
     }
 
-    debugs(83, DBG_IMPORTANT, "ERROR: " << squidCtx << ' ' << errAction <<
-           ": " << (errCode != 0 ? Security::ErrorString(errCode) : ""));
+    handleConnectionFailure(conn, squidCtx, errAction, errCode);
 #else
     (void)ctx;
     (void)opts;

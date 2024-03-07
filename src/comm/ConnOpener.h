@@ -64,6 +64,8 @@ private:
 
     void cancelSleep();
 
+    void handleConnectionFailure(const char *cacheLogText, int xerrno);
+
 private:
     char *host_;                         ///< domain name we are trying to connect to.
     int temporaryFd_;                    ///< the FD being opened. Do NOT set conn_->fd until it is fully open.

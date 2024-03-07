@@ -9,6 +9,7 @@
 /* DEBUG: section 05    Socket Connection Opener */
 
 #include "squid.h"
+#include "base/IoManip.h"
 #include "CachePeer.h"
 #include "comm.h"
 #include "comm/Connection.h"
@@ -112,6 +113,33 @@ const char *
 Comm::ConnOpener::getHost() const
 {
     return host_;
+}
+
+void
+Comm::ConnOpener::handleConnectionFailure(const char * const failureDescription, const int xerrno)
+{
+    const auto debugDetails = [&](std::ostream &os) {
+        os << Debug::Extra << "error: " << failureDescription;
+        if (host_)
+            os << Debug::Extra << "destination: " << host_;
+
+        if (failRetries_ != 1) // do report zero because it is unusual here
+            os << Debug::Extra << "failed attempts: " << failRetries_;
+
+        // TODO: Add "last " prefix below when failRetries_ exceed 1?
+        if (conn_)
+            os << Debug::Extra << "Squid-to-peer TCP connection: " << *conn_;
+        if (xerrno)
+            os << Debug::Extra << "syscall error: " << xstrerr(xerrno);
+
+        if (squid_curtime > deadline_)
+            os << Debug::Extra << "seconds past the establishment deadline: " << (squid_curtime - deadline_);
+    };
+
+    const auto failure = OutgoingConnectionFailure(conn_, Http::scNone);
+    const auto debugLevel = failure.important ? DBG_IMPORTANT : 3;
+    debugs(5, debugLevel, "ERROR: Failed to establish a TCP connection" << CallToPrint(debugDetails));
+    failure.countAfterReport();
 }
 
 /**
@@ -286,6 +314,9 @@ Comm::ConnOpener::createFd()
 
     temporaryFd_ = comm_open(SOCK_STREAM, IPPROTO_TCP, conn_->local, conn_->flags, host_);
     if (temporaryFd_ < 0) {
+        const auto xerrno = errno;
+        handleConnectionFailure("failed to initialize a TCP socket", xerrno);
+        // XXX: Supply xerrno (not 0) while fixing related sendAnswer() code.
         sendAnswer(Comm::ERR_CONNECT, 0, "Comm::ConnOpener::createFd");
         return false;
     }
@@ -386,6 +417,7 @@ Comm::ConnOpener::doConnect()
         } else {
             // send ERROR back to the upper layer.
             debugs(5, 5, conn_ << ": * - ERR tried too many times already.");
+            handleConnectionFailure("connect(2) error or a related failure", xerrno);
             sendAnswer(Comm::ERR_CONNECT, xerrno, "Comm::ConnOpener::doConnect");
         }
     }
@@ -465,6 +497,8 @@ Comm::ConnOpener::timeout(const CommTimeoutCbParams &)
 {
     debugs(5, 5, conn_ << ": * - ERR took too long to receive response.");
     calls_.timeout_ = nullptr;
+    handleConnectionFailure("timeout while trying to established a TCP connection", 0);
+    // XXX: Supply 0 (not ETIMEDOUT) while fixing related sendAnswer() code.
     sendAnswer(Comm::TIMEOUT, ETIMEDOUT, "Comm::ConnOpener::timeout");
 }
 

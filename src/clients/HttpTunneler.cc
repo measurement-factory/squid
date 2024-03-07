@@ -10,6 +10,7 @@
 #include "base/Raw.h"
 #include "CachePeer.h"
 #include "clients/HttpTunneler.h"
+#include "base/IoManip.h"
 #include "comm/Read.h"
 #include "comm/Write.h"
 #include "errorpage.h"
@@ -89,11 +90,11 @@ void
 Http::Tunneler::handleConnectionClosure(const CommCloseCbParams &)
 {
     closer = nullptr;
-    if (connection) {
-        countFailingConnection(nullptr);
-        connection->noteClosure();
-        connection = nullptr;
-    }
+
+    // TODO: This change is not longer necessary?
+    // Keep our fde::closing() connection, including its descriptor, for error
+    // reporting and fwdPconnPool updates; bailWith() triggers noteClosure().
+
     bailWith(new ErrorState(ERR_CONNECT_FAIL, Http::scBadGateway, request.getRaw(), al));
 }
 
@@ -116,6 +117,7 @@ Http::Tunneler::watchForClosures()
 void
 Http::Tunneler::handleTimeout(const CommTimeoutCbParams &)
 {
+    handleFailingConnection("CONNECT tunnel establishment timeout", nullptr);
     bailWith(new ErrorState(ERR_CONNECT_FAIL, Http::scGatewayTimeout, request.getRaw(), al));
 }
 
@@ -186,6 +188,7 @@ Http::Tunneler::handleWrittenRequest(const CommIoCbParams &io)
     if (io.flag != Comm::OK) {
         const auto error = new ErrorState(ERR_WRITE_ERROR, Http::scBadGateway, request.getRaw(), al);
         error->xerrno = io.xerrno;
+        handleFailingConnection("CONNECT request writing error", error);
         bailWith(error);
         return;
     }
@@ -242,6 +245,7 @@ Http::Tunneler::handleReadyRead(const CommIoCbParams &io)
     {
         const auto error = new ErrorState(ERR_READ_ERROR, Http::scBadGateway, request.getRaw(), al);
         error->xerrno = rd.xerrno;
+        handleFailingConnection("CONNECT response reading error", error);
         bailWith(error);
         return;
     }
@@ -344,6 +348,7 @@ Http::Tunneler::bailOnResponseError(const char *error, HttpReply *errorReply)
         // with no reply suitable for relaying, answer with 502 (Bad Gateway)
         err = new ErrorState(ERR_CONNECT_FAIL, Http::scBadGateway, request.getRaw(), al);
     }
+    handleFailingConnection(error, err);
     bailWith(err);
 }
 
@@ -355,9 +360,9 @@ Http::Tunneler::bailWith(ErrorState *error)
 
     if (const auto failingConnection = connection) {
         // TODO: Reuse to-peer connections after a CONNECT error response.
-        countFailingConnection(error);
+        countFailingConnection();
         disconnect();
-        failingConnection->close();
+        failingConnection->close(); // may already be closing
     }
 
     callBack();
@@ -373,11 +378,37 @@ Http::Tunneler::sendSuccess()
     callBack();
 }
 
+/// last chance to use connection details before failure cleanup erases them
 void
-Http::Tunneler::countFailingConnection(const ErrorState * const error)
+Http::Tunneler::handleFailingConnection(const char * const failureDescription, const ErrorState *error)
+{
+    // response_ presence determines whether error->httpStatus was received by Squid
+    const auto receivedResponseStatus = (error && error->response_) ? error->httpStatus : Http::scNone;
+
+    const auto debugDetails = [&](std::ostream &os) {
+        os << Debug::Extra << "failure: " << failureDescription;
+        os << Debug::Extra << "CONNECT request-target: " << url;
+        if (receivedResponseStatus)
+            os << Debug::Extra << "received CONNECT response status code: " << receivedResponseStatus;
+        if (connection)
+            os << Debug::Extra << "Squid-to-peer HTTP connection: " << *connection;
+        if (error && error->xerrno)
+            os << Debug::Extra << "syscall error: " << xstrerr(error->xerrno);
+        const auto deadline = startTime + lifetimeLimit;
+        if (squid_curtime > deadline)
+            os << Debug::Extra << "seconds past the establishment deadline: " << (squid_curtime - deadline);
+    };
+
+    const auto failure = OutgoingConnectionFailure(connection, receivedResponseStatus);
+    const auto debugLevel = failure.important ? DBG_IMPORTANT : 3;
+    debugs(5, debugLevel, "ERROR: Cannot establish CONNECT tunnel through cache_peer" << CallToPrint(debugDetails));
+    failure.countAfterReport();
+}
+
+void
+Http::Tunneler::countFailingConnection()
 {
     assert(connection);
-    NoteOutgoingConnectionFailure(connection->getPeer(), error ? error->httpStatus : Http::scNone);
     if (noteFwdPconnUse && connection->isOpen())
         fwdPconnPool->noteUses(fd_table[connection->fd].pconn.uses);
 }
