@@ -156,6 +156,9 @@ private:
     /// Whether a badly framed response was massaged enough to become usable.
     bool repairedBadFraming = false;
 
+    /// whether we are waiting for our Comm::Read() handler to be called
+    bool waitingForCommRead = false;
+
     /// Whether we received a Date header older than that of a matching
     /// cached response.
     bool sawDateGoBack = false;
