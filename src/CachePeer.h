@@ -16,7 +16,6 @@
 #include "base/RefCount.h"
 #include "configuration/forward.h"
 #include "enums.h"
-#include "http/StatusCode.h"
 #include "icp_opcode.h"
 #include "Instance.h"
 #include "ip/Address.h"
@@ -321,7 +320,7 @@ public:
     /// Decides failure importance
     /// \param conn a connection to an origin server or cache_peer (nil if unknown)
     /// \param code a received response status code, if any
-    OutgoingConnectionFailure(const Comm::ConnectionPointer &conn, Http::StatusCode code);
+    explicit OutgoingConnectionFailure(const Comm::ConnectionPointer &conn);
     ~OutgoingConnectionFailure();
 
     /// Counts important failure against cache_peer health. Ignores other

@@ -388,18 +388,20 @@ Http::Tunneler::sendSuccess()
 void
 Http::Tunneler::handleFailingConnection(const char * const failureDescription, const ErrorState *error)
 {
-    // response_ presence determines whether error->httpStatus was received by Squid
-    const auto receivedResponseStatus = (error && error->response_) ? error->httpStatus : Http::scNone;
-
     const auto debugDetails = [&](std::ostream &os) {
         os << Debug::Extra << "failure: " << failureDescription;
         os << Debug::Extra << "CONNECT request-target: " << url;
-        if (receivedResponseStatus)
-            os << Debug::Extra << "received CONNECT response status code: " << receivedResponseStatus;
+
+        // response_ presence determines whether error->httpStatus was received by Squid
+        if (error && error->response_)
+            os << Debug::Extra << "received CONNECT response status code: " << error->httpStatus;
+
         if (connection)
             os << Debug::Extra << "Squid-to-peer HTTP connection: " << *connection;
+
         if (error && error->xerrno)
             os << Debug::Extra << "syscall error: " << xstrerr(error->xerrno);
+
         const auto deadline = startTime + lifetimeLimit;
         if (squid_curtime > deadline)
             os << Debug::Extra << "seconds past the establishment deadline: " << (squid_curtime - deadline);
