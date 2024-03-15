@@ -123,7 +123,7 @@ Security::PeerConnector::commCloseHandler(const CommCloseCbParams &params)
 void
 Security::PeerConnector::commTimeoutHandler(const CommTimeoutCbParams &)
 {
-    const auto failure = OutgoingConnectionFailure(serverConn, Http::scNone);
+    const auto failure = OutgoingConnectionFailure(serverConn);
     const auto debugLevel = failure.important ? DBG_IMPORTANT : 5;
     debugs(83, debugLevel, "ERROR: TLS connection establishment timeout" <<
            Debug::Extra << "Squid-to-peer transport connection: " << serverConn);
@@ -278,7 +278,7 @@ Security::PeerConnector::handleNegotiationResult(const Security::IoResult &resul
     }
 
     // TODO: Honor result.important when working in a reverse proxy role?
-    const auto failure = OutgoingConnectionFailure(serverConn, Http::scNone);
+    const auto failure = OutgoingConnectionFailure(serverConn);
     const auto debugLevel = failure.important ? DBG_IMPORTANT : 2;
     debugs(83, debugLevel, "ERROR: Cannot establish a TLS connection" <<
            Debug::Extra << "Squid-to-peer transport connection: " << serverConn <<
@@ -358,7 +358,7 @@ Security::PeerConnector::sslCrtvdHandleReply(Ssl::CertValidationResponse::Pointe
             delete oldErrs;
         }
 
-        const auto failure = OutgoingConnectionFailure(serverConn, Http::scNone);
+        const auto failure = OutgoingConnectionFailure(serverConn);
         const auto debugLevel = failure.important ? DBG_IMPORTANT : 2;
         debugs(83, debugLevel, "ERROR: sslcrtvalidator_program does not trust peer certificate" <<
                Debug::Extra << "Squid-to-peer transport connection: " << serverConn);

@@ -110,7 +110,7 @@ handleConnectionFailure(const Comm::ConnectionPointer &conn, const char * const 
            os << Debug::Extra << "transport connection: " << conn;
     };
 
-    const auto failure = OutgoingConnectionFailure(conn, Http::scNone);
+    const auto failure = OutgoingConnectionFailure(conn);
     // Report all session creation failures, not just failure.important (for peering) ones.
     debugs(83, DBG_IMPORTANT, "ERROR: " << squidCtx << ' ' << errAction << CallToPrint(debugDetails));
     failure.countAfterReport();

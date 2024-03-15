@@ -119,11 +119,8 @@ CountOutgoingConnectionSuccess(const Comm::ConnectionPointer &conn)
 }
 
 static bool
-OutgoingConnectionFailureIsImportant(const Comm::ConnectionPointer &conn, const Http::StatusCode code)
+OutgoingConnectionFailureIsImportant(const Comm::ConnectionPointer &conn)
 {
-    if (Http::Is4xx(code))
-        return false; // 4xx responses are not cache_peer fault
-
     if (const auto peer = conn ? conn->getPeer() : nullptr)
         return peer->consideredAliveByAdmin();
 
@@ -131,8 +128,8 @@ OutgoingConnectionFailureIsImportant(const Comm::ConnectionPointer &conn, const 
     return false;
 }
 
-OutgoingConnectionFailure::OutgoingConnectionFailure(const Comm::ConnectionPointer &conn, const Http::StatusCode code):
-    important(OutgoingConnectionFailureIsImportant(conn, code)),
+OutgoingConnectionFailure::OutgoingConnectionFailure(const Comm::ConnectionPointer &conn):
+    important(OutgoingConnectionFailureIsImportant(conn)),
     conn_(conn)
 {
 }

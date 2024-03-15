@@ -136,7 +136,7 @@ Comm::ConnOpener::handleConnectionFailure(const char * const failureDescription,
             os << Debug::Extra << "seconds past the establishment deadline: " << (squid_curtime - deadline_);
     };
 
-    const auto failure = OutgoingConnectionFailure(conn_, Http::scNone);
+    const auto failure = OutgoingConnectionFailure(conn_);
     const auto debugLevel = failure.important ? DBG_IMPORTANT : 3;
     debugs(5, debugLevel, "ERROR: Failed to establish a TCP connection" << CallToPrint(debugDetails));
     failure.countAfterReport();
