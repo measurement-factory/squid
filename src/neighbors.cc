@@ -39,6 +39,7 @@
 #include "PeerPoolMgr.h"
 #include "PeerSelectState.h"
 #include "RequestFlags.h"
+#include "security//BlindPeerConnector.h"
 #include "SquidConfig.h"
 #include "SquidMath.h"
 #include "stat.h"
@@ -60,7 +61,10 @@ static void neighborCountIgnored(CachePeer *);
 static void peerRefreshDNS(void *);
 static IPH peerDNSConfigure;
 static void peerProbeConnect(CachePeer *, const bool reprobeIfBusy = false);
-static CNCB peerProbeConnectDone;
+static CNCB peerProbeTcpDone;
+static void peerProbeTlsStart(CachePeer *, const Comm::ConnectionPointer &);
+static void peerProbeTlsDone(Security::EncryptorAnswer &);
+static void peerProbeAllDone(CachePeer *, const Comm::ConnectionPointer &);
 static void peerCountMcastPeersDone(void *data);
 static void peerCountMcastPeersStart(void *data);
 static void peerCountMcastPeersSchedule(CachePeer * p, time_t when);
@@ -1264,7 +1268,7 @@ peerProbeConnect(CachePeer *p, const bool reprobeIfBusy)
 
         ++ p->testing_now;
 
-        AsyncCall::Pointer call = commCbCall(15,3, "peerProbeConnectDone", CommConnectCbPtrFun(peerProbeConnectDone, p));
+        AsyncCall::Pointer call = commCbCall(15,3, "peerProbeTcpDone", CommConnectCbPtrFun(peerProbeTcpDone, p));
         Comm::ConnOpener *cs = new Comm::ConnOpener(conn, call, ctimeout);
         cs->setHost(p->host);
         AsyncJob::Start(cs);
@@ -1274,15 +1278,74 @@ peerProbeConnect(CachePeer *p, const bool reprobeIfBusy)
 }
 
 static void
-peerProbeConnectDone(const Comm::ConnectionPointer &conn, Comm::Flag status, int, void *data)
+peerProbeTcpDone(const Comm::ConnectionPointer &conn, Comm::Flag status, int, void *data)
 {
     CachePeer *p = (CachePeer*)data;
 
-    if (status == Comm::OK)
-        p->noteSuccess();
+    if (status == Comm::OK) {
+        assert(Comm::IsConnOpen(conn));
+        if (p->secure.encryptTransport)
+            return peerProbeTlsStart(p, conn);
+        peerProbeAllDone(p, conn);
+        return;
+    }
 
-    -- p->testing_now;
-    conn->close();
+    assert(!Comm::IsConnOpen(conn));
+    peerProbeAllDone(p, conn);
+}
+
+static void
+peerProbeTlsStart(CachePeer * const p, const Comm::ConnectionPointer &conn)
+{
+    assert(conn);
+
+    // XXX: Duplicates PeerPoolMgr::start()
+    const auto mx = MasterXaction::MakePortless<XactionInitiator::initPeerProbe>();
+    auto request = HttpRequest::Pointer::Make(Http::METHOD_OPTIONS, AnyP::PROTO_HTTP, "http", "*", mx);
+    request->url.host(p->host);
+
+    // XXX: Duplicates PeerPoolMgr::handleOpenedConnection()
+    const auto peerTimeout = p->connectTimeout();
+    const auto timeUsed = squid_curtime - conn->startTime();
+    // Use positive timeout when less than one second is left for conn.
+    const auto timeLeft = positiveTimeout(peerTimeout - timeUsed);
+
+    const auto callback = asyncCallbackFun(15, 3, peerProbeTlsDone);
+    const auto encryptor = new Security::BlindPeerConnector(request, conn, callback, nullptr, timeLeft);
+    AsyncJob::Start(encryptor);
+}
+
+/// called when all TLS negotiations with a cache_peer have been completed
+static void
+peerProbeTlsDone(Security::EncryptorAnswer &answer)
+{
+    if (answer.error.set()) {
+        assert(!answer.conn);
+    } else {
+        assert(!answer.tunneled);
+        assert(answer.conn);
+        if (Comm::IsConnOpen(answer.conn) && fd_table[answer.conn->fd].closing()) {
+            // The socket could get closed while our callback was queued. Sync.
+            answer.conn->noteClosure();
+            answer.conn = nullptr;
+        }
+    }
+    peerProbeAllDone(answer.peer.get(), answer.conn);
+}
+
+/// called when all negotiations with the cache_peer have been completed
+static void
+peerProbeAllDone(CachePeer * const p, const Comm::ConnectionPointer &conn)
+{
+    assert(p);
+    debugs(15, 7, *p);
+    --p->testing_now;
+
+    if (Comm::IsConnOpen(conn)) {
+        p->noteSuccess();
+        conn->close();
+    }
+
     // TODO: log this traffic.
 
     if (p->reprobe)

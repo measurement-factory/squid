@@ -29,6 +29,7 @@ public:
         initIcon = 1 << 11, ///< internal icons
         initPeerMcast = 1 << 12, ///< neighbor multicast
         initServer = 1 << 13, ///< HTTP/2 push request (not yet supported by Squid)
+        initPeerProbe = 1 << 14, ///< cache_peer accessibility check
 
         initAdaptationOrphan_ = 1 << 31 ///< eCAP-created HTTP message w/o an associated HTTP transaction (not ACL-detectable)
     };
@@ -48,7 +49,7 @@ public:
 
     /// internally generated requests
     static Initiators InternalInitiators() {
-        return initPeerPool | initCertFetcher | initEsi | initCacheDigest | initIcp | initIcmp | initIpc | initAdaptation | initIcon | initPeerMcast;
+        return initPeerPool | initCertFetcher | initEsi | initCacheDigest | initIcp | initIcmp | initIpc | initAdaptation | initIcon | initPeerMcast | initPeerProbe;
     }
 
     /// all initiators
