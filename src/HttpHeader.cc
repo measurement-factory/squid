@@ -451,7 +451,20 @@ HttpHeader::parse(const char *header_start, size_t hdrLen, Http::ContentLengthIn
             break;      /* terminating blank line */
         }
 
-        const auto e = HttpHeaderEntry::parse(field_start, field_end, owner);
+        HttpHeaderEntry *field = nullptr;
+        try {
+            field = HttpHeaderEntry::parse(field_start, field_end, owner);
+        } catch (...) {
+            debugs(55, 2, "(possibly bypassable) field parsing error: " << CurrentException);
+            hasMalformedField_ = true;
+            // We do not just skip this malformed field to reduce chances that
+            // stripping it allows the attacker to fool some recipients that may
+            // incorrectly "join" the surrounding (less malformed) fields.
+            static const HttpHeaderEntry replacement(Http::HdrType::OTHER, SBuf("X-Name"), "value");
+            field = replacement.clone();
+        }
+
+        const auto e = field;
         if (!e) {
             debugs(55, warnOnError, "WARNING: unparsable HTTP header field {" <<
                    getStringPrefix(field_start, field_end-field_start) << "}");
@@ -520,7 +533,9 @@ HttpHeader::parse(const char *header_start, size_t hdrLen, Http::ContentLengthIn
             delById(Http::HdrType::TRANSFER_ENCODING);
         } else {
             // This also rejects multiple encodings until we support them properly.
-            debugs(55, warnOnError, "WARNING: unsupported Transfer-Encoding used by client: " << rawTe);
+            debugs(55, warnOnError, "WARNING: Received unsupported " <<
+                   (owner == hoRequest ? "request" : "response") <<
+                   " Transfer-Encoding: " << rawTe);
             teUnsupported_ = true;
         }
 
@@ -539,6 +554,24 @@ HttpHeader::parse(const char *header_start, size_t hdrLen, Http::ContentLengthIn
     }
 
     return 1;           /* even if no fields where found, it is a valid header */
+}
+
+void
+HttpHeader::forceFraming(const bool useChunked)
+{
+    debugs(55, 3, (useChunked ? "chunked" : "default"));
+    delById(Http::HdrType::CONTENT_LENGTH); // if any
+    delById(Http::HdrType::TRANSFER_ENCODING); // if any
+    if (useChunked)
+        putStr(Http::HdrType::TRANSFER_ENCODING, "chunked");
+
+    conflictingContentLength_ = false;
+    teUnsupported_ = false;
+    // Http::Message::content_length should be negative but we cannot check here
+    assert(!badFraming());
+
+    // a hack to prevent persistent connections
+    putStr(Http::HdrType::CONNECTION, "close");
 }
 
 /* packs all the entries using supplied packer */
@@ -1486,6 +1519,8 @@ HttpHeaderEntry::parse(const char *field_start, const char *field_end, const htt
         if (!CharacterSet::TCHAR[*pos]) {
             debugs(55, 2, "found header with invalid characters in " <<
                    Raw("field-name", field_start, min(name_len,100)) << "...");
+            if (Config.accessList.repairHttpFraming)
+                throw TextException("invalid characters in header name", Here());
             return nullptr;
         }
     }

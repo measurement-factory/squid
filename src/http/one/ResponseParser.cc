@@ -94,6 +94,12 @@ Http::One::ResponseParser::ParseResponseStatus(Tokenizer &tok, StatusCode &code)
         if (code <= 99)
             throw TextException(ToSBuf("status-code too short: ", code), Here());
 
+        // e.g., 999 Request denied ... X-Li-Proto: http/1.1
+        if (code == 999 && Config.accessList.repairHttpFraming) {
+            // risk leaking this unknown-class status code to general code
+            return;
+        }
+
         // Codes with a non-standard first digit (a.k.a. response class) are
         // considered semantically invalid per the following HTTP WG discussion:
         // https://lists.w3.org/Archives/Public/ietf-http-wg/2010AprJun/0354.html

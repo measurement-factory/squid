@@ -314,6 +314,9 @@ HttpStateData::reusableReply(HttpStateData::ReuseDecision &decision)
 #define REFRESH_OVERRIDE(flag) 0
 #endif
 
+    if (repairedBadFraming)
+        return decision.make(ReuseDecision::reuseNot, "response framing error");
+
     if (EBIT_TEST(entry->flags, RELEASE_REQUEST))
         return decision.make(ReuseDecision::doNotCacheButShare, "the entry has been released");
 
@@ -702,7 +705,7 @@ HttpStateData::processReplyHeader()
     // reset payload tracking to begin after message headers
     payloadSeen = inBuf.length();
 
-    HttpReply *newrep = new HttpReply;
+    HttpReplyPointer newrep = new HttpReply;
     // XXX: RFC 7230 indicates we MAY ignore the reason phrase,
     //      and use an empty string on unknown status.
     //      We do that now to avoid performance regression from using SBuf::c_str()
@@ -719,8 +722,12 @@ HttpStateData::processReplyHeader()
 
     newrep->sources |= request->url.getScheme() == AnyP::PROTO_HTTPS ? Http::Message::srcHttps : Http::Message::srcHttp;
 
+    // TODO: Add HttpReply::needsRepairs() and rename repairFraming() to repairReplyPrefix()
+    if (!newrep->sline.hasKnownStatusClass() || newrep->header.hasMalformedField() || newrep->header.badFraming())
+        repairFraming(*newrep);
+
     if (newrep->sline.version.protocol == AnyP::PROTO_HTTP && Http::Is1xx(newrep->sline.status())) {
-        handle1xx(newrep);
+        handle1xx(newrep.getRaw());
         return;
     }
 
@@ -733,7 +740,7 @@ HttpStateData::processReplyHeader()
     if (!peerSupportsConnectionPinning())
         request->flags.connectionAuthDisabled = true;
 
-    HttpReply *vrep = setVirginReply(newrep);
+    HttpReply *vrep = setVirginReply(newrep.getRaw());
     flags.headers_parsed = true;
 
     keepaliveAccounting(vrep);
@@ -1304,6 +1311,71 @@ HttpStateData::processReply()
     processReplyBody(); // may call serverComplete()
 }
 
+/// fixes a subset of request framing problems if allowed to do so
+void
+HttpStateData::repairFraming(HttpReply &reply)
+{
+#if !USE_HTTP_VIOLATIONS
+    return; // no HTTP-violating repairs in this build
+#endif
+
+    if (!Config.accessList.repairHttpFraming)
+        return; // no repairs by default
+
+    ACLFilledChecklist checklist(Config.accessList.repairHttpFraming, originalRequest().getRaw());
+    if (!checklist.reply) {
+        checklist.reply = &reply;
+        HTTPMSGLOCK(checklist.reply);
+    }
+    checklist.al = fwd->al;
+    checklist.syncAle(originalRequest().getRaw(), nullptr);
+    if (!checklist.fastCheck().allowed())
+        return; // repairs prohibited by the admin
+
+    const auto badStatus = !reply.sline.hasKnownStatusClass();
+
+    // XXX: duplicates a lot of ClientHttpRequest::repairFraming().
+
+    debugs(11, 3, "problems:" <<
+           (badStatus ? " scode" : "") <<
+           (reply.header.hasMalformedField() ? " field" : "") <<
+           (reply.header.unsupportedTe() ? " te" : "") <<
+           (reply.header.conflictingContentLength() ? " clen" : ""));
+
+    if (badStatus)
+        reply.sline.resetStatus(Http::scBadGateway, "Received bad response status code");
+
+    if (reply.header.hasMalformedField())
+        reply.header.ignoreMalformedField();
+
+    if (reply.header.unsupportedTe()) {
+        String rawTe;
+        const auto gotTe = reply.header.getByIdIfPresent(Http::HdrType::TRANSFER_ENCODING, &rawTe);
+        assert(gotTe); // HttpHeader preserves malformed Transfer-Encoding value
+        const auto possiblyChunked = rawTe.findCaseXXX("chunk") != String::npos;
+        reply.header.forceFraming(possiblyChunked);
+        // "removed" Transfer-Encoding (and any Content-Length) problems
+    } else if (reply.header.conflictingContentLength()) {
+        reply.header.forceFraming(false);
+        // "removed" Content-Length problems
+    }
+
+    // reduce cache poisoning risks posed by this malformed reply
+    auto &requestFlags = request->flags;
+    requestFlags.noCache = true;
+    requestFlags.cachable.veto(); // XXX: may be overwritten by maybeCacheable()
+    requestFlags.proxyKeepalive = false;
+    requestFlags.mustKeepalive = false; // XXX: may be overwritten by auth code
+
+    flags.forceClose = true;
+    repairedBadFraming = true;
+
+    // stay away from this bad server, even if we can repair its reply
+    fwd->dontRetry(true);
+
+    // TODO: Also prohibit (already received) Upgrade?
+}
+
 /**
  \retval true    if we can continue with processing the body or doing ICAP.
  */
@@ -1341,6 +1413,12 @@ HttpStateData::continueAfterParsingHeader()
             } else if (s == Http::scHeaderTooLarge) {
                 fwd->dontRetry(true);
                 error = ERR_TOO_BIG;
+            } else if (!vrep->sline.hasKnownStatusClass()) {
+                fwd->dontRetry(true);
+                error = ERR_INVALID_RESP;
+            } else if (vrep->header.hasMalformedField()) {
+                fwd->dontRetry(true);
+                error = ERR_INVALID_RESP;
             } else if (vrep->header.conflictingContentLength()) {
                 fwd->dontRetry(true);
                 error = ERR_INVALID_RESP;

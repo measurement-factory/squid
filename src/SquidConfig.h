@@ -402,6 +402,7 @@ public:
         acl_access *forceRequestBodyContinuation;
         acl_access *serverPconnForNonretriable;
         acl_access *collapsedForwardingAccess;
+        acl_access *repairHttpFraming; ///< repair_http_framing
     } accessList;
     AclDenyInfoList *denyInfoList;
 
