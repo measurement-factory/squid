@@ -1456,7 +1456,6 @@ ENDIF
 	  #  icp: matches ICP requests to peers
 	  #  icmp: matches ICMP RTT database (NetDB) requests to peers
 	  #  asn: matches asns db requests
-	  #  peer-probe: matches cache_peer TLS health checks
 	  #  internal: matches any of the above
 	  #  client: matches transactions containing an HTTP or FTP
 	  #     client request received at a Squid *_port

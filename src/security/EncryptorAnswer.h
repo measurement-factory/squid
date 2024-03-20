@@ -29,9 +29,6 @@ public:
     /// XXX: We should refcount ErrorState instead of cbdata-protecting it.
     CbcPointer<ErrorState> error; ///< problem details (nil on success)
 
-    // XXX: Temporary hack to relay CachePeer to peerProbeTlsDone (on errors)
-    CbcPointer<CachePeer> peer;
-
     /// whether we spliced the connections instead of negotiating encryption
     bool tunneled;
 };

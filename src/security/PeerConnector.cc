@@ -54,7 +54,6 @@ Security::PeerConnector::PeerConnector(const Comm::ConnectionPointer &aServerCon
     typedef CommCbMemFunT<Security::PeerConnector, CommCloseCbParams> Dialer;
     closeHandler = JobCallback(9, 5, Dialer, this, Security::PeerConnector::commCloseHandler);
     comm_add_close_handler(serverConn->fd, closeHandler);
-    answer().peer = serverConn->getPeer(); // may be nil
 }
 
 Security::PeerConnector::~PeerConnector() = default;

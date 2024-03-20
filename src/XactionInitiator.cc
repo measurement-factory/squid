@@ -33,7 +33,6 @@ XactionInitiator::ParseInitiators(const char *name)
         {"adaptation", initAdaptation},
         {"icon", initIcon},
         {"peer-mcast", initPeerMcast},
-        {"peer-probe", initPeerProbe},
         {"internal", InternalInitiators()},
         {"all", AllInitiators()}
     };
