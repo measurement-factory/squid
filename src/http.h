@@ -104,6 +104,7 @@ private:
     void checkDateSkew(HttpReply *);
 
     bool continueAfterParsingHeader();
+    void repairFraming(HttpReply &);
     void truncateVirginBody();
 
     void start() override;
@@ -151,6 +152,9 @@ private:
     int64_t payloadSeen = 0;
     /// positive when we read more than we wanted
     int64_t payloadTruncated = 0;
+
+    /// Whether a badly framed response was massaged enough to become usable.
+    bool repairedBadFraming = false;
 
     /// Whether we received a Date header older than that of a matching
     /// cached response.

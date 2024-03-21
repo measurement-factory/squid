@@ -9,6 +9,7 @@
 #include "squid.h"
 #include "base/TextException.h"
 #include "mgr/Registration.h"
+#include "sbuf/SBuf.h"
 #include "Store.h"
 
 #include <climits>
@@ -522,6 +523,25 @@ String::find(char const *aString) const
     if (c==nullptr)
         return npos;
     return c-rawBuf();
+}
+
+String::size_type
+String::findCaseXXX(const char *needle) const
+{
+    assert(needle);
+
+    // (poor) optimization: start by quickly checking the common case
+    const auto sameCasePos = find(needle);
+    if (sameCasePos != npos)
+        return sameCasePos;
+
+    // XXX: implement strcasestr() logic instead
+    const auto lowerBuf = ToLower(SBuf(rawBuf(), size()));
+    const auto lowerNeedle = ToLower(SBuf(needle));
+    const auto otherCasePos = lowerBuf.find(lowerNeedle);
+    if (otherCasePos == SBuf::npos)
+        return npos;
+    return otherCasePos;
 }
 
 String::size_type

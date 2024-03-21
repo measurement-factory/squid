@@ -246,15 +246,22 @@ Http::Message::setContentLength(int64_t clen)
 bool
 Http::Message::persistent() const
 {
+    // For all HTTP versions, Connection:close presence prohibits persistency,
+    // even if there is also a Connection:keep-alive field. Ignoring the latter
+    // is safer and lets us force false persistent() result by adding
+    // Connection:close to the received message, without worrying about deleting
+    // other Connection tokens before they are processed.
+    static const auto close = new SBuf("close", 5);
+    if (httpHeaderHasConnDir(&header, *close))
+        return false;
+
     if (http_ver > Http::ProtocolVersion(1,0)) {
-        /*
-         * for modern versions of HTTP: persistent unless there is
-         * a "Connection: close" header.
-         */
-        static SBuf close("close", 5);
-        return !httpHeaderHasConnDir(&header, close);
+        // For modern HTTP versions: Persistent unless there is a
+        // Connection:close header field (which we already checked above).
+        return true;
     } else {
-        /* for old versions of HTTP: persistent if has "keep-alive" */
+        // For old HTTP versions: Persistent if there is a Connection:keep-alive
+        // header field (w/o Connection:close which we already checked above).
         static SBuf keepAlive("keep-alive", 10);
         return httpHeaderHasConnDir(&header, keepAlive);
     }
