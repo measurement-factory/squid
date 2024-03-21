@@ -1363,7 +1363,7 @@ HttpStateData::repairFraming(HttpReply &reply)
     // reduce cache poisoning risks posed by this malformed reply
     auto &requestFlags = request->flags;
     requestFlags.noCache = true;
-    requestFlags.cachable.veto(); // XXX: may be overwritten by maybeCacheable()
+    requestFlags.cachable.veto();
     requestFlags.proxyKeepalive = false;
     requestFlags.mustKeepalive = false; // XXX: may be overwritten by auth code
 

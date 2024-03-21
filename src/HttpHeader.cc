@@ -460,8 +460,8 @@ HttpHeader::parse(const char *header_start, size_t hdrLen, Http::ContentLengthIn
             // We do not just skip this malformed field to reduce chances that
             // stripping it allows the attacker to fool some recipients that may
             // incorrectly "join" the surrounding (less malformed) fields.
-            static const HttpHeaderEntry replacement(Http::HdrType::OTHER, SBuf("X-Name"), "value");
-            field = replacement.clone();
+            static const auto replacement = new HttpHeaderEntry(Http::HdrType::OTHER, SBuf("X-Name"), "value");
+            field = replacement->clone();
         }
 
         const auto e = field;
