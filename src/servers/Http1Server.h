@@ -39,6 +39,7 @@ protected:
     int pipelinePrefetchMax() const override;
     time_t idleTimeout() const override;
     void noteTakeServerConnectionControl(ServerConnectionContext) override;
+    void setReplyError(const StreamPointer &, const HttpRequestPointer &, err_type, StatusCode) override;
 
     /* BodyPipe API */
     void noteMoreBodySpaceAvailable(BodyPipe::Pointer) override;
@@ -59,7 +60,6 @@ private:
     /// Return false if parsing is failed, true otherwise.
     bool buildHttpRequest(Http::StreamPointer &context);
 
-    void setReplyError(Http::StreamPointer &context, HttpRequest::Pointer &request, err_type requestError, Http::StatusCode errStatusCode, const char *requestErrorBytes);
 
     Http1::RequestParserPointer parser_;
     HttpRequestMethod method_; ///< parsed HTTP method
