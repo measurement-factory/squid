@@ -1570,6 +1570,15 @@ ConnStateData::tunnelOr_()
         // stop our (indirect) callers from trying to read or parse more requests
         context->mayUseConnection(true);
         flags.readMore = false;
+
+        // XXX: In many use cases, we are called without an HTTP request. Without
+        // ALE::request, Format::Format::assemble() cannot get to
+        // al->request->clientConnectionManager (i.e. "this") and
+        // this->preservedClientData. TODO: Move preservedClientData to ALE?
+        if (const auto http = context->http) { // TODO: Can we assert existence?
+            if (preservingClientData_)
+                http->al->preservedClientData = preservedClientData;
+        }
     }
 
     if (!Config.accessList.on_unsupported_protocol) {
