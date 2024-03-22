@@ -401,10 +401,9 @@ Http::Tunneler::handleFailingConnection(const char * const failureDescription, c
             os << Debug::Extra << "seconds past the establishment deadline: " << (squid_curtime - deadline);
     };
 
-    const auto failure = OutgoingConnectionFailure(connection);
-    const auto debugLevel = failure.important ? DBG_IMPORTANT : 3;
-    debugs(5, debugLevel, "ERROR: Cannot establish CONNECT tunnel through cache_peer" << CallToPrint(debugDetails));
-    failure.countAfterReport();
+    // No OutgoingConnectionFailure(connection): Many of these errors are not
+    // cache_peer fault, and we cannot reliably distinguish the ones that are.
+    debugs(5, 2, "ERROR: Cannot establish CONNECT tunnel through cache_peer" << CallToPrint(debugDetails));
 }
 
 void
