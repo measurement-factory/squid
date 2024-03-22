@@ -547,9 +547,16 @@ Format::Format::assemble(MemBuf &mb, const AccessLogEntry::Pointer &al, int logS
             }
             break;
 
-        case LFT_CLIENT_HANDSHAKE:
-            if (al->request && al->request->clientConnectionManager.valid()) {
-                const auto &handshake = al->request->clientConnectionManager->preservedClientData;
+        case LFT_CLIENT_HANDSHAKE: {
+            auto preservedClientData_raw = al->preservedClientData_raw;
+            auto preservedClientData_set = al->preservedClientData_set;
+            if (!preservedClientData_set && al->request && al->request->clientConnectionManager.valid()) {
+                preservedClientData_raw = al->request->clientConnectionManager->preservedClientData;
+                preservedClientData_set = true;
+            }
+
+            if (preservedClientData_set) {
+                const auto &handshake = preservedClientData_raw;
                 if (const auto rawLength = handshake.length()) {
                     // add 1 byte to optimize the c_str() conversion below
                     char *buf = sb.rawAppendStart(base64_encode_len(rawLength) + 1);
@@ -564,6 +571,7 @@ Format::Format::assemble(MemBuf &mb, const AccessLogEntry::Pointer &al, int logS
                 }
             }
             break;
+        }
 
         case LFT_TIME_SECONDS_SINCE_EPOCH:
             // some platforms store time in 32-bit, some 64-bit...
