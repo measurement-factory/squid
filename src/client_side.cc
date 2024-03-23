@@ -1640,8 +1640,8 @@ ConnStateData::tunnelOnErrorFinalize(const Acl::Answer answer)
         return;
     }
 
-    debugs(33, 3, "tunneling denied; closing without sending error");
     // tunnelonErrorStart_() was called by tunnelOrClose()
+    debugs(33, 3, "tunneling denied; closing without sending error");
     Assure(clientConnection);
     clientConnection->close();
 }
@@ -4088,7 +4088,7 @@ ConnStateData::shouldPreserveClientData() const
         return false;
 
     // If our decision here is negative, configuration changes are irrelevant.
-    // Otherwise, clientTunnelOnError() rechecks configuration before tunneling.
+    // Otherwise, tunnelOr_() rechecks configuration before tunneling.
     if (!Config.accessList.on_unsupported_protocol)
         return false;
 
