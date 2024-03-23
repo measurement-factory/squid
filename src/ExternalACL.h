@@ -52,7 +52,7 @@ public:
     virtual int match(ACLChecklist *checklist);
     /* This really should be dynamic based on the external class defn */
     virtual bool requiresAle() const {return true;}
-    virtual bool requiresRequest() const {return true;}
+    virtual bool requiresRequest() const { return false; }
 
     /* when requiresRequest is made dynamic, review this too */
     //    virtual bool requiresReply() const {return true;}
