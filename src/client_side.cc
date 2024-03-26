@@ -1709,11 +1709,16 @@ clientProcessRequest(ConnStateData *conn, const Http1::RequestParserPointer &hp,
         request->http_ver.minor = http_ver.minor;
     }
 
+    if (request->header.hasMalformedField() || request->header.badFraming())
+        http->repairFraming();
+
     const auto unsupportedTe = request->header.unsupportedTe();
 
     mustReplyToOptions = (request->method == Http::METHOD_OPTIONS) &&
                          (request->header.getInt64(Http::HdrType::MAX_FORWARDS) == 0);
-    if (!urlCheckRequest(request.getRaw()) || mustReplyToOptions || unsupportedTe) {
+    if (!urlCheckRequest(request.getRaw()) || mustReplyToOptions ||
+        request->header.hasMalformedField() || unsupportedTe) {
+
         clientStreamNode *node = context->getClientReplyContext();
         conn->quitAfterError(request.getRaw());
         clientReplyContext *repContext = dynamic_cast<clientReplyContext *>(node->data.getRaw());

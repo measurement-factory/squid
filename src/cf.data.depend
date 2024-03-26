@@ -70,6 +70,7 @@ peer_access		cache_peer acl
 pipelinePrefetch
 PortCfg
 QosConfig
+repair_http_framing     acl
 TokenOrQuotedString
 refreshpattern
 removalpolicy

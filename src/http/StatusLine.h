@@ -44,6 +44,10 @@ public:
     /// retrieve the status code for this status line
     Http::StatusCode status() const { return status_; }
 
+    bool hasKnownStatusClass() const { return 100 <= status_ && status_ < 600; }
+
+    void resetStatus(Http::StatusCode, const char *newReason = nullptr);
+
     /// retrieve the reason string for this status line
     const char *reason() const;
 

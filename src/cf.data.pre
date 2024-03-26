@@ -6904,6 +6904,51 @@ DOC_START
 	or response to be rejected.
 DOC_END
 
+NAME: repair_http_framing
+IFDEF: USE_HTTP_VIOLATIONS
+TYPE: acl_access
+LOC: Config.accessList.repairHttpFraming
+DEFAULT: none
+DEFAULT_DOC: Terminate connection due to bad HTTP framing.
+DOC_START
+	WARNING: Allowing Squid to muddle through HTTP framing errors may
+	expose your Squid instance (and other HTTP agents) to message
+	smuggling attacks, cache poisoning, and other security risks. This
+	directive is meant as a temporary workaround for broken HTTP agents
+	that are known to send no malicious traffic and to be compatible with
+	this directive manipulation of received HTTP headers.
+
+	Squid consults this directive in these cases:
+
+	* Upon discovering an "unsupported Transfer-Encoding" framing error:
+	  An allow match treats that encoding as either "chunked" or
+	  "identity" (depending on whether the bad encoding had the letters
+	  "chunk" in it). The Content-Length header field, if any, is ignored
+	  in this case.
+
+	* Upon discovering a "bad Content-Length" framing error: An allow
+	  match treats this case as if no Content-Length header fields were
+	  present. This treatment stalls responses if the server does not
+	  close the connection shortly after delivering the broken response.
+	  TODO: Do not repair at all?
+
+	* Upon discovering an HTTP 999 response status code: An allow match treats
+	  this case as if a 502 status code was received. Per HTTP WG consensus,
+	  any 3-digit code above 599 is considered semantically invalid:
+	  https://lists.w3.org/Archives/Public/ietf-http-wg/2010AprJun/0354.html
+
+	* Upon discovering an HTTP header field name that is not a token: An allow
+	  match treats this case as if an "X-Name: value" field was received. See
+	  RFC 9110 for the list of token characters (a.k.a. "tchar"):
+	  https://httpwg.org/specs/rfc9110.html#rule.token.separators
+
+	The directive is checked once per badly framed message, but if multiple
+	violations are detected in a message, then an allow match enables multiple
+	repairs.
+
+	This directive supports fast ACLs only.
+DOC_END
+
 NAME: collapsed_forwarding
 COMMENT: (on|off)
 TYPE: onoff
