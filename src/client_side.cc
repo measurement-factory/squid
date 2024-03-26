@@ -190,6 +190,7 @@ static void clientUpdateHierCounters(HierarchyLogEntry *);
 static bool clientPingHasFinished(ping_data const *aPing);
 void prepareLogWithRequestDetails(HttpRequest *, AccessLogEntry::Pointer &);
 static void ClientSocketContextPushDeferredIfNeeded(Http::StreamPointer deferredRequest, ConnStateData * conn);
+void clientProcessRequestFinished(ConnStateData *, const HttpRequest::Pointer &);
 
 char *skipLeadingSpace(char *aString);
 
@@ -1585,51 +1586,126 @@ bool ConnStateData::serveDelayedError(Http::Stream *context)
 }
 #endif // USE_OPENSSL
 
-/// ConnStateData::tunnelOnError() wrapper. Reduces code changes. TODO: Remove.
-bool
-clientTunnelOnError(ConnStateData *conn, Http::StreamPointer &context, HttpRequest::Pointer &request, const HttpRequestMethod& method, err_type requestError)
+/// initiate tunneling (if possible) or respond with the given error (otherwise)
+void
+ConnStateData::tunnelOrReplyWithError(const HttpRequest::Pointer &request, const err_type errCode, const Http::StatusCode httpStatus)
 {
-    assert(conn);
-    assert(conn->pipeline.front() == context);
-    return conn->tunnelOnError(method, requestError);
+    debugs(33, 3, "pending error: " << errorTypeName(errCode) << "; HTTP " << httpStatus);
+    pendingError.request = request;
+    pendingError.errCode = errCode;
+    pendingError.httpStatus = httpStatus;
+
+    // TODO: Consider calling updateError(errCode): Why should our callers be
+    // different from tunnelOrCloseAfterUpdateError() callers? They did not have
+    // access before this methods was added, but would not ACL checks and (when
+    // tunneling) access.log records _benefit_ from having access to errCode?
+    tunnelOr_();
 }
 
-/// initiate tunneling if possible or return false otherwise
-bool
-ConnStateData::tunnelOnError(const HttpRequestMethod &method, const err_type requestError)
+/// Initiate tunneling (if possible) or close the client-to-Squid connection
+/// (otherwise). The caller must call one of the updateError() methods first.
+void
+ConnStateData::tunnelOrCloseAfterUpdateError()
 {
+    debugs(33, 5, "will not send error");
+    tunnelOr_();
+}
+
+/// Code shared by tunnelOrReplyWithError() and tunnelOrClose() methods.
+/// Do not call this helper method from other places.
+void
+ConnStateData::tunnelOr_()
+{
+    const auto context = pipeline.front();
+
+    if (context) { // TODO: Can we assert existence?
+        // stop our (indirect) callers from trying to read or parse more requests
+        context->mayUseConnection(true);
+        flags.readMore = false;
+
+        // XXX: In many use cases, we are called without an HTTP request. Without
+        // ALE::request, Format::Format::assemble() cannot get to
+        // al->request->clientConnectionManager (i.e. "this") and
+        // this->preservedClientData. TODO: Move preservedClientData to ALE?
+        if (const auto http = context->http) { // TODO: Can we assert existence?
+            if (preservingClientData_) {
+                http->al->preservedClientData_raw = preservedClientData;
+                http->al->preservedClientData_set = true;
+            }
+        }
+    }
+
     if (!Config.accessList.on_unsupported_protocol) {
-        debugs(33, 5, "disabled; send error: " << requestError);
-        return false;
+        debugs(33, 5, "cannot tunnel: feature not enabled");
+        tunnelOnErrorFinalize(ACCESS_DENIED);
+        return;
     }
 
     if (!preservingClientData_) {
-        debugs(33, 3, "may have forgotten client data; send error: " << requestError);
-        return false;
+        debugs(33, 3, "cannot tunnel: may have forgotten client data");
+        tunnelOnErrorFinalize(ACCESS_DENIED);
+        return;
     }
 
+    if (pipeline.count() > 1) {
+        // TODO: Move this check to ConnStateData::shouldPreserveClientData() if
+        // we can guarantee that it is called for every new [pipelined] request.
+        debugs(33, 3, "cannot tunnel: no code to tunnel pipelined requests: " << pipeline.count());
+        tunnelOnErrorFinalize(ACCESS_DENIED);
+        return;
+    }
+
+    // XXX: pendingError fields used below are only set on tunnelOrReplyWithError() path
+    auto checklist = std::make_unique<ACLFilledChecklist>(Config.accessList.on_unsupported_protocol, nullptr, nullptr);
+    checklist->requestErrorType = pendingError.errCode;
+    checklist->src_addr = clientConnection->remote;
+    checklist->my_addr = clientConnection->local;
+    checklist->conn(this);
+    if (const auto http = context ? context->http : nullptr)
+        clientAclChecklistFill(*checklist, http);
+    else
+        checklist->setRequest(pendingError.request.getRaw());
+    checklist.release()->nonBlockingCheck(ConnStateData::TunnelOnErrorFinalize, this);
+}
+
+/// ConnStateData::tunnelOnErrorFinalize() callback wrapper
+void
+ConnStateData::TunnelOnErrorFinalize(const Acl::Answer answer, void * const data)
+{
+    static_cast<ConnStateData*>(data)->tunnelOnErrorFinalize(answer);
+}
+
+/// applies on_unsupported_protocol decision
+void
+ConnStateData::tunnelOnErrorFinalize(const Acl::Answer answer)
+{
     const auto context = pipeline.front();
     const auto http = context ? context->http : nullptr;
     const auto request = http ? http->request : nullptr;
 
-    ACLFilledChecklist checklist(Config.accessList.on_unsupported_protocol, request, nullptr);
-    checklist.al = http ? http->al : nullptr;
-    checklist.requestErrorType = requestError;
-    checklist.src_addr = clientConnection->remote;
-    checklist.my_addr = clientConnection->local;
-    checklist.conn(this);
-    const char *log_uri = http ? http->log_uri : nullptr;
-    checklist.syncAle(request, log_uri);
-    auto answer = checklist.fastCheck();
     if (answer.allowed() && answer.kind == 1) {
         debugs(33, 3, "Request will be tunneled to server");
         if (context)
             context->finished(); // Will remove from pipeline queue
         Comm::SetSelect(clientConnection->fd, COMM_SELECT_READ, NULL, NULL, 0);
-        return initiateTunneledRequest(request, Http::METHOD_NONE, "unknown-protocol", preservedClientData);
+        if (initiateTunneledRequest(request, Http::METHOD_NONE, "unknown-protocol", preservedClientData))
+            return;
+        // XXX: Check initiateTunneledRequest() requirements in tunnelOr_() instead.
+        debugs(33, 5, "treating tunnel initiation failure as a denied tunnel");
     }
-    debugs(33, 3, "denied; send error: " << requestError);
-    return false;
+
+    if (pendingError.errCode) {
+        // tunnelonErrorStart() was called by tunnelOrReplyWithError()
+        debugs(33, 3, "tunneling denied; sending error: " << pendingError.errCode);
+        setReplyError(context, pendingError.request, pendingError.errCode, pendingError.httpStatus);
+        clientProcessRequestFinished(this, pendingError.request);
+        return;
+    }
+
+    // tunnelonErrorStart_() was called by tunnelOrClose()
+    debugs(33, 3, "tunneling denied; closing without sending error");
+    assert(clientConnection);
+    clientConnection->close();
 }
 
 void
@@ -2200,11 +2276,10 @@ ConnStateData::requestTimeout(const CommTimeoutCbParams &io)
 
     const err_type error = receivedFirstByte_ ? ERR_REQUEST_PARSE_TIMEOUT : ERR_REQUEST_START_TIMEOUT;
     updateError(error);
-    if (tunnelOnError(HttpRequestMethod(), error))
-        return;
 
     /*
-    * Just close the connection to not confuse browsers
+    * If we should not tunnel, then just close (without
+    * sending an error response) to not confuse browsers
     * using persistent connections. Some browsers open
     * a connection and then do not use it until much
     * later (presumeably because the request triggering
@@ -2212,7 +2287,7 @@ ConnStateData::requestTimeout(const CommTimeoutCbParams &io)
     * connection)
     */
     debugs(33, 3, "requestTimeout: FD " << io.fd << ": lifetime is expired.");
-    io.conn->close();
+    tunnelOrCloseAfterUpdateError();
 }
 
 void
@@ -2412,7 +2487,7 @@ clientNegotiateSSL(int fd, void *data)
     case Security::IoResult::ioError:
         debugs(83, (handshakeResult.important ? DBG_IMPORTANT : 2), "ERROR: " << handshakeResult.errorDescription <<
                " while accepting a TLS connection on " << conn->clientConnection << ": " << handshakeResult.errorDetail);
-        // TODO: No ConnStateData::tunnelOnError() on this forward-proxy code
+        // TODO: No ConnStateData::tunnelOrCloseAfterUpdateError() on this forward-proxy code
         // path because we cannot know the intended connection target?
         conn->updateError(ERR_SECURE_ACCEPT_FAIL, handshakeResult.errorDetail);
         conn->clientConnection->close();
@@ -2995,8 +3070,7 @@ ConnStateData::parseTlsHandshake()
         HttpRequest::Pointer request = context->http->request;
         debugs(83, 5, "Got something other than TLS Client Hello. Cannot SslBump.");
         updateError(ERR_PROTOCOL_UNKNOWN, parseErrorDetails);
-        if (!clientTunnelOnError(this, context, request, HttpRequestMethod(), ERR_PROTOCOL_UNKNOWN))
-            clientConnection->close();
+        tunnelOrCloseAfterUpdateError();
         return;
     }
 
@@ -3140,37 +3214,34 @@ ConnStateData::startPeekAndSplice()
 void
 ConnStateData::handleSslBumpHandshakeError(const Security::IoResult &handshakeResult)
 {
-    auto errCategory = ERR_NONE;
-
     switch (handshakeResult.category) {
     case Security::IoResult::ioSuccess: {
         static const auto d = MakeNamedErrorDetail("TLS_ACCEPT_UNEXPECTED_SUCCESS");
-        updateError(errCategory = ERR_GATEWAY_FAILURE, d);
+        updateError(ERR_GATEWAY_FAILURE, d);
         break;
     }
 
     case Security::IoResult::ioWantRead: {
         static const auto d = MakeNamedErrorDetail("TLS_ACCEPT_UNEXPECTED_READ");
-        updateError(errCategory = ERR_GATEWAY_FAILURE, d);
+        updateError(ERR_GATEWAY_FAILURE, d);
         break;
     }
 
     case Security::IoResult::ioWantWrite: {
         static const auto d = MakeNamedErrorDetail("TLS_ACCEPT_UNEXPECTED_WRITE");
-        updateError(errCategory = ERR_GATEWAY_FAILURE, d);
+        updateError(ERR_GATEWAY_FAILURE, d);
         break;
     }
 
     case Security::IoResult::ioError:
         debugs(83, (handshakeResult.important ? DBG_IMPORTANT : 2), "ERROR: " << handshakeResult.errorDescription <<
                " while SslBump-accepting a TLS connection on " << clientConnection << ": " << handshakeResult.errorDetail);
-        updateError(errCategory = ERR_SECURE_ACCEPT_FAIL, handshakeResult.errorDetail);
+        updateError(ERR_SECURE_ACCEPT_FAIL, handshakeResult.errorDetail);
         break;
 
     }
 
-    if (!tunnelOnError(HttpRequestMethod(), errCategory))
-        clientConnection->close();
+    tunnelOrCloseAfterUpdateError();
 }
 
 void
@@ -4079,7 +4150,7 @@ ConnStateData::shouldPreserveClientData() const
         return false;
 
     // If our decision here is negative, configuration changes are irrelevant.
-    // Otherwise, clientTunnelOnError() rechecks configuration before tunneling.
+    // Otherwise, tunnelOr_() rechecks configuration before tunneling.
     if (!Config.accessList.on_unsupported_protocol)
         return false;
 

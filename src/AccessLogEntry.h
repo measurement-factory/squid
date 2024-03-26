@@ -79,6 +79,11 @@ public:
     // TCP/IP level details about the server or peer connection
     // are stored in hier.tcpServer
 
+    /// XXX: A copy of ConnStateData::preservedClientData (when available).
+    /// See ConnStateData::tunnelOr_().
+    SBuf preservedClientData_raw;
+    bool preservedClientData_set = false;
+
     /** \brief This subclass holds log info for HTTP protocol
      * TODO: Inner class declarations should be moved outside
      * TODO: details of HTTP held in the parent class need moving into here.
