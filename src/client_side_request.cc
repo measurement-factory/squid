@@ -1357,47 +1357,69 @@ ClientRequestContext::createStoreEntry()
 bool
 ClientRequestContext::sslBumpAccessCheck()
 {
-    if (!http->getConn()) {
-        http->al->ssl.bumpMode = Ssl::bumpEnd; // SslBump does not apply; log -
+    const auto conn = http->getConn();
+    if (!conn) {
+        debugs(85, 5, "no: no client");
         return false;
     }
 
-    // ignore ssl_bump rules unless the request is on the SslBump path
-    const auto srvBump = http->getConn()->serverBump();
+    auto srvBump = conn->serverBump();
     if (!srvBump) {
-        debugs(85, 5, "not on SslBump path");
-        http->al->ssl.bumpMode = Ssl::bumpEnd; // SslBump does not apply; log -
-        return false;
-    }
+        if (!conn->port->flags.tunnelSslBumping) {
+            debugs(85, 5, "no; not an http(s)_port: " << *conn->port);
+            return false;
+        }
 
-    if (http->request->flags.forceTunnel) {
-        debugs(85, 5, "not needed; already decided to tunnel " << http->getConn());
-        // XXX: Why were we updating ALE here?!
-        // if (bumpMode != Ssl::bumpEnd)
-        //     http->al->ssl.bumpMode = bumpMode; // inherited from bumped connection
-        return false;
-    }
+        if (conn->port->transport.protocol != AnyP::PROTO_HTTP) {
+            debugs(85, 5, "no; http(s)_port lacks ssl-bump option: " << *conn->port);
+            return false;
+        }
 
-    // XXX: This "SslBump is not finished" condition is awkward! Add finished()?
-    if (srvBump->at(XactionStep::tlsBumpDone)) {
-        debugs(85, 5, "SslBump already finished");
-        // XXX: Why were we updating ALE here?!
-        // http->al->ssl.bumpMode = bumpMode; // inherited from bumped connection
-        return false;
-    }
+        if (http->request->method != Http::METHOD_CONNECT) {
+            debugs(85, 5, "no; not a CONNECT request: " << http->request->method);
+            return false;
+        }
 
-    // If we have not decided yet, decide whether to bump now.
+        if (http->redirect.status) {
+            debugs(85, 5, "no; client is being redirected");
+            return false;
+        }
 
-    // Do not bump during authentication: clients would not proxy-authenticate
-    // if we delay a 407 response and respond with 200 OK to CONNECT.
-    if (error && error->httpStatus == Http::scProxyAuthenticationRequired) {
-        srvBump->noteFinished("authenticating CONNECT");
-        http->al->ssl.bumpMode = Ssl::bumpEnd; // SslBump does not apply; log -
-        return false;
+        if (http->request->flags.forceTunnel) {
+            debugs(85, 5, "no; already decided to tunnel " << conn);
+            // XXX: Why were we updating ALE here?!
+            // if (bumpMode != Ssl::bumpEnd)
+            //     http->al->ssl.bumpMode = bumpMode; // inherited from bumped connection
+            return false;
+        }
+
+        if (!Config.accessList.ssl_bump) {
+            debugs(85, 5, "no; ssl_bump rules not configured");
+            return false;
+        }
+
+        // Do not bump during authentication: clients would not proxy-authenticate
+        // if we delay a 407 response and respond with 200 OK to CONNECT.
+        if (error && error->httpStatus == Http::scProxyAuthenticationRequired) {
+            debugs(85, 5, "not now: client must authenticate first");
+            return false;
+        }
+
+        conn->startSslBumpProcessing("first applicable CONNECT on from-client connection");
+        srvBump = conn->serverBump();
+        assert(srvBump);
+    } else {
+        // XXX: This "SslBump is not finished" condition is awkward! Add finished()?
+        if (srvBump->at(XactionStep::tlsBumpDone)) {
+            debugs(85, 5, "no; SslBump already finished");
+            // XXX: Why were we updating ALE here?!
+            // http->al->ssl.bumpMode = bumpMode; // inherited from bumped connection
+            return false;
+        }
     }
 
     if (error) {
-        debugs(85, 5, "SslBump applies. Force bump action on error " << errorTypeName(error->type));
+        debugs(85, 5, "yes; forcing bump action on error " << errorTypeName(error->type));
         srvBump->noteNeed(Ssl::bumpBump);
         http->al->ssl.bumpMode = Ssl::bumpBump;
 
@@ -1414,7 +1436,7 @@ ClientRequestContext::sslBumpAccessCheck()
         return false;
     }
 
-    debugs(85, 5, "SslBump possible, checking ACL");
+    debugs(85, 5, "maybe; checking ACL");
 
     ACLFilledChecklist *aclChecklist = clientAclChecklistCreate(Config.accessList.ssl_bump, http);
 
@@ -1476,8 +1498,6 @@ ClientHttpRequest::processRequest()
     const bool untouchedConnect = request->method == Http::METHOD_CONNECT && !redirect.status;
 
 #if USE_OPENSSL
-    // XXX: Do not send a second/rogue CONNECT to sslBumpAfterCallouts() if it
-    // can reach here.
     if (untouchedConnect && getConn()->serverBump() && !request->flags.forceTunnel) {
         sslBumpAfterCallouts();
         return;

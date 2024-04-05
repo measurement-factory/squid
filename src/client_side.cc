@@ -1750,18 +1750,6 @@ clientProcessRequest(ConnStateData *conn, const Http1::RequestParserPointer &hp,
         }
     }
 
-#if USE_OPENSSL
-    if (http->request->method == Http::METHOD_CONNECT &&
-        !http->redirect.status &&
-        conn->port->transport.protocol == AnyP::PROTO_HTTP &&
-        conn->port->flags.tunnelSslBumping &&
-        Config.accessList.ssl_bump &&
-        !conn->serverBump()) {
-        conn->startSslBumpProcessing("first non-redirected CONNECT on http_port");
-    }
-#endif
-
-
     http->calloutContext = new ClientRequestContext(http);
 
     http->doCallouts();
@@ -2806,12 +2794,17 @@ ConnStateData::sslBumpAfterCallouts()
         return;
     }
 
-    // We can be done when, for example, sslBumpSentConnectResponse() sent a 407
-    // AUTH_REQUIRED CONNECT response. We could avoid scheduling an async call,
-    // but since this method is called asynchronously, it feels safer to handle
-    // this "all done" state here.
-    if (sslServerBump->at(XactionStep::tlsBumpDone))
+    // If we spliced or terminated on the previous step, then there would be no
+    // (callouts at) this step. If we bumped on the previous step, then we will
+    // only be called when the client sends CONNECT inside the bumped tunnel.
+    // We do not support nested CONNECTs (yet?).
+    if (sslServerBump->at(XactionStep::tlsBumpDone)) {
+        debugs(85, DBG_IMPORTANT, "WARNING: SslBump closes bumped from-client connection after receiving a nested CONNECT");
+        // TODO: Either serve a proper error response or prevent nested CONNECTs
+        // from reaching this method (to process them using regular code).
+        clientConnection->close();
         return;
+    }
 
     if (sslServerBump->at(XactionStep::tlsBump1))
         sslBumpAfterCalloutsAtStep1();
