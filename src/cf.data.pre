@@ -1363,7 +1363,9 @@ endif
 	  # matches individual name=token pairs rather than whole
 	  # name=value pairs. See "ACL Options" above for more info.
 	  # Annotation sources include note and adaptation_meta directives
-	  # as well as helper and eCAP responses.
+	  # as well as helper key=value pairs, eCAP transaction options,
+	  # and ICAP response headers named using X-Annotate-KEY format.
+	  # In the latter case, the KEY part is used as the annotation name.
 
 	acl aclname annotate_transaction [-m[=delimiters]] key=value ...
 	acl aclname annotate_transaction [-m[=delimiters]] key+=value ...

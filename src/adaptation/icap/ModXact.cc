@@ -32,6 +32,7 @@
 #include "MasterXaction.h"
 #include "parser/Tokenizer.h"
 #include "sbuf/Stream.h"
+#include "sbuf/StringConvert.h"
 
 // flow and terminology:
 //     HTTP| --> receive --> encode --> write --> |network
@@ -858,6 +859,15 @@ void Adaptation::Icap::ModXact::parseIcapHead()
                 ah->updateNextServices(services);
         }
     } // TODO: else warn (occasionally!) if we got Http::HdrType::X_NEXT_SERVICES
+
+    // update master transaction annotations using X-Annotate-Foo ICAP response headers (if any)
+    for (const auto &e: icapReply->header.entries) {
+        static const auto metaPrefix = new SBuf("X-Annotate-");
+        if (e->name.startsWith(*metaPrefix, caseInsensitive) && e->name.length() > metaPrefix->length()) {
+            const auto history = request->adaptHistory(true);
+            history->addNewMetaHeader(e->name.substr(metaPrefix->length()), StringToSBuf(e->value));
+        }
+    }
 
     // We need to store received ICAP headers for <icapLastHeader logformat option.
     // If we already have stored headers from previous ICAP transaction related to this
