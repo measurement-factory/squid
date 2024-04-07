@@ -484,6 +484,8 @@ Adaptation::Ecap::XactionRep::updateHistory(Http::Message *adapted)
         }
     } // TODO: else warn (occasionally!) if we got libecap::metaNextServices
 
+    // update master transaction adaptation history and annotations using this
+    // adaptation transaction options (if any)
     HttpHeader meta(hoReply);
     OptionsExtractor extractor(meta);
     theMaster->visitEachOption(extractor);
