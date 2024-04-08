@@ -865,7 +865,7 @@ void Adaptation::Icap::ModXact::parseIcapHead()
         static const auto metaPrefix = new SBuf("X-Annotate-");
         if (e->name.startsWith(*metaPrefix, caseInsensitive) && e->name.length() > metaPrefix->length()) {
             const auto history = request->adaptHistory(true);
-            history->addNewMetaHeader(e->name.substr(metaPrefix->length()), StringToSBuf(e->value));
+            history->updateMetaHeader(e->name.substr(metaPrefix->length()), StringToSBuf(e->value));
         }
     }
 
@@ -1506,7 +1506,7 @@ void Adaptation::Icap::ModXact::makeRequestHeaders(MemBuf &buf)
             buf.append(matched.rawContent(), matched.length());
             buf.append("\r\n", 2);
             if (auto ah = request->adaptHistory(false))
-                ah->addNewMetaHeader(h->key(), matched);
+                ah->updateMetaHeader(h->key(), matched);
         }
     }
 

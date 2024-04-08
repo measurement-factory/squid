@@ -153,14 +153,14 @@ Adaptation::History::recordAdaptationService(SBuf &srvId)
 }
 
 void
-Adaptation::History::addNewMetaHeader(const SBuf &key, const SBuf &value)
+Adaptation::History::updateMetaHeader(const SBuf &key, const SBuf &value)
 {
-    if (!metaHeaders)
+    if (!metaHeaders) {
         metaHeaders = new NotePairs;
-    else if (metaHeaders->hasPair(key, value))
-        return;
-
-    metaHeaders->add(key, value);
+        metaHeaders->add(key, value);
+    } else {
+        metaHeaders->replaceOrAdd(key, value);
+    }
 }
 
 void

@@ -397,10 +397,17 @@ NotePairs::replaceOrAddOrAppend(const NotePairs *src, const NotePairs::Names &ap
 }
 
 void
+NotePairs::replaceOrAdd(const SBuf &key, const SBuf &value)
+{
+    remove(key); // if any
+    add(key, value);
+}
+
+void
 NotePairs::replaceOrAdd(const NotePairs *src)
 {
     for (const auto &e: src->entries)
         remove(e->name());
-    append(src);
+    append(src); // may append multiple same-name entries
 }
 

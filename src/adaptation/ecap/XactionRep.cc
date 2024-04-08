@@ -243,7 +243,7 @@ Adaptation::Ecap::XactionRep::start()
     SBuf matched;
     for (const auto &h: Adaptation::Config::metaHeaders) {
         if (h->match(request, reply, al, matched))
-            request->adaptHistory(true)->addNewMetaHeader(h->key(), matched);
+            request->adaptHistory(true)->updateMetaHeader(h->key(), matched);
     }
 
     theMaster->start();
@@ -494,7 +494,7 @@ Adaptation::Ecap::XactionRep::updateHistory(Http::Message *adapted)
         auto history = request->adaptHistory(true);
         history->recordMeta(&meta);
         for (const auto &e: meta.entries)
-            history->addNewMetaHeader(e->name, StringToSBuf(e->value));
+            history->updateMetaHeader(e->name, StringToSBuf(e->value));
     }
 
     // Add just-created history to the adapted/cloned request that lacks it.

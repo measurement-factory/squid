@@ -57,8 +57,8 @@ public:
 
     void recordAdaptationService(SBuf &srvId);
 
-    /// appends a new meta header; does nothing if key:value was added earlier
-    void addNewMetaHeader(const SBuf &key, const SBuf &value);
+    /// appends the given key=value entry, removing any existing same-key entry
+    void updateMetaHeader(const SBuf &key, const SBuf &value);
 
 public:
     /// Last received meta header (REQMOD or RESPMOD, whichever comes last).
