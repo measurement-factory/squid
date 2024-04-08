@@ -238,11 +238,12 @@ Adaptation::Ecap::XactionRep::start()
     if (ah != nullptr) {
         // retrying=false because ecap never retries transactions
         adaptHistoryId = ah->recordXactStart(service().cfg().key, current_time, false);
-        SBuf matched;
-        for (auto h: Adaptation::Config::metaHeaders) {
-            if (h->match(request, reply, al, matched))
-                ah->addNewMetaHeader(h->key(), matched);
-        }
+    }
+
+    SBuf matched;
+    for (const auto &h: Adaptation::Config::metaHeaders) {
+        if (h->match(request, reply, al, matched))
+            request->adaptHistory(true)->addNewMetaHeader(h->key(), matched);
     }
 
     theMaster->start();
