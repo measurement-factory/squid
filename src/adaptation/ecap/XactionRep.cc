@@ -490,14 +490,19 @@ Adaptation::Ecap::XactionRep::updateHistory(Http::Message *adapted)
 
     const auto adaptedReq = dynamic_cast<HttpRequest*>(adapted); // may be nil
 
-    // update master transaction adaptation history and annotations using this
-    // adaptation transaction options (if any)
     HttpHeader meta(hoReply);
     OptionsExtractor extractor(meta);
     theMaster->visitEachOption(extractor);
+
     if (!meta.entries.empty()) {
-        const auto history = request->adaptHistory(true);
-        history->recordMeta(&meta);
+        // Store received meta headers for adapt::<last_h logformat code use.
+        // If we already have stored headers from a previous adaptation transaction
+        // related to the same master transction, they will be replaced.
+        if (const auto ah = request->adaptLogHistory())
+            ah->recordMeta(&meta);
+
+        // Update master transaction adaptation history and annotations using
+        // this adaptation transaction options (if any).
 
         NotePairs freshAnnotations;
         for (const auto &e: meta.entries)
