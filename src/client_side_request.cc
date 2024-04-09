@@ -495,21 +495,16 @@ ClientRequestContext::hostHeaderIpVerify(const ipcache_addrs* ia, const Dns::Loo
 void
 ClientRequestContext::hostHeaderVerifyFailed(const char *A, const char *B)
 {
+    if (http->request->method == Http::METHOD_CONNECT) {
+        if (const auto clientMgr = http->getConn())
+            clientMgr->markAsFailedHostHeaderVerificication();
+    }
+
     // IP address validation for Host: failed. Admin wants to ignore them.
-    // NP: we do not yet handle CONNECT tunnels well, so ignore for them
-    if (!Config.onoff.hostStrictVerify && http->request->method != Http::METHOD_CONNECT) {
+    if (!Config.onoff.hostStrictVerify) {
         debugs(85, 3, "SECURITY ALERT: Host header forgery detected on " << http->getConn()->clientConnection <<
                " (" << A << " does not match " << B << ") on URL: " << http->request->effectiveRequestUri());
-
-        // MUST NOT cache (for now). It is tempting to set flags.noCache, but
-        // that flag is about satisfying _this_ request. We are actually OK with
-        // satisfying this request from the cache, but want to prevent _other_
-        // requests from being satisfied using this response.
-        http->request->flags.cachable.veto();
-
-        // XXX: when we have updated the cache key to base on raw-IP + URI this cacheable limit can go.
-        http->request->flags.hierarchical = false; // MUST NOT pass to peers (for now)
-        // XXX: when we have sorted out the best way to relay requests properly to peers this hierarchical limit can go.
+        http->request->markAsFailedHostHeaderVerificication(__FUNCTION__);
         http->doCallouts();
         return;
     }
@@ -542,6 +537,12 @@ ClientRequestContext::hostHeaderVerifyFailed(const char *A, const char *B)
 void
 ClientRequestContext::hostHeaderVerify()
 {
+    if (http->getConn()->failedHostHeaderVerificication()) {
+        http->request->markAsFailedHostHeaderVerificication("earlier CONNECT on this TCP connection failed Host verification");
+        http->doCallouts();
+        return;
+    }
+
     // Require a Host: header.
     const char *host = http->request->header.getStr(Http::HdrType::HOST);
 

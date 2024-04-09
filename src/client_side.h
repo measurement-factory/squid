@@ -172,6 +172,12 @@ public:
 
     void expectNoForwarding(); ///< cleans up virgin request [body] forwarding state
 
+    /// whether at least one of the received requests called ClientRequestContext::hostHeaderVerifyFailed()
+    auto failedHostHeaderVerificication() const { return hostHeaderVerificicationFailures_ > 0; }
+
+    /// remembers that a received requests called ClientRequestContext::hostHeaderVerifyFailed()
+    void markAsFailedHostHeaderVerificication();
+
     /* BodyPipe API */
     BodyPipe::Pointer expectRequestBody(int64_t size);
     void noteMoreBodySpaceAvailable(BodyPipe::Pointer) override = 0;
@@ -514,6 +520,10 @@ private:
     const char *stoppedSending_ = nullptr;
     /// the reason why we no longer read the request or nil
     const char *stoppedReceiving_ = nullptr;
+
+    /// the total number of received requests that called ClientRequestContext::hostHeaderVerifyFailed()
+    size_t hostHeaderVerificicationFailures_ = 0;
+
     /// Connection annotations, clt_conn_tag and other tags are stored here.
     /// If set, are propagated to the current and all future master transactions
     /// on the connection.

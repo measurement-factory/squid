@@ -2919,8 +2919,10 @@ DOC_START
 
 
 	When set to OFF (the default):
-		Squid allows suspicious requests to continue but logs a
-		security warning and blocks caching of the response.
+		Squid allows suspicious requests to continue but marks them as
+		non-hierarchical (see nonhierarchical_direct directive for more
+		details about routing of such request through cache_peers) and blocks
+		caching of the responses.
 
 		 * Forward-proxy traffic is not checked at all.
 
@@ -2933,8 +2935,11 @@ DOC_START
 		   to the client original destination instead of DIRECT.
 		   This overrides 'client_dst_passthru off'.
 
-		For now suspicious intercepted CONNECT requests are always
-		responded to with an HTTP 409 (Conflict) error page.
+		 * Intercepted TLS client connections that fail verification (usually
+		   at SslBump2 step when SNI information is normally used in the faked
+		   CONNECT request) also taint all subsequent HTTP requests on the
+		   bumped from-client connection: Those requests (if any) are treated
+		   as if they themselves failed verification.
 
 
 	SECURITY NOTE:

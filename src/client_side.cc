@@ -3670,6 +3670,13 @@ ConnStateData::expectNoForwarding()
     }
 }
 
+void
+ConnStateData::markAsFailedHostHeaderVerificication()
+{
+    ++hostHeaderVerificicationFailures_;
+    debugs(33, 2, "failures so far: " << hostHeaderVerificicationFailures_);
+}
+
 /// initialize dechunking state
 void
 ConnStateData::startDechunkingRequest()

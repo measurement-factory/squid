@@ -480,6 +480,25 @@ HttpRequest::packFirstLineInto(Packable * p, bool full_uri) const
                http_ver.major, http_ver.minor);
 }
 
+void
+HttpRequest::markAsFailedHostHeaderVerificication(const char * const reason)
+{
+    debugs(85, 7, reason);
+
+    // MUST NOT cache (for now). It is tempting to set flags.noCache, but
+    // that flag is about satisfying _this_ request. We are actually OK with
+    // satisfying this request from the cache, but want to prevent _other_
+    // requests from being satisfied using this response.
+    // XXX: when we have updated the cache key to base on raw-IP + URI this cacheable limit can go.
+    flags.cachable.veto();
+
+    // MUST NOT pass to peers (for now)
+    // XXX: clientHierarchical() caller overwrites this (hopefully to the same value)
+    // XXX: False flags.hierarchical does not prevent cache_peer use; see nonhierarchical_direct
+    // XXX: when we have sorted out the best way to relay requests properly to peers this hierarchical limit can go.
+    flags.hierarchical = false;
+}
+
 /*
  * Indicate whether or not we would expect an entity-body
  * along with this request
