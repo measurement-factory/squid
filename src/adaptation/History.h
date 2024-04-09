@@ -61,8 +61,8 @@ public:
     HttpHeader lastMeta;
     /// All REQMOD and RESPMOD meta headers merged. Last field wins conflicts.
     HttpHeader allMeta;
-    /// key=value transaction annotations set by adaptation_meta, received in
-    /// ICAP response headers, or set by eCAP transaction options
+    /// key:value pairs set by adaptation_meta, to be added to
+    /// AccessLogEntry::notes when ALE becomes available
     NotePairs::Pointer metaHeaders;
 
     typedef std::vector<SBuf> AdaptationServices;

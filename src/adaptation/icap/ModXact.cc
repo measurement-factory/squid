@@ -860,14 +860,17 @@ void Adaptation::Icap::ModXact::parseIcapHead()
         }
     } // TODO: else warn (occasionally!) if we got Http::HdrType::X_NEXT_SERVICES
 
-    // update master transaction annotations using X-Annotate-Foo ICAP response headers (if any)
+    // update master transaction annotations using X-Annotate-KEY ICAP response headers (if any)
+    NotePairs freshAnnotations;
     for (const auto &e: icapReply->header.entries) {
         static const auto metaPrefix = new SBuf("X-Annotate-");
-        if (e->name.startsWith(*metaPrefix, caseInsensitive) && e->name.length() > metaPrefix->length()) {
-            const auto history = request->adaptHistory(true);
-            history->updateMetaHeader(e->name.substr(metaPrefix->length()), StringToSBuf(e->value));
-        }
+        if (e->name.startsWith(*metaPrefix, caseInsensitive) && e->name.length() > metaPrefix->length())
+            freshAnnotations.add(e->name.substr(metaPrefix->length()), StringToSBuf(e->value));
     }
+    // XXX: We const_cast because HttpRequest::notes() are not constant, but virginRequest() is.
+    // TODO: We could make HttpRequest::theNotes mutable, but consider moving annotations to ALE instead.
+    const auto requestToAnnotate = const_cast<HttpRequest*>(request);
+    UpdateRequestNotes(request->clientConnectionManager.get(), *requestToAnnotate, freshAnnotations);
 
     // We need to store received ICAP headers for <icapLastHeader logformat option.
     // If we already have stored headers from previous ICAP transaction related to this

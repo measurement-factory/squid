@@ -488,20 +488,31 @@ Adaptation::Ecap::XactionRep::updateHistory(Http::Message *adapted)
         }
     } // TODO: else warn (occasionally!) if we got libecap::metaNextServices
 
+    const auto adaptedReq = dynamic_cast<HttpRequest*>(adapted); // may be nil
+
     // update master transaction adaptation history and annotations using this
     // adaptation transaction options (if any)
     HttpHeader meta(hoReply);
     OptionsExtractor extractor(meta);
     theMaster->visitEachOption(extractor);
     if (!meta.entries.empty()) {
-        auto history = request->adaptHistory(true);
+        const auto history = request->adaptHistory(true);
         history->recordMeta(&meta);
+
+        NotePairs freshAnnotations;
         for (const auto &e: meta.entries)
-            history->updateMetaHeader(e->name, StringToSBuf(e->value));
+            freshAnnotations.add(e->name, StringToSBuf(e->value));
+
+        // XXX: We const_cast because HttpRequest::notes() are not constant, but theCauseRep is.
+        // TODO: We could make HttpRequest::theNotes mutable, but consider moving annotations to ALE instead.
+        const auto requestToAnnotate = adaptedReq ? adaptedReq : const_cast<HttpRequest*>(request);
+        // TODO: Here and in Adaptation::Icap::ModXact::parseIcapHead, apply Helper::Reply::CheckReceivedKey()
+        // checks, possibly by integrating them with UpdateRequestNotes() or its replacement.
+        UpdateRequestNotes(request->clientConnectionManager.get(), *requestToAnnotate, freshAnnotations);
     }
 
     // Add just-created history to the adapted/cloned request that lacks it.
-    if (HttpRequest *adaptedReq = dynamic_cast<HttpRequest*>(adapted))
+    if (adaptedReq)
         adaptedReq->adaptHistoryImport(*request);
 }
 
