@@ -867,10 +867,12 @@ void Adaptation::Icap::ModXact::parseIcapHead()
         if (e->name.startsWith(*metaPrefix, caseInsensitive) && e->name.length() > metaPrefix->length())
             freshAnnotations.add(e->name.substr(metaPrefix->length()), StringToSBuf(e->value));
     }
-    // XXX: We const_cast because HttpRequest::notes() are not constant, but virginRequest() is.
-    // TODO: We could make HttpRequest::theNotes mutable, but consider moving annotations to ALE instead.
-    const auto requestToAnnotate = const_cast<HttpRequest*>(request);
-    UpdateRequestNotes(request->clientConnectionManager.get(), *requestToAnnotate, freshAnnotations);
+    if (!freshAnnotations.empty()) {
+        // XXX: We const_cast because HttpRequest::notes() are not constant, but virginRequest() is.
+        // TODO: We could make HttpRequest::theNotes mutable, but consider moving annotations to ALE instead.
+        const auto requestToAnnotate = const_cast<HttpRequest*>(request);
+        UpdateRequestNotes(request->clientConnectionManager.get(), *requestToAnnotate, freshAnnotations);
+    }
 
     // We need to store received ICAP headers for <icapLastHeader logformat option.
     // If we already have stored headers from previous ICAP transaction related to this
