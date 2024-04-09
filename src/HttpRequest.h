@@ -88,6 +88,9 @@ public:
     Adaptation::Icap::History::Pointer icapHistory() const;
 #endif
 
+    /// reacts to Host header verification failure (for a given reason)
+    void markAsFailedHostHeaderVerificication(const char *);
+
     /* If a request goes through several destinations, then the following two
      * methods will be called several times, in destinations-dependent order. */
     /// get ready to be sent to the given cache_peer, including originserver
