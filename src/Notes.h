@@ -214,9 +214,6 @@ public:
     /// Entries which do not exist in the destination set are added.
     void replaceOrAdd(const NotePairs *src);
 
-    /// Append the given key=value entry, removing any existing same-key entries.
-    void replaceOrAdd(const SBuf &key, const SBuf &value);
-
     /// Append any new entries of the src NotePairs list to our list.
     /// Entries which already exist in the destination set are ignored.
     void appendNewOnly(const NotePairs *src);

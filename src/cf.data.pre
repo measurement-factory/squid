@@ -9974,12 +9974,9 @@ DOC_START
 		adaptation_meta name value [!]aclname ...
 
 	Processing for a given header name stops after the first ACL list match.
-	Thus, it is impossible to add two headers with the same name to the same
-	ICAP request or the same eCAP transaction.
-
-	If no ACL lists match for a given header name, no such header is added.
-
-	For example:
+	Thus, it is impossible to add two headers with the same name. If no ACL
+	lists match for a given header name, no such header is added. For
+	example:
 
 		# do not debug transactions except for those that need debugging
 		adaptation_meta X-Debug 1 needs_debugging
@@ -9996,16 +9993,11 @@ DOC_START
 	and double quotes. For example,
 	    "this string has one backslash (\\) and two \"quotes\""
 
-	Matched adaptation_meta headers become master transaction annotations.
-	They may be checked using "note" ACL or logged via %note logformat code.
-	Matched headers are logged in the order they were added.
-
-	When adaptation_meta rules are evaluated multiple times (during master
-	transaction lifetime), and the same-name header matches again, the earlier
-	same-name match (used for earlier adaptation transactions) is forgotten.
-	This removal of stale meta headers allows adaptation services to receive
-	fresh transaction metadata, including metadata adjusted by adaptation
-	service(s) applied earlier in adaptation_service_chain.
+	Used adaptation_meta header values may be logged via %note
+	logformat code. If multiple adaptation_meta headers with the same name
+	are used during master transaction lifetime, the header values are
+	logged in the order they were used and duplicate values are ignored
+	(only the first repeated value will be logged).
 DOC_END
 
 NAME: icap_retry

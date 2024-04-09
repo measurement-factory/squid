@@ -1505,8 +1505,13 @@ void Adaptation::Icap::ModXact::makeRequestHeaders(MemBuf &buf)
             buf.append(": ", 2);
             buf.append(matched.rawContent(), matched.length());
             buf.append("\r\n", 2);
-            if (auto ah = request->adaptHistory(false))
-                ah->updateMetaHeader(h->key(), matched);
+            Adaptation::History::Pointer ah = request->adaptHistory(false);
+            if (ah != nullptr) {
+                if (ah->metaHeaders == nullptr)
+                    ah->metaHeaders = new NotePairs;
+                if (!ah->metaHeaders->hasPair(h->key(), matched))
+                    ah->metaHeaders->add(h->key(), matched);
+            }
         }
     }
 
