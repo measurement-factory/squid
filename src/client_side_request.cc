@@ -21,6 +21,7 @@
 #include "acl/Gadgets.h"
 #include "anyp/PortCfg.h"
 #include "base/AsyncJobCalls.h"
+#include "base/IoManip.h"
 #include "client_side.h"
 #include "client_side_reply.h"
 #include "client_side_request.h"
@@ -1594,7 +1595,15 @@ ClientHttpRequest::gotEnough() const
 void
 ClientHttpRequest::storeEntry(StoreEntry *newEntry)
 {
+    // XXX: entry_ is a dangling pointer when our caller is
+    // removeClientStoreReference() or similar broken code. For example,
+    // RawPointer("old: ", entry_) will crash in those cases.
+    debugs(85, 7, "old: " << static_cast<void*>(entry_) << RawPointer(" new: ", newEntry));
     entry_ = newEntry;
+#if USE_ADAPTATION
+    // XXX: This hack helps detect Bug 5364 conditions.
+    storeEntryIsForAdaptation = false;
+#endif
 }
 
 void
@@ -2018,6 +2027,7 @@ ClientHttpRequest::handleAdaptedHeader(Http::Message *msg)
         assert(repContext);
         repContext->createStoreEntry(request->method, request->flags);
 
+        storeEntryIsForAdaptation = true;
         request_satisfaction_mode = true;
         request_satisfaction_offset = 0;
         storeEntry()->replaceHttpReply(new_rep);
@@ -2055,11 +2065,42 @@ ClientHttpRequest::resumeBodyStorage()
     noteMoreBodyDataAvailable(adaptedBodySource);
 }
 
+/// StoreEntry-dependent adaptation callbacks use this check to quit on unusable entry.
+/// XXX: ClientHttpRequest::request_satisfaction_mode code poorly duplicates
+/// Client response handling logic, including this method.
+bool
+ClientHttpRequest::abortOnBadEntry(const char * /* XXX: reason */)
+{
+    assert(adaptedBodySource != nullptr);
+
+    if (!storeEntryIsForAdaptation) {
+        debugs(1, 1, "ERROR: Squid BUG: Lost response state during REQMOD request satisfaction; trying to work around");
+        const auto myPipe = adaptedBodySource; // preserve across argument-nullifying stopConsumingFrom()
+        stopConsumingFrom(adaptedBodySource);
+        myPipe->expectNoConsumption();
+        return true;
+    }
+
+    if (!storeEntry()->isAccepting()) {
+        debugs(1, 1, "ERROR: Squid BUG: Do not know how to deal with this response state during REQMOD request satisfaction; may stall");
+        // XXX: Duplicates "bad entry" handling code above.
+        const auto myPipe = adaptedBodySource; // preserve across argument-nullifying stopConsumingFrom()
+        stopConsumingFrom(adaptedBodySource);
+        myPipe->expectNoConsumption();
+        return true;
+    }
+
+    return false;
+}
+
 void
 ClientHttpRequest::noteMoreBodyDataAvailable(BodyPipe::Pointer)
 {
     assert(request_satisfaction_mode);
     assert(adaptedBodySource != nullptr);
+
+    if (abortOnBadEntry("entry cannot accept response body produced by request satisfaction"))
+        return;
 
     if (size_t contentSize = adaptedBodySource->buf().contentSize()) {
         const size_t spaceAvailable = storeEntry()->bytesWanted(Range<size_t>(0,contentSize));
