@@ -11,6 +11,7 @@
 
 #include "debug/Stream.h"
 
+#include <chrono>
 #include <iostream>
 #include <iomanip>
 #include <optional>
@@ -170,6 +171,54 @@ inline AsHex<Integer> asHex(const Integer n) { return AsHex<Integer>(n); }
 
 /// Prints the first n data bytes using hex notation. Does nothing if n is 0.
 void PrintHex(std::ostream &, const char *data, size_t n);
+
+/// Helps print std::chrono duration and time point values as (elapsed) time.
+/// This wrapper is necessary because ADL requires operators for std::chrono to
+/// be declared in std::chrono namespace, and we should not modify std::chrono.
+template <typename T>
+class AsTime
+{
+public:
+    explicit AsTime(const T t): time(t) {}
+    const T time;
+};
+
+/// Prints time in <microseconds>us format. Remove after upgrading to C++20.
+inline std::ostream &
+operator <<(std::ostream &os, const AsTime<std::chrono::microseconds> t)
+{
+    os << t.time.count() << "us";
+    return os;
+}
+
+/// Prints time in <milliseconds>ms format. Remove after upgrading to C++20.
+inline std::ostream &
+operator <<(std::ostream &os, const AsTime<std::chrono::milliseconds> t)
+{
+    os << t.time.count() << "ms";
+    return os;
+}
+
+/// Prints absolute timestamps in <seconds>.<microseconds> format, representing
+/// fractional seconds since std::chrono::system_clock::time_point epoch with
+/// microsecond precision (i.e. six-digits after the floating point).
+inline std::ostream &
+operator <<(std::ostream &os, const AsTime<std::chrono::system_clock::time_point> tp)
+{
+    const auto d = tp.time.time_since_epoch(); // from time_point to duration
+
+    os << std::chrono::duration_cast<std::chrono::seconds>(d).count() << '.';
+
+    const auto savedFill = os.fill('0');
+    const auto savedFlags = os.flags(); // std::ios_base::fmtflags
+    using namespace std::chrono_literals;
+    const auto us = std::chrono::duration_cast<std::chrono::microseconds>(d % std::chrono::microseconds(1s));
+    os << std::setw(6) << std::setfill('0') << us.count();
+    os.flags(savedFlags);
+    os.fill(savedFill);
+
+    return os;
+}
 
 #endif /* SQUID_SRC_BASE_IOMANIP_H */
 
