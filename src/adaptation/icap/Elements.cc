@@ -22,6 +22,7 @@ const XactOutcome xoError = "ICAP_ERR_OTHER";
 const XactOutcome xoOpt = "ICAP_OPT";
 const XactOutcome xoEcho = "ICAP_ECHO";
 const XactOutcome xoPartEcho = "ICAP_PART_ECHO";
+const XactOutcome xoTrickle = "ICAP_TRICKLE";
 const XactOutcome xoModified = "ICAP_MOD";
 const XactOutcome xoSatisfied = "ICAP_SAT";
 

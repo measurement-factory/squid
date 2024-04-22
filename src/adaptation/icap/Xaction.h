@@ -126,6 +126,7 @@ protected:
 
 public:
     ServiceRep &service();
+    const ServiceRep &service() const { return const_cast<Xaction*>(this)->service(); }
 
 private:
     void useTransportConnection(const Comm::ConnectionPointer &);

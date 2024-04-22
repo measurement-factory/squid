@@ -20,7 +20,10 @@
 Adaptation::ServiceConfig::ServiceConfig():
     port(-1), method(methodNone), point(pointNone),
     bypass(false), maxConn(-1), onOverload(srvWait),
-    routing(false), ipv6(false)
+    routing(false), ipv6(false),
+    trickling(false),
+    tricklingStartDelay(std::chrono::seconds(1)), // XXX
+    tricklingDropSizeMax(1)
 {}
 
 const char *
@@ -86,6 +89,7 @@ Adaptation::ServiceConfig::parse()
 
     // reset optional parameters in case we are reconfiguring
     bypass = routing = false;
+    trickling = false;
 
     // handle optional service name=value parameters
     bool grokkedUri = false;
@@ -139,6 +143,12 @@ Adaptation::ServiceConfig::parse()
         else if (strcmp(name, "on-overload") == 0) {
             grokked = grokOnOverload(onOverload, value);
             onOverloadSet = true;
+        } else if (strcmp(name, "trickling") == 0) {
+            grokked = grokBool(trickling, name, value);
+        } else if (strcmp(name, "trickling-start-delay") == 0) {
+            grokked = grokDuration(tricklingStartDelay, name, value);
+        } else if (strcmp(name, "trickling-drop-size-max") == 0) {
+            grokked = grokLong(tricklingDropSizeMax, name, value); // XXX: grokBytes()
         } else if (strcmp(name, "connection-encryption") == 0) {
             bool encrypt = false;
             grokked = grokBool(encrypt, name, value);
@@ -319,6 +329,21 @@ Adaptation::ServiceConfig::grokLong(long &var, const char *name, const char *val
         return false;
     }
     var = p;
+    return true;
+}
+
+bool
+Adaptation::ServiceConfig::grokDuration(std::chrono::milliseconds &var, const char *name, const char *value)
+{
+    char *bad = nullptr;
+    const auto parsedValue = strtol(value, &bad, 0);
+    if (parsedValue < 0 || bad == value) {
+        debugs(3, DBG_CRITICAL, "ERROR: " << cfg_filename << ':' <<
+               config_lineno << ": " << "wrong value for " << name << "; " <<
+               "a non-negative number of seconds expected but got: " << value);
+        return false;
+    }
+    var = std::chrono::seconds(parsedValue);
     return true;
 }
 

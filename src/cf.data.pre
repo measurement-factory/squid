@@ -9660,6 +9660,41 @@ DOC_START
 			server certificate. If not specified the icap server
 			hostname extracted from ICAP URI will be used.
 
+
+	==== Data Trickling ====
+
+	trickling=<on|off>
+		When on, Squid may start forwarding virgin message before receiving
+		adaptation service permission, as if the service itself has returned a
+		204 (No Adaptation) ICAP response after trickling-start-delay seconds.
+		When off, trickling is disabled, and Squid validates but otherwise
+		ignores other tricking-* parameters. The default is off.
+
+	trickling-start-delay=seconds
+		Delays the first trickling drop (i.e., sending the message header),
+		approximately by the specified duration. This initial delay gives
+		adaptation a chance to finish before trickling starts, avoiding some
+		of the negative side-effects of trickling. Increasing this delay
+		eventually leads to timeouts that trickling is meant to avoid. The
+		default is one second.
+
+		Squid measures trickling start delay from the corresponding adaptation
+		transaction start. This delay includes such preparation activities as
+		service name DNS resolution and ICAP OPTIONS exchange as well as TCP
+		and TLS handshakes with the adaptation server (if those activities
+		happen to be required for the given adaptation transaction). Delays
+		experienced by HTTP transaction prior to the adaptation transaction
+		launch (e.g., access control and peer selection) are not included.
+
+	trickling-drop-size-max=bytes
+		The maximum single drop size when trickling. This option does not
+		restrict the size of the first drop (i.e., the message headers which
+		are always sent at once, without any size limits). The size refers to
+		raw message body bytes, before chunked encoding (if any). Squid will
+		trickle fewer bytes if not enough body bytes were received by drop
+		trickling time. When set to zero, only HTTP headers are trickled (XXX:
+		not implemented yet). The default is one byte.
+
 	Older icap_service format without optional named parameters is
 	deprecated but supported for backward compatibility.
 

@@ -44,6 +44,7 @@ extern const XactOutcome xoError; ///< all kinds of transaction errors
 extern const XactOutcome xoOpt; ///< OPTION transaction
 extern const XactOutcome xoEcho; ///< preserved virgin message (ICAP 204)
 extern const XactOutcome xoPartEcho; ///< preserved virgin msg part (ICAP 206)
+extern const XactOutcome xoTrickle; ///< started trickling virgin msg
 extern const XactOutcome xoModified; ///< replaced virgin msg with adapted
 extern const XactOutcome xoSatisfied; ///< request satisfaction
 

@@ -81,6 +81,33 @@ private:
     State theState;
 };
 
+// A FIFO queue of Adaptation::Icap::ModXact jobs waiting to trickle their virgin message
+using TrickleWaitList = std::list< CbcPointer<Adaptation::Icap::ModXact> >;
+
+// TODO: Move to time/gadgets.h
+/// a moment in time matching system clock precision
+using AbsoluteTime = std::chrono::system_clock::time_point;
+
+/// keeps track of Adaptation::Icap::ModXact trickling waiting state
+class TrickleWait {
+public:
+    /// restores default-constructed state
+    /// nullifies but does not cancel the callback
+    void clear() { *this = TrickleWait(); }
+
+    CodeContext::Pointer codeContext; ///< requestor's context
+
+    /// a pending noteGavePrimeItsChance() or noteSpareAllowance() call (XXX)
+    AsyncCall::Pointer callback;
+
+    /// location on the wait list
+    /// invalidated when the callback is set
+    TrickleWaitList::iterator position;
+
+    /// when we decided to wait
+    AbsoluteTime start;
+};
+
 // maintains preview-related sizes
 
 class Preview
@@ -137,6 +164,10 @@ private:
     /// the value of the parsed use-original-body chunk extension (or -1)
     int64_t useOriginalBody_ = -1;
 };
+
+class TricklingAlarms;
+class HeaderTricklingAlarms;
+class BodyTricklingAlarms;
 
 class ModXact: public Xaction, public BodyProducer, public BodyConsumer
 {
@@ -231,6 +262,12 @@ private:
     void prepBackup(size_t expectedSize);
     void backup(const MemBuf &buf);
 
+    void bufferBytesForTrickling();
+    void switchFromTricklingToEchoing();
+    void disableFutureTrickling();
+    void trickleHeader();
+    void trickleBody();
+
     void parseMore();
 
     void parseHeaders();
@@ -252,12 +289,18 @@ private:
 
     void bypassFailure();
 
+    void prepSendingAdapted();
     void startSending();
     void disableBypass(const char *reason, bool includeGroupBypass);
 
     void prepEchoing();
     void prepPartialBodyEchoing(uint64_t pos);
+    void prepEchoingOrTrickling();
     void echoMore();
+    size_t echoableContentSize() const;
+    size_t trickleDropSize() const;
+    const char *echoableContentData(const VirginBodyAct &) const;
+
     void updateSources(); ///< Update the Http::Message sources
 
     bool doneAll() const override;
@@ -297,6 +340,7 @@ private:
     SizedEstimate virginBody;
     VirginBodyAct virginBodyWriting; // virgin body writing state
     VirginBodyAct virginBodySending;  // virgin body sending state
+    VirginBodyAct virginBodyBuffering;  // virgin body sending state
     uint64_t virginConsumed;        // virgin data consumed so far
     Preview preview; // use for creating (writing) the preview
 
@@ -336,6 +380,9 @@ private:
         bool allowedPreview206; // must handle 206 Partial Content inside preview
         bool readyForUob; ///< got a 206 response and expect a use-origin-body
         bool waitedForService; ///< true if was queued at least once
+        bool startedTrickling; ///< whether we have sent virgin HTTP message header (at least)
+        bool sentAnswer; ///< whether startSending() has been called
+        bool tricklingStoppedBuffering; ///< whether tricklingBuf can get more bytes
 
         // will not write anything [else] to the ICAP server connection
         bool doneWriting() const { return writing == writingReallyDone; }
@@ -356,6 +403,15 @@ private:
                    parsing == psHttpHeader;
         }
 
+        auto isTrickling() const { return startedTrickling && trickling != Trickling::done; }
+
+        auto waitingToTrickle() const {
+            return
+                trickling == Trickling::waitingHeaderTime ||
+                trickling == Trickling::waitingBodyDropTime ||
+                trickling == Trickling::waitingBodyDropBytes;
+        }
+
         enum Parsing { psIcapHeader, psHttpHeader, psBody, psIcapTrailer, psDone } parsing;
 
         // measures ICAP request writing progress
@@ -368,7 +424,24 @@ private:
         enum Sending { sendingUndecided, sendingVirgin, sendingAdapted,
                        sendingDone
                      } sending;
+
+        enum class Trickling {
+            undecided,
+            refused, ///< decided not to trickle
+            waitingHeaderTime, ///< observing trickling-start-delay
+            waitingBodyDropTime, ///< observing trickling-period
+            waitingBodyDropBytes, ///< observed trickling-period but waiting for more virgin body bytes to trickle ASAP
+            done, ///< received an adaptation service response
+        } trickling;
     } state;
+
+    // XXX: This "waiting" does not include waitingBodyDropBytes. Either it
+    // should be modified to include it or that state needs to be renamed?
+    TrickleWait trickleWaiting; ///< preconditions for trickling virgin message
+    SBuf tricklingBuf; ///< not yet trickled virgin body bytes (when trickling)
+    friend class TricklingAlarms;
+    friend class HeaderTricklingAlarms;
+    friend class BodyTricklingAlarms;
 
     AccessLogEntry::Pointer alMaster; ///< Master transaction AccessLogEntry
 };

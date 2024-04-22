@@ -21,6 +21,7 @@
 #include "adaptation/Initiator.h"
 #include "auth/UserRequest.h"
 #include "base/TextException.h"
+#include "base/TypeTraits.h"
 #include "base64.h"
 #include "comm.h"
 #include "comm/Connection.h"
@@ -37,6 +38,66 @@
 //     HTTP| --> receive --> encode --> write --> |network
 //     end | <-- send    <-- parse  <-- read  <-- |end
 
+namespace Adaptation
+{
+namespace Icap
+{
+
+class TricklingAlarms: public Interface
+{
+public:
+    /// \param aName names scheduled events, for debugging
+    TricklingAlarms(const char *aName): name(aName) {}
+
+    /// resumes jobs that need resuming (if any)
+    void checkpoint();
+
+    /// starts managing the job's wait; the job should expect a call back
+    void enqueue(Adaptation::Icap::ModXact &);
+
+    /// stops managing the job's wait; cancels the pending callback, if any
+    void dequeue(Adaptation::Icap::ModXact &);
+
+    const char * const name; ///< waiting event name, for debugging
+
+protected:
+    virtual std::chrono::milliseconds delay(const Adaptation::Icap::ModXact &) const = 0;
+    virtual AsyncCall::Pointer notify(const CbcPointer<Adaptation::Icap::ModXact> &) = 0;
+
+    bool waiting() const { return waitEnd_ > AbsoluteTime(); }
+    void ensureCallBack(const Adaptation::Icap::ModXact &);
+    AbsoluteTime waitEnd(const Adaptation::Icap::ModXact &) const;
+
+private:
+    static AbsoluteTime Now();
+
+    static void NoteWaitOver(void *raw);
+    void noteWaitOver();
+
+    TrickleWaitList jobs_; ///< queued jobs waiting their turn
+    AbsoluteTime waitEnd_; ///< expected NoteWaitOver() call time (or zero)
+};
+
+class HeaderTricklingAlarms: public TricklingAlarms
+{
+public:
+    HeaderTricklingAlarms(): TricklingAlarms("icap_service trickling-start-delay enforcement") {}
+
+protected:
+    std::chrono::milliseconds delay(const Adaptation::Icap::ModXact &x) const override
+    {
+        return x.service().cfg().tricklingStartDelay;
+    }
+
+    AsyncCall::Pointer notify(const CbcPointer<Adaptation::Icap::ModXact> &x) override
+    {
+        return CallJobHere(93, 5, x, Adaptation::Icap::ModXact, trickleHeader);
+    }
+};
+
+} // namespace Adaptation
+} // namespace Icap
+
 // TODO: replace gotEncapsulated() with something faster; we call it often
 
 CBDATA_NAMESPACED_CLASS_INIT(Adaptation::Icap, ModXact);
@@ -45,6 +106,98 @@ CBDATA_NAMESPACED_CLASS_INIT(Adaptation::Icap, ModXactLauncher);
 static const size_t TheBackupLimit = BodyPipe::MaxCapacity;
 
 const SBuf Adaptation::Icap::ChunkExtensionValueParser::UseOriginalBodyName("use-original-body");
+
+static Adaptation::Icap::HeaderTricklingAlarms TheHeaderTricklingAlarms; // XXX: Move to service!
+static Adaptation::Icap::HeaderTricklingAlarms TheBodyTricklingAlarms; // XXX: Move to service! Fix type!
+
+/* TricklingAlarms */
+
+Adaptation::Icap::AbsoluteTime
+Adaptation::Icap::TricklingAlarms::Now()
+{
+    return AbsoluteTime() + std::chrono::seconds(current_time.tv_sec) + std::chrono::microseconds(current_time.tv_usec);
+}
+
+void
+Adaptation::Icap::TricklingAlarms::enqueue(Adaptation::Icap::ModXact &job)
+{
+    Assure(!job.trickleWaiting.callback);
+    jobs_.emplace_back(&job);
+    job.trickleWaiting.position = std::prev(jobs_.end());
+    job.trickleWaiting.start = Now();
+    job.trickleWaiting.codeContext = CodeContext::Current();
+    ensureCallBack(job);
+}
+
+void
+Adaptation::Icap::TricklingAlarms::dequeue(Adaptation::Icap::ModXact &job)
+{
+    if (job.trickleWaiting.callback) {
+        job.trickleWaiting.callback->cancel("TricklingAlarms::dequeue");
+        job.trickleWaiting.callback = nullptr;
+    } else {
+        Assure(!jobs_.empty());
+        jobs_.erase(job.trickleWaiting.position);
+    }
+}
+
+void
+Adaptation::Icap::TricklingAlarms::checkpoint()
+{
+    const auto now = Now();
+    while (!jobs_.empty()) {
+        if (const auto jobPtr = jobs_.front().valid()) {
+            auto &job = *jobPtr;
+            if (waitEnd(job) > now)
+                return ensureCallBack(job); // next jobs cannot be ready earlier (FIFO)
+            CallBack(job.trickleWaiting.codeContext, [&] {
+                job.trickleWaiting.callback = notify(jobPtr); // and fall through to the next job
+            });
+        }
+        jobs_.pop_front();
+    }
+}
+
+Adaptation::Icap::AbsoluteTime
+Adaptation::Icap::TricklingAlarms::waitEnd(const Adaptation::Icap::ModXact &job) const
+{
+    return job.trickleWaiting.start + delay(job);
+}
+
+void
+Adaptation::Icap::TricklingAlarms::ensureCallBack(const Adaptation::Icap::ModXact &job)
+{
+    const auto jobWaitEnd = waitEnd(job);
+    debugs(93, 7, name << " will trickle " << job.id << " at " << AsTime(jobWaitEnd));
+
+    // Any event accumulation will be small because it can only be caused by hot
+    // reconfiguration changes or current time jumps. We cannot prevent
+    // accumulation in those cases because calling eventDelete() is unsafe.
+    if (!waiting() || jobWaitEnd < waitEnd_) {
+        const auto waitTime = std::chrono::duration<double>(jobWaitEnd - Now());
+        eventAdd(name, &TricklingAlarms::NoteWaitOver, const_cast<TricklingAlarms*>(this), waitTime.count(), 0, false);
+        waitEnd_ = jobWaitEnd;
+        assert(waiting());
+    }
+}
+
+void
+Adaptation::Icap::TricklingAlarms::NoteWaitOver(void *raw)
+{
+    assert(raw);
+    static_cast<TricklingAlarms*>(raw)->noteWaitOver();
+}
+
+void
+Adaptation::Icap::TricklingAlarms::noteWaitOver()
+{
+    assert(waiting());
+    waitEnd_ = AbsoluteTime();
+    assert(!waiting());
+    checkpoint();
+}
+
+/* Adaptation::Icap::ModXact::State */
 
 Adaptation::Icap::ModXact::State::State()
 {
@@ -97,6 +250,15 @@ void Adaptation::Icap::ModXact::start()
     estimateVirginBody(); // before virgin disappears!
 
     canStartBypass = service().cfg().bypass;
+
+    if (service().cfg().trickling) {
+        state.trickling = State::Trickling::waitingHeaderTime;
+        TheHeaderTricklingAlarms.enqueue(*this);
+        virginBodyBuffering.plan();
+    } else {
+        state.trickling = State::Trickling::refused;
+        virginBodyBuffering.disable();
+    }
 
     // it is an ICAP violation to send request to a service w/o known OPTIONS
     // and the service may is too busy for us: honor Max-Connections and such
@@ -421,6 +583,15 @@ const char *Adaptation::Icap::ModXact::virginContentData(const Adaptation::Icap:
     return virgin.body_pipe->buf().content() + static_cast<size_t>(dataStart-virginConsumed);
 }
 
+/// pointer to buffered virgin body data available for the specified activity,
+/// with trickling support
+const char *
+Adaptation::Icap::ModXact::echoableContentData(const Adaptation::Icap::VirginBodyAct &act) const
+{
+    return state.trickling == State::Trickling::waitingBodyDropBytes ?
+        tricklingBuf.rawContent() : virginContentData(act);
+}
+
 void Adaptation::Icap::ModXact::virginConsume()
 {
     debugs(93, 9, "consumption guards: " << !virgin.body_pipe << isRetriable <<
@@ -527,6 +698,7 @@ void Adaptation::Icap::ModXact::stopBackup()
 
 bool Adaptation::Icap::ModXact::doneAll() const
 {
+    debugs(93, 7, status());
     return Adaptation::Icap::Xaction::doneAll() && !state.serviceWaiting &&
            doneSending() &&
            doneReading() && state.doneWriting();
@@ -536,8 +708,8 @@ void Adaptation::Icap::ModXact::startReading()
 {
     Must(haveConnection());
     Must(!reader);
-    Must(!adapted.header);
-    Must(!adapted.body_pipe);
+    Assure(state.startedTrickling || !adapted.header);
+    Assure(state.startedTrickling || !adapted.body_pipe);
 
     // we use the same buffer for headers and body and then consume headers
     readMore();
@@ -572,26 +744,83 @@ void Adaptation::Icap::ModXact::handleCommRead(size_t)
     readMore();
 }
 
+/// the number of virgin body bytes to trickle now
+size_t
+Adaptation::Icap::ModXact::trickleDropSize() const
+{
+    // XXX: We can trickle all of the tricklingBuf if known content size
+    // (virgin.body_pipe-buffered or not!) exceeds virginBodyBuffering.offset().
+    if (tricklingBuf.length() <= 1)
+        return 0;
+    const auto keepLastByteLimit = size_t(tricklingBuf.length()) - 1;
+
+    const auto configurationLimit = uint64_t(service().cfg().tricklingDropSizeMax); // XXX: Fix type/parsing
+    return std::min(configurationLimit, keepLastByteLimit);
+}
+
+/// the number of virgin body bytes we can echo now
+size_t
+Adaptation::Icap::ModXact::echoableContentSize() const
+{
+    const auto bufferedBytes = virginContentSize(virginBodySending);
+    switch (state.trickling) {
+
+    case State::Trickling::undecided:
+        Assure(!"we decide whether to trickle before we may need echoableContentSize()");
+        return bufferedBytes; // unreachable code
+
+    case State::Trickling::refused:
+        return bufferedBytes; // echoing was never restricted for this transaction
+
+    case State::Trickling::done:
+        return bufferedBytes; // we are now allowed to echo everything we have
+
+    case State::Trickling::waitingHeaderTime:
+    case State::Trickling::waitingBodyDropTime:
+        debugs(93, 5, "trickling none of " << bufferedBytes << " bytes while waiting");
+        return 0;
+
+    case State::Trickling::waitingBodyDropBytes: {
+        const auto bytesToTrickle = trickleDropSize();
+        debugs(93, 5, "trickling " << bytesToTrickle << " bytes");
+        return bytesToTrickle; // may be zero
+    }
+    }
+
+    return bufferedBytes; // unreachable code
+}
+
 void Adaptation::Icap::ModXact::echoMore()
 {
     Must(state.sending == State::sendingVirgin);
     Must(adapted.body_pipe != nullptr);
     Must(virginBodySending.active());
 
-    const size_t sizeMax = virginContentSize(virginBodySending);
+    const auto sizeMax = echoableContentSize();
     debugs(93,5, "will echo up to " << sizeMax << " bytes from " <<
            virgin.body_pipe->status());
     debugs(93,5, "will echo up to " << sizeMax << " bytes to   " <<
            adapted.body_pipe->status());
 
     if (sizeMax > 0) {
-        const size_t size = adapted.body_pipe->putMoreData(virginContentData(virginBodySending), sizeMax);
+        const size_t size = adapted.body_pipe->putMoreData(echoableContentData(virginBodySending), sizeMax);
         debugs(93,5, "echoed " << size << " out of " << sizeMax <<
                " bytes");
         virginBodySending.progress(size);
         disableRepeats("echoed content");
         disableBypass("echoed content", true);
         virginConsume();
+
+        if (state.isTrickling()) {
+            Assure(state.trickling == State::Trickling::waitingBodyDropBytes);
+
+            debugs(93, 7, "consuming " << sizeMax << " from " << tricklingBuf.length() << "-byte tricking buf");
+            Assure(sizeMax >= tricklingBuf.length());
+            tricklingBuf.consume(sizeMax);
+
+            state.trickling = State::Trickling::waitingBodyDropTime;
+            TheBodyTricklingAlarms.enqueue(*this);
+        }
     }
 
     if (virginBodyEndReached(virginBodySending)) {
@@ -665,6 +894,7 @@ void Adaptation::Icap::ModXact::parseMore()
 void Adaptation::Icap::ModXact::callException(const std::exception &e)
 {
     if (!canStartBypass || isRetriable) {
+        debugs(93, 3, "honoring " << inCall << " exception: " << e.what());
         if (!isRetriable) {
             if (const TextException *te = dynamic_cast<const TextException *>(&e))
                 detailError(new ExceptionErrorDetail(te->id()));
@@ -765,12 +995,20 @@ void Adaptation::Icap::ModXact::parseHeaders()
     startSending();
 }
 
-// called after parsing all headers or when bypassing an exception
+/// Sends answer/headers to the requestor; also echos virgin body if needed.
+/// XXX: May be called after stopSending() because of a naming clash:
+/// startSending() sends message headers (and, if needed, body) while
+/// stopSending() and, to a large extent, state.sending are only about the body.
+/// TODO: Rename stopSending() to stopSendingBody() (at least).
 void Adaptation::Icap::ModXact::startSending()
 {
     disableRepeats("sent headers");
     disableBypass("sent headers", true);
-    sendAnswer(Answer::Forward(adapted.header));
+
+    if (!state.sentAnswer) {
+        state.sentAnswer = true;
+        sendAnswer(Answer::Forward(adapted.header));
+    }
 
     if (state.sending == State::sendingVirgin)
         echoMore();
@@ -788,7 +1026,7 @@ void Adaptation::Icap::ModXact::startSending()
 
 void Adaptation::Icap::ModXact::parseIcapHead()
 {
-    Must(state.sending == State::sendingUndecided);
+    Assure(state.startedTrickling || state.sending == State::sendingUndecided);
 
     if (!parseHead(icapReply.getRaw()))
         return;
@@ -912,10 +1150,21 @@ void Adaptation::Icap::ModXact::handle100Continue()
     writeMore();
 }
 
+void
+Adaptation::Icap::ModXact::prepSendingAdapted()
+{
+    if (state.startedTrickling)
+        throw TextException("ICAP lost race to trickling; cannot start adapting when already trickling", Here());
+
+    disableFutureTrickling();
+    state.sending = State::sendingAdapted;
+}
+
 void Adaptation::Icap::ModXact::handle200Ok()
 {
+    prepSendingAdapted();
+
     state.parsing = State::psHttpHeader;
-    state.sending = State::sendingAdapted;
     stopBackup();
     checkConsuming();
 }
@@ -937,8 +1186,10 @@ void Adaptation::Icap::ModXact::handle206PartialContent()
         Must(state.allowedPostview206);
         debugs(93, 7, "206 outside preview");
     }
+
+    prepSendingAdapted();
+
     state.parsing = State::psHttpHeader;
-    state.sending = State::sendingAdapted;
     state.readyForUob = true;
     checkConsuming();
 }
@@ -948,9 +1199,21 @@ void Adaptation::Icap::ModXact::handle206PartialContent()
 // We actually start sending (echoig or not) in startSending.
 void Adaptation::Icap::ModXact::prepEchoing()
 {
+    if (state.waitingToTrickle())
+        return switchFromTricklingToEchoing(); // prepEchoingOrTrickling() has been called already
+
+    disableFutureTrickling();
+    setOutcome(xoEcho);
+    prepEchoingOrTrickling(); // without tricking speed limits
+}
+
+/// code shared by prepEchoing() and trickleHeader(); do not call directly
+void Adaptation::Icap::ModXact::prepEchoingOrTrickling()
+{
+    Assure(al.icap.outcome == xoEcho || al.icap.outcome == xoTrickle);
+
     disableRepeats("preparing to echo content");
     disableBypass("preparing to echo content", true);
-    setOutcome(xoEcho);
 
     // We want to clone the HTTP message, but we do not want
     // to copy some non-HTTP state parts that Http::Message kids carry in them.
@@ -1021,6 +1284,8 @@ void Adaptation::Icap::ModXact::prepEchoing()
 /// We actually start sending (echoing or not) in startSending().
 void Adaptation::Icap::ModXact::prepPartialBodyEchoing(uint64_t pos)
 {
+    // TODO: Assure that we are not trickling anymore.
+
     Must(virginBodySending.active());
     Must(virgin.header->body_pipe != nullptr);
 
@@ -1229,9 +1494,30 @@ void Adaptation::Icap::ModXact::stopParsing(const bool checkUnparsedData)
     state.parsing = State::psDone;
 }
 
+void
+Adaptation::Icap::ModXact::bufferBytesForTrickling()
+{
+    if (virginBodyBuffering.disabled())
+        return;
+
+    if (const auto newBytes = virginContentSize(virginBodyBuffering)) {
+        tricklingBuf.append(virginContentData(virginBodyBuffering), newBytes);
+        virginBodyBuffering.progress(newBytes);
+    }
+
+    const auto tricklingBufLimit = size_t(32*1024);
+    if (tricklingBuf.length() >= tricklingBufLimit) {
+        debugs(93, 2, "WARNING: Ran out of " << tricklingBufLimit << "-byte trickling buffer space; may stop trickling after draining the buffer");
+        virginBodyBuffering.disable();
+    }
+}
+
 // HTTP side added virgin body data
 void Adaptation::Icap::ModXact::noteMoreBodyDataAvailable(BodyPipe::Pointer)
 {
+    if (state.isTrickling())
+        bufferBytesForTrickling();
+
     writeMore();
 
     if (state.sending == State::sendingVirgin)
@@ -1281,6 +1567,71 @@ void Adaptation::Icap::ModXact::noteBodyConsumerAborted(BodyPipe::Pointer)
     static const auto d = MakeNamedErrorDetail("ICAP_XACT_BODY_CONSUMER_ABORT");
     detailError(d);
     mustStop("adapted body consumer aborted");
+}
+
+void
+Adaptation::Icap::ModXact::switchFromTricklingToEchoing()
+{
+    debugs(93, 5, "removing speed limits");
+
+    switch (state.trickling) {
+
+    case State::Trickling::undecided:
+    case State::Trickling::refused:
+    case State::Trickling::done:
+        Assure(!"impossible startedTrickling state");
+        return; // unreachable code
+
+    case State::Trickling::waitingHeaderTime:
+        TheHeaderTricklingAlarms.dequeue(*this);
+        break;
+
+    case State::Trickling::waitingBodyDropTime:
+        TheBodyTricklingAlarms.dequeue(*this);
+        break;
+
+    case State::Trickling::waitingBodyDropBytes:
+        break;
+    }
+
+    state.trickling = State::Trickling::done;
+    virginBodyBuffering.disable(); // may already be disabled
+}
+
+void
+Adaptation::Icap::ModXact::disableFutureTrickling()
+{
+    // otherwise, switchFromTricklingToEchoing() should have been called
+    Assure(!state.startedTrickling);
+
+    if (state.trickling == State::Trickling::waitingHeaderTime) {
+        debugs(93, 7, "before trickling the header");
+        TheHeaderTricklingAlarms.dequeue(*this);
+        state.trickling = State::Trickling::done;
+        virginBodyBuffering.disable(); // may already be disabled
+    } else {
+        Assure(state.trickling == State::Trickling::refused);
+        // nothing to do: we were not planning on trickling
+    }
+}
+
+void
+Adaptation::Icap::ModXact::trickleHeader()
+{
+    Assure(!state.startedTrickling);
+    state.startedTrickling = true;
+    setOutcome(xoTrickle);
+    prepEchoingOrTrickling(); // with trickling speed limits
+    startSending();
+}
+
+void
+Adaptation::Icap::ModXact::trickleBody()
+{
+    Assure(state.startedTrickling);
+    Assure(state.trickling == State::Trickling::waitingBodyDropTime);
+    state.trickling = State::Trickling::waitingBodyDropBytes;
+    echoMore();
 }
 
 Adaptation::Icap::ModXact::~ModXact()
@@ -1777,6 +2128,12 @@ void Adaptation::Icap::ModXact::fillPendingStatus(MemBuf &buf) const
 
     if (state.readyForUob)
         buf.append("6", 1);
+
+    if (state.sentAnswer)
+        buf.append("A", 1);
+
+    if (state.startedTrickling)
+        buf.append("T", 1);
 
     if (canStartBypass)
         buf.append("Y", 1);

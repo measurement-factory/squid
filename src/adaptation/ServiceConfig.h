@@ -15,6 +15,8 @@
 #include "security/PeerOptions.h"
 #include "SquidString.h"
 
+#include <chrono>
+
 namespace Adaptation
 {
 
@@ -53,6 +55,10 @@ public:
     Security::PeerOptions secure;
     YesNoNone connectionEncryption; ///< whether this service uses only secure connections
 
+    bool trickling; ///< trickling=<on|off>
+    std::chrono::milliseconds tricklingStartDelay; ///< trickling-start-delay=duration
+    long /* XXX: uint64_t */ tricklingDropSizeMax;
+
 protected:
     Method parseMethod(const char *buf) const;
     VectPoint parseVectPoint(const char *buf) const;
@@ -61,6 +67,10 @@ protected:
     bool grokBool(bool &var, const char *name, const char *value);
     bool grokUri(const char *value);
     bool grokLong(long &var, const char *name, const char *value);
+
+    /// handle name=value option where value is time duration (in seconds, for now)
+    bool grokDuration(std::chrono::milliseconds &var, const char *name, const char *value);
+
     /// handle on-overload configuration option
     bool grokOnOverload(SrvBehaviour &var, const char *value);
     /// handle name=value configuration option with name unknown to Squid
