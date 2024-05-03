@@ -28,7 +28,7 @@ template <Http::HdrType header>
 int
 ACLReplyHeaderStrategy<header>::match (ACLData<char const *> * &data, ACLFilledChecklist *checklist)
 {
-    char const *theHeader = checklist->reply->header.getStr(header);
+    const auto theHeader = checklist->reply().header.getStr(header);
 
     if (nullptr == theHeader)
         return 0;

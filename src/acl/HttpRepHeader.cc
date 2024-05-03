@@ -15,6 +15,8 @@
 int
 ACLHTTPRepHeaderStrategy::match (ACLData<MatchType> * &data, ACLFilledChecklist *checklist)
 {
-    return data->match (&checklist->reply->header);
+    // XXX: Cast to work around this branch lack of master/v7 commit 47c9c937:
+    // Fix const-correctness of ACLHTTPHeaderData::match() parameter
+    return data->match(const_cast<HttpHeader*>(&checklist->reply().header));
 }
 
