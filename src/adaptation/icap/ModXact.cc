@@ -1199,7 +1199,7 @@ void Adaptation::Icap::ModXact::handle206PartialContent()
 // We actually start sending (echoig or not) in startSending.
 void Adaptation::Icap::ModXact::prepEchoing()
 {
-    if (state.waitingToTrickle())
+    if (state.startedTrickling)
         return switchFromTricklingToEchoing(); // prepEchoingOrTrickling() has been called already
 
     disableFutureTrickling();
