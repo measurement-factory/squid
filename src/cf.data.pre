@@ -9695,6 +9695,21 @@ DOC_START
 		trickling time. When set to zero, only HTTP headers are trickled (XXX:
 		not implemented yet). The default is one byte.
 
+	trickling-period=seconds
+		The approximate minimum delay between two sequential trickling drops.
+		Each actual gap may be different due to temporary lack of message body
+		bytes to trickle, various blocking events, performance bottlenecks, OS
+		scheduling inaccuracies, etc.
+
+		Trickling is not meant to be used as a bandwidth shaping tool.
+
+		When set to zero, trickling will happen approximately once every Squid
+		main loop iteration. Doing so defeats trickling intent and may
+		significantly increase Squid load in some environments but may also be
+		useful for testing trickling impact and limits.
+
+		The default is ten seconds
+
 	Older icap_service format without optional named parameters is
 	deprecated but supported for backward compatibility.
 

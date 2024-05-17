@@ -57,6 +57,7 @@ public:
 
     bool trickling; ///< trickling=<on|off>
     std::chrono::milliseconds tricklingStartDelay; ///< trickling-start-delay=duration
+    std::chrono::milliseconds tricklingPeriod; ///< trickling-period=duration
     long /* XXX: uint64_t */ tricklingDropSizeMax;
 
 protected:

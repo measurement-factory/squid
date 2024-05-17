@@ -23,6 +23,7 @@ Adaptation::ServiceConfig::ServiceConfig():
     routing(false), ipv6(false),
     trickling(false),
     tricklingStartDelay(std::chrono::seconds(1)), // XXX
+    tricklingPeriod(std::chrono::seconds(10)), // XXX
     tricklingDropSizeMax(1)
 {}
 
@@ -147,6 +148,8 @@ Adaptation::ServiceConfig::parse()
             grokked = grokBool(trickling, name, value);
         } else if (strcmp(name, "trickling-start-delay") == 0) {
             grokked = grokDuration(tricklingStartDelay, name, value);
+        } else if (strcmp(name, "trickling-period") == 0) {
+            grokked = grokDuration(tricklingPeriod, name, value);
         } else if (strcmp(name, "trickling-drop-size-max") == 0) {
             grokked = grokLong(tricklingDropSizeMax, name, value); // XXX: grokBytes()
         } else if (strcmp(name, "connection-encryption") == 0) {

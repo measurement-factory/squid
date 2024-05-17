@@ -95,6 +95,23 @@ protected:
     }
 };
 
+class BodyTricklingAlarms: public TricklingAlarms
+{
+public:
+    BodyTricklingAlarms(): TricklingAlarms("icap_service trickling-period enforcement") {}
+
+protected:
+    std::chrono::milliseconds delay(const Adaptation::Icap::ModXact &x) const override
+    {
+        return x.service().cfg().tricklingPeriod;
+    }
+
+    AsyncCall::Pointer notify(const CbcPointer<Adaptation::Icap::ModXact> &x) override
+    {
+        return CallJobHere(93, 5, x, Adaptation::Icap::ModXact, trickleBody);
+    }
+};
+
 } // namespace Adaptation
 } // namespace Icap
 
@@ -108,7 +125,7 @@ static const size_t TheBackupLimit = BodyPipe::MaxCapacity;
 const SBuf Adaptation::Icap::ChunkExtensionValueParser::UseOriginalBodyName("use-original-body");
 
 static Adaptation::Icap::HeaderTricklingAlarms TheHeaderTricklingAlarms; // XXX: Move to service!
-static Adaptation::Icap::HeaderTricklingAlarms TheBodyTricklingAlarms; // XXX: Move to service! Fix type!
+static Adaptation::Icap::BodyTricklingAlarms TheBodyTricklingAlarms; // XXX: Move to service!
 
 /* TricklingAlarms */
 
@@ -1620,6 +1637,13 @@ Adaptation::Icap::ModXact::trickleHeader()
 {
     Assure(!state.startedTrickling);
     state.startedTrickling = true;
+
+    trickleWaiting.callback = nullptr;
+
+    Assure(state.trickling == State::Trickling::waitingHeaderTime);
+    state.trickling = State::Trickling::waitingBodyDropTime; // XXX: Except when body-drop-size is 0
+    TheBodyTricklingAlarms.enqueue(*this);
+
     setOutcome(xoTrickle);
     prepEchoingOrTrickling(); // with trickling speed limits
     startSending();
@@ -1629,8 +1653,12 @@ void
 Adaptation::Icap::ModXact::trickleBody()
 {
     Assure(state.startedTrickling);
+
+    trickleWaiting.callback = nullptr;
+
     Assure(state.trickling == State::Trickling::waitingBodyDropTime);
     state.trickling = State::Trickling::waitingBodyDropBytes;
+
     echoMore();
 }
 
