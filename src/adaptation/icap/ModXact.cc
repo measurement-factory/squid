@@ -591,6 +591,7 @@ size_t Adaptation::Icap::ModXact::virginContentSize(const Adaptation::Icap::Virg
     const uint64_t dataStart = act.offset();
     // absolute end of buffered data
     const uint64_t dataEnd = virginConsumed + virgin.body_pipe->buf().contentSize();
+    debugs(93, 7, "start: " << dataStart << " end: " << dataEnd << " (" << virginConsumed << '+' << virgin.body_pipe->buf().contentSize() << ")");
     Must(virginConsumed <= dataStart && dataStart <= dataEnd);
     return static_cast<size_t>(dataEnd - dataStart);
 }
@@ -1518,12 +1519,14 @@ void Adaptation::Icap::ModXact::stopParsing(const bool checkUnparsedData)
 void
 Adaptation::Icap::ModXact::bufferBytesForTrickling()
 {
+    debugs(93, 7, "have: " << tricklingBuf.length() << "; disabled: " << virginBodyBuffering.disabled());
     if (virginBodyBuffering.disabled())
         return;
 
     if (const auto newBytes = virginContentSize(virginBodyBuffering)) {
         tricklingBuf.append(virginContentData(virginBodyBuffering), newBytes);
         virginBodyBuffering.progress(newBytes);
+        debugs(93, 7, "buffered " << newBytes << "; have: " << tricklingBuf.length());
     }
 
     const auto tricklingBufLimit = size_t(32*1024);
@@ -2164,8 +2167,8 @@ void Adaptation::Icap::ModXact::fillPendingStatus(MemBuf &buf) const
     if (state.sentAnswer)
         buf.append("A", 1);
 
-    if (state.startedTrickling)
-        buf.append("T", 1);
+    if (state.trickling != State::Trickling::refused)
+        buf.appendf("T(%d)", int(state.trickling));
 
     if (canStartBypass)
         buf.append("Y", 1);
