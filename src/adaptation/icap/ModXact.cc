@@ -815,7 +815,7 @@ void Adaptation::Icap::ModXact::echoMore()
             Assure(state.trickling == State::Trickling::waitingBodyDropBytes);
 
             debugs(93, 7, "consuming " << sizeMax << " from " << tricklingBuf.length() << "-byte tricking buf");
-            Assure(sizeMax >= tricklingBuf.length());
+            Assure(sizeMax <= tricklingBuf.length());
             tricklingBuf.consume(sizeMax);
 
             state.trickling = State::Trickling::waitingBodyDropTime;
