@@ -271,9 +271,13 @@ void Adaptation::Icap::ModXact::start()
     if (service().cfg().trickling) {
         state.trickling = State::Trickling::waitingHeaderTime;
         TheHeaderTricklingAlarms.enqueue(*this);
-        virginBodyBuffering.plan();
     } else {
         state.trickling = State::Trickling::refused;
+    }
+    if (virgin.body_pipe && state.trickling == State::Trickling::waitingHeaderTime) {
+        virginBodyBuffering.plan();
+        bufferBytesForTrickling();
+    } else {
         virginBodyBuffering.disable();
     }
 
