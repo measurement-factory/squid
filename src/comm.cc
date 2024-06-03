@@ -21,6 +21,7 @@
 #include "comm/Write.h"
 #include "compat/cmsg.h"
 #include "DescriptorSet.h"
+#include "error/SysErrorDetail.h"
 #include "event.h"
 #include "fd.h"
 #include "fde.h"
@@ -818,6 +819,36 @@ commStartTlsClose(const int fd)
     Security::SessionSendGoodbye(fd_table[fd].ssl);
 }
 
+void
+Comm::HalfClose(const int fd)
+{
+    debugs(5, 3, "started for FD " << fd);
+
+    assert(fd >= 0);
+    assert(fd < Squid_MaxFD);
+    auto &f = fd_table[fd];
+
+    if (f.flags.halfClosing) {
+        debugs(5, 3, "too late, already half-closing");
+        return;
+    }
+    f.flags.halfClosing = true;
+
+    if (f.closing()) {
+        debugs(5, 3, "too late, already (fully) closing");
+        return;
+    }
+
+    if (f.ssl)
+        commStartTlsClose(fd);
+
+    // TODO: Here and in _comm_close(), wait for commStartTlsClose() to finish!
+    if (shutdown(fd, SHUT_WR) != 0) {
+        const auto savedErrno = errno;
+        debugs(5, 3, "shutdown() failure" << ReportSysError(savedErrno));
+    }
+}
+
 static void
 comm_close_complete(const int fd)
 {
@@ -876,7 +907,7 @@ _comm_close(int fd, char const *file, int line)
     // For simplicity sake, we remain in the caller's context while still
     // allowing individual advanced callbacks to overwrite it.
 
-    if (F->ssl) {
+    if (F->ssl && !F->flags.halfClosing) {
         const auto startCall = asyncCall(5, 4, "commStartTlsClose",
                                          callDialer(commStartTlsClose, fd));
         ScheduleCallHere(startCall);

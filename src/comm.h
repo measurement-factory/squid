@@ -28,6 +28,16 @@ void _comm_close(int fd, char const *file, int line);
 void old_comm_reset_close(int fd);
 void comm_reset_close(const Comm::ConnectionPointer &conn);
 
+namespace Comm {
+
+/// Starts sending TLS close_notify alert (if needed) and TCP FIN, signaling the
+/// other end of the connection that no more bytes will be coming from us (after
+/// they receive our EOF). Ignores associated sending failures. Does not stop
+/// reading. Safe to call multiple times.
+void HalfClose(int fd);
+
+} // namespace Comm
+
 int comm_connect_addr(int sock, const Ip::Address &addr);
 void comm_init(void);
 void comm_exit(void);
