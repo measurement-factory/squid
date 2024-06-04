@@ -968,7 +968,7 @@ Format::Format::assemble(MemBuf &mb, const AccessLogEntry::Pointer &al, int logS
         // but compiler complains if omitted
         case LFT_HTTP_SENT_STATUS_CODE_OLD_30:
         case LFT_HTTP_SENT_STATUS_CODE:
-            outint = al->http.code;
+            outint = al->http.code_;
             doint = 1;
             break;
 

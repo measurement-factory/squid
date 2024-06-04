@@ -1369,7 +1369,7 @@ void Adaptation::Icap::ModXact::finalizeLogInfo()
     }
 
     if (adapted_reply_) {
-        al.http.code = adapted_reply_->sline.status();
+        al.http.updateStatus(adapted_reply_->sline.status(), __FUNCTION__);
         al.http.content_type = adapted_reply_->content_type.termedBuf();
         if (replyHttpBodySize >= 0)
             al.cache.highOffset = replyHttpBodySize;

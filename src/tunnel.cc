@@ -127,6 +127,8 @@ public:
     /// called when negotiations with the peer have been successfully completed
     void notePeerReadyToShovel(const Comm::ConnectionPointer &);
 
+    void updateStatus(int, const char *reason);
+
     class Connection
     {
 
@@ -196,7 +198,7 @@ public:
     };
 
     Connection client, server;
-    int *status_ptr;        ///< pointer for logging HTTP status
+    int *status_ptr_ = nullptr;        ///< pointer for logging HTTP status
 
     SBuf preReadClientData;
     SBuf preReadServerData;
@@ -438,7 +440,8 @@ TunnelStateData::TunnelStateData(ClientHttpRequest *clientRequest) :
     Must(request);
     server.size_ptr = &clientRequest->out.size;
     client.size_ptr = &clientRequest->al->http.clientRequestSz.payloadData;
-    status_ptr = &clientRequest->al->http.code;
+    status_ptr_ = &clientRequest->al->http.code_;
+    debugs(26, 7, "initial status: " << *status_ptr_ << " addr: " << (void*)status_ptr_);
     al = clientRequest->al;
     http = clientRequest;
 
@@ -458,6 +461,8 @@ TunnelStateData::~TunnelStateData()
     xfree(url);
     cancelStep("~TunnelStateData");
     delete savedError;
+    if (status_ptr_)
+        debugs(26, 7, "final status: " << *status_ptr_);
 }
 
 TunnelStateData::Connection::Connection(const char * const aSide):
@@ -534,7 +539,7 @@ TunnelStateData::retryOrBail(const char *context)
                               clientExpectsConnectResponse();
     if (canSendError)
         return sendError(savedError, bailDescription ? bailDescription : context);
-    *status_ptr = savedError->httpStatus;
+    updateStatus(savedError->httpStatus, __FUNCTION__);
 
     finishWritingAndDelete(client);
 }
@@ -568,6 +573,13 @@ TunnelStateData::syncHierNote(const Comm::ConnectionPointer &conn, const char *o
 {
     request->hier.resetPeerNotes(conn, origin);
     al->hier.resetPeerNotes(conn, origin);
+}
+
+void
+TunnelStateData::updateStatus(const int newStatus, const char * const reason)
+{
+    debugs(26, 5, newStatus << "; was: " << *status_ptr_ << " reason: " << reason << " addr: " << (void*)status_ptr_);
+    *status_ptr_ = newStatus;
 }
 
 /// sets n_tries to the given value (while keeping ALE in sync)
@@ -1037,7 +1049,7 @@ tunnelStartShoveling(TunnelStateData *tunnelState)
                                      CommTimeoutCbPtrFun(tunnelTimeout, tunnelState));
     commSetConnTimeout(tunnelState->server.conn, Config.Timeout.read, timeoutCall);
 
-    *tunnelState->status_ptr = Http::scOkay;
+    tunnelState->updateStatus(Http::scOkay, __FUNCTION__);
     if (cbdataReferenceValid(tunnelState)) {
 
         // Shovel any payload already pushed into reply buffer by the server response
@@ -1071,7 +1083,7 @@ tunnelConnectedWriteDone(const Comm::ConnectionPointer &conn, char *, size_t len
     tunnelState->client.writer = nullptr;
 
     if (flag != Comm::OK) {
-        *tunnelState->status_ptr = Http::scInternalServerError;
+        tunnelState->updateStatus(Http::scInternalServerError, __FUNCTION__);
         tunnelErrorComplete(conn->fd, data, 0);
         return;
     }
@@ -1090,11 +1102,11 @@ TunnelStateData::tunnelEstablishmentDone(Http::TunnelerAnswer &answer)
     peerWait.finish();
     server.len = 0;
 
-    // XXX: al->http.code (i.e. *status_ptr) should not be (re)set
+    // XXX: al->http.code_ (i.e. *status_ptr_) should not be (re)set
     // until we actually start responding to the client. Right here/now, we only
     // know how this cache_peer has responded to us.
     if (answer.peerResponseStatus != Http::scNone)
-        *status_ptr = answer.peerResponseStatus;
+        updateStatus(answer.peerResponseStatus, __FUNCTION__);
 
     auto sawProblem = false;
 
@@ -1136,7 +1148,7 @@ TunnelStateData::notePeerReadyToShovel(const Comm::ConnectionPointer &conn)
     if (!clientExpectsConnectResponse())
         tunnelStartShoveling(this); // ssl-bumped connection, be quiet
     else {
-        *status_ptr = Http::scOkay;
+        updateStatus(Http::scOkay, __FUNCTION__);
         AsyncCall::Pointer call = commCbCall(5,5, "tunnelConnectedWriteDone",
                                              CommIoCbPtrFun(tunnelConnectedWriteDone, this));
         al->reply = HttpReply::MakeConnectionEstablished();
@@ -1274,7 +1286,7 @@ tunnelStart(ClientHttpRequest * http)
             debugs(26, 4, "MISS access forbidden.");
             http->updateLoggingTags(LOG_TCP_TUNNEL);
             err = new ErrorState(ERR_FORWARDING_DENIED, Http::scForbidden, request, http->al);
-            http->al->http.code = Http::scForbidden;
+            http->al->http.updateStatus(Http::scForbidden, __FUNCTION__);
             errorSend(http->getConn()->clientConnection, err);
             return;
         }
@@ -1487,7 +1499,7 @@ TunnelStateData::sendError(ErrorState *finalError, const char *reason)
     // we cannot try other destinations after responding with an error
     PeerSelectionInitiator::subscribed = false; // may already be false
 
-    *status_ptr = finalError->httpStatus;
+    updateStatus(finalError->httpStatus, __FUNCTION__);
     finalError->callback = tunnelErrorComplete;
     finalError->callback_data = this;
     errorSend(client.conn, finalError);

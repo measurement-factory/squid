@@ -55,7 +55,7 @@ Log::Format::HttpdCombined(const AccessLogEntry::Pointer &al, Logfile * logfile)
                   SQUIDSBUFPRINT(al->url),
                   AnyP::ProtocolType_str[al->http.version.protocol],
                   al->http.version.major, al->http.version.minor,
-                  al->http.code,
+                  al->http.code_,
                   al->http.clientReplySz.messageTotal(),
                   referer,
                   agent,

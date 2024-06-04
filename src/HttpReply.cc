@@ -39,10 +39,12 @@ HttpReply::HttpReply():
     content_range(nullptr)
 {
     init();
+    debugs(58, 7, "constructed, this=" << (void*)this);
 }
 
 HttpReply::~HttpReply()
 {
+    debugs(58, 7, "destructing, this=" << (void*)this);
     if (do_clean)
         clean();
 }
@@ -170,6 +172,7 @@ HttpReply::setHeaders(Http::StatusCode status, const char *reason,
                       const char *ctype, int64_t clen, time_t lmt, time_t expiresTime)
 {
     HttpHeader *hdr;
+    debugs(58, 7, "addr: " << (void*)this);
     sline.set(Http::ProtocolVersion(), status, reason);
     hdr = &header;
     hdr->putStr(Http::HdrType::SERVER, visible_appname_string);

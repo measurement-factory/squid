@@ -219,6 +219,13 @@ AccessLogEntry::updateError(const Error &err)
 }
 
 void
+AccessLogEntry::HttpDetails::updateStatus(const int newStatus, const char * const reason)
+{
+    debugs(33, 5, newStatus << "; was: " << code_ << " reason: " << reason << " addr: " << (void*)&code_);
+    code_ = newStatus;
+}
+
+void
 AccessLogEntry::packReplyHeaders(MemBuf &mb) const
 {
     if (reply)

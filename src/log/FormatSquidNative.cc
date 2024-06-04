@@ -55,7 +55,7 @@ Log::Format::SquidNative(const AccessLogEntry::Pointer &al, Logfile * logfile)
                   tvToMsec(al->cache.trTime),
                   clientip,
                   al->cache.code.c_str(),
-                  al->http.code,
+                  al->http.code_,
                   al->http.clientReplySz.messageTotal(),
                   SQUIDSBUFPRINT(method),
                   SQUIDSBUFPRINT(al->url),

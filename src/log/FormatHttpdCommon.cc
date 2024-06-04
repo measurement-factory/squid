@@ -42,7 +42,7 @@ Log::Format::HttpdCommon(const AccessLogEntry::Pointer &al, Logfile * logfile)
                   SQUIDSBUFPRINT(al->url),
                   AnyP::ProtocolType_str[al->http.version.protocol],
                   al->http.version.major, al->http.version.minor,
-                  al->http.code,
+                  al->http.code_,
                   al->http.clientReplySz.messageTotal(),
                   al->cache.code.c_str(),
                   hier_code_str[al->hier.code],

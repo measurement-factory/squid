@@ -699,6 +699,7 @@ ErrorState::ErrorState(err_type t, Http::StatusCode status, HttpRequest * req, c
     }
 
     ale = anAle;
+    debugs(58, 7, "constructed, err=" << t << " httpStatus=" << httpStatus << " this=" << (void*)this);
 }
 
 ErrorState::ErrorState(HttpRequest * req, HttpReply *errorReply) :

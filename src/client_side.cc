@@ -394,18 +394,22 @@ ClientHttpRequest::logRequest()
     debugs(33, 9, "clientLogRequest: al.url='" << al->url << "'");
 
     const auto findReply = [this]() -> const HttpReply * {
-        if (al->reply)
+        if (al->reply) {
+            debugs(33, 7, "using ALE reply: " << (void*)al->reply.getRaw());
             return al->reply.getRaw();
-        if (const auto le = loggingEntry())
+        }
+        if (const auto le = loggingEntry()) {
+            debugs(33, 7, "using loggingEntry() reply: " << (void*)le->hasFreshestReply());
             return le->hasFreshestReply();
+        }
         return nullptr;
     };
     if (const auto reply = findReply()) {
-        al->http.code = reply->sline.status();
+        al->http.updateStatus(reply->sline.status(), __FUNCTION__);
         al->http.content_type = reply->content_type.termedBuf();
     }
 
-    debugs(33, 9, "clientLogRequest: http.code='" << al->http.code << "'");
+    debugs(33, 7, "http.code=" << al->http.code_ << " addr: " << (void*)&al->http.code_);
 
     if (loggingEntry() && loggingEntry()->mem_obj && loggingEntry()->objectLen() >= 0)
         al->cache.objectSize = loggingEntry()->contentLen(); // payload duplicate ?? with or without TE ?

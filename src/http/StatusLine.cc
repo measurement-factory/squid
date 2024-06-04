@@ -34,6 +34,8 @@ Http::StatusLine::clean()
 void
 Http::StatusLine::set(const AnyP::ProtocolVersion &newVersion, const Http::StatusCode newStatus, const char *newReason)
 {
+    if (newStatus || status_)
+        debugs(33, 5, newStatus << "; was: " << status_ << " reason: (" << (newReason ? newReason : "[no-reason]") << ") addr: " << (void*)&status_);
     version = newVersion;
     status_ = newStatus;
     /* Note: no xstrdup for 'reason', assumes constant 'reasons' */
@@ -98,6 +100,8 @@ Http::StatusLine::packInto(Packable * p) const
             debugs(57, DBG_IMPORTANT, "ERROR: Squid BUG: the internalized response lacks status-code");
         packedStatus = Http::scInternalServerError;
         packedReason = Http::StatusCodeString(packedStatus); // ignore custom reason_ (if any)
+        // TODO: Merge with DBG_IMPORTANT
+        debugs(57, 7, "ERROR: Squid BUG: the internalized response lacks status-code; packing " << packedStatus);
     }
 
     /* local constants */
@@ -116,7 +120,7 @@ Http::StatusLine::packInto(Packable * p) const
 
     debugs(57, 9, "packing sline " << this << " using " << p << ":");
     debugs(57, 9, "FORMAT=" << Http1StatusLineFormat );
-    debugs(57, 9, "HTTP/" << version.major << "." << version.minor << " " << packedStatus << " " << packedReason);
+    debugs(57, 7, "HTTP/" << version.major << "." << version.minor << " " << packedStatus << " " << packedReason);
     p->appendf(Http1StatusLineFormat, version.major, version.minor, packedStatus, packedReason);
 }
 

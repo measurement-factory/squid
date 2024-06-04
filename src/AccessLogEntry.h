@@ -93,7 +93,7 @@ public:
 
     public:
         HttpRequestMethod method;
-        int code = 0;
+        int code_ = 0;
         const char *content_type = nullptr;
         AnyP::ProtocolVersion version;
 
@@ -106,6 +106,8 @@ public:
         // TODO calculate header and payload better (by parser)
         // XXX payload encoding overheads not calculated at all yet.
         MessageSizes clientReplySz;
+
+        void updateStatus(int newStatus, const char *reason);
 
     } http;
 

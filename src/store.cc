@@ -1690,7 +1690,7 @@ StoreEntry::storeErrorResponse(HttpReply *reply)
 void
 StoreEntry::replaceHttpReply(const HttpReplyPointer &rep, const bool andStartWriting)
 {
-    debugs(20, 3, "StoreEntry::replaceHttpReply: " << url());
+    debugs(20, 3, url() << " addr: " << (void*)rep.getRaw());
 
     if (!mem_obj) {
         debugs(20, DBG_CRITICAL, "Attempt to replace object with no in-memory representation");

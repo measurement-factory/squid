@@ -119,7 +119,7 @@ void clientReplyContext::setReplyToError(const HttpRequestMethod& method, ErrorS
         /* prevent confusion over whether we default to persistent or not */
         http->request->flags.proxyKeepalive = false;
 
-    http->al->http.code = errstate->httpStatus;
+    http->al->http.updateStatus(errstate->httpStatus, __FUNCTION__);
 
     if (http->request)
         http->request->ignoreRange("responding with a Squid-generated error");
@@ -134,7 +134,7 @@ void
 clientReplyContext::setReplyToReply(HttpReply *futureReply)
 {
     Must(futureReply);
-    http->al->http.code = futureReply->sline.status();
+    http->al->http.updateStatus(futureReply->sline.status(), __FUNCTION__);
 
     HttpRequestMethod method;
     if (http->request) { // nil on responses to unparsable requests
@@ -733,7 +733,7 @@ clientReplyContext::processMiss()
 
     /// Deny loops
     if (r->flags.loopDetected) {
-        http->al->http.code = Http::scForbidden;
+        http->al->http.updateStatus(Http::scForbidden, __FUNCTION__);
         err = clientBuildError(ERR_ACCESS_DENIED, Http::scForbidden, nullptr, http->getConn(), http->request, http->al);
         createStoreEntry(r->method, RequestFlags());
         errorAppendEntry(http->storeEntry(), err);
@@ -772,7 +772,7 @@ void
 clientReplyContext::processOnlyIfCachedMiss()
 {
     debugs(88, 4, http->request->method << ' ' << http->uri);
-    http->al->http.code = Http::scGatewayTimeout;
+    http->al->http.updateStatus(Http::scGatewayTimeout, __FUNCTION__);
     ErrorState *err = clientBuildError(ERR_ONLY_IF_CACHED_MISS, Http::scGatewayTimeout, nullptr,
                                        http->getConn(), http->request, http->al);
     removeClientStoreReference(&sc, http);
@@ -1448,8 +1448,12 @@ clientReplyContext::cloneReply()
 {
     assert(reply == nullptr);
 
-    reply = http->storeEntry()->mem().freshestReply().clone();
+    const auto &freshestReply = http->storeEntry()->mem().freshestReply();
+
+    reply = freshestReply.clone();
     HTTPMSGLOCK(reply);
+
+    debugs(33, 5, "original reply: " << (void*)&freshestReply << " clone: " << (void*)reply << " code: " << freshestReply.sline.status());
 
     http->al->reply = reply;
 
