@@ -201,6 +201,11 @@ class PeerConnector;
 class BlindPeerConnector;
 class PeerOptions;
 
+class PeerContext;
+using PeerContextPointer = RefCount<PeerContext>;
+
+class PeerContexts;
+
 class ServerOptions;
 
 class ErrorDetail;
