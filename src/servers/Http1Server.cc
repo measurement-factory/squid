@@ -94,8 +94,15 @@ bool
 Http::One::Server::buildHttpRequest(Http::StreamPointer &context)
 {
     ClientHttpRequest *http = context->http;
+    const auto mx = MasterXaction::MakePortful(port);
+    mx->tcpClient = clientConnection;
     if (context->flags.parsed_ok == 0) {
         debugs(33, 2, "Invalid Request");
+
+        auto request = new HttpRequest(HttpRequestMethod(Http::METHOD_NONE), AnyP::PROTO_NONE, "http", http->log_uri, mx);
+        http->initRequest(request);
+        request->manager(this, http->al);
+
         // determine which error page templates to use for specific parsing errors
         err_type errPage = ERR_INVALID_REQ;
         switch (parser_->parseStatusCode) {
@@ -128,8 +135,6 @@ Http::One::Server::buildHttpRequest(Http::StreamPointer &context)
     }
 
     // TODO: move URL parse into Http Parser and INVALID_URL into the above parse error handling
-    const auto mx = MasterXaction::MakePortful(port);
-    mx->tcpClient = clientConnection;
     HttpRequest::Pointer request = HttpRequest::FromUrlXXX(http->uri, mx, parser_->method());
     if (!request) {
         debugs(33, 5, "Invalid URL: " << http->uri);
@@ -202,7 +207,6 @@ Http::One::Server::setReplyError(Http::StreamPointer &context, err_type requestE
     context->pullData();
 
     if (auto request = http->request) {
-        // clientReplyContext::createStoreEntry() have created the 'catch-all' request
         request->manager(this, http->al);
         clientProcessRequestFinished(this, request);
     }

@@ -1531,13 +1531,8 @@ ConnStateData::tunnelOnError(const err_type requestError)
     auto answer = checklist.fastCheck();
     if (answer.allowed() && answer.kind == 1) {
         debugs(33, 3, "Request will be tunneled to server");
-        const auto context = pipeline.front();
-        const auto http = context ? context->http : nullptr;
-        const auto request = http ? http->request : nullptr;
-        if (context)
-            context->finished(); // Will remove from pipeline queue
         Comm::SetSelect(clientConnection->fd, COMM_SELECT_READ, nullptr, nullptr, 0);
-        return initiateTunneledRequest(request, "unknown-protocol", preservedClientData);
+        return initiateTunneledRequest("unknown-protocol", preservedClientData);
     }
     debugs(33, 3, "denied; send error: " << requestError);
     return false;
@@ -2936,8 +2931,6 @@ ConnStateData::splice()
     Http::StreamPointer context = pipeline.front();
     Must(context);
     Must(context->http);
-    ClientHttpRequest *http = context->http;
-    HttpRequest::Pointer request = http->request;
     context->finished();
     if (transparent()) {
         // For transparent connections, make a new fake CONNECT request, now
@@ -2949,7 +2942,7 @@ ConnStateData::splice()
         // respond with "Connection Established" to the client.
         // This fake CONNECT request required to allow use of SNI in
         // doCallout() checks and adaptations.
-        return initiateTunneledRequest(request, "splice", preservedClientData);
+        return initiateTunneledRequest("splice", preservedClientData);
     }
 }
 
@@ -3079,20 +3072,21 @@ ConnStateData::httpsPeeked(PinnedIdleContext pic)
 #endif /* USE_OPENSSL */
 
 bool
-ConnStateData::initiateTunneledRequest(HttpRequest::Pointer const &cause, const char *reason, const SBuf &payload)
+ConnStateData::initiateTunneledRequest(const char *reason, const SBuf &payload)
 {
     // fake a CONNECT request to force connState to tunnel
     SBuf connectHost;
     AnyP::Port connectPort;
+
+    const auto context = pipeline.front();
+    auto http = context ? context->http : nullptr;
+    auto request = http ? http->request : nullptr;
 
     if (pinning.serverConnection != nullptr) {
         static char ip[MAX_IPSTRLEN];
         connectHost = pinning.serverConnection->remote.toStr(ip, sizeof(ip));
         if (const auto remotePort = pinning.serverConnection->remote.port())
             connectPort = remotePort;
-    } else if (cause) {
-        connectHost = cause->url.hostOrIp();
-        connectPort = cause->url.port();
 #if USE_OPENSSL
     } else if (!tlsConnectHostOrIp.isEmpty()) {
         connectHost = tlsConnectHostOrIp;
@@ -3104,7 +3098,7 @@ ConnStateData::initiateTunneledRequest(HttpRequest::Pointer const &cause, const 
         connectPort = clientConnection->local.port();
     }
 
-    if (!connectPort) {
+    if (!connectPort && !request) {
         // Typical cases are malformed HTTP requests on http_port and malformed
         // TLS handshakes on non-bumping https_port. TODO: Discover these
         // problems earlier so that they can be classified/detailed better.
@@ -3116,8 +3110,14 @@ ConnStateData::initiateTunneledRequest(HttpRequest::Pointer const &cause, const 
     }
 
     debugs(33, 2, "Request tunneling for " << reason);
-    const auto http = buildFakeRequest(connectHost, *connectPort, payload);
-    HttpRequest::Pointer request = http->request;
+
+    if (request) {
+        initializeTunneledRequest(http, request, connectHost, *connectPort, payload);
+    } else {
+        http = buildFakeRequest(connectHost, *connectPort, payload);
+        request = http->request;
+    }
+
     request->flags.forceTunnel = true;
     http->calloutContext = new ClientRequestContext(http);
     http->doCallouts();
@@ -3154,6 +3154,29 @@ ConnStateData::fakeAConnectRequest(const char *reason, const SBuf &payload)
     return true;
 }
 
+void
+ConnStateData::initializeTunneledRequest(ClientHttpRequest * http, HttpRequest::Pointer request, SBuf &useHost, const AnyP::KnownPort usePort, const SBuf &payload)
+{
+    request->url.setScheme(AnyP::PROTO_AUTHORITY_FORM, nullptr);
+    request->method = Http::METHOD_CONNECT;
+    request->url.host(useHost.c_str());
+    request->url.port(usePort);
+
+    http->uri = SBufToCstring(request->effectiveRequestUri());
+
+    request->header.putStr(Http::HOST, useHost.c_str());
+
+    request->sources |= ((switchedToHttps() || port->transport.protocol == AnyP::PROTO_HTTPS) ? Http::Message::srcHttps : Http::Message::srcHttp);
+#if USE_AUTH
+    if (getAuth())
+        request->auth_user_request = getAuth();
+#endif
+
+    // TODO: move
+    inBuf = payload;
+    flags.readMore = false;
+}
+
 ClientHttpRequest *
 ConnStateData::buildFakeRequest(SBuf &useHost, const AnyP::KnownPort usePort, const SBuf &payload)
 {
@@ -3180,26 +3203,11 @@ ConnStateData::buildFakeRequest(SBuf &useHost, const AnyP::KnownPort usePort, co
     // Setup Http::Request object. Maybe should be replaced by a call to (modified)
     // clientProcessRequest
     HttpRequest::Pointer request = new HttpRequest(mx);
-    request->url.setScheme(AnyP::PROTO_AUTHORITY_FORM, nullptr);
-    request->method = Http::METHOD_CONNECT;
-    request->url.host(useHost.c_str());
-    request->url.port(usePort);
+    initializeTunneledRequest(http, request, useHost, usePort, payload);
 
-    http->uri = SBufToCstring(request->effectiveRequestUri());
     http->initRequest(request.getRaw());
 
     request->manager(this, http->al);
-
-    request->header.putStr(Http::HOST, useHost.c_str());
-
-    request->sources |= ((switchedToHttps() || port->transport.protocol == AnyP::PROTO_HTTPS) ? Http::Message::srcHttps : Http::Message::srcHttp);
-#if USE_AUTH
-    if (getAuth())
-        request->auth_user_request = getAuth();
-#endif
-
-    inBuf = payload;
-    flags.readMore = false;
 
     return http;
 }
