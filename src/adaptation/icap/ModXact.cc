@@ -225,7 +225,6 @@ Adaptation::Icap::ModXact::ModXact(Http::Message *virginHeader,
                                    HttpRequest *virginCause, AccessLogEntry::Pointer &alp, Adaptation::Icap::ServiceRep::Pointer &aService):
     AsyncJob("Adaptation::Icap::ModXact"),
     Adaptation::Icap::Xaction("Adaptation::Icap::ModXact", aService),
-    virginConsumed(0),
     bodyParser(nullptr),
     canStartBypass(false), // too early
     protectGroupBypass(true),
@@ -587,6 +586,7 @@ bool Adaptation::Icap::ModXact::virginBodyEndReached(const Adaptation::Icap::Vir
 size_t Adaptation::Icap::ModXact::virginContentSize(const Adaptation::Icap::VirginBodyAct &act) const
 {
     Must(act.active());
+    const auto virginConsumed = virgin.body_pipe->consumedSize();
     // asbolute start of unprocessed data
     const uint64_t dataStart = act.offset();
     // absolute end of buffered data
@@ -601,6 +601,7 @@ const char *Adaptation::Icap::ModXact::virginContentData(const Adaptation::Icap:
 {
     Must(act.active());
     const uint64_t dataStart = act.offset();
+    const auto virginConsumed = virgin.body_pipe->consumedSize();
     Must(virginConsumed <= dataStart);
     return virgin.body_pipe->buf().content() + static_cast<size_t>(dataStart-virginConsumed);
 }
@@ -640,6 +641,7 @@ void Adaptation::Icap::ModXact::virginConsume()
         return;
     }
 
+    const auto virginConsumed = bp.consumedSize();
     const size_t have = static_cast<size_t>(bp.buf().contentSize());
     const uint64_t end = virginConsumed + have;
     uint64_t offset = end;
@@ -661,7 +663,6 @@ void Adaptation::Icap::ModXact::virginConsume()
         debugs(93, 8, "consuming " << size << " out of " << have <<
                " virgin body bytes");
         bp.consume(size);
-        virginConsumed += size;
         Must(!isRetriable); // or we should not be consuming
         disableRepeats("consumed content");
         disableBypass("consumed content", true);
@@ -1317,7 +1318,7 @@ void Adaptation::Icap::ModXact::prepPartialBodyEchoing(uint64_t pos)
            virgin.header->body_pipe << " offset " << pos );
 
     // check that use-original-body=N does not point beyond buffered data
-    const uint64_t virginDataEnd = virginConsumed +
+    const uint64_t virginDataEnd = virgin.body_pipe->consumedSize() +
                                    virgin.body_pipe->buf().contentSize();
     Must(pos <= virginDataEnd);
     virginBodySending.progress(static_cast<size_t>(pos));

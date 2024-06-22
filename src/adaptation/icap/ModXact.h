@@ -341,7 +341,6 @@ private:
     VirginBodyAct virginBodyWriting; // virgin body writing state
     VirginBodyAct virginBodySending;  // virgin body sending state
     VirginBodyAct virginBodyBuffering;  // virgin body sending state
-    uint64_t virginConsumed;        // virgin data consumed so far
     Preview preview; // use for creating (writing) the preview
 
     Http1::TeChunkedParser *bodyParser; // ICAP response body parser
