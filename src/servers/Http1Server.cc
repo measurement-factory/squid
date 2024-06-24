@@ -99,7 +99,11 @@ Http::One::Server::buildHttpRequest(Http::StreamPointer &context)
     if (context->flags.parsed_ok == 0) {
         debugs(33, 2, "Invalid Request");
 
-        auto request = new HttpRequest(HttpRequestMethod(Http::METHOD_NONE), AnyP::PROTO_NONE, "http", http->log_uri, mx);
+        // setReplyToError() requires log_uri
+        // must be already initialized via ConnStateData::abortRequestParsing()
+        assert(http->log_uri);
+
+        auto request = new HttpRequest(parser_->method(), parser_->messageProtocol().protocol, "http", http->log_uri, mx);
         http->initRequest(request);
         request->manager(this, http->al);
 
@@ -123,9 +127,6 @@ Http::One::Server::buildHttpRequest(Http::StreamPointer &context)
             // else use default ERR_INVALID_REQ set above.
             break;
         }
-        // setReplyToError() requires log_uri
-        // must be already initialized via ConnStateData::abortRequestParsing()
-        assert(http->log_uri);
 
         const char * requestErrorBytes = inBuf.c_str();
         if (!tunnelOnError(errPage))

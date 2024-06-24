@@ -3086,6 +3086,9 @@ ConnStateData::initiateTunneledRequest(const char *reason, const SBuf &payload)
         connectHost = pinning.serverConnection->remote.toStr(ip, sizeof(ip));
         if (const auto remotePort = pinning.serverConnection->remote.port())
             connectPort = remotePort;
+    } else if (request && request->url.port()) {
+        connectHost = request->url.hostOrIp();
+        connectPort = request->url.port();
 #if USE_OPENSSL
     } else if (!tlsConnectHostOrIp.isEmpty()) {
         connectHost = tlsConnectHostOrIp;
@@ -3097,7 +3100,7 @@ ConnStateData::initiateTunneledRequest(const char *reason, const SBuf &payload)
         connectPort = clientConnection->local.port();
     }
 
-    if (!connectPort && !request) {
+    if (!connectPort) {
         // Typical cases are malformed HTTP requests on http_port and malformed
         // TLS handshakes on non-bumping https_port. TODO: Discover these
         // problems earlier so that they can be classified/detailed better.
@@ -3111,7 +3114,8 @@ ConnStateData::initiateTunneledRequest(const char *reason, const SBuf &payload)
     debugs(33, 2, "Request tunneling for " << reason);
 
     if (request) {
-        initializeTunneledRequest(http, request, connectHost, *connectPort, payload);
+        inBuf = payload;
+        flags.readMore = false;
     } else {
         http = buildFakeRequest(connectHost, *connectPort, payload);
         request = http->request;
@@ -3171,7 +3175,6 @@ ConnStateData::initializeTunneledRequest(ClientHttpRequest * http, HttpRequest::
     if (getAuth())
         request->auth_user_request = getAuth();
 #endif
-
     // TODO: move
     inBuf = payload;
     flags.readMore = false;
