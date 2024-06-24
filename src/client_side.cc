@@ -2931,7 +2931,6 @@ ConnStateData::splice()
     Http::StreamPointer context = pipeline.front();
     Must(context);
     Must(context->http);
-    context->finished();
     if (transparent()) {
         // For transparent connections, make a new fake CONNECT request, now
         // with SNI as target. doCallout() checks, adaptations may need that.
@@ -3119,6 +3118,7 @@ ConnStateData::initiateTunneledRequest(const char *reason, const SBuf &payload)
     }
 
     request->flags.forceTunnel = true;
+    http->sslBumpNeed(Ssl::bumpEnd);
     http->calloutContext = new ClientRequestContext(http);
     http->doCallouts();
     clientProcessRequestFinished(this, request);
