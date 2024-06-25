@@ -160,19 +160,7 @@ Client::markParsedVirginReplyAsWhole(const char *reasonWeAreSure)
     assert(reasonWeAreSure);
     debugs(11, 3, reasonWeAreSure);
 
-    // The code storing adapted reply takes care of markStoredReplyAsWhole().
-    // We need to take care of the remaining regular network-to-store case.
-#if USE_ADAPTATION
-    if (startedAdaptation) {
-        debugs(11, 5, "adaptation handles markStoredReplyAsWhole()");
-        return;
-    }
-#endif
-
-    // Convert the "parsed whole virgin reply" event into the "stored..." event
-    // because, without adaptation, we store everything we parse: There is no
-    // buffer for parsed content; addVirginReplyBody() stores every parsed byte.
-    fwd->markStoredReplyAsWhole(reasonWeAreSure);
+    receivedWholeVirginReply = true;
 }
 
 // called when no more server communication is expected; may quit
@@ -230,6 +218,16 @@ void
 Client::completeForwarding()
 {
     debugs(11,5, "completing forwarding for "  << fwd);
+
+    const char *receivedWholeReply = receivedWholeVirginReply ? "complete virgin reply" : nullptr;
+#if USE_ADAPTATION
+    if (startedAdaptation)
+        receivedWholeReply = receivedWholeAdaptedReply ? "complete adapted reply" : nullptr;
+#endif
+
+    if (receivedWholeReply)
+        fwd->markStoredReplyAsWhole(receivedWholeReply);
+
     assert(fwd != nullptr);
     doneWithFwd = "completeForwarding()";
     fwd->complete();
@@ -739,9 +737,11 @@ Client::handleAdaptedHeader(Http::Message *msg)
         // assume that ICAP does not auto-consume on failures
         const bool result = adaptedBodySource->setConsumerIfNotLate(this);
         assert(result);
+        checkAdaptationWithBodyCompletion();
     } else {
         // no body
-        fwd->markStoredReplyAsWhole("setFinalReply() stored header-only adapted reply");
+        Assure(!adaptedReplyAborted);
+        receivedWholeAdaptedReply = true;
         if (doneWithAdaptation()) // we may still be sending virgin response
             handleAdaptationCompleted();
     }
@@ -758,8 +758,7 @@ Client::resumeBodyStorage()
 
     handleMoreAdaptedBodyAvailable();
 
-    if (adaptedBodySource != nullptr && adaptedBodySource->exhausted())
-        endAdaptedBodyConsumption();
+    checkAdaptationWithBodyCompletion();
 }
 
 // more adapted response body is available
@@ -816,28 +815,36 @@ Client::handleAdaptedBodyProductionEnded()
     if (abortOnBadEntry("entry went bad while waiting for adapted body eof"))
         return;
 
-    // distinguish this code path from handleAdaptedBodyProducerAborted()
+    Assure(!adaptedReplyAborted);
     receivedWholeAdaptedReply = true;
 
-    // end consumption if we consumed everything
-    if (adaptedBodySource != nullptr && adaptedBodySource->exhausted())
-        endAdaptedBodyConsumption();
-    // else resumeBodyStorage() will eventually consume the rest
+    checkAdaptationWithBodyCompletion();
 }
 
 void
-Client::endAdaptedBodyConsumption()
+Client::checkAdaptationWithBodyCompletion()
 {
-    stopConsumingFrom(adaptedBodySource);
-
-    if (receivedWholeAdaptedReply) {
-        // We received the entire adapted reply per receivedWholeAdaptedReply.
-        // We are called when we consumed everything received (per our callers).
-        // We consume only what we store per handleMoreAdaptedBodyAvailable().
-        fwd->markStoredReplyAsWhole("received,consumed=>stored the entire RESPMOD reply");
+    if (!adaptedBodySource) {
+        debugs(11, 7, "already completed");
+        return;
     }
 
-    handleAdaptationCompleted();
+    if (!receivedWholeAdaptedReply && !adaptedReplyAborted) {
+        // wait for noteBodyProductionEnded() or noteBodyProducerAborted()
+        // because completeForwarding() needs to know whether we receivedWholeAdaptedReply
+        debugs(11, 7, "waiting for adapted body production ending");
+        return;
+    }
+
+    if (!adaptedBodySource->exhausted()) {
+        debugs(11,5, "waiting to consume the remainder of the adapted body");
+        return; // resumeBodyStorage() should eventually consume the rest
+    }
+
+    stopConsumingFrom(adaptedBodySource);
+
+    if (doneWithAdaptation()) // we may still be sending virgin response
+        handleAdaptationCompleted();
 }
 
 // premature end of the adapted response body
@@ -846,18 +853,18 @@ void Client::handleAdaptedBodyProducerAborted()
     if (abortOnBadEntry("entry went bad while waiting for the now-aborted adapted body"))
         return;
 
+    Assure(!receivedWholeAdaptedReply);
+    adaptedReplyAborted = true;
     Must(adaptedBodySource != nullptr);
     if (!adaptedBodySource->exhausted()) {
         debugs(11,5, "waiting to consume the remainder of the aborted adapted body");
         return; // resumeBodyStorage() should eventually consume the rest
     }
 
-    stopConsumingFrom(adaptedBodySource);
-
     if (handledEarlyAdaptationAbort())
         return;
 
-    handleAdaptationCompleted(); // the user should get a truncated response
+    checkAdaptationWithBodyCompletion(); // the user should get a truncated response
 }
 
 // common part of noteAdaptationAnswer and handleAdaptedBodyProductionEnded
