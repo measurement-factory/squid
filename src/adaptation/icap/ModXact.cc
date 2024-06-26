@@ -270,14 +270,17 @@ void Adaptation::Icap::ModXact::start()
     if (service().cfg().trickling) {
         state.trickling = State::Trickling::waitingHeaderTime;
         TheHeaderTricklingAlarms.enqueue(*this);
+
+        if (virgin.body_pipe && service().cfg().tricklingDropSizeMax > 0) {
+            debugs(93, 5, "expecting to trickle virgin body");
+            virginBodyBuffering.plan();
+            bufferBytesForTrickling();
+        } else {
+            debugs(93, 7, "not expecting to trickle virgin body");
+            virginBodyBuffering.disable();
+        }
     } else {
         state.trickling = State::Trickling::refused;
-    }
-    if (virgin.body_pipe && state.trickling == State::Trickling::waitingHeaderTime) {
-        virginBodyBuffering.plan();
-        bufferBytesForTrickling();
-    } else {
-        virginBodyBuffering.disable();
     }
 
     // it is an ICAP violation to send request to a service w/o known OPTIONS
@@ -1680,12 +1683,19 @@ Adaptation::Icap::ModXact::trickleHeader()
 
     trickleWaiting.callback = nullptr;
 
-    Assure(state.trickling == State::Trickling::waitingHeaderTime);
-    state.trickling = State::Trickling::waitingBodyDropTime; // XXX: Except when body-drop-size is 0
-    TheBodyTricklingAlarms.enqueue(*this);
-
     setOutcome(xoTrickle);
     prepEchoingOrTrickling(); // with trickling speed limits
+
+    Assure(state.trickling == State::Trickling::waitingHeaderTime);
+    // TODO: De-duplicate this condition by adding shouldTrickleBody()
+    if (virgin.body_pipe && service().cfg().tricklingDropSizeMax > 0) {
+        state.trickling = State::Trickling::waitingBodyDropTime;
+        TheBodyTricklingAlarms.enqueue(*this);
+    } else {
+        state.trickling = State::Trickling::done;
+        virginBodyBuffering.disable(); // should already be disabled
+    }
+
     startSending();
 }
 

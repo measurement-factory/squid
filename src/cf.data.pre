@@ -9692,8 +9692,8 @@ DOC_START
 		are always sent at once, without any size limits). The size refers to
 		raw message body bytes, before chunked encoding (if any). Squid will
 		trickle fewer bytes if not enough body bytes were received by drop
-		trickling time. When set to zero, only HTTP headers are trickled (XXX:
-		not implemented yet). The default is one byte.
+		trickling time. When set to zero, only HTTP headers are trickled. The
+		default is one byte.
 
 	trickling-period=seconds
 		The approximate minimum delay between two sequential trickling drops.
