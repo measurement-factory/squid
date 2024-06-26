@@ -17,6 +17,8 @@
 #include "http/one/forward.h"
 #include "http/one/TeChunkedParser.h"
 
+#include <optional>
+
 /*
  * ICAPModXact implements ICAP REQMOD and RESPMOD transaction using
  * ICAPXaction as the base. The ICAPModXact receives a virgin HTTP message
@@ -238,7 +240,7 @@ private:
     bool doneReading() const override { return commEof || state.doneParsing(); }
     bool doneWriting() const override { return state.doneWriting(); }
 
-    size_t virginContentSize(const VirginBodyAct &act) const;
+    std::optional<size_t> virginContentSize(const VirginBodyAct &) const;
     const char *virginContentData(const VirginBodyAct &act) const;
     bool virginBodyEndReached(const VirginBodyAct &act) const;
 
@@ -263,10 +265,9 @@ private:
     void backup(const MemBuf &buf);
 
     void bufferBytesForTrickling();
-    void switchFromTricklingToEchoing();
-    void disableFutureTrickling();
     void trickleHeader();
     void trickleBody();
+    void stopTrickling();
 
     void parseMore();
 
@@ -297,9 +298,9 @@ private:
     void prepPartialBodyEchoing(uint64_t pos);
     void prepEchoingOrTrickling();
     void echoMore();
+    void trickleMore();
     size_t echoableContentSize() const;
     size_t trickleDropSize() const;
-    const char *echoableContentData(const VirginBodyAct &) const;
 
     void updateSources(); ///< Update the Http::Message sources
 
@@ -340,7 +341,7 @@ private:
     SizedEstimate virginBody;
     VirginBodyAct virginBodyWriting; // virgin body writing state
     VirginBodyAct virginBodySending;  // virgin body sending state
-    VirginBodyAct virginBodyBuffering;  // virgin body sending state
+    VirginBodyAct virginBodyBuffering; // virgin body tricklingBuf accumulation state
     Preview preview; // use for creating (writing) the preview
 
     Http1::TeChunkedParser *bodyParser; // ICAP response body parser
@@ -430,7 +431,7 @@ private:
             waitingHeaderTime, ///< observing trickling-start-delay
             waitingBodyDropTime, ///< observing trickling-period
             waitingBodyDropBytes, ///< observed trickling-period but waiting for more virgin body bytes to trickle ASAP
-            done, ///< received an adaptation service response
+            done, ///< received an adaptation service response (or equivalent)
         } trickling;
     } state;
 
@@ -438,6 +439,7 @@ private:
     // should be modified to include it or that state needs to be renamed?
     TrickleWait trickleWaiting; ///< preconditions for trickling virgin message
     SBuf tricklingBuf; ///< not yet trickled virgin body bytes (when trickling)
+    uint64_t trickledSize = 0; ///< total number of virgin body bytes trickled so far
     friend class TricklingAlarms;
     friend class HeaderTricklingAlarms;
     friend class BodyTricklingAlarms;

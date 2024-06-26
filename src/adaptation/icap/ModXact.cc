@@ -509,7 +509,7 @@ void Adaptation::Icap::ModXact::writeSomeBody(const char *label, size_t size)
 
     writeBuf.init(); // note: we assume that last-chunk will fit
 
-    const size_t writableSize = virginContentSize(virginBodyWriting);
+    const auto writableSize = virginContentSize(virginBodyWriting).value();
     const size_t chunkSize = min(writableSize, size);
 
     if (chunkSize) {
@@ -581,9 +581,11 @@ bool Adaptation::Icap::ModXact::virginBodyEndReached(const Adaptation::Icap::Vir
         !virgin.body_pipe->expectMoreAfter(act.offset()); // will not have more
 }
 
-// the size of buffered virgin body data available for the specified activity
-// if this size is zero, we may be done or may be waiting for more data
-size_t Adaptation::Icap::ModXact::virginContentSize(const Adaptation::Icap::VirginBodyAct &act) const
+/// Number of virgin.body_pipe bytes available for the specified activity.
+/// \returns zero if the activity has already processed all buffered data
+/// \returns std::nullopt if the activity is incompatible with virgin.body_pipe
+std::optional<size_t>
+Adaptation::Icap::ModXact::virginContentSize(const Adaptation::Icap::VirginBodyAct &act) const
 {
     Must(act.active());
     const auto virginConsumed = virgin.body_pipe->consumedSize();
@@ -592,27 +594,20 @@ size_t Adaptation::Icap::ModXact::virginContentSize(const Adaptation::Icap::Virg
     // absolute end of buffered data
     const uint64_t dataEnd = virginConsumed + virgin.body_pipe->buf().contentSize();
     debugs(93, 7, "start: " << dataStart << " end: " << dataEnd << " (" << virginConsumed << '+' << virgin.body_pipe->buf().contentSize() << ")");
-    Must(virginConsumed <= dataStart && dataStart <= dataEnd);
-    return static_cast<size_t>(dataEnd - dataStart);
+    if (virginConsumed <= dataStart && dataStart <= dataEnd)
+        return static_cast<size_t>(dataEnd - dataStart);
+    return std::nullopt;
 }
 
-// pointer to buffered virgin body data available for the specified activity
-const char *Adaptation::Icap::ModXact::virginContentData(const Adaptation::Icap::VirginBodyAct &act) const
+/// pointer to virgin.body_pipe bytes available for the specified activity
+const char *
+Adaptation::Icap::ModXact::virginContentData(const Adaptation::Icap::VirginBodyAct &act) const
 {
     Must(act.active());
     const uint64_t dataStart = act.offset();
     const auto virginConsumed = virgin.body_pipe->consumedSize();
     Must(virginConsumed <= dataStart);
     return virgin.body_pipe->buf().content() + static_cast<size_t>(dataStart-virginConsumed);
-}
-
-/// pointer to buffered virgin body data available for the specified activity,
-/// with trickling support
-const char *
-Adaptation::Icap::ModXact::echoableContentData(const Adaptation::Icap::VirginBodyAct &act) const
-{
-    return state.trickling == State::Trickling::waitingBodyDropBytes ?
-        tricklingBuf.rawContent() : virginContentData(act);
 }
 
 void Adaptation::Icap::ModXact::virginConsume()
@@ -767,6 +762,40 @@ void Adaptation::Icap::ModXact::handleCommRead(size_t)
     readMore();
 }
 
+void Adaptation::Icap::ModXact::echoMore()
+{
+    Must(state.sending == State::sendingVirgin);
+    Must(adapted.body_pipe != nullptr);
+    Must(virginBodySending.active());
+    Assure(!state.isTrickling());
+
+    const auto sizeMax = virginContentSize(virginBodySending).value(); // XXX: undo further?
+    debugs(93,5, "will echo up to " << sizeMax << " bytes from " <<
+           virgin.body_pipe->status());
+    debugs(93,5, "will echo up to " << sizeMax << " bytes to   " <<
+           adapted.body_pipe->status());
+
+    if (sizeMax > 0) {
+        const size_t size = adapted.body_pipe->putMoreData(virginContentData(virginBodySending), sizeMax);
+        debugs(93,5, "echoed " << size << " out of " << sizeMax <<
+               " bytes");
+        virginBodySending.progress(size);
+        disableRepeats("echoed content");
+        disableBypass("echoed content", true);
+        virginConsume();
+    }
+
+    if (virginBodyEndReached(virginBodySending)) {
+        debugs(93, 5, "echoed all" << status());
+        stopSending(true);
+    } else {
+        debugs(93, 5, "has " <<
+               virgin.body_pipe->buf().contentSize() << " bytes " <<
+               "and expects more to echo" << status());
+        // TODO: timeout if virgin or adapted pipes are broken
+    }
+}
+
 /// the number of virgin body bytes to trickle now
 size_t
 Adaptation::Icap::ModXact::trickleDropSize() const
@@ -781,80 +810,57 @@ Adaptation::Icap::ModXact::trickleDropSize() const
     return std::min(configurationLimit, keepLastByteLimit);
 }
 
-/// the number of virgin body bytes we can echo now
-size_t
-Adaptation::Icap::ModXact::echoableContentSize() const
+void
+Adaptation::Icap::ModXact::trickleMore()
 {
-    const auto bufferedBytes = virginContentSize(virginBodySending);
+    Assure(state.sending == State::sendingVirgin);
+    Assure(state.isTrickling());
+
     switch (state.trickling) {
 
     case State::Trickling::undecided:
-        Assure(!"we decide whether to trickle before we may need echoableContentSize()");
-        return bufferedBytes; // unreachable code
+        Assure(!"we decide whether to trickle before trickleMore()");
+        return; // unreachable code
 
     case State::Trickling::refused:
-        return bufferedBytes; // echoing was never restricted for this transaction
+        Assure(!"we do not call trickleMore() after refusing to trickle");
+        return; // unreachable code
 
     case State::Trickling::done:
-        return bufferedBytes; // we are now allowed to echo everything we have
+        Assure(!"we do not call trickleMore() after we are done trickling");
+        return; // unreachable code
 
     case State::Trickling::waitingHeaderTime:
     case State::Trickling::waitingBodyDropTime:
-        debugs(93, 5, "trickling none of " << bufferedBytes << " bytes while waiting");
-        return 0;
+        debugs(93, 5, "trickling nothing while waiting");
+        return;
 
-    case State::Trickling::waitingBodyDropBytes: {
-        const auto bytesToTrickle = trickleDropSize();
-        debugs(93, 5, "trickling " << bytesToTrickle << " bytes");
-        return bytesToTrickle; // may be zero
-    }
+    case State::Trickling::waitingBodyDropBytes:
+        break;
     }
 
-    return bufferedBytes; // unreachable code
-}
-
-void Adaptation::Icap::ModXact::echoMore()
-{
-    Must(state.sending == State::sendingVirgin);
-    Must(adapted.body_pipe != nullptr);
-    Must(virginBodySending.active());
-
-    const auto sizeMax = echoableContentSize();
-    debugs(93,5, "will echo up to " << sizeMax << " bytes from " <<
-           virgin.body_pipe->status());
+    const auto sizeMax = trickleDropSize();
     debugs(93,5, "will echo up to " << sizeMax << " bytes to   " <<
            adapted.body_pipe->status());
 
     if (sizeMax > 0) {
-        const size_t size = adapted.body_pipe->putMoreData(echoableContentData(virginBodySending), sizeMax);
-        debugs(93,5, "echoed " << size << " out of " << sizeMax <<
-               " bytes");
-        virginBodySending.progress(size);
+        const size_t size = adapted.body_pipe->putMoreData(tricklingBuf.rawContent(), sizeMax);
+        debugs(93,5, "trickled " << size << " out of " << sizeMax << " bytes");
         disableRepeats("echoed content");
         disableBypass("echoed content", true);
-        virginConsume();
 
-        if (state.isTrickling()) {
-            Assure(state.trickling == State::Trickling::waitingBodyDropBytes);
+        Assure(state.trickling == State::Trickling::waitingBodyDropBytes);
 
-            debugs(93, 7, "consuming " << sizeMax << " from " << tricklingBuf.length() << "-byte tricking buf");
-            Assure(sizeMax <= tricklingBuf.length());
-            tricklingBuf.consume(sizeMax);
+        debugs(93, 7, "consuming " << size << " from " << tricklingBuf.length() << "-byte tricking buf");
+        Assure(size <= tricklingBuf.length());
+        tricklingBuf.consume(size);
+        trickledSize += size; // TODO: Replace with adapted.body_pipe->producedSize()?
 
-            state.trickling = State::Trickling::waitingBodyDropTime;
-            TheBodyTricklingAlarms.enqueue(*this);
-        }
+        state.trickling = State::Trickling::waitingBodyDropTime;
+        TheBodyTricklingAlarms.enqueue(*this);
     }
 
-    if (virginBodyEndReached(virginBodySending)) {
-        debugs(93, 5, "echoed all" << status());
-        stopSending(true);
-    } else {
-        debugs(93, 5, "has " <<
-               virgin.body_pipe->buf().contentSize() << " bytes " <<
-               "and expects more to echo" << status());
-        // TODO: timeout if virgin or adapted pipes are broken
-    }
+    debugs(93, 5, "preserved " << tricklingBuf.length() << " bytes for trickling" << status());
 }
 
 bool Adaptation::Icap::ModXact::doneSending() const
@@ -873,7 +879,9 @@ void Adaptation::Icap::ModXact::stopSending(bool nicely)
     if (state.sending != State::sendingUndecided) {
         debugs(93, 7, "will no longer send" << status());
         if (adapted.body_pipe != nullptr) {
+            stopTrickling();
             virginBodySending.disable();
+
             // we may leave debts if we were echoing and the virgin
             // body_pipe got exhausted before we echoed all planned bytes
             const bool leftDebts = adapted.body_pipe->needsMoreData();
@@ -1034,7 +1042,7 @@ void Adaptation::Icap::ModXact::startSending()
     }
 
     if (state.sending == State::sendingVirgin)
-        echoMore();
+        state.isTrickling() ? trickleMore() : echoMore();
     else {
         // If we are not using the virgin HTTP object update the
         // Http::Message::sources flag.
@@ -1178,8 +1186,8 @@ Adaptation::Icap::ModXact::prepSendingAdapted()
 {
     if (state.startedTrickling)
         throw TextException("ICAP lost race to trickling; cannot start adapting when already trickling", Here());
+    stopTrickling();
 
-    disableFutureTrickling();
     state.sending = State::sendingAdapted;
 }
 
@@ -1222,12 +1230,38 @@ void Adaptation::Icap::ModXact::handle206PartialContent()
 // We actually start sending (echoig or not) in startSending.
 void Adaptation::Icap::ModXact::prepEchoing()
 {
-    if (state.startedTrickling)
-        return switchFromTricklingToEchoing(); // prepEchoingOrTrickling() has been called already
+    stopTrickling();
 
-    disableFutureTrickling();
-    setOutcome(xoEcho);
-    prepEchoingOrTrickling(); // without tricking speed limits
+    if (state.startedTrickling) {
+        setOutcome(xoEcho); // TODO: xoTrickleEcho
+        // prepEchoingOrTrickling() has been called already
+    } else {
+        setOutcome(xoEcho);
+        prepEchoingOrTrickling(); // without tricking speed limits
+    }
+
+    if (!virgin.body_pipe)
+        return;
+
+    debugs(93, 5, "will echo body from " << virgin.body_pipe);
+
+    if (virginBodySending.disabled())
+        throw TextException("too late to start echoing virgin body", Here());
+
+    // In many cases, the plan is already active, but we might also get here
+    // before we activate the plan (e.g., when bypassing an early error).
+    if (!virginBodySending.active())
+        virginBodySending.plan();
+
+    // This prepEchoing() code is only reachable when nothing was consumed from
+    // virgin.body_pipe because prepEchoing() is incompatible with consumption.
+    Assure(!virgin.body_pipe->consumedSize());
+    if (trickledSize) {
+        // pretend as if echoing code consumed trickled body bytes
+        virgin.body_pipe->consume(trickledSize);
+        virginBodySending.progress(trickledSize);
+        checkConsuming();
+    }
 }
 
 /// code shared by prepEchoing() and trickleHeader(); do not call directly
@@ -1285,8 +1319,7 @@ void Adaptation::Icap::ModXact::prepEchoingOrTrickling()
     if (oldHead->body_pipe != nullptr) {
         debugs(93, 7, "will echo virgin body from " <<
                oldHead->body_pipe);
-        if (!virginBodySending.active())
-            virginBodySending.plan(); // will throw if not possible
+
         state.sending = State::sendingVirgin;
         checkConsuming();
 
@@ -1307,8 +1340,7 @@ void Adaptation::Icap::ModXact::prepEchoingOrTrickling()
 /// We actually start sending (echoing or not) in startSending().
 void Adaptation::Icap::ModXact::prepPartialBodyEchoing(uint64_t pos)
 {
-    // TODO: Assure that we are not trickling anymore.
-
+    Assure(!state.startedTrickling);
     Must(virginBodySending.active());
     Must(virgin.header->body_pipe != nullptr);
 
@@ -1525,9 +1557,9 @@ Adaptation::Icap::ModXact::bufferBytesForTrickling()
         return;
 
     if (const auto newBytes = virginContentSize(virginBodyBuffering)) {
-        tricklingBuf.append(virginContentData(virginBodyBuffering), newBytes);
-        virginBodyBuffering.progress(newBytes);
-        debugs(93, 7, "buffered " << newBytes << "; have: " << tricklingBuf.length());
+        tricklingBuf.append(virginContentData(virginBodyBuffering), *newBytes);
+        virginBodyBuffering.progress(*newBytes);
+        debugs(93, 7, "buffered " << *newBytes << "; have: " << tricklingBuf.length());
     }
 
     const auto tricklingBufLimit = size_t(32*1024);
@@ -1545,8 +1577,15 @@ void Adaptation::Icap::ModXact::noteMoreBodyDataAvailable(BodyPipe::Pointer)
 
     writeMore();
 
-    if (state.sending == State::sendingVirgin)
-        echoMore();
+    if (state.sending == State::sendingVirgin) {
+        if (state.isTrickling()) {
+            if (state.trickling == State::Trickling::waitingBodyDropBytes)
+                trickleMore();
+        } else {
+            echoMore();
+        }
+    }
+
 }
 
 // HTTP side sent us all virgin info
@@ -1557,7 +1596,8 @@ void Adaptation::Icap::ModXact::noteBodyProductionEnded(BodyPipe::Pointer)
     // push writer and sender in case we were waiting for the last-chunk
     writeMore();
 
-    if (state.sending == State::sendingVirgin)
+    // TODO: Replace this and similar conditions with virginBodySending.active()?
+    if (state.sending == State::sendingVirgin && !state.isTrickling())
         echoMore();
 }
 
@@ -1570,7 +1610,7 @@ void Adaptation::Icap::ModXact::noteBodyProducerAborted(BodyPipe::Pointer)
     // push writer and sender in case we were waiting for the last-chunk
     writeMore();
 
-    if (state.sending == State::sendingVirgin)
+    if (state.sending == State::sendingVirgin && !state.isTrickling())
         echoMore();
 }
 
@@ -1578,8 +1618,15 @@ void Adaptation::Icap::ModXact::noteBodyProducerAborted(BodyPipe::Pointer)
 // possibly freed some buffer space
 void Adaptation::Icap::ModXact::noteMoreBodySpaceAvailable(BodyPipe::Pointer)
 {
-    if (state.sending == State::sendingVirgin)
-        echoMore();
+    if (state.sending == State::sendingVirgin) {
+        if (state.isTrickling()) {
+            // XXX: Implement
+            // if (state.trickling == State::Trickling::waitingBodyDropSpace)
+            //     trickleMore();
+        } else {
+            echoMore();
+        }
+    }
     else if (state.sending == State::sendingAdapted)
         parseMore();
     else
@@ -1594,18 +1641,16 @@ void Adaptation::Icap::ModXact::noteBodyConsumerAborted(BodyPipe::Pointer)
     mustStop("adapted body consumer aborted");
 }
 
+/// Ends trickling (if it is currently active) and prevents any future trickling
+/// (if it is still possible). Safe to call multiple times.
 void
-Adaptation::Icap::ModXact::switchFromTricklingToEchoing()
+Adaptation::Icap::ModXact::stopTrickling()
 {
-    debugs(93, 5, "removing speed limits");
+    debugs(93, 5, status());
 
     switch (state.trickling) {
-
     case State::Trickling::undecided:
-    case State::Trickling::refused:
-    case State::Trickling::done:
-        Assure(!"impossible startedTrickling state");
-        return; // unreachable code
+        break;
 
     case State::Trickling::waitingHeaderTime:
         TheHeaderTricklingAlarms.dequeue(*this);
@@ -1617,27 +1662,14 @@ Adaptation::Icap::ModXact::switchFromTricklingToEchoing()
 
     case State::Trickling::waitingBodyDropBytes:
         break;
+
+    case State::Trickling::refused:
+    case State::Trickling::done:
+        return; // nothing to do
     }
 
     state.trickling = State::Trickling::done;
     virginBodyBuffering.disable(); // may already be disabled
-}
-
-void
-Adaptation::Icap::ModXact::disableFutureTrickling()
-{
-    // otherwise, switchFromTricklingToEchoing() should have been called
-    Assure(!state.startedTrickling);
-
-    if (state.trickling == State::Trickling::waitingHeaderTime) {
-        debugs(93, 7, "before trickling the header");
-        TheHeaderTricklingAlarms.dequeue(*this);
-        state.trickling = State::Trickling::done;
-        virginBodyBuffering.disable(); // may already be disabled
-    } else {
-        Assure(state.trickling == State::Trickling::refused);
-        // nothing to do: we were not planning on trickling
-    }
 }
 
 void
@@ -1667,7 +1699,7 @@ Adaptation::Icap::ModXact::trickleBody()
     Assure(state.trickling == State::Trickling::waitingBodyDropTime);
     state.trickling = State::Trickling::waitingBodyDropBytes;
 
-    echoMore();
+    trickleMore();
 }
 
 Adaptation::Icap::ModXact::~ModXact()
