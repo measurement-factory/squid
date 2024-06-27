@@ -334,7 +334,7 @@ public:
     bool fakeAConnectRequest(const char *reason, const SBuf &payload);
 
     /// generates and sends to tunnel.cc a fake request with a given payload
-    bool initiateTunneledRequest(const char *reason, const SBuf &payload);
+    bool initiateTunneledRequest(HttpRequest::Pointer const &cause, const char *reason, const SBuf &payload);
 
     /// whether we should start saving inBuf client bytes in anticipation of
     /// tunneling them to the server later (on_unsupported_protocol)
@@ -342,9 +342,6 @@ public:
 
     /// build a fake http request
     ClientHttpRequest *buildFakeRequest(SBuf &useHost, AnyP::KnownPort usePort, const SBuf &payload);
-
-    /// assign HttpRequest fields before switching to tunnel
-    void initializeTunneledRequest(ClientHttpRequest *, HttpRequest::Pointer, SBuf &useHost, const AnyP::KnownPort usePort, const SBuf &payload);
 
     /// From-client handshake bytes (including bytes at the beginning of a
     /// CONNECT tunnel) which we may need to forward as-is if their syntax does
@@ -465,6 +462,9 @@ private:
     void storeTlsContextToCache(const SBuf &cacheKey, Security::ContextPointer &ctx);
     void handleSslBumpHandshakeError(const Security::IoResult &);
 #endif
+
+    // sends the request to tunnel.cc
+    void processTunneledRequest(ClientHttpRequest *http, HttpRequest::Pointer const &);
 
     /// whether PROXY protocol header is still expected
     bool needProxyProtocolHeader_ = false;
