@@ -1248,6 +1248,8 @@ void Adaptation::Icap::ModXact::prepEchoing()
 
     debugs(93, 5, "will echo body from " << virgin.body_pipe);
 
+    // this blocks unexpected (i.e. protocol-violating) ICAP 204 responses and
+    // too-late error bypass attempts
     if (virginBodySending.disabled())
         throw TextException("too late to start echoing virgin body", Here());
 
@@ -1257,7 +1259,7 @@ void Adaptation::Icap::ModXact::prepEchoing()
         virginBodySending.plan();
 
     // This prepEchoing() code is only reachable when nothing was consumed from
-    // virgin.body_pipe because prepEchoing() is incompatible with consumption.
+    // virgin.body_pipe yet: prepEchoing() is incompatible with consumption.
     Assure(!virgin.body_pipe->consumedSize());
     if (trickledSize) {
         // pretend as if echoing code consumed trickled body bytes
@@ -1964,6 +1966,8 @@ void Adaptation::Icap::ModXact::makeAllowHeader(MemBuf &buf)
 
     if ((allow204 || allow206) && virginBody.expected())
         virginBodySending.plan(); // if there is a virgin body, plan to send it
+    else
+        virginBodySending.disable(); // ban responses that require echoing
 
     // writing Preview:...   means we will honor 204 inside preview
     // writing Allow/204     means we will honor 204 outside preview
