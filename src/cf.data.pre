@@ -4868,6 +4868,20 @@ DOC_START
 			values may significantly understate or exaggerate actual times.
 			Do not use this measurement unless you know it works in your case.
 
+XXX: Simplify.
+TODO: Reduce duplication?
+XXX: Format.
+TODO: Cover all 8 cases: send/receive first/last request/response byte.
+
+http::>first_received_byte_time: Approximate moment when Squid read an HTTP request from an established (and, if necessary, secured) client-to-Squid connection for the very first time (for that HTTP request). This measurement includes successful and failed network reads, although retriable read(2) failures (e.g., EAGAIN) are ignored (and retried). Zero-length read is a successful read. Prior to this moment, Squid could not start forwarding (or otherwise handling) the request. Uses <full seconds since epoch>.<fractional seconds> format. Network read timeouts are handled as if read(2) call has returned ETIMEDOUT. Similarly, problems that terminate message processing are handled as if read(2) call has failed. When the initial HTTP request Y byte(s) were obtained while reading the previous HTTP request X, this %code records the time when Squid started to process Y (rather than the time when Squid read the last X bytes).
+
+http::>last_received_byte_time: Approximate moment when Squid read an HTTP request from an established (and, if necessary, secured) client-to-Squid connection for the very last time (for that HTTP request). This measurement includes successful and failed network reads, although retriable read(2) failures (e.g., EAGAIN) are ignored (and retried). Zero-length read is a successful read. Prior to this moment, Squid could not end forwarding (or otherwise handling) the request. Uses <full seconds since epoch>.<fractional seconds> format. Network read timeouts are handled as if read(2) call has returned ETIMEDOUT. Similarly, problems that terminate message processing are handled as if read(2) call has failed. When the last HTTP request Y byte(s) were obtained while reading the previous HTTP request X, this %code records the time when Squid started to process Y (rather than the time when Squid read the last X bytes).
+
+http::<first_received_byte_time: Approximate moment when Squid read an HTTP response from an established (and, if necessary, secured) Squid-to-peer connection for the very first time (for that HTTP response). This measurement includes successful and failed network reads, although retriable read(2) failures (e.g., EAGAIN) are ignored (and retried). Zero-length read is a successful read. Prior to this moment, Squid could not start forwarding (or otherwise handling) the response. Uses <full seconds since epoch>.<fractional seconds> format. Network read timeouts are handled as if read(2) call has returned ETIMEDOUT. Similarly, problems that terminate message processing are handled as if read(2) call has failed. If Squid retries or reforwards the request, resulting in multiple responses, this %code corresponds to the last such response.
+
+http::<last_received_byte_time: Approximate moment when Squid read an HTTP response from an established (and, if necessary, secured) Squid-to-peer connection for the very last time (for that HTTP response). This measurement includes successful and failed network reads, although retriable read(2) failures (e.g., EAGAIN) are ignored (and retried). Zero-length read is a successful read. Prior to this moment, Squid could not end forwarding (or otherwise handling) the response. Uses <full seconds since epoch>.<fractional seconds> format. Network read timeouts are handled as if read(2) call has returned ETIMEDOUT. Similarly, problems that terminate message processing are handled as if read(2) call has failed. If Squid retries or reforwards the request, resulting in multiple responses, this %code corresponds to the last such response.
+
+
 	Access Control related format codes:
 
 		et	Tag returned by external acl
