@@ -3093,6 +3093,28 @@ ConnStateData::initiateTunneledRequest(HttpRequest::Pointer const &cause, const 
     SBuf connectHost;
     AnyP::Port connectPort;
 
+    getTunneledDestination(cause, connectHost, connectPort);
+
+    if (!connectPort) {
+        // Typical cases are malformed HTTP requests on http_port and malformed
+        // TLS handshakes on non-bumping https_port. TODO: Discover these
+        // problems earlier so that they can be classified/detailed better.
+        debugs(33, 2, "Not able to compute URL, abort request tunneling for " << reason);
+        // TODO: throw when nonBlockingCheck() callbacks gain job protections
+        static const auto d = MakeNamedErrorDetail("TUNNEL_TARGET");
+        updateError(ERR_INVALID_REQ, d);
+        return false;
+    }
+
+    debugs(33, 2, "Request tunneling for " << reason);
+    const auto http = buildFakeRequest(connectHost, *connectPort, payload);
+    processTunneledRequest(http, http->request);
+    return true;
+}
+
+void
+ConnStateData::getTunneledDestination(HttpRequest::Pointer const & cause, SBuf &connectHost, AnyP::Port &connectPort)
+{
     if (pinning.serverConnection != nullptr) {
         static char ip[MAX_IPSTRLEN];
         connectHost = pinning.serverConnection->remote.toStr(ip, sizeof(ip));
@@ -3111,22 +3133,6 @@ ConnStateData::initiateTunneledRequest(HttpRequest::Pointer const &cause, const 
         connectHost = clientConnection->local.toStr(ip, sizeof(ip));
         connectPort = clientConnection->local.port();
     }
-
-    if (!connectPort) {
-        // Typical cases are malformed HTTP requests on http_port and malformed
-        // TLS handshakes on non-bumping https_port. TODO: Discover these
-        // problems earlier so that they can be classified/detailed better.
-        debugs(33, 2, "Not able to compute URL, abort request tunneling for " << reason);
-        // TODO: throw when nonBlockingCheck() callbacks gain job protections
-        static const auto d = MakeNamedErrorDetail("TUNNEL_TARGET");
-        updateError(ERR_INVALID_REQ, d);
-        return false;
-    }
-
-    debugs(33, 2, "Request tunneling for " << reason);
-    const auto http = buildFakeRequest(connectHost, *connectPort, payload);
-    processTunneledRequest(http, http->request);
-    return true;
 }
 
 void

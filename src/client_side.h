@@ -435,6 +435,9 @@ protected:
 
     bool tunnelOnError(const err_type);
 
+    /// initialize host and port for the tunneled request
+    void getTunneledDestination(HttpRequest::Pointer const &cause, SBuf &dstHost, AnyP::Port &dstPort);
+
 private:
     /* ::Server API */
     void terminateAll(const Error &, const LogTagsErrors &) override;

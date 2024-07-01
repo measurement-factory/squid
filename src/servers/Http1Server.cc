@@ -90,6 +90,31 @@ Http::One::Server::parseOneRequest()
 
 void clientProcessRequestFinished(ConnStateData *conn, const HttpRequest::Pointer &request);
 
+void
+Http::One::Server::buildErrorRequest(ClientHttpRequest *http, const MasterXaction::Pointer &mx)
+{
+    SBuf connectHost;
+    AnyP::Port connectPort;
+    getTunneledDestination(nullptr, connectHost, connectPort);
+
+    // TODO: duplicates ConnStateData::buildFakeRequest()
+    HttpRequest::Pointer request = new HttpRequest(mx);
+    request->url.setScheme(AnyP::PROTO_AUTHORITY_FORM, nullptr);
+    request->url.host(connectHost.c_str());
+    request->url.port(connectPort);
+
+    http->assignRequest(request.getRaw());
+    request->manager(this, http->al);
+
+    request->header.putStr(Http::HOST, connectHost.c_str());
+
+    request->sources |= ((switchedToHttps() || port->transport.protocol == AnyP::PROTO_HTTPS) ? Http::Message::srcHttps : Http::Message::srcHttp);
+#if USE_AUTH
+    if (getAuth())
+        request->auth_user_request = getAuth();
+#endif
+}
+
 bool
 Http::One::Server::buildHttpRequest(Http::StreamPointer &context)
 {
@@ -103,9 +128,7 @@ Http::One::Server::buildHttpRequest(Http::StreamPointer &context)
         // must be already initialized via ConnStateData::abortRequestParsing()
         assert(http->log_uri);
 
-        auto request = new HttpRequest(parser_->method(), parser_->messageProtocol().protocol, "http", http->log_uri, mx);
-        http->initRequest(request);
-        request->manager(this, http->al);
+        buildErrorRequest(http, mx);
 
         // determine which error page templates to use for specific parsing errors
         err_type errPage = ERR_INVALID_REQ;
@@ -141,6 +164,7 @@ Http::One::Server::buildHttpRequest(Http::StreamPointer &context)
         debugs(33, 5, "Invalid URL: " << http->uri);
         // setReplyToError() requires log_uri
         http->setLogUriToRawUri(http->uri, parser_->method());
+        buildErrorRequest(http, mx);
 
         const char * requestErrorBytes = inBuf.c_str();
         if (!tunnelOnError(ERR_INVALID_URL))
@@ -157,6 +181,7 @@ Http::One::Server::buildHttpRequest(Http::StreamPointer &context)
         debugs(33, 5, "Unsupported HTTP version discovered. :\n" << parser_->messageProtocol());
         // setReplyToError() requires log_uri
         http->setLogUriToRawUri(http->uri, parser_->method());
+        buildErrorRequest(http, mx);
 
         const char * requestErrorBytes = nullptr; //HttpParserHdrBuf(parser_);
         if (!tunnelOnError(ERR_UNSUP_HTTPVERSION))
@@ -169,6 +194,7 @@ Http::One::Server::buildHttpRequest(Http::StreamPointer &context)
         debugs(33, 5, "Failed to parse request headers:\n" << parser_->mimeHeader());
         // setReplyToError() requires log_uri
         http->setLogUriToRawUri(http->uri, parser_->method());
+        buildErrorRequest(http, mx);
         const char * requestErrorBytes = nullptr; //HttpParserHdrBuf(parser_);
         if (!tunnelOnError(ERR_INVALID_REQ))
             setReplyError(context, ERR_INVALID_REQ, Http::scBadRequest, requestErrorBytes);

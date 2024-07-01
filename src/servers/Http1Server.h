@@ -59,6 +59,9 @@ private:
     /// Return false if parsing is failed, true otherwise.
     bool buildHttpRequest(Http::StreamPointer &context);
 
+    /// creates an HttpRequest based on one of the "error:..." URIs
+    void buildErrorRequest(ClientHttpRequest *http, const MasterXaction::Pointer &);
+
     void setReplyError(Http::StreamPointer &context, err_type requestError, Http::StatusCode errStatusCode, const char *requestErrorBytes);
 
     Http1::RequestParserPointer parser_;
