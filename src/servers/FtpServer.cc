@@ -756,6 +756,7 @@ Ftp::Server::parseOneRequest()
     http->req_sz = tok.parsedSize();
     http->uri = newUri;
     http->initRequest(request);
+    request->manager(this, http->al);
 
     Http::Stream *const result =
         new Http::Stream(clientConnection, http);

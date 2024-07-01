@@ -773,10 +773,18 @@ UpdateRequestNotes(ConnStateData *csd, HttpRequest &request, NotePairs const &he
 void
 HttpRequest::manager(const CbcPointer<ConnStateData> &aMgr, const AccessLogEntryPointer &al)
 {
+    if (clientConnectionManager == aMgr)
+        return;
+
     clientConnectionManager = aMgr;
 
     if (!clientConnectionManager.valid())
         return;
+
+    // TODO: We fill request notes here until we find a way to verify whether
+    // no ACL checking is performed before ClientHttpRequest::doCallouts().
+    if (clientConnectionManager->hasNotes())
+        notes()->appendNewOnly(clientConnectionManager->notes().getRaw());
 
     AnyP::PortCfgPointer port = clientConnectionManager->port;
     if (port) {
