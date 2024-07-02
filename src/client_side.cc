@@ -1539,10 +1539,12 @@ ConnStateData::tunnelOnError(const err_type requestError)
 
         Comm::SetSelect(clientConnection->fd, COMM_SELECT_READ, nullptr, nullptr, 0);
 
-        // TODO: move
+        // TODO: duplicated from buildFakeRequest()
         inBuf = preservedClientData;
         flags.readMore = false;
+#if USE_OPENSSL
         http->sslBumpNeed(Ssl::bumpEnd);
+#endif
 
         processTunneledRequest(http, request);
         return true;
