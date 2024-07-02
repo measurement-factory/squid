@@ -90,6 +90,16 @@ Http::One::Server::parseOneRequest()
 
 void clientProcessRequestFinished(ConnStateData *conn, const HttpRequest::Pointer &request);
 
+Http::Stream *
+Http::One::Server::abortRequestParsing(const char *const errUri)
+{
+    auto stream = ConnStateData::abortRequestParsing(errUri);
+    const auto mx = MasterXaction::MakePortful(port);
+    mx->tcpClient = clientConnection;
+    buildErrorRequest(stream->http, mx);
+    return stream;
+}
+
 void
 Http::One::Server::buildErrorRequest(ClientHttpRequest *http, const MasterXaction::Pointer &mx)
 {
@@ -119,16 +129,13 @@ bool
 Http::One::Server::buildHttpRequest(Http::StreamPointer &context)
 {
     ClientHttpRequest *http = context->http;
-    const auto mx = MasterXaction::MakePortful(port);
-    mx->tcpClient = clientConnection;
     if (context->flags.parsed_ok == 0) {
         debugs(33, 2, "Invalid Request");
 
+        Assure(http->request); // created in abortRequestParsing()
         // setReplyToError() requires log_uri
         // must be already initialized via ConnStateData::abortRequestParsing()
         assert(http->log_uri);
-
-        buildErrorRequest(http, mx);
 
         // determine which error page templates to use for specific parsing errors
         err_type errPage = ERR_INVALID_REQ;
@@ -158,7 +165,10 @@ Http::One::Server::buildHttpRequest(Http::StreamPointer &context)
         return false;
     }
 
+    Assure(!http->request);
     // TODO: move URL parse into Http Parser and INVALID_URL into the above parse error handling
+    const auto mx = MasterXaction::MakePortful(port);
+    mx->tcpClient = clientConnection;
     HttpRequest::Pointer request = HttpRequest::FromUrlXXX(http->uri, mx, parser_->method());
     if (!request) {
         debugs(33, 5, "Invalid URL: " << http->uri);

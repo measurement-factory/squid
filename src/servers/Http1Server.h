@@ -30,6 +30,8 @@ public:
 
     void readSomeHttpData();
 
+    Http::Stream *abortRequestParsing(const char *const errUri) override;
+
 protected:
     /* ConnStateData API */
     Http::Stream *parseOneRequest() override;
