@@ -113,7 +113,7 @@ Http::One::Server::buildErrorRequest(ClientHttpRequest *http, const MasterXactio
     request->url.host(connectHost.c_str());
     request->url.port(connectPort);
 
-    http->assignRequest(request.getRaw());
+    http->initRequest(request.getRaw());
     request->manager(this, http->al);
 
     request->header.putStr(Http::HOST, connectHost.c_str());

@@ -125,10 +125,6 @@ public:
     /// if necessary, stores new error information (if any)
     void updateError(const Error &);
 
-    /// initializes the current unassigned request to the virgin request
-    /// sets the current request, asserting that it was unset
-    void assignRequest(HttpRequest *);
-
 public:
     /// Request currently being handled by ClientHttpRequest.
     /// Usually remains nil until the virgin request header is parsed or faked.
@@ -187,6 +183,9 @@ private:
     void absorbLogUri(char *);
     /// resets the current request and log_uri to nil
     void clearRequest();
+    /// initializes the current unassigned request to the virgin request
+    /// sets the current request, asserting that it was unset
+    void assignRequest(HttpRequest *);
 
     int64_t maxReplyBodySize_ = 0;
     StoreEntry *entry_ = nullptr;

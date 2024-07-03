@@ -174,9 +174,11 @@ AccessLogEntry::detailCodeContext(std::ostream &os) const
 const SBuf *
 AccessLogEntry::effectiveVirginUrl() const
 {
-    const SBuf *effectiveUrl = request ? &request->effectiveRequestUri() : &virginUrlForMissingRequest_;
-    if (effectiveUrl && !effectiveUrl->isEmpty())
-        return effectiveUrl;
+    if (!virginUrlForMissingRequest_.isEmpty())
+        return &virginUrlForMissingRequest_;
+    const auto effectiveUrl = request->effectiveRequestUri();
+    if (!effectiveUrl.isEmpty())
+        return &effectiveUrl;
     // We can not use ALE::url here because it may contain a request URI after
     // adaptation/redirection. When the request is missing, a non-empty ALE::url
     // means that we missed a setVirginUrlForMissingRequest() call somewhere.
