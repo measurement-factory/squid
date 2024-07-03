@@ -176,9 +176,9 @@ AccessLogEntry::effectiveVirginUrl() const
 {
     if (!virginUrlForMissingRequest_.isEmpty())
         return &virginUrlForMissingRequest_;
-    const auto effectiveUrl = request->effectiveRequestUri();
-    if (!effectiveUrl.isEmpty())
-        return &effectiveUrl;
+    const auto effectiveUrl = &request->effectiveRequestUri();
+    if (effectiveUrl->isEmpty())
+        return effectiveUrl;
     // We can not use ALE::url here because it may contain a request URI after
     // adaptation/redirection. When the request is missing, a non-empty ALE::url
     // means that we missed a setVirginUrlForMissingRequest() call somewhere.
