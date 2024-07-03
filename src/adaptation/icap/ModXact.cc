@@ -1557,14 +1557,13 @@ void Adaptation::Icap::ModXact::stopParsing(const bool checkUnparsedData)
 void
 Adaptation::Icap::ModXact::bufferBytesForTrickling()
 {
-    debugs(93, 7, "have: " << tricklingBuf.length() << "; disabled: " << virginBodyBuffering.disabled());
-    if (virginBodyBuffering.disabled())
-        return;
+    Assure(virginBodyBuffering.active());
+    debugs(93, 7, "had: " << tricklingBuf.length());
 
     if (const auto newBytes = virginContentSize(virginBodyBuffering)) {
         tricklingBuf.append(virginContentData(virginBodyBuffering), *newBytes);
         virginBodyBuffering.progress(*newBytes);
-        debugs(93, 7, "buffered " << *newBytes << "; have: " << tricklingBuf.length());
+        debugs(93, 5, "buffered " << *newBytes << "; have: " << tricklingBuf.length());
     }
 
     const auto tricklingBufLimit = size_t(32*1024);
@@ -1577,7 +1576,7 @@ Adaptation::Icap::ModXact::bufferBytesForTrickling()
 // HTTP side added virgin body data
 void Adaptation::Icap::ModXact::noteMoreBodyDataAvailable(BodyPipe::Pointer)
 {
-    if (state.isTrickling())
+    if (virginBodyBuffering.active())
         bufferBytesForTrickling();
 
     writeMore();
