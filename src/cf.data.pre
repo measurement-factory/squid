@@ -4868,19 +4868,26 @@ DOC_START
 			values may significantly understate or exaggerate actual times.
 			Do not use this measurement unless you know it works in your case.
 
-TODO: Reduce duplication?
+TODO: Reduce duplication??
 XXX: Format.
-TODO: Cover all 8 cases: send/receive first/last request/response byte.
 
 event_time{name}: Approximate time of the named event in <full seconds since epoch>.<fractional seconds> format. The following events are currently supported:
 
-	request_first_read: Squid starts working with an incoming HTTP or FTP request. This event is the first successful read event for the request. A successful request read event usually corresponds to the completion of a successful socket read(2) call (including a zero-size/EOF read), but it may also be associated with discovering the request in a buffer filled when reading an earlier request (on the same client-to-Squid connection), extracting request bytes from a completed TLS handshake with the client, etc. TCP connection acceptance and client-Squid TLS handshake (if any) happen earlier. REQMOD adaptation of read bytes (if any) happens later. Failed socket reads do not trigger this event (and usually result in request processing errors).
+	request_first_read: Squid starts working with an incoming HTTP or FTP request. This event is the first successful read event for the request. A successful request read event usually corresponds to the completion of a successful socket read(2) call (including a zero-size/EOF read), but it may also be associated with discovering the request in a buffer filled when reading an earlier request (on the same client-to-Squid connection), extracting request bytes from a completed TLS handshake with the client, etc. Client-to-Squid TCP connection acceptance and client-Squid TLS handshake (if any) happen earlier. REQMOD adaptation of read bytes (if any) happens later. Failed socket reads do not trigger this event (and usually result in transaction errors).
 
 	request_last_read: The latest observed event in a series of successful request read events. See request_first_read event for the definition of a successful request read event. If the entire request was received in a single socket read(2), then this event is the same as request_first_read event.
 
-	response_first_read: Squid starts working with an incoming HTTP or FTP response. If Squid retries or re-forwards the request, receiving multiple responses, then this event corresponds to the last such response. For a given response, this event is the first successful read event for the response. A successful response read event corresponds to the completion of a successful socket read(2) call (including a zero-size/EOF read). TCP connection establishment and Squid-peer TLS handshake (if any) happen earlier. RESPMOD adaptation of read bytes (if any) happens later. Failed socket reads do not trigger this event (and usually result in response processing errors).
+	request_first_write: Squid starts delivering an HTTP or FTP request to an origin server or cache_peer. If Squid retries or re-forwards the request, then this event corresponds to the last such attempt. For a given forwarded request, this event is the first successful write event for the request. A successful request write event corresponds to the completion of a successful socket write(2) call. REQMOD adaptation of written bytes (if any), Squid-to-peer TCP connection establishment and Squid-peer TLS handshake (if any) happen earlier. Failed socket writes do not trigger this event (and usually result in request forwarding errors).
+
+	request_last_write: The latest observed event in a series of successful request write events. See request_first_write event for the definition of a successful request write event. If the entire request was delivered in a single socket write(2), then this event is the same as request_first_write event.
+
+	response_first_read: Squid starts working with an incoming HTTP or FTP response. If Squid retries or re-forwards the request, receiving multiple responses, then this event corresponds to the last such response. For a given response, this event is the first successful read event for the response. A successful response read event corresponds to the completion of a successful socket read(2) call (including a zero-size/EOF read). Squid-to-peer TCP connection establishment and Squid-peer TLS handshake (if any) happen earlier. RESPMOD adaptation of read bytes (if any) happens later. Failed socket reads do not trigger this event (and usually result in response processing errors).
 
 	response_last_read: The latest observed event in a series of successful response read events. See response_first_read event for the definition of a successful response read event. If the entire response was received in a single socket read(2), then this event is the same as response_first_read event.
+
+	response_first_write: Squid starts delivering an HTTP or FTP response to a client. This event is the first successful write event for the response. A successful response write event corresponds to the completion of a successful socket write(2) call. RESPMOD adaptation of written bytes (if any) happens earlier. Failed socket writes do not trigger this event (and usually result in transaction errors).
+
+	response_last_write: The latest observed event in a series of successful response write events. See response_first_write event for the definition of a successful response write event. If the entire response was delivered in a single socket write(2), then this event is the same as response_first_write event.
 
 
 	Access Control related format codes:
