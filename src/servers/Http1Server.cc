@@ -114,7 +114,6 @@ Http::One::Server::buildErrorRequest(ClientHttpRequest *http, const MasterXactio
     request->url.port(connectPort);
 
     http->initRequest(request.getRaw());
-    request->manager(this, http->al);
 
     request->header.putStr(Http::HOST, connectHost.c_str());
 
@@ -219,7 +218,6 @@ Http::One::Server::buildHttpRequest(Http::StreamPointer &context)
         request->header.updateOrAddStr(Http::HdrType::HOST, request->url.authority());
 
     http->initRequest(request.getRaw());
-    request->manager(this, http->al);
 
     return true;
 }

@@ -3209,8 +3209,6 @@ ConnStateData::buildFakeRequest(SBuf &useHost, const AnyP::KnownPort usePort, co
     http->uri = SBufToCstring(request->effectiveRequestUri());
     http->initRequest(request.getRaw());
 
-    request->manager(this, http->al);
-
     request->header.putStr(Http::HOST, useHost.c_str());
 
     request->sources |= ((switchedToHttps() || port->transport.protocol == AnyP::PROTO_HTTPS) ? Http::Message::srcHttps : Http::Message::srcHttp);

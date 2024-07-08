@@ -1619,6 +1619,8 @@ ClientHttpRequest::initRequest(HttpRequest *aRequest)
         HTTPMSGLOCK(al->request);
         al->syncNotes(request);
     }
+    if (const auto csd = getConn())
+        request->manager(csd, al);
 }
 
 void
