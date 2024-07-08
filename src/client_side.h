@@ -327,7 +327,7 @@ public:
     /* TODO: Make the methods below (at least) non-public when possible. */
 
     /// stop parsing the request and create context for relaying error info
-    Http::Stream *abortRequestParsing(const char *const errUri);
+    virtual Http::Stream *abortRequestParsing(const char *const errUri);
 
     /// generate a fake CONNECT request with the given payload
     /// at the beginning of the client I/O buffer
@@ -435,6 +435,9 @@ protected:
 
     bool tunnelOnError(const err_type);
 
+    /// initialize host and port for the tunneled request
+    void getTunneledDestination(HttpRequest::Pointer const &cause, SBuf &dstHost, AnyP::Port &dstPort);
+
 private:
     /* ::Server API */
     void terminateAll(const Error &, const LogTagsErrors &) override;
@@ -462,6 +465,9 @@ private:
     void storeTlsContextToCache(const SBuf &cacheKey, Security::ContextPointer &ctx);
     void handleSslBumpHandshakeError(const Security::IoResult &);
 #endif
+
+    // sends the request to tunnel.cc
+    void processTunneledRequest(ClientHttpRequest *http, HttpRequest::Pointer const &);
 
     /// whether PROXY protocol header is still expected
     bool needProxyProtocolHeader_ = false;

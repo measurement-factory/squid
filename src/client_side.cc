@@ -1534,10 +1534,20 @@ ConnStateData::tunnelOnError(const err_type requestError)
         const auto context = pipeline.front();
         const auto http = context ? context->http : nullptr;
         const auto request = http ? http->request : nullptr;
-        if (context)
-            context->finished(); // Will remove from pipeline queue
+
+        Assure(request);
+
         Comm::SetSelect(clientConnection->fd, COMM_SELECT_READ, nullptr, nullptr, 0);
-        return initiateTunneledRequest(request, "unknown-protocol", preservedClientData);
+
+        // TODO: duplicated from buildFakeRequest()
+        inBuf = preservedClientData;
+        flags.readMore = false;
+#if USE_OPENSSL
+        http->sslBumpNeed(Ssl::bumpEnd);
+#endif
+
+        processTunneledRequest(http, request);
+        return true;
     }
     debugs(33, 3, "denied; send error: " << requestError);
     return false;
@@ -1577,8 +1587,6 @@ clientProcessRequest(ConnStateData *conn, const Http1::RequestParserPointer &hp,
     // Some blobs below are still HTTP-specific, but we would have to rewrite
     // this entire function to remove them from the FTP code path. Connection
     // setup and body_pipe preparation blobs are needed for FTP.
-
-    request->manager(conn, http->al);
 
     request->flags.accelerated = http->flags.accel;
     request->flags.sslBumped=conn->switchedToHttps();
@@ -3087,6 +3095,28 @@ ConnStateData::initiateTunneledRequest(HttpRequest::Pointer const &cause, const 
     SBuf connectHost;
     AnyP::Port connectPort;
 
+    getTunneledDestination(cause, connectHost, connectPort);
+
+    if (!connectPort) {
+        // Typical cases are malformed HTTP requests on http_port and malformed
+        // TLS handshakes on non-bumping https_port. TODO: Discover these
+        // problems earlier so that they can be classified/detailed better.
+        debugs(33, 2, "Not able to compute URL, abort request tunneling for " << reason);
+        // TODO: throw when nonBlockingCheck() callbacks gain job protections
+        static const auto d = MakeNamedErrorDetail("TUNNEL_TARGET");
+        updateError(ERR_INVALID_REQ, d);
+        return false;
+    }
+
+    debugs(33, 2, "Request tunneling for " << reason);
+    const auto http = buildFakeRequest(connectHost, *connectPort, payload);
+    processTunneledRequest(http, http->request);
+    return true;
+}
+
+void
+ConnStateData::getTunneledDestination(HttpRequest::Pointer const & cause, SBuf &connectHost, AnyP::Port &connectPort)
+{
     if (pinning.serverConnection != nullptr) {
         static char ip[MAX_IPSTRLEN];
         connectHost = pinning.serverConnection->remote.toStr(ip, sizeof(ip));
@@ -3105,26 +3135,15 @@ ConnStateData::initiateTunneledRequest(HttpRequest::Pointer const &cause, const 
         connectHost = clientConnection->local.toStr(ip, sizeof(ip));
         connectPort = clientConnection->local.port();
     }
+}
 
-    if (!connectPort) {
-        // Typical cases are malformed HTTP requests on http_port and malformed
-        // TLS handshakes on non-bumping https_port. TODO: Discover these
-        // problems earlier so that they can be classified/detailed better.
-        debugs(33, 2, "Not able to compute URL, abort request tunneling for " << reason);
-        // TODO: throw when nonBlockingCheck() callbacks gain job protections
-        static const auto d = MakeNamedErrorDetail("TUNNEL_TARGET");
-        updateError(ERR_INVALID_REQ, d);
-        return false;
-    }
-
-    debugs(33, 2, "Request tunneling for " << reason);
-    const auto http = buildFakeRequest(connectHost, *connectPort, payload);
-    HttpRequest::Pointer request = http->request;
+void
+ConnStateData::processTunneledRequest(ClientHttpRequest *http, HttpRequest::Pointer const &request)
+{
     request->flags.forceTunnel = true;
     http->calloutContext = new ClientRequestContext(http);
     http->doCallouts();
     clientProcessRequestFinished(this, request);
-    return true;
 }
 
 bool
@@ -3189,8 +3208,6 @@ ConnStateData::buildFakeRequest(SBuf &useHost, const AnyP::KnownPort usePort, co
 
     http->uri = SBufToCstring(request->effectiveRequestUri());
     http->initRequest(request.getRaw());
-
-    request->manager(this, http->al);
 
     request->header.putStr(Http::HOST, useHost.c_str());
 

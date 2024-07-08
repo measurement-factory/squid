@@ -1612,10 +1612,6 @@ void
 ClientHttpRequest::initRequest(HttpRequest *aRequest)
 {
     assignRequest(aRequest);
-    if (const auto csd = getConn()) {
-        if (!csd->notes()->empty())
-            request->notes()->appendNewOnly(csd->notes().getRaw());
-    }
     // al is created in the constructor
     assert(al);
     if (!al->request) {
@@ -1623,6 +1619,8 @@ ClientHttpRequest::initRequest(HttpRequest *aRequest)
         HTTPMSGLOCK(al->request);
         al->syncNotes(request);
     }
+    if (const auto csd = getConn())
+        request->manager(csd, al);
 }
 
 void
