@@ -243,10 +243,8 @@ Http::One::Server::setReplyError(Http::StreamPointer &context, err_type requestE
     assert(http->out.offset == 0);
     context->pullData();
 
-    if (auto request = http->request) {
-        request->manager(this, http->al);
-        clientProcessRequestFinished(this, request);
-    }
+    Assure(http->request);
+    clientProcessRequestFinished(this, http->request);
 }
 
 void
