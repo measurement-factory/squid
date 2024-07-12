@@ -3160,8 +3160,26 @@ ConnStateData::httpsPeeked(PinnedIdleContext pic)
     if (Comm::IsConnOpen(pic.connection)) {
         notePinnedConnectionBecameIdle(pic);
         debugs(33, 5, "bumped HTTPS server: " << tlsConnectHostOrIp);
-    } else
+    } else {
         debugs(33, 5, "Error while bumping: " << tlsConnectHostOrIp);
+        // Outside of SslBump, we would wait to load the error from Store and
+        // only then close our connection (XXX: Why? Wasteful!) (XXX: Not
+        // implemented). In SslBump, we need to close _before_
+        // getSslContextStart() below will send something to the client.
+        const auto shouldCloseOnError = true; // XXX
+        if (shouldCloseOnError) {
+            debugs(33, 0, "XXX: resetting on error: " << tlsConnectHostOrIp <<
+                   Debug::Extra << "XXX: conn" << clientConnection);
+            // TODO: We want to call terminateAll(), but we do not want it to
+            // set WITH_CLIENT detail, so we need to supply our own. We also
+            // want it to call comm_reset_close(). How to signal that?
+            // See also: clientProcessRequestFinished()
+            // sslServerBump->request->flags.resetTcp = true; // might already be true
+            // terminateAll(...);
+            comm_reset_close(clientConnection);
+            return;
+        }
+    }
 
     getSslContextStart();
 }
