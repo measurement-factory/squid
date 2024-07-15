@@ -145,6 +145,8 @@ public:
     class CacheDetails
     {
     public:
+        using Clock = std::chrono::system_clock;
+
         CacheDetails() {
             caddr.setNoAddr();
             memset(&start_time, 0, sizeof(start_time));
@@ -164,6 +166,9 @@ public:
         Security::CertPointer sslClientCert; ///< cert received from the client
 #endif
         AnyP::PortCfgPointer port;
+
+        Clock::time_point requestFirstReadTime;
+        Clock::time_point requestLastReadTime;
     } cache;
 
     /** \brief This subclass holds log info for various headers in raw format

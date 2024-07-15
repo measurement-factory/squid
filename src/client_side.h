@@ -37,6 +37,7 @@
 #include "MessageBucket.h"
 #endif
 
+#include <chrono>
 #include <iosfwd>
 
 class ClientHttpRequest;
@@ -383,6 +384,11 @@ public:
 
     /// managers logging of the being-accepted TLS connection secrets
     Security::KeyLogger keyLogger;
+
+    using Clock = std::chrono::system_clock;
+
+    Clock::time_point currentRequestFirstReadTime;
+    Clock::time_point currentRequestLastReadTime;
 
 protected:
     void startDechunkingRequest();
