@@ -1985,18 +1985,6 @@ clientReplyContext::sendMoreData (StoreIOBuffer result)
             return;
         }
 
-        // Check on_error here rather than in FwdState::completed():
-        // * sendClientOldEntry() and similar post-Store code may bypass errors
-        //   that looked "final" to FwdState;
-        // * an error response to pipelined request B should not close client
-        //   connection while we are still sending a response to request A
-        //   (XXX: but this code is located too early for that to work!);
-        // * simplifies avoiding repeated on_error checks while catching
-        //   non-Store cases (that can only be caught here).
-        // XXX: Later code may trigger errors (e.g., processReplyAccess()).
-        if (http->seenError() && conn->closedOnError())
-            return;
-
         if (!flags.headersSent && !http->loggingTags().isTcpHit()) {
             // We get here twice if processReplyAccessResult() calls startError().
             // TODO: Revise when we check/change QoS markings to reduce syscalls.
