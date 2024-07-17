@@ -1980,8 +1980,22 @@ clientReplyContext::sendMoreData (StoreIOBuffer result)
         }
         if (conn->pinning.zeroReply) {
             debugs(33,3, "not sending more data after a pinned zero reply " << conn->clientConnection);
+            // Send nothing and wait for clientPinnedConnectionClosed() to close conn->clientConnection.
+            // TODO: Replace this hard-coded (in both locations) decision with on_error handling.
             return;
         }
+
+        // Check on_error here rather than in FwdState::completed():
+        // * sendClientOldEntry() and similar post-Store code may bypass errors
+        //   that looked "final" to FwdState;
+        // * an error response to pipelined request B should not close client
+        //   connection while we are still sending a response to request A
+        //   (XXX: but this code is located too early for that to work!);
+        // * simplifies avoiding repeated on_error checks while catching
+        //   non-Store cases (that can only be caught here).
+        // XXX: Later code may trigger errors (e.g., processReplyAccess()).
+        if (http->seenError() && conn->closedOnError())
+            return;
 
         if (!flags.headersSent && !http->loggingTags().isTcpHit()) {
             // We get here twice if processReplyAccessResult() calls startError().

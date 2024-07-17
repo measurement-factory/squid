@@ -117,6 +117,9 @@ public:
     /// if necessary, stores new error information (if any)
     void updateError(const Error &);
 
+    /// whether this transaction has failed
+    bool seenError() const;
+
 public:
     /// Request currently being handled by ClientHttpRequest.
     /// Usually remains nil until the virgin request header is parsed or faked.
