@@ -4963,7 +4963,7 @@ parse_on_error(acl_access ** const access)
         action.kind = 1;
     else if (actionName.cmp("reset") == 0)
         action.kind = 2;
-    else if (actionName.cmp("err") == 0)
+    else if (actionName.cmp("respond") == 0)
         action.kind = 3;
     else
         throw TextException(ToSBuf("unknown action name: ", actionName), Here());
@@ -4986,7 +4986,7 @@ dump_on_error(StoreEntry * const entry, const char * const directiveName, const 
         "none",
         "gracefully_close",
         "reset",
-        "err"
+        "respond"
     };
     if (access) {
         const auto actionsWithAclNames = access->treeDump(directiveName, [](const Acl::Answer &action) {

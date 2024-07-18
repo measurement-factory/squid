@@ -2172,10 +2172,10 @@ DOC_START
 	  attempt to send a close_notify alert to the client. The error response
 	  is not sent.
 
-	* err: Proceed with sending this error as usual; do not customize this
-	  error handling. In most cases, this implies sending an error page to the
-	  client (which, in some cases, may require establishing a TLS connection
-	  with the client). This is the default.
+	* respond: Send an error response to the client. This is the default. In
+	  some SslBump cases, sending a response may require establishing a TLS
+	  connection with the client. Depending on the error context, Squid may
+	  close the client-to-Squid TCP connection after sending the response.
 
 	This directive applies to cases where Squid normally attempts to send an
 	error response to the client. In many other problematic cases, especially
@@ -2195,7 +2195,7 @@ DOC_START
 
 	The rules are evaluated in configuration order. The first matching action
 	wins. If no rule matched or if no rules are configured, Squid acts as if a
-	"err" action has matched.
+	"respond" action has matched.
 
 	This clause only supports fast acl types.
 	See https://wiki.squid-cache.org/SquidFaq/SquidAcl for details.
