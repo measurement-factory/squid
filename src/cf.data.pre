@@ -2190,8 +2190,12 @@ DOC_START
 
 	Certain transaction problems trigger on_unsupported_protocol processing.
 	This directive is not checked while making those on_unsupported_protocol
-	decisions. However, on_unsupported_protocol directive itself can be used
-	to close the client-to-Squid connection if needed.
+	decisions. However, this directive is usually checked after a "respond"
+	decision was made by on_unsupported_protocol because that decision usually
+	triggers Squid attempt to send an error response to the client -- the
+	subject of this directive. See on_unsupported_protocol documentation for
+	"respond" caveats. Also, on_unsupported_protocol directive itself can be
+	used to close the client-to-Squid connection if needed.
 
 	The rules are evaluated in configuration order. The first matching action
 	wins. If no rule matched or if no rules are configured, Squid acts as if a
