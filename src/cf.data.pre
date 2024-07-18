@@ -2176,10 +2176,10 @@ DOC_START
 	attempts have been exhausted, and it becomes clear that the transaction
 	will not be successful.
 
-	Certain transaction errors qualify for on_unsupported_protocol processing.
-	This directive is consulted before on_unsupported_protocol: For applicable
-	transactions, a matching "err" action will lead to Squid making
-	on_unsupported_protocol decisions.
+	Certain transaction problems trigger on_unsupported_protocol processing.
+	This directive is not checked while making those on_unsupported_protocol
+	decisions, but on_unsupported_protocol directive itself can be used to
+	close the client-to-Squid connection if needed.
 
 	TODO: Add example.
 
