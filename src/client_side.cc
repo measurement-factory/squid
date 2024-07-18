@@ -1572,14 +1572,10 @@ ConnStateData::closedOnError()
     if (answer.allowed()) {
         switch (answer.kind) {
         case 1: // gracefully_close
-            debugs(33, 0, "XXX: closing on_error: " << tlsConnectHostOrIp <<
-                   Debug::Extra << "XXX: client: " << clientConnection);
             // See TODO for case 2: below
             clientConnection->close();
             return true;
         case 2:
-            debugs(33, 0, "XXX: resetting on error: " << tlsConnectHostOrIp <<
-                   Debug::Extra << "XXX: client: " << clientConnection);
             // TODO: We want to call terminateAll(), but we do not want it to
             // set WITH_CLIENT detail, so we need to supply our own. We also
             // want it to call comm_reset_close(). How to signal that?
@@ -1589,8 +1585,6 @@ ConnStateData::closedOnError()
             comm_reset_close(clientConnection);
             return true;
         case 3:
-            debugs(33, 0, "XXX: err-ing: " << tlsConnectHostOrIp <<
-                   Debug::Extra << "XXX: client: " << clientConnection);
             return false;
         default:
             Assure(!"impossible answer.kind value");
