@@ -654,25 +654,27 @@ Format::Format::assemble(MemBuf &mb, const AccessLogEntry::Pointer &al, int logS
             }
             break;
 
-        case LFT_REQUEST_FIRST_READ: {
-            using namespace std::chrono_literals;
-            const auto duration = al->cache.requestFirstReadTime.time_since_epoch();
-            outtv.tv_sec = std::chrono::duration_cast<std::chrono::seconds>(duration).count();
-            const auto totalUsec = std::chrono::duration_cast<std::chrono::microseconds>(duration);
-            outtv.tv_usec = (totalUsec % std::chrono::microseconds(1s)).count();
-            doMsec = 1;
-        }
-        break;
+        case LFT_REQUEST_FIRST_READ:
+            if (const auto startTime = al->cache.requestTimer.startTime()) {
+                using namespace std::chrono_literals;
+                const auto duration = startTime->time_since_epoch();
+                outtv.tv_sec = std::chrono::duration_cast<std::chrono::seconds>(duration).count();
+                const auto totalUsec = std::chrono::duration_cast<std::chrono::microseconds>(duration);
+                outtv.tv_usec = (totalUsec % std::chrono::microseconds(1s)).count();
+                doMsec = 1;
+            }
+            break;
 
-        case LFT_REQUEST_LAST_READ: {
-            using namespace std::chrono_literals;
-            const auto duration = al->cache.requestLastReadTime.time_since_epoch();
-            outtv.tv_sec = std::chrono::duration_cast<std::chrono::seconds>(duration).count();
-            const auto totalUsec = std::chrono::duration_cast<std::chrono::microseconds>(duration);
-            outtv.tv_usec = (totalUsec % std::chrono::microseconds(1s)).count();
-            doMsec = 1;
-        }
-        break;
+        case LFT_REQUEST_LAST_READ:
+            if (const auto stopTime = al->cache.requestTimer.stopTime()) {
+                using namespace std::chrono_literals;
+                const auto duration = stopTime->time_since_epoch();
+                outtv.tv_sec = std::chrono::duration_cast<std::chrono::seconds>(duration).count();
+                const auto totalUsec = std::chrono::duration_cast<std::chrono::microseconds>(duration);
+                outtv.tv_usec = (totalUsec % std::chrono::microseconds(1s)).count();
+                doMsec = 1;
+            }
+            break;
 
         case LFT_REQUEST_HEADER:
             if (const Http::Message *msg = actualRequestHeader(al)) {

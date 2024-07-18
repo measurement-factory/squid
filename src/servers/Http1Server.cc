@@ -242,8 +242,6 @@ Http::One::Server::processParsedRequest(Http::StreamPointer &context)
     if (!buildHttpRequest(context))
         return;
 
-    currentRequestLastReadTime = Clock::now();
-
     ClientHttpRequest *http = context->http;
     HttpRequest::Pointer request = http->request;
 

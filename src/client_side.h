@@ -11,6 +11,7 @@
 #ifndef SQUID_SRC_CLIENT_SIDE_H
 #define SQUID_SRC_CLIENT_SIDE_H
 
+#include "AccessLogEntry.h"
 #include "acl/ChecklistFiller.h"
 #include "base/RunnersRegistry.h"
 #include "clientStreamForward.h"
@@ -385,10 +386,8 @@ public:
     /// managers logging of the being-accepted TLS connection secrets
     Security::KeyLogger keyLogger;
 
-    using Clock = std::chrono::system_clock;
-
-    Clock::time_point currentRequestFirstReadTime;
-    Clock::time_point currentRequestLastReadTime;
+    /// request first/last IO
+    MessageTimer requestTimer;
 
 protected:
     void startDechunkingRequest();

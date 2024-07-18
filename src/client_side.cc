@@ -1605,15 +1605,6 @@ clientProcessRequestFinished(ConnStateData *conn, const HttpRequest::Pointer &re
         conn->flags.readMore = false;
         comm_reset_close(conn->clientConnection);
     }
-
-    const auto context = conn->pipeline.back();
-    Assure(context);
-    Assure(context->http);
-
-    context->http->al->cache.requestFirstReadTime = conn->currentRequestFirstReadTime;
-    conn->currentRequestFirstReadTime = ConnStateData::Clock::time_point();
-    context->http->al->cache.requestLastReadTime = conn->currentRequestLastReadTime;
-    conn->currentRequestLastReadTime = ConnStateData::Clock::time_point();
 }
 
 void
@@ -1930,10 +1921,6 @@ ConnStateData::clientParseRequests()
         if (concurrentRequestQueueFilled())
             break;
 
-        if (currentRequestFirstReadTime.time_since_epoch() == Clock::duration::zero())
-            currentRequestFirstReadTime = Clock::now();
-        currentRequestLastReadTime = Clock::now();
-
         // try to parse the PROXY protocol header magic bytes
         if (needProxyProtocolHeader_) {
             if (!parseProxyProtocolHeader())
@@ -1948,6 +1935,8 @@ ConnStateData::clientParseRequests()
             // parseOneRequest() must reset preservingClientData_.
             assert(!preservingClientData_);
         }
+
+        requestTimer.update();
 
         if (Http::StreamPointer context = parseOneRequest()) {
             debugs(33, 5, clientConnection << ": done parsing a request");
@@ -2038,6 +2027,11 @@ bool
 ConnStateData::handleRequestBodyData()
 {
     assert(bodyPipe != nullptr);
+
+    const auto context = pipeline.back();
+    Assure(context);
+    Assure(context->http);
+    context->http->al->cache.requestTimer.update();
 
     if (bodyParser) { // chunked encoding
         if (const err_type error = handleChunkedRequestBody()) {
