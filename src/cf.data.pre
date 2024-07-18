@@ -2164,8 +2164,7 @@ DOC_START
 
 	* reset: Close client-to-Squid connection immediately. The client should
 	  get a TCP RST packet. For established TLS connections, Squid will not
-	  attempt to send a close_notify alert to the client (XXX: Not
-	  implemented).
+	  attempt to send a close_notify alert to the client.
 
 	* err: Proceed with handling this error as usual; do not customize this
 	  error handling. In most cases, this implies sending an error page to the
