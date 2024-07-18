@@ -2151,7 +2151,12 @@ LOC: Config.accessList.onError
 DEFAULT: none
 DEFAULT_DOC: Proceed as usual (e.g., send an error message to the client)
 DOC_START
-	Determines Squid reaction to transaction errors.
+	Controls whether Squid sends an error response to the client or closes the
+	underlying client-to-Squid TCP connection instead.
+
+	XXX: The current directive name is too broad and, hence, misleading: Squid
+	does not consult this directive on many transaction errors! Applicable
+	error cases are described further below. TODO: Find a better name.
 
 		on_error <action> [if [!]<aclname>...]
 
@@ -2160,16 +2165,23 @@ DOC_START
 	* gracefully_close: Close client-to-Squid connection nicely. The client
 	  should get a TCP FIN packet. For established TLS connections, Squid will
 	  attempt to send a close_notify alert to the client before closing the
-	  underlying TCP connection.
+	  underlying TCP connection. The error response is not sent.
 
 	* reset: Close client-to-Squid connection immediately. The client should
 	  get a TCP RST packet. For established TLS connections, Squid will not
-	  attempt to send a close_notify alert to the client.
+	  attempt to send a close_notify alert to the client. The error response
+	  is not sent.
 
-	* err: Proceed with handling this error as usual; do not customize this
+	* err: Proceed with sending this error as usual; do not customize this
 	  error handling. In most cases, this implies sending an error page to the
 	  client (which, in some cases, may require establishing a TLS connection
 	  with the client). This is the default.
+
+	This directive applies to cases where Squid normally attempts to send an
+	error response to the client. In many other problematic cases, especially
+	cases where a transaction already wrote some TCP payload bytes to the
+	client, Squid aborts the transaction and closes the client-to-Squid TCP
+	connection without consulting this directive.
 
 	Squid may attempt to bypass or retry certain errors. This directive is
 	consulted only for final transaction errors, after all such recovery
@@ -2178,10 +2190,8 @@ DOC_START
 
 	Certain transaction problems trigger on_unsupported_protocol processing.
 	This directive is not checked while making those on_unsupported_protocol
-	decisions, but on_unsupported_protocol directive itself can be used to
-	close the client-to-Squid connection if needed.
-
-	TODO: Add example.
+	decisions. However, on_unsupported_protocol directive itself can be used
+	to close the client-to-Squid connection if needed.
 
 	The rules are evaluated in configuration order. The first matching action
 	wins. If no rule matched or if no rules are configured, Squid acts as if a
@@ -2190,7 +2200,17 @@ DOC_START
 	This clause only supports fast acl types.
 	See https://wiki.squid-cache.org/SquidFaq/SquidAcl for details.
 
-	See also: squid_error ACL.
+	For example:
+
+		# Send TCP RST (instead of bumping the client connection and sending
+		# an encrypted HTTP ERR_SECURE_CONNECT_FAIL response) to an
+		# intercepted TLS client that fails to establish a secure connection
+		# to a server.
+		acl secureConnectFailed squid_error ERR_SECURE_CONNECT_FAIL
+		acl subjectToSslBump myportname 443
+		on_error reset if secureConnectFailed subjectToSslBump
+
+	See also: squid_error ACL and %err_code/%err_detail logformat codes.
 DOC_END
 
 NAME: on_unsupported_protocol
