@@ -1559,6 +1559,41 @@ bool ConnStateData::serveDelayedError(Http::Stream *context)
 }
 #endif // USE_OPENSSL
 
+bool
+ConnStateData::closedOnError()
+{
+    if (!Config.accessList.onError)
+        return false;
+
+    ACLFilledChecklist checklist(Config.accessList.onError, nullptr);
+    fillChecklist(checklist);
+    const auto answer = checklist.fastCheck();
+    debugs(33, 5, answer.allowed() << '+' << answer.kind);
+    if (answer.allowed()) {
+        switch (answer.kind) {
+        case 1: // gracefully_close
+            // See TODO for case 2: below
+            clientConnection->close();
+            return true;
+        case 2:
+            // TODO: We want to call terminateAll(), but we do not want it to
+            // set WITH_CLIENT detail, so we need to supply our own. We also
+            // want it to call comm_reset_close(). How to signal that?
+            // See also: clientProcessRequestFinished()
+            // sslServerBump->request->flags.resetTcp = true; // might already be true
+            // terminateAll(...);
+            comm_reset_close(clientConnection);
+            return true;
+        case 3:
+            return false;
+        default:
+            Assure(!"impossible answer.kind value");
+        }
+    }
+
+    return false;
+}
+
 /// initiate tunneling if possible or return false otherwise
 bool
 ConnStateData::tunnelOnError(const err_type requestError)
@@ -3160,8 +3195,14 @@ ConnStateData::httpsPeeked(PinnedIdleContext pic)
     if (Comm::IsConnOpen(pic.connection)) {
         notePinnedConnectionBecameIdle(pic);
         debugs(33, 5, "bumped HTTPS server: " << tlsConnectHostOrIp);
-    } else
+    } else {
         debugs(33, 5, "Error while bumping: " << tlsConnectHostOrIp);
+        // Outside of SslBump, we notice the error when we get a Store response.
+        // On SslBump path, we have to close here, _before_ getSslContextStart()
+        // below sends something (e.g., TLS Server Hello) to the client.
+        if (closedOnError())
+            return;
+    }
 
     getSslContextStart();
 }

@@ -1211,6 +1211,12 @@ tunnelStart(ClientHttpRequest * http)
             http->updateLoggingTags(LOG_TCP_TUNNEL);
             err = new ErrorState(ERR_FORWARDING_DENIED, Http::scForbidden, request, http->al);
             http->al->http.code = Http::scForbidden;
+
+            // XXX: Move miss_access check inside TunnelStateData to reduce code
+            // duplication among errorSend() callers.
+            if (http->getConn()->closedOnError())
+                return;
+
             errorSend(http->getConn()->clientConnection, err);
             return;
         }
@@ -1425,6 +1431,10 @@ TunnelStateData::sendError(ErrorState *finalError, const char *reason)
     *status_ptr = finalError->httpStatus;
     finalError->callback = tunnelErrorComplete;
     finalError->callback_data = this;
+
+    if (http->getConn()->closedOnError())
+        return;
+
     errorSend(client.conn, finalError);
 }
 

@@ -779,6 +779,25 @@ commCallCloseHandlers(int fd)
     }
 }
 
+/// safer than bool in a list of integer-like function parameters
+enum class OnOff { off, on }; // TODO: Move somewhere to reuse.
+
+/// sets SO_LINGER socket(7) option
+/// \param enabled -- whether linger will be active (sets linger::l_onoff)
+/// \param timeoutInSeconds -- how long to linger for (sets linger::l_linger)
+static void
+commConfigureLinger(const int fd, const OnOff enabled, const int timeoutInSeconds = 0)
+{
+    struct linger l;
+    l.l_onoff = (enabled == OnOff::on ? 1 : 0);
+    l.l_linger = timeoutInSeconds;
+
+    if (setsockopt(fd, SOL_SOCKET, SO_LINGER, reinterpret_cast<char*>(&l), sizeof(l)) < 0) {
+        const auto xerrno = errno;
+        debugs(50, DBG_CRITICAL, "ERROR: Failed to set closure behavior (SO_LINGER) for FD " << fd << ": " << xstrerr(xerrno));
+    }
+}
+
 /**
  * enable linger with time of 0 so that when the socket is
  * closed, TCP generates a RESET
@@ -786,29 +805,20 @@ commCallCloseHandlers(int fd)
 void
 comm_reset_close(const Comm::ConnectionPointer &conn)
 {
-    struct linger L;
-    L.l_onoff = 1;
-    L.l_linger = 0;
-
-    if (setsockopt(conn->fd, SOL_SOCKET, SO_LINGER, (char *) &L, sizeof(L)) < 0) {
-        int xerrno = errno;
-        debugs(50, DBG_CRITICAL, "ERROR: Closing " << conn << " with TCP RST: " << xstrerr(xerrno));
+    if (Comm::IsConnOpen(conn)) {
+        commConfigureLinger(conn->fd, OnOff::on, 0);
+        debugs(5, 7, conn->id);
+        fd_table[conn->fd].flags.harshClosureRequested = true;
+        conn->close();
     }
-    conn->close();
 }
 
 // Legacy close function.
 void
 old_comm_reset_close(int fd)
 {
-    struct linger L;
-    L.l_onoff = 1;
-    L.l_linger = 0;
-
-    if (setsockopt(fd, SOL_SOCKET, SO_LINGER, (char *) &L, sizeof(L)) < 0) {
-        int xerrno = errno;
-        debugs(50, DBG_CRITICAL, "ERROR: Closing FD " << fd << " with TCP RST: " << xstrerr(xerrno));
-    }
+    commConfigureLinger(fd, OnOff::on, 0);
+    fd_table[fd].flags.harshClosureRequested = true;
     comm_close(fd);
 }
 
@@ -876,7 +886,7 @@ _comm_close(int fd, char const *file, int line)
     // For simplicity sake, we remain in the caller's context while still
     // allowing individual advanced callbacks to overwrite it.
 
-    if (F->ssl) {
+    if (F->ssl && !F->flags.harshClosureRequested) {
         const auto startCall = asyncCall(5, 4, "commStartTlsClose",
                                          callDialer(commStartTlsClose, fd));
         ScheduleCallHere(startCall);
@@ -1023,15 +1033,7 @@ comm_remove_close_handler(int fd, AsyncCall::Pointer &call)
 static void
 commSetNoLinger(int fd)
 {
-
-    struct linger L;
-    L.l_onoff = 0;      /* off */
-    L.l_linger = 0;
-
-    if (setsockopt(fd, SOL_SOCKET, SO_LINGER, (char *) &L, sizeof(L)) < 0) {
-        int xerrno = errno;
-        debugs(50, DBG_CRITICAL, MYNAME << "FD " << fd << ": " << xstrerr(xerrno));
-    }
+    commConfigureLinger(fd, OnOff::off);
     fd_table[fd].flags.nolinger = true;
 }
 
