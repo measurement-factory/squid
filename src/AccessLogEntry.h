@@ -39,6 +39,7 @@ class HttpReply;
 class HttpRequest;
 class CustomLog;
 
+// TODO: move
 /// Accumulates timings of message IO events.
 class MessageTimer
 {
@@ -47,34 +48,30 @@ public:
     using Time = std::optional<Clock::time_point>;
 
     MessageTimer() = default;
-    MessageTimer(MessageTimer &&other) = delete;
-    MessageTimer(const MessageTimer &) = delete;
-    MessageTimer & operator=(const MessageTimer &other) = delete;
-    MessageTimer & operator=(MessageTimer &&other) = delete;
+    explicit MessageTimer(const Time &s) : first(s), last(s) {}
 
-    void update() {
-        const auto now = Clock::now();
-        if (!start)
-            start = now;
-        stop = now;
-    }
-
-    void take(MessageTimer &&other) {
-        start = other.start;
-        stop = other.stop;
-        other.start.reset();
-        other.stop.reset();;
-    }
+    void update() { last = Clock::now(); }
 
     /// the time of the first IO for the message
-    auto startTime() const {  return start; }
+    auto firstTime() const { return first; }
 
     /// the time of the last IO for the message
-    auto stopTime() const {  return stop; }
+    auto lastTime() const { return last; }
 
 private:
-    Time start;
-    Time stop;
+    Time first;
+    Time last;
+};
+
+// TODO: move
+/// measures the current time and keeps the value within a code scope
+class TimeScope
+{
+public:
+    TimeScope(MessageTimer::Time &time) : value(&time) { *value = MessageTimer::Clock::now(); }
+    ~TimeScope() { value->reset(); }
+private:
+    MessageTimer::Time *value;
 };
 
 

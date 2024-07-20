@@ -655,7 +655,7 @@ Format::Format::assemble(MemBuf &mb, const AccessLogEntry::Pointer &al, int logS
             break;
 
         case LFT_REQUEST_FIRST_READ:
-            if (const auto startTime = al->cache.requestTimer.startTime()) {
+            if (const auto startTime = al->cache.requestTimer.firstTime()) {
                 using namespace std::chrono_literals;
                 const auto duration = startTime->time_since_epoch();
                 outtv.tv_sec = std::chrono::duration_cast<std::chrono::seconds>(duration).count();
@@ -666,7 +666,7 @@ Format::Format::assemble(MemBuf &mb, const AccessLogEntry::Pointer &al, int logS
             break;
 
         case LFT_REQUEST_LAST_READ:
-            if (const auto stopTime = al->cache.requestTimer.stopTime()) {
+            if (const auto stopTime = al->cache.requestTimer.lastTime()) {
                 using namespace std::chrono_literals;
                 const auto duration = stopTime->time_since_epoch();
                 outtv.tv_sec = std::chrono::duration_cast<std::chrono::seconds>(duration).count();

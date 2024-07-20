@@ -134,7 +134,7 @@ ClientHttpRequest::ClientHttpRequest(ConnStateData * aConn) :
 {
     CodeContext::Reset(al);
     al->cache.start_time = current_time;
-    al->cache.requestTimer.take(std::move(aConn->requestTimer));
+    al->cache.requestTimer = MessageTimer(aConn->requestParseStart ? aConn->requestParseStart : MessageTimer::Clock::now());
     if (aConn) {
         al->tcpClient = aConn->clientConnection;
         al->cache.port = aConn->port;

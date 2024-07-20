@@ -1308,6 +1308,7 @@ ConnStateData::parseHttpRequest(const Http1::RequestParserPointer &hp)
 
         const bool parsedOk = hp->parse(inBuf);
 
+        sleep(2);
         // sync the buffers after parsing.
         inBuf = hp->remaining();
 
@@ -1935,8 +1936,6 @@ ConnStateData::clientParseRequests()
             // parseOneRequest() must reset preservingClientData_.
             assert(!preservingClientData_);
         }
-
-        requestTimer.update();
 
         if (Http::StreamPointer context = parseOneRequest()) {
             debugs(33, 5, clientConnection << ": done parsing a request");
