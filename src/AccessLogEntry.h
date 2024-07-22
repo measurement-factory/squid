@@ -189,8 +189,6 @@ public:
     class CacheDetails
     {
     public:
-        using Clock = std::chrono::system_clock;
-
         CacheDetails() {
             caddr.setNoAddr();
             memset(&start_time, 0, sizeof(start_time));
