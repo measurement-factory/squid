@@ -211,8 +211,8 @@ public:
 #endif
         AnyP::PortCfgPointer port;
 
-        MessageTimer requestReadTimer; ///< request first/last IO
-        MessageTimer requestWriteTimer; ///< request first/last IO
+        MessageTimer requestReadTimer; ///< first/last IO when receiving request from the client
+        MessageTimer requestWriteTimer; ///< first/last IO when writing request to the peer
     } cache;
 
     /** \brief This subclass holds log info for various headers in raw format

@@ -38,7 +38,6 @@
 #include "MessageBucket.h"
 #endif
 
-#include <chrono>
 #include <iosfwd>
 
 class ClientHttpRequest;
@@ -387,7 +386,7 @@ public:
     Security::KeyLogger keyLogger;
 
     /// parseOneRequest() start time
-    /// invalid or nil outside parseOneRequest() scope
+    /// or nil outside parseOneRequest() scope
     MessageTimer::Time requestParseStart;
 
 protected:
