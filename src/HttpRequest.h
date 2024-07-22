@@ -289,5 +289,9 @@ const Ip::Address *FindListeningPortAddress(const HttpRequest *, const AccessLog
 /// nil parameter(s) indicate missing caller information and are handled safely
 unsigned short FindListeningPortNumber(const HttpRequest *, const AccessLogEntry *);
 
+/// Maintains peer response time stats (%<pt), and request write time (%request_last_write_time).
+/// Call this after each peer socket write(2), including failed ones.
+void NotePeerWrite(HttpRequest &, const AccessLogEntryPointer &, bool hasError);
+
 #endif /* SQUID_SRC_HTTPREQUEST_H */
 

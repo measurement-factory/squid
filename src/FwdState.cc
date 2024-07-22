@@ -1063,6 +1063,9 @@ FwdState::successfullyConnectedToPeer(const Comm::ConnectionPointer &conn)
 
     NoteOutgoingConnectionSuccess(serverConnection()->getPeer());
 
+    if (al)
+        al->cache.requestWriteTimer.reset();
+
     dispatch();
 }
 

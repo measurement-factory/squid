@@ -2030,7 +2030,7 @@ ConnStateData::handleRequestBodyData()
     const auto context = pipeline.back();
     Assure(context);
     Assure(context->http);
-    context->http->al->cache.requestTimer.update();
+    context->http->al->cache.requestReadTimer.update();
 
     if (bodyParser) { // chunked encoding
         if (const err_type error = handleChunkedRequestBody()) {

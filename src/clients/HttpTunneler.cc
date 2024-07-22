@@ -181,7 +181,7 @@ Http::Tunneler::handleWrittenRequest(const CommIoCbParams &io)
     if (io.flag == Comm::ERR_CLOSING)
         return;
 
-    request->hier.notePeerWrite();
+    NotePeerWrite(*request, al, io.flag);
 
     if (io.flag != Comm::OK) {
         const auto error = new ErrorState(ERR_WRITE_ERROR, Http::scBadGateway, request.getRaw(), al);

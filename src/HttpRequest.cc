@@ -880,3 +880,13 @@ FindListeningPortNumber(const HttpRequest *callerRequest, const AccessLogEntry *
     });
     return ip ? ip->port() : 0;
 }
+
+void
+NotePeerWrite(HttpRequest &request, const AccessLogEntryPointer &ale, const bool hasError)
+{
+    // both successful and failed writes affect response times
+    request.hier.notePeerWrite();
+    if (!hasError && ale)
+        ale->cache.requestWriteTimer.update();
+}
+

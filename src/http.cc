@@ -1740,8 +1740,7 @@ HttpStateData::wroteLast(const CommIoCbParams &io)
     if (io.flag == Comm::ERR_CLOSING)
         return;
 
-    // both successful and failed writes affect response times
-    request->hier.notePeerWrite();
+    NotePeerWrite(*request, fwd->al, io.flag);
 
     if (io.flag) {
         const auto err = new ErrorState(ERR_WRITE_ERROR, Http::scBadGateway, fwd->request, fwd->al);

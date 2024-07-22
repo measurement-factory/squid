@@ -381,8 +381,7 @@ Client::sentRequestBody(const CommIoCbParams &io)
         return; // do nothing;
     }
 
-    // both successful and failed writes affect response times
-    request->hier.notePeerWrite();
+    NotePeerWrite(*request, fwd->al, io.flag);
 
     if (io.flag) {
         debugs(11, DBG_IMPORTANT, "ERROR: sentRequestBody failure: FD " << io.fd << ": " << xstrerr(io.xerrno));

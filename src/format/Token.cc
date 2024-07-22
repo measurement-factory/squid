@@ -153,6 +153,8 @@ static TokenTableEntry TokenTableMisc[] = {
     TokenTableEntry("master_xaction", LFT_MASTER_XACTION),
     TokenTableEntry("request_first_read_time", LFT_REQUEST_FIRST_READ),
     TokenTableEntry("request_last_read_time", LFT_REQUEST_LAST_READ),
+    TokenTableEntry("request_first_write_time", LFT_REQUEST_FIRST_WRITE),
+    TokenTableEntry("request_last_write_time", LFT_REQUEST_LAST_WRITE),
     /*
      * Legacy external_acl_type format tokens
      */

@@ -641,7 +641,7 @@ TunnelStateData::readClient(char *, size_t len, Comm::Flag errcode, int xerrno)
     if (len > 0) {
         client.bytesIn(len);
         statCounter.client_http.kbytes_in += len;
-        al->cache.requestTimer.update();
+        al->cache.requestReadTimer.update();
     }
 
     if (keepGoingAfterRead(len, errcode, xerrno, client, server))
@@ -721,7 +721,7 @@ TunnelStateData::writeServerDone(char *, size_t len, Comm::Flag flag, int xerrno
     if (flag == Comm::ERR_CLOSING)
         return;
 
-    request->hier.notePeerWrite();
+    NotePeerWrite(*request, al, flag);
 
     /* Error? */
     if (flag != Comm::OK) {

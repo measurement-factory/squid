@@ -50,7 +50,13 @@ public:
     MessageTimer() = default;
     explicit MessageTimer(const Time &s) : first(s), last(s) {}
 
-    void update() { last = Clock::now(); }
+    void update() {
+        last = Clock::now();
+        if (!first)
+            first = last;
+    }
+
+    void reset() { *this = MessageTimer(); }
 
     /// the time of the first IO for the message
     auto firstTime() const { return first; }
@@ -205,7 +211,8 @@ public:
 #endif
         AnyP::PortCfgPointer port;
 
-        MessageTimer requestTimer; ///< request first/last IO
+        MessageTimer requestReadTimer; ///< request first/last IO
+        MessageTimer requestWriteTimer; ///< request first/last IO
     } cache;
 
     /** \brief This subclass holds log info for various headers in raw format
