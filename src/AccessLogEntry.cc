@@ -8,6 +8,7 @@
 
 #include "squid.h"
 #include "AccessLogEntry.h"
+#include "CommCalls.h"
 #include "fqdncache.h"
 #include "HttpReply.h"
 #include "HttpRequest.h"
@@ -15,6 +16,7 @@
 #include "proxyp/Header.h"
 #include "SquidConfig.h"
 #include "ssl/support.h"
+#include "StatCounters.h"
 
 void
 AccessLogEntry::getLogClientIp(char *buf, size_t bufsz) const
@@ -225,3 +227,11 @@ AccessLogEntry::packReplyHeaders(MemBuf &mb) const
         reply->packHeadersUsingFastPacker(mb);
 }
 
+void
+WrittenToPeer(const AccessLogEntryPointer &ale, const size_t size, const bool hasError, ByteCounter &other)
+{
+    statCounter.server.all.kbytes_out += size; /// XXX: bytes to kbytes conversion
+    other += size;
+    if (!hasError && ale)
+        ale->cache.requestWriteTimer.update();
+}

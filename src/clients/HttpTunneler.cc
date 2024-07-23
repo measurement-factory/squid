@@ -181,7 +181,7 @@ Http::Tunneler::handleWrittenRequest(const CommIoCbParams &io)
     if (io.flag == Comm::ERR_CLOSING)
         return;
 
-    NotePeerWrite(*request, al, io.flag);
+    request->hier.notePeerWrite();
 
     if (io.flag != Comm::OK) {
         const auto error = new ErrorState(ERR_WRITE_ERROR, Http::scBadGateway, request.getRaw(), al);
@@ -190,8 +190,7 @@ Http::Tunneler::handleWrittenRequest(const CommIoCbParams &io)
         return;
     }
 
-    statCounter.server.all.kbytes_out += io.size;
-    statCounter.server.other.kbytes_out += io.size;
+    WrittenToPeer(al, io.size, io.flag, statCounter.server.other.kbytes_out);
     requestWritten = true;
     debugs(83, 5, status());
 }

@@ -721,7 +721,7 @@ TunnelStateData::writeServerDone(char *, size_t len, Comm::Flag flag, int xerrno
     if (flag == Comm::ERR_CLOSING)
         return;
 
-    NotePeerWrite(*request, al, flag);
+    request->hier.notePeerWrite();
 
     /* Error? */
     if (flag != Comm::OK) {
@@ -738,8 +738,7 @@ TunnelStateData::writeServerDone(char *, size_t len, Comm::Flag flag, int xerrno
     }
 
     /* Valid data */
-    statCounter.server.all.kbytes_out += len;
-    statCounter.server.other.kbytes_out += len;
+    WrittenToPeer(al, len, flag, statCounter.server.other.kbytes_out);
     client.dataSent(len);
 
     /* If the other end has closed, so should we */

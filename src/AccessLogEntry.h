@@ -330,6 +330,12 @@ private:
     SBuf virginUrlForMissingRequest_;
 };
 
+class ByteCounter;
+class CommIoCbParams;
+
+/// updates stats after size bytes have been written to beer
+void WrittenToPeer(const AccessLogEntryPointer &, size_t size, bool hasError, ByteCounter &other);
+
 class ACLChecklist;
 class StoreEntry;
 

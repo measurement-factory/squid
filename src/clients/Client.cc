@@ -367,11 +367,8 @@ Client::sentRequestBody(const CommIoCbParams &io)
 
     requestSender = nullptr;
 
-    if (io.size > 0) {
+    if (io.size > 0)
         fd_bytes(io.fd, io.size, FD_WRITE);
-        statCounter.server.all.kbytes_out += io.size;
-        // kids should increment their counters
-    }
 
     if (io.flag == Comm::ERR_CLOSING)
         return;
@@ -381,7 +378,8 @@ Client::sentRequestBody(const CommIoCbParams &io)
         return; // do nothing;
     }
 
-    NotePeerWrite(*request, fwd->al, io.flag);
+    // both successful and failed writes affect response times
+    request->hier.notePeerWrite();
 
     if (io.flag) {
         debugs(11, DBG_IMPORTANT, "ERROR: sentRequestBody failure: FD " << io.fd << ": " << xstrerr(io.xerrno));

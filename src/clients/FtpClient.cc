@@ -859,8 +859,7 @@ Ftp::Client::writeCommandCallback(const CommIoCbParams &io)
 
     if (io.size > 0) {
         fd_bytes(io.fd, io.size, FD_WRITE);
-        statCounter.server.all.kbytes_out += io.size;
-        statCounter.server.ftp.kbytes_out += io.size;
+        WrittenToPeer(fwd->al, io.size, io.flag, statCounter.server.ftp.kbytes_out);
     }
 
     if (io.flag == Comm::ERR_CLOSING)
@@ -1078,7 +1077,7 @@ void
 Ftp::Client::sentRequestBody(const CommIoCbParams &io)
 {
     if (io.size > 0)
-        statCounter.server.ftp.kbytes_out += io.size;
+        WrittenToPeer(fwd->al, io.size, io.flag, statCounter.server.ftp.kbytes_out);
     ::Client::sentRequestBody(io);
 }
 

@@ -1733,14 +1733,13 @@ HttpStateData::wroteLast(const CommIoCbParams &io)
 
     if (io.size > 0) {
         fd_bytes(io.fd, io.size, FD_WRITE);
-        statCounter.server.all.kbytes_out += io.size;
-        statCounter.server.http.kbytes_out += io.size;
+        WrittenToPeer(fwd->al, io.size, io.flag, statCounter.server.http.kbytes_out);
     }
 
     if (io.flag == Comm::ERR_CLOSING)
         return;
 
-    NotePeerWrite(*request, fwd->al, io.flag);
+    request->hier.notePeerWrite();
 
     if (io.flag) {
         const auto err = new ErrorState(ERR_WRITE_ERROR, Http::scBadGateway, fwd->request, fwd->al);
@@ -2682,7 +2681,7 @@ void
 HttpStateData::sentRequestBody(const CommIoCbParams &io)
 {
     if (io.size > 0)
-        statCounter.server.http.kbytes_out += io.size;
+        WrittenToPeer(fwd->al, io.size, io.flag, statCounter.server.http.kbytes_out);
 
     Client::sentRequestBody(io);
 }
