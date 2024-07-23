@@ -880,4 +880,3 @@ FindListeningPortNumber(const HttpRequest *callerRequest, const AccessLogEntry *
     });
     return ip ? ip->port() : 0;
 }
-

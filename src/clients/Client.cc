@@ -367,8 +367,9 @@ Client::sentRequestBody(const CommIoCbParams &io)
 
     requestSender = nullptr;
 
-    if (io.size > 0)
+    if (io.size > 0) {
         fd_bytes(io.fd, io.size, FD_WRITE);
+    }
 
     if (io.flag == Comm::ERR_CLOSING)
         return;

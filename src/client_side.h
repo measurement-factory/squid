@@ -386,7 +386,7 @@ public:
     Security::KeyLogger keyLogger;
 
     /// parseOneRequest() start time
-    /// or nil outside parseOneRequest() scope
+    /// nil outside parseOneRequest() scope
     MessageTimer::Time requestParseStart;
 
 protected:
