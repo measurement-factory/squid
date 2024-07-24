@@ -596,8 +596,7 @@ TunnelStateData::readServer(char *, size_t len, Comm::Flag errcode, int xerrno)
 
     if (len > 0) {
         server.bytesIn(len);
-        statCounter.server.all.kbytes_in += len;
-        statCounter.server.other.kbytes_in += len;
+        ReadFromPeer(al, len, errcode, statCounter.server.other.kbytes_in);
         request->hier.notePeerRead();
     }
 

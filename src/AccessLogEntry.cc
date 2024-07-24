@@ -235,3 +235,13 @@ WrittenToPeer(const AccessLogEntryPointer &ale, const size_t size, const bool ha
     if (!hasError && ale)
         ale->cache.requestWriteTimer.update();
 }
+
+void
+ReadFromPeer(const AccessLogEntryPointer &ale, const size_t size, const bool hasError, ByteCounter &other)
+{
+    statCounter.server.all.kbytes_in += size; /// XXX: bytes to kbytes conversion
+    other += size;
+    if (!hasError && ale)
+        ale->cache.responseReadTimer.update();
+}
+

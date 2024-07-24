@@ -223,8 +223,7 @@ Http::Tunneler::handleReadyRead(const CommIoCbParams &io)
 #if USE_DELAY_POOLS
         delayId.bytesIn(rd.size);
 #endif
-        statCounter.server.all.kbytes_in += rd.size;
-        statCounter.server.other.kbytes_in += rd.size; // TODO: other or http?
+        ReadFromPeer(al, io.size, io.flag, statCounter.server.other.kbytes_in);  // TODO: other or http?
         request->hier.notePeerRead();
         handleResponse(false);
         return;

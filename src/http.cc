@@ -1252,8 +1252,7 @@ HttpStateData::readReply(const CommIoCbParams &io)
         delayId.bytesIn(rd.size);
 #endif
 
-        statCounter.server.all.kbytes_in += rd.size;
-        statCounter.server.http.kbytes_in += rd.size;
+        ReadFromPeer(fwd->al, rd.size, false, statCounter.server.other.kbytes_in);
         ++ IOStats.Http.reads;
 
         int bin = 0;

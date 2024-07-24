@@ -211,6 +211,7 @@ public:
 
         MessageTimer requestReadTimer; ///< first/last IO when receiving request from the client
         MessageTimer requestWriteTimer; ///< first/last IO when writing request to the peer
+        MessageTimer responseReadTimer; ///< first/last IO when reading response from the peer
     } cache;
 
     /** \brief This subclass holds log info for various headers in raw format
@@ -333,8 +334,11 @@ private:
 class ByteCounter;
 class CommIoCbParams;
 
-/// updates stats after size bytes have been written to beer
+/// updates stats after size bytes have been written to peer
 void WrittenToPeer(const AccessLogEntryPointer &, size_t size, bool hasError, ByteCounter &other);
+
+/// updates stats after size bytes have been read from peer
+void ReadFromPeer(const AccessLogEntryPointer &, size_t size, bool hasError, ByteCounter &other);
 
 class ACLChecklist;
 class StoreEntry;
