@@ -231,6 +231,7 @@ Http::Tunneler::handleReadyRead(const CommIoCbParams &io)
 
     case Comm::ENDFILE: {
         // TODO: Should we (and everybody else) call request->hier.notePeerRead() on zero reads?
+        al->cache.responseReadTimer.update();
         handleResponse(true);
         return;
     }

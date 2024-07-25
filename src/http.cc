@@ -1269,6 +1269,7 @@ HttpStateData::readReply(const CommIoCbParams &io)
 
     case Comm::ENDFILE: // close detected by 0-byte read
         eof = 1;
+        fwd->al->cache.responseReadTimer.update();
 
         /* Continue to process previously read data */
         break;

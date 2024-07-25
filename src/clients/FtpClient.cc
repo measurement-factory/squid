@@ -1003,6 +1003,8 @@ Ftp::Client::dataRead(const CommIoCbParams &io)
         }
     } else if (io.size == 0) {
         debugs(9, 3, "Calling dataComplete() because io.size == 0");
+        fwd->al->cache.responseReadTimer.update();
+
         /*
          * DPW 2007-04-23
          * Dangerous curves ahead.  This call to dataComplete was
