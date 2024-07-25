@@ -177,6 +177,10 @@ Ftp::Server::readUploadData(const CommIoCbParams &io)
     if (io.flag == Comm::OK && bodyPipe != nullptr) {
         if (io.size > 0) {
             statCounter.client_http.kbytes_in += io.size;
+            Http::StreamPointer context = pipeline.front();
+            Assure(context);
+            Assure(context->http);
+            context->http->al->cache.requestReadTimer.update();
 
             char *const current_buf = uploadBuf + uploadAvailSize;
             if (io.buf != current_buf)
