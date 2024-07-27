@@ -228,10 +228,21 @@ AccessLogEntry::packReplyHeaders(MemBuf &mb) const
 }
 
 void
+ReadFromClient(const AccessLogEntryPointer &ale, const size_t size, const bool hasError)
+{
+    if (size)
+        statCounter.client_http.kbytes_in += size;
+    if (!hasError && ale)
+        ale->cache.requestReadTimer.update();
+}
+
+void
 WrittenToPeer(const AccessLogEntryPointer &ale, const size_t size, const bool hasError, ByteCounter &other)
 {
-    statCounter.server.all.kbytes_out += size; /// XXX: bytes to kbytes conversion
-    other += size;
+    if (size) {
+        statCounter.server.all.kbytes_out += size;
+        other += size;
+    }
     if (!hasError && ale)
         ale->cache.requestWriteTimer.update();
 }
@@ -239,8 +250,10 @@ WrittenToPeer(const AccessLogEntryPointer &ale, const size_t size, const bool ha
 void
 ReadFromPeer(const AccessLogEntryPointer &ale, const size_t size, const bool hasError, ByteCounter &other)
 {
-    statCounter.server.all.kbytes_in += size; /// XXX: bytes to kbytes conversion
-    other += size;
+    if (size) {
+        statCounter.server.all.kbytes_in += size;
+        other += size;
+    }
     if (!hasError && ale)
         ale->cache.responseReadTimer.update();
 }

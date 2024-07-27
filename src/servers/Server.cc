@@ -138,7 +138,8 @@ Server::doClientRead(const CommIoCbParams &io)
         return;
 
     case Comm::OK:
-        statCounter.client_http.kbytes_in += rd.size;
+        // ALE is unknown here and will be updated later
+        ReadFromClient(nullptr, rd.size, false);
         if (!receivedFirstByte_)
             receivedFirstByte();
         // may comm_close or setReplyToError

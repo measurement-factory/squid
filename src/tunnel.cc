@@ -596,9 +596,10 @@ TunnelStateData::readServer(char *, size_t len, Comm::Flag errcode, int xerrno)
 
     if (len > 0) {
         server.bytesIn(len);
-        ReadFromPeer(al, len, errcode, statCounter.server.other.kbytes_in);
         request->hier.notePeerRead();
     }
+
+    ReadFromPeer(al, len, errcode, statCounter.server.other.kbytes_in);
 
     if (keepGoingAfterRead(len, errcode, xerrno, server, client))
         copy(len, server, client, WriteClientDone);
@@ -637,11 +638,10 @@ TunnelStateData::readClient(char *, size_t len, Comm::Flag errcode, int xerrno)
     if (errcode == Comm::ERR_CLOSING)
         return;
 
-    if (len > 0) {
+    if (len > 0)
         client.bytesIn(len);
-        statCounter.client_http.kbytes_in += len;
-        al->cache.requestReadTimer.update();
-    }
+
+    ReadFromClient(al, len, errcode);
 
     if (keepGoingAfterRead(len, errcode, xerrno, client, server))
         copy(len, client, server, WriteServerDone);

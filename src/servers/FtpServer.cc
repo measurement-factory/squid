@@ -176,12 +176,6 @@ Ftp::Server::readUploadData(const CommIoCbParams &io)
 
     if (io.flag == Comm::OK && bodyPipe != nullptr) {
         if (io.size > 0) {
-            statCounter.client_http.kbytes_in += io.size;
-            Http::StreamPointer context = pipeline.front();
-            Assure(context);
-            Assure(context->http);
-            context->http->al->cache.requestReadTimer.update();
-
             char *const current_buf = uploadBuf + uploadAvailSize;
             if (io.buf != current_buf)
                 memmove(current_buf, io.buf, io.size);
@@ -193,6 +187,10 @@ Ftp::Server::readUploadData(const CommIoCbParams &io)
             if (uploadAvailSize <= 0)
                 finishDechunkingRequest(true);
         }
+        Http::StreamPointer context = pipeline.front();
+        Assure(context);
+        Assure(context->http);
+        ReadFromClient(context->http->al, io.size, io.flag);
     } else { // not Comm::Flags::OK or unexpected read
         debugs(33, 5, io.conn << " closed");
         closeDataConnection();

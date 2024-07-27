@@ -334,6 +334,8 @@ private:
 class ByteCounter;
 class CommIoCbParams;
 
+void ReadFromClient(const AccessLogEntryPointer &ale, const size_t size, const bool hasError);
+
 /// updates stats after size bytes have been written to peer
 void WrittenToPeer(const AccessLogEntryPointer &, size_t size, bool hasError, ByteCounter &other);
 
