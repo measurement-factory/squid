@@ -9,6 +9,7 @@
 #include "squid.h"
 #include "anyp/PortCfg.h"
 #include "client_side.h"
+#include "client_side_request.h"
 #include "comm.h"
 #include "comm/Read.h"
 #include "debug/Stream.h"
@@ -149,6 +150,17 @@ Server::doClientRead(const CommIoCbParams &io)
 
     case Comm::ENDFILE: // close detected by 0-byte read
         debugs(33, 5, io.conn << " closed?");
+
+        // whether there is an outstanding transaction that has consumed all input bytes
+        if (!pipeline.empty() && inBuf.isEmpty()) {
+            const auto context = pipeline.back();
+            if (const auto http = context->http) {
+                if (const auto conn = http->getConn()) {
+                    if (conn->mayNeedToReadMoreBody()) // whether the body is truncated
+                        http->al->cache.requestReadTimer.update();
+                }
+            }
+        }
 
         if (shouldCloseOnEof()) {
             LogTagsErrors lte;
