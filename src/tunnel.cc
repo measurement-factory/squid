@@ -829,7 +829,7 @@ TunnelStateData::writeClientDone(char *, size_t len, Comm::Flag flag, int xerrno
     }
 
     /* Valid data */
-    statCounter.client_http.kbytes_out += len;
+    WrittenToClient(al, len, false);
     server.dataSent(len);
 
     /* If the other end has closed, so should we */

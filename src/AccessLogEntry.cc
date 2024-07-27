@@ -237,6 +237,15 @@ ReadFromClient(const AccessLogEntryPointer &ale, const size_t size, const bool h
 }
 
 void
+WrittenToClient(const AccessLogEntryPointer &ale, const size_t size, const bool hasError)
+{
+    if (size)
+        statCounter.client_http.kbytes_out += size;
+    if (!hasError && ale)
+        ale->cache.responseWriteTimer.update();
+}
+
+void
 WrittenToPeer(const AccessLogEntryPointer &ale, const size_t size, const bool hasError, ByteCounter &other)
 {
     if (size) {

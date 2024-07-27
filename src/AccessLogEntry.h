@@ -210,6 +210,7 @@ public:
         AnyP::PortCfgPointer port;
 
         MessageTimer requestReadTimer; ///< first/last IO when receiving request from the client
+        MessageTimer responseWriteTimer; ///< first/last IO when writing response to the client
         MessageTimer requestWriteTimer; ///< first/last IO when writing request to the peer
         MessageTimer responseReadTimer; ///< first/last IO when reading response from the peer
     } cache;
@@ -334,7 +335,11 @@ private:
 class ByteCounter;
 class CommIoCbParams;
 
+/// updates stats after size bytes have been read from client
 void ReadFromClient(const AccessLogEntryPointer &ale, const size_t size, const bool hasError);
+
+/// updates stats after size bytes have been written to client
+void WrittenToClient(const AccessLogEntryPointer &ale, const size_t size, const bool hasError);
 
 /// updates stats after size bytes have been written to peer
 void WrittenToPeer(const AccessLogEntryPointer &, size_t size, bool hasError, ByteCounter &other);

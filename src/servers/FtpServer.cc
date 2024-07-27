@@ -1250,6 +1250,7 @@ Ftp::Server::wroteEarlyReply(const CommIoCbParams &io)
     if (context != nullptr && context->http) {
         context->http->out.size += io.size;
         context->http->out.headers_sz += io.size;
+        WrittenToClient(context->http->al, io.size, false);
     }
 
     flags.readMore = true;
@@ -1272,6 +1273,7 @@ Ftp::Server::wroteReply(const CommIoCbParams &io)
     assert(context->http);
     context->http->out.size += io.size;
     context->http->out.headers_sz += io.size;
+    WrittenToClient(context->http->al, io.size, false);
 
     if (master->serverState == fssError) {
         debugs(33, 5, "closing on FTP server error");
