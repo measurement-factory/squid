@@ -998,8 +998,10 @@ Ftp::Server::wroteReplyData(const CommIoCbParams &io)
         return;
     }
 
-    assert(pipeline.front()->http);
-    pipeline.front()->http->out.size += io.size;
+    const auto http = pipeline.front()->http;
+    assert(http);
+    http->out.size += io.size;
+    WrittenToClient(http->al, io.size, false);
     replyDataWritingCheckpoint();
 }
 
