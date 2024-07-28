@@ -653,7 +653,7 @@ Format::Format::assemble(MemBuf &mb, const AccessLogEntry::Pointer &al, int logS
                 doMsec = 1;
             }
             break;
-
+        // TODO: reduce duplication
         case LFT_REQUEST_FIRST_READ:
             if (const auto time = al->cache.requestReadTimer.firstTime()) {
                 using namespace std::chrono_literals;
