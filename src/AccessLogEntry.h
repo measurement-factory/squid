@@ -32,10 +32,54 @@
 #include "ssl/support.h"
 #endif
 
+#include <optional>
+
 /* forward decls */
 class HttpReply;
 class HttpRequest;
 class CustomLog;
+
+// TODO: move
+/// Accumulates timings of message IO events.
+class MessageTimer
+{
+public:
+    using Clock = std::chrono::system_clock;
+    using Time = std::optional<Clock::time_point>;
+
+    MessageTimer() = default;
+    explicit MessageTimer(const Time &s) : first(s), last(s) {}
+
+    void update() {
+        last = Clock::now();
+        if (!first)
+            first = last;
+    }
+
+    void reset() { *this = MessageTimer(); }
+
+    /// the time of the first IO for the message
+    auto firstTime() const { return first; }
+
+    /// the time of the last IO for the message
+    auto lastTime() const { return last; }
+
+private:
+    Time first;
+    Time last;
+};
+
+// TODO: move
+/// measures the current time and keeps the value within a code scope
+class TimeScope
+{
+public:
+    TimeScope(MessageTimer::Time &time) : value(&time) { *value = MessageTimer::Clock::now(); }
+    ~TimeScope() { value->reset(); }
+private:
+    MessageTimer::Time *value;
+};
+
 
 class AccessLogEntry: public CodeContext
 {
@@ -164,6 +208,11 @@ public:
         Security::CertPointer sslClientCert; ///< cert received from the client
 #endif
         AnyP::PortCfgPointer port;
+
+        MessageTimer requestReadTimer; ///< first/last IO when receiving request from the client
+        MessageTimer responseWriteTimer; ///< first/last IO when writing response to the client
+        MessageTimer requestWriteTimer; ///< first/last IO when writing request to the peer
+        MessageTimer responseReadTimer; ///< first/last IO when reading response from the peer
     } cache;
 
     /** \brief This subclass holds log info for various headers in raw format
@@ -282,6 +331,21 @@ private:
     /// missing. This member is ignored unless the request member is nil.
     SBuf virginUrlForMissingRequest_;
 };
+
+class ByteCounter;
+class CommIoCbParams;
+
+/// updates stats after size bytes have been read from client
+void ReadFromClient(const AccessLogEntryPointer &ale, const size_t size, const bool hasError);
+
+/// updates stats after size bytes have been written to client
+void WrittenToClient(const AccessLogEntryPointer &ale, const size_t size, const bool hasError);
+
+/// updates stats after size bytes have been written to peer
+void WrittenToPeer(const AccessLogEntryPointer &, size_t size, bool hasError, ByteCounter &other);
+
+/// updates stats after size bytes have been read from peer
+void ReadFromPeer(const AccessLogEntryPointer &, size_t size, bool hasError, ByteCounter &other);
 
 class ACLChecklist;
 class StoreEntry;

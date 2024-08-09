@@ -72,6 +72,8 @@ Http::One::Server::noteMoreBodySpaceAvailable(BodyPipe::Pointer)
 Http::Stream *
 Http::One::Server::parseOneRequest()
 {
+    TimeScope parseContext(requestParseStart);
+
     // reset because the protocol may have changed if this is the first request
     // and because we never bypass parsing failures of N+1st same-proto request
     preservingClientData_ = shouldPreserveClientData();

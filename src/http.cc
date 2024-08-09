@@ -1252,8 +1252,7 @@ HttpStateData::readReply(const CommIoCbParams &io)
         delayId.bytesIn(rd.size);
 #endif
 
-        statCounter.server.all.kbytes_in += rd.size;
-        statCounter.server.http.kbytes_in += rd.size;
+        ReadFromPeer(fwd->al, rd.size, false, statCounter.server.other.kbytes_in);
         ++ IOStats.Http.reads;
 
         int bin = 0;
@@ -1270,6 +1269,7 @@ HttpStateData::readReply(const CommIoCbParams &io)
 
     case Comm::ENDFILE: // close detected by 0-byte read
         eof = 1;
+        fwd->al->cache.responseReadTimer.update();
 
         /* Continue to process previously read data */
         break;
@@ -1733,14 +1733,12 @@ HttpStateData::wroteLast(const CommIoCbParams &io)
 
     if (io.size > 0) {
         fd_bytes(io.fd, io.size, FD_WRITE);
-        statCounter.server.all.kbytes_out += io.size;
-        statCounter.server.http.kbytes_out += io.size;
+        WrittenToPeer(fwd->al, io.size, io.flag, statCounter.server.http.kbytes_out);
     }
 
     if (io.flag == Comm::ERR_CLOSING)
         return;
 
-    // both successful and failed writes affect response times
     request->hier.notePeerWrite();
 
     if (io.flag) {
@@ -2683,7 +2681,7 @@ void
 HttpStateData::sentRequestBody(const CommIoCbParams &io)
 {
     if (io.size > 0)
-        statCounter.server.http.kbytes_out += io.size;
+        WrittenToPeer(fwd->al, io.size, io.flag, statCounter.server.http.kbytes_out);
 
     Client::sentRequestBody(io);
 }

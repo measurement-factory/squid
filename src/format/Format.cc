@@ -373,6 +373,18 @@ actualRequestHeader(const AccessLogEntry::Pointer &al)
     return al->request;
 }
 
+static void
+TimePointToTimeval(MessageTimer::Time time, timeval &outtv, int &doMsec) {
+    if (!time)
+        return;
+    using namespace std::chrono_literals;
+    const auto duration = time->time_since_epoch();
+    outtv.tv_sec = std::chrono::duration_cast<std::chrono::seconds>(duration).count();
+    const auto totalUsec = std::chrono::duration_cast<std::chrono::microseconds>(duration);
+    outtv.tv_usec = (totalUsec % std::chrono::microseconds(1s)).count();
+    doMsec = 1;
+}
+
 void
 Format::Format::assemble(MemBuf &mb, const AccessLogEntry::Pointer &al, int logSequenceNumber) const
 {
@@ -652,6 +664,37 @@ Format::Format::assemble(MemBuf &mb, const AccessLogEntry::Pointer &al, int logS
                 outtv.tv_usec = (al->request->dnsWait % 1000) * 1000;
                 doMsec = 1;
             }
+            break;
+        case LFT_REQUEST_FIRST_READ:
+            TimePointToTimeval(al->cache.requestReadTimer.firstTime(), outtv, doMsec);
+            break;
+
+        case LFT_REQUEST_LAST_READ:
+            TimePointToTimeval(al->cache.requestReadTimer.lastTime(), outtv, doMsec);
+            break;
+
+        case LFT_REQUEST_FIRST_WRITE:
+            TimePointToTimeval(al->cache.requestWriteTimer.firstTime(), outtv, doMsec);
+            break;
+
+        case LFT_REQUEST_LAST_WRITE:
+            TimePointToTimeval(al->cache.requestWriteTimer.lastTime(), outtv, doMsec);
+            break;
+
+        case LFT_RESPONSE_FIRST_READ:
+            TimePointToTimeval(al->cache.responseReadTimer.firstTime(), outtv, doMsec);
+            break;
+
+        case LFT_RESPONSE_LAST_READ:
+            TimePointToTimeval(al->cache.responseReadTimer.lastTime(), outtv, doMsec);
+            break;
+
+        case LFT_RESPONSE_FIRST_WRITE:
+            TimePointToTimeval(al->cache.responseWriteTimer.firstTime(), outtv, doMsec);
+            break;
+
+        case LFT_RESPONSE_LAST_WRITE:
+            TimePointToTimeval(al->cache.responseWriteTimer.lastTime(), outtv, doMsec);
             break;
 
         case LFT_REQUEST_HEADER:

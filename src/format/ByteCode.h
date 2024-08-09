@@ -160,6 +160,14 @@ typedef enum {
     LFT_TIME_LOCALTIME,
     LFT_TIME_GMT,
     LFT_TIME_START, // the time the master transaction started
+    LFT_REQUEST_FIRST_READ,
+    LFT_REQUEST_LAST_READ,
+    LFT_REQUEST_FIRST_WRITE,
+    LFT_REQUEST_LAST_WRITE,
+    LFT_RESPONSE_FIRST_READ,
+    LFT_RESPONSE_LAST_READ,
+    LFT_RESPONSE_FIRST_WRITE,
+    LFT_RESPONSE_LAST_WRITE,
 
     /* processing time details */
     LFT_TIME_TO_HANDLE_REQUEST,

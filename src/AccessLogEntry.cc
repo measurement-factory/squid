@@ -8,6 +8,7 @@
 
 #include "squid.h"
 #include "AccessLogEntry.h"
+#include "CommCalls.h"
 #include "fqdncache.h"
 #include "HttpReply.h"
 #include "HttpRequest.h"
@@ -15,6 +16,7 @@
 #include "proxyp/Header.h"
 #include "SquidConfig.h"
 #include "ssl/support.h"
+#include "StatCounters.h"
 
 void
 AccessLogEntry::getLogClientIp(char *buf, size_t bufsz) const
@@ -223,5 +225,45 @@ AccessLogEntry::packReplyHeaders(MemBuf &mb) const
 {
     if (reply)
         reply->packHeadersUsingFastPacker(mb);
+}
+
+void
+ReadFromClient(const AccessLogEntryPointer &ale, const size_t size, const bool hasError)
+{
+    if (size)
+        statCounter.client_http.kbytes_in += size;
+    if (!hasError && ale)
+        ale->cache.requestReadTimer.update();
+}
+
+void
+WrittenToClient(const AccessLogEntryPointer &ale, const size_t size, const bool hasError)
+{
+    if (size)
+        statCounter.client_http.kbytes_out += size;
+    if (!hasError && ale)
+        ale->cache.responseWriteTimer.update();
+}
+
+void
+WrittenToPeer(const AccessLogEntryPointer &ale, const size_t size, const bool hasError, ByteCounter &other)
+{
+    if (size) {
+        statCounter.server.all.kbytes_out += size;
+        other += size;
+    }
+    if (!hasError && ale)
+        ale->cache.requestWriteTimer.update();
+}
+
+void
+ReadFromPeer(const AccessLogEntryPointer &ale, const size_t size, const bool hasError, ByteCounter &other)
+{
+    if (size) {
+        statCounter.server.all.kbytes_in += size;
+        other += size;
+    }
+    if (!hasError && ale)
+        ale->cache.responseReadTimer.update();
 }
 

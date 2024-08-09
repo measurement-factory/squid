@@ -596,10 +596,10 @@ TunnelStateData::readServer(char *, size_t len, Comm::Flag errcode, int xerrno)
 
     if (len > 0) {
         server.bytesIn(len);
-        statCounter.server.all.kbytes_in += len;
-        statCounter.server.other.kbytes_in += len;
         request->hier.notePeerRead();
     }
+
+    ReadFromPeer(al, len, errcode, statCounter.server.other.kbytes_in);
 
     if (keepGoingAfterRead(len, errcode, xerrno, server, client))
         copy(len, server, client, WriteClientDone);
@@ -638,10 +638,10 @@ TunnelStateData::readClient(char *, size_t len, Comm::Flag errcode, int xerrno)
     if (errcode == Comm::ERR_CLOSING)
         return;
 
-    if (len > 0) {
+    if (len > 0)
         client.bytesIn(len);
-        statCounter.client_http.kbytes_in += len;
-    }
+
+    ReadFromClient(al, len, errcode);
 
     if (keepGoingAfterRead(len, errcode, xerrno, client, server))
         copy(len, client, server, WriteServerDone);
@@ -737,8 +737,7 @@ TunnelStateData::writeServerDone(char *, size_t len, Comm::Flag flag, int xerrno
     }
 
     /* Valid data */
-    statCounter.server.all.kbytes_out += len;
-    statCounter.server.other.kbytes_out += len;
+    WrittenToPeer(al, len, flag, statCounter.server.other.kbytes_out);
     client.dataSent(len);
 
     /* If the other end has closed, so should we */
@@ -830,7 +829,7 @@ TunnelStateData::writeClientDone(char *, size_t len, Comm::Flag flag, int xerrno
     }
 
     /* Valid data */
-    statCounter.client_http.kbytes_out += len;
+    WrittenToClient(al, len, false);
     server.dataSent(len);
 
     /* If the other end has closed, so should we */

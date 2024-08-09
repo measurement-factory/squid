@@ -176,8 +176,6 @@ Ftp::Server::readUploadData(const CommIoCbParams &io)
 
     if (io.flag == Comm::OK && bodyPipe != nullptr) {
         if (io.size > 0) {
-            statCounter.client_http.kbytes_in += io.size;
-
             char *const current_buf = uploadBuf + uploadAvailSize;
             if (io.buf != current_buf)
                 memmove(current_buf, io.buf, io.size);
@@ -189,6 +187,10 @@ Ftp::Server::readUploadData(const CommIoCbParams &io)
             if (uploadAvailSize <= 0)
                 finishDechunkingRequest(true);
         }
+        Http::StreamPointer context = pipeline.front();
+        Assure(context);
+        Assure(context->http);
+        ReadFromClient(context->http->al, io.size, io.flag);
     } else { // not Comm::Flags::OK or unexpected read
         debugs(33, 5, io.conn << " closed");
         closeDataConnection();
@@ -652,6 +654,8 @@ Ftp::Server::earlyError(const EarlyErrorKind eek)
 Http::Stream *
 Ftp::Server::parseOneRequest()
 {
+    TimeScope parseContext(requestParseStart);
+
     flags.readMore = false; // common for all but one case below
 
     // OWS <command> [ RWS <parameter> ] OWS LF
@@ -1007,8 +1011,10 @@ Ftp::Server::wroteReplyData(const CommIoCbParams &io)
         return;
     }
 
-    assert(pipeline.front()->http);
-    pipeline.front()->http->out.size += io.size;
+    const auto http = pipeline.front()->http;
+    assert(http);
+    http->out.size += io.size;
+    WrittenToClient(http->al, io.size, false);
     replyDataWritingCheckpoint();
 }
 
@@ -1254,6 +1260,7 @@ Ftp::Server::wroteEarlyReply(const CommIoCbParams &io)
     if (context != nullptr && context->http) {
         context->http->out.size += io.size;
         context->http->out.headers_sz += io.size;
+        WrittenToClient(context->http->al, io.size, false);
     }
 
     flags.readMore = true;
@@ -1276,6 +1283,7 @@ Ftp::Server::wroteReply(const CommIoCbParams &io)
     assert(context->http);
     context->http->out.size += io.size;
     context->http->out.headers_sz += io.size;
+    WrittenToClient(context->http->al, io.size, false);
 
     if (master->serverState == fssError) {
         debugs(33, 5, "closing on FTP server error");

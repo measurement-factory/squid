@@ -364,8 +364,7 @@ Ftp::Client::readControlReply(const CommIoCbParams &io)
     debugs(9, 3, "FD " << io.fd << ", Read " << io.size << " bytes");
 
     if (io.size > 0) {
-        statCounter.server.all.kbytes_in += io.size;
-        statCounter.server.ftp.kbytes_in += io.size;
+        ReadFromPeer(fwd->al, io.size, io.flag, statCounter.server.ftp.kbytes_in);
     }
 
     if (io.flag == Comm::ERR_CLOSING)
@@ -859,8 +858,7 @@ Ftp::Client::writeCommandCallback(const CommIoCbParams &io)
 
     if (io.size > 0) {
         fd_bytes(io.fd, io.size, FD_WRITE);
-        statCounter.server.all.kbytes_out += io.size;
-        statCounter.server.ftp.kbytes_out += io.size;
+        WrittenToPeer(fwd->al, io.size, io.flag, statCounter.server.ftp.kbytes_out);
     }
 
     if (io.flag == Comm::ERR_CLOSING)
@@ -964,8 +962,7 @@ Ftp::Client::dataRead(const CommIoCbParams &io)
     debugs(9, 3, "FD " << io.fd << " Read " << io.size << " bytes");
 
     if (io.size > 0) {
-        statCounter.server.all.kbytes_in += io.size;
-        statCounter.server.ftp.kbytes_in += io.size;
+        ReadFromPeer(fwd->al, io.size, io.flag, statCounter.server.ftp.kbytes_in);
     }
 
     if (io.flag == Comm::ERR_CLOSING)
@@ -1006,6 +1003,8 @@ Ftp::Client::dataRead(const CommIoCbParams &io)
         }
     } else if (io.size == 0) {
         debugs(9, 3, "Calling dataComplete() because io.size == 0");
+        fwd->al->cache.responseReadTimer.update();
+
         /*
          * DPW 2007-04-23
          * Dangerous curves ahead.  This call to dataComplete was
@@ -1078,7 +1077,7 @@ void
 Ftp::Client::sentRequestBody(const CommIoCbParams &io)
 {
     if (io.size > 0)
-        statCounter.server.ftp.kbytes_out += io.size;
+        WrittenToPeer(fwd->al, io.size, io.flag, statCounter.server.ftp.kbytes_out);
     ::Client::sentRequestBody(io);
 }
 
