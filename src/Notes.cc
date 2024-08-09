@@ -69,7 +69,7 @@ Note::addValue(const char *value, const bool quoted, const char *descr, const Va
 bool
 Note::match(HttpRequest *request, HttpReply *reply, const AccessLogEntry::Pointer &al, SBuf &matched)
 {
-    ACLFilledChecklist ch(nullptr, request, nullptr);
+    ACLFilledChecklist ch(nullptr, request);
     ch.updateAle(al);
     ch.updateReply(reply);
     ch.syncAle(request, nullptr);
@@ -110,7 +110,7 @@ Note::printAsNoteDirective(StoreEntry * const entry, const char * const directiv
         os << directiveName << ' ' << key() << ' ' << ConfigParser::QuoteString(SBufToString(v->value()));
         if (v->aclList) {
             // TODO: Use Acl::dump() after fixing the XXX in dump_acl_list().
-            for (const auto &item: v->aclList->treeDump("", &Acl::AllowOrDeny)) {
+            for (const auto &item: ToTree(v->aclList).treeDump("", &Acl::AllowOrDeny)) {
                 if (item.isEmpty()) // treeDump("") adds this prefix
                     continue;
                 if (item.cmp("\n") == 0) // treeDump() adds this suffix
