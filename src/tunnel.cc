@@ -898,6 +898,17 @@ void
 TunnelStateData::copyRead(Connection &from, IOCB *completion)
 {
     assert(from.len == 0);
+
+    // TODO: remove code duplication, creating a helper method
+    if (!Comm::IsConnOpen(from.conn)) {
+        const auto clientGone = from.conn == client.conn;
+        debugs(26, 1, (clientGone ? "Client" : "Server") << " gone away. Shutting down "
+               << (clientGone ? "server" : "client") << " connection.");
+        const auto toConn = clientGone ? server.conn : client.conn;
+        toConn->close();
+        return;
+    }
+
     // If only the minimum permitted read size is going to be attempted
     // then we schedule an event to try again in a few I/O cycles.
     // Allow at least 1 byte to be read every (0.3*10) seconds.
