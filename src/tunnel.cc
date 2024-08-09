@@ -902,11 +902,11 @@ TunnelStateData::copyRead(Connection &from, IOCB *completion)
     // TODO: remove code duplication, creating a helper method
     if (!Comm::IsConnOpen(from.conn)) {
         const auto clientGone = from.conn == client.conn;
-	    debugs(26, 1, (clientGone ? "Client" : "Server") << " gone away. Shutting down "
-                    << (clientGone ? "server" : "client") << " connection.");
-	    const auto toConn = clientGone ? server.conn : client.conn;
-	    toConn->close();
-	    return;
+        debugs(26, 1, (clientGone ? "Client" : "Server") << " gone away. Shutting down "
+               << (clientGone ? "server" : "client") << " connection.");
+        const auto toConn = clientGone ? server.conn : client.conn;
+        toConn->close();
+        return;
     }
 
     // If only the minimum permitted read size is going to be attempted
