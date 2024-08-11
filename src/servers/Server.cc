@@ -137,31 +137,25 @@ Server::doClientRead(const CommIoCbParams &io)
         readSomeData();
         return;
 
-    case Comm::OK:
-        // ALE is unknown here and will be updated later
-        ReadFromClient(nullptr, rd.size, false);
-        if (!receivedFirstByte_)
-            receivedFirstByte();
-        // may comm_close or setReplyToError
-        if (!handleReadData())
-            return;
+    case Comm::OK: {
+            AccessLogEntry::Pointer al;
+            if (!pipeline.empty()) {
+                if (const auto http = pipeline.back()->http)
+                    al = http->al;
+            }
+            ReadFromClient(al, rd.size, false);
+            if (!receivedFirstByte_)
+                receivedFirstByte();
+            // may comm_close or setReplyToError
+            if (!handleReadData())
+                return;
+        }
 
         /* Continue to process previously read data */
         break;
 
     case Comm::ENDFILE: // close detected by 0-byte read
         debugs(33, 5, io.conn << " closed?");
-
-        // whether there is an outstanding transaction that has consumed all input bytes
-        if (!pipeline.empty() && inBuf.isEmpty()) {
-            const auto context = pipeline.back();
-            if (const auto http = context->http) {
-                if (const auto conn = http->getConn()) {
-                    if (conn->mayNeedToReadMoreBody()) // whether the body is truncated
-                        http->al->cache.requestReadTimer.update();
-                }
-            }
-        }
 
         if (shouldCloseOnEof()) {
             LogTagsErrors lte;
