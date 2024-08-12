@@ -614,6 +614,14 @@ Format::Token::parse(const char *def, Quoting *quoting)
 #endif
     case LFT_TIME_START:
     case LFT_TIME_SUBSECOND:
+    case LFT_REQUEST_FIRST_READ:
+    case LFT_REQUEST_LAST_READ:
+    case LFT_REQUEST_FIRST_WRITE:
+    case LFT_REQUEST_LAST_WRITE:
+    case LFT_RESPONSE_FIRST_READ:
+    case LFT_RESPONSE_LAST_READ:
+    case LFT_RESPONSE_FIRST_WRITE:
+    case LFT_RESPONSE_LAST_WRITE:
         divisor = 1000;
 
         if (widthMax > 0) {
