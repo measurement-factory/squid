@@ -149,7 +149,10 @@ WhoisState::readReply(const Comm::ConnectionPointer &conn, char *aBuffer, size_t
         if (!dataWritten)
             setReplyToOK(entry);
 
-        ReadFromPeer(nullptr, aBufferLength, flag, statCounter.server.http.kbytes_in);
+        statCounter.server.all.kbytes_in += aBufferLength;
+        statCounter.server.http.kbytes_in += aBufferLength;
+        if (fwd->al)
+            fwd->al->cache.responseReadTimer.update();
 
         /* No range support, we always grab it all */
         dataWritten = true;

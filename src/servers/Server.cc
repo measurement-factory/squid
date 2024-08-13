@@ -57,6 +57,17 @@ Server::swanSong()
     BodyProducer::swanSong();
 }
 
+ClientHttpRequest &
+Server::currentReader()
+{
+    Assure(!pipeline.empty());
+    const auto readingTransaction = pipeline.back();
+    Assure(readingTransaction);
+    const auto http = readingTransaction->http;
+    Assure(http);
+    return *http;
+}
+
 void
 Server::stopReading()
 {
@@ -137,19 +148,15 @@ Server::doClientRead(const CommIoCbParams &io)
         readSomeData();
         return;
 
-    case Comm::OK: {
-            AccessLogEntry::Pointer al;
-            if (!pipeline.empty()) {
-                if (const auto http = pipeline.back()->http)
-                    al = http->al;
-            }
-            ReadFromClient(al, rd.size, false);
-            if (!receivedFirstByte_)
-                receivedFirstByte();
-            // may comm_close or setReplyToError
-            if (!handleReadData())
-                return;
-        }
+    case Comm::OK:
+        statCounter.client_http.kbytes_in += rd.size;
+        if (!pipeline.empty())
+            currentReader().al->cache.requestReadTimer.update();
+        if (!receivedFirstByte_)
+            receivedFirstByte();
+        // may comm_close or setReplyToError
+        if (!handleReadData())
+            return;
 
         /* Continue to process previously read data */
         break;

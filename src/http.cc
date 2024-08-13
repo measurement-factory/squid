@@ -1252,7 +1252,8 @@ HttpStateData::readReply(const CommIoCbParams &io)
         delayId.bytesIn(rd.size);
 #endif
 
-        ReadFromPeer(fwd->al, rd.size, false, statCounter.server.other.kbytes_in);
+        statCounter.server.all.kbytes_in += rd.size;
+        statCounter.server.http.kbytes_in += rd.size;
         ++ IOStats.Http.reads;
 
         int bin = 0;
@@ -1262,6 +1263,8 @@ HttpStateData::readReply(const CommIoCbParams &io)
         ++ IOStats.Http.read_hist[bin];
 
         request->hier.notePeerRead();
+
+        fwd->al->cache.responseReadTimer.update();
     }
 
         /* Continue to process previously read data */
@@ -1733,12 +1736,14 @@ HttpStateData::wroteLast(const CommIoCbParams &io)
 
     if (io.size > 0) {
         fd_bytes(io.fd, io.size, FD_WRITE);
-        WrittenToPeer(fwd->al, io.size, io.flag, statCounter.server.http.kbytes_out);
+        statCounter.server.all.kbytes_out += io.size;
+        statCounter.server.http.kbytes_out += io.size;
     }
 
     if (io.flag == Comm::ERR_CLOSING)
         return;
 
+    // both successful and failed writes affect response times
     request->hier.notePeerWrite();
 
     if (io.flag) {
@@ -1749,6 +1754,8 @@ HttpStateData::wroteLast(const CommIoCbParams &io)
         mustStop("HttpStateData::wroteLast");
         return;
     }
+
+    fwd->al->cache.requestWriteTimer.update();
 
     sendComplete();
 }
@@ -2681,7 +2688,7 @@ void
 HttpStateData::sentRequestBody(const CommIoCbParams &io)
 {
     if (io.size > 0)
-        WrittenToPeer(fwd->al, io.size, io.flag, statCounter.server.http.kbytes_out);
+        statCounter.server.http.kbytes_out += io.size;
 
     Client::sentRequestBody(io);
 }

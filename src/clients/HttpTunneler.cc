@@ -190,7 +190,9 @@ Http::Tunneler::handleWrittenRequest(const CommIoCbParams &io)
         return;
     }
 
-    WrittenToPeer(al, io.size, io.flag, statCounter.server.other.kbytes_out);
+    statCounter.server.all.kbytes_out += io.size;
+    statCounter.server.other.kbytes_out += io.size;
+    al->cache.requestWriteTimer.update();
     requestWritten = true;
     debugs(83, 5, status());
 }
@@ -223,8 +225,10 @@ Http::Tunneler::handleReadyRead(const CommIoCbParams &io)
 #if USE_DELAY_POOLS
         delayId.bytesIn(rd.size);
 #endif
-        ReadFromPeer(al, io.size, io.flag, statCounter.server.other.kbytes_in);  // TODO: other or http?
+        statCounter.server.all.kbytes_in += rd.size;
+        statCounter.server.other.kbytes_in += rd.size; // TODO: other or http?
         request->hier.notePeerRead();
+        al->cache.responseReadTimer.update();
         handleResponse(false);
         return;
     }

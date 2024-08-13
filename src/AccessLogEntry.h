@@ -332,21 +332,6 @@ private:
     SBuf virginUrlForMissingRequest_;
 };
 
-class ByteCounter;
-class CommIoCbParams;
-
-/// updates stats after size bytes have been read from client
-void ReadFromClient(const AccessLogEntryPointer &ale, const size_t size, const bool hasError);
-
-/// updates stats after size bytes have been written to client
-void WrittenToClient(const AccessLogEntryPointer &ale, const size_t size, const bool hasError);
-
-/// updates stats after size bytes have been written to peer
-void WrittenToPeer(const AccessLogEntryPointer &, size_t size, bool hasError, ByteCounter &other);
-
-/// updates stats after size bytes have been read from peer
-void ReadFromPeer(const AccessLogEntryPointer &, size_t size, bool hasError, ByteCounter &other);
-
 class ACLChecklist;
 class StoreEntry;
 

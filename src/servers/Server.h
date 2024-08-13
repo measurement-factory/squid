@@ -119,6 +119,10 @@ protected:
     /// abort any pending transactions and prevent new ones (by closing)
     virtual void terminateAll(const Error &, const LogTagsErrors &) = 0;
 
+    /// transaction allowed to read from the client-to-Squid connection
+    /// \prec !pipeline.empty()
+    ClientHttpRequest &currentReader();
+
     void doClientRead(const CommIoCbParams &io);
     void clientWriteDone(const CommIoCbParams &io);
 

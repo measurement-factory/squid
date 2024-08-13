@@ -364,7 +364,8 @@ Ftp::Client::readControlReply(const CommIoCbParams &io)
     debugs(9, 3, "FD " << io.fd << ", Read " << io.size << " bytes");
 
     if (io.size > 0) {
-        ReadFromPeer(fwd->al, io.size, io.flag, statCounter.server.ftp.kbytes_in);
+        statCounter.server.all.kbytes_in += io.size;
+        statCounter.server.ftp.kbytes_in += io.size;
     }
 
     if (io.flag == Comm::ERR_CLOSING)
@@ -393,6 +394,8 @@ Ftp::Client::readControlReply(const CommIoCbParams &io)
         }
         return;
     }
+
+    fwd->al->cache.responseReadTimer.update();
 
     if (io.size == 0) {
         if (entry->store_status == STORE_PENDING) {
@@ -858,7 +861,8 @@ Ftp::Client::writeCommandCallback(const CommIoCbParams &io)
 
     if (io.size > 0) {
         fd_bytes(io.fd, io.size, FD_WRITE);
-        WrittenToPeer(fwd->al, io.size, io.flag, statCounter.server.ftp.kbytes_out);
+        statCounter.server.all.kbytes_out += io.size;
+        statCounter.server.ftp.kbytes_out += io.size;
     }
 
     if (io.flag == Comm::ERR_CLOSING)
@@ -870,6 +874,8 @@ Ftp::Client::writeCommandCallback(const CommIoCbParams &io)
         /* failed closes ctrl.conn and frees ftpState */
         return;
     }
+
+    fwd->al->cache.requestWriteTimer.update();
 }
 
 /// handler called by Comm when FTP control channel is closed unexpectedly
@@ -962,7 +968,8 @@ Ftp::Client::dataRead(const CommIoCbParams &io)
     debugs(9, 3, "FD " << io.fd << " Read " << io.size << " bytes");
 
     if (io.size > 0) {
-        ReadFromPeer(fwd->al, io.size, io.flag, statCounter.server.ftp.kbytes_in);
+        statCounter.server.all.kbytes_in += io.size;
+        statCounter.server.ftp.kbytes_in += io.size;
     }
 
     if (io.flag == Comm::ERR_CLOSING)
@@ -988,6 +995,8 @@ Ftp::Client::dataRead(const CommIoCbParams &io)
             j >>= 1;
 
         ++ IOStats.Ftp.read_hist[bin];
+
+        fwd->al->cache.responseReadTimer.update();
     }
 
     if (io.flag != Comm::OK) {
@@ -1002,9 +1011,9 @@ Ftp::Client::dataRead(const CommIoCbParams &io)
             return;
         }
     } else if (io.size == 0) {
-        debugs(9, 3, "Calling dataComplete() because io.size == 0");
         fwd->al->cache.responseReadTimer.update();
 
+        debugs(9, 3, "Calling dataComplete() because io.size == 0");
         /*
          * DPW 2007-04-23
          * Dangerous curves ahead.  This call to dataComplete was
@@ -1077,7 +1086,7 @@ void
 Ftp::Client::sentRequestBody(const CommIoCbParams &io)
 {
     if (io.size > 0)
-        WrittenToPeer(fwd->al, io.size, io.flag, statCounter.server.ftp.kbytes_out);
+        statCounter.server.ftp.kbytes_out += io.size;
     ::Client::sentRequestBody(io);
 }
 
