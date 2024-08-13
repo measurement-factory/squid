@@ -385,10 +385,6 @@ public:
     /// managers logging of the being-accepted TLS connection secrets
     Security::KeyLogger keyLogger;
 
-    /// parseOneRequest() start time
-    /// nil outside parseOneRequest() scope
-    MessageTimer::Time requestParseStart;
-
 protected:
     void startDechunkingRequest();
     void finishDechunkingRequest(bool withSuccess);

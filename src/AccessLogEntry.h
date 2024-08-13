@@ -69,18 +69,6 @@ private:
     Time last;
 };
 
-// TODO: move
-/// measures the current time and keeps the value within a code scope
-class TimeScope
-{
-public:
-    TimeScope(MessageTimer::Time &time) : value(&time) { *value = MessageTimer::Clock::now(); }
-    ~TimeScope() { value->reset(); }
-private:
-    MessageTimer::Time *value;
-};
-
-
 class AccessLogEntry: public CodeContext
 {
 

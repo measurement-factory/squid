@@ -640,8 +640,6 @@ Ftp::Server::earlyError(const EarlyErrorKind eek)
 Http::Stream *
 Ftp::Server::parseOneRequest()
 {
-    TimeScope parseContext(requestParseStart);
-
     flags.readMore = false; // common for all but one case below
 
     // OWS <command> [ RWS <parameter> ] OWS LF
