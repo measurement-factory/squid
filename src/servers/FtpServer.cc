@@ -423,6 +423,8 @@ Ftp::Server::acceptDataConnection(const CommAcceptCbParams &params)
         // Some FTP servers close control connection here, but it may make
         // things worse from DoS p.o.v. and no better from data stealing p.o.v.
     } else {
+        currentReader().al->cache.requestReadTimer.update();
+
         closeDataConnection();
         dataConn = params.conn;
         dataConn->leaveOrphanage();
@@ -1717,6 +1719,8 @@ Ftp::Server::connectedForData(const CommConnectCbParams &params)
         Must(context->http->storeEntry() != nullptr);
         // TODO: call closeDataConnection() to reset data conn processing?
     } else {
+        currentWriter().al->cache.responseWriteTimer.update();
+
         // Finalize the details and start owning the supplied connection.
         assert(params.conn);
         assert(dataConn);
