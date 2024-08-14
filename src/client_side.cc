@@ -1938,6 +1938,13 @@ ConnStateData::clientParseRequests()
             assert(!preservingClientData_);
         }
 
+        // The "first byte" time of a (possibly pipelined) request is defined as
+        // the time we _start_ parsing its header. If requestFirstByteTime is
+        // set, then do nothing as we continue to parse a request header we
+        // started to parse earlier. Otherwise, remember the time we started.
+        if (!requestFirstByteTime)
+            requestFirstByteTime = MessageTimer::Clock::now();
+
         if (Http::StreamPointer context = parseOneRequest()) {
             debugs(33, 5, clientConnection << ": done parsing a request");
             extendLifetime();

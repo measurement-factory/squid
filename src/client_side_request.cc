@@ -125,6 +125,25 @@ ClientRequestContext::ClientRequestContext(ClientHttpRequest *anHttp) :
 
 CBDATA_CLASS_INIT(ClientHttpRequest);
 
+/// computes effective ClientHttpRequest start time, purging ConnStateData cache
+static auto
+ExtractRequestStartTime(ConnStateData * const conn)
+{
+    if (conn) {
+        // TODO: Create ClientHttpRequest earlier, when we _start_ parsing, to
+        // avoid temporary storing info in ConnStateData (among other problems).
+        if (auto &requestFirstByteTime = conn->requestFirstByteTime) {
+            const auto result = *requestFirstByteTime;
+            requestFirstByteTime.reset();
+            return result;
+        }
+        // else this is a "fake" request not triggered by header parsing
+    }
+    // else this is an "internal" request not associated with ConnStateData
+
+    return MessageTimer::Clock::now();
+}
+
 ClientHttpRequest::ClientHttpRequest(ConnStateData * aConn) :
 #if USE_ADAPTATION
     AsyncJob("ClientHttpRequest"),
@@ -133,8 +152,12 @@ ClientHttpRequest::ClientHttpRequest(ConnStateData * aConn) :
     conn_(cbdataReference(aConn))
 {
     CodeContext::Reset(al);
+
+    // TODO: Adjust transaction start (%tS) definition and code to include
+    // header parsing, removing this field and using cache.requestReadTimer.
     al->cache.start_time = current_time;
-    al->cache.requestReadTimer = MessageTimer(MessageTimer::Clock::now());
+    al->cache.requestReadTimer = MessageTimer(ExtractRequestStartTime(aConn));
+
     if (aConn) {
         al->tcpClient = aConn->clientConnection;
         al->cache.port = aConn->port;

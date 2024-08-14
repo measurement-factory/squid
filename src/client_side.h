@@ -385,6 +385,10 @@ public:
     /// managers logging of the being-accepted TLS connection secrets
     Security::KeyLogger keyLogger;
 
+    /// The first time parseOneRequest() was called for the current request.
+    /// This member gets cleared when request headers are successfully parsed.
+    MessageTimer::Time requestFirstByteTime;
+
 protected:
     void startDechunkingRequest();
     void finishDechunkingRequest(bool withSuccess);
