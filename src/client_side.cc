@@ -1754,9 +1754,6 @@ clientProcessRequest(ConnStateData *conn, const Http1::RequestParserPointer &hp,
                 assert(conn->flags.readMore);
             }
         }
-    } else if (!context->mayUseConnection()) {
-        Assure(!expectBody);
-        conn->currentReader().al->cache.requestReadTimer.stop();
     }
 
     http->calloutContext = new ClientRequestContext(http);
@@ -1958,16 +1955,6 @@ ConnStateData::clientParseRequests()
                 debugs(33, 3, "Not parsing new requests, as this request may need the connection");
                 break;
             }
-
-            // XXX: Check whether this condition is compatible with
-            // Config.accessList.forceRequestBodyContinuation feature. If it is
-            // not, we probably have to set mayUseConnection() or otherwise
-            // prevent this loop from iterating and calling parseOneRequest()
-            // immediately again (while we still wait for body data). When
-            // checking, make concurrentRequestQueueFilled() false: We should
-            // not rely on pipelining limits in this context.
-            if (!bodyPipe)
-                conn->currentReader().al->cache.requestReadTimer.stop();
         } else {
             debugs(33, 5, clientConnection << ": not enough request data: " <<
                    inBuf.length() << " < " << Config.maxRequestHeaderSize);
@@ -2059,7 +2046,6 @@ ConnStateData::handleRequestBodyData()
 
     if (!bodyPipe) {
         debugs(33,5, "produced entire request body for " << clientConnection);
-        currentReader().al->cache.requestReadTimer.stop();
 
         if (const char *reason = stoppedSending()) {
             /* we've finished reading like good clients,
