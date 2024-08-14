@@ -123,6 +123,9 @@ WhoisState::readReply(const Comm::ConnectionPointer &conn, char *aBuffer, size_t
     debugs(75, 3, conn << " read " << aBufferLength << " bytes");
     debugs(75, 5, "{" << aBuffer << "}");
 
+    if (flag == Comm::OK && fwd->al)
+        fwd->al->cache.responseReadTimer.update();
+
     // TODO: Honor delay pools.
 
     // XXX: Update statCounter before bailing
@@ -148,9 +151,6 @@ WhoisState::readReply(const Comm::ConnectionPointer &conn, char *aBuffer, size_t
         }
         return;
     }
-
-    if (fwd->al)
-        fwd->al->cache.responseReadTimer.update();
 
     if (aBufferLength > 0) {
         if (!dataWritten)

@@ -371,6 +371,9 @@ Ftp::Client::readControlReply(const CommIoCbParams &io)
     if (io.flag == Comm::ERR_CLOSING)
         return;
 
+    if (io.flag == Comm::OK)
+        fwd->al->cache.responseReadTimer.update();
+
     if (EBIT_TEST(entry->flags, ENTRY_ABORTED)) {
         if (abortOnData("entry aborted during control reply read"))
             return;
@@ -394,8 +397,6 @@ Ftp::Client::readControlReply(const CommIoCbParams &io)
         }
         return;
     }
-
-    fwd->al->cache.responseReadTimer.update();
 
     if (io.size == 0) {
         if (entry->store_status == STORE_PENDING) {
@@ -977,13 +978,13 @@ Ftp::Client::dataRead(const CommIoCbParams &io)
 
     assert(io.fd == data.conn->fd);
 
+    if (io.flag == Comm::OK)
+        fwd->al->cache.responseReadTimer.update();
+
     if (EBIT_TEST(entry->flags, ENTRY_ABORTED)) {
         abortOnData("entry aborted during dataRead");
         return;
     }
-
-    if (io.flag == Comm::OK)
-        fwd->al->cache.responseReadTimer.update();
 
     if (io.flag == Comm::OK && io.size > 0) {
         debugs(9, 5, "appended " << io.size << " bytes to readBuf");
