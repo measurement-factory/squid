@@ -150,8 +150,11 @@ Server::doClientRead(const CommIoCbParams &io)
 
     case Comm::OK:
         statCounter.client_http.kbytes_in += rd.size;
+
         if (!pipeline.empty())
             currentReader().al->cache.requestReadTimer.update();
+        // else we start the timer after accumulating/parsing the request header
+
         if (!receivedFirstByte_)
             receivedFirstByte();
         // may comm_close or setReplyToError
@@ -163,6 +166,10 @@ Server::doClientRead(const CommIoCbParams &io)
 
     case Comm::ENDFILE: // close detected by 0-byte read
         debugs(33, 5, io.conn << " closed?");
+
+        if (!pipeline.empty())
+            currentReader().al->cache.requestReadTimer.update();
+        // else ignore because it is an incomplete request header or an idle pconn closure
 
         if (shouldCloseOnEof()) {
             LogTagsErrors lte;

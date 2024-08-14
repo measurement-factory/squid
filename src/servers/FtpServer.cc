@@ -174,8 +174,10 @@ Ftp::Server::readUploadData(const CommIoCbParams &io)
     assert(Comm::IsConnOpen(dataConn));
     assert(io.conn->fd == dataConn->fd);
 
-    if (io.flag == Comm::OK && bodyPipe != nullptr) {
+    if (io.flag == Comm::OK || io.flag == Comm::ENDFILE)
         currentReader().al->cache.requestReadTimer.update();
+
+    if (io.flag == Comm::OK && bodyPipe != nullptr) {
         if (io.size > 0) {
             statCounter.client_http.kbytes_in += io.size;
 

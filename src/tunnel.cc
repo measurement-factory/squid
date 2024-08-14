@@ -594,12 +594,14 @@ TunnelStateData::readServer(char *, size_t len, Comm::Flag errcode, int xerrno)
     if (errcode == Comm::ERR_CLOSING)
         return;
 
+    if (errcode == Comm::OK || errcode == Comm::ENDFILE)
+        al->cache.responseReadTimer.update();
+
     if (len > 0) {
         server.bytesIn(len);
         statCounter.server.all.kbytes_in += len;
         statCounter.server.other.kbytes_in += len;
         request->hier.notePeerRead();
-        al->cache.responseReadTimer.update();
     }
 
     if (keepGoingAfterRead(len, errcode, xerrno, server, client))
@@ -639,10 +641,12 @@ TunnelStateData::readClient(char *, size_t len, Comm::Flag errcode, int xerrno)
     if (errcode == Comm::ERR_CLOSING)
         return;
 
+    if (errcode == Comm::OK)
+        al->cache.responseReadTimer.update();
+
     if (len > 0) {
         client.bytesIn(len);
         statCounter.client_http.kbytes_in += len;
-        al->cache.requestReadTimer.update();
     }
 
     if (keepGoingAfterRead(len, errcode, xerrno, client, server))
