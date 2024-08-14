@@ -1264,7 +1264,8 @@ HttpStateData::readReply(const CommIoCbParams &io)
 
         request->hier.notePeerRead();
 
-        fwd->al->cache.responseReadTimer.update();
+        if (fwd->al)
+            fwd->al->cache.responseReadTimer.update();
     }
 
         /* Continue to process previously read data */
@@ -1272,7 +1273,8 @@ HttpStateData::readReply(const CommIoCbParams &io)
 
     case Comm::ENDFILE: // close detected by 0-byte read
         eof = 1;
-        fwd->al->cache.responseReadTimer.update();
+        if (fwd->al)
+            fwd->al->cache.responseReadTimer.update();
 
         /* Continue to process previously read data */
         break;
@@ -1755,7 +1757,8 @@ HttpStateData::wroteLast(const CommIoCbParams &io)
         return;
     }
 
-    fwd->al->cache.requestWriteTimer.update();
+    if (fwd->al)
+        fwd->al->cache.requestWriteTimer.update();
 
     sendComplete();
 }

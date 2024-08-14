@@ -394,7 +394,8 @@ Client::sentRequestBody(const CommIoCbParams &io)
         return;
     }
 
-    fwd->al->cache.requestWriteTimer.update();
+    if (fwd->al)
+        fwd->al->cache.requestWriteTimer.update();
 
     if (EBIT_TEST(entry->flags, ENTRY_ABORTED)) {
         abortOnData("store entry aborted while sending request body");
