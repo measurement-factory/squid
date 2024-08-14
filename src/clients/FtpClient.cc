@@ -982,6 +982,9 @@ Ftp::Client::dataRead(const CommIoCbParams &io)
         return;
     }
 
+    if (io.flag == Comm::OK)
+        fwd->al->cache.responseReadTimer.update();
+
     if (io.flag == Comm::OK && io.size > 0) {
         debugs(9, 5, "appended " << io.size << " bytes to readBuf");
         data.readBuf->appended(io.size);
@@ -995,8 +998,6 @@ Ftp::Client::dataRead(const CommIoCbParams &io)
             j >>= 1;
 
         ++ IOStats.Ftp.read_hist[bin];
-
-        fwd->al->cache.responseReadTimer.update();
     }
 
     if (io.flag != Comm::OK) {
@@ -1011,8 +1012,6 @@ Ftp::Client::dataRead(const CommIoCbParams &io)
             return;
         }
     } else if (io.size == 0) {
-        fwd->al->cache.responseReadTimer.update();
-
         debugs(9, 3, "Calling dataComplete() because io.size == 0");
         /*
          * DPW 2007-04-23

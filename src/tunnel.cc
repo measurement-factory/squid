@@ -594,7 +594,7 @@ TunnelStateData::readServer(char *, size_t len, Comm::Flag errcode, int xerrno)
     if (errcode == Comm::ERR_CLOSING)
         return;
 
-    if (errcode == Comm::OK || errcode == Comm::ENDFILE)
+    if (errcode == Comm::OK)
         al->cache.responseReadTimer.update();
 
     if (len > 0) {

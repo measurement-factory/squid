@@ -174,7 +174,7 @@ Ftp::Server::readUploadData(const CommIoCbParams &io)
     assert(Comm::IsConnOpen(dataConn));
     assert(io.conn->fd == dataConn->fd);
 
-    if (io.flag == Comm::OK || io.flag == Comm::ENDFILE)
+    if (io.flag == Comm::OK)
         currentReader().al->cache.requestReadTimer.update();
 
     if (io.flag == Comm::OK && bodyPipe != nullptr) {
