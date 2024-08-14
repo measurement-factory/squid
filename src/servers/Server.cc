@@ -180,7 +180,7 @@ Server::doClientRead(const CommIoCbParams &io)
 
         if (!pipeline.empty())
             currentReader().al->cache.requestReadTimer.update();
-        // else ignore because it is an incomplete request header or an idle pconn closure
+        // else ignore this truncated/malformed request or an idle pconn closure
 
         if (shouldCloseOnEof()) {
             LogTagsErrors lte;
