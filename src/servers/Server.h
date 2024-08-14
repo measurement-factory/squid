@@ -121,7 +121,13 @@ protected:
 
     /// transaction allowed to read from the client-to-Squid connection
     /// \prec !pipeline.empty()
+    /// \sa currentWriter()
     ClientHttpRequest &currentReader();
+
+    /// transaction allowed to write to the client-to-Squid connection
+    /// \prec !pipeline.empty()
+    /// \sa currentReader()
+    ClientHttpRequest &currentWriter();
 
     void doClientRead(const CommIoCbParams &io);
     void clientWriteDone(const CommIoCbParams &io);

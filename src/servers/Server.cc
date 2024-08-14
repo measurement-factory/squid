@@ -68,6 +68,17 @@ Server::currentReader()
     return *http;
 }
 
+ClientHttpRequest &
+Server::currentWriter()
+{
+    Assure(!pipeline.empty());
+    const auto writingTransaction = pipeline.front();
+    Assure(writingTransaction);
+    const auto http = writingTransaction->http;
+    Assure(http);
+    return *http;
+}
+
 void
 Server::stopReading()
 {

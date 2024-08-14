@@ -1026,12 +1026,13 @@ ConnStateData::afterClientWrite(size_t size)
     if (pipeline.empty())
         return;
 
+    currentWriter().al->cache.responseWriteTimer.update();
+
     auto ctx = pipeline.front();
     if (size) {
         statCounter.client_http.kbytes_out += size;
         if (ctx->http->loggingTags().isTcpHit())
             statCounter.client_http.hit_kbytes_out += size;
-        ctx->http->al->cache.responseWriteTimer.update();
     }
     ctx->writeComplete(size);
 }

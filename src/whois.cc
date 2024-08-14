@@ -47,9 +47,13 @@ static IOCB whoisReadReply;
 /* PUBLIC */
 
 static void
-whoisWriteComplete(const Comm::ConnectionPointer &, char *buf, size_t, Comm::Flag, int, void *)
+whoisWriteComplete(const Comm::ConnectionPointer &, char * const buf, size_t, const Comm::Flag flag, int, void * const data)
 {
     xfree(buf);
+
+    const auto w = static_cast<WhoisState*>(data);
+    if (flag == Comm::OK && w->fwd->al)
+        w->fwd->al->cache.responseWriteTimer.update();
 }
 
 void

@@ -735,6 +735,8 @@ TunnelStateData::writeServerDone(char *, size_t len, Comm::Flag flag, int xerrno
         return;
     }
 
+    al->cache.requestWriteTimer.update();
+
     /* EOF? */
     if (len == 0) {
         debugs(26, 4, "No read input. Closing server connection.");
@@ -745,7 +747,6 @@ TunnelStateData::writeServerDone(char *, size_t len, Comm::Flag flag, int xerrno
     /* Valid data */
     statCounter.server.all.kbytes_out += len;
     statCounter.server.other.kbytes_out += len;
-    al->cache.requestWriteTimer.update();
     client.dataSent(len);
 
     /* If the other end has closed, so should we */
@@ -829,6 +830,8 @@ TunnelStateData::writeClientDone(char *, size_t len, Comm::Flag flag, int xerrno
         return;
     }
 
+    al->cache.responseWriteTimer.update();
+
     /* EOF? */
     if (len == 0) {
         debugs(26, 4, "Closing client connection due to 0 byte read.");
@@ -838,7 +841,6 @@ TunnelStateData::writeClientDone(char *, size_t len, Comm::Flag flag, int xerrno
 
     /* Valid data */
     statCounter.client_http.kbytes_out += len;
-    al->cache.responseWriteTimer.update();
     server.dataSent(len);
 
     /* If the other end has closed, so should we */
