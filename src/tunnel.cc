@@ -642,7 +642,7 @@ TunnelStateData::readClient(char *, size_t len, Comm::Flag errcode, int xerrno)
         return;
 
     if (errcode == Comm::OK)
-        al->cache.responseReadTimer.update();
+        al->cache.requestReadTimer.update();
 
     if (len > 0) {
         client.bytesIn(len);
