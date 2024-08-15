@@ -1026,6 +1026,8 @@ ConnStateData::afterClientWrite(size_t size)
     if (pipeline.empty())
         return;
 
+    currentWriter().al->cache.responseWriteTimer.update();
+
     auto ctx = pipeline.front();
     if (size) {
         statCounter.client_http.kbytes_out += size;
@@ -1970,6 +1972,13 @@ ConnStateData::clientParseRequests()
             // parseOneRequest() must reset preservingClientData_.
             assert(!preservingClientData_);
         }
+
+        // The "first byte" time of a (possibly pipelined) request is defined as
+        // the time we _start_ parsing its header. If requestFirstByteTime is
+        // set, then do nothing as we continue to parse a request header we
+        // started to parse earlier. Otherwise, remember the time we started.
+        if (!requestFirstByteTime)
+            requestFirstByteTime = MessageTimer::Clock::now();
 
         if (Http::StreamPointer context = parseOneRequest()) {
             debugs(33, 5, clientConnection << ": done parsing a request");

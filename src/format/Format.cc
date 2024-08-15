@@ -373,6 +373,18 @@ actualRequestHeader(const AccessLogEntry::Pointer &al)
     return al->request;
 }
 
+static void
+TimePointToTimeval(const std::optional<MessageTimer::Time> &time, timeval &outtv, int &doSec) {
+    if (!time)
+        return;
+    using namespace std::chrono_literals;
+    const auto duration = time->time_since_epoch();
+    outtv.tv_sec = std::chrono::duration_cast<std::chrono::seconds>(duration).count();
+    const auto totalUsec = std::chrono::duration_cast<std::chrono::microseconds>(duration);
+    outtv.tv_usec = (totalUsec % std::chrono::microseconds(1s)).count();
+    doSec = 1;
+}
+
 void
 Format::Format::assemble(MemBuf &mb, const AccessLogEntry::Pointer &al, int logSequenceNumber) const
 {
@@ -652,6 +664,37 @@ Format::Format::assemble(MemBuf &mb, const AccessLogEntry::Pointer &al, int logS
                 outtv.tv_usec = (al->request->dnsWait % 1000) * 1000;
                 doMsec = 1;
             }
+            break;
+        case LFT_RECEIVED_REQUEST_FIRST_BYTE_TIME:
+            TimePointToTimeval(al->cache.requestReadTimer.firstTime(), outtv, doSec);
+            break;
+
+        case LFT_RECEIVED_REQUEST_LAST_BYTE_TIME:
+            TimePointToTimeval(al->cache.requestReadTimer.lastTime(), outtv, doSec);
+            break;
+
+        case LFT_SENT_REQUEST_FIRST_BYTE_TIME:
+            TimePointToTimeval(al->cache.requestWriteTimer.firstTime(), outtv, doSec);
+            break;
+
+        case LFT_SENT_REQUEST_LAST_BYTE_TIME:
+            TimePointToTimeval(al->cache.requestWriteTimer.lastTime(), outtv, doSec);
+            break;
+
+        case LFT_RECEIVED_RESPONSE_FIRST_BYTE_TIME:
+            TimePointToTimeval(al->cache.responseReadTimer.firstTime(), outtv, doSec);
+            break;
+
+        case LFT_RECEIVED_RESPONSE_LAST_BYTE_TIME:
+            TimePointToTimeval(al->cache.responseReadTimer.lastTime(), outtv, doSec);
+            break;
+
+        case LFT_SENT_RESPONSE_FIRST_BYTE_TIME:
+            TimePointToTimeval(al->cache.responseWriteTimer.firstTime(), outtv, doSec);
+            break;
+
+        case LFT_SENT_RESPONSE_LAST_BYTE_TIME:
+            TimePointToTimeval(al->cache.responseWriteTimer.lastTime(), outtv, doSec);
             break;
 
         case LFT_REQUEST_HEADER:

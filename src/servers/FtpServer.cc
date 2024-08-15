@@ -174,6 +174,9 @@ Ftp::Server::readUploadData(const CommIoCbParams &io)
     assert(Comm::IsConnOpen(dataConn));
     assert(io.conn->fd == dataConn->fd);
 
+    if (io.flag == Comm::OK)
+        currentReader().al->cache.requestReadTimer.update();
+
     if (io.flag == Comm::OK && bodyPipe != nullptr) {
         if (io.size > 0) {
             statCounter.client_http.kbytes_in += io.size;
@@ -420,6 +423,8 @@ Ftp::Server::acceptDataConnection(const CommAcceptCbParams &params)
         // Some FTP servers close control connection here, but it may make
         // things worse from DoS p.o.v. and no better from data stealing p.o.v.
     } else {
+        currentReader().al->cache.requestReadTimer.update();
+
         closeDataConnection();
         dataConn = params.conn;
         dataConn->leaveOrphanage();
@@ -1009,6 +1014,7 @@ Ftp::Server::wroteReplyData(const CommIoCbParams &io)
 
     assert(pipeline.front()->http);
     pipeline.front()->http->out.size += io.size;
+    pipeline.front()->http->al->cache.responseWriteTimer.update();
     replyDataWritingCheckpoint();
 }
 
@@ -1254,6 +1260,7 @@ Ftp::Server::wroteEarlyReply(const CommIoCbParams &io)
     if (context != nullptr && context->http) {
         context->http->out.size += io.size;
         context->http->out.headers_sz += io.size;
+        context->http->al->cache.responseWriteTimer.update();
     }
 
     flags.readMore = true;
@@ -1276,6 +1283,7 @@ Ftp::Server::wroteReply(const CommIoCbParams &io)
     assert(context->http);
     context->http->out.size += io.size;
     context->http->out.headers_sz += io.size;
+    context->http->al->cache.responseWriteTimer.update();
 
     if (master->serverState == fssError) {
         debugs(33, 5, "closing on FTP server error");
@@ -1719,6 +1727,8 @@ Ftp::Server::connectedForData(const CommConnectCbParams &params)
         Must(context->http->storeEntry() != nullptr);
         // TODO: call closeDataConnection() to reset data conn processing?
     } else {
+        currentWriter().al->cache.responseWriteTimer.update();
+
         // Finalize the details and start owning the supplied connection.
         assert(params.conn);
         assert(dataConn);

@@ -594,6 +594,9 @@ TunnelStateData::readServer(char *, size_t len, Comm::Flag errcode, int xerrno)
     if (errcode == Comm::ERR_CLOSING)
         return;
 
+    if (errcode == Comm::OK)
+        al->cache.responseReadTimer.update();
+
     if (len > 0) {
         server.bytesIn(len);
         statCounter.server.all.kbytes_in += len;
@@ -637,6 +640,9 @@ TunnelStateData::readClient(char *, size_t len, Comm::Flag errcode, int xerrno)
 
     if (errcode == Comm::ERR_CLOSING)
         return;
+
+    if (errcode == Comm::OK)
+        al->cache.requestReadTimer.update();
 
     if (len > 0) {
         client.bytesIn(len);
@@ -728,6 +734,8 @@ TunnelStateData::writeServerDone(char *, size_t len, Comm::Flag flag, int xerrno
         server.error(xerrno); // may call comm_close
         return;
     }
+
+    al->cache.requestWriteTimer.update();
 
     /* EOF? */
     if (len == 0) {
@@ -821,6 +829,8 @@ TunnelStateData::writeClientDone(char *, size_t len, Comm::Flag flag, int xerrno
         client.error(xerrno); // may call comm_close
         return;
     }
+
+    al->cache.responseWriteTimer.update();
 
     /* EOF? */
     if (len == 0) {

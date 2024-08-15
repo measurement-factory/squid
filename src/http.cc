@@ -1263,6 +1263,9 @@ HttpStateData::readReply(const CommIoCbParams &io)
         ++ IOStats.Http.read_hist[bin];
 
         request->hier.notePeerRead();
+
+        if (fwd->al)
+            fwd->al->cache.responseReadTimer.update();
     }
 
         /* Continue to process previously read data */
@@ -1270,6 +1273,8 @@ HttpStateData::readReply(const CommIoCbParams &io)
 
     case Comm::ENDFILE: // close detected by 0-byte read
         eof = 1;
+        if (fwd->al)
+            fwd->al->cache.responseReadTimer.update();
 
         /* Continue to process previously read data */
         break;
@@ -1751,6 +1756,9 @@ HttpStateData::wroteLast(const CommIoCbParams &io)
         mustStop("HttpStateData::wroteLast");
         return;
     }
+
+    if (fwd->al)
+        fwd->al->cache.requestWriteTimer.update();
 
     sendComplete();
 }

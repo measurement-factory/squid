@@ -151,6 +151,14 @@ static TokenTableEntry TokenTableMisc[] = {
     TokenTableEntry("note", LFT_NOTE ),
     TokenTableEntry("credentials", LFT_CREDENTIALS),
     TokenTableEntry("master_xaction", LFT_MASTER_XACTION),
+    TokenTableEntry("received_request_first_byte_time", LFT_RECEIVED_REQUEST_FIRST_BYTE_TIME),
+    TokenTableEntry("received_request_last_byte_time", LFT_RECEIVED_REQUEST_LAST_BYTE_TIME),
+    TokenTableEntry("sent_request_first_byte_time", LFT_SENT_REQUEST_FIRST_BYTE_TIME),
+    TokenTableEntry("sent_request_last_byte_time", LFT_SENT_REQUEST_LAST_BYTE_TIME),
+    TokenTableEntry("received_response_first_byte_time", LFT_RECEIVED_RESPONSE_FIRST_BYTE_TIME),
+    TokenTableEntry("received_response_last_byte_time", LFT_RECEIVED_RESPONSE_LAST_BYTE_TIME),
+    TokenTableEntry("sent_response_first_byte_time", LFT_SENT_RESPONSE_FIRST_BYTE_TIME),
+    TokenTableEntry("sent_response_last_byte_time", LFT_SENT_RESPONSE_LAST_BYTE_TIME),
     /*
      * Legacy external_acl_type format tokens
      */
@@ -606,6 +614,14 @@ Format::Token::parse(const char *def, Quoting *quoting)
 #endif
     case LFT_TIME_START:
     case LFT_TIME_SUBSECOND:
+    case LFT_RECEIVED_REQUEST_FIRST_BYTE_TIME:
+    case LFT_RECEIVED_REQUEST_LAST_BYTE_TIME:
+    case LFT_SENT_REQUEST_FIRST_BYTE_TIME:
+    case LFT_SENT_REQUEST_LAST_BYTE_TIME:
+    case LFT_RECEIVED_RESPONSE_FIRST_BYTE_TIME:
+    case LFT_RECEIVED_RESPONSE_LAST_BYTE_TIME:
+    case LFT_SENT_RESPONSE_FIRST_BYTE_TIME:
+    case LFT_SENT_RESPONSE_LAST_BYTE_TIME:
         divisor = 1000;
 
         if (widthMax > 0) {

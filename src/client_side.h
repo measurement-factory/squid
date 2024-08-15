@@ -11,6 +11,7 @@
 #ifndef SQUID_SRC_CLIENT_SIDE_H
 #define SQUID_SRC_CLIENT_SIDE_H
 
+#include "AccessLogEntry.h"
 #include "acl/ChecklistFiller.h"
 #include "base/RunnersRegistry.h"
 #include "clientStreamForward.h"
@@ -388,6 +389,10 @@ public:
 
     /// managers logging of the being-accepted TLS connection secrets
     Security::KeyLogger keyLogger;
+
+    /// The first time parseOneRequest() was called for the current request.
+    /// This member gets cleared when request headers are successfully parsed.
+    std::optional<MessageTimer::Time> requestFirstByteTime;
 
 protected:
     void startDechunkingRequest();

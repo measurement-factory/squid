@@ -9,6 +9,7 @@
 #include "squid.h"
 #include "anyp/PortCfg.h"
 #include "client_side.h"
+#include "client_side_request.h"
 #include "comm.h"
 #include "comm/Read.h"
 #include "debug/Stream.h"
@@ -54,6 +55,28 @@ Server::swanSong()
         clientConnection->close();
 
     BodyProducer::swanSong();
+}
+
+ClientHttpRequest &
+Server::currentReader()
+{
+    Assure(!pipeline.empty());
+    const auto readingTransaction = pipeline.back();
+    Assure(readingTransaction);
+    const auto http = readingTransaction->http;
+    Assure(http);
+    return *http;
+}
+
+ClientHttpRequest &
+Server::currentWriter()
+{
+    Assure(!pipeline.empty());
+    const auto writingTransaction = pipeline.front();
+    Assure(writingTransaction);
+    const auto http = writingTransaction->http;
+    Assure(http);
+    return *http;
 }
 
 void
@@ -138,6 +161,11 @@ Server::doClientRead(const CommIoCbParams &io)
 
     case Comm::OK:
         statCounter.client_http.kbytes_in += rd.size;
+
+        if (!pipeline.empty())
+            currentReader().al->cache.requestReadTimer.update();
+        // else we start the timer after accumulating/parsing the request header
+
         if (!receivedFirstByte_)
             receivedFirstByte();
         // may comm_close or setReplyToError
@@ -149,6 +177,10 @@ Server::doClientRead(const CommIoCbParams &io)
 
     case Comm::ENDFILE: // close detected by 0-byte read
         debugs(33, 5, io.conn << " closed?");
+
+        if (!pipeline.empty())
+            currentReader().al->cache.requestReadTimer.update();
+        // else ignore this truncated/malformed request or an idle pconn closure
 
         if (shouldCloseOnEof()) {
             LogTagsErrors lte;

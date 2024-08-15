@@ -47,9 +47,13 @@ static IOCB whoisReadReply;
 /* PUBLIC */
 
 static void
-whoisWriteComplete(const Comm::ConnectionPointer &, char *buf, size_t, Comm::Flag, int, void *)
+whoisWriteComplete(const Comm::ConnectionPointer &, char * const buf, size_t, const Comm::Flag flag, int, void * const data)
 {
     xfree(buf);
+
+    const auto w = static_cast<WhoisState*>(data);
+    if (flag == Comm::OK && w->fwd->al)
+        w->fwd->al->cache.responseWriteTimer.update();
 }
 
 void
@@ -118,6 +122,9 @@ WhoisState::readReply(const Comm::ConnectionPointer &conn, char *aBuffer, size_t
     aBuffer[aBufferLength] = '\0';
     debugs(75, 3, conn << " read " << aBufferLength << " bytes");
     debugs(75, 5, "{" << aBuffer << "}");
+
+    if (flag == Comm::OK && fwd->al)
+        fwd->al->cache.responseReadTimer.update();
 
     // TODO: Honor delay pools.
 

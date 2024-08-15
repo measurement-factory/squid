@@ -32,10 +32,42 @@
 #include "ssl/support.h"
 #endif
 
+#include <optional>
+
 /* forward decls */
 class HttpReply;
 class HttpRequest;
 class CustomLog;
+
+// TODO: move
+/// Accumulates timings of message IO events.
+class MessageTimer
+{
+public:
+    using Clock = std::chrono::system_clock;
+    using Time = Clock::time_point;
+
+    MessageTimer() = default;
+    explicit MessageTimer(const Time &s) : first(s), last(s) {}
+
+    void update() {
+        last = Clock::now();
+        if (!first)
+            first = last;
+    }
+
+    void reset() { *this = MessageTimer(); }
+
+    /// the time of the first IO for the message
+    auto firstTime() const { return first; }
+
+    /// the time of the last IO for the message
+    auto lastTime() const { return last; }
+
+private:
+    std::optional<Time> first;
+    std::optional<Time> last;
+};
 
 class AccessLogEntry: public CodeContext
 {
@@ -164,6 +196,11 @@ public:
         Security::CertPointer sslClientCert; ///< cert received from the client
 #endif
         AnyP::PortCfgPointer port;
+
+        MessageTimer requestReadTimer; ///< first/last IO when receiving request from the client
+        MessageTimer responseWriteTimer; ///< first/last IO when writing response to the client
+        MessageTimer requestWriteTimer; ///< first/last IO when writing request to the peer
+        MessageTimer responseReadTimer; ///< first/last IO when reading response from the peer
     } cache;
 
     /** \brief This subclass holds log info for various headers in raw format

@@ -371,6 +371,9 @@ Ftp::Client::readControlReply(const CommIoCbParams &io)
     if (io.flag == Comm::ERR_CLOSING)
         return;
 
+    if (io.flag == Comm::OK && fwd->al)
+        fwd->al->cache.responseReadTimer.update();
+
     if (EBIT_TEST(entry->flags, ENTRY_ABORTED)) {
         if (abortOnData("entry aborted during control reply read"))
             return;
@@ -872,6 +875,9 @@ Ftp::Client::writeCommandCallback(const CommIoCbParams &io)
         /* failed closes ctrl.conn and frees ftpState */
         return;
     }
+
+    if (fwd->al)
+        fwd->al->cache.requestWriteTimer.update();
 }
 
 /// handler called by Comm when FTP control channel is closed unexpectedly
@@ -972,6 +978,9 @@ Ftp::Client::dataRead(const CommIoCbParams &io)
         return;
 
     assert(io.fd == data.conn->fd);
+
+    if (io.flag == Comm::OK && fwd->al)
+        fwd->al->cache.responseReadTimer.update();
 
     if (EBIT_TEST(entry->flags, ENTRY_ABORTED)) {
         abortOnData("entry aborted during dataRead");
