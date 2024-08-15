@@ -192,7 +192,6 @@ Http::Tunneler::handleWrittenRequest(const CommIoCbParams &io)
 
     statCounter.server.all.kbytes_out += io.size;
     statCounter.server.other.kbytes_out += io.size;
-    al->cache.requestWriteTimer.update();
     requestWritten = true;
     debugs(83, 5, status());
 }
@@ -228,14 +227,12 @@ Http::Tunneler::handleReadyRead(const CommIoCbParams &io)
         statCounter.server.all.kbytes_in += rd.size;
         statCounter.server.other.kbytes_in += rd.size; // TODO: other or http?
         request->hier.notePeerRead();
-        al->cache.responseReadTimer.update();
         handleResponse(false);
         return;
     }
 
     case Comm::ENDFILE: {
         // TODO: Should we (and everybody else) call request->hier.notePeerRead() on zero reads?
-        al->cache.responseReadTimer.update();
         handleResponse(true);
         return;
     }
