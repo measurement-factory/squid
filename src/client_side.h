@@ -387,7 +387,7 @@ public:
 
     /// The first time parseOneRequest() was called for the current request.
     /// This member gets cleared when request headers are successfully parsed.
-    MessageTimer::Time requestFirstByteTime;
+    std::optional<MessageTimer::Time> requestFirstByteTime;
 
 protected:
     void startDechunkingRequest();

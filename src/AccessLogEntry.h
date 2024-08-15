@@ -45,7 +45,7 @@ class MessageTimer
 {
 public:
     using Clock = std::chrono::system_clock;
-    using Time = std::optional<Clock::time_point>;
+    using Time = Clock::time_point;
 
     MessageTimer() = default;
     explicit MessageTimer(const Time &s) : first(s), last(s) {}
@@ -65,8 +65,8 @@ public:
     auto lastTime() const { return last; }
 
 private:
-    Time first;
-    Time last;
+    std::optional<Time> first;
+    std::optional<Time> last;
 };
 
 class AccessLogEntry: public CodeContext

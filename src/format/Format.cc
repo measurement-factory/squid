@@ -374,7 +374,7 @@ actualRequestHeader(const AccessLogEntry::Pointer &al)
 }
 
 static void
-TimePointToTimeval(MessageTimer::Time time, timeval &outtv, int &doSec) {
+TimePointToTimeval(const std::optional<MessageTimer::Time> &time, timeval &outtv, int &doSec) {
     if (!time)
         return;
     using namespace std::chrono_literals;
