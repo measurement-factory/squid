@@ -665,35 +665,35 @@ Format::Format::assemble(MemBuf &mb, const AccessLogEntry::Pointer &al, int logS
                 doMsec = 1;
             }
             break;
-        case LFT_REQUEST_FIRST_READ:
+        case LFT_RECEIVED_REQUEST_FIRST_BYTE_TIME:
             TimePointToTimeval(al->cache.requestReadTimer.firstTime(), outtv, doSec);
             break;
 
-        case LFT_REQUEST_LAST_READ:
+        case LFT_RECEIVED_REQUEST_LAST_BYTE_TIME:
             TimePointToTimeval(al->cache.requestReadTimer.lastTime(), outtv, doSec);
             break;
 
-        case LFT_REQUEST_FIRST_WRITE:
+        case LFT_SENT_REQUEST_FIRST_BYTE_TIME:
             TimePointToTimeval(al->cache.requestWriteTimer.firstTime(), outtv, doSec);
             break;
 
-        case LFT_REQUEST_LAST_WRITE:
+        case LFT_SENT_REQUEST_LAST_BYTE_TIME:
             TimePointToTimeval(al->cache.requestWriteTimer.lastTime(), outtv, doSec);
             break;
 
-        case LFT_RESPONSE_FIRST_READ:
+        case LFT_RECEIVED_RESPONSE_FIRST_BYTE_TIME:
             TimePointToTimeval(al->cache.responseReadTimer.firstTime(), outtv, doSec);
             break;
 
-        case LFT_RESPONSE_LAST_READ:
+        case LFT_RECEIVED_RESPONSE_LAST_BYTE_TIME:
             TimePointToTimeval(al->cache.responseReadTimer.lastTime(), outtv, doSec);
             break;
 
-        case LFT_RESPONSE_FIRST_WRITE:
+        case LFT_SENT_RESPONSE_FIRST_BYTE_TIME:
             TimePointToTimeval(al->cache.responseWriteTimer.firstTime(), outtv, doSec);
             break;
 
-        case LFT_RESPONSE_LAST_WRITE:
+        case LFT_SENT_RESPONSE_LAST_BYTE_TIME:
             TimePointToTimeval(al->cache.responseWriteTimer.lastTime(), outtv, doSec);
             break;
 
