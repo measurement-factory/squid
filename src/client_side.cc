@@ -3960,7 +3960,10 @@ ConnStateData::checkLogging()
     http.req_sz = inBuf.length();
     // XXX: Or we died while waiting for the pinned connection to become idle.
     http.setErrorUri("error:transaction-end-before-headers");
-    http.updateError(bareError);
+    Error error(ERR_CLIENT_GONE);
+    static const auto d = MakeNamedErrorDetail("PENDING_REQUEST");
+    error.details.push_back(d);
+    http.updateError(error);
 }
 
 bool
