@@ -3744,8 +3744,9 @@ ConnStateData::sendControlMsg(HttpControlMsg msg)
 void
 ConnStateData::doneWithControlMsg()
 {
+    if (HttpControlMsgSink::cbControlMsgSent)
+        currentWriter().al->cache.responseWriteTimer.update();
     HttpControlMsgSink::doneWithControlMsg();
-
     if (Http::StreamPointer deferredRequest = pipeline.front()) {
         debugs(33, 3, clientConnection << ": calling PushDeferredIfNeeded after control msg wrote");
         ClientSocketContextPushDeferredIfNeeded(deferredRequest, this);
