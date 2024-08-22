@@ -3934,9 +3934,14 @@ ConnStateData::terminateAll(const Error &rawError, const LogTagsErrors &lte)
             assert(context != pipeline.front());
         }
 
-        if (intputToConsume && !inBuf.isEmpty()) {
-            debugs(83, 5, "forgetting client " << intputToConsume << " bytes: " << inBuf.length());
-            inBuf.clear();
+        if (!inBuf.isEmpty()) {
+            bareError.update(error);
+            static const auto d = MakeNamedErrorDetail("PENDING_REQUEST");
+            bareError.details.push_back(d);
+            if (intputToConsume) {
+                debugs(83, 5, "forgetting client " << intputToConsume << " bytes: " << inBuf.length());
+                inBuf.clear();
+            }
         }
     }
 
@@ -3960,10 +3965,7 @@ ConnStateData::checkLogging()
     http.req_sz = inBuf.length();
     // XXX: Or we died while waiting for the pinned connection to become idle.
     http.setErrorUri("error:transaction-end-before-headers");
-    Error error(ERR_CLIENT_GONE);
-    static const auto d = MakeNamedErrorDetail("PENDING_REQUEST");
-    error.details.push_back(d);
-    http.updateError(error);
+    http.updateError(bareError);
 }
 
 bool
