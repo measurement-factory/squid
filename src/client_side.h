@@ -433,6 +433,13 @@ protected:
     /// whether preservedClientData is valid and should be kept up to date
     bool preservingClientData_ = false;
 
+    /// whether there is no (yet) enough data to parse the request
+    bool incompleteRequest() const { return !inBuf.isEmpty() || incompleteHttpRequest_; }
+
+    // no such flag for FTP: the FTP parser is not incremental
+    // HTTP parser consumed some bytes of an incomplete HTTP request
+    bool incompleteHttpRequest_ = false;
+
     bool tunnelOnError(const err_type);
 
 private:

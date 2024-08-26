@@ -594,7 +594,19 @@ ConnStateData::swanSong()
     flags.readMore = false;
     clientdbEstablished(clientConnection->remote, -1);  /* decrement */
 
-    terminateAll(ERR_NONE, LogTagsErrors());
+    const char *errDetail = stoppedReceiving();
+    auto errType = errDetail ? ERR_REQUEST_STOPPED_RECEIVING : ERR_NONE;
+    if (!errType) {
+        errDetail = stoppedSending();
+        errType = errDetail ? ERR_REQUEST_STOPPED_SENDING : ERR_NONE;
+    }
+    Error error(errType);
+    if (errDetail) {
+        const auto d = MakeNamedErrorDetail(errDetail);
+        error.details.push_back(d);
+    }
+
+    terminateAll(error, LogTagsErrors());
     checkLogging();
 
     // XXX: Closing pinned conn is too harsh: The Client may want to continue!
@@ -1265,7 +1277,8 @@ ConnStateData::parseHttpRequest(const Http1::RequestParserPointer &hp)
         // sync the buffers after parsing.
         inBuf = hp->remaining();
 
-        if (hp->needsMoreData()) {
+        incompleteHttpRequest_ = hp->needsMoreData();
+        if (incompleteHttpRequest_) {
             debugs(33, 5, "Incomplete request, waiting for end of request line");
             return nullptr;
         }
@@ -3914,9 +3927,7 @@ ConnStateData::terminateAll(const Error &rawError, const LogTagsErrors &lte)
 
     debugs(33, 3, pipeline.count() << '/' << pipeline.nrequests << " after " << error);
 
-    if (pipeline.empty()) {
-        bareError.update(error); // XXX: bareLogTagsErrors
-    } else {
+    if (!pipeline.empty()) {
         // We terminate the current CONNECT/PUT/etc. context below, logging any
         // error details, but that context may leave unparsed bytes behind.
         // Consume them to stop checkLogging() from logging them again later.
@@ -3934,15 +3945,18 @@ ConnStateData::terminateAll(const Error &rawError, const LogTagsErrors &lte)
             assert(context != pipeline.front());
         }
 
-        if (!inBuf.isEmpty()) {
-            bareError.update(error);
-            static const auto d = MakeNamedErrorDetail("PENDING_REQUEST");
-            bareError.details.push_back(d);
-            if (intputToConsume) {
-                debugs(83, 5, "forgetting client " << intputToConsume << " bytes: " << inBuf.length());
-                inBuf.clear();
-            }
+        if (intputToConsume && !inBuf.isEmpty()) {
+            debugs(83, 5, "forgetting client " << intputToConsume << " bytes: " << inBuf.length());
+            inBuf.clear();
         }
+    }
+
+    assert(pipeline.empty());
+
+    bareError.update(error); // XXX: bareLogTagsErrors
+    if (incompleteRequest()) {
+        static const auto d = MakeNamedErrorDetail("PENDING_REQUEST");
+        bareError.details.push_back(d);
     }
 
     clientConnection->close();
@@ -3957,7 +3971,7 @@ ConnStateData::checkLogging()
 
     // do not log connections that closed after a transaction (it is normal)
     // TODO: access_log needs ACLs to match received-no-bytes connections
-    if (pipeline.nrequests && inBuf.isEmpty())
+    if (pipeline.nrequests && !incompleteRequest())
         return;
 
     /* Create a temporary ClientHttpRequest object. Its destructor will log. */
