@@ -3773,7 +3773,7 @@ ConnStateData::sendControlMsg(HttpControlMsg msg)
 
         if (!writeControlMsgAndCall(rep.getRaw(), call)) {
             // but still inform the caller (so it may resume its operation)
-            doneWithControlMsg();
+            doneWithControlMsg(false);
         }
         return;
     }
@@ -3783,9 +3783,11 @@ ConnStateData::sendControlMsg(HttpControlMsg msg)
 }
 
 void
-ConnStateData::doneWithControlMsg()
+ConnStateData::doneWithControlMsg(const bool wasSent)
 {
-    HttpControlMsgSink::doneWithControlMsg();
+    if (wasSent && HttpControlMsgSink::cbControlMsgSent)
+        currentWriter().al->cache.responseWriteTimer.update();
+    HttpControlMsgSink::doneWithControlMsg(wasSent);
 
     if (Http::StreamPointer deferredRequest = pipeline.front()) {
         debugs(33, 3, clientConnection << ": calling PushDeferredIfNeeded after control msg wrote");
@@ -3949,6 +3951,9 @@ ConnStateData::clientPinnedConnectionRead(const CommIoCbParams &io)
 
     if (io.flag == Comm::ERR_CLOSING)
         return; // close handler will clean up
+
+    // AccessLogEntry::CacheDetails::responseReadTimer is not updated here
+    // because idle connections do not have an associated transaction.
 
     Must(pinning.serverConnection == io.conn);
 

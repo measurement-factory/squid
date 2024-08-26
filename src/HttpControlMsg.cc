@@ -12,7 +12,7 @@
 #include "HttpControlMsg.h"
 
 void
-HttpControlMsgSink::doneWithControlMsg()
+HttpControlMsgSink::doneWithControlMsg(const bool)
 {
     if (cbControlMsgSent) {
         ScheduleCallHere(cbControlMsgSent);
@@ -28,7 +28,7 @@ HttpControlMsgSink::wroteControlMsg(const CommIoCbParams &params)
         return;
 
     if (params.flag == Comm::OK) {
-        doneWithControlMsg();
+        doneWithControlMsg(true);
         return;
     }
 
