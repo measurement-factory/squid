@@ -96,7 +96,7 @@ public:
 
     /* HttpControlMsgSink API */
     void sendControlMsg(HttpControlMsg) override;
-    void doneWithControlMsg(bool wasSent) override;
+    void doneWithControlMsg(bool) override;
 
     /// Traffic parsing
     bool clientParseRequests();

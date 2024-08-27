@@ -50,12 +50,14 @@ public:
     MessageTimer() = default;
     explicit MessageTimer(const Time &s) : first(s), last(s) {}
 
+    /// sets firstTime (if uninitialized yet) and lastTime (always) to the current time
     void update() {
         last = Clock::now();
         if (!first)
             first = last;
     }
 
+    /// removes firstTime and lastTime values
     void reset() { *this = MessageTimer(); }
 
     /// the time of the first IO for the message
