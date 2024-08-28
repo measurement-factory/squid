@@ -16,13 +16,14 @@ namespace Configuration {
 
 /// Processes Squid configuration up to (and excluding) parsing of individual
 /// directives (each described as a NAME:... blob in cf.data.pre). Handles
-/// includes, conditional configuration, and SMP macros. Provides configuration
-/// parser with a sequence of preprocessed directives, including various
-/// defaults.
+/// includes, conditional configuration, and SMP macros. Generates default
+/// directives.
 class Preprocessor
 {
 public:
-    // XXX: Document
+    /// Provides configuration parser with a sequence of preprocessed
+    /// directives, including various defaults.
+    /// \retval the total number of unrecognized directives found
     int process(const char * const filename);
 
 private:
