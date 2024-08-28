@@ -507,7 +507,7 @@ gen_default(const EntryList &head, std::ostream &fout)
                 fout << "#if " << entry.ifdef << std::endl;
 
             for (const auto &l : entry.defaults.preset)
-                fout << "    default_line(\"" << entry.name << " " << gen_quote_escape(l) << "\");" << std::endl;
+                fout << "    importDefaultDirective(\"" << entry.name << " " << gen_quote_escape(l) << "\");" << std::endl;
 
             if (entry.ifdef.size())
                 fout << "#endif" << std::endl;
@@ -547,7 +547,7 @@ gen_default_if_none(const EntryList &head, std::ostream &fout)
 
         fout << "    if (check_null_" << entry.type << "(" << entry.loc << ")) {" << std::endl;
         for (const auto &l : entry.defaults.if_none)
-            fout << "        default_line(\"" << entry.name << " " << gen_quote_escape(l) <<"\");" << std::endl;
+            fout << "        importDefaultDirective(\"" << entry.name << " " << gen_quote_escape(l) <<"\");" << std::endl;
         fout << "    }" << std::endl;
 
         if (entry.ifdef.size())
@@ -581,7 +581,7 @@ gen_default_postscriptum(const EntryList &head, std::ostream &fout)
             fout << "#if " << entry.ifdef << std::endl;
 
         for (const auto &l : entry.defaults.postscriptum)
-            fout << "    default_line(\"" << entry.name << " " << l <<"\");" << std::endl;
+            fout << "    importDefaultDirective(\"" << entry.name << " " << l <<"\");" << std::endl;
 
         if (entry.ifdef.size())
             fout << "#endif" << std::endl;
@@ -644,7 +644,7 @@ static void
 gen_parse(const EntryList &head, std::ostream &fout)
 {
     fout <<
-         "static int\n"
+         "int\n"
          "parse_line(const SBuf &buf)\n"
          "{\n"
          "\tconst auto directiveName = LegacyParser.openDirective(buf);\n";
