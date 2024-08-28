@@ -98,13 +98,9 @@ public:
     int array_flag = 0; ///< TYPE is a raw array[] declaration
 
     void genParse(std::ostream &fout) const;
-    void genFind(std::ostream &fout) const;
-    void genDefaultIfNone(std::ostream &fout) const;
 
 private:
     void genParseAlias(const std::string &, std::ostream &) const;
-    void genFindAlias(const std::string &, std::ostream &) const;
-    void genDefaultIfNoneAlias(const std::string &, std::ostream &) const;
 };
 
 typedef std::list<class Entry> EntryList;
@@ -125,7 +121,6 @@ static int gen_default(const EntryList &, std::ostream &);
 static void gen_parse(const EntryList &, std::ostream &);
 static void gen_dump(const EntryList &, std::ostream&);
 static void gen_free(const EntryList &, std::ostream&);
-static void gen_find(const EntryList &, std::ostream &);
 static void gen_conf(const EntryList &, std::ostream&, bool verbose_output);
 static void gen_default_if_none(const EntryList &, std::ostream&);
 static void gen_default_postscriptum(const EntryList &, std::ostream&);
@@ -441,8 +436,6 @@ main(int argc, char *argv[])
 
     gen_free(entries, fout);
 
-    gen_find(entries, fout);
-
     fout.close();
 
     /* Open output x.conf file */
@@ -718,54 +711,6 @@ gen_free(const EntryList &head, std::ostream &fout)
     }
 
     fout << "}" << std::endl << std::endl;
-}
-
-void
-Entry::genFindAlias(const std::string &knownName, std::ostream &fout) const
-{
-    // type="obsolete" entries are valid (for now) because most of them are
-    // currently ignored (and some of them are even rewritten) by the parser
-    // XXX: However, some of them lead to self_destruct() in the parser.
-
-    if (ifdef.size())
-        fout << "#if " << ifdef << "\n";
-
-    // TODO: Add SBuf::equal() to encapsulate this length check optimization.
-    fout << "    if (name.length() == " << knownName.length() << " && name.cmp(\"" << knownName << "\", " << knownName.length() << ") == 0)\n";
-    fout << "        return true;\n";
-
-    if (ifdef.size())
-        fout << "#endif\n";
-}
-
-void
-Entry::genFind(std::ostream &fout) const
-{
-    if (name.compare("comment") == 0)
-        return;
-
-    // Once for the current directive name
-    genFindAlias(name, fout);
-
-    // All accepted aliases
-    for (const auto &a : alias)
-        genFindAlias(a, fout);
-}
-
-static void
-gen_find(const EntryList &head, std::ostream &fout)
-{
-    fout <<
-         "bool\n"
-         "Configuration::Preprocessor::ValidDirectiveName(const SBuf &name)\n"
-         "{\n";
-
-    for (const auto &e : head)
-        e.genFind(fout);
-
-    fout << "    return false;\n"
-         "}\n\n";
-
 }
 
 static bool
