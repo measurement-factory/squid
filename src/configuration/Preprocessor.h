@@ -14,10 +14,11 @@
 
 namespace Configuration {
 
-/// Interprets Squid configuration up to (and excluding) parsing of individual
-/// directives. Provides configuration parser with a sequence of directives to
-/// parse, including various defaults. Facilitates partial reconfiguration.
-/// Preprocessor operations do not affect current Squid configuration.
+/// Processes Squid configuration up to (and excluding) parsing of individual
+/// directives (each described as a NAME:... blob in cf.data.pre). Handles
+/// includes, conditional configuration, and SMP macros. Provides configuration
+/// parser with a sequence of preprocessed directives, including various
+/// defaults.
 class Preprocessor
 {
 public:
