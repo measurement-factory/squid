@@ -30,6 +30,7 @@
 #include "CachePeers.h"
 #include "ConfigOption.h"
 #include "ConfigParser.h"
+#include "configuration/Preprocessor.h"
 #include "CpuAffinityMap.h"
 #include "debug/Messages.h"
 #include "DiskIO/DiskIOModule.h"
@@ -179,9 +180,6 @@ static void configDoConfigure(void);
 static void parse_refreshpattern(RefreshPattern **);
 static void parse_u_short(unsigned short * var);
 static void parse_string(char **);
-static void default_all(void);
-static void defaults_if_none(void);
-static void defaults_postscriptum(void);
 static int parse_line(const SBuf &);
 static void parse_obsolete(const char *);
 static void parseBytesLine(size_t * bptr, const char *units);
@@ -250,8 +248,6 @@ static void parse_UrlHelperTimeout(SquidConfig::UrlHelperTimeout *);
 static void dump_UrlHelperTimeout(StoreEntry *, const char *, SquidConfig::UrlHelperTimeout &);
 static void free_UrlHelperTimeout(SquidConfig::UrlHelperTimeout *);
 
-static int parseOneConfigFile(const char *file_name, unsigned int depth);
-
 static void parse_configuration_includes_quoted_values(bool *recognizeQuotedValues);
 static void dump_configuration_includes_quoted_values(StoreEntry *const entry, const char *const name, bool recognizeQuotedValues);
 static void free_configuration_includes_quoted_values(bool *recognizeQuotedValues);
@@ -312,12 +308,13 @@ skip_ws(const char* s)
     return s;
 }
 
+// Here for diff reduction. TODO: Move all to configuration/Preprocessor.cc.
 /// Parsers included configuration files identified by their filenames or glob
 /// patterns and included at the given nesting level (a.k.a. depth).
 /// For example, parses include files in `include /path/to/include/files/*.acl`.
 /// \returns the number of errors (that did not immediately terminate parsing)
-static int
-parseIncludedConfigFiles(const SBuf &paths, const int depth)
+int
+Configuration::Preprocessor::processIncludedFiles(const SBuf &paths, const size_t depth)
 {
     int error_count = 0;
     Parser::Tokenizer tk(paths);
@@ -332,12 +329,12 @@ parseIncludedConfigFiles(const SBuf &paths, const int depth)
         }
     }
     for (i = 0; i < (int)globbuf.gl_pathc; ++i) {
-        error_count += parseOneConfigFile(globbuf.gl_pathv[i], depth);
+        error_count += processFile(globbuf.gl_pathv[i], depth);
     }
     globfree(&globbuf);
 #else
     while (auto path = NextWordWhileRemovingDoubleQuotesAndBackslashesInsideThem(tk)) {
-        error_count += parseOneConfigFile(path->c_str(), depth);
+        error_count += processFile(path->c_str(), depth);
     }
 #endif /* HAVE_GLOB */
     return error_count;
@@ -527,8 +524,20 @@ IsIncludeLine(Parser::Tokenizer tk)
     return std::nullopt;
 }
 
-static int
-parseOneConfigFile(const char *file_name, unsigned int depth)
+// TODO: Diff reduction. Rename and move to configuration/Preprocessor.cc after
+// moving ProcessMacros() there.
+void
+Configuration::Preprocessor::default_line(const char *s)
+{
+    SBuf tmp_line(s);
+    ProcessMacros(tmp_line);
+    xstrncpy(config_input_line, tmp_line.c_str(), sizeof(config_input_line));
+    config_lineno++;
+    parse_line(tmp_line);
+}
+
+int
+Configuration::Preprocessor::processFile(const char * const file_name, const size_t depth)
 {
     FILE *fp = nullptr;
     const char *orig_cfg_filename = cfg_filename;
@@ -650,7 +659,7 @@ parseOneConfigFile(const char *file_name, unsigned int depth)
         } else if (if_states.empty() || if_states.back()) { // test last if-statement meaning if present
             /* Handle includes here */
             if (const auto files = IsIncludeLine(tk)) {
-                err_count += parseIncludedConfigFiles(*files, depth + 1);
+                err_count += processIncludedFiles(*files, depth + 1);
             } else {
                 try {
                     if (!parse_line(wholeLine)) {
@@ -694,13 +703,9 @@ Configuration::Parse()
     configFreeMemory();
 
     ACLMethodData::ThePurgeCount = 0;
-    default_all();
 
-    const auto unrecognizedDirectives = parseOneConfigFile(ConfigFile, 0);
-
-    defaults_if_none();
-
-    defaults_postscriptum();
+    Preprocessor pp;
+    const auto unrecognizedDirectives = pp.process(ConfigFile);
 
     /*
      * We must call configDoConfigure() before leave_suid() because

@@ -16,7 +16,7 @@ LOADABLE_MODULES_SOURCES = \
 	LoadableModules.cc \
 	LoadableModules.h
 
-SUBDIRS = mem time debug base anyp helper dns html ftp parser comm error eui acl format clients sbuf servers fs repl store DiskIO proxyp
+SUBDIRS = mem time debug base anyp helper dns html ftp parser configuration comm error eui acl format clients sbuf servers fs repl store DiskIO proxyp
 
 if ENABLE_AUTH
 SUBDIRS += auth
@@ -484,6 +484,7 @@ squid_LDADD = \
 	$(AUTH_LIBS) \
 	acl/libapi.la \
 	clients/libclients.la \
+	configuration/libconfiguration.la \
 	servers/libservers.la \
 	ftp/libftp.la \
 	helper/libhelper.la \
