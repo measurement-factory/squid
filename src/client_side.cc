@@ -594,19 +594,7 @@ ConnStateData::swanSong()
     flags.readMore = false;
     clientdbEstablished(clientConnection->remote, -1);  /* decrement */
 
-    const char *errDetail = stoppedReceiving();
-    auto errType = errDetail ? ERR_REQUEST_STOPPED_RECEIVING : ERR_NONE;
-    if (!errType) {
-        errDetail = stoppedSending();
-        errType = errDetail ? ERR_REQUEST_STOPPED_SENDING : ERR_NONE;
-    }
-    Error error(errType);
-    if (errDetail) {
-        const auto d = MakeNamedErrorDetail(errDetail);
-        error.details.push_back(d);
-    }
-
-    terminateAll(error, LogTagsErrors());
+    terminateAll(streamFailureReason_ ? ERR_STREAM_FAILURE : ERR_NONE, LogTagsErrors());
     checkLogging();
 
     // XXX: Closing pinned conn is too harsh: The Client may want to continue!
@@ -1277,8 +1265,7 @@ ConnStateData::parseHttpRequest(const Http1::RequestParserPointer &hp)
         // sync the buffers after parsing.
         inBuf = hp->remaining();
 
-        incompleteHttpRequest_ = hp->needsMoreData();
-        if (incompleteHttpRequest_) {
+        if (hp->needsMoreData()) {
             debugs(33, 5, "Incomplete request, waiting for end of request line");
             return nullptr;
         }
@@ -3954,7 +3941,7 @@ ConnStateData::terminateAll(const Error &rawError, const LogTagsErrors &lte)
     assert(pipeline.empty());
 
     bareError.update(error); // XXX: bareLogTagsErrors
-    if (incompleteRequest()) {
+    if (pendingRequestBytes()) {
         static const auto d = MakeNamedErrorDetail("PENDING_REQUEST");
         bareError.details.push_back(d);
     }
@@ -3971,7 +3958,7 @@ ConnStateData::checkLogging()
 
     // do not log connections that closed after a transaction (it is normal)
     // TODO: access_log needs ACLs to match received-no-bytes connections
-    if (pipeline.nrequests && !incompleteRequest())
+    if (pipeline.nrequests && !pendingRequestBytes())
         return;
 
     /* Create a temporary ClientHttpRequest object. Its destructor will log. */

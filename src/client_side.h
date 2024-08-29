@@ -375,6 +375,9 @@ public:
     /// they need from the ACLFilledChecklist::conn() without filling/copying.
     void fillConnectionLevelDetails(ACLFilledChecklist &) const;
 
+    /// mark an stream error
+    void onStreamFailure(const char *why) { streamFailureReason_ = why; }
+
     // Exposed to be accessible inside the ClientHttpRequest constructor.
     // TODO: Remove. Make sure there is always a suitable ALE instead.
     /// a problem that occurred without a request (e.g., while parsing headers)
@@ -424,6 +427,9 @@ protected:
     /// timeout to use when waiting for the next request
     virtual time_t idleTimeout() const = 0;
 
+    /// the current request needs more bytes to be parsed
+    virtual bool pendingRequestBytes() = 0;
+
     /// Perform client data lookups that depend on client src-IP.
     /// The PROXY protocol may require some data input first.
     void whenClientIpKnown();
@@ -433,12 +439,8 @@ protected:
     /// whether preservedClientData is valid and should be kept up to date
     bool preservingClientData_ = false;
 
-    /// whether there is no (yet) enough data to parse the request
-    bool incompleteRequest() const { return !inBuf.isEmpty() || incompleteHttpRequest_; }
-
-    // no such flag for FTP: the FTP parser is not incremental
-    // HTTP parser consumed some bytes of an incomplete HTTP request
-    bool incompleteHttpRequest_ = false;
+    /// such as STREAM_UNPLANNED_COMPLETE or STREAM_FAILED
+    const char *streamFailureReason_ = nullptr;
 
     bool tunnelOnError(const err_type);
 

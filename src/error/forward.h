@@ -81,8 +81,7 @@ typedef enum {
     ERR_REQUEST_START_TIMEOUT, // Aborts the connection instead of error page
     ERR_REQUEST_PARSE_TIMEOUT, // Aborts the connection instead of error page
     ERR_RELAY_REMOTE, // Sends server reply instead of error page
-    ERR_REQUEST_STOPPED_SENDING, // Prematurely stopped sending response to the client due to an error
-    ERR_REQUEST_STOPPED_RECEIVING, // Prematurely stopped receiving request from the client due to an error
+    ERR_STREAM_FAILURE, // No client to send the error page to
 
     /* Cache Manager GUI can install a manager index/home page */
     MGR_INDEX,
