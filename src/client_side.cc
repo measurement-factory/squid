@@ -3914,31 +3914,31 @@ ConnStateData::terminateAll(const Error &rawError, const LogTagsErrors &lte)
 
     debugs(33, 3, pipeline.count() << '/' << pipeline.nrequests << " after " << error);
 
-    if (pipeline.empty()) {
-        bareError.update(error); // XXX: bareLogTagsErrors
-    } else {
-        // We terminate the current CONNECT/PUT/etc. context below, logging any
-        // error details, but that context may leave unparsed bytes behind.
-        // Consume them to stop checkLogging() from logging them again later.
-        const auto intputToConsume =
+    // We terminate the current CONNECT/PUT/etc. context below, logging any
+    // error details, but that context may leave unparsed bytes behind.
+    // Consume them to stop checkLogging() from logging them again later.
+    const auto intputToConsume =
 #if USE_OPENSSL
-            parsingTlsHandshake ? "TLS handshake" : // more specific than CONNECT
+        parsingTlsHandshake ? "TLS handshake" : // more specific than CONNECT
 #endif
-            bodyPipe ? "HTTP request body" :
-            pipeline.back()->mayUseConnection() ? "HTTP CONNECT" :
-            nullptr;
+        bodyPipe ? "HTTP request body" :
+        (!pipeline.empty() && pipeline.back()->mayUseConnection()) ? "HTTP CONNECT" :
+        nullptr;
 
+    if (!pipeline.empty()) {
         while (const auto context = pipeline.front()) {
             context->noteIoError(error, lte);
             context->finished(); // cleanup and self-deregister
             assert(context != pipeline.front());
         }
-
-        if (intputToConsume && !inBuf.isEmpty()) {
-            debugs(83, 5, "forgetting client " << intputToConsume << " bytes: " << inBuf.length());
-            inBuf.clear();
-        }
     }
+
+    if (intputToConsume && !inBuf.isEmpty()) {
+        debugs(83, 5, "forgetting client " << intputToConsume << " bytes: " << inBuf.length());
+        inBuf.clear();
+    }
+
+    bareError.update(error); // XXX: bareLogTagsErrors
 
     clientConnection->close();
 }
