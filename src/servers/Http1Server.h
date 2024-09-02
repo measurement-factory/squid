@@ -39,7 +39,7 @@ protected:
     int pipelinePrefetchMax() const override;
     time_t idleTimeout() const override;
     void noteTakeServerConnectionControl(ServerConnectionContext) override;
-    bool pendingRequestBytes() override { return parser_->needsMoreData(); }
+    bool pendingRequestBytes() override { return (parser_ && parser_->needsMoreData()) || !inBuf.isEmpty(); }
 
     /* BodyPipe API */
     void noteMoreBodySpaceAvailable(BodyPipe::Pointer) override;
