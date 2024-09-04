@@ -30,7 +30,7 @@ jobs:
       - name: Install prerequisite packages
         run: |
           sudo apt-get --quiet=2 update
-          sudo apt-get --quiet=2 install libtool-bin
+          sudo apt-get --quiet=2 install libtool-bin valgrind
 
       - name: Setup a nodejs environment
         uses: actions/setup-node@v4

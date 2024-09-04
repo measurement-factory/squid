@@ -25,7 +25,8 @@ EXTRA_DIST = \
 	test-functionality.sh \
 	test-sources.sh \
 	test-squid-conf.sh \
-	testHeader.cc.in
+	testHeader.cc.in \
+	valgrind.supp
 
 ESI_ALL_TESTS = \
 	ESIExpressions
