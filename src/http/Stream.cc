@@ -538,6 +538,7 @@ Http::Stream::finished()
     /* we can't handle any more stream data - detach */
     clientStreamDetach(getTail(), http);
 
+    mayUseConnection_ = false; // may already be false
     assert(connRegistered_);
     connRegistered_ = false;
     conn->pipeline.popMe(Http::StreamPointer(this));
@@ -549,7 +550,6 @@ Http::Stream::initiateClose(const char *reason)
 {
     debugs(33, 4, clientConnection << " because " << reason);
     getConn()->stopSending(reason); // closes ASAP
-    getConn()->onStreamFailure(reason);
 }
 
 void

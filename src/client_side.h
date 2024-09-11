@@ -375,9 +375,6 @@ public:
     /// they need from the ACLFilledChecklist::conn() without filling/copying.
     void fillConnectionLevelDetails(ACLFilledChecklist &) const;
 
-    /// mark an stream error
-    void onStreamFailure(const char *why) { streamFailureReason_ = why; }
-
     // Exposed to be accessible inside the ClientHttpRequest constructor.
     // TODO: Remove. Make sure there is always a suitable ALE instead.
     /// a problem that occurred without a request (e.g., while parsing headers)
@@ -429,7 +426,10 @@ protected:
 
     /// There are some unparsed request bytes.
     /// The stream object either does not exist or already in the pipeline.
-    virtual bool pendingRequestBytes() = 0;
+    virtual bool pendingRequestBytes() const = 0;
+
+    /// Remove all buffered unparsed request bytes.
+    virtual void clearPendingRequestBytes() = 0;
 
     /// Perform client data lookups that depend on client src-IP.
     /// The PROXY protocol may require some data input first.
@@ -439,9 +439,6 @@ protected:
 
     /// whether preservedClientData is valid and should be kept up to date
     bool preservingClientData_ = false;
-
-    /// such as STREAM_UNPLANNED_COMPLETE or STREAM_FAILED
-    const char *streamFailureReason_ = nullptr;
 
     bool tunnelOnError(const err_type);
 
@@ -509,6 +506,8 @@ private:
     const char *stoppedSending_ = nullptr;
     /// the reason why we no longer read the request or nil
     const char *stoppedReceiving_ = nullptr;
+    /// whether quitAfterError() was called
+    bool quitAfterError_ = false;
     /// Connection annotations, clt_conn_tag and other tags are stored here.
     /// If set, are propagated to the current and all future master transactions
     /// on the connection.

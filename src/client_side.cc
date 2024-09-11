@@ -594,7 +594,7 @@ ConnStateData::swanSong()
     flags.readMore = false;
     clientdbEstablished(clientConnection->remote, -1);  /* decrement */
 
-    terminateAll(streamFailureReason_ ? ERR_STREAM_FAILURE : ERR_NONE, LogTagsErrors());
+    terminateAll(ERR_NONE, LogTagsErrors());
     checkLogging();
 
     // XXX: Closing pinned conn is too harsh: The Client may want to continue!
@@ -1435,6 +1435,7 @@ ConnStateData::quitAfterError(HttpRequest *request)
     if (request)
         request->flags.proxyKeepalive = false;
     flags.readMore = false;
+    quitAfterError_ = true;
     debugs(33,4, "Will close after error: " << clientConnection);
 }
 
@@ -1952,6 +1953,8 @@ ConnStateData::handleRequestBodyData()
 
     if (bodyParser) { // chunked encoding
         if (const err_type error = handleChunkedRequestBody()) {
+            auto context = pipeline.front();
+            quitAfterError(context->http->request);
             abortChunkedRequestBody(error);
             return false;
         }
@@ -1962,6 +1965,7 @@ ConnStateData::handleRequestBodyData()
             consumeInput(putSize);
 
         if (!bodyPipe->mayNeedMoreData()) {
+            pipeline.back()->mayUseConnection(false);
             // BodyPipe will clear us automagically when we produced everything
             bodyPipe = nullptr;
         }
@@ -3591,6 +3595,7 @@ ConnStateData::finishDechunkingRequest(bool withSuccess)
         debugs(33, 7, "dechunked tail: " << bodyPipe->status());
         BodyPipe::Pointer myPipe = bodyPipe;
         stopProducingFor(bodyPipe, withSuccess); // sets bodyPipe->bodySize()
+        pipeline.back()->mayUseConnection(false);
         Must(!bodyPipe); // we rely on it being nil after we are done with body
         if (withSuccess) {
             Must(myPipe->bodySizeKnown());
@@ -3905,6 +3910,7 @@ void
 ConnStateData::terminateAll(const Error &rawError, const LogTagsErrors &lte)
 {
     auto error = rawError; // (cheap) copy so that we can detail
+
     // We detail even ERR_NONE: There should be no transactions left, and
     // detailed ERR_NONE will be unused. Otherwise, this detail helps in triage.
     if (error.details.empty()) {
@@ -3914,36 +3920,34 @@ ConnStateData::terminateAll(const Error &rawError, const LogTagsErrors &lte)
 
     debugs(33, 3, pipeline.count() << '/' << pipeline.nrequests << " after " << error);
 
+    auto inputToConsume = quitAfterError_ ? "quit after error" : nullptr;
+
     if (!pipeline.empty()) {
         // We terminate the current CONNECT/PUT/etc. context below, logging any
         // error details, but that context may leave unparsed bytes behind.
         // Consume them to stop checkLogging() from logging them again later.
-        const auto intputToConsume =
-#if USE_OPENSSL
-            parsingTlsHandshake ? "TLS handshake" : // more specific than CONNECT
-#endif
-            bodyPipe ? "HTTP request body" :
-            pipeline.back()->mayUseConnection() ? "HTTP CONNECT" :
-            nullptr;
+        if (!inputToConsume)
+            inputToConsume = pipeline.back()->mayUseConnection() ? "still using connection" : nullptr;
 
         while (const auto context = pipeline.front()) {
             context->noteIoError(error, lte);
             context->finished(); // cleanup and self-deregister
             assert(context != pipeline.front());
         }
-
-        if (intputToConsume && !inBuf.isEmpty()) {
-            debugs(83, 5, "forgetting client " << intputToConsume << " bytes: " << inBuf.length());
-            inBuf.clear();
-        }
     }
 
     assert(pipeline.empty());
-
     bareError.update(error); // XXX: bareLogTagsErrors
+
     if (pendingRequestBytes()) {
-        static const auto d = MakeNamedErrorDetail("PENDING_REQUEST");
-        bareError.details.push_back(d);
+        if (inputToConsume) {
+           debugs(83, 5, "forgetting client " << inputToConsume << " bytes: " << inBuf.length());
+           clearPendingRequestBytes();
+        } else {
+            bareError.update(ERR_STREAM_FAILURE);
+            static const auto d = MakeNamedErrorDetail("PENDING_REQUEST");
+            bareError.details.push_back(d);
+        }
     }
 
     clientConnection->close();
