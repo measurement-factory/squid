@@ -1635,10 +1635,8 @@ clientProcessRequest(ConnStateData *conn, const Http1::RequestParserPointer &hp,
 
     clientSetKeepaliveFlag(http);
     // Let tunneling code be fully responsible for CONNECT requests
-    if (http->request->method == Http::METHOD_CONNECT) {
-        context->mayUseConnection(true);
+    if (http->request->method == Http::METHOD_CONNECT)
         conn->flags.readMore = false;
-    }
 
 #if USE_OPENSSL
     if (conn->switchedToHttps() && conn->serveDelayedError(context)) {
@@ -1650,7 +1648,7 @@ clientProcessRequest(ConnStateData *conn, const Http1::RequestParserPointer &hp,
     /* Do we expect a request-body? */
     const auto chunked = request->header.chunked();
     expectBody = chunked || request->content_length > 0;
-    if (!context->mayUseConnection() && expectBody) {
+    if (expectBody && (http->request->method != Http::METHOD_CONNECT)) {
         request->body_pipe = conn->expectRequestBody(
                                  chunked ? -1 : request->content_length);
 
@@ -1680,7 +1678,6 @@ clientProcessRequest(ConnStateData *conn, const Http1::RequestParserPointer &hp,
 
             if (!request->body_pipe->productionEnded()) {
                 debugs(33, 5, "need more request body");
-                context->mayUseConnection(true);
                 assert(conn->flags.readMore);
             }
         }
@@ -1705,6 +1702,21 @@ ConnStateData::add(const Http::StreamPointer &context)
         bareError.clear();
     }
     pipeline.add(context);
+    if (pipeline.count() == 1) {
+        context->mayUseConnection(true);
+        connLeftovers_ = false;
+    }
+}
+
+void
+ConnStateData::remove(const Http::StreamPointer &context)
+{
+    debugs(33, 3, context << " from " << pipeline.count() << '/' << pipeline.nrequests);
+    pipeline.popMe(context);
+    if (!pipeline.empty())
+        pipeline.front()->mayUseConnection(true);
+    else if (!inBuf.isEmpty())
+        connLeftovers_ = true;
 }
 
 int
@@ -1962,6 +1974,7 @@ ConnStateData::handleRequestBodyData()
             consumeInput(putSize);
 
         if (!bodyPipe->mayNeedMoreData()) {
+            pipeline.front()->mayUseConnection(false);
             // BodyPipe will clear us automagically when we produced everything
             bodyPipe = nullptr;
         }
@@ -3173,7 +3186,6 @@ ConnStateData::buildFakeRequest(SBuf &useHost, const AnyP::KnownPort usePort, co
                      clientSocketDetach, newClient, tempBuffer);
 
     stream->flags.parsed_ok = 1; // Do we need it?
-    stream->mayUseConnection(true);
     extendLifetime();
     stream->registerWithConn();
 
@@ -3594,9 +3606,11 @@ ConnStateData::finishDechunkingRequest(bool withSuccess)
         Must(!bodyPipe); // we rely on it being nil after we are done with body
         if (withSuccess) {
             Must(myPipe->bodySizeKnown());
-            Http::StreamPointer context = pipeline.front();
-            if (context != nullptr && context->http && context->http->request)
-                context->http->request->setContentLength(myPipe->bodySize());
+            if (auto context = pipeline.front()) {
+                context->mayUseConnection(false);
+                if (context->http && context->http->request)
+                    context->http->request->setContentLength(myPipe->bodySize());
+            }
         }
     }
 
@@ -3921,11 +3935,8 @@ ConnStateData::terminateAll(const Error &rawError, const LogTagsErrors &lte)
     // error details, but that context may leave unparsed bytes behind.
     // Consume them to stop checkLogging() from logging them again later.
     const auto intputToConsume =
-#if USE_OPENSSL
-        parsingTlsHandshake ? "TLS handshake" : // more specific than CONNECT
-#endif
-        bodyPipe ? "HTTP request body" :
-        (!pipeline.empty() && pipeline.back()->mayUseConnection()) ? "HTTP CONNECT" :
+        connLeftovers_ ? "extra connection bytes" :
+        (!pipeline.empty() && pipeline.back()->mayUseConnection()) ? "still using connection" :
         nullptr;
 
     if (!pipeline.empty()) {
