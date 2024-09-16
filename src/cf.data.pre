@@ -4343,6 +4343,45 @@ DOC_START
 				Generated FTP/Gopher listings are treated as
 				received bodies.
 
+		[http::]<sd An approximate number of all response-related bytes read
+				from cache_dir. This counter is incremented after Store
+				removes some cache_dir metadata from the serialized on-disk
+				response entry. Please see %<sm documentation below for more
+				information about this logformat code.
+
+		[http::]<sm The number of all response-related bytes read from Store
+				memory. This counter is incremented when reading hits from
+				local memory cache and when reading various responses from
+				local memory storage used for in-transit transactions (because
+				Squid Store does not fully distinguish these two sources of
+				in-memory response data yet). Those "various responses"
+				include hits, misses, responses to Squid-initiated HTTP
+				revalidation requests, generated FTP listings, errors, etc.
+
+				The text below is related to both %<sd and %<sm codes.
+
+				Pure disk cache hits have a positive %<sd value and zero %<sm
+				value, but that logic does not work in reverse: A transaction
+				that has a positive %<sd value and zero %<sm value may not be
+				a pure hit at all (assuming pure hits are required to have the
+				entire requested resource fresh/usable and present in the
+				cache at the request arrival time). These two counters are
+				useful for monitoring cache-related operations, but, in
+				isolation, they cannot detect disk or memory cache hits.
+
+				If a logged transaction went through a Squid-initiated
+				revalidation of a stale cached response, then %<sd counts the
+				bytes related to the stale response _and_ the bytes related to
+				the revalidation response. Same for %<sm. Similarly, a
+				transaction that read a response from Store but ended up
+				sending a generated error message (also piped through Store),
+				may report the sum of successful and error response bytes
+				because the transaction read all of those bytes from Store.
+
+				Response bytes counted by these two %codes have passed through
+				pre-cache RESPMOD adaptation (where enabled).
+
+
 	    TIMING
 
 		[http::]<pt	Peer response time in milliseconds. The timer starts

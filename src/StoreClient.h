@@ -9,6 +9,7 @@
 #ifndef SQUID_STORECLIENT_H
 #define SQUID_STORECLIENT_H
 
+#include "base/RefCount.h"
 #include "CollapsedStats.h"
 #include "dlink.h"
 #include "StoreIOBuffer.h"
@@ -18,6 +19,8 @@ typedef void STCB(void *, StoreIOBuffer);   /* store callback */
 
 class StoreEntry;
 class ACLFilledChecklist;
+class AccessLogEntry;
+typedef RefCount<AccessLogEntry> AccessLogEntryPointer;
 
 /// A StoreEntry::getPublic*() caller.
 class StoreClient
@@ -82,6 +85,7 @@ public:
 
     StoreEntry *entry;      /* ptr to the parent StoreEntry, argh! */
     StoreIOState::Pointer swapin_sio;
+    AccessLogEntryPointer ale;
 
     struct {
         bool disk_io_pending;
@@ -127,6 +131,7 @@ public:
 
 void storeClientCopy(store_client *, StoreEntry *, StoreIOBuffer, STCB *, void *);
 store_client* storeClientListAdd(StoreEntry * e, void *data);
+store_client* storeClientListAdd(StoreEntry * e, void *data, const AccessLogEntryPointer &ale);
 int storeClientCopyPending(store_client *, StoreEntry * e, void *data);
 int storeUnregister(store_client * sc, StoreEntry * e, void *data);
 int storePendingNClients(const StoreEntry * e);

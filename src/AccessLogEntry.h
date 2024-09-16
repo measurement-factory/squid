@@ -191,6 +191,9 @@ public:
         char *reply;
     } headers;
 
+    uint64_t replyBytesFromDisk = 0; ///< %<sd
+    uint64_t replyBytesFromMemory = 0; ///< %<sm
+
 #if USE_ADAPTATION
     /** \brief This subclass holds general adaptation log info.
      * \todo Inner class declarations should be moved outside.

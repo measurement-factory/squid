@@ -81,6 +81,8 @@ static TokenTableEntry TokenTable2C[] = {
     TokenTableEntry("<Hs", LFT_HTTP_RECEIVED_STATUS_CODE),
     /*TokenTableEntry( "Ht", LFT_HTTP_STATUS ), */
     TokenTableEntry("<bs", LFT_HTTP_BODY_BYTES_READ),
+    TokenTableEntry("<sd", LFT_HTTP_REPLY_BYTES_FROM_DISK),
+    TokenTableEntry("<sm", LFT_HTTP_REPLY_BYTES_FROM_MEMORY),
 
     TokenTableEntry("Ss", LFT_SQUID_STATUS),
     TokenTableEntry("Sh", LFT_SQUID_HIERARCHY),
