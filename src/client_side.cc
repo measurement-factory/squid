@@ -1648,41 +1648,39 @@ clientProcessRequest(ConnStateData *conn, const Http1::RequestParserPointer &hp,
     /* Do we expect a request-body? */
     const auto chunked = request->header.chunked();
     expectBody = chunked || request->content_length > 0;
-    if (http->request->method != Http::METHOD_CONNECT) {
-        if (!expectBody) {
-            conn->pipeline.front()->mayUseConnection(false);
-        } else {
-            request->body_pipe = conn->expectRequestBody(
-                                     chunked ? -1 : request->content_length);
+    if (http->request->method != Http::METHOD_CONNECT && !expectBody) // TODO: diff reducer: merge conditions
+        conn->pipeline.front()->mayUseConnection(false);
+    if (http->request->method != Http::METHOD_CONNECT && expectBody) {
+        request->body_pipe = conn->expectRequestBody(
+                                 chunked ? -1 : request->content_length);
 
-            /* Is it too large? */
-            if (!chunked && // if chunked, we will check as we accumulate
-                    clientIsRequestBodyTooLargeForPolicy(request->content_length)) {
-                clientStreamNode *node = context->getClientReplyContext();
-                clientReplyContext *repContext = dynamic_cast<clientReplyContext *>(node->data.getRaw());
-                assert (repContext);
-                conn->quitAfterError(request.getRaw());
-                repContext->setReplyToError(ERR_TOO_BIG,
-                                            Http::scContentTooLarge, nullptr,
-                                            conn, http->request, nullptr, nullptr);
-                assert(context->http->out.offset == 0);
-                context->pullData();
+        /* Is it too large? */
+        if (!chunked && // if chunked, we will check as we accumulate
+                clientIsRequestBodyTooLargeForPolicy(request->content_length)) {
+            clientStreamNode *node = context->getClientReplyContext();
+            clientReplyContext *repContext = dynamic_cast<clientReplyContext *>(node->data.getRaw());
+            assert (repContext);
+            conn->quitAfterError(request.getRaw());
+            repContext->setReplyToError(ERR_TOO_BIG,
+                                        Http::scContentTooLarge, nullptr,
+                                        conn, http->request, nullptr, nullptr);
+            assert(context->http->out.offset == 0);
+            context->pullData();
+            clientProcessRequestFinished(conn, request);
+            return;
+        }
+
+        if (!isFtp) {
+            // We may stop producing, comm_close, and/or call setReplyToError()
+            // below, so quit on errors to avoid http->doCallouts()
+            if (!conn->handleRequestBodyData()) {
                 clientProcessRequestFinished(conn, request);
                 return;
             }
 
-            if (!isFtp) {
-                // We may stop producing, comm_close, and/or call setReplyToError()
-                // below, so quit on errors to avoid http->doCallouts()
-                if (!conn->handleRequestBodyData()) {
-                    clientProcessRequestFinished(conn, request);
-                    return;
-                }
-
-                if (!request->body_pipe->productionEnded()) {
-                    debugs(33, 5, "need more request body");
-                    assert(conn->flags.readMore);
-                }
+            if (!request->body_pipe->productionEnded()) {
+                debugs(33, 5, "need more request body");
+                assert(conn->flags.readMore);
             }
         }
     }
