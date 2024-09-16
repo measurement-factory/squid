@@ -537,10 +537,12 @@ ClientRequestContext::hostHeaderVerifyFailed(const char *A, const char *B)
 void
 ClientRequestContext::hostHeaderVerify()
 {
-    if (http->getConn()->failedHostHeaderVerificication()) {
-        http->request->markAsFailedHostHeaderVerificication("earlier CONNECT on this TCP connection failed Host verification");
-        http->doCallouts();
-        return;
+    if (const auto clientMgr = http->getConn()) {
+        if (clientMgr->failedHostHeaderVerificication()) {
+            http->request->markAsFailedHostHeaderVerificication("earlier CONNECT on this TCP connection failed Host verification");
+            http->doCallouts();
+            return;
+        }
     }
 
     // Require a Host: header.
