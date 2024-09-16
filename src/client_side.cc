@@ -3953,9 +3953,15 @@ ConnStateData::terminateAll(const Error &rawError, const LogTagsErrors &lte)
     // may be set during the pipeline cleanup above
     connLeftovers_ = false;
 
-    if (intputToConsume && !inBuf.isEmpty()) {
-        debugs(83, 5, "forgetting client " << intputToConsume << " bytes: " << inBuf.length());
-        inBuf.clear();
+    if (pendingRequestBytes()) {
+        if (intputToConsume) {
+            debugs(83, 5, "forgetting client " << intputToConsume << " bytes: " << inBuf.length());
+            clearPendingRequestBytes();
+        } else {
+            bareError.update(ERR_STREAM_FAILURE);
+            static const auto d = MakeNamedErrorDetail("PENDING_REQUEST");
+            bareError.details.push_back(d);
+        }
     }
 
     clientConnection->close();
@@ -3970,7 +3976,7 @@ ConnStateData::checkLogging()
 
     // do not log connections that closed after a transaction (it is normal)
     // TODO: access_log needs ACLs to match received-no-bytes connections
-    if (pipeline.nrequests && inBuf.isEmpty())
+    if (pipeline.nrequests && !pendingRequestBytes())
         return;
 
     /* Create a temporary ClientHttpRequest object. Its destructor will log. */
