@@ -3948,9 +3948,15 @@ ConnStateData::terminateAll(const Error &rawError, const LogTagsErrors &lte)
     // may be set during the pipeline cleanup above
     connLeftovers_ = false;
 
-    if (intputToConsume && !inBuf.isEmpty()) {
-        debugs(83, 5, "forgetting client " << intputToConsume << " bytes: " << inBuf.length());
-        inBuf.clear();
+    if (!inBuf.isEmpty()) {
+        if (intputToConsume) {
+            debugs(83, 5, "forgetting client " << intputToConsume << " bytes: " << inBuf.length());
+            inBuf.clear();
+        } else {
+            bareError.update(ERR_STREAM_FAILURE);
+            static const auto d = MakeNamedErrorDetail("PENDING_REQUEST");
+            bareError.details.push_back(d);
+        }
     }
 
     clientConnection->close();
