@@ -1704,10 +1704,7 @@ ConnStateData::add(const Http::StreamPointer &context)
         bareError.clear();
     }
     pipeline.add(context);
-    if (pipeline.count() == 1) {
-        context->mayUseConnection(true);
-        connLeftovers_ = false;
-    }
+    connLeftovers_ = false;
 }
 
 void
@@ -1715,9 +1712,7 @@ ConnStateData::remove(const Http::StreamPointer &context)
 {
     debugs(33, 3, context << " from " << pipeline.count() << '/' << pipeline.nrequests);
     pipeline.popMe(context);
-    if (!pipeline.empty())
-        pipeline.front()->mayUseConnection(true);
-    else if (!inBuf.isEmpty())
+    if (pipeline.empty() && !inBuf.isEmpty())
         connLeftovers_ = true;
 }
 

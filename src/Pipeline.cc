@@ -19,6 +19,8 @@
 void
 Pipeline::add(const Http::StreamPointer &c)
 {
+    Assure(!mayUseConnection());
+    c->mayUseConnection(true);
     requests.push_back(c);
     ++nrequests;
     debugs(33, 3, "Pipeline " << (void*)this << " add request " << nrequests << ' ' << c);
@@ -46,6 +48,16 @@ Pipeline::back() const
 
     debugs(33, 3, "Pipeline " << (void*)this << " back " << requests.back());
     return requests.back();
+}
+
+bool
+Pipeline::mayUseConnection() const
+{
+    for (const auto &t: requests) {
+        if (t->mayUseConnection())
+            return true;
+    }
+    return false;
 }
 
 void

@@ -63,6 +63,9 @@ public:
     uint32_t nrequests;
 
 private:
+    /// whether some of the queued transactions use the connection
+    bool mayUseConnection() const;
+
     /// requests parsed from the connection but not yet completed.
     std::list<Http::StreamPointer> requests;
 };
