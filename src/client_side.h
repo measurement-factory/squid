@@ -424,6 +424,13 @@ protected:
     /// timeout to use when waiting for the next request
     virtual time_t idleTimeout() const = 0;
 
+    /// There are some unparsed request bytes.
+    /// The stream object either does not exist or already in the pipeline.
+    virtual bool pendingRequestBytes() const = 0;
+
+    /// Remove all buffered unparsed request bytes.
+    virtual void clearPendingRequestBytes() = 0;
+
     /// Perform client data lookups that depend on client src-IP.
     /// The PROXY protocol may require some data input first.
     void whenClientIpKnown();
