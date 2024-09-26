@@ -424,12 +424,9 @@ protected:
     /// timeout to use when waiting for the next request
     virtual time_t idleTimeout() const = 0;
 
-    /// There are some unparsed request bytes.
-    /// The stream object either does not exist or already in the pipeline.
-    virtual bool pendingRequestBytes() const = 0;
-
-    /// Remove all buffered unparsed request bytes.
-    virtual void clearPendingRequestBytes() = 0;
+    /// the number of request bytes (received bytes) that we possess but
+    /// have not yet given them to the corresponding master transaction
+    virtual size_t pendingRequestBytes() const = 0;
 
     /// Perform client data lookups that depend on client src-IP.
     /// The PROXY protocol may require some data input first.
@@ -446,8 +443,6 @@ private:
     /* ::Server API */
     void terminateAll(const Error &, const LogTagsErrors &) override;
     bool shouldCloseOnEof() const override;
-
-    void checkLogging();
 
     void parseRequests();
     void clientAfterReadingRequests();
@@ -510,6 +505,8 @@ private:
     /// If set, are propagated to the current and all future master transactions
     /// on the connection.
     NotePairs::Pointer theNotes;
+    /// whether we may need logging bytes of an unparsed request
+    bool mayLogPendingRequest_ = true;
 };
 
 const char *findTrailingHTTPVersion(const char *uriAndHTTPVersion, const char *end = nullptr);

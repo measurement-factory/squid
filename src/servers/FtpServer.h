@@ -102,8 +102,7 @@ protected:
     int pipelinePrefetchMax() const override;
     bool writeControlMsgAndCall(HttpReply *rep, AsyncCall::Pointer &call) override;
     time_t idleTimeout() const override;
-    bool pendingRequestBytes() const override { return false; } // all FTP request bytes are parsed at once
-    void clearPendingRequestBytes() override { }
+    size_t pendingRequestBytes() const override { return 0; } // all FTP request bytes are parsed at once
 
     /* BodyPipe API */
     void noteMoreBodySpaceAvailable(BodyPipe::Pointer) override;

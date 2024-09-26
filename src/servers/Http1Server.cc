@@ -387,6 +387,17 @@ Http::One::Server::noteTakeServerConnectionControl(ServerConnectionContext serve
                    server.connection(), server.preReadServerBytes);
 }
 
+size_t
+Http::One::Server::pendingRequestBytes() const
+{
+    size_t bytes = 0;
+    if (parser_ && parser_->needsMoreData())
+        bytes += parser_->messageHeaderSize();
+    if (!inBuf.isEmpty())
+        bytes += inBuf.length();
+    return bytes;
+}
+
 ConnStateData *
 Http::NewServer(const MasterXaction::Pointer &xact)
 {
