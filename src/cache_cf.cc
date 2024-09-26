@@ -100,6 +100,9 @@
 #if HAVE_GRP_H
 #include <grp.h>
 #endif
+#if HAVE_SYS_SOCKET_H
+#include <sys/socket.h>
+#endif
 #if HAVE_SYS_STAT_H
 #include <sys/stat.h>
 #endif
@@ -3674,6 +3677,16 @@ parse_port_option(AnyP::PortCfgPointer &s, char *token)
         s->secure.parse(token+4);
     } else if (strcmp(token, "ftp-track-dirs") == 0) {
         s->ftp_track_dirs = true;
+    } else if (strcmp(token, "worker-queues") == 0) {
+        #if !defined(SO_REUSEADDR)
+            #error missing system #include that #defines SO_* constants
+        #endif
+        #if !defined(SO_REUSEPORT)
+            debugs(3, DBG_CRITICAL, "FATAL: " << cfg_directive << ' ' << token <<
+                   " option requires building Squid where SO_REUSEPORT is supported by the TCP stack");
+            self_destruct();
+        #endif
+        s->workerQueues = true;
     } else {
         debugs(3, DBG_CRITICAL, "FATAL: Unknown " << cfg_directive << " option '" << token << "'.");
         self_destruct();

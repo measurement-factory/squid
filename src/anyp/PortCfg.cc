@@ -39,6 +39,7 @@ AnyP::PortCfg::PortCfg() :
     ftp_track_dirs(false),
     vport(0),
     disable_pmtu_discovery(0),
+    workerQueues(false),
     listenConn()
 #if USE_OPENSSL
     ,
@@ -89,6 +90,7 @@ AnyP::PortCfg::clone() const
     b->vhost = vhost;
     b->vport = vport;
     b->connection_auth_disabled = connection_auth_disabled;
+    b->workerQueues = workerQueues;
     b->ftp_track_dirs = ftp_track_dirs;
     b->disable_pmtu_discovery = disable_pmtu_discovery;
     b->tcp_keepalive = tcp_keepalive;
