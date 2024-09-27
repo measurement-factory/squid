@@ -82,6 +82,9 @@ public:
     /// the request. To set the virgin request, use initRequest().
     void resetRequest(HttpRequest *);
 
+    /// fixes a subset of request framing problems if allowed to do so
+    void repairFraming();
+
     /// update the code in the transaction processing tags
     void updateLoggingTags(const LogTags_ot code) { al->cache.code.update(code); }
 

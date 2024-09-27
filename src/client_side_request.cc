@@ -163,6 +163,50 @@ ClientHttpRequest::onlyIfCached()const
            request->cache_control->hasOnlyIfCached();
 }
 
+void
+ClientHttpRequest::repairFraming()
+{
+#if !USE_HTTP_VIOLATIONS
+    return; // no HTTP-violating repairs in this build
+#endif
+
+    if (!Config.accessList.repairHttpFraming)
+        return; // no repairs by default
+
+    ACLFilledChecklist checklist(Config.accessList.repairHttpFraming, nullptr);
+    clientAclChecklistFill(checklist, this);
+    if (!checklist.fastCheck().allowed())
+        return; // repairs prohibited by the admin
+
+    debugs(11, 3, "problems:" <<
+           (request->header.hasMalformedField() ? " field" : "") <<
+           (request->header.unsupportedTe() ? " te" : "") <<
+           (request->header.conflictingContentLength() ? " clen" : ""));
+
+    if (request->header.hasMalformedField())
+        request->header.ignoreMalformedField();
+
+    if (request->header.unsupportedTe()) {
+        String rawTe;
+        const auto gotTe = request->header.getByIdIfPresent(Http::HdrType::TRANSFER_ENCODING, &rawTe);
+        assert(gotTe); // HttpHeader preserves malformed Transfer-Encoding value
+        const auto possiblyChunked = rawTe.findCaseXXX("chunk") != String::npos;
+        request->header.forceFraming(possiblyChunked);
+        // "removed" Transfer-Encoding (and any Content-Length) problems
+    } else if (request->header.conflictingContentLength()) {
+        // we should only be called when the caller knows that repairs are needed
+        request->header.forceFraming(false);
+        // "removed" Content-Length problems
+    }
+
+    // reduce cache poisoning risks posed by this malformed request
+    auto &requestFlags = request->flags;
+    requestFlags.noCache = true;
+    requestFlags.cachable.veto();
+    requestFlags.proxyKeepalive = false;
+    requestFlags.mustKeepalive = false; // XXX: may be overwritten by auth code
+}
+
 /**
  * This function is designed to serve a fairly specific purpose.
  * Occasionally our vBNS-connected caches can talk to each other, but not
