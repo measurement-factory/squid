@@ -7,7 +7,6 @@
  */
 
 #include "squid.h"
-#include "../helper.h"
 #include "anyp/PortCfg.h"
 #include "base/AsyncCallbacks.h"
 #include "cache_cf.h"
@@ -52,9 +51,6 @@ public:
     GeneratorRequestors requestors;
 };
 
-/// Ssl::Helper query:GeneratorRequest map
-typedef std::unordered_map<SBuf, GeneratorRequest*> GeneratorRequests;
-
 static void HandleGeneratorReply(void *data, const ::Helper::Reply &reply);
 
 } // namespace Ssl
@@ -68,10 +64,7 @@ operator <<(std::ostream &os, const Ssl::GeneratorRequest &gr)
     return os << "crtGenRq" << gr.query.id.value << "/" << gr.requestors.size();
 }
 
-/// pending Ssl::Helper requests (to all certificate generator helpers combined)
-static Ssl::GeneratorRequests TheGeneratorRequests;
-
-Helper::Client::Pointer Ssl::Helper::ssl_crtd;
+Ssl::Helper::Pointer Ssl::Helper::ssl_crtd;
 
 void Ssl::Helper::Init()
 {
@@ -85,7 +78,7 @@ void Ssl::Helper::Init()
     if (!found)
         return;
 
-    ssl_crtd = ::Helper::Client::Make("sslcrtd_program");
+    ssl_crtd = Make("sslcrtd_program");
     ssl_crtd->childs.updateLimits(Ssl::TheConfig.ssl_crtdChildren);
     ssl_crtd->ipc_type = IPC_STREAM;
     // The crtd messages may contain the eol ('\n') character. We are
@@ -122,11 +115,18 @@ Ssl::Helper::Reconfigure()
 
 void Ssl::Helper::Submit(CrtdMessage const & message, HLPCB * callback, void * data)
 {
+    if (!ssl_crtd) {
+        // A before-reconfiguration transaction may be using a PortCfg that
+        // requires certificate generation when reconfiguration makes ssl_crtd
+        // nil. TODO: Preserve the helper for such transactions.
+        throw TextException("Squid BUG: A transaction-required ssl_crtd helper disappeared during reconfiguration", Here());
+    }
+
     SBuf rawMessage(message.compose().c_str()); // XXX: helpers cannot use SBuf
     rawMessage.append("\n", 1);
 
-    const auto pending = TheGeneratorRequests.find(rawMessage);
-    if (pending != TheGeneratorRequests.end()) {
+    const auto pending = ssl_crtd->generatorRequests.find(rawMessage);
+    if (pending != ssl_crtd->generatorRequests.end()) {
         pending->second->emplace(callback, data);
         debugs(83, 5, "collapsed request from " << data << " onto " << *pending->second);
         return;
@@ -135,16 +135,43 @@ void Ssl::Helper::Submit(CrtdMessage const & message, HLPCB * callback, void * d
     GeneratorRequest *request = new GeneratorRequest;
     request->query = rawMessage;
     request->emplace(callback, data);
-    TheGeneratorRequests.emplace(request->query, request);
     debugs(83, 5, "request from " << data << " as " << *request);
-    // ssl_crtd becomes nil if Squid is reconfigured without SslBump or
-    // certificate generation disabled in the new configuration
-    if (ssl_crtd && ssl_crtd->trySubmit(request->query.c_str(), HandleGeneratorReply, request))
-        return;
+
+    ssl_crtd->generatorRequests.emplace(request->query, request);
+
+    try {
+        if (ssl_crtd->trySubmit(request->query.c_str(), HandleGeneratorReply, request))
+            return;
+    } catch (...) {
+        if (ssl_crtd->generatorRequests.erase(rawMessage)) // else request has been deleted already by callBack()
+            delete request;
+        throw;
+    }
+
+    if (!ssl_crtd->generatorRequests.erase(rawMessage))
+        return; // request has been deleted already by callBack()
 
     ::Helper::Reply failReply(::Helper::BrokenHelper);
     failReply.notes.add("message", "error 45 Temporary network problem, please retry later");
     HandleGeneratorReply(request, failReply);
+}
+
+void
+Ssl::Helper::callBack(::Helper::Xaction &r)
+{
+    const auto callback = r.request.callback;
+    Assure(callback);
+    r.request.callback = nullptr;
+
+    void *cbdata = nullptr;
+    // locked by ::Helper::Xaction::request constructor
+    const auto valid = cbdataReferenceValidDone(r.request.data, &cbdata);
+    assert(valid);
+    const auto request = static_cast<const Ssl::GeneratorRequest*>(cbdata);
+    assert(request);
+    const auto erased = generatorRequests.erase(request->query);
+    assert(erased);
+    HandleGeneratorReply(cbdata, r.reply);
 }
 
 /// receives helper response
@@ -153,9 +180,6 @@ Ssl::HandleGeneratorReply(void *data, const ::Helper::Reply &reply)
 {
     const std::unique_ptr<Ssl::GeneratorRequest> request(static_cast<Ssl::GeneratorRequest*>(data));
     assert(request);
-    const auto erased = TheGeneratorRequests.erase(request->query);
-    assert(erased);
-
     for (auto &requestor: request->requestors) {
         if (void *cbdata = requestor.data.validDone()) {
             debugs(83, 5, "to " << cbdata << " in " << *request);
