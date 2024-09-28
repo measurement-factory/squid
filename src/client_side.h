@@ -314,9 +314,6 @@ public:
     /// registers a newly created stream
     void add(const Http::StreamPointer &context);
 
-    /// unregisters the front stream from the pipeline
-    void remove(const Http::StreamPointer &context);
-
     /// handle a control message received by context from a peer and call back
     virtual bool writeControlMsgAndCall(HttpReply *rep, AsyncCall::Pointer &call) = 0;
 

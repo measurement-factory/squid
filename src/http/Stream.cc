@@ -540,7 +540,7 @@ Http::Stream::finished()
 
     assert(connRegistered_);
     connRegistered_ = false;
-    conn->remove(Http::StreamPointer(this));
+    conn->pipeline.popMe(Http::StreamPointer(this));
 }
 
 /// called when we encounter a response-related error

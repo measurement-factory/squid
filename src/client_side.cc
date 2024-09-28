@@ -1703,17 +1703,6 @@ ConnStateData::add(const Http::StreamPointer &context)
         context->http->updateError(bareError);
         bareError.clear();
     }
-    pipeline.add(context);
-    connLeftovers_ = false;
-}
-
-void
-ConnStateData::remove(const Http::StreamPointer &context)
-{
-    debugs(33, 3, context << " from " << pipeline.count() << '/' << pipeline.nrequests);
-    pipeline.popMe(context);
-    if (pipeline.empty() && !inBuf.isEmpty())
-        connLeftovers_ = true;
 }
 
 int
@@ -3932,8 +3921,8 @@ ConnStateData::terminateAll(const Error &rawError, const LogTagsErrors &lte)
     // error details, but that context may leave unparsed bytes behind.
     // Consume them to stop checkLogging() from logging them again later.
     const auto intputToConsume =
-        connLeftovers_ ? "extra connection bytes" :
-        (!pipeline.empty() && pipeline.back()->mayUseConnection()) ? "still using connection" :
+        (pipeline.poppedBusy && !inBuf.isEmpty()) ? "extra connection bytes" :
+        (!pipeline.empty() && pipeline.mayUseConnection()) ? "still using connection" :
         nullptr;
 
     if (!pipeline.empty()) {
@@ -3943,10 +3932,6 @@ ConnStateData::terminateAll(const Error &rawError, const LogTagsErrors &lte)
             assert(context != pipeline.front());
         }
     }
-
-    // use only once to calculate intputToConsume
-    // may be set during the pipeline cleanup above
-    connLeftovers_ = false;
 
     if (intputToConsume && !inBuf.isEmpty()) {
         debugs(83, 5, "forgetting client " << intputToConsume << " bytes: " << inBuf.length());
