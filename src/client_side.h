@@ -433,9 +433,6 @@ protected:
     /// whether preservedClientData is valid and should be kept up to date
     bool preservingClientData_ = false;
 
-    /// whether there are some input data but no associated request
-    bool connLeftovers_ = false;
-
     bool tunnelOnError(const err_type);
 
 private:
