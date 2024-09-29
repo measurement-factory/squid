@@ -1648,8 +1648,8 @@ clientProcessRequest(ConnStateData *conn, const Http1::RequestParserPointer &hp,
     /* Do we expect a request-body? */
     const auto chunked = request->header.chunked();
     expectBody = chunked || request->content_length > 0;
-    if (http->request->method != Http::METHOD_CONNECT && !expectBody) // TODO: diff reducer: merge conditions
-        conn->pipeline.front()->mayUseConnection(false);
+    if (http->request->method != Http::METHOD_CONNECT && !expectBody) // TODO: diff reducer
+        context->mayUseConnection(false);
     if (http->request->method != Http::METHOD_CONNECT && expectBody) {
         request->body_pipe = conn->expectRequestBody(
                                  chunked ? -1 : request->content_length);
@@ -1703,6 +1703,7 @@ ConnStateData::add(const Http::StreamPointer &context)
         context->http->updateError(bareError);
         bareError.clear();
     }
+    pipeline.add(context);
 }
 
 int
@@ -1960,7 +1961,8 @@ ConnStateData::handleRequestBodyData()
             consumeInput(putSize);
 
         if (!bodyPipe->mayNeedMoreData()) {
-            pipeline.front()->mayUseConnection(false);
+            if (auto context = pipeline.front())
+                context->mayUseConnection(false);
             // BodyPipe will clear us automagically when we produced everything
             bodyPipe = nullptr;
         }
