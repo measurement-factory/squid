@@ -1010,7 +1010,7 @@ Ftp::Gateway::processReplyBody()
 
     if (theSize >= 0 && data.payloadSeen >= theSize) {
         markParsedVirginReplyAsWhole("whole virgin body");
-        completeForwarding();
+        serverDataComplete();
     }
 
     maybeReadVirginBody();
@@ -2246,6 +2246,7 @@ ftpReadTransferDone(Ftp::Gateway * ftpState)
             /* QUIT operation handles sending the reply to client */
         }
         ftpState->markParsedVirginReplyAsWhole("ftpReadTransferDone code 226 or 250");
+        ftpState->serverDataComplete();
         ftpSendQuit(ftpState);
     } else {            /* != 226 */
         debugs(9, DBG_IMPORTANT, "Got code " << code << " after reading data");
@@ -2279,7 +2280,6 @@ ftpWriteTransferDone(Ftp::Gateway * ftpState)
     ftpState->entry->timestampsSet();   /* XXX Is this needed? */
     ftpState->markParsedVirginReplyAsWhole("ftpWriteTransferDone code 226 or 250");
     ftpSendReply(ftpState);
-    ftpState->completeForwarding();
 }
 
 static void
@@ -2485,6 +2485,8 @@ ftpSendReply(Ftp::Gateway * ftpState)
     err.detailError(new Ftp::ErrorDetail(code));
 
     ftpState->entry->replaceHttpReply(err.BuildHttpReply());
+
+    ftpState->serverDataComplete();
 
     ftpSendQuit(ftpState);
 }

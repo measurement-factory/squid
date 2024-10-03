@@ -186,6 +186,12 @@ Client::serverComplete()
         assert(doneWithServer());
     }
 
+    serverDataComplete();
+}
+
+void
+Client::serverDataComplete()
+{
     completed = true;
 
     if (requestBodySource != nullptr)
