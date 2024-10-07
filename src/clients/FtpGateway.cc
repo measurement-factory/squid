@@ -1008,6 +1008,11 @@ Ftp::Gateway::processReplyBody()
 
     entry->flush();
 
+    if (theSize >= 0 && data.payloadSeen >= theSize) {
+        markParsedVirginReplyAsWhole("whole virgin body");
+        serverDataComplete();
+    }
+
     maybeReadVirginBody();
 }
 
@@ -2241,6 +2246,7 @@ ftpReadTransferDone(Ftp::Gateway * ftpState)
             /* QUIT operation handles sending the reply to client */
         }
         ftpState->markParsedVirginReplyAsWhole("ftpReadTransferDone code 226 or 250");
+        ftpState->serverDataComplete();
         ftpSendQuit(ftpState);
     } else {            /* != 226 */
         debugs(9, DBG_IMPORTANT, "Got code " << code << " after reading data");
@@ -2480,6 +2486,8 @@ ftpSendReply(Ftp::Gateway * ftpState)
 
     ftpState->entry->replaceHttpReply(err.BuildHttpReply());
 
+    ftpState->serverDataComplete();
+
     ftpSendQuit(ftpState);
 }
 
@@ -2639,7 +2647,7 @@ Ftp::Gateway::completeForwarding()
 {
     if (fwd == nullptr || flags.completed_forwarding) {
         debugs(9, 3, "avoid double-complete on FD " <<
-               (ctrl.conn ? ctrl.conn->fd : -1) << ", Data FD " << data.conn->fd <<
+               (ctrl.conn ? ctrl.conn->fd : -1) << ", Data FD " << (data.conn ? data.conn->fd : -1) <<
                ", this " << this << ", fwd " << fwd);
         return;
     }
