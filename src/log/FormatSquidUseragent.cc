@@ -28,9 +28,11 @@ Log::Format::SquidUserAgent(const AccessLogEntry::Pointer &al, Logfile * logfile
     char clientip[MAX_IPSTRLEN];
     al->getLogClientIp(clientip, MAX_IPSTRLEN);
 
+    const auto secondsSinceEpoch = std::chrono::duration_cast<std::chrono::seconds>(al->formattingTime.time_since_epoch()).count();
+
     logfilePrintf(logfile, "%s [%s] \"%s\"\n",
                   clientip,
-                  Time::FormatHttpd(squid_curtime),
+                  Time::FormatHttpd(secondsSinceEpoch),
                   agent);
 }
 

@@ -29,9 +29,14 @@ Log::Format::SquidReferer(const AccessLogEntry::Pointer &al, Logfile *logfile)
 
     const SBuf url = !al->url.isEmpty() ? al->url : ::Format::Dash;
 
+    using namespace std::chrono_literals;
+    const auto seconds = std::chrono::duration_cast<std::chrono::seconds>(al->formattingTime.time_since_epoch()).count();
+    const auto totalMs = std::chrono::duration_cast<std::chrono::milliseconds>(al->formattingTime.time_since_epoch());
+    const auto ms = (totalMs % std::chrono::milliseconds(1s)).count();
+
     logfilePrintf(logfile, "%9ld.%03d %s %s " SQUIDSBUFPH "\n",
-                  (long int) current_time.tv_sec,
-                  (int) current_time.tv_usec / 1000,
+                  seconds,
+                  static_cast<int>(ms),
                   clientip,
                   referer,
                   SQUIDSBUFPRINT(url));
