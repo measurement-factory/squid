@@ -73,9 +73,27 @@ static void fvdbRegisterWithCacheManager();
 
 int LogfileStatus = LOG_DISABLE;
 
+// TODO: resolve duplication with Format.cc
+static void
+TimePointToTimeval(const MessageTimer::Time &time, timeval &outtv) {
+    using namespace std::chrono_literals;
+    const auto duration = time.time_since_epoch();
+    outtv.tv_sec = std::chrono::duration_cast<std::chrono::seconds>(duration).count();
+    const auto totalUsec = std::chrono::duration_cast<std::chrono::microseconds>(duration);
+    outtv.tv_usec = (totalUsec % std::chrono::microseconds(1s)).count();
+}
+
 void
 accessLogLogTo(CustomLog *log, const AccessLogEntryPointer &al, ACLChecklist *checklist)
 {
+    al->formattingTime = MessageTimer::Clock::now();
+    al->stopwatchFormattingTime = Stopwatch::Clock::now();
+
+    if (al->cache.start_time.tv_sec) {
+        struct timeval currentTime;
+        TimePointToTimeval(al->formattingTime, currentTime);
+        tvSub(al->cache.trTime, al->cache.start_time, currentTime);
+    }
 
     if (al->url.isEmpty())
         al->url = Format::Dash;

@@ -246,6 +246,14 @@ public:
     /// see ConnStateData::proxyProtocolHeader_
     ProxyProtocol::HeaderPointer proxyProtocolHeader;
 
+    /// the time of the latest accessLogLogTo() call
+    /// use this value as 'current time' while calculating relevant logformat codes
+    MessageTimer::Time formattingTime;
+
+    /// the time of the latest accessLogLogTo() call
+    /// pass this value to Stopwatch::totalAsOf() while calculating relevant logformat codes
+    Stopwatch::Clock::time_point stopwatchFormattingTime;
+
 #if ICAP_CLIENT
     /** \brief This subclass holds log info for ICAP part of request
      *  TODO: Inner class declarations should be moved outside

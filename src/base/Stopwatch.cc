@@ -19,11 +19,11 @@ Stopwatch::Stopwatch():
 }
 
 Stopwatch::Clock::duration
-Stopwatch::total() const
+Stopwatch::totalAsOf(const Clock::time_point time) const
 {
     auto result = subtotal_;
     if (running())
-        result += Clock::now() - runStart_;
+        result += time - runStart_;
     return result;
 }
 
