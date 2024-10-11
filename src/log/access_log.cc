@@ -76,6 +76,7 @@ int LogfileStatus = LOG_DISABLE;
 void
 accessLogLogTo(CustomLog *log, const AccessLogEntryPointer &al, ACLChecklist *checklist)
 {
+
     if (al->url.isEmpty())
         al->url = Format::Dash;
 
