@@ -69,6 +69,32 @@ private:
     std::optional<Time> last;
 };
 
+/// the time when ALE record formatting starts
+class RecordTime
+{
+public:
+    RecordTime() :
+        systemTime(MessageTimer::Clock::now()),
+        stopwatchTime( Stopwatch::Clock::now())
+    {}
+
+    auto systemSecondsEpoch() const { return std::chrono::duration_cast<std::chrono::seconds>(systemTime.time_since_epoch()).count(); }
+
+    auto systemMillisecondsFraction() const  {
+        using namespace std::chrono_literals;
+        const auto totalMs = std::chrono::duration_cast<std::chrono::milliseconds>(systemTime.time_since_epoch());
+        return (totalMs % std::chrono::milliseconds(1s)).count();
+    }
+
+    /// the time of the latest accessLogLogTo() call
+    /// use this value as 'current time' while calculating relevant logformat codes
+    MessageTimer::Time systemTime;
+
+    /// the time of the latest accessLogLogTo() call
+    /// pass this value to Stopwatch::totalAsOf() while calculating relevant logformat codes
+    Stopwatch::Clock::time_point stopwatchTime;
+};
+
 class AccessLogEntry: public CodeContext
 {
 
@@ -108,16 +134,6 @@ public:
 
     /// dump all reply headers (for sending or risky logging)
     void packReplyHeaders(MemBuf &mb) const;
-
-    /// Master transaction execution time.
-    /// The timer starts when master transaction is created and stops when the result
-    /// of the transaction is logged.
-    struct timeval trTime() const;
-
-    /// ICAP transaction execution time.
-    /// The timer starts when the ICAP transaction is created and stops when the result
-    /// of the transaction is logged.
-    struct timeval icapTrTime() const;
 
     SBuf url;
 
@@ -192,6 +208,9 @@ public:
             memset(&start_time, 0, sizeof(start_time));
         }
 
+        /// Master transaction execution time.
+        struct timeval trTime(const RecordTime &endTime) const;
+
         Ip::Address caddr;
         int64_t highOffset = 0;
         int64_t objectSize = 0;
@@ -254,14 +273,6 @@ public:
     /// see ConnStateData::proxyProtocolHeader_
     ProxyProtocol::HeaderPointer proxyProtocolHeader;
 
-    /// the time of the latest accessLogLogTo() call
-    /// use this value as 'current time' while calculating relevant logformat codes
-    MessageTimer::Time formattingTime;
-
-    /// the time of the latest accessLogLogTo() call
-    /// pass this value to Stopwatch::totalAsOf() while calculating relevant logformat codes
-    Stopwatch::Clock::time_point stopwatchFormattingTime;
-
 #if ICAP_CLIENT
     /** \brief This subclass holds log info for ICAP part of request
      *  TODO: Inner class declarations should be moved outside
@@ -274,6 +285,9 @@ public:
             memset(&processingTime, 0, sizeof(processingTime));
             memset(&start_time, 0, sizeof(start_time));
         }
+
+        /// ICAP transaction execution time.
+        struct timeval trTime(const RecordTime &endTime) const;
 
         Ip::Address hostAddr; ///< ICAP server IP address
         String serviceName;        ///< ICAP service name

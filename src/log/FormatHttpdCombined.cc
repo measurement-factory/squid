@@ -19,7 +19,7 @@
 #include "SquidConfig.h"
 
 void
-Log::Format::HttpdCombined(const AccessLogEntry::Pointer &al, Logfile * logfile)
+Log::Format::HttpdCombined(const AccessLogEntry::Pointer &al, Logfile * logfile, const RecordTime &recordTime)
 {
     const char *user_ident = ::Format::QuoteUrlEncodeUsername(al->getClientIdent());
     const char *user_auth = nullptr;
@@ -46,7 +46,7 @@ Log::Format::HttpdCombined(const AccessLogEntry::Pointer &al, Logfile * logfile)
 
     const SBuf method(al->getLogMethod());
 
-    const auto secondsSinceEpoch = std::chrono::duration_cast<std::chrono::seconds>(al->formattingTime.time_since_epoch()).count();
+    const auto secondsSinceEpoch = recordTime.systemSecondsEpoch();
 
     logfilePrintf(logfile, "%s %s %s [%s] \"" SQUIDSBUFPH " " SQUIDSBUFPH " %s/%d.%d\" %d %" PRId64 " \"%s\" \"%s\" %s:%s%s",
                   clientip,

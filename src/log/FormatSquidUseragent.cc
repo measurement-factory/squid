@@ -15,7 +15,7 @@
 #include "log/Formats.h"
 
 void
-Log::Format::SquidUserAgent(const AccessLogEntry::Pointer &al, Logfile * logfile)
+Log::Format::SquidUserAgent(const AccessLogEntry::Pointer &al, Logfile * logfile, const RecordTime &recordTime)
 {
     const char *agent = nullptr;
 
@@ -28,7 +28,7 @@ Log::Format::SquidUserAgent(const AccessLogEntry::Pointer &al, Logfile * logfile
     char clientip[MAX_IPSTRLEN];
     al->getLogClientIp(clientip, MAX_IPSTRLEN);
 
-    const auto secondsSinceEpoch = std::chrono::duration_cast<std::chrono::seconds>(al->formattingTime.time_since_epoch()).count();
+    const auto secondsSinceEpoch = recordTime.systemSecondsEpoch();
 
     logfilePrintf(logfile, "%s [%s] \"%s\"\n",
                   clientip,

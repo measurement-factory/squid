@@ -28,6 +28,7 @@
 class AccessLogEntry;
 typedef RefCount<AccessLogEntry> AccessLogEntryPointer;
 class MemBuf;
+class RecordTime;
 class StoreEntry;
 
 namespace Format
@@ -51,7 +52,7 @@ public:
     bool parse(const char *def);
 
     /// assemble the state information into a formatted line.
-    void assemble(MemBuf &mb, const AccessLogEntryPointer &al, int logSequenceNumber) const;
+    void assemble(MemBuf &mb, const AccessLogEntryPointer &al, int logSequenceNumber, const RecordTime &) const;
 
     /// dump this whole list of formats into the provided StoreEntry
     void dump(StoreEntry * entry, const char *directiveName, bool eol = true) const;
@@ -65,7 +66,7 @@ public:
 /// Ignores any input characters after the expression.
 /// \param start  where the logformat expression begins
 /// \return the length of the parsed %code expression
-size_t AssembleOne(const char *start, MemBuf &buf, const AccessLogEntryPointer &ale);
+size_t AssembleOne(const char *start, MemBuf &buf, const AccessLogEntryPointer &ale, const RecordTime &);
 
 } // namespace Format
 

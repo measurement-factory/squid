@@ -15,7 +15,7 @@
 #include "log/Formats.h"
 
 void
-Log::Format::SquidReferer(const AccessLogEntry::Pointer &al, Logfile *logfile)
+Log::Format::SquidReferer(const AccessLogEntry::Pointer &al, Logfile *logfile, const RecordTime &recordTime)
 {
     const char *referer = nullptr;
     if (al->request)
@@ -29,10 +29,8 @@ Log::Format::SquidReferer(const AccessLogEntry::Pointer &al, Logfile *logfile)
 
     const SBuf url = !al->url.isEmpty() ? al->url : ::Format::Dash;
 
-    using namespace std::chrono_literals;
-    const auto seconds = std::chrono::duration_cast<std::chrono::seconds>(al->formattingTime.time_since_epoch()).count();
-    const auto totalMs = std::chrono::duration_cast<std::chrono::milliseconds>(al->formattingTime.time_since_epoch());
-    const auto ms = (totalMs % std::chrono::milliseconds(1s)).count();
+    const auto seconds = recordTime.systemSecondsEpoch();
+    const auto ms = recordTime.systemMillisecondsFraction();
 
     logfilePrintf(logfile, "%9ld.%03d %s %s " SQUIDSBUFPH "\n",
                   seconds,

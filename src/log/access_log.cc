@@ -76,9 +76,6 @@ int LogfileStatus = LOG_DISABLE;
 void
 accessLogLogTo(CustomLog *log, const AccessLogEntryPointer &al, ACLChecklist *checklist)
 {
-    al->formattingTime = MessageTimer::Clock::now();
-    al->stopwatchFormattingTime = Stopwatch::Clock::now();
-
     if (al->url.isEmpty())
         al->url = Format::Dash;
 
@@ -87,6 +84,8 @@ accessLogLogTo(CustomLog *log, const AccessLogEntryPointer &al, ACLChecklist *ch
 
     if (al->hier.host[0] == '\0')
         xstrncpy(al->hier.host, dash_str, SQUIDHOSTNAMELEN);
+
+    RecordTime recordTime;
 
     for (; log; log = log->next) {
         if (log->aclList && checklist && !checklist->fastCheck(log->aclList).allowed())
@@ -102,32 +101,32 @@ accessLogLogTo(CustomLog *log, const AccessLogEntryPointer &al, ACLChecklist *ch
             switch (log->type) {
 
             case Log::Format::CLF_SQUID:
-                Log::Format::SquidNative(al, log->logfile);
+                Log::Format::SquidNative(al, log->logfile, recordTime);
                 break;
 
             case Log::Format::CLF_COMBINED:
-                Log::Format::HttpdCombined(al, log->logfile);
+                Log::Format::HttpdCombined(al, log->logfile, recordTime);
                 break;
 
             case Log::Format::CLF_COMMON:
-                Log::Format::HttpdCommon(al, log->logfile);
+                Log::Format::HttpdCommon(al, log->logfile, recordTime);
                 break;
 
             case Log::Format::CLF_REFERER:
-                Log::Format::SquidReferer(al, log->logfile);
+                Log::Format::SquidReferer(al, log->logfile, recordTime);
                 break;
 
             case Log::Format::CLF_USERAGENT:
-                Log::Format::SquidUserAgent(al, log->logfile);
+                Log::Format::SquidUserAgent(al, log->logfile, recordTime);
                 break;
 
             case Log::Format::CLF_CUSTOM:
-                Log::Format::SquidCustom(al, log);
+                Log::Format::SquidCustom(al, log, recordTime);
                 break;
 
 #if ICAP_CLIENT
             case Log::Format::CLF_ICAP_SQUID:
-                Log::Format::SquidIcap(al, log->logfile);
+                Log::Format::SquidIcap(al, log->logfile, recordTime);
                 break;
 #endif
 

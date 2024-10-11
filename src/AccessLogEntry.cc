@@ -246,14 +246,13 @@ TimeInterval(const struct timeval &startTime, const MessageTimer::Time &endTime)
 }
 
 struct timeval
-AccessLogEntry::trTime() const
+AccessLogEntry::CacheDetails::trTime(const RecordTime &endTime) const
 {
-    return TimeInterval(cache.start_time, formattingTime);
+    return TimeInterval(start_time, endTime.systemTime);
 }
 
 struct timeval
-AccessLogEntry::icapTrTime() const
+AccessLogEntry::IcapLogEntry::trTime(const RecordTime &endTime) const
 {
-    return TimeInterval(icap.start_time, formattingTime);
+    return TimeInterval(start_time, endTime.systemTime);
 }
-

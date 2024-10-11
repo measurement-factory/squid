@@ -51,12 +51,12 @@ Note::Value::Value(const char *aVal, const bool quoted, const char *descr, const
 }
 
 const SBuf &
-Note::Value::format(const AccessLogEntryPointer &al)
+Note::Value::format(const AccessLogEntryPointer &al, const RecordTime &recordTime)
 {
     if (al && valueFormat) {
         static MemBuf mb;
         mb.reset();
-        valueFormat->assemble(mb, al, 0);
+        valueFormat->assemble(mb, al, 0, recordTime);
         theFormattedValue.assign(mb.content());
         return theFormattedValue;
     }
@@ -80,13 +80,14 @@ Note::match(HttpRequest *request, HttpReply *reply, const AccessLogEntry::Pointe
     if (reply)
         HTTPMSGLOCK(ch.reply);
 
+    RecordTime recordTime;
     for (const auto &v: values) {
         assert(v->aclList);
         const auto ret = ch.fastCheck(v->aclList);
         debugs(93, 5, "Check for header name: " << theKey << ": " << v->value() <<
                ", HttpRequest: " << request << " HttpReply: " << reply << " matched: " << ret);
         if (ret.allowed()) {
-            matched = v->format(al);
+            matched = v->format(al, recordTime);
             return true;
         }
     }
@@ -95,10 +96,10 @@ Note::match(HttpRequest *request, HttpReply *reply, const AccessLogEntry::Pointe
 }
 
 void
-Note::updateNotePairs(NotePairs::Pointer pairs, const CharacterSet *delimiters, const AccessLogEntryPointer &al)
+Note::updateNotePairs(NotePairs::Pointer pairs, const CharacterSet *delimiters, const AccessLogEntryPointer &al, const RecordTime &recordTime)
 {
     for (const auto &v: values) {
-        const SBuf &formatted = v->format(al);
+        const SBuf &formatted = v->format(al, recordTime);
         if (!pairs->empty() && v->method() == Value::mhReplace)
             pairs->remove(theKey);
         if (delimiters)
@@ -249,10 +250,10 @@ Notes::parseKvPair() {
 }
 
 void
-Notes::updateNotePairs(NotePairs::Pointer pairs, const CharacterSet *delimiters, const AccessLogEntry::Pointer &al)
+Notes::updateNotePairs(NotePairs::Pointer pairs, const CharacterSet *delimiters, const AccessLogEntry::Pointer &al, const RecordTime &recordTime)
 {
     for (const auto &n: notes)
-        n->updateNotePairs(pairs, delimiters, al);
+        n->updateNotePairs(pairs, delimiters, al, recordTime);
 }
 
 void
