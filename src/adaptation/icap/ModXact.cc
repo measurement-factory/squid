@@ -92,7 +92,7 @@ void Adaptation::Icap::ModXact::start()
     // reserve an adaptation history slot (attempts are known at this time)
     Adaptation::History::Pointer ah = virginRequest().adaptLogHistory();
     if (ah != nullptr)
-        adaptHistoryId = ah->recordXactStart(service().cfg().key, icap_tr_start, attempts > 1);
+        adaptHistoryId = ah->recordXactStart(service().cfg().key, al.icap.start_time, attempts > 1);
 
     estimateVirginBody(); // before virgin disappears!
 

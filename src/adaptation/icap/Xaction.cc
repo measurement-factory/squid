@@ -89,7 +89,7 @@ Adaptation::Icap::Xaction::Xaction(const char *aTypeName, Adaptation::Icap::Serv
     const auto mx = MasterXaction::MakePortless<XactionInitiator::initAdaptation>();
     icapRequest = new HttpRequest(mx);
     HTTPMSGLOCK(icapRequest);
-    icap_tr_start = current_time;
+    al.icap.start_time = current_time;
     memset(&icap_tio_start, 0, sizeof(icap_tio_start));
     memset(&icap_tio_finish, 0, sizeof(icap_tio_finish));
 }
@@ -621,7 +621,6 @@ void Adaptation::Icap::Xaction::finalizeLogInfo()
     al.icap.reqUri = s.cfg().uri;
 
     tvSub(al.icap.ioTime, icap_tio_start, icap_tio_finish);
-    tvSub(al.icap.trTime, icap_tr_start, current_time);
 
     al.icap.request = icapRequest;
     HTTPMSGLOCK(al.icap.request);

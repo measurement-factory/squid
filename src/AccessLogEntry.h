@@ -109,6 +109,16 @@ public:
     /// dump all reply headers (for sending or risky logging)
     void packReplyHeaders(MemBuf &mb) const;
 
+    /// Master transaction execution time.
+    /// The timer starts when master transaction is created and stops when the result
+    /// of the transaction is logged.
+    struct timeval trTime() const;
+
+    /// ICAP transaction execution time.
+    /// The timer starts when the ICAP transaction is created and stops when the result
+    /// of the transaction is logged.
+    struct timeval icapTrTime() const;
+
     SBuf url;
 
     /// TCP/IP level details about the client connection
@@ -180,7 +190,6 @@ public:
         CacheDetails() {
             caddr.setNoAddr();
             memset(&start_time, 0, sizeof(start_time));
-            memset(&trTime, 0, sizeof(start_time));
         }
 
         Ip::Address caddr;
@@ -188,7 +197,6 @@ public:
         int64_t objectSize = 0;
         LogTags code;
         struct timeval start_time; ///< The time the master transaction started
-        struct timeval trTime; ///< The response time
         const char *rfc931 = nullptr;
         const char *extuser = nullptr;
 #if USE_OPENSSL
@@ -262,9 +270,9 @@ public:
     {
     public:
         IcapLogEntry() {
-            memset(&trTime, 0, sizeof(trTime));
             memset(&ioTime, 0, sizeof(ioTime));
             memset(&processingTime, 0, sizeof(processingTime));
+            memset(&start_time, 0, sizeof(start_time));
         }
 
         Ip::Address hostAddr; ///< ICAP server IP address
@@ -282,11 +290,7 @@ public:
         HttpReply* reply = nullptr;        ///< ICAP reply
 
         Adaptation::Icap::XactOutcome outcome = Adaptation::Icap::xoUnknown; ///< final transaction status
-        /** \brief Transaction response time.
-         * The timer starts when the ICAP transaction
-         *  is created and stops when the result of the transaction is logged
-         */
-        struct timeval trTime;
+
         /** \brief Transaction I/O time.
          * The timer starts when the first ICAP request
          * byte is scheduled for sending and stops when the lastbyte of the
@@ -295,6 +299,7 @@ public:
         struct timeval ioTime;
         Http::StatusCode resStatus = Http::scNone;   ///< ICAP response status code
         struct timeval processingTime;      ///< total ICAP processing time
+        struct timeval start_time; /*time when the ICAP transaction was created */
     }
     icap;
 #endif

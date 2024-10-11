@@ -53,11 +53,12 @@ Log::Format::SquidNative(const AccessLogEntry::Pointer &al, Logfile * logfile)
     const auto seconds = std::chrono::duration_cast<std::chrono::seconds>(al->formattingTime.time_since_epoch()).count();
     const auto totalMs = std::chrono::duration_cast<std::chrono::milliseconds>(al->formattingTime.time_since_epoch());
     const auto ms = (totalMs % std::chrono::milliseconds(1s)).count();
+    auto trTime = al->trTime();
 
     logfilePrintf(logfile, "%9ld.%03d %6ld %s %s/%03d %" PRId64 " " SQUIDSBUFPH " " SQUIDSBUFPH " %s %s%s/%s %s%s",
                   seconds,
                   static_cast<int>(ms),
-                  tvToMsec(al->cache.trTime),
+                  tvToMsec(trTime),
                   clientip,
                   al->cache.code.c_str(),
                   al->http.code,

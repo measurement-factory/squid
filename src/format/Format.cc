@@ -632,7 +632,7 @@ Format::Format::assemble(MemBuf &mb, const AccessLogEntry::Pointer &al, int logS
         break;
 
         case LFT_TIME_TO_HANDLE_REQUEST:
-            outtv = al->cache.trTime;
+            outtv = al->trTime();
             doMsec = 1;
             break;
 
@@ -871,7 +871,7 @@ Format::Format::assemble(MemBuf &mb, const AccessLogEntry::Pointer &al, int logS
             break;
 
         case LFT_ICAP_TR_RESPONSE_TIME:
-            outtv = al->icap.trTime;
+            outtv = al->icapTrTime();
             doMsec = 1;
             break;
 

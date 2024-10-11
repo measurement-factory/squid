@@ -225,3 +225,35 @@ AccessLogEntry::packReplyHeaders(MemBuf &mb) const
         reply->packHeadersUsingFastPacker(mb);
 }
 
+// TODO: resolve duplication with Format.cc
+static void
+TimePointToTimeval(const MessageTimer::Time &time, timeval &outtv) {
+    using namespace std::chrono_literals;
+    const auto duration = time.time_since_epoch();
+    outtv.tv_sec = std::chrono::duration_cast<std::chrono::seconds>(duration).count();
+    const auto totalUsec = std::chrono::duration_cast<std::chrono::microseconds>(duration);
+    outtv.tv_usec = (totalUsec % std::chrono::microseconds(1s)).count();
+}
+
+static struct timeval
+TimeInterval(const struct timeval &startTime, const MessageTimer::Time &endTime)
+{
+    struct timeval currentTime;
+    struct timeval result;
+    TimePointToTimeval(endTime, currentTime);
+    tvSub(result, startTime, currentTime);
+    return result;
+}
+
+struct timeval
+AccessLogEntry::trTime() const
+{
+    return TimeInterval(cache.start_time, formattingTime);
+}
+
+struct timeval
+AccessLogEntry::icapTrTime() const
+{
+    return TimeInterval(icap.start_time, formattingTime);
+}
+
