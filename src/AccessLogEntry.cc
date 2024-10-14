@@ -225,40 +225,26 @@ AccessLogEntry::packReplyHeaders(MemBuf &mb) const
         reply->packHeadersUsingFastPacker(mb);
 }
 
-// TODO: resolve duplication with Format.cc
-static void
-TimePointToTimeval(const MessageTimer::Time &time, timeval &outtv) {
-    using namespace std::chrono_literals;
-    const auto duration = time.time_since_epoch();
-    outtv.tv_sec = std::chrono::duration_cast<std::chrono::seconds>(duration).count();
-    const auto totalUsec = std::chrono::duration_cast<std::chrono::microseconds>(duration);
-    outtv.tv_usec = (totalUsec % std::chrono::microseconds(1s)).count();
-}
-
-static struct timeval
-TimeInterval(const struct timeval &startTime, const MessageTimer::Time &endTime)
-{
-    struct timeval currentTime;
-    struct timeval result;
-    TimePointToTimeval(endTime, currentTime);
-    tvSub(result, startTime, currentTime);
-    return result;
-}
-
 struct timeval
 AccessLogEntry::CacheDetails::trTime(const RecordTime &endTime) const
 {
-    return start_time.tv_sec ? TimeInterval(start_time, endTime.systemTime) : timeval();
+    struct timeval result;
+    memset(&result, 0, sizeof(result));
+
+    if (start_time.tv_sec)
+        tvSub(result, start_time, endTime.legacySystemTime);
+    return result;
 }
 
 struct timeval
 AccessLogEntry::IcapLogEntry::trTime(const RecordTime &endTime) const
 {
-    if (!stop_time.tv_sec) // still in progress
-        return start_time.tv_sec ? TimeInterval(start_time, endTime.systemTime) : timeval();
-
-    Assure(start_time.tv_sec);
     struct timeval result;
-    tvSub(result, start_time, stop_time);
+    memset(&result, 0, sizeof(result));
+
+    if (start_time.tv_sec) {
+        const auto &time = stop_time.tv_sec ? stop_time : endTime.legacySystemTime;
+        tvSub(result, start_time, time);
+    }
     return result;
 }

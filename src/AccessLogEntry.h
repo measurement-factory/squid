@@ -75,16 +75,13 @@ class RecordTime
 public:
     RecordTime() :
         systemTime(MessageTimer::Clock::now()),
-        stopwatchTime( Stopwatch::Clock::now())
+        stopwatchTime(Stopwatch::Clock::now()),
+        legacySystemTime(current_time)
     {}
 
-    auto systemSecondsEpoch() const { return std::chrono::duration_cast<std::chrono::seconds>(systemTime.time_since_epoch()).count(); }
+    auto systemSecondsEpoch() const { return legacySystemTime.tv_sec; }
 
-    auto systemMillisecondsFraction() const  {
-        using namespace std::chrono_literals;
-        const auto totalMs = std::chrono::duration_cast<std::chrono::milliseconds>(systemTime.time_since_epoch());
-        return (totalMs % std::chrono::milliseconds(1s)).count();
-    }
+    auto systemMillisecondsFraction() const  { return legacySystemTime.tv_sec / 1000; }
 
     /// the time of the latest accessLogLogTo() call
     /// use this value as 'current time' while calculating relevant logformat codes
@@ -93,6 +90,8 @@ public:
     /// the time of the latest accessLogLogTo() call
     /// pass this value to Stopwatch::totalAsOf() while calculating relevant logformat codes
     Stopwatch::Clock::time_point stopwatchTime;
+
+    struct timeval legacySystemTime;
 };
 
 class AccessLogEntry: public CodeContext

@@ -583,9 +583,7 @@ Format::Format::assemble(MemBuf &mb, const AccessLogEntry::Pointer &al, int logS
             break;
 
         case LFT_TIME_SUBSECOND: {
-            using namespace std::chrono_literals;
-            const auto totalUsec = std::chrono::duration_cast<std::chrono::microseconds>(recordTime.systemTime.time_since_epoch());
-            outint = (totalUsec % std::chrono::microseconds(1s)).count() / fmt->divisor;
+            outint = recordTime.legacySystemTime.tv_usec / fmt->divisor;
             doint = 1;
         }
         break;
