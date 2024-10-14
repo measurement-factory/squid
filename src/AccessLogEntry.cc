@@ -248,11 +248,17 @@ TimeInterval(const struct timeval &startTime, const MessageTimer::Time &endTime)
 struct timeval
 AccessLogEntry::CacheDetails::trTime(const RecordTime &endTime) const
 {
-    return TimeInterval(start_time, endTime.systemTime);
+    return start_time.tv_sec ? TimeInterval(start_time, endTime.systemTime) : timeval();
 }
 
 struct timeval
 AccessLogEntry::IcapLogEntry::trTime(const RecordTime &endTime) const
 {
-    return TimeInterval(start_time, endTime.systemTime);
+    if (!stop_time.tv_sec) // still in progress
+        return start_time.tv_sec ? TimeInterval(start_time, endTime.systemTime) : timeval();
+
+    Assure(start_time.tv_sec);
+    struct timeval result;
+    tvSub(result, start_time, stop_time);
+    return result;
 }

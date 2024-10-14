@@ -284,6 +284,7 @@ public:
             memset(&ioTime, 0, sizeof(ioTime));
             memset(&processingTime, 0, sizeof(processingTime));
             memset(&start_time, 0, sizeof(start_time));
+            memset(&stop_time, 0, sizeof(stop_time));
         }
 
         /// ICAP transaction execution time.
@@ -314,6 +315,7 @@ public:
         Http::StatusCode resStatus = Http::scNone;   ///< ICAP response status code
         struct timeval processingTime;      ///< total ICAP processing time
         struct timeval start_time; /*time when the ICAP transaction was created */
+        struct timeval stop_time; ///< the time just before the ICAP transaction is logged
     }
     icap;
 #endif

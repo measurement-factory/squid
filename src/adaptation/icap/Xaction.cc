@@ -621,6 +621,7 @@ void Adaptation::Icap::Xaction::finalizeLogInfo()
     al.icap.reqUri = s.cfg().uri;
 
     tvSub(al.icap.ioTime, icap_tio_start, icap_tio_finish);
+    al.icap.stop_time = current_time;
 
     al.icap.request = icapRequest;
     HTTPMSGLOCK(al.icap.request);
