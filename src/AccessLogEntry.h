@@ -74,7 +74,6 @@ class RecordTime
 {
 public:
     RecordTime() :
-        systemTime(MessageTimer::Clock::now()),
         stopwatchTime(Stopwatch::Clock::now()),
         legacySystemTime(current_time)
     {}
@@ -83,14 +82,12 @@ public:
 
     auto systemMillisecondsFraction() const  { return legacySystemTime.tv_sec / 1000; }
 
-    /// the time of the latest accessLogLogTo() call
-    /// use this value as 'current time' while calculating relevant logformat codes
-    MessageTimer::Time systemTime;
-
-    /// the time of the latest accessLogLogTo() call
+    /// the record creation time
     /// pass this value to Stopwatch::totalAsOf() while calculating relevant logformat codes
     Stopwatch::Clock::time_point stopwatchTime;
 
+    /// the record creation time
+    /// use this value to calculate 'current time'-based logformat codes
     struct timeval legacySystemTime;
 };
 
