@@ -316,7 +316,7 @@ Ssl::CertValidationHelper::Submit(const Ssl::CertValidationRequest &request, con
     if (ExtrasFormat) {
         static MemBuf buf;
         buf.reset();
-        ExtrasFormat->assemble(buf, request.ale, 0);
+        ExtrasFormat->assemble(buf, request.ale, 0, RecordTime());
         extras.reset(new std::string(buf.content(), buf.contentSize()));
     }
 

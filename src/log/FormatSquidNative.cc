@@ -19,7 +19,7 @@
 #include "SquidConfig.h"
 
 void
-Log::Format::SquidNative(const AccessLogEntry::Pointer &al, Logfile * logfile)
+Log::Format::SquidNative(const AccessLogEntry::Pointer &al, Logfile * logfile, const RecordTime &recordTime)
 {
     char hierHost[MAX_IPSTRLEN];
 
@@ -49,10 +49,14 @@ Log::Format::SquidNative(const AccessLogEntry::Pointer &al, Logfile * logfile)
 
     const SBuf method(al->getLogMethod());
 
+    const auto seconds = recordTime.systemSecondsEpoch();
+    const auto ms = recordTime.systemMillisecondsFraction();
+    auto trTime = al->cache.trTime(recordTime);
+
     logfilePrintf(logfile, "%9ld.%03d %6ld %s %s/%03d %" PRId64 " " SQUIDSBUFPH " " SQUIDSBUFPH " %s %s%s/%s %s%s",
-                  (long int) current_time.tv_sec,
-                  (int) current_time.tv_usec / 1000,
-                  tvToMsec(al->cache.trTime),
+                  seconds,
+                  static_cast<int>(ms),
+                  tvToMsec(trTime),
                   clientip,
                   al->cache.code.c_str(),
                   al->http.code,

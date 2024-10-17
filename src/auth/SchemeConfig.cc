@@ -49,7 +49,7 @@ Auth::SchemeConfig::CreateAuthUser(const char *proxy_auth, AccessLogEntry::Point
         // request_format, are - at this time, but that is OK
         // because user name is added to key explicitly, and we do
         // not want to store authenticated credentials at all.
-        config->keyExtras->assemble(rmb, al, 0);
+        config->keyExtras->assemble(rmb, al, 0, RecordTime());
     }
 
     return config->decode(proxy_auth, al->request, rmb.hasContent() ? rmb.content() : nullptr);

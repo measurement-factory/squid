@@ -82,8 +82,6 @@ icpSyncAle(AccessLogEntryPointer &al, const Ip::Address &caddr, const char *url,
     al->http.clientReplySz.payloadData = len;
     al->cache.start_time = current_time;
     al->cache.start_time.tv_sec -= delay;
-    al->cache.trTime.tv_sec = delay;
-    al->cache.trTime.tv_usec = 0;
 }
 
 /**

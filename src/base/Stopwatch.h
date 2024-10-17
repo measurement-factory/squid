@@ -43,8 +43,8 @@ public:
     bool ran() const { return resumes_ > 0; }
 
     /// the sum of all measurement period durations (or zero)
-    /// includes the current measurement period, if any
-    Clock::duration total() const;
+    /// includes the current measurement period, if any, up to time
+    Clock::duration totalAsOf(Clock::time_point time) const;
 
     /// (re)starts or continues the current measurement period; each resume()
     /// call must be paired with a dedicated future pause() call
