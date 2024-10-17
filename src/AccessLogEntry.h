@@ -73,10 +73,12 @@ private:
 class RecordTime
 {
 public:
-    RecordTime() :
+    RecordTime():
         stopwatchTime(Stopwatch::Clock::now()),
-        legacySystemTime(current_time)
-    {}
+        legacySystemTime({0, 0}) {
+        (void)getCurrentTime();
+        legacySystemTime = current_time;
+    }
 
     auto systemSecondsEpoch() const { return legacySystemTime.tv_sec; }
 
