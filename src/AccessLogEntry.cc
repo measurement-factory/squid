@@ -229,7 +229,6 @@ struct timeval
 AccessLogEntry::CacheDetails::trTime(const RecordTime &endTime) const
 {
     struct timeval result = {0, 0};
-    memset(&result, 0, sizeof(result));
 
     if (start_time.tv_sec)
         tvSub(result, start_time, endTime.legacySystemTime);
