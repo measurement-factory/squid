@@ -228,7 +228,7 @@ AccessLogEntry::packReplyHeaders(MemBuf &mb) const
 struct timeval
 AccessLogEntry::CacheDetails::trTime(const RecordTime &endTime) const
 {
-    struct timeval result;
+    struct timeval result = {0, 0};
     memset(&result, 0, sizeof(result));
 
     if (start_time.tv_sec)
@@ -239,8 +239,7 @@ AccessLogEntry::CacheDetails::trTime(const RecordTime &endTime) const
 struct timeval
 AccessLogEntry::IcapLogEntry::trTime(const RecordTime &endTime) const
 {
-    struct timeval result;
-    memset(&result, 0, sizeof(result));
+    struct timeval result = {0, 0};
 
     if (start_time.tv_sec) {
         const auto &time = stop_time.tv_sec ? stop_time : endTime.legacySystemTime;
