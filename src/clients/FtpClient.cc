@@ -179,6 +179,14 @@ Ftp::DataChannel::addr(const Ip::Address &import)
     port = import.port();
 }
 
+void
+Ftp::DataChannel::appended(const size_t size)
+{
+    readBuf->appended(size);
+    payloadSeen += size;
+    debugs(9, 5, size << " bytes to readBuf, payloadSeen: " << payloadSeen);
+}
+
 /* Ftp::Client */
 
 Ftp::Client::Client(FwdState *fwdState):
@@ -979,8 +987,7 @@ Ftp::Client::dataRead(const CommIoCbParams &io)
     }
 
     if (io.flag == Comm::OK && io.size > 0) {
-        debugs(9, 5, "appended " << io.size << " bytes to readBuf");
-        data.readBuf->appended(io.size);
+        data.appended(io.size);
 #if USE_DELAY_POOLS
         DelayId delayId = entry->mem_obj->mostBytesAllowed();
         delayId.bytesIn(io.size);
