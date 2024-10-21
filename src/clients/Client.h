@@ -81,16 +81,13 @@ public:
 public: // should be protected
     void serverComplete();     /**< call when no server communication is expected */
 
-    /// called when we received the whole virgin reply
-    void serverDataComplete();
-
     /// remember that the received virgin reply was parsed in its entirety,
     /// including its body (if any)
     void markParsedVirginReplyAsWhole(const char *reasonWeAreSure);
 
 private:
     void serverComplete2();    /**< Continuation of serverComplete */
-    bool completed = false;            /**< serverDataComplete() has been called */
+    bool completed = false;            /**< serverComplete() has been called */
 
 protected:
     // kids customize these

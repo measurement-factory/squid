@@ -290,10 +290,9 @@ FwdState::completed()
 #endif
         } else {
             updateAleWithFinalError(); // if any
-            if (storedWholeReply_)
-                entry->completeSuccessfully(storedWholeReply_);
-            else
+            if (!storedWholeReply_)
                 entry->completeTruncated("FwdState default");
+            assert(entry->store_status == STORE_OK);
         }
     }
 
@@ -580,7 +579,12 @@ FwdState::markStoredReplyAsWhole(const char * const whyWeAreSure)
     if (EBIT_TEST(entry->flags, ENTRY_ABORTED))
         return;
 
-    storedWholeReply_ = whyWeAreSure;
+    if (!storedWholeReply_) {
+        storedWholeReply_ = whyWeAreSure;
+
+        if (!reforward())
+            entry->completeSuccessfully(whyWeAreSure);
+    }
 }
 
 void
@@ -1314,7 +1318,11 @@ FwdState::reforward()
         return 0;
     }
 
-    assert(e->store_status == STORE_PENDING);
+    if (e->store_status == STORE_OK) {
+        debugs(17, 3, "No, the entry is STORE_OK already");
+        return 0;
+    }
+
     assert(e->mem_obj);
 #if URL_CHECKSUM_DEBUG
 

@@ -970,8 +970,10 @@ Ftp::Gateway::processReplyBody()
         return;
     }
 
+    const auto csize = data.readBuf->contentSize();
+
     /* Directory listings are special. They write ther own headers via the error objects */
-    if (!flags.http_header_sent && data.readBuf->contentSize() >= 0 && !flags.isdir)
+    if (!flags.http_header_sent && csize >= 0 && !flags.isdir)
         appendSuccessHeader();
 
     if (EBIT_TEST(entry->flags, ENTRY_ABORTED)) {
@@ -1000,7 +1002,7 @@ Ftp::Gateway::processReplyBody()
         parseListing();
         maybeReadVirginBody();
         return;
-    } else if (const auto csize = data.readBuf->contentSize()) {
+    } else if (csize) {
         writeReplyBody(data.readBuf->content(), csize);
         debugs(9, 5, "consuming " << csize << " bytes of readBuf");
         data.readBuf->consume(csize);
@@ -1008,10 +1010,8 @@ Ftp::Gateway::processReplyBody()
 
     entry->flush();
 
-    if (theSize >= 0 && data.payloadSeen >= theSize) {
+    if (csize && theSize >= 0 && data.payloadSeen >= theSize)
         markParsedVirginReplyAsWhole("whole virgin body");
-        serverDataComplete();
-    }
 
     maybeReadVirginBody();
 }
@@ -2246,7 +2246,6 @@ ftpReadTransferDone(Ftp::Gateway * ftpState)
             /* QUIT operation handles sending the reply to client */
         }
         ftpState->markParsedVirginReplyAsWhole("ftpReadTransferDone code 226 or 250");
-        ftpState->serverDataComplete();
         ftpSendQuit(ftpState);
     } else {            /* != 226 */
         debugs(9, DBG_IMPORTANT, "Got code " << code << " after reading data");
@@ -2278,7 +2277,6 @@ ftpWriteTransferDone(Ftp::Gateway * ftpState)
     }
 
     ftpState->entry->timestampsSet();   /* XXX Is this needed? */
-    ftpState->markParsedVirginReplyAsWhole("ftpWriteTransferDone code 226 or 250");
     ftpSendReply(ftpState);
 }
 
@@ -2486,7 +2484,7 @@ ftpSendReply(Ftp::Gateway * ftpState)
 
     ftpState->entry->replaceHttpReply(err.BuildHttpReply());
 
-    ftpState->serverDataComplete();
+    ftpState->markParsedVirginReplyAsWhole("ftpSendReply");
 
     ftpSendQuit(ftpState);
 }
