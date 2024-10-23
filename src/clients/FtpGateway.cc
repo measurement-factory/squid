@@ -1156,6 +1156,7 @@ Ftp::Gateway::start()
         SBuf realm(ftpRealm()); // local copy so SBuf will not disappear too early
         const auto reply = ftpAuthRequired(request.getRaw(), realm, fwd->al);
         entry->replaceHttpReply(reply);
+        fwd->markStoredReplyAsWhole("checkAuth failed");
         serverComplete();
         return;
     }
@@ -1262,6 +1263,7 @@ Ftp::Gateway::loginFailed()
 
     // add it to the store entry for response....
     entry->replaceHttpReply(newrep);
+    fwd->markStoredReplyAsWhole("loginFailed");
     serverComplete();
 }
 
@@ -2230,6 +2232,7 @@ Ftp::Gateway::completedListing()
     ctrl.message = nullptr;
     entry->replaceHttpReply(ferr.BuildHttpReply());
     entry->flush();
+    fwd->markStoredReplyAsWhole("completedListing");
     entry->unlock("Ftp::Gateway");
 }
 
@@ -2244,8 +2247,9 @@ ftpReadTransferDone(Ftp::Gateway * ftpState)
         if (ftpState->flags.listing) {
             ftpState->completedListing();
             /* QUIT operation handles sending the reply to client */
+        } else {
+            ftpState->markParsedVirginReplyAsWhole("ftpReadTransferDone code 226 or 250");
         }
-        ftpState->markParsedVirginReplyAsWhole("ftpReadTransferDone code 226 or 250");
         ftpSendQuit(ftpState);
     } else {            /* != 226 */
         debugs(9, DBG_IMPORTANT, "Got code " << code << " after reading data");
@@ -2405,6 +2409,7 @@ ftpFail(Ftp::Gateway *ftpState)
     delete ftperr;
 
     ftpState->entry->replaceHttpReply(newrep);
+    ftpState->fwd->markStoredReplyAsWhole("ftpFail");
     ftpSendQuit(ftpState);
 }
 
@@ -2484,7 +2489,7 @@ ftpSendReply(Ftp::Gateway * ftpState)
 
     ftpState->entry->replaceHttpReply(err.BuildHttpReply());
 
-    ftpState->markParsedVirginReplyAsWhole("ftpSendReply");
+    ftpState->fwd->markStoredReplyAsWhole("ftpSendReply");
 
     ftpSendQuit(ftpState);
 }

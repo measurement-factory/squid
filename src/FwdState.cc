@@ -290,9 +290,10 @@ FwdState::completed()
 #endif
         } else {
             updateAleWithFinalError(); // if any
-            if (!storedWholeReply_)
+            if (storedWholeReply_)
+                entry->completeSuccessfully(storedWholeReply_);
+            else
                 entry->completeTruncated("FwdState default");
-            assert(entry->store_status == STORE_OK);
         }
     }
 
@@ -1348,6 +1349,7 @@ FwdState::reforward()
         return 0;
 
     if (destinations->empty() && !PeerSelectionInitiator::subscribed) {
+
         debugs(17, 3, "No alternative forwarding paths left");
         return 0;
     }
