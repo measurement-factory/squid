@@ -1349,7 +1349,6 @@ FwdState::reforward()
         return 0;
 
     if (destinations->empty() && !PeerSelectionInitiator::subscribed) {
-
         debugs(17, 3, "No alternative forwarding paths left");
         return 0;
     }
