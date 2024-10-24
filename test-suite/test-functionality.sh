@@ -57,11 +57,12 @@ has_commit_by_message() {
 clone_repo() {
     local repo_url="$1"
     local destination_dir="$2"
+    local branch="$3"
 
     if test -e $destination_dir
     then
         echo "Skipping already fetched $destination_dir"
-    elif run git clone --no-tags --quiet --depth=1 --branch production -- "$repo_url" "$destination_dir"
+    elif run git clone --no-tags --quiet --depth=1 --branch "$branch" -- "$repo_url" "$destination_dir"
     then
         if test -e "$destination_dir/package.json"
         then
@@ -93,9 +94,9 @@ start_overlord() {
 setup_test_tools() {
     echo "::group::Setup test tools"
 
-    clone_repo https://github.com/measurement-factory/daft $DAFT_DIR || return
-    clone_repo https://github.com/measurement-factory/squid-dafts $SQUID_DAFTS_DIR || return
-    clone_repo https://github.com/measurement-factory/squid-overlord $SQUID_OVERLORD_DIR || return
+    clone_repo https://github.com/measurement-factory/daft $DAFT_DIR auto || return
+    clone_repo https://github.com/measurement-factory/squid-dafts $SQUID_DAFTS_DIR auto || return
+    clone_repo https://github.com/measurement-factory/squid-overlord $SQUID_OVERLORD_DIR auto || return
 
     if ! test -e $SQUID_DAFTS_DIR/src
     then
@@ -214,12 +215,13 @@ main() {
     then
         local default_tests="
             pconn
+            revalidate-collapsed
+            proxy-collapsed-forwarding
             dead-peer
             proxy-update-headers-after-304
             accumulate-headers-after-304
             upgrade-protocols
             cache-response
-            proxy-collapsed-forwarding
             busy-restart
             truncated-responses
             malformed-request
