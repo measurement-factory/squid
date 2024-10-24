@@ -3930,9 +3930,6 @@ ConnStateData::terminateAll(const Error &rawError, const LogTagsErrors &lte)
 
     debugs(33, 3, pipeline.count() << '/' << pipeline.nrequests << " after " << error);
 
-    if (pipeline.empty())
-        bareError.update(error); // XXX: bareLogTagsErrors
-
     // We terminate the current CONNECT/PUT/etc. context below, logging any
     // error details, but that context may leave unparsed bytes behind.
     // Consume them to stop checkLogging() from logging them again later.
@@ -3958,9 +3955,7 @@ ConnStateData::terminateAll(const Error &rawError, const LogTagsErrors &lte)
             debugs(83, 5, "forgetting client " << intputToConsume << " bytes: " << inBuf.length());
             inBuf.clear();
         } else {
-            bareError.update(ERR_STREAM_FAILURE);
-            static const auto d = MakeNamedErrorDetail("PENDING_REQUEST");
-            bareError.details.push_back(d);
+            bareError.update(error ? error : ERR_STREAM_FAILURE); // XXX: bareLogTagsErrors
         }
     }
 
