@@ -1010,7 +1010,7 @@ Ftp::Gateway::processReplyBody()
 
     entry->flush();
 
-    if (csize && theSize >= 0 && data.payloadSeen >= theSize)
+    if (csize && theSize >= 0 && data.payloadSeen >= static_cast<size_t>(theSize))
         markParsedVirginReplyAsWhole("whole virgin body");
 
     maybeReadVirginBody();
