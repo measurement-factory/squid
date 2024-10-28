@@ -123,12 +123,14 @@ private:
     explicit ErrorState(err_type type);
 
     /// locates the right error page template for this error and compiles it
-    SBuf buildBody();
+    /// \param recordTime the time when the error response compilation starts
+    SBuf buildBody(const RecordTime &recordTime);
 
     /// compiles error page or error detail template (i.e. anything but deny_url)
     /// \param input  the template text to be compiled
     /// \param allowRecursion  whether to compile %codes which produce %codes
-    SBuf compileBody(const char *text, bool allowRecursion);
+    /// \param recordTime the time when the error response compilation starts
+    SBuf compileBody(const char *text, bool allowRecursion, const RecordTime &recordTime);
 
     /// compile a single-letter %code like %D
     void compileLegacyCode(Build &build);
@@ -140,8 +142,9 @@ private:
     /// \param input  the template text to be converted
     /// \param building_deny_info_url  whether input is a deny_info URL parameter
     /// \param allowRecursion  whether to compile %codes which produce %codes
+    /// \param recordTime the time when the error response compilation starts
     /// \returns the given input with all %codes substituted
-    SBuf compile(const char *input, bool building_deny_info_url, bool allowRecursion);
+    SBuf compile(const char *input, bool building_deny_info_url, bool allowRecursion, const RecordTime &recordTime);
 
     /// React to a compile() error, throwing if buildContext allows.
     /// \param msg description of what went wrong
