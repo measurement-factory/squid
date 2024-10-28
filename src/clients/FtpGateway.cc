@@ -970,10 +970,10 @@ Ftp::Gateway::processReplyBody()
         return;
     }
 
-    const auto csize = data.readBuf->contentSize();
+    const auto availableDataSize = data.readBuf->contentSize();
 
     /* Directory listings are special. They write ther own headers via the error objects */
-    if (!flags.http_header_sent && csize >= 0 && !flags.isdir)
+    if (!flags.http_header_sent && !flags.isdir)
         appendSuccessHeader();
 
     if (EBIT_TEST(entry->flags, ENTRY_ABORTED)) {
@@ -1002,15 +1002,15 @@ Ftp::Gateway::processReplyBody()
         parseListing();
         maybeReadVirginBody();
         return;
-    } else if (csize) {
-        writeReplyBody(data.readBuf->content(), csize);
-        debugs(9, 5, "consuming " << csize << " bytes of readBuf");
-        data.readBuf->consume(csize);
+    } else if (availableDataSize) {
+        writeReplyBody(data.readBuf->content(), availableDataSize);
+        debugs(9, 5, "consuming " << availableDataSize << " bytes of readBuf");
+        data.readBuf->consume(availableDataSize);
     }
 
     entry->flush();
 
-    if (csize && theSize >= 0 && data.payloadSeen >= static_cast<size_t>(theSize))
+    if (availableDataSize && theSize >= 0 && data.payloadSeen >= static_cast<uint64_t>(theSize))
         markParsedVirginReplyAsWhole("whole virgin body");
 
     maybeReadVirginBody();

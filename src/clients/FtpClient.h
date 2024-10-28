@@ -109,7 +109,7 @@ public:
     bool read_pending;
 
     /// amount of message payload/body received so far
-    size_t payloadSeen = 0;
+    uint64_t payloadSeen = 0;
 };
 
 /// FTP client functionality shared among FTP Gateway and Relay clients.
