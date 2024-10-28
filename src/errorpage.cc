@@ -1162,11 +1162,11 @@ ErrorState::compileLegacyCode(Build &build)
         break;
 
     case 't':
-        mb.appendf("%s", Time::FormatHttpd(squid_curtime));
+        mb.appendf("%s", Time::FormatHttpd(build.recordTime.legacySystemTime.tv_sec));
         break;
 
     case 'T':
-        mb.appendf("%s", Time::FormatRfc1123(squid_curtime));
+        mb.appendf("%s", Time::FormatRfc1123(build.recordTime.legacySystemTime.tv_sec));
         break;
 
     case 'U':
