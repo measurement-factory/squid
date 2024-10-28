@@ -3921,14 +3921,17 @@ void
 ConnStateData::terminateAll(const Error &rawError, const LogTagsErrors &lte)
 {
     auto error = rawError; // (cheap) copy so that we can detail
-    // We detail even ERR_NONE: There should be no transactions left, and
-    // detailed ERR_NONE will be unused. Otherwise, this detail helps in triage.
-    if (error.details.empty()) {
+    // There should be a non-empty error if there are some transactions left.
+    // This detail should help in triage.
+    if (error && error.details.empty()) {
         static const auto d = MakeNamedErrorDetail("WITH_CLIENT");
         error.details.push_back(d);
     }
 
     debugs(33, 3, pipeline.count() << '/' << pipeline.nrequests << " after " << error);
+
+    if (pipeline.empty())
+        bareError.update(error ? error : ERR_STREAM_FAILURE); // XXX: bareLogTagsErrors
 
     // We terminate the current CONNECT/PUT/etc. context below, logging any
     // error details, but that context may leave unparsed bytes behind.
@@ -3950,13 +3953,9 @@ ConnStateData::terminateAll(const Error &rawError, const LogTagsErrors &lte)
     // may be set during the pipeline cleanup above
     connLeftovers_ = false;
 
-    if (!inBuf.isEmpty()) {
-        if (intputToConsume) {
-            debugs(83, 5, "forgetting client " << intputToConsume << " bytes: " << inBuf.length());
-            inBuf.clear();
-        } else {
-            bareError.update(error ? error : ERR_STREAM_FAILURE); // XXX: bareLogTagsErrors
-        }
+    if (intputToConsume && !inBuf.isEmpty()) {
+        debugs(83, 5, "forgetting client " << intputToConsume << " bytes: " << inBuf.length());
+        inBuf.clear();
     }
 
     clientConnection->close();
