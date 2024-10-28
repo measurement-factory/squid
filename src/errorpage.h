@@ -165,9 +165,10 @@ private:
     /**
      * CacheManager / Debug dump of the ErrorState object.
      * Writes output into the given MemBuf.
+     \param recordTime the time when the error response compilation starts
      \retval 0 successful completion.
      */
-    int Dump(MemBuf * mb);
+    int Dump(MemBuf * mb, const RecordTime &recordTime);
 
 public:
     err_type type = ERR_NONE;

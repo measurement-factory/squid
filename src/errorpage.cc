@@ -807,7 +807,7 @@ ErrorState::~ErrorState()
 }
 
 int
-ErrorState::Dump(MemBuf * mb)
+ErrorState::Dump(MemBuf * mb, const RecordTime &recordTime)
 {
     MemBuf str;
     char ntoabuf[MAX_IPSTRLEN];
@@ -835,7 +835,7 @@ ErrorState::Dump(MemBuf * mb)
         str.appendf("DNS ErrMsg: " SQUIDSBUFPH "\r\n", SQUIDSBUFPRINT(*dnsError));
 
     /* - TimeStamp */
-    str.appendf("TimeStamp: %s\r\n\r\n", Time::FormatRfc1123(squid_curtime));
+    str.appendf("TimeStamp: %s\r\n\r\n", Time::FormatRfc1123(recordTime.legacySystemTime.tv_sec));
 
     /* - IP stuff */
     str.appendf("ClientIP: %s\r\n", src_addr.toStr(ntoabuf,MAX_IPSTRLEN));
@@ -1200,7 +1200,7 @@ ErrorState::compileLegacyCode(Build &build)
     case 'W':
         if (building_deny_info_url) break;
         if (Config.adminEmail && Config.onoff.emailErrData)
-            Dump(&mb);
+            Dump(&mb, build.recordTime);
         no_urlescape = 1;
         break;
 
