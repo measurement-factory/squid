@@ -495,6 +495,7 @@ httpHdrAdd(HttpHeader *heads, HttpRequest *request, const AccessLogEntryPointer 
         HTTPMSGLOCK(checklist.reply);
     }
 
+    RecordTime recordTime;
     for (HeaderWithAclList::const_iterator hwa = headersAdd.begin(); hwa != headersAdd.end(); ++hwa) {
         if (!hwa->aclList || checklist.fastCheck(hwa->aclList).allowed()) {
             const char *fieldValue = nullptr;
@@ -502,7 +503,7 @@ httpHdrAdd(HttpHeader *heads, HttpRequest *request, const AccessLogEntryPointer 
             if (hwa->quoted) {
                 if (al != nullptr) {
                     mb.init();
-                    hwa->valueFormat->assemble(mb, al, 0);
+                    hwa->valueFormat->assemble(mb, al, 0, recordTime);
                     fieldValue = mb.content();
                 }
             } else {

@@ -28,7 +28,7 @@ public:
     bool empty() const override { return notes->empty(); }
 
     /// Stores annotations into pairs.
-    void annotate(NotePairs::Pointer pairs, const CharacterSet *delimiters, const AccessLogEntry::Pointer &al);
+    void annotate(NotePairs::Pointer pairs, const CharacterSet *delimiters, const AccessLogEntry::Pointer &al, const RecordTime &);
 
 private:
     Notes::Pointer notes;

@@ -19,7 +19,7 @@
 #include "SquidConfig.h"
 
 void
-Log::Format::HttpdCommon(const AccessLogEntry::Pointer &al, Logfile * logfile)
+Log::Format::HttpdCommon(const AccessLogEntry::Pointer &al, Logfile * logfile, const RecordTime &recordTime)
 {
     const char *user_auth = nullptr;
 #if USE_AUTH
@@ -33,11 +33,13 @@ Log::Format::HttpdCommon(const AccessLogEntry::Pointer &al, Logfile * logfile)
 
     const SBuf method(al->getLogMethod());
 
+    const auto secondsSinceEpoch = recordTime.systemSecondsEpoch();
+
     logfilePrintf(logfile, "%s %s %s [%s] \"" SQUIDSBUFPH " " SQUIDSBUFPH " %s/%d.%d\" %d %" PRId64 " %s:%s%s",
                   clientip,
                   user_ident ? user_ident : dash_str,
                   user_auth ? user_auth : dash_str,
-                  Time::FormatHttpd(squid_curtime),
+                  Time::FormatHttpd(secondsSinceEpoch),
                   SQUIDSBUFPRINT(method),
                   SQUIDSBUFPRINT(al->url),
                   AnyP::ProtocolType_str[al->http.version.protocol],
