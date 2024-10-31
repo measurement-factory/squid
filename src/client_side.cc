@@ -594,12 +594,7 @@ ConnStateData::swanSong()
     flags.readMore = false;
     clientdbEstablished(clientConnection->remote, -1);  /* decrement */
 
-    if (pipeline.empty())
-        checkLeftovers();
-    else
-        terminateAll(ERR_STREAM_FAILURE, LogTagsErrors()); // still running transactions mean an error
-
-    checkLogging();
+    terminateAll(ERR_STREAM_FAILURE, LogTagsErrors());
 
     // XXX: Closing pinned conn is too harsh: The Client may want to continue!
     unpinConnection(true);
@@ -3918,10 +3913,7 @@ ConnStateData::terminateAll(const Error &rawError, const LogTagsErrors &lte)
 
     debugs(33, 3, pipeline.count() << '/' << pipeline.nrequests << " after " << error);
 
-    // set the error that caused termination before checkLeftovers()
-    bareError.update(error);
-
-    checkLeftovers();
+    const auto leftovers = handleLeftovers();
 
     while (const auto context = pipeline.front()) {
         context->noteIoError(error, lte);
@@ -3929,13 +3921,26 @@ ConnStateData::terminateAll(const Error &rawError, const LogTagsErrors &lte)
         assert(context != pipeline.front());
     }
 
+    if (!terminatedAll) {
+        if (leftovers || !pipeline.nrequests) {
+            /* Create a temporary ClientHttpRequest object. Its destructor will log. */
+            ClientHttpRequest http(this);
+            http.req_sz = inBuf.length();
+            // XXX: Or we died while waiting for the pinned connection to become idle.
+            http.setErrorUri("error:transaction-end-before-headers");
+            http.updateError(error);
+        }
+    }
+
+    terminatedAll = true;
+
     clientConnection->close();
 }
 
-/// checks whether we should ignore unparsed inBuf bytes
+/// whether we should ignore unparsed inBuf bytes
 /// during transaction termination
-void
-ConnStateData::checkLeftovers()
+bool
+ConnStateData::handleLeftovers()
 {
     const auto intputToConsume =
 #if USE_OPENSSL
@@ -3950,28 +3955,7 @@ ConnStateData::checkLeftovers()
         inBuf.clear();
     }
 
-    if (!inBuf.isEmpty() && !bareError) // still present unparsed inBuf bytes means an error
-        bareError.update(ERR_STREAM_FAILURE); // update with a catch-all error code
-}
-
-/// log the last (attempt at) transaction if nobody else did
-void
-ConnStateData::checkLogging()
-{
-    // to simplify our logic, we assume that terminateAll() has been called
-    assert(pipeline.empty());
-
-    // do not log connections that closed after a transaction (it is normal)
-    // TODO: access_log needs ACLs to match received-no-bytes connections
-    if (pipeline.nrequests && inBuf.isEmpty())
-        return;
-
-    /* Create a temporary ClientHttpRequest object. Its destructor will log. */
-    ClientHttpRequest http(this);
-    http.req_sz = inBuf.length();
-    // XXX: Or we died while waiting for the pinned connection to become idle.
-    http.setErrorUri("error:transaction-end-before-headers");
-    http.updateError(bareError);
+    return !inBuf.isEmpty();
 }
 
 bool
