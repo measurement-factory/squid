@@ -441,6 +441,7 @@ private:
     bool shouldCloseOnEof() const override;
 
     void checkLogging();
+    void checkLeftovers();
 
     void parseRequests();
     void clientAfterReadingRequests();

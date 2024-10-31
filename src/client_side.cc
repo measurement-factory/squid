@@ -594,7 +594,11 @@ ConnStateData::swanSong()
     flags.readMore = false;
     clientdbEstablished(clientConnection->remote, -1);  /* decrement */
 
-    terminateAll(ERR_NONE, LogTagsErrors());
+    if (pipeline.empty())
+        checkLeftovers();
+    else
+        terminateAll(ERR_STREAM_FAILURE, LogTagsErrors()); // still running transactions mean an error
+
     checkLogging();
 
     // XXX: Closing pinned conn is too harsh: The Client may want to continue!
@@ -3904,9 +3908,9 @@ ConnStateData::unpinConnection(const bool andClose)
 void
 ConnStateData::terminateAll(const Error &rawError, const LogTagsErrors &lte)
 {
+    Assure(rawError);
+
     auto error = rawError; // (cheap) copy so that we can detail
-    // We detail even ERR_NONE: There should be no transactions left, and
-    // detailed ERR_NONE will be unused. Otherwise, this detail helps in triage.
     if (error.details.empty()) {
         static const auto d = MakeNamedErrorDetail("WITH_CLIENT");
         error.details.push_back(d);
@@ -3914,33 +3918,40 @@ ConnStateData::terminateAll(const Error &rawError, const LogTagsErrors &lte)
 
     debugs(33, 3, pipeline.count() << '/' << pipeline.nrequests << " after " << error);
 
-    if (pipeline.empty()) {
-        bareError.update(error); // XXX: bareLogTagsErrors
-    } else {
-        // We terminate the current CONNECT/PUT/etc. context below, logging any
-        // error details, but that context may leave unparsed bytes behind.
-        // Consume them to stop checkLogging() from logging them again later.
-        const auto intputToConsume =
-#if USE_OPENSSL
-            parsingTlsHandshake ? "TLS handshake" : // more specific than CONNECT
-#endif
-            bodyPipe ? "HTTP request body" :
-            pipeline.back()->mayUseConnection() ? "HTTP CONNECT" :
-            nullptr;
+    // set the error that caused termination before checkLeftovers()
+    bareError.update(error);
 
-        while (const auto context = pipeline.front()) {
-            context->noteIoError(error, lte);
-            context->finished(); // cleanup and self-deregister
-            assert(context != pipeline.front());
-        }
+    checkLeftovers();
 
-        if (intputToConsume && !inBuf.isEmpty()) {
-            debugs(83, 5, "forgetting client " << intputToConsume << " bytes: " << inBuf.length());
-            inBuf.clear();
-        }
+    while (const auto context = pipeline.front()) {
+        context->noteIoError(error, lte);
+        context->finished(); // cleanup and self-deregister
+        assert(context != pipeline.front());
     }
 
     clientConnection->close();
+}
+
+/// checks whether we should ignore unparsed inBuf bytes
+/// during transaction termination
+void
+ConnStateData::checkLeftovers()
+{
+    const auto intputToConsume =
+#if USE_OPENSSL
+        parsingTlsHandshake ? "TLS handshake" : // more specific than CONNECT
+#endif
+        bodyPipe ? "HTTP request body" :
+        (!pipeline.empty() && pipeline.back()->mayUseConnection()) ? "HTTP CONNECT" :
+        nullptr;
+
+    if (intputToConsume && !inBuf.isEmpty()) {
+        debugs(83, 5, "forgetting client " << intputToConsume << " bytes: " << inBuf.length());
+        inBuf.clear();
+    }
+
+    if (!inBuf.isEmpty() && !bareError) // still present unparsed inBuf bytes means an error
+        bareError.update(ERR_STREAM_FAILURE); // update with a catch-all error code
 }
 
 /// log the last (attempt at) transaction if nobody else did
