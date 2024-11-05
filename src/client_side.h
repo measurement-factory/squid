@@ -440,7 +440,7 @@ private:
     void terminateAll(const Error &, const LogTagsErrors &) override;
     bool shouldCloseOnEof() const override;
 
-    bool handleLeftovers();
+    const char * ignoreLeftovers() const;
 
     void parseRequests();
     void clientAfterReadingRequests();

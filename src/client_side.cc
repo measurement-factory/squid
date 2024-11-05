@@ -3905,6 +3905,12 @@ ConnStateData::terminateAll(const Error &rawError, const LogTagsErrors &lte)
 {
     Assure(rawError);
 
+    if (terminatedAll) {
+        Assure(inBuf.isEmpty());
+        Assure(pipeline.empty());
+        return;
+    }
+
     auto error = rawError; // (cheap) copy so that we can detail
     if (error.details.empty()) {
         static const auto d = MakeNamedErrorDetail("WITH_CLIENT");
@@ -3913,7 +3919,7 @@ ConnStateData::terminateAll(const Error &rawError, const LogTagsErrors &lte)
 
     debugs(33, 3, pipeline.count() << '/' << pipeline.nrequests << " after " << error);
 
-    const auto leftovers = handleLeftovers();
+    const auto ignoreLeftoversReason = ignoreLeftovers();
 
     while (const auto context = pipeline.front()) {
         context->noteIoError(error, lte);
@@ -3921,15 +3927,19 @@ ConnStateData::terminateAll(const Error &rawError, const LogTagsErrors &lte)
         assert(context != pipeline.front());
     }
 
-    if (!terminatedAll) {
-        if (leftovers || !pipeline.nrequests) {
-            /* Create a temporary ClientHttpRequest object. Its destructor will log. */
-            ClientHttpRequest http(this);
-            http.req_sz = inBuf.length();
-            // XXX: Or we died while waiting for the pinned connection to become idle.
-            http.setErrorUri("error:transaction-end-before-headers");
-            http.updateError(error);
-        }
+    if (ignoreLeftoversReason && !inBuf.isEmpty()) {
+        debugs(83, 5, "forgetting client " << ignoreLeftoversReason << " bytes: " << inBuf.length());
+        inBuf.clear();
+    }
+
+    if (!inBuf.isEmpty() || !pipeline.nrequests) {
+        /* Create a temporary ClientHttpRequest object. Its destructor will log. */
+        ClientHttpRequest http(this);
+        http.req_sz = inBuf.length();
+        // XXX: Or we died while waiting for the pinned connection to become idle.
+        http.setErrorUri("error:transaction-end-before-headers");
+        http.updateError(error);
+        inBuf.clear();
     }
 
     terminatedAll = true;
@@ -3937,25 +3947,18 @@ ConnStateData::terminateAll(const Error &rawError, const LogTagsErrors &lte)
     clientConnection->close();
 }
 
-/// whether we should ignore unparsed inBuf bytes
+/// whether (and why) we should ignore unparsed inBuf bytes
 /// during transaction termination
-bool
-ConnStateData::handleLeftovers()
+const char *
+ConnStateData::ignoreLeftovers() const
 {
-    const auto intputToConsume =
+    return
 #if USE_OPENSSL
         parsingTlsHandshake ? "TLS handshake" : // more specific than CONNECT
 #endif
         bodyPipe ? "HTTP request body" :
         (!pipeline.empty() && pipeline.back()->mayUseConnection()) ? "HTTP CONNECT" :
         nullptr;
-
-    if (intputToConsume && !inBuf.isEmpty()) {
-        debugs(83, 5, "forgetting client " << intputToConsume << " bytes: " << inBuf.length());
-        inBuf.clear();
-    }
-
-    return !inBuf.isEmpty();
 }
 
 bool
