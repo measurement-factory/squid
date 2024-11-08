@@ -3905,9 +3905,11 @@ ConnStateData::terminateAll(const Error &rawError, const LogTagsErrors &lte)
 {
     Assure(rawError);
 
-    if (terminatedAll) {
+    if (allTerminated_) {
         Assure(inBuf.isEmpty());
         Assure(pipeline.empty());
+        Assure(!ignoreLeftovers());
+        Assure(!Comm::IsConnOpen(clientConnection));
         return;
     }
 
@@ -3939,12 +3941,22 @@ ConnStateData::terminateAll(const Error &rawError, const LogTagsErrors &lte)
         // XXX: Or we died while waiting for the pinned connection to become idle.
         http.setErrorUri("error:transaction-end-before-headers");
         http.updateError(error);
-        inBuf.clear();
     }
 
-    terminatedAll = true;
+    allTerminated();
+}
 
-    clientConnection->close();
+/// the final cleanup performed at the end of terminateAll()
+void
+ConnStateData::allTerminated()
+{
+    parsingTlsHandshake = false;
+    if (bodyPipe != nullptr)
+        stopProducingFor(bodyPipe, false);
+    inBuf.clear();
+    if (clientConnection)
+        clientConnection->close();
+    allTerminated_ = true;
 }
 
 /// whether (and why) we should ignore unparsed inBuf bytes

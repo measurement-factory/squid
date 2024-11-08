@@ -441,6 +441,7 @@ private:
     bool shouldCloseOnEof() const override;
 
     const char * ignoreLeftovers() const;
+    void allTerminated();
 
     void parseRequests();
     void clientAfterReadingRequests();
@@ -504,7 +505,7 @@ private:
     /// on the connection.
     NotePairs::Pointer theNotes;
     /// whether terminateAll() has been called
-    bool terminatedAll = false;
+    bool allTerminated_ = false;
 };
 
 const char *findTrailingHTTPVersion(const char *uriAndHTTPVersion, const char *end = nullptr);
