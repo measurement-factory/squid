@@ -3950,7 +3950,9 @@ ConnStateData::terminateAll(const Error &rawError, const LogTagsErrors &lte)
 void
 ConnStateData::allTerminated()
 {
+#if USE_OPENSSL
     parsingTlsHandshake = false;
+#endif
     if (bodyPipe != nullptr)
         stopProducingFor(bodyPipe, false);
     inBuf.clear();
