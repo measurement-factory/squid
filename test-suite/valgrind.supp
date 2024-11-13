@@ -72,6 +72,16 @@
    fun:_Z19msghdr_write_methodiPKci
 }
 
+# needs investigation; might require a hack similar to commit afc199f9
+{
+   EVP_PKEY_assign-reads-more-than-EVP_PKEY_new-allocates
+   Memcheck:Addr8
+   fun:EVP_PKEY_assign
+   fun:EVP_PKEY_set1_DH
+   ...
+   fun:_ZL17configDoConfigurev
+}
+
 # shutdown does not clean ClientInfo cache (i.e. client_table)
 {
    shutdown-cleanup-client_table
@@ -91,32 +101,20 @@
    ...
 }
 
-# # needs triage
-# {
-#    <insert_a_suppression_name_here>
-#    Memcheck:Leak
-#    match-leak-kinds: possible
-#    ...
-#    fun:_ZN6StringC1EPKc
-#    fun:_ZN3Ipc4Port8MakeAddrEPKci
-#    ...
-#    fun:_ZN3Ipc11Coordinator7receiveERKNS_11TypedMsgHdrE
-# }
-
-# shutdown does not unlock ipcache_entry locked by ipcacheAddEntryFromHosts()
+# shutdown does not free ip_table entries; those ipcache_entry objects are
+# created by ipcacheAddEntryFromHosts() and ipcache_nbgethostbyname_()
 {
-   shutdown-cleanup-etc-hosts-ipcache_entry
+   shutdown-cleanup-ip_table
    Memcheck:Leak
    ...
    fun:_ZN13ipcache_entrynwEm
-   fun:_Z24ipcacheAddEntryFromHostsPKcS0_
 }
 
 # MimeIcon::load() locks StoreEntry icon objects but never unlocks them. The
 # objects are supposed to be cached (and a cached icon would prevent creation
 # of a same-URI icon entry), but icons are _not_ cached by diskless Squids (at
 # least) when cache_mem is set to zero (because store_maxobjsize would remain
-# zero without disks, resuling in a "NO: too big" StoreEntry::checkCachable())
+# 0 without disks, resulting in a "NO: too big" StoreEntry::checkCachable())
 # outcome.
 {
    mime-icons-may-not-be-cached
