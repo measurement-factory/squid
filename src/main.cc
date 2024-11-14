@@ -1448,6 +1448,7 @@ RegisterModules()
     CallRunnerRegistrator(CarpRr);
     CallRunnerRegistrator(ClientDbRr);
     CallRunnerRegistrator(CollapsedForwardingRr);
+    CallRunnerRegistrator(IpCacheRr);
     CallRunnerRegistrator(MemStoreRr);
     CallRunnerRegistrator(PeerPoolMgrsRr);
     CallRunnerRegistrator(PeerSourceHashRr);
