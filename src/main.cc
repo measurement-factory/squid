@@ -1471,6 +1471,7 @@ RegisterModules()
 
 #if USE_OPENSSL
     CallRunnerRegistrator(sslBumpCfgRr);
+    CallRunnerRegistratorIn(Ssl, HelperRr);
 #endif
 
 #if USE_SQUID_ESI && HAVE_LIBEXPAT
@@ -2091,12 +2092,6 @@ SquidShutdown()
 #endif
 
     debugs(1, Important(9), "Shutting down...");
-#if USE_SSL_CRTD
-    Ssl::Helper::Shutdown();
-#endif
-#if USE_OPENSSL
-    Ssl::CertValidationHelper::Shutdown();
-#endif
     redirectShutdown();
     externalAclShutdown();
     icpClosePorts();
