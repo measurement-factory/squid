@@ -1,4 +1,4 @@
-#!/usr/local/bin/perl -Tw
+#!/usr/bin/perl -Tw
 #
 # * Copyright (C) 1996-2024 The Squid Software Foundation and contributors
 # *
