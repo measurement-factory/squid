@@ -10,10 +10,9 @@ After you retrieved, compiled and installed the Squid software (see
 INSTALL in the same directory), you have to configure the squid.conf
 file. This is the list of the values you *need* to change, because no
 sensible defaults could be defined. Do not touch the other variables
-for now.  We assume you have installed Squid in the default location:
-/usr/local/squid
+for now.
 
-Uncomment and edit the following lines in /usr/local/squid/etc/squid.conf:
+Uncomment and edit the following lines in /etc/squid/squid.conf:
 
 ==============================================================================
 
@@ -80,12 +79,12 @@ After editing squid.conf to your liking, run Squid from the command
 line TWICE:
 
 To create any disk cache_dir configured:
-    % /usr/local/squid/sbin/squid -z
+    % /usr/sbin/squid -z
 
 To start squid:
-    % /usr/local/squid/sbin/squid 
+    % /usr/sbin/squid 
 
-Check in the cache.log (/usr/local/squid/var/logs/cache.log) that
+Check in the cache.log (/var/log/squid/cache.log) that
 everything is all right.
 
 Once Squid created all its files (it can take several minutes on some
