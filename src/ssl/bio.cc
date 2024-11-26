@@ -23,6 +23,7 @@
 #include "ip/Address.h"
 #include "parser/BinaryTokenizer.h"
 #include "ssl/bio.h"
+#include <algorithm>
 
 #if _SQUID_WINDOWS_
 extern int socket_read_method(int, char *, int);
@@ -566,22 +567,65 @@ squid_ssl_info(const SSL *ssl, int where, int ret)
     }
 }
 
+static int
+toOpenSSLVersion(const AnyP::ProtocolVersion &version) {
+#if defined(TLS1_3_VERSION)
+    if (version == AnyP::ProtocolVersion(AnyP::PROTO_TLS, 1, 3))
+        return TLS1_3_VERSION;
+#endif
+#if defined(TLS1_2_VERSION)
+    if (version == AnyP::ProtocolVersion(AnyP::PROTO_TLS, 1, 2))
+        return TLS1_2_VERSION;
+#endif
+#if defined(TLS1_1_VERSION)
+    if (version == AnyP::ProtocolVersion(AnyP::PROTO_TLS, 1, 1))
+        return TLS1_1_VERSION;
+#endif
+#if defined(TLS1_VERSION)
+    if (version == AnyP::ProtocolVersion(AnyP::PROTO_TLS, 1, 0))
+        return TLS1_VERSION;
+#endif
+#if defined(SSL3_VERSION)
+    if (version == AnyP::ProtocolVersion(AnyP::PROTO_SSL, 3, 0))
+        return SSL3_VERSION;
+#endif
+#if defined(SSL2_VERSION)
+    if (version == AnyP::ProtocolVersion(AnyP::PROTO_SSL, 2, 0))
+        return SSL2_VERSION;
+#endif
+    return 0;
+}
+
+static void
+setMinimumVersion(SSL *ssl, Security::TlsDetails::Pointer const &details)
+{
+    AnyP::ProtocolVersion minProto(AnyP::PROTO_TLS, 1, 3);
+    for (auto &it : details->supportedVersionsExtension) {
+        if (it < minProto)
+            minProto = it;
+    }
+
+    debugs(83, 4, "Minimum supported prototol " << minProto);
+    if (auto sslVersion = toOpenSSLVersion(minProto))
+        SSL_set_min_proto_version(ssl, sslVersion);
+}
+
 void
 applyTlsDetailsToSSL(SSL *ssl, Security::TlsDetails::Pointer const &details, Ssl::BumpMode bumpMode)
 {
-    // To increase the possibility for bumping after peek mode selection or
-    // splicing after stare mode selection it is good to set the
-    // SSL protocol version.
-    // The SSL_set_ssl_method is wrong here because it will restrict the
-    // permitted transport version to be identical to the version used in the
-    // ClientHello message.
-    // For example will prevent comunnicating with a tls1.0 server if the
-    // client sent and tlsv1.2 Hello message.
 #if defined(TLSEXT_NAMETYPE_host_name)
     if (!details->serverName.isEmpty()) {
         SSL_set_tlsext_host_name(ssl, details->serverName.c_str());
     }
 #endif
+
+    if (details->tlsSupportedVersion) {
+        if (auto openSslVersion = toOpenSSLVersion(details->tlsSupportedVersion)) {
+            SSL_set_max_proto_version(ssl, openSslVersion);
+            if (Security::Tls1p3orLater(details->tlsSupportedVersion) && !details->supportedVersionsExtension.empty())
+                setMinimumVersion(ssl, details);
+        }
+    }
 
     if (!details->ciphers.empty()) {
         SBuf strCiphers;
@@ -596,8 +640,10 @@ applyTlsDetailsToSSL(SSL *ssl, Security::TlsDetails::Pointer const &details, Ssl
                 strCiphers.append(SSL_CIPHER_get_name(c));
             }
         }
-        if (!strCiphers.isEmpty())
+        if (!strCiphers.isEmpty()) {
             SSL_set_cipher_list(ssl, strCiphers.c_str());
+            debugs(83, 7, "Selected ciphers list is '" <<  strCiphers << "'");
+        }
     }
 
 #if defined(SSL_OP_NO_COMPRESSION) /* XXX: OpenSSL 0.9.8k lacks SSL_OP_NO_COMPRESSION */
@@ -605,15 +651,21 @@ applyTlsDetailsToSSL(SSL *ssl, Security::TlsDetails::Pointer const &details, Ssl
         SSL_set_options(ssl, SSL_OP_NO_COMPRESSION);
 #endif
 
-#if defined(SSL_OP_NO_TLSv1_3)
-    // avoid "inappropriate fallback" OpenSSL error messages
-    if (details->tlsSupportedVersion && Security::Tls1p2orEarlier(details->tlsSupportedVersion))
-        SSL_set_options(ssl, SSL_OP_NO_TLSv1_3);
-#endif
-
 #if defined(TLSEXT_STATUSTYPE_ocsp)
     if (details->tlsStatusRequest)
         SSL_set_tlsext_status_type(ssl, TLSEXT_STATUSTYPE_ocsp);
+    else
+        SSL_set_tlsext_status_type(ssl, 0);
+#endif
+
+#if defined(SSL_OP_NO_TICKET)
+    if (!details->tlsTicketsExtension)
+        SSL_set_options(ssl, SSL_OP_NO_TICKET);
+#endif
+
+#if defined(SSL_OP_TLSEXT_PADDING)
+    if (details->tlsPadding)
+        SSL_set_options(ssl, SSL_OP_TLSEXT_PADDING);
 #endif
 
 #if defined(TLSEXT_TYPE_application_layer_protocol_negotiation)

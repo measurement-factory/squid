@@ -302,6 +302,13 @@ extern "C" {
         return ssl->param;
     }
 #endif
+
+#if !defined(SSL_set_max_proto_version)
+// This functions implemented as macros in OpenSSLv1.1.1 or later
+int SSL_set_max_proto_version(SSL *ssl, int version);
+int SSL_set_min_proto_version(SSL *ssl, int version);
+#endif
+
 } /* extern "C" */
 
 inline void

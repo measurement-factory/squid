@@ -14,7 +14,7 @@
 #include "parser/BinaryTokenizer.h"
 #include "security/forward.h"
 
-#include <unordered_set>
+#include <vector>
 
 namespace Security
 {
@@ -42,11 +42,13 @@ public:
     bool tlsStatusRequest; ///< whether the TLS status request extension is set
     bool unsupportedExtensions; ///< whether any unsupported by Squid extensions are used
     SBuf tlsAppLayerProtoNeg; ///< The value of the TLS application layer protocol extension if it is enabled
+    bool tlsPadding = false;
+    std::vector<AnyP::ProtocolVersion> supportedVersionsExtension;
     /// The client random number
     SBuf clientRandom;
     SBuf sessionId;
 
-    typedef std::unordered_set<uint16_t> Ciphers;
+    typedef std::vector<uint16_t> Ciphers;
     Ciphers ciphers;
 };
 
