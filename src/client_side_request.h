@@ -208,6 +208,7 @@ private:
 public:
     void startAdaptation(const Adaptation::ServiceGroupPointer &);
     bool requestSatisfactionMode() const { return request_satisfaction_mode; }
+    bool abortOnBadEntry(const char *abortReason);
 
     /* AsyncJob API */
     bool doneAll() const override {
@@ -246,6 +247,7 @@ private:
     bool receivedWholeAdaptedReply = false;
 
     bool request_satisfaction_mode = false;
+    bool storeEntryIsForAdaptation = false;
     int64_t request_satisfaction_offset = 0;
 #endif
 };
