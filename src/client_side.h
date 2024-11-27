@@ -424,6 +424,9 @@ protected:
     /// timeout to use when waiting for the next request
     virtual time_t idleTimeout() const = 0;
 
+    /// A hack to let Http1Server reuse tunnelOnErrorFinalize()
+    virtual void setReplyError(const Http::StreamPointer &, const HttpRequestPointer &, err_type, Http::StatusCode) = 0;
+
     /// Perform client data lookups that depend on client src-IP.
     /// The PROXY protocol may require some data input first.
     void whenClientIpKnown();
@@ -433,7 +436,7 @@ protected:
     /// whether preservedClientData is valid and should be kept up to date
     bool preservingClientData_ = false;
 
-    bool tunnelOnError(const err_type);
+    void tunnelOrReplyWithError(const HttpRequest::Pointer &, err_type, Http::StatusCode);
 
 private:
     /* ::Server API */
@@ -452,6 +455,11 @@ private:
     bool proxyProtocolValidateClient();
     bool parseProxyProtocolHeader();
     bool proxyProtocolError(const char *reason);
+
+    void tunnelOrCloseAfterUpdateError();
+    void tunnelOr_();
+    static void TunnelOnErrorFinalize(Acl::Answer, void *);
+    void tunnelOnErrorFinalize(Acl::Answer);
 
 #if USE_OPENSSL
     /// \returns a pointer to the matching cached TLS context or nil
@@ -493,6 +501,14 @@ private:
     Ssl::ServerBump *sslServerBump = nullptr;
     Ssl::CertSignAlgorithm signAlgorithm = Ssl::algSignTrusted; ///< The signing algorithm to use
 #endif
+
+    /// error information awaiting tunnelOrReplyWithError() outcome
+    class PendindError {
+    public:
+        HttpRequest::Pointer request; // nil on parsing errors
+        err_type errCode = ERR_NONE;
+        Http::StatusCode httpStatus = Http::scNone;
+    } pendingError;
 
     /// the reason why we no longer write the response or nil
     const char *stoppedSending_ = nullptr;

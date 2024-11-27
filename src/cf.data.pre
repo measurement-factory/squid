@@ -2176,7 +2176,10 @@ DOC_START
 
 		on_unsupported_protocol <action> [!]acl ...
 
-	The first matching action wins. Only fast ACLs are supported.
+	The first matching action wins.
+
+	This clause supports both fast and slow acl types.
+	See https://wiki.squid-cache.org/SquidFaq/SquidAcl for details.
 
 	Supported actions are:
 
