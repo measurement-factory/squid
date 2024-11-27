@@ -1850,8 +1850,10 @@ clientReplyContext::processReplyAccess ()
     /** Process http_reply_access lists */
     ACLFilledChecklist *replyChecklist =
         clientAclChecklistCreate(Config.accessList.reply, http);
-    replyChecklist->reply = reply;
-    HTTPMSGLOCK(replyChecklist->reply);
+    if (!replyChecklist->reply) {
+        replyChecklist->reply = reply;
+        HTTPMSGLOCK(replyChecklist->reply);
+    }
     replyChecklist->nonBlockingCheck(ProcessReplyAccessResult, this);
 }
 
