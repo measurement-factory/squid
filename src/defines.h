@@ -75,7 +75,7 @@
 #define CBIT_CLR(mask, bit)     ((void)(CBIT_BIN(mask, bit) &= ~CBIT_BIT(bit)))
 #define CBIT_TEST(mask, bit)    (CBIT_BIN(mask, bit) & CBIT_BIT(bit))
 
-#define MAX_URL  8192
+#define MAX_URL  16384
 #define MAX_LOGIN_SZ  128
 
 #define PEER_MAX_ADDRESSES 10
