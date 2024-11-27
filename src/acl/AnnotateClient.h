@@ -16,7 +16,7 @@
 class ACLAnnotateClientStrategy : public Acl::AnnotationStrategy
 {
 public:
-    bool requiresRequest() const override { return true; }
+    bool requiresRequest() const override { return false; }
     int match(ACLData<MatchType> * &, ACLFilledChecklist *) override;
 };
 
