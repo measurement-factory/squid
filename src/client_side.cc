@@ -2351,7 +2351,7 @@ clientNegotiateSSL(int fd, void *data)
         return;
 
     case Security::IoResult::ioError:
-        debugs(83, (handshakeResult.important ? Important(62) : 2), "ERROR: " << handshakeResult.errorDescription <<
+        debugs(83, (handshakeResult.important ? 2 : 2), "ERROR: " << handshakeResult.errorDescription <<
                " while accepting a TLS connection on " << conn->clientConnection << ": " << handshakeResult.errorDetail);
         // TODO: No ConnStateData::tunnelOnError() on this forward-proxy code
         // path because we cannot know the intended connection target?
@@ -3107,7 +3107,7 @@ ConnStateData::handleSslBumpHandshakeError(const Security::IoResult &handshakeRe
     }
 
     case Security::IoResult::ioError:
-        debugs(83, (handshakeResult.important ? DBG_IMPORTANT : 2), "ERROR: " << handshakeResult.errorDescription <<
+        debugs(83, (handshakeResult.important ? 2 : 2), "ERROR: " << handshakeResult.errorDescription <<
                " while SslBump-accepting a TLS connection on " << clientConnection << ": " << handshakeResult.errorDetail);
         updateError(errCategory = ERR_SECURE_ACCEPT_FAIL, handshakeResult.errorDetail);
         break;
