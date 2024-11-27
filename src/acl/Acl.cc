@@ -151,7 +151,7 @@ ACL::matches(ACLChecklist *checklist) const
 
     int result = 0;
     if (!checklist->hasAle() && requiresAle()) {
-        debugs(28, DBG_IMPORTANT, "WARNING: " << name << " ACL is used in " <<
+        debugs(28, 3/*DBG_IMPORTANT*/, "WARNING: " << name << " ACL is used in " <<
                "context without an ALE state. Assuming mismatch.");
     } else if (!checklist->hasRequest() && requiresRequest()) {
         debugs(28, DBG_IMPORTANT, "WARNING: " << name << " ACL is used in " <<
