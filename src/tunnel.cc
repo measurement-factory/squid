@@ -543,6 +543,9 @@ TunnelStateData::updateAttempts(const int newValue)
 int
 TunnelStateData::Connection::debugLevelForError(int const xerrno) const
 {
+    if (xerrno == 0)
+        return 3;
+
 #ifdef ECONNRESET
 
     if (xerrno == ECONNRESET)
