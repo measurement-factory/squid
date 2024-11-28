@@ -64,6 +64,7 @@ memcachemode
 note			acl
 obsolete
 onoff
+on_error acl
 on_unsupported_protocol	acl
 peer
 peer_access		cache_peer acl

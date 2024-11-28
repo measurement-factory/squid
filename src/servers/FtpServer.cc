@@ -494,12 +494,25 @@ Ftp::Server::writeEarlyReply(const int code, const char *msg)
 void
 Ftp::Server::writeReply(MemBuf &mb)
 {
+    using Dialer = CommCbMemFunT<Server, CommIoCbParams>;
+    AsyncCall::Pointer call = JobCallback(33, 5, Dialer, this, Ftp::Server::wroteReply);
+    writeReplyAndCall(mb, call);
+}
+
+void
+Ftp::Server::writeReplyAndCall(MemBuf &mb, AsyncCall::Pointer &call)
+{
     debugs(9, 2, "FTP Client " << clientConnection);
     debugs(9, 2, "FTP Client REPLY:\n---------\n" << mb.buf <<
            "\n----------");
 
-    typedef CommCbMemFunT<Server, CommIoCbParams> Dialer;
-    AsyncCall::Pointer call = JobCallback(33, 5, Dialer, this, Ftp::Server::wroteReply);
+    const auto context = pipeline.front();
+    Assure(context);
+    const auto http = pipeline.front()->http;
+    Assure(http);
+    if (http->seenError() && http->getConn()->closedOnError())
+        return;
+
     Comm::Write(clientConnection, &mb, call);
 }
 
@@ -1201,12 +1214,7 @@ Ftp::Server::writeForwardedReplyAndCall(const HttpReply *reply, AsyncCall::Point
     MemBuf mb;
     mb.init();
     Ftp::PrintReply(mb, reply);
-
-    debugs(9, 2, "FTP Client " << clientConnection);
-    debugs(9, 2, "FTP Client REPLY:\n---------\n" << mb.buf <<
-           "\n----------");
-
-    Comm::Write(clientConnection, &mb, call);
+    writeReplyAndCall(mb, call);
 }
 
 static void
