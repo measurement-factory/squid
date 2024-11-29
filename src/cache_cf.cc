@@ -4964,7 +4964,6 @@ free_on_error(acl_access ** const access)
     free_acl_access(access);
 }
 
-
 static void
 parse_http_upgrade_request_protocols(HttpUpgradeProtocolAccess **protoGuardsPtr)
 {
