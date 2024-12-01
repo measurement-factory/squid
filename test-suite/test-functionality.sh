@@ -221,6 +221,7 @@ main() {
             cache-response
             proxy-collapsed-forwarding
             cache-refresh-response
+            hit-revalidation
             busy-restart
             truncated-responses
             malformed-request
