@@ -18,6 +18,20 @@ class HttpRequest;
 class CachePeer;
 class CommConnectCbParams;
 
+class PeerPoolMgrContext : public CodeContext
+{
+public:
+    typedef RefCount<PeerPoolMgrContext> Pointer;
+
+    PeerPoolMgrContext(PeerPoolMgr *);
+
+    /* CodeContext API */
+    ScopedId codeContextGist() const override;
+    std::ostream &detailCodeContext(std::ostream &os) const override;
+
+    CbcPointer<PeerPoolMgr> manager;
+};
+
 /// Maintains an fixed-size "standby" PconnPool for a single CachePeer.
 class PeerPoolMgr: public AsyncJob
 {
@@ -31,6 +45,8 @@ public:
 
     explicit PeerPoolMgr(CachePeer *aPeer);
     ~PeerPoolMgr() override;
+
+    PeerPoolMgrContext::Pointer context;
 
 protected:
     /* AsyncJob API */
@@ -69,6 +85,8 @@ private:
     JobWait<Security::BlindPeerConnector> encryptionWait;
 
     unsigned int addrUsed; ///< counter for cycling through peer addresses
+
+    friend class PeerPoolMgrContext;
 };
 
 #endif /* SQUID_PEERPOOLMGR_H */

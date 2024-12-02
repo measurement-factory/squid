@@ -11,6 +11,7 @@
 
 #include "acl/forward.h"
 #include "base/CbcPointer.h"
+#include "base/CodeContext.h"
 #include "enums.h"
 #include "icp_opcode.h"
 #include "ip/Address.h"
@@ -25,6 +26,20 @@ class NeighborTypeDomainList;
 class PconnPool;
 class PeerDigest;
 class PeerPoolMgr;
+
+class CachePeerProbeCodeContext : public CodeContext
+{
+public:
+    typedef RefCount<CachePeerProbeCodeContext> Pointer;
+
+    CachePeerProbeCodeContext(CachePeer *);
+
+    /* CodeContext API */
+    ScopedId codeContextGist() const override;
+    std::ostream &detailCodeContext(std::ostream &os) const override;
+
+    CbcPointer<CachePeer> peer;
+};
 
 class CachePeer
 {
@@ -220,6 +235,10 @@ public:
 
     int front_end_https = 0; ///< 0 - off, 1 - on, 2 - auto
     int connection_auth = 2; ///< 0 - off, 1 - on, 2 - auto
+
+    InstanceId<CachePeer> id;
+
+    CachePeerProbeCodeContext::Pointer probeCodeContext;
 
 private:
     friend class OutgoingConnectionFailure;

@@ -1113,7 +1113,7 @@ neighborUp(const CachePeer * p)
 {
     if (!p->tcp_up) {
         // TODO: When CachePeer gets its own CodeContext, pass that context instead of nullptr
-        CallService(nullptr, [&] {
+        CallService(p->probeCodeContext, [&] {
             peerProbeConnect(const_cast<CachePeer*>(p));
         });
         return 0;
@@ -1220,8 +1220,11 @@ peerRefreshDNS(void *data)
         return;
     }
 
-    for (p = Config.peers; p; p = p->next)
-        ipcache_nbgethostbyname(p->host, peerDNSConfigure, p);
+    for (p = Config.peers; p; p = p->next) {
+        CallService(p->probeCodeContext, [&] {
+            ipcache_nbgethostbyname(p->host, peerDNSConfigure, p);
+        });
+    }
 
     /* Reconfigure the peers every hour */
     eventAddIsh("peerRefreshDNS", peerRefreshDNS, nullptr, 3600.0, 1);

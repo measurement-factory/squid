@@ -27,7 +27,10 @@
 
 CBDATA_CLASS_INIT(PeerPoolMgr);
 
+InstanceIdDefinitions(PeerPoolMgr, "PeerPoolMgr");
+
 PeerPoolMgr::PeerPoolMgr(CachePeer *aPeer): AsyncJob("PeerPoolMgr"),
+    context(new PeerPoolMgrContext(this)),
     peer(cbdataReference(aPeer)),
     request(),
     transportWait(),
@@ -225,7 +228,35 @@ PeerPoolMgr::checkpoint(const char *reason)
 void
 PeerPoolMgr::Checkpoint(const Pointer &mgr, const char *reason)
 {
-    CallJobHere1(48, 5, mgr, PeerPoolMgr, checkpoint, reason);
+    CallService((mgr.valid() ? mgr->context : nullptr), [&] {
+        CallJobHere1(48, 5, mgr, PeerPoolMgr, checkpoint, reason);
+    });
+}
+
+PeerPoolMgrContext::PeerPoolMgrContext(PeerPoolMgr *m) : manager(m) {}
+
+ScopedId
+PeerPoolMgrContext::codeContextGist() const
+{
+    if (manager.valid())
+        return manager->id.detach();
+
+    return ScopedId("PeerPoolMgrContext w/o standby pool");
+}
+
+std::ostream &
+PeerPoolMgrContext::detailCodeContext(std::ostream &os) const
+{
+    if (manager.valid()) {
+        const auto peer = manager->validPeer() ? manager->peer->name : "w/o peer";
+        os << Debug::Extra << "current cache_peer standby pool: " << peer;
+
+        if (manager->request) {
+            if (const auto &mx = manager->request->masterXaction)
+                os << Debug::Extra << "current master transaction: " << mx->id;
+        }
+    }
+    return os;
 }
 
 /// launches PeerPoolMgrs for peers configured with standby.limit
@@ -250,7 +281,9 @@ PeerPoolMgrsRr::syncConfig()
         if (p->standby.limit) {
             p->standby.mgr = new PeerPoolMgr(p);
             p->standby.pool = new PconnPool(p->name, p->standby.mgr);
-            AsyncJob::Start(p->standby.mgr.get());
+            CallService(p->standby.mgr->context, [&] {
+                AsyncJob::Start(p->standby.mgr.get());
+            });
         }
     }
 }

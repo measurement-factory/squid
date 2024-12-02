@@ -20,9 +20,12 @@
 
 CBDATA_CLASS_INIT(CachePeer);
 
+InstanceIdDefinitions(CachePeer, "CachePeer");
+
 CachePeer::CachePeer(const char * const hostname):
     name(xstrdup(hostname)),
-    host(xstrdup(hostname))
+    host(xstrdup(hostname)),
+    probeCodeContext(new CachePeerProbeCodeContext(this))
 {
     Tolower(host); // but .name preserves original spelling
 }
@@ -107,6 +110,25 @@ CachePeer::connectTimeout() const
     if (connect_timeout_raw > 0)
         return connect_timeout_raw;
     return Config.Timeout.peer_connect;
+}
+
+CachePeerProbeCodeContext::CachePeerProbeCodeContext(CachePeer *p) : peer(p) {}
+
+ScopedId
+CachePeerProbeCodeContext::codeContextGist() const
+{
+    if (peer.valid())
+        return peer->id.detach();
+
+    return ScopedId("CachePeerProbeCodeContext w/o peer");
+}
+
+std::ostream &
+CachePeerProbeCodeContext::detailCodeContext(std::ostream &os) const
+{
+    if (peer.valid())
+        os << Debug::Extra << "current cache_peer probe: " << peer->name;
+    return os;
 }
 
 void
