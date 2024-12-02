@@ -20,6 +20,7 @@
 #include "icp_opcode.h"
 #include "ip/Address.h"
 #include "LogTags.h"
+#include "mem/forward.h"
 #include "MessageSizes.h"
 #include "Notes.h"
 #include "proxyp/forward.h"
@@ -39,6 +40,7 @@ class CustomLog;
 
 class AccessLogEntry: public CodeContext
 {
+    MEMPROXY_CLASS(AccessLogEntry);
 
 public:
     typedef RefCount<AccessLogEntry> Pointer;
