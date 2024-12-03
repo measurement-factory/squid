@@ -49,11 +49,11 @@ PeerPoolMgr::start()
     AsyncJob::start();
 
     const auto mx = MasterXaction::MakePortless<XactionInitiator::initPeerPool>();
+    context->setMasterXaction(mx);
     // ErrorState, getOutgoingAddress(), and other APIs may require a request.
     // We fake one. TODO: Optionally send this request to peers?
     request = new HttpRequest(Http::METHOD_OPTIONS, AnyP::PROTO_HTTP, "http", "*", mx);
     request->url.host(peer->host);
-    context->setMasterXaction(mx);
 
     checkpoint("peer initialized");
 }

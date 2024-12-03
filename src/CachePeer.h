@@ -11,7 +11,6 @@
 
 #include "acl/forward.h"
 #include "base/CbcPointer.h"
-#include "base/CodeContext.h"
 #include "enums.h"
 #include "icp_opcode.h"
 #include "ip/Address.h"
