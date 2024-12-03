@@ -27,19 +27,9 @@ class PconnPool;
 class PeerDigest;
 class PeerPoolMgr;
 
-class CachePeerProbeCodeContext : public CodeContext
-{
-public:
-    typedef RefCount<CachePeerProbeCodeContext> Pointer;
-
-    CachePeerProbeCodeContext(CachePeer *);
-
-    /* CodeContext API */
-    ScopedId codeContextGist() const override;
-    std::ostream &detailCodeContext(std::ostream &os) const override;
-
-    CbcPointer<CachePeer> peer;
-};
+class DetailedCodeContext;
+template <class C> class RefCount;
+typedef RefCount<DetailedCodeContext> DetailedCodeContextPointer;
 
 class CachePeer
 {
@@ -236,9 +226,7 @@ public:
     int front_end_https = 0; ///< 0 - off, 1 - on, 2 - auto
     int connection_auth = 2; ///< 0 - off, 1 - on, 2 - auto
 
-    InstanceId<CachePeer> id;
-
-    CachePeerProbeCodeContext::Pointer probeCodeContext;
+    DetailedCodeContextPointer probeCodeContext;
 
 private:
     friend class OutgoingConnectionFailure;

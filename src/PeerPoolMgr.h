@@ -18,18 +18,27 @@ class HttpRequest;
 class CachePeer;
 class CommConnectCbParams;
 
-class PeerPoolMgrContext : public CodeContext
+/// CodeContext for cache_peer related classes
+class DetailedCodeContext : public CodeContext
 {
 public:
-    typedef RefCount<PeerPoolMgrContext> Pointer;
+    typedef RefCount<DetailedCodeContext> Pointer;
 
-    PeerPoolMgrContext(PeerPoolMgr *);
+    DetailedCodeContext(const char *gist, const SBuf &detail) : gist_(gist),
+        detail_(detail)
+        {}
 
     /* CodeContext API */
     ScopedId codeContextGist() const override;
     std::ostream &detailCodeContext(std::ostream &os) const override;
 
-    CbcPointer<PeerPoolMgr> manager;
+    void setMasterXaction(const MasterXaction::Pointer &mx) { masterXaction = mx; }
+
+private:
+    const char *gist_; ///< the id used in codeContextGist()
+    const SBuf detail_; ///< the detail used in detailCodeContext()
+    /// the corresponding master transaction, if any
+    MasterXaction::Pointer masterXaction;
 };
 
 /// Maintains an fixed-size "standby" PconnPool for a single CachePeer.
@@ -45,8 +54,6 @@ public:
 
     explicit PeerPoolMgr(CachePeer *aPeer);
     ~PeerPoolMgr() override;
-
-    PeerPoolMgrContext::Pointer context;
 
 protected:
     /* AsyncJob API */
@@ -86,7 +93,8 @@ private:
 
     unsigned int addrUsed; ///< counter for cycling through peer addresses
 
-    friend class PeerPoolMgrContext;
+public:
+    DetailedCodeContext::Pointer context;
 };
 
 #endif /* SQUID_PEERPOOLMGR_H */

@@ -22,20 +22,19 @@
 #include "neighbors.h"
 #include "pconn.h"
 #include "PeerPoolMgr.h"
+#include "sbuf/Stream.h"
 #include "security/BlindPeerConnector.h"
 #include "SquidConfig.h"
 
 CBDATA_CLASS_INIT(PeerPoolMgr);
 
-InstanceIdDefinitions(PeerPoolMgr, "PeerPoolMgr");
-
 PeerPoolMgr::PeerPoolMgr(CachePeer *aPeer): AsyncJob("PeerPoolMgr"),
-    context(new PeerPoolMgrContext(this)),
     peer(cbdataReference(aPeer)),
     request(),
     transportWait(),
     encryptionWait(),
-    addrUsed(0)
+    addrUsed(0),
+    context(new DetailedCodeContext("cache_peer standby pool", ToSBuf("current cache_peer standby pool", *peer)))
 {
 }
 
@@ -54,6 +53,7 @@ PeerPoolMgr::start()
     // We fake one. TODO: Optionally send this request to peers?
     request = new HttpRequest(Http::METHOD_OPTIONS, AnyP::PROTO_HTTP, "http", "*", mx);
     request->url.host(peer->host);
+    context->setMasterXaction(mx);
 
     checkpoint("peer initialized");
 }
@@ -233,29 +233,19 @@ PeerPoolMgr::Checkpoint(const Pointer &mgr, const char *reason)
     });
 }
 
-PeerPoolMgrContext::PeerPoolMgrContext(PeerPoolMgr *m) : manager(m) {}
-
 ScopedId
-PeerPoolMgrContext::codeContextGist() const
+DetailedCodeContext::codeContextGist() const
 {
-    if (manager.valid())
-        return manager->id.detach();
-
-    return ScopedId("PeerPoolMgrContext w/o standby pool");
+    // See also: AnyP::PortCfg::codeContextGist().
+    return ScopedId(gist_);
 }
 
 std::ostream &
-PeerPoolMgrContext::detailCodeContext(std::ostream &os) const
+DetailedCodeContext::detailCodeContext(std::ostream &os) const
 {
-    if (manager.valid()) {
-        const auto peer = manager->validPeer() ? manager->peer->name : "w/o peer";
-        os << Debug::Extra << "current cache_peer standby pool: " << peer;
-
-        if (manager->request) {
-            if (const auto &mx = manager->request->masterXaction)
-                os << Debug::Extra << "current master transaction: " << mx->id;
-        }
-    }
+    os << Debug::Extra << detail_;
+    if (masterXaction)
+        os << Debug::Extra << "current master transaction: " << masterXaction->id;
     return os;
 }
 
