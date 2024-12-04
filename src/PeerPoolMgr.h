@@ -24,8 +24,9 @@ class DetailedCodeContext : public CodeContext
 public:
     typedef RefCount<DetailedCodeContext> Pointer;
 
-    DetailedCodeContext(const char *gist, const SBuf &detail) : gist_(gist),
-        detail_(detail)
+    DetailedCodeContext(const char *gist, const SBuf &detail, const MasterXaction::Pointer &mx) : gist_(gist),
+        detail_(detail),
+        masterXaction(mx)
         {}
 
     /* CodeContext API */
@@ -55,6 +56,8 @@ public:
     explicit PeerPoolMgr(CachePeer *aPeer);
     ~PeerPoolMgr() override;
 
+    RefCount<HttpRequest> request; ///< fake HTTP request for conn opening code
+
 protected:
     /* AsyncJob API */
     void start() override;
@@ -83,7 +86,6 @@ protected:
 
 private:
     CachePeer *peer; ///< the owner of the pool we manage
-    RefCount<HttpRequest> request; ///< fake HTTP request for conn opening code
 
     /// waits for a transport connection to the peer to be established/opened
     JobWait<Comm::ConnOpener> transportWait;
@@ -92,9 +94,6 @@ private:
     JobWait<Security::BlindPeerConnector> encryptionWait;
 
     unsigned int addrUsed; ///< counter for cycling through peer addresses
-
-public:
-    DetailedCodeContext::Pointer context;
 };
 
 #endif /* SQUID_PEERPOOLMGR_H */

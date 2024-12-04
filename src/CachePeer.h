@@ -213,6 +213,7 @@ public:
         CbcPointer<PeerPoolMgr> mgr;  ///< pool manager
         int limit = 0;                ///< the limit itself
         bool waitingForClose = false; ///< a conn must close before we open a standby conn
+        DetailedCodeContextPointer context; ///< pool manager context
     } standby;
 
     char *domain = nullptr; ///< Forced domain

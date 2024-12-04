@@ -30,12 +30,15 @@ CBDATA_CLASS_INIT(PeerPoolMgr);
 
 PeerPoolMgr::PeerPoolMgr(CachePeer *aPeer): AsyncJob("PeerPoolMgr"),
     peer(cbdataReference(aPeer)),
-    request(),
     transportWait(),
     encryptionWait(),
-    addrUsed(0),
-    context(new DetailedCodeContext("cache_peer standby pool", ToSBuf("current cache_peer standby pool: ", *peer)))
+    addrUsed(0)
 {
+    const auto mx = MasterXaction::MakePortless<XactionInitiator::initPeerPool>();
+    // ErrorState, getOutgoingAddress(), and other APIs may require a request.
+    // We fake one. TODO: Optionally send this request to peers?
+    request = new HttpRequest(Http::METHOD_OPTIONS, AnyP::PROTO_HTTP, "http", "*", mx);
+    request->url.host(peer->host);
 }
 
 PeerPoolMgr::~PeerPoolMgr()
@@ -47,14 +50,6 @@ void
 PeerPoolMgr::start()
 {
     AsyncJob::start();
-
-    const auto mx = MasterXaction::MakePortless<XactionInitiator::initPeerPool>();
-    context->setMasterXaction(mx);
-    // ErrorState, getOutgoingAddress(), and other APIs may require a request.
-    // We fake one. TODO: Optionally send this request to peers?
-    request = new HttpRequest(Http::METHOD_OPTIONS, AnyP::PROTO_HTTP, "http", "*", mx);
-    request->url.host(peer->host);
-
     checkpoint("peer initialized");
 }
 
@@ -215,6 +210,8 @@ PeerPoolMgr::checkpoint(const char *reason)
         return; // nothing to do after our owner dies; the job will quit
     }
 
+    const auto savedContext = CodeContext::Current();
+    CodeContext::Reset(peer->standby.context);
     const int count = peer->standby.pool->count();
     const int limit = peer->standby.limit;
     debugs(48, 7, reason << " with " << count << " ? " << limit);
@@ -223,14 +220,13 @@ PeerPoolMgr::checkpoint(const char *reason)
         openNewConnection();
     else if (count > limit)
         closeOldConnections(count - limit);
+    CodeContext::Reset(savedContext);
 }
 
 void
 PeerPoolMgr::Checkpoint(const Pointer &mgr, const char *reason)
 {
-    CallService((mgr.valid() ? mgr->context : nullptr), [&] {
-        CallJobHere1(48, 5, mgr, PeerPoolMgr, checkpoint, reason);
-    });
+    CallJobHere1(48, 5, mgr, PeerPoolMgr, checkpoint, reason);
 }
 
 ScopedId
@@ -270,8 +266,11 @@ PeerPoolMgrsRr::syncConfig()
         assert(!p->standby.pool);
         if (p->standby.limit) {
             p->standby.mgr = new PeerPoolMgr(p);
+            p->standby.context = new DetailedCodeContext("cache_peer standby pool",
+                    ToSBuf("current cache_peer standby pool: ", *p),
+                    p->standby.mgr->request->masterXaction);
             p->standby.pool = new PconnPool(p->name, p->standby.mgr);
-            CallService(p->standby.mgr->context, [&] {
+            CallService(p->standby.context, [&] {
                 AsyncJob::Start(p->standby.mgr.get());
             });
         }
