@@ -210,17 +210,16 @@ PeerPoolMgr::checkpoint(const char *reason)
         return; // nothing to do after our owner dies; the job will quit
     }
 
-    const auto savedContext = CodeContext::Current();
-    CodeContext::Reset(peer->standby.context);
-    const int count = peer->standby.pool->count();
-    const int limit = peer->standby.limit;
-    debugs(48, 7, reason << " with " << count << " ? " << limit);
+    CallService(peer->standby.context, [&] {
+        const int count = peer->standby.pool->count();
+        const int limit = peer->standby.limit;
+        debugs(48, 7, reason << " with " << count << " ? " << limit);
 
-    if (count < limit)
-        openNewConnection();
-    else if (count > limit)
-        closeOldConnections(count - limit);
-    CodeContext::Reset(savedContext);
+        if (count < limit)
+            openNewConnection();
+        else if (count > limit)
+            closeOldConnections(count - limit);
+    });
 }
 
 void

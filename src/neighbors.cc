@@ -1223,11 +1223,12 @@ peerRefreshDNS(void *data)
         return;
     }
 
+    const auto savedContext = CodeContext::Current();
     for (p = Config.peers; p; p = p->next) {
-        CallService(p->probeCodeContext, [&] {
-            ipcache_nbgethostbyname(p->host, peerDNSConfigure, p);
-        });
+        CodeContext::Reset(p->probeCodeContext);
+        ipcache_nbgethostbyname(p->host, peerDNSConfigure, p);
     }
+    CodeContext::Reset(savedContext);
 
     /* Reconfigure the peers every hour */
     eventAddIsh("peerRefreshDNS", peerRefreshDNS, nullptr, 3600.0, 1);
