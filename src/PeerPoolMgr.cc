@@ -34,7 +34,7 @@ PeerPoolMgr::PeerPoolMgr(CachePeer *aPeer): AsyncJob("PeerPoolMgr"),
     transportWait(),
     encryptionWait(),
     addrUsed(0),
-    context(new DetailedCodeContext("cache_peer standby pool", ToSBuf("current cache_peer standby pool", *peer)))
+    context(new DetailedCodeContext("cache_peer standby pool", ToSBuf("current cache_peer standby pool: ", *peer)))
 {
 }
 
