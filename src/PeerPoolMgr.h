@@ -27,7 +27,7 @@ public:
     DetailedCodeContext(const char *gist, const SBuf &detail, const MasterXaction::Pointer &mx) : gist_(gist),
         detail_(detail),
         masterXaction(mx)
-        {}
+    {}
 
     /* CodeContext API */
     ScopedId codeContextGist() const override;
