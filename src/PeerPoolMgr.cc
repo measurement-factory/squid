@@ -35,6 +35,7 @@ PeerPoolMgr::PeerPoolMgr(CachePeer *aPeer): AsyncJob("PeerPoolMgr"),
     addrUsed(0)
 {
     const auto mx = MasterXaction::MakePortless<XactionInitiator::initPeerPool>();
+    context = new DetailedCodeContext("cache_peer standby pool", ToSBuf("current cache_peer standby pool: ", *peer), mx);
     // ErrorState, getOutgoingAddress(), and other APIs may require a request.
     // We fake one. TODO: Optionally send this request to peers?
     request = new HttpRequest(Http::METHOD_OPTIONS, AnyP::PROTO_HTTP, "http", "*", mx);
@@ -210,22 +211,22 @@ PeerPoolMgr::checkpoint(const char *reason)
         return; // nothing to do after our owner dies; the job will quit
     }
 
-    CallService(peer->standby.context, [&] {
-        const int count = peer->standby.pool->count();
-        const int limit = peer->standby.limit;
-        debugs(48, 7, reason << " with " << count << " ? " << limit);
+    const int count = peer->standby.pool->count();
+    const int limit = peer->standby.limit;
+    debugs(48, 7, reason << " with " << count << " ? " << limit);
 
-        if (count < limit)
-            openNewConnection();
-        else if (count > limit)
-            closeOldConnections(count - limit);
-    });
+    if (count < limit)
+        openNewConnection();
+    else if (count > limit)
+        closeOldConnections(count - limit);
 }
 
 void
 PeerPoolMgr::Checkpoint(const Pointer &mgr, const char *reason)
 {
-    CallJobHere1(48, 5, mgr, PeerPoolMgr, checkpoint, reason);
+    CallService((mgr.valid() ? mgr->context : nullptr), [&] {
+        CallJobHere1(48, 5, mgr, PeerPoolMgr, checkpoint, reason);
+    });
 }
 
 ScopedId
@@ -265,11 +266,8 @@ PeerPoolMgrsRr::syncConfig()
         assert(!p->standby.pool);
         if (p->standby.limit) {
             p->standby.mgr = new PeerPoolMgr(p);
-            p->standby.context = new DetailedCodeContext("cache_peer standby pool",
-                    ToSBuf("current cache_peer standby pool: ", *p),
-                    p->standby.mgr->request->masterXaction);
             p->standby.pool = new PconnPool(p->name, p->standby.mgr);
-            CallService(p->standby.context, [&] {
+            CallService(p->standby.mgr->context, [&] {
                 AsyncJob::Start(p->standby.mgr.get());
             });
         }

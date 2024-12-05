@@ -56,7 +56,7 @@ public:
     explicit PeerPoolMgr(CachePeer *aPeer);
     ~PeerPoolMgr() override;
 
-    RefCount<HttpRequest> request; ///< fake HTTP request for conn opening code
+    DetailedCodeContext::Pointer context; ///< the pool manager context
 
 protected:
     /* AsyncJob API */
@@ -86,6 +86,7 @@ protected:
 
 private:
     CachePeer *peer; ///< the owner of the pool we manage
+    RefCount<HttpRequest> request; ///< fake HTTP request for conn opening code
 
     /// waits for a transport connection to the peer to be established/opened
     JobWait<Comm::ConnOpener> transportWait;
