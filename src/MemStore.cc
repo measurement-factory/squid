@@ -872,7 +872,7 @@ MemStore::write(StoreEntry &e)
         if (e.store_status == STORE_OK) // done receiving new content
             completeWriting(e);
         else
-            CollapsedForwarding::Broadcast(e);
+            CollapsedForwarding::Broadcast(e, Here());
         return;
     } catch (const std::exception &x) { // TODO: should we catch ... as well?
         debugs(20, 2, "mem-caching error writing entry " << e << ": " << x.what());
@@ -896,7 +896,7 @@ MemStore::completeWriting(StoreEntry &e)
     e.mem_obj->memCache.io = Store::ioDone;
     map->closeForWriting(index);
 
-    CollapsedForwarding::Broadcast(e);
+    CollapsedForwarding::Broadcast(e, Here());
     e.storeWriterDone();
 }
 
@@ -906,7 +906,7 @@ MemStore::evictCached(StoreEntry &e)
     debugs(47, 5, e);
     if (e.hasMemStore()) {
         if (map->freeEntry(e.mem_obj->memCache.index))
-            CollapsedForwarding::Broadcast(e);
+            CollapsedForwarding::Broadcast(e, Here());
         if (!e.locked()) {
             disconnect(e);
             e.destroyMemObject();
@@ -936,7 +936,7 @@ MemStore::disconnect(StoreEntry &e)
             map->abortWriting(mem_obj.memCache.index);
             mem_obj.memCache.index = -1;
             mem_obj.memCache.io = Store::ioDone;
-            CollapsedForwarding::Broadcast(e);
+            CollapsedForwarding::Broadcast(e, Here());
             e.storeWriterDone();
         } else {
             assert(mem_obj.memCache.io == Store::ioReading);

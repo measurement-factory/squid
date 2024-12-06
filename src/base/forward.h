@@ -19,6 +19,7 @@ class PrecomputedCodeContext;
 class Raw;
 class RegexPattern;
 class ScopedId;
+class SourceLocation;
 class Stopwatch;
 
 template<class Cbc> class CbcPointer;
