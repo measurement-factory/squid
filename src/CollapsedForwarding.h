@@ -11,6 +11,7 @@
 #ifndef SQUID_COLLAPSED_FORWARDING_H
 #define SQUID_COLLAPSED_FORWARDING_H
 
+#include "base/forward.h"
 #include "ipc/forward.h"
 #include "ipc/Queue.h"
 #include "store/forward.h"
@@ -27,11 +28,11 @@ public:
     static void Init();
 
     /// notify other workers about changes in entry state (e.g., new data)
-    static void Broadcast(const StoreEntry &e, const bool includingThisWorker = false);
+    static void Broadcast(const StoreEntry &, const SourceLocation &, const bool includingThisWorker = false);
 
     /// notify other workers about state changes in Transient entry at the given xitTable.index
     /// use Broadcast(StoreEntry) variant if you have a StoreEntry object
-    static void Broadcast(const sfileno index, const bool includingThisWorker);
+    static void Broadcast(const sfileno index, const SourceLocation &, const bool includingThisWorker);
 
     /// kick worker with empty IPC queue
     static void Notify(const int workerId);

@@ -67,20 +67,20 @@ CollapsedForwarding::Init()
 }
 
 void
-CollapsedForwarding::Broadcast(const StoreEntry &e, const bool includingThisWorker)
+CollapsedForwarding::Broadcast(const StoreEntry &e, const SourceLocation &caller, const bool includingThisWorker)
 {
     if (!e.hasTransients() ||
             !Store::Root().transientReaders(e)) {
-        debugs(17, 7, "nobody reads " << e);
+        debugs(17, 7, "nobody reads " << e << "; broadcaster: " << caller);
         return;
     }
 
-    debugs(17, 5, e);
-    Broadcast(e.mem_obj->xitTable.index, includingThisWorker);
+    debugs(17, 5, e << "; broadcaster: " << caller);
+    Broadcast(e.mem_obj->xitTable.index, caller, includingThisWorker);
 }
 
 void
-CollapsedForwarding::Broadcast(const sfileno index, const bool includingThisWorker)
+CollapsedForwarding::Broadcast(const sfileno index, const SourceLocation &caller, const bool includingThisWorker)
 {
     if (!queue.get())
         return;
@@ -89,7 +89,7 @@ CollapsedForwarding::Broadcast(const sfileno index, const bool includingThisWork
     msg.sender = KidIdentifier;
     msg.xitIndex = index;
 
-    debugs(17, 7, "entry " << index << " to " << Config.workers << (includingThisWorker ? "" : "-1") << " workers");
+    debugs(17, 7, "entry " << index << " to " << Config.workers << (includingThisWorker ? "" : "-1") << " workers; broadcaster: " << caller);
 
     // TODO: send only to workers who are waiting for data
     for (int workerId = 1; workerId <= Config.workers; ++workerId) {
@@ -99,7 +99,9 @@ CollapsedForwarding::Broadcast(const sfileno index, const bool includingThisWork
         } catch (const Queue::Full &) {
             debugs(17, DBG_IMPORTANT, "ERROR: Collapsed forwarding " <<
                    "queue overflow for kid" << workerId <<
-                   " at " << queue->outSize(workerId) << " items");
+                   " at " << queue->outSize(workerId) << " items" <<
+                   Debug::Extra << "transients entry ID: " << msg.xitIndex <<
+                   Debug::Extra << "broadcaster: " << caller);
             // TODO: grow queue size
         }
     }

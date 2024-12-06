@@ -15,6 +15,7 @@ class AsyncJob;
 class CallDialer;
 class CodeContext;
 class DelayedAsyncCalls;
+class SourceLocation;
 class Raw;
 class RegexPattern;
 class ScopedId;
