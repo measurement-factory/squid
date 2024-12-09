@@ -11,6 +11,7 @@
 
 #include "acl/forward.h"
 #include "base/CbcPointer.h"
+#include "base/PrecomputedCodeContext.h"
 #include "enums.h"
 #include "icp_opcode.h"
 #include "ip/Address.h"
@@ -25,10 +26,6 @@ class NeighborTypeDomainList;
 class PconnPool;
 class PeerDigest;
 class PeerPoolMgr;
-
-class DetailedCodeContext;
-template <class C> class RefCount;
-typedef RefCount<DetailedCodeContext> DetailedCodeContextPointer;
 
 class CachePeer
 {
@@ -225,7 +222,7 @@ public:
     int front_end_https = 0; ///< 0 - off, 1 - on, 2 - auto
     int connection_auth = 2; ///< 0 - off, 1 - on, 2 - auto
 
-    DetailedCodeContextPointer probeCodeContext;
+    PrecomputedCodeContext::Pointer probeCodeContext;
 
 private:
     friend class OutgoingConnectionFailure;
