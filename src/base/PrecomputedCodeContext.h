@@ -18,7 +18,7 @@ template <class C> class RefCount;
 typedef RefCount<MasterXaction> MasterXactionPointer;
 
 /// CodeContext with constant details known at construction time
-class PrecomputedCodeContext : public CodeContext
+class PrecomputedCodeContext: public CodeContext
 {
 public:
     typedef RefCount<PrecomputedCodeContext> Pointer;
@@ -37,3 +37,4 @@ private:
 };
 
 #endif /* SQUID_SRC_BASE_PRECOMPUTEDCODECONTEXT_H */
+
