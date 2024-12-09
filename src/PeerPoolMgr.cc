@@ -225,7 +225,10 @@ PeerPoolMgr::checkpoint(const char *reason)
 void
 PeerPoolMgr::Checkpoint(const Pointer &mgr, const char *reason)
 {
-    CallService((mgr.valid() ? mgr->codeContext : nullptr), [&] {
+    if (!mgr.valid())
+        return;
+
+    CallService(mgr->codeContext, [&] {
         CallJobHere1(48, 5, mgr, PeerPoolMgr, checkpoint, reason);
     });
 }
