@@ -11,6 +11,7 @@
 
 #include "base/AsyncJob.h"
 #include "base/JobWait.h"
+#include "base/PrecomputedCodeContext.h"
 #include "comm/forward.h"
 #include "security/forward.h"
 
@@ -31,6 +32,8 @@ public:
 
     explicit PeerPoolMgr(CachePeer *aPeer);
     ~PeerPoolMgr() override;
+
+    PrecomputedCodeContext::Pointer codeContext;
 
 protected:
     /* AsyncJob API */

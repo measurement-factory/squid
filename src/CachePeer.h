@@ -11,6 +11,7 @@
 
 #include "acl/forward.h"
 #include "base/CbcPointer.h"
+#include "base/PrecomputedCodeContext.h"
 #include "enums.h"
 #include "icp_opcode.h"
 #include "ip/Address.h"
@@ -220,6 +221,8 @@ public:
 
     int front_end_https = 0; ///< 0 - off, 1 - on, 2 - auto
     int connection_auth = 2; ///< 0 - off, 1 - on, 2 - auto
+
+    PrecomputedCodeContext::Pointer probeCodeContext;
 
 private:
     friend class OutgoingConnectionFailure;

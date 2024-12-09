@@ -15,6 +15,7 @@
 #include "pconn.h"
 #include "PeerDigest.h"
 #include "PeerPoolMgr.h"
+#include "sbuf/Stream.h"
 #include "SquidConfig.h"
 #include "util.h"
 
@@ -22,7 +23,8 @@ CBDATA_CLASS_INIT(CachePeer);
 
 CachePeer::CachePeer(const char * const hostname):
     name(xstrdup(hostname)),
-    host(xstrdup(hostname))
+    host(xstrdup(hostname)),
+    probeCodeContext(new PrecomputedCodeContext("cache_peer probe", ToSBuf("current cache_peer probe: ", *this), nullptr))
 {
     Tolower(host); // but .name preserves original spelling
 }

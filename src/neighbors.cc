@@ -616,9 +616,12 @@ neighborsUdpPing(HttpRequest * request,
 
     reqnum = icpSetCacheKey((const cache_key *)entry->key);
 
+    const auto savedContext = CodeContext::Current();
     for (i = 0, p = first_ping; i++ < Config.npeers; p = p->next) {
         if (p == nullptr)
             p = Config.peers;
+
+        CodeContext::Reset(p->probeCodeContext);
 
         debugs(15, 5, "candidate: " << *p);
 
@@ -708,6 +711,7 @@ neighborsUdpPing(HttpRequest * request,
         if ((p->type != PEER_MULTICAST) && (p->stats.probe_start == 0))
             p->stats.probe_start = squid_curtime;
     }
+    CodeContext::Reset(savedContext);
 
     if ((first_ping = first_ping->next) == nullptr)
         first_ping = Config.peers;
@@ -1112,8 +1116,7 @@ int
 neighborUp(const CachePeer * p)
 {
     if (!p->tcp_up) {
-        // TODO: When CachePeer gets its own CodeContext, pass that context instead of nullptr
-        CallService(nullptr, [&] {
+        CallService(p->probeCodeContext, [&] {
             peerProbeConnect(const_cast<CachePeer*>(p));
         });
         return 0;
@@ -1220,8 +1223,12 @@ peerRefreshDNS(void *data)
         return;
     }
 
-    for (p = Config.peers; p; p = p->next)
+    const auto savedContext = CodeContext::Current();
+    for (p = Config.peers; p; p = p->next) {
+        CodeContext::Reset(p->probeCodeContext);
         ipcache_nbgethostbyname(p->host, peerDNSConfigure, p);
+    }
+    CodeContext::Reset(savedContext);
 
     /* Reconfigure the peers every hour */
     eventAddIsh("peerRefreshDNS", peerRefreshDNS, nullptr, 3600.0, 1);

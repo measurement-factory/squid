@@ -22,6 +22,7 @@
 #include "neighbors.h"
 #include "pconn.h"
 #include "PeerPoolMgr.h"
+#include "sbuf/Stream.h"
 #include "security/BlindPeerConnector.h"
 #include "SquidConfig.h"
 
@@ -29,11 +30,17 @@ CBDATA_CLASS_INIT(PeerPoolMgr);
 
 PeerPoolMgr::PeerPoolMgr(CachePeer *aPeer): AsyncJob("PeerPoolMgr"),
     peer(cbdataReference(aPeer)),
-    request(),
     transportWait(),
     encryptionWait(),
     addrUsed(0)
 {
+    const auto mx = MasterXaction::MakePortless<XactionInitiator::initPeerPool>();
+
+    codeContext = new PrecomputedCodeContext("cache_peer standby pool", ToSBuf("current cache_peer standby pool: ", *peer), mx);
+    // ErrorState, getOutgoingAddress(), and other APIs may require a request.
+    // We fake one. TODO: Optionally send this request to peers?
+    request = new HttpRequest(Http::METHOD_OPTIONS, AnyP::PROTO_HTTP, "http", "*", mx);
+    request->url.host(peer->host);
 }
 
 PeerPoolMgr::~PeerPoolMgr()
@@ -45,13 +52,6 @@ void
 PeerPoolMgr::start()
 {
     AsyncJob::start();
-
-    const auto mx = MasterXaction::MakePortless<XactionInitiator::initPeerPool>();
-    // ErrorState, getOutgoingAddress(), and other APIs may require a request.
-    // We fake one. TODO: Optionally send this request to peers?
-    request = new HttpRequest(Http::METHOD_OPTIONS, AnyP::PROTO_HTTP, "http", "*", mx);
-    request->url.host(peer->host);
-
     checkpoint("peer initialized");
 }
 
@@ -225,7 +225,12 @@ PeerPoolMgr::checkpoint(const char *reason)
 void
 PeerPoolMgr::Checkpoint(const Pointer &mgr, const char *reason)
 {
-    CallJobHere1(48, 5, mgr, PeerPoolMgr, checkpoint, reason);
+    if (!mgr.valid())
+        return;
+
+    CallService(mgr->codeContext, [&] {
+        CallJobHere1(48, 5, mgr, PeerPoolMgr, checkpoint, reason);
+    });
 }
 
 /// launches PeerPoolMgrs for peers configured with standby.limit
@@ -250,7 +255,9 @@ PeerPoolMgrsRr::syncConfig()
         if (p->standby.limit) {
             p->standby.mgr = new PeerPoolMgr(p);
             p->standby.pool = new PconnPool(p->name, p->standby.mgr);
-            AsyncJob::Start(p->standby.mgr.get());
+            CallService(p->standby.mgr->codeContext, [&] {
+                AsyncJob::Start(p->standby.mgr.get());
+            });
         }
     }
 }
