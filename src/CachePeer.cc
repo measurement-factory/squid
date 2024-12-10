@@ -8,6 +8,7 @@
 
 #include "squid.h"
 #include "acl/Gadgets.h"
+#include "base/PrecomputedCodeContext.h"
 #include "CachePeer.h"
 #include "defines.h"
 #include "neighbors.h"

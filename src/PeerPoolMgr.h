@@ -10,8 +10,8 @@
 #define SQUID_PEERPOOLMGR_H
 
 #include "base/AsyncJob.h"
+#include "base/forward.h"
 #include "base/JobWait.h"
-#include "base/PrecomputedCodeContext.h"
 #include "comm/forward.h"
 #include "security/forward.h"
 
@@ -33,7 +33,7 @@ public:
     explicit PeerPoolMgr(CachePeer *aPeer);
     ~PeerPoolMgr() override;
 
-    PrecomputedCodeContext::Pointer codeContext;
+    PrecomputedCodeContextPointer codeContext;
 
 protected:
     /* AsyncJob API */
