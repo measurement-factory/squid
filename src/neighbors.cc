@@ -13,6 +13,7 @@
 #include "anyp/PortCfg.h"
 #include "base/EnumIterator.h"
 #include "base/IoManip.h"
+#include "base/PrecomputedCodeContext.h"
 #include "CacheDigest.h"
 #include "CachePeer.h"
 #include "comm/Connection.h"
