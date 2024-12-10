@@ -24,7 +24,7 @@ CBDATA_CLASS_INIT(CachePeer);
 CachePeer::CachePeer(const char * const hostname):
     name(xstrdup(hostname)),
     host(xstrdup(hostname)),
-    probeCodeContext(new PrecomputedCodeContext("cache_peer probe", ToSBuf("current cache_peer probe: ", *this), nullptr))
+    probeCodeContext(new PrecomputedCodeContext("cache_peer probe", ToSBuf("current cache_peer probe: ", *this)))
 {
     Tolower(host); // but .name preserves original spelling
 }

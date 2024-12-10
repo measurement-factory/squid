@@ -51,7 +51,6 @@ libbase_la_SOURCES = \
 	LookupTable.h \
 	Packable.h \
 	PackableStream.h \
-	PrecomputedCodeContext.cc \
 	PrecomputedCodeContext.h \
 	Random.cc \
 	Random.h \

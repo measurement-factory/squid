@@ -36,7 +36,8 @@ PeerPoolMgr::PeerPoolMgr(CachePeer *aPeer): AsyncJob("PeerPoolMgr"),
 {
     const auto mx = MasterXaction::MakePortless<XactionInitiator::initPeerPool>();
 
-    codeContext = new PrecomputedCodeContext("cache_peer standby pool", ToSBuf("current cache_peer standby pool: ", *peer), mx);
+    codeContext = new PrecomputedCodeContext("cache_peer standby pool", ToSBuf("current cache_peer standby pool: ", *peer,
+            Debug::Extra, "current master transaction: ", mx->id));
     // ErrorState, getOutgoingAddress(), and other APIs may require a request.
     // We fake one. TODO: Optionally send this request to peers?
     request = new HttpRequest(Http::METHOD_OPTIONS, AnyP::PROTO_HTTP, "http", "*", mx);
@@ -225,8 +226,10 @@ PeerPoolMgr::checkpoint(const char *reason)
 void
 PeerPoolMgr::Checkpoint(const Pointer &mgr, const char *reason)
 {
-    if (!mgr.valid())
+    if (!mgr.valid()) {
+        debugs(48, 5, reason << " but no mgr");
         return;
+    }
 
     CallService(mgr->codeContext, [&] {
         CallJobHere1(48, 5, mgr, PeerPoolMgr, checkpoint, reason);

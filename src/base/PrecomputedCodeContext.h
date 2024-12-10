@@ -13,27 +13,22 @@
 #include "base/InstanceId.h"
 #include "sbuf/SBuf.h"
 
-class MasterXaction;
-template <class C> class RefCount;
-typedef RefCount<MasterXaction> MasterXactionPointer;
-
 /// CodeContext with constant details known at construction time
 class PrecomputedCodeContext: public CodeContext
 {
 public:
     typedef RefCount<PrecomputedCodeContext> Pointer;
 
-    PrecomputedCodeContext(const char *gist, const SBuf &detail, const MasterXactionPointer &mx);
+    PrecomputedCodeContext(const char *gist, const SBuf &detail): gist_(gist), detail_(detail)
+    {}
 
     /* CodeContext API */
-    ScopedId codeContextGist() const override;
-    std::ostream &detailCodeContext(std::ostream &os) const override;
+    ScopedId codeContextGist() const override { return ScopedId(gist_); }
+    std::ostream &detailCodeContext(std::ostream &os) const override { return os << Debug::Extra << detail_; }
 
 private:
     const char *gist_; ///< the id used in codeContextGist()
     const SBuf detail_; ///< the detail used in detailCodeContext()
-    /// the corresponding master transaction detail, if any
-    const SBuf masterXactionDetail_;
 };
 
 #endif /* SQUID_SRC_BASE_PRECOMPUTEDCODECONTEXT_H */
