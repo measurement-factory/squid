@@ -33,6 +33,8 @@
 #include "ssl/support.h"
 #endif
 
+#include <optional>
+
 /* forward decls */
 class HttpReply;
 class HttpRequest;
