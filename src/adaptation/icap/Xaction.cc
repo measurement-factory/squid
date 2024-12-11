@@ -32,6 +32,7 @@
 #include "ipcache.h"
 #include "pconn.h"
 #include "security/PeerConnector.h"
+#include "sbuf/Stream.h"
 #include "SquidConfig.h"
 
 #include <optional>
@@ -373,6 +374,8 @@ void Adaptation::Icap::Xaction::noteCommClosed(const CommCloseCbParams &)
 
 void Adaptation::Icap::Xaction::callException(const std::exception  &e)
 {
+    if (!firstException)
+        firstException = "default";
     setOutcome(xoError);
     service().noteFailure();
     Adaptation::Initiate::callException(e);
@@ -667,6 +670,12 @@ void Adaptation::Icap::Xaction::fillPendingStatus(MemBuf &buf) const
 
 void Adaptation::Icap::Xaction::fillDoneStatus(MemBuf &buf) const
 {
+    if (firstException)
+        buf.appendf(" ex1:%s ", firstException);
+
+    if (al.icap.outcome != xoUnknown)
+        buf.appendf(" outcome:%s ", ToSBuf(al.icap.outcome).c_str());
+
     if (haveConnection() && commEof)
         buf.appendf("Comm(%d)", connection->fd);
 

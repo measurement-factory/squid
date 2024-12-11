@@ -664,6 +664,15 @@ void Adaptation::Icap::ModXact::parseMore()
 
 void Adaptation::Icap::ModXact::callException(const std::exception &e)
 {
+    if (!firstException) {
+        if (!canStartBypass)
+            firstException = "!B";
+        else if (isRetriable)
+            firstException = "R";
+        else
+            firstException = "B";
+    }
+
     if (!canStartBypass || isRetriable) {
         if (!isRetriable) {
             if (const TextException *te = dynamic_cast<const TextException *>(&e))
