@@ -10,7 +10,6 @@
 
 #include "squid.h"
 #include "base/IoManip.h"
-#include "base/RunnersRegistry.h"
 #include "CacheManager.h"
 #include "cbdata.h"
 #include "debug/Messages.h"
@@ -376,23 +375,6 @@ ipcache_purgelru(void *)
     }
 
     debugs(14, 9, "ipcache_purgelru: removed " << removed << " entries");
-}
-
-/// purges all unlocked entries
-static void
-ipcacheShutdown()
-{
-    size_t purged = 0;
-    for (auto m = lru_list.head; m;) {
-        const auto i = reinterpret_cast<ipcache_entry*>(m->data);
-        m = m->next;
-        if (i->locks)
-            continue;
-
-        ipcacheRelease(i);
-        ++purged;
-    }
-    debugs(14, 5, "purged " << purged);
 }
 
 /**
@@ -1180,16 +1162,6 @@ ipcacheAddEntryFromHosts(const char *name, const char *ipaddr)
     ipcacheLockEntry(i);
     return 0;
 }
-
-class IpCacheRr: public RegisteredRunner
-{
-public:
-    ~IpCacheRr() override { ipcacheShutdown(); }
-    // TODO: Guarantee ip_table and lru_list existence (a la No New Globals)
-    // TODO: Move ipcache_init() logic here by handling (re)configuraiton events.
-};
-
-DefineRunnerRegistrator(IpCacheRr);
 
 #if SQUID_SNMP
 /**
