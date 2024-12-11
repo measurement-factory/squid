@@ -28,6 +28,7 @@ SUBDIRS = \
 	html \
 	ftp \
 	parser \
+	configuration \
 	comm \
 	error \
 	eui \
@@ -503,6 +504,7 @@ squid_LDADD = \
 	$(AUTH_LIBS) \
 	acl/libapi.la \
 	clients/libclients.la \
+	configuration/libconfiguration.la \
 	servers/libservers.la \
 	ftp/libftp.la \
 	helper/libhelper.la \

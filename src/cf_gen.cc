@@ -421,6 +421,9 @@ main(int argc, char *argv[])
          " */\n"
          "\n";
 
+    // TODO: We should be generating directives metadata instead of generating
+    // code that handles hard-coded (in that generated code) metadata.
+
     rc = gen_default(entries, fout);
 
     gen_default_if_none(entries, fout);
@@ -463,17 +466,8 @@ static int
 gen_default(const EntryList &head, std::ostream &fout)
 {
     int rc = 0;
-    fout << "static void" << std::endl <<
-         "default_line(const char *s)" << std::endl <<
-         "{" << std::endl <<
-         "    SBuf tmp_line(s);" << std::endl <<
-         "    ProcessMacros(tmp_line);" << std::endl <<
-         "    xstrncpy(config_input_line, tmp_line.c_str(), sizeof(config_input_line));" << std::endl <<
-         "    config_lineno++;" << std::endl <<
-         "    parse_line(tmp_line);" << std::endl <<
-         "}" << std::endl << std::endl;
-    fout << "static void" << std::endl <<
-         "default_all(void)" << std::endl <<
+    fout << "void" << std::endl <<
+         "Configuration::Preprocessor::processInitialDefaults()" << std::endl <<
          "{" << std::endl <<
          "    cfg_filename = \"Default Configuration\";" << std::endl <<
          "    config_lineno = 0;" << std::endl;
@@ -506,7 +500,7 @@ gen_default(const EntryList &head, std::ostream &fout)
                 fout << "#if " << entry.ifdef << std::endl;
 
             for (const auto &l : entry.defaults.preset)
-                fout << "    default_line(\"" << entry.name << " " << gen_quote_escape(l) << "\");" << std::endl;
+                fout << "    importDefaultDirective(\"" << entry.name << " " << gen_quote_escape(l) << "\");" << std::endl;
 
             if (entry.ifdef.size())
                 fout << "#endif" << std::endl;
@@ -521,8 +515,8 @@ gen_default(const EntryList &head, std::ostream &fout)
 static void
 gen_default_if_none(const EntryList &head, std::ostream &fout)
 {
-    fout << "static void" << std::endl <<
-         "defaults_if_none(void)" << std::endl <<
+    fout << "void" << std::endl <<
+         "Configuration::Preprocessor::processIfNoneDefaults()" << std::endl <<
          "{" << std::endl <<
          "    cfg_filename = \"Default Configuration (if absent)\";" << std::endl <<
          "    config_lineno = 0;" << std::endl;
@@ -546,7 +540,7 @@ gen_default_if_none(const EntryList &head, std::ostream &fout)
 
         fout << "    if (check_null_" << entry.type << "(" << entry.loc << ")) {" << std::endl;
         for (const auto &l : entry.defaults.if_none)
-            fout << "        default_line(\"" << entry.name << " " << gen_quote_escape(l) <<"\");" << std::endl;
+            fout << "        importDefaultDirective(\"" << entry.name << " " << gen_quote_escape(l) <<"\");" << std::endl;
         fout << "    }" << std::endl;
 
         if (entry.ifdef.size())
@@ -561,8 +555,8 @@ gen_default_if_none(const EntryList &head, std::ostream &fout)
 static void
 gen_default_postscriptum(const EntryList &head, std::ostream &fout)
 {
-    fout << "static void" << std::endl <<
-         "defaults_postscriptum(void)" << std::endl <<
+    fout << "void" << std::endl <<
+         "Configuration::Preprocessor::processPostscriptumDefaults()" << std::endl <<
          "{" << std::endl <<
          "    cfg_filename = \"Default Configuration (postscriptum)\";" << std::endl <<
          "    config_lineno = 0;" << std::endl;
@@ -580,7 +574,7 @@ gen_default_postscriptum(const EntryList &head, std::ostream &fout)
             fout << "#if " << entry.ifdef << std::endl;
 
         for (const auto &l : entry.defaults.postscriptum)
-            fout << "    default_line(\"" << entry.name << " " << l <<"\");" << std::endl;
+            fout << "    importDefaultDirective(\"" << entry.name << " " << l <<"\");" << std::endl;
 
         if (entry.ifdef.size())
             fout << "#endif" << std::endl;
@@ -643,7 +637,7 @@ static void
 gen_parse(const EntryList &head, std::ostream &fout)
 {
     fout <<
-         "static int\n"
+         "int\n"
          "parse_line(const SBuf &buf)\n"
          "{\n"
          "\tconst auto directiveName = LegacyParser.openDirective(buf);\n";
