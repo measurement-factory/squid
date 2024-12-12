@@ -240,7 +240,7 @@ public:
     void swanSong() override;
     void callException(const std::exception &) override;
 
-    /// closes client-to-Squid connection if needed, honoring on_error
+    /// closes client-to-Squid connection if needed, honoring error_signalling_action
     /// \returns false if the caller should proceed as usual (i.e. when this
     /// method or earlier code has not initiated connection closure)
     bool closedOnError();

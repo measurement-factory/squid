@@ -2156,9 +2156,9 @@ DOC_START
 
 DOC_END
 
-NAME: on_error
-TYPE: on_error
-LOC: Config.accessList.onError
+NAME: error_signalling_action
+TYPE: error_signalling_action
+LOC: Config.accessList.errorSignallingAction
 DEFAULT: none
 DEFAULT_DOC: Proceed as usual (e.g., send an error message to the client)
 DOC_START
@@ -2169,7 +2169,7 @@ DOC_START
 	does not consult this directive on many transaction errors! Applicable
 	error cases are described further below. TODO: Find a better name.
 
-		on_error <action> [if [!]<aclname>...]
+		error_signalling_action <action> [if [!]<aclname>...]
 
 	Supported actions are:
 
@@ -2223,7 +2223,7 @@ DOC_START
 		# to a server.
 		acl secureConnectFailed squid_error ERR_SECURE_CONNECT_FAIL
 		acl subjectToSslBump myportname 443
-		on_error reset if secureConnectFailed subjectToSslBump
+		error_signalling_action reset if secureConnectFailed subjectToSslBump
 
 	See also: squid_error ACL and %err_code/%err_detail logformat codes.
 DOC_END

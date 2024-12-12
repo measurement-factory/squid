@@ -274,12 +274,12 @@ Http::Stream::sendStartOfMessage(HttpReply *rep, StoreIOBuffer bodyData)
     debugs(11, 2, "HTTP Client " << clientConnection);
     debugs(11, 2, "HTTP Client REPLY:\n---------\n" << mb->buf << "\n----------");
 
-    // Check on_error here rather than earlier, including FwdState::completed():
+    // Check error_signalling_action here rather than earlier, including FwdState::completed():
     // * sendClientOldEntry() and similar post-Store code may bypass errors that
     //   looked "final" from FwdState point of view
     // * an error response to pipelined request B should not close client
     //   connection while we are still sending a response to request A
-    // * simplifies avoiding repeated on_error checks when catching both
+    // * simplifies avoiding repeated error_signalling_action checks when catching both
     //   pre/non-Store and post-Store cases
     // * dumping ready-to-be-sent reply headers (above) assists triage
     if (http->seenError() && http->getConn()->closedOnError())

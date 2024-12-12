@@ -1519,10 +1519,10 @@ bool ConnStateData::serveDelayedError(Http::Stream *context)
 bool
 ConnStateData::closedOnError()
 {
-    if (!Config.accessList.onError)
+    if (!Config.accessList.errorSignallingAction)
         return false;
 
-    ACLFilledChecklist checklist(Config.accessList.onError, nullptr);
+    ACLFilledChecklist checklist(Config.accessList.errorSignallingAction, nullptr);
     fillChecklist(checklist);
     const auto answer = checklist.fastCheck();
     debugs(33, 5, answer.allowed() << '+' << answer.kind);

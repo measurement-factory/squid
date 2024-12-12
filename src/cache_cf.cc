@@ -254,9 +254,9 @@ static void free_configuration_includes_quoted_values(bool *recognizeQuotedValue
 static void parse_on_unsupported_protocol(acl_access **access);
 static void dump_on_unsupported_protocol(StoreEntry *entry, const char *name, acl_access *access);
 static void free_on_unsupported_protocol(acl_access **access);
-static void parse_on_error(acl_access **);
-static void dump_on_error(StoreEntry *, const char *directiveName, const acl_access *);
-static void free_on_error(acl_access **);
+static void parse_error_signalling_action(acl_access **);
+static void dump_error_signalling_action(StoreEntry *, const char *directiveName, const acl_access *);
+static void free_error_signalling_action(acl_access **);
 static void ParseAclWithAction(acl_access **access, const Acl::Answer &action, const char *desc, Acl::Node *acl = nullptr);
 static void parse_http_upgrade_request_protocols(HttpUpgradeProtocolAccess **protoGuards);
 static void dump_http_upgrade_request_protocols(StoreEntry *entry, const char *name, HttpUpgradeProtocolAccess *protoGuards);
@@ -4913,12 +4913,12 @@ free_on_unsupported_protocol(acl_access **access)
 
 // TODO: Reduce code duplication with parse_on_unsupported_protocol()
 static void
-parse_on_error(acl_access ** const access)
+parse_error_signalling_action(acl_access ** const access)
 {
     const auto actionName = LegacyParser.token("action name");
 
     // XXX: Add an actions enum (while moving to Configuration::?)
-    // XXX: Reduce code duplication with dump_on_error()
+    // XXX: Reduce code duplication with dump_error_signalling_action()
     auto action = Acl::Answer(ACCESS_ALLOWED);
     if (actionName.cmp("gracefully_close") == 0)
         action.kind = 1;
@@ -4934,14 +4934,14 @@ parse_on_error(acl_access ** const access)
 
     // OK: unconditional action; TODO: Warn if more actions follow.
 
-    // XXX: Reject empty rules: `on_error reset if`
+    // XXX: Reject empty rules: `error_signalling_action reset if`
 
-    // call to populate Config.accessList.onError even if there are no ACLs
+    // call to populate Config.accessList.errorSignallingAction even if there are no ACLs
     ParseAclWithAction(access, action, cfg_directive);
 }
 
 static void
-dump_on_error(StoreEntry * const entry, const char * const directiveName, const acl_access * const access)
+dump_error_signalling_action(StoreEntry * const entry, const char * const directiveName, const acl_access * const access)
 {
     static const std::vector<const char *> actionNames = {
         "none",
@@ -4959,7 +4959,7 @@ dump_on_error(StoreEntry * const entry, const char * const directiveName, const 
 }
 
 static void
-free_on_error(acl_access ** const access)
+free_error_signalling_action(acl_access ** const access)
 {
     free_acl_access(access);
 }
