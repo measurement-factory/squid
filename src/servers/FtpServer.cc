@@ -508,7 +508,7 @@ Ftp::Server::writeReplyAndCall(MemBuf &mb, AsyncCall::Pointer &call)
 
     const auto context = pipeline.front();
     Assure(context);
-    const auto http = pipeline.front()->http;
+    const auto http = context->http;
     Assure(http);
     if (http->seenError() && http->getConn()->closedOnError())
         return;
