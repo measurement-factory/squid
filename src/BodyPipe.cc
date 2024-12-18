@@ -266,18 +266,18 @@ BodyPipe::clearConsumer()
 void
 BodyPipe::expectNoConsumption()
 {
-    // We may be called multiple times because multiple jobs on the consumption
-    // chain may realize that there will be no more setConsumer() calls (e.g.,
-    // consuming code and retrying code). It is both difficult and not really
-    // necessary for them to coordinate their expectNoConsumption() calls.
+    // We and enableAutoConsumption() may be called multiple times because
+    // multiple jobs on the consumption chain may realize that there will be no
+    // more setConsumer() calls (e.g., consuming code and retrying code). It is
+    // both difficult and not really necessary for them to coordinate their
+    // expectNoConsumption() calls.
 
-    // As a consequence, we may be called when we are auto-consuming already.
-
-    if (!abortedConsumption && !exhausted()) {
-        // Before we abort, any regular consumption should be over and auto
-        // consumption must not be started.
-        Must(!theConsumer);
-
+    // As a consequence, we may be called when we are auto-consuming already,
+    // including cases where abortedConsumption is still false. We could harden
+    // this by also aborting consumption from enableAutoConsumption() when there
+    // is no consumer, but see errorAppendEntry() TODO for a better plan.
+    debugs(91, 7, status());
+    if (!abortedConsumption && !exhausted() && !theConsumer) {
         AsyncCall::Pointer call= asyncCall(91, 7,
                                            "BodyProducer::noteBodyConsumerAborted",
                                            BodyProducerDialer(theProducer,
