@@ -269,13 +269,13 @@ BodyPipe::expectNoConsumption()
     // We and enableAutoConsumption() may be called multiple times because
     // multiple jobs on the consumption chain may realize that there will be no
     // more setConsumer() calls (e.g., consuming code and retrying code). It is
-    // both difficult and not really necessary for them to coordinate their
-    // expectNoConsumption() calls.
+    // both difficult and unnecessary for them to coordinate their calls.
 
-    // As a consequence, we may be called when we are auto-consuming already,
-    // including cases where abortedConsumption is still false. We could harden
+    // As a consequence, we may be called when already auto-consuming, including
+    // cases where abortedConsumption is still false. We could try to harden
     // this by also aborting consumption from enableAutoConsumption() when there
     // is no consumer, but see errorAppendEntry() TODO for a better plan.
+
     debugs(91, 7, status());
     if (!abortedConsumption && !exhausted() && !theConsumer) {
         AsyncCall::Pointer call= asyncCall(91, 7,

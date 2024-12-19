@@ -721,9 +721,9 @@ errorAppendEntry(StoreEntry * entry, ErrorState * err)
     assert (entry->isEmpty());
     debugs(4, 4, "storing " << err << " in " << *entry);
 
-    if (const auto request = err->request) {
-        if (request->body_pipe) {
-            // We cannot expectNoConsumption() here: This request may be a
+    if (const auto &request = err->request) {
+        if (const auto &bodyPipe = request->body_pipe) {
+            // We cannot expectNoConsumption() here (yet): This request may be a
             // virgin request being consumed by adaptation that should continue
             // even in error-handling cases. startAutoConsumptionIfNeeded() call
             // triggered by enableAutoConsumption() below skips such requests.
@@ -732,16 +732,15 @@ errorAppendEntry(StoreEntry * entry, ErrorState * err)
             // could result in premature consumption in BodyPipe::postAppend()
             // followed by an unwanted setConsumerIfNotLate() failure.
             //
-            // TODO: Simplify BodyPipe auto-consumption by auto-enabling it when
-            // no regular consumption is expected and by replacing
-            // expectNoConsumption() with expectNoNewConsumers(), so that the
-            // method does not have to assert that there is no consumer _now_.
+            // TODO: Simplify BodyPipe auto-consumption by automatically
+            // enabling it when no new consumers are expected, removing the need
+            // for explicit enableAutoConsumption() calls like the one below.
             //
             // Code like clientReplyContext::sendClientOldEntry() might use
             // another StoreEntry for this master transaction, but we want to
             // consume this request body even in those hypothetical error cases
             // to prevent stuck (client-Squid or REQMOD) transactions.
-            request->body_pipe->enableAutoConsumption();
+            bodyPipe->enableAutoConsumption();
         }
     }
 
