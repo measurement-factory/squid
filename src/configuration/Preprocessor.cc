@@ -281,7 +281,7 @@ Configuration::Preprocessor::importDefaultDirective(const char * const raw)
     ProcessMacros(directive);
     xstrncpy(config_input_line, directive.c_str(), sizeof(config_input_line));
     config_lineno++;
-    processUnfoldedLine(directive);
+    processUnfoldedLine(directive); // XXX: Missing location
 }
 
 /// Handles configuration file with a given name, at a given inclusion depth.
@@ -289,6 +289,8 @@ Configuration::Preprocessor::importDefaultDirective(const char * const raw)
 void
 Configuration::Preprocessor::processFile(const char * const file_name, const size_t depth)
 {
+    auto location = Location(SBuf(file_name));
+
     FILE *fp = nullptr;
     const char *orig_cfg_filename = cfg_filename;
     const int orig_config_lineno = config_lineno;
@@ -328,6 +330,7 @@ Configuration::Preprocessor::processFile(const char * const file_name, const siz
 
     std::vector<bool> if_states;
     while (fgets(config_input_line, BUFSIZ, fp)) {
+        ++location;
         ++config_lineno;
 
         if ((token = strchr(config_input_line, '\n')))
@@ -364,6 +367,9 @@ Configuration::Preprocessor::processFile(const char * const file_name, const siz
                     *token = '\0';
 
                 SetConfigFilename(new_file_name, false);
+                location = Location(SBuf(new_file_name), new_lineno);
+            } else {
+                location.jumpTo(new_lineno);
             }
 
             config_lineno = new_lineno;
@@ -410,7 +416,7 @@ Configuration::Preprocessor::processFile(const char * const file_name, const siz
             if (const auto files = IsIncludeLine(tk)) {
                 processIncludedFiles(*files, depth + 1);
             } else {
-                processUnfoldedLine(wholeLine);
+                processUnfoldedLine(wholeLine, location);
             }
         }
 
@@ -462,7 +468,7 @@ Configuration::Preprocessor::processIncludedFiles(const SBuf &paths, const size_
 }
 
 void
-Configuration::Preprocessor::processUnfoldedLine(const SBuf &line)
+Configuration::Preprocessor::processUnfoldedLine(const SBuf &line, const Location &location)
 {
     static const auto spaceChars = CharacterSet("space", " \t\n\r"); // XXX: Sync with master?
     static const auto nameChars = spaceChars.complement("name");
@@ -480,19 +486,19 @@ Configuration::Preprocessor::processUnfoldedLine(const SBuf &line)
     assert(foundName); // or we would have quit above
 
     if (ValidDirectiveName(name))
-        return addDirective(name, tok.remaining());
+        return addDirective(PreprocessedDirective(name, tok.remaining(), location));
 
     ++invalidLines_;
     debugs(3, DBG_CRITICAL, "ERROR: Unrecognized configuration directive name: " << name <<
-           Debug::Extra << "directive location: " << ConfigParser::CurrentLocation());
+           Debug::Extra << "directive location: " << location);
 }
 
 void
-Configuration::Preprocessor::addDirective(const SBuf &name, const SBuf &directiveCfg)
+Configuration::Preprocessor::addDirective(const PreprocessedDirective &directive)
 {
-    debugs(3, 7, directiveCfg);
-    cfg_->allDirectives.emplace_back(name, directiveCfg);
-    seenDirectives_.emplace(name);
+    debugs(3, 7, directive);
+    cfg_->allDirectives.emplace_back(directive);
+    seenDirectives_.emplace(directive.name());
 }
 
 bool
@@ -507,5 +513,5 @@ Configuration::Preprocessor::sawDirective(const char * const name) const
 void
 Configuration::PreprocessedDirective::print(std::ostream &os) const
 {
-    os << buf_;
+    os << location_ << ' ' << name_ << ' ' << buf_;
 }

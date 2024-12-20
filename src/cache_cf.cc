@@ -4067,7 +4067,8 @@ sslBumpCfgRr::finalizeConfig()
                    "inferior to the newer server-first bumping mode. New ssl_bump"
                    " configurations must not use implicit rules. Update your ssl_bump rules.");
         }
-        Configuration::parseDirective(Configuration::PreprocessedDirective(SBuf("ssl_bump"), conversionRule));
+        const auto location = Configuration::Location(SBuf("runtime configuration fixup"));
+        Configuration::parseDirective(Configuration::PreprocessedDirective(SBuf("ssl_bump"), conversionRule, location));
     }
 }
 

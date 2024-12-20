@@ -19,6 +19,41 @@
 
 namespace Configuration {
 
+/// input coordinates with line number precision
+class Location
+{
+public:
+    explicit Location(const SBuf &aName, const size_t aLineNo = 0): name_(aName), lineNo_(aLineNo) {}
+
+    /// input source description (e.g., a file name or a shell command)
+    const auto &name() const { return name_; }
+
+    /// line offset within input source; the first input byte has line offset 1
+    auto lineNo() const { return lineNo_; }
+
+    /// change line within the same input source
+    void jumpTo(const size_t aLineNo) { lineNo_ = aLineNo; }
+
+    /// convenience wrapper implementing a jumpTo() the next line
+    Location &operator ++() { ++lineNo_; return *this; }
+
+    /// reports location using a compact format suitable for diagnostic messages
+    void print(std::ostream &) const;
+
+private:
+    SBuf name_; ///< \copydoc name()
+    size_t lineNo_; ///< \copydoc lineNo()
+};
+
+/// \copydoc Location::print()
+inline
+std::ostream&
+operator <<(std::ostream &os, const Location &l)
+{
+    l.print(os);
+    return os;
+}
+
 /// artifacts of successful preprocessing; Preprocess() result
 class PreprocessedCfg: public RefCountable
 {
@@ -61,8 +96,8 @@ private:
     void processIfNoneDefaults();
     void processPostscriptumDefaults();
 
-    void processUnfoldedLine(const SBuf &line);
-    void addDirective(const SBuf &name, const SBuf &cfg);
+    void processUnfoldedLine(const SBuf &line, const Location &);
+    void addDirective(const PreprocessedDirective &);
 
     bool sawDirective(const char *name) const;
 
@@ -86,7 +121,7 @@ private:
 class PreprocessedDirective
 {
 public:
-    PreprocessedDirective(const SBuf &aName, const SBuf &params): name_(aName), buf_(params) {}
+    PreprocessedDirective(const SBuf &aName, const SBuf &params, const Location &aLocation): name_(aName), buf_(params), location_(aLocation) {}
 
     /// the first token on a directive line; never empty
     const SBuf &name() const { return name_; }
@@ -102,6 +137,7 @@ public:
 private:
     SBuf name_; ///< \copydoc name()
     SBuf buf_; ///< \copydoc contents(); XXX: rename to parameters_
+    Location location_; ///< where this directive was obtained from
 };
 
 /// Interprets Squid configuration up to (and excluding) parsing of individual
@@ -109,16 +145,15 @@ private:
 /// defaults. Does not affect current Squid configuration. Never returns nil.
 PreprocessedCfg::Pointer Preprocess(const char *filename);
 
-} // namespace Configuration
-
-// XXX: Move into Configuration; see commit 25ecffe5
 inline
 std::ostream&
-operator <<(std::ostream &os, const Configuration::PreprocessedDirective &d)
+operator <<(std::ostream &os, const PreprocessedDirective &d)
 {
     d.print(os);
     return os;
 }
+
+} // namespace Configuration
 
 #endif /* SQUID_SRC_CONFIGURATION_PREPROCESSOR_H */
 
