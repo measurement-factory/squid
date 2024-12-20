@@ -619,7 +619,7 @@ gen_default_postscriptum(const EntryList &head, std::ostream &fout)
 void
 Entry::genParseAlias(const std::string &aName, std::ostream &fout) const
 {
-    fout << "    if (directiveName.cmp(\"" << aName << "\") == 0) {" << std::endl;
+    fout << "    if (directive.name().cmp(\"" << aName << "\") == 0) {" << std::endl;
     if (ifdef.size())
         fout << "#if " << ifdef << std::endl;
     fout << "        cfg_directive = \"" << aName << "\";" << std::endl;
@@ -672,8 +672,7 @@ gen_parse(const EntryList &head, std::ostream &fout)
          "void\n"
          "Configuration::parseDirective(const PreprocessedDirective &directive)\n"
          "{\n"
-         "\tconst auto buf = directive.contents();\n"
-         "\tconst auto directiveName = LegacyParser.openDirective(buf);\n";
+         "\tLegacyParser.openDirective(directive);\n";
 
     for (const auto &e : head)
         e.genParse(fout);

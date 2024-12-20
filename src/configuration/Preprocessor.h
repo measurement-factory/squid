@@ -86,22 +86,22 @@ private:
 class PreprocessedDirective
 {
 public:
-    PreprocessedDirective(const SBuf & /*XXX*/, const SBuf &cfg): buf_(cfg) {}
+    PreprocessedDirective(const SBuf &aName, const SBuf &params): name_(aName), buf_(params) {}
 
-    // XXX: Unused? Unimplemented?
-    /// the first token on a directive line
-    SBuf name() const;
+    /// the first token on a directive line; never empty
+    const SBuf &name() const { return name_; }
+
+    /// (unfolded) directive line contents after the name prefix; may be empty
+    const SBuf &parameters() const { return buf_; }
 
     /// whether the other directive is similar to this one
     bool similarTo(const PreprocessedDirective &other) const;
 
-    /// entire preprocessed configuration, starting with the directive name
-    const SBuf &contents() const { return buf_; };
-
     void print(std::ostream &) const;
 
 private:
-    SBuf buf_; ///< \copydoc contents()
+    SBuf name_; ///< \copydoc name()
+    SBuf buf_; ///< \copydoc contents(); XXX: rename to parameters_
 };
 
 /// Interprets Squid configuration up to (and excluding) parsing of individual

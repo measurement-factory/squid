@@ -12,6 +12,7 @@
 #include "base/RegexPattern.h"
 #include "cache_cf.h"
 #include "ConfigParser.h"
+#include "configuration/Preprocessor.h"
 #include "debug/Stream.h"
 #include "fatal.h"
 #include "globals.h"
@@ -562,18 +563,11 @@ ConfigParser::rejectDuplicateDirective()
     throw TextException("duplicate configuration directive", Here());
 }
 
-SBuf
-ConfigParser::openDirective(const SBuf &line)
+void
+ConfigParser::openDirective(const Configuration::PreprocessedDirective &ppd)
 {
-    Parser::Tokenizer tk(line);
-    SBuf directiveName; // TODO: Upgrade cfg_directive to a ConfigParser member (with SBuf type) and set it here.
-    static const auto &spaceChars = CharacterSet::WSP;
-    static const auto directiveChars = spaceChars.complement("squid.conf directive name");
-    const auto found = tk.prefix(directiveName, directiveChars);
-    Assure(found); // our callers are expected to fully handle non-directive lines
-    tk.skipAll(spaceChars);
-    SetCfgLine(tk.remaining()); // may be empty
-    return directiveName;
+    // TODO: Upgrade cfg_directive to a ConfigParser member (with SBuf type) and set it here.
+    SetCfgLine(ppd.parameters()); // may be empty
 }
 
 void

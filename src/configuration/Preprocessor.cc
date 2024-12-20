@@ -464,7 +464,7 @@ Configuration::Preprocessor::processIncludedFiles(const SBuf &paths, const size_
 void
 Configuration::Preprocessor::processUnfoldedLine(const SBuf &line)
 {
-    static const auto spaceChars = CharacterSet("space", " \t\n\r");
+    static const auto spaceChars = CharacterSet("space", " \t\n\r"); // XXX: Sync with master?
     static const auto nameChars = spaceChars.complement("name");
 
     Parser::Tokenizer tok(line);
@@ -475,14 +475,12 @@ Configuration::Preprocessor::processUnfoldedLine(const SBuf &line)
     if (tok.skip('#'))
         return; // a directive-free line with a comment
 
-    const auto cfg = tok.remaining();
-
     SBuf name;
     const auto foundName = tok.prefix(name, nameChars);
     assert(foundName); // or we would have quit above
 
     if (ValidDirectiveName(name))
-        return addDirective(name, cfg);
+        return addDirective(name, tok.remaining());
 
     ++invalidLines_;
     debugs(3, DBG_CRITICAL, "ERROR: Unrecognized configuration directive name: " << name <<

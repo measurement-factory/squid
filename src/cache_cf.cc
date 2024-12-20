@@ -4056,18 +4056,18 @@ sslBumpCfgRr::finalizeConfig()
         assert( lastDeprecatedRule == Ssl::bumpClientFirst || lastDeprecatedRule == Ssl::bumpNone);
         SBuf conversionRule;
         if (lastDeprecatedRule == Ssl::bumpClientFirst) {
-            conversionRule = SBuf("ssl_bump deny all");
+            conversionRule = SBuf("deny all");
             debugs(3, DBG_CRITICAL, "WARNING: auto-converting deprecated implicit "
                    "\"ssl_bump deny all\" to \"ssl_bump none all\". New ssl_bump configurations "
                    "must not use implicit rules. Update your ssl_bump rules.");
         } else {
-            conversionRule = SBuf("ssl_bump allow all");
+            conversionRule = SBuf("allow all");
             debugs(3, DBG_CRITICAL, "SECURITY NOTICE: auto-converting deprecated implicit "
                    "\"ssl_bump allow all\" to \"ssl_bump client-first all\" which is usually "
                    "inferior to the newer server-first bumping mode. New ssl_bump"
                    " configurations must not use implicit rules. Update your ssl_bump rules.");
         }
-        Configuration::parseDirective(Configuration::PreprocessedDirective(SBuf("XXX"), conversionRule));
+        Configuration::parseDirective(Configuration::PreprocessedDirective(SBuf("ssl_bump"), conversionRule));
     }
 }
 
