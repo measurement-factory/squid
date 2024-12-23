@@ -476,8 +476,7 @@ gen_default(const EntryList &head, std::ostream &fout)
     fout << "void" << std::endl <<
          "Configuration::Preprocessor::processInitialDefaults()" << std::endl <<
          "{" << std::endl <<
-         "    cfg_filename = \"Default Configuration\";" << std::endl <<
-         "    config_lineno = 0;" << std::endl;
+         "    Configuration::SwitchToGeneratedInput(SBuf(\"Default Configuration\"));\n";
 
     for (const auto &entry : head) {
         assert(entry.name.size());
@@ -525,8 +524,7 @@ gen_default_if_none(const EntryList &head, std::ostream &fout)
     fout << "void" << std::endl <<
          "Configuration::Preprocessor::processIfNoneDefaults()" << std::endl <<
          "{" << std::endl <<
-         "    cfg_filename = \"Default Configuration (if absent)\";" << std::endl <<
-         "    config_lineno = 0;" << std::endl;
+         "    Configuration::SwitchToGeneratedInput(SBuf(\"Default Configuration (if no explicit one)\"));\n";
 
     for (const auto &entry : head) {
         entry.genDefaultIfNone(fout);
@@ -590,8 +588,7 @@ gen_default_postscriptum(const EntryList &head, std::ostream &fout)
     fout << "void" << std::endl <<
          "Configuration::Preprocessor::processPostscriptumDefaults()" << std::endl <<
          "{" << std::endl <<
-         "    cfg_filename = \"Default Configuration (postscriptum)\";" << std::endl <<
-         "    config_lineno = 0;" << std::endl;
+         "    Configuration::SwitchToGeneratedInput(SBuf(\"Default Configuration (postscriptum)\"));\n";
 
     for (const auto &entry : head) {
         assert(entry.name.size());

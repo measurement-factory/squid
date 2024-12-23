@@ -96,7 +96,7 @@ private:
     void processIfNoneDefaults();
     void processPostscriptumDefaults();
 
-    void processUnfoldedLine(const SBuf &line, const Location &);
+    void processUnfoldedLine(const SBuf &line);
     void addDirective(const PreprocessedDirective &);
 
     bool sawDirective(const char *name) const;
@@ -121,7 +121,11 @@ private:
 class PreprocessedDirective
 {
 public:
-    PreprocessedDirective(const SBuf &aName, const SBuf &params, const Location &aLocation): name_(aName), buf_(params), location_(aLocation) {}
+    PreprocessedDirective(const SBuf &aWhole, const SBuf &aName, const SBuf &params);
+
+    /// entire preprocessed directive configuration, starting from the name and
+    /// ending with the last parameter (if any)
+    const auto &whole() const { return whole_; }
 
     /// the first token on a directive line; never empty
     const SBuf &name() const { return name_; }
@@ -129,12 +133,15 @@ public:
     /// (unfolded) directive line contents after the name prefix; may be empty
     const SBuf &parameters() const { return buf_; }
 
+    const Location &location() const { return location_; }
+
     /// whether the other directive is similar to this one
     bool similarTo(const PreprocessedDirective &other) const;
 
     void print(std::ostream &) const;
 
 private:
+    SBuf whole_; ///< \copydoc whole()
     SBuf name_; ///< \copydoc name()
     SBuf buf_; ///< \copydoc contents(); XXX: rename to parameters_
     Location location_; ///< where this directive was obtained from

@@ -259,7 +259,7 @@ static void ApplyPreprocessedConfiguration(const PreprocessedCfg &);
 static ConfigParser LegacyParser = ConfigParser();
 
 const char *cfg_directive = nullptr;
-const char *cfg_filename = nullptr;
+SBuf cfg_filename;
 int config_lineno = 0;
 char config_input_line[BUFSIZ] = {};
 
@@ -338,6 +338,29 @@ Configuration::FinishReconfiguration()
     Assure(fresh); // last StartReconfiguration() call returned true
     FreshPreprocessedConfig() = nullptr; // no need to keep it around
     ApplyPreprocessedConfiguration(*fresh);
+}
+
+void
+Configuration::SwitchTo(const Location &location)
+{
+    cfg_filename = location.name();
+    config_lineno = location.lineNo();
+}
+
+void
+Configuration::SwitchToGeneratedInput(const SBuf &description)
+{
+    SwitchTo(Location(description));
+}
+
+void
+Configuration::SwitchToExternalInput(const char * const filenameOrCommand, const bool isCommand)
+{
+    // TODO: Refactor to represent "<script>|" source using "<script> output"
+    // phrase instead of the current misleading "<script>" representation (e.g.,
+    // "gen_acls.pl output line 4" instead of current "gen_acls.pl line 4").
+    const auto l = Location(SBuf(isCommand ? filenameOrCommand + 1 : filenameOrCommand));
+    Configuration::SwitchTo(l);
 }
 
 /*
@@ -4067,8 +4090,8 @@ sslBumpCfgRr::finalizeConfig()
                    "inferior to the newer server-first bumping mode. New ssl_bump"
                    " configurations must not use implicit rules. Update your ssl_bump rules.");
         }
-        const auto location = Configuration::Location(SBuf("runtime configuration fixup"));
-        Configuration::parseDirective(Configuration::PreprocessedDirective(SBuf("ssl_bump"), conversionRule, location));
+        Configuration::SwitchToGeneratedInput(SBuf("runtime configuration finalization"));
+        Configuration::parseDirective(Configuration::PreprocessedDirective(SBuf("XXX"), SBuf("ssl_bump"), conversionRule));
     }
 }
 

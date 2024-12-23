@@ -24,17 +24,6 @@
 #include <glob.h>
 #endif
 
-/// updates cfg_filename global given raw configuration file specs that may
-/// include pipelining instructions
-static void
-SetConfigFilename(char const *file_name, bool is_pipe)
-{
-    if (is_pipe)
-        cfg_filename = file_name + 1;
-    else
-        cfg_filename = file_name;
-}
-
 /// Determines whether the given squid.conf character is a token-delimiting
 /// space character according to squid.conf preprocessor grammar. That grammar
 /// only recognizes two space characters: ASCII SP and HT. Unlike isspace(3),
@@ -277,11 +266,12 @@ Configuration::Preprocessor::process(const char * const filename)
 void
 Configuration::Preprocessor::importDefaultDirective(const char * const raw)
 {
+    xstrncpy(config_input_line, raw, sizeof(config_input_line));
+    config_lineno++;
+
     SBuf directive(raw);
     ProcessMacros(directive);
-    xstrncpy(config_input_line, directive.c_str(), sizeof(config_input_line));
-    config_lineno++;
-    processUnfoldedLine(directive); // XXX: Missing location
+    processUnfoldedLine(directive);
 }
 
 /// Handles configuration file with a given name, at a given inclusion depth.
@@ -289,10 +279,8 @@ Configuration::Preprocessor::importDefaultDirective(const char * const raw)
 void
 Configuration::Preprocessor::processFile(const char * const file_name, const size_t depth)
 {
-    auto location = Location(SBuf(file_name));
-
     FILE *fp = nullptr;
-    const char *orig_cfg_filename = cfg_filename;
+    const auto orig_cfg_filename = cfg_filename;
     const int orig_config_lineno = config_lineno;
     char *token = nullptr;
     int is_pipe = 0;
@@ -319,18 +307,15 @@ Configuration::Preprocessor::processFile(const char * const file_name, const siz
     setmode(fileno(fp), O_TEXT);
 #endif
 
-    SetConfigFilename(file_name, bool(is_pipe));
+    SwitchToExternalInput(file_name, bool(is_pipe));
 
     memset(config_input_line, '\0', BUFSIZ);
-
-    config_lineno = 0;
 
     // sequential raw input lines merged to honor line continuation markers
     SBuf wholeLine;
 
     std::vector<bool> if_states;
     while (fgets(config_input_line, BUFSIZ, fp)) {
-        ++location;
         ++config_lineno;
 
         if ((token = strchr(config_input_line, '\n')))
@@ -366,10 +351,7 @@ Configuration::Preprocessor::processFile(const char * const file_name, const siz
                 if ((token = strchr(new_file_name, '"')))
                     *token = '\0';
 
-                SetConfigFilename(new_file_name, false);
-                location = Location(SBuf(new_file_name), new_lineno);
-            } else {
-                location.jumpTo(new_lineno);
+                SwitchToExternalInput(new_file_name, false);
             }
 
             config_lineno = new_lineno;
@@ -416,7 +398,7 @@ Configuration::Preprocessor::processFile(const char * const file_name, const siz
             if (const auto files = IsIncludeLine(tk)) {
                 processIncludedFiles(*files, depth + 1);
             } else {
-                processUnfoldedLine(wholeLine, location);
+                processUnfoldedLine(wholeLine);
             }
         }
 
@@ -434,7 +416,7 @@ Configuration::Preprocessor::processFile(const char * const file_name, const siz
         fclose(fp);
     }
 
-    SetConfigFilename(orig_cfg_filename, false);
+    cfg_filename = orig_cfg_filename;
     config_lineno = orig_config_lineno;
 }
 
@@ -468,7 +450,7 @@ Configuration::Preprocessor::processIncludedFiles(const SBuf &paths, const size_
 }
 
 void
-Configuration::Preprocessor::processUnfoldedLine(const SBuf &line, const Location &location)
+Configuration::Preprocessor::processUnfoldedLine(const SBuf &line)
 {
     static const auto spaceChars = CharacterSet("space", " \t\n\r"); // XXX: Sync with master?
     static const auto nameChars = spaceChars.complement("name");
@@ -481,16 +463,18 @@ Configuration::Preprocessor::processUnfoldedLine(const SBuf &line, const Locatio
     if (tok.skip('#'))
         return; // a directive-free line with a comment
 
+    const auto trimmedLine = tok.remaining();
+
     SBuf name;
     const auto foundName = tok.prefix(name, nameChars);
     assert(foundName); // or we would have quit above
 
     if (ValidDirectiveName(name))
-        return addDirective(PreprocessedDirective(name, tok.remaining(), location));
+        return addDirective(PreprocessedDirective(trimmedLine, name, tok.remaining()));
 
     ++invalidLines_;
     debugs(3, DBG_CRITICAL, "ERROR: Unrecognized configuration directive name: " << name <<
-           Debug::Extra << "directive location: " << location);
+           Debug::Extra << "directive location: " << ConfigParser::CurrentLocation());
 }
 
 void
@@ -510,8 +494,24 @@ Configuration::Preprocessor::sawDirective(const char * const name) const
 
 /* Configuration::PreprocessedDirective */
 
+Configuration::PreprocessedDirective::PreprocessedDirective(const SBuf &aWhole, const SBuf &aName, const SBuf &params):
+    whole_(aWhole),
+    name_(aName),
+    buf_(params),
+    location_(cfg_filename, config_lineno)
+{
+    // catch most parameter reordering cases; XXX: We should probably parse input and throw from here instead
+    Assure(whole_.length() >= name_.length() + buf_.length());
+}
+
 void
 Configuration::PreprocessedDirective::print(std::ostream &os) const
 {
     os << location_ << ' ' << name_ << ' ' << buf_;
+}
+
+void
+Configuration::Location::print(std::ostream &os) const
+{
+    os << name_ << '(' << lineNo_ << ')';
 }

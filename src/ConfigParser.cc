@@ -59,8 +59,8 @@ ConfigParser::destruct()
         std::string msg = message.str();
         fatalf("%s", msg.c_str());
     } else
-        fatalf("Bungled %s line %d: %s",
-               cfg_filename, config_lineno, config_input_line);
+        fatalf("Bungled " SQUIDSBUFPH " line %d: %s",
+               SQUIDSBUFPRINT(cfg_filename), config_lineno, config_input_line);
 }
 
 char *
@@ -214,10 +214,11 @@ ConfigParser::SetCfgLine(const SBuf &line)
     }
 }
 
+// TODO: Convert to an std::ostream manipulator like CurrentException().
 SBuf
 ConfigParser::CurrentLocation()
 {
-    return ToSBuf(SourceLocation(cfg_directive, cfg_filename, config_lineno));
+    return ToSBuf(SourceLocation(cfg_directive, cfg_filename.c_str(), config_lineno));
 }
 
 char *
@@ -566,6 +567,12 @@ ConfigParser::rejectDuplicateDirective()
 void
 ConfigParser::openDirective(const Configuration::PreprocessedDirective &ppd)
 {
+    Configuration::SwitchTo(ppd.location());
+
+    static_assert(sizeof(config_input_line) >= 1);
+    const auto copied = ppd.whole().copy(config_input_line, sizeof(config_input_line) - 1);
+    config_input_line[copied] = '\0';
+
     // TODO: Upgrade cfg_directive to a ConfigParser member (with SBuf type) and set it here.
     SetCfgLine(ppd.parameters()); // may be empty
 }

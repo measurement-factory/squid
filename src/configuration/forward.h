@@ -10,6 +10,7 @@
 #define SQUID_SRC_CONFIGURATION_FORWARD_H
 
 namespace Configuration {
+class Location;
 class Preprocessor;
 class PreprocessedCfg;
 class PreprocessedDirective;
