@@ -271,7 +271,7 @@ Configuration::Preprocessor::importDefaultDirective(const char * const raw)
 
     SBuf directive(raw);
     ProcessMacros(directive);
-    processUnfoldedLine(directive);
+    processDirective(directive);
 }
 
 /// Handles configuration file with a given name, at a given inclusion depth.
@@ -398,7 +398,7 @@ Configuration::Preprocessor::processFile(const char * const file_name, const siz
             if (const auto files = IsIncludeLine(tk)) {
                 processIncludedFiles(*files, depth + 1);
             } else {
-                processUnfoldedLine(wholeLine);
+                processDirective(wholeLine);
             }
         }
 
@@ -450,31 +450,15 @@ Configuration::Preprocessor::processIncludedFiles(const SBuf &paths, const size_
 }
 
 void
-Configuration::Preprocessor::processUnfoldedLine(const SBuf &line)
+Configuration::Preprocessor::processDirective(const SBuf &rawWhole)
 {
-    static const auto spaceChars = CharacterSet("space", " \t\n\r"); // XXX: Sync with master?
-    static const auto nameChars = spaceChars.complement("name");
-
-    Parser::Tokenizer tok(line);
-
-    (void)tok.skipAll(spaceChars); // tolerate indentation and such
-    if (tok.atEnd())
-        return; // a directive-free and comment-free line
-    if (tok.skip('#'))
-        return; // a directive-free line with a comment
-
-    const auto trimmedLine = tok.remaining();
-
-    SBuf name;
-    const auto foundName = tok.prefix(name, nameChars);
-    assert(foundName); // or we would have quit above
-
-    if (ValidDirectiveName(name))
-        return addDirective(PreprocessedDirective(trimmedLine, name, tok.remaining()));
-
-    ++invalidLines_;
-    debugs(3, DBG_CRITICAL, "ERROR: Unrecognized configuration directive name: " << name <<
-           Debug::Extra << "directive location: " << ConfigParser::CurrentLocation());
+    try {
+        return addDirective(PreprocessedDirective(rawWhole));
+    } catch (...) {
+        ++invalidLines_;
+        debugs(3, DBG_CRITICAL, "ERROR: " << CurrentException <<
+               Debug::Extra << "directive location: " << ConfigParser::CurrentLocation());
+    }
 }
 
 void
@@ -494,14 +478,17 @@ Configuration::Preprocessor::sawDirective(const char * const name) const
 
 /* Configuration::PreprocessedDirective */
 
-Configuration::PreprocessedDirective::PreprocessedDirective(const SBuf &aWhole, const SBuf &aName, const SBuf &params):
-    whole_(aWhole),
-    name_(aName),
-    buf_(params),
+Configuration::PreprocessedDirective::PreprocessedDirective(const SBuf &rawWhole):
+    whole_(rawWhole),
     location_(cfg_filename, config_lineno)
 {
-    // catch most parameter reordering cases; XXX: We should probably parse input and throw from here instead
-    Assure(whole_.length() >= name_.length() + buf_.length());
+    static const auto nameChars = CharacterSet::WSP.complement("directive name");
+
+    Parser::Tokenizer tok(rawWhole);
+    name_ = ExtractToken("directive name", tok, nameChars);
+    buf_ = tok.remaining(); // may be empty
+    if (!ValidDirectiveName(name_))
+        throw TextException(ToSBuf("Unrecognized configuration directive name: ", name_), Here());
 }
 
 void

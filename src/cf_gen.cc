@@ -742,7 +742,7 @@ gen_free(const EntryList &head, std::ostream &fout)
     fout << "}" << std::endl << std::endl;
 }
 
-/// generate Configuration::Preprocessor::ValidDirectiveName() code for the given knownName
+/// generate Configuration::PreprocessedDirective::ValidDirectiveName() code for the given knownName
 void
 Entry::genValidDirectiveNameCheck(const std::string &knownName, std::ostream &fout) const
 {
@@ -755,7 +755,7 @@ Entry::genValidDirectiveNameCheck(const std::string &knownName, std::ostream &fo
     fout << "        return true;\n";
 }
 
-/// generate Configuration::Preprocessor::ValidDirectiveName() code for this Entry
+/// generate Configuration::PreprocessedDirective::ValidDirectiveName() code for this Entry
 void
 Entry::genValidDirectiveNameEntry(std::ostream &fout) const
 {
@@ -779,7 +779,7 @@ gen_find(const EntryList &head, std::ostream &fout)
 {
     fout <<
          "bool\n"
-         "Configuration::Preprocessor::ValidDirectiveName(const SBuf &name)\n"
+         "Configuration::PreprocessedDirective::ValidDirectiveName(const SBuf &name)\n"
          "{\n";
 
     for (const auto &e : head)
