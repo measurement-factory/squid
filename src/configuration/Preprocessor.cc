@@ -271,7 +271,6 @@ Configuration::Preprocessor::importDefaultDirective(const SBuf &whole)
 
     // TODO: Upgrade config_input_line to SBuf, eliminating code duplication
     // in ConfigParser::openDirective() together with truncation concerns.
-    static_assert(sizeof(config_input_line) >= 1);
     const auto copied = whole.copy(config_input_line, sizeof(config_input_line) - 1);
     config_input_line[copied] = '\0';
 

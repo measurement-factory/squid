@@ -569,7 +569,6 @@ ConfigParser::openDirective(const Configuration::PreprocessedDirective &ppd)
 {
     Configuration::SwitchTo(ppd.location());
 
-    static_assert(sizeof(config_input_line) >= 1);
     const auto copied = ppd.whole().copy(config_input_line, sizeof(config_input_line) - 1);
     config_input_line[copied] = '\0';
 
