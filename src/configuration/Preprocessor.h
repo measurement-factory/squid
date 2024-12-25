@@ -66,8 +66,8 @@ public:
     /// preprocessed configuration directives in configuration order
     using Directives = std::deque<Directive, PoolingAllocator<Directive> >;
 
-    /// all successfully preprocessed directives; TODO: rename to directives
-    Directives allDirectives;
+    /// all successfully preprocessed directives
+    Directives directives;
 };
 
 /// Processes Squid configuration up to (and excluding) parsing of individual

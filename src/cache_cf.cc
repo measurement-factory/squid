@@ -294,8 +294,8 @@ Configuration::ApplyPreprocessedConfiguration(const PreprocessedCfg &preprocesse
 
     ACLMethodData::ThePurgeCount = 0;
 
-    debugs(3, 5, preprocessedConfig.allDirectives.size());
-    for (const auto &directive: preprocessedConfig.allDirectives)
+    debugs(3, 5, preprocessedConfig.directives.size());
+    for (const auto &directive: preprocessedConfig.directives)
         parseDirective(directive);
 
     /*

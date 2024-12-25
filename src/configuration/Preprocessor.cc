@@ -472,7 +472,7 @@ void
 Configuration::Preprocessor::addDirective(const PreprocessedDirective &directive)
 {
     debugs(3, 7, directive);
-    cfg_->allDirectives.emplace_back(directive);
+    cfg_->directives.emplace_back(directive);
     seenDirectives_.emplace(directive.name());
 }
 
