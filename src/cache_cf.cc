@@ -163,7 +163,6 @@ static void dump_cache_log_message(StoreEntry *entry, const char *name, const De
 static void free_cache_log_message(DebugMessages **messages);
 
 static void parse_access_log(CustomLog ** customlog_definitions);
-static int check_null_access_log(CustomLog *customlog_definitions);
 static void dump_access_log(StoreEntry * entry, const char *name, CustomLog * definitions);
 static void free_access_log(CustomLog ** definitions);
 
@@ -201,9 +200,6 @@ static void free_denyinfo(AclDenyInfoList ** var);
 static void parse_IpAddress_list(Ip::Address_list **);
 static void dump_IpAddress_list(StoreEntry *, const char *, const Ip::Address_list *);
 static void free_IpAddress_list(Ip::Address_list **);
-#if CURRENTLY_UNUSED
-static int check_null_IpAddress_list(const Ip::Address_list *);
-#endif /* CURRENTLY_UNUSED */
 #endif /* USE_WCCPv2 */
 
 static void parsePortCfg(AnyP::PortCfgPointer *, const char *protocol);
@@ -249,6 +245,11 @@ static void parse_http_upgrade_request_protocols(HttpUpgradeProtocolAccess **pro
 static void dump_http_upgrade_request_protocols(StoreEntry *entry, const char *name, HttpUpgradeProtocolAccess *protoGuards);
 static void free_http_upgrade_request_protocols(HttpUpgradeProtocolAccess **protoGuards);
 
+namespace Configuration {
+static PreprocessedCfg::Pointer &FreshPreprocessedConfig();
+static void ApplyPreprocessedConfiguration(const PreprocessedCfg &);
+} // namespace Configuration
+
 /*
  * LegacyParser is a parser for legacy code that uses the global
  * approach.  This is static so that it is only exposed to cache_cf.
@@ -258,7 +259,7 @@ static void free_http_upgrade_request_protocols(HttpUpgradeProtocolAccess **prot
 static ConfigParser LegacyParser = ConfigParser();
 
 const char *cfg_directive = nullptr;
-const char *cfg_filename = nullptr;
+SBuf cfg_filename;
 int config_lineno = 0;
 char config_input_line[BUFSIZ] = {};
 
@@ -271,24 +272,9 @@ self_destruct(void)
 void
 Configuration::Parse()
 {
-    debugs(5, 4, MYNAME);
-
-    configFreeMemory();
-
-    ACLMethodData::ThePurgeCount = 0;
-
-    Preprocessor pp;
-    const auto unrecognizedDirectives = pp.process(ConfigFile);
-
-    if (unrecognizedDirectives)
-        throw TextException(ToSBuf("Found ", unrecognizedDirectives, " unrecognized directive(s)"), Here());
-
-    /*
-     * We must call configDoConfigure() before leave_suid() because
-     * configDoConfigure() is where we turn username strings into
-     * uid values.
-     */
-    configDoConfigure();
+    const auto preprocessedConfig = Preprocess(ConfigFile);
+    assert(preprocessedConfig);
+    ApplyPreprocessedConfiguration(*preprocessedConfig);
 
     if (opt_send_signal == -1) {
         Mgr::RegisterAction("config",
@@ -296,6 +282,87 @@ Configuration::Parse()
                             dump_config,
                             1, 1);
     }
+}
+
+/// performs (re)configuration using previously preprocessed directives
+static void
+Configuration::ApplyPreprocessedConfiguration(const PreprocessedCfg &preprocessedConfig)
+{
+    debugs(5, 4, MYNAME);
+
+    configFreeMemory();
+
+    ACLMethodData::ThePurgeCount = 0;
+
+    debugs(3, 5, preprocessedConfig.directives.size());
+    for (const auto &directive: preprocessedConfig.directives)
+        parseDirective(directive);
+
+    /*
+     * We must call configDoConfigure() before leave_suid() because
+     * configDoConfigure() is where we turn username strings into
+     * uid values.
+     */
+    configDoConfigure();
+}
+
+/// configuration successfully preprocessed by StartReconfiguration() that has
+/// not been consumed by FinishReconfiguration() yet OR nil
+static Configuration::PreprocessedCfg::Pointer &
+Configuration::FreshPreprocessedConfig()
+{
+    static const auto p = new PreprocessedCfg::Pointer();
+    return *p;
+}
+
+bool
+Configuration::StartReconfiguration()
+{
+    try {
+        const auto fresh = Preprocess(ConfigFile);
+        assert(fresh);
+        FreshPreprocessedConfig() = fresh;
+        return true;
+    }
+    catch (...) {
+        debugs(3, DBG_CRITICAL, "Refusing to reconfigure after a preprocessing failure" <<
+               Debug::Extra << "error: " << CurrentException <<
+               Debug::Extra << "configuration location: " << ConfigParser::CurrentLocation() <<
+               Debug::Extra << "configuration line: " << config_input_line);
+        return false;
+    }
+}
+
+void
+Configuration::FinishReconfiguration()
+{
+    const auto fresh = FreshPreprocessedConfig();
+    Assure(fresh); // last StartReconfiguration() call returned true
+    FreshPreprocessedConfig() = nullptr; // no need to keep it around
+    ApplyPreprocessedConfiguration(*fresh);
+}
+
+void
+Configuration::SwitchTo(const Location &location)
+{
+    cfg_filename = location.name();
+    config_lineno = location.lineNo();
+}
+
+void
+Configuration::SwitchToGeneratedInput(const SBuf &description)
+{
+    SwitchTo(Location(description));
+}
+
+void
+Configuration::SwitchToExternalInput(const char * const filenameOrCommand, const bool isCommand)
+{
+    // TODO: Refactor to represent "<script>|" source using "<script> output"
+    // phrase instead of the current misleading "<script>" representation (e.g.,
+    // "gen_acls.pl output line 4" instead of current "gen_acls.pl line 4").
+    const auto l = Location(SBuf(isCommand ? filenameOrCommand + 1 : filenameOrCommand));
+    Configuration::SwitchTo(l);
 }
 
 /*
@@ -1569,12 +1636,6 @@ dump_cachedir(StoreEntry * entry, const char *name, const Store::DiskConfig &swa
     Store::Disks::Dump(swap, *entry, name);
 }
 
-static int
-check_null_string(char *s)
-{
-    return s == nullptr;
-}
-
 #if USE_AUTH
 static void
 parse_authparam(Auth::ConfigVector * config)
@@ -2796,12 +2857,6 @@ parse_wordlist(wordlist ** list)
         wordlistAdd(list, token);
 }
 
-static int
-check_null_acl_access(acl_access * a)
-{
-    return a == nullptr;
-}
-
 #define free_wordlist wordlistDestroy
 
 #define free_uri_whitespace free_int
@@ -3028,17 +3083,6 @@ free_IpAddress_list(Ip::Address_list ** head)
     *head = nullptr;
 }
 
-#if CURRENTLY_UNUSED
-/* This code was previously used by http_port. Left as it really should
- * be used by icp_port and htcp_port
- */
-static int
-check_null_IpAddress_list(const Ip::Address_list * s)
-{
-    return NULL == s;
-}
-
-#endif /* CURRENTLY_UNUSED */
 #endif /* USE_WCCPv2 */
 
 static void
@@ -3676,12 +3720,6 @@ parse_access_log(CustomLog ** logs)
     *logs = cl;
 }
 
-static int
-check_null_access_log(CustomLog *customlog_definitions)
-{
-    return customlog_definitions == nullptr;
-}
-
 static void
 dump_access_log(StoreEntry * entry, const char *name, CustomLog * logs)
 {
@@ -4054,7 +4092,8 @@ sslBumpCfgRr::finalizeConfig()
                    "inferior to the newer server-first bumping mode. New ssl_bump"
                    " configurations must not use implicit rules. Update your ssl_bump rules.");
         }
-        parse_line(conversionRule);
+        Configuration::SwitchToGeneratedInput(SBuf("runtime configuration finalization"));
+        Configuration::parseDirective(Configuration::PreprocessedDirective(conversionRule));
     }
 }
 

@@ -11,6 +11,7 @@
 
 #include "acl/forward.h"
 #include "base/forward.h"
+#include "configuration/forward.h"
 #include "sbuf/forward.h"
 #include "SquidString.h"
 
@@ -54,12 +55,11 @@ public:
 
     void destruct();
 
-    /// starts parsing the current configuration directive
-    /// \returns directive name
+    /// starts parsing the given preprocessed configuration directive
     /// \sa closeDirective()
-    SBuf openDirective(const SBuf &line);
+    void openDirective(const Configuration::PreprocessedDirective &);
 
-    /// stops parsing the current configuration directive
+    /// stops parsing started by openDirective()
     void closeDirective();
 
     /// rejects configuration due to a repeated directive

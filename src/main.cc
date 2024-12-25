@@ -845,6 +845,9 @@ mainReconfigureStart(void)
     if (AvoidSignalAction("reconfiguration", do_reconfigure))
         return;
 
+    if (!Configuration::StartReconfiguration())
+        return;
+
     debugs(1, DBG_IMPORTANT, "Reconfiguring Squid Cache (version " << version_string << ")...");
     reconfiguring = 1;
 
@@ -875,13 +878,17 @@ mainReconfigureStart(void)
              false);
 }
 
-/// error message to log when Configuration::Parse() fails
+/// error message to log when Configuration::Parse() or Configuration::FinishReconfiguration() fails
 static SBuf
 ConfigurationFailureMessage()
 {
     SBufStream out;
     out << (reconfiguring ? "re" : "");
     out << "configuration failure: " << CurrentException;
+    if (*config_input_line) {
+        out << Debug::Extra << "configuration location: " << ConfigParser::CurrentLocation();
+        out << Debug::Extra << "configuration line: " << config_input_line;
+    }
     if (!opt_parse_cfg_only)
         out << Debug::Extra << "advice: Run 'squid -k parse' and check for ERRORs.";
     return out.buf();
@@ -902,7 +909,7 @@ mainReconfigureFinish(void *)
     const int oldWorkers = Config.workers;
 
     try {
-        Configuration::Parse();
+        Configuration::FinishReconfiguration();
     } catch (...) {
         // for now any errors are a fatal condition...
         fatal(ConfigurationFailureMessage().c_str());

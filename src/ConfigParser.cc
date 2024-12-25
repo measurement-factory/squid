@@ -12,6 +12,7 @@
 #include "base/RegexPattern.h"
 #include "cache_cf.h"
 #include "ConfigParser.h"
+#include "configuration/Preprocessor.h"
 #include "debug/Stream.h"
 #include "fatal.h"
 #include "globals.h"
@@ -58,8 +59,8 @@ ConfigParser::destruct()
         std::string msg = message.str();
         fatalf("%s", msg.c_str());
     } else
-        fatalf("Bungled %s line %d: %s",
-               cfg_filename, config_lineno, config_input_line);
+        fatalf("Bungled " SQUIDSBUFPH " line %d: %s",
+               SQUIDSBUFPRINT(cfg_filename), config_lineno, config_input_line);
 }
 
 char *
@@ -213,10 +214,11 @@ ConfigParser::SetCfgLine(const SBuf &line)
     }
 }
 
+// TODO: Convert to an std::ostream manipulator like CurrentException().
 SBuf
 ConfigParser::CurrentLocation()
 {
-    return ToSBuf(SourceLocation(cfg_directive, cfg_filename, config_lineno));
+    return ToSBuf(SourceLocation(cfg_directive, cfg_filename.c_str(), config_lineno));
 }
 
 char *
@@ -562,18 +564,16 @@ ConfigParser::rejectDuplicateDirective()
     throw TextException("duplicate configuration directive", Here());
 }
 
-SBuf
-ConfigParser::openDirective(const SBuf &line)
+void
+ConfigParser::openDirective(const Configuration::PreprocessedDirective &ppd)
 {
-    Parser::Tokenizer tk(line);
-    SBuf directiveName; // TODO: Upgrade cfg_directive to a ConfigParser member (with SBuf type) and set it here.
-    static const auto &spaceChars = CharacterSet::WSP;
-    static const auto directiveChars = spaceChars.complement("squid.conf directive name");
-    const auto found = tk.prefix(directiveName, directiveChars);
-    Assure(found); // our callers are expected to fully handle non-directive lines
-    tk.skipAll(spaceChars);
-    SetCfgLine(tk.remaining()); // may be empty
-    return directiveName;
+    Configuration::SwitchTo(ppd.location());
+
+    const auto copied = ppd.whole().copy(config_input_line, sizeof(config_input_line) - 1);
+    config_input_line[copied] = '\0';
+
+    // TODO: Upgrade cfg_directive to a ConfigParser member (with SBuf type) and set it here.
+    SetCfgLine(ppd.parameters()); // may be empty
 }
 
 void
