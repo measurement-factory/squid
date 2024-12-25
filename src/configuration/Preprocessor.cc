@@ -269,9 +269,10 @@ Configuration::Preprocessor::importDefaultDirective(const SBuf &whole)
     // simpler because default directives do not support such preprocessing
     // features as #line directives, conditionals, and include statements.
 
-    // TODO: Upgrade config_input_line to SBuf
-    const auto copied = whole.copy(config_input_line, sizeof(config_input_line));
-    Assure(copied < sizeof(config_input_line)); // we more-or-less control defaults
+    // TODO: Upgrade config_input_line to SBuf, eliminating code duplication
+    // in ConfigParser::openDirective() together with truncation concerns.
+    static_assert(sizeof(config_input_line) >= 1);
+    const auto copied = whole.copy(config_input_line, sizeof(config_input_line) - 1);
     config_input_line[copied] = '\0';
 
     config_lineno++;
