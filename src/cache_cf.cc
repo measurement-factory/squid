@@ -326,7 +326,9 @@ Configuration::StartReconfiguration()
     }
     catch (...) {
         debugs(3, DBG_CRITICAL, "Refusing to reconfigure after a preprocessing failure" <<
-               Debug::Extra << "error: " << CurrentException);
+               Debug::Extra << "error: " << CurrentException <<
+               Debug::Extra << "configuration location: " << ConfigParser::CurrentLocation() <<
+               Debug::Extra << "configuration line: " << config_input_line);
         return false;
     }
 }

@@ -885,6 +885,10 @@ ConfigurationFailureMessage()
     SBufStream out;
     out << (reconfiguring ? "re" : "");
     out << "configuration failure: " << CurrentException;
+    if (*config_input_line) {
+        out << Debug::Extra << "configuration location: " << ConfigParser::CurrentLocation();
+        out << Debug::Extra << "configuration line: " << config_input_line;
+    }
     if (!opt_parse_cfg_only)
         out << Debug::Extra << "advice: Run 'squid -k parse' and check for ERRORs.";
     return out.buf();
