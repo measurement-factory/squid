@@ -470,10 +470,9 @@ Configuration::Preprocessor::addDirective(const PreprocessedDirective &directive
 }
 
 bool
-Configuration::Preprocessor::sawDirective(const char * const name) const
+Configuration::Preprocessor::sawDirective(const SBuf &name) const
 {
-    const SBuf lookup(name); // XXX: Convert processIfNoneDefaults() to use SBuf
-    return seenDirectives_.find(lookup) != seenDirectives_.end();
+    return seenDirectives_.find(name) != seenDirectives_.end();
 }
 
 /* Configuration::PreprocessedDirective */
