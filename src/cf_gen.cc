@@ -506,7 +506,7 @@ gen_default(const EntryList &head, std::ostream &fout)
                 fout << "#if " << entry.ifdef << std::endl;
 
             for (const auto &l : entry.defaults.preset)
-                fout << "    importDefaultDirective(\"" << entry.name << " " << gen_quote_escape(l) << "\");" << std::endl;
+                fout << "    importDefaultDirective(SBuf(\"" << entry.name << " " << gen_quote_escape(l) << "\"));" << std::endl;
 
             if (entry.ifdef.size())
                 fout << "#endif" << std::endl;
@@ -567,7 +567,7 @@ Entry::genDefaultIfNone(std::ostream &fout) const
         fout << ") {" << std::endl;
 
         for (const auto &l : entry.defaults.if_none)
-            fout << "        importDefaultDirective(\"" << entry.name << " " << gen_quote_escape(l) <<"\");" << std::endl;
+            fout << "        importDefaultDirective(SBuf(\"" << entry.name << " " << gen_quote_escape(l) <<"\"));" << std::endl;
         fout << "    }" << std::endl;
 
         if (entry.ifdef.size())
@@ -603,7 +603,7 @@ gen_default_postscriptum(const EntryList &head, std::ostream &fout)
             fout << "#if " << entry.ifdef << std::endl;
 
         for (const auto &l : entry.defaults.postscriptum)
-            fout << "    importDefaultDirective(\"" << entry.name << " " << l <<"\");" << std::endl;
+            fout << "    importDefaultDirective(SBuf(\"" << entry.name << " " << l <<"\"));" << std::endl;
 
         if (entry.ifdef.size())
             fout << "#endif" << std::endl;
