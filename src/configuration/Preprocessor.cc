@@ -9,7 +9,6 @@
 #include "squid.h"
 #include "base/CharacterSet.h"
 #include "cache_cf.h"
-#include "ConfigParser.h" // TODO: Check whether this is needed
 #include "configuration/Preprocessor.h"
 #include "debug/Messages.h"
 #include "debug/Stream.h"
