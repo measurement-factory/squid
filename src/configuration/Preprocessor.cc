@@ -265,6 +265,11 @@ Configuration::Preprocessor::process(const char * const filename)
 void
 Configuration::Preprocessor::importDefaultDirective(const SBuf &whole)
 {
+    // This method logic mimics processFile(), but this method code is much
+    // simpler because default directives do not support such preprocessing
+    // features as #line directives, conditionals, and include statements.
+
+    // TODO: Upgrade config_input_line to SBuf
     const auto copied = whole.copy(config_input_line, sizeof(config_input_line));
     Assure(copied < sizeof(config_input_line)); // we more-or-less control defaults
     config_input_line[copied] = '\0';
