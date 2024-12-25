@@ -63,7 +63,7 @@ public:
     using Directive = PreprocessedDirective;
 
     /// preprocessed configuration directives in configuration order
-    using Directives = std::deque< /* const here XXX? */ Directive /* XXX: Pool */ >;
+    using Directives = std::deque<Directive /* XXX: Pool */ >;
 
     /// all successfully preprocessed directives; TODO: rename to directives
     Directives allDirectives;
