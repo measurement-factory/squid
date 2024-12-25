@@ -492,7 +492,7 @@ Configuration::PreprocessedDirective::PreprocessedDirective(const SBuf &rawWhole
 
     Parser::Tokenizer tok(rawWhole);
     name_ = ExtractToken("directive name", tok, nameChars);
-    buf_ = tok.remaining(); // may be empty
+    parameters_ = tok.remaining(); // may be empty
     if (!ValidDirectiveName(name_))
         throw TextException(ToSBuf("Unrecognized configuration directive name: ", name_), Here());
 }
@@ -500,7 +500,7 @@ Configuration::PreprocessedDirective::PreprocessedDirective(const SBuf &rawWhole
 void
 Configuration::PreprocessedDirective::print(std::ostream &os) const
 {
-    os << location_ << ' ' << name_ << ' ' << buf_;
+    os << location_ << ' ' << name_ << ' ' << parameters_;
 }
 
 void

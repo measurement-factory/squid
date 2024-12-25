@@ -126,7 +126,7 @@ public:
     const SBuf &name() const { return name_; }
 
     /// (unfolded) directive line contents after the name prefix; may be empty
-    const SBuf &parameters() const { return buf_; }
+    const SBuf &parameters() const { return parameters_; }
 
     const Location &location() const { return location_; }
 
@@ -141,7 +141,7 @@ private:
 
     SBuf whole_; ///< \copydoc whole()
     SBuf name_; ///< \copydoc name()
-    SBuf buf_; ///< \copydoc contents(); XXX: rename to parameters_
+    SBuf parameters_; ///< \copydoc parameters()
     Location location_; ///< where this directive was obtained from
 };
 
