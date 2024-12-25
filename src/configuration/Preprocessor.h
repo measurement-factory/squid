@@ -10,6 +10,7 @@
 #define SQUID_SRC_CONFIGURATION_PREPROCESSOR_H
 
 #include "configuration/forward.h"
+#include "mem/PoolingAllocator.h"
 #include "sbuf/Algorithms.h"
 #include "sbuf/forward.h"
 
@@ -63,7 +64,7 @@ public:
     using Directive = PreprocessedDirective;
 
     /// preprocessed configuration directives in configuration order
-    using Directives = std::deque<Directive /* XXX: Pool */ >;
+    using Directives = std::deque<Directive, PoolingAllocator<Directive> >;
 
     /// all successfully preprocessed directives; TODO: rename to directives
     Directives allDirectives;
@@ -101,7 +102,7 @@ private:
     PreprocessedCfg::Pointer cfg_;
 
     /// a collection of directives names with fast lookup
-    using SeenNames = std::unordered_set<SBuf /* Pool? */>;
+    using SeenNames = std::unordered_set<SBuf, std::hash<SBuf>, std::equal_to<SBuf>, PoolingAllocator<SBuf> >;
     /// directives names seen so far
     SeenNames seenDirectives_;
 
