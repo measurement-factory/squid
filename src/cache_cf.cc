@@ -285,7 +285,7 @@ Configuration::Parse()
     }
 }
 
-/// performs full (re)configuration using previously preprocessed directives
+/// performs harsh (re)configuration using previously preprocessed directives
 static void
 Configuration::ApplyPreprocessedConfiguration()
 {
@@ -335,7 +335,7 @@ Configuration::PerformSmoothReconfiguration()
     debugs(3, DBG_IMPORTANT, "Performing smooth_reconfiguration" <<
            Debug::Extra << "changed directives: " << preprocessedConfig.pliableDirectives.size());
 
-    Assure(preprocessedConfig.allowPartialReconfiguration);
+    Assure(preprocessedConfig.allowSmoothReconfiguration);
 
     Assure(!reconfiguring);
     reconfiguring = true;
@@ -353,7 +353,7 @@ Configuration::StartReconfiguration()
     try {
         PreprocessedConfigStorage() = Preprocess(ConfigFile, PreprocessedConfigStorage());
 
-        if (FreshPreprocessedConfig().allowPartialReconfiguration) { // XXX: Rename to allowSmoothReconfiguration
+        if (FreshPreprocessedConfig().allowSmoothReconfiguration) {
             PerformSmoothReconfiguration();
             return false;
         }

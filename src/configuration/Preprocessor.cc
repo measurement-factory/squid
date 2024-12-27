@@ -273,7 +273,7 @@ Configuration::Preprocess(const char * const filename, const PreprocessedCfg::Po
     debugs(3, 7, filename);
     Preprocessor pp;
     pp.process(filename);
-    pp.assessPartialConfigurationTolerance(previousCfg);
+    pp.assessSmoothConfigurationTolerance(previousCfg);
     return pp.finalize();
 }
 
@@ -498,7 +498,7 @@ Configuration::Preprocessor::processDirective(const SBuf &rawWhole)
     try {
         return addDirective(PreprocessedDirective(rawWhole));
     } catch (...) {
-        banPartialReconfiguraiton("saw an invalid configuration directive");
+        banSmoothReconfiguration("saw an invalid configuration directive");
         ++invalidLines_;
         debugs(3, DBG_CRITICAL, "ERROR: " << CurrentException <<
                Debug::Extra << "directive location: " << ConfigParser::CurrentLocation());
@@ -506,23 +506,23 @@ Configuration::Preprocessor::processDirective(const SBuf &rawWhole)
 }
 
 void
-Configuration::Preprocessor::assessPartialConfigurationTolerance(const PreprocessedCfg::Pointer &previousCfg)
+Configuration::Preprocessor::assessSmoothConfigurationTolerance(const PreprocessedCfg::Pointer &previousCfg)
 {
-    if (partialReconfigurationBan_)
+    if (smoothReconfigurationBan_)
         return; // already decided
 
     if (!previousCfg)
-        return banPartialReconfiguraiton("there is no previous configuration");
+        return banSmoothReconfiguration("there is no previous configuration");
 
     // TODO: This check requires two reconfigurations to switch from harsh to
     // smooth reconfiguration. Can we do better?
     // existence of previousCfg implies that Squid has set Config already
     if (!Config.onoff.smooth_reconfiguration)
-        return banPartialReconfiguraiton("smooth_reconfiguration was off");
+        return banSmoothReconfiguration("smooth_reconfiguration was off");
 
     if (const auto diff = findRigidChanges(previousCfg->rigidDirectives)) {
         debugs(3, DBG_IMPORTANT, "Found changes in rigid configuration directives: " << diff);
-        return banPartialReconfiguraiton("the rigid part of the config has changed");
+        return banSmoothReconfiguration("the rigid part of the config has changed");
     }
 
     // we found no reasons to ban smooth reconfiguration
@@ -531,22 +531,22 @@ Configuration::Preprocessor::assessPartialConfigurationTolerance(const Preproces
 Configuration::PreprocessedCfg::Pointer
 Configuration::Preprocessor::finalize()
 {
-    cfg_->allowPartialReconfiguration = !partialReconfigurationBan_;
+    cfg_->allowSmoothReconfiguration = !smoothReconfigurationBan_;
     debugs(3, 3, "valid: " << cfg_->allDirectives.size() <<
            " rigid: " << cfg_->rigidDirectives.size() <<
            " pliable: " << cfg_->pliableDirectives.size() <<
            " invalid: " << invalidLines_ <<
-           " allowPartialReconfiguration: " << cfg_->allowPartialReconfiguration);
+           " allowSmoothReconfiguration: " << cfg_->allowSmoothReconfiguration);
     Assure(!invalidLines_);
     return cfg_;
 }
 
-/// prevent partial reconfiguration during the current (re)configuration attempt
+/// prevent smooth reconfiguration during the current (re)configuration attempt
 void
-Configuration::Preprocessor::banPartialReconfiguraiton(const char *reason)
+Configuration::Preprocessor::banSmoothReconfiguration(const char *reason)
 {
-    if (!partialReconfigurationBan_) {
-        partialReconfigurationBan_ = reason;
+    if (!smoothReconfigurationBan_) {
+        smoothReconfigurationBan_ = reason;
         const auto dbgLevel = Config.onoff.smooth_reconfiguration ? DBG_IMPORTANT : 2;
         debugs(3, dbgLevel, "Avoiding smooth_reconfiguration because " << reason);
     } else {
