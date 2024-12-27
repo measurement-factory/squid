@@ -10,7 +10,7 @@
 #define SQUID_SRC_CONFIGURATION_FORWARD_H
 
 namespace Configuration {
-class DirectivesDiff; // TODO: Rename to Diff?
+class Diff;
 class Location;
 class Preprocessor;
 class PreprocessedCfg;

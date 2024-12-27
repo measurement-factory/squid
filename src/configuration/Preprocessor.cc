@@ -26,7 +26,7 @@
 namespace Configuration {
 
 /// summarizes the difference between two sequences of configuration directives
-class DirectivesDiff
+class Diff
 {
 public:
     /// whether the directive sequences differ
@@ -51,7 +51,7 @@ private:
 };
 
 static std::ostream &
-operator <<(std::ostream &os, const DirectivesDiff &diff)
+operator <<(std::ostream &os, const Diff &diff)
 {
     diff.print(os);
     return os;
@@ -576,14 +576,14 @@ Configuration::Preprocessor::sawDirective(const SBuf &name) const
     return seenDirectives_.find(name) != seenDirectives_.end();
 }
 
-Configuration::DirectivesDiff
+Configuration::Diff
 Configuration::Preprocessor::findRigidChanges(const PreprocessedCfg::DirectiveIndex &previous) const
 {
     // We could detect multiple differences, but it is difficult to find a small
     // but still comprehensive diff (e.g., like "diff" often does) and finding
     // one change is sufficient for our code to make the smooth reconfiguration
     // decision, so we stop at the first difference for now.
-    DirectivesDiff diff;
+    Diff diff;
 
     auto previousPos = previous.begin();
 
@@ -616,10 +616,10 @@ Configuration::Preprocessor::findRigidChanges(const PreprocessedCfg::DirectiveIn
     return diff;
 }
 
-/* Configuration::DirectivesDiff */
+/* Configuration::Diff */
 
 void
-Configuration::DirectivesDiff::noteChange(const PreprocessedDirective &oldD, const PreprocessedDirective &newD)
+Configuration::Diff::noteChange(const PreprocessedDirective &oldD, const PreprocessedDirective &newD)
 {
     assert(changes_.isEmpty());
     changes_ = ToSBuf("directives or their order have changed:",
@@ -628,7 +628,7 @@ Configuration::DirectivesDiff::noteChange(const PreprocessedDirective &oldD, con
 }
 
 void
-Configuration::DirectivesDiff::noteAppearance(const PreprocessedDirective &newD)
+Configuration::Diff::noteAppearance(const PreprocessedDirective &newD)
 {
     assert(changes_.isEmpty());
     changes_ = ToSBuf("new configuration has more directives:",
@@ -636,7 +636,7 @@ Configuration::DirectivesDiff::noteAppearance(const PreprocessedDirective &newD)
 }
 
 void
-Configuration::DirectivesDiff::noteDisappearance(const PreprocessedDirective &oldD)
+Configuration::Diff::noteDisappearance(const PreprocessedDirective &oldD)
 {
     assert(changes_.isEmpty());
     changes_ = ToSBuf("old configuration had more directives:",
@@ -644,14 +644,14 @@ Configuration::DirectivesDiff::noteDisappearance(const PreprocessedDirective &ol
 }
 
 void
-Configuration::DirectivesDiff::noteLackOfChanges()
+Configuration::Diff::noteLackOfChanges()
 {
     assert(changes_.isEmpty());
     debugs(3, 5, "rigid directives have not changed");
 }
 
 void
-Configuration::DirectivesDiff::print(std::ostream &os) const
+Configuration::Diff::print(std::ostream &os) const
 {
     os << changes_;
 }
