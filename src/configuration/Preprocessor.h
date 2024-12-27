@@ -69,20 +69,26 @@ public:
     /// pointers to preprocessed configuration directives in configuration order
     using DirectiveIndex = std::deque<const Directive *, PoolingAllocator<const Directive*> >;
 
-    /// all successfully preprocessed directives
+    /// pliable and rigid directive storage
+    /// \sa pliableDirectives and rigidDirectives
     Directives allDirectives;
 
-    /// XXX: document
+    /// Directives (including defaults) that support smooth reconfiguration.
+    /// \sa pliableDirectives
     DirectiveIndex pliableDirectives;
 
-    /// XXX: document
+    /// Directives (including defaults) that do not support smooth
+    /// reconfiguration. A change in a rigid directive prevents smooth
+    /// reconfiguration.
+    /// \sa pliableDirectives
     DirectiveIndex rigidDirectives;
 
-    /// XXX: document
+    /// whether all rigid directives were preserved compared to the previous
+    /// version of Squid configuration in Preprocess() caller possession
     bool allowSmoothReconfiguration = false;
 };
 
-// TODO: Move to .cc?
+// TODO: Move this class (and other "internally-used" code) to Preprocessor.cc!
 /// Processes Squid configuration up to (and excluding) parsing of individual
 /// directives (each described as a NAME:... blob in cf.data.pre). Handles
 /// includes, conditional configuration, and ${macros}. Generates default
@@ -90,20 +96,21 @@ public:
 class Preprocessor
 {
 public:
+    /* these public methods are orchestrated by Preprocess() */
+
     Preprocessor();
 
-    // TODO: Re-describe; the method now returns nothing
-    /// Provides configuration parser with a sequence of preprocessed
-    /// directives, including various defaults.
+    /// import all directives, including various defaults and included files
     void process(const char * const filename);
 
-public: // remove or move to private
+    /// decide whether to banSmoothReconfiguration()
     void assessSmoothConfigurationTolerance(const PreprocessedCfg::Pointer &previousCfg);
+
+    /// produce preprocessed configuration suitable for external consumption
     PreprocessedCfg::Pointer finalize();
 
-    void processFile(const char *filename, size_t depth);
-
 private:
+    void processFile(const char *filename, size_t depth);
     void processIncludedFiles(const SBuf &paths, size_t depth);
 
     void importDefaultDirective(const SBuf &whole);
@@ -134,8 +141,9 @@ private:
     /// directives that are disabled in this particular Squid build.
     size_t invalidLines_ = 0;
 
-    /// XXX: Document
-    const char *smoothReconfigurationBan_ = nullptr; // string literal
+    /// banSmoothReconfiguration() call reason (for debugging) or, if there was
+    /// no such call, nil
+    const char *smoothReconfigurationBan_ = nullptr;
 };
 
 /// a single preprocessed configuration directive (supported or otherwise)
