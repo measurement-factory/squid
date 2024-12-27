@@ -10255,6 +10255,70 @@ DOC_START
 	section for more details.
 DOC_END
 
+NAME: smooth_reconfiguration
+COMMENT: on|off
+TYPE: onoff
+DEFAULT: off
+LOC: Config.onoff.smooth_reconfiguration
+DOC_START
+
+	Controls whether Squid may attempt "smooth" reconfiguration during the
+	next reconfiguration event.
+
+	XXX: This option should take a list of directive and module names (plus an
+	ALL macro).
+
+	XXX: Change detection is applied to non-supporting directives only!
+
+	Smooth reconfiguration detects changed configuration directives and only
+	reconfigures related settings, minimizing disruption to unaffected Squid
+	services and active transactions. Change detection is based on comparing
+	raw directive configuration lines (after line unfolding and macro
+	expansion). Due to current limitations of Squid configuration parser,
+	changes in otherwise insignificant whitespace between directive parameters
+	are not ignored.
+
+	The ultimate long-term goal is smooth reconfiguration of all directives,
+	but most directives currently do _not_ support smooth reconfiguration. A
+	change in configuration of a directive that does not explicitly claim
+	smooth reconfiguration support in its documentation prevents smooth
+	reconfiguration!
+
+	The default "harsh" reconfiguration involves such significant events as
+	closure (and later reopening) of listening ports, connections to DNS
+	servers, various logs as well as shutdown of external ACL and
+	authentication helpers. Those events happen regardless of whether related
+	configuration has changed in any way. Many of those events have
+	detrimental effect on active transactions and users. On the bright side,
+	all configuration directives are parsed from scratch, and most of them
+	accept changed values, reducing risks of inconsistencies among configured
+	components and services.
+
+	If smooth reconfiguration is not explicitly enabled (using this directive)
+	or is prevented by changes in unlisted directives, then Squid performs
+	harsh reconfiguration. This logic makes smooth reconfiguration safer: The
+	admin does not need to worry that directive changes may go unnoticed.
+
+	However, since change detection is based on configuration lines spelling,
+	Squid may miss a change in objects those lines refer to. For example, a
+	"url_rewrite_program /usr/bin/rewriter" line may stay the same after the
+	rewriter binary has been upgraded. Since the url_rewrite_program directive
+	does _not_ support smooth reconfiguration, Squid (with smooth
+	reconfiguration enabled) will not notice such an upgrade and, hence, may
+	continue using the old rewriting helpers for new transactions.
+
+	After smooth reconfiguration is enabled, an admin can reliably force harsh
+	reconfiguration by setting smooth_reconfiguration to off and reconfiguring
+	Squid.
+
+	It is currently not possible to enable smooth reconfiguration during the
+	same reconfiguration event: If squid.conf version N does not enable smooth
+	reconfiguration, then the next reconfiguration will be harsh even if
+	squid.conf version N+1 sets smooth_reconfiguration to on. Only subsequent
+	reconfiguration events may be smooth.
+
+DOC_END
+
 NAME: memory_pools
 COMMENT: on|off
 TYPE: onoff
