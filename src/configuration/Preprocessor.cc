@@ -559,15 +559,14 @@ void
 Configuration::Preprocessor::addDirective(const PreprocessedDirective &directive)
 {
     debugs(3, 7, directive);
-    // TODO: Simplify with push_back(), etc.
-    cfg_->allDirectives.emplace_back(directive);
-    seenDirectives_.emplace(directive.name());
+    cfg_->allDirectives.push_back(directive);
+    seenDirectives_.insert(directive.name());
 
     // TODO: Test pliability by examining a new configuration directive header.
     static const SBuf pliableName("XXX: no pliable directives supported");
     auto &index = (directive.name() == pliableName) ? cfg_->pliableDirectives : cfg_->rigidDirectives;
     // TODO: Use std::reference_wrapper instead of Directive pointers.
-    index.emplace_back(&cfg_->allDirectives.back());
+    index.push_back(&cfg_->allDirectives.back());
 }
 
 bool
