@@ -273,6 +273,8 @@ Configuration::Preprocess(const char * const filename, const PreprocessedCfg::Po
     debugs(3, 7, filename);
     Preprocessor pp;
     pp.process(filename);
+
+    // to simplify, the code below assumes that process() errors cannot reach it
     pp.assessSmoothConfigurationTolerance(previousCfg);
     return pp.finalize();
 }
@@ -498,7 +500,6 @@ Configuration::Preprocessor::processDirective(const SBuf &rawWhole)
     try {
         return addDirective(PreprocessedDirective(rawWhole));
     } catch (...) {
-        banSmoothReconfiguration("saw an invalid configuration directive");
         ++invalidLines_;
         debugs(3, DBG_CRITICAL, "ERROR: " << CurrentException <<
                Debug::Extra << "directive location: " << ConfigParser::CurrentLocation());
@@ -520,6 +521,7 @@ Configuration::Preprocessor::assessSmoothConfigurationTolerance(const Preprocess
     if (!Config.onoff.smooth_reconfiguration)
         return banSmoothReconfiguration("smooth_reconfiguration was off");
 
+    // we have delayed this relatively expensive check as much as possible
     if (const auto diff = findRigidChanges(previousCfg->rigidDirectives)) {
         debugs(3, DBG_IMPORTANT, "Found changes in rigid configuration directives: " << diff);
         return banSmoothReconfiguration("the rigid part of the config has changed");
@@ -535,7 +537,6 @@ Configuration::Preprocessor::finalize()
     debugs(3, 3, "valid: " << cfg_->allDirectives.size() <<
            " rigid: " << cfg_->rigidDirectives.size() <<
            " pliable: " << cfg_->pliableDirectives.size() <<
-           " invalid: " << invalidLines_ <<
            " allowSmoothReconfiguration: " << cfg_->allowSmoothReconfiguration);
     Assure(!invalidLines_);
     return cfg_;
