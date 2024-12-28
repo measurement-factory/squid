@@ -521,9 +521,10 @@ Configuration::Preprocessor::assessSmoothConfigurationTolerance(const Preprocess
     if (!Config.onoff.smooth_reconfiguration)
         return banSmoothReconfiguration("smooth_reconfiguration was off");
 
-    // we have delayed this relatively expensive check as much as possible
+    // we delayed this relatively expensive (and loud) check as much as possible
     if (const auto diff = findRigidChanges(previousCfg->rigidDirectives)) {
-        debugs(3, DBG_IMPORTANT, "Found changes in rigid configuration directives: " << diff);
+        debugs(3, DBG_IMPORTANT, "Found changes in rigid configuration directives" <<
+               Debug::Extra << diff);
         return banSmoothReconfiguration("the rigid part of the config has changed");
     }
 
@@ -621,8 +622,8 @@ void
 Configuration::Diff::noteChange(const PreprocessedDirective &oldD, const PreprocessedDirective &newD)
 {
     assert(changes_.isEmpty());
-    changes_ = ToSBuf("directives or their order have changed:",
-        Debug::Extra, "old configuration has: ", oldD,
+    changes_ = ToSBuf("directives or their order has changed:",
+        Debug::Extra, "old configuration had: ", oldD,
         Debug::Extra, "new configuration has: ", newD);
 }
 
@@ -631,7 +632,7 @@ Configuration::Diff::noteAppearance(const PreprocessedDirective &newD)
 {
     assert(changes_.isEmpty());
     changes_ = ToSBuf("new configuration has more directives:",
-        Debug::Extra, "the first directive missing from the old configuration: ", newD);
+        Debug::Extra, "the first new directive absent in the old configuration: ", newD);
 }
 
 void
@@ -639,7 +640,7 @@ Configuration::Diff::noteDisappearance(const PreprocessedDirective &oldD)
 {
     assert(changes_.isEmpty());
     changes_ = ToSBuf("old configuration had more directives:",
-        Debug::Extra, "the first directive missing from the new configuration: ", oldD);
+        Debug::Extra, "the first old directive absent in the new configuration: ", oldD);
 }
 
 void
@@ -681,8 +682,7 @@ Configuration::PreprocessedDirective::similarTo(const PreprocessedDirective &oth
 void
 Configuration::PreprocessedDirective::print(std::ostream &os) const
 {
-    // TODO: Insert ":" after location_ or move location_ after " # "?
-    os << location_ << ' ' << name_ << ' ' << parameters_;
+    os << location_ << ": " << name_ << ' ' << parameters_;
 }
 
 void
