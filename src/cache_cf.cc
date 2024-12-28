@@ -329,17 +329,19 @@ Configuration::FreshPreprocessedConfig()
 static void
 Configuration::PerformSmoothReconfiguration()
 {
-    // TODO: Report preprocessedConfig.pliableDirectives.empty() case specially.
-
     const auto &preprocessedConfig = FreshPreprocessedConfig();
-    debugs(3, DBG_IMPORTANT, "Performing smooth_reconfiguration" <<
-           Debug::Extra << "changed directives: " << preprocessedConfig.pliableDirectives.size());
+
+    // We do not report the number of pliable and (unchanged) rigid directives
+    // here: Such reports may confuse admins because those numbers will include
+    // default-generated lines that admins do not see in their configs.
+    debugs(3, DBG_IMPORTANT, "Performing smooth reconfiguration");
 
     Assure(preprocessedConfig.allowSmoothReconfiguration);
 
     Assure(!reconfiguring);
     reconfiguring = true;
 
+    // TODO: Optimize by reconfiguring only those pliable directives that changed.
     for (const auto &directive: preprocessedConfig.pliableDirectives)
         parseDirective(*directive);
 
