@@ -338,15 +338,9 @@ Configuration::PerformSmoothReconfiguration()
 
     Assure(preprocessedConfig.allowSmoothReconfiguration);
 
-    Assure(!reconfiguring);
-    reconfiguring = true;
-
     // TODO: Optimize by reconfiguring only those pliable directives that changed.
     for (const auto &directive: preprocessedConfig.pliableDirectives)
-        parseDirective(*directive);
-
-    Assure(reconfiguring);
-    reconfiguring = false;
+        ReconfigureSmoothly(*directive);
 }
 
 bool
@@ -354,21 +348,35 @@ Configuration::StartReconfiguration()
 {
     try {
         PreprocessedConfigStorage() = Preprocess(ConfigFile, PreprocessedConfigStorage());
-
-        if (FreshPreprocessedConfig().allowSmoothReconfiguration) {
-            PerformSmoothReconfiguration();
-            return false;
-        }
-
-        return true; // and wait for FinishReconfiguration()
+        if (!FreshPreprocessedConfig().allowSmoothReconfiguration)
+            return true; // and wait for FinishReconfiguration()
+        // else fall through to PerformSmoothReconfiguration()
     }
     catch (...) {
-        debugs(3, DBG_CRITICAL, "Refusing to reconfigure after a preprocessing failure" <<
+        debugs(3, DBG_CRITICAL, "ERROR: Refusing to reconfigure after a preprocessing failure" <<
                Debug::Extra << "error: " << CurrentException <<
                Debug::Extra << "configuration location: " << ConfigParser::CurrentLocation() <<
                Debug::Extra << "configuration line: " << config_input_line);
         return false;
     }
+
+    // TODO: Refactor to simplify this function flow while adding smooth-or-harsh support
+
+    try {
+        Assure(!reconfiguring);
+        reconfiguring = true;
+        PerformSmoothReconfiguration();
+        Assure(reconfiguring);
+        reconfiguring = false;
+    }
+    catch (...) {
+        debugs(3, DBG_CRITICAL, "ERROR: Smooth reconfiguration failure" <<
+               Debug::Extra << "error: " << CurrentException <<
+               Debug::Extra << "configuration location: " << ConfigParser::CurrentLocation() <<
+               Debug::Extra << "configuration line: " << config_input_line);
+        reconfiguring = false; // may already be false
+    }
+    return false;
 }
 
 void
@@ -429,6 +437,17 @@ ParseDirective(T &raw, ConfigParser &parser)
     Must(!raw);
     raw = Configuration::Component<T>::Parse(parser);
     Must(raw);
+    // TODO: Move to parse_line() when ready to reject trailing garbage in all directives.
+    parser.closeDirective();
+}
+
+/// Updates the given raw SquidConfig data member.
+/// Extracts and interprets parser's configuration tokens.
+template <typename T>
+static void
+ReconfigureDirective(T &raw, ConfigParser &parser)
+{
+    Configuration::Component<T>::Reconfigure(raw, parser);
     // TODO: Move to parse_line() when ready to reject trailing garbage in all directives.
     parser.closeDirective();
 }

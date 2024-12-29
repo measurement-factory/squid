@@ -9,6 +9,7 @@
 #include "squid.h"
 #include "base/CharacterSet.h"
 #include "cache_cf.h"
+#include "ConfigOption.h"
 #include "configuration/Preprocessor.h"
 #include "debug/Messages.h"
 #include "debug/Stream.h"
@@ -55,6 +56,16 @@ operator <<(std::ostream &os, const Diff &diff)
 {
     diff.print(os);
     return os;
+}
+
+/// modes supported by reconfiguration directive
+enum class ReconfigurationMode { harsh, smooth, smoothOrHarsh };
+
+/// whether current/applied configuration enables harsh reconfiguration mode
+static bool
+UseHarshMode()
+{
+    return !Config.reconfigurationMode || *Config.reconfigurationMode == ReconfigurationMode::harsh;
 }
 
 } // namespace Configuration
@@ -278,6 +289,66 @@ Configuration::Preprocess(const char * const filename, const PreprocessedCfg::Po
     pp.assessSmoothConfigurationTolerance(previousCfg);
     return pp.finalize();
 }
+
+// XXX: See Configuration::Component<Security::KeyLog*>.
+namespace Configuration {
+
+/// converts the next squid.conf token to ReconfigurationMode
+static Configuration::ReconfigurationMode
+ParseReconfigurationMode(ConfigParser &parser)
+{
+    const auto name = parser.token("reconfiguration mode name");
+    if (name.cmp("harsh") == 0)
+        return ReconfigurationMode::harsh;
+    if (name.cmp("smooth") == 0)
+        return ReconfigurationMode::smooth;
+    if (name.cmp("smooth-or-harsh") == 0)
+        return ReconfigurationMode::smoothOrHarsh;
+    throw TextException(ToSBuf("unsupported reconfiguration mode: '", name, "'"), Here());
+}
+
+template <>
+Configuration::ReconfigurationMode *
+Configuration::Component<Configuration::ReconfigurationMode*>::Parse(ConfigParser &parser)
+{
+    return new ReconfigurationMode(ParseReconfigurationMode(parser));
+}
+
+template <>
+void
+Configuration::Component<ReconfigurationMode*>::Reconfigure(ReconfigurationMode *&mode, ConfigParser &parser)
+{
+    Assure(mode);
+    *mode = ParseReconfigurationMode(parser); // if parser fails, old mode is preserved
+}
+
+template <>
+void
+Configuration::Component<Configuration::ReconfigurationMode*>::Print(std::ostream &os, Configuration::ReconfigurationMode * const &mode)
+{
+    Assure(mode);
+    switch (*mode) {
+    case ReconfigurationMode::harsh:
+        os << "harsh";
+        return;
+    case ReconfigurationMode::smooth:
+        os << "smooth";
+        return;
+    case ReconfigurationMode::smoothOrHarsh:
+        os << "smooth-or-harsh";
+        return;
+    }
+    Assure(!"this method covers all supported modes");
+}
+
+template <>
+void
+Configuration::Component<Configuration::ReconfigurationMode*>::Free(Configuration::ReconfigurationMode * const mode)
+{
+    delete mode;
+}
+
+} // namespace Configuration
 
 /* Configuration::Preprocessor */
 
@@ -518,8 +589,8 @@ Configuration::Preprocessor::assessSmoothConfigurationTolerance(const Preprocess
     // TODO: This check requires two reconfigurations to switch from harsh to
     // smooth reconfiguration. Can we do better?
     // existence of previousCfg implies that Squid has set Config already
-    if (!Config.onoff.smooth_reconfiguration)
-        return banSmoothReconfiguration("smooth_reconfiguration was off");
+    if (UseHarshMode())
+        return banSmoothReconfiguration("current configuration bans smooth reconfiguration");
 
     // we delayed this relatively expensive (and loud) check as much as possible
     if (const auto diff = findRigidChanges(previousCfg->rigidDirectives)) {
@@ -549,8 +620,8 @@ Configuration::Preprocessor::banSmoothReconfiguration(const char *reason)
 {
     if (!smoothReconfigurationBan_) {
         smoothReconfigurationBan_ = reason;
-        const auto dbgLevel = Config.onoff.smooth_reconfiguration ? DBG_IMPORTANT : 2;
-        debugs(3, dbgLevel, "Avoiding smooth_reconfiguration because " << reason);
+        const auto dbgLevel = UseHarshMode() ? 2 : DBG_IMPORTANT;
+        debugs(3, dbgLevel, "Avoiding smooth reconfiguration because " << reason);
     } else {
         debugs(3, 3, "also because " << reason);
     }
@@ -563,8 +634,8 @@ Configuration::Preprocessor::addDirective(const PreprocessedDirective &directive
     cfg_->allDirectives.push_back(directive);
     seenDirectives_.insert(directive.name());
 
-    // TODO: Test pliability by examining a new configuration directive header.
-    static const SBuf pliableName("XXX: no pliable directives supported");
+    // TODO: Test pliability by examining Entry::supportsSmoothReconfiguration!
+    static const SBuf pliableName("reconfiguration");
     auto &index = (directive.name() == pliableName) ? cfg_->pliableDirectives : cfg_->rigidDirectives;
     // TODO: Use std::reference_wrapper instead of Directive pointers.
     index.push_back(&cfg_->allDirectives.back());

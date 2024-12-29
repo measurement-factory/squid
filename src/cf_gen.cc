@@ -93,15 +93,19 @@ public:
     DefaultValues defaults;
     std::string comment;
     std::string ifdef;
+    bool supportsSmoothReconfiguration = false;
     LineList doc;
     LineList cfgLines; ///< between CONFIG_START and CONFIG_END
     int array_flag = 0; ///< TYPE is a raw array[] declaration
 
     void genParse(std::ostream &fout) const;
+    void genReconfigure(std::ostream &) const;
     void genValidDirectiveNameEntry(std::ostream &fout) const;
     void genDefaultIfNone(std::ostream &fout) const;
 
 private:
+    void genParsePrefix(const std::string &aName, std::ostream &fout) const;
+    void genParseSuffix(std::ostream &fout) const;
     void genParseAlias(const std::string &, std::ostream &) const;
     void genValidDirectiveNameCheck(const std::string &, std::ostream &) const;
     void genDefaultIfNoneAlias(const std::string &, std::ostream &) const;
@@ -123,6 +127,7 @@ typedef std::list<class Type> TypeList;
 static const char WS[] = " \t\n";
 static int gen_default(const EntryList &, std::ostream &);
 static void gen_parse(const EntryList &, std::ostream &);
+static void gen_reconfigure(const EntryList &, std::ostream &);
 static void gen_dump(const EntryList &, std::ostream&);
 static void gen_free(const EntryList &, std::ostream&);
 static void gen_find(const EntryList &, std::ostream &);
@@ -351,6 +356,21 @@ main(int argc, char *argv[])
 
                     checkDepend(curr.name, ptr, types, entries);
                     curr.type = ptr;
+                } else if (!strncmp(buff, "SMOOTH_RECONFIGURATION:", 23)) {
+                    if ((ptr = strtok(buff + 23, WS)) == nullptr) {
+                        errorMsg(input_filename, linenum, buff);
+                        exit(EXIT_FAILURE);
+                    }
+
+                    if (*ptr == '0')
+                        curr.supportsSmoothReconfiguration = false;
+                    else if (*ptr == '1')
+                        curr.supportsSmoothReconfiguration = true;
+                    else {
+                        errorMsg(ptr, linenum, buff);
+                        exit(EXIT_FAILURE);
+                    }
+
                 } else if (!strncmp(buff, "IFDEF:", 6)) {
                     if ((ptr = strtok(buff + 6, WS)) == nullptr) {
                         errorMsg(input_filename, linenum, buff);
@@ -436,6 +456,8 @@ main(int argc, char *argv[])
     gen_default_postscriptum(entries, fout);
 
     gen_parse(entries, fout);
+
+    gen_reconfigure(entries, fout);
 
     gen_dump(entries, fout);
 
@@ -614,13 +636,18 @@ gen_default_postscriptum(const EntryList &head, std::ostream &fout)
 }
 
 void
-Entry::genParseAlias(const std::string &aName, std::ostream &fout) const
+Entry::genParsePrefix(const std::string &aName, std::ostream &fout) const
 {
     fout << "    if (directive.name().cmp(\"" << aName << "\") == 0) {" << std::endl;
     if (ifdef.size())
         fout << "#if " << ifdef << std::endl;
     fout << "        cfg_directive = \"" << aName << "\";" << std::endl;
-    fout << "        ";
+}
+
+void
+Entry::genParseAlias(const std::string &aName, std::ostream &fout) const
+{
+    genParsePrefix(aName, fout);
     if (type.compare("obsolete") == 0) {
         fout << "debugs(0, DBG_CRITICAL, \"ERROR: Directive '" << aName << "' is obsolete.\");\n";
         for (const auto &l : doc) {
@@ -635,6 +662,12 @@ Entry::genParseAlias(const std::string &aName, std::ostream &fout) const
     } else {
         fout << "parse_" << type << "(&" << loc << (array_flag ? "[0]" : "") << ");";
     }
+    genParseSuffix(fout);
+}
+
+void
+Entry::genParseSuffix(std::ostream &fout) const
+{
     fout << std::endl;
     fout << "        cfg_directive = nullptr;" << std::endl;
     if (ifdef.size()) {
@@ -662,6 +695,19 @@ Entry::genParse(std::ostream &fout) const
     }
 }
 
+void
+Entry::genReconfigure(std::ostream &fout) const
+{
+    if (!supportsSmoothReconfiguration)
+        return;
+
+    genParsePrefix(name, fout);
+
+    fout << "ReconfigureDirective<" << type << ">(" << loc << ", LegacyParser);";
+
+    genParseSuffix(fout);
+}
+
 static void
 gen_parse(const EntryList &head, std::ostream &fout)
 {
@@ -673,6 +719,23 @@ gen_parse(const EntryList &head, std::ostream &fout)
 
     for (const auto &e : head)
         e.genParse(fout);
+
+    fout << "\tAssure(!\"PreprocessedDirective has ValidDirectiveName()\"); /* not reached */\n"
+         "}\n\n";
+
+}
+
+static void
+gen_reconfigure(const EntryList &head, std::ostream &fout)
+{
+    fout <<
+         "void\n"
+         "Configuration::ReconfigureSmoothly(const PreprocessedDirective &directive)\n"
+         "{\n"
+         "\tLegacyParser.openDirective(directive);\n";
+
+    for (const auto &e: head)
+        e.genReconfigure(fout);
 
     fout << "\tAssure(!\"PreprocessedDirective has ValidDirectiveName()\"); /* not reached */\n"
          "}\n\n";
@@ -853,6 +916,13 @@ gen_conf(const EntryList &head, std::ostream &fout, bool verbose_output)
             for (const auto &line : entry.doc) {
                 fout << "#" << line << std::endl;
             }
+        }
+
+        if (verbose_output && entry.supportsSmoothReconfiguration) {
+            fout << "#\n";
+            fout << "#\tThis directive supports smooth reconfiguration. See reconfiguration\n";
+            fout << "#\tdirective documentation for details.\n";
+            fout << "#\n";
         }
 
         if (entry.defaults.docs.size()) {
