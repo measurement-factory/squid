@@ -86,6 +86,9 @@ public:
     /// whether all rigid directives were preserved compared to the previous
     /// version of Squid configuration in Preprocess() caller possession
     bool allowSmoothReconfiguration = false;
+
+    /// whether reconfiguration directive allows harsh reconfiguration
+    bool allowHarshReconfiguration = false;
 };
 
 // TODO: Move this class (and other "internally-used" code) to Preprocessor.cc!

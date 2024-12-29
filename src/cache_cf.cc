@@ -329,18 +329,30 @@ Configuration::FreshPreprocessedConfig()
 static void
 Configuration::PerformSmoothReconfiguration()
 {
-    const auto &preprocessedConfig = FreshPreprocessedConfig();
+    Assure(!reconfiguring);
+    reconfiguring = true;
+    try {
+        const auto &preprocessedConfig = FreshPreprocessedConfig();
 
-    // We do not report the number of pliable and (unchanged) rigid directives
-    // here: Such reports may confuse admins because those numbers will include
-    // default-generated lines that admins do not see in their configs.
-    debugs(3, DBG_IMPORTANT, "Performing smooth reconfiguration");
+        // Do not report the number of pliable and (unchanged) rigid directives:
+        // Such reports may confuse admins because those numbers include
+        // default-generated directives that admins do not see in their configs.
+        debugs(3, DBG_IMPORTANT, "Performing smooth reconfiguration");
 
-    Assure(preprocessedConfig.allowSmoothReconfiguration);
+        Assure(preprocessedConfig.allowSmoothReconfiguration);
 
-    // TODO: Optimize by reconfiguring only those pliable directives that changed.
-    for (const auto &directive: preprocessedConfig.pliableDirectives)
-        ReconfigureSmoothly(*directive);
+        // TODO: Optimize by reconfiguring only those pliable directives that changed.
+        for (const auto &directive: preprocessedConfig.pliableDirectives)
+            ReconfigureSmoothly(*directive);
+    }
+    catch (...) {
+        debugs(3, DBG_CRITICAL, "ERROR: Smooth reconfiguration failure" <<
+               Debug::Extra << "error: " << CurrentException <<
+               Debug::Extra << "configuration location: " << ConfigParser::CurrentLocation() <<
+               Debug::Extra << "configuration line: " << config_input_line);
+    }
+    Assure(reconfiguring);
+    reconfiguring = false;
 }
 
 bool
@@ -348,9 +360,6 @@ Configuration::StartReconfiguration()
 {
     try {
         PreprocessedConfigStorage() = Preprocess(ConfigFile, PreprocessedConfigStorage());
-        if (!FreshPreprocessedConfig().allowSmoothReconfiguration)
-            return true; // and wait for FinishReconfiguration()
-        // else fall through to PerformSmoothReconfiguration()
     }
     catch (...) {
         debugs(3, DBG_CRITICAL, "ERROR: Refusing to reconfigure after a preprocessing failure" <<
@@ -360,23 +369,19 @@ Configuration::StartReconfiguration()
         return false;
     }
 
-    // TODO: Refactor to simplify this function flow while adding smooth-or-harsh support
-
-    try {
-        Assure(!reconfiguring);
-        reconfiguring = true;
+    if (FreshPreprocessedConfig().allowSmoothReconfiguration) {
         PerformSmoothReconfiguration();
-        Assure(reconfiguring);
-        reconfiguring = false;
+        // In "else" below, we may reconfigure harshly if smooth reconfiguration
+        // is not allowed, but we do not reconfigure harshly when the above call
+        // fails: Smooth reconfiguration failures are likely to repeat during
+        // harsh reconfiguration, and failed harsh reconfiguration is a lot more
+        // likely to leave Squid instance in a bad "half-configured" state.
+        return false;
+    } else {
+        // We return false here and, hence, do not reconfigure (at all) if both
+        // smooth and harsh reconfiguration modes are not allowed.
+        return FreshPreprocessedConfig().allowHarshReconfiguration;
     }
-    catch (...) {
-        debugs(3, DBG_CRITICAL, "ERROR: Smooth reconfiguration failure" <<
-               Debug::Extra << "error: " << CurrentException <<
-               Debug::Extra << "configuration location: " << ConfigParser::CurrentLocation() <<
-               Debug::Extra << "configuration line: " << config_input_line);
-        reconfiguring = false; // may already be false
-    }
-    return false;
 }
 
 void

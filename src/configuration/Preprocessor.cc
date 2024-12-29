@@ -61,11 +61,22 @@ operator <<(std::ostream &os, const Diff &diff)
 /// modes supported by reconfiguration directive
 enum class ReconfigurationMode { harsh, smooth, smoothOrHarsh };
 
-/// whether current/applied configuration enables harsh reconfiguration mode
+/// whether current/applied configuration dictates harsh reconfiguration (or we
+/// have not applied any configuration yet -- the initial configuration is
+/// necessarily "harsh")
+/// \sa HarshReconfigurationBanned()
 static bool
-UseHarshMode()
+HarshReconfigurationRequired()
 {
     return !Config.reconfigurationMode || *Config.reconfigurationMode == ReconfigurationMode::harsh;
+}
+
+/// whether current/applied configuration dictates smooth reconfiguration
+/// \sa HarshReconfigurationRequired()
+static bool
+HarshReconfigurationBanned()
+{
+    return Config.reconfigurationMode && *Config.reconfigurationMode == ReconfigurationMode::smooth;
 }
 
 } // namespace Configuration
@@ -588,8 +599,7 @@ Configuration::Preprocessor::assessSmoothConfigurationTolerance(const Preprocess
 
     // TODO: This check requires two reconfigurations to switch from harsh to
     // smooth reconfiguration. Can we do better?
-    // existence of previousCfg implies that Squid has set Config already
-    if (UseHarshMode())
+    if (HarshReconfigurationRequired())
         return banSmoothReconfiguration("current configuration bans smooth reconfiguration");
 
     // we delayed this relatively expensive (and loud) check as much as possible
@@ -606,10 +616,13 @@ Configuration::PreprocessedCfg::Pointer
 Configuration::Preprocessor::finalize()
 {
     cfg_->allowSmoothReconfiguration = !smoothReconfigurationBan_;
+    cfg_->allowHarshReconfiguration = !HarshReconfigurationBanned();
+
     debugs(3, 3, "valid: " << cfg_->allDirectives.size() <<
            " rigid: " << cfg_->rigidDirectives.size() <<
            " pliable: " << cfg_->pliableDirectives.size() <<
-           " allowSmoothReconfiguration: " << cfg_->allowSmoothReconfiguration);
+           " allowSmoothReconfiguration: " << cfg_->allowSmoothReconfiguration <<
+           " allowHarshReconfiguration: " << cfg_->allowHarshReconfiguration);
     Assure(!invalidLines_);
     return cfg_;
 }
@@ -620,7 +633,7 @@ Configuration::Preprocessor::banSmoothReconfiguration(const char *reason)
 {
     if (!smoothReconfigurationBan_) {
         smoothReconfigurationBan_ = reason;
-        const auto dbgLevel = UseHarshMode() ? 2 : DBG_IMPORTANT;
+        const auto dbgLevel = HarshReconfigurationRequired() ? 2 : DBG_IMPORTANT;
         debugs(3, dbgLevel, "Avoiding smooth reconfiguration because " << reason);
     } else {
         debugs(3, 3, "also because " << reason);
