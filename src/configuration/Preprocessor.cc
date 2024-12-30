@@ -327,14 +327,6 @@ Configuration::Component<Configuration::ReconfigurationMode*>::Parse(ConfigParse
 
 template <>
 void
-Configuration::Component<ReconfigurationMode*>::Reconfigure(ReconfigurationMode *&mode, ConfigParser &parser)
-{
-    Assure(mode);
-    *mode = ParseReconfigurationMode(parser); // if parser fails, old mode is preserved
-}
-
-template <>
-void
 Configuration::Component<Configuration::ReconfigurationMode*>::Print(std::ostream &os, Configuration::ReconfigurationMode * const &mode)
 {
     Assure(mode);
@@ -360,6 +352,14 @@ Configuration::Component<Configuration::ReconfigurationMode*>::Free(Configuratio
 }
 
 } // namespace Configuration
+
+DeclareDirectiveReconfigurator(ReconfigureReconfigurationMode, Configuration::ReconfigurationMode*);
+void
+ReconfigureReconfigurationMode(Configuration::ReconfigurationMode *&mode, ConfigParser &parser)
+{
+    Assure(mode);
+    *mode = Configuration::ParseReconfigurationMode(parser); // if parsing fails, old mode is preserved
+}
 
 /* Configuration::Preprocessor */
 

@@ -35,9 +35,6 @@ public:
     /// creates a new T instance using the given parser; never returns nil
     static T Parse(ConfigParser &);
 
-    /// updates T instance using the given parser
-    static void Reconfigure(T &, ConfigParser &);
-
     /// reports the current T instance configuration in squid.conf format
     static void Print(std::ostream &, const T &);
 

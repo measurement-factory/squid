@@ -93,10 +93,12 @@ public:
     DefaultValues defaults;
     std::string comment;
     std::string ifdef;
-    bool supportsSmoothReconfiguration = false;
+    std::string smoothReconfigurationFunction;
     LineList doc;
     LineList cfgLines; ///< between CONFIG_START and CONFIG_END
     int array_flag = 0; ///< TYPE is a raw array[] declaration
+
+    bool supportsSmoothReconfiguration() const { return smoothReconfigurationFunction.length(); }
 
     void genParse(std::ostream &fout) const;
     void genReconfigure(std::ostream &) const;
@@ -362,15 +364,7 @@ main(int argc, char *argv[])
                         exit(EXIT_FAILURE);
                     }
 
-                    if (*ptr == '0')
-                        curr.supportsSmoothReconfiguration = false;
-                    else if (*ptr == '1')
-                        curr.supportsSmoothReconfiguration = true;
-                    else {
-                        errorMsg(ptr, linenum, buff);
-                        exit(EXIT_FAILURE);
-                    }
-
+                    curr.smoothReconfigurationFunction = ptr;
                 } else if (!strncmp(buff, "IFDEF:", 6)) {
                     if ((ptr = strtok(buff + 6, WS)) == nullptr) {
                         errorMsg(input_filename, linenum, buff);
@@ -698,12 +692,13 @@ Entry::genParse(std::ostream &fout) const
 void
 Entry::genReconfigure(std::ostream &fout) const
 {
-    if (!supportsSmoothReconfiguration)
+    if (!supportsSmoothReconfiguration())
         return;
 
     genParsePrefix(name, fout);
 
-    fout << "ReconfigureDirective<" << type << ">(" << loc << ", LegacyParser);";
+    fout << "        DeclareDirectiveReconfigurator(" << smoothReconfigurationFunction << ", " << type << ");\n";
+    fout << "        " << smoothReconfigurationFunction << "(" << loc << ", LegacyParser);\n";
 
     genParseSuffix(fout);
 }
@@ -728,18 +723,28 @@ gen_parse(const EntryList &head, std::ostream &fout)
 static void
 gen_reconfigure(const EntryList &head, std::ostream &fout)
 {
+    // This ReconfigureSmoothly_() helper is not in Configuration namespace
+    // because its generated code has to declare directive reconfiguration
+    // functions that are not inside Configuration namespace.
     fout <<
-         "void\n"
-         "Configuration::ReconfigureSmoothly(const PreprocessedDirective &directive)\n"
+         "static void\n"
+         "ReconfigureSmoothly_(const Configuration::PreprocessedDirective &directive)\n"
          "{\n"
-         "\tLegacyParser.openDirective(directive);\n";
+         "    LegacyParser.openDirective(directive);\n";
 
     for (const auto &e: head)
         e.genReconfigure(fout);
 
-    fout << "\tAssure(!\"PreprocessedDirective has ValidDirectiveName()\"); /* not reached */\n"
+    fout << "    Assure(!\"PreprocessedDirective has ValidDirectiveName()\"); /* not reached */\n"
          "}\n\n";
 
+    // call the helper generated above
+    fout <<
+         "void\n"
+         "Configuration::ReconfigureSmoothly(const Configuration::PreprocessedDirective &directive)\n"
+         "{\n"
+         "    ReconfigureSmoothly_(directive);\n"
+         "}\n\n";
 }
 
 static void
@@ -918,7 +923,7 @@ gen_conf(const EntryList &head, std::ostream &fout, bool verbose_output)
             }
         }
 
-        if (verbose_output && entry.supportsSmoothReconfiguration) {
+        if (verbose_output && entry.supportsSmoothReconfiguration()) {
             fout << "#\n";
             fout << "#\tThis directive supports smooth reconfiguration. See reconfiguration\n";
             fout << "#\tdirective documentation for details.\n";

@@ -10259,7 +10259,7 @@ NAME: reconfiguration
 TYPE: Configuration::ReconfigurationMode*
 LOC: Config.reconfigurationMode
 DEFAULT_IF_NONE: harsh
-SMOOTH_RECONFIGURATION: 1
+SMOOTH_RECONFIGURATION: ReconfigureReconfigurationMode
 DOC_START
 	Controls Squid reaction to the next reconfiguration event.
 

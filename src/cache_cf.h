@@ -62,6 +62,12 @@ void ReconfigureSmoothly(const PreprocessedDirective &);
 
 } // namespace Configuration
 
+/// Declares a directive-specific smooth reconfiguration function with a given
+/// name. This function is called by ReconfigureSmoothly(). It is defined in
+/// some directive-specific C++ file. SMOOTH_RECONFIGURATION field value of the
+/// corresponding cf.data.pre directive entry should contain the same name.
+#define DeclareDirectiveReconfigurator(Name, Arg1) void Name(Arg1 &, ConfigParser &)
+
 /// During parsing, the name of the current squid.conf directive being parsed.
 extern const char *cfg_directive;
 extern SBuf cfg_filename;
