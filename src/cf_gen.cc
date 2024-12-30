@@ -431,6 +431,9 @@ main(int argc, char *argv[])
         exit(EXIT_FAILURE);
     }
 
+    // when we generate code that uses boolean parameters, use boolean names
+    fout << std::boolalpha;
+
     fout <<  "/*\n" <<
          " * Generated automatically from " << input_filename << " by " <<
          argv[0] << "\n"
@@ -820,7 +823,9 @@ Entry::genValidDirectiveNameCheck(const std::string &knownName, std::ostream &fo
 
     // TODO: Add SBuf::equal() to encapsulate this length check optimization.
     fout << "    if (name.length() == " << knownName.length() << " && name.cmp(\"" << knownName << "\", " << knownName.length() << ") == 0)\n";
-    fout << "        return true;\n";
+    fout << "        return PreprocessedDirective::Metadata{" <<
+        supportsSmoothReconfiguration() <<
+        "};\n";
 }
 
 /// generate Configuration::PreprocessedDirective::ValidDirectiveName() code for this Entry
@@ -846,14 +851,14 @@ static void
 gen_find(const EntryList &head, std::ostream &fout)
 {
     fout <<
-         "bool\n"
-         "Configuration::PreprocessedDirective::ValidDirectiveName(const SBuf &name)\n"
+         "Configuration::PreprocessedDirective::Metadata\n"
+         "Configuration::PreprocessedDirective::GetMetadata(const SBuf &name)\n"
          "{\n";
 
     for (const auto &e : head)
         e.genValidDirectiveNameEntry(fout);
 
-    fout << "    return false;\n"
+    fout << "    throw TextException(ToSBuf(\"Unrecognized configuration directive name: \", name), Here());\n" <<
          "}\n\n";
 }
 

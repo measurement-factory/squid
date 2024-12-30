@@ -644,9 +644,7 @@ Configuration::Preprocessor::addDirective(const PreprocessedDirective &directive
     cfg_->allDirectives.push_back(directive);
     seenDirectives_.insert(directive.name());
 
-    // TODO: Test pliability by examining Entry::supportsSmoothReconfiguration!
-    static const SBuf pliableName("reconfiguration");
-    auto &index = (directive.name() == pliableName) ? cfg_->pliableDirectives : cfg_->rigidDirectives;
+    auto &index = directive.metadata().supportsSmoothReconfiguration ? cfg_->pliableDirectives : cfg_->rigidDirectives;
     // TODO: Use std::reference_wrapper instead of Directive pointers.
     index.push_back(&cfg_->allDirectives.back());
 }
@@ -748,8 +746,7 @@ Configuration::PreprocessedDirective::PreprocessedDirective(const SBuf &rawWhole
     Parser::Tokenizer tok(rawWhole);
     name_ = ExtractToken("directive name", tok, nameChars);
     parameters_ = tok.remaining(); // may be empty
-    if (!ValidDirectiveName(name_))
-        throw TextException(ToSBuf("Unrecognized configuration directive name: ", name_), Here());
+    metadata_ = GetMetadata(name_);
 }
 
 bool
