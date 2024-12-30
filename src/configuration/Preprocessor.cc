@@ -301,8 +301,7 @@ Configuration::Preprocess(const char * const filename, const PreprocessedCfg::Po
     return pp.finalize();
 }
 
-// XXX: See Configuration::Component<Security::KeyLog*>.
-namespace Configuration {
+/* parsing and reconfiguration of "reconfiguration" directive */
 
 /// converts the next squid.conf token to ReconfigurationMode
 static Configuration::ReconfigurationMode
@@ -310,11 +309,11 @@ ParseReconfigurationMode(ConfigParser &parser)
 {
     const auto name = parser.token("reconfiguration mode name");
     if (name.cmp("harsh") == 0)
-        return ReconfigurationMode::harsh;
+        return Configuration::ReconfigurationMode::harsh;
     if (name.cmp("smooth") == 0)
-        return ReconfigurationMode::smooth;
+        return Configuration::ReconfigurationMode::smooth;
     if (name.cmp("smooth-or-harsh") == 0)
-        return ReconfigurationMode::smoothOrHarsh;
+        return Configuration::ReconfigurationMode::smoothOrHarsh;
     throw TextException(ToSBuf("unsupported reconfiguration mode: '", name, "'"), Here());
 }
 
@@ -351,14 +350,12 @@ Configuration::Component<Configuration::ReconfigurationMode*>::Free(Configuratio
     delete mode;
 }
 
-} // namespace Configuration
-
 DeclareDirectiveReconfigurator(ReconfigureReconfigurationMode, Configuration::ReconfigurationMode*);
 void
 ReconfigureReconfigurationMode(Configuration::ReconfigurationMode *&mode, ConfigParser &parser)
 {
     Assure(mode);
-    *mode = Configuration::ParseReconfigurationMode(parser); // if parsing fails, old mode is preserved
+    *mode = ParseReconfigurationMode(parser); // if parsing fails, old mode is preserved
 }
 
 /* Configuration::Preprocessor */
