@@ -23,6 +23,7 @@ b_ssize_t
 cachedir		cache_replacement_policy
 cachemgrpasswd
 ConfigAclTos
+Configuration::ReconfigurationMode*
 configuration_includes_quoted_values
 CpuAffinityMap
 debug

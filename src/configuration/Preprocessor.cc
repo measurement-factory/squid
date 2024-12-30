@@ -9,6 +9,7 @@
 #include "squid.h"
 #include "base/CharacterSet.h"
 #include "cache_cf.h"
+#include "ConfigOption.h"
 #include "configuration/Preprocessor.h"
 #include "debug/Messages.h"
 #include "debug/Stream.h"
@@ -22,6 +23,63 @@
 #if HAVE_GLOB_H
 #include <glob.h>
 #endif
+
+namespace Configuration {
+
+/// summarizes the difference between two sequences of configuration directives
+class Diff
+{
+public:
+    /// whether the directive sequences differ
+    explicit operator bool() const { return changes_.length(); }
+
+    /// The directive from the old sequence is different from the same-position
+    /// directive in the new sequence.
+    void noteChange(const PreprocessedDirective &oldD, const PreprocessedDirective &newD);
+    /// the new sequence has at least one extra directive
+    void noteAppearance(const PreprocessedDirective &newD);
+    /// the old sequence has at least one extra directive
+    void noteDisappearance(const PreprocessedDirective &oldD);
+    /// the old directive sequence has not changed
+    void noteLackOfChanges();
+
+    /// reports the details of the difference
+    void print(std::ostream &) const;
+
+private:
+    /// a summary of the key differences (or an empty string if there are none)
+    SBuf changes_;
+};
+
+static std::ostream &
+operator <<(std::ostream &os, const Diff &diff)
+{
+    diff.print(os);
+    return os;
+}
+
+/// modes supported by reconfiguration directive
+enum class ReconfigurationMode { harsh, smooth, smoothOrHarsh };
+
+/// whether current/applied configuration dictates harsh reconfiguration (or we
+/// have not applied any configuration yet -- the initial configuration is
+/// necessarily "harsh")
+/// \sa HarshReconfigurationBanned()
+static bool
+HarshReconfigurationRequired()
+{
+    return !Config.reconfigurationMode || *Config.reconfigurationMode == ReconfigurationMode::harsh;
+}
+
+/// whether current/applied configuration dictates smooth reconfiguration
+/// \sa HarshReconfigurationRequired()
+static bool
+HarshReconfigurationBanned()
+{
+    return Config.reconfigurationMode && *Config.reconfigurationMode == ReconfigurationMode::smooth;
+}
+
+} // namespace Configuration
 
 /// Determines whether the given squid.conf character is a token-delimiting
 /// space character according to squid.conf preprocessor grammar. That grammar
@@ -232,11 +290,72 @@ ProcessMacros(SBuf &buf)
 }
 
 Configuration::PreprocessedCfg::Pointer
-Configuration::Preprocess(const char * const filename)
+Configuration::Preprocess(const char * const filename, const PreprocessedCfg::Pointer &previousCfg)
 {
     debugs(3, 7, filename);
     Preprocessor pp;
-    return pp.process(filename);
+    pp.process(filename);
+
+    // to simplify, the code below assumes that process() errors cannot reach it
+    pp.assessSmoothConfigurationTolerance(previousCfg);
+    return pp.finalize();
+}
+
+/* parsing and reconfiguration of "reconfiguration" directive */
+
+/// converts the next squid.conf token to ReconfigurationMode
+static Configuration::ReconfigurationMode
+ParseReconfigurationMode(ConfigParser &parser)
+{
+    const auto name = parser.token("reconfiguration mode name");
+    if (name.cmp("harsh") == 0)
+        return Configuration::ReconfigurationMode::harsh;
+    if (name.cmp("smooth") == 0)
+        return Configuration::ReconfigurationMode::smooth;
+    if (name.cmp("smooth-or-harsh") == 0)
+        return Configuration::ReconfigurationMode::smoothOrHarsh;
+    throw TextException(ToSBuf("unsupported reconfiguration mode: '", name, "'"), Here());
+}
+
+template <>
+Configuration::ReconfigurationMode *
+Configuration::Component<Configuration::ReconfigurationMode*>::Parse(ConfigParser &parser)
+{
+    return new ReconfigurationMode(ParseReconfigurationMode(parser));
+}
+
+template <>
+void
+Configuration::Component<Configuration::ReconfigurationMode*>::Print(std::ostream &os, Configuration::ReconfigurationMode * const &mode)
+{
+    Assure(mode);
+    switch (*mode) {
+    case ReconfigurationMode::harsh:
+        os << "harsh";
+        return;
+    case ReconfigurationMode::smooth:
+        os << "smooth";
+        return;
+    case ReconfigurationMode::smoothOrHarsh:
+        os << "smooth-or-harsh";
+        return;
+    }
+    Assure(!"this method covers all supported modes");
+}
+
+template <>
+void
+Configuration::Component<Configuration::ReconfigurationMode*>::Free(Configuration::ReconfigurationMode * const mode)
+{
+    delete mode;
+}
+
+DeclareDirectiveReconfigurator(ReconfigureReconfigurationMode, Configuration::ReconfigurationMode*);
+void
+ReconfigureReconfigurationMode(Configuration::ReconfigurationMode *&mode, ConfigParser &parser)
+{
+    Assure(mode);
+    *mode = ParseReconfigurationMode(parser); // if parsing fails, old mode is preserved
 }
 
 /* Configuration::Preprocessor */
@@ -246,7 +365,7 @@ Configuration::Preprocessor::Preprocessor():
 {
 }
 
-Configuration::PreprocessedCfg::Pointer
+void
 Configuration::Preprocessor::process(const char * const filename)
 {
     debugs(3, DBG_PARSE_NOTE(2), "preprocessing defaults and " << filename);
@@ -257,8 +376,6 @@ Configuration::Preprocessor::process(const char * const filename)
 
     if (invalidLines_)
         throw TextException(ToSBuf("Found ", invalidLines_, " invalid configuration line(s)"), Here());
-
-    return cfg_;
 }
 
 /// initiates processing of a directive that was generated by default
@@ -469,17 +586,153 @@ Configuration::Preprocessor::processDirective(const SBuf &rawWhole)
 }
 
 void
+Configuration::Preprocessor::assessSmoothConfigurationTolerance(const PreprocessedCfg::Pointer &previousCfg)
+{
+    if (smoothReconfigurationBan_)
+        return; // already decided
+
+    if (!previousCfg)
+        return banSmoothReconfiguration("there is no previous configuration");
+
+    // TODO: This check requires two reconfigurations to switch from harsh to
+    // smooth reconfiguration. Can we do better?
+    if (HarshReconfigurationRequired())
+        return banSmoothReconfiguration("current configuration bans smooth reconfiguration");
+
+    // we delayed this relatively expensive (and loud) check as much as possible
+    if (const auto diff = findRigidChanges(previousCfg->rigidDirectives)) {
+        debugs(3, DBG_IMPORTANT, "Found changes in rigid configuration directives" <<
+               Debug::Extra << diff);
+        return banSmoothReconfiguration("the rigid part of the config has changed");
+    }
+
+    // we found no reasons to ban smooth reconfiguration
+}
+
+Configuration::PreprocessedCfg::Pointer
+Configuration::Preprocessor::finalize()
+{
+    cfg_->allowSmoothReconfiguration = !smoothReconfigurationBan_;
+    cfg_->allowHarshReconfiguration = !HarshReconfigurationBanned();
+
+    debugs(3, 3, "valid: " << cfg_->allDirectives.size() <<
+           " rigid: " << cfg_->rigidDirectives.size() <<
+           " pliable: " << cfg_->pliableDirectives.size() <<
+           " allowSmoothReconfiguration: " << cfg_->allowSmoothReconfiguration <<
+           " allowHarshReconfiguration: " << cfg_->allowHarshReconfiguration);
+    Assure(!invalidLines_);
+    return cfg_;
+}
+
+/// prevent smooth reconfiguration during the current (re)configuration attempt
+void
+Configuration::Preprocessor::banSmoothReconfiguration(const char *reason)
+{
+    if (!smoothReconfigurationBan_) {
+        smoothReconfigurationBan_ = reason;
+        const auto dbgLevel = HarshReconfigurationRequired() ? 2 : DBG_IMPORTANT;
+        debugs(3, dbgLevel, "Avoiding smooth reconfiguration because " << reason);
+    } else {
+        debugs(3, 3, "also because " << reason);
+    }
+}
+
+void
 Configuration::Preprocessor::addDirective(const PreprocessedDirective &directive)
 {
     debugs(3, 7, directive);
-    cfg_->directives.emplace_back(directive);
-    seenDirectives_.emplace(directive.name());
+    cfg_->allDirectives.push_back(directive);
+    seenDirectives_.insert(directive.name());
+
+    auto &index = directive.metadata().supportsSmoothReconfiguration ? cfg_->pliableDirectives : cfg_->rigidDirectives;
+    // TODO: Use std::reference_wrapper instead of Directive pointers.
+    index.push_back(&cfg_->allDirectives.back());
 }
 
 bool
 Configuration::Preprocessor::sawDirective(const SBuf &name) const
 {
     return seenDirectives_.find(name) != seenDirectives_.end();
+}
+
+Configuration::Diff
+Configuration::Preprocessor::findRigidChanges(const PreprocessedCfg::DirectiveIndex &previous) const
+{
+    // We could detect multiple differences, but it is difficult to find a small
+    // but still comprehensive diff (e.g., like Unix "diff" often does), and
+    // finding one change is sufficient for our code to make the smooth
+    // reconfiguration decision, so we stop at the first difference for now.
+    Diff diff;
+
+    auto previousPos = previous.begin();
+
+    for (const auto currentDir: cfg_->rigidDirectives) {
+        assert(currentDir);
+
+        if (previousPos == previous.end()) {
+            diff.noteAppearance(*currentDir);
+            return diff;
+        }
+
+        const auto previousDir = *previousPos;
+        assert(previousDir);
+        if (!currentDir->similarTo(*previousDir)) {
+            diff.noteChange(*previousDir, *currentDir);
+            return diff;
+        }
+
+        ++previousPos;
+    }
+
+    if (previousPos != previous.end()) {
+        const auto disappeared = *previousPos;
+        assert(disappeared);
+        diff.noteDisappearance(*disappeared);
+        return diff;
+    }
+
+    diff.noteLackOfChanges();
+    return diff;
+}
+
+/* Configuration::Diff */
+
+void
+Configuration::Diff::noteChange(const PreprocessedDirective &oldD, const PreprocessedDirective &newD)
+{
+    assert(changes_.isEmpty());
+    changes_ = ToSBuf("directives or their order has changed:",
+                      Debug::Extra, "old configuration had: ", oldD,
+                      Debug::Extra, "new configuration has: ", newD);
+}
+
+void
+Configuration::Diff::noteAppearance(const PreprocessedDirective &newD)
+{
+    assert(changes_.isEmpty());
+    changes_ = ToSBuf("new configuration has more directives:",
+                      Debug::Extra, "the first new directive absent in the old configuration: ", newD);
+}
+
+void
+Configuration::Diff::noteDisappearance(const PreprocessedDirective &oldD)
+{
+    assert(changes_.isEmpty());
+    changes_ = ToSBuf("old configuration had more directives:",
+                      Debug::Extra, "the first old directive absent in the new configuration: ", oldD);
+}
+
+void
+Configuration::Diff::noteLackOfChanges()
+{
+    assert(changes_.isEmpty());
+    debugs(3, 5, "rigid directives have not changed");
+}
+
+void
+Configuration::Diff::print(std::ostream &os) const
+{
+    os << changes_;
 }
 
 /* Configuration::PreprocessedDirective */
@@ -493,14 +746,21 @@ Configuration::PreprocessedDirective::PreprocessedDirective(const SBuf &rawWhole
     Parser::Tokenizer tok(rawWhole);
     name_ = ExtractToken("directive name", tok, nameChars);
     parameters_ = tok.remaining(); // may be empty
-    if (!ValidDirectiveName(name_))
-        throw TextException(ToSBuf("Unrecognized configuration directive name: ", name_), Here());
+    metadata_ = GetMetadata(name_);
+}
+
+bool
+Configuration::PreprocessedDirective::similarTo(const PreprocessedDirective &other) const
+{
+    // we do not ignore the difference in indentation/space, case, and such (for
+    // now) because their definition/sensitivity is currently directive-specific
+    return parameters_ == other.parameters_;
 }
 
 void
 Configuration::PreprocessedDirective::print(std::ostream &os) const
 {
-    os << location_ << ' ' << name_ << ' ' << parameters_;
+    os << location_ << ": " << name_ << ' ' << parameters_;
 }
 
 void

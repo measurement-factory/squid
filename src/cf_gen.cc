@@ -93,15 +93,21 @@ public:
     DefaultValues defaults;
     std::string comment;
     std::string ifdef;
+    std::string smoothReconfigurationFunction;
     LineList doc;
     LineList cfgLines; ///< between CONFIG_START and CONFIG_END
     int array_flag = 0; ///< TYPE is a raw array[] declaration
 
+    bool supportsSmoothReconfiguration() const { return smoothReconfigurationFunction.length(); }
+
     void genParse(std::ostream &fout) const;
+    void genReconfigure(std::ostream &) const;
     void genValidDirectiveNameEntry(std::ostream &fout) const;
     void genDefaultIfNone(std::ostream &fout) const;
 
 private:
+    void genParsePrefix(const std::string &aName, std::ostream &fout) const;
+    void genParseSuffix(std::ostream &fout) const;
     void genParseAlias(const std::string &, std::ostream &) const;
     void genValidDirectiveNameCheck(const std::string &, std::ostream &) const;
     void genDefaultIfNoneAlias(const std::string &, std::ostream &) const;
@@ -123,6 +129,7 @@ typedef std::list<class Type> TypeList;
 static const char WS[] = " \t\n";
 static int gen_default(const EntryList &, std::ostream &);
 static void gen_parse(const EntryList &, std::ostream &);
+static void gen_reconfigure(const EntryList &, std::ostream &);
 static void gen_dump(const EntryList &, std::ostream&);
 static void gen_free(const EntryList &, std::ostream&);
 static void gen_find(const EntryList &, std::ostream &);
@@ -351,6 +358,13 @@ main(int argc, char *argv[])
 
                     checkDepend(curr.name, ptr, types, entries);
                     curr.type = ptr;
+                } else if (!strncmp(buff, "SMOOTH_RECONFIGURATION:", 23)) {
+                    if ((ptr = strtok(buff + 23, WS)) == nullptr) {
+                        errorMsg(input_filename, linenum, buff);
+                        exit(EXIT_FAILURE);
+                    }
+
+                    curr.smoothReconfigurationFunction = ptr;
                 } else if (!strncmp(buff, "IFDEF:", 6)) {
                     if ((ptr = strtok(buff + 6, WS)) == nullptr) {
                         errorMsg(input_filename, linenum, buff);
@@ -417,6 +431,9 @@ main(int argc, char *argv[])
         exit(EXIT_FAILURE);
     }
 
+    // when generating code that uses boolean constants, use boolean literals
+    fout << std::boolalpha;
+
     fout <<  "/*\n" <<
          " * Generated automatically from " << input_filename << " by " <<
          argv[0] << "\n"
@@ -442,6 +459,8 @@ main(int argc, char *argv[])
     gen_free(entries, fout);
 
     gen_find(entries, fout);
+
+    gen_reconfigure(entries, fout);
 
     fout.close();
 
@@ -614,13 +633,18 @@ gen_default_postscriptum(const EntryList &head, std::ostream &fout)
 }
 
 void
-Entry::genParseAlias(const std::string &aName, std::ostream &fout) const
+Entry::genParsePrefix(const std::string &aName, std::ostream &fout) const
 {
     fout << "    if (directive.name().cmp(\"" << aName << "\") == 0) {" << std::endl;
     if (ifdef.size())
         fout << "#if " << ifdef << std::endl;
     fout << "        cfg_directive = \"" << aName << "\";" << std::endl;
-    fout << "        ";
+}
+
+void
+Entry::genParseAlias(const std::string &aName, std::ostream &fout) const
+{
+    genParsePrefix(aName, fout);
     if (type.compare("obsolete") == 0) {
         fout << "debugs(0, DBG_CRITICAL, \"ERROR: Directive '" << aName << "' is obsolete.\");\n";
         for (const auto &l : doc) {
@@ -635,6 +659,12 @@ Entry::genParseAlias(const std::string &aName, std::ostream &fout) const
     } else {
         fout << "parse_" << type << "(&" << loc << (array_flag ? "[0]" : "") << ");";
     }
+    genParseSuffix(fout);
+}
+
+void
+Entry::genParseSuffix(std::ostream &fout) const
+{
     fout << std::endl;
     fout << "        cfg_directive = nullptr;" << std::endl;
     if (ifdef.size()) {
@@ -660,6 +690,20 @@ Entry::genParse(std::ostream &fout) const
     for (const auto &a : alias) {
         genParseAlias(a, fout);
     }
+}
+
+void
+Entry::genReconfigure(std::ostream &fout) const
+{
+    if (!supportsSmoothReconfiguration())
+        return;
+
+    genParsePrefix(name, fout);
+
+    fout << "        DeclareDirectiveReconfigurator(" << smoothReconfigurationFunction << ", " << type << ");\n";
+    fout << "        " << smoothReconfigurationFunction << "(" << loc << ", LegacyParser);\n";
+
+    genParseSuffix(fout);
 }
 
 static void
@@ -742,6 +786,33 @@ gen_free(const EntryList &head, std::ostream &fout)
     fout << "}" << std::endl << std::endl;
 }
 
+static void
+gen_reconfigure(const EntryList &head, std::ostream &fout)
+{
+    // This ReconfigureSmoothly_() helper is not in Configuration namespace
+    // because its generated code has to declare directive reconfiguration
+    // functions that are not inside Configuration namespace.
+    fout <<
+         "static void\n"
+         "ReconfigureSmoothly_(const Configuration::PreprocessedDirective &directive)\n"
+         "{\n"
+         "    LegacyParser.openDirective(directive);\n";
+
+    for (const auto &e: head)
+        e.genReconfigure(fout);
+
+    fout << "    Assure(!\"PreprocessedDirective has ValidDirectiveName()\"); /* not reached */\n"
+         "}\n\n";
+
+    // call the helper generated above
+    fout <<
+         "void\n"
+         "Configuration::ReconfigureSmoothly(const Configuration::PreprocessedDirective &directive)\n"
+         "{\n"
+         "    ReconfigureSmoothly_(directive);\n"
+         "}\n\n";
+}
+
 /// generate Configuration::PreprocessedDirective::ValidDirectiveName() code for the given knownName
 void
 Entry::genValidDirectiveNameCheck(const std::string &knownName, std::ostream &fout) const
@@ -752,7 +823,9 @@ Entry::genValidDirectiveNameCheck(const std::string &knownName, std::ostream &fo
 
     // TODO: Add SBuf::equal() to encapsulate this length check optimization.
     fout << "    if (name.length() == " << knownName.length() << " && name.cmp(\"" << knownName << "\", " << knownName.length() << ") == 0)\n";
-    fout << "        return true;\n";
+    fout << "        return PreprocessedDirective::Metadata{" <<
+        supportsSmoothReconfiguration() <<
+        "};\n";
 }
 
 /// generate Configuration::PreprocessedDirective::ValidDirectiveName() code for this Entry
@@ -778,14 +851,14 @@ static void
 gen_find(const EntryList &head, std::ostream &fout)
 {
     fout <<
-         "bool\n"
-         "Configuration::PreprocessedDirective::ValidDirectiveName(const SBuf &name)\n"
+         "Configuration::PreprocessedDirective::Metadata\n"
+         "Configuration::PreprocessedDirective::GetMetadata(const SBuf &name)\n"
          "{\n";
 
     for (const auto &e : head)
         e.genValidDirectiveNameEntry(fout);
 
-    fout << "    return false;\n"
+    fout << "    throw TextException(ToSBuf(\"Unrecognized configuration directive name: \", name), Here());\n" <<
          "}\n\n";
 }
 
@@ -853,6 +926,13 @@ gen_conf(const EntryList &head, std::ostream &fout, bool verbose_output)
             for (const auto &line : entry.doc) {
                 fout << "#" << line << std::endl;
             }
+        }
+
+        if (verbose_output && entry.supportsSmoothReconfiguration()) {
+            fout << "#\n";
+            fout << "#\tThis directive supports smooth reconfiguration. For details, see\n";
+            fout << "#\tdocumentation for the \"reconfiguration\" directive.\n";
+            fout << "#\n";
         }
 
         if (entry.defaults.docs.size()) {

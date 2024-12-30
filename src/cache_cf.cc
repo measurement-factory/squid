@@ -246,8 +246,10 @@ static void dump_http_upgrade_request_protocols(StoreEntry *entry, const char *n
 static void free_http_upgrade_request_protocols(HttpUpgradeProtocolAccess **protoGuards);
 
 namespace Configuration {
-static PreprocessedCfg::Pointer &FreshPreprocessedConfig();
-static void ApplyPreprocessedConfiguration(const PreprocessedCfg &);
+static PreprocessedCfg::Pointer &PreprocessedConfigStorage();
+static const PreprocessedCfg &FreshPreprocessedConfig();
+static void ApplyPreprocessedConfiguration();
+static void PerformSmoothReconfiguration();
 } // namespace Configuration
 
 /*
@@ -272,9 +274,8 @@ self_destruct(void)
 void
 Configuration::Parse()
 {
-    const auto preprocessedConfig = Preprocess(ConfigFile);
-    assert(preprocessedConfig);
-    ApplyPreprocessedConfiguration(*preprocessedConfig);
+    PreprocessedConfigStorage() = Preprocess(ConfigFile, nullptr);
+    ApplyPreprocessedConfiguration();
 
     if (opt_send_signal == -1) {
         Mgr::RegisterAction("config",
@@ -284,18 +285,18 @@ Configuration::Parse()
     }
 }
 
-/// performs (re)configuration using previously preprocessed directives
+/// performs harsh (re)configuration using previously preprocessed directives
 static void
-Configuration::ApplyPreprocessedConfiguration(const PreprocessedCfg &preprocessedConfig)
+Configuration::ApplyPreprocessedConfiguration()
 {
-    debugs(5, 4, MYNAME);
+    const auto &preprocessedConfig = FreshPreprocessedConfig();
+    debugs(5, 4, "directives: " << preprocessedConfig.allDirectives.size());
 
     configFreeMemory();
 
     ACLMethodData::ThePurgeCount = 0;
 
-    debugs(3, 5, preprocessedConfig.directives.size());
-    for (const auto &directive: preprocessedConfig.directives)
+    for (const auto &directive: preprocessedConfig.allDirectives)
         parseDirective(directive);
 
     /*
@@ -306,40 +307,87 @@ Configuration::ApplyPreprocessedConfiguration(const PreprocessedCfg &preprocesse
     configDoConfigure();
 }
 
-/// configuration successfully preprocessed by StartReconfiguration() that has
-/// not been consumed by FinishReconfiguration() yet OR nil
+/// configuration successfully preprocessed by the last Preprocess() call OR nil
 static Configuration::PreprocessedCfg::Pointer &
-Configuration::FreshPreprocessedConfig()
+Configuration::PreprocessedConfigStorage()
 {
     static const auto p = new PreprocessedCfg::Pointer();
     return *p;
+}
+
+/// Convenience wrapper for safe *PreprocessedConfigStorage() calls.
+/// Configuration successfully preprocessed by the last Preprocess() call.
+static const Configuration::PreprocessedCfg &
+Configuration::FreshPreprocessedConfig()
+{
+    const auto storage = PreprocessedConfigStorage();
+    Assure(storage);
+    return *storage;
+}
+
+/// reconfigures preprocessed pliable directives
+static void
+Configuration::PerformSmoothReconfiguration()
+{
+    Assure(!reconfiguring);
+    reconfiguring = true;
+    try {
+        const auto &preprocessedConfig = FreshPreprocessedConfig();
+
+        // Do not report the number of pliable and (unchanged) rigid directives:
+        // Such reports may confuse admins because those numbers include
+        // default-generated directives that admins do not see in their configs.
+        debugs(3, DBG_IMPORTANT, "Performing smooth reconfiguration");
+
+        Assure(preprocessedConfig.allowSmoothReconfiguration);
+
+        // TODO: Optimize by reconfiguring only those pliable directives that changed.
+        for (const auto &directive: preprocessedConfig.pliableDirectives)
+            ReconfigureSmoothly(*directive);
+    }
+    catch (...) {
+        debugs(3, DBG_CRITICAL, "ERROR: Smooth reconfiguration failure" <<
+               Debug::Extra << "error: " << CurrentException <<
+               Debug::Extra << "configuration location: " << ConfigParser::CurrentLocation() <<
+               Debug::Extra << "configuration line: " << config_input_line);
+    }
+    Assure(reconfiguring);
+    reconfiguring = false;
 }
 
 bool
 Configuration::StartReconfiguration()
 {
     try {
-        const auto fresh = Preprocess(ConfigFile);
-        assert(fresh);
-        FreshPreprocessedConfig() = fresh;
-        return true;
+        PreprocessedConfigStorage() = Preprocess(ConfigFile, PreprocessedConfigStorage());
     }
     catch (...) {
-        debugs(3, DBG_CRITICAL, "Refusing to reconfigure after a preprocessing failure" <<
+        debugs(3, DBG_CRITICAL, "ERROR: Refusing to reconfigure after a preprocessing failure" <<
                Debug::Extra << "error: " << CurrentException <<
                Debug::Extra << "configuration location: " << ConfigParser::CurrentLocation() <<
                Debug::Extra << "configuration line: " << config_input_line);
         return false;
+    }
+
+    if (FreshPreprocessedConfig().allowSmoothReconfiguration) {
+        PerformSmoothReconfiguration();
+        // In "else" below, we may reconfigure harshly if smooth reconfiguration
+        // is not allowed, but we do not reconfigure harshly when the above call
+        // fails: Smooth reconfiguration failures are likely to repeat during
+        // harsh reconfiguration, and failed harsh reconfiguration is a lot more
+        // likely to leave Squid instance in a bad "half-configured" state.
+        return false;
+    } else {
+        // We return false here and, hence, do not reconfigure (at all) if both
+        // smooth and harsh reconfiguration modes are not allowed.
+        return FreshPreprocessedConfig().allowHarshReconfiguration;
     }
 }
 
 void
 Configuration::FinishReconfiguration()
 {
-    const auto fresh = FreshPreprocessedConfig();
-    Assure(fresh); // last StartReconfiguration() call returned true
-    FreshPreprocessedConfig() = nullptr; // no need to keep it around
-    ApplyPreprocessedConfiguration(*fresh);
+    ApplyPreprocessedConfiguration();
 }
 
 void
