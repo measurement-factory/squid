@@ -659,9 +659,9 @@ Configuration::Diff
 Configuration::Preprocessor::findRigidChanges(const PreprocessedCfg::DirectiveIndex &previous) const
 {
     // We could detect multiple differences, but it is difficult to find a small
-    // but still comprehensive diff (e.g., like "diff" often does) and finding
-    // one change is sufficient for our code to make the smooth reconfiguration
-    // decision, so we stop at the first difference for now.
+    // but still comprehensive diff (e.g., like Unix "diff" often does), and
+    // finding one change is sufficient for our code to make the smooth
+    // reconfiguration decision, so we stop at the first difference for now.
     Diff diff;
 
     auto previousPos = previous.begin();

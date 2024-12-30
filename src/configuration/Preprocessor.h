@@ -74,7 +74,7 @@ public:
     Directives allDirectives;
 
     /// Directives (including defaults) that support smooth reconfiguration.
-    /// \sa pliableDirectives
+    /// \sa rigidDirectives
     DirectiveIndex pliableDirectives;
 
     /// Directives (including defaults) that do not support smooth
@@ -153,7 +153,7 @@ private:
 class PreprocessedDirective
 {
 public:
-    /// directive facts collected from cf.data.pre
+    /// facts about a directive; collected from cf.data.pre during Squid build
     class Metadata {
     public:
         /// whether this is a pliable directive (as defined by "reconfiguration" directive)

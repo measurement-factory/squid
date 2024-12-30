@@ -10351,7 +10351,6 @@ DOC_START
 	setting. If squid.conf version N does not enable smooth reconfiguration,
 	then the next reconfiguration will be harsh even if squid.conf version N+1
 	enables smooth reconfiguration. Subsequent reconfiguration may be smooth.
-
 DOC_END
 
 NAME: memory_pools

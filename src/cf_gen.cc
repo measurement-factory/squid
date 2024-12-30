@@ -431,7 +431,7 @@ main(int argc, char *argv[])
         exit(EXIT_FAILURE);
     }
 
-    // when we generate code that uses boolean parameters, use boolean names
+    // when generating code that uses boolean constants, use boolean literals
     fout << std::boolalpha;
 
     fout <<  "/*\n" <<
@@ -454,13 +454,13 @@ main(int argc, char *argv[])
 
     gen_parse(entries, fout);
 
-    gen_reconfigure(entries, fout);
-
     gen_dump(entries, fout);
 
     gen_free(entries, fout);
 
     gen_find(entries, fout);
+
+    gen_reconfigure(entries, fout);
 
     fout.close();
 
@@ -724,33 +724,6 @@ gen_parse(const EntryList &head, std::ostream &fout)
 }
 
 static void
-gen_reconfigure(const EntryList &head, std::ostream &fout)
-{
-    // This ReconfigureSmoothly_() helper is not in Configuration namespace
-    // because its generated code has to declare directive reconfiguration
-    // functions that are not inside Configuration namespace.
-    fout <<
-         "static void\n"
-         "ReconfigureSmoothly_(const Configuration::PreprocessedDirective &directive)\n"
-         "{\n"
-         "    LegacyParser.openDirective(directive);\n";
-
-    for (const auto &e: head)
-        e.genReconfigure(fout);
-
-    fout << "    Assure(!\"PreprocessedDirective has ValidDirectiveName()\"); /* not reached */\n"
-         "}\n\n";
-
-    // call the helper generated above
-    fout <<
-         "void\n"
-         "Configuration::ReconfigureSmoothly(const Configuration::PreprocessedDirective &directive)\n"
-         "{\n"
-         "    ReconfigureSmoothly_(directive);\n"
-         "}\n\n";
-}
-
-static void
 gen_dump(const EntryList &head, std::ostream &fout)
 {
     fout <<
@@ -811,6 +784,33 @@ gen_free(const EntryList &head, std::ostream &fout)
     }
 
     fout << "}" << std::endl << std::endl;
+}
+
+static void
+gen_reconfigure(const EntryList &head, std::ostream &fout)
+{
+    // This ReconfigureSmoothly_() helper is not in Configuration namespace
+    // because its generated code has to declare directive reconfiguration
+    // functions that are not inside Configuration namespace.
+    fout <<
+         "static void\n"
+         "ReconfigureSmoothly_(const Configuration::PreprocessedDirective &directive)\n"
+         "{\n"
+         "    LegacyParser.openDirective(directive);\n";
+
+    for (const auto &e: head)
+        e.genReconfigure(fout);
+
+    fout << "    Assure(!\"PreprocessedDirective has ValidDirectiveName()\"); /* not reached */\n"
+         "}\n\n";
+
+    // call the helper generated above
+    fout <<
+         "void\n"
+         "Configuration::ReconfigureSmoothly(const Configuration::PreprocessedDirective &directive)\n"
+         "{\n"
+         "    ReconfigureSmoothly_(directive);\n"
+         "}\n\n";
 }
 
 /// generate Configuration::PreprocessedDirective::ValidDirectiveName() code for the given knownName
@@ -930,8 +930,8 @@ gen_conf(const EntryList &head, std::ostream &fout, bool verbose_output)
 
         if (verbose_output && entry.supportsSmoothReconfiguration()) {
             fout << "#\n";
-            fout << "#\tThis directive supports smooth reconfiguration. See reconfiguration\n";
-            fout << "#\tdirective documentation for details.\n";
+            fout << "#\tThis directive supports smooth reconfiguration. For details, see\n";
+            fout << "#\tdocumentation for the \"reconfiguration\" directive.\n";
             fout << "#\n";
         }
 

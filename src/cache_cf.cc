@@ -446,17 +446,6 @@ ParseDirective(T &raw, ConfigParser &parser)
     parser.closeDirective();
 }
 
-/// Updates the given raw SquidConfig data member.
-/// Extracts and interprets parser's configuration tokens.
-template <typename T>
-static void
-ReconfigureDirective(T &raw, ConfigParser &parser)
-{
-    Configuration::Component<T>::Reconfigure(raw, parser);
-    // TODO: Move to parse_line() when ready to reject trailing garbage in all directives.
-    parser.closeDirective();
-}
-
 /// reports raw SquidConfig data member configuration using squid.conf syntax
 /// \param name the name of the configuration directive being dumped
 template <typename T>
