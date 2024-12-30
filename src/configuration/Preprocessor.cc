@@ -707,8 +707,8 @@ Configuration::Diff::noteChange(const PreprocessedDirective &oldD, const Preproc
 {
     assert(changes_.isEmpty());
     changes_ = ToSBuf("directives or their order has changed:",
-        Debug::Extra, "old configuration had: ", oldD,
-        Debug::Extra, "new configuration has: ", newD);
+                      Debug::Extra, "old configuration had: ", oldD,
+                      Debug::Extra, "new configuration has: ", newD);
 }
 
 void
@@ -716,7 +716,7 @@ Configuration::Diff::noteAppearance(const PreprocessedDirective &newD)
 {
     assert(changes_.isEmpty());
     changes_ = ToSBuf("new configuration has more directives:",
-        Debug::Extra, "the first new directive absent in the old configuration: ", newD);
+                      Debug::Extra, "the first new directive absent in the old configuration: ", newD);
 }
 
 void
@@ -724,7 +724,7 @@ Configuration::Diff::noteDisappearance(const PreprocessedDirective &oldD)
 {
     assert(changes_.isEmpty());
     changes_ = ToSBuf("old configuration had more directives:",
-        Debug::Extra, "the first old directive absent in the new configuration: ", oldD);
+                      Debug::Extra, "the first old directive absent in the new configuration: ", oldD);
 }
 
 void
