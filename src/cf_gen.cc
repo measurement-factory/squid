@@ -921,16 +921,23 @@ gen_conf(const EntryList &head, std::ostream &fout, bool verbose_output)
             enabled = 0;
         }
 
+        // We auto-document smooth reconfiguration support by this directive (if
+        // any) unless hand-written documentation details that support in a
+        // paragraph that contains the following phrase (on a single line).
+        auto addSmoothPara = "This directive supports smooth reconfiguration";
+
         // Display DOC_START section
         if (verbose_output && entry.doc.size()) {
             for (const auto &line : entry.doc) {
                 fout << "#" << line << std::endl;
+                if (addSmoothPara && line.find(addSmoothPara) != std::string::npos)
+                    addSmoothPara = nullptr;
             }
         }
 
-        if (verbose_output && entry.supportsSmoothReconfiguration()) {
+        if (verbose_output && entry.supportsSmoothReconfiguration() && addSmoothPara) {
             fout << "#\n";
-            fout << "#\tThis directive supports smooth reconfiguration. For details, see\n";
+            fout << "#\t" << addSmoothPara << ". For details, see\n";
             fout << "#\tdocumentation for the \"reconfiguration\" directive.\n";
             fout << "#\n";
         }
