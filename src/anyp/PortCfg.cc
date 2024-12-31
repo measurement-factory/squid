@@ -56,6 +56,7 @@ AnyP::PortCfg::~PortCfg()
     safe_free(defaultsite);
 }
 
+// Keep in sync with AnyP::PortCfg::update().
 AnyP::PortCfg::PortCfg(const PortCfg &other):
     next(), // special case; see assert() below
     s(other.s),
@@ -79,6 +80,59 @@ AnyP::PortCfg::PortCfg(const PortCfg &other):
     // to simplify, we only support port copying during parsing
     assert(!other.next);
     assert(!other.listenConn);
+}
+
+void
+AnyP::PortCfg::update(const PortCfg &other)
+{
+    debugs(3, 7, *this);
+
+    // Keep in sync with copy constructor (including fields order). Fields
+    // commented out below must be preserved during reconfiguration updates.
+
+    // preserve next
+    // preserve s
+
+    transport = other.transport;
+
+    safe_free(name);
+    name = other.name ? xstrdup(other.name) : nullptr;
+
+    safe_free(defaultsite);
+    defaultsite = other.defaultsite ? xstrdup(other.defaultsite) : nullptr;
+
+    // keep in sync with clientStartListeningOn()
+    if (flags.tproxyIntercept != other.flags.tproxyIntercept)
+        throw TextException("no support for changing 'tproxy' setting of a listening port", Here());
+    if (flags.natIntercept != other.flags.natIntercept)
+        throw TextException("no support for changing 'transparent' or 'intercept' setting of a listening port", Here());
+    flags = other.flags;
+
+    allow_direct = other.allow_direct;
+    vhost = other.vhost;
+    actAsOrigin = other.actAsOrigin;
+    ignore_cc = other.ignore_cc;
+    connection_auth_disabled = other.connection_auth_disabled;
+    ftp_track_dirs = other.ftp_track_dirs;
+    vport = other.vport;
+    disable_pmtu_discovery = other.disable_pmtu_discovery;
+
+    // keep in sync with clientStartListeningOn()
+    if (workerQueues != other.workerQueues)
+        throw TextException("no support for changing 'worker-queues' setting of a listening port", Here());
+    workerQueues = other.workerQueues;
+
+    tcp_keepalive = other.tcp_keepalive;
+
+    // preserve listenConn
+
+    secure = other.secure;
+
+    // TODO: Either move affected members away from _configuration_ classes or
+    // refactor so that copy constructor(s) initialize them as well (instead of
+    // relying on others to remember to do this post-construction).
+    if (secure.encryptTransport)
+        secure.initServerContexts(*this);
 }
 
 AnyP::PortCfg *
@@ -109,5 +163,47 @@ AnyP::PortCfg::detailCodeContext(std::ostream &os) const
     else if (s.port())
         os << Debug::Extra << "listening port address: " << s;
     return os;
+}
+
+namespace AnyP
+{
+inline std::ostream &
+operator <<(std::ostream &os, const PortCfg &cfg)
+{
+    // See AnyP::PortCfg::codeContextGist() and detailCodeContext() for caveats.
+    os << "listening_port@";
+    if (cfg.name)
+        os << cfg.name;
+    else if (cfg.s.port())
+        os << cfg.s;
+    else
+        os << &cfg;
+    return os;
+}
+} // namespace AnyP
+
+void
+UpdatePortCfg(const AnyP::PortCfgPointer &list, const AnyP::PortCfg &newCfg)
+{
+    debugs(3, 5, newCfg);
+    AnyP::PortCfgPointer currentCfg; // to be determined
+    for (auto cfg = list; cfg; cfg = cfg->next) {
+        debugs(3, 7, "considering: " << *cfg);
+        // Check PortCfg::s because that is the address Squid listens on and
+        // because parsePortSpecification() computes it from sources that may
+        // change even when the directive line stays unchanged (e.g.,
+        // getaddrinfo(3) and FQDN lookups of http_port host:port address)
+        if (cfg->s.compareWhole(newCfg.s) != 0)
+            continue;
+        Assure(!currentCfg); // we do not accept clashing port configurations
+        currentCfg = cfg;
+    }
+
+    // TODO: Removal is also currently unsupported. Detect/reject it as well.
+    if (!currentCfg)
+        throw TextException("no support for adding a new or changing an existing listening port address", Here());
+
+    // TODO: Consider reporting unchanged configurations.
+    currentCfg->update(newCfg);
 }
 

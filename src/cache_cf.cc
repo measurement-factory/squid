@@ -207,6 +207,14 @@ static void parsePortCfg(AnyP::PortCfgPointer *, const char *protocol);
 static void dump_PortCfg(StoreEntry *, const char *, const AnyP::PortCfgPointer &);
 #define free_PortCfg(h)  *(h)=NULL
 
+/// XXX: Work around cf_gen's e.type.find("::") hack limitations that would reject
+/// repeated "https_port" directive lines if we use the real type name in TYPE.
+using PortCfgsXXX = AnyP::PortCfgPointer;
+inline void parse_PortCfgsXXX(PortCfgsXXX *ports) { parse_PortCfg(ports); }
+inline void free_PortCfgsXXX(PortCfgsXXX *portsPtr) { free_PortCfg(portsPtr); }
+inline void dump_PortCfgsXXX(StoreEntry * const e, const char * const d, const PortCfgsXXX &ports) { dump_PortCfg(e, d, ports); }
+static AnyP::PortCfgPointer ParsePortCfg(const SBuf &protoName);
+
 #if USE_OPENSSL
 static void parse_sslproxy_cert_sign(sslproxy_cert_sign **cert_sign);
 static void dump_sslproxy_cert_sign(StoreEntry *entry, const char *name, sslproxy_cert_sign *cert_sign);
@@ -3501,11 +3509,23 @@ parsePortCfg(AnyP::PortCfgPointer *head, const char *optionName)
         return;
     }
 
+    const auto port = ParsePortCfg(protoName);
+
+    Assure(head);
+    while (*head != nullptr)
+        head = &((*head)->next);
+    *head = port;
+}
+
+/// parses a single <protoName>_port directive
+static AnyP::PortCfgPointer
+ParsePortCfg(const SBuf &protoName)
+{
     char *token = ConfigParser::NextToken();
 
     if (!token) {
-        self_destruct();
-        return;
+        // TODO: Switch to parser.token("listening port address");
+        throw TextException("missing listening port address", Here());
     }
 
     AnyP::PortCfgPointer s = new AnyP::PortCfg();
@@ -3525,41 +3545,29 @@ parsePortCfg(AnyP::PortCfgPointer *head, const char *optionName)
         /* ssl-bump on https_port configuration requires either tproxy or intercept, and vice versa */
         const bool hijacked = s->flags.isIntercepted();
         if (s->flags.tunnelSslBumping && !hijacked) {
-            debugs(3, DBG_CRITICAL, "FATAL: ssl-bump on https_port requires tproxy/intercept which is missing.");
-            self_destruct();
-            return;
+            throw TextException("ssl-bump on https_port requires tproxy/intercept which is missing.", Here());
         }
         if (hijacked && !s->flags.tunnelSslBumping) {
-            debugs(3, DBG_CRITICAL, "FATAL: tproxy/intercept on https_port requires ssl-bump which is missing.");
-            self_destruct();
-            return;
+            throw TextException("tproxy/intercept on https_port requires ssl-bump which is missing.", Here());
         }
 #endif
         if (s->flags.proxySurrogate) {
-            debugs(3,DBG_CRITICAL, "FATAL: https_port: require-proxy-header option is not supported on HTTPS ports.");
-            self_destruct();
-            return;
+            throw TextException("https_port: require-proxy-header option is not supported on HTTPS ports.", Here());
         }
     } else if (protoName.cmp("FTP") == 0) {
         /* ftp_port does not support ssl-bump */
         if (s->flags.tunnelSslBumping) {
-            debugs(3, DBG_CRITICAL, "FATAL: ssl-bump is not supported for ftp_port.");
-            self_destruct();
-            return;
+            throw TextException("ssl-bump is not supported for ftp_port.", Here());
         }
         if (s->flags.proxySurrogate) {
             // Passive FTP data channel does not work without deep protocol inspection in the frontend.
-            debugs(3,DBG_CRITICAL, "FATAL: require-proxy-header option is not supported on ftp_port.");
-            self_destruct();
-            return;
+            throw TextException("require-proxy-header option is not supported on ftp_port.", Here());
         }
     }
 
     if (s->secure.encryptTransport) {
         if (s->secure.certs.empty()) {
-            debugs(3, DBG_CRITICAL, "FATAL: " << AnyP::UriScheme(s->transport.protocol) << "_port requires a cert= parameter");
-            self_destruct();
-            return;
+            throw TextException(ToSBuf(AnyP::UriScheme(s->transport.protocol), "_port requires a cert= parameter"), Here());
         }
         s->secure.parseOptions();
     }
@@ -3569,10 +3577,7 @@ parsePortCfg(AnyP::PortCfgPointer *head, const char *optionName)
         s->next = s->ipV4clone();
     }
 
-    while (*head != nullptr)
-        head = &((*head)->next);
-
-    *head = s;
+    return s;
 }
 
 static void
@@ -3673,6 +3678,15 @@ dump_PortCfg(StoreEntry * e, const char *n, const AnyP::PortCfgPointer &s)
         dump_generic_port(e, n, p);
         storeAppendPrintf(e, "\n");
     }
+}
+
+DeclareDirectiveReconfigurator(ReconfigureHttpsPort, PortCfgsXXX);
+void
+ReconfigureHttpsPort(PortCfgsXXX &ports, ConfigParser &)
+{
+    static const SBuf protoName("HTTPS");
+    const auto newCfg = ParsePortCfg(protoName);
+    UpdatePortCfg(ports, *newCfg);
 }
 
 void

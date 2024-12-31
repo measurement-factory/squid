@@ -331,12 +331,13 @@ Security::ServerOptions::syncCaFiles()
         caFiles.emplace_back(clientCaFile);
 }
 
-/// load clientca= file (if any) into memory.
+/// Apply clientca config, synchronizing clientCaStack with clientCaFile.
 /// \retval true   clientca is not set, or loaded successfully
 /// \retval false  unable to load the file, or not using OpenSSL
 bool
 Security::ServerOptions::loadClientCaFile()
 {
+    clientCaStack = nullptr;
     if (clientCaFile.isEmpty())
         return true;
 
@@ -351,9 +352,11 @@ Security::ServerOptions::loadClientCaFile()
     return bool(clientCaStack);
 }
 
+/// Apply tls-dh config, synchronizing parsedDhParams with dhParamsFile.
 void
 Security::ServerOptions::loadDhParams()
 {
+    parsedDhParams = nullptr;
     if (dhParamsFile.isEmpty())
         return;
 

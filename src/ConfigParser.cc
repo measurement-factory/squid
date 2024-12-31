@@ -567,6 +567,7 @@ ConfigParser::rejectDuplicateDirective()
 void
 ConfigParser::openDirective(const Configuration::PreprocessedDirective &ppd)
 {
+    debugs(3, 5, ppd);
     Configuration::SwitchTo(ppd.location());
 
     const auto copied = ppd.whole().copy(config_input_line, sizeof(config_input_line) - 1);

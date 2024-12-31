@@ -70,6 +70,7 @@ peer
 peer_access		cache_peer acl
 pipelinePrefetch
 PortCfg
+PortCfgsXXX
 QosConfig
 TokenOrQuotedString
 refreshpattern
