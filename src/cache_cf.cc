@@ -241,6 +241,7 @@ static void parse_on_unsupported_protocol(acl_access **access);
 static void dump_on_unsupported_protocol(StoreEntry *entry, const char *name, acl_access *access);
 static void free_on_unsupported_protocol(acl_access **access);
 static void ParseAclWithAction(acl_access **access, const Acl::Answer &action, const char *desc, Acl::Node *acl = nullptr);
+static void free_aclXXX(Acl::NamedAcls **);
 static void parse_http_upgrade_request_protocols(HttpUpgradeProtocolAccess **protoGuards);
 static void dump_http_upgrade_request_protocols(StoreEntry *entry, const char *name, HttpUpgradeProtocolAccess *protoGuards);
 static void free_http_upgrade_request_protocols(HttpUpgradeProtocolAccess **protoGuards);
@@ -342,6 +343,8 @@ Configuration::PerformSmoothReconfiguration()
         Assure(preprocessedConfig.allowSmoothReconfiguration);
 
         // TODO: Optimize by reconfiguring only those pliable directives that changed.
+        free_aclXXX(&Config.namedAcls);
+
         for (const auto &directive: preprocessedConfig.pliableDirectives)
             ReconfigureSmoothly(*directive);
     }
@@ -1253,23 +1256,33 @@ free_SBufList(SBufList *list)
 }
 
 static void
-dump_acl(StoreEntry *entry, const char *directiveName, Acl::NamedAcls *config)
+dump_aclXXX(StoreEntry *entry, const char *directiveName, Acl::NamedAcls *config)
 {
     PackableStream os(*entry);
     Acl::DumpNamedAcls(os, directiveName, config);
 }
 
 static void
-parse_acl(Acl::NamedAcls **config)
+parse_aclXXX(Acl::NamedAcls **config)
 {
     assert(config);
     Acl::Node::ParseNamedAcl(LegacyParser, *config);
 }
 
 static void
-free_acl(Acl::NamedAcls **config)
+free_aclXXX(Acl::NamedAcls **config)
 {
     Acl::FreeNamedAcls(config);
+}
+
+/// XXX: Work around cf_gen's e.type.find("::") hack limitations that would
+/// reject repeated "acl" directive lines if we use the real type name in TYPE.
+using aclXXX = Acl::NamedAcls*;
+DeclareDirectiveReconfigurator(ReconfigureAcl, Acl::NamedAcls *);
+void
+ReconfigureAcl(Acl::NamedAcls *&acls, ConfigParser &parser)
+{
+    Acl::Node::ParseNamedAcl(parser, acls);
 }
 
 void

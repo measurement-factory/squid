@@ -8,7 +8,7 @@
 # type			dependencies
 #
 access_log		acl	logformat
-acl			external_acl_type auth_param
+aclXXX external_acl_type auth_param
 acl_access		acl
 acl_address		acl
 acl_b_size_t		acl

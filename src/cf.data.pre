@@ -1096,7 +1096,7 @@ DOC_START
 DOC_END
 
 NAME: acl
-TYPE: acl
+TYPE: aclXXX
 LOC: Config.namedAcls
 IF USE_OPENSSL
 DEFAULT: ssl::certHasExpired ssl_error X509_V_ERR_CERT_HAS_EXPIRED
@@ -1112,6 +1112,7 @@ DEFAULT: to_localhost dst 127.0.0.0/8 0.0.0.0/32 ::1/128 ::/128
 DEFAULT: to_linklocal dst 169.254.0.0/16 fe80::/10
 DEFAULT: CONNECT method CONNECT
 DEFAULT_DOC: ACLs all, manager, localhost, to_localhost, to_linklocal, and CONNECT are predefined.
+SMOOTH_RECONFIGURATION: ReconfigureAcl
 DOC_START
 	Defining an Access List
 
@@ -1698,6 +1699,12 @@ ENDIF
 		acl fileupload req_mime_type -i ^multipart/form-data$
 		acl javascript rep_mime_type -i ^application/x-javascript$
 
+	This directive supports smooth reconfiguration. If an ACL named X changes,
+	an (unchanged) rigid directive configured to use X continues to use X in
+	its pre-reconfiguration state (XXX!). Pliable directives get reconfigured
+	ACLs (because even unchanged pliable directives are currently
+	reconfigured). For general details about smooth reconfiguration, see
+	documentation for the "reconfiguration" directive.
 CONFIG_START
 #
 # Recommended minimum configuration:
