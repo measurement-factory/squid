@@ -24,12 +24,15 @@ class PortCfg : public CodeContext
 {
 public:
     PortCfg();
-    // no public copying/moving but see ipV4clone()
+    // no public copying/moving but see ipV4clone() and update()
     PortCfg(PortCfg &&) = delete;
     ~PortCfg() override;
 
     /// creates the same port configuration but listening on any IPv4 address
     PortCfg *ipV4clone() const;
+
+    /// apply new configuration while preserving current listening socket
+    void update(const PortCfg &fresh);
 
     /* CodeContext API */
     ScopedId codeContextGist() const override;
@@ -73,6 +76,9 @@ private:
     explicit PortCfg(const PortCfg &other); // for ipV4clone() needs only!
 };
 
+/// reports brief port identification (for debugging)
+std::ostream &operator <<(std::ostream &, const PortCfg &);
+
 } // namespace AnyP
 
 /// list of Squid http(s)_port configured
@@ -80,6 +86,10 @@ extern AnyP::PortCfgPointer HttpPortList;
 
 /// list of Squid ftp_port configured
 extern AnyP::PortCfgPointer FtpPortList;
+
+/// replaces configuration of a matching listed port with a given new one
+/// \sa AnyP::PortCfg::update()
+void UpdatePortCfg(const AnyP::PortCfgPointer &list, const AnyP::PortCfg &newCfg);
 
 #if !defined(MAXTCPLISTENPORTS)
 // Max number of TCP listening ports

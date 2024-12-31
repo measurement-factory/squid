@@ -2556,9 +2556,10 @@ DOC_END
 
 NAME: https_port
 IFDEF: HAVE_LIBGNUTLS||USE_OPENSSL
-TYPE: PortCfg
+TYPE: PortCfgsXXX
 DEFAULT: none
 LOC: HttpPortList
+SMOOTH_RECONFIGURATION: ReconfigureHttpsPort
 DOC_START
 	Usage:  [ip:]port [mode] tls-cert=certificate.pem [options]
 
@@ -2575,6 +2576,22 @@ DOC_START
 	The tls-cert= option is mandatory on HTTPS ports.
 
 	See http_port for a list of modes and options.
+
+	This directive supports smooth reconfiguration, with limitations:
+
+	* Changing the number of https_port directives is not supported. There is
+	  currently no diagnostic for reducing the number of listenting ports and
+	  any unmatched old ports remain unaffected by smooth reconfiguraiton, but
+	  all that will change.
+
+	* Changing configured listening address is not supported: Squid pairs old
+	  and new port configurations using listening addresses, so updated
+	  configurations must continue to use the old address specification. If
+	  Squid has to resolve configured port address to compute listening IP
+	  address, and that resolution changes, smooth reconfiguration will fail.
+
+	For general details about smooth reconfiguration, see documentation for
+	the "reconfiguration" directive.
 DOC_END
 
 NAME: ftp_port
