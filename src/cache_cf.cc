@@ -355,9 +355,26 @@ Configuration::PerformSmoothReconfiguration()
     reconfiguring = false;
 }
 
+// TODO: Generalize
+/// an exception-safe duplication-free way to cleanup upon exiting a function
+class OnReturn_LeaveSuid
+{
+public:
+    ~OnReturn_LeaveSuid() {
+        keepCapabilities(); // TODO: main.cc rarely calls it. Should we call it?
+        leave_suid();
+    }
+};
+
 bool
 Configuration::StartReconfiguration()
 {
+    // First, Preprocess() may need privileges to read configuration file(s).
+    // Then, if we decide to PerformSmoothReconfiguration(), it may need
+    // privileges to read files that being-reconfigured directives load.
+    enter_suid();
+    OnReturn_LeaveSuid cleaner;
+
     try {
         PreprocessedConfigStorage() = Preprocess(ConfigFile, PreprocessedConfigStorage());
     }
