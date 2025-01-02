@@ -3594,9 +3594,10 @@ COMMENT_START
 COMMENT_END
 
 NAME: cache_peer
-TYPE: peer
+TYPE: CachePeerXXX
 DEFAULT: none
 LOC: Config.peers
+SMOOTH_RECONFIGURATION: ReconfigureCachePeer
 DOC_START
 	To specify other caches in a hierarchy, use the format:
 
@@ -4030,6 +4031,35 @@ DOC_START
 
 	proxy-only	objects fetched from the peer will not be stored locally.
 
+	This directive supports smooth reconfiguration, with caveats:
+
+	* Changing the number of cache_peer directives is not supported. There is
+	  currently no diagnostic for reducing the number of cache_peers, and any
+	  unmatched cache_peers remain unaffected by smooth reconfiguraiton, but
+	  all that will change.
+
+	* Changing cache_peer name is not supported: Squid pairs old and new
+	  cache_peer configurations using cache_peer name (which defaults to
+	  cache_peer hostname), so updated configurations must continue to use the
+	  old name and, if there was no explicit name, the old hostname specs.
+
+	* There is currently no diagnostic for an updated configuration having
+	  multiple cache_peers with the same listening address. The last such
+	  cache_peer directive will be effectively used. Such reconfigurations
+	  will fail in the future, just like an equivalent harsh (re)configuration
+	  already fails today.
+
+	* Changing cache_peer hostname is not yet supported.
+
+	* Changing many of the cache_peer options (e.g., `originserver` and
+	  `carp-key`) is not yet supported, but not diagnostic is given for some
+	  of the ignored changes. Changing TLS-related options is supported.
+
+	* Changing cache_peer options does not close any idle persistent
+	  connections to that peer (yet?).
+
+For general details about smooth reconfiguration, see documentation for
+the "reconfiguration" directive.
 DOC_END
 
 NAME: cache_peer_access

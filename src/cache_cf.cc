@@ -22,6 +22,7 @@
 #include "auth/Config.h"
 #include "auth/Scheme.h"
 #include "AuthReg.h"
+#include "base/OnOff.h"
 #include "base/PackableStream.h"
 #include "base/RunnersRegistry.h"
 #include "cache_cf.h"
@@ -135,7 +136,7 @@ static void dump_ecap_service_type(StoreEntry *, const char *, const Adaptation:
 static void free_ecap_service_type(Adaptation::Ecap::Config *);
 #endif
 
-static peer_t parseNeighborType(const char *s);
+static peer_t parseNeighborType(const char *description, ConfigParser &);
 
 static const char *const T_NANOSECOND_STR = "nanosecond";
 static const char *const T_MICROSECOND_STR = "microsecond";
@@ -352,6 +353,14 @@ Configuration::PerformSmoothReconfiguration()
         // TODO: Optimize by reconfiguring only those pliable directives that changed.
         for (const auto &directive: preprocessedConfig.pliableDirectives)
             ReconfigureSmoothly(*directive);
+
+        // TODO: Add SmoothReconfigurationDebt for ReconfigureSmoothly() calls
+        // to accumulate and for us to "repay" by calling recorded functions
+        // instead of accumulating directive-specific knowledge here.
+        // TODO: Decide on a guiding principle to handle these and similar cases:
+        // TODO: peerDnsRefreshStart(), but only if cache_peer hostname changes?
+        // TODO: peerClearRRStart(), but only if peer set or other relevant details change?
+        // TODO: Close client-Squid and Squid-origin pconns, but only if relevant details change.
     }
     catch (...) {
         debugs(3, DBG_CRITICAL, "ERROR: Smooth reconfiguration failure" <<
@@ -771,23 +780,6 @@ configDoConfigure(void)
         Ssl::useSquidUntrusted(Config.ssl_client.sslContext_->get());
 #endif
         Config.ssl_client.defaultPeerContext = new Security::FuturePeerContext(Security::ProxyOutgoingConfig, *Config.ssl_client.sslContext_);
-    }
-
-    for (const auto &p: CurrentCachePeers()) {
-
-        // default value for ssldomain= is the peer host/IP
-        if (p->secure.sslDomain.isEmpty())
-            p->secure.sslDomain = p->host;
-
-        if (p->secure.encryptTransport) {
-            debugs(3, 2, "initializing TLS context for cache_peer " << *p);
-            p->sslContext = p->secure.createClientContext(true);
-            if (!p->sslContext) {
-                debugs(3, DBG_CRITICAL, "ERROR: Could not initialize TLS context for cache_peer " << *p);
-                self_destruct();
-                return;
-            }
-        }
     }
 
     // prevent infinite fetch loops in the request parser
@@ -1850,7 +1842,7 @@ peer_type_str(const peer_t type)
 }
 
 static void
-dump_peer(StoreEntry * entry, const char *name, const CachePeers *peers)
+dump_CachePeerXXX(StoreEntry * entry, const char *name, const CachePeers *peers)
 {
     if (!peers)
         return;
@@ -1888,12 +1880,15 @@ dump_peer(StoreEntry * entry, const char *name, const CachePeers *peers)
  * on Windows at least it returns garage results.
  */
 static bool
-isUnsignedNumeric(const char *str, size_t len)
+isUnsignedNumeric(const SBuf &raw)
 {
-    if (len < 1) return false;
+    // TODO: Reduce code duplication with ParseUnsignedDecimalInteger() et al.
 
-    for (; len >0 && *str; ++str, --len) {
-        if (! isdigit(*str))
+    if (raw.length() < 1)
+        return false;
+
+    for (const auto c: raw) {
+        if (!isdigit(c))
             return false;
     }
     return true;
@@ -1904,80 +1899,50 @@ isUnsignedNumeric(const char *str, size_t len)
  \returns       Port the named service is supposed to be listening on.
  */
 static unsigned short
-GetService(const char *proto)
+GetService(const char *proto, const OnOff allowZero, ConfigParser &parser)
 {
-    struct servent *port = nullptr;
-    /** Parses a port number or service name from the squid.conf */
-    char *token = ConfigParser::NextToken();
-    if (token == nullptr) {
-        self_destruct();
-        return 0; /* NEVER REACHED */
+    auto portName = parser.token("port number or service name");
+
+    if (isUnsignedNumeric(portName)) {
+        if (const auto portNumber = xatos(portName.c_str()))
+            return portNumber;
+        if (allowZero == OnOff::on)
+            return 0;
+        throw TextException(ToSBuf("non-zero ", proto, " port number (or a service name) expected; got: ", portName), Here());
     }
-    /** Returns either the service port number from /etc/services */
-    if ( !isUnsignedNumeric(token, strlen(token)) )
-        port = getservbyname(token, proto);
-    if (port != nullptr) {
-        return ntohs((unsigned short)port->s_port);
+
+    // try to get the service port number from /etc/services
+    if (const auto serv = getservbyname(portName.c_str(), proto)) {
+        if (const auto portNumber = ntohs(static_cast<unsigned short>(serv->s_port)))
+            return portNumber;
+        if (allowZero == OnOff::on)
+            return 0;
+        throw TextException(ToSBuf("a ", proto, " service name with a non-zero port number (or just a port number) expected; got: '", portName, "'"), Here());
     }
-    /** Or a numeric translation of the config text. */
-    return xatos(token);
+
+    throw TextException(ToSBuf("a ", proto, " service name or port number expected; got: '", portName, "'"), Here());
 }
 
-/**
- \returns       Port the named TCP service is supposed to be listening on.
- \copydoc GetService(const char *proto)
- */
-inline unsigned short
-GetTcpService(void)
+/// parses a single cache_peer directive
+static auto
+ParseCachePeer(ConfigParser &parser)
 {
-    return GetService("tcp");
-}
+    const auto address = parser.token("cache_peer TCP listening address");
 
-/**
- \returns       Port the named UDP service is supposed to be listening on.
- \copydoc GetService(const char *proto)
- */
-inline unsigned short
-GetUdpService(void)
-{
-    return GetService("udp");
-}
+    auto p = std::make_unique<CachePeer>(address);
 
-static void
-parse_peer(CachePeers **peers)
-{
-    char *host_str = ConfigParser::NextToken();
-    if (!host_str) {
-        self_destruct();
-        return;
-    }
-
-    char *token = ConfigParser::NextToken();
-    if (!token) {
-        self_destruct();
-        return;
-    }
-
-    const auto p = new CachePeer(host_str);
-
-    p->type = parseNeighborType(token);
+    p->type = parseNeighborType("cache_peer type parameter", parser);
 
     if (p->type == PEER_MULTICAST) {
         p->options.no_digest = true;
         p->options.no_netdb_exchange = true;
     }
 
-    p->http_port = GetTcpService();
+    using AllowZero = OnOff;
+    p->http_port = GetService("tcp", AllowZero::off, parser);
+    p->icp.port = GetService("udp", AllowZero::on, parser);
 
-    if (!p->http_port) {
-        delete p;
-        self_destruct();
-        return;
-    }
-
-    p->icp.port = GetUdpService();
-
-    while ((token = ConfigParser::NextToken())) {
+    while (const auto token = ConfigParser::NextToken()) {
         if (!strcmp(token, "proxy-only")) {
             p->options.proxy_only = true;
         } else if (!strcmp(token, "no-query")) {
@@ -2158,9 +2123,6 @@ parse_peer(CachePeers **peers)
         }
     }
 
-    if (findCachePeerByName(p->name))
-        throw TextException(ToSBuf("cache_peer ", *p, " specified twice"), Here());
-
     if (p->max_conn > 0 && p->max_conn < p->standby.limit)
         throw TextException(ToSBuf("cache_peer ", *p, " max-conn=", p->max_conn,
                                    " is lower than its standby=", p->standby.limit), Here());
@@ -2179,21 +2141,56 @@ parse_peer(CachePeers **peers)
     if (p->secure.encryptTransport)
         p->secure.parseOptions();
 
+    // TODO: Move to Security::PeerOptions::parseOptions() after/while making
+    // admin-visible Adaptation::ServiceConfig::grokUri() adjustments.
+    // default value for ssldomain= is the peer host/IP
+    if (p->secure.sslDomain.isEmpty())
+        p->secure.sslDomain = p->host;
+
+    if (p->secure.encryptTransport) {
+        debugs(3, 2, "initializing TLS context for cache_peer " << *p);
+        p->sslContext = p->secure.createClientContext(true);
+        // TODO: Refactor Security::PeerOptions::createClientContext() to never return nil instead.
+        if (!p->sslContext)
+            throw TextException("Failed to initialize TLS context for cache_peer", Here());
+    }
+
+    return p;
+}
+
+/// XXX: Work around cf_gen's limitations that would use "*" in function names
+/// if we use the real type name in cache_peer TYPE metadata field.
+using CachePeerXXX = CachePeers*;
+static void
+parse_CachePeerXXX(CachePeers **peers)
+{
+    auto p = ParseCachePeer(LegacyParser);
+
+    if (findCachePeerByName(p->name))
+        throw TextException("cache_peer specified twice", Here());
+
     if (!*peers)
         *peers = new CachePeers;
 
-    (*peers)->add(p);
-
-    p->index = (*peers)->size();
+    (*peers)->absorb(std::move(p));
 
     peerClearRRStart();
 }
 
 static void
-free_peer(CachePeers ** const peers)
+free_CachePeerXXX(CachePeers ** const peers)
 {
     delete *peers;
     *peers = nullptr;
+}
+
+DeclareDirectiveReconfigurator(ReconfigureCachePeer, CachePeers*);
+void
+ReconfigureCachePeer(CachePeers *&peers, ConfigParser &parser)
+{
+    const auto newPeer = ParseCachePeer(parser);
+    Assure(peers == Config.peers);
+    UpdateCachePeer(*newPeer);
 }
 
 static void
@@ -2306,7 +2303,7 @@ parse_hostdomaintype(void)
     char *domain = nullptr;
     while ((domain = ConfigParser::NextToken())) {
         auto *l = static_cast<NeighborTypeDomainList *>(xcalloc(1, sizeof(NeighborTypeDomainList)));
-        l->type = parseNeighborType(type);
+        l->type = parseNeighborType("neighbor_type_domain neighbor type parameter", LegacyParser);
         l->domain = xstrdup(domain);
 
         NeighborTypeDomainList **L = nullptr;
@@ -3082,8 +3079,10 @@ dump_memcachemode(StoreEntry * entry, const char *name, SquidConfig &)
 #include "cf_parser.cci"
 
 peer_t
-parseNeighborType(const char *s)
+parseNeighborType(const char *description, ConfigParser &parser)
 {
+    auto typeToken = parser.token(description);
+    const char *s = typeToken.c_str(); // TODO: Remove this diff reduction.
     if (!strcmp(s, "parent"))
         return PEER_PARENT;
 
@@ -3099,7 +3098,8 @@ parseNeighborType(const char *s)
     if (!strcmp(s, "multicast"))
         return PEER_MULTICAST;
 
-    debugs(15, DBG_CRITICAL, "WARNING: Unknown neighbor type: " << s);
+    // TODO: Throw instead of assuming that PEER_SIBLING would work OK.
+    debugs(15, DBG_CRITICAL, "ERROR: Unknown " << description << " value: " << typeToken);
 
     return PEER_SIBLING;
 }
