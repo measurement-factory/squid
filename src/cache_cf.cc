@@ -3509,15 +3509,16 @@ parsePortCfg(AnyP::PortCfgPointer *head, const char *optionName)
         return;
     }
 
-    const auto port = ParsePortCfg(protoName);
+    const auto ports = ParsePortCfg(protoName);
 
     Assure(head);
     while (*head != nullptr)
         head = &((*head)->next);
-    *head = port;
+    *head = ports;
 }
 
-/// parses a single <protoName>_port directive
+/// Parses a single <protoName>_port directive.
+/// \returns one or two (linked via PortCfg::next data member) PortCfg objects
 static AnyP::PortCfgPointer
 ParsePortCfg(const SBuf &protoName)
 {
@@ -3685,8 +3686,10 @@ void
 ReconfigureHttpsPort(PortCfgsXXX &ports, ConfigParser &)
 {
     static const SBuf protoName("HTTPS");
-    const auto newCfg = ParsePortCfg(protoName);
-    UpdatePortCfg(ports, *newCfg);
+    const auto firstNewCfg = ParsePortCfg(protoName);
+    UpdatePortCfg(ports, *firstNewCfg);
+    if (const auto ipV4clone = firstNewCfg->next)
+        UpdatePortCfg(ports, *ipV4clone);
 }
 
 void
