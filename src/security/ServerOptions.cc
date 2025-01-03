@@ -34,6 +34,7 @@
 Security::ServerOptions &
 Security::ServerOptions::operator =(const Security::ServerOptions &old) {
     if (this != &old) {
+        // TODO: Reorder statements to match data member declaration order
         Security::PeerOptions::operator =(old);
         clientCaFile = old.clientCaFile;
         dh = old.dh;
@@ -47,6 +48,7 @@ Security::ServerOptions::operator =(const Security::ServerOptions &old) {
 #endif
             clientCaStack = nullptr;
 
+        staticContext = old.staticContext;
         staticContextSessionId = old.staticContextSessionId;
         generateHostCertificates = old.generateHostCertificates;
         signingCa = old.signingCa;

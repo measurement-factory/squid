@@ -790,13 +790,6 @@ configDoConfigure(void)
         }
     }
 
-    for (AnyP::PortCfgPointer s = HttpPortList; s != nullptr; s = s->next) {
-        if (!s->secure.encryptTransport)
-            continue;
-        debugs(3, 2, "initializing " << AnyP::UriScheme(s->transport.protocol) << "_port " << s->s << " TLS contexts");
-        s->secure.initServerContexts(*s);
-    }
-
     // prevent infinite fetch loops in the request parser
     // due to buffer full but not enough data received to finish parse
     if (Config.maxRequestBufferSize <= Config.maxRequestHeaderSize) {
@@ -3571,6 +3564,9 @@ ParsePortCfg(const SBuf &protoName)
             throw TextException(ToSBuf(AnyP::UriScheme(s->transport.protocol), "_port requires a cert= parameter"), Here());
         }
         s->secure.parseOptions();
+
+        debugs(3, 2, "initializing " << AnyP::UriScheme(s->transport.protocol) << "_port " << s->s << " TLS contexts");
+        s->secure.initServerContexts(*s);
     }
 
     // *_port line should now be fully valid so we can clone it if necessary

@@ -57,9 +57,10 @@ AnyP::PortCfg::~PortCfg()
 }
 
 // Keep in sync with AnyP::PortCfg::update().
-AnyP::PortCfg::PortCfg(const PortCfg &other):
+/// Construct a clone of a given PortCfg object but with a given custom address
+AnyP::PortCfg::PortCfg(const PortCfg &other, const Ip::Address &ipV4cloneAddrress):
     next(), // special case; see assert() below
-    s(other.s),
+    s(ipV4cloneAddrress), // instead of other.s
     transport(other.transport),
     name(other.name ? xstrdup(other.name) : nullptr),
     defaultsite(other.defaultsite ? xstrdup(other.defaultsite) : nullptr),
@@ -87,8 +88,8 @@ AnyP::PortCfg::update(const PortCfg &other)
 {
     debugs(3, 7, *this);
 
-    // Keep in sync with copy constructor (including fields order). Fields
-    // commented out below must be preserved during reconfiguration updates.
+    // Keep in sync with cloning code (including fields order). Fields commented
+    // out below must be preserved during reconfiguration updates.
 
     // preserve next
     // preserve s
@@ -127,19 +128,14 @@ AnyP::PortCfg::update(const PortCfg &other)
     // preserve listenConn
 
     secure = other.secure;
-
-    // TODO: Either move affected members away from _configuration_ classes or
-    // refactor so that copy constructor(s) initialize them as well (instead of
-    // relying on others to remember to do this post-construction).
-    if (secure.encryptTransport)
-        secure.initServerContexts(*this);
 }
 
 AnyP::PortCfg *
 AnyP::PortCfg::ipV4clone() const
 {
-    const auto clone = new PortCfg(*this);
-    clone->s.setIPv4();
+    auto otherAddress = s;
+    otherAddress.setIPv4();
+    const auto clone = new PortCfg(*this, otherAddress);
     debugs(3, 3, AnyP::UriScheme(transport.protocol).image() << "_port: " <<
            "cloned wildcard address for split-stack: " << s << " and " << clone->s);
     return clone;
