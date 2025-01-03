@@ -2590,6 +2590,12 @@ DOC_START
 	  Squid has to resolve configured port address to compute listening IP
 	  address, and that resolution changes, smooth reconfiguration will fail.
 
+	* There is currently no diagnostic for an updated configuration having
+	  multiple ports with the same listening address. The last such port
+	  configuration directive will be effectively used. Such reconfigurations
+	  will fail in the future, just like an equivalent harsh (re)configuration
+	  already fails today.
+
 	For general details about smooth reconfiguration, see documentation for
 	the "reconfiguration" directive.
 DOC_END
