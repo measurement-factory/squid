@@ -790,13 +790,6 @@ configDoConfigure(void)
         }
     }
 
-    for (AnyP::PortCfgPointer s = HttpPortList; s != nullptr; s = s->next) {
-        if (!s->secure.encryptTransport)
-            continue;
-        debugs(3, 2, "initializing " << AnyP::UriScheme(s->transport.protocol) << "_port " << s->s << " TLS contexts");
-        s->secure.initServerContexts(*s);
-    }
-
     // prevent infinite fetch loops in the request parser
     // due to buffer full but not enough data received to finish parse
     if (Config.maxRequestBufferSize <= Config.maxRequestHeaderSize) {
@@ -3509,15 +3502,16 @@ parsePortCfg(AnyP::PortCfgPointer *head, const char *optionName)
         return;
     }
 
-    const auto port = ParsePortCfg(protoName);
+    const auto ports = ParsePortCfg(protoName);
 
     Assure(head);
     while (*head != nullptr)
         head = &((*head)->next);
-    *head = port;
+    *head = ports;
 }
 
-/// parses a single <protoName>_port directive
+/// Parses a single <protoName>_port directive.
+/// \returns one or two (linked via PortCfg::next data member) PortCfg objects
 static AnyP::PortCfgPointer
 ParsePortCfg(const SBuf &protoName)
 {
@@ -3570,6 +3564,9 @@ ParsePortCfg(const SBuf &protoName)
             throw TextException(ToSBuf(AnyP::UriScheme(s->transport.protocol), "_port requires a cert= parameter"), Here());
         }
         s->secure.parseOptions();
+
+        debugs(3, 2, "initializing " << AnyP::UriScheme(s->transport.protocol) << "_port " << s->s << " TLS contexts");
+        s->secure.initServerContexts(*s);
     }
 
     // *_port line should now be fully valid so we can clone it if necessary
@@ -3685,8 +3682,10 @@ void
 ReconfigureHttpsPort(PortCfgsXXX &ports, ConfigParser &)
 {
     static const SBuf protoName("HTTPS");
-    const auto newCfg = ParsePortCfg(protoName);
-    UpdatePortCfg(ports, *newCfg);
+    const auto firstNewCfg = ParsePortCfg(protoName);
+    UpdatePortCfg(ports, *firstNewCfg);
+    if (const auto ipV4clone = firstNewCfg->next)
+        UpdatePortCfg(ports, *ipV4clone);
 }
 
 void

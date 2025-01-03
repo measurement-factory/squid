@@ -24,7 +24,7 @@ class PortCfg : public CodeContext
 {
 public:
     PortCfg();
-    // no public copying/moving but see ipV4clone() and update()
+    // no copying/moving but see ipV4clone() and update()
     PortCfg(PortCfg &&) = delete;
     ~PortCfg() override;
 
@@ -73,7 +73,7 @@ public:
     Security::ServerOptions secure;
 
 private:
-    explicit PortCfg(const PortCfg &other); // for ipV4clone() needs only!
+    PortCfg(const PortCfg &other, const Ip::Address &customAddrress);
 };
 
 /// reports brief port identification (for debugging)
