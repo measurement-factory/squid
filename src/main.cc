@@ -1473,14 +1473,6 @@ RegisterModules()
     CallRunnerRegistratorIn(Ssl, HelperRr);
 #endif
 
-#if USE_SQUID_ESI && HAVE_LIBEXPAT
-    CallRunnerRegistratorIn(Esi, ExpatRr);
-#endif
-
-#if USE_SQUID_ESI && HAVE_LIBXML2
-    CallRunnerRegistratorIn(Esi, Libxml2Rr);
-#endif
-
 #if HAVE_FS_ROCK
     CallRunnerRegistratorIn(Rock, SwapDirRr);
 #endif

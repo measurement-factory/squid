@@ -87,9 +87,6 @@
 #include "ssl/Config.h"
 #include "ssl/support.h"
 #endif
-#if USE_SQUID_ESI
-#include "esi/Parser.h"
-#endif
 #if SQUID_SNMP
 #include "snmp.h"
 #endif
@@ -625,21 +622,15 @@ Configuration::Parse()
 
     defaults_postscriptum();
 
+    if (unrecognizedDirectives)
+        throw TextException(ToSBuf("Found ", unrecognizedDirectives, " unrecognized directive(s)"), Here());
+
     /*
      * We must call configDoConfigure() before leave_suid() because
      * configDoConfigure() is where we turn username strings into
      * uid values.
      */
     configDoConfigure();
-
-    // TODO: Throw before configDoConfigure(). Doing that would reduce the set
-    // of configuration errors Squid can detect in one execution, but we should
-    // not apply a clearly broken configuration, especially when we are going to
-    // quit anyway. While some legacy parse_foo() functions apply significant
-    // changes before configDoConfigure(), we cannot easily stop them. We can
-    // easily stop configDoConfigure().
-    if (unrecognizedDirectives)
-        throw TextException(ToSBuf("Found ", unrecognizedDirectives, " unrecognized directive(s)"), Here());
 
     if (opt_send_signal == -1) {
         Mgr::RegisterAction("config",
@@ -968,8 +959,10 @@ configDoConfigure(void)
 
     if (Security::ProxyOutgoingConfig.encryptTransport) {
         debugs(3, 2, "initializing https:// proxy context");
-        Config.ssl_client.sslContext = Security::ProxyOutgoingConfig.createClientContext(false);
-        if (!Config.ssl_client.sslContext) {
+
+        const auto rawSslContext = Security::ProxyOutgoingConfig.createClientContext(false);
+        Config.ssl_client.sslContext_ = rawSslContext ? new Security::ContextPointer(rawSslContext) : nullptr;
+        if (!Config.ssl_client.sslContext_) {
 #if USE_OPENSSL
             fatal("ERROR: Could not initialize https:// proxy context");
 #else
@@ -977,8 +970,9 @@ configDoConfigure(void)
 #endif
         }
 #if USE_OPENSSL
-        Ssl::useSquidUntrusted(Config.ssl_client.sslContext.get());
+        Ssl::useSquidUntrusted(Config.ssl_client.sslContext_->get());
 #endif
+        Config.ssl_client.defaultPeerContext = new Security::FuturePeerContext(Security::ProxyOutgoingConfig, *Config.ssl_client.sslContext_);
     }
 
     for (const auto &p: CurrentCachePeers()) {
@@ -3919,7 +3913,10 @@ configFreeMemory(void)
 {
     free_all();
     Dns::ResolveClientAddressesAsap = false;
-    Config.ssl_client.sslContext.reset();
+    delete Config.ssl_client.defaultPeerContext;
+    Config.ssl_client.defaultPeerContext = nullptr;
+    delete Config.ssl_client.sslContext_;
+    Config.ssl_client.sslContext_ = nullptr;
 #if USE_OPENSSL
     Ssl::unloadSquidUntrusted();
 #endif
