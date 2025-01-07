@@ -38,6 +38,18 @@
    fun:_ZL14initializeOnceiPPc
 }
 
+# Allocations to store metadata for cbdata-protected C++ classes.
+# CBDATA_DECL_() tricks limit these allocations to one or two per class:
+# cbdataInternalAddType() creates a pool and may (re)allocate cbdata_index.
+# Some of these allocations also match initialization-... suppressions.
+{
+cbdata-index
+Memcheck:Leak
+...
+fun:_Z21cbdataInternalAddTypeiPKci
+...
+}
+
 # Category: Legacy bugs
 
 # We suppress reports about these memory leaks because we do not have enough
