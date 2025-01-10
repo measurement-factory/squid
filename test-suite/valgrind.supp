@@ -39,18 +39,6 @@
    fun:_ZL23SquidMainInitializeOnceiPPc
 }
 
-# Same as initialization-before-primary-loop suppression but accommodates
-# optimized builds with inlined SquidMainInitializeOnce(). Valgrind does not
-# mangle inlined function names, so that primary suppression cannot match. We
-# could use a pattern to match both naming variations, but this may be faster,
-# and the matching speed may matter for these broad single-name suppressions.
-{
-   initialization-before-primary-loop-optimized
-   Memcheck:Leak
-   ...
-   fun:SquidMainInitializeOnce
-}
-
 # Allocations to store metadata for cbdata-protected C++ classes.
 # CBDATA_DECL_() tricks limit these allocations to one or two per class:
 # cbdataInternalAddType() creates a pool and may (re)allocate cbdata_index.
