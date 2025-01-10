@@ -84,9 +84,15 @@ start_overlord() {
         return 0;
     fi
 
-    # Do not be tempted to simply run `sudo ... overlord.pl`: User nobody will
-    # lack read permissions, and sudo will ask for a password.
-    sudo -n --background -u nobody perl < $SQUID_OVERLORD_DIR/overlord.pl > $log 2>&1 || return
+    local suppressions=`realpath ../squid/test-suite/valgrind.supp`
+
+    # Start Overlord script as root, so that it can start Squid as root,
+    # emulating common deployment cases. Unlike starting as 'nobody', this
+    # also allows easy access to the script source file, suppressions, etc.
+    sudo --reset-timestamp --non-interactive --background \
+        $SQUID_OVERLORD_DIR/overlord.pl \
+        --valgrind-suppressions $suppressions \
+        > $log 2>&1 || return
     echo "Started squid-overlord service at $url"
 }
 
