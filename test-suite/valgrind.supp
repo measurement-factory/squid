@@ -17,7 +17,8 @@
 # All allocations during static initialization phase. There are hundreds of
 # them. Discovering new ones by tracking them individually is not worth the
 # management overheads since the risk of a significant memory waste during
-# one-time static initialization is very low.
+# one-time static initialization is very low. Other suppressions (implicitly)
+# deal with allocations that happen after static initialization phase.
 {
    initialization-static
    Memcheck:Leak
@@ -29,7 +30,7 @@
 
 # Allocations before mainLoop.run(). There are hundreds of them. Discovering
 # new ones by tracking them individually is not worth the management overheads
-# since the risk of a significant memory waste during one-time static
+# since the risk of a significant memory waste during this particular one-time
 # initialization is low.
 {
    initialization-before-primary-loop-mainInitialize
