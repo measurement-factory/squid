@@ -1478,10 +1478,12 @@ RegisterModules()
 #endif
 }
 
-/// performs all initialization prior to main loop creation
+/// Performs all initialization prior to main loop creation. Exists primarily to
+/// mark (most) post-static memory allocations before main loop creation. See
+/// initialization-before-primary-loop suppression in test-suite/valgrind.supp.
 /// \returns an exit code if the caller should exit before the main loop
 static std::optional<int>
-initializeOnce(int argc, char **argv)
+SquidMainInitializeOnce(int argc, char **argv)
 {
     // We must register all modules before the first RunRegisteredHere() call.
     // We do it ASAP/here so that we do not need to move this code when we add
@@ -1684,7 +1686,7 @@ initializeOnce(int argc, char **argv)
 int
 SquidMain(int argc, char **argv)
 {
-    if (const auto error = initializeOnce(argc, argv))
+    if (const auto error = SquidMainInitializeOnce(argc, argv))
         return *error;
 
     /* main loop */
