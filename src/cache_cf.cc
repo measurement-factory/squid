@@ -476,7 +476,7 @@ ParseDirective(T &raw, ConfigParser &parser)
     Must(!raw);
     raw = Configuration::Component<T>::Parse(parser);
     Must(raw);
-    // TODO: Move to parse_line() when ready to reject trailing garbage in all directives.
+    // TODO: Move to Configuration::parseDirective() when ready to reject trailing garbage in all directives.
     parser.closeDirective();
 }
 

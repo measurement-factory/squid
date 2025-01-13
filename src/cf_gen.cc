@@ -13,12 +13,8 @@
  *      files used to configure the variables in squid.
  *      (ie it creates the squid.conf.default file from the cf.data file)
  *
- *      The output files are as follows:
- *      cf_parser.cci - this file contains, default_all() which
- *            initializes variables with the default
- *            values, parse_line() that parses line from
- *            squid.conf.default, dump_config that dumps the
- *            current the values of the variables.
+ *      The output files include:
+ *      cf_parser.cci - generated configuration parsing and reporting code.
  *      squid.conf.default - default configuration file given to the server
  *           administrator.
  *****************************************************************************/
@@ -413,14 +409,6 @@ main(int argc, char *argv[])
     }
 
     fp.close();
-
-    /*-------------------------------------------------------------------*
-     * Generate default_all()
-     * Generate parse_line()
-     * Generate dump_config()
-     * Generate free_all()
-     * Generate example squid.conf.default file
-     *-------------------------------------------------------------------*/
 
     /* Open output x.c file */
 

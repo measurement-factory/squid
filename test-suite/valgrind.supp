@@ -67,15 +67,15 @@ fun:_Z21cbdataInternalAddTypeiPKci
 # may be addressed by reclassifying them as "Acceptable leaks" if additional
 # research proves that we should not consider them problematic.
 
-# the last parse_line() call does not free tokens inside CfgLineTokens_
+# Generated directive parser does not free the last set of CfgLineTokens_
+# tokens because it does not call ConfigParser::SetCfgLine() _after_ parsing
+# the last directive.
 {
    duped-token-pushed-into-CfgLineTokens_
    Memcheck:Leak
    ...
    fun:xstrndup
    fun:_ZN12ConfigParser10TokenParseERPKcRNS_9TokenTypeE
-   ...
-   fun:_ZL10parse_linePc
 }
 
 # Bug: "Tunnel Server RESPONSE" debugs() assumes readBuf has hdr_sz bytes, but
