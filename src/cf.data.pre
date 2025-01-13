@@ -2581,7 +2581,7 @@ DOC_START
 
 	* Changing the number of https_port directives is not supported. There is
 	  currently no diagnostic for reducing the number of listenting ports and
-	  any unmatched old ports remain unaffected by smooth reconfiguraiton, but
+	  any unmatched old ports remain unaffected by smooth reconfiguration, but
 	  all that will change.
 
 	* Changing configured listening address is not supported: Squid pairs old
@@ -4035,7 +4035,7 @@ DOC_START
 
 	* Changing the number of cache_peer directives is not supported. There is
 	  currently no diagnostic for reducing the number of cache_peers, and any
-	  unmatched cache_peers remain unaffected by smooth reconfiguraiton, but
+	  unmatched cache_peers remain unaffected by smooth reconfiguration, but
 	  all that will change.
 
 	* Changing cache_peer name is not supported: Squid pairs old and new

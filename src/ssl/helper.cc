@@ -340,7 +340,7 @@ public:
     /* RegisteredRunner API */
     ~HelperRr() override {}
     void endingShutdown() override;
-    // TODO: Move Init() logic here by handling (re)configuraiton events.
+    // TODO: Move Init() logic here by handling (re)configuration events.
 };
 
 } // namespace Ssl
