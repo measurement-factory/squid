@@ -27,6 +27,7 @@ Rock::HeaderUpdater::HeaderUpdater(const Rock::SwapDir::Pointer &aStore, const I
     staleSwapHeaderSize(0),
     staleSplicingPointNext(-1)
 {
+    registerRunner();
     // TODO: Consider limiting the number of concurrent store updates.
 }
 
@@ -57,6 +58,12 @@ Rock::HeaderUpdater::swanSong()
     }
 
     AsyncJob::swanSong();
+}
+
+void
+Rock::HeaderUpdater::startShutdown()
+{
+    mustStop("startShutdown");
 }
 
 void
