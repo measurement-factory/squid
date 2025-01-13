@@ -2,6 +2,8 @@
 # reporting of memory leaks (as defined by Valgrind) that prevent Squid from
 # passing CI tests. Leaks in two major categories are eligible for inclusion:
 # Acceptable leaks and Legacy bugs. See each category section for details.
+#
+# These suppressions are for Squids ./configured with --disable-optimizations.
 
 # Category: Acceptable leaks
 
