@@ -812,8 +812,8 @@ Entry::genValidDirectiveNameCheck(const std::string &knownName, std::ostream &fo
     // TODO: Add SBuf::equal() to encapsulate this length check optimization.
     fout << "    if (name.length() == " << knownName.length() << " && name.cmp(\"" << knownName << "\", " << knownName.length() << ") == 0)\n";
     fout << "        return PreprocessedDirective::Metadata{" <<
-        supportsSmoothReconfiguration() <<
-        "};\n";
+         supportsSmoothReconfiguration() <<
+         "};\n";
 }
 
 /// generate Configuration::PreprocessedDirective::ValidDirectiveName() code for this Entry
