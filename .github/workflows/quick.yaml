@@ -46,7 +46,7 @@ jobs:
       - name: Install prerequisite packages
         run: |
           sudo apt-get --quiet=2 update
-          sudo apt-get --quiet=2 install libtool-bin
+          sudo apt-get --quiet=2 install libtool-bin valgrind
 
       - name: Setup a nodejs environment
         uses: actions/setup-node@v4
@@ -59,7 +59,7 @@ jobs:
           fetch-depth: ${{ env.CHECKOUT_FETCH_DEPTH }}
 
       - run: ./bootstrap.sh
-      - run: ./configure --with-openssl
+      - run: ./configure --with-openssl --disable-optimizations --with-valgrind-debug
       - run: make -j`nproc`
       - run: |
           sudo make install

@@ -1477,6 +1477,7 @@ RegisterModules()
 
 #if USE_OPENSSL
     CallRunnerRegistrator(sslBumpCfgRr);
+    CallRunnerRegistratorIn(Ssl, HelperRr);
 #endif
 
 #if HAVE_FS_ROCK
@@ -1484,8 +1485,12 @@ RegisterModules()
 #endif
 }
 
-int
-SquidMain(int argc, char **argv)
+/// Performs all initialization prior to main loop creation. Exists primarily to
+/// mark (most) post-static memory allocations before main loop creation. See
+/// initialization-before-primary-loop suppression in test-suite/valgrind.supp.
+/// \returns an exit code if the caller should exit before the main loop
+static std::optional<int>
+SquidMainInitializeOnce(int argc, char **argv)
 {
     // We must register all modules before the first RunRegisteredHere() call.
     // We do it ASAP/here so that we do not need to move this code when we add
@@ -1677,6 +1682,20 @@ SquidMain(int argc, char **argv)
 
 #endif
 
+    if (IamCoordinatorProcess())
+        AsyncJob::Start(Ipc::Coordinator::Instance());
+    else if (UsingSmp() && (IamWorkerProcess() || IamDiskProcess()))
+        AsyncJob::Start(new Ipc::Strand);
+
+    return std::nullopt;
+}
+
+int
+SquidMain(int argc, char **argv)
+{
+    if (const auto error = SquidMainInitializeOnce(argc, argv))
+        return *error;
+
     /* main loop */
     EventLoop mainLoop;
 
@@ -1701,11 +1720,6 @@ SquidMain(int argc, char **argv)
     Time::Engine time_engine;
 
     mainLoop.setTimeService(&time_engine);
-
-    if (IamCoordinatorProcess())
-        AsyncJob::Start(Ipc::Coordinator::Instance());
-    else if (UsingSmp() && (IamWorkerProcess() || IamDiskProcess()))
-        AsyncJob::Start(new Ipc::Strand);
 
     /* at this point we are finished the synchronous startup. */
     starting_up = 0;
@@ -2078,12 +2092,6 @@ SquidShutdown()
 #endif
 
     debugs(1, Important(9), "Shutting down...");
-#if USE_SSL_CRTD
-    Ssl::Helper::Shutdown();
-#endif
-#if USE_OPENSSL
-    Ssl::CertValidationHelper::Shutdown();
-#endif
     redirectShutdown();
     externalAclShutdown();
     icpClosePorts();

@@ -1,0 +1,205 @@
+# The primary goal of this valgrind(1) --suppressions file is to disable
+# reporting of memory leaks (as defined by Valgrind) that prevent Squid from
+# passing CI tests. Leaks in two major categories are eligible for inclusion:
+# Acceptable leaks and Legacy bugs. See each category section for details.
+#
+# These suppressions are for Squids ./configured with --disable-optimizations.
+
+# Category: Acceptable leaks
+
+# We suppress reports about these memory leaks because we do not consider them
+# problematic. They may disappear due to side effects of other changes, but we
+# do not anticipate working specifically on their elimination. For example:
+#
+# * Leaked memory is allocated once per process lifetime and is never freed
+#   (e.g., `static auto foo = new Foo()`).
+# * Memory is correctly allocated and freed many times, but the last
+#   allocation gets lost in cleanup during process shutdown.
+
+# All allocations during static initialization phase. There are hundreds of
+# them. Discovering new ones by tracking them individually is not worth the
+# management overheads since the risk of a significant memory waste during
+# one-time static initialization is very low. Other suppressions (implicitly)
+# deal with allocations that happen after static initialization phase.
+{
+   initialization-static
+   Memcheck:Leak
+   ...
+   fun:_Z41__static_initialization_and_destruction_0ii
+   ...
+   fun:(below main)
+}
+
+# Allocations before mainLoop.run(). There are hundreds of them. Discovering
+# new ones by tracking them individually is not worth the management overheads
+# since the risk of a significant memory waste during this particular one-time
+# initialization is low.
+{
+   initialization-before-primary-loop
+   Memcheck:Leak
+   ...
+   fun:_ZL23SquidMainInitializeOnceiPPc
+}
+
+# Allocations to store metadata for cbdata-protected C++ classes.
+# CBDATA_DECL_() tricks limit these allocations to one or two per class:
+# cbdataInternalAddType() creates a pool and may (re)allocate cbdata_index.
+# Some of these allocations also match initialization-... suppressions.
+{
+cbdata-index
+Memcheck:Leak
+...
+fun:_Z21cbdataInternalAddTypeiPKci
+...
+}
+
+# Category: Legacy bugs
+
+# We suppress reports about these memory leaks because we do not have enough
+# resources to address them prior to deploying CI tests that expose them. We
+# prefer to deploy CI tests with these bugs unaddressed because CI tests can
+# detect _new_ leaks in code changes being proposed for Squid inclusion. New
+# leaks are expected to be eliminated at pull request time, before they enter
+# official code.
+#
+# We anticipate addressing these legacy bugs; each suppression in this
+# category is essentially an XXX item for Squid developers. Some of these bugs
+# may be addressed by reclassifying them as "Acceptable leaks" if additional
+# research proves that we should not consider them problematic.
+
+# the last parse_line() call does not free tokens inside CfgLineTokens_
+{
+   duped-token-pushed-into-CfgLineTokens_
+   Memcheck:Leak
+   ...
+   fun:xstrndup
+   fun:_ZN12ConfigParser10TokenParseERPKcRNS_9TokenTypeE
+   ...
+   fun:_ZL10parse_linePc
+}
+
+# Bug: "Tunnel Server RESPONSE" debugs() assumes readBuf has hdr_sz bytes, but
+# readBuf no longer has any header bytes (and often has no bytes at all).
+# CI test case: dead-peer
+{
+   bad-tunnel-server-response-bytes-dumped
+   Memcheck:Cond
+   ...
+   fun:_ZN5Debug6FinishEv
+   fun:_ZN4Http8Tunneler14handleResponseEb
+}
+
+# could be a false negative but needs investigation to fully address anyway
+{
+   sendmsg-param-points-to-uninitialised-byte
+   Memcheck:Param
+   sendmsg(msg.msg_iov[0])
+   fun:sendmsg
+   fun:_Z19msghdr_write_methodiPKci
+}
+
+# needs investigation; may be related to the following error handling path:
+# ERROR: Failed to update a cached response: cannot update the cached response
+# This bug has several suspected side effects. Unfortunately, their
+# suppressions also apply to other scenarios, broadening this bug impact.
+# CI test case: accumulate-headers-after-304
+{
+   header-overflow-leaks-Rock-HeaderUpdater-primary
+   Memcheck:Leak
+   ...
+   fun:_ZN4Rock13HeaderUpdaternwEm
+   fun:_ZN4Rock7SwapDir13updateHeadersEP10StoreEntry
+}
+
+# needs investigation; possible side effects of a leak known as
+# header-overflow-leaks-Rock-HeaderUpdater-primary
+{
+   header-overflow-leaks-Rock-HeaderUpdater-effects-readMore
+   Memcheck:Leak
+   ...
+   fun:_ZN4Rock13HeaderUpdater8readMoreEPKc
+   fun:_ZN4Rock13HeaderUpdater14parseReadBytesEv
+}
+
+# needs investigation; possible side effect of a leak known as
+# header-overflow-leaks-Rock-HeaderUpdater-primary
+{
+   header-overflow-leaks-Rock-HeaderUpdater-effects-UdsSender
+   Memcheck:Leak
+   ...
+   fun:_ZN3Ipc9UdsSender5writeEv
+   fun:_ZN3Ipc9UdsSender5startEv
+   fun:_ZN14NullaryMemFunTI8AsyncJobE6doDialEv
+}
+
+# needs investigation; possible side effect of a leak known as
+# header-overflow-leaks-Rock-HeaderUpdater-primary
+{
+   header-overflow-leaks-Rock-HeaderUpdater-effects-Http-One-Server
+   Memcheck:Leak
+   ...
+   fun:_ZN4Http3One6ServernwEm
+   fun:_ZN4Http9NewServerERK8RefCountI13MasterXactionE
+   fun:_ZL10httpAcceptRK18CommAcceptCbParams
+}
+
+# needs investigation; possible side effect of a leak known as
+# header-overflow-leaks-Rock-HeaderUpdater-primary
+{
+   header-overflow-leaks-Rock-HeaderUpdater-effects-Uds-Sender
+   Memcheck:Leak
+   ...
+   fun:_ZN3Ipc9UdsSendernwEm
+   fun:_ZN3Ipc11SendMessageERK6StringRKNS_11TypedMsgHdrE
+}
+
+# needs investigation; might require a hack similar to commit afc199f9
+{
+   EVP_PKEY_assign-reads-more-than-EVP_PKEY_new-allocates
+   Memcheck:Addr8
+   fun:EVP_PKEY_assign
+   fun:EVP_PKEY_set1_DH
+   ...
+   fun:_ZL17configDoConfigurev
+}
+
+# shutdown does not clean ClientInfo cache (i.e. client_table)
+{
+   shutdown-cleanup-client_table
+   Memcheck:Leak
+   ...
+   fun:_ZL11clientdbAddRKN2Ip7AddressE
+   ...
+}
+
+# shutdown probably does not clean comm_read() callbacks
+{
+   shutdown-cleanup-comm_read
+   Memcheck:Leak
+   ...
+   fun:_Z9asyncCallI13CommCbMemFunTIN3Ipc4PortE14CommIoCbParamsEE8RefCountI10AsyncCallTIT_EEiiPKcRKS7_
+   fun:_ZN3Ipc4Port8doListenEv
+   ...
+}
+
+# shutdown does not free ip_table entries; those ipcache_entry objects are
+# created by ipcacheAddEntryFromHosts() and ipcache_nbgethostbyname_()
+{
+   shutdown-cleanup-ip_table
+   Memcheck:Leak
+   ...
+   fun:_ZN13ipcache_entrynwEm
+}
+
+# MimeIcon::load() locks StoreEntry icon objects but never unlocks them. The
+# objects are supposed to be cached (and a cached icon would prevent creation
+# of a same-URI icon entry), but icons are _not_ cached by diskless Squids (at
+# least) when cache_mem is set to zero (because store_maxobjsize would remain
+# 0 without disks, resulting in a "NO: too big" StoreEntry::checkCachable())
+# outcome.
+{
+   mime-icons-may-not-be-cached
+   Memcheck:Leak
+   ...
+   fun:_ZN8MimeIcon4loadEv
+}

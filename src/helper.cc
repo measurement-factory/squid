@@ -187,6 +187,9 @@ helper_stateful_server::~helper_stateful_server()
 void
 Helper::Client::openSessions()
 {
+    // SQUID-683 workaround: Do not hijack transaction context for helper I/O.
+    CodeContext::Reset();
+
     char *s;
     char *progname;
     char *shortname;
@@ -326,6 +329,9 @@ Helper::Client::openSessions()
 void
 statefulhelper::openSessions()
 {
+    // SQUID-683 workaround: Do not hijack transaction context for helper I/O.
+    CodeContext::Reset();
+
     char *shortname;
     const char *args[HELPER_MAX_ARGS+1]; // save space for a NULL terminator
     char fd_note_buf[FD_DESC_SZ];
@@ -623,6 +629,9 @@ statefulhelper::cancelReservation(const Helper::ReservationId reservation)
     helper_stateful_server *srv = it->second;
     reservations.erase(it);
     srv->clearReservation();
+
+    // SQUID-683 workaround: Do not hijack transaction context for helper I/O.
+    CodeContext::Reset();
 
     // schedule a queue kick
     AsyncCall::Pointer call = asyncCall(5,4, "helperStatefulServerDone", cbdataDialer(helperStatefulServerDone, srv));
@@ -1126,6 +1135,9 @@ helperHandleRead(const Comm::ConnectionPointer &conn, char *, size_t len, Comm::
         int spaceSize = srv->rbuf_sz - srv->roffset - 1;
         assert(spaceSize >= 0);
 
+        // SQUID-683 workaround: Do not hijack transaction context for helper I/O.
+        CodeContext::Reset();
+
         AsyncCall::Pointer call = commCbCall(5,4, "helperHandleRead",
                                              CommIoCbPtrFun(helperHandleRead, srv));
         comm_read(srv->readPipe, srv->rbuf + srv->roffset, spaceSize, call);
@@ -1234,6 +1246,9 @@ helperStatefulHandleRead(const Comm::ConnectionPointer &conn, char *, size_t len
 
     if (Comm::IsConnOpen(srv->readPipe) && !fd_table[srv->readPipe->fd].closing()) {
         int spaceSize = srv->rbuf_sz - 1;
+
+        // SQUID-683 workaround: Do not hijack transaction context for helper I/O.
+        CodeContext::Reset();
 
         AsyncCall::Pointer call = commCbCall(5,4, "helperStatefulHandleRead",
                                              CommIoCbPtrFun(helperStatefulHandleRead, srv));
@@ -1416,6 +1431,9 @@ helperDispatchWriteDone(const Comm::ConnectionPointer &, char *, size_t, Comm::F
     }
 
     if (!srv->wqueue->isNull()) {
+        // SQUID-683 workaround: Do not hijack transaction context for helper I/O.
+        CodeContext::Reset();
+
         srv->writebuf = srv->wqueue;
         srv->wqueue = new MemBuf;
         srv->flags.writing = true;
@@ -1452,6 +1470,9 @@ helperDispatch(Helper::Session * const srv, Helper::Xaction * const r)
         srv->wqueue->append(r->request.buf, strlen(r->request.buf));
 
     if (!srv->flags.writing) {
+        // SQUID-683 workaround: Do not hijack transaction context for helper I/O.
+        CodeContext::Reset();
+
         assert(nullptr == srv->writebuf);
         srv->writebuf = srv->wqueue;
         srv->wqueue = new MemBuf;
@@ -1475,6 +1496,9 @@ helperStatefulDispatchWriteDone(const Comm::ConnectionPointer &, char *, size_t,
 static void
 helperStatefulDispatch(helper_stateful_server * srv, Helper::Xaction * r)
 {
+    // SQUID-683 workaround: Do not hijack transaction context for helper I/O.
+    CodeContext::Reset();
+
     const auto hlp = srv->parent;
 
     if (!cbdataReferenceValid(r->request.data)) {
@@ -1600,6 +1624,9 @@ Helper::Session::checkForTimedOutRequests(bool const retry)
 void
 Helper::Session::requestTimeout(const CommTimeoutCbParams &io)
 {
+    // SQUID-683 workaround: Do not hijack transaction context for helper I/O.
+    CodeContext::Reset();
+
     debugs(26, 3, io.conn);
     const auto srv = static_cast<Session *>(io.data);
 

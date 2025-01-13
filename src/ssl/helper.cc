@@ -10,6 +10,7 @@
 #include "../helper.h"
 #include "anyp/PortCfg.h"
 #include "base/AsyncCallbacks.h"
+#include "base/RunnersRegistry.h"
 #include "cache_cf.h"
 #include "fs_io.h"
 #include "helper/Reply.h"
@@ -331,3 +332,26 @@ Ssl::CertValidationHelper::Submit(const Ssl::CertValidationRequest &request, con
     return;
 }
 
+namespace Ssl {
+
+class HelperRr: public RegisteredRunner
+{
+public:
+    /* RegisteredRunner API */
+    ~HelperRr() override {}
+    void endingShutdown() override;
+    // TODO: Move Init() logic here by handling (re)configuraiton events.
+};
+
+} // namespace Ssl
+
+DefineRunnerRegistratorIn(Ssl, HelperRr);
+
+void
+Ssl::HelperRr::endingShutdown()
+{
+#if USE_SSL_CRTD
+    Ssl::Helper::Shutdown();
+#endif
+    Ssl::CertValidationHelper::Shutdown();
+}
