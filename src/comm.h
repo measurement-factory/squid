@@ -26,7 +26,23 @@ void commSetCloseOnExec(int fd);
 void _comm_close(int fd, char const *file, int line);
 #define comm_close(x) (_comm_close((x), __FILE__, __LINE__))
 void old_comm_reset_close(int fd);
+
+/// Initiate asynchronous connection closing sequence for the given connection.
+/// When that connection is finally closed, send TCP RST to its peer.
+/// Equivalent to calling Comm::MarkForHarshClosure() followed by comm_close().
+/// Does nothing if the connection pointer is nil or the connection is not open.
 void comm_reset_close(const Comm::ConnectionPointer &conn);
+
+namespace Comm
+{
+
+/// When the given connection is closed, send TCP RST to its peer. Unlike
+/// comm_reset_close(), this function does not initiate connection closure! Does
+/// nothing if the connection pointer is nil or the connection is not open.
+/// Repeated calls are safe (and essentially do nothing).
+void MarkForHarshClosure(const Comm::ConnectionPointer &);
+
+}
 
 int comm_connect_addr(int sock, const Ip::Address &addr);
 void comm_init(void);
