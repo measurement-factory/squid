@@ -1133,6 +1133,12 @@ clientReplyContext::replyStatus()
 
         if (EBIT_TEST(http->storeEntry()->flags, ENTRY_BAD_LENGTH)) {
             debugs(88, 5, "clientReplyStatus: truncated response body");
+            // This code is arguably misplaced. TODO: After ClientStreams are
+            // gone, refactor to merge "status determination" and "reaction to
+            // current status" code, avoiding this and other "let's describe
+            // task status as an integer" problems.
+            if (const auto &mgr = http->getConn())
+                Comm::MarkForHarshClosure(mgr->clientConnection);
             return STREAM_UNPLANNED_COMPLETE;
         }
 

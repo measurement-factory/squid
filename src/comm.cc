@@ -791,10 +791,17 @@ commConfigureLinger(const int fd, const OnOff enabled)
     }
 }
 
-/**
- * enable linger with time of 0 so that when the socket is
- * closed, TCP generates a RESET
- */
+void
+Comm::MarkForHarshClosure(const Comm::ConnectionPointer &conn)
+{
+    if (Comm::IsConnOpen(conn)) {
+        debugs(5, 7, conn->id);
+        if (!fd_table[conn->fd].flags.harshClosureRequested)
+            commConfigureLinger(conn->fd, OnOff::on);
+        // no conn->close();
+    }
+}
+
 void
 comm_reset_close(const Comm::ConnectionPointer &conn)
 {
