@@ -42,7 +42,7 @@ public:
 private:
     void packOctet_(uint8_t);
     void packOctets_(const void *, size_t);
-    template <typename Value> void packed_(const char *description, const Value &, size_t size);
+    template <typename Value> void packing_(const char *description, const Value &, size_t size) const;
 
 private:
     /// serialized bytes accumulated so far
