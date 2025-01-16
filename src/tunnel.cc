@@ -40,9 +40,6 @@
 #include "MemBuf.h"
 #include "neighbors.h"
 #include "PeerSelectState.h"
-#include "proxyp/Elements.h"
-#include "proxyp/Header.h"
-#include "proxyp/OutgoingHttpConfig.h"
 #include "ResolvedPeers.h"
 #include "sbuf/SBuf.h"
 #include "security/BlindPeerConnector.h"
@@ -274,10 +271,6 @@ private:
     bool exhaustedTries() const;
     void updateAttempts(int);
 
-    bool needProxyProtoHeader() const;
-    void connectToPeerIfNeeded(const Comm::ConnectionPointer &);
-    void sendProxyProtoHeaderIfNeeded(const Comm::ConnectionPointer &);
-
 public:
     bool keepGoingAfterRead(size_t len, Comm::Flag errcode, int xerrno, Connection &from, Connection &to);
     void copy(size_t len, Connection &from, Connection &to, IOCB *);
@@ -298,8 +291,6 @@ public:
     /// tries connecting to another destination, if available,
     /// otherwise, initiates the transaction termination
     void retryOrBail(const char *context);
-
-    static void proxyHeaderSent(const Comm::ConnectionPointer &, char *, size_t, Comm::Flag errflag, int, void *data);
 };
 
 static ERCB tunnelErrorComplete;
@@ -1164,12 +1155,6 @@ TunnelStateData::connectDone(const Comm::ConnectionPointer &conn, const char *or
 
     netdbPingSite(request->url.host());
 
-    sendProxyProtoHeaderIfNeeded(conn);
-}
-
-void
-TunnelStateData::connectToPeerIfNeeded(const Comm::ConnectionPointer &conn)
-{
     request->peer_host = conn->getPeer() ? conn->getPeer()->host : nullptr;
 
     bool toOrigin = false; // same semantics as StateFlags::toOrigin
@@ -1186,69 +1171,6 @@ TunnelStateData::connectToPeerIfNeeded(const Comm::ConnectionPointer &conn)
     else {
         notePeerReadyToShovel(conn);
     }
-}
-
-/// whether it is required to send Proxy protocol header
-bool
-TunnelStateData::needProxyProtoHeader() const
-{
-    if (!Config.outgoingProxyProtocolHttp)
-        return false;
-
-    if (!Config.outgoingProxyProtocolHttp->aclList)
-        return true;
-
-    ACLFilledChecklist ch(Config.outgoingProxyProtocolHttp->aclList, request.getRaw());
-    ch.al = al;
-    ch.syncAle(request.getRaw(), nullptr);
-    return ch.fastCheck().allowed();
-}
-
-void
-TunnelStateData::sendProxyProtoHeaderIfNeeded(const Comm::ConnectionPointer &conn)
-{
-    if (needProxyProtoHeader()) {
-        static const SBuf v2("2.0");
-        ProxyProtocol::Header header(v2, ProxyProtocol::Two::cmdProxy);
-        header.sourceAddress = conn->local; // TODO: must be original source
-        header.destinationAddress = conn->remote;
-
-        MemBuf mb;
-        mb.init();
-        header.packInto(mb);
-        AsyncCall::Pointer call = commCbCall(17, 5, "TunnelStateData::proxyHeaderSent",
-                CommIoCbPtrFun(&TunnelStateData::proxyHeaderSent, this));
-        Comm::Write(conn, &mb, call);
-        return;
-    }
-
-    connectToPeerIfNeeded(conn);
-}
-
-/// resumes operations after the (possibly failed) Proxy protocol header sending
-void
-TunnelStateData::proxyHeaderSent(const Comm::ConnectionPointer &conn, char *, size_t size, Comm::Flag errflag, int, void *data)
-{
-    const auto tunnelState = reinterpret_cast<TunnelStateData *>(data);
-
-    auto sawProblem = false;
-
-    if (errflag != Comm::OK || size <= 0) {
-        sawProblem = true;
-    } else if (!Comm::IsConnOpen(conn) || fd_table[conn->fd].closing()) {
-        sawProblem = true;
-        tunnelState->closePendingConnection(conn, "conn was closed while waiting for TunnelStateData::proxyHeaderSent");
-    }
-
-    if (!sawProblem) {
-    	tunnelState->connectToPeerIfNeeded(conn);
-        return;
-    }
-
-    /// XXX: set proper error based on errflag
-    ErrorState *error = new ErrorState(ERR_CANNOT_FORWARD, Http::scServiceUnavailable, tunnelState->request.getRaw(), tunnelState->al);
-    tunnelState->saveError(error);
-    tunnelState->retryOrBail("proxy protocol error");
 }
 
 /// whether we have used up all permitted forwarding attempts
