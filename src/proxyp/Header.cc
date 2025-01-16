@@ -7,6 +7,7 @@
  */
 
 #include "squid.h"
+#include "parser/BinaryPacker.h"
 #include "base/EnumIterator.h"
 #include "proxyp/Elements.h"
 #include "proxyp/Header.h"
@@ -23,46 +24,31 @@ ProxyProtocol::Header::Header(const SBuf &ver, const Two::Command cmd):
 {}
 
 void
-ProxyProtocol::Header::packInto(MemBuf &mb) const
+ProxyProtocol::Header::pack(BinaryPacker &pack) const
 {
-    const uint8_t ver = (version_.cmp("1.0") == 0) ? 1 : 2;
-    const SBuf magic = ver == 1 ? One::Magic() : Two::Magic();
-    mb.append(magic.rawContent(), magic.length());
-    uint8_t versionAndCommand = command_;
-    versionAndCommand |= ver << 4;
-    mb.append(reinterpret_cast<const char *>(&versionAndCommand), sizeof(versionAndCommand));
+    pack.area("magic", Two::Magic());
 
+    const auto ver = 2; // XXX: We should be using version_, but version_ should use int instead of SBuf!
+    Assure(ver == 2); // no support for serializing using legacy v1 format
+    pack.uint8("version and command", (ver << 4) | command_);
+
+    Assure(sourceAddress.isIPv4() == destinationAddress.isIPv4()); // one family for both addresses
     const auto family = sourceAddress.isIPv4() ? Two::afInet : Two::afInet6;
-    uint8_t addressAndFamily = Two::tpStream;
-    addressAndFamily |= family << 4;
-    mb.append(reinterpret_cast<const char *>(&addressAndFamily), sizeof(addressAndFamily));
+    pack.uint8("socket family and transport protocol", (family << 4) | Two::tpStream);
 
-    if (family == Two::afInet) {
-        // https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt :
-        // for TCP/UDP over IPv4, len = 12
-        // for TCP/UDP over IPv6, len = 36
-        const uint16_t len = 12;
-        mb.append(reinterpret_cast<const char *>(&len), sizeof(len));
-        struct in_addr src;
-        sourceAddress.getInAddr(src);
-        mb.append(reinterpret_cast<const char *>(&src), sizeof(src));
-        struct in_addr dst;
-        destinationAddress.getInAddr(dst);
-        mb.append(reinterpret_cast<const char*>(&dst), sizeof(dst));
-    } else {
-        const uint16_t len = 36;
-        mb.append(reinterpret_cast<const char *>(&len), sizeof(len));
-        struct in6_addr host;
-        sourceAddress.getInAddr(host);
-        mb.append(reinterpret_cast<const char*>(&host), sizeof(host));
-        struct in_addr dst;
-        destinationAddress.getInAddr(dst);
-        mb.append(reinterpret_cast<char*>(&dst), sizeof(dst));
+    auto tail = pack.pstringOpen16("addresses and TLVs");
+
+    tail.inet("src_addr", sourceAddress);
+    tail.inet("dst_addr", destinationAddress);
+    tail.uint16("src_port", sourceAddress.port());
+    tail.uint16("dst_port", destinationAddress.port());
+
+    for (const auto &tlv: tlvs) {
+        tail.uint8("pp2_tlv::type", tlv.type);
+        tail.pstring16("pp2_tlv::value", tlv.value);
     }
-    const auto srcPort = htons(sourceAddress.port());
-    mb.append(reinterpret_cast<const char *>(&srcPort), sizeof(srcPort));
-    const auto dstPort = htons(destinationAddress.port());
-    mb.append(reinterpret_cast<const char *>(&dstPort), sizeof(dstPort));
+
+    pack.pstringClose16(std::move(tail));
 }
 
 SBuf

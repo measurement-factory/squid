@@ -49,6 +49,7 @@
 #include "neighbors.h"
 #include "pconn.h"
 #include "PeerPoolMgr.h"
+#include "parser/BinaryPacker.h"
 #include "proxyp/Elements.h"
 #include "proxyp/Header.h"
 #include "proxyp/OutgoingHttpConfig.h"
@@ -938,9 +939,15 @@ FwdState::sendProxyProtoHeaderIfNeeded(const Comm::ConnectionPointer &conn)
         header.sourceAddress = conn->local; // TODO: must be original source
         header.destinationAddress = conn->remote;
 
+        BinaryPacker packer;
+        header.pack(packer);
+        const auto packed = packer.packed();
+
+        // XXX: Avoid this copying by adding an SBuf-friendly Comm::Write()!
         MemBuf mb;
         mb.init();
-        header.packInto(mb);
+        mb.append(packed.rawContent(), packed.length());
+
         AsyncCall::Pointer call = commCbCall(17, 5, "FwdState::proxyHeaderSent",
                 CommIoCbPtrFun(&FwdState::proxyHeaderSent, this));
         Comm::Write(conn, &mb, call);

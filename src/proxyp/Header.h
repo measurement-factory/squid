@@ -12,6 +12,7 @@
 #include "base/RefCount.h"
 #include "ip/Address.h"
 #include "MemBuf.h"
+#include "parser/forward.h"
 #include "proxyp/Elements.h"
 #include "sbuf/SBuf.h"
 
@@ -58,7 +59,7 @@ public:
     /// \returns "mix" otherwise
     const SBuf &addressFamily() const;
 
-    void packInto(MemBuf &mb) const;
+    void pack(BinaryPacker &) const;
 
     /// source address of the client connection
     Ip::Address sourceAddress;
