@@ -174,6 +174,9 @@ private:
 
     void establishTunnelThruProxy(const Comm::ConnectionPointer &);
     void tunnelEstablishmentDone(Http::TunnelerAnswer &answer);
+    bool needProxyProtoHeader() const;
+    void sendProxyProtoHeaderIfNeeded(const Comm::ConnectionPointer &);
+    void tunnelIfNeeded(const Comm::ConnectionPointer &);
     void secureConnectionToPeerIfNeeded(const Comm::ConnectionPointer &);
     void secureConnectionToPeer(const Comm::ConnectionPointer &);
     void successfullyConnectedToPeer(const Comm::ConnectionPointer &);
@@ -205,6 +208,9 @@ public:
 
     /// called by Store if the entry is no longer usable
     static void HandleStoreAbort(FwdState *);
+
+    /// callback for sendProxyProtoHeaderIfNeeded()
+    static void proxyHeaderSent(const Comm::ConnectionPointer &, char *, size_t , Comm::Flag , int, void *data);
 
 private:
     Pointer self;

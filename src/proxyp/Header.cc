@@ -15,11 +15,55 @@
 #include "SquidConfig.h"
 #include "StrList.h"
 
+
 ProxyProtocol::Header::Header(const SBuf &ver, const Two::Command cmd):
     version_(ver),
     command_(cmd),
     ignoreAddresses_(false)
 {}
+
+void
+ProxyProtocol::Header::packInto(MemBuf &mb) const
+{
+    const uint8_t ver = (version_.cmp("1.0") == 0) ? 1 : 2;
+    const SBuf magic = ver == 1 ? One::Magic() : Two::Magic();
+    mb.append(magic.rawContent(), magic.length());
+    uint8_t versionAndCommand = command_;
+    versionAndCommand |= ver << 4;
+    mb.append(reinterpret_cast<const char *>(&versionAndCommand), sizeof(versionAndCommand));
+
+    const auto family = sourceAddress.isIPv4() ? Two::afInet : Two::afInet6;
+    uint8_t addressAndFamily = Two::tpStream;
+    addressAndFamily |= family << 4;
+    mb.append(reinterpret_cast<const char *>(&addressAndFamily), sizeof(addressAndFamily));
+
+    if (family == Two::afInet) {
+        // https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt :
+        // for TCP/UDP over IPv4, len = 12
+        // for TCP/UDP over IPv6, len = 36
+        const uint16_t len = 12;
+        mb.append(reinterpret_cast<const char *>(&len), sizeof(len));
+        struct in_addr src;
+        sourceAddress.getInAddr(src);
+        mb.append(reinterpret_cast<const char *>(&src), sizeof(src));
+        struct in_addr dst;
+        destinationAddress.getInAddr(dst);
+        mb.append(reinterpret_cast<const char*>(&dst), sizeof(dst));
+    } else {
+        const uint16_t len = 36;
+        mb.append(reinterpret_cast<const char *>(&len), sizeof(len));
+        struct in6_addr host;
+        sourceAddress.getInAddr(host);
+        mb.append(reinterpret_cast<const char*>(&host), sizeof(host));
+        struct in_addr dst;
+        destinationAddress.getInAddr(dst);
+        mb.append(reinterpret_cast<char*>(&dst), sizeof(dst));
+    }
+    const auto srcPort = htons(sourceAddress.port());
+    mb.append(reinterpret_cast<const char *>(&srcPort), sizeof(srcPort));
+    const auto dstPort = htons(destinationAddress.port());
+    mb.append(reinterpret_cast<const char *>(&dstPort), sizeof(dstPort));
+}
 
 SBuf
 ProxyProtocol::Header::toMime() const

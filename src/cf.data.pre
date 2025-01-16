@@ -1769,6 +1769,44 @@ DOC_START
 	See https://wiki.squid-cache.org/SquidFaq/SquidAcl for details.
 DOC_END
 
+NAME: http_outgoing_proxy_protocol
+TYPE: ProxyProtocol::OutgoingHttpConfig*
+LOC: Config.outgoingProxyProtocolHttp
+DEFAULT: none
+DEFAULT_DOC: Squid does not send PROXY protocol headers
+DOC_START
+	Determines which Squid-to-peer HTTP connections start with a PROXY
+	protocol header. The decision is made before Squid selects the next
+	forwarding hop (e.g., the source and destination IP addresses of
+	Squid-to-peer connection are not known). The decision is made every
+	time Squid has to (re)forward the request.
+
+		http_outgoing_proxy_protocol [options] [if [!]<acl>...]
+
+	For now, Squid only sends PROXY protocol v2 headers.
+
+	For now, Squid disables HTTP connection reuse after sending
+	the PROXY protocol header on that connection.
+
+	For now, PROXY protocol header is sent unencrypted, even for
+	connections to TLS origin servers and cache_peers with "tls" option.
+	This allows some network services to extract PROXY protocol header
+	information before switching to forwarding of encrypted bytes. Future
+	enhancements may support optional encryption of PROXY protocol bytes.
+	 For now, no options are supported. TODO: Consider adding a _required_
+	"encrypt=no" option _now_, so that we can later change the _default_
+	logic from the current "never encrypt" to "encrypt=auto" (that would
+	depend on whether the next hop is using TLS).
+
+	When opening a CONNECT tunnel through a cache_peer, Squid sends the
+	PROXY protocol header before sending CONNECT request. PROXY protocol
+	header bytes and CONNECT request header bytes may share the same TCP
+	packet.
+
+	This clause only supports fast acl types.
+	See https://wiki.squid-cache.org/SquidFaq/SquidAcl for details.
+DOC_END
+
 NAME: follow_x_forwarded_for
 TYPE: acl_access
 IFDEF: FOLLOW_X_FORWARDED_FOR

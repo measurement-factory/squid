@@ -49,6 +49,9 @@
 #include "neighbors.h"
 #include "pconn.h"
 #include "PeerPoolMgr.h"
+#include "proxyp/Elements.h"
+#include "proxyp/Header.h"
+#include "proxyp/OutgoingHttpConfig.h"
 #include "ResolvedPeers.h"
 #include "security/BlindPeerConnector.h"
 #include "SquidConfig.h"
@@ -881,8 +884,14 @@ FwdState::noteConnection(HappyConnOpener::Answer &answer)
         return dispatch();
     }
 
+    sendProxyProtoHeaderIfNeeded(answer.conn);
+}
+
+void
+FwdState::tunnelIfNeeded(const Comm::ConnectionPointer &conn)
+{
     // Check if we need to TLS before use
-    if (const auto *peer = answer.conn->getPeer()) {
+    if (const auto *peer = conn->getPeer()) {
         // Assume that it is only possible for the client-first from the
         // bumping modes to try connect to a remote server. The bumped
         // requests with other modes are using pinned connections or fails.
@@ -896,12 +905,81 @@ FwdState::noteConnection(HappyConnOpener::Answer &answer)
         if (originWantsEncryptedTraffic && // the "encrypted traffic" part
                 !peer->options.originserver && // the "through a proxy" part
                 !peer->secure.encryptTransport) // the "exclude HTTPS proxies" part
-            return advanceDestination("establish tunnel through proxy", answer.conn, [this,&answer] {
-            establishTunnelThruProxy(answer.conn);
+            return advanceDestination("establish tunnel through proxy", conn, [this,&conn] {
+            establishTunnelThruProxy(conn);
         });
     }
 
-    secureConnectionToPeerIfNeeded(answer.conn);
+    secureConnectionToPeerIfNeeded(conn);
+}
+
+/// whether it is required to send Proxy protocol header
+bool
+FwdState::needProxyProtoHeader() const
+{
+    if (!Config.outgoingProxyProtocolHttp)
+        return false;
+
+    if (!Config.outgoingProxyProtocolHttp->aclList)
+        return true;
+
+    ACLFilledChecklist ch(Config.outgoingProxyProtocolHttp->aclList, request);
+    ch.al = al;
+    ch.syncAle(request, nullptr);
+    return ch.fastCheck().allowed();
+}
+
+void
+FwdState::sendProxyProtoHeaderIfNeeded(const Comm::ConnectionPointer &conn)
+{
+    if (needProxyProtoHeader()) {
+        static const SBuf v2("2.0");
+        ProxyProtocol::Header header(v2, ProxyProtocol::Two::cmdProxy);
+        header.sourceAddress = conn->local; // TODO: must be original source
+        header.destinationAddress = conn->remote;
+
+        MemBuf mb;
+        mb.init();
+        header.packInto(mb);
+        AsyncCall::Pointer call = commCbCall(17, 5, "FwdState::proxyHeaderSent",
+                CommIoCbPtrFun(&FwdState::proxyHeaderSent, this));
+        Comm::Write(conn, &mb, call);
+        return;
+    }
+
+    tunnelIfNeeded(conn);
+}
+
+/// resumes operations after the (possibly failed) Proxy protocol header sending
+void
+FwdState::proxyHeaderSent(const Comm::ConnectionPointer &conn, char *, size_t size, Comm::Flag errflag, int, void *data)
+{
+    auto fwd = reinterpret_cast<FwdState *>(data);
+
+    ErrorState *error = nullptr;
+
+    if (errflag == Comm::ERR_CLOSING)
+        return;
+
+    if (!Comm::IsConnOpen(conn) || fd_table[conn->fd].closing()) {
+        // The socket could get closed while our callback was queued. Sync
+        // Connection. XXX: Connection::fd may already be stale/invalid here.
+        fwd->closePendingConnection(conn, "conn was closed while waiting for FwdState::proxyHeaderSent");
+        error = new ErrorState(ERR_CANNOT_FORWARD, Http::scServiceUnavailable, fwd->request, fwd->al);
+    }
+
+    if (errflag != Comm::OK || size <= 0) {
+        conn->close();
+        return;
+    }
+
+    if (error) {
+        fwd->fail(error);
+        fwd->retryOrBail();
+        return;
+    }
+
+    fwd->tunnelIfNeeded(conn);
 }
 
 void
@@ -1139,7 +1217,7 @@ FwdState::connectStart()
         retriable = ch.fastCheck().allowed();
     }
     cs->setRetriable(retriable);
-    cs->allowPersistent(pconnRace != raceHappened);
+    cs->allowPersistent((pconnRace != raceHappened) && !needProxyProtoHeader());
     destinations->notificationPending = true; // start() is async
     transportWait.start(cs, callback);
 }
