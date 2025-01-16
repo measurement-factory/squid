@@ -89,26 +89,3 @@ BinaryPacker::pstring16(const char * const description, const SBuf &area)
     packOctets_(area.rawContent(), area.length());
     packed_(description, __FUNCTION__, area.length());
 }
-
-BinaryPacker
-BinaryPacker::pstringOpen16(const char * const description)
-{
-    // TODO: Move packed_() calls up (as packing_()) and Assure(!lock) in packing_().
-    lock_ = description;
-
-    // XXX: This does not optimize. To optimize, we have to std::move our
-    // output_ into the new packer after packing a 16-bit length placeholder.
-    return BinaryPacker();
-}
-
-void
-BinaryPacker::pstringClose16(BinaryPacker &&subPacker)
-{
-    Assure(lock_);
-    Assure(!subPacker.lock_);
-    std::swap(lock_, subPacker.lock_);
-
-    // Optimization XXX in pstringOpen16() applies to this companion method as well.
-    pstring16(subPacker.lock_, subPacker.packed());
-    subPacker.output_.clear();
-}

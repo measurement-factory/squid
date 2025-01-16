@@ -37,17 +37,6 @@ public:
     void pstring8(const char *description, const SBuf &); ///< up to 255 byte-long p-string
     void pstring16(const char *description, const SBuf &); ///< up to 64 KiB-long p-string
 
-    /// Optimization: Returns a packer that, when given to pstringClose16(), may
-    /// avoid serialized data copying while emulating pstring16() effects. Do
-    /// not call non-const methods of this packer object until pstringClose16()
-    /// is called with the packer returned by this method.
-    BinaryPacker pstringOpen16(const char *description);
-
-    /// Optimization: Commits serialized bytes accumulating in packer object
-    /// returned by the previous pstringOpen16() call. Do not call non-const
-    /// methods of this packer object after giving it to pstringClose16().
-    void pstringClose16(BinaryPacker &&);
-
     const SBuf &packed() const { return output_; }
 
 private:
@@ -58,11 +47,6 @@ private:
 private:
     /// serialized bytes accumulated so far
     SBuf output_;
-
-    /// pstringOpenX() description (for locked packers) or nil (for others):
-    /// Calling `y = x.pstringOpen16()` locks packer `x` while subsequent
-    /// `x.pstringClose16(y)` call unlocks packer `x` and locks packer `y`.
-    const char *lock_ = nullptr;
 };
 
 #endif /* SQUID_SRC_PARSER_BINARYPACKER_H */

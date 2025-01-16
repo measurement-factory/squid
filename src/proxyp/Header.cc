@@ -36,7 +36,7 @@ ProxyProtocol::Header::pack(BinaryPacker &pack) const
     const auto family = sourceAddress.isIPv4() ? Two::afInet : Two::afInet6;
     pack.uint8("socket family and transport protocol", (family << 4) | Two::tpStream);
 
-    auto tail = pack.pstringOpen16("addresses and TLVs");
+    BinaryPacker tail;
 
     tail.inet("src_addr", sourceAddress);
     tail.inet("dst_addr", destinationAddress);
@@ -48,7 +48,9 @@ ProxyProtocol::Header::pack(BinaryPacker &pack) const
         tail.pstring16("pp2_tlv::value", tlv.value);
     }
 
-    pack.pstringClose16(std::move(tail));
+    // Optimization TODO: This copy can be removed by packing length placeholder
+    // and std::moving BinaryPacker::output_ from `pack` into `tail` and back.
+    pack.pstring16("addresses and TLVs", tail.packed());
 }
 
 SBuf
