@@ -468,7 +468,7 @@ SawDirective(const T &raw)
 /// Extracts and interprets parser's configuration tokens.
 template <typename T>
 static void
-ParseDirective(T &raw, ConfigParser &parser)
+ParseUniqueDirective(T &raw, ConfigParser &parser)
 {
     if (SawDirective(raw))
         parser.rejectDuplicateDirective();
@@ -480,11 +480,25 @@ ParseDirective(T &raw, ConfigParser &parser)
     parser.closeDirective();
 }
 
+/// Like ParseUniqueDirective() but supports multiple same-name directive occurrences.
+template <typename T>
+static void
+ParseUpdatingDirective(T &raw, ConfigParser &parser)
+{
+    if (!SawDirective(raw)) {
+        Assure(!raw);
+        raw = Configuration::Component<T>::Create();
+    }
+    Assure(raw);
+    Configuration::Component<T>::ParseAndUpdate(raw, parser);
+    parser.closeDirective();
+}
+
 /// reports raw SquidConfig data member configuration using squid.conf syntax
 /// \param name the name of the configuration directive being dumped
 template <typename T>
 static void
-DumpDirective(const T &raw, StoreEntry *entry, const char *name)
+DumpUniqueDirective(const T &raw, StoreEntry * const entry, const char * const name)
 {
     if (!SawDirective(raw))
         return; // not configured
@@ -498,6 +512,19 @@ DumpDirective(const T &raw, StoreEntry *entry, const char *name)
         entry->append(buf.rawContent(), buf.length());
     }
     entry->append("\n", 1);
+}
+
+/// Like DumpUniqueDirective() but supports multiple same-name directive occurrences.
+template <typename T>
+static void
+DumpUpdatingDirective(const T &raw, StoreEntry * const entry, const char * const directiveName)
+{
+    if (!SawDirective(raw))
+        return; // not configured
+
+    Assure(entry);
+    PackableStream os(*entry);
+    Configuration::Component<T>::PrintDirectives(os, raw, directiveName);
 }
 
 /// frees any resources associated with the given raw SquidConfig data member
