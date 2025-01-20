@@ -931,22 +931,34 @@ FwdState::needProxyProtoHeader() const
 }
 
 void
+FwdState::createProxyProtoHeader()
+{
+    static const SBuf v2("2.0");
+    ProxyProtocol::Header header(v2, ProxyProtocol::Two::cmdProxy);
+
+	// XXX: configure destination
+    auto tmpDstAddr =  Ip::Address::Parse("23.192.228.80"); // example.com
+    tmpDstAddr->port(80);
+    header.destinationAddress = *tmpDstAddr;
+
+	// XXX: set source address properly (see, e.g., AccessLogEntry::getLogClientIp())
+    header.sourceAddress = al->request->client_addr;
+
+    BinaryPacker packer;
+    header.pack(packer);
+    proxyProtocolHeader = packer.packed();
+}
+
+void
 FwdState::sendProxyProtoHeaderIfNeeded(const Comm::ConnectionPointer &conn)
 {
-    if (needProxyProtoHeader()) {
-        static const SBuf v2("2.0");
-        ProxyProtocol::Header header(v2, ProxyProtocol::Two::cmdProxy);
-        header.sourceAddress = conn->local; // TODO: must be original source
-        header.destinationAddress = conn->remote;
-
-        BinaryPacker packer;
-        header.pack(packer);
-        const auto packed = packer.packed();
+    if (!proxyProtocolHeader.isEmpty()) {
 
         // XXX: Avoid this copying by adding an SBuf-friendly Comm::Write()!
         MemBuf mb;
         mb.init();
-        mb.append(packed.rawContent(), packed.length());
+        mb.append(proxyProtocolHeader.rawContent(), proxyProtocolHeader.length());
+        proxyProtocolHeader.clear();
 
         AsyncCall::Pointer call = commCbCall(17, 5, "FwdState::proxyHeaderSent",
                 CommIoCbPtrFun(&FwdState::proxyHeaderSent, this));
@@ -1211,6 +1223,11 @@ FwdState::connectStart()
     delete err;
     err = nullptr;
     request->clearError();
+    proxyProtocolHeader.clear();
+
+    const auto proxyHeaderOn = needProxyProtoHeader();
+    if (proxyHeaderOn)
+        createProxyProtoHeader();
 
     const auto callback = asyncCallback(17, 5, FwdState::noteConnection, this);
     HttpRequest::Pointer cause = request;
@@ -1224,7 +1241,7 @@ FwdState::connectStart()
         retriable = ch.fastCheck().allowed();
     }
     cs->setRetriable(retriable);
-    cs->allowPersistent((pconnRace != raceHappened) && !needProxyProtoHeader());
+    cs->allowPersistent((pconnRace != raceHappened) && !proxyHeaderOn);
     destinations->notificationPending = true; // start() is async
     transportWait.start(cs, callback);
 }
