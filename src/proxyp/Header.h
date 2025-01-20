@@ -85,26 +85,6 @@ private:
     bool ignoreAddresses_;
 };
 
-namespace One {
-/// magic octet prefix for PROXY protocol version 1
-inline const auto &
-Magic()
-{
-    static const auto magic = new SBuf("PROXY", 5);
-    return *magic;
-}
-}
-
-namespace Two {
-/// magic octet prefix for PROXY protocol version 2
-inline const auto &
-Magic()
-{
-    static const auto magic = new SBuf("\x0D\x0A\x0D\x0A\x00\x0D\x0A\x51\x55\x49\x54\x0A", 12);
-    return *magic;
-}
-}
-
 } // namespace ProxyProtocol
 
 #endif /* SQUID_SRC_PROXYP_HEADER_H */

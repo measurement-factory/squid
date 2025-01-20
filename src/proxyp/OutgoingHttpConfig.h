@@ -21,7 +21,7 @@ public:
 
     /// restrict logging to matching transactions
     ACLList *aclList = nullptr;
-};    
+};
 
 } // namespace ProxyProtocol
 
