@@ -1784,12 +1784,15 @@ DOC_START
 	decision is remade every time Squid has to reforward the request to a
 	different hop (e.g., another cache_peer).
 
-		http_outgoing_proxy_protocol [options] [if [!]<acl>...]
+		http_outgoing_proxy_protocol [options] <header>... [if [!]<acl>...]
 
 	For now, Squid only sends PROXY protocol v2 headers.
 
 	For now, Squid disables HTTP connection reuse after sending
 	the PROXY protocol header on that connection.
+
+	For now, no options are supported for this directive (XXX: Remove this
+	paragraph and [options] then, while still keeping future needs in mind).
 
 	For now, Squid does not support multiple http_outgoing_proxy_protocol
 	directives.
@@ -1808,6 +1811,88 @@ DOC_START
 	PROXY protocol header before sending CONNECT request. PROXY protocol
 	header bytes and CONNECT request header bytes may share the same TCP
 	packet.
+
+	Normally, Squid sends a "PROXY" command, but when sending a request
+	generated internally by Squid (instead of forwarding a request received
+	from a client), Squid uses PROXY protocol "LOCAL" command and fills the
+	protocol block (including the four mandatory address fields itemized
+	above) with zeros. PROXY protocol requires LOCAL command recipients to
+	"discard the protocol block". LOCAL commands may carry TLVs (see below).
+
+	The following four header fields are required. They must be configured in
+	the documented order. Their names and quoted brief descriptions are taken
+	from proxy_addr structure and the corresponding text in the PROXY protocol
+	specification. Squid enforces certain PROXY protocol header constraints,
+	but does not assign any specific meaning to header values.
+
+		* src_addr=ip: "source layer 3 address". This can be an IPv4 or IPv6
+		  address. If the value cannot be computed at header construction
+		  time, Squid uses IPv4 INADDR_ANY (i.e. 0.0.0.0) address and records
+		  a level-1 WARNING to cache.log. IP addresses are serialized into 4
+		  or 16 bytes, so any variations in their textual representation
+		  (e.g., "2001:0DB8::1" vs. "2001:0db8::0001") disappear from the
+		  PROXY protocol header recipient point of view.
+
+		* dst_addr=ip: "destination layer 3 address". See src_addr bullet
+		  above for handling details.
+
+		* src_port=number: "source layer 4 address". A decimal number from
+		  [0,65535] range. If the value cannot be computed at header
+		  construction time, Squid uses 0 and records a level-1 WARNING to
+		  cache.log.
+
+		* dst_port=number: "destination layer 4 address". See src_port bullet
+		  above for handling details.
+
+	PROXY protocol header structure requires src_addr and dst_addr IP families
+	to match. In case of a mismatch, Squid overwrites either src_addr or
+	dst_addr value to the other address family while preserving the only
+	non-zero field (if there is only one) or preserving src_addr (otherwise).
+	The overwritten address becomes INADDR_ANY (if the preserved address comes
+	from IPv4 family) or IN6ADDR_ANY_INIT (otherwise).
+
+	To also send an optional PROXY protocol TLV with a given type and value,
+	use the following syntax:
+
+		* type=value: Where "type" is a decimal or hex number from the [0xE0,
+		  0xEF] range that PROXY protocols reserves for "application-specific
+		  data". Decimal type values must not start with zero. Hex type values
+		  are case-insensitive and must start with a "0x" prefix.
+
+		  After %code expansion (if any, see below), Squid treats TLV values
+		  as opaque strings. Empty values (that must be specified as an empty
+		  quoted string) are not treated specially. If the value cannot be
+		  computed at header construction time or the computed value exceeds
+		  65535 bytes in length, Squid does not send this field and records a
+		  level-1 WARNING to cache.log.
+
+	Squid does not yet support sending well-known TLVs like PP2_TYPE_CRC32C.
+
+	Optional TLVs are sent in the order they are specified by the
+	http_outgoing_proxy_protocol directive. Using one TLV type multiple times
+	is allowed, but identical (at configuration interpretation time, before
+	logformat %code substitution) type=value entries lead to fatal
+	configuration errors.
+
+	Quoted (using "double quotes") header field values are supported. Squid
+	removes quotes before sending the field value. Quoted header field values
+	may contain logformat %code(s) that will be substituted at PROXY protocol
+	header construction time. These substitutions are subject to
+	log_uses_indirect_client directive. In most cases, Squid-to-peer
+	connection and response-related details are not available during these
+	substitutions because Squid has not opened the corresponding connection to
+	the peer yet.
+
+	Example:
+
+		http_outgoing_proxy_protocol \
+		    src_addr="%>a" \
+		    dst_addr="%<a" \
+		    src_port="%>p" \
+		    dst_port="%<p" \
+		    0xE0="%proxy_protocol::>h{224}" \
+		    0xE1="%note{myConnectionTag_}" \
+		    if toPeerThatExpectsProxyProtocol
 
 	This clause only supports fast acl types.
 	See https://wiki.squid-cache.org/SquidFaq/SquidAcl for details.
