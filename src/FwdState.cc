@@ -47,9 +47,9 @@
 #include "MemObject.h"
 #include "mgr/Registration.h"
 #include "neighbors.h"
+#include "parser/BinaryPacker.h"
 #include "pconn.h"
 #include "PeerPoolMgr.h"
-#include "parser/BinaryPacker.h"
 #include "proxyp/Elements.h"
 #include "proxyp/Header.h"
 #include "proxyp/OutgoingHttpConfig.h"
@@ -968,7 +968,7 @@ FwdState::sendProxyProtoHeaderIfNeeded(const Comm::ConnectionPointer &conn)
         mb.append(proxyProtocolHeader->rawContent(), proxyProtocolHeader->length());
 
         AsyncCall::Pointer call = commCbCall(17, 5, "FwdState::proxyHeaderSent",
-                CommIoCbPtrFun(&FwdState::proxyHeaderSent, this));
+                                             CommIoCbPtrFun(&FwdState::proxyHeaderSent, this));
         Comm::Write(conn, &mb, call);
         return;
     }

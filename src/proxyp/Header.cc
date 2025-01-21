@@ -7,15 +7,14 @@
  */
 
 #include "squid.h"
-#include "parser/BinaryPacker.h"
 #include "base/EnumIterator.h"
+#include "parser/BinaryPacker.h"
 #include "proxyp/Elements.h"
 #include "proxyp/Header.h"
 #include "sbuf/Stream.h"
 #include "sbuf/StringConvert.h"
 #include "SquidConfig.h"
 #include "StrList.h"
-
 
 ProxyProtocol::Header::Header(const SBuf &ver, const Two::Command cmd):
     version_(ver),

@@ -212,7 +212,7 @@ public:
     static void HandleStoreAbort(FwdState *);
 
     /// callback for sendProxyProtoHeaderIfNeeded()
-    static void proxyHeaderSent(const Comm::ConnectionPointer &, char *, size_t , Comm::Flag , int, void *data);
+    static void proxyHeaderSent(const Comm::ConnectionPointer &, char *, size_t, Comm::Flag, int, void *data);
 
 private:
     Pointer self;
