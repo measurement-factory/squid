@@ -1776,10 +1776,13 @@ DEFAULT: none
 DEFAULT_DOC: Squid does not send PROXY protocol headers
 DOC_START
 	Determines which Squid-to-peer HTTP connections start with a PROXY
-	protocol header. The decision is made before Squid selects the next
-	forwarding hop (e.g., the source and destination IP addresses of
-	Squid-to-peer connection are not known). The decision is made every
-	time Squid has to (re)forward the request.
+	protocol header. The first decision is made after Squid selects the next
+	forwarding hop for the request but before Squid determines that hop IP
+	address. Thus, at the decision-making time, the HTTP or FTP peer (e.g.,
+	cache_peer name or origin server hostname) is known, but the source and
+	destination IP addresses of a Squid-to-peer connection may be unknown. The
+	decision is remade every time Squid has to reforward the request to a
+	different hop (e.g., another cache_peer).
 
 		http_outgoing_proxy_protocol [options] [if [!]<acl>...]
 
@@ -1787,6 +1790,9 @@ DOC_START
 
 	For now, Squid disables HTTP connection reuse after sending
 	the PROXY protocol header on that connection.
+
+	For now, Squid does not support multiple http_outgoing_proxy_protocol
+	directives.
 
 	For now, PROXY protocol header is sent unencrypted, even for
 	connections to TLS origin servers and cache_peers with "tls" option.
