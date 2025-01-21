@@ -175,7 +175,7 @@ private:
     void establishTunnelThruProxy(const Comm::ConnectionPointer &);
     void tunnelEstablishmentDone(Http::TunnelerAnswer &answer);
     bool needProxyProtoHeader() const;
-    void createProxyProtoHeader();
+    void createProxyProtoHeaderIfNeeded();
     void sendProxyProtoHeaderIfNeeded(const Comm::ConnectionPointer &);
     void tunnelIfNeeded(const Comm::ConnectionPointer &);
     void secureConnectionToPeerIfNeeded(const Comm::ConnectionPointer &);
@@ -206,7 +206,7 @@ public:
     StoreEntry *entry;
     HttpRequest *request;
     AccessLogEntryPointer al; ///< info for the future access.log entry
-    SBuf proxyProtocolHeader;
+    std::optional<SBuf> proxyProtocolHeader;
 
     /// called by Store if the entry is no longer usable
     static void HandleStoreAbort(FwdState *);
