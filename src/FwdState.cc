@@ -1245,7 +1245,7 @@ FwdState::connectStart()
         retriable = ch.fastCheck().allowed();
     }
     cs->setRetriable(retriable);
-    cs->allowPersistent((pconnRace != raceHappened) && proxyProtocolHeader);
+    cs->allowPersistent((pconnRace != raceHappened) && !proxyProtocolHeader);
     destinations->notificationPending = true; // start() is async
     transportWait.start(cs, callback);
 }
