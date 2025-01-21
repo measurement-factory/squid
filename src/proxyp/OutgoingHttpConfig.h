@@ -9,6 +9,12 @@
 #ifndef SQUID_SRC_PROXYP_OUTGOING_HTTP_CONFIG_H
 #define SQUID_SRC_PROXYP_OUTGOING_HTTP_CONFIG_H
 
+#include <acl/forward.h>
+
+#include <iosfwd>
+
+class ConfigParser;
+
 namespace ProxyProtocol {
 
 /// an http_outgoing_proxy_protocol irective configuration
