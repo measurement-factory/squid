@@ -941,13 +941,8 @@ FwdState::createProxyProtoHeaderIfNeeded()
     static const SBuf v2("2.0");
     ProxyProtocol::Header header(v2, ProxyProtocol::Two::cmdProxy);
 
-    // XXX: configure destination
-    auto tmpDstAddr =  Ip::Address::Parse("23.192.228.80"); // example.com
-    tmpDstAddr->port(80);
-    header.destinationAddress = *tmpDstAddr;
-
-    // XXX: set source address properly (see, e.g., AccessLogEntry::getLogClientIp())
-    header.sourceAddress = al->request->client_addr;
+    header.sourceAddress = Config.outgoingProxyProtocolHttp->srcAddr(al);
+    header.destinationAddress = Config.outgoingProxyProtocolHttp->dstAddr(al);
 
     // XXX: for testing, remove
     header.tlvs.emplace_back(198, SBuf("foo"));
