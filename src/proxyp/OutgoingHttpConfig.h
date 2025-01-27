@@ -10,9 +10,12 @@
 #define SQUID_SRC_PROXYP_OUTGOINGHTTPCONFIG_H
 
 #include <acl/forward.h>
+#include <ip/Address.h>
 #include <log/forward.h>
+#include <proxyp/Elements.h>
 
 #include <iosfwd>
+#include <optional>
 
 class ConfigParser;
 
@@ -22,51 +25,101 @@ namespace ProxyProtocol {
 class Option : public RefCountable
 {
 public:
-    typedef RefCount<Option> Pointer;
-
-    explicit Option(const char *aName);
     Option(const char *aName, const char *aVal, bool quoted);
     ~Option() { delete valueFormat; }
 
-    /// parses the value as a logformat string
-    void parse();
-
-    /// \return the formatted value with expanded logformat %macros (quoted values).
-    /// \return the original value (non-quoted values).
-    const SBuf &format(const AccessLogEntryPointer &al);
+    /// expands logformat %macros (quoted values)
+    void format(const AccessLogEntryPointer &al);
 
     SBuf theName;  ///< Configured option name
     SBuf theValue; ///< Configured option value, possibly with %macros.
 
-private:
+protected:
+    virtual void parse(const SBuf &) = 0;
+
     Format::Format *valueFormat; ///< compiled value format
 
     /// The expanded value produced by format(), empty for non-quoted values.
     SBuf theFormattedValue;
+private:
+    /// parses the value as a logformat string
+    void parseFormat();
+};
+
+class AddrOption : public Option
+{
+public:
+	AddrOption(const char *aName, const char *aVal, bool quoted);
+
+	Ip::Address address() const { Assure(address_); return *address_; }
+protected:
+    void parse(const SBuf &) override;
+
+	std::optional<Ip::Address> address_;
+
+	friend class OutgoingHttpConfig;
+};
+
+class PortOption : public Option
+{
+public:
+	PortOption(const char *aName, const char *aVal, bool quoted);
+
+	unsigned short port() const { Assure(port_); return *port_; }
+
+protected:
+    void parse(const SBuf &) override;
+
+	std::optional<unsigned short> port_;
+};
+
+class TlvOption : public Option
+{
+public:
+    typedef RefCount<TlvOption> Pointer;
+
+	TlvOption(const char *aName, const char *aVal, bool quoted);
+
+	SBuf value() const { return theFormattedValue.isEmpty() ? theValue : theFormattedValue; }
+	uint8_t type() const { return type_; }
+
+protected:
+    void parse(const SBuf &) override;
+
+    uint8_t type_;
 };
 
 /// an http_outgoing_proxy_protocol directive configuration
 class OutgoingHttpConfig
 {
 public:
+    using Tlvs =  std::vector<Two::Tlv>;
+
     explicit OutgoingHttpConfig(ConfigParser &);
 
     void dump(std::ostream &);
 
-    void parseOptions(ConfigParser &);
-
-    Ip::Address srcAddr(const AccessLogEntryPointer &al) const { return getAddr(al, 0, 2); }
-    Ip::Address dstAddr(const AccessLogEntryPointer &al) const { return getAddr(al, 1, 3); }
+    void fill(ProxyProtocol::Header &header, const AccessLogEntryPointer &);
 
     /// restrict logging to matching transactions
     ACLList *aclList = nullptr;
 
 private:
-    Ip::Address getAddr(const AccessLogEntryPointer &, const size_t addrIdx, const size_t portIdx) const;
+    void parseOptions(ConfigParser &);
+    void getAddresses(Ip::Address &src, Ip::Address &dst, const AccessLogEntryPointer &);
+    void getTlvs(Tlvs &, const AccessLogEntryPointer &) const;
 
-    using Options = std::vector<Option::Pointer>;
-    Options params; // all configured options, with fixed order for required options
+    void parseAddress(const char *optionName);
+    void parsePort(const char *optionName);
+    const char *requiredValue(const char *optionName);
+    void adjustAddresses(bool enforce);
 
+    AddrOption *srcAddr;
+    AddrOption *dstAddr;
+    PortOption *srcPort;
+    PortOption *dstPort;
+    using TlvOptions = std::vector<TlvOption::Pointer>;
+    TlvOptions tlvOptions; // all configured options, with fixed order for required options
 };
 
 } // namespace ProxyProtocol

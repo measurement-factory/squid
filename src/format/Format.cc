@@ -113,6 +113,18 @@ Format::AssembleOne(const char *token, MemBuf &mb, const AccessLogEntryPointer &
     return static_cast<size_t>(tokenSize);
 }
 
+bool
+Format::Format::hasPercentCode() const
+{
+    for (const Format *fmt = this; fmt; fmt = fmt->next) {
+        for (Token *t = fmt->format; t; t = t->next) {
+            if (t->type != LFT_STRING)
+                return true;
+        }
+    }
+    return false;
+}
+
 void
 Format::Format::dump(StoreEntry * entry, const char *directiveName, bool eol) const
 {

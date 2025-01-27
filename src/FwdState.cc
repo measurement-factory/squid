@@ -940,13 +940,7 @@ FwdState::createProxyProtoHeaderIfNeeded()
 
     static const SBuf v2("2.0");
     ProxyProtocol::Header header(v2, ProxyProtocol::Two::cmdProxy);
-
-    header.sourceAddress = Config.outgoingProxyProtocolHttp->srcAddr(al);
-    header.destinationAddress = Config.outgoingProxyProtocolHttp->dstAddr(al);
-
-    // XXX: for testing, remove
-    header.tlvs.emplace_back(198, SBuf("foo"));
-    header.tlvs.emplace_back(199, SBuf("bar"));
+    Config.outgoingProxyProtocolHttp->fill(header, al);
 
     BinaryPacker packer;
     header.pack(packer);
