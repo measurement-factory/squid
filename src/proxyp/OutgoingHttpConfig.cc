@@ -60,7 +60,7 @@ ParseAddr(const SBuf &val)
 
 ProxyProtocol::AddrOption::AddrOption(const char *aName, const char *aVal, bool quoted) : Option(aName, aVal, quoted)
 {
-    if (!valueFormat->hasPercentCode())
+    if (!valueFormat || !valueFormat->hasPercentCode())
         address_ = ParseAddr(theValue);
 }
 
@@ -92,7 +92,7 @@ ParsePort(const SBuf &val)
 
 ProxyProtocol::PortOption::PortOption(const char *aName, const char *aVal, bool quoted) : Option(aName, aVal, quoted)
 {
-    if (!valueFormat->hasPercentCode())
+    if (!valueFormat || !valueFormat->hasPercentCode())
         port_ = ParsePort(theValue);
 }
 
@@ -123,7 +123,7 @@ ProxyProtocol::TlvOption::TlvOption(const char *aName, const char *aVal, bool qu
         throw TextException(ToSBuf("expected tlv type as a decimal or hex number in the [0xE0, 0xEF] range but got ", theName), Here());
     tlvType_ = static_cast<uint8_t>(t);
 
-    if (!valueFormat->hasPercentCode())
+    if (!valueFormat || !valueFormat->hasPercentCode())
         tlvValue_ = theValue;
 }
 
