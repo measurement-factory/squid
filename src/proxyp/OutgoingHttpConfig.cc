@@ -75,7 +75,7 @@ ProxyProtocol::AddrOption::address(const AccessLogEntryPointer &al) const
         return ParseAddr(formattedValue);
     } catch (...) {
         debugs(17, DBG_IMPORTANT, "WARNING: failed to get formatted address" <<
-                Debug::Extra << "problem: " << CurrentException);
+               Debug::Extra << "problem: " << CurrentException);
         return std::nullopt;
     }
 }
@@ -96,7 +96,6 @@ ProxyProtocol::PortOption::PortOption(const char *aName, const char *aVal, bool 
         port_ = ParsePort(theValue);
 }
 
-
 ProxyProtocol::PortOption::Port
 ProxyProtocol::PortOption::port(const AccessLogEntryPointer &al) const
 {
@@ -108,7 +107,7 @@ ProxyProtocol::PortOption::port(const AccessLogEntryPointer &al) const
         return ParsePort(formattedValue);
     } catch (...) {
         debugs(17, DBG_IMPORTANT, "WARNING: failed to get formatted port" <<
-                Debug::Extra << "problem: " << CurrentException);
+               Debug::Extra << "problem: " << CurrentException);
         return std::nullopt;
     }
 }
@@ -138,7 +137,7 @@ ProxyProtocol::TlvOption::tlvValue(const AccessLogEntryPointer &al) const
         return TlvValue(processFormat(al));
     } catch (...) {
         debugs(17, DBG_IMPORTANT, "WARNING: failed to get formatted tlv value" <<
-                Debug::Extra << "problem: " << CurrentException);
+               Debug::Extra << "problem: " << CurrentException);
         return std::nullopt;
     }
 }
@@ -174,7 +173,7 @@ ProxyProtocol::OutgoingHttpConfig::fillAddresses(Ip::Address &src, Ip::Address &
     } catch (...)
     {
         debugs(17, DBG_IMPORTANT, "WARNING: could not parse or match addresses, enforcing defaults." <<
-                Debug::Extra << "problem: " << CurrentException);
+               Debug::Extra << "problem: " << CurrentException);
     }
     auto p = srcPort->port(al);
     src.port(p ? *p : 0);
@@ -219,7 +218,7 @@ ProxyProtocol::OutgoingHttpConfig::adjustAddresses(Ip::Address &adjustedSrc, Ip:
     }
 
     if (!src->isAnyAddr() && !dst->isAnyAddr())
-        throw TextException(ToSBuf("Address family mismatch: ", srcAddr->theName, "(", *src, ") and " , dstAddr->theName, "(", *dst, ")"), Here());
+        throw TextException(ToSBuf("Address family mismatch: ", srcAddr->theName, "(", *src, ") and ", dstAddr->theName, "(", *dst, ")"), Here());
 
     if (src->isIPv4()) // dst.isIPv6
     {
@@ -279,7 +278,7 @@ ProxyProtocol::OutgoingHttpConfig::parseOptions(ConfigParser &parser)
     // optional tlvs
     while (parser.optionalKvPair(key, value)) {
         const auto it =  std::find_if(tlvOptions.begin(), tlvOptions.end(), [&](const TlvOption::Pointer &p) {
-                return p->theName == SBuf(key) && p->theValue == SBuf(value);
+            return p->theName == SBuf(key) && p->theValue == SBuf(value);
         });
         if (it != tlvOptions.end()) {
             throw TextException(ToSBuf("duplicate option: ", key, "=", value), Here());
