@@ -10,6 +10,7 @@
 #define SQUID_SRC_PROXYP_OUTGOINGHTTPCONFIG_H
 
 #include <acl/forward.h>
+#include "format/Format.h"
 #include <ip/Address.h>
 #include <log/forward.h>
 #include <proxyp/Elements.h>

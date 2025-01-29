@@ -116,7 +116,7 @@ Format::AssembleOne(const char *token, MemBuf &mb, const AccessLogEntryPointer &
 bool
 Format::Format::hasPercentCode() const
 {
-    for (Token *t = this->format; t; t = t->next) {
+    for (auto t = format; t; t = t->next) {
         if (t->type != LFT_STRING)
             return true;
     }

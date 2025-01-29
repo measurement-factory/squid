@@ -14,7 +14,6 @@
 #include "base/TextException.h"
 #include "cache_cf.h"
 #include "ConfigOption.h"
-#include "format/Format.h"
 #include "parser/Tokenizer.h"
 #include "proxyp/Header.h"
 #include "proxyp/OutgoingHttpConfig.h"
@@ -40,13 +39,11 @@ ProxyProtocol::Option::parseFormat()
 SBuf
 ProxyProtocol::Option::processFormat(const AccessLogEntryPointer &al) const
 {
-    if (valueFormat) {
-        static MemBuf mb;
-        mb.reset();
-        valueFormat->assemble(mb, al, 0);
-        return SBuf(mb.content());
-    }
-    return theValue;
+    Assure(valueFormat);
+    static MemBuf mb;
+    mb.reset();
+    valueFormat->assemble(mb, al, 0);
+    return SBuf(mb.content());
 }
 
 static std::optional<Ip::Address>
@@ -64,6 +61,14 @@ ProxyProtocol::AddrOption::AddrOption(const char *aName, const char *aVal, bool 
         address_ = ParseAddr(theValue);
 }
 
+static std::nullopt_t
+FormatFailure(const SBuf &what)
+{
+    debugs(17, DBG_IMPORTANT, "WARNING: could not process logformat for " << what <<
+           Debug::Extra << "problem: " << CurrentException);
+    return std::nullopt;
+}
+
 ProxyProtocol::AddrOption::Addr
 ProxyProtocol::AddrOption::address(const AccessLogEntryPointer &al) const
 {
@@ -74,9 +79,7 @@ ProxyProtocol::AddrOption::address(const AccessLogEntryPointer &al) const
         const auto formattedValue = processFormat(al);
         return ParseAddr(formattedValue);
     } catch (...) {
-        debugs(17, DBG_IMPORTANT, "WARNING: failed to get formatted address" <<
-               Debug::Extra << "problem: " << CurrentException);
-        return std::nullopt;
+        return FormatFailure(theName);
     }
 }
 
@@ -106,9 +109,7 @@ ProxyProtocol::PortOption::port(const AccessLogEntryPointer &al) const
         const auto formattedValue = processFormat(al);
         return ParsePort(formattedValue);
     } catch (...) {
-        debugs(17, DBG_IMPORTANT, "WARNING: failed to get formatted port" <<
-               Debug::Extra << "problem: " << CurrentException);
-        return std::nullopt;
+        return FormatFailure(theName);
     }
 }
 
@@ -136,9 +137,7 @@ ProxyProtocol::TlvOption::tlvValue(const AccessLogEntryPointer &al) const
     {
         return TlvValue(processFormat(al));
     } catch (...) {
-        debugs(17, DBG_IMPORTANT, "WARNING: failed to get formatted tlv value" <<
-               Debug::Extra << "problem: " << CurrentException);
-        return std::nullopt;
+        return FormatFailure(theName);
     }
 }
 
@@ -196,6 +195,7 @@ ProxyProtocol::OutgoingHttpConfig::adjustAddresses(Ip::Address &adjustedSrc, Ip:
     auto src = srcAddr->address(al);
     auto dst = dstAddr->address(al);
 
+    // source and/or destination are missing
     if (!src && !dst) {
         // IPv4 by default
         adjustedSrc = Ip::Address::AnyAddrIPv4();
@@ -211,36 +211,32 @@ ProxyProtocol::OutgoingHttpConfig::adjustAddresses(Ip::Address &adjustedSrc, Ip:
         return;
     }
 
+    // source and destination have the same address family
     if (src->isIPv4() == dst->isIPv4()) {
         adjustedSrc = *src;
         adjustedDst = *dst;
         return;
     }
 
-    if (!src->isAnyAddr() && !dst->isAnyAddr())
-        throw TextException(ToSBuf("Address family mismatch: ", srcAddr->theName, "(", *src, ") and ", dstAddr->theName, "(", *dst, ")"), Here());
+    // source and destination have different address family
 
-    if (src->isIPv4()) // dst.isIPv6
-    {
-        if (!src->isAnyAddr()) {
-            adjustedSrc = *src;
-            adjustedDst = Ip::Address::AnyAddrIPv4();
-        } else if (!dst->isAnyAddr()) {
-            adjustedSrc = Ip::Address::AnyAddrIPv4();
-            adjustedDst = *dst;
-        } else { // src.isAnyAddr() && dst.isAnyAddr()
-            adjustedDst = Ip::Address::AnyAddrIPv4();
-        }
-    } else { // src.isIPv6() && dst.isIPv4()
-        if (!src->isAnyAddr()) {
-            adjustedSrc = *src;
-            adjustedDst = Ip::Address::AnyAddrIPv6();
-        } else if (!dst->isAnyAddr()) {
-            adjustedSrc = Ip::Address::AnyAddrIPv6();
-            adjustedDst = *dst;
-        } else { // src.isAnyAddr() && dst.isAnyAddr()
-            adjustedDst = Ip::Address::AnyAddrIPv6();
-        }
+    // source and destination are non-empty
+    if (!src->isAnyAddr() && !dst->isAnyAddr()) {
+        adjustedSrc = *src;
+        adjustedDst = src->isIPv4() ? Ip::Address::AnyAddrIPv4() : Ip::Address::AnyAddrIPv6();
+        throw TextException(ToSBuf("Address family mismatch: ", srcAddr->theName, "(", *src, ") and ", dstAddr->theName, "(", *dst, ")"), Here());
+    }
+
+    // source and/or destination are empty
+    if (!src->isAnyAddr()) {
+        adjustedSrc = *src;
+        adjustedDst = src->isIPv4() ? Ip::Address::AnyAddrIPv4() : Ip::Address::AnyAddrIPv6();
+    } else if (!dst->isAnyAddr()) {
+        adjustedSrc = dst->isIPv4() ? Ip::Address::AnyAddrIPv4() : Ip::Address::AnyAddrIPv6();
+        adjustedDst = *dst;
+    } else { // if source and destination are empty, keep the source family and adjust destination
+        adjustedSrc = *src;
+        adjustedDst = src->isIPv4() ? Ip::Address::AnyAddrIPv4() : Ip::Address::AnyAddrIPv6();
     }
 }
 
