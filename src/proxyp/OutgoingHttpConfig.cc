@@ -253,7 +253,7 @@ ProxyProtocol::OutgoingHttpConfig::requiredValue(const char *name)
     if(!ConfigParser::NextKvPair(key, value))
         throw TextException(ToSBuf("missing ", name, " option"), Here());
     if (strcmp(name, key) != 0)
-        throw TextException(ToSBuf("expecting ", name, ", but got ", key, " option"), Here());
+        throw TextException(ToSBuf("expected ", name, ", but got ", key, " option"), Here());
     return value;
 }
 

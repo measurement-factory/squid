@@ -46,6 +46,7 @@ private:
 class AddrOption : public Option
 {
 public:
+    using Pointer =  RefCount<AddrOption>;
     using Addr = std::optional<Ip::Address>;
 
     AddrOption(const char *aName, const char *aVal, bool quoted);
@@ -62,6 +63,7 @@ protected:
 class PortOption : public Option
 {
 public:
+    using Pointer =  RefCount<PortOption>;
     using Port = std::optional<unsigned short>;
 
     PortOption(const char *aName, const char *aVal, bool quoted);
@@ -114,10 +116,10 @@ private:
     const char *requiredValue(const char *optionName);
     void adjustAddresses(Ip::Address &adjustedSrc, Ip::Address &adjustedDst, const AccessLogEntryPointer &al);
 
-    AddrOption *srcAddr;
-    AddrOption *dstAddr;
-    PortOption *srcPort;
-    PortOption *dstPort;
+    AddrOption::Pointer srcAddr;
+    AddrOption::Pointer dstAddr;
+    PortOption::Pointer srcPort;
+    PortOption::Pointer dstPort;
     using TlvOptions = std::vector<TlvOption::Pointer>;
     TlvOptions tlvOptions; // all configured options, with fixed order for required options
 };
