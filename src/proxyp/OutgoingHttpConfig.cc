@@ -29,6 +29,7 @@ ProxyProtocol::Option::Option(const char *aName, const char *aVal, bool quoted)
 void
 ProxyProtocol::Option::parseFormat()
 {
+    Assure(!valueFormat);
     valueFormat = new Format::Format(theName.c_str());
     if (!valueFormat->parse(theValue.c_str())) {
         delete valueFormat;
@@ -89,7 +90,7 @@ ParsePort(const SBuf &val)
     Parser::Tokenizer tok(val);
     int64_t p = -1;
     if (!tok.int64(p, 10, false) || (p > std::numeric_limits<uint16_t>::max()))
-        throw TextException(ToSBuf("Cannot parse '", val, "' as an IP port"), Here());
+        throw TextException(ToSBuf("Could not parse '", val, "' as an IP port"), Here());
     return p;
 }
 
@@ -121,7 +122,7 @@ ProxyProtocol::TlvOption::TlvOption(const char *aName, const char *aVal, bool qu
     int64_t t = -1;
     Parser::Tokenizer tok(theName);
     if (!tok.int64(t, 0, false) || (t < typeMin || t > typeMax))
-        throw TextException(ToSBuf("expected tlv type as a decimal or hex number in the [0xE0, 0xEF] range but got ", theName), Here());
+        throw TextException(ToSBuf("Expected tlv type as a decimal or hex number in the [0xE0, 0xEF] range but got ", theName), Here());
     tlvType_ = static_cast<uint8_t>(t);
 
     if (!valueFormat || !valueFormat->hasPercentCode())
@@ -271,13 +272,13 @@ ProxyProtocol::OutgoingHttpConfig::parseOptions(ConfigParser &parser)
     char *key = nullptr;
     char *value = nullptr;
 
-    // optional tlvs
+    // optional TLVs
     while (parser.optionalKvPair(key, value)) {
         const auto it =  std::find_if(tlvOptions.begin(), tlvOptions.end(), [&](const TlvOption::Pointer &p) {
             return p->theName == SBuf(key) && p->theValue == SBuf(value);
         });
         if (it != tlvOptions.end()) {
-            throw TextException(ToSBuf("duplicate option: ", key, "=", value), Here());
+            throw TextException(ToSBuf("duplicate TLV option: ", key, "=", value), Here());
         }
         tlvOptions.push_back(new TlvOption(key, value, ConfigParser::LastTokenWasQuoted()));
     }
