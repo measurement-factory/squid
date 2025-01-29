@@ -14,16 +14,24 @@
 #include "base/TextException.h"
 #include "cache_cf.h"
 #include "ConfigOption.h"
+#include "ConfigParser.h"
 #include "parser/Tokenizer.h"
 #include "proxyp/Header.h"
 #include "proxyp/OutgoingHttpConfig.h"
 #include "sbuf/Stream.h"
+#include "sbuf/StringConvert.h"
 
 ProxyProtocol::Option::Option(const char *aName, const char *aVal, bool quoted)
     : theName(aName), theValue(aVal), valueFormat(nullptr)
 {
     if (quoted)
         parseFormat();
+}
+
+void
+ProxyProtocol::Option::dump(std::ostream &os)
+{
+    os << theName << '=' << ConfigParser::QuoteString(SBufToString(theValue));
 }
 
 void
@@ -151,7 +159,20 @@ ProxyProtocol::OutgoingHttpConfig::OutgoingHttpConfig(ConfigParser &parser)
 void
 ProxyProtocol::OutgoingHttpConfig::dump(std::ostream &os)
 {
+    const char separator = ' ';
+    srcAddr->dump(os);
+    os << separator;
+    dstAddr->dump(os);
+    os << separator;
+    srcPort->dump(os);
+    os << separator;
+    dstPort->dump(os);
+    for (const auto &t : tlvOptions) {
+        os << separator;
+        t->dump(os);
+    }
     if (aclList) {
+        os << separator;
         // TODO: Use Acl::dump() after fixing the XXX in dump_acl_list().
         for (const auto &acl: ToTree(aclList).treeDump("if", &Acl::AllowOrDeny))
             os << ' ' << acl;

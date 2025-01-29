@@ -29,6 +29,8 @@ public:
     Option(const char *aName, const char *aVal, bool quoted);
     virtual ~Option() { delete valueFormat; }
 
+    void dump(std::ostream &);
+
     SBuf theName;  ///< Configured option name
     SBuf theValue; ///< Configured option value, possibly with %macros.
 
