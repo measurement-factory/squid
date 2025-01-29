@@ -321,10 +321,10 @@ public:
     static const Address &NoAddr() { static const Address noAddr(v6_noaddr); return noAddr; }
 
     /// \returns an IPv4 Address with true isAnyAddr()
-    static const Address &AnyAddrIPv4() { static Address anyAddr; anyAddr.mSocketAddr_.sin6_family = AF_INET; return anyAddr; }
+    static const Address &AnyAddrIPv4();
 
     /// \returns an IPv6 Address with true isAnyAddr()
-    static const Address &AnyAddrIPv6() { static Address anyAddr; anyAddr.mSocketAddr_.sin6_family = AF_INET6; return anyAddr; }
+    static const Address &AnyAddrIPv6();
 
 public:
     /* XXX: When C => C++ conversion is done will be fully private.

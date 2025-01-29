@@ -37,52 +37,80 @@ ProxyProtocol::Option::parseFormat()
     }
 }
 
-void
-ProxyProtocol::Option::format(const AccessLogEntryPointer &al)
+SBuf
+ProxyProtocol::Option::processFormat(const AccessLogEntryPointer &al) const
 {
-    if (al && valueFormat) {
+    if (valueFormat) {
         static MemBuf mb;
         mb.reset();
         valueFormat->assemble(mb, al, 0);
-        theFormattedValue.assign(mb.content());
-        parse(theFormattedValue);
+        return SBuf(mb.content());
     }
+    return theValue;
+}
+
+static std::optional<Ip::Address>
+ParseAddr(const SBuf &val)
+{
+    const auto addr = Ip::Address::Parse(SBuf(val).c_str());
+    if (!addr)
+        throw TextException(ToSBuf("Cannot parse '", val, "' as an IP address"), Here());
+    return addr;
 }
 
 ProxyProtocol::AddrOption::AddrOption(const char *aName, const char *aVal, bool quoted) : Option(aName, aVal, quoted)
 {
-    if (valueFormat->hasPercentCode())
-        parse(theValue);
+    if (!valueFormat->hasPercentCode())
+        address_ = ParseAddr(theValue);
 }
 
-void
-ProxyProtocol::AddrOption::parse(const SBuf &val)
+ProxyProtocol::AddrOption::Addr
+ProxyProtocol::AddrOption::address(const AccessLogEntryPointer &al) const
 {
-    if (address_ && !valueFormat->hasPercentCode())
-        return; // already parsed
+    if(address_)
+        return address_;
+    try
+    {
+        const auto formattedValue = processFormat(al);
+        return ParseAddr(formattedValue);
+    } catch (...) {
+        debugs(17, DBG_IMPORTANT, "WARNING: failed to get formatted address" <<
+                Debug::Extra << "problem: " << CurrentException);
+        return std::nullopt;
+    }
+}
 
-    address_ = Ip::Address::Parse(SBuf(val).c_str());
-    if (!address_)
-        throw TextException(ToSBuf("Cannot parse '", val, "' of ", theName, " option"), Here());
+static unsigned short
+ParsePort(const SBuf &val)
+{
+    Parser::Tokenizer tok(val);
+    int64_t p = -1;
+    if (!tok.int64(p, 10, false) || (p > std::numeric_limits<uint16_t>::max()))
+        throw TextException(ToSBuf("Cannot parse '", val, "' as an IP port"), Here());
+    return p;
 }
 
 ProxyProtocol::PortOption::PortOption(const char *aName, const char *aVal, bool quoted) : Option(aName, aVal, quoted)
 {
     if (!valueFormat->hasPercentCode())
-        parse(theValue);
+        port_ = ParsePort(theValue);
 }
 
-void
-ProxyProtocol::PortOption::parse(const SBuf &val)
-{
-    if (port_ && !valueFormat->hasPercentCode())
-        return; // already parsed
 
-    Parser::Tokenizer tok(val);
-    int64_t p = -1;
-    if (!tok.int64(p, 10, false) || (p > std::numeric_limits<uint16_t>::max()))
-        throw TextException(ToSBuf("Cannot parse '", theValue, "' of ", theName, " option"), Here());
-    port_ = p;
+ProxyProtocol::PortOption::Port
+ProxyProtocol::PortOption::port(const AccessLogEntryPointer &al) const
+{
+    if(port_)
+        return *port_;
+    try
+    {
+        const auto formattedValue = processFormat(al);
+        return ParsePort(formattedValue);
+    } catch (...) {
+        debugs(17, DBG_IMPORTANT, "WARNING: failed to get formatted port" <<
+                Debug::Extra << "problem: " << CurrentException);
+        return std::nullopt;
+    }
 }
 
 ProxyProtocol::TlvOption::TlvOption(const char *aName, const char *aVal, bool quoted) : Option(aName, aVal, quoted)
@@ -93,8 +121,26 @@ ProxyProtocol::TlvOption::TlvOption(const char *aName, const char *aVal, bool qu
     int64_t t = -1;
     Parser::Tokenizer tok(theName);
     if (!tok.int64(t, 0, false) || (t < typeMin || t > typeMax))
-        throw TextException(ToSBuf("expecting tlv type as a decimal or hex number in the [0xE0, 0xEF] range but got ", theName), Here());
-    type_ = static_cast<uint8_t>(t);
+        throw TextException(ToSBuf("expected tlv type as a decimal or hex number in the [0xE0, 0xEF] range but got ", theName), Here());
+    tlvType_ = static_cast<uint8_t>(t);
+
+    if (!valueFormat->hasPercentCode())
+        tlvValue_ = theValue;
+}
+
+ProxyProtocol::TlvOption::TlvValue
+ProxyProtocol::TlvOption::tlvValue(const AccessLogEntryPointer &al) const
+{
+    if(tlvValue_)
+        return *tlvValue_;
+    try
+    {
+        return TlvValue(processFormat(al));
+    } catch (...) {
+        debugs(17, DBG_IMPORTANT, "WARNING: failed to get formatted tlv value" <<
+                Debug::Extra << "problem: " << CurrentException);
+        return std::nullopt;
+    }
 }
 
 ProxyProtocol::OutgoingHttpConfig::OutgoingHttpConfig(ConfigParser &parser)
@@ -116,88 +162,85 @@ ProxyProtocol::OutgoingHttpConfig::dump(std::ostream &os)
 void
 ProxyProtocol::OutgoingHttpConfig::fill(ProxyProtocol::Header &header, const AccessLogEntryPointer &al)
 {
-    getAddresses(header.sourceAddress, header.destinationAddress, al);
-    getTlvs(header.tlvs, al);
+    fillAddresses(header.sourceAddress, header.destinationAddress, al);
+    fillTlvs(header.tlvs, al);
 }
 
 void
-ProxyProtocol::OutgoingHttpConfig::getAddresses(Ip::Address &src, Ip::Address &dst, const AccessLogEntryPointer &al)
+ProxyProtocol::OutgoingHttpConfig::fillAddresses(Ip::Address &src, Ip::Address &dst, const AccessLogEntryPointer &al)
 {
-    srcAddr->format(al);
-    dstAddr->format(al);
-    srcPort->format(al);
-    dstPort->format(al);
-
-    adjustAddresses(true);
-
-    src = srcAddr->address();
-    src.port(srcPort->port());
-
-    dst = dstAddr->address();
-    src.port(dstPort->port());
+    try {
+        adjustAddresses(src,dst, al);
+    } catch (...)
+    {
+        debugs(17, DBG_IMPORTANT, "WARNING: could not parse or match addresses, enforcing defaults." <<
+                Debug::Extra << "problem: " << CurrentException);
+    }
+    auto p = srcPort->port(al);
+    src.port(p ? *p : 0);
+    p = dstPort->port(al);
+    dst.port(p ? *p : 0);
 }
 
 void
-ProxyProtocol::OutgoingHttpConfig::getTlvs(Tlvs &tlvs, const AccessLogEntryPointer &al) const
+ProxyProtocol::OutgoingHttpConfig::fillTlvs(Tlvs &tlvs, const AccessLogEntryPointer &al) const
 {
     for (auto &t : tlvOptions) {
-        t->format(al);
-        tlvs.emplace_back(t->type(), t->value());
+        auto v = t->tlvValue(al);
+        tlvs.emplace_back(t->tlvType(), v ? *v : SBuf(""));
     }
 }
 
 void
-ProxyProtocol::OutgoingHttpConfig::adjustAddresses(const bool enforce)
+ProxyProtocol::OutgoingHttpConfig::adjustAddresses(Ip::Address &adjustedSrc, Ip::Address &adjustedDst, const AccessLogEntryPointer &al)
 {
-    Assure(enforce || (srcAddr->address_ && dstAddr->address_));
+    auto src = srcAddr->address(al);
+    auto dst = dstAddr->address(al);
 
-    if (!srcAddr->address_ && !dstAddr->address_) {
+    if (!src && !dst) {
         // IPv4 by default
-        srcAddr->address_ = Ip::Address::AnyAddrIPv4();
-        dstAddr->address_ = Ip::Address::AnyAddrIPv4();
+        adjustedSrc = Ip::Address::AnyAddrIPv4();
+        adjustedDst = Ip::Address::AnyAddrIPv4();
         return;
-    } else if (!srcAddr->address_) {
-        srcAddr->address_ = dstAddr->address_->isIPv4() ? Ip::Address::AnyAddrIPv4() : Ip::Address::AnyAddrIPv6();
+    } else if (!src) {
+        adjustedSrc = dst->isIPv4() ? Ip::Address::AnyAddrIPv4() : Ip::Address::AnyAddrIPv6();
+        adjustedDst = *dst;
         return;
-    } else if (!dstAddr->address_) {
-        dstAddr->address_ = srcAddr->address_->isIPv4() ? Ip::Address::AnyAddrIPv4() : Ip::Address::AnyAddrIPv6();
+    } else if (!dst) {
+        adjustedSrc = *src;
+        adjustedDst = src->isIPv4() ? Ip::Address::AnyAddrIPv4() : Ip::Address::AnyAddrIPv6();
         return;
     }
 
-    auto &src = *srcAddr->address_;
-    auto &dst = *dstAddr->address_;
-
-    if (src.isIPv4() == dst.isIPv4())
+    if (src->isIPv4() == dst->isIPv4()) {
+        adjustedSrc = *src;
+        adjustedDst = *dst;
         return;
+    }
 
-    if (src.isIPv4()) // dst.isIPv6
+    if (!src->isAnyAddr() && !dst->isAnyAddr())
+        throw TextException(ToSBuf("Address family mismatch: ", srcAddr->theName, "(", *src, ") and " , dstAddr->theName, "(", *dst, ")"), Here());
+
+    if (src->isIPv4()) // dst.isIPv6
     {
-        if (!src.isAnyAddr()) {
-            if (dst.isAnyAddr() || enforce)
-                dst = Ip::Address::AnyAddrIPv4();
-            else
-                throw TextException(ToSBuf("Address family mismatch: ", srcAddr->theName, "(", src, ") and " , dstAddr->theName, "(", dst, ")"), Here());
-        } else if (!dst.isAnyAddr()) {
-            if (src.isAnyAddr() || enforce)
-                src = Ip::Address::AnyAddrIPv6();
-            else
-                throw TextException(ToSBuf("Address family mismatch: ", srcAddr->theName, "(", src, ") and " , dstAddr->theName, "(", dst, ")"), Here());
+        if (!src->isAnyAddr()) {
+            adjustedSrc = *src;
+            adjustedDst = Ip::Address::AnyAddrIPv4();
+        } else if (!dst->isAnyAddr()) {
+            adjustedSrc = Ip::Address::AnyAddrIPv4();
+            adjustedDst = *dst;
         } else { // src.isAnyAddr() && dst.isAnyAddr()
-            dst = Ip::Address::AnyAddrIPv4();
+            adjustedDst = Ip::Address::AnyAddrIPv4();
         }
     } else { // src.isIPv6() && dst.isIPv4()
-        if (!src.isAnyAddr()) {
-            if (dst.isAnyAddr())
-                dst = Ip::Address::AnyAddrIPv6();
-            else
-                throw TextException(ToSBuf("Address family mismatch: ", srcAddr->theName, "(", src, ") and " , dstAddr->theName, "(", dst, ")"), Here());
-        } else if (!dst.isAnyAddr()) {
-            if (src.isAnyAddr())
-                src = Ip::Address::AnyAddrIPv4();
-            else
-                throw TextException(ToSBuf("Address family mismatch: ", srcAddr->theName, "(", src, ") and " , dstAddr->theName, "(", dst, ")"), Here());
+        if (!src->isAnyAddr()) {
+            adjustedSrc = *src;
+            adjustedDst = Ip::Address::AnyAddrIPv6();
+        } else if (!dst->isAnyAddr()) {
+            adjustedSrc = Ip::Address::AnyAddrIPv6();
+            adjustedDst = *dst;
         } else { // src.isAnyAddr() && dst.isAnyAddr()
-            dst = Ip::Address::AnyAddrIPv6();
+            adjustedDst = Ip::Address::AnyAddrIPv6();
         }
     }
 }
@@ -211,7 +254,7 @@ ProxyProtocol::OutgoingHttpConfig::requiredValue(const char *name)
         throw TextException(ToSBuf("missing ", name, " option"), Here());
     if (strcmp(name, key) != 0)
         throw TextException(ToSBuf("expecting ", name, ", but got ", key, " option"), Here());
-    return key;
+    return value;
 }
 
 void
@@ -223,8 +266,12 @@ ProxyProtocol::OutgoingHttpConfig::parseOptions(ConfigParser &parser)
     srcPort = new PortOption("src_addr", requiredValue("src_port"), ConfigParser::LastTokenWasQuoted());
     dstPort = new PortOption("dst_addr", requiredValue("dst_port"), ConfigParser::LastTokenWasQuoted());
 
-    if (srcAddr->address_ && dstAddr->address_)
-        adjustAddresses(false);
+    if (srcAddr->hasAddress() && dstAddr->hasAddress()) {
+        Ip::Address adjustedSrc, adjustedDst;
+        adjustAddresses(adjustedSrc, adjustedDst, AccessLogEntryPointer());
+        srcAddr->setAddress(adjustedSrc);
+        dstAddr->setAddress(adjustedDst);
+    }
 
     char *key = nullptr;
     char *value = nullptr;
