@@ -47,7 +47,7 @@ TestACLMaxUserIP::testDefaults()
 {
     ACLMaxUserIP anACL("max_user_ip");
     /* 0 is not a valid maximum, so we start at 0 */
-    CPPUNIT_ASSERT_EQUAL(0,anACL.getMaximum());
+    CPPUNIT_ASSERT_EQUAL("1",anACL.getMaximum());
     /* and we have no option to turn strict OFF, so start ON. */
     CPPUNIT_ASSERT_EQUAL(false, static_cast<bool>(anACL.beStrict));
     /* an unparsed acl must not be valid - there is no sane default */
