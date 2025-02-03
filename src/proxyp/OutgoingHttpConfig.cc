@@ -127,8 +127,8 @@ uint16_t
 ProxyProtocol::PortOption::parsePort(const SBuf &val) const
 {
     Parser::Tokenizer tok(val);
-    const auto p = tok.udec64("Address port");
-    if (p > std::numeric_limits<uint16_t>::max())
+    int64_t p = -1;
+    if (!tok.int64(p, 10, false) || p > std::numeric_limits<uint16_t>::max())
         throw TextException(ToSBuf("Cannot parse '", p, "' as ", theName, ". Expect an unsigned less than ", std::numeric_limits<uint16_t>::max()), Here());
     return p;
 }
@@ -262,24 +262,15 @@ ProxyProtocol::OutgoingHttpConfig::adjustAddresses(Ip::Address &adjustedSrc, Ip:
 
     // source and destination have different address family
 
-    // source and destination are non-empty
     if (!src->isAnyAddr() && !dst->isAnyAddr()) {
         adjustedSrc = *src;
         adjustedDst = src->isIPv4() ? Ip::Address::AnyAddrIPv4() : Ip::Address::AnyAddrIPv6();
-        throw TextException(ToSBuf("Address family mismatch: ", srcAddr->theName, "(", *src, ") and ", dstAddr->theName, "(", *dst, ")"), Here());
+    } else {
+        adjustedSrc = *src;
+        adjustedDst = src->isIPv4() ? Ip::Address::AnyAddrIPv4() : Ip::Address::AnyAddrIPv6();
     }
 
-    // source and/or destination are empty
-    if (!src->isAnyAddr()) {
-        adjustedSrc = *src;
-        adjustedDst = src->isIPv4() ? Ip::Address::AnyAddrIPv4() : Ip::Address::AnyAddrIPv6();
-    } else if (!dst->isAnyAddr()) {
-        adjustedSrc = dst->isIPv4() ? Ip::Address::AnyAddrIPv4() : Ip::Address::AnyAddrIPv6();
-        adjustedDst = *dst;
-    } else { // if source and destination are empty, keep the source family and adjust destination
-        adjustedSrc = *src;
-        adjustedDst = src->isIPv4() ? Ip::Address::AnyAddrIPv4() : Ip::Address::AnyAddrIPv6();
-    }
+    throw TextException(ToSBuf("Address family mismatch: ", srcAddr->theName, "(", *src, ") and ", dstAddr->theName, "(", *dst, ")"), Here());
 }
 
 const char *
