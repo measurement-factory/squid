@@ -15,6 +15,7 @@
 #include "cache_cf.h"
 #include "ConfigOption.h"
 #include "ConfigParser.h"
+#include "format/Format.h"
 #include "parser/Tokenizer.h"
 #include "proxyp/Header.h"
 #include "proxyp/OutgoingHttpConfig.h"
@@ -26,6 +27,11 @@ ProxyProtocol::Option::Option(const char *aName, const char *aVal, bool quoted)
 {
     if (quoted)
         parseFormat();
+}
+
+ProxyProtocol::Option::~Option()
+{
+    delete valueFormat;
 }
 
 void
@@ -278,7 +284,7 @@ void
 ProxyProtocol::OutgoingHttpConfig::parseOptions(ConfigParser &parser)
 {
     // required options
-    srcAddr = new AddrOption("src_addr", requiredValue("src_addr"), ConfigParser::LastTokenWasQuoted());
+    srcAddr = new AddrOption("src_addr", requiredValue("src_addr"), parser.LastTokenWasQuoted());
     dstAddr = new AddrOption("dst_addr", requiredValue("dst_addr"), ConfigParser::LastTokenWasQuoted());
     srcPort = new PortOption("src_addr", requiredValue("src_port"), ConfigParser::LastTokenWasQuoted());
     dstPort = new PortOption("dst_addr", requiredValue("dst_port"), ConfigParser::LastTokenWasQuoted());

@@ -10,7 +10,7 @@
 #define SQUID_SRC_PROXYP_OUTGOINGHTTPCONFIG_H
 
 #include "acl/forward.h"
-#include "format/Format.h"
+#include "format/forward.h"
 #include "ip/Address.h"
 #include "log/forward.h"
 #include "proxyp/Elements.h"
@@ -28,7 +28,7 @@ class Option : public RefCountable
 {
 public:
     Option(const char *aName, const char *aVal, bool quoted);
-    virtual ~Option() { delete valueFormat; }
+    virtual ~Option();
 
     void dump(std::ostream &);
 
@@ -75,7 +75,7 @@ public:
     Port port(const AccessLogEntryPointer &al) const;
 
 protected:
-    Port port_; ///< parsed address (for options without logformat %macros)
+    Port port_; ///< transaction-independent source or destination address port
 };
 
 /// a TLV option for http_outgoing_proxy_protocol directive
