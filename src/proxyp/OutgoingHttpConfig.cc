@@ -23,10 +23,24 @@
 #include "sbuf/Stream.h"
 #include "sbuf/StringConvert.h"
 
-ProxyProtocol::Option::Option(const char *aName, const char *aVal, const bool quoted)
-    : theName(aName), theValue(aVal), theQuoted(quoted), valueFormat(nullptr)
+ProxyProtocol::Option::Option(const char *aName, ConfigParser &parser)
+    : theName(aName), theQuoted(parser.LastTokenWasQuoted()), valueFormat(nullptr)
 {
-    if (quoted)
+    char *key = nullptr;
+    char *value = nullptr;
+    if(!parser.optionalKvPair(key, value))
+        throw TextException(ToSBuf("missing ", theName, " option"), Here());
+    if (theName.cmp(key) != 0)
+        throw TextException(ToSBuf("expected ", theName, ", but got ", key, " option"), Here());
+    theValue = value;
+    if (theQuoted)
+        parseFormat();
+}
+
+ProxyProtocol::Option::Option(const char *aName, const char *aValue, bool quoted)
+    : theName(aName), theValue(aValue), theQuoted(quoted), valueFormat(nullptr)
+{
+    if (theQuoted)
         parseFormat();
 }
 
@@ -81,7 +95,7 @@ ProxyProtocol::AddrOption::parseAddr(const SBuf &val) const
     return addr;
 }
 
-ProxyProtocol::AddrOption::AddrOption(const char *aName, const char *aVal, bool quoted) : Option(aName, aVal, quoted)
+ProxyProtocol::AddrOption::AddrOption(const char *aName, ConfigParser &parser) : Option(aName, parser)
 {
     if (!valueFormat || !valueFormat->hasPercentCode())
         address_ = parseAddr(theValue);
@@ -119,7 +133,7 @@ ProxyProtocol::PortOption::parsePort(const SBuf &val) const
     return p;
 }
 
-ProxyProtocol::PortOption::PortOption(const char *aName, const char *aVal, bool quoted) : Option(aName, aVal, quoted)
+ProxyProtocol::PortOption::PortOption(const char *aName, ConfigParser &parser) : Option(aName, parser)
 {
     if (!valueFormat || !valueFormat->hasPercentCode())
         port_ = parsePort(theValue);
@@ -139,7 +153,7 @@ ProxyProtocol::PortOption::port(const AccessLogEntryPointer &al) const
     }
 }
 
-ProxyProtocol::TlvOption::TlvOption(const char *aName, const char *aVal, bool quoted) : Option(aName, aVal, quoted)
+ProxyProtocol::TlvOption::TlvOption(const char *aName, const char *aValue, const bool quoted) : Option(aName, aValue, quoted)
 {
     const uint8_t typeMin = 0xe0;
     const uint8_t typeMax = 0xef;
@@ -284,10 +298,10 @@ void
 ProxyProtocol::OutgoingHttpConfig::parseOptions(ConfigParser &parser)
 {
     // required options
-    srcAddr = new AddrOption("src_addr", requiredValue("src_addr"), parser.LastTokenWasQuoted());
-    dstAddr = new AddrOption("dst_addr", requiredValue("dst_addr"), parser.LastTokenWasQuoted());
-    srcPort = new PortOption("src_addr", requiredValue("src_port"), parser.LastTokenWasQuoted());
-    dstPort = new PortOption("dst_addr", requiredValue("dst_port"), parser.LastTokenWasQuoted());
+    srcAddr = new AddrOption("src_addr", parser);
+    dstAddr = new AddrOption("dst_addr", parser);
+    srcPort = new PortOption("src_port", parser);
+    dstPort = new PortOption("dst_port", parser);
 
     if (srcAddr->hasAddress() && dstAddr->hasAddress()) {
         Ip::Address adjustedSrc, adjustedDst;

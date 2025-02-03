@@ -27,6 +27,7 @@ namespace ProxyProtocol {
 class Option : public RefCountable
 {
 public:
+    Option(const char *aName, ConfigParser &);
     Option(const char *aName, const char *aVal, bool quoted);
     virtual ~Option();
 
@@ -57,7 +58,7 @@ public:
     using Pointer =  RefCount<AddrOption>;
     using Addr = std::optional<Ip::Address>;
 
-    AddrOption(const char *aName, const char *aVal, bool quoted);
+    AddrOption(const char *aName, ConfigParser &);
 
     Addr address(const AccessLogEntryPointer &al) const;
     bool hasAddress() const { return address_.has_value(); }
@@ -76,7 +77,7 @@ public:
     using Pointer =  RefCount<PortOption>;
     using Port = std::optional<uint16_t>;
 
-    PortOption(const char *aName, const char *aVal, bool quoted);
+    PortOption(const char *aName, ConfigParser &);
 
     Port port(const AccessLogEntryPointer &al) const;
 
