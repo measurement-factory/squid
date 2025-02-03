@@ -34,6 +34,7 @@ public:
 
     SBuf theName;  ///< Configured option name
     SBuf theValue; ///< Configured option value, possibly with %macros.
+    const bool theQuoted;
 
 protected:
     /// \returns the value with expanded logformat %macros (quoted values)
@@ -45,6 +46,9 @@ private:
     /// parses the value as a logformat string
     void parseFormat();
 };
+
+std::ostream &
+operator << (std::ostream &os, const Option &opt);
 
 /// an address option for http_outgoing_proxy_protocol directive
 class AddrOption : public Option
@@ -60,6 +64,8 @@ public:
     void setAddress(const Ip::Address &addr) { address_ = addr; }
 
 protected:
+    std::optional<Ip::Address> parseAddr(const SBuf &) const;
+
     Addr address_; ///< parsed address (for options without logformat %macros)
 };
 
@@ -68,13 +74,15 @@ class PortOption : public Option
 {
 public:
     using Pointer =  RefCount<PortOption>;
-    using Port = std::optional<unsigned short>;
+    using Port = std::optional<uint16_t>;
 
     PortOption(const char *aName, const char *aVal, bool quoted);
 
     Port port(const AccessLogEntryPointer &al) const;
 
 protected:
+    uint16_t parsePort(const SBuf &val) const;
+
     Port port_; ///< transaction-independent source or destination address port
 };
 

@@ -11,6 +11,7 @@
 #include "acl/FilledChecklist.h"
 #include "acl/Gadgets.h"
 #include "acl/Tree.h"
+#include "base/IoManip.h"
 #include "base/TextException.h"
 #include "cache_cf.h"
 #include "ConfigOption.h"
@@ -22,8 +23,8 @@
 #include "sbuf/Stream.h"
 #include "sbuf/StringConvert.h"
 
-ProxyProtocol::Option::Option(const char *aName, const char *aVal, bool quoted)
-    : theName(aName), theValue(aVal), valueFormat(nullptr)
+ProxyProtocol::Option::Option(const char *aName, const char *aVal, const bool quoted)
+    : theName(aName), theValue(aVal), theQuoted(quoted), valueFormat(nullptr)
 {
     if (quoted)
         parseFormat();
@@ -34,46 +35,56 @@ ProxyProtocol::Option::~Option()
     delete valueFormat;
 }
 
-void
-ProxyProtocol::Option::dump(std::ostream &os)
+
+std::ostream &
+ProxyProtocol::operator << (std::ostream &os, const Option &opt)
 {
-    os << theName << '=' << ConfigParser::QuoteString(SBufToString(theValue));
+    os << opt.theName << '=';
+    if (opt.theQuoted)
+        os << ConfigParser::QuoteString(SBufToString(opt.theValue));
+    else
+        os << opt.theValue;
+    return os;
 }
 
 void
 ProxyProtocol::Option::parseFormat()
 {
     Assure(!valueFormat);
-    valueFormat = new Format::Format(theName.c_str());
-    if (!valueFormat->parse(theValue.c_str())) {
-        delete valueFormat;
+    auto format = std::unique_ptr<Format::Format>(new Format::Format(theName.c_str()));
+    if (!format->parse(theValue.c_str())) {
         throw TextException(ToSBuf("failed to parse value ", theValue), Here());
     }
+    valueFormat = format.release();
 }
 
 SBuf
 ProxyProtocol::Option::processFormat(const AccessLogEntryPointer &al) const
 {
     Assure(valueFormat);
-    static MemBuf mb;
-    mb.reset();
-    valueFormat->assemble(mb, al, 0);
-    return SBuf(mb.content());
+    if (al) {
+        static MemBuf mb;
+        mb.reset();
+        valueFormat->assemble(mb, al, 0);
+        return SBuf(mb.content());
+    }
+    debugs(17, DBG_IMPORTANT, "WARNING: cannot parse " << theValue << " because ALE is missing.");
+    return theValue;
 }
 
-static std::optional<Ip::Address>
-ParseAddr(const SBuf &val)
+std::optional<Ip::Address>
+ProxyProtocol::AddrOption::parseAddr(const SBuf &val) const
 {
     const auto addr = Ip::Address::Parse(SBuf(val).c_str());
     if (!addr)
-        throw TextException(ToSBuf("Cannot parse '", val, "' as an IP address"), Here());
+        throw TextException(ToSBuf("Cannot parse '", val, "' as ", theName), Here());
     return addr;
 }
 
 ProxyProtocol::AddrOption::AddrOption(const char *aName, const char *aVal, bool quoted) : Option(aName, aVal, quoted)
 {
     if (!valueFormat || !valueFormat->hasPercentCode())
-        address_ = ParseAddr(theValue);
+        address_ = parseAddr(theValue);
 }
 
 static std::nullopt_t
@@ -92,26 +103,26 @@ ProxyProtocol::AddrOption::address(const AccessLogEntryPointer &al) const
     try
     {
         const auto formattedValue = processFormat(al);
-        return ParseAddr(formattedValue);
+        return parseAddr(formattedValue);
     } catch (...) {
         return FormatFailure(theName);
     }
 }
 
-static unsigned short
-ParsePort(const SBuf &val)
+uint16_t
+ProxyProtocol::PortOption::parsePort(const SBuf &val) const
 {
     Parser::Tokenizer tok(val);
-    int64_t p = -1;
-    if (!tok.int64(p, 10, false) || (p > std::numeric_limits<uint16_t>::max()))
-        throw TextException(ToSBuf("Could not parse '", val, "' as an IP port"), Here());
+    const auto p = tok.udec64("Address port");
+    if (p > std::numeric_limits<uint16_t>::max())
+        throw TextException(ToSBuf("Cannot parse '", p, "' as ", theName, ". Expect an unsigned less than ", std::numeric_limits<uint16_t>::max()), Here());
     return p;
 }
 
 ProxyProtocol::PortOption::PortOption(const char *aName, const char *aVal, bool quoted) : Option(aName, aVal, quoted)
 {
     if (!valueFormat || !valueFormat->hasPercentCode())
-        port_ = ParsePort(theValue);
+        port_ = parsePort(theValue);
 }
 
 ProxyProtocol::PortOption::Port
@@ -122,7 +133,7 @@ ProxyProtocol::PortOption::port(const AccessLogEntryPointer &al) const
     try
     {
         const auto formattedValue = processFormat(al);
-        return ParsePort(formattedValue);
+        return parsePort(formattedValue);
     } catch (...) {
         return FormatFailure(theName);
     }
@@ -165,18 +176,9 @@ ProxyProtocol::OutgoingHttpConfig::OutgoingHttpConfig(ConfigParser &parser)
 void
 ProxyProtocol::OutgoingHttpConfig::dump(std::ostream &os)
 {
-    const char separator = ' ';
-    srcAddr->dump(os);
-    os << separator;
-    dstAddr->dump(os);
-    os << separator;
-    srcPort->dump(os);
-    os << separator;
-    dstPort->dump(os);
-    for (const auto &t : tlvOptions) {
-        os << separator;
-        t->dump(os);
-    }
+    const auto separator = " ";
+    os << *srcAddr << separator << *dstAddr << separator << srcPort << separator << dstPort <<
+        AsList(tlvOptions).prefixedBy(separator).delimitedBy(separator);
     if (aclList) {
         os << separator;
         // TODO: Use Acl::dump() after fixing the XXX in dump_acl_list().
@@ -202,10 +204,8 @@ ProxyProtocol::OutgoingHttpConfig::fillAddresses(Ip::Address &src, Ip::Address &
         debugs(17, DBG_IMPORTANT, "WARNING: could not parse or match addresses, enforcing defaults." <<
                Debug::Extra << "problem: " << CurrentException);
     }
-    auto p = srcPort->port(al);
-    src.port(p ? *p : 0);
-    p = dstPort->port(al);
-    dst.port(p ? *p : 0);
+    src.port(srcPort->port(al).value_or(0));
+    dst.port(dstPort->port(al).value_or(0));
 }
 
 void
@@ -285,9 +285,9 @@ ProxyProtocol::OutgoingHttpConfig::parseOptions(ConfigParser &parser)
 {
     // required options
     srcAddr = new AddrOption("src_addr", requiredValue("src_addr"), parser.LastTokenWasQuoted());
-    dstAddr = new AddrOption("dst_addr", requiredValue("dst_addr"), ConfigParser::LastTokenWasQuoted());
-    srcPort = new PortOption("src_addr", requiredValue("src_port"), ConfigParser::LastTokenWasQuoted());
-    dstPort = new PortOption("dst_addr", requiredValue("dst_port"), ConfigParser::LastTokenWasQuoted());
+    dstAddr = new AddrOption("dst_addr", requiredValue("dst_addr"), parser.LastTokenWasQuoted());
+    srcPort = new PortOption("src_addr", requiredValue("src_port"), parser.LastTokenWasQuoted());
+    dstPort = new PortOption("dst_addr", requiredValue("dst_port"), parser.LastTokenWasQuoted());
 
     if (srcAddr->hasAddress() && dstAddr->hasAddress()) {
         Ip::Address adjustedSrc, adjustedDst;
@@ -307,7 +307,7 @@ ProxyProtocol::OutgoingHttpConfig::parseOptions(ConfigParser &parser)
         if (it != tlvOptions.end()) {
             throw TextException(ToSBuf("duplicate TLV option: ", key, "=", value), Here());
         }
-        tlvOptions.push_back(new TlvOption(key, value, ConfigParser::LastTokenWasQuoted()));
+        tlvOptions.push_back(new TlvOption(key, value, parser.LastTokenWasQuoted()));
     }
 }
 

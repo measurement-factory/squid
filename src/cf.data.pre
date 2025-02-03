@@ -1875,9 +1875,9 @@ DOC_START
 	configuration errors.
 
 	Quoted (using "double quotes") header field values are supported. Squid
-	removes quotes before sending the field value. Quoted header field values
-	may contain logformat %code(s) that will be substituted at PROXY protocol
-	header construction time. These substitutions are subject to
+	removes quotes before using the field value. A header field value, whether
+	quoted or not, may contain logformat %code(s) that will be substituted at
+	PROXY protocol header construction time. These substitutions are subject to
 	log_uses_indirect_client directive. In most cases, Squid-to-peer
 	connection and response-related details are not available during these
 	substitutions because Squid has not opened the corresponding connection to
