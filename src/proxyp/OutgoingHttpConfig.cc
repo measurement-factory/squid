@@ -262,9 +262,9 @@ ProxyProtocol::OutgoingHttpConfig::adjustAddresses(Ip::Address &adjustedSrc, Ip:
 
     // source and destination have different address family
 
-    if (!src->isAnyAddr() && !dst->isAnyAddr()) {
-        adjustedSrc = *src;
-        adjustedDst = src->isIPv4() ? Ip::Address::AnyAddrIPv4() : Ip::Address::AnyAddrIPv6();
+    if (src->isAnyAddr() && !dst->isAnyAddr()) {
+        adjustedSrc = dst->isIPv4() ? Ip::Address::AnyAddrIPv4() : Ip::Address::AnyAddrIPv6();
+        adjustedDst = *dst;
     } else {
         adjustedSrc = *src;
         adjustedDst = src->isIPv4() ? Ip::Address::AnyAddrIPv4() : Ip::Address::AnyAddrIPv6();
