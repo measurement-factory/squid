@@ -736,6 +736,168 @@ Format::Token::parse(const char *def, Quoting *quoting)
     return (cur - def);
 }
 
+void
+Format::Token::print(std::ostream &os)
+{
+    if (type == LFT_STRING)
+        os << data.string;
+    else {
+        char argbuf[256];
+        char *arg = nullptr;
+
+        switch (type) {
+            /* special cases */
+
+        case LFT_STRING:
+            break;
+#if USE_TATION
+        case LFT_ADAPTATION_LAST_HEADER_ELEM:
+#endif
+#if ICAPENT
+        case LFT_ICAP_REQ_HEADER_ELEM:
+        case LFT_ICAP_REP_HEADER_ELEM:
+#endif
+        case LFT_REQUEST_HEADER_ELEM:
+        case LFT_ADAPTED_REQUEST_HEADER_ELEM:
+        case LFT_REPLY_HEADER_ELEM:
+
+            if (data.header.separator != ',')
+                snprintf(argbuf, sizeof(argbuf), "%s:%c%s", data.header.header, data.header.separator, data.header.element);
+            else
+                snprintf(argbuf, sizeof(argbuf), "%s:%s", data.header.header, data.header.element);
+
+            arg = argbuf;
+
+            switch (type) {
+            case LFT_REQUEST_HEADER_ELEM:
+                type = LFT_REQUEST_HEADER_ELEM; // XXX: remove _ELEM?
+                break;
+            case LFT_ADAPTED_REQUEST_HEADER_ELEM:
+                type = LFT_ADAPTED_REQUEST_HEADER_ELEM; // XXX: remove _ELEM?
+                break;
+            case LFT_REPLY_HEADER_ELEM:
+                type = LFT_REPLY_HEADER_ELEM; // XXX: remove _ELEM?
+                break;
+#if USE_TATI
+            case LFT_ADAPTATION_LAST_HEADER_ELEM:
+                type = LFT_ADAPTATION_LAST_HEADER;
+                break;
+#endif
+#if ICAPENT
+            case LFT_ICAP_REQ_HEADER_ELEM:
+                type = LFT_ICAP_REQ_HEADER;
+                break;
+            case LFT_ICAP_REP_HEADER_ELEM:
+                type = LFT_ICAP_REP_HEADER;
+                break;
+#endif
+            default:
+                break;
+            }
+
+            break;
+
+        case LFT_REQUEST_ALL_HEADERS:
+        case LFT_ADAPTED_REQUEST_ALL_HEADERS:
+        case LFT_REPLY_ALL_HEADERS:
+
+#if USE_TATION
+        case LFT_ADAPTATION_LAST_ALL_HEADERS:
+#endif
+#if ICAPENT
+        case LFT_ICAP_REQ_ALL_HEADERS:
+        case LFT_ICAP_REP_ALL_HEADERS:
+#endif
+
+            switch (type) {
+            case LFT_REQUEST_ALL_HEADERS:
+                type = LFT_REQUEST_HEADER;
+                break;
+            case LFT_ADAPTED_REQUEST_ALL_HEADERS:
+                type = LFT_ADAPTED_REQUEST_HEADER;
+                break;
+            case LFT_REPLY_ALL_HEADERS:
+                type = LFT_REPLY_HEADER;
+                break;
+#if USE_TATI
+            case LFT_ADAPTATION_LAST_ALL_HEADERS:
+                type = LFT_ADAPTATION_LAST_HEADER;
+                break;
+#endif
+#if ICAPENT
+            case LFT_ICAP_REQ_ALL_HEADERS:
+                type = LFT_ICAP_REQ_HEADER;
+                break;
+            case LFT_ICAP_REP_ALL_HEADERS:
+                type = LFT_ICAP_REP_HEADER;
+                break;
+#endif
+            default:
+                break;
+            }
+
+            break;
+
+        default:
+            if (data.string)
+                arg = data.string;
+
+            break;
+        }
+
+        os << '%';
+
+        switch (quote) {
+
+        case LOG_QUOTE_QUOTES:
+            os << '"';
+            break;
+
+        case LOG_QUOTE_MIMEBLOB:
+            os << '[';
+            break;
+
+        case LOG_QUOTE_URL:
+            os << '#';
+            break;
+
+        case LOG_QUOTE_RAW:
+            os << "'";
+            break;
+
+        case LOG_QUOTE_SHELL:
+            os << '/';
+            break;
+
+        case LOG_QUOTE_NONE:
+            break;
+        }
+
+        if (left)
+            os << '-';
+
+        if (zero)
+            os << '0';
+
+        if (widthMin >= 0)
+            os << widthMin;
+
+        if (widthMax >= 0)
+            os << '.' << widthMax;
+
+        if (arg)
+            os << '{' << arg << '}';
+
+        os << label;
+
+        if (space)
+            os << ' ';
+    }
+
+    if (next)
+        next->print(os);
+}
+
 Format::Token::Token() : type(LFT_NONE),
     label(nullptr),
     widthMin(-1),
