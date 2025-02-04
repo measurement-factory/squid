@@ -581,6 +581,7 @@ Configuration::Preprocessor::processDirective(const SBuf &rawWhole)
     } catch (...) {
         ++invalidLines_;
         debugs(3, DBG_CRITICAL, "ERROR: " << CurrentException <<
+               Debug::Extra << "directive text: " << rawWhole <<
                Debug::Extra << "directive location: " << ConfigParser::CurrentLocation());
     }
 }
