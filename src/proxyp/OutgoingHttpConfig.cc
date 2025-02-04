@@ -17,6 +17,7 @@
 #include "ConfigOption.h"
 #include "ConfigParser.h"
 #include "format/Format.h"
+#include "format/Token.h"
 #include "parser/Tokenizer.h"
 #include "proxyp/Header.h"
 #include "proxyp/OutgoingHttpConfig.h"
@@ -32,16 +33,13 @@ ProxyProtocol::Option::Option(const char *aName, ConfigParser &parser)
         throw TextException(ToSBuf("missing ", theName, " option"), Here());
     if (theName.cmp(key) != 0)
         throw TextException(ToSBuf("expected ", theName, ", but got ", key, " option"), Here());
-    theValue = value;
-    if (theQuoted)
-        parseFormat();
+    parseFormat(value);
 }
 
 ProxyProtocol::Option::Option(const char *aName, const char *aValue, bool quoted)
-    : theName(aName), theValue(aValue), theQuoted(quoted), valueFormat(nullptr)
+    : theName(aName), theQuoted(quoted), valueFormat(nullptr)
 {
-    if (theQuoted)
-        parseFormat();
+    parseFormat(aValue);
 }
 
 ProxyProtocol::Option::~Option()
@@ -49,25 +47,27 @@ ProxyProtocol::Option::~Option()
     delete valueFormat;
 }
 
-
 std::ostream &
 ProxyProtocol::operator << (std::ostream &os, const Option &opt)
 {
     os << opt.theName << '=';
+    SBufStream valueOs;
+    opt.valueFormat->format->print(valueOs);
+    const auto buf = valueOs.buf();
     if (opt.theQuoted)
-        os << ConfigParser::QuoteString(SBufToString(opt.theValue));
+        os << ConfigParser::QuoteString(SBufToString(buf));
     else
-        os << opt.theValue;
+        os << buf;
     return os;
 }
 
 void
-ProxyProtocol::Option::parseFormat()
+ProxyProtocol::Option::parseFormat(const char *value)
 {
     Assure(!valueFormat);
     auto format = std::unique_ptr<Format::Format>(new Format::Format(theName.c_str()));
-    if (!format->parse(theValue.c_str())) {
-        throw TextException(ToSBuf("failed to parse value ", theValue), Here());
+    if (!format->parse(value)) {
+        throw TextException(ToSBuf("failed to parse value ", value), Here());
     }
     valueFormat = format.release();
 }
@@ -76,14 +76,10 @@ SBuf
 ProxyProtocol::Option::processFormat(const AccessLogEntryPointer &al) const
 {
     Assure(valueFormat);
-    if (al) {
-        static MemBuf mb;
-        mb.reset();
-        valueFormat->assemble(mb, al, 0);
-        return SBuf(mb.content());
-    }
-    debugs(17, DBG_IMPORTANT, "WARNING: cannot parse " << theValue << " because ALE is missing.");
-    return theValue;
+    static MemBuf mb;
+    mb.reset();
+    valueFormat->assemble(mb, al, 0);
+    return SBuf(mb.content());
 }
 
 std::optional<Ip::Address>
@@ -97,8 +93,10 @@ ProxyProtocol::AddrOption::parseAddr(const SBuf &val) const
 
 ProxyProtocol::AddrOption::AddrOption(const char *aName, ConfigParser &parser) : Option(aName, parser)
 {
-    if (!valueFormat || !valueFormat->hasPercentCode())
-        address_ = parseAddr(theValue);
+    if (!valueFormat->hasPercentCode()) {
+        const auto formattedValue = processFormat(AccessLogEntryPointer());
+        address_ = parseAddr(formattedValue);
+    }
 }
 
 static std::nullopt_t
@@ -135,8 +133,10 @@ ProxyProtocol::PortOption::parsePort(const SBuf &val) const
 
 ProxyProtocol::PortOption::PortOption(const char *aName, ConfigParser &parser) : Option(aName, parser)
 {
-    if (!valueFormat || !valueFormat->hasPercentCode())
-        port_ = parsePort(theValue);
+    if (!valueFormat->hasPercentCode()) {
+        const auto formattedValue = processFormat(AccessLogEntryPointer());
+        port_ = parsePort(formattedValue);
+    }
 }
 
 ProxyProtocol::PortOption::Port
@@ -164,8 +164,8 @@ ProxyProtocol::TlvOption::TlvOption(const char *aName, const char *aValue, const
         throw TextException(ToSBuf("Expected tlv type as a decimal or hex number in the [0xE0, 0xEF] range but got ", theName), Here());
     tlvType_ = static_cast<uint8_t>(t);
 
-    if (!valueFormat || !valueFormat->hasPercentCode())
-        tlvValue_ = theValue;
+    if (!valueFormat->hasPercentCode())
+        tlvValue_ = processFormat(AccessLogEntryPointer());
 }
 
 ProxyProtocol::TlvOption::TlvValue
@@ -305,13 +305,15 @@ ProxyProtocol::OutgoingHttpConfig::parseOptions(ConfigParser &parser)
     char *value = nullptr;
 
     // optional TLVs
+    std::vector< std::pair<SBuf, SBuf> > parsedTlvs;
     while (parser.optionalKvPair(key, value)) {
-        const auto it =  std::find_if(tlvOptions.begin(), tlvOptions.end(), [&](const TlvOption::Pointer &p) {
-            return p->theName == SBuf(key) && p->theValue == SBuf(value);
+        const auto it =  std::find_if(parsedTlvs.begin(), parsedTlvs.end(), [&](const auto &p) {
+            return p.first == SBuf(key) && p.second == SBuf(value);
         });
-        if (it != tlvOptions.end()) {
+        if (it != parsedTlvs.end()) {
             throw TextException(ToSBuf("duplicate TLV option: ", key, "=", value), Here());
         }
+        parsedTlvs.emplace_back(key, value);
         tlvOptions.push_back(new TlvOption(key, value, parser.LastTokenWasQuoted()));
     }
 }

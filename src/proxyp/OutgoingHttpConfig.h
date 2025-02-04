@@ -33,8 +33,9 @@ public:
 
     void dump(std::ostream &);
 
+    std::ostream &operator<<(std::ostream &os);
+
     SBuf theName;  ///< Configured option name
-    SBuf theValue; ///< Configured option value, possibly with %macros.
     const bool theQuoted;
 
 protected:
@@ -43,13 +44,14 @@ protected:
 
     Format::Format *valueFormat; ///< compiled value format
 
+    friend std::ostream & operator << (std::ostream &, const Option &);
+
 private:
     /// parses the value as a logformat string
-    void parseFormat();
+    void parseFormat(const char *);
 };
 
-std::ostream &
-operator << (std::ostream &os, const Option &opt);
+std::ostream & operator << (std::ostream &, const Option &);
 
 /// an address option for http_outgoing_proxy_protocol directive
 class AddrOption : public Option
