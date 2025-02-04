@@ -1819,52 +1819,88 @@ DOC_START
 	above) with zeros. PROXY protocol requires LOCAL command recipients to
 	"discard the protocol block". LOCAL commands may carry TLVs (see below).
 
+	Required header fields:
+
 	The following four header fields are required. They must be configured in
 	the documented order. Their names and quoted brief descriptions are taken
 	from proxy_addr structure and the corresponding text in the PROXY protocol
 	specification. Squid enforces certain PROXY protocol header constraints,
 	but does not assign any specific meaning to header values.
 
-		* src_addr=ip: "source layer 3 address". This can be an IPv4 or IPv6
-		  address. If the value cannot be computed at header construction
-		  time, Squid uses IPv4 INADDR_ANY (i.e. 0.0.0.0) address and records
-		  a level-1 WARNING to cache.log. IP addresses are serialized into 4
-		  or 16 bytes, so any variations in their textual representation
-		  (e.g., "2001:0DB8::1" vs. "2001:0db8::0001") disappear from the
-		  PROXY protocol header recipient point of view.
+		* src_addr=logformat: "source layer 3 address". A logformat format
+		  specification evaluating to a constant IPv4 address (e.g.,
+		  "192.0.2.1"), a constant IPv6 address (e.g., "2001:db8::1"), or a
+		  single dash character (i.e. "-") signifying an unknown IP address.
+		  If the address is unknown, then Squid sends either INADDR_ANY or
+		  IN6ADDR_ANY_INIT IP address value. See further below for details.
 
-		* dst_addr=ip: "destination layer 3 address". See src_addr bullet
-		  above for handling details.
+		* dst_addr=logformat: "destination layer 3 address". See src_addr
+		  bullet above for value handling details.
 
-		* src_port=number: "source layer 4 address". A decimal number from
-		  [0,65535] range. If the value cannot be computed at header
-		  construction time, Squid uses 0 and records a level-1 WARNING to
-		  cache.log.
+		* src_port=logformat: "source layer 4 address". A logformat format
+		  specification evaluating to a decimal number from [0,65535] range or
+		  a single dash character (i.e. "-") signifying an unknown port. If
+		  the port is unknown, Squid sends 0 port value.
 
-		* dst_port=number: "destination layer 4 address". See src_port bullet
-		  above for handling details.
+		* dst_port=logformat: "destination layer 4 address". See src_port
+		  bullet above for value handling details.
+
+	Address and port values are interpreted as "format specifications"
+	documented in logformat directive (e.g., "%>a"). They are evaluated at
+	PROXY protocol header construction time (at least, see below). A format
+	specification has to be spelled out -- header values cannot use a
+	logformat name to refer to a format specification defined elsewhere. Squid
+	failure to "compile" a configured format specification is a fatal
+	configuration error (e.g., src_port="192.0.2.1").
+
+	If Squid believes that the result of compiled format evaluation does not
+	change from one transaction to another (e.g., "dst_port=80"), then Squid
+	will validate the result at configuration time; validation failures (if
+	any) are fatal configuration errors.
+
+	When constructing a PROXY protocol header for a given transaction, if the
+	result of compiled format evaluation is not compatible with header field
+	type (e.g., src_port="%<a"), then Squid logs a level-1 WARNING to
+	cache.log and sends a header value that would have been sent if "-"
+	logformat was configured instead.
 
 	PROXY protocol header structure requires src_addr and dst_addr IP families
-	to match. In case of a mismatch, Squid overwrites either src_addr or
-	dst_addr value to the other address family while preserving the only
-	non-zero field (if there is only one) or preserving src_addr (otherwise).
-	The overwritten address becomes INADDR_ANY (if the preserved address comes
-	from IPv4 family) or IN6ADDR_ANY_INIT (otherwise).
+	to match. In Squid context, that requirement means that either both
+	addresses are IPv4 or both are IPv6 addresses. Squid finalizes unknown
+	(i.e. "-") addresses and/or overwrites dst_addr value to satisfy that
+	requirement. When doing so, Squid preserves known IP address (where
+	possible) by using INADDR_ANY (if the preserved address comes from IPv4
+	family) or IN6ADDR_ANY_INIT (otherwise) for the overwritten address. If
+	both mismatching addresses are known, Squid preserves src_addr and
+	overwrites dst_addr. If Squid has to overwrite a known dst_addr, it logs a
+	level-1 ERROR.
 
-	To also send an optional PROXY protocol TLV with a given type and value,
-	use the following syntax:
+	When Squid has to overwrite a src_addr or dst_addr field value as
+	described above, it preserves configured src_port and dst_port values.
 
-		* type=value: Where "type" is a decimal or hex number from the [0xE0,
-		  0xEF] range that PROXY protocols reserves for "application-specific
-		  data". Decimal type values must not start with zero. Hex type values
-		  are case-insensitive and must start with a "0x" prefix.
+	Optional header fields:
 
-		  After %code expansion (if any, see below), Squid treats TLV values
-		  as opaque strings. Empty values (that must be specified as an empty
-		  quoted string) are not treated specially. If the value cannot be
-		  computed at header construction time or the computed value exceeds
-		  65535 bytes in length, Squid does not send this field and records a
-		  level-1 WARNING to cache.log.
+	To also send an optional PROXY protocol TLV with a given type and value
+	format, use the following syntax:
+
+		* type=logformat: Where "type" is a decimal or hex number from the
+		  [0xE0, 0xEF] range that PROXY protocols reserves for
+		  "application-specific data". Decimal type values must not start with
+		  zero. Hex type values are case-insensitive and must start with a
+		  "0x" prefix. Logformat is format specification documented in
+		  logformat directive (e.g., "%transport::>connection_id").
+
+	After logformat evaluation (i.e. %code evaluation, if any), Squid treats
+	TLV values as opaque strings. An empty logformat value (that must be
+	specified as an empty quoted string) is not treated specially. A logformat
+	value of "-" and an evaluated format value of "-" are not treated
+	specially either.
+
+	Squid failure to "compile" a configured TLV format specification is a
+	fatal configuration error (e.g., 0xEF="%"). If a TLV value cannot be
+	computed at header construction time or the computed value exceeds 65535
+	bytes in length, Squid does not send the affected field and records a
+	level-1 ERROR to cache.log.
 
 	Squid does not yet support sending well-known TLVs like PP2_TYPE_CRC32C.
 
@@ -1874,24 +1910,26 @@ DOC_START
 	logformat %code substitution) type=value entries lead to fatal
 	configuration errors.
 
+	Details that apply to both required and optional header fields:
+
 	Quoted (using "double quotes") header field values are supported. Squid
-	removes quotes before using the field value. A header field value, whether
-	quoted or not, may contain logformat %code(s) that will be substituted at
-	PROXY protocol header construction time. These substitutions are subject to
-	log_uses_indirect_client directive. In most cases, Squid-to-peer
-	connection and response-related details are not available during these
-	substitutions because Squid has not opened the corresponding connection to
-	the peer yet.
+	removes quotes before using the quoted value.
+
+	Logformat evaluation is subject to log_uses_indirect_client directive. In
+	most cases, Squid-to-peer connection and response-related details are not
+	available during this evaluation because Squid has not opened the
+	corresponding connection to the peer yet.
 
 	Example:
 
 		http_outgoing_proxy_protocol \
 		    src_addr="%>a" \
 		    dst_addr="%<a" \
-		    src_port="%>p" \
+		    src_port="-" \
 		    dst_port="%<p" \
 		    0xE0="%proxy_protocol::>h{224}" \
 		    0xE1="%note{myConnectionTag_}" \
+		    0xEE="" \
 		    if toPeerThatExpectsProxyProtocol
 
 	This clause only supports fast acl types.
