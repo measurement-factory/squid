@@ -207,7 +207,7 @@ ProxyProtocol::OutgoingHttpConfig::dump(std::ostream &os)
 {
     const auto separator = " ";
     os << *srcAddr << separator << *dstAddr << separator << srcPort << separator << dstPort <<
-        AsList(tlvOptions).prefixedBy(separator).delimitedBy(separator);
+       AsList(tlvOptions).prefixedBy(separator).delimitedBy(separator);
     if (aclList) {
         os << separator;
         // TODO: Use Acl::dump() after fixing the XXX in dump_acl_list().

@@ -9,7 +9,6 @@
 #ifndef SQUID_SRC_FORMAT_FORWARD_H
 #define SQUID_SRC_FORMAT_FORWARD_H
 
-
 namespace Format
 {
 

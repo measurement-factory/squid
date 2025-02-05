@@ -746,7 +746,7 @@ Format::Token::print(std::ostream &os)
         char *arg = nullptr;
 
         switch (type) {
-            /* special cases */
+        /* special cases */
 
         case LFT_STRING:
             break;
