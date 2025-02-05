@@ -51,9 +51,12 @@ std::ostream &
 ProxyProtocol::operator << (std::ostream &os, const Option &opt)
 {
     os << opt.theName << '=';
-    SBufStream valueOs;
-    opt.valueFormat->format->print(valueOs);
-    const auto buf = valueOs.buf();
+    auto buf = Format::Dash;
+    if (opt.valueFormat) {
+        SBufStream valueOs;
+        opt.valueFormat->format->print(valueOs);
+        buf = valueOs.buf();
+    }
     if (opt.theQuoted)
         os << ConfigParser::QuoteString(SBufToString(buf));
     else
@@ -64,6 +67,8 @@ ProxyProtocol::operator << (std::ostream &os, const Option &opt)
 void
 ProxyProtocol::Option::parseFormat(const char *value)
 {
+    if (Format::Dash.cmp(value) == 0)
+        return;
     Assure(!valueFormat);
     auto format = std::unique_ptr<Format::Format>(new Format::Format(theName.c_str()));
     if (!format->parse(value)) {
@@ -82,6 +87,14 @@ ProxyProtocol::Option::processFormat(const AccessLogEntryPointer &al) const
     return SBuf(mb.content());
 }
 
+ProxyProtocol::AddrOption::AddrOption(const char *aName, ConfigParser &parser) : Option(aName, parser)
+{
+    if (valueFormat && !valueFormat->needsAle()) {
+        const auto formattedValue = processFormat(AccessLogEntryPointer());
+        address_ = parseAddr(formattedValue);
+    }
+}
+
 std::optional<Ip::Address>
 ProxyProtocol::AddrOption::parseAddr(const SBuf &val) const
 {
@@ -89,14 +102,6 @@ ProxyProtocol::AddrOption::parseAddr(const SBuf &val) const
     if (!addr)
         throw TextException(ToSBuf("Cannot parse '", val, "' as ", theName), Here());
     return addr;
-}
-
-ProxyProtocol::AddrOption::AddrOption(const char *aName, ConfigParser &parser) : Option(aName, parser)
-{
-    if (!valueFormat->needsAle()) {
-        const auto formattedValue = processFormat(AccessLogEntryPointer());
-        address_ = parseAddr(formattedValue);
-    }
 }
 
 static std::nullopt_t
@@ -114,10 +119,20 @@ ProxyProtocol::AddrOption::address(const AccessLogEntryPointer &al) const
         return address_;
     try
     {
+        if (!valueFormat)
+            return std::nullopt;
         const auto formattedValue = processFormat(al);
         return parseAddr(formattedValue);
     } catch (...) {
         return FormatFailure(theName);
+    }
+}
+
+ProxyProtocol::PortOption::PortOption(const char *aName, ConfigParser &parser) : Option(aName, parser)
+{
+    if (valueFormat && !valueFormat->needsAle()) {
+        const auto formattedValue = processFormat(AccessLogEntryPointer());
+        port_ = parsePort(formattedValue);
     }
 }
 
@@ -131,14 +146,6 @@ ProxyProtocol::PortOption::parsePort(const SBuf &val) const
     return p;
 }
 
-ProxyProtocol::PortOption::PortOption(const char *aName, ConfigParser &parser) : Option(aName, parser)
-{
-    if (!valueFormat->needsAle()) {
-        const auto formattedValue = processFormat(AccessLogEntryPointer());
-        port_ = parsePort(formattedValue);
-    }
-}
-
 ProxyProtocol::PortOption::Port
 ProxyProtocol::PortOption::port(const AccessLogEntryPointer &al) const
 {
@@ -146,6 +153,8 @@ ProxyProtocol::PortOption::port(const AccessLogEntryPointer &al) const
         return *port_;
     try
     {
+        if (!valueFormat)
+            return std::nullopt;
         const auto formattedValue = processFormat(al);
         return parsePort(formattedValue);
     } catch (...) {
@@ -164,6 +173,8 @@ ProxyProtocol::TlvOption::TlvOption(const char *aName, const char *aValue, const
         throw TextException(ToSBuf("Expected tlv type as a decimal or hex number in the [0xE0, 0xEF] range but got ", theName), Here());
     tlvType_ = static_cast<uint8_t>(t);
 
+    if (!valueFormat)
+        tlvValue_ = Format::Dash;
     if (!valueFormat->needsAle())
         tlvValue_ = processFormat(AccessLogEntryPointer());
 }
@@ -237,7 +248,8 @@ ProxyProtocol::OutgoingHttpConfig::adjustAddresses(Ip::Address &adjustedSrc, Ip:
     auto src = srcAddr->address(al);
     auto dst = dstAddr->address(al);
 
-    // source and/or destination are missing
+    // source and/or destination are unknown
+    // either configured as "-" or could not parse format codes
     if (!src && !dst) {
         // IPv4 by default
         adjustedSrc = Ip::Address::AnyAddrIPv4();
