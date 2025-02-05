@@ -237,9 +237,9 @@ ProxyProtocol::OutgoingHttpConfig::fillTlvs(Tlvs &tlvs, const AccessLogEntryPoin
     }
 }
 
-/// converts the configured src_addr/dst_addr pair (which may be unknown or having matching families)
-/// into a pair of addresses with matching families.
-/// \returns an error message if encounted mismatching address family, or nullopt
+/// converts the configured src_addr/dst_addr pair (having maybe unknown addresses or
+/// addresses with mismatching families) into a pair of addresses with matching families.
+/// \returns an error message if encountered a mismatching address family, or nullopt
 std::optional<SBuf>
 ProxyProtocol::OutgoingHttpConfig::adjustAddresses(Ip::Address &adjustedSrc, Ip::Address &adjustedDst, const AccessLogEntryPointer &al)
 {
