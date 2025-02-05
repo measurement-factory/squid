@@ -93,7 +93,7 @@ ProxyProtocol::AddrOption::parseAddr(const SBuf &val) const
 
 ProxyProtocol::AddrOption::AddrOption(const char *aName, ConfigParser &parser) : Option(aName, parser)
 {
-    if (!valueFormat->hasPercentCode()) {
+    if (!valueFormat->needsAle()) {
         const auto formattedValue = processFormat(AccessLogEntryPointer());
         address_ = parseAddr(formattedValue);
     }
@@ -133,7 +133,7 @@ ProxyProtocol::PortOption::parsePort(const SBuf &val) const
 
 ProxyProtocol::PortOption::PortOption(const char *aName, ConfigParser &parser) : Option(aName, parser)
 {
-    if (!valueFormat->hasPercentCode()) {
+    if (!valueFormat->needsAle()) {
         const auto formattedValue = processFormat(AccessLogEntryPointer());
         port_ = parsePort(formattedValue);
     }
@@ -164,7 +164,7 @@ ProxyProtocol::TlvOption::TlvOption(const char *aName, const char *aValue, const
         throw TextException(ToSBuf("Expected tlv type as a decimal or hex number in the [0xE0, 0xEF] range but got ", theName), Here());
     tlvType_ = static_cast<uint8_t>(t);
 
-    if (!valueFormat->hasPercentCode())
+    if (!valueFormat->needsAle())
         tlvValue_ = processFormat(AccessLogEntryPointer());
 }
 

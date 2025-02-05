@@ -114,10 +114,17 @@ Format::AssembleOne(const char *token, MemBuf &mb, const AccessLogEntryPointer &
 }
 
 bool
-Format::Format::hasPercentCode() const
+Format::Format::needsAle() const
 {
     for (auto t = format; t; t = t->next) {
-        if (t->type != LFT_STRING)
+        if (t->type != LFT_NONE ||
+            t->type != LFT_STRING ||
+            t->type != LFT_PERCENT ||
+            t->type != LFT_TIME_SECONDS_SINCE_EPOCH ||
+            t->type != LFT_TIME_SUBSECOND ||
+            t->type != LFT_TIME_LOCALTIME ||
+            t->type != LFT_TIME_GMT ||
+            t->type != LFT_SEQUENCE_NUMBER)
             return true;
     }
     return false;
