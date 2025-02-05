@@ -165,14 +165,14 @@ ProxyProtocol::PortOption::port(const AccessLogEntryPointer &al) const
 
 ProxyProtocol::TlvOption::TlvOption(const char *aName, const char *aValue, const bool quoted) : Option(aName, aValue, quoted)
 {
-    const uint8_t typeMin = 0xe0;
-    const uint8_t typeMax = 0xef;
+    const TlvType typeMin = 0xe0;
+    const TlvType typeMax = 0xef;
 
     int64_t t = -1;
     Parser::Tokenizer tok(name_);
     if (!tok.int64(t, 0, false) || (t < typeMin || t > typeMax))
         throw TextException(ToSBuf("Expected tlv type as a decimal or hex number in the [0xE0, 0xEF] range but got ", name_), Here());
-    tlvType_ = static_cast<uint8_t>(t);
+    tlvType_ = static_cast<TlvType>(t);
 
     if (!value_)
         tlvValue_ = Format::Dash;
@@ -310,16 +310,17 @@ ProxyProtocol::OutgoingHttpConfig::parseOptions(ConfigParser &parser)
     char *value = nullptr;
 
     // optional TLVs
-    std::vector< std::pair<SBuf, SBuf> > parsedTlvs;
+    std::vector< std::pair<TlvOption::TlvType, SBuf> > parsedTlvs; // temporary storage for duplication checks
     while (parser.optionalKvPair(key, value)) {
+        auto option = std::unique_ptr<TlvOption>(new TlvOption(key, value, parser.LastTokenWasQuoted()));
         const auto it =  std::find_if(parsedTlvs.begin(), parsedTlvs.end(), [&](const auto &p) {
-            return p.first == SBuf(key) && p.second == SBuf(value);
+            return p.first == option->tlvType() && p.second == SBuf(value);
         });
         if (it != parsedTlvs.end()) {
             throw TextException(ToSBuf("duplicate TLV option: ", key, "=", value), Here());
         }
-        parsedTlvs.emplace_back(key, value);
-        tlvOptions.push_back(new TlvOption(key, value, parser.LastTokenWasQuoted()));
+        parsedTlvs.emplace_back(option->tlvType(), value);
+        tlvOptions.push_back(option.release());
     }
 }
 

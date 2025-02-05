@@ -92,15 +92,16 @@ class TlvOption : public Option
 {
 public:
     using Pointer =  RefCount<TlvOption>;
+    using TlvType = uint8_t;
     using TlvValue = std::optional<SBuf>;
 
     TlvOption(const char *aName, const char *aVal, bool quoted);
 
     TlvValue tlvValue(const AccessLogEntryPointer &al) const;
-    uint8_t tlvType() const { return tlvType_; }
+    TlvType tlvType() const { return tlvType_; }
 
 protected:
-    uint8_t tlvType_;
+    TlvType tlvType_;
     TlvValue tlvValue_; ///< transaction-independent TLV value
 };
 
