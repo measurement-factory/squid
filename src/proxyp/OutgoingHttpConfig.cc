@@ -89,7 +89,7 @@ ProxyProtocol::Option::assembleValue(const AccessLogEntryPointer &al) const
 
 ProxyProtocol::AddrOption::AddrOption(const char *aName, ConfigParser &parser) : Option(aName, parser)
 {
-    if (value_ && !value_->needsAle()) {
+    if (value_ && !value_->isConstant()) {
         const auto formattedValue = assembleValue(AccessLogEntryPointer());
         address_ = parseAddr(formattedValue);
     }
@@ -130,7 +130,7 @@ ProxyProtocol::AddrOption::address(const AccessLogEntryPointer &al) const
 
 ProxyProtocol::PortOption::PortOption(const char *aName, ConfigParser &parser) : Option(aName, parser)
 {
-    if (value_ && !value_->needsAle()) {
+    if (value_ && !value_->isConstant()) {
         const auto formattedValue = assembleValue(AccessLogEntryPointer());
         port_ = parsePort(formattedValue);
     }
@@ -175,7 +175,7 @@ ProxyProtocol::TlvOption::TlvOption(const char *aName, const char *aValue, const
 
     if (!value_)
         tlvValue_ = Format::Dash;
-    if (!value_->needsAle())
+    if (!value_->isConstant())
         tlvValue_ = assembleValue(AccessLogEntryPointer());
 }
 

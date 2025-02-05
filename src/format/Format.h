@@ -57,7 +57,7 @@ public:
     void dump(StoreEntry * entry, const char *directiveName, bool eol = true) const;
 
     /// whether assemble() needs ALE
-    bool needsAle() const;
+    bool isConstant() const;
 
     char *name;
     Token *format;
