@@ -222,13 +222,8 @@ ProxyProtocol::OutgoingHttpConfig::fill(ProxyProtocol::Header &header, const Acc
 void
 ProxyProtocol::OutgoingHttpConfig::fillAddresses(Ip::Address &src, Ip::Address &dst, const AccessLogEntryPointer &al)
 {
-    try {
-        adjustAddresses(src,dst, al);
-    } catch (...)
-    {
-        debugs(17, DBG_IMPORTANT, "WARNING: could not parse or match addresses, enforcing defaults." <<
-               Debug::Extra << "problem: " << CurrentException);
-    }
+    if (const auto err = adjustAddresses(src,dst, al))
+        debugs(17, DBG_IMPORTANT, *err);
     src.port(srcPort->port(al).value_or(0));
     dst.port(dstPort->port(al).value_or(0));
 }
@@ -242,7 +237,10 @@ ProxyProtocol::OutgoingHttpConfig::fillTlvs(Tlvs &tlvs, const AccessLogEntryPoin
     }
 }
 
-void
+/// converts the configured src_addr/dst_addr pair (which may be unknown or having matching families)
+/// into a pair of addresses with matching families.
+/// \returns an error message if encounted mismatching address family, or nullopt
+std::optional<SBuf>
 ProxyProtocol::OutgoingHttpConfig::adjustAddresses(Ip::Address &adjustedSrc, Ip::Address &adjustedDst, const AccessLogEntryPointer &al)
 {
     auto src = srcAddr->address(al);
@@ -254,26 +252,27 @@ ProxyProtocol::OutgoingHttpConfig::adjustAddresses(Ip::Address &adjustedSrc, Ip:
         // IPv4 by default
         adjustedSrc = Ip::Address::AnyAddrIPv4();
         adjustedDst = Ip::Address::AnyAddrIPv4();
-        return;
+        return std::nullopt;
     } else if (!src) {
         adjustedSrc = dst->isIPv4() ? Ip::Address::AnyAddrIPv4() : Ip::Address::AnyAddrIPv6();
         adjustedDst = *dst;
-        return;
+        return std::nullopt;
     } else if (!dst) {
         adjustedSrc = *src;
         adjustedDst = src->isIPv4() ? Ip::Address::AnyAddrIPv4() : Ip::Address::AnyAddrIPv6();
-        return;
+        return std::nullopt;
     }
+
+    // source and destination are known
 
     // source and destination have the same address family
     if (src->isIPv4() == dst->isIPv4()) {
         adjustedSrc = *src;
         adjustedDst = *dst;
-        return;
+        return std::nullopt;
     }
 
     // source and destination have different address family
-
     if (src->isAnyAddr() && !dst->isAnyAddr()) {
         adjustedSrc = dst->isIPv4() ? Ip::Address::AnyAddrIPv4() : Ip::Address::AnyAddrIPv6();
         adjustedDst = *dst;
@@ -282,7 +281,7 @@ ProxyProtocol::OutgoingHttpConfig::adjustAddresses(Ip::Address &adjustedSrc, Ip:
         adjustedDst = src->isIPv4() ? Ip::Address::AnyAddrIPv4() : Ip::Address::AnyAddrIPv6();
     }
 
-    throw TextException(ToSBuf("Address family mismatch: ", srcAddr->theName, "(", *src, ") and ", dstAddr->theName, "(", *dst, ")"), Here());
+    return ToSBuf("Address family mismatch: ", srcAddr->theName, "(", *src, ") and ", dstAddr->theName, "(", *dst, ")");
 }
 
 void
@@ -296,7 +295,8 @@ ProxyProtocol::OutgoingHttpConfig::parseOptions(ConfigParser &parser)
 
     if (srcAddr->hasAddress() && dstAddr->hasAddress()) {
         Ip::Address adjustedSrc, adjustedDst;
-        adjustAddresses(adjustedSrc, adjustedDst, AccessLogEntryPointer());
+        if (const auto err = adjustAddresses(adjustedSrc, adjustedDst, AccessLogEntryPointer()))
+            throw TextException(*err, Here());
         srcAddr->setAddress(adjustedSrc);
         dstAddr->setAddress(adjustedDst);
     }

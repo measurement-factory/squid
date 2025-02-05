@@ -128,7 +128,7 @@ private:
 
     void parseAddress(const char *optionName);
     void parsePort(const char *optionName);
-    void adjustAddresses(Ip::Address &adjustedSrc, Ip::Address &adjustedDst, const AccessLogEntryPointer &al);
+    std::optional<SBuf> adjustAddresses(Ip::Address &adjustedSrc, Ip::Address &adjustedDst, const AccessLogEntryPointer &al);
 
     AddrOption::Pointer srcAddr;
     AddrOption::Pointer dstAddr;
