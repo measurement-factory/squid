@@ -186,6 +186,10 @@ ProxyProtocol::TlvOption::tlvValue(const AccessLogEntryPointer &al) const
         return *tlvValue_;
     try
     {
+        const auto formatted = processFormat(al);
+        const auto max = std::numeric_limits<uint16_t>::max();
+        if (formatted.length() > max)
+            throw TextException(ToSBuf("Expected tlv value size less than ", max, " but got ", formatted.length(), " bytes"), Here());
         return TlvValue(processFormat(al));
     } catch (...) {
         return FormatFailure(theName);
@@ -231,9 +235,9 @@ ProxyProtocol::OutgoingHttpConfig::fillAddresses(Ip::Address &src, Ip::Address &
 void
 ProxyProtocol::OutgoingHttpConfig::fillTlvs(Tlvs &tlvs, const AccessLogEntryPointer &al) const
 {
-    for (auto &t : tlvOptions) {
-        auto v = t->tlvValue(al);
-        tlvs.emplace_back(t->tlvType(), v ? *v : SBuf(""));
+    for (const auto &t : tlvOptions) {
+        if (const auto v = t->tlvValue(al))
+            tlvs.emplace_back(t->tlvType(), *v);
     }
 }
 
