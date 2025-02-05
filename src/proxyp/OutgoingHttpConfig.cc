@@ -140,9 +140,10 @@ uint16_t
 ProxyProtocol::PortOption::parsePort(const SBuf &val) const
 {
     Parser::Tokenizer tok(val);
+    const auto portMax = std::numeric_limits<uint16_t>::max();
     int64_t p = -1;
-    if (!tok.int64(p, 10, false) || p > std::numeric_limits<uint16_t>::max())
-        throw TextException(ToSBuf("Cannot parse '", p, "' as ", name_, ". Expect an unsigned less than ", std::numeric_limits<uint16_t>::max()), Here());
+    if (!tok.int64(p, 10, false) || !tok.atEnd() || p > portMax)
+        throw TextException(ToSBuf("Cannot parse '", val, "' as ", name_, ". Expect an unsigned integer less than ", portMax), Here());
     return p;
 }
 
