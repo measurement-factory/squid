@@ -128,7 +128,6 @@ private:
 
     void parseAddress(const char *optionName);
     void parsePort(const char *optionName);
-    const char *requiredValue(const char *optionName);
     void adjustAddresses(Ip::Address &adjustedSrc, Ip::Address &adjustedDst, const AccessLogEntryPointer &al);
 
     AddrOption::Pointer srcAddr;

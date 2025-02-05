@@ -273,18 +273,6 @@ ProxyProtocol::OutgoingHttpConfig::adjustAddresses(Ip::Address &adjustedSrc, Ip:
     throw TextException(ToSBuf("Address family mismatch: ", srcAddr->theName, "(", *src, ") and ", dstAddr->theName, "(", *dst, ")"), Here());
 }
 
-const char *
-ProxyProtocol::OutgoingHttpConfig::requiredValue(const char *name)
-{
-    char *key = nullptr;
-    char *value = nullptr;
-    if(!ConfigParser::NextKvPair(key, value))
-        throw TextException(ToSBuf("missing ", name, " option"), Here());
-    if (strcmp(name, key) != 0)
-        throw TextException(ToSBuf("expected ", name, ", but got ", key, " option"), Here());
-    return value;
-}
-
 void
 ProxyProtocol::OutgoingHttpConfig::parseOptions(ConfigParser &parser)
 {
