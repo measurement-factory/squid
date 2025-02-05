@@ -25,39 +25,39 @@
 #include "sbuf/StringConvert.h"
 
 ProxyProtocol::Option::Option(const char *aName, ConfigParser &parser)
-    : theName(aName), theQuoted(parser.LastTokenWasQuoted()), valueFormat(nullptr)
+    : name_(aName), quoted_(parser.LastTokenWasQuoted()), value_(nullptr)
 {
     char *key = nullptr;
     char *value = nullptr;
     if(!parser.optionalKvPair(key, value))
-        throw TextException(ToSBuf("missing ", theName, " option"), Here());
-    if (theName.cmp(key) != 0)
-        throw TextException(ToSBuf("expected ", theName, ", but got ", key, " option"), Here());
+        throw TextException(ToSBuf("missing ", name_, " option"), Here());
+    if (name_.cmp(key) != 0)
+        throw TextException(ToSBuf("expected ", name_, ", but got ", key, " option"), Here());
     parseFormat(value);
 }
 
 ProxyProtocol::Option::Option(const char *aName, const char *aValue, bool quoted)
-    : theName(aName), theQuoted(quoted), valueFormat(nullptr)
+    : name_(aName), quoted_(quoted), value_(nullptr)
 {
     parseFormat(aValue);
 }
 
 ProxyProtocol::Option::~Option()
 {
-    delete valueFormat;
+    delete value_;
 }
 
 std::ostream &
 ProxyProtocol::operator << (std::ostream &os, const Option &opt)
 {
-    os << opt.theName << '=';
+    os << opt.name_ << '=';
     auto buf = Format::Dash;
-    if (opt.valueFormat) {
+    if (opt.value_) {
         SBufStream valueOs;
-        opt.valueFormat->format->print(valueOs);
+        opt.value_->format->print(valueOs);
         buf = valueOs.buf();
     }
-    if (opt.theQuoted)
+    if (opt.quoted_)
         os << ConfigParser::QuoteString(SBufToString(buf));
     else
         os << buf;
@@ -69,28 +69,28 @@ ProxyProtocol::Option::parseFormat(const char *value)
 {
     if (Format::Dash.cmp(value) == 0)
         return;
-    Assure(!valueFormat);
-    auto format = std::unique_ptr<Format::Format>(new Format::Format(theName.c_str()));
+    Assure(!value_);
+    auto format = std::unique_ptr<Format::Format>(new Format::Format(name_.c_str()));
     if (!format->parse(value)) {
         throw TextException(ToSBuf("failed to parse value ", value), Here());
     }
-    valueFormat = format.release();
+    value_ = format.release();
 }
 
 SBuf
-ProxyProtocol::Option::processFormat(const AccessLogEntryPointer &al) const
+ProxyProtocol::Option::assembleValue(const AccessLogEntryPointer &al) const
 {
-    Assure(valueFormat);
+    Assure(value_);
     static MemBuf mb;
     mb.reset();
-    valueFormat->assemble(mb, al, 0);
+    value_->assemble(mb, al, 0);
     return SBuf(mb.content());
 }
 
 ProxyProtocol::AddrOption::AddrOption(const char *aName, ConfigParser &parser) : Option(aName, parser)
 {
-    if (valueFormat && !valueFormat->needsAle()) {
-        const auto formattedValue = processFormat(AccessLogEntryPointer());
+    if (value_ && !value_->needsAle()) {
+        const auto formattedValue = assembleValue(AccessLogEntryPointer());
         address_ = parseAddr(formattedValue);
     }
 }
@@ -100,7 +100,7 @@ ProxyProtocol::AddrOption::parseAddr(const SBuf &val) const
 {
     const auto addr = Ip::Address::Parse(SBuf(val).c_str());
     if (!addr)
-        throw TextException(ToSBuf("Cannot parse '", val, "' as ", theName), Here());
+        throw TextException(ToSBuf("Cannot parse '", val, "' as ", name_), Here());
     return addr;
 }
 
@@ -119,19 +119,19 @@ ProxyProtocol::AddrOption::address(const AccessLogEntryPointer &al) const
         return address_;
     try
     {
-        if (!valueFormat)
+        if (!value_)
             return std::nullopt;
-        const auto formattedValue = processFormat(al);
+        const auto formattedValue = assembleValue(al);
         return parseAddr(formattedValue);
     } catch (...) {
-        return FormatFailure(theName);
+        return FormatFailure(name_);
     }
 }
 
 ProxyProtocol::PortOption::PortOption(const char *aName, ConfigParser &parser) : Option(aName, parser)
 {
-    if (valueFormat && !valueFormat->needsAle()) {
-        const auto formattedValue = processFormat(AccessLogEntryPointer());
+    if (value_ && !value_->needsAle()) {
+        const auto formattedValue = assembleValue(AccessLogEntryPointer());
         port_ = parsePort(formattedValue);
     }
 }
@@ -142,7 +142,7 @@ ProxyProtocol::PortOption::parsePort(const SBuf &val) const
     Parser::Tokenizer tok(val);
     int64_t p = -1;
     if (!tok.int64(p, 10, false) || p > std::numeric_limits<uint16_t>::max())
-        throw TextException(ToSBuf("Cannot parse '", p, "' as ", theName, ". Expect an unsigned less than ", std::numeric_limits<uint16_t>::max()), Here());
+        throw TextException(ToSBuf("Cannot parse '", p, "' as ", name_, ". Expect an unsigned less than ", std::numeric_limits<uint16_t>::max()), Here());
     return p;
 }
 
@@ -153,12 +153,12 @@ ProxyProtocol::PortOption::port(const AccessLogEntryPointer &al) const
         return *port_;
     try
     {
-        if (!valueFormat)
+        if (!value_)
             return std::nullopt;
-        const auto formattedValue = processFormat(al);
+        const auto formattedValue = assembleValue(al);
         return parsePort(formattedValue);
     } catch (...) {
-        return FormatFailure(theName);
+        return FormatFailure(name_);
     }
 }
 
@@ -168,15 +168,15 @@ ProxyProtocol::TlvOption::TlvOption(const char *aName, const char *aValue, const
     const uint8_t typeMax = 0xef;
 
     int64_t t = -1;
-    Parser::Tokenizer tok(theName);
+    Parser::Tokenizer tok(name_);
     if (!tok.int64(t, 0, false) || (t < typeMin || t > typeMax))
-        throw TextException(ToSBuf("Expected tlv type as a decimal or hex number in the [0xE0, 0xEF] range but got ", theName), Here());
+        throw TextException(ToSBuf("Expected tlv type as a decimal or hex number in the [0xE0, 0xEF] range but got ", name_), Here());
     tlvType_ = static_cast<uint8_t>(t);
 
-    if (!valueFormat)
+    if (!value_)
         tlvValue_ = Format::Dash;
-    if (!valueFormat->needsAle())
-        tlvValue_ = processFormat(AccessLogEntryPointer());
+    if (!value_->needsAle())
+        tlvValue_ = assembleValue(AccessLogEntryPointer());
 }
 
 ProxyProtocol::TlvOption::TlvValue
@@ -186,13 +186,13 @@ ProxyProtocol::TlvOption::tlvValue(const AccessLogEntryPointer &al) const
         return *tlvValue_;
     try
     {
-        const auto formatted = processFormat(al);
+        const auto formatted = assembleValue(al);
         const auto max = std::numeric_limits<uint16_t>::max();
         if (formatted.length() > max)
             throw TextException(ToSBuf("Expected tlv value size less than ", max, " but got ", formatted.length(), " bytes"), Here());
-        return TlvValue(processFormat(al));
+        return TlvValue(assembleValue(al));
     } catch (...) {
-        return FormatFailure(theName);
+        return FormatFailure(name_);
     }
 }
 
@@ -285,7 +285,7 @@ ProxyProtocol::OutgoingHttpConfig::adjustAddresses(Ip::Address &adjustedSrc, Ip:
         adjustedDst = src->isIPv4() ? Ip::Address::AnyAddrIPv4() : Ip::Address::AnyAddrIPv6();
     }
 
-    return ToSBuf("Address family mismatch: ", srcAddr->theName, "(", *src, ") and ", dstAddr->theName, "(", *dst, ")");
+    return ToSBuf("Address family mismatch: ", srcAddr->name_, "(", *src, ") and ", dstAddr->name_, "(", *dst, ")");
 }
 
 void

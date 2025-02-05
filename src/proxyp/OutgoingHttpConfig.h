@@ -23,7 +23,7 @@ class ConfigParser;
 
 namespace ProxyProtocol {
 
-/// a name=value option for http_outgoing_proxy_protocol directive
+/// a name=value option for the http_outgoing_proxy_protocol directive
 class Option : public RefCountable
 {
 public:
@@ -33,16 +33,14 @@ public:
 
     void dump(std::ostream &);
 
-    std::ostream &operator<<(std::ostream &os);
-
-    SBuf theName;  ///< Configured option name
-    const bool theQuoted;
+    SBuf name_; ///< the option name
+    const bool quoted_; ///< whether the option value is quoted
 
 protected:
     /// \returns the value with expanded logformat %macros (quoted values)
-    SBuf processFormat(const AccessLogEntryPointer &al) const;
+    SBuf assembleValue(const AccessLogEntryPointer &al) const;
 
-    Format::Format *valueFormat; ///< compiled value format
+    Format::Format *value_; ///< compiled value format
 
     friend std::ostream & operator << (std::ostream &, const Option &);
 
@@ -69,7 +67,7 @@ public:
 protected:
     std::optional<Ip::Address> parseAddr(const SBuf &) const;
 
-    Addr address_; ///< parsed address (for options without logformat %macros)
+    Addr address_; ///< transaction-independent source or destination address
 };
 
 /// a port option for http_outgoing_proxy_protocol directive
@@ -102,8 +100,8 @@ public:
     uint8_t tlvType() const { return tlvType_; }
 
 protected:
-    uint8_t tlvType_; /// the parsed TLV type
-    TlvValue tlvValue_; ///< the parsed TLV value (for options without logformat %macros)
+    uint8_t tlvType_;
+    TlvValue tlvValue_; ///< transaction-independent TLV value
 };
 
 /// an http_outgoing_proxy_protocol directive configuration
@@ -134,8 +132,9 @@ private:
     AddrOption::Pointer dstAddr;
     PortOption::Pointer srcPort;
     PortOption::Pointer dstPort;
+
     using TlvOptions = std::vector<TlvOption::Pointer>;
-    TlvOptions tlvOptions; // all configured options, with fixed order for required options
+    TlvOptions tlvOptions; // the list TLVs
 };
 
 } // namespace ProxyProtocol
