@@ -23,7 +23,7 @@ namespace Rock
 /// * writes new headers (1+ slots)
 /// * writes old data (0-2 slots)
 /// * chains the new entry prefix (1+ slots) to the old entry suffix (0+ slots)
-class HeaderUpdater: public AsyncJob, private IndependentRunner
+class HeaderUpdater: public AsyncJob
 {
     CBDATA_CHILD(HeaderUpdater);
 
@@ -36,9 +36,6 @@ public:
     };
     HeaderUpdater(const Rock::SwapDir::Pointer &aStore, const Ipc::StoreMapUpdate &update);
     ~HeaderUpdater() override = default;
-
-    /* Registered Runner API */
-    void startShutdown() override;
 
 protected:
     /* AsyncJob API */
