@@ -23,8 +23,8 @@ public:
     /// owns stored CachePeer objects
     using Storage = std::vector< std::unique_ptr<CachePeer>, PoolingAllocator< std::unique_ptr<CachePeer> > >;
 
-    /// stores a being-configured cache_peer
-    void add(CachePeer *p) { storage.emplace_back(p); }
+    /// stores a configured cache_peer, becoming responsible for its lifetime
+    void absorb(std::unique_ptr<CachePeer> &&);
 
     /// deletes a previously add()ed CachePeer object
     void remove(CachePeer *);

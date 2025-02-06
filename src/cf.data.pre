@@ -2556,9 +2556,10 @@ DOC_END
 
 NAME: https_port
 IFDEF: HAVE_LIBGNUTLS||USE_OPENSSL
-TYPE: PortCfg
+TYPE: PortCfgsXXX
 DEFAULT: none
 LOC: HttpPortList
+SMOOTH_RECONFIGURATION: ReconfigureHttpsPort
 DOC_START
 	Usage:  [ip:]port [mode] tls-cert=certificate.pem [options]
 
@@ -2575,6 +2576,28 @@ DOC_START
 	The tls-cert= option is mandatory on HTTPS ports.
 
 	See http_port for a list of modes and options.
+
+	This directive supports smooth reconfiguration, with limitations:
+
+	* Changing the number of https_port directives is not supported. There is
+	  currently no diagnostic for reducing the number of listenting ports and
+	  any unmatched old ports remain unaffected by smooth reconfiguration, but
+	  all that will change.
+
+	* Changing configured listening address is not supported: Squid pairs old
+	  and new port configurations using listening addresses, so updated
+	  configurations must continue to use the old address specification. If
+	  Squid has to resolve configured port address to compute listening IP
+	  address, and that resolution changes, smooth reconfiguration will fail.
+
+	* There is currently no diagnostic for an updated configuration having
+	  multiple ports with the same listening address. The last such port
+	  configuration directive will be effectively used. Such reconfigurations
+	  will fail in the future, just like an equivalent harsh (re)configuration
+	  already fails today.
+
+	For general details about smooth reconfiguration, see documentation for
+	the "reconfiguration" directive.
 DOC_END
 
 NAME: ftp_port
@@ -3571,9 +3594,10 @@ COMMENT_START
 COMMENT_END
 
 NAME: cache_peer
-TYPE: peer
+TYPE: CachePeerXXX
 DEFAULT: none
 LOC: Config.peers
+SMOOTH_RECONFIGURATION: ReconfigureCachePeer
 DOC_START
 	To specify other caches in a hierarchy, use the format:
 
@@ -4007,6 +4031,35 @@ DOC_START
 
 	proxy-only	objects fetched from the peer will not be stored locally.
 
+	This directive supports smooth reconfiguration, with caveats:
+
+	* Changing the number of cache_peer directives is not supported. There is
+	  currently no diagnostic for reducing the number of cache_peers, and any
+	  unmatched cache_peers remain unaffected by smooth reconfiguration, but
+	  all that will change.
+
+	* Changing cache_peer name is not supported: Squid pairs old and new
+	  cache_peer configurations using cache_peer name (which defaults to
+	  cache_peer hostname), so updated configurations must continue to use the
+	  old name and, if there was no explicit name, the old hostname specs.
+
+	* There is currently no diagnostic for an updated configuration having
+	  multiple cache_peers with the same listening address. The last such
+	  cache_peer directive will be effectively used. Such reconfigurations
+	  will fail in the future, just like an equivalent harsh (re)configuration
+	  already fails today.
+
+	* Changing cache_peer hostname is not yet supported.
+
+	* Changing many of the cache_peer options (e.g., `originserver` and
+	  `carp-key`) is not yet supported, but not diagnostic is given for some
+	  of the ignored changes. Changing TLS-related options is supported.
+
+	* Changing cache_peer options does not close any idle persistent
+	  connections to that peer (yet?).
+
+For general details about smooth reconfiguration, see documentation for
+the "reconfiguration" directive.
 DOC_END
 
 NAME: cache_peer_access
@@ -10253,6 +10306,104 @@ DOC_START
 	parameter value is interpreted or used.
 	See "Values with spaces, quotes, and other special characters"
 	section for more details.
+DOC_END
+
+NAME: reconfiguration
+TYPE: Configuration::ReconfigurationMode*
+LOC: Config.reconfigurationMode
+DEFAULT_IF_NONE: harsh
+SMOOTH_RECONFIGURATION: ReconfigureReconfigurationMode
+DOC_START
+	Controls Squid reaction to the next reconfiguration event.
+
+	    reconfiguration <mode>
+
+	Supported reconfiguration modes are:
+
+	harsh: The default "harsh" reconfiguration starts with such disruptive
+	    actions as closure of listening ports, termination of TCP connections
+	    to DNS servers, shutdown of access logging facilities, as well as
+	    shutdown of external ACL and authentication helpers. By the end of
+	    harsh reconfiguration process, Squid reopens closed listening ports
+	    and resumes various other services, but this resetting of major
+	    components has detrimental effect on active transactions and users. On
+	    the bright side, harsh reconfiguration applies all directives "from
+	    scratch", and since most of them accept changed values, it reduces the
+	    risks of inconsistencies (e.g., unnoticed changes in parameter files).
+
+	smooth: Smooth reconfiguration does not unconditionally close, shutdown,
+	    or reset any services. This reconfiguration mode ignores unchanged
+	    directives while asking each changed directive to apply the new
+	    configuration in the least disruptive way possible.
+
+	    Change detection is based on comparing directive configuration lines
+	    after preprocessing (i.e. after processing of include statements and
+	    conditionals as well as line unfolding and macro expansion). Since
+	    change detection is based on configuration lines "spelling", Squid
+	    will miss a change in external files a directive refers to. For
+	    example, in smooth reconfiguration mode:
+
+	    * A "url_rewrite_program /usr/bin/rewriter" line may stay the same
+	      after the rewriter program binary has been upgraded. A reconfigured
+	      Squid will not notice such an upgrade and, hence, may continue using
+	      the old rewriting helpers for new transactions.
+
+	    * Squid ignores changes inside ACL parameter files as long as the file
+	      name (and other "acl" directive parameters) remains the same.
+
+	    Due to current limitations of Squid configuration parser, changes in
+	    the number of otherwise insignificant space characters (e.g., in
+	    parameter delimiters) are _not_ ignored.
+
+	    In smooth reconfiguration mode, Squid reports an error and does _not_
+	    reconfigure itself if at least one "rigid" configuration directive (as
+	    defined further below) has changed. This mode prevents negative side
+	    effects of an _accidental_ harsh reconfiguration.
+
+	smooth-or-harsh: If smooth reconfiguration is possible, Squid performs it.
+	    Otherwise (i.e. if at least one "rigid" directive has changed), Squid
+	    performs harsh reconfiguration. See below for "rigid" definition. This
+	    mode enables many smooth reconfiguration advantages while reducing a
+	    chance that some configuration changes may not be applied.
+
+
+	Directive classification with regard to smooth reconfiguration support:
+
+	"rigid": A rigid directive cannot perform smooth reconfiguration. If this
+	    directive configuration changes, and a reconfiguration is requested,
+	    then Squid will perform harsh reconfiguration (if allowed) or no
+	    reconfiguration at all (if prohibited by "reconfiguration smooth").
+	    Directives are rigid by default: If directive documentation does not
+	    explicitly claim smooth reconfiguration support, then the directive is
+	    classified as a rigid directive.
+
+	"pliable": A pliable directive can perform smooth reconfiguration. To
+	    identify a pliable directive look for an explicit "supports smooth
+	    reconfiguration" statement in directive documentation. For example,
+	    the reconfiguration directive itself is pliable, and the corresponding
+	    (self-referential) statement is at the end of this documentation.
+
+	The ultimate long-term goal is smooth reconfiguration support for all
+	directives, but nearly all directives are currently classified as "rigid".
+
+
+	It is possible to perform harsh reconfiguration of a Squid instance that
+	was previously configured to only support smooth reconfiguration if
+	configuration file(s) that Squid was last (re)configured with were kept:
+
+	    1. Change "reconfiguration" mode value. Keep rigid directives intact!
+	    2. Reconfigure Squid (to switch it to the new reconfiguration mode).
+	    3. Change any directives as needed.
+	    4. Reconfigure Squid again (to apply all configuration changes).
+
+	It is, of course, possible to enable smooth reconfiguration of a Squid
+	instance that was previously configured to only support harsh
+	reconfiguration, but the effects of mode change will not be visible during
+	reconfiguration that changes mode to "smooth": When deciding how to
+	reconfigure, Squid is still using the earlier reconfiguration mode
+	setting. If squid.conf version N does not enable smooth reconfiguration,
+	then the next reconfiguration will be harsh even if squid.conf version N+1
+	enables smooth reconfiguration. Subsequent reconfiguration may be smooth.
 DOC_END
 
 NAME: memory_pools

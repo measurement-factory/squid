@@ -30,8 +30,12 @@ class CachePeer
     CBDATA_CLASS(CachePeer);
 
 public:
-    explicit CachePeer(const char *hostname);
+    explicit CachePeer(const SBuf &address);
     ~CachePeer();
+
+    /// apply new configuration while preserving current name, IP addresses, any
+    /// TCP connection pools, and connection establishment stats
+    void update(const CachePeer &fresh);
 
     /// reacts to a successful establishment of a connection to this cache_peer
     void noteSuccess();

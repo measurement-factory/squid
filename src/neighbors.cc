@@ -1054,6 +1054,20 @@ findCachePeerByName(const char * const name)
     return nullptr;
 }
 
+void
+UpdateCachePeer(const CachePeer &newCfg)
+{
+    debugs(3, 5, newCfg);
+
+    const auto currentCfg = findCachePeerByName(newCfg.name);
+    // TODO: Removal is also currently unsupported. Detect/reject it as well.
+    if (!currentCfg)
+        throw TextException("no support for adding a new or changing an existing listening port address", Here());
+
+    // TODO: Consider reporting unchanged configurations.
+    currentCfg->update(newCfg);
+}
+
 int
 neighborUp(const CachePeer * p)
 {

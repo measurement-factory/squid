@@ -61,7 +61,7 @@ clone_repo() {
     if test -e $destination_dir
     then
         echo "Skipping already fetched $destination_dir"
-    elif run git clone --no-tags --quiet --depth=1 --branch production -- "$repo_url" "$destination_dir"
+    elif run git clone --no-tags --quiet --depth=1 --branch master -- "$repo_url" "$destination_dir"
     then
         if test -e "$destination_dir/package.json"
         then

@@ -22,7 +22,7 @@
 #include "auth/Config.h"
 #include "auth/Scheme.h"
 #include "AuthReg.h"
-#include "base/CharacterSet.h"
+#include "base/OnOff.h"
 #include "base/PackableStream.h"
 #include "base/RunnersRegistry.h"
 #include "cache_cf.h"
@@ -30,6 +30,7 @@
 #include "CachePeers.h"
 #include "ConfigOption.h"
 #include "ConfigParser.h"
+#include "configuration/Preprocessor.h"
 #include "CpuAffinityMap.h"
 #include "debug/Messages.h"
 #include "DiskIO/DiskIOModule.h"
@@ -46,7 +47,6 @@
 #include "ip/NfMarkConfig.h"
 #include "ip/QosConfig.h"
 #include "ip/tools.h"
-#include "ipc/Kids.h"
 #include "log/Config.h"
 #include "log/CustomLog.h"
 #include "MemBuf.h"
@@ -92,9 +92,6 @@
 #endif
 
 #include <algorithm>
-#if HAVE_GLOB_H
-#include <glob.h>
-#endif
 #include <chrono>
 #include <limits>
 #include <list>
@@ -139,7 +136,7 @@ static void dump_ecap_service_type(StoreEntry *, const char *, const Adaptation:
 static void free_ecap_service_type(Adaptation::Ecap::Config *);
 #endif
 
-static peer_t parseNeighborType(const char *s);
+static peer_t parseNeighborType(const char *description, ConfigParser &);
 
 static const char *const T_NANOSECOND_STR = "nanosecond";
 static const char *const T_MICROSECOND_STR = "microsecond";
@@ -167,7 +164,6 @@ static void dump_cache_log_message(StoreEntry *entry, const char *name, const De
 static void free_cache_log_message(DebugMessages **messages);
 
 static void parse_access_log(CustomLog ** customlog_definitions);
-static int check_null_access_log(CustomLog *customlog_definitions);
 static void dump_access_log(StoreEntry * entry, const char *name, CustomLog * definitions);
 static void free_access_log(CustomLog ** definitions);
 
@@ -175,10 +171,6 @@ static void configDoConfigure(void);
 static void parse_refreshpattern(RefreshPattern **);
 static void parse_u_short(unsigned short * var);
 static void parse_string(char **);
-static void default_all(void);
-static void defaults_if_none(void);
-static void defaults_postscriptum(void);
-static int parse_line(char *);
 static void parse_obsolete(const char *);
 static void parseBytesLine(size_t * bptr, const char *units);
 static void parseBytesLineSigned(ssize_t * bptr, const char *units);
@@ -209,15 +201,20 @@ static void free_denyinfo(AclDenyInfoList ** var);
 static void parse_IpAddress_list(Ip::Address_list **);
 static void dump_IpAddress_list(StoreEntry *, const char *, const Ip::Address_list *);
 static void free_IpAddress_list(Ip::Address_list **);
-#if CURRENTLY_UNUSED
-static int check_null_IpAddress_list(const Ip::Address_list *);
-#endif /* CURRENTLY_UNUSED */
 #endif /* USE_WCCPv2 */
 
 static void parsePortCfg(AnyP::PortCfgPointer *, const char *protocol);
-#define parse_PortCfg(l) parsePortCfg((l), token)
+#define parse_PortCfg(l) parsePortCfg((l), cfg_directive)
 static void dump_PortCfg(StoreEntry *, const char *, const AnyP::PortCfgPointer &);
 #define free_PortCfg(h)  *(h)=NULL
+
+/// XXX: Work around cf_gen's e.type.find("::") hack limitations that would reject
+/// repeated "https_port" directive lines if we use the real type name in TYPE.
+using PortCfgsXXX = AnyP::PortCfgPointer;
+inline void parse_PortCfgsXXX(PortCfgsXXX *ports) { parse_PortCfg(ports); }
+inline void free_PortCfgsXXX(PortCfgsXXX *portsPtr) { free_PortCfg(portsPtr); }
+inline void dump_PortCfgsXXX(StoreEntry * const e, const char * const d, const PortCfgsXXX &ports) { dump_PortCfg(e, d, ports); }
+static AnyP::PortCfgPointer ParsePortCfg(const SBuf &protoName);
 
 #if USE_OPENSSL
 static void parse_sslproxy_cert_sign(sslproxy_cert_sign **cert_sign);
@@ -246,8 +243,6 @@ static void parse_UrlHelperTimeout(SquidConfig::UrlHelperTimeout *);
 static void dump_UrlHelperTimeout(StoreEntry *, const char *, SquidConfig::UrlHelperTimeout &);
 static void free_UrlHelperTimeout(SquidConfig::UrlHelperTimeout *);
 
-static int parseOneConfigFile(const char *file_name, unsigned int depth);
-
 static void parse_configuration_includes_quoted_values(bool *recognizeQuotedValues);
 static void dump_configuration_includes_quoted_values(StoreEntry *const entry, const char *const name, bool recognizeQuotedValues);
 static void free_configuration_includes_quoted_values(bool *recognizeQuotedValues);
@@ -259,6 +254,13 @@ static void parse_http_upgrade_request_protocols(HttpUpgradeProtocolAccess **pro
 static void dump_http_upgrade_request_protocols(StoreEntry *entry, const char *name, HttpUpgradeProtocolAccess *protoGuards);
 static void free_http_upgrade_request_protocols(HttpUpgradeProtocolAccess **protoGuards);
 
+namespace Configuration {
+static PreprocessedCfg::Pointer &PreprocessedConfigStorage();
+static const PreprocessedCfg &FreshPreprocessedConfig();
+static void ApplyPreprocessedConfiguration();
+static void PerformSmoothReconfiguration();
+} // namespace Configuration
+
 /*
  * LegacyParser is a parser for legacy code that uses the global
  * approach.  This is static so that it is only exposed to cache_cf.
@@ -268,7 +270,7 @@ static void free_http_upgrade_request_protocols(HttpUpgradeProtocolAccess **prot
 static ConfigParser LegacyParser = ConfigParser();
 
 const char *cfg_directive = nullptr;
-const char *cfg_filename = nullptr;
+SBuf cfg_filename;
 int config_lineno = 0;
 char config_input_line[BUFSIZ] = {};
 
@@ -278,359 +280,11 @@ self_destruct(void)
     LegacyParser.destruct();
 }
 
-static void
-SetConfigFilename(char const *file_name, bool is_pipe)
-{
-    if (is_pipe)
-        cfg_filename = file_name + 1;
-    else
-        cfg_filename = file_name;
-}
-
-/// Determines whether the given squid.conf character is a token-delimiting
-/// space character according to squid.conf preprocessor grammar. That grammar
-/// only recognizes two space characters: ASCII SP and HT. Unlike isspace(3),
-/// this function is not sensitive to locale(1) and does not classify LF, VT,
-/// FF, and CR characters as token-delimiting space. However, some squid.conf
-/// directive-specific parsers still define space based on isspace(3).
-static bool
-IsSpace(const char ch)
-{
-    return CharacterSet::WSP[ch];
-}
-
-static const char*
-skip_ws(const char* s)
-{
-    while (IsSpace(*s))
-        ++s;
-
-    return s;
-}
-
-static int
-parseManyConfigFiles(char* files, int depth)
-{
-    int error_count = 0;
-    char* saveptr = nullptr;
-#if HAVE_GLOB
-    char *path;
-    glob_t globbuf;
-    int i;
-    memset(&globbuf, 0, sizeof(globbuf));
-    for (path = strwordtok(files, &saveptr); path; path = strwordtok(nullptr, &saveptr)) {
-        if (glob(path, globbuf.gl_pathc ? GLOB_APPEND : 0, nullptr, &globbuf) != 0) {
-            int xerrno = errno;
-            fatalf("Unable to find configuration file: %s: %s", path, xstrerr(xerrno));
-        }
-    }
-    for (i = 0; i < (int)globbuf.gl_pathc; ++i) {
-        error_count += parseOneConfigFile(globbuf.gl_pathv[i], depth);
-    }
-    globfree(&globbuf);
-#else
-    char* file = strwordtok(files, &saveptr);
-    while (file != NULL) {
-        error_count += parseOneConfigFile(file, depth);
-        file = strwordtok(nullptr, &saveptr);
-    }
-#endif /* HAVE_GLOB */
-    return error_count;
-}
-
-static void
-ReplaceSubstr(char*& str, int& len, unsigned substrIdx, unsigned substrLen, const char* newSubstr)
-{
-    assert(str != nullptr);
-    assert(newSubstr != nullptr);
-
-    unsigned newSubstrLen = strlen(newSubstr);
-    if (newSubstrLen > substrLen)
-        str = (char*)realloc(str, len - substrLen + newSubstrLen + 1);
-
-    // move tail part including zero
-    memmove(str + substrIdx + newSubstrLen, str + substrIdx + substrLen, len - substrIdx - substrLen + 1);
-    // copy new substring in place
-    memcpy(str + substrIdx, newSubstr, newSubstrLen);
-
-    len = strlen(str);
-}
-
-static void
-SubstituteMacro(char*& line, int& len, const char* macroName, const char* substStr)
-{
-    assert(line != nullptr);
-    assert(macroName != nullptr);
-    assert(substStr != nullptr);
-    unsigned macroNameLen = strlen(macroName);
-    while (const char* macroPos = strstr(line, macroName)) // we would replace all occurrences
-        ReplaceSubstr(line, len, macroPos - line, macroNameLen, substStr);
-}
-
-static void
-ProcessMacros(char*& line, int& len)
-{
-    SubstituteMacro(line, len, "${service_name}", service_name.c_str());
-    SubstituteMacro(line, len, "${process_name}", TheKidName.c_str());
-    SubstituteMacro(line, len, "${process_number}", xitoa(KidIdentifier));
-}
-
-static void
-trim_trailing_ws(char* str)
-{
-    assert(str != nullptr);
-    unsigned i = strlen(str);
-    while ((i > 0) && IsSpace(str[i - 1]))
-        --i;
-    str[i] = '\0';
-}
-
-static const char*
-FindStatement(const char* line, const char* statement)
-{
-    assert(line != nullptr);
-    assert(statement != nullptr);
-
-    const char* str = skip_ws(line);
-    unsigned len = strlen(statement);
-    if (strncmp(str, statement, len) == 0) {
-        str += len;
-        if (*str == '\0')
-            return str;
-        else if (IsSpace(*str))
-            return skip_ws(str);
-    }
-
-    return nullptr;
-}
-
-static bool
-StrToInt(const char* str, long& number)
-{
-    assert(str != nullptr);
-
-    char* end;
-    number = strtol(str, &end, 0);
-
-    return (end != str) && (*end == '\0'); // returns true if string contains nothing except number
-}
-
-static bool
-EvalBoolExpr(const char* expr)
-{
-    assert(expr != nullptr);
-    if (strcmp(expr, "true") == 0) {
-        return true;
-    } else if (strcmp(expr, "false") == 0) {
-        return false;
-    } else if (const char* equation = strchr(expr, '=')) {
-        const char* rvalue = skip_ws(equation + 1);
-        char* lvalue = (char*)xmalloc(equation - expr + 1);
-        xstrncpy(lvalue, expr, equation - expr + 1);
-        trim_trailing_ws(lvalue);
-
-        long number1;
-        if (!StrToInt(lvalue, number1))
-            fatalf("String is not a integer number: '%s'\n", lvalue);
-        long number2;
-        if (!StrToInt(rvalue, number2))
-            fatalf("String is not a integer number: '%s'\n", rvalue);
-
-        xfree(lvalue);
-        return number1 == number2;
-    }
-    fatalf("Unable to evaluate expression '%s'\n", expr);
-    return false; // this place cannot be reached
-}
-
-static int
-parseOneConfigFile(const char *file_name, unsigned int depth)
-{
-    FILE *fp = nullptr;
-    const char *orig_cfg_filename = cfg_filename;
-    const int orig_config_lineno = config_lineno;
-    char *token = nullptr;
-    char *tmp_line = nullptr;
-    int tmp_line_len = 0;
-    int err_count = 0;
-    int is_pipe = 0;
-
-    debugs(3, Important(68), "Processing Configuration File: " << file_name << " (depth " << depth << ")");
-    if (depth > 16) {
-        fatalf("WARNING: can't include %s: includes are nested too deeply (>16)!\n", file_name);
-        return 1;
-    }
-
-    if (file_name[0] == '!' || file_name[0] == '|') {
-        fp = popen(file_name + 1, "r");
-        is_pipe = 1;
-    } else {
-        fp = fopen(file_name, "r");
-    }
-
-    if (!fp) {
-        int xerrno = errno;
-        fatalf("Unable to open configuration file: %s: %s", file_name, xstrerr(xerrno));
-    }
-
-#if _SQUID_WINDOWS_
-    setmode(fileno(fp), O_TEXT);
-#endif
-
-    SetConfigFilename(file_name, bool(is_pipe));
-
-    memset(config_input_line, '\0', BUFSIZ);
-
-    config_lineno = 0;
-
-    std::vector<bool> if_states;
-    while (fgets(config_input_line, BUFSIZ, fp)) {
-        ++config_lineno;
-
-        if ((token = strchr(config_input_line, '\n')))
-            *token = '\0';
-
-        if ((token = strchr(config_input_line, '\r')))
-            *token = '\0';
-
-        // strip any prefix whitespace off the line.
-        const char *p = skip_ws(config_input_line);
-        if (config_input_line != p)
-            memmove(config_input_line, p, strlen(p)+1);
-
-        if (strncmp(config_input_line, "#line ", 6) == 0) {
-            static char new_file_name[1024];
-            static char *file;
-            static char new_lineno;
-            token = config_input_line + 6;
-            new_lineno = strtol(token, &file, 0) - 1;
-
-            if (file == token)
-                continue;   /* Not a valid #line directive, may be a comment */
-
-            while (*file && IsSpace(*file))
-                ++file;
-
-            if (*file) {
-                if (*file != '"')
-                    continue;   /* Not a valid #line directive, may be a comment */
-
-                xstrncpy(new_file_name, file + 1, sizeof(new_file_name));
-
-                if ((token = strchr(new_file_name, '"')))
-                    *token = '\0';
-
-                SetConfigFilename(new_file_name, false);
-            }
-
-            config_lineno = new_lineno;
-        }
-
-        if (config_input_line[0] == '#')
-            continue;
-
-        if (config_input_line[0] == '\0')
-            continue;
-
-        const char* append = tmp_line_len ? skip_ws(config_input_line) : config_input_line;
-
-        size_t append_len = strlen(append);
-
-        tmp_line = (char*)xrealloc(tmp_line, tmp_line_len + append_len + 1);
-
-        strcpy(tmp_line + tmp_line_len, append);
-
-        tmp_line_len += append_len;
-
-        if (tmp_line[tmp_line_len-1] == '\\') {
-            debugs(3, 5, "parseConfigFile: tmp_line='" << tmp_line << "'");
-            tmp_line[--tmp_line_len] = '\0';
-            continue;
-        }
-
-        trim_trailing_ws(tmp_line);
-        ProcessMacros(tmp_line, tmp_line_len);
-        debugs(3, (opt_parse_cfg_only?1:5), "Processing: " << tmp_line);
-
-        if (const char* expr = FindStatement(tmp_line, "if")) {
-            if_states.push_back(EvalBoolExpr(expr)); // store last if-statement meaning
-        } else if (FindStatement(tmp_line, "endif")) {
-            if (!if_states.empty())
-                if_states.pop_back(); // remove last if-statement meaning
-            else
-                fatalf("'endif' without 'if'\n");
-        } else if (FindStatement(tmp_line, "else")) {
-            if (!if_states.empty())
-                if_states.back() = !if_states.back();
-            else
-                fatalf("'else' without 'if'\n");
-        } else if (if_states.empty() || if_states.back()) { // test last if-statement meaning if present
-            /* Handle includes here */
-            if (tmp_line_len >= 9 && strncmp(tmp_line, "include", 7) == 0 && IsSpace(tmp_line[7])) {
-                err_count += parseManyConfigFiles(tmp_line + 8, depth + 1);
-            } else {
-                try {
-                    if (!parse_line(tmp_line)) {
-                        debugs(3, DBG_CRITICAL, "ERROR: unrecognized directive near '" << tmp_line << "'" <<
-                               Debug::Extra << "directive location: " << ConfigParser::CurrentLocation());
-                        ++err_count;
-                    }
-                } catch (...) {
-                    // fatal for now
-                    debugs(3, DBG_CRITICAL, "ERROR: configuration failure: " << CurrentException);
-                    self_destruct();
-                }
-            }
-        }
-
-        safe_free(tmp_line);
-        tmp_line_len = 0;
-
-    }
-    if (!if_states.empty())
-        fatalf("if-statement without 'endif'\n");
-
-    if (is_pipe) {
-        int ret = pclose(fp);
-
-        if (ret != 0)
-            fatalf("parseConfigFile: '%s' failed with exit code %d\n", file_name, ret);
-    } else {
-        fclose(fp);
-    }
-
-    SetConfigFilename(orig_cfg_filename, false);
-    config_lineno = orig_config_lineno;
-
-    xfree(tmp_line);
-    return err_count;
-}
-
 void
 Configuration::Parse()
 {
-    debugs(5, 4, MYNAME);
-
-    configFreeMemory();
-
-    ACLMethodData::ThePurgeCount = 0;
-    default_all();
-
-    const auto unrecognizedDirectives = parseOneConfigFile(ConfigFile, 0);
-
-    defaults_if_none();
-
-    defaults_postscriptum();
-
-    if (unrecognizedDirectives)
-        throw TextException(ToSBuf("Found ", unrecognizedDirectives, " unrecognized directive(s)"), Here());
-
-    /*
-     * We must call configDoConfigure() before leave_suid() because
-     * configDoConfigure() is where we turn username strings into
-     * uid values.
-     */
-    configDoConfigure();
+    PreprocessedConfigStorage() = Preprocess(ConfigFile, nullptr);
+    ApplyPreprocessedConfiguration();
 
     if (opt_send_signal == -1) {
         Mgr::RegisterAction("config",
@@ -638,6 +292,159 @@ Configuration::Parse()
                             dump_config,
                             1, 1);
     }
+}
+
+/// performs harsh (re)configuration using previously preprocessed directives
+static void
+Configuration::ApplyPreprocessedConfiguration()
+{
+    const auto &preprocessedConfig = FreshPreprocessedConfig();
+    debugs(5, 4, "directives: " << preprocessedConfig.allDirectives.size());
+
+    configFreeMemory();
+
+    ACLMethodData::ThePurgeCount = 0;
+
+    for (const auto &directive: preprocessedConfig.allDirectives)
+        parseDirective(directive);
+
+    /*
+     * We must call configDoConfigure() before leave_suid() because
+     * configDoConfigure() is where we turn username strings into
+     * uid values.
+     */
+    configDoConfigure();
+}
+
+/// configuration successfully preprocessed by the last Preprocess() call OR nil
+static Configuration::PreprocessedCfg::Pointer &
+Configuration::PreprocessedConfigStorage()
+{
+    static const auto p = new PreprocessedCfg::Pointer();
+    return *p;
+}
+
+/// Convenience wrapper for safe *PreprocessedConfigStorage() calls.
+/// Configuration successfully preprocessed by the last Preprocess() call.
+static const Configuration::PreprocessedCfg &
+Configuration::FreshPreprocessedConfig()
+{
+    const auto storage = PreprocessedConfigStorage();
+    Assure(storage);
+    return *storage;
+}
+
+/// reconfigures preprocessed pliable directives
+static void
+Configuration::PerformSmoothReconfiguration()
+{
+    Assure(!reconfiguring);
+    reconfiguring = true;
+    try {
+        const auto &preprocessedConfig = FreshPreprocessedConfig();
+
+        // Do not report the number of pliable and (unchanged) rigid directives:
+        // Such reports may confuse admins because those numbers include
+        // default-generated directives that admins do not see in their configs.
+        debugs(3, DBG_IMPORTANT, "Performing smooth reconfiguration");
+
+        Assure(preprocessedConfig.allowSmoothReconfiguration);
+
+        // TODO: Optimize by reconfiguring only those pliable directives that changed.
+        for (const auto &directive: preprocessedConfig.pliableDirectives)
+            ReconfigureSmoothly(*directive);
+
+        // TODO: Add SmoothReconfigurationDebt for ReconfigureSmoothly() calls
+        // to accumulate and for us to "repay" by calling recorded functions
+        // instead of accumulating directive-specific knowledge here.
+        // TODO: Decide on a guiding principle to handle these and similar cases:
+        // TODO: peerDnsRefreshStart(), but only if cache_peer hostname changes?
+        // TODO: peerClearRRStart(), but only if peer set or other relevant details change?
+        // TODO: Close client-Squid and Squid-origin pconns, but only if relevant details change.
+    }
+    catch (...) {
+        debugs(3, DBG_CRITICAL, "ERROR: Smooth reconfiguration failure" <<
+               Debug::Extra << "error: " << CurrentException <<
+               Debug::Extra << "configuration location: " << ConfigParser::CurrentLocation() <<
+               Debug::Extra << "configuration line: " << config_input_line);
+    }
+    Assure(reconfiguring);
+    reconfiguring = false;
+}
+
+// TODO: Generalize
+/// an exception-safe duplication-free way to cleanup upon exiting a function
+class OnReturn_LeaveSuid
+{
+public:
+    ~OnReturn_LeaveSuid() {
+        keepCapabilities(); // TODO: main.cc rarely calls it. Should we call it?
+        leave_suid();
+    }
+};
+
+bool
+Configuration::StartReconfiguration()
+{
+    // First, Preprocess() may need privileges to read configuration file(s).
+    // Then, if we decide to PerformSmoothReconfiguration(), it may need
+    // privileges to read files that being-reconfigured directives load.
+    enter_suid();
+    OnReturn_LeaveSuid cleaner;
+
+    try {
+        PreprocessedConfigStorage() = Preprocess(ConfigFile, PreprocessedConfigStorage());
+    }
+    catch (...) {
+        debugs(3, DBG_CRITICAL, "ERROR: Refusing to reconfigure after a preprocessing failure" <<
+               Debug::Extra << "error: " << CurrentException <<
+               Debug::Extra << "configuration location: " << ConfigParser::CurrentLocation() <<
+               Debug::Extra << "configuration line: " << config_input_line);
+        return false;
+    }
+
+    if (FreshPreprocessedConfig().allowSmoothReconfiguration) {
+        PerformSmoothReconfiguration();
+        // In "else" below, we may reconfigure harshly if smooth reconfiguration
+        // is not allowed, but we do not reconfigure harshly when the above call
+        // fails: Smooth reconfiguration failures are likely to repeat during
+        // harsh reconfiguration, and failed harsh reconfiguration is a lot more
+        // likely to leave Squid instance in a bad "half-configured" state.
+        return false;
+    } else {
+        // We return false here and, hence, do not reconfigure (at all) if both
+        // smooth and harsh reconfiguration modes are not allowed.
+        return FreshPreprocessedConfig().allowHarshReconfiguration;
+    }
+}
+
+void
+Configuration::FinishReconfiguration()
+{
+    ApplyPreprocessedConfiguration();
+}
+
+void
+Configuration::SwitchTo(const Location &location)
+{
+    cfg_filename = location.name();
+    config_lineno = location.lineNo();
+}
+
+void
+Configuration::SwitchToGeneratedInput(const SBuf &description)
+{
+    SwitchTo(Location(description));
+}
+
+void
+Configuration::SwitchToExternalInput(const char * const filenameOrCommand, const bool isCommand)
+{
+    // TODO: Refactor to represent "<script>|" source using "<script> output"
+    // phrase instead of the current misleading "<script>" representation (e.g.,
+    // "gen_acls.pl output line 4" instead of current "gen_acls.pl line 4").
+    const auto l = Location(SBuf(isCommand ? filenameOrCommand + 1 : filenameOrCommand));
+    Configuration::SwitchTo(l);
 }
 
 /*
@@ -666,10 +473,10 @@ ParseDirective(T &raw, ConfigParser &parser)
     if (SawDirective(raw))
         parser.rejectDuplicateDirective();
 
-    // TODO: parser.openDirective(directiveName);
     Must(!raw);
     raw = Configuration::Component<T>::Parse(parser);
     Must(raw);
+    // TODO: Move to Configuration::parseDirective() when ready to reject trailing garbage in all directives.
     parser.closeDirective();
 }
 
@@ -973,30 +780,6 @@ configDoConfigure(void)
         Ssl::useSquidUntrusted(Config.ssl_client.sslContext_->get());
 #endif
         Config.ssl_client.defaultPeerContext = new Security::FuturePeerContext(Security::ProxyOutgoingConfig, *Config.ssl_client.sslContext_);
-    }
-
-    for (const auto &p: CurrentCachePeers()) {
-
-        // default value for ssldomain= is the peer host/IP
-        if (p->secure.sslDomain.isEmpty())
-            p->secure.sslDomain = p->host;
-
-        if (p->secure.encryptTransport) {
-            debugs(3, 2, "initializing TLS context for cache_peer " << *p);
-            p->sslContext = p->secure.createClientContext(true);
-            if (!p->sslContext) {
-                debugs(3, DBG_CRITICAL, "ERROR: Could not initialize TLS context for cache_peer " << *p);
-                self_destruct();
-                return;
-            }
-        }
-    }
-
-    for (AnyP::PortCfgPointer s = HttpPortList; s != nullptr; s = s->next) {
-        if (!s->secure.encryptTransport)
-            continue;
-        debugs(3, 2, "initializing " << AnyP::UriScheme(s->transport.protocol) << "_port " << s->s << " TLS contexts");
-        s->secure.initServerContexts(*s);
     }
 
     // prevent infinite fetch loops in the request parser
@@ -1911,12 +1694,6 @@ dump_cachedir(StoreEntry * entry, const char *name, const Store::DiskConfig &swa
     Store::Disks::Dump(swap, *entry, name);
 }
 
-static int
-check_null_string(char *s)
-{
-    return s == nullptr;
-}
-
 #if USE_AUTH
 static void
 parse_authparam(Auth::ConfigVector * config)
@@ -2065,7 +1842,7 @@ peer_type_str(const peer_t type)
 }
 
 static void
-dump_peer(StoreEntry * entry, const char *name, const CachePeers *peers)
+dump_CachePeerXXX(StoreEntry * entry, const char *name, const CachePeers *peers)
 {
     if (!peers)
         return;
@@ -2103,12 +1880,15 @@ dump_peer(StoreEntry * entry, const char *name, const CachePeers *peers)
  * on Windows at least it returns garage results.
  */
 static bool
-isUnsignedNumeric(const char *str, size_t len)
+isUnsignedNumeric(const SBuf &raw)
 {
-    if (len < 1) return false;
+    // TODO: Reduce code duplication with ParseUnsignedDecimalInteger() et al.
 
-    for (; len >0 && *str; ++str, --len) {
-        if (! isdigit(*str))
+    if (raw.length() < 1)
+        return false;
+
+    for (const auto c: raw) {
+        if (!isdigit(c))
             return false;
     }
     return true;
@@ -2119,80 +1899,50 @@ isUnsignedNumeric(const char *str, size_t len)
  \returns       Port the named service is supposed to be listening on.
  */
 static unsigned short
-GetService(const char *proto)
+GetService(const char *proto, const OnOff allowZero, ConfigParser &parser)
 {
-    struct servent *port = nullptr;
-    /** Parses a port number or service name from the squid.conf */
-    char *token = ConfigParser::NextToken();
-    if (token == nullptr) {
-        self_destruct();
-        return 0; /* NEVER REACHED */
+    auto portName = parser.token("port number or service name");
+
+    if (isUnsignedNumeric(portName)) {
+        if (const auto portNumber = xatos(portName.c_str()))
+            return portNumber;
+        if (allowZero == OnOff::on)
+            return 0;
+        throw TextException(ToSBuf("non-zero ", proto, " port number (or a service name) expected; got: ", portName), Here());
     }
-    /** Returns either the service port number from /etc/services */
-    if ( !isUnsignedNumeric(token, strlen(token)) )
-        port = getservbyname(token, proto);
-    if (port != nullptr) {
-        return ntohs((unsigned short)port->s_port);
+
+    // try to get the service port number from /etc/services
+    if (const auto serv = getservbyname(portName.c_str(), proto)) {
+        if (const auto portNumber = ntohs(static_cast<unsigned short>(serv->s_port)))
+            return portNumber;
+        if (allowZero == OnOff::on)
+            return 0;
+        throw TextException(ToSBuf("a ", proto, " service name with a non-zero port number (or just a port number) expected; got: '", portName, "'"), Here());
     }
-    /** Or a numeric translation of the config text. */
-    return xatos(token);
+
+    throw TextException(ToSBuf("a ", proto, " service name or port number expected; got: '", portName, "'"), Here());
 }
 
-/**
- \returns       Port the named TCP service is supposed to be listening on.
- \copydoc GetService(const char *proto)
- */
-inline unsigned short
-GetTcpService(void)
+/// parses a single cache_peer directive
+static auto
+ParseCachePeer(ConfigParser &parser)
 {
-    return GetService("tcp");
-}
+    const auto address = parser.token("cache_peer TCP listening address");
 
-/**
- \returns       Port the named UDP service is supposed to be listening on.
- \copydoc GetService(const char *proto)
- */
-inline unsigned short
-GetUdpService(void)
-{
-    return GetService("udp");
-}
+    auto p = std::make_unique<CachePeer>(address);
 
-static void
-parse_peer(CachePeers **peers)
-{
-    char *host_str = ConfigParser::NextToken();
-    if (!host_str) {
-        self_destruct();
-        return;
-    }
-
-    char *token = ConfigParser::NextToken();
-    if (!token) {
-        self_destruct();
-        return;
-    }
-
-    const auto p = new CachePeer(host_str);
-
-    p->type = parseNeighborType(token);
+    p->type = parseNeighborType("cache_peer type parameter", parser);
 
     if (p->type == PEER_MULTICAST) {
         p->options.no_digest = true;
         p->options.no_netdb_exchange = true;
     }
 
-    p->http_port = GetTcpService();
+    using AllowZero = OnOff;
+    p->http_port = GetService("tcp", AllowZero::off, parser);
+    p->icp.port = GetService("udp", AllowZero::on, parser);
 
-    if (!p->http_port) {
-        delete p;
-        self_destruct();
-        return;
-    }
-
-    p->icp.port = GetUdpService();
-
-    while ((token = ConfigParser::NextToken())) {
+    while (const auto token = ConfigParser::NextToken()) {
         if (!strcmp(token, "proxy-only")) {
             p->options.proxy_only = true;
         } else if (!strcmp(token, "no-query")) {
@@ -2373,9 +2123,6 @@ parse_peer(CachePeers **peers)
         }
     }
 
-    if (findCachePeerByName(p->name))
-        throw TextException(ToSBuf("cache_peer ", *p, " specified twice"), Here());
-
     if (p->max_conn > 0 && p->max_conn < p->standby.limit)
         throw TextException(ToSBuf("cache_peer ", *p, " max-conn=", p->max_conn,
                                    " is lower than its standby=", p->standby.limit), Here());
@@ -2388,27 +2135,62 @@ parse_peer(CachePeers **peers)
 
 #if USE_CACHE_DIGESTS
     if (!p->options.no_digest)
-        p->digest = new PeerDigest(p);
+        p->digest = new PeerDigest(p.get());
 #endif
 
     if (p->secure.encryptTransport)
         p->secure.parseOptions();
 
+    // TODO: Move to Security::PeerOptions::parseOptions() after/while making
+    // admin-visible Adaptation::ServiceConfig::grokUri() adjustments.
+    // default value for ssldomain= is the peer host/IP
+    if (p->secure.sslDomain.isEmpty())
+        p->secure.sslDomain = p->host;
+
+    if (p->secure.encryptTransport) {
+        debugs(3, 2, "initializing TLS context for cache_peer " << *p);
+        p->sslContext = p->secure.createClientContext(true);
+        // TODO: Refactor Security::PeerOptions::createClientContext() to never return nil instead.
+        if (!p->sslContext)
+            throw TextException("Failed to initialize TLS context for cache_peer", Here());
+    }
+
+    return p;
+}
+
+/// XXX: Work around cf_gen's limitations that would use "*" in function names
+/// if we use the real type name in cache_peer TYPE metadata field.
+using CachePeerXXX = CachePeers*;
+static void
+parse_CachePeerXXX(CachePeers **peers)
+{
+    auto p = ParseCachePeer(LegacyParser);
+
+    if (findCachePeerByName(p->name))
+        throw TextException("cache_peer specified twice", Here());
+
     if (!*peers)
         *peers = new CachePeers;
 
-    (*peers)->add(p);
-
-    p->index = (*peers)->size();
+    (*peers)->absorb(std::move(p));
 
     peerClearRRStart();
 }
 
 static void
-free_peer(CachePeers ** const peers)
+free_CachePeerXXX(CachePeers ** const peers)
 {
     delete *peers;
     *peers = nullptr;
+}
+
+DeclareDirectiveReconfigurator(ReconfigureCachePeer, CachePeers*);
+void
+ReconfigureCachePeer(CachePeers *&peers, ConfigParser &parser)
+{
+    const auto newPeer = ParseCachePeer(parser);
+    Assure(peers == Config.peers);
+    UpdateCachePeer(*newPeer);
 }
 
 static void
@@ -2521,7 +2303,7 @@ parse_hostdomaintype(void)
     char *domain = nullptr;
     while ((domain = ConfigParser::NextToken())) {
         auto *l = static_cast<NeighborTypeDomainList *>(xcalloc(1, sizeof(NeighborTypeDomainList)));
-        l->type = parseNeighborType(type);
+        l->type = parseNeighborType("neighbor_type_domain neighbor type parameter", LegacyParser);
         l->domain = xstrdup(domain);
 
         NeighborTypeDomainList **L = nullptr;
@@ -3138,12 +2920,6 @@ parse_wordlist(wordlist ** list)
         wordlistAdd(list, token);
 }
 
-static int
-check_null_acl_access(acl_access * a)
-{
-    return a == nullptr;
-}
-
 #define free_wordlist wordlistDestroy
 
 #define free_uri_whitespace free_int
@@ -3303,8 +3079,10 @@ dump_memcachemode(StoreEntry * entry, const char *name, SquidConfig &)
 #include "cf_parser.cci"
 
 peer_t
-parseNeighborType(const char *s)
+parseNeighborType(const char *description, ConfigParser &parser)
 {
+    auto typeToken = parser.token(description);
+    const char *s = typeToken.c_str(); // TODO: Remove this diff reduction.
     if (!strcmp(s, "parent"))
         return PEER_PARENT;
 
@@ -3320,7 +3098,8 @@ parseNeighborType(const char *s)
     if (!strcmp(s, "multicast"))
         return PEER_MULTICAST;
 
-    debugs(15, DBG_CRITICAL, "WARNING: Unknown neighbor type: " << s);
+    // TODO: Throw instead of assuming that PEER_SIBLING would work OK.
+    debugs(15, DBG_CRITICAL, "ERROR: Unknown " << description << " value: " << typeToken);
 
     return PEER_SIBLING;
 }
@@ -3370,17 +3149,6 @@ free_IpAddress_list(Ip::Address_list ** head)
     *head = nullptr;
 }
 
-#if CURRENTLY_UNUSED
-/* This code was previously used by http_port. Left as it really should
- * be used by icp_port and htcp_port
- */
-static int
-check_null_IpAddress_list(const Ip::Address_list * s)
-{
-    return NULL == s;
-}
-
-#endif /* CURRENTLY_UNUSED */
 #endif /* USE_WCCPv2 */
 
 static void
@@ -3734,11 +3502,24 @@ parsePortCfg(AnyP::PortCfgPointer *head, const char *optionName)
         return;
     }
 
+    const auto ports = ParsePortCfg(protoName);
+
+    Assure(head);
+    while (*head != nullptr)
+        head = &((*head)->next);
+    *head = ports;
+}
+
+/// Parses a single <protoName>_port directive.
+/// \returns one or two (linked via PortCfg::next data member) PortCfg objects
+static AnyP::PortCfgPointer
+ParsePortCfg(const SBuf &protoName)
+{
     char *token = ConfigParser::NextToken();
 
     if (!token) {
-        self_destruct();
-        return;
+        // TODO: Switch to parser.token("listening port address");
+        throw TextException("missing listening port address", Here());
     }
 
     AnyP::PortCfgPointer s = new AnyP::PortCfg();
@@ -3758,43 +3539,34 @@ parsePortCfg(AnyP::PortCfgPointer *head, const char *optionName)
         /* ssl-bump on https_port configuration requires either tproxy or intercept, and vice versa */
         const bool hijacked = s->flags.isIntercepted();
         if (s->flags.tunnelSslBumping && !hijacked) {
-            debugs(3, DBG_CRITICAL, "FATAL: ssl-bump on https_port requires tproxy/intercept which is missing.");
-            self_destruct();
-            return;
+            throw TextException("ssl-bump on https_port requires tproxy/intercept which is missing.", Here());
         }
         if (hijacked && !s->flags.tunnelSslBumping) {
-            debugs(3, DBG_CRITICAL, "FATAL: tproxy/intercept on https_port requires ssl-bump which is missing.");
-            self_destruct();
-            return;
+            throw TextException("tproxy/intercept on https_port requires ssl-bump which is missing.", Here());
         }
 #endif
         if (s->flags.proxySurrogate) {
-            debugs(3,DBG_CRITICAL, "FATAL: https_port: require-proxy-header option is not supported on HTTPS ports.");
-            self_destruct();
-            return;
+            throw TextException("https_port: require-proxy-header option is not supported on HTTPS ports.", Here());
         }
     } else if (protoName.cmp("FTP") == 0) {
         /* ftp_port does not support ssl-bump */
         if (s->flags.tunnelSslBumping) {
-            debugs(3, DBG_CRITICAL, "FATAL: ssl-bump is not supported for ftp_port.");
-            self_destruct();
-            return;
+            throw TextException("ssl-bump is not supported for ftp_port.", Here());
         }
         if (s->flags.proxySurrogate) {
             // Passive FTP data channel does not work without deep protocol inspection in the frontend.
-            debugs(3,DBG_CRITICAL, "FATAL: require-proxy-header option is not supported on ftp_port.");
-            self_destruct();
-            return;
+            throw TextException("require-proxy-header option is not supported on ftp_port.", Here());
         }
     }
 
     if (s->secure.encryptTransport) {
         if (s->secure.certs.empty()) {
-            debugs(3, DBG_CRITICAL, "FATAL: " << AnyP::UriScheme(s->transport.protocol) << "_port requires a cert= parameter");
-            self_destruct();
-            return;
+            throw TextException(ToSBuf(AnyP::UriScheme(s->transport.protocol), "_port requires a cert= parameter"), Here());
         }
         s->secure.parseOptions();
+
+        debugs(3, 2, "initializing " << AnyP::UriScheme(s->transport.protocol) << "_port " << s->s << " TLS contexts");
+        s->secure.initServerContexts(*s);
     }
 
     // *_port line should now be fully valid so we can clone it if necessary
@@ -3802,10 +3574,7 @@ parsePortCfg(AnyP::PortCfgPointer *head, const char *optionName)
         s->next = s->ipV4clone();
     }
 
-    while (*head != nullptr)
-        head = &((*head)->next);
-
-    *head = s;
+    return s;
 }
 
 static void
@@ -3906,6 +3675,17 @@ dump_PortCfg(StoreEntry * e, const char *n, const AnyP::PortCfgPointer &s)
         dump_generic_port(e, n, p);
         storeAppendPrintf(e, "\n");
     }
+}
+
+DeclareDirectiveReconfigurator(ReconfigureHttpsPort, PortCfgsXXX);
+void
+ReconfigureHttpsPort(PortCfgsXXX &ports, ConfigParser &)
+{
+    static const SBuf protoName("HTTPS");
+    const auto firstNewCfg = ParsePortCfg(protoName);
+    UpdatePortCfg(ports, *firstNewCfg);
+    if (const auto ipV4clone = firstNewCfg->next)
+        UpdatePortCfg(ports, *ipV4clone);
 }
 
 void
@@ -4016,12 +3796,6 @@ parse_access_log(CustomLog ** logs)
         logs = &(*logs)->next;
 
     *logs = cl;
-}
-
-static int
-check_null_access_log(CustomLog *customlog_definitions)
-{
-    return customlog_definitions == nullptr;
 }
 
 static void
@@ -4383,20 +4157,21 @@ sslBumpCfgRr::finalizeConfig()
 {
     if (lastDeprecatedRule != Ssl::bumpEnd) {
         assert( lastDeprecatedRule == Ssl::bumpClientFirst || lastDeprecatedRule == Ssl::bumpNone);
-        static char buf[1024];
+        SBuf conversionRule;
         if (lastDeprecatedRule == Ssl::bumpClientFirst) {
-            strcpy(buf, "ssl_bump deny all");
+            conversionRule = SBuf("ssl_bump deny all");
             debugs(3, DBG_CRITICAL, "WARNING: auto-converting deprecated implicit "
                    "\"ssl_bump deny all\" to \"ssl_bump none all\". New ssl_bump configurations "
                    "must not use implicit rules. Update your ssl_bump rules.");
         } else {
-            strcpy(buf, "ssl_bump allow all");
+            conversionRule = SBuf("ssl_bump allow all");
             debugs(3, DBG_CRITICAL, "SECURITY NOTICE: auto-converting deprecated implicit "
                    "\"ssl_bump allow all\" to \"ssl_bump client-first all\" which is usually "
                    "inferior to the newer server-first bumping mode. New ssl_bump"
                    " configurations must not use implicit rules. Update your ssl_bump rules.");
         }
-        parse_line(buf);
+        Configuration::SwitchToGeneratedInput(SBuf("runtime configuration finalization"));
+        Configuration::parseDirective(Configuration::PreprocessedDirective(conversionRule));
     }
 }
 

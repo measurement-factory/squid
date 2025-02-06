@@ -22,9 +22,9 @@
 
 CBDATA_CLASS_INIT(CachePeer);
 
-CachePeer::CachePeer(const char * const hostname):
-    name(xstrdup(hostname)),
-    host(xstrdup(hostname)),
+CachePeer::CachePeer(const SBuf &hostname):
+    name(SBufToCstring(hostname)),
+    host(SBufToCstring(hostname)),
     tlsContext(secure, sslContext),
     probeCodeContext(new PrecomputedCodeContext("cache_peer probe", ToSBuf("current cache_peer probe: ", *this)))
 {
@@ -57,6 +57,125 @@ CachePeer::~CachePeer()
     PeerPoolMgr::Checkpoint(standby.mgr, "peer gone");
 
     xfree(domain);
+}
+
+void
+CachePeer::update(const CachePeer &fresh)
+{
+    debugs(3, 7, *this << " using " << fresh);
+
+    // When updating new fields, use data member declaration order.
+
+    // `index` is not a part of an individual old peer config (that we update)
+    Assure(index);
+    Assure(!fresh.index);
+
+    Assure(strcmp(name, fresh.name) == 0);
+
+    if (strcmp(host, fresh.host) != 0) {
+        throw TextException(ToSBuf("No support for changing cache_peer hostname (yet)",
+                                   Debug::Extra, "old hostname: ", host,
+                                   Debug::Extra, "new hostname: ", fresh.host),
+                            Here());
+    }
+
+    if (type != fresh.type) {
+        throw TextException(ToSBuf("No support for changing cache_peer type (yet)",
+                                   Debug::Extra, "old type: ", neighborTypeStr(this),
+                                   Debug::Extra, "new type: ", neighborTypeStr(&fresh)),
+                            Here());
+    }
+
+    // `in_addr` is derived from `addresses` and `icp.port` (handled below);
+    // delay `in_addr` update until `addresses` are updated
+
+    // preserve `stats`
+
+    icp.port = fresh.icp.port; // but preserve `icp.version` and `icp.counts` stats
+#if USE_HTCP
+    htcp.port = fresh.htcp.port; // but preserve `htcp.version` and `htcp.counts` stats
+#endif
+
+    if (http_port != fresh.http_port) {
+        throw TextException(ToSBuf("No support for changing cache_peer HTTP port (yet)",
+                                   Debug::Extra, "old port: ", http_port,
+                                   Debug::Extra, "new port: ", fresh.http_port),
+                            Here());
+    }
+
+    Assure(!fresh.typelist); // managed by rigid neighbor_type_domain
+    Assure(!fresh.access); // managed by rigid cache_peer_access
+
+    // XXX: Handle options
+    // Changing options like `originserver` is risky for transactions that check
+    // such options multiple times. TODO: Support these changes after reference
+    // counting CachePeer objects.
+    // if (options != fresh.options) {
+    //     throw TextException(ToSBuf("No support for changing certain cache_peer options (yet)",
+    //                                Debug::Extra, "old options: ", options,
+    //                                Debug::Extra, "new options: ", fresh.options),
+    //                         Here());
+    // }
+
+    weight = fresh.weight;
+    basetime = fresh.basetime;
+
+    mcast.ttl = fresh.mcast.ttl; // but preserve mcast stats; TODO: Remove unused mcast.id?
+
+#if USE_CACHE_DIGESTS
+    Assure(!digest); // TODO: Remove digest as unused?
+    Assure(!fresh.digest); // TODO: Remove digest as unused?
+    Assure(!digest_url); // TODO: Remove digest_url as unused?
+    Assure(!fresh.digest_url); // TODO: Remove digest_url as unused?
+#endif
+    // preserve `tcp_up` state
+    // preserve `reprobe` state
+
+    // `addresses` changes are handled by peerDNSConfigure() triggered by peerDnsRefreshStart()
+    // `n_addresses` changes are handled by peerDNSConfigure() triggered by peerDnsRefreshStart()
+
+    // preserve `rr_count` stats
+    // preserve `testing_now` state
+
+    // XXX: Run carpInit() if [`weight` or `name` changes for] any `options.carp` peer.
+    // Otherwise, preserve `carp` fields as derived from unchanged ones.
+
+    // XXX: Run peerUserHashInit() if [`weight` or `name` changes for] any `options.userhash` peer.
+    // Otherwise, preserve `userhash` fields as derived from unchanged ones.
+
+    // XXX: Run peerSourceHashInit() if [`weight` or `name` changes for] any `options.sourcehash` peer.
+    // Otherwise, preserve `sourcehash` fields as derived from unchanged ones.
+
+    // XXX: Address HttpRequest::prepForPeering() XXX first!
+    // safe_free(login);
+    // login = fresh.login ? xstrdup(fresh.login) : nullptr;
+
+    connect_timeout_raw = fresh.connect_timeout_raw;
+    connect_fail_limit = fresh.connect_fail_limit;
+    max_conn = fresh.max_conn;
+
+    if (standby.limit != fresh.standby.limit) {
+        throw TextException(ToSBuf("No support for changing cache_peer standby=limit (yet)",
+                                   Debug::Extra, "old port: ", standby.limit,
+                                   Debug::Extra, "new port: ", fresh.standby.limit),
+                            Here());
+    }
+    // else preserve `standby` state
+
+    // XXX: Address HttpRequest::prepForPeering() XXX first!
+    // safe_free(domain);
+    // domain = fresh.domain ? xstrdup(fresh.domain) : nullptr;
+
+    secure = fresh.secure;
+    sslContext = fresh.sslContext;
+    Assure(&tlsContext.options == &secure);
+    Assure(&tlsContext.raw == &sslContext);
+
+    // reset session cache because session-related parameters may have changed
+    sslSession = nullptr;
+
+    front_end_https = fresh.front_end_https;
+    connection_auth = fresh.connection_auth;
 }
 
 Security::FuturePeerContext *

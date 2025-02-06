@@ -30,6 +30,13 @@ CachePeers::nextPeerToPing(const size_t pollIndex)
 }
 
 void
+CachePeers::absorb(std::unique_ptr<CachePeer> &&peer)
+{
+    const auto &added = storage.emplace_back(std::move(peer));
+    added->index = size();
+}
+
+void
 CachePeers::remove(CachePeer * const peer)
 {
     const auto pos = std::find_if(storage.begin(), storage.end(), [&](const auto &storePeer) {

@@ -12,6 +12,7 @@
 #include "acl/forward.h"
 #include "base/RefCount.h"
 #include "base/YesNoNone.h"
+#include "configuration/forward.h"
 #if USE_DELAY_POOLS
 #include "ClientDelayConfig.h"
 #include "DelayConfig.h"
@@ -547,6 +548,8 @@ public:
         int connect_gap;
         int connect_timeout;
     } happyEyeballs;
+
+    Configuration::ReconfigurationMode *reconfigurationMode;
 };
 
 extern SquidConfig Config;

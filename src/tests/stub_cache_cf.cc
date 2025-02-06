@@ -19,7 +19,7 @@
 
 #include "cache_cf.h"
 const char *cfg_directive = nullptr;
-const char *cfg_filename = nullptr;
+SBuf cfg_filename;
 int config_lineno = 0;
 char config_input_line[BUFSIZ] = {};
 void self_destruct(void) STUB
@@ -34,4 +34,9 @@ void ConfigParser::ParseWordList(wordlist **) STUB
 void parseBytesOptionValue(size_t *, const char *, char const *) STUB
 void dump_acl_access(StoreEntry *, const char *, acl_access *) STUB
 void dump_acl_list(StoreEntry*, ACLList*) STUB
+void Configuration::SwitchToGeneratedInput(const SBuf &) STUB
+void Configuration::SwitchToExternalInput(const char *, bool) STUB
+void Configuration::SwitchTo(const Location &) STUB
 
+#include "configuration/Preprocessor.h"
+void Configuration::PreprocessedDirective::print(std::ostream &) const STUB

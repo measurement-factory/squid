@@ -129,27 +129,17 @@ Acl::ToTree(const TreePointer * const config)
 }
 
 void
-aclParseAccessLine(const char *directive, ConfigParser &, acl_access **config)
+aclParseAccessLine(const char *directive, ConfigParser &parser, acl_access **config)
 {
-    /* first expect either 'allow' or 'deny' */
-    const char *t = ConfigParser::NextToken();
-
-    if (!t) {
-        debugs(28, DBG_CRITICAL, "aclParseAccessLine: " << cfg_filename << " line " << config_lineno << ": " << config_input_line);
-        debugs(28, DBG_CRITICAL, "ERROR: aclParseAccessLine: missing 'allow' or 'deny'.");
-        return;
-    }
+    const auto actionName = parser.token("access list action (i.e. allow or deny)");
 
     auto action = Acl::Answer(ACCESS_DUNNO);
-    if (!strcmp(t, "allow"))
+    if (actionName.cmp("allow") == 0)
         action = Acl::Answer(ACCESS_ALLOWED);
-    else if (!strcmp(t, "deny"))
+    else if (actionName.cmp("deny") == 0)
         action = Acl::Answer(ACCESS_DENIED);
-    else {
-        debugs(28, DBG_CRITICAL, "aclParseAccessLine: " << cfg_filename << " line " << config_lineno << ": " << config_input_line);
-        debugs(28, DBG_CRITICAL, "aclParseAccessLine: expecting 'allow' or 'deny', got '" << t << "'.");
-        return;
-    }
+    else
+        throw TextException(ToSBuf("expecting 'allow' or 'deny', got '", actionName, "'."), Here());
 
     const int ruleId = ((config && *config) ? ToTree(*config).childrenCount() : 0) + 1;
 
@@ -157,10 +147,8 @@ aclParseAccessLine(const char *directive, ConfigParser &, acl_access **config)
     rule->context(ToSBuf(directive, '#', ruleId), config_input_line);
     rule->lineParse();
     if (rule->empty()) {
-        debugs(28, DBG_CRITICAL, "aclParseAccessLine: " << cfg_filename << " line " << config_lineno << ": " << config_input_line);
-        debugs(28, DBG_CRITICAL, "aclParseAccessLine: Access line contains no ACL's, skipping");
         delete rule;
-        return;
+        throw TextException(ToSBuf("missing ACL name after '", actionName, "'"), Here());
     }
 
     /* Append to the end of this list */

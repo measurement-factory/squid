@@ -12,17 +12,19 @@
 #include "base/RegexPattern.h"
 #include "cache_cf.h"
 #include "ConfigParser.h"
+#include "configuration/Preprocessor.h"
 #include "debug/Stream.h"
 #include "fatal.h"
 #include "globals.h"
 #include "neighbors.h"
+#include "parser/Tokenizer.h"
 #include "sbuf/Stream.h"
 
 bool ConfigParser::RecognizeQuotedValues = true;
 bool ConfigParser::StrictMode = true;
 std::stack<ConfigParser::CfgFile *> ConfigParser::CfgFiles;
 ConfigParser::TokenType ConfigParser::LastTokenType = ConfigParser::SimpleToken;
-const char *ConfigParser::CfgLine = nullptr;
+SBuf ConfigParser::CfgLine;
 const char *ConfigParser::CfgPos = nullptr;
 std::queue<char *> ConfigParser::CfgLineTokens_;
 bool ConfigParser::AllowMacros_ = false;
@@ -57,8 +59,8 @@ ConfigParser::destruct()
         std::string msg = message.str();
         fatalf("%s", msg.c_str());
     } else
-        fatalf("Bungled %s line %d: %s",
-               cfg_filename, config_lineno, config_input_line);
+        fatalf("Bungled " SQUIDSBUFPH " line %d: %s",
+               SQUIDSBUFPRINT(cfg_filename), config_lineno, config_input_line);
 }
 
 char *
@@ -201,10 +203,10 @@ ConfigParser::UnQuote(const char *token, const char **next)
 }
 
 void
-ConfigParser::SetCfgLine(char *line)
+ConfigParser::SetCfgLine(const SBuf &line)
 {
     CfgLine = line;
-    CfgPos = line;
+    CfgPos = CfgLine.c_str();
     while (!CfgLineTokens_.empty()) {
         char *token = CfgLineTokens_.front();
         CfgLineTokens_.pop();
@@ -212,10 +214,11 @@ ConfigParser::SetCfgLine(char *line)
     }
 }
 
+// TODO: Convert to an std::ostream manipulator like CurrentException().
 SBuf
 ConfigParser::CurrentLocation()
 {
-    return ToSBuf(SourceLocation(cfg_directive, cfg_filename, config_lineno));
+    return ToSBuf(SourceLocation(cfg_directive, cfg_filename.c_str(), config_lineno));
 }
 
 char *
@@ -559,6 +562,19 @@ ConfigParser::rejectDuplicateDirective()
 {
     assert(cfg_directive);
     throw TextException("duplicate configuration directive", Here());
+}
+
+void
+ConfigParser::openDirective(const Configuration::PreprocessedDirective &ppd)
+{
+    debugs(3, 5, ppd);
+    Configuration::SwitchTo(ppd.location());
+
+    const auto copied = ppd.whole().copy(config_input_line, sizeof(config_input_line) - 1);
+    config_input_line[copied] = '\0';
+
+    // TODO: Upgrade cfg_directive to a ConfigParser member (with SBuf type) and set it here.
+    SetCfgLine(ppd.parameters()); // may be empty
 }
 
 void

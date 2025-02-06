@@ -11,6 +11,7 @@
 
 #include "acl/forward.h"
 #include "base/forward.h"
+#include "configuration/forward.h"
 #include "sbuf/forward.h"
 #include "SquidString.h"
 
@@ -54,7 +55,11 @@ public:
 
     void destruct();
 
-    /// stops parsing the current configuration directive
+    /// starts parsing the given preprocessed configuration directive
+    /// \sa closeDirective()
+    void openDirective(const Configuration::PreprocessedDirective &);
+
+    /// stops parsing started by openDirective()
     void closeDirective();
 
     /// rejects configuration due to a repeated directive
@@ -137,8 +142,8 @@ public:
      */
     static char *PeekAtToken();
 
-    /// Set the configuration file line to parse.
-    static void SetCfgLine(char *line);
+    /// Set current directive parameters (i.e. characters after the directive name).
+    static void SetCfgLine(const SBuf &);
 
     /// Allow %macros inside quoted strings
     static void EnableMacros() {AllowMacros_ = true;}
@@ -221,8 +226,12 @@ protected:
     static char *NextElement(TokenType &type);
     static std::stack<CfgFile *> CfgFiles; ///< The stack of open cfg files
     static TokenType LastTokenType; ///< The type of last parsed element
-    static const char *CfgLine; ///< The current line to parse
-    static const char *CfgPos; ///< Pointer to the next element in cfgLine string
+
+    static SBuf CfgLine; ///< Directive parameters being parsed; \sa SetCfgLine()
+
+    // TODO: Replace with a Tokenizer or a similar iterative parsing class
+    static const char *CfgPos; ///< Pointer to the next element in CfgLine string
+
     static std::queue<char *> CfgLineTokens_; ///< Store the list of tokens for current configuration line
     static bool AllowMacros_;
     static bool ParseQuotedOrToEol_; ///< The next tokens will be handled as quoted or to_eol token

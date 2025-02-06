@@ -23,6 +23,7 @@ b_ssize_t
 cachedir		cache_replacement_policy
 cachemgrpasswd
 ConfigAclTos
+Configuration::ReconfigurationMode*
 configuration_includes_quoted_values
 CpuAffinityMap
 debug
@@ -65,10 +66,11 @@ note			acl
 obsolete
 onoff
 on_unsupported_protocol	acl
-peer
+CachePeerXXX
 peer_access		cache_peer acl
 pipelinePrefetch
 PortCfg
+PortCfgsXXX
 QosConfig
 TokenOrQuotedString
 refreshpattern

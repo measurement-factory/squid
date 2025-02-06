@@ -13,12 +13,8 @@
  *      files used to configure the variables in squid.
  *      (ie it creates the squid.conf.default file from the cf.data file)
  *
- *      The output files are as follows:
- *      cf_parser.cci - this file contains, default_all() which
- *            initializes variables with the default
- *            values, parse_line() that parses line from
- *            squid.conf.default, dump_config that dumps the
- *            current the values of the variables.
+ *      The output files include:
+ *      cf_parser.cci - generated configuration parsing and reporting code.
  *      squid.conf.default - default configuration file given to the server
  *           administrator.
  *****************************************************************************/
@@ -93,14 +89,24 @@ public:
     DefaultValues defaults;
     std::string comment;
     std::string ifdef;
+    std::string smoothReconfigurationFunction;
     LineList doc;
     LineList cfgLines; ///< between CONFIG_START and CONFIG_END
     int array_flag = 0; ///< TYPE is a raw array[] declaration
 
+    bool supportsSmoothReconfiguration() const { return smoothReconfigurationFunction.length(); }
+
     void genParse(std::ostream &fout) const;
+    void genReconfigure(std::ostream &) const;
+    void genValidDirectiveNameEntry(std::ostream &fout) const;
+    void genDefaultIfNone(std::ostream &fout) const;
 
 private:
+    void genParsePrefix(const std::string &aName, std::ostream &fout) const;
+    void genParseSuffix(std::ostream &fout) const;
     void genParseAlias(const std::string &, std::ostream &) const;
+    void genValidDirectiveNameCheck(const std::string &, std::ostream &) const;
+    void genDefaultIfNoneAlias(const std::string &, std::ostream &) const;
 };
 
 typedef std::list<class Entry> EntryList;
@@ -119,8 +125,10 @@ typedef std::list<class Type> TypeList;
 static const char WS[] = " \t\n";
 static int gen_default(const EntryList &, std::ostream &);
 static void gen_parse(const EntryList &, std::ostream &);
+static void gen_reconfigure(const EntryList &, std::ostream &);
 static void gen_dump(const EntryList &, std::ostream&);
 static void gen_free(const EntryList &, std::ostream&);
+static void gen_find(const EntryList &, std::ostream &);
 static void gen_conf(const EntryList &, std::ostream&, bool verbose_output);
 static void gen_default_if_none(const EntryList &, std::ostream&);
 static void gen_default_postscriptum(const EntryList &, std::ostream&);
@@ -346,6 +354,13 @@ main(int argc, char *argv[])
 
                     checkDepend(curr.name, ptr, types, entries);
                     curr.type = ptr;
+                } else if (!strncmp(buff, "SMOOTH_RECONFIGURATION:", 23)) {
+                    if ((ptr = strtok(buff + 23, WS)) == nullptr) {
+                        errorMsg(input_filename, linenum, buff);
+                        exit(EXIT_FAILURE);
+                    }
+
+                    curr.smoothReconfigurationFunction = ptr;
                 } else if (!strncmp(buff, "IFDEF:", 6)) {
                     if ((ptr = strtok(buff + 6, WS)) == nullptr) {
                         errorMsg(input_filename, linenum, buff);
@@ -395,14 +410,6 @@ main(int argc, char *argv[])
 
     fp.close();
 
-    /*-------------------------------------------------------------------*
-     * Generate default_all()
-     * Generate parse_line()
-     * Generate dump_config()
-     * Generate free_all()
-     * Generate example squid.conf.default file
-     *-------------------------------------------------------------------*/
-
     /* Open output x.c file */
 
     std::ofstream fout(output_filename,std::ostream::out);
@@ -412,6 +419,9 @@ main(int argc, char *argv[])
         exit(EXIT_FAILURE);
     }
 
+    // when generating code that uses boolean constants, use boolean literals
+    fout << std::boolalpha;
+
     fout <<  "/*\n" <<
          " * Generated automatically from " << input_filename << " by " <<
          argv[0] << "\n"
@@ -420,6 +430,9 @@ main(int argc, char *argv[])
          " *           variables in the squid server.\n"
          " */\n"
          "\n";
+
+    // TODO: We should be generating directives metadata instead of generating
+    // code that handles hard-coded (in that generated code) metadata.
 
     rc = gen_default(entries, fout);
 
@@ -432,6 +445,10 @@ main(int argc, char *argv[])
     gen_dump(entries, fout);
 
     gen_free(entries, fout);
+
+    gen_find(entries, fout);
+
+    gen_reconfigure(entries, fout);
 
     fout.close();
 
@@ -463,22 +480,10 @@ static int
 gen_default(const EntryList &head, std::ostream &fout)
 {
     int rc = 0;
-    fout << "static void" << std::endl <<
-         "default_line(const char *s)" << std::endl <<
+    fout << "void" << std::endl <<
+         "Configuration::Preprocessor::processInitialDefaults()" << std::endl <<
          "{" << std::endl <<
-         "    char *tmp_line = xstrdup(s);" << std::endl <<
-         "    int len = strlen(tmp_line);" << std::endl <<
-         "    ProcessMacros(tmp_line, len);" << std::endl <<
-         "    xstrncpy(config_input_line, tmp_line, sizeof(config_input_line));" << std::endl <<
-         "    config_lineno++;" << std::endl <<
-         "    parse_line(tmp_line);" << std::endl <<
-         "    xfree(tmp_line);" << std::endl <<
-         "}" << std::endl << std::endl;
-    fout << "static void" << std::endl <<
-         "default_all(void)" << std::endl <<
-         "{" << std::endl <<
-         "    cfg_filename = \"Default Configuration\";" << std::endl <<
-         "    config_lineno = 0;" << std::endl;
+         "    Configuration::SwitchToGeneratedInput(SBuf(\"Default Configuration\"));\n";
 
     for (const auto &entry : head) {
         assert(entry.name.size());
@@ -508,7 +513,7 @@ gen_default(const EntryList &head, std::ostream &fout)
                 fout << "#if " << entry.ifdef << std::endl;
 
             for (const auto &l : entry.defaults.preset)
-                fout << "    default_line(\"" << entry.name << " " << gen_quote_escape(l) << "\");" << std::endl;
+                fout << "    importDefaultDirective(SBuf(\"" << entry.name << " " << gen_quote_escape(l) << "\"));" << std::endl;
 
             if (entry.ifdef.size())
                 fout << "#endif" << std::endl;
@@ -523,20 +528,33 @@ gen_default(const EntryList &head, std::ostream &fout)
 static void
 gen_default_if_none(const EntryList &head, std::ostream &fout)
 {
-    fout << "static void" << std::endl <<
-         "defaults_if_none(void)" << std::endl <<
+    fout << "void" << std::endl <<
+         "Configuration::Preprocessor::processIfNoneDefaults()" << std::endl <<
          "{" << std::endl <<
-         "    cfg_filename = \"Default Configuration (if absent)\";" << std::endl <<
-         "    config_lineno = 0;" << std::endl;
+         "    Configuration::SwitchToGeneratedInput(SBuf(\"Default Configuration (if no explicit one)\"));\n";
 
     for (const auto &entry : head) {
+        entry.genDefaultIfNone(fout);
+    }
+
+    fout << "    cfg_filename = nullptr;" << std::endl <<
+         "}" << std::endl << std::endl;
+}
+
+void
+Entry::genDefaultIfNone(std::ostream &fout) const
+{
+    // TODO: Remove diff reduction.
+    {
+        const auto &entry = *this;
+
         assert(entry.name.size());
 
         if (!entry.loc.size())
-            continue;
+            return;
 
         if (entry.defaults.if_none.empty())
-            continue;
+            return;
 
         if (!entry.defaults.preset.empty()) {
             std::cerr << "ERROR: " << entry.name << " has preset defaults. DEFAULT_IF_NONE cannot be true." << std::endl;
@@ -546,28 +564,38 @@ gen_default_if_none(const EntryList &head, std::ostream &fout)
         if (entry.ifdef.size())
             fout << "#if " << entry.ifdef << std::endl;
 
-        fout << "    if (check_null_" << entry.type << "(" << entry.loc << ")) {" << std::endl;
+        fout << "    if (";
+        // Once for the current directive name
+        genDefaultIfNoneAlias(name, fout);
+
+        // All accepted aliases
+        for (const auto &a: alias)
+            genDefaultIfNoneAlias(a, fout << " && ");
+        fout << ") {" << std::endl;
+
         for (const auto &l : entry.defaults.if_none)
-            fout << "        default_line(\"" << entry.name << " " << gen_quote_escape(l) <<"\");" << std::endl;
+            fout << "        importDefaultDirective(SBuf(\"" << entry.name << " " << gen_quote_escape(l) <<"\"));" << std::endl;
         fout << "    }" << std::endl;
 
         if (entry.ifdef.size())
             fout << "#endif" << std::endl;
     }
+}
 
-    fout << "    cfg_filename = nullptr;" << std::endl <<
-         "}" << std::endl << std::endl;
+void
+Entry::genDefaultIfNoneAlias(const std::string &knownName, std::ostream &fout) const
+{
+    fout << "!sawDirective(SBuf(\"" << knownName << "\"))";
 }
 
 /// append configuration options specified by POSTSCRIPTUM lines
 static void
 gen_default_postscriptum(const EntryList &head, std::ostream &fout)
 {
-    fout << "static void" << std::endl <<
-         "defaults_postscriptum(void)" << std::endl <<
+    fout << "void" << std::endl <<
+         "Configuration::Preprocessor::processPostscriptumDefaults()" << std::endl <<
          "{" << std::endl <<
-         "    cfg_filename = \"Default Configuration (postscriptum)\";" << std::endl <<
-         "    config_lineno = 0;" << std::endl;
+         "    Configuration::SwitchToGeneratedInput(SBuf(\"Default Configuration (postscriptum)\"));\n";
 
     for (const auto &entry : head) {
         assert(entry.name.size());
@@ -582,7 +610,7 @@ gen_default_postscriptum(const EntryList &head, std::ostream &fout)
             fout << "#if " << entry.ifdef << std::endl;
 
         for (const auto &l : entry.defaults.postscriptum)
-            fout << "    default_line(\"" << entry.name << " " << l <<"\");" << std::endl;
+            fout << "    importDefaultDirective(SBuf(\"" << entry.name << " " << l <<"\"));" << std::endl;
 
         if (entry.ifdef.size())
             fout << "#endif" << std::endl;
@@ -593,20 +621,25 @@ gen_default_postscriptum(const EntryList &head, std::ostream &fout)
 }
 
 void
-Entry::genParseAlias(const std::string &aName, std::ostream &fout) const
+Entry::genParsePrefix(const std::string &aName, std::ostream &fout) const
 {
-    fout << "    if (!strcmp(token, \"" << aName << "\")) {" << std::endl;
+    fout << "    if (directive.name().cmp(\"" << aName << "\") == 0) {" << std::endl;
     if (ifdef.size())
         fout << "#if " << ifdef << std::endl;
     fout << "        cfg_directive = \"" << aName << "\";" << std::endl;
-    fout << "        ";
+}
+
+void
+Entry::genParseAlias(const std::string &aName, std::ostream &fout) const
+{
+    genParsePrefix(aName, fout);
     if (type.compare("obsolete") == 0) {
         fout << "debugs(0, DBG_CRITICAL, \"ERROR: Directive '" << aName << "' is obsolete.\");\n";
         for (const auto &l : doc) {
             // offset line to strip initial whitespace tab byte
             fout << "        debugs(0, DBG_PARSE_NOTE(DBG_IMPORTANT), \"" << aName << " : " << &l[1] << "\");" << std::endl;
         }
-        fout << "        parse_obsolete(token);";
+        fout << "        parse_obsolete(cfg_directive);";
     } else if (!loc.size() || loc.compare("none") == 0) {
         fout << "parse_" << type << "();";
     } else if (type.find("::") != std::string::npos) {
@@ -614,6 +647,12 @@ Entry::genParseAlias(const std::string &aName, std::ostream &fout) const
     } else {
         fout << "parse_" << type << "(&" << loc << (array_flag ? "[0]" : "") << ");";
     }
+    genParseSuffix(fout);
+}
+
+void
+Entry::genParseSuffix(std::ostream &fout) const
+{
     fout << std::endl;
     fout << "        cfg_directive = nullptr;" << std::endl;
     if (ifdef.size()) {
@@ -622,7 +661,7 @@ Entry::genParseAlias(const std::string &aName, std::ostream &fout) const
              "    debugs(0, DBG_PARSE_NOTE(DBG_IMPORTANT), \"ERROR: '" << name << "' requires " << available_if(ifdef) << "\");" << std::endl <<
              "#endif" << std::endl;
     }
-    fout << "        return 1;" << std::endl;
+    fout << "        return;" << std::endl;
     fout << "    };" << std::endl;
 }
 
@@ -641,22 +680,33 @@ Entry::genParse(std::ostream &fout) const
     }
 }
 
+void
+Entry::genReconfigure(std::ostream &fout) const
+{
+    if (!supportsSmoothReconfiguration())
+        return;
+
+    genParsePrefix(name, fout);
+
+    fout << "        DeclareDirectiveReconfigurator(" << smoothReconfigurationFunction << ", " << type << ");\n";
+    fout << "        " << smoothReconfigurationFunction << "(" << loc << ", LegacyParser);\n";
+
+    genParseSuffix(fout);
+}
+
 static void
 gen_parse(const EntryList &head, std::ostream &fout)
 {
     fout <<
-         "static int\n"
-         "parse_line(char *buff)\n"
+         "void\n"
+         "Configuration::parseDirective(const PreprocessedDirective &directive)\n"
          "{\n"
-         "\tchar\t*token;\n"
-         "\tif ((token = strtok(buff, \" \\t\")) == NULL) \n"
-         "\t\treturn 1;\t/* ignore empty lines */\n"
-         "\tConfigParser::SetCfgLine(strtok(nullptr, \"\"));\n";
+         "\tLegacyParser.openDirective(directive);\n";
 
     for (const auto &e : head)
         e.genParse(fout);
 
-    fout << "\treturn 0; /* failure */\n"
+    fout << "\tAssure(!\"PreprocessedDirective has ValidDirectiveName()\"); /* not reached */\n"
          "}\n\n";
 
 }
@@ -724,6 +774,82 @@ gen_free(const EntryList &head, std::ostream &fout)
     fout << "}" << std::endl << std::endl;
 }
 
+static void
+gen_reconfigure(const EntryList &head, std::ostream &fout)
+{
+    // This ReconfigureSmoothly_() helper is not in Configuration namespace
+    // because its generated code has to declare directive reconfiguration
+    // functions that are not inside Configuration namespace.
+    fout <<
+         "static void\n"
+         "ReconfigureSmoothly_(const Configuration::PreprocessedDirective &directive)\n"
+         "{\n"
+         "    LegacyParser.openDirective(directive);\n";
+
+    for (const auto &e: head)
+        e.genReconfigure(fout);
+
+    fout << "    Assure(!\"PreprocessedDirective has ValidDirectiveName()\"); /* not reached */\n"
+         "}\n\n";
+
+    // call the helper generated above
+    fout <<
+         "void\n"
+         "Configuration::ReconfigureSmoothly(const Configuration::PreprocessedDirective &directive)\n"
+         "{\n"
+         "    ReconfigureSmoothly_(directive);\n"
+         "}\n\n";
+}
+
+/// generate Configuration::PreprocessedDirective::ValidDirectiveName() code for the given knownName
+void
+Entry::genValidDirectiveNameCheck(const std::string &knownName, std::ostream &fout) const
+{
+    // genValidDirectiveNameCheck() ignores IFDEF restrictions (for now) because
+    // the parser currently accepts/ignores (with an ERROR) directives disabled
+    // by ./configure. See `ifdef` handling in genParseAlias().
+
+    // TODO: Add SBuf::equal() to encapsulate this length check optimization.
+    fout << "    if (name.length() == " << knownName.length() << " && name.cmp(\"" << knownName << "\", " << knownName.length() << ") == 0)\n";
+    fout << "        return PreprocessedDirective::Metadata{" <<
+         supportsSmoothReconfiguration() <<
+         "};\n";
+}
+
+/// generate Configuration::PreprocessedDirective::ValidDirectiveName() code for this Entry
+void
+Entry::genValidDirectiveNameEntry(std::ostream &fout) const
+{
+    if (name.compare("comment") == 0)
+        return;
+
+    // ValidDirectiveName() does not treat type="obsolete" entries specially
+    // (yet) because the parser currently accepts them (with an ERROR) and even
+    // rewrites some). See parse_obsolete().
+
+    // one code block for the primary directive name
+    genValidDirectiveNameCheck(name, fout);
+
+    // and one code block for each of the accepted aliases (if any)
+    for (const auto &a: alias)
+        genValidDirectiveNameCheck(a, fout);
+}
+
+static void
+gen_find(const EntryList &head, std::ostream &fout)
+{
+    fout <<
+         "Configuration::PreprocessedDirective::Metadata\n"
+         "Configuration::PreprocessedDirective::GetMetadata(const SBuf &name)\n"
+         "{\n";
+
+    for (const auto &e : head)
+        e.genValidDirectiveNameEntry(fout);
+
+    fout << "    throw TextException(ToSBuf(\"Unrecognized configuration directive name: \", name), Here());\n" <<
+         "}\n\n";
+}
+
 static bool
 isDefined(const std::string &name)
 {
@@ -783,11 +909,25 @@ gen_conf(const EntryList &head, std::ostream &fout, bool verbose_output)
             enabled = 0;
         }
 
+        // We auto-document smooth reconfiguration support by this directive (if
+        // any) unless hand-written documentation details that support in a
+        // paragraph that contains the following phrase (on a single line).
+        auto addSmoothPara = "This directive supports smooth reconfiguration";
+
         // Display DOC_START section
         if (verbose_output && entry.doc.size()) {
             for (const auto &line : entry.doc) {
                 fout << "#" << line << std::endl;
+                if (addSmoothPara && line.find(addSmoothPara) != std::string::npos)
+                    addSmoothPara = nullptr;
             }
+        }
+
+        if (verbose_output && entry.supportsSmoothReconfiguration() && addSmoothPara) {
+            fout << "#\n";
+            fout << "#\t" << addSmoothPara << ". For details, see\n";
+            fout << "#\tdocumentation for the \"reconfiguration\" directive.\n";
+            fout << "#\n";
         }
 
         if (entry.defaults.docs.size()) {
