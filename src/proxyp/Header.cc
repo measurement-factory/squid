@@ -33,14 +33,16 @@ ProxyProtocol::Header::pack(BinaryPacker &pack) const
 
     Assure(sourceAddress.isIPv4() == destinationAddress.isIPv4()); // one family for both addresses
     const auto family = sourceAddress.isIPv4() ? Two::afInet : Two::afInet6;
-    pack.uint8("socket family and transport protocol", (family << 4) | Two::tpStream);
+    pack.uint8("socket family and transport protocol", (command_ == Two::cmdLocal) ? 0 : ((family << 4) | Two::tpStream));
 
     BinaryPacker tail;
 
-    tail.inet("src_addr", sourceAddress);
-    tail.inet("dst_addr", destinationAddress);
-    tail.uint16("src_port", sourceAddress.port());
-    tail.uint16("dst_port", destinationAddress.port());
+    if (command_ != Two::cmdLocal) {
+        tail.inet("src_addr", sourceAddress);
+        tail.inet("dst_addr", destinationAddress);
+        tail.uint16("src_port", sourceAddress.port());
+        tail.uint16("dst_port", destinationAddress.port());
+    }
 
     for (const auto &tlv: tlvs) {
         tail.uint8("pp2_tlv::type", tlv.type);
