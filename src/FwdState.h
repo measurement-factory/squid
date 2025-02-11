@@ -181,6 +181,9 @@ private:
     void secureConnectionToPeer(const Comm::ConnectionPointer &);
     void successfullyConnectedToPeer(const Comm::ConnectionPointer &);
 
+    static void ProxyProtocolHeaderSent(const Comm::ConnectionPointer &, char *, size_t, Comm::Flag, int, void *data);
+    void proxyProtocolHeaderSent(const Comm::ConnectionPointer &, Comm::Flag);
+
     /// stops monitoring server connection for closure and updates pconn stats
     void closeServerConnection(const char *reason);
 
@@ -209,9 +212,6 @@ public:
 
     /// called by Store if the entry is no longer usable
     static void HandleStoreAbort(FwdState *);
-
-    /// callback for sendProxyProtoHeaderIfNeeded()
-    static void proxyHeaderSent(const Comm::ConnectionPointer &, char *, size_t, Comm::Flag, int, void *data);
 
 private:
     Pointer self;

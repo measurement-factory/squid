@@ -944,13 +944,15 @@ void
 FwdState::sendProxyProtoHeaderIfNeeded(const Comm::ConnectionPointer &conn)
 {
     if (proxyProtocolHeader) {
+        Assure(!proxyProtocolHeader->isEmpty());
+
         // XXX: Avoid this copying by adding an SBuf-friendly Comm::Write()!
         MemBuf mb;
         mb.init();
         mb.append(proxyProtocolHeader->rawContent(), proxyProtocolHeader->length());
 
-        AsyncCall::Pointer call = commCbCall(17, 5, "FwdState::proxyHeaderSent",
-                                             CommIoCbPtrFun(&FwdState::proxyHeaderSent, this));
+        AsyncCall::Pointer call = commCbCall(17, 5, "FwdState::ProxyProtocolHeaderSent",
+                                             CommIoCbPtrFun(&FwdState::ProxyProtocolHeaderSent, this));
         Comm::Write(conn, &mb, call);
         return;
     }
@@ -958,36 +960,41 @@ FwdState::sendProxyProtoHeaderIfNeeded(const Comm::ConnectionPointer &conn)
     tunnelIfNeeded(conn);
 }
 
-/// resumes operations after the (possibly failed) Proxy protocol header sending
+/// callback to resume operations after writing a PROXY protocol header
 void
-FwdState::proxyHeaderSent(const Comm::ConnectionPointer &conn, char *, size_t size, Comm::Flag errflag, int, void *data)
+FwdState::ProxyProtocolHeaderSent(const Comm::ConnectionPointer &conn, char *, size_t, const Comm::Flag errFlag, int, void * const cbdata)
 {
-    auto fwd = reinterpret_cast<FwdState *>(data);
+    reinterpret_cast<FwdState *>(cbdata)->proxyProtocolHeaderSent(conn, errFlag);
+}
+
+/// \copydoc FwdState::ProxyProtocolHeaderSent()
+void
+FwdState::proxyProtocolHeaderSent(const Comm::ConnectionPointer &conn, const Comm::Flag errFlag)
+{
+    if (errFlag == Comm::ERR_CLOSING)
+        return; // XXX: And FwdState gets stuck since it has no connection closure handler for conn (yet)!
 
     ErrorState *error = nullptr;
-
-    if (errflag == Comm::ERR_CLOSING)
-        return;
 
     if (!Comm::IsConnOpen(conn) || fd_table[conn->fd].closing()) {
         // The socket could get closed while our callback was queued. Sync
         // Connection. XXX: Connection::fd may already be stale/invalid here.
-        fwd->closePendingConnection(conn, "conn was closed while waiting for FwdState::proxyHeaderSent");
-        error = new ErrorState(ERR_CANNOT_FORWARD, Http::scServiceUnavailable, fwd->request, fwd->al);
+        closePendingConnection(conn, "conn was closed while waiting for FwdState::ProxyProtocolHeaderSent");
+        error = new ErrorState(ERR_CANNOT_FORWARD, Http::scServiceUnavailable, request, al);
     }
 
-    if (errflag != Comm::OK || size <= 0) {
+    if (errFlag != Comm::OK) {
         conn->close();
-        return;
+        return; // XXX: Leaking `error` and FwdState! Not reporting the error to the forwarding initiator.
     }
 
     if (error) {
-        fwd->fail(error);
-        fwd->retryOrBail();
+        fail(error);
+        retryOrBail();
         return;
     }
 
-    fwd->tunnelIfNeeded(conn);
+    tunnelIfNeeded(conn);
 }
 
 void
