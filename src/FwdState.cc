@@ -914,29 +914,22 @@ FwdState::tunnelIfNeeded(const Comm::ConnectionPointer &conn)
     secureConnectionToPeerIfNeeded(conn);
 }
 
-/// whether it is required to send Proxy protocol header
-bool
-FwdState::needProxyProtoHeader() const
-{
-    if (!Config.outgoingProxyProtocolHttp)
-        return false;
-
-    if (!Config.outgoingProxyProtocolHttp->aclList)
-        return true;
-
-    ACLFilledChecklist ch(Config.outgoingProxyProtocolHttp->aclList, request);
-    ch.al = al;
-    ch.syncAle(request, nullptr);
-    return ch.fastCheck().allowed();
-}
-
+/// syncs proxyProtocolHeader with the current request forwarding attempt
 void
-FwdState::createProxyProtoHeaderIfNeeded()
+FwdState::resetProxyProtocolHeader()
 {
     proxyProtocolHeader.reset();
 
-    if (!needProxyProtoHeader())
+    if (!Config.outgoingProxyProtocolHttp)
         return;
+
+    if (const auto &aclList = Config.outgoingProxyProtocolHttp->aclList) {
+        ACLFilledChecklist ch(aclList, request);
+        ch.al = al;
+        ch.syncAle(request, nullptr);
+        if (!ch.fastCheck().allowed())
+            return;
+    }
 
     static const SBuf v2("2.0");
     ProxyProtocol::Header header(v2, request->masterXaction->initiator.internalClient() ? ProxyProtocol::Two::cmdLocal : ProxyProtocol::Two::cmdProxy);
@@ -1220,7 +1213,7 @@ FwdState::connectStart()
     err = nullptr;
     request->clearError();
 
-    createProxyProtoHeaderIfNeeded();
+    resetProxyProtocolHeader();
 
     const auto callback = asyncCallback(17, 5, FwdState::noteConnection, this);
     HttpRequest::Pointer cause = request;
@@ -1234,6 +1227,7 @@ FwdState::connectStart()
         retriable = ch.fastCheck().allowed();
     }
     cs->setRetriable(retriable);
+    // TODO: Support reuse of same-proxyProtocolHeader connections.
     cs->allowPersistent((pconnRace != raceHappened) && !proxyProtocolHeader);
     destinations->notificationPending = true; // start() is async
     transportWait.start(cs, callback);
