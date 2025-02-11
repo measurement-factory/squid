@@ -939,7 +939,7 @@ FwdState::createProxyProtoHeaderIfNeeded()
         return;
 
     static const SBuf v2("2.0");
-    ProxyProtocol::Header header(v2, request->masterXaction->internalClient() ? ProxyProtocol::Two::cmdLocal : ProxyProtocol::Two::cmdProxy);
+    ProxyProtocol::Header header(v2, request->masterXaction->initiator.internalClient() ? ProxyProtocol::Two::cmdLocal : ProxyProtocol::Two::cmdProxy);
     Config.outgoingProxyProtocolHttp->fill(header, al);
 
     BinaryPacker packer;

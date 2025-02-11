@@ -56,11 +56,6 @@ public:
         return new MasterXaction(XactionInitiator::initClient, aPort);
     }
 
-    /// whether the transaction was initiated by an internal subsystem
-    bool internalClient() const {
-        return initiator.in(XactionInitiator::InternalInitiators());
-    }
-
     /// transaction ID.
     InstanceId<MasterXaction, uint64_t> id;
 
