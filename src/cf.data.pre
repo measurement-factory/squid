@@ -1814,18 +1814,19 @@ DOC_START
 
 	Normally, Squid sends a "PROXY" command, but when sending a request
 	generated internally by Squid (instead of forwarding a request received
-	from a client), Squid uses PROXY protocol "LOCAL" command and fills the
-	protocol block (including the four mandatory address fields itemized
-	above) with zeros. PROXY protocol requires LOCAL command recipients to
-	"discard the protocol block". LOCAL commands may carry TLVs (see below).
+	from a client), Squid sends a "LOCAL" command and ignores (i.e. does not
+	compute and does not send) the four address block fields itemized below.
+	PROXY protocol requires "LOCAL" command recipients to "discard the
+	protocol block". "LOCAL" commands may carry TLVs (see further below).
 
-	Required header fields:
+	Address block (i.e. address fields required for the "PROXY" command):
 
-	The following four header fields are required. They must be configured in
-	the documented order. Their names and quoted brief descriptions are taken
-	from proxy_addr structure and the corresponding text in the PROXY protocol
-	specification. Squid enforces certain PROXY protocol header constraints,
-	but does not assign any specific meaning to header values.
+	Squid uses the following four address fields when forwarding requests.
+	These fields must be configured (in the documented order). Their names and
+	quoted brief descriptions are taken from proxy_addr structure and the
+	corresponding text in the PROXY protocol specification. Squid enforces
+	certain PROXY protocol header constraints, but does not assign any
+	specific meaning to these field values.
 
 		* src_addr=logformat: "source layer 3 address". A logformat format
 		  specification evaluating to a constant IPv4 address (e.g.,
@@ -1848,7 +1849,7 @@ DOC_START
 	Address and port values are interpreted as "format specifications"
 	documented in logformat directive (e.g., "%>a"). They are evaluated at
 	PROXY protocol header construction time (at least, see below). A format
-	specification has to be spelled out -- header values cannot use a
+	specification has to be spelled out -- field values cannot use a
 	logformat name to refer to a format specification defined elsewhere. Squid
 	failure to "compile" a configured format specification is a fatal
 	configuration error (e.g., src_port="192.0.2.1").
@@ -1859,9 +1860,9 @@ DOC_START
 	any) are fatal configuration errors.
 
 	When constructing a PROXY protocol header for a given transaction, if the
-	result of compiled format evaluation is not compatible with header field
-	type (e.g., src_port="%<a"), then Squid logs a level-1 WARNING to
-	cache.log and sends a header value that would have been sent if "-"
+	result of compiled format evaluation is not compatible with the address
+	field type (e.g., src_port="%<a"), then Squid logs a level-1 WARNING to
+	cache.log and sends a field value that would have been sent if "-"
 	logformat was configured instead.
 
 	PROXY protocol header structure requires src_addr and dst_addr IP families
@@ -1878,10 +1879,15 @@ DOC_START
 	When Squid has to overwrite a src_addr or dst_addr field value as
 	described above, it preserves configured src_port and dst_port values.
 
-	Optional header fields:
+	As detailed earlier, the above four address fields must be configured, but
+	Squid ignores this part of configuration and does not send these fields
+	when sending a "LOCAL" PROXY protocol command.
 
-	To also send an optional PROXY protocol TLV with a given type and value
-	format, use the following syntax:
+	Custom Type-Length-Value fields (for "PROXY" and "LOCAL" commands):
+
+	To send a PROXY protocol TLV field with a given type and value format,
+	specify it after the four address fields (see above) using the following
+	syntax:
 
 		* type=logformat: Where "type" is a decimal or hex number from the
 		  [0xE0, 0xEF] range that PROXY protocols reserves for
@@ -1904,13 +1910,12 @@ DOC_START
 
 	Squid does not yet support sending well-known TLVs like PP2_TYPE_CRC32C.
 
-	Optional TLVs are sent in the order they are specified by the
-	http_outgoing_proxy_protocol directive. Using one TLV type multiple times
-	is allowed, but identical (at configuration interpretation time, before
-	logformat %code substitution) type=value entries lead to fatal
-	configuration errors.
+	Optional TLVs are sent in the order they are specified by this directive.
+	Using one TLV type multiple times is allowed, but identical (at
+	configuration interpretation time, before logformat %code substitution)
+	type=value entries lead to fatal configuration errors.
 
-	Details that apply to both required and optional header fields:
+	Details that apply to both address block fields and TLVs:
 
 	Quoted (using "double quotes") header field values are supported. Squid
 	removes quotes before using the quoted value.
