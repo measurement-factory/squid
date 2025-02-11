@@ -975,17 +975,16 @@ FwdState::proxyProtocolHeaderSent(const Comm::ConnectionPointer &conn, const Com
         return; // XXX: And FwdState gets stuck since it has no connection closure handler for conn (yet)!
 
     ErrorState *error = nullptr;
-
+    if (errFlag != Comm::OK) {
+        closePendingConnection(conn, "failed to send a PROXY protocol header");
+        error = new ErrorState(ERR_WRITE_ERROR, Http::scBadGateway, request, al);
+        // XXX: error->xerrno = xerrno;
+    } else
     if (!Comm::IsConnOpen(conn) || fd_table[conn->fd].closing()) {
         // The socket could get closed while our callback was queued. Sync
         // Connection. XXX: Connection::fd may already be stale/invalid here.
         closePendingConnection(conn, "conn was closed while waiting for FwdState::ProxyProtocolHeaderSent");
         error = new ErrorState(ERR_CANNOT_FORWARD, Http::scServiceUnavailable, request, al);
-    }
-
-    if (errFlag != Comm::OK) {
-        conn->close();
-        return; // XXX: Leaking `error` and FwdState! Not reporting the error to the forwarding initiator.
     }
 
     if (error) {
