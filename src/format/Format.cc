@@ -155,6 +155,7 @@ Format::Format::dump(StoreEntry * entry, const char *directiveName, bool eol) co
 void
 Format::Token::print(std::ostream &os)
 {
+    auto t = this;
             if (type == LFT_STRING)
                 os << data.string;
             else {
@@ -177,10 +178,10 @@ Format::Token::print(std::ostream &os)
                 case LFT_ADAPTED_REQUEST_HEADER_ELEM:
                 case LFT_REPLY_HEADER_ELEM:
 
-                    if (data.header.separator != ',')
-                        snprintf(argbuf, sizeof(argbuf), "%s:%c%s", data.header.header, data.header.separator, data.header.element);
+                    if (t->data.header.separator != ',')
+                        snprintf(argbuf, sizeof(argbuf), "%s:%c%s", t->data.header.header, t->data.header.separator, t->data.header.element);
                     else
-                        snprintf(argbuf, sizeof(argbuf), "%s:%s", data.header.header, data.header.element);
+                        snprintf(argbuf, sizeof(argbuf), "%s:%s", t->data.header.header, t->data.header.element);
 
                     arg = argbuf;
 
@@ -255,15 +256,15 @@ Format::Token::print(std::ostream &os)
                     break;
 
                 default:
-                    if (data.string)
-                        arg = data.string;
+                    if (t->data.string)
+                        arg = t->data.string;
 
                     break;
                 }
 
                 os << '%';
 
-                switch (quote) {
+                switch (t->quote) {
 
                 case LOG_QUOTE_QUOTES:
                     os << '"';
@@ -289,16 +290,16 @@ Format::Token::print(std::ostream &os)
                     break;
                 }
 
-                if (left)
+                if (t->left)
                     os << '-';
 
-                if (zero)
+                if (t->zero)
                     os << '0';
 
-                if (widthMin >= 0)
+                if (t->widthMin >= 0)
                     os << widthMin;
 
-                if (widthMax >= 0)
+                if (t->widthMax >= 0)
                     os << '.' << widthMax;
 
                 if (arg)
@@ -306,7 +307,7 @@ Format::Token::print(std::ostream &os)
 
                 os << label;
 
-                if (space)
+                if (t->space)
                     os << ' ';
             }
 
