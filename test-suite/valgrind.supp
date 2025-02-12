@@ -98,33 +98,9 @@ fun:_Z21cbdataInternalAddTypeiPKci
    fun:_Z19msghdr_write_methodiPKci
 }
 
-# needs investigation; may be related to the following error handling path:
-# ERROR: Failed to update a cached response: cannot update the cached response
-# This bug has several suspected side effects. Unfortunately, their
-# suppressions also apply to other scenarios, broadening this bug impact.
-# CI test case: accumulate-headers-after-304
+# needs investigation; may be related to UdsSender-new
 {
-   header-overflow-leaks-Rock-HeaderUpdater-primary
-   Memcheck:Leak
-   ...
-   fun:_ZN4Rock13HeaderUpdaternwEm
-   fun:_ZN4Rock7SwapDir13updateHeadersEP10StoreEntry
-}
-
-# needs investigation; possible side effects of a leak known as
-# header-overflow-leaks-Rock-HeaderUpdater-primary
-{
-   header-overflow-leaks-Rock-HeaderUpdater-effects-readMore
-   Memcheck:Leak
-   ...
-   fun:_ZN4Rock13HeaderUpdater8readMoreEPKc
-   fun:_ZN4Rock13HeaderUpdater14parseReadBytesEv
-}
-
-# needs investigation; possible side effect of a leak known as
-# header-overflow-leaks-Rock-HeaderUpdater-primary
-{
-   header-overflow-leaks-Rock-HeaderUpdater-effects-UdsSender
+   UdsSender-write
    Memcheck:Leak
    ...
    fun:_ZN3Ipc9UdsSender5writeEv
@@ -132,21 +108,9 @@ fun:_Z21cbdataInternalAddTypeiPKci
    fun:_ZN14NullaryMemFunTI8AsyncJobE6doDialEv
 }
 
-# needs investigation; possible side effect of a leak known as
-# header-overflow-leaks-Rock-HeaderUpdater-primary
+# needs investigation; may be related to UdsSender-write
 {
-   header-overflow-leaks-Rock-HeaderUpdater-effects-Http-One-Server
-   Memcheck:Leak
-   ...
-   fun:_ZN4Http3One6ServernwEm
-   fun:_ZN4Http9NewServerERK8RefCountI13MasterXactionE
-   fun:_ZL10httpAcceptRK18CommAcceptCbParams
-}
-
-# needs investigation; possible side effect of a leak known as
-# header-overflow-leaks-Rock-HeaderUpdater-primary
-{
-   header-overflow-leaks-Rock-HeaderUpdater-effects-Uds-Sender
+   UdsSender-new
    Memcheck:Leak
    ...
    fun:_ZN3Ipc9UdsSendernwEm
