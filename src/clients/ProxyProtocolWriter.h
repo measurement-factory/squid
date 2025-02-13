@@ -98,5 +98,5 @@ private:
     bool headerWritten; ///< whether we successfully wrote the request
 };
 
-#endif /* SQUID_SRC_CLIENTS_PROXYPROTOCOLWRITER_H  */ 
+#endif /* SQUID_SRC_CLIENTS_PROXYPROTOCOLWRITER_H  */
 
