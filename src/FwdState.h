@@ -182,7 +182,7 @@ private:
     void successfullyConnectedToPeer(const Comm::ConnectionPointer &);
 
     static void ProxyProtocolHeaderSent(const Comm::ConnectionPointer &, char *, size_t, Comm::Flag, int, void *data);
-    void proxyProtocolHeaderSent(const Comm::ConnectionPointer &, Comm::Flag);
+    void proxyProtocolHeaderSent(ProxyProtocolWriterAnswer &answer);
 
     /// stops monitoring server connection for closure and updates pconn stats
     void closeServerConnection(const char *reason);
@@ -229,6 +229,9 @@ private:
 
     /// waits for a transport connection to the peer to be established/opened
     JobWait<HappyConnOpener> transportWait;
+
+    /// waits until the PROXY protocol header is sent to a cache_peer
+    JobWait<ProxyProtocolWriter> proxyProtocolWait;
 
     /// waits for the established transport connection to be secured/encrypted
     JobWait<Security::PeerConnector> encryptionWait;

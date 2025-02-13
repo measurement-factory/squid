@@ -21,6 +21,7 @@
 #include "client_side.h"
 #include "clients/forward.h"
 #include "clients/HttpTunneler.h"
+#include "clients/ProxyProtocolWriter.h"
 #include "clients/WhoisGateway.h"
 #include "comm/Connection.h"
 #include "comm/ConnOpener.h"
@@ -205,6 +206,7 @@ void
 FwdState::cancelStep(const char *reason)
 {
     transportWait.cancel(reason);
+    proxyProtocolWait.cancel(reason);
     encryptionWait.cancel(reason);
     peerWait.cancel(reason);
 }
@@ -572,7 +574,7 @@ FwdState::complete()
 bool
 FwdState::transporting() const
 {
-    return peerWait || encryptionWait || waitingForDispatched;
+    return proxyProtocolWait || peerWait || encryptionWait || waitingForDispatched;
 }
 
 void
@@ -943,47 +945,40 @@ FwdState::resetProxyProtocolHeader()
 void
 FwdState::sendProxyProtoHeaderIfNeeded(const Comm::ConnectionPointer &conn)
 {
-    if (proxyProtocolHeader) {
-        Assure(!proxyProtocolHeader->isEmpty());
-
-        // XXX: Avoid this copying by adding an SBuf-friendly Comm::Write()!
-        MemBuf mb;
-        mb.init();
-        mb.append(proxyProtocolHeader->rawContent(), proxyProtocolHeader->length());
-
-        AsyncCall::Pointer call = commCbCall(17, 5, "FwdState::ProxyProtocolHeaderSent",
-                                             CommIoCbPtrFun(&FwdState::ProxyProtocolHeaderSent, this));
-        Comm::Write(conn, &mb, call);
+    if (!proxyProtocolHeader) {
+        tunnelIfNeeded(conn);
         return;
     }
 
-    tunnelIfNeeded(conn);
+    Assure(!proxyProtocolHeader->isEmpty());
+
+    const auto callback = asyncCallback(17, 4, FwdState::proxyProtocolHeaderSent, this);
+    HttpRequest::Pointer requestPointer = request;
+    const auto proxyProtocolWriter = new ProxyProtocolWriter(*proxyProtocolHeader, conn, requestPointer, callback, al);
+
+    // TODO: Replace this hack with proper Comm::Connection-Pool association
+    // that is not tied to fwdPconnPool and can handle disappearing pools.
+    proxyProtocolWriter->noteFwdPconnUse = false;
+
+    proxyProtocolWait.start(proxyProtocolWriter, callback);
 }
 
 /// callback to resume operations after writing a PROXY protocol header
 void
-FwdState::ProxyProtocolHeaderSent(const Comm::ConnectionPointer &conn, char *, size_t, const Comm::Flag errFlag, int, void * const cbdata)
+FwdState::proxyProtocolHeaderSent(ProxyProtocolWriterAnswer &answer)
 {
-    reinterpret_cast<FwdState *>(cbdata)->proxyProtocolHeaderSent(conn, errFlag);
-}
-
-/// \copydoc FwdState::ProxyProtocolHeaderSent()
-void
-FwdState::proxyProtocolHeaderSent(const Comm::ConnectionPointer &conn, const Comm::Flag errFlag)
-{
-    if (errFlag == Comm::ERR_CLOSING)
-        return; // XXX: And FwdState gets stuck since it has no connection closure handler for conn (yet)!
+    proxyProtocolWait.finish();
 
     ErrorState *error = nullptr;
-    if (errFlag != Comm::OK) {
-        closePendingConnection(conn, "failed to send a PROXY protocol header");
-        error = new ErrorState(ERR_WRITE_ERROR, Http::scBadGateway, request, al);
-        // XXX: error->xerrno = xerrno;
-    } else
-    if (!Comm::IsConnOpen(conn) || fd_table[conn->fd].closing()) {
+    if (!answer.positive()) {
+        Must(!answer.conn);
+        error = answer.squidError.get();
+        Must(error);
+        answer.squidError.clear(); // preserve error for fail()
+    } else if (!Comm::IsConnOpen(answer.conn) || fd_table[answer.conn->fd].closing()) {
         // The socket could get closed while our callback was queued. Sync
         // Connection. XXX: Connection::fd may already be stale/invalid here.
-        closePendingConnection(conn, "conn was closed while waiting for FwdState::ProxyProtocolHeaderSent");
+        closePendingConnection(answer.conn, "conn was closed while waiting for FwdState::ProxyProtocolHeaderSent");
         error = new ErrorState(ERR_CANNOT_FORWARD, Http::scServiceUnavailable, request, al);
     }
 
@@ -993,7 +988,7 @@ FwdState::proxyProtocolHeaderSent(const Comm::ConnectionPointer &conn, const Com
         return;
     }
 
-    tunnelIfNeeded(conn);
+    tunnelIfNeeded(answer.conn);
 }
 
 void
