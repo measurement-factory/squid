@@ -56,6 +56,8 @@ public:
     bool canStore(const StoreEntry &e, int64_t diskSpaceNeeded, int &load) const override;
     void reference(StoreEntry &) override;
     bool dereference(StoreEntry &) override;
+    void lockInPolicy(StoreEntry &) override;
+    void unlockInPolicy(StoreEntry &) override;
     StoreIOState::Pointer createStoreIO(StoreEntry &, StoreIOState::STIOCB *, void *) override;
     StoreIOState::Pointer openStoreIO(StoreEntry &, StoreIOState::STIOCB *, void *) override;
     void openLog() override;
