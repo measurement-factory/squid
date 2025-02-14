@@ -19,17 +19,6 @@
 
 CBDATA_CLASS_INIT(ProxyProtocolWriter);
 
-ProxyProtocolWriterAnswer::~ProxyProtocolWriterAnswer()
-{
-    delete squidError.get();
-}
-
-std::ostream &
-operator <<(std::ostream &os, const ProxyProtocolWriterAnswer &answer)
-{
-    return os << answer.conn << ", " << answer.squidError;
-}
-
 ProxyProtocolWriter::ProxyProtocolWriter(const SBuf &hdr, const Comm::ConnectionPointer &conn, const HttpRequest::Pointer &req, const AsyncCallback<Answer> &aCallback, const AccessLogEntryPointer &alp):
     AsyncJob("ProxyProtocolWriter"),
     header(hdr),
@@ -220,7 +209,6 @@ ProxyProtocolWriter::status() const
     buf.append(" [state:", 8);
     if (headerWritten) buf.append("w", 1); // header sent
     if (!callback) buf.append("x", 1); // caller informed
-
     if (stopReason != nullptr) {
         buf.append(" stopped, reason:", 16);
         buf.appendf("%s",stopReason);
@@ -231,5 +219,16 @@ ProxyProtocolWriter::status() const
     buf.terminate();
 
     return buf.content();
+}
+
+ProxyProtocolWriterAnswer::~ProxyProtocolWriterAnswer()
+{
+    delete squidError.get();
+}
+
+std::ostream &
+operator <<(std::ostream &os, const ProxyProtocolWriterAnswer &answer)
+{
+    return os << answer.conn << ", " << answer.squidError;
 }
 

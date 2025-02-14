@@ -18,8 +18,8 @@
 #include "http/StatusCode.h"
 #include "sbuf/SBuf.h"
 
-class AccessLogEntry;
 class ErrorState;
+class AccessLogEntry;
 typedef RefCount<AccessLogEntry> AccessLogEntryPointer;
 
 /// Proxy protocol header sending results (supplied via a callback).
@@ -65,10 +65,10 @@ protected:
     void swanSong() override;
     const char *status() const override;
 
-    void writeHeader();
-    void handleWrittenHeader(const CommIoCbParams &);
     void handleConnectionClosure(const CommCloseCbParams&);
     void watchForClosures();
+    void writeHeader();
+    void handleWrittenHeader(const CommIoCbParams &);
 
 private:
     /// sends the given error to the initiator
@@ -86,13 +86,15 @@ private:
     /// updates connection usage history before the connection is closed
     void countFailingConnection();
 
+    SBuf header; // v2 PROXY protocol header
+
     AsyncCall::Pointer writer; ///< called when the request has been written
     AsyncCall::Pointer closer; ///< called when the connection is being closed
 
-    SBuf header; // v2 PROXY protocol header
     Comm::ConnectionPointer connection; ///< TCP connection to a cache_peer or server
     HttpRequestPointer request; ///< the connection trigger or cause
     AsyncCallback<Answer> callback; ///< answer destination
+
     AccessLogEntryPointer al; ///< info for the future access.log entry
     bool headerWritten; ///< whether we successfully wrote the request
 };
