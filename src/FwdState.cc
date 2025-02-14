@@ -51,7 +51,6 @@
 #include "parser/BinaryPacker.h"
 #include "pconn.h"
 #include "PeerPoolMgr.h"
-#include "proxyp/Elements.h"
 #include "proxyp/Header.h"
 #include "proxyp/OutgoingHttpConfig.h"
 #include "ResolvedPeers.h"

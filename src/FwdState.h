@@ -230,7 +230,7 @@ private:
     /// waits for a transport connection to the peer to be established/opened
     JobWait<HappyConnOpener> transportWait;
 
-    /// waits until the PROXY protocol header is sent to a cache_peer
+    /// waits until the PROXY protocol header is sent to a cache_peer or server
     JobWait<ProxyProtocolWriter> proxyProtocolWait;
 
     /// waits for the established transport connection to be secured/encrypted

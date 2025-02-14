@@ -736,7 +736,6 @@ Format::Token::parse(const char *def, Quoting *quoting)
     return (cur - def);
 }
 
-
 Format::Token::Token() : type(LFT_NONE),
     label(nullptr),
     widthMin(-1),
