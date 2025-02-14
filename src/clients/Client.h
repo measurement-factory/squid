@@ -141,8 +141,10 @@ protected:
 
     /// called by StoreEntry when it has more buffer space available
     void resumeBodyStorage();
-    /// called when the entire adapted response body is consumed
-    void endAdaptedBodyConsumption();
+
+    /// ends adaptation if possible (after an adaptedBodySource change detected
+    /// by the caller)
+    void checkAdaptationWithBodyCompletion();
 #endif
 
 protected:
@@ -189,9 +191,13 @@ protected:
     bool adaptationAccessCheckPending = false;
     bool startedAdaptation = false;
 
-    /// handleAdaptedBodyProductionEnded() was called
+    /// the entire adapted response (including bodyless responses) has been successfully produced
     bool receivedWholeAdaptedReply = false;
+
+    bool adaptedReplyAborted = false; ///< handleAdaptedBodyProducerAborted() was called
 #endif
+    bool receivedWholeVirginReply = false; ///< markParsedVirginReplyAsWhole() called
+
     bool receivedWholeRequestBody = false; ///< handleRequestBodyProductionEnded called
 
     /// whether we are waiting for MemObject::delayRead() to call us back
