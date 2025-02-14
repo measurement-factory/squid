@@ -217,6 +217,13 @@ Security::ServerOptions::createStaticServerContext(AnyP::PortCfg &)
 
     Security::ContextPointer t(createBlankContext());
     if (t) {
+        // this updateContextConfig() must precede SSL_CTX_use_certificate()
+        // below because OpenSSL checks whether the certificate matches context
+        // options (e.g., the supported ciphers and the security level).
+        if (!updateContextConfig(t)) {
+            debugs(83, DBG_CRITICAL, "ERROR: Configuring static TLS context");
+            return false;
+        }
 
 #if USE_OPENSSL
         if (certs.size() > 1) {
@@ -266,15 +273,6 @@ Security::ServerOptions::createStaticServerContext(AnyP::PortCfg &)
             // XXX: add cert chain to the context
         }
 #endif
-
-        if (!loadClientCaFile())
-            return false;
-
-        // by this point all config related files must be loaded
-        if (!updateContextConfig(t)) {
-            debugs(83, DBG_CRITICAL, "ERROR: Configuring static TLS context");
-            return false;
-        }
     }
 
     staticContext = std::move(t);
@@ -329,26 +327,6 @@ Security::ServerOptions::syncCaFiles()
     // otherwise fall back to clientca if it is defined
     if (!clientCaFile.isEmpty())
         caFiles.emplace_back(clientCaFile);
-}
-
-/// load clientca= file (if any) into memory.
-/// \retval true   clientca is not set, or loaded successfully
-/// \retval false  unable to load the file, or not using OpenSSL
-bool
-Security::ServerOptions::loadClientCaFile()
-{
-    if (clientCaFile.isEmpty())
-        return true;
-
-#if USE_OPENSSL
-    auto *stk = SSL_load_client_CA_file(clientCaFile.c_str());
-    clientCaStack = Security::ServerOptions::X509_NAME_STACK_Pointer(stk);
-#endif
-    if (!clientCaStack) {
-        debugs(83, DBG_CRITICAL, "FATAL: Unable to read client CAs from file: " << clientCaFile);
-    }
-
-    return bool(clientCaStack);
 }
 
 void
@@ -479,7 +457,8 @@ Security::ServerOptions::updateContextConfig(Security::ContextPointer &ctx)
 
     updateContextEecdh(ctx);
     updateContextCa(ctx);
-    updateContextClientCa(ctx);
+    if (!updateContextClientCa(ctx))
+        return false;
 
 #if USE_OPENSSL
     SSL_CTX_set_mode(ctx.get(), SSL_MODE_NO_AUTO_CHAIN);
@@ -491,31 +470,45 @@ Security::ServerOptions::updateContextConfig(Security::ContextPointer &ctx)
     return true;
 }
 
-void
+bool
 Security::ServerOptions::updateContextClientCa(Security::ContextPointer &ctx)
 {
 #if USE_OPENSSL
-    if (clientCaStack) {
+    if (clientCaFile.isEmpty()) {
+        Ssl::DisablePeerVerification(ctx);
+#elif USE_GNUTLS
+        // TODO: disable client verification
+#endif
+        return true;
+    }
+
+#if USE_OPENSSL
+    clientCaStack.reset(SSL_load_client_CA_file(clientCaFile.c_str()));
+    if (!clientCaStack) {
+        const auto ssl_error = ERR_get_error();
+        debugs(83, DBG_CRITICAL, "FATAL: Failed to load client CAs from " << clientCaFile << ": " << Security::ErrorString(ssl_error));
+        // XXX: "return false" is not FATAL
+        return false;
+    } else {
         ERR_clear_error();
         if (STACK_OF(X509_NAME) *clientca = SSL_dup_CA_list(clientCaStack.get())) {
             SSL_CTX_set_client_CA_list(ctx.get(), clientca);
         } else {
             auto ssl_error = ERR_get_error();
             debugs(83, DBG_CRITICAL, "ERROR: Failed to dupe the client CA list: " << Security::ErrorString(ssl_error));
-            return;
+            return false;
         }
 
         Ssl::ConfigurePeerVerification(ctx, parsedFlags);
 
         updateContextCrl(ctx);
         updateContextTrust(ctx);
-
-    } else {
-        Ssl::DisablePeerVerification(ctx);
     }
 #else
+    // XXX: Inability to perform requested client authentication must be fatal!
     (void)ctx;
 #endif
+    return true;
 }
 
 void
