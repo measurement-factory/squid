@@ -181,7 +181,6 @@ private:
     void secureConnectionToPeer(const Comm::ConnectionPointer &);
     void successfullyConnectedToPeer(const Comm::ConnectionPointer &);
 
-    static void ProxyProtocolHeaderSent(const Comm::ConnectionPointer &, char *, size_t, Comm::Flag, int, void *data);
     void proxyProtocolHeaderSent(ProxyProtocolWriterAnswer &answer);
 
     /// stops monitoring server connection for closure and updates pconn stats
