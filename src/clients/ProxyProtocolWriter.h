@@ -40,9 +40,8 @@ public:
 
 std::ostream &operator <<(std::ostream &, const ProxyProtocolWriterAnswer &);
 
-/// Sends PROXY protocol header to a proxy using the given open
-/// TCP connectection to that proxy. Owns the connection until
-/// the header is sent.
+/// Sends PROXY protocol header to a cache_peer or server. using the given open
+/// TCP connection. Owns the connection until the header is sent.
 class ProxyProtocolWriter: virtual public AsyncJob
 {
 
@@ -91,8 +90,8 @@ private:
     AsyncCall::Pointer closer; ///< called when the connection is being closed
 
     SBuf header; // v2 PROXY protocol header
-    Comm::ConnectionPointer connection; ///< TCP connection to the cache_peer
-    HttpRequestPointer request; ///< peer connection trigger or cause
+    Comm::ConnectionPointer connection; ///< TCP connection to a cache_peer or server
+    HttpRequestPointer request; ///< the connection trigger or cause
     AsyncCallback<Answer> callback; ///< answer destination
     AccessLogEntryPointer al; ///< info for the future access.log entry
     bool headerWritten; ///< whether we successfully wrote the request

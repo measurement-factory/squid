@@ -69,13 +69,6 @@ void ProxyProtocolWriter::start()
         return;
     }
 
-    const auto peer = connection->getPeer();
-    // bail if our peer was reconfigured away
-    if (!peer) {
-        bailWith(new ErrorState(ERR_CANNOT_FORWARD, Http::scInternalServerError, request.getRaw(), al));
-        return;
-    }
-
     writeHeader();
 }
 
@@ -176,9 +169,6 @@ void
 ProxyProtocolWriter::countFailingConnection()
 {
     assert(connection);
-    // No NoteOutgoingConnectionFailure(connection->getPeer()) call here because
-    // we do not blame cache_peer for CONNECT failures (on top of a successfully
-    // established connection to that cache_peer).
     if (noteFwdPconnUse && connection->isOpen())
         fwdPconnPool->noteUses(fd_table[connection->fd].pconn.uses);
 }
