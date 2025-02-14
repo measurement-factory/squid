@@ -394,6 +394,29 @@ Ip::Address::GetHostByName(const char* s)
     return lookupHostIP(s, false);
 }
 
+/// \returns an IPv4 Address with true isAnyAddr()
+const Ip::Address &
+Ip::Address::AnyAddrIPv4()
+{
+    static Address anyAddr;
+    if(!anyAddr.isAnyAddr())
+        anyAddr.setAnyAddr();
+    if (!anyAddr.isIPv4())
+        anyAddr.setIPv4();
+    return anyAddr;
+
+}
+
+/// \returns an IPv6 Address with true isAnyAddr()
+const Ip::Address &
+Ip::Address::AnyAddrIPv6()
+{
+    static Address anyAddr;
+    if(!anyAddr.isAnyAddr())
+        anyAddr.setAnyAddr();
+    return anyAddr;
+}
+
 bool
 Ip::Address::lookupHostIP(const char *s, bool nodns)
 {
