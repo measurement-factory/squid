@@ -47,6 +47,9 @@ public:
      */
     int parse(const char *def, enum Quoting *quote);
 
+    /// writes this token and all tokens in the list into the stream
+    void print(std::ostream &os);
+
     ByteCode_t type;
     const char *label;
     struct {
