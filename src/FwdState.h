@@ -175,7 +175,7 @@ private:
     void establishTunnelThruProxy(const Comm::ConnectionPointer &);
     void tunnelEstablishmentDone(Http::TunnelerAnswer &answer);
     void resetProxyProtocolHeader();
-    void sendProxyProtoHeaderIfNeeded(const Comm::ConnectionPointer &);
+    void sendProxyProtoHeader(const Comm::ConnectionPointer &);
     void tunnelIfNeeded(const Comm::ConnectionPointer &);
     void secureConnectionToPeerIfNeeded(const Comm::ConnectionPointer &);
     void secureConnectionToPeer(const Comm::ConnectionPointer &);

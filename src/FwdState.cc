@@ -886,7 +886,15 @@ FwdState::noteConnection(HappyConnOpener::Answer &answer)
         return dispatch();
     }
 
-    sendProxyProtoHeaderIfNeeded(answer.conn);
+    if (!proxyProtocolHeader) {
+        tunnelIfNeeded(answer.conn);
+        return;
+    }
+
+    Assure(!proxyProtocolHeader->isEmpty());
+    advanceDestination("send proxy protocol header", answer.conn, [this, &answer]() {
+    sendProxyProtoHeader(answer.conn);
+    });
 }
 
 void
@@ -942,15 +950,8 @@ FwdState::resetProxyProtocolHeader()
 }
 
 void
-FwdState::sendProxyProtoHeaderIfNeeded(const Comm::ConnectionPointer &conn)
+FwdState::sendProxyProtoHeader(const Comm::ConnectionPointer &conn)
 {
-    if (!proxyProtocolHeader) {
-        tunnelIfNeeded(conn);
-        return;
-    }
-
-    Assure(!proxyProtocolHeader->isEmpty());
-
     const auto callback = asyncCallback(17, 4, FwdState::proxyProtocolHeaderSent, this);
     HttpRequest::Pointer requestPointer = request;
     const auto proxyProtocolWriter = new ProxyProtocolWriter(*proxyProtocolHeader, conn, requestPointer, callback, al);
