@@ -16,31 +16,24 @@
 #include "fde.h"
 #include "globals.h"
 
-Comm::CbEntry *Comm::iocb_table;
-
-void
-Comm::CallbackTableInit()
+static Comm::CbEntry *
+CallbackTableInit()
 {
     // XXX: convert this to a std::map<> ?
-    iocb_table = static_cast<CbEntry*>(xcalloc(Squid_MaxFD, sizeof(CbEntry)));
+    const auto iocb_table = static_cast<Comm::CbEntry*>(xcalloc(Squid_MaxFD, sizeof(Comm::CbEntry)));
     for (int pos = 0; pos < Squid_MaxFD; ++pos) {
         iocb_table[pos].fd = pos;
-        iocb_table[pos].readcb.type = IOCB_READ;
-        iocb_table[pos].writecb.type = IOCB_WRITE;
+        iocb_table[pos].readcb.type = Comm::IOCB_READ;
+        iocb_table[pos].writecb.type = Comm::IOCB_WRITE;
     }
+    return iocb_table;
 }
 
-void
-Comm::CallbackTableDestruct()
+Comm::CbEntry &
+Comm::ioCallbacks(const int fd)
 {
-    // release resources being held
-    for (int pos = 0; pos < Squid_MaxFD; ++pos) {
-        iocb_table[pos].readcb.conn = nullptr;
-        iocb_table[pos].writecb.conn = nullptr;
-        iocb_table[pos].readcb.callback = nullptr;
-        iocb_table[pos].writecb.callback = nullptr;
-    }
-    safe_free(iocb_table);
+    static const auto table = CallbackTableInit();
+    return table[fd];
 }
 
 /**
