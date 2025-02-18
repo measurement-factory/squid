@@ -33,6 +33,7 @@ Comm::CbEntry &
 Comm::ioCallbacks(const int fd)
 {
     static const auto table = CallbackTableInit();
+    assert(fd < Squid_MaxFD);
     return table[fd];
 }
 
