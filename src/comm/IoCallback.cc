@@ -33,10 +33,12 @@ Comm::CallbackTableInit()
 void
 Comm::CallbackTableDestruct()
 {
-    // release any Comm::Connections being held.
+    // release resources being held
     for (int pos = 0; pos < Squid_MaxFD; ++pos) {
         iocb_table[pos].readcb.conn = nullptr;
         iocb_table[pos].writecb.conn = nullptr;
+        iocb_table[pos].readcb.callback = nullptr;
+        iocb_table[pos].writecb.callback = nullptr;
     }
     safe_free(iocb_table);
 }
