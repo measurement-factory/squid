@@ -161,10 +161,8 @@ AnyP::PortCfg::detailCodeContext(std::ostream &os) const
     return os;
 }
 
-namespace AnyP
-{
-inline std::ostream &
-operator <<(std::ostream &os, const PortCfg &cfg)
+std::ostream &
+AnyP::operator <<(std::ostream &os, const PortCfg &cfg)
 {
     // See AnyP::PortCfg::codeContextGist() and detailCodeContext() for caveats.
     os << "listening_port@";
@@ -176,7 +174,6 @@ operator <<(std::ostream &os, const PortCfg &cfg)
         os << &cfg;
     return os;
 }
-} // namespace AnyP
 
 void
 UpdatePortCfg(const AnyP::PortCfgPointer &list, const AnyP::PortCfg &newCfg)
