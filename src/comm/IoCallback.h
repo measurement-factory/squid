@@ -72,8 +72,8 @@ public:
 /// Callbacks which might be scheduled in future are stored in fd_table.
 CbEntry &ioCallbacks(int fd);
 
-#define COMMIO_FD_READCB(fd)    (&(Comm::ioCallbacks(fd).readcb))
-#define COMMIO_FD_WRITECB(fd)   (&(Comm::ioCallbacks(fd).writecb))
+#define COMMIO_FD_READCB(fd) (&(Comm::ioCallbacks(fd).readcb))
+#define COMMIO_FD_WRITECB(fd) (&(Comm::ioCallbacks(fd).writecb))
 
 } // namespace Comm
 
