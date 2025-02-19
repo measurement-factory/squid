@@ -10,6 +10,8 @@ include $(top_srcdir)/src/Common.am
 noinst_LTLIBRARIES = libparser.la
 
 libparser_la_SOURCES = \
+	BinaryPacker.cc \
+	BinaryPacker.h \
 	BinaryTokenizer.cc \
 	BinaryTokenizer.h \
 	Tokenizer.cc \

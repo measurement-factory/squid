@@ -11,6 +11,8 @@
 
 #include "base/RefCount.h"
 #include "ip/Address.h"
+#include "MemBuf.h"
+#include "parser/forward.h"
 #include "proxyp/Elements.h"
 #include "sbuf/SBuf.h"
 
@@ -56,6 +58,8 @@ public:
     /// \returns "4" or "6" if both source and destination addresses are IPv4 or IPv6
     /// \returns "mix" otherwise
     const SBuf &addressFamily() const;
+
+    void pack(BinaryPacker &) const;
 
     /// source address of the client connection
     Ip::Address sourceAddress;

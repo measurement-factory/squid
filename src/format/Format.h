@@ -56,6 +56,9 @@ public:
     /// dump this whole list of formats into the provided StoreEntry
     void dump(StoreEntry * entry, const char *directiveName, bool eol = true) const;
 
+    /// whether assemble() needs ALE
+    bool isConstant() const;
+
     char *name;
     Token *format;
     Format *next;
