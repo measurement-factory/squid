@@ -98,7 +98,7 @@ fun:_Z21cbdataInternalAddTypeiPKci
    fun:_Z19msghdr_write_methodiPKci
 }
 
-# needs investigation; may be related to UdsSender-new
+# needs investigation
 {
    UdsSender-write
    Memcheck:Leak
@@ -106,15 +106,6 @@ fun:_Z21cbdataInternalAddTypeiPKci
    fun:_ZN3Ipc9UdsSender5writeEv
    fun:_ZN3Ipc9UdsSender5startEv
    fun:_ZN14NullaryMemFunTI8AsyncJobE6doDialEv
-}
-
-# needs investigation; may be related to UdsSender-write
-{
-   UdsSender-new
-   Memcheck:Leak
-   ...
-   fun:_ZN3Ipc9UdsSendernwEm
-   fun:_ZN3Ipc11SendMessageERK6StringRKNS_11TypedMsgHdrE
 }
 
 # needs investigation; might require a hack similar to commit afc199f9
