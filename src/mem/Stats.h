@@ -36,6 +36,16 @@ public:
     int overhead = 0;
 };
 
+class SslStats
+{
+public:
+    static SslStats &GetInstance();
+
+    uint64_t numAllocs = 0;
+    uint64_t numFrees = 0;
+    Meter allocatedMemory;
+};
+
 /**
  * Fills a Mem::PoolStats with statistical data about overall
  * usage for all pools.

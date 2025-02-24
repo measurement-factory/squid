@@ -70,5 +70,10 @@ void memFreeBuf(size_t size, void *);
 FREE *memFreeBufFunc(size_t size);
 int memInUse(mem_type);
 
+/// custom openssl memory management with CRYPTO_set_mem_functions()
+void *sslCryptoMalloc(size_t num, const char *file, int line);
+void *sslCryptoRealloc(void *str, size_t num, const char *file, int line);
+void sslCryptoFree(void *str, const char *file, int line);
+
 #endif /* SQUID_SRC_MEM_FORWARD_H */
 

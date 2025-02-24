@@ -31,3 +31,11 @@ Mem::GlobalStats(PoolStats &stats)
 
     return pools_inuse;
 }
+
+Mem::SslStats &
+Mem::SslStats::GetInstance()
+{
+    static auto *Instance = new SslStats;
+    return *Instance;
+}
+

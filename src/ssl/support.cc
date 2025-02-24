@@ -25,6 +25,7 @@
 #include "globals.h"
 #include "ip/Address.h"
 #include "ipc/MemMap.h"
+#include "mem/forward.h"
 #include "security/CertError.h"
 #include "security/Certificate.h"
 #include "security/ErrorDetail.h"
@@ -747,6 +748,8 @@ Ssl::Initialize(void)
     initialized = true;
 
     SQUID_OPENSSL_init_ssl();
+
+    CRYPTO_set_mem_functions(sslCryptoMalloc, sslCryptoRealloc, sslCryptoFree);
 
     if (::Config.SSL.ssl_engine) {
 #if OPENSSL_VERSION_MAJOR < 3
