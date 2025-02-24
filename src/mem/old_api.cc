@@ -102,8 +102,9 @@ Mem::Stats(StoreEntry * sentry)
     stream << "malloc() calls: " <<  Mem::SslStats::GetInstance().numAllocs << "\n";
     stream << "free() calls: " <<  Mem::SslStats::GetInstance().numFrees << "\n";
     stream << "Total allocated memory: " <<  Mem::SslStats::GetInstance().allocatedMemory.currentLevel() / 1024 << " KB\n";
-
+    stream << "malloc() sizes histogram: " << "\n";
     stream.flush();
+    Mem::SslStats::GetInstance().allocSizes.dump(sentry, nullptr);
 }
 
 /*
@@ -483,8 +484,7 @@ void *
 sslCryptoMalloc(size_t num, const char *file, int line)
 {
     debugs(13, 5, num << " " << file << " " << line);
-    Mem::SslStats::GetInstance().numAllocs++;
-    Mem::SslStats::GetInstance().allocatedMemory += num;
+    Mem::SslStats::GetInstance().alloc(num);
     return num ? malloc(num) : nullptr;
 }
 
@@ -508,7 +508,7 @@ void
 sslCryptoFree(void *str, const char *file, int line)
 {
     debugs(13, 5, str << " " << file << " " << line);
-    Mem::SslStats::GetInstance().numFrees++;
+    Mem::SslStats::GetInstance().free();
     free(str);
 }
 

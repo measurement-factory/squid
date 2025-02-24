@@ -10,6 +10,7 @@
 #define SQUID_SRC_MEM_STATS_H
 
 #include "mem/forward.h"
+#include "StatHist.h"
 
 namespace Mem
 {
@@ -36,14 +37,22 @@ public:
     int overhead = 0;
 };
 
+/// Statistics for OpenSSL malloc-based memory management.
 class SslStats
 {
 public:
+    SslStats();
+
     static SslStats &GetInstance();
 
-    uint64_t numAllocs = 0;
-    uint64_t numFrees = 0;
+    void alloc(size_t bytes);
+    void free();
+
+    uint64_t numAllocs = 0; ///< the number of malloc() calls
+    uint64_t numFrees = 0; ///< the number of free() calls
     Meter allocatedMemory;
+
+    StatHist allocSizes;
 };
 
 /**
