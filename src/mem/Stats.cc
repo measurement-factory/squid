@@ -31,30 +31,3 @@ Mem::GlobalStats(PoolStats &stats)
 
     return pools_inuse;
 }
-
-Mem::SslStats::SslStats()
-{
-    allocSizes.logInit(16, 1., 65536.);
-}
-
-void
-Mem::SslStats::alloc(const size_t bytes)
-{
-    numAllocs++;
-    allocatedMemory += bytes;
-    allocSizes.count(bytes);
-}
-
-void
-Mem::SslStats::free()
-{
-    numFrees++;
-}
-
-Mem::SslStats &
-Mem::SslStats::GetInstance()
-{
-    static auto *Instance = new SslStats;
-    return *Instance;
-}
-

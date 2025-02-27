@@ -25,7 +25,6 @@
 #include "globals.h"
 #include "ip/Address.h"
 #include "ipc/MemMap.h"
-#include "mem/forward.h"
 #include "security/CertError.h"
 #include "security/Certificate.h"
 #include "security/ErrorDetail.h"
@@ -35,6 +34,7 @@
 #include "ssl/Config.h"
 #include "ssl/ErrorDetail.h"
 #include "ssl/gadgets.h"
+#include "ssl/MemStats.h"
 #include "ssl/support.h"
 
 #include <cerrno>
@@ -73,6 +73,43 @@ protected:
 
     AnyP::Host needle_; ///< a name we are looking for
 };
+
+/// a replacement for CRYPTO_malloc()
+static void *
+CryptoMalloc(size_t num, const char *file, int line)
+{
+    debugs(83, 5, num << " " << file << " " << line);
+    MallocStats().alloc(num);
+    // mimics CRYPTO_malloc(), returning NULL if num==0
+    return num ? malloc(num) : nullptr;
+}
+
+/// a replacement for CRYPTO_free()
+static void
+CryptoFree(void *str, const char *file, int line)
+{
+    debugs(83, 5, str << " " << file << " " << line);
+    MallocStats().free();
+    xfree(str);
+}
+
+/// a replacement for CRYPTO_realloc()
+static void *
+CryptoRealloc(void *str, size_t num, const char *file, int line)
+{
+    debugs(83, 5, str << " " << num << " " << file << " " << line);
+
+    if (!str)
+        return CryptoMalloc(num, file, line); // mimics CRYPTO_realloc() that calls CRYPTO_malloc()
+
+    if (num == 0) {
+        CryptoFree(str, file, line); // mimics CRYPTO_realloc(), that calls CRYPTO_free()
+        return nullptr;
+    }
+
+    ReallocStats().alloc(num);
+    return realloc(str, num);
+}
 
 } // namespace Ssl
 
@@ -749,7 +786,7 @@ Ssl::Initialize(void)
 
     SQUID_OPENSSL_init_ssl();
 
-    CRYPTO_set_mem_functions(sslCryptoMalloc, sslCryptoRealloc, sslCryptoFree);
+    CRYPTO_set_mem_functions(CryptoMalloc, CryptoRealloc, CryptoFree);
 
     if (::Config.SSL.ssl_engine) {
 #if OPENSSL_VERSION_MAJOR < 3

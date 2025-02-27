@@ -22,6 +22,7 @@
 #include "MemBuf.h"
 #include "mgr/Registration.h"
 #include "SquidConfig.h"
+#include "ssl/MemStats.h"
 #include "Store.h"
 
 #include <iomanip>
@@ -99,12 +100,11 @@ Mem::Stats(StoreEntry * sentry)
     }
 #endif
     stream << "Current SSL memory usage:\n";
-    stream << "malloc() calls: " <<  Mem::SslStats::GetInstance().numAllocs << "\n";
-    stream << "free() calls: " <<  Mem::SslStats::GetInstance().numFrees << "\n";
-    stream << "Total allocated memory: " <<  Mem::SslStats::GetInstance().allocatedMemory.currentLevel() / 1024 << " KB\n";
-    stream << "malloc() sizes histogram: " << "\n";
+    Ssl::MallocStats().print(stream);
+    Ssl::ReallocStats().print(stream);
     stream.flush();
-    Mem::SslStats::GetInstance().allocSizes.dump(sentry, nullptr);
+    Ssl::MallocStats().dumpHistogram(sentry);
+    Ssl::ReallocStats().dumpHistogram(sentry);
 }
 
 /*
@@ -478,38 +478,6 @@ memFreeBufFunc(size_t size)
         HugeBufVolumeMeter -= size;
         return cxx_xfree;
     }
-}
-
-void *
-sslCryptoMalloc(size_t num, const char *file, int line)
-{
-    debugs(13, 5, num << " " << file << " " << line);
-    Mem::SslStats::GetInstance().alloc(num);
-    return num ? malloc(num) : nullptr;
-}
-
-void *
-sslCryptoRealloc(void *str, size_t num, const char *file, int line)
-{
-    debugs(13, 5, str << " " << num << " " << file << " " << line);
-
-    if (!str)
-        return CRYPTO_malloc(num, file, line);
-
-    if (num == 0) {
-        CRYPTO_free(str, file, line);
-        return nullptr;
-    }
-
-    return realloc(str, num);
-}
-
-void
-sslCryptoFree(void *str, const char *file, int line)
-{
-    debugs(13, 5, str << " " << file << " " << line);
-    Mem::SslStats::GetInstance().free();
-    free(str);
 }
 
 void
