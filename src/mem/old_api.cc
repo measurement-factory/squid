@@ -22,7 +22,9 @@
 #include "MemBuf.h"
 #include "mgr/Registration.h"
 #include "SquidConfig.h"
+#if USE_OPENSSL
 #include "ssl/MemStats.h"
+#endif
 #include "Store.h"
 
 #include <iomanip>
