@@ -1051,6 +1051,7 @@ tests_testRock_SOURCES = \
 	HttpHeaderTools.h \
 	HttpReply.cc \
 	tests/stub_HttpRequest.cc \
+	tests/stub_libsslsquid.cc \
 	LogTags.cc \
 	MasterXaction.cc \
 	MasterXaction.h \
@@ -1293,6 +1294,7 @@ tests_testUfs_SOURCES = \
 	mem_node.cc \
 	tests/stub_mime.cc \
 	mime.h \
+	tests/stub_libsslsquid.cc \
 	tests/stub_neighbors.cc \
 	tests/stub_pconn.cc \
 	refresh.cc \
@@ -1632,6 +1634,7 @@ tests_testDiskIO_SOURCES = \
 	mem_node.cc \
 	tests/stub_mime.cc \
 	mime.h \
+	tests/stub_libsslsquid.cc \
 	tests/stub_neighbors.cc \
 	tests/stub_pconn.cc \
 	refresh.cc \

@@ -76,5 +76,13 @@ void setClientSNI(SSL *, const char *) STUB
 SBuf GetX509PEM(X509 *) STUB_RETVAL(SBuf())
 } //namespace Ssl
 
+#include "ssl/MemStats.h"
+namespace Ssl
+{
+void MemStats::dump(StoreEntry &) STUB
+MemStats &MallocStats() STUB_RETREF(MemStats)
+MemStats &ReallocStats() STUB_RETREF(MemStats)
+} /* namespace Ssl */
+
 #endif
 

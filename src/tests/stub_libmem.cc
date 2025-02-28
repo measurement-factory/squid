@@ -33,11 +33,6 @@ void memInitModule(void) STUB
 void memCleanModule(void) STUB
 void memConfigure(void) STUB
 
-#if USE_OPENSSL
-#include "ssl/MemStats.h"
-void Ssl::MemStats::dump(StoreEntry &) STUB
-#endif
-
 void *memAllocate(mem_type)
 {
     // let's waste plenty of memory. This should cover any possible need
