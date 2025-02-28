@@ -37,8 +37,8 @@ Ssl::MemStats::dump(StoreEntry &e)
     yaml << allocFun << "() single call bytes allocated (max): " << maxAllocation << "\n";
     if (freeFun)
         yaml << freeFun << "() calls: " <<  numFrees << "\n";
+    yaml << allocFun << "() sizes histogram:" << "\n";
     yaml.flush();
-    storeAppendPrintf(&e, "%s() sizes histogram: \n", allocFun);
     allocSizes.dump(&e, nullptr);
 }
 
