@@ -14,7 +14,7 @@
 #if USE_OPENSSL
 
 Ssl::MemStats::MemStats(const char *allocFunName, const char *freeFunName)
-: allocFun(allocFunName), freeFun(freeFunName)
+    : allocFun(allocFunName), freeFun(freeFunName)
 {
     allocSizes.logInit(20, 0, 1024*1024);
 }

@@ -6,8 +6,8 @@
  * Please see the COPYING and CONTRIBUTORS files for details.
  */
 
-#ifndef SQUID_SRC_SSL_MEM_STATS_H
-#define SQUID_SRC_SSL_MEM_STATS_H 
+#ifndef SQUID_SRC_SSL_MEMSTATS_H
+#define SQUID_SRC_SSL_MEMSTATS_H
 
 #if USE_OPENSSL
 
@@ -47,5 +47,5 @@ MemStats &ReallocStats();
 
 #endif // USE_OPENSSL
 
-#endif // SQUID_SRC_SSL_MEM_STATS_H
+#endif /* SQUID_SRC_SSL_MEMSTATS_H */
 
