@@ -8,6 +8,7 @@
 
 #include "squid.h"
 
+#include "base/PackableStream.h"
 #include "ssl/MemStats.h"
 
 #if USE_OPENSSL
@@ -15,7 +16,7 @@
 Ssl::MemStats::MemStats(const char *allocFunName, const char *freeFunName)
 : allocFun(allocFunName), freeFun(freeFunName)
 {
-    allocSizes.logInit(20, 1., 1048576.);
+    allocSizes.logInit(20, 0, 1024*1024);
 }
 
 void
@@ -28,19 +29,17 @@ Ssl::MemStats::alloc(const size_t bytes)
 }
 
 void
-Ssl::MemStats::print(std::ostream &os)
+Ssl::MemStats::dump(StoreEntry &e)
 {
+    PackableStream yaml(e);
     assert(allocFun);
-    os << allocFun << "() calls: " <<  numAllocs << ", the biggest allocation so far: " << maxAllocation << " bytes" <<"\n";
-	if (freeFun)
-        os << freeFun << "() calls: " <<  numFrees << "\n";
-}
-
-void
-Ssl::MemStats::dumpHistogram(StoreEntry *e)
-{
-    storeAppendPrintf(e, "%s() sizes histogram: \n", allocFun);
-    allocSizes.dump(e, nullptr);
+    yaml << allocFun << "() calls: " <<  numAllocs << "\n";
+    yaml << allocFun << "() single call bytes allocated (max): " << maxAllocation << "\n";
+    if (freeFun)
+        yaml << freeFun << "() calls: " <<  numFrees << "\n";
+    yaml.flush();
+    storeAppendPrintf(&e, "%s() sizes histogram: \n", allocFun);
+    allocSizes.dump(&e, nullptr);
 }
 
 Ssl::MemStats &

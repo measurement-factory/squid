@@ -99,12 +99,14 @@ Mem::Stats(StoreEntry * sentry)
         stream << "Suppressed\t" << suppressed << "\n";
     }
 #endif
-    stream << "Current SSL memory usage:\n";
-    Ssl::MallocStats().print(stream);
-    Ssl::ReallocStats().print(stream);
     stream.flush();
-    Ssl::MallocStats().dumpHistogram(sentry);
-    Ssl::ReallocStats().dumpHistogram(sentry);
+
+#if USE_OPENSSL
+    stream << "Current SSL memory usage:\n";
+    stream.flush();
+    Ssl::MallocStats().dump(*sentry);
+    Ssl::ReallocStats().dump(*sentry);
+#endif
 }
 
 /*

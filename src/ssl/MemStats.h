@@ -29,8 +29,7 @@ public:
     void alloc(size_t bytes);
     void free() { numFrees++; }
 
-    void dumpHistogram(StoreEntry *e);
-    void print(std::ostream &os);
+    void dump(StoreEntry &);
 
     uint64_t numAllocs = 0; ///< the number of malloc() calls
     uint64_t numFrees = 0; ///< the number of free() calls
