@@ -34,6 +34,7 @@
 #include "ssl/Config.h"
 #include "ssl/ErrorDetail.h"
 #include "ssl/gadgets.h"
+#include "ssl/MemStats.h"
 #include "ssl/support.h"
 
 #include <cerrno>
@@ -72,6 +73,44 @@ protected:
 
     AnyP::Host needle_; ///< a name we are looking for
 };
+
+/// a replacement for CRYPTO_malloc()
+static void *
+CryptoMalloc(size_t num, const char *file, int line)
+{
+    MallocStats().alloc(num);
+    // mimics CRYPTO_malloc(), returning NULL if num==0
+    const auto p = num ? malloc(num) : nullptr;
+    debugs(83, 5, (p ? p : "[nil]") << " " << num << " " << file << " " << line);
+    return p;
+}
+
+/// a replacement for CRYPTO_free()
+static void
+CryptoFree(void *str, const char *file, int line)
+{
+    debugs(83, 5, str << " " << file << " " << line);
+    MallocStats().free();
+    xfree(str);
+}
+
+/// a replacement for CRYPTO_realloc()
+static void *
+CryptoRealloc(void *str, size_t num, const char *file, int line)
+{
+    if (!str)
+        return CryptoMalloc(num, file, line); // mimics CRYPTO_realloc() that calls CRYPTO_malloc()
+
+    if (num == 0) {
+        CryptoFree(str, file, line); // mimics CRYPTO_realloc(), that calls CRYPTO_free()
+        return nullptr;
+    }
+
+    ReallocStats().alloc(num);
+    const auto p = realloc(str, num);
+    debugs(83, 5, str << (p == str ? "==" : "!=") << (p ? p : "[nil]") << " " << num << " " << file << " " << line);
+    return p;
+}
 
 } // namespace Ssl
 
@@ -748,6 +787,8 @@ Ssl::Initialize(void)
 
     SQUID_OPENSSL_init_ssl();
 
+    if (!CRYPTO_set_mem_functions(CryptoMalloc, CryptoRealloc, CryptoFree))
+        debugs(83, DBG_IMPORTANT, "WARNING: Unable to CRYPTO_set_mem_functions(): the custom allocation is forbidden.");
     if (::Config.SSL.ssl_engine) {
 #if OPENSSL_VERSION_MAJOR < 3
         debugs(83, DBG_PARSE_NOTE(DBG_IMPORTANT), "WARNING: Support for ssl_engine is deprecated " <<
