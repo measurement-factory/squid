@@ -60,6 +60,9 @@ Ssl::ReallocStats()
 void
 Ssl::ReportMemoryStats(StoreEntry &e)
 {
+    PackableStream yaml(e);
+    yaml << "Current SSL memory usage:\n";
+    yaml.flush();
     MallocStats().dump(e);
     ReallocStats().dump(e);
 }
