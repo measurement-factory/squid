@@ -106,8 +106,7 @@ Mem::Stats(StoreEntry * sentry)
 #if USE_OPENSSL
     stream << "Current SSL memory usage:\n";
     stream.flush();
-    Ssl::MallocStats().dump(*sentry);
-    Ssl::ReallocStats().dump(*sentry);
+    Ssl::ReportMemoryStats(*sentry);
 #endif
 }
 

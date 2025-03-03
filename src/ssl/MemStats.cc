@@ -13,8 +13,8 @@
 
 #if USE_OPENSSL
 
-Ssl::MemStats::MemStats(const char *allocFunName, const char *freeFunName)
-    : allocFun(allocFunName), freeFun(freeFunName)
+Ssl::MemStats::MemStats(const char * const allocFunName, const char * const freeFunName):
+    allocFun(allocFunName), freeFun(freeFunName)
 {
     allocSizes.logInit(20, 0, 1024*1024);
 }
@@ -33,11 +33,12 @@ Ssl::MemStats::dump(StoreEntry &e)
 {
     PackableStream yaml(e);
     assert(allocFun);
-    yaml << allocFun << "() calls: " <<  numAllocs << "\n";
-    yaml << allocFun << "() single call bytes allocated (max): " << maxAllocation << "\n";
+    const char *indent = "    ";
+    yaml << indent << allocFun << "() calls: " <<  numAllocs << "\n";
+    yaml << indent << allocFun << "() single call bytes allocated (max): " << maxAllocation << "\n";
     if (freeFun)
-        yaml << freeFun << "() calls: " <<  numFrees << "\n";
-    yaml << allocFun << "() sizes histogram:" << "\n";
+        yaml << indent << freeFun << "() calls: " <<  numFrees << "\n";
+    yaml << indent << allocFun << "() sizes histogram:" << "\n";
     yaml.flush();
     allocSizes.dump(&e, nullptr);
 }
@@ -54,6 +55,13 @@ Ssl::ReallocStats()
 {
     static auto stats = new MemStats("realloc", nullptr);
     return *stats;
+}
+
+void
+Ssl::ReportMemoryStats(StoreEntry &e)
+{
+    MallocStats().dump(e);
+    ReallocStats().dump(e);
 }
 
 #endif // USE_OPENSSL

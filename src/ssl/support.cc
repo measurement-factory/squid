@@ -78,10 +78,11 @@ protected:
 static void *
 CryptoMalloc(size_t num, const char *file, int line)
 {
-    debugs(83, 5, num << " " << file << " " << line);
     MallocStats().alloc(num);
     // mimics CRYPTO_malloc(), returning NULL if num==0
-    return num ? malloc(num) : nullptr;
+    const auto p = num ? malloc(num) : nullptr;
+    debugs(83, 5, (p ? p : "[nil]") << " " << num << " " << file << " " << line);
+    return p;
 }
 
 /// a replacement for CRYPTO_free()
@@ -97,8 +98,6 @@ CryptoFree(void *str, const char *file, int line)
 static void *
 CryptoRealloc(void *str, size_t num, const char *file, int line)
 {
-    debugs(83, 5, str << " " << num << " " << file << " " << line);
-
     if (!str)
         return CryptoMalloc(num, file, line); // mimics CRYPTO_realloc() that calls CRYPTO_malloc()
 
@@ -108,7 +107,9 @@ CryptoRealloc(void *str, size_t num, const char *file, int line)
     }
 
     ReallocStats().alloc(num);
-    return realloc(str, num);
+    const auto p = realloc(str, num);
+    debugs(83, 5, str << (p == str ? "==" : "!=") << (p ? p : "[nil]") << " " << num << " " << file << " " << line);
+    return p;
 }
 
 } // namespace Ssl
@@ -786,8 +787,8 @@ Ssl::Initialize(void)
 
     SQUID_OPENSSL_init_ssl();
 
-    CRYPTO_set_mem_functions(CryptoMalloc, CryptoRealloc, CryptoFree);
-
+    if (!CRYPTO_set_mem_functions(CryptoMalloc, CryptoRealloc, CryptoFree))
+        debugs(83, DBG_IMPORTANT, "WARNING: Unable to CRYPTO_set_mem_functions(): the custom allocation is forbidden.");
     if (::Config.SSL.ssl_engine) {
 #if OPENSSL_VERSION_MAJOR < 3
         debugs(83, DBG_PARSE_NOTE(DBG_IMPORTANT), "WARNING: Support for ssl_engine is deprecated " <<

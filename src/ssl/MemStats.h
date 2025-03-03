@@ -43,6 +43,8 @@ public:
 MemStats &MallocStats();
 MemStats &ReallocStats();
 
+void ReportMemoryStats(StoreEntry &);
+
 } // namespace Ssl
 
 #endif // USE_OPENSSL
