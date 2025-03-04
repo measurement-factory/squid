@@ -78,10 +78,13 @@ protected:
 static void *
 CryptoMalloc(size_t num, const char *file, int line)
 {
-    MallocStats().alloc(num);
+    MallocStats().addArea(num);
     // mimics CRYPTO_malloc(), returning NULL if num==0
+    // Do not call xmalloc() here because of its special malloc() errors treatment.
+    // We should preserve the old CRYPTO_malloc() behavior, allowing the SSL library
+    // to handle such errors itself.
     const auto p = num ? malloc(num) : nullptr;
-    debugs(83, 5, (p ? p : "[nil]") << " " << num << " " << file << " " << line);
+    debugs(83, 5, p << " " << num << " " << file << " " << line);
     return p;
 }
 
@@ -90,7 +93,7 @@ static void
 CryptoFree(void *str, const char *file, int line)
 {
     debugs(83, 5, str << " " << file << " " << line);
-    MallocStats().free();
+    FreeStats().addCall();
     xfree(str);
 }
 
@@ -98,17 +101,25 @@ CryptoFree(void *str, const char *file, int line)
 static void *
 CryptoRealloc(void *str, size_t num, const char *file, int line)
 {
-    if (!str)
+    if (!str) {
+        debugs(83, 5, str << " " << num << " " << file << " " << line);
         return CryptoMalloc(num, file, line); // mimics CRYPTO_realloc() that calls CRYPTO_malloc()
+    }
 
     if (num == 0) {
+        debugs(83, 5, str << " " << num << " " << file << " " << line);
         CryptoFree(str, file, line); // mimics CRYPTO_realloc(), that calls CRYPTO_free()
         return nullptr;
     }
 
-    ReallocStats().alloc(num);
     const auto p = realloc(str, num);
-    debugs(83, 5, str << (p == str ? "==" : "!=") << (p ? p : "[nil]") << " " << num << " " << file << " " << line);
+    const auto sameArea = (p == str);
+    sameArea ? ReallocStats().addOldArea(num) : ReallocStats().addNewArea(num);
+    if (!sameArea) {
+        debugs(83, 5, "freed: " <<  str);
+        debugs(83, 5, "allocated: " <<  p);
+    }
+    debugs(83, 5, str << (sameArea ? "==" : "!=") << p << " " << num << " " << file << " " << line);
     return p;
 }
 

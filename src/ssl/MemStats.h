@@ -12,36 +12,70 @@
 #if USE_OPENSSL
 
 #include "StatHist.h"
-
-#include <iosfwd>
-
-class StoreEntry;
+#include "store/forward.h"
 
 namespace Ssl
 {
 
 /// Statistics for OpenSSL malloc-based memory management.
+
+/// Common statistics for a single memory management function
+/// (i.e., malloc(), realloc() or free())
 class MemStats
 {
 public:
-    MemStats(const char *allocFunName, const char *freeFunName);
+    MemStats(const char *fun) : funName(fun) {}
+    virtual ~MemStats() {}
 
-    void alloc(size_t bytes);
-    void free() { numFrees++; }
+    /// adds a call to the statistics
+    void addCall() { calls++; }
 
-    void dump(StoreEntry &);
+    virtual void dump(StoreEntry &);
 
-    uint64_t numAllocs = 0; ///< the number of malloc() calls
-    uint64_t numFrees = 0; ///< the number of free() calls
-    uint64_t maxAllocation = 0; ///< the biggest allocated memory block so far (in bytes)
-
-    StatHist allocSizes;
-    const char *allocFun = nullptr; ///< the name of an alloc function (e.g., malloc() or realloc())
-    const char *freeFun = nullptr; ///< the name of a free() function (or nil)
+protected:
+    uint64_t calls = 0; ///< the total number of calls
+    const char *funName = nullptr; ///< the name of a function
 };
 
-MemStats &MallocStats();
-MemStats &ReallocStats();
+/// malloc() statistics
+class MemAllocStats : public MemStats
+{
+public:
+    MemAllocStats(const char *fun);
+
+    /// adds a malloc() call to the statistics
+    void addArea(size_t bytes);
+
+    void dump(StoreEntry &) override;
+
+protected:
+    uint64_t maxAllocation = 0; ///< the biggest allocated memory block so far (in bytes)
+    StatHist allocSizes; ///< histogram of allocated memory blocks
+};
+
+/// realloc() statistics
+class MemReallocStats : public MemStats
+{
+public:
+    MemReallocStats(const char *fun);
+
+    /// adds a realloc() call to the statistics which did not
+    /// change the memory block location
+    void addOldArea(size_t bytes);
+    /// adds a realloc() call to the statistics which changed the memory block location
+    void addNewArea(size_t bytes);
+
+    virtual void dump(StoreEntry &) override;
+
+protected:
+    uint64_t maxReallocationOldArea = 0; ///< the biggest reallocated memory block so far without changing memory location
+    uint64_t maxReallocationNewArea = 0; ///< the biggest allocated memory block so far with a new memory location
+    StatHist reallocNewAreaSizes; ///< histogram of reallocated memory blocks, having new memory locations
+};
+
+MemAllocStats &MallocStats();
+MemReallocStats &ReallocStats();
+MemStats &FreeStats();
 
 void ReportMemoryStats(StoreEntry &);
 

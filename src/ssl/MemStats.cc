@@ -13,47 +13,96 @@
 
 #if USE_OPENSSL
 
-Ssl::MemStats::MemStats(const char * const allocFunName, const char * const freeFunName):
-    allocFun(allocFunName), freeFun(freeFunName)
+void
+Ssl::MemStats::dump(StoreEntry &e)
+{
+    PackableStream yaml(e);
+    const char *indent = "  ";
+    yaml << indent << funName << "() stats:" << "\n";
+    yaml << indent << indent << "Calls: " << calls << "\n";
+}
+
+Ssl::MemAllocStats::MemAllocStats(const char * const fun):
+    MemStats(fun)
 {
     allocSizes.logInit(20, 0, 1024*1024);
 }
 
 void
-Ssl::MemStats::alloc(const size_t bytes)
+Ssl::MemAllocStats::addArea(const size_t bytes)
 {
-    numAllocs++;
+    MemStats::addCall();
     if (bytes > maxAllocation)
         maxAllocation = bytes;
     allocSizes.count(bytes);
 }
 
 void
-Ssl::MemStats::dump(StoreEntry &e)
+Ssl::MemAllocStats::dump(StoreEntry &e)
 {
+    MemStats::dump(e);
     PackableStream yaml(e);
-    assert(allocFun);
-    const char *indent = "    ";
-    yaml << indent << allocFun << "() calls: " <<  numAllocs << "\n";
-    yaml << indent << allocFun << "() single call bytes allocated (max): " << maxAllocation << "\n";
-    if (freeFun)
-        yaml << indent << freeFun << "() calls: " <<  numFrees << "\n";
-    yaml << indent << allocFun << "() sizes histogram:" << "\n";
+    const char *indent = "  ";
+    yaml << indent << indent << "Single call bytes allocated (max): " << maxAllocation << "\n";
+    yaml << indent << indent << "Allocations histogram (bytes):" << "\n";
     yaml.flush();
     allocSizes.dump(&e, nullptr);
 }
 
-Ssl::MemStats &
+Ssl::MemReallocStats::MemReallocStats(const char * const fun):
+    MemStats(fun)
+{
+    reallocNewAreaSizes.logInit(20, 0, 1024*1024);
+}
+
+void
+Ssl::MemReallocStats::addOldArea(const size_t bytes)
+{
+    MemStats::addCall();
+    if (bytes > maxReallocationOldArea)
+        maxReallocationOldArea = bytes;
+}
+
+void
+Ssl::MemReallocStats::addNewArea(const size_t bytes)
+{
+    MemStats::addCall();
+    if (bytes > maxReallocationNewArea)
+        maxReallocationNewArea = bytes;
+    reallocNewAreaSizes.count(bytes);
+}
+
+void
+Ssl::MemReallocStats::dump(StoreEntry &e)
+{
+    MemStats::dump(e);
+    PackableStream yaml(e);
+    const char *indent = "  ";
+    yaml << indent << indent << "Single call bytes reallocated max (same base address): " << maxReallocationOldArea << "\n";
+    yaml << indent << indent << "Single call bytes reallocated max (new base address): " << maxReallocationNewArea << "\n";
+    yaml << indent << indent << "Reallocations histogram (new base address, bytes):" << "\n";
+    yaml.flush();
+    reallocNewAreaSizes.dump(&e, nullptr);
+}
+
+Ssl::MemAllocStats &
 Ssl::MallocStats()
 {
-    static auto stats = new MemStats("malloc", "free");
+    static auto stats = new MemAllocStats("malloc");
+    return *stats;
+}
+
+Ssl::MemReallocStats &
+Ssl::ReallocStats()
+{
+    static auto stats = new MemReallocStats("realloc");
     return *stats;
 }
 
 Ssl::MemStats &
-Ssl::ReallocStats()
+Ssl::FreeStats()
 {
-    static auto stats = new MemStats("realloc", nullptr);
+    static auto stats = new MemStats("free");
     return *stats;
 }
 
@@ -65,6 +114,7 @@ Ssl::ReportMemoryStats(StoreEntry &e)
     yaml.flush();
     MallocStats().dump(e);
     ReallocStats().dump(e);
+    FreeStats().dump(e);
 }
 
 #endif // USE_OPENSSL

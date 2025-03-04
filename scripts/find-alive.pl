@@ -70,6 +70,10 @@ my %Pairs = (
         'PageStack.* pop: (sh_page\S+) at',
         'PageStack.* push: (sh_page\S+) at',
         ],
+    OpenSslMalloc => [
+        '(?:CryptoMalloc:|CryptoRealloc: allocated:) ([a-fA-F0-9x]+)',
+        '(?:CryptoFree:|CryptoRealloc: freed:) ([a-fA-F0-9x]+)',
+        ],
     );
 
 if (!$Pairs{$Thing}) {
