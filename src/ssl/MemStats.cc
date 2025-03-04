@@ -78,8 +78,8 @@ Ssl::MemReallocStats::dump(StoreEntry &e)
     MemStats::dump(e);
     PackableStream yaml(e);
     const char *indent = "  ";
-    yaml << indent << indent << "Single call bytes reallocated max (same base address): " << maxReallocationOldArea << "\n";
-    yaml << indent << indent << "Single call bytes reallocated max (new base address): " << maxReallocationNewArea << "\n";
+    yaml << indent << indent << "Single call bytes reallocated (max) (old memory location): " << maxReallocationOldArea << "\n";
+    yaml << indent << indent << "Single call bytes reallocated (max) (new memory location): " << maxReallocationNewArea << "\n";
     yaml << indent << indent << "Reallocations histogram (new base address, bytes):" << "\n";
     yaml.flush();
     reallocNewAreaSizes.dump(&e, nullptr);
