@@ -916,6 +916,45 @@ peerSelectInit(void)
 }
 
 void
+peerSelectAdd(Configuration::SmoothReconfiguration &sr, const CachePeer &newPeer)
+{
+    if (newPeer.options.carp)
+        carpReset(sr);
+#if USE_AUTH
+    if (newPeer.options.userhash)
+        peerUserHashReset(sr);
+#endif
+    if (newPeer.options.sourcehash)
+        peerSourceHashReset(sr);
+}
+
+void
+peerSelectDrop(Configuration::SmoothReconfiguration &sr, const CachePeer &oldPeer)
+{
+    if (oldPeer.options.carp)
+        carpReset(sr);
+#if USE_AUTH
+    if (oldPeer.options.userhash)
+        peerUserHashReset(sr);
+#endif
+    if (oldPeer.options.sourcehash)
+        peerSourceHashReset(sr);
+}
+
+void
+peerSelectResetIfChanged(Configuration::SmoothReconfiguration &sr, const CachePeer &current, const CachePeer &fresh)
+{
+    if (current.options.carp || fresh.options.carp)
+        carpResetIfChanged(sr, current, fresh);
+#if USE_AUTH
+    if (current.options.userhash || fresh.options.userhash)
+        peerUserHashResetIfChanged(sr, current, fresh);
+#endif
+    if (current.options.sourcehash || fresh.options.sourcehash)
+        peerSourceHashResetIfChanged(sr, current, fresh);
+}
+
+void
 PeerSelector::handleIcpParentMiss(CachePeer *p, icp_common_t *header)
 {
     int rtt;

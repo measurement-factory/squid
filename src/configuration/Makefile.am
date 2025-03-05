@@ -12,5 +12,7 @@ noinst_LTLIBRARIES = libconfiguration.la
 libconfiguration_la_SOURCES = \
 	Preprocessor.cc \
 	Preprocessor.h \
+	Smooth.cc \
+	Smooth.h \
 	forward.h
 

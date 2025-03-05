@@ -511,6 +511,11 @@ neighbors_init(void)
     if (Comm::IsConnOpen(icpIncomingConn)) {
         RawCachePeers peersToRemove;
 
+        // TODO: After we stop reconfiguring pliable directives with unchanged
+        // spelling: cache_peer A dropped here (because config1 had a matching
+        // https_port P) will not be restored if config2 drops P. We should
+        // remember that a cache_peer was dropped and force reconfiguration of
+        // unchanged cache_peers during the next smooth reconfiguration round.
         for (const auto &thisPeer: CurrentCachePeers()) {
             if (0 != strcmp(thisPeer->host, me))
                 continue;
@@ -1052,20 +1057,6 @@ findCachePeerByName(const char * const name)
             return p.get();
     }
     return nullptr;
-}
-
-void
-UpdateCachePeer(const CachePeer &newCfg)
-{
-    debugs(3, 5, newCfg);
-
-    const auto currentCfg = findCachePeerByName(newCfg.name);
-    // TODO: Removal is also currently unsupported. Detect/reject it as well.
-    if (!currentCfg)
-        throw TextException("no support for adding a new or changing an existing listening port address", Here());
-
-    // TODO: Consider reporting unchanged configurations.
-    currentCfg->update(newCfg);
 }
 
 int

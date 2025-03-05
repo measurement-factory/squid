@@ -9,10 +9,12 @@
 /* DEBUG: section 39    Cache Array Routing Protocol */
 
 #include "squid.h"
+#include "base/AsyncFunCalls.h"
 #include "base/RunnersRegistry.h"
 #include "CachePeer.h"
 #include "CachePeers.h"
 #include "carp.h"
+#include "configuration/Smooth.h"
 #include "HttpRequest.h"
 #include "mgr/Registration.h"
 #include "neighbors.h"
@@ -133,6 +135,27 @@ carpInit(void)
     }
 
     CarpPeers().assign(rawCarpPeers.begin(), rawCarpPeers.end());
+}
+
+void
+carpReset(Configuration::SmoothReconfiguration &sr)
+{
+    sr.asyncCall(39, 5, "carpInit", NullaryFunDialer(&carpInit));
+}
+
+void
+carpResetIfChanged(Configuration::SmoothReconfiguration &sr, const CachePeer &current, const CachePeer &fresh)
+{
+    Assure(current.options.carp || fresh.options.carp);
+
+    // carpInit() hashes name, but the name cannot change as long as smooth
+    // reconfiguration code matches cache_peers using their names
+    Assure(strcmp(current.name, fresh.name) == 0);
+
+    if (current.options.carp && fresh.options.carp && current.weight == fresh.weight)
+        return; // current CARP cache_peer is fresh as far as carpInit() is concerned
+
+    carpReset(sr);
 }
 
 /// reacts to RegisteredRunner events relevant to this module

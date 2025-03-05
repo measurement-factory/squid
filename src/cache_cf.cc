@@ -22,6 +22,7 @@
 #include "auth/Config.h"
 #include "auth/Scheme.h"
 #include "AuthReg.h"
+#include "base/AsyncFunCalls.h"
 #include "base/OnOff.h"
 #include "base/PackableStream.h"
 #include "base/RunnersRegistry.h"
@@ -31,6 +32,7 @@
 #include "ConfigOption.h"
 #include "ConfigParser.h"
 #include "configuration/Preprocessor.h"
+#include "configuration/Smooth.h"
 #include "CpuAffinityMap.h"
 #include "debug/Messages.h"
 #include "DiskIO/DiskIOModule.h"
@@ -59,6 +61,7 @@
 #include "pconn.h"
 #include "PeerDigest.h"
 #include "PeerPoolMgr.h"
+#include "PeerSelectState.h"
 #include "redirect.h"
 #include "RefreshPattern.h"
 #include "rfc1738.h"
@@ -207,13 +210,6 @@ static void parsePortCfg(AnyP::PortCfgPointer *, const char *protocol);
 #define parse_PortCfg(l) parsePortCfg((l), cfg_directive)
 static void dump_PortCfg(StoreEntry *, const char *, const AnyP::PortCfgPointer &);
 #define free_PortCfg(h)  *(h)=NULL
-
-/// XXX: Work around cf_gen's e.type.find("::") hack limitations that would reject
-/// repeated "https_port" directive lines if we use the real type name in TYPE.
-using PortCfgsXXX = AnyP::PortCfgPointer;
-inline void parse_PortCfgsXXX(PortCfgsXXX *ports) { parse_PortCfg(ports); }
-inline void free_PortCfgsXXX(PortCfgsXXX *portsPtr) { free_PortCfg(portsPtr); }
-inline void dump_PortCfgsXXX(StoreEntry * const e, const char * const d, const PortCfgsXXX &ports) { dump_PortCfg(e, d, ports); }
 static AnyP::PortCfgPointer ParsePortCfg(const SBuf &protoName);
 
 #if USE_OPENSSL
@@ -334,44 +330,6 @@ Configuration::FreshPreprocessedConfig()
     return *storage;
 }
 
-/// reconfigures preprocessed pliable directives
-static void
-Configuration::PerformSmoothReconfiguration()
-{
-    Assure(!reconfiguring);
-    reconfiguring = true;
-    try {
-        const auto &preprocessedConfig = FreshPreprocessedConfig();
-
-        // Do not report the number of pliable and (unchanged) rigid directives:
-        // Such reports may confuse admins because those numbers include
-        // default-generated directives that admins do not see in their configs.
-        debugs(3, DBG_IMPORTANT, "Performing smooth reconfiguration");
-
-        Assure(preprocessedConfig.allowSmoothReconfiguration);
-
-        // TODO: Optimize by reconfiguring only those pliable directives that changed.
-        for (const auto &directive: preprocessedConfig.pliableDirectives)
-            ReconfigureSmoothly(*directive);
-
-        // TODO: Add SmoothReconfigurationDebt for ReconfigureSmoothly() calls
-        // to accumulate and for us to "repay" by calling recorded functions
-        // instead of accumulating directive-specific knowledge here.
-        // TODO: Decide on a guiding principle to handle these and similar cases:
-        // TODO: peerDnsRefreshStart(), but only if cache_peer hostname changes?
-        // TODO: peerClearRRStart(), but only if peer set or other relevant details change?
-        // TODO: Close client-Squid and Squid-origin pconns, but only if relevant details change.
-    }
-    catch (...) {
-        debugs(3, DBG_CRITICAL, "ERROR: Smooth reconfiguration failure" <<
-               Debug::Extra << "error: " << CurrentException <<
-               Debug::Extra << "configuration location: " << ConfigParser::CurrentLocation() <<
-               Debug::Extra << "configuration line: " << config_input_line);
-    }
-    Assure(reconfiguring);
-    reconfiguring = false;
-}
-
 // TODO: Generalize
 /// an exception-safe duplication-free way to cleanup upon exiting a function
 class OnReturn_LeaveSuid
@@ -468,79 +426,32 @@ SawDirective(const T &raw)
 /// Extracts and interprets parser's configuration tokens.
 template <typename T>
 static void
-ParseUniqueDirective(T &raw, ConfigParser &parser)
+ParseDirective(T &raw, ConfigParser &parser)
 {
-    if (SawDirective(raw))
-        parser.rejectDuplicateDirective();
-
-    Must(!raw);
-    raw = Configuration::Component<T>::Parse(parser);
-    Must(raw);
+    Configuration::Component<T>::Parse(raw, parser);
     // TODO: Move to Configuration::parseDirective() when ready to reject trailing garbage in all directives.
     parser.closeDirective();
 }
 
-/// Like ParseUniqueDirective() but supports multiple same-name directive occurrences.
-template <typename T>
-static void
-ParseUpdatingDirective(T &raw, ConfigParser &parser)
-{
-    if (!SawDirective(raw)) {
-        Assure(!raw);
-        raw = Configuration::Component<T>::Create();
-    }
-    Assure(raw);
-    Configuration::Component<T>::ParseAndUpdate(raw, parser);
-    parser.closeDirective();
-}
-
 /// reports raw SquidConfig data member configuration using squid.conf syntax
-/// \param name the name of the configuration directive being dumped
 template <typename T>
 static void
-DumpUniqueDirective(const T &raw, StoreEntry * const entry, const char * const name)
+DumpDirective(const T &raw, StoreEntry * const entry, const char * const directiveName)
 {
     if (!SawDirective(raw))
-        return; // not configured
-
-    entry->append(name, strlen(name));
-    SBufStream os;
-    Configuration::Component<T>::Print(os, raw);
-    const auto buf = os.buf();
-    if (buf.length()) {
-        entry->append(" ", 1);
-        entry->append(buf.rawContent(), buf.length());
-    }
-    entry->append("\n", 1);
-}
-
-/// Like DumpUniqueDirective() but supports multiple same-name directive occurrences.
-template <typename T>
-static void
-DumpUpdatingDirective(const T &raw, StoreEntry * const entry, const char * const directiveName)
-{
-    if (!SawDirective(raw))
-        return; // not configured
+        return; // not configured; // XXX: Do not call DumpDirective() for these!
 
     Assure(entry);
     PackableStream os(*entry);
-    Configuration::Component<T>::PrintDirectives(os, raw, directiveName);
+    Configuration::Component<T>::Print(os, raw, directiveName);
 }
 
-/// frees any resources associated with the given raw SquidConfig data member
+/// restores initial raw state (i.e. state prior to ParseDirective() calls
 template <typename T>
 static void
-FreeDirective(T &raw)
+ResetDirective(T &raw)
 {
-    Configuration::Component<T>::Free(raw);
-
-    // While the implementation may change, there is no way to avoid zeroing.
-    // Even migration to a proper SquidConfig class would not help: While
-    // ordinary destructors do not need to zero data members, a SquidConfig
-    // destructor would have to zero to protect any SquidConfig::x destruction
-    // code from accidentally dereferencing an already destroyed Config.y.
-    static_assert(std::is_trivial<T>::value, "SquidConfig member is trivial");
-    memset(&raw, 0, sizeof(raw));
+    Configuration::Component<T>::Reset(raw);
 }
 
 static void
@@ -1869,7 +1780,7 @@ peer_type_str(const peer_t type)
 }
 
 static void
-dump_CachePeerXXX(StoreEntry * entry, const char *name, const CachePeers *peers)
+dump_peer(StoreEntry * entry, const char *name, const CachePeers *peers)
 {
     if (!peers)
         return;
@@ -2185,39 +2096,46 @@ ParseCachePeer(ConfigParser &parser)
     return p;
 }
 
-/// XXX: Work around cf_gen's limitations that would use "*" in function names
-/// if we use the real type name in cache_peer TYPE metadata field.
-using CachePeerXXX = CachePeers*;
 static void
-parse_CachePeerXXX(CachePeers **peers)
+parse_peer(CachePeers **peers)
 {
     auto p = ParseCachePeer(LegacyParser);
 
+    Assure(peers == &Config.peers);
     if (findCachePeerByName(p->name))
         throw TextException("cache_peer specified twice", Here());
 
-    if (!*peers)
-        *peers = new CachePeers;
-
-    (*peers)->absorb(std::move(p));
-
-    peerClearRRStart();
+    AbsorbConfigured(std::move(p));
 }
 
 static void
-free_CachePeerXXX(CachePeers ** const peers)
+free_peer(CachePeers ** const peers)
 {
     delete *peers;
     *peers = nullptr;
 }
 
-DeclareDirectiveReconfigurator(ReconfigureCachePeer, CachePeers*);
+template <>
 void
-ReconfigureCachePeer(CachePeers *&peers, ConfigParser &parser)
+Configuration::Component<CachePeers*>::Reconfigure(SmoothReconfiguration &sr, CachePeers *&peers, ConfigParser &parser)
 {
-    const auto newPeer = ParseCachePeer(parser);
+    auto newPeer = ParseCachePeer(parser);
+    debugs(3, 5, *newPeer);
+
     Assure(peers == Config.peers);
-    UpdateCachePeer(*newPeer);
+    const auto currentPeer = findCachePeerByName(newPeer->name);
+    if (currentPeer) {
+        if (!currentPeer->stale)
+            throw TextException("cache_peer specified twice", Here());
+        // TODO: Consider reporting unchanged configurations.
+        currentPeer->update(sr, *newPeer);
+        PeerPoolMgr::SyncConfig(*currentPeer);
+    } else {
+        PeerPoolMgr::StartManagingIfNeeded(*newPeer);
+        peerSelectAdd(sr, *newPeer);
+        sr.asyncCall(3, 5, "neighbors_init", NullaryFunDialer(&neighbors_init));
+        AbsorbConfigured(std::move(newPeer));
+    }
 }
 
 static void
@@ -3103,7 +3021,107 @@ dump_memcachemode(StoreEntry * entry, const char *name, SquidConfig &)
     storeAppendPrintf(entry, "\n");
 }
 
+/// Configuration::Component<AnyP::PortCfgPointer>::FinishSmoothReconfiguration()
+/// helper that handles removal of a no-longer-used port
+static void
+disableStalePort(AnyP::PortCfgPointer &ports, const AnyP::PortCfgPointer &previous, AnyP::PortCfg &port)
+{
+    Assure(port.stale);
+    debugs(3, DBG_IMPORTANT, "WARNING: Smooth reconfiguration disables old listening port: " << port);
+
+    // remove stale port from the list of ports
+    if (previous) {
+        previous->next = port.next;
+    } else {
+        // the very first port got stale; change the head of the invasive list
+        ports = port.next;
+    }
+    port.next = nullptr; // the stale port is no longer on the list
+
+    // Stop listening for new requests on this stale port.
+    // TODO: Encapsulate this frequently duplicated `if` statement.
+    if (port.listenConn) {
+        port.listenConn->close(); // might not be open yet
+        port.listenConn = nullptr;
+    }
+}
+
+template <>
+void
+Configuration::Component<AnyP::PortCfgPointer>::StartSmoothReconfiguration(SmoothReconfiguration &sr)
+{
+    // If there are no fresh ports, then the configuration removed all ports.
+    // The corresponding explicit check for harsh (re)configurations is in
+    // clientOpenListenSockets(), and code like mimeLoadIcon() also fails.
+    // TODO: Generate hasDirective<T>() to avoid manual naming and enumeration.
+    if (!sr.freshConfig.hasDirective(SBuf("http_port")) &&
+            !sr.freshConfig.hasDirective(SBuf("https_port")) &&
+            !sr.freshConfig.hasDirective(SBuf("ftp_port")))
+        throw TextException("New configuration lacks listening ports (e.g., https_port)", Here());
+
+    // Mark old ports as stale so that FinishSmoothReconfiguration() can find
+    // old ports that are no longer present in the new configuration file.
+    for (auto p = HttpPortList; p; p = p->next) {
+        // XXX: Skip (currently rigid) http_ports because smooth reconfiguration
+        // ensures they are unchanged and, hence, effectively fresh.
+        if (p->transport.protocol == AnyP::PROTO_HTTPS)
+            p->stale = true;
+    }
+}
+
+template <>
+void
+Configuration::Component<AnyP::PortCfgPointer>::FinishSmoothReconfiguration(SmoothReconfiguration &)
+{
+    // disable listening ports that were not mentioned in the fresh configuration
+    AnyP::PortCfgPointer previous = nullptr; // last fresh port seen
+    AnyP::PortCfgPointer next = nullptr;
+    for (auto p = HttpPortList; p; p = next) {
+        next = p->next;
+        if (p->stale) {
+            disableStalePort(HttpPortList, previous, *p); // may modify HttpPortList as well
+        } else {
+            previous = p;
+        }
+    }
+
+    // StartSmoothReconfiguration() ensures that the new configuration version
+    // contains at least one listening port.
+    Assure(HttpPortList || FtpPortList);
+}
+
+template <>
+void
+Configuration::Component<AnyP::PortCfgPointer>::Reconfigure(SmoothReconfiguration &, AnyP::PortCfgPointer &ports, ConfigParser &)
+{
+    static const SBuf protoName("HTTPS");
+    const auto firstNewCfg = ParsePortCfg(protoName);
+    UpdatePortCfg(ports, *firstNewCfg);
+    if (const auto ipV4clone = firstNewCfg->next)
+        UpdatePortCfg(ports, *ipV4clone);
+}
+
 #include "cf_parser.cci"
+
+/// reconfigures preprocessed pliable directives
+static void
+Configuration::PerformSmoothReconfiguration()
+{
+    Assure(!reconfiguring);
+    reconfiguring = true;
+    try {
+        SmoothReconfiguration sr(FreshPreprocessedConfig());
+        sr.run();
+    }
+    catch (...) {
+        debugs(3, DBG_CRITICAL, "ERROR: Smooth reconfiguration failure" <<
+               Debug::Extra << "error: " << CurrentException <<
+               Debug::Extra << "configuration location: " << ConfigParser::CurrentLocation() <<
+               Debug::Extra << "configuration line: " << config_input_line);
+    }
+    Assure(reconfiguring);
+    reconfiguring = false;
+}
 
 peer_t
 parseNeighborType(const char *description, ConfigParser &parser)
@@ -3604,115 +3622,34 @@ ParsePortCfg(const SBuf &protoName)
     return s;
 }
 
-static void
-dump_generic_port(StoreEntry * e, const char *n, const AnyP::PortCfgPointer &s)
+template <>
+void
+Configuration::Component<AnyP::PortCfgPointer>::Reset(AnyP::PortCfgPointer &ports)
 {
-    char buf[MAX_IPSTRLEN];
+    ports = nullptr;
+}
 
-    storeAppendPrintf(e, "%s %s",
-                      n,
-                      s->s.toUrl(buf,MAX_IPSTRLEN));
+template <>
+void
+Configuration::Component<AnyP::PortCfgPointer>::Parse(AnyP::PortCfgPointer &ports, ConfigParser &)
+{
+    // TODO: Convert other _ports to our TYPE and inline parsePortCfg() here.
+    parsePortCfg(&ports, cfg_directive);
+}
 
-    // MODES and specific sub-options.
-    if (s->flags.natIntercept)
-        storeAppendPrintf(e, " intercept");
-
-    else if (s->flags.tproxyIntercept)
-        storeAppendPrintf(e, " tproxy");
-
-    else if (s->flags.proxySurrogate)
-        storeAppendPrintf(e, " require-proxy-header");
-
-    else if (s->flags.accelSurrogate) {
-        storeAppendPrintf(e, " accel");
-
-        if (s->vhost)
-            storeAppendPrintf(e, " vhost");
-
-        if (s->vport < 0)
-            storeAppendPrintf(e, " vport");
-        else if (s->vport > 0)
-            storeAppendPrintf(e, " vport=%d", s->vport);
-
-        if (s->defaultsite)
-            storeAppendPrintf(e, " defaultsite=%s", s->defaultsite);
-
-        // TODO: compare against prefix of 'n' instead of assuming http_port
-        if (s->transport.protocol != AnyP::PROTO_HTTP)
-            storeAppendPrintf(e, " protocol=%s", AnyP::ProtocolType_str[s->transport.protocol]);
-
-        if (s->allow_direct)
-            storeAppendPrintf(e, " allow-direct");
-
-        if (s->ignore_cc)
-            storeAppendPrintf(e, " ignore-cc");
-
-    }
-
-    // Generic independent options
-
-    if (s->name)
-        storeAppendPrintf(e, " name=%s", s->name);
-
-#if USE_HTTP_VIOLATIONS
-    if (!s->flags.accelSurrogate && s->ignore_cc)
-        storeAppendPrintf(e, " ignore-cc");
-#endif
-
-    if (s->connection_auth_disabled)
-        storeAppendPrintf(e, " connection-auth=off");
-    else
-        storeAppendPrintf(e, " connection-auth=on");
-
-    if (s->disable_pmtu_discovery != DISABLE_PMTU_OFF) {
-        const char *pmtu;
-
-        if (s->disable_pmtu_discovery == DISABLE_PMTU_ALWAYS)
-            pmtu = "always";
-        else
-            pmtu = "transparent";
-
-        storeAppendPrintf(e, " disable-pmtu-discovery=%s", pmtu);
-    }
-
-    if (s->s.isAnyAddr() && !s->s.isIPv6())
-        storeAppendPrintf(e, " ipv4");
-
-    if (s->tcp_keepalive.enabled) {
-        if (s->tcp_keepalive.idle || s->tcp_keepalive.interval || s->tcp_keepalive.timeout) {
-            storeAppendPrintf(e, " tcpkeepalive=%d,%d,%d", s->tcp_keepalive.idle, s->tcp_keepalive.interval, s->tcp_keepalive.timeout);
-        } else {
-            storeAppendPrintf(e, " tcpkeepalive");
-        }
-    }
-
-#if USE_OPENSSL
-    if (s->flags.tunnelSslBumping)
-        storeAppendPrintf(e, " ssl-bump");
-#endif
-
-    PackableStream os(*e);
-    s->secure.dumpCfg(os, "tls-");
+template <>
+void
+Configuration::Component<AnyP::PortCfgPointer>::Print(std::ostream &os, const AnyP::PortCfgPointer &ports, const char * const directiveName)
+{
+    for (auto p = ports; p; p = p->next)
+        p->dump(os, directiveName);
 }
 
 static void
 dump_PortCfg(StoreEntry * e, const char *n, const AnyP::PortCfgPointer &s)
 {
-    for (AnyP::PortCfgPointer p = s; p != nullptr; p = p->next) {
-        dump_generic_port(e, n, p);
-        storeAppendPrintf(e, "\n");
-    }
-}
-
-DeclareDirectiveReconfigurator(ReconfigureHttpsPort, PortCfgsXXX);
-void
-ReconfigureHttpsPort(PortCfgsXXX &ports, ConfigParser &)
-{
-    static const SBuf protoName("HTTPS");
-    const auto firstNewCfg = ParsePortCfg(protoName);
-    UpdatePortCfg(ports, *firstNewCfg);
-    if (const auto ipV4clone = firstNewCfg->next)
-        UpdatePortCfg(ports, *ipV4clone);
+    PackableStream os(*e);
+    Configuration::Component<AnyP::PortCfgPointer>::Print(os, s, n);
 }
 
 void

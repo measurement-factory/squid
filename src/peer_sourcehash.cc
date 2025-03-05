@@ -9,9 +9,11 @@
 /* DEBUG: section 39    Peer source hash based selection */
 
 #include "squid.h"
+#include "base/AsyncFunCalls.h"
 #include "base/RunnersRegistry.h"
 #include "CachePeer.h"
 #include "CachePeers.h"
+#include "configuration/Smooth.h"
 #include "HttpRequest.h"
 #include "mgr/Registration.h"
 #include "neighbors.h"
@@ -126,6 +128,27 @@ peerSourceHashInit(void)
     }
 
     SourceHashPeers().assign(rawSourceHashPeers.begin(), rawSourceHashPeers.end());
+}
+
+void
+peerSourceHashReset(Configuration::SmoothReconfiguration &sr)
+{
+    sr.asyncCall(39, 5, "peerSourceHashInit", NullaryFunDialer(&peerSourceHashInit));
+}
+
+void
+peerSourceHashResetIfChanged(Configuration::SmoothReconfiguration &sr, const CachePeer &current, const CachePeer &fresh)
+{
+    Assure(current.options.sourcehash || fresh.options.sourcehash);
+
+    // peerSourceHashInit() hashes name, but the name cannot change as long as
+    // smooth reconfiguration code matches cache_peers using their names
+    Assure(strcmp(current.name, fresh.name) == 0);
+
+    if (current.options.sourcehash && fresh.options.sourcehash && current.weight == fresh.weight)
+        return; // current SourceHash cache_peer is fresh as far as peerSourceHashInit() is concerned
+
+    peerSourceHashReset(sr);
 }
 
 /// reacts to RegisteredRunner events relevant to this module

@@ -2556,10 +2556,11 @@ DOC_END
 
 NAME: https_port
 IFDEF: HAVE_LIBGNUTLS||USE_OPENSSL
-TYPE: PortCfgsXXX
+TYPE: AnyP::PortCfgPointer
 DEFAULT: none
 LOC: HttpPortList
-SMOOTH_RECONFIGURATION: ReconfigureHttpsPort
+REPETITIONS: update
+COMPONENT_RECONFIGURATION_TYPE: AnyP::PortCfgPointer
 DOC_START
 	Usage:  [ip:]port [mode] tls-cert=certificate.pem [options]
 
@@ -2577,24 +2578,18 @@ DOC_START
 
 	See http_port for a list of modes and options.
 
-	This directive supports smooth reconfiguration, with limitations:
+	This directive supports smooth reconfiguration, with caveats:
 
-	* Changing the number of https_port directives is not supported. There is
-	  currently no diagnostic for reducing the number of listenting ports and
-	  any unmatched old ports remain unaffected by smooth reconfiguration, but
-	  all that will change.
+	* Adding new https_port directives is not supported. If a new directive
+	  appears, Squid reports an ERROR, and smooth reconfiguration fails.
+	  Removing old https_port directives is supported; Squid logs a WARNING
+	  and stops listening for new connections on the corresponding ports.
 
 	* Changing configured listening address is not supported: Squid pairs old
 	  and new port configurations using listening addresses, so updated
 	  configurations must continue to use the old address specification. If
 	  Squid has to resolve configured port address to compute listening IP
 	  address, and that resolution changes, smooth reconfiguration will fail.
-
-	* There is currently no diagnostic for an updated configuration having
-	  multiple ports with the same listening address. The last such port
-	  configuration directive will be effectively used. Such reconfigurations
-	  will fail in the future, just like an equivalent harsh (re)configuration
-	  already fails today.
 
 	For general details about smooth reconfiguration, see documentation for
 	the "reconfiguration" directive.
@@ -3594,10 +3589,10 @@ COMMENT_START
 COMMENT_END
 
 NAME: cache_peer
-TYPE: CachePeerXXX
+TYPE: peer
 DEFAULT: none
 LOC: Config.peers
-SMOOTH_RECONFIGURATION: ReconfigureCachePeer
+COMPONENT_RECONFIGURATION_TYPE: CachePeers*
 DOC_START
 	To specify other caches in a hierarchy, use the format:
 
@@ -4033,27 +4028,24 @@ DOC_START
 
 	This directive supports smooth reconfiguration, with caveats:
 
-	* Changing the number of cache_peer directives is not supported. There is
-	  currently no diagnostic for reducing the number of cache_peers, and any
-	  unmatched cache_peers remain unaffected by smooth reconfiguration, but
-	  all that will change.
-
-	* Changing cache_peer name is not supported: Squid pairs old and new
-	  cache_peer configurations using cache_peer name (which defaults to
-	  cache_peer hostname), so updated configurations must continue to use the
-	  old name and, if there was no explicit name, the old hostname specs.
-
-	* There is currently no diagnostic for an updated configuration having
-	  multiple cache_peers with the same listening address. The last such
-	  cache_peer directive will be effectively used. Such reconfigurations
-	  will fail in the future, just like an equivalent harsh (re)configuration
-	  already fails today.
+	* Changing cache_peer name from A to B means removing old cache_peer named
+	  A and adding a brand new cache_peer named B: Squid pairs old and new
+	  cache_peer directives using cache_peer name (which defaults to
+	  cache_peer hostname). To update an existing cache_peer, use its old name
+	  and, if there was no explicit name, the old hostname specs.
 
 	* Changing cache_peer hostname is not yet supported.
 
 	* Changing many of the cache_peer options (e.g., `originserver` and
 	  `carp-key`) is not yet supported, but not diagnostic is given for some
 	  of the ignored changes. Changing TLS-related options is supported.
+
+	* If you reconfigure to remove a cache_peer that had cache_peer_access
+	  rules and then reconfigure again to add a cache_peer with the same name,
+	  then Squid ignores old cache_peer_access rules even though they are
+	  still present in the configuration file (altering them would preclude
+	  smooth reconfiguration because cache_peer_access directive does not
+	  support smooth reconfiguration yet). This will be fixed.
 
 	* Changing cache_peer options does not close any idle persistent
 	  connections to that peer (yet?).
@@ -10312,7 +10304,7 @@ NAME: reconfiguration
 TYPE: Configuration::ReconfigurationMode*
 LOC: Config.reconfigurationMode
 DEFAULT_IF_NONE: harsh
-SMOOTH_RECONFIGURATION: ReconfigureReconfigurationMode
+COMPONENT_RECONFIGURATION_TYPE: Configuration::ReconfigurationMode*
 DOC_START
 	Controls Squid reaction to the next reconfiguration event.
 

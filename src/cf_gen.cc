@@ -36,6 +36,7 @@ _FILE_OFFSET_BITS==64
 #include <fstream>
 #include <iostream>
 #include <list>
+#include <optional>
 #include <stack>
 
 #include "cf_gen_defines.cci"
@@ -89,27 +90,39 @@ public:
     DefaultValues defaults;
     std::string comment;
     std::string ifdef;
-    std::string smoothReconfigurationFunction;
+    std::string reconfigurationType;
     LineList doc;
     LineList cfgLines; ///< between CONFIG_START and CONFIG_END
     int array_flag = 0; ///< TYPE is a raw array[] declaration
 
-    /// whether this is a "REPETITIONS: update" entry
-    bool mayBeSeenMultipleTimes = false;
+    /// The presence of a "REPETITIONS:" entry header sets this data member. The
+    /// set value determining whether that header allowed multiple directives
+    /// with this entry `name`.
+    std::optional<bool> repetitions;
 
-    bool supportsSmoothReconfiguration() const { return smoothReconfigurationFunction.length(); }
+    /// whether this directive supports Configuration::Component::{Parse,Print,Reset} API
+    bool supportsConfigurationComponent() const { return type.find("::") != std::string::npos; }
+
+    /// Whether this directive may be used multiple times. By default, only
+    /// legacy directives can be repeated.
+    bool mayBeSeenMultipleTimes() const { if (repetitions) return *repetitions; return !supportsConfigurationComponent(); }
+
+    // TODO: After adding smooth reconfiguration support for tls_key_log,
+    // default reconfigurationType to `type` if supportsConfigurationComponent()
+    /// whether this directive supports Configuration::Component::Reconfigure() API
+    bool supportsSmoothReconfiguration() const { return reconfigurationType.length(); }
 
     void genParse(std::ostream &fout) const;
     void genReconfigure(std::ostream &) const;
+    void genSmoothReconfigurationBracketingEntry(const char *method, std::ostream &) const;
     void genValidDirectiveNameEntry(std::ostream &fout) const;
     void genDefaultIfNone(std::ostream &fout) const;
 
 private:
-    void genParsePrefix(const std::string &aName, std::ostream &fout) const;
-    void genParseSuffix(std::ostream &fout) const;
+    void genParsePrefix(std::ostream &fout, const std::optional<std::string> &aName = std::nullopt) const;
+    void genParseSuffix(std::ostream &fout, const std::optional<std::string> &aName = std::nullopt) const;
     void genParseAlias(const std::string &, std::ostream &) const;
     void genValidDirectiveNameCheck(const std::string &, std::ostream &) const;
-    void genDefaultIfNoneAlias(const std::string &, std::ostream &) const;
 };
 
 typedef std::list<class Entry> EntryList;
@@ -365,20 +378,22 @@ main(int argc, char *argv[])
 
                     // TODO: Support "REPETITIONS: overwrite"?
                     if (strcmp(ptr, "update") == 0)
-                        curr.mayBeSeenMultipleTimes = true;
+                        curr.repetitions = true;
                     else if (strcmp(ptr, "banned") == 0)
-                        curr.mayBeSeenMultipleTimes = false;
+                        curr.repetitions = false;
                     else {
                         errorMsg(input_filename, linenum, "expected 'update' or 'banned' attribute value");
                         exit(EXIT_FAILURE);
                     }
-                } else if (!strncmp(buff, "SMOOTH_RECONFIGURATION:", 23)) {
-                    if ((ptr = strtok(buff + 23, WS)) == nullptr) {
+                } else if (!strncmp(buff, "COMPONENT_RECONFIGURATION_TYPE:", 31)) {
+                    const auto optionalSpace = buff + 31;
+                    const auto parameter = optionalSpace + strspn(optionalSpace, WS);
+                    if (!*parameter) {
                         errorMsg(input_filename, linenum, buff);
                         exit(EXIT_FAILURE);
                     }
 
-                    curr.smoothReconfigurationFunction = ptr;
+                    curr.reconfigurationType = parameter;
                 } else if (!strncmp(buff, "IFDEF:", 6)) {
                     if ((ptr = strtok(buff + 6, WS)) == nullptr) {
                         errorMsg(input_filename, linenum, buff);
@@ -582,14 +597,8 @@ Entry::genDefaultIfNone(std::ostream &fout) const
         if (entry.ifdef.size())
             fout << "#if " << entry.ifdef << std::endl;
 
-        fout << "    if (";
-        // Once for the current directive name
-        genDefaultIfNoneAlias(name, fout);
-
-        // All accepted aliases
-        for (const auto &a: alias)
-            genDefaultIfNoneAlias(a, fout << " && ");
-        fout << ") {" << std::endl;
+        // sawDirective expects canonical directive names, not their aliases
+        fout << "    if (!sawDirective(SBuf(\"" << name << "\"))) {" << std::endl;
 
         for (const auto &l : entry.defaults.if_none)
             fout << "        importDefaultDirective(SBuf(\"" << entry.name << " " << gen_quote_escape(l) <<"\"));" << std::endl;
@@ -598,12 +607,6 @@ Entry::genDefaultIfNone(std::ostream &fout) const
         if (entry.ifdef.size())
             fout << "#endif" << std::endl;
     }
-}
-
-void
-Entry::genDefaultIfNoneAlias(const std::string &knownName, std::ostream &fout) const
-{
-    fout << "!sawDirective(SBuf(\"" << knownName << "\"))";
 }
 
 /// append configuration options specified by POSTSCRIPTUM lines
@@ -639,18 +642,20 @@ gen_default_postscriptum(const EntryList &head, std::ostream &fout)
 }
 
 void
-Entry::genParsePrefix(const std::string &aName, std::ostream &fout) const
+Entry::genParsePrefix(std::ostream &fout, const std::optional<std::string> &aName) const
 {
-    fout << "    if (directive.name().cmp(\"" << aName << "\") == 0) {" << std::endl;
+    if (aName)
+        fout << "    if (directive.name().cmp(\"" << *aName << "\") == 0) {" << std::endl;
     if (ifdef.size())
         fout << "#if " << ifdef << std::endl;
-    fout << "        cfg_directive = \"" << aName << "\";" << std::endl;
+    if (aName)
+        fout << "        cfg_directive = \"" << *aName << "\";" << std::endl;
 }
 
 void
 Entry::genParseAlias(const std::string &aName, std::ostream &fout) const
 {
-    genParsePrefix(aName, fout);
+    genParsePrefix(fout, aName);
     if (type.compare("obsolete") == 0) {
         fout << "debugs(0, DBG_CRITICAL, \"ERROR: Directive '" << aName << "' is obsolete.\");\n";
         for (const auto &l : doc) {
@@ -660,28 +665,34 @@ Entry::genParseAlias(const std::string &aName, std::ostream &fout) const
         fout << "        parse_obsolete(cfg_directive);";
     } else if (!loc.size() || loc.compare("none") == 0) {
         fout << "parse_" << type << "();";
-    } else if (type.find("::") != std::string::npos) {
-        const auto method = mayBeSeenMultipleTimes ? "ParseUpdatingDirective" : "ParseUniqueDirective";
-        fout << method << "<" << type << ">(" << loc << ", LegacyParser);";
+    } else if (supportsConfigurationComponent()) {
+        fout << "ParseDirective<" << type << ">(" << loc << ", LegacyParser);";
     } else {
         fout << "parse_" << type << "(&" << loc << (array_flag ? "[0]" : "") << ");";
     }
-    genParseSuffix(fout);
+    genParseSuffix(fout, aName);
 }
 
 void
-Entry::genParseSuffix(std::ostream &fout) const
+Entry::genParseSuffix(std::ostream &fout, const std::optional<std::string> &aName) const
 {
-    fout << std::endl;
-    fout << "        cfg_directive = nullptr;" << std::endl;
-    if (ifdef.size()) {
-        fout <<
-             "#else" << std::endl <<
-             "    debugs(0, DBG_PARSE_NOTE(DBG_IMPORTANT), \"ERROR: '" << name << "' requires " << available_if(ifdef) << "\");" << std::endl <<
-             "#endif" << std::endl;
+    if (aName) {
+        fout << "\n";
+        fout << "        cfg_directive = nullptr;\n";
     }
-    fout << "        return;" << std::endl;
-    fout << "    };" << std::endl;
+    if (ifdef.size()) {
+        if (aName) {
+            fout <<
+                 "#else\n" <<
+                 "    debugs(0, DBG_PARSE_NOTE(DBG_IMPORTANT), \"ERROR: '" << *aName << "' requires " << available_if(ifdef) << "\");\n";
+        }
+        fout <<
+             "#endif\n";
+    }
+    if (aName) {
+        fout << "        return;\n";
+        fout << "    };" << std::endl;
+    }
 }
 
 void
@@ -700,17 +711,30 @@ Entry::genParse(std::ostream &fout) const
 }
 
 void
+Entry::genSmoothReconfigurationBracketingEntry(const char * const method, std::ostream &fout) const
+{
+    if (!supportsSmoothReconfiguration())
+        return;
+
+    genParsePrefix(fout);
+
+    fout << "    Configuration::Component<" << reconfigurationType << ">::" << method << "(*this);\n";
+
+    genParseSuffix(fout);
+}
+
+void
 Entry::genReconfigure(std::ostream &fout) const
 {
     if (!supportsSmoothReconfiguration())
         return;
 
-    genParsePrefix(name, fout);
+    genParsePrefix(fout, name);
 
-    fout << "        DeclareDirectiveReconfigurator(" << smoothReconfigurationFunction << ", " << type << ");\n";
-    fout << "        " << smoothReconfigurationFunction << "(" << loc << ", LegacyParser);\n";
+    fout << "        Configuration::Component<" << reconfigurationType << ">::Reconfigure(*this, " << loc << ", LegacyParser);\n";
+    fout << "        LegacyParser.closeDirective();\n";
 
-    genParseSuffix(fout);
+    genParseSuffix(fout, name);
 }
 
 static void
@@ -750,10 +774,9 @@ gen_dump(const EntryList &head, std::ostream &fout)
         if (e.ifdef.size())
             fout << "#if " << e.ifdef << std::endl;
 
-        if (e.type.find("::") != std::string::npos) {
-            const auto method = e.mayBeSeenMultipleTimes ? "DumpUpdatingDirective" : "DumpUniqueDirective";
-            fout << "    " << method << "<" << e.type << ">(" << e.loc << ", entry, \"" << e.name << "\");\n";
-        } else
+        if (e.supportsConfigurationComponent())
+            fout << "    DumpDirective<" << e.type << ">(" << e.loc << ", entry, \"" << e.name << "\");\n";
+        else
             fout << "    dump_" << e.type << "(entry, \"" << e.name << "\", " << e.loc << ");" << std::endl;
 
         if (e.ifdef.size())
@@ -782,8 +805,8 @@ gen_free(const EntryList &head, std::ostream &fout)
         if (e.ifdef.size())
             fout << "#if " << e.ifdef << std::endl;
 
-        if (e.type.find("::") != std::string::npos)
-            fout << "    FreeDirective<" << e.type << ">(" << e.loc << ");\n";
+        if (e.supportsConfigurationComponent())
+            fout << "    ResetDirective<" << e.type << ">(" << e.loc << ");\n";
         else
             fout << "    free_" << e.type << "(&" << e.loc << (e.array_flag ? "[0]" : "") << ");" << std::endl;
 
@@ -797,31 +820,41 @@ gen_free(const EntryList &head, std::ostream &fout)
 static void
 gen_reconfigure(const EntryList &head, std::ostream &fout)
 {
-    // This ReconfigureSmoothly_() helper is not in Configuration namespace
-    // because its generated code has to declare directive reconfiguration
-    // functions that are not inside Configuration namespace.
     fout <<
-         "static void\n"
-         "ReconfigureSmoothly_(const Configuration::PreprocessedDirective &directive)\n"
-         "{\n"
+         "void\n"
+         "Configuration::SmoothReconfiguration::prepComponents()\n"
+         "{\n";
+
+    for (const auto &e: head)
+        e.genSmoothReconfigurationBracketingEntry("StartSmoothReconfiguration", fout);
+
+    fout << "}\n\n";
+
+    fout <<
+         "void\n"
+         "Configuration::SmoothReconfiguration::finalizeComponents()\n"
+         "{\n";
+
+    for (const auto &e: head)
+        e.genSmoothReconfigurationBracketingEntry("FinishSmoothReconfiguration", fout);
+
+    fout << "}\n\n";
+
+    fout <<
+         "void\n" <<
+         "Configuration::SmoothReconfiguration::reconfigure(const PreprocessedDirective &directive)\n" <<
+         "{\n" <<
          "    LegacyParser.openDirective(directive);\n";
 
     for (const auto &e: head)
         e.genReconfigure(fout);
 
-    fout << "    Assure(!\"PreprocessedDirective has ValidDirectiveName()\"); /* not reached */\n"
-         "}\n\n";
-
-    // call the helper generated above
-    fout <<
-         "void\n"
-         "Configuration::ReconfigureSmoothly(const Configuration::PreprocessedDirective &directive)\n"
-         "{\n"
-         "    ReconfigureSmoothly_(directive);\n"
+    fout << "    Assure(!\"PreprocessedDirective has ValidDirectiveName()\"); /* not reached */\n" <<
          "}\n\n";
 }
 
 /// generate Configuration::PreprocessedDirective::ValidDirectiveName() code for the given knownName
+/// \param knownName is either a canonical directive name or an alias (e.g., "ascii_port")
 void
 Entry::genValidDirectiveNameCheck(const std::string &knownName, std::ostream &fout) const
 {
@@ -829,10 +862,16 @@ Entry::genValidDirectiveNameCheck(const std::string &knownName, std::ostream &fo
     // the parser currently accepts/ignores (with an ERROR) directives disabled
     // by ./configure. See `ifdef` handling in genParseAlias().
 
+    // Optimization: Create new SBufs only when the directive was written using
+    // its alias (rare!) rather than canonical name; usedName is an SBuf.
+    const auto canonicalName = (knownName == name) ? "usedName" : ("SBuf(\"" + name + "\")");
+
     // TODO: Add SBuf::equal() to encapsulate this length check optimization.
-    fout << "    if (name.length() == " << knownName.length() << " && name.cmp(\"" << knownName << "\", " << knownName.length() << ") == 0)\n";
+    fout << "    if (usedName.length() == " << knownName.length() << " && usedName.cmp(\"" << knownName << "\", " << knownName.length() << ") == 0)\n";
     fout << "        return PreprocessedDirective::Metadata{" <<
-         supportsSmoothReconfiguration() <<
+         canonicalName << ',' <<
+         supportsSmoothReconfiguration() << ',' <<
+         mayBeSeenMultipleTimes() <<
          "};\n";
 }
 
@@ -860,13 +899,13 @@ gen_find(const EntryList &head, std::ostream &fout)
 {
     fout <<
          "Configuration::PreprocessedDirective::Metadata\n"
-         "Configuration::PreprocessedDirective::GetMetadata(const SBuf &name)\n"
+         "Configuration::PreprocessedDirective::GetMetadata(const SBuf &usedName)\n"
          "{\n";
 
     for (const auto &e : head)
         e.genValidDirectiveNameEntry(fout);
 
-    fout << "    throw TextException(ToSBuf(\"Unrecognized configuration directive name: \", name), Here());\n" <<
+    fout << "    throw TextException(ToSBuf(\"Unrecognized configuration directive name: \", usedName), Here());\n" <<
          "}\n\n";
 }
 

@@ -27,8 +27,18 @@ class PeerPoolMgr: public AsyncJob
 public:
     typedef CbcPointer<PeerPoolMgr> Pointer;
 
-    // syncs mgr state whenever connection-related peer or pool state changes
+    /// Creates and starts peer.standby.mgr job if it does not exist and
+    /// peer.standby.limit configuration requires one. Does nothing otherwise.
+    static void StartManagingIfNeeded(CachePeer &);
+
+    /// Brings an existing mgr job (if any) in sync with its peer and pool
+    /// state. May end mgr job. Unlike StartManagingIfNeeded(), does not create
+    /// new mgr jobs.
     static void Checkpoint(const Pointer &mgr, const char *reason);
+
+    /// Brings peer->standby.mgr in sync with peer->standby.limit configuration,
+    /// calling either StartManagingIfNeeded() or Checkpoint().
+    static void SyncConfig(CachePeer &);
 
     explicit PeerPoolMgr(CachePeer *aPeer);
     ~PeerPoolMgr() override;

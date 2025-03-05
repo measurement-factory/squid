@@ -8,9 +8,15 @@
 
 #include "squid.h"
 #include "CachePeers.h"
+#include "ConfigOption.h"
+#include "configuration/Smooth.h"
+#include "neighbors.h"
+#include "PeerSelectState.h"
 #include "SquidConfig.h"
 
 #include <algorithm>
+
+/* CachePeers */
 
 CachePeer &
 CachePeers::nextPeerToPing(const size_t pollIndex)
@@ -57,9 +63,53 @@ CurrentCachePeers()
 }
 
 void
+AbsorbConfigured(std::unique_ptr<CachePeer> &&peer)
+{
+    if (!Config.peers)
+        Config.peers = new CachePeers;
+
+    Config.peers->absorb(std::move(peer));
+
+    peerClearRRStart();
+}
+
+void
 DeleteConfigured(CachePeer * const peer)
 {
     Assure(Config.peers);
     Config.peers->remove(peer);
+}
+
+/* Configuration::Component<CachePeers*> */
+
+template <>
+void
+Configuration::Component<CachePeers*>::StartSmoothReconfiguration(SmoothReconfiguration &)
+{
+    // Mark old cache_peers as stale so that FinishSmoothReconfiguration() can
+    // find old peers that are no longer present in the new configuration file.
+    for (const auto &p: CurrentCachePeers())
+        p->stale = true;
+}
+
+template <>
+void
+Configuration::Component<CachePeers*>::FinishSmoothReconfiguration(SmoothReconfiguration &sr)
+{
+    // disable cache_peers that were not mentioned in the fresh configuration
+    RawCachePeers peersToRemove;
+
+    for (const auto &p: CurrentCachePeers()) {
+        if (p->stale)
+            peersToRemove.push_back(p.get());
+    }
+
+    while (peersToRemove.size()) {
+        const auto p = peersToRemove.back();
+        peersToRemove.pop_back();
+        debugs(15, DBG_IMPORTANT, "WARNING: Removing old cache_peer not present in new configuration: " << *p);
+        peerSelectDrop(sr, *p);
+        DeleteConfigured(p);
+    }
 }
 

@@ -88,33 +88,29 @@ Security::CloseLogs()
         Config.Log.tlsKeys->close();
 }
 
-// GCC v6 requires "reopening" of the namespace here, instead of the usual
-// definitions like Configuration::Component<T>::Parse():
-// error: specialization of Configuration::Component... in different namespace
-// TODO: Refactor to use the usual style after we stop GCC v6 support.
-namespace Configuration {
-
 template <>
-Security::KeyLog *
-Configuration::Component<Security::KeyLog*>::Parse(ConfigParser &parser)
+void
+Configuration::Component<Security::KeyLog*>::Reset(Security::KeyLog *&raw)
 {
-    return new Security::KeyLog(parser);
+    delete raw;
+    raw = nullptr;
 }
 
 template <>
 void
-Configuration::Component<Security::KeyLog*>::Print(std::ostream &os, Security::KeyLog* const & keyLog)
+Configuration::Component<Security::KeyLog*>::Parse(Security::KeyLog *&raw, ConfigParser &parser)
 {
+    Reset(raw);
+    raw = new Security::KeyLog(parser);
+}
+
+template <>
+void
+Configuration::Component<Security::KeyLog*>::Print(std::ostream &os, Security::KeyLog* const & keyLog, const char * const directiveName)
+{
+    os << directiveName << ' ';
     assert(keyLog);
     keyLog->dump(os);
+    os << '\n';
 }
-
-template <>
-void
-Configuration::Component<Security::KeyLog*>::Free(Security::KeyLog * const keyLog)
-{
-    delete keyLog;
-}
-
-} // namespace Configuration
 

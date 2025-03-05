@@ -22,6 +22,9 @@ public:
     AsyncCallList(const AsyncCallList &) = delete;
     AsyncCallList &operator=(const AsyncCallList &) = delete;
 
+    /// uses linear search to check whether the list contains a call with the given name
+    bool slowlyFindByName(const char *callName) const;
+
     /// stores the given async call
     void add(const AsyncCallPointer &);
 

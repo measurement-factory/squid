@@ -55,12 +55,21 @@ public:
 
     void destruct();
 
-    /// starts parsing the given preprocessed configuration directive
+    /// Starts parsing the given preprocessed configuration directive. When
+    /// LegacyParser global disappears, this method will become a constructor.
     /// \sa closeDirective()
     void openDirective(const Configuration::PreprocessedDirective &);
 
-    /// stops parsing started by openDirective()
+    /// Finishes successful parsing started by openDirective(). The names of
+    /// these two methods are misleading because we do not call closeDirective()
+    /// after a parsing error/exception; such a call is not necessary to avoid
+    /// resource leaks. This problem will go away when we get rid of the
+    /// LegacyParser global, convert/rename these methods, and start allocating
+    /// ConfigParser objects on stack, to parse a single preprocessed directive.
     void closeDirective();
+
+    // Members below are meant to be accessed when parsing a directive (i.e.
+    // between openDirective() and closeDirective() calls).
 
     /// rejects configuration due to a repeated directive
     void rejectDuplicateDirective();

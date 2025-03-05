@@ -34,6 +34,9 @@ public:
     /// apply new configuration while preserving current listening socket
     void update(const PortCfg &fresh);
 
+    /// print port configuration using squid.conf syntax
+    void dump(std::ostream &os, const char *directiveName) const;
+
     /* CodeContext API */
     ScopedId codeContextGist() const override;
     std::ostream &detailCodeContext(std::ostream &os) const override;
@@ -59,6 +62,10 @@ public:
     int vport;               ///< virtual port support. -1 if dynamic, >0 static
     int disable_pmtu_discovery;
     bool workerQueues; ///< whether listening queues should be worker-specific
+
+    /// whether the last reconfiguration attempt expects to check our settings
+    /// but has not done so
+    bool stale;
 
     Comm::TcpKeepAlive tcp_keepalive;
 

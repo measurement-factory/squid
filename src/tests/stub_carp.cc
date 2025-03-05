@@ -14,4 +14,6 @@
 #include "carp.h"
 
 CachePeer *carpSelectParent(PeerSelector *) STUB_RETVAL(nullptr)
+void carpReset(Configuration::SmoothReconfiguration &) STUB
+void carpResetIfChanged(Configuration::SmoothReconfiguration &, const CachePeer &, const CachePeer &) STUB
 

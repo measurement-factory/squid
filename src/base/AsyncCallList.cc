@@ -11,6 +11,16 @@
 #include "base/AsyncCall.h"
 #include "base/AsyncCallList.h"
 
+bool
+AsyncCallList::slowlyFindByName(const char * const callName) const
+{
+    for (auto call = head; call; call = call->Next()) {
+        if (strcmp(call->name, callName) == 0)
+            return true;
+    }
+    return false;
+}
+
 void
 AsyncCallList::add(const AsyncCall::Pointer &call)
 {

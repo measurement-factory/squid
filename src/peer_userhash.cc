@@ -13,9 +13,11 @@
 #if USE_AUTH
 
 #include "auth/UserRequest.h"
+#include "base/AsyncFunCalls.h"
 #include "base/RunnersRegistry.h"
 #include "CachePeer.h"
 #include "CachePeers.h"
+#include "configuration/Smooth.h"
 #include "globals.h"
 #include "HttpRequest.h"
 #include "mgr/Registration.h"
@@ -131,6 +133,27 @@ peerUserHashInit(void)
     }
 
     UserHashPeers().assign(rawUserHashPeers.begin(), rawUserHashPeers.end());
+}
+
+void
+peerUserHashReset(Configuration::SmoothReconfiguration &sr)
+{
+    sr.asyncCall(39, 5, "peerUserHashInit", NullaryFunDialer(&peerUserHashInit));
+}
+
+void
+peerUserHashResetIfChanged(Configuration::SmoothReconfiguration &sr, const CachePeer &current, const CachePeer &fresh)
+{
+    Assure(current.options.userhash || fresh.options.userhash);
+
+    // peerUserHashInit() hashes name, but the name cannot change as long as
+    // smooth reconfiguration code matches cache_peers using their names
+    Assure(strcmp(current.name, fresh.name) == 0);
+
+    if (current.options.userhash && fresh.options.userhash && current.weight == fresh.weight)
+        return; // current UserHash cache_peer is fresh as far as peerUserHashInit() is concerned
+
+    peerUserHashReset(sr);
 }
 
 static void

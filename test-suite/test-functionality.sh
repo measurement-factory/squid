@@ -228,6 +228,7 @@ main() {
             proxy-collapsed-forwarding
             hit-revalidation
             busy-restart
+            smooth-reconfiguration-of-cache-peers
             truncated-responses
             malformed-request
         "

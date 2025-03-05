@@ -66,11 +66,11 @@ note			acl
 obsolete
 onoff
 on_unsupported_protocol	acl
-CachePeerXXX
+peer
 peer_access		cache_peer acl
 pipelinePrefetch
 PortCfg
-PortCfgsXXX
+AnyP::PortCfgPointer
 QosConfig
 TokenOrQuotedString
 refreshpattern

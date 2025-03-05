@@ -9,11 +9,12 @@
 #ifndef SQUID_SRC_CONFIGOPTION_H
 #define SQUID_SRC_CONFIGOPTION_H
 
+#include "configuration/forward.h"
+
 #include <iosfwd>
 #include <vector>
 
 class StoreEntry;
-class ConfigParser;
 
 namespace Configuration {
 
@@ -28,29 +29,34 @@ template <class T>
 class Component
 {
 public:
-    /* code adding "REPETITIONS: banned" to cf.data.pre must specialize these */
+    /* specialize these when adding "TYPE: T" to cf.data.pre */
 
-    /// creates a new T instance using the given parser; never returns nil
-    static T Parse(ConfigParser &);
+    /// parses a given directive using the given parser, storing the result in T
+    static void Parse(T &, ConfigParser &);
 
-    /// reports configuration parameters of the given T instance in squid.conf format
-    static void Print(std::ostream &, const T &);
+    /// reports configuration of a T instance using squid.conf format
+    static void Print(std::ostream &, const T &, const char *directiveName);
 
-    /* code adding "REPETITIONS: update" to cf.data.pre must specialize these */
+    /// restores initial T instance state (i.e. state prior to Parse() calls),
+    /// freeing resources allocated by previous matching Parse() calls
+    static void Reset(T &);
 
-    /// creates a new T instance for one or more ParseAndUpdate() calls
-    static T Create();
+    /// Prepares for smooth reconfiguration of features tied to T directives.
+    /// These directives may not be present in the current configuration and/or
+    /// may not be present in the updated configuration. In the latter case,
+    /// there will be no corresponding Reconfigure() calls. This method is
+    /// called before any Reconfigure() calls.
+    /// \sa FinishSmoothReconfiguration() and StartSmoothReconfigurationOfComponents()
+    static void StartSmoothReconfiguration(SmoothReconfiguration &);
 
-    /// parses the first and any subsequent directive occurrence, updating T
-    static void ParseAndUpdate(T &, ConfigParser &);
+    /// Smoothly reconfigures a given directive. All such calls for T directives
+    /// are preceded by a single StartSmoothReconfiguration() call and followed
+    /// by a single FinishSmoothReconfiguration() call.
+    static void Reconfigure(SmoothReconfiguration &, T &, ConfigParser &);
 
-    /// reports the given T instance configuration in squid.conf format
-    static void PrintDirectives(std::ostream &, const T &, const char *directiveName);
-
-    /* code adding "TYPE: T" to cf.data.pre must specialize this */
-
-    /// destroys Parse() or Create() result
-    static void Free(T);
+    /// Finishes smooth reconfiguration of features tied to T directives.
+    /// \sa StartSmoothReconfiguration() and FinishSmoothReconfigurationOfComponents()
+    static void FinishSmoothReconfiguration(SmoothReconfiguration &);
 };
 
 } // namespace Configuration

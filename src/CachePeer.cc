@@ -10,12 +10,14 @@
 #include "acl/Gadgets.h"
 #include "base/PrecomputedCodeContext.h"
 #include "CachePeer.h"
+#include "configuration/Smooth.h"
 #include "defines.h"
 #include "neighbors.h"
 #include "NeighborTypeDomainList.h"
 #include "pconn.h"
 #include "PeerDigest.h"
 #include "PeerPoolMgr.h"
+#include "PeerSelectState.h"
 #include "sbuf/Stream.h"
 #include "SquidConfig.h"
 #include "util.h"
@@ -60,9 +62,11 @@ CachePeer::~CachePeer()
 }
 
 void
-CachePeer::update(const CachePeer &fresh)
+CachePeer::update(Configuration::SmoothReconfiguration &sr, const CachePeer &fresh)
 {
     debugs(3, 7, *this << " using " << fresh);
+
+    peerSelectResetIfChanged(sr, *this, fresh); // before we update *this
 
     // When updating new fields, use data member declaration order.
 
@@ -106,7 +110,12 @@ CachePeer::update(const CachePeer &fresh)
     Assure(!fresh.typelist); // managed by rigid neighbor_type_domain
     Assure(!fresh.access); // managed by rigid cache_peer_access
 
-    // XXX: Handle options
+    options.carp = fresh.options.carp;
+#if USE_AUTH
+    options.userhash = fresh.options.userhash;
+#endif
+    options.sourcehash = fresh.options.sourcehash;
+    // XXX: Handle other options
     // Changing options like `originserver` is risky for transactions that check
     // such options multiple times. TODO: Support these changes after reference
     // counting CachePeer objects.
@@ -131,20 +140,20 @@ CachePeer::update(const CachePeer &fresh)
     // preserve `tcp_up` state
     // preserve `reprobe` state
 
+    stale = fresh.stale;
+    Assure(!stale); // update() should be given fresh configurations
+
     // `addresses` changes are handled by peerDNSConfigure() triggered by peerDnsRefreshStart()
     // `n_addresses` changes are handled by peerDNSConfigure() triggered by peerDnsRefreshStart()
 
     // preserve `rr_count` stats
     // preserve `testing_now` state
 
-    // XXX: Run carpInit() if [`weight` or `name` changes for] any `options.carp` peer.
-    // Otherwise, preserve `carp` fields as derived from unchanged ones.
-
-    // XXX: Run peerUserHashInit() if [`weight` or `name` changes for] any `options.userhash` peer.
-    // Otherwise, preserve `userhash` fields as derived from unchanged ones.
-
-    // XXX: Run peerSourceHashInit() if [`weight` or `name` changes for] any `options.sourcehash` peer.
-    // Otherwise, preserve `sourcehash` fields as derived from unchanged ones.
+    // The mutually exclusive peer selection fields below are set (if they are
+    // still relevant but need updating) via peerSelectResetIfChanged():
+    // preserve `carp` fields
+    // preserve `userhash` fields
+    // preserve `sourcehash` fields
 
     // XXX: Address HttpRequest::prepForPeering() XXX first!
     // safe_free(login);
@@ -154,13 +163,10 @@ CachePeer::update(const CachePeer &fresh)
     connect_fail_limit = fresh.connect_fail_limit;
     max_conn = fresh.max_conn;
 
-    if (standby.limit != fresh.standby.limit) {
-        throw TextException(ToSBuf("No support for changing cache_peer standby=limit (yet)",
-                                   Debug::Extra, "old port: ", standby.limit,
-                                   Debug::Extra, "new port: ", fresh.standby.limit),
-                            Here());
-    }
-    // else preserve `standby` state
+    // standby.pool is is managed by standby.mgr (if any)
+    // standby.mgr is synced later via PeerPoolMgr::SyncConfig()
+    standby.limit = fresh.standby.limit;
+    // standby.waitingForClose is managed by standby.mgr (if any)
 
     // XXX: Address HttpRequest::prepForPeering() XXX first!
     // safe_free(domain);

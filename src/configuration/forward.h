@@ -15,8 +15,11 @@ class Location;
 class Preprocessor;
 class PreprocessedCfg;
 class PreprocessedDirective;
+class SmoothReconfiguration;
 enum class ReconfigurationMode;
 } // namespace Configuration
+
+class ConfigParser;
 
 #endif /* SQUID_SRC_CONFIGURATION_FORWARD_H */
 

@@ -11,6 +11,7 @@
 #include "cache_cf.h"
 #include "ConfigOption.h"
 #include "configuration/Preprocessor.h"
+#include "configuration/Smooth.h"
 #include "debug/Messages.h"
 #include "debug/Stream.h"
 #include "fatal.h"
@@ -301,7 +302,7 @@ Configuration::Preprocess(const char * const filename, const PreprocessedCfg::Po
     return pp.finalize();
 }
 
-/* parsing and reconfiguration of "reconfiguration" directive */
+/* Configuration::Component<Configuration::ReconfigurationMode*> */
 
 /// converts the next squid.conf token to ReconfigurationMode
 static Configuration::ReconfigurationMode
@@ -318,44 +319,69 @@ ParseReconfigurationMode(ConfigParser &parser)
 }
 
 template <>
-Configuration::ReconfigurationMode *
-Configuration::Component<Configuration::ReconfigurationMode*>::Parse(ConfigParser &parser)
+void
+Configuration::Component<Configuration::ReconfigurationMode*>::Reset(ReconfigurationMode *&mode)
 {
-    return new ReconfigurationMode(ParseReconfigurationMode(parser));
+    delete mode;
+    mode = nullptr;
 }
 
 template <>
 void
-Configuration::Component<Configuration::ReconfigurationMode*>::Print(std::ostream &os, Configuration::ReconfigurationMode * const &mode)
+Configuration::Component<Configuration::ReconfigurationMode*>::Parse(ReconfigurationMode *&raw, ConfigParser &parser)
 {
+    Reset(raw);
+    raw = new ReconfigurationMode(ParseReconfigurationMode(parser));
+}
+
+template <>
+void
+Configuration::Component<Configuration::ReconfigurationMode*>::Print(std::ostream &os, ReconfigurationMode * const &mode, const char * const directiveName)
+{
+    os << directiveName << ' ';
     Assure(mode);
     switch (*mode) {
     case ReconfigurationMode::harsh:
         os << "harsh";
-        return;
+        break;
     case ReconfigurationMode::smooth:
         os << "smooth";
-        return;
+        break;
     case ReconfigurationMode::smoothOrHarsh:
         os << "smooth-or-harsh";
-        return;
+        break;
     }
-    Assure(!"this method covers all supported modes");
+    os << "\n";
 }
 
 template <>
 void
-Configuration::Component<Configuration::ReconfigurationMode*>::Free(Configuration::ReconfigurationMode * const mode)
+Configuration::Component<Configuration::ReconfigurationMode*>::StartSmoothReconfiguration(SmoothReconfiguration &)
 {
-    delete mode;
 }
 
-DeclareDirectiveReconfigurator(ReconfigureReconfigurationMode, Configuration::ReconfigurationMode*);
+template <>
 void
-ReconfigureReconfigurationMode(Configuration::ReconfigurationMode *&mode, ConfigParser &parser)
+Configuration::Component<Configuration::ReconfigurationMode*>::FinishSmoothReconfiguration(SmoothReconfiguration &sr)
+{
+    // DEFAULT_IF_NONE removes the need to handle disappearing custom/explicit directive specially
+    Assure(sr.freshConfig.hasDirective(SBuf("reconfiguration")));
+}
+
+template <>
+void
+Configuration::Component<Configuration::ReconfigurationMode*>::Reconfigure(SmoothReconfiguration &, Configuration::ReconfigurationMode *&mode, ConfigParser &parser)
 {
     Assure(mode);
     *mode = ParseReconfigurationMode(parser); // if parsing fails, old mode is preserved
+}
+
+/* Configuration::PreprocessedCfg */
+
+bool
+Configuration::PreprocessedCfg::hasDirective(const SBuf &canonicalName) const
+{
+    return seenDirectives_.find(canonicalName) != seenDirectives_.end();
 }
 
 /* Configuration::Preprocessor */
@@ -643,21 +669,29 @@ Configuration::Preprocessor::addDirective(const PreprocessedDirective &directive
 {
     debugs(3, 7, directive);
     cfg_->allDirectives.push_back(directive);
-    seenDirectives_.insert(directive.name());
+    auto &addedDirective = cfg_->allDirectives.back();
+
+    const auto firstOccurrence = cfg_->seenDirectives_.emplace(addedDirective.metadata().canonicalName, addedDirective).second;
+    if (!firstOccurrence && !directive.metadata().mayBeSeenMultipleTimes) {
+        const auto &previousOccurrence = cfg_->seenDirectives_.at(directive.metadata().canonicalName);
+        throw TextException(ToSBuf("unsupported duplicate configuration directive",
+                                   Debug::Extra, "earlier directive with the same name (or alias): ", previousOccurrence),
+                            Here());
+    }
 
     auto &index = directive.metadata().supportsSmoothReconfiguration ? cfg_->pliableDirectives : cfg_->rigidDirectives;
-    // TODO: Use std::reference_wrapper instead of Directive pointers.
-    index.push_back(&cfg_->allDirectives.back());
+    index.push_back(addedDirective);
 }
 
+/// whether the named directive has been preprocessed at least once
 bool
-Configuration::Preprocessor::sawDirective(const SBuf &name) const
+Configuration::Preprocessor::sawDirective(const SBuf &canonicalName) const
 {
-    return seenDirectives_.find(name) != seenDirectives_.end();
+    return cfg_->hasDirective(canonicalName);
 }
 
 Configuration::Diff
-Configuration::Preprocessor::findRigidChanges(const PreprocessedCfg::DirectiveIndex &previous) const
+Configuration::Preprocessor::findRigidChanges(const PreprocessedCfg::SelectedDirectives &previous) const
 {
     // We could detect multiple differences, but it is difficult to find a small
     // but still comprehensive diff (e.g., like Unix "diff" often does), and
@@ -667,18 +701,16 @@ Configuration::Preprocessor::findRigidChanges(const PreprocessedCfg::DirectiveIn
 
     auto previousPos = previous.begin();
 
-    for (const auto currentDir: cfg_->rigidDirectives) {
-        assert(currentDir);
-
+    for (const auto rigidDirective: cfg_->rigidDirectives) {
+        const auto &currentDir = rigidDirective.get();
         if (previousPos == previous.end()) {
-            diff.noteAppearance(*currentDir);
+            diff.noteAppearance(currentDir);
             return diff;
         }
 
-        const auto previousDir = *previousPos;
-        assert(previousDir);
-        if (!currentDir->similarTo(*previousDir)) {
-            diff.noteChange(*previousDir, *currentDir);
+        const auto &previousDir = *previousPos;
+        if (!currentDir.similarTo(previousDir)) {
+            diff.noteChange(previousDir, currentDir);
             return diff;
         }
 
@@ -686,9 +718,8 @@ Configuration::Preprocessor::findRigidChanges(const PreprocessedCfg::DirectiveIn
     }
 
     if (previousPos != previous.end()) {
-        const auto disappeared = *previousPos;
-        assert(disappeared);
-        diff.noteDisappearance(*disappeared);
+        const auto &disappeared = *previousPos;
+        diff.noteDisappearance(disappeared);
         return diff;
     }
 

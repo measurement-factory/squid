@@ -10,6 +10,7 @@
 #include "anyp/PortCfg.h"
 #include "anyp/UriScheme.h"
 #include "comm.h"
+#include "enums.h"
 #include "fatal.h"
 #include "security/PeerOptions.h"
 #if USE_OPENSSL
@@ -41,6 +42,7 @@ AnyP::PortCfg::PortCfg() :
     vport(0),
     disable_pmtu_discovery(0),
     workerQueues(false),
+    stale(false),
     listenConn()
 {
 }
@@ -74,6 +76,7 @@ AnyP::PortCfg::PortCfg(const PortCfg &other, const Ip::Address &ipV4cloneAddrres
     vport(other.vport),
     disable_pmtu_discovery(other.disable_pmtu_discovery),
     workerQueues(other.workerQueues),
+    stale(other.stale),
     tcp_keepalive(other.tcp_keepalive),
     listenConn(), // special case; see assert() below
     secure(other.secure)
@@ -123,6 +126,9 @@ AnyP::PortCfg::update(const PortCfg &other)
         throw TextException("no support for changing 'worker-queues' setting of a listening port", Here());
     workerQueues = other.workerQueues;
 
+    stale = other.stale;
+    Assure(!stale); // update() should be given fresh configurations
+
     tcp_keepalive = other.tcp_keepalive;
 
     // preserve listenConn
@@ -139,6 +145,86 @@ AnyP::PortCfg::ipV4clone() const
     debugs(3, 3, AnyP::UriScheme(transport.protocol).image() << "_port: " <<
            "cloned wildcard address for split-stack: " << s << " and " << clone->s);
     return clone;
+}
+
+void
+AnyP::PortCfg::dump(std::ostream &os, const char * const directiveName) const
+{
+    os << directiveName << ' ' << s;
+
+    // MODES and specific sub-options.
+    if (flags.natIntercept)
+        os << " intercept";
+
+    else if (flags.tproxyIntercept)
+        os << " tproxy";
+
+    else if (flags.proxySurrogate)
+        os << " require-proxy-header";
+
+    else if (flags.accelSurrogate) {
+        os << " accel";
+
+        if (vhost)
+            os << " vhost";
+
+        if (vport < 0)
+            os << " vport";
+        else if (vport > 0)
+            os << " vport=" << vport;
+
+        if (defaultsite)
+            os << " defaultsite=" << defaultsite;
+
+        // TODO: compare against prefix of 'n' instead of assuming http_port
+        if (transport.protocol != AnyP::PROTO_HTTP)
+            os << " protocol=" << AnyP::ProtocolType_str[transport.protocol];
+
+        if (allow_direct)
+            os << " allow-direct";
+
+        if (ignore_cc)
+            os << " ignore-cc";
+    }
+
+    // Generic independent options
+
+    if (name)
+        os << " name=" << name;
+
+#if USE_HTTP_VIOLATIONS
+    if (!flags.accelSurrogate && ignore_cc)
+        os << " ignore-cc";
+#endif
+
+    if (connection_auth_disabled)
+        os << " connection-auth=off";
+    else
+        os << " connection-auth=on";
+
+    if (disable_pmtu_discovery != DISABLE_PMTU_OFF) {
+        const auto pmtu = (disable_pmtu_discovery == DISABLE_PMTU_ALWAYS) ? "always" : "transparent";
+        os << " disable-pmtu-discovery=" << pmtu;
+    }
+
+    if (s.isAnyAddr() && !s.isIPv6())
+        os << " ipv4";
+
+    if (tcp_keepalive.enabled) {
+        if (tcp_keepalive.idle || tcp_keepalive.interval || tcp_keepalive.timeout)
+            os << " tcpkeepalive=" << tcp_keepalive.idle << ',' << tcp_keepalive.interval << ',' << tcp_keepalive.timeout;
+        else
+            os << " tcpkeepalive";
+    }
+
+#if USE_OPENSSL
+    if (flags.tunnelSslBumping)
+        os << " ssl-bump";
+#endif
+
+    secure.dumpCfg(os, "tls-");
+
+    os << '\n';
 }
 
 ScopedId
@@ -192,9 +278,11 @@ UpdatePortCfg(const AnyP::PortCfgPointer &list, const AnyP::PortCfg &newCfg)
         currentCfg = cfg;
     }
 
-    // TODO: Removal is also currently unsupported. Detect/reject it as well.
     if (!currentCfg)
         throw TextException("no support for adding a new or changing an existing listening port address", Here());
+
+    if (!currentCfg->stale)
+        throw TextException("listening port is specified twice", Here());
 
     // TODO: Consider reporting unchanged configurations.
     currentCfg->update(newCfg);

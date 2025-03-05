@@ -45,10 +45,19 @@ PeerPoolMgr::PeerPoolMgr(CachePeer *aPeer): AsyncJob("PeerPoolMgr"),
     // We fake one. TODO: Optionally send this request to peers?
     request = new HttpRequest(Http::METHOD_OPTIONS, AnyP::PROTO_HTTP, "http", "*", mx);
     request->url.host(peer->host);
+
+    Assure(!peer->standby.pool);
+    peer->standby.pool = new PconnPool(peer->name, this);
 }
 
 PeerPoolMgr::~PeerPoolMgr()
 {
+    if (validPeer()) {
+        // No unmanaged pools. TODO: When CachePeer is refcounted, this should
+        // become the only place that deletes the pool.
+        delete peer->standby.pool;
+        peer->standby.pool = nullptr;
+    }
     cbdataReferenceDone(peer);
 }
 
@@ -241,6 +250,26 @@ PeerPoolMgr::Checkpoint(const Pointer &mgr, const char *reason)
     });
 }
 
+void
+PeerPoolMgr::StartManagingIfNeeded(CachePeer &peer)
+{
+    if (!peer.standby.mgr && peer.standby.limit) {
+        peer.standby.mgr = new PeerPoolMgr(&peer);
+        CallService(peer.standby.mgr->codeContext, [&] {
+            AsyncJob::Start(peer.standby.mgr.get());
+        });
+    }
+}
+
+void
+PeerPoolMgr::SyncConfig(CachePeer &peer)
+{
+    if (!peer.standby.mgr)
+        StartManagingIfNeeded(peer);
+    else
+        Checkpoint(peer.standby.mgr, "smooth reconfiguration");
+}
+
 /// launches PeerPoolMgrs for peers configured with standby.limit
 class PeerPoolMgrsRr: public RegisteredRunner
 {
@@ -261,13 +290,7 @@ PeerPoolMgrsRr::syncConfig()
         // so should always be dealing with a brand new configuration.
         assert(!p->standby.mgr);
         assert(!p->standby.pool);
-        if (p->standby.limit) {
-            p->standby.mgr = new PeerPoolMgr(p);
-            p->standby.pool = new PconnPool(p->name, p->standby.mgr);
-            CallService(p->standby.mgr->codeContext, [&] {
-                AsyncJob::Start(p->standby.mgr.get());
-            });
-        }
+        PeerPoolMgr::StartManagingIfNeeded(*p);
     }
 }
 

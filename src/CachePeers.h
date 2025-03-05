@@ -55,6 +55,11 @@ private:
 /// configured cache_peers were removed (e.g., by DeleteConfigured()).
 const CachePeers &CurrentCachePeers();
 
+/// Adds a given configured peer to CurrentCachePeers() collection.
+/// \prec findCachePeerByName() is false for the given peer
+/// \sa DeleteConfigured()
+void AbsorbConfigured(std::unique_ptr<CachePeer> &&);
+
 /// destroys the given peer after removing it from the set of configured peers
 void DeleteConfigured(CachePeer *);
 
