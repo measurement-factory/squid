@@ -895,6 +895,8 @@ FwdState::noteConnection(HappyConnOpener::Answer &answer)
     tunnelIfNeeded(answer.conn);
 }
 
+/// handles an established unencrypted TCP connection to peer after we checked
+/// and satisfied any applicable PROXY protocol requirements
 void
 FwdState::tunnelIfNeeded(const Comm::ConnectionPointer &conn)
 {
@@ -921,7 +923,7 @@ FwdState::tunnelIfNeeded(const Comm::ConnectionPointer &conn)
     secureConnectionToPeerIfNeeded(conn);
 }
 
-/// syncs proxyProtocolHeader with the current request forwarding attempt
+/// computes proxyProtocolHeader at the beginning of a request forwarding attempt
 void
 FwdState::resetProxyProtocolHeader()
 {

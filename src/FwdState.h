@@ -172,16 +172,15 @@ private:
     void connectedToPeer(Security::EncryptorAnswer &answer);
     static void RegisterWithCacheManager(void);
 
+    void tunnelIfNeeded(const Comm::ConnectionPointer &);
     void establishTunnelThruProxy(const Comm::ConnectionPointer &);
     void tunnelEstablishmentDone(Http::TunnelerAnswer &answer);
     void resetProxyProtocolHeader();
     void sendProxyProtoHeader(const Comm::ConnectionPointer &);
-    void tunnelIfNeeded(const Comm::ConnectionPointer &);
+    void proxyProtocolHeaderSent(ProxyProtocolWriterAnswer &);
     void secureConnectionToPeerIfNeeded(const Comm::ConnectionPointer &);
     void secureConnectionToPeer(const Comm::ConnectionPointer &);
     void successfullyConnectedToPeer(const Comm::ConnectionPointer &);
-
-    void proxyProtocolHeaderSent(ProxyProtocolWriterAnswer &answer);
 
     /// stops monitoring server connection for closure and updates pconn stats
     void closeServerConnection(const char *reason);
@@ -207,7 +206,6 @@ public:
     StoreEntry *entry;
     HttpRequest *request;
     AccessLogEntryPointer al; ///< info for the future access.log entry
-    std::optional<SBuf> proxyProtocolHeader;
 
     /// called by Store if the entry is no longer usable
     static void HandleStoreAbort(FwdState *);
@@ -229,7 +227,7 @@ private:
     /// waits for a transport connection to the peer to be established/opened
     JobWait<HappyConnOpener> transportWait;
 
-    /// waits until the PROXY protocol header is sent to a cache_peer or server
+    /// waits for the PROXY protocol header to be sent
     JobWait<ProxyProtocolWriter> proxyProtocolWait;
 
     /// waits for the established transport connection to be secured/encrypted
@@ -245,6 +243,9 @@ private:
     ResolvedPeersPointer destinations; ///< paths for forwarding the request
     Comm::ConnectionPointer serverConn; ///< a successfully opened connection to a server.
     PeerConnectionPointer destinationReceipt; ///< peer selection result (or nil)
+
+    /// packed PROXY protocol header that we need to send (or nil)
+    std::optional<SBuf> proxyProtocolHeader;
 
     AsyncCall::Pointer closeHandler; ///< The serverConn close handler
 
