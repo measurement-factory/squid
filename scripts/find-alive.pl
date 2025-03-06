@@ -71,8 +71,8 @@ my %Pairs = (
         'PageStack.* push: (sh_page\S+) at',
         ],
     OpenSslMalloc => [
-        '(?:CryptoMalloc:|CryptoRealloc: allocated:) ([a-fA-F0-9x]+)',
-        '(?:CryptoFree:|CryptoRealloc: freed:) ([a-fA-F0-9x]+)',
+        '(?:CryptoMalloc:|CryptoRealloc: allocated:) (\S+)',
+        '(?:CryptoFree:|CryptoRealloc: freed:) (\S+)',
         ],
     );
 
