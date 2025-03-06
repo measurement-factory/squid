@@ -886,14 +886,13 @@ FwdState::noteConnection(HappyConnOpener::Answer &answer)
         return dispatch();
     }
 
-    if (!proxyProtocolHeader) {
-        tunnelIfNeeded(answer.conn);
-        return;
+    if (proxyProtocolHeader) {
+        return advanceDestination("send proxy protocol header", answer.conn, [this, &answer]() {
+        sendProxyProtoHeader(answer.conn);
+        });
     }
 
-    advanceDestination("send proxy protocol header", answer.conn, [this, &answer]() {
-    sendProxyProtoHeader(answer.conn);
-    });
+    tunnelIfNeeded(answer.conn);
 }
 
 void
