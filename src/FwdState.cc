@@ -891,7 +891,6 @@ FwdState::noteConnection(HappyConnOpener::Answer &answer)
         return;
     }
 
-    Assure(!proxyProtocolHeader->isEmpty());
     advanceDestination("send proxy protocol header", answer.conn, [this, &answer]() {
     sendProxyProtoHeader(answer.conn);
     });
@@ -947,11 +946,15 @@ FwdState::resetProxyProtocolHeader()
     BinaryPacker packer;
     header.pack(packer);
     proxyProtocolHeader = packer.packed();
+    Assure(proxyProtocolHeader);
+    Assure(!proxyProtocolHeader->isEmpty());
 }
 
 void
 FwdState::sendProxyProtoHeader(const Comm::ConnectionPointer &conn)
 {
+    Assure(proxyProtocolHeader);
+
     const auto callback = asyncCallback(17, 4, FwdState::proxyProtocolHeaderSent, this);
     HttpRequest::Pointer requestPointer = request;
     const auto proxyProtocolWriter = new ProxyProtocolWriter(*proxyProtocolHeader, conn, requestPointer, callback, al);

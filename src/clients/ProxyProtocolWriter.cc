@@ -7,6 +7,7 @@
  */
 
 #include "squid.h"
+#include "base/Assure.h"
 #include "clients/ProxyProtocolWriter.h"
 #include "comm/Write.h"
 #include "errorpage.h"
@@ -31,6 +32,7 @@ ProxyProtocolWriter::ProxyProtocolWriter(const SBuf &hdr, const Comm::Connection
     debugs(17, 5, "ProxyProtocolWriter constructed, this=" << (void*)this);
     assert(request);
     assert(connection);
+    Assure(!header.isEmpty());
     watchForClosures();
 }
 
