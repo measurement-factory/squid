@@ -82,9 +82,7 @@ HttpStateData::HttpStateData(FwdState *theFwdState) :
 {
     debugs(11,5, "HttpStateData " << this << " created");
     serverConnection = fwd->serverConnection();
-
-    if (fwd->serverConnection() != nullptr)
-        _peer = cbdataReference(fwd->serverConnection()->getPeer());         /* might be NULL */
+    const auto _peer = peer();
 
     flags.peering =  _peer;
     flags.tunneling = (_peer && request->flags.sslBumped);
@@ -120,8 +118,6 @@ HttpStateData::~HttpStateData()
 
     if (httpChunkDecoder)
         delete httpChunkDecoder;
-
-    cbdataReferenceDone(_peer);
 
     delete upgradeHeaderOut;
 
@@ -607,6 +603,8 @@ httpMakeVaryMark(HttpRequest * request, HttpReply const * reply)
 void
 HttpStateData::keepaliveAccounting(HttpReply *reply)
 {
+    const auto _peer = peer();
+
     if (flags.keepalive)
         if (flags.peering && !flags.tunneling)
             ++ _peer->stats.n_keepalives_sent;
@@ -877,6 +875,8 @@ HttpStateData::proceedAfter1xx()
 bool
 HttpStateData::peerSupportsConnectionPinning() const
 {
+    const auto _peer = peer();
+
     if (!_peer)
         return true;
 
@@ -2404,6 +2404,7 @@ bool
 HttpStateData::sendRequest()
 {
     MemBuf mb;
+    const auto _peer = peer();
 
     debugs(11, 5, serverConnection << ", request " << request << ", this " << this << ".");
 
