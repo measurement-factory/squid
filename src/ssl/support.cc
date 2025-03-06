@@ -98,7 +98,7 @@ static void
 CryptoFree(void *str, const char *file, int line)
 {
     debugs(83, 5, str << " " << file << " " << line);
-    FreeStats().addCall();
+    FreeStats()++;
     xfree(str);
 }
 
@@ -119,7 +119,8 @@ CryptoRealloc(void *str, size_t num, const char *file, int line)
 
     const auto p = realloc(str, num);
     const auto sameArea = (p == str);
-    sameArea ? ReallocStats().addOldArea(num) : ReallocStats().addNewArea(num);
+    auto &stats = sameArea ? ReallocOldAddrStats() : ReallocNewAddrStats();
+    stats.addArea(num);
     if (!sameArea) {
         debugs(83, 5, "freed: " <<  str);
         debugs(83, 5, "allocated: " <<  p);

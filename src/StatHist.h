@@ -60,6 +60,9 @@ public:
      */
     void count(double val);
 
+    /// the total number of entries in the histogram
+    size_t size() const;
+
     /** iterate the supplied bd function over the histogram values
      */
     void dump(StoreEntry *sentry, StatHistBinDumper * bd) const;
