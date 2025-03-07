@@ -158,7 +158,7 @@ Format::Format::dumpDefinition(std::ostream &os) const
 }
 
 void
-Format::Token::dump(std::ostream &os)
+Format::Token::dump(std::ostream &os) const
 {
     // XXX: Diff reducer. TODO: Move this method to format/Token.cc.
     if (const auto t = this) {
@@ -191,34 +191,6 @@ Format::Token::dump(std::ostream &os)
                         snprintf(argbuf, sizeof(argbuf), "%s:%s", t->data.header.header, t->data.header.element);
 
                     arg = argbuf;
-
-                    switch (type) {
-                    case LFT_REQUEST_HEADER_ELEM:
-                        type = LFT_REQUEST_HEADER_ELEM; // XXX: remove _ELEM?
-                        break;
-                    case LFT_ADAPTED_REQUEST_HEADER_ELEM:
-                        type = LFT_ADAPTED_REQUEST_HEADER_ELEM; // XXX: remove _ELEM?
-                        break;
-                    case LFT_REPLY_HEADER_ELEM:
-                        type = LFT_REPLY_HEADER_ELEM; // XXX: remove _ELEM?
-                        break;
-#if USE_ADAPTATION
-                    case LFT_ADAPTATION_LAST_HEADER_ELEM:
-                        type = LFT_ADAPTATION_LAST_HEADER;
-                        break;
-#endif
-#if ICAP_CLIENT
-                    case LFT_ICAP_REQ_HEADER_ELEM:
-                        type = LFT_ICAP_REQ_HEADER;
-                        break;
-                    case LFT_ICAP_REP_HEADER_ELEM:
-                        type = LFT_ICAP_REP_HEADER;
-                        break;
-#endif
-                    default:
-                        break;
-                    }
-
                     break;
 
                 case LFT_REQUEST_ALL_HEADERS:
@@ -232,34 +204,6 @@ Format::Token::dump(std::ostream &os)
                 case LFT_ICAP_REQ_ALL_HEADERS:
                 case LFT_ICAP_REP_ALL_HEADERS:
 #endif
-
-                    switch (type) {
-                    case LFT_REQUEST_ALL_HEADERS:
-                        type = LFT_REQUEST_HEADER;
-                        break;
-                    case LFT_ADAPTED_REQUEST_ALL_HEADERS:
-                        type = LFT_ADAPTED_REQUEST_HEADER;
-                        break;
-                    case LFT_REPLY_ALL_HEADERS:
-                        type = LFT_REPLY_HEADER;
-                        break;
-#if USE_ADAPTATION
-                    case LFT_ADAPTATION_LAST_ALL_HEADERS:
-                        type = LFT_ADAPTATION_LAST_HEADER;
-                        break;
-#endif
-#if ICAP_CLIENT
-                    case LFT_ICAP_REQ_ALL_HEADERS:
-                        type = LFT_ICAP_REQ_HEADER;
-                        break;
-                    case LFT_ICAP_REP_ALL_HEADERS:
-                        type = LFT_ICAP_REP_HEADER;
-                        break;
-#endif
-                    default:
-                        break;
-                    }
-
                     break;
 
                 default:
