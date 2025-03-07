@@ -888,7 +888,7 @@ FwdState::noteConnection(HappyConnOpener::Answer &answer)
 
     if (proxyProtocolHeader) {
         return advanceDestination("send proxy protocol header", answer.conn, [this, &answer]() {
-        sendProxyProtoHeader(answer.conn);
+            sendProxyProtoHeader(answer.conn);
         });
     }
 

@@ -151,11 +151,12 @@ Format::Format::dump(StoreEntry * entry, const char *directiveName, bool eol) co
 
 }
 
-// TODO: diff reducer: align and move to Token.cc
 void
 Format::Token::print(std::ostream &os)
 {
-    auto t = this;
+    // XXX: Diff reducer. TODO: Move this method to format/Token.cc.
+    if (const auto t = this) {
+        {
             if (type == LFT_STRING)
                 os << data.string;
             else {
@@ -313,6 +314,8 @@ Format::Token::print(std::ostream &os)
 
             if (next)
                 next->print(os);
+        }
+    }
 }
 
 static void

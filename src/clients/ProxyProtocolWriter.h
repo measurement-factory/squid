@@ -13,8 +13,8 @@
 #include "base/AsyncJob.h"
 #include "base/CbcPointer.h"
 #include "clients/forward.h"
-#include "CommCalls.h"
 #include "comm/Connection.h"
+#include "CommCalls.h"
 #include "http/StatusCode.h"
 #include "sbuf/SBuf.h"
 
@@ -99,5 +99,5 @@ private:
     bool headerWritten; ///< whether we successfully wrote the request
 };
 
-#endif /* SQUID_SRC_CLIENTS_PROXYPROTOCOLWRITER_H  */
+#endif /* SQUID_SRC_CLIENTS_PROXYPROTOCOLWRITER_H */
 
