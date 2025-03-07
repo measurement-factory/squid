@@ -31,13 +31,16 @@ ProxyProtocol::Header::pack(BinaryPacker &pack) const
     Assure(ver == 2); // no support for serializing using legacy v1 format
     pack.uint8("version and command", (ver << 4) | command_);
 
-    Assure(sourceAddress.isIPv4() == destinationAddress.isIPv4()); // one family for both addresses
-    const auto family = sourceAddress.isIPv4() ? Two::afInet : Two::afInet6;
-    pack.uint8("socket family and transport protocol", (command_ == Two::cmdLocal) ? 0 : ((family << 4) | Two::tpStream));
-
     BinaryPacker tail;
 
-    if (command_ != Two::cmdLocal) {
+    if (command_ == Two::cmdLocal) {
+        // PROXY protocol tells us to send (and receiver to discard) this zero.
+        pack.uint8("LOCAL protocol block", 0);
+    } else {
+        Assure(sourceAddress.isIPv4() == destinationAddress.isIPv4()); // one family for both addresses
+        const auto family = sourceAddress.isIPv4() ? Two::afInet : Two::afInet6;
+        pack.uint8("socket family and transport protocol", (family << 4) | Two::tpStream);
+
         tail.inet("src_addr", sourceAddress);
         tail.inet("dst_addr", destinationAddress);
         tail.uint16("src_port", sourceAddress.port());
