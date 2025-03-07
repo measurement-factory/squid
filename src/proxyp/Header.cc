@@ -22,9 +22,11 @@ ProxyProtocol::Header::Header(const SBuf &ver, const Two::Command cmd):
     ignoreAddresses_(false)
 {}
 
-void
-ProxyProtocol::Header::pack(BinaryPacker &pack) const
+SBuf
+ProxyProtocol::Header::pack() const
 {
+    BinaryPacker pack;
+
     pack.area("magic", Two::Magic());
 
     const auto ver = 2; // XXX: We should be using version_, but version_ should use int instead of SBuf!
@@ -55,6 +57,8 @@ ProxyProtocol::Header::pack(BinaryPacker &pack) const
     // Optimization TODO: This copy can be removed by packing length placeholder
     // and std::moving BinaryPacker::output_ from `pack` into `tail` and back.
     pack.pstring16("addresses and TLVs", tail.packed());
+
+    return pack.packed();
 }
 
 SBuf

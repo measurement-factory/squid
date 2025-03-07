@@ -48,7 +48,6 @@
 #include "MemObject.h"
 #include "mgr/Registration.h"
 #include "neighbors.h"
-#include "parser/BinaryPacker.h"
 #include "pconn.h"
 #include "PeerPoolMgr.h"
 #include "proxyp/Header.h"
@@ -944,9 +943,7 @@ FwdState::resetProxyProtocolHeader()
     ProxyProtocol::Header header(v2, request->masterXaction->initiator.internalClient() ? ProxyProtocol::Two::cmdLocal : ProxyProtocol::Two::cmdProxy);
     Config.outgoingProxyProtocolHttp->fill(header, al);
 
-    BinaryPacker packer;
-    header.pack(packer);
-    proxyProtocolHeader = packer.packed();
+    proxyProtocolHeader = header.pack();
     Assure(proxyProtocolHeader);
     Assure(!proxyProtocolHeader->isEmpty());
 }
