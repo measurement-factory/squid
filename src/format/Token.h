@@ -47,8 +47,8 @@ public:
      */
     int parse(const char *def, enum Quoting *quote);
 
-    /// writes this token and all tokens in the list into the stream
-    void print(std::ostream &os);
+    /// writes this token definition using squid.conf syntax (e.g., %{User-Agent}>h)
+    void dump(std::ostream &);
 
     ByteCode_t type;
     const char *label;

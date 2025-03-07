@@ -17,7 +17,6 @@
 #include "ConfigOption.h"
 #include "ConfigParser.h"
 #include "format/Format.h"
-#include "format/Token.h"
 #include "parser/Tokenizer.h"
 #include "proxyp/Header.h"
 #include "proxyp/OutgoingHttpConfig.h"
@@ -54,7 +53,7 @@ ProxyProtocol::operator << (std::ostream &os, const Option &opt)
     auto buf = Format::Dash;
     if (opt.value_) {
         SBufStream valueOs;
-        opt.value_->format->print(valueOs);
+        opt.value_->dumpDefinition(valueOs);
         buf = valueOs.buf();
     }
     if (opt.quoted_)

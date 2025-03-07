@@ -140,7 +140,7 @@ Format::Format::dump(StoreEntry * entry, const char *directiveName, bool eol) co
             storeAppendPrintf(entry, "%s %s ", directiveName, fmt->name);
 
         SBufStream os;
-        fmt->format->print(os);
+        fmt->dumpDefinition(os);
         const auto buf = os.buf();
         if (buf.length())
             entry->append(buf.rawContent(), buf.length());
@@ -148,11 +148,17 @@ Format::Format::dump(StoreEntry * entry, const char *directiveName, bool eol) co
         if (eol)
             entry->append("\n", 1);
     }
-
 }
 
 void
-Format::Token::print(std::ostream &os)
+Format::Format::dumpDefinition(std::ostream &os) const
+{
+    for (auto t = format; t; t = t->next)
+        t->dump(os);
+}
+
+void
+Format::Token::dump(std::ostream &os)
 {
     // XXX: Diff reducer. TODO: Move this method to format/Token.cc.
     if (const auto t = this) {
@@ -311,11 +317,9 @@ Format::Token::print(std::ostream &os)
                 if (t->space)
                     os << ' ';
             }
-
-            if (next)
-                next->print(os);
         }
     }
+
 }
 
 static void
