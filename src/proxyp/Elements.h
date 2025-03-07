@@ -13,7 +13,16 @@
 
 // https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt
 namespace ProxyProtocol {
+
+namespace One {
+/// magic octet prefix for PROXY protocol version 1
+const SBuf &Magic();
+}
+
 namespace Two {
+
+/// magic octet prefix for PROXY protocol version 2
+const SBuf &Magic();
 
 /// numeric IDs of registered PROXY protocol TLV types and pseudo headers
 typedef enum {

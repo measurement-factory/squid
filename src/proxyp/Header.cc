@@ -8,6 +8,7 @@
 
 #include "squid.h"
 #include "base/EnumIterator.h"
+#include "parser/BinaryPacker.h"
 #include "proxyp/Elements.h"
 #include "proxyp/Header.h"
 #include "sbuf/Stream.h"
@@ -20,6 +21,38 @@ ProxyProtocol::Header::Header(const SBuf &ver, const Two::Command cmd):
     command_(cmd),
     ignoreAddresses_(false)
 {}
+
+void
+ProxyProtocol::Header::pack(BinaryPacker &pack) const
+{
+    pack.area("magic", Two::Magic());
+
+    const auto ver = 2; // XXX: We should be using version_, but version_ should use int instead of SBuf!
+    Assure(ver == 2); // no support for serializing using legacy v1 format
+    pack.uint8("version and command", (ver << 4) | command_);
+
+    Assure(sourceAddress.isIPv4() == destinationAddress.isIPv4()); // one family for both addresses
+    const auto family = sourceAddress.isIPv4() ? Two::afInet : Two::afInet6;
+    pack.uint8("socket family and transport protocol", (command_ == Two::cmdLocal) ? 0 : ((family << 4) | Two::tpStream));
+
+    BinaryPacker tail;
+
+    if (command_ != Two::cmdLocal) {
+        tail.inet("src_addr", sourceAddress);
+        tail.inet("dst_addr", destinationAddress);
+        tail.uint16("src_port", sourceAddress.port());
+        tail.uint16("dst_port", destinationAddress.port());
+    }
+
+    for (const auto &tlv: tlvs) {
+        tail.uint8("pp2_tlv::type", tlv.type);
+        tail.pstring16("pp2_tlv::value", tlv.value);
+    }
+
+    // Optimization TODO: This copy can be removed by packing length placeholder
+    // and std::moving BinaryPacker::output_ from `pack` into `tail` and back.
+    pack.pstring16("addresses and TLVs", tail.packed());
+}
 
 SBuf
 ProxyProtocol::Header::toMime() const
