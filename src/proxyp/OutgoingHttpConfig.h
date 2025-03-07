@@ -31,8 +31,6 @@ public:
     Option(const char *aName, const char *aVal, bool quoted);
     virtual ~Option();
 
-    void dump(std::ostream &);
-
     SBuf name_; ///< the option name
     const bool quoted_; ///< whether the option value is quoted
 
