@@ -201,11 +201,23 @@ ProxyProtocol::OutgoingHttpConfig::OutgoingHttpConfig(ConfigParser &parser)
     aclList = parser.optionalAclList();
 }
 
+
+namespace ProxyProtocol
+{
+// XXX: Refactor to remove this temporary hack.
+inline auto &
+operator <<(std::ostream &os, const TlvOption::Pointer &p)
+{
+    os << *p;
+    return os;
+}
+} // namespace ProxyProtocol
+
 void
 ProxyProtocol::OutgoingHttpConfig::dump(std::ostream &os)
 {
     const auto separator = " ";
-    os << *srcAddr << separator << *dstAddr << separator << srcPort << separator << dstPort <<
+    os << *srcAddr << separator << *dstAddr << separator << *srcPort << separator << *dstPort <<
        AsList(tlvOptions).prefixedBy(separator).delimitedBy(separator);
     if (aclList) {
         os << separator;
