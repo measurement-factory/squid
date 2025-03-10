@@ -46,21 +46,20 @@ ProxyProtocol::Option::~Option()
     delete value_;
 }
 
-std::ostream &
-ProxyProtocol::operator << (std::ostream &os, const Option &opt)
+void
+ProxyProtocol::Option::dump(std::ostream &os) const
 {
-    os << opt.name_ << '=';
+    os << name_ << '=';
     auto buf = Format::Dash;
-    if (opt.value_) {
+    if (value_) {
         SBufStream valueOs;
-        opt.value_->dumpDefinition(valueOs);
+        value_->dumpDefinition(valueOs);
         buf = valueOs.buf();
     }
-    if (opt.quoted_)
+    if (quoted_)
         os << ConfigParser::QuoteString(SBufToString(buf));
     else
         os << buf;
-    return os;
 }
 
 void

@@ -31,6 +31,9 @@ public:
     Option(const char *aName, const char *aVal, bool quoted);
     virtual ~Option();
 
+    /// reports configuration using squid.conf syntax
+    void dump(std::ostream &) const;
+
     SBuf name_; ///< the option name
     const bool quoted_; ///< whether the option value is quoted
 
@@ -40,14 +43,13 @@ protected:
 
     Format::Format *value_; ///< compiled value format
 
-    friend std::ostream & operator << (std::ostream &, const Option &);
-
 private:
     /// parses the value as a logformat string
     void parseFormat(const char *);
 };
 
-std::ostream & operator << (std::ostream &, const Option &);
+/// \copydoc Option::dump()
+inline auto &operator <<(std::ostream &os, const Option &o) { o.dump(os); return os; }
 
 /// an address option for http_outgoing_proxy_protocol directive
 class AddrOption : public Option
