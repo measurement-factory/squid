@@ -163,7 +163,9 @@ Format::Token::dump(std::ostream &os) const
     // XXX: Diff reducer. TODO: Move this method to format/Token.cc.
     if (const auto t = this) {
         {
-            if (type == LFT_STRING)
+            if (type == LFT_NONE) {
+                // output nothing (to reproduce empty logformat specs)
+            } else if (type == LFT_STRING)
                 os << data.string;
             else {
                 char argbuf[256];
