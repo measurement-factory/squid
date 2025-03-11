@@ -30,6 +30,7 @@ public:
     Option(const char *aName, ConfigParser &);
     Option(const char *aName, const char *aVal, bool quoted);
     virtual ~Option();
+    Option(Option &&) = delete;
 
     /// reports configuration using squid.conf syntax
     void dump(std::ostream &) const;
