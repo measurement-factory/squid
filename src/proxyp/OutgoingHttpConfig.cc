@@ -24,12 +24,13 @@
 #include "sbuf/StringConvert.h"
 
 ProxyProtocol::Option::Option(const char *aName, ConfigParser &parser)
-    : name_(aName), quoted_(parser.LastTokenWasQuoted()), value_(nullptr)
+    : name_(aName), quoted_(false), value_(nullptr)
 {
     char *key = nullptr;
     char *value = nullptr;
     if(!parser.optionalKvPair(key, value))
         throw TextException(ToSBuf("missing ", name_, " option"), Here());
+    quoted_ = parser.LastTokenWasQuoted();
     if (name_.cmp(key) != 0)
         throw TextException(ToSBuf("expected ", name_, ", but got ", key, " option"), Here());
     parseFormat(value);

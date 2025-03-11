@@ -35,7 +35,7 @@ public:
     void dump(std::ostream &) const;
 
     SBuf name_; ///< the option name
-    const bool quoted_; ///< whether the option value is quoted
+    bool quoted_; ///< whether the option value is quoted
 
 protected:
     /// \returns the value with expanded logformat %macros (quoted values)
