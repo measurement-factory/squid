@@ -76,6 +76,8 @@ Format::Format::parse(const char *def)
         return false;
     }
 
+    specs = def;
+
     /* very inefficient parser, but who cares, this needs to be simple */
     /* First off, let's tokenize, we'll optimize in a second pass.
      * A token can either be a %-prefixed sequence (usually a dynamic
@@ -153,6 +155,7 @@ Format::Format::dump(StoreEntry * entry, const char *directiveName, bool eol) co
 void
 Format::Format::dumpDefinition(std::ostream &os) const
 {
+    // TODO: Consider dumping `specs` instead.
     for (auto t = format; t; t = t->next)
         t->dump(os);
 }

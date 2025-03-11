@@ -64,6 +64,10 @@ public:
     bool isConstant() const;
 
     char *name;
+
+    /// format configuration (using squid.conf logformat specification syntax)
+    SBuf specs;
+
     Token *format;
     Format *next;
 };

@@ -196,29 +196,29 @@ ProxyProtocol::TlvOption::tlvValue(const AccessLogEntryPointer &al) const
     }
 }
 
-ProxyProtocol::OutgoingHttpConfig::OutgoingHttpConfig(ConfigParser &parser)
+ProxyProtocol::OutgoingHttpConfig::OutgoingHttpConfig(ConfigParser &parser):
+    srcAddr("src_addr", parser),
+    dstAddr("dst_addr", parser),
+    srcPort("src_port", parser),
+    dstPort("dst_port", parser)
 {
-    parseOptions(parser);
+    if (srcAddr.hasAddress() && dstAddr.hasAddress()) {
+        Ip::Address adjustedSrc, adjustedDst;
+        if (const auto err = adjustAddresses(adjustedSrc, adjustedDst, AccessLogEntryPointer()))
+            throw TextException(*err, Here());
+        srcAddr.setAddress(adjustedSrc);
+        dstAddr.setAddress(adjustedDst);
+    }
+
+    parseTlvs(parser);
     aclList = parser.optionalAclList();
 }
-
-
-namespace ProxyProtocol
-{
-// XXX: Refactor to remove this temporary hack.
-inline auto &
-operator <<(std::ostream &os, const TlvOption::Pointer &p)
-{
-    os << *p;
-    return os;
-}
-} // namespace ProxyProtocol
 
 void
 ProxyProtocol::OutgoingHttpConfig::dump(std::ostream &os)
 {
     const auto separator = " ";
-    os << *srcAddr << separator << *dstAddr << separator << *srcPort << separator << *dstPort <<
+    os << srcAddr << separator << dstAddr << separator << srcPort << separator << dstPort <<
        AsList(tlvOptions).prefixedBy(separator).delimitedBy(separator);
     if (aclList) {
         // TODO: Use Acl::dump() after fixing the XXX in dump_acl_list().
@@ -242,16 +242,16 @@ ProxyProtocol::OutgoingHttpConfig::fillAddresses(Ip::Address &src, Ip::Address &
 {
     if (const auto err = adjustAddresses(src,dst, al))
         debugs(17, DBG_IMPORTANT, *err);
-    src.port(srcPort->port(al).value_or(0));
-    dst.port(dstPort->port(al).value_or(0));
+    src.port(srcPort.port(al).value_or(0));
+    dst.port(dstPort.port(al).value_or(0));
 }
 
 void
 ProxyProtocol::OutgoingHttpConfig::fillTlvs(Tlvs &tlvs, const AccessLogEntryPointer &al) const
 {
     for (const auto &t : tlvOptions) {
-        if (const auto v = t->tlvValue(al))
-            tlvs.emplace_back(t->tlvType(), *v);
+        if (const auto v = t.tlvValue(al))
+            tlvs.emplace_back(t.tlvType(), *v);
     }
 }
 
@@ -261,8 +261,8 @@ ProxyProtocol::OutgoingHttpConfig::fillTlvs(Tlvs &tlvs, const AccessLogEntryPoin
 std::optional<SBuf>
 ProxyProtocol::OutgoingHttpConfig::adjustAddresses(Ip::Address &adjustedSrc, Ip::Address &adjustedDst, const AccessLogEntryPointer &al)
 {
-    auto src = srcAddr->address(al);
-    auto dst = dstAddr->address(al);
+    auto src = srcAddr.address(al);
+    auto dst = dstAddr.address(al);
 
     // source and/or destination are unknown
     // either configured as "-" or could not parse format codes
@@ -299,41 +299,27 @@ ProxyProtocol::OutgoingHttpConfig::adjustAddresses(Ip::Address &adjustedSrc, Ip:
         adjustedDst = src->isIPv4() ? Ip::Address::AnyAddrIPv4() : Ip::Address::AnyAddrIPv6();
     }
 
-    return ToSBuf("Address family mismatch: ", srcAddr->name_, "(", *src, ") and ", dstAddr->name_, "(", *dst, ")");
+    return ToSBuf("Address family mismatch: ", srcAddr.name_, "(", *src, ") and ", dstAddr.name_, "(", *dst, ")");
 }
 
 void
-ProxyProtocol::OutgoingHttpConfig::parseOptions(ConfigParser &parser)
+ProxyProtocol::OutgoingHttpConfig::parseTlvs(ConfigParser &parser)
 {
-    // required options
-    srcAddr = new AddrOption("src_addr", parser);
-    dstAddr = new AddrOption("dst_addr", parser);
-    srcPort = new PortOption("src_port", parser);
-    dstPort = new PortOption("dst_port", parser);
-
-    if (srcAddr->hasAddress() && dstAddr->hasAddress()) {
-        Ip::Address adjustedSrc, adjustedDst;
-        if (const auto err = adjustAddresses(adjustedSrc, adjustedDst, AccessLogEntryPointer()))
-            throw TextException(*err, Here());
-        srcAddr->setAddress(adjustedSrc);
-        dstAddr->setAddress(adjustedDst);
-    }
-
     char *key = nullptr;
     char *value = nullptr;
-
-    // optional TLVs
-    std::vector< std::pair<TlvOption::TlvType, SBuf> > parsedTlvs; // temporary storage for duplication checks
     while (parser.optionalKvPair(key, value)) {
-        auto option = std::unique_ptr<TlvOption>(new TlvOption(key, value, parser.LastTokenWasQuoted()));
-        const auto it =  std::find_if(parsedTlvs.begin(), parsedTlvs.end(), [&](const auto &p) {
-            return p.first == option->tlvType() && p.second == SBuf(value);
+        const auto &current = tlvOptions.emplace_back(key, value, parser.LastTokenWasQuoted());
+
+        // the number of configured TLV options should not preclude a simple linear search
+        const auto found = std::find_if(tlvOptions.begin(), tlvOptions.end(), [&](const auto &option) {
+            /// Whether the previously parsed option is likely to produce the
+            /// same bytes on-the-wire as the current one. We ignore superficial
+            /// differences such as type ID letters "case" and value quoting.
+            return option.tlvType() == current.tlvType() && option.format().specs == current.format().specs;
         });
-        if (it != parsedTlvs.end()) {
+        Assure(found != tlvOptions.end()); // we ought to find `current` (at least)
+        if (&(*found) != &current)
             throw TextException(ToSBuf("duplicate TLV option: ", key, "=", value), Here());
-        }
-        parsedTlvs.emplace_back(option->tlvType(), value);
-        tlvOptions.push_back(option.release());
     }
 }
 
