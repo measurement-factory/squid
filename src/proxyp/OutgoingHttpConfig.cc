@@ -222,8 +222,11 @@ ProxyProtocol::OutgoingHttpConfig::dump(std::ostream &os)
        AsList(tlvOptions).prefixedBy(separator).delimitedBy(separator);
     if (aclList) {
         // TODO: Use Acl::dump() after fixing the XXX in dump_acl_list().
-        for (const auto &acl: ToTree(aclList).treeDump("if", &Acl::AllowOrDeny))
-            os << separator << acl;
+        for (const auto &item: ToTree(aclList).treeDump("if", &Acl::AllowOrDeny)) {
+            if (item.cmp("\n") == 0) // treeDump() adds this suffix
+                continue;
+            os << separator << item;
+        }
     }
 }
 
