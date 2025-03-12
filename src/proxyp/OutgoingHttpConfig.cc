@@ -319,7 +319,7 @@ ProxyProtocol::OutgoingHttpConfig::parseTlvs(ConfigParser &parser)
         });
         Assure(found != tlvOptions.end()); // we ought to find `current` (at least)
         if (&(*found) != &current)
-            throw TextException(ToSBuf("duplicate TLV option: ", key, "=", value), Here());
+            throw TextException(ToSBuf("duplicate TLV option: ", current), Here());
     }
 }
 
