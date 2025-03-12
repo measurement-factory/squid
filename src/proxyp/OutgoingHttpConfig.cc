@@ -23,21 +23,20 @@
 #include "sbuf/Stream.h"
 #include "sbuf/StringConvert.h"
 
-ProxyProtocol::Option::Option(const char *aName, ConfigParser &parser)
-    : name_(aName), quoted_(false), value_(nullptr)
+ProxyProtocol::Option::Option(const char *aName, ConfigParser &parser):
+    name_(aName), value_(nullptr)
 {
     char *key = nullptr;
     char *value = nullptr;
     if(!parser.optionalKvPair(key, value))
         throw TextException(ToSBuf("missing ", name_, " option"), Here());
-    quoted_ = parser.LastTokenWasQuoted();
     if (name_.cmp(key) != 0)
         throw TextException(ToSBuf("expected ", name_, ", but got ", key, " option"), Here());
     parseFormat(value);
 }
 
-ProxyProtocol::Option::Option(const char *aName, const char *aValue, bool quoted)
-    : name_(aName), quoted_(quoted), value_(nullptr)
+ProxyProtocol::Option::Option(const char *aName, const char *aValue):
+    name_(aName), value_(nullptr)
 {
     parseFormat(aValue);
 }
@@ -51,16 +50,13 @@ void
 ProxyProtocol::Option::dump(std::ostream &os) const
 {
     os << name_ << '=';
-    auto buf = Format::Dash;
     if (value_) {
         SBufStream valueOs;
         value_->dumpDefinition(valueOs);
-        buf = valueOs.buf();
+        os << '"' << valueOs.buf() << '"';
+    } else {
+        os << Format::Dash;
     }
-    if (quoted_)
-        os << ConfigParser::QuoteString(SBufToString(buf));
-    else
-        os << buf;
 }
 
 void
@@ -162,7 +158,8 @@ ProxyProtocol::PortOption::port(const AccessLogEntryPointer &al) const
     }
 }
 
-ProxyProtocol::TlvOption::TlvOption(const char *aName, const char *aValue, const bool quoted) : Option(aName, aValue, quoted)
+ProxyProtocol::TlvOption::TlvOption(const char *aName, const char *aValue):
+    Option(aName, aValue)
 {
     const TlvType typeMin = 0xe0;
     const TlvType typeMax = 0xef;
@@ -308,7 +305,7 @@ ProxyProtocol::OutgoingHttpConfig::parseTlvs(ConfigParser &parser)
     char *key = nullptr;
     char *value = nullptr;
     while (parser.optionalKvPair(key, value)) {
-        const auto &current = tlvOptions.emplace_back(key, value, parser.LastTokenWasQuoted());
+        const auto &current = tlvOptions.emplace_back(key, value);
 
         // the number of configured TLV options should not preclude a simple linear search
         const auto found = std::find_if(tlvOptions.begin(), tlvOptions.end(), [&](const auto &option) {

@@ -29,7 +29,7 @@ class Option
 {
 public:
     Option(const char *aName, ConfigParser &);
-    Option(const char *aName, const char *aVal, bool quoted);
+    Option(const char *aName, const char *aVal);
     virtual ~Option(); // XXX: A waste because we never delete polymorphically.
     Option(Option &&) = delete;
 
@@ -40,10 +40,9 @@ public:
     void dump(std::ostream &) const;
 
     SBuf name_; ///< the option name
-    bool quoted_; ///< whether the option value is quoted
 
 protected:
-    /// \returns the value with expanded logformat %macros (quoted values)
+    /// applies logformat to the given transaction, expanding %codes as needed
     SBuf assembleValue(const AccessLogEntryPointer &al) const;
 
     Format::Format *value_; ///< compiled value format
@@ -97,7 +96,7 @@ public:
     using TlvType = uint8_t;
     using TlvValue = std::optional<SBuf>;
 
-    TlvOption(const char *aName, const char *aVal, bool quoted);
+    TlvOption(const char *aName, const char *aVal);
 
     TlvValue tlvValue(const AccessLogEntryPointer &al) const;
     TlvType tlvType() const { return tlvType_; }
