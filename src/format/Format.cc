@@ -113,6 +113,21 @@ Format::AssembleOne(const char *token, MemBuf &mb, const AccessLogEntryPointer &
     return static_cast<size_t>(tokenSize);
 }
 
+bool
+Format::Format::isConstant() const
+{
+    for (auto t = format; t; t = t->next) {
+        if (t->type != LFT_NONE &&
+                t->type != LFT_STRING &&
+                t->type != LFT_PERCENT &&
+                t->type != LFT_BYTE &&
+                t->type != LFT_TIME_LOCALTIME &&
+                t->type != LFT_TIME_GMT)
+            return true;
+    }
+    return false;
+}
+
 void
 Format::Format::dump(StoreEntry * entry, const char *directiveName, bool eol) const
 {
@@ -124,13 +139,28 @@ Format::Format::dump(StoreEntry * entry, const char *directiveName, bool eol) co
         if (directiveName)
             storeAppendPrintf(entry, "%s %s ", directiveName, fmt->name);
 
-        for (Token *t = fmt->format; t; t = t->next) {
-            if (t->type == LFT_STRING)
-                storeAppendPrintf(entry, "%s", t->data.string);
+        SBufStream os;
+        fmt->format->print(os);
+        const auto buf = os.buf();
+        if (buf.length())
+            entry->append(buf.rawContent(), buf.length());
+
+        if (eol)
+            entry->append("\n", 1);
+    }
+
+}
+
+// TODO: diff reducer: align and move to Token.cc
+void
+Format::Token::print(std::ostream &os)
+{
+    auto t = this;
+            if (type == LFT_STRING)
+                os << data.string;
             else {
                 char argbuf[256];
                 char *arg = nullptr;
-                ByteCode_t type = t->type;
 
                 switch (type) {
                 /* special cases */
@@ -232,28 +262,28 @@ Format::Format::dump(StoreEntry * entry, const char *directiveName, bool eol) co
                     break;
                 }
 
-                entry->append("%", 1);
+                os << '%';
 
                 switch (t->quote) {
 
                 case LOG_QUOTE_QUOTES:
-                    entry->append("\"", 1);
+                    os << '"';
                     break;
 
                 case LOG_QUOTE_MIMEBLOB:
-                    entry->append("[", 1);
+                    os << '[';
                     break;
 
                 case LOG_QUOTE_URL:
-                    entry->append("#", 1);
+                    os << '#';
                     break;
 
                 case LOG_QUOTE_RAW:
-                    entry->append("'", 1);
+                    os << "'";
                     break;
 
                 case LOG_QUOTE_SHELL:
-                    entry->append("/", 1);
+                    os << '/';
                     break;
 
                 case LOG_QUOTE_NONE:
@@ -261,31 +291,28 @@ Format::Format::dump(StoreEntry * entry, const char *directiveName, bool eol) co
                 }
 
                 if (t->left)
-                    entry->append("-", 1);
+                    os << '-';
 
                 if (t->zero)
-                    entry->append("0", 1);
+                    os << '0';
 
                 if (t->widthMin >= 0)
-                    storeAppendPrintf(entry, "%d", t->widthMin);
+                    os << widthMin;
 
                 if (t->widthMax >= 0)
-                    storeAppendPrintf(entry, ".%d", t->widthMax);
+                    os << '.' << widthMax;
 
                 if (arg)
-                    storeAppendPrintf(entry, "{%s}", arg);
+                    os << '{' << arg << '}';
 
-                storeAppendPrintf(entry, "%s", t->label);
+                os << label;
 
                 if (t->space)
-                    entry->append(" ", 1);
+                    os << ' ';
             }
-        }
 
-        if (eol)
-            entry->append("\n", 1);
-    }
-
+            if (next)
+                next->print(os);
 }
 
 static void

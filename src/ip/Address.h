@@ -320,6 +320,12 @@ public:
     /// \see isNoAddr() for more details
     static const Address &NoAddr() { static const Address noAddr(v6_noaddr); return noAddr; }
 
+    /// \returns an IPv4 Address with true isAnyAddr()
+    static const Address &AnyAddrIPv4();
+
+    /// \returns an IPv6 Address with true isAnyAddr()
+    static const Address &AnyAddrIPv6();
+
 public:
     /* XXX: When C => C++ conversion is done will be fully private.
      * Legacy Transition Methods.

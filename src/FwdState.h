@@ -174,9 +174,14 @@ private:
 
     void establishTunnelThruProxy(const Comm::ConnectionPointer &);
     void tunnelEstablishmentDone(Http::TunnelerAnswer &answer);
+    void resetProxyProtocolHeader();
+    void sendProxyProtoHeader(const Comm::ConnectionPointer &);
+    void tunnelIfNeeded(const Comm::ConnectionPointer &);
     void secureConnectionToPeerIfNeeded(const Comm::ConnectionPointer &);
     void secureConnectionToPeer(const Comm::ConnectionPointer &);
     void successfullyConnectedToPeer(const Comm::ConnectionPointer &);
+
+    void proxyProtocolHeaderSent(ProxyProtocolWriterAnswer &answer);
 
     /// stops monitoring server connection for closure and updates pconn stats
     void closeServerConnection(const char *reason);
@@ -202,6 +207,7 @@ public:
     StoreEntry *entry;
     HttpRequest *request;
     AccessLogEntryPointer al; ///< info for the future access.log entry
+    std::optional<SBuf> proxyProtocolHeader;
 
     /// called by Store if the entry is no longer usable
     static void HandleStoreAbort(FwdState *);
@@ -222,6 +228,9 @@ private:
 
     /// waits for a transport connection to the peer to be established/opened
     JobWait<HappyConnOpener> transportWait;
+
+    /// waits until the PROXY protocol header is sent to a cache_peer or server
+    JobWait<ProxyProtocolWriter> proxyProtocolWait;
 
     /// waits for the established transport connection to be secured/encrypted
     JobWait<Security::PeerConnector> encryptionWait;
