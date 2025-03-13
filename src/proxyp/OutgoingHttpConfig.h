@@ -84,7 +84,7 @@ public:
     Port port(const AccessLogEntryPointer &al) const;
 
 protected:
-    uint16_t parsePort(const SBuf &val) const;
+    Port parsePort(const SBuf &val) const;
 
     Port port_; ///< transaction-independent source or destination address port
 };

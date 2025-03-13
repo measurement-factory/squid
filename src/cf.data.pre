@@ -1829,19 +1829,19 @@ DOC_START
 	specific meaning to these field values.
 
 		* src_addr=logformat: "source layer 3 address". A logformat format
-		  specification evaluating to a constant IPv4 address (e.g.,
-		  "192.0.2.1"), a constant IPv6 address (e.g., "2001:db8::1"), or a
-		  single dash character (i.e. "-") signifying an unknown IP address.
-		  If the address is unknown, then Squid sends either INADDR_ANY or
+		  specification evaluating/expanding to an IPv4 address (e.g.,
+		  "192.0.2.1"), an IPv6 address (e.g., "2001:db8::1"), or a single
+		  dash character (i.e. "-") signifying an unknown IP address. If the
+		  address is unknown, then Squid sends either INADDR_ANY or
 		  IN6ADDR_ANY_INIT IP address value. See further below for details.
 
 		* dst_addr=logformat: "destination layer 3 address". See src_addr
 		  bullet above for value handling details.
 
 		* src_port=logformat: "source layer 4 address". A logformat format
-		  specification evaluating to a decimal number from [0,65535] range or
-		  a single dash character (i.e. "-") signifying an unknown port. If
-		  the port is unknown, Squid sends 0 port value.
+		  specification evaluating/expanding to a decimal number from
+		  [0,65535] range or a single dash character (i.e. "-") signifying an
+		  unknown port. If the port is unknown, Squid sends 0 port value.
 
 		* dst_port=logformat: "destination layer 4 address". See src_port
 		  bullet above for value handling details.

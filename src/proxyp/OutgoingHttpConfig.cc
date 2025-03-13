@@ -50,20 +50,21 @@ void
 ProxyProtocol::Option::dump(std::ostream &os) const
 {
     os << name_ << '=';
-    if (value_) {
-        SBufStream valueOs;
-        value_->dumpDefinition(valueOs);
-        os << '"' << valueOs.buf() << '"';
-    } else {
-        os << Format::Dash;
-    }
+    Assure(value_);
+    // for simplicity sake, we always quote the value
+    //
+    // XXX: If an admin did not use quotes but did use escape sequences valid
+    // inside quoted values (see ConfigParser::UnQuote()), then we may be
+    // misrepresenting actual configuration by quoting the value. TODO: Require
+    // quotes!
+    os << '"';
+    value_->dumpDefinition(os);
+    os << '"';
 }
 
 void
 ProxyProtocol::Option::parseFormat(const char *value)
 {
-    if (Format::Dash.cmp(value) == 0)
-        return;
     Assure(!value_);
     auto format = std::unique_ptr<Format::Format>(new Format::Format(name_.c_str()));
     if (!format->parse(value)) {
@@ -84,15 +85,19 @@ ProxyProtocol::Option::assembleValue(const AccessLogEntryPointer &al) const
 
 ProxyProtocol::AddrOption::AddrOption(const char *aName, ConfigParser &parser) : Option(aName, parser)
 {
-    if (value_ && !value_->isConstant()) {
+    Assure(value_);
+    if (!value_->isConstant()) {
         const auto formattedValue = assembleValue(AccessLogEntryPointer());
         address_ = parseAddr(formattedValue);
     }
 }
 
-std::optional<Ip::Address>
+ProxyProtocol::AddrOption::Addr
 ProxyProtocol::AddrOption::parseAddr(const SBuf &val) const
 {
+    if (val == Format::Dash)
+        return std::nullopt;
+
     const auto addr = Ip::Address::Parse(SBuf(val).c_str());
     if (!addr)
         throw TextException(ToSBuf("Cannot parse '", val, "' as ", name_), Here());
@@ -114,8 +119,6 @@ ProxyProtocol::AddrOption::address(const AccessLogEntryPointer &al) const
         return address_;
     try
     {
-        if (!value_)
-            return std::nullopt;
         const auto formattedValue = assembleValue(al);
         return parseAddr(formattedValue);
     } catch (...) {
@@ -125,15 +128,19 @@ ProxyProtocol::AddrOption::address(const AccessLogEntryPointer &al) const
 
 ProxyProtocol::PortOption::PortOption(const char *aName, ConfigParser &parser) : Option(aName, parser)
 {
-    if (value_ && !value_->isConstant()) {
+    Assure(value_);
+    if (!value_->isConstant()) {
         const auto formattedValue = assembleValue(AccessLogEntryPointer());
         port_ = parsePort(formattedValue);
     }
 }
 
-uint16_t
+ProxyProtocol::PortOption::Port
 ProxyProtocol::PortOption::parsePort(const SBuf &val) const
 {
+    if (val == Format::Dash)
+        return std::nullopt;
+
     Parser::Tokenizer tok(val);
     const auto portMax = std::numeric_limits<uint16_t>::max();
     int64_t p = -1;
@@ -149,8 +156,6 @@ ProxyProtocol::PortOption::port(const AccessLogEntryPointer &al) const
         return *port_;
     try
     {
-        if (!value_)
-            return std::nullopt;
         const auto formattedValue = assembleValue(al);
         return parsePort(formattedValue);
     } catch (...) {
@@ -170,8 +175,7 @@ ProxyProtocol::TlvOption::TlvOption(const char *aName, const char *aValue):
         throw TextException(ToSBuf("Expected tlv type as a decimal or hex number in the [0xE0, 0xEF] range but got ", name_), Here());
     tlvType_ = static_cast<TlvType>(t);
 
-    if (!value_)
-        tlvValue_ = Format::Dash;
+    Assure(value_);
     if (!value_->isConstant())
         tlvValue_ = assembleValue(AccessLogEntryPointer());
 }
