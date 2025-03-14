@@ -28,7 +28,6 @@ namespace ProxyProtocol {
 class Option
 {
 public:
-    Option(const char *aName, ConfigParser &);
     Option(const char *aName, const char *aVal);
     virtual ~Option(); // XXX: A waste because we never delete polymorphically.
     Option(Option &&) = delete;
@@ -65,7 +64,7 @@ class AddrOption : public Option
 public:
     using Addr = std::optional<Ip::Address>;
 
-    AddrOption(const char *aName, ConfigParser &);
+    AddrOption(const char *aName, const char *logformatSpecs);
 
     Addr address(const AccessLogEntryPointer &al) const;
     bool hasAddress() const { return address_.has_value(); }
@@ -83,7 +82,7 @@ class PortOption : public Option
 public:
     using Port = std::optional<uint16_t>;
 
-    PortOption(const char *aName, ConfigParser &);
+    PortOption(const char *aName, const char *logformatSpecs);
 
     Port port(const AccessLogEntryPointer &al) const;
 

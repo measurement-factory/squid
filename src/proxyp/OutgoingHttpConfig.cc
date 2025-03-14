@@ -23,18 +23,6 @@
 #include "sbuf/Stream.h"
 #include "sbuf/StringConvert.h"
 
-ProxyProtocol::Option::Option(const char * const name, ConfigParser &parser):
-    value_(nullptr)
-{
-    char *key = nullptr;
-    char *value = nullptr;
-    if(!parser.optionalKvPair(key, value))
-        throw TextException(ToSBuf("missing required ", name, " parameter"), Here());
-    if (strcmp(name, key) != 0)
-        throw TextException(ToSBuf("expected required ", name, " parameter, but got ", key), Here());
-    parseLogformat(key, value);
-}
-
 ProxyProtocol::Option::Option(const char * const name, const char * const logformat):
     value_(nullptr)
 {
@@ -100,7 +88,7 @@ ProxyProtocol::Option::assembleValue(const AccessLogEntryPointer &al) const
     return SBuf(mb.content());
 }
 
-ProxyProtocol::AddrOption::AddrOption(const char *aName, ConfigParser &parser) : Option(aName, parser)
+ProxyProtocol::AddrOption::AddrOption(const char * const aName, const char * const logformatSpecs) : Option(aName, logformatSpecs)
 {
     Assure(value_);
     if (!value_->isConstant()) {
@@ -135,7 +123,7 @@ ProxyProtocol::AddrOption::address(const AccessLogEntryPointer &al) const
     }
 }
 
-ProxyProtocol::PortOption::PortOption(const char *aName, ConfigParser &parser) : Option(aName, parser)
+ProxyProtocol::PortOption::PortOption(const char * const aName, const char * const logformatSpecs) : Option(aName, logformatSpecs)
 {
     Assure(value_);
     if (!value_->isConstant()) {
@@ -206,11 +194,28 @@ ProxyProtocol::TlvOption::tlvValue(const AccessLogEntryPointer &al) const
     }
 }
 
+namespace ProxyProtocol
+{
+/// XXX: Document
+template <class T>
+static T
+MakeRequiredOption(const char * const name, ConfigParser &parser)
+{
+    char *key = nullptr;
+    char *value = nullptr;
+    if(!parser.optionalKvPair(key, value))
+        throw TextException(ToSBuf("missing required ", name, " parameter"), Here());
+    if (strcmp(name, key) != 0)
+        throw TextException(ToSBuf("expected required ", name, " parameter, but got ", key), Here());
+    return T(name, value);
+}
+}
+
 ProxyProtocol::OutgoingHttpConfig::OutgoingHttpConfig(ConfigParser &parser):
-    srcAddr("src_addr", parser),
-    dstAddr("dst_addr", parser),
-    srcPort("src_port", parser),
-    dstPort("dst_port", parser)
+    srcAddr(MakeRequiredOption<AddrOption>("src_addr", parser)),
+    dstAddr(MakeRequiredOption<AddrOption>("dst_addr", parser)),
+    srcPort(MakeRequiredOption<PortOption>("src_port", parser)),
+    dstPort(MakeRequiredOption<PortOption>("dst_port", parser))
 {
     if (srcAddr.hasAddress() && dstAddr.hasAddress()) {
         Ip::Address adjustedSrc, adjustedDst;
