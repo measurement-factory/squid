@@ -33,23 +33,27 @@ public:
     virtual ~Option(); // XXX: A waste because we never delete polymorphically.
     Option(Option &&) = delete;
 
+    /// A "key" part of our "key=value" configuration. For options accepting
+    /// multiple `key` spelling variations, uses canonical spelling.
+    const char *name() const;
+
     /// compiled value specs
     const auto &format() const { return *value_; }
 
     /// reports configuration using squid.conf syntax
     void dump(std::ostream &) const;
 
-    SBuf name_; ///< the option name
-
 protected:
     /// applies logformat to the given transaction, expanding %codes as needed
     SBuf assembleValue(const AccessLogEntryPointer &al) const;
 
+    /// informs admin of a value assembling error
+    std::nullopt_t valueAssemblingFailure() const;
+
     Format::Format *value_; ///< compiled value format
 
 private:
-    /// parses the value as a logformat string
-    void parseFormat(const char *);
+    void parseLogformat(const char *name, const char *logformat);
 };
 
 /// \copydoc Option::dump()
