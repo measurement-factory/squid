@@ -14,6 +14,7 @@
 #include "helper/ChildConfig.h"
 #include "Parsing.h"
 #include "sbuf/SBuf.h"
+#include "tools.h"
 
 #include <cstring>
 
@@ -121,6 +122,11 @@ Helper::ChildConfig::parseConfig()
             self_destruct();
             return;
         }
+    }
+
+    if (n_startup && !IamWorkerProcess()) {
+        debugs(0, 2, "non-worker kid overwrites startup=" << n_startup << " with startup=0");
+        n_startup = 0;
     }
 
     /* simple sanity. */
