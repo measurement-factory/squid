@@ -23,27 +23,36 @@
 #include "sbuf/Stream.h"
 #include "sbuf/StringConvert.h"
 
-ProxyProtocol::Option::Option(const char * const name, const char * const logformat):
+template <typename T>
+ProxyProtocol::FieldConfig<T>::FieldConfig(const char * const name, const char * const logformat):
     value_(nullptr)
 {
     parseLogformat(name, logformat);
+    Assure(value_);
+    if (!value_->isConstant()) {
+        const auto assembledValue = assembleValue(AccessLogEntryPointer());
+        cacheValue(parseAssembledValue(assembledValue));
+    }
 }
 
-ProxyProtocol::Option::~Option()
+template <typename T>
+ProxyProtocol::FieldConfig<T>::~FieldConfig()
 {
     delete value_;
 }
 
+template <typename T>
 const char *
-ProxyProtocol::Option::name() const
+ProxyProtocol::FieldConfig<T>::name() const
 {
     Assure(value_);
     Assure(value_->name);
     return value_->name;
 }
 
+template <typename T>
 void
-ProxyProtocol::Option::dump(std::ostream &os) const
+ProxyProtocol::FieldConfig<T>::dump(std::ostream &os) const
 {
     Assure(value_);
     os << name() << '=';
@@ -59,8 +68,9 @@ ProxyProtocol::Option::dump(std::ostream &os) const
 }
 
 /// parses named logformat specification
+template <typename T>
 void
-ProxyProtocol::Option::parseLogformat(const char * const name, const char * const logformat)
+ProxyProtocol::FieldConfig<T>::parseLogformat(const char * const name, const char * const logformat)
 {
     Assure(!value_);
     auto format = std::unique_ptr<Format::Format>(new Format::Format(name));
@@ -70,16 +80,18 @@ ProxyProtocol::Option::parseLogformat(const char * const name, const char * cons
     value_ = format.release();
 }
 
+template <typename T>
 std::nullopt_t
-ProxyProtocol::Option::valueAssemblingFailure() const
+ProxyProtocol::FieldConfig<T>::valueAssemblingFailure() const
 {
     debugs(17, DBG_IMPORTANT, "WARNING: Failed to compute the value of http_outgoing_proxy_protocol " << name() << " parameter" <<
            Debug::Extra << "problem: " << CurrentException);
     return std::nullopt;
 }
 
+template <typename T>
 SBuf
-ProxyProtocol::Option::assembleValue(const AccessLogEntryPointer &al) const
+ProxyProtocol::FieldConfig<T>::assembleValue(const AccessLogEntryPointer &al) const
 {
     Assure(value_);
     static MemBuf mb;
@@ -88,17 +100,24 @@ ProxyProtocol::Option::assembleValue(const AccessLogEntryPointer &al) const
     return SBuf(mb.content());
 }
 
-ProxyProtocol::AddrOption::AddrOption(const char * const aName, const char * const logformatSpecs) : Option(aName, logformatSpecs)
+template <typename T>
+typename ProxyProtocol::FieldConfig<T>::Value
+ProxyProtocol::FieldConfig<T>::valueToSend(const AccessLogEntryPointer &al) const
 {
-    Assure(value_);
-    if (!value_->isConstant()) {
-        const auto formattedValue = assembleValue(AccessLogEntryPointer());
-        address_ = parseAddr(formattedValue);
+    if (cachedValue_)
+        return *cachedValue_;
+
+    try {
+        const auto assembledValue = assembleValue(al);
+        return parseAssembledValue(assembledValue);
+    } catch (...) {
+        return valueAssemblingFailure(); // XXX: Rename
     }
 }
 
-ProxyProtocol::AddrOption::Addr
-ProxyProtocol::AddrOption::parseAddr(const SBuf &val) const
+template <>
+ProxyProtocol::FieldConfig<Ip::Address>::Value
+ProxyProtocol::FieldConfig<Ip::Address>::parseAssembledValue(const SBuf &val) const
 {
     if (val == Format::Dash)
         return std::nullopt;
@@ -109,31 +128,9 @@ ProxyProtocol::AddrOption::parseAddr(const SBuf &val) const
     return addr;
 }
 
-ProxyProtocol::AddrOption::Addr
-ProxyProtocol::AddrOption::address(const AccessLogEntryPointer &al) const
-{
-    if(address_)
-        return address_;
-    try
-    {
-        const auto formattedValue = assembleValue(al);
-        return parseAddr(formattedValue);
-    } catch (...) {
-        return valueAssemblingFailure();
-    }
-}
-
-ProxyProtocol::PortOption::PortOption(const char * const aName, const char * const logformatSpecs) : Option(aName, logformatSpecs)
-{
-    Assure(value_);
-    if (!value_->isConstant()) {
-        const auto formattedValue = assembleValue(AccessLogEntryPointer());
-        port_ = parsePort(formattedValue);
-    }
-}
-
-ProxyProtocol::PortOption::Port
-ProxyProtocol::PortOption::parsePort(const SBuf &val) const
+template <>
+ProxyProtocol::FieldConfig<uint16_t>::Value
+ProxyProtocol::FieldConfig<uint16_t>::parseAssembledValue(const SBuf &val) const
 {
     if (val == Format::Dash)
         return std::nullopt;
@@ -146,59 +143,23 @@ ProxyProtocol::PortOption::parsePort(const SBuf &val) const
     return p;
 }
 
-ProxyProtocol::PortOption::Port
-ProxyProtocol::PortOption::port(const AccessLogEntryPointer &al) const
+template <>
+ProxyProtocol::FieldConfig<SBuf>::Value
+ProxyProtocol::FieldConfig<SBuf>::parseAssembledValue(const SBuf &val) const
 {
-    if(port_)
-        return *port_;
-    try
-    {
-        const auto formattedValue = assembleValue(al);
-        return parsePort(formattedValue);
-    } catch (...) {
-        return valueAssemblingFailure();
-    }
-}
+    // TLVs do not treat Format::Dash values specially
 
-ProxyProtocol::TlvOption::TlvOption(const char *aName, const char *aValue):
-    Option(aName, aValue)
-{
-    const TlvType typeMin = 0xe0;
-    const TlvType typeMax = 0xef;
-
-    int64_t t = -1;
-    auto tok = Parser::Tokenizer(SBuf(name())); // TODO: Convert Format::Format::name to SBuf
-    if (!tok.int64(t, 0, false) || (t < typeMin || t > typeMax))
-        throw TextException(ToSBuf("Expected tlv type as a decimal or hex number in the [0xE0, 0xEF] range but got ", name()), Here());
-    tlvType_ = static_cast<TlvType>(t);
-
-    Assure(value_);
-    if (!value_->isConstant())
-        tlvValue_ = assembleValue(AccessLogEntryPointer());
-}
-
-ProxyProtocol::TlvOption::TlvValue
-ProxyProtocol::TlvOption::tlvValue(const AccessLogEntryPointer &al) const
-{
-    if(tlvValue_)
-        return *tlvValue_;
-    try
-    {
-        const auto formatted = assembleValue(al);
-        const auto max = std::numeric_limits<uint16_t>::max();
-        if (formatted.length() > max)
-            throw TextException(ToSBuf("Expected tlv value size less than ", max, " but got ", formatted.length(), " bytes"), Here());
-        return TlvValue(assembleValue(al));
-    } catch (...) {
-        return valueAssemblingFailure();
-    }
+    const auto maxLength = std::numeric_limits<uint16_t>::max();
+    if (val.length() > maxLength)
+        throw TextException(ToSBuf("Expected a TLV value with length not exceeding ", maxLength, " but got ", val.length(), " bytes"), Here());
+    return val;
 }
 
 namespace ProxyProtocol
 {
 /// XXX: Document
-template <class T>
-static T
+template <typename Value>
+static FieldConfig<Value>
 MakeRequiredOption(const char * const name, ConfigParser &parser)
 {
     char *key = nullptr;
@@ -207,22 +168,24 @@ MakeRequiredOption(const char * const name, ConfigParser &parser)
         throw TextException(ToSBuf("missing required ", name, " parameter"), Here());
     if (strcmp(name, key) != 0)
         throw TextException(ToSBuf("expected required ", name, " parameter, but got ", key), Here());
-    return T(name, value);
+    return FieldConfig<Value>(name, value);
 }
 }
 
 ProxyProtocol::OutgoingHttpConfig::OutgoingHttpConfig(ConfigParser &parser):
-    srcAddr(MakeRequiredOption<AddrOption>("src_addr", parser)),
-    dstAddr(MakeRequiredOption<AddrOption>("dst_addr", parser)),
-    srcPort(MakeRequiredOption<PortOption>("src_port", parser)),
-    dstPort(MakeRequiredOption<PortOption>("dst_port", parser))
+    srcAddr(MakeRequiredOption<Ip::Address>("src_addr", parser)),
+    dstAddr(MakeRequiredOption<Ip::Address>("dst_addr", parser)),
+    srcPort(MakeRequiredOption<uint16_t>("src_port", parser)),
+    dstPort(MakeRequiredOption<uint16_t>("dst_port", parser))
 {
-    if (srcAddr.hasAddress() && dstAddr.hasAddress()) {
-        Ip::Address adjustedSrc, adjustedDst;
-        if (const auto err = adjustAddresses(adjustedSrc, adjustedDst, AccessLogEntryPointer()))
+    auto s = srcAddr.cachedValue();
+    auto d = dstAddr.cachedValue();
+    if (s && d) {
+        if (const auto err = adjustAddresses(*s, *d))
             throw TextException(*err, Here());
-        srcAddr.setAddress(adjustedSrc);
-        dstAddr.setAddress(adjustedDst);
+        // update cache using _adjusted_ values; they will never change
+        srcAddr.cacheValue(*s);
+        dstAddr.cacheValue(*d);
     }
 
     parseTlvs(parser);
@@ -255,18 +218,26 @@ ProxyProtocol::OutgoingHttpConfig::fill(ProxyProtocol::Header &header, const Acc
 void
 ProxyProtocol::OutgoingHttpConfig::fillAddresses(Ip::Address &src, Ip::Address &dst, const AccessLogEntryPointer &al)
 {
-    if (const auto err = adjustAddresses(src,dst, al))
+    auto s = srcAddr.valueToSend(al);
+    auto d = dstAddr.valueToSend(al);
+    if (const auto err = adjustAddresses(s, d))
         debugs(17, DBG_IMPORTANT, *err);
-    src.port(srcPort.port(al).value_or(0));
-    dst.port(dstPort.port(al).value_or(0));
+
+    src = s.value();
+    dst = d.value();
+    src.port(srcPort.valueToSend(al).value_or(0));
+    dst.port(dstPort.valueToSend(al).value_or(0));
 }
 
 void
 ProxyProtocol::OutgoingHttpConfig::fillTlvs(Tlvs &tlvs, const AccessLogEntryPointer &al) const
 {
     for (const auto &t : tlvOptions) {
-        if (const auto v = t.tlvValue(al))
-            tlvs.emplace_back(t.tlvType(), *v);
+        const auto type = strtol(t.name(), nullptr, 0);
+        Assure(type >= std::numeric_limits<Two::Tlv::value_type>::min());
+        Assure(type <= std::numeric_limits<Two::Tlv::value_type>::max());
+        const auto v = t.valueToSend(al);
+        tlvs.emplace_back(type, v.value_or(Format::Dash));
     }
 }
 
@@ -274,47 +245,51 @@ ProxyProtocol::OutgoingHttpConfig::fillTlvs(Tlvs &tlvs, const AccessLogEntryPoin
 /// addresses with mismatching families) into a pair of addresses with matching families.
 /// \returns an error message if encountered a mismatching address family, or nullopt
 std::optional<SBuf>
-ProxyProtocol::OutgoingHttpConfig::adjustAddresses(Ip::Address &adjustedSrc, Ip::Address &adjustedDst, const AccessLogEntryPointer &al)
+ProxyProtocol::OutgoingHttpConfig::adjustAddresses(std::optional<Ip::Address> &s, std::optional<Ip::Address> &d)
 {
-    auto src = srcAddr.address(al);
-    auto dst = dstAddr.address(al);
+    // TODO: Find a way to reduce code duplication inside this method
 
-    // source and/or destination are unknown
-    // either configured as "-" or could not parse format codes
-    if (!src && !dst) {
-        // IPv4 by default
-        adjustedSrc = Ip::Address::AnyAddrIPv4();
-        adjustedDst = Ip::Address::AnyAddrIPv4();
+    if (!s && !d) {
+        // source and destination are unknown: default to IPv4
+        s = d = Ip::Address::AnyAddrIPv4();
         return std::nullopt;
-    } else if (!src) {
-        adjustedSrc = dst->isIPv4() ? Ip::Address::AnyAddrIPv4() : Ip::Address::AnyAddrIPv6();
-        adjustedDst = *dst;
+    } else if (!s) {
+        // only source is unknown: use known destination address family
+        s = d->isIPv4() ? Ip::Address::AnyAddrIPv4() : Ip::Address::AnyAddrIPv6();
         return std::nullopt;
-    } else if (!dst) {
-        adjustedSrc = *src;
-        adjustedDst = src->isIPv4() ? Ip::Address::AnyAddrIPv4() : Ip::Address::AnyAddrIPv6();
+    } else if (!d) {
+        // only destination is unknown: use known source address family
+        d = s->isIPv4() ? Ip::Address::AnyAddrIPv4() : Ip::Address::AnyAddrIPv6();
         return std::nullopt;
     }
 
     // source and destination are known
-
-    // source and destination have the same address family
-    if (src->isIPv4() == dst->isIPv4()) {
-        adjustedSrc = *src;
-        adjustedDst = *dst;
+    Assure(s && d);
+    if (s->isIPv4() == d->isIPv4()) {
+        // source and destination have the same address family
         return std::nullopt;
     }
 
-    // source and destination have different address family
-    if (src->isAnyAddr() && !dst->isAnyAddr()) {
-        adjustedSrc = dst->isIPv4() ? Ip::Address::AnyAddrIPv4() : Ip::Address::AnyAddrIPv6();
-        adjustedDst = *dst;
+    // Known source and destination have different address families. We must
+    // overwrite one of the addresses. Avoid overwriting a specific address (if
+    // possible) or preserve specific source address (otherwise).
+    if (d->isAnyAddr()) {
+        // * specific source address and "any" destination
+        // * "any" source address and "any" destination
+        d = s->isIPv4() ? Ip::Address::AnyAddrIPv4() : Ip::Address::AnyAddrIPv6();
+        return std::nullopt;
+    } else if (s->isAnyAddr()) {
+        // * "any" source address and specific destination
+        s = d->isIPv4() ? Ip::Address::AnyAddrIPv4() : Ip::Address::AnyAddrIPv6();
+        return std::nullopt;
     } else {
-        adjustedSrc = *src;
-        adjustedDst = src->isIPv4() ? Ip::Address::AnyAddrIPv4() : Ip::Address::AnyAddrIPv6();
+        // * specific source address and specific destination
+        const auto originalDestination = *d;
+        d = s->isIPv4() ? Ip::Address::AnyAddrIPv4() : Ip::Address::AnyAddrIPv6();
+        return ToSBuf("Address family mismatch: ",
+                      srcAddr, " (expanded as ", *s, ") vs. ",
+                      dstAddr, " (expanded as ", originalDestination, ")");
     }
-
-    return ToSBuf("Address family mismatch: ", srcAddr.name(), "(", *src, ") vs. ", dstAddr.name(), "(", *dst, ")");
 }
 
 void
@@ -325,12 +300,24 @@ ProxyProtocol::OutgoingHttpConfig::parseTlvs(ConfigParser &parser)
     while (parser.optionalKvPair(key, value)) {
         const auto &current = tlvOptions.emplace_back(key, value);
 
+        // validate TLV "type" spelling
+        const auto typeMin = 0xE0;
+        const auto typeMax = 0xEF;
+        int64_t t = -1;
+        auto tok = Parser::Tokenizer(SBuf(current.name())); // TODO: Convert Format::Format::name to SBuf
+        // XXX: "0" does not mean "decimal or hex"
+        if (!tok.int64(t, 0, false) || (t < typeMin || t > typeMax))
+            throw TextException(ToSBuf("Expected TLV type as a decimal or hex number in the [0xE0, 0xEF] range but got ", current.name()), Here());
+        // We use strtol() at runtime to avoid expensive to-SBuf conversion
+        // above. TODO: Consider caching parsed value.
+        Assure(t == strtol(current.name(), nullptr, 0));
+
         // the number of configured TLV options should not preclude a simple linear search
         const auto found = std::find_if(tlvOptions.begin(), tlvOptions.end(), [&](const auto &option) {
             /// Whether the previously parsed option is likely to produce the
             /// same bytes on-the-wire as the current one. We ignore superficial
             /// differences such as type ID letters "case" and value quoting.
-            return option.tlvType() == current.tlvType() && option.format().specs == current.format().specs;
+            return strcasecmp(option.name(), current.name()) == 0 && option.format().specs == current.format().specs;
         });
         Assure(found != tlvOptions.end()); // we ought to find `current` (at least)
         if (&(*found) != &current)

@@ -1868,13 +1868,21 @@ DOC_START
 	PROXY protocol header structure requires src_addr and dst_addr IP families
 	to match. In Squid context, that requirement means that either both
 	addresses are IPv4 or both are IPv6 addresses. Squid finalizes unknown
-	(i.e. "-") addresses and/or overwrites dst_addr value to satisfy that
-	requirement. When doing so, Squid preserves known IP address (where
-	possible) by using INADDR_ANY (if the preserved address comes from IPv4
-	family) or IN6ADDR_ANY_INIT (otherwise) for the overwritten address. If
-	both mismatching addresses are known, Squid preserves src_addr and
-	overwrites dst_addr. If Squid has to overwrite a known dst_addr, it logs a
-	level-1 ERROR.
+	(i.e. "-") addresses and/or overwrites one of the known addresses to
+	satisfy that requirement:
+
+	* Squid uses two "any" addresses in IPv4 family (i.e. INADDR_ANY) if both
+	  src_addr and dst_addr address are unknown.
+	* Squid preserves a single known IP address by using "any" for the
+	  overwritten unknown address (i.e. using INADDR_ANY if the preserved
+	  address comes from IPv4 family and using IN6ADDR_ANY_INIT otherwise).
+	* Squid preserves a single specific IP address by changing the family of
+	  the overwritten "any" address.
+	* Squid preserves src_addr and overwrites dst_addr in other cases.
+
+	If Squid has to overwrite a specific dst_addr, it logs a level-1 ERROR. No
+	level-1 messages are logged when overwriting unknown, INADDR_ANY, and
+	IN6ADDR_ANY_INIT addresses.
 
 	When Squid has to overwrite a src_addr or dst_addr field value as
 	described above, it preserves configured src_port and dst_port values.

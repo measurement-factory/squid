@@ -1,2 +1,2 @@
-expect-failure ERROR:.configuration.failure:.Address.family.mismatch
+expect-failure ERROR:.configuration.failure:.*Address.family.mismatch.*127.0.0.1.*::1
 

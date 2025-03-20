@@ -24,13 +24,19 @@ class ConfigParser;
 
 namespace ProxyProtocol {
 
-/// a name=value option for the http_outgoing_proxy_protocol directive
-class Option
+/// A name=value parameter of an http_outgoing_proxy_protocol directive
+/// configuring a PROXY protocol header field (pseudo header or TLV).
+/// \tparam T determines the type of a successfully parsed header field value
+template <typename T>
+class FieldConfig final
 {
 public:
-    Option(const char *aName, const char *aVal);
-    virtual ~Option(); // XXX: A waste because we never delete polymorphically.
-    Option(Option &&) = delete;
+    /// a PROXY protocol header field value (when known) or nil (otherwise)
+    using Value = std::optional<T>;
+
+    FieldConfig(const char *aName, const char *logformatSpecs);
+    ~FieldConfig();
+    FieldConfig(FieldConfig &&) = delete;
 
     /// A "key" part of our "key=value" configuration. For options accepting
     /// multiple `key` spelling variations, uses canonical spelling.
@@ -39,75 +45,43 @@ public:
     /// compiled value specs
     const auto &format() const { return *value_; }
 
+    /// Raw PROXY protocol header field value for the given transaction. Since
+    /// PROXY protocol header fields must satisfy certain relationships,
+    /// individual values returned by this method may need further adjustments.
+    /// \sa OutgoingHttpConfig::adjustAddresses()
+    Value valueToSend(const AccessLogEntryPointer &al) const;
+
+    /// known-in-advance valueToSend() result (or nil)
+    const auto &cachedValue() const { return cachedValue_; }
+
+    /// (re)set valueToSend() result to a known value
+    void cacheValue(const Value &v) { cachedValue_ = v; }
+
     /// reports configuration using squid.conf syntax
     void dump(std::ostream &) const;
 
-protected:
+private:
+
+    void parseLogformat(const char *name, const char *logformat);
+
     /// applies logformat to the given transaction, expanding %codes as needed
     SBuf assembleValue(const AccessLogEntryPointer &al) const;
+
+    /// converts given logformat-printed (by assembleValue()) string to Value
+    Value parseAssembledValue(const SBuf &) const;
 
     /// informs admin of a value assembling error
     std::nullopt_t valueAssemblingFailure() const;
 
     Format::Format *value_; ///< compiled value format
 
-private:
-    void parseLogformat(const char *name, const char *logformat);
+    /// stored parseAssembledValue() result for constant value_ (or nil)
+    std::optional<Value> cachedValue_;
 };
 
-/// \copydoc Option::dump()
-inline auto &operator <<(std::ostream &os, const Option &o) { o.dump(os); return os; }
-
-/// an address option for http_outgoing_proxy_protocol directive
-class AddrOption : public Option
-{
-public:
-    using Addr = std::optional<Ip::Address>;
-
-    AddrOption(const char *aName, const char *logformatSpecs);
-
-    Addr address(const AccessLogEntryPointer &al) const;
-    bool hasAddress() const { return address_.has_value(); }
-    void setAddress(const Ip::Address &addr) { address_ = addr; }
-
-protected:
-    std::optional<Ip::Address> parseAddr(const SBuf &) const;
-
-    Addr address_; ///< transaction-independent source or destination address
-};
-
-/// a port option for http_outgoing_proxy_protocol directive
-class PortOption : public Option
-{
-public:
-    using Port = std::optional<uint16_t>;
-
-    PortOption(const char *aName, const char *logformatSpecs);
-
-    Port port(const AccessLogEntryPointer &al) const;
-
-protected:
-    Port parsePort(const SBuf &val) const;
-
-    Port port_; ///< transaction-independent source or destination address port
-};
-
-/// a TLV option for http_outgoing_proxy_protocol directive
-class TlvOption : public Option
-{
-public:
-    using TlvType = uint8_t;
-    using TlvValue = std::optional<SBuf>;
-
-    TlvOption(const char *aName, const char *aVal);
-
-    TlvValue tlvValue(const AccessLogEntryPointer &al) const;
-    TlvType tlvType() const { return tlvType_; }
-
-protected:
-    TlvType tlvType_;
-    TlvValue tlvValue_; ///< transaction-independent TLV value
-};
+/// \copydoc FieldConfig::dump(); TODO: Adjust if Doxygen cannot find this reference
+template <typename T>
+inline auto &operator <<(std::ostream &os, const FieldConfig<T> &o) { o.dump(os); return os; }
 
 /// an http_outgoing_proxy_protocol directive configuration
 class OutgoingHttpConfig
@@ -129,16 +103,15 @@ private:
     void fillAddresses(Ip::Address &src, Ip::Address &dst, const AccessLogEntryPointer &);
     void fillTlvs(Tlvs &, const AccessLogEntryPointer &) const;
 
-    void parseAddress(const char *optionName);
     void parsePort(const char *optionName);
-    std::optional<SBuf> adjustAddresses(Ip::Address &adjustedSrc, Ip::Address &adjustedDst, const AccessLogEntryPointer &al);
+    std::optional<SBuf> adjustAddresses(std::optional<Ip::Address> &source, std::optional<Ip::Address> &destination);
 
-    AddrOption srcAddr;
-    AddrOption dstAddr;
-    PortOption srcPort;
-    PortOption dstPort;
+    FieldConfig<Ip::Address> srcAddr;
+    FieldConfig<Ip::Address> dstAddr;
+    FieldConfig<uint16_t> srcPort;
+    FieldConfig<uint16_t> dstPort;
 
-    using TlvOptions = std::list<TlvOption>;
+    using TlvOptions = std::list< FieldConfig<SBuf> >;
     TlvOptions tlvOptions; // the list TLVs
 };
 
