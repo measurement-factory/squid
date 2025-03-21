@@ -38,8 +38,7 @@ public:
     ~FieldConfig();
     FieldConfig(FieldConfig &&) = delete;
 
-    /// A "key" part of our "key=value" configuration. For options accepting
-    /// multiple `key` spelling variations, uses canonical spelling.
+    /// the "key" part of our "key=value" configuration
     const char *name() const;
 
     /// compiled value specs
@@ -103,7 +102,6 @@ private:
     void fillAddresses(Ip::Address &src, Ip::Address &dst, const AccessLogEntryPointer &);
     void fillTlvs(Tlvs &, const AccessLogEntryPointer &) const;
 
-    void parsePort(const char *optionName);
     std::optional<SBuf> adjustAddresses(std::optional<Ip::Address> &source, std::optional<Ip::Address> &destination);
 
     FieldConfig<Ip::Address> srcAddr;
@@ -111,8 +109,8 @@ private:
     FieldConfig<uint16_t> srcPort;
     FieldConfig<uint16_t> dstPort;
 
-    using TlvOptions = std::list< FieldConfig<SBuf> >;
-    TlvOptions tlvOptions; // the list TLVs
+    using TlvConfigs = std::list< FieldConfig<SBuf> >;
+    TlvConfigs tlvConfigs; ///< configuration for generating TLV header fields
 };
 
 } // namespace ProxyProtocol

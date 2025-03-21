@@ -160,7 +160,7 @@ namespace ProxyProtocol
 /// XXX: Document
 template <typename Value>
 static FieldConfig<Value>
-MakeRequiredOption(const char * const name, ConfigParser &parser)
+MakeRequiredField(const char * const name, ConfigParser &parser)
 {
     char *key = nullptr;
     char *value = nullptr;
@@ -173,10 +173,10 @@ MakeRequiredOption(const char * const name, ConfigParser &parser)
 }
 
 ProxyProtocol::OutgoingHttpConfig::OutgoingHttpConfig(ConfigParser &parser):
-    srcAddr(MakeRequiredOption<Ip::Address>("src_addr", parser)),
-    dstAddr(MakeRequiredOption<Ip::Address>("dst_addr", parser)),
-    srcPort(MakeRequiredOption<uint16_t>("src_port", parser)),
-    dstPort(MakeRequiredOption<uint16_t>("dst_port", parser))
+    srcAddr(MakeRequiredField<Ip::Address>("src_addr", parser)),
+    dstAddr(MakeRequiredField<Ip::Address>("dst_addr", parser)),
+    srcPort(MakeRequiredField<uint16_t>("src_port", parser)),
+    dstPort(MakeRequiredField<uint16_t>("dst_port", parser))
 {
     auto s = srcAddr.cachedValue();
     auto d = dstAddr.cachedValue();
@@ -197,7 +197,7 @@ ProxyProtocol::OutgoingHttpConfig::dump(std::ostream &os)
 {
     const auto separator = " ";
     os << srcAddr << separator << dstAddr << separator << srcPort << separator << dstPort <<
-       AsList(tlvOptions).prefixedBy(separator).delimitedBy(separator);
+       AsList(tlvConfigs).prefixedBy(separator).delimitedBy(separator);
     if (aclList) {
         // TODO: Use Acl::dump() after fixing the XXX in dump_acl_list().
         for (const auto &item: ToTree(aclList).treeDump("if", &Acl::AllowOrDeny)) {
@@ -232,7 +232,7 @@ ProxyProtocol::OutgoingHttpConfig::fillAddresses(Ip::Address &src, Ip::Address &
 void
 ProxyProtocol::OutgoingHttpConfig::fillTlvs(Tlvs &tlvs, const AccessLogEntryPointer &al) const
 {
-    for (const auto &t : tlvOptions) {
+    for (const auto &t: tlvConfigs) {
         const auto type = strtol(t.name(), nullptr, 0);
         Assure(type >= std::numeric_limits<Two::Tlv::value_type>::min());
         Assure(type <= std::numeric_limits<Two::Tlv::value_type>::max());
@@ -298,7 +298,7 @@ ProxyProtocol::OutgoingHttpConfig::parseTlvs(ConfigParser &parser)
     char *key = nullptr;
     char *value = nullptr;
     while (parser.optionalKvPair(key, value)) {
-        const auto &current = tlvOptions.emplace_back(key, value);
+        const auto &current = tlvConfigs.emplace_back(key, value);
 
         // validate TLV "type" spelling
         const auto typeMin = 0xE0;
@@ -312,16 +312,16 @@ ProxyProtocol::OutgoingHttpConfig::parseTlvs(ConfigParser &parser)
         // above. TODO: Consider caching parsed value.
         Assure(t == strtol(current.name(), nullptr, 0));
 
-        // the number of configured TLV options should not preclude a simple linear search
-        const auto found = std::find_if(tlvOptions.begin(), tlvOptions.end(), [&](const auto &option) {
-            /// Whether the previously parsed option is likely to produce the
+        // the number of configured TLVs should not preclude a simple linear search
+        const auto found = std::find_if(tlvConfigs.begin(), tlvConfigs.end(), [&](const auto &tlvConfig) {
+            /// Whether previously parsed tlvConfig is likely to produce the
             /// same bytes on-the-wire as the current one. We ignore superficial
             /// differences such as type ID letters "case" and value quoting.
-            return strcasecmp(option.name(), current.name()) == 0 && option.format().specs == current.format().specs;
+            return strcasecmp(tlvConfig.name(), current.name()) == 0 && tlvConfig.format().specs == current.format().specs;
         });
-        Assure(found != tlvOptions.end()); // we ought to find `current` (at least)
+        Assure(found != tlvConfigs.end()); // we ought to find `current` (at least)
         if (&(*found) != &current)
-            throw TextException(ToSBuf("duplicate TLV option: ", current), Here());
+            throw TextException(ToSBuf("duplicate TLV specs: ", current), Here());
     }
 }
 
