@@ -954,8 +954,7 @@ FwdState::sendProxyProtoHeader(const Comm::ConnectionPointer &conn)
     Assure(proxyProtocolHeader);
 
     const auto callback = asyncCallback(17, 4, FwdState::proxyProtocolHeaderSent, this);
-    HttpRequest::Pointer requestPointer = request;
-    const auto proxyProtocolWriter = new ProxyProtocolWriter(*proxyProtocolHeader, conn, requestPointer, callback, al);
+    const auto proxyProtocolWriter = new ProxyProtocolWriter(*proxyProtocolHeader, conn, request, callback, al);
 
     // TODO: Replace this hack with proper Comm::Connection-Pool association
     // that is not tied to fwdPconnPool and can handle disappearing pools.

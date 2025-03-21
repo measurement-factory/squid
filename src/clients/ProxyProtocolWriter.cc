@@ -47,7 +47,8 @@ ProxyProtocolWriter::doneAll() const
     return !callback || headerWritten;
 }
 
-void ProxyProtocolWriter::start()
+void
+ProxyProtocolWriter::start()
 {
     AsyncJob::start();
 

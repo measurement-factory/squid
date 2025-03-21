@@ -7,7 +7,6 @@
  */
 
 #include "squid.h"
-
 #include "acl/FilledChecklist.h"
 #include "acl/Gadgets.h"
 #include "acl/Tree.h"
@@ -24,13 +23,12 @@
 #include "sbuf/StringConvert.h"
 
 template <typename T>
-ProxyProtocol::FieldConfig<T>::FieldConfig(const char * const name, const char * const logformat):
-    value_(nullptr)
+ProxyProtocol::FieldConfig<T>::FieldConfig(const char * const name, const char * const logformat)
 {
     parseLogformat(name, logformat);
-    Assure(value_);
-    if (!value_->isConstant()) {
-        const auto assembledValue = assembleValue(AccessLogEntryPointer());
+    Assure(format_);
+    if (format_->isStatic()) {
+        const auto assembledValue = assembleValue(nullptr);
         cacheValue(parseAssembledValue(assembledValue));
     }
 }
@@ -38,23 +36,23 @@ ProxyProtocol::FieldConfig<T>::FieldConfig(const char * const name, const char *
 template <typename T>
 ProxyProtocol::FieldConfig<T>::~FieldConfig()
 {
-    delete value_;
+    delete format_;
 }
 
 template <typename T>
 const char *
 ProxyProtocol::FieldConfig<T>::name() const
 {
-    Assure(value_);
-    Assure(value_->name);
-    return value_->name;
+    Assure(format_);
+    Assure(format_->name);
+    return format_->name;
 }
 
 template <typename T>
 void
 ProxyProtocol::FieldConfig<T>::dump(std::ostream &os) const
 {
-    Assure(value_);
+    Assure(format_);
     os << name() << '=';
     // for simplicity sake, we always quote the value
     //
@@ -63,7 +61,7 @@ ProxyProtocol::FieldConfig<T>::dump(std::ostream &os) const
     // misrepresenting actual configuration by quoting the value. TODO: Require
     // quotes!
     os << '"';
-    value_->dumpDefinition(os);
+    format_->dumpDefinition(os);
     os << '"';
 }
 
@@ -72,37 +70,29 @@ template <typename T>
 void
 ProxyProtocol::FieldConfig<T>::parseLogformat(const char * const name, const char * const logformat)
 {
-    Assure(!value_);
+    Assure(!format_);
     auto format = std::unique_ptr<Format::Format>(new Format::Format(name));
     if (!format->parse(logformat)) {
         throw TextException(ToSBuf("failed to parse logformat specs: ", logformat), Here());
     }
-    value_ = format.release();
+    format_ = format.release();
 }
 
-template <typename T>
-std::nullopt_t
-ProxyProtocol::FieldConfig<T>::valueAssemblingFailure() const
-{
-    debugs(17, DBG_IMPORTANT, "WARNING: Failed to compute the value of http_outgoing_proxy_protocol " << name() << " parameter" <<
-           Debug::Extra << "problem: " << CurrentException);
-    return std::nullopt;
-}
-
+/// applies logformat to the given transaction, expanding %codes as needed
 template <typename T>
 SBuf
 ProxyProtocol::FieldConfig<T>::assembleValue(const AccessLogEntryPointer &al) const
 {
-    Assure(value_);
+    Assure(format_);
     static MemBuf mb;
     mb.reset();
-    value_->assemble(mb, al, 0);
+    format_->assemble(mb, al, 0);
     return SBuf(mb.content());
 }
 
 template <typename T>
 typename ProxyProtocol::FieldConfig<T>::Value
-ProxyProtocol::FieldConfig<T>::valueToSend(const AccessLogEntryPointer &al) const
+ProxyProtocol::FieldConfig<T>::makeValue(const AccessLogEntryPointer &al) const
 {
     if (cachedValue_)
         return *cachedValue_;
@@ -111,7 +101,9 @@ ProxyProtocol::FieldConfig<T>::valueToSend(const AccessLogEntryPointer &al) cons
         const auto assembledValue = assembleValue(al);
         return parseAssembledValue(assembledValue);
     } catch (...) {
-        return valueAssemblingFailure(); // XXX: Rename
+        debugs(17, DBG_IMPORTANT, "WARNING: Failed to compute the value of http_outgoing_proxy_protocol " << name() << " parameter" <<
+               Debug::Extra << "problem: " << CurrentException);
+        return std::nullopt;
     }
 }
 
@@ -157,35 +149,37 @@ ProxyProtocol::FieldConfig<SBuf>::parseAssembledValue(const SBuf &val) const
 
 namespace ProxyProtocol
 {
-/// XXX: Document
+
+/// OutgoingHttpConfig member initialization helper for required name=value fields
 template <typename Value>
 static FieldConfig<Value>
 MakeRequiredField(const char * const name, ConfigParser &parser)
 {
     char *key = nullptr;
     char *value = nullptr;
-    if(!parser.optionalKvPair(key, value))
+    if (!parser.optionalKvPair(key, value))
         throw TextException(ToSBuf("missing required ", name, " parameter"), Here());
     if (strcmp(name, key) != 0)
         throw TextException(ToSBuf("expected required ", name, " parameter, but got ", key), Here());
     return FieldConfig<Value>(name, value);
 }
-}
+
+} // namespace ProxyProtocol
 
 ProxyProtocol::OutgoingHttpConfig::OutgoingHttpConfig(ConfigParser &parser):
-    srcAddr(MakeRequiredField<Ip::Address>("src_addr", parser)),
-    dstAddr(MakeRequiredField<Ip::Address>("dst_addr", parser)),
-    srcPort(MakeRequiredField<uint16_t>("src_port", parser)),
-    dstPort(MakeRequiredField<uint16_t>("dst_port", parser))
+    sourceIp(MakeRequiredField<Ip::Address>("src_addr", parser)),
+    destinationIp(MakeRequiredField<Ip::Address>("dst_addr", parser)),
+    sourcePort(MakeRequiredField<uint16_t>("src_port", parser)),
+    destinationPort(MakeRequiredField<uint16_t>("dst_port", parser))
 {
-    auto s = srcAddr.cachedValue();
-    auto d = dstAddr.cachedValue();
+    auto s = sourceIp.cachedValue();
+    auto d = destinationIp.cachedValue();
     if (s && d) {
-        if (const auto err = adjustAddresses(*s, *d))
+        if (const auto err = adjustIps(*s, *d))
             throw TextException(*err, Here());
         // update cache using _adjusted_ values; they will never change
-        srcAddr.cacheValue(*s);
-        dstAddr.cacheValue(*d);
+        sourceIp.cacheValue(*s);
+        destinationIp.cacheValue(*d);
     }
 
     parseTlvs(parser);
@@ -196,8 +190,8 @@ void
 ProxyProtocol::OutgoingHttpConfig::dump(std::ostream &os)
 {
     const auto separator = " ";
-    os << srcAddr << separator << dstAddr << separator << srcPort << separator << dstPort <<
-       AsList(tlvConfigs).prefixedBy(separator).delimitedBy(separator);
+    os << sourceIp << separator << destinationIp << separator << sourcePort << separator << destinationPort <<
+       AsList(tlvs).prefixedBy(separator).delimitedBy(separator);
     if (aclList) {
         // TODO: Use Acl::dump() after fixing the XXX in dump_acl_list().
         for (const auto &item: ToTree(aclList).treeDump("if", &Acl::AllowOrDeny)) {
@@ -211,33 +205,22 @@ ProxyProtocol::OutgoingHttpConfig::dump(std::ostream &os)
 void
 ProxyProtocol::OutgoingHttpConfig::fill(ProxyProtocol::Header &header, const AccessLogEntryPointer &al)
 {
-    fillAddresses(header.sourceAddress, header.destinationAddress, al);
-    fillTlvs(header.tlvs, al);
-}
-
-void
-ProxyProtocol::OutgoingHttpConfig::fillAddresses(Ip::Address &src, Ip::Address &dst, const AccessLogEntryPointer &al)
-{
-    auto s = srcAddr.valueToSend(al);
-    auto d = dstAddr.valueToSend(al);
-    if (const auto err = adjustAddresses(s, d))
+    auto s = sourceIp.makeValue(al);
+    auto d = destinationIp.makeValue(al);
+    if (const auto err = adjustIps(s, d))
         debugs(17, DBG_IMPORTANT, *err);
+    header.sourceAddress = s.value();
+    header.destinationAddress = d.value();
 
-    src = s.value();
-    dst = d.value();
-    src.port(srcPort.valueToSend(al).value_or(0));
-    dst.port(dstPort.valueToSend(al).value_or(0));
-}
+    header.sourceAddress.port(sourcePort.makeValue(al).value_or(0));
+    header.destinationAddress.port(destinationPort.makeValue(al).value_or(0));
 
-void
-ProxyProtocol::OutgoingHttpConfig::fillTlvs(Tlvs &tlvs, const AccessLogEntryPointer &al) const
-{
-    for (const auto &t: tlvConfigs) {
-        const auto type = strtol(t.name(), nullptr, 0);
+    for (const auto &tlv: tlvs) {
+        const auto type = strtol(tlv.name(), nullptr, 0);
         Assure(type >= std::numeric_limits<Two::Tlv::value_type>::min());
         Assure(type <= std::numeric_limits<Two::Tlv::value_type>::max());
-        const auto v = t.valueToSend(al);
-        tlvs.emplace_back(type, v.value_or(Format::Dash));
+        const auto v = tlv.makeValue(al);
+        header.tlvs.emplace_back(type, v.value_or(Format::Dash));
     }
 }
 
@@ -245,7 +228,7 @@ ProxyProtocol::OutgoingHttpConfig::fillTlvs(Tlvs &tlvs, const AccessLogEntryPoin
 /// addresses with mismatching families) into a pair of addresses with matching families.
 /// \returns an error message if encountered a mismatching address family, or nullopt
 std::optional<SBuf>
-ProxyProtocol::OutgoingHttpConfig::adjustAddresses(std::optional<Ip::Address> &s, std::optional<Ip::Address> &d)
+ProxyProtocol::OutgoingHttpConfig::adjustIps(std::optional<Ip::Address> &s, std::optional<Ip::Address> &d)
 {
     // TODO: Find a way to reduce code duplication inside this method
 
@@ -287,8 +270,8 @@ ProxyProtocol::OutgoingHttpConfig::adjustAddresses(std::optional<Ip::Address> &s
         const auto originalDestination = *d;
         d = s->isIPv4() ? Ip::Address::AnyAddrIPv4() : Ip::Address::AnyAddrIPv6();
         return ToSBuf("Address family mismatch: ",
-                      srcAddr, " (expanded as ", *s, ") vs. ",
-                      dstAddr, " (expanded as ", originalDestination, ")");
+                      sourceIp, " (expanded as ", *s, ") vs. ",
+                      destinationIp, " (expanded as ", originalDestination, ")");
     }
 }
 
@@ -298,7 +281,7 @@ ProxyProtocol::OutgoingHttpConfig::parseTlvs(ConfigParser &parser)
     char *key = nullptr;
     char *value = nullptr;
     while (parser.optionalKvPair(key, value)) {
-        const auto &current = tlvConfigs.emplace_back(key, value);
+        const auto &current = tlvs.emplace_back(key, value);
 
         // validate TLV "type" spelling
         const auto typeMin = 0xE0;
@@ -313,13 +296,13 @@ ProxyProtocol::OutgoingHttpConfig::parseTlvs(ConfigParser &parser)
         Assure(t == strtol(current.name(), nullptr, 0));
 
         // the number of configured TLVs should not preclude a simple linear search
-        const auto found = std::find_if(tlvConfigs.begin(), tlvConfigs.end(), [&](const auto &tlvConfig) {
-            /// Whether previously parsed tlvConfig is likely to produce the
-            /// same bytes on-the-wire as the current one. We ignore superficial
+        const auto found = std::find_if(tlvs.begin(), tlvs.end(), [&](const auto &tlv) {
+            /// Whether previously parsed tlv is likely to produce the same
+            /// bytes on-the-wire as the current one. We ignore superficial
             /// differences such as type ID letters "case" and value quoting.
-            return strcasecmp(tlvConfig.name(), current.name()) == 0 && tlvConfig.format().specs == current.format().specs;
+            return strcasecmp(tlv.name(), current.name()) == 0 && tlv.format().specs == current.format().specs;
         });
-        Assure(found != tlvConfigs.end()); // we ought to find `current` (at least)
+        Assure(found != tlvs.end()); // we ought to find `current` (at least)
         if (&(*found) != &current)
             throw TextException(ToSBuf("duplicate TLV specs: ", current), Here());
     }

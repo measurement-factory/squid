@@ -52,6 +52,8 @@ BinaryPacker::uint16(const char * const description, const uint16_t value)
 void
 BinaryPacker::area(const char * const description, const SBuf &blob)
 {
+    // TODO: Add a "Raw configuration" parameter to this and similar methods so
+    // that our callers can specify whether and how to debugs() raw data.
     packing_(description, __FUNCTION__, blob.length());
     packOctets_(blob.rawContent(), blob.length());
 }

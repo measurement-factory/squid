@@ -42,39 +42,35 @@ public:
     const char *name() const;
 
     /// compiled value specs
-    const auto &format() const { return *value_; }
+    const auto &format() const { return *format_; }
 
     /// Raw PROXY protocol header field value for the given transaction. Since
-    /// PROXY protocol header fields must satisfy certain relationships,
+    /// PROXY protocol header fields must satisfy certain relationship rules,
     /// individual values returned by this method may need further adjustments.
-    /// \sa OutgoingHttpConfig::adjustAddresses()
-    Value valueToSend(const AccessLogEntryPointer &al) const;
+    /// \sa OutgoingHttpConfig::adjustIps()
+    Value makeValue(const AccessLogEntryPointer &al) const;
 
-    /// known-in-advance valueToSend() result (or nil)
+    /// known-in-advance transaction-independent makeValue() result (or nil)
     const auto &cachedValue() const { return cachedValue_; }
 
-    /// (re)set valueToSend() result to a known value
+    /// (re)set makeValue() result to a known transaction-independent value
     void cacheValue(const Value &v) { cachedValue_ = v; }
 
     /// reports configuration using squid.conf syntax
     void dump(std::ostream &) const;
 
 private:
-
     void parseLogformat(const char *name, const char *logformat);
-
-    /// applies logformat to the given transaction, expanding %codes as needed
     SBuf assembleValue(const AccessLogEntryPointer &al) const;
 
-    /// converts given logformat-printed (by assembleValue()) string to Value
-    Value parseAssembledValue(const SBuf &) const;
+    /// specializations of this method convert the given string to Value
+    /// \param input is a logformat-printed by assembleValue() string
+    Value parseAssembledValue(const SBuf &input) const;
 
-    /// informs admin of a value assembling error
-    std::nullopt_t valueAssemblingFailure() const;
+    /// compiled value specs; never nil
+    Format::Format *format_ = nullptr;
 
-    Format::Format *value_; ///< compiled value format
-
-    /// stored parseAssembledValue() result for constant value_ (or nil)
+    /// stored parseAssembledValue() result for isStatic() format_ (or nil)
     std::optional<Value> cachedValue_;
 };
 
@@ -86,31 +82,26 @@ inline auto &operator <<(std::ostream &os, const FieldConfig<T> &o) { o.dump(os)
 class OutgoingHttpConfig
 {
 public:
-    using Tlvs =  std::vector<Two::Tlv>;
-
     explicit OutgoingHttpConfig(ConfigParser &);
 
-    void dump(std::ostream &);
+    void fill(Header &, const AccessLogEntryPointer &);
 
-    void fill(ProxyProtocol::Header &header, const AccessLogEntryPointer &);
+    void dump(std::ostream &);
 
     /// restrict logging to matching transactions
     ACLList *aclList = nullptr;
 
 private:
     void parseTlvs(ConfigParser &);
-    void fillAddresses(Ip::Address &src, Ip::Address &dst, const AccessLogEntryPointer &);
-    void fillTlvs(Tlvs &, const AccessLogEntryPointer &) const;
+    std::optional<SBuf> adjustIps(std::optional<Ip::Address> &source, std::optional<Ip::Address> &destination);
 
-    std::optional<SBuf> adjustAddresses(std::optional<Ip::Address> &source, std::optional<Ip::Address> &destination);
+    FieldConfig<Ip::Address> sourceIp;
+    FieldConfig<Ip::Address> destinationIp;
+    FieldConfig<uint16_t> sourcePort;
+    FieldConfig<uint16_t> destinationPort;
 
-    FieldConfig<Ip::Address> srcAddr;
-    FieldConfig<Ip::Address> dstAddr;
-    FieldConfig<uint16_t> srcPort;
-    FieldConfig<uint16_t> dstPort;
-
-    using TlvConfigs = std::list< FieldConfig<SBuf> >;
-    TlvConfigs tlvConfigs; ///< configuration for generating TLV header fields
+    using Tlvs = std::list< FieldConfig<SBuf> >;
+    Tlvs tlvs; ///< configuration for generating TLV header fields
 };
 
 } // namespace ProxyProtocol

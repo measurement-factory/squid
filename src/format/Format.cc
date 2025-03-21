@@ -116,18 +116,22 @@ Format::AssembleOne(const char *token, MemBuf &mb, const AccessLogEntryPointer &
 }
 
 bool
-Format::Format::isConstant() const
+Format::Format::isStatic() const
 {
     for (auto t = format; t; t = t->next) {
-        if (t->type != LFT_NONE &&
-                t->type != LFT_STRING &&
-                t->type != LFT_PERCENT &&
-                t->type != LFT_BYTE &&
-                t->type != LFT_TIME_LOCALTIME &&
-                t->type != LFT_TIME_GMT)
-            return true;
+        switch (t->type) {
+        case LFT_BYTE:
+        case LFT_NONE:
+        case LFT_PERCENT:
+        case LFT_STRING:
+        case LFT_TIME_GMT:
+        case LFT_TIME_LOCALTIME:
+            continue;
+        default:
+            return false;
+        }
     }
-    return false;
+    return true;
 }
 
 void

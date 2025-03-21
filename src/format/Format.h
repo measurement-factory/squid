@@ -60,8 +60,8 @@ public:
     /// \sa dump()
     void dumpDefinition(std::ostream &os) const;
 
-    /// whether assemble() needs ALE
-    bool isConstant() const;
+    /// whether assemble() returns the same result regardless of the supplied transaction details
+    bool isStatic() const;
 
     char *name;
 
