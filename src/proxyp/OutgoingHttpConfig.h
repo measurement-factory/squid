@@ -79,10 +79,11 @@ template <typename T>
 inline auto &operator <<(std::ostream &os, const FieldConfig<T> &o) { o.dump(os); return os; }
 
 /// an http_outgoing_proxy_protocol directive configuration
-class OutgoingHttpConfig
+class OutgoingHttpConfig final
 {
 public:
     explicit OutgoingHttpConfig(ConfigParser &);
+    ~OutgoingHttpConfig();
 
     void fill(Header &, const AccessLogEntryPointer &);
 

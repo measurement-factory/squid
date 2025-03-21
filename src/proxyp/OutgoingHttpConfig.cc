@@ -186,6 +186,11 @@ ProxyProtocol::OutgoingHttpConfig::OutgoingHttpConfig(ConfigParser &parser):
     aclList = parser.optionalAclList();
 }
 
+ProxyProtocol::OutgoingHttpConfig::~OutgoingHttpConfig()
+{
+    aclDestroyAclList(&aclList);
+}
+
 void
 ProxyProtocol::OutgoingHttpConfig::dump(std::ostream &os)
 {
