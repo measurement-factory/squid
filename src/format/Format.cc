@@ -124,8 +124,6 @@ Format::Format::isStatic() const
         case LFT_NONE:
         case LFT_PERCENT:
         case LFT_STRING:
-        case LFT_TIME_GMT:
-        case LFT_TIME_LOCALTIME:
             continue;
         default:
             return false;
