@@ -396,7 +396,7 @@ Ip::Address::GetHostByName(const char* s)
 
 /// \returns an IPv4 Address with true isAnyAddr()
 const Ip::Address &
-Ip::Address::AnyAddrIPv4()
+Ip::Address::AnyIPv4()
 {
     static Address anyAddr;
     if(!anyAddr.isAnyAddr())
@@ -409,7 +409,7 @@ Ip::Address::AnyAddrIPv4()
 
 /// \returns an IPv6 Address with true isAnyAddr()
 const Ip::Address &
-Ip::Address::AnyAddrIPv6()
+Ip::Address::AnyIPv6()
 {
     static Address anyAddr;
     if(!anyAddr.isAnyAddr())

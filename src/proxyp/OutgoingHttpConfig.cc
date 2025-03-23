@@ -233,15 +233,15 @@ ProxyProtocol::OutgoingHttpConfig::adjustIps(std::optional<Ip::Address> &s, std:
 
     if (!s && !d) {
         // source and destination are unknown: default to IPv4
-        s = d = Ip::Address::AnyAddrIPv4();
+        s = d = Ip::Address::AnyIPv4();
         return std::nullopt;
     } else if (!s) {
         // only source is unknown: use known destination address family
-        s = d->isIPv4() ? Ip::Address::AnyAddrIPv4() : Ip::Address::AnyAddrIPv6();
+        s = d->isIPv4() ? Ip::Address::AnyIPv4() : Ip::Address::AnyIPv6();
         return std::nullopt;
     } else if (!d) {
         // only destination is unknown: use known source address family
-        d = s->isIPv4() ? Ip::Address::AnyAddrIPv4() : Ip::Address::AnyAddrIPv6();
+        d = s->isIPv4() ? Ip::Address::AnyIPv4() : Ip::Address::AnyIPv6();
         return std::nullopt;
     }
 
@@ -258,16 +258,16 @@ ProxyProtocol::OutgoingHttpConfig::adjustIps(std::optional<Ip::Address> &s, std:
     if (d->isAnyAddr()) {
         // * specific source address and "any" destination
         // * "any" source address and "any" destination
-        d = s->isIPv4() ? Ip::Address::AnyAddrIPv4() : Ip::Address::AnyAddrIPv6();
+        d = s->isIPv4() ? Ip::Address::AnyIPv4() : Ip::Address::AnyIPv6();
         return std::nullopt;
     } else if (s->isAnyAddr()) {
         // * "any" source address and specific destination
-        s = d->isIPv4() ? Ip::Address::AnyAddrIPv4() : Ip::Address::AnyAddrIPv6();
+        s = d->isIPv4() ? Ip::Address::AnyIPv4() : Ip::Address::AnyIPv6();
         return std::nullopt;
     } else {
         // * specific source address and specific destination
         const auto originalDestination = *d;
-        d = s->isIPv4() ? Ip::Address::AnyAddrIPv4() : Ip::Address::AnyAddrIPv6();
+        d = s->isIPv4() ? Ip::Address::AnyIPv4() : Ip::Address::AnyIPv6();
         return ToSBuf("Address family mismatch: ",
                       sourceIp, " (expanded as ", *s, ") vs. ",
                       destinationIp, " (expanded as ", originalDestination, ")");
