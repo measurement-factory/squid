@@ -419,16 +419,18 @@ MakeAny(const int family)
 const Ip::Address &
 Ip::Address::AnyIPv4()
 {
-    static const auto anyAddr = new Address(MakeAny(AF_INET));
-    return *anyAddr;
+    static_assert(std::is_trivially_destructible_v<Ip::Address>);
+    static const auto anyAddr = MakeAny(AF_INET);
+    return anyAddr;
 
 }
 
 const Ip::Address &
 Ip::Address::AnyIPv6()
 {
-    static const auto anyAddr = new Address(MakeAny(AF_INET6));
-    return *anyAddr;
+    static_assert(std::is_trivially_destructible_v<Ip::Address>);
+    static const auto anyAddr = MakeAny(AF_INET6);
+    return anyAddr;
 
 }
 
