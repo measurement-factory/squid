@@ -150,6 +150,10 @@ public:
 
     /*@}*/
 
+    /// IP address family (either AF_INET or AF_INET6)
+    /// \sa setIPv4() and isIPv6()
+    int family() const { return isIPv4() ? AF_INET : AF_INET6; }
+
     /** Retrieve the Port if stored.
      \retval 0 Port is unset or an error occurred.
      \retval n Port associated with this address in host native -endian.
@@ -325,6 +329,10 @@ public:
 
     /// an IPv6 Address with true isAnyAddr() and default/zero port
     static const Address &AnyIPv6();
+
+    /// an Address with true isAnyAddr(), given IP family, and default/zero port
+    /// \param family is either AF_INET or AF_INET6
+    static const Address &Any(const int family) { return family == AF_INET ? AnyIPv4() : AnyIPv6(); }
 
 public:
     /* XXX: When C => C++ conversion is done will be fully private.
