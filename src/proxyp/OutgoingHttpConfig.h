@@ -16,8 +16,9 @@
 #include "proxyp/Elements.h"
 #include "proxyp/forward.h"
 
-#include <list>
 #include <iosfwd>
+#include <list>
+#include <memory>
 #include <optional>
 
 class ConfigParser;
@@ -28,15 +29,13 @@ namespace ProxyProtocol {
 /// configuring a PROXY protocol header field (pseudo header or TLV).
 /// \tparam T determines the type of a successfully parsed header field value
 template <typename T>
-class FieldConfig final
+class FieldConfig
 {
 public:
     /// a PROXY protocol header field value (when known) or nil (otherwise)
     using Value = std::optional<T>;
 
     FieldConfig(const char *aName, const char *logformatSpecs);
-    ~FieldConfig();
-    FieldConfig(FieldConfig &&) = delete;
 
     /// the "key" part of our "key=value" configuration
     const char *name() const;
@@ -60,15 +59,14 @@ public:
     void dump(std::ostream &) const;
 
 private:
-    void parseLogformat(const char *name, const char *logformat);
     SBuf assembleValue(const AccessLogEntryPointer &al) const;
 
     /// specializations of this method convert the given string to Value
     /// \param input is a logformat-printed by assembleValue() string
     Value parseAssembledValue(const SBuf &input) const;
 
-    /// compiled value specs; never nil
-    Format::Format *format_ = nullptr;
+    /// compiled value logformat specs; never nil
+    const std::unique_ptr<Format::Format> format_;
 
     /// stored parseAssembledValue() result for isStatic() format_ (or nil)
     std::optional<Value> cachedValue_;

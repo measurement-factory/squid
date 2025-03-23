@@ -22,10 +22,26 @@
 #include "sbuf/Stream.h"
 #include "sbuf/StringConvert.h"
 
-template <typename T>
-ProxyProtocol::FieldConfig<T>::FieldConfig(const char * const name, const char * const logformat)
+namespace ProxyProtocol
 {
-    parseLogformat(name, logformat);
+
+// TODO: Add logformat parameter to Format constructor and parse there instead.
+/// parses named logformat specification
+static std::unique_ptr<Format::Format>
+ParseLogformat(const char * const name, const char * const logformat)
+{
+    auto format = std::make_unique<Format::Format>(name);
+    if (!format->parse(logformat))
+        throw TextException(ToSBuf("failed to parse logformat specs: ", logformat), Here());
+    return format;
+}
+
+} // namespace ProxyProtocol
+
+template <typename T>
+ProxyProtocol::FieldConfig<T>::FieldConfig(const char * const name, const char * const logformat):
+    format_(ParseLogformat(name, logformat))
+{
     Assure(format_);
     if (format_->isStatic()) {
         const auto assembledValue = assembleValue(nullptr);
@@ -34,16 +50,9 @@ ProxyProtocol::FieldConfig<T>::FieldConfig(const char * const name, const char *
 }
 
 template <typename T>
-ProxyProtocol::FieldConfig<T>::~FieldConfig()
-{
-    delete format_;
-}
-
-template <typename T>
 const char *
 ProxyProtocol::FieldConfig<T>::name() const
 {
-    Assure(format_);
     Assure(format_->name);
     return format_->name;
 }
@@ -52,7 +61,6 @@ template <typename T>
 void
 ProxyProtocol::FieldConfig<T>::dump(std::ostream &os) const
 {
-    Assure(format_);
     os << name() << '=';
     // for simplicity sake, we always quote the value
     //
@@ -65,25 +73,11 @@ ProxyProtocol::FieldConfig<T>::dump(std::ostream &os) const
     os << '"';
 }
 
-/// parses named logformat specification
-template <typename T>
-void
-ProxyProtocol::FieldConfig<T>::parseLogformat(const char * const name, const char * const logformat)
-{
-    Assure(!format_);
-    auto format = std::unique_ptr<Format::Format>(new Format::Format(name));
-    if (!format->parse(logformat)) {
-        throw TextException(ToSBuf("failed to parse logformat specs: ", logformat), Here());
-    }
-    format_ = format.release();
-}
-
 /// applies logformat to the given transaction, expanding %codes as needed
 template <typename T>
 SBuf
 ProxyProtocol::FieldConfig<T>::assembleValue(const AccessLogEntryPointer &al) const
 {
-    Assure(format_);
     static MemBuf mb;
     mb.reset();
     format_->assemble(mb, al, 0);
