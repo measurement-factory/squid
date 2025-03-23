@@ -394,27 +394,42 @@ Ip::Address::GetHostByName(const char* s)
     return lookupHostIP(s, false);
 }
 
-/// \returns an IPv4 Address with true isAnyAddr()
-const Ip::Address &
-Ip::Address::AnyIPv4()
+namespace Ip
 {
-    static Address anyAddr;
-    if(!anyAddr.isAnyAddr())
-        anyAddr.setAnyAddr();
-    if (!anyAddr.isIPv4())
-        anyAddr.setIPv4();
-    return anyAddr;
+
+/// creates Ip::Address with a given family and for which isAnyAddr() is true
+/// \param family is either AF_INET (IPv4) or AF_INET6 (IPv6)
+static Ip::Address
+MakeAny(const int family)
+{
+    Address addr;
+    addr.setAnyAddr(); // before setIPv4() that checks isAnyAddr()
+    if (family == AF_INET)
+        addr.setIPv4();
+    else
+        assert(family == AF_INET6); // IPv6 is the default (that we double check below)
+    assert(addr.isIPv6() == (family == AF_INET6));
+    assert(addr.isAnyAddr());
+    return addr;
 
 }
 
-/// \returns an IPv6 Address with true isAnyAddr()
+} // namespace Ip
+
+const Ip::Address &
+Ip::Address::AnyIPv4()
+{
+    static const auto anyAddr = new Address(MakeAny(AF_INET));
+    return *anyAddr;
+
+}
+
 const Ip::Address &
 Ip::Address::AnyIPv6()
 {
-    static Address anyAddr;
-    if(!anyAddr.isAnyAddr())
-        anyAddr.setAnyAddr();
-    return anyAddr;
+    static const auto anyAddr = new Address(MakeAny(AF_INET6));
+    return *anyAddr;
+
 }
 
 bool
