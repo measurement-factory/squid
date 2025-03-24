@@ -27,6 +27,12 @@ public:
 
     Header(const SBuf &ver, const Two::Command cmd);
 
+    /// Whether the connection over PROXY protocol is 'cmdLocal'.
+    /// Such connections are established without being relayed.
+    /// Received addresses are discarded in this mode.
+    /// \sa hasForwardedAddresses()
+    bool localConnection() const { return command_ == Two::cmdLocal; }
+
     /// HTTP header-like string representation of the header.
     /// The returned string has one line per pseudo header and
     /// one line per TLV (if any).
@@ -68,11 +74,6 @@ public:
     Tlvs tlvs;
 
 private:
-    /// Whether the connection over PROXY protocol is 'cmdLocal'.
-    /// Such connections are established without being relayed.
-    /// Received addresses and TLVs are discarded in this mode.
-    bool localConnection() const { return command_ == Two::cmdLocal; }
-
     /// PROXY protocol version
     SBuf version_;
 

@@ -204,15 +204,17 @@ ProxyProtocol::OutgoingHttpConfig::dump(std::ostream &os)
 void
 ProxyProtocol::OutgoingHttpConfig::fill(ProxyProtocol::Header &header, const AccessLogEntryPointer &al)
 {
-    auto s = sourceIp.makeValue(al);
-    auto d = destinationIp.makeValue(al);
-    if (const auto err = adjustIps(s, d))
-        debugs(17, DBG_IMPORTANT, *err);
-    header.sourceAddress = s.value();
-    header.destinationAddress = d.value();
+    if (!header.localConnection()) {
+        auto s = sourceIp.makeValue(al);
+        auto d = destinationIp.makeValue(al);
+        if (const auto err = adjustIps(s, d))
+            debugs(17, DBG_IMPORTANT, *err);
+        header.sourceAddress = s.value();
+        header.destinationAddress = d.value();
 
-    header.sourceAddress.port(sourcePort.makeValue(al).value_or(0));
-    header.destinationAddress.port(destinationPort.makeValue(al).value_or(0));
+        header.sourceAddress.port(sourcePort.makeValue(al).value_or(0));
+        header.destinationAddress.port(destinationPort.makeValue(al).value_or(0));
+    }
 
     for (const auto &tlv: tlvs) {
         const auto type = strtol(tlv.name(), nullptr, 0);
