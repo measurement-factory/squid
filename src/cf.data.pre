@@ -1939,7 +1939,7 @@ DOC_START
 
 	Example:
 
-		acl toPeerThatExpectsConnectionTags peername examplePeer
+		acl toPeerThatExpectsConnectionTags dstdomain -n example.com
 		http_outgoing_proxy_protocol \
 		    src_addr="%>a" \
 		    dst_addr="%<a" \
