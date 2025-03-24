@@ -1775,16 +1775,18 @@ LOC: Config.outgoingProxyProtocolHttp
 DEFAULT: none
 DEFAULT_DOC: Squid does not send PROXY protocol headers
 DOC_START
-	Determines which Squid-to-peer HTTP connections start with a PROXY
-	protocol header. The first decision is made after Squid selects the next
-	forwarding hop for the request but before Squid determines that hop IP
-	address. Thus, at the decision-making time, the HTTP or FTP peer (e.g.,
-	cache_peer name or origin server hostname) is known, but the source and
-	destination IP addresses of a Squid-to-peer connection may be unknown. The
-	decision is remade every time Squid has to reforward the request to a
-	different hop (e.g., another cache_peer).
+	Determines which Squid-to-peer connections start with a PROXY protocol
+	header and defines the composition of the PROXY protocol header sent.
 
 		http_outgoing_proxy_protocol [options] <header>... [if [!]<acl>...]
+
+	Squid makes the first decision to send a PROXY protocol header before
+	selecting the next forwarding hop for the request. Thus, at the
+	decision-making time, the origin server hostname is known, but the next
+	hop details (e.g., cache_peer name and source/destination IP addresses of
+	a Squid-to-peer connection) are unknown. The decision is remade every time
+	Squid has to reforward the request to a different hop (e.g., another
+	cache_peer).
 
 	For now, Squid only sends PROXY protocol v2 headers.
 
@@ -1806,6 +1808,12 @@ DOC_START
 	"encrypt=no" option _now_, so that we can later change the _default_
 	logic from the current "never encrypt" to "encrypt=auto" (that would
 	depend on whether the next hop is using TLS).
+
+	Depending on request routing rules, it may be difficult to configure Squid
+	to send different PROXY protocol headers to different cache_peers because
+	forwarding route selection happens after PROXY protocol header generation.
+	To accommodate more use cases, we may have to delay PROXY protocol
+	header-generation/sending decision until after the next hop selection.
 
 	When opening a CONNECT tunnel through a cache_peer, Squid sends the
 	PROXY protocol header before sending CONNECT request. PROXY protocol
