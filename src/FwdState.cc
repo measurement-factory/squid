@@ -945,7 +945,6 @@ FwdState::resetProxyProtocolHeader()
 
     proxyProtocolHeader = header.pack();
     Assure(proxyProtocolHeader);
-    Assure(!proxyProtocolHeader->isEmpty());
 }
 
 void
