@@ -30,6 +30,13 @@ namespace ProxyProtocol
 static std::unique_ptr<Format::Format>
 ParseLogformat(const char * const name, const char * const logformat)
 {
+    Assure(logformat);
+
+    // TODO: Support sending empty TLVs. Today, we ban empty logformat specs
+    // because Format::assemble() misinterprets them as a single "-" field.
+    if (!*logformat)
+        throw TextException(ToSBuf("empty logformat specs are not supported for ", name, "=..."), Here());
+
     auto format = std::make_unique<Format::Format>(name);
     if (!format->parse(logformat))
         throw TextException(ToSBuf("failed to parse logformat specs: ", logformat), Here());

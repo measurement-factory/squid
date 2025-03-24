@@ -1908,10 +1908,9 @@ DOC_START
 		  "%transport::>connection_id").
 
 	After logformat evaluation (i.e. %code expansion, if any), Squid treats
-	TLV values as opaque strings. An empty logformat value (that must be
-	specified as an empty quoted string) is not treated specially. A logformat
-	value of "-" and an evaluated format value of "-" are not treated
-	specially either.
+	TLV values as opaque strings. A configured logformat value of "-" and an
+	evaluated format value of "-" are not treated specially -- Squid sends a
+	TLV field with a dash value.
 
 	Squid failure to "compile" a configured TLV format specification is a
 	fatal configuration error (e.g., 239="%"). If a TLV value cannot be
