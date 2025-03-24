@@ -1778,7 +1778,7 @@ DOC_START
 	Determines which Squid-to-peer connections start with a PROXY protocol
 	header and defines the composition of the PROXY protocol header sent.
 
-		http_outgoing_proxy_protocol [options] <header>... [if [!]<acl>...]
+		http_outgoing_proxy_protocol <header-field>... [if [!]<acl>...]
 
 	Squid makes the first decision to send a PROXY protocol header before
 	selecting the next forwarding hop for the request. Thus, at the
@@ -1793,9 +1793,6 @@ DOC_START
 	For now, Squid disables HTTP connection reuse after sending
 	the PROXY protocol header on that connection.
 
-	For now, no options are supported for this directive (XXX: Remove this
-	paragraph and [options] then, while still keeping future needs in mind).
-
 	For now, Squid does not support multiple http_outgoing_proxy_protocol
 	directives.
 
@@ -1804,10 +1801,6 @@ DOC_START
 	This allows some network services to extract PROXY protocol header
 	information before switching to forwarding of encrypted bytes. Future
 	enhancements may support optional encryption of PROXY protocol bytes.
-	 For now, no options are supported. TODO: Consider adding a _required_
-	"encrypt=no" option _now_, so that we can later change the _default_
-	logic from the current "never encrypt" to "encrypt=auto" (that would
-	depend on whether the next hop is using TLS).
 
 	Depending on request routing rules, it may be difficult to configure Squid
 	to send different PROXY protocol headers to different cache_peers because
@@ -1826,6 +1819,9 @@ DOC_START
 	compute and does not send) the four address block fields itemized below.
 	PROXY protocol requires "LOCAL" command recipients to "discard the
 	protocol block". "LOCAL" commands may carry TLVs (see further below).
+
+	This directive supports configurable PROXY protocol header fields. The
+	sections below document required and optional header-field parameters.
 
 	Address block (i.e. address fields required for the "PROXY" command):
 
