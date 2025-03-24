@@ -1941,9 +1941,9 @@ DOC_START
 		acl toPeerThatExpectsConnectionTags dstdomain -n example.com
 		http_outgoing_proxy_protocol \
 		    src_addr="%>a" \
-		    dst_addr="%<a" \
-		    src_port="-" \
-		    dst_port="%<p" \
+		    dst_addr="::" \
+		    src_port="%>p" \
+		    dst_port="-" \
 		    224="%proxy_protocol::>h{224}" \
 		    225="%note{myConnectionTag_}" \
 		    239="" \
