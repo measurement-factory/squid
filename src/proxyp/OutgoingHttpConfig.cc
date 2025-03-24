@@ -208,7 +208,7 @@ ProxyProtocol::OutgoingHttpConfig::fill(ProxyProtocol::Header &header, const Acc
         auto s = sourceIp.makeValue(al);
         auto d = destinationIp.makeValue(al);
         if (const auto err = adjustIps(s, d))
-            debugs(17, DBG_IMPORTANT, *err);
+            debugs(17, DBG_IMPORTANT, "ERROR: " << *err);
         header.sourceAddress = s.value();
         header.destinationAddress = d.value();
 
