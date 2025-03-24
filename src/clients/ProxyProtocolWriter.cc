@@ -30,8 +30,8 @@ ProxyProtocolWriter::ProxyProtocolWriter(const SBuf &hdr, const Comm::Connection
     headerWritten(false)
 {
     debugs(17, 5, "ProxyProtocolWriter constructed, this=" << (void*)this);
-    assert(request);
-    assert(connection);
+    Assure(request);
+    Assure(connection);
     Assure(!header.isEmpty());
     watchForClosures();
 }
@@ -54,7 +54,7 @@ ProxyProtocolWriter::start()
 
     // we own this Comm::Connection object and its fd exclusively, but must bail
     // if others started closing the socket while we were waiting to start()
-    assert(Comm::IsConnOpen(connection));
+    Assure(Comm::IsConnOpen(connection));
 
     if (fd_table[connection->fd].closing()) {
         bailWith(new ErrorState(ERR_CANNOT_FORWARD, Http::scServiceUnavailable, request.getRaw(), al));
@@ -81,12 +81,12 @@ ProxyProtocolWriter::handleConnectionClosure(const CommCloseCbParams &)
 void
 ProxyProtocolWriter::watchForClosures()
 {
-    Must(Comm::IsConnOpen(connection));
-    Must(!fd_table[connection->fd].closing());
+    Assure(Comm::IsConnOpen(connection));
+    Assure(!fd_table[connection->fd].closing());
 
     debugs(17, 5, connection);
 
-    Must(!closer);
+    Assure(!closer);
     typedef CommCbMemFunT<ProxyProtocolWriter, CommCloseCbParams> Dialer;
     closer = JobCallback(9, 5, Dialer, this, ProxyProtocolWriter::handleConnectionClosure);
     comm_add_close_handler(connection->fd, closer);
@@ -111,7 +111,7 @@ ProxyProtocolWriter::writeHeader()
 void
 ProxyProtocolWriter::handleWrittenHeader(const CommIoCbParams &io)
 {
-    Must(writer);
+    Assure(writer);
     writer = nullptr;
 
     if (io.flag == Comm::ERR_CLOSING)
@@ -135,7 +135,7 @@ ProxyProtocolWriter::handleWrittenHeader(const CommIoCbParams &io)
 void
 ProxyProtocolWriter::bailWith(ErrorState *error)
 {
-    Must(error);
+    Assure(error);
     callback.answer().squidError = error;
 
     if (const auto failingConnection = connection) {
@@ -150,8 +150,8 @@ ProxyProtocolWriter::bailWith(ErrorState *error)
 void
 ProxyProtocolWriter::sendSuccess()
 {
-    assert(callback.answer().positive());
-    assert(Comm::IsConnOpen(connection));
+    Assure(callback.answer().positive());
+    Assure(Comm::IsConnOpen(connection));
     callback.answer().conn = connection;
     disconnect();
     callBack();
@@ -160,7 +160,7 @@ ProxyProtocolWriter::sendSuccess()
 void
 ProxyProtocolWriter::countFailingConnection()
 {
-    assert(connection);
+    Assure(connection);
     if (noteFwdPconnUse && connection->isOpen())
         fwdPconnPool->noteUses(fd_table[connection->fd].pconn.uses);
 }
@@ -183,7 +183,7 @@ void
 ProxyProtocolWriter::callBack()
 {
     debugs(17, 5, callback.answer().conn << status());
-    assert(!connection); // returned inside callback.answer() or gone
+    Assure(!connection); // returned inside callback.answer() or gone
     ScheduleCallHere(callback.release());
 }
 
@@ -199,7 +199,7 @@ ProxyProtocolWriter::swanSong()
             // job-ending emergencies like handleStopRequest() or callException()
             bailWith(new ErrorState(ERR_GATEWAY_FAILURE, Http::scInternalServerError, request.getRaw(), al));
         }
-        assert(!callback);
+        Assure(!callback);
     }
 }
 

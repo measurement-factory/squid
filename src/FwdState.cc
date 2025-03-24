@@ -970,9 +970,9 @@ FwdState::proxyProtocolHeaderSent(ProxyProtocolWriterAnswer &answer)
 
     ErrorState *error = nullptr;
     if (!answer.positive()) {
-        Must(!answer.conn);
+        Assure(!answer.conn);
         error = answer.squidError.get();
-        Must(error);
+        Assure(error);
         answer.squidError.clear(); // preserve error for fail()
     } else if (!Comm::IsConnOpen(answer.conn) || fd_table[answer.conn->fd].closing()) {
         // The socket could get closed while our callback was queued. Sync

@@ -320,7 +320,7 @@ template <>
 void
 Configuration::Component<ProxyProtocol::OutgoingHttpConfig*>::Print(std::ostream &os, ProxyProtocol::OutgoingHttpConfig* const & cfg)
 {
-    assert(cfg);
+    Assure(cfg);
     cfg->dump(os);
 }
 
