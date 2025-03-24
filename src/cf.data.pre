@@ -1901,12 +1901,11 @@ DOC_START
 	specify it after the four address fields (see above) using the following
 	syntax:
 
-		* type=logformat: Where "type" is a decimal or hex number from the
-		  [0xE0, 0xEF] range that PROXY protocols reserves for
-		  "application-specific data". Decimal type values must not start with
-		  zero. Hex type values are case-insensitive and must start with a
-		  "0x" prefix. Logformat is format specification documented in
-		  logformat directive (e.g., "%transport::>connection_id").
+		* type=logformat: Where "type" is a decimal number from the [224, 239]
+		  range that PROXY protocols reserves for "application-specific data".
+		  Type values must not start with zero. Logformat is format
+		  specification documented in logformat directive (e.g.,
+		  "%transport::>connection_id").
 
 	After logformat evaluation (i.e. %code expansion, if any), Squid treats
 	TLV values as opaque strings. An empty logformat value (that must be
@@ -1915,7 +1914,7 @@ DOC_START
 	specially either.
 
 	Squid failure to "compile" a configured TLV format specification is a
-	fatal configuration error (e.g., 0xEF="%"). If a TLV value cannot be
+	fatal configuration error (e.g., 239="%"). If a TLV value cannot be
 	computed at header construction time or the computed value exceeds 65535
 	bytes in length, Squid does not send the affected field and records a
 	level-1 WARNING to cache.log.
@@ -1945,9 +1944,9 @@ DOC_START
 		    dst_addr="%<a" \
 		    src_port="-" \
 		    dst_port="%<p" \
-		    0xE0="%proxy_protocol::>h{224}" \
-		    0xE1="%note{myConnectionTag_}" \
-		    0xEE="" \
+		    224="%proxy_protocol::>h{224}" \
+		    225="%note{myConnectionTag_}" \
+		    239="" \
 		    if toPeerThatExpectsConnectionTags
 
 	This clause only supports fast acl types.

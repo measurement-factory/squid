@@ -217,7 +217,7 @@ ProxyProtocol::OutgoingHttpConfig::fill(ProxyProtocol::Header &header, const Acc
     }
 
     for (const auto &tlv: tlvs) {
-        const auto type = strtol(tlv.name(), nullptr, 0);
+        const auto type = strtol(tlv.name(), nullptr, 10);
         Assure(type >= std::numeric_limits<Two::Tlv::value_type>::min());
         Assure(type <= std::numeric_limits<Two::Tlv::value_type>::max());
         if (const auto v = tlv.makeValue(al))
@@ -289,18 +289,20 @@ ProxyProtocol::OutgoingHttpConfig::parseTlvs(ConfigParser &parser)
         const auto typeMax = 0xEF;
         int64_t t = -1;
         auto tok = Parser::Tokenizer(SBuf(current.name())); // TODO: Convert Format::Format::name to SBuf
-        // XXX: "0" does not mean "decimal or hex"
-        if (!tok.int64(t, 0, false) || (t < typeMin || t > typeMax))
-            throw TextException(ToSBuf("Expected TLV type as a decimal or hex number in the [0xE0, 0xEF] range but got ", current.name()), Here());
+        // prohibit leading zeros to avoid misinterpreting/accepting octal
+        // values and to simplify potential future hex value support
+        if (tok.skip('0') || !tok.int64(t, 10, false) || tok.remaining().length() || (t < typeMin || t > typeMax))
+            throw TextException(ToSBuf("Expected TLV type as a decimal number in the [224, 239] range but got ", current.name()), Here());
         // We use strtol() at runtime to avoid expensive to-SBuf conversion
         // above. TODO: Consider caching parsed value.
-        Assure(t == strtol(current.name(), nullptr, 0));
+        Assure(t == strtol(current.name(), nullptr, 10));
 
         // the number of configured TLVs should not preclude a simple linear search
         const auto found = std::find_if(tlvs.begin(), tlvs.end(), [&](const auto &tlv) {
             /// Whether previously parsed tlv is likely to produce the same
             /// bytes on-the-wire as the current one. We ignore superficial
-            /// differences such as type ID letters "case" and value quoting.
+            /// differences such as type ID letters "case" (for when we start
+            /// supporting hex type IDs like 0xEe=...) and value quoting.
             return strcasecmp(tlv.name(), current.name()) == 0 && tlv.format().specs == current.format().specs;
         });
         Assure(found != tlvs.end()); // we ought to find `current` (at least)
