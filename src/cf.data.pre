@@ -1908,7 +1908,7 @@ DOC_START
 		  "0x" prefix. Logformat is format specification documented in
 		  logformat directive (e.g., "%transport::>connection_id").
 
-	After logformat evaluation (i.e. %code evaluation, if any), Squid treats
+	After logformat evaluation (i.e. %code expansion, if any), Squid treats
 	TLV values as opaque strings. An empty logformat value (that must be
 	specified as an empty quoted string) is not treated specially. A logformat
 	value of "-" and an evaluated format value of "-" are not treated
@@ -1918,7 +1918,7 @@ DOC_START
 	fatal configuration error (e.g., 0xEF="%"). If a TLV value cannot be
 	computed at header construction time or the computed value exceeds 65535
 	bytes in length, Squid does not send the affected field and records a
-	level-1 ERROR to cache.log.
+	level-1 WARNING to cache.log.
 
 	Squid does not yet support sending well-known TLVs like PP2_TYPE_CRC32C.
 

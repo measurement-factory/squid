@@ -220,8 +220,8 @@ ProxyProtocol::OutgoingHttpConfig::fill(ProxyProtocol::Header &header, const Acc
         const auto type = strtol(tlv.name(), nullptr, 0);
         Assure(type >= std::numeric_limits<Two::Tlv::value_type>::min());
         Assure(type <= std::numeric_limits<Two::Tlv::value_type>::max());
-        const auto v = tlv.makeValue(al);
-        header.tlvs.emplace_back(type, v.value_or(Format::Dash));
+        if (const auto v = tlv.makeValue(al))
+            header.tlvs.emplace_back(type, *v);
     }
 }
 
