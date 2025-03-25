@@ -27,8 +27,7 @@ ProxyProtocolWriter::ProxyProtocolWriter(const SBuf &hdr, const Comm::Connection
     connection(conn),
     request(req),
     callback(aCallback),
-    al(alp),
-    headerWritten(false)
+    al(alp)
 {
     debugs(17, 5, "constructing, this=" << static_cast<void*>(this));
     Assure(request);

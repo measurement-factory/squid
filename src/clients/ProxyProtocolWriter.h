@@ -44,7 +44,6 @@ std::ostream &operator <<(std::ostream &, const ProxyProtocolWriterAnswer &);
 /// TCP connection. Owns the connection until the header is sent.
 class ProxyProtocolWriter: virtual public AsyncJob
 {
-
     CBDATA_CHILD(ProxyProtocolWriter);
 
 public:
@@ -55,7 +54,7 @@ public:
     ProxyProtocolWriter &operator =(const ProxyProtocolWriter &) = delete;
 
     /// hack: whether the connection requires fwdPconnPool->noteUses()
-    bool noteFwdPconnUse;
+    bool noteFwdPconnUse = false;
 
 protected:
     /* AsyncJob API */
@@ -86,17 +85,16 @@ private:
     /// updates connection usage history before the connection is closed
     void countFailingConnection();
 
-    SBuf header; // v2 PROXY protocol header
+    const SBuf header; ///< PROXY protocol header we must write
+    Comm::ConnectionPointer connection; ///< TCP connection to a cache_peer or server
+    const HttpRequestPointer request; ///< the connection trigger or cause
+    AsyncCallback<Answer> callback; ///< answer destination
+    AccessLogEntryPointer al; ///< info for the future access.log entry
 
     AsyncCall::Pointer writer; ///< called when the request has been written
     AsyncCall::Pointer closer; ///< called when the connection is being closed
 
-    Comm::ConnectionPointer connection; ///< TCP connection to a cache_peer or server
-    HttpRequestPointer request; ///< the connection trigger or cause
-    AsyncCallback<Answer> callback; ///< answer destination
-
-    AccessLogEntryPointer al; ///< info for the future access.log entry
-    bool headerWritten; ///< whether we successfully wrote the request
+    bool headerWritten = false; ///< whether we successfully wrote the request
 };
 
 #endif /* SQUID_SRC_CLIENTS_PROXYPROTOCOLWRITER_H */
