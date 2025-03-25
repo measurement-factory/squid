@@ -13,8 +13,12 @@ namespace Format
 {
 
 class Format;
+class FmtConfig;
+class Token;
+class TokenNamespace;
+class TokenTableEntry;
 
-}
+} // namespace Format
 
 #endif /* SQUID_SRC_FORMAT_FORWARD_H */
 
