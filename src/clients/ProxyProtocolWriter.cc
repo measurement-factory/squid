@@ -75,7 +75,7 @@ ProxyProtocolWriter::handleConnectionClosure(const CommCloseCbParams &)
         connection->noteClosure();
         connection = nullptr;
     }
-    bailWith(new ErrorState(ERR_CANNOT_FORWARD, Http::scBadGateway, request.getRaw(), al));
+    bailWith(new ErrorState(ERR_CANNOT_FORWARD, Http::scServiceUnavailable, request.getRaw(), al));
 }
 
 /// make sure we quit if/when the connection is gone
