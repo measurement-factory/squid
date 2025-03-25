@@ -8,6 +8,7 @@
 
 #include "squid.h"
 #include "base/Assure.h"
+#include "CachePeer.h"
 #include "clients/ProxyProtocolWriter.h"
 #include "comm/Write.h"
 #include "errorpage.h"
@@ -161,6 +162,7 @@ void
 ProxyProtocolWriter::countFailingConnection()
 {
     Assure(connection);
+    NoteOutgoingConnectionFailure(connection->getPeer());
     if (noteFwdPconnUse && connection->isOpen())
         fwdPconnPool->noteUses(fd_table[connection->fd].pconn.uses);
 }
