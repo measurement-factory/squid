@@ -19,6 +19,7 @@
 #include "client_side.h"
 #include "client_side_request.h"
 #include "clients/HttpTunneler.h"
+#include "clients/ProxyProtocolWriter.h"
 #include "comm.h"
 #include "comm/Connection.h"
 #include "comm/ConnOpener.h"
@@ -40,6 +41,8 @@
 #include "MemBuf.h"
 #include "neighbors.h"
 #include "PeerSelectState.h"
+#include "proxyp/Header.h"
+#include "proxyp/OutgoingHttpConfig.h"
 #include "ResolvedPeers.h"
 #include "sbuf/SBuf.h"
 #include "security/BlindPeerConnector.h"
@@ -204,6 +207,9 @@ public:
     /// waits for a transport connection to the peer to be established/opened
     JobWait<HappyConnOpener> transportWait;
 
+    /// waits for the PROXY protocol header to be sent
+    JobWait<ProxyProtocolWriter> proxyProtocolWait;
+
     /// waits for the established transport connection to be secured/encrypted
     JobWait<Security::PeerConnector> encryptionWait;
 
@@ -270,6 +276,14 @@ private:
 
     bool exhaustedTries() const;
     void updateAttempts(int);
+
+    void resetProxyProtocolHeader();
+    void sendProxyProtoHeader(const Comm::ConnectionPointer &); // XXX: Rename Proto
+    void proxyProtocolHeaderSent(ProxyProtocolWriterAnswer &);
+    void connectToPeerIfNeeded(const Comm::ConnectionPointer &);
+
+    /// packed PROXY protocol header that we need to send (or nil)
+    std::optional<SBuf> proxyProtocolHeader;
 
 public:
     bool keepGoingAfterRead(size_t len, Comm::Flag errcode, int xerrno, Connection &from, Connection &to);
@@ -1155,6 +1169,20 @@ TunnelStateData::connectDone(const Comm::ConnectionPointer &conn, const char *or
 
     netdbPingSite(request->url.host());
 
+    if (proxyProtocolHeader) {
+        return advanceDestination("send proxy protocol header", conn, [this, &conn]() {
+            sendProxyProtoHeader(conn);
+        });
+    }
+
+    connectToPeerIfNeeded(conn);
+}
+
+/// handles an established unencrypted TCP connection to peer after we checked
+/// and satisfied any applicable PROXY protocol requirements
+void
+TunnelStateData::connectToPeerIfNeeded(const Comm::ConnectionPointer &conn)
+{
     request->peer_host = conn->getPeer() ? conn->getPeer()->host : nullptr;
 
     bool toOrigin = false; // same semantics as StateFlags::toOrigin
@@ -1171,6 +1199,76 @@ TunnelStateData::connectDone(const Comm::ConnectionPointer &conn, const char *or
     else {
         notePeerReadyToShovel(conn);
     }
+}
+
+/// computes proxyProtocolHeader at the beginning of a tunnel establishment attempt
+void
+TunnelStateData::resetProxyProtocolHeader()
+{
+    proxyProtocolHeader.reset();
+
+    if (!Config.outgoingProxyProtocolHttp)
+        return;
+
+    if (const auto &aclList = Config.outgoingProxyProtocolHttp->aclList) {
+        ACLFilledChecklist ch(aclList, request.getRaw());
+        ch.al = al;
+        ch.syncAle(request.getRaw(), nullptr);
+        if (!ch.fastCheck().allowed())
+            return;
+    }
+
+    // XXX: Hide inside Config.outgoingProxyProtocolHttp to reduce duplication/exposure?
+    static const SBuf v2("2.0");
+    ProxyProtocol::Header header(v2, request->masterXaction->initiator.internalClient() ? ProxyProtocol::Two::cmdLocal : ProxyProtocol::Two::cmdProxy);
+    Config.outgoingProxyProtocolHttp->fill(header, al);
+
+    proxyProtocolHeader = header.pack();
+    Assure(proxyProtocolHeader);
+}
+
+void
+TunnelStateData::sendProxyProtoHeader(const Comm::ConnectionPointer &conn)
+{
+    Assure(proxyProtocolHeader);
+
+    const auto callback = asyncCallback(26, 4, TunnelStateData::proxyProtocolHeaderSent, this);
+    const auto proxyProtocolWriter = new ProxyProtocolWriter(*proxyProtocolHeader, conn, request, callback, al);
+
+    // XXX: Remove this hack as inapplicable?
+    // TODO: Replace this hack with proper Comm::Connection-Pool association
+    // that is not tied to fwdPconnPool and can handle disappearing pools.
+    proxyProtocolWriter->noteFwdPconnUse = false;
+
+    proxyProtocolWait.start(proxyProtocolWriter, callback);
+}
+
+/// callback to resume operations after writing a PROXY protocol header
+void
+TunnelStateData::proxyProtocolHeaderSent(ProxyProtocolWriterAnswer &answer)
+{
+    proxyProtocolWait.finish();
+
+    ErrorState *error = nullptr;
+    if (!answer.positive()) {
+        Assure(!answer.conn);
+        error = answer.squidError.get();
+        Assure(error);
+        answer.squidError.clear(); // preserve error for fail()
+    } else if (!Comm::IsConnOpen(answer.conn) || fd_table[answer.conn->fd].closing()) {
+        // The socket could get closed while our callback was queued. Sync
+        // Connection. XXX: Connection::fd may already be stale/invalid here.
+        closePendingConnection(answer.conn, "conn was closed while waiting for TunnelStateData::proxyProtocolHeaderSent");
+        error = new ErrorState(ERR_CANNOT_FORWARD, Http::scServiceUnavailable, request.getRaw(), al);
+    }
+
+    if (error) {
+        saveError(error);
+        retryOrBail("proxy protocol error");
+        return;
+    }
+
+    connectToPeerIfNeeded(answer.conn);
 }
 
 /// whether we have used up all permitted forwarding attempts
@@ -1396,7 +1494,7 @@ TunnelStateData::noteDestinationsEnd(ErrorState *selectionError)
 bool
 TunnelStateData::transporting() const
 {
-    return encryptionWait || peerWait || committedToServer;
+    return proxyProtocolWait || encryptionWait || peerWait || committedToServer;
 }
 
 /// remembers an error to be used if there will be no more connection attempts
@@ -1456,6 +1554,8 @@ TunnelStateData::startConnecting()
     delete savedError; // may still be nil
     savedError = nullptr;
     request->hier.peer_reply_status = Http::scNone;
+
+    resetProxyProtocolHeader();
 
     const auto callback = asyncCallback(17, 5, TunnelStateData::noteConnection, this);
     const auto cs = new HappyConnOpener(destinations, callback, request, startTime, n_tries, al);
