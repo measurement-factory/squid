@@ -29,7 +29,7 @@ ProxyProtocolWriter::ProxyProtocolWriter(const SBuf &hdr, const Comm::Connection
     al(alp),
     headerWritten(false)
 {
-    debugs(17, 5, "ProxyProtocolWriter constructed, this=" << (void*)this);
+    debugs(17, 5, "constructing, this=" << static_cast<void*>(this));
     Assure(request);
     Assure(connection);
     Assure(!header.isEmpty());
@@ -38,7 +38,7 @@ ProxyProtocolWriter::ProxyProtocolWriter(const SBuf &hdr, const Comm::Connection
 
 ProxyProtocolWriter::~ProxyProtocolWriter()
 {
-    debugs(17, 5, "ProxyProtocolWriter destructed, this=" << (void*)this);
+    debugs(17, 5, "destructing, this=" << static_cast<void*>(this));
 }
 
 bool
@@ -55,13 +55,15 @@ ProxyProtocolWriter::start()
     // we own this Comm::Connection object and its fd exclusively, but must bail
     // if others started closing the socket while we were waiting to start()
     Assure(Comm::IsConnOpen(connection));
-
     if (fd_table[connection->fd].closing()) {
         bailWith(new ErrorState(ERR_CANNOT_FORWARD, Http::scServiceUnavailable, request.getRaw(), al));
         return;
     }
 
     writeHeader();
+    // We do not read because PROXY protocol has no responses. If peer sends
+    // something while we are writing, subsequent protocol handler will read it
+    // (after we are done writing).
 }
 
 void
@@ -73,7 +75,6 @@ ProxyProtocolWriter::handleConnectionClosure(const CommCloseCbParams &)
         connection->noteClosure();
         connection = nullptr;
     }
-    // TODO: add a specific err_type
     bailWith(new ErrorState(ERR_CANNOT_FORWARD, Http::scBadGateway, request.getRaw(), al));
 }
 
@@ -87,8 +88,8 @@ ProxyProtocolWriter::watchForClosures()
     debugs(17, 5, connection);
 
     Assure(!closer);
-    typedef CommCbMemFunT<ProxyProtocolWriter, CommCloseCbParams> Dialer;
-    closer = JobCallback(9, 5, Dialer, this, ProxyProtocolWriter::handleConnectionClosure);
+    using Dialer = CommCbMemFunT<ProxyProtocolWriter, CommCloseCbParams>;
+    closer = JobCallback(17, 5, Dialer, this, ProxyProtocolWriter::handleConnectionClosure);
     comm_add_close_handler(connection->fd, closer);
 }
 
@@ -103,8 +104,7 @@ ProxyProtocolWriter::writeHeader()
     mb.append(header.rawContent(), header.length());
 
     using Dialer =  CommCbMemFunT<ProxyProtocolWriter, CommIoCbParams>;
-
-    writer = JobCallback(5, 5, Dialer, this, ProxyProtocolWriter::handleWrittenHeader);
+    writer = JobCallback(17, 5, Dialer, this, ProxyProtocolWriter::handleWrittenHeader);
     Comm::Write(connection, &mb, writer);
 }
 
@@ -168,10 +168,8 @@ ProxyProtocolWriter::countFailingConnection()
 void
 ProxyProtocolWriter::disconnect()
 {
-    const auto stillOpen = Comm::IsConnOpen(connection);
-
     if (closer) {
-        if (stillOpen)
+        if (Comm::IsConnOpen(connection))
             comm_remove_close_handler(connection->fd, closer);
         closer = nullptr;
     }
@@ -182,7 +180,7 @@ ProxyProtocolWriter::disconnect()
 void
 ProxyProtocolWriter::callBack()
 {
-    debugs(17, 5, callback.answer().conn << status());
+    debugs(17, 5, callback.answer() << status());
     Assure(!connection); // returned inside callback.answer() or gone
     ScheduleCallHere(callback.release());
 }
@@ -212,12 +210,10 @@ ProxyProtocolWriter::status() const
     buf.append(" [state:", 8);
     if (headerWritten) buf.append("w", 1); // header sent
     if (!callback) buf.append("x", 1); // caller informed
-    if (stopReason != nullptr) {
-        buf.append(" stopped, reason:", 16);
-        buf.appendf("%s",stopReason);
-    }
-    if (connection != nullptr)
-        buf.appendf(" FD %d", connection->fd);
+    if (stopReason)
+        buf.appendf(" stopped, reason: %s", stopReason);
+    if (connection)
+        buf.appendf(" %s%" PRIu64, connection->id.prefix(), connection->id.value);
     buf.appendf(" %s%u]", id.prefix(), id.value);
     buf.terminate();
 
@@ -232,6 +228,11 @@ ProxyProtocolWriterAnswer::~ProxyProtocolWriterAnswer()
 std::ostream &
 operator <<(std::ostream &os, const ProxyProtocolWriterAnswer &answer)
 {
-    return os << answer.conn << ", " << answer.squidError;
+    if (const auto squidError = answer.squidError.get())
+        os << squidError;
+    // no separator because the two reported items should be mutually exclusive
+    if (const auto conn = answer.conn.getRaw())
+        os << conn->id;
+    return os;
 }
 
