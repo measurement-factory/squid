@@ -69,12 +69,6 @@ void
 ProxyProtocol::FieldConfig<T>::dump(std::ostream &os) const
 {
     os << name() << '=';
-    // for simplicity sake, we always quote the value
-    //
-    // XXX: If an admin did not use quotes but did use escape sequences valid
-    // inside quoted values (see ConfigParser::UnQuote()), then we may be
-    // misrepresenting actual configuration by quoting the value. TODO: Require
-    // quotes!
     os << '"';
     format_->dumpDefinition(os);
     os << '"';
@@ -162,6 +156,8 @@ MakeRequiredField(const char * const name, ConfigParser &parser)
         throw TextException(ToSBuf("missing required ", name, " parameter"), Here());
     if (strcmp(name, key) != 0)
         throw TextException(ToSBuf("expected required ", name, " parameter, but got ", key), Here());
+    if (!parser.LastTokenWasQuoted())
+        throw TextException(ToSBuf(name, " parameter value (i.e. logformat format specs) must be \"quoted\""), Here());
     return FieldConfig<Value>(name, value);
 }
 
