@@ -62,6 +62,10 @@ Helper::ChildConfig::needNew() const
     /* during the startup and reconfigure use our special amount... */
     if (starting_up || reconfiguring) return n_startup;
 
+    // like reconfiguration, log rotation shuts down and restarts all helpers,
+    // so we apply the above reconfiguration logic to log rotation as well
+    if (RotatingLogs) return n_startup;
+
     /* keep a minimum of n_idle helpers free... */
     if ( (n_active + n_idle) < n_max) return n_idle;
 
