@@ -278,7 +278,7 @@ private:
     void updateAttempts(int);
 
     void resetProxyProtocolHeader();
-    void sendProxyProtoHeader(const Comm::ConnectionPointer &); // XXX: Rename Proto
+    void sendProxyProtocolHeader(const Comm::ConnectionPointer &);
     void proxyProtocolHeaderSent(ProxyProtocolWriterAnswer &);
     void connectToPeerIfNeeded(const Comm::ConnectionPointer &);
 
@@ -1171,7 +1171,7 @@ TunnelStateData::connectDone(const Comm::ConnectionPointer &conn, const char *or
 
     if (proxyProtocolHeader) {
         return advanceDestination("send proxy protocol header", conn, [this, &conn]() {
-            sendProxyProtoHeader(conn);
+            sendProxyProtocolHeader(conn);
         });
     }
 
@@ -1228,7 +1228,7 @@ TunnelStateData::resetProxyProtocolHeader()
 }
 
 void
-TunnelStateData::sendProxyProtoHeader(const Comm::ConnectionPointer &conn)
+TunnelStateData::sendProxyProtocolHeader(const Comm::ConnectionPointer &conn)
 {
     Assure(proxyProtocolHeader);
 

@@ -887,7 +887,7 @@ FwdState::noteConnection(HappyConnOpener::Answer &answer)
 
     if (proxyProtocolHeader) {
         return advanceDestination("send proxy protocol header", answer.conn, [this, &answer]() {
-            sendProxyProtoHeader(answer.conn);
+            sendProxyProtocolHeader(answer.conn);
         });
     }
 
@@ -948,7 +948,7 @@ FwdState::resetProxyProtocolHeader()
 }
 
 void
-FwdState::sendProxyProtoHeader(const Comm::ConnectionPointer &conn)
+FwdState::sendProxyProtocolHeader(const Comm::ConnectionPointer &conn)
 {
     Assure(proxyProtocolHeader);
 
