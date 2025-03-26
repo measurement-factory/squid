@@ -50,8 +50,6 @@
 #include "neighbors.h"
 #include "pconn.h"
 #include "PeerPoolMgr.h"
-#include "proxyp/Header.h"
-#include "proxyp/OutgoingHttpConfig.h"
 #include "ResolvedPeers.h"
 #include "security/BlindPeerConnector.h"
 #include "SquidConfig.h"
@@ -922,31 +920,6 @@ FwdState::tunnelIfNeeded(const Comm::ConnectionPointer &conn)
     secureConnectionToPeerIfNeeded(conn);
 }
 
-/// computes proxyProtocolHeader at the beginning of a request forwarding attempt
-void
-FwdState::resetProxyProtocolHeader()
-{
-    proxyProtocolHeader.reset();
-
-    if (!Config.outgoingProxyProtocolHttp)
-        return;
-
-    if (const auto &aclList = Config.outgoingProxyProtocolHttp->aclList) {
-        ACLFilledChecklist ch(aclList, request);
-        ch.al = al;
-        ch.syncAle(request, nullptr);
-        if (!ch.fastCheck().allowed())
-            return;
-    }
-
-    static const SBuf v2("2.0");
-    ProxyProtocol::Header header(v2, request->masterXaction->initiator.internalClient() ? ProxyProtocol::Two::cmdLocal : ProxyProtocol::Two::cmdProxy);
-    Config.outgoingProxyProtocolHttp->fill(header, al);
-
-    proxyProtocolHeader = header.pack();
-    Assure(proxyProtocolHeader);
-}
-
 void
 FwdState::sendProxyProtocolHeader(const Comm::ConnectionPointer &conn)
 {
@@ -1207,7 +1180,7 @@ FwdState::connectStart()
     err = nullptr;
     request->clearError();
 
-    resetProxyProtocolHeader();
+    proxyProtocolHeader = OutgoingProxyProtocolHeader(request, al);
 
     const auto callback = asyncCallback(17, 5, FwdState::noteConnection, this);
     HttpRequest::Pointer cause = request;

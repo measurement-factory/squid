@@ -41,8 +41,6 @@
 #include "MemBuf.h"
 #include "neighbors.h"
 #include "PeerSelectState.h"
-#include "proxyp/Header.h"
-#include "proxyp/OutgoingHttpConfig.h"
 #include "ResolvedPeers.h"
 #include "sbuf/SBuf.h"
 #include "security/BlindPeerConnector.h"
@@ -277,7 +275,6 @@ private:
     bool exhaustedTries() const;
     void updateAttempts(int);
 
-    void resetProxyProtocolHeader();
     void sendProxyProtocolHeader(const Comm::ConnectionPointer &);
     void proxyProtocolHeaderSent(ProxyProtocolWriterAnswer &);
     void connectToPeerIfNeeded(const Comm::ConnectionPointer &);
@@ -1201,32 +1198,6 @@ TunnelStateData::connectToPeerIfNeeded(const Comm::ConnectionPointer &conn)
     }
 }
 
-/// computes proxyProtocolHeader at the beginning of a tunnel establishment attempt
-void
-TunnelStateData::resetProxyProtocolHeader()
-{
-    proxyProtocolHeader.reset();
-
-    if (!Config.outgoingProxyProtocolHttp)
-        return;
-
-    if (const auto &aclList = Config.outgoingProxyProtocolHttp->aclList) {
-        ACLFilledChecklist ch(aclList, request.getRaw());
-        ch.al = al;
-        ch.syncAle(request.getRaw(), nullptr);
-        if (!ch.fastCheck().allowed())
-            return;
-    }
-
-    // XXX: Hide inside Config.outgoingProxyProtocolHttp to reduce duplication/exposure?
-    static const SBuf v2("2.0");
-    ProxyProtocol::Header header(v2, request->masterXaction->initiator.internalClient() ? ProxyProtocol::Two::cmdLocal : ProxyProtocol::Two::cmdProxy);
-    Config.outgoingProxyProtocolHttp->fill(header, al);
-
-    proxyProtocolHeader = header.pack();
-    Assure(proxyProtocolHeader);
-}
-
 void
 TunnelStateData::sendProxyProtocolHeader(const Comm::ConnectionPointer &conn)
 {
@@ -1548,7 +1519,7 @@ TunnelStateData::startConnecting()
     savedError = nullptr;
     request->hier.peer_reply_status = Http::scNone;
 
-    resetProxyProtocolHeader();
+    proxyProtocolHeader = OutgoingProxyProtocolHeader(request, al);
 
     const auto callback = asyncCallback(17, 5, TunnelStateData::noteConnection, this);
     const auto cs = new HappyConnOpener(destinations, callback, request, startTime, n_tries, al);

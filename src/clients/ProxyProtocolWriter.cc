@@ -7,6 +7,7 @@
  */
 
 #include "squid.h"
+#include "acl/FilledChecklist.h"
 #include "base/Assure.h"
 #include "CachePeer.h"
 #include "clients/ProxyProtocolWriter.h"
@@ -17,7 +18,12 @@
 #include "FwdState.h"
 #include "HttpRequest.h"
 #include "pconn.h"
+#include "proxyp/Header.h"
+#include "proxyp/OutgoingHttpConfig.h"
+#include "SquidConfig.h"
 #include "StatCounters.h"
+
+/* ProxyProtocolWriter */
 
 CBDATA_CLASS_INIT(ProxyProtocolWriter);
 
@@ -219,6 +225,8 @@ ProxyProtocolWriter::status() const
     return buf.content();
 }
 
+/* ProxyProtocolWriterAnswer */
+
 ProxyProtocolWriterAnswer::~ProxyProtocolWriterAnswer()
 {
     delete squidError.get();
@@ -233,5 +241,26 @@ operator <<(std::ostream &os, const ProxyProtocolWriterAnswer &answer)
     if (const auto conn = answer.conn.getRaw())
         os << conn->id;
     return os;
+}
+
+std::optional<SBuf>
+OutgoingProxyProtocolHeader(const HttpRequestPointer &request, const AccessLogEntryPointer &al)
+{
+    if (!Config.outgoingProxyProtocolHttp)
+        return std::nullopt;
+
+    if (const auto &aclList = Config.outgoingProxyProtocolHttp->aclList) {
+        ACLFilledChecklist ch(aclList, request.getRaw());
+        ch.al = al;
+        ch.syncAle(request.getRaw(), nullptr);
+        if (!ch.fastCheck().allowed())
+            return std::nullopt;
+    }
+
+    static const SBuf v2("2.0");
+    const auto local = request && request->masterXaction->initiator.internalClient();
+    ProxyProtocol::Header header(v2, local ? ProxyProtocol::Two::cmdLocal : ProxyProtocol::Two::cmdProxy);
+    Config.outgoingProxyProtocolHttp->fill(header, al);
+    return header.pack();
 }
 

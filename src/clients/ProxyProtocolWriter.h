@@ -15,6 +15,7 @@
 #include "clients/forward.h"
 #include "comm/Connection.h"
 #include "CommCalls.h"
+#include "http/forward.h"
 #include "http/StatusCode.h"
 #include "sbuf/SBuf.h"
 
@@ -93,6 +94,10 @@ private:
 
     bool headerWritten = false; ///< whether we successfully wrote the request
 };
+
+/// generates a serialized PROXY protocol header for the given transaction (if
+/// such a header is required) or returns nil (otherwise)
+std::optional<SBuf> OutgoingProxyProtocolHeader(const HttpRequestPointer &, const AccessLogEntryPointer &);
 
 #endif /* SQUID_SRC_CLIENTS_PROXYPROTOCOLWRITER_H */
 
