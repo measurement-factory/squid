@@ -162,8 +162,6 @@ ProxyProtocolWriter::countFailingConnection()
 {
     Assure(connection);
     NoteOutgoingConnectionFailure(connection->getPeer());
-    if (noteFwdPconnUse && connection->isOpen())
-        fwdPconnPool->noteUses(fd_table[connection->fd].pconn.uses);
 }
 
 void

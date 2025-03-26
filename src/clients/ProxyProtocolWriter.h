@@ -53,9 +53,6 @@ public:
     ProxyProtocolWriter(const ProxyProtocolWriter &) = delete;
     ProxyProtocolWriter &operator =(const ProxyProtocolWriter &) = delete;
 
-    /// hack: whether the connection requires fwdPconnPool->noteUses()
-    bool noteFwdPconnUse = false;
-
 protected:
     /* AsyncJob API */
     ~ProxyProtocolWriter() override;
