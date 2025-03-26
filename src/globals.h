@@ -63,6 +63,7 @@ extern struct timeval squid_start;
 extern int starting_up; /* 1 */
 extern int shutting_down;   /* 0 */
 extern int reconfiguring;   /* 0 */
+extern int RotatingLogs; /* 0 */
 extern time_t hit_only_mode_until;  /* 0 */
 extern double request_failure_ratio;    /* 0.0 */
 extern int store_hash_buckets;  /* 0 */

@@ -1004,6 +1004,8 @@ mainRotate(void)
     if (AvoidSignalAction("log rotation", do_rotate))
         return;
 
+    RotatingLogs = 1;
+
     icmpEngine.Close();
     redirectShutdown();
 #if USE_AUTH
@@ -1025,6 +1027,8 @@ mainRotate(void)
     authenticateInit(&Auth::TheConfig.schemes);
 #endif
     externalAclInit();
+
+    RotatingLogs = 0;
 }
 
 static void
