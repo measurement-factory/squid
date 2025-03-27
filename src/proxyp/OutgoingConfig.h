@@ -72,7 +72,7 @@ private:
     std::optional<Value> cachedValue_;
 };
 
-/// \copydoc FieldConfig::dump(); TODO: Adjust if Doxygen cannot find this reference
+/// \copydoc FieldConfig::dump()
 template <typename T>
 inline auto &operator <<(std::ostream &os, const FieldConfig<T> &o) { o.dump(os); return os; }
 
