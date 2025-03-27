@@ -1769,16 +1769,16 @@ DOC_START
 	See https://wiki.squid-cache.org/SquidFaq/SquidAcl for details.
 DOC_END
 
-NAME: http_outgoing_proxy_protocol
-TYPE: ProxyProtocol::OutgoingHttpConfig*
-LOC: Config.outgoingProxyProtocolHttp
+NAME: proxy_protocol_outgoing
+TYPE: ProxyProtocol::OutgoingConfig*
+LOC: Config.proxyProtocolOutgoing
 DEFAULT: none
 DEFAULT_DOC: Squid does not send PROXY protocol headers
 DOC_START
 	Determines which Squid-to-peer connections start with a PROXY protocol
 	header and defines the composition of the PROXY protocol header sent.
 
-		http_outgoing_proxy_protocol <header-field>... [if [!]<acl>...]
+		proxy_protocol_outgoing <header-field>... [if [!]<acl>...]
 
 	Squid makes the first decision to send a PROXY protocol header before
 	selecting the next forwarding hop for the request. Thus, at the
@@ -1793,7 +1793,7 @@ DOC_START
 	For now, Squid disables HTTP connection reuse after sending
 	the PROXY protocol header on that connection.
 
-	For now, Squid does not support multiple http_outgoing_proxy_protocol
+	For now, Squid does not support multiple proxy_protocol_outgoing
 	directives.
 
 	For now, PROXY protocol header is sent unencrypted, even for
@@ -1938,7 +1938,7 @@ DOC_START
 	Example:
 
 		acl toPeerThatExpectsConnectionTags dstdomain -n example.com
-		http_outgoing_proxy_protocol \
+		proxy_protocol_outgoing \
 		    src_addr="%>a" \
 		    dst_addr="::" \
 		    src_port="%>p" \

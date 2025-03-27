@@ -549,7 +549,7 @@ public:
         int connect_timeout;
     } happyEyeballs;
 
-    ProxyProtocol::OutgoingHttpConfig *outgoingProxyProtocolHttp;
+    ProxyProtocol::OutgoingConfig *proxyProtocolOutgoing;
 };
 
 extern SquidConfig Config;

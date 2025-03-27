@@ -18,7 +18,7 @@
 #include "format/Format.h"
 #include "parser/Tokenizer.h"
 #include "proxyp/Header.h"
-#include "proxyp/OutgoingHttpConfig.h"
+#include "proxyp/OutgoingConfig.h"
 #include "sbuf/Stream.h"
 #include "sbuf/StringConvert.h"
 
@@ -96,7 +96,7 @@ ProxyProtocol::FieldConfig<T>::makeValue(const AccessLogEntryPointer &al) const
         const auto assembledValue = assembleValue(al);
         return parseAssembledValue(assembledValue);
     } catch (...) {
-        debugs(17, DBG_IMPORTANT, "WARNING: Failed to compute the value of http_outgoing_proxy_protocol " << name() << " parameter" <<
+        debugs(17, DBG_IMPORTANT, "WARNING: Failed to compute the value of proxy_protocol_outgoing " << name() << " parameter" <<
                Debug::Extra << "problem: " << CurrentException);
         return std::nullopt;
     }
@@ -145,7 +145,7 @@ ProxyProtocol::FieldConfig<SBuf>::parseAssembledValue(const SBuf &val) const
 namespace ProxyProtocol
 {
 
-/// OutgoingHttpConfig member initialization helper for required name=value fields
+/// OutgoingConfig member initialization helper for required name=value fields
 template <typename Value>
 static FieldConfig<Value>
 MakeRequiredField(const char * const name, ConfigParser &parser)
@@ -163,7 +163,7 @@ MakeRequiredField(const char * const name, ConfigParser &parser)
 
 } // namespace ProxyProtocol
 
-ProxyProtocol::OutgoingHttpConfig::OutgoingHttpConfig(ConfigParser &parser):
+ProxyProtocol::OutgoingConfig::OutgoingConfig(ConfigParser &parser):
     sourceIp(MakeRequiredField<Ip::Address>("src_addr", parser)),
     destinationIp(MakeRequiredField<Ip::Address>("dst_addr", parser)),
     sourcePort(MakeRequiredField<uint16_t>("src_port", parser)),
@@ -183,13 +183,13 @@ ProxyProtocol::OutgoingHttpConfig::OutgoingHttpConfig(ConfigParser &parser):
     aclList = parser.optionalAclList();
 }
 
-ProxyProtocol::OutgoingHttpConfig::~OutgoingHttpConfig()
+ProxyProtocol::OutgoingConfig::~OutgoingConfig()
 {
     aclDestroyAclList(&aclList);
 }
 
 void
-ProxyProtocol::OutgoingHttpConfig::dump(std::ostream &os)
+ProxyProtocol::OutgoingConfig::dump(std::ostream &os)
 {
     const auto separator = " ";
     os << sourceIp << separator << destinationIp << separator << sourcePort << separator << destinationPort <<
@@ -205,7 +205,7 @@ ProxyProtocol::OutgoingHttpConfig::dump(std::ostream &os)
 }
 
 void
-ProxyProtocol::OutgoingHttpConfig::fill(ProxyProtocol::Header &header, const AccessLogEntryPointer &al)
+ProxyProtocol::OutgoingConfig::fill(ProxyProtocol::Header &header, const AccessLogEntryPointer &al)
 {
     if (!header.localConnection()) {
         auto s = sourceIp.makeValue(al);
@@ -232,7 +232,7 @@ ProxyProtocol::OutgoingHttpConfig::fill(ProxyProtocol::Header &header, const Acc
 /// addresses with mismatching families) into a pair of addresses with matching families.
 /// \returns an error message if encountered a mismatching address family, or nullopt
 std::optional<SBuf>
-ProxyProtocol::OutgoingHttpConfig::adjustIps(std::optional<Ip::Address> &s, std::optional<Ip::Address> &d)
+ProxyProtocol::OutgoingConfig::adjustIps(std::optional<Ip::Address> &s, std::optional<Ip::Address> &d)
 {
     const auto anyLike = [](const Ip::Address &ip) { return Ip::Address::Any(ip.family()); };
 
@@ -280,7 +280,7 @@ ProxyProtocol::OutgoingHttpConfig::adjustIps(std::optional<Ip::Address> &s, std:
 }
 
 void
-ProxyProtocol::OutgoingHttpConfig::parseTlvs(ConfigParser &parser)
+ProxyProtocol::OutgoingConfig::parseTlvs(ConfigParser &parser)
 {
     char *key = nullptr;
     char *value = nullptr;
@@ -317,15 +317,15 @@ ProxyProtocol::OutgoingHttpConfig::parseTlvs(ConfigParser &parser)
 namespace Configuration {
 
 template <>
-ProxyProtocol::OutgoingHttpConfig *
-Configuration::Component<ProxyProtocol::OutgoingHttpConfig*>::Parse(ConfigParser &parser)
+ProxyProtocol::OutgoingConfig *
+Configuration::Component<ProxyProtocol::OutgoingConfig*>::Parse(ConfigParser &parser)
 {
-    return new ProxyProtocol::OutgoingHttpConfig(parser);
+    return new ProxyProtocol::OutgoingConfig(parser);
 }
 
 template <>
 void
-Configuration::Component<ProxyProtocol::OutgoingHttpConfig*>::Print(std::ostream &os, ProxyProtocol::OutgoingHttpConfig* const & cfg)
+Configuration::Component<ProxyProtocol::OutgoingConfig*>::Print(std::ostream &os, ProxyProtocol::OutgoingConfig* const & cfg)
 {
     Assure(cfg);
     cfg->dump(os);
@@ -333,7 +333,7 @@ Configuration::Component<ProxyProtocol::OutgoingHttpConfig*>::Print(std::ostream
 
 template <>
 void
-Configuration::Component<ProxyProtocol::OutgoingHttpConfig*>::Free(ProxyProtocol::OutgoingHttpConfig * const cfg)
+Configuration::Component<ProxyProtocol::OutgoingConfig*>::Free(ProxyProtocol::OutgoingConfig * const cfg)
 {
     delete cfg;
 }

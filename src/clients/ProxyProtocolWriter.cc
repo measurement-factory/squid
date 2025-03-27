@@ -19,7 +19,7 @@
 #include "HttpRequest.h"
 #include "pconn.h"
 #include "proxyp/Header.h"
-#include "proxyp/OutgoingHttpConfig.h"
+#include "proxyp/OutgoingConfig.h"
 #include "SquidConfig.h"
 #include "StatCounters.h"
 
@@ -246,10 +246,10 @@ operator <<(std::ostream &os, const ProxyProtocolWriterAnswer &answer)
 std::optional<SBuf>
 OutgoingProxyProtocolHeader(const HttpRequestPointer &request, const AccessLogEntryPointer &al)
 {
-    if (!Config.outgoingProxyProtocolHttp)
+    if (!Config.proxyProtocolOutgoing)
         return std::nullopt;
 
-    if (const auto &aclList = Config.outgoingProxyProtocolHttp->aclList) {
+    if (const auto &aclList = Config.proxyProtocolOutgoing->aclList) {
         ACLFilledChecklist ch(aclList, request.getRaw());
         ch.al = al;
         ch.syncAle(request.getRaw(), nullptr);
@@ -260,7 +260,7 @@ OutgoingProxyProtocolHeader(const HttpRequestPointer &request, const AccessLogEn
     static const SBuf v2("2.0");
     const auto local = request && request->masterXaction->initiator.internalClient();
     ProxyProtocol::Header header(v2, local ? ProxyProtocol::Two::cmdLocal : ProxyProtocol::Two::cmdProxy);
-    Config.outgoingProxyProtocolHttp->fill(header, al);
+    Config.proxyProtocolOutgoing->fill(header, al);
     return header.pack();
 }
 

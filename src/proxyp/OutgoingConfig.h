@@ -25,8 +25,8 @@ class ConfigParser;
 
 namespace ProxyProtocol {
 
-/// A name=value parameter of an http_outgoing_proxy_protocol directive
-/// configuring a PROXY protocol header field (pseudo header or TLV).
+/// A name=value parameter of a proxy_protocol_outgoing directive configuring a
+/// PROXY protocol header field (either a pseudo header or TLV).
 /// \tparam T determines the type of a successfully parsed header field value
 template <typename T>
 class FieldConfig
@@ -46,7 +46,7 @@ public:
     /// Raw PROXY protocol header field value for the given transaction. Since
     /// PROXY protocol header fields must satisfy certain relationship rules,
     /// individual values returned by this method may need further adjustments.
-    /// \sa OutgoingHttpConfig::adjustIps()
+    /// \sa OutgoingConfig::adjustIps()
     Value makeValue(const AccessLogEntryPointer &al) const;
 
     /// known-in-advance transaction-independent makeValue() result (or nil)
@@ -76,12 +76,12 @@ private:
 template <typename T>
 inline auto &operator <<(std::ostream &os, const FieldConfig<T> &o) { o.dump(os); return os; }
 
-/// an http_outgoing_proxy_protocol directive configuration
-class OutgoingHttpConfig final
+/// a proxy_protocol_outgoing directive configuration
+class OutgoingConfig final
 {
 public:
-    explicit OutgoingHttpConfig(ConfigParser &);
-    ~OutgoingHttpConfig();
+    explicit OutgoingConfig(ConfigParser &);
+    ~OutgoingConfig();
 
     void fill(Header &, const AccessLogEntryPointer &);
 
