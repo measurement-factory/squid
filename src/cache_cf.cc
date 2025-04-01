@@ -667,30 +667,26 @@ ParseDirective(T &raw, ConfigParser &parser)
         parser.rejectDuplicateDirective();
 
     // TODO: parser.openDirective(directiveName);
-    Must(!raw);
+
+    // XXX: Work around SawDirective() specialization that fails this assertion:
+    // Must(!raw);
+
     raw = Configuration::Component<T>::Parse(parser);
     Must(raw);
     parser.closeDirective();
 }
 
 /// reports raw SquidConfig data member configuration using squid.conf syntax
-/// \param name the name of the configuration directive being dumped
 template <typename T>
 static void
-DumpDirective(const T &raw, StoreEntry *entry, const char *name)
+DumpDirective(const T &raw, StoreEntry *entry, const char *directiveName)
 {
-    if (!SawDirective(raw))
+    if (!raw) // XXX: Bypass SawDirective() specialization XXX
         return; // not configured
 
-    entry->append(name, strlen(name));
-    SBufStream os;
-    Configuration::Component<T>::Print(os, raw);
-    const auto buf = os.buf();
-    if (buf.length()) {
-        entry->append(" ", 1);
-        entry->append(buf.rawContent(), buf.length());
-    }
-    entry->append("\n", 1);
+    Assure(entry);
+    PackableStream os(*entry);
+    Configuration::Component<T>::Print(os, raw, directiveName);
 }
 
 /// frees any resources associated with the given raw SquidConfig data member
