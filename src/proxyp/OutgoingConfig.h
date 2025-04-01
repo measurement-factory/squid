@@ -83,6 +83,7 @@ public:
     explicit OutgoingConfig(ConfigParser &);
     ~OutgoingConfig();
 
+    /// populates the given Header with configured fields finalized using the given transaction details
     void fill(Header &, const AccessLogEntryPointer &) const;
 
     /// describes this proxy_protocol_outgoing directive using squid.conf syntax
@@ -95,10 +96,11 @@ private:
     void parseTlvs(ConfigParser &);
     std::optional<SBuf> adjustIps(std::optional<Ip::Address> &source, std::optional<Ip::Address> &destination) const;
 
-    FieldConfig<Ip::Address> sourceIp;
-    FieldConfig<Ip::Address> destinationIp;
-    FieldConfig<uint16_t> sourcePort;
-    FieldConfig<uint16_t> destinationPort;
+    // configuration for generating four PROXY protocol pseudo headers
+    FieldConfig<Ip::Address> sourceIp; ///< src_addr
+    FieldConfig<Ip::Address> destinationIp; ///< dst_addr
+    FieldConfig<uint16_t> sourcePort; ///< src_port
+    FieldConfig<uint16_t> destinationPort; ///< dst_port
 
     using Tlvs = std::list< FieldConfig<SBuf> >;
     Tlvs tlvs; ///< configuration for generating TLV header fields
