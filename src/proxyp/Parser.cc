@@ -111,7 +111,7 @@ ProxyProtocol::One::Parse(const SBuf &buf)
     Parser::Tokenizer tok(buf);
 
     static const SBuf::size_type maxHeaderLength = 107; // including CRLF
-    static const auto maxInteriorLength = maxHeaderLength - Magic.length() - 2;
+    static const auto maxInteriorLength = maxHeaderLength - Magic().length() - 2;
     static const auto interiorChars = CharacterSet::CR.complement().rename("non-CR");
     SBuf interior;
 
@@ -240,8 +240,8 @@ ProxyProtocol::Parse(const SBuf &buf)
     Parser::Tokenizer magicTok(buf);
 
     const auto parser =
-        magicTok.skip(Two::Magic) ? &Two::Parse :
-        magicTok.skip(One::Magic) ? &One::Parse :
+        magicTok.skip(Two::Magic()) ? &Two::Parse :
+        magicTok.skip(One::Magic()) ? &One::Parse :
         nullptr;
 
     if (parser) {
@@ -250,7 +250,7 @@ ProxyProtocol::Parse(const SBuf &buf)
     }
 
     // detect and terminate other protocols
-    if (buf.length() >= Two::Magic.length()) {
+    if (buf.length() >= Two::Magic().length()) {
         // PROXY/1.0 magic is shorter, so we know that
         // the input does not start with any PROXY magic
         throw TexcHere("PROXY protocol error: invalid magic");
