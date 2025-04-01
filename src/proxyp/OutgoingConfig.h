@@ -83,16 +83,17 @@ public:
     explicit OutgoingConfig(ConfigParser &);
     ~OutgoingConfig();
 
-    void fill(Header &, const AccessLogEntryPointer &);
+    void fill(Header &, const AccessLogEntryPointer &) const;
 
-    void dump(std::ostream &);
+    /// describes this proxy_protocol_outgoing directive using squid.conf syntax
+    void dump(std::ostream &, const char *directiveName) const;
 
     /// restrict logging to matching transactions
     ACLList *aclList = nullptr;
 
 private:
     void parseTlvs(ConfigParser &);
-    std::optional<SBuf> adjustIps(std::optional<Ip::Address> &source, std::optional<Ip::Address> &destination);
+    std::optional<SBuf> adjustIps(std::optional<Ip::Address> &source, std::optional<Ip::Address> &destination) const;
 
     FieldConfig<Ip::Address> sourceIp;
     FieldConfig<Ip::Address> destinationIp;
@@ -101,6 +102,24 @@ private:
 
     using Tlvs = std::list< FieldConfig<SBuf> >;
     Tlvs tlvs; ///< configuration for generating TLV header fields
+};
+
+/// all proxy_protocol_outgoing directives combined
+class OutgoingConfigs
+{
+public:
+    /// OutgoingConfig matching the given transaction details (or nil if no directives matched)
+    const OutgoingConfig *match(const HttpRequestPointer &, const AccessLogEntryPointer &) const;
+
+    /// creates and stores a single proxy_protocol_outgoing directive
+    /// configuration object (i.e. an OutgoingConfig instance)
+    void emplace(ConfigParser &p) { configs_.emplace_back(p); }
+
+    /// describes stored proxy_protocol_outgoing directives using squid.conf syntax
+    void dump(std::ostream &, const char *directiveName) const;
+
+private:
+    std::list<OutgoingConfig> configs_;
 };
 
 } // namespace ProxyProtocol
