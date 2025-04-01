@@ -6,8 +6,8 @@
  * Please see the COPYING and CONTRIBUTORS files for details.
  */
 
-#ifndef SQUID_SRC_PROXYP_OUTGOINGHTTPCONFIG_H
-#define SQUID_SRC_PROXYP_OUTGOINGHTTPCONFIG_H
+#ifndef SQUID_SRC_PROXYP_OUTGOINGCONFIG_H
+#define SQUID_SRC_PROXYP_OUTGOINGCONFIG_H
 
 #include "acl/forward.h"
 #include "format/forward.h"
@@ -105,5 +105,5 @@ private:
 
 } // namespace ProxyProtocol
 
-#endif /* SQUID_SRC_PROXYP_OUTGOINGHTTPCONFIG_H */
+#endif /* SQUID_SRC_PROXYP_OUTGOINGCONFIG_H */
 
