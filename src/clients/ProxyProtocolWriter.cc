@@ -167,7 +167,7 @@ void
 ProxyProtocolWriter::countFailingConnection()
 {
     Assure(connection);
-    NoteOutgoingConnectionFailure(connection->getPeer());
+    NoteOutgoingConnectionFailure(connection->getPeer(), Http::scNone);
 }
 
 void
