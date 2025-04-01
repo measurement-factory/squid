@@ -16,6 +16,7 @@
 #include "ConfigOption.h"
 #include "ConfigParser.h"
 #include "format/Format.h"
+#include "MemBuf.h"
 #include "parser/Tokenizer.h"
 #include "proxyp/Header.h"
 #include "proxyp/OutgoingConfig.h"
