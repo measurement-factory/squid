@@ -120,7 +120,6 @@ Format::Format::isStatic() const
 {
     for (auto t = format; t; t = t->next) {
         switch (t->type) {
-        case LFT_BYTE:
         case LFT_NONE:
         case LFT_PERCENT:
         case LFT_STRING:
