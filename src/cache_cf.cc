@@ -657,6 +657,15 @@ SawDirective(const T &raw)
     return bool(raw);
 }
 
+// XXX: A temporary hack to enable multiple proxy_protocol_outgoing directives
+// until the parser is upgraded to make use of REPETITIONS:update and such.
+template <>
+bool
+SawDirective<ProxyProtocol::OutgoingConfigs*>(ProxyProtocol::OutgoingConfigs* const &)
+{
+    return false;
+}
+
 /// Sets the given raw SquidConfig data member.
 /// Extracts and interprets parser's configuration tokens.
 template <typename T>

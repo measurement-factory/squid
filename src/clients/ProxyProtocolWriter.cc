@@ -249,18 +249,14 @@ OutgoingProxyProtocolHeader(const HttpRequestPointer &request, const AccessLogEn
     if (!Config.proxyProtocolOutgoing)
         return std::nullopt;
 
-    if (const auto &aclList = Config.proxyProtocolOutgoing->aclList) {
-        ACLFilledChecklist ch(aclList, request.getRaw());
-        ch.al = al;
-        ch.syncAle(request.getRaw(), nullptr);
-        if (!ch.fastCheck().allowed())
-            return std::nullopt;
+    if (const auto config = Config.proxyProtocolOutgoing->match(request, al)) {
+        static const SBuf v2("2.0");
+        const auto local = request && request->masterXaction->initiator.internalClient();
+        ProxyProtocol::Header header(v2, local ? ProxyProtocol::Two::cmdLocal : ProxyProtocol::Two::cmdProxy);
+        config->fill(header, al);
+        return header.pack();
     }
 
-    static const SBuf v2("2.0");
-    const auto local = request && request->masterXaction->initiator.internalClient();
-    ProxyProtocol::Header header(v2, local ? ProxyProtocol::Two::cmdLocal : ProxyProtocol::Two::cmdProxy);
-    Config.proxyProtocolOutgoing->fill(header, al);
-    return header.pack();
+    return std::nullopt;
 }
 

@@ -22,6 +22,7 @@
 #include "proxyp/OutgoingConfig.h"
 #include "sbuf/Stream.h"
 #include "sbuf/StringConvert.h"
+#include "SquidConfig.h"
 
 namespace ProxyProtocol
 {
@@ -190,10 +191,12 @@ ProxyProtocol::OutgoingConfig::~OutgoingConfig()
 }
 
 void
-ProxyProtocol::OutgoingConfig::dump(std::ostream &os)
+ProxyProtocol::OutgoingConfig::dump(std::ostream &os, const char * const directiveName) const
 {
     const auto separator = " ";
-    os << sourceIp << separator << destinationIp << separator << sourcePort << separator << destinationPort <<
+    os << directiveName << separator <<
+       sourceIp << separator << destinationIp << separator <<
+       sourcePort << separator << destinationPort <<
        AsList(tlvs).prefixedBy(separator).delimitedBy(separator);
     if (aclList) {
         // TODO: Use Acl::dump() after fixing the XXX in dump_acl_list().
@@ -203,10 +206,11 @@ ProxyProtocol::OutgoingConfig::dump(std::ostream &os)
             os << separator << item;
         }
     }
+    os << '\n';
 }
 
 void
-ProxyProtocol::OutgoingConfig::fill(ProxyProtocol::Header &header, const AccessLogEntryPointer &al)
+ProxyProtocol::OutgoingConfig::fill(ProxyProtocol::Header &header, const AccessLogEntryPointer &al) const
 {
     if (!header.localConnection()) {
         auto s = sourceIp.makeValue(al);
@@ -233,7 +237,7 @@ ProxyProtocol::OutgoingConfig::fill(ProxyProtocol::Header &header, const AccessL
 /// addresses with mismatching families) into a pair of addresses with matching families.
 /// \returns an error message if encountered a mismatching address family, or nullopt
 std::optional<SBuf>
-ProxyProtocol::OutgoingConfig::adjustIps(std::optional<Ip::Address> &s, std::optional<Ip::Address> &d)
+ProxyProtocol::OutgoingConfig::adjustIps(std::optional<Ip::Address> &s, std::optional<Ip::Address> &d) const
 {
     const auto anyLike = [](const Ip::Address &ip) { return Ip::Address::Any(ip.family()); };
 
@@ -315,26 +319,61 @@ ProxyProtocol::OutgoingConfig::parseTlvs(ConfigParser &parser)
     }
 }
 
+/* ProxyProtocol::OutgoingConfigs */
+
+const ProxyProtocol::OutgoingConfig *
+ProxyProtocol::OutgoingConfigs::match(const HttpRequestPointer &request, const AccessLogEntryPointer &al) const
+{
+    ACLFilledChecklist ch(nullptr, request.getRaw());
+    ch.al = al;
+    ch.syncAle(request.getRaw(), nullptr);
+
+    for (const auto &config: configs_) {
+        if (const auto &aclList = config.aclList) {
+            ch.changeAcl(aclList);
+            if (!ch.fastCheck().allowed())
+                continue;
+            // else fall through to return a matching config
+        }
+        return &config;
+    }
+
+    // no configuration matched
+    return nullptr;
+}
+
+void
+ProxyProtocol::OutgoingConfigs::dump(std::ostream &os, const char * const directiveName) const
+{
+    for (const auto &config: configs_)
+        config.dump(os, directiveName);
+}
+
 namespace Configuration {
 
 template <>
-ProxyProtocol::OutgoingConfig *
-Configuration::Component<ProxyProtocol::OutgoingConfig*>::Parse(ConfigParser &parser)
+ProxyProtocol::OutgoingConfigs *
+Configuration::Component<ProxyProtocol::OutgoingConfigs*>::Parse(ConfigParser &parser)
 {
-    return new ProxyProtocol::OutgoingConfig(parser);
+    // XXX: A hack to work around the lack of REPETITIONS:update support.
+    if (!Config.proxyProtocolOutgoing)
+        Config.proxyProtocolOutgoing = new ProxyProtocol::OutgoingConfigs();
+
+    Config.proxyProtocolOutgoing->emplace(parser);
+    return Config.proxyProtocolOutgoing;
 }
 
 template <>
 void
-Configuration::Component<ProxyProtocol::OutgoingConfig*>::Print(std::ostream &os, ProxyProtocol::OutgoingConfig* const & cfg)
+Configuration::Component<ProxyProtocol::OutgoingConfigs*>::Print(std::ostream &os, ProxyProtocol::OutgoingConfigs* const & cfg, const char * const directiveName)
 {
     Assure(cfg);
-    cfg->dump(os);
+    cfg->dump(os, directiveName);
 }
 
 template <>
 void
-Configuration::Component<ProxyProtocol::OutgoingConfig*>::Free(ProxyProtocol::OutgoingConfig * const cfg)
+Configuration::Component<ProxyProtocol::OutgoingConfigs*>::Free(ProxyProtocol::OutgoingConfigs * const cfg)
 {
     delete cfg;
 }

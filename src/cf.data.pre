@@ -1770,7 +1770,7 @@ DOC_START
 DOC_END
 
 NAME: proxy_protocol_outgoing
-TYPE: ProxyProtocol::OutgoingConfig*
+TYPE: ProxyProtocol::OutgoingConfigs*
 LOC: Config.proxyProtocolOutgoing
 DEFAULT: none
 DEFAULT_DOC: Squid does not send PROXY protocol headers
@@ -1788,13 +1788,16 @@ DOC_START
 	Squid has to reforward the request to a different hop (e.g., another
 	cache_peer).
 
+	When deciding, Squid checks proxy_protocol_outgoing directives in their
+	configuration order. After an `if` clause matches, the corresponding PROXY
+	protocol header configuration is used and no further directives are
+	checked. A directive without the optional `if` clause always matches when
+	checked. If no directives match, a PROXY protocol header is not sent.
+
 	For now, Squid only sends PROXY protocol v2 headers.
 
 	For now, Squid disables HTTP connection reuse after sending
 	the PROXY protocol header on that connection.
-
-	For now, Squid does not support multiple proxy_protocol_outgoing
-	directives.
 
 	For now, PROXY protocol header is sent unencrypted, even for
 	connections to TLS origin servers and cache_peers with "tls" option.
