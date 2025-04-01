@@ -374,6 +374,46 @@ Ip::Address::GetHostByName(const char* s)
     return lookupHostIP(s, false);
 }
 
+namespace Ip
+{
+
+/// creates Ip::Address with a given family and for which isAnyAddr() is true
+/// \param family is either AF_INET (IPv4) or AF_INET6 (IPv6)
+static Ip::Address
+MakeAny(const int family)
+{
+    Address addr;
+    addr.setAnyAddr(); // before setIPv4() that checks isAnyAddr()
+    if (family == AF_INET)
+        addr.setIPv4();
+    else
+        assert(family == AF_INET6); // IPv6 is the default (that we double check below)
+    assert(addr.isIPv6() == (family == AF_INET6));
+    assert(addr.isAnyAddr());
+    return addr;
+
+}
+
+} // namespace Ip
+
+const Ip::Address &
+Ip::Address::AnyIPv4()
+{
+    static_assert(std::is_trivially_destructible_v<Ip::Address>);
+    static const auto anyAddr = MakeAny(AF_INET);
+    return anyAddr;
+
+}
+
+const Ip::Address &
+Ip::Address::AnyIPv6()
+{
+    static_assert(std::is_trivially_destructible_v<Ip::Address>);
+    static const auto anyAddr = MakeAny(AF_INET6);
+    return anyAddr;
+
+}
+
 bool
 Ip::Address::lookupHostIP(const char *s, bool nodns)
 {

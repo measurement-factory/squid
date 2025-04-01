@@ -29,8 +29,6 @@
 
 namespace ProxyProtocol {
 namespace One {
-/// magic octet prefix for PROXY protocol version 1
-static const SBuf Magic("PROXY", 5);
 /// extracts PROXY protocol v1 header from the given buffer
 static Parsed Parse(const SBuf &buf);
 
@@ -40,8 +38,6 @@ static void ParseAddresses(Parser::Tokenizer &tok, Header::Pointer &header);
 }
 
 namespace Two {
-/// magic octet prefix for PROXY protocol version 2
-static const SBuf Magic("\x0D\x0A\x0D\x0A\x00\x0D\x0A\x51\x55\x49\x54\x0A", 12);
 /// extracts PROXY protocol v2 header from the given buffer
 static Parsed Parse(const SBuf &buf);
 

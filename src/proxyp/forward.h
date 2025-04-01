@@ -15,6 +15,7 @@ namespace ProxyProtocol
 {
 
 class Header;
+class OutgoingConfig;
 
 typedef RefCount<Header> HeaderPointer;
 

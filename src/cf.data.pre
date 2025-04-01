@@ -1729,6 +1729,189 @@ DOC_START
 	See https://wiki.squid-cache.org/SquidFaq/SquidAcl for details.
 DOC_END
 
+NAME: proxy_protocol_outgoing
+TYPE: ProxyProtocol::OutgoingConfig*
+LOC: Config.proxyProtocolOutgoing
+DEFAULT: none
+DEFAULT_DOC: Squid does not send PROXY protocol headers
+DOC_START
+	Determines which Squid-to-peer connections start with a PROXY protocol
+	header and defines the composition of the PROXY protocol header sent.
+
+		proxy_protocol_outgoing <header-field>... [if [!]<acl>...]
+
+	Squid makes the first decision to send a PROXY protocol header before
+	selecting the next forwarding hop for the request. Thus, at the
+	decision-making time, the origin server hostname is known, but the next
+	hop details (e.g., cache_peer name and source/destination IP addresses of
+	a Squid-to-peer connection) are unknown. The decision is remade every time
+	Squid has to reforward the request to a different hop (e.g., another
+	cache_peer).
+
+	For now, Squid only sends PROXY protocol v2 headers.
+
+	For now, Squid disables HTTP connection reuse after sending
+	the PROXY protocol header on that connection.
+
+	For now, Squid does not support multiple proxy_protocol_outgoing
+	directives.
+
+	For now, PROXY protocol header is sent unencrypted, even for
+	connections to TLS origin servers and cache_peers with "tls" option.
+	This allows some network services to extract PROXY protocol header
+	information before switching to forwarding of encrypted bytes. Future
+	enhancements may support optional encryption of PROXY protocol bytes.
+
+	Depending on request routing rules, it may be difficult to configure Squid
+	to send different PROXY protocol headers to different cache_peers because
+	forwarding route selection happens after PROXY protocol header generation.
+	To accommodate more use cases, we may have to delay PROXY protocol
+	header-generation/sending decision until after the next hop selection.
+
+	When opening a CONNECT tunnel through a cache_peer, Squid sends the
+	PROXY protocol header before sending CONNECT request. PROXY protocol
+	header bytes and CONNECT request header bytes may share the same TCP
+	packet.
+
+	Normally, Squid sends a "PROXY" command, but when sending a request
+	generated internally by Squid (instead of forwarding a request received
+	from a client), Squid sends a "LOCAL" command and ignores (i.e. does not
+	compute and does not send) the four address block fields itemized below.
+	PROXY protocol requires "LOCAL" command recipients to "discard the
+	protocol block". "LOCAL" commands may carry TLVs (see further below).
+
+	This directive supports configurable PROXY protocol header fields. The
+	sections below document required and optional header-field parameters.
+
+	Address block (i.e. address fields required for the "PROXY" command):
+
+	Squid uses the following four address fields when forwarding requests.
+	These fields must be configured (in the documented order). Their names and
+	quoted brief descriptions are taken from proxy_addr structure and the
+	corresponding text in the PROXY protocol specification. Squid enforces
+	certain PROXY protocol header constraints, but does not assign any
+	specific meaning to these field values.
+
+		* src_addr="logformat": "source layer 3 address". A logformat format
+		  specification evaluating/expanding to an IPv4 address (e.g.,
+		  "192.0.2.1"), an IPv6 address (e.g., "2001:db8::1"), or a single
+		  dash character (i.e. "-") signifying an unknown IP address. If the
+		  address is unknown, then Squid sends either INADDR_ANY or
+		  IN6ADDR_ANY_INIT IP address value. See further below for details.
+
+		* dst_addr="logformat": "destination layer 3 address". See src_addr
+		  bullet above for value handling details.
+
+		* src_port="logformat": "source layer 4 address". A logformat format
+		  specification evaluating/expanding to a decimal number from
+		  [0,65535] range or a single dash character (i.e. "-") signifying an
+		  unknown port. If the port is unknown, Squid sends 0 port value.
+
+		* dst_port="logformat": "destination layer 4 address". See src_port
+		  bullet above for value handling details.
+
+	Address and port values are interpreted as "format specifications"
+	documented in logformat directive (e.g., "%>a"). They are evaluated at
+	PROXY protocol header construction time (at least, see below). A format
+	specification has to be spelled out -- field values cannot use a
+	logformat name to refer to a format specification defined elsewhere. Squid
+	failure to "compile" a configured format specification is a fatal
+	configuration error (e.g., src_port="192.0.2.1").
+
+	If Squid believes that the result of compiled format evaluation does not
+	change from one transaction to another (e.g., "dst_port=80"), then Squid
+	will validate the result at configuration time; validation failures (if
+	any) are fatal configuration errors.
+
+	When constructing a PROXY protocol header for a given transaction, if the
+	result of compiled format evaluation is not compatible with the address
+	field type (e.g., src_port="%<a"), then Squid logs a level-1 WARNING to
+	cache.log and sends a field value that would have been sent if "-"
+	logformat was configured instead.
+
+	PROXY protocol header structure requires src_addr and dst_addr IP families
+	to match. In Squid context, that requirement means that either both
+	addresses are IPv4 or both are IPv6 addresses. Squid finalizes unknown
+	(i.e. "-") addresses and/or overwrites one of the known addresses to
+	satisfy that requirement:
+
+	* Squid uses two "any" addresses in IPv4 family (i.e. INADDR_ANY) if both
+	  src_addr and dst_addr address are unknown.
+	* Squid preserves a single known IP address by using "any" for the
+	  overwritten unknown address (i.e. using INADDR_ANY if the preserved
+	  address comes from IPv4 family and using IN6ADDR_ANY_INIT otherwise).
+	* Squid preserves a single specific IP address by changing the family of
+	  the overwritten "any" address.
+	* Squid preserves src_addr and overwrites dst_addr in other cases.
+
+	If Squid has to overwrite a specific dst_addr, it logs a level-1 ERROR. No
+	level-1 messages are logged when overwriting unknown, INADDR_ANY, and
+	IN6ADDR_ANY_INIT addresses.
+
+	When Squid has to overwrite a src_addr or dst_addr field value as
+	described above, it preserves configured src_port and dst_port values.
+
+	As detailed earlier, the above four address fields must be configured, but
+	Squid ignores this part of configuration and does not send these fields
+	when sending a "LOCAL" PROXY protocol command.
+
+	Custom Type-Length-Value fields (for "PROXY" and "LOCAL" commands):
+
+	To send a PROXY protocol TLV field with a given type and value format,
+	specify it after the four address fields (see above) using the following
+	syntax:
+
+		* type="logformat": Where "type" is a decimal number from [224, 239]
+		  range that PROXY protocols reserves for "application-specific data".
+		  Type values must not start with zero. Logformat is format
+		  specification documented in logformat directive (e.g.,
+		  "%transport::>connection_id").
+
+	After logformat evaluation (i.e. %code expansion, if any), Squid treats
+	TLV values as opaque strings. A configured logformat value of "-" and an
+	evaluated format value of "-" are not treated specially -- Squid sends a
+	TLV field with a dash value.
+
+	Squid failure to "compile" a configured TLV format specification is a
+	fatal configuration error (e.g., 239="%"). If a TLV value cannot be
+	computed at header construction time or the computed value exceeds 65535
+	bytes in length, Squid does not send the affected field and records a
+	level-1 WARNING to cache.log.
+
+	Squid does not yet support sending well-known TLVs like PP2_TYPE_CRC32C.
+
+	Optional TLVs are sent in the order they are specified by this directive.
+	Using one TLV type multiple times is allowed, but identical (at
+	configuration interpretation time, before logformat %code substitution)
+	type=value entries lead to fatal configuration errors.
+
+	Details that apply to both address block fields and TLVs:
+
+	Header field values (i.e. logformat format specifications) must be quoted
+	using "double quotes". Squid removes quotes before using the quoted value.
+
+	Logformat evaluation is subject to log_uses_indirect_client directive. In
+	most cases, Squid-to-peer connection and response-related details are not
+	available during this evaluation because Squid has not opened the
+	corresponding connection to the peer yet.
+
+	Example:
+
+		acl toPeerThatExpectsConnectionTags dstdomain -n example.com
+		proxy_protocol_outgoing \
+		    src_addr="%>a" \
+		    dst_addr="::" \
+		    src_port="%>p" \
+		    dst_port="-" \
+		    224="%proxy_protocol::>h{224}" \
+		    225="%note{myConnectionTag_}" \
+		    239="" \
+		    if toPeerThatExpectsConnectionTags
+
+	This clause only supports fast acl types.
+	See https://wiki.squid-cache.org/SquidFaq/SquidAcl for details.
+DOC_END
+
 NAME: follow_x_forwarded_for
 TYPE: acl_access
 IFDEF: FOLLOW_X_FORWARDED_FOR
