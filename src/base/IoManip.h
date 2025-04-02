@@ -171,5 +171,79 @@ inline AsHex<Integer> asHex(const Integer n) { return AsHex<Integer>(n); }
 /// Prints the first n data bytes using hex notation. Does nothing if n is 0.
 void PrintHex(std::ostream &, const char *data, size_t n);
 
+/// std::ostream manipulator to print containers as flat lists
+template <typename Container>
+class AsList
+{
+public:
+    explicit AsList(const Container &c): container(c) {}
+
+    /// a c-string to print before the first item (if any). Caller must ensure lifetime.
+    auto &prefixedBy(const char * const p) { prefix = p; return *this; }
+
+    /// a c-string to print after the last item (if any). Caller must ensure lifetime.
+    auto &suffixedBy(const char * const p) { suffix = p; return *this; }
+
+    /// a c-string to print between consecutive items (if any). Caller must ensure lifetime.
+    auto &delimitedBy(const char * const d) { delimiter = d; return *this; }
+
+    /// c-string to print before and after each item. Caller must ensure lifetime.
+    auto &quoted(const char * const q = "\"") { preQuote = postQuote = q; return *this; }
+
+    /// c-strings to print before and after each item. Caller must ensure lifetime.
+    auto &quoted(const char * const preQ, const char * const postQ) { preQuote = preQ; postQuote = postQ; return *this; }
+
+    /// writes the container to the given stream
+    void print(std::ostream &) const;
+
+public:
+    const Container &container; ///< zero or more items to print
+
+    const char *prefix = nullptr; ///< \copydoc prefixedBy()
+    const char *suffix = nullptr; ///< \copydoc suffixedBy()
+    const char *delimiter = nullptr; ///< \copydoc delimitedBy()
+    const char *preQuote = nullptr; ///< optional c-string to print before each item; \sa quoted()
+    const char *postQuote = nullptr; ///< optional c-string to print after each item; \sa quoted()
+};
+
+template <typename Container>
+void
+AsList<Container>::print(std::ostream &os) const
+{
+    bool opened = false;
+
+    for (const auto &item: container) {
+        if (!opened) {
+            if (prefix)
+                os << prefix;
+            opened = true;
+        } else {
+            if (delimiter)
+                os << delimiter;
+        }
+
+        if (preQuote)
+            os << preQuote;
+        os << item;
+        if (postQuote)
+            os << postQuote;
+    }
+
+    if (opened && suffix)
+        os << suffix;
+}
+
+template <typename Container>
+inline std::ostream &
+operator <<(std::ostream &os, const AsList<Container> &manipulator)
+{
+    manipulator.print(os);
+    return os;
+}
+
+/// a helper to ease AsList object creation
+template <typename Container>
+inline auto asList(const Container &c) { return AsList<Container>(c); }
+
 #endif /* SQUID_SRC_BASE_IOMANIP_H */
 

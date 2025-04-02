@@ -21,6 +21,7 @@
 #include "client_side.h"
 #include "clients/forward.h"
 #include "clients/HttpTunneler.h"
+#include "clients/ProxyProtocolWriter.h"
 #include "comm/Connection.h"
 #include "comm/ConnOpener.h"
 #include "comm/Loops.h"
@@ -201,6 +202,7 @@ void
 FwdState::cancelStep(const char *reason)
 {
     transportWait.cancel(reason);
+    proxyProtocolWait.cancel(reason);
     encryptionWait.cancel(reason);
     peerWait.cancel(reason);
 }
@@ -580,7 +582,7 @@ FwdState::complete()
 bool
 FwdState::transporting() const
 {
-    return peerWait || encryptionWait || waitingForDispatched;
+    return proxyProtocolWait || peerWait || encryptionWait || waitingForDispatched;
 }
 
 void
@@ -887,8 +889,22 @@ FwdState::noteConnection(HappyConnOpener::Answer &answer)
         return dispatch();
     }
 
+    if (proxyProtocolHeader) {
+        return advanceDestination("send proxy protocol header", answer.conn, [this, &answer]() {
+            sendProxyProtocolHeader(answer.conn);
+        });
+    }
+
+    tunnelIfNeeded(answer.conn);
+}
+
+/// handles an established unencrypted TCP connection to peer after we checked
+/// and satisfied any applicable PROXY protocol requirements
+void
+FwdState::tunnelIfNeeded(const Comm::ConnectionPointer &conn)
+{
     // Check if we need to TLS before use
-    if (const auto *peer = answer.conn->getPeer()) {
+    if (const auto *peer = conn->getPeer()) {
         // Assume that it is only possible for the client-first from the
         // bumping modes to try connect to a remote server. The bumped
         // requests with other modes are using pinned connections or fails.
@@ -902,12 +918,49 @@ FwdState::noteConnection(HappyConnOpener::Answer &answer)
         if (originWantsEncryptedTraffic && // the "encrypted traffic" part
                 !peer->options.originserver && // the "through a proxy" part
                 !peer->secure.encryptTransport) // the "exclude HTTPS proxies" part
-            return advanceDestination("establish tunnel through proxy", answer.conn, [this,&answer] {
-            establishTunnelThruProxy(answer.conn);
+            return advanceDestination("establish tunnel through proxy", conn, [this,&conn] {
+            establishTunnelThruProxy(conn);
         });
     }
 
-    secureConnectionToPeerIfNeeded(answer.conn);
+    secureConnectionToPeerIfNeeded(conn);
+}
+
+void
+FwdState::sendProxyProtocolHeader(const Comm::ConnectionPointer &conn)
+{
+    Assure(proxyProtocolHeader);
+    const auto callback = asyncCallback(17, 4, FwdState::proxyProtocolHeaderSent, this);
+    const auto proxyProtocolWriter = new ProxyProtocolWriter(*proxyProtocolHeader, conn, request, callback, al);
+    proxyProtocolWait.start(proxyProtocolWriter, callback);
+}
+
+/// callback to resume operations after writing a PROXY protocol header
+void
+FwdState::proxyProtocolHeaderSent(ProxyProtocolWriterAnswer &answer)
+{
+    proxyProtocolWait.finish();
+
+    ErrorState *error = nullptr;
+    if (!answer.positive()) {
+        Assure(!answer.conn);
+        error = answer.squidError.get();
+        Assure(error);
+        answer.squidError.clear(); // preserve error for fail()
+    } else if (!Comm::IsConnOpen(answer.conn) || fd_table[answer.conn->fd].closing()) {
+        // The socket could get closed while our callback was queued. Sync
+        // Connection. XXX: Connection::fd may already be stale/invalid here.
+        closePendingConnection(answer.conn, "conn was closed while waiting for FwdState::ProxyProtocolHeaderSent");
+        error = new ErrorState(ERR_CANNOT_FORWARD, Http::scServiceUnavailable, request, al);
+    }
+
+    if (error) {
+        fail(error);
+        retryOrBail();
+        return;
+    }
+
+    tunnelIfNeeded(answer.conn);
 }
 
 void
@@ -1136,6 +1189,8 @@ FwdState::connectStart()
     err = nullptr;
     request->clearError();
 
+    proxyProtocolHeader = OutgoingProxyProtocolHeader(request, al);
+
     const auto callback = asyncCallback(17, 5, FwdState::noteConnection, this);
     HttpRequest::Pointer cause = request;
     const auto cs = new HappyConnOpener(destinations, callback, cause, start_t, n_tries, al);
@@ -1148,7 +1203,8 @@ FwdState::connectStart()
         retriable = ch.fastCheck().allowed();
     }
     cs->setRetriable(retriable);
-    cs->allowPersistent(pconnRace != raceHappened);
+    // TODO: Support reuse of same-proxyProtocolHeader connections.
+    cs->allowPersistent((pconnRace != raceHappened) && !proxyProtocolHeader);
     destinations->notificationPending = true; // start() is async
     transportWait.start(cs, callback);
 }

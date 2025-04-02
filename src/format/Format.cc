@@ -76,6 +76,8 @@ Format::Format::parse(const char *def)
         return false;
     }
 
+    specs = def;
+
     /* very inefficient parser, but who cares, this needs to be simple */
     /* First off, let's tokenize, we'll optimize in a second pass.
      * A token can either be a %-prefixed sequence (usually a dynamic
@@ -113,6 +115,22 @@ Format::AssembleOne(const char *token, MemBuf &mb, const AccessLogEntryPointer &
     return static_cast<size_t>(tokenSize);
 }
 
+bool
+Format::Format::isStatic() const
+{
+    for (auto t = format; t; t = t->next) {
+        switch (t->type) {
+        case LFT_NONE:
+        case LFT_PERCENT:
+        case LFT_STRING:
+            continue;
+        default:
+            return false;
+        }
+    }
+    return true;
+}
+
 void
 Format::Format::dump(StoreEntry * entry, const char *directiveName, bool eol) const
 {
@@ -124,13 +142,38 @@ Format::Format::dump(StoreEntry * entry, const char *directiveName, bool eol) co
         if (directiveName)
             storeAppendPrintf(entry, "%s %s ", directiveName, fmt->name);
 
-        for (Token *t = fmt->format; t; t = t->next) {
-            if (t->type == LFT_STRING)
-                storeAppendPrintf(entry, "%s", t->data.string);
+        SBufStream os;
+        fmt->dumpDefinition(os);
+        const auto buf = os.buf();
+        if (buf.length())
+            entry->append(buf.rawContent(), buf.length());
+
+        if (eol)
+            entry->append("\n", 1);
+    }
+}
+
+void
+Format::Format::dumpDefinition(std::ostream &os) const
+{
+    // TODO: Consider dumping `specs` instead.
+    for (auto t = format; t; t = t->next)
+        t->dump(os);
+}
+
+void
+Format::Token::dump(std::ostream &os) const
+{
+    // XXX: Diff reducer. TODO: Move this method to format/Token.cc.
+    if (const auto t = this) {
+        {
+            if (type == LFT_NONE) {
+                // output nothing (to reproduce empty logformat specs)
+            } else if (type == LFT_STRING)
+                os << data.string;
             else {
                 char argbuf[256];
                 char *arg = nullptr;
-                ByteCode_t type = t->type;
 
                 switch (type) {
                 /* special cases */
@@ -154,34 +197,6 @@ Format::Format::dump(StoreEntry * entry, const char *directiveName, bool eol) co
                         snprintf(argbuf, sizeof(argbuf), "%s:%s", t->data.header.header, t->data.header.element);
 
                     arg = argbuf;
-
-                    switch (type) {
-                    case LFT_REQUEST_HEADER_ELEM:
-                        type = LFT_REQUEST_HEADER_ELEM; // XXX: remove _ELEM?
-                        break;
-                    case LFT_ADAPTED_REQUEST_HEADER_ELEM:
-                        type = LFT_ADAPTED_REQUEST_HEADER_ELEM; // XXX: remove _ELEM?
-                        break;
-                    case LFT_REPLY_HEADER_ELEM:
-                        type = LFT_REPLY_HEADER_ELEM; // XXX: remove _ELEM?
-                        break;
-#if USE_ADAPTATION
-                    case LFT_ADAPTATION_LAST_HEADER_ELEM:
-                        type = LFT_ADAPTATION_LAST_HEADER;
-                        break;
-#endif
-#if ICAP_CLIENT
-                    case LFT_ICAP_REQ_HEADER_ELEM:
-                        type = LFT_ICAP_REQ_HEADER;
-                        break;
-                    case LFT_ICAP_REP_HEADER_ELEM:
-                        type = LFT_ICAP_REP_HEADER;
-                        break;
-#endif
-                    default:
-                        break;
-                    }
-
                     break;
 
                 case LFT_REQUEST_ALL_HEADERS:
@@ -195,34 +210,6 @@ Format::Format::dump(StoreEntry * entry, const char *directiveName, bool eol) co
                 case LFT_ICAP_REQ_ALL_HEADERS:
                 case LFT_ICAP_REP_ALL_HEADERS:
 #endif
-
-                    switch (type) {
-                    case LFT_REQUEST_ALL_HEADERS:
-                        type = LFT_REQUEST_HEADER;
-                        break;
-                    case LFT_ADAPTED_REQUEST_ALL_HEADERS:
-                        type = LFT_ADAPTED_REQUEST_HEADER;
-                        break;
-                    case LFT_REPLY_ALL_HEADERS:
-                        type = LFT_REPLY_HEADER;
-                        break;
-#if USE_ADAPTATION
-                    case LFT_ADAPTATION_LAST_ALL_HEADERS:
-                        type = LFT_ADAPTATION_LAST_HEADER;
-                        break;
-#endif
-#if ICAP_CLIENT
-                    case LFT_ICAP_REQ_ALL_HEADERS:
-                        type = LFT_ICAP_REQ_HEADER;
-                        break;
-                    case LFT_ICAP_REP_ALL_HEADERS:
-                        type = LFT_ICAP_REP_HEADER;
-                        break;
-#endif
-                    default:
-                        break;
-                    }
-
                     break;
 
                 default:
@@ -232,28 +219,28 @@ Format::Format::dump(StoreEntry * entry, const char *directiveName, bool eol) co
                     break;
                 }
 
-                entry->append("%", 1);
+                os << '%';
 
                 switch (t->quote) {
 
                 case LOG_QUOTE_QUOTES:
-                    entry->append("\"", 1);
+                    os << '"';
                     break;
 
                 case LOG_QUOTE_MIMEBLOB:
-                    entry->append("[", 1);
+                    os << '[';
                     break;
 
                 case LOG_QUOTE_URL:
-                    entry->append("#", 1);
+                    os << '#';
                     break;
 
                 case LOG_QUOTE_RAW:
-                    entry->append("'", 1);
+                    os << "'";
                     break;
 
                 case LOG_QUOTE_SHELL:
-                    entry->append("/", 1);
+                    os << '/';
                     break;
 
                 case LOG_QUOTE_NONE:
@@ -261,29 +248,26 @@ Format::Format::dump(StoreEntry * entry, const char *directiveName, bool eol) co
                 }
 
                 if (t->left)
-                    entry->append("-", 1);
+                    os << '-';
 
                 if (t->zero)
-                    entry->append("0", 1);
+                    os << '0';
 
                 if (t->widthMin >= 0)
-                    storeAppendPrintf(entry, "%d", t->widthMin);
+                    os << widthMin;
 
                 if (t->widthMax >= 0)
-                    storeAppendPrintf(entry, ".%d", t->widthMax);
+                    os << '.' << widthMax;
 
                 if (arg)
-                    storeAppendPrintf(entry, "{%s}", arg);
+                    os << '{' << arg << '}';
 
-                storeAppendPrintf(entry, "%s", t->label);
+                os << label;
 
                 if (t->space)
-                    entry->append(" ", 1);
+                    os << ' ';
             }
         }
-
-        if (eol)
-            entry->append("\n", 1);
     }
 
 }

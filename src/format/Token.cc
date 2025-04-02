@@ -504,6 +504,10 @@ Format::Token::parse(const char *def, Quoting *quoting)
 
     case LFT_PROXY_PROTOCOL_RECEIVED_HEADER:
 
+        // TODO: Remove LFT_REQUEST_HEADER_ELEM, LFT_REQUEST_ALL_HEADERS, and
+        // other *_ELEM and *_ALL_* types set below. Use data.header.header to
+        // distinguish "one field" from "all fields" cases, like LFT_NOTE does.
+
         if (data.string) {
             char *header = data.string;
             const auto initialType = type;

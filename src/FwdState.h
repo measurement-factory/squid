@@ -172,8 +172,11 @@ private:
     void connectedToPeer(Security::EncryptorAnswer &answer);
     static void RegisterWithCacheManager(void);
 
+    void tunnelIfNeeded(const Comm::ConnectionPointer &);
     void establishTunnelThruProxy(const Comm::ConnectionPointer &);
     void tunnelEstablishmentDone(Http::TunnelerAnswer &answer);
+    void sendProxyProtocolHeader(const Comm::ConnectionPointer &);
+    void proxyProtocolHeaderSent(ProxyProtocolWriterAnswer &);
     void secureConnectionToPeerIfNeeded(const Comm::ConnectionPointer &);
     void secureConnectionToPeer(const Comm::ConnectionPointer &);
     void successfullyConnectedToPeer(const Comm::ConnectionPointer &);
@@ -223,6 +226,9 @@ private:
     /// waits for a transport connection to the peer to be established/opened
     JobWait<HappyConnOpener> transportWait;
 
+    /// waits for the PROXY protocol header to be sent
+    JobWait<ProxyProtocolWriter> proxyProtocolWait;
+
     /// waits for the established transport connection to be secured/encrypted
     JobWait<Security::PeerConnector> encryptionWait;
 
@@ -236,6 +242,9 @@ private:
     ResolvedPeersPointer destinations; ///< paths for forwarding the request
     Comm::ConnectionPointer serverConn; ///< a successfully opened connection to a server.
     PeerConnectionPointer destinationReceipt; ///< peer selection result (or nil)
+
+    /// packed PROXY protocol header that we need to send (or nil)
+    std::optional<SBuf> proxyProtocolHeader;
 
     AsyncCall::Pointer closeHandler; ///< The serverConn close handler
 

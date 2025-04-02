@@ -31,6 +31,8 @@
 #include <netdb.h>
 #endif
 
+#include <optional>
+
 namespace Ip
 {
 
@@ -41,6 +43,14 @@ class Address
 {
 
 public:
+    /// Creates an IP address object by parsing a given c-string. Accepts all
+    /// three forms of IPv6 addresses from RFC 4291 section 2.2. Examples of
+    /// valid input: 0, 1.0, 1.2.3.4, ff01::101, and ::FFFF:129.144.52.38.
+    /// Fails if input contains characters before or after a valid IP address.
+    /// For example, fails if given a bracketed IPv6 address (e.g., [::1]).
+    /// \returns std::nullopt if parsing fails
+    static std::optional<Address> Parse(const char *);
+
     /** @name Constructors */
     /*@{*/
     Address() { setEmpty(); }
@@ -62,6 +72,11 @@ public:
     Address& operator =(struct sockaddr_in6 const &s);
     bool operator =(const struct hostent &s);
     bool operator =(const struct addrinfo &s);
+
+    /// Interprets the given c-string as an IP address and, upon success,
+    /// assigns that address. Does nothing if that interpretation fails.
+    /// \returns whether the assignment was performed
+    /// \deprecated Use Parse() instead.
     bool operator =(const char *s);
     /*@}*/
 
@@ -134,6 +149,10 @@ public:
     bool isSiteLocalAuto() const;
 
     /*@}*/
+
+    /// IP address family (either AF_INET or AF_INET6)
+    /// \sa setIPv4() and isIPv6()
+    int family() const { return isIPv4() ? AF_INET : AF_INET6; }
 
     /** Retrieve the Port if stored.
      \retval 0 Port is unset or an error occurred.
@@ -228,8 +247,7 @@ public:
     unsigned int toHostStr(char *buf, const unsigned int len) const;
 
     /// Empties the address and then slowly imports the IP from a possibly
-    /// [bracketed] portless host. For the semi-reverse operation, see
-    /// toHostStr() which does export the port.
+    /// [bracketed] portless host. For the reverse operation, see toHostStr().
     /// \returns whether the conversion was successful
     bool fromHost(const char *hostWithoutPort);
 
@@ -300,6 +318,16 @@ public:
     /// \returns an Address with true isNoAddr()
     /// \see isNoAddr() for more details
     static const Address &NoAddr() { static const Address noAddr(v6_noaddr); return noAddr; }
+
+    /// an IPv4 Address with true isAnyAddr() and default/zero port
+    static const Address &AnyIPv4();
+
+    /// an IPv6 Address with true isAnyAddr() and default/zero port
+    static const Address &AnyIPv6();
+
+    /// an Address with true isAnyAddr(), given IP family, and default/zero port
+    /// \param family is either AF_INET or AF_INET6
+    static const Address &Any(const int family) { return family == AF_INET ? AnyIPv4() : AnyIPv6(); }
 
 public:
     /* XXX: When C => C++ conversion is done will be fully private.

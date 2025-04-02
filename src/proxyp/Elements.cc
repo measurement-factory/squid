@@ -36,6 +36,21 @@ static Two::FieldType IntegerToFieldType(const SBuf &);
 
 } // namespace ProxyProtocol
 
+/// magic octet prefix for PROXY protocol version 1
+const SBuf &
+ProxyProtocol::One::Magic()
+{
+    static const auto magic = new SBuf("PROXY", 5);
+    return *magic;
+}
+
+const SBuf &
+ProxyProtocol::Two::Magic()
+{
+    static const auto magic = new SBuf("\x0D\x0A\x0D\x0A\x00\x0D\x0A\x51\x55\x49\x54\x0A", 12);
+    return *magic;
+}
+
 const SBuf &
 ProxyProtocol::PseudoFieldTypeToFieldName(const Two::FieldType fieldType)
 {

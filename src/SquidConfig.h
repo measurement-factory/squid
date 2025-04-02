@@ -23,6 +23,7 @@
 #include "MessageDelayPools.h"
 #endif
 #include "Notes.h"
+#include "proxyp/forward.h"
 #include "security/forward.h"
 #if USE_OPENSSL
 #include "ssl/support.h"
@@ -553,6 +554,8 @@ public:
         int connect_gap;
         int connect_timeout;
     } happyEyeballs;
+
+    ProxyProtocol::OutgoingConfigs *proxyProtocolOutgoing; ///< proxy_protocol_outgoing
 };
 
 extern SquidConfig Config;
