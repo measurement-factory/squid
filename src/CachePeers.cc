@@ -88,6 +88,16 @@ Configuration::Component<CachePeers*>::StartSmoothReconfiguration(SmoothReconfig
 {
     // Mark old cache_peers as stale so that FinishSmoothReconfiguration() can
     // find old peers that are no longer present in the new configuration file.
+    //
+    // XXX: Marking old cache_peers is not good enough because we do not want
+    // cache_peer-dependent directives (e.g., cache_peer_access) to access old
+    // cache_peer objects (e.g., when the order of directives has changed across
+    // smooth reconfiguration). We also do not want to remember to check the
+    // `stale` flag whenever configuration code accesses a cache_peer object. We
+    // need to stash old cache_peers here and forget them upon successful smooth
+    // reconfiguration but bring them back on smooth reconfiguration failures.
+    // TODO: To handle smooth reconfiguration failures, add
+    // Configuration::Component<T>::AbortSmoothReconfiguration().
     for (const auto &p: CurrentCachePeers())
         p->stale = true;
 }
