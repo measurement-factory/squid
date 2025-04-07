@@ -1948,7 +1948,7 @@ DOC_START
 		    dst_port="-" \
 		    224="%proxy_protocol::>h{224}" \
 		    225="%note{myConnectionTag_}" \
-		    239="" \
+		    239=" " \
 		    if toPeerThatExpectsConnectionTags
 
 	This clause only supports fast acl types.
