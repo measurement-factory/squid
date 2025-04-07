@@ -305,13 +305,21 @@ ProxyProtocol::OutgoingConfig::parseTlvs(ConfigParser &parser)
         // above. TODO: Consider caching parsed value.
         Assure(t == strtol(current.name(), nullptr, 10));
 
-        // the number of configured TLVs should not preclude a simple linear search
+        // Reject likely configuration typos where two TLV configurations result
+        // in identical bytes on the wire. The number of configured TLVs should
+        // not preclude this simple linear search.
         const auto found = std::find_if(tlvs.begin(), tlvs.end(), [&](const auto &tlv) {
-            /// Whether previously parsed tlv is likely to produce the same
-            /// bytes on-the-wire as the current one. We ignore superficial
-            /// differences such as type ID letters "case" (for when we start
-            /// supporting hex type IDs like 0xEe=...) and value quoting.
-            return strcasecmp(tlv.name(), current.name()) == 0 && tlv.format().specs == current.format().specs;
+            // Ignore superficial differences such as type ID letters "case"
+            // (for when we start supporting hex type IDs like 0xEe=...).
+            if (strcasecmp(tlv.name(), current.name()) != 0)
+                return false; // different type IDs
+            if (tlv.format().specs == current.format().specs)
+                return true; // identical format specs
+            if (!tlv.cachedValue() || !current.cachedValue())
+                return false; // cannot be sure that different transaction-dependent formats will produce identical values
+            // check transaction-independent values (while treating two unknown
+            // values as equal)
+            return *tlv.cachedValue() == *current.cachedValue();
         });
         Assure(found != tlvs.end()); // we ought to find `current` (at least)
         if (&(*found) != &current)
