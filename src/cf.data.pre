@@ -1789,10 +1789,10 @@ DOC_START
 	cache_peer).
 
 	When deciding, Squid checks proxy_protocol_outgoing directives in their
-	configuration order. After an `if` clause matches, the corresponding PROXY
-	protocol header configuration is used and no further directives are
-	checked. A directive without the optional `if` clause always matches when
-	checked. If no directives match, no PROXY protocol header is sent.
+	configuration order. A directive matches if it has no `if` clause or that
+	clause matches. A matching directive ends checks, with Squid using the
+	corresponding PROXY protocol header configuration. If no directives match,
+	no PROXY protocol header is sent.
 
 	For now, Squid only sends PROXY protocol v2 headers.
 
