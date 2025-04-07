@@ -1792,7 +1792,7 @@ DOC_START
 	configuration order. After an `if` clause matches, the corresponding PROXY
 	protocol header configuration is used and no further directives are
 	checked. A directive without the optional `if` clause always matches when
-	checked. If no directives match, a PROXY protocol header is not sent.
+	checked. If no directives match, no PROXY protocol header is sent.
 
 	For now, Squid only sends PROXY protocol v2 headers.
 
@@ -1905,7 +1905,7 @@ DOC_START
 	syntax:
 
 		* type="logformat": Where "type" is a decimal number from [224, 239]
-		  range that PROXY protocols reserves for "application-specific data".
+		  range that PROXY protocol reserves for "application-specific data".
 		  Type values must not start with zero. Logformat is format
 		  specification documented in logformat directive (e.g.,
 		  "%transport::>connection_id").
