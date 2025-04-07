@@ -68,19 +68,10 @@ protected:
     void handleWrittenHeader(const CommIoCbParams &);
 
 private:
-    /// sends the given error to the initiator
     void bailWith(ErrorState*);
-
-    /// sends the ready-to-use tunnel to the initiator
     void sendSuccess();
-
-    /// a bailWith(), sendSuccess() helper: sends results to the initiator
     void callBack();
-
-    /// stops monitoring the connection
     void disconnect();
-
-    /// updates connection usage history before the connection is closed
     void countFailingConnection();
 
     const SBuf header; ///< PROXY protocol header we must write

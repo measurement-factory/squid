@@ -138,6 +138,7 @@ ProxyProtocolWriter::handleWrittenHeader(const CommIoCbParams &io)
     debugs(17, 5, status());
 }
 
+/// sends the given error to the initiator
 void
 ProxyProtocolWriter::bailWith(ErrorState *error)
 {
@@ -153,6 +154,7 @@ ProxyProtocolWriter::bailWith(ErrorState *error)
     callBack();
 }
 
+/// sends the ready-to-use tunnel to the initiator
 void
 ProxyProtocolWriter::sendSuccess()
 {
@@ -163,6 +165,7 @@ ProxyProtocolWriter::sendSuccess()
     callBack();
 }
 
+/// updates connection usage history before the connection is closed
 void
 ProxyProtocolWriter::countFailingConnection()
 {
@@ -170,6 +173,7 @@ ProxyProtocolWriter::countFailingConnection()
     NoteOutgoingConnectionFailure(connection->getPeer());
 }
 
+/// stops monitoring the connection
 void
 ProxyProtocolWriter::disconnect()
 {
@@ -182,6 +186,7 @@ ProxyProtocolWriter::disconnect()
     connection = nullptr; // may still be open
 }
 
+/// a bailWith(), sendSuccess() helper: sends results to the initiator
 void
 ProxyProtocolWriter::callBack()
 {
