@@ -154,7 +154,7 @@ ProxyProtocolWriter::bailWith(ErrorState *error)
     callBack();
 }
 
-/// sends the ready-to-use tunnel to the initiator
+/// sends a ready-to-use connection to the initiator after writing a PROXY protocol header
 void
 ProxyProtocolWriter::sendSuccess()
 {
