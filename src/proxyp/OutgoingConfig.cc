@@ -124,11 +124,16 @@ ProxyProtocol::FieldConfig<uint16_t>::parseAssembledValue(const SBuf &val) const
     if (val == Format::Dash)
         return std::nullopt;
 
+    // Reject values like 007 in case admins incorrectly assume that we support
+    // octal values. The tok.atEnd() check below rejects hex values like 0x80.
+    if (val.length() > 1 && val[0] == '0')
+        throw TextException(ToSBuf("Cannot parse '", val, "' as ", name(), ". Unsupported leading zero(s)"), Here());
+
     Parser::Tokenizer tok(val);
     const auto portMax = std::numeric_limits<uint16_t>::max();
     int64_t p = -1;
     if (!tok.int64(p, 10, false) || !tok.atEnd() || p > portMax)
-        throw TextException(ToSBuf("Cannot parse '", val, "' as ", name(), ". Expected an unsigned integer not exceeding ", portMax), Here());
+        throw TextException(ToSBuf("Cannot parse '", val, "' as ", name(), ". Expected an unsigned decimal integer not exceeding ", portMax), Here());
     return p;
 }
 
