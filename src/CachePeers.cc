@@ -85,14 +85,14 @@ DeleteConfigured(CachePeer * const peer)
 
 template <>
 void
-Configuration::Component<CachePeerAccesses*>::StartSmoothReconfiguration(SmoothReconfiguration &)
+Configuration::Component<CachePeerAccesses>::StartSmoothReconfiguration(SmoothReconfiguration &)
 {
     // our needs are handled by Component<CachePeers*>::StartSmoothReconfiguration()
 }
 
 template <>
 void
-Configuration::Component<CachePeerAccesses*>::FinishSmoothReconfiguration(SmoothReconfiguration &)
+Configuration::Component<CachePeerAccesses>::FinishSmoothReconfiguration(SmoothReconfiguration &)
 {
     // our needs are handled by Component<CachePeers*>::FinishSmoothReconfiguration()
 }

@@ -4052,7 +4052,7 @@ TYPE: peer_access
 DEFAULT: none
 DEFAULT_DOC: No peer usage restrictions.
 LOC: none
-COMPONENT_RECONFIGURATION_TYPE: CachePeerAccesses*
+COMPONENT_RECONFIGURATION_TYPE: CachePeerAccesses
 DOC_START
 	Restricts usage of cache_peer proxies.
 

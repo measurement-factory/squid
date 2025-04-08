@@ -2244,7 +2244,7 @@ parse_peer_access(void)
 
 template <>
 void
-Configuration::Component<CachePeerAccesses*>::Reconfigure(SmoothReconfiguration &, ConfigParser &)
+Configuration::Component<CachePeerAccesses>::Reconfigure(SmoothReconfiguration &, ConfigParser &)
 {
     // TODO: Convert peer_access to Configuration::Component API
     parse_peer_access();
