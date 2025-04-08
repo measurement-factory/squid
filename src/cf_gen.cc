@@ -731,6 +731,9 @@ Entry::genReconfigure(std::ostream &fout) const
 
     genParsePrefix(fout, name);
 
+    if (loc == "none") {
+        fout << "        " << reconfigurationType << " none = {};";
+    }
     fout << "        Configuration::Component<" << reconfigurationType << ">::Reconfigure(*this, " << loc << ", LegacyParser);\n";
     fout << "        LegacyParser.closeDirective();\n";
 

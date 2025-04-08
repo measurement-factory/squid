@@ -7,6 +7,7 @@
  */
 
 #include "squid.h"
+#include "acl/Gadgets.h"
 #include "CachePeers.h"
 #include "ConfigOption.h"
 #include "configuration/Smooth.h"
@@ -80,6 +81,22 @@ DeleteConfigured(CachePeer * const peer)
     Config.peers->remove(peer);
 }
 
+/* Configuration::Component<CachePeerAccesses> */
+
+template <>
+void
+Configuration::Component<CachePeerAccesses*>::StartSmoothReconfiguration(SmoothReconfiguration &)
+{
+    // our needs are handled by Component<CachePeers*>::StartSmoothReconfiguration()
+}
+
+template <>
+void
+Configuration::Component<CachePeerAccesses*>::FinishSmoothReconfiguration(SmoothReconfiguration &)
+{
+    // our needs are handled by Component<CachePeers*>::FinishSmoothReconfiguration()
+}
+
 /* Configuration::Component<CachePeers*> */
 
 template <>
@@ -89,17 +106,17 @@ Configuration::Component<CachePeers*>::StartSmoothReconfiguration(SmoothReconfig
     // Mark old cache_peers as stale so that FinishSmoothReconfiguration() can
     // find old peers that are no longer present in the new configuration file.
     //
-    // XXX: Marking old cache_peers is not good enough because we do not want
-    // cache_peer-dependent directives (e.g., cache_peer_access) to access old
-    // cache_peer objects (e.g., when the order of directives has changed across
-    // smooth reconfiguration). We also do not want to remember to check the
-    // `stale` flag whenever configuration code accesses a cache_peer object. We
-    // need to stash old cache_peers here and forget them upon successful smooth
+    // XXX: Marking old cache_peers is not good enough because we do not want to
+    // remember to check the `stale` flag whenever (re)configuration code
+    // accesses a CachePeer object (e.g., see a check in parse_peer_access()).
+    // TODO: Stash old cache_peers here and forget them upon successful smooth
     // reconfiguration but bring them back on smooth reconfiguration failures.
-    // TODO: To handle smooth reconfiguration failures, add
-    // Configuration::Component<T>::AbortSmoothReconfiguration().
-    for (const auto &p: CurrentCachePeers())
+    // To handle smooth reconfiguration failures, add
+    // Configuration::Component<T>::AbortSmoothReconfiguration()?
+    for (const auto &p: CurrentCachePeers()) {
         p->stale = true;
+        aclDestroyAccessList(&p->access); // XXX: This will go away when stale peers are stashed (see XXX above).
+    }
 }
 
 template <>
@@ -119,6 +136,7 @@ Configuration::Component<CachePeers*>::FinishSmoothReconfiguration(SmoothReconfi
         peersToRemove.pop_back();
         debugs(15, DBG_IMPORTANT, "WARNING: Removing old cache_peer not present in new configuration: " << *p);
         peerSelectDrop(sr, *p);
+        Assure(!p->access); // parse_peer_access() rejects cache_peer_access directives naming stale peers
         DeleteConfigured(p);
     }
 }

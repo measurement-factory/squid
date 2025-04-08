@@ -70,5 +70,9 @@ using SelectedCachePeers = std::vector< CbcPointer<CachePeer>, PoolingAllocator<
 /// Temporary, local storage of raw pointers to zero or more Config.peers.
 using RawCachePeers = std::vector<CachePeer *, PoolingAllocator<CachePeer*> >;
 
+/// Template parameter type for Configuration::Component specialization that
+/// handles smooth cache_peer_access reconfiguration
+class CachePeerAccesses {};
+
 #endif /* SQUID_SRC_CACHEPEERS_H */
 

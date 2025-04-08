@@ -4040,13 +4040,6 @@ DOC_START
 	  `carp-key`) is not yet supported, but not diagnostic is given for some
 	  of the ignored changes. Changing TLS-related options is supported.
 
-	* If you reconfigure to remove a cache_peer that had cache_peer_access
-	  rules and then reconfigure again to add a cache_peer with the same name,
-	  then Squid ignores old cache_peer_access rules even though they are
-	  still present in the configuration file (altering them would preclude
-	  smooth reconfiguration because cache_peer_access directive does not
-	  support smooth reconfiguration yet). This will be fixed.
-
 	* Changing cache_peer options does not close any idle persistent
 	  connections to that peer (yet?).
 
@@ -4059,6 +4052,7 @@ TYPE: peer_access
 DEFAULT: none
 DEFAULT_DOC: No peer usage restrictions.
 LOC: none
+COMPONENT_RECONFIGURATION_TYPE: CachePeerAccesses*
 DOC_START
 	Restricts usage of cache_peer proxies.
 
