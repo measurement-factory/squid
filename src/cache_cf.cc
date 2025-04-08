@@ -2229,9 +2229,25 @@ static void
 parse_peer_access(void)
 {
     auto &p = LegacyParser.cachePeer("cache_peer_access peer-name");
+
+    // XXX: This check will go away when stale peers are stashed (see XXX in
+    // Configuration::Component<CachePeers*>::StartSmoothReconfiguration()).
+    if (p.stale) {
+        throw TextException(ToSBuf("A cache_peer_access directive refers to cache_peer ", p,
+                                   " that has been removed from configuration (or is now declared below this reference point)"), Here());
+    }
+
     std::string directive = "peer_access ";
     directive += p.name;
     aclParseAccessLine(directive.c_str(), LegacyParser, &p.access);
+}
+
+template <>
+void
+Configuration::Component<CachePeerAccesses>::Reconfigure(SmoothReconfiguration &, ConfigParser &)
+{
+    // TODO: Convert peer_access to Configuration::Component API
+    parse_peer_access();
 }
 
 static void

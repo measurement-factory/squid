@@ -49,10 +49,18 @@ public:
     /// \sa FinishSmoothReconfiguration() and StartSmoothReconfigurationOfComponents()
     static void StartSmoothReconfiguration(SmoothReconfiguration &);
 
-    /// Smoothly reconfigures a given directive. All such calls for T directives
-    /// are preceded by a single StartSmoothReconfiguration() call and followed
-    /// by a single FinishSmoothReconfiguration() call.
+    /// Smoothly reconfigures a given directive that has cf.data.pre LOC storage
+    /// other than "none". All such calls for T directives are preceded by a
+    /// single StartSmoothReconfiguration() call and followed by a single
+    /// FinishSmoothReconfiguration() call.
+    /// \sa Reconfigure(SmoothReconfiguration &, ConfigParser &)
     static void Reconfigure(SmoothReconfiguration &, T &, ConfigParser &);
+
+    /// Smoothly reconfigures a "LOC: none" directive. All such calls for T
+    /// directives are preceded by a single StartSmoothReconfiguration() call
+    /// and followed by a single FinishSmoothReconfiguration() call.
+    /// \sa Reconfigure(SmoothReconfiguration &, T &, ConfigParser &)
+    static void Reconfigure(SmoothReconfiguration &, ConfigParser &);
 
     /// Finishes smooth reconfiguration of features tied to T directives.
     /// \sa StartSmoothReconfiguration() and FinishSmoothReconfigurationOfComponents()
