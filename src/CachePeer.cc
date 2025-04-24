@@ -53,9 +53,6 @@ CachePeer::~CachePeer()
 
     delete standby.pool;
 
-    // the mgr job will notice that its owner is gone and stop
-    PeerPoolMgr::Checkpoint(standby.mgr, "peer gone");
-
     xfree(domain);
 }
 

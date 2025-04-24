@@ -8,9 +8,18 @@
 
 #include "squid.h"
 #include "CachePeers.h"
+#include "PeerPoolMgr.h"
 #include "SquidConfig.h"
 
 #include <algorithm>
+
+CachePeers::~CachePeers()
+{
+    std::for_each(storage.begin(), storage.end(), [&](const auto &peer) {
+        // the mgr job will notice that its owner is gone and stop
+        PeerPoolMgr::Checkpoint(peer.get()->standby.mgr, "peer gone");
+    });
+}
 
 CachePeer &
 CachePeers::nextPeerToPing(const size_t pollIndex)
