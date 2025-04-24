@@ -76,14 +76,14 @@ class PeerDigest
     CBDATA_CLASS(PeerDigest);
 
 public:
-    PeerDigest(CachePeer *);
+    PeerDigest(const CachePeer &);
     ~PeerDigest();
 
     /// reacts to digest transfer completion
     /// \prec DigestFetchState stats were finalized (by calling peerDigestFetchSetStats())
     void noteFetchFinished(const DigestFetchState &, const char *outcomeDescription, bool sawError);
 
-    CbcPointer<CachePeer> peer; ///< pointer back to peer structure, argh
+    const CachePeer &peer; ///< the associated cache_peer
     CacheDigest *cd = nullptr;            /**< actual digest structure */
     const SBuf host; ///< copy of peer->host
     const char *req_result = nullptr;     /**< text status of the last request */
