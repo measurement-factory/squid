@@ -2073,7 +2073,7 @@ ParseCachePeer(ConfigParser &parser)
 
 #if USE_CACHE_DIGESTS
     if (!p->options.no_digest)
-        p->digest = new PeerDigest(p.get());
+        p->digest = new PeerDigest(*p.get());
 #endif
 
     if (p->secure.encryptTransport)
