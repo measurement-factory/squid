@@ -20,6 +20,8 @@
 class CachePeers
 {
 public:
+    ~CachePeers();
+
     /// owns stored CachePeer objects
     using Storage = std::vector< std::unique_ptr<CachePeer>, PoolingAllocator< std::unique_ptr<CachePeer> > >;
 
@@ -43,6 +45,8 @@ public:
     CachePeer &nextPeerToPing(size_t iteration);
 
 private:
+    void notifyPeerGone(const CachePeer &) const;
+
     /// cache_peers in configuration/parsing order
     Storage storage;
 

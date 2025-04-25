@@ -12,12 +12,28 @@
 #include "ConfigOption.h"
 #include "configuration/Smooth.h"
 #include "neighbors.h"
+#include "PeerPoolMgr.h"
 #include "PeerSelectState.h"
 #include "SquidConfig.h"
 
 #include <algorithm>
 
 /* CachePeers */
+
+CachePeers::~CachePeers()
+{
+    std::for_each(storage.begin(), storage.end(), [&](const auto &peer) {
+        notifyPeerGone(*peer.get());
+    });
+}
+
+/// make notifications that the CachePeer is about to be removed
+void
+CachePeers::notifyPeerGone(const CachePeer &peer) const
+{
+    // the mgr job will notice that its owner is gone and stop
+    PeerPoolMgr::Checkpoint(peer.standby.mgr, "peer gone");
+}
 
 CachePeer &
 CachePeers::nextPeerToPing(const size_t pollIndex)
@@ -50,6 +66,7 @@ CachePeers::remove(CachePeer * const peer)
         return storePeer.get() == peer;
     });
     Assure(pos != storage.end());
+    notifyPeerGone(*peer);
     storage.erase(pos);
 }
 
