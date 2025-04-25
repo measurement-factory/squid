@@ -9,7 +9,6 @@
 #ifndef SQUID_INCLUDE_HASH_H
 #define SQUID_INCLUDE_HASH_H
 
-typedef void HASHFREE(void *);
 typedef int HASHCMP(const void *, const void *);
 typedef unsigned int HASHHASH(const void *, unsigned int);
 
@@ -19,6 +18,8 @@ public:
     void *key;
     hash_link *next;
 };
+
+typedef void HASHFREE(hash_link *);
 
 class hash_table {
 public:
