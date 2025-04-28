@@ -159,6 +159,7 @@ static TokenTableEntry TokenTableMisc[] = {
     TokenTableEntry("received_response_last_byte_time", LFT_RECEIVED_RESPONSE_LAST_BYTE_TIME),
     TokenTableEntry("sent_response_first_byte_time", LFT_SENT_RESPONSE_FIRST_BYTE_TIME),
     TokenTableEntry("sent_response_last_byte_time", LFT_SENT_RESPONSE_LAST_BYTE_TIME),
+    TokenTableEntry("<rd_ips", LFT_SERVER_REQ_URLDOMAIN_IPS),
     /*
      * Legacy external_acl_type format tokens
      */

@@ -19,6 +19,7 @@
 #include "format/Token.h"
 #include "http/Stream.h"
 #include "HttpRequest.h"
+#include "ipcache.h"
 #include "MemBuf.h"
 #include "proxyp/Header.h"
 #include "rfc1738.h"
@@ -367,6 +368,40 @@ TimePointToTimeval(const std::optional<MessageTimer::Time> &time, timeval &outtv
     const auto totalUsec = std::chrono::duration_cast<std::chrono::microseconds>(duration);
     outtv.tv_usec = (totalUsec % std::chrono::microseconds(1s)).count();
     doSec = 1;
+}
+
+/// a textual representation of a given IP address without port and brackets
+static SBuf
+AsText(const Ip::Address &ip)
+{
+    char buf[MAX_IPSTRLEN];
+    return SBuf(ip.toStr(buf, sizeof(buf))); // no brackets or port
+}
+
+/// converts URI authority host component to a list of cached IP addresses
+static SBuf
+ToCachedIps(const AnyP::Uri &uri)
+{
+    if (uri.hostIsNumeric())
+        return ToSBuf('(', AsText(uri.hostIP()), ')');
+
+    if (const auto domain = uri.host()) {
+        if (const auto hit = ipcache_gethostbyname(domain, 0)) {
+            SBufStream os;
+            os << '(';
+            // TODO: Find a way to configure AsList with AsText instead.
+            size_t printed = 0;
+            for (const auto &ip: hit->goodAndBad()) {
+                if (printed++)
+                    os << ',';
+                os << AsText(ip);
+            }
+            os << ')';
+            return os.buf();
+        }
+    }
+
+    return SBuf();
 }
 
 void
@@ -1164,6 +1199,13 @@ Format::Format::assemble(MemBuf &mb, const AccessLogEntry::Pointer &al, int logS
             if (al->adapted_request) {
                 out = al->adapted_request->url.host();
                 quote = 1;
+            }
+            break;
+
+        case LFT_SERVER_REQ_URLDOMAIN_IPS:
+            if (al->adapted_request) {
+                sb = ToCachedIps(al->adapted_request->url);
+                out = sb.c_str();
             }
             break;
 
