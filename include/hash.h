@@ -19,7 +19,7 @@ public:
     hash_link *next;
 };
 
-typedef void HASHFREE(hash_link *);
+using HASHFREE = void (hash_link *);
 
 class hash_table {
 public:
