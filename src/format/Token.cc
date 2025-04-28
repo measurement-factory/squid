@@ -152,6 +152,7 @@ static TokenTableEntry TokenTableMisc[] = {
     TokenTableEntry("note", LFT_NOTE ),
     TokenTableEntry("credentials", LFT_CREDENTIALS),
     TokenTableEntry("master_xaction", LFT_MASTER_XACTION),
+    TokenTableEntry("<rd_ips", LFT_SERVER_REQ_URLDOMAIN_IPS),
     /*
      * Legacy external_acl_type format tokens
      */

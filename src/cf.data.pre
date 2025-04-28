@@ -4964,6 +4964,31 @@ DOC_START
 		[http::]>rv	Request protocol version from client
 		[http::]<rv	Request protocol version sent to server or peer
 
+		[http::]<rd_ips A list of IP addresses that correspond to %<rd value.
+
+			On a DNS cache hit (and when %<rd is an IP address): One or more
+			comma-separated IP addresses in their textual representation,
+			surrounded by parenthesis, without any spaces. IPv6 addresses (if
+			any) are listed without square brackets. Any "bad" IP addresses
+			(i.e. IPs that Squid stops using for new connections after a
+			connection establishment error) are also listed. The order of
+			listed addresses is unspecified and may change.
+
+			In all other cases, including negatively cached DNS resolution
+			errors, DNS cache misses, and successful DNS lookups with answers
+			containing zero IP addresses: A single dash character.
+
+			No DNS lookups are performed or triggered when evaluating this
+			logformat code: IP addresses are obtained from Squid internal DNS
+			cache.
+
+			Examples of logged values:
+
+			* (127.0.0.1)
+			* (::1,fe80::1)
+			* (0.0.0.0,255.255.255.255,::1)
+			* -
+
 		[http::]>h	Original received request header.
 				Usually differs from the request header sent by
 				Squid, although most fields are often preserved.

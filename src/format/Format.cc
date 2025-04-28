@@ -8,6 +8,7 @@
 
 #include "squid.h"
 #include "AccessLogEntry.h"
+#include "anyp/Host.h"
 #include "base64.h"
 #include "client_side.h"
 #include "comm/Connection.h"
@@ -19,6 +20,7 @@
 #include "format/Token.h"
 #include "http/Stream.h"
 #include "HttpRequest.h"
+#include "ipcache.h"
 #include "MemBuf.h"
 #include "proxyp/Header.h"
 #include "rfc1738.h"
@@ -371,6 +373,43 @@ actualRequestHeader(const AccessLogEntry::Pointer &al)
     }
 #endif
     return al->request;
+}
+
+/// a textual representation of a given IP address without port and brackets
+static SBuf
+AsText(const Ip::Address &ip)
+{
+    char buf[MAX_IPSTRLEN];
+    return SBuf(ip.toStr(buf, sizeof(buf))); // no brackets or port
+}
+
+/// converts URI authority host component to a list of cached IP addresses
+static SBuf
+ToCachedIps(const AnyP::Uri &uri)
+{
+    if (const auto host = uri.parsedHost()) {
+        if (const auto ip = host->ip())
+            return ToSBuf('(', AsText(*ip), ')');
+
+        const auto domainPtr = host->domainName();
+        Assure(domainPtr);
+        auto domain = *domainPtr; // copy so that we can call c_str() below
+        if (const auto hit = ipcache_gethostbyname(domain.c_str(), 0)) {
+            SBufStream os;
+            os << '(';
+            // TODO: Find a way to configure AsList with AsText instead.
+            size_t printed = 0;
+            for (const auto &ip: hit->goodAndBad()) {
+                if (printed++)
+                    os << ',';
+                os << AsText(ip);
+            }
+            os << ')';
+            return os.buf();
+        }
+    }
+
+    return SBuf();
 }
 
 void
@@ -1137,6 +1176,13 @@ Format::Format::assemble(MemBuf &mb, const AccessLogEntry::Pointer &al, int logS
             if (al->adapted_request) {
                 out = al->adapted_request->url.host();
                 quote = 1;
+            }
+            break;
+
+        case LFT_SERVER_REQ_URLDOMAIN_IPS:
+            if (al->adapted_request) {
+                sb = ToCachedIps(al->adapted_request->url);
+                out = sb.c_str();
             }
             break;
 
