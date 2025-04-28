@@ -76,7 +76,7 @@ class PeerDigest
     CBDATA_CLASS(PeerDigest);
 
 public:
-    PeerDigest(const CachePeer &);
+    explicit PeerDigest(const CachePeer &);
     ~PeerDigest();
 
     /// reacts to digest transfer completion
