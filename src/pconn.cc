@@ -404,7 +404,7 @@ PconnPool::PconnPool(const char *aDescr, const CbcPointer<PeerPoolMgr> &aMgr):
 }
 
 static void
-DeleteIdleConnList(void *hashItem)
+DeleteIdleConnList(hash_link * const hashItem)
 {
     delete static_cast<IdleConnList*>(hashItem);
 }
