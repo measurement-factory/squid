@@ -22,9 +22,8 @@
 
 CachePeers::~CachePeers()
 {
-    std::for_each(storage.begin(), storage.end(), [&](const auto &peer) {
-        notifyPeerGone(*peer.get());
-    });
+    while (!storage.empty())
+        remove(storage.front().get());
 }
 
 /// make notifications that the CachePeer is about to be removed
