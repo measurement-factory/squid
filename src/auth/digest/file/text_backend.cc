@@ -51,7 +51,7 @@ typedef struct _user_data {
 } user_data;
 
 static void
-my_free(hash_link *const p)
+my_free(hash_link * const p)
 {
     const auto u = reinterpret_cast<user_data*>(p);
     xfree(u->hash.key);
