@@ -28,9 +28,6 @@ public:
     /// stores a configured cache_peer, becoming responsible for its lifetime
     void absorb(std::unique_ptr<CachePeer> &&);
 
-    /// deletes a previously add()ed CachePeer object
-    void remove(CachePeer *);
-
     /// the number of currently stored (i.e. added and not removed) cache_peers
     auto size() const { return storage.size(); }
 
@@ -38,6 +35,10 @@ public:
     using const_iterator = Storage::const_iterator;
     auto begin() const { return storage.cbegin(); }
     auto end() const { return storage.cend(); }
+
+    /// deletes a previously add()ed CachePeer object
+    /// \returns const_iterator following the removed element or end()
+    const_iterator remove(const_iterator pos);
 
     /// A CachePeer to query next when scanning all peer caches in hope to fetch
     /// a remote cache hit. \sa neighborsUdpPing()
