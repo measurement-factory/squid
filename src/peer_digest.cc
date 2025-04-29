@@ -61,9 +61,9 @@ static const time_t GlobDigestReqMinGap = 1 * 60;   /* seconds */
 
 static time_t pd_last_req_time = 0; /* last call to Check */
 
-PeerDigest::PeerDigest(CachePeer * const p):
+PeerDigest::PeerDigest(const CachePeer &p):
     peer(p),
-    host(peer->host) // if peer disappears, we will know its name
+    host(peer.host) // if peer disappears, we will know its name
 {
     times.initialized = squid_curtime;
 }
@@ -183,9 +183,7 @@ peerDigestCheck(void *data)
 
     pd->times.next_check = 0;   /* unknown */
 
-    Assure(pd->peer.valid());
-
-    debugs(72, 3, "cache_peer " << RawPointer(pd->peer).orNil());
+    debugs(72, 3, "cache_peer " << pd->peer);
     debugs(72, 3, "peerDigestCheck: time: " << squid_curtime <<
            ", last received: " << (long int) pd->times.received << "  (" <<
            std::showpos << (int) (squid_curtime - pd->times.received) << ")");
@@ -225,7 +223,7 @@ peerDigestCheck(void *data)
 static void
 peerDigestRequest(PeerDigest * pd)
 {
-    const auto p = pd->peer.get(); // TODO: Replace with a reference.
+    const auto &p = pd->peer;
     StoreEntry *e, *old_e;
     char *url = nullptr;
     HttpRequest *req;
@@ -236,10 +234,10 @@ peerDigestRequest(PeerDigest * pd)
 
     /* compute future request components */
 
-    if (p->digest_url)
-        url = xstrdup(p->digest_url);
+    if (p.digest_url)
+        url = xstrdup(p.digest_url);
     else
-        url = xstrdup(internalRemoteUri(p->secure.encryptTransport, p->host, p->http_port, "/squid-internal-periodic/", SBuf(StoreDigestFileName)));
+        url = xstrdup(internalRemoteUri(p.secure.encryptTransport, p.host, p.http_port, "/squid-internal-periodic/", SBuf(StoreDigestFileName)));
     debugs(72, 2, url);
 
     const auto mx = MasterXaction::MakePortless<XactionInitiator::initCacheDigest>();
@@ -254,13 +252,13 @@ peerDigestRequest(PeerDigest * pd)
 
     req->header.putStr(Http::HdrType::ACCEPT, "text/html");
 
-    if (p->login &&
-            p->login[0] != '*' &&
-            strcmp(p->login, "PASS") != 0 &&
-            strcmp(p->login, "PASSTHRU") != 0 &&
-            strncmp(p->login, "NEGOTIATE",9) != 0 &&
-            strcmp(p->login, "PROXYPASS") != 0) {
-        req->url.userInfo(SBuf(p->login)); // XXX: performance regression make peer login SBuf as well.
+    if (p.login &&
+            p.login[0] != '*' &&
+            strcmp(p.login, "PASS") != 0 &&
+            strcmp(p.login, "PASSTHRU") != 0 &&
+            strncmp(p.login, "NEGOTIATE",9) != 0 &&
+            strcmp(p.login, "PROXYPASS") != 0) {
+        req->url.userInfo(SBuf(p.login)); // XXX: performance regression make peer login SBuf as well.
     }
     /* create fetch state structure */
     DigestFetchState *fetch = new DigestFetchState(pd, req);
@@ -639,7 +637,7 @@ finishAndDeleteFetch(DigestFetchState * const fetch, const char * const reason, 
 {
     assert(reason);
 
-    debugs(72, 2, "peer: " << RawPointer(fetch->pd.valid() ? fetch->pd->peer : nullptr).orNil() << ", reason: " << reason << ", err: " << err);
+    debugs(72, 2, "peer: " << RawPointer(fetch->pd.valid() ? &fetch->pd->peer : nullptr).orNil() << ", reason: " << reason << ", err: " << err);
 
     /* note: order is significant */
     peerDigestFetchSetStats(fetch);
