@@ -17,7 +17,7 @@
 #include <vector>
 
 /// cache_peer configuration storage
-class CachePeers
+class CachePeers final
 {
 public:
     ~CachePeers();
