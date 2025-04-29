@@ -22,10 +22,9 @@
 
 CachePeers::~CachePeers()
 {
-    auto it = storage.cbegin();
-    while(it != storage.cend()) {
-        it = remove(it);
-    }
+    std::for_each(storage.begin(), storage.end(), [&](const auto &peer) {
+        notifyPeerGone(*peer.get());
+    });
 }
 
 /// make notifications that the CachePeer is about to be removed
@@ -60,12 +59,15 @@ CachePeers::absorb(std::unique_ptr<CachePeer> &&peer)
     added->index = size();
 }
 
-CachePeers::const_iterator
-CachePeers::remove(const const_iterator peer)
+void
+CachePeers::remove(CachePeer * const peer)
 {
-    Assure(peer != storage.end());
-    notifyPeerGone(*peer->get());
-    return storage.erase(peer);
+    const auto pos = std::find_if(storage.begin(), storage.end(), [&](const auto &storePeer) {
+        return storePeer.get() == peer;
+    });
+    Assure(pos != storage.end());
+    notifyPeerGone(*peer);
+    storage.erase(pos);
 }
 
 const CachePeers &
@@ -93,11 +95,7 @@ void
 DeleteConfigured(CachePeer * const peer)
 {
     Assure(Config.peers);
-    auto storage = Config.peers;
-    const auto pos = std::find_if(storage->begin(), storage->end(), [&](const auto &storePeer) {
-        return storePeer.get() == peer;
-    });
-    (void)storage->remove(pos);
+    Config.peers->remove(peer);
 }
 
 /* Configuration::Component<CachePeerAccesses> */
