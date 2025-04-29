@@ -45,8 +45,6 @@ public:
     CachePeer &nextPeerToPing(size_t iteration);
 
 private:
-    void notifyPeerGone(const CachePeer &) const;
-
     /// cache_peers in configuration/parsing order
     Storage storage;
 

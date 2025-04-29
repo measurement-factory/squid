@@ -26,14 +26,6 @@ CachePeers::~CachePeers()
         remove(storage.front().get());
 }
 
-/// make notifications that the CachePeer is about to be removed
-void
-CachePeers::notifyPeerGone(const CachePeer &peer) const
-{
-    // the mgr job will notice that its owner is gone and stop
-    PeerPoolMgr::Checkpoint(peer.standby.mgr, "peer gone");
-}
-
 CachePeer &
 CachePeers::nextPeerToPing(const size_t pollIndex)
 {
@@ -65,7 +57,7 @@ CachePeers::remove(CachePeer * const peer)
         return storePeer.get() == peer;
     });
     Assure(pos != storage.end());
-    notifyPeerGone(*peer);
+    PeerPoolMgr::Cancel(peer->standby.mgr);
     storage.erase(pos);
 }
 

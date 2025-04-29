@@ -36,6 +36,9 @@ public:
     /// new mgr jobs.
     static void Checkpoint(const Pointer &mgr, const char *reason);
 
+    /// terminates the existing mgr job (if any)
+    static void Cancel(const Pointer &mgr);
+
     /// Brings peer->standby.mgr in sync with peer->standby.limit configuration,
     /// calling either StartManagingIfNeeded() or Checkpoint().
     static void SyncConfig(CachePeer &);
