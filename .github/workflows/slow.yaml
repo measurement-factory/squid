@@ -12,15 +12,16 @@ name: Staged commit
 
 on:
   push:
-    branches: [ "auto" ]
+    branches: [ "bag**", "auto" ]
 
   # allows to run this workflow manually from the Actions tab
   workflow_dispatch:
 
 concurrency:
-  # Cancel ongoing tests in case of push to staging branch.
+  # Cancel ongoing tests in case of push to staging branch,
+  # but let previous bag** commit tests complete.
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ contains(github.ref, 'refs/heads/auto')}}
 
 jobs:
   linux-distros:

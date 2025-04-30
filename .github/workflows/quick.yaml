@@ -10,20 +10,20 @@ name: PR commit
 on:
   push:
     # test commits on this branch and staged commits
-    branches: [ "master", "auto" ]
+    branches: [ "bag**", "auto" ]
 
   pull_request:
     # test PRs targeting this branch code
-    branches: [ "master" ]
+    branches: [ "bag**" ]
 
   # allows to run this workflow manually from the Actions tab
   workflow_dispatch:
 
 concurrency:
   # Cancel ongoing tests in case of push to the same PR or staging branch,
-  # but let previous master commit tests complete.
+  # but let previous bag** commit tests complete.
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: ${{ github.ref != 'refs/heads/master' }}
+  cancel-in-progress: ${{ !contains(github.ref, 'refs/heads/bag')}}
 
 env:
   # empty except for pull_request events
