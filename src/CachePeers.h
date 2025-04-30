@@ -17,9 +17,11 @@
 #include <vector>
 
 /// cache_peer configuration storage
-class CachePeers
+class CachePeers final
 {
 public:
+    ~CachePeers();
+
     /// owns stored CachePeer objects
     using Storage = std::vector< std::unique_ptr<CachePeer>, PoolingAllocator< std::unique_ptr<CachePeer> > >;
 

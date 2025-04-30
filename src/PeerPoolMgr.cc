@@ -251,6 +251,19 @@ PeerPoolMgr::Checkpoint(const Pointer &mgr, const char *reason)
 }
 
 void
+PeerPoolMgr::Stop(const Pointer &mgr)
+{
+    if (!mgr) {
+        debugs(48, 5, "no mgr");
+        return;
+    }
+
+    CallService(mgr->codeContext, [&] {
+        CallJobHere(48, 5, mgr, PeerPoolMgr, handleStopRequest);
+    });
+}
+
+void
 PeerPoolMgr::StartManagingIfNeeded(CachePeer &peer)
 {
     if (!peer.standby.mgr && peer.standby.limit) {

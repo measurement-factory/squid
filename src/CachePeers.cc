@@ -12,12 +12,19 @@
 #include "ConfigOption.h"
 #include "configuration/Smooth.h"
 #include "neighbors.h"
+#include "PeerPoolMgr.h"
 #include "PeerSelectState.h"
 #include "SquidConfig.h"
 
 #include <algorithm>
 
 /* CachePeers */
+
+CachePeers::~CachePeers()
+{
+    while (!storage.empty())
+        remove(storage.front().get());
+}
 
 CachePeer &
 CachePeers::nextPeerToPing(const size_t pollIndex)
@@ -50,6 +57,7 @@ CachePeers::remove(CachePeer * const peer)
         return storePeer.get() == peer;
     });
     Assure(pos != storage.end());
+    PeerPoolMgr::Stop(peer->standby.mgr);
     storage.erase(pos);
 }
 

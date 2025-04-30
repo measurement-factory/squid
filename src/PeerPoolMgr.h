@@ -40,6 +40,9 @@ public:
     /// calling either StartManagingIfNeeded() or Checkpoint().
     static void SyncConfig(CachePeer &);
 
+    /// terminates the existing mgr job (if any)
+    static void Stop(const Pointer &mgr);
+
     explicit PeerPoolMgr(CachePeer *aPeer);
     ~PeerPoolMgr() override;
 
