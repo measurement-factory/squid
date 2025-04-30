@@ -57,7 +57,7 @@ CachePeers::remove(CachePeer * const peer)
         return storePeer.get() == peer;
     });
     Assure(pos != storage.end());
-    PeerPoolMgr::Cancel(peer->standby.mgr);
+    PeerPoolMgr::Stop(peer->standby.mgr);
     storage.erase(pos);
 }
 
