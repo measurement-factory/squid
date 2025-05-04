@@ -595,8 +595,7 @@ ConnStateData::swanSong()
     flags.readMore = false;
     clientdbEstablished(clientConnection->remote, -1);  /* decrement */
 
-    terminateAll(ERR_NONE, LogTagsErrors());
-    checkLogging();
+    terminateAll(ERR_STREAM_FAILURE, LogTagsErrors());
 
     // XXX: Closing pinned conn is too harsh: The Client may want to continue!
     unpinConnection(true);
@@ -3906,9 +3905,17 @@ ConnStateData::unpinConnection(const bool andClose)
 void
 ConnStateData::terminateAll(const Error &rawError, const LogTagsErrors &lte)
 {
+    Assure(rawError);
+
+    if (allTerminated_) {
+        Assure(inBuf.isEmpty());
+        Assure(pipeline.empty());
+        Assure(!ignoreLeftovers());
+        Assure(!Comm::IsConnOpen(clientConnection));
+        return;
+    }
+
     auto error = rawError; // (cheap) copy so that we can detail
-    // We detail even ERR_NONE: There should be no transactions left, and
-    // detailed ERR_NONE will be unused. Otherwise, this detail helps in triage.
     if (error.details.empty()) {
         static const auto d = MakeNamedErrorDetail("WITH_CLIENT");
         error.details.push_back(d);
@@ -3916,53 +3923,58 @@ ConnStateData::terminateAll(const Error &rawError, const LogTagsErrors &lte)
 
     debugs(33, 3, pipeline.count() << '/' << pipeline.nrequests << " after " << error);
 
-    if (pipeline.empty()) {
-        bareError.update(error); // XXX: bareLogTagsErrors
-    } else {
-        // We terminate the current CONNECT/PUT/etc. context below, logging any
-        // error details, but that context may leave unparsed bytes behind.
-        // Consume them to stop checkLogging() from logging them again later.
-        const auto intputToConsume =
-#if USE_OPENSSL
-            parsingTlsHandshake ? "TLS handshake" : // more specific than CONNECT
-#endif
-            bodyPipe ? "HTTP request body" :
-            pipeline.back()->mayUseConnection() ? "HTTP CONNECT" :
-            nullptr;
+    const auto ignoreLeftoversReason = ignoreLeftovers();
 
-        while (const auto context = pipeline.front()) {
-            context->noteIoError(error, lte);
-            context->finished(); // cleanup and self-deregister
-            assert(context != pipeline.front());
-        }
-
-        if (intputToConsume && !inBuf.isEmpty()) {
-            debugs(83, 5, "forgetting client " << intputToConsume << " bytes: " << inBuf.length());
-            inBuf.clear();
-        }
+    while (const auto context = pipeline.front()) {
+        context->noteIoError(error, lte);
+        context->finished(); // cleanup and self-deregister
+        assert(context != pipeline.front());
     }
 
-    clientConnection->close();
+    if (ignoreLeftoversReason && !inBuf.isEmpty()) {
+        debugs(83, 5, "forgetting client " << ignoreLeftoversReason << " bytes: " << inBuf.length());
+        inBuf.clear();
+    }
+
+    if (!inBuf.isEmpty() || !pipeline.nrequests) {
+        /* Create a temporary ClientHttpRequest object. Its destructor will log. */
+        ClientHttpRequest http(this);
+        http.req_sz = inBuf.length();
+        // XXX: Or we died while waiting for the pinned connection to become idle.
+        http.setErrorUri("error:transaction-end-before-headers");
+        http.updateError(error);
+    }
+
+    allTerminated();
 }
 
-/// log the last (attempt at) transaction if nobody else did
+/// the final cleanup performed at the end of terminateAll()
 void
-ConnStateData::checkLogging()
+ConnStateData::allTerminated()
 {
-    // to simplify our logic, we assume that terminateAll() has been called
-    assert(pipeline.empty());
+#if USE_OPENSSL
+    parsingTlsHandshake = false;
+#endif
+    if (bodyPipe != nullptr)
+        stopProducingFor(bodyPipe, false);
+    inBuf.clear();
+    if (clientConnection)
+        clientConnection->close();
+    allTerminated_ = true;
+}
 
-    // do not log connections that closed after a transaction (it is normal)
-    // TODO: access_log needs ACLs to match received-no-bytes connections
-    if (pipeline.nrequests && inBuf.isEmpty())
-        return;
-
-    /* Create a temporary ClientHttpRequest object. Its destructor will log. */
-    ClientHttpRequest http(this);
-    http.req_sz = inBuf.length();
-    // XXX: Or we died while waiting for the pinned connection to become idle.
-    http.setErrorUri("error:transaction-end-before-headers");
-    http.updateError(bareError);
+/// whether (and why) we should ignore unparsed inBuf bytes
+/// during transaction termination
+const char *
+ConnStateData::ignoreLeftovers() const
+{
+    return
+#if USE_OPENSSL
+        parsingTlsHandshake ? "TLS handshake" : // more specific than CONNECT
+#endif
+        bodyPipe ? "HTTP request body" :
+        (!pipeline.empty() && pipeline.back()->mayUseConnection()) ? "HTTP CONNECT" :
+        nullptr;
 }
 
 bool
