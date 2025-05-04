@@ -225,3 +225,24 @@ AccessLogEntry::packReplyHeaders(MemBuf &mb) const
         reply->packHeadersUsingFastPacker(mb);
 }
 
+struct timeval
+AccessLogEntry::CacheDetails::trTime(const RecordTime &endTime) const
+{
+    struct timeval result = {0, 0};
+
+    if (start_time.tv_sec)
+        tvSub(result, start_time, endTime.legacySystemTime);
+    return result;
+}
+
+struct timeval
+AccessLogEntry::IcapLogEntry::trTime(const RecordTime &endTime) const
+{
+    struct timeval result = {0, 0};
+
+    if (start_time.tv_sec) {
+        const auto &time = stop_time.tv_sec ? stop_time : endTime.legacySystemTime;
+        tvSub(result, start_time, time);
+    }
+    return result;
+}

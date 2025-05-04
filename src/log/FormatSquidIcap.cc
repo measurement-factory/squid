@@ -20,7 +20,7 @@
 #include "SquidConfig.h"
 
 void
-Log::Format::SquidIcap(const AccessLogEntry::Pointer &al, Logfile * logfile)
+Log::Format::SquidIcap(const AccessLogEntry::Pointer &al, Logfile * logfile, const RecordTime &recordTime)
 {
     const char *user = nullptr;
     char tmp[MAX_IPSTRLEN], clientbuf[MAX_IPSTRLEN];
@@ -46,10 +46,14 @@ Log::Format::SquidIcap(const AccessLogEntry::Pointer &al, Logfile * logfile)
     if (user && !*user)
         safe_free(user);
 
+    const auto seconds = recordTime.systemSecondsEpoch();
+    const auto ms = recordTime.systemMillisecondsFraction();
+    auto icapTrTime = al->icap.trTime(recordTime);
+
     logfilePrintf(logfile, "%9ld.%03d %6ld %s %s/%03d %" PRId64 " %s %s %s -/%s -\n",
-                  (long int) current_time.tv_sec,
-                  (int) current_time.tv_usec / 1000,
-                  tvToMsec(al->icap.trTime),
+                  seconds,
+                  static_cast<int>(ms),
+                  tvToMsec(icapTrTime),
                   client,
                   al->icap.outcome,
                   al->icap.resStatus,
