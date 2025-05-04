@@ -31,7 +31,7 @@
 CBDATA_CLASS_INIT(PeerPoolMgr);
 
 PeerPoolMgr::PeerPoolMgr(CachePeer *aPeer): AsyncJob("PeerPoolMgr"),
-    peer(cbdataReference(aPeer)),
+    peer(aPeer),
     transportWait(),
     encryptionWait(),
     addrUsed(0)
@@ -58,7 +58,6 @@ PeerPoolMgr::~PeerPoolMgr()
         delete peer->standby.pool;
         peer->standby.pool = nullptr;
     }
-    cbdataReferenceDone(peer);
 }
 
 void
@@ -77,7 +76,7 @@ PeerPoolMgr::swanSong()
 bool
 PeerPoolMgr::validPeer() const
 {
-    return peer && cbdataReferenceValid(peer) && peer->standby.pool;
+    return peer && peer->standby.pool;
 }
 
 bool
@@ -99,7 +98,7 @@ PeerPoolMgr::handleOpenedConnection(const CommConnectCbParams &params)
     }
 
     if (params.flag != Comm::OK) {
-        NoteOutgoingConnectionFailure(peer);
+        NoteOutgoingConnectionFailure(peer.getRaw());
         checkpoint("conn opening failure"); // may retry
         return;
     }
@@ -175,11 +174,11 @@ PeerPoolMgr::openNewConnection()
     }
 
     // Do not talk to a peer until it is ready.
-    if (!neighborUp(peer)) // provides debugging
+    if (!neighborUp(peer.getRaw())) // provides debugging
         return; // there will be another checkpoint when peer is up
 
     // Do not violate peer limits.
-    if (!peerCanOpenMore(peer)) { // provides debugging
+    if (!peerCanOpenMore(peer.getRaw())) { // provides debugging
         peer->standby.waitingForClose = true; // may already be true
         return; // there will be another checkpoint when a peer conn closes
     }
@@ -201,7 +200,7 @@ PeerPoolMgr::openNewConnection()
     conn->remote = peer->addresses[addrUsed++ % peer->n_addresses];
     conn->remote.port(peer->http_port);
     conn->peerType = STANDBY_POOL; // should be reset by peerSelect()
-    conn->setPeer(peer);
+    conn->setPeer(peer.getRaw());
     getOutgoingAddress(request.getRaw(), conn);
     GetMarkingsToServer(request.getRaw(), *conn);
 
@@ -298,7 +297,7 @@ void
 PeerPoolMgrsRr::syncConfig()
 {
     for (const auto &peer: CurrentCachePeers()) {
-        const auto p = peer.get();
+        const auto p = peer.getRaw();
         // On reconfigure, Squid deletes the old config (and old peers in it),
         // so should always be dealing with a brand new configuration.
         assert(!p->standby.mgr);

@@ -12,6 +12,7 @@
 #include "acl/forward.h"
 #include "base/CbcPointer.h"
 #include "base/forward.h"
+#include "base/RefCount.h"
 #include "configuration/forward.h"
 #include "enums.h"
 #include "http/StatusCode.h"
@@ -26,11 +27,11 @@ class PconnPool;
 class PeerDigest;
 class PeerPoolMgr;
 
-class CachePeer
+class CachePeer : public RefCountable
 {
-    CBDATA_CLASS(CachePeer);
-
 public:
+    using Pointer = RefCount<CachePeer>;
+
     explicit CachePeer(const SBuf &address);
     ~CachePeer();
 

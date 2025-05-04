@@ -67,7 +67,7 @@ carpInit(void)
 
     RawCachePeers rawCarpPeers;
     for (const auto &peer: CurrentCachePeers()) {
-        const auto p = peer.get();
+        const auto p = peer.getRaw();
 
         if (!p->options.carp)
             continue;
@@ -234,8 +234,8 @@ carpSelectParent(PeerSelector *ps)
         debugs(39, 3, *tp << " key=" << key << " combined_hash=" << combined_hash  <<
                " score=" << std::setprecision(0) << score);
 
-        if ((score > high_score) && peerHTTPOkay(tp.get(), ps)) {
-            p = tp.get();
+        if ((score > high_score) && peerHTTPOkay(tp.getRaw(), ps)) {
+            p = tp.getRaw();
             high_score = score;
         }
     }

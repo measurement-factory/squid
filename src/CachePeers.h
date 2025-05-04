@@ -23,10 +23,10 @@ public:
     ~CachePeers();
 
     /// owns stored CachePeer objects
-    using Storage = std::vector< std::unique_ptr<CachePeer>, PoolingAllocator< std::unique_ptr<CachePeer> > >;
+    using Storage = std::vector< CachePeer::Pointer, PoolingAllocator< CachePeer::Pointer > >;
 
     /// stores a configured cache_peer, becoming responsible for its lifetime
-    void absorb(std::unique_ptr<CachePeer> &&);
+    void absorb(const CachePeer::Pointer &);
 
     /// deletes a previously add()ed CachePeer object
     void remove(CachePeer *);
@@ -60,14 +60,14 @@ const CachePeers &CurrentCachePeers();
 /// Adds a given configured peer to CurrentCachePeers() collection.
 /// \prec findCachePeerByName() is false for the given peer
 /// \sa DeleteConfigured()
-void AbsorbConfigured(std::unique_ptr<CachePeer> &&);
+void AbsorbConfigured(const CachePeer::Pointer &);
 
 /// destroys the given peer after removing it from the set of configured peers
 void DeleteConfigured(CachePeer *);
 
 /// Weak pointers to zero or more Config.peers.
 /// Users must specify the selection algorithm and the order of entries.
-using SelectedCachePeers = std::vector< CbcPointer<CachePeer>, PoolingAllocator< CbcPointer<CachePeer> > >;
+using SelectedCachePeers = std::vector< CachePeer::Pointer, PoolingAllocator< CachePeer::Pointer > >;
 
 /// Temporary, local storage of raw pointers to zero or more Config.peers.
 using RawCachePeers = std::vector<CachePeer *, PoolingAllocator<CachePeer*> >;

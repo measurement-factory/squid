@@ -23,7 +23,7 @@
 CachePeers::~CachePeers()
 {
     while (!storage.empty())
-        remove(storage.front().get());
+        remove(storage.front().getRaw());
 }
 
 CachePeer &
@@ -44,17 +44,17 @@ CachePeers::nextPeerToPing(const size_t pollIndex)
 }
 
 void
-CachePeers::absorb(std::unique_ptr<CachePeer> &&peer)
+CachePeers::absorb(const CachePeer::Pointer &peer)
 {
-    const auto &added = storage.emplace_back(std::move(peer));
-    added->index = size();
+    storage.push_back(peer);
+    storage.back()->index = size();
 }
 
 void
 CachePeers::remove(CachePeer * const peer)
 {
     const auto pos = std::find_if(storage.begin(), storage.end(), [&](const auto &storePeer) {
-        return storePeer.get() == peer;
+        return storePeer.getRaw() == peer;
     });
     Assure(pos != storage.end());
     PeerPoolMgr::Stop(peer->standby.mgr);
@@ -72,12 +72,12 @@ CurrentCachePeers()
 }
 
 void
-AbsorbConfigured(std::unique_ptr<CachePeer> &&peer)
+AbsorbConfigured(const CachePeer::Pointer &peer)
 {
     if (!Config.peers)
         Config.peers = new CachePeers;
 
-    Config.peers->absorb(std::move(peer));
+    Config.peers->absorb(peer);
 
     peerClearRRStart();
 }
@@ -136,7 +136,7 @@ Configuration::Component<CachePeers*>::FinishSmoothReconfiguration(SmoothReconfi
 
     for (const auto &p: CurrentCachePeers()) {
         if (p->stale)
-            peersToRemove.push_back(p.get());
+            peersToRemove.push_back(p.getRaw());
     }
 
     while (peersToRemove.size()) {

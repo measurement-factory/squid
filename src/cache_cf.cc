@@ -1789,7 +1789,7 @@ dump_peer(StoreEntry * entry, const char *name, const CachePeers *peers)
     LOCAL_ARRAY(char, xname, 128);
 
     for (const auto &peer: *peers) {
-        const auto p = peer.get();
+        const auto p = peer.getRaw();
         storeAppendPrintf(entry, "%s %s %s %d %d name=%s",
                           name,
                           p->host,
@@ -1867,7 +1867,7 @@ ParseCachePeer(ConfigParser &parser)
 {
     const auto address = parser.token("cache_peer TCP listening address");
 
-    auto p = std::make_unique<CachePeer>(address);
+    CachePeer::Pointer p = new CachePeer(address);
 
     p->type = parseNeighborType("cache_peer type parameter", parser);
 
@@ -2073,7 +2073,7 @@ ParseCachePeer(ConfigParser &parser)
 
 #if USE_CACHE_DIGESTS
     if (!p->options.no_digest)
-        p->digest = new PeerDigest(*p.get());
+        p->digest = new PeerDigest(*p);
 #endif
 
     if (p->secure.encryptTransport)
@@ -2105,7 +2105,7 @@ parse_peer(CachePeers **peers)
     if (findCachePeerByName(p->name))
         throw TextException("cache_peer specified twice", Here());
 
-    AbsorbConfigured(std::move(p));
+    AbsorbConfigured(p);
 }
 
 static void
@@ -2134,7 +2134,7 @@ Configuration::Component<CachePeers*>::Reconfigure(SmoothReconfiguration &sr, Ca
         PeerPoolMgr::StartManagingIfNeeded(*newPeer);
         peerSelectAdd(sr, *newPeer);
         sr.asyncCall(3, 5, "neighbors_init", NullaryFunDialer(&neighbors_init));
-        AbsorbConfigured(std::move(newPeer));
+        AbsorbConfigured(newPeer);
     }
 }
 

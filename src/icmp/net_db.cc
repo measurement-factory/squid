@@ -76,7 +76,7 @@ public:
         e->unlock("netdbExchangeDone");
     }
 
-    CbcPointer<CachePeer> p;
+    CachePeer::Pointer p;
     StoreEntry *e = nullptr;
     store_client *sc = nullptr;
     HttpRequestPointer r;
@@ -665,7 +665,7 @@ netdbExchangeHandleReply(void *data, StoreIOBuffer receivedData)
     Assure(rec_sz <= ex->parsingBuffer.capacity());
     debugs(38, 3, "netdbExchangeHandleReply: " << receivedData.length << " read bytes");
 
-    if (!ex->p.valid()) {
+    if (!ex->p) {
         debugs(38, 3, "netdbExchangeHandleReply: Peer became invalid");
         delete ex;
         return;
@@ -737,7 +737,7 @@ netdbExchangeHandleReply(void *data, StoreIOBuffer receivedData)
         }
 
         if (!addr.isAnyAddr() && rtt > 0)
-            netdbExchangeUpdatePeer(addr, ex->p.get(), rtt, hops);
+            netdbExchangeUpdatePeer(addr, ex->p.getRaw(), rtt, hops);
 
         assert(o == rec_sz);
 
@@ -1219,7 +1219,7 @@ static CachePeer *
 findUsableParentAtHostname(PeerSelector *ps, const char * const hostname, const HttpRequest &request)
 {
     for (const auto &peer: CurrentCachePeers()) {
-        const auto p = peer.get();
+        const auto p = peer.getRaw();
         // Both fields should be lowercase, but no code ensures that invariant.
         // TODO: net_db_peer should point to CachePeer instead of its hostname!
         if (strcasecmp(p->host, hostname) != 0)

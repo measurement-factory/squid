@@ -65,7 +65,7 @@ peerUserHashInit(void)
 
     RawCachePeers rawUserHashPeers;
     for (const auto &p: CurrentCachePeers()) {
-        const auto peer = p.get();
+        const auto peer = p.getRaw();
 
         if (!p->options.userhash)
             continue;
@@ -215,8 +215,8 @@ peerUserHashSelectParent(PeerSelector *ps)
         debugs(39, 3, *tp << " combined_hash " << combined_hash <<
                " score " << std::setprecision(0) << score);
 
-        if ((score > high_score) && peerHTTPOkay(tp.get(), ps)) {
-            p = tp.get();
+        if ((score > high_score) && peerHTTPOkay(tp.getRaw(), ps)) {
+            p = tp.getRaw();
             high_score = score;
         }
     }
