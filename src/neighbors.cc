@@ -1108,6 +1108,8 @@ peerDNSConfigure(const ipcache_addrs *ia, const Dns::LookupDetails &, void *data
     CachePeer::Pointer p;
     static_cast<CachePeerWrap *>(data)->unwrap(&p);
 
+    // XXX: handle the case when the CachePeer is gone
+
     if (p->n_addresses == 0) {
         debugs(15, Important(29), "Configuring " << neighborTypeStr(p.getRaw()) << " " << *p);
 
@@ -1305,7 +1307,7 @@ peerCountMcastPeersCreateAndSend(CachePeer * const p)
     HTTPMSGLOCK(psstate->request);
     psstate->entry = fake;
     psstate->peerCountMcastPeerXXX = p;
-    psstate->peerCountMcastPeerXXX->lock();
+    psstate->peerCountMcastPeerXXX->lock(); // XXX: convert psstate->peerCountMcastPeerXXX to CachePeer::Pointer
     psstate->ping.start = current_time;
     psstate->al = ale;
     mem = fake->mem_obj;
@@ -1330,6 +1332,7 @@ static void
 peerCountMcastPeersDone(void *data)
 {
     const auto psstate = static_cast<PeerSelector*>(data);
+    // XXX: handle the case when psstate->peerCountMcastPeerXXX is gone
     CallBack(psstate->al, [psstate] {
         peerCountMcastPeersAbort(psstate);
         delete psstate;

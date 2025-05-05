@@ -3854,6 +3854,8 @@ ConnStateData::borrowPinnedConnection(HttpRequest *request, const AccessLogEntry
     if (pinning.port != request->url.port())
         throw pinningError(ERR_CANNOT_FORWARD); // or generalize ERR_CONFLICT_HOST
 
+    // XXX: throw if pinning.peer is gone
+
     if (pinning.peerAccessDenied)
         throw pinningError(ERR_CANNOT_FORWARD); // or generalize ERR_FORWARDING_DENIED
 
