@@ -99,7 +99,7 @@ public:
     AccessLogEntry::Pointer al; ///< info for the future access.log entry
     StoreEntry *entry;
 
-    void *peerCountMcastPeerXXX = nullptr; ///< a hack to help peerCountMcastPeersStart()
+    CachePeer *peerCountMcastPeerXXX = nullptr; ///< a hack to help peerCountMcastPeersStart()
 
     ping_data ping;
 

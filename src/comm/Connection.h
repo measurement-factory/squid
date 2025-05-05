@@ -29,6 +29,7 @@
 #include <ostream>
 
 class CachePeer;
+using CachePeerPointer = RefCount<CachePeer>;
 
 namespace Security
 {
@@ -111,9 +112,7 @@ public:
      */
     CachePeer * getPeer() const;
 
-    /** alter the stored CachePeer pointer.
-     * Perform appropriate CBDATA operations for locking the CachePeer pointer
-     */
+    /// alter the stored CachePeer pointer.
     void setPeer(CachePeer * p);
 
     /** The time the connection started */
@@ -182,7 +181,7 @@ public:
 
 private:
     /** cache_peer data object (if any) */
-    CachePeer *peer_;
+    CachePeerPointer peer_;
 
     /** The time the connection object was created */
     time_t startTime_;

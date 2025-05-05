@@ -45,6 +45,9 @@ class HttpHdrRangeSpec;
 class MasterXaction;
 typedef RefCount<MasterXaction> MasterXactionPointer;
 
+class CachePeer;
+using CachePeerPointer = RefCount<CachePeer>;
+
 #if USE_OPENSSL
 namespace Ssl
 {
@@ -148,7 +151,7 @@ public:
         bool reading = false; ///< we are monitoring for peer connection closure
         bool zeroReply = false; ///< server closed w/o response (ERR_ZERO_SIZE_OBJECT)
         bool peerAccessDenied = false; ///< cache_peer_access denied pinned connection reuse
-        CachePeer *peer = nullptr; ///< CachePeer the connection goes via
+        CachePeerPointer peer; ///< CachePeer the connection goes via
         AsyncCall::Pointer readHandler; ///< detects serverConnection closure
         AsyncCall::Pointer closeHandler; ///< The close handler for pinned server side connection
     } pinning;
@@ -200,7 +203,7 @@ public:
     /// \throws a newly allocated ErrorState if validation fails
     static Comm::ConnectionPointer BorrowPinnedConnection(HttpRequest *, const AccessLogEntryPointer &);
     /// \returns the pinned CachePeer if one exists, nil otherwise
-    CachePeer *pinnedPeer() const {return pinning.peer;}
+    CachePeer *pinnedPeer() const {return pinning.peer.getRaw();}
     bool pinnedAuth() const {return pinning.auth;}
 
     /// called just before a FwdState-dispatched job starts using connection

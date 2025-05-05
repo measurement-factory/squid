@@ -241,6 +241,24 @@ private:
     void countFailure();
 };
 
+/// a wrapper for passing CachePeer::Pointer through cbdata
+/// \sa generic_cbdata
+class CachePeerWrap
+{
+    CBDATA_CLASS(CachePeerWrap);
+
+public:
+    CachePeerWrap(const CachePeer::Pointer &p) : peer(p) {}
+
+    void unwrap(CachePeer::Pointer *output) {
+        *output = peer;
+        delete this;
+    }
+
+private:
+    CachePeer::Pointer peer;
+};
+
 /// reacts to a successful establishment of a connection to an origin server or cache_peer
 /// \param peer nil if Squid established a connection to an origin server
 inline void
