@@ -248,6 +248,8 @@ ipcache_nbgethostbyname(const char *name, IPH * handler, HandlerData handlerData
     ipcacheNbgethostbynameInternal(name, handler, handlerData);
 }
 
+/// Specialization for callers that have no handler data at all: No explicit
+/// cbdata protection is needed for calls with explicit nullptr handlerData.
 template <>
 inline void
 ipcache_nbgethostbyname<std::nullptr_t>(const char *name, IPH * handler, std::nullptr_t)
