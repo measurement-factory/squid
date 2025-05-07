@@ -13,7 +13,7 @@
 #include "tests/STUB.h"
 
 void ipcache_purgelru(void *) STUB
-void ipcache_nbgethostbyname(const char *, IPH *, void *) STUB
+void ipcacheNbgethostbynameInternal(const char *, IPH *, void *) STUB
 const ipcache_addrs *ipcache_gethostbyname(const char *, int) STUB_RETVAL(nullptr)
 void ipcacheInvalidate(const char *) STUB
 void ipcacheInvalidateNegative(const char *) STUB
