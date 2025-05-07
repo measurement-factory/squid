@@ -461,7 +461,7 @@ peerAlive(CachePeer *p)
 
     // TODO: Remove or explain how we could detect an alive peer without IP addresses
     if (!p->n_addresses)
-        ipcache_nbgethostbyname(p->host, peerDNSConfigure, new CachePeerWrap(p));
+        ipcache_nbgethostbyname(p->host, peerDNSConfigure, p);
 }
 
 CachePeer *
@@ -1105,13 +1105,10 @@ peerDNSConfigure(const ipcache_addrs *ia, const Dns::LookupDetails &, void *data
     // TODO: connections to no-longer valid IP addresses should be
     // closed when we can detect such IP addresses.
 
-    CachePeer::Pointer p;
-    static_cast<CachePeerWrap *>(data)->unwrap(&p);
-
-    // XXX: handle the case when the CachePeer is gone
+    CachePeer *p = (CachePeer *)data;
 
     if (p->n_addresses == 0) {
-        debugs(15, Important(29), "Configuring " << neighborTypeStr(p.getRaw()) << " " << *p);
+        debugs(15, Important(29), "Configuring " << neighborTypeStr(p) << " " << *p);
 
         if (p->type == PEER_MULTICAST)
             debugs(15, DBG_IMPORTANT, "    Multicast TTL = " << p->mcast.ttl);
@@ -1144,15 +1141,15 @@ peerDNSConfigure(const ipcache_addrs *ia, const Dns::LookupDetails &, void *data
     p->in_addr = p->addresses[0];
     p->in_addr.port(p->icp.port);
 
-    peerProbeConnect(p.getRaw(), true); // detect any died or revived peers ASAP
+    peerProbeConnect(p, true); // detect any died or revived peers ASAP
 
     if (p->type == PEER_MULTICAST)
-        peerCountMcastPeersSchedule(p.getRaw(), 10);
+        peerCountMcastPeersSchedule(p, 10);
 
 #if USE_ICMP
     if (p->type != PEER_MULTICAST && IamWorkerProcess())
         if (!p->options.no_netdb_exchange)
-            eventAddIsh("netdbExchangeStart", netdbExchangeStart, p.getRaw(), 30.0, 1);
+            eventAddIsh("netdbExchangeStart", netdbExchangeStart, p, 30.0, 1);
 #endif
 
     if (p->standby.mgr.valid())
@@ -1185,7 +1182,7 @@ peerDnsRefreshStart()
     const auto savedContext = CodeContext::Current();
     for (const auto &p: CurrentCachePeers()) {
         CodeContext::Reset(p->probeCodeContext);
-        ipcache_nbgethostbyname(p->host, peerDNSConfigure, new CachePeerWrap(p));
+        ipcache_nbgethostbyname(p->host, peerDNSConfigure, p.getRaw());
     }
     CodeContext::Reset(savedContext);
 
@@ -1306,8 +1303,7 @@ peerCountMcastPeersCreateAndSend(CachePeer * const p)
     psstate->request = req;
     HTTPMSGLOCK(psstate->request);
     psstate->entry = fake;
-    psstate->peerCountMcastPeerXXX = p;
-    psstate->peerCountMcastPeerXXX->lock(); // XXX: convert psstate->peerCountMcastPeerXXX to CachePeer::Pointer
+    psstate->peerCountMcastPeerXXX = cbdataReference(p);
     psstate->ping.start = current_time;
     psstate->al = ale;
     mem = fake->mem_obj;
@@ -1332,7 +1328,6 @@ static void
 peerCountMcastPeersDone(void *data)
 {
     const auto psstate = static_cast<PeerSelector*>(data);
-    // XXX: handle the case when psstate->peerCountMcastPeerXXX is gone
     CallBack(psstate->al, [psstate] {
         peerCountMcastPeersAbort(psstate);
         delete psstate;
@@ -1346,8 +1341,8 @@ peerCountMcastPeersAbort(PeerSelector * const psstate)
 {
     StoreEntry *fake = psstate->entry;
 
-    if (psstate->peerCountMcastPeerXXX) {
-        auto p = psstate->peerCountMcastPeerXXX;
+    if (cbdataReferenceValid(psstate->peerCountMcastPeerXXX)) {
+        CachePeer *p = (CachePeer *)psstate->peerCountMcastPeerXXX;
         p->mcast.flags.counting = false;
         p->mcast.avg_n_members = Math::doubleAverage(p->mcast.avg_n_members, (double) psstate->ping.n_recv, ++p->mcast.n_times_counted, 10);
         debugs(15, DBG_IMPORTANT, "Group " << *p  << ": " << psstate->ping.n_recv  <<
@@ -1356,7 +1351,7 @@ peerCountMcastPeersAbort(PeerSelector * const psstate)
         p->mcast.n_replies_expected = (int) p->mcast.avg_n_members;
     }
 
-    psstate->peerCountMcastPeerXXX->unlock();
+    cbdataReferenceDone(psstate->peerCountMcastPeerXXX);
 
     fake->abort(); // sets ENTRY_ABORTED and initiates related cleanup
     fake->mem_obj->request = nullptr;

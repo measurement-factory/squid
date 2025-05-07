@@ -3854,7 +3854,8 @@ ConnStateData::borrowPinnedConnection(HttpRequest *request, const AccessLogEntry
     if (pinning.port != request->url.port())
         throw pinningError(ERR_CANNOT_FORWARD); // or generalize ERR_CONFLICT_HOST
 
-    // XXX: throw if pinning.peer is gone
+    if (pinning.peer && !cbdataReferenceValid(pinning.peer))
+        throw pinningError(ERR_ZERO_SIZE_OBJECT);
 
     if (pinning.peerAccessDenied)
         throw pinningError(ERR_CANNOT_FORWARD); // or generalize ERR_FORWARDING_DENIED
@@ -3879,6 +3880,8 @@ void
 ConnStateData::unpinConnection(const bool andClose)
 {
     debugs(33, 3, pinning.serverConnection);
+
+    cbdataReferenceDone(pinning.peer);
 
     if (Comm::IsConnOpen(pinning.serverConnection)) {
         if (pinning.closeHandler != nullptr) {

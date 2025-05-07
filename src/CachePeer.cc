@@ -23,7 +23,7 @@
 #include "SquidConfig.h"
 #include "util.h"
 
-CBDATA_CLASS_INIT(CachePeerWrap);
+CBDATA_CLASS_INIT(CachePeer);
 
 CachePeer::CachePeer(const SBuf &hostname):
     name(SBufToCstring(hostname)),
