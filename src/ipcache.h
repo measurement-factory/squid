@@ -234,7 +234,13 @@ template <typename HandlerData>
 inline void
 ipcache_nbgethostbyname(const char *name, IPH * handler, HandlerData handlerData)
 {
-    Assure(cbdataReferenceValid(handlerData->toCbdata()));
+    // Assert that handerData points to a class with a toCbdata() method. When
+    // the caller supplies bad handlerData type, this code usually fails to
+    // compile even before our static_assert fails, but that is OK.
+    using HandleDataClass = std::remove_pointer_t<HandlerData>;
+    static_assert(std::is_member_function_pointer_v<decltype(&HandleDataClass::toCbdata)>,
+                  "ipcache_nbgethostbyname() called with a non-cbdata protected callback data type");
+
     ipcacheNbgethostbynameInternal(name, handler, handlerData);
 }
 
