@@ -230,9 +230,9 @@ void ipcache_purgelru(void *);
 
 void ipcacheNbgethostbynameInternal(const char *name, IPH * handler, void *handlerData);
 
-template <class HandlerData>
+template <typename HandlerData>
 inline void
-ipcache_nbgethostbyname(const char *name, IPH * handler, HandlerData *handlerData)
+ipcache_nbgethostbyname(const char *name, IPH * handler, HandlerData handlerData)
 {
     Assure(cbdataReferenceValid(handlerData->toCbdata()));
     ipcacheNbgethostbynameInternal(name, handler, handlerData);
@@ -240,7 +240,7 @@ ipcache_nbgethostbyname(const char *name, IPH * handler, HandlerData *handlerDat
 
 template <>
 inline void
-ipcache_nbgethostbyname<std::nullptr_t>(const char *name, IPH * handler, std::nullptr_t *)
+ipcache_nbgethostbyname<std::nullptr_t>(const char *name, IPH * handler, std::nullptr_t)
 {
     ipcacheNbgethostbynameInternal(name, handler, nullptr);
 }
