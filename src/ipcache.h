@@ -227,7 +227,24 @@ typedef Dns::CachedIps ipcache_addrs; ///< deprecated alias
 typedef void IPH(const ipcache_addrs *, const Dns::LookupDetails &details, void *);
 
 void ipcache_purgelru(void *);
-void ipcache_nbgethostbyname(const char *name, IPH * handler, void *handlerData);
+
+void ipcacheNbgethostbynameInternal(const char *name, IPH * handler, void *handlerData);
+
+template <class HandlerData>
+inline void
+ipcache_nbgethostbyname(const char *name, IPH * handler, HandlerData *handlerData)
+{
+    Assure(cbdataReferenceValid(handlerData->toCbdata()));
+    ipcacheNbgethostbynameInternal(name, handler, handlerData);
+}
+
+template <>
+inline void
+ipcache_nbgethostbyname<std::nullptr_t>(const char *name, IPH * handler, std::nullptr_t *)
+{
+    ipcacheNbgethostbynameInternal(name, handler, nullptr);
+}
+
 const ipcache_addrs *ipcache_gethostbyname(const char *, int flags);
 void ipcacheInvalidate(const char *);
 void ipcacheInvalidateNegative(const char *);
