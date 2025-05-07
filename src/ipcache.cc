@@ -760,7 +760,7 @@ ipcache_gethostbyname(const char *name, int flags)
     ++IpcacheStats.misses;
 
     if (flags & IP_LOOKUP_IF_MISS)
-        ipcacheNbgethostbynameInternal(name, nullptr, nullptr);
+        ipcache_nbgethostbyname(name, nullptr, nullptr);
 
     return nullptr;
 }
