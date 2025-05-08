@@ -215,8 +215,8 @@ peerUserHashSelectParent(PeerSelector *ps)
         debugs(39, 3, *tp << " combined_hash " << combined_hash <<
                " score " << std::setprecision(0) << score);
 
-        if ((score > high_score) && peerHTTPOkay(tp.getRaw(), ps)) {
-            p = tp.getRaw();
+        if ((score > high_score) && peerHTTPOkay(tp.get(), ps)) {
+            p = tp.get();
             high_score = score;
         }
     }

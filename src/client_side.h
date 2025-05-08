@@ -46,7 +46,7 @@ class MasterXaction;
 typedef RefCount<MasterXaction> MasterXactionPointer;
 
 class CachePeer;
-using CachePeerPointer = RefCount<CachePeer>;
+using DisappearingCachePeer = CachePeer *;
 
 #if USE_OPENSSL
 namespace Ssl
@@ -151,7 +151,7 @@ public:
         bool reading = false; ///< we are monitoring for peer connection closure
         bool zeroReply = false; ///< server closed w/o response (ERR_ZERO_SIZE_OBJECT)
         bool peerAccessDenied = false; ///< cache_peer_access denied pinned connection reuse
-        CachePeer *peer = nullptr; ///< CachePeer the connection goes via
+        DisappearingCachePeer peer = nullptr; ///< CachePeer the connection goes via
         AsyncCall::Pointer readHandler; ///< detects serverConnection closure
         AsyncCall::Pointer closeHandler; ///< The close handler for pinned server side connection
     } pinning;

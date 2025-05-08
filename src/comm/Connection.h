@@ -29,7 +29,7 @@
 #include <ostream>
 
 class CachePeer;
-using CachePeerPointer = RefCount<CachePeer>;
+using KeptCachePeer = RefCount<CachePeer>;
 
 namespace Security
 {
@@ -181,7 +181,7 @@ public:
 
 private:
     /** cache_peer data object (if any) */
-    CachePeerPointer peer_;
+    KeptCachePeer peer_;
 
     /** The time the connection object was created */
     time_t startTime_;

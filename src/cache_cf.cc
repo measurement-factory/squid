@@ -1867,7 +1867,7 @@ ParseCachePeer(ConfigParser &parser)
 {
     const auto address = parser.token("cache_peer TCP listening address");
 
-    CachePeer::Pointer p = new CachePeer(address);
+    KeptCachePeer p = new CachePeer(address);
 
     p->type = parseNeighborType("cache_peer type parameter", parser);
 

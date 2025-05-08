@@ -17,7 +17,7 @@
 
 class HttpRequest;
 class CachePeer;
-using CachePeerPointer = RefCount<CachePeer>;
+using KeptCachePeer = RefCount<CachePeer>;
 class CommConnectCbParams;
 
 /// Maintains an fixed-size "standby" PconnPool for a single CachePeer.
@@ -76,7 +76,7 @@ protected:
     void pushNewConnection(const Comm::ConnectionPointer &conn);
 
 private:
-    CachePeerPointer peer; ///< the owner of the pool we manage
+    KeptCachePeer peer; ///< the owner of the pool we manage
     RefCount<HttpRequest> request; ///< fake HTTP request for conn opening code
 
     /// waits for a transport connection to the peer to be established/opened

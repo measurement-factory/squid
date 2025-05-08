@@ -44,7 +44,7 @@ CachePeers::nextPeerToPing(const size_t pollIndex)
 }
 
 void
-CachePeers::absorb(const CachePeer::Pointer &peer)
+CachePeers::absorb(const KeptCachePeer &peer)
 {
     storage.push_back(peer);
     storage.back()->index = size();
@@ -72,7 +72,7 @@ CurrentCachePeers()
 }
 
 void
-AbsorbConfigured(const CachePeer::Pointer &peer)
+AbsorbConfigured(const KeptCachePeer &peer)
 {
     if (!Config.peers)
         Config.peers = new CachePeers;

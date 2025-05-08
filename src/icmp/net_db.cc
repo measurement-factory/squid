@@ -76,7 +76,7 @@ public:
         e->unlock("netdbExchangeDone");
     }
 
-    CachePeer::Pointer p;
+    CbcPointer<CachePeer> p;
     StoreEntry *e = nullptr;
     store_client *sc = nullptr;
     HttpRequestPointer r;
@@ -665,7 +665,7 @@ netdbExchangeHandleReply(void *data, StoreIOBuffer receivedData)
     Assure(rec_sz <= ex->parsingBuffer.capacity());
     debugs(38, 3, "netdbExchangeHandleReply: " << receivedData.length << " read bytes");
 
-    if (!ex->p) {
+    if (!ex->p.valid()) {
         debugs(38, 3, "netdbExchangeHandleReply: Peer became invalid");
         delete ex;
         return;
@@ -737,7 +737,7 @@ netdbExchangeHandleReply(void *data, StoreIOBuffer receivedData)
         }
 
         if (!addr.isAnyAddr() && rtt > 0)
-            netdbExchangeUpdatePeer(addr, ex->p.getRaw(), rtt, hops);
+            netdbExchangeUpdatePeer(addr, ex->p.get(), rtt, hops);
 
         assert(o == rec_sz);
 
