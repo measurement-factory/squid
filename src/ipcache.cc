@@ -606,7 +606,7 @@ ipcacheHandleReply(void *data, const rfc1035_rr * answers, int na, const char *e
  * but some user code calls ipcache_nbgethostbyname directly.
  */
 void
-ipcache_nbgethostbyname(const char *name, IPH * handler, void *handlerData)
+ipcacheNbgethostbynameInternal(const char *name, IPH * handler, void *handlerData)
 {
     debugs(14, 4, name);
     ipcache_nbgethostbyname_(name, IpCacheLookupForwarder(handler, handlerData));
