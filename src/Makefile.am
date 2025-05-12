@@ -976,9 +976,12 @@ tests_testSBuf_SOURCES = \
 	tests/SBufFindTest.cc \
 	tests/SBufFindTest.h
 nodist_tests_testSBuf_SOURCES = \
+	tests/stub_event.cc \
 	tests/stub_StatHist.cc \
 	tests/stub_debug.cc \
-	tests/stub_libmem.cc
+	tests/stub_libmem.cc \
+	tests/stub_MemObject.cc \
+	tests/stub_stmem.cc
 tests_testSBuf_LDADD = \
 	sbuf/libsbuf.la \
 	base/libbase.la \
