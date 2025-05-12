@@ -12,8 +12,7 @@
 #define STUB_API "event.cc"
 #include "tests/STUB.h"
 
-void eventAdd(const char *, EVH *, void *, double, int, bool) STUB_NOP
-void eventAddIsh(const char *, EVH *, void *, double, int) STUB
+void eventAdd_(const char *, EVH *, void *, double, int, bool) STUB_NOP
 void eventDelete(EVH *, void *) STUB
 void eventInit(void) STUB
 int eventFind(EVH *, void *) STUB_RETVAL(-1)
