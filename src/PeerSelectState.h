@@ -27,7 +27,7 @@ class HttpRequest;
 class icp_common_t;
 class StoreEntry;
 class CachePeer;
-using DisappearingCachePeer = CachePeer *;
+using DisappearingCachePeer = CbcPointer<CachePeer>;
 
 void peerSelectInit(void);
 
@@ -101,7 +101,7 @@ public:
     AccessLogEntry::Pointer al; ///< info for the future access.log entry
     StoreEntry *entry;
 
-    DisappearingCachePeer peerCountMcastPeerXXX = nullptr; ///< a hack to help peerCountMcastPeersStart()
+    DisappearingCachePeer peerCountMcastPeerXXX; ///< a hack to help peerCountMcastPeersStart()
 
     ping_data ping;
 

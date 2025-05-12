@@ -76,7 +76,7 @@ public:
         e->unlock("netdbExchangeDone");
     }
 
-    CbcPointer<CachePeer> p;
+    DisappearingCachePeer p;
     StoreEntry *e = nullptr;
     store_client *sc = nullptr;
     HttpRequestPointer r;

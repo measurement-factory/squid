@@ -1303,7 +1303,7 @@ peerCountMcastPeersCreateAndSend(CachePeer * const p)
     psstate->request = req;
     HTTPMSGLOCK(psstate->request);
     psstate->entry = fake;
-    psstate->peerCountMcastPeerXXX = cbdataReference(p);
+    psstate->peerCountMcastPeerXXX = p;
     psstate->ping.start = current_time;
     psstate->al = ale;
     mem = fake->mem_obj;
@@ -1341,8 +1341,7 @@ peerCountMcastPeersAbort(PeerSelector * const psstate)
 {
     StoreEntry *fake = psstate->entry;
 
-    if (cbdataReferenceValid(psstate->peerCountMcastPeerXXX)) {
-        CachePeer *p = (CachePeer *)psstate->peerCountMcastPeerXXX;
+    if (auto p = psstate->peerCountMcastPeerXXX.get()) {
         p->mcast.flags.counting = false;
         p->mcast.avg_n_members = Math::doubleAverage(p->mcast.avg_n_members, (double) psstate->ping.n_recv, ++p->mcast.n_times_counted, 10);
         debugs(15, DBG_IMPORTANT, "Group " << *p  << ": " << psstate->ping.n_recv  <<
@@ -1350,8 +1349,6 @@ peerCountMcastPeersAbort(PeerSelector * const psstate)
                p->mcast.avg_n_members <<" average, RTT " << p->stats.rtt);
         p->mcast.n_replies_expected = (int) p->mcast.avg_n_members;
     }
-
-    cbdataReferenceDone(psstate->peerCountMcastPeerXXX);
 
     fake->abort(); // sets ENTRY_ABORTED and initiates related cleanup
     fake->mem_obj->request = nullptr;
