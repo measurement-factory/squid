@@ -86,7 +86,7 @@ Comm::Connection::cloneProfile() const
 #endif
 
     // id excused
-    c.peer_ = getPeer();
+    c.peer_ = peer_;
     // startTime_ excused
     // tlsHistory excused
 
@@ -123,13 +123,8 @@ Comm::Connection::getPeer() const
 void
 Comm::Connection::setPeer(CachePeer *p)
 {
-    /* set to self. nothing to do. */
-    if (getPeer() == p)
-        return;
-
-    if (p) {
-        peer_ = p;
-    }
+    peer_ = p;
+    // may stay unchanged or become nil
 }
 
 time_t

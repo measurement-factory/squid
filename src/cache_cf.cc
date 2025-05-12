@@ -1867,7 +1867,7 @@ ParseCachePeer(ConfigParser &parser)
 {
     const auto address = parser.token("cache_peer TCP listening address");
 
-    KeptCachePeer p = new CachePeer(address);
+    const auto p = KeptCachePeer::Make(address);
 
     p->type = parseNeighborType("cache_peer type parameter", parser);
 
@@ -2105,7 +2105,7 @@ parse_peer(CachePeers **peers)
     if (findCachePeerByName(p->name))
         throw TextException("cache_peer specified twice", Here());
 
-    AbsorbConfigured(p);
+    AddConfigured(p);
 }
 
 static void
@@ -2134,7 +2134,7 @@ Configuration::Component<CachePeers*>::Reconfigure(SmoothReconfiguration &sr, Ca
         PeerPoolMgr::StartManagingIfNeeded(*newPeer);
         peerSelectAdd(sr, *newPeer);
         sr.asyncCall(3, 5, "neighbors_init", NullaryFunDialer(&neighbors_init));
-        AbsorbConfigured(newPeer);
+        AddConfigured(newPeer);
     }
 }
 

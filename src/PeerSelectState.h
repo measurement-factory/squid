@@ -18,6 +18,7 @@
 #include "ip/Address.h"
 #include "ipcache.h"
 #include "mem/forward.h"
+#include "peering.h"
 #include "PingData.h"
 #include "typedefs.h" /* for IRCB */
 
@@ -26,8 +27,6 @@ class HtcpReplyData;
 class HttpRequest;
 class icp_common_t;
 class StoreEntry;
-class CachePeer;
-using DisappearingCachePeer = CbcPointer<CachePeer>;
 
 void peerSelectInit(void);
 

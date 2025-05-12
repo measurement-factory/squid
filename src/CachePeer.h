@@ -243,9 +243,6 @@ private:
     void countFailure();
 };
 
-using KeptCachePeer = CachePeer::Pointer;
-using DisappearingCachePeer = CbcPointer<CachePeer>;
-
 /// reacts to a successful establishment of a connection to an origin server or cache_peer
 /// \param peer nil if Squid established a connection to an origin server
 inline void

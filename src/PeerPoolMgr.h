@@ -13,11 +13,10 @@
 #include "base/forward.h"
 #include "base/JobWait.h"
 #include "comm/forward.h"
+#include "peering.h"
 #include "security/forward.h"
 
 class HttpRequest;
-class CachePeer;
-using KeptCachePeer = RefCount<CachePeer>;
 class CommConnectCbParams;
 
 /// Maintains an fixed-size "standby" PconnPool for a single CachePeer.
@@ -77,7 +76,7 @@ protected:
 
 private:
     KeptCachePeer peer_; ///< the owner of the pool we manage
-    CachePeer *peer; /// XXX: diff reducer, remove
+    CachePeer *peer; // XXX: diff reducer, remove
     RefCount<HttpRequest> request; ///< fake HTTP request for conn opening code
 
     /// waits for a transport connection to the peer to be established/opened

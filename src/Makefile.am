@@ -308,6 +308,7 @@ squid_SOURCES = \
 	Parsing.cc \
 	Parsing.h \
 	PeerDigest.h \
+	peering.h \
 	PeerPoolMgr.cc \
 	PeerPoolMgr.h \
 	PeerSelectState.h \

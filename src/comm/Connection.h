@@ -23,13 +23,11 @@
 #include "ip/Address.h"
 #include "ip/forward.h"
 #include "mem/forward.h"
+#include "peering.h"
 #include "time/gadgets.h"
 
 #include <iosfwd>
 #include <ostream>
-
-class CachePeer;
-using KeptCachePeer = RefCount<CachePeer>;
 
 namespace Security
 {

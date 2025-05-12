@@ -12,6 +12,7 @@
 #include "ConfigOption.h"
 #include "configuration/Smooth.h"
 #include "neighbors.h"
+#include "peering.h"
 #include "PeerPoolMgr.h"
 #include "PeerSelectState.h"
 #include "SquidConfig.h"
@@ -44,7 +45,7 @@ CachePeers::nextPeerToPing(const size_t pollIndex)
 }
 
 void
-CachePeers::absorb(const KeptCachePeer &peer)
+CachePeers::add(const KeptCachePeer &peer)
 {
     storage.push_back(peer);
     storage.back()->index = size();
@@ -72,12 +73,12 @@ CurrentCachePeers()
 }
 
 void
-AbsorbConfigured(const KeptCachePeer &peer)
+AddConfigured(const KeptCachePeer &peer)
 {
     if (!Config.peers)
         Config.peers = new CachePeers;
 
-    Config.peers->absorb(peer);
+    Config.peers->add(peer);
 
     peerClearRRStart();
 }
