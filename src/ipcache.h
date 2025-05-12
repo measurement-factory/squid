@@ -15,6 +15,8 @@
 #include <iosfwd>
 #include <vector>
 
+#include <type_traits>
+
 // The IPs the caller should not connect to are "bad". Other IPs are "good".
 
 namespace Dns {
