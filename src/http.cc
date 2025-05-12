@@ -86,7 +86,7 @@ HttpStateData::HttpStateData(FwdState *theFwdState) :
     if (fwd->serverConnection() != nullptr)
         _peer = fwd->serverConnection()->getPeer(); /* might be NULL */
 
-    flags.peering =  bool(_peer);
+    flags.peering = bool(_peer);
     flags.tunneling = (_peer && request->flags.sslBumped);
     flags.toOrigin = (!_peer || _peer->options.originserver || request->flags.sslBumped);
 

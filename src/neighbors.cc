@@ -104,7 +104,7 @@ whichPeer(const Ip::Address &from)
     for (const auto &p: CurrentCachePeers()) {
         for (j = 0; j < p->n_addresses; ++j) {
             if (from == p->addresses[j] && from.port() == p->icp.port) {
-                return p.getRaw();
+                return p.get();
             }
         }
     }
@@ -269,7 +269,7 @@ neighborsCount(PeerSelector *ps)
     int count = 0;
 
     for (const auto &p: CurrentCachePeers())
-        if (peerWouldBePinged(p.getRaw(), ps))
+        if (peerWouldBePinged(p.get(), ps))
             ++count;
 
     debugs(15, 3, "neighborsCount: " << count);
@@ -284,7 +284,7 @@ getFirstUpParent(PeerSelector *ps)
     HttpRequest *request = ps->request;
 
     for (const auto &peer: CurrentCachePeers()) {
-        const auto p = peer.getRaw();
+        const auto p = peer.get();
 
         if (!neighborUp(p))
             continue;
@@ -312,7 +312,7 @@ getRoundRobinParent(PeerSelector *ps)
     CachePeer *q = nullptr;
 
     for (const auto &peer: CurrentCachePeers()) {
-        const auto p = peer.getRaw();
+        const auto p = peer.get();
         if (!p->options.roundrobin)
             continue;
 
@@ -355,7 +355,7 @@ getWeightedRoundRobinParent(PeerSelector *ps)
     int weighted_rtt;
 
     for (const auto &peer: CurrentCachePeers()) {
-        const auto p = peer.getRaw();
+        const auto p = peer.get();
 
         if (!p->options.weighted_roundrobin)
             continue;
@@ -377,7 +377,7 @@ getWeightedRoundRobinParent(PeerSelector *ps)
             if (!p->options.weighted_roundrobin)
                 continue;
 
-            if (neighborType(p.getRaw(), request->url) != PEER_PARENT)
+            if (neighborType(p.get(), request->url) != PEER_PARENT)
                 continue;
 
             p->rr_count = 0;
@@ -471,7 +471,7 @@ getDefaultParent(PeerSelector *ps)
     HttpRequest *request = ps->request;
 
     for (const auto &peer: CurrentCachePeers()) {
-        const auto p = peer.getRaw();
+        const auto p = peer.get();
 
         if (neighborType(p, request->url) != PEER_PARENT)
             continue;
@@ -527,7 +527,7 @@ neighbors_init(void)
                 debugs(15, DBG_IMPORTANT, "WARNING: Peer looks like this host." <<
                        Debug::Extra << "Ignoring cache_peer " << *thisPeer);
 
-                peersToRemove.push_back(thisPeer.getRaw());
+                peersToRemove.push_back(thisPeer.get());
                 break; // avoid warning about (and removing) the same CachePeer twice
             }
         }
@@ -1054,7 +1054,7 @@ findCachePeerByName(const char * const name)
 {
     for (const auto &p: CurrentCachePeers()) {
         if (!strcasecmp(name, p->name))
-            return p.getRaw();
+            return p.get();
     }
     return nullptr;
 }
@@ -1182,7 +1182,7 @@ peerDnsRefreshStart()
     const auto savedContext = CodeContext::Current();
     for (const auto &p: CurrentCachePeers()) {
         CodeContext::Reset(p->probeCodeContext);
-        ipcache_nbgethostbyname(p->host, peerDNSConfigure, p.getRaw());
+        ipcache_nbgethostbyname(p->host, peerDNSConfigure, p.get());
     }
     CodeContext::Reset(savedContext);
 
@@ -1515,7 +1515,7 @@ dump_peers(StoreEntry *sentry, CachePeers *peers)
     }
 
     for (const auto &peer: *peers) {
-        const auto e = peer.getRaw();
+        const auto e = peer.get();
         assert(e->host != nullptr);
         storeAppendPrintf(sentry, "\n%-11.11s: %s\n",
                           neighborTypeStr(e),
@@ -1689,7 +1689,7 @@ neighborsHtcpClear(StoreEntry * e, HttpRequest * req, const HttpRequestMethod &m
             continue;
         }
         debugs(15, 3, "neighborsHtcpClear: sending CLR to " << p->in_addr.toUrl(buf, 128));
-        htcpClear(e, req, method, p.getRaw(), reason);
+        htcpClear(e, req, method, p.get(), reason);
     }
 }
 

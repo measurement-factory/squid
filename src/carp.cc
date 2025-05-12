@@ -67,7 +67,7 @@ carpInit(void)
 
     RawCachePeers rawCarpPeers;
     for (const auto &peer: CurrentCachePeers()) {
-        const auto p = peer.getRaw();
+        const auto p = peer.get();
 
         if (!p->options.carp)
             continue;

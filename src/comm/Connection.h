@@ -112,7 +112,7 @@ public:
      */
     CachePeer * getPeer() const;
 
-    /// alter the stored CachePeer pointer.
+    /// alter the stored CachePeer pointer
     void setPeer(CachePeer * p);
 
     /** The time the connection started */

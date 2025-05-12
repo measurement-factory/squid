@@ -1219,7 +1219,7 @@ static CachePeer *
 findUsableParentAtHostname(PeerSelector *ps, const char * const hostname, const HttpRequest &request)
 {
     for (const auto &peer: CurrentCachePeers()) {
-        const auto p = peer.getRaw();
+        const auto p = peer.get();
         // Both fields should be lowercase, but no code ensures that invariant.
         // TODO: net_db_peer should point to CachePeer instead of its hostname!
         if (strcasecmp(p->host, hostname) != 0)

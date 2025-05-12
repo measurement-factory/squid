@@ -31,11 +31,12 @@
 CBDATA_CLASS_INIT(PeerPoolMgr);
 
 PeerPoolMgr::PeerPoolMgr(CachePeer *aPeer): AsyncJob("PeerPoolMgr"),
-    peer(aPeer),
+    peer_(aPeer),
     transportWait(),
     encryptionWait(),
     addrUsed(0)
 {
+    peer = peer_.getRaw();
     const auto mx = MasterXaction::MakePortless<XactionInitiator::initPeerPool>();
 
     codeContext = new PrecomputedCodeContext("cache_peer standby pool", ToSBuf("current cache_peer standby pool: ", *peer,
@@ -98,7 +99,7 @@ PeerPoolMgr::handleOpenedConnection(const CommConnectCbParams &params)
     }
 
     if (params.flag != Comm::OK) {
-        NoteOutgoingConnectionFailure(peer.getRaw());
+        NoteOutgoingConnectionFailure(peer);
         checkpoint("conn opening failure"); // may retry
         return;
     }
@@ -174,11 +175,11 @@ PeerPoolMgr::openNewConnection()
     }
 
     // Do not talk to a peer until it is ready.
-    if (!neighborUp(peer.getRaw())) // provides debugging
+    if (!neighborUp(peer)) // provides debugging
         return; // there will be another checkpoint when peer is up
 
     // Do not violate peer limits.
-    if (!peerCanOpenMore(peer.getRaw())) { // provides debugging
+    if (!peerCanOpenMore(peer)) { // provides debugging
         peer->standby.waitingForClose = true; // may already be true
         return; // there will be another checkpoint when a peer conn closes
     }
@@ -200,7 +201,7 @@ PeerPoolMgr::openNewConnection()
     conn->remote = peer->addresses[addrUsed++ % peer->n_addresses];
     conn->remote.port(peer->http_port);
     conn->peerType = STANDBY_POOL; // should be reset by peerSelect()
-    conn->setPeer(peer.getRaw());
+    conn->setPeer(peer);
     getOutgoingAddress(request.getRaw(), conn);
     GetMarkingsToServer(request.getRaw(), *conn);
 
@@ -297,7 +298,7 @@ void
 PeerPoolMgrsRr::syncConfig()
 {
     for (const auto &peer: CurrentCachePeers()) {
-        const auto p = peer.getRaw();
+        const auto p = peer.get();
         // On reconfigure, Squid deletes the old config (and old peers in it),
         // so should always be dealing with a brand new configuration.
         assert(!p->standby.mgr);

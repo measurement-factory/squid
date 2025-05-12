@@ -65,7 +65,7 @@ public:
     // Checks whether the response is cacheable/shareable.
     ReuseDecision::Answers reusableReply(ReuseDecision &decision);
 
-    KeptCachePeer _peer;       /* CachePeer request made to */
+    KeptCachePeer _peer;    /* CachePeer request made to */
     int eof = 0;            /* reached end-of-object? */
     int lastChunk = 0;      /* reached last chunk of a chunk-encoded reply */
     Http::StateFlags flags;

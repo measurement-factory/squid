@@ -65,7 +65,7 @@ peerUserHashInit(void)
 
     RawCachePeers rawUserHashPeers;
     for (const auto &p: CurrentCachePeers()) {
-        const auto peer = p.getRaw();
+        const auto peer = p.get();
 
         if (!p->options.userhash)
             continue;

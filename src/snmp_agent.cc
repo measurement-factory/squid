@@ -198,7 +198,7 @@ snmp_meshPtblFn(variable_list * Var, snint * ErrP)
     for (const auto &peer: CurrentCachePeers()) {
         if (peer->index == index) {
             laddr = peer->in_addr ;
-            p = peer.getRaw();
+            p = peer.get();
             break;
         }
     }

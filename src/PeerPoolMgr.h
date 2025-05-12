@@ -76,7 +76,8 @@ protected:
     void pushNewConnection(const Comm::ConnectionPointer &conn);
 
 private:
-    KeptCachePeer peer; ///< the owner of the pool we manage
+    KeptCachePeer peer_; ///< the owner of the pool we manage
+    CachePeer *peer; /// XXX: diff reducer, remove
     RefCount<HttpRequest> request; ///< fake HTTP request for conn opening code
 
     /// waits for a transport connection to the peer to be established/opened

@@ -58,7 +58,7 @@ peerSourceHashInit(void)
 
     RawCachePeers rawSourceHashPeers;
     for (const auto &p: CurrentCachePeers()) {
-        const auto peer = p.getRaw();
+        const auto peer = p.get();
 
         if (!p->options.sourcehash)
             continue;

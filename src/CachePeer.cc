@@ -10,7 +10,6 @@
 #include "acl/Gadgets.h"
 #include "base/PrecomputedCodeContext.h"
 #include "CachePeer.h"
-#include "cbdata.h"
 #include "configuration/Smooth.h"
 #include "defines.h"
 #include "neighbors.h"
