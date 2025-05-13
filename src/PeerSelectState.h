@@ -18,6 +18,7 @@
 #include "ip/Address.h"
 #include "ipcache.h"
 #include "mem/forward.h"
+#include "peering.h"
 #include "PingData.h"
 #include "typedefs.h" /* for IRCB */
 
@@ -99,7 +100,7 @@ public:
     AccessLogEntry::Pointer al; ///< info for the future access.log entry
     StoreEntry *entry;
 
-    void *peerCountMcastPeerXXX = nullptr; ///< a hack to help peerCountMcastPeersStart()
+    DisappearingCachePeer peerCountMcastPeerXXX; ///< a hack to help peerCountMcastPeersStart()
 
     ping_data ping;
 

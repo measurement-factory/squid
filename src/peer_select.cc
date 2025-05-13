@@ -58,7 +58,7 @@ public:
         next(nullptr)
     {}
 
-    CbcPointer<CachePeer> _peer;                /* NULL --> origin server */
+    DisappearingCachePeer _peer; /* NULL --> origin server */
     hier_code code;
     FwdServer *next;
 };

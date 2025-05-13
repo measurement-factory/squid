@@ -35,7 +35,6 @@ Comm::Connection::Connection() :
     tos(0),
     nfmark(0),
     flags(COMM_NONBLOCKING),
-    peer_(nullptr),
     startTime_(squid_curtime),
     tlsHistory(nullptr)
 {}
@@ -52,8 +51,6 @@ Comm::Connection::~Connection()
         }
         close();
     }
-
-    cbdataReferenceDone(peer_);
 
     delete tlsHistory;
 }
@@ -89,7 +86,7 @@ Comm::Connection::cloneProfile() const
 #endif
 
     // id excused
-    c.peer_ = cbdataReference(getPeer());
+    c.peer_ = peer_;
     // startTime_ excused
     // tlsHistory excused
 
@@ -120,23 +117,14 @@ Comm::Connection::noteClosure()
 CachePeer *
 Comm::Connection::getPeer() const
 {
-    if (cbdataReferenceValid(peer_))
-        return peer_;
-
-    return nullptr;
+    return peer_.getRaw();
 }
 
 void
 Comm::Connection::setPeer(CachePeer *p)
 {
-    /* set to self. nothing to do. */
-    if (getPeer() == p)
-        return;
-
-    cbdataReferenceDone(peer_);
-    if (p) {
-        peer_ = cbdataReference(p);
-    }
+    peer_ = p;
+    // may stay unchanged or become nil
 }
 
 time_t

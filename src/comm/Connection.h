@@ -23,12 +23,11 @@
 #include "ip/Address.h"
 #include "ip/forward.h"
 #include "mem/forward.h"
+#include "peering.h"
 #include "time/gadgets.h"
 
 #include <iosfwd>
 #include <ostream>
-
-class CachePeer;
 
 namespace Security
 {
@@ -111,9 +110,7 @@ public:
      */
     CachePeer * getPeer() const;
 
-    /** alter the stored CachePeer pointer.
-     * Perform appropriate CBDATA operations for locking the CachePeer pointer
-     */
+    /// alter the stored CachePeer pointer
     void setPeer(CachePeer * p);
 
     /** The time the connection started */
@@ -182,7 +179,7 @@ public:
 
 private:
     /** cache_peer data object (if any) */
-    CachePeer *peer_;
+    KeptCachePeer peer_;
 
     /** The time the connection object was created */
     time_t startTime_;

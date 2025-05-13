@@ -31,11 +31,12 @@
 CBDATA_CLASS_INIT(PeerPoolMgr);
 
 PeerPoolMgr::PeerPoolMgr(CachePeer *aPeer): AsyncJob("PeerPoolMgr"),
-    peer(cbdataReference(aPeer)),
+    peer_(aPeer),
     transportWait(),
     encryptionWait(),
     addrUsed(0)
 {
+    peer = peer_.getRaw();
     const auto mx = MasterXaction::MakePortless<XactionInitiator::initPeerPool>();
 
     codeContext = new PrecomputedCodeContext("cache_peer standby pool", ToSBuf("current cache_peer standby pool: ", *peer,
@@ -58,7 +59,6 @@ PeerPoolMgr::~PeerPoolMgr()
         delete peer->standby.pool;
         peer->standby.pool = nullptr;
     }
-    cbdataReferenceDone(peer);
 }
 
 void
@@ -77,7 +77,7 @@ PeerPoolMgr::swanSong()
 bool
 PeerPoolMgr::validPeer() const
 {
-    return peer && cbdataReferenceValid(peer) && peer->standby.pool;
+    return peer && peer->standby.pool;
 }
 
 bool

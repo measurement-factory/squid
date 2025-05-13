@@ -88,6 +88,9 @@ public:
 
     C * getRaw() const { return const_cast<C *>(p_); }
 
+    // XXX: diff reducer, remove
+    C * get() const { return getRaw(); }
+
     bool operator == (const RefCount& p) const {
         return p.p_ == p_;
     }

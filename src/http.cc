@@ -84,9 +84,9 @@ HttpStateData::HttpStateData(FwdState *theFwdState) :
     serverConnection = fwd->serverConnection();
 
     if (fwd->serverConnection() != nullptr)
-        _peer = cbdataReference(fwd->serverConnection()->getPeer());         /* might be NULL */
+        _peer = fwd->serverConnection()->getPeer(); /* might be NULL */
 
-    flags.peering =  _peer;
+    flags.peering = bool(_peer);
     flags.tunneling = (_peer && request->flags.sslBumped);
     flags.toOrigin = (!_peer || _peer->options.originserver || request->flags.sslBumped);
 
@@ -120,8 +120,6 @@ HttpStateData::~HttpStateData()
 
     if (httpChunkDecoder)
         delete httpChunkDecoder;
-
-    cbdataReferenceDone(_peer);
 
     delete upgradeHeaderOut;
 
@@ -2449,7 +2447,7 @@ HttpStateData::sendRequest()
     else if (flags.tunneling)
         // tunneled non pinned bumped requests must not keepalive
         flags.keepalive = !request->flags.sslBumped;
-    else if (_peer == nullptr)
+    else if (!_peer)
         flags.keepalive = true;
     else if (_peer->stats.n_keepalives_sent < 10)
         flags.keepalive = true;
@@ -2469,7 +2467,7 @@ HttpStateData::sendRequest()
 
            But I suppose it was a bug
          */
-        if (neighborType(_peer, request->url) == PEER_SIBLING && !_peer->options.allow_miss)
+        if (neighborType(_peer.getRaw(), request->url) == PEER_SIBLING && !_peer->options.allow_miss)
             flags.only_if_cached = true;
 
         flags.front_end_https = _peer->front_end_https;
