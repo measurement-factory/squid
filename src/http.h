@@ -12,8 +12,8 @@
 #include "clients/Client.h"
 #include "comm.h"
 #include "http/forward.h"
-#include "peering.h"
 #include "http/StateFlags.h"
+#include "peering.h"
 #include "sbuf/SBuf.h"
 
 #include <optional>

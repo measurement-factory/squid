@@ -308,7 +308,6 @@ squid_SOURCES = \
 	Parsing.cc \
 	Parsing.h \
 	PeerDigest.h \
-	peering.h \
 	PeerPoolMgr.cc \
 	PeerPoolMgr.h \
 	PeerSelectState.h \
@@ -426,6 +425,7 @@ squid_SOURCES = \
 	peer_sourcehash.h \
 	peer_userhash.cc \
 	peer_userhash.h \
+	peering.h \
 	protos.h \
 	redirect.cc \
 	redirect.h \
