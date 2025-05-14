@@ -51,7 +51,7 @@ jobs:
           - { name: layer-01-minimal, nick: minimal }
           - { name: layer-02-maximus, nick: maximus }
 
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     container:
       image: squidcache/buildfarm-${{ matrix.os }}:stable
       options: --user 1001 # uid used by worfklow runner
@@ -146,7 +146,7 @@ jobs:
           - 14.2
           - 13.4
 
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     name: freebsd(${{ matrix.osversion }})
 
     steps:
@@ -187,7 +187,7 @@ jobs:
           path: btlayer-*.log
 
   openbsd:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout Sources
