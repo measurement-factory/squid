@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1996-2023 The Squid Software Foundation and contributors
+ * Copyright (C) 1996-2025 The Squid Software Foundation and contributors
  *
  * Squid software is distributed under GPLv2+ license and includes
  * contributions from numerous individuals and organizations.
@@ -692,18 +692,6 @@ comm_connect_addr(int sock, const Ip::Address &address)
 
     } else {
         errno = 0;
-#if _SQUID_NEWSOS6_
-        /* Makoto MATSUSHITA <matusita@ics.es.osaka-u.ac.jp> */
-        if (connect(sock, AI->ai_addr, AI->ai_addrlen) < 0)
-            xerrno = errno;
-
-        if (xerrno == EINVAL) {
-            errlen = sizeof(err);
-            x = getsockopt(sock, SOL_SOCKET, SO_ERROR, &err, &errlen);
-            if (x >= 0)
-                xerrno = x;
-        }
-#else
         errlen = sizeof(err);
         x = getsockopt(sock, SOL_SOCKET, SO_ERROR, &err, &errlen);
         if (x == 0)
@@ -720,7 +708,6 @@ comm_connect_addr(int sock, const Ip::Address &address)
             xerrno = ENOTCONN;
         else
             xerrno = errno;
-#endif
 #endif
     }
 
@@ -1152,9 +1139,6 @@ comm_init(void)
 {
     assert(fd_table);
 
-    // make sure the IO pending callback table exists
-    Comm::CallbackTableInit();
-
     /* XXX account fd_table */
     /* Keep a few file descriptors free so that we don't run out of FD's
      * after accepting a client but before it opens a socket or a file.
@@ -1172,8 +1156,6 @@ comm_exit(void)
 {
     delete TheHalfClosed;
     TheHalfClosed = nullptr;
-
-    Comm::CallbackTableDestruct();
 }
 
 #if USE_DELAY_POOLS
