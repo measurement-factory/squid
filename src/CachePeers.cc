@@ -44,10 +44,10 @@ CachePeers::nextPeerToPing(const size_t pollIndex)
 }
 
 void
-CachePeers::absorb(std::unique_ptr<CachePeer> &&peer)
+CachePeers::add(const KeptCachePeer &peer)
 {
-    const auto &added = storage.emplace_back(std::move(peer));
-    added->index = size();
+    storage.push_back(peer);
+    storage.back()->index = size();
 }
 
 void
@@ -72,12 +72,12 @@ CurrentCachePeers()
 }
 
 void
-AbsorbConfigured(std::unique_ptr<CachePeer> &&peer)
+AddConfigured(const KeptCachePeer &peer)
 {
     if (!Config.peers)
         Config.peers = new CachePeers;
 
-    Config.peers->absorb(std::move(peer));
+    Config.peers->add(peer);
 
     peerClearRRStart();
 }
