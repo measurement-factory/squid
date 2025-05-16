@@ -27,7 +27,7 @@ class PconnPool;
 class PeerDigest;
 class PeerPoolMgr;
 
-class CachePeer : public RefCountable
+class CachePeer: public RefCountable
 {
     CBDATA_CLASS(CachePeer);
 

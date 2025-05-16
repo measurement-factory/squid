@@ -33,6 +33,7 @@
 #include "mgr/Registration.h"
 #include "mime_header.h"
 #include "neighbors.h"
+#include "peering.h"
 #include "PeerSelectState.h"
 #include "sbuf/SBuf.h"
 #include "SquidConfig.h"
@@ -76,7 +77,7 @@ public:
         e->unlock("netdbExchangeDone");
     }
 
-    CbcPointer<CachePeer> p;
+    DisappearingCachePeer p;
     StoreEntry *e = nullptr;
     store_client *sc = nullptr;
     HttpRequestPointer r;

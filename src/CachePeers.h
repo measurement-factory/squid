@@ -69,7 +69,7 @@ void DeleteConfigured(CachePeer *);
 
 /// Weak pointers to zero or more Config.peers.
 /// Users must specify the selection algorithm and the order of entries.
-using SelectedCachePeers = std::vector<DisappearingCachePeer, PoolingAllocator<DisappearingCachePeer> >;
+using SelectedCachePeers = std::vector< CbcPointer<CachePeer>, PoolingAllocator< CbcPointer<CachePeer> > >;
 
 /// Temporary, local storage of raw pointers to zero or more Config.peers.
 using RawCachePeers = std::vector<CachePeer *, PoolingAllocator<CachePeer*> >;

@@ -12,6 +12,7 @@
 #include "base/forward.h"
 
 class CachePeer;
+class CachePeers;
 
 using DisappearingCachePeer = CbcPointer<CachePeer>;
 using KeptCachePeer = RefCount<CachePeer>;
