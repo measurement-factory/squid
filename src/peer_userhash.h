@@ -21,6 +21,9 @@ CachePeer * peerUserHashSelectParent(PeerSelector *);
 /// Schedules an update of global UserHash peer selection tables (if not already scheduled).
 void peerUserHashReset(Configuration::SmoothReconfiguration &);
 
+/// updates global UserHash peer selection tables
+void peerUserHashInit();
+
 /// Calls peerUserHashReset() if UserHash-related configuration of the given
 /// `current` peer is changing.
 ///

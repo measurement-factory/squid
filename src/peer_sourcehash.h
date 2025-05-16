@@ -21,6 +21,9 @@ CachePeer * peerSourceHashSelectParent(PeerSelector*);
 /// Schedules an update of global SourceHash peer selection tables (if not already scheduled).
 void peerSourceHashReset(Configuration::SmoothReconfiguration &);
 
+/// updates global SourceHash peer selection tables
+void peerSourceHashInit();
+
 /// Calls peerSourceHashReset() if SourceHash-related configuration of the given
 /// `current` peer is changing.
 ///
