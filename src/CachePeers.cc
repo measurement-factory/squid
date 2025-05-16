@@ -23,7 +23,7 @@
 CachePeers::~CachePeers()
 {
     while (!storage.empty())
-        remove(storage.front().get());
+        remove(storage.front().getRaw());
 }
 
 CachePeer &
@@ -54,7 +54,7 @@ void
 CachePeers::remove(CachePeer * const peer)
 {
     const auto pos = std::find_if(storage.begin(), storage.end(), [&](const auto &storePeer) {
-        return storePeer.get() == peer;
+        return storePeer.getRaw() == peer;
     });
     Assure(pos != storage.end());
     PeerPoolMgr::Stop(peer->standby.mgr);
@@ -136,7 +136,7 @@ Configuration::Component<CachePeers*>::FinishSmoothReconfiguration(SmoothReconfi
 
     for (const auto &p: CurrentCachePeers()) {
         if (p->stale)
-            peersToRemove.push_back(p.get());
+            peersToRemove.push_back(p.getRaw());
     }
 
     while (peersToRemove.size()) {

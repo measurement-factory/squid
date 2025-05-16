@@ -1789,7 +1789,7 @@ dump_peer(StoreEntry * entry, const char *name, const CachePeers *peers)
     LOCAL_ARRAY(char, xname, 128);
 
     for (const auto &peer: *peers) {
-        const auto p = peer.get();
+        const auto p = peer.getRaw();
         storeAppendPrintf(entry, "%s %s %s %d %d name=%s",
                           name,
                           p->host,
@@ -2073,7 +2073,7 @@ ParseCachePeer(ConfigParser &parser)
 
 #if USE_CACHE_DIGESTS
     if (!p->options.no_digest)
-        p->digest = new PeerDigest(*p.get());
+        p->digest = new PeerDigest(*p.getRaw());
 #endif
 
     if (p->secure.encryptTransport)
