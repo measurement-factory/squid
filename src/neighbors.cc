@@ -1037,6 +1037,7 @@ neighborsUdpAck(const cache_key * key, icp_common_t * header, const Ip::Address 
                 debugs(15, DBG_CRITICAL, "Disabling cache_peer " << *p <<
                        " because over 95% of its replies are UDP_DENIED");
                 DeleteConfigured(p);
+                peerSelectDrop(*p);
                 p = nullptr;
             } else {
                 neighborCountIgnored(p);
