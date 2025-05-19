@@ -425,6 +425,7 @@ squid_SOURCES = \
 	peer_sourcehash.h \
 	peer_userhash.cc \
 	peer_userhash.h \
+	peering.h \
 	protos.h \
 	redirect.cc \
 	redirect.h \

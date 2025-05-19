@@ -12,6 +12,7 @@
 #include "base/forward.h"
 #include "CachePeer.h"
 #include "mem/PoolingAllocator.h"
+#include "peering.h"
 
 #include <memory>
 #include <vector>
@@ -23,10 +24,11 @@ public:
     ~CachePeers();
 
     /// owns stored CachePeer objects
-    using Storage = std::vector< std::unique_ptr<CachePeer>, PoolingAllocator< std::unique_ptr<CachePeer> > >;
+    using Storage = std::vector<KeptCachePeer, PoolingAllocator<KeptCachePeer> >;
 
-    /// stores a configured cache_peer, becoming responsible for its lifetime
-    void absorb(std::unique_ptr<CachePeer> &&);
+    /// stores a configured cache_peer
+    /// \sa remove()
+    void add(const KeptCachePeer &);
 
     /// deletes a previously add()ed CachePeer object
     void remove(CachePeer *);
@@ -60,7 +62,7 @@ const CachePeers &CurrentCachePeers();
 /// Adds a given configured peer to CurrentCachePeers() collection.
 /// \prec findCachePeerByName() is false for the given peer
 /// \sa DeleteConfigured()
-void AbsorbConfigured(std::unique_ptr<CachePeer> &&);
+void AddConfigured(const KeptCachePeer &);
 
 /// destroys the given peer after removing it from the set of configured peers
 void DeleteConfigured(CachePeer *);

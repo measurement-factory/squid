@@ -33,6 +33,7 @@
 #include "mgr/Registration.h"
 #include "mime_header.h"
 #include "neighbors.h"
+#include "peering.h"
 #include "PeerSelectState.h"
 #include "sbuf/SBuf.h"
 #include "SquidConfig.h"
@@ -76,7 +77,7 @@ public:
         e->unlock("netdbExchangeDone");
     }
 
-    CbcPointer<CachePeer> p;
+    DisappearingCachePeer p;
     StoreEntry *e = nullptr;
     store_client *sc = nullptr;
     HttpRequestPointer r;
@@ -1219,7 +1220,7 @@ static CachePeer *
 findUsableParentAtHostname(PeerSelector *ps, const char * const hostname, const HttpRequest &request)
 {
     for (const auto &peer: CurrentCachePeers()) {
-        const auto p = peer.get();
+        const auto p = peer.getRaw();
         // Both fields should be lowercase, but no code ensures that invariant.
         // TODO: net_db_peer should point to CachePeer instead of its hostname!
         if (strcasecmp(p->host, hostname) != 0)

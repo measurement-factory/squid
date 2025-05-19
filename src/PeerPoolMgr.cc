@@ -298,7 +298,7 @@ void
 PeerPoolMgrsRr::syncConfig()
 {
     for (const auto &peer: CurrentCachePeers()) {
-        const auto p = peer.get();
+        const auto p = peer.getRaw();
         // On reconfigure, Squid deletes the old config (and old peers in it),
         // so should always be dealing with a brand new configuration.
         assert(!p->standby.mgr);
