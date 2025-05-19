@@ -31,6 +31,7 @@
 #include "ip/tools.h"
 #include "ipcache.h"
 #include "neighbors.h"
+#include "peering.h"
 #include "peer_sourcehash.h"
 #include "peer_userhash.h"
 #include "PeerSelectState.h"
@@ -58,7 +59,8 @@ public:
         next(nullptr)
     {}
 
-    CbcPointer<CachePeer> _peer;                /* NULL --> origin server */
+    /// the selected cache_peer destination or nil for an origin server
+    KeptCachePeer _peer;
     hier_code code;
     FwdServer *next;
 };
@@ -450,7 +452,7 @@ PeerSelector::resolveSelected()
     // convert the list of FwdServer destinations into destinations IP addresses
     if (fs && wantsMoreDestinations()) {
         // send the next one off for DNS lookup.
-        const char *host = fs->_peer.valid() ? fs->_peer->host : request->url.host();
+        const char *host = fs->_peer ? fs->_peer->host : request->url.host();
         debugs(44, 2, "Find IP destination for: " << url() << "' via " << host);
         Dns::nbgethostbyname(host, this);
         return;
@@ -514,7 +516,7 @@ PeerSelector::noteIp(const Ip::Address &ip)
     if (!wantsMoreDestinations())
         return;
 
-    const auto peer = servers->_peer.valid();
+    const auto peer = servers->_peer.getRaw();
 
     // for TPROXY spoofing, we must skip unusable addresses
     if (request->flags.spoofClientIp && !(peer && peer->options.no_tproxy) ) {
@@ -539,7 +541,7 @@ PeerSelector::noteIps(const Dns::CachedIps *ia, const Dns::LookupDetails &detail
 
     FwdServer *fs = servers;
     if (!ia) {
-        debugs(44, 3, "Unknown host: " << (fs->_peer.valid() ? fs->_peer->host : request->url.host()));
+        debugs(44, 3, "Unknown host: " << (fs->_peer ? fs->_peer->host : request->url.host()));
         // discard any previous error.
         delete lastError;
         lastError = nullptr;
@@ -1127,7 +1129,7 @@ PeerSelector::addSelection(CachePeer *peer, const hier_code code)
                                (code == PINNED) : (server->_peer == peer);
         if (duplicate) {
             debugs(44, 3, "skipping " << PeerSelectionDumper(this, peer, code) <<
-                   "; have " << PeerSelectionDumper(this, server->_peer.get(), server->code));
+                   "; have " << PeerSelectionDumper(this, server->_peer.getRaw(), server->code));
             return;
         }
         serversTail = &server->next;
@@ -1200,7 +1202,7 @@ PeerSelector::handlePath(const Comm::ConnectionPointer &path, FwdServer &fs)
 
     if (path) {
         path->peerType = fs.code;
-        path->setPeer(fs._peer.get());
+        path->setPeer(fs._peer.getRaw());
 
         // check for a configured outgoing address for this destination...
         getOutgoingAddress(request, path);
