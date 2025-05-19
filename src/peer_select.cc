@@ -31,9 +31,9 @@
 #include "ip/tools.h"
 #include "ipcache.h"
 #include "neighbors.h"
-#include "peering.h"
 #include "peer_sourcehash.h"
 #include "peer_userhash.h"
+#include "peering.h"
 #include "PeerSelectState.h"
 #include "SquidConfig.h"
 #include "Store.h"
@@ -452,7 +452,7 @@ PeerSelector::resolveSelected()
     // convert the list of FwdServer destinations into destinations IP addresses
     if (fs && wantsMoreDestinations()) {
         // send the next one off for DNS lookup.
-        const char *host = fs->_peer ? fs->_peer->host : request->url.host();
+        const auto host = fs->_peer ? fs->_peer->host : request->url.host();
         debugs(44, 2, "Find IP destination for: " << url() << "' via " << host);
         Dns::nbgethostbyname(host, this);
         return;
