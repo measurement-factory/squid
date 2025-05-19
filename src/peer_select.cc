@@ -942,6 +942,19 @@ peerSelectDrop(Configuration::SmoothReconfiguration &sr, const CachePeer &oldPee
 }
 
 void
+peerSelectDrop(const CachePeer &oldPeer)
+{
+    if (oldPeer.options.carp)
+        carpInit();
+#if USE_AUTH
+    if (oldPeer.options.userhash)
+        peerUserHashInit();
+#endif
+    if (oldPeer.options.sourcehash)
+        peerSourceHashInit();
+}
+
+void
 peerSelectResetIfChanged(Configuration::SmoothReconfiguration &sr, const CachePeer &current, const CachePeer &fresh)
 {
     if (current.options.carp || fresh.options.carp)
