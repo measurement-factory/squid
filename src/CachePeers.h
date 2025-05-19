@@ -62,7 +62,10 @@ const CachePeers &CurrentCachePeers();
 /// \sa DeleteConfigured()
 void AbsorbConfigured(std::unique_ptr<CachePeer> &&);
 
-/// destroys the given peer after removing it from the set of configured peers
+/// destroys the given peer after removing it from the set of configured peers (during smooth reconfiguration)
+void DeleteConfigured(Configuration::SmoothReconfiguration &sr, CachePeer *);
+
+/// destroys the given peer after removing it from the set of configured peers (during runtime)
 void DeleteConfigured(CachePeer *);
 
 /// Weak pointers to zero or more Config.peers.

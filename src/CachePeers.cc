@@ -83,10 +83,20 @@ AbsorbConfigured(std::unique_ptr<CachePeer> &&peer)
 }
 
 void
+DeleteConfigured(Configuration::SmoothReconfiguration &sr, CachePeer * const peer)
+{
+    peerSelectDrop(sr, *peer);
+    Assure(Config.peers);
+    Config.peers->remove(peer);
+}
+
+void
 DeleteConfigured(CachePeer * const peer)
 {
     Assure(Config.peers);
     Config.peers->remove(peer);
+    // XXX: peer is deleted by now, so pass it as shared pointer
+    peerSelectDrop(*peer);
 }
 
 /* Configuration::Component<CachePeerAccesses> */
@@ -143,9 +153,8 @@ Configuration::Component<CachePeers*>::FinishSmoothReconfiguration(SmoothReconfi
         const auto p = peersToRemove.back();
         peersToRemove.pop_back();
         debugs(15, DBG_IMPORTANT, "WARNING: Removing old cache_peer not present in new configuration: " << *p);
-        peerSelectDrop(sr, *p);
         Assure(!p->access); // parse_peer_access() rejects cache_peer_access directives naming stale peers
-        DeleteConfigured(p);
+        DeleteConfigured(sr, p);
     }
 }
 
