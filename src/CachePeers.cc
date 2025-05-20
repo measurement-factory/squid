@@ -61,6 +61,20 @@ CachePeers::remove(CachePeer * const peer)
     storage.erase(pos);
 }
 
+KeptCachePeer
+CachePeers::take(const char * const name)
+{
+    const auto it = std::remove_if(storage.begin(), storage.end(), [&](const auto &storePeer) {
+        return !strcasecmp(name, storePeer->name);
+    });
+    if (it != storage.end()) {
+        const auto peer = *it;
+        storage.erase(it);
+        return peer;
+    }
+    return nullptr;
+}
+
 const CachePeers &
 CurrentCachePeers()
 {
@@ -109,43 +123,28 @@ Configuration::Component<CachePeerAccesses>::FinishSmoothReconfiguration(SmoothR
 
 template <>
 void
-Configuration::Component<CachePeers*>::StartSmoothReconfiguration(SmoothReconfiguration &)
+Configuration::Component<CachePeers*>::StartSmoothReconfiguration(SmoothReconfiguration &sr)
 {
-    // Mark old cache_peers as stale so that FinishSmoothReconfiguration() can
-    // find old peers that are no longer present in the new configuration file.
-    //
-    // XXX: Marking old cache_peers is not good enough because we do not want to
-    // remember to check the `stale` flag whenever (re)configuration code
-    // accesses a CachePeer object (e.g., see a check in parse_peer_access()).
-    // TODO: Stash old cache_peers here and forget them upon successful smooth
-    // reconfiguration but bring them back on smooth reconfiguration failures.
+    // TODO: Bring the old cache_peers back on smooth reconfiguration failures.
     // To handle smooth reconfiguration failures, add
-    // Configuration::Component<T>::AbortSmoothReconfiguration()?
-    for (const auto &p: CurrentCachePeers()) {
-        p->stale = true;
-        aclDestroyAccessList(&p->access); // XXX: This will go away when stale peers are stashed (see XXX above).
-    }
+    // Configuration::Component<T>::AbortSmoothReconfiguration()
+    sr.oldPeers = Config.peers;
+    Config.peers = nullptr;
 }
 
 template <>
 void
 Configuration::Component<CachePeers*>::FinishSmoothReconfiguration(SmoothReconfiguration &sr)
 {
-    // disable cache_peers that were not mentioned in the fresh configuration
-    RawCachePeers peersToRemove;
+    if (!sr.oldPeers)
+        return;
 
-    for (const auto &p: CurrentCachePeers()) {
-        if (p->stale)
-            peersToRemove.push_back(p.getRaw());
-    }
-
-    while (peersToRemove.size()) {
-        const auto p = peersToRemove.back();
-        peersToRemove.pop_back();
+    for (const auto &p: *sr.oldPeers) {
         debugs(15, DBG_IMPORTANT, "WARNING: Removing old cache_peer not present in new configuration: " << *p);
         peerSelectDrop(sr, *p);
-        Assure(!p->access); // parse_peer_access() rejects cache_peer_access directives naming stale peers
-        DeleteConfigured(p);
     }
+
+    delete sr.oldPeers;
+    sr.oldPeers = nullptr;
 }
 

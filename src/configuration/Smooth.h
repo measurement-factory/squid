@@ -11,6 +11,7 @@
 
 #include "base/AsyncCallList.h"
 #include "configuration/forward.h"
+#include "peering.h"
 
 namespace Configuration {
 
@@ -29,6 +30,7 @@ class SmoothReconfiguration
 {
 public:
     explicit SmoothReconfiguration(const PreprocessedCfg &);
+    ~SmoothReconfiguration();
 
     /// performs all smooth reconfiguration steps
     void run();
@@ -44,6 +46,8 @@ public:
 
     /// configuration we are tasked with interpreting and applying
     const PreprocessedCfg &freshConfig;
+
+    CachePeers *oldPeers;
 
 protected:
     /// Component-specific reconfiguration steps to run before we reconfigure()
@@ -84,6 +88,7 @@ Configuration::SmoothReconfiguration::asyncCall(const int debugSection, const in
     if (!plan_.slowlyFindByName(callName))
         plan_.add(::asyncCall(debugSection, debugLevel, callName, dialer));
 }
+
 
 #endif /* SQUID_SRC_CONFIGURATION_SMOOTH_H */
 
