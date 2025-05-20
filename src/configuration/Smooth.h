@@ -89,6 +89,5 @@ Configuration::SmoothReconfiguration::asyncCall(const int debugSection, const in
         plan_.add(::asyncCall(debugSection, debugLevel, callName, dialer));
 }
 
-
 #endif /* SQUID_SRC_CONFIGURATION_SMOOTH_H */
 
