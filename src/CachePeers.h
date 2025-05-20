@@ -33,6 +33,10 @@ public:
     /// deletes a previously add()ed CachePeer object
     void remove(CachePeer *);
 
+    /// removes from the storage and returns a CachePeer
+    /// with the given name (if any) or nil
+    KeptCachePeer take(const char *name);
+
     /// the number of currently stored (i.e. added and not removed) cache_peers
     auto size() const { return storage.size(); }
 
