@@ -23,6 +23,7 @@ void add_http_port(char *portspec);
 /* extra functions from cache_cf.c useful for lib modules */
 void parse_int(int *var);
 void parse_onoff(int *var);
+void parse_onoff(int *var, const char *token);
 void parse_eol(char *volatile *var);
 void parse_wordlist(wordlist ** list);
 void requirePathnameExists(const char *name, const char *path);

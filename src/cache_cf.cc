@@ -239,9 +239,6 @@ static void parse_UrlHelperTimeout(SquidConfig::UrlHelperTimeout *);
 static void dump_UrlHelperTimeout(StoreEntry *, const char *, SquidConfig::UrlHelperTimeout &);
 static void free_UrlHelperTimeout(SquidConfig::UrlHelperTimeout *);
 
-static void parse_configuration_includes_quoted_values(bool *recognizeQuotedValues);
-static void dump_configuration_includes_quoted_values(StoreEntry *const entry, const char *const name, bool recognizeQuotedValues);
-static void free_configuration_includes_quoted_values(bool *recognizeQuotedValues);
 static void parse_on_unsupported_protocol(acl_access **access);
 static void dump_on_unsupported_protocol(StoreEntry *entry, const char *name, acl_access *access);
 static void free_on_unsupported_protocol(acl_access **access);
@@ -2320,9 +2317,8 @@ dump_onoff(StoreEntry * entry, const char *name, int var)
 }
 
 void
-parse_onoff(int *var)
+parse_onoff(int *var, const char *token)
 {
-    char *token = ConfigParser::NextToken();
     if (!token) {
         self_destruct();
         return;
@@ -2342,6 +2338,13 @@ parse_onoff(int *var)
         debugs(0, DBG_PARSE_NOTE(DBG_IMPORTANT), "ERROR: Invalid option: Boolean options can only be 'on' or 'off'.");
         self_destruct();
     }
+}
+
+void
+parse_onoff(int *var)
+{
+    char *token = ConfigParser::NextToken();
+    parse_onoff(var, token);
 }
 
 #define free_onoff free_int
@@ -4588,36 +4591,6 @@ free_UrlHelperTimeout(SquidConfig::UrlHelperTimeout *config)
     Config.Timeout.urlRewrite = 0;
     config->action = 0;
     safe_free(config->response);
-}
-
-static void
-parse_configuration_includes_quoted_values(bool *)
-{
-    int val = 0;
-    parse_onoff(&val);
-
-    // If quoted values is set to on then enable new strict mode parsing
-    if (val) {
-        ConfigParser::RecognizeQuotedValues = true;
-        ConfigParser::StrictMode = true;
-    } else {
-        ConfigParser::RecognizeQuotedValues = false;
-        ConfigParser::StrictMode = false;
-    }
-}
-
-static void
-dump_configuration_includes_quoted_values(StoreEntry *const entry, const char *const name, bool)
-{
-    int val = ConfigParser::RecognizeQuotedValues ? 1 : 0;
-    dump_onoff(entry, name, val);
-}
-
-static void
-free_configuration_includes_quoted_values(bool *)
-{
-    ConfigParser::RecognizeQuotedValues = false;
-    ConfigParser::StrictMode = false;
 }
 
 static void
