@@ -256,6 +256,19 @@ IsIncludeLine(Parser::Tokenizer tk)
     return std::nullopt;
 }
 
+/// interprets input as an `configuration_includes_quoted_values` preprocessor directive
+/// \returns std::nullopt if input dos not look like an `configuration_includes_quoted_values` statement
+/// \returns the `configuration_includes_quoted_values` parameter otherwise
+static std::optional<SBuf>
+IsIncludesQuotedValues(Parser::Tokenizer tk)
+{
+    (void)SkipOptionalSpace(tk);
+    const auto keywordConfigurationIncludes = SBuf("configuration_includes_quoted_values");
+    if (tk.skip(keywordConfigurationIncludes) && SkipOptionalSpace(tk))
+        return tk.remaining();
+    return std::nullopt;
+}
+
 /// Replaces all occurrences of macroName in buf with macroValue. When looking
 /// for the next macroName occurrence, this one-scan algorithm does not revisit
 /// previously scanned buf areas and does not visit replaced values.
@@ -547,6 +560,8 @@ Configuration::Preprocessor::processFile(const char * const file_name, const siz
             /* Handle includes here */
             if (const auto files = IsIncludeLine(tk)) {
                 processIncludedFiles(*files, depth + 1);
+            } else if (const auto value = IsIncludesQuotedValues(tk)) {
+                processIncludesQuotedValues(*value);
             } else {
                 processDirective(wholeLine);
             }
@@ -597,6 +612,22 @@ Configuration::Preprocessor::processIncludedFiles(const SBuf &paths, const size_
         processFile(path->c_str(), depth);
     }
 #endif /* HAVE_GLOB */
+}
+
+void
+Configuration::Preprocessor::processIncludesQuotedValues(SBuf val)
+{
+    int parsed = 0;
+    parse_onoff(&parsed, val.c_str());
+
+    // If quoted values is set to on then enable new strict mode parsing
+    if (parsed) {
+        ConfigParser::RecognizeQuotedValues = true;
+        ConfigParser::StrictMode = true;
+    } else {
+        ConfigParser::RecognizeQuotedValues = false;
+        ConfigParser::StrictMode = false;
+    }
 }
 
 void
