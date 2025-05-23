@@ -4154,7 +4154,7 @@ sslBumpCfgRr::finalizeConfig()
                    " configurations must not use implicit rules. Update your ssl_bump rules.");
         }
         Configuration::SwitchToGeneratedInput(SBuf("runtime configuration finalization"));
-        Configuration::parseDirective(Configuration::PreprocessedDirective(conversionRule));
+        Configuration::parseDirective(Configuration::PreprocessedDirective(conversionRule, false));
     }
 }
 

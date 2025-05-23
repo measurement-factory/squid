@@ -72,7 +72,7 @@ public:
         bool mayBeSeenMultipleTimes = false;
     };
 
-    explicit PreprocessedDirective(const SBuf &aWhole);
+    explicit PreprocessedDirective(const SBuf &aWhole, bool isQuoted);
 
     /// entire preprocessed directive configuration, starting from the name and
     /// ending with the last parameter (if any)
@@ -90,6 +90,9 @@ public:
     /// facts collected from cf.data.pre entry for this directive
     const Metadata &metadata() const { return metadata_; }
 
+    /// ConfigParser::RecognizeQuotedValues will be true during parsing this directive
+    bool quoted() const { return quoted_; }
+
     /// whether the other directive is similar to this one
     bool similarTo(const PreprocessedDirective &other) const;
 
@@ -104,6 +107,7 @@ private:
     SBuf parameters_; ///< \copydoc parameters()
     Location location_; ///< \copydoc location()
     Metadata metadata_; ///< \copydoc metadata()
+    bool quoted_; ///< copydoc quoted()
 };
 
 /// artifacts of successful preprocessing; Preprocess() result
@@ -209,6 +213,10 @@ private:
     /// banSmoothReconfiguration() call reason (for debugging) or, if there was
     /// no such call, nil
     const char *smoothReconfigurationBan_ = nullptr;
+
+    /// the `configuration_includes_quoted_values` preprocessor directive value
+    /// that has been preprocessed last
+    bool includesQuotedValues_ = false;
 };
 
 /// Interprets Squid configuration up to (and excluding) parsing of individual

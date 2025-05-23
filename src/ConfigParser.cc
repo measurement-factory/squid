@@ -570,6 +570,10 @@ ConfigParser::openDirective(const Configuration::PreprocessedDirective &ppd)
     debugs(3, 5, ppd);
     Configuration::SwitchTo(ppd.location());
 
+    RecognizeQuotedValues = ppd.quoted();
+    // if RecognizeQuotedValues is on then enable new strict mode parsing
+    StrictMode = ppd.quoted();
+
     const auto copied = ppd.whole().copy(config_input_line, sizeof(config_input_line) - 1);
     config_input_line[copied] = '\0';
 
@@ -584,6 +588,7 @@ ConfigParser::closeDirective()
     if (const auto garbage = PeekAtToken())
         throw TextException(ToSBuf("trailing garbage at the end of a configuration directive: ", garbage), Here());
     // TODO: cfg_directive = nullptr; // currently in generated code
+    // TODO: restore RecognizeQuotedValues and StrictMode initial values that were before openDirective()
 }
 
 SBuf

@@ -257,7 +257,7 @@ IsIncludeLine(Parser::Tokenizer tk)
 }
 
 /// interprets input as an `configuration_includes_quoted_values` preprocessor directive
-/// \returns std::nullopt if input dos not look like an `configuration_includes_quoted_values` statement
+/// \returns std::nullopt if input does not look like an `configuration_includes_quoted_values` statement
 /// \returns the `configuration_includes_quoted_values` parameter otherwise
 static std::optional<SBuf>
 IsIncludesQuotedValues(Parser::Tokenizer tk)
@@ -619,22 +619,14 @@ Configuration::Preprocessor::processIncludesQuotedValues(SBuf val)
 {
     int parsed = 0;
     parse_onoff(&parsed, val.c_str());
-
-    // If quoted values is set to on then enable new strict mode parsing
-    if (parsed) {
-        ConfigParser::RecognizeQuotedValues = true;
-        ConfigParser::StrictMode = true;
-    } else {
-        ConfigParser::RecognizeQuotedValues = false;
-        ConfigParser::StrictMode = false;
-    }
+    includesQuotedValues_ = parsed;
 }
 
 void
 Configuration::Preprocessor::processDirective(const SBuf &rawWhole)
 {
     try {
-        return addDirective(PreprocessedDirective(rawWhole));
+        return addDirective(PreprocessedDirective(rawWhole, includesQuotedValues_));
     } catch (...) {
         ++invalidLines_;
         debugs(3, DBG_CRITICAL, "ERROR: " << CurrentException <<
@@ -800,9 +792,10 @@ Configuration::Diff::print(std::ostream &os) const
 
 /* Configuration::PreprocessedDirective */
 
-Configuration::PreprocessedDirective::PreprocessedDirective(const SBuf &rawWhole):
+Configuration::PreprocessedDirective::PreprocessedDirective(const SBuf &rawWhole, const bool isQuoted):
     whole_(rawWhole),
-    location_(cfg_filename, config_lineno)
+    location_(cfg_filename, config_lineno),
+    quoted_(isQuoted)
 {
     static const auto nameChars = CharacterSet::WSP.complement("directive name");
 
