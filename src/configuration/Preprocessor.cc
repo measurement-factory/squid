@@ -402,6 +402,7 @@ Configuration::PreprocessedCfg::hasDirective(const SBuf &canonicalName) const
 Configuration::Preprocessor::Preprocessor():
     cfg_(new PreprocessedCfg())
 {
+    prepareToProcess();
 }
 
 void
@@ -435,6 +436,15 @@ Configuration::Preprocessor::importDefaultDirective(const SBuf &whole)
     auto adjustable = whole;
     ProcessMacros(adjustable);
     processDirective(adjustable);
+}
+
+/// set initial values for some preprocessor instructions
+void
+Configuration::Preprocessor::prepareToProcess()
+{
+    Configuration::SwitchToGeneratedInput(SBuf("preprocessor configuration initialization"));
+    static SBuf quotedDefault("configuration_includes_quoted_values off");
+    Configuration::parseDirective(PreprocessedDirective(quotedDefault, false));
 }
 
 /// Handles configuration file with a given name, at a given inclusion depth.
