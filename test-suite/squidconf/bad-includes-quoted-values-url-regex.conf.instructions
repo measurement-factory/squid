@@ -1,0 +1,4 @@
+expect-failure FATAL:.Can.not.read.regex.expression.while.configuration_includes_quoted_values.is.enabled
+expect-messages <<END
+acl name: bar
+END
