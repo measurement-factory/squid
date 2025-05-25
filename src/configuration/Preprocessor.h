@@ -184,7 +184,6 @@ public:
     PreprocessedCfg::Pointer finalize();
 
 private:
-    void prepareToProcess();
     void processFile(const char *filename, size_t depth);
     void processIncludedFiles(const SBuf &paths, size_t depth);
     void processIncludesQuotedValues(SBuf);
