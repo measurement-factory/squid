@@ -76,17 +76,66 @@ COMMENT_START
 
   Values with spaces, quotes, and other special characters
 
-	Squid supports directive parameters with spaces, quotes, and other
-	special characters. Surround such parameters with "double quotes". Use
-	the configuration_includes_quoted_values directive to enable or
-	disable that support.
-# TODO: document configuration_includes_quoted_values preprocessor directive
+	Full Squid configuration grammar currently includes complex syntax rules and
+	directive-specific caveats. To succinctly describe key functionality, this
+	section omits many corner cases (that most configurations do not encounter).
+	Thorough testing becomes especially important when deviating from basic
+	concepts mentioned here!
 
-	Squid supports reading configuration option parameters from external
-	files using the syntax:
-		parameters("/path/filename")
-	For example:
+	By default, Squid configuration parser splits the string after the directive
+	name into words using ASCII SPACE and HT characters as delimiters. After
+	that split, quoted "words" are interpreted as directive parameter file
+	names, prompting Squid to load parameter values from the file named by the
+	quoted word. For example, the following configuration loads goodPeers ACL
+	parameter(s) from a file named names.txt:
+
+		acl goodPeers peername "names.txt"
+
+	To specify a directive parameter that contains an ASCII SPACE or HT
+	character, use `configuration_includes_quoted_values` preprocessor
+	instruction and quote that parameter value:
+
+		configuration_includes_quoted_values on
+		acl matchesOneValue peername "this is all one value without any quotes"
+
+	Once enabled by `configuration_includes_quoted_values on`, this special
+	handling lasts until the end of configuration (penetrating any included
+	files) unless it is explicitly turned off:
+
+		configuration_includes_quoted_values off
+		acl matchesFiveValues peername "this ACL matches five values"
+
+	Currently, regular expressions are incompatible with special handling
+	enabled by `configuration_includes_quoted_values on` instruction.
+
+	Certain directives accept quoted parameter values regardless of preprocessor
+	instructions (e.g., field-value parameter in request_header_add). Some other
+	directives do not treat quotes and spaces specially (e.g., err_html_text)
+	regardless of `configuration_includes_quoted_values` setting. Consult
+	individual directive documentation for details.
+
+	When `configuration_includes_quoted_values` is `on`, Squid still supports
+	reading directive parameter values from external files, but each external
+	file must be named using a parameters() function call. For example:
+
 		acl allowlist dstdomain parameters("/etc/squid/allowlist.txt")
+
+	Loading directive values using parameters() function does not work when
+	`configuration_includes_quoted_values` is `off`.
+
+	Adding, changing, or removing a `configuration_includes_quoted_values`
+	preprocessor instruction itself has no direct effect on smooth
+	reconfiguration eligibility (see `reconfiguration` directive). However, a
+	rigid directive previously configured while an `on` setting was in affect
+	does not match the same directive now configured with an `off` setting (and
+	vice versa), prohibiting smooth reconfiguration. For example, the following
+	change (expressed using `diff` output mnemonic), precludes smooth
+	reconfiguration even though the directive parameter is not quoted and has
+	not changed:
+
+		- configuration_includes_quoted_values off
+		+ configuration_includes_quoted_values on
+		  http_access deny all
 
   Conditional configuration
 
