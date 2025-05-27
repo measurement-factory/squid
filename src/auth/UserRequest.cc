@@ -552,7 +552,7 @@ Auth::UserRequest::helperRequestKeyExtras(HttpRequest *request, AccessLogEntry::
         // We should pass AccessLogEntry as second argument ....
         Auth::UserRequest::Pointer oldReq = request->auth_user_request;
         request->auth_user_request = this;
-        reqFmt->assemble(mb, al, 0);
+        reqFmt->assemble(mb, al, 0, RecordTime());
         request->auth_user_request = oldReq;
         debugs(29, 5, "Assembled line to send :" << mb.content());
         return mb.content();

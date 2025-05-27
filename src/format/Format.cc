@@ -99,7 +99,7 @@ Format::Format::parse(const char *def)
 }
 
 size_t
-Format::AssembleOne(const char *token, MemBuf &mb, const AccessLogEntryPointer &ale)
+Format::AssembleOne(const char *token, MemBuf &mb, const AccessLogEntryPointer &ale, const RecordTime &recordTime)
 {
     Token tkn;
     enum Quoting quote = LOG_QUOTE_NONE;
@@ -108,7 +108,7 @@ Format::AssembleOne(const char *token, MemBuf &mb, const AccessLogEntryPointer &
     if (ale != nullptr) {
         Format fmt("SimpleToken");
         fmt.format = &tkn;
-        fmt.assemble(mb, ale, 0);
+        fmt.assemble(mb, ale, 0, recordTime);
         fmt.format = nullptr;
     } else {
         mb.append("-", 1);
@@ -405,7 +405,7 @@ ToCachedIps(const AnyP::Uri &uri)
 }
 
 void
-Format::Format::assemble(MemBuf &mb, const AccessLogEntry::Pointer &al, int logSequenceNumber) const
+Format::Format::assemble(MemBuf &mb, const AccessLogEntry::Pointer &al, int logSequenceNumber, const RecordTime &recordTime) const
 {
     static char tmp[1024];
     SBuf sb;
@@ -597,15 +597,15 @@ Format::Format::assemble(MemBuf &mb, const AccessLogEntry::Pointer &al, int logS
             break;
 
         case LFT_TIME_SECONDS_SINCE_EPOCH:
-            // some platforms store time in 32-bit, some 64-bit...
-            outoff = static_cast<int64_t>(current_time.tv_sec);
+            outoff = recordTime.systemSecondsEpoch();
             dooff = 1;
             break;
 
-        case LFT_TIME_SUBSECOND:
-            outint = current_time.tv_usec / fmt->divisor;
+        case LFT_TIME_SUBSECOND: {
+            outint = recordTime.legacySystemTime.tv_usec / fmt->divisor;
             doint = 1;
-            break;
+        }
+        break;
 
         case LFT_TIME_LOCALTIME:
         case LFT_TIME_GMT: {
@@ -613,15 +613,17 @@ Format::Format::assemble(MemBuf &mb, const AccessLogEntry::Pointer &al, int logS
             struct tm *t;
             spec = fmt->data.string;
 
+            const auto secondsSinceEpoch = recordTime.systemSecondsEpoch();
+
             if (fmt->type == LFT_TIME_LOCALTIME) {
                 if (!spec)
                     spec = "%d/%b/%Y:%H:%M:%S %z";
-                t = localtime(&squid_curtime);
+                t = localtime(&secondsSinceEpoch);
             } else {
                 if (!spec)
                     spec = "%d/%b/%Y:%H:%M:%S";
 
-                t = gmtime(&squid_curtime);
+                t = gmtime(&secondsSinceEpoch);
             }
 
             strftime(tmp, sizeof(tmp), spec, t);
@@ -637,9 +639,9 @@ Format::Format::assemble(MemBuf &mb, const AccessLogEntry::Pointer &al, int logS
         case LFT_BUSY_TIME: {
             const auto &stopwatch = al->busyTime;
             if (stopwatch.ran()) {
-                // make sure total() returns nanoseconds compatible with outoff
+                // make sure totalAsOf() returns nanoseconds compatible with outoff
                 using nanos = std::chrono::duration<decltype(outoff), std::nano>;
-                const nanos n = stopwatch.total();
+                const nanos n = stopwatch.totalAsOf(recordTime.stopwatchTime);
                 outoff = n.count();
                 dooff = true;
             }
@@ -647,7 +649,7 @@ Format::Format::assemble(MemBuf &mb, const AccessLogEntry::Pointer &al, int logS
         break;
 
         case LFT_TIME_TO_HANDLE_REQUEST:
-            outtv = al->cache.trTime;
+            outtv = al->cache.trTime(recordTime);
             doMsec = 1;
             break;
 
@@ -666,7 +668,7 @@ Format::Format::assemble(MemBuf &mb, const AccessLogEntry::Pointer &al, int logS
                                 al->request->hier.totalPeeringTime : al->hier.totalPeeringTime;
             if (timer.ran()) {
                 using namespace std::chrono_literals;
-                const auto duration = timer.total();
+                const auto duration = timer.totalAsOf(recordTime.stopwatchTime);
                 outtv.tv_sec = std::chrono::duration_cast<std::chrono::seconds>(duration).count();
                 const auto totalUsec = std::chrono::duration_cast<std::chrono::microseconds>(duration);
                 outtv.tv_usec = (totalUsec % std::chrono::microseconds(1s)).count();
@@ -886,7 +888,7 @@ Format::Format::assemble(MemBuf &mb, const AccessLogEntry::Pointer &al, int logS
             break;
 
         case LFT_ICAP_TR_RESPONSE_TIME:
-            outtv = al->icap.trTime;
+            outtv = al->icap.trTime(recordTime);
             doMsec = 1;
             break;
 

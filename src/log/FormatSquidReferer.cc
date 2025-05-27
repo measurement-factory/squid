@@ -15,7 +15,7 @@
 #include "log/Formats.h"
 
 void
-Log::Format::SquidReferer(const AccessLogEntry::Pointer &al, Logfile *logfile)
+Log::Format::SquidReferer(const AccessLogEntry::Pointer &al, Logfile *logfile, const RecordTime &recordTime)
 {
     const char *referer = nullptr;
     if (al->request)
@@ -29,9 +29,12 @@ Log::Format::SquidReferer(const AccessLogEntry::Pointer &al, Logfile *logfile)
 
     const SBuf url = !al->url.isEmpty() ? al->url : ::Format::Dash;
 
+    const auto seconds = recordTime.systemSecondsEpoch();
+    const auto ms = recordTime.systemMillisecondsFraction();
+
     logfilePrintf(logfile, "%9ld.%03d %s %s " SQUIDSBUFPH "\n",
-                  (long int) current_time.tv_sec,
-                  (int) current_time.tv_usec / 1000,
+                  seconds,
+                  static_cast<int>(ms),
                   clientip,
                   referer,
                   SQUIDSBUFPRINT(url));

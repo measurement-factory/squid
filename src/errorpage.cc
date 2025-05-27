@@ -891,7 +891,7 @@ ErrorState::compileLogformatCode(Build &build)
 
         static MemBuf result;
         result.reset();
-        const auto logformatLen = Format::AssembleOne(logformat, result, ale);
+        const auto logformatLen = Format::AssembleOne(logformat, result, ale, RecordTime());
         assert(logformatLen > 0);
         const auto closure = logformat + logformatLen;
         if (*closure != '}')

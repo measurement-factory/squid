@@ -69,6 +69,30 @@ private:
     std::optional<Time> last;
 };
 
+/// the time when ALE record formatting starts
+class RecordTime
+{
+public:
+    RecordTime():
+        stopwatchTime(Stopwatch::Clock::now()),
+        legacySystemTime({0, 0}) {
+        (void)getCurrentTime();
+        legacySystemTime = current_time;
+    }
+
+    auto systemSecondsEpoch() const { return legacySystemTime.tv_sec; }
+
+    auto systemMillisecondsFraction() const  { return legacySystemTime.tv_sec / 1000; }
+
+    /// the record creation time
+    /// pass this value to Stopwatch::totalAsOf() while calculating relevant logformat codes
+    Stopwatch::Clock::time_point stopwatchTime;
+
+    /// the record creation time
+    /// use this value to calculate 'current time'-based logformat codes
+    struct timeval legacySystemTime;
+};
+
 class AccessLogEntry: public CodeContext
 {
 
@@ -180,15 +204,16 @@ public:
         CacheDetails() {
             caddr.setNoAddr();
             memset(&start_time, 0, sizeof(start_time));
-            memset(&trTime, 0, sizeof(start_time));
         }
+
+        /// Master transaction execution time.
+        struct timeval trTime(const RecordTime &endTime) const;
 
         Ip::Address caddr;
         int64_t highOffset = 0;
         int64_t objectSize = 0;
         LogTags code;
         struct timeval start_time; ///< The time the master transaction started
-        struct timeval trTime; ///< The response time
         const char *rfc931 = nullptr;
         const char *extuser = nullptr;
 #if USE_OPENSSL
@@ -254,10 +279,14 @@ public:
     {
     public:
         IcapLogEntry() {
-            memset(&trTime, 0, sizeof(trTime));
             memset(&ioTime, 0, sizeof(ioTime));
             memset(&processingTime, 0, sizeof(processingTime));
+            memset(&start_time, 0, sizeof(start_time));
+            memset(&stop_time, 0, sizeof(stop_time));
         }
+
+        /// ICAP transaction execution time.
+        struct timeval trTime(const RecordTime &endTime) const;
 
         Ip::Address hostAddr; ///< ICAP server IP address
         String serviceName;        ///< ICAP service name
@@ -274,11 +303,7 @@ public:
         HttpReply* reply = nullptr;        ///< ICAP reply
 
         Adaptation::Icap::XactOutcome outcome = Adaptation::Icap::xoUnknown; ///< final transaction status
-        /** \brief Transaction response time.
-         * The timer starts when the ICAP transaction
-         *  is created and stops when the result of the transaction is logged
-         */
-        struct timeval trTime;
+
         /** \brief Transaction I/O time.
          * The timer starts when the first ICAP request
          * byte is scheduled for sending and stops when the lastbyte of the
@@ -287,6 +312,8 @@ public:
         struct timeval ioTime;
         Http::StatusCode resStatus = Http::scNone;   ///< ICAP response status code
         struct timeval processingTime;      ///< total ICAP processing time
+        struct timeval start_time; /*time when the ICAP transaction was created */
+        struct timeval stop_time; ///< the time just before the ICAP transaction is logged
     }
     icap;
 #endif
