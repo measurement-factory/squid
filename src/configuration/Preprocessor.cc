@@ -810,7 +810,7 @@ Configuration::PreprocessedDirective::similarTo(const PreprocessedDirective &oth
 {
     // we do not ignore the difference in indentation/space, case, and such (for
     // now) because their definition/sensitivity is currently directive-specific
-    return parameters_ == other.parameters_;
+    return parameters_ == other.parameters_ && quoted_ == other.quoted_;
 }
 
 void
