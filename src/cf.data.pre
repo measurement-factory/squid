@@ -126,7 +126,7 @@ COMMENT_START
 	Adding, changing, or removing a `configuration_includes_quoted_values`
 	preprocessor instruction itself has no direct effect on smooth
 	reconfiguration eligibility (see `reconfiguration` directive). However, a
-	rigid directive previously configured while an `on` setting was in affect
+	rigid directive previously configured while an `on` setting was in effect
 	does not match the same directive now configured with an `off` setting (and
 	vice versa), prohibiting smooth reconfiguration. For example, the following
 	change (expressed using `diff` output mnemonic), precludes smooth
