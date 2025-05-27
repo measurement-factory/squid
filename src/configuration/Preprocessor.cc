@@ -36,7 +36,10 @@ public:
 
     /// The directive from the old sequence is different from the same-position
     /// directive in the new sequence.
-    void noteChange(const PreprocessedDirective &oldD, const PreprocessedDirective &newD);
+    void noteLookChange(const PreprocessedDirective &oldD, const PreprocessedDirective &newD);
+    /// The directive from the old sequence has a different quoted() from the same-position
+    /// directive in the new sequence.
+    void noteQuotingChange(const PreprocessedDirective &oldD, const PreprocessedDirective &newD);
     /// the new sequence has at least one extra directive
     void noteAppearance(const PreprocessedDirective &newD);
     /// the old sequence has at least one extra directive
@@ -732,9 +735,16 @@ Configuration::Preprocessor::findRigidChanges(const PreprocessedCfg::SelectedDir
         }
 
         const auto &previousDir = *previousPos;
-        if (!currentDir.similarTo(previousDir)) {
-            diff.noteChange(previousDir, currentDir);
+        const auto d = currentDir.differsFrom(previousDir);
+        switch (d) {
+        case PreprocessedDirective::Diff::look:
+            diff.noteLookChange(previousDir, currentDir);
             return diff;
+        case PreprocessedDirective::Diff::quoting:
+            diff.noteQuotingChange(previousDir, currentDir);
+            return diff;
+        case PreprocessedDirective::Diff::none:
+            break;
         }
 
         ++previousPos;
@@ -753,12 +763,22 @@ Configuration::Preprocessor::findRigidChanges(const PreprocessedCfg::SelectedDir
 /* Configuration::Diff */
 
 void
-Configuration::Diff::noteChange(const PreprocessedDirective &oldD, const PreprocessedDirective &newD)
+Configuration::Diff::noteLookChange(const PreprocessedDirective &oldD, const PreprocessedDirective &newD)
 {
     assert(changes_.isEmpty());
     changes_ = ToSBuf("directives or their order has changed:",
                       Debug::Extra, "old configuration had: ", oldD,
                       Debug::Extra, "new configuration has: ", newD);
+}
+
+void
+Configuration::Diff::noteQuotingChange(const PreprocessedDirective &oldD, const PreprocessedDirective &newD)
+{
+    assert(changes_.isEmpty());
+    changes_ = ToSBuf("directive contexts have changed:",
+                      Debug::Extra, "configuration directive: ", newD,
+                      Debug::Extra, "old configuration context: configuration_includes_quoted_values: ", oldD.quoted(),
+                      Debug::Extra, "new configuration context: configuration_includes_quoted_values: ", newD.quoted());
 }
 
 void
@@ -805,12 +825,16 @@ Configuration::PreprocessedDirective::PreprocessedDirective(const SBuf &rawWhole
     metadata_ = GetMetadata(name_);
 }
 
-bool
-Configuration::PreprocessedDirective::similarTo(const PreprocessedDirective &other) const
+Configuration::PreprocessedDirective::Diff
+Configuration::PreprocessedDirective::differsFrom(const PreprocessedDirective &other) const
 {
     // we do not ignore the difference in indentation/space, case, and such (for
     // now) because their definition/sensitivity is currently directive-specific
-    return parameters_ == other.parameters_ && quoted_ == other.quoted_;
+    if (parameters_ != other.parameters_)
+        return Diff::look;
+    else if (quoted_ != other.quoted_)
+        return Diff::quoting;
+    return Diff::none;
 }
 
 void

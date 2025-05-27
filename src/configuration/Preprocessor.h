@@ -59,6 +59,13 @@ operator <<(std::ostream &os, const Location &l)
 class PreprocessedDirective
 {
 public:
+    /// Bitmask type representing possible differences between two directives
+    enum class Diff: unsigned int {
+        none =  0, ///< directives are identical in all respects
+        look =  0x1, ///< all "visible" differences (e.g., parameter spelling or spacing)
+        quoting =  0x2 ///< have different configuration_includes_quoted_values setting
+    };
+
     /// facts about a directive; collected from cf.data.pre during Squid build
     class Metadata {
     public:
@@ -94,7 +101,7 @@ public:
     bool quoted() const { return quoted_; }
 
     /// whether the other directive is similar to this one
-    bool similarTo(const PreprocessedDirective &other) const;
+    Diff differsFrom(const PreprocessedDirective &other) const;
 
     void print(std::ostream &) const;
 
