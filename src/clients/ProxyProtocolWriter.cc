@@ -251,9 +251,10 @@ OutgoingProxyProtocolHeader(const HttpRequestPointer &request, const AccessLogEn
 
     if (const auto config = Config.proxyProtocolOutgoing->match(request, al)) {
         static const SBuf v2("2.0");
+        RecordTime recordTime;
         const auto local = request && request->masterXaction->initiator.internalClient();
         ProxyProtocol::Header header(v2, local ? ProxyProtocol::Two::cmdLocal : ProxyProtocol::Two::cmdProxy);
-        config->fill(header, al);
+        config->fill(header, al, recordTime);
         return header.pack();
     }
 
