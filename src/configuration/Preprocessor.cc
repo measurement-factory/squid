@@ -36,10 +36,7 @@ public:
 
     /// The directive from the old sequence is different from the same-position
     /// directive in the new sequence.
-    void noteLookChange(const PreprocessedDirective &oldD, const PreprocessedDirective &newD);
-    /// The directive from the old sequence has a different quoted() from the same-position
-    /// directive in the new sequence.
-    void noteQuotingChange(const PreprocessedDirective &oldD, const PreprocessedDirective &newD);
+    void noteChange(const PreprocessedDirective &oldD, const PreprocessedDirective &newD);
     /// the new sequence has at least one extra directive
     void noteAppearance(const PreprocessedDirective &newD);
     /// the old sequence has at least one extra directive
@@ -735,16 +732,9 @@ Configuration::Preprocessor::findRigidChanges(const PreprocessedCfg::SelectedDir
         }
 
         const auto &previousDir = *previousPos;
-        const auto d = currentDir.differsFrom(previousDir);
-        switch (d) {
-        case PreprocessedDirective::Diff::look:
-            diff.noteLookChange(previousDir, currentDir);
+        if (currentDir.differsFrom(previousDir) != PreprocessedDirective::Diff::none) {
+            diff.noteChange(previousDir, currentDir);
             return diff;
-        case PreprocessedDirective::Diff::quoting:
-            diff.noteQuotingChange(previousDir, currentDir);
-            return diff;
-        case PreprocessedDirective::Diff::none:
-            break;
         }
 
         ++previousPos;
@@ -763,22 +753,24 @@ Configuration::Preprocessor::findRigidChanges(const PreprocessedCfg::SelectedDir
 /* Configuration::Diff */
 
 void
-Configuration::Diff::noteLookChange(const PreprocessedDirective &oldD, const PreprocessedDirective &newD)
+Configuration::Diff::noteChange(const PreprocessedDirective &oldD, const PreprocessedDirective &newD)
 {
-    assert(changes_.isEmpty());
-    changes_ = ToSBuf("directives or their order has changed:",
-                      Debug::Extra, "old configuration had: ", oldD,
-                      Debug::Extra, "new configuration has: ", newD);
-}
-
-void
-Configuration::Diff::noteQuotingChange(const PreprocessedDirective &oldD, const PreprocessedDirective &newD)
-{
-    assert(changes_.isEmpty());
-    changes_ = ToSBuf("directive contexts have changed:",
-                      Debug::Extra, "configuration directive: ", newD,
-                      Debug::Extra, "old configuration context: configuration_includes_quoted_values: ", oldD.quoted(),
-                      Debug::Extra, "new configuration context: configuration_includes_quoted_values: ", newD.quoted());
+    const auto diff = newD.differsFrom(oldD);
+    if ((diff & PreprocessedDirective::Diff::look) == PreprocessedDirective::Diff::look) {
+        assert(changes_.isEmpty());
+        changes_ = ToSBuf("directives or their order has changed:",
+                          Debug::Extra, "old configuration had: ", oldD,
+                          Debug::Extra, "new configuration has: ", newD);
+    }
+    if ((diff & PreprocessedDirective::Diff::quoting) == PreprocessedDirective::Diff::quoting) {
+        if (!changes_.isEmpty())
+            changes_.append(ToSBuf(Debug::Extra));
+        changes_.append(ToSBuf("directive contexts have changed:",
+                               Debug::Extra, "configuration directive: ", newD,
+                               Debug::Extra, "old configuration context: configuration_includes_quoted_values: ", oldD.quoted(),
+                               Debug::Extra, "new configuration context: configuration_includes_quoted_values: ", newD.quoted()));
+    }
+    assert(!changes_.isEmpty());
 }
 
 void
@@ -830,11 +822,12 @@ Configuration::PreprocessedDirective::differsFrom(const PreprocessedDirective &o
 {
     // we do not ignore the difference in indentation/space, case, and such (for
     // now) because their definition/sensitivity is currently directive-specific
+    auto diff = Diff::none;
     if (parameters_ != other.parameters_)
-        return Diff::look;
-    else if (quoted_ != other.quoted_)
-        return Diff::quoting;
-    return Diff::none;
+        diff |= Diff::look;
+    if (quoted_ != other.quoted_)
+        diff |= Diff::quoting;
+    return diff;
 }
 
 void

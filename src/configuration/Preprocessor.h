@@ -117,6 +117,30 @@ private:
     bool quoted_; ///< copydoc quoted()
 };
 
+inline auto
+operator|(const Configuration::PreprocessedDirective::Diff a,  const Configuration::PreprocessedDirective::Diff b)
+{
+    return static_cast<Configuration::PreprocessedDirective::Diff>(static_cast<int>(a) | static_cast<int>(b));
+}
+
+inline auto
+operator&(const Configuration::PreprocessedDirective::Diff a,  const Configuration::PreprocessedDirective::Diff b)
+{
+    return static_cast<Configuration::PreprocessedDirective::Diff>(static_cast<int>(a) & static_cast<int>(b));
+}
+
+inline auto &
+operator|=(Configuration::PreprocessedDirective::Diff& a, const Configuration::PreprocessedDirective::Diff b)
+{
+    return a = a | b;
+}
+
+inline auto &
+operator&=(Configuration::PreprocessedDirective::Diff& a, const Configuration::PreprocessedDirective::Diff b)
+{
+    return a = a & b;
+}
+
 /// artifacts of successful preprocessing; Preprocess() result
 class PreprocessedCfg: public RefCountable
 {
