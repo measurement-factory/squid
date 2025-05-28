@@ -243,7 +243,8 @@ fi
 
 errorLog="squid-stderr.log"
 
-$sbindir/squid -k parse -f $configFile 2> $errorLog
+configFileDirName=`dirname $configFile`
+(cd $configFileDirName && $sbindir/squid -k parse -f $configFile) 2> $errorLog
 result=$?
 
 # this is the value we return to our caller;
