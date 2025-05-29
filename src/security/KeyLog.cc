@@ -103,10 +103,12 @@ Configuration::Component<Security::KeyLog*>::Parse(ConfigParser &parser)
 
 template <>
 void
-Configuration::Component<Security::KeyLog*>::Print(std::ostream &os, Security::KeyLog* const & keyLog)
+Configuration::Component<Security::KeyLog*>::Print(std::ostream &os, Security::KeyLog* const &keyLog, const char * const directiveName)
 {
+    os << directiveName << ' ';
     assert(keyLog);
     keyLog->dump(os);
+    os << '\n';
 }
 
 template <>

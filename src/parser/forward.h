@@ -18,5 +18,7 @@ class BinaryTokenizer;
 class InsufficientInput {};
 } // namespace Parser
 
+class BinaryPacker;
+
 #endif /* SQUID_SRC_PARSER_FORWARD_H */
 

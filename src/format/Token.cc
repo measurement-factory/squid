@@ -159,6 +159,7 @@ static TokenTableEntry TokenTableMisc[] = {
     TokenTableEntry("received_response_last_byte_time", LFT_RECEIVED_RESPONSE_LAST_BYTE_TIME),
     TokenTableEntry("sent_response_first_byte_time", LFT_SENT_RESPONSE_FIRST_BYTE_TIME),
     TokenTableEntry("sent_response_last_byte_time", LFT_SENT_RESPONSE_LAST_BYTE_TIME),
+    TokenTableEntry("<rd_ips", LFT_SERVER_REQ_URLDOMAIN_IPS),
     /*
      * Legacy external_acl_type format tokens
      */
@@ -503,6 +504,10 @@ Format::Token::parse(const char *def, Quoting *quoting)
     case LFT_NOTE:
 
     case LFT_PROXY_PROTOCOL_RECEIVED_HEADER:
+
+        // TODO: Remove LFT_REQUEST_HEADER_ELEM, LFT_REQUEST_ALL_HEADERS, and
+        // other *_ELEM and *_ALL_* types set below. Use data.header.header to
+        // distinguish "one field" from "all fields" cases, like LFT_NOTE does.
 
         if (data.string) {
             char *header = data.string;

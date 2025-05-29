@@ -20,5 +20,6 @@ libformat_la_SOURCES = \
 	Quoting.h \
 	Token.cc \
 	Token.h \
-	TokenTableEntry.h
+	TokenTableEntry.h \
+	forward.h
 

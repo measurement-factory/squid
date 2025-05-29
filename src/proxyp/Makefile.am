@@ -15,6 +15,8 @@ libproxyp_la_SOURCES = \
 	Elements.h \
 	Header.cc \
 	Header.h \
+	OutgoingConfig.cc \
+	OutgoingConfig.h \
 	Parser.cc \
 	Parser.h \
 	forward.h

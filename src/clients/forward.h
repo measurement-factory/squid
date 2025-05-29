@@ -13,6 +13,8 @@
 
 class FwdState;
 class HttpRequest;
+class ProxyProtocolWriter;
+class ProxyProtocolWriterAnswer;
 
 class AsyncJob;
 template <class Cbc> class CbcPointer;

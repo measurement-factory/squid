@@ -99,3 +99,4 @@ sslproxy_cert_sign	acl
 sslproxy_cert_adapt	acl
 ftp_epsv                acl
 cache_log_message
+ProxyProtocol::OutgoingConfigs* acl

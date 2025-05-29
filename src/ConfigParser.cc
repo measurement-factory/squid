@@ -540,7 +540,8 @@ ConfigParser::QuoteString(const String &var)
     for (const char *l = s; !needQuote &&  *l != '\0'; ++l  )
         needQuote = !isalnum(*l);
 
-    if (!needQuote)
+    // empty values do need quotes to match callers' squid.conf syntax
+    if (var.size() && !needQuote)
         return s;
 
     quotedStr.clean();
