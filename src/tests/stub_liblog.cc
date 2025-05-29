@@ -69,13 +69,13 @@ namespace Log
 {
 namespace Format
 {
-void SquidNative(const AccessLogEntryPointer &, Logfile *) STUB
-void SquidIcap(const AccessLogEntryPointer &, Logfile *) STUB
-void SquidUserAgent(const AccessLogEntryPointer &, Logfile *) STUB
-void SquidReferer(const AccessLogEntryPointer &, Logfile *) STUB
-void SquidCustom(const AccessLogEntryPointer &, CustomLog *) STUB
-void HttpdCommon(const AccessLogEntryPointer &, Logfile *) STUB
-void HttpdCombined(const AccessLogEntryPointer &, Logfile *) STUB
+void SquidNative(const AccessLogEntryPointer &, Logfile *, const RecordTime &) STUB
+void SquidIcap(const AccessLogEntryPointer &, Logfile *, const RecordTime &) STUB
+void SquidUserAgent(const AccessLogEntryPointer &, Logfile *, const RecordTime &) STUB
+void SquidReferer(const AccessLogEntryPointer &, Logfile *, const RecordTime &) STUB
+void SquidCustom(const AccessLogEntryPointer &, CustomLog *, const RecordTime &) STUB
+void HttpdCommon(const AccessLogEntryPointer &, Logfile *, const RecordTime &) STUB
+void HttpdCombined(const AccessLogEntryPointer &, Logfile *, const RecordTime &) STUB
 }
 }
 
