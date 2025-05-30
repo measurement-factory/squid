@@ -60,7 +60,7 @@ class PreprocessedDirective
 {
 public:
     /// Bitmask type representing possible differences between two directives
-    enum class Diff: unsigned int {
+    enum class Diff: uint8_t {
         none =  0, ///< directives are identical in all respects
         look =  0x1, ///< all "visible" differences (e.g., parameter spelling or spacing)
         quoting =  0x2 ///< have different configuration_includes_quoted_values setting
@@ -118,25 +118,27 @@ private:
 };
 
 inline auto
-operator|(const Configuration::PreprocessedDirective::Diff a,  const Configuration::PreprocessedDirective::Diff b)
+operator|(const PreprocessedDirective::Diff a,  const PreprocessedDirective::Diff b)
 {
-    return static_cast<Configuration::PreprocessedDirective::Diff>(static_cast<int>(a) | static_cast<int>(b));
+    using PD = PreprocessedDirective::Diff;
+    return static_cast<PD>(std::underlying_type<PD>::type(a) | std::underlying_type<PD>::type(b));
 }
 
 inline auto
-operator&(const Configuration::PreprocessedDirective::Diff a,  const Configuration::PreprocessedDirective::Diff b)
+operator&(const PreprocessedDirective::Diff a,  const PreprocessedDirective::Diff b)
 {
-    return static_cast<Configuration::PreprocessedDirective::Diff>(static_cast<int>(a) & static_cast<int>(b));
+    using PD = PreprocessedDirective::Diff;
+    return static_cast<PD>(std::underlying_type<PD>::type(a) & std::underlying_type<PD>::type(b));
 }
 
 inline auto &
-operator|=(Configuration::PreprocessedDirective::Diff& a, const Configuration::PreprocessedDirective::Diff b)
+operator|=(PreprocessedDirective::Diff& a, const PreprocessedDirective::Diff b)
 {
     return a = a | b;
 }
 
 inline auto &
-operator&=(Configuration::PreprocessedDirective::Diff& a, const Configuration::PreprocessedDirective::Diff b)
+operator&=(PreprocessedDirective::Diff& a, const PreprocessedDirective::Diff b)
 {
     return a = a & b;
 }
