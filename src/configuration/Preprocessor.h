@@ -59,11 +59,24 @@ operator <<(std::ostream &os, const Location &l)
 class PreprocessedDirective
 {
 public:
-    /// Bitmask type representing possible differences between two directives
-    enum class Diff: uint8_t {
-        none =  0, ///< directives are identical in all respects
-        look =  0x1, ///< all "visible" differences (e.g., parameter spelling or spacing)
-        quoting =  0x2 ///< have different configuration_includes_quoted_values setting
+    /// represents possible differences between two directives
+    class Diff {
+    public:
+        /// difference type bitmasks
+        enum class Scope: uint8_t {
+            none =  0, ///< directives are identical in all respects
+            look =  0x1, ///< all "visible" differences (e.g., parameter spelling or spacing)
+            quoting =  0x2 ///< have different configuration_includes_quoted_values setting
+        };
+
+        explicit operator bool() { return scope_ != Scope::none; }
+        void setLook();
+        bool hasLook() const;
+        void setQuoting();
+        bool hasQuoting() const;
+
+    private:
+        Scope scope_ = Scope::none;
     };
 
     /// facts about a directive; collected from cf.data.pre during Squid build
@@ -118,27 +131,27 @@ private:
 };
 
 inline auto
-operator|(const PreprocessedDirective::Diff a,  const PreprocessedDirective::Diff b)
+operator|(const PreprocessedDirective::Diff::Scope a,  const PreprocessedDirective::Diff::Scope b)
 {
-    using PD = PreprocessedDirective::Diff;
+    using PD = PreprocessedDirective::Diff::Scope;
     return static_cast<PD>(std::underlying_type<PD>::type(a) | std::underlying_type<PD>::type(b));
 }
 
 inline auto
-operator&(const PreprocessedDirective::Diff a,  const PreprocessedDirective::Diff b)
+operator&(const PreprocessedDirective::Diff::Scope a,  const PreprocessedDirective::Diff::Scope b)
 {
-    using PD = PreprocessedDirective::Diff;
+    using PD = PreprocessedDirective::Diff::Scope;
     return static_cast<PD>(std::underlying_type<PD>::type(a) & std::underlying_type<PD>::type(b));
 }
 
 inline auto &
-operator|=(PreprocessedDirective::Diff& a, const PreprocessedDirective::Diff b)
+operator|=(PreprocessedDirective::Diff::Scope &a, const PreprocessedDirective::Diff::Scope b)
 {
     return a = a | b;
 }
 
 inline auto &
-operator&=(PreprocessedDirective::Diff& a, const PreprocessedDirective::Diff b)
+operator&=(PreprocessedDirective::Diff::Scope &a, const PreprocessedDirective::Diff::Scope b)
 {
     return a = a & b;
 }

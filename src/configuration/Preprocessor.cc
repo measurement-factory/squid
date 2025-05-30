@@ -732,7 +732,7 @@ Configuration::Preprocessor::findRigidChanges(const PreprocessedCfg::SelectedDir
         }
 
         const auto &previousDir = *previousPos;
-        if (currentDir.differsFrom(previousDir) != PreprocessedDirective::Diff::none) {
+        if (currentDir.differsFrom(previousDir)) {
             diff.noteChange(previousDir, currentDir);
             return diff;
         }
@@ -756,13 +756,13 @@ void
 Configuration::Diff::noteChange(const PreprocessedDirective &oldD, const PreprocessedDirective &newD)
 {
     const auto diff = newD.differsFrom(oldD);
-    if ((diff & PreprocessedDirective::Diff::look) == PreprocessedDirective::Diff::look) {
+    if (diff.hasLook()) {
         assert(changes_.isEmpty());
         changes_ = ToSBuf("directives or their order has changed:",
                           Debug::Extra, "old configuration had: ", oldD,
                           Debug::Extra, "new configuration has: ", newD);
     }
-    if ((diff & PreprocessedDirective::Diff::quoting) == PreprocessedDirective::Diff::quoting) {
+    if (diff.hasQuoting()) {
         if (!changes_.isEmpty())
             changes_.append(ToSBuf(Debug::Extra));
         changes_.append(ToSBuf("directive contexts have changed:",
@@ -822,12 +822,35 @@ Configuration::PreprocessedDirective::differsFrom(const PreprocessedDirective &o
 {
     // we do not ignore the difference in indentation/space, case, and such (for
     // now) because their definition/sensitivity is currently directive-specific
-    auto diff = Diff::none;
+    Diff diff;
     if (parameters_ != other.parameters_)
-        diff |= Diff::look;
+        diff.setLook();
     if (quoted_ != other.quoted_)
-        diff |= Diff::quoting;
+        diff.setQuoting();
     return diff;
+}
+
+void
+Configuration::PreprocessedDirective::Diff::setLook()
+{
+    scope_ |= Scope::look;
+}
+bool
+Configuration::PreprocessedDirective::Diff::hasLook() const
+{
+    return (scope_ & Scope::look) == Scope::look;
+}
+
+void
+Configuration::PreprocessedDirective::Diff::setQuoting()
+{
+    scope_ |= Scope::quoting;
+}
+
+bool
+Configuration::PreprocessedDirective::Diff::hasQuoting() const
+{
+    return (scope_ & Scope::quoting) == Scope::quoting;
 }
 
 void
