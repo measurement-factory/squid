@@ -64,9 +64,9 @@ public:
     public:
         /// difference type bitmasks
         enum class Scope: unsigned int {
-            none =  0, ///< directives are identical in all respects
-            look =  0x1, ///< all "visible" differences (e.g., parameter spelling or spacing)
-            quoting =  0x2 ///< have different configuration_includes_quoted_values setting
+            none = 0, ///< directives are identical in all respects
+            look = 0x1, ///< all "visible" differences (e.g., parameter spelling or spacing)
+            quoting = 0x2 ///< have different configuration_includes_quoted_values setting
         };
 
         explicit operator bool() { return scope_ != Scope::none; }
@@ -110,7 +110,8 @@ public:
     /// facts collected from cf.data.pre entry for this directive
     const Metadata &metadata() const { return metadata_; }
 
-    /// ConfigParser::RecognizeQuotedValues will be true during parsing this directive
+    /// whether the `configuration_includes_quoted_values` setting was `on`
+    /// when this object was created
     bool quoted() const { return quoted_; }
 
     /// whether the other directive is similar to this one
@@ -127,18 +128,18 @@ private:
     SBuf parameters_; ///< \copydoc parameters()
     Location location_; ///< \copydoc location()
     Metadata metadata_; ///< \copydoc metadata()
-    bool quoted_; ///< copydoc quoted()
+    bool quoted_; ///< \copydoc quoted()
 };
 
 inline auto
-operator|(const PreprocessedDirective::Diff::Scope a,  const PreprocessedDirective::Diff::Scope b)
+operator|(const PreprocessedDirective::Diff::Scope a, const PreprocessedDirective::Diff::Scope b)
 {
     using PD = PreprocessedDirective::Diff::Scope;
     return static_cast<PD>(std::underlying_type<PD>::type(a) | std::underlying_type<PD>::type(b));
 }
 
 inline auto
-operator&(const PreprocessedDirective::Diff::Scope a,  const PreprocessedDirective::Diff::Scope b)
+operator&(const PreprocessedDirective::Diff::Scope a, const PreprocessedDirective::Diff::Scope b)
 {
     using PD = PreprocessedDirective::Diff::Scope;
     return static_cast<PD>(std::underlying_type<PD>::type(a) & std::underlying_type<PD>::type(b));

@@ -755,9 +755,9 @@ Configuration::Preprocessor::findRigidChanges(const PreprocessedCfg::SelectedDir
 void
 Configuration::Diff::noteChange(const PreprocessedDirective &oldD, const PreprocessedDirective &newD)
 {
+    assert(changes_.isEmpty());
     const auto diff = newD.differsFrom(oldD);
     if (diff.hasLook()) {
-        assert(changes_.isEmpty());
         changes_ = ToSBuf("directives or their order has changed:",
                           Debug::Extra, "old configuration had: ", oldD,
                           Debug::Extra, "new configuration has: ", newD);
