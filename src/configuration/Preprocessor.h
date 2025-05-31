@@ -63,7 +63,7 @@ public:
     class Diff {
     public:
         /// difference type bitmasks
-        enum class Scope: uint8_t {
+        enum class Scope: unsigned int {
             none =  0, ///< directives are identical in all respects
             look =  0x1, ///< all "visible" differences (e.g., parameter spelling or spacing)
             quoting =  0x2 ///< have different configuration_includes_quoted_values setting
