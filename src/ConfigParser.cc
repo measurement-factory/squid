@@ -586,7 +586,6 @@ ConfigParser::closeDirective()
     if (const auto garbage = PeekAtToken())
         throw TextException(ToSBuf("trailing garbage at the end of a configuration directive: ", garbage), Here());
     // TODO: cfg_directive = nullptr; // currently in generated code
-    // TODO: restore RecognizeQuotedValues and StrictMode initial values that were before openDirective()
 }
 
 SBuf
