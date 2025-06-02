@@ -570,9 +570,7 @@ ConfigParser::openDirective(const Configuration::PreprocessedDirective &ppd)
     debugs(3, 5, ppd);
     Configuration::SwitchTo(ppd.location());
 
-    RecognizeQuotedValues = ppd.quoted();
-    // if RecognizeQuotedValues is on then enable new strict mode parsing
-    StrictMode = ppd.quoted();
+    RecognizeQuotedValues = StrictMode = ppd.quoted();
 
     const auto copied = ppd.whole().copy(config_input_line, sizeof(config_input_line) - 1);
     config_input_line[copied] = '\0';
