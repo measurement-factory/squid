@@ -233,7 +233,7 @@ public:
 private:
     void processFile(const char *filename, size_t depth);
     void processIncludedFiles(const SBuf &paths, size_t depth);
-    void processIncludesQuotedValues(SBuf);
+    void processIncludesQuotedValues(const SBuf &);
 
     void importDefaultDirective(const SBuf &whole);
     void processDirective(const SBuf &rawWhole);

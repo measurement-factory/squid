@@ -615,11 +615,9 @@ Configuration::Preprocessor::processIncludedFiles(const SBuf &paths, const size_
 }
 
 void
-Configuration::Preprocessor::processIncludesQuotedValues(SBuf val)
+Configuration::Preprocessor::processIncludesQuotedValues(const SBuf &input)
 {
-    int parsed = 0;
-    parse_onoff(&parsed, val.c_str());
-    includesQuotedValues_ = parsed;
+    includesQuotedValues_ = parseOnOff(input);
 }
 
 void

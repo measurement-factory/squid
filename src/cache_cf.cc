@@ -2316,35 +2316,32 @@ dump_onoff(StoreEntry * entry, const char *name, int var)
     storeAppendPrintf(entry, "%s %s\n", name, var ? "on" : "off");
 }
 
-void
-parse_onoff(int *var, const char *token)
+// TODO: Convert manual legacy `parse_onoff(&foo)` callers, especially those
+// that have to declare a local variable `foo` in order to call that function.
+bool
+Configuration::parseOnOff(const SBuf &token)
 {
-    if (!token) {
-        self_destruct();
-        return;
-    }
-
-    if (!strcmp(token, "on")) {
-        *var = 1;
-    } else if (!strcmp(token, "enable")) {
+    if (token.cmp("on") == 0) {
+        return true;
+    } else if (token.cmp("enable") == 0) {
         debugs(0, DBG_PARSE_NOTE(DBG_IMPORTANT), "WARNING: 'enable' is deprecated. Please update to use 'on'.");
-        *var = 1;
-    } else if (!strcmp(token, "off")) {
-        *var = 0;
-    } else if (!strcmp(token, "disable")) {
+        return true;
+    } else if (token.cmp("off") == 0) {
+        return false;
+    } else if (token.cmp("disable") == 0) {
         debugs(0, DBG_PARSE_NOTE(DBG_IMPORTANT), "WARNING: 'disable' is deprecated. Please update to use 'off'.");
-        *var = 0;
+        return false;
     } else {
         debugs(0, DBG_PARSE_NOTE(DBG_IMPORTANT), "ERROR: Invalid option: Boolean options can only be 'on' or 'off'.");
         self_destruct();
+        return false; // unreachable
     }
 }
 
 void
 parse_onoff(int *var)
 {
-    char *token = ConfigParser::NextToken();
-    parse_onoff(var, token);
+    *var = Configuration::parseOnOff(LegacyParser.token("boolean parameter"));
 }
 
 #define free_onoff free_int
