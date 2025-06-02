@@ -262,11 +262,24 @@ IsIncludeLine(Parser::Tokenizer tk)
 static std::optional<SBuf>
 IsIncludesQuotedValues(Parser::Tokenizer tk)
 {
-    (void)SkipOptionalSpace(tk);
-    const auto keywordConfigurationIncludes = SBuf("configuration_includes_quoted_values");
-    if (tk.skip(keywordConfigurationIncludes) && SkipOptionalSpace(tk))
+    // post-trim grammar: "configuration_includes_quoted_values" space <value>
+    static const auto instructionName = SBuf("configuration_includes_quoted_values");
+
+    if (!tk.skip(instructionName))
+        return std::nullopt;
+
+    if (SkipOptionalSpace(tk))
         return tk.remaining();
-    return std::nullopt;
+
+    // TODO: Use similar approach in other parsers dealing with preprocessor
+    // instructions that require parameters. When given truncated "<name>END"
+    // input, they currently quit with an arguably confusing ERROR message:
+    // "Unrecognized configuration directive name: <recognized(!) name>.
+    if (tk.atEnd())
+        throw TextException(ToSBuf("preprocessor instruction is missing a required parameter: ", instructionName), Here());
+
+    // all sorts of typos that start with our (long/unique) instructionName
+    throw TextException(ToSBuf("malformed preprocessor instruction: ", instructionName, tk.remaining()), Here());
 }
 
 /// Replaces all occurrences of macroName in buf with macroValue. When looking
