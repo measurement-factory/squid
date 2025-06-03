@@ -156,12 +156,6 @@ operator |=(PreprocessedDirective::Diff::Scope &a, const PreprocessedDirective::
     return (a = a | b);
 }
 
-inline auto &
-operator &=(PreprocessedDirective::Diff::Scope &a, const PreprocessedDirective::Diff::Scope b)
-{
-    return (a = a & b);
-}
-
 /// artifacts of successful preprocessing; Preprocess() result
 class PreprocessedCfg: public RefCountable
 {
