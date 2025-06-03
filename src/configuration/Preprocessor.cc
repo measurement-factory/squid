@@ -768,12 +768,12 @@ Configuration::Diff::noteChange(const PreprocessedDirective &oldD, const Preproc
 {
     assert(changes_.isEmpty());
     const auto diff = newD.differsFrom(oldD);
-    if (diff.hasLook()) {
+    if (diff.has(PreprocessedDirective::Diff::Aspects::look)) {
         changes_ = ToSBuf("directives or their order has changed:",
                           Debug::Extra, "old configuration had: ", oldD,
                           Debug::Extra, "new configuration has: ", newD);
     }
-    if (diff.hasQuoting()) {
+    if (diff.has(PreprocessedDirective::Diff::Aspects::quoting)) {
         if (!changes_.isEmpty())
             changes_.append(ToSBuf(Debug::Extra));
         changes_.append(ToSBuf("directive contexts have changed:",
@@ -835,33 +835,22 @@ Configuration::PreprocessedDirective::differsFrom(const PreprocessedDirective &o
     // now) because their definition/sensitivity is currently directive-specific
     Diff diff;
     if (parameters_ != other.parameters_)
-        diff.setLook();
+        diff.add(Diff::Aspects::look);
     if (quoted_ != other.quoted_)
-        diff.setQuoting();
+        diff.add(Diff::Aspects::quoting);
     return diff;
 }
 
-void
-Configuration::PreprocessedDirective::Diff::setLook()
-{
-    scope_ |= Scope::look;
-}
 bool
-Configuration::PreprocessedDirective::Diff::hasLook() const
+Configuration::PreprocessedDirective::Diff::has(const Aspects aspects) const
 {
-    return (scope_ & Scope::look) == Scope::look;
+    return (aspects_ & aspects) == aspects;
 }
 
 void
-Configuration::PreprocessedDirective::Diff::setQuoting()
+Configuration::PreprocessedDirective::Diff::add(const Aspects aspects)
 {
-    scope_ |= Scope::quoting;
-}
-
-bool
-Configuration::PreprocessedDirective::Diff::hasQuoting() const
-{
-    return (scope_ & Scope::quoting) == Scope::quoting;
+    aspects_ |= aspects;
 }
 
 void
