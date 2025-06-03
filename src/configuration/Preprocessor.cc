@@ -256,11 +256,11 @@ IsIncludeLine(Parser::Tokenizer tk)
     return std::nullopt;
 }
 
-/// interprets input as an `configuration_includes_quoted_values` preprocessor instruction
-/// \returns std::nullopt if input does not look like an `configuration_includes_quoted_values` statement
-/// \returns the `configuration_includes_quoted_values` parameter otherwise
+/// interprets input as a `configuration_includes_quoted_values` preprocessor instruction
+/// \returns std::nullopt if input does not look like a `configuration_includes_quoted_values` instruction
+/// \returns the `configuration_includes_quoted_values` parameter value otherwise
 static std::optional<SBuf>
-IsIncludesQuotedValues(Parser::Tokenizer tk)
+IsIncludesQuotedValuesInstruction(Parser::Tokenizer tk)
 {
     // post-trim grammar: "configuration_includes_quoted_values" space <value>
     static const auto instructionName = SBuf("configuration_includes_quoted_values");
@@ -573,8 +573,8 @@ Configuration::Preprocessor::processFile(const char * const file_name, const siz
             /* Handle includes here */
             if (const auto files = IsIncludeLine(tk)) {
                 processIncludedFiles(*files, depth + 1);
-            } else if (const auto value = IsIncludesQuotedValues(tk)) {
-                processIncludesQuotedValues(*value);
+            } else if (const auto value = IsIncludesQuotedValuesInstruction(tk)) {
+                processIncludesQuotedValuesInstruction(*value);
             } else {
                 processDirective(wholeLine);
             }
@@ -628,9 +628,9 @@ Configuration::Preprocessor::processIncludedFiles(const SBuf &paths, const size_
 }
 
 void
-Configuration::Preprocessor::processIncludesQuotedValues(const SBuf &input)
+Configuration::Preprocessor::processIncludesQuotedValuesInstruction(const SBuf &input)
 {
-    includesQuotedValues_ = parseOnOff(input);
+    includesQuotedValues_ = ParseOnOff(input);
 }
 
 void

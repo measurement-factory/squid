@@ -2316,19 +2316,25 @@ dump_onoff(StoreEntry * entry, const char *name, int var)
     storeAppendPrintf(entry, "%s %s\n", name, var ? "on" : "off");
 }
 
-// TODO: Convert manual legacy `parse_onoff(&foo)` callers, especially those
-// that have to declare a local variable `foo` in order to call that function.
-bool
-Configuration::parseOnOff(const SBuf &token)
+void
+parse_onoff(int *var)
 {
-    if (token.cmp("on") == 0) {
+    *var = Configuration::ParseOnOff(LegacyParser.token("boolean parameter"));
+}
+
+// TODO: Convert "manual" legacy `parse_onoff(&foo)` callers, especially those
+// that have to declare a local variable `foo` just to call that function.
+bool
+Configuration::ParseOnOff(const SBuf &input)
+{
+    if (input.cmp("on") == 0) {
         return true;
-    } else if (token.cmp("enable") == 0) {
+    } else if (input.cmp("enable") == 0) {
         debugs(0, DBG_PARSE_NOTE(DBG_IMPORTANT), "WARNING: 'enable' is deprecated. Please update to use 'on'.");
         return true;
-    } else if (token.cmp("off") == 0) {
+    } else if (input.cmp("off") == 0) {
         return false;
-    } else if (token.cmp("disable") == 0) {
+    } else if (input.cmp("disable") == 0) {
         debugs(0, DBG_PARSE_NOTE(DBG_IMPORTANT), "WARNING: 'disable' is deprecated. Please update to use 'off'.");
         return false;
     } else {
@@ -2336,12 +2342,6 @@ Configuration::parseOnOff(const SBuf &token)
         self_destruct();
         return false; // unreachable
     }
-}
-
-void
-parse_onoff(int *var)
-{
-    *var = Configuration::parseOnOff(LegacyParser.token("boolean parameter"));
 }
 
 #define free_onoff free_int

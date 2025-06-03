@@ -110,9 +110,9 @@ COMMENT_START
 
 	Certain directives accept quoted parameter values regardless of preprocessor
 	instructions (e.g., field-value parameter in request_header_add). Some other
-	directives do not treat quotes and spaces specially (e.g., err_html_text)
-	regardless of `configuration_includes_quoted_values` setting. Consult
-	individual directive documentation for details.
+	directives do not treat quotes and spaces specially regardless of
+	`configuration_includes_quoted_values` setting (e.g., err_html_text).
+	Consult individual directive documentation for details.
 
 	When `configuration_includes_quoted_values` is `on`, Squid still supports
 	reading directive parameter values from external files, but each external
@@ -120,14 +120,14 @@ COMMENT_START
 
 		acl allowlist dstdomain parameters("/etc/squid/allowlist.txt")
 
-	Loading directive values using parameters() function does not work when
+	Loading directive values using parameters() function is not supported when
 	`configuration_includes_quoted_values` is `off`.
 
 	Adding, changing, or removing a `configuration_includes_quoted_values`
 	preprocessor instruction itself has no direct effect on smooth
 	reconfiguration eligibility (see `reconfiguration` directive). However, a
-	rigid directive previously configured while an `on` setting was in effect
-	does not match the same directive now configured with an `off` setting (and
+	rigid directive previously specified while an `on` setting was in effect
+	does not match the same directive now specified with an `off` setting (and
 	vice versa), prohibiting smooth reconfiguration. For example, the following
 	change (expressed using `diff` output mnemonic), precludes smooth
 	reconfiguration even though the directive parameter is not quoted and has

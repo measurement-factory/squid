@@ -59,24 +59,29 @@ operator <<(std::ostream &os, const Location &l)
 class PreprocessedDirective
 {
 public:
-    /// represents possible differences between two directives
+    // TODO: Move below Metadata
+    /// summarizes differences between two directives
     class Diff {
     public:
-        /// difference type bitmasks
+        // TODO: Rename
+        /// aspects that may differ between two directives
         enum class Scope: unsigned int {
             none = 0, ///< directives are identical in all respects
-            look = 0x1, ///< all "visible" differences (e.g., parameter spelling or spacing)
-            quoting = 0x2 ///< have different configuration_includes_quoted_values setting
+            look = 0x1, ///< directives have some "visible" differences (e.g., parameter spelling or spacing)
+            quoting = 0x2 ///< directives were preprocessed with different configuration_includes_quoted_values settings
         };
 
+        /// whether the two directives differ (in any respect)
         explicit operator bool() { return scope_ != Scope::none; }
+
+        // XXX: Describe these.
         void setLook();
         bool hasLook() const;
         void setQuoting();
         bool hasQuoting() const;
 
     private:
-        Scope scope_ = Scope::none;
+        Scope scope_ = Scope::none; ///< aspects that differ
     };
 
     /// facts about a directive; collected from cf.data.pre during Squid build
@@ -102,6 +107,7 @@ public:
     const SBuf &name() const { return name_; }
 
     /// (unfolded) directive line contents after the name prefix; may be empty
+    /// \sa quoted()
     const SBuf &parameters() const { return parameters_; }
 
     /// where this directive was obtained from
@@ -110,11 +116,10 @@ public:
     /// facts collected from cf.data.pre entry for this directive
     const Metadata &metadata() const { return metadata_; }
 
-    /// whether the `configuration_includes_quoted_values` setting was `on`
-    /// when this object was created
+    /// whether parameters() should be parsed in `configuration_includes_quoted_values on` context
     bool quoted() const { return quoted_; }
 
-    /// whether the other directive is similar to this one
+    /// how the other directive differs from this one
     Diff differsFrom(const PreprocessedDirective &other) const;
 
     void print(std::ostream &) const;
@@ -132,29 +137,29 @@ private:
 };
 
 inline auto
-operator|(const PreprocessedDirective::Diff::Scope a, const PreprocessedDirective::Diff::Scope b)
+operator |(const PreprocessedDirective::Diff::Scope a, const PreprocessedDirective::Diff::Scope b)
 {
-    using PD = PreprocessedDirective::Diff::Scope;
-    return static_cast<PD>(std::underlying_type<PD>::type(a) | std::underlying_type<PD>::type(b));
+    using A = PreprocessedDirective::Diff::Scope;
+    return static_cast<A>(std::underlying_type<A>::type(a) | std::underlying_type<A>::type(b));
 }
 
 inline auto
-operator&(const PreprocessedDirective::Diff::Scope a, const PreprocessedDirective::Diff::Scope b)
+operator &(const PreprocessedDirective::Diff::Scope a, const PreprocessedDirective::Diff::Scope b)
 {
-    using PD = PreprocessedDirective::Diff::Scope;
-    return static_cast<PD>(std::underlying_type<PD>::type(a) & std::underlying_type<PD>::type(b));
+    using A = PreprocessedDirective::Diff::Scope;
+    return static_cast<A>(std::underlying_type<A>::type(a) & std::underlying_type<A>::type(b));
 }
 
 inline auto &
-operator|=(PreprocessedDirective::Diff::Scope &a, const PreprocessedDirective::Diff::Scope b)
+operator |=(PreprocessedDirective::Diff::Scope &a, const PreprocessedDirective::Diff::Scope b)
 {
-    return a = a | b;
+    return (a = a | b);
 }
 
 inline auto &
-operator&=(PreprocessedDirective::Diff::Scope &a, const PreprocessedDirective::Diff::Scope b)
+operator &=(PreprocessedDirective::Diff::Scope &a, const PreprocessedDirective::Diff::Scope b)
 {
-    return a = a & b;
+    return (a = a & b);
 }
 
 /// artifacts of successful preprocessing; Preprocess() result
@@ -233,7 +238,7 @@ public:
 private:
     void processFile(const char *filename, size_t depth);
     void processIncludedFiles(const SBuf &paths, size_t depth);
-    void processIncludesQuotedValues(const SBuf &);
+    void processIncludesQuotedValuesInstruction(const SBuf &);
 
     void importDefaultDirective(const SBuf &whole);
     void processDirective(const SBuf &rawWhole);
