@@ -261,8 +261,7 @@ private:
     /// no such call, nil
     const char *smoothReconfigurationBan_ = nullptr;
 
-    /// the `configuration_includes_quoted_values` preprocessor directive value
-    /// that has been preprocessed last
+    /// the last seen `configuration_includes_quoted_values` value
     bool includesQuotedValues_ = false;
 };
 

@@ -256,7 +256,7 @@ IsIncludeLine(Parser::Tokenizer tk)
     return std::nullopt;
 }
 
-/// interprets input as an `configuration_includes_quoted_values` preprocessor directive
+/// interprets input as an `configuration_includes_quoted_values` preprocessor instruction
 /// \returns std::nullopt if input does not look like an `configuration_includes_quoted_values` statement
 /// \returns the `configuration_includes_quoted_values` parameter otherwise
 static std::optional<SBuf>
