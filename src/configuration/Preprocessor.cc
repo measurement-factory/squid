@@ -41,8 +41,10 @@ public:
 
     /// the new sequence has at least one extra directive
     void noteAddition(const PreprocessedDirective &newD);
+
     /// the old sequence has at least one extra directive
     void noteDisappearance(const PreprocessedDirective &oldD);
+
     /// the old directive sequence has not changed
     void noteLackOfChanges();
 
@@ -260,7 +262,7 @@ IsIncludeLine(Parser::Tokenizer tk)
     return std::nullopt;
 }
 
-/// interprets input as a `configuration_includes_quoted_values` preprocessor instruction
+/// tests whether input is a `configuration_includes_quoted_values` preprocessor instruction
 /// \returns std::nullopt if input does not look like a `configuration_includes_quoted_values` instruction
 /// \returns the `configuration_includes_quoted_values` parameter value otherwise
 static std::optional<SBuf>
@@ -741,6 +743,7 @@ Configuration::Preprocessor::findRigidChanges(const PreprocessedCfg::SelectedDir
 
     for (const auto rigidDirective: cfg_->rigidDirectives) {
         const auto &currentDir = rigidDirective.get();
+
         if (previousPos == previous.end()) {
             diff.noteAddition(currentDir);
             return diff;
@@ -778,12 +781,12 @@ Configuration::Diff::noteChanges(const PreprocessedDirective &oldD, const Prepro
     }
 
     if (oldD.quoted() != newD.quoted()) {
-        // do not report (different-looking) directives twice; they were reported above
+        // If the two directives look the same, we can report any one of them.
+        // Otherwise, do not report the directives; they were reported above.
         const auto heading = sameLook ?
-            // we can report any of the two directives because they look the same
-            ToSBuf("directive configuration context has changed:",
-                   Debug::Extra, "configuration directive: ", newD) :
-            ToSBuf("and those directives configuration contexts have changed:");
+                             ToSBuf("directive configuration context has changed:",
+                                    Debug::Extra, "configuration directive: ", newD) :
+                             ToSBuf("and those directives configuration contexts have changed:");
         const auto asOnOff = [](const bool enabled) -> auto { return enabled ? "on" : "off"; };
         recordChange(ToSBuf(heading,
                             Debug::Extra, "old configuration context: configuration_includes_quoted_values ", asOnOff(oldD.quoted()),
@@ -825,6 +828,7 @@ Configuration::Diff::print(std::ostream &os) const
     os << indented;
 }
 
+/// add the specified change summary to the list of known changes
 void
 Configuration::Diff::recordChange(const SBuf &hunk)
 {
