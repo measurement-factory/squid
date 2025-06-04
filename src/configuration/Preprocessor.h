@@ -72,7 +72,7 @@ public:
         bool mayBeSeenMultipleTimes = false;
     };
 
-    explicit PreprocessedDirective(const SBuf &aWhole, bool isQuoted);
+    PreprocessedDirective(const SBuf &aWhole, bool isQuoted);
 
     /// entire preprocessed directive configuration, starting from the name and
     /// ending with the last parameter (if any)
