@@ -50,6 +50,8 @@ public:
     void print(std::ostream &) const;
 
 private:
+    void recordChange(const SBuf &hunk);
+
     /// a summary of the key differences (or an empty string if there are none)
     SBuf changes_;
 };
@@ -765,33 +767,26 @@ Configuration::Preprocessor::findRigidChanges(const PreprocessedCfg::SelectedDir
 bool
 Configuration::Diff::noteChanges(const PreprocessedDirective &oldD, const PreprocessedDirective &newD)
 {
-    assert(changes_.isEmpty());
-
     // we do not ignore the difference in indentation/space, case, and such (for
     // now) because their definition/sensitivity is currently directive-specific
     const auto sameLook = oldD.parameters() == newD.parameters();
 
     if (!sameLook) {
-        changes_ = ToSBuf("directives or their order has changed:",
-                          Debug::Extra, "old configuration had: ", oldD,
-                          Debug::Extra, "new configuration has: ", newD);
+        recordChange(ToSBuf("directives or their order has changed:",
+                            Debug::Extra, "old configuration had: ", oldD,
+                            Debug::Extra, "new configuration has: ", newD));
     }
 
     if (oldD.quoted() != newD.quoted()) {
         // do not report (different-looking) directives twice; they were reported above
-        if (sameLook) {
-            Assure(changes_.isEmpty());
+        const auto heading = sameLook ?
             // we can report any of the two directives because they look the same
-            changes_ = ToSBuf("directive configuration context has changed:",
-                               Debug::Extra, "configuration directive: ", newD);
-        } else {
-            Assure(!changes_.isEmpty());
-            changes_.append(ToSBuf(Debug::Extra));
-            changes_.append(ToSBuf("and those directives configuration contexts have changed:"));
-        }
-        changes_.append(ToSBuf(
-                               Debug::Extra, "old configuration context: configuration_includes_quoted_values: ", oldD.quoted(),
-                               Debug::Extra, "new configuration context: configuration_includes_quoted_values: ", newD.quoted()));
+            ToSBuf("directive configuration context has changed:",
+                   Debug::Extra, "configuration directive: ", newD) :
+            ToSBuf("and those directives configuration contexts have changed:");
+        recordChange(ToSBuf(heading,
+                            Debug::Extra, "old configuration context: configuration_includes_quoted_values: ", oldD.quoted(),
+                            Debug::Extra, "new configuration context: configuration_includes_quoted_values: ", newD.quoted()));
     }
 
     return !changes_.isEmpty();
@@ -800,17 +795,15 @@ Configuration::Diff::noteChanges(const PreprocessedDirective &oldD, const Prepro
 void
 Configuration::Diff::noteAppearance(const PreprocessedDirective &newD)
 {
-    assert(changes_.isEmpty());
-    changes_ = ToSBuf("new configuration has more directives:",
-                      Debug::Extra, "the first new directive absent in the old configuration: ", newD);
+    recordChange(ToSBuf("new configuration has more directives:",
+                        Debug::Extra, "the first new directive absent in the old configuration: ", newD));
 }
 
 void
 Configuration::Diff::noteDisappearance(const PreprocessedDirective &oldD)
 {
-    assert(changes_.isEmpty());
-    changes_ = ToSBuf("old configuration had more directives:",
-                      Debug::Extra, "the first old directive absent in the new configuration: ", oldD);
+    recordChange(ToSBuf("old configuration had more directives:",
+                        Debug::Extra, "the first old directive absent in the new configuration: ", oldD));
 }
 
 void
@@ -824,6 +817,15 @@ void
 Configuration::Diff::print(std::ostream &os) const
 {
     os << changes_;
+}
+
+void
+Configuration::Diff::recordChange(const SBuf &hunk)
+{
+    if (!changes_.isEmpty())
+        changes_.append(ToSBuf(Debug::Extra)); // separate new diff hunk from the previous one
+
+    changes_.append(hunk);
 }
 
 /* Configuration::PreprocessedDirective */
