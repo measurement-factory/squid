@@ -72,7 +72,7 @@ public:
         bool mayBeSeenMultipleTimes = false;
     };
 
-    PreprocessedDirective(const SBuf &aWhole, bool isQuoted);
+    PreprocessedDirective(const SBuf &aWhole, bool doesHonorQuotedParameters);
 
     /// entire preprocessed directive configuration, starting from the name and
     /// ending with the last parameter (if any)
@@ -82,7 +82,7 @@ public:
     const SBuf &name() const { return name_; }
 
     /// (unfolded) directive line contents after the name prefix; may be empty
-    /// \sa quoted()
+    /// \sa honorsQuotedParameters()
     const SBuf &parameters() const { return parameters_; }
 
     /// where this directive was obtained from
@@ -92,7 +92,7 @@ public:
     const Metadata &metadata() const { return metadata_; }
 
     /// whether parameters() should be parsed in `configuration_includes_quoted_values on` context
-    bool quoted() const { return quoted_; }
+    bool honorsQuotedParameters() const { return honorsQuotedParameters_; }
 
     void print(std::ostream &) const;
 
@@ -105,7 +105,7 @@ private:
     SBuf parameters_; ///< \copydoc parameters()
     Location location_; ///< \copydoc location()
     Metadata metadata_; ///< \copydoc metadata()
-    bool quoted_; ///< \copydoc quoted()
+    bool honorsQuotedParameters_; ///< \copydoc honorsQuotedParameters()
 };
 
 /// artifacts of successful preprocessing; Preprocess() result
@@ -213,7 +213,7 @@ private:
     const char *smoothReconfigurationBan_ = nullptr;
 
     /// the last seen `configuration_includes_quoted_values` value
-    bool includesQuotedValues_ = false;
+    bool honorsQuotedParameters_ = false;
 };
 
 /// Interprets Squid configuration up to (and excluding) parsing of individual

@@ -636,14 +636,14 @@ Configuration::Preprocessor::processIncludedFiles(const SBuf &paths, const size_
 void
 Configuration::Preprocessor::processIncludesQuotedValuesInstruction(const SBuf &input)
 {
-    includesQuotedValues_ = ParseOnOff(input);
+    honorsQuotedParameters_ = ParseOnOff(input);
 }
 
 void
 Configuration::Preprocessor::processDirective(const SBuf &rawWhole)
 {
     try {
-        return addDirective(PreprocessedDirective(rawWhole, includesQuotedValues_));
+        return addDirective(PreprocessedDirective(rawWhole, honorsQuotedParameters_));
     } catch (...) {
         ++invalidLines_;
         debugs(3, DBG_CRITICAL, "ERROR: " << CurrentException <<
@@ -780,7 +780,7 @@ Configuration::Diff::noteChanges(const PreprocessedDirective &oldD, const Prepro
                             Debug::Extra, "new configuration has: ", newD));
     }
 
-    if (oldD.quoted() != newD.quoted()) {
+    if (oldD.honorsQuotedParameters() != newD.honorsQuotedParameters()) {
         // If the two directives look the same, we can report any one of them.
         // Otherwise, do not report the directives; they were reported above.
         const auto heading = sameLook ?
@@ -789,8 +789,8 @@ Configuration::Diff::noteChanges(const PreprocessedDirective &oldD, const Prepro
                              ToSBuf("and those directives configuration contexts have changed:");
         const auto asOnOff = [](const bool enabled) -> auto { return enabled ? "on" : "off"; };
         recordChange(ToSBuf(heading,
-                            Debug::Extra, "old configuration context: configuration_includes_quoted_values ", asOnOff(oldD.quoted()),
-                            Debug::Extra, "new configuration context: configuration_includes_quoted_values ", asOnOff(newD.quoted())));
+                            Debug::Extra, "old configuration context: configuration_includes_quoted_values ", asOnOff(oldD.honorsQuotedParameters()),
+                            Debug::Extra, "new configuration context: configuration_includes_quoted_values ", asOnOff(newD.honorsQuotedParameters())));
     }
 
     return !changes_.isEmpty();
@@ -840,10 +840,10 @@ Configuration::Diff::recordChange(const SBuf &hunk)
 
 /* Configuration::PreprocessedDirective */
 
-Configuration::PreprocessedDirective::PreprocessedDirective(const SBuf &rawWhole, const bool isQuoted):
+Configuration::PreprocessedDirective::PreprocessedDirective(const SBuf &rawWhole, const bool doesHonorQuotedParameters):
     whole_(rawWhole),
     location_(cfg_filename, config_lineno),
-    quoted_(isQuoted)
+    honorsQuotedParameters_(doesHonorQuotedParameters)
 {
     static const auto nameChars = CharacterSet::WSP.complement("directive name");
 
