@@ -769,17 +769,27 @@ Configuration::Diff::noteChanges(const PreprocessedDirective &oldD, const Prepro
 
     // we do not ignore the difference in indentation/space, case, and such (for
     // now) because their definition/sensitivity is currently directive-specific
-    if (oldD.parameters() != newD.parameters()) {
+    const auto sameLook = oldD.parameters() == newD.parameters();
+
+    if (!sameLook) {
         changes_ = ToSBuf("directives or their order has changed:",
                           Debug::Extra, "old configuration had: ", oldD,
                           Debug::Extra, "new configuration has: ", newD);
     }
 
     if (oldD.quoted() != newD.quoted()) {
-        if (!changes_.isEmpty())
+        // do not report (different-looking) directives twice; they were reported above
+        if (sameLook) {
+            Assure(changes_.isEmpty());
+            // we can report any of the two directives because they look the same
+            changes_ = ToSBuf("directive configuration context has changed:",
+                               Debug::Extra, "configuration directive: ", newD);
+        } else {
+            Assure(!changes_.isEmpty());
             changes_.append(ToSBuf(Debug::Extra));
-        changes_.append(ToSBuf("directive contexts have changed:",
-                               Debug::Extra, "configuration directive: ", newD,
+            changes_.append(ToSBuf("and those directives configuration contexts have changed:"));
+        }
+        changes_.append(ToSBuf(
                                Debug::Extra, "old configuration context: configuration_includes_quoted_values: ", oldD.quoted(),
                                Debug::Extra, "new configuration context: configuration_includes_quoted_values: ", newD.quoted()));
     }
