@@ -816,14 +816,19 @@ Configuration::Diff::noteLackOfChanges()
 void
 Configuration::Diff::print(std::ostream &os) const
 {
-    os << changes_;
+    // Diffs are reported in Debug::Extra context and use Debug::Extra for
+    // their own details. Indent the whole thing to make our headings standout.
+    auto indented = changes_;
+    SubstituteMacro(indented, SBuf("\n"), ToSBuf(Debug::Extra));
+
+    os << indented;
 }
 
 void
 Configuration::Diff::recordChange(const SBuf &hunk)
 {
     if (!changes_.isEmpty())
-        changes_.append(ToSBuf(Debug::Extra)); // separate new diff hunk from the previous one
+        changes_.append(SBuf("\n")); // separate new diff hunk from the previous one
 
     changes_.append(hunk);
 }
