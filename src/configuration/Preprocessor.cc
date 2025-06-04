@@ -34,9 +34,11 @@ public:
     /// whether the directive sequences differ
     explicit operator bool() const { return changes_.length(); }
 
-    /// The directive from the old sequence is different from the same-position
-    /// directive in the new sequence.
-    void noteChange(const PreprocessedDirective &oldD, const PreprocessedDirective &newD);
+    /// Records any differences between the directive from the old sequence and
+    /// the same-position directive in the new sequence.
+    /// \returns whether the directives differ
+    bool noteChanges(const PreprocessedDirective &oldD, const PreprocessedDirective &newD);
+
     /// the new sequence has at least one extra directive
     void noteAppearance(const PreprocessedDirective &newD);
     /// the old sequence has at least one extra directive
@@ -742,11 +744,8 @@ Configuration::Preprocessor::findRigidChanges(const PreprocessedCfg::SelectedDir
             return diff;
         }
 
-        const auto &previousDir = *previousPos;
-        if (currentDir.differsFrom(previousDir)) {
-            diff.noteChange(previousDir, currentDir);
+        if (diff.noteChanges(currentDir, *previousPos))
             return diff;
-        }
 
         ++previousPos;
     }
@@ -763,17 +762,20 @@ Configuration::Preprocessor::findRigidChanges(const PreprocessedCfg::SelectedDir
 
 /* Configuration::Diff */
 
-void
-Configuration::Diff::noteChange(const PreprocessedDirective &oldD, const PreprocessedDirective &newD)
+bool
+Configuration::Diff::noteChanges(const PreprocessedDirective &oldD, const PreprocessedDirective &newD)
 {
     assert(changes_.isEmpty());
-    const auto diff = newD.differsFrom(oldD);
-    if (diff.has(PreprocessedDirective::Diff::Aspects::look)) {
+
+    // we do not ignore the difference in indentation/space, case, and such (for
+    // now) because their definition/sensitivity is currently directive-specific
+    if (oldD.parameters() != newD.parameters()) {
         changes_ = ToSBuf("directives or their order has changed:",
                           Debug::Extra, "old configuration had: ", oldD,
                           Debug::Extra, "new configuration has: ", newD);
     }
-    if (diff.has(PreprocessedDirective::Diff::Aspects::quoting)) {
+
+    if (oldD.quoted() != newD.quoted()) {
         if (!changes_.isEmpty())
             changes_.append(ToSBuf(Debug::Extra));
         changes_.append(ToSBuf("directive contexts have changed:",
@@ -781,7 +783,8 @@ Configuration::Diff::noteChange(const PreprocessedDirective &oldD, const Preproc
                                Debug::Extra, "old configuration context: configuration_includes_quoted_values: ", oldD.quoted(),
                                Debug::Extra, "new configuration context: configuration_includes_quoted_values: ", newD.quoted()));
     }
-    assert(!changes_.isEmpty());
+
+    return !changes_.isEmpty();
 }
 
 void
@@ -826,31 +829,6 @@ Configuration::PreprocessedDirective::PreprocessedDirective(const SBuf &rawWhole
     name_ = ExtractToken("directive name", tok, nameChars);
     parameters_ = tok.remaining(); // may be empty
     metadata_ = GetMetadata(name_);
-}
-
-Configuration::PreprocessedDirective::Diff
-Configuration::PreprocessedDirective::differsFrom(const PreprocessedDirective &other) const
-{
-    // we do not ignore the difference in indentation/space, case, and such (for
-    // now) because their definition/sensitivity is currently directive-specific
-    Diff diff;
-    if (parameters_ != other.parameters_)
-        diff.add(Diff::Aspects::look);
-    if (quoted_ != other.quoted_)
-        diff.add(Diff::Aspects::quoting);
-    return diff;
-}
-
-bool
-Configuration::PreprocessedDirective::Diff::has(const Aspects aspects) const
-{
-    return (aspects_ & aspects) == aspects;
-}
-
-void
-Configuration::PreprocessedDirective::Diff::add(const Aspects aspects)
-{
-    aspects_ |= aspects;
 }
 
 void

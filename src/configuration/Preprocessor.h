@@ -72,29 +72,6 @@ public:
         bool mayBeSeenMultipleTimes = false;
     };
 
-    /// summarizes differences across individual directives
-    class Diff {
-    public:
-        /// a BitmaskType representing characteristics that may differ across directives
-        enum class Aspects: unsigned int {
-            none = 0, ///< directives are identical in all respects
-            look = 0x1, ///< directives have some "visible" differences (e.g., parameter spelling or spacing)
-            quoting = 0x2 ///< directives were preprocessed with different configuration_includes_quoted_values settings
-        };
-
-        /// whether the directives differ (in any respect)
-        explicit operator bool() const { return aspects_ != Aspects::none; }
-
-        /// whether directives differ in each and every of the given aspects
-        bool has(Aspects aspects) const;
-
-        /// record that directives differ in given aspect(s)
-        void add(Aspects aspects);
-
-    private:
-        Aspects aspects_ = Aspects::none; ///< aspects that differ
-    };
-
     explicit PreprocessedDirective(const SBuf &aWhole, bool isQuoted);
 
     /// entire preprocessed directive configuration, starting from the name and
@@ -117,9 +94,6 @@ public:
     /// whether parameters() should be parsed in `configuration_includes_quoted_values on` context
     bool quoted() const { return quoted_; }
 
-    /// how the other directive differs from this one
-    Diff differsFrom(const PreprocessedDirective &other) const;
-
     void print(std::ostream &) const;
 
 private:
@@ -133,26 +107,6 @@ private:
     Metadata metadata_; ///< \copydoc metadata()
     bool quoted_; ///< \copydoc quoted()
 };
-
-inline auto
-operator |(const PreprocessedDirective::Diff::Aspects a, const PreprocessedDirective::Diff::Aspects b)
-{
-    using A = PreprocessedDirective::Diff::Aspects;
-    return static_cast<A>(std::underlying_type<A>::type(a) | std::underlying_type<A>::type(b));
-}
-
-inline auto
-operator &(const PreprocessedDirective::Diff::Aspects a, const PreprocessedDirective::Diff::Aspects b)
-{
-    using A = PreprocessedDirective::Diff::Aspects;
-    return static_cast<A>(std::underlying_type<A>::type(a) & std::underlying_type<A>::type(b));
-}
-
-inline auto &
-operator |=(PreprocessedDirective::Diff::Aspects &a, const PreprocessedDirective::Diff::Aspects b)
-{
-    return (a = a | b);
-}
 
 /// artifacts of successful preprocessing; Preprocess() result
 class PreprocessedCfg: public RefCountable
