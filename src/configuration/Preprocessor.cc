@@ -784,9 +784,10 @@ Configuration::Diff::noteChanges(const PreprocessedDirective &oldD, const Prepro
             ToSBuf("directive configuration context has changed:",
                    Debug::Extra, "configuration directive: ", newD) :
             ToSBuf("and those directives configuration contexts have changed:");
+        const auto asOnOff = [](const bool enabled) -> auto { return enabled ? "on" : "off"; };
         recordChange(ToSBuf(heading,
-                            Debug::Extra, "old configuration context: configuration_includes_quoted_values: ", oldD.quoted(),
-                            Debug::Extra, "new configuration context: configuration_includes_quoted_values: ", newD.quoted()));
+                            Debug::Extra, "old configuration context: configuration_includes_quoted_values ", asOnOff(oldD.quoted()),
+                            Debug::Extra, "new configuration context: configuration_includes_quoted_values ", asOnOff(newD.quoted())));
     }
 
     return !changes_.isEmpty();
