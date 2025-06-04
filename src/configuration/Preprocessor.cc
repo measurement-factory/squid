@@ -40,7 +40,7 @@ public:
     bool noteChanges(const PreprocessedDirective &oldD, const PreprocessedDirective &newD);
 
     /// the new sequence has at least one extra directive
-    void noteAppearance(const PreprocessedDirective &newD);
+    void noteAddition(const PreprocessedDirective &newD);
     /// the old sequence has at least one extra directive
     void noteDisappearance(const PreprocessedDirective &oldD);
     /// the old directive sequence has not changed
@@ -742,7 +742,7 @@ Configuration::Preprocessor::findRigidChanges(const PreprocessedCfg::SelectedDir
     for (const auto rigidDirective: cfg_->rigidDirectives) {
         const auto &currentDir = rigidDirective.get();
         if (previousPos == previous.end()) {
-            diff.noteAppearance(currentDir);
+            diff.noteAddition(currentDir);
             return diff;
         }
 
@@ -794,7 +794,7 @@ Configuration::Diff::noteChanges(const PreprocessedDirective &oldD, const Prepro
 }
 
 void
-Configuration::Diff::noteAppearance(const PreprocessedDirective &newD)
+Configuration::Diff::noteAddition(const PreprocessedDirective &newD)
 {
     recordChange(ToSBuf("new configuration has more directives:",
                         Debug::Extra, "the first new directive absent in the old configuration: ", newD));
