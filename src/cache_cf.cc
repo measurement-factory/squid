@@ -239,9 +239,6 @@ static void parse_UrlHelperTimeout(SquidConfig::UrlHelperTimeout *);
 static void dump_UrlHelperTimeout(StoreEntry *, const char *, SquidConfig::UrlHelperTimeout &);
 static void free_UrlHelperTimeout(SquidConfig::UrlHelperTimeout *);
 
-static void parse_configuration_includes_quoted_values(bool *recognizeQuotedValues);
-static void dump_configuration_includes_quoted_values(StoreEntry *const entry, const char *const name, bool recognizeQuotedValues);
-static void free_configuration_includes_quoted_values(bool *recognizeQuotedValues);
 static void parse_on_unsupported_protocol(acl_access **access);
 static void dump_on_unsupported_protocol(StoreEntry *entry, const char *name, acl_access *access);
 static void free_on_unsupported_protocol(acl_access **access);
@@ -2322,25 +2319,28 @@ dump_onoff(StoreEntry * entry, const char *name, int var)
 void
 parse_onoff(int *var)
 {
-    char *token = ConfigParser::NextToken();
-    if (!token) {
-        self_destruct();
-        return;
-    }
+    *var = Configuration::ParseOnOff(LegacyParser.token("boolean parameter"));
+}
 
-    if (!strcmp(token, "on")) {
-        *var = 1;
-    } else if (!strcmp(token, "enable")) {
+// TODO: Convert "manual" legacy `parse_onoff(&foo)` callers, especially those
+// that have to declare a local variable `foo` just to call that function.
+bool
+Configuration::ParseOnOff(const SBuf &input)
+{
+    if (input.cmp("on") == 0) {
+        return true;
+    } else if (input.cmp("enable") == 0) {
         debugs(0, DBG_PARSE_NOTE(DBG_IMPORTANT), "WARNING: 'enable' is deprecated. Please update to use 'on'.");
-        *var = 1;
-    } else if (!strcmp(token, "off")) {
-        *var = 0;
-    } else if (!strcmp(token, "disable")) {
+        return true;
+    } else if (input.cmp("off") == 0) {
+        return false;
+    } else if (input.cmp("disable") == 0) {
         debugs(0, DBG_PARSE_NOTE(DBG_IMPORTANT), "WARNING: 'disable' is deprecated. Please update to use 'off'.");
-        *var = 0;
+        return false;
     } else {
         debugs(0, DBG_PARSE_NOTE(DBG_IMPORTANT), "ERROR: Invalid option: Boolean options can only be 'on' or 'off'.");
         self_destruct();
+        return false; // unreachable
     }
 }
 
@@ -4151,7 +4151,7 @@ sslBumpCfgRr::finalizeConfig()
                    " configurations must not use implicit rules. Update your ssl_bump rules.");
         }
         Configuration::SwitchToGeneratedInput(SBuf("runtime configuration finalization"));
-        Configuration::parseDirective(Configuration::PreprocessedDirective(conversionRule));
+        Configuration::parseDirective(Configuration::PreprocessedDirective(conversionRule, false));
     }
 }
 
@@ -4588,36 +4588,6 @@ free_UrlHelperTimeout(SquidConfig::UrlHelperTimeout *config)
     Config.Timeout.urlRewrite = 0;
     config->action = 0;
     safe_free(config->response);
-}
-
-static void
-parse_configuration_includes_quoted_values(bool *)
-{
-    int val = 0;
-    parse_onoff(&val);
-
-    // If quoted values is set to on then enable new strict mode parsing
-    if (val) {
-        ConfigParser::RecognizeQuotedValues = true;
-        ConfigParser::StrictMode = true;
-    } else {
-        ConfigParser::RecognizeQuotedValues = false;
-        ConfigParser::StrictMode = false;
-    }
-}
-
-static void
-dump_configuration_includes_quoted_values(StoreEntry *const entry, const char *const name, bool)
-{
-    int val = ConfigParser::RecognizeQuotedValues ? 1 : 0;
-    dump_onoff(entry, name, val);
-}
-
-static void
-free_configuration_includes_quoted_values(bool *)
-{
-    ConfigParser::RecognizeQuotedValues = false;
-    ConfigParser::StrictMode = false;
 }
 
 static void

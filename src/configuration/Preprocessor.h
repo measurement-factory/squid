@@ -72,7 +72,7 @@ public:
         bool mayBeSeenMultipleTimes = false;
     };
 
-    explicit PreprocessedDirective(const SBuf &aWhole);
+    PreprocessedDirective(const SBuf &aWhole, bool doesHonorQuotedParameters);
 
     /// entire preprocessed directive configuration, starting from the name and
     /// ending with the last parameter (if any)
@@ -82,6 +82,7 @@ public:
     const SBuf &name() const { return name_; }
 
     /// (unfolded) directive line contents after the name prefix; may be empty
+    /// \sa honorsQuotedParameters()
     const SBuf &parameters() const { return parameters_; }
 
     /// where this directive was obtained from
@@ -90,8 +91,8 @@ public:
     /// facts collected from cf.data.pre entry for this directive
     const Metadata &metadata() const { return metadata_; }
 
-    /// whether the other directive is similar to this one
-    bool similarTo(const PreprocessedDirective &other) const;
+    /// whether parameters() should be parsed in `configuration_includes_quoted_values on` context
+    bool honorsQuotedParameters() const { return honorsQuotedParameters_; }
 
     void print(std::ostream &) const;
 
@@ -104,6 +105,7 @@ private:
     SBuf parameters_; ///< \copydoc parameters()
     Location location_; ///< \copydoc location()
     Metadata metadata_; ///< \copydoc metadata()
+    bool honorsQuotedParameters_; ///< \copydoc honorsQuotedParameters()
 };
 
 /// artifacts of successful preprocessing; Preprocess() result
@@ -182,6 +184,7 @@ public:
 private:
     void processFile(const char *filename, size_t depth);
     void processIncludedFiles(const SBuf &paths, size_t depth);
+    void processIncludesQuotedValuesInstruction(const SBuf &);
 
     void importDefaultDirective(const SBuf &whole);
     void processDirective(const SBuf &rawWhole);
@@ -208,6 +211,9 @@ private:
     /// banSmoothReconfiguration() call reason (for debugging) or, if there was
     /// no such call, nil
     const char *smoothReconfigurationBan_ = nullptr;
+
+    /// the last seen `configuration_includes_quoted_values` value
+    bool honorsQuotedParameters_ = false;
 };
 
 /// Interprets Squid configuration up to (and excluding) parsing of individual
