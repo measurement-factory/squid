@@ -121,6 +121,10 @@ CBDATA_CLASS_INIT(StatObjectsState);
 extern unsigned int mem_pool_alloc_calls;
 extern unsigned int mem_pool_free_calls;
 
+// TODO: Include last minute stats -- use statCounter instead of CountHist[0].
+/// named counter change during given past minutes
+#define CounterChange(counterName, minutes) (CountHist[0].counterName - CountHist[minutes].counterName)
+
 static void
 statUtilization(StoreEntry * e)
 {
@@ -1708,8 +1712,7 @@ EventRatio
 statRequestHitRatio(int minutes)
 {
     assert(minutes < N_COUNT_HIST);
-    return EventRatio(CountHist[0].client_http.hits - CountHist[minutes].client_http.hits,
-                      CountHist[0].client_http.requests - CountHist[minutes].client_http.requests);
+    return EventRatio(CounterChange(client_http.hits, minutes), CounterChange(client_http.requests, minutes));
 }
 
 double
