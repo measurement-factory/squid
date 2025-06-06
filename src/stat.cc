@@ -619,8 +619,8 @@ DumpInfo(Mgr::InfoActionData& stats, StoreEntry* sentry)
     storeAppendPrintf(sentry, "Cache information for %s:\n",APP_SHORTNAME);
 
     storeAppendPrintf(sentry, "\tHits as %% of all requests:\t5min: %3.1f%%, 60min: %3.1f%%\n",
-                      stats.request_hit_ratio5 / fct,
-                      stats.request_hit_ratio60 / fct);
+                      stats.request_hit_ratio5.toPercentOr(0),
+                      stats.request_hit_ratio60.toPercentOr(0));
 
     storeAppendPrintf(sentry, "\tHits as %% of bytes sent:\t5min: %3.1f%%, 60min: %3.1f%%\n",
                       stats.byte_hit_ratio5 / fct,
@@ -1704,14 +1704,12 @@ statCPUUsage(int minutes)
                                tvSubDsec(CountHist[minutes].timestamp, CountHist[0].timestamp));
 }
 
-double
+EventRatio
 statRequestHitRatio(int minutes)
 {
     assert(minutes < N_COUNT_HIST);
-    return Math::doublePercent(CountHist[0].client_http.hits -
-                               CountHist[minutes].client_http.hits,
-                               CountHist[0].client_http.requests -
-                               CountHist[minutes].client_http.requests);
+    return EventRatio(CountHist[0].client_http.hits - CountHist[minutes].client_http.hits,
+                      CountHist[0].client_http.requests - CountHist[minutes].client_http.requests);
 }
 
 double

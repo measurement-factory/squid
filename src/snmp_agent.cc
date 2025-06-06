@@ -592,7 +592,7 @@ snmp_prfProtoFn(variable_list * Var, snint * ErrP)
             break;
 
         case PERF_MEDIAN_RHR:
-            x = statRequestHitRatio(minutes);
+            x = statRequestHitRatio(minutes).toPercentOr(0);
             break;
 
         case PERF_MEDIAN_BHR:
