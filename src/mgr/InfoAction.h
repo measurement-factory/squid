@@ -44,8 +44,8 @@ public:
     double avg_loop_time = 0.0;
     EventRatio request_hit_ratio5;
     EventRatio request_hit_ratio60;
-    double byte_hit_ratio5 = 0.0;
-    double byte_hit_ratio60 = 0.0;
+    EventRatio byte_hit_ratio5;
+    EventRatio byte_hit_ratio60;
     double request_hit_mem_ratio5 = 0.0;
     double request_hit_mem_ratio60 = 0.0;
     double request_hit_disk_ratio5 = 0.0;

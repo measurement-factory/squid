@@ -11,6 +11,7 @@
 #ifndef SQUID_STAT_H_
 #define SQUID_STAT_H_
 
+// TODO: Rephrase to support negative tops (and bottoms?) as in byte hit ratios.
 /// Maintains totals for events that are divided into two mutually exclusive
 /// categories (e.g., cache hits/misses or busy/idle time). One of the two
 /// categories is treated as "primary" for the purposes of computing event
@@ -19,24 +20,27 @@
 class EventRatio
 {
 public:
+    using Value = double;
+
     /// no events have been observed (e.g., hit ratio after zero requests)
     EventRatio() = default;
 
     /// \param primary is the cumulative weight of events in primary category
     /// \param total is the cumulative weight of events in all categories
-    EventRatio(uint64_t primary, uint64_t total): primary_(primary), total_(total) {}
+    EventRatio(const Value primary, const Value total): primary_(primary), total_(total) {}
 
+    // TODO: Check whether this can be removed.
     /// whether any events have been observed, allowing this ratio to be
     /// accurately represented by a single non-negative number
-    explicit operator bool() const { return total_ != 0; }
+    explicit operator bool() const { return bool(total_); }
 
     /// \returns 100*primary/total for non-zero totals
     /// \returns noEventsValue for zero totals
     double toPercentOr(double noEventsValue) const { return total_ ? (100.0*primary_)/total_ : noEventsValue; }
 
 // XXX private:
-    uint64_t primary_ = 0;
-    uint64_t total_ = 0;
+    Value primary_ = 0;
+    Value total_ = 0;
 };
 
 inline EventRatio &
@@ -61,7 +65,7 @@ double stat5minCPUUsage(void);
 EventRatio statRequestHitRatio(int minutes);
 double statRequestHitMemoryRatio(int minutes);
 double statRequestHitDiskRatio(int minutes);
-double statByteHitRatio(int minutes);
+EventRatio statByteHitRatio(int minutes);
 
 class StatCounters;
 StatCounters *snmpStatGet(int);

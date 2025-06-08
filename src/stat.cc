@@ -627,8 +627,8 @@ DumpInfo(Mgr::InfoActionData& stats, StoreEntry* sentry)
                       stats.request_hit_ratio60.toPercentOr(0));
 
     storeAppendPrintf(sentry, "\tHits as %% of bytes sent:\t5min: %3.1f%%, 60min: %3.1f%%\n",
-                      stats.byte_hit_ratio5 / fct,
-                      stats.byte_hit_ratio60 / fct);
+                      stats.byte_hit_ratio5.toPercentOr(0),
+                      stats.byte_hit_ratio60.toPercentOr(0));
 
     storeAppendPrintf(sentry, "\tMemory hits as %% of hit requests:\t5min: %3.1f%%, 60min: %3.1f%%\n",
                       stats.request_hit_mem_ratio5 / fct,
@@ -1735,7 +1735,7 @@ statRequestHitDiskRatio(int minutes)
                                CountHist[minutes].client_http.hits);
 }
 
-double
+EventRatio
 statByteHitRatio(int minutes)
 {
     size_t s;
@@ -1746,8 +1746,8 @@ statByteHitRatio(int minutes)
 #endif
     /* size_t might be unsigned */
     assert(minutes < N_COUNT_HIST);
-    c = CountHist[0].client_http.kbytes_out.kb - CountHist[minutes].client_http.kbytes_out.kb;
-    s = CountHist[0].server.all.kbytes_in.kb - CountHist[minutes].server.all.kbytes_in.kb;
+    c = CounterChange(client_http.kbytes_out.kb, minutes);
+    s = CounterChange(server.all.kbytes_in.kb, minutes);
 #if USE_CACHE_DIGESTS
     /*
      * This ugly hack is here to prevent the user from seeing a
@@ -1756,7 +1756,7 @@ statByteHitRatio(int minutes)
      * object is consumed internally.  Thus, we subtract cache
      * digest bytes out before calculating the byte hit ratio.
      */
-    cd = CountHist[0].cd.kbytes_recv.kb - CountHist[minutes].cd.kbytes_recv.kb;
+    cd = CounterChange(cd.kbytes_recv.kb, minutes);
 
     if (s < cd)
         debugs(18, DBG_IMPORTANT, "STRANGE: srv_kbytes=" << s << ", cd_kbytes=" << cd);
@@ -1765,10 +1765,7 @@ statByteHitRatio(int minutes)
 
 #endif
 
-    if (c > s)
-        return Math::doublePercent(c - s, c);
-    else
-        return (-1.0 * Math::doublePercent(s - c, c));
+    return EventRatio(c - s, c); // may be negative
 }
 
 static void
