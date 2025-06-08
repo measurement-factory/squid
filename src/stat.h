@@ -63,8 +63,8 @@ void pconnHistCount(int, int);
 int stat5minClientRequests(void);
 double stat5minCPUUsage(void);
 EventRatio statRequestHitRatio(int minutes);
-double statRequestHitMemoryRatio(int minutes);
-double statRequestHitDiskRatio(int minutes);
+EventRatio statRequestHitMemoryRatio(int minutes);
+EventRatio statRequestHitDiskRatio(int minutes);
 EventRatio statByteHitRatio(int minutes);
 
 class StatCounters;

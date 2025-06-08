@@ -631,12 +631,12 @@ DumpInfo(Mgr::InfoActionData& stats, StoreEntry* sentry)
                       stats.byte_hit_ratio60.toPercentOr(0));
 
     storeAppendPrintf(sentry, "\tMemory hits as %% of hit requests:\t5min: %3.1f%%, 60min: %3.1f%%\n",
-                      stats.request_hit_mem_ratio5 / fct,
-                      stats.request_hit_mem_ratio60 / fct);
+                      stats.request_hit_mem_ratio5.toPercentOr(0),
+                      stats.request_hit_mem_ratio60.toPercentOr(0));
 
     storeAppendPrintf(sentry, "\tDisk hits as %% of hit requests:\t5min: %3.1f%%, 60min: %3.1f%%\n",
-                      stats.request_hit_disk_ratio5 / fct,
-                      stats.request_hit_disk_ratio60 / fct);
+                      stats.request_hit_disk_ratio5.toPercentOr(0),
+                      stats.request_hit_disk_ratio60.toPercentOr(0));
 
     storeAppendPrintf(sentry, "\tStorage Swap size:\t%.0f KB\n",
                       stats.store.swap.size / 1024);
@@ -1715,24 +1715,18 @@ statRequestHitRatio(int minutes)
     return EventRatio(CounterChange(client_http.hits, minutes), CounterChange(client_http.requests, minutes));
 }
 
-double
+EventRatio
 statRequestHitMemoryRatio(int minutes)
 {
     assert(minutes < N_COUNT_HIST);
-    return Math::doublePercent(CountHist[0].client_http.mem_hits -
-                               CountHist[minutes].client_http.mem_hits,
-                               CountHist[0].client_http.hits -
-                               CountHist[minutes].client_http.hits);
+    return EventRatio(CounterChange(client_http.mem_hits, minutes), CounterChange(client_http.hits, minutes));
 }
 
-double
+EventRatio
 statRequestHitDiskRatio(int minutes)
 {
     assert(minutes < N_COUNT_HIST);
-    return Math::doublePercent(CountHist[0].client_http.disk_hits -
-                               CountHist[minutes].client_http.disk_hits,
-                               CountHist[0].client_http.hits -
-                               CountHist[minutes].client_http.hits);
+    return EventRatio(CounterChange(client_http.disk_hits, minutes), CounterChange(client_http.hits, minutes));
 }
 
 EventRatio
