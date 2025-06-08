@@ -15,6 +15,8 @@
 #include <iosfwd>
 #include <vector>
 
+#include <type_traits>
+
 // The IPs the caller should not connect to are "bad". Other IPs are "good".
 
 namespace Dns {
@@ -227,7 +229,36 @@ typedef Dns::CachedIps ipcache_addrs; ///< deprecated alias
 typedef void IPH(const ipcache_addrs *, const Dns::LookupDetails &details, void *);
 
 void ipcache_purgelru(void *);
-void ipcache_nbgethostbyname(const char *name, IPH * handler, void *handlerData);
+
+/// ipcache_nbgethostbyname() template implementation; do not call directly
+void ipcacheNbgethostbynameInternal(const char *name, IPH * handler, void *handlerData);
+
+/// initiate an (often) asynchronous DNS lookup; the `handler` gets the results
+/// \param handlerData a cbdata-protected object to be returned to the `handler`
+/// \sa nbgethostbyname()
+template <typename HandlerData>
+inline void
+ipcache_nbgethostbyname(const char *name, IPH * handler, HandlerData handlerData)
+{
+    // Assert that handerData points to a class with a toCbdata() method. When
+    // the caller supplies bad handlerData type, this code usually fails to
+    // compile even before our static_assert fails, but that is OK.
+    using HandleDataClass = std::remove_pointer_t<HandlerData>;
+    static_assert(std::is_member_function_pointer_v<decltype(&HandleDataClass::toCbdata)>,
+                  "ipcache_nbgethostbyname() called with a non-cbdata protected callback data type");
+
+    ipcacheNbgethostbynameInternal(name, handler, handlerData);
+}
+
+/// Specialization for callers that have no handler data at all: No explicit
+/// cbdata protection is needed for calls with explicit nullptr handlerData.
+template <>
+inline void
+ipcache_nbgethostbyname<std::nullptr_t>(const char *name, IPH * handler, std::nullptr_t)
+{
+    ipcacheNbgethostbynameInternal(name, handler, nullptr);
+}
+
 const ipcache_addrs *ipcache_gethostbyname(const char *, int flags);
 void ipcacheInvalidate(const char *);
 void ipcacheInvalidateNegative(const char *);
