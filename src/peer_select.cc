@@ -80,11 +80,11 @@ static const char *DirectStr[] = {
 class PeerSelectionDumper
 {
 public:
-    PeerSelectionDumper(const PeerSelector * const aSelector, const CachePeer * const aPeer, const hier_code aCode):
+    PeerSelectionDumper(const PeerSelector * const aSelector, const KeptCachePeer &aPeer, const hier_code aCode):
         selector(aSelector), peer(aPeer), code(aCode) {}
 
     const PeerSelector * const selector; ///< selection parameters
-    const CachePeer * const peer; ///< successful selection info
+    const KeptCachePeer peer; ///< successful selection info
     const hier_code code; ///< selection algorithm
 };
 
@@ -1129,7 +1129,7 @@ PeerSelector::addSelection(CachePeer *peer, const hier_code code)
                                (code == PINNED) : (server->_peer == peer);
         if (duplicate) {
             debugs(44, 3, "skipping " << PeerSelectionDumper(this, peer, code) <<
-                   "; have " << PeerSelectionDumper(this, server->_peer.getRaw(), server->code));
+                   "; have " << PeerSelectionDumper(this, server->_peer, server->code));
             return;
         }
         serversTail = &server->next;
