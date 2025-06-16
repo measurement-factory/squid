@@ -1916,3 +1916,10 @@ statGraphDump(StoreEntry * e)
 
 #endif /* STAT_GRAPHS */
 
+/* EventRatio */
+
+double EventRatio::toPercentOr(const double noEventsValue) const
+{
+    return total_ ? Math::doublePercent(primary_, total_) : noEventsValue;
+}
+

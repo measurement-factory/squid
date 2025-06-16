@@ -34,9 +34,10 @@ public:
     /// accurately represented by a single non-negative number
     explicit operator bool() const { return bool(total_); }
 
+    /// represents primary value as a percentage of the total
     /// \returns 100*primary/total for non-zero totals
     /// \returns noEventsValue for zero totals
-    double toPercentOr(double noEventsValue) const { return total_ ? (100.0*primary_)/total_ : noEventsValue; }
+    double toPercentOr(double noEventsValue) const;
 
 // XXX private:
     Value primary_ = 0;
