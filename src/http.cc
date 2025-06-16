@@ -1954,7 +1954,8 @@ HttpStateData::httpBuildRequestHeader(HttpRequest * request,
 #else
         snprintf(bbuf, BBUF_SZ, "%s=\"Surrogate/1.0\"", Config.Accel.surrogate_id);
 #endif
-        strListAdd(&strSurrogate, bbuf, ',');
+        if (strSurrogate.find(bbuf) == String::npos)
+            strListAdd(&strSurrogate, bbuf, ',');
         hdr_out->putStr(Http::HdrType::SURROGATE_CAPABILITY, strSurrogate.termedBuf());
     }
 
@@ -2300,10 +2301,12 @@ copyOneHeaderFromClientsideRequestToUpstreamRequest(const HttpHeaderEntry *e, co
             hdr_out->addEntry(e->clone());
         break;
 
+    case Http::HdrType::SURROGATE_CAPABILITY:
+
     case Http::HdrType::X_FORWARDED_FOR:
 
     case Http::HdrType::CACHE_CONTROL:
-        /** \par X-Forwarded-For:, Cache-Control:
+        /** \par X-Forwarded-For:, Cache-Control:, Surrogate-Capability:
          * handled specially by Squid, so leave off for now.
          * append these after the loop if needed */
         break;
