@@ -623,20 +623,20 @@ DumpInfo(Mgr::InfoActionData& stats, StoreEntry* sentry)
     storeAppendPrintf(sentry, "Cache information for %s:\n",APP_SHORTNAME);
 
     storeAppendPrintf(sentry, "\tHits as %% of all requests:\t5min: %3.1f%%, 60min: %3.1f%%\n",
-                      stats.request_hit_ratio5.toPercentOr(0),
-                      stats.request_hit_ratio60.toPercentOr(0));
+                      stats.request_hit_ratio5.toPercent(),
+                      stats.request_hit_ratio60.toPercent());
 
     storeAppendPrintf(sentry, "\tHits as %% of bytes sent:\t5min: %3.1f%%, 60min: %3.1f%%\n",
-                      stats.byte_hit_ratio5.toPercentOr(0),
-                      stats.byte_hit_ratio60.toPercentOr(0));
+                      stats.byte_hit_ratio5.toPercent(),
+                      stats.byte_hit_ratio60.toPercent());
 
     storeAppendPrintf(sentry, "\tMemory hits as %% of hit requests:\t5min: %3.1f%%, 60min: %3.1f%%\n",
-                      stats.request_hit_mem_ratio5.toPercentOr(0),
-                      stats.request_hit_mem_ratio60.toPercentOr(0));
+                      stats.request_hit_mem_ratio5.toPercent(),
+                      stats.request_hit_mem_ratio60.toPercent());
 
     storeAppendPrintf(sentry, "\tDisk hits as %% of hit requests:\t5min: %3.1f%%, 60min: %3.1f%%\n",
-                      stats.request_hit_disk_ratio5.toPercentOr(0),
-                      stats.request_hit_disk_ratio60.toPercentOr(0));
+                      stats.request_hit_disk_ratio5.toPercent(),
+                      stats.request_hit_disk_ratio60.toPercent());
 
     storeAppendPrintf(sentry, "\tStorage Swap size:\t%.0f KB\n",
                       stats.store.swap.size / 1024);
@@ -1918,8 +1918,8 @@ statGraphDump(StoreEntry * e)
 
 /* EventRatio */
 
-double EventRatio::toPercentOr(const double noEventsValue) const
+double EventRatio::toPercent() const
 {
-    return n_ ? Math::doublePercent(w_, n_) : noEventsValue;
+    return Math::doublePercent(w_, n_);
 }
 

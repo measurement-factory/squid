@@ -42,10 +42,8 @@ public:
 
     /// Average event weight expressed as a percentage of N. Handy for reporting
     /// event probabilities (e.g., hit ratio is a probability of a hit event).
-    ///
-    /// \returns 100*W/N for non-zero N
-    /// \returns noEventsValue for zero N
-    double toPercentOr(double noEventsValue) const;
+    /// \returns Math::doublePercent(W, N), including cases where N is zero.
+    double toPercent() const;
 
 private:
     /// A total weight of n_ events. May be negative. Unused for zero n_.
