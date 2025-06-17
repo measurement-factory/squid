@@ -23,7 +23,13 @@ namespace Math
 
 int intPercent(const int a, const int b);
 int64_t int64Percent(const int64_t a, const int64_t b);
-double doublePercent(const double, const double);
+
+/// A `part/whole` ratio expressed as a fraction of 100 with `double` precision.
+/// \returns `100*part/whole` for non-zero `whole` values
+/// \returns 0 for zero `whole` values
+/// \sa intPercent()
+double doublePercent(double part, double whole);
+
 int intAverage(const int, const int, int, const int);
 double doubleAverage(const double, const double, int, const int);
 
