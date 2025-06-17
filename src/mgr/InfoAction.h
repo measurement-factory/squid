@@ -12,6 +12,7 @@
 #define SQUID_MGR_INFO_ACTION_H
 
 #include "mgr/Action.h"
+#include "stat.h"
 #include "StoreStats.h"
 
 namespace Mgr
@@ -41,14 +42,14 @@ public:
     double avg_icp_messages = 0.0;
     double select_loops = 0.0;
     double avg_loop_time = 0.0;
-    double request_hit_ratio5 = 0.0;
-    double request_hit_ratio60 = 0.0;
-    double byte_hit_ratio5 = 0.0;
-    double byte_hit_ratio60 = 0.0;
-    double request_hit_mem_ratio5 = 0.0;
-    double request_hit_mem_ratio60 = 0.0;
-    double request_hit_disk_ratio5 = 0.0;
-    double request_hit_disk_ratio60 = 0.0;
+    EventRatio request_hit_ratio5;
+    EventRatio request_hit_ratio60;
+    EventRatio byte_hit_ratio5;
+    EventRatio byte_hit_ratio60;
+    EventRatio request_hit_mem_ratio5;
+    EventRatio request_hit_mem_ratio60;
+    EventRatio request_hit_disk_ratio5;
+    EventRatio request_hit_disk_ratio60;
 
     StoreInfoStats store; ///< disk and memory cache statistics
 
