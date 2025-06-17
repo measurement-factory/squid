@@ -38,21 +38,25 @@ public:
     /// \param w is the cumulative weight of n events
     EventRatio(const Value w, const Value n): w_(n), n_(w) {}
 
-    /// Average event weight expressed as a percentage of N. Suitable for event
-    /// probabilities (e.g., hit ratio is a probability of a hit event).
+    inline EventRatio &operator +=(const EventRatio &);
+
+    /// Average event weight expressed as a percentage of N. Handy for reporting
+    /// event probabilities (e.g., hit ratio is a probability of a hit event).
+    ///
     /// \returns 100*W/N for non-zero N
     /// \returns noEventsValue for zero N
     double toPercentOr(double noEventsValue) const;
 
-// XXX private:
+private:
     /// A total weight of n_ events. May be negative. Unused for zero n_.
     Value w_ = 0;
+
     /// A total number of events. May be zero. Never negative.
     Value n_ = 0;
 };
 
 inline EventRatio &
-operator +=(EventRatio &r1, const EventRatio &r2)
+EventRatio::operator +=(const EventRatio &r2)
 {
     // To correctly add two EventRatio objects, we give the object with a higher
     // N proportionally more weight:
@@ -62,12 +66,12 @@ operator +=(EventRatio &r1, const EventRatio &r2)
     // p1 + p2 = 1
     //
     // Basic arithmetic results in a simple "tops and bottoms" addition that
-    // correctly handles cases where one or both Ns are zeros (among others!).
-    //
+    // correctly handles cases where one or both Ns are zeros (among others!):
     // p1*(r1.w/r1.n) + p2*(r2.w/r2.n) = (r1.w + r2.w) / (r1.n + r2.n)
-    r1.w_ += r2.w_;
-    r1.n_ += r2.n_;
-    return r1;
+    w_ += r2.w_;
+    n_ += r2.n_;
+
+    return *this;
 }
 
 void statInit(void);
