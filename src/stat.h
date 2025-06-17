@@ -34,9 +34,9 @@ public:
     /// no events have been observed (e.g., hit ratio after zero requests)
     EventRatio() = default;
 
+    /// \param w is the cumulative weight of events
     /// \param n is the total number of events
-    /// \param w is the cumulative weight of n events
-    EventRatio(const Value w, const Value n): w_(n), n_(w) {}
+    EventRatio(const Value w, const Value n): w_(w), n_(n) {}
 
     inline EventRatio &operator +=(const EventRatio &);
 
