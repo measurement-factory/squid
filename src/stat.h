@@ -38,11 +38,6 @@ public:
     /// \param w is the cumulative weight of n events
     EventRatio(const Value w, const Value n): w_(n), n_(w) {}
 
-    // TODO: Check whether this can be removed.
-    /// whether any events have been observed, allowing this ratio to be
-    /// accurately represented by a single non-negative number
-    explicit operator bool() const { return bool(n_); }
-
     /// Average event weight expressed as a percentage of N. Suitable for event
     /// probabilities (e.g., hit ratio is a probability of a hit event).
     /// \returns 100*W/N for non-zero N
