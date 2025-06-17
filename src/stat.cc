@@ -1920,6 +1920,6 @@ statGraphDump(StoreEntry * e)
 
 double EventRatio::toPercentOr(const double noEventsValue) const
 {
-    return total_ ? Math::doublePercent(primary_, total_) : noEventsValue;
+    return n_ ? Math::doublePercent(w_, n_) : noEventsValue;
 }
 
