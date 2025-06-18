@@ -60,7 +60,7 @@ EventRatio::operator +=(const EventRatio &r2)
     // N proportionally more weight:
     //
     // p1 = r1.n/(r1.n+r2.n) -- r1's proportional contribution coefficient
-    // p2 = r2.n/(r2.n+r2.n) -- r2's proportional contribution coefficient
+    // p2 = r2.n/(r1.n+r2.n) -- r2's proportional contribution coefficient
     // p1 + p2 = 1
     //
     // Basic arithmetic results in a simple "tops and bottoms" addition that
