@@ -467,7 +467,7 @@ Security::ErrorDetail::ErrorDetail(const ErrorCode anErrorCode, const CertPointe
 {
     errReason = aReason;
     peer_cert = cert;
-    broken_cert = broken ? broken : cert;
+    broken_cert = broken;
 }
 
 #if USE_OPENSSL

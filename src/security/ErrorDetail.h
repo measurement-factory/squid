@@ -39,8 +39,11 @@ class ErrorDetail: public ::ErrorDetail
 public:
     typedef ErrorDetailPointer Pointer;
 
-    /// Details a server-side certificate verification failure.
-    /// If `broken` is nil, then the broken certificate is the peer certificate.
+    /// Details an origin or cache_peer certificate verification failure or mismatch.
+    /// \param peer is an origin server or cache_peer certificate
+    /// \param broken is the problematic certificate (if verification failed) or nil (otherwise)
+    /// Two non-nil certificates may differ when, for example, an intermediate
+    /// (rather than leaf) certificate fails validation.
     ErrorDetail(ErrorCode err_no, const CertPointer &peer, const CertPointer &broken, const char *aReason = nullptr);
 
 #if USE_OPENSSL
