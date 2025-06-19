@@ -1515,9 +1515,13 @@ bool ConnStateData::serveDelayedError(Http::Stream *context)
         return true;
     }
 
-    // In bump-server-first mode, we have not necessarily seen the intended
-    // server name at certificate-peeking time. Check for domain mismatch now,
-    // when we can extract the intended name from the bumped HTTP request.
+    // An HTTP request on a bumped connection may target a different domain than
+    // was requested and validated during bumped TLS handshakes. A similar
+    // concern applies to legacy bump-server-first mode, where we have not
+    // necessarily seen the server name intended by the TLS client when
+    // receiving a server certificate. We have all the necessary info now and
+    // (re)check whether the targeted/intended domain matches the certificate.
+    // XXX: Our method implies serving an existing error, not a new one.
     if (const Security::CertPointer &srvCert = sslServerBump->serverCert) {
         HttpRequest *request = http->request;
         if (!Ssl::checkX509ServerValidity(srvCert.get(), request->url.host())) {
@@ -1539,8 +1543,6 @@ bool ConnStateData::serveDelayedError(Http::Stream *context)
                 clientStreamNode *node = context->getClientReplyContext();
                 clientReplyContext *repContext = dynamic_cast<clientReplyContext *>(node->data.getRaw());
                 assert (repContext);
-
-                request->hier = sslServerBump->request->hier;
 
                 // Create an error object and fill it
                 const auto err = new ErrorState(ERR_SECURE_CONNECT_FAIL, Http::scServiceUnavailable, request, http->al);
