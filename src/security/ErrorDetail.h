@@ -94,6 +94,10 @@ private:
     const char *err_lib_error() const;
     size_t convert(const char *code, const char **value) const;
 
+    /// peer or intermediate certificate that should be used when expanding
+    /// various error page %codes like %ssl_subject
+    Certificate *certificateToReport() const { return broken_cert ? broken_cert.get() : peer_cert.get(); }
+
     CertPointer peer_cert; ///< A pointer to the peer certificate
     CertPointer broken_cert; ///< A pointer to the broken certificate (peer or intermediate)
 
