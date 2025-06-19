@@ -467,7 +467,7 @@ Security::ErrorDetail::ErrorDetail(const ErrorCode anErrorCode, const CertPointe
 {
     errReason = aReason;
     peer_cert = cert;
-    broken_cert = broken ? broken : cert;
+    broken_cert = broken;
 }
 
 #if USE_OPENSSL
@@ -562,8 +562,8 @@ Security::ErrorDetail::verbose(const HttpRequestPointer &request) const
 const char *
 Security::ErrorDetail::subject() const
 {
-    if (broken_cert) {
-        auto buf = SubjectName(*broken_cert);
+    if (const auto cert = certificateToReport()) {
+        auto buf = SubjectName(*cert);
         if (!buf.isEmpty()) {
             // quote to avoid possible html code injection through
             // certificate subject
@@ -595,10 +595,10 @@ const char *
 Security::ErrorDetail::cn() const
 {
 #if USE_OPENSSL
-    if (broken_cert.get()) {
+    if (const auto cert = certificateToReport()) {
         static String tmpStr;
         tmpStr.clean();
-        Ssl::matchX509CommonNames(broken_cert.get(), &tmpStr, copy_cn);
+        Ssl::matchX509CommonNames(cert, &tmpStr, copy_cn);
         if (tmpStr.size()) {
             // quote to avoid possible HTML code injection through
             // certificate subject
@@ -613,8 +613,8 @@ Security::ErrorDetail::cn() const
 const char *
 Security::ErrorDetail::ca_name() const
 {
-    if (broken_cert) {
-        auto buf = IssuerName(*broken_cert);
+    if (const auto cert = certificateToReport()) {
+        auto buf = IssuerName(*cert);
         if (!buf.isEmpty()) {
             // quote to avoid possible html code injection through
             // certificate issuer subject
@@ -629,8 +629,8 @@ const char *
 Security::ErrorDetail::notbefore() const
 {
 #if USE_OPENSSL
-    if (broken_cert.get()) {
-        if (const auto tm = X509_getm_notBefore(broken_cert.get())) {
+    if (const auto cert = certificateToReport()) {
+        if (const auto tm = X509_getm_notBefore(cert)) {
             static char tmpBuffer[256]; // A temporary buffer
             Ssl::asn1timeToString(tm, tmpBuffer, sizeof(tmpBuffer));
             return tmpBuffer;
@@ -645,8 +645,8 @@ const char *
 Security::ErrorDetail::notafter() const
 {
 #if USE_OPENSSL
-    if (broken_cert.get()) {
-        if (const auto tm = X509_getm_notAfter(broken_cert.get())) {
+    if (const auto cert = certificateToReport()) {
+        if (const auto tm = X509_getm_notAfter(cert)) {
             static char tmpBuffer[256]; // A temporary buffer
             Ssl::asn1timeToString(tm, tmpBuffer, sizeof(tmpBuffer));
             return tmpBuffer;
@@ -703,7 +703,7 @@ Security::ErrorDetail::err_lib_error() const
  * %ssl_error_descr: A short description of the SSL error
  * %ssl_lib_error: human-readable low-level error string by ErrorString()
  *
- * Certificate information extracted from broken (not necessarily peer!) cert
+ * Peer or intermediate certificate info extracted from certificateToReport()
  * %ssl_cn: The comma-separated list of common and alternate names
  * %ssl_subject: The certificate subject
  * %ssl_ca_name: The certificate issuer name
