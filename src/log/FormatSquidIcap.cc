@@ -46,8 +46,7 @@ Log::Format::SquidIcap(const AccessLogEntry::Pointer &al, Logfile * const logfil
     if (user && !*user)
         safe_free(user);
 
-    const auto seconds = recordTime.systemSecondsEpoch();
-    const auto ms = recordTime.systemMillisecondsFraction();
+    const auto [ seconds, ms ] = recordTime.legacySecondsAndMilliseconds();
     auto icapTrTime = al->icap.trTime(recordTime);
 
     logfilePrintf(logfile, "%9ld.%03d %6ld %s %s/%03d %" PRId64 " %s %s %s -/%s -\n",

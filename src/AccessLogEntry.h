@@ -33,6 +33,7 @@
 #endif
 
 #include <optional>
+#include <utility>
 
 /* forward decls */
 class HttpReply;
@@ -83,7 +84,7 @@ public:
 
     auto systemSecondsEpoch() const { return legacySystemTime.tv_sec; }
 
-    auto systemMillisecondsFraction() const  { return legacySystemTime.tv_usec / 1000; }
+    auto legacySecondsAndMilliseconds() const  { return std::pair(legacySystemTime.tv_sec, legacySystemTime.tv_usec / 1000); }
 
     /// record creation time for use with std::chrono-based logformat codes
     Stopwatch::Clock::time_point stopwatchTime;

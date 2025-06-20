@@ -29,8 +29,7 @@ Log::Format::SquidReferer(const AccessLogEntry::Pointer &al, Logfile * const log
 
     const SBuf url = !al->url.isEmpty() ? al->url : ::Format::Dash;
 
-    const auto seconds = recordTime.systemSecondsEpoch();
-    const auto ms = recordTime.systemMillisecondsFraction();
+    const auto [ seconds, ms ] = recordTime.legacySecondsAndMilliseconds();
 
     logfilePrintf(logfile, "%9ld.%03d %s %s " SQUIDSBUFPH "\n",
                   static_cast<long int>(seconds),
