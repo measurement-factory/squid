@@ -226,22 +226,22 @@ AccessLogEntry::packReplyHeaders(MemBuf &mb) const
 }
 
 struct timeval
-AccessLogEntry::CacheDetails::trTime(const RecordTime &endTime) const
+AccessLogEntry::CacheDetails::trTime(const RecordTime &recordTime) const
 {
     struct timeval result = {};
     if (start_time.tv_sec)
-        tvSub(result, start_time, endTime.legacyTime);
+        tvSub(result, start_time, recordTime.legacyTime);
     return result;
 }
 
 #if ICAP_CLIENT
 
 struct timeval
-AccessLogEntry::IcapLogEntry::trTime(const RecordTime &endTime) const
+AccessLogEntry::IcapLogEntry::trTime(const RecordTime &recordTime) const
 {
     struct timeval result = {};
     if (start_time.tv_sec) {
-        const auto &time = stop_time.tv_sec ? stop_time : endTime.legacyTime;
+        const auto &time = stop_time.tv_sec ? stop_time : recordTime.legacyTime;
         tvSub(result, start_time, time);
     }
     return result;

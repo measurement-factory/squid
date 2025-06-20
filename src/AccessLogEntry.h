@@ -204,8 +204,8 @@ public:
             memset(&start_time, 0, sizeof(start_time));
         }
 
-        /// Master transaction execution time.
-        struct timeval trTime(const RecordTime &endTime) const;
+        /// master transaction response time (as of supplied recordTime)
+        struct timeval trTime(const RecordTime &recordTime) const;
 
         Ip::Address caddr;
         int64_t highOffset = 0;
@@ -281,8 +281,8 @@ public:
             memset(&processingTime, 0, sizeof(processingTime));
         }
 
-        /// ICAP transaction execution time.
-        struct timeval trTime(const RecordTime &endTime) const;
+        /// ICAP transaction response time (as of supplied recordTime)
+        struct timeval trTime(const RecordTime &recordTime) const;
 
         Ip::Address hostAddr; ///< ICAP server IP address
         String serviceName;        ///< ICAP service name
