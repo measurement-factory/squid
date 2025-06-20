@@ -26,6 +26,7 @@
 #include "HttpHeaderFieldInfo.h"
 #include "HttpHeaderTools.h"
 #include "HttpRequest.h"
+#include "log/RecordTime.h"
 #include "MemBuf.h"
 #include "SquidConfig.h"
 #include "Store.h"

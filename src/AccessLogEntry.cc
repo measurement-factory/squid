@@ -11,6 +11,7 @@
 #include "fqdncache.h"
 #include "HttpReply.h"
 #include "HttpRequest.h"
+#include "log/RecordTime.h"
 #include "MemBuf.h"
 #include "proxyp/Header.h"
 #include "SquidConfig.h"

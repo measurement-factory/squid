@@ -19,6 +19,7 @@
 #include "errorpage.h"
 #include "format/Format.h"
 #include "globals.h"
+#include "log/RecordTime.h"
 #include "Store.h"
 #include "wordlist.h"
 

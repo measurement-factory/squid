@@ -91,6 +91,9 @@ int logfile_mod_syslog_open(Logfile *, const char *, size_t, int) STUB_RETVAL(0)
 #include "log/ModUdp.h"
 int logfile_mod_udp_open(Logfile *, const char *, size_t, int) STUB_RETVAL(0)
 
+#include "log/RecordTime.h"
+RecordTime::RecordTime() STUB
+
 #include "log/TcpLogger.h"
 namespace Log
 {

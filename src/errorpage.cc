@@ -24,6 +24,7 @@
 #include "HttpHeaderTools.h"
 #include "HttpReply.h"
 #include "HttpRequest.h"
+#include "log/RecordTime.h"
 #include "MemBuf.h"
 #include "MemObject.h"
 #include "rfc1738.h"

@@ -38,6 +38,8 @@ liblog_la_SOURCES = \
 	ModSyslog.h \
 	ModUdp.cc \
 	ModUdp.h \
+	RecordTime.cc \
+	RecordTime.h \
 	TcpLogger.cc \
 	TcpLogger.h \
 	access_log.cc \

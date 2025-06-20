@@ -11,6 +11,7 @@
 #include "acl/AnnotationData.h"
 #include "acl/FilledChecklist.h"
 #include "HttpRequest.h"
+#include "log/RecordTime.h"
 #include "Notes.h"
 
 int

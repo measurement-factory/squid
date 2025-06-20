@@ -27,6 +27,7 @@
 #include "HttpReply.h"
 #include "HttpRequest.h"
 #include "ip/tools.h"
+#include "log/RecordTime.h"
 #include "MemBuf.h"
 #include "mgr/Registration.h"
 #include "rfc1738.h"

@@ -24,6 +24,7 @@
 #include "http/Stream.h"
 #include "HttpReply.h"
 #include "HttpRequest.h"
+#include "log/RecordTime.h"
 #include "MemBuf.h"
 
 /* Generic Functions */

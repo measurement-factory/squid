@@ -17,6 +17,7 @@
 #include "HttpRequest.h"
 #include "log/File.h"
 #include "log/Formats.h"
+#include "log/RecordTime.h"
 #include "SquidConfig.h"
 
 void

@@ -22,6 +22,7 @@
 #include "helper/Reply.h"
 #include "http/Stream.h"
 #include "HttpRequest.h"
+#include "log/RecordTime.h"
 #include "mgr/Registration.h"
 #include "redirect.h"
 #include "rfc1738.h"

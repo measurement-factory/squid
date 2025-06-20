@@ -17,6 +17,7 @@
 #include "fde.h"
 #include "FwdState.h"
 #include "HttpRequest.h"
+#include "log/RecordTime.h"
 #include "pconn.h"
 #include "proxyp/Header.h"
 #include "proxyp/OutgoingConfig.h"

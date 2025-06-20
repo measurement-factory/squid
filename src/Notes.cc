@@ -16,6 +16,7 @@
 #include "http/Stream.h"
 #include "HttpReply.h"
 #include "HttpRequest.h"
+#include "log/RecordTime.h"
 #include "parser/Tokenizer.h"
 #include "sbuf/SBuf.h"
 #include "sbuf/Stream.h"

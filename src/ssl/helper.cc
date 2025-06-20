@@ -13,6 +13,7 @@
 #include "cache_cf.h"
 #include "fs_io.h"
 #include "helper/Reply.h"
+#include "log/RecordTime.h"
 #include "Parsing.h"
 #include "sbuf/Stream.h"
 #include "SquidConfig.h"

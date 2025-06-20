@@ -12,6 +12,7 @@
 #include "acl/FilledChecklist.h"
 #include "client_side.h"
 #include "http/Stream.h"
+#include "log/RecordTime.h"
 #include "Notes.h"
 
 int

@@ -20,6 +20,7 @@
 #include "http/Stream.h"
 #include "HttpRequest.h"
 #include "ipcache.h"
+#include "log/RecordTime.h"
 #include "MemBuf.h"
 #include "proxyp/Header.h"
 #include "rfc1738.h"

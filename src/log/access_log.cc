@@ -29,6 +29,7 @@
 #include "log/CustomLog.h"
 #include "log/File.h"
 #include "log/Formats.h"
+#include "log/RecordTime.h"
 #include "MemBuf.h"
 #include "mgr/Registration.h"
 #include "rfc1738.h"
