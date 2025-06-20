@@ -19,7 +19,7 @@
 #include "SquidConfig.h"
 
 void
-Log::Format::SquidNative(const AccessLogEntry::Pointer &al, Logfile * logfile, const RecordTime &recordTime)
+Log::Format::SquidNative(const AccessLogEntry::Pointer &al, Logfile * const logfile, const RecordTime &recordTime)
 {
     char hierHost[MAX_IPSTRLEN];
 

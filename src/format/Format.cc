@@ -601,11 +601,10 @@ Format::Format::assemble(MemBuf &mb, const AccessLogEntry::Pointer &al, int logS
             dooff = 1;
             break;
 
-        case LFT_TIME_SUBSECOND: {
+        case LFT_TIME_SUBSECOND:
             outint = recordTime.legacySystemTime.tv_usec / fmt->divisor;
             doint = 1;
-        }
-        break;
+            break;
 
         case LFT_TIME_LOCALTIME:
         case LFT_TIME_GMT: {

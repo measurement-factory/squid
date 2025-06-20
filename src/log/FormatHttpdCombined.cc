@@ -46,13 +46,11 @@ Log::Format::HttpdCombined(const AccessLogEntry::Pointer &al, Logfile * logfile,
 
     const SBuf method(al->getLogMethod());
 
-    const auto secondsSinceEpoch = recordTime.systemSecondsEpoch();
-
     logfilePrintf(logfile, "%s %s %s [%s] \"" SQUIDSBUFPH " " SQUIDSBUFPH " %s/%d.%d\" %d %" PRId64 " \"%s\" \"%s\" %s:%s%s",
                   clientip,
                   user_ident ? user_ident : dash_str,
                   user_auth ? user_auth : dash_str,
-                  Time::FormatHttpd(secondsSinceEpoch),
+                  Time::FormatHttpd(recordTime.systemSecondsEpoch()),
                   SQUIDSBUFPRINT(method),
                   SQUIDSBUFPRINT(al->url),
                   AnyP::ProtocolType_str[al->http.version.protocol],

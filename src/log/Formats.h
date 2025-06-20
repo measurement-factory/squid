@@ -38,25 +38,25 @@ typedef enum {
 } log_type;
 
 /// Native Squid Format Display
-void SquidNative(const AccessLogEntryPointer &al, Logfile * logfile, const RecordTime &);
+void SquidNative(const AccessLogEntryPointer &, Logfile *, const RecordTime &);
 
 /// Display log details in Squid ICAP format.
-void SquidIcap(const AccessLogEntryPointer &al, Logfile * logfile, const RecordTime &);
+void SquidIcap(const AccessLogEntryPointer &, Logfile *, const RecordTime &);
 
 /// Display log details in useragent format.
-void SquidUserAgent(const AccessLogEntryPointer &al, Logfile * logfile, const RecordTime &);
+void SquidUserAgent(const AccessLogEntryPointer &, Logfile *, const RecordTime &);
 
 /// Display log details in Squid old refererlog format.
-void SquidReferer(const AccessLogEntryPointer &al, Logfile * logfile, const RecordTime &);
+void SquidReferer(const AccessLogEntryPointer &, Logfile *, const RecordTime &);
 
 /// Log with a local custom format
-void SquidCustom(const AccessLogEntryPointer &al, CustomLog * log, const RecordTime &recordTime);
+void SquidCustom(const AccessLogEntryPointer &, CustomLog *, const RecordTime &);
 
 /// Log with Apache httpd common format
-void HttpdCommon(const AccessLogEntryPointer &al, Logfile * logfile, const RecordTime &);
+void HttpdCommon(const AccessLogEntryPointer &, Logfile *, const RecordTime &);
 
 /// Log with Apache httpd combined format
-void HttpdCombined(const AccessLogEntryPointer &al, Logfile * logfile, const RecordTime &);
+void HttpdCombined(const AccessLogEntryPointer &, Logfile *, const RecordTime &);
 
 }; // namespace Format
 }; // namespace Log

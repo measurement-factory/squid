@@ -20,7 +20,7 @@
 #include "SquidConfig.h"
 
 void
-Log::Format::SquidIcap(const AccessLogEntry::Pointer &al, Logfile * logfile, const RecordTime &recordTime)
+Log::Format::SquidIcap(const AccessLogEntry::Pointer &al, Logfile * const logfile, const RecordTime &recordTime)
 {
     const char *user = nullptr;
     char tmp[MAX_IPSTRLEN], clientbuf[MAX_IPSTRLEN];

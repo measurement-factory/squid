@@ -104,7 +104,7 @@ namespace ErrorPage {
 class Build
 {
 public:
-    explicit Build(const RecordTime &time) : recordTime(time) {}
+    explicit Build(const RecordTime &time): recordTime(time) {}
 
     SBuf output; ///< compilation result
     const char *input = nullptr; ///< template bytes that need to be compiled
@@ -835,7 +835,7 @@ ErrorState::Dump(MemBuf * mb, const RecordTime &recordTime)
         str.appendf("DNS ErrMsg: " SQUIDSBUFPH "\r\n", SQUIDSBUFPRINT(*dnsError));
 
     /* - TimeStamp */
-    str.appendf("TimeStamp: %s\r\n\r\n", Time::FormatRfc1123(recordTime.legacySystemTime.tv_sec));
+    str.appendf("TimeStamp: %s\r\n\r\n", Time::FormatRfc1123(recordTime.systemSecondsEpoch()));
 
     /* - IP stuff */
     str.appendf("ClientIP: %s\r\n", src_addr.toStr(ntoabuf,MAX_IPSTRLEN));
@@ -1162,11 +1162,11 @@ ErrorState::compileLegacyCode(Build &build)
         break;
 
     case 't':
-        mb.appendf("%s", Time::FormatHttpd(build.recordTime.legacySystemTime.tv_sec));
+        mb.appendf("%s", Time::FormatHttpd(build.recordTime.systemSecondsEpoch()));
         break;
 
     case 'T':
-        mb.appendf("%s", Time::FormatRfc1123(build.recordTime.legacySystemTime.tv_sec));
+        mb.appendf("%s", Time::FormatRfc1123(build.recordTime.systemSecondsEpoch()));
         break;
 
     case 'U':

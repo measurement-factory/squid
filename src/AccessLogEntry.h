@@ -73,9 +73,10 @@ private:
 class RecordTime
 {
 public:
+    // TODO: Do not inline.
     RecordTime():
         stopwatchTime(Stopwatch::Clock::now()),
-        legacySystemTime({0, 0}) {
+        legacySystemTime({}) {
         (void)getCurrentTime();
         legacySystemTime = current_time;
     }
@@ -84,12 +85,10 @@ public:
 
     auto systemMillisecondsFraction() const  { return legacySystemTime.tv_sec / 1000; }
 
-    /// the record creation time
-    /// pass this value to Stopwatch::totalAsOf() while calculating relevant logformat codes
+    /// record creation time for use with std::chrono-based logformat codes
     Stopwatch::Clock::time_point stopwatchTime;
 
-    /// the record creation time
-    /// use this value to calculate 'current time'-based logformat codes
+    /// record creation time for use with logformat codes based on POSIX timeval et al.
     struct timeval legacySystemTime;
 };
 
@@ -281,8 +280,6 @@ public:
         IcapLogEntry() {
             memset(&ioTime, 0, sizeof(ioTime));
             memset(&processingTime, 0, sizeof(processingTime));
-            memset(&start_time, 0, sizeof(start_time));
-            memset(&stop_time, 0, sizeof(stop_time));
         }
 
         /// ICAP transaction execution time.
@@ -312,8 +309,13 @@ public:
         struct timeval ioTime;
         Http::StatusCode resStatus = Http::scNone;   ///< ICAP response status code
         struct timeval processingTime;      ///< total ICAP processing time
-        struct timeval start_time; /*time when the ICAP transaction was created */
-        struct timeval stop_time; ///< the time just before the ICAP transaction is logged
+
+        /// ICAP transaction (i.e. Adaptation::Icap::Xaction object) creation time
+        struct timeval start_time = {};
+
+        /// The time just before the ICAP transaction gets logged.
+        /// XXX: This member may remain zero for transactions that are not logged.
+        struct timeval stop_time = {};
     }
     icap;
 #endif

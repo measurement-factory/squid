@@ -17,7 +17,7 @@
 #include "MemBuf.h"
 
 void
-Log::Format::SquidCustom(const AccessLogEntry::Pointer &al, CustomLog * log, const RecordTime &recordTime)
+Log::Format::SquidCustom(const AccessLogEntry::Pointer &al, CustomLog * const log, const RecordTime &recordTime)
 {
     static MemBuf mb;
     mb.reset();

@@ -15,7 +15,7 @@
 #include "log/Formats.h"
 
 void
-Log::Format::SquidReferer(const AccessLogEntry::Pointer &al, Logfile *logfile, const RecordTime &recordTime)
+Log::Format::SquidReferer(const AccessLogEntry::Pointer &al, Logfile * const logfile, const RecordTime &recordTime)
 {
     const char *referer = nullptr;
     if (al->request)

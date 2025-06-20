@@ -123,13 +123,13 @@ private:
     explicit ErrorState(err_type type);
 
     /// locates the right error page template for this error and compiles it
-    /// \param recordTime the time when the error response compilation starts
+    /// \param recordTime the time when the error response compilation started
     SBuf buildBody(const RecordTime &recordTime);
 
     /// compiles error page or error detail template (i.e. anything but deny_url)
     /// \param input  the template text to be compiled
     /// \param allowRecursion  whether to compile %codes which produce %codes
-    /// \param recordTime the time when the error response compilation starts
+    /// \param recordTime the time when the error response compilation started
     SBuf compileBody(const char *text, bool allowRecursion, const RecordTime &recordTime);
 
     /// compile a single-letter %code like %D
@@ -142,7 +142,7 @@ private:
     /// \param input  the template text to be converted
     /// \param building_deny_info_url  whether input is a deny_info URL parameter
     /// \param allowRecursion  whether to compile %codes which produce %codes
-    /// \param recordTime the time when the error response compilation starts
+    /// \param recordTime the time when the error response compilation started
     /// \returns the given input with all %codes substituted
     SBuf compile(const char *input, bool building_deny_info_url, bool allowRecursion, const RecordTime &recordTime);
 
@@ -165,7 +165,7 @@ private:
     /**
      * CacheManager / Debug dump of the ErrorState object.
      * Writes output into the given MemBuf.
-     \param recordTime the time when the error response compilation starts
+     \param recordTime the time when the error response compilation started
      \retval 0 successful completion.
      */
     int Dump(MemBuf * mb, const RecordTime &recordTime);
