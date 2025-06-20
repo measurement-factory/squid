@@ -234,6 +234,8 @@ AccessLogEntry::CacheDetails::trTime(const RecordTime &endTime) const
     return result;
 }
 
+#if ICAP_CLIENT
+
 struct timeval
 AccessLogEntry::IcapLogEntry::trTime(const RecordTime &endTime) const
 {
@@ -244,3 +246,5 @@ AccessLogEntry::IcapLogEntry::trTime(const RecordTime &endTime) const
     }
     return result;
 }
+
+#endif /* ICAP_CLIENT */
