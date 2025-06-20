@@ -597,12 +597,12 @@ Format::Format::assemble(MemBuf &mb, const AccessLogEntry::Pointer &al, int logS
             break;
 
         case LFT_TIME_SECONDS_SINCE_EPOCH:
-            outoff = recordTime.systemSecondsEpoch();
+            outoff = recordTime.legacyTime.tv_sec;
             dooff = 1;
             break;
 
         case LFT_TIME_SUBSECOND:
-            outint = recordTime.legacySystemTime.tv_usec / fmt->divisor;
+            outint = recordTime.legacyTime.tv_usec / fmt->divisor;
             doint = 1;
             break;
 
@@ -612,7 +612,7 @@ Format::Format::assemble(MemBuf &mb, const AccessLogEntry::Pointer &al, int logS
             struct tm *t;
             spec = fmt->data.string;
 
-            const auto secondsSinceEpoch = recordTime.systemSecondsEpoch();
+            const auto secondsSinceEpoch = recordTime.legacyTime.tv_sec;
 
             if (fmt->type == LFT_TIME_LOCALTIME) {
                 if (!spec)

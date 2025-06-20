@@ -230,7 +230,7 @@ AccessLogEntry::CacheDetails::trTime(const RecordTime &endTime) const
 {
     struct timeval result = {};
     if (start_time.tv_sec)
-        tvSub(result, start_time, endTime.legacySystemTime);
+        tvSub(result, start_time, endTime.legacyTime);
     return result;
 }
 
@@ -239,7 +239,7 @@ AccessLogEntry::IcapLogEntry::trTime(const RecordTime &endTime) const
 {
     struct timeval result = {};
     if (start_time.tv_sec) {
-        const auto &time = stop_time.tv_sec ? stop_time : endTime.legacySystemTime;
+        const auto &time = stop_time.tv_sec ? stop_time : endTime.legacyTime;
         tvSub(result, start_time, time);
     }
     return result;

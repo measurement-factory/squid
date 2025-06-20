@@ -37,7 +37,7 @@ Log::Format::HttpdCommon(const AccessLogEntry::Pointer &al, Logfile * logfile, c
                   clientip,
                   user_ident ? user_ident : dash_str,
                   user_auth ? user_auth : dash_str,
-                  Time::FormatHttpd(recordTime.systemSecondsEpoch()),
+                  Time::FormatHttpd(recordTime.legacyTime.tv_sec),
                   SQUIDSBUFPRINT(method),
                   SQUIDSBUFPRINT(al->url),
                   AnyP::ProtocolType_str[al->http.version.protocol],

@@ -77,20 +77,18 @@ public:
     // TODO: Do not inline.
     RecordTime():
         stopwatchTime(Stopwatch::Clock::now()),
-        legacySystemTime({}) {
+        legacyTime({}) {
         (void)getCurrentTime();
-        legacySystemTime = current_time;
+        legacyTime = current_time;
     }
 
-    auto systemSecondsEpoch() const { return legacySystemTime.tv_sec; }
-
-    auto legacySecondsAndMilliseconds() const  { return std::pair(legacySystemTime.tv_sec, legacySystemTime.tv_usec / 1000); }
+    auto legacySecondsAndMilliseconds() const { return std::pair(legacyTime.tv_sec, legacyTime.tv_usec / 1000); }
 
     /// record creation time for use with std::chrono-based logformat codes
     Stopwatch::Clock::time_point stopwatchTime;
 
     /// record creation time for use with logformat codes based on POSIX timeval et al.
-    struct timeval legacySystemTime;
+    struct timeval legacyTime;
 };
 
 class AccessLogEntry: public CodeContext

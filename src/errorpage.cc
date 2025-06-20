@@ -835,7 +835,7 @@ ErrorState::Dump(MemBuf * mb, const RecordTime &recordTime)
         str.appendf("DNS ErrMsg: " SQUIDSBUFPH "\r\n", SQUIDSBUFPRINT(*dnsError));
 
     /* - TimeStamp */
-    str.appendf("TimeStamp: %s\r\n\r\n", Time::FormatRfc1123(recordTime.systemSecondsEpoch()));
+    str.appendf("TimeStamp: %s\r\n\r\n", Time::FormatRfc1123(recordTime.legacyTime.tv_sec));
 
     /* - IP stuff */
     str.appendf("ClientIP: %s\r\n", src_addr.toStr(ntoabuf,MAX_IPSTRLEN));
@@ -1162,11 +1162,11 @@ ErrorState::compileLegacyCode(Build &build)
         break;
 
     case 't':
-        mb.appendf("%s", Time::FormatHttpd(build.recordTime.systemSecondsEpoch()));
+        mb.appendf("%s", Time::FormatHttpd(build.recordTime.legacyTime.tv_sec));
         break;
 
     case 'T':
-        mb.appendf("%s", Time::FormatRfc1123(build.recordTime.systemSecondsEpoch()));
+        mb.appendf("%s", Time::FormatRfc1123(build.recordTime.legacyTime.tv_sec));
         break;
 
     case 'U':

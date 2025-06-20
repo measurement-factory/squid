@@ -30,7 +30,7 @@ Log::Format::SquidUserAgent(const AccessLogEntry::Pointer &al, Logfile * const l
 
     logfilePrintf(logfile, "%s [%s] \"%s\"\n",
                   clientip,
-                  Time::FormatHttpd(recordTime.systemSecondsEpoch()),
+                  Time::FormatHttpd(recordTime.legacyTime.tv_sec),
                   agent);
 }
 
