@@ -83,7 +83,7 @@ public:
 
     auto systemSecondsEpoch() const { return legacySystemTime.tv_sec; }
 
-    auto systemMillisecondsFraction() const  { return legacySystemTime.tv_sec / 1000; }
+    auto systemMillisecondsFraction() const  { return legacySystemTime.tv_usec / 1000; }
 
     /// record creation time for use with std::chrono-based logformat codes
     Stopwatch::Clock::time_point stopwatchTime;
