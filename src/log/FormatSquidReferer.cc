@@ -33,7 +33,7 @@ Log::Format::SquidReferer(const AccessLogEntry::Pointer &al, Logfile * const log
     const auto ms = recordTime.systemMillisecondsFraction();
 
     logfilePrintf(logfile, "%9ld.%03d %s %s " SQUIDSBUFPH "\n",
-                  seconds,
+                  static_cast<long int>(seconds),
                   static_cast<int>(ms),
                   clientip,
                   referer,

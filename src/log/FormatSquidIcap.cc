@@ -51,7 +51,7 @@ Log::Format::SquidIcap(const AccessLogEntry::Pointer &al, Logfile * const logfil
     auto icapTrTime = al->icap.trTime(recordTime);
 
     logfilePrintf(logfile, "%9ld.%03d %6ld %s %s/%03d %" PRId64 " %s %s %s -/%s -\n",
-                  seconds,
+                  static_cast<long int>(seconds),
                   static_cast<int>(ms),
                   tvToMsec(icapTrTime),
                   client,

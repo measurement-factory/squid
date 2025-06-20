@@ -54,7 +54,7 @@ Log::Format::SquidNative(const AccessLogEntry::Pointer &al, Logfile * const logf
     auto trTime = al->cache.trTime(recordTime);
 
     logfilePrintf(logfile, "%9ld.%03d %6ld %s %s/%03d %" PRId64 " " SQUIDSBUFPH " " SQUIDSBUFPH " %s %s%s/%s %s%s",
-                  seconds,
+                  static_cast<long int>(seconds),
                   static_cast<int>(ms),
                   tvToMsec(trTime),
                   clientip,
