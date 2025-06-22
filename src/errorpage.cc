@@ -111,7 +111,7 @@ public:
     const char *input = nullptr; ///< template bytes that need to be compiled
     bool building_deny_info_url = false; ///< whether we compile deny_info URI
     bool allowRecursion = false; ///< whether top-level compile() calls are OK
-    const RecordTime &recordTime; ///< the time when the error page compilation starts
+    const RecordTime recordTime; ///< the time when the error page compilation starts
 };
 
 /// pretty-prints error page/deny_info building error
