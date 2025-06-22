@@ -13,10 +13,11 @@
 
 #include <utility>
 
-/// the time when ALE record formatting starts
+/// the time of current ALE record (or equivalent) formatting/compilation start
 class RecordTime
 {
 public:
+    /// remembers current time
     RecordTime();
 
     auto legacySecondsAndMilliseconds() const { return std::pair(legacyTime.tv_sec, legacyTime.tv_usec / 1000); }
