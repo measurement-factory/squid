@@ -249,3 +249,4 @@ AccessLogEntry::IcapLogEntry::trTime(const RecordTime &recordTime) const
 }
 
 #endif /* ICAP_CLIENT */
+
