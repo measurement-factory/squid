@@ -22,6 +22,7 @@
 #include "helper/Reply.h"
 #include "http/Stream.h"
 #include "HttpRequest.h"
+#include "log/RecordTime.h"
 #include "mgr/Registration.h"
 #include "redirect.h"
 #include "rfc1738.h"
@@ -239,7 +240,7 @@ constructHelperQuery(const char *name, helper *hlp, HLPCB *replyHandler, ClientH
     static MemBuf requestExtras;
     requestExtras.reset();
     if (requestExtrasFmt)
-        requestExtrasFmt->assemble(requestExtras, http->al, 0);
+        requestExtrasFmt->assemble(requestExtras, http->al, 0, RecordTime());
 
     sz = snprintf(buf, MAX_REDIRECTOR_REQUEST_STRLEN, "%s%s%s\n",
                   r->orig_url.c_str(),

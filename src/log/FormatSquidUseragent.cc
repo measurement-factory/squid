@@ -13,9 +13,10 @@
 #include "HttpRequest.h"
 #include "log/File.h"
 #include "log/Formats.h"
+#include "log/RecordTime.h"
 
 void
-Log::Format::SquidUserAgent(const AccessLogEntry::Pointer &al, Logfile * logfile)
+Log::Format::SquidUserAgent(const AccessLogEntry::Pointer &al, Logfile * const logfile, const RecordTime &recordTime)
 {
     const char *agent = nullptr;
 
@@ -30,7 +31,7 @@ Log::Format::SquidUserAgent(const AccessLogEntry::Pointer &al, Logfile * logfile
 
     logfilePrintf(logfile, "%s [%s] \"%s\"\n",
                   clientip,
-                  Time::FormatHttpd(squid_curtime),
+                  Time::FormatHttpd(recordTime.legacyTime.tv_sec),
                   agent);
 }
 

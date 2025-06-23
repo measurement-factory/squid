@@ -11,6 +11,7 @@
 #include "fqdncache.h"
 #include "HttpReply.h"
 #include "HttpRequest.h"
+#include "log/RecordTime.h"
 #include "MemBuf.h"
 #include "proxyp/Header.h"
 #include "SquidConfig.h"
@@ -224,4 +225,28 @@ AccessLogEntry::packReplyHeaders(MemBuf &mb) const
     if (reply)
         reply->packHeadersUsingFastPacker(mb);
 }
+
+struct timeval
+AccessLogEntry::CacheDetails::trTime(const RecordTime &recordTime) const
+{
+    struct timeval result = {};
+    if (start_time.tv_sec)
+        tvSub(result, start_time, recordTime.legacyTime);
+    return result;
+}
+
+#if ICAP_CLIENT
+
+struct timeval
+AccessLogEntry::IcapLogEntry::trTime(const RecordTime &recordTime) const
+{
+    struct timeval result = {};
+    if (start_time.tv_sec) {
+        const auto &time = stop_time.tv_sec ? stop_time : recordTime.legacyTime;
+        tvSub(result, start_time, time);
+    }
+    return result;
+}
+
+#endif /* ICAP_CLIENT */
 

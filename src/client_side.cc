@@ -421,8 +421,6 @@ ClientHttpRequest::logRequest()
 
     al->cache.highOffset = out.offset;
 
-    tvSub(al->cache.trTime, al->cache.start_time, current_time);
-
     if (request)
         prepareLogWithRequestDetails(request, al);
 

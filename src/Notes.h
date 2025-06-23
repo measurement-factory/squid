@@ -60,7 +60,7 @@ public:
     private:
         /// \return the formatted value with expanded logformat %macros (quoted values).
         /// \return the original value (non-quoted values).
-        const SBuf &format(const AccessLogEntryPointer &al);
+        const SBuf &format(const AccessLogEntryPointer &, const RecordTime &);
 
         Format::Format *valueFormat; ///< Compiled annotation value format.
         SBuf theValue; ///< Configured annotation value, possibly with %macros.
@@ -89,7 +89,7 @@ public:
     /// \return true if matched, false otherwise
     bool match(HttpRequest *request, HttpReply *reply, const AccessLogEntryPointer &al, SBuf &matched);
     const SBuf &key() const { return theKey; }
-    void updateNotePairs(NotePairsPointer pairs, const CharacterSet *delimiters, const AccessLogEntryPointer &al);
+    void updateNotePairs(NotePairsPointer pairs, const CharacterSet *delimiters, const AccessLogEntryPointer &, const RecordTime &);
     /// Dump the single Note to the given StoreEntry object.
     void dump(StoreEntry *entry, const char *key);
     /// For the key and all its Values compile a string of
@@ -142,7 +142,7 @@ public:
     /// entries separated by sep string.
     const char *toString(const char *sep = "\r\n") const;
     void updateNotePairs(NotePairsPointer pairs, const CharacterSet *delimiters,
-                         const AccessLogEntryPointer &al);
+                         const AccessLogEntryPointer &, const RecordTime &);
 private:
     /// Makes sure the given key is not on the given list of banned names.
     void banReservedKey(const SBuf &key, const Keys &banned) const;

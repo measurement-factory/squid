@@ -11,6 +11,7 @@
 #include "acl/AnnotationData.h"
 #include "acl/FilledChecklist.h"
 #include "HttpRequest.h"
+#include "log/RecordTime.h"
 #include "Notes.h"
 
 int
@@ -19,7 +20,7 @@ ACLAnnotateTransactionStrategy::match(ACLData<MatchType> * &data, ACLFilledCheck
     if (const auto request = checklist->request) {
         ACLAnnotationData *tdata = dynamic_cast<ACLAnnotationData*>(data);
         assert(tdata);
-        tdata->annotate(request->notes(), &delimiters.value, checklist->al);
+        tdata->annotate(request->notes(), &delimiters.value, checklist->al, RecordTime());
         return 1;
     }
     return 0;

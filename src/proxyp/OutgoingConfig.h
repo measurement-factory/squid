@@ -47,7 +47,7 @@ public:
     /// PROXY protocol header fields must satisfy certain relationship rules,
     /// individual values returned by this method may need further adjustments.
     /// \sa OutgoingConfig::adjustIps()
-    Value makeValue(const AccessLogEntryPointer &al) const;
+    Value makeValue(const AccessLogEntryPointer &, const RecordTime &) const;
 
     /// known-in-advance transaction-independent makeValue() result (or nil)
     const auto &cachedValue() const { return cachedValue_; }
@@ -59,7 +59,7 @@ public:
     void dump(std::ostream &) const;
 
 private:
-    SBuf assembleValue(const AccessLogEntryPointer &al) const;
+    SBuf assembleValue(const AccessLogEntryPointer &, const RecordTime &) const;
 
     /// specializations of this method convert the given string to Value
     /// \param input is a logformat-printed by assembleValue() string
@@ -84,7 +84,7 @@ public:
     ~OutgoingConfig();
 
     /// populates the given Header with configured fields finalized using the given transaction details
-    void fill(Header &, const AccessLogEntryPointer &) const;
+    void fill(Header &, const AccessLogEntryPointer &, const RecordTime &) const;
 
     /// describes this proxy_protocol_outgoing directive using squid.conf syntax
     void dump(std::ostream &, const char *directiveName) const;

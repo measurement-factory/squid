@@ -12,6 +12,7 @@
 #include "acl/FilledChecklist.h"
 #include "client_side.h"
 #include "http/Stream.h"
+#include "log/RecordTime.h"
 #include "Notes.h"
 
 int
@@ -20,9 +21,10 @@ ACLAnnotateClientStrategy::match(ACLData<MatchType> * &data, ACLFilledChecklist 
     if (const auto conn = checklist->conn()) {
         ACLAnnotationData *tdata = dynamic_cast<ACLAnnotationData*>(data);
         assert(tdata);
-        tdata->annotate(conn->notes(), &delimiters.value, checklist->al);
+        RecordTime recordTime;
+        tdata->annotate(conn->notes(), &delimiters.value, checklist->al, recordTime);
         if (const auto request = checklist->request)
-            tdata->annotate(request->notes(), &delimiters.value, checklist->al);
+            tdata->annotate(request->notes(), &delimiters.value, checklist->al, recordTime);
         return 1;
     }
     return 0;

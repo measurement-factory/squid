@@ -13,6 +13,7 @@
 #include "cache_cf.h"
 #include "fs_io.h"
 #include "helper/Reply.h"
+#include "log/RecordTime.h"
 #include "Parsing.h"
 #include "sbuf/Stream.h"
 #include "SquidConfig.h"
@@ -316,7 +317,7 @@ Ssl::CertValidationHelper::Submit(const Ssl::CertValidationRequest &request, con
     if (ExtrasFormat) {
         static MemBuf buf;
         buf.reset();
-        ExtrasFormat->assemble(buf, request.ale, 0);
+        ExtrasFormat->assemble(buf, request.ale, 0, RecordTime());
         extras.reset(new std::string(buf.content(), buf.contentSize()));
     }
 

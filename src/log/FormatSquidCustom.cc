@@ -17,13 +17,13 @@
 #include "MemBuf.h"
 
 void
-Log::Format::SquidCustom(const AccessLogEntry::Pointer &al, CustomLog * log)
+Log::Format::SquidCustom(const AccessLogEntry::Pointer &al, CustomLog * const log, const RecordTime &recordTime)
 {
     static MemBuf mb;
     mb.reset();
 
     // XXX: because we do not yet have a neutral form of transaction slab. use AccessLogEntry
-    log->logFormat->assemble(mb, al, log->logfile->sequence_number);
+    log->logFormat->assemble(mb, al, log->logfile->sequence_number, recordTime);
 
     logfilePrintf(log->logfile, "%s\n", mb.buf);
 }

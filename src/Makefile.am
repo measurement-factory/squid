@@ -1442,6 +1442,7 @@ tests_testStore_SOURCES = \
 	tests/stub_liberror.cc \
 	tests/stub_libeui.cc \
 	tests/stub_libformat.cc \
+	tests/stub_liblog.cc \
 	tests/stub_libsecurity.cc \
 	tests/stub_libsslsquid.cc \
 	log/access_log.h \
@@ -2083,6 +2084,7 @@ tests_testHttpReply_SOURCES = \
 	tests/stub_libcomm.cc \
 	tests/stub_liberror.cc \
 	tests/stub_libformat.cc \
+	tests/stub_liblog.cc \
 	tests/stub_libmem.cc \
 	tests/stub_libmgr.cc \
 	tests/stub_libsecurity.cc \

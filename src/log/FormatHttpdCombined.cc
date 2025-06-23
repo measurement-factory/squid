@@ -16,10 +16,11 @@
 #include "HttpRequest.h"
 #include "log/File.h"
 #include "log/Formats.h"
+#include "log/RecordTime.h"
 #include "SquidConfig.h"
 
 void
-Log::Format::HttpdCombined(const AccessLogEntry::Pointer &al, Logfile * logfile)
+Log::Format::HttpdCombined(const AccessLogEntry::Pointer &al, Logfile * logfile, const RecordTime &recordTime)
 {
     const char *user_ident = ::Format::QuoteUrlEncodeUsername(al->getClientIdent());
     const char *user_auth = nullptr;
@@ -50,7 +51,7 @@ Log::Format::HttpdCombined(const AccessLogEntry::Pointer &al, Logfile * logfile)
                   clientip,
                   user_ident ? user_ident : dash_str,
                   user_auth ? user_auth : dash_str,
-                  Time::FormatHttpd(squid_curtime),
+                  Time::FormatHttpd(recordTime.legacyTime.tv_sec),
                   SQUIDSBUFPRINT(method),
                   SQUIDSBUFPRINT(al->url),
                   AnyP::ProtocolType_str[al->http.version.protocol],

@@ -24,6 +24,7 @@
 #include "HttpHeaderTools.h"
 #include "HttpReply.h"
 #include "HttpRequest.h"
+#include "log/RecordTime.h"
 #include "MemBuf.h"
 #include "MemObject.h"
 #include "rfc1738.h"
@@ -104,10 +105,13 @@ namespace ErrorPage {
 class Build
 {
 public:
+    explicit Build(const RecordTime &time): recordTime(time) {}
+
     SBuf output; ///< compilation result
     const char *input = nullptr; ///< template bytes that need to be compiled
     bool building_deny_info_url = false; ///< whether we compile deny_info URI
     bool allowRecursion = false; ///< whether top-level compile() calls are OK
+    const RecordTime recordTime; ///< the time when the error page compilation starts
 };
 
 /// pretty-prints error page/deny_info building error
@@ -804,7 +808,7 @@ ErrorState::~ErrorState()
 }
 
 int
-ErrorState::Dump(MemBuf * mb)
+ErrorState::Dump(MemBuf * mb, const RecordTime &recordTime)
 {
     MemBuf str;
     char ntoabuf[MAX_IPSTRLEN];
@@ -832,7 +836,7 @@ ErrorState::Dump(MemBuf * mb)
         str.appendf("DNS ErrMsg: " SQUIDSBUFPH "\r\n", SQUIDSBUFPRINT(*dnsError));
 
     /* - TimeStamp */
-    str.appendf("TimeStamp: %s\r\n\r\n", Time::FormatRfc1123(squid_curtime));
+    str.appendf("TimeStamp: %s\r\n\r\n", Time::FormatRfc1123(recordTime.legacyTime.tv_sec));
 
     /* - IP stuff */
     str.appendf("ClientIP: %s\r\n", src_addr.toStr(ntoabuf,MAX_IPSTRLEN));
@@ -891,7 +895,7 @@ ErrorState::compileLogformatCode(Build &build)
 
         static MemBuf result;
         result.reset();
-        const auto logformatLen = Format::AssembleOne(logformat, result, ale);
+        const auto logformatLen = Format::AssembleOne(logformat, result, ale, build.recordTime);
         assert(logformatLen > 0);
         const auto closure = logformat + logformatLen;
         if (*closure != '}')
@@ -967,7 +971,7 @@ ErrorState::compileLegacyCode(Build &build)
         else if (detail) {
             auto rawDetail = detail->verbose(request);
             // XXX: Performance regression. c_str() reallocates
-            const auto compiledDetail = compileBody(rawDetail.c_str(), false);
+            const auto compiledDetail = compileBody(rawDetail.c_str(), false, build.recordTime);
             mb.append(compiledDetail.rawContent(), compiledDetail.length());
             do_quote = 0;
         }
@@ -1148,7 +1152,7 @@ ErrorState::compileLegacyCode(Build &build)
         if (page_id != ERR_SQUID_SIGNATURE) {
             const int saved_id = page_id;
             page_id = ERR_SQUID_SIGNATURE;
-            const auto signature = buildBody();
+            const auto signature = buildBody(build.recordTime);
             mb.append(signature.rawContent(), signature.length());
             page_id = saved_id;
             do_quote = 0;
@@ -1159,11 +1163,11 @@ ErrorState::compileLegacyCode(Build &build)
         break;
 
     case 't':
-        mb.appendf("%s", Time::FormatHttpd(squid_curtime));
+        mb.appendf("%s", Time::FormatHttpd(build.recordTime.legacyTime.tv_sec));
         break;
 
     case 'T':
-        mb.appendf("%s", Time::FormatRfc1123(squid_curtime));
+        mb.appendf("%s", Time::FormatRfc1123(build.recordTime.legacyTime.tv_sec));
         break;
 
     case 'U':
@@ -1197,7 +1201,7 @@ ErrorState::compileLegacyCode(Build &build)
     case 'W':
         if (building_deny_info_url) break;
         if (Config.adminEmail && Config.onoff.emailErrData)
-            Dump(&mb);
+            Dump(&mb, build.recordTime);
         no_urlescape = 1;
         break;
 
@@ -1265,12 +1269,13 @@ ErrorState::compileLegacyCode(Build &build)
 void
 ErrorState::validate()
 {
+    RecordTime recordTime;
     if (const auto urlTemplate = ErrorPage::IsDenyInfoUri(page_id)) {
-        (void)compile(urlTemplate, true, true);
+        (void)compile(urlTemplate, true, true, recordTime);
     } else {
         assert(page_id > ERR_NONE);
         assert(page_id < error_page_count);
-        (void)compileBody(error_text[page_id], true);
+        (void)compileBody(error_text[page_id], true, recordTime);
     }
 }
 
@@ -1284,6 +1289,7 @@ ErrorState::BuildHttpReply()
     const char *name = errorPageName(page_id);
     /* no LMT for error pages; error pages expire immediately */
 
+    RecordTime recordTime;
     if (const auto urlTemplate = ErrorPage::IsDenyInfoUri(page_id)) {
         /* Redirection */
         Http::StatusCode status = Http::scFound;
@@ -1299,13 +1305,13 @@ ErrorState::BuildHttpReply()
         rep->setHeaders(status, nullptr, "text/html;charset=utf-8", 0, 0, -1);
 
         if (request) {
-            auto location = compile(urlTemplate, true, true);
+            auto location = compile(urlTemplate, true, true, recordTime);
             rep->header.putStr(Http::HdrType::LOCATION, location.c_str());
         }
 
         httpHeaderPutStrf(&rep->header, Http::HdrType::X_SQUID_ERROR, "%d %s", httpStatus, "Access Denied");
     } else {
-        const auto body = buildBody();
+        const auto body = buildBody(recordTime);
         rep->setHeaders(httpStatus, nullptr, "text/html;charset=utf-8", body.length(), 0, -1);
         /*
          * include some information for downstream caches. Implicit
@@ -1363,7 +1369,7 @@ ErrorState::BuildHttpReply()
 }
 
 SBuf
-ErrorState::buildBody()
+ErrorState::buildBody(const RecordTime &recordTime)
 {
     assert(page_id > ERR_NONE && page_id < error_page_count);
 
@@ -1381,7 +1387,7 @@ ErrorState::buildBody()
             inputLocation = localeTmpl.filename;
             assert(localeTmpl.language());
             err_language = xstrdup(localeTmpl.language());
-            return compileBody(localeTmpl.text(), true);
+            return compileBody(localeTmpl.text(), true, recordTime);
         }
     }
 #endif /* USE_ERR_LOCALES */
@@ -1395,21 +1401,21 @@ ErrorState::buildBody()
         err_language = Config.errorDefaultLanguage;
 #endif
     debugs(4, 2, "No existing error page language negotiated for " << this << ". Using default error file.");
-    return compileBody(error_text[page_id], true);
+    return compileBody(error_text[page_id], true, recordTime);
 }
 
 SBuf
-ErrorState::compileBody(const char *input, bool allowRecursion)
+ErrorState::compileBody(const char *input, bool allowRecursion, const RecordTime &recordTime)
 {
-    return compile(input, false, allowRecursion);
+    return compile(input, false, allowRecursion, recordTime);
 }
 
 SBuf
-ErrorState::compile(const char *input, bool building_deny_info_url, bool allowRecursion)
+ErrorState::compile(const char *input, bool building_deny_info_url, bool allowRecursion, const RecordTime &recordTime)
 {
     assert(input);
 
-    Build build;
+    Build build(recordTime);
     build.building_deny_info_url = building_deny_info_url;
     build.allowRecursion = allowRecursion;
     build.input = input;

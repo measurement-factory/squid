@@ -16,6 +16,7 @@
 #include "ConfigOption.h"
 #include "ConfigParser.h"
 #include "format/Format.h"
+#include "log/RecordTime.h"
 #include "MemBuf.h"
 #include "parser/Tokenizer.h"
 #include "proxyp/Header.h"
@@ -53,7 +54,8 @@ ProxyProtocol::FieldConfig<T>::FieldConfig(const char * const name, const char *
 {
     Assure(format_);
     if (format_->isStatic()) {
-        const auto assembledValue = assembleValue(nullptr);
+        RecordTime recordTime; // unused by isStatic() formats
+        const auto assembledValue = assembleValue(nullptr, recordTime);
         cacheValue(parseAssembledValue(assembledValue));
     }
 }
@@ -79,23 +81,23 @@ ProxyProtocol::FieldConfig<T>::dump(std::ostream &os) const
 /// applies logformat to the given transaction, expanding %codes as needed
 template <typename T>
 SBuf
-ProxyProtocol::FieldConfig<T>::assembleValue(const AccessLogEntryPointer &al) const
+ProxyProtocol::FieldConfig<T>::assembleValue(const AccessLogEntryPointer &al, const RecordTime &recordTime) const
 {
     static MemBuf mb;
     mb.reset();
-    format_->assemble(mb, al, 0);
+    format_->assemble(mb, al, 0, recordTime);
     return SBuf(mb.content());
 }
 
 template <typename T>
 typename ProxyProtocol::FieldConfig<T>::Value
-ProxyProtocol::FieldConfig<T>::makeValue(const AccessLogEntryPointer &al) const
+ProxyProtocol::FieldConfig<T>::makeValue(const AccessLogEntryPointer &al, const RecordTime &recordTime) const
 {
     if (cachedValue_)
         return *cachedValue_;
 
     try {
-        const auto assembledValue = assembleValue(al);
+        const auto assembledValue = assembleValue(al, recordTime);
         return parseAssembledValue(assembledValue);
     } catch (...) {
         debugs(17, DBG_IMPORTANT, "WARNING: Failed to compute the value of proxy_protocol_outgoing " << name() << " parameter" <<
@@ -210,25 +212,25 @@ ProxyProtocol::OutgoingConfig::dump(std::ostream &os, const char * const directi
 }
 
 void
-ProxyProtocol::OutgoingConfig::fill(ProxyProtocol::Header &header, const AccessLogEntryPointer &al) const
+ProxyProtocol::OutgoingConfig::fill(ProxyProtocol::Header &header, const AccessLogEntryPointer &al, const RecordTime &recordTime) const
 {
     if (!header.localConnection()) {
-        auto s = sourceIp.makeValue(al);
-        auto d = destinationIp.makeValue(al);
+        auto s = sourceIp.makeValue(al, recordTime);
+        auto d = destinationIp.makeValue(al, recordTime);
         if (const auto err = adjustIps(s, d))
             debugs(17, DBG_IMPORTANT, "ERROR: " << *err);
         header.sourceAddress = s.value();
         header.destinationAddress = d.value();
 
-        header.sourceAddress.port(sourcePort.makeValue(al).value_or(0));
-        header.destinationAddress.port(destinationPort.makeValue(al).value_or(0));
+        header.sourceAddress.port(sourcePort.makeValue(al, recordTime).value_or(0));
+        header.destinationAddress.port(destinationPort.makeValue(al, recordTime).value_or(0));
     }
 
     for (const auto &tlv: tlvs) {
         const auto type = strtol(tlv.name(), nullptr, 10);
         Assure(type >= std::numeric_limits<Two::Tlv::value_type>::min());
         Assure(type <= std::numeric_limits<Two::Tlv::value_type>::max());
-        if (const auto v = tlv.makeValue(al))
+        if (const auto v = tlv.makeValue(al, recordTime))
             header.tlvs.emplace_back(type, *v);
     }
 }

@@ -33,6 +33,7 @@
 #endif
 
 #include <optional>
+#include <utility>
 
 /* forward decls */
 class HttpReply;
@@ -180,15 +181,16 @@ public:
         CacheDetails() {
             caddr.setNoAddr();
             memset(&start_time, 0, sizeof(start_time));
-            memset(&trTime, 0, sizeof(start_time));
         }
+
+        /// master transaction response time (as of supplied recordTime)
+        struct timeval trTime(const RecordTime &recordTime) const;
 
         Ip::Address caddr;
         int64_t highOffset = 0;
         int64_t objectSize = 0;
         LogTags code;
         struct timeval start_time; ///< The time the master transaction started
-        struct timeval trTime; ///< The response time
         const char *rfc931 = nullptr;
         const char *extuser = nullptr;
 #if USE_OPENSSL
@@ -254,10 +256,12 @@ public:
     {
     public:
         IcapLogEntry() {
-            memset(&trTime, 0, sizeof(trTime));
             memset(&ioTime, 0, sizeof(ioTime));
             memset(&processingTime, 0, sizeof(processingTime));
         }
+
+        /// ICAP transaction response time (as of supplied recordTime)
+        struct timeval trTime(const RecordTime &recordTime) const;
 
         Ip::Address hostAddr; ///< ICAP server IP address
         String serviceName;        ///< ICAP service name
@@ -274,11 +278,7 @@ public:
         HttpReply* reply = nullptr;        ///< ICAP reply
 
         Adaptation::Icap::XactOutcome outcome = Adaptation::Icap::xoUnknown; ///< final transaction status
-        /** \brief Transaction response time.
-         * The timer starts when the ICAP transaction
-         *  is created and stops when the result of the transaction is logged
-         */
-        struct timeval trTime;
+
         /** \brief Transaction I/O time.
          * The timer starts when the first ICAP request
          * byte is scheduled for sending and stops when the lastbyte of the
@@ -287,6 +287,13 @@ public:
         struct timeval ioTime;
         Http::StatusCode resStatus = Http::scNone;   ///< ICAP response status code
         struct timeval processingTime;      ///< total ICAP processing time
+
+        /// ICAP transaction (i.e. Adaptation::Icap::Xaction object) creation time
+        struct timeval start_time = {};
+
+        /// The time just before the ICAP transaction gets logged.
+        /// XXX: This member may remain zero for transactions that are not logged.
+        struct timeval stop_time = {};
     }
     icap;
 #endif

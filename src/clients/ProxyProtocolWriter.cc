@@ -17,6 +17,7 @@
 #include "fde.h"
 #include "FwdState.h"
 #include "HttpRequest.h"
+#include "log/RecordTime.h"
 #include "pconn.h"
 #include "proxyp/Header.h"
 #include "proxyp/OutgoingConfig.h"
@@ -253,7 +254,7 @@ OutgoingProxyProtocolHeader(const HttpRequestPointer &request, const AccessLogEn
         static const SBuf v2("2.0");
         const auto local = request && request->masterXaction->initiator.internalClient();
         ProxyProtocol::Header header(v2, local ? ProxyProtocol::Two::cmdLocal : ProxyProtocol::Two::cmdProxy);
-        config->fill(header, al);
+        config->fill(header, al, RecordTime());
         return header.pack();
     }
 
