@@ -516,7 +516,7 @@ PeerSelector::noteIp(const Ip::Address &ip)
     if (!wantsMoreDestinations())
         return;
 
-    const auto peer = servers->_peer.getRaw();
+    const auto peer = servers->_peer;
 
     // for TPROXY spoofing, we must skip unusable addresses
     if (request->flags.spoofClientIp && !(peer && peer->options.no_tproxy) ) {
