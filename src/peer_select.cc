@@ -61,6 +61,7 @@ public:
 
     /// the selected cache_peer destination or nil for an origin server
     KeptCachePeer cachePeer;
+
     hier_code code;
     FwdServer *next;
 };
