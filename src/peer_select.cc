@@ -33,6 +33,7 @@
 #include "neighbors.h"
 #include "peer_sourcehash.h"
 #include "peer_userhash.h"
+#include "peering.h"
 #include "PeerSelectState.h"
 #include "SquidConfig.h"
 #include "Store.h"
@@ -52,13 +53,15 @@ class FwdServer
     MEMPROXY_CLASS(FwdServer);
 
 public:
-    FwdServer(CachePeer *p, hier_code c) :
-        _peer(p),
+    FwdServer(const KeptCachePeer &p, const hier_code c):
+        cachePeer(p),
         code(c),
         next(nullptr)
     {}
 
-    CbcPointer<CachePeer> _peer;                /* NULL --> origin server */
+    /// the selected cache_peer destination or nil for an origin server
+    KeptCachePeer cachePeer;
+
     hier_code code;
     FwdServer *next;
 };
@@ -78,11 +81,11 @@ static const char *DirectStr[] = {
 class PeerSelectionDumper
 {
 public:
-    PeerSelectionDumper(const PeerSelector * const aSelector, const CachePeer * const aPeer, const hier_code aCode):
+    PeerSelectionDumper(const PeerSelector * const aSelector, const KeptCachePeer &aPeer, const hier_code aCode):
         selector(aSelector), peer(aPeer), code(aCode) {}
 
     const PeerSelector * const selector; ///< selection parameters
-    const CachePeer * const peer; ///< successful selection info
+    const KeptCachePeer peer; ///< successful selection info
     const hier_code code; ///< selection algorithm
 };
 
@@ -450,7 +453,7 @@ PeerSelector::resolveSelected()
     // convert the list of FwdServer destinations into destinations IP addresses
     if (fs && wantsMoreDestinations()) {
         // send the next one off for DNS lookup.
-        const char *host = fs->_peer.valid() ? fs->_peer->host : request->url.host();
+        const auto host = fs->cachePeer ? fs->cachePeer->host : request->url.host();
         debugs(44, 2, "Find IP destination for: " << url() << "' via " << host);
         Dns::nbgethostbyname(host, this);
         return;
@@ -514,7 +517,7 @@ PeerSelector::noteIp(const Ip::Address &ip)
     if (!wantsMoreDestinations())
         return;
 
-    const auto peer = servers->_peer.valid();
+    const auto peer = servers->cachePeer;
 
     // for TPROXY spoofing, we must skip unusable addresses
     if (request->flags.spoofClientIp && !(peer && peer->options.no_tproxy) ) {
@@ -539,7 +542,7 @@ PeerSelector::noteIps(const Dns::CachedIps *ia, const Dns::LookupDetails &detail
 
     FwdServer *fs = servers;
     if (!ia) {
-        debugs(44, 3, "Unknown host: " << (fs->_peer.valid() ? fs->_peer->host : request->url.host()));
+        debugs(44, 3, "Unknown host: " << (fs->cachePeer ? fs->cachePeer->host : request->url.host()));
         // discard any previous error.
         delete lastError;
         lastError = nullptr;
@@ -1124,10 +1127,10 @@ PeerSelector::addSelection(CachePeer *peer, const hier_code code)
         // TODO: We may still add duplicates because the same peer could have
         // been removed from `servers` already (and given to the requestor).
         const bool duplicate = (server->code == PINNED) ?
-                               (code == PINNED) : (server->_peer == peer);
+                               (code == PINNED) : (server->cachePeer == peer);
         if (duplicate) {
             debugs(44, 3, "skipping " << PeerSelectionDumper(this, peer, code) <<
-                   "; have " << PeerSelectionDumper(this, server->_peer.get(), server->code));
+                   "; have " << PeerSelectionDumper(this, server->cachePeer, server->code));
             return;
         }
         serversTail = &server->next;
@@ -1200,7 +1203,7 @@ PeerSelector::handlePath(const Comm::ConnectionPointer &path, FwdServer &fs)
 
     if (path) {
         path->peerType = fs.code;
-        path->setPeer(fs._peer.get());
+        path->setPeer(fs.cachePeer.getRaw());
 
         // check for a configured outgoing address for this destination...
         getOutgoingAddress(request, path);
