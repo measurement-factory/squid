@@ -53,7 +53,7 @@ class FwdServer
     MEMPROXY_CLASS(FwdServer);
 
 public:
-    FwdServer(CachePeer *p, hier_code c) :
+    FwdServer(const KeptCachePeer &p, const hier_code c):
         cachePeer(p),
         code(c),
         next(nullptr)
