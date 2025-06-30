@@ -11,7 +11,9 @@
 #include "CachePeers.h"
 #include "ConfigOption.h"
 #include "configuration/Smooth.h"
+#include "FwdState.h"
 #include "neighbors.h"
+#include "pconn.h"
 #include "PeerPoolMgr.h"
 #include "PeerSelectState.h"
 #include "SquidConfig.h"
@@ -58,6 +60,7 @@ CachePeers::remove(CachePeer * const peer)
     });
     Assure(pos != storage.end());
     PeerPoolMgr::Stop(peer->standby.mgr);
+    fwdPconnPool->closeWithPeer(peer);
     storage.erase(pos);
 }
 

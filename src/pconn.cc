@@ -11,6 +11,7 @@
 #include "squid.h"
 #include "base/IoManip.h"
 #include "base/PackableStream.h"
+#include "base/Stopwatch.h"
 #include "CachePeer.h"
 #include "comm.h"
 #include "comm/Connection.h"
@@ -295,6 +296,38 @@ IdleConnList::findUseable(const Comm::ConnectionPointer &aKey)
     return Comm::ConnectionPointer();
 }
 
+void
+IdleConnList::closeAllWith(const CachePeer * const p)
+{
+    for (auto right = size_; right > 0; --right) {
+        const auto i = right - 1;
+
+        if (!isAvailable(i))
+            continue;
+
+        // our connection timeout handler is scheduled to run already. unsafe for now.
+        // TODO: cancel the pending timeout callback and allow re-use of the conn.
+        if (fd_table[theList_[i]->fd].timeoutHandler == nullptr)
+            continue;
+
+        if (theList_[i]->getPeer() != p)
+            continue;
+
+        /* might delete this */
+        closeAt(i);
+    }
+}
+
+void
+IdleConnList::closeAt(size_t index)
+{
+    const auto conn = theList_[index];
+    clearHandlers(conn);
+    /* might delete this */
+    removeAt(index);
+    conn->close();
+}
+
 /* might delete list */
 void
 IdleConnList::findAndClose(const Comm::ConnectionPointer &conn)
@@ -545,6 +578,28 @@ PconnPool::closeN(int n)
         // may delete current
         static_cast<IdleConnList*>(current)->closeN(1);
     }
+}
+
+void
+PconnPool::closeWithPeer(const CachePeer * const peer)
+{
+    auto hid = table;
+    hash_first(hid);
+    debugs(48, 3, "open connections: " << count());
+    Stopwatch timer;
+    timer.resume();
+    for (int i = 0; i < count(); ++i) {
+        auto current = hash_next(hid);
+        if (!current) {
+            hash_first(hid);
+            current = hash_next(hid);
+            Must(current); // must have one because the count() was positive
+        }
+        // may delete current
+        static_cast<IdleConnList*>(current)->closeAllWith(peer);
+    }
+    const auto delay = std::chrono::duration_cast<std::chrono::microseconds>(timer.total());
+    debugs(48, 3, "duration: " <<  delay.count());
 }
 
 void

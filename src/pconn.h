@@ -57,6 +57,8 @@ public:
      */
     Comm::ConnectionPointer findUseable(const Comm::ConnectionPointer &key);
 
+    void closeAllWith(const CachePeer *);
+
     void clearHandlers(const Comm::ConnectionPointer &conn);
 
     // TODO: Upgrade to return size_t
@@ -69,6 +71,7 @@ public:
 private:
     bool isAvailable(int i) const;
     bool removeAt(size_t index);
+    void closeAt(size_t index);
     int findIndexOf(const Comm::ConnectionPointer &conn) const;
     void findAndClose(const Comm::ConnectionPointer &conn);
     static IOCB Read;
@@ -141,6 +144,7 @@ public:
     void noteUses(int uses);
     /// closes any n connections, regardless of their destination
     void closeN(int n);
+    void closeWithPeer(const CachePeer *);
     int count() const { return theCount; }
     void noteConnectionAdded() { ++theCount; }
     void noteConnectionRemoved() { assert(theCount > 0); --theCount; }
