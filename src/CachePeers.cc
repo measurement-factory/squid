@@ -60,7 +60,7 @@ CachePeers::remove(CachePeer * const peer)
     });
     Assure(pos != storage.end());
     PeerPoolMgr::Stop(peer->standby.mgr);
-    fwdPconnPool->closeWithPeer(peer);
+    fwdPconnPool->closeToPeer(peer);
     storage.erase(pos);
 }
 
