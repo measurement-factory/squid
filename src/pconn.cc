@@ -11,7 +11,6 @@
 #include "squid.h"
 #include "base/IoManip.h"
 #include "base/PackableStream.h"
-#include "base/Stopwatch.h"
 #include "CachePeer.h"
 #include "comm.h"
 #include "comm/Connection.h"
@@ -585,14 +584,10 @@ PconnPool::closeToPeer(const CachePeer * const peer)
     auto hid = table;
     hash_first(hid);
     debugs(48, 3, "open connections: " << count());
-    Stopwatch timer;
-    timer.resume();
     for (auto walker = hash_next(hid); walker; walker = hash_next(hid)) {
         // may delete walker
         static_cast<IdleConnList*>(walker)->closeAllTo(peer);
     }
-    const auto delay = std::chrono::duration_cast<std::chrono::microseconds>(timer.total());
-    debugs(48, 3, "duration: " <<  delay.count());
 }
 
 void
