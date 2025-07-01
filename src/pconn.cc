@@ -297,7 +297,7 @@ IdleConnList::findUseable(const Comm::ConnectionPointer &aKey)
 }
 
 void
-IdleConnList::closeAllWith(const CachePeer * const p)
+IdleConnList::closeAllTo(const CachePeer * const p)
 {
     for (auto right = size_; right > 0; --right) {
         const auto i = right - 1;
@@ -305,12 +305,11 @@ IdleConnList::closeAllWith(const CachePeer * const p)
         if (!isAvailable(i))
             continue;
 
-        // our connection timeout handler is scheduled to run already. unsafe for now.
-        // TODO: cancel the pending timeout callback and allow re-use of the conn.
-        if (fd_table[theList_[i]->fd].timeoutHandler == nullptr)
+        if (theList_[i]->getPeer() != p)
             continue;
 
-        if (theList_[i]->getPeer() != p)
+        // IdleConnList::Timeout() is scheduled already and will close the connection
+        if (fd_table[theList_[i]->fd].timeoutHandler == nullptr)
             continue;
 
         /* might delete this */
@@ -581,22 +580,16 @@ PconnPool::closeN(int n)
 }
 
 void
-PconnPool::closeWithPeer(const CachePeer * const peer)
+PconnPool::closeToPeer(const CachePeer * const peer)
 {
     auto hid = table;
     hash_first(hid);
     debugs(48, 3, "open connections: " << count());
     Stopwatch timer;
     timer.resume();
-    for (int i = 0; i < count(); ++i) {
-        auto current = hash_next(hid);
-        if (!current) {
-            hash_first(hid);
-            current = hash_next(hid);
-            Must(current); // must have one because the count() was positive
-        }
-        // may delete current
-        static_cast<IdleConnList*>(current)->closeAllWith(peer);
+    for (auto walker = hash_next(hid); walker; walker = hash_next(hid)) {
+        // may delete walker
+        static_cast<IdleConnList*>(walker)->closeAllTo(peer);
     }
     const auto delay = std::chrono::duration_cast<std::chrono::microseconds>(timer.total());
     debugs(48, 3, "duration: " <<  delay.count());

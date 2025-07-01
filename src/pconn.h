@@ -57,7 +57,8 @@ public:
      */
     Comm::ConnectionPointer findUseable(const Comm::ConnectionPointer &key);
 
-    void closeAllWith(const CachePeer *);
+    /// close all connections to peer
+    void closeAllTo(const CachePeer *peer);
 
     void clearHandlers(const Comm::ConnectionPointer &conn);
 
@@ -144,7 +145,8 @@ public:
     void noteUses(int uses);
     /// closes any n connections, regardless of their destination
     void closeN(int n);
-    void closeWithPeer(const CachePeer *);
+    /// closes all connections to peer
+    void closeToPeer(const CachePeer *peer);
     int count() const { return theCount; }
     void noteConnectionAdded() { ++theCount; }
     void noteConnectionRemoved() { assert(theCount > 0); --theCount; }

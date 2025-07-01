@@ -4091,8 +4091,12 @@ DOC_START
 	* Changing cache_peer name from A to B means removing old cache_peer named
 	  A and adding a brand new cache_peer named B: Squid pairs old and new
 	  cache_peer directives using cache_peer name (which defaults to
-	  cache_peer hostname). To update an existing cache_peer, use its old name
-	  and, if there was no explicit name, the old hostname specs.
+	  cache_peer hostname). Note that cache_peer A removal may represent
+	  a significant overhead due to instant closing of all idle persistent
+	  connections to A. Also the removal may hurt ongoing transactions that have
+	  selected A but have not obtained a persistent connection to it yet.
+	  To update an existing cache_peer, use its old name and, if there was
+	  no explicit name, the old hostname specs.
 
 	* Changing cache_peer hostname is not yet supported.
 
