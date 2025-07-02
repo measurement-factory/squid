@@ -300,30 +300,19 @@ IdleConnList::closeAllTo(const CachePeer * const p)
 {
     for (auto right = size_; right > 0; --right) {
         const auto i = right - 1;
+        const auto conn = theList_[i];
 
-        if (!isAvailable(i))
+        if (!Comm::IsConnOpen(conn))
             continue;
 
-        if (theList_[i]->getPeer() != p)
+        if (conn->getPeer() != p)
             continue;
 
-        // IdleConnList::Timeout() is scheduled already and will close the connection
-        if (fd_table[theList_[i]->fd].timeoutHandler == nullptr)
-            continue;
-
+        clearHandlers(conn);
         /* might delete this */
-        closeAt(i);
+        removeAt(i);
+        conn->close();
     }
-}
-
-void
-IdleConnList::closeAt(size_t index)
-{
-    const auto conn = theList_[index];
-    clearHandlers(conn);
-    /* might delete this */
-    removeAt(index);
-    conn->close();
 }
 
 /* might delete list */
@@ -579,7 +568,7 @@ PconnPool::closeN(int n)
 }
 
 void
-PconnPool::closeToPeer(const CachePeer * const peer)
+PconnPool::closeAllTo(const CachePeer * const peer)
 {
     auto hid = table;
     hash_first(hid);

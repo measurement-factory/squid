@@ -57,7 +57,8 @@ public:
      */
     Comm::ConnectionPointer findUseable(const Comm::ConnectionPointer &key);
 
-    /// close all connections to peer
+    /// close all direct connections (if peer is nil) or
+    /// close all connections to the given cache_peer (otherwise)
     void closeAllTo(const CachePeer *peer);
 
     void clearHandlers(const Comm::ConnectionPointer &conn);
@@ -72,7 +73,6 @@ public:
 private:
     bool isAvailable(int i) const;
     bool removeAt(size_t index);
-    void closeAt(size_t index);
     int findIndexOf(const Comm::ConnectionPointer &conn) const;
     void findAndClose(const Comm::ConnectionPointer &conn);
     static IOCB Read;
@@ -145,8 +145,8 @@ public:
     void noteUses(int uses);
     /// closes any n connections, regardless of their destination
     void closeN(int n);
-    /// closes all connections to peer
-    void closeToPeer(const CachePeer *peer);
+    /// \copydoc IdleConnList::closeAllTo()
+    void closeAllTo(const CachePeer *peer);
     int count() const { return theCount; }
     void noteConnectionAdded() { ++theCount; }
     void noteConnectionRemoved() { assert(theCount > 0); --theCount; }
