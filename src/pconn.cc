@@ -302,16 +302,12 @@ IdleConnList::closeAllTo(const CachePeer * const p)
         const auto i = right - 1;
         const auto conn = theList_[i];
 
-        if (!Comm::IsConnOpen(conn))
-            continue;
-
-        if (conn->getPeer() != p)
-            continue;
-
-        clearHandlers(conn);
-        /* might delete this */
-        removeAt(i);
-        conn->close();
+        if (conn->getPeer() == p) {
+            clearHandlers(conn);
+            // may delete this
+            removeAt(i);
+            conn->close();
+        }
     }
 }
 
@@ -573,9 +569,9 @@ PconnPool::closeAllTo(const CachePeer * const peer)
     auto hid = table;
     hash_first(hid);
     debugs(48, 3, "open connections: " << count());
-    for (auto walker = hash_next(hid); walker; walker = hash_next(hid)) {
-        // may delete walker
-        static_cast<IdleConnList*>(walker)->closeAllTo(peer);
+    for (auto current = hash_next(hid); current; current = hash_next(hid)) {
+        // may delete current but preserves hash iterator (i.e. hid->next) that hash_next() has advanced already
+        static_cast<IdleConnList *>(current)->closeAllTo(peer);
     }
 }
 
