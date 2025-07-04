@@ -43,15 +43,15 @@ const size_t ReadBufSize(32*1024);
 
 static IOCB helperHandleRead;
 static IOCB helperStatefulHandleRead;
-static void Enqueue(Helper::Client *, Helper::Xaction *);
+static void Enqueue(Helper::Client *, const Helper::Xaction::Pointer &);
 static Helper::Session *GetFirstAvailable(const Helper::Client::Pointer &);
 static helper_stateful_server *StatefulGetFirstAvailable(const statefulhelper::Pointer &);
-static void helperDispatch(Helper::Session *, Helper::Xaction *);
-static void helperStatefulDispatch(helper_stateful_server * srv, Helper::Xaction * r);
+static void helperDispatch(Helper::Session *, const Helper::Xaction::Pointer &);
+static void helperStatefulDispatch(helper_stateful_server * srv, const Helper::Xaction::Pointer &r);
 static void helperKickQueue(const Helper::Client::Pointer &);
 static void helperStatefulKickQueue(const statefulhelper::Pointer &);
 static void helperStatefulServerDone(helper_stateful_server * srv);
-static void StatefulEnqueue(statefulhelper * hlp, Helper::Xaction * r);
+static void StatefulEnqueue(statefulhelper * hlp, const Helper::Xaction::Pointer &r);
 
 CBDATA_NAMESPACED_CLASS_INIT(Helper, Session);
 CBDATA_CLASS_INIT(helper_stateful_server);
@@ -126,8 +126,7 @@ Helper::SessionBase::dropQueued()
         const auto r = requests.front();
         requests.pop_front();
         r->reply.result = Helper::Unknown;
-        helper().callBack(*r);
-        delete r;
+        helper().callBack(r);
     }
 }
 
@@ -452,7 +451,7 @@ statefulhelper::openSessions()
 }
 
 void
-Helper::Client::submitRequest(Helper::Xaction * const r)
+Helper::Client::submitRequest(const Helper::Xaction::Pointer &r)
 {
     if (const auto srv = GetFirstAvailable(this))
         helperDispatch(srv, r);
@@ -563,21 +562,21 @@ Helper::Client::trySubmit(const char * const buf, HLPCB * const callback, void *
 void
 Helper::Client::submit(const char * const buf, HLPCB * const callback, void * const data)
 {
-    const auto r = new Xaction(callback, data, buf);
+    Xaction::Pointer r = new Xaction(callback, data, buf);
     submitRequest(r);
     debugs(84, DBG_DATA, Raw("buf", buf, strlen(buf)));
 }
 
 void
-Helper::Client::callBack(Xaction &r)
+Helper::Client::callBack(const Xaction::Pointer &r)
 {
-    const auto callback = r.request.callback;
+    const auto callback = r->request.callback;
     Assure(callback);
 
-    r.request.callback = nullptr;
+    r->request.callback = nullptr;
     void *cbdata = nullptr;
-    if (cbdataReferenceValidDone(r.request.data, &cbdata))
-        callback(cbdata, r.reply);
+    if (cbdataReferenceValidDone(r->request.data, &cbdata))
+        callback(cbdata, r->reply);
 }
 
 /// Submit request or callback the caller with a Helper::Error error.
@@ -663,7 +662,7 @@ helper_stateful_server::clearReservation()
 void
 statefulhelper::submit(const char *buf, HLPCB * callback, void *data, const Helper::ReservationId & reservation)
 {
-    Helper::Xaction *r = new Helper::Xaction(callback, data, buf);
+    Helper::Xaction::Pointer r = new Helper::Xaction(callback, data, buf);
 
     if (buf && reservation) {
         debugs(84, 5, reservation);
@@ -671,8 +670,7 @@ statefulhelper::submit(const char *buf, HLPCB * callback, void *data, const Help
         if (!lastServer) {
             debugs(84, DBG_CRITICAL, "ERROR: Helper " << id_name << " reservation expired (" << reservation << ")");
             r->reply.result = Helper::TimedOut;
-            callBack(*r);
-            delete r;
+            callBack(r);
             return;
         }
         debugs(84, 5, "StatefulSubmit dispatching");
@@ -681,7 +679,7 @@ statefulhelper::submit(const char *buf, HLPCB * callback, void *data, const Help
         helper_stateful_server *srv;
         if ((srv = StatefulGetFirstAvailable(this))) {
             reserveServer(srv);
-            helperStatefulDispatch(srv, r); // may delete r
+            helperStatefulDispatch(srv, r);
         } else
             StatefulEnqueue(this, r);
     }
@@ -899,8 +897,7 @@ Helper::Client::dropQueued()
     // similar to SessionBase::dropQueued()
     while (const auto r = nextRequest()) {
         r->reply.result = Helper::Unknown;
-        callBack(*r);
-        delete r;
+        callBack(r);
     }
 }
 
@@ -932,10 +929,10 @@ Helper::SessionBase::HelperServerClosed(SessionBase * const srv)
     delete srv;
 }
 
-Helper::Xaction *
+Helper::Xaction::Pointer
 Helper::Session::popRequest(const int request_number)
 {
-    Xaction *r = nullptr;
+    Xaction::Pointer r;
     if (parent->childs.concurrency) {
         // If concurrency supported retrieve request from ID
         const auto it = requestsIndex.find(request_number);
@@ -957,7 +954,7 @@ Helper::Session::popRequest(const int request_number)
 static void
 helperReturnBuffer(Helper::Session * srv, const Helper::Client::Pointer &hlp, char * const msg, const size_t msgSize, const char * const msgEnd)
 {
-    if (Helper::Xaction *r = srv->replyXaction) {
+    if (auto r = srv->replyXaction) {
         const bool hasSpace = r->reply.accumulate(msg, msgSize);
         if (!hasSpace) {
             debugs(84, DBG_IMPORTANT, "ERROR: Disconnecting from a " <<
@@ -977,7 +974,7 @@ helperReturnBuffer(Helper::Session * srv, const Helper::Client::Pointer &hlp, ch
                 debugs(84, DBG_IMPORTANT, "ERROR: helper: " << r->reply << ", attempt #" << (r->request.retries + 1) << " of 2");
                 retry = true;
             } else {
-                hlp->callBack(*r);
+                hlp->callBack(r);
             }
         }
 
@@ -1000,8 +997,7 @@ helperReturnBuffer(Helper::Session * srv, const Helper::Client::Pointer &hlp, ch
         if (retry) {
             ++r->request.retries;
             hlp->submitRequest(r);
-        } else
-            delete r;
+        }
     }
 
     if (hlp->timeout && hlp->childs.concurrency)
@@ -1208,13 +1204,11 @@ helperStatefulHandleRead(const Comm::ConnectionPointer &conn, char *, size_t len
         if (cbdataReferenceValid(r->request.data)) {
             r->reply.finalize();
             r->reply.reservationId = srv->reservationId;
-            hlp->callBack(*r);
+            hlp->callBack(r);
         } else {
             debugs(84, DBG_IMPORTANT, "StatefulHandleRead: no callback data registered");
             called = 0;
         }
-
-        delete r;
 
         -- srv->stats.pending;
         ++ srv->stats.replies;
@@ -1243,7 +1237,7 @@ helperStatefulHandleRead(const Comm::ConnectionPointer &conn, char *, size_t len
 
 /// Handles a request when all running helpers, if any, are busy.
 static void
-Enqueue(Helper::Client * const hlp, Helper::Xaction * const r)
+Enqueue(Helper::Client * const hlp, const Helper::Xaction::Pointer &r)
 {
     hlp->queue.push(r);
     ++ hlp->stats.queue_size;
@@ -1271,7 +1265,7 @@ Enqueue(Helper::Client * const hlp, Helper::Xaction * const r)
 }
 
 static void
-StatefulEnqueue(statefulhelper * hlp, Helper::Xaction * r)
+StatefulEnqueue(statefulhelper * hlp, const Helper::Xaction::Pointer &r)
 {
     hlp->queue.push(r);
     ++ hlp->stats.queue_size;
@@ -1298,13 +1292,13 @@ StatefulEnqueue(statefulhelper * hlp, Helper::Xaction * r)
     debugs(84, DBG_CRITICAL, "WARNING: Consider increasing the number of " << hlp->id_name << " processes in your config file.");
 }
 
-Helper::Xaction *
+Helper::Xaction::Pointer
 Helper::Client::nextRequest()
 {
     if (queue.empty())
         return nullptr;
 
-    auto *r = queue.front();
+    const auto r = queue.front();
     queue.pop();
     --stats.queue_size;
     return r;
@@ -1426,14 +1420,13 @@ helperDispatchWriteDone(const Comm::ConnectionPointer &, char *, size_t, Comm::F
 }
 
 static void
-helperDispatch(Helper::Session * const srv, Helper::Xaction * const r)
+helperDispatch(Helper::Session * const srv, const Helper::Xaction::Pointer &r)
 {
     const auto hlp = srv->parent;
     const uint64_t reqId = ++srv->nextRequestId;
 
     if (!cbdataReferenceValid(r->request.data)) {
         debugs(84, DBG_IMPORTANT, "ERROR: helperDispatch: invalid callback data");
-        delete r;
         return;
     }
 
@@ -1473,13 +1466,12 @@ helperStatefulDispatchWriteDone(const Comm::ConnectionPointer &, char *, size_t,
 {}
 
 static void
-helperStatefulDispatch(helper_stateful_server * srv, Helper::Xaction * r)
+helperStatefulDispatch(helper_stateful_server * srv, const Helper::Xaction::Pointer &r)
 {
     const auto hlp = srv->parent;
 
     if (!cbdataReferenceValid(r->request.data)) {
         debugs(84, DBG_IMPORTANT, "ERROR: helperStatefulDispatch: invalid callback data");
-        delete r;
         hlp->cancelReservation(srv->reservationId);
         return;
     }
@@ -1494,12 +1486,10 @@ helperStatefulDispatch(helper_stateful_server * srv, Helper::Xaction * r)
         /* we don't care about releasing this helper. The request NEVER
          * gets to the helper. So we throw away the return code */
         r->reply.result = Helper::Unknown;
-        hlp->callBack(*r);
-        /* throw away the placeholder */
-        delete r;
-        /* and push the queue. Note that the callback may have submitted a new
-         * request to the helper which is why we test for the request */
+        hlp->callBack(r);
 
+        /* Push the queue if needed. Note that the callback may have submitted a new
+         * request to the helper which is why we test for the request */
         if (!srv->requests.size())
             helperStatefulServerDone(srv);
 
@@ -1523,7 +1513,7 @@ helperStatefulDispatch(helper_stateful_server * srv, Helper::Xaction * r)
 static void
 helperKickQueue(const Helper::Client::Pointer &hlp)
 {
-    Helper::Xaction *r = nullptr;
+    Helper::Xaction::Pointer r;
     Helper::Session *srv = nullptr;
 
     while ((srv = GetFirstAvailable(hlp)) && (r = hlp->nextRequest()))
@@ -1536,7 +1526,7 @@ helperKickQueue(const Helper::Client::Pointer &hlp)
 static void
 helperStatefulKickQueue(const statefulhelper::Pointer &hlp)
 {
-    Helper::Xaction *r;
+    Helper::Xaction::Pointer r;
     helper_stateful_server *srv;
     while ((srv = StatefulGetFirstAvailable(hlp)) && (r = hlp->nextRequest())) {
         debugs(84, 5, "found srv-" << srv->index);
@@ -1571,29 +1561,25 @@ Helper::Session::checkForTimedOutRequests(bool const retry)
         requestsIndex.erase(it);
         requests.pop_front();
         debugs(84, 2, "Request " << r->request.Id << " timed-out, remove it from queue");
-        bool retried = false;
         if (retry && r->request.retries < MAX_RETRIES && cbdataReferenceValid(r->request.data)) {
             debugs(84, 2, "Retry request " << r->request.Id);
             ++r->request.retries;
             parent->submitRequest(r);
-            retried = true;
         } else if (cbdataReferenceValid(r->request.data)) {
             if (!parent->onTimedOutResponse.isEmpty()) {
                 if (r->reply.accumulate(parent->onTimedOutResponse.rawContent(), parent->onTimedOutResponse.length()))
                     r->reply.finalize();
                 else
                     r->reply.result = Helper::TimedOut;
-                parent->callBack(*r);
+                parent->callBack(r);
             } else {
                 r->reply.result = Helper::TimedOut;
-                parent->callBack(*r);
+                parent->callBack(r);
             }
         }
         --stats.pending;
         ++stats.timedout;
         ++parent->stats.timedout;
-        if (!retried)
-            delete r;
     }
 }
 
