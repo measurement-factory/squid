@@ -9,6 +9,7 @@
 /* DEBUG: section 84    Helper process maintenance */
 
 #include "squid.h"
+#include "base/AsyncCallbacks.h"
 #include "base/AsyncCbdataCalls.h"
 #include "base/Packable.h"
 #include "base/Raw.h"
@@ -567,8 +568,8 @@ Helper::Client::submit(const char * const buf, HLPCB * const callback, void * co
     debugs(84, DBG_DATA, Raw("buf", buf, strlen(buf)));
 }
 
-void
-Helper::Client::callBack(const Xaction::Pointer &r)
+static void
+HelperClientCallBack(Helper::Xaction::Pointer &r)
 {
     const auto callback = r->request.callback;
     Assure(callback);
@@ -577,6 +578,14 @@ Helper::Client::callBack(const Xaction::Pointer &r)
     void *cbdata = nullptr;
     if (cbdataReferenceValidDone(r->request.data, &cbdata))
         callback(cbdata, r->reply);
+}
+
+void
+Helper::Client::callBack(const Xaction::Pointer &r)
+{
+    auto callback = asyncCallbackFun(84, 3, HelperClientCallBack);
+    callback.answer() = r;
+    ScheduleCallHere(callback);
 }
 
 /// Submit request or callback the caller with a Helper::Error error.
