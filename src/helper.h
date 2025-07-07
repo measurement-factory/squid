@@ -41,8 +41,7 @@ namespace Helper
 class Xaction: public RefCountable {
     MEMPROXY_CLASS(Helper::Xaction);
 public:
-    // TODO: convert to a unique pointer instead to reflect
-    // the transaction uniqueness
+    // TODO: convert to a unique pointer to maintain transaction uniqueness
     using Pointer = RefCount<Xaction>;
 
     Xaction(HLPCB *c, void *d, const char *b): request(c, d, b) {}
