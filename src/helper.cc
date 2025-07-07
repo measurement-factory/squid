@@ -127,7 +127,7 @@ Helper::SessionBase::dropQueued()
         const auto r = requests.front();
         requests.pop_front();
         r->reply.result = Helper::Unknown;
-        helper().callBack(r);
+        helper().callBack(*r);
     }
 }
 
@@ -568,6 +568,8 @@ Helper::Client::submit(const char * const buf, HLPCB * const callback, void * co
     debugs(84, DBG_DATA, Raw("buf", buf, strlen(buf)));
 }
 
+/// Asynchronous wrapper for Helper::Client::callBack()
+/// \sa Helper::Client::callBack()
 static void
 HelperClientCallBack(Helper::Xaction::Pointer &r)
 {
@@ -581,10 +583,12 @@ HelperClientCallBack(Helper::Xaction::Pointer &r)
 }
 
 void
-Helper::Client::callBack(const Xaction::Pointer &r)
+Helper::Client::callBack(Xaction &r)
 {
+    // TODO: refactor to call r->request.callback instead.
+    // Currently it is not possible because Helper::Reply is non-copyable.
     auto callback = asyncCallbackFun(84, 3, HelperClientCallBack);
-    callback.answer() = r;
+    callback.answer() = &r;
     ScheduleCallHere(callback);
 }
 
@@ -679,7 +683,7 @@ statefulhelper::submit(const char *buf, HLPCB * callback, void *data, const Help
         if (!lastServer) {
             debugs(84, DBG_CRITICAL, "ERROR: Helper " << id_name << " reservation expired (" << reservation << ")");
             r->reply.result = Helper::TimedOut;
-            callBack(r);
+            callBack(*r);
             return;
         }
         debugs(84, 5, "StatefulSubmit dispatching");
@@ -906,7 +910,7 @@ Helper::Client::dropQueued()
     // similar to SessionBase::dropQueued()
     while (const auto r = nextRequest()) {
         r->reply.result = Helper::Unknown;
-        callBack(r);
+        callBack(*r);
     }
 }
 
@@ -983,7 +987,7 @@ helperReturnBuffer(Helper::Session * srv, const Helper::Client::Pointer &hlp, ch
                 debugs(84, DBG_IMPORTANT, "ERROR: helper: " << r->reply << ", attempt #" << (r->request.retries + 1) << " of 2");
                 retry = true;
             } else {
-                hlp->callBack(r);
+                hlp->callBack(*r);
             }
         }
 
@@ -1213,7 +1217,7 @@ helperStatefulHandleRead(const Comm::ConnectionPointer &conn, char *, size_t len
         if (cbdataReferenceValid(r->request.data)) {
             r->reply.finalize();
             r->reply.reservationId = srv->reservationId;
-            hlp->callBack(r);
+            hlp->callBack(*r);
         } else {
             debugs(84, DBG_IMPORTANT, "StatefulHandleRead: no callback data registered");
             called = 0;
@@ -1495,7 +1499,7 @@ helperStatefulDispatch(helper_stateful_server * srv, const Helper::Xaction::Poin
         /* we don't care about releasing this helper. The request NEVER
          * gets to the helper. So we throw away the return code */
         r->reply.result = Helper::Unknown;
-        hlp->callBack(r);
+        hlp->callBack(*r);
 
         /* Push the queue if needed. Note that the callback may have submitted a new
          * request to the helper which is why we test for the request */
@@ -1580,10 +1584,10 @@ Helper::Session::checkForTimedOutRequests(bool const retry)
                     r->reply.finalize();
                 else
                     r->reply.result = Helper::TimedOut;
-                parent->callBack(r);
+                parent->callBack(*r);
             } else {
                 r->reply.result = Helper::TimedOut;
-                parent->callBack(r);
+                parent->callBack(*r);
             }
         }
         --stats.pending;

@@ -109,7 +109,7 @@ public:
     void dropQueued();
 
     /// sends transaction response to the transaction initiator
-    void callBack(const Xaction::Pointer &);
+    void callBack(Xaction &);
 
     /// Starts required helper process(es).
     /// The caller is responsible for checking that new processes are needed.
