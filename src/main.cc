@@ -252,7 +252,7 @@ AvoidSignalAction(const char *description, volatile int &signalVar)
             return false;
         signalVar = 0;
     }
-    else if (!configured_once)
+    else if (!configured_once) // TODO: Extend startup avoidance until starting_up is falsy
         currentEvent = "startup";
     else if (reconfiguring)
         currentEvent = "reconfiguration";
@@ -1418,6 +1418,8 @@ RunConfigUsers()
 {
     RunRegisteredHere(RegisteredRunner::claimMemoryNeeds);
     RunRegisteredHere(RegisteredRunner::useConfig);
+    RunRegisteredHere(RegisteredRunner::useModules);
+    // TODO: check eventAdd(0) effect on idling event loop IF we add idle event loop detection.
 }
 
 static void
@@ -1460,6 +1462,7 @@ RegisterModules()
 
     CallRunnerRegistrator(ClientDbRr);
     CallRunnerRegistrator(CollapsedForwardingRr);
+    CallRunnerRegistrator(ListeningRr);
     CallRunnerRegistrator(MemStoreRr);
     CallRunnerRegistrator(PeerPoolMgrsRr);
     CallRunnerRegistrator(SharedMemPagesRr);
@@ -1715,7 +1718,7 @@ SquidMain(int argc, char **argv)
         AsyncJob::Start(new Ipc::Strand);
 
     /* at this point we are finished the synchronous startup. */
-    starting_up = 0;
+    starting_up = 0; // TODO: Extend starting_up mode until we start listening!
 
     mainLoop.run();
 

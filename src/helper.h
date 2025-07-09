@@ -128,7 +128,7 @@ protected:
     friend void helperSubmit(const helper::Pointer &, const char *buf, HLPCB * callback, void *data);
 
     /// \param name admin-visible helper category (with this process lifetime)
-    explicit helper(const char *name): id_name(name) {}
+    explicit helper(const char *name);
 
     bool queueFull() const;
     bool overloaded() const;

@@ -17,13 +17,16 @@
 #include "comm/Read.h"
 #include "comm/Write.h"
 #include "debug/Messages.h"
+#include "event.h"
 #include "fd.h"
 #include "fde.h"
 #include "format/Quoting.h"
 #include "helper.h"
 #include "helper/Reply.h"
 #include "helper/Request.h"
+#include "Instance.h"
 #include "MemBuf.h"
+#include "sbuf/Stream.h"
 #include "SquidConfig.h"
 #include "SquidIpc.h"
 #include "SquidMath.h"
@@ -32,6 +35,8 @@
 
 // helper_stateful_server::data uses explicit alloc()/freeOne() */
 #include "mem/Pool.h"
+
+#include <set>
 
 #define HELPER_MAX_ARGS 64
 
@@ -751,6 +756,79 @@ helper::willOverload() const {
     return queueFull() && !(childs.needNew() || GetFirstAvailable(this));
 }
 
+namespace Helper
+{
+
+/// XXX
+class StartupMonitor
+{
+public:
+    StartupMonitor();
+
+    // TODO: Assure insert() and erase() successes
+    // TODO: Assure that we do not insert during starting_up after SecondsToStart() timeout has expired!
+    void startMonitoring(const helper::Pointer &aHelper) { helpers.insert(aHelper); }
+    void stopMonitoring(const helper::Pointer &aHelper) { helpers.erase(aHelper); }
+
+    /// react to SecondsToStart() timeout
+    void timeout();
+
+private:
+    static void Timeout(void*);
+
+    /// time allocated for all configured helpers to start all of their startup=N processes
+    static constexpr double SecondsToStart() { return 3; /* XXX: ALL,9 debugging may require more */ }
+
+    std::set<helper::Pointer> helpers;
+};
+
+static auto &
+TheStartupMonitor()
+{
+    static const auto monitor = new StartupMonitor();
+    return *monitor;
+}
+
+} // namespace Helper
+
+void
+Helper::StartupMonitor::timeout()
+{
+    for (const auto &helper: helpers) {
+        if (helper->childs.n_active < helper->childs.n_startup) {
+            throw TextException(ToSBuf("Failed to reach configured startup=", helper->childs.n_startup,
+                                       " level for ", helper->id_name, " helper in ",
+                                       SecondsToStart(), " seconds",
+                                       Debug::Extra, "helper processes running: ", helper->childs.n_active), Here());
+        }
+    }
+
+    debugs(84, 7, "all helpers achieved their startup goals: " << helpers.size());
+    const auto activityName = "Helper::StartupMonitor"; // XXX: Dupe
+    Instance::StartupActivityFinished(ScopedId(activityName));
+}
+
+/// timeout() wrapper compatible with eventAdd() API
+void
+Helper::StartupMonitor::Timeout(void*)
+{
+    TheStartupMonitor().timeout();
+}
+
+Helper::StartupMonitor::StartupMonitor()
+{
+    const auto activityName = "Helper::StartupMonitor";
+    eventAdd("Helper::StartupMonitor::Timeout", &Helper::StartupMonitor::Timeout, nullptr, SecondsToStart(), 0);
+    Instance::StartupActivityStarted(ScopedId(activityName));
+    static_assert(SecondsToStart() <= Instance::StartupTimeoutInSeconds());
+}
+
+helper::helper(const char *name): id_name(name)
+{
+    if (starting_up)
+        Helper::TheStartupMonitor().startMonitoring(this);
+}
+
 helper::Pointer
 helper::Make(const char *name)
 {
@@ -798,6 +876,8 @@ helperShutdown(const helper::Pointer &hlp)
          */
         srv->closePipesSafely(hlp->id_name);
     }
+
+    Helper::TheStartupMonitor().stopMonitoring(hlp);
 }
 
 void
@@ -845,6 +925,8 @@ helperStatefulShutdown(const statefulhelper::Pointer &hlp)
          */
         srv->closePipesSafely(hlp->id_name);
     }
+
+    Helper::TheStartupMonitor().stopMonitoring(hlp);
 }
 
 helper::~helper()

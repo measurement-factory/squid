@@ -61,6 +61,7 @@
 #include "acl/FilledChecklist.h"
 #include "anyp/PortCfg.h"
 #include "base/AsyncCallbacks.h"
+#include "base/AsyncFunCalls.h"
 #include "base/Subscription.h"
 #include "base/TextException.h"
 #include "CachePeer.h"
@@ -97,6 +98,7 @@
 #include "HttpRequest.h"
 #include "ident/Config.h"
 #include "ident/Ident.h"
+#include "Instance.h"
 #include "internal.h"
 #include "ipc/FdNotes.h"
 #include "ipc/StartListening.h"
@@ -3411,9 +3413,140 @@ clientListenerConnectionOpened(AnyP::PortCfgPointer &s, const Ipc::FdNoteId port
 #endif
 }
 
+/// XXX
+class ListeningManager
+{
+public:
+    /// reacts to ListeningManager::useModules() event
+    void useModules();
+
+    void maybeOpenListenSockets();
+
+    /// reacts to startup timeout
+    void timeout();
+
+private:
+    static void Timeout(void*);
+    static void NoteRequiredStartupActivitiesFinished();
+
+    /// time allocated for startup actions to finish after useModules()
+    auto timeoutInSeconds() const { return Instance::StartupTimeoutInSeconds(); }
+
+    void noteRequiredStartupActivitiesFinished();
+    void checkpoint();
+
+    /// whether ListeningRr::useModules() has been called
+    bool useModulesCalled = false;
+
+    /// whether maybeOpenListenSockets() has been called
+    bool requiredStartupActivitiesStarted = false;
+
+    /// whether noteRequiredStartupActivitiesFinished() has been called
+    bool requiredStartupActivitiesFinished = false;
+
+    /// maybeOpenListenSockets() started opening listening sockets
+    bool startedOpening = false;
+};
+
+static auto &
+TheListeningManager()
+{
+    static const auto mgr = new ListeningManager();
+    return *mgr;
+}
+
+void
+ListeningManager::timeout()
+{
+    // TODO: Remove this `if` statement when deleteEvent() reliably cancels callbacks.
+    if (startedOpening)
+        return;
+
+    throw TextException(ToSBuf("Startup activities took longer than ", timeoutInSeconds(), " seconds"), Here());
+}
+
+/// timeout() wrapper compatible with eventAdd() API
+void
+ListeningManager::Timeout(void*)
+{
+    TheListeningManager().timeout();
+}
+
+/// reacts to Instance::NotifyWhenStartedStartupActivitiesFinished() notification
+void
+ListeningManager::noteRequiredStartupActivitiesFinished()
+{
+    Assure(!requiredStartupActivitiesFinished);
+    requiredStartupActivitiesFinished = true;
+    checkpoint();
+}
+
+/// noteRequiredStartupActivitiesFinished() compatible with NullaryFunDialer<> API
+void
+ListeningManager::NoteRequiredStartupActivitiesFinished()
+{
+    TheListeningManager().noteRequiredStartupActivitiesFinished();
+}
+
+void
+ListeningManager::useModules()
+{
+    Assure(!useModulesCalled);
+    useModulesCalled = true;
+    checkpoint();
+
+    eventAdd("ListeningManager::Timeout", &ListeningManager::Timeout, nullptr, timeoutInSeconds(), 1);
+}
+
+/// XXX
+class ListeningRr: public RegisteredRunner
+{
+public:
+    /* RegisteredRunner API */
+    void useModules() override { TheListeningManager().useModules(); }
+};
+
+DefineRunnerRegistrator(ListeningRr);
+
 void
 clientOpenListenSockets(void)
 {
+    TheListeningManager().maybeOpenListenSockets();
+}
+
+void
+ListeningManager::maybeOpenListenSockets()
+{
+    if (!requiredStartupActivitiesStarted) {
+        using Dialer = NullaryFunDialer;
+        const auto callback = asyncCall(33, 3, "ListeningManager::NoteRequiredStartupActivitiesFinished",
+                                        Dialer(&ListeningManager::NoteRequiredStartupActivitiesFinished));
+        Instance::NotifyWhenStartedStartupActivitiesFinished(callback);
+        requiredStartupActivitiesStarted = true;
+    } // else requiredStartupActivitiesStarted is already true during reconfiguration
+    checkpoint();
+}
+
+/// starts listening (if all preconditions have been met) or does nothing (otherwise)
+void
+ListeningManager::checkpoint()
+{
+    // TODO: Add debugging and possibly a caller context.
+
+    // wait for noteRequiredStartupActivitiesFinished() and, hence, useModules()
+    if (!requiredStartupActivitiesFinished)
+        return;
+    Assure(useModulesCalled);
+
+    // assert(!starting_up); // TODO: Extend starting_up mode until we start listening!
+    // return; // XXX: Remove this timeout injection
+
+    if (!startedOpening) {
+        startedOpening = true;
+        eventDelete(&ListeningManager::Timeout, nullptr);
+    }
+    // else we are reopening after reconfiguration
+
     clientHttpConnectionsOpen();
     Ftp::StartListening();
 

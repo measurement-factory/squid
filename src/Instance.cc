@@ -7,6 +7,7 @@
  */
 
 #include "squid.h"
+#include "base/AsyncCall.h"
 #include "base/File.h"
 #include "debug/Messages.h"
 #include "fs_io.h"
@@ -17,6 +18,10 @@
 #include "tools.h"
 
 #include <cerrno>
+
+namespace Instance {
+    static void StartupNotificationCheckpoint();
+} // namespace Instance
 
 /* To support concurrent PID files, convert local statics into PidFile class */
 
@@ -220,5 +225,52 @@ Instance::WriteOurPid()
     pidFile.synchronize();
 
     debugs(50, Important(23), "Created " << TheFile);
+}
+
+// XXX: No new globals
+static size_t RunningStartupActivities = 0;
+static AsyncCallPointer TheRequestor;
+
+void
+Instance::StartupActivityStarted(const ScopedId &id)
+{
+    // XXX: remember id
+    ++RunningStartupActivities;
+    Assure(RunningStartupActivities > 0);
+    debugs(50, 3, id << "; activities now: " << RunningStartupActivities);
+}
+
+void
+Instance::StartupActivityFinished(const ScopedId &id)
+{
+    Assure(RunningStartupActivities > 0);
+    --RunningStartupActivities;
+    debugs(50, 3, id << "; activities now: " << RunningStartupActivities);
+    StartupNotificationCheckpoint();
+}
+
+void
+Instance::NotifyWhenStartedStartupActivitiesFinished(const AsyncCallPointer &requestor)
+{
+    debugs(50, 3, "activities now: " << RunningStartupActivities);
+    Assure(requestor);
+    Assure(!TheRequestor);
+    TheRequestor = requestor;
+    StartupNotificationCheckpoint();
+}
+
+static void
+Instance::StartupNotificationCheckpoint()
+{
+    if (!RunningStartupActivities && TheRequestor) {
+        ScheduleCallHere(TheRequestor);
+        TheRequestor = nullptr;
+    }
+}
+
+size_t
+Instance::StartupActivitiesRunning()
+{
+    return RunningStartupActivities;
 }
 

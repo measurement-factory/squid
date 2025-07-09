@@ -21,6 +21,7 @@
 #include "fs/rock/RockIoState.h"
 #include "fs/rock/RockSwapDir.h"
 #include "globals.h"
+#include "Instance.h"
 #include "ipc/mem/Pages.h"
 #include "MemObject.h"
 #include "Parsing.h"
@@ -301,6 +302,8 @@ Rock::SwapDir::init()
                ioModule);
         fatal("Rock Store missing a required DiskIO module");
     }
+
+    Instance::StartupActivityStarted(configId());
 
     theFile = io->newFile(filePath);
     theFile->configure(fileConfig);
@@ -825,6 +828,8 @@ Rock::SwapDir::ioCompletedNotification()
            std::setw(12) << maxSize() << " disk bytes, " <<
            std::setw(7) << map->entryLimit() << " entries, and " <<
            std::setw(7) << map->sliceLimit() << " slots");
+
+    Instance::StartupActivityFinished(configId());
 
     if (!Rebuild::Start(*this))
         storeRebuildComplete(nullptr);

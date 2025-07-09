@@ -9,6 +9,8 @@
 #ifndef SQUID_INSTANCE_H
 #define SQUID_INSTANCE_H
 
+#include "base/forward.h"
+
 #if HAVE_SYS_TYPES_H
 #include <sys/types.h>
 #endif
@@ -29,6 +31,18 @@ void WriteOurPid();
 /// \returns another Squid instance PID
 /// Throws if PID file maintenance is disabled.
 pid_t Other();
+
+/// XXX: Use std::chrono?
+
+/// Approximate time an instance is allowed to wait for startup activities to
+/// finish after parsing configuration and before servicing user traffic.
+constexpr double StartupTimeoutInSeconds() { return 7; /* XXX: ALL,9 debugging may require more */ }
+
+/// XXX: Describe!
+void StartupActivityStarted(const ScopedId &);
+void StartupActivityFinished(const ScopedId &);
+void NotifyWhenStartedStartupActivitiesFinished(const AsyncCallPointer &requestor);
+size_t StartupActivitiesRunning();
 
 } // namespace Instance
 

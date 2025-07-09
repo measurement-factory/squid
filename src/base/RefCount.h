@@ -118,6 +118,14 @@ private:
 
 };
 
+/// useful for storing RefCount pointers in std::set and such
+template <class C>
+inline bool
+operator <(const RefCount<C> &a, const RefCount<C> &b)
+{
+    return a.getRaw() < b.getRaw();
+}
+
 template <class C>
 inline std::ostream &operator <<(std::ostream &os, const RefCount<C> &p)
 {
