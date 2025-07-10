@@ -3417,9 +3417,7 @@ clientListenerConnectionOpened(AnyP::PortCfgPointer &s, const Ipc::FdNoteId port
 class ListeningManager
 {
 public:
-    /// reacts to ListeningManager::useModules() event
-    void useModules();
-
+    /// called when all required startup activities have started; TODO: Rename?
     void maybeOpenListenSockets();
 
     /// reacts to startup timeout
@@ -3429,14 +3427,11 @@ private:
     static void Timeout(void*);
     static void NoteRequiredStartupActivitiesFinished();
 
-    /// time allocated for startup actions to finish after useModules()
+    /// time allocated for startup actions to finish after maybeOpenListenSockets()
     auto timeoutInSeconds() const { return Instance::StartupTimeoutInSeconds(); }
 
     void noteRequiredStartupActivitiesFinished();
     void checkpoint();
-
-    /// whether ListeningRr::useModules() has been called
-    bool useModulesCalled = false;
 
     /// whether maybeOpenListenSockets() has been called
     bool requiredStartupActivitiesStarted = false;
@@ -3489,26 +3484,6 @@ ListeningManager::NoteRequiredStartupActivitiesFinished()
 }
 
 void
-ListeningManager::useModules()
-{
-    Assure(!useModulesCalled);
-    useModulesCalled = true;
-    checkpoint();
-
-    eventAdd("ListeningManager::Timeout", &ListeningManager::Timeout, nullptr, timeoutInSeconds(), 1);
-}
-
-/// XXX
-class ListeningRr: public RegisteredRunner
-{
-public:
-    /* RegisteredRunner API */
-    void useModules() override { TheListeningManager().useModules(); }
-};
-
-DefineRunnerRegistrator(ListeningRr);
-
-void
 clientOpenListenSockets(void)
 {
     TheListeningManager().maybeOpenListenSockets();
@@ -3518,11 +3493,14 @@ void
 ListeningManager::maybeOpenListenSockets()
 {
     if (!requiredStartupActivitiesStarted) {
+        requiredStartupActivitiesStarted = true;
+
         using Dialer = NullaryFunDialer;
         const auto callback = asyncCall(33, 3, "ListeningManager::NoteRequiredStartupActivitiesFinished",
                                         Dialer(&ListeningManager::NoteRequiredStartupActivitiesFinished));
         Instance::NotifyWhenStartedStartupActivitiesFinished(callback);
-        requiredStartupActivitiesStarted = true;
+        // TODO: Merge timeout functionality into NotifyWhenStartedStartupActivitiesFinished() that starts this wait.
+        eventAdd("ListeningManager::Timeout", &ListeningManager::Timeout, nullptr, timeoutInSeconds(), 1);
     } // else requiredStartupActivitiesStarted is already true during reconfiguration
     checkpoint();
 }
@@ -3533,10 +3511,9 @@ ListeningManager::checkpoint()
 {
     // TODO: Add debugging and possibly a caller context.
 
-    // wait for noteRequiredStartupActivitiesFinished() and, hence, useModules()
+    // wait for noteRequiredStartupActivitiesFinished()
     if (!requiredStartupActivitiesFinished)
         return;
-    Assure(useModulesCalled);
 
     // assert(!starting_up); // TODO: Extend starting_up mode until we start listening!
     // return; // XXX: Remove this timeout injection

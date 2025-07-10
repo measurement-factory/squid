@@ -1418,7 +1418,6 @@ RunConfigUsers()
 {
     RunRegisteredHere(RegisteredRunner::claimMemoryNeeds);
     RunRegisteredHere(RegisteredRunner::useConfig);
-    RunRegisteredHere(RegisteredRunner::useModules);
     // TODO: check eventAdd(0) effect on idling event loop IF we add idle event loop detection.
 }
 
@@ -1462,7 +1461,6 @@ RegisterModules()
 
     CallRunnerRegistrator(ClientDbRr);
     CallRunnerRegistrator(CollapsedForwardingRr);
-    CallRunnerRegistrator(ListeningRr);
     CallRunnerRegistrator(MemStoreRr);
     CallRunnerRegistrator(PeerPoolMgrsRr);
     CallRunnerRegistrator(SharedMemPagesRr);

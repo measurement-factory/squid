@@ -59,12 +59,6 @@ public:
     /// configuration with known memory requirements.
     virtual void useConfig() {}
 
-    /// Called after useConfig().
-    /// Meant for actions that require optional modules activated by or before
-    /// useConfig(). If such a module has not been activated by this event time,
-    /// then it will not be activated.
-    virtual void useModules() {}
-
     /* Reconfiguration events */
 
     /// Called after receiving a reconfigure request and before parsing squid.conf.
