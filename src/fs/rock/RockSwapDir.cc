@@ -281,6 +281,7 @@ void
 Rock::SwapDir::init()
 {
     debugs(47,2, MYNAME);
+    Instance::StartupActivityStarted(configId());
 
     // XXX: SwapDirs aren't refcounted. We make IORequestor calls, which
     // are refcounted. We up our count once to avoid implicit delete's.
@@ -302,8 +303,6 @@ Rock::SwapDir::init()
                ioModule);
         fatal("Rock Store missing a required DiskIO module");
     }
-
-    Instance::StartupActivityStarted(configId());
 
     theFile = io->newFile(filePath);
     theFile->configure(fileConfig);
