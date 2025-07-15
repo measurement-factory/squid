@@ -3269,16 +3269,25 @@ ConnStateData::buildFakeRequest(SBuf &useHost, const AnyP::KnownPort usePort, co
     return http;
 }
 
-/// find any unused HttpSockets[] slot and store fd there or return false
-static bool
-AddOpenedHttpSocket(const Comm::ConnectionPointer &conn)
+/// the first unused HttpSockets[] slot position
+static std::optional<size_t>
+FindUnusedHttpSocketSlot()
 {
     bool found = false;
     for (int i = 0; i < NHttpSockets && !found; ++i) {
-        if ((found = HttpSockets[i] < 0))
-            HttpSockets[i] = conn->fd;
+        if (HttpSockets[i] < 0)
+            return i;
     }
-    return found;
+    return std::nullopt;
+}
+
+/// find any unused HttpSockets[] slot and store fd there
+static void
+AddOpenedHttpSocket(const Comm::ConnectionPointer &conn)
+{
+    const auto slot = FindUnusedHttpSocketSlot();
+    Assure2(slot, "the number of received listening sockets does not exceed the number of requested ones");
+    HttpSockets[*slot] = conn->fd;
 }
 
 static void
@@ -3383,18 +3392,21 @@ clientListenerConnectionOpened(AnyP::PortCfgPointer &s, const Ipc::FdNoteId port
            << FdNote(portTypeNote) << " connections at "
            << s->listenConn);
 
-    Must(AddOpenedHttpSocket(s->listenConn)); // otherwise, we have received a fd we did not ask for
+    AddOpenedHttpSocket(s->listenConn);
 
 #if USE_SYSTEMD
-    // When the very first port opens, tell systemd we are able to serve connections.
-    // Subsequent sd_notify() calls, including calls during reconfiguration,
-    // do nothing because the first call parameter is 1.
-    // XXX: Send the notification only after opening all configured ports.
     if (opt_foreground || opt_no_daemon) {
-        const auto result = sd_notify(1, "READY=1");
-        if (result < 0) {
-            debugs(1, DBG_IMPORTANT, "WARNING: failed to send start-up notification to systemd" <<
-                   Debug::Extra << "sd_notify() error: " << xstrerr(-result));
+        if (!FindUnusedHttpSocketSlot()) {
+            debugs(1, 2, "all " << NHttpSockets << " ports are listening");
+            // Tell systemd this instance is ready. This code also runs during
+            // harsh reconfigurations, but such repeated sd_notify() calls do
+            // nothing because the first call parameter is 1.
+            // XXX: Delay sd_notify() call until all kids are ready.
+            const auto result = sd_notify(1, "READY=1");
+            if (result < 0) {
+                debugs(1, DBG_IMPORTANT, "WARNING: failed to send start-up notification to systemd" <<
+                       Debug::Extra << "sd_notify() error: " << xstrerr(-result));
+            }
         }
     }
 #endif
