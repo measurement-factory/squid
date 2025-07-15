@@ -3269,23 +3269,6 @@ ConnStateData::buildFakeRequest(SBuf &useHost, const AnyP::KnownPort usePort, co
     return http;
 }
 
-/// check FD after clientHttp[s]ConnectionOpened, adjust HttpSockets as needed
-static bool
-OpenedHttpSocket(const Comm::ConnectionPointer &c, const Ipc::FdNoteId portType)
-{
-    if (!Comm::IsConnOpen(c)) {
-        Must(NHttpSockets > 0); // we tried to open some
-        --NHttpSockets; // there will be fewer sockets than planned
-        Must(HttpSockets[NHttpSockets] < 0); // no extra fds received
-
-        if (!NHttpSockets) // we could not open any listen sockets at all
-            fatalf("Unable to open %s",FdNote(portType));
-
-        return false;
-    }
-    return true;
-}
-
 /// find any unused HttpSockets[] slot and store fd there or return false
 static bool
 AddOpenedHttpSocket(const Comm::ConnectionPointer &conn)
@@ -3380,8 +3363,12 @@ clientListenerConnectionOpened(AnyP::PortCfgPointer &s, const Ipc::FdNoteId port
 {
     Must(s != nullptr);
 
-    if (!OpenedHttpSocket(s->listenConn, portTypeNote))
-        return;
+    if (!Comm::IsConnOpen(s->listenConn)) {
+        Assure(NHttpSockets > 0); // we tried to open some
+        --NHttpSockets; // there will be fewer sockets than planned
+        Assure(HttpSockets[NHttpSockets] < 0); // no extra fds received
+        throw TextException(ToSBuf("Cannot listen for ", FdNote(portTypeNote), " connections"), Here());
+    }
 
     Must(Comm::IsConnOpen(s->listenConn));
 
