@@ -3269,6 +3269,7 @@ ConnStateData::buildFakeRequest(SBuf &useHost, const AnyP::KnownPort usePort, co
     return http;
 }
 
+// XXX: Undo these out-of-scope (since 97f7dd0a) branch improvements.
 /// the first unused HttpSockets[] slot position
 static std::optional<size_t>
 FindUnusedHttpSocketSlot()
@@ -3339,6 +3340,10 @@ clientHttpConnectionsOpen(void)
     CodeContext::Reset(savedContext);
 }
 
+// XXX: No new globals; also conflicts with starting_up (that ends too soon)
+/// distinguishes startup activities from reconfiguration
+static auto startingUp = true;
+
 void
 clientStartListeningOn(AnyP::PortCfgPointer &port, const RefCount< CommCbFunPtrCallT<CommAcceptCbPtrFun> > &subCall, const Ipc::FdNoteId fdNote)
 {
@@ -3364,9 +3369,12 @@ clientStartListeningOn(AnyP::PortCfgPointer &port, const RefCount< CommCbFunPtrC
     assert(NHttpSockets < MAXTCPLISTENPORTS);
     HttpSockets[NHttpSockets] = -1;
     ++NHttpSockets;
+
+    if (startingUp)
+        Instance::StartupActivityStarted(port->codeContextGist());
 }
 
-/// process clientHttpConnectionsOpen result
+/// process clientStartListeningOn() result
 static void
 clientListenerConnectionOpened(AnyP::PortCfgPointer &s, const Ipc::FdNoteId portTypeNote, const Subscription::Pointer &sub)
 {
@@ -3394,22 +3402,8 @@ clientListenerConnectionOpened(AnyP::PortCfgPointer &s, const Ipc::FdNoteId port
 
     AddOpenedHttpSocket(s->listenConn);
 
-#if USE_SYSTEMD
-    if (opt_foreground || opt_no_daemon) {
-        if (!FindUnusedHttpSocketSlot()) {
-            debugs(1, 2, "all " << NHttpSockets << " ports are listening");
-            // Tell systemd this instance is ready. This code also runs during
-            // harsh reconfigurations, but such repeated sd_notify() calls do
-            // nothing because the first call parameter is 1.
-            // XXX: Delay sd_notify() call until all kids are ready.
-            const auto result = sd_notify(1, "READY=1");
-            if (result < 0) {
-                debugs(1, DBG_IMPORTANT, "WARNING: failed to send start-up notification to systemd" <<
-                       Debug::Extra << "sd_notify() error: " << xstrerr(-result));
-            }
-        }
-    }
-#endif
+    if (startingUp)
+        Instance::StartupActivityFinished(s->codeContextGist());
 }
 
 /// XXX
@@ -3425,11 +3419,13 @@ public:
 private:
     static void Timeout(void*);
     static void NoteRequiredStartupActivitiesFinished();
+    static void NoteListeningOnAllPorts();
 
     /// time allocated for startup actions to finish after maybeOpenListenSockets()
     auto timeoutInSeconds() const { return Instance::StartupTimeoutInSeconds(); }
 
     void noteRequiredStartupActivitiesFinished();
+    void noteListeningOnAllPorts();
     void checkpoint();
 
     /// whether maybeOpenListenSockets() has been called
@@ -3452,8 +3448,8 @@ TheListeningManager()
 void
 ListeningManager::timeout()
 {
-    // TODO: Remove this `if` statement when deleteEvent() reliably cancels callbacks.
-    if (startedOpening)
+    // TODO: Remove this `if` statement when eventDelete() reliably cancels callbacks.
+    if (!startingUp)
         return;
 
     throw TextException(ToSBuf("Startup activities took longer than ", timeoutInSeconds(), " seconds"), Here());
@@ -3480,6 +3476,38 @@ void
 ListeningManager::NoteRequiredStartupActivitiesFinished()
 {
     TheListeningManager().noteRequiredStartupActivitiesFinished();
+}
+
+/// noteListeningOnAllPorts() compatible with NullaryFunDialer<> API
+void
+ListeningManager::NoteListeningOnAllPorts()
+{
+    TheListeningManager().noteListeningOnAllPorts();
+}
+
+// TODO: To reduce diff, move ListeningManager class declaration and this method higher.
+/// reacts to completion of all clientStartListeningOn() activities during startup
+void
+ListeningManager::noteListeningOnAllPorts()
+{
+#if USE_SYSTEMD
+    if (opt_foreground || opt_no_daemon) {
+        Assure(!FindUnusedHttpSocketSlot());
+        debugs(1, 2, "all " << NHttpSockets << " ports are listening");
+        // Tell systemd this instance is ready. This code also runs during
+        // harsh reconfigurations, but such repeated sd_notify() calls do
+        // nothing because the first call parameter is 1.
+        // XXX: Delay sd_notify() call until all kids are ready.
+        const auto result = sd_notify(1, "READY=1");
+        if (result < 0) {
+            debugs(1, DBG_IMPORTANT, "WARNING: failed to send start-up notification to systemd" <<
+                   Debug::Extra << "sd_notify() error: " << xstrerr(-result));
+        }
+    }
+#endif
+    Assure(startingUp);
+    eventDelete(&ListeningManager::Timeout, nullptr);
+    startingUp = false;
 }
 
 void
@@ -3515,19 +3543,23 @@ ListeningManager::checkpoint()
         return;
 
     // assert(!starting_up); // TODO: Extend starting_up mode until we start listening!
-    // return; // XXX: Remove this timeout injection
-
-    if (!startedOpening) {
-        startedOpening = true;
-        eventDelete(&ListeningManager::Timeout, nullptr);
-    }
-    // else we are reopening after reconfiguration
 
     clientHttpConnectionsOpen();
     Ftp::StartListening();
 
     if (NHttpSockets < 1)
         fatal("No HTTP, HTTPS, or FTP ports configured");
+
+    if (!startedOpening) {
+        startedOpening = true;
+        Assure(startingUp);
+        using Dialer = NullaryFunDialer;
+        const auto callback = asyncCall(33, 3, "ListeningManager::NoteListeningOnAllPorts",
+                                        Dialer(&ListeningManager::NoteListeningOnAllPorts));
+        Instance::NotifyWhenStartedStartupActivitiesFinished(callback);
+    }
+    // else we were reopening after reconfiguration
+
 }
 
 void
