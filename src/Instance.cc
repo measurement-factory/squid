@@ -8,10 +8,13 @@
 
 #include "squid.h"
 #include "base/AsyncCall.h"
+#include "base/AsyncFunCalls.h"
 #include "base/File.h"
 #include "debug/Messages.h"
 #include "fs_io.h"
 #include "Instance.h"
+#include "ipc/Messages.h"
+#include "ipc/StrandCoord.h"
 #include "parser/Tokenizer.h"
 #include "sbuf/Stream.h"
 #include "SquidConfig.h"
@@ -19,8 +22,14 @@
 
 #include <cerrno>
 
+#if HAVE_SYSTEMD_SD_DAEMON_H
+#include <systemd/sd-daemon.h>
+#endif
+
 namespace Instance {
     static void StartupNotificationCheckpoint();
+    static void StartupNotificationDelayedCheckpoint();
+    static void AnnounceReadiness();
 } // namespace Instance
 
 /* To support concurrent PID files, convert local statics into PidFile class */
@@ -229,15 +238,17 @@ Instance::WriteOurPid()
 
 // XXX: No new globals
 static size_t RunningStartupActivities = 0;
-static AsyncCallPointer TheRequestor;
+static AsyncCall::Pointer TheRequestor;
+static AsyncCall::Pointer TheDelayedCheckpoint;
 
 void
 Instance::StartupActivityStarted(const ScopedId &id)
 {
     // XXX: remember id
     ++RunningStartupActivities;
-    Assure(RunningStartupActivities > 0);
     debugs(50, 3, id << "; activities now: " << RunningStartupActivities);
+    Assure(RunningStartupActivities > 0);
+    // Assure(starting_up); TODO: Enable when starting_up is only reset in StartupNotificationDelayedCheckpoint()
 }
 
 void
@@ -262,15 +273,73 @@ Instance::NotifyWhenStartedStartupActivitiesFinished(const AsyncCallPointer &req
 static void
 Instance::StartupNotificationCheckpoint()
 {
-    if (!RunningStartupActivities && TheRequestor) {
-        ScheduleCallHere(TheRequestor);
-        TheRequestor = nullptr;
-    }
+    debugs(1, 7, "activities now: " << RunningStartupActivities);
+    if (RunningStartupActivities)
+        return; // wait for the still-running startup activities to finish
+
+    // Wait for firing of any "begin startup activity X" async calls scheduled
+    // by our (indirect) caller just before calling an Instance function. They
+    // may schedule more calls (and then trigger another checkpoint); we must
+    // reschedule our "wait for scheduled calls" check to also wait for those.
+    if (TheDelayedCheckpoint)
+        TheDelayedCheckpoint->cancel("rescheduling to cover any newly scheduled calls");
+    using Dialer = NullaryFunDialer;
+    TheDelayedCheckpoint = asyncCall(1, 3, "Instance::StartupNotificationDelayedCheckpoint",
+                                     Dialer(&Instance::StartupNotificationDelayedCheckpoint));
+    ScheduleCallHere(TheDelayedCheckpoint);
 }
 
+static void
+Instance::StartupNotificationDelayedCheckpoint()
+{
+    TheDelayedCheckpoint = nullptr;
+
+    if (RunningStartupActivities) {
+        // some startup activity was started when asynchronous calls scheduled
+        // by the previously finished startup activity were fired
+        debugs(1, 5, "waiting for recently started activities: " << RunningStartupActivities);
+        return;
+    }
+
+    if (TheRequestor) {
+        debugs(1, 7, "informing " << TheRequestor->id);
+        ScheduleCallHere(TheRequestor);
+        TheRequestor = nullptr;
+        StartupNotificationCheckpoint(); // TheRequestor may start more startup activities
+        return;
+    }
+
+    debugs(1, 3, "all startup activities have ended and no new ones are expected");
+    starting_up = 0;
+    if (UsingSmp() && !IamCoordinatorProcess())
+        Ipc::StrandMessage::NotifyCoordinator(Ipc::mtKidCompletedStartup, nullptr);
+    else
+        Instance::AnnounceReadiness();
+}
+
+// TODO: Delete as unused.
 size_t
 Instance::StartupActivitiesRunning()
 {
     return RunningStartupActivities;
+}
+
+static void
+Instance::AnnounceReadiness()
+{
+    const auto numberOfProcesses = InDaemonMode() ? NumberOfKids() : 1; // TODO: Encapsulate instead of duplicating
+    debugs(1, 2, "all " << numberOfProcesses << " Squid processes are ready");
+#if USE_SYSTEMD
+    if (opt_foreground || opt_no_daemon) {
+        // Tell systemd this instance is ready. This code also runs during
+        // harsh reconfigurations, but such repeated sd_notify() calls do
+        // nothing because the first call parameter is 1.
+        const auto result = sd_notify(1, "READY=1");
+        if (result < 0) {
+            debugs(1, DBG_IMPORTANT, "WARNING: failed to send start-up notification to systemd" <<
+                   Debug::Extra << "sd_notify() error: " << xstrerr(-result));
+        }
+    }
+#endif
 }
 

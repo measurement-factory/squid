@@ -40,6 +40,8 @@ typedef enum { mtNone = 0, ///< unspecified or unknown message kind; unused on t
                mtSnmpResponse,
 #endif
 
+               mtKidCompletedStartup, ///< a kid is listening on all primary ports
+
                mtEnd ///< for message kind range checks; unused on the wire
              } MessageType;
 

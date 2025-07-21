@@ -144,10 +144,6 @@
 #include <cmath>
 #include <limits>
 
-#if HAVE_SYSTEMD_SD_DAEMON_H
-#include <systemd/sd-daemon.h>
-#endif
-
 // TODO: Remove this custom dialer and simplify by creating the TcpAcceptor
 // subscription later, inside clientListenerConnectionOpened() callback, just
 // like htcpOpenPorts(), icpOpenPorts(), and snmpPortOpened() do it.
@@ -3485,26 +3481,13 @@ ListeningManager::NoteListeningOnAllPorts()
     TheListeningManager().noteListeningOnAllPorts();
 }
 
-// TODO: To reduce diff, move ListeningManager class declaration and this method higher.
 /// reacts to completion of all clientStartListeningOn() activities during startup
 void
 ListeningManager::noteListeningOnAllPorts()
 {
-#if USE_SYSTEMD
-    if (opt_foreground || opt_no_daemon) {
-        Assure(!FindUnusedHttpSocketSlot());
-        debugs(1, 2, "all " << NHttpSockets << " ports are listening");
-        // Tell systemd this instance is ready. This code also runs during
-        // harsh reconfigurations, but such repeated sd_notify() calls do
-        // nothing because the first call parameter is 1.
-        // XXX: Delay sd_notify() call until all kids are ready.
-        const auto result = sd_notify(1, "READY=1");
-        if (result < 0) {
-            debugs(1, DBG_IMPORTANT, "WARNING: failed to send start-up notification to systemd" <<
-                   Debug::Extra << "sd_notify() error: " << xstrerr(-result));
-        }
-    }
-#endif
+    // XXX: Once startup timeout handling is moved into Instance, this method
+    // will do nothing, and we may be able to remove the entire
+    // NotifyWhenStartedStartupActivitiesFinished() API!
     Assure(startingUp);
     eventDelete(&ListeningManager::Timeout, nullptr);
     startingUp = false;

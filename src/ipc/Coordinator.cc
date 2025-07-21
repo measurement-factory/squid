@@ -14,6 +14,7 @@
 #include "CacheManager.h"
 #include "comm.h"
 #include "comm/Connection.h"
+#include "Instance.h"
 #include "ipc/Coordinator.h"
 #include "ipc/SharedListen.h"
 #include "mgr/Inquirer.h"
@@ -34,6 +35,7 @@ Ipc::Coordinator* Ipc::Coordinator::TheInstance = nullptr;
 Ipc::Coordinator::Coordinator():
     Port(Ipc::Port::CoordinatorAddr())
 {
+    Instance::StartupActivityStarted(id.detach());
 }
 
 void Ipc::Coordinator::start()
@@ -126,6 +128,12 @@ void Ipc::Coordinator::receive(const TypedMsgHdr& message)
     }
     break;
 #endif
+
+    case mtKidCompletedStartup: {
+        debugs(54, 6, "a kid is listening on primary ports");
+        handleKidCompletedStartupNotification(StrandMessage(message));
+    }
+    break;
 
     default:
         Port::receive(message);
@@ -249,6 +257,34 @@ Ipc::Coordinator::handleSnmpResponse(const Snmp::Response& response)
     Snmp::Inquirer::HandleRemoteAck(response);
 }
 #endif
+
+static auto
+NumberOfKidsExceptCoordinator()
+{
+    const auto numberOfAllKids = static_cast<size_t>(NumberOfKids()); // XXX: Fix NumberOfKids() return type to avoid this cast.
+    Assure(numberOfAllKids > 1); // because Coordinator is a kid
+    // TODO: Consider not making Coordinator exceptional.
+    return numberOfAllKids - 1;
+}
+
+void Ipc::Coordinator::handleKidCompletedStartupNotification(const StrandMessage &msg)
+{
+    const auto expectedNumberOfKids = NumberOfKidsExceptCoordinator();
+    debugs(54, 4, kidsThatCompletedStartup.size() << '/' << expectedNumberOfKids);
+
+    const auto kidPid = msg.strand.pid;
+    kidsThatCompletedStartup.insert(kidPid);
+    // TODO: To limit accumulation during kid restarts, remove
+    // kidsThatCompletedStartup PIDs that do not match any PID in strands_
+    // (before counting the number of entries in size() checks below).
+    Assure(kidsThatCompletedStartup.size() <= expectedNumberOfKids);
+    if (kidsThatCompletedStartup.size() < expectedNumberOfKids) {
+        debugs(54, 3, "waiting for other kids to become ready: " << (expectedNumberOfKids - kidsThatCompletedStartup.size()));
+        return;
+    }
+
+    Instance::StartupActivityFinished(id.detach());
+}
 
 Comm::ConnectionPointer
 Ipc::Coordinator::openListenSocket(const SharedListenRequest& request,

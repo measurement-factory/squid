@@ -22,6 +22,7 @@
 #endif
 #include <list>
 #include <map>
+#include <set>
 
 namespace Ipc
 {
@@ -62,6 +63,9 @@ protected:
     void handleSnmpRequest(const Snmp::Request& request);
     void handleSnmpResponse(const Snmp::Response& response);
 #endif
+
+    void handleKidCompletedStartupNotification(const StrandMessage &);
+
     /// calls comm_open_listener()
     Comm::ConnectionPointer openListenSocket(const SharedListenRequest& request, int &errNo);
 
@@ -73,6 +77,9 @@ private:
 
     typedef std::map<OpenListenerParams, Comm::ConnectionPointer> Listeners; ///< params:connection map
     Listeners listeners; ///< cached comm_open_listener() results
+
+    using Processes = std::set<pid_t>; ///< unique kid process IDs
+    Processes kidsThatCompletedStartup; ///< kids that have completed all kid-specific startup activities
 
     static Coordinator* TheInstance; ///< the only class instance in existence
 
