@@ -29,9 +29,15 @@ class Strand: public Port
     CBDATA_CHILD(Strand);
 
 public:
+    static Strand &Instance(); ///< the only class instance in existence
+
     Strand();
 
     void start() override; // Port (AsyncJob) API
+
+    /// Starts waiting for all kids to reach a startup synchronization barrier
+    /// maintained by Coordinator. When they do, calls the given callback.
+    void barrierWait(const AsyncCallPointer &);
 
 protected:
     void timedout() override; // Port (UsdOp) API
@@ -46,8 +52,12 @@ private:
     void handleSnmpRequest(const Snmp::Request& request);
     void handleSnmpResponse(const Snmp::Response& response);
 #endif
+    void handleSynchronizationResponse(const SynchronizationResponse &);
 
 private:
+    /// a task waiting for other kids to reach the same synchronization point
+    AsyncCallPointer synchronizationCallback;
+
     bool isRegistered; ///< whether Coordinator ACKed registration (unused)
 
 private:

@@ -64,6 +64,7 @@ protected:
     void handleSnmpResponse(const Snmp::Response& response);
 #endif
 
+    void handleSynchronizationRequest(const SynchronizationRequest &);
     void handleKidCompletedStartupNotification(const StrandMessage &);
 
     /// calls comm_open_listener()
@@ -78,12 +79,20 @@ private:
     typedef std::map<OpenListenerParams, Comm::ConnectionPointer> Listeners; ///< params:connection map
     Listeners listeners; ///< cached comm_open_listener() results
 
-    using Processes = std::set<pid_t>; ///< unique kid process IDs
-    Processes kidsThatCompletedStartup; ///< kids that have completed all kid-specific startup activities
+    using SynchronizingKids = std::set<SynchronizationRequest>; ///< unique synchronization requests
+    SynchronizingKids synchronizingKids; ///< kids that have reached their synchronization barrier
+    SynchronizingKids synchronizedKids; ///< kids that have been informed of crossing their synchronization barrier
+
+    using KidIds = std::set<int>; ///< unique kid IDs
+    KidIds kidsThatCompletedStartup; ///< kids that have completed all kid-specific startup activities
 
     static Coordinator* TheInstance; ///< the only class instance in existence
 
 private:
+    bool knownKid(const int, const SynchronizingKids &) const;
+    bool knownKid(const int, const KidIds &) const;
+    void synchronizationCheckpoint();
+
     Coordinator(const Coordinator&); // not implemented
     Coordinator& operator =(const Coordinator&); // not implemented
 };

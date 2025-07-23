@@ -102,6 +102,7 @@
 #include "internal.h"
 #include "ipc/FdNotes.h"
 #include "ipc/StartListening.h"
+#include "ipc/Strand.h"
 #include "log/access_log.h"
 #include "MemBuf.h"
 #include "MemObject.h"
@@ -3415,12 +3416,14 @@ public:
 private:
     static void Timeout(void*);
     static void NoteRequiredStartupActivitiesFinished();
+    static void NoteAllAreReadyToListen();
     static void NoteListeningOnAllPorts();
 
     /// time allocated for startup actions to finish after maybeOpenListenSockets()
     auto timeoutInSeconds() const { return Instance::StartupTimeoutInSeconds(); }
 
     void noteRequiredStartupActivitiesFinished();
+    void noteAllAreReadyToListen();
     void noteListeningOnAllPorts();
     void checkpoint();
 
@@ -3429,6 +3432,9 @@ private:
 
     /// whether noteRequiredStartupActivitiesFinished() has been called
     bool requiredStartupActivitiesFinished = false;
+
+    /// whether noteRequiredStartupActivitiesFinishedEverywhere() has been called
+    bool allAreReadyToListen = false;
 
     /// maybeOpenListenSockets() started opening listening sockets
     bool startedOpening = false;
@@ -3464,6 +3470,31 @@ ListeningManager::noteRequiredStartupActivitiesFinished()
 {
     Assure(!requiredStartupActivitiesFinished);
     requiredStartupActivitiesFinished = true;
+
+    if (UsingSmp()) {
+        using Dialer = NullaryFunDialer;
+        const auto callback = asyncCall(1, 3, "ListeningManager::NoteAllAreReadyToListen",
+                                        Dialer(&ListeningManager::NoteAllAreReadyToListen));
+        Ipc::Strand::Instance().barrierWait(callback);
+    } else {
+        allAreReadyToListen = true; // TODO: Is there a non-SMP friendly name?
+    }
+    checkpoint();
+}
+
+/// noteAllAreReadyToListen() compatible with NullaryFunDialer<> API
+void
+ListeningManager::NoteAllAreReadyToListen()
+{
+    TheListeningManager().noteAllAreReadyToListen();
+}
+
+/// reacts to Ipc::Strand::NotifyWhenAllAreReadyToListen() notification
+void
+ListeningManager::noteAllAreReadyToListen()
+{
+    Assure(!allAreReadyToListen);
+    allAreReadyToListen = true;
     checkpoint();
 }
 
@@ -3523,6 +3554,10 @@ ListeningManager::checkpoint()
 
     // wait for noteRequiredStartupActivitiesFinished()
     if (!requiredStartupActivitiesFinished)
+        return;
+
+    // wait for noteAllKidsAreReadyToListen()
+    if (!allAreReadyToListen)
         return;
 
     // assert(!starting_up); // TODO: Extend starting_up mode until we start listening!

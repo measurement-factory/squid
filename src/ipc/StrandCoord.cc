@@ -15,6 +15,8 @@
 #include "ipc/StrandCoord.h"
 #include "ipc/TypedMsgHdr.h"
 
+#include <iostream>
+
 Ipc::StrandCoord::StrandCoord(): kidId(-1), pid(0)
 {
 }
@@ -37,6 +39,17 @@ void Ipc::StrandCoord::pack(TypedMsgHdr &hdrMsg) const
     hdrMsg.putPod(pid);
     hdrMsg.putString(tag);
 }
+
+std::ostream &
+Ipc::operator <<(std::ostream &os, const StrandCoord &sc)
+{
+    if (sc.tag.size())
+        os << sc.tag << '@';
+    os << sc.kidId << '.' << sc.pid;
+    return os;
+}
+
+/* Ipc::StrandMessage */
 
 Ipc::StrandMessage::StrandMessage(const StrandCoord &aStrand, const QuestionerId aQid):
     strand(aStrand),

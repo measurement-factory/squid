@@ -129,8 +129,12 @@ void Ipc::Coordinator::receive(const TypedMsgHdr& message)
     break;
 #endif
 
+    case mtSynchronizationRequest: {
+        handleSynchronizationRequest(SynchronizationRequest(message));
+    }
+    break;
+
     case mtKidCompletedStartup: {
-        debugs(54, 6, "a kid is listening on primary ports");
         handleKidCompletedStartupNotification(StrandMessage(message));
     }
     break;
@@ -267,17 +271,94 @@ NumberOfKidsExceptCoordinator()
     return numberOfAllKids - 1;
 }
 
-void Ipc::Coordinator::handleKidCompletedStartupNotification(const StrandMessage &msg)
+void
+Ipc::Coordinator::handleSynchronizationRequest(const SynchronizationRequest &request)
+{
+    debugs(54, 4, request.requestorId);
+    synchronizingKids.insert(request); // might already be there if kid restarted (TODO: clear on strand registration?)
+    Assure(synchronizingKids.size() <= NumberOfKidsExceptCoordinator());
+    synchronizationCheckpoint();
+}
+
+void
+Ipc::Coordinator::synchronizationCheckpoint()
 {
     const auto expectedNumberOfKids = NumberOfKidsExceptCoordinator();
-    debugs(54, 4, kidsThatCompletedStartup.size() << '/' << expectedNumberOfKids);
 
-    const auto kidPid = msg.strand.pid;
-    kidsThatCompletedStartup.insert(kidPid);
+    // Find kids that may still send mtSynchronizationRequest and raise
+    // synchronization barrier. Some kids do not use startup features that
+    // require synchronization and will eventually complete all startup
+    // activities (i.e. send mtKidCompletedStartup) without sending
+    // mtSynchronizationRequest. For example, diskers bypass synchronization
+    // barrier because they do not listen for HTTP requests like workers do.
+    size_t remainingKids = 0;
+    for (size_t kidId = 1; kidId <= expectedNumberOfKids; ++kidId) {
+        if (knownKid(kidId, synchronizingKids))
+            continue; // reached the barrier
+        if (knownKid(kidId, kidsThatCompletedStartup))
+            continue; // bypassed the barrier by completing all startup activities
+        debugs(54, 7, "kid " << kidId << " may still raise synchronization barrier");
+        ++remainingKids;
+    }
+
+    if (remainingKids) {
+        debugs(54, 3, "waiting for other kids to reach or bypass synchronization barrier: " << remainingKids);
+        Assure(remainingKids <= expectedNumberOfKids);
+        return;
+    }
+
+
+    debugs(54, 3, "crossing synchronization barrier: " << synchronizingKids.size() << '-' << synchronizedKids.size());
+    for (auto &synchronizingKid: synchronizingKids) {
+        if (!synchronizedKids.insert(synchronizingKid).second)
+            continue; // this kid has been informed earlier
+        Assure(synchronizedKids.size() <= expectedNumberOfKids);
+
+        SynchronizationResponse response(synchronizingKid.mapId);
+        TypedMsgHdr message;
+        response.pack(message);
+        SendMessage(MakeAddr(strandAddrLabel, synchronizingKid.requestorId), message);
+    }
+}
+
+/// whether the given kid process is waiting to pass a synchronization barrier
+bool
+Ipc::Coordinator::knownKid(const int kidId, const SynchronizingKids &kids) const
+{
+    for (auto &kid: kids) {
+        if (kid.requestorId == kidId)
+            return true;
+    }
+    return false;
+}
+
+/// whether the given kid process has completed all startup activities
+bool
+Ipc::Coordinator::knownKid(const int kidId, const KidIds &kids) const
+{
+    return kids.find(kidId) != kids.end();
+}
+
+void
+Ipc::Coordinator::handleKidCompletedStartupNotification(const StrandMessage &msg)
+{
+    const auto expectedNumberOfKids = NumberOfKidsExceptCoordinator();
+    debugs(54, 4, msg.strand << ' ' << kidsThatCompletedStartup.size() << '/' << expectedNumberOfKids);
+
+    (void)kidsThatCompletedStartup.insert(msg.strand.kidId);
+    Assure(kidsThatCompletedStartup.size() <= expectedNumberOfKids);
+    // a ready kid is either independent or has already crossed its synchronization barrier
+    Assure(!knownKid(msg.strand.kidId, synchronizingKids) || knownKid(msg.strand.kidId, synchronizedKids));
+
+    // each independent kid startup completion effectively lowers
+    // synchronization barrier for inter-dependent kids that are waiting to
+    // cross that barrier
+    if (!knownKid(msg.strand.kidId, synchronizingKids))
+        synchronizationCheckpoint();
+
     // TODO: To limit accumulation during kid restarts, remove
     // kidsThatCompletedStartup PIDs that do not match any PID in strands_
     // (before counting the number of entries in size() checks below).
-    Assure(kidsThatCompletedStartup.size() <= expectedNumberOfKids);
     if (kidsThatCompletedStartup.size() < expectedNumberOfKids) {
         debugs(54, 3, "waiting for other kids to become ready: " << (expectedNumberOfKids - kidsThatCompletedStartup.size()));
         return;

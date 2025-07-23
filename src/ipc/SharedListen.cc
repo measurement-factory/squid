@@ -195,3 +195,43 @@ void Ipc::SharedListenJoined(const SharedListenResponse &response)
     kickDelayedRequest();
 }
 
+/* XXX: Move to ipc/Synchronization.h */
+
+/* Ipc::SynchronizationRequest */
+
+Ipc::SynchronizationRequest::SynchronizationRequest(const RequestId aMapId):
+    requestorId(KidIdentifier),
+    mapId(aMapId)
+{
+}
+
+Ipc::SynchronizationRequest::SynchronizationRequest(const TypedMsgHdr &hdrMsg)
+{
+    hdrMsg.checkType(mtSynchronizationRequest);
+    hdrMsg.getPod(*this);
+}
+
+void Ipc::SynchronizationRequest::pack(TypedMsgHdr &hdrMsg) const
+{
+    hdrMsg.setType(mtSynchronizationRequest);
+    hdrMsg.putPod(*this);
+}
+
+/* Ipc::SynchronizationResponse */
+
+Ipc::SynchronizationResponse::SynchronizationResponse(const RequestId aMapId):
+    mapId(aMapId)
+{
+}
+
+Ipc::SynchronizationResponse::SynchronizationResponse(const TypedMsgHdr &hdrMsg)
+{
+    hdrMsg.checkType(mtSynchronizationResponse);
+    hdrMsg.getPod(*this);
+}
+
+void Ipc::SynchronizationResponse::pack(TypedMsgHdr &hdrMsg) const
+{
+    hdrMsg.setType(mtSynchronizationResponse);
+    hdrMsg.putPod(*this);
+}

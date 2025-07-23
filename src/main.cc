@@ -1713,7 +1713,7 @@ SquidMain(int argc, char **argv)
     if (IamCoordinatorProcess())
         AsyncJob::Start(Ipc::Coordinator::Instance());
     else if (UsingSmp() && (IamWorkerProcess() || IamDiskProcess()))
-        AsyncJob::Start(new Ipc::Strand);
+        AsyncJob::Start(&Ipc::Strand::Instance());
 
     /* at this point we are finished the synchronous startup. */
     starting_up = 0; // TODO: Extend starting_up mode until we start listening!

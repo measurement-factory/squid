@@ -16,6 +16,7 @@
 #include "comm/Connection.h"
 #include "fatal.h"
 #include "globals.h"
+#include "Instance.h"
 #include "ipc/Kids.h"
 #include "ipc/Messages.h"
 #include "ipc/QuestionerId.h"
@@ -37,6 +38,14 @@
 
 CBDATA_NAMESPACED_CLASS_INIT(Ipc, Strand);
 
+Ipc::Strand &
+Ipc::Strand::Instance()
+{
+    static const auto instance = new Strand();
+    // TODO: AsyncJob::Start() this and Coordinator jobs automatically upon creation
+    return *instance;
+}
+
 Ipc::Strand::Strand():
     Port(MakeAddr(strandAddrLabel, KidIdentifier)),
     isRegistered(false)
@@ -47,6 +56,19 @@ void Ipc::Strand::start()
 {
     Port::start();
     registerSelf();
+}
+
+void Ipc::Strand::barrierWait(const AsyncCallPointer &cb)
+{
+    Assure(cb);
+    Assure(!synchronizationCallback);
+    synchronizationCallback = cb;
+    debugs(2,2, getpid() << ' ' << this << " set " << synchronizationCallback->id);
+
+    Instance::StartupActivityStarted(synchronizationCallback->id.detach());
+    StrandMessage::NotifyCoordinator(mtSynchronizationRequest, nullptr);
+
+    debugs(2,2, getpid() << ' ' << this << " has " << synchronizationCallback->id);
 }
 
 void Ipc::Strand::registerSelf()
@@ -110,6 +132,12 @@ void Ipc::Strand::receive(const TypedMsgHdr &message)
     break;
 #endif
 
+    case mtSynchronizationResponse: {
+        debugs(54, 6, "Synchronization response");
+        handleSynchronizationResponse(Mine(SynchronizationResponse(message)));
+    }
+    break;
+
     default:
         Port::receive(message);
         break;
@@ -155,6 +183,16 @@ void Ipc::Strand::handleSnmpResponse(const Snmp::Response& response)
     Snmp::Forwarder::HandleRemoteAck(response.requestId);
 }
 #endif
+
+void
+Ipc::Strand::handleSynchronizationResponse(const SynchronizationResponse &)
+{
+    debugs(2,2, getpid() << ' ' << this << " has " << synchronizationCallback);
+    Assure(synchronizationCallback);
+    ScheduleCallHere(synchronizationCallback);
+    Instance::StartupActivityFinished(synchronizationCallback->id.detach());
+    synchronizationCallback = nullptr;
+}
 
 void Ipc::Strand::timedout()
 {

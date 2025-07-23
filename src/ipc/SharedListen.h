@@ -80,6 +80,40 @@ void JoinSharedListen(const OpenListenerParams &, StartListeningCallback &);
 /// process Coordinator response to SharedListenRequest
 void SharedListenJoined(const SharedListenResponse &response);
 
+/* XXX: Move to ipc/Synchronization.h */
+
+/// A request to synchronize state across kids. A kid signals that it has
+/// reached a certain state by sending this request to Coordinator. Coordinator
+/// responds with SharedListenResponse when all kids reach that state.
+class SynchronizationRequest
+{
+public:
+    explicit SynchronizationRequest(RequestId aMapId); ///< sender's constructor
+    explicit SynchronizationRequest(const TypedMsgHdr &hdrMsg); ///< from recvmsg()
+    void pack(TypedMsgHdr &hdrMsg) const; ///< prepare for sendmsg()
+
+public:
+    int requestorId; ///< kidId of the requestor
+    RequestId mapId; ///< to map future response to the requestor's callback
+};
+
+inline bool operator <(const SynchronizationRequest &a, const SynchronizationRequest &b) { return a.requestorId < b.requestorId; }
+
+/// a response to SynchronizationRequest
+class SynchronizationResponse
+{
+public:
+    explicit SynchronizationResponse(RequestId aMapId); ///< sender's constructor
+    explicit SynchronizationResponse(const TypedMsgHdr &hdrMsg); ///< from recvmsg()
+    void pack(TypedMsgHdr &hdrMsg) const; ///< prepare for sendmsg()
+
+    /// for Mine() tests
+    QuestionerId intendedRecepient() const { return mapId.questioner(); }
+
+public:
+    RequestId mapId; ///< to map future response to the requestor's callback
+};
+
 } // namespace Ipc;
 
 #endif /* SQUID_IPC_SHARED_LISTEN_H */

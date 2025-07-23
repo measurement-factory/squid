@@ -14,6 +14,8 @@
 #include "ipc/QuestionerId.h"
 #include "SquidString.h"
 
+#include <iosfwd>
+
 namespace Ipc
 {
 
@@ -33,6 +35,9 @@ public:
 
     String tag; ///< optional unique well-known key (e.g., cache_dir path)
 };
+
+/// StrandCoord gist (for debugging)
+std::ostream &operator <<(std::ostream &, const StrandCoord &);
 
 /// an IPC message carrying StrandCoord
 class StrandMessage
