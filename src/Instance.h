@@ -42,7 +42,6 @@ constexpr double StartupTimeoutInSeconds() { return 7; /* XXX: ALL,9 debugging m
 void StartupActivityStarted(const ScopedId &);
 void StartupActivityFinished(const ScopedId &);
 void NotifyWhenStartedStartupActivitiesFinished(const AsyncCallPointer &requestor);
-size_t StartupActivitiesRunning();
 
 /// Whether a new startup activity may still start.
 /// \retval false after startup phase completion, including during reconfiguration

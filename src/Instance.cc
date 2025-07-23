@@ -347,23 +347,12 @@ Instance::StartupNotificationDelayedCheckpoint()
         Instance::AnnounceReadiness();
 }
 
-// TODO: Delete as unused.
-size_t
-Instance::StartupActivitiesRunning()
-{
-    return RunningStartupActivities;
-}
-
 static void
 Instance::AnnounceReadiness()
 {
-    const auto numberOfProcesses = InDaemonMode() ? NumberOfKids() : 1; // TODO: Encapsulate instead of duplicating
-    debugs(1, 2, "all " << numberOfProcesses << " Squid processes are ready");
+    debugs(1, 2, "all Squid processes are ready");
 #if USE_SYSTEMD
     if (opt_foreground || opt_no_daemon) {
-        // Tell systemd this instance is ready. This code also runs during
-        // harsh reconfigurations, but such repeated sd_notify() calls do
-        // nothing because the first call parameter is 1.
         const auto result = sd_notify(1, "READY=1");
         if (result < 0) {
             debugs(1, DBG_IMPORTANT, "WARNING: failed to send start-up notification to systemd" <<

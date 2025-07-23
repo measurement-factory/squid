@@ -1418,7 +1418,6 @@ RunConfigUsers()
 {
     RunRegisteredHere(RegisteredRunner::claimMemoryNeeds);
     RunRegisteredHere(RegisteredRunner::useConfig);
-    // TODO: check eventAdd(0) effect on idling event loop IF we add idle event loop detection.
 }
 
 static void

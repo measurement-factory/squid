@@ -3487,15 +3487,15 @@ ListeningManager::start()
     Instance::NotifyWhenStartedStartupActivitiesFinished(callback);
 }
 
-/// starts listening (if all preconditions have been met) or does nothing (otherwise)
+/// SMP and non-SMP code paths converge here after asynchronously fulfilling
+/// preconditions for opening primary listening ports. Opening those ports often
+/// requires asynchronous actions as well, so Squid may not be listening on
+/// those ports after this method returns.
 void
 ListeningManager::startOpeningListeningPorts()
 {
-    // TODO: Add debugging and possibly a caller context.
-
     // assert(!starting_up); // TODO: Extend starting_up mode until we start listening!
     Assure(Instance::Starting());
-
     clientOpenListenSockets_();
 }
 
