@@ -3474,7 +3474,7 @@ clientOpenListenSockets()
     if (reconfiguring)
         return clientOpenListenSockets_();
 
-    Assure(starting_up);
+    Assure(Instance::Starting());
     TheListeningManager().start();
 }
 
@@ -3494,7 +3494,6 @@ ListeningManager::start()
 void
 ListeningManager::startOpeningListeningPorts()
 {
-    // assert(!starting_up); // TODO: Extend starting_up mode until we start listening!
     Assure(Instance::Starting());
     clientOpenListenSockets_();
 }

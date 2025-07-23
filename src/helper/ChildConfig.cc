@@ -12,6 +12,7 @@
 #include "debug/Stream.h"
 #include "globals.h"
 #include "helper/ChildConfig.h"
+#include "Instance.h"
 #include "Parsing.h"
 #include "tools.h"
 
@@ -60,7 +61,7 @@ int
 Helper::ChildConfig::needNew() const
 {
     /* during the startup and reconfigure use our special amount... */
-    if (starting_up || reconfiguring) return n_startup;
+    if (Instance::Starting() || reconfiguring) return n_startup;
 
     // like reconfiguration, log rotation shuts down and restarts all helpers,
     // so we apply the above reconfiguration logic to log rotation as well

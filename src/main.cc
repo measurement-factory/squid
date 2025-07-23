@@ -241,6 +241,7 @@ SignalEngine::checkEvents(int)
 static bool
 AvoidSignalAction(const char *description, volatile int &signalVar)
 {
+    const auto receivedShutdownSignal = (strcmp(description, "shutdown") == 0);
     const char *avoiding = "delaying";
     const char *currentEvent = "none";
     if (shutting_down) {
@@ -248,12 +249,18 @@ AvoidSignalAction(const char *description, volatile int &signalVar)
         avoiding = "canceling";
         // do not avoid repeated shutdown signals
         // which just means the user wants to skip/abort shutdown timeouts
-        if (strcmp(currentEvent, description) == 0)
+        if (receivedShutdownSignal)
             return false;
         signalVar = 0;
     }
-    else if (!configured_once) // TODO: Extend startup avoidance until starting_up is falsy
+    else if (Instance::Starting()) {
         currentEvent = "startup";
+        // Honor shutdown during asynchronous startup that may take a while.
+        if (receivedShutdownSignal) {
+            signalVar = 0;
+            return false;
+        }
+    }
     else if (reconfiguring)
         currentEvent = "reconfiguration";
     else {
@@ -262,6 +269,9 @@ AvoidSignalAction(const char *description, volatile int &signalVar)
         // the caller may produce a signal-specific debugging message
     }
 
+    // XXX: This warning may be displayed multiple times for the same avoided
+    // action when Instance::Starting() requires multiple main loop iterations
+    // to finish after receiving that action signal.
     debugs(1, DBG_IMPORTANT, avoiding << ' ' << description <<
            " request during " << currentEvent);
     return true;
@@ -1718,7 +1728,6 @@ SquidMain(int argc, char **argv)
 
     /* at this point we are finished the synchronous startup. */
     Instance::StartupActivityFinished(myActivity);
-    starting_up = 0; // TODO: Extend starting_up mode until we start listening!
 
     mainLoop.run();
 

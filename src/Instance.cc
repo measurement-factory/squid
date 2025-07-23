@@ -247,7 +247,6 @@ static bool StartupEnded = false;
 bool
 Instance::Starting()
 {
-    // TODO: Merge with starting_up, but see "Extend starting_up mode" TODO in main.cc
     return !StartupEnded;
 }
 
@@ -259,7 +258,6 @@ Instance::StartupActivityStarted(const ScopedId &id)
     ++RunningStartupActivities;
     debugs(50, 3, id << "; activities now: " << RunningStartupActivities << '/' << StartedStartupActivities);
     Assure(RunningStartupActivities > 0);
-    // Assure(starting_up); TODO: Enable when starting_up is only reset in StartupNotificationDelayedCheckpoint()
     Assure(!StartupEnded);
 
     if (StartedStartupActivities == 1)
@@ -339,7 +337,7 @@ Instance::StartupNotificationDelayedCheckpoint()
     eventDelete(&Instance::StartupTimeout, nullptr);
     Assure(!StartupEnded);
     StartupEnded = true;
-    starting_up = 0;
+    Assure(!Starting());
 
     if (UsingSmp() && !IamCoordinatorProcess())
         Ipc::StrandMessage::NotifyCoordinator(Ipc::mtKidCompletedStartup, nullptr);

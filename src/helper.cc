@@ -766,7 +766,7 @@ public:
     StartupMonitor();
 
     // TODO: Assure insert() and erase() successes
-    // TODO: Assure that we do not insert during starting_up after SecondsToStart() timeout has expired!
+    // TODO: Assure that we do not insert during startup after SecondsToStart() timeout has expired!
     void startMonitoring(const helper::Pointer &aHelper) { helpers.insert(aHelper); }
     void stopMonitoring(const helper::Pointer &aHelper) { helpers.erase(aHelper); }
 
@@ -825,7 +825,7 @@ Helper::StartupMonitor::StartupMonitor()
 
 helper::helper(const char *name): id_name(name)
 {
-    if (starting_up)
+    if (Instance::Starting()) // TODO: Move condition to TheStartupMonitor itself so that unconditional stopMonitoring() does not look odd?
         Helper::TheStartupMonitor().startMonitoring(this);
 }
 

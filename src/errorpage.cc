@@ -24,6 +24,7 @@
 #include "HttpHeaderTools.h"
 #include "HttpReply.h"
 #include "HttpRequest.h"
+#include "Instance.h"
 #include "MemBuf.h"
 #include "MemObject.h"
 #include "rfc1738.h"
@@ -1440,6 +1441,7 @@ void
 ErrorState::noteBuildError_(const char *msg, const char *near, const bool forceBypass)
 {
     using ErrorPage::BuildErrorPrinter;
+    const auto starting_up = Instance::Starting();
     const auto runtime = !starting_up;
     if (runtime || forceBypass) {
         // swallow this problem because the admin may not be (and/or the page

@@ -43,8 +43,16 @@ void StartupActivityStarted(const ScopedId &);
 void StartupActivityFinished(const ScopedId &);
 void NotifyWhenStartedStartupActivitiesFinished(const AsyncCallPointer &requestor);
 
-/// Whether a new startup activity may still start.
-/// \retval false after startup phase completion, including during reconfiguration
+/// Whether this process may launch a new startup activity.
+///
+/// The startup period begins with the process execution and ends shortly after
+/// the very last StartupActivityFinished() call. To automatically detect the
+/// latter event, we assume that any startup activity except the very first one
+/// is only launched during other startup activities (i.e. a new startup
+/// activity may not launch spontaneously, after all previous activities end).
+/// Startup activities that schedule launches using AsyncCalls are supported.
+///
+/// \retval false after startup period completion, including during reconfiguration
 bool Starting();
 
 
