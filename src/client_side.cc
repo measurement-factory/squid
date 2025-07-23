@@ -3337,10 +3337,6 @@ clientHttpConnectionsOpen(void)
     CodeContext::Reset(savedContext);
 }
 
-// XXX: No new globals; also conflicts with starting_up (that ends too soon)
-/// distinguishes startup activities from reconfiguration
-static auto startingUp = true;
-
 void
 clientStartListeningOn(AnyP::PortCfgPointer &port, const RefCount< CommCbFunPtrCallT<CommAcceptCbPtrFun> > &subCall, const Ipc::FdNoteId fdNote)
 {
@@ -3367,7 +3363,7 @@ clientStartListeningOn(AnyP::PortCfgPointer &port, const RefCount< CommCbFunPtrC
     HttpSockets[NHttpSockets] = -1;
     ++NHttpSockets;
 
-    if (startingUp)
+    if (Instance::Starting())
         Instance::StartupActivityStarted(port->codeContextGist());
 }
 
@@ -3399,7 +3395,7 @@ clientListenerConnectionOpened(AnyP::PortCfgPointer &s, const Ipc::FdNoteId port
 
     AddOpenedHttpSocket(s->listenConn);
 
-    if (startingUp)
+    if (Instance::Starting())
         Instance::StartupActivityFinished(s->codeContextGist());
 }
 
@@ -3409,21 +3405,12 @@ class ListeningManager
 public:
     void start();
 
-    /// reacts to startup timeout
-    void timeout();
-
 private:
-    static void Timeout(void*);
     static void NoteRequiredStartupActivitiesFinished();
     static void NoteAllAreReadyToListen();
-    static void NoteListeningOnAllPorts();
-
-    /// time allocated for startup actions to finish after start()
-    auto timeoutInSeconds() const { return Instance::StartupTimeoutInSeconds(); }
 
     void noteRequiredStartupActivitiesFinished();
     void noteAllAreReadyToListen();
-    void noteListeningOnAllPorts();
     void startOpeningListeningPorts();
 };
 
@@ -3432,23 +3419,6 @@ TheListeningManager()
 {
     static const auto mgr = new ListeningManager();
     return *mgr;
-}
-
-void
-ListeningManager::timeout()
-{
-    // TODO: Remove this `if` statement when eventDelete() reliably cancels callbacks.
-    if (!startingUp)
-        return;
-
-    throw TextException(ToSBuf("Startup activities took longer than ", timeoutInSeconds(), " seconds"), Here());
-}
-
-/// timeout() wrapper compatible with eventAdd() API
-void
-ListeningManager::Timeout(void*)
-{
-    TheListeningManager().timeout();
 }
 
 /// reacts to Instance::NotifyWhenStartedStartupActivitiesFinished() notification
@@ -3486,25 +3456,6 @@ ListeningManager::NoteRequiredStartupActivitiesFinished()
     TheListeningManager().noteRequiredStartupActivitiesFinished();
 }
 
-/// noteListeningOnAllPorts() compatible with NullaryFunDialer<> API
-void
-ListeningManager::NoteListeningOnAllPorts()
-{
-    TheListeningManager().noteListeningOnAllPorts();
-}
-
-/// reacts to completion of all clientStartListeningOn() activities during startup
-void
-ListeningManager::noteListeningOnAllPorts()
-{
-    // XXX: Once startup timeout handling is moved into Instance, this method
-    // will do nothing, and we may be able to remove the entire
-    // NotifyWhenStartedStartupActivitiesFinished() API!
-    Assure(startingUp);
-    eventDelete(&ListeningManager::Timeout, nullptr);
-    startingUp = false;
-}
-
 /// A helper that performs primary clientOpenListenSockets() work. This code
 /// runs in both startup and reconfiguration states.
 static void
@@ -3534,8 +3485,6 @@ ListeningManager::start()
     const auto callback = asyncCall(33, 3, "ListeningManager::NoteRequiredStartupActivitiesFinished",
                                     Dialer(&ListeningManager::NoteRequiredStartupActivitiesFinished));
     Instance::NotifyWhenStartedStartupActivitiesFinished(callback);
-    // TODO: Merge timeout functionality into NotifyWhenStartedStartupActivitiesFinished() that starts this wait.
-    eventAdd("ListeningManager::Timeout", &ListeningManager::Timeout, nullptr, timeoutInSeconds(), 1);
 }
 
 /// starts listening (if all preconditions have been met) or does nothing (otherwise)
@@ -3545,14 +3494,9 @@ ListeningManager::startOpeningListeningPorts()
     // TODO: Add debugging and possibly a caller context.
 
     // assert(!starting_up); // TODO: Extend starting_up mode until we start listening!
-    Assure(startingUp);
+    Assure(Instance::Starting());
 
     clientOpenListenSockets_();
-
-    using Dialer = NullaryFunDialer;
-    const auto callback = asyncCall(33, 3, "ListeningManager::NoteListeningOnAllPorts",
-                                    Dialer(&ListeningManager::NoteListeningOnAllPorts));
-    Instance::NotifyWhenStartedStartupActivitiesFinished(callback);
 }
 
 void

@@ -44,6 +44,11 @@ void StartupActivityFinished(const ScopedId &);
 void NotifyWhenStartedStartupActivitiesFinished(const AsyncCallPointer &requestor);
 size_t StartupActivitiesRunning();
 
+/// Whether a new startup activity may still start.
+/// \retval false after startup phase completion, including during reconfiguration
+bool Starting();
+
+
 } // namespace Instance
 
 #endif

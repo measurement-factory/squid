@@ -27,6 +27,7 @@
 #endif
 
 namespace Instance {
+    static void StartupTimeout(void*);
     static void StartupNotificationCheckpoint();
     static void StartupNotificationDelayedCheckpoint();
     static void AnnounceReadiness();
@@ -237,18 +238,32 @@ Instance::WriteOurPid()
 }
 
 // XXX: No new globals
+static uint64_t StartedStartupActivities = 0;
 static size_t RunningStartupActivities = 0;
 static AsyncCall::Pointer TheRequestor;
 static AsyncCall::Pointer TheDelayedCheckpoint;
+static bool StartupEnded = false;
+
+bool
+Instance::Starting()
+{
+    // TODO: Merge with starting_up, but see "Extend starting_up mode" TODO in main.cc
+    return !StartupEnded;
+}
 
 void
 Instance::StartupActivityStarted(const ScopedId &id)
 {
     // XXX: remember id
+    ++StartedStartupActivities;
     ++RunningStartupActivities;
-    debugs(50, 3, id << "; activities now: " << RunningStartupActivities);
+    debugs(50, 3, id << "; activities now: " << RunningStartupActivities << '/' << StartedStartupActivities);
     Assure(RunningStartupActivities > 0);
     // Assure(starting_up); TODO: Enable when starting_up is only reset in StartupNotificationDelayedCheckpoint()
+    Assure(!StartupEnded);
+
+    if (StartedStartupActivities == 1)
+        eventAdd("Instance::StartupTimeout", &Instance::StartupTimeout, nullptr, StartupTimeoutInSeconds(), 1);
 }
 
 void
@@ -258,6 +273,16 @@ Instance::StartupActivityFinished(const ScopedId &id)
     --RunningStartupActivities;
     debugs(50, 3, id << "; activities now: " << RunningStartupActivities);
     StartupNotificationCheckpoint();
+}
+
+void
+Instance::StartupTimeout(void*)
+{
+    // TODO: Remove this `if` statement when eventDelete() reliably cancels callbacks.
+    if (StartupEnded)
+        return;
+
+    throw TextException(ToSBuf("Startup activities took longer than ", StartupTimeoutInSeconds(), " seconds"), Here());
 }
 
 void
@@ -310,7 +335,12 @@ Instance::StartupNotificationDelayedCheckpoint()
     }
 
     debugs(1, 3, "all startup activities have ended and no new ones are expected");
+    Assure(Starting());
+    eventDelete(&Instance::StartupTimeout, nullptr);
+    Assure(!StartupEnded);
+    StartupEnded = true;
     starting_up = 0;
+
     if (UsingSmp() && !IamCoordinatorProcess())
         Ipc::StrandMessage::NotifyCoordinator(Ipc::mtKidCompletedStartup, nullptr);
     else

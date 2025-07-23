@@ -1653,6 +1653,8 @@ SquidMain(int argc, char **argv)
         }
     }
 
+    const auto myActivity = ScopedId("synchronous post-config initialization");
+    Instance::StartupActivityStarted(myActivity);
     StartUsingConfig();
     enter_suid();
 
@@ -1716,6 +1718,7 @@ SquidMain(int argc, char **argv)
         AsyncJob::Start(&Ipc::Strand::Instance());
 
     /* at this point we are finished the synchronous startup. */
+    Instance::StartupActivityFinished(myActivity);
     starting_up = 0; // TODO: Extend starting_up mode until we start listening!
 
     mainLoop.run();
