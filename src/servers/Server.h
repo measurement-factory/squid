@@ -129,6 +129,9 @@ protected:
     /// \sa currentReader()
     ClientHttpRequest &currentWriter();
 
+    /// whether client_request_buffer_max_size allows inBuf.length() increase
+    bool mayBufferMoreRequestBytes() const;
+
     void doClientRead(const CommIoCbParams &io);
     void clientWriteDone(const CommIoCbParams &io);
 
