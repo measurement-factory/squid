@@ -79,12 +79,18 @@ private:
     typedef std::map<OpenListenerParams, Comm::ConnectionPointer> Listeners; ///< params:connection map
     Listeners listeners; ///< cached comm_open_listener() results
 
-    using SynchronizingKids = std::set<SynchronizationRequest>; ///< unique synchronization requests
+    using SynchronizingKids = std::map<int, RequestId>; ///< maps kid ID its SynchronizationRequest::mapId
     SynchronizingKids synchronizingKids; ///< kids that have reached their synchronization barrier
-    SynchronizingKids synchronizedKids; ///< kids that have been informed of crossing their synchronization barrier
 
     using KidIds = std::set<int>; ///< unique kid IDs
+    KidIds synchronizedKids; ///< kids that have been informed of crossing their synchronization barrier
     KidIds kidsThatCompletedStartup; ///< kids that have completed all kid-specific startup activities
+
+    /// whether crossSynchronizationBarrier() has been called (at least once)
+    bool crossedSynchronizationBarrier = false;
+
+    /// whether we have completed the startup activity launched by our constructor
+    bool finishedStartupActivity = false;
 
     static Coordinator* TheInstance; ///< the only class instance in existence
 
@@ -92,6 +98,7 @@ private:
     bool knownKid(const int, const SynchronizingKids &) const;
     bool knownKid(const int, const KidIds &) const;
     void synchronizationCheckpoint();
+    void crossSynchronizationBarrier();
 
     Coordinator(const Coordinator&); // not implemented
     Coordinator& operator =(const Coordinator&); // not implemented
