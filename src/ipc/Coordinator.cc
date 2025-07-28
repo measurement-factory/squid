@@ -32,6 +32,15 @@
 CBDATA_NAMESPACED_CLASS_INIT(Ipc, Coordinator);
 Ipc::Coordinator* Ipc::Coordinator::TheInstance = nullptr;
 
+/// convenience wrapper that determines whether the given kid process belongs to
+/// the given container
+template <class Kids>
+static bool
+KnownKid(const int kidId, const Kids &kids)
+{
+    return kids.find(kidId) != kids.end();
+}
+
 Ipc::Coordinator::Coordinator():
     Port(Ipc::Port::CoordinatorAddr())
 {
@@ -304,9 +313,9 @@ Ipc::Coordinator::synchronizationCheckpoint()
     size_t remainingKids = 0;
     const auto expectedNumberOfKids = NumberOfKidsExceptCoordinator();
     for (size_t kidId = 1; kidId <= expectedNumberOfKids; ++kidId) {
-        if (knownKid(kidId, synchronizingKids))
+        if (KnownKid(kidId, synchronizingKids))
             continue; // reached the barrier
-        if (knownKid(kidId, kidsThatCompletedStartup))
+        if (KnownKid(kidId, kidsThatCompletedStartup))
             continue; // bypassed the barrier by completing all startup activities
         debugs(54, 7, "kid " << kidId << " may still raise synchronization barrier");
         ++remainingKids;
@@ -343,21 +352,6 @@ Ipc::Coordinator::crossSynchronizationBarrier()
     }
 }
 
-// TODO: Merge into one templated method or even a stand-alone function?
-/// whether the given kid process is waiting to pass a synchronization barrier
-bool
-Ipc::Coordinator::knownKid(const int kidId, const SynchronizingKids &kids) const
-{
-    return kids.find(kidId) != kids.end();
-}
-
-/// whether the given kid process has completed all startup activities
-bool
-Ipc::Coordinator::knownKid(const int kidId, const KidIds &kids) const
-{
-    return kids.find(kidId) != kids.end();
-}
-
 void
 Ipc::Coordinator::handleKidCompletedStartupNotification(const StrandMessage &msg)
 {
@@ -368,12 +362,12 @@ Ipc::Coordinator::handleKidCompletedStartupNotification(const StrandMessage &msg
     Assure(insterted); // restarted kids re-register, and registration erases their old entry
     Assure(kidsThatCompletedStartup.size() <= expectedNumberOfKids);
     // a ready kid is either independent or has already crossed its synchronization barrier
-    Assure(!knownKid(msg.strand.kidId, synchronizingKids) || knownKid(msg.strand.kidId, synchronizedKids));
+    Assure(!KnownKid(msg.strand.kidId, synchronizingKids) || KnownKid(msg.strand.kidId, synchronizedKids));
 
     // each independent kid startup completion effectively lowers
     // synchronization barrier for inter-dependent kids that are waiting to
     // cross that barrier
-    if (!knownKid(msg.strand.kidId, synchronizingKids))
+    if (!KnownKid(msg.strand.kidId, synchronizingKids))
         synchronizationCheckpoint();
 
     if (kidsThatCompletedStartup.size() < expectedNumberOfKids) {

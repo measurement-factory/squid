@@ -95,8 +95,6 @@ private:
     static Coordinator* TheInstance; ///< the only class instance in existence
 
 private:
-    bool knownKid(const int, const SynchronizingKids &) const;
-    bool knownKid(const int, const KidIds &) const;
     void synchronizationCheckpoint();
     void crossSynchronizationBarrier();
 
