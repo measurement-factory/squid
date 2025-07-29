@@ -21,6 +21,7 @@
 #include "auth/Config.h"
 #include "auth/Scheme.h"
 #include "AuthReg.h"
+#include "base/CharacterSet.h"
 #include "base/PackableStream.h"
 #include "base/RunnersRegistry.h"
 #include "cache_cf.h"
@@ -2351,6 +2352,18 @@ parse_peer(CachePeer ** head)
             if (token[13])
                 p->domain = xstrdup(token + 13);
 
+        } else if (!strncmp(token, "redundancy-group=", 17)) {
+            if (p->redundancyGroup)
+                throw TextException("multiple cache_peer redundancy-group options are not supported", Here());
+            p->redundancyGroup = token + 17;
+
+            // These restrictions help with keeping group reporting readable and
+            // may help with future support for multiple group memberships.
+            if (p->redundancyGroup->isEmpty())
+                throw TextException("empty cache_peer redundancy-group names are not supported", Here());
+            static const auto nameChars = CharacterSet("redundancy-group=name", "_") + CharacterSet::ALPHA + CharacterSet::DIGIT;
+            if (p->redundancyGroup->findFirstNotOf(nameChars) != SBuf::npos)
+                throw TextException("cache_peer redundancy-group name must only contain ASCII alphanumeric and underscore characters", Here());
         } else if (strncmp(token, "ssl", 3) == 0) {
 #if !USE_OPENSSL
             debugs(0, DBG_CRITICAL, "WARNING: cache_peer option '" << token << "' requires --with-openssl");

@@ -25,6 +25,7 @@
 #include "HttpRequest.h"
 #include "icmp/net_db.h"
 #include "ICP.h"
+#include "Instance.h"
 #include "int.h"
 #include "ip/Address.h"
 #include "ip/tools.h"
@@ -574,6 +575,11 @@ neighbors_init(void)
                 neighborRemove(thisPeer);
             }
         }
+    }
+
+    if (Instance::Starting()) {
+        for (auto peer = Config.peers; peer; peer = peer->next)
+            peer->startupActivityStarted();
     }
 
     peerRefreshDNS((void *) 1);
@@ -1168,11 +1174,15 @@ peerDNSConfigure(const ipcache_addrs *ia, const Dns::LookupDetails &, void *data
 
     if (ia == nullptr) {
         debugs(0, DBG_CRITICAL, "WARNING: DNS lookup for '" << *p << "' failed!");
+        if (p->startingUp())
+            p->startupActivityFinished();
         return;
     }
 
     if (ia->empty()) {
         debugs(0, DBG_CRITICAL, "WARNING: No IP address found for '" << *p << "'!");
+        if (p->startingUp())
+            p->startupActivityFinished();
         return;
     }
 
@@ -1284,6 +1294,9 @@ peerProbeConnectDone(const Comm::ConnectionPointer &conn, Comm::Flag status, int
     -- p->testing_now;
     conn->close();
     // TODO: log this traffic.
+
+    if (p->startingUp() && !p->testing_now)
+        p->startupActivityFinished();
 
     if (p->reprobe)
         peerProbeConnect(p);
@@ -1537,6 +1550,9 @@ dump_peer_options(StoreEntry * sentry, CachePeer * p)
     if (p->domain)
         storeAppendPrintf(sentry, " forceddomain=%s", p->domain);
 
+    if (p->redundancyGroup)
+        storeAppendPrintf(sentry, " redundancy-group=" SQUIDSBUFPH, SQUIDSBUFPRINT(*p->redundancyGroup));
+
     if (p->connection_auth == 0)
         storeAppendPrintf(sentry, " connection-auth=off");
     else if (p->connection_auth == 1)
@@ -1630,6 +1646,12 @@ dump_peers(StoreEntry * sentry, CachePeer * peers)
 #endif
 
         }
+
+        if (e->startingUp())
+            storeAppendPrintf(sentry, "starting: true\n");
+
+        if (e->testing_now)
+            storeAppendPrintf(sentry, "TCP connectivity probes running: %d\n", e->testing_now);
 
         if (e->stats.last_connect_failure) {
             storeAppendPrintf(sentry, "Last failed connect() at: %s\n",

@@ -11,14 +11,20 @@
 #include "CachePeer.h"
 #include "defines.h"
 #include "neighbors.h"
+#include "Instance.h"
 #include "NeighborTypeDomainList.h"
 #include "pconn.h"
 #include "PeerDigest.h"
 #include "PeerPoolMgr.h"
+#include "sbuf/SBuf.h"
+#include "sbuf/Stream.h"
 #include "SquidConfig.h"
 #include "util.h"
 
 CBDATA_CLASS_INIT(CachePeer);
+
+// XXX: No new globals
+std::optional<ScopedId> CachePeer::StartupActivity;
 
 CachePeer::CachePeer(const char * const hostname):
     name(xstrdup(hostname)),
@@ -57,6 +63,54 @@ CachePeer::~CachePeer()
     PeerPoolMgr::Checkpoint(standby.mgr, "peer gone");
 
     xfree(domain);
+}
+
+void
+CachePeer::startupActivityStarted()
+{
+    Assure(Instance::Starting());
+
+    Assure(!startingUp_);
+    startingUp_ = true;
+
+    // We only inform Instance of this activity if redundancy-group has been
+    // configured, giving up permission to delay opening of primary listening
+    // sockets until peer startup activities have succeeded.
+    if (!StartupActivity && redundancyGroup) {
+        StartupActivity = ScopedId("cache_peer startup probes");
+        Instance::StartupActivityStarted(*StartupActivity);
+    }
+}
+
+void
+CachePeer::startupActivityFinished()
+{
+    Assure(startingUp_);
+    startingUp_ = false;
+
+    if (!redundancyGroup)
+        return; // the checks below are specific to redundancy group members
+
+    auto foundUpMemberInMyGroup = false;
+    for (auto peer = Config.peers; !foundUpMemberInMyGroup && peer; peer = peer->next) {
+        if (redundancyGroup != peer->redundancyGroup)
+            continue; // only same-group peers affect foundUpMemberInMyGroup
+        if (peer->startingUp())
+            return; // "startup failed" logic below requires all same-group peers to finish their startup activities
+        foundUpMemberInMyGroup = peer->tcp_up;
+    }
+    debugs(15, 3, "done with redundancy-group=" << *redundancyGroup);
+    if (!foundUpMemberInMyGroup)
+        throw TextException(ToSBuf("startup initialization/probing failed for all cache_peer redundancy-group=", *redundancyGroup, " members"), Here());
+
+    Assure(StartupActivity);
+    for (auto peer = Config.peers; peer; peer = peer->next) {
+        if (peer->redundancyGroup && peer->startingUp()) {
+            Assure(redundancyGroup != peer->redundancyGroup);
+            return; // wait for that (other group) peer to finish its startup activities
+        }
+    }
+    Instance::StartupActivityFinished(*StartupActivity);
 }
 
 void

@@ -17,6 +17,7 @@
 #include "security/PeerOptions.h"
 
 #include <iosfwd>
+#include <optional>
 
 //TODO: remove, it is unconditionally defined and always used.
 #define PEER_MULTICAST_SIBLINGS 1
@@ -45,6 +46,18 @@ public:
 
     /// whether the admin is likely to believe that this peer is not marked as DEAD
     bool consideredAliveByAdmin() const { return stats.logged_state == PEER_ALIVE; }
+
+    /// Whether startup initialization tasks have begun and are still running.
+    /// These tasks include obtaining IP addresses (see n_addresses) and TCP
+    /// connectivity probes (see testing_now).
+    /// \sa startupActivityStarted(), startupActivityFinished()
+    bool startingUp() const { return startingUp_; }
+
+    /// reacts to the beginning of peer initialization activities during Squid startup
+    void startupActivityStarted();
+
+    /// reacts to the end of all startup peer initialization activities launched since startupActivityStarted()
+    void startupActivityFinished();
 
     u_int index = 0;
 
@@ -178,7 +191,7 @@ public:
     int n_addresses = 0;
     int rr_count = 0;
     CachePeer *next = nullptr;
-    int testing_now = 0;
+    int testing_now = 0; ///< the number of in-progress TCP connectivity probes
 
     struct {
         unsigned int hash = 0;
@@ -221,12 +234,20 @@ public:
     int front_end_https = 0; ///< 0 - off, 1 - on, 2 - auto
     int connection_auth = 2; ///< 0 - off, 1 - on, 2 - auto
 
+    std::optional<SBuf> redundancyGroup; ///< cache_peer redundancy-group value
+
 private:
     friend class OutgoingConnectionFailure;
+
+    /// identifies startup initialization of the entire cache_peer set
+    static std::optional<ScopedId> StartupActivity;
 
     /// reacts to a failure on a connection to this cache_peer
     /// \param code a received response status code, if any
     void noteFailure();
+
+    /// \copydoc startingUp()
+    bool startingUp_ = false;
 };
 
 /// identify the given cache peer in cache.log messages and such
