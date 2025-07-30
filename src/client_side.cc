@@ -3266,26 +3266,16 @@ ConnStateData::buildFakeRequest(SBuf &useHost, const AnyP::KnownPort usePort, co
     return http;
 }
 
-// XXX: Undo these out-of-scope (since 97f7dd0a) branch improvements.
-/// the first unused HttpSockets[] slot position
-static std::optional<size_t>
-FindUnusedHttpSocketSlot()
+/// find any unused HttpSockets[] slot and store fd there or return false
+static bool
+AddOpenedHttpSocket(const Comm::ConnectionPointer &conn)
 {
     bool found = false;
     for (int i = 0; i < NHttpSockets && !found; ++i) {
-        if (HttpSockets[i] < 0)
-            return i;
+        if ((found = HttpSockets[i] < 0))
+            HttpSockets[i] = conn->fd;
     }
-    return std::nullopt;
-}
-
-/// find any unused HttpSockets[] slot and store fd there
-static void
-AddOpenedHttpSocket(const Comm::ConnectionPointer &conn)
-{
-    const auto slot = FindUnusedHttpSocketSlot();
-    Assure2(slot, "the number of received listening sockets does not exceed the number of requested ones");
-    HttpSockets[*slot] = conn->fd;
+    return found;
 }
 
 static void
@@ -3393,7 +3383,7 @@ clientListenerConnectionOpened(AnyP::PortCfgPointer &s, const Ipc::FdNoteId port
            << FdNote(portTypeNote) << " connections at "
            << s->listenConn);
 
-    AddOpenedHttpSocket(s->listenConn);
+    Must(AddOpenedHttpSocket(s->listenConn)); // otherwise, we have received a fd we did not ask for
 
     if (Instance::Starting())
         Instance::StartupActivityFinished(s->codeContextGist());
