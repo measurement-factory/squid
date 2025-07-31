@@ -760,26 +760,32 @@ helper::willOverload() const {
 namespace Helper
 {
 
-/// XXX
+/// Squid cannot detect many helper startup problems synchronously (i.e. by
+/// checking ipcCreate() result) because those problems happen in a forked
+/// process; ipcCreate() succeeds even if execvp() fails (e.g., due to a missing
+/// helper script). This singleton class waits a few seconds to give many
+/// typical startup problems a chance to be detected (via IPC pipes closure)
+/// and, if they are detected, aborts Squid startup.
 class StartupMonitor
 {
 public:
     StartupMonitor();
 
-    // TODO: Assure insert() and erase() successes
-    void startMonitoring(const helper::Pointer &aHelper) { helpers.insert(aHelper); }
-    void stopMonitoring(const helper::Pointer &aHelper) { helpers.erase(aHelper); }
-
-    /// react to SecondsToStart() timeout
-    void timeout();
+    void startMonitoring(const helper::Pointer &aHelper) { (void)helpers.insert(aHelper); }
+    void stopMonitoring(const helper::Pointer &aHelper) { (void)helpers.erase(aHelper); }
 
 private:
-    static void Timeout(void*);
+    /// Time allocated for all configured helpers to solve any startup problems
+    /// and reach startup=N server process levels. A helper starts all N
+    /// processes immediately/synchronously, but problems may be detected later.
+    /// Keep this value small: Most problems manifest themselves under a second,
+    /// and Squid (with helpers) cannot finish startup while waiting.
+    static constexpr double SecondsToWaitForProblems() { return 3; }
 
-    /// time allocated for all configured helpers to start all of their startup=N processes
-    static constexpr double SecondsToStart() { return 3; /* XXX: ALL,9 debugging may require more */ }
+    static void FinalCheck(void*);
+    void finalCheck();
 
-    std::set<helper::Pointer> helpers;
+    std::set<helper::Pointer> helpers; ///< helpers that have not been shut down yet
 };
 
 /// a StartupMonitor instance (during the startup monitoring stage) or nil (afterwords)
@@ -792,14 +798,15 @@ MonitoringStartup()
 
 } // namespace Helper
 
+/// check whether all helpers achieved their startup=N goals
 void
-Helper::StartupMonitor::timeout()
+Helper::StartupMonitor::finalCheck()
 {
     for (const auto &helper: helpers) {
         if (helper->childs.n_active < helper->childs.n_startup) {
             throw TextException(ToSBuf("Failed to reach configured startup=", helper->childs.n_startup,
                                        " level for ", helper->id_name, " helper in ",
-                                       SecondsToStart(), " seconds",
+                                       SecondsToWaitForProblems(), " seconds",
                                        Debug::Extra, "helper processes running: ", helper->childs.n_active), Here());
         }
     }
@@ -809,22 +816,22 @@ Helper::StartupMonitor::timeout()
     Instance::StartupActivityFinished(ScopedId(activityName));
 }
 
-/// timeout() wrapper compatible with eventAdd() API
+/// finalCheck() wrapper compatible with eventAdd() API
 void
-Helper::StartupMonitor::Timeout(void*)
+Helper::StartupMonitor::FinalCheck(void*)
 {
     auto &monitor = MonitoringStartup();
     Assure(monitor);
-    monitor->timeout();
+    monitor->finalCheck();
     monitor = std::nullopt;
 }
 
 Helper::StartupMonitor::StartupMonitor()
 {
     const auto activityName = "Helper::StartupMonitor";
-    eventAdd("Helper::StartupMonitor::Timeout", &Helper::StartupMonitor::Timeout, nullptr, SecondsToStart(), 0);
+    eventAdd("Helper::StartupMonitor::FinalCheck", &Helper::StartupMonitor::FinalCheck, nullptr, SecondsToWaitForProblems(), 0);
     Instance::StartupActivityStarted(ScopedId(activityName));
-    static_assert(SecondsToStart() <= Instance::StartupTimeoutInSeconds());
+    static_assert(SecondsToWaitForProblems() <= Instance::StartupTimeoutInSeconds());
 }
 
 helper::helper(const char *name): id_name(name)
