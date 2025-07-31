@@ -27,7 +27,6 @@
 #endif
 
 namespace Instance {
-    static void StartupTimeout(void*);
     static void StartupNotificationCheckpoint();
     static void StartupNotificationDelayedCheckpoint();
     static void AnnounceReadiness();
@@ -260,8 +259,7 @@ Instance::StartupActivityStarted(const ScopedId &id)
     Assure(RunningStartupActivities > 0);
     Assure(!StartupEnded);
 
-    if (StartedStartupActivities == 1)
-        eventAdd("Instance::StartupTimeout", &Instance::StartupTimeout, nullptr, StartupTimeoutInSeconds(), 1);
+    // TODO: Consider limiting startup by a timeout (scheduled here when StartedStartupActivities is 1).
 }
 
 void
@@ -271,16 +269,6 @@ Instance::StartupActivityFinished(const ScopedId &id)
     --RunningStartupActivities;
     debugs(50, 3, id << "; activities now: " << RunningStartupActivities);
     StartupNotificationCheckpoint();
-}
-
-void
-Instance::StartupTimeout(void*)
-{
-    // TODO: Remove this `if` statement when eventDelete() reliably cancels callbacks.
-    if (StartupEnded)
-        return;
-
-    throw TextException(ToSBuf("Startup activities took longer than ", StartupTimeoutInSeconds(), " seconds"), Here());
 }
 
 void
@@ -334,7 +322,6 @@ Instance::StartupNotificationDelayedCheckpoint()
 
     debugs(1, 3, "all startup activities have ended and no new ones are expected");
     Assure(Starting());
-    eventDelete(&Instance::StartupTimeout, nullptr);
     Assure(!StartupEnded);
     StartupEnded = true;
     Assure(!Starting());

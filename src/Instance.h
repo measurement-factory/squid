@@ -32,12 +32,6 @@ void WriteOurPid();
 /// Throws if PID file maintenance is disabled.
 pid_t Other();
 
-// TODO: Use std::chrono instead of tracking time units using function names.
-// TODO: Make configurable to accommodate special cases like slow probes or ALL,9?
-/// Approximate time an instance is allowed to wait for startup activities to
-/// finish after parsing configuration and before servicing user traffic.
-constexpr double StartupTimeoutInSeconds() { return 7; /* XXX: ALL,9 debugging may require more */ }
-
 /// XXX: Describe!
 void StartupActivityStarted(const ScopedId &);
 void StartupActivityFinished(const ScopedId &);

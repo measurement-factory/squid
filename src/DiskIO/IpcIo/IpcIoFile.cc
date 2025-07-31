@@ -46,7 +46,7 @@ static const char *const ShmLabel = "io_file";
 // TODO: make configurable or compute from squid.conf settings if possible
 static const int QueueCapacity = 1024;
 
-const double IpcIoFile::Timeout = Instance::StartupTimeoutInSeconds();
+const double IpcIoFile::Timeout = 7; // seconds;  XXX: ALL,9 may require more
 IpcIoFile::IpcIoFileList IpcIoFile::WaitingForOpen;
 IpcIoFile::IpcIoFilesMap IpcIoFile::IpcIoFiles;
 std::unique_ptr<IpcIoFile::Queue> IpcIoFile::queue;

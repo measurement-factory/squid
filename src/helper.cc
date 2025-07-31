@@ -831,7 +831,6 @@ Helper::StartupMonitor::StartupMonitor()
     const auto activityName = "Helper::StartupMonitor";
     eventAdd("Helper::StartupMonitor::FinalCheck", &Helper::StartupMonitor::FinalCheck, nullptr, SecondsToWaitForProblems(), 0);
     Instance::StartupActivityStarted(ScopedId(activityName));
-    static_assert(SecondsToWaitForProblems() <= Instance::StartupTimeoutInSeconds());
 }
 
 helper::helper(const char *name): id_name(name)
