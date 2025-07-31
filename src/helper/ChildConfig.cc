@@ -60,12 +60,14 @@ Helper::ChildConfig::updateLimits(const Helper::ChildConfig &rhs)
 int
 Helper::ChildConfig::needNew() const
 {
-    /* during the startup and reconfigure use our special amount... */
-    if (Instance::Starting() || reconfiguring) return n_startup;
-
-    // like reconfiguration, log rotation shuts down and restarts all helpers,
-    // so we apply the above reconfiguration logic to log rotation as well
-    if (RotatingLogs) return n_startup;
+    if (Instance::Starting() || reconfiguring || RotatingLogs) {
+        // During startup, we are naturally guided by startup=n configuration.
+        // During reconfiguration and log rotation, helpers are restarted (i.e.
+        // shut down and started), so we use that configuration as well. During
+        // startup and, in theory, when restarting helpers, we may be called
+        // after some helpers have been activated already; account for those.
+        return (n_startup > n_active) ? (n_startup - n_active) : 0;
+    }
 
     /* keep a minimum of n_idle helpers free... */
     if ( (n_active + n_idle) < n_max) return n_idle;
