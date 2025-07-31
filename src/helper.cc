@@ -36,6 +36,7 @@
 // helper_stateful_server::data uses explicit alloc()/freeOne() */
 #include "mem/Pool.h"
 
+#include <optional>
 #include <set>
 
 #define HELPER_MAX_ARGS 64
@@ -766,7 +767,6 @@ public:
     StartupMonitor();
 
     // TODO: Assure insert() and erase() successes
-    // TODO: Assure that we do not insert during startup after SecondsToStart() timeout has expired!
     void startMonitoring(const helper::Pointer &aHelper) { helpers.insert(aHelper); }
     void stopMonitoring(const helper::Pointer &aHelper) { helpers.erase(aHelper); }
 
@@ -782,10 +782,11 @@ private:
     std::set<helper::Pointer> helpers;
 };
 
+/// a StartupMonitor instance (during the startup monitoring stage) or nil (afterwords)
 static auto &
-TheStartupMonitor()
+MonitoringStartup()
 {
-    static const auto monitor = new StartupMonitor();
+    static const auto monitor = new std::optional<StartupMonitor>(std::in_place);
     return *monitor;
 }
 
@@ -812,7 +813,10 @@ Helper::StartupMonitor::timeout()
 void
 Helper::StartupMonitor::Timeout(void*)
 {
-    TheStartupMonitor().timeout();
+    auto &monitor = MonitoringStartup();
+    Assure(monitor);
+    monitor->timeout();
+    monitor = std::nullopt;
 }
 
 Helper::StartupMonitor::StartupMonitor()
@@ -825,8 +829,8 @@ Helper::StartupMonitor::StartupMonitor()
 
 helper::helper(const char *name): id_name(name)
 {
-    if (Instance::Starting()) // TODO: Move condition to TheStartupMonitor itself so that unconditional stopMonitoring() does not look odd?
-        Helper::TheStartupMonitor().startMonitoring(this);
+    if (auto &monitor = Helper::MonitoringStartup())
+        monitor->startMonitoring(this);
 }
 
 helper::Pointer
@@ -877,7 +881,8 @@ helperShutdown(const helper::Pointer &hlp)
         srv->closePipesSafely(hlp->id_name);
     }
 
-    Helper::TheStartupMonitor().stopMonitoring(hlp);
+    if (auto &monitor = Helper::MonitoringStartup())
+        monitor->stopMonitoring(hlp);
 }
 
 void
@@ -926,7 +931,8 @@ helperStatefulShutdown(const statefulhelper::Pointer &hlp)
         srv->closePipesSafely(hlp->id_name);
     }
 
-    Helper::TheStartupMonitor().stopMonitoring(hlp);
+    if (auto &monitor = Helper::MonitoringStartup())
+        monitor->stopMonitoring(hlp);
 }
 
 helper::~helper()
