@@ -64,7 +64,9 @@ protected:
     void handleSnmpResponse(const Snmp::Response& response);
 #endif
 
+    /// reacts to mtSynchronizationRequest message
     void handleSynchronizationRequest(const SynchronizationRequest &);
+    /// reacts to mtKidCompletedStartup message
     void handleKidCompletedStartupNotification(const StrandMessage &);
 
     /// calls comm_open_listener()
@@ -79,7 +81,7 @@ private:
     typedef std::map<OpenListenerParams, Comm::ConnectionPointer> Listeners; ///< params:connection map
     Listeners listeners; ///< cached comm_open_listener() results
 
-    using SynchronizingKids = std::map<int, RequestId>; ///< maps kid ID its SynchronizationRequest::mapId
+    using SynchronizingKids = std::map<int, RequestId>; ///< maps kid ID to kid's SynchronizationRequest::mapId
     SynchronizingKids synchronizingKids; ///< kids that have reached their synchronization barrier
 
     using KidIds = std::set<int>; ///< unique kid IDs
