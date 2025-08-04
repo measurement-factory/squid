@@ -9,6 +9,7 @@
 /* DEBUG: section 54    Interprocess Communication */
 
 #include "squid.h"
+#include "base/CbcPointer.h"
 #include "base/Subscription.h"
 #include "base/TextException.h"
 #include "CacheManager.h"
@@ -38,12 +39,35 @@
 
 CBDATA_NAMESPACED_CLASS_INIT(Ipc, Strand);
 
+// XXX: This method should not exist because one should not synchronously
+// communicate with a started job -- the job object may disappear even if its
+// doneAll() method never returns true. Thus, externally accessible services
+// like barrierWait() must be implemented outside of Strand's job class, with
+// Strand job accessing them (e.g., to call synchronizationCallback) instead of
+// the other way around. TODO: Until we need support for multiple barriers, call
+// a hard-coded handler (e.g., ListeningManager::NoteAllAreReadyToListen()).
+//
+// There is an equivalent XXX in easier-to-refactor Coordinator::Instance().
 Ipc::Strand &
 Ipc::Strand::Instance()
 {
     static const auto instance = new Strand();
-    // TODO: AsyncJob::Start() this and Coordinator jobs automatically upon creation
+
+    static auto started = false;
+    if (!started) {
+        started = true;
+        AsyncJob::Start(instance);
+    }
+
     return *instance;
+}
+
+void
+Ipc::Strand::Init()
+{
+    Assure(UsingSmp());
+    Assure(!IamCoordinatorProcess());
+    (void)Instance(); // used for its AsyncJob::Start() side effect
 }
 
 Ipc::Strand::Strand():

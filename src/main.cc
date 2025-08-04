@@ -1724,7 +1724,7 @@ SquidMain(int argc, char **argv)
     if (IamCoordinatorProcess())
         AsyncJob::Start(Ipc::Coordinator::Instance());
     else if (UsingSmp() && (IamWorkerProcess() || IamDiskProcess()))
-        AsyncJob::Start(&Ipc::Strand::Instance());
+        Ipc::Strand::Init();
 
     /* at this point we are finished the synchronous startup. */
     Instance::StartupActivityFinished(myActivity);

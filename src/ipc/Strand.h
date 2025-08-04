@@ -31,6 +31,12 @@ class Strand: public Port
 public:
     static Strand &Instance(); ///< the only class instance in existence
 
+    /// Initiates this kid process registration with Coordinator as well as
+    /// listening for IPC messages from Coordinator. Repeated calls are safe and
+    /// do nothing.
+    /// \prec This process is an SMP Squid kid process but is not a Coordinator.
+    static void Init();
+
     Strand();
 
     void start() override; // Port (AsyncJob) API

@@ -12,6 +12,7 @@
 #include "debug/Stream.h"
 #include "globals.h"
 #include "ipc/Port.h"
+#include "ipc/Strand.h"
 #include "ipc/StrandCoord.h"
 #include "ipc/TypedMsgHdr.h"
 
@@ -71,9 +72,13 @@ Ipc::StrandMessage::pack(const MessageType messageType, TypedMsgHdr &hdrMsg) con
     qid.pack(hdrMsg);
 }
 
+// TODO: Rename to Ipc::NotifyCoordinator() and move to src/ipc/Strand.cc.
 void
 Ipc::StrandMessage::NotifyCoordinator(const MessageType msgType, const char *tag)
 {
+    // start listening for responses before sending requests
+    Ipc::Strand::Init();
+
     static const auto pid = getpid();
     StrandMessage message(StrandCoord(KidIdentifier, pid), MyQuestionerId());
     if (tag)
