@@ -67,15 +67,22 @@ void Ipc::Coordinator::registerStrand(const StrandCoord& strand)
     debugs(54, 3, "registering kid" << strand.kidId <<
            ' ' << strand.tag);
     if (StrandCoord* found = findStrand(strand.kidId)) {
-        const String oldTag = found->tag;
-        *found = strand;
-        if (oldTag.size() && !strand.tag.size())
-            found->tag = oldTag; // keep more detailed info (XXX?)
-
-        // a registration request resets kid synchronization state
-        (void)synchronizingKids.erase(strand.kidId);
-        (void)synchronizedKids.erase(strand.kidId);
-        (void)kidsThatCompletedStartup.erase(strand.kidId);
+        if (found->pid == strand.pid) {
+            // This same-process re-registration happens because diskers send
+            // two mtRegisterStrand requests, one with a tag and one without. We
+            // store the tag regardless of those requests actual arrival order.
+            // TODO: Send one disker mtRegisterStrand request, with a tag.
+            if (!strand.tag.size())
+                return; // no new information and, hence, no notifications below
+            debugs(54, 5, "old tag: " << found->tag); // could be empty
+            found->tag = strand.tag;
+        } else {
+            *found = strand;
+            debugs(54, 5, "resetting stale kid synchronization state: stale=" << found->pid << "; new=" << strand.pid);
+            (void)synchronizingKids.erase(strand.kidId);
+            (void)synchronizedKids.erase(strand.kidId);
+            (void)kidsThatCompletedStartup.erase(strand.kidId);
+        }
     } else {
         strands_.push_back(strand);
     }
