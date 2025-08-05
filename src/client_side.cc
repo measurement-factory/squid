@@ -3389,6 +3389,18 @@ clientListenerConnectionOpened(AnyP::PortCfgPointer &s, const Ipc::FdNoteId port
         Instance::StartupActivityFinished(s->codeContextGist());
 }
 
+/// A helper that performs primary clientOpenListenSockets() work. This code
+/// runs in both startup and reconfiguration states.
+static void
+clientOpenListenSockets_()
+{
+    clientHttpConnectionsOpen();
+    Ftp::StartListening();
+
+    if (NHttpSockets < 1)
+        fatal("No HTTP, HTTPS, or FTP ports configured");
+}
+
 // TODO: Rename to StartupListeningManager.
 /// Ensures proper clientOpenListenSockets_() call timing during startup.
 class ListeningManager: public AsyncJob
@@ -3408,6 +3420,14 @@ private:
 
 CBDATA_CLASS_INIT(ListeningManager);
 
+void
+ListeningManager::start()
+{
+    using Dialer = NullaryMemFunT<ListeningManager>;
+    const auto callback = JobCallback(33, 3, Dialer, this, ListeningManager::noteRequiredStartupActivitiesFinished);
+    Instance::NotifyWhenStartedStartupActivitiesFinished(callback);
+}
+
 /// reacts to Instance::NotifyWhenStartedStartupActivitiesFinished() notification
 void
 ListeningManager::noteRequiredStartupActivitiesFinished()
@@ -3421,16 +3441,16 @@ ListeningManager::noteRequiredStartupActivitiesFinished()
     }
 }
 
-/// A helper that performs primary clientOpenListenSockets() work. This code
-/// runs in both startup and reconfiguration states.
-static void
-clientOpenListenSockets_()
+/// SMP and non-SMP code paths converge here after asynchronously fulfilling
+/// preconditions for opening primary listening ports. Opening those ports often
+/// requires asynchronous actions as well, so Squid may not be listening on
+/// those ports after this method returns.
+void
+ListeningManager::startOpeningListeningPorts()
 {
-    clientHttpConnectionsOpen();
-    Ftp::StartListening();
-
-    if (NHttpSockets < 1)
-        fatal("No HTTP, HTTPS, or FTP ports configured");
+    Assure(Instance::Starting());
+    clientOpenListenSockets_();
+    mustStop("finished startOpeningListeningPorts()");
 }
 
 void
@@ -3444,26 +3464,6 @@ clientOpenListenSockets()
     Assure(!started);
     started = true;
     AsyncJob::Start(new ListeningManager);
-}
-
-void
-ListeningManager::start()
-{
-    using Dialer = NullaryMemFunT<ListeningManager>;
-    const auto callback = JobCallback(33, 3, Dialer, this, ListeningManager::noteRequiredStartupActivitiesFinished);
-    Instance::NotifyWhenStartedStartupActivitiesFinished(callback);
-}
-
-/// SMP and non-SMP code paths converge here after asynchronously fulfilling
-/// preconditions for opening primary listening ports. Opening those ports often
-/// requires asynchronous actions as well, so Squid may not be listening on
-/// those ports after this method returns.
-void
-ListeningManager::startOpeningListeningPorts()
-{
-    Assure(Instance::Starting());
-    clientOpenListenSockets_();
-    mustStop("finished startOpeningListeningPorts()");
 }
 
 void
