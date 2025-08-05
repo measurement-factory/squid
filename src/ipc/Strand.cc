@@ -43,20 +43,14 @@ CBDATA_NAMESPACED_CLASS_INIT(Ipc, Strand);
 /// allows mtFindStrand queries to find this strand
 /// \sa Ipc::Strand::InitTagged()
 std::optional<SBuf> TheTag;
+/// a task waiting for other kids to reach the same synchronization point
+AsyncCallPointer synchronizationCallback; // XXX: Capitalize
 
-// XXX: This method should not exist because one should not synchronously
-// communicate with a started job -- the job object may disappear even if its
-// doneAll() method never returns true. Thus, externally accessible services
-// like barrierWait() must be implemented outside of Strand's job class, with
-// Strand job accessing them (e.g., to call synchronizationCallback) instead of
-// the other way around. TODO: Until we need support for multiple barriers, call
-// a hard-coded handler (e.g., ListeningManager::NoteAllAreReadyToListen()).
-//
-// There is an equivalent XXX in easier-to-refactor Coordinator::Instance().
-Ipc::Strand &
-Ipc::Strand::Instance()
+void
+Ipc::Strand::Init()
 {
-    static const auto instance = new Strand();
+    Assure(UsingSmp());
+    Assure(!IamCoordinatorProcess());
 
     static auto initializationTag = TheTag;
     Assure(initializationTag == TheTag); // bans { Init(), InitTagged() } sequence
@@ -64,18 +58,8 @@ Ipc::Strand::Instance()
     static auto started = false;
     if (!started) {
         started = true;
-        AsyncJob::Start(instance);
+        AsyncJob::Start(new Strand);
     }
-
-    return *instance;
-}
-
-void
-Ipc::Strand::Init()
-{
-    Assure(UsingSmp());
-    Assure(!IamCoordinatorProcess());
-    (void)Instance(); // used for its AsyncJob::Start() side effect
 }
 
 void
@@ -104,17 +88,13 @@ void Ipc::Strand::start()
     registerSelf();
 }
 
-void Ipc::Strand::barrierWait(const AsyncCallPointer &cb)
+void Ipc::Strand::BarrierWait(const AsyncCallPointer &cb)
 {
     Assure(cb);
     Assure(!synchronizationCallback);
     synchronizationCallback = cb;
-    debugs(2,2, getpid() << ' ' << this << " set " << synchronizationCallback->id);
-
     Instance::StartupActivityStarted(synchronizationCallback->id.detach());
     StrandMessage::NotifyCoordinator(mtSynchronizationRequest, nullptr);
-
-    debugs(2,2, getpid() << ' ' << this << " has " << synchronizationCallback->id);
 }
 
 void Ipc::Strand::registerSelf()

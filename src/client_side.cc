@@ -3419,7 +3419,7 @@ ListeningManager::noteRequiredStartupActivitiesFinished()
         using Dialer = NullaryFunDialer;
         const auto callback = asyncCall(1, 3, "ListeningManager::NoteAllAreReadyToListen",
                                         Dialer(&ListeningManager::NoteAllAreReadyToListen));
-        Ipc::Strand::Instance().barrierWait(callback);
+        Ipc::Strand::BarrierWait(callback);
     } else {
         startOpeningListeningPorts();
     }

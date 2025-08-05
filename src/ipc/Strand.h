@@ -23,14 +23,13 @@ namespace Ipc
 
 class StrandCoord;
 
+// TODO: Move to Strand.cc as StrandJob, leaving just the static methods here.
 /// Receives coordination messages on behalf of its process or thread
 class Strand: public Port
 {
     CBDATA_CHILD(Strand);
 
 public:
-    static Strand &Instance(); ///< the only class instance in existence
-
     /// Initiates this kid process registration with Coordinator as well as
     /// listening for IPC messages from Coordinator. Repeated calls are safe and
     /// do nothing.
@@ -47,9 +46,10 @@ public:
 
     void start() override; // Port (AsyncJob) API
 
+    // TODO: Move
     /// Starts waiting for all kids to reach a startup synchronization barrier
     /// maintained by Coordinator. When they do, calls the given callback.
-    void barrierWait(const AsyncCallPointer &);
+    static void BarrierWait(const AsyncCallPointer &);
 
 protected:
     void timedout() override; // Port (UsdOp) API
@@ -67,9 +67,6 @@ private:
     void handleSynchronizationResponse(const SynchronizationResponse &);
 
 private:
-    /// a task waiting for other kids to reach the same synchronization point
-    AsyncCallPointer synchronizationCallback;
-
     bool isRegistered; ///< whether Coordinator ACKed registration (unused)
 
 private:
