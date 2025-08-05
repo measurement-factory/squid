@@ -15,6 +15,7 @@
 #include "ipc/Strand.h"
 #include "ipc/StrandCoord.h"
 #include "ipc/TypedMsgHdr.h"
+#include "sbuf/StringConvert.h"
 
 #include <iostream>
 
@@ -74,17 +75,23 @@ Ipc::StrandMessage::pack(const MessageType messageType, TypedMsgHdr &hdrMsg) con
 
 // TODO: Rename to Ipc::NotifyCoordinator() and move to src/ipc/Strand.cc.
 void
-Ipc::StrandMessage::NotifyCoordinator(const MessageType msgType, const char *tag)
+Ipc::StrandMessage::NotifyCoordinator(const MessageType msgType, const std::optional<SBuf> &strandTag)
 {
     // start listening for responses before sending requests
     Ipc::Strand::Init();
 
     static const auto pid = getpid();
     StrandMessage message(StrandCoord(KidIdentifier, pid), MyQuestionerId());
-    if (tag)
-        message.strand.tag = tag;
+    if (strandTag)
+        message.strand.tag = SBufToString(*strandTag);
     TypedMsgHdr hdr;
     message.pack(msgType, hdr);
     SendMessage(Port::CoordinatorAddr(), hdr);
+}
+
+void
+Ipc::StrandMessage::NotifyCoordinator(const MessageType msgType, nullptr_t)
+{
+    NotifyCoordinator(msgType, std::nullopt);
 }
 

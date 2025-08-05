@@ -1723,7 +1723,7 @@ SquidMain(int argc, char **argv)
 
     if (IamCoordinatorProcess())
         AsyncJob::Start(Ipc::Coordinator::Instance());
-    else if (UsingSmp() && (IamWorkerProcess() || IamDiskProcess()))
+    else if (UsingSmp() && IamWorkerProcess()) // diskers use Ipc::Strand::InitTagged()
         Ipc::Strand::Init();
 
     /* at this point we are finished the synchronous startup. */

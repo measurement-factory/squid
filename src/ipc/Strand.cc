@@ -39,6 +39,11 @@
 
 CBDATA_NAMESPACED_CLASS_INIT(Ipc, Strand);
 
+// XXX: No new globals
+/// allows mtFindStrand queries to find this strand
+/// \sa Ipc::Strand::InitTagged()
+std::optional<SBuf> TheTag;
+
 // XXX: This method should not exist because one should not synchronously
 // communicate with a started job -- the job object may disappear even if its
 // doneAll() method never returns true. Thus, externally accessible services
@@ -52,6 +57,9 @@ Ipc::Strand &
 Ipc::Strand::Instance()
 {
     static const auto instance = new Strand();
+
+    static auto initializationTag = TheTag;
+    Assure(initializationTag == TheTag); // bans { Init(), InitTagged() } sequence
 
     static auto started = false;
     if (!started) {
@@ -68,6 +76,20 @@ Ipc::Strand::Init()
     Assure(UsingSmp());
     Assure(!IamCoordinatorProcess());
     (void)Instance(); // used for its AsyncJob::Start() side effect
+}
+
+void
+Ipc::Strand::InitTagged(const SBuf &aTag)
+{
+    Assure(aTag.length());
+
+    if (TheTag) {
+        Assure(TheTag == aTag);
+        return; // already initialized
+    }
+
+    TheTag = aTag;
+    Init();
 }
 
 Ipc::Strand::Strand():
@@ -100,7 +122,7 @@ void Ipc::Strand::registerSelf()
     debugs(54, 6, MYNAME);
     Must(!isRegistered);
 
-    StrandMessage::NotifyCoordinator(mtRegisterStrand, nullptr);
+    StrandMessage::NotifyCoordinator(mtRegisterStrand, TheTag);
     setTimeout(6, "Ipc::Strand::timeoutHandler"); // TODO: make 6 configurable?
 }
 

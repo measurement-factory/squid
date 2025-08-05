@@ -12,9 +12,11 @@
 #include "ipc/forward.h"
 #include "ipc/Messages.h"
 #include "ipc/QuestionerId.h"
+#include "sbuf/forward.h"
 #include "SquidString.h"
 
 #include <iosfwd>
+#include <optional>
 
 namespace Ipc
 {
@@ -48,7 +50,8 @@ public:
     void pack(MessageType, TypedMsgHdr &) const;
 
     /// creates and sends StrandMessage to Coordinator
-    static void NotifyCoordinator(MessageType, const char *tag);
+    static void NotifyCoordinator(MessageType, const std::optional<SBuf> &strandTag);
+    static void NotifyCoordinator(MessageType, nullptr_t); // TODO: Remove the second parameter
 
     /// for Mine() tests
     QuestionerId intendedRecepient() const { return qid; }

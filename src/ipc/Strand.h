@@ -35,7 +35,13 @@ public:
     /// listening for IPC messages from Coordinator. Repeated calls are safe and
     /// do nothing.
     /// \prec This process is an SMP Squid kid process but is not a Coordinator.
+    /// \sa InitTagged()
     static void Init();
+
+    /// Same as Init() but supports "tagging" this strand so that other kids can
+    /// find it by that tag. Multiple calls must supply the same tag. If Init()
+    /// and InitTagged() calls are mixed, the first one must be InitTagged().
+    static void InitTagged(const SBuf &);
 
     Strand();
 
