@@ -3389,61 +3389,44 @@ clientListenerConnectionOpened(AnyP::PortCfgPointer &s, const Ipc::FdNoteId port
         Instance::StartupActivityFinished(s->codeContextGist());
 }
 
-/// XXX: Convert to AsyncJob
-class ListeningManager
+// TODO: Rename to StartupListeningManager.
+/// Ensures proper clientOpenListenSockets_() call timing during startup.
+class ListeningManager: public AsyncJob
 {
+    CBDATA_CHILD(ListeningManager);
 public:
-    void start();
+    ListeningManager(): AsyncJob("ListeningManager") {}
+
+    /* AsyncJob API */
+    void start() override;
+    bool doneAll() const override { return false; /* uses mustStop() to stop */ }
 
 private:
-    static void NoteRequiredStartupActivitiesFinished();
-    static void NoteAllAreReadyToListen();
-
     void noteRequiredStartupActivitiesFinished();
     void noteAllAreReadyToListen();
     void startOpeningListeningPorts();
 };
 
-static auto &
-TheListeningManager()
-{
-    static const auto mgr = new ListeningManager();
-    return *mgr;
-}
+CBDATA_CLASS_INIT(ListeningManager);
 
 /// reacts to Instance::NotifyWhenStartedStartupActivitiesFinished() notification
 void
 ListeningManager::noteRequiredStartupActivitiesFinished()
 {
     if (UsingSmp()) {
-        using Dialer = NullaryFunDialer;
-        const auto callback = asyncCall(1, 3, "ListeningManager::NoteAllAreReadyToListen",
-                                        Dialer(&ListeningManager::NoteAllAreReadyToListen));
+        using Dialer = NullaryMemFunT<ListeningManager>;
+        const auto callback = JobCallback(33, 3, Dialer, this, ListeningManager::noteAllAreReadyToListen);
         Ipc::Strand::BarrierWait(callback);
     } else {
         startOpeningListeningPorts();
     }
 }
 
-/// noteAllAreReadyToListen() wrapper compatible with NullaryFunDialer<> API
-void
-ListeningManager::NoteAllAreReadyToListen()
-{
-    TheListeningManager().noteAllAreReadyToListen();
-}
-
-/// reacts to Ipc::Strand::NotifyWhenAllAreReadyToListen() notification
+/// Ipc::Strand::BarrierWait() callback
 void
 ListeningManager::noteAllAreReadyToListen()
 {
     startOpeningListeningPorts();
-}
-
-/// noteRequiredStartupActivitiesFinished() compatible with NullaryFunDialer<> API
-void
-ListeningManager::NoteRequiredStartupActivitiesFinished()
-{
-    TheListeningManager().noteRequiredStartupActivitiesFinished();
 }
 
 /// A helper that performs primary clientOpenListenSockets() work. This code
@@ -3465,15 +3448,17 @@ clientOpenListenSockets()
         return clientOpenListenSockets_();
 
     Assure(Instance::Starting());
-    TheListeningManager().start();
+    static auto started = false;
+    Assure(!started);
+    started = true;
+    AsyncJob::Start(new ListeningManager);
 }
 
 void
 ListeningManager::start()
 {
-    using Dialer = NullaryFunDialer;
-    const auto callback = asyncCall(33, 3, "ListeningManager::NoteRequiredStartupActivitiesFinished",
-                                    Dialer(&ListeningManager::NoteRequiredStartupActivitiesFinished));
+    using Dialer = NullaryMemFunT<ListeningManager>;
+    const auto callback = JobCallback(33, 3, Dialer, this, ListeningManager::noteRequiredStartupActivitiesFinished);
     Instance::NotifyWhenStartedStartupActivitiesFinished(callback);
 }
 
@@ -3486,6 +3471,7 @@ ListeningManager::startOpeningListeningPorts()
 {
     Assure(Instance::Starting());
     clientOpenListenSockets_();
+    mustStop("finished startOpeningListeningPorts()");
 }
 
 void
