@@ -42,14 +42,13 @@ public:
     /// and InitTagged() calls are mixed, the first one must be InitTagged().
     static void InitTagged(const SBuf &);
 
-    Strand();
-
-    void start() override; // Port (AsyncJob) API
-
-    // TODO: Move
     /// Starts waiting for all kids to reach a startup synchronization barrier
     /// maintained by Coordinator. When they do, calls the given callback.
     static void BarrierWait(const AsyncCallPointer &);
+
+    Strand();
+
+    void start() override; // Port (AsyncJob) API
 
 protected:
     void timedout() override; // Port (UsdOp) API

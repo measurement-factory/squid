@@ -49,7 +49,6 @@ void NotifyWhenStartedStartupActivitiesFinished(const AsyncCallPointer &requesto
 /// \retval false after startup period completion, including during reconfiguration
 bool Starting();
 
-
 } // namespace Instance
 
 #endif
