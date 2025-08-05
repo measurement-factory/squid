@@ -3401,13 +3401,12 @@ clientOpenListenSockets_()
         fatal("No HTTP, HTTPS, or FTP ports configured");
 }
 
-// TODO: Rename to StartupListeningManager.
 /// Ensures proper clientOpenListenSockets_() call timing during startup.
-class ListeningManager: public AsyncJob
+class StartupListeningManager: public AsyncJob
 {
-    CBDATA_CHILD(ListeningManager);
+    CBDATA_CHILD(StartupListeningManager);
 public:
-    ListeningManager(): AsyncJob("ListeningManager") {}
+    StartupListeningManager(): AsyncJob("StartupListeningManager") {}
 
     /* AsyncJob API */
     void start() override;
@@ -3418,23 +3417,23 @@ private:
     void startOpeningListeningPorts();
 };
 
-CBDATA_CLASS_INIT(ListeningManager);
+CBDATA_CLASS_INIT(StartupListeningManager);
 
 void
-ListeningManager::start()
+StartupListeningManager::start()
 {
-    using Dialer = NullaryMemFunT<ListeningManager>;
-    const auto callback = JobCallback(33, 3, Dialer, this, ListeningManager::noteRequiredStartupActivitiesFinished);
+    using Dialer = NullaryMemFunT<StartupListeningManager>;
+    const auto callback = JobCallback(33, 3, Dialer, this, StartupListeningManager::noteRequiredStartupActivitiesFinished);
     Instance::NotifyWhenStartedStartupActivitiesFinished(callback);
 }
 
 /// reacts to Instance::NotifyWhenStartedStartupActivitiesFinished() notification
 void
-ListeningManager::noteRequiredStartupActivitiesFinished()
+StartupListeningManager::noteRequiredStartupActivitiesFinished()
 {
     if (UsingSmp()) {
-        using Dialer = NullaryMemFunT<ListeningManager>;
-        const auto callback = JobCallback(33, 3, Dialer, this, ListeningManager::startOpeningListeningPorts);
+        using Dialer = NullaryMemFunT<StartupListeningManager>;
+        const auto callback = JobCallback(33, 3, Dialer, this, StartupListeningManager::startOpeningListeningPorts);
         Ipc::Strand::BarrierWait(callback);
     } else {
         startOpeningListeningPorts();
@@ -3446,7 +3445,7 @@ ListeningManager::noteRequiredStartupActivitiesFinished()
 /// requires asynchronous actions as well, so Squid may not be listening on
 /// those ports after this method returns.
 void
-ListeningManager::startOpeningListeningPorts()
+StartupListeningManager::startOpeningListeningPorts()
 {
     Assure(Instance::Starting());
     clientOpenListenSockets_();
@@ -3463,7 +3462,7 @@ clientOpenListenSockets()
     static auto started = false;
     Assure(!started);
     started = true;
-    AsyncJob::Start(new ListeningManager);
+    AsyncJob::Start(new StartupListeningManager);
 }
 
 void
