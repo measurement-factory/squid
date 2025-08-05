@@ -3403,7 +3403,6 @@ public:
 
 private:
     void noteRequiredStartupActivitiesFinished();
-    void noteAllAreReadyToListen();
     void startOpeningListeningPorts();
 };
 
@@ -3415,18 +3414,11 @@ ListeningManager::noteRequiredStartupActivitiesFinished()
 {
     if (UsingSmp()) {
         using Dialer = NullaryMemFunT<ListeningManager>;
-        const auto callback = JobCallback(33, 3, Dialer, this, ListeningManager::noteAllAreReadyToListen);
+        const auto callback = JobCallback(33, 3, Dialer, this, ListeningManager::startOpeningListeningPorts);
         Ipc::Strand::BarrierWait(callback);
     } else {
         startOpeningListeningPorts();
     }
-}
-
-/// Ipc::Strand::BarrierWait() callback
-void
-ListeningManager::noteAllAreReadyToListen()
-{
-    startOpeningListeningPorts();
 }
 
 /// A helper that performs primary clientOpenListenSockets() work. This code
