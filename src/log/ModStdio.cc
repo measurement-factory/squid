@@ -27,14 +27,61 @@ typedef struct {
     int offset;
 } l_stdio_t;
 
+bool checkForNulls(const void *buf, size_t size, const char *textContext, uint64_t intContext = 0);
+void checkForFirstNulls(uint64_t &failures, const void *buf, size_t size, const char *textContext, uint64_t intContext = 0);
+
+bool
+checkForNulls(const void * const buf, const size_t size, const char * const textContext, const uint64_t intContext)
+{
+    if (!buf)
+        return false;
+
+    if (const auto charPos = static_cast<const char *>(memchr(buf, 0, size))) {
+        const auto charBuf = static_cast<const char *>(buf);
+
+        size_t nullCount = 0;
+        for (auto p = charPos; p < charBuf+size; ++p) {
+            if (!*p)
+                ++nullCount;
+        }
+
+        static uint64_t errors = 0;
+        ++errors;
+        debugs(46, Critical(73), "ERROR: Unexpected NULL byte(s) inside an access log buffer;" <<
+               Debug::Extra << "context: " << textContext << " extra=" << intContext << " errors=" << errors <<
+               Debug::Extra << "first NULL byte position: " << (charPos - charBuf) <<
+               Debug::Extra << "NULL byte count: " << nullCount <<
+               Debug::Extra << "content length: " << size <<
+               Debug::Extra << "content address: " << buf
+               );
+
+        assert(nullCount);
+        assert(nullCount <= size);
+
+        return true;
+    }
+
+    return false;
+}
+
+void
+checkForFirstNulls(uint64_t &failures, const void * const buf, const size_t size, const char * const textContext, const uint64_t intContext)
+{
+    if (failures)
+        return;
+    if (checkForNulls(buf, size, textContext, intContext))
+        ++failures;
+}
+
 /*
  * Aborts with fatal message if write() returns something other
  * than its length argument.
  */
 static void
-logfileWriteWrapper(Logfile * lf, const void *buf, size_t len)
+logfileWriteWrapper(Logfile * lf, const void *buf, size_t len, const char * const context)
 {
     l_stdio_t *ll = (l_stdio_t *) lf->data;
+    checkForNulls(buf, len, context, ll->bufsz);
     size_t s;
     s = FD_WRITE_METHOD(ll->fd, (char const *) buf, len);
     int xerrno = errno;
@@ -53,24 +100,28 @@ static void
 logfile_mod_stdio_writeline(Logfile * lf, const char *buf, size_t len)
 {
     l_stdio_t *ll = (l_stdio_t *) lf->data;
+    checkForNulls(buf, len, "logfile_mod_stdio_writeline() input", ll->bufsz);
 
     if (0 == ll->bufsz) {
         /* buffering disabled */
-        logfileWriteWrapper(lf, buf, len);
+        logfileWriteWrapper(lf, buf, len, "logfile_mod_stdio_writeline() w/o buffering");
         return;
     }
     if (ll->offset > 0 && (ll->offset + len) > ll->bufsz)
         logfileFlush(lf);
 
     if (len > ll->bufsz) {
+        assert(!ll->offset); // logfileFlush() should zero positive offsets above
         /* too big to fit in buffer */
-        logfileWriteWrapper(lf, buf, len);
+        logfileWriteWrapper(lf, buf, len, "logfile_mod_stdio_writeline() just huge input");
         return;
     }
     /* buffer it */
+    checkForNulls(buf, len, "logfile_mod_stdio_writeline() buffering small input", ll->offset);
     memcpy(ll->buf + ll->offset, buf, len);
 
     ll->offset += len;
+    checkForNulls(ll->buf, ll->offset, "logfile_mod_stdio_writeline() final buffer", ll->bufsz);
 
     assert(ll->offset >= 0);
 
@@ -94,7 +145,7 @@ logfile_mod_stdio_flush(Logfile * lf)
     l_stdio_t *ll = (l_stdio_t *) lf->data;
     if (0 == ll->offset)
         return;
-    logfileWriteWrapper(lf, ll->buf, (size_t) ll->offset);
+    logfileWriteWrapper(lf, ll->buf, (size_t) ll->offset, __FUNCTION__);
     ll->offset = 0;
 }
 
