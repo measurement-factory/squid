@@ -177,6 +177,8 @@ Ipc::Strand::handleRegistrationResponse(const StrandMessage &msg)
     // handle registration response from the coordinator; it could be stale
     if (msg.strand.kidId == KidIdentifier && msg.strand.pid == getpid()) {
         debugs(54, 6, "kid" << KidIdentifier << " registered");
+        Assure(!isRegistered);
+        isRegistered = true;
         Instance::StartupActivityFinished(ScopedId("Ipc::Strand registration")); // XXX: duped id
         clearTimeout(); // we are done
     } else {
@@ -225,6 +227,7 @@ Ipc::Strand::handleSynchronizationResponse(const SynchronizationResponse &)
 void Ipc::Strand::timedout()
 {
     debugs(54, 6, isRegistered);
+    // TODO: Replace this guard with Assure() when clearTimeout() reliably cancels callbacks.
     if (!isRegistered)
         fatalf("kid%d registration timed out", KidIdentifier);
 }

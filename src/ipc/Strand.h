@@ -66,7 +66,7 @@ private:
     void handleSynchronizationResponse(const SynchronizationResponse &);
 
 private:
-    bool isRegistered; ///< whether Coordinator ACKed registration (unused)
+    bool isRegistered; ///< whether Coordinator ACKed registration
 
 private:
     Strand(const Strand&); // not implemented
