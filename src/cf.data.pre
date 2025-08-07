@@ -3963,8 +3963,9 @@ DOC_START
 			seamlessly (from Squid clients point of view) compensate for
 			individual group member failures. Being a group member does not
 			affect cache_peer selection and transaction error handling (yet?),
-			but, on a conceptual level, a transaction ought to be forwarded
-			if at least one group member has not failed.
+			but admins are expected to configure cache_peers so that a
+			transaction gets re-forwarded to the next group member after a
+			forwarding failure with another group member.
 
 			If redundancy-group feature is configured, then during startup,
 			Squid waits for all group members to finish all of their startup
