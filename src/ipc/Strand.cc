@@ -76,6 +76,16 @@ Ipc::Strand::InitTagged(const SBuf &aTag)
     Init();
 }
 
+void
+Ipc::Strand::BarrierWait(const AsyncCallPointer &cb)
+{
+    Assure(cb);
+    Assure(!synchronizationCallback);
+    synchronizationCallback = cb;
+    Instance::StartupActivityStarted(synchronizationCallback->id.detach());
+    StrandMessage::NotifyCoordinator(mtSynchronizationRequest, nullptr);
+}
+
 Ipc::Strand::Strand():
     Port(MakeAddr(strandAddrLabel, KidIdentifier)),
     isRegistered(false)
@@ -86,15 +96,6 @@ void Ipc::Strand::start()
 {
     Port::start();
     registerSelf();
-}
-
-void Ipc::Strand::BarrierWait(const AsyncCallPointer &cb)
-{
-    Assure(cb);
-    Assure(!synchronizationCallback);
-    synchronizationCallback = cb;
-    Instance::StartupActivityStarted(synchronizationCallback->id.detach());
-    StrandMessage::NotifyCoordinator(mtSynchronizationRequest, nullptr);
 }
 
 void Ipc::Strand::registerSelf()
