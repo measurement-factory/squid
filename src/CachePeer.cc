@@ -23,9 +23,6 @@
 
 CBDATA_CLASS_INIT(CachePeer);
 
-// XXX: No new globals
-std::optional<ScopedId> CachePeer::StartupActivity;
-
 CachePeer::CachePeer(const char * const hostname):
     name(xstrdup(hostname)),
     host(xstrdup(hostname))
@@ -74,12 +71,10 @@ CachePeer::startupActivityStarted()
     startingUp_ = true;
 
     // We only inform Instance of this activity if redundancy-group has been
-    // configured, giving up permission to delay opening of primary listening
+    // configured, giving us permission to delay opening of primary listening
     // sockets until peer startup activities have succeeded.
-    if (!StartupActivity && redundancyGroup) {
-        StartupActivity = ScopedId("cache_peer startup probes");
-        Instance::StartupActivityStarted(*StartupActivity);
-    }
+    if (redundancyGroup)
+        Instance::StartupActivityStarted(ScopedId("redundant cache_peer probe", index));
 }
 
 void
@@ -89,28 +84,21 @@ CachePeer::startupActivityFinished()
     startingUp_ = false;
 
     if (!redundancyGroup)
-        return; // the checks below are specific to redundancy group members
+        return; // code below is specific to redundancy group members
 
-    auto foundUpMemberInMyGroup = false;
-    for (auto peer = Config.peers; !foundUpMemberInMyGroup && peer; peer = peer->next) {
+    auto foundViableMemberInMyGroup = false;
+    size_t myGroupMembers = 0;
+    for (auto peer = Config.peers; !foundViableMemberInMyGroup && peer; peer = peer->next) {
         if (redundancyGroup != peer->redundancyGroup)
-            continue; // only same-group peers affect foundUpMemberInMyGroup
-        if (peer->startingUp())
-            return; // "startup failed" logic below requires all same-group peers to finish their startup activities
-        foundUpMemberInMyGroup = peer->tcp_up;
+            continue; // only same-group peers affect foundViableMemberInMyGroup
+        ++myGroupMembers;
+        foundViableMemberInMyGroup = (peer->startingUp() || peer->tcp_up);
     }
-    debugs(15, 3, "done with redundancy-group=" << *redundancyGroup);
-    if (!foundUpMemberInMyGroup)
-        throw TextException(ToSBuf("startup initialization/probing failed for all cache_peer redundancy-group=", *redundancyGroup, " members"), Here());
+    debugs(15, 3, "done with redundancy-group=" << *redundancyGroup << "; foundViableMemberInMyGroup=" << foundViableMemberInMyGroup);
+    if (!foundViableMemberInMyGroup)
+        throw TextException(ToSBuf("startup initialization/probing failed for all ", myGroupMembers, " cache_peer redundancy-group=", *redundancyGroup, " members"), Here());
 
-    Assure(StartupActivity);
-    for (auto peer = Config.peers; peer; peer = peer->next) {
-        if (peer->redundancyGroup && peer->startingUp()) {
-            Assure(redundancyGroup != peer->redundancyGroup);
-            return; // wait for that (other group) peer to finish its startup activities
-        }
-    }
-    Instance::StartupActivityFinished(*StartupActivity);
+    Instance::StartupActivityFinished(ScopedId("redundant cache_peer probe", index)); // XXX: duped
 }
 
 void

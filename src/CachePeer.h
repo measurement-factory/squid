@@ -239,9 +239,6 @@ public:
 private:
     friend class OutgoingConnectionFailure;
 
-    /// identifies startup initialization of the entire cache_peer set
-    static std::optional<ScopedId> StartupActivity;
-
     /// reacts to a failure on a connection to this cache_peer
     /// \param code a received response status code, if any
     void noteFailure();
