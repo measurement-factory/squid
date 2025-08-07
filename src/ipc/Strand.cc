@@ -102,6 +102,7 @@ void Ipc::Strand::registerSelf()
     debugs(54, 6, MYNAME);
     Must(!isRegistered);
 
+    Instance::StartupActivityStarted(ScopedId("Ipc::Strand registration"));
     StrandMessage::NotifyCoordinator(mtRegisterStrand, TheTag);
     setTimeout(6, "Ipc::Strand::timeoutHandler"); // TODO: make 6 configurable?
 }
@@ -176,6 +177,7 @@ Ipc::Strand::handleRegistrationResponse(const StrandMessage &msg)
     // handle registration response from the coordinator; it could be stale
     if (msg.strand.kidId == KidIdentifier && msg.strand.pid == getpid()) {
         debugs(54, 6, "kid" << KidIdentifier << " registered");
+        Instance::StartupActivityFinished(ScopedId("Ipc::Strand registration")); // XXX: duped id
         clearTimeout(); // we are done
     } else {
         // could be an ACK to the registration message of our dead predecessor
