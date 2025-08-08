@@ -98,7 +98,6 @@
 #include "HttpRequest.h"
 #include "ident/Config.h"
 #include "ident/Ident.h"
-#include "Instance.h"
 #include "internal.h"
 #include "ipc/FdNotes.h"
 #include "ipc/StartListening.h"
@@ -3352,9 +3351,6 @@ clientStartListeningOn(AnyP::PortCfgPointer &port, const RefCount< CommCbFunPtrC
     assert(NHttpSockets < MAXTCPLISTENPORTS);
     HttpSockets[NHttpSockets] = -1;
     ++NHttpSockets;
-
-    if (Instance::Starting())
-        Instance::StartupActivityStarted(port->codeContextGist());
 }
 
 /// process clientStartListeningOn() result
@@ -3384,9 +3380,6 @@ clientListenerConnectionOpened(AnyP::PortCfgPointer &s, const Ipc::FdNoteId port
            << s->listenConn);
 
     Must(AddOpenedHttpSocket(s->listenConn)); // otherwise, we have received a fd we did not ask for
-
-    if (Instance::Starting())
-        Instance::StartupActivityFinished(s->codeContextGist());
 }
 
 /// A helper that performs primary clientOpenListenSockets() work. This code

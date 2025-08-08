@@ -14,6 +14,7 @@
 #include "comm.h"
 #include "comm/Connection.h"
 #include "globals.h"
+#include "Instance.h"
 #include "ipc/Kids.h"
 #include "ipc/Messages.h"
 #include "ipc/Port.h"
@@ -146,6 +147,9 @@ Ipc::JoinSharedListen(const OpenListenerParams &params, StartListeningCallback &
     por.params = params;
     por.callback = cb;
 
+    if (Instance::Starting())
+        Instance::StartupActivityStarted(ScopedId("opening of a listening port shared by SMP kids", por.callback->id.value));
+
     const DelayedSharedListenRequests::size_type concurrencyLimit = 1;
     if (TheSharedListenRequestMap.size() >= concurrencyLimit) {
         debugs(54, 3, "waiting for " << TheSharedListenRequestMap.size() <<
@@ -190,6 +194,10 @@ void Ipc::SharedListenJoined(const SharedListenResponse &response)
     }
 
     answer.errNo = response.errNo;
+
+    if (Instance::Starting())
+        Instance::StartupActivityFinished(ScopedId("opening of a listening port shared by SMP kids", por.callback->id.value)); // dupe
+
     ScheduleCallHere(por.callback.release());
 
     kickDelayedRequest();
