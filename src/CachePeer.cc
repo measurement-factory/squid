@@ -89,6 +89,10 @@ CachePeer::startupActivityFinished()
     if (!redundancyGroup)
         return; // code below is specific to redundancy group members
 
+    Assure(redundancyGroupProbing);
+    redundancyGroupProbing->finished();
+    redundancyGroupProbing = std::nullopt;
+
     auto foundViableMemberInMyGroup = false;
     size_t myGroupMembers = 0;
     for (auto peer = Config.peers; !foundViableMemberInMyGroup && peer; peer = peer->next) {
@@ -97,13 +101,9 @@ CachePeer::startupActivityFinished()
         ++myGroupMembers;
         foundViableMemberInMyGroup = (peer->startingUp() || peer->tcp_up);
     }
-    debugs(15, 3, "done with redundancy-group=" << *redundancyGroup << "; foundViableMemberInMyGroup=" << foundViableMemberInMyGroup);
+    debugs(15, 3, "found " << myGroupMembers << " redundancy-group=" << *redundancyGroup << " members; foundViableMemberInMyGroup=" << foundViableMemberInMyGroup);
     if (!foundViableMemberInMyGroup)
         throw TextException(ToSBuf("startup initialization/probing failed for all ", myGroupMembers, " cache_peer redundancy-group=", *redundancyGroup, " members"), Here());
-
-    Assure(redundancyGroupProbing);
-    redundancyGroupProbing->finished();
-    redundancyGroupProbing = std::nullopt;
 }
 
 void
