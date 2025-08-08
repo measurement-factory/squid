@@ -25,6 +25,7 @@
 
 #include <list>
 #include <map>
+#include <optional>
 
 /// holds information necessary to handle JoinListen response
 class PendingOpenRequest
@@ -32,6 +33,9 @@ class PendingOpenRequest
 public:
     Ipc::OpenListenerParams params; ///< actual comm_open_sharedListen() parameters
     Ipc::StartListeningCallback callback; // who to notify
+
+    /// tracks port opening progress during startup
+    std::optional<Instance::StartupActivityTracker> startupActivity;
 };
 
 /// maps ID assigned at request time to the response callback
@@ -147,8 +151,10 @@ Ipc::JoinSharedListen(const OpenListenerParams &params, StartListeningCallback &
     por.params = params;
     por.callback = cb;
 
-    if (Instance::Starting())
-        Instance::StartupActivityStarted(ScopedId("opening of a listening port shared by SMP kids", por.callback->id.value));
+    if (Instance::Starting()) {
+        por.startupActivity = Instance::StartupActivityTracker(ScopedId("opening of a listening port shared by SMP kids", por.callback->id.value));
+        por.startupActivity->started();
+    }
 
     const DelayedSharedListenRequests::size_type concurrencyLimit = 1;
     if (TheSharedListenRequestMap.size() >= concurrencyLimit) {
@@ -194,11 +200,12 @@ void Ipc::SharedListenJoined(const SharedListenResponse &response)
     }
 
     answer.errNo = response.errNo;
-
-    if (Instance::Starting())
-        Instance::StartupActivityFinished(ScopedId("opening of a listening port shared by SMP kids", por.callback->id.value)); // dupe
-
     ScheduleCallHere(por.callback.release());
+
+    if (por.startupActivity) {
+        por.startupActivity->finished();
+        por.startupActivity = std::nullopt;
+    }
 
     kickDelayedRequest();
 }

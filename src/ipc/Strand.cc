@@ -40,11 +40,15 @@
 CBDATA_NAMESPACED_CLASS_INIT(Ipc, Strand);
 
 // XXX: No new globals
+// XXX: Capitalization
 /// allows mtFindStrand queries to find this strand
 /// \sa Ipc::Strand::InitTagged()
 std::optional<SBuf> TheTag;
+Instance::StartupActivityTracker selfRegistrationActivity(ScopedId("Ipc::Strand self-registration"));
 /// a task waiting for other kids to reach the same synchronization point
-AsyncCallPointer synchronizationCallback; // XXX: Capitalize
+AsyncCallPointer synchronizationCallback;
+/// tracks Ipc::Strand::BarrierWait() synchronization activity
+std::optional<Instance::StartupActivityTracker> synchronizationActivity;
 
 void
 Ipc::Strand::Init()
@@ -82,7 +86,14 @@ Ipc::Strand::BarrierWait(const AsyncCallPointer &cb)
     Assure(cb);
     Assure(!synchronizationCallback);
     synchronizationCallback = cb;
-    Instance::StartupActivityStarted(synchronizationCallback->id.detach());
+
+    Assure(!synchronizationActivity);
+    // we could simply use synchronizationCallback->detach(), but call name is
+    // usually more useful for "current startup activities" triage dumps
+    const auto trackerId = ScopedId(synchronizationCallback->name, synchronizationCallback->id.value);
+    synchronizationActivity = Instance::StartupActivityTracker(trackerId);
+    synchronizationActivity->started();
+
     StrandMessage::NotifyCoordinator(mtSynchronizationRequest, nullptr);
 }
 
@@ -103,7 +114,7 @@ void Ipc::Strand::registerSelf()
     debugs(54, 6, MYNAME);
     Must(!isRegistered);
 
-    Instance::StartupActivityStarted(ScopedId("Ipc::Strand registration"));
+    selfRegistrationActivity.started();
     StrandMessage::NotifyCoordinator(mtRegisterStrand, TheTag);
     setTimeout(6, "Ipc::Strand::timeoutHandler"); // TODO: make 6 configurable?
 }
@@ -180,7 +191,7 @@ Ipc::Strand::handleRegistrationResponse(const StrandMessage &msg)
         debugs(54, 6, "kid" << KidIdentifier << " registered");
         Assure(!isRegistered);
         isRegistered = true;
-        Instance::StartupActivityFinished(ScopedId("Ipc::Strand registration")); // XXX: duped id
+        selfRegistrationActivity.finished();
         clearTimeout(); // we are done
     } else {
         // could be an ACK to the registration message of our dead predecessor
@@ -218,11 +229,13 @@ void Ipc::Strand::handleSnmpResponse(const Snmp::Response& response)
 void
 Ipc::Strand::handleSynchronizationResponse(const SynchronizationResponse &)
 {
-    debugs(2,2, getpid() << ' ' << this << " has " << synchronizationCallback);
+    debugs(2,2, " has " << synchronizationCallback);
     Assure(synchronizationCallback);
     ScheduleCallHere(synchronizationCallback);
-    Instance::StartupActivityFinished(synchronizationCallback->id.detach());
     synchronizationCallback = nullptr;
+    Assure(synchronizationActivity);
+    synchronizationActivity->finished();
+    synchronizationActivity = std::nullopt;
 }
 
 void Ipc::Strand::timedout()

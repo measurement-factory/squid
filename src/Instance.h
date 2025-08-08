@@ -10,6 +10,7 @@
 #define SQUID_INSTANCE_H
 
 #include "base/forward.h"
+#include "base/InstanceId.h"
 
 #if HAVE_SYS_TYPES_H
 #include <sys/types.h>
@@ -17,6 +18,32 @@
 
 /// code related to Squid Instance and PID file management
 namespace Instance {
+
+/// Tracks a task performed as a part of Squid startup sequence. These tasks
+/// start before (and are independent from) client-initiated transactions. They
+/// need to be tracked to enforce relationships among startup tracks and to know
+/// when all startup activities have finished, signaling the end of startup.
+class StartupActivityTracker
+{
+public:
+    /// configures the activity without starting it
+    explicit StartupActivityTracker(const ScopedId &id);
+
+    /// Called at the beginning of a tracked activity.
+    /// \prec started() has not been called earlier
+    /// \prec finished() has not been called earlier
+    void started();
+
+    /// Called at the end of a started() tracked activity.
+    /// \prec started() has been called earlier
+    /// \prec finished() has not been called earlier
+    void finished();
+
+private:
+    ScopedId id_;
+    bool started_ = false; ///< started() has been called
+    bool finished_ = false; ///< finished() has been called
+};
 
 /// Usually throws if another Squid instance is running. False positives are
 /// highly unlikely, but the caller must tolerate false negatives well:
@@ -33,8 +60,6 @@ void WriteOurPid();
 pid_t Other();
 
 /// XXX: Describe!
-void StartupActivityStarted(const ScopedId &);
-void StartupActivityFinished(const ScopedId &);
 void NotifyWhenStartedStartupActivitiesFinished(const AsyncCallPointer &requestor);
 
 /// Whether this process may launch a new startup activity.

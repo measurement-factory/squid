@@ -11,6 +11,7 @@
 #ifndef SQUID_IPC_COORDINATOR_H
 #define SQUID_IPC_COORDINATOR_H
 
+#include "Instance.h"
 #include "ipc/Messages.h"
 #include "ipc/Port.h"
 #include "ipc/SharedListen.h"
@@ -91,8 +92,8 @@ private:
     /// whether crossSynchronizationBarrier() has been called (at least once)
     bool crossedSynchronizationBarrier = false;
 
-    /// whether we have completed the startup activity launched by our constructor
-    bool finishedStartupActivity = false;
+    /// tracks startup progress across kids
+    std::optional<Instance::StartupActivityTracker> startupActivity;
 
     static Coordinator* TheInstance; ///< the only class instance in existence
 

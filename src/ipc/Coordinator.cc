@@ -14,7 +14,6 @@
 #include "CacheManager.h"
 #include "comm.h"
 #include "comm/Connection.h"
-#include "Instance.h"
 #include "ipc/Coordinator.h"
 #include "ipc/SharedListen.h"
 #include "mgr/Inquirer.h"
@@ -44,7 +43,8 @@ KnownKid(const int kidId, const Kids &kids)
 Ipc::Coordinator::Coordinator():
     Port(Ipc::Port::CoordinatorAddr())
 {
-    Instance::StartupActivityStarted(id.detach());
+    startupActivity = Instance::StartupActivityTracker(id.detach());
+    startupActivity->started();
 }
 
 void Ipc::Coordinator::start()
@@ -372,13 +372,13 @@ Ipc::Coordinator::handleKidCompletedStartupNotification(const StrandMessage &msg
         return;
     }
 
-    if (finishedStartupActivity) {
+    if (!startupActivity) {
         debugs(54, 3, "have already seen all kids becoming ready; restarted kid: " << msg.strand.kidId);
         return;
     }
 
-    finishedStartupActivity = true;
-    Instance::StartupActivityFinished(id.detach());
+    startupActivity->finished();
+    startupActivity = std::nullopt;
 }
 
 Comm::ConnectionPointer

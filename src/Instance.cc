@@ -27,6 +27,8 @@
 #endif
 
 namespace Instance {
+    static void StartupActivityStarted(const ScopedId &);
+    static void StartupActivityFinished(const ScopedId &);
     static void StartupNotificationCheckpoint();
     static void StartupNotificationDelayedCheckpoint();
     static void AnnounceReadiness();
@@ -249,6 +251,7 @@ Instance::Starting()
     return !StartupEnded;
 }
 
+/// XXX: Describe
 void
 Instance::StartupActivityStarted(const ScopedId &id)
 {
@@ -262,6 +265,7 @@ Instance::StartupActivityStarted(const ScopedId &id)
     // TODO: Consider limiting startup by a timeout (scheduled here when StartedStartupActivities is 1).
 }
 
+/// XXX: Describe
 void
 Instance::StartupActivityFinished(const ScopedId &id)
 {
@@ -345,5 +349,29 @@ Instance::AnnounceReadiness()
         }
     }
 #endif
+}
+
+/* Instance::StartupActivityTracker */
+
+Instance::StartupActivityTracker::StartupActivityTracker(const ScopedId &id): id_(id)
+{
+}
+
+void
+Instance::StartupActivityTracker::started()
+{
+    Assure(!started_);
+    Assure(!finished_);
+    started_ = true;
+    StartupActivityStarted(id_);
+}
+
+void
+Instance::StartupActivityTracker::finished()
+{
+    Assure(started_);
+    Assure(!finished_);
+    finished_ = true;
+    StartupActivityFinished(id_);
 }
 

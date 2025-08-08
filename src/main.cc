@@ -1662,8 +1662,10 @@ SquidMain(int argc, char **argv)
         }
     }
 
+    // TODO: Move synchronous initialization code into a dedicated function and drop std::optional.
     const auto myActivity = ScopedId("synchronous post-config initialization");
-    Instance::StartupActivityStarted(myActivity);
+    auto myActivityTracker = std::make_optional<Instance::StartupActivityTracker>(myActivity);
+    myActivityTracker->started();
     StartUsingConfig();
     enter_suid();
 
@@ -1727,7 +1729,9 @@ SquidMain(int argc, char **argv)
         Ipc::Strand::Init();
 
     /* at this point we are finished the synchronous startup. */
-    Instance::StartupActivityFinished(myActivity);
+    Assure(myActivityTracker);
+    myActivityTracker->finished();
+    myActivityTracker = std::nullopt;
 
     mainLoop.run();
 

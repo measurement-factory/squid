@@ -13,6 +13,7 @@
 #include "base/CbcPointer.h"
 #include "enums.h"
 #include "icp_opcode.h"
+#include "Instance.h"
 #include "ip/Address.h"
 #include "security/PeerOptions.h"
 
@@ -234,7 +235,7 @@ public:
     int front_end_https = 0; ///< 0 - off, 1 - on, 2 - auto
     int connection_auth = 2; ///< 0 - off, 1 - on, 2 - auto
 
-    std::optional<SBuf> redundancyGroup; ///< cache_peer redundancy-group value
+    std::optional<SBuf> redundancyGroup; ///< cache_peer redundancy-group name
 
 private:
     friend class OutgoingConnectionFailure;
@@ -245,6 +246,9 @@ private:
 
     /// \copydoc startingUp()
     bool startingUp_ = false;
+
+    /// startup probing of a cache_peer that belongs to a redundancy-group
+    std::optional<Instance::StartupActivityTracker> redundancyGroupProbing;
 };
 
 /// identify the given cache peer in cache.log messages and such
