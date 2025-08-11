@@ -43,8 +43,7 @@ KnownKid(const int kidId, const Kids &kids)
 Ipc::Coordinator::Coordinator():
     Port(Ipc::Port::CoordinatorAddr())
 {
-    startupActivity = Instance::StartupActivityTracker(id.detach());
-    startupActivity->started();
+    startupActivity.started(id.detach());
 }
 
 void Ipc::Coordinator::start()
@@ -377,8 +376,7 @@ Ipc::Coordinator::handleKidCompletedStartupNotification(const StrandMessage &msg
         return;
     }
 
-    startupActivity->finished();
-    startupActivity = std::nullopt;
+    startupActivity.finished();
 }
 
 Comm::ConnectionPointer

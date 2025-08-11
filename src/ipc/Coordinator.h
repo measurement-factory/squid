@@ -93,7 +93,7 @@ private:
     bool crossedSynchronizationBarrier = false;
 
     /// tracks startup progress across kids
-    std::optional<Instance::StartupActivityTracker> startupActivity;
+    Instance::OptionalStartupActivityTracker startupActivity;
 
     static Coordinator* TheInstance; ///< the only class instance in existence
 

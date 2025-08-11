@@ -18,7 +18,6 @@
 #include "security/PeerOptions.h"
 
 #include <iosfwd>
-#include <optional>
 
 //TODO: remove, it is unconditionally defined and always used.
 #define PEER_MULTICAST_SIBLINGS 1
@@ -248,7 +247,7 @@ private:
     bool startingUp_ = false;
 
     /// startup probing of a cache_peer that belongs to a redundancy-group
-    std::optional<Instance::StartupActivityTracker> redundancyGroupProbing;
+    Instance::OptionalStartupActivityTracker redundancyGroupProbing;
 };
 
 /// identify the given cache peer in cache.log messages and such

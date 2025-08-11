@@ -12,6 +12,8 @@
 #include "base/forward.h"
 #include "base/InstanceId.h"
 
+#include <optional>
+
 #if HAVE_SYS_TYPES_H
 #include <sys/types.h>
 #endif
@@ -43,6 +45,26 @@ private:
     ScopedId id_;
     bool started_ = false; ///< started() has been called
     bool finished_ = false; ///< finished() has been called
+};
+
+/// Convenience wrapper for a common use case of a startup activity tracked by
+/// std::optional<StartupActivityTracker>.
+class OptionalStartupActivityTracker
+{
+public:
+    // XXX: Boolean conversion meaning may not be clear enough to call code
+    // readers. For example, does "false" imply not started or finished?
+    explicit operator bool() const { return bool(tracker); }
+    bool operator !() const { return !bool(tracker); }
+
+    /// \copydoc StartupActivityTracker::started()
+    void started(const ScopedId &);
+
+    /// \copydoc StartupActivityTracker::finished()
+    void finished();
+
+    /// started activity tracker
+    std::optional<StartupActivityTracker> tracker;
 };
 
 /// Usually throws if another Squid instance is running. False positives are

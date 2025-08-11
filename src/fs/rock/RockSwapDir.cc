@@ -281,9 +281,7 @@ void
 Rock::SwapDir::init()
 {
     debugs(47,2, MYNAME);
-    Assure(!startupActivity);
-    startupActivity = Instance::StartupActivityTracker(configId());
-    startupActivity->started();
+    startupActivity.started(configId());
 
     // XXX: SwapDirs aren't refcounted. We make IORequestor calls, which
     // are refcounted. We up our count once to avoid implicit delete's.
@@ -830,9 +828,7 @@ Rock::SwapDir::ioCompletedNotification()
            std::setw(7) << map->entryLimit() << " entries, and " <<
            std::setw(7) << map->sliceLimit() << " slots");
 
-    Assure(startupActivity);
-    startupActivity->finished();
-    startupActivity = std::nullopt;
+    startupActivity.finished();
 
     if (!Rebuild::Start(*this))
         storeRebuildComplete(nullptr);

@@ -375,3 +375,21 @@ Instance::StartupActivityTracker::finished()
     StartupActivityFinished(id_);
 }
 
+/* Instance::OptionalStartupActivityTracker */
+
+void
+Instance::OptionalStartupActivityTracker::started(const ScopedId &id)
+{
+    Assure(!tracker);
+    tracker = std::make_optional<StartupActivityTracker>(id);
+    tracker->started();
+}
+
+void
+Instance::OptionalStartupActivityTracker::finished()
+{
+    Assure(tracker);
+    tracker->finished();
+    tracker = std::nullopt;
+}
+

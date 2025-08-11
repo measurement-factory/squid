@@ -789,7 +789,7 @@ private:
 
     // TODO: Remove std::optional because monitoringActivity lifetime matches StartupMonitor lifetime.
     /// tracks our monitoring progress
-    std::optional<Instance::StartupActivityTracker> monitoringActivity;
+    Instance::OptionalStartupActivityTracker monitoringActivity;
 };
 
 /// a StartupMonitor instance (during the startup monitoring stage) or nil (afterwords)
@@ -816,9 +816,7 @@ Helper::StartupMonitor::finalCheck()
     }
 
     debugs(84, 7, "all helpers achieved their startup goals: " << helpers.size());
-    Assure(monitoringActivity);
-    monitoringActivity->finished();
-    monitoringActivity = std::nullopt;
+    monitoringActivity.finished();
 }
 
 /// finalCheck() wrapper compatible with eventAdd() API
@@ -833,8 +831,7 @@ Helper::StartupMonitor::FinalCheck(void*)
 
 Helper::StartupMonitor::StartupMonitor()
 {
-    monitoringActivity = Instance::StartupActivityTracker(ScopedId("Helper::StartupMonitor"));
-    monitoringActivity->started();
+    monitoringActivity.started(ScopedId("Helper::StartupMonitor"));
     eventAdd("Helper::StartupMonitor::FinalCheck", &Helper::StartupMonitor::FinalCheck, nullptr, SecondsToWaitForProblems(), 0);
 }
 

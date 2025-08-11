@@ -71,13 +71,10 @@ CachePeer::startupActivityStarted()
     startingUp_ = true;
 
     // We only inform Instance of this activity if redundancy-group has been
-    // configured, giving us permission to delay opening of primary listening
-    // sockets until peer startup activities have succeeded.
-    if (redundancyGroup) {
-        Assure(!redundancyGroupProbing);
-        redundancyGroupProbing = Instance::StartupActivityTracker(ScopedId("probing of a cache_peer in a redundant-group", index));
-        redundancyGroupProbing->started();
-    }
+    // configured, giving us an explicit permission to delay opening of primary
+    // listening sockets until peer startup activities have succeeded.
+    if (redundancyGroup)
+        redundancyGroupProbing.started(ScopedId("probing of a cache_peer in a redundant-group", index));
 }
 
 void
@@ -89,9 +86,7 @@ CachePeer::startupActivityFinished()
     if (!redundancyGroup)
         return; // code below is specific to redundancy group members
 
-    Assure(redundancyGroupProbing);
-    redundancyGroupProbing->finished();
-    redundancyGroupProbing = std::nullopt;
+    redundancyGroupProbing.finished();
 
     auto foundViableMemberInMyGroup = false;
     size_t myGroupMembers = 0;

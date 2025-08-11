@@ -48,7 +48,7 @@ Instance::StartupActivityTracker selfRegistrationActivity(ScopedId("Ipc::Strand 
 /// a task waiting for other kids to reach the same synchronization point
 AsyncCallPointer synchronizationCallback;
 /// tracks Ipc::Strand::BarrierWait() synchronization activity
-std::optional<Instance::StartupActivityTracker> synchronizationActivity;
+Instance::OptionalStartupActivityTracker synchronizationActivity;
 
 void
 Ipc::Strand::Init()
@@ -87,12 +87,10 @@ Ipc::Strand::BarrierWait(const AsyncCallPointer &cb)
     Assure(!synchronizationCallback);
     synchronizationCallback = cb;
 
-    Assure(!synchronizationActivity);
     // we could simply use synchronizationCallback->detach(), but call name is
     // usually more useful for "current startup activities" triage dumps
     const auto trackerId = ScopedId(synchronizationCallback->name, synchronizationCallback->id.value);
-    synchronizationActivity = Instance::StartupActivityTracker(trackerId);
-    synchronizationActivity->started();
+    synchronizationActivity.started(trackerId);
 
     StrandMessage::NotifyCoordinator(mtSynchronizationRequest, nullptr);
 }
@@ -233,9 +231,7 @@ Ipc::Strand::handleSynchronizationResponse(const SynchronizationResponse &)
     Assure(synchronizationCallback);
     ScheduleCallHere(synchronizationCallback);
     synchronizationCallback = nullptr;
-    Assure(synchronizationActivity);
-    synchronizationActivity->finished();
-    synchronizationActivity = std::nullopt;
+    synchronizationActivity.finished();
 }
 
 void Ipc::Strand::timedout()

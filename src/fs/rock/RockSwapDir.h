@@ -144,7 +144,7 @@ private:
     void handleWriteCompletionProblem(const int errflag, const WriteRequest &request);
 
     /// tracks (often asynchronous) opening of theFile
-    std::optional<Instance::StartupActivityTracker> startupActivity;
+    Instance::OptionalStartupActivityTracker startupActivity;
 
     DiskIOStrategy *io;
     RefCount<DiskFile> theFile; ///< cache storage for this cache_dir
