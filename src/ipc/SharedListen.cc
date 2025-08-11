@@ -50,14 +50,14 @@ static DelayedSharedListenRequests TheDelayedRequests;
 /// registers the given request in the collection of pending requests
 /// \returns the registration key
 static Ipc::RequestId::Index
-AddToMap(const PendingOpenRequest &por)
+AddToMap(PendingOpenRequest &&por)
 {
     static Ipc::RequestId::Index LastIndex = 0;
     // TODO: Switch Ipc::RequestId::Index to uint64_t and drop these 0 checks.
     if (++LastIndex == 0) // don't use zero value as an ID
         ++LastIndex;
     assert(TheSharedListenRequestMap.find(LastIndex) == TheSharedListenRequestMap.end());
-    TheSharedListenRequestMap[LastIndex] = por;
+    TheSharedListenRequestMap.emplace(LastIndex, std::move(por));
     return LastIndex;
 }
 
@@ -119,9 +119,11 @@ void Ipc::SharedListenResponse::pack(TypedMsgHdr &hdrMsg) const
 }
 
 static void
-SendSharedListenRequest(const PendingOpenRequest &por)
+SendSharedListenRequest(PendingOpenRequest &&por)
 {
-    const Ipc::SharedListenRequest request(por.params, Ipc::RequestId(AddToMap(por)));
+    const auto porParams = por.params;
+    const auto requestId = Ipc::RequestId(AddToMap(std::move(por)));
+    const Ipc::SharedListenRequest request(porParams, requestId);
 
     debugs(54, 3, "getting listening FD for " << request.params.addr <<
            " mapId=" << request.mapId);
@@ -140,8 +142,9 @@ kickDelayedRequest()
     debugs(54, 3, "resuming with " << TheSharedListenRequestMap.size() <<
            " active + " << TheDelayedRequests.size() << " delayed requests");
 
-    SendSharedListenRequest(*TheDelayedRequests.begin());
+    auto por = std::move(*TheDelayedRequests.begin());
     TheDelayedRequests.pop_front();
+    SendSharedListenRequest(std::move(por));
 }
 
 void
@@ -160,9 +163,9 @@ Ipc::JoinSharedListen(const OpenListenerParams &params, StartListeningCallback &
     if (TheSharedListenRequestMap.size() >= concurrencyLimit) {
         debugs(54, 3, "waiting for " << TheSharedListenRequestMap.size() <<
                " active + " << TheDelayedRequests.size() << " delayed requests");
-        TheDelayedRequests.push_back(por);
+        TheDelayedRequests.emplace_back(std::move(por));
     } else {
-        SendSharedListenRequest(por);
+        SendSharedListenRequest(std::move(por));
     }
 }
 
@@ -177,7 +180,7 @@ void Ipc::SharedListenJoined(const SharedListenResponse &response)
     Must(response.mapId);
     const auto pori = TheSharedListenRequestMap.find(response.mapId.index());
     Must(pori != TheSharedListenRequestMap.end());
-    auto por = pori->second;
+    auto por = std::move(pori->second);
     Must(por.callback);
     TheSharedListenRequestMap.erase(pori);
 

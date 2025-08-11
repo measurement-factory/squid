@@ -31,6 +31,12 @@ public:
     /// configures the activity without starting it
     explicit StartupActivityTracker(const ScopedId &id);
 
+    /* MoveConstructible and MoveAssignable but not CopyConstructible and not CopyAssignable */
+    StartupActivityTracker(const StartupActivityTracker &) = delete;
+    StartupActivityTracker &operator =(StartupActivityTracker &) = delete;
+    StartupActivityTracker(StartupActivityTracker &&) = default;
+    StartupActivityTracker &operator =(StartupActivityTracker &&) = default;
+
     // XXX: Unused. TODO: Move to OptionalStartupActivityTracker. See
     // Ipc::Coordinator::handleKidCompletedStartupNotification() for a use case.
     /// whether both started() and finished() have been called OR, since
