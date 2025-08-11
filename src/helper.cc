@@ -770,7 +770,6 @@ class StartupMonitor
 {
 public:
     StartupMonitor();
-    ~StartupMonitor();
 
     void startMonitoring(const helper::Pointer &aHelper) { (void)helpers.insert(aHelper); }
     void stopMonitoring(const helper::Pointer &aHelper) { (void)helpers.erase(aHelper); }
@@ -831,13 +830,7 @@ Helper::StartupMonitor::FinalCheck(void*)
 Helper::StartupMonitor::StartupMonitor():
     monitoringActivity(ScopedId("Helper::StartupMonitor"))
 {
-    monitoringActivity.started();
     eventAdd("Helper::StartupMonitor::FinalCheck", &Helper::StartupMonitor::FinalCheck, nullptr, SecondsToWaitForProblems(), 0);
-}
-
-Helper::StartupMonitor::~StartupMonitor()
-{
-    monitoringActivity.finished();
 }
 
 helper::helper(const char *name): id_name(name)

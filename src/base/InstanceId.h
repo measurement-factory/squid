@@ -23,6 +23,9 @@ public:
     // when the values is zero/unknown, use other constructors
     ScopedId(const char *s, uint64_t v): scope(s), value(v) { /* assert(value) */ }
 
+    /// whether this ID was assigned a scope (rather than default-initialized w/o one)
+    explicit operator bool() const { return scope; }
+
     /// either the prefix() of the InstanceId object that we were detached from
     /// or, for 0 values, some other description (with endless lifetime) or nil
     const char *scope;

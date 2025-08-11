@@ -255,6 +255,7 @@ Instance::Starting()
 void
 Instance::StartupActivityStarted(const ScopedId &id)
 {
+    Assure(id);
     // XXX: remember id
     ++StartedStartupActivities;
     ++RunningStartupActivities;
@@ -269,6 +270,7 @@ Instance::StartupActivityStarted(const ScopedId &id)
 void
 Instance::StartupActivityFinished(const ScopedId &id)
 {
+    Assure(id);
     Assure(RunningStartupActivities > 0);
     --RunningStartupActivities;
     debugs(50, 3, id << "; activities now: " << RunningStartupActivities);
@@ -355,24 +357,18 @@ Instance::AnnounceReadiness()
 
 Instance::StartupActivityTracker::StartupActivityTracker(const ScopedId &id): id_(id)
 {
-}
-
-void
-Instance::StartupActivityTracker::started()
-{
-    Assure(!started_);
-    Assure(!finished_);
-    started_ = true;
     StartupActivityStarted(id_);
 }
 
-void
-Instance::StartupActivityTracker::finished()
+Instance::StartupActivityTracker::~StartupActivityTracker()
 {
-    Assure(started_);
-    Assure(!finished_);
-    finished_ = true;
-    StartupActivityFinished(id_);
+    if (id_)
+        StartupActivityFinished(id_);
+}
+
+Instance::StartupActivityTracker::StartupActivityTracker(StartupActivityTracker &&other)
+{
+    std::swap(id_, other.id_);
 }
 
 /* Instance::OptionalStartupActivityTracker */
@@ -380,16 +376,22 @@ Instance::StartupActivityTracker::finished()
 void
 Instance::OptionalStartupActivityTracker::started(const ScopedId &id)
 {
-    Assure(!tracker);
-    tracker = std::make_optional<StartupActivityTracker>(id);
-    tracker->started();
+    Assure(!started_);
+    Assure(!finished_);
+    started_ = true;
+
+    Assure(!tracker_);
+    tracker_.emplace(id);
 }
 
 void
 Instance::OptionalStartupActivityTracker::finished()
 {
-    Assure(tracker);
-    tracker->finished();
-    tracker = std::nullopt;
+    Assure(started_);
+    Assure(!finished_);
+    finished_ = true;
+
+    Assure(tracker_);
+    tracker_ = std::nullopt;
 }
 

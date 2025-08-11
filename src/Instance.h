@@ -21,24 +21,39 @@
 /// code related to Squid Instance and PID file management
 namespace Instance {
 
-/// Tracks a task performed as a part of Squid startup sequence. These tasks
-/// start before (and are independent from) client-initiated transactions. They
-/// need to be tracked to enforce relationships among startup tracks and to know
-/// when all startup activities have finished, signaling the end of startup.
+/// Automatically tracks a task performed as a part of Squid startup sequence.
+/// These tasks start before (and are independent from) client-initiated
+/// transactions. They need to be tracked to enforce relationships among startup
+/// tracks and to know when all startup activities have finished, signaling the
+/// end of startup.
 class StartupActivityTracker
 {
 public:
-    /// configures the activity without starting it
+    /// starts tracking the identified activity
     explicit StartupActivityTracker(const ScopedId &id);
 
-    /* MoveConstructible and MoveAssignable but not CopyConstructible and not CopyAssignable */
+    /// finishes tracking the previously identified activity (if still responsible for it)
+    ~StartupActivityTracker();
+
+    /// moves tracking responsibility without starting or finishing any activities
+    StartupActivityTracker(StartupActivityTracker &&);
+
+    /* prohibit copying to ensure single tracker for each activity */
     StartupActivityTracker(const StartupActivityTracker &) = delete;
     StartupActivityTracker &operator =(StartupActivityTracker &) = delete;
-    StartupActivityTracker(StartupActivityTracker &&) = default;
-    StartupActivityTracker &operator =(StartupActivityTracker &&) = default;
+    /* prohibit moving assignment to avoid surprising end to old activity tracking */
+    StartupActivityTracker &operator =(StartupActivityTracker &&) = delete;
 
-    // XXX: Unused. TODO: Move to OptionalStartupActivityTracker. See
-    // Ipc::Coordinator::handleKidCompletedStartupNotification() for a use case.
+private:
+    ScopedId id_; ///< identifies a running activity (from start to finish)
+};
+
+/// An std::optional<StartupActivityTracker> wrapper for a common use case of a
+/// startup activity that starts some time after its owner has been created or
+/// finishes before its owner is being destructed
+class OptionalStartupActivityTracker
+{
+public:
     /// whether both started() and finished() have been called OR, since
     /// finished() requires started(), whether finished() has been called
     bool startedAndFinished() const { return started_ && finished_; }
@@ -46,7 +61,7 @@ public:
     /// Called at the beginning of a tracked activity.
     /// \prec started() has not been called earlier
     /// \prec finished() has not been called earlier
-    void started();
+    void started(const ScopedId &);
 
     /// Called at the end of a started() tracked activity.
     /// \prec started() has been called earlier
@@ -54,24 +69,11 @@ public:
     void finished();
 
 private:
-    ScopedId id_;
+    /// started() but not yet finished() activity tracker
+    std::optional<StartupActivityTracker> tracker_;
+
     bool started_ = false; ///< started() has been called
     bool finished_ = false; ///< finished() has been called
-};
-
-/// Convenience wrapper for a common use case of a startup activity tracked by
-/// std::optional<StartupActivityTracker>.
-class OptionalStartupActivityTracker
-{
-public:
-    /// \copydoc StartupActivityTracker::started()
-    void started(const ScopedId &);
-
-    /// \copydoc StartupActivityTracker::finished()
-    void finished();
-
-    /// started activity tracker
-    std::optional<StartupActivityTracker> tracker;
 };
 
 /// Usually throws if another Squid instance is running. False positives are

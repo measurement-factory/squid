@@ -371,7 +371,7 @@ Ipc::Coordinator::handleKidCompletedStartupNotification(const StrandMessage &msg
         return;
     }
 
-    if (!startupActivity.tracker) { // TODO: After migration to RAII, add/use OptionalStartupActivityTracker::startedAndFinished() instead
+    if (startupActivity.startedAndFinished()) {
         debugs(54, 3, "have already seen all kids becoming ready; restarted kid: " << msg.strand.kidId);
         return;
     }

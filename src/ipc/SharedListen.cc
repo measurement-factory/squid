@@ -154,10 +154,8 @@ Ipc::JoinSharedListen(const OpenListenerParams &params, StartListeningCallback &
     por.params = params;
     por.callback = cb;
 
-    if (Instance::Starting()) {
-        por.startupActivity = Instance::StartupActivityTracker(ScopedId("opening of a listening port shared by SMP kids", por.callback->id.value));
-        por.startupActivity->started();
-    }
+    if (Instance::Starting())
+        por.startupActivity.emplace(ScopedId("opening of a listening port shared by SMP kids", por.callback->id.value));
 
     const DelayedSharedListenRequests::size_type concurrencyLimit = 1;
     if (TheSharedListenRequestMap.size() >= concurrencyLimit) {
@@ -205,10 +203,8 @@ void Ipc::SharedListenJoined(const SharedListenResponse &response)
     answer.errNo = response.errNo;
     ScheduleCallHere(por.callback.release());
 
-    if (por.startupActivity) {
-        por.startupActivity->finished();
-        por.startupActivity = std::nullopt;
-    }
+    // just to explicitly mark code that finishes this activity
+    por.startupActivity = std::nullopt; // may already be nil
 
     kickDelayedRequest();
 }
