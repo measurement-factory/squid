@@ -31,6 +31,12 @@ public:
     /// configures the activity without starting it
     explicit StartupActivityTracker(const ScopedId &id);
 
+    // XXX: Unused. TODO: Move to OptionalStartupActivityTracker. See
+    // Ipc::Coordinator::handleKidCompletedStartupNotification() for a use case.
+    /// whether both started() and finished() have been called OR, since
+    /// finished() requires started(), whether finished() has been called
+    bool startedAndFinished() const { return started_ && finished_; }
+
     /// Called at the beginning of a tracked activity.
     /// \prec started() has not been called earlier
     /// \prec finished() has not been called earlier
@@ -52,11 +58,6 @@ private:
 class OptionalStartupActivityTracker
 {
 public:
-    // XXX: Boolean conversion meaning may not be clear enough to call code
-    // readers. For example, does "false" imply not started or finished?
-    explicit operator bool() const { return bool(tracker); }
-    bool operator !() const { return !bool(tracker); }
-
     /// \copydoc StartupActivityTracker::started()
     void started(const ScopedId &);
 
