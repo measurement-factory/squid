@@ -44,7 +44,7 @@ CBDATA_NAMESPACED_CLASS_INIT(Ipc, Strand);
 /// allows mtFindStrand queries to find this strand
 /// \sa Ipc::Strand::InitTagged()
 std::optional<SBuf> TheTag;
-Instance::StartupActivityTracker selfRegistrationActivity(ScopedId("Ipc::Strand self-registration"));
+Instance::OptionalStartupActivityTracker selfRegistrationActivity;
 /// a task waiting for other kids to reach the same synchronization point
 AsyncCallPointer synchronizationCallback;
 /// tracks Ipc::Strand::BarrierWait() synchronization activity
@@ -112,7 +112,7 @@ void Ipc::Strand::registerSelf()
     debugs(54, 6, MYNAME);
     Must(!isRegistered);
 
-    selfRegistrationActivity.started();
+    selfRegistrationActivity.started(ScopedId("Ipc::Strand self-registration"));
     StrandMessage::NotifyCoordinator(mtRegisterStrand, TheTag);
     setTimeout(6, "Ipc::Strand::timeoutHandler"); // TODO: make 6 configurable?
 }
