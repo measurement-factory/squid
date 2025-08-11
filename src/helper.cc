@@ -770,6 +770,7 @@ class StartupMonitor
 {
 public:
     StartupMonitor();
+    ~StartupMonitor();
 
     void startMonitoring(const helper::Pointer &aHelper) { (void)helpers.insert(aHelper); }
     void stopMonitoring(const helper::Pointer &aHelper) { (void)helpers.erase(aHelper); }
@@ -787,9 +788,8 @@ private:
 
     std::set<helper::Pointer> helpers; ///< helpers that have not been shut down yet
 
-    // TODO: Remove std::optional because monitoringActivity lifetime matches StartupMonitor lifetime.
-    /// tracks our monitoring progress
-    Instance::OptionalStartupActivityTracker monitoringActivity;
+    /// informs Instance of our progress
+    Instance::StartupActivityTracker monitoringActivity;
 };
 
 /// a StartupMonitor instance (during the startup monitoring stage) or nil (afterwords)
@@ -816,7 +816,6 @@ Helper::StartupMonitor::finalCheck()
     }
 
     debugs(84, 7, "all helpers achieved their startup goals: " << helpers.size());
-    monitoringActivity.finished();
 }
 
 /// finalCheck() wrapper compatible with eventAdd() API
@@ -829,10 +828,16 @@ Helper::StartupMonitor::FinalCheck(void*)
     monitor = std::nullopt;
 }
 
-Helper::StartupMonitor::StartupMonitor()
+Helper::StartupMonitor::StartupMonitor():
+    monitoringActivity(ScopedId("Helper::StartupMonitor"))
 {
-    monitoringActivity.started(ScopedId("Helper::StartupMonitor"));
+    monitoringActivity.started();
     eventAdd("Helper::StartupMonitor::FinalCheck", &Helper::StartupMonitor::FinalCheck, nullptr, SecondsToWaitForProblems(), 0);
+}
+
+Helper::StartupMonitor::~StartupMonitor()
+{
+    monitoringActivity.finished();
 }
 
 helper::helper(const char *name): id_name(name)
