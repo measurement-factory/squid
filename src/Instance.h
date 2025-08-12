@@ -90,13 +90,22 @@ void WriteOurPid();
 /// Throws if PID file maintenance is disabled.
 pid_t Other();
 
-/// XXX: Describe!
-void NotifyWhenStartedStartupActivitiesFinished(const AsyncCallPointer &requestor);
+/// Schedules the given callback when the number of running startup activities
+/// goes to zero. That event does not imply the end of startup because the
+/// callback may launch new startup activities; it only implies that all
+/// caller's startup prerequisites have been satisfied.
+///
+/// Repeated calls are supported, but awaiting multiple notifications at the
+/// same time is not. In other words, the next call to this function must not
+/// happen before the callback from the previous call has been scheduled.
+///
+/// \sa Starting()
+void NotifyWhenStartedStartupActivitiesFinished(const AsyncCallPointer &);
 
 /// Whether this process may launch a new startup activity.
 ///
 /// The startup period begins with the process execution and ends shortly after
-/// the very last StartupActivityFinished() call. To automatically detect the
+/// the very last StartupActivityTracker is gone. To automatically detect the
 /// latter event, we assume that any startup activity except the very first one
 /// is only launched during other startup activities (i.e. a new startup
 /// activity may not launch spontaneously, after all previous activities end).

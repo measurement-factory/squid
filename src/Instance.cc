@@ -251,29 +251,34 @@ Instance::Starting()
     return !StartupEnded;
 }
 
-/// XXX: Describe
+/// Reacts to the beginning of the identified startup activity.
+/// \sa Instance::StartupActivityFinished()
 void
 Instance::StartupActivityStarted(const ScopedId &id)
 {
     Assure(id);
-    // XXX: remember id
     ++StartedStartupActivities;
     ++RunningStartupActivities;
+    Assure(RunningStartupActivities > 0); // no overflows
     debugs(50, 3, id << "; activities now: " << RunningStartupActivities << '/' << StartedStartupActivities);
-    Assure(RunningStartupActivities > 0);
-    Assure(!StartupEnded);
+    Assure(Starting());
+
+    // We could remember activity ID, allowing StartupActivityFinished() to
+    // check for matches, but all public APIs reliably use the same ID for both
+    // calls, making such checks excessive.
 
     // TODO: Consider limiting startup by a timeout (scheduled here when StartedStartupActivities is 1).
 }
 
-/// XXX: Describe
+/// Reacts to the end of the identified startup activity.
+/// \sa Instance::StartupActivityStarted()
 void
 Instance::StartupActivityFinished(const ScopedId &id)
 {
     Assure(id);
     Assure(RunningStartupActivities > 0);
     --RunningStartupActivities;
-    debugs(50, 3, id << "; activities now: " << RunningStartupActivities);
+    debugs(50, 3, id << "; activities now: " << RunningStartupActivities << '/' << StartedStartupActivities);
     StartupNotificationCheckpoint();
 }
 
@@ -287,6 +292,10 @@ Instance::NotifyWhenStartedStartupActivitiesFinished(const AsyncCallPointer &req
     StartupNotificationCheckpoint();
 }
 
+/// Starts reacting to NotifyWhenStartedStartupActivitiesFinished() callback
+/// registration or RunningStartupActivities decrease. If possible, advances
+/// towards that callback scheduling or an AnnounceReadiness() call.
+/// \sa StartupNotificationDelayedCheckpoint().
 static void
 Instance::StartupNotificationCheckpoint()
 {
@@ -306,6 +315,7 @@ Instance::StartupNotificationCheckpoint()
     ScheduleCallHere(TheDelayedCheckpoint);
 }
 
+/// Completes processing started by StartupNotificationDelayedCheckpoint().
 static void
 Instance::StartupNotificationDelayedCheckpoint()
 {
@@ -338,6 +348,7 @@ Instance::StartupNotificationDelayedCheckpoint()
         Instance::AnnounceReadiness();
 }
 
+/// informs systemd that this instance has completed its startup sequence (where supported)
 static void
 Instance::AnnounceReadiness()
 {
