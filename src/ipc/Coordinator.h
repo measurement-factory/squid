@@ -82,17 +82,17 @@ private:
     typedef std::map<OpenListenerParams, Comm::ConnectionPointer> Listeners; ///< params:connection map
     Listeners listeners; ///< cached comm_open_listener() results
 
-    using SynchronizingKids = std::map<int, RequestId>; ///< maps kid ID to kid's SynchronizationRequest::mapId
-    SynchronizingKids synchronizingKids; ///< kids that have reached their synchronization barrier
+    using SynchronizingStrands = std::map<int, RequestId>; ///< maps kid ID to kid's SynchronizationRequest::mapId
+    SynchronizingStrands synchronizingStrands; ///< strands that have reached their synchronization barrier
 
     using KidIds = std::set<int>; ///< unique kid IDs
-    KidIds synchronizedKids; ///< kids that have been informed of crossing their synchronization barrier
-    KidIds kidsThatCompletedStartup; ///< kids that have completed all kid-specific startup activities
+    KidIds synchronizedStrands; ///< strands that have been informed of crossing their synchronization barrier
+    KidIds strandsThatCompletedStartup; ///< strands that have completed all their strand-specific startup activities
 
     /// whether crossSynchronizationBarrier() has been called (at least once)
     bool crossedSynchronizationBarrier = false;
 
-    /// tracks startup progress across kids
+    /// tracks startup progress across strands
     Instance::OptionalStartupActivityTracker startupActivity;
 
     static Coordinator* TheInstance; ///< the only class instance in existence

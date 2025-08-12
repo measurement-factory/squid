@@ -31,6 +31,18 @@
 CBDATA_NAMESPACED_CLASS_INIT(Ipc, Coordinator);
 Ipc::Coordinator* Ipc::Coordinator::TheInstance = nullptr;
 
+/// The total number of configured strands (i.e. kid processes other than
+/// Coordinator). Coordinator kid is special because it is the only kid for
+/// which startup completion depends on other kids startup completion.  That
+/// dependency is tracked by Coordinator::startupActivity.
+static auto
+ConfiguredStrands()
+{
+    const auto numberOfAllKids = static_cast<size_t>(NumberOfKids()); // XXX: Fix NumberOfKids() return type to avoid this cast.
+    Assure(numberOfAllKids > 1); // because Coordinator is a kid
+    return numberOfAllKids - 1;
+}
+
 /// convenience wrapper that determines whether the given kid process belongs to
 /// the given container
 template <class Kids>
@@ -69,9 +81,9 @@ void Ipc::Coordinator::registerStrand(const StrandCoord& strand)
         debugs(54, 5, "resetting stale kid synchronization state: stale=" << found->pid << "; new=" << strand.pid);
         Assure(found->pid != strand.pid); // no repeated same-process registrations
         *found = strand;
-        (void)synchronizingKids.erase(strand.kidId);
-        (void)synchronizedKids.erase(strand.kidId);
-        (void)kidsThatCompletedStartup.erase(strand.kidId);
+        (void)synchronizingStrands.erase(strand.kidId);
+        (void)synchronizedStrands.erase(strand.kidId);
+        (void)strandsThatCompletedStartup.erase(strand.kidId);
     } else {
         strands_.push_back(strand);
     }
@@ -272,22 +284,15 @@ Ipc::Coordinator::handleSnmpResponse(const Snmp::Response& response)
 }
 #endif
 
-static auto
-NumberOfKidsExceptCoordinator()
-{
-    const auto numberOfAllKids = static_cast<size_t>(NumberOfKids()); // XXX: Fix NumberOfKids() return type to avoid this cast.
-    Assure(numberOfAllKids > 1); // because Coordinator is a kid
-    // TODO: Consider not making Coordinator exceptional.
-    return numberOfAllKids - 1;
-}
-
 void
 Ipc::Coordinator::handleSynchronizationRequest(const SynchronizationRequest &request)
 {
     debugs(54, 4, request.requestorId);
-    const auto inserted = synchronizingKids.emplace(request.requestorId, request.mapId).second;
-    Assure(inserted); // restarted kids re-register, and registration erases their old entry
-    Assure(synchronizingKids.size() <= NumberOfKidsExceptCoordinator());
+    const auto inserted = synchronizingStrands.emplace(request.requestorId, request.mapId).second;
+    // A strand sending a SynchronizationRequest message has already registered.
+    // A restarted kid re-registers, and re-registration erases their old entry.
+    Assure(inserted);
+    Assure(synchronizingStrands.size() <= ConfiguredStrands());
     synchronizationCheckpoint();
 }
 
@@ -295,36 +300,36 @@ void
 Ipc::Coordinator::synchronizationCheckpoint()
 {
     if (crossedSynchronizationBarrier) {
-        debugs(54, 3, "a restarted kid re-crosses synchronization barrier: " << synchronizingKids.size() << '-' << synchronizedKids.size());
+        debugs(54, 3, "a restarted strand re-crosses synchronization barrier: " << synchronizingStrands.size() << '-' << synchronizedStrands.size());
         crossSynchronizationBarrier();
         return;
     }
 
-    // Find kids that may still send mtSynchronizationRequest and raise
-    // synchronization barrier. Some kids do not use startup features that
+    // Find strands that may still send mtSynchronizationRequest and raise
+    // synchronization barrier. Some strands do not use startup features that
     // require synchronization and will eventually complete all startup
     // activities (i.e. send mtKidCompletedStartup) without sending
     // mtSynchronizationRequest. For example, diskers bypass synchronization
     // barrier because they do not listen for HTTP requests like workers do.
-    size_t remainingKids = 0;
-    const auto expectedNumberOfKids = NumberOfKidsExceptCoordinator();
-    for (size_t kidId = 1; kidId <= expectedNumberOfKids; ++kidId) {
-        if (KnownKid(kidId, synchronizingKids))
+    size_t remainingStrands = 0;
+    const auto expectedNumberOfStrands = ConfiguredStrands();
+    for (size_t kidId = 1; kidId <= expectedNumberOfStrands; ++kidId) {
+        if (KnownKid(kidId, synchronizingStrands))
             continue; // reached the barrier
-        if (KnownKid(kidId, kidsThatCompletedStartup))
+        if (KnownKid(kidId, strandsThatCompletedStartup))
             continue; // bypassed the barrier by completing all startup activities
-        debugs(54, 7, "kid " << kidId << " may still raise synchronization barrier");
-        ++remainingKids;
-        // we could return here, but we keep going for kid state reporting sake
+        debugs(54, 7, "kid" << kidId << " may still raise synchronization barrier");
+        ++remainingStrands;
+        // we could return here, but we keep going for reporting sake
     }
 
-    if (remainingKids) {
-        debugs(54, 3, "waiting for other kids to reach or bypass synchronization barrier: " << remainingKids);
-        Assure(remainingKids <= expectedNumberOfKids);
+    if (remainingStrands) {
+        debugs(54, 3, "waiting for other strands to reach or bypass synchronization barrier: " << remainingStrands);
+        Assure(remainingStrands <= expectedNumberOfStrands);
         return;
     }
 
-    debugs(54, 3, "crossing synchronization barrier: " << synchronizingKids.size() << '-' << synchronizedKids.size());
+    debugs(54, 3, "crossing synchronization barrier: " << synchronizingStrands.size() << '-' << synchronizedStrands.size());
     crossedSynchronizationBarrier = true;
     crossSynchronizationBarrier();
 }
@@ -333,15 +338,15 @@ void
 Ipc::Coordinator::crossSynchronizationBarrier()
 {
     Assure(crossedSynchronizationBarrier);
-    const auto expectedNumberOfKids = NumberOfKidsExceptCoordinator();
-    for (auto &synchronizingKid: synchronizingKids) {
-        const auto synchronizingKidId = synchronizingKid.first;
-        if (!synchronizedKids.insert(synchronizingKidId).second)
-            continue; // this kid has been informed earlier
-        Assure(synchronizedKids.size() <= expectedNumberOfKids);
+    const auto expectedNumberOfStrands = ConfiguredStrands();
+    for (auto &synchronizingStrand: synchronizingStrands) {
+        const auto synchronizingKidId = synchronizingStrand.first;
+        if (!synchronizedStrands.insert(synchronizingKidId).second)
+            continue; // this strand has been informed earlier
+        Assure(synchronizedStrands.size() <= expectedNumberOfStrands);
 
-        debugs(54, 7, synchronizingKid.second << " crosses synchronization barrier");
-        SynchronizationResponse response(synchronizingKid.second);
+        debugs(54, 7, synchronizingStrand.second << " crosses synchronization barrier");
+        SynchronizationResponse response(synchronizingStrand.second);
         TypedMsgHdr message;
         response.pack(message);
         SendMessage(MakeAddr(strandAddrLabel, synchronizingKidId), message);
@@ -351,28 +356,28 @@ Ipc::Coordinator::crossSynchronizationBarrier()
 void
 Ipc::Coordinator::handleKidCompletedStartupNotification(const StrandMessage &msg)
 {
-    const auto expectedNumberOfKids = NumberOfKidsExceptCoordinator();
-    debugs(54, 4, msg.strand << ' ' << kidsThatCompletedStartup.size() << '/' << expectedNumberOfKids);
+    const auto expectedNumberOfStrands = ConfiguredStrands();
+    debugs(54, 4, msg.strand << ' ' << strandsThatCompletedStartup.size() << '/' << expectedNumberOfStrands);
 
-    const auto insterted = kidsThatCompletedStartup.insert(msg.strand.kidId).second;
-    Assure(insterted); // restarted kids re-register, and registration erases their old entry
-    Assure(kidsThatCompletedStartup.size() <= expectedNumberOfKids);
+    const auto insterted = strandsThatCompletedStartup.insert(msg.strand.kidId).second;
+    Assure(insterted); // restarted strands re-register, and registration erases their old entry
+    Assure(strandsThatCompletedStartup.size() <= expectedNumberOfStrands);
     // a ready kid is either independent or has already crossed its synchronization barrier
-    Assure(!KnownKid(msg.strand.kidId, synchronizingKids) || KnownKid(msg.strand.kidId, synchronizedKids));
+    Assure(!KnownKid(msg.strand.kidId, synchronizingStrands) || KnownKid(msg.strand.kidId, synchronizedStrands));
 
     // each independent kid startup completion effectively lowers
-    // synchronization barrier for inter-dependent kids that are waiting to
+    // synchronization barrier for inter-dependent strands that are waiting to
     // cross that barrier
-    if (!KnownKid(msg.strand.kidId, synchronizingKids))
+    if (!KnownKid(msg.strand.kidId, synchronizingStrands))
         synchronizationCheckpoint();
 
-    if (kidsThatCompletedStartup.size() < expectedNumberOfKids) {
-        debugs(54, 3, "waiting for other kids to become ready: " << (expectedNumberOfKids - kidsThatCompletedStartup.size()));
+    if (strandsThatCompletedStartup.size() < expectedNumberOfStrands) {
+        debugs(54, 3, "waiting for other strands to become ready: " << (expectedNumberOfStrands - strandsThatCompletedStartup.size()));
         return;
     }
 
     if (startupActivity.startedAndFinished()) {
-        debugs(54, 3, "have already seen all kids becoming ready; restarted kid: " << msg.strand.kidId);
+        debugs(54, 3, "have already seen all strands becoming ready; restarted kid: " << msg.strand.kidId);
         return;
     }
 
