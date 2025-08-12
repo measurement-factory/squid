@@ -27,11 +27,54 @@
 #endif
 
 namespace Instance {
-    static void StartupActivityStarted(const ScopedId &);
-    static void StartupActivityFinished(const ScopedId &);
-    static void StartupNotificationCheckpoint();
-    static void StartupNotificationDelayedCheckpoint();
-    static void AnnounceReadiness();
+
+/// A singleton for managing instance startup. Accessible via TheStartup().
+class Startup
+{
+public:
+    static void ConfirmationCheckpoint();
+
+    /// Reacts to the beginning of the identified startup activity.
+    /// \sa finishActivity()
+    void startActivity(const ScopedId &);
+
+    /// Reacts to the end of the identified startup activity.
+    /// \sa startActivity()
+    void finishActivity(const ScopedId &);
+
+    /// \copydoc NotifyWhenStartedStartupActivitiesFinished()
+    void notifyWhenIdle(const AsyncCallPointer &);
+
+    /// whether this process has completed its startup
+    bool ended = false;
+
+private:
+    void initialCheckpoint();
+    void confirmationCheckpoint();
+
+    /// the total number of startup activities ever started
+    uint64_t startedActivities_ = 0;
+
+    /// the total number of currently running (i.e. started and unfinished) startup activities
+    size_t runningActivities_ = 0;
+
+    /// callback awaiting zero runningActivities_
+    AsyncCall::Pointer idleWaiter_;
+
+    /// the second stage of startup-ending checkpoint
+    AsyncCall::Pointer confirmationCheckpoint_;
+};
+
+/// the only Startup object in existence
+static auto &
+TheStartup()
+{
+    static const auto startup = new Startup();
+    return *startup;
+}
+
+static void AnnounceReadiness();
+
 } // namespace Instance
 
 /* To support concurrent PID files, convert local statics into PidFile class */
@@ -238,108 +281,117 @@ Instance::WriteOurPid()
     debugs(50, Important(23), "Created " << TheFile);
 }
 
-// XXX: No new globals
-static uint64_t StartedStartupActivities = 0;
-static size_t RunningStartupActivities = 0;
-static AsyncCall::Pointer TheRequestor;
-static AsyncCall::Pointer TheDelayedCheckpoint;
-static bool StartupEnded = false;
-
 bool
 Instance::Starting()
 {
-    return !StartupEnded;
+    return !TheStartup().ended;
 }
 
-/// Reacts to the beginning of the identified startup activity.
-/// \sa Instance::StartupActivityFinished()
 void
-Instance::StartupActivityStarted(const ScopedId &id)
+Instance::NotifyWhenStartedStartupActivitiesFinished(const AsyncCallPointer &waiter)
 {
-    Assure(id);
-    ++StartedStartupActivities;
-    ++RunningStartupActivities;
-    Assure(RunningStartupActivities > 0); // no overflows
-    debugs(50, 3, id << "; activities now: " << RunningStartupActivities << '/' << StartedStartupActivities);
+    TheStartup().notifyWhenIdle(waiter);
+}
+
+void
+Instance::Startup::startActivity(const ScopedId &id)
+{
     Assure(Starting());
+
+    Assure(id);
+    ++startedActivities_;
+    ++runningActivities_;
+    Assure(runningActivities_ > 0); // no overflows
+    debugs(1, 3, id << "; activities now: " << runningActivities_ << '/' << startedActivities_);
 
     // We could remember activity ID, allowing StartupActivityFinished() to
     // check for matches, but all public APIs reliably use the same ID for both
     // calls, making such checks excessive.
 
-    // TODO: Consider limiting startup by a timeout (scheduled here when StartedStartupActivities is 1).
+    // TODO: Consider limiting startup by a timeout (scheduled here when startedActivities_ is 1).
 }
 
-/// Reacts to the end of the identified startup activity.
-/// \sa Instance::StartupActivityStarted()
 void
-Instance::StartupActivityFinished(const ScopedId &id)
+Instance::Startup::finishActivity(const ScopedId &id)
 {
+    Assure(Starting());
+
     Assure(id);
-    Assure(RunningStartupActivities > 0);
-    --RunningStartupActivities;
-    debugs(50, 3, id << "; activities now: " << RunningStartupActivities << '/' << StartedStartupActivities);
-    StartupNotificationCheckpoint();
+    Assure(runningActivities_ > 0);
+    --runningActivities_;
+    debugs(1, 3, id << "; activities now: " << runningActivities_ << '/' << startedActivities_);
+    initialCheckpoint();
 }
 
 void
-Instance::NotifyWhenStartedStartupActivitiesFinished(const AsyncCallPointer &requestor)
+Instance::Startup::notifyWhenIdle(const AsyncCallPointer &waiter)
 {
-    debugs(50, 3, "activities now: " << RunningStartupActivities);
-    Assure(requestor);
-    Assure(!TheRequestor);
-    TheRequestor = requestor;
-    StartupNotificationCheckpoint();
+    debugs(1, 3, waiter->id << "; activities now: " << runningActivities_ << '/' << startedActivities_);
+    Assure(waiter);
+    Assure(!idleWaiter_);
+    idleWaiter_ = waiter;
+    initialCheckpoint(); // we may be ready to notify the waiter immediately
 }
 
 /// Starts reacting to NotifyWhenStartedStartupActivitiesFinished() callback
-/// registration or RunningStartupActivities decrease. If possible, advances
+/// registration or TheStartup().runningActivities_ decrease. If possible, advances
 /// towards that callback scheduling or an AnnounceReadiness() call.
-/// \sa StartupNotificationDelayedCheckpoint().
-static void
-Instance::StartupNotificationCheckpoint()
+/// \sa ConfirmationCheckpoint().
+void
+Instance::Startup::initialCheckpoint()
 {
-    debugs(1, 7, "activities now: " << RunningStartupActivities);
-    if (RunningStartupActivities)
+    debugs(1, 7, "activities now: " << runningActivities_ << '/' << startedActivities_);
+    if (runningActivities_)
         return; // wait for the still-running startup activities to finish
 
     // Wait for firing of any "begin startup activity X" async calls scheduled
     // by our (indirect) caller just before calling an Instance function. They
     // may schedule more calls (and then trigger another checkpoint); we must
     // reschedule our "wait for scheduled calls" check to also wait for those.
-    if (TheDelayedCheckpoint)
-        TheDelayedCheckpoint->cancel("rescheduling to cover any newly scheduled calls");
+    if (confirmationCheckpoint_)
+        confirmationCheckpoint_->cancel("rescheduling to cover any newly scheduled calls");
     using Dialer = NullaryFunDialer;
-    TheDelayedCheckpoint = asyncCall(1, 3, "Instance::StartupNotificationDelayedCheckpoint",
-                                     Dialer(&Instance::StartupNotificationDelayedCheckpoint));
-    ScheduleCallHere(TheDelayedCheckpoint);
+    confirmationCheckpoint_ = asyncCall(1, 3, "Instance::Startup::ConfirmationCheckpoint",
+                                  Dialer(&Instance::Startup::ConfirmationCheckpoint));
+    ScheduleCallHere(confirmationCheckpoint_);
 }
 
-/// Completes processing started by StartupNotificationDelayedCheckpoint().
-static void
-Instance::StartupNotificationDelayedCheckpoint()
+/// confirmationCheckpoint() wrapper compatible with NullaryFunDialer API
+void
+Instance::Startup::ConfirmationCheckpoint()
 {
-    TheDelayedCheckpoint = nullptr;
+    TheStartup().confirmationCheckpoint();
+}
 
-    if (RunningStartupActivities) {
+/// Completes processing started by initialCheckpoint().
+void
+Instance::Startup::confirmationCheckpoint()
+{
+    confirmationCheckpoint_ = nullptr;
+    Assure(Starting());
+
+    if (runningActivities_) {
         // some startup activity was started when asynchronous calls scheduled
         // by the previously finished startup activity were fired
-        debugs(1, 5, "waiting for recently started activities: " << RunningStartupActivities);
+        debugs(1, 5, "waiting for recently started activities: " << runningActivities_);
         return;
     }
 
-    if (TheRequestor) {
-        debugs(1, 7, "informing " << TheRequestor->id);
-        ScheduleCallHere(TheRequestor);
-        TheRequestor = nullptr;
-        StartupNotificationCheckpoint(); // TheRequestor may start more startup activities
+    if (idleWaiter_) {
+        debugs(1, 7, "informing " << idleWaiter_->id);
+        ScheduleCallHere(idleWaiter_);
+        idleWaiter_ = nullptr;
+        // Restart our checks: If idleWaiter_ launches no startup activities,
+        // then we will not get another opportunity to end startup. We have to
+        // go through the whole two-step sequence again to give idleWaiter_ a
+        // chance to launch those startup activities asynchronously.
+        initialCheckpoint();
         return;
     }
 
     debugs(1, 3, "all startup activities have ended and no new ones are expected");
-    Assure(Starting());
-    Assure(!StartupEnded);
-    StartupEnded = true;
+    Assure(!ended);
+    ended = true;
     Assure(!Starting());
 
     if (UsingSmp() && !IamCoordinatorProcess())
@@ -368,13 +420,13 @@ Instance::AnnounceReadiness()
 
 Instance::StartupActivityTracker::StartupActivityTracker(const ScopedId &id): id_(id)
 {
-    StartupActivityStarted(id_);
+    TheStartup().startActivity(id_);
 }
 
 Instance::StartupActivityTracker::~StartupActivityTracker()
 {
     if (id_)
-        StartupActivityFinished(id_);
+        TheStartup().finishActivity(id_);
 }
 
 Instance::StartupActivityTracker::StartupActivityTracker(StartupActivityTracker &&other)
