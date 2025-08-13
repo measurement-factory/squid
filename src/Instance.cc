@@ -439,9 +439,7 @@ Instance::StartupActivityTracker::StartupActivityTracker(StartupActivityTracker 
 void
 Instance::OptionalStartupActivityTracker::start(const ScopedId &id)
 {
-    Assure(!started_);
     Assure(!finished_);
-    started_ = true;
 
     Assure(!tracker_);
     tracker_.emplace(id);
@@ -450,7 +448,6 @@ Instance::OptionalStartupActivityTracker::start(const ScopedId &id)
 void
 Instance::OptionalStartupActivityTracker::finish()
 {
-    Assure(started_);
     Assure(!finished_);
     finished_ = true;
 

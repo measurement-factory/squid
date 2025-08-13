@@ -50,13 +50,13 @@ private:
 
 /// An std::optional<StartupActivityTracker> wrapper for a common use case of a
 /// startup activity that starts some time after its owner has been created or
-/// finishes before its owner is being destructed
+/// finishes before its owner is being destructed.
 class OptionalStartupActivityTracker
 {
 public:
     /// whether both start() and finish() have been called OR, since finish()
     /// requires start(), whether finish() has been called
-    bool startedAndFinished() const { return started_ && finished_; }
+    bool startedAndFinished() const { return finished_; }
 
     /// Initiates tracking at the beginning of a tracked activity.
     /// \prec start() has not been called earlier
@@ -72,7 +72,6 @@ private:
     /// started but not yet finished activity tracker
     std::optional<StartupActivityTracker> tracker_;
 
-    bool started_ = false; ///< start() has been called
     bool finished_ = false; ///< finish() has been called
 };
 
