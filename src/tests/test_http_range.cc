@@ -8,11 +8,53 @@
 
 #include "squid.h"
 #include "fatal.h"
-#include "HttpHeader.h"
 #include "HttpHeaderRange.h"
-#include "HttpHeaderTools.h"
+
+#include <climits>
 
 // TODO: refactor as cppunit test
+
+// XXX: Misplaced
+#define STUB_API "http/Message.cc"
+#include "tests/STUB.h"
+#include "http/Message.h"
+#include "http/StatusLine.h"
+Http::Message::Message(const http_hdr_owner_type owner): header(owner) { STUB; }
+Http::Message::~Message() STUB
+int Http::Message::httpMsgParseError() STUB_RETVAL(-1)
+void Http::Message::hdrCacheInit() STUB
+void Http::StatusLine::packInto(Packable*) const STUB
+HttpHeader::HttpHeader(const http_hdr_owner_type anOwner): owner(anOwner), len(0), conflictingContentLength_(false) { STUB; }
+HttpHeader::~HttpHeader() STUB
+
+// XXX: Duplicates httpHeaderParseOffset() implementation in HttpHeaderTools.cc
+// to avoid dragging heavy HttpHeaderTools.cc dependencies with that.
+// #include "HttpHeaderTools.h"
+bool httpHeaderParseOffset(char const*, long*, char**);
+bool
+httpHeaderParseOffset(const char *start, int64_t *value, char **endPtr)
+{
+    char *end = nullptr;
+    errno = 0;
+    const int64_t res = strtoll(start, &end, 10);
+    if (errno && !res) {
+        debugs(66, 7, "failed to parse malformed offset in " << start);
+        return false;
+    }
+    if (errno == ERANGE && (res == LLONG_MIN || res == LLONG_MAX)) { // no overflow
+        debugs(66, 7, "failed to parse huge offset in " << start);
+        return false;
+    }
+    if (start == end) {
+        debugs(66, 7, "failed to parse empty offset");
+        return false;
+    }
+    *value = res;
+    if (endPtr)
+        *endPtr = end;
+    debugs(66, 7, "offset " << start << " parsed as " << res);
+    return true;
+}
 
 static void
 testRangeParser(char const *rangestring)
