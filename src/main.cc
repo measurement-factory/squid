@@ -1662,7 +1662,9 @@ SquidMain(int argc, char **argv)
         }
     }
 
-    // TODO: Move synchronous initialization code into a dedicated function and drop Optional use.
+    // TODO: Move initialization code below into a dedicated function and drop Optional use.
+    // This tracker guarantees true Instance::Starting() during post-config
+    // startup periods when no other startup activities are explicitly tracked.
     Instance::OptionalStartupActivityTracker synchronousPostConfigInitializationTracker;
     synchronousPostConfigInitializationTracker.start(ScopedId("synchronous post-config initialization"));
     StartUsingConfig();
