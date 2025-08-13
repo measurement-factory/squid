@@ -53,13 +53,13 @@ public:
     std::optional<SBuf> tag;
 
     /// our self-registration task; see Strand::registerSelf()
-    Instance::OptionalStartupActivityTracker selfRegistrationActivity;
+    Instance::OptionalStartupActivityTracker selfRegistrationTracker;
 
     /// a task waiting for other kids to reach the same synchronization point
     AsyncCallPointer synchronizationCallback;
 
     /// tracks Ipc::Strand::BarrierWait() synchronization activity
-    Instance::OptionalStartupActivityTracker synchronizationActivity;
+    Instance::OptionalStartupActivityTracker synchronizationTracker;
 };
 
 /// the only Strand_ object in existence
@@ -114,7 +114,7 @@ Ipc::Strand::BarrierWait(const AsyncCallPointer &cb)
     // we could simply use cb->detach(), but call name is usually more useful
     // for "current startup activities" triage dumps
     const auto trackerId = ScopedId(cb->name, cb->id.value);
-    TheStrand().synchronizationActivity.started(trackerId);
+    TheStrand().synchronizationTracker.start(trackerId);
 
     StrandMessage::NotifyCoordinator(mtSynchronizationRequest, nullptr);
 }
@@ -136,7 +136,7 @@ void Ipc::Strand::registerSelf()
     debugs(54, 6, MYNAME);
     Must(!isRegistered);
 
-    TheStrand().selfRegistrationActivity.started(ScopedId("Ipc::Strand self-registration"));
+    TheStrand().selfRegistrationTracker.start(ScopedId("Ipc::Strand self-registration"));
     StrandMessage::NotifyCoordinator(mtRegisterStrand, TheStrand().tag);
     setTimeout(6, "Ipc::Strand::timeoutHandler"); // TODO: make 6 configurable?
 }
@@ -213,7 +213,7 @@ Ipc::Strand::handleRegistrationResponse(const StrandMessage &msg)
         debugs(54, 6, "kid" << KidIdentifier << " registered");
         Assure(!isRegistered);
         isRegistered = true;
-        TheStrand().selfRegistrationActivity.finished();
+        TheStrand().selfRegistrationTracker.finish();
         clearTimeout(); // we are done
     } else {
         // could be an ACK to the registration message of our dead predecessor
@@ -257,7 +257,7 @@ Ipc::Strand::handleSynchronizationResponse(const SynchronizationResponse &)
     ScheduleCallHere(synchronizationCallback);
     synchronizationCallback = nullptr;
 
-    TheStrand().synchronizationActivity.finished();
+    TheStrand().synchronizationTracker.finish();
 }
 
 void Ipc::Strand::timedout()

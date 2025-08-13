@@ -54,26 +54,26 @@ private:
 class OptionalStartupActivityTracker
 {
 public:
-    /// whether both started() and finished() have been called OR, since
-    /// finished() requires started(), whether finished() has been called
+    /// whether both start() and finish() have been called OR, since finish()
+    /// requires start(), whether finish() has been called
     bool startedAndFinished() const { return started_ && finished_; }
 
-    /// Called at the beginning of a tracked activity.
-    /// \prec started() has not been called earlier
-    /// \prec finished() has not been called earlier
-    void started(const ScopedId &);
+    /// Initiates tracking at the beginning of a tracked activity.
+    /// \prec start() has not been called earlier
+    /// \prec finish() has not been called earlier
+    void start(const ScopedId &);
 
-    /// Called at the end of a started() tracked activity.
-    /// \prec started() has been called earlier
-    /// \prec finished() has not been called earlier
-    void finished();
+    /// Terminates tracking at the end of a tracked activity.
+    /// \prec start() has been called earlier
+    /// \prec finish() has not been called earlier
+    void finish();
 
 private:
-    /// started() but not yet finished() activity tracker
+    /// started but not yet finished activity tracker
     std::optional<StartupActivityTracker> tracker_;
 
-    bool started_ = false; ///< started() has been called
-    bool finished_ = false; ///< finished() has been called
+    bool started_ = false; ///< start() has been called
+    bool finished_ = false; ///< finish() has been called
 };
 
 /// Usually throws if another Squid instance is running. False positives are

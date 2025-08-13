@@ -35,7 +35,7 @@ public:
     Ipc::StartListeningCallback callback; // who to notify
 
     /// tracks port opening progress during startup
-    std::optional<Instance::StartupActivityTracker> startupActivity;
+    std::optional<Instance::StartupActivityTracker> startupTracker;
 };
 
 /// maps ID assigned at request time to the response callback
@@ -155,7 +155,7 @@ Ipc::JoinSharedListen(const OpenListenerParams &params, StartListeningCallback &
     por.callback = cb;
 
     if (Instance::Starting())
-        por.startupActivity.emplace(ScopedId("opening of a listening port shared by SMP kids", por.callback->id.value));
+        por.startupTracker.emplace(ScopedId("opening of a listening port shared by SMP kids", por.callback->id.value));
 
     const DelayedSharedListenRequests::size_type concurrencyLimit = 1;
     if (TheSharedListenRequestMap.size() >= concurrencyLimit) {
@@ -204,7 +204,7 @@ void Ipc::SharedListenJoined(const SharedListenResponse &response)
     ScheduleCallHere(por.callback.release());
 
     // just to explicitly mark code that finishes this activity
-    por.startupActivity = std::nullopt; // may already be nil
+    por.startupTracker = std::nullopt; // may already be nil
 
     kickDelayedRequest();
 }

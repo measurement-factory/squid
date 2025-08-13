@@ -93,7 +93,7 @@ private:
     bool crossedSynchronizationBarrier = false;
 
     /// tracks startup progress across strands
-    Instance::OptionalStartupActivityTracker startupActivity;
+    Instance::OptionalStartupActivityTracker startupTracker;
 
     static Coordinator* TheInstance; ///< the only class instance in existence
 

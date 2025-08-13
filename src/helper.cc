@@ -787,8 +787,8 @@ private:
 
     std::set<helper::Pointer> helpers; ///< helpers that have not been shut down yet
 
-    /// informs Instance of our progress
-    Instance::StartupActivityTracker monitoringActivity;
+    /// informs Instance of our monitoring activity
+    Instance::StartupActivityTracker tracker;
 };
 
 /// a StartupMonitor instance (during the startup monitoring stage) or nil (afterwords)
@@ -828,7 +828,7 @@ Helper::StartupMonitor::FinalCheck(void*)
 }
 
 Helper::StartupMonitor::StartupMonitor():
-    monitoringActivity(ScopedId("Helper::StartupMonitor"))
+    tracker(ScopedId("Helper::StartupMonitor"))
 {
     eventAdd("Helper::StartupMonitor::FinalCheck", &Helper::StartupMonitor::FinalCheck, nullptr, SecondsToWaitForProblems(), 0);
 }

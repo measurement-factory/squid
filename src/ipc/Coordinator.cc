@@ -34,7 +34,7 @@ Ipc::Coordinator* Ipc::Coordinator::TheInstance = nullptr;
 /// The total number of configured strands (i.e. kid processes other than
 /// Coordinator). Coordinator kid is special because it is the only kid for
 /// which startup completion depends on other kids startup completion.  That
-/// dependency is tracked by Coordinator::startupActivity.
+/// dependency is tracked by Coordinator::startupTracker.
 static auto
 ConfiguredStrands()
 {
@@ -55,7 +55,7 @@ KnownKid(const int kidId, const Kids &kids)
 Ipc::Coordinator::Coordinator():
     Port(Ipc::Port::CoordinatorAddr())
 {
-    startupActivity.started(id.detach());
+    startupTracker.start(id.detach());
 }
 
 void Ipc::Coordinator::start()
@@ -376,12 +376,12 @@ Ipc::Coordinator::handleKidCompletedStartupNotification(const StrandMessage &msg
         return;
     }
 
-    if (startupActivity.startedAndFinished()) {
+    if (startupTracker.startedAndFinished()) {
         debugs(54, 3, "have already seen all strands becoming ready; restarted kid: " << msg.strand.kidId);
         return;
     }
 
-    startupActivity.finished();
+    startupTracker.finish();
 }
 
 Comm::ConnectionPointer

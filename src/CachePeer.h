@@ -247,7 +247,7 @@ private:
     bool startingUp_ = false;
 
     /// startup probing of a cache_peer that belongs to a redundancy-group
-    Instance::OptionalStartupActivityTracker redundancyGroupProbing;
+    Instance::OptionalStartupActivityTracker redundancyGroupProbeTracker;
 };
 
 /// identify the given cache peer in cache.log messages and such

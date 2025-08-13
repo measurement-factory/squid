@@ -1663,8 +1663,8 @@ SquidMain(int argc, char **argv)
     }
 
     // TODO: Move synchronous initialization code into a dedicated function and drop Optional use.
-    Instance::OptionalStartupActivityTracker myActivityTracker;
-    myActivityTracker.started(ScopedId("synchronous post-config initialization"));
+    Instance::OptionalStartupActivityTracker synchronousPostConfigInitializationTracker;
+    synchronousPostConfigInitializationTracker.start(ScopedId("synchronous post-config initialization"));
     StartUsingConfig();
     enter_suid();
 
@@ -1728,7 +1728,7 @@ SquidMain(int argc, char **argv)
         Ipc::Strand::Init();
 
     /* at this point we are finished the synchronous startup. */
-    myActivityTracker.finished();
+    synchronousPostConfigInitializationTracker.finish();
 
     mainLoop.run();
 
