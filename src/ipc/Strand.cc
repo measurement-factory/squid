@@ -39,16 +39,38 @@
 
 CBDATA_NAMESPACED_CLASS_INIT(Ipc, Strand);
 
-// XXX: No new globals
-// XXX: Capitalization
-/// allows mtFindStrand queries to find this strand
-/// \sa Ipc::Strand::InitTagged()
-std::optional<SBuf> TheTag;
-Instance::OptionalStartupActivityTracker selfRegistrationActivity;
-/// a task waiting for other kids to reach the same synchronization point
-AsyncCallPointer synchronizationCallback;
-/// tracks Ipc::Strand::BarrierWait() synchronization activity
-Instance::OptionalStartupActivityTracker synchronizationActivity;
+namespace Ipc
+{
+
+// TODO: Rename to Strand after completing StrandJob TODO in Strand.h.
+/// A singleton for managing Strand artifacts that may outlive Strand job.
+/// Accessible via TheStrand().
+class Strand_
+{
+public:
+    /// allows mtFindStrand queries to find this strand
+    /// \sa Strand::InitTagged()
+    std::optional<SBuf> tag;
+
+    /// our self-registration task; see Strand::registerSelf()
+    Instance::OptionalStartupActivityTracker selfRegistrationActivity;
+
+    /// a task waiting for other kids to reach the same synchronization point
+    AsyncCallPointer synchronizationCallback;
+
+    /// tracks Ipc::Strand::BarrierWait() synchronization activity
+    Instance::OptionalStartupActivityTracker synchronizationActivity;
+};
+
+/// the only Strand_ object in existence
+static auto &
+TheStrand()
+{
+    static const auto strand = new Strand_();
+    return *strand;
+}
+
+} // namespace Ipc
 
 void
 Ipc::Strand::Init()
@@ -56,8 +78,8 @@ Ipc::Strand::Init()
     Assure(UsingSmp());
     Assure(!IamCoordinatorProcess());
 
-    static auto initializationTag = TheTag;
-    Assure(initializationTag == TheTag); // bans { Init(), InitTagged() } sequence
+    static auto initializationTag = TheStrand().tag;
+    Assure(initializationTag == TheStrand().tag); // bans { Init(), InitTagged() } sequence
 
     static auto started = false;
     if (!started) {
@@ -71,12 +93,14 @@ Ipc::Strand::InitTagged(const SBuf &aTag)
 {
     Assure(aTag.length());
 
-    if (TheTag) {
-        Assure(TheTag == aTag);
+    auto &tag = TheStrand().tag;
+
+    if (tag) {
+        Assure(tag == aTag);
         return; // already initialized
     }
 
-    TheTag = aTag;
+    tag = aTag;
     Init();
 }
 
@@ -84,13 +108,13 @@ void
 Ipc::Strand::BarrierWait(const AsyncCallPointer &cb)
 {
     Assure(cb);
-    Assure(!synchronizationCallback);
-    synchronizationCallback = cb;
+    Assure(!TheStrand().synchronizationCallback);
+    TheStrand().synchronizationCallback = cb;
 
-    // we could simply use synchronizationCallback->detach(), but call name is
-    // usually more useful for "current startup activities" triage dumps
-    const auto trackerId = ScopedId(synchronizationCallback->name, synchronizationCallback->id.value);
-    synchronizationActivity.started(trackerId);
+    // we could simply use cb->detach(), but call name is usually more useful
+    // for "current startup activities" triage dumps
+    const auto trackerId = ScopedId(cb->name, cb->id.value);
+    TheStrand().synchronizationActivity.started(trackerId);
 
     StrandMessage::NotifyCoordinator(mtSynchronizationRequest, nullptr);
 }
@@ -112,8 +136,8 @@ void Ipc::Strand::registerSelf()
     debugs(54, 6, MYNAME);
     Must(!isRegistered);
 
-    selfRegistrationActivity.started(ScopedId("Ipc::Strand self-registration"));
-    StrandMessage::NotifyCoordinator(mtRegisterStrand, TheTag);
+    TheStrand().selfRegistrationActivity.started(ScopedId("Ipc::Strand self-registration"));
+    StrandMessage::NotifyCoordinator(mtRegisterStrand, TheStrand().tag);
     setTimeout(6, "Ipc::Strand::timeoutHandler"); // TODO: make 6 configurable?
 }
 
@@ -189,7 +213,7 @@ Ipc::Strand::handleRegistrationResponse(const StrandMessage &msg)
         debugs(54, 6, "kid" << KidIdentifier << " registered");
         Assure(!isRegistered);
         isRegistered = true;
-        selfRegistrationActivity.finished();
+        TheStrand().selfRegistrationActivity.finished();
         clearTimeout(); // we are done
     } else {
         // could be an ACK to the registration message of our dead predecessor
@@ -227,11 +251,13 @@ void Ipc::Strand::handleSnmpResponse(const Snmp::Response& response)
 void
 Ipc::Strand::handleSynchronizationResponse(const SynchronizationResponse &)
 {
+    auto &synchronizationCallback = TheStrand().synchronizationCallback;
     debugs(2,2, " has " << synchronizationCallback);
     Assure(synchronizationCallback);
     ScheduleCallHere(synchronizationCallback);
     synchronizationCallback = nullptr;
-    synchronizationActivity.finished();
+
+    TheStrand().synchronizationActivity.finished();
 }
 
 void Ipc::Strand::timedout()
