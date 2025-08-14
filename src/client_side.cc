@@ -101,7 +101,6 @@
 #include "internal.h"
 #include "ipc/FdNotes.h"
 #include "ipc/StartListening.h"
-#include "ipc/Strand.h"
 #include "log/access_log.h"
 #include "MemBuf.h"
 #include "MemObject.h"
@@ -120,6 +119,7 @@
 #include "StatCounters.h"
 #include "StatHist.h"
 #include "Store.h"
+#include "StrandKid.h"
 #include "TimeOrTag.h"
 #include "tools.h"
 
@@ -3427,7 +3427,7 @@ StartupListeningManager::noteRequiredStartupActivitiesFinished()
     if (UsingSmp()) {
         using Dialer = NullaryMemFunT<StartupListeningManager>;
         const auto callback = JobCallback(33, 3, Dialer, this, StartupListeningManager::startOpeningListeningPorts);
-        Ipc::Strand::BarrierWait(callback);
+        StrandBarrierWait(callback);
     } else {
         startOpeningListeningPorts();
     }

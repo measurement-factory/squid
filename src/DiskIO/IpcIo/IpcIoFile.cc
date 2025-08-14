@@ -25,7 +25,6 @@
 #include "ipc/Messages.h"
 #include "ipc/Port.h"
 #include "ipc/Queue.h"
-#include "ipc/Strand.h"
 #include "ipc/StrandSearch.h"
 #include "ipc/UdsOp.h"
 #include "sbuf/SBuf.h"
@@ -33,6 +32,7 @@
 #include "sbuf/StringConvert.h"
 #include "SquidConfig.h"
 #include "StatCounters.h"
+#include "StrandKid.h"
 #include "tools.h"
 
 #include <cerrno>
@@ -150,7 +150,7 @@ IpcIoFile::open(int flags, mode_t mode, RefCount<IORequestor> callback)
 
         queue->localRateLimit().store(config.ioRate);
 
-        Ipc::Strand::InitTagged(StringToSBuf(dbName));
+        TagStrand(StringToSBuf(dbName));
 
         ioRequestor->ioCompletedNotification();
         return;

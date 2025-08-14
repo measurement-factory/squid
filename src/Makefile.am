@@ -313,6 +313,8 @@ squid_SOURCES = \
 	StoreStats.h \
 	StoreSwapLogData.cc \
 	StoreSwapLogData.h \
+	StrandKid.cc \
+	StrandKid.h \
 	StrList.cc \
 	StrList.h \
 	String.cc \

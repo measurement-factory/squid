@@ -11,42 +11,35 @@
 #ifndef SQUID_IPC_STRAND_H
 #define SQUID_IPC_STRAND_H
 
+#include "Instance.h"
 #include "ipc/forward.h"
 #include "ipc/Port.h"
 #include "mgr/forward.h"
+#include "sbuf/SBuf.h"
 #if SQUID_SNMP
 #include "snmp/forward.h"
 #endif
+
+#include <map>
 
 namespace Ipc
 {
 
 class StrandCoord;
 
-// TODO: Move to Strand.cc as StrandJob, leaving just the static methods here.
+// TODO: Move to src/ as StrandJob.
 /// Receives coordination messages on behalf of its process or thread
 class Strand: public Port
 {
     CBDATA_CHILD(Strand);
 
 public:
-    /// Initiates this kid process registration with Coordinator as well as
-    /// listening for IPC messages from Coordinator. Repeated calls are safe and
-    /// do nothing.
-    /// \prec This process is an SMP Squid kid process but is not a Coordinator.
-    /// \sa InitTagged()
-    static void Init();
+    explicit Strand(const std::optional<SBuf> &aTag);
 
-    /// Same as Init() but supports "tagging" this strand so that other kids can
-    /// find it by that tag. Multiple calls must supply the same tag. If Init()
-    /// and InitTagged() calls are mixed, the first one must be InitTagged().
-    static void InitTagged(const SBuf &);
-
-    /// Starts waiting for all kids to reach a startup synchronization barrier
-    /// maintained by Coordinator. When they do, calls the given callback.
-    static void BarrierWait(const AsyncCallPointer &);
-
-    Strand();
+    // TODO: Name TypedMsgHdr raw type instead of using `int`
+    using MessageHandler = void (*)(const TypedMsgHdr &);
+    /// instructs where to forward TypedMsgHdr messages of a given type
+    void configureMessageHandler(MessageType, MessageHandler);
 
     void start() override; // Port (AsyncJob) API
 
@@ -63,9 +56,17 @@ private:
     void handleSnmpRequest(const Snmp::Request& request);
     void handleSnmpResponse(const Snmp::Response& response);
 #endif
-    void handleSynchronizationResponse(const SynchronizationResponse &);
 
 private:
+    /// allows mtFindStrand queries to find this strand
+    /// \sa TagStrand()
+    const std::optional<SBuf> tag;
+
+    /// our self-registration task; see Strand::registerSelf()
+    Instance::OptionalStartupActivityTracker selfRegistrationTracker;
+
+    std::map<int, MessageHandler> messageHandlers;
+
     bool isRegistered; ///< whether Coordinator ACKed registration
 
 private:

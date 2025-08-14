@@ -9,7 +9,6 @@
 /* DEBUG: section 54    Interprocess Communication */
 
 #include "squid.h"
-#include "base/CbcPointer.h"
 #include "base/Subscription.h"
 #include "base/TextException.h"
 #include "CacheManager.h"
@@ -17,7 +16,6 @@
 #include "comm/Connection.h"
 #include "fatal.h"
 #include "globals.h"
-#include "Instance.h"
 #include "ipc/Kids.h"
 #include "ipc/Messages.h"
 #include "ipc/QuestionerId.h"
@@ -39,90 +37,19 @@
 
 CBDATA_NAMESPACED_CLASS_INIT(Ipc, Strand);
 
-namespace Ipc
-{
-
-// TODO: Rename to Strand after completing StrandJob TODO in Strand.h.
-/// A singleton for managing Strand artifacts that may outlive Strand job.
-/// Accessible via TheStrand().
-class Strand_
-{
-public:
-    /// allows mtFindStrand queries to find this strand
-    /// \sa Strand::InitTagged()
-    std::optional<SBuf> tag;
-
-    /// our self-registration task; see Strand::registerSelf()
-    Instance::OptionalStartupActivityTracker selfRegistrationTracker;
-
-    /// a task waiting for other kids to reach the same synchronization point
-    AsyncCallPointer synchronizationCallback;
-
-    /// tracks Ipc::Strand::BarrierWait() synchronization activity
-    Instance::OptionalStartupActivityTracker synchronizationTracker;
-};
-
-/// the only Strand_ object in existence
-static auto &
-TheStrand()
-{
-    static const auto strand = new Strand_();
-    return *strand;
-}
-
-} // namespace Ipc
-
-void
-Ipc::Strand::Init()
-{
-    Assure(UsingSmp());
-    Assure(!IamCoordinatorProcess());
-
-    static auto initializationTag = TheStrand().tag;
-    Assure(initializationTag == TheStrand().tag); // bans { Init(), InitTagged() } sequence
-
-    static auto started = false;
-    if (!started) {
-        started = true;
-        AsyncJob::Start(new Strand);
-    }
-}
-
-void
-Ipc::Strand::InitTagged(const SBuf &aTag)
-{
-    Assure(aTag.length());
-
-    auto &tag = TheStrand().tag;
-
-    if (tag) {
-        Assure(tag == aTag);
-        return; // already initialized
-    }
-
-    tag = aTag;
-    Init();
-}
-
-void
-Ipc::Strand::BarrierWait(const AsyncCallPointer &cb)
-{
-    Assure(cb);
-    Assure(!TheStrand().synchronizationCallback);
-    TheStrand().synchronizationCallback = cb;
-
-    // we could simply use cb->detach(), but call name is usually more useful
-    // for "current startup activities" triage dumps
-    const auto trackerId = ScopedId(cb->name, cb->id.value);
-    TheStrand().synchronizationTracker.start(trackerId);
-
-    StrandMessage::NotifyCoordinator(mtSynchronizationRequest, nullptr);
-}
-
-Ipc::Strand::Strand():
+Ipc::Strand::Strand(const std::optional<SBuf> &aTag):
     Port(MakeAddr(strandAddrLabel, KidIdentifier)),
+    tag(aTag),
     isRegistered(false)
 {
+}
+
+void
+Ipc::Strand::configureMessageHandler(const MessageType mt, const MessageHandler handler)
+{
+    Assure(handler);
+    const auto inserted = messageHandlers.emplace(mt, handler).second;
+    Assure(inserted); // at most one handler is supported for each message type
 }
 
 void Ipc::Strand::start()
@@ -136,8 +63,8 @@ void Ipc::Strand::registerSelf()
     debugs(54, 6, MYNAME);
     Must(!isRegistered);
 
-    TheStrand().selfRegistrationTracker.start(ScopedId("Ipc::Strand self-registration"));
-    StrandMessage::NotifyCoordinator(mtRegisterStrand, TheStrand().tag);
+    selfRegistrationTracker.start(ScopedId("Ipc::Strand self-registration"));
+    StrandMessage::NotifyCoordinator(mtRegisterStrand, tag);
     setTimeout(6, "Ipc::Strand::timeoutHandler"); // TODO: make 6 configurable?
 }
 
@@ -193,13 +120,16 @@ void Ipc::Strand::receive(const TypedMsgHdr &message)
     break;
 #endif
 
-    case mtSynchronizationResponse: {
-        debugs(54, 6, "Synchronization response");
-        handleSynchronizationResponse(Mine(SynchronizationResponse(message)));
-    }
-    break;
-
     default:
+        // TODO: Remove hard-coded links to other modules by migrating the above
+        // hard-coded cases (except mtStrandRegistered) to use messageHandlers.
+
+        // TODO: Consider using an AsyncCallback Subscription; requires copying
+        // `message` (currently around 4KB in size) for asynchronous delivery.
+        const auto handler = messageHandlers.find(message.rawType());
+        if (handler != messageHandlers.end())
+            return handler->second(message);
+
         Port::receive(message);
         break;
     }
@@ -213,7 +143,7 @@ Ipc::Strand::handleRegistrationResponse(const StrandMessage &msg)
         debugs(54, 6, "kid" << KidIdentifier << " registered");
         Assure(!isRegistered);
         isRegistered = true;
-        TheStrand().selfRegistrationTracker.finish();
+        selfRegistrationTracker.finish(); // TODO: Merge with isRegistered
         clearTimeout(); // we are done
     } else {
         // could be an ACK to the registration message of our dead predecessor
@@ -247,18 +177,6 @@ void Ipc::Strand::handleSnmpResponse(const Snmp::Response& response)
     Snmp::Forwarder::HandleRemoteAck(response.requestId);
 }
 #endif
-
-void
-Ipc::Strand::handleSynchronizationResponse(const SynchronizationResponse &)
-{
-    auto &synchronizationCallback = TheStrand().synchronizationCallback;
-    debugs(2,2, " has " << synchronizationCallback);
-    Assure(synchronizationCallback);
-    ScheduleCallHere(synchronizationCallback);
-    synchronizationCallback = nullptr;
-
-    TheStrand().synchronizationTracker.finish();
-}
 
 void Ipc::Strand::timedout()
 {

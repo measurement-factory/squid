@@ -55,7 +55,6 @@
 #include "ip/tools.h"
 #include "ipc/Coordinator.h"
 #include "ipc/Kids.h"
-#include "ipc/Strand.h"
 #include "ipcache.h"
 #include "mime.h"
 #include "neighbors.h"
@@ -77,6 +76,7 @@
 #include "store/Disks.h"
 #include "store_log.h"
 #include "StoreFileSystem.h"
+#include "StrandKid.h"
 #include "time/Engine.h"
 #include "tools.h"
 #include "unlinkd.h"
@@ -1727,7 +1727,7 @@ SquidMain(int argc, char **argv)
     if (IamCoordinatorProcess())
         AsyncJob::Start(Ipc::Coordinator::Instance());
     else if (UsingSmp() && IamWorkerProcess()) // diskers use Ipc::Strand::InitTagged()
-        Ipc::Strand::Init();
+        InitStrand();
 
     /* at this point we are finished the synchronous startup. */
     synchronousPostConfigInitializationTracker.finish();
