@@ -1035,7 +1035,6 @@ tests_testRock_SOURCES = \
 	Notes.cc \
 	Notes.h \
 	Parsing.cc \
-	tests/stub_Port.cc \
 	RemovalPolicy.cc \
 	RequestFlags.cc \
 	RequestFlags.h \
@@ -1079,6 +1078,7 @@ tests_testRock_SOURCES = \
 	fs_io.h \
 	tests/stub_http.cc \
 	tests/stub_icp.cc \
+	tests/stub_Instance.cc \
 	int.cc \
 	int.h \
 	tests/stub_ipc.cc \
@@ -1204,7 +1204,6 @@ tests_testUfs_SOURCES = \
 	Notes.cc \
 	Notes.h \
 	Parsing.cc \
-	tests/stub_Port.cc \
 	RemovalPolicy.cc \
 	RequestFlags.cc \
 	RequestFlags.h \
@@ -1221,7 +1220,6 @@ tests_testUfs_SOURCES = \
 	StrList.h \
 	String.cc \
 	Transients.cc \
-	tests/stub_UdsOp.cc \
 	tests/testUfs.cc \
 	tests/stub_access_log.cc \
 	tests/stub_cache_cf.cc \
@@ -1248,6 +1246,7 @@ tests_testUfs_SOURCES = \
 	tests/stub_helper.cc \
 	tests/stub_http.cc \
 	tests/stub_icp.cc \
+	tests/stub_Instance.cc \
 	int.cc \
 	int.h \
 	tests/stub_internal.cc \
@@ -1262,6 +1261,7 @@ tests_testUfs_SOURCES = \
 	tests/stub_libicmp.cc \
 	tests/stub_libip.cc \
 	tests/stub_liblog.cc \
+	tests/stub_libmgr.cc \
 	tests/stub_libsecurity.cc \
 	log/access_log.h \
 	mem_node.cc \
@@ -1303,7 +1303,6 @@ tests_testUfs_LDADD = \
 	acl/libapi.la \
 	libsquid.la \
 	fs/libfs.la \
-	mgr/libmgr.la \
 	$(REPL_OBJS) \
 	acl/libacls.la \
 	DiskIO/libdiskio.la \
@@ -1376,7 +1375,6 @@ tests_testStore_SOURCES = \
 	Notes.h \
 	tests/testPackableStream.cc \
 	Parsing.cc \
-	tests/stub_Port.cc \
 	RemovalPolicy.cc \
 	RequestFlags.cc \
 	RequestFlags.h \
@@ -1397,7 +1395,6 @@ tests_testStore_SOURCES = \
 	StrList.h \
 	String.cc \
 	Transients.cc \
-	tests/stub_UdsOp.cc \
 	tests/stub_access_log.cc \
 	tests/stub_cache_cf.cc \
 	cache_cf.h \
@@ -1419,6 +1416,7 @@ tests_testStore_SOURCES = \
 	fs_io.h \
 	tests/stub_helper.cc \
 	tests/stub_http.cc \
+	tests/stub_Instance.cc \
 	int.cc \
 	int.h \
 	tests/stub_libanyp.cc \
@@ -1428,6 +1426,7 @@ tests_testStore_SOURCES = \
 	tests/stub_liberror.cc \
 	tests/stub_libeui.cc \
 	tests/stub_libformat.cc \
+	tests/stub_libmgr.cc \
 	tests/stub_libsecurity.cc \
 	tests/stub_libsslsquid.cc \
 	log/access_log.h \
@@ -1474,7 +1473,6 @@ tests_testStore_LDADD= \
 	base/libbase.la \
 	ip/libip.la \
 	fs/libfs.la \
-	mgr/libmgr.la \
 	anyp/libanyp.la \
 	mem/libmem.la \
 	store/libstore.la \
@@ -1539,7 +1537,6 @@ tests_testDiskIO_SOURCES = \
 	Notes.cc \
 	Notes.h \
 	Parsing.cc \
-	tests/stub_Port.cc \
 	RemovalPolicy.cc \
 	RequestFlags.cc \
 	RequestFlags.h \
@@ -1558,7 +1555,6 @@ tests_testDiskIO_SOURCES = \
 	StrList.h \
 	String.cc \
 	Transients.cc \
-	tests/stub_UdsOp.cc \
 	tests/stub_access_log.cc \
 	tests/stub_cache_cf.cc \
 	cache_cf.h \
@@ -1585,6 +1581,7 @@ tests_testDiskIO_SOURCES = \
 	tests/stub_helper.cc \
 	tests/stub_http.cc \
 	tests/stub_icp.cc \
+	tests/stub_Instance.cc \
 	int.cc \
 	int.h \
 	tests/stub_internal.cc \
@@ -1600,6 +1597,7 @@ tests_testDiskIO_SOURCES = \
 	tests/stub_libicmp.cc \
 	tests/stub_libip.cc \
 	tests/stub_liblog.cc \
+	tests/stub_libmgr.cc \
 	tests/stub_libsecurity.cc \
 	tests/stub_libstore.cc \
 	log/access_log.h \
@@ -1644,13 +1642,11 @@ tests_testDiskIO_LDADD = \
 	acl/libstate.la \
 	comm/libcomm.la \
 	fs/libfs.la \
-	ipc/libipc.la \
 	$(REPL_OBJS) \
 	$(ADAPTATION_LIBS) \
 	DiskIO/libdiskio.la \
 	acl/libapi.la \
 	anyp/libanyp.la \
-	mgr/libmgr.la \
 	$(SSL_LIBS) \
 	ipc/libipc.la \
 	dns/libdns.la \
@@ -2216,6 +2212,7 @@ tests_testHttpRequest_SOURCES = \
 	http.cc \
 	icp_v2.cc \
 	icp_v3.cc \
+	tests/stub_Instance.cc \
 	int.cc \
 	int.h \
 	internal.cc \
@@ -2510,6 +2507,7 @@ tests_testCacheManager_SOURCES = \
 	http.cc \
 	icp_v2.cc \
 	icp_v3.cc \
+	tests/stub_Instance.cc \
 	int.cc \
 	int.h \
 	internal.cc \
