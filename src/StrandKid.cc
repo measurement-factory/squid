@@ -17,8 +17,7 @@
 #include "StrandKid.h"
 #include "tools.h"
 
-// XXX: Merge with ipc/Strand.cc Strand_ instead of having two disjoint states!
-// TODO: Rename to Strand after completing StrandJob TODO in Strand.h.
+// TODO: Rename to Strand after completing StrandJob TODO in ipc/Strand.h.
 /// A singleton for managing Strand artifacts that may outlive Strand job.
 /// Accessible via TheStrand().
 class Strand_
@@ -97,14 +96,14 @@ TagStrand(const SBuf &aTag)
 {
     Assure(aTag.length());
 
-    auto &tag = TheStrand().tag;
+    auto &storedTag = TheStrand().tag;
 
-    if (tag) {
-        Assure(tag == aTag);
+    if (storedTag) {
+        Assure(storedTag == aTag);
         return; // already initialized
     }
 
-    tag = aTag;
+    storedTag = aTag;
     InitStrand(); // XXX
 }
 

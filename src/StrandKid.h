@@ -12,22 +12,22 @@
 #include "base/forward.h"
 #include "sbuf/forward.h"
 
-// XXX: Revise descriptions
-
 /// Initiates this kid process registration with Coordinator as well as
 /// listening for IPC messages from Coordinator. Repeated calls are safe and
 /// do nothing.
 /// \prec This process is an SMP Squid kid process but is not a Coordinator.
-/// \sa InitTagged()
+/// \sa TagStrand()
 void InitStrand();
 
-/// Same as Init() but supports "tagging" this strand so that other kids can
-/// find it by that tag. Multiple calls must supply the same tag. If Init()
-/// and InitTagged() calls are mixed, the first one must be InitTagged().
+/// Annotates this kid process so that other kids can find it by the given tag.
+/// Multiple calls must supply the same tag.
+/// \prec InitStrand() has not been called
+/// \prec This process is an SMP Squid kid process but is not a Coordinator.
 void TagStrand(const SBuf &);
 
 /// Starts waiting for all kids to reach a startup synchronization barrier
 /// maintained by Coordinator. When they do, calls the given callback.
+/// \prec This process is an SMP Squid kid process but is not a Coordinator.
 void StrandBarrierWait(const AsyncCallPointer &);
 
 #endif /* SQUID_SRC_STRANDKID_H */
