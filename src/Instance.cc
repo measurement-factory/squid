@@ -18,6 +18,7 @@
 #include "parser/Tokenizer.h"
 #include "sbuf/Stream.h"
 #include "SquidConfig.h"
+#include "StrandKid.h"
 #include "tools.h"
 
 #include <cerrno>
@@ -395,7 +396,7 @@ Instance::Startup::confirmationCheckpoint()
     Assure(!Starting());
 
     if (UsingSmp() && !IamCoordinatorProcess())
-        Ipc::StrandMessage::NotifyCoordinator(Ipc::mtKidCompletedStartup, nullptr);
+        NotifyCoordinator(Ipc::mtKidCompletedStartup);
     else
         Instance::AnnounceReadiness();
 }

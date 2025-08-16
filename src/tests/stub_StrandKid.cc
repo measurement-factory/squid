@@ -11,8 +11,11 @@
 #define STUB_API "StrandKid.cc"
 #include "tests/STUB.h"
 
+#include "sbuf/SBuf.h"
+
 #include "StrandKid.h"
 void InitStrand() STUB
 void TagStrand(const SBuf &) STUB
 void StrandBarrierWait(const AsyncCallPointer &) STUB
+void NotifyCoordinator(Ipc::MessageType, const std::optional<SBuf> &) STUB
 

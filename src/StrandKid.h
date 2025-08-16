@@ -10,7 +10,10 @@
 #define SQUID_SRC_STRANDKID_H
 
 #include "base/forward.h"
+#include "ipc/Messages.h"
 #include "sbuf/forward.h"
+
+#include <optional>
 
 /// Initiates this kid process registration with Coordinator as well as
 /// listening for IPC messages from Coordinator. Repeated calls are safe and
@@ -29,6 +32,10 @@ void TagStrand(const SBuf &);
 /// maintained by Coordinator. When they do, calls the given callback.
 /// \prec This process is an SMP Squid kid process but is not a Coordinator.
 void StrandBarrierWait(const AsyncCallPointer &);
+
+/// Sends the corresponding IPC message (optionally, with a strand tag) to Coordinator
+/// \prec This process is an SMP Squid kid process but is not a Coordinator.
+void NotifyCoordinator(Ipc::MessageType, const std::optional<SBuf> &tag = std::nullopt);
 
 #endif /* SQUID_SRC_STRANDKID_H */
 

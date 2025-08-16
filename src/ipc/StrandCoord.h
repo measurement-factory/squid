@@ -49,10 +49,6 @@ public:
     explicit StrandMessage(const TypedMsgHdr &);
     void pack(MessageType, TypedMsgHdr &) const;
 
-    /// creates and sends StrandMessage to Coordinator
-    static void NotifyCoordinator(MessageType, const std::optional<SBuf> &strandTag);
-    static void NotifyCoordinator(MessageType, nullptr_t); // TODO: Remove the second parameter
-
     /// for Mine() tests
     QuestionerId intendedRecepient() const { return qid; }
 

@@ -9,11 +9,12 @@
 #include "squid.h"
 #include "base/CbcPointer.h"
 #include "ip/Address.h"
-#include "ipc/Messages.h"
 #include "ipc/SharedListen.h"
 #include "ipc/Strand.h"
 #include "ipc/StrandCoord.h"
+#include "ipc/TypedMsgHdr.h"
 #include "sbuf/SBuf.h"
+#include "sbuf/StringConvert.h"
 #include "StrandKid.h"
 #include "tools.h"
 
@@ -43,6 +44,21 @@ TheStrand()
 }
 
 void
+NotifyCoordinator(const Ipc::MessageType msgType, const std::optional<SBuf> &strandTag)
+{
+    // start listening for responses before sending requests
+    InitStrand();
+
+    static const auto pid = getpid();
+    Ipc::StrandMessage message(Ipc::StrandCoord(KidIdentifier, pid), Ipc::MyQuestionerId());
+    if (strandTag)
+        message.strand.tag = SBufToString(*strandTag);
+    Ipc::TypedMsgHdr hdr;
+    message.pack(msgType, hdr);
+    Ipc::SendMessage(Ipc::Port::CoordinatorAddr(), hdr);
+}
+
+void
 StrandBarrierWait(const AsyncCallPointer &cb)
 {
     Assure(cb);
@@ -54,7 +70,7 @@ StrandBarrierWait(const AsyncCallPointer &cb)
     const auto trackerId = ScopedId(cb->name, cb->id.value);
     TheStrand().synchronizationTracker.start(trackerId);
 
-    Ipc::StrandMessage::NotifyCoordinator(Ipc::mtSynchronizationRequest, nullptr);
+    NotifyCoordinator(Ipc::mtSynchronizationRequest);
 }
 
 /// handles Coordinator response to our StrandBarrierWait() request

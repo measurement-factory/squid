@@ -34,6 +34,7 @@
 #include "snmp/Request.h"
 #include "snmp/Response.h"
 #endif
+#include "StrandKid.h"
 
 CBDATA_NAMESPACED_CLASS_INIT(Ipc, Strand);
 
@@ -64,7 +65,7 @@ void Ipc::Strand::registerSelf()
     Must(!isRegistered);
 
     selfRegistrationTracker.start(ScopedId("Ipc::Strand self-registration"));
-    StrandMessage::NotifyCoordinator(mtRegisterStrand, tag);
+    NotifyCoordinator(mtRegisterStrand, tag);
     setTimeout(6, "Ipc::Strand::timeoutHandler"); // TODO: make 6 configurable?
 }
 
