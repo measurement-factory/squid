@@ -95,6 +95,8 @@ void
 TagStrand(const SBuf &aTag)
 {
     Assure(aTag.length());
+    Assure(UsingSmp());
+    Assure(!IamCoordinatorProcess());
 
     auto &storedTag = TheStrand().tag;
 
@@ -104,6 +106,5 @@ TagStrand(const SBuf &aTag)
     }
 
     storedTag = aTag;
-    InitStrand(); // XXX
 }
 
