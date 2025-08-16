@@ -18,6 +18,7 @@
 #include "enums.h"
 #include "http/StatusCode.h"
 #include "icp_opcode.h"
+#include "Instance.h"
 #include "ip/Address.h"
 #include "mem/PoolingAllocator.h"
 #include "security/PeerOptions.h"
@@ -74,6 +75,18 @@ public:
 
     /// whether the admin is likely to believe that this peer is not marked as DEAD
     bool consideredAliveByAdmin() const { return stats.logged_state == PEER_ALIVE; }
+
+    /// Whether startup initialization tasks have begun and are still running.
+    /// These tasks include obtaining IP addresses (see n_addresses) and TCP
+    /// connectivity probes (see testing_now).
+    /// \sa startupActivityStarted(), startupActivityFinished()
+    bool startingUp() const { return startingUp_; }
+
+    /// reacts to the beginning of peer initialization activities during Squid startup
+    void startupActivityStarted();
+
+    /// reacts to the end of all startup peer initialization activities launched since startupActivityStarted()
+    void startupActivityFinished();
 
     /// n-th cache_peer directive, starting with 1
     u_int index = 0;
@@ -205,7 +218,7 @@ public:
     Ip::Address addresses[10];
     int n_addresses = 0;
     int rr_count = 0;
-    int testing_now = 0;
+    int testing_now = 0; ///< the number of in-progress TCP connectivity probes
 
     /// whether scheduling netdbExchangeStart() should be avoided
     bool netdbExchangePending = false;
@@ -254,6 +267,8 @@ public:
     int front_end_https = 0; ///< 0 - off, 1 - on, 2 - auto
     int connection_auth = 2; ///< 0 - off, 1 - on, 2 - auto
 
+    std::optional<SBuf> redundancyGroup; ///< cache_peer redundancy-group name
+
     PrecomputedCodeContextPointer probeCodeContext;
 
 private:
@@ -272,6 +287,12 @@ private:
 
     /// \copydoc removed()
     bool removed_ = false;
+
+    /// \copydoc startingUp()
+    bool startingUp_ = false;
+
+    /// startup probing of a cache_peer that belongs to a redundancy-group
+    Instance::OptionalStartupActivityTracker redundancyGroupProbeTracker;
 };
 
 /// Report all directives that configured the given CachePeer object. At the

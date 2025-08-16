@@ -29,6 +29,9 @@ public:
     virtual void reconfigure() = 0;
     char const *type() const;
 
+    /// configuration-focused identification convenient for admin-visible reporting
+    ScopedId configId() const { return ScopedId("cache_dir", index); }
+
     virtual bool needsDiskStrand() const; ///< needs a dedicated kid process
     virtual bool active() const; ///< may be used in this strand
     /// whether stat should be reported by this SwapDir

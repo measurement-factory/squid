@@ -22,6 +22,8 @@ class RequestId;
 class Response;
 class StrandCoord;
 class StrandMessage;
+class SynchronizationRequest;
+class SynchronizationResponse;
 class TypedMsgHdr;
 
 } // namespace Ipc

@@ -28,6 +28,7 @@
 #include "HttpRequest.h"
 #include "icmp/net_db.h"
 #include "ICP.h"
+#include "Instance.h"
 #include "int.h"
 #include "ip/Address.h"
 #include "ip/tools.h"
@@ -533,6 +534,11 @@ neighbors_init(void)
 
         for (const auto &p: peersToRemove)
             DeleteConfigured(p.getRaw());
+    }
+
+    if (Instance::Starting()) {
+        for (const auto &peer: CurrentCachePeers())
+            peer->startupActivityStarted();
     }
 
     peerDnsRefreshStart();
@@ -1104,11 +1110,15 @@ peerDNSConfigure(const ipcache_addrs *ia, const Dns::LookupDetails &, void *data
 
     if (ia == nullptr) {
         debugs(0, DBG_CRITICAL, "WARNING: DNS lookup for '" << *p << "' failed!");
+        if (p->startingUp())
+            p->startupActivityFinished();
         return;
     }
 
     if (ia->empty()) {
         debugs(0, DBG_CRITICAL, "WARNING: No IP address found for '" << *p << "'!");
+        if (p->startingUp())
+            p->startupActivityFinished();
         return;
     }
 
@@ -1234,6 +1244,9 @@ peerProbeConnectDone(const Comm::ConnectionPointer &conn, Comm::Flag status, int
     -- p->testing_now;
     conn->close();
     // TODO: log this traffic.
+
+    if (p->startingUp() && !p->testing_now)
+        p->startupActivityFinished();
 
     if (p->reprobe)
         peerProbeConnect(p);
@@ -1492,6 +1505,9 @@ PrintOptions(std::ostream &os, const CachePeer &peer)
     if (p->domain)
         os << " forceddomain=" << p->domain;
 
+    if (p->redundancyGroup)
+        os << " redundancy-group=" << *p->redundancyGroup;
+
     if (p->connection_auth == 0)
         os << " connection-auth=off";
     else if (p->connection_auth == 1)
@@ -1592,6 +1608,12 @@ dump_peers(StoreEntry *sentry, CachePeers *peers)
 #endif
 
         }
+
+        if (e->startingUp())
+            storeAppendPrintf(sentry, "starting: true\n");
+
+        if (e->testing_now)
+            storeAppendPrintf(sentry, "TCP connectivity probes running: %d\n", e->testing_now);
 
         if (e->stats.last_connect_failure) {
             storeAppendPrintf(sentry, "Last failed connect() at: %s\n",

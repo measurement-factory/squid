@@ -139,7 +139,7 @@ public:
 
 protected:
     /// \param name admin-visible helper category (with this process lifetime)
-    explicit Client(const char * const name): id_name(name) {}
+    explicit Client(const char *name);
 
     bool queueFull() const;
     bool overloaded() const;

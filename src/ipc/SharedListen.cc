@@ -14,6 +14,7 @@
 #include "comm.h"
 #include "comm/Connection.h"
 #include "globals.h"
+#include "Instance.h"
 #include "ipc/Kids.h"
 #include "ipc/Messages.h"
 #include "ipc/Port.h"
@@ -24,6 +25,7 @@
 
 #include <list>
 #include <map>
+#include <optional>
 
 /// holds information necessary to handle JoinListen response
 class PendingOpenRequest
@@ -31,6 +33,9 @@ class PendingOpenRequest
 public:
     Ipc::OpenListenerParams params; ///< actual comm_open_sharedListen() parameters
     Ipc::StartListeningCallback callback; // who to notify
+
+    /// tracks port opening progress during startup
+    std::optional<Instance::StartupActivityTracker> startupTracker;
 };
 
 /// maps ID assigned at request time to the response callback
@@ -45,14 +50,14 @@ static DelayedSharedListenRequests TheDelayedRequests;
 /// registers the given request in the collection of pending requests
 /// \returns the registration key
 static Ipc::RequestId::Index
-AddToMap(const PendingOpenRequest &por)
+AddToMap(PendingOpenRequest &&por)
 {
     static Ipc::RequestId::Index LastIndex = 0;
     // TODO: Switch Ipc::RequestId::Index to uint64_t and drop these 0 checks.
     if (++LastIndex == 0) // don't use zero value as an ID
         ++LastIndex;
     assert(TheSharedListenRequestMap.find(LastIndex) == TheSharedListenRequestMap.end());
-    TheSharedListenRequestMap[LastIndex] = por;
+    TheSharedListenRequestMap.emplace(LastIndex, std::move(por));
     return LastIndex;
 }
 
@@ -114,9 +119,11 @@ void Ipc::SharedListenResponse::pack(TypedMsgHdr &hdrMsg) const
 }
 
 static void
-SendSharedListenRequest(const PendingOpenRequest &por)
+SendSharedListenRequest(PendingOpenRequest &&por)
 {
-    const Ipc::SharedListenRequest request(por.params, Ipc::RequestId(AddToMap(por)));
+    const auto porParams = por.params;
+    const auto requestId = Ipc::RequestId(AddToMap(std::move(por)));
+    const Ipc::SharedListenRequest request(porParams, requestId);
 
     debugs(54, 3, "getting listening FD for " << request.params.addr <<
            " mapId=" << request.mapId);
@@ -135,8 +142,9 @@ kickDelayedRequest()
     debugs(54, 3, "resuming with " << TheSharedListenRequestMap.size() <<
            " active + " << TheDelayedRequests.size() << " delayed requests");
 
-    SendSharedListenRequest(*TheDelayedRequests.begin());
+    auto por = std::move(*TheDelayedRequests.begin());
     TheDelayedRequests.pop_front();
+    SendSharedListenRequest(std::move(por));
 }
 
 void
@@ -146,13 +154,16 @@ Ipc::JoinSharedListen(const OpenListenerParams &params, StartListeningCallback &
     por.params = params;
     por.callback = cb;
 
+    if (Instance::Starting())
+        por.startupTracker.emplace(ScopedId("opening of a listening port shared by SMP kids", por.callback->id.value));
+
     const DelayedSharedListenRequests::size_type concurrencyLimit = 1;
     if (TheSharedListenRequestMap.size() >= concurrencyLimit) {
         debugs(54, 3, "waiting for " << TheSharedListenRequestMap.size() <<
                " active + " << TheDelayedRequests.size() << " delayed requests");
-        TheDelayedRequests.push_back(por);
+        TheDelayedRequests.emplace_back(std::move(por));
     } else {
-        SendSharedListenRequest(por);
+        SendSharedListenRequest(std::move(por));
     }
 }
 
@@ -167,7 +178,7 @@ void Ipc::SharedListenJoined(const SharedListenResponse &response)
     Must(response.mapId);
     const auto pori = TheSharedListenRequestMap.find(response.mapId.index());
     Must(pori != TheSharedListenRequestMap.end());
-    auto por = pori->second;
+    auto por = std::move(pori->second);
     Must(por.callback);
     TheSharedListenRequestMap.erase(pori);
 
@@ -192,6 +203,47 @@ void Ipc::SharedListenJoined(const SharedListenResponse &response)
     answer.errNo = response.errNo;
     ScheduleCallHere(por.callback.release());
 
+    // just to explicitly mark code that finishes this activity
+    por.startupTracker = std::nullopt; // may already be nil
+
     kickDelayedRequest();
 }
 
+/* Ipc::SynchronizationRequest */
+
+Ipc::SynchronizationRequest::SynchronizationRequest(const RequestId aMapId):
+    requestorId(KidIdentifier),
+    mapId(aMapId)
+{
+}
+
+Ipc::SynchronizationRequest::SynchronizationRequest(const TypedMsgHdr &hdrMsg)
+{
+    hdrMsg.checkType(mtSynchronizationRequest);
+    hdrMsg.getPod(*this);
+}
+
+void Ipc::SynchronizationRequest::pack(TypedMsgHdr &hdrMsg) const
+{
+    hdrMsg.setType(mtSynchronizationRequest);
+    hdrMsg.putPod(*this);
+}
+
+/* Ipc::SynchronizationResponse */
+
+Ipc::SynchronizationResponse::SynchronizationResponse(const RequestId aMapId):
+    mapId(aMapId)
+{
+}
+
+Ipc::SynchronizationResponse::SynchronizationResponse(const TypedMsgHdr &hdrMsg)
+{
+    hdrMsg.checkType(mtSynchronizationResponse);
+    hdrMsg.getPod(*this);
+}
+
+void Ipc::SynchronizationResponse::pack(TypedMsgHdr &hdrMsg) const
+{
+    hdrMsg.setType(mtSynchronizationResponse);
+    hdrMsg.putPod(*this);
+}

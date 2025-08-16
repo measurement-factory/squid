@@ -343,6 +343,8 @@ squid_SOURCES = \
 	StoreSwapLogData.h \
 	StrList.cc \
 	StrList.h \
+	StrandKid.cc \
+	StrandKid.h \
 	String.cc \
 	TimeOrTag.h \
 	Transients.cc \
@@ -1054,6 +1056,7 @@ tests_testRock_SOURCES = \
 	HttpHeaderTools.h \
 	HttpReply.cc \
 	tests/stub_HttpRequest.cc \
+	tests/stub_Instance.cc \
 	LogTags.cc \
 	MasterXaction.cc \
 	MasterXaction.h \
@@ -1063,7 +1066,6 @@ tests_testRock_SOURCES = \
 	Notes.cc \
 	Notes.h \
 	Parsing.cc \
-	tests/stub_Port.cc \
 	RemovalPolicy.cc \
 	RequestFlags.cc \
 	RequestFlags.h \
@@ -1081,6 +1083,7 @@ tests_testRock_SOURCES = \
 	StoreSwapLogData.cc \
 	StrList.cc \
 	StrList.h \
+	tests/stub_StrandKid.cc \
 	String.cc \
 	Transients.cc \
 	Transients.h \
@@ -1225,6 +1228,7 @@ tests_testUfs_SOURCES = \
 	HttpHeaderTools.h \
 	HttpReply.cc \
 	tests/stub_HttpRequest.cc \
+	tests/stub_Instance.cc \
 	LogTags.cc \
 	MasterXaction.cc \
 	MasterXaction.h \
@@ -1234,7 +1238,6 @@ tests_testUfs_SOURCES = \
 	Notes.cc \
 	Notes.h \
 	Parsing.cc \
-	tests/stub_Port.cc \
 	RemovalPolicy.cc \
 	RequestFlags.cc \
 	RequestFlags.h \
@@ -1249,9 +1252,9 @@ tests_testUfs_SOURCES = \
 	StoreSwapLogData.cc \
 	StrList.cc \
 	StrList.h \
+	tests/stub_StrandKid.cc \
 	String.cc \
 	Transients.cc \
-	tests/stub_UdsOp.cc \
 	tests/testUfs.cc \
 	tests/stub_access_log.cc \
 	tests/stub_cache_cf.cc \
@@ -1292,6 +1295,7 @@ tests_testUfs_SOURCES = \
 	tests/stub_libicmp.cc \
 	tests/stub_libip.cc \
 	tests/stub_liblog.cc \
+	tests/stub_libmgr.cc \
 	tests/stub_libsecurity.cc \
 	tests/stub_libsslsquid.cc \
 	log/access_log.h \
@@ -1333,7 +1337,6 @@ tests_testUfs_LDADD = \
 	acl/libapi.la \
 	libsquid.la \
 	fs/libfs.la \
-	mgr/libmgr.la \
 	$(REPL_OBJS) \
 	acl/libacls.la \
 	DiskIO/libdiskio.la \
@@ -1398,6 +1401,7 @@ tests_testStore_SOURCES = \
 	HttpHeaderTools.h \
 	tests/stub_HttpReply.cc \
 	tests/stub_HttpRequest.cc \
+	tests/stub_Instance.cc \
 	MasterXaction.cc \
 	MasterXaction.h \
 	MemBuf.cc \
@@ -1407,7 +1411,6 @@ tests_testStore_SOURCES = \
 	Notes.h \
 	tests/testPackableStream.cc \
 	Parsing.cc \
-	tests/stub_Port.cc \
 	RemovalPolicy.cc \
 	RequestFlags.cc \
 	RequestFlags.h \
@@ -1426,9 +1429,9 @@ tests_testStore_SOURCES = \
 	StoreSwapLogData.cc \
 	StrList.cc \
 	StrList.h \
+	tests/stub_StrandKid.cc \
 	String.cc \
 	Transients.cc \
-	tests/stub_UdsOp.cc \
 	tests/stub_access_log.cc \
 	tests/stub_cache_cf.cc \
 	cache_cf.h \
@@ -1459,6 +1462,7 @@ tests_testStore_SOURCES = \
 	tests/stub_liberror.cc \
 	tests/stub_libeui.cc \
 	tests/stub_libformat.cc \
+	tests/stub_libmgr.cc \
 	tests/stub_libsecurity.cc \
 	tests/stub_libsslsquid.cc \
 	log/access_log.h \
@@ -1504,7 +1508,6 @@ tests_testStore_LDADD= \
 	base/libbase.la \
 	ip/libip.la \
 	fs/libfs.la \
-	mgr/libmgr.la \
 	anyp/libanyp.la \
 	mem/libmem.la \
 	store/libstore.la \
@@ -1561,6 +1564,7 @@ tests_testDiskIO_SOURCES = \
 	HttpHeaderTools.h \
 	HttpReply.cc \
 	tests/stub_HttpRequest.cc \
+	tests/stub_Instance.cc \
 	LogTags.cc \
 	MasterXaction.cc \
 	MasterXaction.h \
@@ -1570,7 +1574,6 @@ tests_testDiskIO_SOURCES = \
 	Notes.cc \
 	Notes.h \
 	Parsing.cc \
-	tests/stub_Port.cc \
 	RemovalPolicy.cc \
 	RequestFlags.cc \
 	RequestFlags.h \
@@ -1587,9 +1590,9 @@ tests_testDiskIO_SOURCES = \
 	StoreSwapLogData.cc \
 	StrList.cc \
 	StrList.h \
+	tests/stub_StrandKid.cc \
 	String.cc \
 	Transients.cc \
-	tests/stub_UdsOp.cc \
 	tests/stub_access_log.cc \
 	tests/stub_cache_cf.cc \
 	cache_cf.h \
@@ -1631,6 +1634,7 @@ tests_testDiskIO_SOURCES = \
 	tests/stub_libicmp.cc \
 	tests/stub_libip.cc \
 	tests/stub_liblog.cc \
+	tests/stub_libmgr.cc \
 	tests/stub_libsecurity.cc \
 	tests/stub_libsslsquid.cc \
 	tests/stub_libstore.cc \
@@ -1675,13 +1679,11 @@ tests_testDiskIO_LDADD = \
 	acl/libstate.la \
 	comm/libcomm.la \
 	fs/libfs.la \
-	ipc/libipc.la \
 	$(REPL_OBJS) \
 	$(ADAPTATION_LIBS) \
 	DiskIO/libdiskio.la \
 	acl/libapi.la \
 	anyp/libanyp.la \
-	mgr/libmgr.la \
 	$(SSL_LIBS) \
 	ipc/libipc.la \
 	dns/libdns.la \
@@ -1825,6 +1827,7 @@ tests_testHttpRange_SOURCES = \
 	HttpReply.cc \
 	HttpRequest.cc \
 	tests/stub_HttpUpgradeProtocolAccess.cc \
+	tests/stub_Instance.cc \
 	IoStats.h \
 	tests/stub_IpcIoFile.cc \
 	LogTags.cc \
@@ -1857,6 +1860,7 @@ tests_testHttpRange_SOURCES = \
 	StoreSwapLogData.cc \
 	StrList.cc \
 	StrList.h \
+	tests/stub_StrandKid.cc \
 	String.cc \
 	Transients.cc \
 	tests/stub_cache_cf.cc \
@@ -2211,6 +2215,7 @@ tests_testHttpRequest_SOURCES = \
 	tests/testHttpRequest.cc \
 	tests/testHttpRequestMethod.cc \
 	tests/stub_HttpUpgradeProtocolAccess.cc \
+	tests/stub_Instance.cc \
 	IoStats.h \
 	tests/stub_IpcIoFile.cc \
 	LogTags.cc \
@@ -2243,6 +2248,7 @@ tests_testHttpRequest_SOURCES = \
 	StoreSwapLogData.cc \
 	StrList.cc \
 	StrList.h \
+	tests/stub_StrandKid.cc \
 	String.cc \
 	Transients.cc \
 	tests/stub_cache_cf.cc \
@@ -2507,6 +2513,7 @@ tests_testCacheManager_SOURCES = \
 	HttpReply.cc \
 	HttpRequest.cc \
 	tests/stub_HttpUpgradeProtocolAccess.cc \
+	tests/stub_Instance.cc \
 	IoStats.h \
 	tests/stub_IpcIoFile.cc \
 	LogTags.cc \
@@ -2539,6 +2546,7 @@ tests_testCacheManager_SOURCES = \
 	StoreSwapLogData.cc \
 	StrList.cc \
 	StrList.h \
+	tests/stub_StrandKid.cc \
 	String.cc \
 	Transients.cc \
 	tests/stub_cache_cf.cc \
