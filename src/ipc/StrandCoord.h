@@ -12,7 +12,11 @@
 #include "ipc/forward.h"
 #include "ipc/Messages.h"
 #include "ipc/QuestionerId.h"
+#include "sbuf/forward.h"
 #include "SquidString.h"
+
+#include <iosfwd>
+#include <optional>
 
 namespace Ipc
 {
@@ -34,6 +38,9 @@ public:
     String tag; ///< optional unique well-known key (e.g., cache_dir path)
 };
 
+/// StrandCoord gist (for debugging)
+std::ostream &operator <<(std::ostream &, const StrandCoord &);
+
 /// an IPC message carrying StrandCoord
 class StrandMessage
 {
@@ -41,9 +48,6 @@ public:
     explicit StrandMessage(const StrandCoord &, QuestionerId);
     explicit StrandMessage(const TypedMsgHdr &);
     void pack(MessageType, TypedMsgHdr &) const;
-
-    /// creates and sends StrandMessage to Coordinator
-    static void NotifyCoordinator(MessageType, const char *tag);
 
     /// for Mine() tests
     QuestionerId intendedRecepient() const { return qid; }

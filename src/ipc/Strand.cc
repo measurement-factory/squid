@@ -34,13 +34,22 @@
 #include "snmp/Request.h"
 #include "snmp/Response.h"
 #endif
+#include "StrandKid.h"
 
 CBDATA_NAMESPACED_CLASS_INIT(Ipc, Strand);
 
-Ipc::Strand::Strand():
+Ipc::Strand::Strand(const std::optional<SBuf> &aTag):
     Port(MakeAddr(strandAddrLabel, KidIdentifier)),
-    isRegistered(false)
+    tag(aTag)
 {
+}
+
+void
+Ipc::Strand::configureMessageHandler(const MessageType mt, const MessageHandler handler)
+{
+    Assure(handler);
+    const auto inserted = messageHandlers.emplace(mt, handler).second;
+    Assure(inserted); // at most one handler is supported for each message type
 }
 
 void Ipc::Strand::start()
@@ -49,12 +58,20 @@ void Ipc::Strand::start()
     registerSelf();
 }
 
+/// whether Coordinator ACKed registration
+bool
+Ipc::Strand::registered() const
+{
+    return selfRegistrationTracker.startedAndFinished();
+}
+
 void Ipc::Strand::registerSelf()
 {
     debugs(54, 6, MYNAME);
-    Must(!isRegistered);
+    Must(!registered());
 
-    StrandMessage::NotifyCoordinator(mtRegisterStrand, nullptr);
+    selfRegistrationTracker.start(ScopedId("Ipc::Strand self-registration"));
+    NotifyCoordinator(mtRegisterStrand, tag);
     setTimeout(6, "Ipc::Strand::timeoutHandler"); // TODO: make 6 configurable?
 }
 
@@ -111,6 +128,15 @@ void Ipc::Strand::receive(const TypedMsgHdr &message)
 #endif
 
     default:
+        // TODO: Remove hard-coded links to other modules by migrating the above
+        // hard-coded cases (except mtStrandRegistered) to use messageHandlers.
+
+        // TODO: Consider using an AsyncCallback Subscription; requires copying
+        // `message` (currently around 4KB in size) for asynchronous delivery.
+        const auto handler = messageHandlers.find(message.rawType());
+        if (handler != messageHandlers.end())
+            return handler->second(message);
+
         Port::receive(message);
         break;
     }
@@ -122,6 +148,9 @@ Ipc::Strand::handleRegistrationResponse(const StrandMessage &msg)
     // handle registration response from the coordinator; it could be stale
     if (msg.strand.kidId == KidIdentifier && msg.strand.pid == getpid()) {
         debugs(54, 6, "kid" << KidIdentifier << " registered");
+        Assure(!registered());
+        selfRegistrationTracker.finish();
+        Assure(registered());
         clearTimeout(); // we are done
     } else {
         // could be an ACK to the registration message of our dead predecessor
@@ -158,8 +187,9 @@ void Ipc::Strand::handleSnmpResponse(const Snmp::Response& response)
 
 void Ipc::Strand::timedout()
 {
-    debugs(54, 6, isRegistered);
-    if (!isRegistered)
+    debugs(54, 6, registered());
+    // TODO: Replace this guard with Assure() when clearTimeout() reliably cancels callbacks.
+    if (!registered())
         fatalf("kid%d registration timed out", KidIdentifier);
 }
 

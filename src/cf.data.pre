@@ -3959,6 +3959,28 @@ DOC_START
 			The name value preserves configured spelling, but name uniqueness
 			checks and name-based search are case-insensitive.
 
+	redundancy-group=name	Groups together cache_peers that are meant to
+			seamlessly (from Squid clients point of view) compensate for
+			individual group member failures. Being a group member does not
+			affect cache_peer selection and transaction error handling (yet?),
+			but admins are expected to configure cache_peers so that a
+			transaction gets re-forwarded to the next group member after a
+			forwarding failure with another group member.
+
+			If redundancy-group feature is configured, then during startup,
+			Squid waits for all group members to finish all of their startup
+			initialization activities before Squid starts listening for
+			incoming requests on primary ports (i.e. http_port, https_port,
+			and ftp_port). If all members of a redundancy group fail their
+			startup probes, then Squid startup fails.
+
+			A redundancy group may have just one cache_peer member. Such a
+			group guarantees that the corresponding cache_peer is successfully
+			probed at startup, before Squid starts listening on primary ports.
+			TODO: Consider moving single-member group support into a dedicated
+			required=startup option (and rejecting a single-member group as a
+			likely misconfiguration).
+
 	no-tproxy	Do not use the client-spoof TPROXY support when forwarding
 			requests to this peer. Use normal address selection instead.
 			This overrides the spoof_client_ip ACL.

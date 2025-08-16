@@ -55,7 +55,6 @@
 #include "ip/tools.h"
 #include "ipc/Coordinator.h"
 #include "ipc/Kids.h"
-#include "ipc/Strand.h"
 #include "ipcache.h"
 #include "mime.h"
 #include "neighbors.h"
@@ -77,6 +76,7 @@
 #include "store/Disks.h"
 #include "store_log.h"
 #include "StoreFileSystem.h"
+#include "StrandKid.h"
 #include "time/Engine.h"
 #include "tools.h"
 #include "unlinkd.h"
@@ -241,6 +241,7 @@ SignalEngine::checkEvents(int)
 static bool
 AvoidSignalAction(const char *description, volatile int &signalVar)
 {
+    const auto receivedShutdownSignal = (strcmp(description, "shutdown") == 0);
     const char *avoiding = "delaying";
     const char *currentEvent = "none";
     if (shutting_down) {
@@ -248,12 +249,18 @@ AvoidSignalAction(const char *description, volatile int &signalVar)
         avoiding = "canceling";
         // do not avoid repeated shutdown signals
         // which just means the user wants to skip/abort shutdown timeouts
-        if (strcmp(currentEvent, description) == 0)
+        if (receivedShutdownSignal)
             return false;
         signalVar = 0;
     }
-    else if (!configured_once)
+    else if (Instance::Starting()) {
         currentEvent = "startup";
+        // Honor shutdown during asynchronous startup that may take a while.
+        if (receivedShutdownSignal) {
+            signalVar = 0;
+            return false;
+        }
+    }
     else if (reconfiguring)
         currentEvent = "reconfiguration";
     else {
@@ -262,6 +269,9 @@ AvoidSignalAction(const char *description, volatile int &signalVar)
         // the caller may produce a signal-specific debugging message
     }
 
+    // XXX: This warning may be displayed multiple times for the same avoided
+    // action when Instance::Starting() requires multiple main loop iterations
+    // to finish after receiving that action signal.
     debugs(1, DBG_IMPORTANT, avoiding << ' ' << description <<
            " request during " << currentEvent);
     return true;
@@ -1652,6 +1662,11 @@ SquidMain(int argc, char **argv)
         }
     }
 
+    // TODO: Move initialization code below into a dedicated function and drop Optional use.
+    // This tracker guarantees true Instance::Starting() during post-config
+    // startup periods when no other startup activities are explicitly tracked.
+    Instance::OptionalStartupActivityTracker synchronousPostConfigInitializationTracker;
+    synchronousPostConfigInitializationTracker.start(ScopedId("synchronous post-config initialization"));
     StartUsingConfig();
     enter_suid();
 
@@ -1712,10 +1727,10 @@ SquidMain(int argc, char **argv)
     if (IamCoordinatorProcess())
         AsyncJob::Start(Ipc::Coordinator::Instance());
     else if (UsingSmp() && (IamWorkerProcess() || IamDiskProcess()))
-        AsyncJob::Start(new Ipc::Strand);
+        InitStrand();
 
     /* at this point we are finished the synchronous startup. */
-    starting_up = 0;
+    synchronousPostConfigInitializationTracker.finish();
 
     mainLoop.run();
 

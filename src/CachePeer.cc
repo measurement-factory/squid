@@ -10,11 +10,14 @@
 #include "acl/Gadgets.h"
 #include "CachePeer.h"
 #include "defines.h"
+#include "Instance.h"
 #include "neighbors.h"
 #include "NeighborTypeDomainList.h"
 #include "pconn.h"
 #include "PeerDigest.h"
 #include "PeerPoolMgr.h"
+#include "sbuf/SBuf.h"
+#include "sbuf/Stream.h"
 #include "SquidConfig.h"
 #include "util.h"
 
@@ -57,6 +60,45 @@ CachePeer::~CachePeer()
     PeerPoolMgr::Checkpoint(standby.mgr, "peer gone");
 
     xfree(domain);
+}
+
+void
+CachePeer::startupActivityStarted()
+{
+    Assure(Instance::Starting());
+
+    Assure(!startingUp_);
+    startingUp_ = true;
+
+    // We only inform Instance of this activity if redundancy-group has been
+    // configured, giving us an explicit permission to delay opening of primary
+    // listening sockets until peer startup activities have succeeded.
+    if (redundancyGroup)
+        redundancyGroupProbeTracker.start(ScopedId("probing of a cache_peer in a redundant-group", index));
+}
+
+void
+CachePeer::startupActivityFinished()
+{
+    Assure(startingUp_);
+    startingUp_ = false;
+
+    if (!redundancyGroup)
+        return; // code below is specific to redundancy group members
+
+    redundancyGroupProbeTracker.finish();
+
+    auto foundViableMemberInMyGroup = false;
+    size_t myGroupMembers = 0;
+    for (auto peer = Config.peers; !foundViableMemberInMyGroup && peer; peer = peer->next) {
+        if (redundancyGroup != peer->redundancyGroup)
+            continue; // only same-group peers affect foundViableMemberInMyGroup
+        ++myGroupMembers;
+        foundViableMemberInMyGroup = (peer->startingUp() || peer->tcp_up);
+    }
+    debugs(15, 3, "found " << myGroupMembers << " redundancy-group=" << *redundancyGroup << " members; foundViableMemberInMyGroup=" << foundViableMemberInMyGroup);
+    if (!foundViableMemberInMyGroup)
+        throw TextException(ToSBuf("startup initialization/probing failed for all ", myGroupMembers, " cache_peer redundancy-group=", *redundancyGroup, " members"), Here());
 }
 
 void

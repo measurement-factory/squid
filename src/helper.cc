@@ -17,13 +17,16 @@
 #include "comm/Read.h"
 #include "comm/Write.h"
 #include "debug/Messages.h"
+#include "event.h"
 #include "fd.h"
 #include "fde.h"
 #include "format/Quoting.h"
 #include "helper.h"
 #include "helper/Reply.h"
 #include "helper/Request.h"
+#include "Instance.h"
 #include "MemBuf.h"
+#include "sbuf/Stream.h"
 #include "SquidConfig.h"
 #include "SquidIpc.h"
 #include "SquidMath.h"
@@ -32,6 +35,9 @@
 
 // helper_stateful_server::data uses explicit alloc()/freeOne() */
 #include "mem/Pool.h"
+
+#include <optional>
+#include <set>
 
 #define HELPER_MAX_ARGS 64
 
@@ -751,6 +757,88 @@ helper::willOverload() const {
     return queueFull() && !(childs.needNew() || GetFirstAvailable(this));
 }
 
+namespace Helper
+{
+
+/// Squid cannot detect many helper startup problems synchronously (i.e. by
+/// checking ipcCreate() result) because those problems happen in a forked
+/// process; ipcCreate() succeeds even if execvp() fails (e.g., due to a missing
+/// helper script). This singleton class waits a few seconds to give many
+/// typical startup problems a chance to be detected (via IPC pipes closure)
+/// and, if they are detected, aborts Squid startup.
+class StartupMonitor
+{
+public:
+    StartupMonitor();
+
+    void startMonitoring(const helper::Pointer &aHelper) { (void)helpers.insert(aHelper); }
+    void stopMonitoring(const helper::Pointer &aHelper) { (void)helpers.erase(aHelper); }
+
+private:
+    /// Time allocated for all configured helpers to solve any startup problems
+    /// and reach startup=N server process levels. A helper starts all N
+    /// processes immediately/synchronously, but problems may be detected later.
+    /// Keep this value small: Most problems manifest themselves under a second,
+    /// and Squid (with helpers) cannot finish startup while waiting.
+    static constexpr double SecondsToWaitForProblems() { return 3; }
+
+    static void FinalCheck(void*);
+    void finalCheck();
+
+    std::set<helper::Pointer> helpers; ///< helpers that have not been shut down yet
+
+    /// informs Instance of our monitoring activity
+    Instance::StartupActivityTracker tracker;
+};
+
+/// a StartupMonitor instance (during the startup monitoring stage) or nil (afterwords)
+static auto &
+MonitoringStartup()
+{
+    static const auto monitor = new std::optional<StartupMonitor>(std::in_place);
+    return *monitor;
+}
+
+} // namespace Helper
+
+/// check whether all helpers achieved their startup=N goals
+void
+Helper::StartupMonitor::finalCheck()
+{
+    for (const auto &helper: helpers) {
+        if (helper->childs.n_active < helper->childs.n_startup) {
+            throw TextException(ToSBuf("Failed to reach configured startup=", helper->childs.n_startup,
+                                       " level for ", helper->id_name, " helper in ",
+                                       SecondsToWaitForProblems(), " seconds",
+                                       Debug::Extra, "helper processes running: ", helper->childs.n_active), Here());
+        }
+    }
+
+    debugs(84, 7, "all helpers achieved their startup goals: " << helpers.size());
+}
+
+/// finalCheck() wrapper compatible with eventAdd() API
+void
+Helper::StartupMonitor::FinalCheck(void*)
+{
+    auto &monitor = MonitoringStartup();
+    Assure(monitor);
+    monitor->finalCheck();
+    monitor = std::nullopt;
+}
+
+Helper::StartupMonitor::StartupMonitor():
+    tracker(ScopedId("Helper::StartupMonitor"))
+{
+    eventAdd("Helper::StartupMonitor::FinalCheck", &Helper::StartupMonitor::FinalCheck, nullptr, SecondsToWaitForProblems(), 0);
+}
+
+helper::helper(const char *name): id_name(name)
+{
+    if (auto &monitor = Helper::MonitoringStartup())
+        monitor->startMonitoring(this);
+}
+
 helper::Pointer
 helper::Make(const char *name)
 {
@@ -798,6 +886,9 @@ helperShutdown(const helper::Pointer &hlp)
          */
         srv->closePipesSafely(hlp->id_name);
     }
+
+    if (auto &monitor = Helper::MonitoringStartup())
+        monitor->stopMonitoring(hlp);
 }
 
 void
@@ -845,6 +936,9 @@ helperStatefulShutdown(const statefulhelper::Pointer &hlp)
          */
         srv->closePipesSafely(hlp->id_name);
     }
+
+    if (auto &monitor = Helper::MonitoringStartup())
+        monitor->stopMonitoring(hlp);
 }
 
 helper::~helper()

@@ -20,16 +20,19 @@
 #include "fd.h"
 #include "fs_io.h"
 #include "globals.h"
+#include "Instance.h"
 #include "ipc/mem/Pages.h"
 #include "ipc/Messages.h"
 #include "ipc/Port.h"
 #include "ipc/Queue.h"
-#include "ipc/StrandCoord.h"
 #include "ipc/StrandSearch.h"
 #include "ipc/UdsOp.h"
 #include "sbuf/SBuf.h"
+#include "sbuf/Stream.h"
+#include "sbuf/StringConvert.h"
 #include "SquidConfig.h"
 #include "StatCounters.h"
+#include "StrandKid.h"
 #include "tools.h"
 
 #include <cerrno>
@@ -51,7 +54,7 @@ std::unique_ptr<IpcIoFile::Queue> IpcIoFile::queue;
 
 bool IpcIoFile::DiskerHandleMoreRequestsScheduled = false;
 
-static bool DiskerOpen(const SBuf &path, int flags, mode_t mode);
+static void DiskerOpen(const SBuf &path, int flags, mode_t);
 static void DiskerClose(const SBuf &path);
 
 /// IpcIo wrapper for debugs() streams; XXX: find a better class name
@@ -137,9 +140,8 @@ IpcIoFile::open(int flags, mode_t mode, RefCount<IORequestor> callback)
     }
 
     if (IamDiskProcess()) {
-        error_ = !DiskerOpen(SBuf(dbName.termedBuf()), flags, mode);
-        if (error_)
-            return;
+        DiskerOpen(SBuf(dbName.termedBuf()), flags, mode);
+        Assure(!error_);
 
         diskId = KidIdentifier;
         const bool inserted =
@@ -148,7 +150,7 @@ IpcIoFile::open(int flags, mode_t mode, RefCount<IORequestor> callback)
 
         queue->localRateLimit().store(config.ioRate);
 
-        Ipc::StrandMessage::NotifyCoordinator(Ipc::mtRegisterStrand, dbName.termedBuf());
+        TagStrand(StringToSBuf(dbName));
 
         ioRequestor->ioCompletedNotification();
         return;
@@ -975,7 +977,9 @@ IpcIoFile::DiskerHandleRequest(const int workerId, IpcIoMsg &ipcIo)
     }
 }
 
-static bool
+/// IpcIoFile::open() helper that starts preparing db file (owned and maintained
+/// by the disker process) for satisfying disk I/O requests from workers
+static void
 DiskerOpen(const SBuf &path, int flags, mode_t)
 {
     assert(TheFile < 0);
@@ -985,14 +989,11 @@ DiskerOpen(const SBuf &path, int flags, mode_t)
 
     if (TheFile < 0) {
         const int xerrno = errno;
-        debugs(47, DBG_CRITICAL, "ERROR: cannot open " << DbName << ": " <<
-               xstrerr(xerrno));
-        return false;
+        throw TextException(ToSBuf("cannot open ", DbName, ": ", xstrerr(xerrno)), Here());
     }
 
     ++store_open_disk_fd;
     debugs(79,3, "rock db opened " << DbName << ": FD " << TheFile);
-    return true;
 }
 
 static void

@@ -14,11 +14,14 @@
 #include "fs/rock/forward.h"
 #include "fs/rock/RockDbCell.h"
 #include "fs/rock/RockRebuild.h"
+#include "Instance.h"
 #include "ipc/mem/Page.h"
 #include "ipc/mem/PageStack.h"
 #include "ipc/StoreMap.h"
 #include "store/Disk.h"
 #include "store_rebuild.h"
+
+#include <optional>
 #include <vector>
 
 class DiskIOStrategy;
@@ -139,6 +142,9 @@ private:
     void createError(const char *const msg);
     void handleWriteCompletionSuccess(const WriteRequest &request);
     void handleWriteCompletionProblem(const int errflag, const WriteRequest &request);
+
+    /// tracks (often asynchronous) opening of theFile
+    Instance::OptionalStartupActivityTracker startupTracker;
 
     DiskIOStrategy *io;
     RefCount<DiskFile> theFile; ///< cache storage for this cache_dir

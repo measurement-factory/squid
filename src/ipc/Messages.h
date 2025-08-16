@@ -40,6 +40,20 @@ typedef enum { mtNone = 0, ///< unspecified or unknown message kind; unused on t
                mtSnmpResponse,
 #endif
 
+               /// The sending kid have itself reached and now waits for other
+               /// kids to reach the same synchronization barrier. For now, only
+               /// one such synchronization point is supported per Squid
+               /// instance lifetime. \sa mtSynchronizationResponse
+               mtSynchronizationRequest,
+
+               /// Coordinator sends this message when all kids have sent their
+               /// mtSynchronizationRequest and, hence, may now cross the
+               /// corresponding synchronization barrier.
+               mtSynchronizationResponse,
+
+               /// The sending kid has completed all its startup activities.
+               mtKidCompletedStartup,
+
                mtEnd ///< for message kind range checks; unused on the wire
              } MessageType;
 

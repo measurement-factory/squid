@@ -11,6 +11,7 @@
 #ifndef SQUID_IPC_COORDINATOR_H
 #define SQUID_IPC_COORDINATOR_H
 
+#include "Instance.h"
 #include "ipc/Messages.h"
 #include "ipc/Port.h"
 #include "ipc/SharedListen.h"
@@ -22,6 +23,7 @@
 #endif
 #include <list>
 #include <map>
+#include <set>
 
 namespace Ipc
 {
@@ -62,6 +64,12 @@ protected:
     void handleSnmpRequest(const Snmp::Request& request);
     void handleSnmpResponse(const Snmp::Response& response);
 #endif
+
+    /// reacts to mtSynchronizationRequest message
+    void handleSynchronizationRequest(const SynchronizationRequest &);
+    /// reacts to mtKidCompletedStartup message
+    void handleKidCompletedStartupNotification(const StrandMessage &);
+
     /// calls comm_open_listener()
     Comm::ConnectionPointer openListenSocket(const SharedListenRequest& request, int &errNo);
 
@@ -74,9 +82,25 @@ private:
     typedef std::map<OpenListenerParams, Comm::ConnectionPointer> Listeners; ///< params:connection map
     Listeners listeners; ///< cached comm_open_listener() results
 
+    using SynchronizingStrands = std::map<int, RequestId>; ///< maps kid ID to kid's SynchronizationRequest::mapId
+    SynchronizingStrands synchronizingStrands; ///< strands that have reached their synchronization barrier
+
+    using KidIds = std::set<int>; ///< unique kid IDs
+    KidIds synchronizedStrands; ///< strands that have been informed of crossing their synchronization barrier
+    KidIds strandsThatCompletedStartup; ///< strands that have completed all their strand-specific startup activities
+
+    /// whether crossSynchronizationBarrier() has been called (at least once)
+    bool crossedSynchronizationBarrier = false;
+
+    /// tracks startup progress across strands
+    Instance::OptionalStartupActivityTracker startupTracker;
+
     static Coordinator* TheInstance; ///< the only class instance in existence
 
 private:
+    void synchronizationCheckpoint();
+    void crossSynchronizationBarrier();
+
     Coordinator(const Coordinator&); // not implemented
     Coordinator& operator =(const Coordinator&); // not implemented
 };

@@ -61,6 +61,7 @@
 #include "acl/FilledChecklist.h"
 #include "anyp/PortCfg.h"
 #include "base/AsyncCallbacks.h"
+#include "base/AsyncFunCalls.h"
 #include "base/Subscription.h"
 #include "base/TextException.h"
 #include "CachePeer.h"
@@ -118,6 +119,7 @@
 #include "StatCounters.h"
 #include "StatHist.h"
 #include "Store.h"
+#include "StrandKid.h"
 #include "TimeOrTag.h"
 #include "tools.h"
 
@@ -141,10 +143,6 @@
 #include <climits>
 #include <cmath>
 #include <limits>
-
-#if HAVE_SYSTEMD_SD_DAEMON_H
-#include <systemd/sd-daemon.h>
-#endif
 
 // TODO: Remove this custom dialer and simplify by creating the TcpAcceptor
 // subscription later, inside clientListenerConnectionOpened() callback, just
@@ -3267,23 +3265,6 @@ ConnStateData::buildFakeRequest(SBuf &useHost, const AnyP::KnownPort usePort, co
     return http;
 }
 
-/// check FD after clientHttp[s]ConnectionOpened, adjust HttpSockets as needed
-static bool
-OpenedHttpSocket(const Comm::ConnectionPointer &c, const Ipc::FdNoteId portType)
-{
-    if (!Comm::IsConnOpen(c)) {
-        Must(NHttpSockets > 0); // we tried to open some
-        --NHttpSockets; // there will be fewer sockets than planned
-        Must(HttpSockets[NHttpSockets] < 0); // no extra fds received
-
-        if (!NHttpSockets) // we could not open any listen sockets at all
-            fatalf("Unable to open %s",FdNote(portType));
-
-        return false;
-    }
-    return true;
-}
-
 /// find any unused HttpSockets[] slot and store fd there or return false
 static bool
 AddOpenedHttpSocket(const Comm::ConnectionPointer &conn)
@@ -3372,14 +3353,18 @@ clientStartListeningOn(AnyP::PortCfgPointer &port, const RefCount< CommCbFunPtrC
     ++NHttpSockets;
 }
 
-/// process clientHttpConnectionsOpen result
+/// process clientStartListeningOn() result
 static void
 clientListenerConnectionOpened(AnyP::PortCfgPointer &s, const Ipc::FdNoteId portTypeNote, const Subscription::Pointer &sub)
 {
     Must(s != nullptr);
 
-    if (!OpenedHttpSocket(s->listenConn, portTypeNote))
-        return;
+    if (!Comm::IsConnOpen(s->listenConn)) {
+        Assure(NHttpSockets > 0); // we tried to open some
+        --NHttpSockets; // there will be fewer sockets than planned
+        Assure(HttpSockets[NHttpSockets] < 0); // no extra fds received
+        throw TextException(ToSBuf("Cannot listen for ", FdNote(portTypeNote), " connections"), Here());
+    }
 
     Must(Comm::IsConnOpen(s->listenConn));
 
@@ -3395,30 +3380,82 @@ clientListenerConnectionOpened(AnyP::PortCfgPointer &s, const Ipc::FdNoteId port
            << s->listenConn);
 
     Must(AddOpenedHttpSocket(s->listenConn)); // otherwise, we have received a fd we did not ask for
-
-#if USE_SYSTEMD
-    // When the very first port opens, tell systemd we are able to serve connections.
-    // Subsequent sd_notify() calls, including calls during reconfiguration,
-    // do nothing because the first call parameter is 1.
-    // XXX: Send the notification only after opening all configured ports.
-    if (opt_foreground || opt_no_daemon) {
-        const auto result = sd_notify(1, "READY=1");
-        if (result < 0) {
-            debugs(1, DBG_IMPORTANT, "WARNING: failed to send start-up notification to systemd" <<
-                   Debug::Extra << "sd_notify() error: " << xstrerr(-result));
-        }
-    }
-#endif
 }
 
-void
-clientOpenListenSockets(void)
+/// A helper that performs primary clientOpenListenSockets() work. This code
+/// runs in both startup and reconfiguration states.
+static void
+clientOpenListenSockets_()
 {
     clientHttpConnectionsOpen();
     Ftp::StartListening();
 
     if (NHttpSockets < 1)
         fatal("No HTTP, HTTPS, or FTP ports configured");
+}
+
+/// Ensures proper clientOpenListenSockets_() call timing during startup.
+class StartupListeningManager: public AsyncJob
+{
+    CBDATA_CHILD(StartupListeningManager);
+public:
+    StartupListeningManager(): AsyncJob("StartupListeningManager") {}
+
+    /* AsyncJob API */
+    void start() override;
+    bool doneAll() const override { return false; /* uses mustStop() to stop */ }
+
+private:
+    void noteRequiredStartupActivitiesFinished();
+    void startOpeningListeningPorts();
+};
+
+CBDATA_CLASS_INIT(StartupListeningManager);
+
+void
+StartupListeningManager::start()
+{
+    using Dialer = NullaryMemFunT<StartupListeningManager>;
+    const auto callback = JobCallback(33, 3, Dialer, this, StartupListeningManager::noteRequiredStartupActivitiesFinished);
+    Instance::NotifyWhenStartedStartupActivitiesFinished(callback);
+}
+
+/// reacts to Instance::NotifyWhenStartedStartupActivitiesFinished() notification
+void
+StartupListeningManager::noteRequiredStartupActivitiesFinished()
+{
+    if (UsingSmp()) {
+        using Dialer = NullaryMemFunT<StartupListeningManager>;
+        const auto callback = JobCallback(33, 3, Dialer, this, StartupListeningManager::startOpeningListeningPorts);
+        StrandBarrierWait(callback);
+    } else {
+        startOpeningListeningPorts();
+    }
+}
+
+/// SMP and non-SMP code paths converge here after asynchronously fulfilling
+/// preconditions for opening primary listening ports. Opening those ports often
+/// requires asynchronous actions as well, so Squid may not be listening on
+/// those ports after this method returns.
+void
+StartupListeningManager::startOpeningListeningPorts()
+{
+    Assure(Instance::Starting());
+    clientOpenListenSockets_();
+    mustStop("finished startOpeningListeningPorts()");
+}
+
+void
+clientOpenListenSockets()
+{
+    if (reconfiguring)
+        return clientOpenListenSockets_();
+
+    Assure(Instance::Starting());
+    static auto started = false;
+    Assure(!started);
+    started = true;
+    AsyncJob::Start(new StartupListeningManager);
 }
 
 void

@@ -60,7 +60,6 @@ extern int n_disk_objects;  /* 0 */
 extern IoStats IOStats;
 
 extern struct timeval squid_start;
-extern int starting_up; /* 1 */
 extern int shutting_down;   /* 0 */
 extern int reconfiguring;   /* 0 */
 extern int RotatingLogs; /* 0 */

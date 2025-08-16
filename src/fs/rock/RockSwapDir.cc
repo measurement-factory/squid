@@ -21,6 +21,7 @@
 #include "fs/rock/RockIoState.h"
 #include "fs/rock/RockSwapDir.h"
 #include "globals.h"
+#include "Instance.h"
 #include "ipc/mem/Pages.h"
 #include "MemObject.h"
 #include "Parsing.h"
@@ -280,6 +281,7 @@ void
 Rock::SwapDir::init()
 {
     debugs(47,2, MYNAME);
+    startupTracker.start(configId());
 
     // XXX: SwapDirs aren't refcounted. We make IORequestor calls, which
     // are refcounted. We up our count once to avoid implicit delete's.
@@ -825,6 +827,8 @@ Rock::SwapDir::ioCompletedNotification()
            std::setw(12) << maxSize() << " disk bytes, " <<
            std::setw(7) << map->entryLimit() << " entries, and " <<
            std::setw(7) << map->sliceLimit() << " slots");
+
+    startupTracker.finish();
 
     if (!Rebuild::Start(*this))
         storeRebuildComplete(nullptr);

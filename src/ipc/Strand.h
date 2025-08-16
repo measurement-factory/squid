@@ -11,25 +11,35 @@
 #ifndef SQUID_IPC_STRAND_H
 #define SQUID_IPC_STRAND_H
 
+#include "Instance.h"
 #include "ipc/forward.h"
 #include "ipc/Port.h"
 #include "mgr/forward.h"
+#include "sbuf/SBuf.h"
 #if SQUID_SNMP
 #include "snmp/forward.h"
 #endif
+
+#include <map>
 
 namespace Ipc
 {
 
 class StrandCoord;
 
+// TODO: Move to src/ as StrandJob.
 /// Receives coordination messages on behalf of its process or thread
 class Strand: public Port
 {
     CBDATA_CHILD(Strand);
 
 public:
-    Strand();
+    explicit Strand(const std::optional<SBuf> &aTag);
+
+    // TODO: Name TypedMsgHdr raw type instead of using `int`
+    using MessageHandler = void (*)(const TypedMsgHdr &);
+    /// instructs where to forward TypedMsgHdr messages of a given type
+    void configureMessageHandler(MessageType, MessageHandler);
 
     void start() override; // Port (AsyncJob) API
 
@@ -38,6 +48,7 @@ protected:
     void receive(const TypedMsgHdr &message) override; // Port API
 
 private:
+    bool registered() const;
     void registerSelf(); /// let Coordinator know this strand exists
     void handleRegistrationResponse(const StrandMessage &);
     void handleCacheMgrRequest(const Mgr::Request& request);
@@ -48,7 +59,15 @@ private:
 #endif
 
 private:
-    bool isRegistered; ///< whether Coordinator ACKed registration (unused)
+    /// allows mtFindStrand queries to find this strand
+    /// \sa TagStrand()
+    const std::optional<SBuf> tag;
+
+    /// our self-registration task; see Strand::registerSelf()
+    Instance::OptionalStartupActivityTracker selfRegistrationTracker;
+
+    /// message forwarding destinations set by configureMessageHandler()
+    std::map<int, MessageHandler> messageHandlers;
 
 private:
     Strand(const Strand&); // not implemented
