@@ -1110,6 +1110,7 @@ tests_testRock_SOURCES = \
 	tests/stub_store_rebuild.cc \
 	store_rebuild.h \
 	tests/stub_store_stats.cc \
+	tests/stub_StrandKid.cc \
 	store_swapout.cc \
 	tests/stub_tools.cc \
 	tools.h \
@@ -1282,6 +1283,7 @@ tests_testUfs_SOURCES = \
 	tests/stub_store_rebuild.cc \
 	store_rebuild.h \
 	tests/stub_store_stats.cc \
+	tests/stub_StrandKid.cc \
 	store_swapout.cc \
 	tests/stub_tools.cc \
 	tools.h \
@@ -1448,6 +1450,7 @@ tests_testStore_SOURCES = \
 	store_rebuild.h \
 	tests/stub_store_stats.cc \
 	store_swapout.cc \
+	tests/stub_StrandKid.cc \
 	tests/CapturingStoreEntry.h \
 	tests/TestSwapDir.cc \
 	tests/TestSwapDir.h \
@@ -1619,6 +1622,7 @@ tests_testDiskIO_SOURCES = \
 	tests/stub_store_rebuild.cc \
 	store_rebuild.h \
 	tests/stub_store_stats.cc \
+	tests/stub_StrandKid.cc \
 	store_swapout.cc \
 	tests/stub_tools.cc \
 	tools.h \
@@ -1834,6 +1838,7 @@ tests_test_http_range_SOURCES = \
 	http.cc \
 	icp_v2.cc \
 	icp_v3.cc \
+	tests/stub_Instance.cc \
 	int.cc \
 	int.h \
 	internal.cc \
@@ -1889,6 +1894,7 @@ tests_test_http_range_SOURCES = \
 	store_swapin.cc \
 	store_swapin.h \
 	store_swapout.cc \
+	tests/stub_StrandKid.cc \
 	tools.cc \
 	tools.h \
 	tests/stub_tunnel.cc \
@@ -2269,6 +2275,7 @@ tests_testHttpRequest_SOURCES = \
 	store_swapin.cc \
 	store_swapin.h \
 	store_swapout.cc \
+	tests/stub_StrandKid.cc \
 	tools.cc \
 	tools.h \
 	tests/stub_tunnel.cc \
@@ -2562,6 +2569,7 @@ tests_testCacheManager_SOURCES = \
 	store_swapin.cc \
 	store_swapin.h \
 	store_swapout.cc \
+	tests/stub_StrandKid.cc \
 	tools.cc \
 	tools.h \
 	tests/stub_tunnel.cc \
