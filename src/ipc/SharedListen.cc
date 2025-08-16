@@ -209,8 +209,6 @@ void Ipc::SharedListenJoined(const SharedListenResponse &response)
     kickDelayedRequest();
 }
 
-/* XXX: Move to ipc/Synchronization.cc */
-
 /* Ipc::SynchronizationRequest */
 
 Ipc::SynchronizationRequest::SynchronizationRequest(const RequestId aMapId):

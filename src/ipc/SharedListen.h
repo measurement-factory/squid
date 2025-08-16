@@ -80,7 +80,9 @@ void JoinSharedListen(const OpenListenerParams &, StartListeningCallback &);
 /// process Coordinator response to SharedListenRequest
 void SharedListenJoined(const SharedListenResponse &response);
 
-/* XXX: Move to ipc/Synchronization.h */
+// TODO: Stop duplicating basic code shared across SynchronizationRequest,
+// StrandSearchRequest, and SharedListenRequest. Keep Ipc::Request TODO in mind.
+// SynchronizationRequest may disappear. Same for response classes.
 
 /// A request to synchronize state across kids. A kid signals that it has
 /// reached a certain state by sending this request to Coordinator. Coordinator
