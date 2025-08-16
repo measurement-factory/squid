@@ -313,10 +313,10 @@ squid_SOURCES = \
 	StoreStats.h \
 	StoreSwapLogData.cc \
 	StoreSwapLogData.h \
-	StrandKid.cc \
-	StrandKid.h \
 	StrList.cc \
 	StrList.h \
+	StrandKid.cc \
+	StrandKid.h \
 	String.cc \
 	TimeOrTag.h \
 	Transients.cc \
@@ -1026,6 +1026,7 @@ tests_testRock_SOURCES = \
 	HttpHeaderTools.h \
 	HttpReply.cc \
 	tests/stub_HttpRequest.cc \
+	tests/stub_Instance.cc \
 	LogTags.cc \
 	MasterXaction.cc \
 	MasterXaction.h \
@@ -1052,6 +1053,7 @@ tests_testRock_SOURCES = \
 	StoreSwapLogData.cc \
 	StrList.cc \
 	StrList.h \
+	tests/stub_StrandKid.cc \
 	String.cc \
 	Transients.cc \
 	Transients.h \
@@ -1078,7 +1080,6 @@ tests_testRock_SOURCES = \
 	fs_io.h \
 	tests/stub_http.cc \
 	tests/stub_icp.cc \
-	tests/stub_Instance.cc \
 	int.cc \
 	int.h \
 	tests/stub_ipc.cc \
@@ -1110,7 +1111,6 @@ tests_testRock_SOURCES = \
 	tests/stub_store_rebuild.cc \
 	store_rebuild.h \
 	tests/stub_store_stats.cc \
-	tests/stub_StrandKid.cc \
 	store_swapout.cc \
 	tests/stub_tools.cc \
 	tools.h \
@@ -1196,6 +1196,7 @@ tests_testUfs_SOURCES = \
 	HttpHeaderTools.h \
 	HttpReply.cc \
 	tests/stub_HttpRequest.cc \
+	tests/stub_Instance.cc \
 	LogTags.cc \
 	MasterXaction.cc \
 	MasterXaction.h \
@@ -1219,6 +1220,7 @@ tests_testUfs_SOURCES = \
 	StoreSwapLogData.cc \
 	StrList.cc \
 	StrList.h \
+	tests/stub_StrandKid.cc \
 	String.cc \
 	Transients.cc \
 	tests/testUfs.cc \
@@ -1247,7 +1249,6 @@ tests_testUfs_SOURCES = \
 	tests/stub_helper.cc \
 	tests/stub_http.cc \
 	tests/stub_icp.cc \
-	tests/stub_Instance.cc \
 	int.cc \
 	int.h \
 	tests/stub_internal.cc \
@@ -1283,7 +1284,6 @@ tests_testUfs_SOURCES = \
 	tests/stub_store_rebuild.cc \
 	store_rebuild.h \
 	tests/stub_store_stats.cc \
-	tests/stub_StrandKid.cc \
 	store_swapout.cc \
 	tests/stub_tools.cc \
 	tools.h \
@@ -1368,6 +1368,7 @@ tests_testStore_SOURCES = \
 	HttpHeaderTools.h \
 	tests/stub_HttpReply.cc \
 	tests/stub_HttpRequest.cc \
+	tests/stub_Instance.cc \
 	MasterXaction.cc \
 	MasterXaction.h \
 	MemBuf.cc \
@@ -1395,6 +1396,7 @@ tests_testStore_SOURCES = \
 	StoreSwapLogData.cc \
 	StrList.cc \
 	StrList.h \
+	tests/stub_StrandKid.cc \
 	String.cc \
 	Transients.cc \
 	tests/stub_access_log.cc \
@@ -1418,7 +1420,6 @@ tests_testStore_SOURCES = \
 	fs_io.h \
 	tests/stub_helper.cc \
 	tests/stub_http.cc \
-	tests/stub_Instance.cc \
 	int.cc \
 	int.h \
 	tests/stub_libanyp.cc \
@@ -1450,7 +1451,6 @@ tests_testStore_SOURCES = \
 	store_rebuild.h \
 	tests/stub_store_stats.cc \
 	store_swapout.cc \
-	tests/stub_StrandKid.cc \
 	tests/CapturingStoreEntry.h \
 	tests/TestSwapDir.cc \
 	tests/TestSwapDir.h \
@@ -1531,6 +1531,7 @@ tests_testDiskIO_SOURCES = \
 	HttpHeaderTools.h \
 	HttpReply.cc \
 	tests/stub_HttpRequest.cc \
+	tests/stub_Instance.cc \
 	LogTags.cc \
 	MasterXaction.cc \
 	MasterXaction.h \
@@ -1556,6 +1557,7 @@ tests_testDiskIO_SOURCES = \
 	StoreSwapLogData.cc \
 	StrList.cc \
 	StrList.h \
+	tests/stub_StrandKid.cc \
 	String.cc \
 	Transients.cc \
 	tests/stub_access_log.cc \
@@ -1584,7 +1586,6 @@ tests_testDiskIO_SOURCES = \
 	tests/stub_helper.cc \
 	tests/stub_http.cc \
 	tests/stub_icp.cc \
-	tests/stub_Instance.cc \
 	int.cc \
 	int.h \
 	tests/stub_internal.cc \
@@ -1622,7 +1623,6 @@ tests_testDiskIO_SOURCES = \
 	tests/stub_store_rebuild.cc \
 	store_rebuild.h \
 	tests/stub_store_stats.cc \
-	tests/stub_StrandKid.cc \
 	store_swapout.cc \
 	tests/stub_tools.cc \
 	tools.h \
@@ -1771,6 +1771,7 @@ tests_test_http_range_SOURCES = \
 	HttpReply.cc \
 	HttpRequest.cc \
 	tests/stub_HttpUpgradeProtocolAccess.cc \
+	tests/stub_Instance.cc \
 	IoStats.h \
 	tests/stub_IpcIoFile.cc \
 	LogTags.cc \
@@ -1803,6 +1804,7 @@ tests_test_http_range_SOURCES = \
 	StoreSwapLogData.cc \
 	StrList.cc \
 	StrList.h \
+	tests/stub_StrandKid.cc \
 	String.cc \
 	Transients.cc \
 	tests/test_http_range.cc \
@@ -1838,7 +1840,6 @@ tests_test_http_range_SOURCES = \
 	http.cc \
 	icp_v2.cc \
 	icp_v3.cc \
-	tests/stub_Instance.cc \
 	int.cc \
 	int.h \
 	internal.cc \
@@ -1894,7 +1895,6 @@ tests_test_http_range_SOURCES = \
 	store_swapin.cc \
 	store_swapin.h \
 	store_swapout.cc \
-	tests/stub_StrandKid.cc \
 	tools.cc \
 	tools.h \
 	tests/stub_tunnel.cc \
@@ -2153,6 +2153,7 @@ tests_testHttpRequest_SOURCES = \
 	tests/testHttpRequest.cc \
 	tests/testHttpRequestMethod.cc \
 	tests/stub_HttpUpgradeProtocolAccess.cc \
+	tests/stub_Instance.cc \
 	IoStats.h \
 	tests/stub_IpcIoFile.cc \
 	LogTags.cc \
@@ -2185,6 +2186,7 @@ tests_testHttpRequest_SOURCES = \
 	StoreSwapLogData.cc \
 	StrList.cc \
 	StrList.h \
+	tests/stub_StrandKid.cc \
 	String.cc \
 	Transients.cc \
 	tests/stub_cache_cf.cc \
@@ -2218,7 +2220,6 @@ tests_testHttpRequest_SOURCES = \
 	http.cc \
 	icp_v2.cc \
 	icp_v3.cc \
-	tests/stub_Instance.cc \
 	int.cc \
 	int.h \
 	internal.cc \
@@ -2275,7 +2276,6 @@ tests_testHttpRequest_SOURCES = \
 	store_swapin.cc \
 	store_swapin.h \
 	store_swapout.cc \
-	tests/stub_StrandKid.cc \
 	tools.cc \
 	tools.h \
 	tests/stub_tunnel.cc \
@@ -2448,6 +2448,7 @@ tests_testCacheManager_SOURCES = \
 	HttpReply.cc \
 	HttpRequest.cc \
 	tests/stub_HttpUpgradeProtocolAccess.cc \
+	tests/stub_Instance.cc \
 	IoStats.h \
 	tests/stub_IpcIoFile.cc \
 	LogTags.cc \
@@ -2480,6 +2481,7 @@ tests_testCacheManager_SOURCES = \
 	StoreSwapLogData.cc \
 	StrList.cc \
 	StrList.h \
+	tests/stub_StrandKid.cc \
 	String.cc \
 	Transients.cc \
 	tests/stub_cache_cf.cc \
@@ -2514,7 +2516,6 @@ tests_testCacheManager_SOURCES = \
 	http.cc \
 	icp_v2.cc \
 	icp_v3.cc \
-	tests/stub_Instance.cc \
 	int.cc \
 	int.h \
 	internal.cc \
@@ -2569,7 +2570,6 @@ tests_testCacheManager_SOURCES = \
 	store_swapin.cc \
 	store_swapin.h \
 	store_swapout.cc \
-	tests/stub_StrandKid.cc \
 	tools.cc \
 	tools.h \
 	tests/stub_tunnel.cc \

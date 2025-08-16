@@ -22,6 +22,7 @@ STUB_SOURCE = \
 	tests/stub_HttpReply.cc \
 	tests/stub_HttpRequest.cc \
 	tests/stub_HttpUpgradeProtocolAccess.cc \
+	tests/stub_Instance.cc \
 	tests/stub_IpcIoFile.cc \
 	tests/stub_MemBuf.cc \
 	tests/stub_MemObject.cc \
@@ -29,6 +30,7 @@ STUB_SOURCE = \
 	tests/stub_Port.cc \
 	tests/stub_SBuf.cc \
 	tests/stub_StatHist.cc \
+	tests/stub_StrandKid.cc \
 	tests/stub_UdsOp.cc \
 	tests/stub_access_log.cc \
 	tests/stub_acl.cc \

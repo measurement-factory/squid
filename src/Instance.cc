@@ -353,7 +353,7 @@ Instance::Startup::initialCheckpoint()
         confirmationCheckpoint_->cancel("rescheduling to cover any newly scheduled calls");
     using Dialer = NullaryFunDialer;
     confirmationCheckpoint_ = asyncCall(1, 3, "Instance::Startup::ConfirmationCheckpoint",
-                                  Dialer(&Instance::Startup::ConfirmationCheckpoint));
+                                        Dialer(&Instance::Startup::ConfirmationCheckpoint));
     ScheduleCallHere(confirmationCheckpoint_);
 }
 
