@@ -40,8 +40,7 @@ CBDATA_NAMESPACED_CLASS_INIT(Ipc, Strand);
 
 Ipc::Strand::Strand(const std::optional<SBuf> &aTag):
     Port(MakeAddr(strandAddrLabel, KidIdentifier)),
-    tag(aTag),
-    isRegistered(false)
+    tag(aTag)
 {
 }
 
@@ -59,10 +58,17 @@ void Ipc::Strand::start()
     registerSelf();
 }
 
+/// whether Coordinator ACKed registration
+bool
+Ipc::Strand::registered() const
+{
+    return selfRegistrationTracker.startedAndFinished();
+}
+
 void Ipc::Strand::registerSelf()
 {
     debugs(54, 6, MYNAME);
-    Must(!isRegistered);
+    Must(!registered());
 
     selfRegistrationTracker.start(ScopedId("Ipc::Strand self-registration"));
     NotifyCoordinator(mtRegisterStrand, tag);
@@ -142,9 +148,9 @@ Ipc::Strand::handleRegistrationResponse(const StrandMessage &msg)
     // handle registration response from the coordinator; it could be stale
     if (msg.strand.kidId == KidIdentifier && msg.strand.pid == getpid()) {
         debugs(54, 6, "kid" << KidIdentifier << " registered");
-        Assure(!isRegistered);
-        isRegistered = true;
-        selfRegistrationTracker.finish(); // TODO: Merge with isRegistered
+        Assure(!registered());
+        selfRegistrationTracker.finish();
+        Assure(registered());
         clearTimeout(); // we are done
     } else {
         // could be an ACK to the registration message of our dead predecessor
@@ -181,9 +187,9 @@ void Ipc::Strand::handleSnmpResponse(const Snmp::Response& response)
 
 void Ipc::Strand::timedout()
 {
-    debugs(54, 6, isRegistered);
+    debugs(54, 6, registered());
     // TODO: Replace this guard with Assure() when clearTimeout() reliably cancels callbacks.
-    if (!isRegistered)
+    if (!registered())
         fatalf("kid%d registration timed out", KidIdentifier);
 }
 

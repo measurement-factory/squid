@@ -48,6 +48,7 @@ protected:
     void receive(const TypedMsgHdr &message) override; // Port API
 
 private:
+    bool registered() const;
     void registerSelf(); /// let Coordinator know this strand exists
     void handleRegistrationResponse(const StrandMessage &);
     void handleCacheMgrRequest(const Mgr::Request& request);
@@ -66,8 +67,6 @@ private:
     Instance::OptionalStartupActivityTracker selfRegistrationTracker;
 
     std::map<int, MessageHandler> messageHandlers;
-
-    bool isRegistered; ///< whether Coordinator ACKed registration
 
 private:
     Strand(const Strand&); // not implemented
