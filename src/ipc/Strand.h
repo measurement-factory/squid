@@ -66,6 +66,7 @@ private:
     /// our self-registration task; see Strand::registerSelf()
     Instance::OptionalStartupActivityTracker selfRegistrationTracker;
 
+    /// message forwarding destinations set by configureMessageHandler()
     std::map<int, MessageHandler> messageHandlers;
 
 private:
