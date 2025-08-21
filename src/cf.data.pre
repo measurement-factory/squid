@@ -4091,21 +4091,21 @@ DOC_START
 	* Changing cache_peer name from A to B means removing old cache_peer named
 	  A and adding a brand new cache_peer named B: Squid pairs old and new
 	  cache_peer directives using cache_peer name (which defaults to
-	  cache_peer hostname). Note that cache_peer A removal may represent
-	  a significant overhead due to instant closing of all idle persistent
-	  connections to A. Also the removal may hurt ongoing transactions that have
-	  selected A but have not obtained a persistent connection to it yet.
-	  To update an existing cache_peer, use its old name and, if there was
-	  no explicit name, the old hostname specs.
+	  cache_peer hostname). To update an existing cache_peer, use its old name
+	  and, if there was no explicit name, the old hostname specs.
+
+	* When a cache_peer is removed, Squid closes all idle persistent HTTP(S)
+	  connections to that peer. The associated performance overheads depend on
+	  many factors. In some tests, Squid blocked for about one millisecond to
+	  close 100 idle connections.  Connections closure also slows down any
+	  ongoing transactions that have selected the being-removed cache_peer but
+	  have not obtained a connection to it yet.
 
 	* Changing cache_peer hostname is not yet supported.
 
 	* Changing many of the cache_peer options (e.g., `originserver` and
 	  `carp-key`) is not yet supported, but not diagnostic is given for some
 	  of the ignored changes. Changing TLS-related options is supported.
-
-	* Changing cache_peer options does not close any idle persistent
-	  connections to that peer (yet?).
 
 For general details about smooth reconfiguration, see documentation for
 the "reconfiguration" directive.
