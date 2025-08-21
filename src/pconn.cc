@@ -295,6 +295,22 @@ IdleConnList::findUseable(const Comm::ConnectionPointer &aKey)
     return Comm::ConnectionPointer();
 }
 
+void
+IdleConnList::closeAllTo(const CachePeer * const p)
+{
+    for (auto right = size_; right > 0; --right) {
+        const auto i = right - 1;
+        const auto conn = theList_[i];
+
+        if (conn->getPeer() == p) {
+            clearHandlers(conn);
+            // may delete this
+            removeAt(i);
+            conn->close();
+        }
+    }
+}
+
 /* might delete list */
 void
 IdleConnList::findAndClose(const Comm::ConnectionPointer &conn)
@@ -544,6 +560,17 @@ PconnPool::closeN(int n)
 
         // may delete current
         static_cast<IdleConnList*>(current)->closeN(1);
+    }
+}
+
+void
+PconnPool::closeAllTo(const CachePeer * const peer)
+{
+    debugs(48, 3, "open connections: " << count());
+    hash_first(table);
+    for (auto current = hash_next(table); current; current = hash_next(table)) {
+        // may delete current but preserves hash iterator (i.e. table->next) that hash_next() has advanced already
+        static_cast<IdleConnList *>(current)->closeAllTo(peer);
     }
 }
 

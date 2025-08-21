@@ -62,6 +62,10 @@ public:
     // TODO: Upgrade to return size_t
     int count() const { return size_; }
 
+    /// close all direct connections (if the given peer is nil) or
+    /// close all connections to the given cache_peer (otherwise)
+    void closeAllTo(const CachePeer *);
+
     void closeN(size_t count);
 
     // IndependentRunner API
@@ -139,6 +143,10 @@ public:
     void dump(std::ostream &) const;
     void unlinkList(IdleConnList *list);
     void noteUses(int uses);
+
+    /// \copydoc IdleConnList::closeAllTo()
+    void closeAllTo(const CachePeer *);
+
     /// closes any n connections, regardless of their destination
     void closeN(int n);
     int count() const { return theCount; }
