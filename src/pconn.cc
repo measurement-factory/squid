@@ -566,8 +566,8 @@ PconnPool::closeN(int n)
 void
 PconnPool::closeAllTo(const CachePeer * const peer)
 {
-    hash_first(table);
     debugs(48, 3, "open connections: " << count());
+    hash_first(table);
     for (auto current = hash_next(table); current; current = hash_next(table)) {
         // may delete current but preserves hash iterator (i.e. table->next) that hash_next() has advanced already
         static_cast<IdleConnList *>(current)->closeAllTo(peer);

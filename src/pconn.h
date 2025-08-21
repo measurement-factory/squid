@@ -57,14 +57,14 @@ public:
      */
     Comm::ConnectionPointer findUseable(const Comm::ConnectionPointer &key);
 
-    /// close all direct connections (if peer is nil) or
-    /// close all connections to the given cache_peer (otherwise)
-    void closeAllTo(const CachePeer *peer);
-
     void clearHandlers(const Comm::ConnectionPointer &conn);
 
     // TODO: Upgrade to return size_t
     int count() const { return size_; }
+
+    /// close all direct connections (if the given peer is nil) or
+    /// close all connections to the given cache_peer (otherwise)
+    void closeAllTo(const CachePeer *);
 
     void closeN(size_t count);
 
@@ -143,10 +143,12 @@ public:
     void dump(std::ostream &) const;
     void unlinkList(IdleConnList *list);
     void noteUses(int uses);
+
+    /// \copydoc IdleConnList::closeAllTo()
+    void closeAllTo(const CachePeer *);
+
     /// closes any n connections, regardless of their destination
     void closeN(int n);
-    /// \copydoc IdleConnList::closeAllTo()
-    void closeAllTo(const CachePeer *peer);
     int count() const { return theCount; }
     void noteConnectionAdded() { ++theCount; }
     void noteConnectionRemoved() { assert(theCount > 0); --theCount; }
