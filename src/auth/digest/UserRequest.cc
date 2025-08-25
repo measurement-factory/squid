@@ -15,7 +15,7 @@
 #include "format/Format.h"
 #include "helper.h"
 #include "helper/Reply.h"
-#include "HttpHeaderTools.h"
+#include "http/HeaderTools.h"
 #include "HttpReply.h"
 #include "HttpRequest.h"
 #include "MemBuf.h"
