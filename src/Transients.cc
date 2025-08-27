@@ -283,14 +283,14 @@ Transients::status(const StoreEntry &entry, Transients::EntryStatus &entryStatus
 }
 
 void
-Transients::completeWriting(const StoreEntry &e)
+Transients::completeWriting(StoreEntry &e)
 {
     debugs(20, 5, e);
     assert(e.hasTransients());
     assert(isWriter(e));
     map->switchWritingToReading(e.mem_obj->xitTable.index);
     e.mem_obj->xitTable.io = Store::ioReading;
-    CollapsedForwarding::Broadcast(e, Here());
+    e.noteChangesToBroadcast();
 }
 
 int
@@ -312,6 +312,7 @@ Transients::evictCached(StoreEntry &e)
         if (map->freeEntry(index)) {
             // Delay syncCollapsed(index) which may end `e` wait for updates.
             // Calling it directly/here creates complex reentrant call chains.
+            // Cannot optimize with e.noteChangesToBroadcast() call because that call does not broadcast to this kid.
             CollapsedForwarding::Broadcast(e, Here(), true);
         }
     } // else nothing to do because e must be private
@@ -341,7 +342,7 @@ Transients::disconnect(StoreEntry &entry)
             // because another writer may have succeeded, making readers happy.
             // If none succeeded, the readers will notice the lack of writers.
             map->closeForWriting(xitTable.index);
-            CollapsedForwarding::Broadcast(entry, Here());
+            entry.noteChangesToBroadcast();
         } else {
             assert(isReader(entry));
             map->closeForReadingAndFreeIdle(xitTable.index);

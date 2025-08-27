@@ -663,6 +663,9 @@ MemStore::startCaching(StoreEntry &e)
     if (e.mem_obj->expectedReplySize() >= 0)
         map->startAppending(index);
     e.memOutDecision(true);
+    // We assume that readers are not interested in metadata-only update and
+    // wait for copyToShm() to call e.noteChangesToBroadcast(). Our caller does
+    // not even setup BroadcastMonitor until it is time to copyToShm().
     return true;
 }
 
@@ -697,6 +700,7 @@ MemStore::copyToShm(StoreEntry &e)
         if (anchor.start < 0)
             anchor.start = lastWritingSlice;
         copyToShmSlice(e, anchor, slice);
+        e.noteChangesToBroadcast();
     }
 
     debugs(20, 7, "mem-cached available " << eSize << " bytes of " << e);
@@ -866,12 +870,12 @@ MemStore::write(StoreEntry &e)
         break; // already decided to write and still writing
     }
 
+    const Store::BroadcastMonitor monitor(e);
+
     try {
         copyToShm(e);
         if (e.store_status == STORE_OK) // done receiving new content
             completeWriting(e);
-        else
-            CollapsedForwarding::Broadcast(e, Here());
         return;
     } catch (const std::exception &x) { // TODO: should we catch ... as well?
         debugs(20, 2, "mem-caching error writing entry " << e << ": " << x.what());
@@ -895,7 +899,6 @@ MemStore::completeWriting(StoreEntry &e)
     e.mem_obj->memCache.io = MemObject::ioDone;
     map->closeForWriting(index);
 
-    CollapsedForwarding::Broadcast(e, Here());
     e.storeWriterDone();
 }
 
@@ -905,7 +908,7 @@ MemStore::evictCached(StoreEntry &e)
     debugs(47, 5, e);
     if (e.hasMemStore()) {
         if (map->freeEntry(e.mem_obj->memCache.index))
-            CollapsedForwarding::Broadcast(e, Here());
+            e.noteChangesToBroadcast();
         if (!e.locked()) {
             disconnect(e);
             e.destroyMemObject();
@@ -935,7 +938,6 @@ MemStore::disconnect(StoreEntry &e)
             map->abortWriting(mem_obj.memCache.index);
             mem_obj.memCache.index = -1;
             mem_obj.memCache.io = MemObject::ioDone;
-            CollapsedForwarding::Broadcast(e, Here());
             e.storeWriterDone();
         } else {
             assert(mem_obj.memCache.io == MemObject::ioReading);

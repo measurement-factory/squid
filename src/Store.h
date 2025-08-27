@@ -292,6 +292,10 @@ public:
         return !EBIT_TEST(flags, KEY_PRIVATE) || shareableWhenPrivate;
     }
 
+    /// Calls CollapsedForwarding::Broadcast() or delays that call until
+    /// Store::BroadcastMonitor is ready, effectively aggregating calls.
+    void noteChangesToBroadcast();
+
 #if USE_ADAPTATION
     /// call back producer when more buffer space is available
     void deferProducer(const AsyncCall::Pointer &producer);

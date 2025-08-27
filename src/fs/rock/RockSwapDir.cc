@@ -136,7 +136,6 @@ void Rock::SwapDir::disconnect(StoreEntry &e)
         map->abortWriting(e.swap_filen);
         e.detachFromDisk();
         dynamic_cast<IoState&>(*e.mem_obj->swapout.sio).writeableAnchor_ = nullptr;
-        CollapsedForwarding::Broadcast(e, Here());
         e.storeWriterDone();
     } else {
         map->closeForReading(e.swap_filen);
@@ -877,7 +876,7 @@ Rock::SwapDir::writeCompleted(int errflag, size_t, RefCount< ::WriteRequest> r)
         handleWriteCompletionSuccess(*request);
 
     if (sio.touchingStoreEntry())
-        CollapsedForwarding::Broadcast(*sio.e, Here());
+        sio.e->noteChangesToBroadcast();
 }
 
 /// code shared by writeCompleted() success handling cases
@@ -940,7 +939,7 @@ Rock::SwapDir::writeError(StoreIOState &sio)
     map->freeEntry(sio.swap_filen); // will mark as unusable, just in case
 
     if (sio.touchingStoreEntry())
-        CollapsedForwarding::Broadcast(*sio.e, Here());
+        sio.e->noteChangesToBroadcast();
     // else noop: a fresh entry update error does not affect stale entry readers
 
     // All callers must also call IoState callback, to propagate the error.
@@ -1028,7 +1027,7 @@ Rock::SwapDir::evictCached(StoreEntry &e)
     debugs(47, 5, e);
     if (e.hasDisk(index)) {
         if (map->freeEntry(e.swap_filen))
-            CollapsedForwarding::Broadcast(e, Here());
+            e.noteChangesToBroadcast();
         if (!e.locked())
             disconnect(e);
     } else if (const auto key = e.publicKey()) {

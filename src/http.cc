@@ -22,6 +22,7 @@
 #include "base64.h"
 #include "CachePeer.h"
 #include "client_side.h"
+#include "CollapsedForwarding.h"
 #include "comm/Connection.h"
 #include "comm/Read.h"
 #include "comm/Write.h"
@@ -1293,6 +1294,9 @@ HttpStateData::readReply(const CommIoCbParams &io)
 void
 HttpStateData::processReply()
 {
+    // We may not write to Store during this call, but it is much easier to
+    // monitor unconditionally, and the associated overheads are negligible.
+    const Store::BroadcastMonitor monitor(*entry);
 
     if (flags.handling1xx) { // we came back after handling a 1xx response
         debugs(11, 5, "done with 1xx handling");

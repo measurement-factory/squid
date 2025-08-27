@@ -208,6 +208,14 @@ public:
     };
     MemCache memCache; ///< current [shared] memory caching state for the entry
 
+    /// the number of checkpoints up the code stack that ensure a call to
+    /// CollapsedForwarding::Broadcast() if sawChangesToBroadcast
+    size_t monitoringChangesToBroadcast = 0;
+
+    /// whether CollapsedForwarding::Broadcast() should be called by some
+    /// monitoringChangesToBroadcast code up the stack
+    bool sawChangesToBroadcast = false;
+
     HttpRequestPointer request;
 
     struct timeval start_ping;

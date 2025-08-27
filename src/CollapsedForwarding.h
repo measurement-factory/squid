@@ -53,5 +53,27 @@ private:
     static std::unique_ptr<Queue> queue; ///< IPC queue
 };
 
+namespace Store {
+
+/// A RAII MemObject::monitoringChangesToBroadcast manager that makes a
+/// CollapsedForwarding::Broadcast() call that was previously postponed by
+/// StoreEntry::noteChangesToBroadcast() broadcast-reduction logic.
+class BroadcastMonitor
+{
+public:
+    /// Starts monitoring.
+    /// \pre StoreEntry::mem_obj is not nil
+    BroadcastMonitor(StoreEntry &);
+
+    /// Ends monitoring, triggering CollapsedForwarding::Broadcast() if needed.
+    ~BroadcastMonitor();
+
+private:
+    /// Store entry our owner is updating
+    StoreEntry &entry;
+};
+
+} // namespace Store
+
 #endif /* SQUID_COLLAPSED_FORWARDING_H */
 

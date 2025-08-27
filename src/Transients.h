@@ -46,7 +46,7 @@ public:
     void monitorIo(StoreEntry*, const cache_key*, const Store::IoStatus);
 
     /// called when the in-transit entry has been successfully cached
-    void completeWriting(const StoreEntry &e);
+    void completeWriting(StoreEntry &);
 
     /// copies current shared entry metadata into entryStatus
     void status(const StoreEntry &e, EntryStatus &entryStatus) const;

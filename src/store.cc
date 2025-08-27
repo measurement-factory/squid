@@ -1796,6 +1796,19 @@ StoreEntry::storeWritingCheckpoint()
 }
 
 void
+StoreEntry::noteChangesToBroadcast()
+{
+    Assure(mem_obj);
+    if (mem_obj->monitoringChangesToBroadcast) {
+        debugs(20, 7, "delaying broadcast of changes for " << *this);
+        mem_obj->sawChangesToBroadcast = true; // may already be true
+    } else {
+        CollapsedForwarding::Broadcast(*this, Here());
+        Assure(!mem_obj->sawChangesToBroadcast); // broadcasting clears any debt
+    }
+}
+
+void
 StoreEntry::memOutDecision(const bool willCacheInRam)
 {
     if (!willCacheInRam)
@@ -1815,6 +1828,7 @@ StoreEntry::swapOutDecision(const MemObject::SwapOut::Decision &decision)
 void
 StoreEntry::storeWriterDone()
 {
+    noteChangesToBroadcast();
     storeWritingCheckpoint();
 }
 
@@ -2100,6 +2114,13 @@ std::ostream &operator <<(std::ostream &os, const StoreEntry &e)
         if (EBIT_TEST(e.flags, ENTRY_BAD_LENGTH)) os << 'L';
         if (EBIT_TEST(e.flags, ENTRY_ABORTED)) os << 'A';
         if (EBIT_TEST(e.flags, ENTRY_REQUIRES_COLLAPSING)) os << 'C';
+    }
+
+    if (e.mem_obj) {
+        if (const auto monitors = e.mem_obj->monitoringChangesToBroadcast)
+            os << 'M' << monitors;
+        if (e.mem_obj->sawChangesToBroadcast)
+            os << 'B';
     }
 
     return os << '/' << &e << '*' << e.locks();
