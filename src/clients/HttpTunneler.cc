@@ -7,10 +7,10 @@
  */
 
 #include "squid.h"
+#include "base/IoManip.h"
 #include "base/Raw.h"
 #include "CachePeer.h"
 #include "clients/HttpTunneler.h"
-#include "base/IoManip.h"
 #include "comm/Read.h"
 #include "comm/Write.h"
 #include "errorpage.h"

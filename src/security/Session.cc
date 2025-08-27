@@ -104,10 +104,10 @@ handleConnectionFailure(const Comm::ConnectionPointer &conn, const char * const 
 {
     const auto debugDetails = [&](std::ostream &os) {
         if (errCode)
-           os << Debug::Extra << "TLS library-reported error: " << Security::ErrorString(errCode);
+            os << Debug::Extra << "TLS library-reported error: " << Security::ErrorString(errCode);
 
         if (conn)
-           os << Debug::Extra << "transport connection: " << conn;
+            os << Debug::Extra << "transport connection: " << conn;
     };
 
     const auto failure = OutgoingConnectionFailure(conn);
