@@ -16,3 +16,5 @@ void CollapsedForwarding::Broadcast(const StoreEntry &, const SourceLocation &, 
 void CollapsedForwarding::Broadcast(sfileno, const SourceLocation &, bool) STUB
 void CollapsedForwarding::StatQueue(std::ostream &) STUB
 
+Store::BroadcastMonitor::BroadcastMonitor(StoreEntry &e): entry(e) { STUB }
+Store::BroadcastMonitor::~BroadcastMonitor() STUB
