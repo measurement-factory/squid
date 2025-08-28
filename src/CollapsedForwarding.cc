@@ -72,7 +72,8 @@ CollapsedForwarding::Broadcast(const StoreEntry &e, const SourceLocation &caller
     if (!e.hasTransients() ||
             !Store::Root().transientReaders(e)) {
         debugs(17, 7, "nobody reads " << e << "; broadcaster: " << caller);
-        e.mem_obj->sawChangesToBroadcast = false; // may already be false
+        if (e.mem_obj)
+            e.mem_obj->sawChangesToBroadcast = false; // may already be false
         return;
     }
 

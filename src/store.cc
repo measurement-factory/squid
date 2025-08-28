@@ -1798,13 +1798,12 @@ StoreEntry::storeWritingCheckpoint()
 void
 StoreEntry::noteChangesToBroadcast()
 {
-    Assure(mem_obj);
-    if (mem_obj->monitoringChangesToBroadcast) {
+    if (mem_obj && mem_obj->monitoringChangesToBroadcast) {
         debugs(20, 7, "delaying broadcast of changes for " << *this);
         mem_obj->sawChangesToBroadcast = true; // may already be true
     } else {
         CollapsedForwarding::Broadcast(*this, Here());
-        Assure(!mem_obj->sawChangesToBroadcast); // broadcasting clears any debt
+        Assure(!mem_obj || !mem_obj->sawChangesToBroadcast); // broadcasting clears any broadcasting debt
     }
 }
 
