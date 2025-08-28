@@ -13,14 +13,17 @@
 #include "base/CbcPointer.h"
 #include "base/forward.h"
 #include "base/RefCount.h"
+#include "comm/Connection.h"
 #include "configuration/forward.h"
 #include "enums.h"
 #include "http/StatusCode.h"
 #include "icp_opcode.h"
 #include "ip/Address.h"
+#include "mem/PoolingAllocator.h"
 #include "security/PeerOptions.h"
 
 #include <iosfwd>
+#include <unordered_set>
 
 class NeighborTypeDomainList;
 class PconnPool;
@@ -33,6 +36,8 @@ class CachePeer: public RefCountable
 
 public:
     using Pointer = RefCount<CachePeer>;
+
+    using IdlePinnedConnections = std::unordered_set<Comm::ConnectionPointer, std::hash<Comm::ConnectionPointer>, std::equal_to<Comm::ConnectionPointer>, PoolingAllocator<Comm::ConnectionPointer> >;
 
     explicit CachePeer(const SBuf &address);
     ~CachePeer();
@@ -56,6 +61,12 @@ public:
     /// TLS settings for communicating with this TLS cache_peer (if encryption
     /// is required; see secure.encryptTransport) or nil (otherwise)
     Security::FuturePeerContext *securityContext();
+
+    void addIdlePinnedConnection(const Comm::ConnectionPointer &);
+
+    void removeIdlePinnedConnection(const Comm::ConnectionPointer &);
+
+    void removeIdlePinnedConnections();
 
     /// n-th cache_peer directive, starting with 1
     u_int index = 0;
@@ -241,6 +252,8 @@ public:
 
 private:
     void countFailure();
+
+    IdlePinnedConnections idlePinnedConnections;
 };
 
 /// reacts to a successful establishment of a connection to an origin server or cache_peer

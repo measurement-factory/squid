@@ -3745,6 +3745,9 @@ ConnStateData::startPinnedConnectionMonitoring()
     if (pinning.readHandler != nullptr)
         return; // already monitoring
 
+    if (const auto peer = pinning.peer())
+        peer->addIdlePinnedConnection(pinning.serverConnection);
+
     typedef CommCbMemFunT<ConnStateData, CommIoCbParams> Dialer;
     pinning.readHandler = JobCallback(33, 3,
                                       Dialer, this, ConnStateData::clientPinnedConnectionRead);
@@ -3754,6 +3757,12 @@ ConnStateData::startPinnedConnectionMonitoring()
 void
 ConnStateData::stopPinnedConnectionMonitoring()
 {
+    if (!Comm::IsConnOpen(pinning.serverConnection))
+        return;
+
+    if (const auto peer = pinning.peer())
+        peer->removeIdlePinnedConnection(pinning.serverConnection);
+
     if (pinning.readHandler != nullptr) {
         Comm::ReadCancel(pinning.serverConnection->fd, pinning.readHandler);
         pinning.readHandler = nullptr;
@@ -3812,6 +3821,9 @@ ConnStateData::clientPinnedConnectionRead(const CommIoCbParams &io)
         return; // close handler will clean up
 
     Must(pinning.serverConnection == io.conn);
+
+    if (const auto peer = pinning.peer())
+        peer->removeIdlePinnedConnection(pinning.serverConnection);
 
 #if USE_OPENSSL
     if (handleIdleClientPinnedTlsRead())
@@ -3880,13 +3892,13 @@ ConnStateData::unpinConnection(const bool andClose)
 {
     debugs(33, 3, pinning.serverConnection);
 
+    stopPinnedConnectionMonitoring();
+
     if (Comm::IsConnOpen(pinning.serverConnection)) {
         if (pinning.closeHandler != nullptr) {
             comm_remove_close_handler(pinning.serverConnection->fd, pinning.closeHandler);
             pinning.closeHandler = nullptr;
         }
-
-        stopPinnedConnectionMonitoring();
 
         // close the server side socket if requested
         if (andClose)

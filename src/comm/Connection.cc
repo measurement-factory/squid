@@ -23,6 +23,7 @@
 InstanceIdDefinitions(Comm::Connection, "conn", uint64_t);
 
 class CachePeer;
+
 bool
 Comm::IsConnOpen(const Comm::ConnectionPointer &conn)
 {
