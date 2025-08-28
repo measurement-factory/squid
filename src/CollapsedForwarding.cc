@@ -10,6 +10,7 @@
 
 #include "squid.h"
 #include "base/AsyncFunCalls.h"
+#include "base/IoManip.h"
 #include "CollapsedForwarding.h"
 #include "globals.h"
 #include "ipc/mem/Segment.h"
@@ -66,6 +67,31 @@ CollapsedForwarding::Init()
     }
 }
 
+/// implements the guts of two public Broadcast() functions
+template <typename CallerContextReporter>
+void
+CollapsedForwarding::Broadcast_(const sfileno index, const bool includingThisWorker, const CallerContextReporter &callerContextReporter)
+{
+    if (!queue.get())
+        return;
+
+    CollapsedForwardingMsg msg;
+    msg.sender = KidIdentifier;
+    msg.xitIndex = index;
+
+    // TODO: send only to workers who are waiting for data
+    for (int workerId = 1; workerId <= Config.workers; ++workerId) {
+        try {
+            if ((workerId != KidIdentifier || includingThisWorker) && queue->push(workerId, msg))
+                Notify(workerId);
+        } catch (const Queue::Full &) {
+            debugs(17, DBG_IMPORTANT, "ERROR: SMP Store synchronization queue overflow for kid" << workerId <<
+                   " at " << queue->outSize(workerId) << " items" << CallToPrint(callerContextReporter));
+            // TODO: grow queue size
+        }
+    }
+}
+
 void
 CollapsedForwarding::Broadcast(const StoreEntry &e, const SourceLocation &caller, const bool includingThisWorker)
 {
@@ -79,7 +105,14 @@ CollapsedForwarding::Broadcast(const StoreEntry &e, const SourceLocation &caller
 
     debugs(17, 5, e << "; broadcaster: " << caller);
     e.mem_obj->sawChangesToBroadcast = false; // may already be false
-    Broadcast(e.mem_obj->xitTable.index, caller, includingThisWorker);
+    const auto debugExtras = [&e, &caller](std::ostream &os) {
+        os <<
+            Debug::Extra << "broadcaster: " << caller <<
+            Debug::Extra << "Store entry: " << e;
+        if (e.mem_obj->request)
+            os << Debug::Extra << "storing master transaction: " << e.mem_obj->request->masterXaction->id;
+    };
+    Broadcast_(e.mem_obj->xitTable.index, includingThisWorker, debugExtras);
 }
 
 void
@@ -88,26 +121,13 @@ CollapsedForwarding::Broadcast(const sfileno index, const SourceLocation &caller
     if (!queue.get())
         return;
 
-    CollapsedForwardingMsg msg;
-    msg.sender = KidIdentifier;
-    msg.xitIndex = index;
-
     debugs(17, 7, "entry " << index << " to " << Config.workers << (includingThisWorker ? "" : "-1") << " workers; broadcaster: " << caller);
-
-    // TODO: send only to workers who are waiting for data
-    for (int workerId = 1; workerId <= Config.workers; ++workerId) {
-        try {
-            if ((workerId != KidIdentifier || includingThisWorker) && queue->push(workerId, msg))
-                Notify(workerId);
-        } catch (const Queue::Full &) {
-            debugs(17, DBG_IMPORTANT, "ERROR: Collapsed forwarding " <<
-                   "queue overflow for kid" << workerId <<
-                   " at " << queue->outSize(workerId) << " items" <<
-                   Debug::Extra << "transients entry ID: " << msg.xitIndex <<
-                   Debug::Extra << "broadcaster: " << caller);
-            // TODO: grow queue size
-        }
-    }
+    const auto debugExtras = [index, &caller](std::ostream &os) {
+        os <<
+            Debug::Extra << "broadcaster: " << caller <<
+            Debug::Extra << "transients entry ID: " << index;
+    };
+    Broadcast_(index, includingThisWorker, debugExtras);
 }
 
 void
