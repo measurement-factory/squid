@@ -49,6 +49,9 @@ public:
 private:
     static void HandleNewDataAtStart();
 
+    template <typename CallerContextReporter>
+    static void Broadcast_(const sfileno index, const bool includingThisWorker, const CallerContextReporter &);
+
     typedef Ipc::MultiQueue Queue;
     static std::unique_ptr<Queue> queue; ///< IPC queue
 };
