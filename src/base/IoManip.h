@@ -171,7 +171,8 @@ operator <<(std::ostream &os, const PrinterCall<PrintFunction> &printerCall)
 
 /// convenience wrapper for creating PrinterCall<> objects
 template <typename PrintFunction>
-static PrinterCall<PrintFunction> CallToPrint(const PrintFunction &f)
+auto
+CallToPrint(const PrintFunction &f)
 {
     return PrinterCall<PrintFunction>(f);
 }
