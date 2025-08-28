@@ -8,6 +8,9 @@ on:
   pull_request:
     branches: [ "bag51", "bag51-dev" ]
 
+  # allows to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
 env:
   # empty except for pull_request events
   PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
