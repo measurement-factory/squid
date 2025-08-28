@@ -72,10 +72,13 @@ CollapsedForwarding::Broadcast(const StoreEntry &e, const SourceLocation &caller
     if (!e.hasTransients() ||
             !Store::Root().transientReaders(e)) {
         debugs(17, 7, "nobody reads " << e << "; broadcaster: " << caller);
+        if (e.mem_obj)
+            e.mem_obj->sawChangesToBroadcast = false; // may already be false
         return;
     }
 
     debugs(17, 5, e << "; broadcaster: " << caller);
+    e.mem_obj->sawChangesToBroadcast = false; // may already be false
     Broadcast(e.mem_obj->xitTable.index, caller, includingThisWorker);
 }
 
@@ -206,5 +209,34 @@ void CollapsedForwardingRr::open()
 CollapsedForwardingRr::~CollapsedForwardingRr()
 {
     delete owner;
+}
+
+/* Store::BroadcastMonitor */
+
+Store::BroadcastMonitor::BroadcastMonitor(StoreEntry &e): entry(e)
+{
+    // A delayed CollapsedForwarding::Broadcast() call requires access to
+    // mem_obj. We never call destroyMemoryObject() for locked entries.
+    entry.lock("Store::BroadcastMonitor");
+
+    auto &mem = entry.mem();
+    // TODO: Consider converting monitoringChangesToBroadcast to boolean and
+    // remembering that we were not the first to set it instead.
+    ++mem.monitoringChangesToBroadcast;
+    Assure(mem.monitoringChangesToBroadcast); // no overflows
+}
+
+Store::BroadcastMonitor::~BroadcastMonitor()
+{
+    // TODO: noexcept for CollapsedForwarding::Broadcast(), StoreEntry::unlock()
+    SWALLOW_EXCEPTIONS({
+        auto &mem = entry.mem();
+        Assure(mem.monitoringChangesToBroadcast); // no underflows
+        --mem.monitoringChangesToBroadcast;
+        if (!mem.monitoringChangesToBroadcast && mem.sawChangesToBroadcast)
+            CollapsedForwarding::Broadcast(entry, Here());
+
+        entry.unlock("Store::BroadcastMonitor");
+    });
 }
 
