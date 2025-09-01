@@ -13,7 +13,6 @@
 #include "base/CbcPointer.h"
 #include "base/forward.h"
 #include "base/RefCount.h"
-#include "comm/Connection.h"
 #include "configuration/forward.h"
 #include "enums.h"
 #include "http/StatusCode.h"
@@ -25,6 +24,7 @@
 #include <iosfwd>
 #include <unordered_set>
 
+class ConnStateData;
 class NeighborTypeDomainList;
 class PconnPool;
 class PeerDigest;
@@ -37,7 +37,7 @@ class CachePeer: public RefCountable
 public:
     using Pointer = RefCount<CachePeer>;
 
-    using IdlePinnedConnections = std::unordered_set<Comm::ConnectionPointer, std::hash<Comm::ConnectionPointer>, std::equal_to<Comm::ConnectionPointer>, PoolingAllocator<Comm::ConnectionPointer> >;
+    using IdlePinnedConnections = std::unordered_set<ConnStateData *, std::hash<ConnStateData *>, std::equal_to<ConnStateData *>, PoolingAllocator<ConnStateData *> >;
 
     explicit CachePeer(const SBuf &address);
     ~CachePeer();
@@ -62,11 +62,14 @@ public:
     /// is required; see secure.encryptTransport) or nil (otherwise)
     Security::FuturePeerContext *securityContext();
 
-    void addIdlePinnedConnection(const Comm::ConnectionPointer &);
+    /// adds a ConnStateData with an idle pinned connection to the list of monitored connections
+    void addIdlePinnedConnection(ConnStateData &);
 
-    void removeIdlePinnedConnection(const Comm::ConnectionPointer &);
+    /// removes a ConnStateData with an idle pinned connection from the list of monitored connections
+    void removeIdlePinnedConnection(ConnStateData &);
 
-    void removeIdlePinnedConnections();
+    /// notifies all monitored idle pinned connections about cache_peer removal
+    void noteRemove();
 
     /// n-th cache_peer directive, starting with 1
     u_int index = 0;
@@ -253,6 +256,7 @@ public:
 private:
     void countFailure();
 
+    /// the list of monitored idle pinned connections
     IdlePinnedConnections idlePinnedConnections;
 };
 

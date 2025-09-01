@@ -206,15 +206,5 @@ operator <<(std::ostream &os, const ConnectionPointer &conn)
 
 } // namespace Comm
 
-namespace std {
-template <>
-struct hash<Comm::ConnectionPointer>
-{
-    size_t operator()(const Comm::ConnectionPointer &conn) const {
-        return std::hash<Comm::Connection *>()(conn.getRaw());
-    }
-};
-}
-
 #endif /* SQUID_SRC_COMM_CONNECTION_H */
 
