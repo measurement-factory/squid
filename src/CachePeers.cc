@@ -59,6 +59,7 @@ CachePeers::remove(CachePeer * const peer)
         return storePeer.getRaw() == peer;
     });
     Assure(pos != storage.end());
+    peer->noteRemove();
     PeerPoolMgr::Stop(peer->standby.mgr);
     fwdPconnPool->closeAllTo(peer);
     storage.erase(pos);

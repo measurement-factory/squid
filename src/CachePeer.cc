@@ -11,6 +11,7 @@
 #include "base/PrecomputedCodeContext.h"
 #include "CachePeer.h"
 #include "configuration/Smooth.h"
+#include "client_side.h"
 #include "defines.h"
 #include "neighbors.h"
 #include "NeighborTypeDomainList.h"
@@ -244,6 +245,29 @@ CachePeer::connectTimeout() const
     if (connect_timeout_raw > 0)
         return connect_timeout_raw;
     return Config.Timeout.peer_connect;
+}
+
+void
+CachePeer::addIdlePinnedConnection(ConnStateData &conn)
+{
+    Assure(idlePinnedConnections.find(&conn) == idlePinnedConnections.end());
+    idlePinnedConnections.insert(&conn);
+}
+
+void
+CachePeer::removeIdlePinnedConnection(ConnStateData &conn)
+{
+    const auto found = idlePinnedConnections.find(&conn);
+    if (found != idlePinnedConnections.end())
+        idlePinnedConnections.erase(found);
+}
+
+void
+CachePeer::noteRemove()
+{
+    for (const auto connStateData: idlePinnedConnections)
+        connStateData->noteCachePeerRemoval();
+    idlePinnedConnections.clear();
 }
 
 std::ostream &

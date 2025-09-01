@@ -148,6 +148,7 @@ public:
         bool reading = false; ///< we are monitoring for peer connection closure
         bool zeroReply = false; ///< server closed w/o response (ERR_ZERO_SIZE_OBJECT)
         bool peerAccessDenied = false; ///< cache_peer_access denied pinned connection reuse
+        bool borrowed = false; ///< this pinned connection was borrowed at least once
         CachePeer *peer() const { return serverConnection ? serverConnection->getPeer() : nullptr; }
         AsyncCall::Pointer readHandler; ///< detects serverConnection closure
         AsyncCall::Pointer closeHandler; ///< The close handler for pinned server side connection
@@ -202,6 +203,9 @@ public:
     /// \returns the pinned CachePeer if one exists, nil otherwise
     CachePeer *pinnedPeer() const { return pinning.peer(); }
     bool pinnedAuth() const {return pinning.auth;}
+
+    /// called when the cache_peer that is monitoring the idle pinned connection is reconfigured away
+    void noteCachePeerRemoval();
 
     /// called just before a FwdState-dispatched job starts using connection
     virtual void notePeerConnection(Comm::ConnectionPointer) {}
@@ -388,11 +392,14 @@ protected:
     void finishDechunkingRequest(bool withSuccess);
     void abortChunkedRequestBody(const err_type error);
     err_type handleChunkedRequestBody();
+    /// Closes the existing idle pinned connection (which existence is guaranteed by the caller).
+    void closeIdlePinnedConnection();
 
     /// ConnStateData-specific part of BorrowPinnedConnection()
     Comm::ConnectionPointer borrowPinnedConnection(HttpRequest *, const AccessLogEntryPointer &);
 
     void startPinnedConnectionMonitoring();
+    void restartPinnedConnectionMonitoring();
     void clientPinnedConnectionRead(const CommIoCbParams &io);
 #if USE_OPENSSL
     /// Handles a ready-for-reading TLS squid-to-server connection that

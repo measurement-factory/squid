@@ -3737,7 +3737,7 @@ ConnStateData::pinConnection(const Comm::ConnectionPointer &pinServer, const Htt
     comm_add_close_handler(pinning.serverConnection->fd, pinning.closeHandler);
 }
 
-/// [re]start monitoring pinned connection for peer closures so that we can
+/// start monitoring pinned connection for peer closures so that we can
 /// propagate them to an _idle_ client pinned to that peer
 void
 ConnStateData::startPinnedConnectionMonitoring()
@@ -3749,11 +3749,36 @@ ConnStateData::startPinnedConnectionMonitoring()
     pinning.readHandler = JobCallback(33, 3,
                                       Dialer, this, ConnStateData::clientPinnedConnectionRead);
     Comm::Read(pinning.serverConnection, pinning.readHandler);
+
+    if (const auto peer = pinning.peer())
+        peer->addIdlePinnedConnection(*this);
+}
+
+/// Restart monitoring the pinned connection.
+/// \sa ConnStateData::startPinnedConnectionMonitoring()
+void
+ConnStateData::restartPinnedConnectionMonitoring()
+{
+    if (const auto peer = pinning.peer())
+        peer->removeIdlePinnedConnection(*this);
+
+    if (pinning.readHandler != nullptr) {
+        Comm::ReadCancel(pinning.serverConnection->fd, pinning.readHandler);
+        pinning.readHandler = nullptr;
+    }
+
+    startPinnedConnectionMonitoring();
 }
 
 void
 ConnStateData::stopPinnedConnectionMonitoring()
 {
+    if (const auto peer = pinning.peer())
+        peer->removeIdlePinnedConnection(*this);
+
+    if (!Comm::IsConnOpen(pinning.serverConnection))
+        return;
+
     if (pinning.readHandler != nullptr) {
         Comm::ReadCancel(pinning.serverConnection->fd, pinning.readHandler);
         pinning.readHandler = nullptr;
@@ -3788,7 +3813,7 @@ ConnStateData::handleIdleClientPinnedTlsRead()
 
     case SSL_ERROR_NONE:
     case SSL_ERROR_WANT_READ:
-        startPinnedConnectionMonitoring();
+        restartPinnedConnectionMonitoring();
         return true;
 
     default:
@@ -3818,18 +3843,31 @@ ConnStateData::clientPinnedConnectionRead(const CommIoCbParams &io)
         return;
 #endif
 
-    const bool clientIsIdle = pipeline.empty();
+    debugs(33, 3, "idle pinned " << pinning.serverConnection << " read " << io.size);
 
-    debugs(33, 3, "idle pinned " << pinning.serverConnection << " read " <<
-           io.size << (clientIsIdle ? " with idle client" : ""));
+    closeIdlePinnedConnection();
+}
 
+void
+ConnStateData::closeIdlePinnedConnection()
+{
     pinning.serverConnection->close();
+
+    const bool clientIsIdle = pipeline.empty();
+    debugs(33, 3, "idle client: " << clientIsIdle);
 
     // If we are still sending data to the client, do not close now. When we are done sending,
     // ConnStateData::kick() checks pinning.serverConnection and will close.
     // However, if we are idle, then we must close to inform the idle client and minimize races.
     if (clientIsIdle && clientConnection != nullptr)
         clientConnection->close();
+}
+
+void
+ConnStateData::noteCachePeerRemoval()
+{
+    if (pinning.borrowed)
+        closeIdlePinnedConnection();
 }
 
 Comm::ConnectionPointer
@@ -3859,6 +3897,7 @@ ConnStateData::borrowPinnedConnection(HttpRequest *request, const AccessLogEntry
     if (pinning.peerAccessDenied)
         throw pinningError(ERR_CANNOT_FORWARD); // or generalize ERR_FORWARDING_DENIED
 
+    pinning.borrowed = true;
     stopPinnedConnectionMonitoring();
     return pinning.serverConnection;
 }
@@ -3880,13 +3919,13 @@ ConnStateData::unpinConnection(const bool andClose)
 {
     debugs(33, 3, pinning.serverConnection);
 
+    stopPinnedConnectionMonitoring();
+
     if (Comm::IsConnOpen(pinning.serverConnection)) {
         if (pinning.closeHandler != nullptr) {
             comm_remove_close_handler(pinning.serverConnection->fd, pinning.closeHandler);
             pinning.closeHandler = nullptr;
         }
-
-        stopPinnedConnectionMonitoring();
 
         // close the server side socket if requested
         if (andClose)
