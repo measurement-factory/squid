@@ -601,7 +601,10 @@ ConnStateData::swanSong()
     // XXX: Closing pinned conn is too harsh: The Client may want to continue!
     unpinConnection(true);
 
-    Server::swanSong();
+    if (Comm::IsConnOpen(clientConnection))
+        clientConnection->close();
+
+    BodyProducer::swanSong();
 
 #if USE_AUTH
     // NP: do this bit after closing the connections to avoid side effects from unwanted TCP RST
@@ -614,7 +617,7 @@ ConnStateData::swanSong()
 void
 ConnStateData::callException(const std::exception &ex)
 {
-    Server::callException(ex); // logs ex and stops the job
+    AsyncJob::callException(ex); // logs ex and stops the job
 
     ErrorDetail::Pointer errorDetail;
     if (const auto tex = dynamic_cast<const TextException*>(&ex))
@@ -979,6 +982,7 @@ ConnStateData::stopSending(const char *error)
     clientConnection->close();
 }
 
+/// processing to sync state after a Comm::Write()
 void
 ConnStateData::afterClientWrite(size_t size)
 {
@@ -1385,6 +1389,7 @@ ConnStateData::parseHttpRequest(const Http1::RequestParserPointer &hp)
     return result;
 }
 
+/// whether to stop serving our client after reading EOF on its connection
 bool
 ConnStateData::shouldCloseOnEof() const
 {
@@ -1820,6 +1825,7 @@ ConnStateData::parseProxyProtocolHeader()
     return true;
 }
 
+/// Update flags and timeout after the first byte received
 void
 ConnStateData::receivedFirstByte()
 {
@@ -1906,6 +1912,7 @@ ConnStateData::parseRequests()
     }
 }
 
+/// processing to be done after a Comm::Read()
 void
 ConnStateData::afterClientRead()
 {
@@ -2110,11 +2117,16 @@ ConnStateData::lifetimeTimeout(const CommTimeoutCbParams &io)
 
 ConnStateData::ConnStateData(const MasterXaction::Pointer &xact) :
     AsyncJob("ConnStateData"), // kids overwrite
-    Server(xact)
 #if USE_OPENSSL
-    , tlsParser(Security::HandshakeParser::fromClient)
+    tlsParser(Security::HandshakeParser::fromClient),
 #endif
+    clientConnection(xact->tcpClient),
+    transferProtocol(xact->squidPort->transport),
+    port(xact->squidPort),
+    receivedFirstByte_(false)
 {
+    clientConnection->leaveOrphanage();
+
     // store the details required for creating more MasterXaction objects as new requests come in
     log_addr = xact->tcpClient->remote;
     log_addr.applyClientMask(Config.Addrs.client_netmask);
@@ -3512,6 +3524,22 @@ ConnStateData::fillConnectionLevelDetails(ACLFilledChecklist &checklist) const
 #endif
 }
 
+void
+ConnStateData::write(MemBuf *mb)
+{
+    typedef CommCbMemFunT<ConnStateData, CommIoCbParams> Dialer;
+    writer = JobCallback(33, 5, Dialer, this, ConnStateData::clientWriteDone);
+    Comm::Write(clientConnection, mb, writer);
+}
+
+void
+ConnStateData::write(char *buf, int len)
+{
+    typedef CommCbMemFunT<ConnStateData, CommIoCbParams> Dialer;
+    writer = JobCallback(33, 5, Dialer, this, ConnStateData::clientWriteDone);
+    Comm::Write(clientConnection, buf, len, writer, nullptr);
+}
+
 bool
 ConnStateData::transparent() const
 {
@@ -3903,6 +3931,7 @@ ConnStateData::unpinConnection(const bool andClose)
      * connection has gone away */
 }
 
+/// abort any pending transactions and prevent new ones (by closing)
 void
 ConnStateData::terminateAll(const Error &rawError, const LogTagsErrors &lte)
 {

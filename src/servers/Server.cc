@@ -7,7 +7,6 @@
  */
 
 #include "squid.h"
-#include "anyp/PortCfg.h"
 #include "client_side.h"
 #include "comm.h"
 #include "comm/Read.h"
@@ -15,46 +14,12 @@
 #include "error/SysErrorDetail.h"
 #include "fd.h"
 #include "fde.h"
-#include "http/Stream.h"
-#include "LogTags.h"
-#include "MasterXaction.h"
-#include "servers/Server.h"
 #include "SquidConfig.h"
 #include "StatCounters.h"
 #include "tools.h"
 
-Server::Server(const MasterXaction::Pointer &xact) :
-    AsyncJob("::Server"), // kids overwrite
-    clientConnection(xact->tcpClient),
-    transferProtocol(xact->squidPort->transport),
-    port(xact->squidPort),
-    receivedFirstByte_(false)
-{
-    clientConnection->leaveOrphanage();
-}
-
-bool
-Server::doneAll() const
-{
-    // servers are not done while the connection is open
-    return !Comm::IsConnOpen(clientConnection) &&
-           BodyProducer::doneAll();
-}
-
-void
-Server::start()
-{
-    // TODO: shuffle activity from ConnStateData
-}
-
-void
-Server::swanSong()
-{
-    if (Comm::IsConnOpen(clientConnection))
-        clientConnection->close();
-
-    BodyProducer::swanSong();
-}
+// XXX: Diff reducer
+#define Server ConnStateData
 
 void
 Server::stopReading()
@@ -201,12 +166,7 @@ Server::doClientRead(const CommIoCbParams &io)
     afterClientRead();
 }
 
-/** callback handling the Comm::Write completion
- *
- * Will call afterClientWrite(size_t) to sync the I/O state.
- * Then writeSomeData() to initiate any followup writes that
- * could be immediately done.
- */
+/// callback handling the Comm::Write completion
 void
 Server::clientWriteDone(const CommIoCbParams &io)
 {
@@ -229,6 +189,5 @@ Server::clientWriteDone(const CommIoCbParams &io)
     }
 
     afterClientWrite(io.size); // update state
-    writeSomeData(); // maybe schedules another write
 }
 
