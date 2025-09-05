@@ -1828,13 +1828,18 @@ idnsPTRLookup(const Ip::Address &addr, IDNSCB * callback, void *data)
         return;
     }
 
+    Assure(*q->query.name); // set by rfc3596BuildPTRQuery6() or rfc3596BuildPTRQuery4() above
     if (idnsCachedLookup(q->query.name, callback, data)) {
         delete q;
         return;
     }
 
+    // TODO: De-duplicate this and other code shared with idnsALookup().
+    strcpy(q->orig, q->query.name);
+    strcpy(q->name, q->orig);
+
     debugs(78, 3, "idnsPTRLookup: buf is " << q->sz << " bytes for " << ip <<
-           ", id = 0x" << asHex(q->query_id));
+           ", id = 0x" << asHex(q->query_id) << " name=" << q->name);
 
     q->permit_mdns = Config.onoff.dns_mdns;
     idnsStartQuery(q, callback, data);
