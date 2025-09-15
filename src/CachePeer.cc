@@ -266,7 +266,7 @@ void
 CachePeer::noteRemove()
 {
     for (const auto connStateData: idlePinnedConnections)
-        connStateData->noteCachePeerRemoval();
+        connStateData->closeIdlePinnedConnection();
     idlePinnedConnections.clear();
 }
 

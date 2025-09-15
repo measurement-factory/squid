@@ -3863,12 +3863,6 @@ ConnStateData::closeIdlePinnedConnection()
         clientConnection->close();
 }
 
-void
-ConnStateData::noteCachePeerRemoval()
-{
-    closeIdlePinnedConnection();
-}
-
 Comm::ConnectionPointer
 ConnStateData::borrowPinnedConnection(HttpRequest *request, const AccessLogEntryPointer &ale)
 {

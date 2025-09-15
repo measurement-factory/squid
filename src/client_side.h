@@ -203,9 +203,6 @@ public:
     CachePeer *pinnedPeer() const { return pinning.peer(); }
     bool pinnedAuth() const {return pinning.auth;}
 
-    /// called when the cache_peer that is monitoring the idle pinned connection is reconfigured away
-    void noteCachePeerRemoval();
-
     /// called just before a FwdState-dispatched job starts using connection
     virtual void notePeerConnection(Comm::ConnectionPointer) {}
 
@@ -378,6 +375,9 @@ public:
     /// they need from the ACLFilledChecklist::conn() without filling/copying.
     void fillConnectionLevelDetails(ACLFilledChecklist &) const;
 
+    /// Closes the existing idle pinned connection (which existence is guaranteed by the caller).
+    void closeIdlePinnedConnection();
+
     // Exposed to be accessible inside the ClientHttpRequest constructor.
     // TODO: Remove. Make sure there is always a suitable ALE instead.
     /// a problem that occurred without a request (e.g., while parsing headers)
@@ -391,8 +391,6 @@ protected:
     void finishDechunkingRequest(bool withSuccess);
     void abortChunkedRequestBody(const err_type error);
     err_type handleChunkedRequestBody();
-    /// Closes the existing idle pinned connection (which existence is guaranteed by the caller).
-    void closeIdlePinnedConnection();
 
     /// ConnStateData-specific part of BorrowPinnedConnection()
     Comm::ConnectionPointer borrowPinnedConnection(HttpRequest *, const AccessLogEntryPointer &);
