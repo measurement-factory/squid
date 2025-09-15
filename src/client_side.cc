@@ -3866,8 +3866,7 @@ ConnStateData::closeIdlePinnedConnection()
 void
 ConnStateData::noteCachePeerRemoval()
 {
-    if (pinning.borrowed)
-        closeIdlePinnedConnection();
+    closeIdlePinnedConnection();
 }
 
 Comm::ConnectionPointer
@@ -3897,7 +3896,6 @@ ConnStateData::borrowPinnedConnection(HttpRequest *request, const AccessLogEntry
     if (pinning.peerAccessDenied)
         throw pinningError(ERR_CANNOT_FORWARD); // or generalize ERR_FORWARDING_DENIED
 
-    pinning.borrowed = true;
     stopPinnedConnectionMonitoring();
     return pinning.serverConnection;
 }

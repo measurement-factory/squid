@@ -148,7 +148,6 @@ public:
         bool reading = false; ///< we are monitoring for peer connection closure
         bool zeroReply = false; ///< server closed w/o response (ERR_ZERO_SIZE_OBJECT)
         bool peerAccessDenied = false; ///< cache_peer_access denied pinned connection reuse
-        bool borrowed = false; ///< this pinned connection was borrowed at least once
         CachePeer *peer() const { return serverConnection ? serverConnection->getPeer() : nullptr; }
         AsyncCall::Pointer readHandler; ///< detects serverConnection closure
         AsyncCall::Pointer closeHandler; ///< The close handler for pinned server side connection
