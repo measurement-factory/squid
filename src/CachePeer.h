@@ -10,6 +10,7 @@
 #define SQUID_SRC_CACHEPEER_H
 
 #include "acl/forward.h"
+#include "base/AsyncCall.h"
 #include "base/CbcPointer.h"
 #include "base/forward.h"
 #include "base/RefCount.h"
@@ -37,7 +38,7 @@ class CachePeer: public RefCountable
 public:
     using Pointer = RefCount<CachePeer>;
 
-    using IdlePinnedConnections = std::unordered_set<ConnStateData *, std::hash<ConnStateData *>, std::equal_to<ConnStateData *>, PoolingAllocator<ConnStateData *> >;
+    using IdlePinnedConnections = std::unordered_set<AsyncCall::Pointer, std::hash<AsyncCall::Pointer>, std::equal_to<AsyncCall::Pointer>, PoolingAllocator<AsyncCall::Pointer> >;
 
     explicit CachePeer(const SBuf &address);
     ~CachePeer();

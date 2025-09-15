@@ -99,6 +99,16 @@ std::ostream &operator <<(std::ostream &os, AsyncCall &call)
     return os;
 }
 
+namespace std {
+template <>
+struct hash<AsyncCall::Pointer>
+{
+    size_t operator()(const AsyncCall::Pointer &call) const {
+        return std::hash<AsyncCall *>()(call.getRaw());
+    }
+};
+}
+
 /**
  \ingroup AsyncCallAPI
  * Interface for all async call dialers

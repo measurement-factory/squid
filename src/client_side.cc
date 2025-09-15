@@ -3742,6 +3742,12 @@ ConnStateData::pinConnection(const Comm::ConnectionPointer &pinServer, const Htt
 void
 ConnStateData::startPinnedConnectionMonitoring()
 {
+    if (Comm::IsConnOpen(pinning.serverConnection) && pinning.serverConnection->toGoneCachePeer()) {
+        debugs(33, 3, "peer is gone: " << pinning.serverConnection);
+        unpinConnection(true);
+        return;
+    }
+
     if (pinning.readHandler != nullptr)
         return; // already monitoring
 
