@@ -379,6 +379,9 @@ public:
     /// Closes the existing idle pinned connection (which existence is guaranteed by the caller).
     void closeIdlePinnedConnection();
 
+    /// pinning.idlePeerHandler callback
+    void idleCachePeerIsGone();
+
     // Exposed to be accessible inside the ClientHttpRequest constructor.
     // TODO: Remove. Make sure there is always a suitable ALE instead.
     /// a problem that occurred without a request (e.g., while parsing headers)
@@ -397,7 +400,8 @@ protected:
     Comm::ConnectionPointer borrowPinnedConnection(HttpRequest *, const AccessLogEntryPointer &);
 
     void startPinnedConnectionMonitoring();
-    void restartPinnedConnectionMonitoring();
+    /// Sets up pinning.readHandler to read on the idle pinned connection.
+    void startIdlePinnedConnectionReading();
     void clientPinnedConnectionRead(const CommIoCbParams &io);
 #if USE_OPENSSL
     /// Handles a ready-for-reading TLS squid-to-server connection that

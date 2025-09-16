@@ -63,11 +63,11 @@ public:
     /// is required; see secure.encryptTransport) or nil (otherwise)
     Security::FuturePeerContext *securityContext();
 
-    /// adds a ConnStateData with an idle pinned connection to the list of monitored connections
-    void addIdlePinnedConnection(ConnStateData &);
+    /// registers a callback to an ConnStateData with an idle pinned connection
+    void addIdlePinnedConnection(const AsyncCall::Pointer &);
 
-    /// removes a ConnStateData with an idle pinned connection from the list of monitored connections
-    void removeIdlePinnedConnection(ConnStateData &);
+    /// unregisters a callback to an ConnStateData with an idle pinned connection
+    void removeIdlePinnedConnection(const AsyncCall::Pointer &);
 
     /// notifies all monitored idle pinned connections about cache_peer removal
     void noteRemove();

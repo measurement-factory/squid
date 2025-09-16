@@ -3685,10 +3685,19 @@ ConnStateData::notePinnedConnectionBecameIdle(PinnedIdleContext pic)
 {
     Must(pic.connection);
     Must(pic.request);
-    pinConnection(pic.connection, *pic.request);
 
-    // monitor pinned server connection for remote-end closures.
-    startPinnedConnectionMonitoring();
+    if (Comm::IsConnOpen(pic.connection)) {
+        if (pic.connection->toGoneCachePeer()) {
+            debugs(33, 3, "peer is gone: " << pic.connection);
+            pic.connection->close();
+            return;
+        }
+
+        pinConnection(pic.connection, *pic.request);
+
+        // monitor pinned server connection for remote-end closures.
+        startPinnedConnectionMonitoring();
+    }
 
     if (pipeline.empty())
         kick(); // in case parseRequests() was blocked by a busy pic.connection
@@ -3742,45 +3751,30 @@ ConnStateData::pinConnection(const Comm::ConnectionPointer &pinServer, const Htt
 void
 ConnStateData::startPinnedConnectionMonitoring()
 {
-    if (Comm::IsConnOpen(pinning.serverConnection) && pinning.serverConnection->toGoneCachePeer()) {
-        debugs(33, 3, "peer is gone: " << pinning.serverConnection);
-        unpinConnection(true);
-        return;
-    }
+    Assure(Comm::IsConnOpen(pinning.serverConnection));
 
     if (pinning.readHandler != nullptr)
         return; // already monitoring
 
-    typedef CommCbMemFunT<ConnStateData, CommIoCbParams> Dialer;
-    pinning.readHandler = JobCallback(33, 3,
-                                      Dialer, this, ConnStateData::clientPinnedConnectionRead);
-    Comm::Read(pinning.serverConnection, pinning.readHandler);
+    startIdlePinnedConnectionReading();
 
-    if (const auto peer = pinning.peer())
-        peer->addIdlePinnedConnection(*this);
-}
-
-/// Restart monitoring the pinned connection.
-/// \sa ConnStateData::startPinnedConnectionMonitoring()
-void
-ConnStateData::restartPinnedConnectionMonitoring()
-{
-    if (const auto peer = pinning.peer())
-        peer->removeIdlePinnedConnection(*this);
-
-    if (pinning.readHandler != nullptr) {
-        Comm::ReadCancel(pinning.serverConnection->fd, pinning.readHandler);
-        pinning.readHandler = nullptr;
+    if (const auto peer = pinning.peer()) {
+        using Dialer = NullaryMemFunT<ConnStateData>;
+        AsyncCall::Pointer call = asyncCall(93, 5, "ConnStateData::idleCachePeerIsGone",
+                                            Dialer(this, &ConnStateData::idleCachePeerIsGone));
+        pinning.idlePeerHandler = call;
+        peer->addIdlePinnedConnection(call);
     }
-
-    startPinnedConnectionMonitoring();
 }
 
 void
 ConnStateData::stopPinnedConnectionMonitoring()
 {
-    if (const auto peer = pinning.peer())
-        peer->removeIdlePinnedConnection(*this);
+    if (pinning.peer() && pinning.idlePeerHandler) {
+        pinning.peer()->removeIdlePinnedConnection(pinning.idlePeerHandler);
+        pinning.idlePeerHandler->cancel("clientPinnedConnectionClosed");
+        pinning.idlePeerHandler = nullptr;
+    }
 
     if (!Comm::IsConnOpen(pinning.serverConnection))
         return;
@@ -3789,6 +3783,16 @@ ConnStateData::stopPinnedConnectionMonitoring()
         Comm::ReadCancel(pinning.serverConnection->fd, pinning.readHandler);
         pinning.readHandler = nullptr;
     }
+}
+
+void
+ConnStateData::startIdlePinnedConnectionReading()
+{
+    Assure(pinning.readHandler == nullptr);
+    typedef CommCbMemFunT<ConnStateData, CommIoCbParams> Dialer;
+    pinning.readHandler = JobCallback(33, 3,
+                                      Dialer, this, ConnStateData::clientPinnedConnectionRead);
+    Comm::Read(pinning.serverConnection, pinning.readHandler);
 }
 
 #if USE_OPENSSL
@@ -3819,7 +3823,7 @@ ConnStateData::handleIdleClientPinnedTlsRead()
 
     case SSL_ERROR_NONE:
     case SSL_ERROR_WANT_READ:
-        restartPinnedConnectionMonitoring();
+        startIdlePinnedConnectionReading();
         return true;
 
     default:
@@ -3867,6 +3871,15 @@ ConnStateData::closeIdlePinnedConnection()
     // However, if we are idle, then we must close to inform the idle client and minimize races.
     if (clientIsIdle && clientConnection != nullptr)
         clientConnection->close();
+}
+
+void
+ConnStateData::idleCachePeerIsGone()
+{
+    if (pinning.readHandler == nullptr)
+        return; // the connection is not idle
+
+    closeIdlePinnedConnection();
 }
 
 Comm::ConnectionPointer

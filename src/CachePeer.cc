@@ -248,21 +248,16 @@ CachePeer::connectTimeout() const
 }
 
 void
-CachePeer::addIdlePinnedConnection(ConnStateData &conn)
+CachePeer::addIdlePinnedConnection(const AsyncCall::Pointer &call)
 {
-    using Dialer = NullaryMemFunT<ConnStateData>;
-    AsyncCall::Pointer call = asyncCall(93, 5, "ConnStateData::closeIdlePinnedConnection",
-                                        Dialer(&conn, &ConnStateData::closeIdlePinnedConnection));
-
     Assure(idlePinnedConnections.find(call) == idlePinnedConnections.end());
     idlePinnedConnections.insert(call);
-    conn.pinning.idlePeerHandler = call;
 }
 
 void
-CachePeer::removeIdlePinnedConnection(ConnStateData &conn)
+CachePeer::removeIdlePinnedConnection(const AsyncCall::Pointer &call)
 {
-    const auto found = idlePinnedConnections.find(conn.pinning.idlePeerHandler);
+    const auto found = idlePinnedConnections.find(call);
     if (found != idlePinnedConnections.end())
         idlePinnedConnections.erase(found);
 }
