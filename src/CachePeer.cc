@@ -265,7 +265,7 @@ CachePeer::removeIdlePinnedConnection(const AsyncCall::Pointer &call)
 void
 CachePeer::noteRemove()
 {
-    for (const auto callback: idlePinnedConnections)
+    for (const auto &callback: idlePinnedConnections)
         ScheduleCallHere(callback);
     idlePinnedConnections.clear();
 }

@@ -25,7 +25,6 @@
 #include <iosfwd>
 #include <unordered_set>
 
-class ConnStateData;
 class NeighborTypeDomainList;
 class PconnPool;
 class PeerDigest;
