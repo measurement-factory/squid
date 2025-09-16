@@ -256,7 +256,7 @@ public:
 private:
     void countFailure();
 
-    /// the list of monitored idle pinned connections
+    /// the list of registered ConnStateData callbacks
     IdlePinnedConnections idlePinnedConnections;
 };
 
