@@ -246,6 +246,29 @@ CachePeer::connectTimeout() const
     return Config.Timeout.peer_connect;
 }
 
+void
+CachePeer::addIdlePinnedConnection(const AsyncCall::Pointer &call)
+{
+    Assure(idlePinnedConnections.find(call) == idlePinnedConnections.end());
+    idlePinnedConnections.insert(call);
+}
+
+void
+CachePeer::removeIdlePinnedConnection(const AsyncCall::Pointer &call)
+{
+    const auto found = idlePinnedConnections.find(call);
+    if (found != idlePinnedConnections.end())
+        idlePinnedConnections.erase(found);
+}
+
+void
+CachePeer::noteRemove()
+{
+    for (const auto &callback: idlePinnedConnections)
+        ScheduleCallHere(callback);
+    idlePinnedConnections.clear();
+}
+
 std::ostream &
 operator <<(std::ostream &os, const CachePeer &p)
 {
