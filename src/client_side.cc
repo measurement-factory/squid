@@ -3770,8 +3770,9 @@ ConnStateData::startPinnedConnectionMonitoring()
 void
 ConnStateData::stopPinnedConnectionMonitoring()
 {
-    if (pinning.peer() && pinning.idlePeerHandler) {
-        pinning.peer()->removeIdlePinnedConnection(pinning.idlePeerHandler);
+    if (pinning.idlePeerHandler) {
+        if (pinning.peer())
+            pinning.peer()->removeIdlePinnedConnection(pinning.idlePeerHandler);
         pinning.idlePeerHandler->cancel("stopPinnedConnectionMonitoring");
         pinning.idlePeerHandler = nullptr;
     }
