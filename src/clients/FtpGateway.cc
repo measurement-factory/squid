@@ -1173,9 +1173,7 @@ Ftp::Gateway::start()
 void
 Ftp::Gateway::handleControlReply()
 {
-    Ftp::Client::handleControlReply();
-    if (ctrl.message == nullptr)
-        return; // didn't get complete reply yet
+    Assure(ctrl.message);
 
     /* Copy the message except for the last line to cwd_message to be
      * printed in error messages.

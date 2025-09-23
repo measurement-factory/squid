@@ -190,9 +190,14 @@ protected:
 
     virtual Http::StatusCode failedHttpStatus(err_type &error);
     void ctrlClosed(const CommCloseCbParams &io);
-    void scheduleReadControlReply(int buffered_ok);
+    /// plans another readControlReply() call
+    void scheduleReadControlReply();
     void readControlReply(const CommIoCbParams &io);
-    virtual void handleControlReply();
+    /// Calls an FTP server reply handler for the current state.
+    /// The final action of processControlReply().
+    virtual void handleControlReply() = 0;
+    /// parses the read control response into ctrl.message and calls handleControlReply()
+    void processControlReply();
     void writeCommandCallback(const CommIoCbParams &io);
     virtual void dataChannelConnected(const CommConnectCbParams &io) = 0;
     void dataRead(const CommIoCbParams &io);
