@@ -1208,6 +1208,7 @@ ftpReadWelcome(Ftp::Gateway * ftpState)
         if (nullptr != ftpState->ctrl.message)
             debugs(9, DBG_IMPORTANT, "FTP server is busy: " << ftpState->ctrl.message->key);
 
+        ftpState->scheduleReadControlReply();
         return;
     } else {
         ftpFail(ftpState);

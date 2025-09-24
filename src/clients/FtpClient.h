@@ -139,6 +139,9 @@ public:
     bool openListenSocket();
     void switchTimeoutToDataChannel();
 
+    /// plans another readControlReply() call
+    void scheduleReadControlReply();
+
     CtrlChannel ctrl; ///< FTP control channel state
     DataChannel data; ///< FTP data channel state
 
@@ -190,8 +193,6 @@ protected:
 
     virtual Http::StatusCode failedHttpStatus(err_type &error);
     void ctrlClosed(const CommCloseCbParams &io);
-    /// plans another readControlReply() call
-    void scheduleReadControlReply();
     void readControlReply(const CommIoCbParams &io);
     /// Calls an FTP server reply handler for the current state.
     /// The final action of processControlReply().

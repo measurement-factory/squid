@@ -322,7 +322,6 @@ Ftp::Client::scheduleReadControlReply()
 {
     debugs(9, 3, ctrl.conn);
 
-    Assure(!ctrl.message);
     {
         if (!Comm::IsConnOpen(ctrl.conn)) {
             debugs(9, 3, "cannot read without ctrl " << ctrl.conn);
