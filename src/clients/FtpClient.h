@@ -139,8 +139,9 @@ public:
     bool openListenSocket();
     void switchTimeoutToDataChannel();
 
-    /// plans another readControlReply() call
-    void scheduleReadControlReply();
+    /// Advances processing of control messages, calling handleControlReply()
+    /// or scheduleReadControlReply() as needed.
+    void processControlReply();
 
     CtrlChannel ctrl; ///< FTP control channel state
     DataChannel data; ///< FTP data channel state
@@ -194,11 +195,8 @@ protected:
     virtual Http::StatusCode failedHttpStatus(err_type &error);
     void ctrlClosed(const CommCloseCbParams &io);
     void readControlReply(const CommIoCbParams &io);
-    /// Calls an FTP server reply handler for the current state.
-    /// The final action of processControlReply().
+    /// Handles a single parsed FTP server control reply.
     virtual void handleControlReply() = 0;
-    /// parses the read control response into ctrl.message and calls handleControlReply()
-    void processControlReply();
     void writeCommandCallback(const CommIoCbParams &io);
     virtual void dataChannelConnected(const CommConnectCbParams &io) = 0;
     void dataRead(const CommIoCbParams &io);
@@ -217,6 +215,9 @@ protected:
 
 private:
     bool parseControlReply(size_t &bytesUsed);
+
+    /// plans another readControlReply() call
+    void scheduleReadControlReply();
 
     /// XXX: An old hack for FTP servers like ftp.netscape.com that may not
     /// respond to PASV. Use faster connect timeout instead of read timeout.

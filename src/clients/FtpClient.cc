@@ -829,9 +829,6 @@ Ftp::Client::writeCommand(const char *buf)
 
     safe_free(ctrl.last_reply);
 
-    if (ctrl.message)
-        wordlistDestroy(&ctrl.message);
-
     ctrl.last_command = ebuf;
 
     if (!Comm::IsConnOpen(ctrl.conn)) {
@@ -845,7 +842,7 @@ Ftp::Client::writeCommand(const char *buf)
                                           Ftp::Client::writeCommandCallback);
     Comm::Write(ctrl.conn, ctrl.last_command, strlen(ctrl.last_command), call, nullptr);
 
-    scheduleReadControlReply();
+    processControlReply();
 }
 
 void

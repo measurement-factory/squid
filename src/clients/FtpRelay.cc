@@ -490,7 +490,7 @@ Ftp::Relay::readGreeting()
     case 120:
         if (nullptr != ctrl.message)
             debugs(9, DBG_IMPORTANT, "FTP server is busy: " << ctrl.message->key);
-        forwardPreliminaryReply(&Ftp::Relay::scheduleReadControlReply);
+        forwardPreliminaryReply(&Ftp::Relay::processControlReply);
         break;
     default:
         failed();
@@ -564,7 +564,7 @@ Ftp::Relay::readReply()
            serverState() == fssHandleUploadRequest);
 
     if (Is1xx(ctrl.replycode))
-        forwardPreliminaryReply(&Ftp::Relay::scheduleReadControlReply);
+        forwardPreliminaryReply(&Ftp::Relay::processControlReply);
     else
         forwardReply();
 }
