@@ -841,8 +841,6 @@ Ftp::Client::writeCommand(const char *buf)
     AsyncCall::Pointer call = JobCallback(9, 5, Dialer, this,
                                           Ftp::Client::writeCommandCallback);
     Comm::Write(ctrl.conn, ctrl.last_command, strlen(ctrl.last_command), call, nullptr);
-
-    processControlReply();
 }
 
 void
@@ -866,6 +864,8 @@ Ftp::Client::writeCommandCallback(const CommIoCbParams &io)
         /* failed closes ctrl.conn and frees ftpState */
         return;
     }
+
+    processControlReply();
 }
 
 /// handler called by Comm when FTP control channel is closed unexpectedly
@@ -1018,7 +1018,7 @@ Ftp::Client::dataComplete()
     /// Close data channel, if any, to conserve resources while we wait.
     data.close();
 
-    processControlReply();
+    CallJobHere(9, 4, this, Ftp::Client, processControlReply);
 }
 
 void
