@@ -662,13 +662,8 @@ configDoConfigure(void)
 
             Config2.effectiveGroupID = pwd->pw_gid;
 
-            if (pwd->pw_dir && *pwd->pw_dir) {
-                static SBuf lastDir;
-                if (lastDir.isEmpty() || lastDir.cmp(pwd->pw_dir) != 0) {
-                    lastDir = pwd->pw_dir;
-                    (void)setenv("HOME", pwd->pw_dir, 1);
-                }
-            }
+            if (pwd->pw_dir && *pwd->pw_dir)
+                (void)setenv("HOME", pwd->pw_dir, 1);
         }
     } else {
         Config2.effectiveUserID = geteuid();
