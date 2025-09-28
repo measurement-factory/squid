@@ -107,7 +107,13 @@ SQUIDCEXTERN int WIN32_truncate(const char *pathname, off_t length);
 #define mkdir(p,F) mkdir((p))
 #define pclose _pclose
 #define popen _popen
-#define setenv(n,v,o) _putenv_s((n),(v))
+inline int
+setenv(const char *name, const char *value, int overwrite)
+{
+    if (overwrite || !getenv(name))
+        return (_putenv_s(name, value) == 0 ? 0 : -1);
+    return 0; // already set and no overwrite requested
+}
 #define setmode _setmode
 #define sleep(t) Sleep((t)*1000)
 #define umask _umask
