@@ -113,6 +113,9 @@ setenv(const char * const name, const char * const value, const int overwrite)
 {
     if (!overwrite && getenv(name))
         return 0;
+    // XXX: if value is an empty string, _putenv_s() does not create a variable
+    // (or removes the existing variable from the environment), while POSIX.1 setenv()
+    // creates a variable with an empty string value.
     // overwrite requested or the variable is not set
     return (_putenv_s(name, value) == 0 ? 0 : -1);
 }
