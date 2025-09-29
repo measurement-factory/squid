@@ -110,9 +110,10 @@ SQUIDCEXTERN int WIN32_truncate(const char *pathname, off_t length);
 inline int
 setenv(const char *name, const char *value, int overwrite)
 {
-    if (overwrite || !getenv(name))
-        return (_putenv_s(name, value) == 0 ? 0 : -1);
-    return 0; // already set and no overwrite requested
+    if (!overwrite && getenv(name))
+        return 0;
+    // overwrite requested or the variable is not set
+    return (_putenv_s(name, value) == 0 ? 0 : -1);
 }
 #define setmode _setmode
 #define sleep(t) Sleep((t)*1000)
