@@ -2168,7 +2168,6 @@ AC_CHECK_FUNCS(\
 	pthread_attr_setscope \
 	pthread_setschedparam \
 	pthread_sigmask \
-	putenv \
 	regcomp \
 	regexec \
 	regfree \
