@@ -49,6 +49,12 @@ CBDATA_CLASS_INIT(store_client);
 /* StoreClient */
 
 bool
+StoreClient::mayInitiateCollapsing(const HttpRequest &request) const
+{
+    return request.range ? false : onCollapsingPath();
+}
+
+bool
 StoreClient::onCollapsingPath() const
 {
     if (!Config.onoff.collapsed_forwarding)

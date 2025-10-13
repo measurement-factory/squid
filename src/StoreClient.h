@@ -52,11 +52,11 @@ protected:
     /// See also: StoreEntry::hittingRequiresCollapsing().
     bool startCollapsingOn(const StoreEntry &, const bool doingRevalidation) const;
 
-    // These methods only interpret Squid configuration. Their allowances are
-    // provisional -- other factors may prevent collapsed forwarding. The first
-    // two exist primarily to distinguish two major CF cases in callers code.
+    // The allowances of the methods below are provisional --
+    // other factors may prevent collapsed forwarding. The methods
+    // distinguish two major CF cases in callers code.
     /// whether Squid configuration allows us to become a CF initiator
-    bool mayInitiateCollapsing() const { return onCollapsingPath(); }
+    bool mayInitiateCollapsing(const HttpRequest &) const;
     /// whether Squid configuration allows collapsing for this transaction
     bool onCollapsingPath() const;
 
