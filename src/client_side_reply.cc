@@ -314,7 +314,7 @@ clientReplyContext::processExpired()
                                  http->log_uri, http->request->flags, http->request->method);
         /* NOTE, don't call StoreEntry->lock(), storeCreateEntry() does it */
 
-        if (collapsingAllowed && !http->request->range && mayInitiateCollapsing() &&
+        if (collapsingAllowed && mayInitiateCollapsing(*http->request) &&
                 Store::Root().allowCollapsing(entry, http->request->flags, http->request->method)) {
             debugs(88, 5, "allow other revalidation requests to collapse on " << *entry);
             collapsedRevalidation = crInitiator;
@@ -2116,8 +2116,7 @@ clientReplyContext::createStoreEntry(const HttpRequestMethod& m, RequestFlags re
     if (reqFlags.cachable &&
             !reqFlags.needValidation &&
             (m == Http::METHOD_GET || m == Http::METHOD_HEAD) &&
-            !http->request->range &&
-            mayInitiateCollapsing()) {
+            mayInitiateCollapsing(*http->request)) {
         // make the entry available for future requests now
         (void)Store::Root().allowCollapsing(e, reqFlags, m);
     }
