@@ -8,13 +8,11 @@
 ##
 
 # Should be run from the source root directory.
-# The 'xunused' utility should be placed into the source root directory. 
 
 log=/tmp/test-ast.log
 
-configureBinary=./configure 
-xunusedBinary=./xunused
-xunusedResult=./xunused_result.txt
+configureBinary=./configure
+xunusedLog=/tmp/xunused.log
 
 if [ ! -x $configureBinary ]
 then
@@ -22,26 +20,22 @@ then
     exit 1
 fi
 
-if [ ! -x $xunusedBinary ]
-then
-    echo "Could not find xunused in the root directory"
-    exit 1
-fi
-
 customCompileCommands=$1
 defaultCompileCommands=compile_commands.json
-compileCommands=./${defaultCompileCommands}
 
-if test -n "$customCompileCommands"
+if [ -n $customCompileCommands ]
 then
-    compileCommands=$customCompileCommands
+    if [ ! -f $customCompileCommands ]
+    then
+        echo "$customCompileCommands file does not exist."
+        exit 1
+    fi
 fi
-
-bearCompileOption="--outfile ${compileCommands}"
 
 configure() {
 
-    CONFIGURE_FLAGS_FOR_CLANG_TIDY="
+    # maximize the number of compiled source code files
+    CONFIGURE_FLAGS="
         --enable-async-io
         --enable-auth
         --enable-auto-locale
@@ -112,34 +106,37 @@ configure() {
         CXX=clang++ \
         CC=clang \
         CXXFLAGS='-Wno-error -DUSE_POLL=1 -DUSE_SELECT=1' \
-        $CONFIGURE_FLAGS_FOR_CLANG_TIDY \
+        $CONFIGURE_FLAGS \
         \
         --enable-build-info="$branch $commit" \
         --disable-strict-error-checking \
         --disable-optimizations
 }
 
-rm -i $log || true
-rm -i $compileCommands || true
-rm -i $xunusedResult || true
+if [ -z $customCompileCommands ]
+then
+    rm -i $log || true
+    rm -i $defaultCompileCommands || true
+    rm -i $xunusedLog || true
 
-make -k distclean >> $log || true
-./bootstrap.sh >> $log
-configure >> $log
+    make -k distclean >> $log || true
+    ./bootstrap.sh >> $log
+    configure >> $log
 
-make clean >> $log
+    make clean >> $log
 
-bear --append $bearCompileOption -- make all check >> $log
+    bear --outfile $defaultCompileCommands -- make all check >> $log
+fi
 
-$xunusedBinary $compileCommands > $xunusedResult 2>&1
+xunused $defaultCompileCommands > $xunusedLog 2>&1
 
-unusedLines=`grep "is unused$" $xunusedResult | wc -l`
+unusedLines=`grep "is unused$" $xunusedLog | wc -l`
 
-echo "Unused functions: ${unusedLines}" >> $log 
+echo "Unused functions: ${unusedLines}" >> $log
 
 if [ "$unusedLines" -eq 0 ]
 then
-   exit 0 
+   exit 0
 fi
 
 exit 1
