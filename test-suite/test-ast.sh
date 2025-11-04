@@ -105,13 +105,15 @@ configure() {
     $configureBinary \
         CXX=clang++ \
         CC=clang \
-        CXXFLAGS='-Wno-error -DUSE_POLL=1 -DUSE_SELECT=1' \
+        CXXFLAGS='-DUSE_POLL=1 -DUSE_SELECT=1' \
         $CONFIGURE_FLAGS \
         \
         --enable-build-info="$branch $commit" \
         --disable-strict-error-checking \
         --disable-optimizations
 }
+
+compileCommands=$defaultCompileCommands
 
 if [ -z $customCompileCommands ]
 then
@@ -126,9 +128,11 @@ then
     make clean >> $log
 
     bear --outfile $defaultCompileCommands -- make all check >> $log
+else
+    compileCommands=$customCompileCommands
 fi
 
-xunused $defaultCompileCommands > $xunusedLog 2>&1
+xunused $compileCommands > $xunusedLog 2>&1
 
 unusedLines=`grep "is unused$" $xunusedLog | wc -l`
 
