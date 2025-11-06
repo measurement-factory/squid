@@ -135,7 +135,7 @@ buildCompilationDatabase() {
 
     make clean
 
-    bear --outfile $defaultCompileCommands -- make all check
+    bear --output $defaultCompileCommands -- make all check
 }
 
 # Before we run any heavy/long commands, ensure they have a chance to succeed.
