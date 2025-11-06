@@ -130,13 +130,11 @@ fi
 
 xunused $compileCommands > $xunusedLog 2>&1 || exit $?
 
-unusedLines=`grep "is unused$" $xunusedLog | wc -l`
-
-echo "Unused functions: ${unusedLines}"
-
-if [ "$unusedLines" -eq 0 ]
+unusedFunctionCount=`grep -c "is unused$" $xunusedLog`
+echo "Unused functions: $unusedFunctionCount"
+if [ "$unusedFunctionCount" -eq 0 ]
 then
-   exit 0
+    exit 0
 fi
 
 exit 1
