@@ -116,7 +116,6 @@ compileCommands=$defaultCompileCommands
 if [ -z $customCompileCommands ]
 then
     rm -i $defaultCompileCommands || true
-    rm -i $xunusedLog || true
 
     make -k distclean || true
     ./bootstrap.sh
