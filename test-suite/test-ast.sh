@@ -7,14 +7,20 @@
 ## Please see the COPYING and CONTRIBUTORS files for details.
 ##
 
-# Should be run from the source root directory.
+# Finds unused functions using xunused tool.
+# Must be run from the source root directory.
+
+# Default-set and report used environment variables:
+# * the root directory for storing test tools and test artifacts.
+echo "TMPDIR=${TMPDIR:=${RUNNER_TEMP:-/tmp}}"
 
 configureBinary=./configure
-xunusedLog=/tmp/xunused.log
+buildLog=${TMPDIR}/test-ast-build.log
+xunusedLog=${TMPDIR}/test-ast-xunused.log
 
 if [ ! -x $configureBinary ]
 then
-    echo `basename "$0"`": Must be run in the root directory"
+    echo "$0 must be run from the source root directory (where $configureBinary is)." >&2
     exit 1
 fi
 
@@ -25,12 +31,12 @@ if [ -n $customCompileCommands ]
 then
     if [ ! -f $customCompileCommands ]
     then
-        echo "$customCompileCommands file does not exist."
+        echo "$customCompileCommands file does not exist." >&2
         exit 1
     fi
 fi
 
-configure() {
+myConfigure() {
 
     # maximize the number of compiled source code files
     CONFIGURE_FLAGS="
@@ -106,24 +112,34 @@ configure() {
         CXXFLAGS='-DUSE_POLL=1 -DUSE_SELECT=1' \
         $CONFIGURE_FLAGS \
         \
-        --enable-build-info="$branch $commit" \
+        --enable-build-info="$branch $commit for xunused" \
         --disable-strict-error-checking \
         --disable-optimizations
 }
+
+buildCompilationDatabase() {
+    bear --version || exit $?
+
+    rm -i $defaultCompileCommands || true
+
+    make -k distclean || true
+    ./bootstrap.sh
+    myConfigure
+
+    make clean
+
+    bear --outfile $defaultCompileCommands -- make all check
+}
+
+# Before we run any heavy/long commands, ensure they have a chance to succeed.
+# Version information is also useful for independently reproducing problems.
+xunused --version || exit $?
 
 compileCommands=$defaultCompileCommands
 
 if [ -z $customCompileCommands ]
 then
-    rm -i $defaultCompileCommands || true
-
-    make -k distclean || true
-    ./bootstrap.sh
-    configure
-
-    make clean
-
-    bear --outfile $defaultCompileCommands -- make all check
+    buildCompilationDatabase > $buildLog 2>&1 || exit $?
 else
     compileCommands=$customCompileCommands
 fi
