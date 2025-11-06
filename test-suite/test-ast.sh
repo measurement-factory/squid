@@ -25,23 +25,8 @@ configureBinary=./configure
 buildLog=${TMPDIR}/test-ast-build.log
 xunusedLog=${TMPDIR}/test-ast-xunused.log
 
-if [ ! -x $configureBinary ]
-then
-    echo "$0 must be run from the source root directory (where $configureBinary is)." >&2
-    exit 1
-fi
-
 customCompileCommands=$1
 defaultCompileCommands=${TMPDIR}/compile_commands.json
-
-if [ -n $customCompileCommands ]
-then
-    if [ ! -f $customCompileCommands ]
-    then
-        echo "$customCompileCommands file does not exist." >&2
-        exit 1
-    fi
-fi
 
 myConfigure() {
 
@@ -143,15 +128,25 @@ main() {
     # Version information is also useful for independently reproducing problems.
     xunused --version || return
 
-    compileCommands=$defaultCompileCommands
-
-    if [ -z $customCompileCommands ]
+    if [ ! -x $configureBinary ]
     then
-        echo "Slowly building $compileCommands; see $buildLog"
-        buildCompilationDatabase > $buildLog 2>&1 || return
-    else
+        echo "$0 must be run from the source root directory (where $configureBinary is)." >&2
+        return 1
+    fi
+
+    compileCommands=$defaultCompileCommands
+    if [ -n "$customCompileCommands" ]
+    then
+        if [ ! -f "$customCompileCommands" ]
+        then
+            echo "$customCompileCommands file does not exist." >&2
+            return 1
+        fi
         compileCommands=$customCompileCommands
         echo "Reusing existing $compileCommands"
+    else
+        echo "Slowly building $compileCommands; see $buildLog"
+        buildCompilationDatabase > $buildLog 2>&1 || return
     fi
 
     xunused $compileCommands > $xunusedLog 2>&1 || return
