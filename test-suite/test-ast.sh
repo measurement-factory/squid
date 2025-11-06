@@ -120,8 +120,6 @@ myConfigure() {
 buildCompilationDatabase() {
     bear --version || exit $?
 
-    rm -i $defaultCompileCommands || true
-
     make -k distclean || true
     ./bootstrap.sh
     myConfigure
