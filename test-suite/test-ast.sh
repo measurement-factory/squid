@@ -137,6 +137,9 @@ main() {
     compileCommands=$defaultCompileCommands
     if [ -n "$customCompileCommands" ]
     then
+        # This check is important because xunused appears to ignore a missing
+        # compilation database file in many cases, processing whatever source
+        # files it can find starting from the current directory instead!
         if [ ! -f "$customCompileCommands" ]
         then
             echo "$customCompileCommands file does not exist." >&2
