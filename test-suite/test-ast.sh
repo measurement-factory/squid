@@ -9,8 +9,6 @@
 
 # Should be run from the source root directory.
 
-log=/tmp/test-ast.log
-
 configureBinary=./configure
 xunusedLog=/tmp/xunused.log
 
@@ -117,17 +115,16 @@ compileCommands=$defaultCompileCommands
 
 if [ -z $customCompileCommands ]
 then
-    rm -i $log || true
     rm -i $defaultCompileCommands || true
     rm -i $xunusedLog || true
 
-    make -k distclean >> $log || true
-    ./bootstrap.sh >> $log
-    configure >> $log
+    make -k distclean || true
+    ./bootstrap.sh
+    configure
 
-    make clean >> $log
+    make clean
 
-    bear --outfile $defaultCompileCommands -- make all check >> $log
+    bear --outfile $defaultCompileCommands -- make all check
 else
     compileCommands=$customCompileCommands
 fi
@@ -136,7 +133,7 @@ xunused $compileCommands > $xunusedLog 2>&1
 
 unusedLines=`grep "is unused$" $xunusedLog | wc -l`
 
-echo "Unused functions: ${unusedLines}" >> $log
+echo "Unused functions: ${unusedLines}"
 
 if [ "$unusedLines" -eq 0 ]
 then
