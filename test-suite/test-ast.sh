@@ -9,6 +9,13 @@
 
 # Finds unused functions using xunused tool.
 # Must be run from the source root directory.
+#
+# Usage: test-ast.sh [filename]
+# where
+#   filename: compile_commands.json file to use instead of slowly building one
+#             in the temporary directory
+#
+# Exit code zero means that no unused functions were found.
 
 # Default-set and report used environment variables:
 # * the root directory for storing test tools and test artifacts.
@@ -25,7 +32,7 @@ then
 fi
 
 customCompileCommands=$1
-defaultCompileCommands=compile_commands.json
+defaultCompileCommands=${TMPDIR}/compile_commands.json
 
 if [ -n $customCompileCommands ]
 then
@@ -38,7 +45,9 @@ fi
 
 myConfigure() {
 
-    # maximize the number of compiled source code files
+    # Maximize the amount of compiled source code.
+    # When selecting among mutually exclusive features, use the most popular one.
+
     CONFIGURE_FLAGS="
         --enable-async-io
         --enable-auth
@@ -120,7 +129,7 @@ myConfigure() {
 buildCompilationDatabase() {
     bear --version || exit $?
 
-    make -k distclean || true
+    make -k distclean > /dev/null 2>&1 || true
     ./bootstrap.sh
     myConfigure
 
@@ -137,9 +146,11 @@ compileCommands=$defaultCompileCommands
 
 if [ -z $customCompileCommands ]
 then
+    echo "Slowly building $compileCommands; see $buildLog"
     buildCompilationDatabase > $buildLog 2>&1 || exit $?
 else
     compileCommands=$customCompileCommands
+    echo "Reusing existing $compileCommands"
 fi
 
 xunused $compileCommands > $xunusedLog 2>&1 || exit $?
