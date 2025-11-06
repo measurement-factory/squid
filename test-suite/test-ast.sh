@@ -137,19 +137,20 @@ main() {
     compileCommands=$defaultCompileCommands
     if [ -n "$customCompileCommands" ]
     then
-        # This check is important because xunused appears to ignore a missing
-        # compilation database file in many cases, processing whatever source
-        # files it can find starting from the current directory instead!
-        if [ ! -f "$customCompileCommands" ]
-        then
-            echo "$customCompileCommands file does not exist." >&2
-            return 1
-        fi
         compileCommands=$customCompileCommands
-        echo "Reusing existing $compileCommands"
+        echo "Reusing a compilation database in $compileCommands"
     else
-        echo "Slowly building $compileCommands; see $buildLog"
+        echo "Slowly building a new compilation database in $compileCommands; see $buildLog"
         buildCompilationDatabase > $buildLog 2>&1 || return
+    fi
+
+    # This check is important because xunused appears to ignore a missing
+    # compilation database file in many cases, processing whatever source
+    # files it can find starting from the current directory instead!
+    if [ ! -f "$compileCommands" ]
+    then
+        echo "Missing compilations database file: $compileCommands" >&2
+        return 1
     fi
 
     xunused $compileCommands > $xunusedLog 2>&1 || return
