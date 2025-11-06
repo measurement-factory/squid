@@ -127,7 +127,7 @@ myConfigure() {
 }
 
 buildCompilationDatabase() {
-    bear --version || exit $?
+    bear --version || return
 
     make -k distclean > /dev/null 2>&1 || true
     ./bootstrap.sh
@@ -138,29 +138,32 @@ buildCompilationDatabase() {
     bear --output $defaultCompileCommands -- make all check
 }
 
-# Before we run any heavy/long commands, ensure they have a chance to succeed.
-# Version information is also useful for independently reproducing problems.
-xunused --version || exit $?
+main() {
+    # Before we run any heavy/long commands, ensure they have a chance to succeed.
+    # Version information is also useful for independently reproducing problems.
+    xunused --version || return
 
-compileCommands=$defaultCompileCommands
+    compileCommands=$defaultCompileCommands
 
-if [ -z $customCompileCommands ]
-then
-    echo "Slowly building $compileCommands; see $buildLog"
-    buildCompilationDatabase > $buildLog 2>&1 || exit $?
-else
-    compileCommands=$customCompileCommands
-    echo "Reusing existing $compileCommands"
-fi
+    if [ -z $customCompileCommands ]
+    then
+        echo "Slowly building $compileCommands; see $buildLog"
+        buildCompilationDatabase > $buildLog 2>&1 || return
+    else
+        compileCommands=$customCompileCommands
+        echo "Reusing existing $compileCommands"
+    fi
 
-xunused $compileCommands > $xunusedLog 2>&1 || exit $?
+    xunused $compileCommands > $xunusedLog 2>&1 || return
 
-unusedFunctionCount=`grep -c "is unused$" $xunusedLog`
-echo "Unused functions: $unusedFunctionCount"
-if [ "$unusedFunctionCount" -eq 0 ]
-then
-    exit 0
-fi
+    unusedFunctionCount=`grep -c "is unused$" $xunusedLog`
+    echo "Unused functions: $unusedFunctionCount"
+    if [ "$unusedFunctionCount" -eq 0 ]
+    then
+        return 0
+    fi
+    return 1
+}
 
-exit 1
-
+main
+exit $?
