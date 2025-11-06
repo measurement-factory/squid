@@ -128,7 +128,7 @@ else
     compileCommands=$customCompileCommands
 fi
 
-xunused $compileCommands > $xunusedLog 2>&1
+xunused $compileCommands > $xunusedLog 2>&1 || exit $?
 
 unusedLines=`grep "is unused$" $xunusedLog | wc -l`
 
