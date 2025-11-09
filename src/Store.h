@@ -114,6 +114,9 @@ public:
                reinterpret_cast<const cache_key*>(key): // may be nil
                nullptr;
     }
+    /// compares public key (which must exist) with the default public key
+    /// \returns nil if the keys are equal, the default public key otherwise
+    const cache_key *publicDefaultKeyCmp() const;
 
     /// Either fills this entry with private key or changes the existing key
     /// from public to private.
@@ -310,7 +313,7 @@ private:
     bool checkTooBig() const;
     void forcePublicKey(const cache_key *newkey);
     StoreEntry *adjustVary();
-    const cache_key *calcPublicKey(const KeyScope keyScope);
+    const cache_key *calcPublicKey(const KeyScope keyScope) const;
 
     /// flags [truncated or too big] entry with ENTRY_BAD_LENGTH and releases it
     void lengthWentBad(const char *reason);

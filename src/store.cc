@@ -613,11 +613,20 @@ StoreEntry::clearPublicKeyScope()
 
     // TODO: adjustVary() when collapsed revalidation supports that
 
-    const cache_key *newKey = calcPublicKey(ksDefault);
-    if (!storeKeyHashCmp(key, newKey))
+    const auto newKey = publicDefaultKeyCmp();
+    if (!newKey)
         return; // probably another collapsed revalidation beat us to this change
 
     forcePublicKey(newKey);
+}
+
+const cache_key *
+StoreEntry::publicDefaultKeyCmp() const
+{
+    const auto pubKey = publicKey();
+    assert(pubKey);
+    const auto defaultKey = calcPublicKey(ksDefault);
+    return storeKeyHashCmp(pubKey, defaultKey) ? defaultKey : nullptr;
 }
 
 /// Unconditionally sets public key for this store entry.
@@ -649,7 +658,7 @@ StoreEntry::forcePublicKey(const cache_key *newkey)
 /// Calculates correct public key for feeding forcePublicKey().
 /// Assumes adjustVary() has been called for this entry already.
 const cache_key *
-StoreEntry::calcPublicKey(const KeyScope keyScope)
+StoreEntry::calcPublicKey(const KeyScope keyScope) const
 {
     assert(mem_obj);
     return mem_obj->request ? storeKeyPublicByRequest(mem_obj->request.getRaw(), keyScope) :

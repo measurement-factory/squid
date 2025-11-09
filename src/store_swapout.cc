@@ -165,6 +165,8 @@ StoreEntry::swapOut()
 
     const bool weAreOrMayBeSwappingOut = swappingOut() || mayStartSwapOut();
 
+    assert(!publicDefaultKeyCmp());
+
     Store::Root().memoryOut(*this, weAreOrMayBeSwappingOut);
 
     if (mem_obj->swapout.decision < MemObject::SwapOut::swPossible)

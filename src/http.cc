@@ -997,13 +997,7 @@ HttpStateData::haveParsedReplyHeaders()
             break;
 
         case ReuseDecision::cachePositively:
-            if (entry->publicKey()) {
-                if (!sawDateGoBack && entry->hittingRequiresCollapsing()) {
-                    // adjust public key for collapsed revalidation
-                    // do nothing for collapsed forwarding
-                    entry->clearPublicKeyScope();
-                }
-            } else if (!entry->makePublic()) {
+            if (!entry->makePublic()) {
                 decision.make(ReuseDecision::doNotCacheButShare, "public key creation error");
                 entry->makePrivate(true);
             }

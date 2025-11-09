@@ -187,6 +187,10 @@ protected:
     const Comm::ConnectionPointer & dataConnection() const override;
     void abortAll(const char *reason) override;
     void noteDelayAwareReadChance() override;
+    // FTP entry is not revalidated because clientReplyContext::processExpired()
+    // is never called for FTP. Assume that the reply is always fresh because
+    // there is no stale entry to compare it to.
+    bool finalReplyIsFresh() const override { return true; }
 
     virtual Http::StatusCode failedHttpStatus(err_type &error);
     void ctrlClosed(const CommCloseCbParams &io);
