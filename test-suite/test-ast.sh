@@ -120,9 +120,9 @@ myConfigure() {
 buildCompilationDatabase() {
     bear --version || return
 
-    make -k distclean > /dev/null 2>&1 || true
-    ./bootstrap.sh
-    myConfigure
+    make -k distclean > /dev/null 2>&1
+    ./bootstrap.sh || return
+    myConfigure || return
 
     make clean
 
