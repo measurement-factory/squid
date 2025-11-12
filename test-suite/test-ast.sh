@@ -39,6 +39,7 @@ myConfigure() {
     # Enabling translation slows build a lot but does not expose more compiled source code.
     configureFlagsExceptions="$configureFlagsExceptions --disable-translation"
 
+    # in alphabetical order
     local ConfigureFlags="
         $configureFlagsExceptions
         --enable-async-io
@@ -52,6 +53,7 @@ myConfigure() {
         --enable-delay-pools
         --enable-digest-auth-helpers
         --enable-disk-io
+        --enable-ecap
         --enable-esi
         --enable-eui
         --enable-external-acl-helpers
@@ -100,7 +102,6 @@ myConfigure() {
         --with-pic
         --with-pthreads
         --with-valgrind-debug
-        --enable-ecap
     "
 
     branch=`git rev-parse --abbrev-ref HEAD`
