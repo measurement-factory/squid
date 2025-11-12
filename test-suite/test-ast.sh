@@ -32,8 +32,15 @@ myConfigure() {
 
     # Maximize the amount of compiled source code.
     # When selecting among mutually exclusive features, use the most popular one.
+    # Disable slow-to-build features that do not increase compiled code amounts.
 
-    CONFIGURE_FLAGS="
+    local configureFlagsExceptions=""
+
+    # Enabling translation slows build a lot but does not expose more compiled source code.
+    configureFlagsExceptions="$configureFlagsExceptions --disable-translation"
+
+    local ConfigureFlags="
+        $configureFlagsExceptions
         --enable-async-io
         --enable-auth
         --enable-auto-locale
@@ -74,7 +81,6 @@ myConfigure() {
         --enable-stacktraces
         --enable-storeid-rewrite-helpers
         --enable-storeio
-        --enable-translation
         --enable-unlinkd
         --enable-url-rewrite-helpers
         --enable-useragent-log
@@ -104,7 +110,7 @@ myConfigure() {
         CXX=clang++ \
         CC=clang \
         CXXFLAGS='-DUSE_POLL=1 -DUSE_SELECT=1' \
-        $CONFIGURE_FLAGS \
+        $ConfigureFlags \
         \
         --enable-build-info="$branch $commit for xunused" \
         --disable-strict-error-checking \
