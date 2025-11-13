@@ -14,6 +14,7 @@
 #include "error/SysErrorDetail.h"
 #include "fd.h"
 #include "fde.h"
+#include "LogTags.h"
 #include "SquidConfig.h"
 #include "StatCounters.h"
 #include "tools.h"
