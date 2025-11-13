@@ -67,10 +67,13 @@ myConfigure() {
         --enable-negotiate-auth-helpers
         --enable-ntlm-auth-helpers
         --enable-ntlm-fail-open
+        --enable-poll
         --enable-referer-log
         --enable-removal-policies
         --enable-security-cert-generators
         --enable-security-cert-validators
+        --enable-select
+        --enable-shared
         --enable-snmp
         --enable-ssl-crtd
         --enable-stacktraces
