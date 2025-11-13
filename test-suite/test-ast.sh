@@ -103,8 +103,8 @@ myConfigure() {
         --with-valgrind-debug
     "
 
-    branch=`git rev-parse --abbrev-ref HEAD`
-    commit=`git rev-parse --short HEAD`
+    local branch=`git rev-parse --abbrev-ref HEAD`
+    local commit=`git rev-parse --short HEAD`
 
     $configureBinary \
         CXX=clang++ \
@@ -139,7 +139,7 @@ main() {
         return 1
     fi
 
-    compileCommands=$defaultCompileCommands
+    local compileCommands=$defaultCompileCommands
     if [ -n "$customCompileCommands" ]
     then
         compileCommands=$customCompileCommands
@@ -160,7 +160,7 @@ main() {
 
     xunused $compileCommands > $xunusedLog 2>&1 || return
 
-    unusedFunctionCount=`grep -c "is unused$" $xunusedLog`
+    local unusedFunctionCount=`grep -c "is unused$" $xunusedLog`
     echo "Unused functions: $unusedFunctionCount"
     if [ "$unusedFunctionCount" -eq 0 ]
     then
