@@ -39,6 +39,9 @@ myConfigure() {
     # Enabling translation slows build a lot but does not expose more compiled source code.
     configureFlagsExceptions="$configureFlagsExceptions --disable-translation"
 
+    # Enabling compiler optimizations slows down the build but does not expose more compiled source code.
+    configureFlagsExceptions="$configureFlagsExceptions --disable-optimizations"
+
     # in alphabetical order
     local ConfigureFlags="
         $configureFlagsExceptions
@@ -110,8 +113,7 @@ myConfigure() {
         $ConfigureFlags \
         \
         --enable-build-info="$branch $commit for xunused" \
-        --disable-strict-error-checking \
-        --disable-optimizations
+        --disable-strict-error-checking
 }
 
 buildCompilationDatabase() {
