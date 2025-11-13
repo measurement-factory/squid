@@ -43,7 +43,7 @@ myConfigure() {
     configureFlagsExceptions="$configureFlagsExceptions --disable-optimizations"
 
     # in alphabetical order
-    local ConfigureFlags="
+    local configureFlags="
         $configureFlagsExceptions
         --enable-async-io
         --enable-auth
@@ -110,7 +110,7 @@ myConfigure() {
         CXX=clang++ \
         CC=clang \
         CXXFLAGS='-DUSE_POLL=1 -DUSE_SELECT=1' \
-        $ConfigureFlags \
+        $configureFlags \
         \
         --enable-build-info="$branch $commit for xunused" \
         --disable-strict-error-checking
