@@ -11,6 +11,7 @@
 
 #include "acl/forward.h"
 #include "acl/Options.h"
+#include "base/Traits.h"
 #include "dlink.h"
 #include "sbuf/SBuf.h"
 
@@ -22,14 +23,11 @@ namespace Acl {
 /// Can evaluate itself in FilledChecklist context.
 /// Does not change during evaluation.
 /// \ingroup ACLAPI
-class Node: public RefCountable
+class Node: public RefCountable, public PooledByChildren
 {
 
 public:
     using Pointer = RefCount<Node>;
-
-    void *operator new(size_t);
-    void operator delete(void *);
 
     /// parses acl directive parts that follow directive name (i.e. "acl")
     static void ParseNamedAcl(ConfigParser &, NamedAcls *&);

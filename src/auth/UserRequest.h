@@ -15,6 +15,7 @@
 #include "auth/AuthAclState.h"
 #include "auth/Scheme.h"
 #include "auth/User.h"
+#include "base/Traits.h"
 #include "dlink.h"
 #include "helper/forward.h"
 #include "HttpHeader.h"
@@ -74,15 +75,13 @@ enum Direction {
  * It and its children hold the state data while processing authentication for a client request.
  * The AuthenticationStateData object is merely a CBDATA wrapper for one of these.
  */
-class UserRequest : public RefCountable
+class UserRequest : public RefCountable, public PooledByChildren
 {
 public:
     typedef RefCount<Auth::UserRequest> Pointer;
 
     UserRequest();
     ~UserRequest() override;
-    void *operator new(size_t byteCount);
-    void operator delete(void *address);
 
 public:
     /**
