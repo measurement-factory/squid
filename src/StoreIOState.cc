@@ -14,19 +14,6 @@
 #include "Store.h"
 #include "StoreIOState.h"
 
-void *
-StoreIOState::operator new (size_t)
-{
-    assert(0);
-    return (void *)1;
-}
-
-void
-StoreIOState::operator delete (void *)
-{
-    assert(0);
-}
-
 StoreIOState::StoreIOState(StoreIOState::STIOCB *cbIo, void *data) :
     swap_dirn(-1),
     swap_filen(-1),

@@ -71,6 +71,7 @@ libbase_la_SOURCES = \
 	TextException.cc \
 	TextException.h \
 	ToCpp.h \
+	Traits.h \
 	TypeTraits.h \
 	YesNoNone.h \
 	forward.h
