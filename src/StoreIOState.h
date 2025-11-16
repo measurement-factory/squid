@@ -10,12 +10,12 @@
 #define SQUID_SRC_STOREIOSTATE_H
 
 #include "base/RefCount.h"
-#include "base/Traits.h"
+#include "base/TypeTraits.h"
 #include "cbdata.h"
 #include "mem/forward.h"
 #include "store/forward.h"
 
-class StoreIOState : public RefCountable, public PooledByChildren
+class StoreIOState: public RefCountable, public PooledByChildren
 {
 
 public:

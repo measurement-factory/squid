@@ -11,7 +11,7 @@
 
 #include "acl/forward.h"
 #include "acl/Options.h"
-#include "base/Traits.h"
+#include "base/TypeTraits.h"
 #include "dlink.h"
 #include "sbuf/SBuf.h"
 
