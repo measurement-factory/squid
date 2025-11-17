@@ -39,5 +39,16 @@ protected: // prevents accidental creation of Interface instances
 
 using Interface = TypeTraits_::Interface;
 
+/// Final derived classes are expected to pool dynamic memory allocations.
+/// Interface base ensures, among other things, proper destruction via pointers to derived class objects
+/// (by allowing the compiler to generate a deleting destructor that finds the pool-aware delete operator).
+class PooledByChildren: public Interface
+{
+public:
+    /// Final derived classes are expected to provide a custom pool-aware allocator.
+    /// Other derived classes must not be allocated dynamically.
+    void *operator new(size_t) = delete;
+};
+
 #endif /* SQUID_SRC_BASE_TYPETRAITS_H */
 

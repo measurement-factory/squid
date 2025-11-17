@@ -10,11 +10,12 @@
 #define SQUID_SRC_STOREIOSTATE_H
 
 #include "base/RefCount.h"
+#include "base/TypeTraits.h"
 #include "cbdata.h"
 #include "mem/forward.h"
 #include "store/forward.h"
 
-class StoreIOState : public RefCountable
+class StoreIOState: public RefCountable, public PooledByChildren
 {
 
 public:
@@ -37,10 +38,6 @@ public:
      * storeSwapInFileClosed
      */
     typedef void STIOCB(void *their_data, int errflag, StoreIOState::Pointer self);
-
-    /* StoreIOState does not get mempooled - it's children do */
-    void *operator new (size_t amount);
-    void operator delete (void *address);
 
     StoreIOState(StoreIOState::STIOCB *, void *cbData);
     ~StoreIOState() override;
