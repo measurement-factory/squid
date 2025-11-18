@@ -1735,6 +1735,8 @@ StoreEntry::startWriting()
     assert (isEmpty());
     assert(mem_obj);
 
+    clearPublicKeyScope();
+
     // Per MemObject replies definitions, we can only write our base reply.
     // Currently, all callers replaceHttpReply() first, so there is no updated
     // reply here anyway. Eventually, we may need to support the

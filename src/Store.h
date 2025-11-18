@@ -114,6 +114,7 @@ public:
                reinterpret_cast<const cache_key*>(key): // may be nil
                nullptr;
     }
+
     /// compares public key (which must exist) with the default public key
     /// \returns nil if the keys are equal, the default public key otherwise
     const cache_key *publicDefaultKeyCmp() const;

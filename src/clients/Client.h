@@ -152,8 +152,6 @@ protected:
 
     HttpReply *finalReply() const;
     HttpReply *setFinalReply(HttpReply *r);
-    /// whether the received reply has a more recent date than the cached one
-    virtual bool finalReplyIsFresh() const = 0;
 
     // Kids use these to stuff data into the response instead of messing with the entry directly
     void adaptOrFinalizeReply();

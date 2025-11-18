@@ -79,7 +79,6 @@ public:
 protected:
     /* Client API */
     void noteDelayAwareReadChance() override;
-    bool finalReplyIsFresh() const override { return finalReply() && !sawDateGoBack; }
 
     void processReply();
     void proceedAfter1xx();
