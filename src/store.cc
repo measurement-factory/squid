@@ -167,7 +167,14 @@ bool
 StoreEntry::makePublic(const KeyScope scope)
 {
     /* This object can be cached for a long time */
-    return !EBIT_TEST(flags, RELEASE_REQUEST) && setPublicKey(scope);
+    if (EBIT_TEST(flags, RELEASE_REQUEST))
+        return false;
+    if (scope == ksDefault && key && !EBIT_TEST(flags, KEY_PRIVATE)) {
+        // TODO: adjustVary() when collapsed revalidation supports that
+        if (const auto newKey = publicDefaultKeyCmp())
+            forcePublicKey(newKey);
+    }
+    return setPublicKey(scope);
 }
 
 void
@@ -603,21 +610,6 @@ StoreEntry::setPublicKey(const KeyScope scope)
         debugs(20, 2, "for " << *this << " failed: " << ex.what());
     }
     return false;
-}
-
-void
-StoreEntry::clearPublicKeyScope()
-{
-    if (!key || EBIT_TEST(flags, KEY_PRIVATE))
-        return; // probably the old public key was deleted or made private
-
-    // TODO: adjustVary() when collapsed revalidation supports that
-
-    const auto newKey = publicDefaultKeyCmp();
-    if (!newKey)
-        return; // probably another collapsed revalidation beat us to this change
-
-    forcePublicKey(newKey);
 }
 
 const cache_key *
@@ -1734,8 +1726,6 @@ StoreEntry::startWriting()
     /* We ONLY want the headers */
     assert (isEmpty());
     assert(mem_obj);
-
-    clearPublicKeyScope();
 
     // Per MemObject replies definitions, we can only write our base reply.
     // Currently, all callers replaceHttpReply() first, so there is no updated

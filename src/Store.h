@@ -103,10 +103,6 @@ public:
     /// or similar instead.
     void clearPrivate();
     bool setPublicKey(const KeyScope keyScope = ksDefault);
-    /// Resets existing public key to a public key with default scope,
-    /// releasing the old default-scope entry (if any).
-    /// Does nothing if the existing public key already has default scope.
-    void clearPublicKeyScope();
 
     /// \returns public key (if the entry has it) or nil (otherwise)
     const cache_key *publicKey() const {
