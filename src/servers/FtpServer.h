@@ -146,6 +146,7 @@ protected:
     void writeForwardedReply(const HttpReply *reply);
     void writeForwardedReplyAndCall(const HttpReply *reply, AsyncCall::Pointer &call);
     void writeReply(MemBuf &mb);
+    void writeReplyAndCall(MemBuf &, AsyncCall::Pointer &);
 
     Http::Stream *earlyError(const EarlyErrorKind eek);
     bool handleRequest(HttpRequest *);
