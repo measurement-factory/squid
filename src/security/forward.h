@@ -212,16 +212,20 @@ void OpenLogs(); ///< opens logs enabled in the current configuration
 void RotateLogs(); ///< rotates logs opened by OpenLogs()
 void CloseLogs(); ///< closes logs opened by OpenLogs()
 
-// TODO: Sync with Security::Certificate PRs
 #if USE_OPENSSL
 using Time = ASN1_TIME;
+// ASN1_TIME_SET(3ssl) says that ASN1_TIME structure is "represented as an
+// ASN1_STRING internally and can be freed up using ASN1_STRING_free()".
+using TimePointer = std::unique_ptr<Time, HardFun<void, ASN1_STRING*, &ASN1_STRING_free> >;
 #elif USE_GNUTLS
-class Time {}; // TODO: Add support
-#else
+// to be finalized when it is actually needed/used
 class Time {};
-#endif
-
 using TimePointer = std::unique_ptr<Time>;
+#else
+// TODO: Use notls_x509 trick here as well
+class Time {};
+using TimePointer = std::unique_ptr<Time>;
+#endif
 
 } // namespace Security
 

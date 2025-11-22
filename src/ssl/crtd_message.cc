@@ -178,10 +178,10 @@ void Ssl::CrtdMessage::composeBody(CrtdMessage::BodyParams const & map, std::str
 }
 
 // XXX: Duplicates Security::ParseTime(). TODO: Allow helpers to use src/base+.
-static std::unique_ptr<Security::Time>
+static Security::TimePointer
 parseTime(const std::string generalizedTime, std::string &error)
 {
-    std::unique_ptr<ASN1_TIME> t(ASN1_TIME_set(nullptr, 0));
+    Security::TimePointer t(ASN1_TIME_set(nullptr, 0));
     if (!t) {
         error = "ASN1_TIME_set() failed to allocate an ASN1_TIME structure";
         return nullptr;

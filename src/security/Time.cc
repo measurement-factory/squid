@@ -22,7 +22,7 @@ Security::ParseTime(const char * const generalizedTime, const char * const descr
     debugs(33, DBG_PARSE_NOTE(2), description << ": " << generalizedTime);
 
 #if USE_OPENSSL
-    std::unique_ptr<ASN1_TIME> t(ASN1_TIME_set(nullptr, 0));
+    TimePointer t(ASN1_TIME_set(nullptr, 0));
     if (!t)
         throw TextException(ToSBuf("ASN1_TIME_set() failed to allocate an ASN1_TIME structure for parsing ", description), Here());
 #if HAVE_LIBCRYPTO_ASN1_TIME_SET_STRING
