@@ -2693,48 +2693,54 @@ ConnStateData::sslCrtdHandleReply(const Helper::Reply &reply)
     getSslContextDone(nil);
 }
 
+/// helps buildSslCertGenerationParams() apply sslproxy_cert_adapt configuration
+void
+ConnStateData::configureCertAdaptation(Ssl::CertificateProperties &cfg, ACLFilledChecklist &checklist)
+{
+    // default that may be overwritten by Ssl::algSetCommonName further below
+    cfg.commonName = sslCommonName_.isEmpty() ? tlsConnectHostOrIp.c_str() : sslCommonName_.c_str();
+
+    for (auto ca = Config.ssl_client.cert_adapt; ca; ca = ca->next) {
+        if (cfg.skipRule(ca->alg))
+            continue;
+
+        if (ca->aclList && checklist.fastCheck(ca->aclList).allowed()) {
+            const auto alg = Ssl::CertAdaptAlgorithmStr[ca->alg];
+            const auto param = ca->param;
+            debugs(33, 5, "Matches certificate adaptation algorithm: " << alg <<
+                   " param: " << (param ? param : "-"));
+
+            if (ca->alg == Ssl::algSetCommonName) {
+                cfg.commonName = param ? param : tlsConnectHostOrIp.c_str();
+                cfg.setCommonName = true;
+            } else if (ca->alg == Ssl::algSetValidityRange) {
+                cfg.validityRange = param;
+                cfg.validityRangeFrom = Security::ParseTime(ca->param1, "validityRangeFrom");
+                cfg.validityRangeTo = Security::ParseTime(ca->param2, "validityRangeTo");
+                cfg.setValidityRange = true;
+                CheckValidityRangeFreshness(*ca, *cfg.validityRangeFrom, *cfg.validityRangeTo);
+            } else if (ca->alg == Ssl::algSetValidAfter)
+                cfg.setValidAfter = true;
+            else if (ca->alg == Ssl::algSetValidBefore)
+                cfg.setValidBefore = true;
+        }
+    }
+}
+
 void ConnStateData::buildSslCertGenerationParams(Ssl::CertificateProperties &certProperties)
 {
-    certProperties.commonName = sslCommonName_.isEmpty() ? tlsConnectHostOrIp.c_str() : sslCommonName_.c_str();
+    // Our caller -- getSslContextStart() -- empties the pipeline, so we use the
+    // request preserved inside sslServerBump (if any) instead of http->request.
+    // XXX: Finish TLS negotiations inside the http->request context instead!
+    const auto request = sslServerBump ? sslServerBump->request.getRaw() : nullptr;
+    ACLFilledChecklist checklist(nullptr, request);
+    fillChecklist(checklist);
+    configureCertAdaptation(certProperties, checklist);
 
     const bool connectedOk = sslServerBump && sslServerBump->connectedOk();
     if (connectedOk) {
         if (X509 *mimicCert = sslServerBump->serverCert.get())
             certProperties.mimicCert.resetAndLock(mimicCert);
-
-        ACLFilledChecklist checklist(nullptr, sslServerBump->request.getRaw());
-        fillChecklist(checklist);
-
-        for (sslproxy_cert_adapt *ca = Config.ssl_client.cert_adapt; ca != nullptr; ca = ca->next) {
-            if (certProperties.skipRule(ca->alg))
-                continue;
-
-            if (ca->aclList && checklist.fastCheck(ca->aclList).allowed()) {
-                const char *alg = Ssl::CertAdaptAlgorithmStr[ca->alg];
-                const char *param = ca->param;
-
-                // For parameterless CN adaptation, use hostname from the
-                // CONNECT request.
-                if (ca->alg == Ssl::algSetCommonName) {
-                    if (!param)
-                        param = tlsConnectHostOrIp.c_str();
-                    certProperties.commonName = param;
-                    certProperties.setCommonName = true;
-                } else if (ca->alg == Ssl::algSetValidityRange) {
-                    certProperties.validityRange = param;
-                    certProperties.validityRangeFrom = Security::ParseTime(ca->param1, "validityRangeFrom");
-                    certProperties.validityRangeTo = Security::ParseTime(ca->param2, "validityRangeTo");
-                    certProperties.setValidityRange = true;
-                    CheckValidityRangeFreshness(*ca, *certProperties.validityRangeFrom, *certProperties.validityRangeTo);
-                } else if (ca->alg == Ssl::algSetValidAfter)
-                    certProperties.setValidAfter = true;
-                else if (ca->alg == Ssl::algSetValidBefore)
-                    certProperties.setValidBefore = true;
-
-                debugs(33, 5, "Matches certificate adaptation aglorithm: " <<
-                       alg << " param: " << (param ? param : "-"));
-            }
-        }
 
         certProperties.signAlgorithm = Ssl::algSignEnd;
         for (sslproxy_cert_sign *sg = Config.ssl_client.cert_sign; sg != nullptr; sg = sg->next) {
@@ -2745,11 +2751,10 @@ void ConnStateData::buildSslCertGenerationParams(Ssl::CertificateProperties &cer
         }
     } else {// did not try to connect (e.g. client-first) or failed to connect
         // In case of an error while connecting to the secure server, use a
-        // trusted certificate, with no mimicked fields and no adaptation
-        // algorithms. There is nothing we can mimic, so we want to minimize the
-        // number of warnings the user will have to see to get to the error page.
-        // We will close the connection, so that the trust is not extended to
-        // non-Squid content.
+        // trusted certificate, with no mimicked fields. There is nothing we can
+        // mimic, so we want to minimize the number of warnings the user will
+        // have to see to get to the error page. We will close the connection,
+        // so that the trust is not extended to non-Squid content.
         certProperties.signAlgorithm = Ssl::algSignTrusted;
     }
 

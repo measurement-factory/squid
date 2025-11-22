@@ -299,8 +299,8 @@ public:
     const SBuf &sslCommonName() const {return sslCommonName_;}
     void resetSslCommonName(const char *name) {sslCommonName_ = name;}
     const SBuf &tlsClientSni() const { return tlsClientSni_; }
-    /// Fill the certAdaptParams with the required data for certificate adaptation
-    /// and create the key for storing/retrieve the certificate to/from the cache
+    /// configure certificate generation and create the key for
+    /// storing/retrieving the certificate to/from the cache
     void buildSslCertGenerationParams(Ssl::CertificateProperties &certProperties);
     /// Called when the client sends the first request on a bumped connection.
     /// Returns false if no [delayed] error should be written to the client.
@@ -410,6 +410,8 @@ protected:
     /// we thought was idle.
     /// \return false if and only if the connection should be closed.
     bool handleIdleClientPinnedTlsRead();
+
+    void configureCertAdaptation(Ssl::CertificateProperties &, ACLFilledChecklist &);
 #endif
 
     /// Parse an HTTP request
