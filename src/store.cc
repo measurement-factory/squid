@@ -167,14 +167,7 @@ bool
 StoreEntry::makePublic(const KeyScope scope)
 {
     /* This object can be cached for a long time */
-    if (EBIT_TEST(flags, RELEASE_REQUEST))
-        return false;
-    if (scope == ksDefault && key && !EBIT_TEST(flags, KEY_PRIVATE)) {
-        // TODO: adjustVary() when collapsed revalidation supports that
-        if (const auto newKey = publicDefaultKeyCmp())
-            forcePublicKey(newKey);
-    }
-    return setPublicKey(scope);
+    return !EBIT_TEST(flags, RELEASE_REQUEST) && setPublicKey(scope);
 }
 
 void
@@ -582,8 +575,13 @@ bool
 StoreEntry::setPublicKey(const KeyScope scope)
 {
     debugs(20, 3, *this);
-    if (key && !EBIT_TEST(flags, KEY_PRIVATE))
-        return true; // already public
+
+    const cache_key *pubKey = nullptr;
+    if (key && !EBIT_TEST(flags, KEY_PRIVATE)) {
+        if (scope != ksDefault)
+            return true;
+        pubKey = publicDefaultKeyCmp();
+    }
 
     assert(mem_obj);
 
@@ -601,7 +599,15 @@ StoreEntry::setPublicKey(const KeyScope scope)
 
     try {
         EntryGuard newVaryMarker(adjustVary(), "setPublicKey+failure");
-        const cache_key *pubKey = calcPublicKey(scope);
+        if (!pubKey)
+            pubKey = calcPublicKey(scope);
+        // Transients may exist already when changing public key (e.g., from ksRevalidation to ksDefault)
+        if (hasTransients()) {
+            // TODO: Readers should be notified that the writer has changed (not gone).
+            // This should be done when Controller::SmpAware() mode starts supporting
+            // ksRevalidation keys.
+            Store::Root().transientsDisconnect(*this);
+        }
         Store::Root().addWriting(this, pubKey);
         forcePublicKey(pubKey);
         newVaryMarker.unlockAndReset("setPublicKey+success");
