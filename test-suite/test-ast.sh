@@ -22,8 +22,11 @@
 echo "TMPDIR=${TMPDIR:=${RUNNER_TEMP:-/tmp}}"
 
 configureBinary=./configure
+suppressions=./test-suite/xunused.supp
 buildLog=${TMPDIR}/test-ast-build.log
 xunusedLog=${TMPDIR}/test-ast-xunused.log
+suppressedLog=${TMPDIR}/test-ast-suppressed.log
+suppressedList=${TMPDIR}/test-ast-suppressed-list.log
 
 customCompileCommands=$1
 defaultCompileCommands=${TMPDIR}/compile_commands.json
@@ -156,9 +159,21 @@ main() {
         return 1
     fi
 
+    if [ ! -f "$suppressions" ]
+    then
+        echo "Missing suppressions file: $suppressions" >&2
+        return 1
+    fi
+
     xunused $compileCommands > $xunusedLog 2>&1 || return
 
-    local unusedFunctionCount=`grep -c "is unused$" $xunusedLog`
+    local suppFunctions=${TMPDIR}/test-ast-supp-functions-list.log
+    grep -v '^#' $suppressions > $suppFunctions
+    grep -Evf $suppFunctions $xunusedLog  > $suppressedLog
+    grep -Ef $suppFunctions $xunusedLog > $suppressedList
+    rm $suppFunctions
+
+    local unusedFunctionCount=`grep -c "is unused$" $suppressedLog`
     echo "Unused functions: $unusedFunctionCount"
     if [ "$unusedFunctionCount" -eq 0 ]
     then
