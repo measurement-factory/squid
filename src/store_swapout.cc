@@ -165,9 +165,6 @@ StoreEntry::swapOut()
 
     const bool weAreOrMayBeSwappingOut = swappingOut() || mayStartSwapOut();
 
-    // allow only private or public default entries
-    assert(!publicKey() || !publicDefaultKeyCmp());
-
     Store::Root().memoryOut(*this, weAreOrMayBeSwappingOut);
 
     if (mem_obj->swapout.decision < MemObject::SwapOut::swPossible)

@@ -1757,6 +1757,8 @@ StoreEntry::startWriting()
 char const *
 StoreEntry::getSerialisedMetaData(size_t &length) const
 {
+    // allow only private or public default entries
+    assert(!publicKey() || !publicDefaultKeyCmp());
     return static_cast<const char *>(Store::PackSwapMeta(*this, length).release());
 }
 
