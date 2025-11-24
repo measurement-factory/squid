@@ -2579,7 +2579,7 @@ Ftp::Gateway::haveParsedReplyHeaders()
     // makePublic() if allowed/possible or release() otherwise
     if (flags.authenticated || // authenticated requests can't be cached
             getCurrentOffset() ||
-            !e->makePublic()) {
+            !e->makePublic(false)) {
         e->release();
     }
 }

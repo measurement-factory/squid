@@ -997,16 +997,14 @@ HttpStateData::haveParsedReplyHeaders()
             break;
 
         case ReuseDecision::cachePositively:
-            if (!entry->makePublic()) {
+            if (!entry->makePublic(true)) {
                 decision.make(ReuseDecision::doNotCacheButShare, "public key creation error");
-                entry->makePrivate(true);
             }
             break;
 
         case ReuseDecision::cacheNegatively:
             if (!entry->cacheNegatively()) {
                 decision.make(ReuseDecision::doNotCacheButShare, "public key creation error");
-                entry->makePrivate(true);
             }
             break;
 

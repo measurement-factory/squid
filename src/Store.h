@@ -96,13 +96,18 @@ public:
     void storeWriterDone();
 
     void abort();
-    bool makePublic(const KeyScope keyScope = ksDefault);
+
+    /// Assigns a public key with keyScope to this entry and returns true on success.
+    /// Calls makePrivate(shareable) if the public key cannot be assigned.
+    bool makePublic(bool shareable, KeyScope keyScope = ksDefault);
     void makePrivate(const bool shareable);
     /// A low-level method just resetting "private key" flags.
     /// To avoid key inconsistency please use forcePublicKey()
     /// or similar instead.
     void clearPrivate();
-    bool setPublicKey(const KeyScope keyScope = ksDefault);
+
+    /// \sa makePublic()
+    bool setPublicKey(bool shareable, KeyScope keyScope = ksDefault);
 
     /// \returns public key (if the entry has it) or nil (otherwise)
     const cache_key *publicKey() const {

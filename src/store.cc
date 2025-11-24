@@ -164,10 +164,10 @@ StoreEntry::operator delete (void *address)
 }
 
 bool
-StoreEntry::makePublic(const KeyScope scope)
+StoreEntry::makePublic(const bool shareable, const KeyScope scope)
 {
     /* This object can be cached for a long time */
-    return !EBIT_TEST(flags, RELEASE_REQUEST) && setPublicKey(scope);
+    return !EBIT_TEST(flags, RELEASE_REQUEST) && setPublicKey(shareable, scope);
 }
 
 void
@@ -188,7 +188,7 @@ bool
 StoreEntry::cacheNegatively()
 {
     /* This object may be negatively cached */
-    if (makePublic()) {
+    if (makePublic(true)) {
         negativeCache();
         return true;
     }
@@ -572,7 +572,7 @@ StoreEntry::setPrivateKey(const bool shareable, const bool permanent)
 }
 
 bool
-StoreEntry::setPublicKey(const KeyScope scope)
+StoreEntry::setPublicKey(const bool shareable, const KeyScope scope)
 {
     debugs(20, 3, *this);
 
@@ -614,6 +614,7 @@ StoreEntry::setPublicKey(const KeyScope scope)
         return true;
     } catch (const std::exception &ex) {
         debugs(20, 2, "for " << *this << " failed: " << ex.what());
+        makePrivate(shareable);
     }
     return false;
 }
@@ -706,7 +707,7 @@ StoreEntry::adjustVary()
         // certain conditions. If those conditions do not apply to Vary markers,
         // then refactor to call storeCreatePureEntry() above.  Otherwise,
         // refactor to simply check whether `pe` is already public below.
-        if (!pe->makePublic()) {
+        if (!pe->makePublic(false)) {
             pe->unlock("StoreEntry::adjustVary+failed_makePublic");
             throw TexcHere("failed to make Vary marker public");
         }
@@ -768,7 +769,7 @@ storeCreateEntry(const char *url, const char *logUrl, const RequestFlags &flags,
     StoreEntry *e = storeCreatePureEntry(url, logUrl, method);
     e->lock("storeCreateEntry");
 
-    if (!neighbors_do_private_keys && flags.hierarchical && flags.cachable && e->setPublicKey())
+    if (!neighbors_do_private_keys && flags.hierarchical && flags.cachable && e->setPublicKey(false))
         return e;
 
     e->setPrivateKey(false, !flags.cachable);

@@ -165,7 +165,7 @@ TestUfs::testUfsSearch()
         auto &reply = pe->mem().adjustableBaseReply();
         reply.setHeaders(Http::scOkay, "dummy test object", "x-squid-internal/test", 0, -1, squid_curtime + 100000);
 
-        pe->setPublicKey();
+        pe->setPublicKey(false);
 
         pe->buffer();
         pe->mem().freshestReply().packHeadersUsingSlowPacker(*pe);
