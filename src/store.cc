@@ -575,12 +575,15 @@ bool
 StoreEntry::setPublicKey(const bool shareable, const KeyScope scope)
 {
     debugs(20, 3, *this);
+    Assure(scope == ksDefault || scope == ksRevalidation);
 
-    const cache_key *pubKey = nullptr;
     if (key && !EBIT_TEST(flags, KEY_PRIVATE)) {
-        if (scope != ksDefault)
-            return true;
-        pubKey = publicDefaultKeyCmp();
+        const bool isDefault = !publicDefaultKeyCmp();
+        if (isDefault && scope == ksDefault)
+            return true; // already ksDefault
+        else if (!isDefault && scope == ksRevalidation)
+            return true; // already ksRevalidation
+        // else public key scope has changed
     }
 
     assert(mem_obj);
@@ -599,15 +602,7 @@ StoreEntry::setPublicKey(const bool shareable, const KeyScope scope)
 
     try {
         EntryGuard newVaryMarker(adjustVary(), "setPublicKey+failure");
-        if (!pubKey)
-            pubKey = calcPublicKey(scope);
-        // Transients may exist already when changing public key (e.g., from ksRevalidation to ksDefault)
-        if (hasTransients()) {
-            // TODO: Readers should be notified that the writer has changed (not gone).
-            // This should be done when Controller::SmpAware() mode starts supporting
-            // ksRevalidation keys.
-            Store::Root().transientsDisconnect(*this);
-        }
+        const cache_key *pubKey = calcPublicKey(scope);
         Store::Root().addWriting(this, pubKey);
         forcePublicKey(pubKey);
         newVaryMarker.unlockAndReset("setPublicKey+success");
@@ -1758,7 +1753,7 @@ char const *
 StoreEntry::getSerialisedMetaData(size_t &length) const
 {
     // allow only private or public default entries
-    assert(!publicKey() || !publicDefaultKeyCmp());
+    Assure(!publicKey() || !publicDefaultKeyCmp());
     return static_cast<const char *>(Store::PackSwapMeta(*this, length).release());
 }
 
