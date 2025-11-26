@@ -21,7 +21,7 @@ my $xunusedLog = $ARGV[0];
 my $xunusedSupp = $ARGV[1];
 my $tmpDir = $ENV{TMPDIR} || "/tmp";
 
-my $xunusedSuppStatLog = "$tmpDir/test-ast-suppressed-stats.txt";
+my $xunusedSuppStatLog = "$tmpDir/test-ast-suppressed-stats.log";
 
 my %suppStats;
 my @patterns;
