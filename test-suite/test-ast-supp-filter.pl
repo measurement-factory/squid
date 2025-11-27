@@ -7,7 +7,10 @@
 ## Please see the COPYING and CONTRIBUTORS files for details.
 ##
 
-# Applies suppressions from xunused.supp to the log produced by xunused tool.
+# Applies suppressions from a suppressions file to the log
+# produced by xunused tool (read from STDIN).
+# Prints not-suppressed lines with unused functions to STDOUT.
+# Prints suppression statistics to STDERR.
 
 use strict;
 use warnings;
@@ -44,6 +47,7 @@ my %linesWithMatches;
 while (<STDIN>) {
     chomp;
     my $line = $_;
+    next if $line !~ /is unused$/;
     $linesWithMatches{$line} = [];
     my $matched = 0;
     foreach my $pattern (@patterns) {

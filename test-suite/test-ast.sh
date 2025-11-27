@@ -164,7 +164,7 @@ main() {
 
     $suppressionFilter $suppressions <$xunusedLog 1>$suppressedLog 2>$suppressedStatLog || return
 
-    local unusedFunctionCount=`grep -c "is unused$" $suppressedLog`
+    local unusedFunctionCount=$(wc -l <$suppressedLog)
     echo "Unused functions: $unusedFunctionCount"
     if [ "$unusedFunctionCount" -eq 0 ]
     then
