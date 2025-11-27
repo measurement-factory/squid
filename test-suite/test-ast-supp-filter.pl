@@ -13,15 +13,12 @@ use strict;
 use warnings;
 use IO::Handle;
 
-if (@ARGV != 2) {
-    die "Usage: $0 <xunused-log> <xunused-supp>\n";
+if (@ARGV != 1) {
+    die "Usage: $0 <xunused-supp>\n";
 }
 
-my $xunusedLog = $ARGV[0];
-my $xunusedSupp = $ARGV[1];
+my $xunusedSupp = $ARGV[0];
 my $tmpDir = $ENV{TMPDIR} || "/tmp";
-
-my $xunusedSuppStatLog = "$tmpDir/test-ast-suppressed-stats.log";
 
 my %suppStats;
 my @patterns;
@@ -42,11 +39,11 @@ close($xunusedSuppHandle);
 
 # Collect suppression statistics
 
-open(my $xunusedLogHandle, '<', $xunusedLog) or die "Cannot open $xunusedLog: $!";
-
 my %linesWithMatches;
 
-while (my $line = <$xunusedLogHandle>) {
+while (<STDIN>) {
+    chomp;
+    my $line = $_;
     $linesWithMatches{$line} = [];
     my $matched = 0;
     foreach my $pattern (@patterns) {
@@ -57,15 +54,11 @@ while (my $line = <$xunusedLogHandle>) {
         }
     }
     if ($matched == 0) {
-        print $line;
+        print "$line\n";
     }
 }
 
-close($xunusedLogHandle);
-
 # Apply suppressions, store the suppression statistics
-
-open(my $statsHandle, '>', $xunusedSuppStatLog) or die "Cannot open $xunusedSuppStatLog for writing: $!";
 
 my @notMatchedPatterns;
 
@@ -74,11 +67,11 @@ foreach my $pattern (@patterns) {
     my $count = scalar @$matches;
 
     if ($count > 0) {
-        print $statsHandle "--- Suppression: $pattern (Matches: $count) ---\n";
+        print STDERR "--- Suppression: $pattern (Matches: $count) ---\n";
         foreach my $line (@$matches) {
-            print $statsHandle "    $line";
+            print STDERR "    $line\n";
         }
-        print $statsHandle "\n";
+        print STDERR "\n";
     } else {
         push @notMatchedPatterns, $pattern;
     }
@@ -87,11 +80,11 @@ foreach my $pattern (@patterns) {
 my $unmatchedCount = @notMatchedPatterns;
 
 if ($unmatchedCount > 0) {
-    print $statsHandle "--- Suppressions not matched by xunused output: $unmatchedCount ---\n";
+    print STDERR "--- Suppressions not matched by xunused output: $unmatchedCount ---\n";
     foreach my $pattern (@notMatchedPatterns) {
-        print $statsHandle "    $pattern\n";
+        print STDERR "    $pattern\n";
     }
-    print $statsHandle "\n";
+    print STDERR "\n";
 }
 
 foreach my $line (keys %linesWithMatches) {
@@ -100,17 +93,15 @@ foreach my $line (keys %linesWithMatches) {
     my $printedHeader = 0;
     if ($count > 1) {
         if (!$printedHeader) {
-            print $statsHandle "--- Lines matched by multiple suppressions ---\n";
+            print STDERR "--- Lines matched by multiple suppressions ---\n";
             $printedHeader = 1;
         }
-        print $statsHandle "    Line: $line";
-        print $statsHandle "    Patterns ($count):\n";
+        print STDERR "    Line: $line\n";
+        print STDERR "    Patterns ($count):\n";
         foreach my $pattern (@$linePatterns) {
-            print $statsHandle "        $pattern\n";
+            print STDERR "        $pattern\n";
         }
-        print $statsHandle "\n";
+        print STDERR "\n";
     }
 }
-
-close($statsHandle);
 

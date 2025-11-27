@@ -27,6 +27,7 @@ xunusedLog=${TMPDIR}/test-ast-xunused.log
 suppressionFilter=./test-suite/test-ast-supp-filter.pl
 suppressions=./test-suite/xunused.supp
 suppressedLog=${TMPDIR}/test-ast-suppressed.log
+suppressedStatLog=${TMPDIR}/test-ast-suppressed-stats.log
 
 customCompileCommands=$1
 defaultCompileCommands=${TMPDIR}/compile_commands.json
@@ -161,7 +162,7 @@ main() {
 
     xunused $compileCommands > $xunusedLog 2>&1 || return
 
-    $suppressionFilter $xunusedLog $suppressions > $suppressedLog || return
+    $suppressionFilter $suppressions <$xunusedLog 1>$suppressedLog 2>$suppressedStatLog || return
 
     local unusedFunctionCount=`grep -c "is unused$" $suppressedLog`
     echo "Unused functions: $unusedFunctionCount"
