@@ -16,7 +16,6 @@ use strict;
 use warnings;
 use IO::Handle;
 
-my $xunusedSupp = $ARGV[0];
 my $tmpDir = $ENV{TMPDIR} || "/tmp";
 my %suppStats;
 my @patterns;
@@ -31,6 +30,7 @@ if (@ARGV != 1) {
 }
 
 sub readSuppressions {
+    my $xunusedSupp = $ARGV[0];
     open(my $xunusedSuppHandle, '<', $xunusedSupp) or die "Cannot open $xunusedSupp: $!";
     while (my $line = <$xunusedSuppHandle>) {
         chomp $line;
