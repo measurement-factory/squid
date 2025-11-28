@@ -727,10 +727,12 @@ bool
 Store::Controller::allowCollapsing(StoreEntry *e, const RequestFlags &reqFlags,
                                    const HttpRequestMethod &)
 {
+    // TODO: Avoid key scope changes here by either dropping neighbors_do_private_keys
+    // support or teaching storeCreateEntry() to respect the refresh flag.
     const KeyScope keyScope = reqFlags.refresh ? ksRevalidation : ksDefault;
     // set the flag now so that it gets copied into the Transients entry
     e->setCollapsingRequirement(true);
-    if (e->makePublic(false, keyScope)) { // this is needed for both local and SMP collapsing
+    if (e->makePublicWith(keyScope)) { // this is needed for both local and SMP collapsing
         debugs(20, 3, "may " << (transients && e->hasTransients() ?
                                  "SMP-" : "locally-") << "collapse " << *e);
         assert(e->hittingRequiresCollapsing());

@@ -163,11 +163,25 @@ StoreEntry::operator delete (void *address)
     pool->freeOne(address);
 }
 
+void
+StoreEntry::makePublic()
+{
+    makePublicWith(ksDefault);
+}
+
 bool
-StoreEntry::makePublic(const bool shareable, const KeyScope scope)
+StoreEntry::makePublicWith(const KeyScope scope)
 {
     /* This object can be cached for a long time */
-    return !EBIT_TEST(flags, RELEASE_REQUEST) && setPublicKey(shareable, scope);
+    if (!EBIT_TEST(flags, RELEASE_REQUEST))
+        return false;
+
+    if (!setPublicKey(scope)) {
+        makePrivate(true);
+        return false;
+    }
+
+    return true;
 }
 
 void
@@ -188,7 +202,7 @@ bool
 StoreEntry::cacheNegatively()
 {
     /* This object may be negatively cached */
-    if (makePublic(true)) {
+    if (makePublicWith(ksDefault)) {
         negativeCache();
         return true;
     }
@@ -572,9 +586,10 @@ StoreEntry::setPrivateKey(const bool shareable, const bool permanent)
 }
 
 bool
-StoreEntry::setPublicKey(const bool shareable, const KeyScope scope)
+StoreEntry::setPublicKey(const KeyScope scope)
 {
     debugs(20, 3, *this);
+
     Assure(scope == ksDefault || scope == ksRevalidation);
 
     if (key && !EBIT_TEST(flags, KEY_PRIVATE)) {
@@ -609,7 +624,6 @@ StoreEntry::setPublicKey(const bool shareable, const KeyScope scope)
         return true;
     } catch (const std::exception &ex) {
         debugs(20, 2, "for " << *this << " failed: " << ex.what());
-        makePrivate(shareable);
     }
     return false;
 }
@@ -702,7 +716,9 @@ StoreEntry::adjustVary()
         // certain conditions. If those conditions do not apply to Vary markers,
         // then refactor to call storeCreatePureEntry() above.  Otherwise,
         // refactor to simply check whether `pe` is already public below.
-        if (!pe->makePublic(false)) {
+        if (!pe->makePublicWith(ksDefault)) {
+            // nobody will be able to find this private entry;
+            // unlocking below ought to destroyStoreEntry(), but there is no good way to check that
             pe->unlock("StoreEntry::adjustVary+failed_makePublic");
             throw TexcHere("failed to make Vary marker public");
         }
@@ -764,7 +780,7 @@ storeCreateEntry(const char *url, const char *logUrl, const RequestFlags &flags,
     StoreEntry *e = storeCreatePureEntry(url, logUrl, method);
     e->lock("storeCreateEntry");
 
-    if (!neighbors_do_private_keys && flags.hierarchical && flags.cachable && e->setPublicKey(false))
+    if (!neighbors_do_private_keys && flags.hierarchical && flags.cachable && e->setPublicKey())
         return e;
 
     e->setPrivateKey(false, !flags.cachable);

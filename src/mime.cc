@@ -399,7 +399,7 @@ MimeIcon::load()
     StoreEntry *e = storeCreatePureEntry(url_, url_, Http::METHOD_GET);
     e->lock("MimeIcon::created");
     EBIT_SET(e->flags, ENTRY_SPECIAL);
-    const auto madePublic = e->setPublicKey(false);
+    const auto madePublic = e->setPublicKey();
     assert(madePublic); // nothing can block ENTRY_SPECIAL from becoming public
 
     /* fill `e` with a canned 2xx response object */

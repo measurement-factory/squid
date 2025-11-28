@@ -997,7 +997,7 @@ HttpStateData::haveParsedReplyHeaders()
             break;
 
         case ReuseDecision::cachePositively:
-            if (!entry->makePublic(true)) {
+            if (!entry->makePublicWith(ksDefault)) {
                 decision.make(ReuseDecision::doNotCacheButShare, "public key creation error");
             }
             break;

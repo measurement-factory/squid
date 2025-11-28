@@ -170,7 +170,7 @@ TestRock::createEntry(const int i)
     auto &rep = pe->mem().adjustableBaseReply();
     rep.setHeaders(Http::scOkay, "dummy test object", "x-squid-internal/test", 0, -1, squid_curtime + 100000);
 
-    pe->setPublicKey(false);
+    pe->setPublicKey();
 
     return pe;
 }

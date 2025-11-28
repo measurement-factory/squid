@@ -2577,11 +2577,11 @@ Ftp::Gateway::haveParsedReplyHeaders()
     e->timestampsSet();
 
     // makePublic() if allowed/possible or release() otherwise
-    if (flags.authenticated || // authenticated requests can't be cached
-            getCurrentOffset() ||
-            !e->makePublic(false)) {
+    if (flags.authenticated || getCurrentOffset()) {
         e->release();
+        return;
     }
+    e->makePublic();
 }
 
 HttpReply *

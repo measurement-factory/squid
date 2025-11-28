@@ -36,9 +36,10 @@ void StoreEntry::replaceHttpReply(const HttpReplyPointer &, bool) STUB
 bool StoreEntry::mayStartSwapOut() STUB_RETVAL(false)
 void StoreEntry::trimMemory(const bool) STUB
 void StoreEntry::abort() STUB
-bool StoreEntry::makePublic(const bool, const KeyScope) STUB
+void StoreEntry::makePublic() STUB
+bool StoreEntry::makePublicWith(const KeyScope) STUB
 void StoreEntry::makePrivate(const bool) STUB
-bool StoreEntry::setPublicKey(const bool, const KeyScope) STUB
+bool StoreEntry::setPublicKey(const KeyScope) STUB
 void StoreEntry::setPrivateKey(const bool, const bool) STUB
 void StoreEntry::expireNow() STUB
 void StoreEntry::releaseRequest(const bool) STUB
