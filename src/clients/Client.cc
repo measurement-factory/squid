@@ -126,7 +126,7 @@ Client::setVirginReply(HttpReply *rep)
 }
 
 HttpReply *
-Client::finalReply() const
+Client::finalReply()
 {
     assert(theFinalReply);
     return theFinalReply;

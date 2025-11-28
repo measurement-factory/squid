@@ -150,7 +150,7 @@ protected:
     HttpReply *virginReply();
     HttpReply *setVirginReply(HttpReply *r);
 
-    HttpReply *finalReply() const;
+    HttpReply *finalReply();
     HttpReply *setFinalReply(HttpReply *r);
 
     // Kids use these to stuff data into the response instead of messing with the entry directly
