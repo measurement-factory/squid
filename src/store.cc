@@ -173,7 +173,7 @@ bool
 StoreEntry::makePublicWith(const KeyScope scope)
 {
     /* This object can be cached for a long time */
-    if (!EBIT_TEST(flags, RELEASE_REQUEST))
+    if (EBIT_TEST(flags, RELEASE_REQUEST))
         return false;
 
     if (!setPublicKey(scope)) {
