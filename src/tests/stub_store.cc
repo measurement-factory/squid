@@ -44,7 +44,7 @@ void StoreEntry::setPrivateKey(const bool, const bool) STUB
 void StoreEntry::expireNow() STUB
 void StoreEntry::releaseRequest(const bool) STUB
 void StoreEntry::negativeCache() STUB
-bool StoreEntry::cacheNegatively() STUB
+void StoreEntry::cacheNegatively() STUB
 void StoreEntry::swapOut() STUB
 void StoreEntry::swapOutFileClose(int) STUB
 const char *StoreEntry::url() const STUB_RETVAL(nullptr)
