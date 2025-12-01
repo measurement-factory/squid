@@ -37,7 +37,7 @@ bool StoreEntry::mayStartSwapOut() STUB_RETVAL(false)
 void StoreEntry::trimMemory(const bool) STUB
 void StoreEntry::abort() STUB
 void StoreEntry::makePublic() STUB
-bool StoreEntry::makePublicWith(const KeyScope) STUB
+bool StoreEntry::makePublicWith(KeyScope) STUB
 void StoreEntry::makePrivate(const bool) STUB
 bool StoreEntry::setPublicKey(const KeyScope) STUB
 void StoreEntry::setPrivateKey(const bool, const bool) STUB

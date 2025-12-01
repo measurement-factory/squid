@@ -172,7 +172,6 @@ StoreEntry::makePublic()
 bool
 StoreEntry::makePublicWith(const KeyScope scope)
 {
-    /* This object can be cached for a long time */
     if (EBIT_TEST(flags, RELEASE_REQUEST))
         return false;
 
@@ -198,15 +197,11 @@ StoreEntry::clearPrivate()
     shareableWhenPrivate = false;
 }
 
-bool
+void
 StoreEntry::cacheNegatively()
 {
-    /* This object may be negatively cached */
-    if (makePublicWith(ksDefault)) {
-        negativeCache();
-        return true;
-    }
-    return false;
+    negativeCache();
+    makePublic();
 }
 
 size_t

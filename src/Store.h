@@ -106,6 +106,7 @@ public:
     /// Attempts to set this entry key to a public key with the given scope.
     /// The attempt may fail for various reasons, including key hash collisions
     /// and when this entry has been marked for release().
+    /// Does nothing if the entry is forbidden to become public (marked with RELEASE_REQUEST).
     /// On success, releases another public entry with the given-scope key (if any).
     /// On failure, has a makePrivate(true) effect.
     /// \returns true on success
@@ -141,7 +142,7 @@ public:
     /// for eventual removal from the Store.
     void releaseRequest(const bool shareable = false);
     void negativeCache();
-    bool cacheNegatively();     // TODO: why both negativeCache() and cacheNegatively() ?
+    void cacheNegatively();     // TODO: why both negativeCache() and cacheNegatively() ?
     void invokeHandlers();
     void cacheInMemory(); ///< start or continue storing in memory cache
     void swapOut();
@@ -326,7 +327,7 @@ private:
     bool checkTooBig() const;
     void forcePublicKey(const cache_key *newkey);
     StoreEntry *adjustVary();
-    const cache_key *calcPublicKey(const KeyScope keyScope) const;
+    const cache_key *calcPublicKey(KeyScope) const;
 
     /// flags [truncated or too big] entry with ENTRY_BAD_LENGTH and releases it
     void lengthWentBad(const char *reason);
