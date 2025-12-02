@@ -172,8 +172,11 @@ StoreEntry::makePublic()
 bool
 StoreEntry::makePublicWith(const KeyScope scope)
 {
-    if (EBIT_TEST(flags, RELEASE_REQUEST))
+    if (EBIT_TEST(flags, RELEASE_REQUEST)) {
+        // The entry has been prohibited from being public and
+        // got its shareableWhenPrivate state which we should not alter.
         return false;
+    }
 
     if (!setPublicKey(scope)) {
         makePrivate(true);
