@@ -55,7 +55,7 @@ foreach my $relPath (@allDirs) {
     
     my $absPath = abs_path($relPath);
     if (defined $absPath) {
-        push @filteredDirs, "$absPath/";
+        push @filteredDirs, "^$absPath/";
     }
 }
 
