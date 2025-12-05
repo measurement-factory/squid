@@ -27,9 +27,9 @@ xunusedLog=${TMPDIR}/test-ast-xunused.log
 
 customCompileCommands=$1
 defaultCompileCommands=${TMPDIR}/compile_commands.json
-# A list of space-separated directory names located in Squid root that will be ignored by xunused.
-excludedTopDirectories="libltdl"
-directoryFilter=./test-suite/test-ast-filter-dirs.pl
+# All top-level directories having .cc and .h.
+# Build-generated directories such as libltdl are not included.
+includedSourceDirectories="src|include|lib|compat|tools|test-suite"
 
 myConfigure() {
 
@@ -159,9 +159,10 @@ main() {
         return 1
     fi
 
-    local dirListRegExp=`echo $excludedTopDirectories | $directoryFilter` || return
+    local topSrcDir=`pwd`
+    local dirListRegExp="$topSrcDir/($includedSourceDirectories)"
 
-    $xunused --filter="$dirListRegExp" $compileCommands > $xunusedLog 2>&1 || return
+    xunused --filter="$dirListRegExp" $compileCommands > $xunusedLog 2>&1 || return
 
     local unusedFunctionCount=`grep -c "is unused$" $xunusedLog`
     echo "Unused functions: $unusedFunctionCount"
