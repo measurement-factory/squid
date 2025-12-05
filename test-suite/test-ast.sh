@@ -29,7 +29,7 @@ customCompileCommands=$1
 defaultCompileCommands=${TMPDIR}/compile_commands.json
 # All top-level directories having .cc and .h.
 # Build-generated directories such as libltdl are not included.
-includedSourceDirectories="src|include|lib|compat|tools|test-suite"
+includedSourceDirectories="src/|include/|lib/|compat/|tools/|test-suite/"
 
 myConfigure() {
 
