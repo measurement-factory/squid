@@ -27,9 +27,10 @@ xunusedLog=${TMPDIR}/test-ast-xunused.log
 
 customCompileCommands=$1
 defaultCompileCommands=${TMPDIR}/compile_commands.json
-# All top-level directories having .cc and .h.
-# Build-generated directories such as libltdl are not included.
-includedSourceDirectories="src/|include/|lib/|compat/|tools/|test-suite/"
+
+# All top-level directories containing compiled C++ source files, except
+# directories for generated sources outside of our control (e.g., libltdl/).
+analyzedSourceDirectories="src/|include/|lib/|compat/|tools/|test-suite/"
 
 myConfigure() {
 
@@ -160,9 +161,9 @@ main() {
     fi
 
     local topSrcDir=`pwd`
-    local dirListRegExp="$topSrcDir/($includedSourceDirectories)"
+    local includedDirsRegex="$topSrcDir/($analyzedSourceDirectories)"
 
-    xunused --filter="$dirListRegExp" $compileCommands > $xunusedLog 2>&1 || return
+    xunused --filter="$includedDirsRegex" $compileCommands > $xunusedLog 2>&1 || return
 
     local unusedFunctionCount=`grep -c "is unused$" $xunusedLog`
     echo "Unused functions: $unusedFunctionCount"
