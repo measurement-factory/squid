@@ -10,6 +10,7 @@
 
 #include "squid.h"
 #include "acl/FilledChecklist.h"
+#include "src/base/IoManip.h"
 #include "client_side.h"
 #include "errorpage.h"
 #include "fde.h"
