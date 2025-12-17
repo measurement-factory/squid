@@ -84,6 +84,7 @@ dnl Checks whether the -lssl library provides various OpenSSL API functions
 AC_DEFUN([SQUID_CHECK_LIBSSL_API],[
   AH_TEMPLATE(HAVE_LIBSSL_OPENSSL_INIT_SSL, "Define to 1 if the OPENSSL_init_ssl() OpenSSL API function exists")
   AH_TEMPLATE(HAVE_LIBSSL_SSL_CIPHER_FIND, "Define to 1 if the SSL_CIPHER_find() OpenSSL API function exists")
+  AH_TEMPLATE(HAVE_LIBSSL_SSL_CTX_SET_KEYLOG_CALLBACK, "Define to 1 if the SSL_CTX_set_keylog_callback() OpenSSL API function exists")
   AH_TEMPLATE(HAVE_LIBSSL_SSL_CTX_SET_TMP_RSA_CALLBACK, "Define to 1 if the SSL_CTX_set_tmp_rsa_callback() OpenSSL API function exists")
   AH_TEMPLATE(HAVE_LIBSSL_SSL_SESSION_GET_ID, "Define to 1 if the SSL_SESSION_get_id() OpenSSL API function exists")
   AH_TEMPLATE(HAVE_LIBSSL_SSL_GET_CLIENT_RANDOM, "Define to 1 if the SSL_get_client_random() OpenSSL API function exists")
@@ -92,6 +93,7 @@ AC_DEFUN([SQUID_CHECK_LIBSSL_API],[
   LIBS="$LIBS $SSLLIB"
   AC_CHECK_LIB(ssl, OPENSSL_init_ssl, AC_DEFINE(HAVE_LIBSSL_OPENSSL_INIT_SSL, 1))
   AC_CHECK_LIB(ssl, SSL_CIPHER_find, AC_DEFINE(HAVE_LIBSSL_SSL_CIPHER_FIND, 1))
+  AC_CHECK_LIB(ssl, SSL_CTX_set_keylog_callback, AC_DEFINE(HAVE_LIBSSL_SSL_CTX_SET_KEYLOG_CALLBACK, 1))
   AC_CHECK_LIB(ssl, SSL_CTX_set_tmp_rsa_callback, AC_DEFINE(HAVE_LIBSSL_SSL_CTX_SET_TMP_RSA_CALLBACK, 1))
   AC_CHECK_LIB(ssl, SSL_SESSION_get_id, AC_DEFINE(HAVE_LIBSSL_SSL_SESSION_GET_ID, 1))
   AC_CHECK_LIB(ssl, SSL_get_client_random, AC_DEFINE(HAVE_LIBSSL_SSL_GET_CLIENT_RANDOM, 1))

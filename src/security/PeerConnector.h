@@ -18,7 +18,6 @@
 #include "http/forward.h"
 #include "security/EncryptorAnswer.h"
 #include "security/forward.h"
-#include "security/KeyLogger.h"
 #if USE_OPENSSL
 #include "ssl/support.h"
 #endif
@@ -193,9 +192,6 @@ private:
 
     /// The maximum number of inter-dependent Downloader jobs a worker may initiate
     static const unsigned int MaxNestedDownloads = 3;
-
-    /// managers logging of the being-established TLS connection secrets
-    Security::KeyLogger keyLogger;
 
     AsyncCall::Pointer closeHandler; ///< we call this when the connection closed
     time_t negotiationTimeout; ///< the SSL connection timeout to use

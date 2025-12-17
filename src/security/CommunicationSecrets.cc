@@ -9,14 +9,18 @@
 #include "squid.h"
 #include "base/CharacterSet.h"
 #include "base/IoManip.h"
+#include "sbuf/Stream.h"
 #include "security/CommunicationSecrets.h"
 #include "security/Session.h"
 
 #include <ostream>
 
-// TODO: Support SSL_CTX_set_keylog_callback() available since OpenSSL v1.1.1.
+// TODO: Remove Security::HandshakeSecrets after discontinuing support for
+// OpenSSL v1.1.0: OpenSSL v1.1.1 provides SSL_CTX_set_keylog_callback() API.
 
-Security::CommunicationSecrets::CommunicationSecrets(const Connection &sconn)
+/* Security::HandshakeSecrets */
+
+Security::HandshakeSecrets::HandshakeSecrets(const Connection &sconn)
 {
 #if USE_OPENSSL
     getClientRandom(sconn);
@@ -33,14 +37,16 @@ Security::CommunicationSecrets::CommunicationSecrets(const Connection &sconn)
 }
 
 bool
-Security::CommunicationSecrets::gotAll() const
+Security::HandshakeSecrets::gotAll() const
 {
-    return !id.isEmpty() && !random.isEmpty() && !key.isEmpty();
+    return !id.isEmpty() && (suppressClientRandomReporting || !random.isEmpty()) && !key.isEmpty();
 }
 
 bool
-Security::CommunicationSecrets::learnNew(const CommunicationSecrets &news)
+Security::HandshakeSecrets::learnNew(const Connection &sconn)
 {
+    const HandshakeSecrets news(sconn);
+
     auto sawChange = false;
 
     if (id != news.id && !news.id.isEmpty()) {
@@ -48,7 +54,7 @@ Security::CommunicationSecrets::learnNew(const CommunicationSecrets &news)
         sawChange = true;
     }
 
-    if (random != news.random && !news.random.isEmpty()) {
+    if (!suppressClientRandomReporting && random != news.random && !news.random.isEmpty()) {
         random = news.random;
         sawChange = true;
     }
@@ -72,9 +78,14 @@ PrintSecret(std::ostream &os, const SBuf &secret)
 }
 
 void
-Security::CommunicationSecrets::record(std::ostream &os) const {
+Security::HandshakeSecrets::record(std::ostream &os) const {
     // Print SSLKEYLOGFILE blobs that contain at least one known secret.
     // See Wireshark tls_keylog_process_lines() source code for format details.
+
+    // Each line printed below has format that includes two secrets, but one of
+    // those secrets may be discovered later. SSLKEYLOGFILE consumers like
+    // Wireshark discard lines with just one secret, so we print both secrets
+    // when both become known, even if we have already printed one of them.
 
     // RSA Session-ID:... Master-Key:...
     if (id.length() || key.length()) {
@@ -85,7 +96,7 @@ Security::CommunicationSecrets::record(std::ostream &os) const {
     }
 
     // CLIENT_RANDOM ... ...
-    if (random.length() || key.length()) {
+    if (!suppressClientRandomReporting && (random.length() || key.length())) {
         os << "CLIENT_RANDOM ";
         PrintSecret(os, random);
         os << ' ';
@@ -94,6 +105,13 @@ Security::CommunicationSecrets::record(std::ostream &os) const {
         PrintSecret(os, key);
         os << "\n";
     }
+}
+
+std::ostream &
+operator <<(std::ostream &os, const Security::HandshakeSecrets &secrets)
+{
+    secrets.record(os);
+    return os;
 }
 
 #if USE_OPENSSL
@@ -109,7 +127,7 @@ IgnorePlaceholder(SBuf &secret)
 }
 
 void
-Security::CommunicationSecrets::getClientRandom(const Connection &sconn)
+Security::HandshakeSecrets::getClientRandom(const Connection &sconn)
 {
     random.clear();
     const auto expectedLength = SSL_get_client_random(&sconn, nullptr, 0);
@@ -126,7 +144,7 @@ Security::CommunicationSecrets::getClientRandom(const Connection &sconn)
 }
 
 void
-Security::CommunicationSecrets::getSessionId(const Session &session)
+Security::HandshakeSecrets::getSessionId(const Session &session)
 {
     id.clear();
     unsigned int idLength = 0;
@@ -139,7 +157,7 @@ Security::CommunicationSecrets::getSessionId(const Session &session)
 }
 
 void
-Security::CommunicationSecrets::getMasterKey(const Session &session)
+Security::HandshakeSecrets::getMasterKey(const Session &session)
 {
     key.clear();
     const auto expectedLength = SSL_SESSION_get_master_key(&session, nullptr, 0);
@@ -155,4 +173,46 @@ Security::CommunicationSecrets::getMasterKey(const Session &session)
     IgnorePlaceholder(key);
 }
 #endif /* USE_OPENSSL */
+
+/* Security::CommunicationSecrets */
+
+void
+Security::CommunicationSecrets::importFormatted(const char *formattedSecrets)
+{
+    libraryProvidedSecrets.append(formattedSecrets);
+    // OpenSSL-provided lines are documented to lack a new line that is required
+    // by NSS SSLKEYLOGFILE format. Adding a new line also simplifies secrets
+    // concatenation/aggregation and printing code.
+    libraryProvidedSecrets.append('\n');
+
+    // Do not report two CLIENT_RANDOM lines, one provided to us by the library
+    // and one hand-made by our handshakeSecrets-printing code.
+    if (!handshakeSecrets.suppressClientRandomReporting &&
+            strncmp(formattedSecrets, "CLIENT_RANDOM ", 14) == 0) {
+        handshakeSecrets.suppressClientRandomReporting = true;
+    }
+}
+
+SBuf
+Security::CommunicationSecrets::exportFormatted(const Connection &sconn)
+{
+    SBuf newRecords = libraryProvidedSecrets;
+
+    // Avoid unlimited accumulation while peers update secrets (and simplify).
+    // We rely on the library supplying these secrets to filter out duplicates.
+    libraryProvidedSecrets.clear();
+
+    // Optimization: Avoid extracting handshakeSecrets once we gotAll() of them.
+    // SSL_key_update() does not change Session-ID, Master-Key, CLIENT_RANDOM,
+    // and SERVER_RANDOM values while adding CLIENT_TRAFFIC_SECRET_N and
+    // SERVER_TRAFFIC_SECRET_N secrets. HandshakeSecrets may change if peers
+    // renegotiate, but Squid has never had code to react to such renegotiation.
+    // Such renegotiation ought to be disabled in earlier TLS protocol versions.
+    // It is not supported starting with TLS v1.3. TLS v1.3 uses KeyUpdate
+    // mechanism instead, but KeyUpdate does not change handshakeSecrets.
+    if (!handshakeSecrets.gotAll() && handshakeSecrets.learnNew(sconn))
+        newRecords.append(ToSBuf(handshakeSecrets));
+
+    return newRecords;
+}
 
