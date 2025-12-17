@@ -16,24 +16,30 @@
 
 namespace Security {
 
-/// extracts and formats TLS exchange info for (later) decryption that exchange:
-/// early secrets, handshake secrets, (pre)master key, client random, etc.
-class CommunicationSecrets
+/// Manages TLS key material related to Client Hello and Server Hello messages:
+/// session ID, (pre)master key, and client random.
+class HandshakeSecrets
 {
 public:
-    CommunicationSecrets() = default;
-    explicit CommunicationSecrets(const Connection &sconn);
+    /// no secrets
+    HandshakeSecrets() = default;
 
-    /// whether we know all the secrets that could be extracted
+    /// imports currently available secrets from the given TLS connection
+    explicit HandshakeSecrets(const Connection &);
+
+    /// whether we know all record()-worthy secrets
     bool gotAll() const;
 
-    /// copy all new secrets (i.e. previously unknown or changed)
-    /// while preserving previously known secrets that have disappeared
-    /// \returns whether any secrets were copied (i.e. this object has changed)
-    bool learnNew(const CommunicationSecrets &news);
+    /// extracts given connection secrets and updates stored ones as needed
+    /// \returns whether any secrets stored got updated
+    bool learnNew(const Connection &);
 
     /// logs all known secrets using a (multiline) SSLKEYLOGFILE format
     void record(std::ostream &) const;
+
+public:
+    /// do not record() known CLIENT_RANDOM
+    bool suppressClientRandomReporting = false;
 
 private:
 #if USE_OPENSSL
@@ -50,7 +56,34 @@ private:
     SBuf key; ///< TLS session (pre-)master key
 };
 
+/// Manages TLS key material suitable for (later) decryption of TLS exchanges:
+/// early secrets, handshake secrets, client random, updated keys, etc.
+class CommunicationSecrets
+{
+public:
+    /// no secrets
+    CommunicationSecrets() = default;
+
+    /// updates stored secrets as needed
+    /// \returns secrets to report in NSS SSLKEYLOGFILE line(s) format
+    SBuf exportFormatted(const Connection &);
+
+    /// copies given TLS secrets in NSS SSLKEYLOGFILE line(s) format
+    void importFormatted(const char *);
+
+private:
+    HandshakeSecrets handshakeSecrets;
+
+    /// Accumulates unrecorded key material in NSS SSLKEYLOGFILE format.
+    /// Uses new line to separate secrets.
+    /// \sa KeyLogger::noteKeyMaterial()
+    SBuf libraryProvidedSecrets;
+};
+
 } // namespace Security
+
+/// prints secrets in NSS SSLKEYLOGFILE line(s) format
+std::ostream &operator <<(std::ostream &, const Security::HandshakeSecrets &);
 
 #endif /* SQUID_SRC_SECURITY_COMMUNICATION_SECRETS_H */
 

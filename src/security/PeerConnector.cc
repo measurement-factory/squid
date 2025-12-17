@@ -143,7 +143,7 @@ Security::PeerConnector::initialize(Security::SessionPointer &serverSession)
     Security::ContextPointer ctx(getTlsContext());
     debugs(83, 5, serverConnection() << ", ctx=" << (void*)ctx.get());
 
-    if (!ctx || !Security::CreateClientSession(ctx, serverConnection(), "server https start")) {
+    if (!ctx || !Security::CreateClientSession(ctx, serverConnection(), *this)) {
         const auto xerrno = errno;
         if (!ctx) {
             debugs(83, DBG_IMPORTANT, "ERROR: initializing TLS connection: No security context.");
@@ -222,10 +222,6 @@ Security::PeerConnector::negotiate()
 
 #if USE_OPENSSL
     auto &sconn = *fd_table[fd].ssl;
-
-    // log ASAP, even if the handshake has not completed (or failed)
-    keyLogger.checkpoint(sconn, *this);
-
     // OpenSSL v1 APIs do not allow unthreaded applications like Squid to fetch
     // missing certificates _during_ OpenSSL certificate validation. Our
     // handling of X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY (abbreviated

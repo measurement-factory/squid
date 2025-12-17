@@ -49,7 +49,9 @@ void KeyData::loadFromFiles(const AnyP::PortCfg &, const char *) STUB
 }
 
 #include "security/KeyLogger.h"
-void Security::KeyLogger::maybeLog(const Connection &, const Acl::ChecklistFiller &) STUB
+void Security::EnableKeyLogging(ContextPointer &) STUB
+void Security::KeyLoggingStart(Connection &, const Acl::ChecklistFiller &) STUB
+void Security::KeyLoggingCheckpoint(const Connection &) STUB
 
 #include "security/ErrorDetail.h"
 Security::ErrorDetail::ErrorDetail(ErrorCode, const CertPointer &, const CertPointer &, const char *) STUB
@@ -139,8 +141,8 @@ void Security::ServerOptions::updateContextSessionId(Security::ContextPointer &)
 
 #include "security/Session.h"
 namespace Security {
-bool CreateClientSession(const Security::ContextPointer &, const Comm::ConnectionPointer &, const char *) STUB_RETVAL(false)
-bool CreateServerSession(const Security::ContextPointer &, const Comm::ConnectionPointer &, Security::PeerOptions &, const char *) STUB_RETVAL(false)
+bool CreateClientSession(const Security::ContextPointer &, const Comm::ConnectionPointer &, const Acl::ChecklistFiller &) STUB_RETVAL(false)
+bool CreateServerSession(const Security::ContextPointer &, const Comm::ConnectionPointer &, Security::PeerOptions &, const Acl::ChecklistFiller &) STUB_RETVAL(false)
 void SessionSendGoodbye(const Security::SessionPointer &) STUB
 bool SessionIsResumed(const Security::SessionPointer &) STUB_RETVAL(false)
 void MaybeGetSessionResumeData(const Security::SessionPointer &, Security::SessionStatePointer &) STUB

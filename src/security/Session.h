@@ -9,6 +9,7 @@
 #ifndef SQUID_SRC_SECURITY_SESSION_H
 #define SQUID_SRC_SECURITY_SESSION_H
 
+#include "acl/forward.h"
 #include "base/HardFun.h"
 #include "comm/forward.h"
 #include "security/forward.h"
@@ -33,13 +34,13 @@ namespace Security {
 
 /// Creates TLS Client connection structure (aka 'session' state) and initializes TLS/SSL I/O (Comm and BIO).
 /// On errors, emits DBG_IMPORTANT with details and returns false.
-bool CreateClientSession(const Security::ContextPointer &, const Comm::ConnectionPointer &, const char *squidCtx);
+bool CreateClientSession(const Security::ContextPointer &, const Comm::ConnectionPointer &, const Acl::ChecklistFiller &);
 
 class PeerOptions;
 
 /// Creates TLS Server connection structure (aka 'session' state) and initializes TLS/SSL I/O (Comm and BIO).
 /// On errors, emits DBG_IMPORTANT with details and returns false.
-bool CreateServerSession(const Security::ContextPointer &, const Comm::ConnectionPointer &, Security::PeerOptions &, const char *squidCtx);
+bool CreateServerSession(const Security::ContextPointer &, const Comm::ConnectionPointer &, Security::PeerOptions &, const Acl::ChecklistFiller &);
 
 #if USE_OPENSSL
 typedef SSL Connection;

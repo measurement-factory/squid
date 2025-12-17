@@ -13,6 +13,7 @@
 #include "error/SysErrorDetail.h"
 #include "fatal.h"
 #include "globals.h"
+#include "security/KeyLogger.h"
 #include "security/ServerOptions.h"
 #include "security/Session.h"
 #include "SquidConfig.h"
@@ -171,6 +172,9 @@ Security::ServerOptions::createBlankContext() const
         debugs(83, DBG_CRITICAL, "ERROR: Failed to allocate TLS server context: " << Security::ErrorString(x));
     }
     ctx = convertContextFromRawPtr(t);
+
+    if (ctx)
+        Security::EnableKeyLogging(ctx);
 
 #elif USE_GNUTLS
     // Initialize for X.509 certificate exchange

@@ -10,48 +10,25 @@
 #define SQUID_SRC_SECURITY_KEY_LOGGER_H
 
 #include "acl/forward.h"
-#include "security/CommunicationSecrets.h"
-
-#include <iosfwd>
-
-class MasterXaction;
-typedef RefCount<MasterXaction> MasterXactionPointer;
+#include "security/forward.h"
 
 namespace Security {
 
-/// manages collecting and logging secrets of a TLS connection to tls_key_log
-class KeyLogger
-{
-public:
-    /// (quickly decides whether logging might be needed and) logs if possible
-    /// this method is a performance optimization wrapper for slower maybeLog()
-    void checkpoint(const Connection &, const Acl::ChecklistFiller &);
+/// Makes key logging possible for future TLS connections created with the given context.
+/// \prec the given context pointer is not nil; TODO: Add Context type to use a reference instead.
+void EnableKeyLogging(ContextPointer &);
 
-private:
-    /// (slowly checks logging preconditions and) logs if possible
-    void maybeLog(const Connection &, const Acl::ChecklistFiller &);
+/// Creates a logger for the given connection (if needed and possible).
+/// \prec EnableKeyLogging() has been called for the connection context
+void KeyLoggingStart(Connection &, const Acl::ChecklistFiller &);
 
-    /// (slowly checks) whether logging is possible now
-    bool shouldLog(const Acl::ChecklistFiller &) const;
-
-    /// connection secrets learned so far
-    CommunicationSecrets secrets;
-
-    /// whether to prevent further logging attempts
-    bool done_ = false;
-
-    /// whether we know that the admin wants us to log this connection keys
-    mutable bool wanted_ = false;
-};
+/// Logs connection secrets if logging is needed and possible.
+/// Should be called whenever new connection secrets may appear.
+/// Optimized for making quick "no need" decisions.
+/// Avoids writing identical log records, making repeated calls safe.
+void KeyLoggingCheckpoint(const Connection &);
 
 } // namespace Security
-
-inline void
-Security::KeyLogger::checkpoint(const Connection &sconn, const Acl::ChecklistFiller &caller)
-{
-    if (!done_)
-        maybeLog(sconn, caller);
-}
 
 #endif /* SQUID_SRC_SECURITY_KEY_LOGGER_H */
 

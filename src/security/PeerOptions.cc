@@ -13,6 +13,7 @@
 #include "globals.h"
 #include "parser/Tokenizer.h"
 #include "Parsing.h"
+#include "security/KeyLogger.h"
 #include "security/PeerOptions.h"
 
 #if USE_OPENSSL
@@ -250,6 +251,9 @@ Security::PeerOptions::createBlankContext() const
         fatalf("Failed to allocate TLS client context: %s\n", Security::ErrorString(x));
     }
     ctx = convertContextFromRawPtr(t);
+
+    if (ctx)
+        Security::EnableKeyLogging(ctx);
 
 #elif USE_GNUTLS
     // Initialize for X.509 certificate exchange

@@ -17,9 +17,7 @@
 #include "log/File.h"
 #include "Parsing.h"
 #include "sbuf/Stream.h"
-#include "security/CommunicationSecrets.h"
 #include "security/KeyLog.h"
-#include "security/Session.h"
 #include "SquidConfig.h"
 
 Security::KeyLog::KeyLog(ConfigParser &parser)
@@ -32,10 +30,18 @@ Security::KeyLog::KeyLog(ConfigParser &parser)
     assert(!type);
     assert(!logFormat);
     type = Log::Format::CLF_NONE;
+
+#if HAVE_LIBSSL_SSL_CTX_SET_KEYLOG_CALLBACK
+    debugs(33, 3, "tls_key_log supports TLS v1.3+");
+#else
+    debugs(33, DBG_IMPORTANT, "WARNING: tls_key_log will not contain enough key material to decrypt " <<
+           "TLS v1.3+ connections (if any) because this Squid was built with OpenSSL library version " <<
+           "that does not support SSL_CTX_set_keylog_callback(3ssl) API: " << OpenSSL_version(OPENSSL_VERSION));
+#endif /* HAVE_LIBSSL_SSL_CTX_SET_KEYLOG_CALLBACK */
 }
 
 void
-Security::KeyLog::record(const CommunicationSecrets &secrets)
+Security::KeyLog::record(const SBuf &formattedLines)
 {
     assert(logfile);
 
@@ -47,7 +53,8 @@ Security::KeyLog::record(const CommunicationSecrets &secrets)
         os << ' ' << *ctx;
     os << '\n';
 
-    secrets.record(os);
+    os << formattedLines;
+
     const auto buf = os.buf();
 
     logfileLineStart(logfile);

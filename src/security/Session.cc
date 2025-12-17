@@ -17,6 +17,7 @@
 #include "fd.h"
 #include "fde.h"
 #include "ipc/MemMap.h"
+#include "security/KeyLogger.h"
 #include "security/Session.h"
 #include "SquidConfig.h"
 #include "ssl/bio.h"
@@ -57,6 +58,10 @@ tls_read_method(int fd, char *buf, int len)
     } else
         fd_table[fd].flags.read_pending = false;
 
+    // log any new/updated TLS secrets
+    if (session)
+        Security::KeyLoggingCheckpoint(*session);
+
     return i;
 }
 
@@ -82,6 +87,11 @@ tls_write_method(int fd, const char *buf, int len)
     if (i > 0) {
         debugs(83, 8, "TLS FD " << fd << " session=" << (void*)session << " " << i << " bytes");
     }
+
+    // log any new/updated TLS secrets
+    if (session)
+        Security::KeyLoggingCheckpoint(*session);
+
     return i;
 }
 #endif
@@ -117,10 +127,10 @@ handleConnectionFailure(const Comm::ConnectionPointer &conn, const char * const 
 }
 
 static bool
-CreateSession(const Security::ContextPointer &ctx, const Comm::ConnectionPointer &conn, Security::PeerOptions &opts, Security::Io::Type type, const char *squidCtx)
+CreateSession(const Security::ContextPointer &ctx, const Comm::ConnectionPointer &conn, Security::PeerOptions &opts, Security::Io::Type type, const Acl::ChecklistFiller &caller, const char *squidCtx)
 {
     if (!Comm::IsConnOpen(conn)) {
-        handleConnectionFailure(conn, squidCtx, "unexpected connection closure", 0);
+        handleConnectionFailure(conn, squidCtx, "failed due to an unexpected connection closure", 0);
         return false;
     }
 
@@ -151,6 +161,8 @@ CreateSession(const Security::ContextPointer &ctx, const Comm::ConnectionPointer
 #endif /* USE_GNUTLS */
 
     if (session) {
+        Security::KeyLoggingStart(*session, caller);
+
         const int fd = conn->fd;
 
 #if USE_OPENSSL
@@ -197,19 +209,19 @@ CreateSession(const Security::ContextPointer &ctx, const Comm::ConnectionPointer
 }
 
 bool
-Security::CreateClientSession(const Security::ContextPointer &ctx, const Comm::ConnectionPointer &c, const char *squidCtx)
+Security::CreateClientSession(const Security::ContextPointer &ctx, const Comm::ConnectionPointer &c, const Acl::ChecklistFiller &caller)
 {
     if (!c || !c->getPeer())
-        return CreateSession(ctx, c, Security::ProxyOutgoingConfig, Security::Io::BIO_TO_SERVER, squidCtx);
+        return CreateSession(ctx, c, Security::ProxyOutgoingConfig, Security::Io::BIO_TO_SERVER, caller, "establishing a TLS connection to a server");
 
     auto *peer = c->getPeer();
-    return CreateSession(ctx, c, peer->secure, Security::Io::BIO_TO_SERVER, squidCtx);
+    return CreateSession(ctx, c, peer->secure, Security::Io::BIO_TO_SERVER, caller, "establishing a TLS connection to a cache_peer");
 }
 
 bool
-Security::CreateServerSession(const Security::ContextPointer &ctx, const Comm::ConnectionPointer &c, Security::PeerOptions &o, const char *squidCtx)
+Security::CreateServerSession(const Security::ContextPointer &ctx, const Comm::ConnectionPointer &c, Security::PeerOptions &o, const Acl::ChecklistFiller &caller)
 {
-    return CreateSession(ctx, c, o, Security::Io::BIO_TO_CLIENT, squidCtx);
+    return CreateSession(ctx, c, o, Security::Io::BIO_TO_CLIENT, caller, "accepting a TLS connection");
 }
 
 void

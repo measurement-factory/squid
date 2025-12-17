@@ -26,7 +26,7 @@ public:
     bool canLog() const { return logfile != nullptr; }
 
     /// writes a single (but multi-line) key log entry
-    void record(const CommunicationSecrets &);
+    void record(const SBuf &formattedLines);
 
     /// reproduces explicitly-configured squid.conf settings
     void dump(std::ostream &) const;

@@ -112,7 +112,6 @@
 #include "security/Certificate.h"
 #include "security/CommunicationSecrets.h"
 #include "security/Io.h"
-#include "security/KeyLog.h"
 #include "security/NegotiationHistory.h"
 #include "servers/forward.h"
 #include "SquidConfig.h"
@@ -2273,18 +2272,7 @@ ConnStateData::whenClientIpKnown()
 Security::IoResult
 ConnStateData::acceptTls()
 {
-    const auto handshakeResult = Security::Accept(*clientConnection);
-
-#if USE_OPENSSL
-    // log ASAP, even if the handshake has not completed (or failed)
-    const auto fd = clientConnection->fd;
-    assert(fd >= 0);
-    keyLogger.checkpoint(*fd_table[fd].ssl, *this);
-#else
-    // TODO: Support fd_table[fd].ssl dereference in other builds.
-#endif
-
-    return handshakeResult;
+    return Security::Accept(*clientConnection);
 }
 
 /** Handle a new connection on an HTTP socket. */
@@ -2317,7 +2305,7 @@ static bool
 httpsCreate(const ConnStateData *connState, const Security::ContextPointer &ctx)
 {
     const auto conn = connState->clientConnection;
-    if (Security::CreateServerSession(ctx, conn, connState->port->secure, "client https start")) {
+    if (Security::CreateServerSession(ctx, conn, connState->port->secure, *connState)) {
         debugs(33, 5, "will negotiate TLS on " << conn);
         return true;
     }
