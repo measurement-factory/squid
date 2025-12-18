@@ -10,7 +10,6 @@
 
 #include "squid.h"
 #include "acl/FilledChecklist.h"
-#include "src/base/IoManip.h"
 #include "client_side.h"
 #include "errorpage.h"
 #include "fde.h"
@@ -19,6 +18,7 @@
 #include "security/ErrorDetail.h"
 #include "security/NegotiationHistory.h"
 #include "SquidConfig.h"
+#include "src/base/IoManip.h"
 #include "ssl/bio.h"
 #include "ssl/PeekingPeerConnector.h"
 #include "ssl/ServerBump.h"
