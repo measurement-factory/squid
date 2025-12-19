@@ -207,8 +207,7 @@ Ssl::PeekingPeerConnector::initialize(Security::SessionPointer &serverSession)
             // automatically enforce a particular set of TLS conditions (e.g.,
             // "no legacy TLS servers"). When that assumption is invalidated, we
             // will need to add a configuration directive to set peeking TLS
-            // options. TODO: Add more options that enable workarounds;
-            // consider adding SSL_OP_ALLOW_UNSAFE_LEGACY_RENEGOTIATION.
+            // options.
             if (csd->sslBumpMode == Ssl::bumpPeek) {
                 const auto adjustedOptions = SSL_set_options(serverSession.get(), SSL_OP_LEGACY_SERVER_CONNECT);
                 debugs(83, 5, "post-SSL_OP_LEGACY_SERVER_CONNECT options for session=" << serverSession << ": " << asHex(adjustedOptions));
