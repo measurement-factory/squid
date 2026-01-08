@@ -1854,14 +1854,16 @@ masterCheckAndBroadcastSignals()
     if (do_revive_kids)
         masterReviveKids();
 
-    // emulate multi-step reconfiguration assumed by AvoidSignalAction()
-    if (reconfiguring)
-        masterReconfigureFinish();
-
     BroadcastSignalIfAny(DebugSignal);
     BroadcastSignalIfAny(RotateSignal);
-    BroadcastSignalIfAny(ReconfigureSignal);
-    BroadcastSignalIfAny(ShutdownSignal);
+
+    if (reconfiguring) {
+        BroadcastSignalIfAny(ReconfigureSignal);
+        // emulate multi-step reconfiguration assumed by AvoidSignalAction()
+        masterReconfigureFinish();
+    }
+    if (shutting_down)
+        BroadcastSignalIfAny(ShutdownSignal);
     ReviveKidsSignal = -1; // alarms are not broadcasted
 }
 
