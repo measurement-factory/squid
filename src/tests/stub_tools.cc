@@ -13,7 +13,6 @@
 #define STUB_API "tools.cc"
 #include "tests/STUB.h"
 
-int DebugSignal = -1;
 SBuf service_name(APP_SHORTNAME);
 void releaseServerSockets(void) STUB_NOP
 void dumpMallocStats(void) STUB

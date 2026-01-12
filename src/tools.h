@@ -16,8 +16,6 @@
 
 class MemBuf;
 
-extern int DebugSignal;
-
 /// The Squid -n parameter service name.
 /// Default is APP_SHORTNAME ('squid').
 extern SBuf service_name;
