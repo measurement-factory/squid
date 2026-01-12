@@ -835,7 +835,7 @@ master_revive_kids(int sig)
 static void
 master_shutdown(int sig)
 {
-    TheSignals().add(Signal::Role::ShutdownInstant, sig);
+    TheSignals().add(Signal::Role::ShutdownDelayed, sig);
 
 #if !_SQUID_WINDOWS_
 #if !HAVE_SIGACTION
