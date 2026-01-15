@@ -256,6 +256,8 @@ public:
 
     void checkpoint();
 
+    void masterCheckpoint();
+
     Role role_ = Role::Reconfigure;
     size_t count_ = 0; // the number of received signals before they are processed
     const char *description_ = nullptr;
@@ -308,6 +310,21 @@ Signal::checkpoint()
 {
     if (get() && !TheSignals().avoidAction(role_))
         masterDoAction_(this);
+}
+
+void
+Signal::masterCheckpoint()
+{
+    if (!get() || TheSignals().avoidAction(role_))
+        return;
+
+    if (masterStartAction_)
+        masterStartAction_();
+
+    if (doBroadcast_)
+        broadcast();
+    else
+        set(false); // reset signals that are not broadcasted
 }
 
 void
@@ -1943,22 +1960,8 @@ TheSignals()
 static void
 masterCheckAndBroadcastSignals()
 {
-    for (size_t i = 0; i <= Signal::Last(); ++i) {
-        auto &action = TheSignals().actions_[i];
-        if (!action.get())
-            continue;
-
-        if (TheSignals().avoidAction(i))
-            continue;
-
-        if (const auto startAction = action.masterStartAction_)
-            startAction();
-
-        if (action.doBroadcast_)
-            action.broadcast();
-        else
-            action.set(false); // reset signals that are not broadcasted
-    }
+    for (size_t i = 0; i <= Signal::Last(); ++i)
+        TheSignals().actions_[i].masterCheckpoint();
 
     // emulate multi-step reconfiguration assumed by TheSignals::avoidAction()
     if (reconfiguring)
@@ -2154,6 +2157,7 @@ watch_child(const CommandLine &masterCommand)
         PidStatus status;
         pid = WaitForAnyPid(status, waitFlag);
         getCurrentTime();
+
         // check for a stopped kid
         if (Kid *kid = pid > 0 ? TheKids.find(pid) : nullptr)
             kid->stop(status);
