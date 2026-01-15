@@ -269,10 +269,11 @@ public:
 class Signals
 {
 public:
+    using SignalHandler = void (*)(int);
+
     bool inited() const { return actions_[0].description_ != nullptr; }
 
-    void add(const Signal::Role t, int sig) { actions_[static_cast<size_t>(t)].set(sig); }
-    bool on(const Signal::Role t) const { return actions_[static_cast<size_t>(t)].get(); }
+    void add(Signal::Role, int sig, SignalHandler);
     bool onSome() const;
 
     bool avoidAction(size_t);
@@ -307,6 +308,18 @@ Signal::checkpoint()
 {
     if (get() && !TheSignals().avoidAction(role_))
         masterDoAction_(this);
+}
+
+void
+Signals::add(const Signal::Role t, const int sig, const Signals::SignalHandler handler)
+{
+    actions_[static_cast<size_t>(t)].set(sig);
+#if !_SQUID_WINDOWS_
+#if !HAVE_SIGACTION
+    signal(sig, handler);
+#endif
+#endif
+    (void)handler; // suppress the 'unused parameter' error
 }
 
 bool
@@ -806,65 +819,36 @@ mainHandleCommandLineOption(const int optId, const char *optValue)
 void
 rotate_logs(int sig)
 {
-    TheSignals().add(Signal::Role::Rotate, sig);
-#if !_SQUID_WINDOWS_
-#if !HAVE_SIGACTION
-
-    signal(sig, rotate_logs);
-#endif
-#endif
+    TheSignals().add(Signal::Role::Rotate, sig, rotate_logs);
 }
 
 /* ARGSUSED */
 void
 reconfigure(int sig)
 {
-    TheSignals().add(Signal::Role::Reconfigure, sig);
-#if !_SQUID_WINDOWS_
-#if !HAVE_SIGACTION
-
-    signal(sig, reconfigure);
-#endif
-#endif
+    TheSignals().add(Signal::Role::Reconfigure, sig, reconfigure);
 }
 
 static void
 master_revive_kids(int sig)
 {
-    TheSignals().add(Signal::Role::Revive, sig);
-
-#if !_SQUID_WINDOWS_
-#if !HAVE_SIGACTION
-    signal(sig, master_revive_kids);
-#endif
-#endif
+    TheSignals().add(Signal::Role::Revive, sig, master_revive_kids);
 }
 
 /// Shutdown signal handler for master process
 static void
 master_shutdown(int sig)
 {
-    TheSignals().add(Signal::Role::ShutdownDelayed, sig);
-
-#if !_SQUID_WINDOWS_
-#if !HAVE_SIGACTION
-    signal(sig, master_shutdown);
-#endif
-#endif
-
+    TheSignals().add(Signal::Role::ShutdownDelayed, sig, master_shutdown);
 }
 
 void
 shut_down(int sig)
 {
-    TheSignals().add(SIGINT ? Signal::Role::ShutdownInstant : Signal::Role::ShutdownDelayed, sig);
+    TheSignals().add(SIGINT ? Signal::Role::ShutdownInstant : Signal::Role::ShutdownDelayed, sig, shut_down);
 #if defined(SIGTTIN)
     if (SIGTTIN == sig)
         shutdown_status = EXIT_FAILURE;
-#endif
-
-#if !defined(_SQUID_WINDOWS_) && !defined(HAVE_SIGACTION)
-    signal(sig, shut_down);
 #endif
 }
 
@@ -873,9 +857,10 @@ void
 sigusr2_handle(int sig)
 {
     static int state = 0;
-    /* no debugs() here; bad things happen if the signal is delivered during _db_print() */
+    // no debugs() here; bad things happen if the signal is delivered during _db_print()
+    // XXX: Refactor to remove direct and indirect debugs() calls.
 
-    TheSignals().add(Signal::Role::Debug, sig);
+    TheSignals().add(Signal::Role::Debug, sig, sigusr2_handle);
 
     if (state == 0) {
         Debug::parseOptions("ALL,7");
@@ -884,14 +869,6 @@ sigusr2_handle(int sig)
         Debug::parseOptions(Debug::debugOptions);
         state = 0;
     }
-
-#if !HAVE_SIGACTION
-    /* reinstall */
-    if (signal(sig, sigusr2_handle) == SIG_ERR) {
-        int xerrno = errno;
-        debugs(50, DBG_CRITICAL, "signal: sig=" << sig << " func=sigusr2_handle: " << xstrerr(xerrno));
-    }
-#endif
 }
 
 void
