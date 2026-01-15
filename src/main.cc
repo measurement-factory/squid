@@ -151,8 +151,10 @@ static int malloc_debug_level = 0;
 static volatile int shutdown_status = EXIT_SUCCESS;
 static volatile int do_handle_stopped_child = 0;
 
-static void mainRotate(void);
-static void mainReconfigureStart(void);
+class Signal;
+static void doShutdown(Signal *);
+static void mainRotate(Signal *);
+static void mainReconfigureStart(Signal *);
 static void mainReconfigureFinish(void*);
 static void mainInitialize(void);
 static void usage(void);
@@ -209,8 +211,9 @@ private:
         eventAdd("SquidTerminate", &StopEventLoop, nullptr, 0, 1, false);
     }
 
-    void doShutdown(time_t wait);
     void handleStoppedChild();
+
+    friend void doShutdown(Signal *);
 };
 
 /// Associates an OS signal received by a signal handler with an processing action
@@ -219,6 +222,7 @@ class Signal
 {
 public:
     using MasterStartAction = void (*)();
+    using MasterDoAction = void (*)(Signal *);
 
     // an action type
     enum class Role {
@@ -235,8 +239,8 @@ public:
 
     Signal() {}
 
-    Signal(const Role role, const char *desc, const MasterStartAction p, const bool doBroadcast)
-        : role_(role), count_(0), description_(desc), masterStartAction_(p), doBroadcast_(doBroadcast) {}
+    Signal(const Role role, const char *desc, const MasterStartAction startAction, const MasterDoAction doAction,  const bool doBroadcast)
+        : role_(role), count_(0), description_(desc), masterStartAction_(startAction), masterDoAction_(doAction), doBroadcast_(doBroadcast) {}
 
     void set(const int sig) {
         count_++;
@@ -250,10 +254,13 @@ public:
 
     void broadcast();
 
+    void checkpoint();
+
     Role role_ = Role::Reconfigure;
     size_t count_ = 0; // the number of received signals before they are processed
     const char *description_ = nullptr;
     MasterStartAction masterStartAction_ = nullptr;
+    MasterDoAction masterDoAction_ = nullptr;
     bool doBroadcast_ = false;
     int sigId_ = 0; // signal ID for kill()
 };
@@ -293,6 +300,13 @@ Signal::broadcast()
         }
     }
     clear();
+}
+
+void
+Signal::checkpoint()
+{
+    if (get() && !TheSignals().avoidAction(role_))
+        masterDoAction_(this);
 }
 
 bool
@@ -346,29 +360,11 @@ Signals::avoidAction(const size_t role)
     return true;
 }
 
-int
-SignalEngine::checkEvents(int)
+static void
+doShutdown(Signal *sig)
 {
-    if (TheSignals().on(Signal::Role::Reconfigure)) {
-        if (!TheSignals().avoidAction(Signal::Role::Reconfigure))
-            mainReconfigureStart();
-    } else if (TheSignals().on(Signal::Role::Rotate)) {
-        if (!TheSignals().avoidAction(Signal::Role::Rotate))
-            mainRotate();
-    } else if (TheSignals().on(Signal::Role::ShutdownDelayed)) {
-        if (!TheSignals().avoidAction(Signal::Role::ShutdownDelayed))
-            doShutdown((int) Config.shutdownLifetime);
-    } else if (TheSignals().on(Signal::Role::ShutdownInstant)) {
-        if (!TheSignals().avoidAction(Signal::Role::ShutdownInstant))
-            doShutdown(0);
-    } if (do_handle_stopped_child)
-        handleStoppedChild();
-    return EVENT_IDLE;
-}
+    auto wait = (sig->role_ == Signal::Role::ShutdownDelayed) ? Config.shutdownLifetime : 0;
 
-void
-SignalEngine::doShutdown(time_t wait)
-{
     debugs(1, Important(2), "Preparing for shutdown after " << statCounter.client_http.requests << " requests");
     debugs(1, Important(3), "Waiting " << wait << " seconds for active connections to finish");
 
@@ -389,7 +385,20 @@ SignalEngine::doShutdown(time_t wait)
     WIN32_svcstatusupdate(SERVICE_STOP_PENDING, (wait + 1) * 1000);
 #endif
 
-    eventAdd("SquidShutdown", &FinalShutdownRunners, this, (double) (wait + 1), 1, false);
+    eventAdd("SquidShutdown", &SignalEngine::FinalShutdownRunners, nullptr, (double) (wait + 1), 1, false);
+}
+
+
+int
+SignalEngine::checkEvents(int)
+{
+    for (size_t i = 0; i <= Signal::Last(); ++i)
+        TheSignals().actions_[i].checkpoint();
+
+    if (do_handle_stopped_child)
+        handleStoppedChild();
+
+    return EVENT_IDLE;
 }
 
 void
@@ -967,7 +976,7 @@ serverConnectionsClose(void)
 }
 
 static void
-mainReconfigureStart(void)
+mainReconfigureStart(Signal *)
 {
     debugs(1, DBG_IMPORTANT, "Reconfiguring Squid Cache (version " << version_string << ")...");
     reconfiguring = 1;
@@ -1113,7 +1122,7 @@ mainReconfigureFinish(void *)
 }
 
 static void
-mainRotate(void)
+mainRotate(Signal *)
 {
     RotatingLogs = 1;
 
@@ -1944,12 +1953,12 @@ TheSignals()
 {
     static const auto instance = new Signals();
     if (!instance->inited()) {
-        instance->actions_[static_cast<int>(Signal::Role::Reconfigure)] = Signal(Signal::Role::Reconfigure, "reconfiguration", masterReconfigureStart, true);
-        instance->actions_[static_cast<int>(Signal::Role::Rotate)] = Signal(Signal::Role::Rotate, "rotate", nullptr, true);
-        instance->actions_[static_cast<int>(Signal::Role::ShutdownInstant)] = Signal(Signal::Role::ShutdownInstant, "shutdown", masterShutdownStart, true);
-        instance->actions_[static_cast<int>(Signal::Role::ShutdownDelayed)] = Signal(Signal::Role::ShutdownDelayed, "shutdown", masterShutdownStart, true);
-        instance->actions_[static_cast<int>(Signal::Role::Revive)] = Signal(Signal::Role::Revive, "revive kids", masterReviveKids, false);
-        instance->actions_[static_cast<int>(Signal::Role::Debug)] = Signal(Signal::Role::Revive, "debug", nullptr, true);
+        instance->actions_[static_cast<int>(Signal::Role::Reconfigure)] = Signal(Signal::Role::Reconfigure, "reconfiguration", masterReconfigureStart, mainReconfigureStart, true);
+        instance->actions_[static_cast<int>(Signal::Role::Rotate)] = Signal(Signal::Role::Rotate, "rotate", nullptr, mainRotate, true);
+        instance->actions_[static_cast<int>(Signal::Role::ShutdownInstant)] = Signal(Signal::Role::ShutdownInstant, "shutdown", masterShutdownStart, doShutdown,  true);
+        instance->actions_[static_cast<int>(Signal::Role::ShutdownDelayed)] = Signal(Signal::Role::ShutdownDelayed, "shutdown", masterShutdownStart, doShutdown, true);
+        instance->actions_[static_cast<int>(Signal::Role::Revive)] = Signal(Signal::Role::Revive, "revive kids", masterReviveKids, nullptr, false);
+        instance->actions_[static_cast<int>(Signal::Role::Debug)] = Signal(Signal::Role::Debug, "debug", nullptr, nullptr, true);
     }
     return *instance;
 }
