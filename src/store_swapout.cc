@@ -363,8 +363,8 @@ StoreEntry::mayStartSwapOut()
         return false;
     }
 
-    if (Store::Root().markedForDeletionAndAbandoned(*this)) {
-        debugs(20, 3, "marked for deletion and abandoned");
+    if (Store::Root().privateOrMarkedForDeletion(*this)) {
+        debugs(20, 3, "private or marked for deletion");
         swapOutDecision(MemObject::SwapOut::swImpossible);
         return false;
     }
