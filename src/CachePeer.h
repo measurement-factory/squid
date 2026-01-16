@@ -10,6 +10,7 @@
 #define SQUID_SRC_CACHEPEER_H
 
 #include "acl/forward.h"
+#include "base/AsyncCall.h"
 #include "base/CbcPointer.h"
 #include "base/forward.h"
 #include "base/RefCount.h"
@@ -18,9 +19,11 @@
 #include "http/StatusCode.h"
 #include "icp_opcode.h"
 #include "ip/Address.h"
+#include "mem/PoolingAllocator.h"
 #include "security/PeerOptions.h"
 
 #include <iosfwd>
+#include <unordered_set>
 
 class NeighborTypeDomainList;
 class PconnPool;
@@ -33,6 +36,8 @@ class CachePeer: public RefCountable
 
 public:
     using Pointer = RefCount<CachePeer>;
+
+    using IdlePinnedConnections = std::unordered_set<AsyncCall::Pointer, std::hash<AsyncCall::Pointer>, std::equal_to<AsyncCall::Pointer>, PoolingAllocator<AsyncCall::Pointer> >;
 
     explicit CachePeer(const SBuf &address);
     ~CachePeer();
@@ -56,6 +61,15 @@ public:
     /// TLS settings for communicating with this TLS cache_peer (if encryption
     /// is required; see secure.encryptTransport) or nil (otherwise)
     Security::FuturePeerContext *securityContext();
+
+    /// registers a callback to an ConnStateData with an idle pinned connection
+    void addIdlePinnedConnection(const AsyncCall::Pointer &);
+
+    /// unregisters a callback to an ConnStateData with an idle pinned connection
+    void removeIdlePinnedConnection(const AsyncCall::Pointer &);
+
+    /// notifies all monitored idle pinned connections about cache_peer removal
+    void noteRemove();
 
     /// n-th cache_peer directive, starting with 1
     u_int index = 0;
@@ -241,6 +255,9 @@ public:
 
 private:
     void countFailure();
+
+    /// the list of registered ConnStateData callbacks
+    IdlePinnedConnections idlePinnedConnections;
 };
 
 /// reacts to a successful establishment of a connection to an origin server or cache_peer

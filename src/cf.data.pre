@@ -4101,9 +4101,6 @@ DOC_START
 	  transactions that have selected the being-removed cache_peer but have
 	  not obtained a connection to it yet.
 
-	* Removing a cache_peer does not close idle connections pinned to that
-	  cache_peer (yet).
-
 	* Changing cache_peer hostname is not yet supported.
 
 	* Changing many of the cache_peer options (e.g., `originserver` and
