@@ -34,6 +34,7 @@
 #include "ssl/Config.h"
 #include "ssl/ErrorDetail.h"
 #include "ssl/gadgets.h"
+#include "ssl/MemStats.h"
 #include "ssl/support.h"
 
 #include <cerrno>
@@ -76,6 +77,56 @@ SquidUntrustedCerts()
 {
     static auto untrustedCerts = new CertsIndexedList();
     return *untrustedCerts;
+}
+
+/// a replacement for CRYPTO_malloc()
+static void *
+CryptoMalloc(size_t num, const char *file, int line)
+{
+    MallocStats().addArea(num);
+    // mimics CRYPTO_malloc(), returning NULL if num==0
+    // Do not call xmalloc() here because of its special malloc() errors treatment.
+    // We should preserve the old CRYPTO_malloc() behavior, allowing the SSL library
+    // to handle such errors itself.
+    const auto p = num ? malloc(num) : nullptr;
+    debugs(83, 5, p << " " << num << " " << file << " " << line);
+    return p;
+}
+
+/// a replacement for CRYPTO_free()
+static void
+CryptoFree(void *str, const char *file, int line)
+{
+    debugs(83, 5, str << " " << file << " " << line);
+    FreeStats()++;
+    xfree(str);
+}
+
+/// a replacement for CRYPTO_realloc()
+static void *
+CryptoRealloc(void *str, size_t num, const char *file, int line)
+{
+    if (!str) {
+        debugs(83, 5, str << " " << num << " " << file << " " << line);
+        return CryptoMalloc(num, file, line); // mimics CRYPTO_realloc() that calls CRYPTO_malloc()
+    }
+
+    if (num == 0) {
+        debugs(83, 5, str << " " << num << " " << file << " " << line);
+        CryptoFree(str, file, line); // mimics CRYPTO_realloc(), that calls CRYPTO_free()
+        return nullptr;
+    }
+
+    const auto p = realloc(str, num);
+    const auto sameArea = (p == str);
+    auto &stats = sameArea ? ReallocOldAddrStats() : ReallocNewAddrStats();
+    stats.addArea(num);
+    if (!sameArea) {
+        debugs(83, 5, "freed: " <<  str);
+        debugs(83, 5, "allocated: " <<  p);
+    }
+    debugs(83, 5, str << (sameArea ? "==" : "!=") << p << " " << num << " " << file << " " << line);
+    return p;
 }
 
 } // namespace Ssl
@@ -753,6 +804,8 @@ Ssl::Initialize(void)
 
     SQUID_OPENSSL_init_ssl();
 
+    if (!CRYPTO_set_mem_functions(CryptoMalloc, CryptoRealloc, CryptoFree))
+        debugs(83, DBG_IMPORTANT, "WARNING: Unable to CRYPTO_set_mem_functions(): the custom allocation is forbidden.");
     if (::Config.SSL.ssl_engine) {
 #if OPENSSL_VERSION_MAJOR < 3
         debugs(83, DBG_PARSE_NOTE(DBG_IMPORTANT), "WARNING: Support for ssl_engine is deprecated " <<

@@ -1101,6 +1101,7 @@ tests_testRock_SOURCES = \
 	tests/stub_liblog.cc \
 	tests/stub_libmgr.cc \
 	tests/stub_libsecurity.cc \
+	tests/stub_libsslsquid.cc \
 	log/access_log.h \
 	mem_node.cc \
 	tests/stub_mime.cc \
@@ -1273,6 +1274,7 @@ tests_testUfs_SOURCES = \
 	tests/stub_libip.cc \
 	tests/stub_liblog.cc \
 	tests/stub_libsecurity.cc \
+	tests/stub_libsslsquid.cc \
 	log/access_log.h \
 	mem_node.cc \
 	tests/stub_mime.cc \
@@ -1613,6 +1615,7 @@ tests_testDiskIO_SOURCES = \
 	tests/stub_libip.cc \
 	tests/stub_liblog.cc \
 	tests/stub_libsecurity.cc \
+	tests/stub_libsslsquid.cc \
 	tests/stub_libstore.cc \
 	log/access_log.h \
 	mem_node.cc \
