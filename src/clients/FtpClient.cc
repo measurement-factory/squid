@@ -215,7 +215,7 @@ Ftp::Client::~Client()
 void
 Ftp::Client::start()
 {
-    scheduleReadControlReply(0);
+    scheduleReadControlReply();
 }
 
 void
@@ -317,21 +317,12 @@ Ftp::Client::failedHttpStatus(err_type &error)
            Http::scBadGateway;
 }
 
-/**
- * DPW 2007-04-23
- * Looks like there are no longer anymore callers that set
- * buffered_ok=1.  Perhaps it can be removed at some point.
- */
 void
-Ftp::Client::scheduleReadControlReply(int buffered_ok)
+Ftp::Client::scheduleReadControlReply()
 {
     debugs(9, 3, ctrl.conn);
 
-    if (buffered_ok && ctrl.offset > 0) {
-        /* We've already read some reply data */
-        handleControlReply();
-    } else {
-
+    {
         if (!Comm::IsConnOpen(ctrl.conn)) {
             debugs(9, 3, "cannot read without ctrl " << ctrl.conn);
             return;
@@ -388,7 +379,7 @@ Ftp::Client::readControlReply(const CommIoCbParams &io)
                "ERROR: FTP control reply read failure: " << xstrerr(io.xerrno));
 
         if (ignoreErrno(io.xerrno)) {
-            scheduleReadControlReply(0);
+            scheduleReadControlReply();
         } else {
             failed(ERR_READ_ERROR, io.xerrno);
             /* failed closes ctrl.conn and frees ftpState */
@@ -413,11 +404,11 @@ Ftp::Client::readControlReply(const CommIoCbParams &io)
     assert(len <= ctrl.size);
     if (Comm::IsConnOpen(ctrl.conn))
         commUnsetConnTimeout(ctrl.conn); // we are done waiting for ctrl reply
-    handleControlReply();
+    processControlReply();
 }
 
 void
-Ftp::Client::handleControlReply()
+Ftp::Client::processControlReply()
 {
     debugs(9, 3, status());
 
@@ -431,7 +422,7 @@ Ftp::Client::handleControlReply()
             ctrl.buf = static_cast<char*>(memReallocBuf(ctrl.buf, ctrl.size << 1, &ctrl.size));
         }
 
-        scheduleReadControlReply(0);
+        scheduleReadControlReply();
         return;
     }
 
@@ -450,6 +441,8 @@ Ftp::Client::handleControlReply()
     }
 
     debugs(9, 3, "state=" << state << ", code=" << ctrl.replycode);
+
+    handleControlReply();
 }
 
 bool
@@ -848,8 +841,6 @@ Ftp::Client::writeCommand(const char *buf)
     AsyncCall::Pointer call = JobCallback(9, 5, Dialer, this,
                                           Ftp::Client::writeCommandCallback);
     Comm::Write(ctrl.conn, ctrl.last_command, strlen(ctrl.last_command), call, nullptr);
-
-    scheduleReadControlReply(0);
 }
 
 void
@@ -873,6 +864,8 @@ Ftp::Client::writeCommandCallback(const CommIoCbParams &io)
         /* failed closes ctrl.conn and frees ftpState */
         return;
     }
+
+    processControlReply();
 }
 
 /// handler called by Comm when FTP control channel is closed unexpectedly
@@ -1009,16 +1002,6 @@ Ftp::Client::dataRead(const CommIoCbParams &io)
         }
     } else if (io.size == 0) {
         debugs(9, 3, "Calling dataComplete() because io.size == 0");
-        /*
-         * DPW 2007-04-23
-         * Dangerous curves ahead.  This call to dataComplete was
-         * calling scheduleReadControlReply, handleControlReply,
-         * and then ftpReadTransferDone.  If ftpReadTransferDone
-         * gets unexpected status code, it closes down the control
-         * socket and our FtpStateData object gets destroyed.   As
-         * a workaround we no longer set the 'buffered_ok' flag in
-         * the scheduleReadControlReply call.
-         */
         dataComplete();
     }
 
@@ -1035,23 +1018,7 @@ Ftp::Client::dataComplete()
     /// Close data channel, if any, to conserve resources while we wait.
     data.close();
 
-    /* expect the "transfer complete" message on the control socket */
-    /*
-     * DPW 2007-04-23
-     * Previously, this was the only place where we set the
-     * 'buffered_ok' flag when calling scheduleReadControlReply().
-     * It caused some problems if the FTP server returns an unexpected
-     * status code after the data command.  FtpStateData was being
-     * deleted in the middle of dataRead().
-     */
-    /* AYJ: 2011-01-13: Bug 2581.
-     * 226 status is possibly waiting in the ctrl buffer.
-     * The connection will hang if we DONT send buffered_ok.
-     * This happens on all transfers which can be completely sent by the
-     * server before the 150 started status message is read in by Squid.
-     * ie all transfers of about one packet hang.
-     */
-    scheduleReadControlReply(1);
+    CallJobHere(9, 4, this, Ftp::Client, processControlReply);
 }
 
 void
