@@ -60,14 +60,23 @@ public:
     /// this method avoids append overheads during incremental parsing
     void reinput(const SBuf &data, const bool expectMore) { data_ = data; expectMore_ = expectMore; }
 
+    /// adds more data bytes to parse
+    void append(const SBuf &data) { data_.append(data); }
+
     /// make progress: future parsing failures will not rollback beyond this point
     void commit();
+
+    /// the number of bytes that were parsed but not committed yet
+    auto uncommitted() const { assert(parsed_ >= syncPoint_); return parsed_ - syncPoint_; }
 
     /// resume [incremental] parsing from the last commit point
     void rollback();
 
     /// no more bytes to parse or skip
     bool atEnd() const;
+
+    /// whether all available bytes have been parsed and no more bytes are expected
+    bool exhausted() const { return atEnd() && !expectingMore(); }
 
     /// parse a single-byte unsigned integer
     uint8_t uint8(const char *description);
@@ -109,6 +118,11 @@ public:
 
     /// debugging helper for parsed multi-field structures
     void got(uint64_t size, const char *description) const;
+
+    /// whether more data bytes may arrive in the future
+    bool expectingMore() const { return expectMore_; }
+    /// allow or prohibit arriving more data bytes in the future
+    void expectMore(const bool em) { expectMore_ = em; }
 
     const BinaryTokenizerContext *context; ///< debugging: thing being parsed
 
