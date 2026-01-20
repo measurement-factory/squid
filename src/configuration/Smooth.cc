@@ -8,14 +8,20 @@
 
 #include "squid.h"
 #include "cache_cf.h"
+#include "CachePeers.h"
 #include "configuration/Preprocessor.h"
 #include "configuration/Smooth.h"
 #include "debug/Stream.h"
 
 Configuration::SmoothReconfiguration::SmoothReconfiguration(const PreprocessedCfg &aConfig):
-    freshConfig(aConfig)
+    freshConfig(aConfig), oldPeers(nullptr)
 {
     Assure(freshConfig.allowSmoothReconfiguration);
+}
+
+Configuration::SmoothReconfiguration::~SmoothReconfiguration()
+{
+    delete oldPeers;
 }
 
 void
