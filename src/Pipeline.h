@@ -58,9 +58,15 @@ public:
     /// deregister the front request from the pipeline
     void popMe(const Http::StreamPointer &);
 
+    /// whether some of the queued transactions use the connection
+    bool mayUseConnection() const;
+
     /// Number of requests seen in this pipeline (so far).
     /// Includes incomplete transactions.
     uint32_t nrequests;
+
+    /// whether popMe() was called on a transaction with mayUseConnection()
+    bool poppedBusy = false;
 
 private:
     /// requests parsed from the connection but not yet completed.

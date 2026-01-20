@@ -1640,10 +1640,8 @@ clientProcessRequest(ConnStateData *conn, const Http1::RequestParserPointer &hp,
 
     clientSetKeepaliveFlag(http);
     // Let tunneling code be fully responsible for CONNECT requests
-    if (http->request->method == Http::METHOD_CONNECT) {
-        context->mayUseConnection(true);
+    if (http->request->method == Http::METHOD_CONNECT)
         conn->flags.readMore = false;
-    }
 
 #if USE_OPENSSL
     if (conn->switchedToHttps() && conn->serveDelayedError(context)) {
@@ -1655,7 +1653,9 @@ clientProcessRequest(ConnStateData *conn, const Http1::RequestParserPointer &hp,
     /* Do we expect a request-body? */
     const auto chunked = request->header.chunked();
     expectBody = chunked || request->content_length > 0;
-    if (!context->mayUseConnection() && expectBody) {
+    if (http->request->method != Http::METHOD_CONNECT && !expectBody) // TODO: diff reducer
+        context->mayUseConnection(false);
+    if (http->request->method != Http::METHOD_CONNECT && expectBody) {
         request->body_pipe = conn->expectRequestBody(
                                  chunked ? -1 : request->content_length);
 
@@ -1685,7 +1685,6 @@ clientProcessRequest(ConnStateData *conn, const Http1::RequestParserPointer &hp,
 
             if (!request->body_pipe->productionEnded()) {
                 debugs(33, 5, "need more request body");
-                context->mayUseConnection(true);
                 assert(conn->flags.readMore);
             }
         }
@@ -1967,6 +1966,8 @@ ConnStateData::handleRequestBodyData()
             consumeInput(putSize);
 
         if (!bodyPipe->mayNeedMoreData()) {
+            if (auto context = pipeline.front())
+                context->mayUseConnection(false);
             // BodyPipe will clear us automagically when we produced everything
             bodyPipe = nullptr;
         }
@@ -3178,7 +3179,6 @@ ConnStateData::buildFakeRequest(SBuf &useHost, const AnyP::KnownPort usePort, co
                      clientSocketDetach, newClient, tempBuffer);
 
     stream->flags.parsed_ok = 1; // Do we need it?
-    stream->mayUseConnection(true);
     extendLifetime();
     stream->registerWithConn();
 
@@ -3599,9 +3599,11 @@ ConnStateData::finishDechunkingRequest(bool withSuccess)
         Must(!bodyPipe); // we rely on it being nil after we are done with body
         if (withSuccess) {
             Must(myPipe->bodySizeKnown());
-            Http::StreamPointer context = pipeline.front();
-            if (context != nullptr && context->http && context->http->request)
-                context->http->request->setContentLength(myPipe->bodySize());
+            if (auto context = pipeline.front()) {
+                context->mayUseConnection(false);
+                if (context->http && context->http->request)
+                    context->http->request->setContentLength(myPipe->bodySize());
+            }
         }
     }
 
@@ -3916,30 +3918,28 @@ ConnStateData::terminateAll(const Error &rawError, const LogTagsErrors &lte)
 
     debugs(33, 3, pipeline.count() << '/' << pipeline.nrequests << " after " << error);
 
-    if (pipeline.empty()) {
+    if (pipeline.empty())
         bareError.update(error); // XXX: bareLogTagsErrors
-    } else {
-        // We terminate the current CONNECT/PUT/etc. context below, logging any
-        // error details, but that context may leave unparsed bytes behind.
-        // Consume them to stop checkLogging() from logging them again later.
-        const auto intputToConsume =
-#if USE_OPENSSL
-            parsingTlsHandshake ? "TLS handshake" : // more specific than CONNECT
-#endif
-            bodyPipe ? "HTTP request body" :
-            pipeline.back()->mayUseConnection() ? "HTTP CONNECT" :
-            nullptr;
 
+    // We terminate the current CONNECT/PUT/etc. context below, logging any
+    // error details, but that context may leave unparsed bytes behind.
+    // Consume them to stop checkLogging() from logging them again later.
+    const auto intputToConsume =
+        (pipeline.poppedBusy && !inBuf.isEmpty()) ? "extra connection bytes" :
+        (!pipeline.empty() && pipeline.mayUseConnection()) ? "still using connection" :
+        nullptr;
+
+    if (!pipeline.empty()) {
         while (const auto context = pipeline.front()) {
             context->noteIoError(error, lte);
             context->finished(); // cleanup and self-deregister
             assert(context != pipeline.front());
         }
+    }
 
-        if (intputToConsume && !inBuf.isEmpty()) {
-            debugs(83, 5, "forgetting client " << intputToConsume << " bytes: " << inBuf.length());
-            inBuf.clear();
-        }
+    if (intputToConsume && !inBuf.isEmpty()) {
+        debugs(83, 5, "forgetting client " << intputToConsume << " bytes: " << inBuf.length());
+        inBuf.clear();
     }
 
     clientConnection->close();
