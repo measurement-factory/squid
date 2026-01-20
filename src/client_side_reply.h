@@ -123,6 +123,7 @@ private:
     bool blockedHit() const;
     const char *storeLookupString(bool found) const { return found ? "match" : "mismatch"; }
     void detailStoreLookup(const char *detail);
+    void lookupInCache(const char * const description);
 
     void sendBodyTooLargeError();
     void sendPreconditionFailedError();
