@@ -169,8 +169,13 @@ private:
 /// Updates global peer selection state to reflect a given cache_peer addition.
 void peerSelectAdd(Configuration::SmoothReconfiguration &, const CachePeer &);
 
-/// Updates global peer selection state to reflect a given cache_peer deletion.
+/// Updates global peer selection state to reflect a given cache_peer deletion
+/// during reconfiguration.
 void peerSelectDrop(Configuration::SmoothReconfiguration &, const CachePeer &);
+
+/// Updates global peer selection state to reflect a given cache_peer deletion
+/// during runtime.
+void peerSelectDrop(const CachePeer &);
 
 /// Updates global peer selection state if selection-related configuration of
 /// the given `current` peer is changing.
