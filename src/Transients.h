@@ -70,6 +70,8 @@ public:
     void stat(StoreEntry &e) const override;
     void reference(StoreEntry &e) override;
     bool dereference(StoreEntry &e) override;
+    void lockInPolicy(StoreEntry &) override {}
+    void unlockInPolicy(StoreEntry &) override {}
     void evictCached(StoreEntry &) override;
     void evictIfFound(const cache_key *) override;
     void maintain() override;
