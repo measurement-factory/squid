@@ -3347,6 +3347,11 @@ clientListenerConnectionOpened(AnyP::PortCfgPointer &s, const Ipc::FdNoteId port
 {
     Must(s != nullptr);
 
+    if (reconfiguring)
+        reconfiguring--;
+    else if (Instance::Starting())
+        s->tracker.finish();
+
     if (!Comm::IsConnOpen(s->listenConn)) {
         Assure(NHttpSockets > 0); // we tried to open some
         --NHttpSockets; // there will be fewer sockets than planned
@@ -3412,6 +3417,11 @@ StartupListeningManager::start()
 void
 StartupListeningManager::noteRequiredStartupActivitiesFinished()
 {
+    for (AnyP::PortCfgPointer s = HttpPortList; s != nullptr; s = s->next)
+        s->tracker.start(ScopedId("HttpPortList"));
+    for (AnyP::PortCfgPointer s = FtpPortList; s != nullptr; s = s->next)
+        s->tracker.start(ScopedId("FtpPortList"));
+
     if (UsingSmp()) {
         using Dialer = NullaryMemFunT<StartupListeningManager>;
         const auto callback = JobCallback(33, 3, Dialer, this, StartupListeningManager::startOpeningListeningPorts);

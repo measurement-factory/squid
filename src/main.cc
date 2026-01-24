@@ -148,20 +148,13 @@ static int configured_once = 0;
 #if MALLOC_DBG
 static int malloc_debug_level = 0;
 #endif
-static volatile int do_reconfigure = 0;
-static volatile int do_rotate = 0;
-static volatile int do_shutdown = 0;
-static volatile int do_revive_kids = 0;
 static volatile int shutdown_status = EXIT_SUCCESS;
 static volatile int do_handle_stopped_child = 0;
 
-static int RotateSignal = -1;
-static int ReconfigureSignal = -1;
-static int ShutdownSignal = -1;
-static int ReviveKidsSignal = -1;
-
-static void mainRotate(void);
-static void mainReconfigureStart(void);
+class Signal;
+static void doShutdown(Signal *);
+static void mainRotate(Signal *);
+static void mainReconfigureStart(Signal *);
 static void mainReconfigureFinish(void*);
 static void mainInitialize(void);
 static void usage(void);
@@ -218,30 +211,164 @@ private:
         eventAdd("SquidTerminate", &StopEventLoop, nullptr, 0, 1, false);
     }
 
-    void doShutdown(time_t wait);
     void handleStoppedChild();
+
+    friend void doShutdown(Signal *);
 };
 
-int
-SignalEngine::checkEvents(int)
+/// Associates an OS signal received by a signal handler with an processing action
+/// that is performed later
+class Signal
 {
-    if (do_reconfigure)
-        mainReconfigureStart();
-    else if (do_rotate)
-        mainRotate();
-    else if (do_shutdown)
-        doShutdown(do_shutdown > 0 ? (int) Config.shutdownLifetime : 0);
-    if (do_handle_stopped_child)
-        handleStoppedChild();
-    return EVENT_IDLE;
+public:
+    using MasterStartAction = void (*)();
+    using MainDoAction = void (*)(Signal *);
+
+    // an action type
+    enum class Role {
+        ShutdownInstant,
+        ShutdownDelayed,
+        Reconfigure,
+        Revive,
+        Rotate,
+        Debug
+    };
+
+    // keep in sync with Role
+    static constexpr size_t Last() { return static_cast<size_t>(Signal::Role::Debug); }
+
+    Signal() {}
+
+    Signal(const Role role, const char *desc, const MasterStartAction startAction, const MainDoAction doAction,  const bool doBroadcast)
+        : role_(role), count_(0), description_(desc), masterStartAction_(startAction), mainDoAction_(doAction), doBroadcast_(doBroadcast) {}
+
+    void set(const int sig) {
+        count_++;
+        if (!sigId_) // if there are many, do not overwrite
+            sigId_ = sig;
+    }
+
+    bool get() const { return count_ > 0; }
+
+    void clear() { count_ = 0; sigId_ = 0; }
+
+    void broadcast();
+
+    void checkpoint();
+
+    void masterCheckpoint();
+
+    Role role_ = Role::Reconfigure;
+    size_t count_ = 0; // the number of received signals before they are processed
+    const char *description_ = nullptr;
+    MasterStartAction masterStartAction_ = nullptr;
+    MainDoAction mainDoAction_ = nullptr;
+    bool doBroadcast_ = false;
+    int sigId_ = 0; // signal ID for kill()
+};
+
+/// A container for all Signal actions
+class Signals
+{
+public:
+    using SignalHandler = void (*)(int);
+
+    bool inited() const { return actions_[0].description_ != nullptr; }
+
+    void add(Signal::Role, int sig, SignalHandler);
+    bool onSome() const;
+
+    bool avoidAction(size_t);
+    bool avoidAction(const Signal::Role role) { return avoidAction(static_cast<size_t>(role)); }
+
+    Signal actions_[Signal::Last()+1];
+
+private:
+    bool isShutdown(const size_t v) const {
+        const auto role = static_cast<Signal::Role>(v);
+        return role == Signal::Role::ShutdownInstant || role == Signal::Role::ShutdownDelayed;
+    }
+};
+
+static Signals &TheSignals();
+
+void
+Signal::broadcast()
+{
+    if (IamMasterProcess()) {
+        for (int i = TheKids.count() - 1; i >= 0; --i) {
+            const auto &kid = TheKids.get(i);
+            if (kid.running()) {
+                kill(kid.getPid(), sigId_);
+            }
+        }
+    }
+    clear();
+}
+
+void
+Signal::checkpoint()
+{
+    if (!get())
+        return;
+
+    debugs(1, 2, "got " << description_ << " signals: " << count_);
+
+    if (TheSignals().avoidAction(role_))
+        return;
+
+    clear();
+    mainDoAction_(this);
+}
+
+void
+Signal::masterCheckpoint()
+{
+    if (!get())
+        return;
+
+    debugs(1, 2, "got " << description_ << " signals:" << count_);
+
+    if (TheSignals().avoidAction(role_))
+        return;
+
+    if (masterStartAction_)
+        masterStartAction_();
+
+    if (doBroadcast_)
+        broadcast();
+    else
+        clear(); // reset signals that are not broadcasted
+}
+
+void
+Signals::add(const Signal::Role t, const int sig, const Signals::SignalHandler handler)
+{
+    actions_[static_cast<size_t>(t)].set(sig);
+#if !_SQUID_WINDOWS_
+#if !HAVE_SIGACTION
+    signal(sig, handler);
+#endif
+#endif
+    (void)handler; // suppress the 'unused parameter' error
+}
+
+bool
+Signals::onSome() const
+{
+    for (size_t i = 0; i <= Signal::Last(); ++i) {
+        if (TheSignals().actions_[i].get())
+            return true;
+    }
+    return false;
 }
 
 /// Decides whether the signal-controlled action X should be delayed, canceled,
 /// or executed immediately. Clears do_X (via signalVar) as needed.
-static bool
-AvoidSignalAction(const char *description, volatile int &signalVar)
+bool
+Signals::avoidAction(const size_t role)
 {
-    const auto receivedShutdownSignal = (strcmp(description, "shutdown") == 0);
+    assert(role <= Signal::Last());
     const char *avoiding = "delaying";
     const char *currentEvent = "none";
     if (shutting_down) {
@@ -249,22 +376,20 @@ AvoidSignalAction(const char *description, volatile int &signalVar)
         avoiding = "canceling";
         // do not avoid repeated shutdown signals
         // which just means the user wants to skip/abort shutdown timeouts
-        if (receivedShutdownSignal)
+        if (isShutdown(role))
             return false;
-        signalVar = 0;
+        actions_[role].clear();
     }
     else if (Instance::Starting()) {
         currentEvent = "startup";
         // Honor shutdown during asynchronous startup that may take a while.
-        if (receivedShutdownSignal) {
-            signalVar = 0;
+        if (isShutdown(role)) {
             return false;
         }
     }
     else if (reconfiguring)
         currentEvent = "reconfiguration";
     else {
-        signalVar = 0;
         return false; // do not avoid (i.e., execute immediately)
         // the caller may produce a signal-specific debugging message
     }
@@ -272,16 +397,15 @@ AvoidSignalAction(const char *description, volatile int &signalVar)
     // XXX: This warning may be displayed multiple times for the same avoided
     // action when Instance::Starting() requires multiple main loop iterations
     // to finish after receiving that action signal.
-    debugs(1, DBG_IMPORTANT, avoiding << ' ' << description <<
+    debugs(1, DBG_IMPORTANT, avoiding << ' ' << actions_[role].description_ <<
            " request during " << currentEvent);
     return true;
 }
 
-void
-SignalEngine::doShutdown(time_t wait)
+static void
+doShutdown(Signal *sig)
 {
-    if (AvoidSignalAction("shutdown", do_shutdown))
-        return;
+    auto wait = (sig->role_ == Signal::Role::ShutdownDelayed) ? Config.shutdownLifetime : 0;
 
     debugs(1, Important(2), "Preparing for shutdown after " << statCounter.client_http.requests << " requests");
     debugs(1, Important(3), "Waiting " << wait << " seconds for active connections to finish");
@@ -303,13 +427,26 @@ SignalEngine::doShutdown(time_t wait)
     WIN32_svcstatusupdate(SERVICE_STOP_PENDING, (wait + 1) * 1000);
 #endif
 
-    eventAdd("SquidShutdown", &FinalShutdownRunners, this, (double) (wait + 1), 1, false);
+    eventAdd("SquidShutdown", &SignalEngine::FinalShutdownRunners, nullptr, (double) (wait + 1), 1, false);
+}
+
+
+int
+SignalEngine::checkEvents(int)
+{
+    for (size_t i = 0; i <= Signal::Last(); ++i)
+        TheSignals().actions_[i].checkpoint();
+
+    if (do_handle_stopped_child)
+        handleStoppedChild();
+
+    return EVENT_IDLE;
 }
 
 void
 SignalEngine::handleStoppedChild()
 {
-    // no AvoidSignalAction() call: This code can run at any time because it
+    // no TheSignals().avoidAction() call: This code can run at any time because it
     // does not depend on Squid state. It does not need debugging because it
     // handles an "internal" signal, not an external/admin command.
     do_handle_stopped_child = 0;
@@ -711,71 +848,56 @@ mainHandleCommandLineOption(const int optId, const char *optValue)
 void
 rotate_logs(int sig)
 {
-    do_rotate = 1;
-    RotateSignal = sig;
-#if !_SQUID_WINDOWS_
-#if !HAVE_SIGACTION
-
-    signal(sig, rotate_logs);
-#endif
-#endif
+    TheSignals().add(Signal::Role::Rotate, sig, rotate_logs);
 }
 
 /* ARGSUSED */
 void
 reconfigure(int sig)
 {
-    do_reconfigure = 1;
-    ReconfigureSignal = sig;
-#if !_SQUID_WINDOWS_
-#if !HAVE_SIGACTION
-
-    signal(sig, reconfigure);
-#endif
-#endif
+    TheSignals().add(Signal::Role::Reconfigure, sig, reconfigure);
 }
 
 static void
 master_revive_kids(int sig)
 {
-    ReviveKidsSignal = sig;
-    do_revive_kids = true;
-
-#if !_SQUID_WINDOWS_
-#if !HAVE_SIGACTION
-    signal(sig, master_revive_kids);
-#endif
-#endif
+    TheSignals().add(Signal::Role::Revive, sig, master_revive_kids);
 }
 
 /// Shutdown signal handler for master process
 static void
 master_shutdown(int sig)
 {
-    do_shutdown = 1;
-    ShutdownSignal = sig;
-
-#if !_SQUID_WINDOWS_
-#if !HAVE_SIGACTION
-    signal(sig, master_shutdown);
-#endif
-#endif
-
+    TheSignals().add(Signal::Role::ShutdownDelayed, sig, master_shutdown);
 }
 
 void
 shut_down(int sig)
 {
-    do_shutdown = sig == SIGINT ? -1 : 1;
-    ShutdownSignal = sig;
+    TheSignals().add(SIGINT ? Signal::Role::ShutdownInstant : Signal::Role::ShutdownDelayed, sig, shut_down);
 #if defined(SIGTTIN)
     if (SIGTTIN == sig)
         shutdown_status = EXIT_FAILURE;
 #endif
+}
 
-#if !defined(_SQUID_WINDOWS_) && !defined(HAVE_SIGACTION)
-    signal(sig, shut_down);
-#endif
+
+void
+sigusr2_handle(int sig)
+{
+    static int state = 0;
+    // no debugs() here; bad things happen if the signal is delivered during _db_print()
+    // XXX: Refactor to remove direct and indirect debugs() calls.
+
+    TheSignals().add(Signal::Role::Debug, sig, sigusr2_handle);
+
+    if (state == 0) {
+        Debug::parseOptions("ALL,7");
+        state = 1;
+    } else {
+        Debug::parseOptions(Debug::debugOptions);
+        state = 0;
+    }
 }
 
 void
@@ -860,11 +982,8 @@ serverConnectionsClose(void)
 }
 
 static void
-mainReconfigureStart(void)
+mainReconfigureStart(Signal *)
 {
-    if (AvoidSignalAction("reconfiguration", do_reconfigure))
-        return;
-
     debugs(1, DBG_IMPORTANT, "Reconfiguring Squid Cache (version " << version_string << ")...");
     reconfiguring = 1;
 
@@ -926,6 +1045,13 @@ mainReconfigureFinish(void *)
                oldWorkers << " to " << Config.workers <<
                ") requires a full restart. It has been ignored by reconfigure.");
         Config.workers = oldWorkers;
+    }
+
+    if (UsingSmp() && IamWorkerProcess()) {
+        for (AnyP::PortCfgPointer s = HttpPortList; s != nullptr; s = s->next)
+            reconfiguring++;
+        for (AnyP::PortCfgPointer s = FtpPortList; s != nullptr; s = s->next)
+            reconfiguring++;
     }
 
     RunRegisteredHere(RegisteredRunner::syncConfig);
@@ -1005,15 +1131,15 @@ mainReconfigureFinish(void *)
     Config.ClientDelay.finalize();
 #endif
 
-    reconfiguring = 0;
+    // XXX: reconfiguration is completed not necessarily here,
+    // but when reconfiguring becomes zero.
+    debugs(1, 2, "reconfiguration completed " << reconfiguring);
+    reconfiguring--;
 }
 
 static void
-mainRotate(void)
+mainRotate(Signal *)
 {
-    if (AvoidSignalAction("log rotation", do_rotate))
-        return;
-
     RotatingLogs = 1;
 
     icmpEngine.Close();
@@ -1807,8 +1933,6 @@ mainStartScript(const char *prog)
 static void
 masterShutdownStart()
 {
-    if (AvoidSignalAction("shutdown", do_shutdown))
-        return;
     debugs(1, 2, "received shutdown command");
     shutting_down = 1;
 }
@@ -1817,8 +1941,6 @@ masterShutdownStart()
 static void
 masterReconfigureStart()
 {
-    if (AvoidSignalAction("reconfiguration", do_reconfigure))
-        return;
     debugs(1, 2, "received reconfiguration command");
     reconfiguring = 1;
     TheKids.forgetAllFailures();
@@ -1837,32 +1959,35 @@ masterReconfigureFinish()
 static void
 masterReviveKids()
 {
-    if (AvoidSignalAction("kids revival", do_revive_kids))
-        return;
     debugs(1, 2, "woke up after ~" << Config.hopelessKidRevivalDelay << "s");
     // nothing to do here -- actual revival happens elsewhere in the main loop
     // the alarm was needed just to wake us up so that we do a loop iteration
 }
 
+static Signals &
+TheSignals()
+{
+    static const auto instance = new Signals();
+    if (!instance->inited()) {
+        instance->actions_[static_cast<int>(Signal::Role::Reconfigure)] = Signal(Signal::Role::Reconfigure, "reconfiguration", masterReconfigureStart, mainReconfigureStart, true);
+        instance->actions_[static_cast<int>(Signal::Role::Rotate)] = Signal(Signal::Role::Rotate, "rotate", nullptr, mainRotate, true);
+        instance->actions_[static_cast<int>(Signal::Role::ShutdownInstant)] = Signal(Signal::Role::ShutdownInstant, "shutdown", masterShutdownStart, doShutdown,  true);
+        instance->actions_[static_cast<int>(Signal::Role::ShutdownDelayed)] = Signal(Signal::Role::ShutdownDelayed, "shutdown", masterShutdownStart, doShutdown, true);
+        instance->actions_[static_cast<int>(Signal::Role::Revive)] = Signal(Signal::Role::Revive, "revive kids", masterReviveKids, nullptr, false);
+        instance->actions_[static_cast<int>(Signal::Role::Debug)] = Signal(Signal::Role::Debug, "debug", nullptr, nullptr, true);
+    }
+    return *instance;
+}
+
 static void
 masterCheckAndBroadcastSignals()
 {
-    if (do_shutdown)
-        masterShutdownStart();
-    if (do_reconfigure)
-        masterReconfigureStart();
-    if (do_revive_kids)
-        masterReviveKids();
+    for (size_t i = 0; i <= Signal::Last(); ++i)
+        TheSignals().actions_[i].masterCheckpoint();
 
-    // emulate multi-step reconfiguration assumed by AvoidSignalAction()
+    // emulate multi-step reconfiguration assumed by TheSignals::avoidAction()
     if (reconfiguring)
         masterReconfigureFinish();
-
-    BroadcastSignalIfAny(DebugSignal);
-    BroadcastSignalIfAny(RotateSignal);
-    BroadcastSignalIfAny(ReconfigureSignal);
-    BroadcastSignalIfAny(ShutdownSignal);
-    ReviveKidsSignal = -1; // alarms are not broadcasted
 }
 
 /// Maintains the following invariant: An alarm should be scheduled when and
@@ -1875,13 +2000,6 @@ masterMaintainKidRevivalSchedule()
     (void)alarm(static_cast<unsigned int>(nextCheckDelay)); // resets or cancels
     if (nextCheckDelay)
         debugs(1, 2, "will recheck hopeless kids in " << nextCheckDelay << " seconds");
-}
-
-static inline bool
-masterSignaled()
-{
-    return (DebugSignal > 0 || RotateSignal > 0 || ReconfigureSignal > 0 ||
-            ShutdownSignal > 0 || ReviveKidsSignal > 0);
 }
 
 /// makes the caller a daemon process running in the background
@@ -1941,6 +2059,8 @@ watch_child(const CommandLine &masterCommand)
 
     enter_suid();
 
+    Instance::OptionalStartupActivityTracker watchChildConfigInitializationTracker;
+    watchChildConfigInitializationTracker.start(ScopedId("synchronous watch_child initialization"));
     openlog(APP_SHORTNAME, LOG_PID | LOG_NDELAY | LOG_CONS, LOG_LOCAL4);
 
     if (!opt_foreground)
@@ -2010,6 +2130,7 @@ watch_child(const CommandLine &masterCommand)
 
     syslog(LOG_NOTICE, "Squid Parent: will start %d kids", (int)TheKids.count());
 
+    watchChildConfigInitializationTracker.finish();
     // keep [re]starting kids until it is time to quit
     for (;;) {
         bool mainStartScriptCalled = false;
@@ -2056,7 +2177,7 @@ watch_child(const CommandLine &masterCommand)
         // aborted by a dying kid or a signal, but it is not required: The
         // next do/while loop will check again for any dying kids.
         int waitFlag = 0;
-        if (masterSignaled())
+        if (TheSignals().onSome())
             waitFlag = WNOHANG;
         PidStatus status;
         pid = WaitForAnyPid(status, waitFlag);

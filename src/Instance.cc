@@ -345,6 +345,11 @@ Instance::Startup::initialCheckpoint()
     if (runningActivities_)
         return; // wait for the still-running startup activities to finish
 
+    if (InDaemonMode() && IamMasterProcess()) {
+        ConfirmationCheckpoint();
+        return;
+    }
+
     // Wait for firing of any "begin startup activity X" async calls scheduled
     // by our (indirect) caller just before calling an Instance function. They
     // may schedule more calls (and then trigger another checkpoint); we must
@@ -395,7 +400,9 @@ Instance::Startup::confirmationCheckpoint()
     ended = true;
     Assure(!Starting());
 
-    if (UsingSmp() && !IamCoordinatorProcess())
+    if (UsingSmp() && IamMasterProcess())
+        debugs(1, 2, "Squid master process is ready");
+    else if (UsingSmp() && !IamCoordinatorProcess())
         NotifyCoordinator(Ipc::mtKidCompletedStartup);
     else
         Instance::AnnounceReadiness();

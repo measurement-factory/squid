@@ -15,6 +15,7 @@
 #include "base/CodeContext.h"
 #include "comm/Connection.h"
 #include "comm/Tcp.h"
+#include "Instance.h"
 #include "sbuf/SBuf.h"
 #include "security/ServerOptions.h"
 
@@ -69,6 +70,8 @@ public:
 
     /// TLS configuration options for this listening port
     Security::ServerOptions secure;
+
+    Instance::OptionalStartupActivityTracker tracker;
 
 private:
     explicit PortCfg(const PortCfg &other); // for ipV4clone() needs only!
