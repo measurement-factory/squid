@@ -222,7 +222,7 @@ class Signal
 {
 public:
     using MasterStartAction = void (*)();
-    using MasterDoAction = void (*)(Signal *);
+    using MainDoAction = void (*)(Signal *);
 
     // an action type
     enum class Role {
@@ -239,8 +239,8 @@ public:
 
     Signal() {}
 
-    Signal(const Role role, const char *desc, const MasterStartAction startAction, const MasterDoAction doAction,  const bool doBroadcast)
-        : role_(role), count_(0), description_(desc), masterStartAction_(startAction), masterDoAction_(doAction), doBroadcast_(doBroadcast) {}
+    Signal(const Role role, const char *desc, const MasterStartAction startAction, const MainDoAction doAction,  const bool doBroadcast)
+        : role_(role), count_(0), description_(desc), masterStartAction_(startAction), mainDoAction_(doAction), doBroadcast_(doBroadcast) {}
 
     void set(const int sig) {
         count_++;
@@ -262,7 +262,7 @@ public:
     size_t count_ = 0; // the number of received signals before they are processed
     const char *description_ = nullptr;
     MasterStartAction masterStartAction_ = nullptr;
-    MasterDoAction masterDoAction_ = nullptr;
+    MainDoAction mainDoAction_ = nullptr;
     bool doBroadcast_ = false;
     int sigId_ = 0; // signal ID for kill()
 };
@@ -298,8 +298,9 @@ Signal::broadcast()
     if (IamMasterProcess()) {
         for (int i = TheKids.count() - 1; i >= 0; --i) {
             const auto &kid = TheKids.get(i);
-            if (kid.running())
+            if (kid.running()) {
                 kill(kid.getPid(), sigId_);
+            }
         }
     }
     clear();
@@ -308,14 +309,27 @@ Signal::broadcast()
 void
 Signal::checkpoint()
 {
-    if (get() && !TheSignals().avoidAction(role_))
-        masterDoAction_(this);
+    if (!get())
+        return;
+
+    debugs(1, 2, "got " << description_ << " signals: " << count_);
+
+    if (TheSignals().avoidAction(role_))
+        return;
+
+    clear();
+    mainDoAction_(this);
 }
 
 void
 Signal::masterCheckpoint()
 {
-    if (!get() || TheSignals().avoidAction(role_))
+    if (!get())
+        return;
+
+    debugs(1, 2, "got " << description_ << " signals:" << count_);
+
+    if (TheSignals().avoidAction(role_))
         return;
 
     if (masterStartAction_)
@@ -324,7 +338,7 @@ Signal::masterCheckpoint()
     if (doBroadcast_)
         broadcast();
     else
-        set(false); // reset signals that are not broadcasted
+        clear(); // reset signals that are not broadcasted
 }
 
 void
@@ -370,14 +384,12 @@ Signals::avoidAction(const size_t role)
         currentEvent = "startup";
         // Honor shutdown during asynchronous startup that may take a while.
         if (isShutdown(role)) {
-            actions_[role].clear();
             return false;
         }
     }
     else if (reconfiguring)
         currentEvent = "reconfiguration";
     else {
-        actions_[role].clear();
         return false; // do not avoid (i.e., execute immediately)
         // the caller may produce a signal-specific debugging message
     }
@@ -1035,6 +1047,13 @@ mainReconfigureFinish(void *)
         Config.workers = oldWorkers;
     }
 
+    if (UsingSmp() && IamWorkerProcess()) {
+        for (AnyP::PortCfgPointer s = HttpPortList; s != nullptr; s = s->next)
+            reconfiguring++;
+        for (AnyP::PortCfgPointer s = FtpPortList; s != nullptr; s = s->next)
+            reconfiguring++;
+    }
+
     RunRegisteredHere(RegisteredRunner::syncConfig);
 
     if (IamPrimaryProcess())
@@ -1112,7 +1131,10 @@ mainReconfigureFinish(void *)
     Config.ClientDelay.finalize();
 #endif
 
-    reconfiguring = 0;
+    // XXX: reconfiguration is completed not necessarily here,
+    // but when reconfiguring becomes zero.
+    debugs(1, 2, "reconfiguration completed " << reconfiguring);
+    reconfiguring--;
 }
 
 static void
@@ -2037,6 +2059,8 @@ watch_child(const CommandLine &masterCommand)
 
     enter_suid();
 
+    Instance::OptionalStartupActivityTracker watchChildConfigInitializationTracker;
+    watchChildConfigInitializationTracker.start(ScopedId("synchronous watch_child initialization"));
     openlog(APP_SHORTNAME, LOG_PID | LOG_NDELAY | LOG_CONS, LOG_LOCAL4);
 
     if (!opt_foreground)
@@ -2106,6 +2130,7 @@ watch_child(const CommandLine &masterCommand)
 
     syslog(LOG_NOTICE, "Squid Parent: will start %d kids", (int)TheKids.count());
 
+    watchChildConfigInitializationTracker.finish();
     // keep [re]starting kids until it is time to quit
     for (;;) {
         bool mainStartScriptCalled = false;
