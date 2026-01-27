@@ -34,7 +34,7 @@ StoreEntry *Controller::find(const cache_key *) STUB_RETVAL(nullptr)
 StoreEntry *Controller::peek(const cache_key *) STUB_RETVAL(nullptr)
 StoreEntry *Controller::findCallbackXXX(const cache_key *) STUB_RETVAL(nullptr)
 bool Controller::markedForDeletion(const cache_key *) const STUB_RETVAL(false)
-bool Controller::markedForDeletionAndAbandoned(const StoreEntry &) const STUB_RETVAL(false)
+bool Controller::privateOrMarkedForDeletion(const StoreEntry &) const STUB_RETVAL(false)
 bool Controller::hasReadableDiskEntry(const StoreEntry &) const STUB_RETVAL(false)
 int64_t Controller::accumulateMore(StoreEntry &) const STUB_RETVAL(0)
 void Controller::configure() STUB

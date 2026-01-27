@@ -163,11 +163,27 @@ StoreEntry::operator delete (void *address)
     pool->freeOne(address);
 }
 
-bool
-StoreEntry::makePublic(const KeyScope scope)
+void
+StoreEntry::makePublic()
 {
-    /* This object can be cached for a long time */
-    return !EBIT_TEST(flags, RELEASE_REQUEST) && setPublicKey(scope);
+    makePublicWith(ksDefault);
+}
+
+bool
+StoreEntry::makePublicWith(const KeyScope scope)
+{
+    if (EBIT_TEST(flags, RELEASE_REQUEST)) {
+        // The entry has been prohibited from being public and
+        // got its shareableWhenPrivate state which we should not alter.
+        return false;
+    }
+
+    if (!setPublicKey(scope)) {
+        makePrivate(true);
+        return false;
+    }
+
+    return true;
 }
 
 void
@@ -184,15 +200,11 @@ StoreEntry::clearPrivate()
     shareableWhenPrivate = false;
 }
 
-bool
+void
 StoreEntry::cacheNegatively()
 {
-    /* This object may be negatively cached */
-    if (makePublic()) {
-        negativeCache();
-        return true;
-    }
-    return false;
+    negativeCache();
+    makePublic();
 }
 
 size_t
@@ -575,8 +587,17 @@ bool
 StoreEntry::setPublicKey(const KeyScope scope)
 {
     debugs(20, 3, *this);
-    if (key && !EBIT_TEST(flags, KEY_PRIVATE))
-        return true; // already public
+
+    Assure(scope == ksDefault || scope == ksRevalidation);
+
+    if (key && !EBIT_TEST(flags, KEY_PRIVATE)) {
+        const bool isDefault = !publicDefaultKeyCmp();
+        if (isDefault && scope == ksDefault)
+            return true; // already ksDefault
+        else if (!isDefault && scope == ksRevalidation)
+            return true; // already ksRevalidation
+        // else public key scope has changed
+    }
 
     assert(mem_obj);
 
@@ -605,19 +626,13 @@ StoreEntry::setPublicKey(const KeyScope scope)
     return false;
 }
 
-void
-StoreEntry::clearPublicKeyScope()
+const cache_key *
+StoreEntry::publicDefaultKeyCmp() const
 {
-    if (!key || EBIT_TEST(flags, KEY_PRIVATE))
-        return; // probably the old public key was deleted or made private
-
-    // TODO: adjustVary() when collapsed revalidation supports that
-
-    const cache_key *newKey = calcPublicKey(ksDefault);
-    if (!storeKeyHashCmp(key, newKey))
-        return; // probably another collapsed revalidation beat us to this change
-
-    forcePublicKey(newKey);
+    const auto pubKey = publicKey();
+    assert(pubKey);
+    const auto defaultKey = calcPublicKey(ksDefault);
+    return storeKeyHashCmp(pubKey, defaultKey) ? defaultKey : nullptr;
 }
 
 /// Unconditionally sets public key for this store entry.
@@ -649,7 +664,7 @@ StoreEntry::forcePublicKey(const cache_key *newkey)
 /// Calculates correct public key for feeding forcePublicKey().
 /// Assumes adjustVary() has been called for this entry already.
 const cache_key *
-StoreEntry::calcPublicKey(const KeyScope keyScope)
+StoreEntry::calcPublicKey(const KeyScope keyScope) const
 {
     assert(mem_obj);
     return mem_obj->request ? storeKeyPublicByRequest(mem_obj->request.getRaw(), keyScope) :
@@ -699,7 +714,9 @@ StoreEntry::adjustVary()
         // certain conditions. If those conditions do not apply to Vary markers,
         // then refactor to call storeCreatePureEntry() above.  Otherwise,
         // refactor to simply check whether `pe` is already public below.
-        if (!pe->makePublic()) {
+        if (!pe->makePublicWith(ksDefault)) {
+            // nobody will be able to find this private entry;
+            // unlocking below ought to destroyStoreEntry(), but there is no good way to check that
             pe->unlock("StoreEntry::adjustVary+failed_makePublic");
             throw TexcHere("failed to make Vary marker public");
         }
@@ -1749,6 +1766,9 @@ StoreEntry::startWriting()
 char const *
 StoreEntry::getSerialisedMetaData(size_t &length) const
 {
+    Assure(publicKey());
+    Assure(!publicDefaultKeyCmp());
+
     return static_cast<const char *>(Store::PackSwapMeta(*this, length).release());
 }
 

@@ -303,12 +303,9 @@ Store::Controller::markedForDeletion(const cache_key *key) const
 }
 
 bool
-Store::Controller::markedForDeletionAndAbandoned(const StoreEntry &e) const
+Store::Controller::privateOrMarkedForDeletion(const StoreEntry &e) const
 {
-    // The opposite check order could miss a reader that has arrived after the
-    // !readers() and before the markedForDeletion() check.
-    return markedForDeletion(reinterpret_cast<const cache_key*>(e.key)) &&
-           transients && !transients->readers(e);
+    return !e.publicKey() || markedForDeletion(reinterpret_cast<const cache_key*>(e.key));
 }
 
 bool
@@ -727,10 +724,12 @@ bool
 Store::Controller::allowCollapsing(StoreEntry *e, const RequestFlags &reqFlags,
                                    const HttpRequestMethod &)
 {
+    // TODO: Avoid key scope changes here by either dropping neighbors_do_private_keys
+    // support or teaching storeCreateEntry() to respect the refresh flag.
     const KeyScope keyScope = reqFlags.refresh ? ksRevalidation : ksDefault;
     // set the flag now so that it gets copied into the Transients entry
     e->setCollapsingRequirement(true);
-    if (e->makePublic(keyScope)) { // this is needed for both local and SMP collapsing
+    if (e->makePublicWith(keyScope)) { // this is needed for both local and SMP collapsing
         debugs(20, 3, "may " << (transients && e->hasTransients() ?
                                  "SMP-" : "locally-") << "collapse " << *e);
         assert(e->hittingRequiresCollapsing());
