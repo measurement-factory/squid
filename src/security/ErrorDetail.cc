@@ -716,11 +716,6 @@ Security::ErrorDetail::printErrorDescription(std::ostream &os) const
         os << detailEntry->descr;
         return;
     }
-
-    if (const auto errorDetail = Ssl::ErrorDetailsManager::GetInstance().findDetail(error_no, nullptr)) {
-        os << errorDetail->descr;
-        return;
-    }
 #endif
 
     os << "[Not available]";
