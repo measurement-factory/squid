@@ -303,12 +303,6 @@ Store::Controller::markedForDeletion(const cache_key *key) const
 }
 
 bool
-Store::Controller::privateOrMarkedForDeletion(const StoreEntry &e) const
-{
-    return !e.publicKey() || markedForDeletion(reinterpret_cast<const cache_key*>(e.key));
-}
-
-bool
 Store::Controller::hasReadableDiskEntry(const StoreEntry &e) const
 {
     return disks->hasReadableEntry(e);

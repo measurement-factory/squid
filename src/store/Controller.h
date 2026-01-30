@@ -62,9 +62,6 @@ public:
     /// marked for removal some time ago; get(key) returns nil in such cases.
     bool markedForDeletion(const cache_key *key) const;
 
-    /// whether the entry private is marked for removal
-    bool privateOrMarkedForDeletion(const StoreEntry &) const;
-
     /// whether there is a disk entry with e.key
     bool hasReadableDiskEntry(const StoreEntry &) const;
 
