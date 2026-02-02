@@ -17,7 +17,6 @@
 #include "base/AsyncJob.h"
 #include "base/RunnersRegistry.h"
 #include "BodyPipe.h"
-#include "clientStreamForward.h"
 #include "comm.h"
 #include "comm/Write.h"
 #include "CommCalls.h"
@@ -334,8 +333,11 @@ public:
     /// handle a control message received by context from a peer and call back
     virtual bool writeControlMsgAndCall(HttpReply *rep, AsyncCall::Pointer &call) = 0;
 
-    /// ClientStream calls this to supply response header (once) and data
-    /// for the current Http::Stream.
+    /// Handle response header (once) and data for the current Http::Stream.
+    /// This interface allows Http::Stream::handleStoreReply() (which does not
+    /// and should not do FTP) to reach our Ftp::Server child (which does). It
+    /// should disappear as we solve "FTP code is forced to use an HTTP-focused
+    /// class" problems detailed in Http::Stream class description.
     virtual void handleReply(HttpReply *header, StoreIOBuffer receivedData) = 0;
 
     /// remove no longer needed leading bytes from the input buffer
@@ -585,13 +587,6 @@ void clientPackRangeHdr(const HttpReplyPointer &, const HttpHdrRangeSpec *, Stri
 
 /// put terminating boundary for multiparts to the buffer
 void clientPackTermBound(String boundary, MemBuf *);
-
-/* misplaced declaratrions of Stream callbacks provided/used by client side */
-CSR clientGetMoreData;
-CSS clientReplyStatus;
-CSD clientReplyDetach;
-CSCB clientSocketRecipient;
-CSD clientSocketDetach;
 
 void clientProcessRequest(ConnStateData *, const Http1::RequestParserPointer &, Http::Stream *);
 void clientProcessRequestFinished(ConnStateData *, const HttpRequest::Pointer &);

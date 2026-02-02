@@ -113,23 +113,12 @@ enum {
     ENTRY_REQUIRES_COLLAPSING
 };
 
-/*
- * These are for client Streams. Each node in the stream can be queried for
- * its status
- */
+/// summarizes progress with respect to receiving a Store response
 typedef enum {
-    STREAM_NONE,        /* No particular status */
-    STREAM_COMPLETE,        /* All data has been flushed, no more reads allowed */
-    /* an unpredicted end has occurred, no more
-     * reads occurred, but no need to tell
-     * downstream that an error occurred
-     */
-    STREAM_UNPLANNED_COMPLETE,
-    /* An error has occurred in this node or an above one,
-     * and the node is not generating an error body / it's
-     * midstream
-     */
-    STREAM_FAILED
+    STREAM_NONE, ///< in-progress: expecting to get more (e.g., reply headers or body bytes)
+    STREAM_COMPLETE, ///< success: got everything we expected
+    STREAM_UNPLANNED_COMPLETE, ///< body truncation: got headers and fewer than expected body bytes but not expecting more
+    STREAM_FAILED ///< errors (other than truncation)
 } clientStream_status_t;
 
 /* stateful helper callback response codes */

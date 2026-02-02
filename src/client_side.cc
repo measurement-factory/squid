@@ -70,7 +70,6 @@
 #include "client_side_reply.h"
 #include "client_side_request.h"
 #include "ClientRequestContext.h"
-#include "clientStream.h"
 #include "comm.h"
 #include "comm/Connection.h"
 #include "comm/Loops.h"
@@ -466,9 +465,6 @@ ClientHttpRequest::freeResources()
     safe_free(redirect.location);
     range_iter.boundary.clean();
     clearRequest();
-
-    if (client_stream.tail)
-        clientStreamAbort((clientStreamNode *)client_stream.tail->data, this);
 }
 
 void
@@ -796,64 +792,22 @@ ClientHttpRequest::rangeBoundaryStr() const
  * finished.
  * Pre-condition:
  *   The request is one backed by a connection, not an internal request.
- *   data context is not NULL
  *   There are no more entries in the stream chain.
  */
 void
-clientSocketRecipient(clientStreamNode * node, ClientHttpRequest * http,
-                      HttpReply * rep, StoreIOBuffer receivedData)
+Http::Stream::handleStoreReply(HttpReply * const rep, const StoreIOBuffer receivedData)
 {
     // do not try to deliver if client already ABORTED
     if (!http->getConn() || !cbdataReferenceValid(http->getConn()) || !Comm::IsConnOpen(http->getConn()->clientConnection))
         return;
 
-    /* Test preconditions */
-    assert(node != nullptr);
-    /* TODO: handle this rather than asserting
-     * - it should only ever happen if we cause an abort and
-     * the callback chain loops back to here, so we can simply return.
-     * However, that itself shouldn't happen, so it stays as an assert for now.
-     */
-    assert(cbdataReferenceValid(node));
-    assert(node->node.next == nullptr);
-    Http::StreamPointer context = dynamic_cast<Http::Stream *>(node->data.getRaw());
-    assert(context != nullptr);
-
-    /* TODO: check offset is what we asked for */
-
     // TODO: enforces HTTP/1 MUST on pipeline order, but is irrelevant to HTTP/2
-    if (context != http->getConn()->pipeline.front())
-        context->deferRecipientForLater(node, rep, receivedData);
+    if (http->getConn()->pipeline.front() != this)
+        deferRecipientForLater(rep, receivedData);
     else if (http->getConn()->cbControlMsgSent) // 1xx to the user is pending
-        context->deferRecipientForLater(node, rep, receivedData);
+        deferRecipientForLater(rep, receivedData);
     else
         http->getConn()->handleReply(rep, receivedData);
-}
-
-/**
- * Called when a downstream node is no longer interested in
- * our data. As we are a terminal node, this means on aborts
- * only
- */
-void
-clientSocketDetach(clientStreamNode * node, ClientHttpRequest * http)
-{
-    /* Test preconditions */
-    assert(node != nullptr);
-    /* TODO: handle this rather than asserting
-     * - it should only ever happen if we cause an abort and
-     * the callback chain loops back to here, so we can simply return.
-     * However, that itself shouldn't happen, so it stays as an assert for now.
-     */
-    assert(cbdataReferenceValid(node));
-    /* Set null by ContextFree */
-    assert(node->node.next == nullptr);
-    /* this is the assert discussed above */
-    assert(nullptr == dynamic_cast<Http::Stream *>(node->data.getRaw()));
-    /* We are only called when the client socket shutsdown.
-     * Tell the prev pipeline member we're finished
-     */
-    clientStreamDetach(node, http);
 }
 
 void
@@ -876,16 +830,12 @@ ClientSocketContextPushDeferredIfNeeded(Http::StreamPointer deferredRequest, Con
 {
     debugs(33, 2, conn->clientConnection << " Sending next");
 
-    /** If the client stream is waiting on a socket write to occur, then */
-
     if (deferredRequest->flags.deferred) {
         /** NO data is allowed to have been sent. */
         assert(deferredRequest->http->out.size == 0);
         /** defer now. */
-        clientSocketRecipient(deferredRequest->deferredparams.node,
-                              deferredRequest->http,
-                              deferredRequest->deferredparams.rep,
-                              deferredRequest->deferredparams.queuedBuffer);
+        deferredRequest->handleStoreReply(deferredRequest->deferredparams.rep,
+                                          deferredRequest->deferredparams.queuedBuffer);
     }
 
     /** otherwise, the request is still active in a callbacksomewhere,
@@ -1001,16 +951,10 @@ ConnStateData::afterClientWrite(size_t size)
 Http::Stream *
 ConnStateData::abortRequestParsing(const char *const uri)
 {
-    ClientHttpRequest *http = new ClientHttpRequest(this);
+    const auto context = Store::UltimateClient::Make<Http::Stream>(this);
+    const auto http = context->http;
     http->req_sz = inBuf.length();
     http->setErrorUri(uri);
-    auto *context = new Http::Stream(clientConnection, http);
-    StoreIOBuffer tempBuffer;
-    tempBuffer.data = context->reqbuf;
-    tempBuffer.length = HTTP_REQBUF_SZ;
-    clientStreamInit(&http->client_stream, clientGetMoreData, clientReplyDetach,
-                     clientReplyStatus, new clientReplyContext(http), clientSocketRecipient,
-                     clientSocketDetach, context, tempBuffer);
     return context;
 }
 
@@ -1328,20 +1272,9 @@ ConnStateData::parseHttpRequest(const Http1::RequestParserPointer &hp)
            ", mime header block:\n" << hp->mimeHeader() << "\n----------");
 
     /* Ok, all headers are received */
-    ClientHttpRequest *http = new ClientHttpRequest(this);
-
+    const auto result = Store::UltimateClient::Make<Http::Stream>(this);
+    const auto http = result->http;
     http->req_sz = hp->messageHeaderSize();
-    Http::Stream *result = new Http::Stream(clientConnection, http);
-
-    StoreIOBuffer tempBuffer;
-    tempBuffer.data = result->reqbuf;
-    tempBuffer.length = HTTP_REQBUF_SZ;
-
-    ClientStreamData newServer = new clientReplyContext(http);
-    ClientStreamData newClient = result;
-    clientStreamInit(&http->client_stream, clientGetMoreData, clientReplyDetach,
-                     clientReplyStatus, newServer, clientSocketRecipient,
-                     clientSocketDetach, newClient, tempBuffer);
 
     /* set url */
     debugs(33,5, "Prepare absolute URL from " <<
@@ -1459,9 +1392,7 @@ bool ConnStateData::serveDelayedError(Http::Stream *context)
 
         // Get the saved error entry and send it to the client by replacing the
         // ClientHttpRequest store entry with it.
-        clientStreamNode *node = context->getClientReplyContext();
-        clientReplyContext *repContext = dynamic_cast<clientReplyContext *>(node->data.getRaw());
-        assert(repContext);
+        const auto repContext = &http->storeReader(); // TODO: Remove this and similar diff reducers.
         debugs(33, 5, "Responding with delated error for " << http->uri);
         repContext->setReplyToStoreEntry(sslServerBump->entry, "delayed SslBump error");
 
@@ -1496,9 +1427,7 @@ bool ConnStateData::serveDelayedError(Http::Stream *context)
             if (!allowDomainMismatch) {
                 quitAfterError(request);
 
-                clientStreamNode *node = context->getClientReplyContext();
-                clientReplyContext *repContext = dynamic_cast<clientReplyContext *>(node->data.getRaw());
-                assert (repContext);
+                const auto repContext = &http->storeReader();
 
                 request->hier = sslServerBump->request->hier;
 
@@ -1618,10 +1547,8 @@ clientProcessRequest(ConnStateData *conn, const Http1::RequestParserPointer &hp,
     mustReplyToOptions = (request->method == Http::METHOD_OPTIONS) &&
                          (request->header.getInt64(Http::HdrType::MAX_FORWARDS) == 0);
     if (!urlCheckRequest(request.getRaw()) || mustReplyToOptions) {
-        clientStreamNode *node = context->getClientReplyContext();
         conn->quitAfterError(request.getRaw());
-        clientReplyContext *repContext = dynamic_cast<clientReplyContext *>(node->data.getRaw());
-        assert (repContext);
+        const auto repContext = &http->storeReader();
         repContext->setReplyToError(ERR_UNSUP_REQ, Http::scNotImplemented, nullptr,
                                     conn, request.getRaw(), nullptr, nullptr);
         assert(context->http->out.offset == 0);
@@ -1632,9 +1559,7 @@ clientProcessRequest(ConnStateData *conn, const Http1::RequestParserPointer &hp,
 
     const auto frameStatus = request->checkEntityFraming();
     if (frameStatus != Http::scNone) {
-        clientStreamNode *node = context->getClientReplyContext();
-        clientReplyContext *repContext = dynamic_cast<clientReplyContext *>(node->data.getRaw());
-        assert (repContext);
+        const auto repContext = &http->storeReader();
         conn->quitAfterError(request.getRaw());
         repContext->setReplyToError(ERR_INVALID_REQ, frameStatus, nullptr, conn, request.getRaw(), nullptr, nullptr);
         assert(context->http->out.offset == 0);
@@ -1667,9 +1592,7 @@ clientProcessRequest(ConnStateData *conn, const Http1::RequestParserPointer &hp,
         /* Is it too large? */
         if (!chunked && // if chunked, we will check as we accumulate
                 clientIsRequestBodyTooLargeForPolicy(request->content_length)) {
-            clientStreamNode *node = context->getClientReplyContext();
-            clientReplyContext *repContext = dynamic_cast<clientReplyContext *>(node->data.getRaw());
-            assert (repContext);
+            const auto repContext = &http->storeReader();
             conn->quitAfterError(request.getRaw());
             repContext->setReplyToError(ERR_TOO_BIG,
                                         Http::scContentTooLarge, nullptr,
@@ -2048,9 +1971,7 @@ ConnStateData::abortChunkedRequestBody(const err_type error)
 #if WE_KNOW_HOW_TO_SEND_ERRORS
     Http::StreamPointer context = pipeline.front();
     if (context != NULL && !context->http->out.offset) { // output nothing yet
-        clientStreamNode *node = context->getClientReplyContext();
-        clientReplyContext *repContext = dynamic_cast<clientReplyContext*>(node->data.getRaw());
-        assert(repContext);
+        const auto &repContext = context->http->storeReader();
         const Http::StatusCode scode = (error == ERR_TOO_BIG) ?
                                        Http::scContentTooLarge : HTTP_BAD_REQUEST;
         repContext->setReplyToError(error, scode,
@@ -3176,19 +3097,8 @@ ConnStateData::fakeAConnectRequest(const char *reason, const SBuf &payload)
 ClientHttpRequest *
 ConnStateData::buildFakeRequest(SBuf &useHost, const AnyP::KnownPort usePort, const SBuf &payload)
 {
-    ClientHttpRequest *http = new ClientHttpRequest(this);
-    Http::Stream *stream = new Http::Stream(clientConnection, http);
-
-    StoreIOBuffer tempBuffer;
-    tempBuffer.data = stream->reqbuf;
-    tempBuffer.length = HTTP_REQBUF_SZ;
-
-    ClientStreamData newServer = new clientReplyContext(http);
-    ClientStreamData newClient = stream;
-    clientStreamInit(&http->client_stream, clientGetMoreData, clientReplyDetach,
-                     clientReplyStatus, newServer, clientSocketRecipient,
-                     clientSocketDetach, newClient, tempBuffer);
-
+    const auto stream = Store::UltimateClient::Make<Http::Stream>(this);
+    const auto http = stream->http;
     stream->flags.parsed_ok = 1; // Do we need it?
     stream->mayUseConnection(true);
     extendLifetime();

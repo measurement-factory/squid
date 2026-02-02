@@ -8,14 +8,6 @@
 
 /* DEBUG: section 85    Client-side Request Routines */
 
-/*
- * General logic of request processing:
- *
- * We run a series of tests to determine if access will be permitted, and to do
- * any redirection. Then we call into the result clientStream to retrieve data.
- * From that point on it's up to reply management.
- */
-
 #include "squid.h"
 #include "acl/FilledChecklist.h"
 #include "acl/Gadgets.h"
@@ -25,7 +17,6 @@
 #include "client_side_reply.h"
 #include "client_side_request.h"
 #include "ClientRequestContext.h"
-#include "clientStream.h"
 #include "comm/Connection.h"
 #include "comm/Write.h"
 #include "debug/Messages.h"
@@ -99,9 +90,6 @@ static void clientInterpretRequestHeaders(ClientHttpRequest * http);
 static HLPCB clientRedirectDoneWrapper;
 static HLPCB clientStoreIdDoneWrapper;
 static void checkNoCacheDoneWrapper(Acl::Answer, void *);
-CSR clientGetMoreData;
-CSS clientReplyStatus;
-CSD clientReplyDetach;
 static void checkFailureRatio(err_type, hier_code);
 
 ClientRequestContext::~ClientRequestContext()
@@ -149,6 +137,30 @@ ClientHttpRequest::ClientHttpRequest(ConnStateData * aConn) :
 #endif
     }
     dlinkAdd(this, &active, &ClientActiveRequests);
+}
+
+void
+ClientHttpRequest::prepForReadingStoreResponse(const Store::UltimateClientPointer &aReplyRecipient)
+{
+    Assure(aReplyRecipient);
+    Assure(!replyRecipient);
+    replyRecipient = aReplyRecipient;
+
+    Assure(!clientReplyContext_);
+    clientReplyContext_ = new clientReplyContext(this);
+}
+
+clientReplyContext &
+ClientHttpRequest::storeReader()
+{
+    Assure(clientReplyContext_);
+    return *clientReplyContext_;
+}
+
+void
+ClientHttpRequest::readStoreResponse()
+{
+    storeReader().readStoreResponse();
 }
 
 /*
@@ -438,9 +450,7 @@ ClientRequestContext::hostHeaderVerifyFailed(const char *A, const char *B)
     debugs(85, DBG_IMPORTANT, "SECURITY ALERT: on URL: " << http->request->effectiveRequestUri());
 
     // IP address validation for Host: failed. reject the connection.
-    clientStreamNode *node = (clientStreamNode *)http->client_stream.tail->prev->data;
-    clientReplyContext *repContext = dynamic_cast<clientReplyContext *>(node->data.getRaw());
-    assert (repContext);
+    const auto repContext = &http->storeReader();
     repContext->setReplyToError(ERR_CONFLICT_HOST, Http::scConflict,
                                 nullptr,
                                 http->getConn(),
@@ -452,8 +462,7 @@ ClientRequestContext::hostHeaderVerifyFailed(const char *A, const char *B)
 #else
                                 nullptr);
 #endif
-    node = (clientStreamNode *)http->client_stream.tail->data;
-    clientStreamRead(node, http, node->readBuffer);
+    http->readStoreResponse();
 }
 
 void
@@ -931,15 +940,6 @@ clientInterpretRequestHeaders(ClientHttpRequest * http)
 
         if (request->range) {
             request->flags.isRanged = true;
-            clientStreamNode *node = (clientStreamNode *)http->client_stream.tail->data;
-            /* XXX: This is suboptimal. We should give the stream the range set,
-             * and thereby let the top of the stream set the offset when the
-             * size becomes known. As it is, we will end up requesting from 0
-             * for evey -X range specification.
-             * RBC - this may be somewhat wrong. We should probably set the range
-             * iter up at this point.
-             */
-            node->readBuffer.offset = request->range->lowestOffset(0);
         }
     }
 
@@ -1352,7 +1352,7 @@ ClientRequestContext::sslBumpAccessCheckDone(const Acl::Answer &answer)
 #endif
 
 /*
- * Identify requests that do not go through the store and client side stream
+ * Identify requests that do not go through the Store
  * and forward them to the appropriate location. All other requests, request
  * them.
  */
@@ -1389,9 +1389,7 @@ ClientHttpRequest::httpStart()
 
     /* no one should have touched this */
     assert(out.offset == 0);
-    /* Use the Stream Luke */
-    clientStreamNode *node = (clientStreamNode *)client_stream.tail->data;
-    clientStreamRead(node, this, node->readBuffer);
+    readStoreResponse();
 }
 
 #if USE_OPENSSL
@@ -1753,16 +1751,13 @@ ClientHttpRequest::doCallouts()
 #endif
         {
             // send the error to the client now
-            clientStreamNode *node = (clientStreamNode *)client_stream.tail->prev->data;
-            clientReplyContext *repContext = dynamic_cast<clientReplyContext *>(node->data.getRaw());
-            assert (repContext);
+            const auto repContext = &storeReader();
             repContext->setReplyToStoreEntry(e, "immediate SslBump error");
             errorAppendEntry(e, calloutContext->error);
             calloutContext->error = nullptr;
             if (calloutContext->readNextRequest && getConn())
                 getConn()->flags.readMore = true; // resume any pipeline reads.
-            node = (clientStreamNode *)client_stream.tail->data;
-            clientStreamRead(node, this, node->readBuffer);
+            readStoreResponse();
             e->unlock("ClientHttpRequest::doCallouts-sslBumpNeeded");
             return;
         }
@@ -1911,9 +1906,7 @@ ClientHttpRequest::handleAdaptedHeader(Http::Message *msg)
             assert(consumer_ok);
         }
 
-        clientStreamNode *node = (clientStreamNode *)client_stream.tail->prev->data;
-        clientReplyContext *repContext = dynamic_cast<clientReplyContext *>(node->data.getRaw());
-        assert(repContext);
+        const auto repContext = &storeReader(); // TODO: Remove this diff reducer
         repContext->createStoreEntry(request->method, request->flags);
 
         request_satisfaction_mode = true;
@@ -1925,7 +1918,7 @@ ClientHttpRequest::handleAdaptedHeader(Http::Message *msg)
 
         if (!adaptedBodySource) // no body
             storeEntry()->complete();
-        clientGetMoreData(node, this);
+        readStoreResponse();
     }
 
     // we are done with getting headers (but may be receiving body)
@@ -2063,11 +2056,6 @@ ClientHttpRequest::handleAdaptationFailure(const ErrorDetail::Pointer &errDetail
     }
 
     debugs(85,3, "ICAP REQMOD callout failed, responding with error");
-
-    clientStreamNode *node = (clientStreamNode *)client_stream.tail->prev->data;
-    clientReplyContext *repContext = dynamic_cast<clientReplyContext *>(node->data.getRaw());
-    assert(repContext);
-
     calloutsError(ERR_ICAP_FAILURE, errDetail);
 
     if (calloutContext)

@@ -223,7 +223,6 @@ url_entry_sort(const void *A, const void *B)
         return u1->rtt - u2->rtt;
 }
 
-/* TODO: use the clientStream support for this */
 static void
 urnHandleReply(void *data, StoreIOBuffer result)
 {

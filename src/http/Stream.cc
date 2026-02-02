@@ -7,8 +7,8 @@
  */
 
 #include "squid.h"
+#include "client_side_reply.h"
 #include "client_side_request.h"
-#include "clientStream.h"
 #include "http/Stream.h"
 #include "HttpHdrContRange.h"
 #include "HttpHeaderTools.h"
@@ -21,31 +21,22 @@
 #include "MessageDelayPools.h"
 #endif
 
-Http::Stream::Stream(const Comm::ConnectionPointer &aConn, ClientHttpRequest *aReq) :
-    clientConnection(aConn),
-    http(aReq),
+Http::Stream::Stream(ConnStateData * const c):
+    clientConnection(c->clientConnection),
+    http(new ClientHttpRequest(c)),
     reply(nullptr),
     writtenToSocket(0),
     mayUseConnection_(false),
     connRegistered_(false)
 {
-    assert(http != nullptr);
-    memset(reqbuf, '\0', sizeof (reqbuf));
     flags.deferred = 0;
     flags.parsed_ok = 0;
-    deferredparams.node = nullptr;
     deferredparams.rep = nullptr;
 }
 
 Http::Stream::~Stream()
 {
-    if (auto node = getTail()) {
-        if (auto ctx = dynamic_cast<Http::Stream *>(node->data.getRaw())) {
-            /* We are *always* the tail - prevent recursive free */
-            assert(this == ctx);
-            node->data = nullptr;
-        }
-    }
+    assert(!http->replyRecipient); // paranoid: its reference counting would not allow our destruction
     httpRequestFree(http);
 }
 
@@ -83,8 +74,15 @@ Http::Stream::writeComplete(size_t size)
     case STREAM_COMPLETE: {
         debugs(33, 5, clientConnection << " Stream complete, keepalive is " <<
                http->request->flags.proxyKeepalive);
+
         // XXX: This code assumes we are done with the transaction, but we may
         // still be receiving request body. TODO: Extend stopSending() instead.
+
+        // TODO: Stop receiving from Store earlier, when we received everything,
+        // not when we wrote everything (and calling finish() below does not
+        // explicitly stop that either!). For example, a HEAD request receives
+        // everything from Store even before we start writing.
+
         ConnStateData *c = getConn();
         if (!http->request->flags.proxyKeepalive)
             clientConnection->close();
@@ -110,16 +108,7 @@ void
 Http::Stream::pullData()
 {
     debugs(33, 5, reply << " written " << http->out.size << " into " << clientConnection);
-
-    /* More data will be coming from the stream. */
-    StoreIOBuffer readBuffer;
-    /* XXX: Next requested byte in the range sequence */
-    /* XXX: length = getmaximumrangelenfgth */
-    readBuffer.offset = getNextRangeOffset();
-    readBuffer.length = HTTP_REQBUF_SZ;
-    readBuffer.data = reqbuf;
-    /* we may note we have reached the end of the wanted ranges */
-    clientStreamRead(getTail(), http, readBuffer);
+    http->readStoreResponse();
 }
 
 bool
@@ -128,6 +117,20 @@ Http::Stream::multipartRangeRequest() const
     return http->multipartRangeRequest();
 }
 
+uint64_t
+Http::Stream::currentStoreReadingOffset() const
+{
+    // When sending to the HTTP client, we use or discard every byte read from
+    // Store, increasing http->out.offset and http->range_iter (if any). This
+    // code assumes that if we have read something from Store, then those
+    // increases have happened already, and that the caller has confirmed that
+    // there is more to read from Store.
+    const auto offset = getNextRangeOffset();
+    Assure(offset >= 0);
+    return offset;
+}
+
+// TODO: Merge into currentStoreReadingOffset() after making offset calculations unsigned
 int64_t
 Http::Stream::getNextRangeOffset() const
 {
@@ -135,9 +138,19 @@ Http::Stream::getNextRangeOffset() const
             "; http offset " << http->out.offset <<
             "; reply " << reply);
 
-    // XXX: This method is called from many places, including pullData() which
-    // may be called before prepareReply() [on some Squid-generated errors].
-    // Hence, we may not even know yet whether we should honor/do ranges.
+    // If we have not read from Store yet or discarded what we read, then
+    // http->out.offset ought to be zero, and we honor store_client::copy()
+    // expectations by returning that zero offset. It is too early to be worried
+    // about Range-related issues until we get usable reply headers from Store.
+    //
+    // If we stopped reading from Store after sending some Store-supplied bytes
+    // to the client, then we are not going to resume reading from Store, and
+    // the returned offset does not really matter; we probably should not be
+    // even called in this case (TODO: If we can eliminate the possibility of
+    // such calls, then we can assert that http->out.offset is zero here).
+    const auto sc = http->storeReader().sc;
+    if (!sc || !sc->answeredOnce())
+        return http->out.offset;
 
     if (http->request->range) {
         /* offset in range specs does not count the prefix of an http msg */
@@ -171,8 +184,11 @@ Http::Stream::getNextRangeOffset() const
         /* TODO: should use range_iter_pos on reply, as soon as reply->content_range
          *        becomes HttpHdrRange rather than HttpHdrRangeSpec.
          */
-        if (cr->spec.offset != HttpHdrRangeSpec::UnknownPosition)
-            return http->out.offset + cr->spec.offset;
+        // Single-range responses are written to Store with that range start
+        // offset. See Client::haveParsedReplyHeaders(). To make progress with
+        // large ranges, we add bytes that sendBody() wrote to the client.
+        Assure(cr->spec.offset != HttpHdrRangeSpec::UnknownPosition); // see httpHdrContRangeParseInit()
+        return cr->spec.offset + http->out.offset;
     }
 
     return http->out.offset;
@@ -210,7 +226,7 @@ Http::Stream::canPackMoreRanges() const
 clientStream_status_t
 Http::Stream::socketState()
 {
-    switch (clientStreamStatus(getTail(), http)) {
+    switch (http->storeReader().replyStatus()) {
 
     case STREAM_NONE:
         /* check for range support ending */
@@ -277,7 +293,8 @@ Http::Stream::sendStartOfMessage(HttpReply *rep, StoreIOBuffer bodyData)
     /* Save length of headers for persistent conn checks */
     http->out.headers_sz = mb->contentSize();
 
-    if (bodyData.data && bodyData.length) {
+    // TODO: Refactor both methods to avoid this poor sendBody() code duplication.
+    if (http->request->method != Http::METHOD_HEAD && bodyData.data && bodyData.length) {
         if (multipartRangeRequest())
             packRange(bodyData, mb);
         else if (http->request->flags.chunkedReply) {
@@ -314,6 +331,8 @@ Http::Stream::sendStartOfMessage(HttpReply *rep, StoreIOBuffer bodyData)
 void
 Http::Stream::sendBody(StoreIOBuffer bodyData)
 {
+    Assure(http->request->method != Http::METHOD_HEAD);
+
     if (!multipartRangeRequest() && !http->request->flags.chunkedReply) {
         size_t length = lengthToSend(bodyData.range());
         noteSentBodyBytes(length);
@@ -498,21 +517,6 @@ Http::Stream::buildRangeHeader(HttpReply *rep)
     }
 }
 
-clientStreamNode *
-Http::Stream::getTail() const
-{
-    if (http->client_stream.tail)
-        return static_cast<clientStreamNode *>(http->client_stream.tail->data);
-
-    return nullptr;
-}
-
-clientStreamNode *
-Http::Stream::getClientReplyContext() const
-{
-    return static_cast<clientStreamNode *>(http->client_stream.tail->prev->data);
-}
-
 ConnStateData *
 Http::Stream::getConn() const
 {
@@ -536,8 +540,7 @@ Http::Stream::finished()
     CodeContext::Reset(clientConnection);
     ConnStateData *conn = getConn();
 
-    /* we can't handle any more stream data - detach */
-    clientStreamDetach(getTail(), http);
+    http->replyRecipient = nullptr;
 
     assert(connRegistered_);
     connRegistered_ = false;
@@ -553,12 +556,11 @@ Http::Stream::initiateClose(const char *reason)
 }
 
 void
-Http::Stream::deferRecipientForLater(clientStreamNode *node, HttpReply *rep, StoreIOBuffer receivedData)
+Http::Stream::deferRecipientForLater(HttpReply *rep, StoreIOBuffer receivedData)
 {
     debugs(33, 2, "Deferring request " << http->uri);
     assert(flags.deferred == 0);
     flags.deferred = 1;
-    deferredparams.node = node;
     deferredparams.rep = rep;
     deferredparams.queuedBuffer = receivedData;
 }
@@ -598,6 +600,7 @@ Http::Stream::packRange(StoreIOBuffer const &source, MemBuf *mb)
     Range<int64_t> available(source.range());
     char const *buf = source.data;
 
+    debugs(33, 3, "http->out.offset=" << http->out.offset << " source=" << source);
     while (i->currentSpec() && available.size()) {
         const size_t copy_sz = lengthToSend(available);
         if (copy_sz) {
@@ -636,19 +639,25 @@ Http::Stream::packRange(StoreIOBuffer const &source, MemBuf *mb)
         }
 
         int64_t nextOffset = getNextRangeOffset();
-        assert(nextOffset >= http->out.offset);
-        int64_t skip = nextOffset - http->out.offset;
-        /* adjust for not to be transmitted bytes */
+
+        /* skip any unwanted `available` bytes located before nextOffset */
+
+        Assure(nextOffset >= available.start);
+        const auto skip = nextOffset - available.start;
+        debugs(33, 5, "http->out.offset=" << http->out.offset << " available=" << available << " nextOffset=" << nextOffset << " skip=" << skip);
+
+        Assure(nextOffset >= http->out.offset);
         http->out.offset = nextOffset;
 
         if (available.size() <= (uint64_t)skip)
             return;
 
+        // we make progress by copying wanted and/or skipping unwanted bytes
+        Assure(copy_sz || skip);
+
         available.start += skip;
         buf += skip;
-
-        if (copy_sz == 0)
-            return;
+        Assure(nextOffset == available.start);
     }
 }
 

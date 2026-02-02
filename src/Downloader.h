@@ -18,7 +18,6 @@
 
 class ClientHttpRequest;
 class StoreIOBuffer;
-class clientStreamNode;
 class DownloaderContext;
 typedef RefCount<DownloaderContext> DownloaderContextPointer;
 class MasterXaction;
@@ -58,7 +57,7 @@ public:
     /// The nested level of Downloader object (downloads inside downloads).
     unsigned int nestedLevel() const {return level_;}
 
-    void handleReply(clientStreamNode *, ClientHttpRequest *, HttpReply *, StoreIOBuffer);
+    void handleReply(ClientHttpRequest *, HttpReply *, StoreIOBuffer);
 
 protected:
 
@@ -83,7 +82,7 @@ private:
     const unsigned int level_; ///< holds the nested downloads level
     MasterXactionPointer masterXaction_; ///< download transaction context
 
-    /// Pointer to an object that stores the clientStream required info
+    /// a bridge to ClientHttpRequest and Store::UltimateClient APIs
     DownloaderContextPointer context_;
 };
 

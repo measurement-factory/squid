@@ -12,7 +12,6 @@
 #include "client_side_reply.h"
 #include "client_side_request.h"
 #include "ClientRequestContext.h"
-#include "clientStream.h"
 #include "Downloader.h"
 #include "fatal.h"
 #include "http/one/RequestParser.h"
@@ -20,27 +19,31 @@
 
 CBDATA_CLASS_INIT(Downloader);
 
-/// Used to hold and pass the required info and buffers to the
-/// clientStream callbacks
-class DownloaderContext: public RefCountable
+// TODO: Merge into Downloader.
+/// Implements Store::UltimateClient API on behalf of the Downloader job.
+class DownloaderContext: public Store::UltimateClient
 {
     MEMPROXY_CLASS(DownloaderContext);
 
 public:
     typedef RefCount<DownloaderContext> Pointer;
 
-    DownloaderContext(Downloader *dl, ClientHttpRequest *h);
+    explicit DownloaderContext(Downloader *);
     ~DownloaderContext() override;
     void finished();
 
+    /* Store::UltimateClient API */
+    void handleStoreReply(HttpReply *, StoreIOBuffer) override;
+    uint64_t currentStoreReadingOffset() const override;
+
+public:
     CbcPointer<Downloader> downloader;
     ClientHttpRequest *http;
-    char requestBuffer[HTTP_REQBUF_SZ];
 };
 
-DownloaderContext::DownloaderContext(Downloader *dl, ClientHttpRequest *h):
+DownloaderContext::DownloaderContext(Downloader * const dl):
     downloader(dl),
-    http(h)
+    http(new ClientHttpRequest(nullptr))
 {
     debugs(33, 6, "DownloaderContext constructed, this=" << (void*)this);
 }
@@ -57,6 +60,12 @@ DownloaderContext::finished()
 {
     delete http;
     http = nullptr;
+}
+
+uint64_t
+DownloaderContext::currentStoreReadingOffset() const
+{
+    return (http ? http->out.offset : 0);
 }
 
 std::ostream &
@@ -102,33 +111,11 @@ Downloader::doneAll() const
     return (!callback_ || callback_->canceled()) && AsyncJob::doneAll();
 }
 
-static void
-downloaderRecipient(clientStreamNode * node, ClientHttpRequest * http,
-                    HttpReply * rep, StoreIOBuffer receivedData)
+void
+DownloaderContext::handleStoreReply(HttpReply * const rep, const StoreIOBuffer receivedData)
 {
-    debugs(33, 6, MYNAME);
-    /* Test preconditions */
-    assert(node);
-
-    /* TODO: handle this rather than asserting
-     * - it should only ever happen if we cause an abort and
-     * the callback chain loops back to here, so we can simply return.
-     * However, that itself shouldn't happen, so it stays as an assert for now.
-     */
-    assert(cbdataReferenceValid(node));
-    assert(!node->node.next);
-    DownloaderContext::Pointer context = dynamic_cast<DownloaderContext *>(node->data.getRaw());
-    assert(context);
-
-    if (context->downloader.valid())
-        context->downloader->handleReply(node, http, rep, receivedData);
-}
-
-static void
-downloaderDetach(clientStreamNode * node, ClientHttpRequest * http)
-{
-    debugs(33, 5, MYNAME);
-    clientStreamDetach(node, http);
+    if (downloader.valid())
+        downloader->handleReply(http, rep, receivedData);
 }
 
 /// Initializes and starts the HTTP GET request to the remote server
@@ -158,22 +145,12 @@ Downloader::buildRequest()
            request->method << " " << url_ << " " << request->http_ver << "\n" <<
            "\n----------");
 
-    ClientHttpRequest *const http = new ClientHttpRequest(nullptr);
+    context_ = Store::UltimateClient::Make<DownloaderContext>(this);
+    const auto http = context_->http;
     http->initRequest(request);
     http->req_sz = 0;
     // XXX: performance regression. c_str() reallocates
     http->uri = xstrdup(url_.c_str());
-
-    context_ = new DownloaderContext(this, http);
-    StoreIOBuffer tempBuffer;
-    tempBuffer.data = context_->requestBuffer;
-    tempBuffer.length = HTTP_REQBUF_SZ;
-
-    ClientStreamData newServer = new clientReplyContext(http);
-    ClientStreamData newClient = context_.getRaw();
-    clientStreamInit(&http->client_stream, clientGetMoreData, clientReplyDetach,
-                     clientReplyStatus, newServer, downloaderRecipient,
-                     downloaderDetach, newClient, tempBuffer);
 
     // Build a ClientRequestContext to start doCallouts
     http->calloutContext = new ClientRequestContext(http);
@@ -189,12 +166,8 @@ Downloader::start()
 }
 
 void
-Downloader::handleReply(clientStreamNode * node, ClientHttpRequest *http, HttpReply *reply, StoreIOBuffer receivedData)
+Downloader::handleReply(ClientHttpRequest *http, HttpReply *reply, StoreIOBuffer receivedData)
 {
-    DownloaderContext::Pointer callerContext = dynamic_cast<DownloaderContext *>(node->data.getRaw());
-    // TODO: remove the following check:
-    assert(callerContext == context_);
-
     debugs(33, 4, "Received " << receivedData.length <<
            " object data, offset: " << receivedData.offset <<
            " error flag:" << receivedData.flags.error);
@@ -218,16 +191,14 @@ Downloader::handleReply(clientStreamNode * node, ClientHttpRequest *http, HttpRe
 
     object_.append(receivedData.data, receivedData.length);
     http->out.size += receivedData.length;
+    // XXX: Reject Content-Range responses! Their Store body offsets are
+    // different than this and currentStoreReadingOffset() offset math assumes.
     http->out.offset += receivedData.length;
 
-    switch (clientStreamStatus(node, http)) {
+    switch (http->storeReader().replyStatus()) {
     case STREAM_NONE: {
         debugs(33, 3, "Get more data");
-        StoreIOBuffer tempBuffer;
-        tempBuffer.offset = http->out.offset;
-        tempBuffer.data = context_->requestBuffer;
-        tempBuffer.length = HTTP_REQBUF_SZ;
-        clientStreamRead(node, http, tempBuffer);
+        http->readStoreResponse();
     }
     break;
     case STREAM_COMPLETE:

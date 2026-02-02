@@ -9,18 +9,21 @@
 #ifndef SQUID_SRC_HTTP_STREAM_H
 #define SQUID_SRC_HTTP_STREAM_H
 
-#include "clientStreamForward.h"
 #include "comm/forward.h"
 #include "debug/Stream.h"
+#include "enums.h"
 #include "error/Error.h"
 #include "http/forward.h"
 #include "log/forward.h"
 #include "mem/forward.h"
 #include "servers/forward.h"
+#include "StoreClient.h"
 #include "StoreIOBuffer.h"
 #if USE_DELAY_POOLS
 #include "MessageBucket.h"
 #endif
+
+class ClientHttpRequest;
 
 namespace Http
 {
@@ -63,19 +66,28 @@ namespace Http
  * to the deferred state.
  *
  *
+ * XXX: This class lives in Http namespace and contains a lot of HTTP-specific
+ * code (mostly for writing a response to an HTTP client), but it is also used
+ * by Ftp::Server because Stream also contains a few client_protocol-agnostic
+ * Store-related methods and state. This class needs to be split so that FTP
+ * code is not forced to use an HTTP-focused class. For example, Stream could
+ * keep its HTTP-specific parts, HTTP-specific ConnStateData::pipeline container
+ * (of Stream objects) could be moved to HTTP-specific Http::One::Server, and
+ * those client_protocol-agnostic ops could be relocated into clientReplyContext
+ * and/or ClientHttpRequest (and/or a dedicated class).
+ *
  * XXX: If an async call ends the ClientHttpRequest job, Http::Stream
  * (and ConnStateData) may not know about it, leading to segfaults and
  * assertions. This is difficult to fix
  * because ClientHttpRequest lacks a good way to communicate its ongoing
  * destruction back to the Http::Stream which pretends to "own" *http.
  */
-class Stream : public RefCountable
+class Stream: public RefCountable, public Store::UltimateClient
 {
     MEMPROXY_CLASS(Stream);
 
 public:
-    /// construct with HTTP/1.x details
-    Stream(const Comm::ConnectionPointer &aConn, ClientHttpRequest *aReq);
+    Stream(ConnStateData *);
     ~Stream() override;
 
     /// register this stream with the Server
@@ -113,9 +125,6 @@ public:
     /// add Range headers (if any) to the given HTTP reply message
     void buildRangeHeader(HttpReply *);
 
-    clientStreamNode * getTail() const;
-    clientStreamNode * getClientReplyContext() const;
-
     ConnStateData *getConn() const;
 
     /// update state to reflect I/O error
@@ -127,14 +136,18 @@ public:
     /// terminate due to a send/write error (may continue reading)
     void initiateClose(const char *reason);
 
-    void deferRecipientForLater(clientStreamNode *, HttpReply *, StoreIOBuffer receivedData);
+    void deferRecipientForLater(HttpReply *, StoreIOBuffer receivedData);
+
+    /* Store::UltimateClient API */
+    void handleStoreReply(HttpReply *, StoreIOBuffer) override;
+    uint64_t currentStoreReadingOffset() const override;
 
 public: // HTTP/1.x state data
 
     Comm::ConnectionPointer clientConnection; ///< details about the client connection socket
     ClientHttpRequest *http;    /* we pretend to own that Job */
     HttpReply *reply;
-    char reqbuf[HTTP_REQBUF_SZ];
+
     struct {
         unsigned deferred:1; ///< This is a pipelined request waiting for the current object to complete
         unsigned parsed_ok:1; ///< Was this parsed correctly?
@@ -151,7 +164,6 @@ public: // HTTP/1.x state data
     {
 
     public:
-        clientStreamNode *node;
         HttpReply *rep;
         StoreIOBuffer queuedBuffer;
     };

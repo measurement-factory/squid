@@ -16,7 +16,6 @@
 #include "base/Subscription.h"
 #include "client_side_reply.h"
 #include "client_side_request.h"
-#include "clientStream.h"
 #include "comm/ConnOpener.h"
 #include "comm/Read.h"
 #include "comm/TcpAcceptor.h"
@@ -621,10 +620,7 @@ Ftp::Server::earlyError(const EarlyErrorKind eek)
     }
 
     Http::Stream *context = abortRequestParsing(errUri);
-    clientStreamNode *node = context->getClientReplyContext();
-    Must(node);
-    clientReplyContext *repContext = dynamic_cast<clientReplyContext *>(node->data.getRaw());
-    Must(repContext);
+    const auto repContext = &context->http->storeReader();
 
     // We cannot relay FTP scode/reason via HTTP-specific ErrorState.
     // TODO: When/if ErrorState can handle native FTP errors, use it instead.
@@ -752,24 +748,11 @@ Ftp::Server::parseOneRequest()
         request->header.putStr(Http::HdrType::TRANSFER_ENCODING, "chunked");
     }
 
-    ClientHttpRequest *const http = new ClientHttpRequest(this);
+    const auto result = Store::UltimateClient::Make<Http::Stream>(this);
+    const auto http = result->http;
     http->req_sz = tok.parsedSize();
     http->uri = newUri;
     http->initRequest(request);
-
-    Http::Stream *const result =
-        new Http::Stream(clientConnection, http);
-
-    StoreIOBuffer tempBuffer;
-    tempBuffer.data = result->reqbuf;
-    tempBuffer.length = HTTP_REQBUF_SZ;
-
-    ClientStreamData newServer = new clientReplyContext(http);
-    ClientStreamData newClient = result;
-    clientStreamInit(&http->client_stream, clientGetMoreData, clientReplyDetach,
-                     clientReplyStatus, newServer, clientSocketRecipient,
-                     clientSocketDetach, newClient, tempBuffer);
-
     result->flags.parsed_ok = 1;
     return result;
 }
@@ -797,6 +780,11 @@ Ftp::Server::handleReply(HttpReply *reply, StoreIOBuffer data)
         &Ftp::Server::handleErrorReply // fssError
     };
     try {
+        // Our parseOneRequest() never creates HEAD requests, but if a broken
+        // REEQMOD adaptation service does that, clientsReplyContext should
+        // protect us from getting body data that a HEAD request should not see.
+        Assure(!data.length || context->http->request->method != Http::METHOD_HEAD);
+
         const Server &server = dynamic_cast<const Ftp::Server&>(*context->getConn());
         if (const ReplyHandler handler = handlers[server.master->serverState])
             (this->*handler)(reply, data);
@@ -999,7 +987,7 @@ Ftp::Server::wroteReplyData(const CommIoCbParams &io)
     replyDataWritingCheckpoint();
 }
 
-/// ClientStream checks after (actual or skipped) reply data writing
+/// reacts to (actual or skipped) reply data writing
 void
 Ftp::Server::replyDataWritingCheckpoint()
 {
@@ -1735,10 +1723,7 @@ Ftp::Server::setReply(const int code, const char *msg)
 
     HttpReply *const reply = Ftp::HttpReplyWrapper(code, msg, Http::scNoContent, 0);
 
-    clientStreamNode *const node = context->getClientReplyContext();
-    clientReplyContext *const repContext =
-        dynamic_cast<clientReplyContext *>(node->data.getRaw());
-    assert(repContext != nullptr);
+    const auto repContext = &http->storeReader();
 
     RequestFlags reqFlags;
     reqFlags.disableCacheUse("FTP response wrapper");

@@ -17,8 +17,6 @@
 
 class ErrorState;
 
-/* XXX make static method */
-
 class clientReplyContext : public RefCountable, public StoreClient
 {
     CBDATA_CLASS(clientReplyContext);
@@ -70,32 +68,39 @@ public:
     ClientHttpRequest *http;
     store_client *sc;       /* The store_client we're using */
 
-    /// Buffer dedicated to receiving storeClientCopy() responses to generated
-    /// revalidation requests. These requests cannot use next()->readBuffer
-    /// because the latter keeps the contents of the stale HTTP response during
-    /// revalidation. sendClientOldEntry() uses that contents.
+    /// Buffer dedicated to receiving storeClientCopy() responses to internally
+    /// generated revalidation requests. These requests cannot use
+    /// primaryStoreReadingBuffer_ because the latter keeps the contents of the
+    /// stale HTTP response during revalidation. sendClientOldEntry() uses that
+    /// contents.
     char tempbuf[HTTP_REQBUF_SZ];
 
     struct Flags {
         Flags() : storelogiccomplete(0), complete(0), headersSent(false) {}
 
+        /// We have response headers (either received from Store or generated
+        /// during error/TRACE/PURGE/etc. processing) that we want to use for
+        /// the response to the client. We do not need to identifyStoreObject().
+        /// We are ready for cloneReply(), processReplyAccess(), etc. or are
+        /// already done with those response finalizing steps.
         unsigned storelogiccomplete:1;
+
         unsigned complete:1;        ///< we have read all we can from upstream
         bool headersSent;
     } flags;
-    clientStreamNode *ourNode;  /* This will go away if/when this file gets refactored some more */
+
+    /// Request initial or additional response bytes from Store.
+    void readStoreResponse();
 
 private:
     /* StoreClient API */
     void fillChecklist(ACLFilledChecklist &) const override;
 
-    clientStreamNode *getNextNode() const;
     void makeThisHead();
     bool errorInStream(const StoreIOBuffer &result) const;
     bool matchesStreamBodyBuffer(const StoreIOBuffer &) const;
     void sendStreamError(StoreIOBuffer const &result);
     void pushStreamData(const StoreIOBuffer &);
-    clientStreamNode * next() const;
     HttpReply *reply;
     void processReplyAccess();
     static ACLCB ProcessReplyAccessResult;
@@ -130,6 +135,18 @@ private:
     void sendNotModifiedOrPreconditionFailedError();
     void sendClientUpstreamResponse(const StoreIOBuffer &upstreamResponse);
 
+    // TODO: It is tempting to move primaryStoreReadingBuffer_ and tempbuf
+    // members into store_client because two store_clients is why we need these
+    // two buffers. However, doing so is too risky because a StoreIOBuffer
+    // result (pointing to one of these buffers) might outlive the store_client
+    // object that owns the corresponding StoreIOBuffer::data memory. Instead,
+    // we should stop using StoreIOBuffer for Store queries and replace it with
+    // an SBuf for successful Store responses.
+    /// Buffer for receiving storeClientCopy() responses to requests other than
+    /// generated revalidation requests.
+    /// \sa tempbuf
+    char primaryStoreReadingBuffer_[HTTP_REQBUF_SZ] = { 0 };
+
     /// Reduces a chance of an accidental direct storeClientCopy() call that
     /// (should but) forgets to invalidate our lastStreamBufferedBytes. This
     /// function is not defined; decltype() syntax prohibits "= delete", but
@@ -157,11 +174,8 @@ private:
 
     CollapsedRevalidation collapsedRevalidation;
 
-    /// HTTP response body bytes stored in our Client Stream buffer (if any)
+    /// HTTP response body bytes stored in primaryStoreReadingBuffer_ (if any)
     StoreIOBuffer lastStreamBufferedBytes;
-
-    // TODO: Remove after moving the meat of this function into a method.
-    friend CSR clientGetMoreData;
 };
 
 // TODO: move to SideAgent parent, when we have one

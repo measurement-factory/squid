@@ -357,9 +357,6 @@ squid_SOURCES = \
 	carp.h \
 	cbdata.cc \
 	cbdata.h \
-	clientStream.cc \
-	clientStream.h \
-	clientStreamForward.h \
 	client_db.cc \
 	client_db.h \
 	client_side.cc \
@@ -1862,7 +1859,6 @@ tests_testHttpRange_SOURCES = \
 	tests/stub_carp.cc \
 	carp.h \
 	cbdata.cc \
-	clientStream.cc \
 	tests/stub_client_db.cc \
 	client_side.cc \
 	client_side.h \
@@ -2249,7 +2245,6 @@ tests_testHttpRequest_SOURCES = \
 	tests/stub_carp.cc \
 	carp.h \
 	cbdata.cc \
-	clientStream.cc \
 	tests/stub_client_db.cc \
 	client_side.cc \
 	client_side.h \
@@ -2546,7 +2541,6 @@ tests_testCacheManager_SOURCES = \
 	tests/stub_carp.cc \
 	carp.h \
 	cbdata.cc \
-	clientStream.cc \
 	tests/stub_client_db.cc \
 	client_side.cc \
 	client_side.h \

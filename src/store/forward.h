@@ -9,6 +9,8 @@
 #ifndef SQUID_SRC_STORE_FORWARD_H
 #define SQUID_SRC_STORE_FORWARD_H
 
+#include "base/forward.h"
+
 // bug 4610 see comments 22-38
 // Nasty hack, but it turns out C++ allows int32_t to be
 // unsigned when used as a bitmask (as sfile* are later)
@@ -47,10 +49,13 @@ class Disk;
 class DiskConfig;
 class EntryGuard;
 class ParsingBuffer;
+class UltimateClient;
 
 typedef ::StoreEntry Entry;
 typedef ::MemStore Memory;
 typedef ::Transients Transients;
+
+using UltimateClientPointer = RefCount<UltimateClient>;
 } // namespace Store
 
 // TODO: Remove these once all code has been transitioned to Store namespace.
