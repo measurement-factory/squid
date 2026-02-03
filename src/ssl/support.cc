@@ -123,15 +123,14 @@ CryptoRealloc(void *str, size_t num, const char *file, int line)
     const auto p = realloc(str, num);
     const auto addressAfter = reinterpret_cast<uintptr_t>(p);
 
-    const auto sameArea = (addressBefore == addressAfter);
-    auto &stats = sameArea ? ReallocOldAddrStats() : ReallocNewAddrStats();
-    stats.addArea(num);
-    if (!sameArea) {
-        // for scripts/find-alive.pl
-        debugs(83, 8, "freed: " <<  reinterpret_cast<void*>(addressBefore));
-        debugs(83, 8, "allocated: " << reinterpret_cast<void*>(addressAfter));
+    if (addressBefore == addressAfter) {
+        ReallocOldAddrStats().addArea(num);
+        debugs(83, 8, "kept " << p << " " << num << " " << file << " " << line);
+    } else {
+        ReallocNewAddrStats().addArea(num);
+        debugs(83, 8, "freed " << reinterpret_cast<const void*>(addressBefore) << " allocated " << p << " " << num << " " << file << " " << line);
     }
-    debugs(83, 8, reinterpret_cast<void*>(addressBefore) << (sameArea ? "==" : "!=") << reinterpret_cast<void*>(addressAfter) << " " << num << " " << file << " " << line);
+
     return p;
 }
 
