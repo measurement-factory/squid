@@ -89,7 +89,7 @@ CryptoMalloc(size_t num, const char *file, int line)
     // We should preserve the old CRYPTO_malloc() behavior, allowing the SSL library
     // to handle such errors itself.
     const auto p = num ? malloc(num) : nullptr;
-    debugs(83, 5, p << " " << num << " " << file << " " << line);
+    debugs(83, 8, p << " " << num << " " << file << " " << line);
     return p;
 }
 
@@ -97,7 +97,7 @@ CryptoMalloc(size_t num, const char *file, int line)
 static void
 CryptoFree(void *str, const char *file, int line)
 {
-    debugs(83, 5, str << " " << file << " " << line);
+    debugs(83, 8, str << " " << file << " " << line);
     FreeStats()++;
     xfree(str);
 }
@@ -107,12 +107,12 @@ static void *
 CryptoRealloc(void *str, size_t num, const char *file, int line)
 {
     if (!str) {
-        debugs(83, 5, str << " " << num << " " << file << " " << line);
+        debugs(83, 8, str << " " << num << " " << file << " " << line);
         return CryptoMalloc(num, file, line); // mimics CRYPTO_realloc() that calls CRYPTO_malloc()
     }
 
     if (num == 0) {
-        debugs(83, 5, str << " " << num << " " << file << " " << line);
+        debugs(83, 8, str << " " << num << " " << file << " " << line);
         CryptoFree(str, file, line); // mimics CRYPTO_realloc(), that calls CRYPTO_free()
         return nullptr;
     }
@@ -128,10 +128,10 @@ CryptoRealloc(void *str, size_t num, const char *file, int line)
     stats.addArea(num);
     if (!sameArea) {
         // for scripts/find-alive.pl
-        debugs(83, 5, "freed: " <<  reinterpret_cast<void*>(addressBefore));
-        debugs(83, 5, "allocated: " << reinterpret_cast<void*>(addressAfter));
+        debugs(83, 8, "freed: " <<  reinterpret_cast<void*>(addressBefore));
+        debugs(83, 8, "allocated: " << reinterpret_cast<void*>(addressAfter));
     }
-    debugs(83, 5, reinterpret_cast<void*>(addressBefore) << (sameArea ? "==" : "!=") << reinterpret_cast<void*>(addressAfter) << " " << num << " " << file << " " << line);
+    debugs(83, 8, reinterpret_cast<void*>(addressBefore) << (sameArea ? "==" : "!=") << reinterpret_cast<void*>(addressAfter) << " " << num << " " << file << " " << line);
     return p;
 }
 
