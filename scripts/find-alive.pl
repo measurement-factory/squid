@@ -99,7 +99,7 @@ while (<STDIN>) {
         $AliveImage{$id} = $_;
         ++$Count unless $AliveCount{$id}++;
     }
-    # No `elseif` because reallocation lines match both regexes
+    # No `elsif` because reallocation lines match both regexes
     if (my @deIds = (/$reDestructor/)) {
         my $id = join(':', @deIds);
         if ($AliveCount{$id}) {

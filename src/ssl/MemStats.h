@@ -17,29 +17,37 @@
 namespace Ssl
 {
 
-/// Statistics for OpenSSL malloc-based memory management.
-
-/// malloc() and realloc() statistics
+/// OpenSSL memory (re)allocation statistics
 class MemAllocStats
 {
 public:
     MemAllocStats(const char *desc);
 
-    /// adds a malloc() or realloc() result to the statistics
+    /// records a (re)allocation of a buffer that can accommodate the given
+    /// number of bytes
     void addArea(size_t bytes) { allocSizes.count(bytes); }
 
+    /// reports collected stats using YAML format
     void dump(StoreEntry &);
 
 protected:
-    const char *description = nullptr; ///< the allocation function description
-    StatHist allocSizes; ///< histogram of allocated memory blocks
+    /// describes the allocation function being tracked (for dump())
+    const char *description = nullptr;
+
+    /// histogram of addArea() parameter values
+    StatHist allocSizes;
 };
 
+/// CRYPTO_malloc(3) call stats
 MemAllocStats &MallocStats();
+/// CRYPTO_realloc(3) call stats for cases where the old buffer address was preserved
 MemAllocStats &ReallocOldAddrStats();
+/// CRYPTO_realloc(3) call stats for cases where a buffer was allocated at a new address
 MemAllocStats &ReallocNewAddrStats();
+/// the number of CRYPTO_free() calls made so far
 size_t &FreeStats();
 
+/// Dumps current memory statistics for CRYPTO_malloc/realloc/free(3) calls.
 void ReportMemoryStats(StoreEntry &);
 
 } // namespace Ssl

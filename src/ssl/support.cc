@@ -79,21 +79,24 @@ SquidUntrustedCerts()
     return *untrustedCerts;
 }
 
-/// a replacement for CRYPTO_malloc()
+/// CRYPTO_malloc(3) implementation replacement
 static void *
 CryptoMalloc(size_t num, const char *file, int line)
 {
     MallocStats().addArea(num);
-    // mimics CRYPTO_malloc(), returning NULL if num==0
-    // Do not call xmalloc() here because of its special malloc() errors treatment.
-    // We should preserve the old CRYPTO_malloc() behavior, allowing the SSL library
-    // to handle such errors itself.
+    // Mimic CRYPTO_malloc() that returns nil when `num` is 0. Also, do not call
+    // xmalloc() here because xmalloc() exit()s on malloc(3) errors; preserve
+    // default CRYPTO_malloc() behavior, allowing OpenSSL to handle errors.
+    //
+    // TODO: Consider switching to xmalloc() to reduce chances of allocation
+    // failures crashing Squid when our code forgets to check some OpenSSL
+    // function result.
     const auto p = num ? malloc(num) : nullptr;
     debugs(83, 8, p << " " << num << " " << file << " " << line);
     return p;
 }
 
-/// a replacement for CRYPTO_free()
+/// CRYPTO_free(3) implementation replacement
 static void
 CryptoFree(void *str, const char *file, int line)
 {
@@ -102,18 +105,20 @@ CryptoFree(void *str, const char *file, int line)
     xfree(str);
 }
 
-/// a replacement for CRYPTO_realloc()
+/// CRYPTO_realloc(3) implementation replacement
 static void *
 CryptoRealloc(void *str, size_t num, const char *file, int line)
 {
     if (!str) {
         debugs(83, 8, str << " " << num << " " << file << " " << line);
-        return CryptoMalloc(num, file, line); // mimics CRYPTO_realloc() that calls CRYPTO_malloc()
+        // mimic CRYPTO_realloc() that returns CRYPTO_malloc() in this case
+        return CryptoMalloc(num, file, line);
     }
 
     if (num == 0) {
         debugs(83, 8, str << " " << num << " " << file << " " << line);
-        CryptoFree(str, file, line); // mimics CRYPTO_realloc(), that calls CRYPTO_free()
+        // mimic CRYPTO_realloc() that calls CRYPTO_free() and returns nil in this case
+        CryptoFree(str, file, line);
         return nullptr;
     }
 
