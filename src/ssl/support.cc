@@ -100,9 +100,12 @@ CryptoMalloc(const size_t num, const char * const file, const int line)
 static void
 CryptoFree(void *str, const char * const file, const int line)
 {
-    debugs(83, 8, str << " " << file << " " << line);
-    ++FreeStats();
-    xfree(str);
+    // ignore nil pointers to reduce debugging noise and make stats more meaningful
+    if (str) {
+        debugs(83, 8, str << " " << file << " " << line);
+        ++FreeStats();
+        xfree(str);
+    }
 }
 
 /// CRYPTO_realloc(3) implementation replacement
