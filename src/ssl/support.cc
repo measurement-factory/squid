@@ -801,17 +801,16 @@ ssl_free_VerifyCallbackParameters(void *, void *ptr, CRYPTO_EX_DATA *,
 }
 
 void
-Ssl::Initialize(void)
+Ssl::Configure()
 {
+    // XXX: Support reconfiguration of directives processed below.
     static bool initialized = false;
     if (initialized)
         return;
     initialized = true;
 
-    SQUID_OPENSSL_init_ssl();
+    Ssl::InitializeOnce();
 
-    if (!CRYPTO_set_mem_functions(CryptoMalloc, CryptoRealloc, CryptoFree))
-        debugs(83, DBG_IMPORTANT, "WARNING: Unable to CRYPTO_set_mem_functions(): the custom allocation is forbidden.");
     if (::Config.SSL.ssl_engine) {
 #if OPENSSL_VERSION_MAJOR < 3
         debugs(83, DBG_PARSE_NOTE(DBG_IMPORTANT), "WARNING: Support for ssl_engine is deprecated " <<
@@ -840,6 +839,20 @@ Ssl::Initialize(void)
     Ssl::DefaultSignHash = EVP_get_digestbyname(defName);
     if (!Ssl::DefaultSignHash)
         fatalf("Sign hash '%s' is not supported\n", defName);
+}
+
+void
+Ssl::InitializeOnce()
+{
+    static auto beenHere = false;
+    if (beenHere)
+        return;
+    beenHere = true;
+
+    if (!CRYPTO_set_mem_functions(CryptoMalloc, CryptoRealloc, CryptoFree))
+        debugs(83, DBG_IMPORTANT, "WARNING: Unable to CRYPTO_set_mem_functions(): the custom allocation is forbidden.");
+
+    SQUID_OPENSSL_init_ssl();
 
     ssl_ex_index_server = SSL_get_ex_new_index(0, (void *) "server", nullptr, nullptr, ssl_free_SBuf);
     ssl_ctx_ex_index_dont_verify_domain = SSL_CTX_get_ex_new_index(0, (void *) "dont_verify_domain", nullptr, nullptr, nullptr);
