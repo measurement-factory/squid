@@ -117,15 +117,21 @@ CryptoRealloc(void *str, size_t num, const char *file, int line)
         return nullptr;
     }
 
+    // These uintptr_t variables avoid GCC -Wuse-after-free warnings when we try
+    // to report `str`-stored address after `str` was freed by realloc().
+    const auto addressBefore = reinterpret_cast<uintptr_t>(str);
     const auto p = realloc(str, num);
-    const auto sameArea = (p == str);
+    const auto addressAfter = reinterpret_cast<uintptr_t>(p);
+
+    const auto sameArea = (addressBefore == addressAfter);
     auto &stats = sameArea ? ReallocOldAddrStats() : ReallocNewAddrStats();
     stats.addArea(num);
     if (!sameArea) {
-        debugs(83, 5, "freed: " <<  str);
-        debugs(83, 5, "allocated: " <<  p);
+        // for scripts/find-alive.pl
+        debugs(83, 5, "freed: " <<  reinterpret_cast<void*>(addressBefore));
+        debugs(83, 5, "allocated: " << reinterpret_cast<void*>(addressAfter));
     }
-    debugs(83, 5, str << (sameArea ? "==" : "!=") << p << " " << num << " " << file << " " << line);
+    debugs(83, 5, reinterpret_cast<void*>(addressBefore) << (sameArea ? "==" : "!=") << reinterpret_cast<void*>(addressAfter) << " " << num << " " << file << " " << line);
     return p;
 }
 
