@@ -60,8 +60,8 @@ public:
      */
     void count(double val);
 
-    /// the total number of entries in the histogram
-    size_t size() const;
+    /// the total number of count() calls
+    uint64_t valuesCounted() const;
 
     /** iterate the supplied bd function over the histogram values
      */

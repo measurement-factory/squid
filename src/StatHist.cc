@@ -60,10 +60,10 @@ StatHist::count(double v)
     ++bins[bin];
 }
 
-size_t
-StatHist::size() const
+uint64_t
+StatHist::valuesCounted() const
 {
-    size_t total = 0;
+    uint64_t total = 0;
     if (bins) {
         for (size_t i = 0; i < capacity_; ++i)
             total += bins[i];

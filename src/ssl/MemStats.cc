@@ -24,7 +24,7 @@ Ssl::MemAllocStats::dump(StoreEntry &e)
     PackableStream yaml(e);
     const auto indent = "  ";
     yaml << indent << description << " stats:" << "\n";
-    yaml << indent << indent << "Calls: " << allocSizes.size() << "\n";
+    yaml << indent << indent << "Calls: " << allocSizes.valuesCounted() << "\n";
     yaml << indent << indent << "Allocations histogram (bytes):" << "\n";
     yaml.flush();
     allocSizes.dump(&e, nullptr);
