@@ -52,11 +52,11 @@ Ssl::ReallocNewAddrStats()
     return *stats;
 }
 
-size_t &
+uint64_t &
 Ssl::FreeStats()
 {
-    static size_t count = 0;
-    return count;
+    static uint64_t callsCounter = 0;
+    return callsCounter;
 }
 
 void

@@ -45,7 +45,7 @@ MemAllocStats &ReallocOldAddrStats();
 /// CRYPTO_realloc(3) call stats for cases where a buffer was allocated at a new address
 MemAllocStats &ReallocNewAddrStats();
 /// the number of CRYPTO_free() calls made so far
-size_t &FreeStats();
+uint64_t &FreeStats();
 
 /// Dumps current memory statistics for CRYPTO_malloc/realloc/free(3) calls.
 void ReportMemoryStats(StoreEntry &);
