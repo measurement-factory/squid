@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1996-2025 The Squid Software Foundation and contributors
+ * Copyright (C) 1996-2026 The Squid Software Foundation and contributors
  *
  * Squid software is distributed under GPLv2+ license and includes
  * contributions from numerous individuals and organizations.
@@ -21,7 +21,7 @@ namespace Ssl
 class MemAllocStats
 {
 public:
-    MemAllocStats(const char *desc);
+    explicit MemAllocStats(const char *aDescription);
 
     /// records a (re)allocation of a buffer that can accommodate the given
     /// number of bytes
@@ -30,9 +30,9 @@ public:
     /// reports collected stats using YAML format
     void dump(StoreEntry &);
 
-protected:
+private:
     /// describes the allocation function being tracked (for dump())
-    const char *description = nullptr;
+    const char *description;
 
     /// histogram of addArea() parameter values
     StatHist allocSizes;
@@ -47,7 +47,7 @@ MemAllocStats &ReallocNewAddrStats();
 /// the number of CRYPTO_free() calls made so far
 uint64_t &FreeStats();
 
-/// Dumps current memory statistics for CRYPTO_malloc/realloc/free(3) calls.
+/// Dumps current memory statistics for CRYPTO_malloc/realloc/free(3) calls using YAML format.
 void ReportMemoryStats(StoreEntry &);
 
 } // namespace Ssl

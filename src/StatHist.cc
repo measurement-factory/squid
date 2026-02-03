@@ -65,7 +65,7 @@ StatHist::size() const
 {
     size_t total = 0;
     if (bins) {
-        for (uint64_t i = 0; i < capacity_; ++i)
+        for (size_t i = 0; i < capacity_; ++i)
             total += bins[i];
     }
     return total;

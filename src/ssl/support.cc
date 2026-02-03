@@ -81,7 +81,7 @@ SquidUntrustedCerts()
 
 /// CRYPTO_malloc(3) implementation replacement
 static void *
-CryptoMalloc(size_t num, const char *file, int line)
+CryptoMalloc(const size_t num, const char * const file, const int line)
 {
     MallocStats().addArea(num);
     // Mimic CRYPTO_malloc() that returns nil when `num` is 0. Also, do not call
@@ -98,16 +98,16 @@ CryptoMalloc(size_t num, const char *file, int line)
 
 /// CRYPTO_free(3) implementation replacement
 static void
-CryptoFree(void *str, const char *file, int line)
+CryptoFree(void *str, const char * const file, const int line)
 {
     debugs(83, 8, str << " " << file << " " << line);
-    FreeStats()++;
+    ++FreeStats();
     xfree(str);
 }
 
 /// CRYPTO_realloc(3) implementation replacement
 static void *
-CryptoRealloc(void *str, size_t num, const char *file, int line)
+CryptoRealloc(void *str, const size_t num, const char * const file, const int line)
 {
     if (!str) {
         debugs(83, 8, str << " " << num << " " << file << " " << line);
@@ -115,7 +115,7 @@ CryptoRealloc(void *str, size_t num, const char *file, int line)
         return CryptoMalloc(num, file, line);
     }
 
-    if (num == 0) {
+    if (!num) {
         debugs(83, 8, str << " " << num << " " << file << " " << line);
         // mimic CRYPTO_realloc() that calls CRYPTO_free() and returns nil in this case
         CryptoFree(str, file, line);

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1996-2025 The Squid Software Foundation and contributors
+ * Copyright (C) 1996-2026 The Squid Software Foundation and contributors
  *
  * Squid software is distributed under GPLv2+ license and includes
  * contributions from numerous individuals and organizations.
@@ -7,14 +7,13 @@
  */
 
 #include "squid.h"
-
 #include "base/PackableStream.h"
 #include "ssl/MemStats.h"
 
 #if USE_OPENSSL
 
-Ssl::MemAllocStats::MemAllocStats(const char * const desc):
-    description(desc)
+Ssl::MemAllocStats::MemAllocStats(const char * const aDescription):
+    description(aDescription)
 {
     allocSizes.logInit(20, 0, 1024*1024);
 }
@@ -23,7 +22,7 @@ void
 Ssl::MemAllocStats::dump(StoreEntry &e)
 {
     PackableStream yaml(e);
-    const char *indent = "  ";
+    const auto indent = "  ";
     yaml << indent << description << " stats:" << "\n";
     yaml << indent << indent << "Calls: " << allocSizes.size() << "\n";
     yaml << indent << indent << "Allocations histogram (bytes):" << "\n";
@@ -34,21 +33,21 @@ Ssl::MemAllocStats::dump(StoreEntry &e)
 Ssl::MemAllocStats &
 Ssl::MallocStats()
 {
-    static auto stats = new MemAllocStats("malloc()");
+    static const auto stats = new MemAllocStats("malloc()");
     return *stats;
 }
 
 Ssl::MemAllocStats &
 Ssl::ReallocOldAddrStats()
 {
-    static auto stats = new MemAllocStats("realloc(), old base address");
+    static const auto stats = new MemAllocStats("realloc(), old base address");
     return *stats;
 }
 
 Ssl::MemAllocStats &
 Ssl::ReallocNewAddrStats()
 {
-    static auto stats = new MemAllocStats("realloc(), new base address");
+    static const auto stats = new MemAllocStats("realloc(), new base address");
     return *stats;
 }
 
@@ -63,7 +62,7 @@ void
 Ssl::ReportMemoryStats(StoreEntry &e)
 {
     PackableStream yaml(e);
-    const char *indent = "  ";
+    const auto indent = "  ";
     yaml << "Current SSL memory usage:\n";
     yaml << indent << "free() stats:" << "\n";
     yaml << indent << indent << "Calls: " << FreeStats() << "\n";
