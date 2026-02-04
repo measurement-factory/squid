@@ -23,9 +23,10 @@ Ssl::MemAllocStats::dump(StoreEntry &e)
 {
     PackableStream yaml(e);
     const auto indent = "  ";
-    yaml << indent << description << " stats:" << "\n";
-    yaml << indent << indent << "Calls: " << allocations.valuesCounted() << "\n";
-    yaml << indent << indent << "Allocations histogram (bytes):" << "\n";
+    yaml << indent << "stats for " << description << ":\n";
+    yaml << indent << indent << "calls: " << allocations.valuesCounted() << "\n";
+    if (allocations.valuesCounted())
+        yaml << indent << indent << "allocation size histogram (bytes):" << "\n";
     yaml.flush();
     allocations.dump(&e, nullptr);
 }
@@ -40,14 +41,14 @@ Ssl::MallocStats()
 Ssl::MemAllocStats &
 Ssl::ReallocOldAddrStats()
 {
-    static const auto stats = new MemAllocStats("realloc(), old base address");
+    static const auto stats = new MemAllocStats("realloc() that preserved address");
     return *stats;
 }
 
 Ssl::MemAllocStats &
 Ssl::ReallocNewAddrStats()
 {
-    static const auto stats = new MemAllocStats("realloc(), new base address");
+    static const auto stats = new MemAllocStats("realloc() that changed address");
     return *stats;
 }
 
@@ -64,7 +65,7 @@ Ssl::ReportMemoryStats(StoreEntry &e)
     PackableStream yaml(e);
     const auto indent = "  ";
 
-    yaml << "Current SSL memory usage:\n";
+    yaml << "OpenSSL memory usage:\n";
 
     // re-allocations (e.g., ReallocNewAddrStats()) do not change the number of allocations in use
     const auto allocated = MallocStats().allocationsCounted();
@@ -72,8 +73,9 @@ Ssl::ReportMemoryStats(StoreEntry &e)
     if (allocated >= freed)
         yaml << indent << "in-use allocations: " << (allocated - freed) << "\n";
 
-    yaml << indent << "free() stats:" << "\n";
-    yaml << indent << indent << "Calls: " << freed << "\n";
+    // match MallocStats() reporting style even though we cannot report a histogram
+    yaml << indent << "stats for free():" << "\n";
+    yaml << indent << indent << "calls: " << freed << "\n";
 
     yaml.flush();
 
