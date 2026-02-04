@@ -76,7 +76,7 @@ SBuf GetX509PEM(X509 *) STUB_RETVAL(SBuf())
 } //namespace Ssl
 
 #include "ssl/MemStats.h"
-void Ssl::ReportMemoryStats(StoreEntry &) STUB;
+void Ssl::ReportMemoryStats(StoreEntry &) STUB
 
 #endif
 
