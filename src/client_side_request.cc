@@ -388,10 +388,12 @@ ClientRequestContext::hostHeaderIpVerify(const ipcache_addrs* ia, const Dns::Loo
 void
 ClientRequestContext::hostHeaderVerifyFailed(const char *A, const char *B)
 {
-    // IP address validation for Host: failed. Admin wants to ignore them.
-    // NP: we do not yet handle CONNECT tunnels well, so ignore for them
-    if ((!Config.onoff.hostStrictVerify && http->request->method != Http::METHOD_CONNECT) ||
-	(http->request->method == Http::METHOD_CONNECT && (http->request->flags.intercepted || http->request->flags.interceptTproxy))) {
+    // IP address validation for Host header failed, but we may ignore it in certain cases:
+    // 1. For non-CONNECT requests: ignore if hostStrictVerify is disabled (admin choice)
+    // 2. For CONNECT requests: ignore if intercepted (TPROXY or regular interception)
+    if ((!Config.onoff.hostStrictVerify && http->request->method != Http::METHOD_CONNECT) || 
+        (http->request->method == Http::METHOD_CONNECT && (http->request->flags.intercepted || http->request->flags.interceptTproxy))
+    ) {
         debugs(85, 3, "SECURITY ALERT: Host header forgery detected on " << http->getConn()->clientConnection <<
                " (" << A << " does not match " << B << ") on URL: " << http->request->effectiveRequestUri());
 
