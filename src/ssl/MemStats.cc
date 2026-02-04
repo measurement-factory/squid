@@ -63,10 +63,20 @@ Ssl::ReportMemoryStats(StoreEntry &e)
 {
     PackableStream yaml(e);
     const auto indent = "  ";
+
     yaml << "Current SSL memory usage:\n";
+
+    // re-allocations (e.g., ReallocNewAddrStats()) do not change the number of allocations in use
+    const auto allocated = MallocStats().allocationsCounted();
+    const auto freed = FreeStats();
+    if (allocated >= freed)
+        yaml << indent << "in-use allocations: " << (allocated - freed) << "\n";
+
     yaml << indent << "free() stats:" << "\n";
-    yaml << indent << indent << "Calls: " << FreeStats() << "\n";
+    yaml << indent << indent << "Calls: " << freed << "\n";
+
     yaml.flush();
+
     MallocStats().dump(e);
     ReallocOldAddrStats().dump(e);
     ReallocNewAddrStats().dump(e);

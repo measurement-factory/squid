@@ -27,6 +27,9 @@ public:
     /// number of bytes
     void addArea(size_t bytes) { allocSizes.count(bytes); }
 
+    /// the total number of addArea() calls
+    auto allocationsCounted() const { return allocSizes.valuesCounted(); }
+
     /// reports collected stats using YAML format
     void dump(StoreEntry &);
 

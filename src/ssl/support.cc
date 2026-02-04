@@ -83,15 +83,21 @@ SquidUntrustedCerts()
 static void *
 CryptoMalloc(const size_t num, const char * const file, const int line)
 {
+    // Mimic CRYPTO_malloc() that returns nil when `num` is 0. This exception
+    // also simplifies counting the number of in-use allocations and matches
+    // CryptoFree() handling of nil pointers. FWIW, we have not seen zero-size
+    // CryptoMalloc() calls in Squid debugging logs.
+    if (!num)
+        return nullptr;
+
     MallocStats().addArea(num);
-    // Mimic CRYPTO_malloc() that returns nil when `num` is 0. Also, do not call
-    // xmalloc() here because xmalloc() exit()s on malloc(3) errors; preserve
-    // default CRYPTO_malloc() behavior, allowing OpenSSL to handle errors.
-    //
-    // TODO: Consider switching to xmalloc() to reduce chances of allocation
-    // failures crashing Squid when our code forgets to check some OpenSSL
-    // function result.
-    const auto p = num ? malloc(num) : nullptr;
+
+    // Do not call xmalloc() here because xmalloc() exit()s on malloc(3) errors;
+    // preserve default CRYPTO_malloc() behavior, allowing OpenSSL to handle
+    // errors. TODO: Consider switching to xmalloc() to reduce chances of
+    // allocation failures crashing Squid when our code forgets to check some
+    // OpenSSL function result.
+    const auto p = malloc(num);
     debugs(83, 8, p << " " << num << " " << file << " " << line);
     return p;
 }
