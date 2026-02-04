@@ -90,7 +90,7 @@ CryptoMalloc(const size_t num, const char * const file, const int line)
     if (!num)
         return nullptr;
 
-    MallocStats().addArea(num);
+    MallocStats().countAllocation(num);
 
     // Do not call xmalloc() here because xmalloc() exit()s on malloc(3) errors;
     // preserve default CRYPTO_malloc() behavior, allowing OpenSSL to handle
@@ -138,10 +138,10 @@ CryptoRealloc(void *str, const size_t num, const char * const file, const int li
     const auto addressAfter = reinterpret_cast<uintptr_t>(p);
 
     if (addressBefore == addressAfter) {
-        ReallocOldAddrStats().addArea(num);
+        ReallocOldAddrStats().countAllocation(num);
         debugs(83, 8, "kept " << p << " " << num << " " << file << " " << line);
     } else {
-        ReallocNewAddrStats().addArea(num);
+        ReallocNewAddrStats().countAllocation(num);
         debugs(83, 8, "freed " << reinterpret_cast<const void*>(addressBefore) << " allocated " << p << " " << num << " " << file << " " << line);
     }
 

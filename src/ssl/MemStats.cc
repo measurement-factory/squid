@@ -15,7 +15,7 @@
 Ssl::MemAllocStats::MemAllocStats(const char * const aDescription):
     description(aDescription)
 {
-    allocSizes.logInit(20, 0, 1024*1024);
+    allocations.logInit(20, 0, 1024*1024);
 }
 
 void
@@ -24,10 +24,10 @@ Ssl::MemAllocStats::dump(StoreEntry &e)
     PackableStream yaml(e);
     const auto indent = "  ";
     yaml << indent << description << " stats:" << "\n";
-    yaml << indent << indent << "Calls: " << allocSizes.valuesCounted() << "\n";
+    yaml << indent << indent << "Calls: " << allocations.valuesCounted() << "\n";
     yaml << indent << indent << "Allocations histogram (bytes):" << "\n";
     yaml.flush();
-    allocSizes.dump(&e, nullptr);
+    allocations.dump(&e, nullptr);
 }
 
 Ssl::MemAllocStats &

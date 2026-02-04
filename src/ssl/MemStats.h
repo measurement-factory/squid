@@ -25,10 +25,10 @@ public:
 
     /// records a (re)allocation of a buffer that can accommodate the given
     /// number of bytes
-    void addArea(size_t bytes) { allocSizes.count(bytes); }
+    void countAllocation(const size_t bytes) { allocations.count(bytes); }
 
-    /// the total number of addArea() calls
-    auto allocationsCounted() const { return allocSizes.valuesCounted(); }
+    /// the total number of countAllocation() calls
+    auto allocationsCounted() const { return allocations.valuesCounted(); }
 
     /// reports collected stats using YAML format
     void dump(StoreEntry &);
@@ -37,8 +37,8 @@ private:
     /// describes the allocation function being tracked (for dump())
     const char *description;
 
-    /// histogram of addArea() parameter values
-    StatHist allocSizes;
+    /// histogram of countAllocation() parameter values
+    StatHist allocations;
 };
 
 /// CRYPTO_malloc(3) call stats
