@@ -17,6 +17,7 @@ class StoreEntry;
 void StatHist::dump(StoreEntry *, StatHistBinDumper *) const STUB
 void StatHist::enumInit(unsigned int) STUB_NOP
 void StatHist::count(double) {/* STUB_NOP */}
+uint64_t StatHist::valuesCounted() const STUB_RETVAL(0)
 double statHistDeltaMedian(const StatHist &, const StatHist &) STUB_RETVAL(0.0)
 double statHistDeltaPctile(const StatHist &, const StatHist &, double) STUB_RETVAL(0.0)
 void StatHist::logInit(unsigned int, double, double) STUB_NOP
