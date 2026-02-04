@@ -30,9 +30,9 @@ BinToYamlListItem(StoreEntry * const e, int, const double minValue, const double
     // our allocations.logInit() limits sizes to 7 digits; valueCount may have 10
     const auto setw = [](std::ostream &os) -> auto& { return os << std::setw(10); };
     yaml << indent << indent << indent << "- { " <<
-        "min: " << setw << static_cast<uint64_t>(minValue) << ", " <<
-        "max: " << setw << (static_cast<uint64_t>(minValue+bucketSize)-1) << ", " <<
-        "count: " << setw << valueCount << " }\n";
+         "min: " << setw << static_cast<uint64_t>(minValue) << ", " <<
+         "max: " << setw << (static_cast<uint64_t>(minValue+bucketSize)-1) << ", " <<
+         "count: " << setw << valueCount << " }\n";
 }
 
 void
