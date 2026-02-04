@@ -110,7 +110,7 @@ CryptoFree(void *str, const char * const file, const int line)
     if (str) {
         debugs(83, 8, str << " " << file << " " << line);
         ++FreeStats();
-        xfree(str);
+        free(str); // not xfree() to match malloc() in CryptoMalloc()
     }
 }
 
@@ -134,7 +134,7 @@ CryptoRealloc(void *str, const size_t num, const char * const file, const int li
     // These uintptr_t variables avoid GCC -Wuse-after-free warnings when we try
     // to report `str`-stored address after `str` was freed by realloc().
     const auto addressBefore = reinterpret_cast<uintptr_t>(str);
-    const auto p = realloc(str, num);
+    const auto p = realloc(str, num); // not xrealloc(); see malloc() in CryptoMalloc()
     const auto addressAfter = reinterpret_cast<uintptr_t>(p);
 
     if (addressBefore == addressAfter) {
