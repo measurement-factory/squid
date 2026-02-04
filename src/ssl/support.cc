@@ -866,8 +866,13 @@ Ssl::InitializeOnce()
         return;
     beenHere = true;
 
-    if (!CRYPTO_set_mem_functions(CryptoMalloc, CryptoRealloc, CryptoFree))
-        debugs(83, DBG_IMPORTANT, "WARNING: Unable to CRYPTO_set_mem_functions(): the custom allocation is forbidden.");
+    if (!CRYPTO_set_mem_functions(CryptoMalloc, CryptoRealloc, CryptoFree)) {
+        // We could assert success instead, but it feels too risky because it is
+        // difficult for us to be certain that InitializeOnce() is called before
+        // OpenSSL allocations, and reporting associated stats is not essential.
+        debugs(83, DBG_IMPORTANT, "ERROR: Squid BUG: Failed to enable OpenSSL memory usage statistics collection; " <<
+               "will show misleading zeros in the OpenSSL section of mgr:mem reports");
+    }
 
     SQUID_OPENSSL_init_ssl();
 
