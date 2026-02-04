@@ -81,71 +81,71 @@ SquidUntrustedCerts()
 
 /// CRYPTO_malloc(3) implementation replacement
 static void *
-CryptoMalloc(const size_t num, const char * const file, const int line)
+CryptoMalloc(const size_t size, const char * const fileName, const int lineNo)
 {
-    // Mimic CRYPTO_malloc() that returns nil when `num` is 0. This exception
+    // Mimic CRYPTO_malloc() that returns nil when `size` is 0. This exception
     // also simplifies counting the number of in-use allocations and matches
     // CryptoFree() handling of nil pointers. FWIW, we have not seen zero-size
     // CryptoMalloc() calls in Squid debugging logs.
-    if (!num)
+    if (!size)
         return nullptr;
 
-    MallocStats().countAllocation(num);
+    MallocStats().countAllocation(size);
 
     // Do not call xmalloc() here because xmalloc() exit()s on malloc(3) errors;
     // preserve default CRYPTO_malloc() behavior, allowing OpenSSL to handle
     // errors. TODO: Consider switching to xmalloc() to reduce chances of
     // allocation failures crashing Squid when our code forgets to check some
     // OpenSSL function result.
-    const auto p = malloc(num);
-    debugs(83, 8, p << " " << num << " " << file << " " << line);
-    return p;
+    const auto newBufferOrNil = malloc(size);
+    debugs(83, 8, newBufferOrNil << ' ' << size << " bytes at " << fileName << ':' << lineNo);
+    return newBufferOrNil;
 }
 
 /// CRYPTO_free(3) implementation replacement
 static void
-CryptoFree(void *str, const char * const file, const int line)
+CryptoFree(void * const oldBuffer, const char * const fileName, const int lineNo)
 {
     // ignore nil pointers to reduce debugging noise and make stats more meaningful
-    if (str) {
-        debugs(83, 8, str << " " << file << " " << line);
+    if (oldBuffer) {
+        debugs(83, 8, oldBuffer << " at " << fileName << ':' << lineNo);
         ++FreeStats();
-        free(str); // not xfree() to match malloc() in CryptoMalloc()
+        free(oldBuffer); // not xfree() to match malloc() in CryptoMalloc()
     }
 }
 
 /// CRYPTO_realloc(3) implementation replacement
 static void *
-CryptoRealloc(void *str, const size_t num, const char * const file, const int line)
+CryptoRealloc(void * const oldBuffer, const size_t newSize, const char * const fileName, const int lineNo)
 {
-    if (!str) {
-        debugs(83, 8, str << " " << num << " " << file << " " << line);
+    if (!oldBuffer) {
+        debugs(83, 8, "redirect to allocate " << newSize << " bytes at " << fileName << ':' << lineNo);
         // mimic CRYPTO_realloc() that returns CRYPTO_malloc() in this case
-        return CryptoMalloc(num, file, line);
+        return CryptoMalloc(newSize, fileName, lineNo);
     }
 
-    if (!num) {
-        debugs(83, 8, str << " " << num << " " << file << " " << line);
+    if (!newSize) {
+        debugs(83, 8, "redirect to free " << oldBuffer << " at " << fileName << ':' << lineNo);
         // mimic CRYPTO_realloc() that calls CRYPTO_free() and returns nil in this case
-        CryptoFree(str, file, line);
+        CryptoFree(oldBuffer, fileName, lineNo);
         return nullptr;
     }
 
-    // These uintptr_t variables avoid GCC -Wuse-after-free warnings when we try
-    // to report `str`-stored address after `str` was freed by realloc().
-    const auto addressBefore = reinterpret_cast<uintptr_t>(str);
-    const auto p = realloc(str, num); // not xrealloc(); see malloc() in CryptoMalloc()
-    const auto addressAfter = reinterpret_cast<uintptr_t>(p);
+    // These uintptr_t variables avoid GCC -Wuse-after-free warnings when we
+    // report oldBuffer-stored address after oldBuffer was freed by realloc().
+    const auto addressBefore = reinterpret_cast<uintptr_t>(oldBuffer);
+    const auto newBufferOrNil = realloc(oldBuffer, newSize); // not xrealloc(); see malloc() in CryptoMalloc()
+    const auto addressAfter = reinterpret_cast<uintptr_t>(newBufferOrNil);
 
     if (addressBefore == addressAfter) {
-        ReallocOldAddrStats().countAllocation(num);
-        debugs(83, 8, "kept " << p << " " << num << " " << file << " " << line);
+        ReallocOldAddrStats().countAllocation(newSize);
+        debugs(83, 8, "kept " << reinterpret_cast<const void*>(addressBefore) << " for " << newSize << " bytes at " << fileName << ':' << lineNo);
     } else {
-        ReallocNewAddrStats().countAllocation(num);
-        debugs(83, 8, "freed " << reinterpret_cast<const void*>(addressBefore) << " allocated " << p << " " << num << " " << file << " " << line);
+        ReallocNewAddrStats().countAllocation(newSize);
+        debugs(83, 8, "freed " << reinterpret_cast<const void*>(addressBefore) << " allocated " << newBufferOrNil << ' ' << newSize << " bytes at " << fileName << ':' << lineNo);
     }
 
-    return p;
+    return newBufferOrNil;
 }
 
 } // namespace Ssl
