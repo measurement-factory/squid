@@ -98,7 +98,9 @@ CryptoMalloc(const size_t size, const char * const fileName, const int lineNo)
     // allocation failures crashing Squid when our code forgets to check some
     // OpenSSL function result.
     const auto newBufferOrNil = malloc(size);
+    const auto savedErrno = errno;
     debugs(83, 8, newBufferOrNil << ' ' << size << " bytes at " << fileName << ':' << lineNo);
+    errno = savedErrno;
     return newBufferOrNil;
 }
 
@@ -135,6 +137,7 @@ CryptoRealloc(void * const oldBuffer, const size_t newSize, const char * const f
     // report oldBuffer-stored address after oldBuffer was freed by realloc().
     const auto addressBefore = reinterpret_cast<uintptr_t>(oldBuffer);
     const auto newBufferOrNil = realloc(oldBuffer, newSize); // not xrealloc(); see malloc() in CryptoMalloc()
+    const auto savedErrno = errno;
     const auto addressAfter = reinterpret_cast<uintptr_t>(newBufferOrNil);
 
     if (addressBefore == addressAfter) {
@@ -145,6 +148,7 @@ CryptoRealloc(void * const oldBuffer, const size_t newSize, const char * const f
         debugs(83, 8, "freed " << reinterpret_cast<const void*>(addressBefore) << " allocated " << newBufferOrNil << ' ' << newSize << " bytes at " << fileName << ':' << lineNo);
     }
 
+    errno = savedErrno;
     return newBufferOrNil;
 }
 
