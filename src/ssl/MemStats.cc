@@ -18,6 +18,23 @@ Ssl::MemAllocStats::MemAllocStats(const char * const aDescription):
     allocations.logInit(20, 0, 1024*1024);
 }
 
+/// YAML-compliant StatHistBinDumper for memory allocation stats
+static void
+BinToYamlListItem(StoreEntry * const e, int, const double minValue, const double bucketSize, const int valueCount)
+{
+    if (!valueCount)
+        return;
+
+    PackableStream yaml(*e);
+    const auto indent = "  ";
+    // our allocations.logInit() limits sizes to 7 digits; valueCount may have 10
+    const auto setw = [](std::ostream &os) -> auto& { return os << std::setw(10); };
+    yaml << indent << indent << indent << "- { " <<
+        "min: " << setw << static_cast<uint64_t>(minValue) << ", " <<
+        "max: " << setw << (static_cast<uint64_t>(minValue+bucketSize)-1) << ", " <<
+        "count: " << setw << valueCount << " }\n";
+}
+
 void
 Ssl::MemAllocStats::dump(StoreEntry &e)
 {
@@ -28,7 +45,7 @@ Ssl::MemAllocStats::dump(StoreEntry &e)
     if (allocations.valuesCounted())
         yaml << indent << indent << "allocation size histogram (bytes):" << "\n";
     yaml.flush();
-    allocations.dump(&e, nullptr);
+    allocations.dump(&e, &BinToYamlListItem);
 }
 
 Ssl::MemAllocStats &
