@@ -19,6 +19,7 @@
 #include "anyp/Host.h"
 #include "anyp/PortCfg.h"
 #include "anyp/Uri.h"
+#include "base/IoManip.h"
 #include "fatal.h"
 #include "fd.h"
 #include "fde.h"
@@ -133,19 +134,21 @@ CryptoRealloc(void * const oldBuffer, const size_t newSize, const char * const f
         return nullptr;
     }
 
-    // These uintptr_t variables avoid GCC -Wuse-after-free warnings when we
-    // report oldBuffer-stored address after oldBuffer was freed by realloc().
-    const auto addressBefore = reinterpret_cast<uintptr_t>(oldBuffer);
+    // Remember the oldBuffer address now to avoid GCC -Wuse-after-free warnings
+    // if we report that address later, after oldBuffer was freed by realloc().
+    // Copying oldBuffer to an uintptr_t integer still triggers the warning!
+    // Using ToSBuf() would be simpler but way more expensive than asHex().
+    const auto oldAddress = asHex(reinterpret_cast<uintptr_t>(oldBuffer));
+
     const auto newBufferOrNil = realloc(oldBuffer, newSize); // not xrealloc(); see malloc() in CryptoMalloc()
     const auto savedErrno = errno;
-    const auto addressAfter = reinterpret_cast<uintptr_t>(newBufferOrNil);
 
-    if (addressBefore == addressAfter) {
+    if (oldBuffer == newBufferOrNil) {
         ReallocOldAddrStats().countAllocation(newSize);
-        debugs(83, 8, "kept " << reinterpret_cast<const void*>(addressBefore) << " for " << newSize << " bytes at " << fileName << ':' << lineNo);
+        debugs(83, 8, "kept 0x" << oldAddress << " for " << newSize << " bytes at " << fileName << ':' << lineNo);
     } else {
         ReallocNewAddrStats().countAllocation(newSize);
-        debugs(83, 8, "freed " << reinterpret_cast<const void*>(addressBefore) << " allocated " << newBufferOrNil << ' ' << newSize << " bytes at " << fileName << ':' << lineNo);
+        debugs(83, 8, "freed 0x" << oldAddress << " allocated " << newBufferOrNil << ' ' << newSize << " bytes at " << fileName << ':' << lineNo);
     }
 
     errno = savedErrno;
