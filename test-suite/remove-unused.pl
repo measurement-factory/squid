@@ -32,7 +32,7 @@ while (my $line = <$ih>) {
         next;
     }
 
-    if (defined $currentUnusedFunction && $line =~ /^([^:\s]+):(\d+): note: (defined|declared) here$/) {
+    if (defined $currentUnusedFunction && $line =~ /^([^:\s]+):(\d+): note: (defined|declared|comment starts) here$/) {
         
         my $file = $1;
         my $start = $2;
@@ -43,9 +43,16 @@ while (my $line = <$ih>) {
             die "FATAL: Unexpected EOF after $line\n";
         }
 
-        my $expectedSuffix = ($type eq 'defined') 
-                            ? 'definition ends here' 
-                            : 'declaration ends here';
+        my $expectedSuffix = undef;
+
+        if ($type eq 'defined') {
+            $expectedSuffix = 'definition ends here'
+        } elsif ($type eq 'declared') {
+            $expectedSuffix = 'declaration ends here';
+        } else {
+            ($type eq 'comment starts') or die "FATAL: Invalid message type: $type";
+            $expectedSuffix = 'comment ends here';
+        }
 
         if ($nextLine =~ /^([^:\s]+):(\d+): note: $expectedSuffix$/) {
             if ($file ne $1) {
