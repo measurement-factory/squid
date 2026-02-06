@@ -2287,7 +2287,6 @@ tests_testHttpRequest_SOURCES = \
 	tests/stub_libeui.cc \
 	tests/stub_libmem.cc \
 	tests/stub_libsecurity.cc \
-	tests/stub_libsslsquid.cc \
 	tests/stub_libstore.cc \
 	tests/stub_main_cc.cc \
 	mem_node.cc \
