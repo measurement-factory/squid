@@ -26,7 +26,7 @@ BinToYamlListItem(StoreEntry * const e, int, const double minValue, const double
         return;
 
     PackableStream yaml(*e);
-    const auto indent = "  ";
+    const auto indent = "      ";
     // our allocations.logInit() limits sizes to 7 digits; valueCount may have 10
     const auto setw = [](std::ostream &os) -> auto& { return os << std::setw(10); };
     yaml << indent << indent << indent << "- { " <<
@@ -39,7 +39,7 @@ void
 Ssl::MemAllocStats::dump(StoreEntry &e)
 {
     PackableStream yaml(e);
-    const auto indent = "  ";
+    const auto indent = "      ";
     yaml << indent << "stats for " << description << ":\n";
     yaml << indent << indent << "calls: " << allocations.valuesCounted() << "\n";
     if (allocations.valuesCounted())
@@ -80,7 +80,7 @@ void
 Ssl::ReportMemoryStats(StoreEntry &e)
 {
     PackableStream yaml(e);
-    const auto indent = "  ";
+    const auto indent = "      ";
 
     yaml << "OpenSSL memory usage:\n";
 
