@@ -19,6 +19,7 @@
 #include "anyp/Host.h"
 #include "anyp/PortCfg.h"
 #include "anyp/Uri.h"
+#include "base/IoManip.h"
 #include "fatal.h"
 #include "fd.h"
 #include "fde.h"
@@ -34,6 +35,7 @@
 #include "ssl/Config.h"
 #include "ssl/ErrorDetail.h"
 #include "ssl/gadgets.h"
+#include "ssl/MemStats.h"
 #include "ssl/support.h"
 
 #include <cerrno>
@@ -76,6 +78,81 @@ SquidUntrustedCerts()
 {
     static auto untrustedCerts = new CertsIndexedList();
     return *untrustedCerts;
+}
+
+/// CRYPTO_malloc(3) implementation replacement
+static void *
+CryptoMalloc(const size_t size, const char * const fileName, const int lineNo)
+{
+    // Mimic CRYPTO_malloc() that returns nil when `size` is 0. This exception
+    // also simplifies counting the number of in-use allocations and matches
+    // CryptoFree() handling of nil pointers. FWIW, we have not seen zero-size
+    // CryptoMalloc() calls in Squid debugging logs.
+    if (!size)
+        return nullptr;
+
+    MallocStats().countAllocation(size);
+
+    // Do not call xmalloc() here because xmalloc() exit()s on malloc(3) errors;
+    // preserve default CRYPTO_malloc() behavior, allowing OpenSSL to handle
+    // errors. TODO: Consider switching to xmalloc() to reduce chances of
+    // allocation failures crashing Squid when our code forgets to check some
+    // OpenSSL function result.
+    const auto newBufferOrNil = malloc(size);
+    const auto savedErrno = errno;
+    debugs(83, 8, newBufferOrNil << ' ' << size << " bytes at " << fileName << ':' << lineNo);
+    errno = savedErrno;
+    return newBufferOrNil;
+}
+
+/// CRYPTO_free(3) implementation replacement
+static void
+CryptoFree(void * const oldBuffer, const char * const fileName, const int lineNo)
+{
+    // ignore nil pointers to reduce debugging noise and make stats more meaningful
+    if (oldBuffer) {
+        debugs(83, 8, oldBuffer << " at " << fileName << ':' << lineNo);
+        ++FreeStats();
+        free(oldBuffer); // not xfree() to match malloc() in CryptoMalloc()
+    }
+}
+
+/// CRYPTO_realloc(3) implementation replacement
+static void *
+CryptoRealloc(void * const oldBuffer, const size_t newSize, const char * const fileName, const int lineNo)
+{
+    if (!oldBuffer) {
+        debugs(83, 8, "redirect to allocate " << newSize << " bytes at " << fileName << ':' << lineNo);
+        // mimic CRYPTO_realloc() that returns CRYPTO_malloc() in this case
+        return CryptoMalloc(newSize, fileName, lineNo);
+    }
+
+    if (!newSize) {
+        debugs(83, 8, "redirect to free " << oldBuffer << " at " << fileName << ':' << lineNo);
+        // mimic CRYPTO_realloc() that calls CRYPTO_free() and returns nil in this case
+        CryptoFree(oldBuffer, fileName, lineNo);
+        return nullptr;
+    }
+
+    // Remember the oldBuffer address now to avoid GCC -Wuse-after-free warnings
+    // if we report that address later, after oldBuffer was freed by realloc().
+    // Copying oldBuffer to an uintptr_t integer still triggers the warning!
+    // Using ToSBuf() would be simpler but way more expensive than asHex().
+    const auto oldAddress = asHex(reinterpret_cast<uintptr_t>(oldBuffer));
+
+    const auto newBufferOrNil = realloc(oldBuffer, newSize); // not xrealloc(); see malloc() in CryptoMalloc()
+    const auto savedErrno = errno;
+
+    if (oldBuffer == newBufferOrNil) {
+        ReallocOldAddrStats().countAllocation(newSize);
+        debugs(83, 8, "kept 0x" << oldAddress << " for " << newSize << " bytes at " << fileName << ':' << lineNo);
+    } else {
+        ReallocNewAddrStats().countAllocation(newSize);
+        debugs(83, 8, "freed 0x" << oldAddress << " allocated " << newBufferOrNil << ' ' << newSize << " bytes at " << fileName << ':' << lineNo);
+    }
+
+    errno = savedErrno;
+    return newBufferOrNil;
 }
 
 } // namespace Ssl
@@ -744,14 +821,15 @@ ssl_free_VerifyCallbackParameters(void *, void *ptr, CRYPTO_EX_DATA *,
 }
 
 void
-Ssl::Initialize(void)
+Ssl::Configure()
 {
+    // XXX: Support reconfiguration of directives processed below.
     static bool initialized = false;
     if (initialized)
         return;
     initialized = true;
 
-    SQUID_OPENSSL_init_ssl();
+    Ssl::InitializeOnce();
 
     if (::Config.SSL.ssl_engine) {
 #if OPENSSL_VERSION_MAJOR < 3
@@ -781,6 +859,25 @@ Ssl::Initialize(void)
     Ssl::DefaultSignHash = EVP_get_digestbyname(defName);
     if (!Ssl::DefaultSignHash)
         fatalf("Sign hash '%s' is not supported\n", defName);
+}
+
+void
+Ssl::InitializeOnce()
+{
+    static auto beenHere = false;
+    if (beenHere)
+        return;
+    beenHere = true;
+
+    if (!CRYPTO_set_mem_functions(CryptoMalloc, CryptoRealloc, CryptoFree)) {
+        // We could assert success instead, but it feels too risky because it is
+        // difficult for us to be certain that InitializeOnce() is called before
+        // OpenSSL allocations, and reporting associated stats is not essential.
+        debugs(83, DBG_IMPORTANT, "ERROR: Squid BUG: Failed to enable OpenSSL memory usage statistics collection; " <<
+               "will show misleading zeros in the OpenSSL section of mgr:mem reports");
+    }
+
+    SQUID_OPENSSL_init_ssl();
 
     ssl_ex_index_server = SSL_get_ex_new_index(0, (void *) "server", nullptr, nullptr, ssl_free_SBuf);
     ssl_ctx_ex_index_dont_verify_domain = SSL_CTX_get_ex_new_index(0, (void *) "dont_verify_domain", nullptr, nullptr, nullptr);

@@ -70,6 +70,10 @@ my %Pairs = (
         'PageStack.* pop: (sh_page\S+) at',
         'PageStack.* push: (sh_page\S+) at',
         ],
+    OpenSslMalloc => [
+        '(?:CryptoMalloc:|CryptoRealloc:.*allocated) (\S+)',
+        '(?:CryptoFree:|CryptoRealloc: freed) (\S+)',
+        ],
     );
 
 if (!$Pairs{$Thing}) {
@@ -95,7 +99,8 @@ while (<STDIN>) {
         $AliveImage{$id} = $_;
         ++$Count unless $AliveCount{$id}++;
     }
-    elsif (my @deIds = (/$reDestructor/)) {
+    # No `elsif` because reallocation lines match both regexes
+    if (my @deIds = (/$reDestructor/)) {
         my $id = join(':', @deIds);
         if ($AliveCount{$id}) {
             $AliveImage{$id} = undef() unless --$AliveCount{$id};

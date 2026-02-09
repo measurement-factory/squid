@@ -68,9 +68,14 @@ namespace Ssl
 /// XXX: Requires SSL_CTX_set_default_passwd_cb_userdata()!
 int AskPasswordCb(char *buf, int size, int rwflag, void *userdata);
 
-/// initialize the SSL library global state.
-/// call before generating any SSL context
-void Initialize();
+/// Initialize OpenSSL library features that do not depend on squid.conf.
+/// Repeated calls have no effect.
+/// \prec No OpenSSL functions have been called yet.
+/// \sa Configure()
+void InitializeOnce();
+
+/// Apply configuration directives that may affect SSL context generation.
+void Configure();
 
 class CertValidationResponse;
 typedef RefCount<CertValidationResponse> CertValidationResponsePointer;

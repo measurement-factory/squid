@@ -1573,6 +1573,10 @@ SquidMainInitializeOnce(int argc, char **argv)
 
 #endif
 
+#if USE_OPENSSL
+    Ssl::InitializeOnce();
+#endif
+
     /* parse configuration file
      * note: in "normal" case this used to be called from mainInitialize() */
     {

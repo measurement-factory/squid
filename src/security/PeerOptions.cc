@@ -247,7 +247,7 @@ Security::PeerOptions::createBlankContext() const
 {
     Security::ContextPointer ctx;
 #if USE_OPENSSL
-    Ssl::Initialize();
+    Ssl::Configure();
 
     SSL_CTX *t = SSL_CTX_new(TLS_client_method());
     if (!t) {

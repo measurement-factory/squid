@@ -60,6 +60,17 @@ StatHist::count(double v)
     ++bins[bin];
 }
 
+uint64_t
+StatHist::valuesCounted() const
+{
+    uint64_t total = 0;
+    if (bins) {
+        for (size_t i = 0; i < capacity_; ++i)
+            total += bins[i];
+    }
+    return total;
+}
+
 unsigned int
 StatHist::findBin(double v)
 {
