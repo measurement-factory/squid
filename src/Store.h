@@ -96,17 +96,30 @@ public:
     void storeWriterDone();
 
     void abort();
-    bool makePublic(const KeyScope keyScope = ksDefault);
+
+    /// Reacts to an entry becoming ready for sharing with existing and any new Store readers.
+    /// Handles conflicts with existing entries and other complications.
+    /// Despite its name, this method does not guarantee that the entry gains a public key.
+    /// Unlike makePublicWith(), this method is not suitable for callers that need custom failure handling.
+    void makePublic();
+
+    /// Attempts to set this entry key to a public key with the given scope.
+    /// The attempt may fail for various reasons, including key hash collisions
+    /// and when this entry has been marked for release().
+    /// Does nothing if the entry is forbidden to become public (marked with RELEASE_REQUEST).
+    /// On success, releases another public entry with the given-scope key (if any).
+    /// On failure, has a makePrivate(true) effect.
+    /// \returns true on success
+    /// \prec The caller is an entry writer.
+    /// Unlike makePublic(), this method is for callers that need custom failure handling.
+    bool makePublicWith(KeyScope);
+
     void makePrivate(const bool shareable);
     /// A low-level method just resetting "private key" flags.
     /// To avoid key inconsistency please use forcePublicKey()
     /// or similar instead.
     void clearPrivate();
     bool setPublicKey(const KeyScope keyScope = ksDefault);
-    /// Resets existing public key to a public key with default scope,
-    /// releasing the old default-scope entry (if any).
-    /// Does nothing if the existing public key already has default scope.
-    void clearPublicKeyScope();
 
     /// \returns public key (if the entry has it) or nil (otherwise)
     const cache_key *publicKey() const {
@@ -114,6 +127,10 @@ public:
                reinterpret_cast<const cache_key*>(key): // may be nil
                nullptr;
     }
+
+    /// compares public key (which must exist) with the default public key
+    /// \returns nil if the keys are equal, the default public key otherwise
+    const cache_key *publicDefaultKeyCmp() const;
 
     /// Either fills this entry with private key or changes the existing key
     /// from public to private.
@@ -125,7 +142,7 @@ public:
     /// for eventual removal from the Store.
     void releaseRequest(const bool shareable = false);
     void negativeCache();
-    bool cacheNegatively();     // TODO: why both negativeCache() and cacheNegatively() ?
+    void cacheNegatively();     // TODO: why both negativeCache() and cacheNegatively() ?
     void invokeHandlers();
     void cacheInMemory(); ///< start or continue storing in memory cache
     void swapOut();
@@ -310,7 +327,7 @@ private:
     bool checkTooBig() const;
     void forcePublicKey(const cache_key *newkey);
     StoreEntry *adjustVary();
-    const cache_key *calcPublicKey(const KeyScope keyScope);
+    const cache_key *calcPublicKey(KeyScope) const;
 
     /// flags [truncated or too big] entry with ENTRY_BAD_LENGTH and releases it
     void lengthWentBad(const char *reason);
