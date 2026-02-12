@@ -74,21 +74,9 @@ public:
         return *this;
     }
 
-    EnumIterator& operator++(int) {
-        EnumIterator rv(*this);
-        ++ EnumIteratorBase<EnumType>::current;
-        return rv;
-    }
-
     EnumIterator& operator--() {
         -- EnumIteratorBase<EnumType>::current;
         return *this;
-    }
-
-    EnumIterator& operator--(int) {
-        EnumIterator rv(*this);
-        -- EnumIteratorBase<EnumType>::current;
-        return rv;
     }
 };
 
@@ -117,26 +105,6 @@ public:
     ReverseEnumIterator& operator++() {
         -- EnumIteratorBase<EnumType>::current;
         return *this;
-    }
-
-    // postfix increment
-    ReverseEnumIterator& operator++(int) {
-        ReverseEnumIterator rv(*this);
-        -- EnumIteratorBase<EnumType>::current;
-        return rv;
-    }
-
-    // prefix decrement
-    ReverseEnumIterator& operator--() {
-        ++ EnumIteratorBase<EnumType>::current;
-        return *this;
-    }
-
-    // postfix decrement
-    ReverseEnumIterator& operator--(int) {
-        ReverseEnumIterator rv(*this);
-        ++ EnumIteratorBase<EnumType>::current;
-        return rv;
     }
 };
 

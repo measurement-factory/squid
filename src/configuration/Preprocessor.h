@@ -32,12 +32,6 @@ public:
     /// line offset within input source; the first input byte has line offset 1
     auto lineNo() const { return lineNo_; }
 
-    /// change line within the same input source
-    void jumpTo(const size_t aLineNo) { lineNo_ = aLineNo; }
-
-    /// convenience wrapper implementing a jumpTo() the next line
-    Location &operator ++() { ++lineNo_; return *this; }
-
     /// reports location using a compact format suitable for diagnostic messages
     void print(std::ostream &) const;
 

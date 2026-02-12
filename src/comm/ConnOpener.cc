@@ -108,12 +108,6 @@ Comm::ConnOpener::setHost(const char * new_host)
         host_ = xstrdup(new_host);
 }
 
-const char *
-Comm::ConnOpener::getHost() const
-{
-    return host_;
-}
-
 /**
  * Connection attempt are completed. One way or the other.
  * Pass the results back to the external handler.

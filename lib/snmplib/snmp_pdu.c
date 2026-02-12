@@ -166,22 +166,6 @@ snmp_pdu_clone(struct snmp_pdu *Src) {
 
 /**********************************************************************/
 
-/*
- * If there was an error in the input pdu, creates a clone of the pdu
- * that includes all the variables except the one marked by the errindex.
- * The command is set to the input command and the reqid, errstat, and
- * errindex are set to default values.
- * If the error status didn't indicate an error, the error index didn't
- * indicate a variable, the pdu wasn't a get response message, or there
- * would be no remaining variables, this function will return NULL.
- * If everything was successful, a pointer to the fixed cloned pdu will
- * be returned.
- */
-struct snmp_pdu *
-snmp_pdu_fix(struct snmp_pdu *pdu, int command) {
-    return (snmp_fix_pdu(pdu, command));
-}
-
 struct snmp_pdu *
 snmp_fix_pdu(struct snmp_pdu *pdu, int command) {
     struct variable_list *var, *newvar;
@@ -627,35 +611,5 @@ snmp_pdu_decode(u_char * Packet,    /* data */
     }
 
     return (bufp);
-}
-
-/*
- * Add a null variable with the requested name to the end of the list of
- * variables for this pdu.
- */
-void
-snmp_add_null_var(struct snmp_pdu *pdu, oid * name, int name_length)
-{
-    struct variable_list *vars;
-    struct variable_list *ptr;
-
-    vars = snmp_var_new(name, name_length);
-    if (vars == NULL) {
-        perror("snmp_add_null_var:xmalloc");
-        return;
-    }
-    if (pdu->variables == NULL) {
-        pdu->variables = vars;
-    } else {
-
-        /* Insert at the end */
-        for (ptr = pdu->variables;
-                ptr->next_variable;
-                ptr = ptr->next_variable)
-            /*EXIT */ ;
-        ptr->next_variable = vars;
-    }
-
-    return;
 }
 

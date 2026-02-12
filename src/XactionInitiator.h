@@ -40,11 +40,6 @@ public:
     /// whether this initiator belongs to the given set
     bool in(Initiators setOfInitiators) const {return (initiator & setOfInitiators) != 0;}
 
-    /// whether the transaction was initiated by an internal subsystem
-    bool internalClient() const {
-        return (initiator & InternalInitiators()) != 0;
-    }
-
     /// internally generated requests
     static Initiators InternalInitiators() {
         return initPeerPool | initCertFetcher | initCacheDigest | initIcp | initIcmp | initIpc | initAdaptation | initIcon | initPeerMcast;
@@ -58,7 +53,6 @@ public:
     static Initiators ParseInitiators(const char *name);
 
 private:
-    XactionInitiator() {}
 
     Initiator initiator;
 };

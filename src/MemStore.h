@@ -32,9 +32,6 @@ public:
     MemStore();
     ~MemStore() override;
 
-    /// whether e should be kept in local RAM for possible future caching
-    bool keepInLocalMemory(const StoreEntry &e) const;
-
     /// copy non-shared entry data of the being-cached entry to our cache
     void write(StoreEntry &e);
 

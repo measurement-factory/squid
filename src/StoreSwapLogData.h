@@ -63,12 +63,6 @@ private:
     uint8_t raw[3]; // designed to follow "op" members, in padding space
 };
 
-inline std::ostream &
-operator <<(std::ostream &os, const SwapChecksum24 &sum)
-{
-    return sum.print(os);
-}
-
 /**
  \ingroup FielFormatSwapStateAPI
  *

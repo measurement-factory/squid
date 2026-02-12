@@ -26,8 +26,6 @@ public:
     ServiceFilter(const ServiceFilter &f);
     ~ServiceFilter(); // unlocks
 
-    ServiceFilter &operator =(const ServiceFilter &f);
-
 public:
     Method method; ///< adaptation direction
     VectPoint point; ///< adaptation location

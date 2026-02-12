@@ -39,7 +39,6 @@ void Comm::ConnOpener::swanSong() STUB
 Comm::ConnOpener::ConnOpener(const Comm::ConnectionPointer &, const AsyncCall::Pointer &, time_t) : AsyncJob("STUB Comm::ConnOpener") {STUB}
 Comm::ConnOpener::~ConnOpener() STUB
 void Comm::ConnOpener::setHost(const char *) STUB
-const char * Comm::ConnOpener::getHost() const STUB_RETVAL(nullptr)
 
 #include "comm/forward.h"
 bool Comm::IsConnOpen(const Comm::ConnectionPointer &) STUB_RETVAL(false)
@@ -67,8 +66,6 @@ void comm_read_base(const Comm::ConnectionPointer &, char *, int, AsyncCall::Poi
 void comm_read_cancel(int, IOCB *, void *) STUB
 
 #include "comm/TcpAcceptor.h"
-//Comm::TcpAcceptor(const Comm::ConnectionPointer &, const char *, const Subscription::Pointer &) STUB
-void Comm::TcpAcceptor::subscribe(const Subscription::Pointer &) STUB
 void Comm::TcpAcceptor::unsubscribe(const char *) STUB
 void Comm::TcpAcceptor::acceptNext() STUB
 void Comm::TcpAcceptor::notify(const Comm::Flag, const Comm::ConnectionPointer &) const STUB
@@ -79,7 +76,6 @@ void Comm::ApplyTcpKeepAlive(int, const TcpKeepAlive &) STUB
 #include "comm/Write.h"
 void Comm::Write(const Comm::ConnectionPointer &, const char *, int, AsyncCall::Pointer &, FREE *) STUB
 void Comm::Write(const Comm::ConnectionPointer &, MemBuf *, AsyncCall::Pointer &) STUB
-void Comm::WriteCancel(const Comm::ConnectionPointer &, const char *) STUB
 /*PF*/ void Comm::HandleWrite(int, void*) STUB
 
 std::ostream &Comm::operator <<(std::ostream &os, const Connection &) STUB_RETVAL(os << "[Connection object]")

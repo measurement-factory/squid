@@ -57,9 +57,6 @@ typedef struct _lstring {
     char *str;          /**< the string. NULL if not initialized */
 } lstring;
 
-/** Debug dump the given flags field to stderr */
-void ntlm_dump_ntlmssp_flags(const uint32_t flags);
-
 /* ************************************************************************* */
 /* Packet and Payload structures and handling functions */
 /* ************************************************************************* */

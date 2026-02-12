@@ -23,15 +23,6 @@ public:
         flags.error = 0;
     }
 
-    /* Create a StoreIOBuffer from a MemBuf and offset */
-    /* NOTE that MemBuf still "owns" the pointers, StoreIOBuffer is just borrowing them */
-    StoreIOBuffer(MemBuf *aMemBuf, int64_t anOffset) :
-        length(aMemBuf->contentSize()),
-        offset (anOffset),
-        data(aMemBuf->content()) {
-        flags.error = 0;
-    }
-
     StoreIOBuffer(MemBuf *aMemBuf, int64_t anOffset, size_t anLength) :
         length(anLength),
         offset (anOffset),
@@ -45,11 +36,6 @@ public:
 
     /// convenience method for changing the offset of a being-configured buffer
     StoreIOBuffer &positionAt(const int64_t newOffset) { offset = newOffset; return *this; }
-
-    void dump() const {
-        if (fwrite(data, length, 1, stderr)) {}
-        if (fwrite("\n", 1, 1, stderr)) {}
-    }
 
     struct {
         unsigned error:1;

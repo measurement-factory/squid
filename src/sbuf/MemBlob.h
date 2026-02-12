@@ -54,9 +54,6 @@ public:
     /// create a new MemBlob with at least reserveSize capacity
     explicit MemBlob(const size_type reserveSize);
 
-    /// create a MemBlob containing a copy of the buffer of a given size
-    MemBlob(const char *buffer, const size_type bufferSize);
-
     ~MemBlob() override;
 
     /// the number unused bytes at the end of the allocated blob

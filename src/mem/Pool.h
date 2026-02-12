@@ -107,8 +107,6 @@ public:
      */
     void clean(time_t maxage);
 
-    void setDefaultPoolChunking(bool const &);
-
     std::list<Mem::Allocator *> pools;
     bool defaultIsChunked = false;
 

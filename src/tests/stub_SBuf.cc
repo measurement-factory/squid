@@ -40,7 +40,6 @@ SBuf& SBuf::Printf(const char *, ...) STUB_RETVAL(*this)
 SBuf& SBuf::appendf(const char *, ...) STUB_RETVAL(*this)
 SBuf& SBuf::vappendf(const char *, va_list) STUB_RETVAL(*this)
 std::ostream& SBuf::print(std::ostream &os) const STUB_RETVAL(os)
-std::ostream& SBuf::dump(std::ostream &os) const STUB_RETVAL(os)
 void SBuf::setAt(size_type, char) STUB
 int SBuf::compare(const SBuf &, const SBufCaseSensitive, const size_type) const STUB_RETVAL(-1)
 int SBuf::compare(const char *, const SBufCaseSensitive, const size_type) const STUB_RETVAL(-1)

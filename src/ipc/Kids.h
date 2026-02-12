@@ -43,9 +43,6 @@ public:
     /// \returns seconds till the next check (zero if there are no hopeless kids left)
     time_t forgetOldFailures();
 
-    /// whether all kids called exited happy
-    bool allExitedHappy() const;
-
     /// whether some kids died from a given signal
     bool someSignaled(const int sgnl) const;
 

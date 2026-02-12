@@ -93,16 +93,6 @@ oid RFC1066_MIB[] = {1, 3, 6, 1, 2, 1};
 unsigned char RFC1066_MIB_text[] = ".iso.org.dod.internet.mgmt.mib";
 struct snmp_mib_tree *Mib;
 
-void
-init_mib(char *file)
-{
-    if (Mib != NULL)
-        return;
-
-    if (file != NULL)
-        Mib = read_mib(file);
-}
-
 static struct snmp_mib_tree *
 find_rfc1066_mib(struct snmp_mib_tree *root) {
     oid *op = RFC1066_MIB;
@@ -225,62 +215,6 @@ found:
     return (++*out_len);
 }
 
-/// \param out_len number of subid's in "output"
-int
-read_objid(char *input, oid *output, int *out_len)
-{
-    struct snmp_mib_tree *root = Mib;
-    oid *op = output;
-    int i;
-
-    if (*input == '.')
-        input++;
-    else {
-        root = find_rfc1066_mib(root);
-        for (i = 0; i < sizeof(RFC1066_MIB) / sizeof(oid); i++) {
-            if ((*out_len)-- > 0)
-                *output++ = RFC1066_MIB[i];
-            else {
-                snmplib_debug(0, "object identifier too long\n");
-                return (0);
-            }
-        }
-    }
-
-    if (root == NULL) {
-        snmplib_debug(0, "Mib not initialized.\n");
-        return 0;
-    }
-    if ((*out_len = parse_subtree(root, input, output, out_len)) == 0)
-        return (0);
-    *out_len += output - op;
-
-    return (1);
-}
-
-/// \param objidlen number of subidentifiers
-void
-print_objid(oid *objid, int objidlen)
-{
-    char buf[256];
-    struct snmp_mib_tree *subtree = Mib;
-
-    *buf = '.';         /* this is a fully qualified name */
-    get_symbol(objid, objidlen, subtree, buf + 1);
-    snmplib_debug(7, "%s\n", buf);
-
-}
-
-/// \param objidlen number of subidentifiers
-void
-sprint_objid(char *buf, oid *objid, int objidlen)
-{
-    struct snmp_mib_tree *subtree = Mib;
-
-    *buf = '.';         /* this is a fully qualified name */
-    get_symbol(objid, objidlen, subtree, buf + 1);
-}
-
 static struct snmp_mib_tree *
 get_symbol(oid *objid, int objidlen, struct snmp_mib_tree *subtree, char *buf)
 {
@@ -314,14 +248,5 @@ found:
         return return_tree;
     else
         return subtree;
-}
-
-void
-print_oid_nums(oid * O, int len)
-{
-    int x;
-
-    for (x = 0; x < len; x++)
-        printf(".%u", O[x]);
 }
 

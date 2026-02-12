@@ -35,9 +35,3 @@ Mgr::StringParam::unpackValue(const Ipc::TypedMsgHdr& msg)
     msg.getString(str);
 }
 
-const String&
-Mgr::StringParam::value() const
-{
-    return str;
-}
-

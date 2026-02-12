@@ -35,8 +35,6 @@ public:
     /// opens an existing shared memory segment
     /// \param unlinkWhenDone whether to delete the segment on destruction
     void open(const bool unlinkWhenDone);
-
-    const String &name() { return theName; } ///< shared memory segment name
     off_t size() { return theSize; } ///< shared memory segment size
     void *mem() { return reserve(0); } ///< pointer to the next chunk
     void *reserve(size_t chunkSize); ///< reserve and return the next chunk

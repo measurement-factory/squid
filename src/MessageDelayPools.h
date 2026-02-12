@@ -90,7 +90,6 @@ public:
 private:
     MessageDelayPools() {}
     ~MessageDelayPools();
-    void Stats() { } // TODO
 };
 
 /// represents configuration for response delay pools

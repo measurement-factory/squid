@@ -81,12 +81,6 @@ DiskIOModule::ModuleAdd(DiskIOModule &instance)
     GetModules().push_back (&instance);
 }
 
-std::vector<DiskIOModule *> const &
-DiskIOModule::Modules()
-{
-    return GetModules();
-}
-
 std::vector<DiskIOModule*> &
 DiskIOModule::GetModules()
 {

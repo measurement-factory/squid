@@ -37,7 +37,6 @@ public:
 
     /* some of the standard iterator methods */
     reference operator *() const { return meta_; }
-    pointer operator ->() const { return &meta_; }
     SwapMetaIterator& operator++();
     bool operator ==(const SwapMetaIterator &them) const { return fieldStart_ == them.fieldStart_; }
     bool operator !=(const SwapMetaIterator &them) const { return !(*this == them); }

@@ -193,15 +193,6 @@ void MemBuf::consumeWhitespacePrefix()
     }
 }
 
-// removes last tailSize bytes
-void MemBuf::truncate(mb_size_t tailSize)
-{
-    const mb_size_t cSize = contentSize();
-    assert(0 <= tailSize && tailSize <= cSize);
-    assert(!stolen); /* not frozen */
-    size -= tailSize;
-}
-
 /**
  * calls memcpy, appends exactly size bytes,
  * extends buffer or creates buffer if needed.
@@ -351,14 +342,4 @@ MemBuf::grow(mb_size_t min_cap)
 }
 
 /* Reports */
-
-/**
- * Puts report on MemBuf _module_ usage into mb
- */
-void
-memBufReport(MemBuf * mb)
-{
-    assert(mb);
-    mb->appendf("memBufReport is not yet implemented @?@\n");
-}
 

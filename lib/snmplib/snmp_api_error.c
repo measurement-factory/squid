@@ -83,15 +83,3 @@ snmp_api_error(int err)
     return (api_errors[foo]);
 }
 
-int
-snmp_api_errno(void)
-{
-    return (snmp_errno);
-}
-
-const char *
-api_errstring(int snmp_errnumber)
-{
-    return (snmp_api_error(snmp_errnumber));
-}
-

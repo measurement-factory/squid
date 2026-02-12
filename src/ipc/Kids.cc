@@ -102,16 +102,6 @@ Kids::forgetOldFailures()
     return nextCheckDelay; // still zero if there were no still-hopeless kids
 }
 
-/// whether all kids called exited happy
-bool Kids::allExitedHappy() const
-{
-    for (size_t i = 0; i < storage.size(); ++i) {
-        if (!storage[i].exitedHappy())
-            return false;
-    }
-    return true;
-}
-
 /// whether some kids died from a given signal
 bool Kids::someSignaled(const int sgnl) const
 {

@@ -130,7 +130,6 @@ public:
     /* read-only pointer API; for Connection assignment, see finalize() */
     explicit operator bool() const { return static_cast<bool>(connection_); }
     Comm::Connection *operator->() const { assert(connection_); return connection_.getRaw(); }
-    Comm::Connection &operator *() const { assert(connection_); return *connection_; }
 
     /// convenience conversion to Comm::ConnectionPointer
     operator const Comm::ConnectionPointer&() const { return connection_; }

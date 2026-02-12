@@ -77,10 +77,7 @@ public:
     /* can move but cannot copy */
     File(const File &) = delete;
     File &operator = (const File &) = delete;
-    File(File &&other);
     File &operator = (File &&other);
-
-    const SBuf &name() const { return name_; }
 
     /* system call wrappers */
 

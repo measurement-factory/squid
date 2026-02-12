@@ -31,9 +31,6 @@ void Write(const Comm::ConnectionPointer &conn, const char *buf, int size, Async
  */
 void Write(const Comm::ConnectionPointer &conn, MemBuf *mb, AsyncCall::Pointer &callback);
 
-/// Cancel the write pending on FD. No action if none pending.
-void WriteCancel(const Comm::ConnectionPointer &conn, const char *reason);
-
 } // namespace Comm
 
 #endif /* SQUID_SRC_COMM_WRITE_H */

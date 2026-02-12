@@ -56,12 +56,6 @@ public:
     /// returns buffer after data; does not check space existence
     char *space() { return buf + size; } ///< space to add data
 
-    /// Returns buffer following data, after possibly growing the buffer to
-    /// accommodate addition of the required bytes PLUS a 0-terminator char.
-    /// The caller is not required to terminate the buffer, but MemBuf does
-    /// terminate internally, trading termination for size calculation bugs.
-    char *space(mb_size_t required) { if (size + required >= capacity) grow(size + required + 1); return buf + size; }
-
     mb_size_t spaceSize() const;
 
     /**
@@ -80,11 +74,8 @@ public:
     void consumeWhitespacePrefix();    ///< removes all prefix whitespace, moving content left
 
     void appended(mb_size_t sz); // updates content size after external append
-    void truncate(mb_size_t sz);  // removes sz last bytes
 
     void terminate(); // zero-terminates the buffer w/o increasing contentSize
-
-    bool wasStolen() const { return stolen; }
 
     /** init with specific sizes */
     void init(mb_size_t szInit, mb_size_t szMax);
@@ -113,13 +104,6 @@ public:
     void vappendf(const char *fmt, va_list ap) override;
 
 private:
-    /**
-     * private copy constructor and assignment operator generates
-     * compiler errors if someone tries to copy/assign a MemBuf
-     */
-    MemBuf(const MemBuf &) {assert(false);}
-
-    MemBuf& operator= (const MemBuf &) {assert(false); return *this;}
 
     void grow(mb_size_t min_cap);
 
@@ -155,9 +139,6 @@ public:
     unsigned valid:1;       /* to be used for debugging only! */
 #endif
 };
-
-/** returns free() function to be used, _freezes_ the object! */
-void memBufReport(MemBuf * mb);
 
 #endif /* SQUID_SRC_MEMBUF_H */
 

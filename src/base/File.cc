@@ -154,11 +154,6 @@ File::~File()
     close();
 }
 
-File::File(File &&other)
-{
-    *this = std::move(other);
-}
-
 File &
 File::operator = (File &&other)
 {

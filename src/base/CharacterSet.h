@@ -32,9 +32,6 @@ public:
     /// \see addRange
     CharacterSet(const char *label, std::initializer_list<std::pair<uint8_t,uint8_t>> ranges);
 
-    /// whether the set lacks any members
-    bool isEmpty() const { return chars_.empty(); }
-
     /// whether a given character exists in the set
     bool operator[](unsigned char c) const {return chars_[static_cast<uint8_t>(c)] != 0;}
 
@@ -62,8 +59,6 @@ public:
 
     /// \note Ignores label
     bool operator == (const CharacterSet &cs) const { return chars_ == cs.chars_; }
-    /// \note Ignores label
-    bool operator != (const CharacterSet &cs) const { return !operator==(cs); }
 
     /// prints all chars in arbitrary order, without any quoting/escaping
     void printChars(std::ostream &os) const;

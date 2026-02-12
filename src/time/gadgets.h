@@ -42,14 +42,6 @@ const char *FormatRfc1123(time_t);
 time_t ParseRfc1123(const char *);
 
 /** Display time as a formatted human-readable string.
- * Time syntax is
- * "YYYY/MM/DD hh:mm:ss"
- *
- * Output is only valid until next call to this function.
- */
-const char *FormatStrf(time_t);
-
-/** Display time as a formatted human-readable string.
  * Time string syntax used is that of Apache httpd.
  * "DD/MMM/YYYY:hh:mm:ss zzzz"
  *
@@ -120,12 +112,6 @@ operator !=(const timeval &a, const timeval &b)
 
 // Operators for timeval below avoid timercmp() because Linux timeradd(3) manual
 // page says that their timercmp() versions "do not work" on some platforms.
-
-inline bool
-operator <=(const timeval &a, const timeval &b)
-{
-    return !(a > b);
-}
 
 inline bool
 operator >=(const timeval &a, const timeval &b)

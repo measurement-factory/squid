@@ -273,14 +273,6 @@ Adaptation::Config::FreeServiceGroups()
 }
 
 void
-Adaptation::Config::DumpServiceGroups(StoreEntry *entry, const char *name)
-{
-    typedef Groups::iterator GI;
-    for (GI i = AllGroups().begin(); i != AllGroups().end(); ++i)
-        storeAppendPrintf(entry, "%s " SQUIDSTRINGPH "\n", name, SQUIDSTRINGPRINT((*i)->id));
-}
-
-void
 Adaptation::Config::ParseAccess(ConfigParser &parser)
 {
     String groupId = ConfigParser::NextToken();
@@ -298,18 +290,6 @@ Adaptation::Config::FreeAccess()
     while (!AllRules().empty()) {
         delete AllRules().back();
         AllRules().pop_back();
-    }
-}
-
-void
-Adaptation::Config::DumpAccess(StoreEntry *entry, const char *name)
-{
-    LOCAL_ARRAY(char, nom, 64);
-
-    typedef AccessRules::iterator CI;
-    for (CI i = AllRules().begin(); i != AllRules().end(); ++i) {
-        snprintf(nom, 64, "%s " SQUIDSTRINGPH, name, SQUIDSTRINGPRINT((*i)->groupId));
-        dump_acl_access(entry, nom, (*i)->acl);
     }
 }
 

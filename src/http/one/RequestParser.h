@@ -49,9 +49,6 @@ public:
     /// the request-line URI if this is a request message, or an empty string.
     const SBuf &requestUri() const {return uri_;}
 
-    /// the accumulated parsed bytes
-    const SBuf &parsed() const { Must(preserveParsed_); return parsed_; }
-
 private:
     void skipGarbageLines();
     int parseRequestFirstLine();

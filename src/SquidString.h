@@ -101,12 +101,8 @@ public:
     void absorb(String &old);
     const char * pos(char const *aString) const;
     const char * pos(char const ch) const;
-    ///offset from string start of the first occurrence of ch
-    /// returns String::npos if ch is not found
-    size_type find(char const ch) const;
     size_type find(char const *aString) const;
     const char * rpos(char const ch) const;
-    size_type rfind(char const ch) const;
     int cmp(char const *) const;
     int cmp(char const *, size_type count) const;
     int cmp(String const &) const;
@@ -154,19 +150,6 @@ private:
     static bool SafeAdd(size_type &base, size_type extra) { if (extra <= SizeMax_ && base <= SizeMax_ - extra) { base += extra; return true; } return false; }
 
     char *buf_ = nullptr;
-
-    void set(char const *loc, char const ch) {
-        if (loc < buf_ || loc > (buf_ + size_))
-            return;
-        buf_[loc-buf_] = ch;
-    }
-
-    void cutPointer(char const *loc) {
-        if (loc < buf_ || loc > (buf_ + size_))
-            return;
-        len_ = loc-buf_;
-        buf_[len_] = '\0';
-    }
 };
 
 inline std::ostream & operator<<(std::ostream &os, String const &aString)
@@ -174,13 +157,6 @@ inline std::ostream & operator<<(std::ostream &os, String const &aString)
     os.write(aString.rawBuf(),aString.size());
     return os;
 }
-
-inline bool operator<(const String &a, const String &b)
-{
-    return a.cmp(b) < 0;
-}
-
-const char *checkNullString(const char *p);
 int stringHasWhitespace(const char *);
 int stringHasCntl(const char *);
 char *strwordtok(char *buf, char **t);

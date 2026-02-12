@@ -31,7 +31,6 @@ HttpHdrContRange *httpHdrContRangeCreate(void);
 HttpHdrContRange *httpHdrContRangeParseCreate(const char *crange_spec);
 /** returns true if range is valid; inits HttpHdrContRange */
 int httpHdrContRangeParseInit(HttpHdrContRange * crange, const char *crange_spec);
-HttpHdrContRange *httpHdrContRangeDup(const HttpHdrContRange * crange);
 void httpHdrContRangePackInto(const HttpHdrContRange * crange, Packable * p);
 /** inits with given spec */
 void httpHdrContRangeSet(HttpHdrContRange *, HttpHdrRangeSpec, int64_t);

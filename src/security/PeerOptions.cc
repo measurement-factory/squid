@@ -776,37 +776,6 @@ Security::PeerOptions::updateContextTrust(Security::ContextPointer &ctx)
 }
 
 void
-Security::PeerOptions::updateSessionOptions(Security::SessionPointer &s)
-{
-    parseOptions();
-#if USE_OPENSSL
-    debugs(83, 5, "set OpenSSL options for session=" << s << ", parsedOptions=" << parsedOptions);
-    // XXX: Options already set before (via the context) are not cleared!
-    SSL_set_options(s.get(), parsedOptions);
-
-#elif HAVE_LIBGNUTLS
-    LibErrorCode x;
-    SBuf errMsg;
-    if (!parsedOptions) {
-        debugs(83, 5, "set GnuTLS default priority/options for session=" << s);
-        x = gnutls_set_default_priority(s.get());
-        static const SBuf defaults("default");
-        errMsg = defaults;
-    } else {
-        debugs(83, 5, "set GnuTLS session=" << s << ", options='" << sslOptions << ":" << tlsMinOptions << "'");
-        x = gnutls_priority_set(s.get(), parsedOptions.get());
-        errMsg = sslOptions;
-    }
-
-    if (x != GNUTLS_E_SUCCESS) {
-        debugs(83, DBG_IMPORTANT, "ERROR: session=" << s << " Failed to set TLS options (" << errMsg << ":" << tlsMinVersion << "). error: " << Security::ErrorString(x));
-    }
-#else
-    (void)s;
-#endif
-}
-
-void
 parse_securePeerOptions(Security::PeerOptions *opt)
 {
     while(const char *token = ConfigParser::NextToken())

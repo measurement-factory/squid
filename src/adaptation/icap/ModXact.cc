@@ -1976,16 +1976,6 @@ void Adaptation::Icap::Preview::wrote(size_t size, bool wroteEof)
         theState = stDone;
 }
 
-bool Adaptation::Icap::ModXact::fillVirginHttpHeader(MemBuf &mb) const
-{
-    if (virgin.header == nullptr)
-        return false;
-
-    virgin.header->firstLineBuf(mb);
-
-    return true;
-}
-
 void Adaptation::Icap::ModXact::detailError(const ErrorDetail::Pointer &errDetail)
 {
     HttpRequest *request = dynamic_cast<HttpRequest*>(adapted.header);

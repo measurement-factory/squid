@@ -59,16 +59,12 @@ public:
         max_stale(MAX_STALE_UNKNOWN), stale_if_error(STALE_IF_ERROR_UNKNOWN),
         min_fresh(MIN_FRESH_UNKNOWN) {}
 
-    /// reset data-members to default state
-    void clear();
-
     /// parse a header-string and fill in appropriate values.
     bool parse(const String & s);
 
     //manipulation for Cache-Control: public header
     bool hasPublic() const {return isSet(HttpHdrCcType::CC_PUBLIC);}
     void Public(bool v) {setMask(HttpHdrCcType::CC_PUBLIC,v);}
-    void clearPublic() {setMask(HttpHdrCcType::CC_PUBLIC,false);}
 
     //manipulation for Cache-Control: private header
     bool hasPrivate(const String **val = nullptr) const { return hasDirective(HttpHdrCcType::CC_PRIVATE, &private_, val); }
@@ -81,7 +77,6 @@ public:
             private_.append(",");
         private_.append(v);
     }
-    void clearPrivate() {setMask(HttpHdrCcType::CC_PRIVATE,false); private_.clean();}
 
     //manipulation for Cache-Control: no-cache header
     bool hasNoCacheWithParameters() const { return hasNoCache() && no_cache.size(); }
@@ -96,27 +91,19 @@ public:
             no_cache.append(",");
         no_cache.append(v);
     }
-    void clearNoCache() {setMask(HttpHdrCcType::CC_NO_CACHE,false); no_cache.clean();}
 
     //manipulation for Cache-Control: no-store header
     bool hasNoStore() const {return isSet(HttpHdrCcType::CC_NO_STORE);}
     void noStore(bool v) {setMask(HttpHdrCcType::CC_NO_STORE,v);}
-    void clearNoStore() {setMask(HttpHdrCcType::CC_NO_STORE,false);}
-
-    //manipulation for Cache-Control: no-transform header
-    bool hasNoTransform() const {return isSet(HttpHdrCcType::CC_NO_TRANSFORM);}
     void noTransform(bool v) {setMask(HttpHdrCcType::CC_NO_TRANSFORM,v);}
-    void clearNoTransform() {setMask(HttpHdrCcType::CC_NO_TRANSFORM,false);}
 
     //manipulation for Cache-Control: must-revalidate header
     bool hasMustRevalidate() const {return isSet(HttpHdrCcType::CC_MUST_REVALIDATE);}
     void mustRevalidate(bool v) {setMask(HttpHdrCcType::CC_MUST_REVALIDATE,v);}
-    void clearMustRevalidate() {setMask(HttpHdrCcType::CC_MUST_REVALIDATE,false);}
 
     //manipulation for Cache-Control: proxy-revalidate header
     bool hasProxyRevalidate() const {return isSet(HttpHdrCcType::CC_PROXY_REVALIDATE);}
     void proxyRevalidate(bool v) {setMask(HttpHdrCcType::CC_PROXY_REVALIDATE,v);}
-    void clearProxyRevalidate() {setMask(HttpHdrCcType::CC_PROXY_REVALIDATE,false);}
 
     //manipulation for Cache-Control: max-age header
     bool hasMaxAge(int32_t *val = nullptr) const { return hasDirective(HttpHdrCcType::CC_MAX_AGE, max_age, val); }
@@ -125,7 +112,6 @@ public:
 
     //manipulation for Cache-Control: s-maxage header
     bool hasSMaxAge(int32_t *val = nullptr) const { return hasDirective(HttpHdrCcType::CC_S_MAXAGE, s_maxage, val); }
-    void sMaxAge(int32_t v) {setValue(s_maxage,v,HttpHdrCcType::CC_S_MAXAGE); }
     void clearSMaxAge() {setValue(s_maxage,MAX_AGE_UNKNOWN,HttpHdrCcType::CC_S_MAXAGE,false);}
 
     //manipulation for Cache-Control: max-stale header
@@ -134,27 +120,22 @@ public:
     // the directive without a numeric specification, and directs to consider the object
     // as always-expired.
     void maxStale(int32_t v) {setValue(max_stale,v,HttpHdrCcType::CC_MAX_STALE);}
-    void clearMaxStale() {setValue(max_stale,MAX_STALE_UNKNOWN,HttpHdrCcType::CC_MAX_STALE,false);}
 
     //manipulation for Cache-Control:min-fresh header
     bool hasMinFresh(int32_t *val = nullptr) const { return hasDirective(HttpHdrCcType::CC_MIN_FRESH, min_fresh, val); }
-    void minFresh(int32_t v) {if (v < 0) return; setValue(min_fresh,v,HttpHdrCcType::CC_MIN_FRESH); }
     void clearMinFresh() {setValue(min_fresh,MIN_FRESH_UNKNOWN,HttpHdrCcType::CC_MIN_FRESH,false);}
 
     //manipulation for Cache-Control: only-if-cached header
     bool hasOnlyIfCached() const {return isSet(HttpHdrCcType::CC_ONLY_IF_CACHED);}
     void onlyIfCached(bool v) {setMask(HttpHdrCcType::CC_ONLY_IF_CACHED,v);}
-    void clearOnlyIfCached() {setMask(HttpHdrCcType::CC_ONLY_IF_CACHED,false);}
 
     //manipulation for Cache-Control: stale-if-error header
     bool hasStaleIfError(int32_t *val = nullptr) const { return hasDirective(HttpHdrCcType::CC_STALE_IF_ERROR, stale_if_error, val); }
-    void staleIfError(int32_t v) {setValue(stale_if_error,v,HttpHdrCcType::CC_STALE_IF_ERROR); }
     void clearStaleIfError() {setValue(stale_if_error,STALE_IF_ERROR_UNKNOWN,HttpHdrCcType::CC_STALE_IF_ERROR,false);}
 
     //manipulation for Cache-Control: immutable header
     bool hasImmutable() const {return isSet(HttpHdrCcType::CC_IMMUTABLE);}
     void Immutable(bool v) {setMask(HttpHdrCcType::CC_IMMUTABLE,v);}
-    void clearImmutable() {setMask(HttpHdrCcType::CC_IMMUTABLE,false);}
 
     /// check whether the attribute value supplied by id is set
     bool isSet(HttpHdrCcType id) const {

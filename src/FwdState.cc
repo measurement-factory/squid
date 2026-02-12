@@ -507,15 +507,6 @@ FwdState::unregister(Comm::ConnectionPointer &conn)
     destinationReceipt = nullptr;
 }
 
-// \deprecated use unregister(Comm::ConnectionPointer &conn) instead
-void
-FwdState::unregister(int fd)
-{
-    debugs(17, 3, entry->url() );
-    assert(fd == serverConnection()->fd);
-    unregister(serverConn);
-}
-
 /**
  * FooClient modules call fwdComplete() when they are done
  * downloading an object.  Then, we either 1) re-forward the

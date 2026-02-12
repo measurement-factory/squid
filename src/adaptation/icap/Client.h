@@ -16,9 +16,6 @@ namespace Adaptation
 namespace Icap
 {
 
-void InitModule();
-void CleanModule();
-
 } // namespace Icap
 } // namespace Adaptation
 

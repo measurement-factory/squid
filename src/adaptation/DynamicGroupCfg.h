@@ -32,7 +32,6 @@ public:
     const String &serviceIds() const { return id; }
 
     void add(const String &item); ///< updates group id and services
-    void clear(); ///< makes the config empty
 };
 
 inline

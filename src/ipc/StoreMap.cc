@@ -65,22 +65,6 @@ Ipc::StoreMap::StoreMap(const SBuf &aPath): cleaner(nullptr), path(aPath),
     assert(entryLimit() <= sliceLimit()); // at least one slice per entry
 }
 
-int
-Ipc::StoreMap::compareVersions(const sfileno fileno, time_t newVersion) const
-{
-    const Anchor &inode = anchorAt(fileno);
-
-    // note: we do not lock, so comparison may be inaccurate
-
-    if (inode.empty())
-        return +2;
-
-    if (const time_t diff = newVersion - inode.basics.timestamp)
-        return diff < 0 ? -1 : +1;
-
-    return 0;
-}
-
 void
 Ipc::StoreMap::forgetWritingEntry(sfileno fileno)
 {
@@ -913,12 +897,6 @@ Ipc::StoreMap::fileNoByKey(const cache_key *const key) const
 {
     const int name = nameByKey(key);
     return fileNoByName(name);
-}
-
-Ipc::StoreMap::Anchor &
-Ipc::StoreMap::anchorByKey(const cache_key *const key)
-{
-    return anchorAt(fileNoByKey(key));
 }
 
 Ipc::StoreMap::Slice&

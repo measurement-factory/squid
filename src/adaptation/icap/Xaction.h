@@ -107,9 +107,6 @@ protected:
     virtual void fillPendingStatus(MemBuf &buf) const;
     virtual void fillDoneStatus(MemBuf &buf) const;
 
-    // useful for debugging
-    virtual bool fillVirginHttpHeader(MemBuf&) const;
-
 public:
     // custom exception handling and end-of-call checks
     void callException(const std::exception  &e) override;

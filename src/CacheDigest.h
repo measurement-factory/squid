@@ -24,10 +24,6 @@ public:
     CacheDigest(uint64_t capacity, uint8_t bpe);
     ~CacheDigest();
 
-    // NP: only used by broken unit-test
-    /// produce a new identical copy of the digest object
-    CacheDigest *clone() const;
-
     /// reset the digest mask and counters
     void clear();
 
@@ -59,8 +55,6 @@ public:
     uint32_t mask_size;      /* mask size in bytes */
     int8_t bits_per_entry;   /* number of bits allocated for each entry from capacity */
 };
-
-void cacheDigestGuessStatsUpdate(CacheDigestGuessStats * stats, int real_hit, int guess_hit);
 void cacheDigestGuessStatsReport(const CacheDigestGuessStats * stats, StoreEntry * sentry, const SBuf &label);
 void cacheDigestReport(CacheDigest * cd, const SBuf &label, StoreEntry * e);
 

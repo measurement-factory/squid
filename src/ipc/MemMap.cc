@@ -99,42 +99,6 @@ Ipc::MemMap::closeForWriting(const sfileno fileno)
 }
 
 void
-Ipc::MemMap::switchWritingToReading(const sfileno fileno)
-{
-    debugs(54, 5, "switching writing slot at " << fileno <<
-           " to reading in map [" << path << ']');
-    assert(valid(fileno));
-    Slot &s = shared->slots[fileno];
-    assert(s.writing());
-    s.lock.switchExclusiveToShared();
-}
-
-/// terminate writing the entry, freeing its slot for others to use
-void
-Ipc::MemMap::abortWriting(const sfileno fileno)
-{
-    debugs(54, 5, "abort writing slot at " << fileno <<
-           " in map [" << path << ']');
-    assert(valid(fileno));
-    Slot &s = shared->slots[fileno];
-    assert(s.writing());
-    freeLocked(s, false);
-}
-
-const Ipc::MemMap::Slot *
-Ipc::MemMap::peekAtReader(const sfileno fileno) const
-{
-    assert(valid(fileno));
-    const Slot &s = shared->slots[fileno];
-    if (s.reading())
-        return &s; // immediate access by lock holder so no locking
-    if (s.writing())
-        return nullptr; // cannot read the slot when it is being written
-    assert(false); // must be locked for reading or writing
-    return nullptr;
-}
-
-void
 Ipc::MemMap::free(const sfileno fileno)
 {
     debugs(54, 5, "marking slot at " << fileno << " to be freed in"
@@ -227,19 +191,6 @@ Ipc::MemMap::entryCount() const
 }
 
 bool
-Ipc::MemMap::full() const
-{
-    return entryCount() >= entryLimit();
-}
-
-void
-Ipc::MemMap::updateStats(ReadWriteLockStats &stats) const
-{
-    for (int i = 0; i < shared->limit; ++i)
-        shared->slots[i].lock.updateStats(stats);
-}
-
-bool
 Ipc::MemMap::valid(const int pos) const
 {
     return 0 <= pos && pos < entryLimit();
@@ -263,12 +214,6 @@ Ipc::MemMap::slotIndexByKey(const cache_key *const key) const
 {
     const unsigned char *k = reinterpret_cast<const unsigned char *>(key);
     return hash_key(k, MEMMAP_SLOT_KEY_SIZE, shared->limit);
-}
-
-Ipc::MemMap::Slot &
-Ipc::MemMap::slotByKey(const cache_key *const key)
-{
-    return shared->slots[slotIndexByKey(key)];
 }
 
 /// unconditionally frees the already exclusively locked slot and releases lock

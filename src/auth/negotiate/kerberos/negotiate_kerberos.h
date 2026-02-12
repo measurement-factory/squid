@@ -128,7 +128,6 @@ char *getdomaingids(char *ad_groups, uint32_t DomainLogonId, char **Rids, uint32
 char *getextrasids(char *ad_groups, uint32_t ExtraSids, uint32_t SidCount);
 uint64_t get6byt_be(void);
 uint32_t get4byt(void);
-uint16_t get2byt(void);
 uint8_t get1byt(void);
 char *xstrcpy( char *src, const char*dst);
 char *xstrcat( char *src, const char*dst);

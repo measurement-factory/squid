@@ -25,31 +25,11 @@ public:
 protected:
     /* std::streambuf API */
 
-    int_type overflow(int_type aChar = traits_type::eof()) override {
-        std::streamsize pending(pptr() - pbase());
-
-        if (pending && sync())
-            return traits_type::eof();
-
-        if (aChar != traits_type::eof()) {
-            const char C = static_cast<char>(aChar);
-            lowAppend(&C, 1);
-        }
-
-        pbump(-pending);  // Reset pptr().
-        return aChar;
-    }
-
     int sync() override {
         std::streamsize pending(pptr() - pbase());
         lowAppend(pbase(), pending);
         postSync();
         return 0;
-    }
-
-    std::streamsize xsputn(const char * chars, std::streamsize number) override {
-        lowAppend(chars, number);
-        return number;
     }
 
 private:

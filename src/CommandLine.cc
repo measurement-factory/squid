@@ -48,17 +48,6 @@ CommandLine::CommandLine(const CommandLine &them):
 {
 }
 
-CommandLine &
-CommandLine::operator =(const CommandLine &them)
-{
-    // cannot just swap(*this, them): std::swap(T,T) may call this assignment op
-    CommandLine tmp(them);
-    std::swap(argv_, tmp.argv_);
-    std::swap(shortOptions_, tmp.shortOptions_);
-    std::swap(longOptions_, tmp.longOptions_);
-    return *this;
-}
-
 CommandLine::~CommandLine()
 {
     for (auto arg: argv_)
@@ -147,14 +136,6 @@ LongOption::LongOption(const LongOption &opt):
 LongOption::~LongOption()
 {
     xfree(name);
-}
-
-LongOption &
-LongOption::operator =(const LongOption &opt)
-{
-    if (this != &opt)
-        copy(static_cast<const RawLongOption &>(opt));
-    return *this;
 }
 
 void

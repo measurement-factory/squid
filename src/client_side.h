@@ -491,9 +491,6 @@ private:
     /// whether Comm::Read() is scheduled
     bool reading() const { return reader != nullptr; }
 
-    /// whether Comm::Write() is scheduled
-    bool writing() const { return writer != nullptr; }
-
     void checkLogging();
 
     void parseRequests();

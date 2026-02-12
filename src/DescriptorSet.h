@@ -32,7 +32,6 @@ public:
 
     bool add(int fd); ///< adds if unique; returns true if added
     bool del(int fd); ///< deletes if there; returns true if deleted
-    int pop(); ///< deletes and returns one descriptor, in unspecified order
 
     bool empty() const { return !size_; } ///< number of descriptors in the set
 

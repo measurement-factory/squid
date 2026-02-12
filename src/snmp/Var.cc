@@ -33,14 +33,6 @@ Snmp::Var::~Var()
     clear();
 }
 
-Snmp::Var&
-Snmp::Var::operator = (const Var& var)
-{
-    clear();
-    assign(var);
-    return *this;
-}
-
 void
 Snmp::Var::init()
 {
@@ -233,24 +225,6 @@ Snmp::Var::asTimeTicks() const
     return *reinterpret_cast<unsigned int*>(val.integer);
 }
 
-Range<const oid*>
-Snmp::Var::asObject() const
-{
-    Must(type == SMI_OBJID);
-    Must(val_len % sizeof(oid) == 0);
-    int length = val_len / sizeof(oid);
-    Must(val.objid != nullptr && length > 0);
-    return Range<const oid*>(val.objid, val.objid + length);
-}
-
-Range<const u_char*>
-Snmp::Var::asString() const
-{
-    Must(type == SMI_STRING);
-    Must(val.string != nullptr && val_len > 0);
-    return Range<const u_char*>(val.string, val.string + val_len);
-}
-
 void
 Snmp::Var::setInt(int value)
 {
@@ -267,18 +241,6 @@ void
 Snmp::Var::setGauge(unsigned int value)
 {
     setValue(&value, sizeof(value), SMI_GAUGE32);
-}
-
-void
-Snmp::Var::setString(const Range<const u_char*>& string)
-{
-    setValue(string.start, string.size(), SMI_STRING);
-}
-
-void
-Snmp::Var::setObject(const Range<const oid*>& object)
-{
-    setValue(object.start, object.size() * sizeof(oid), SMI_OBJID);
 }
 
 void

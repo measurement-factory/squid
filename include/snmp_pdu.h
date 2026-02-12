@@ -72,16 +72,12 @@ struct snmp_pdu {
 
 struct snmp_pdu *snmp_pdu_create(int);
 struct snmp_pdu *snmp_pdu_clone(struct snmp_pdu *);
-struct snmp_pdu *snmp_pdu_fix(struct snmp_pdu *, int);
 struct snmp_pdu *snmp_fix_pdu(struct snmp_pdu *, int);
 void snmp_free_pdu(struct snmp_pdu *);
 void snmp_pdu_free(struct snmp_pdu *);
 
 u_char *snmp_pdu_encode(u_char *, int *, struct snmp_pdu *);
 u_char *snmp_pdu_decode(u_char *, int *, struct snmp_pdu *);
-
-/* Add a NULL Variable to a PDU */
-void snmp_add_null_var(struct snmp_pdu *, oid *, int);
 
 /* RFC 1905: Protocol Operations for SNMPv2
  *

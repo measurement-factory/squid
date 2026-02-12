@@ -127,7 +127,6 @@ Security::ContextPointer Security::PeerOptions::createBlankContext() const STUB_
 void Security::PeerOptions::updateContextCa(Security::ContextPointer &) STUB
 void Security::PeerOptions::updateContextCrl(Security::ContextPointer &) STUB
 void Security::PeerOptions::updateContextTrust(Security::ContextPointer &) STUB
-void Security::PeerOptions::updateSessionOptions(Security::SessionPointer &) STUB
 void Security::PeerOptions::dumpCfg(std::ostream &, char const*) const STUB
 void Security::PeerOptions::parseOptions() STUB
 void parse_securePeerOptions(Security::PeerOptions *) STUB

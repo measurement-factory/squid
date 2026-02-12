@@ -24,7 +24,6 @@ public:
     explicit operator bool() const { return reserved(); }
     bool operator !() const { return !reserved(); }
     bool operator ==(const Helper::ReservationId &other) const { return id == other.id; }
-    bool operator !=(const Helper::ReservationId &other) const { return !(*this == other); }
 
     void clear() { id = 0; }
     uint64_t value() const {return id;}

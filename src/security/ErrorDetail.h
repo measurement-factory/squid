@@ -74,9 +74,6 @@ public:
     /// the peer certificate (or nil)
     Certificate *peerCert() { return peer_cert.get(); }
 
-    /// peer or intermediate certificate that failed validation (or nil)
-    Certificate *brokenCert() {return broken_cert.get(); }
-
     /// remember the SSL certificate of our peer; requires nil peerCert()
     /// unlike the cert-setting constructor, does not assume the cert is bad
     void setPeerCertificate(const CertPointer &);

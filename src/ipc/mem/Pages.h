@@ -43,9 +43,6 @@ size_t PageLevel();
 /// approximate total number of shared memory pages used now for given purpose
 size_t PageLevel(const int purpose);
 
-/// approximate total number of shared memory pages we can allocate now
-inline size_t PagesAvailable() { return PageLimit() - PageLevel(); }
-
 /// approximate total number of shared memory pages we can allocate
 /// now for given purpose
 inline size_t PagesAvailable(const int purpose) { return PageLimit(purpose) - PageLevel(purpose); }
