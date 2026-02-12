@@ -181,7 +181,6 @@ protected:
     bool skipUpdateHeader(const Http::HdrType id) const;
 
 private:
-    HttpHeaderEntry *findLastEntry(Http::HdrType id) const;
     bool conflictingContentLength_; ///< found different Content-Length fields
     /// unsupported encoding, unnecessary syntax characters, and/or
     /// invalid field-value found in Transfer-Encoding header

@@ -388,40 +388,9 @@ public:
     typedef const V value_type;
 
 private:
-    void advance();
     void addLeftPath(SplayNode<V> *aNode);
-    void init(SplayNode<V> *);
     std::stack<SplayNode<V> *> toVisit;
 };
-
-/* advance is simple enough:
-* if the stack is empty, we're done.
-* otherwise, pop the last visited node
-* then, pop the next node to visit
-* if that has a right child, add it and it's
-* left-to-end path.
-* then add the node back.
-*/
-template <class V>
-void
-SplayConstIterator<V>::advance()
-{
-    if (toVisit.empty())
-        return;
-
-    toVisit.pop();
-
-    if (toVisit.empty())
-        return;
-
-    // not empty
-    SplayNode<V> *currentNode = toVisit.top();
-    toVisit.pop();
-
-    addLeftPath(currentNode->right);
-
-    toVisit.push(currentNode);
-}
 
 template <class V>
 void
@@ -434,13 +403,6 @@ SplayConstIterator<V>::addLeftPath(SplayNode<V> *aNode)
         toVisit.push(aNode);
         aNode = aNode->left;
     } while (aNode != nullptr);
-}
-
-template <class V>
-void
-SplayConstIterator<V>::init(SplayNode<V> *head)
-{
-    addLeftPath(head);
 }
 
 #endif /* SQUID_INCLUDE_SPLAY_H */

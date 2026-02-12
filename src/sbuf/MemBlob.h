@@ -99,9 +99,6 @@ public:
     /// forgets all data (i.e. empties the buffer) if n exceeds size
     void consume(const size_type n);
 
-    /// dump debugging information
-    std::ostream & dump(std::ostream &os) const;
-
 public:
     /* MemBlob users should avoid these and must treat them as read-only */
     char *mem;          ///< raw allocated memory block

@@ -23,7 +23,6 @@ void CacheDigest::clear() STUB
 void CacheDigest::updateCapacity(uint64_t) STUB
 bool CacheDigest::contains(const cache_key *) const STUB_RETVAL(false)
 void CacheDigest::add(const cache_key *) STUB
-void CacheDigest::remove(const cache_key *) STUB
 double CacheDigest::usedMaskPercent() const STUB_RETVAL(0.0)
 void cacheDigestGuessStatsReport(const CacheDigestGuessStats *, StoreEntry *, const SBuf &) STUB
 void cacheDigestReport(CacheDigest *, const SBuf &, StoreEntry *) STUB

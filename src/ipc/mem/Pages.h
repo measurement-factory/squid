@@ -37,9 +37,6 @@ size_t PageLimit();
 /// time for given purpose
 size_t PageLimit(const int purpose);
 
-/// approximate total number of shared memory pages used now
-size_t PageLevel();
-
 /// approximate total number of shared memory pages used now for given purpose
 size_t PageLevel(const int purpose);
 

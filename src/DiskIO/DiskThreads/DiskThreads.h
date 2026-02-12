@@ -89,10 +89,7 @@ void squidaio_shutdown(void);
 int squidaio_cancel(squidaio_result_t *);
 int squidaio_open(const char *, int, mode_t, squidaio_result_t *);
 int squidaio_read(int, char *, size_t, off_t, int, squidaio_result_t *);
-int squidaio_write(int, char *, size_t, off_t, int, squidaio_result_t *);
 int squidaio_close(int, squidaio_result_t *);
-
-int squidaio_stat(const char *, struct stat *, squidaio_result_t *);
 int squidaio_unlink(const char *, squidaio_result_t *);
 int squidaio_opendir(const char *, squidaio_result_t *);
 squidaio_result_t *squidaio_poll_done(void);

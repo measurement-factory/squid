@@ -77,7 +77,6 @@ public:
     /* can move but cannot copy */
     File(const File &) = delete;
     File &operator = (const File &) = delete;
-    File &operator = (File &&other);
 
     /* system call wrappers */
 

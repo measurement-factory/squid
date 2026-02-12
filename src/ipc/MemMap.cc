@@ -184,12 +184,6 @@ Ipc::MemMap::entryLimit() const
     return shared->limit;
 }
 
-int
-Ipc::MemMap::entryCount() const
-{
-    return shared->count;
-}
-
 bool
 Ipc::MemMap::valid(const int pos) const
 {

@@ -102,7 +102,6 @@ public:
     /// close slot after reading, decrements read level
     void closeForReading(const sfileno fileno);
     bool valid(const int n) const; ///< whether n is a valid slot coordinate
-    int entryCount() const; ///< number of used slots
     int entryLimit() const; ///< maximum number of slots that can be used
 
     /// The cleaner MemMapCleaner::noteFreeMapSlot method called when a

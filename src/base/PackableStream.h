@@ -25,13 +25,6 @@ public:
 protected:
     /* std::streambuf API */
 
-    int sync() override {
-        std::streamsize pending(pptr() - pbase());
-        lowAppend(pbase(), pending);
-        postSync();
-        return 0;
-    }
-
 private:
     /// for specializations that must customize the last construction step
     void postInit() {}

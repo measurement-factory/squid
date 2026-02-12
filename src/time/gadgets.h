@@ -99,12 +99,6 @@ operator <(const timeval &a, const timeval &b)
 }
 
 inline bool
-operator >(const timeval &a, const timeval &b)
-{
-    return timercmp(&a, &b, >);
-}
-
-inline bool
 operator !=(const timeval &a, const timeval &b)
 {
     return timercmp(&a, &b, !=);

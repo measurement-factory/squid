@@ -74,7 +74,6 @@ public:
     int canonize(HttpReply *rep);
     /* returns true if ranges are valid; inits HttpHdrRange */
     bool parseInit(const String * range_spec);
-    void packInto(Packable * p) const;
     /* other */
     bool isComplex() const;
     int64_t firstOffset() const;

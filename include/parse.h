@@ -79,8 +79,6 @@ void sprint_variable(char *, oid *, int, struct variable_list *);
 void sprint_value(char *, oid *, int, struct variable_list *);
 void print_value(oid *, int, struct variable_list *);
 
-struct snmp_mib_tree *read_mib(char *);
-
 #ifdef __cplusplus
 }
 

@@ -31,7 +31,6 @@ public:
     void updateCapacity(uint64_t newCapacity);
 
     void add(const cache_key * key);
-    void remove(const cache_key * key);
 
     /// \returns true if the key belongs to the digest
     bool contains(const cache_key * key) const;

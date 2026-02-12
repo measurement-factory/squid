@@ -220,15 +220,6 @@ HttpHdrScTarget::packInto(Packable * p) const
 }
 
 void
-HttpHdrSc::packInto(Packable * p) const
-{
-    assert(p);
-    for (const auto &t : targets) {
-        t.packInto(p);
-    }
-}
-
-void
 HttpHdrSc::updateStats(StatHist * hist) const
 {
     for (auto &t : targets) {
