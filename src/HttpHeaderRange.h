@@ -37,7 +37,6 @@ public:
     bool parseInit(const char *field, int flen);
     int canonize(int64_t clen);
     void outputInfo( char const *note) const;
-    void packInto(Packable * p) const;
     bool mergeWith(const HttpHdrRangeSpec * donor);
     int64_t offset;
     int64_t length;

@@ -29,11 +29,6 @@ private:
     /// for specializations that must customize the last construction step
     void postInit() {}
 
-    /// for specializations that must customize the last sync() step
-    void postSync() {}
-
-    void lowAppend(const char *s, const std::streamsize n) {buf_.append(s,n);}
-
     Buffer &buf_; ///< the associated character sequence (a.k.a. the sink)
 };
 
@@ -43,7 +38,6 @@ private:
  */
 using PackableStreamBuf = AppendingStreamBuf<Packable>;
 template <> inline void PackableStreamBuf::postInit() { buf_.buffer(); }
-template <> inline void PackableStreamBuf::postSync() { buf_.flush(); }
 
 class PackableStream : public std::ostream
 {

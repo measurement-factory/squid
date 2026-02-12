@@ -35,8 +35,6 @@ public:
     size_t pageSize() const { return pageIndex->pageSize(); }
     /// lower bound for the number of free pages
     unsigned int size() const { return pageIndex->size(); }
-    /// approximate number of shared memory pages used now
-    size_t level() const { return capacity() - size(); }
     /// approximate number of shared memory pages used now for given purpose
     size_t level(const int purpose) const;
 

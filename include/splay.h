@@ -388,22 +388,8 @@ public:
     typedef const V value_type;
 
 private:
-    void addLeftPath(SplayNode<V> *aNode);
     std::stack<SplayNode<V> *> toVisit;
 };
-
-template <class V>
-void
-SplayConstIterator<V>::addLeftPath(SplayNode<V> *aNode)
-{
-    if (aNode == nullptr)
-        return;
-
-    do {
-        toVisit.push(aNode);
-        aNode = aNode->left;
-    } while (aNode != nullptr);
-}
 
 #endif /* SQUID_INCLUDE_SPLAY_H */
 

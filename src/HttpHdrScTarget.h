@@ -67,7 +67,6 @@ public:
     bool hasTarget() const { return target.size() != 0; }
 
     void mergeWith(const HttpHdrScTarget * new_sc);
-    void packInto(Packable *p) const;
     void updateStats(StatHist *) const;
 
 private:
