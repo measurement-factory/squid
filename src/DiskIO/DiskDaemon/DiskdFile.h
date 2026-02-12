@@ -37,9 +37,6 @@ public:
     bool canRead() const override;
     bool ioInProgress() const override;
 
-    /* Temporary */
-    int getID() const {return id;}
-
     void completed(diomsg *);
 
 private:

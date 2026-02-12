@@ -77,9 +77,6 @@ class HappyConnOpenerAnswer
 public:
     ~HappyConnOpenerAnswer();
 
-    /// whether HappyConnOpener succeeded, returning a usable connection
-    bool success() const { return !error; }
-
     /// on success: an open, ready-to-use Squid-to-peer connection
     /// on failure: either a closed failed Squid-to-peer connection or nil
     PeerConnectionPointer conn;

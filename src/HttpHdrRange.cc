@@ -106,17 +106,6 @@ HttpHdrRangeSpec::parseInit(const char *field, int flen)
 }
 
 void
-HttpHdrRangeSpec::packInto(Packable * p) const
-{
-    if (!known_spec(offset))    /* suffix */
-        p->appendf("-%" PRId64, length);
-    else if (!known_spec(length))       /* trailer */
-        p->appendf("%" PRId64 "-", offset);
-    else            /* range */
-        p->appendf("%" PRId64 "-%" PRId64, offset, offset + length - 1);
-}
-
-void
 HttpHdrRangeSpec::outputInfo( char const *note) const
 {
     debugs(64, 5, "HttpHdrRangeSpec::canonize: " << note << ": [" <<
@@ -305,21 +294,6 @@ HttpHdrRange::end() const
 }
 
 void
-HttpHdrRange::packInto(Packable * packer) const
-{
-    const_iterator pos = begin();
-
-    while (pos != end()) {
-        if (pos != begin())
-            packer->append(",", 1);
-
-        (*pos)->packInto(packer);
-
-        ++pos;
-    }
-}
-
-void
 HttpHdrRange::merge (std::vector<HttpHdrRangeSpec *> &basis)
 {
     /* reset old array */
@@ -418,36 +392,6 @@ HttpHdrRange::isComplex() const
     }
 
     return 0;
-}
-
-/*
- * hack: returns true if range specs may be too "complex" when "canonized".
- * see also: HttpHdrRange::isComplex.
- */
-bool
-HttpHdrRange::willBeComplex() const
-{
-    /* check that all rangers are in "strong" order, */
-    /* as far as we can tell without the content length */
-    int64_t offset = 0;
-
-    for (const_iterator pos (begin()); pos != end(); ++pos) {
-        if (!known_spec((*pos)->offset))    /* ignore unknowns */
-            continue;
-
-        /* Ensure typecasts is safe */
-        assert ((*pos)->offset >= 0);
-
-        if ((*pos)->offset < offset)
-            return true;
-
-        offset = (*pos)->offset;
-
-        if (known_spec((*pos)->length)) /* avoid  unknowns */
-            offset += (*pos)->length;
-    }
-
-    return false;
 }
 
 /*

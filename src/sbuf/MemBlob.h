@@ -54,9 +54,6 @@ public:
     /// create a new MemBlob with at least reserveSize capacity
     explicit MemBlob(const size_type reserveSize);
 
-    /// create a MemBlob containing a copy of the buffer of a given size
-    MemBlob(const char *buffer, const size_type bufferSize);
-
     ~MemBlob() override;
 
     /// the number unused bytes at the end of the allocated blob
@@ -101,9 +98,6 @@ public:
     /// forget the first n bytes, moving the rest of data (if any) to the start
     /// forgets all data (i.e. empties the buffer) if n exceeds size
     void consume(const size_type n);
-
-    /// dump debugging information
-    std::ostream & dump(std::ostream &os) const;
 
 public:
     /* MemBlob users should avoid these and must treat them as read-only */

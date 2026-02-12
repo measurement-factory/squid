@@ -271,7 +271,6 @@ private:
 
     void fillPendingStatus(MemBuf &buf) const override;
     void fillDoneStatus(MemBuf &buf) const override;
-    bool fillVirginHttpHeader(MemBuf&) const override;
 
 private:
     /// parses a message header or trailer

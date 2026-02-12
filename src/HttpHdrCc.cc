@@ -88,12 +88,6 @@ operator++ (HttpHdrCcType &aHeader)
     return aHeader;
 }
 
-void
-HttpHdrCc::clear()
-{
-    *this=HttpHdrCc();
-}
-
 /// set a data member to a new value, and set the corresponding mask-bit.
 /// if setting is false, then the mask-bit is cleared.
 void

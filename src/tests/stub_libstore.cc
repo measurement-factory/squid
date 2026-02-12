@@ -46,7 +46,6 @@ bool Controller::allowCollapsing(StoreEntry *, const RequestFlags &, const HttpR
 void Controller::addReading(StoreEntry *, const cache_key *) STUB
 void Controller::addWriting(StoreEntry *, const cache_key *) STUB
 bool Controller::transientsReader(const StoreEntry &) const STUB_RETVAL(false)
-bool Controller::transientsWriter(const StoreEntry &) const STUB_RETVAL(false)
 void Controller::syncCollapsed(const sfileno) STUB
 void Controller::noteStoppedSharedWriting(StoreEntry &) STUB
 int Controller::transientReaders(const StoreEntry &) const STUB_RETVAL(0)
@@ -77,7 +76,6 @@ void Disk::reference(StoreEntry &) STUB
 bool Disk::dereference(StoreEntry &) STUB_RETVAL(false)
 void Disk::maintain() STUB
 int64_t Disk::minObjectSize() const STUB_RETVAL(0)
-void Disk::maxObjectSize(int64_t) STUB
 bool Disk::objectSizeIsAcceptable(int64_t) const STUB_RETVAL(false)
 void Disk::parseOptions(int) STUB
 void Disk::dumpOptions(StoreEntry *) const STUB

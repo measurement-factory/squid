@@ -267,14 +267,6 @@ bool generateSslCertificate(Security::CertPointer & cert, Security::PrivateKeyPo
 bool sslDateIsInTheFuture(char const * date);
 
 /**
- \ingroup SslCrtdSslAPI
- * Check if the major fields of a certificates matches the properties given by
- * a CertficateProperties object
- \return true if the certificates matches false otherwise.
-*/
-bool certificateMatchesProperties(X509 *peer_cert, CertificateProperties const &properties);
-
-/**
    \ingroup ServerProtocolSSLAPI
    * Returns CN from the certificate, suitable for use as a host name.
    * Uses static memory to temporary store the extracted name.

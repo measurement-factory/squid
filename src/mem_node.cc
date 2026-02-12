@@ -91,15 +91,6 @@ mem_node::space() const
     return SM_PAGE_SIZE - nodeBuffer.length;
 }
 
-bool
-mem_node::contains (int64_t const &location) const
-{
-    if (start() <= location && end() > location)
-        return true;
-
-    return false;
-}
-
 /* nodes can not be sparse */
 bool
 mem_node::canAccept (int64_t const &location) const

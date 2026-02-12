@@ -27,9 +27,6 @@ public:
     explicit IoResult(const ErrorDetailPointer &anErrorDetail): errorDetail(anErrorDetail) {}
     IoResult(const IoResult &aRes) = default;
 
-    /// convenience wrapper to detect successful I/O outcome; implies !wantsIo()
-    bool successful() const { return category == ioSuccess; }
-
     /// convenience wrapper to detect whether more I/O is needed
     bool wantsIo() const { return category == ioWantRead || category == ioWantWrite; }
 

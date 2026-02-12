@@ -42,12 +42,6 @@ Ip::NfMarkConfig::Parse(const SBuf &token)
     return Ip::NfMarkConfig(mark, mask);
 }
 
-nfmark_t
-Ip::NfMarkConfig::applyToMark(nfmark_t m) const
-{
-    return (m & ~mask) | mark;
-}
-
 std::ostream &
 Ip::operator <<(std::ostream &os, const NfMarkConfig c)
 {

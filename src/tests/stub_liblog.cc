@@ -28,7 +28,6 @@ void accessLogLog(const AccessLogEntry::Pointer &, ACLChecklist *) STUB
 void accessLogRotate(void) STUB
 void accessLogClose(void) STUB
 void accessLogInit(void) STUB
-const char *accessLogTime(time_t) STUB_RETVAL(nullptr)
 
 #include "log/access_log.h"
 void fvdbCountVia(const SBuf &) STUB

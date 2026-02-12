@@ -28,7 +28,6 @@ public:
     int64_t start() const;
     int64_t end() const;
     Range<int64_t> dataRange() const;
-    bool contains (int64_t const &location) const;
     bool canAccept (int64_t const &location) const;
     bool operator < (mem_node const & rhs) const;
     /* public */

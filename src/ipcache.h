@@ -125,10 +125,8 @@ public:
     explicit IpsIterator(const Raw &raw): position_(raw.cend()) {}
 
     reference operator *() const { return position_->ip; }
-    pointer operator ->() const { return &position_->ip; }
 
     IpsIterator& operator++() { ++position_; return *this; }
-    IpsIterator operator++(int) { const auto oldMe = *this; ++(*this); return oldMe; }
 
     bool operator ==(const IpsIterator them) const { return position_ == them.position_; }
     bool operator !=(const IpsIterator them) const { return !(*this == them); }
@@ -155,10 +153,8 @@ public:
     explicit GoodIpsIterator(const Raw &raw): raw_(raw), position_(0), processed_(raw.size()) {}
 
     reference operator *() const { return current().ip; }
-    pointer operator ->() const { return &current().ip; }
 
     GoodIpsIterator& operator++() { next(); sync(); return *this; }
-    GoodIpsIterator operator++(int) { const auto oldMe = *this; ++(*this); return oldMe; }
 
     bool operator ==(const GoodIpsIterator them) const { return processed_ == them.processed_; }
     bool operator !=(const GoodIpsIterator them) const { return !(*this == them); }

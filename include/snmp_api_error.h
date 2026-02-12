@@ -61,11 +61,6 @@ extern "C" {
 #endif
 
 /* extern int snmp_errno */
-
-const char *snmp_api_error(int);
-int snmp_api_errno(void);
-
-const char *api_errstring(int); /* Backwards compatibility */
 void snmp_set_api_error(int);
 
 #ifdef __cplusplus

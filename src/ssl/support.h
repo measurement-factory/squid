@@ -75,9 +75,6 @@ void Initialize();
 class CertValidationResponse;
 typedef RefCount<CertValidationResponse> CertValidationResponsePointer;
 
-/// initialize a TLS server context with OpenSSL specific settings
-bool InitServerContext(Security::ContextPointer &, AnyP::PortCfg &);
-
 /// initialize a TLS client context with OpenSSL specific settings
 bool InitClientContext(Security::ContextPointer &, Security::PeerOptions &, Security::ParsedPortFlags);
 
@@ -101,9 +98,6 @@ const char *sslGetCAAttribute(SSL *ssl, const char *attribute_name);
 
 /// \ingroup ServerProtocolSSLAPI
 SBuf sslGetUserCertificatePEM(SSL *ssl);
-
-/// \ingroup ServerProtocolSSLAPI
-SBuf sslGetUserCertificateChainPEM(SSL *ssl);
 
 namespace Ssl
 {

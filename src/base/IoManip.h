@@ -52,9 +52,6 @@ public:
     RawPointerT(const char *aLabel, const Pointer &aPtr):
         label(aLabel), ptr(aPtr) {}
 
-    /// Report the pointed-to-object on a dedicated Debug::Extra line.
-    RawPointerT<Pointer> &asExtra() { onExtraLine = true; return *this; }
-
     /// enable and, optionally, customize reporting of nil pointers
     RawPointerT<Pointer> &orNil(const char *nilTextToUse = "[nil]") { nilText = nilTextToUse; return *this; }
 
@@ -181,17 +178,8 @@ public:
     /// a c-string to print before the first item (if any). Caller must ensure lifetime.
     auto &prefixedBy(const char * const p) { prefix = p; return *this; }
 
-    /// a c-string to print after the last item (if any). Caller must ensure lifetime.
-    auto &suffixedBy(const char * const p) { suffix = p; return *this; }
-
     /// a c-string to print between consecutive items (if any). Caller must ensure lifetime.
     auto &delimitedBy(const char * const d) { delimiter = d; return *this; }
-
-    /// c-string to print before and after each item. Caller must ensure lifetime.
-    auto &quoted(const char * const q = "\"") { preQuote = postQuote = q; return *this; }
-
-    /// c-strings to print before and after each item. Caller must ensure lifetime.
-    auto &quoted(const char * const preQ, const char * const postQ) { preQuote = preQ; postQuote = postQ; return *this; }
 
     /// writes the container to the given stream
     void print(std::ostream &) const;

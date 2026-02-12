@@ -19,8 +19,6 @@ public:
     ~LoadableModule();           // unloads if loaded
 
     bool loaded() const;
-    const auto &name() const { return theName; }
-    const auto &error() const { return theError; }
 
     void load(); // throws Texc
     void unload(); // throws Texc

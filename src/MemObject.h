@@ -151,8 +151,6 @@ public:
 
     size_t clientCount() const {return nclients;}
 
-    bool clientIsFirst(void *sc) const {return (clients.head && sc == clients.head->data);}
-
     int nclients = 0;
 
     class SwapOut

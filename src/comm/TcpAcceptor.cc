@@ -57,14 +57,6 @@ Comm::TcpAcceptor::TcpAcceptor(const AnyP::PortCfgPointer &p, const char *, cons
 {}
 
 void
-Comm::TcpAcceptor::subscribe(const Subscription::Pointer &aSub)
-{
-    debugs(5, 5, status() << " AsyncCall Subscription: " << aSub);
-    unsubscribe("subscription change");
-    theCallSub = aSub;
-}
-
-void
 Comm::TcpAcceptor::unsubscribe(const char *reason)
 {
     debugs(5, 5, status() << " AsyncCall Subscription " << theCallSub << " removed: " << reason);

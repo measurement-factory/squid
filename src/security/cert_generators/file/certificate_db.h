@@ -25,7 +25,6 @@ public:
     void lock(); ///<  locks the lock, may block
     void unlock(); ///<  unlocks locked lock or throws
     bool locked() const; ///<  whether our lock is locked
-    const char *name() const { return filename.c_str(); }
 private:
     std::string filename;
 #if _SQUID_WINDOWS_
@@ -94,8 +93,6 @@ public:
     CertificateDb(std::string const & db_path, size_t aMax_db_size, size_t aFs_block_size);
     /// finds matching generated certificate and its private key
     bool find(std::string const & key,  const Security::CertPointer &expectedOrig, Security::CertPointer & cert, Security::PrivateKeyPointer & pkey);
-    /// Delete a certificate from database
-    bool purgeCert(std::string const & key);
     /// Save certificate to disk.
     bool addCertAndPrivateKey(std::string const & useKey, const Security::CertPointer & cert, const Security::PrivateKeyPointer & pkey, const Security::CertPointer &orig);
 

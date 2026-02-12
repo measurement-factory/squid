@@ -340,12 +340,6 @@ memClean(void)
     }
 }
 
-int
-memInUse(mem_type type)
-{
-    return GetPool(type)->getInUseCount();
-}
-
 /* ick */
 
 void

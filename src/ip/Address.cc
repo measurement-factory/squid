@@ -555,12 +555,6 @@ Ip::Address::operator =(const struct hostent &s)
     return true;
 }
 
-Ip::Address::Address(const struct addrinfo &s)
-{
-    setEmpty();
-    operator=(s);
-}
-
 bool
 Ip::Address::operator =(const struct addrinfo &s)
 {

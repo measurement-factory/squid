@@ -66,17 +66,6 @@ MemBlob::MemBlob(const MemBlob::size_type reserveSize) :
     memAlloc(reserveSize);
 }
 
-MemBlob::MemBlob(const char *buffer, const MemBlob::size_type bufSize) :
-    mem(nullptr), capacity(0), size(0) // will be set by memAlloc
-{
-    debugs(MEMBLOB_DEBUGSECTION,9, "constructed, this="
-           << static_cast<void*>(this) << " id=" << id
-           << " buffer=" << static_cast<const void*>(buffer)
-           << " bufSize=" << bufSize);
-    memAlloc(bufSize);
-    append(buffer, bufSize);
-}
-
 MemBlob::~MemBlob()
 {
     if (mem || capacity)
@@ -154,16 +143,5 @@ MemBlob::consume(const size_type rawN)
         if (size)
             memmove(mem, mem + n, size);
     }
-}
-
-std::ostream&
-MemBlob::dump(std::ostream &os) const
-{
-    os << "id @" << (void *)this
-       << "mem:" << static_cast<void*>(mem)
-       << ",capacity:" << capacity
-       << ",size:" << size
-       << ",refs:" << LockCount() << "; ";
-    return os;
 }
 

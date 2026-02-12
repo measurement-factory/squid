@@ -19,7 +19,6 @@
 
 // NP: used by Action.h instantiations
 #include "mgr/Command.h"
-std::ostream &Mgr::operator <<(std::ostream &os, const Command &) STUB_RETVAL(os)
 
 #include "mgr/Action.h"
 Mgr::Action::Action(const CommandPointer &) STUB
@@ -246,5 +245,4 @@ void Mgr::StoreToCommWriter::close() STUB
 void Mgr::StringParam::pack(Ipc::TypedMsgHdr&) const STUB
 void Mgr::StringParam::unpackValue(const Ipc::TypedMsgHdr&) STUB
 static String t;
-const String& Mgr::StringParam::value() const STUB_RETVAL(t)
 

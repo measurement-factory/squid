@@ -37,10 +37,6 @@ public:
 public:
     Coordinator();
 
-    void broadcastSignal(int sig) const; ///< send sig to registered strands
-
-    const StrandCoords &strands() const; ///< currently registered strands
-
 protected:
     void start() override; // Port (AsyncJob) API
     void receive(const TypedMsgHdr& message) override; // Port API

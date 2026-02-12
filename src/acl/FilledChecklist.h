@@ -70,8 +70,6 @@ public:
 
     /// set either conn
     void setConn(ConnStateData *);
-    /// set the client side FD
-    void fd(int aDescriptor);
 
     /// response added by updateReply()
     /// \prec hasReply()

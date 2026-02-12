@@ -33,7 +33,6 @@ void clientdbDump(StoreEntry *);
 int clientdbEstablished(const Ip::Address &, int);
 
 #if USE_DELAY_POOLS
-void clientdbSetWriteLimiter(ClientInfo * info, const int writeSpeedLimit,const double initialBurst,const double highWatermark);
 ClientInfo * clientdbGetInfo(const Ip::Address &addr);
 #endif
 

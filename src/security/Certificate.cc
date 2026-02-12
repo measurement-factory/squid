@@ -17,13 +17,6 @@
 
 #include <iostream>
 
-inline
-const char *
-MissingLibraryError()
-{
-    return "[need OpenSSL or GnuTLS]";
-}
-
 SBuf
 Security::IssuerName(Certificate &cert)
 {

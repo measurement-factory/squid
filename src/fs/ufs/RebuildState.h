@@ -30,8 +30,6 @@ public:
 
     RebuildState(const RefCount<UFSSwapDir> &sd);
     virtual ~RebuildState();
-
-    virtual bool error() const;
     virtual bool isDone() const;
 
     RefCount<UFSSwapDir> sd;

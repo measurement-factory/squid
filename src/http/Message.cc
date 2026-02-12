@@ -265,10 +265,3 @@ Http::Message::hdrCacheInit()
     cache_control = header.getCc();
 }
 
-/// useful for debugging
-void
-Http::Message::firstLineBuf(MemBuf &mb)
-{
-    packFirstLineInto(&mb, true);
-}
-

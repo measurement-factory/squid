@@ -27,15 +27,11 @@ class Message
 
 public:
     typedef Http::Message Header;
-
-    Message();
     Message(Header *aHeader);
     ~Message();
 
     void clear();
     void set(Header *aHeader);
-
-    static void ShortCircuit(Message &src, Message &dest);
 
 public:
     // virgin or adapted message being worked on

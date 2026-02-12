@@ -55,10 +55,6 @@ public:
     TcpAcceptor(const AnyP::PortCfgPointer &listenPort, const char *note, const Subscription::Pointer &aSub);
 
 protected:
-    /** Subscribe a handler to receive calls back about new connections.
-     * Unsubscribes any existing subscribed handler.
-     */
-    void subscribe(const Subscription::Pointer &aSub);
 
     /** Remove the currently waiting callback subscription.
      * Already scheduled callbacks remain scheduled.

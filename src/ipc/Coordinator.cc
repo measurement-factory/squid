@@ -278,16 +278,6 @@ Ipc::Coordinator::openListenSocket(const SharedListenRequest& request,
     return newConn;
 }
 
-void Ipc::Coordinator::broadcastSignal(int sig) const
-{
-    typedef StrandCoords::const_iterator SCI;
-    for (SCI iter = strands_.begin(); iter != strands_.end(); ++iter) {
-        debugs(54, 5, "signal " << sig << " to kid" << iter->kidId <<
-               ", PID=" << iter->pid);
-        kill(iter->pid, sig);
-    }
-}
-
 Ipc::Coordinator* Ipc::Coordinator::Instance()
 {
     if (!TheInstance)
@@ -296,11 +286,5 @@ Ipc::Coordinator* Ipc::Coordinator::Instance()
     // we could make Coordinator death fatal, except during exit, but since
     // Strands do not re-register, even process death would be pointless.
     return TheInstance;
-}
-
-const Ipc::StrandCoords&
-Ipc::Coordinator::strands() const
-{
-    return strands_;
 }
 

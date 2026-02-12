@@ -198,10 +198,6 @@ Auth::UserRequest::addAuthenticationInfoHeader(HttpReply *, int)
 {}
 
 void
-Auth::UserRequest::addAuthenticationInfoTrailer(HttpReply *, int)
-{}
-
-void
 Auth::UserRequest::releaseAuthServer()
 {}
 

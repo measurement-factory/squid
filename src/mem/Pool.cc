@@ -59,12 +59,6 @@ MemPools::create(const char *label, size_t obj_size)
     return pools.back();
 }
 
-void
-MemPools::setDefaultPoolChunking(bool const &aBool)
-{
-    defaultIsChunked = aBool;
-}
-
 /*
  * Updates all pool counters, and recreates TheMeter totals from all pools
  */

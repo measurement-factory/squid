@@ -119,8 +119,6 @@ public:
     /// from public to private.
     /// \param permanent whether this entry should be private forever.
     void setPrivateKey(const bool shareable, const bool permanent);
-
-    void expireNow();
     /// Makes the StoreEntry private and marks the corresponding entry
     /// for eventual removal from the Store.
     void releaseRequest(const bool shareable = false);
@@ -364,12 +362,6 @@ public:
 
     EntryGuard(EntryGuard &&) = delete; // no copying or moving (for now)
 
-    /// like std::unique_ptr::get()
-    /// \returns nil or the guarded (locked) entry
-    Entry *get() {
-        return entry_;
-    }
-
     /// like std::unique_ptr::reset()
     /// stops guarding the entry
     /// unlocks the entry (which may destroy it)
@@ -392,13 +384,7 @@ void Maintain(void *unused);
 }; // namespace Store
 
 /// \ingroup StoreAPI
-size_t storeEntryInUse();
-
-/// \ingroup StoreAPI
 const char *storeEntryFlags(const StoreEntry *);
-
-/// \ingroup StoreAPI
-void storeEntryReplaceObject(StoreEntry *, HttpReply *);
 
 /// \ingroup StoreAPI
 StoreEntry *storeGetPublic(const char *uri, const HttpRequestMethod& method);
@@ -424,28 +410,13 @@ void storeInit(void);
 void storeConfigure(void);
 
 /// \ingroup StoreAPI
-int expiresMoreThan(time_t, time_t);
-
-/// \ingroup StoreAPI
 void storeAppendPrintf(StoreEntry *, const char *,...) PRINTF_FORMAT_ARG2;
-
-/// \ingroup StoreAPI
-void storeAppendVPrintf(StoreEntry *, const char *, va_list ap);
 
 /// \ingroup StoreAPI
 int storeTooManyDiskFilesOpen(void);
 
 /// \ingroup StoreAPI
-void storeHeapPositionUpdate(StoreEntry *, SwapDir *);
-
-/// \ingroup StoreAPI
-void storeSwapFileNumberSet(StoreEntry * e, sfileno filn);
-
-/// \ingroup StoreAPI
 void storeFsInit(void);
-
-/// \ingroup StoreAPI
-void storeFsDone(void);
 
 /// \ingroup StoreAPI
 void storeReplAdd(const char *, REMOVALPOLICYCREATE *);

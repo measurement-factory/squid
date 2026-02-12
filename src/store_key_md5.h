@@ -23,7 +23,6 @@ typedef enum {
 cache_key *storeKeyDup(const cache_key *);
 cache_key *storeKeyCopy(cache_key *, const cache_key *);
 void storeKeyFree(const cache_key *);
-const cache_key *storeKeyScan(const char *);
 const char *storeKeyText(const cache_key *);
 const cache_key *storeKeyPublic(const char *, const HttpRequestMethod&, const KeyScope keyScope = ksDefault);
 const cache_key *storeKeyPublicByRequest(HttpRequest *, const KeyScope keyScope = ksDefault);

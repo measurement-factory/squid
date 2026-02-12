@@ -68,12 +68,6 @@ typedef struct _heap {
 SQUIDCEXTERN heap *new_heap(int init_size, heap_key_func gen_key);
 
 /*
- * Delete a heap and clean up its memory.  Does not delete what the heap
- * nodes are pointing to!
- */
-SQUIDCEXTERN void delete_heap(heap *);
-
-/*
  * Insert a new node into a heap, returning a pointer to it.  The heap_node
  * object returned is used to update or delete a heap object.  Nothing else
  * should be done with this data structure (especially modifying it!)  The
@@ -126,9 +120,6 @@ SQUIDCEXTERN heap_t heap_extractlast(heap * hp);
  * element.  None of these operations modify the heap.
  */
 SQUIDCEXTERN heap_key heap_peepminkey(heap *);
-SQUIDCEXTERN heap_key heap_peepkey(heap *, int n);
-
-SQUIDCEXTERN heap_t heap_peepmin(heap *);
 SQUIDCEXTERN heap_t heap_peep(heap *, int n);
 
 /*
@@ -147,8 +138,6 @@ SQUIDCEXTERN int heap_nodes(heap *);
  */
 SQUIDCEXTERN void heap_print(heap *);
 SQUIDCEXTERN void heap_printnode(char *msg, heap_node * elm);
-
-SQUIDCEXTERN int verify_heap_property(heap *);
 
 #endif /* SQUID_INCLUDE_HEAP_H */
 

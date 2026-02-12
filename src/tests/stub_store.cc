@@ -40,7 +40,6 @@ bool StoreEntry::makePublic(const KeyScope) STUB
 void StoreEntry::makePrivate(const bool) STUB
 bool StoreEntry::setPublicKey(const KeyScope) STUB
 void StoreEntry::setPrivateKey(const bool, const bool) STUB
-void StoreEntry::expireNow() STUB
 void StoreEntry::releaseRequest(const bool) STUB
 void StoreEntry::negativeCache() STUB
 bool StoreEntry::cacheNegatively() STUB
@@ -93,23 +92,15 @@ std::ostream &operator <<(std::ostream &os, const StoreEntry &)
     STUB
     return os;
 }
-
-size_t storeEntryInUse() STUB_RETVAL(0)
-void storeEntryReplaceObject(StoreEntry *, HttpReply *) STUB
 StoreEntry *storeGetPublic(const char *, const HttpRequestMethod&) STUB_RETVAL(nullptr)
 StoreEntry *storeGetPublicByRequest(HttpRequest *, const KeyScope) STUB_RETVAL(nullptr)
 StoreEntry *storeGetPublicByRequestMethod(HttpRequest *, const HttpRequestMethod&, const KeyScope) STUB_RETVAL(nullptr)
 StoreEntry *storeCreateEntry(const char *, const char *, const RequestFlags &, const HttpRequestMethod&) STUB_RETVAL(nullptr)
 StoreEntry *storeCreatePureEntry(const char *, const char *, const HttpRequestMethod&) STUB_RETVAL(nullptr)
 void storeConfigure(void) STUB
-int expiresMoreThan(time_t, time_t) STUB_RETVAL(0)
 void storeAppendPrintf(StoreEntry *, const char *,...) STUB
-void storeAppendVPrintf(StoreEntry *, const char *, va_list) STUB
 int storeTooManyDiskFilesOpen(void) STUB_RETVAL(0)
-void storeHeapPositionUpdate(StoreEntry *, SwapDir *) STUB
-void storeSwapFileNumberSet(StoreEntry *, sfileno) STUB
 void storeFsInit(void) STUB
-void storeFsDone(void) STUB
 void storeReplAdd(const char *, REMOVALPOLICYCREATE *) STUB
 void destroyStoreEntry(void *) STUB
 void storeGetMemSpace(int) STUB

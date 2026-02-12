@@ -63,17 +63,12 @@ private:
 class Bracketed
 {
 public:
-    explicit Bracketed(const Host &aHost): host(aHost) {}
     const Host &host;
 };
 
 /// prints Host value _without_ square brackets around an IPv6 address (even
 /// when the Host value is an IPv6 address); \sa Bracketed
 std::ostream &operator <<(std::ostream &, const Host &);
-
-/// prints Host value _without_ square brackets around an IPv6 address (even
-/// when the Host value is an IPv6 address); \sa Bracketed
-std::ostream &operator <<(std::ostream &, const Bracketed &);
 
 } // namespace Anyp
 

@@ -154,18 +154,6 @@ File::~File()
     close();
 }
 
-File::File(File &&other)
-{
-    *this = std::move(other);
-}
-
-File &
-File::operator = (File &&other)
-{
-    std::swap(fd_, other.fd_);
-    return *this;
-}
-
 /// opens (or creates) the file
 void
 File::open(const FileOpeningConfig &cfg)

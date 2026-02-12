@@ -72,26 +72,3 @@ snmp_set_api_error(int x)
     snmp_errno = x;
 }
 
-const char *
-snmp_api_error(int err)
-{
-    int foo = (err * -1);
-    if ((foo < SNMPERR_GENERR) ||
-            (foo > SNMPERR_LAST))
-        foo = 0;
-
-    return (api_errors[foo]);
-}
-
-int
-snmp_api_errno(void)
-{
-    return (snmp_errno);
-}
-
-const char *
-api_errstring(int snmp_errnumber)
-{
-    return (snmp_api_error(snmp_errnumber));
-}
-

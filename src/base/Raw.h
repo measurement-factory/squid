@@ -29,8 +29,6 @@ public:
     /// print data using two hex digits per byte (decoder: xxd -r -p)
     Raw &hex() { useHex_ = true; return *this; }
 
-    Raw &gap(bool useGap = true) { useGap_ = useGap; return *this; }
-
     /// If debugging is prohibited by the current debugs() or section level,
     /// prints nothing. Otherwise, dumps data using one of these formats:
     ///   " label[size]=data" if label was set and data size is positive

@@ -37,7 +37,6 @@ public:
     }
     ServerOptions(const ServerOptions &o): ServerOptions() { *this = o; }
     ServerOptions &operator =(const ServerOptions &);
-    ServerOptions(ServerOptions &&o) { this->operator =(o); }
     ServerOptions &operator =(ServerOptions &&o) { this->operator =(o); return *this; }
     ~ServerOptions() override = default;
 

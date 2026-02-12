@@ -50,12 +50,6 @@ public:
     Ciphers ciphers;
 };
 
-inline std::ostream &
-operator <<(std::ostream &os, const TlsDetails &details)
-{
-    return details.print(os);
-}
-
 /// Incremental TLS/SSL Handshake parser.
 class HandshakeParser
 {

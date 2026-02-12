@@ -25,7 +25,6 @@ class Var: public variable_list
 public:
     Var();
     Var(const Var& var);
-    Var& operator = (const Var& var);
     ~Var();
 
     Var& operator += (const Var& var);
@@ -47,14 +46,10 @@ public:
     int asCounter() const; ///< returns variable value as Counter32
     long long int asCounter64() const; ///< returns variable value as Counter64
     unsigned int asTimeTicks() const; ///< returns variable value as time ticks
-    Range<const oid*> asObject() const; ///< returns variable value as object oid
-    Range<const u_char*> asString() const; ///< returns variable value as chars string
 
     void setInt(int value); ///< assign int value to variable
     void setCounter(int value); ///< assign Counter32 value to variable
     void setGauge(unsigned int value); ///< assign unsigned int value to variable
-    void setString(const Range<const u_char*>& string); ///< assign string to variable
-    void setObject(const Range<const oid*>& object); ///< assign object oid to variable
     void setTimeTicks(unsigned int ticks); ///<assign unsigned int (time) value to variable
     void setCounter64(long long int counter); ///< assign Counter64 value to variable
 

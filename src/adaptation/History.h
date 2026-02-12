@@ -80,7 +80,6 @@ private:
     {
     public:
         Entry(const String &serviceId, const timeval &when);
-        Entry(); // required by Vector<>
 
         void stop(); ///< updates stats on transaction end
         int rptm(); ///< returns response time [msec], calculates it if needed

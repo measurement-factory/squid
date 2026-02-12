@@ -155,15 +155,6 @@ Parser::BinaryTokenizer::uint24(const char *description)
     return result;
 }
 
-uint32_t
-Parser::BinaryTokenizer::uint32(const char *description)
-{
-    want(4, description);
-    const uint32_t result = (octet() << 24) | (octet() << 16) | (octet() << 8) | octet();
-    got(result, 4, description);
-    return result;
-}
-
 SBuf
 Parser::BinaryTokenizer::area(uint64_t size, const char *description)
 {

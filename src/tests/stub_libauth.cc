@@ -66,7 +66,6 @@ int authenticateAuthUserRequestIPCount(Auth::UserRequest::Pointer) STUB_RETVAL(0
 bool authenticateUserAuthenticated(const Auth::UserRequest::Pointer&) STUB_RETVAL(false)
 Auth::Direction Auth::UserRequest::direction() STUB_RETVAL(Auth::CRED_ERROR)
 void Auth::UserRequest::addAuthenticationInfoHeader(HttpReply *, int) STUB
-void Auth::UserRequest::addAuthenticationInfoTrailer(HttpReply *, int) STUB
 void Auth::UserRequest::releaseAuthServer() STUB
 const char * Auth::UserRequest::connLastHeader() STUB_RETVAL("stub")
 AuthAclState Auth::UserRequest::authenticate(Auth::UserRequest::Pointer *, Http::HdrType, HttpRequest *, ConnStateData *, Ip::Address &, AccessLogEntry::Pointer &) STUB_RETVAL(AUTH_AUTHENTICATED)

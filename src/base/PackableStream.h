@@ -25,41 +25,9 @@ public:
 protected:
     /* std::streambuf API */
 
-    int_type overflow(int_type aChar = traits_type::eof()) override {
-        std::streamsize pending(pptr() - pbase());
-
-        if (pending && sync())
-            return traits_type::eof();
-
-        if (aChar != traits_type::eof()) {
-            const char C = static_cast<char>(aChar);
-            lowAppend(&C, 1);
-        }
-
-        pbump(-pending);  // Reset pptr().
-        return aChar;
-    }
-
-    int sync() override {
-        std::streamsize pending(pptr() - pbase());
-        lowAppend(pbase(), pending);
-        postSync();
-        return 0;
-    }
-
-    std::streamsize xsputn(const char * chars, std::streamsize number) override {
-        lowAppend(chars, number);
-        return number;
-    }
-
 private:
     /// for specializations that must customize the last construction step
     void postInit() {}
-
-    /// for specializations that must customize the last sync() step
-    void postSync() {}
-
-    void lowAppend(const char *s, const std::streamsize n) {buf_.append(s,n);}
 
     Buffer &buf_; ///< the associated character sequence (a.k.a. the sink)
 };
@@ -70,7 +38,6 @@ private:
  */
 using PackableStreamBuf = AppendingStreamBuf<Packable>;
 template <> inline void PackableStreamBuf::postInit() { buf_.buffer(); }
-template <> inline void PackableStreamBuf::postSync() { buf_.flush(); }
 
 class PackableStream : public std::ostream
 {

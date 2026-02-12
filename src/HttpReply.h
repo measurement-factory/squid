@@ -99,8 +99,6 @@ public:
      */
     bool expectedBodyTooLarge(HttpRequest& request);
 
-    int validatorsMatch (HttpReply const *other) const;
-
     /// adds status line and header to the given Packable
     /// assumes that `p` can quickly process small additions
     void packHeadersUsingFastPacker(Packable &p) const;
@@ -145,10 +143,6 @@ private:
     void hdrCacheClean();
 
     void packInto(MemBuf &) const;
-
-    /* ez-routines */
-    /** \return construct 304 reply and pack it into a MemBuf */
-    MemBuf *packed304Reply() const;
 
     /* header manipulation */
     time_t hdrExpirationTime();

@@ -30,9 +30,6 @@ private:
 class SBufStartsWith
 {
 public:
-    explicit SBufStartsWith(const SBuf &prefix, SBufCaseSensitive sensitivity = caseSensitive) :
-        prefix_(prefix), sensitivity_(sensitivity) {}
-    bool operator() (const SBuf & checking) { return checking.startsWith(prefix_,sensitivity_); }
 private:
     SBuf prefix_;
     SBufCaseSensitive sensitivity_;
