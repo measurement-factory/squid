@@ -50,7 +50,7 @@ carpRegisterWithCacheManager(void)
     Mgr::RegisterAction("carp", "CARP information", carpCachemgr, 0, 1);
 }
 
-static void
+void
 carpInit(void)
 {
     int W = 0;

@@ -50,7 +50,7 @@ peerSortWeight(const void *a, const void *b)
     return (*p1)->weight - (*p2)->weight;
 }
 
-static void
+void
 peerUserHashInit(void)
 {
     int W = 0;
