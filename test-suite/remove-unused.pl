@@ -17,16 +17,16 @@ sub addRangeToFileUnused {
     if (exists $fileRanges->{$fileName}) {
         my $pairsRef = $fileRanges->{$fileName};
         foreach my $range (@$pairsRef) {
-            my ($existStart, $existEnd) = @$range;
+            my ($start, $end) = @$range;
 
-            if ($newStart == $existEnd && $newEnd == $existStart) {
-                print "'$fileName': skipping duplicate $existStart,$existEnd range \n";
+            if ($newStart == $end && $newEnd == $start) {
+                print "'$fileName': skipping duplicate $start,$end range \n";
                 return;
             }
 
             if ($isUnused) {
-                if ($newStart <= $existEnd && $newEnd >= $existStart) {
-                    die "FATAL: in $fileName: Range [$newStart, $newEnd] overlaps with [$existStart, $existEnd]\n";
+                if ($newStart <= $end && $newEnd >= $start) {
+                    die "FATAL: in $fileName: Range [$newStart, $newEnd] overlaps with [$start, $end]\n";
                 }
             }
         }
