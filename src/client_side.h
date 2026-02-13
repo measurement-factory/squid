@@ -167,6 +167,7 @@ public:
         CachePeer *peer() const { return serverConnection ? serverConnection->getPeer() : nullptr; }
         AsyncCall::Pointer readHandler; ///< detects serverConnection closure
         AsyncCall::Pointer closeHandler; ///< The close handler for pinned server side connection
+        AsyncCall::Pointer idlePeerHandler; ///< detects CachePeer removal (for idle pinned connections)
     } pinning;
 
     bool transparent() const;
@@ -393,6 +394,12 @@ public:
     /// should be removed as unnecessary by making ACLs extract the information
     /// they need from the ACLFilledChecklist::conn() without filling/copying.
     void fillConnectionLevelDetails(ACLFilledChecklist &) const;
+
+    /// Closes the existing idle pinned connection (which existence is guaranteed by the caller).
+    void closeIdlePinnedConnection();
+
+    /// pinning.idlePeerHandler callback
+    void idleCachePeerIsGone();
 
     // Exposed to be accessible inside the ClientHttpRequest constructor.
     // TODO: Remove. Make sure there is always a suitable ALE instead.
