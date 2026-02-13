@@ -158,6 +158,16 @@ MessageDelayConfig::parseResponseDelayPool()
     else if ((params[aggregateSpeedLimit] < 0) != (params[maxAggregateSize] < 0))
         fatalMsg = "'aggregate-restore' and 'aggregate-maximum'";
 
+    if (params[maxBucketSize] == 0 && params[bucketSpeedLimit] != 0)
+        debugs(3, DBG_CRITICAL, "WARNING: cannot to refill a zero-size bucket with a nonzero 'individual-restore' speed." <<
+                Debug::Extra << "Please either increase the bucket size or reset the speed to zero.");
+    else if (params[maxAggregateSize] == 0 && params[aggregateSpeedLimit] != 0)
+        debugs(3, DBG_CRITICAL, "WARNING: cannot to refill a zero-size aggregate bucket with a nonzero 'aggregate-restore' speed." <<
+                Debug::Extra << "Please either increase the bucket size or reset the speed to zero.");
+    else if ((params[maxBucketSize] == 0) != (params[maxAggregateSize] == 0))
+        debugs(3, DBG_CRITICAL, "WARNING: a zero-size 'individual-maximum' discards a nonzero 'aggregate-maximum' and vice versa." <<
+                Debug::Extra << "Please adjust the both sizes to zero or nonzero.");
+
     if (fatalMsg) {
         debugs(3, DBG_CRITICAL, "FATAL: must use " << fatalMsg << " options in conjunction");
         self_destruct();
