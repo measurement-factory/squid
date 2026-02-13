@@ -400,8 +400,6 @@ protected:
     Comm::ConnectionPointer borrowPinnedConnection(HttpRequest *, const AccessLogEntryPointer &);
 
     void startPinnedConnectionMonitoring();
-    /// Sets up pinning.readHandler to read on the idle pinned connection.
-    void startIdlePinnedConnectionReading();
     void clientPinnedConnectionRead(const CommIoCbParams &io);
 #if USE_OPENSSL
     /// Handles a ready-for-reading TLS squid-to-server connection that
