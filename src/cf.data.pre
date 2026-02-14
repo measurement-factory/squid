@@ -2173,6 +2173,78 @@ DOC_START
 
 DOC_END
 
+NAME: error_signalling_action
+TYPE: error_signalling_action
+LOC: Config.accessList.errorSignallingAction
+DEFAULT: none
+DEFAULT_DOC: Proceed as usual (e.g., send an error message to the client)
+DOC_START
+	Controls whether Squid sends an error response to the client or closes the
+	underlying client-to-Squid TCP connection instead.
+
+	XXX: The current directive name is too broad and, hence, misleading: Squid
+	does not consult this directive on many transaction errors! Applicable
+	error cases are described further below. TODO: Find a better name.
+
+		error_signalling_action <action> [if [!]<aclname>...]
+
+	Supported actions are:
+
+	* gracefully_close: Close client-to-Squid connection nicely. The client
+	  should get a TCP FIN packet. For established TLS connections, Squid will
+	  attempt to send a close_notify alert to the client before closing the
+	  underlying TCP connection. The error response is not sent.
+
+	* reset: Close client-to-Squid connection immediately. The client should
+	  get a TCP RST packet. For established TLS connections, Squid will not
+	  attempt to send a close_notify alert to the client. The error response
+	  is not sent.
+
+	* respond: Send an error response to the client. This is the default. In
+	  some SslBump cases, sending a response may require establishing a TLS
+	  connection with the client. Depending on the error context, Squid may
+	  close the client-to-Squid TCP connection after sending the response.
+
+	This directive applies to cases where Squid normally attempts to send an
+	error response to the client. In many other problematic cases, especially
+	cases where a transaction already wrote some TCP payload bytes to the
+	client, Squid aborts the transaction and closes the client-to-Squid TCP
+	connection without consulting this directive.
+
+	Squid may attempt to bypass or retry certain errors. This directive is
+	consulted only for final transaction errors, after all such recovery
+	attempts have been exhausted, and it becomes clear that the transaction
+	will not be successful.
+
+	Certain transaction problems trigger on_unsupported_protocol processing.
+	This directive is not checked while making those on_unsupported_protocol
+	decisions. However, this directive is usually checked after a "respond"
+	decision was made by on_unsupported_protocol because that decision usually
+	triggers Squid attempt to send an error response to the client -- the
+	subject of this directive. See on_unsupported_protocol documentation for
+	"respond" caveats. Also, on_unsupported_protocol directive itself can be
+	used to close the client-to-Squid connection if needed.
+
+	The rules are evaluated in configuration order. The first matching action
+	wins. If no rule matched or if no rules are configured, Squid acts as if a
+	"respond" action has matched.
+
+	This clause only supports fast acl types.
+	See https://wiki.squid-cache.org/SquidFaq/SquidAcl for details.
+
+	For example:
+
+		# Send TCP RST (instead of bumping the client connection and sending
+		# an encrypted HTTP ERR_SECURE_CONNECT_FAIL response) to an
+		# intercepted TLS client that fails to establish a secure connection
+		# to a server.
+		acl secureConnectFailed squid_error ERR_SECURE_CONNECT_FAIL
+		acl subjectToSslBump myportname 443
+		error_signalling_action reset if secureConnectFailed subjectToSslBump
+
+	See also: squid_error ACL and %err_code/%err_detail logformat codes.
+DOC_END
+
 NAME: on_unsupported_protocol
 TYPE: on_unsupported_protocol
 LOC: Config.accessList.on_unsupported_protocol
@@ -2197,8 +2269,11 @@ DOC_START
 
 	respond: Respond with an error message, using the transfer protocol
 		for the Squid port that received the request (e.g., HTTP
-		for connections intercepted at the http_port). This is the
-		default.
+		for connections intercepted at the http_port). In some cases (e.g.,
+		ERR_REQUEST_PARSE_TIMEOUT, ERR_REQUEST_START_TIMEOUT, and client TLS
+		handshake parsing failure on SslBump handling path), Squid closes
+		the underlying TCP client-to-Squid connection instead of sending an
+		error response to the client. This action is the default.
 
 	Squid expects the following traffic patterns:
 

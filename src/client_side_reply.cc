@@ -1964,6 +1964,8 @@ clientReplyContext::sendMoreData (StoreIOBuffer result)
         }
         if (conn->pinning.zeroReply) {
             debugs(33,3, "not sending more data after a pinned zero reply " << conn->clientConnection);
+            // Send nothing and wait for clientPinnedConnectionClosed() to close conn->clientConnection.
+            // TODO: Replace this hard-coded (in both locations) decision with error_signalling_action handling.
             return;
         }
 

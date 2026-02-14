@@ -397,6 +397,7 @@ public:
         /// spoof_client_ip squid.conf acl.
         /// nil unless configured
         acl_access* spoof_client_ip;
+        acl_access *errorSignallingAction; ///< error_signalling_action
         acl_access *on_unsupported_protocol;
 
         acl_access *ftp_epsv;
