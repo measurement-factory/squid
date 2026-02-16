@@ -638,7 +638,7 @@ void Adaptation::Icap::ServiceRep::scheduleUpdate(time_t when)
     debugs(93,5, "will fetch OPTIONS in " << delay << " sec");
 
     eventAdd("Adaptation::Icap::ServiceRep::noteTimeToUpdate",
-             &ServiceRep_noteTimeToUpdate, this, delay, 0, true);
+             &ServiceRep_noteTimeToUpdate, this, delay, 0);
     updateScheduled = true;
 }
 
