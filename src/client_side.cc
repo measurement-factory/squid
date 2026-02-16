@@ -3693,22 +3693,13 @@ ConnStateData::notePinnedConnectionBecameIdle(PinnedIdleContext pic)
     // monitor pinned server connection for remote-end closures.
     startPinnedConnectionMonitoring();
 
-    if (const auto peer = pinning.peer()) {
-        using Dialer = NullaryMemFunT<ConnStateData>;
-        AsyncCall::Pointer call = asyncCall(93, 5, "ConnStateData::idleCachePeerIsGone",
-                                            Dialer(this, &ConnStateData::idleCachePeerIsGone));
-        pinning.idlePeerHandler = call;
-        peer->addIdlePinnedConnection(call);
-    }
-
     // We could have checked that the cache_peer is gone and do not pinConnection()
-    // but we do it anyway so that the handlers could notice the pinned connection
-    // closure and do the necessary cleanup.
+    // but we do it anyway to avoid writing custom cleanup code for this rare case.
+	// Let regular connection closure handlers perform any necessary cleanup.
     if (pinning.serverConnection->toGoneCachePeer()) {
         debugs(33, 3, "peer is gone: " << pinning.serverConnection);
         comm_close(pinning.serverConnection->fd);
     }
-
     if (pipeline.empty())
         kick(); // in case parseRequests() was blocked by a busy pic.connection
 }
@@ -3764,6 +3755,16 @@ ConnStateData::startPinnedConnectionMonitoring()
     if (pinning.readHandler != nullptr)
         return; // already monitoring
 
+    if (!pinning.idlePeerHandler) {
+        if (const auto peer = pinning.peer()) {
+            using Dialer = NullaryMemFunT<ConnStateData>;
+            AsyncCall::Pointer call = asyncCall(93, 5, "ConnStateData::idleCachePeerIsGone",
+                                                Dialer(this, &ConnStateData::idleCachePeerIsGone));
+            pinning.idlePeerHandler = call;
+            peer->addIdlePinnedConnection(call);
+        }
+    }
+
     typedef CommCbMemFunT<ConnStateData, CommIoCbParams> Dialer;
     pinning.readHandler = JobCallback(33, 3,
                                       Dialer, this, ConnStateData::clientPinnedConnectionRead);
@@ -3776,7 +3777,8 @@ ConnStateData::stopPinnedConnectionMonitoring()
     if (pinning.idlePeerHandler) {
         if (pinning.peer())
             pinning.peer()->removeIdlePinnedConnection(pinning.idlePeerHandler);
-        pinning.idlePeerHandler->cancel("stopPinnedConnectionMonitoring");
+        else
+            pinning.idlePeerHandler->cancel("stopPinnedConnectionMonitoring");
         pinning.idlePeerHandler = nullptr;
     }
 

@@ -257,8 +257,10 @@ void
 CachePeer::removeIdlePinnedConnection(const AsyncCall::Pointer &call)
 {
     const auto found = idlePinnedConnections.find(call);
-    if (found != idlePinnedConnections.end())
+    if (found != idlePinnedConnections.end()) {
+        (*found)->cancel("removeIdlePinnedConnection");
         idlePinnedConnections.erase(found);
+    }
 }
 
 void
