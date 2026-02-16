@@ -379,9 +379,6 @@ public:
     /// Closes the existing idle pinned connection (which existence is guaranteed by the caller).
     void closeIdlePinnedConnection();
 
-    /// pinning.idlePeerHandler callback
-    void idleCachePeerIsGone();
-
     // Exposed to be accessible inside the ClientHttpRequest constructor.
     // TODO: Remove. Make sure there is always a suitable ALE instead.
     /// a problem that occurred without a request (e.g., while parsing headers)
@@ -454,6 +451,9 @@ private:
     bool concurrentRequestQueueFilled() const;
 
     void pinConnection(const Comm::ConnectionPointer &pinServerConn, const HttpRequest &request);
+
+    /// pinning.idlePeerHandler callback
+    void idleCachePeerIsGone();
 
     /* PROXY protocol functionality */
     bool proxyProtocolValidateClient();
