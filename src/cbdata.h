@@ -415,7 +415,8 @@ struct CbdataProtectedT<T, std::void_t<decltype(std::declval<T>().toCbdata())> >
 
 /// Whether HandlerData points to a class with a toCbdata() method.
 template <typename HandlerData>
-constexpr bool CbdataProtected() {
+constexpr bool CbdataProtected()
+{
     using HandlerDataClass = std::remove_pointer_t<HandlerData>;
     return CbdataProtectedT<HandlerDataClass>::value;
 }
