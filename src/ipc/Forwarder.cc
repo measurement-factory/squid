@@ -60,7 +60,7 @@ Ipc::Forwarder::start()
 
     SendMessage(Ipc::Port::CoordinatorAddr(), message);
     eventAdd("Ipc::Forwarder::requestTimedOut", &Forwarder::RequestTimedOut,
-             this, timeout, 0);
+             this, timeout);
 }
 
 void

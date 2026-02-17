@@ -413,7 +413,7 @@ static void
 peerClearRRLoop(void *)
 {
     peerClearRR();
-    eventAdd("peerClearRR", peerClearRRLoop, nullptr, 5 * 60.0, 0);
+    eventAdd("peerClearRR", peerClearRRLoop, nullptr, 5 * 60.0);
 }
 
 /**

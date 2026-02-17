@@ -205,7 +205,7 @@ HappyOrderEnforcer::startedWaiting(const HappyAbsoluteTime lastStart, const int 
     // by hot reconfiguration changes or current time jumps.
     if (!waiting() || newWaitEnd < waitEnd_) {
         const auto waitTime = newWaitEnd - current_dtime;
-        eventAddBare(name, &HappyOrderEnforcer::NoteWaitOver, const_cast<HappyOrderEnforcer*>(this), waitTime, 0);
+        eventAddBare(name, &HappyOrderEnforcer::NoteWaitOver, const_cast<HappyOrderEnforcer*>(this), waitTime);
         waitEnd_ = newWaitEnd;
         assert(waiting());
     }

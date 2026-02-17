@@ -24,7 +24,7 @@ void eventAdd_(const char *name, EVH * func, void *arg, double when, int weight,
 /// calls `func(arg)` after a given time period without cbdata checks for `arg`
 template <typename HandlerData>
 void
-eventAddBare(const char * const name, EVH * const func, const HandlerData arg, const double when, const int weight)
+eventAddBare(const char * const name, EVH * const func, const HandlerData arg, const double when, const int weight = 0)
 {
     // callers with cbdata-protected `arg` should consider using eventAdd() instead
     static_assert(!CbdataProtected<HandlerData>());
@@ -35,7 +35,7 @@ eventAddBare(const char * const name, EVH * const func, const HandlerData arg, c
 /// calls `func(arg)` after a given time period unless `arg` cbdata is or becomes invalid
 template <typename HandlerData>
 void
-eventAdd(const char * const name, EVH * const func, const HandlerData arg, const double when, const int weight)
+eventAdd(const char * const name, EVH * const func, const HandlerData arg, const double when, const int weight = 0)
 {
     // callers with unprotected `arg` should consider using eventAddBare() instead
     static_assert(CbdataProtected<HandlerData>());
@@ -47,7 +47,7 @@ eventAdd(const char * const name, EVH * const func, const HandlerData arg, const
 /// cbdata protection is needed for calls with explicit nullptr handlerData.
 template <>
 inline void
-eventAdd(const char *name, EVH * func, std::nullptr_t, double when, int weight)
+eventAdd(const char * const name, EVH * const func, std::nullptr_t, const double when, const int weight)
 {
     eventAdd_(name, func, nullptr, when, weight, false);
 }
@@ -57,7 +57,7 @@ double WhenIsh_(double deltaIsh);
 
 template <typename HandlerData>
 void
-eventAddIsh(const char * const name, EVH * const func, const HandlerData arg, const double delta_ish, const int weight)
+eventAddIsh(const char * const name, EVH * const func, const HandlerData arg, const double delta_ish, const int weight = 0)
 {
     static_assert(CbdataProtected<HandlerData>());
     eventAdd_(name, func, arg, WhenIsh_(delta_ish), weight, true);
@@ -67,7 +67,7 @@ eventAddIsh(const char * const name, EVH * const func, const HandlerData arg, co
 /// cbdata protection is needed for calls with explicit nullptr handlerData.
 template <>
 inline void
-eventAddIsh<std::nullptr_t>(const char *name, EVH * func, std::nullptr_t, double delta_ish, int weight)
+eventAddIsh<std::nullptr_t>(const char * const name, EVH * const func, std::nullptr_t, const double delta_ish, const int weight)
 {
     eventAdd_(name, func, nullptr, WhenIsh_(delta_ish), weight, true);
 }

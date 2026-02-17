@@ -151,7 +151,7 @@ PeerSelectorPingMonitor::startWaiting()
 {
     assert(!selectors.empty());
     const auto interval = tvSubDsec(current_time, selectors.begin()->first);
-    eventAddBare("PeerSelectorPingMonitor::NoteWaitOver", &PeerSelectorPingMonitor::NoteWaitOver, this, interval, 0);
+    eventAddBare("PeerSelectorPingMonitor::NoteWaitOver", &PeerSelectorPingMonitor::NoteWaitOver, this, interval);
 }
 
 /// undoes an earlier startWaiting() call

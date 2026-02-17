@@ -169,7 +169,7 @@ IpcIoFile::open(int flags, mode_t mode, RefCount<IORequestor> callback)
     // object with the same raw address. TODO: Enable cbdata protection for
     // these events instead and delete a timeout event after a timely open.
     eventAddBare("IpcIoFile::OpenTimeout", &IpcIoFile::OpenTimeout,
-                 static_cast<void*>(this), Timeout, 0);
+                 static_cast<void*>(this), Timeout);
 }
 
 void
@@ -641,7 +641,7 @@ IpcIoFile::scheduleTimeoutCheck()
     CallService(nullptr, [&] {
         // we check all older requests at once so some may be wait for 2*Timeout
         eventAddBare("IpcIoFile::CheckTimeouts", &IpcIoFile::CheckTimeouts,
-                     reinterpret_cast<void *>(diskId), Timeout, 0);
+                     reinterpret_cast<void *>(diskId), Timeout);
         timeoutCheckScheduled = true;
     });
 }
@@ -888,7 +888,7 @@ IpcIoFile::WaitBeforePop()
         eventAddBare("IpcIoFile::DiskerHandleMoreRequests",
                      &IpcIoFile::DiskerHandleMoreRequests,
                      const_cast<char*>("rate limiting"),
-                     toSpend/1e3, 0);
+                     toSpend/1e3);
         DiskerHandleMoreRequestsScheduled = true;
         return true;
     } else if (balance < -maxImbalance) {
@@ -926,7 +926,7 @@ IpcIoFile::DiskerHandleRequests()
                 eventAddBare("IpcIoFile::DiskerHandleMoreRequests",
                              &IpcIoFile::DiskerHandleMoreRequests,
                              const_cast<char*>("long I/O loop"),
-                             minBreakSecs, 0);
+                             minBreakSecs);
                 DiskerHandleMoreRequestsScheduled = true;
             }
             debugs(47, 3, "pausing after " << popped << " I/Os in " <<

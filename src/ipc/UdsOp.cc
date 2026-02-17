@@ -143,7 +143,7 @@ void Ipc::UdsSender::startSleep()
     sleeping = true;
     eventAddBare("Ipc::UdsSender::DelayedRetry",
                  Ipc::UdsSender::DelayedRetry,
-                 new Pointer(this), 1, 0); // TODO: Use Fibonacci increments
+                 new Pointer(this), 1); // TODO: Use Fibonacci increments
 }
 
 /// stop sleeping (or do nothing if we were not)

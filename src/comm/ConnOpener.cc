@@ -401,7 +401,7 @@ Comm::ConnOpener::retrySleep()
     calls_.sleep_ = true;
     eventAddBare("Comm::ConnOpener::DelayedConnectRetry",
                  Comm::ConnOpener::DelayedConnectRetry,
-                 new Pointer(this), 0.05, 0);
+                 new Pointer(this), 0.05);
 }
 
 /// cleans up this job sleep state
