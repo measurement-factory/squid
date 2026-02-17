@@ -13,6 +13,7 @@
 #include "tests/STUB.h"
 
 void eventAdd_(const char *, EVH *, void *, double, int, bool) STUB_NOP
+double WhenIsh_(double) STUB_RETVAL(0)
 void eventDelete(EVH *, void *) STUB
 void eventInit(void) STUB
 int eventFind(EVH *, void *) STUB_RETVAL(-1)
