@@ -15,8 +15,6 @@
 #include <iosfwd>
 #include <vector>
 
-#include <type_traits>
-
 // The IPs the caller should not connect to are "bad". Other IPs are "good".
 
 namespace Dns {
@@ -238,15 +236,9 @@ void ipcacheNbgethostbynameInternal(const char *name, IPH * handler, void *handl
 /// \sa nbgethostbyname()
 template <typename HandlerData>
 inline void
-ipcache_nbgethostbyname(const char *name, IPH * handler, HandlerData handlerData)
+ipcache_nbgethostbyname(const char * const name, IPH * const handler, const HandlerData handlerData)
 {
-    // Assert that handerData points to a class with a toCbdata() method. When
-    // the caller supplies bad handlerData type, this code usually fails to
-    // compile even before our static_assert fails, but that is OK.
-    using HandleDataClass = std::remove_pointer_t<HandlerData>;
-    static_assert(std::is_member_function_pointer_v<decltype(&HandleDataClass::toCbdata)>,
-                  "ipcache_nbgethostbyname() called with a non-cbdata protected callback data type");
-
+    static_assert(CbdataProtected<HandlerData>());
     ipcacheNbgethostbynameInternal(name, handler, handlerData);
 }
 
