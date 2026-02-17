@@ -3667,9 +3667,13 @@ ConnStateData::clientPinnedConnectionClosed(const CommCloseCbParams &io)
     pinning.serverConnection->noteClosure();
     unpinConnection(false);
 
-    if (sawZeroReply && clientConnection != nullptr) {
-        debugs(33, 3, "Closing client connection on pinned zero reply.");
-        clientConnection->close();
+    if (clientConnection) {
+        if (sawZeroReply) {
+            debugs(33, 3, "Closing client connection on pinned zero reply.");
+            clientConnection->close();
+        } else {
+            closeIfIdle("non-zero pinned closure");
+        }
     }
 
 }
@@ -3695,7 +3699,7 @@ ConnStateData::notePinnedConnectionBecameIdle(PinnedIdleContext pic)
 
     // We could have checked that the cache_peer is gone and do not pinConnection()
     // but we do it anyway to avoid writing custom cleanup code for this rare case.
-	// Let regular connection closure handlers perform any necessary cleanup.
+    // Let regular connection closure handlers perform any necessary cleanup.
     if (pinning.serverConnection->toGoneCachePeer()) {
         debugs(33, 3, "peer is gone: " << pinning.serverConnection);
         comm_close(pinning.serverConnection->fd);
@@ -3851,17 +3855,15 @@ ConnStateData::clientPinnedConnectionRead(const CommIoCbParams &io)
 
     debugs(33, 3, "idle pinned " << pinning.serverConnection << " read " << io.size);
 
-    closeIdlePinnedConnection();
+    unpinConnection(true);
+    closeIfIdle("unexpected pinned read");
 }
 
 void
-ConnStateData::closeIdlePinnedConnection()
+ConnStateData::closeIfIdle(const char * const reason)
 {
-    pinning.serverConnection->close();
-
     const bool clientIsIdle = pipeline.empty();
-    debugs(33, 3, "idle client: " << clientIsIdle);
-
+    debugs(33, 3, reason << " idle client: " << clientIsIdle);
     // If we are still sending data to the client, do not close now. When we are done sending,
     // ConnStateData::kick() checks pinning.serverConnection and will close.
     // However, if we are idle, then we must close to inform the idle client and minimize races.
@@ -3872,10 +3874,16 @@ ConnStateData::closeIdlePinnedConnection()
 void
 ConnStateData::idleCachePeerIsGone()
 {
-    if (pinning.readHandler == nullptr)
-        return; // the connection stopped being idle while this asynchronous notification was queued
+    pinning.idlePeerHandler == nullptr;
 
-    closeIdlePinnedConnection();
+    // This method is only reachable when the connection is pinned and idle (a
+    // pinned connection may stop being idle when our asynchronous notification
+    // is in the queue, but we cancel our pinning.idlePeerHandler callback in
+    // those cases). Idle pinned connections have pinning.readHandler.
+    Assure(pinning.readHandler);
+
+    unpinConnection(true);
+    closeIfIdle(__FUNCTION__);
 }
 
 Comm::ConnectionPointer

@@ -376,9 +376,6 @@ public:
     /// they need from the ACLFilledChecklist::conn() without filling/copying.
     void fillConnectionLevelDetails(ACLFilledChecklist &) const;
 
-    /// Closes the existing idle pinned connection (which existence is guaranteed by the caller).
-    void closeIdlePinnedConnection();
-
     // Exposed to be accessible inside the ClientHttpRequest constructor.
     // TODO: Remove. Make sure there is always a suitable ALE instead.
     /// a problem that occurred without a request (e.g., while parsing headers)
@@ -454,6 +451,9 @@ private:
 
     /// pinning.idlePeerHandler callback
     void idleCachePeerIsGone();
+
+    /// closes the existing idle client connection
+    void closeIfIdle(const char *reason);
 
     /* PROXY protocol functionality */
     bool proxyProtocolValidateClient();
