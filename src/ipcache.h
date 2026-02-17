@@ -229,7 +229,7 @@ typedef void IPH(const ipcache_addrs *, const Dns::LookupDetails &details, void 
 void ipcache_purgelru(void *);
 
 /// ipcache_nbgethostbyname() template implementation; do not call directly
-void ipcacheNbgethostbynameInternal(const char *name, IPH * handler, void *handlerData);
+void ipcache_nbgethostbyname_(const char *name, IPH * handler, void *handlerData);
 
 /// initiate an (often) asynchronous DNS lookup; the `handler` gets the results
 /// \param handlerData a cbdata-protected object to be returned to the `handler`
@@ -239,7 +239,7 @@ inline void
 ipcache_nbgethostbyname(const char * const name, IPH * const handler, const HandlerData handlerData)
 {
     static_assert(CbdataProtected<HandlerData>());
-    ipcacheNbgethostbynameInternal(name, handler, handlerData);
+    ipcache_nbgethostbyname_(name, handler, handlerData);
 }
 
 /// Specialization for callers that have no handler data at all: No explicit
@@ -248,7 +248,7 @@ template <>
 inline void
 ipcache_nbgethostbyname<std::nullptr_t>(const char *name, IPH * handler, std::nullptr_t)
 {
-    ipcacheNbgethostbynameInternal(name, handler, nullptr);
+    ipcache_nbgethostbyname_(name, handler, nullptr);
 }
 
 const ipcache_addrs *ipcache_gethostbyname(const char *, int flags);
