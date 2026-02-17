@@ -161,8 +161,15 @@ IpcIoFile::open(int flags, mode_t mode, RefCount<IORequestor> callback)
 
     WaitingForOpen.push_back(this);
 
+    // XXX: We are using our raw address as a WaitingForOpen key. This code is
+    // memory-safe because we never dereference the stored pointer, but when we
+    // start deleting unused (due to a reconfiguration) IpcIoFile objects, this
+    // code would incorrectly claim OpenTimeout if a successful/timely open is
+    // followed by `this` object destruction and creation of a new IpcIoFile
+    // object with the same raw address. TODO: Enable cbdata protection for
+    // these events instead and delete a timeout event after a timely open.
     eventAdd("IpcIoFile::OpenTimeout", &IpcIoFile::OpenTimeout,
-             this, Timeout, 0, false); // "this" pointer is used as id
+             static_cast<void*>(this), Timeout, 0, false);
 }
 
 void
