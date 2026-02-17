@@ -11,30 +11,8 @@
 
 #include "AsyncEngine.h"
 #include "base/Packable.h"
+#include "cbdata.h"
 #include "mem/forward.h"
-
-#include <type_traits>
-
-// TODO: Move to cbdata.h! 
-
-/// Helps checking whether T is a class with a toCbdata() method. Usually used
-/// via a CbdataProtected() helper function.
-///
-/// This template declares the API and provides the default "no, there is no
-/// T::toCbdata() member" implementation.
-template <typename T, typename = void>
-struct CbdataProtectedT: std::false_type {};
-
-/// This template instantiation matches cases were T::toCbdata() does exist.
-template <typename T>
-struct CbdataProtectedT<T, std::void_t<decltype(std::declval<T>().toCbdata())> >: std::true_type {};
-
-/// Whether HandlerData points to a class with a toCbdata() method.
-template <typename HandlerData>
-constexpr bool CbdataProtected() {
-    using HandlerDataClass = std::remove_pointer_t<HandlerData>;
-    return CbdataProtectedT<HandlerDataClass>::value;
-}
 
 /* event scheduling facilities - run a callback after a given time period. */
 
