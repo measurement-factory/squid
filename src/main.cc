@@ -289,7 +289,7 @@ SignalEngine::doShutdown(time_t wait)
     WIN32_svcstatusupdate(SERVICE_STOP_PENDING, (wait + 1) * 1000);
 #endif
 
-    eventAdd("SquidShutdown", &FinalShutdownRunners, this, (double) (wait + 1), 1, false);
+    eventAddBare("SquidShutdown", &FinalShutdownRunners, this, (double) (wait + 1), 1);
 }
 
 void

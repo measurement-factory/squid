@@ -274,9 +274,9 @@ Log::TcpLogger::connectDone(const CommConnectCbParams &params)
 
         if (!reconnectScheduled) {
             reconnectScheduled = true;
-            eventAdd("Log::TcpLogger::DelayedReconnect",
-                     Log::TcpLogger::DelayedReconnect,
-                     new Pointer(this), 0.5, 0, false);
+            eventAddBare("Log::TcpLogger::DelayedReconnect",
+                         Log::TcpLogger::DelayedReconnect,
+                         new Pointer(this), 0.5, 0);
         }
     } else {
         if (connectFailures > 0) {

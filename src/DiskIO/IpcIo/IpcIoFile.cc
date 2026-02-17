@@ -168,8 +168,8 @@ IpcIoFile::open(int flags, mode_t mode, RefCount<IORequestor> callback)
     // followed by `this` object destruction and creation of a new IpcIoFile
     // object with the same raw address. TODO: Enable cbdata protection for
     // these events instead and delete a timeout event after a timely open.
-    eventAdd("IpcIoFile::OpenTimeout", &IpcIoFile::OpenTimeout,
-             static_cast<void*>(this), Timeout, 0, false);
+    eventAddBare("IpcIoFile::OpenTimeout", &IpcIoFile::OpenTimeout,
+                 static_cast<void*>(this), Timeout, 0);
 }
 
 void
@@ -640,8 +640,8 @@ IpcIoFile::scheduleTimeoutCheck()
     // one-for-all CheckTimeouts() that is not specific to any request.
     CallService(nullptr, [&] {
         // we check all older requests at once so some may be wait for 2*Timeout
-        eventAdd("IpcIoFile::CheckTimeouts", &IpcIoFile::CheckTimeouts,
-                 reinterpret_cast<void *>(diskId), Timeout, 0, false);
+        eventAddBare("IpcIoFile::CheckTimeouts", &IpcIoFile::CheckTimeouts,
+                     reinterpret_cast<void *>(diskId), Timeout, 0);
         timeoutCheckScheduled = true;
     });
 }
@@ -885,10 +885,10 @@ IpcIoFile::WaitBeforePop()
 
         debugs(47, 3, "rate limiting by " << toSpend << " ms to get" <<
                (1e3*maxRate) << "/sec rate");
-        eventAdd("IpcIoFile::DiskerHandleMoreRequests",
-                 &IpcIoFile::DiskerHandleMoreRequests,
-                 const_cast<char*>("rate limiting"),
-                 toSpend/1e3, 0, false);
+        eventAddBare("IpcIoFile::DiskerHandleMoreRequests",
+                     &IpcIoFile::DiskerHandleMoreRequests,
+                     const_cast<char*>("rate limiting"),
+                     toSpend/1e3, 0);
         DiskerHandleMoreRequestsScheduled = true;
         return true;
     } else if (balance < -maxImbalance) {
@@ -923,10 +923,10 @@ IpcIoFile::DiskerHandleRequests()
             if (!DiskerHandleMoreRequestsScheduled) {
                 // the gap must be positive for select(2) to be given a chance
                 const double minBreakSecs = 0.001;
-                eventAdd("IpcIoFile::DiskerHandleMoreRequests",
-                         &IpcIoFile::DiskerHandleMoreRequests,
-                         const_cast<char*>("long I/O loop"),
-                         minBreakSecs, 0, false);
+                eventAddBare("IpcIoFile::DiskerHandleMoreRequests",
+                             &IpcIoFile::DiskerHandleMoreRequests,
+                             const_cast<char*>("long I/O loop"),
+                             minBreakSecs, 0);
                 DiskerHandleMoreRequestsScheduled = true;
             }
             debugs(47, 3, "pausing after " << popped << " I/Os in " <<

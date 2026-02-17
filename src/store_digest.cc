@@ -472,7 +472,7 @@ storeDigestRewriteResume(void)
     e->replaceHttpReply(rep);
     storeDigestCBlockSwapOut(e);
     e->flush();
-    eventAdd("storeDigestSwapOutStep", storeDigestSwapOutStep, sd_state.rewrite_lock, 0.0, 1, false);
+    eventAddBare("storeDigestSwapOutStep", storeDigestSwapOutStep, sd_state.rewrite_lock, 0.0, 1);
 }
 
 /* finishes swap out sequence for the digest; schedules next rewrite */
@@ -521,7 +521,7 @@ storeDigestSwapOutStep(void *data)
     if (static_cast<uint32_t>(sd_state.rewrite_offset) >= store_digest->mask_size)
         storeDigestRewriteFinish(e);
     else
-        eventAdd("storeDigestSwapOutStep", storeDigestSwapOutStep, data, 0.0, 1, false);
+        eventAddBare("storeDigestSwapOutStep", storeDigestSwapOutStep, data, 0.0, 1);
 }
 
 static void

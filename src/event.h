@@ -15,47 +15,53 @@
 
 #include <type_traits>
 
-// Check whether HandlerData is a pointer to a class with a toCbdata() method.
-// Meant for use in static_assertion calls. When the caller supplies bad
-// handlerData type, this code usually fails to compile even before our
-// static_assert fails, but that is OK.
+// TODO: Move to cbdata.h! 
+
+/// Helps checking whether T is a class with a toCbdata() method. Usually used
+/// via a CbdataProtected() helper function.
+///
+/// This template declares the API and provides the default "no, there is no
+/// T::toCbdata() member" implementation.
+template <typename T, typename = void>
+struct CbdataProtectedT: std::false_type {};
+
+/// This template instantiation matches cases were T::toCbdata() does exist.
+template <typename T>
+struct CbdataProtectedT<T, std::void_t<decltype(std::declval<T>().toCbdata())> >: std::true_type {};
+
+/// Whether HandlerData points to a class with a toCbdata() method.
 template <typename HandlerData>
-constexpr bool
-CbdataProtected()
-{
+constexpr bool CbdataProtected() {
     using HandlerDataClass = std::remove_pointer_t<HandlerData>;
-    return std::is_member_function_pointer_v<decltype(&HandlerDataClass::toCbdata)>;
+    return CbdataProtectedT<HandlerDataClass>::value;
 }
 
 /* event scheduling facilities - run a callback after a given time period. */
 
 typedef void EVH(void *);
 
-/// eventAdd() implementation detail; do not call directly
+/// implementation detail for eventAdd() and its variations below; do not call directly
 void eventAdd_(const char *name, EVH * func, void *arg, double when, int weight, bool cbdata);
 
-/// calls func(arg) after a given time period (subject to optional cbdata checks)
-/// \param cbdata whether to check (at call back time) cbdata validity; a failed
-/// check disables a func(arg) call
+/// calls `func(arg)` after a given time period without cbdata checks for `arg`
 template <typename HandlerData>
 void
-eventAdd(const char * const name, EVH * const func, const HandlerData arg, const double when, const int weight, const bool cbdata)
+eventAddBare(const char * const name, EVH * const func, const HandlerData arg, const double when, const int weight)
 {
-    // XXX: Cannot reject calls with false cbdata values for which
-    // arg->toCbdata() exists. Such calls should probably use true cbdata.
-    // XXX: Cannot reject calls with true cbdata values for which there is no
-    // arg->toCbdata(). Such calls should probably use false cbdata.
-    //
-    // TODO: We could refactor to ban non-cbdata calls with non-nullptr
-    // arguments, but it is best to switch event.h to AsyncCalls instead!
-    eventAdd_(name, func, arg, when, weight, cbdata);
+    // callers with cbdata-protected `arg` should consider using eventAdd() instead
+    static_assert(!CbdataProtected<HandlerData>());
+
+    eventAdd_(name, func, arg, when, weight, false);
 }
 
+/// calls `func(arg)` after a given time period unless `arg` cbdata is or becomes invalid
 template <typename HandlerData>
 void
 eventAdd(const char * const name, EVH * const func, const HandlerData arg, const double when, const int weight)
 {
+    // callers with unprotected `arg` should consider using eventAddBare() instead
     static_assert(CbdataProtected<HandlerData>());
+
     eventAdd_(name, func, arg, when, weight, true);
 }
 
@@ -67,7 +73,6 @@ eventAdd(const char *name, EVH * func, std::nullptr_t, double when, int weight)
 {
     eventAdd_(name, func, nullptr, when, weight, false);
 }
-
 
 /// eventAddIsh() implementation detail; do not call directly
 double WhenIsh_(double deltaIsh);
