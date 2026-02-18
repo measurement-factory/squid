@@ -227,7 +227,30 @@ typedef Dns::CachedIps ipcache_addrs; ///< deprecated alias
 typedef void IPH(const ipcache_addrs *, const Dns::LookupDetails &details, void *);
 
 void ipcache_purgelru(void *);
-void ipcache_nbgethostbyname(const char *name, IPH * handler, void *handlerData);
+
+/// ipcache_nbgethostbyname() template implementation; do not call directly
+void ipcache_nbgethostbyname_(const char *name, IPH * handler, void *handlerData);
+
+/// initiate an (often) asynchronous DNS lookup; the `handler` gets the results
+/// \param handlerData a cbdata-protected object to be returned to the `handler`
+/// \sa nbgethostbyname()
+template <typename HandlerData>
+inline void
+ipcache_nbgethostbyname(const char * const name, IPH * const handler, const HandlerData handlerData)
+{
+    static_assert(CbdataProtected<HandlerData>());
+    ipcache_nbgethostbyname_(name, handler, handlerData);
+}
+
+/// Specialization for callers that have no handler data at all: No explicit
+/// cbdata protection is needed for calls with explicit nullptr handlerData.
+template <>
+inline void
+ipcache_nbgethostbyname<std::nullptr_t>(const char *name, IPH * handler, std::nullptr_t)
+{
+    ipcache_nbgethostbyname_(name, handler, nullptr);
+}
+
 const ipcache_addrs *ipcache_gethostbyname(const char *, int flags);
 void ipcacheInvalidate(const char *);
 void ipcacheInvalidateNegative(const char *);
