@@ -112,15 +112,6 @@ protected:
 };
 CPPUNIT_TEST_SUITE_REGISTRATION( TestSBuf );
 
-/* let this test link sanely */
-void
-eventAdd(const char *, EVH *, void *, double, int, bool)
-{}
-int64_t
-MemObject::endOffset() const
-{ return 0; }
-/* end of stubs */
-
 // test string
 static const char fox[] = "The quick brown fox jumped over the lazy dog";
 static const char fox1[] = "The quick brown fox ";

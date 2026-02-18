@@ -211,7 +211,7 @@ private:
         Auth::Scheme::FreeAll();
 #endif
 
-        eventAdd("SquidTerminate", &StopEventLoop, nullptr, 0, 1, false);
+        eventAdd("SquidTerminate", &StopEventLoop, nullptr, 0, 1);
     }
 
     void doShutdown(time_t wait);
@@ -289,7 +289,7 @@ SignalEngine::doShutdown(time_t wait)
     WIN32_svcstatusupdate(SERVICE_STOP_PENDING, (wait + 1) * 1000);
 #endif
 
-    eventAdd("SquidShutdown", &FinalShutdownRunners, this, (double) (wait + 1), 1, false);
+    eventAddBare("SquidShutdown", &FinalShutdownRunners, this, (double) (wait + 1), 1);
 }
 
 void
@@ -874,8 +874,7 @@ mainReconfigureStart(void)
 #endif
     Security::CloseLogs();
 
-    eventAdd("mainReconfigureFinish", &mainReconfigureFinish, nullptr, 0, 1,
-             false);
+    eventAdd("mainReconfigureFinish", &mainReconfigureFinish, nullptr, 0, 1);
 }
 
 /// error message to log when Configuration::Parse() or Configuration::FinishReconfiguration() fails

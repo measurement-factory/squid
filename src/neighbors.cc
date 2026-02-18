@@ -410,10 +410,10 @@ getWeightedRoundRobinParent(PeerSelector *ps)
  * TODO: Make the reset timing a selectable parameter in squid.conf
  */
 static void
-peerClearRRLoop(void *data)
+peerClearRRLoop(void *)
 {
     peerClearRR();
-    eventAdd("peerClearRR", peerClearRRLoop, data, 5 * 60.0, 0);
+    eventAdd("peerClearRR", peerClearRRLoop, nullptr, 5 * 60.0);
 }
 
 /**

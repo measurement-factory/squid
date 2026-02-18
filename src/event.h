@@ -11,14 +11,67 @@
 
 #include "AsyncEngine.h"
 #include "base/Packable.h"
+#include "cbdata.h"
 #include "mem/forward.h"
 
 /* event scheduling facilities - run a callback after a given time period. */
 
 typedef void EVH(void *);
 
-void eventAdd(const char *name, EVH * func, void *arg, double when, int, bool cbdata=true);
-void eventAddIsh(const char *name, EVH * func, void *arg, double delta_ish, int);
+/// implementation detail for eventAdd() and its variations below; do not call directly
+void eventAdd_(const char *name, EVH * func, void *arg, double when, int weight, bool cbdata);
+
+/// calls `func(arg)` after a given time period without cbdata checks for `arg`
+template <typename HandlerData>
+void
+eventAddBare(const char * const name, EVH * const func, const HandlerData arg, const double when, const int weight = 0)
+{
+    // callers with cbdata-protected `arg` should consider using eventAdd() instead
+    static_assert(!CbdataProtected<HandlerData>());
+
+    eventAdd_(name, func, arg, when, weight, false);
+}
+
+/// calls `func(arg)` after a given time period unless `arg` cbdata is or becomes invalid
+template <typename HandlerData>
+void
+eventAdd(const char * const name, EVH * const func, const HandlerData arg, const double when, const int weight = 0)
+{
+    // callers with unprotected `arg` should consider using eventAddBare() instead
+    static_assert(CbdataProtected<HandlerData>());
+
+    eventAdd_(name, func, arg, when, weight, true);
+}
+
+/// Specialization for callers that have no handler data at all: No explicit
+/// cbdata protection is needed for calls with explicit nullptr handlerData.
+template <>
+inline void
+eventAdd(const char * const name, EVH * const func, std::nullptr_t, const double when, const int weight)
+{
+    eventAdd_(name, func, nullptr, when, weight, false);
+}
+
+/// eventAddIsh() implementation detail; do not call directly
+double WhenIsh_(double deltaIsh);
+
+template <typename HandlerData>
+void
+eventAddIsh(const char * const name, EVH * const func, const HandlerData arg, const double delta_ish, const int weight = 0)
+{
+    static_assert(CbdataProtected<HandlerData>());
+    eventAdd_(name, func, arg, WhenIsh_(delta_ish), weight, true);
+}
+
+/// Specialization for callers that have no handler data at all: No explicit
+/// cbdata protection is needed for calls with explicit nullptr handlerData.
+template <>
+inline void
+eventAddIsh<std::nullptr_t>(const char * const name, EVH * const func, std::nullptr_t, const double delta_ish, const int weight)
+{
+    eventAdd_(name, func, nullptr, WhenIsh_(delta_ish), weight, true);
+}
+
 void eventDelete(EVH * func, void *arg);
 void eventInit(void);
 int eventFind(EVH *, void *);
