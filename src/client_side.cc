@@ -3687,21 +3687,22 @@ ConnStateData::notePinnedConnectionBecameIdle(PinnedIdleContext pic)
 {
     Must(pic.connection);
     Must(pic.request);
-
-    Assure(Comm::IsConnOpen(pic.connection));
-
     pinConnection(pic.connection, *pic.request);
 
     // monitor pinned server connection for remote-end closures.
     startPinnedConnectionMonitoring();
 
-    // We could have checked that the cache_peer is gone and do not pinConnection()
-    // but we do it anyway to avoid writing custom cleanup code for this rare case.
-    // Let regular connection closure handlers perform any necessary cleanup.
     if (pinning.serverConnection->toGoneCachePeer()) {
+        // Above, we could have checked that the cache_peer is gone and do not
+        // pinConnection(), but we pin and startPinnedConnectionMonitoring() to
+        // avoid writing custom cleanup code for this rare case. Let our
+        // pinning.closeHandler perform any necessary cleanup.
         debugs(33, 3, "peer is gone: " << pinning.serverConnection);
+        Assure(pinning.closeHandler);
+        Assure(Comm::IsConnOpen(pinning.serverConnection));
         comm_close(pinning.serverConnection->fd);
     }
+
     if (pipeline.empty())
         kick(); // in case parseRequests() was blocked by a busy pic.connection
 }
@@ -3757,13 +3758,12 @@ ConnStateData::startPinnedConnectionMonitoring()
     if (pinning.readHandler != nullptr)
         return; // already monitoring
 
-    if (!pinning.idlePeerHandler) {
+    if (!pinning.peerGoneHandler) {
         if (const auto peer = pinning.peer()) {
             using Dialer = NullaryMemFunT<ConnStateData>;
-            AsyncCall::Pointer call = asyncCall(93, 5, "ConnStateData::idleCachePeerIsGone",
-                                                Dialer(this, &ConnStateData::idleCachePeerIsGone));
-            pinning.idlePeerHandler = call;
-            peer->addIdlePinnedConnection(call);
+            pinning.peerGoneHandler = asyncCall(93, 5, "ConnStateData::notePinnedPeerGone",
+                                                Dialer(this, &ConnStateData::notePinnedPeerGone));
+            peer->addIdlePinnedConnection(pinning.peerGoneHandler);
         }
     }
 
@@ -3776,12 +3776,12 @@ ConnStateData::startPinnedConnectionMonitoring()
 void
 ConnStateData::stopPinnedConnectionMonitoring()
 {
-    if (pinning.idlePeerHandler) {
+    if (pinning.peerGoneHandler) {
         if (pinning.peer())
-            pinning.peer()->removeIdlePinnedConnection(pinning.idlePeerHandler);
+            pinning.peer()->removeIdlePinnedConnection(pinning.peerGoneHandler);
         else
-            pinning.idlePeerHandler->cancel("stopPinnedConnectionMonitoring");
-        pinning.idlePeerHandler = nullptr;
+            pinning.peerGoneHandler->cancel("stopPinnedConnectionMonitoring");
+        pinning.peerGoneHandler = nullptr;
     }
 
     if (!Comm::IsConnOpen(pinning.serverConnection))
@@ -3852,16 +3852,15 @@ ConnStateData::clientPinnedConnectionRead(const CommIoCbParams &io)
 #endif
 
     debugs(33, 3, "idle pinned " << pinning.serverConnection << " read " << io.size);
-
     unpinConnection(true);
-    closeIfIdle("unexpected pinned read");
+    closeIfIdle("unexpected pinned connection read");
 }
 
 void
 ConnStateData::closeIfIdle(const char * const reason)
 {
-    const bool clientIsIdle = pipeline.empty();
-    debugs(33, 3, reason << " idle client: " << clientIsIdle);
+    const auto clientIsIdle = pipeline.empty();
+    debugs(33, 3, reason << "; clientIsIdle=" << clientIsIdle);
     // If we are still sending data to the client, do not close now. When we are done sending,
     // ConnStateData::kick() checks pinning.serverConnection and will close.
     // However, if we are idle, then we must close to inform the idle client and minimize races.
@@ -3870,13 +3869,13 @@ ConnStateData::closeIfIdle(const char * const reason)
 }
 
 void
-ConnStateData::idleCachePeerIsGone()
+ConnStateData::notePinnedPeerGone()
 {
-    pinning.idlePeerHandler == nullptr;
+    pinning.peerGoneHandler == nullptr;
 
     // This method is only reachable when the connection is pinned and idle (a
     // pinned connection may stop being idle when our asynchronous notification
-    // is in the queue, but we cancel our pinning.idlePeerHandler callback in
+    // is in the queue, but we cancel our pinning.peerGoneHandler callback in
     // those cases). Idle pinned connections have pinning.readHandler.
     Assure(pinning.readHandler);
 

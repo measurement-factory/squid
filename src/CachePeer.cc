@@ -247,28 +247,29 @@ CachePeer::connectTimeout() const
 }
 
 void
-CachePeer::addIdlePinnedConnection(const AsyncCall::Pointer &call)
+CachePeer::addIdlePinnedConnection(const AsyncCall::Pointer &callback)
 {
-    Assure(idlePinnedConnections.find(call) == idlePinnedConnections.end());
-    idlePinnedConnections.insert(call);
+    Assure(callback);
+    Assure(idlePinnedConnectionCallbacks_.find(callback) == idlePinnedConnectionCallbacks_.end());
+    idlePinnedConnectionCallbacks_.insert(callback);
 }
 
 void
-CachePeer::removeIdlePinnedConnection(const AsyncCall::Pointer &call)
+CachePeer::removeIdlePinnedConnection(const AsyncCall::Pointer &callback)
 {
-    const auto found = idlePinnedConnections.find(call);
-    if (found != idlePinnedConnections.end()) {
+    const auto found = idlePinnedConnectionCallbacks_.find(callback);
+    if (found != idlePinnedConnectionCallbacks_.end()) {
         (*found)->cancel("removeIdlePinnedConnection");
-        idlePinnedConnections.erase(found);
+        idlePinnedConnectionCallbacks_.erase(found);
     }
 }
 
 void
-CachePeer::noteRemove()
+CachePeer::noteRemoval()
 {
-    for (const auto &callback: idlePinnedConnections)
+    for (const auto &callback: idlePinnedConnectionCallbacks_)
         ScheduleCallHere(callback);
-    idlePinnedConnections.clear();
+    idlePinnedConnectionCallbacks_.clear();
 }
 
 std::ostream &

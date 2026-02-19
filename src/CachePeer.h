@@ -60,14 +60,15 @@ public:
     /// is required; see secure.encryptTransport) or nil (otherwise)
     Security::FuturePeerContext *securityContext();
 
-    /// registers a callback to an ConnStateData with an idle pinned connection
+    /// Reacts to this cache_peer removed from configuration. Does not imply
+    /// idleness -- transactions may still be using us at this call time.
+    void noteRemoval();
+
+    /// registers a callback for noteRemoval() to call (in any order)
     void addIdlePinnedConnection(const AsyncCall::Pointer &);
 
-    /// unregisters a callback to an ConnStateData with an idle pinned connection
+    /// undo addIdlePinnedConnection(); cancels the callback if it is queued
     void removeIdlePinnedConnection(const AsyncCall::Pointer &);
-
-    /// notifies all monitored idle pinned connections about cache_peer removal
-    void noteRemove();
 
     /// n-th cache_peer directive, starting with 1
     u_int index = 0;
@@ -252,12 +253,14 @@ public:
     PrecomputedCodeContextPointer probeCodeContext;
 
 private:
-    using IdlePinnedConnections = std::unordered_set<AsyncCall::Pointer, std::hash<AsyncCall::Pointer>, std::equal_to<AsyncCall::Pointer>, PoolingAllocator<AsyncCall::Pointer> >;
+    /// unique AsyncCalls in unspecified order, optimized for fast addition/removal
+    using UnorderedCallbacks = std::unordered_set<AsyncCall::Pointer, std::hash<AsyncCall::Pointer>, std::equal_to<AsyncCall::Pointer>, PoolingAllocator<AsyncCall::Pointer> >;
 
     void countFailure();
 
-    /// the list of registered ConnStateData callbacks
-    IdlePinnedConnections idlePinnedConnections;
+    /// callbacks for noteRemoval() to call
+    /// \sa addIdlePinnedConnection()
+    UnorderedCallbacks idlePinnedConnectionCallbacks_;
 };
 
 /// reacts to a successful establishment of a connection to an origin server or cache_peer
