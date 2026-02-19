@@ -257,10 +257,9 @@ CachePeer::addIdlePinnedConnection(const AsyncCall::Pointer &callback)
 void
 CachePeer::removeIdlePinnedConnection(const AsyncCall::Pointer &callback)
 {
-    const auto found = idlePinnedConnectionCallbacks_.find(callback);
-    if (found != idlePinnedConnectionCallbacks_.end()) {
-        (*found)->cancel("removeIdlePinnedConnection");
-        idlePinnedConnectionCallbacks_.erase(found);
+    if (callback) {
+        (void)idlePinnedConnectionCallbacks_.erase(callback); // may have been removed by noteRemoval() already
+        callback->cancel(__FUNCTION__);
     }
 }
 
