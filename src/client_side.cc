@@ -3784,10 +3784,9 @@ ConnStateData::stopPinnedConnectionMonitoring()
         pinning.peerGoneHandler = nullptr;
     }
 
-    if (!Comm::IsConnOpen(pinning.serverConnection))
-        return;
-
     if (pinning.readHandler != nullptr) {
+        // while we read pinning.serverConnection, we own and never close it
+        Assure(Comm::IsConnOpen(pinning.serverConnection));
         Comm::ReadCancel(pinning.serverConnection->fd, pinning.readHandler);
         pinning.readHandler = nullptr;
     }
