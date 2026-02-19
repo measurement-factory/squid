@@ -3667,15 +3667,13 @@ ConnStateData::clientPinnedConnectionClosed(const CommCloseCbParams &io)
     pinning.serverConnection->noteClosure();
     unpinConnection(false);
 
-    if (clientConnection) {
-        if (sawZeroReply) {
-            debugs(33, 3, "Closing client connection on pinned zero reply.");
-            clientConnection->close();
-        } else {
-            closeIfIdle("non-zero pinned closure");
-        }
+    if (sawZeroReply && clientConnection != nullptr) {
+        debugs(33, 3, "Closing client connection on pinned zero reply.");
+        clientConnection->close();
+        return;
     }
 
+    closeIfIdle("non-zeroReply pinned connection closure");
 }
 
 void
