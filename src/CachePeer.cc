@@ -250,8 +250,8 @@ void
 CachePeer::addIdlePinnedConnection(const AsyncCall::Pointer &callback)
 {
     Assure(callback);
-    Assure(idlePinnedConnectionCallbacks_.find(callback) == idlePinnedConnectionCallbacks_.end());
-    idlePinnedConnectionCallbacks_.insert(callback);
+    const auto inserted = idlePinnedConnectionCallbacks_.insert(callback).second;
+    Assure(inserted);
 }
 
 void
