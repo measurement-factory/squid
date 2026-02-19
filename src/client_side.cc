@@ -3755,9 +3755,6 @@ ConnStateData::pinConnection(const Comm::ConnectionPointer &pinServer, const Htt
 void
 ConnStateData::startPinnedConnectionMonitoring()
 {
-    if (pinning.readHandler != nullptr)
-        return; // already monitoring
-
     if (!pinning.peerGoneHandler) {
         if (const auto peer = pinning.peer()) {
             using Dialer = NullaryMemFunT<ConnStateData>;
@@ -3766,6 +3763,9 @@ ConnStateData::startPinnedConnectionMonitoring()
             peer->addIdlePinnedConnection(pinning.peerGoneHandler);
         }
     }
+
+    if (pinning.readHandler != nullptr)
+        return; // already monitoring
 
     typedef CommCbMemFunT<ConnStateData, CommIoCbParams> Dialer;
     pinning.readHandler = JobCallback(33, 3,
