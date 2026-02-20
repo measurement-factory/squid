@@ -3689,20 +3689,20 @@ ConnStateData::notePinnedConnectionBecameIdle(PinnedIdleContext pic)
     Must(pic.request);
     pinConnection(pic.connection, *pic.request);
 
-    // monitor pinned server connection for remote-end closures.
-    startPinnedConnectionMonitoring();
-
+    Assure(pinning.serverConnection);
     if (pinning.serverConnection->toGoneCachePeer()) {
         // Above, we could have checked that the cache_peer is gone, avoiding
-        // pinConnection(), but we pin and startPinnedConnectionMonitoring() to
-        // avoid writing complex custom cleanup code for this rare case. For
-        // example, we avoid dealing with a not-yet-pinned pic.connection
-        // (despite this method name implying otherwise). Instead, we rely on
-        // our pinning.closeHandler for this complex cleanup.
-        debugs(33, 3, "peer is gone: " << pinning.serverConnection);
+        // pinConnection(), but we pin to avoid writing complex custom cleanup
+        // code for this rare case. For example, we avoid dealing with a
+        // not-yet-pinned pic.connection (XXX: This method name falsely implies
+        // that pic.connection is always pinned, but httpsPeeked() supplies an
+        // unpinned connection and probably assumes no kick() below).
+        debugs(33, 3, "peer gone: " << pinning.serverConnection);
         Assure(pinning.closeHandler);
         Assure(Comm::IsConnOpen(pinning.serverConnection));
         comm_close(pinning.serverConnection->fd);
+    } else {
+        startPinnedConnectionMonitoring();
     }
 
     if (pipeline.empty())
