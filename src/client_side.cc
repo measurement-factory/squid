@@ -3693,10 +3693,12 @@ ConnStateData::notePinnedConnectionBecameIdle(PinnedIdleContext pic)
     startPinnedConnectionMonitoring();
 
     if (pinning.serverConnection->toGoneCachePeer()) {
-        // Above, we could have checked that the cache_peer is gone and do not
+        // Above, we could have checked that the cache_peer is gone, avoiding
         // pinConnection(), but we pin and startPinnedConnectionMonitoring() to
-        // avoid writing custom cleanup code for this rare case. Let our
-        // pinning.closeHandler perform any necessary cleanup.
+        // avoid writing complex custom cleanup code for this rare case. For
+        // example, we avoid dealing with a not-yet-pinned pic.connection
+        // (despite this method name implying otherwise). Instead, we rely on
+        // our pinning.closeHandler for this complex cleanup.
         debugs(33, 3, "peer is gone: " << pinning.serverConnection);
         Assure(pinning.closeHandler);
         Assure(Comm::IsConnOpen(pinning.serverConnection));
