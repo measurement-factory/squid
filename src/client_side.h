@@ -448,11 +448,7 @@ private:
     bool concurrentRequestQueueFilled() const;
 
     void pinConnection(const Comm::ConnectionPointer &pinServerConn, const HttpRequest &request);
-
-    /// pinning.peerGoneHandler callback
     void notePinnedPeerGone();
-
-    /// closes the existing idle client connection
     void closeIfIdle(const char *reason);
 
     /* PROXY protocol functionality */

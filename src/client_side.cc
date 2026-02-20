@@ -3857,6 +3857,7 @@ ConnStateData::clientPinnedConnectionRead(const CommIoCbParams &io)
     closeIfIdle("unexpected pinned connection read");
 }
 
+/// closes client-Squid connection if we are idling while waiting for more requests to process
 void
 ConnStateData::closeIfIdle(const char * const reason)
 {
@@ -3869,6 +3870,7 @@ ConnStateData::closeIfIdle(const char * const reason)
         clientConnection->close();
 }
 
+/// handles CachePeer::removed() event for the idle pinned Squid-peer connection
 void
 ConnStateData::notePinnedPeerGone()
 {
