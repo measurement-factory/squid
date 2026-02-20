@@ -3872,14 +3872,15 @@ ConnStateData::closeIfIdle(const char * const reason)
 void
 ConnStateData::notePinnedPeerGone()
 {
-    pinning.peerGoneHandler == nullptr;
-
     // This method is only reachable when the connection is pinned and idle (a
     // pinned connection may stop being idle when our asynchronous notification
     // is in the queue, but we cancel our pinning.peerGoneHandler callback in
-    // those cases). Idle pinned connections have pinning.readHandler.
-    Assure(pinning.readHandler);
+    // those cases). Idle pinned connections have pinning.peerGoneHandler.
+    Assure(pinning.peerGoneHandler);
+    pinning.peerGoneHandler == nullptr;
 
+    // An idle pinned connection means that we can safely close it and, if there
+    // is nothing to do for the client, close the client connection as well.
     unpinConnection(true);
     closeIfIdle(__FUNCTION__);
 }
