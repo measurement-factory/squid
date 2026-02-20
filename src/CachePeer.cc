@@ -250,6 +250,7 @@ void
 CachePeer::addIdlePinnedConnection(const AsyncCall::Pointer &callback)
 {
     Assure(callback);
+    Assure(!removed()); // or the caller would wait for a callback that would never be called
     const auto inserted = idlePinnedConnectionCallbacks_.insert(callback).second;
     Assure(inserted);
 }
@@ -266,6 +267,8 @@ CachePeer::removeIdlePinnedConnection(const AsyncCall::Pointer &callback)
 void
 CachePeer::noteRemoval()
 {
+    removed_ = true;
+    debugs(15, 3, *this << " notifies " << idlePinnedConnectionCallbacks_.size());
     for (const auto &callback: idlePinnedConnectionCallbacks_)
         ScheduleCallHere(callback);
     idlePinnedConnectionCallbacks_.clear();

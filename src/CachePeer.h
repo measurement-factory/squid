@@ -70,6 +70,9 @@ public:
     /// undo addIdlePinnedConnection(); cancels the callback if it is queued
     void removeIdlePinnedConnection(const AsyncCall::Pointer &);
 
+    /// whether noteRemoval() has been called
+    auto removed() const { return removed_; }
+
     /// n-th cache_peer directive, starting with 1
     u_int index = 0;
 
@@ -261,6 +264,9 @@ private:
     /// callbacks for noteRemoval() to call
     /// \sa addIdlePinnedConnection()
     UnorderedCallbacks idlePinnedConnectionCallbacks_;
+
+    /// \copydoc removed()
+    bool removed_ = false;
 };
 
 /// reacts to a successful establishment of a connection to an origin server or cache_peer
