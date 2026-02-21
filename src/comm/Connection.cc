@@ -142,7 +142,7 @@ Comm::Connection::setPeer(CachePeer *p)
 bool
 Comm::Connection::toGoneCachePeer() const
 {
-    return peer_ && !cbdataReferenceValid(peer_);
+    return peer_ && (!cbdataReferenceValid(peer_) || peer_->removed());
 }
 
 time_t

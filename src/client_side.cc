@@ -3608,8 +3608,10 @@ ConnStateData::clientPinnedConnectionClosed(const CommCloseCbParams &io)
     if (sawZeroReply && clientConnection != nullptr) {
         debugs(33, 3, "Closing client connection on pinned zero reply.");
         clientConnection->close();
+        return;
     }
 
+    closeIfIdle("non-zeroReply pinned connection closure");
 }
 
 void
@@ -3625,8 +3627,21 @@ ConnStateData::notePinnedConnectionBecameIdle(PinnedIdleContext pic)
     Must(pic.request);
     pinConnection(pic.connection, *pic.request);
 
-    // monitor pinned server connection for remote-end closures.
-    startPinnedConnectionMonitoring();
+    Assure(pinning.serverConnection);
+    if (pinning.serverConnection->toGoneCachePeer()) {
+        // Above, we could have checked that the cache_peer is gone, avoiding
+        // pinConnection(), but we pin to avoid writing complex custom cleanup
+        // code for this rare case. For example, we avoid dealing with a
+        // not-yet-pinned pic.connection (XXX: This method name falsely implies
+        // that pic.connection is always pinned, but httpsPeeked() supplies an
+        // unpinned connection and probably assumes no kick() below).
+        debugs(33, 3, "peer gone: " << pinning.serverConnection);
+        Assure(pinning.closeHandler);
+        Assure(Comm::IsConnOpen(pinning.serverConnection));
+        comm_close(pinning.serverConnection->fd);
+    } else {
+        startPinnedConnectionMonitoring();
+    }
 
     if (pipeline.empty())
         kick(); // in case parseRequests() was blocked by a busy pic.connection
@@ -3680,6 +3695,15 @@ ConnStateData::pinConnection(const Comm::ConnectionPointer &pinServer, const Htt
 void
 ConnStateData::startPinnedConnectionMonitoring()
 {
+    if (!pinning.peerGoneHandler) {
+        if (const auto peer = pinning.peer()) {
+            using Dialer = NullaryMemFunT<ConnStateData>;
+            pinning.peerGoneHandler = asyncCall(93, 5, "ConnStateData::notePinnedPeerGone",
+                                                Dialer(this, &ConnStateData::notePinnedPeerGone));
+            peer->addIdlePinnedConnection(pinning.peerGoneHandler);
+        }
+    }
+
     if (pinning.readHandler != nullptr)
         return; // already monitoring
 
@@ -3692,7 +3716,17 @@ ConnStateData::startPinnedConnectionMonitoring()
 void
 ConnStateData::stopPinnedConnectionMonitoring()
 {
+    if (pinning.peerGoneHandler) {
+        if (pinning.peer())
+            pinning.peer()->removeIdlePinnedConnection(pinning.peerGoneHandler);
+        else
+            pinning.peerGoneHandler->cancel("stopPinnedConnectionMonitoring");
+        pinning.peerGoneHandler = nullptr;
+    }
+
     if (pinning.readHandler != nullptr) {
+        // while we read pinning.serverConnection, we own and never close it
+        Assure(Comm::IsConnOpen(pinning.serverConnection));
         Comm::ReadCancel(pinning.serverConnection->fd, pinning.readHandler);
         pinning.readHandler = nullptr;
     }
@@ -3756,18 +3790,39 @@ ConnStateData::clientPinnedConnectionRead(const CommIoCbParams &io)
         return;
 #endif
 
-    const bool clientIsIdle = pipeline.empty();
+    debugs(33, 3, "idle pinned " << pinning.serverConnection << " read " << io.size);
+    unpinConnection(true);
+    closeIfIdle("unexpected pinned connection read");
+}
 
-    debugs(33, 3, "idle pinned " << pinning.serverConnection << " read " <<
-           io.size << (clientIsIdle ? " with idle client" : ""));
-
-    pinning.serverConnection->close();
-
+/// closes client-Squid connection if we are idling while waiting for more requests to process
+void
+ConnStateData::closeIfIdle(const char * const reason)
+{
+    const auto clientIsIdle = pipeline.empty();
+    debugs(33, 3, reason << "; clientIsIdle=" << clientIsIdle);
     // If we are still sending data to the client, do not close now. When we are done sending,
     // ConnStateData::kick() checks pinning.serverConnection and will close.
     // However, if we are idle, then we must close to inform the idle client and minimize races.
     if (clientIsIdle && clientConnection != nullptr)
         clientConnection->close();
+}
+
+/// handles CachePeer::removed() event for the idle pinned Squid-peer connection
+void
+ConnStateData::notePinnedPeerGone()
+{
+    // This method is only reachable when the connection is pinned and idle (a
+    // pinned connection may stop being idle when our asynchronous notification
+    // is in the queue, but we cancel our pinning.peerGoneHandler callback in
+    // those cases). Idle pinned connections have pinning.peerGoneHandler.
+    Assure(pinning.peerGoneHandler);
+    pinning.peerGoneHandler = nullptr;
+
+    // An idle pinned connection means that we can safely close it and, if there
+    // is nothing to do for the client, close the client connection as well.
+    unpinConnection(true);
+    closeIfIdle(__FUNCTION__);
 }
 
 Comm::ConnectionPointer
@@ -3818,13 +3873,13 @@ ConnStateData::unpinConnection(const bool andClose)
 {
     debugs(33, 3, pinning.serverConnection);
 
+    stopPinnedConnectionMonitoring();
+
     if (Comm::IsConnOpen(pinning.serverConnection)) {
         if (pinning.closeHandler != nullptr) {
             comm_remove_close_handler(pinning.serverConnection->fd, pinning.closeHandler);
             pinning.closeHandler = nullptr;
         }
-
-        stopPinnedConnectionMonitoring();
 
         // close the server side socket if requested
         if (andClose)

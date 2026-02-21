@@ -167,6 +167,7 @@ public:
         CachePeer *peer() const { return serverConnection ? serverConnection->getPeer() : nullptr; }
         AsyncCall::Pointer readHandler; ///< detects serverConnection closure
         AsyncCall::Pointer closeHandler; ///< The close handler for pinned server side connection
+        AsyncCall::Pointer peerGoneHandler; ///< reacts to a CachePeer removal (with idle serverConnection)
     } pinning;
 
     bool transparent() const;
@@ -503,6 +504,8 @@ private:
     bool concurrentRequestQueueFilled() const;
 
     void pinConnection(const Comm::ConnectionPointer &pinServerConn, const HttpRequest &request);
+    void notePinnedPeerGone();
+    void closeIfIdle(const char *reason);
 
     void receivedFirstByte();
     bool handleReadData();

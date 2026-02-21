@@ -246,6 +246,34 @@ CachePeer::connectTimeout() const
     return Config.Timeout.peer_connect;
 }
 
+void
+CachePeer::addIdlePinnedConnection(const AsyncCall::Pointer &callback)
+{
+    Assure(callback);
+    Assure(!removed()); // or the caller would wait for a callback that would never be called
+    const auto inserted = idlePinnedConnectionCallbacks_.insert(callback).second;
+    Assure(inserted);
+}
+
+void
+CachePeer::removeIdlePinnedConnection(const AsyncCall::Pointer &callback)
+{
+    if (callback) {
+        (void)idlePinnedConnectionCallbacks_.erase(callback); // may have been removed by noteRemoval() already
+        callback->cancel(__FUNCTION__);
+    }
+}
+
+void
+CachePeer::noteRemoval()
+{
+    removed_ = true;
+    debugs(15, 3, *this << " notifies " << idlePinnedConnectionCallbacks_.size());
+    for (const auto &callback: idlePinnedConnectionCallbacks_)
+        ScheduleCallHere(callback);
+    idlePinnedConnectionCallbacks_.clear();
+}
+
 std::ostream &
 operator <<(std::ostream &os, const CachePeer &p)
 {

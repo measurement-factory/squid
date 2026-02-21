@@ -10,6 +10,7 @@
 #define SQUID_SRC_CACHEPEER_H
 
 #include "acl/forward.h"
+#include "base/AsyncCall.h"
 #include "base/CbcPointer.h"
 #include "base/forward.h"
 #include "base/RefCount.h"
@@ -18,9 +19,11 @@
 #include "http/StatusCode.h"
 #include "icp_opcode.h"
 #include "ip/Address.h"
+#include "mem/PoolingAllocator.h"
 #include "security/PeerOptions.h"
 
 #include <iosfwd>
+#include <unordered_set>
 
 class NeighborTypeDomainList;
 class PconnPool;
@@ -56,6 +59,19 @@ public:
     /// TLS settings for communicating with this TLS cache_peer (if encryption
     /// is required; see secure.encryptTransport) or nil (otherwise)
     Security::FuturePeerContext *securityContext();
+
+    /// Reacts to this cache_peer removed from configuration. Does not imply
+    /// idleness -- transactions may still be using us at this call time.
+    void noteRemoval();
+
+    /// registers a callback for noteRemoval() to call (in any order)
+    void addIdlePinnedConnection(const AsyncCall::Pointer &);
+
+    /// undo addIdlePinnedConnection(); cancels the callback if it is queued
+    void removeIdlePinnedConnection(const AsyncCall::Pointer &);
+
+    /// whether noteRemoval() has been called
+    auto removed() const { return removed_; }
 
     /// n-th cache_peer directive, starting with 1
     u_int index = 0;
@@ -240,7 +256,17 @@ public:
     PrecomputedCodeContextPointer probeCodeContext;
 
 private:
+    /// unique AsyncCalls in unspecified order, optimized for fast addition/removal
+    using UnorderedCallbacks = std::unordered_set<AsyncCall::Pointer, std::hash<AsyncCall::Pointer>, std::equal_to<AsyncCall::Pointer>, PoolingAllocator<AsyncCall::Pointer> >;
+
     void countFailure();
+
+    /// callbacks for noteRemoval() to call
+    /// \sa addIdlePinnedConnection()
+    UnorderedCallbacks idlePinnedConnectionCallbacks_;
+
+    /// \copydoc removed()
+    bool removed_ = false;
 };
 
 /// reacts to a successful establishment of a connection to an origin server or cache_peer
