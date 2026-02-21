@@ -3879,7 +3879,7 @@ ConnStateData::notePinnedPeerGone()
     // is in the queue, but we cancel our pinning.peerGoneHandler callback in
     // those cases). Idle pinned connections have pinning.peerGoneHandler.
     Assure(pinning.peerGoneHandler);
-    pinning.peerGoneHandler == nullptr;
+    pinning.peerGoneHandler = nullptr;
 
     // An idle pinned connection means that we can safely close it and, if there
     // is nothing to do for the client, close the client connection as well.
