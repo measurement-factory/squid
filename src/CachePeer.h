@@ -184,10 +184,6 @@ public:
     /// whether to do another TCP probe after current TCP probes
     bool reprobe = false;
 
-    /// whether the last reconfiguration attempt expects to check our settings
-    /// but has not done so
-    bool stale = false;
-
     Ip::Address addresses[10];
     int n_addresses = 0;
     int rr_count = 0;

@@ -137,9 +137,6 @@ CachePeer::update(Configuration::SmoothReconfiguration &sr, const CachePeer &fre
     // preserve `tcp_up` state
     // preserve `reprobe` state
 
-    stale = fresh.stale;
-    Assure(!stale); // update() should be given fresh configurations
-
     // `addresses` changes are handled by peerDNSConfigure() triggered by peerDnsRefreshStart()
     // `n_addresses` changes are handled by peerDNSConfigure() triggered by peerDnsRefreshStart()
 
