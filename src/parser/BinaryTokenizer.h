@@ -78,9 +78,6 @@ public:
     /// parse a three-byte unsigned integer (returned as uint32_t)
     uint32_t uint24(const char *description);
 
-    /// parse a four-byte unsigned integer
-    uint32_t uint32(const char *description);
-
     /// parse size consecutive bytes as an opaque blob
     SBuf area(uint64_t size, const char *description);
 

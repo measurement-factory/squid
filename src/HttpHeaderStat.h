@@ -17,20 +17,6 @@
 class HttpHeaderStat
 {
 public:
-    HttpHeaderStat() :
-        label(nullptr),
-        owner_mask(nullptr),
-        parsedCount(0),
-        ccParsedCount(0),
-        scParsedCount(0),
-        destroyedCount(0),
-        busyDestroyedCount(0)
-    {
-        hdrUCountDistr.enumInit(32);    /* not a real enum */
-        fieldTypeDistr.enumInit(Http::HdrType::enumEnd_);
-        ccTypeDistr.enumInit(HttpHdrCcType::CC_ENUM_END);
-        scTypeDistr.enumInit(SC_ENUM_END);
-    }
 
     HttpHeaderStat(const char *aLabel, HttpHeaderMask *aMask) :
         label(aLabel),

@@ -77,7 +77,6 @@ public:
     void packInto(Packable * p) const;
     /* other */
     bool isComplex() const;
-    bool willBeComplex() const;
     int64_t firstOffset() const;
     int64_t lowestOffset(int64_t) const;
     bool offsetLimitExceeded(const int64_t limit) const;

@@ -206,8 +206,6 @@ public:
 
     void pack(Packable * p) const;
 
-    static void httpRequestPack(void *obj, Packable *p);
-
     static HttpRequest * FromUrl(const SBuf &url, const MasterXaction::Pointer &, const HttpRequestMethod &method = Http::METHOD_GET);
 
     /// \deprecated use SBuf variant instead

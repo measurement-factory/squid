@@ -77,10 +77,6 @@ public:
 
     bool empty() const { return size() == 0; }
 
-    const_iterator begin() const;
-
-    const_iterator end() const;
-
     /// left-to-right visit of all stored Values
     template <typename ValueVisitor> void visit(ValueVisitor &) const;
 
@@ -383,20 +379,6 @@ Splay<V>::size() const
     return elements;
 }
 
-template <class V>
-const SplayConstIterator<V>
-Splay<V>::begin() const
-{
-    return const_iterator(head);
-}
-
-template <class V>
-const SplayConstIterator<V>
-Splay<V>::end() const
-{
-    return const_iterator(nullptr);
-}
-
 // XXX: This does not seem to iterate the whole thing in some cases.
 template <class V>
 class SplayConstIterator
@@ -404,7 +386,6 @@ class SplayConstIterator
 
 public:
     typedef const V value_type;
-    SplayConstIterator (SplayNode<V> *aNode);
     bool operator == (SplayConstIterator const &right) const;
     SplayConstIterator operator ++ (int dummy);
     SplayConstIterator &operator ++ ();
@@ -416,12 +397,6 @@ private:
     void init(SplayNode<V> *);
     std::stack<SplayNode<V> *> toVisit;
 };
-
-template <class V>
-SplayConstIterator<V>::SplayConstIterator (SplayNode<V> *aNode)
-{
-    init(aNode);
-}
 
 template <class V>
 bool

@@ -73,7 +73,6 @@ public:
     /* raw, type-independent access for I/O */
     void prepForReading(); ///< reset and provide all buffers
     char *raw() { return reinterpret_cast<char*>(this); }
-    const char *raw() const { return reinterpret_cast<const char*>(this); }
     size_t size() const { return sizeof(*this); } ///< not true message size
 
 private:

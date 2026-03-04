@@ -105,9 +105,6 @@ public:
     /// whether the entry is in "reading from Transients" I/O state
     bool transientsReader(const StoreEntry &) const;
 
-    /// whether the entry is in "writing to Transients" I/O state
-    bool transientsWriter(const StoreEntry &) const;
-
     /// Update local intransit entry after changes made by appending worker.
     void syncCollapsed(const sfileno);
 

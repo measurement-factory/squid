@@ -34,7 +34,6 @@ public:
 
     static void ParseAccess(ConfigParser &parser);
     static void FreeAccess(void);
-    static void DumpAccess(StoreEntry *, const char *);
 
     friend class AccessCheck;
 
@@ -99,7 +98,6 @@ private:
 
     static void ParseServiceGroup(ServiceGroupPointer group);
     static void FreeServiceGroups(void);
-    static void DumpServiceGroups(StoreEntry *, const char *);
 };
 
 } // namespace Adaptation

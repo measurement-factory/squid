@@ -155,17 +155,6 @@ HttpReply::make304() const
     return rv;
 }
 
-MemBuf *
-HttpReply::packed304Reply() const
-{
-    /* Not as efficient as skipping the header duplication,
-     * but easier to maintain
-     */
-    const auto temp = make304();
-    MemBuf *rv = temp->pack();
-    return rv;
-}
-
 void
 HttpReply::setHeaders(Http::StatusCode status, const char *reason,
                       const char *ctype, int64_t clen, time_t lmt, time_t expiresTime)
@@ -213,52 +202,6 @@ HttpReply::redirect(Http::StatusCode status, const char *loc)
     hdr->putStr(Http::HdrType::LOCATION, loc);
     date = squid_curtime;
     content_length = 0;
-}
-
-/* compare the validators of two replies.
- * 1 = they match
- * 0 = they do not match
- */
-int
-HttpReply::validatorsMatch(HttpReply const * otherRep) const
-{
-    String one,two;
-    assert (otherRep);
-    /* Numbers first - easiest to check */
-    /* Content-Length */
-    /* TODO: remove -1 bypass */
-
-    if (content_length != otherRep->content_length
-            && content_length > -1 &&
-            otherRep->content_length > -1)
-        return 0;
-
-    /* ETag */
-    one = header.getStrOrList(Http::HdrType::ETAG);
-
-    two = otherRep->header.getStrOrList(Http::HdrType::ETAG);
-
-    if (one.size()==0 || two.size()==0 || one.caseCmp(two)!=0 ) {
-        one.clean();
-        two.clean();
-        return 0;
-    }
-
-    if (last_modified != otherRep->last_modified)
-        return 0;
-
-    /* MD5 */
-    one = header.getStrOrList(Http::HdrType::CONTENT_MD5);
-
-    two = otherRep->header.getStrOrList(Http::HdrType::CONTENT_MD5);
-
-    if (one.size()==0 || two.size()==0 || one.caseCmp(two)!=0 ) {
-        one.clean();
-        two.clean();
-        return 0;
-    }
-
-    return 1;
 }
 
 HttpReply::Pointer

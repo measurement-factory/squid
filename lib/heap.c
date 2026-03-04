@@ -88,22 +88,6 @@ new_heap(int initSize, heap_key_func gen_key)
 }
 
 /*
- * Free memory used by a heap.  Does not free the metadata pointed to by the
- * heap nodes, only the heap's internal memory.
- */
-void
-delete_heap(heap * hp)
-{
-    int i;
-    assert(hp != NULL);
-    for (i = 0; i < hp->last; i++) {
-        xfree(hp->nodes[i]);
-    }
-    xfree(hp->nodes);
-    xfree(hp);
-}
-
-/*
  * Insert DAT based on KY into HP maintaining the heap property.
  * Return the newly inserted heap node. The fields of ELM other
  * than ID are never changed until ELM is deleted from HP, i.e.
@@ -241,16 +225,6 @@ heap_update(heap * hp, heap_node * elm, void *dat)
 }
 
 /*
- * A pointer to the root node's DATA.
- */
-void *
-heap_peepmin(heap * hp)
-{
-    assert(_heap_node_exist(hp, 0));
-    return hp->nodes[0]->data;
-}
-
-/*
  * The KEY of the root node.
  */
 heap_key
@@ -258,17 +232,6 @@ heap_peepminkey(heap * hp)
 {
     assert(_heap_node_exist(hp, 0));
     return hp->nodes[0]->key;
-}
-
-/*
- * Same as heap_peep except that this return the KEY of the node.
- * Only meant for iteration.
- */
-heap_key
-heap_peepkey(heap * hp, int n)
-{
-    assert(_heap_node_exist(hp, n));
-    return hp->nodes[n]->key;
 }
 
 /*
@@ -427,31 +390,6 @@ heap_print_inorder(heap * hp, int id)
         printf("%d\tKey = %.04f\n", id, hp->nodes[id]->key);
         id++;
     }
-}
-
-/*
- * Returns 1 if HP maintains the heap property and 0 otherwise.
- */
-int
-verify_heap_property(heap * hp)
-{
-    int i = 0;
-    int correct = 1;
-    for (i = 0; i < hp->last / 2; i++) {
-        correct = 1;
-        if (_heap_node_exist(hp, Left(i)))
-            if (hp->nodes[i]->key > hp->nodes[Left(i)]->key)
-                correct = 0;
-        if (_heap_node_exist(hp, Right(i)))
-            if (hp->nodes[i]->key > hp->nodes[Right(i)]->key)
-                correct = 0;
-        if (!correct) {
-            printf("verifyHeap: violated at %d", i);
-            heap_print_inorder(hp, 0);
-            break;
-        }
-    }
-    return correct;
 }
 
 #ifdef  MEASURE_HEAP_SKEW
