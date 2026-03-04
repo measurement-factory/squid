@@ -222,18 +222,6 @@ static struct tok *buckets[HASHSIZE];
 #define NBUCKET(x)   (x & 0x7F)
 struct node *nbuckets[NHASHSIZE];
 
-static void
-print_error(const char *string, const char *token, int type)
-{
-    assert(string != NULL);
-    if (type == ENDOFFILE)
-        snmplib_debug(0, "%s(EOF): On or around line %d\n", string, Line);
-    else if (token)
-        snmplib_debug(0, "%s(%s): On or around line %d\n", string, token, Line);
-    else
-        snmplib_debug(0, "%s: On or around line %d\n", string, Line);
-}
-
 int translation_table[40];
 
 /*
@@ -399,19 +387,5 @@ get_token(register FILE *fp, register char *token)
 
     } while ((ch = getc(fp)) != -1);
     return ENDOFFILE;
-}
-
-static void
-free_node(struct node *np)
-{
-    struct enum_list *ep, *tep;
-
-    ep = np->enums;
-    while (ep) {
-        tep = ep;
-        ep = ep->next;
-        xfree((char *) tep);
-    }
-    xfree((char *) np);
 }
 
