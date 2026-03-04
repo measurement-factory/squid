@@ -394,7 +394,6 @@ public:
 private:
     void advance();
     void addLeftPath(SplayNode<V> *aNode);
-    void init(SplayNode<V> *);
     std::stack<SplayNode<V> *> toVisit;
 };
 
@@ -467,13 +466,6 @@ SplayConstIterator<V>::addLeftPath(SplayNode<V> *aNode)
         toVisit.push(aNode);
         aNode = aNode->left;
     } while (aNode != nullptr);
-}
-
-template <class V>
-void
-SplayConstIterator<V>::init(SplayNode<V> *head)
-{
-    addLeftPath(head);
 }
 
 template <class V>
