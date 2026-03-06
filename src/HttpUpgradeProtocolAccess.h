@@ -51,9 +51,6 @@ public:
     ~HttpUpgradeProtocolAccess();
     HttpUpgradeProtocolAccess(HttpUpgradeProtocolAccess &&) = delete; // no copying of any kind
 
-    /// \returns the ACLs matching the given "name[/version]" protocol (or nil)
-    const acl_access *findGuard(const SBuf &proto) const;
-
     /// parses a single allow/deny rule
     void configureGuard(ConfigParser&);
 

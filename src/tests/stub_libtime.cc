@@ -31,7 +31,6 @@ namespace Time
 time_t ParseIso3307(const char *) STUB_RETVAL(0)
 const char *FormatRfc1123(time_t) STUB_RETVAL("")
 time_t ParseRfc1123(const char *) STUB_RETVAL(0)
-const char *FormatStrf(time_t) STUB_RETVAL("")
 const char *FormatHttpd(time_t) STUB_RETVAL("")
 }
 

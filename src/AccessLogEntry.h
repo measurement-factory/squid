@@ -288,7 +288,6 @@ void accessLogLog(const AccessLogEntryPointer &, ACLChecklist *);
 void accessLogRotate(void);
 void accessLogClose(void);
 void accessLogInit(void);
-const char *accessLogTime(time_t);
 
 #endif /* SQUID_SRC_ACCESSLOGENTRY_H */
 

@@ -23,11 +23,6 @@ Adaptation::History::Entry::Entry(const String &serviceId, const timeval &when):
 {
 }
 
-Adaptation::History::Entry::Entry():
-    start(current_time), theRptm(-1), retried(false)
-{
-}
-
 void Adaptation::History::Entry::stop()
 {
     // theRptm may already be set if the access log entry has already been made

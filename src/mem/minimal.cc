@@ -36,12 +36,6 @@ Mem::AllocatorProxy::inUseCount() const
     return Alive;
 }
 
-size_t
-Mem::AllocatorProxy::getStats(PoolStats &)
-{
-    return Alive;
-}
-
 void *
 memAllocBuf(const size_t netSize, size_t * const grossSize)
 {

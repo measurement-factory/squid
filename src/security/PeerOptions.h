@@ -65,9 +65,6 @@ public:
     /// decide which CAs to trust
     void updateContextTrust(Security::ContextPointer &);
 
-    /// setup any library-specific options that can be set for the given session
-    void updateSessionOptions(Security::SessionPointer &);
-
     /// output squid.conf syntax with 'pfx' prefix on parameters for the stored settings
     virtual void dumpCfg(std::ostream &, const char *pfx) const;
 

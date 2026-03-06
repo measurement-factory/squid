@@ -115,7 +115,6 @@ protected:
 
 double statHistDeltaMedian(const StatHist & A, const StatHist & B);
 double statHistDeltaPctile(const StatHist & A, const StatHist & B, double pctile);
-StatHistBinDumper statHistEnumDumper;
 StatHistBinDumper statHistIntDumper;
 
 inline StatHist&

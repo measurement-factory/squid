@@ -26,7 +26,6 @@ public:
     StringParam(const String& aString);
     void pack(Ipc::TypedMsgHdr& msg) const override;
     void unpackValue(const Ipc::TypedMsgHdr& msg) override;
-    const String& value() const;
 
 private:
     String str;

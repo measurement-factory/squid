@@ -22,10 +22,3 @@ Adaptation::DynamicGroupCfg::add(const String &item)
     services.push_back(item);
 }
 
-void
-Adaptation::DynamicGroupCfg::clear()
-{
-    id.clean();
-    services.clear();
-}
-

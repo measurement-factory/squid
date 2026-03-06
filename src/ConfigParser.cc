@@ -558,13 +558,6 @@ ConfigParser::QuoteString(const String &var)
 }
 
 void
-ConfigParser::rejectDuplicateDirective()
-{
-    assert(cfg_directive);
-    throw TextException("duplicate configuration directive", Here());
-}
-
-void
 ConfigParser::openDirective(const Configuration::PreprocessedDirective &ppd)
 {
     debugs(3, 5, ppd);

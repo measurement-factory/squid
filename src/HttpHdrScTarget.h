@@ -30,19 +30,15 @@ public:
     static const int MAX_STALE_UNSET=0; //max-stale is unset
 
     explicit HttpHdrScTarget(const char *aTarget): target(aTarget) {}
-    explicit HttpHdrScTarget(const String &aTarget): target(aTarget) {}
     explicit HttpHdrScTarget(const HttpHdrScTarget &) = delete; // avoid accidental string copies
     HttpHdrScTarget &operator =(const HttpHdrScTarget &) = delete; // avoid accidental string copies
 
     bool hasNoStore() const {return isSet(SC_NO_STORE); }
     void noStore(bool v) { setMask(SC_NO_STORE,v); }
-    bool noStore() const { return isSet(SC_NO_STORE); }
-    void clearNoStore() { setMask(SC_NO_STORE, false); }
 
     bool hasNoStoreRemote() const {return isSet(SC_NO_STORE_REMOTE); }
     void noStoreRemote(bool v) { setMask(SC_NO_STORE_REMOTE,v); }
     bool noStoreRemote() const { return isSet(SC_NO_STORE_REMOTE); }
-    void clearNoStoreRemote() { setMask(SC_NO_STORE_REMOTE, false); }
 
     bool hasMaxAge() const { return isSet(SC_MAX_AGE); }
     void maxAge(int v) {
@@ -56,9 +52,6 @@ public:
     }
     int maxAge() const { return max_age; }
     void clearMaxAge() { setMask(SC_MAX_AGE,false); max_age=MAX_AGE_UNSET; }
-
-    //max_stale has no associated status-bit
-    bool hasMaxStale() const { return max_stale != MAX_STALE_UNSET; }
     void maxStale(int v) { max_stale=v; }
     int maxStale() const { return max_stale; }
     void clearMaxStale() { max_stale=MAX_STALE_UNSET; }
@@ -71,11 +64,7 @@ public:
     String content() const { return content_; }
     void clearContent() { setMask(SC_CONTENT,false); content_.clean(); }
 
-    bool hasTarget() const { return target.size() != 0; }
-    String Target() const { return target; }
-
     void mergeWith(const HttpHdrScTarget * new_sc);
-    void packInto(Packable *p) const;
     void updateStats(StatHist *) const;
 
 private:
@@ -95,8 +84,6 @@ private:
     String content_;
     String target;
 };
-
-void httpHdrScTargetStatDumper(StoreEntry * sentry, int idx, double val, double size, int count);
 
 #endif /* SQUID_SRC_HTTPHDRSCTARGET_H */
 
