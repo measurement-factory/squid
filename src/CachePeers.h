@@ -30,8 +30,10 @@ public:
     /// \sa remove()
     void add(const KeptCachePeer &);
 
-    /// deletes a previously add()ed CachePeer object
-    void remove(CachePeer *);
+    /// forgets the given peer
+    /// \prec the given peer was previously add()ed
+    /// \returns a never-nil pointer to the removed peer
+    KeptCachePeer remove(CachePeer *);
 
     /// the number of currently stored (i.e. added and not removed) cache_peers
     auto size() const { return storage.size(); }

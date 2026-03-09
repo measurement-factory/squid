@@ -52,17 +52,19 @@ CachePeers::add(const KeptCachePeer &peer)
     storage.back()->index = size();
 }
 
-void
+KeptCachePeer
 CachePeers::remove(CachePeer * const peer)
 {
     const auto pos = std::find_if(storage.begin(), storage.end(), [&](const auto &storePeer) {
         return storePeer.getRaw() == peer;
     });
     Assure(pos != storage.end());
+    const auto removedPeer = *pos;
     PeerPoolMgr::Stop(peer->standby.mgr);
     peer->noteRemoval();
     fwdPconnPool->closeAllTo(peer);
     storage.erase(pos);
+    return removedPeer;
 }
 
 const CachePeers &
@@ -98,9 +100,8 @@ void
 DeleteConfigured(CachePeer * const peer)
 {
     Assure(Config.peers);
-    Config.peers->remove(peer);
-    // XXX: peer is deleted by now, so pass it as shared pointer
-    peerSelectDrop(*peer);
+    const auto removedPeer = Config.peers->remove(peer);
+    peerSelectDrop(*removedPeer);
 }
 
 /* Configuration::Component<CachePeerAccesses> */
