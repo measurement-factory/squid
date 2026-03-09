@@ -23,12 +23,11 @@
 #include "ip/Address.h"
 #include "ip/forward.h"
 #include "mem/forward.h"
+#include "peering.h"
 #include "time/gadgets.h"
 
 #include <iosfwd>
 #include <ostream>
-
-class CachePeer;
 
 namespace Security
 {
@@ -105,15 +104,11 @@ public:
      */
     void setAddrs(const Ip::Address &aLocal, const Ip::Address &aRemote) {local = aLocal; remote = aRemote;}
 
-    /** retrieve the CachePeer pointer for use.
-     * The caller is responsible for all CBDATA operations regarding the
-     * used of the pointer returned.
-     */
-    CachePeer * getPeer() const;
+    /// a peer assigned via a setPeer() call with a non-nil pointer or nil
+    CachePeer *getPeer() const { return peer_.getRaw(); }
 
-    /** alter the stored CachePeer pointer.
-     * Perform appropriate CBDATA operations for locking the CachePeer pointer
-     */
+    /// commit to using the given cache_peer or, if `p` is nil, no cache_peer
+    /// \prec nil getPeer() -- we do not support changing one peer to another
     void setPeer(CachePeer * p);
 
     /// whether this is a connection to a cache_peer that was removed during reconfiguration
@@ -184,8 +179,8 @@ public:
     InstanceId<Connection, uint64_t> id;
 
 private:
-    /** cache_peer data object (if any) */
-    CachePeer *peer_;
+    /// set for connections going to/through a cache_peer
+    KeptCachePeer peer_;
 
     /** The time the connection object was created */
     time_t startTime_;

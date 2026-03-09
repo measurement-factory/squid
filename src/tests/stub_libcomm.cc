@@ -8,6 +8,7 @@
 
 #include "squid.h"
 #include "base/AsyncJob.h"
+#include "CachePeer.h"
 
 #define STUB_API "comm/libcomm.la"
 #include "tests/STUB.h"
@@ -25,7 +26,6 @@ Comm::Connection::~Connection() STUB
 Comm::ConnectionPointer Comm::Connection::cloneProfile() const STUB_RETVAL(nullptr)
 void Comm::Connection::close() STUB
 void Comm::Connection::noteClosure() STUB
-CachePeer * Comm::Connection::getPeer() const STUB_RETVAL(nullptr)
 void Comm::Connection::setPeer(CachePeer *) STUB
 ScopedId Comm::Connection::codeContextGist() const STUB_RETVAL(id.detach())
 std::ostream &Comm::Connection::detailCodeContext(std::ostream &os) const STUB_RETVAL(os)
