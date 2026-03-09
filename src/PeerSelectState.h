@@ -170,7 +170,12 @@ private:
 void peerSelectAdd(Configuration::SmoothReconfiguration &, const CachePeer &);
 
 /// Updates global peer selection state to reflect a given cache_peer deletion.
+/// This peerSelectDrop() variation is used during smooth reconfiguration.
 void peerSelectDrop(Configuration::SmoothReconfiguration &, const CachePeer &);
+
+/// Updates global peer selection state to reflect a given cache_peer deletion.
+/// This peerSelectDrop() variation is used outside of smooth reconfiguration.
+void peerSelectDrop(const CachePeer &);
 
 /// Updates global peer selection state if selection-related configuration of
 /// the given `current` peer is changing.

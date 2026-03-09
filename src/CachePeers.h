@@ -30,8 +30,10 @@ public:
     /// \sa remove()
     void add(const KeptCachePeer &);
 
-    /// deletes a previously add()ed CachePeer object
-    void remove(CachePeer *);
+    /// forgets the given peer
+    /// \prec the given peer was previously add()ed
+    /// \returns a never-nil pointer to the removed peer
+    KeptCachePeer remove(CachePeer *);
 
     /// the number of currently stored (i.e. added and not removed) cache_peers
     auto size() const { return storage.size(); }
@@ -64,7 +66,12 @@ const CachePeers &CurrentCachePeers();
 /// \sa DeleteConfigured()
 void AddConfigured(const KeptCachePeer &);
 
-/// destroys the given peer after removing it from the set of configured peers
+/// Destroys the given peer after removing it from the set of configured peers.
+/// This DeleteConfigured() variation is used during smooth reconfiguration.
+void DeleteConfigured(Configuration::SmoothReconfiguration &, CachePeer *);
+
+/// Destroys the given peer after removing it from the set of configured peers.
+/// This DeleteConfigured() variation is used outside of smooth reconfiguration.
 void DeleteConfigured(CachePeer *);
 
 /// Weak pointers to zero or more Config.peers.

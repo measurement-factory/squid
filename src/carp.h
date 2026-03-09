@@ -21,6 +21,9 @@ CachePeer *carpSelectParent(PeerSelector *);
 /// Schedules an update of global CARP peer selection tables (if not already scheduled).
 void carpReset(Configuration::SmoothReconfiguration &);
 
+/// updates global CARP peer selection tables
+void carpInit();
+
 /// Calls carpReset() if CARP-related configuration of the given `current` peer
 /// is changing.
 ///

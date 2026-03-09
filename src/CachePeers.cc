@@ -52,17 +52,19 @@ CachePeers::add(const KeptCachePeer &peer)
     storage.back()->index = size();
 }
 
-void
+KeptCachePeer
 CachePeers::remove(CachePeer * const peer)
 {
     const auto pos = std::find_if(storage.begin(), storage.end(), [&](const auto &storePeer) {
         return storePeer.getRaw() == peer;
     });
     Assure(pos != storage.end());
+    const auto removedPeer = *pos;
     PeerPoolMgr::Stop(peer->standby.mgr);
     peer->noteRemoval();
     fwdPconnPool->closeAllTo(peer);
     storage.erase(pos);
+    return removedPeer;
 }
 
 const CachePeers &
@@ -87,10 +89,19 @@ AddConfigured(const KeptCachePeer &peer)
 }
 
 void
+DeleteConfigured(Configuration::SmoothReconfiguration &sr, CachePeer * const peer)
+{
+    Assure(Config.peers);
+    const auto removedPeer = Config.peers->remove(peer);
+    peerSelectDrop(sr, *removedPeer);
+}
+
+void
 DeleteConfigured(CachePeer * const peer)
 {
     Assure(Config.peers);
-    Config.peers->remove(peer);
+    const auto removedPeer = Config.peers->remove(peer);
+    peerSelectDrop(*removedPeer);
 }
 
 /* Configuration::Component<CachePeerAccesses> */
@@ -147,9 +158,8 @@ Configuration::Component<CachePeers*>::FinishSmoothReconfiguration(SmoothReconfi
         const auto p = peersToRemove.back();
         peersToRemove.pop_back();
         debugs(15, DBG_IMPORTANT, "WARNING: Removing old cache_peer not present in new configuration: " << *p);
-        peerSelectDrop(sr, *p);
         Assure(!p->access); // parse_peer_access() rejects cache_peer_access directives naming stale peers
-        DeleteConfigured(p);
+        DeleteConfigured(sr, p);
     }
 }
 
