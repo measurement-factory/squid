@@ -9,7 +9,6 @@
 #include "squid.h"
 #include "base/JobWait.h"
 #include "CachePeer.h"
-#include "cbdata.h"
 #include "comm.h"
 #include "comm/Connection.h"
 #include "fde.h"
@@ -35,7 +34,6 @@ Comm::Connection::Connection() :
     tos(0),
     nfmark(0),
     flags(COMM_NONBLOCKING),
-    peer_(nullptr),
     startTime_(squid_curtime),
     tlsHistory(nullptr)
 {}
@@ -52,8 +50,6 @@ Comm::Connection::~Connection()
         }
         close();
     }
-
-    cbdataReferenceDone(peer_);
 
     delete tlsHistory;
 }
@@ -89,7 +85,10 @@ Comm::Connection::cloneProfile() const
 #endif
 
     // id excused
-    c.peer_ = cbdataReference(getPeer());
+
+    // Even when toGoneCachePeer(): Callers honor prior peer selection.
+    c.peer_ = peer_;
+
     // startTime_ excused
     // tlsHistory excused
 
@@ -117,32 +116,20 @@ Comm::Connection::noteClosure()
     }
 }
 
-CachePeer *
-Comm::Connection::getPeer() const
-{
-    if (cbdataReferenceValid(peer_))
-        return peer_;
-
-    return nullptr;
-}
-
 void
 Comm::Connection::setPeer(CachePeer *p)
 {
-    /* set to self. nothing to do. */
-    if (getPeer() == p)
-        return;
-
-    cbdataReferenceDone(peer_);
+    Assure(!peer_);
     if (p) {
-        peer_ = cbdataReference(p);
+        peer_ = p;
+        debugs(5, 5, id << " goes to " << *p);
     }
 }
 
 bool
 Comm::Connection::toGoneCachePeer() const
 {
-    return peer_ && (!cbdataReferenceValid(peer_) || peer_->removed());
+    return peer_ && peer_->removed();
 }
 
 time_t
