@@ -66,10 +66,12 @@ const CachePeers &CurrentCachePeers();
 /// \sa DeleteConfigured()
 void AddConfigured(const KeptCachePeer &);
 
-/// destroys the given peer after removing it from the set of configured peers (during smooth reconfiguration)
-void DeleteConfigured(Configuration::SmoothReconfiguration &sr, CachePeer *);
+/// Destroys the given peer after removing it from the set of configured peers.
+/// This DeleteConfigured() variation is used during smooth reconfiguration.
+void DeleteConfigured(Configuration::SmoothReconfiguration &, CachePeer *);
 
-/// destroys the given peer after removing it from the set of configured peers (during runtime)
+/// Destroys the given peer after removing it from the set of configured peers.
+/// This DeleteConfigured() variation is used outside of smooth reconfiguration.
 void DeleteConfigured(CachePeer *);
 
 /// Weak pointers to zero or more Config.peers.
