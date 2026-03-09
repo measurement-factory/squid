@@ -12,6 +12,7 @@
 #include "acl/ChecklistFiller.h"
 #include "base/AsyncCall.h"
 #include "base/forward.h"
+#include "base/TypeTraits.h"
 #include "dlink.h"
 #include "store/ParsingBuffer.h"
 #include "StoreIOBuffer.h"
@@ -25,7 +26,7 @@
 ///
 /// STCB callbacks may use response semantics to detect certain EOF conditions.
 /// Callbacks that expect HTTP headers may call store_client::atEof(). Similar
-/// to clientStreamCallback() callbacks, callbacks dedicated to receiving HTTP
+/// to UltimateClient::handleStoreReply(), callbacks dedicated to receiving HTTP
 /// bodies may use zero StoreIOBuffer::length as an EOF condition.
 ///
 /// Errors are indicated by setting StoreIOBuffer flags.error.
@@ -34,6 +35,32 @@ using STCB = void (void *, StoreIOBuffer);
 class StoreEntry;
 class ACLFilledChecklist;
 class LogTags;
+
+namespace Store {
+
+// XXX: Merge this class with StoreClient and absorb STCB after solving "FTP
+// code is forced to use an HTTP-focused class" problems detailed in
+// Http::Stream class description.
+/// The ultimate recipient of storeClientCopy() callbacks and associated errors.
+class UltimateClient: public RefCountable
+{
+public:
+    /// Creates a new Child object UC, passing the given arguments to its
+    /// constructor. Prepares associated ClientHttpRequest (i.e. Child::http)
+    /// object for for reading Store and for sending Store response to UC. Child
+    /// type is expected to be an UltimateClient derivative.
+    template <class Child, typename... Args>
+    static Child *Make(Args&&...);
+
+    /// \copydoc STCB
+    virtual void handleStoreReply(HttpReply *, StoreIOBuffer) = 0;
+
+    /// StoreIOBuffer::offset to use for the next storeClientCopy() call. This
+    /// offset is a stored HTTP response body offset (or equivalent).
+    virtual uint64_t currentStoreReadingOffset() const = 0;
+};
+
+} // namespace Store
 
 // TODO: Merge store_client into StoreClient.
 /// a storeGetPublic*() caller
@@ -77,6 +104,9 @@ class store_client
 public:
     explicit store_client(StoreEntry *);
     ~store_client();
+
+    /// whether we have called copy()'s callback (at least once)
+    bool answeredOnce() const { return answers >= 1; }
 
     /// the client will not use HTTP response bytes with lower offsets (if any)
     auto discardableHttpEnd() const { return discardableHttpEnd_; }
@@ -141,7 +171,6 @@ public:
 private:
     bool moreToRead() const;
     bool canReadFromMemory() const;
-    bool answeredOnce() const { return answers >= 1; }
     bool sendingHttpHeaders() const;
     int64_t nextHttpReadOffset() const;
 
@@ -232,6 +261,21 @@ store_client* storeClientListAdd(StoreEntry * e, void *data);
 int storeUnregister(store_client * sc, StoreEntry * e, void *data);
 int storePendingNClients(const StoreEntry * e);
 int storeClientIsThisAClient(store_client * sc, void *someClient);
+
+/* inlined definitions */
+
+template <class Child, typename... Args>
+Child *
+Store::UltimateClient::Make(Args&&... args)
+{
+    const auto c = RefCount<Child>::Make(std::forward<Args>(args)...);
+    c->http->prepForReadingStoreResponse(c);
+    // `c` is not going to be destroyed upon exit because c->http now keeps a
+    // pointer to it, preserving c.getRaw() result. TODO: Simplify by converting
+    // parseOneRequest() to return a RefCount (instead of a raw pointer).
+    Assure(c.getRaw() == c->http->replyRecipient.getRaw());
+    return c.getRaw();
+}
 
 #endif /* SQUID_SRC_STORECLIENT_H */
 

@@ -138,7 +138,6 @@ section 83    TLS Server/Peer negotiation
 section 83    TLS session management
 section 84    Helper process maintenance
 section 85    Client-side Request Routines
-section 87    Client-side Stream routines.
 section 88    Client-side Reply Routines
 section 89    EUI-48 Lookup
 section 89    EUI-64 Handling

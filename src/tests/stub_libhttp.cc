@@ -8,7 +8,6 @@
 
 #include "squid.h"
 #include "client_side.h"
-#include "comm/Connection.h"
 #include "SquidConfig.h"
 
 #define STUB_API "http/libhttp.la"
@@ -100,27 +99,27 @@ bool StatusLine::parse(const String &, const char *, const char *) STUB_RETVAL(f
 #include "http/Stream.h"
 namespace Http
 {
-Stream::Stream(const Comm::ConnectionPointer &, ClientHttpRequest *) {STUB}
+Stream::Stream(ConnStateData *) {STUB}
 Stream::~Stream() {STUB}
 void Stream::registerWithConn() STUB
 bool Stream::startOfOutput() const STUB
 void Stream::writeComplete(size_t) STUB
 void Stream::pullData() STUB
 bool Stream::multipartRangeRequest() const STUB_RETVAL(false)
+uint64_t Stream::currentStoreReadingOffset() const STUB_RETVAL(0)
 int64_t Stream::getNextRangeOffset() const STUB_RETVAL(-1)
 bool Stream::canPackMoreRanges() const STUB_RETVAL(false)
 size_t Stream::lengthToSend(Range<int64_t> const &) const STUB_RETVAL(0)
 clientStream_status_t Stream::socketState() STUB_RETVAL(STREAM_NONE)
+void Stream::handleStoreReply(HttpReply *, StoreIOBuffer) STUB
 void Stream::sendStartOfMessage(HttpReply *, StoreIOBuffer) STUB
 void Stream::sendBody(StoreIOBuffer) STUB
 void Stream::noteSentBodyBytes(size_t) STUB
 void Stream::buildRangeHeader(HttpReply *) STUB
-clientStreamNode *Stream::getTail() const STUB_RETVAL(nullptr)
-clientStreamNode *Stream::getClientReplyContext() const STUB_RETVAL(nullptr)
 ConnStateData *Stream::getConn() const STUB_RETVAL(nullptr)
 void Stream::noteIoError(const Error &, const LogTagsErrors &) STUB
 void Stream::finished() STUB
 void Stream::initiateClose(const char *) STUB
-void Stream::deferRecipientForLater(clientStreamNode *, HttpReply *, StoreIOBuffer) STUB
+void Stream::deferRecipientForLater(HttpReply *, StoreIOBuffer) STUB
 }
 

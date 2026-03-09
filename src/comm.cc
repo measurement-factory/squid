@@ -1259,7 +1259,7 @@ ClientInfo::kickQuotaQueue()
         // wait at least a second if the bucket is empty
         const double delay = (bucketLevel < 1.0) ? 1.0 : 0.0;
         eventAdd("commHandleWriteHelper", &commHandleWriteHelper,
-                 quotaQueue, delay, 0, true);
+                 quotaQueue, delay);
         eventWaiting = true;
     }
 }

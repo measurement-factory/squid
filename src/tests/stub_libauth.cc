@@ -54,8 +54,6 @@ void Auth::User::CredentialsCacheStats(StoreEntry *) STUB
 char const * Auth::UserRequest::username() const STUB_RETVAL("stub_username")
 void Auth::UserRequest::start(HttpRequest *, AccessLogEntry::Pointer &, AUTHCB *, void *) STUB
 bool Auth::UserRequest::valid() const STUB_RETVAL(false)
-void * Auth::UserRequest::operator new (size_t) STUB_RETVAL((void *)1)
-void Auth::UserRequest::operator delete (void *) STUB
 Auth::UserRequest::UserRequest() STUB
 Auth::UserRequest::~UserRequest() STUB
 void Auth::UserRequest::setDenyMessage(char const *) STUB

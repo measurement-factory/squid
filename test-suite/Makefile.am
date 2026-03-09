@@ -22,6 +22,7 @@ EXTRA_PROGRAMS = mem_node_test splay
 
 EXTRA_DIST = \
 	$(srcdir)/squidconf/* \
+	test-ast.sh \
 	test-functionality.sh \
 	test-sources.sh \
 	test-squid-conf.sh \

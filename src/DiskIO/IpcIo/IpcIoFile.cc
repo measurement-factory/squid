@@ -161,8 +161,15 @@ IpcIoFile::open(int flags, mode_t mode, RefCount<IORequestor> callback)
 
     WaitingForOpen.push_back(this);
 
-    eventAdd("IpcIoFile::OpenTimeout", &IpcIoFile::OpenTimeout,
-             this, Timeout, 0, false); // "this" pointer is used as id
+    // XXX: We are using our raw address as a WaitingForOpen key. This code is
+    // memory-safe because we never dereference the stored pointer, but when we
+    // start deleting unused (due to a reconfiguration) IpcIoFile objects, this
+    // code would incorrectly claim OpenTimeout if a successful/timely open is
+    // followed by `this` object destruction and creation of a new IpcIoFile
+    // object with the same raw address. TODO: Enable cbdata protection for
+    // these events instead and delete a timeout event after a timely open.
+    eventAddBare("IpcIoFile::OpenTimeout", &IpcIoFile::OpenTimeout,
+                 static_cast<void*>(this), Timeout);
 }
 
 void
@@ -633,8 +640,8 @@ IpcIoFile::scheduleTimeoutCheck()
     // one-for-all CheckTimeouts() that is not specific to any request.
     CallService(nullptr, [&] {
         // we check all older requests at once so some may be wait for 2*Timeout
-        eventAdd("IpcIoFile::CheckTimeouts", &IpcIoFile::CheckTimeouts,
-                 reinterpret_cast<void *>(diskId), Timeout, 0, false);
+        eventAddBare("IpcIoFile::CheckTimeouts", &IpcIoFile::CheckTimeouts,
+                     reinterpret_cast<void *>(diskId), Timeout);
         timeoutCheckScheduled = true;
     });
 }
@@ -878,10 +885,10 @@ IpcIoFile::WaitBeforePop()
 
         debugs(47, 3, "rate limiting by " << toSpend << " ms to get" <<
                (1e3*maxRate) << "/sec rate");
-        eventAdd("IpcIoFile::DiskerHandleMoreRequests",
-                 &IpcIoFile::DiskerHandleMoreRequests,
-                 const_cast<char*>("rate limiting"),
-                 toSpend/1e3, 0, false);
+        eventAddBare("IpcIoFile::DiskerHandleMoreRequests",
+                     &IpcIoFile::DiskerHandleMoreRequests,
+                     const_cast<char*>("rate limiting"),
+                     toSpend/1e3);
         DiskerHandleMoreRequestsScheduled = true;
         return true;
     } else if (balance < -maxImbalance) {
@@ -916,10 +923,10 @@ IpcIoFile::DiskerHandleRequests()
             if (!DiskerHandleMoreRequestsScheduled) {
                 // the gap must be positive for select(2) to be given a chance
                 const double minBreakSecs = 0.001;
-                eventAdd("IpcIoFile::DiskerHandleMoreRequests",
-                         &IpcIoFile::DiskerHandleMoreRequests,
-                         const_cast<char*>("long I/O loop"),
-                         minBreakSecs, 0, false);
+                eventAddBare("IpcIoFile::DiskerHandleMoreRequests",
+                             &IpcIoFile::DiskerHandleMoreRequests,
+                             const_cast<char*>("long I/O loop"),
+                             minBreakSecs);
                 DiskerHandleMoreRequestsScheduled = true;
             }
             debugs(47, 3, "pausing after " << popped << " I/Os in " <<

@@ -104,23 +104,22 @@ ev_entry::~ev_entry()
 }
 
 void
-eventAdd(const char *name, EVH * func, void *arg, double when, int weight, bool cbdata)
+eventAdd_(const char * const name, EVH * const func, void * const arg, const double when, const int weight, const bool cbdata)
 {
     EventScheduler::GetInstance()->schedule(name, func, arg, when, weight, cbdata);
 }
 
-/* same as eventAdd but adds a random offset within +-1/3 of delta_ish */
-void
-eventAddIsh(const char *name, EVH * func, void *arg, double delta_ish, int weight)
+double
+WhenIsh_(const double delta_ish)
 {
     if (delta_ish >= 3.0) {
+        // a random offset within +-1/3 of delta_ish
         static std::mt19937 rng(RandomSeed32());
         auto third = (delta_ish/3.0);
         std::uniform_real_distribution<> thirdIsh(delta_ish - third, delta_ish + third);
-        delta_ish = thirdIsh(rng);
+        return thirdIsh(rng);
     }
-
-    eventAdd(name, func, arg, delta_ish, weight);
+    return delta_ish;
 }
 
 void

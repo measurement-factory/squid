@@ -34,13 +34,17 @@ public:
     /// whether the directive sequences differ
     explicit operator bool() const { return changes_.length(); }
 
-    /// The directive from the old sequence is different from the same-position
-    /// directive in the new sequence.
-    void noteChange(const PreprocessedDirective &oldD, const PreprocessedDirective &newD);
+    /// Records any differences between the directive from the old sequence and
+    /// the same-position directive in the new sequence.
+    /// \returns whether the directives differ
+    bool noteChanges(const PreprocessedDirective &oldD, const PreprocessedDirective &newD);
+
     /// the new sequence has at least one extra directive
-    void noteAppearance(const PreprocessedDirective &newD);
+    void noteAddition(const PreprocessedDirective &newD);
+
     /// the old sequence has at least one extra directive
     void noteDisappearance(const PreprocessedDirective &oldD);
+
     /// the old directive sequence has not changed
     void noteLackOfChanges();
 
@@ -48,6 +52,8 @@ public:
     void print(std::ostream &) const;
 
 private:
+    void recordChange(const SBuf &hunk);
+
     /// a summary of the key differences (or an empty string if there are none)
     SBuf changes_;
 };
@@ -254,6 +260,32 @@ IsIncludeLine(Parser::Tokenizer tk)
 
     // e.g., "include_version_info allow all"
     return std::nullopt;
+}
+
+/// tests whether input is a `configuration_includes_quoted_values` preprocessor instruction
+/// \returns std::nullopt if input does not look like a `configuration_includes_quoted_values` instruction
+/// \returns the `configuration_includes_quoted_values` parameter value otherwise
+static std::optional<SBuf>
+IsIncludesQuotedValuesInstruction(Parser::Tokenizer tk)
+{
+    // post-trim grammar: "configuration_includes_quoted_values" space <value>
+    static const auto instructionName = SBuf("configuration_includes_quoted_values");
+
+    if (!tk.skip(instructionName))
+        return std::nullopt;
+
+    if (SkipOptionalSpace(tk))
+        return tk.remaining();
+
+    // TODO: Use similar approach in other parsers dealing with preprocessor
+    // instructions that require parameters. When given truncated "<name>END"
+    // input, they currently quit with an arguably confusing ERROR message:
+    // "Unrecognized configuration directive name: <recognized(!) name>.
+    if (tk.atEnd())
+        throw TextException(ToSBuf("preprocessor instruction is missing a required parameter: ", instructionName), Here());
+
+    // all sorts of typos that start with our (long/unique) instructionName
+    throw TextException(ToSBuf("malformed preprocessor instruction: ", instructionName, tk.remaining()), Here());
 }
 
 /// Replaces all occurrences of macroName in buf with macroValue. When looking
@@ -547,6 +579,8 @@ Configuration::Preprocessor::processFile(const char * const file_name, const siz
             /* Handle includes here */
             if (const auto files = IsIncludeLine(tk)) {
                 processIncludedFiles(*files, depth + 1);
+            } else if (const auto value = IsIncludesQuotedValuesInstruction(tk)) {
+                processIncludesQuotedValuesInstruction(*value);
             } else {
                 processDirective(wholeLine);
             }
@@ -600,10 +634,16 @@ Configuration::Preprocessor::processIncludedFiles(const SBuf &paths, const size_
 }
 
 void
+Configuration::Preprocessor::processIncludesQuotedValuesInstruction(const SBuf &input)
+{
+    honorsQuotedParameters_ = ParseOnOff(input);
+}
+
+void
 Configuration::Preprocessor::processDirective(const SBuf &rawWhole)
 {
     try {
-        return addDirective(PreprocessedDirective(rawWhole));
+        return addDirective(PreprocessedDirective(rawWhole, honorsQuotedParameters_));
     } catch (...) {
         ++invalidLines_;
         debugs(3, DBG_CRITICAL, "ERROR: " << CurrentException <<
@@ -703,16 +743,14 @@ Configuration::Preprocessor::findRigidChanges(const PreprocessedCfg::SelectedDir
 
     for (const auto rigidDirective: cfg_->rigidDirectives) {
         const auto &currentDir = rigidDirective.get();
+
         if (previousPos == previous.end()) {
-            diff.noteAppearance(currentDir);
+            diff.noteAddition(currentDir);
             return diff;
         }
 
-        const auto &previousDir = *previousPos;
-        if (!currentDir.similarTo(previousDir)) {
-            diff.noteChange(previousDir, currentDir);
+        if (diff.noteChanges(currentDir, *previousPos))
             return diff;
-        }
 
         ++previousPos;
     }
@@ -729,29 +767,47 @@ Configuration::Preprocessor::findRigidChanges(const PreprocessedCfg::SelectedDir
 
 /* Configuration::Diff */
 
-void
-Configuration::Diff::noteChange(const PreprocessedDirective &oldD, const PreprocessedDirective &newD)
+bool
+Configuration::Diff::noteChanges(const PreprocessedDirective &oldD, const PreprocessedDirective &newD)
 {
-    assert(changes_.isEmpty());
-    changes_ = ToSBuf("directives or their order has changed:",
-                      Debug::Extra, "old configuration had: ", oldD,
-                      Debug::Extra, "new configuration has: ", newD);
+    // we do not ignore the difference in indentation/space, case, and such (for
+    // now) because their definition/sensitivity is currently directive-specific
+    const auto sameLook = oldD.parameters() == newD.parameters();
+
+    if (!sameLook) {
+        recordChange(ToSBuf("directives or their order has changed:",
+                            Debug::Extra, "old configuration had: ", oldD,
+                            Debug::Extra, "new configuration has: ", newD));
+    }
+
+    if (oldD.honorsQuotedParameters() != newD.honorsQuotedParameters()) {
+        // If the two directives look the same, we can report any one of them.
+        // Otherwise, do not report the directives; they were reported above.
+        const auto heading = sameLook ?
+                             ToSBuf("directive configuration context has changed:",
+                                    Debug::Extra, "configuration directive: ", newD) :
+                             ToSBuf("and those directives configuration contexts have changed:");
+        const auto asOnOff = [](const bool enabled) -> auto { return enabled ? "on" : "off"; };
+        recordChange(ToSBuf(heading,
+                            Debug::Extra, "old configuration context: configuration_includes_quoted_values ", asOnOff(oldD.honorsQuotedParameters()),
+                            Debug::Extra, "new configuration context: configuration_includes_quoted_values ", asOnOff(newD.honorsQuotedParameters())));
+    }
+
+    return !changes_.isEmpty();
 }
 
 void
-Configuration::Diff::noteAppearance(const PreprocessedDirective &newD)
+Configuration::Diff::noteAddition(const PreprocessedDirective &newD)
 {
-    assert(changes_.isEmpty());
-    changes_ = ToSBuf("new configuration has more directives:",
-                      Debug::Extra, "the first new directive absent in the old configuration: ", newD);
+    recordChange(ToSBuf("new configuration has more directives:",
+                        Debug::Extra, "the first new directive absent in the old configuration: ", newD));
 }
 
 void
 Configuration::Diff::noteDisappearance(const PreprocessedDirective &oldD)
 {
-    assert(changes_.isEmpty());
-    changes_ = ToSBuf("old configuration had more directives:",
-                      Debug::Extra, "the first old directive absent in the new configuration: ", oldD);
+    recordChange(ToSBuf("old configuration had more directives:",
+                        Debug::Extra, "the first old directive absent in the new configuration: ", oldD));
 }
 
 void
@@ -764,14 +820,30 @@ Configuration::Diff::noteLackOfChanges()
 void
 Configuration::Diff::print(std::ostream &os) const
 {
-    os << changes_;
+    // Diffs are reported in Debug::Extra context and use Debug::Extra for
+    // their own details. Indent the whole thing to make our headings standout.
+    auto indented = changes_;
+    SubstituteMacro(indented, SBuf("\n"), ToSBuf(Debug::Extra));
+
+    os << indented;
+}
+
+/// add the specified change summary to the list of known changes
+void
+Configuration::Diff::recordChange(const SBuf &hunk)
+{
+    if (!changes_.isEmpty())
+        changes_.append(SBuf("\n")); // separate new diff hunk from the previous one
+
+    changes_.append(hunk);
 }
 
 /* Configuration::PreprocessedDirective */
 
-Configuration::PreprocessedDirective::PreprocessedDirective(const SBuf &rawWhole):
+Configuration::PreprocessedDirective::PreprocessedDirective(const SBuf &rawWhole, const bool doesHonorQuotedParameters):
     whole_(rawWhole),
-    location_(cfg_filename, config_lineno)
+    location_(cfg_filename, config_lineno),
+    honorsQuotedParameters_(doesHonorQuotedParameters)
 {
     static const auto nameChars = CharacterSet::WSP.complement("directive name");
 
@@ -779,14 +851,6 @@ Configuration::PreprocessedDirective::PreprocessedDirective(const SBuf &rawWhole
     name_ = ExtractToken("directive name", tok, nameChars);
     parameters_ = tok.remaining(); // may be empty
     metadata_ = GetMetadata(name_);
-}
-
-bool
-Configuration::PreprocessedDirective::similarTo(const PreprocessedDirective &other) const
-{
-    // we do not ignore the difference in indentation/space, case, and such (for
-    // now) because their definition/sensitivity is currently directive-specific
-    return parameters_ == other.parameters_;
 }
 
 void

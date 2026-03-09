@@ -21,19 +21,6 @@
 
 #include <algorithm>
 
-void *
-ACLIP::operator new (size_t)
-{
-    fatal ("ACLIP::operator new: unused");
-    return (void *)1;
-}
-
-void
-ACLIP::operator delete (void *)
-{
-    fatal ("ACLIP::operator delete: unused");
-}
-
 /**
  * print/format an acl_ip_data structure for debugging output.
  *

@@ -49,9 +49,6 @@ private:
 class ACLIP : public Acl::Node
 {
 public:
-    void *operator new(size_t);
-    void operator delete(void *);
-
     ACLIP() : data(nullptr) {}
     ~ACLIP() override;
 

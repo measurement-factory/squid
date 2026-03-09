@@ -357,9 +357,6 @@ squid_SOURCES = \
 	carp.h \
 	cbdata.cc \
 	cbdata.h \
-	clientStream.cc \
-	clientStream.h \
-	clientStreamForward.h \
 	client_db.cc \
 	client_db.h \
 	client_side.cc \
@@ -425,6 +422,7 @@ squid_SOURCES = \
 	peer_sourcehash.h \
 	peer_userhash.cc \
 	peer_userhash.h \
+	peering.h \
 	protos.h \
 	redirect.cc \
 	redirect.h \
@@ -976,9 +974,12 @@ tests_testSBuf_SOURCES = \
 	tests/SBufFindTest.cc \
 	tests/SBufFindTest.h
 nodist_tests_testSBuf_SOURCES = \
+	tests/stub_MemObject.cc \
 	tests/stub_StatHist.cc \
 	tests/stub_debug.cc \
-	tests/stub_libmem.cc
+	tests/stub_event.cc \
+	tests/stub_libmem.cc \
+	tests/stub_stmem.cc
 tests_testSBuf_LDADD = \
 	sbuf/libsbuf.la \
 	base/libbase.la \
@@ -1120,6 +1121,7 @@ tests_testRock_SOURCES = \
 	tests/stub_liblog.cc \
 	tests/stub_libmgr.cc \
 	tests/stub_libsecurity.cc \
+	tests/stub_libsslsquid.cc \
 	log/access_log.h \
 	mem_node.cc \
 	tests/stub_mime.cc \
@@ -1291,6 +1293,7 @@ tests_testUfs_SOURCES = \
 	tests/stub_libip.cc \
 	tests/stub_liblog.cc \
 	tests/stub_libsecurity.cc \
+	tests/stub_libsslsquid.cc \
 	log/access_log.h \
 	mem_node.cc \
 	tests/stub_mime.cc \
@@ -1629,6 +1632,7 @@ tests_testDiskIO_SOURCES = \
 	tests/stub_libip.cc \
 	tests/stub_liblog.cc \
 	tests/stub_libsecurity.cc \
+	tests/stub_libsslsquid.cc \
 	tests/stub_libstore.cc \
 	log/access_log.h \
 	mem_node.cc \
@@ -1861,7 +1865,6 @@ tests_testHttpRange_SOURCES = \
 	tests/stub_carp.cc \
 	carp.h \
 	cbdata.cc \
-	clientStream.cc \
 	tests/stub_client_db.cc \
 	client_side.cc \
 	client_side.h \
@@ -2248,7 +2251,6 @@ tests_testHttpRequest_SOURCES = \
 	tests/stub_carp.cc \
 	carp.h \
 	cbdata.cc \
-	clientStream.cc \
 	tests/stub_client_db.cc \
 	client_side.cc \
 	client_side.h \
@@ -2545,7 +2547,6 @@ tests_testCacheManager_SOURCES = \
 	tests/stub_carp.cc \
 	carp.h \
 	cbdata.cc \
-	clientStream.cc \
 	tests/stub_client_db.cc \
 	client_side.cc \
 	client_side.h \

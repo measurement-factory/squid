@@ -15,5 +15,4 @@ libservers_la_SOURCES = \
 	Http1Server.cc \
 	Http1Server.h \
 	Server.cc \
-	Server.h \
 	forward.h

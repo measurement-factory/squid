@@ -14,7 +14,6 @@
 #include "client_side.h"
 #include "client_side_reply.h"
 #include "client_side_request.h"
-#include "clientStream.h"
 #include "comm/Connection.h"
 #include "fde.h"
 #include "format/Format.h"
@@ -256,9 +255,7 @@ constructHelperQuery(const char * const name, const Helper::Client::Pointer &hlp
             debugs(61, DBG_CRITICAL, "ERROR: Gateway Failure. Request passed to " << name << " exceeds MAX_REDIRECTOR_REQUEST_STRLEN (" << MAX_REDIRECTOR_REQUEST_STRLEN << "). Request ABORTED.");
         }
 
-        clientStreamNode *node = (clientStreamNode *)http->client_stream.tail->prev->data;
-        clientReplyContext *repContext = dynamic_cast<clientReplyContext *>(node->data.getRaw());
-        assert (repContext);
+        const auto repContext = &http->storeReader();
         repContext->setReplyToError(ERR_GATEWAY_FAILURE, status,
                                     nullptr,
                                     http->getConn(),
@@ -271,8 +268,7 @@ constructHelperQuery(const char * const name, const Helper::Client::Pointer &hlp
                                     nullptr);
 #endif
 
-        node = (clientStreamNode *)http->client_stream.tail->data;
-        clientStreamRead(node, http, node->readBuffer);
+        http->readStoreResponse();
         return;
     }
 

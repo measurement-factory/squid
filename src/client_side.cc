@@ -70,7 +70,6 @@
 #include "client_side_reply.h"
 #include "client_side_request.h"
 #include "ClientRequestContext.h"
-#include "clientStream.h"
 #include "comm.h"
 #include "comm/Connection.h"
 #include "comm/Loops.h"
@@ -466,9 +465,6 @@ ClientHttpRequest::freeResources()
     safe_free(redirect.location);
     range_iter.boundary.clean();
     clearRequest();
-
-    if (client_stream.tail)
-        clientStreamAbort((clientStreamNode *)client_stream.tail->data, this);
 }
 
 void
@@ -601,7 +597,10 @@ ConnStateData::swanSong()
     // XXX: Closing pinned conn is too harsh: The Client may want to continue!
     unpinConnection(true);
 
-    Server::swanSong();
+    if (Comm::IsConnOpen(clientConnection))
+        clientConnection->close();
+
+    BodyProducer::swanSong();
 
 #if USE_AUTH
     // NP: do this bit after closing the connections to avoid side effects from unwanted TCP RST
@@ -614,7 +613,7 @@ ConnStateData::swanSong()
 void
 ConnStateData::callException(const std::exception &ex)
 {
-    Server::callException(ex); // logs ex and stops the job
+    AsyncJob::callException(ex); // logs ex and stops the job
 
     ErrorDetail::Pointer errorDetail;
     if (const auto tex = dynamic_cast<const TextException*>(&ex))
@@ -793,64 +792,22 @@ ClientHttpRequest::rangeBoundaryStr() const
  * finished.
  * Pre-condition:
  *   The request is one backed by a connection, not an internal request.
- *   data context is not NULL
  *   There are no more entries in the stream chain.
  */
 void
-clientSocketRecipient(clientStreamNode * node, ClientHttpRequest * http,
-                      HttpReply * rep, StoreIOBuffer receivedData)
+Http::Stream::handleStoreReply(HttpReply * const rep, const StoreIOBuffer receivedData)
 {
     // do not try to deliver if client already ABORTED
     if (!http->getConn() || !cbdataReferenceValid(http->getConn()) || !Comm::IsConnOpen(http->getConn()->clientConnection))
         return;
 
-    /* Test preconditions */
-    assert(node != nullptr);
-    /* TODO: handle this rather than asserting
-     * - it should only ever happen if we cause an abort and
-     * the callback chain loops back to here, so we can simply return.
-     * However, that itself shouldn't happen, so it stays as an assert for now.
-     */
-    assert(cbdataReferenceValid(node));
-    assert(node->node.next == nullptr);
-    Http::StreamPointer context = dynamic_cast<Http::Stream *>(node->data.getRaw());
-    assert(context != nullptr);
-
-    /* TODO: check offset is what we asked for */
-
     // TODO: enforces HTTP/1 MUST on pipeline order, but is irrelevant to HTTP/2
-    if (context != http->getConn()->pipeline.front())
-        context->deferRecipientForLater(node, rep, receivedData);
+    if (http->getConn()->pipeline.front() != this)
+        deferRecipientForLater(rep, receivedData);
     else if (http->getConn()->cbControlMsgSent) // 1xx to the user is pending
-        context->deferRecipientForLater(node, rep, receivedData);
+        deferRecipientForLater(rep, receivedData);
     else
         http->getConn()->handleReply(rep, receivedData);
-}
-
-/**
- * Called when a downstream node is no longer interested in
- * our data. As we are a terminal node, this means on aborts
- * only
- */
-void
-clientSocketDetach(clientStreamNode * node, ClientHttpRequest * http)
-{
-    /* Test preconditions */
-    assert(node != nullptr);
-    /* TODO: handle this rather than asserting
-     * - it should only ever happen if we cause an abort and
-     * the callback chain loops back to here, so we can simply return.
-     * However, that itself shouldn't happen, so it stays as an assert for now.
-     */
-    assert(cbdataReferenceValid(node));
-    /* Set null by ContextFree */
-    assert(node->node.next == nullptr);
-    /* this is the assert discussed above */
-    assert(nullptr == dynamic_cast<Http::Stream *>(node->data.getRaw()));
-    /* We are only called when the client socket shutsdown.
-     * Tell the prev pipeline member we're finished
-     */
-    clientStreamDetach(node, http);
 }
 
 void
@@ -873,16 +830,12 @@ ClientSocketContextPushDeferredIfNeeded(Http::StreamPointer deferredRequest, Con
 {
     debugs(33, 2, conn->clientConnection << " Sending next");
 
-    /** If the client stream is waiting on a socket write to occur, then */
-
     if (deferredRequest->flags.deferred) {
         /** NO data is allowed to have been sent. */
         assert(deferredRequest->http->out.size == 0);
         /** defer now. */
-        clientSocketRecipient(deferredRequest->deferredparams.node,
-                              deferredRequest->http,
-                              deferredRequest->deferredparams.rep,
-                              deferredRequest->deferredparams.queuedBuffer);
+        deferredRequest->handleStoreReply(deferredRequest->deferredparams.rep,
+                                          deferredRequest->deferredparams.queuedBuffer);
     }
 
     /** otherwise, the request is still active in a callbacksomewhere,
@@ -979,6 +932,7 @@ ConnStateData::stopSending(const char *error)
     clientConnection->close();
 }
 
+/// processing to sync state after a Comm::Write()
 void
 ConnStateData::afterClientWrite(size_t size)
 {
@@ -997,16 +951,10 @@ ConnStateData::afterClientWrite(size_t size)
 Http::Stream *
 ConnStateData::abortRequestParsing(const char *const uri)
 {
-    ClientHttpRequest *http = new ClientHttpRequest(this);
+    const auto context = Store::UltimateClient::Make<Http::Stream>(this);
+    const auto http = context->http;
     http->req_sz = inBuf.length();
     http->setErrorUri(uri);
-    auto *context = new Http::Stream(clientConnection, http);
-    StoreIOBuffer tempBuffer;
-    tempBuffer.data = context->reqbuf;
-    tempBuffer.length = HTTP_REQBUF_SZ;
-    clientStreamInit(&http->client_stream, clientGetMoreData, clientReplyDetach,
-                     clientReplyStatus, new clientReplyContext(http), clientSocketRecipient,
-                     clientSocketDetach, context, tempBuffer);
     return context;
 }
 
@@ -1324,20 +1272,9 @@ ConnStateData::parseHttpRequest(const Http1::RequestParserPointer &hp)
            ", mime header block:\n" << hp->mimeHeader() << "\n----------");
 
     /* Ok, all headers are received */
-    ClientHttpRequest *http = new ClientHttpRequest(this);
-
+    const auto result = Store::UltimateClient::Make<Http::Stream>(this);
+    const auto http = result->http;
     http->req_sz = hp->messageHeaderSize();
-    Http::Stream *result = new Http::Stream(clientConnection, http);
-
-    StoreIOBuffer tempBuffer;
-    tempBuffer.data = result->reqbuf;
-    tempBuffer.length = HTTP_REQBUF_SZ;
-
-    ClientStreamData newServer = new clientReplyContext(http);
-    ClientStreamData newClient = result;
-    clientStreamInit(&http->client_stream, clientGetMoreData, clientReplyDetach,
-                     clientReplyStatus, newServer, clientSocketRecipient,
-                     clientSocketDetach, newClient, tempBuffer);
 
     /* set url */
     debugs(33,5, "Prepare absolute URL from " <<
@@ -1385,6 +1322,7 @@ ConnStateData::parseHttpRequest(const Http1::RequestParserPointer &hp)
     return result;
 }
 
+/// whether to stop serving our client after reading EOF on its connection
 bool
 ConnStateData::shouldCloseOnEof() const
 {
@@ -1454,9 +1392,7 @@ bool ConnStateData::serveDelayedError(Http::Stream *context)
 
         // Get the saved error entry and send it to the client by replacing the
         // ClientHttpRequest store entry with it.
-        clientStreamNode *node = context->getClientReplyContext();
-        clientReplyContext *repContext = dynamic_cast<clientReplyContext *>(node->data.getRaw());
-        assert(repContext);
+        const auto repContext = &http->storeReader(); // TODO: Remove this and similar diff reducers.
         debugs(33, 5, "Responding with delated error for " << http->uri);
         repContext->setReplyToStoreEntry(sslServerBump->entry, "delayed SslBump error");
 
@@ -1491,9 +1427,7 @@ bool ConnStateData::serveDelayedError(Http::Stream *context)
             if (!allowDomainMismatch) {
                 quitAfterError(request);
 
-                clientStreamNode *node = context->getClientReplyContext();
-                clientReplyContext *repContext = dynamic_cast<clientReplyContext *>(node->data.getRaw());
-                assert (repContext);
+                const auto repContext = &http->storeReader();
 
                 request->hier = sslServerBump->request->hier;
 
@@ -1613,10 +1547,8 @@ clientProcessRequest(ConnStateData *conn, const Http1::RequestParserPointer &hp,
     mustReplyToOptions = (request->method == Http::METHOD_OPTIONS) &&
                          (request->header.getInt64(Http::HdrType::MAX_FORWARDS) == 0);
     if (!urlCheckRequest(request.getRaw()) || mustReplyToOptions) {
-        clientStreamNode *node = context->getClientReplyContext();
         conn->quitAfterError(request.getRaw());
-        clientReplyContext *repContext = dynamic_cast<clientReplyContext *>(node->data.getRaw());
-        assert (repContext);
+        const auto repContext = &http->storeReader();
         repContext->setReplyToError(ERR_UNSUP_REQ, Http::scNotImplemented, nullptr,
                                     conn, request.getRaw(), nullptr, nullptr);
         assert(context->http->out.offset == 0);
@@ -1627,9 +1559,7 @@ clientProcessRequest(ConnStateData *conn, const Http1::RequestParserPointer &hp,
 
     const auto frameStatus = request->checkEntityFraming();
     if (frameStatus != Http::scNone) {
-        clientStreamNode *node = context->getClientReplyContext();
-        clientReplyContext *repContext = dynamic_cast<clientReplyContext *>(node->data.getRaw());
-        assert (repContext);
+        const auto repContext = &http->storeReader();
         conn->quitAfterError(request.getRaw());
         repContext->setReplyToError(ERR_INVALID_REQ, frameStatus, nullptr, conn, request.getRaw(), nullptr, nullptr);
         assert(context->http->out.offset == 0);
@@ -1662,9 +1592,7 @@ clientProcessRequest(ConnStateData *conn, const Http1::RequestParserPointer &hp,
         /* Is it too large? */
         if (!chunked && // if chunked, we will check as we accumulate
                 clientIsRequestBodyTooLargeForPolicy(request->content_length)) {
-            clientStreamNode *node = context->getClientReplyContext();
-            clientReplyContext *repContext = dynamic_cast<clientReplyContext *>(node->data.getRaw());
-            assert (repContext);
+            const auto repContext = &http->storeReader();
             conn->quitAfterError(request.getRaw());
             repContext->setReplyToError(ERR_TOO_BIG,
                                         Http::scContentTooLarge, nullptr,
@@ -1820,6 +1748,7 @@ ConnStateData::parseProxyProtocolHeader()
     return true;
 }
 
+/// Update flags and timeout after the first byte received
 void
 ConnStateData::receivedFirstByte()
 {
@@ -1906,6 +1835,7 @@ ConnStateData::parseRequests()
     }
 }
 
+/// processing to be done after a Comm::Read()
 void
 ConnStateData::afterClientRead()
 {
@@ -2041,9 +1971,7 @@ ConnStateData::abortChunkedRequestBody(const err_type error)
 #if WE_KNOW_HOW_TO_SEND_ERRORS
     Http::StreamPointer context = pipeline.front();
     if (context != NULL && !context->http->out.offset) { // output nothing yet
-        clientStreamNode *node = context->getClientReplyContext();
-        clientReplyContext *repContext = dynamic_cast<clientReplyContext*>(node->data.getRaw());
-        assert(repContext);
+        const auto &repContext = context->http->storeReader();
         const Http::StatusCode scode = (error == ERR_TOO_BIG) ?
                                        Http::scContentTooLarge : HTTP_BAD_REQUEST;
         repContext->setReplyToError(error, scode,
@@ -2110,11 +2038,16 @@ ConnStateData::lifetimeTimeout(const CommTimeoutCbParams &io)
 
 ConnStateData::ConnStateData(const MasterXaction::Pointer &xact) :
     AsyncJob("ConnStateData"), // kids overwrite
-    Server(xact)
 #if USE_OPENSSL
-    , tlsParser(Security::HandshakeParser::fromClient)
+    tlsParser(Security::HandshakeParser::fromClient),
 #endif
+    clientConnection(xact->tcpClient),
+    transferProtocol(xact->squidPort->transport),
+    port(xact->squidPort),
+    receivedFirstByte_(false)
 {
+    clientConnection->leaveOrphanage();
+
     // store the details required for creating more MasterXaction objects as new requests come in
     log_addr = xact->tcpClient->remote;
     log_addr.applyClientMask(Config.Addrs.client_netmask);
@@ -3164,19 +3097,8 @@ ConnStateData::fakeAConnectRequest(const char *reason, const SBuf &payload)
 ClientHttpRequest *
 ConnStateData::buildFakeRequest(SBuf &useHost, const AnyP::KnownPort usePort, const SBuf &payload)
 {
-    ClientHttpRequest *http = new ClientHttpRequest(this);
-    Http::Stream *stream = new Http::Stream(clientConnection, http);
-
-    StoreIOBuffer tempBuffer;
-    tempBuffer.data = stream->reqbuf;
-    tempBuffer.length = HTTP_REQBUF_SZ;
-
-    ClientStreamData newServer = new clientReplyContext(http);
-    ClientStreamData newClient = stream;
-    clientStreamInit(&http->client_stream, clientGetMoreData, clientReplyDetach,
-                     clientReplyStatus, newServer, clientSocketRecipient,
-                     clientSocketDetach, newClient, tempBuffer);
-
+    const auto stream = Store::UltimateClient::Make<Http::Stream>(this);
+    const auto http = stream->http;
     stream->flags.parsed_ok = 1; // Do we need it?
     stream->mayUseConnection(true);
     extendLifetime();
@@ -3512,6 +3434,22 @@ ConnStateData::fillConnectionLevelDetails(ACLFilledChecklist &checklist) const
 #endif
 }
 
+void
+ConnStateData::write(MemBuf *mb)
+{
+    typedef CommCbMemFunT<ConnStateData, CommIoCbParams> Dialer;
+    writer = JobCallback(33, 5, Dialer, this, ConnStateData::clientWriteDone);
+    Comm::Write(clientConnection, mb, writer);
+}
+
+void
+ConnStateData::write(char *buf, int len)
+{
+    typedef CommCbMemFunT<ConnStateData, CommIoCbParams> Dialer;
+    writer = JobCallback(33, 5, Dialer, this, ConnStateData::clientWriteDone);
+    Comm::Write(clientConnection, buf, len, writer, nullptr);
+}
+
 bool
 ConnStateData::transparent() const
 {
@@ -3670,8 +3608,10 @@ ConnStateData::clientPinnedConnectionClosed(const CommCloseCbParams &io)
     if (sawZeroReply && clientConnection != nullptr) {
         debugs(33, 3, "Closing client connection on pinned zero reply.");
         clientConnection->close();
+        return;
     }
 
+    closeIfIdle("non-zeroReply pinned connection closure");
 }
 
 void
@@ -3687,8 +3627,21 @@ ConnStateData::notePinnedConnectionBecameIdle(PinnedIdleContext pic)
     Must(pic.request);
     pinConnection(pic.connection, *pic.request);
 
-    // monitor pinned server connection for remote-end closures.
-    startPinnedConnectionMonitoring();
+    Assure(pinning.serverConnection);
+    if (pinning.serverConnection->toGoneCachePeer()) {
+        // Above, we could have checked that the cache_peer is gone, avoiding
+        // pinConnection(), but we pin to avoid writing complex custom cleanup
+        // code for this rare case. For example, we avoid dealing with a
+        // not-yet-pinned pic.connection (XXX: This method name falsely implies
+        // that pic.connection is always pinned, but httpsPeeked() supplies an
+        // unpinned connection and probably assumes no kick() below).
+        debugs(33, 3, "peer gone: " << pinning.serverConnection);
+        Assure(pinning.closeHandler);
+        Assure(Comm::IsConnOpen(pinning.serverConnection));
+        comm_close(pinning.serverConnection->fd);
+    } else {
+        startPinnedConnectionMonitoring();
+    }
 
     if (pipeline.empty())
         kick(); // in case parseRequests() was blocked by a busy pic.connection
@@ -3742,6 +3695,15 @@ ConnStateData::pinConnection(const Comm::ConnectionPointer &pinServer, const Htt
 void
 ConnStateData::startPinnedConnectionMonitoring()
 {
+    if (!pinning.peerGoneHandler) {
+        if (const auto peer = pinning.peer()) {
+            using Dialer = NullaryMemFunT<ConnStateData>;
+            pinning.peerGoneHandler = asyncCall(93, 5, "ConnStateData::notePinnedPeerGone",
+                                                Dialer(this, &ConnStateData::notePinnedPeerGone));
+            peer->addIdlePinnedConnection(pinning.peerGoneHandler);
+        }
+    }
+
     if (pinning.readHandler != nullptr)
         return; // already monitoring
 
@@ -3754,7 +3716,17 @@ ConnStateData::startPinnedConnectionMonitoring()
 void
 ConnStateData::stopPinnedConnectionMonitoring()
 {
+    if (pinning.peerGoneHandler) {
+        if (pinning.peer())
+            pinning.peer()->removeIdlePinnedConnection(pinning.peerGoneHandler);
+        else
+            pinning.peerGoneHandler->cancel("stopPinnedConnectionMonitoring");
+        pinning.peerGoneHandler = nullptr;
+    }
+
     if (pinning.readHandler != nullptr) {
+        // while we read pinning.serverConnection, we own and never close it
+        Assure(Comm::IsConnOpen(pinning.serverConnection));
         Comm::ReadCancel(pinning.serverConnection->fd, pinning.readHandler);
         pinning.readHandler = nullptr;
     }
@@ -3818,18 +3790,39 @@ ConnStateData::clientPinnedConnectionRead(const CommIoCbParams &io)
         return;
 #endif
 
-    const bool clientIsIdle = pipeline.empty();
+    debugs(33, 3, "idle pinned " << pinning.serverConnection << " read " << io.size);
+    unpinConnection(true);
+    closeIfIdle("unexpected pinned connection read");
+}
 
-    debugs(33, 3, "idle pinned " << pinning.serverConnection << " read " <<
-           io.size << (clientIsIdle ? " with idle client" : ""));
-
-    pinning.serverConnection->close();
-
+/// closes client-Squid connection if we are idling while waiting for more requests to process
+void
+ConnStateData::closeIfIdle(const char * const reason)
+{
+    const auto clientIsIdle = pipeline.empty();
+    debugs(33, 3, reason << "; clientIsIdle=" << clientIsIdle);
     // If we are still sending data to the client, do not close now. When we are done sending,
     // ConnStateData::kick() checks pinning.serverConnection and will close.
     // However, if we are idle, then we must close to inform the idle client and minimize races.
     if (clientIsIdle && clientConnection != nullptr)
         clientConnection->close();
+}
+
+/// handles CachePeer::removed() event for the idle pinned Squid-peer connection
+void
+ConnStateData::notePinnedPeerGone()
+{
+    // This method is only reachable when the connection is pinned and idle (a
+    // pinned connection may stop being idle when our asynchronous notification
+    // is in the queue, but we cancel our pinning.peerGoneHandler callback in
+    // those cases). Idle pinned connections have pinning.peerGoneHandler.
+    Assure(pinning.peerGoneHandler);
+    pinning.peerGoneHandler = nullptr;
+
+    // An idle pinned connection means that we can safely close it and, if there
+    // is nothing to do for the client, close the client connection as well.
+    unpinConnection(true);
+    closeIfIdle(__FUNCTION__);
 }
 
 Comm::ConnectionPointer
@@ -3880,13 +3873,13 @@ ConnStateData::unpinConnection(const bool andClose)
 {
     debugs(33, 3, pinning.serverConnection);
 
+    stopPinnedConnectionMonitoring();
+
     if (Comm::IsConnOpen(pinning.serverConnection)) {
         if (pinning.closeHandler != nullptr) {
             comm_remove_close_handler(pinning.serverConnection->fd, pinning.closeHandler);
             pinning.closeHandler = nullptr;
         }
-
-        stopPinnedConnectionMonitoring();
 
         // close the server side socket if requested
         if (andClose)
@@ -3903,6 +3896,7 @@ ConnStateData::unpinConnection(const bool andClose)
      * connection has gone away */
 }
 
+/// abort any pending transactions and prevent new ones (by closing)
 void
 ConnStateData::terminateAll(const Error &rawError, const LogTagsErrors &lte)
 {

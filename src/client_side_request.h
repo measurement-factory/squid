@@ -24,6 +24,7 @@
 #endif
 
 class ClientRequestContext;
+class clientReplyContext;
 class ConnStateData;
 class MemObject;
 
@@ -116,6 +117,19 @@ public:
     /// \returns Content-Length value for the future response; never negative
     int64_t prepPartialResponseGeneration();
 
+    /// Sets replyRecipient and creates clientReplyContext_. This call must
+    /// precede readStoreResponse() calls that actually trigger Store reading.
+    /// Use Store::UltimateClient::Make() to ensure correct call order.
+    void prepForReadingStoreResponse(const Store::UltimateClientPointer &);
+
+    /// Request initial or additional response bytes from Store.
+    /// \prec prepForReadingStoreResponse() has been called.
+    void readStoreResponse();
+
+    /// The object managing reading responses from Store.
+    /// \prec prepForReadingStoreResponse() has been called.
+    clientReplyContext &storeReader();
+
     /// Build an error reply. For use with the callouts.
     void calloutsError(const err_type, const ErrorDetail::Pointer &);
 
@@ -162,7 +176,6 @@ public:
 
     struct Flags {
         bool accel = false;
-        bool done_copying = false;
     } flags;
 
     struct Redirect {
@@ -171,7 +184,10 @@ public:
     } redirect;
 
     dlink_node active;
-    dlink_list client_stream;
+
+    /// The final recipient of Store responses and associated errors.
+    /// Set by prepForReadingStoreResponse().
+    Store::UltimateClientPointer replyRecipient;
 
     ClientRequestContext *calloutContext = nullptr;
 
@@ -188,6 +204,10 @@ private:
     StoreEntry *entry_ = nullptr;
     StoreEntry *loggingEntry_ = nullptr;
     ConnStateData * conn_ = nullptr;
+
+    /// Retrieves response(s) from Store. Nil unless
+    /// prepForReadingStoreResponse() has been called.
+    RefCount<clientReplyContext> clientReplyContext_;
 
 #if USE_OPENSSL
 public:

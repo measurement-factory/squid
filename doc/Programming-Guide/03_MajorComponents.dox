@@ -28,7 +28,7 @@ TODO: find out what has replaced clientSocketContext since it seems to not exist
 \par
 	This is where requests are processed. We determine if the
 	request is to be redirected, if it passes access lists,
-	and setup the initial client stream for internal requests.
+	and if it is an internal request.
 	Temporary state for this processing is held in a
 	clientRequestContext.
 TODO: find out what has replaced clientRequestContext since it seems not to exist now.

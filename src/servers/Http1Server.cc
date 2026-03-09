@@ -13,7 +13,6 @@
 #include "client_side.h"
 #include "client_side_reply.h"
 #include "client_side_request.h"
-#include "clientStream.h"
 #include "comm/Write.h"
 #include "http/one/RequestParser.h"
 #include "http/Stream.h"
@@ -209,10 +208,8 @@ Http::One::Server::setReplyError(Http::StreamPointer &context, HttpRequest::Poin
         clientConnection->close();
         return;
     }
-    clientStreamNode *node = context->getClientReplyContext();
-    clientReplyContext *repContext = dynamic_cast<clientReplyContext *>(node->data.getRaw());
-    assert (repContext);
 
+    const auto repContext = &context->http->storeReader();
     repContext->setReplyToError(requestError, errStatusCode, context->http->uri, this, nullptr, requestErrorBytes, nullptr);
 
     assert(context->http->out.offset == 0);
@@ -250,12 +247,10 @@ Http::One::Server::processParsedRequest(Http::StreamPointer &context)
         const String expect = request->header.getList(Http::HdrType::EXPECT);
         const bool supportedExpect = (expect.caseCmp("100-continue") == 0);
         if (!supportedExpect) {
-            clientStreamNode *node = context->getClientReplyContext();
             quitAfterError(request.getRaw());
             // setReplyToError() requires log_uri
             assert(http->log_uri);
-            clientReplyContext *repContext = dynamic_cast<clientReplyContext *>(node->data.getRaw());
-            assert (repContext);
+            const auto repContext = &http->storeReader();
             repContext->setReplyToError(ERR_INVALID_REQ, Http::scExpectationFailed, http->uri,
                                         this, request.getRaw(), nullptr, nullptr);
             assert(context->http->out.offset == 0);

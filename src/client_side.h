@@ -12,18 +12,26 @@
 #define SQUID_SRC_CLIENT_SIDE_H
 
 #include "acl/ChecklistFiller.h"
+#include "anyp/forward.h"
+#include "anyp/ProtocolVersion.h"
+#include "base/AsyncJob.h"
 #include "base/RunnersRegistry.h"
-#include "clientStreamForward.h"
+#include "BodyPipe.h"
 #include "comm.h"
+#include "comm/Write.h"
+#include "CommCalls.h"
 #include "error/Error.h"
+#include "error/forward.h"
 #include "helper/forward.h"
 #include "http/forward.h"
+#include "http/Stream.h"
 #include "HttpControlMsg.h"
 #include "ipc/FdNotes.h"
 #include "log/forward.h"
+#include "Pipeline.h"
 #include "proxyp/forward.h"
 #include "sbuf/SBuf.h"
-#include "servers/Server.h"
+#include "servers/forward.h"
 #if USE_AUTH
 #include "auth/UserRequest.h"
 #endif
@@ -77,7 +85,8 @@ class ServerBump;
  * stopSending() methods.
  */
 class ConnStateData:
-    public Server,
+    virtual public AsyncJob,
+    public BodyProducer,
     public HttpControlMsgSink,
     public Acl::ChecklistFiller,
     private IndependentRunner
@@ -87,12 +96,19 @@ public:
     explicit ConnStateData(const MasterXactionPointer &xact);
     ~ConnStateData() override;
 
-    /* ::Server API */
-    void receivedFirstByte() override;
-    bool handleReadData() override;
-    void afterClientRead() override;
-    void afterClientWrite(size_t) override;
+    /// maybe grow the inBuf and schedule Comm::Read()
+    void readSomeData();
 
+    /// cancels Comm::Read() if it is scheduled
+    void stopReading();
+
+    /// schedule some data for a Comm::Write()
+    void write(MemBuf *mb);
+
+    /// schedule some data for a Comm::Write()
+    void write(char *buf, int len);
+
+public:
     /* HttpControlMsgSink API */
     void sendControlMsg(HttpControlMsg) override;
     void doneWithControlMsg() override;
@@ -151,6 +167,7 @@ public:
         CachePeer *peer() const { return serverConnection ? serverConnection->getPeer() : nullptr; }
         AsyncCall::Pointer readHandler; ///< detects serverConnection closure
         AsyncCall::Pointer closeHandler; ///< The close handler for pinned server side connection
+        AsyncCall::Pointer peerGoneHandler; ///< reacts to a CachePeer removal (with idle serverConnection)
     } pinning;
 
     bool transparent() const;
@@ -317,8 +334,11 @@ public:
     /// handle a control message received by context from a peer and call back
     virtual bool writeControlMsgAndCall(HttpReply *rep, AsyncCall::Pointer &call) = 0;
 
-    /// ClientStream calls this to supply response header (once) and data
-    /// for the current Http::Stream.
+    /// Handle response header (once) and data for the current Http::Stream.
+    /// This interface allows Http::Stream::handleStoreReply() (which does not
+    /// and should not do FTP) to reach our Ftp::Server child (which does). It
+    /// should disappear as we solve "FTP code is forced to use an HTTP-focused
+    /// class" problems detailed in Http::Stream class description.
     virtual void handleReply(HttpReply *header, StoreIOBuffer receivedData) = 0;
 
     /// remove no longer needed leading bytes from the input buffer
@@ -383,7 +403,33 @@ public:
     /// managers logging of the being-accepted TLS connection secrets
     Security::KeyLogger keyLogger;
 
+// XXX: should be 'protected:' for child access only,
+//      but all sorts of code likes to play directly
+//      with the I/O buffers and socket.
+public:
+    // Client TCP connection details from comm layer.
+    Comm::ConnectionPointer clientConnection;
+
+    /**
+     * The transfer protocol currently being spoken on this connection.
+     * HTTP/1.x CONNECT, HTTP/1.1 Upgrade and HTTP/2 SETTINGS offer the
+     * ability to change protocols on the fly.
+     */
+    AnyP::ProtocolVersion transferProtocol;
+
+    /// Squid listening port details where this connection arrived.
+    AnyP::PortCfgPointer port;
+
+    /// read I/O buffer for the client connection
+    SBuf inBuf;
+
+    /// set of requests waiting to be serviced
+    Pipeline pipeline;
+
 protected:
+    /// whether client_request_buffer_max_size allows inBuf.length() increase
+    bool mayBufferMoreRequestBytes() const;
+
     void startDechunkingRequest();
     void finishDechunkingRequest(bool withSuccess);
     void abortChunkedRequestBody(const err_type error);
@@ -435,10 +481,21 @@ protected:
 
     bool tunnelOnError(const err_type);
 
+    AsyncCall::Pointer reader; ///< set when we are reading
+    AsyncCall::Pointer writer; ///< set when we are writing
+
 private:
-    /* ::Server API */
-    void terminateAll(const Error &, const LogTagsErrors &) override;
-    bool shouldCloseOnEof() const override;
+    void terminateAll(const Error &, const LogTagsErrors &);
+    bool shouldCloseOnEof() const;
+    void doClientRead(const CommIoCbParams &);
+    void clientWriteDone(const CommIoCbParams &);
+    void maybeMakeSpaceAvailable();
+
+    /// whether Comm::Read() is scheduled
+    bool reading() const { return reader != nullptr; }
+
+    /// whether Comm::Write() is scheduled
+    bool writing() const { return writer != nullptr; }
 
     void checkLogging();
 
@@ -447,6 +504,13 @@ private:
     bool concurrentRequestQueueFilled() const;
 
     void pinConnection(const Comm::ConnectionPointer &pinServerConn, const HttpRequest &request);
+    void notePinnedPeerGone();
+    void closeIfIdle(const char *reason);
+
+    void receivedFirstByte();
+    bool handleReadData();
+    void afterClientRead();
+    void afterClientWrite(size_t);
 
     /* PROXY protocol functionality */
     bool proxyProtocolValidateClient();
@@ -495,6 +559,8 @@ private:
     Ssl::CertSignAlgorithm signAlgorithm = Ssl::algSignTrusted; ///< The signing algorithm to use
 #endif
 
+    bool receivedFirstByte_; ///< true if at least one byte received on this connection
+
     /// the reason why we no longer write the response or nil
     const char *stoppedSending_ = nullptr;
     /// the reason why we no longer read the request or nil
@@ -524,13 +590,6 @@ void clientPackRangeHdr(const HttpReplyPointer &, const HttpHdrRangeSpec *, Stri
 
 /// put terminating boundary for multiparts to the buffer
 void clientPackTermBound(String boundary, MemBuf *);
-
-/* misplaced declaratrions of Stream callbacks provided/used by client side */
-CSR clientGetMoreData;
-CSS clientReplyStatus;
-CSD clientReplyDetach;
-CSCB clientSocketRecipient;
-CSD clientSocketDetach;
 
 void clientProcessRequest(ConnStateData *, const Http1::RequestParserPointer &, Http::Stream *);
 void clientProcessRequestFinished(ConnStateData *, const HttpRequest::Pointer &);

@@ -920,7 +920,7 @@ TunnelStateData::copyRead(Connection &from, IOCB *completion)
     // XXX: Bug #4913: For delay pools, use delayRead() API instead.
     if (bw == 1 && ++from.delayedLoops < 10) {
         from.readPending = this;
-        eventAdd("tunnelDelayedServerRead", from.readPendingFunc, from.readPending, 0.3, true);
+        eventAdd("tunnelDelayedServerRead", from.readPendingFunc, from.readPending, 0.3, 1);
         return;
     }
 
