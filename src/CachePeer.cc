@@ -53,7 +53,10 @@ CachePeer::~CachePeer()
 
     xfree(login);
 
-    delete standby.pool;
+    // A standby.mgr job (if any) would keep `this` alive, so it has to be gone
+    // now; standby.pool (if there was any) was managed by standby.mgr.
+    assert(!standby.mgr);
+    assert(!standby.pool);
 
     xfree(domain);
 }

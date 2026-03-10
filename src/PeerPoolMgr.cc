@@ -31,11 +31,13 @@
 CBDATA_CLASS_INIT(PeerPoolMgr);
 
 PeerPoolMgr::PeerPoolMgr(CachePeer *aPeer): AsyncJob("PeerPoolMgr"),
-    peer(cbdataReference(aPeer)),
+    peer(aPeer),
     transportWait(),
     encryptionWait(),
     addrUsed(0)
 {
+    Assure(peer);
+
     const auto mx = MasterXaction::MakePortless<XactionInitiator::initPeerPool>();
 
     codeContext = new PrecomputedCodeContext("cache_peer standby pool", ToSBuf("current cache_peer standby pool: ", *peer,
@@ -52,13 +54,10 @@ PeerPoolMgr::PeerPoolMgr(CachePeer *aPeer): AsyncJob("PeerPoolMgr"),
 
 PeerPoolMgr::~PeerPoolMgr()
 {
-    if (validPeer()) {
-        // No unmanaged pools. TODO: When CachePeer is refcounted, this should
-        // become the only place that deletes the pool.
-        delete peer->standby.pool;
-        peer->standby.pool = nullptr;
-    }
-    cbdataReferenceDone(peer);
+    delete peer->standby.pool;
+    peer->standby.pool = nullptr;
+
+    peer->standby.mgr = nullptr;
 }
 
 void
@@ -77,13 +76,13 @@ PeerPoolMgr::swanSong()
 bool
 PeerPoolMgr::validPeer() const
 {
-    return peer && cbdataReferenceValid(peer) && peer->standby.pool;
+    return peer->standby.limit && !peer->removed();
 }
 
 bool
 PeerPoolMgr::doneAll() const
 {
-    return !(validPeer() && peer->standby.limit) && AsyncJob::doneAll();
+    return !validPeer() && AsyncJob::doneAll();
 }
 
 void
@@ -99,7 +98,7 @@ PeerPoolMgr::handleOpenedConnection(const CommConnectCbParams &params)
     }
 
     if (params.flag != Comm::OK) {
-        NoteOutgoingConnectionFailure(peer);
+        NoteOutgoingConnectionFailure(peer.getRaw());
         checkpoint("conn opening failure"); // may retry
         return;
     }
@@ -175,11 +174,11 @@ PeerPoolMgr::openNewConnection()
     }
 
     // Do not talk to a peer until it is ready.
-    if (!neighborUp(peer)) // provides debugging
+    if (!neighborUp(peer.getRaw())) // provides debugging
         return; // there will be another checkpoint when peer is up
 
     // Do not violate peer limits.
-    if (!peerCanOpenMore(peer)) { // provides debugging
+    if (!peerCanOpenMore(peer.getRaw())) { // provides debugging
         peer->standby.waitingForClose = true; // may already be true
         return; // there will be another checkpoint when a peer conn closes
     }
@@ -201,7 +200,7 @@ PeerPoolMgr::openNewConnection()
     conn->remote = peer->addresses[addrUsed++ % peer->n_addresses];
     conn->remote.port(peer->http_port);
     conn->peerType = STANDBY_POOL; // should be reset by peerSelect()
-    conn->setPeer(peer);
+    conn->setPeer(peer.getRaw());
     getOutgoingAddress(request.getRaw(), conn);
     GetMarkingsToServer(request.getRaw(), *conn);
 
@@ -224,7 +223,8 @@ PeerPoolMgr::checkpoint(const char *reason)
 {
     if (!validPeer()) {
         debugs(48, 3, reason << " and peer gone");
-        return; // nothing to do after our owner dies; the job will quit
+        Assure(done());
+        return; // nothing to do; the job will quit
     }
 
     const int count = peer->standby.pool->count();
