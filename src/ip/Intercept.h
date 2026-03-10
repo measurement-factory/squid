@@ -70,6 +70,12 @@ public:
      */
     void StopTransparency(const char *str);
 
+    /**
+     \retval 0  IP Interception is disabled.
+     \retval 1  IP Interception is enabled and active.
+     */
+    inline int InterceptActive() { return interceptActive_; };
+
     /** \par
      * Turn on IP-Interception-Proxy activities.
      * This function should be called during parsing of the squid.conf
@@ -110,6 +116,8 @@ private:
      * \return         Whether successfully located the new address.
      */
     bool PfInterception(const Comm::ConnectionPointer &newConn);
+
+    bool UseInterceptionAddressesLookedUpEarlier(const char *, const Comm::ConnectionPointer &);
 
     int transparentActive_;
     int interceptActive_;
