@@ -110,8 +110,6 @@ struct node {
     struct enum_list *enums;    /* (optional) list of enumerated integers (otherwise NULL) */
 };
 
-int Line = 1;
-
 /* types of tokens */
 #define CONTINUE    -1
 #define ENDOFFILE   0
@@ -165,68 +163,9 @@ struct tok {
     struct tok *next;       /* pointer to next in hash table */
 };
 
-struct tok tokens[] = {
-    {"obsolete", sizeof("obsolete") - 1, OBSOLETE},
-    {"Opaque", sizeof("Opaque") - 1, SNMP_OPAQUE},
-    {"recommended", sizeof("recommended") - 1, RECOMMENDED},
-    {"optional", sizeof("optional") - 1, SNMP_OPTIONAL},
-    {"mandatory", sizeof("mandatory") - 1, MANDATORY},
-    {"current", sizeof("current") - 1, MANDATORY},
-    {"not-accessible", sizeof("not-accessible") - 1, NOACCESS},
-    {"write-only", sizeof("write-only") - 1, WRITEONLY},
-    {"read-write", sizeof("read-write") - 1, READWRITE},
-    {"TimeTicks", sizeof("TimeTicks") - 1, TIMETICKS},
-    {"OBJECTIDENTIFIER", sizeof("OBJECTIDENTIFIER") - 1, OBJID},
-    /*
-     * This CONTINUE appends the next word onto OBJECT,
-     * hopefully matching OBJECTIDENTIFIER above.
-     */
-    {"OBJECT", sizeof("OBJECT") - 1, CONTINUE},
-    {"NetworkAddress", sizeof("NetworkAddress") - 1, NETADDR},
-    {"Gauge", sizeof("Gauge") - 1, GAUGE},
-    {"OCTETSTRING", sizeof("OCTETSTRING") - 1, OCTETSTR},
-    {"OCTET", sizeof("OCTET") - 1, -1},
-    {"OF", sizeof("OF") - 1, OF},
-    {"SEQUENCE", sizeof("SEQUENCE") - 1, SEQUENCE},
-    {"NULL", sizeof("NULL") - 1, NUL},
-    {"IpAddress", sizeof("IpAddress") - 1, IPADDR},
-    {"INTEGER", sizeof("INTEGER") - 1, INTEGER},
-    {"Counter", sizeof("Counter") - 1, COUNTER},
-    {"read-only", sizeof("read-only") - 1, READONLY},
-    {"ACCESS", sizeof("ACCESS") - 1, ACCESS},
-    {"MAX-ACCESS", sizeof("MAX-ACCESS") - 1, ACCESS},
-    {"STATUS", sizeof("STATUS") - 1, SNMP_STATUS},
-    {"SYNTAX", sizeof("SYNTAX") - 1, SYNTAX},
-    {"OBJECT-TYPE", sizeof("OBJECT-TYPE") - 1, OBJTYPE},
-    {"{", sizeof("{") - 1, LEFTBRACKET},
-    {"}", sizeof("}") - 1, RIGHTBRACKET},
-    {"::=", sizeof("::=") - 1, EQUALS},
-    {"(", sizeof("(") - 1, LEFTPAREN},
-    {")", sizeof(")") - 1, RIGHTPAREN},
-    {",", sizeof(",") - 1, COMMA},
-    {"DESCRIPTION", sizeof("DESCRIPTION") - 1, DESCRIPTION},
-    {"INDEX", sizeof("INDEX") - 1, INDEX},
-    {"\"", sizeof("\"") - 1, QUOTE},
-    {"END", sizeof("END") - 1, ENDOFFILE},
-    /* Hacks for easier MIBFILE coercing */
-    {"read-create", sizeof("read-create") - 1, READWRITE},
-    {NULL}
-};
-
 #define HASHSIZE    32
 #define BUCKET(x)   (x & 0x01F)
 
-static struct tok *buckets[HASHSIZE];
-
 #define NHASHSIZE    128
 #define NBUCKET(x)   (x & 0x7F)
-struct node *nbuckets[NHASHSIZE];
-
-int translation_table[40];
-
-/*
- * Parses a token from the file.  The type of the token parsed is returned,
- * and the text is placed in the string pointed to by token.
- */
-static char last = ' ';
 

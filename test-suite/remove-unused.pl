@@ -40,12 +40,12 @@ open(my $ih, '<', $inputFile) or die "Could not open $inputFile: $!";
 my $fileRanges = undef;
 while (my $line = <$ih>) {
     print "Processing '$line'\n";
-    if ($line =~ /^.+:\d+: warning: Function '(.+)' is unused$/) {
+    if ($line =~ /^.+:\d+: warning:.*'(.+)' is unused$/) {
         $currentFunction = $1;
         $fileRanges = \%fileRangesUnused;
         next;
     }
-    if ($line =~ /^.+:\d+: note: Function '(.+)' uses=\d+$/) {
+    if ($line =~ /^.+:\d+: note:.*'(.+)' uses=\d+$/) {
         $currentFunction = $1;
         $fileRanges = \%fileRangesUsed;
         next;
