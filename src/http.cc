@@ -78,12 +78,11 @@ static void copyOneHeaderFromClientsideRequestToUpstreamRequest(const HttpHeader
 
 HttpStateData::HttpStateData(FwdState *theFwdState) :
     AsyncJob("HttpStateData"),
-    Client(theFwdState)
+    Client(theFwdState),
+    serverConnection((*fwd).serverConnection()), // not nil now; becomes nil later
+    _peer((*serverConnection).getPeer()) // may be nil now but never becomes nil later
 {
     debugs(11,5, "HttpStateData " << this << " created");
-    serverConnection = fwd->serverConnection();
-    Assure(serverConnection); // cannot be nil now but does become nil later
-    _peer = serverConnection->getPeer(); // may be nil now but never becomes nil later
 
     flags.peering = bool(_peer); // TODO: Remove Http::StateFlags::peering.
     flags.tunneling = (_peer && request->flags.sslBumped);
