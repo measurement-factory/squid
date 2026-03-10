@@ -64,7 +64,6 @@ public:
     // Checks whether the response is cacheable/shareable.
     ReuseDecision::Answers reusableReply(ReuseDecision &decision);
 
-    CachePeer *_peer = nullptr;       /* CachePeer request made to */
     int eof = 0;            /* reached end-of-object? */
     int lastChunk = 0;      /* reached last chunk of a chunk-encoded reply */
     Http::StateFlags flags;
@@ -93,6 +92,9 @@ private:
      * Use doneWithServer() to check if the server is available for use.
      */
     Comm::ConnectionPointer serverConnection;
+
+    const KeptCachePeer _peer; ///< cache_peer we are talking to/through (or nil)
+
     AsyncCall::Pointer closeHandler;
     enum ConnectionStatus {
         INCOMPLETE_MSG,

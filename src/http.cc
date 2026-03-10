@@ -78,15 +78,13 @@ static void copyOneHeaderFromClientsideRequestToUpstreamRequest(const HttpHeader
 
 HttpStateData::HttpStateData(FwdState *theFwdState) :
     AsyncJob("HttpStateData"),
-    Client(theFwdState)
+    Client(theFwdState),
+    serverConnection(fwd.value().serverConnection()), // not nil now; becomes nil later
+    _peer(serverConnection.value().getPeer()) // may be nil now but never becomes nil later
 {
     debugs(11,5, "HttpStateData " << this << " created");
-    serverConnection = fwd->serverConnection();
 
-    if (fwd->serverConnection() != nullptr)
-        _peer = cbdataReference(fwd->serverConnection()->getPeer());         /* might be NULL */
-
-    flags.peering =  _peer;
+    flags.peering = bool(_peer); // TODO: Remove Http::StateFlags::peering.
     flags.tunneling = (_peer && request->flags.sslBumped);
     flags.toOrigin = (!_peer || _peer->options.originserver || request->flags.sslBumped);
 
@@ -120,8 +118,6 @@ HttpStateData::~HttpStateData()
 
     if (httpChunkDecoder)
         delete httpChunkDecoder;
-
-    cbdataReferenceDone(_peer);
 
     delete upgradeHeaderOut;
 
@@ -2382,8 +2378,7 @@ HttpStateData::buildRequestPrefix(MemBuf * mb)
     {
         HttpHeader hdr(hoRequest);
         forwardUpgrade(hdr); // before httpBuildRequestHeader() for CONNECTION
-        const auto peer = cbdataReferenceValid(_peer) ? _peer : nullptr;
-        httpBuildRequestHeader(request.getRaw(), entry, fwd->al, &hdr, peer, flags);
+        httpBuildRequestHeader(request.getRaw(), entry, fwd->al, &hdr, _peer.getRaw(), flags);
 
         if (request->flags.pinned && request->flags.connectionAuth)
             request->flags.authSent = true;
@@ -2475,7 +2470,7 @@ HttpStateData::sendRequest()
 
            But I suppose it was a bug
          */
-        if (neighborType(_peer, request->url) == PEER_SIBLING && !_peer->options.allow_miss)
+        if (neighborType(_peer.getRaw(), request->url) == PEER_SIBLING && !_peer->options.allow_miss)
             flags.only_if_cached = true;
 
         flags.front_end_https = _peer->front_end_https;

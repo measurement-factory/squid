@@ -11,7 +11,7 @@
 #ifndef SQUID_SRC_BASE_REFCOUNT_H
 #define SQUID_SRC_BASE_REFCOUNT_H
 
-// reference counting requires the Lock API on base classes
+#include "base/Assure.h"
 #include "base/Lock.h"
 
 #include <functional>
@@ -82,10 +82,14 @@ public:
 
     C * operator-> () const {return const_cast<C *>(p_); }
 
-    C & operator * () const {
-        assert(p_);
+    /// underlying value
+    /// \prec We are not a nil pointer.
+    C &value() const {
+        Assure(p_);
         return *const_cast<C *>(p_);
     }
+
+    C & operator * () const { return value(); }
 
     C * getRaw() const { return const_cast<C *>(p_); }
 
