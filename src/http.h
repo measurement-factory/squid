@@ -13,7 +13,6 @@
 #include "comm.h"
 #include "http/forward.h"
 #include "http/StateFlags.h"
-#include "peering.h"
 #include "sbuf/SBuf.h"
 
 #include <optional>
@@ -65,6 +64,7 @@ public:
     // Checks whether the response is cacheable/shareable.
     ReuseDecision::Answers reusableReply(ReuseDecision &decision);
 
+    CachePeer *_peer = nullptr;       /* CachePeer request made to */
     int eof = 0;            /* reached end-of-object? */
     int lastChunk = 0;      /* reached last chunk of a chunk-encoded reply */
     Http::StateFlags flags;
@@ -87,9 +87,6 @@ protected:
     void drop1xx(const char *reason);
 
 private:
-    /// CachePeer we are talking to or, if talking directly to the origin server, nil
-    CachePeer *cachePeer() const { return serverConnection ? serverConnection->getPeer() : nullptr; }
-
     /**
      * The current server connection.
      * Maybe open, closed, or NULL.
