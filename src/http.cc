@@ -79,8 +79,8 @@ static void copyOneHeaderFromClientsideRequestToUpstreamRequest(const HttpHeader
 HttpStateData::HttpStateData(FwdState *theFwdState) :
     AsyncJob("HttpStateData"),
     Client(theFwdState),
-    serverConnection((*fwd).serverConnection()), // not nil now; becomes nil later
-    _peer((*serverConnection).getPeer()) // may be nil now but never becomes nil later
+    serverConnection(fwd.value().serverConnection()), // not nil now; becomes nil later
+    _peer(serverConnection.value().getPeer()) // may be nil now but never becomes nil later
 {
     debugs(11,5, "HttpStateData " << this << " created");
 
