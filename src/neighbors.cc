@@ -1283,6 +1283,7 @@ peerCountMcastPeersCreateAndSend(CachePeer * const p)
 {
     // XXX: Do not create lots of complex fake objects (while abusing their
     // APIs) to pass around a few basic data points like start_ping and ping!
+    // Fixing this XXX should stop leaking PeerSelector objects allocated below.
     MemObject *mem;
     int reqnum;
     // TODO: use class AnyP::Uri instead of constructing and re-parsing a string
@@ -1303,7 +1304,7 @@ peerCountMcastPeersCreateAndSend(CachePeer * const p)
     psstate->request = req;
     HTTPMSGLOCK(psstate->request);
     psstate->entry = fake;
-    psstate->peerCountMcastPeerXXX = cbdataReference(p);
+    psstate->peerCountMcastPeerXXX = p;
     psstate->ping.start = current_time;
     psstate->al = ale;
     mem = fake->mem_obj;
@@ -1341,8 +1342,7 @@ peerCountMcastPeersAbort(PeerSelector * const psstate)
 {
     StoreEntry *fake = psstate->entry;
 
-    if (cbdataReferenceValid(psstate->peerCountMcastPeerXXX)) {
-        CachePeer *p = (CachePeer *)psstate->peerCountMcastPeerXXX;
+    if (const auto p = psstate->peerCountMcastPeerXXX.valid()) {
         p->mcast.flags.counting = false;
         p->mcast.avg_n_members = Math::doubleAverage(p->mcast.avg_n_members, (double) psstate->ping.n_recv, ++p->mcast.n_times_counted, 10);
         debugs(15, DBG_IMPORTANT, "Group " << *p  << ": " << psstate->ping.n_recv  <<
@@ -1351,7 +1351,7 @@ peerCountMcastPeersAbort(PeerSelector * const psstate)
         p->mcast.n_replies_expected = (int) p->mcast.avg_n_members;
     }
 
-    cbdataReferenceDone(psstate->peerCountMcastPeerXXX);
+    psstate->peerCountMcastPeerXXX.clear();
 
     fake->abort(); // sets ENTRY_ABORTED and initiates related cleanup
     fake->mem_obj->request = nullptr;
