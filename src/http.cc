@@ -82,11 +82,11 @@ HttpStateData::HttpStateData(FwdState *theFwdState) :
 {
     debugs(11,5, "HttpStateData " << this << " created");
     serverConnection = fwd->serverConnection();
+    Assure(serverConnection);
 
-    if (fwd->serverConnection() != nullptr)
-        _peer = cbdataReference(fwd->serverConnection()->getPeer());         /* might be NULL */
+    const auto _peer = cachePeer(); // TODO: Remove diff-reducing underscore.
 
-    flags.peering =  _peer;
+    flags.peering = _peer; // TODO: Remove Http::StateFlags::peering.
     flags.tunneling = (_peer && request->flags.sslBumped);
     flags.toOrigin = (!_peer || _peer->options.originserver || request->flags.sslBumped);
 
@@ -120,8 +120,6 @@ HttpStateData::~HttpStateData()
 
     if (httpChunkDecoder)
         delete httpChunkDecoder;
-
-    cbdataReferenceDone(_peer);
 
     delete upgradeHeaderOut;
 
@@ -607,6 +605,9 @@ httpMakeVaryMark(HttpRequest * request, HttpReply const * reply)
 void
 HttpStateData::keepaliveAccounting(HttpReply *reply)
 {
+    const auto _peer = cachePeer(); // TODO: Remove diff-reducing underscore.
+    Assure(!flags.peering == !_peer); // XXX: Might trigger if serverConnection became nil.
+
     if (flags.keepalive)
         if (flags.peering && !flags.tunneling)
             ++ _peer->stats.n_keepalives_sent;
@@ -877,6 +878,8 @@ HttpStateData::proceedAfter1xx()
 bool
 HttpStateData::peerSupportsConnectionPinning() const
 {
+    const auto _peer = cachePeer(); // TODO: Remove diff-reducing underscore.
+
     if (!_peer)
         return true;
 
@@ -1800,7 +1803,7 @@ httpFixupAuthentication(HttpRequest * request, const HttpHeader * hdr_in, HttpHe
     if (!peer)
         return;
 
-    // This request is going "through" rather than "to" our _peer.
+    // This request is going "through" rather than "to" the given `peer`.
     if (flags.tunneling)
         return;
 
@@ -2382,8 +2385,7 @@ HttpStateData::buildRequestPrefix(MemBuf * mb)
     {
         HttpHeader hdr(hoRequest);
         forwardUpgrade(hdr); // before httpBuildRequestHeader() for CONNECTION
-        const auto peer = cbdataReferenceValid(_peer) ? _peer : nullptr;
-        httpBuildRequestHeader(request.getRaw(), entry, fwd->al, &hdr, peer, flags);
+        httpBuildRequestHeader(request.getRaw(), entry, fwd->al, &hdr, cachePeer(), flags);
 
         if (request->flags.pinned && request->flags.connectionAuth)
             request->flags.authSent = true;
@@ -2442,6 +2444,8 @@ HttpStateData::sendRequest()
         requestSender = JobCallback(11,5,
                                     Dialer, this,  HttpStateData::wroteLast);
     }
+
+    const auto _peer = cachePeer(); // TODO: Remove diff-reducing underscore.
 
     /*
      * Is keep-alive okay for all request methods?
