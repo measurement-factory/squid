@@ -73,8 +73,6 @@ public:
         Method theMethod;
     };
     typedef std::vector<Value::Pointer> Values;
-
-    Note(const char *aKey, const size_t keyLen): theKey(aKey, keyLen) {}
     explicit Note(const SBuf aKey): theKey(aKey) {}
     Note(const Note&) = delete;
     Note &operator=(const Note&) = delete;

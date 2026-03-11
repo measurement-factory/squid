@@ -34,8 +34,6 @@ class MemMapSlot
 {
 public:
     MemMapSlot();
-    size_t size() const {return sizeof(MemMapSlot);}
-    size_t keySize() const {return sizeof(key);}
     bool sameKey(const cache_key *const aKey) const;
     void set(const unsigned char *aKey, const void *block, size_t blockSize, time_t expire = 0);
     bool empty() const;
@@ -92,12 +90,6 @@ public:
     /// successfully finish writing the entry
     void closeForWriting(const sfileno fileno);
 
-    /// stop writing the locked entry and start reading it
-    void switchWritingToReading(const sfileno fileno);
-
-    /// only works on locked entries; returns nil unless the slot is readable
-    const Slot *peekAtReader(const sfileno fileno) const;
-
     /// mark the slot as waiting to be freed and, if possible, free it
     void free(const sfileno fileno);
 
@@ -109,14 +101,9 @@ public:
 
     /// close slot after reading, decrements read level
     void closeForReading(const sfileno fileno);
-
-    bool full() const; ///< there are no empty slots left
     bool valid(const int n) const; ///< whether n is a valid slot coordinate
     int entryCount() const; ///< number of used slots
     int entryLimit() const; ///< maximum number of slots that can be used
-
-    /// adds approximate current stats to the supplied ones
-    void updateStats(ReadWriteLockStats &stats) const;
 
     /// The cleaner MemMapCleaner::noteFreeMapSlot method called when a
     /// readable entry is freed.
@@ -130,10 +117,8 @@ protected:
 
 private:
     int slotIndexByKey(const cache_key *const key) const;
-    Slot &slotByKey(const cache_key *const key);
 
     Slot *openForReading(Slot &s);
-    void abortWriting(const sfileno fileno);
     void freeIfNeeded(Slot &s);
     void freeLocked(Slot &s, bool keepLocked);
 };

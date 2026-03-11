@@ -15,7 +15,6 @@ class StoreEntry;
 
 void storeDigestInit(void);
 void storeDigestNoteStoreReady(void);
-void storeDigestDel(const StoreEntry * entry);
 void storeDigestReport(StoreEntry *);
 
 #endif /* SQUID_SRC_STORE_DIGEST_H */

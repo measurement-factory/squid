@@ -80,8 +80,6 @@ public:
     File(File &&other);
     File &operator = (File &&other);
 
-    const SBuf &name() const { return name_; }
-
     /* system call wrappers */
 
     /// makes the file size (and the current I/O offset) zero

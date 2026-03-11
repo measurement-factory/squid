@@ -160,12 +160,6 @@ public:
     void mode(Ssl::BumpMode m) {bumpMode_ = m;}
     Ssl::BumpMode bumpMode() {return bumpMode_;} ///< return the bumping mode
 
-    /// \retval true if the Server hello message received
-    bool gotHello() const { return (parsedHandshake && !parseError); }
-
-    /// Return true if the Server Hello parsing failed
-    bool gotHelloFailed() const { return (parsedHandshake && parseError); }
-
     /// \return the TLS Details advertised by TLS server.
     const Security::TlsDetails::Pointer &receivedHelloDetails() const {return parser_.details;}
 

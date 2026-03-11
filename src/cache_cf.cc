@@ -2845,19 +2845,6 @@ ConfigParser::ParseUShort(unsigned short *var)
     *var = GetShort();
 }
 
-void
-ConfigParser::ParseBool(bool *var)
-{
-    int i = GetInteger();
-
-    if (0 == i)
-        *var = false;
-    else if (1 == i)
-        *var = true;
-    else
-        self_destruct();
-}
-
 static void
 dump_wordlist(StoreEntry * entry, const char *name, wordlist * list)
 {

@@ -47,7 +47,6 @@ namespace Ssl
 {
 bool ParseErrorString(const char *, Security::Errors &) STUB_RETVAL(false)
 int AskPasswordCb(char *, int, int, void *) STUB_RETVAL(0)
-bool InitServerContext(Security::ContextPointer &, AnyP::PortCfg &) STUB_RETVAL(false)
 bool InitClientContext(Security::ContextPointer &, Security::PeerOptions &, Security::ParsedPortFlags) STUB_RETVAL(false)
 void ConfigurePeerVerification(Security::ContextPointer &, const Security::ParsedPortFlags) STUB
 void DisablePeerVerification(Security::ContextPointer &) STUB
@@ -57,7 +56,6 @@ const char *sslGetUserEmail(SSL *) STUB_RETVAL(nullptr)
 const char *sslGetUserAttribute(SSL *, const char *) STUB_RETVAL(nullptr)
 const char *sslGetCAAttribute(SSL *, const char *) STUB_RETVAL(nullptr)
 SBuf sslGetUserCertificatePEM(SSL *) STUB_RETVAL(SBuf())
-SBuf sslGetUserCertificateChainPEM(SSL *) STUB_RETVAL(SBuf())
 namespace Ssl
 {
 //GETX509ATTRIBUTE GetX509UserAttribute;

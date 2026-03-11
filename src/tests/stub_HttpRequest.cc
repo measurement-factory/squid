@@ -46,7 +46,6 @@ bool HttpRequest::bodyNibbled() const STUB_RETVAL(false)
 int HttpRequest::prefixLen() const STUB_RETVAL(0)
 void HttpRequest::swapOut(StoreEntry *) STUB
 void HttpRequest::pack(Packable *) const STUB
-void HttpRequest::httpRequestPack(void *, Packable *) STUB
 HttpRequest * HttpRequest::FromUrl(const SBuf &, const MasterXaction::Pointer &, const HttpRequestMethod &) STUB_RETVAL(nullptr)
 HttpRequest * HttpRequest::FromUrlXXX(const char *, const MasterXaction::Pointer &, const HttpRequestMethod &) STUB_RETVAL(nullptr)
 ConnStateData *HttpRequest::pinnedConnection() STUB_RETVAL(nullptr)
