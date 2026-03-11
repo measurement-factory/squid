@@ -793,7 +793,7 @@ PeerSelector::selectSomeNeighborReplies()
         return;
     }
 
-    if ((p = hit)) {
+    if ((p = hit.getRaw())) {
         code = hit_type == PEER_PARENT ? PARENT_HIT : SIBLING_HIT;
     } else {
         if (!closest_parent_miss.isAnyAddr()) {
@@ -1163,7 +1163,6 @@ PeerSelector::PeerSelector(PeerSelectionInitiator *initiator):
     servers (nullptr),
     first_parent_miss(),
     closest_parent_miss(),
-    hit(nullptr),
     hit_type(PEER_NONE),
     initiator_(initiator)
 {

@@ -154,11 +154,10 @@ private:
     Ip::Address first_parent_miss;
 
     Ip::Address closest_parent_miss;
-    /*
-     * ->hit can be CachePeer* because it should only be
-     * accessed during the thread when it is set
-     */
-    CachePeer *hit;
+
+    /// A cache_peer that returned an ICP or HTCP hit response.
+    /// \sa neighborsUdpPing()
+    KeptCachePeer hit;
     peer_t hit_type;
 
     typedef CbcPointer<PeerSelectionInitiator> Initiator;
