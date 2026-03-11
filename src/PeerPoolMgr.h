@@ -13,10 +13,10 @@
 #include "base/forward.h"
 #include "base/JobWait.h"
 #include "comm/forward.h"
+#include "peering.h"
 #include "security/forward.h"
 
 class HttpRequest;
-class CachePeer;
 class CommConnectCbParams;
 
 /// Maintains an fixed-size "standby" PconnPool for a single CachePeer.
@@ -54,7 +54,8 @@ protected:
     void swanSong() override;
     bool doneAll() const override;
 
-    /// whether the peer is still out there and in a valid state we can safely use
+    /// Whether our peer is still interested in our services.
+    /// TODO: Rename to stillNeeded() or similar.
     bool validPeer() const;
 
     /// Starts new connection, or closes the excess connections
@@ -75,7 +76,7 @@ protected:
     void pushNewConnection(const Comm::ConnectionPointer &conn);
 
 private:
-    CachePeer *peer; ///< the owner of the pool we manage
+    const KeptCachePeer peer; ///< the owner of the pool we manage
     RefCount<HttpRequest> request; ///< fake HTTP request for conn opening code
 
     /// waits for a transport connection to the peer to be established/opened
