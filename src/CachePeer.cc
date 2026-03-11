@@ -199,6 +199,7 @@ CachePeer::noteSuccess()
         debugs(15, 2, "connection to " << *this << " succeeded");
         tcp_up = connect_fail_limit; // NP: so peerAlive() works properly.
         peerAlive(this);
+        PeerPoolMgr::Checkpoint(standby.mgr, "revived peer");
     } else {
         tcp_up = connect_fail_limit;
     }

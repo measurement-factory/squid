@@ -452,8 +452,6 @@ peerAlive(CachePeer *p)
         debugs(15, DBG_IMPORTANT, "Detected REVIVED " << neighborTypeStr(p) << ": " << *p);
         p->stats.logged_state = PEER_ALIVE;
         peerClearRR();
-        if (p->standby.mgr.valid())
-            PeerPoolMgr::Checkpoint(p->standby.mgr, "revived peer");
     }
 
     p->stats.last_reply = squid_curtime;
