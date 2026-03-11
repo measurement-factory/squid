@@ -77,12 +77,6 @@ Ipc::Mem::NotePageNeed(const int purpose, const int count)
 }
 
 size_t
-Ipc::Mem::PageLevel()
-{
-    return ThePagePool ? ThePagePool->level() : 0;
-}
-
-size_t
 Ipc::Mem::PageLevel(const int purpose)
 {
     return ThePagePool ? ThePagePool->level(purpose) : 0;

@@ -71,9 +71,6 @@ public:
     // Members below are meant to be accessed when parsing a directive (i.e.
     // between openDirective() and closeDirective() calls).
 
-    /// rejects configuration due to a repeated directive
-    void rejectDuplicateDirective();
-
     /// extracts and returns a required token
     SBuf token(const char *expectedTokenDescription);
 
@@ -95,7 +92,6 @@ public:
     CachePeer &cachePeer(const char *peerNameTokenDescription);
 
     static void ParseUShort(unsigned short *var);
-    static void ParseBool(bool *var);
     static const char *QuoteString(const String &var);
     static void ParseWordList(wordlist **list);
 

@@ -17,7 +17,6 @@ int clientdbCutoffDenied(const Ip::Address &) STUB_RETVAL(-1)
 void clientdbDump(StoreEntry *) STUB
 int clientdbEstablished(const Ip::Address &, int) STUB_RETVAL(-1)
 #if USE_DELAY_POOLS
-void clientdbSetWriteLimiter(ClientInfo *, const int,const double,const double) STUB
 ClientInfo *clientdbGetInfo(const Ip::Address &) STUB_RETVAL(nullptr)
 #endif
 #if SQUID_SNMP

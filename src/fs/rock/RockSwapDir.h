@@ -64,16 +64,11 @@ public:
     int64_t slotLimitAbsolute() const; ///< Rock store implementation limit
     int64_t slotLimitActual() const; ///< total number of slots in this db
 
-    /// whether the given slot ID may point to a slot in this db
-    bool validSlotId(const SlotId slotId) const;
-
     /// finds and returns a free db slot to fill or throws
     SlotId reserveSlotForWriting();
 
     /// purges one or more entries to make full() false and free some slots
     void purgeSome();
-
-    int64_t diskOffset(Ipc::Mem::PageId &pageId) const;
     int64_t diskOffset(int filen) const;
     void writeError(StoreIOState &sio);
 
@@ -117,8 +112,6 @@ protected:
     void dumpRateOption(StoreEntry * e) const;
     bool parseSizeOption(char const *option, const char *value, int reconfiguring);
     void dumpSizeOption(StoreEntry * e) const;
-
-    bool full() const; ///< no more entries can be stored without purging
     void trackReferences(StoreEntry &e); ///< add to replacement policy scope
     void ignoreReferences(StoreEntry &e); ///< delete from repl policy scope
 

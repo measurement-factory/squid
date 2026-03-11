@@ -126,9 +126,6 @@ public:
     /// searches for the first matching key=value pair within the name-identified field
     /// \returns the value of the found pair or an empty string
     SBuf getByNameListMember(const char *name, const char *member, const char separator) const;
-    /// searches for the first matching key=value pair within the field
-    /// \returns the value of the found pair or an empty string
-    SBuf getListMember(Http::HdrType id, const char *member, const char separator) const;
     int has(Http::HdrType id) const;
     /// Appends "this cache" information to VIA header field.
     /// Takes the initial VIA value from "from" parameter, if provided.
@@ -140,8 +137,6 @@ public:
     void putAuth(const char *auth_scheme, const char *realm);
     void putCc(const HttpHdrCc &cc);
     void putContRange(const HttpHdrContRange * cr);
-    void putRange(const HttpHdrRange * range);
-    void putSc(HttpHdrSc *sc);
     void putExt(const char *name, const char *value);
 
     /// Ensures that the header has the given field, removing or replacing any
@@ -152,7 +147,6 @@ public:
     int64_t getInt64(Http::HdrType id) const;
     time_t getTime(Http::HdrType id) const;
     const char *getStr(Http::HdrType id) const;
-    const char *getLastStr(Http::HdrType id) const;
     HttpHdrCc *getCc() const;
     HttpHdrRange *getRange() const;
     HttpHdrSc *getSc() const;
@@ -190,7 +184,6 @@ protected:
     bool skipUpdateHeader(const Http::HdrType id) const;
 
 private:
-    HttpHeaderEntry *findLastEntry(Http::HdrType id) const;
     bool conflictingContentLength_; ///< found different Content-Length fields
     /// unsupported encoding, unnecessary syntax characters, and/or
     /// invalid field-value found in Transfer-Encoding header
@@ -221,8 +214,6 @@ SBuf SlowlyParseQuotedString(const char *description, const char *start, size_t 
 
 /// quotes string using RFC 7230 quoted-string rules
 SBuf httpHeaderQuoteString(const char *raw);
-
-void httpHeaderCalcMask(HttpHeaderMask * mask, Http::HdrType http_hdr_type_enums[], size_t count);
 
 void httpHeaderInitModule(void);
 
