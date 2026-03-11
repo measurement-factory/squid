@@ -40,10 +40,6 @@
  *
  */
 
-char util_sccsid[] =
-    "@(#)util.c	1.5 Copyright 1992 Livingston Enterprises Inc\n"
-    "		2.1 Copyright 1997 Cistron Internet Services B.V.";
-
 #include "squid.h"
 #include "auth/basic/RADIUS/radius-util.h"
 #include "md5.h"

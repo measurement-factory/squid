@@ -87,7 +87,3 @@ SOFTWARE.
 
 #include "util.h"
 
-oid RFC1066_MIB[] = {1, 3, 6, 1, 2, 1};
-unsigned char RFC1066_MIB_text[] = ".iso.org.dod.internet.mgmt.mib";
-struct snmp_mib_tree *Mib;
-
