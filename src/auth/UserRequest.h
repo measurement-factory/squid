@@ -133,9 +133,6 @@ public:
     /* add the [Proxy-]Authentication-Info header */
     virtual void addAuthenticationInfoHeader(HttpReply * rep, int accel);
 
-    /* add the [Proxy-]Authentication-Info trailer */
-    virtual void addAuthenticationInfoTrailer(HttpReply * rep, int accel);
-
     virtual void releaseAuthServer();
 
     // User credentials object this UserRequest is managing

@@ -55,8 +55,6 @@ err_type FindDenyInfoPage(const Acl::Answer &, bool allowCustomStatus);
 /// \ingroup ACLAPI
 void aclParseDenyInfoLine(AclDenyInfoList **);
 /// \ingroup ACLAPI
-void aclDestroyDenyInfoList(AclDenyInfoList **);
-/// \ingroup ACLAPI
 wordlist *aclDumpGeneric(const Acl::Node *);
 /// \ingroup ACLAPI
 void aclCacheMatchFlush(dlink_list * cache);

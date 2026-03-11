@@ -43,55 +43,9 @@
 
 int snmp_errno = 0;
 
-static const char *api_errors[17] = {
-    "Unknown Error",
-    "Generic Error",
-    "Invalid local port",
-    "Unknown host",
-    "Unknown session",
-    "Too Long",
-
-    "Encoding ASN.1 Information",   /* 6 */
-    "Decoding ASN.1 Information",   /* 7 */
-    "PDU Translation error",
-    "OS Error",
-    "Invalid Textual OID",
-
-    "Unable to fix PDU",
-    "Unsupported SNMP Type",
-    "Unable to parse PDU",
-    "Packet Error",
-    "No Response From Host",
-
-    "Unknown Error"
-};
-
 void
 snmp_set_api_error(int x)
 {
     snmp_errno = x;
-}
-
-const char *
-snmp_api_error(int err)
-{
-    int foo = (err * -1);
-    if ((foo < SNMPERR_GENERR) ||
-            (foo > SNMPERR_LAST))
-        foo = 0;
-
-    return (api_errors[foo]);
-}
-
-int
-snmp_api_errno(void)
-{
-    return (snmp_errno);
-}
-
-const char *
-api_errstring(int snmp_errnumber)
-{
-    return (snmp_api_error(snmp_errnumber));
 }
 
