@@ -74,9 +74,10 @@ void DeleteConfigured(Configuration::SmoothReconfiguration &, CachePeer *);
 /// This DeleteConfigured() variation is used outside of smooth reconfiguration.
 void DeleteConfigured(CachePeer *);
 
-/// Weak pointers to zero or more Config.peers.
+/// A subset of CurrentCachePeers() suitable for long-term storage.
 /// Users must specify the selection algorithm and the order of entries.
-using SelectedCachePeers = std::vector< CbcPointer<CachePeer>, PoolingAllocator< CbcPointer<CachePeer> > >;
+/// DeleteConfigured() must keep every stored copy in sync.
+using SelectedCachePeers = CachePeers::Storage;
 
 /// Temporary, local storage of raw pointers to zero or more Config.peers.
 using RawCachePeers = std::vector<CachePeer *, PoolingAllocator<CachePeer*> >;

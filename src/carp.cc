@@ -188,9 +188,8 @@ carpSelectParent(PeerSelector *ps)
     debugs(39, 2, "carpSelectParent: Calculating hash for " << request->effectiveRequestUri());
 
     /* select CachePeer */
-    for (const auto &tp: CarpPeers()) {
-        if (!tp)
-            continue; // peer gone
+    for (const auto &peer: CarpPeers()) {
+        const auto tp = peer.getRaw();
 
         SBuf key;
         if (tp->options.carp_key.set) {
@@ -234,8 +233,8 @@ carpSelectParent(PeerSelector *ps)
         debugs(39, 3, *tp << " key=" << key << " combined_hash=" << combined_hash  <<
                " score=" << std::setprecision(0) << score);
 
-        if ((score > high_score) && peerHTTPOkay(tp.get(), ps)) {
-            p = tp.get();
+        if ((score > high_score) && peerHTTPOkay(tp, ps)) {
+            p = tp;
             high_score = score;
         }
     }
@@ -258,14 +257,10 @@ carpCachemgr(StoreEntry * sentry)
                       "Actual");
 
     for (const auto &p: CarpPeers()) {
-        if (!p)
-            continue;
         sumfetches += p->stats.fetches;
     }
 
     for (const auto &p: CarpPeers()) {
-        if (!p)
-            continue;
         storeAppendPrintf(sentry, "%24s %10x %10f %10f %10f\n",
                           p->name, p->carp.hash,
                           p->carp.load_multiplier,
