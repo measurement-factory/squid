@@ -204,9 +204,8 @@ peerUserHashSelectParent(PeerSelector *ps)
         user_hash += ROTATE_LEFT(user_hash, 19) + *c;
 
     /* select CachePeer */
-    for (const auto &tp: UserHashPeers()) {
-        if (!tp)
-            continue; // peer gone
+    for (const auto &peer: UserHashPeers()) {
+        const auto tp = peer.getRaw();
 
         combined_hash = (user_hash ^ tp->userhash.hash);
         combined_hash += combined_hash * 0x62531965;
@@ -215,8 +214,8 @@ peerUserHashSelectParent(PeerSelector *ps)
         debugs(39, 3, *tp << " combined_hash " << combined_hash <<
                " score " << std::setprecision(0) << score);
 
-        if ((score > high_score) && peerHTTPOkay(tp.get(), ps)) {
-            p = tp.get();
+        if ((score > high_score) && peerHTTPOkay(tp, ps)) {
+            p = tp;
             high_score = score;
         }
     }
@@ -239,14 +238,10 @@ peerUserHashCachemgr(StoreEntry * sentry)
                       "Actual");
 
     for (const auto &p: UserHashPeers()) {
-        if (!p)
-            continue;
         sumfetches += p->stats.fetches;
     }
 
     for (const auto &p: UserHashPeers()) {
-        if (!p)
-            continue;
         storeAppendPrintf(sentry, "%24s %10x %10f %10f %10f\n",
                           p->name, p->userhash.hash,
                           p->userhash.load_multiplier,
