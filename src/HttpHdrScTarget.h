@@ -64,8 +64,6 @@ public:
     String content() const { return content_; }
     void clearContent() { setMask(SC_CONTENT,false); content_.clean(); }
 
-    bool hasTarget() const { return target.size() != 0; }
-
     void mergeWith(const HttpHdrScTarget * new_sc);
     void updateStats(StatHist *) const;
 
