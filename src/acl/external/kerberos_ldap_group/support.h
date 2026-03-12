@@ -162,7 +162,7 @@ struct kstruct {
     char* mem_ccache[MAX_DOMAINS];
     int ncache;
 };
-int krb5_create_cache(char *domain, char* princ);
+int krb5_create_cache(const char *domain, const char *princ);
 void krb5_cleanup(void);
 #endif
 

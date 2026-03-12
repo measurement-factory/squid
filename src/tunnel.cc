@@ -790,6 +790,7 @@ template <typename Method>
 void
 TunnelStateData::Connection::initConnection(const Comm::ConnectionPointer &aConn, Method method, const char *name, TunnelStateData *tunnelState)
 {
+    debugs(26, 5, aConn << " closer=" << name);
     Must(!Comm::IsConnOpen(conn));
     Must(!closer);
     Must(Comm::IsConnOpen(aConn));
@@ -1157,10 +1158,8 @@ TunnelStateData::connectDone(const Comm::ConnectionPointer &conn, const char *or
 
     bool toOrigin = false; // same semantics as StateFlags::toOrigin
     if (const auto * const peer = conn->getPeer()) {
-        request->prepForPeering(*peer);
         toOrigin = peer->options.originserver;
     } else {
-        request->prepForDirect();
         toOrigin = true;
     }
 
@@ -1228,6 +1227,8 @@ tunnelStart(ClientHttpRequest * http)
 void
 TunnelStateData::connectToPeer(const Comm::ConnectionPointer &conn)
 {
+    debugs(26, 7, conn);
+
     if (const auto p = conn->getPeer()) {
         if (p->secure.encryptTransport)
             return advanceDestination("secure connection to peer", conn, [this,&conn] {
@@ -1563,12 +1564,6 @@ switchToTunnel(HttpRequest *request, const Comm::ConnectionPointer &clientConn, 
     if (!srvConn->getPeer() || !srvConn->getPeer()->options.no_delay)
         tunnelState->server.setDelayId(DelayId::DelayClient(context->http));
 #endif
-
-    debugs(26, 4, "determine post-connect handling pathway.");
-    if (const auto peer = srvConn->getPeer())
-        request->prepForPeering(*peer);
-    else
-        request->prepForDirect();
 
     tunnelState->preReadServerData = preReadServerData;
 

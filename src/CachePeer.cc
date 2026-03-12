@@ -155,9 +155,8 @@ CachePeer::update(Configuration::SmoothReconfiguration &sr, const CachePeer &fre
     // preserve `userhash` fields
     // preserve `sourcehash` fields
 
-    // XXX: Address HttpRequest::prepForPeering() XXX first!
-    // safe_free(login);
-    // login = fresh.login ? xstrdup(fresh.login) : nullptr;
+    safe_free(login);
+    login = fresh.login ? xstrdup(fresh.login) : nullptr;
 
     connect_timeout_raw = fresh.connect_timeout_raw;
     connect_fail_limit = fresh.connect_fail_limit;
@@ -168,9 +167,8 @@ CachePeer::update(Configuration::SmoothReconfiguration &sr, const CachePeer &fre
     standby.limit = fresh.standby.limit;
     // standby.waitingForClose is managed by standby.mgr (if any)
 
-    // XXX: Address HttpRequest::prepForPeering() XXX first!
-    // safe_free(domain);
-    // domain = fresh.domain ? xstrdup(fresh.domain) : nullptr;
+    safe_free(domain);
+    domain = fresh.domain ? xstrdup(fresh.domain) : nullptr;
 
     secure = fresh.secure;
     sslContext = fresh.sslContext;

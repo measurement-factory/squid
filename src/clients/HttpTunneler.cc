@@ -79,7 +79,6 @@ Http::Tunneler::start()
         bailWith(new ErrorState(ERR_CONNECT_FAIL, Http::scInternalServerError, request.getRaw(), al));
         return;
     }
-    request->prepForPeering(*peer);
 
     writeRequest();
     startReadingResponse();

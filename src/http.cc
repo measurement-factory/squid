@@ -74,7 +74,7 @@ static const char *const crlf = "\r\n";
 
 static void httpMaybeRemovePublic(StoreEntry *, Http::StatusCode);
 static void copyOneHeaderFromClientsideRequestToUpstreamRequest(const HttpHeaderEntry *e, const String strConnection, const HttpRequest * request,
-        HttpHeader * hdr_out, const int we_do_ranges, const Http::StateFlags &);
+        HttpHeader * hdr_out, const CachePeer *, const int we_do_ranges, const Http::StateFlags &);
 
 HttpStateData::HttpStateData(FwdState *theFwdState) :
     AsyncJob("HttpStateData"),
@@ -1801,7 +1801,7 @@ httpFixupAuthentication(HttpRequest * request, const HttpHeader * hdr_in, HttpHe
         return;
 
     /* Needs to be explicitly enabled */
-    if (!request->peer_login)
+    if (!peer->login)
         return;
 
     const auto header = flags.toOrigin ? Http::HdrType::AUTHORIZATION : Http::HdrType::PROXY_AUTHORIZATION;
@@ -1810,7 +1810,7 @@ httpFixupAuthentication(HttpRequest * request, const HttpHeader * hdr_in, HttpHe
         return;
 
     /* Nothing to do here for PASSTHRU */
-    if (strcmp(request->peer_login, "PASSTHRU") == 0)
+    if (strcmp(peer->login, "PASSTHRU") == 0)
         return;
 
     // Dangerous and undocumented PROXYPASS is a single-signon to servers with
@@ -1818,7 +1818,7 @@ httpFixupAuthentication(HttpRequest * request, const HttpHeader * hdr_in, HttpHe
     // statement forwards a "basic" Proxy-Authorization value from our client
     // to an originserver peer. Other PROXYPASS cases are handled lower.
     if (flags.toOrigin &&
-            strcmp(request->peer_login, "PROXYPASS") == 0 &&
+            strcmp(peer->login, "PROXYPASS") == 0 &&
             hdr_in->has(Http::HdrType::PROXY_AUTHORIZATION)) {
 
         const char *auth = hdr_in->getStr(Http::HdrType::PROXY_AUTHORIZATION);
@@ -1835,7 +1835,7 @@ httpFixupAuthentication(HttpRequest * request, const HttpHeader * hdr_in, HttpHe
     base64_encode_init(&ctx);
 
     /* Special mode to pass the username to the upstream cache */
-    if (*request->peer_login == '*') {
+    if (*peer->login == '*') {
         const char *username = "-";
 
         if (request->extacl_user.size())
@@ -1846,7 +1846,7 @@ httpFixupAuthentication(HttpRequest * request, const HttpHeader * hdr_in, HttpHe
 #endif
 
         blen = base64_encode_update(&ctx, loginbuf, strlen(username), reinterpret_cast<const uint8_t*>(username));
-        blen += base64_encode_update(&ctx, loginbuf+blen, strlen(request->peer_login +1), reinterpret_cast<const uint8_t*>(request->peer_login +1));
+        blen += base64_encode_update(&ctx, loginbuf+blen, strlen(peer->login+1), reinterpret_cast<const uint8_t*>(peer->login+1));
         blen += base64_encode_final(&ctx, loginbuf+blen);
         httpHeaderPutStrf(hdr_out, header, "Basic %.*s", (int)blen, loginbuf);
         return;
@@ -1854,8 +1854,8 @@ httpFixupAuthentication(HttpRequest * request, const HttpHeader * hdr_in, HttpHe
 
     /* external_acl provided credentials */
     if (request->extacl_user.size() && request->extacl_passwd.size() &&
-            (strcmp(request->peer_login, "PASS") == 0 ||
-             strcmp(request->peer_login, "PROXYPASS") == 0)) {
+            (strcmp(peer->login, "PASS") == 0 ||
+             strcmp(peer->login, "PROXYPASS") == 0)) {
 
         blen = base64_encode_update(&ctx, loginbuf, request->extacl_user.size(), reinterpret_cast<const uint8_t*>(request->extacl_user.rawBuf()));
         blen += base64_encode_update(&ctx, loginbuf+blen, 1, reinterpret_cast<const uint8_t*>(":"));
@@ -1865,20 +1865,20 @@ httpFixupAuthentication(HttpRequest * request, const HttpHeader * hdr_in, HttpHe
         return;
     }
     // if no external user credentials are available to fake authentication with PASS acts like PASSTHRU
-    if (strcmp(request->peer_login, "PASS") == 0)
+    if (strcmp(peer->login, "PASS") == 0)
         return;
 
     /* Kerberos login to peer */
 #if HAVE_AUTH_MODULE_NEGOTIATE && HAVE_KRB5 && HAVE_GSSAPI
-    if (strncmp(request->peer_login, "NEGOTIATE",strlen("NEGOTIATE")) == 0) {
+    if (strncmp(peer->login, "NEGOTIATE", strlen("NEGOTIATE")) == 0) {
         char *Token=nullptr;
-        char *PrincipalName=nullptr,*p;
+        const char *PrincipalName = nullptr;
         int negotiate_flags = 0;
 
-        if ((p=strchr(request->peer_login,':')) != nullptr ) {
-            PrincipalName=++p;
+        if (const auto p = strchr(peer->login, ':')) {
+            PrincipalName = p + 1;
         }
-        if (request->flags.auth_no_keytab) {
+        if (peer->options.auth_no_keytab) {
             negotiate_flags |= PEER_PROXY_NEGOTIATE_NOKEYTAB;
         }
         Token = peer_proxy_negotiate_auth(PrincipalName, peer->host, negotiate_flags);
@@ -1889,7 +1889,7 @@ httpFixupAuthentication(HttpRequest * request, const HttpHeader * hdr_in, HttpHe
     }
 #endif /* HAVE_KRB5 && HAVE_GSSAPI */
 
-    blen = base64_encode_update(&ctx, loginbuf, strlen(request->peer_login), reinterpret_cast<const uint8_t*>(request->peer_login));
+    blen = base64_encode_update(&ctx, loginbuf, strlen(peer->login), reinterpret_cast<const uint8_t*>(peer->login));
     blen += base64_encode_final(&ctx, loginbuf+blen);
     httpHeaderPutStrf(hdr_out, header, "Basic %.*s", (int)blen, loginbuf);
     return;
@@ -1933,7 +1933,7 @@ HttpStateData::httpBuildRequestHeader(HttpRequest * request,
     String strConnection (hdr_in->getList(Http::HdrType::CONNECTION));
 
     while ((e = hdr_in->getEntry(&pos)))
-        copyOneHeaderFromClientsideRequestToUpstreamRequest(e, strConnection, request, hdr_out, we_do_ranges, flags);
+        copyOneHeaderFromClientsideRequestToUpstreamRequest(e, strConnection, request, hdr_out, peer, we_do_ranges, flags);
 
     /* Abstraction break: We should interpret multipart/byterange responses
      * into offset-length data, and this works around our inability to do so.
@@ -2001,8 +2001,8 @@ HttpStateData::httpBuildRequestHeader(HttpRequest * request,
 
     /* append Host if not there already */
     if (!hdr_out->has(Http::HdrType::HOST)) {
-        if (request->peer_domain) {
-            hdr_out->putStr(Http::HdrType::HOST, request->peer_domain);
+        if (peer && peer->domain) {
+            hdr_out->putStr(Http::HdrType::HOST, peer->domain);
         } else {
             SBuf authority = request->url.authority();
             hdr_out->putStr(Http::HdrType::HOST, authority.c_str());
@@ -2150,7 +2150,7 @@ HttpStateData::forwardUpgrade(HttpHeader &hdrOut)
  * to our outgoing fetch request.
  */
 void
-copyOneHeaderFromClientsideRequestToUpstreamRequest(const HttpHeaderEntry *e, const String strConnection, const HttpRequest * request, HttpHeader * hdr_out, const int we_do_ranges, const Http::StateFlags &flags)
+copyOneHeaderFromClientsideRequestToUpstreamRequest(const HttpHeaderEntry *e, const String strConnection, const HttpRequest * request, HttpHeader * hdr_out, const CachePeer * const peer, const int we_do_ranges, const Http::StateFlags &flags)
 {
     debugs(11, 5, "httpBuildRequestHeader: " << e->name << ": " << e->value );
 
@@ -2163,10 +2163,10 @@ copyOneHeaderFromClientsideRequestToUpstreamRequest(const HttpHeaderEntry *e, co
          * Only pass on proxy authentication to peers for which
          * authentication forwarding is explicitly enabled
          */
-        if (!flags.toOrigin && request->peer_login &&
-                (strcmp(request->peer_login, "PASS") == 0 ||
-                 strcmp(request->peer_login, "PROXYPASS") == 0 ||
-                 strcmp(request->peer_login, "PASSTHRU") == 0)) {
+        if (!flags.toOrigin && peer && peer->login &&
+                (strcmp(peer->login, "PASS") == 0 ||
+                 strcmp(peer->login, "PROXYPASS") == 0 ||
+                 strcmp(peer->login, "PASSTHRU") == 0)) {
             hdr_out->addEntry(e->clone());
         }
         break;
@@ -2198,10 +2198,10 @@ copyOneHeaderFromClientsideRequestToUpstreamRequest(const HttpHeaderEntry *e, co
              * us a reverse proxy and only forward authentication if enabled
              * (see also httpFixupAuthentication for special cases)
              */
-            if (request->peer_login &&
-                    (strcmp(request->peer_login, "PASS") == 0 ||
-                     strcmp(request->peer_login, "PASSTHRU") == 0 ||
-                     strcmp(request->peer_login, "PROXYPASS") == 0)) {
+            if (peer && peer->login &&
+                    (strcmp(peer->login, "PASS") == 0 ||
+                     strcmp(peer->login, "PASSTHRU") == 0 ||
+                     strcmp(peer->login, "PROXYPASS") == 0)) {
                 hdr_out->addEntry(e->clone());
             }
         }
@@ -2215,8 +2215,8 @@ copyOneHeaderFromClientsideRequestToUpstreamRequest(const HttpHeaderEntry *e, co
          * went through our redirector and the admin configured
          * 'redir_rewrites_host' to be off.
          */
-        if (request->peer_domain)
-            hdr_out->putStr(Http::HdrType::HOST, request->peer_domain);
+        if (peer && peer->domain)
+            hdr_out->putStr(Http::HdrType::HOST, peer->domain);
         else if (request->flags.redirected && !Config.onoff.redir_rewrites_host)
             hdr_out->addEntry(e->clone());
         else {

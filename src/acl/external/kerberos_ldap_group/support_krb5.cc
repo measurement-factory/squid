@@ -96,7 +96,7 @@ k5_error(const char* msg, krb5_error_code code)
  * create Kerberos memory cache
  */
 int
-krb5_create_cache(char *domain, char *service_principal_name)
+krb5_create_cache(const char * const domain, const char * const service_principal_name)
 {
 
     krb5_keytab keytab = nullptr;

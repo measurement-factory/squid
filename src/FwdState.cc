@@ -1185,7 +1185,7 @@ FwdState::usePinned()
 void
 FwdState::dispatch()
 {
-    debugs(17, 3, clientConn << ": Fetching " << request->method << ' ' << entry->url());
+    debugs(17, 3, clientConn << " to " << serverConn->id << ": Fetching " << request->method << ' ' << entry->url());
     /*
      * Assert that server_fd is set.  This is to guarantee that fwdState
      * is attached to something and will be deallocated when server_fd
@@ -1249,11 +1249,9 @@ FwdState::dispatch()
 
     if (const auto peer = serverConnection()->getPeer()) {
         ++peer->stats.fetches;
-        request->prepForPeering(*peer);
         httpStart(this);
     } else {
         assert(!request->flags.sslPeek);
-        request->prepForDirect();
 
         switch (request->url.getScheme()) {
 
