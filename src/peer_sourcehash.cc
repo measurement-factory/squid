@@ -37,14 +37,6 @@ SourceHashPeers()
 static OBJH peerSourceHashCachemgr;
 static void peerSourceHashRegisterWithCacheManager(void);
 
-static int
-peerSortWeight(const void *a, const void *b)
-{
-    const CachePeer *const *p1 = (const CachePeer *const *)a;
-    const CachePeer *const *p2 = (const CachePeer *const *)b;
-    return (*p1)->weight - (*p2)->weight;
-}
-
 void
 peerSourceHashInit(void)
 {
@@ -56,10 +48,8 @@ peerSourceHashInit(void)
     SourceHashPeers().clear();
     /* find out which peers we have */
 
-    RawCachePeers rawSourceHashPeers;
+    SelectedCachePeers rawSourceHashPeers;
     for (const auto &p: CurrentCachePeers()) {
-        const auto peer = p.getRaw();
-
         if (!p->options.sourcehash)
             continue;
 
@@ -68,7 +58,7 @@ peerSourceHashInit(void)
         if (p->weight == 0)
             continue;
 
-        rawSourceHashPeers.push_back(peer);
+        rawSourceHashPeers.push_back(p);
 
         W += p->weight;
     }
@@ -98,7 +88,11 @@ peerSourceHashInit(void)
     }
 
     /* Sort our list on weight */
-    qsort(rawSourceHashPeers.data(), rawSourceHashPeers.size(), sizeof(decltype(rawSourceHashPeers)::value_type), peerSortWeight);
+    std::sort(rawSourceHashPeers.begin(), rawSourceHashPeers.end(),
+        [](const auto &p1, const auto &p2) {
+            return p1->weight < p2->weight; // ascending order
+        }
+    );
 
     /* Calculate the load factor multipliers X_k
      *

@@ -42,14 +42,6 @@ UserHashPeers()
 static OBJH peerUserHashCachemgr;
 static void peerUserHashRegisterWithCacheManager(void);
 
-static int
-peerSortWeight(const void *a, const void *b)
-{
-    const CachePeer *const *p1 = (const CachePeer *const *)a;
-    const CachePeer *const *p2 = (const CachePeer *const *)b;
-    return (*p1)->weight - (*p2)->weight;
-}
-
 void
 peerUserHashInit(void)
 {
@@ -63,10 +55,8 @@ peerUserHashInit(void)
 
     peerUserHashRegisterWithCacheManager();
 
-    RawCachePeers rawUserHashPeers;
+    SelectedCachePeers rawUserHashPeers;
     for (const auto &p: CurrentCachePeers()) {
-        const auto peer = p.getRaw();
-
         if (!p->options.userhash)
             continue;
 
@@ -75,7 +65,7 @@ peerUserHashInit(void)
         if (p->weight == 0)
             continue;
 
-        rawUserHashPeers.push_back(peer);
+        rawUserHashPeers.push_back(p);
 
         W += p->weight;
     }
@@ -103,7 +93,11 @@ peerUserHashInit(void)
     }
 
     /* Sort our list on weight */
-    qsort(rawUserHashPeers.data(), rawUserHashPeers.size(), sizeof(decltype(rawUserHashPeers)::value_type), peerSortWeight);
+    std::sort(rawUserHashPeers.begin(), rawUserHashPeers.end(),
+        [](const auto &p1, const auto &p2) {
+            return p1->weight < p2->weight; // ascending order
+        }
+    );
 
     /* Calculate the load factor multipliers X_k
      *

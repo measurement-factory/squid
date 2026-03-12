@@ -36,14 +36,6 @@ CarpPeers()
 
 static OBJH carpCachemgr;
 
-static int
-peerSortWeight(const void *a, const void *b)
-{
-    const CachePeer *const *p1 = (const CachePeer *const *)a;
-    const CachePeer *const *p2 = (const CachePeer *const *)b;
-    return (*p1)->weight - (*p2)->weight;
-}
-
 static void
 carpRegisterWithCacheManager(void)
 {
@@ -65,21 +57,19 @@ carpInit(void)
 
     /* find out which peers we have */
 
-    RawCachePeers rawCarpPeers;
+    SelectedCachePeers rawCarpPeers;
     for (const auto &peer: CurrentCachePeers()) {
-        const auto p = peer.getRaw();
-
-        if (!p->options.carp)
+        if (!peer->options.carp)
             continue;
 
-        assert(p->type == PEER_PARENT);
+        assert(peer->type == PEER_PARENT);
 
-        if (p->weight == 0)
+        if (peer->weight == 0)
             continue;
 
-        rawCarpPeers.push_back(p);
+        rawCarpPeers.push_back(peer);
 
-        W += p->weight;
+        W += peer->weight;
     }
 
     if (rawCarpPeers.empty())
@@ -105,7 +95,11 @@ carpInit(void)
     }
 
     /* Sort our list on weight */
-    qsort(rawCarpPeers.data(), rawCarpPeers.size(), sizeof(decltype(rawCarpPeers)::value_type), peerSortWeight);
+    std::sort(rawCarpPeers.begin(), rawCarpPeers.end(),
+        [](const auto &p1, const auto &p2) {
+            return p1->weight < p2->weight; // ascending order
+        }
+    );
 
     /* Calculate the load factor multipliers X_k
      *

@@ -147,11 +147,11 @@ void
 Configuration::Component<CachePeers*>::FinishSmoothReconfiguration(SmoothReconfiguration &sr)
 {
     // disable cache_peers that were not mentioned in the fresh configuration
-    RawCachePeers peersToRemove;
+    SelectedCachePeers peersToRemove;
 
     for (const auto &p: CurrentCachePeers()) {
         if (p->stale)
-            peersToRemove.push_back(p.getRaw());
+            peersToRemove.push_back(p);
     }
 
     while (peersToRemove.size()) {
@@ -159,7 +159,7 @@ Configuration::Component<CachePeers*>::FinishSmoothReconfiguration(SmoothReconfi
         peersToRemove.pop_back();
         debugs(15, DBG_IMPORTANT, "WARNING: Removing old cache_peer not present in new configuration: " << *p);
         Assure(!p->access); // parse_peer_access() rejects cache_peer_access directives naming stale peers
-        DeleteConfigured(sr, p);
+        DeleteConfigured(sr, p.getRaw());
     }
 }
 
