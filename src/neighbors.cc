@@ -530,11 +530,8 @@ neighbors_init(void)
             }
         }
 
-        while (peersToRemove.size()) {
-            const auto p = peersToRemove.back();
-            peersToRemove.pop_back();
+        for (const auto &p: peersToRemove)
             DeleteConfigured(p.getRaw());
-        }
     }
 
     peerDnsRefreshStart();

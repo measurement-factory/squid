@@ -58,25 +58,25 @@ carpInit(void)
     /* find out which peers we have */
 
     SelectedCachePeers rawCarpPeers;
-    for (const auto &peer: CurrentCachePeers()) {
-        if (!peer->options.carp)
+    for (const auto &p: CurrentCachePeers()) {
+        if (!p->options.carp)
             continue;
 
-        assert(peer->type == PEER_PARENT);
+        assert(p->type == PEER_PARENT);
 
-        if (peer->weight == 0)
+        if (p->weight == 0)
             continue;
 
-        rawCarpPeers.push_back(peer);
+        rawCarpPeers.push_back(p);
 
-        W += peer->weight;
+        W += p->weight;
     }
 
     if (rawCarpPeers.empty())
         return;
 
     /* calculate hashes and load factors */
-    for (const auto p: rawCarpPeers) {
+    for (const auto &p: rawCarpPeers) {
         /* calculate this peers hash */
         p->carp.hash = 0;
 
