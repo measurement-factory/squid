@@ -28,8 +28,6 @@ public:
     bool ims = false;
     /** request is authenticated */
     bool auth = false;
-    /** do not use keytabs for peer Kerberos authentication */
-    bool auth_no_keytab = false;
 
     /// whether the response may be stored in the cache
     SupportOrVeto cachable;

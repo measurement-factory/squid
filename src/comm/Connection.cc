@@ -189,6 +189,8 @@ Comm::operator << (std::ostream &os, const Connection &conn)
         os << " local=" << conn.local;
     if (!conn.remote.isNoAddr() || conn.remote.port())
         os << " remote=" << conn.remote;
+    if (const auto peer = conn.getPeer())
+        os << " peer=" << *peer;
     if (conn.peerType)
         os << ' ' << hier_code_str[conn.peerType];
     if (conn.fd >= 0)

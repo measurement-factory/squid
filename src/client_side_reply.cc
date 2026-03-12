@@ -12,6 +12,7 @@
 #include "acl/FilledChecklist.h"
 #include "acl/Gadgets.h"
 #include "anyp/PortCfg.h"
+#include "CachePeer.h"
 #include "client_side_reply.h"
 #include "errorpage.h"
 #include "ETag.h"
@@ -1205,7 +1206,8 @@ clientReplyContext::buildReplyHeader()
 
     // if there is not configured a peer proxy with login=PASS or login=PASSTHRU option enabled
     // remove the Proxy-Authenticate header
-    if ( !request->peer_login || (strcmp(request->peer_login,"PASS") != 0 && strcmp(request->peer_login,"PASSTHRU") != 0)) {
+    const auto peer = request->hier.tcpServer ? request->hier.tcpServer->getPeer() : nullptr;
+    if (!peer || !peer->login || (strcmp(peer->login, "PASS") != 0 && strcmp(peer->login, "PASSTHRU") != 0)) {
 #if USE_ADAPTATION
         // but allow adaptation services to authenticate clients
         // via request satisfaction

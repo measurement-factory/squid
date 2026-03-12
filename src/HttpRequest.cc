@@ -91,8 +91,6 @@ HttpRequest::init()
     // hier
     dnsWait = -1;
     error.clear();
-    peer_login = nullptr;      // not allocated/deallocated by this class
-    peer_domain = nullptr;     // not allocated/deallocated by this class
     vary_headers = SBuf();
     myportname = null_string;
     tag = null_string;
@@ -192,12 +190,9 @@ HttpRequest::clone() const
 
     copy->error = error;
 
-    // XXX: what to do with copy->peer_login?
-
     copy->lastmod = lastmod;
     copy->etag = etag;
     copy->vary_headers = vary_headers;
-    // XXX: what to do with copy->peer_domain?
 
     copy->tag = tag;
     copy->extacl_log = extacl_log;
@@ -439,25 +434,6 @@ bool
 HttpRequest::bodyNibbled() const
 {
     return body_pipe != nullptr && body_pipe->consumedSize() > 0;
-}
-
-void
-HttpRequest::prepForPeering(const CachePeer &peer)
-{
-    // XXX: Saving two pointers to memory controlled by an independent object.
-    peer_login = peer.login;
-    peer_domain = peer.domain;
-    flags.auth_no_keytab = peer.options.auth_no_keytab;
-    debugs(11, 4, this << " to " << peer);
-}
-
-void
-HttpRequest::prepForDirect()
-{
-    peer_login = nullptr;
-    peer_domain = nullptr;
-    flags.auth_no_keytab = false;
-    debugs(11, 4, this);
 }
 
 void

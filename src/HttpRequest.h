@@ -88,13 +88,6 @@ public:
     Adaptation::Icap::History::Pointer icapHistory() const;
 #endif
 
-    /* If a request goes through several destinations, then the following two
-     * methods will be called several times, in destinations-dependent order. */
-    /// get ready to be sent to the given cache_peer, including originserver
-    void prepForPeering(const CachePeer &peer);
-    /// get ready to be sent directly to an origin server, excluding originserver
-    void prepForDirect();
-
     void recordLookup(const Dns::LookupDetails &detail);
 
     /// sets error detail if no earlier detail was available
@@ -160,14 +153,10 @@ public:
 
     Error error; ///< the first transaction problem encountered (or falsy)
 
-    char *peer_login;       /* Configured peer login:password */
-
     time_t lastmod;     /* Used on refreshes */
 
     /// The variant second-stage cache key. Generated from Vary header pattern for this request.
     SBuf vary_headers;
-
-    char *peer_domain;      /* Configured peer forceddomain */
 
     String myportname; // Internal tag name= value from port this requests arrived in.
 
