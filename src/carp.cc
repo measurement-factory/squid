@@ -94,9 +94,8 @@ carpInit(void)
             p->carp.load_factor = 0.0;
     }
 
-    /* Sort our list on weight */
     std::sort(rawCarpPeers.begin(), rawCarpPeers.end(), [](const auto &p1, const auto &p2) {
-        return p1->weight < p2->weight; // ascending order
+        return p1->weight < p2->weight; // ascending weight order
     });
 
     /* Calculate the load factor multipliers X_k
