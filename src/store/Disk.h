@@ -59,10 +59,6 @@ public:
     /// the size of the smallest entry this cache_dir can store
     int64_t minObjectSize() const;
 
-    /// configure the maximum object size for this storage area.
-    /// May be any size up to the total storage area.
-    void maxObjectSize(int64_t newMax);
-
     /// whether we can store an object of the given size
     /// negative objSize means the object size is currently unknown
     bool objectSizeIsAcceptable(int64_t objSize) const;

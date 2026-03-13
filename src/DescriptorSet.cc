@@ -78,22 +78,6 @@ DescriptorSet::del(int fd)
     return true; // really added
 }
 
-/// ejects one descriptor in unspecified order
-int
-DescriptorSet::pop()
-{
-    assert(!empty());
-    const int lastPos =--size_;
-    const int lastFd = descriptors_[lastPos];
-    assert(0 <= lastFd && lastFd < capacity_);
-
-    // cleanup
-    descriptors_[lastPos] = -1;
-    index_[lastFd] = -1;
-
-    return lastFd;
-}
-
 void
 DescriptorSet::print(std::ostream &os) const
 {

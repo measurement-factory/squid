@@ -189,25 +189,6 @@ Ip::Intercept::IpfwInterception(const Comm::ConnectionPointer &newConn)
 #endif
 }
 
-/// Assume that getsockname() has been called already and provided the necessary
-/// TCP packet details. There is no way to identify whether they came from NAT.
-/// Trust the user configured properly.
-bool
-Ip::Intercept::UseInterceptionAddressesLookedUpEarlier(const char * const caller, const Comm::ConnectionPointer &newConn)
-{
-    // paranoid: ./configure should prohibit these combinations
-#if LINUX_NETFILTER && PF_TRANSPARENT && !USE_NAT_DEVPF
-    static_assert(!"--enable-linux-netfilter is incompatible with --enable-pf-transparent --without-nat-devpf");
-#endif
-#if LINUX_NETFILTER && IPFW_TRANSPARENT
-    static_assert(!"--enable-linux-netfilter is incompatible with --enable-ipfw-transparent");
-#endif
-    // --enable-linux-netfilter is compatible with --enable-ipf-transparent
-
-    debugs(89, 5, caller << " uses " << newConn);
-    return true;
-}
-
 bool
 Ip::Intercept::IpfInterception(const Comm::ConnectionPointer &newConn)
 {

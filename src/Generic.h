@@ -19,15 +19,6 @@ struct unary_function {
     typedef _Result result_type;
 };
 
-template <class L, class T>
-T& for_each(L const &head, T& visitor)
-{
-    for (L const *node = &head; node; node=node->next)
-        visitor(*node);
-
-    return visitor;
-}
-
 template <class T>
 T& for_each(dlink_list const &collection, T& visitor)
 {
@@ -46,39 +37,10 @@ class InstanceToSingletonAdapter : public C
 {
 
 public:
-    void *operator new (size_t byteCount) { return ::operator new (byteCount);}
-
-    void operator delete (void *address) { ::operator delete (address);}
-
-    InstanceToSingletonAdapter(C const *instance) : theInstance (instance) {}
-
-    C const * operator-> () const {return theInstance; }
-
-    C * operator-> () {return const_cast<C *>(theInstance); }
-
-    C const & operator * () const {return *theInstance; }
-
-    C & operator * () {return *const_cast<C *>(theInstance); }
-
-    operator C const * () const {return theInstance;}
-
-    operator C *() {return const_cast<C *>(theInstance);}
 
 private:
     C const *theInstance;
 };
-
-template <class InputIterator, class Visitor>
-Visitor& for_each(InputIterator from, InputIterator to, Visitor& visitor)
-{
-    while (!(from == to)) {
-        typename InputIterator::value_type &value = *from;
-        ++from;
-        visitor(value);
-    }
-
-    return visitor;
-}
 
 /* generic ostream printer */
 template <class Pointer>

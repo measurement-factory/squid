@@ -268,19 +268,6 @@ Ssl::CertificateDb::find(std::string const &key, const Security::CertPointer &ex
     return pure_find(key, expectedOrig, cert, pkey);
 }
 
-bool Ssl::CertificateDb::purgeCert(std::string const & key) {
-    const Locker locker(dbLock, Here());
-    load();
-    if (!db)
-        return false;
-
-    if (!deleteByKey(key))
-        return false;
-
-    save();
-    return true;
-}
-
 bool
 Ssl::CertificateDb::addCertAndPrivateKey(std::string const &useKey, const Security::CertPointer &cert, const Security::PrivateKeyPointer &pkey, const Security::CertPointer &orig)
 {

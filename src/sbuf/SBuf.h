@@ -232,13 +232,6 @@ public:
     /// print the SBuf contents to the supplied ostream
     std::ostream& print(std::ostream &os) const;
 
-    /** print SBuf contents and debug information about the SBuf to an ostream
-     *
-     * Debug function, dumps to a stream information on the current SBuf,
-     * including low-level details and statistics.
-     */
-    std::ostream& dump(std::ostream &os) const;
-
     /** random-access read to any char within the SBuf
      *
      * does not check access bounds. If you need that, use at()
@@ -293,9 +286,6 @@ public:
 
     /// Comparison with a C-string.
     int compare(const char *s, const SBufCaseSensitive isCaseSensitive, const size_type n) const;
-    int compare(const char *s, const SBufCaseSensitive isCaseSensitive) const {
-        return compare(s,isCaseSensitive,npos);
-    }
 
     /// Shorthand version for C-string compare().
     inline int cmp(const char *S, const size_type n) const {
@@ -324,8 +314,6 @@ public:
     bool operator !=(const SBuf & S) const;
     bool operator <(const SBuf &S) const {return (cmp(S) < 0);}
     bool operator >(const SBuf &S) const {return (cmp(S) > 0);}
-    bool operator <=(const SBuf &S) const {return (cmp(S) <= 0);}
-    bool operator >=(const SBuf &S) const {return (cmp(S) >= 0);}
 
     /** Consume bytes at the head of the SBuf
      *
@@ -654,12 +642,6 @@ private:
      *  up to the caller.
      */
     char * bufEnd() const {return (store_->mem+off_+len_);}
-
-    /**
-     * Try to guesstimate how big a MemBlob to allocate.
-     * The result is guaranteed to be to be at least the desired size.
-     */
-    size_type estimateCapacity(size_type desired) const {return (2*desired);}
 
     void reAlloc(size_type newsize);
 

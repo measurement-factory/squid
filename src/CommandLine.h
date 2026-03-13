@@ -23,7 +23,6 @@ public:
     LongOption();
     explicit LongOption(const RawLongOption &);
     LongOption(const LongOption&);
-    LongOption &operator =(const LongOption &);
     ~LongOption();
 
 private:
@@ -38,8 +37,6 @@ public:
     CommandLine(int argc, char *argv[], const char *shortRules, const RawLongOption *longRules);
     CommandLine(const CommandLine &them);
     ~CommandLine();
-
-    CommandLine &operator =(const CommandLine &);
 
     /// \returns whether the option with optId identifier is present
     /// When returning true, sets non-nil optValue to the found option's value.

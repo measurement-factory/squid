@@ -81,7 +81,6 @@ protected:
     void testPrintf();
     void testSubscriptOp();
     void testSubscriptOpFail();
-    void testDumpStats();
     void testComparisons();
     void testConsume();
     void testRawContent();
@@ -307,15 +306,6 @@ TestSBuf::testAppendf()
     s1.appendf("%s:%d:%03.2f",fox,1234,1234.56);
     s2.assign("The quick brown fox jumped over the lazy dog:1234:1234.56");
     CPPUNIT_ASSERT_EQUAL(s2,s1);
-}
-
-void
-TestSBuf::testDumpStats()
-{
-    SBuf::GetStats().dump(std::cout);
-    MemBlob::GetStats().dump(std::cout);
-    std::cout << "sizeof(SBuf): " << sizeof(SBuf) << std::endl;
-    std::cout << "sizeof(MemBlob): " << sizeof(MemBlob) << std::endl;
 }
 
 void

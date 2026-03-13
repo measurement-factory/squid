@@ -35,7 +35,6 @@ public:
      *       relevant initializations are done at build-time
      */
     StatHist() = default;
-    StatHist(const StatHist &);
     ~StatHist() {
         xfree(bins); // can handle case of bins being nullptr
         capacity_ = 0;  // mark as destructed, may be needed for troubleshooting
@@ -115,7 +114,6 @@ protected:
 
 double statHistDeltaMedian(const StatHist & A, const StatHist & B);
 double statHistDeltaPctile(const StatHist & A, const StatHist & B, double pctile);
-StatHistBinDumper statHistEnumDumper;
 StatHistBinDumper statHistIntDumper;
 
 inline StatHist&

@@ -20,10 +20,6 @@
 
 int TheProcessKind = pkOther;
 
-Kid::Kid()
-{
-}
-
 Kid::Kid(const char *aRole, const int anId):
     processRole(aRole),
     processId(anId)

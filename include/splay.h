@@ -77,10 +77,6 @@ public:
 
     bool empty() const { return size() == 0; }
 
-    const_iterator begin() const;
-
-    const_iterator end() const;
-
     /// left-to-right visit of all stored Values
     template <typename ValueVisitor> void visit(ValueVisitor &) const;
 
@@ -383,20 +379,6 @@ Splay<V>::size() const
     return elements;
 }
 
-template <class V>
-const SplayConstIterator<V>
-Splay<V>::begin() const
-{
-    return const_iterator(head);
-}
-
-template <class V>
-const SplayConstIterator<V>
-Splay<V>::end() const
-{
-    return const_iterator(nullptr);
-}
-
 // XXX: This does not seem to iterate the whole thing in some cases.
 template <class V>
 class SplayConstIterator
@@ -404,114 +386,10 @@ class SplayConstIterator
 
 public:
     typedef const V value_type;
-    SplayConstIterator (SplayNode<V> *aNode);
-    bool operator == (SplayConstIterator const &right) const;
-    SplayConstIterator operator ++ (int dummy);
-    SplayConstIterator &operator ++ ();
-    V const & operator * () const;
 
 private:
-    void advance();
-    void addLeftPath(SplayNode<V> *aNode);
-    void init(SplayNode<V> *);
     std::stack<SplayNode<V> *> toVisit;
 };
-
-template <class V>
-SplayConstIterator<V>::SplayConstIterator (SplayNode<V> *aNode)
-{
-    init(aNode);
-}
-
-template <class V>
-bool
-SplayConstIterator<V>::operator == (SplayConstIterator const &right) const
-{
-    if (toVisit.empty() && right.toVisit.empty())
-        return true;
-    if (!toVisit.empty() && !right.toVisit.empty())
-        return toVisit.top() == right.toVisit.top();
-    // only one of the two is empty
-    return false;
-}
-
-template <class V>
-SplayConstIterator<V> &
-SplayConstIterator<V>::operator ++ ()
-{
-    advance();
-    return *this;
-}
-
-template <class V>
-SplayConstIterator<V>
-SplayConstIterator<V>::operator ++ (int)
-{
-    SplayConstIterator<V> result = *this;
-    advance();
-    return result;
-}
-
-/* advance is simple enough:
-* if the stack is empty, we're done.
-* otherwise, pop the last visited node
-* then, pop the next node to visit
-* if that has a right child, add it and it's
-* left-to-end path.
-* then add the node back.
-*/
-template <class V>
-void
-SplayConstIterator<V>::advance()
-{
-    if (toVisit.empty())
-        return;
-
-    toVisit.pop();
-
-    if (toVisit.empty())
-        return;
-
-    // not empty
-    SplayNode<V> *currentNode = toVisit.top();
-    toVisit.pop();
-
-    addLeftPath(currentNode->right);
-
-    toVisit.push(currentNode);
-}
-
-template <class V>
-void
-SplayConstIterator<V>::addLeftPath(SplayNode<V> *aNode)
-{
-    if (aNode == nullptr)
-        return;
-
-    do {
-        toVisit.push(aNode);
-        aNode = aNode->left;
-    } while (aNode != nullptr);
-}
-
-template <class V>
-void
-SplayConstIterator<V>::init(SplayNode<V> *head)
-{
-    addLeftPath(head);
-}
-
-template <class V>
-V const &
-SplayConstIterator<V>::operator * () const
-{
-    /* can't dereference when past the end */
-
-    if (toVisit.size() == 0)
-        fatal ("Attempt to dereference SplayConstIterator past-the-end\n");
-
-    return toVisit.top()->data;
-}
 
 #endif /* SQUID_INCLUDE_SPLAY_H */
 

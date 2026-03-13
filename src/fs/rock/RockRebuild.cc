@@ -151,8 +151,6 @@ public:
     bool freed() const { return flags.freed; }
     void freed(const bool beFreed) { flags.freed = beFreed; }
 
-    bool used() const { return freed() || mapped() || more != -1; }
-
 private:
     LoadingFlags &flags; ///< slot flags (see the above accessors) are ours
 };

@@ -194,7 +194,6 @@ protected:
         // as is customary for similar STL output iterators like std::ostream_iterator.
         Logger &operator*() { return *this; }
         Logger &operator++() { return *this; }
-        Logger &operator++(int) { return *this; }
 
     private:
         // wrap: output iterators must be CopyAssignable; raw references are not

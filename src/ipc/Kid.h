@@ -25,7 +25,6 @@ public:
     enum { fastFailureTimeLimit = 10 }; // seconds
 
 public:
-    Kid();
 
     Kid(const char *role, const int id);
 

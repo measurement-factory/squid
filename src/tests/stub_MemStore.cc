@@ -16,7 +16,6 @@
 
 MemStore::MemStore() STUB
 MemStore::~MemStore() STUB
-bool MemStore::keepInLocalMemory(const StoreEntry &) const STUB_RETVAL(false)
 void MemStore::write(StoreEntry &) STUB
 void MemStore::completeWriting(StoreEntry &) STUB
 void MemStore::disconnect(StoreEntry &) STUB

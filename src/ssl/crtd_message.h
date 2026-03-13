@@ -59,14 +59,6 @@ public:
      * The parameters of the body stored to map and the remaining part to other_part
      */
     void parseBody(BodyParams & map, std::string & other_part) const;
-    /**
-     *Compose parameters given by map with their values and the other part given by
-     * other_part to body data. The constructed body will have the form:  \verbatim
-         param1=value1
-         param2=value2
-         The other multistring part of body.  \endverbatim
-    */
-    void composeBody(BodyParams const & map, std::string const & other_part);
 
     /// orchestrates entire request parsing
     void parseRequest(CertificateProperties &);
