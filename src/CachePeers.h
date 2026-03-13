@@ -79,9 +79,6 @@ void DeleteConfigured(CachePeer *);
 /// DeleteConfigured() must keep every stored copy in sync.
 using SelectedCachePeers = CachePeers::Storage;
 
-/// Temporary, local storage of raw pointers to zero or more Config.peers.
-using RawCachePeers = std::vector<CachePeer *, PoolingAllocator<CachePeer*> >;
-
 /// Template parameter type for Configuration::Component specialization that
 /// handles smooth cache_peer_access reconfiguration
 class CachePeerAccesses {};

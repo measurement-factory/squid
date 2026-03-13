@@ -507,7 +507,8 @@ neighbors_init(void)
     neighborsRegisterWithCacheManager();
 
     if (Comm::IsConnOpen(icpIncomingConn)) {
-        RawCachePeers peersToRemove;
+        // workspace to find and remove cache_peers that "look like this host"
+        SelectedCachePeers peersToRemove;
 
         // TODO: After we stop reconfiguring pliable directives with unchanged
         // spelling: cache_peer A dropped here (because config1 had a matching
@@ -525,16 +526,13 @@ neighbors_init(void)
                 debugs(15, DBG_IMPORTANT, "WARNING: Peer looks like this host." <<
                        Debug::Extra << "Ignoring cache_peer " << *thisPeer);
 
-                peersToRemove.push_back(thisPeer.getRaw());
+                peersToRemove.push_back(thisPeer);
                 break; // avoid warning about (and removing) the same CachePeer twice
             }
         }
 
-        while (peersToRemove.size()) {
-            const auto p = peersToRemove.back();
-            peersToRemove.pop_back();
-            DeleteConfigured(p);
-        }
+        for (const auto &p: peersToRemove)
+            DeleteConfigured(p.getRaw());
     }
 
     peerDnsRefreshStart();
