@@ -124,7 +124,7 @@ peerUserHashInit(void)
         P_last = p->userhash.load_factor;
     }
 
-    UserHashPeers().assign(rawUserHashPeers.begin(), rawUserHashPeers.end());
+    UserHashPeers() = rawUserHashPeers;
 }
 
 void

@@ -119,7 +119,7 @@ peerSourceHashInit(void)
         P_last = p->sourcehash.load_factor;
     }
 
-    SourceHashPeers().assign(rawSourceHashPeers.begin(), rawSourceHashPeers.end());
+    SourceHashPeers() = rawSourceHashPeers;
 }
 
 void

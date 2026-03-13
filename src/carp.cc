@@ -125,7 +125,7 @@ carpInit(void)
         P_last = p->carp.load_factor;
     }
 
-    CarpPeers().assign(rawCarpPeers.begin(), rawCarpPeers.end());
+    CarpPeers() = rawCarpPeers;
 }
 
 void
