@@ -89,11 +89,9 @@ peerSourceHashInit(void)
     }
 
     /* Sort our list on weight */
-    std::sort(rawSourceHashPeers.begin(), rawSourceHashPeers.end(),
-    [](const auto &p1, const auto &p2) {
+    std::sort(rawSourceHashPeers.begin(), rawSourceHashPeers.end(), [](const auto &p1, const auto &p2) {
         return p1->weight < p2->weight; // ascending order
-    }
-             );
+    });
 
     /* Calculate the load factor multipliers X_k
      *
