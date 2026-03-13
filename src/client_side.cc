@@ -453,7 +453,7 @@ ClientHttpRequest::logRequest()
         if (request)
             updateCounters();
 
-        if (getConn() != nullptr && getConn()->clientConnection != nullptr)
+        if (getConn())
             clientdbUpdate(getConn()->clientConnection->remote, loggingTags(), AnyP::PROTO_HTTP, out.size);
     }
 }
@@ -478,10 +478,8 @@ httpRequestFree(void *data)
 /* This is a handler normally called by comm_close() */
 void ConnStateData::connStateClosed(const CommCloseCbParams &)
 {
-    if (clientConnection) {
-        clientConnection->noteClosure();
-        // keep closed clientConnection for logging, clientdb cleanup, etc.
-    }
+    clientConnection->noteClosure();
+    // keep closed clientConnection for logging, clientdb cleanup, etc.
     deleteThis("ConnStateData::connStateClosed");
 }
 
@@ -976,8 +974,7 @@ ConnStateData::endingShutdown()
 
     // force the client connection to close immediately
     // swanSong() in the close handler will cleanup.
-    if (Comm::IsConnOpen(clientConnection))
-        clientConnection->close();
+    clientConnection->close();
 }
 
 char *
@@ -3421,7 +3418,6 @@ void
 ConnStateData::fillConnectionLevelDetails(ACLFilledChecklist &checklist) const
 {
     assert(checklist.conn() == this);
-    assert(clientConnection);
 
     if (!checklist.request) { // preserve (better) addresses supplied by setRequest()
         checklist.src_addr = clientConnection->remote;
@@ -3453,7 +3449,7 @@ ConnStateData::write(char *buf, int len)
 bool
 ConnStateData::transparent() const
 {
-    return clientConnection != nullptr && (clientConnection->flags & (COMM_TRANSPARENT|COMM_INTERCEPTION));
+    return clientConnection->flags & (COMM_TRANSPARENT|COMM_INTERCEPTION);
 }
 
 BodyPipe::Pointer
@@ -3605,7 +3601,7 @@ ConnStateData::clientPinnedConnectionClosed(const CommCloseCbParams &io)
     pinning.serverConnection->noteClosure();
     unpinConnection(false);
 
-    if (sawZeroReply && clientConnection != nullptr) {
+    if (sawZeroReply) {
         debugs(33, 3, "Closing client connection on pinned zero reply.");
         clientConnection->close();
         return;
@@ -3804,7 +3800,7 @@ ConnStateData::closeIfIdle(const char * const reason)
     // If we are still sending data to the client, do not close now. When we are done sending,
     // ConnStateData::kick() checks pinning.serverConnection and will close.
     // However, if we are idle, then we must close to inform the idle client and minimize races.
-    if (clientIsIdle && clientConnection != nullptr)
+    if (clientIsIdle)
         clientConnection->close();
 }
 
