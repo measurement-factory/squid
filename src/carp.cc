@@ -55,9 +55,9 @@ carpInit(void)
     /* initialize cache manager before we have a chance to leave the execution path */
     carpRegisterWithCacheManager();
 
-    /* find out which peers we have */
-
+    // workspace to find, finalize, and sort CARP cache_peers into CarpPeers()
     SelectedCachePeers rawCarpPeers;
+
     for (const auto &p: CurrentCachePeers()) {
         if (!p->options.carp)
             continue;

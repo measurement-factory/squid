@@ -507,6 +507,7 @@ neighbors_init(void)
     neighborsRegisterWithCacheManager();
 
     if (Comm::IsConnOpen(icpIncomingConn)) {
+        // workspace to find and remove cache_peers that "look like this host"
         SelectedCachePeers peersToRemove;
 
         // TODO: After we stop reconfiguring pliable directives with unchanged

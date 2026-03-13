@@ -51,11 +51,12 @@ peerUserHashInit(void)
     /* Clean up */
 
     UserHashPeers().clear();
-    /* find out which peers we have */
 
     peerUserHashRegisterWithCacheManager();
 
+    // workspace to find, finalize, and sort userhash cache_peers into UserHashPeers().
     SelectedCachePeers rawUserHashPeers;
+
     for (const auto &p: CurrentCachePeers()) {
         if (!p->options.userhash)
             continue;

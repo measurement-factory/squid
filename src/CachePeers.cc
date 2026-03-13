@@ -146,7 +146,7 @@ template <>
 void
 Configuration::Component<CachePeers*>::FinishSmoothReconfiguration(SmoothReconfiguration &sr)
 {
-    // disable cache_peers that were not mentioned in the fresh configuration
+    // workspace to find and remove cache_peers that were not mentioned in the fresh configuration
     SelectedCachePeers peersToRemove;
 
     for (const auto &p: CurrentCachePeers()) {

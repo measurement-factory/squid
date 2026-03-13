@@ -46,9 +46,10 @@ peerSourceHashInit(void)
     /* Clean up */
 
     SourceHashPeers().clear();
-    /* find out which peers we have */
 
+    // workspace to find, finalize, and sort sourcehash cache_peers into SourceHashPeers()
     SelectedCachePeers rawSourceHashPeers;
+
     for (const auto &p: CurrentCachePeers()) {
         if (!p->options.sourcehash)
             continue;
