@@ -182,7 +182,7 @@ Ip::Qos::getNfConnmark(const Comm::ConnectionPointer &conn, const Ip::Qos::Conne
 }
 
 bool
-Ip::Qos::setNfConnmark(Comm::ConnectionPointer &conn, const Ip::Qos::ConnectionDirection connDir, const Ip::NfMarkConfig &cm)
+Ip::Qos::setNfConnmark(const Comm::ConnectionPointer &conn, const Ip::Qos::ConnectionDirection connDir, const Ip::NfMarkConfig &cm)
 {
     bool ret = false;
 
