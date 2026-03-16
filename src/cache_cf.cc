@@ -2276,13 +2276,9 @@ parse_hostdomaintype(void)
 
     char *domain = nullptr;
     while ((domain = ConfigParser::NextToken())) {
-        auto *l = static_cast<NeighborTypeDomainList *>(xcalloc(1, sizeof(NeighborTypeDomainList)));
-        l->type = type;
-        l->domain = xstrdup(domain);
-
         NeighborTypeDomainList **L = nullptr;
         for (L = &p.typelist; *L; L = &((*L)->next));
-        *L = l;
+        *L = new NeighborTypeDomainList{xstrdup(domain), type, nullptr};
     }
 }
 

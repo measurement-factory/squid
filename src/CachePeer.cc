@@ -44,7 +44,7 @@ CachePeer::~CachePeer()
     while (NeighborTypeDomainList *l = typelist) {
         typelist = l->next;
         xfree(l->domain);
-        xfree(l);
+        delete l;
     }
 
     aclDestroyAccessList(&access);
@@ -114,7 +114,11 @@ CachePeer::inherit(Configuration::SmoothReconfiguration &, const CachePeer &old)
 
     // copy old values managed by rigid neighbor_type_domain (which could not have changed)
     Assure(!typelist);
-    Assure(!old.typelist); // XXX: Dupe NeighborTypeDomainList instead!
+    auto tlNext = &typelist;
+    for (auto tlOld = old.typelist; tlOld; tlOld = tlOld->next) {
+        *tlNext = new NeighborTypeDomainList{xstrdup(tlOld->domain), tlOld->type, nullptr};
+        tlNext = &(*tlNext)->next;
+    }
 
     Assure(!access); // managed by pliable cache_peer_access
 
