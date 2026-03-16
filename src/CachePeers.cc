@@ -150,9 +150,6 @@ template <>
 void
 Configuration::Component<CachePeers*>::StartSmoothReconfiguration(SmoothReconfiguration &)
 {
-    for (const auto &p: CurrentCachePeers()) {
-        aclDestroyAccessList(&p->access); // XXX: This will go away when stale peers are stashed
-    }
 }
 
 template <>
@@ -199,11 +196,8 @@ CachePeers::reset(Configuration::SmoothReconfiguration &sr)
         peersToRemove.push_back(p);
     }
 
-    for (const auto &p: peersToRemove) {
-        // XXX: stop deleting p->access earlier!
-        Assure(!p->access); // parse_peer_access() rejects cache_peer_access directives naming stale peers
+    for (const auto &p: peersToRemove)
         remove(p.getRaw());
-    }
 
     Assure(storage.empty()); // for now, see above TODO about not removing-then-adding peers
     for (const auto &p: sr.fresh.cachePeers->parsed) {
