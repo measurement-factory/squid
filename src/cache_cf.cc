@@ -1787,13 +1787,12 @@ dump_peer(StoreEntry * entry, const char *name, const CachePeers *peers)
 
     for (const auto &peer: *peers) {
         const auto p = peer.getRaw();
-        storeAppendPrintf(entry, "%s %s %s %d %d name=%s",
+        storeAppendPrintf(entry, "%s %s %s %d %d",
                           name,
                           p->host,
                           neighborTypeStr(p),
                           p->http_port,
-                          p->icp.port,
-                          p->name);
+                          p->icp.port);
         dump_peer_options(entry, p);
 
         if (p->access) {

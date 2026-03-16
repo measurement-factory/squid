@@ -1373,6 +1373,17 @@ void
 dump_peer_options(StoreEntry * sentry, CachePeer * p)
 {
     PackableStream os(*sentry);
+    PrintOptions(os, *p);
+    os << "\n";
+}
+
+void
+PrintOptions(std::ostream &os, const CachePeer &peer)
+{
+    // TODO: Track whether name was explicitly configured (i.e. CachePeer::rename() was called)
+    os << " name=" << peer.name;
+
+    const auto p = &peer; // TODO: Remove this diff reducer
 
     if (p->options.proxy_only)
         os << " proxy-only";
@@ -1489,7 +1500,6 @@ dump_peer_options(StoreEntry * sentry, CachePeer * p)
         os << " connection-auth=auto";
 
     p->secure.dumpCfg(os, "tls-");
-    os << '\n';
 }
 
 static void
