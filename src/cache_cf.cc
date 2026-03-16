@@ -2272,16 +2272,12 @@ parse_hostdomaintype(void)
     }
     auto &p = *peer;
 
-    char *type = ConfigParser::NextToken();
-    if (!type) {
-        self_destruct();
-        return;
-    }
+    const auto type = parseNeighborType("neighbor_type_domain neighbor type parameter", LegacyParser);
 
     char *domain = nullptr;
     while ((domain = ConfigParser::NextToken())) {
         auto *l = static_cast<NeighborTypeDomainList *>(xcalloc(1, sizeof(NeighborTypeDomainList)));
-        l->type = parseNeighborType("neighbor_type_domain neighbor type parameter", LegacyParser);
+        l->type = type;
         l->domain = xstrdup(domain);
 
         NeighborTypeDomainList **L = nullptr;
