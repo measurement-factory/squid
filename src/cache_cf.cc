@@ -1803,7 +1803,7 @@ dump_peer(StoreEntry * entry, const char *name, const CachePeers *peers)
 
         for (t = p->typelist; t; t = t->next) {
             storeAppendPrintf(entry, "neighbor_type_domain %s %s %s\n",
-                              p->host,
+                              p->name,
                               peer_type_str(t->type),
                               t->domain);
         }
