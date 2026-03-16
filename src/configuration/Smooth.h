@@ -11,9 +11,42 @@
 
 #include "base/AsyncCallList.h"
 #include "configuration/forward.h"
+#include "peering.h"
+
+#include <any>
+
+/// A smart pointer that
+/// * supports declaration using an incomplete type T
+///   (similar to what using a raw pointer to T would do), but
+/// * automatically destroys T value
+///   (similar to what using std::optional<T> would do), and
+/// * automatically allocates T value on first use
+///   (similar to what a Singleton pattern function would do).
+template <class T>
+class FreshField
+{
+public:
+    T *operator ->() { return value(); }
+    T &operator *() { return *value(); }
+    const T *operator ->() const { return value(); }
+    const T &operator *() const { return *value(); }
+
+private:
+    T *value() const {
+        if (!storage_.has_value())
+            storage_ = std::make_any<T>();
+        const auto p = std::any_cast<T>(&storage_);
+        assert(p);
+        return p;
+    }
+
+    mutable std::any storage_; ///< stored value (if any)
+};
 
 namespace Configuration {
 
+/// Orchestrates smooth reconfiguration steps and allows steps to share state.
+///
 /// Facilitates collection of conditional intrusive tasks (requested by fairly
 /// uncoordinated directive-specific reconfiguration code) for final
 /// reconfiguration steps. Due to their high-cost intrusiveness, we do not want
@@ -44,6 +77,14 @@ public:
 
     /// configuration we are tasked with interpreting and applying
     const PreprocessedCfg &freshConfig;
+
+    /// Directive-specific state maintained by Configuration::Component actions
+    /// across reconfiguration steps. This structure is similar to SquidConfig,
+    /// but its FreshField members ensure proper memory management without
+    /// exposing every user to complete definitions of all underlying types.
+    struct {
+        FreshField<BeingConfiguredCachePeers> cachePeers;
+    } fresh;
 
 protected:
     /// Component-specific reconfiguration steps to run before we reconfigure()

@@ -13,6 +13,7 @@
 
 class CachePeer;
 class CachePeers;
+class BeingConfiguredCachePeers;
 
 using DisappearingCachePeer = CbcPointer<CachePeer>;
 using KeptCachePeer = RefCount<CachePeer>;

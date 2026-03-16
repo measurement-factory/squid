@@ -274,6 +274,7 @@ PeerPoolMgr::StartManagingIfNeeded(CachePeer &peer)
     }
 }
 
+// TODO: Use or remove.
 void
 PeerPoolMgr::SyncConfig(CachePeer &peer)
 {
@@ -281,29 +282,5 @@ PeerPoolMgr::SyncConfig(CachePeer &peer)
         StartManagingIfNeeded(peer);
     else
         Checkpoint(peer.standby.mgr, "smooth reconfiguration");
-}
-
-/// launches PeerPoolMgrs for peers configured with standby.limit
-class PeerPoolMgrsRr: public RegisteredRunner
-{
-public:
-    /* RegisteredRunner API */
-    void useConfig() override { syncConfig(); }
-    void syncConfig() override;
-};
-
-DefineRunnerRegistrator(PeerPoolMgrsRr);
-
-void
-PeerPoolMgrsRr::syncConfig()
-{
-    for (const auto &peer: CurrentCachePeers()) {
-        const auto p = peer.getRaw();
-        // On reconfigure, Squid deletes the old config (and old peers in it),
-        // so should always be dealing with a brand new configuration.
-        assert(!p->standby.mgr);
-        assert(!p->standby.pool);
-        PeerPoolMgr::StartManagingIfNeeded(*p);
-    }
 }
 

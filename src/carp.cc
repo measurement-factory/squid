@@ -131,7 +131,7 @@ carpInit(void)
 void
 carpReset(Configuration::SmoothReconfiguration &sr)
 {
-    sr.asyncCall(39, 5, "carpInit", NullaryFunDialer(&carpInit));
+    CarpPeers() = std::move(sr.fresh.cachePeers->carpPeers);
 }
 
 void

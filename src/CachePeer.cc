@@ -31,17 +31,20 @@ CachePeer::CachePeer(const SBuf &hostname):
     probeCodeContext(new PrecomputedCodeContext("cache_peer probe", ToSBuf("current cache_peer probe: ", *this)))
 {
     Tolower(host); // but .name preserves original spelling
+    debugs(3, 7, "constructed, this=" << (void*)this << " hostname=" << hostname);
 }
 
 CachePeer::~CachePeer()
 {
+    debugs(3, 7, "destructing, this=" << (void*)this);
+
     xfree(name);
     xfree(host);
 
     while (NeighborTypeDomainList *l = typelist) {
         typelist = l->next;
         xfree(l->domain);
-        xfree(l);
+        delete l;
     }
 
     aclDestroyAccessList(&access);
@@ -62,124 +65,118 @@ CachePeer::~CachePeer()
 }
 
 void
-CachePeer::update(Configuration::SmoothReconfiguration &sr, const CachePeer &fresh)
+CachePeer::inherit(Configuration::SmoothReconfiguration &, const CachePeer &old)
 {
-    debugs(3, 7, *this << " using " << fresh);
+    debugs(3, 7, " new " << *this << " inherits from old " << old);
 
-    peerSelectResetIfChanged(sr, *this, fresh); // before we update *this
+    // XXX: Remove that function as unused: peerSelectResetIfChanged(sr, *this, fresh); // before we update *this
 
-    // When updating new fields, use data member declaration order.
+    // When annotating new CachePeer fields, use data member declaration order.
 
-    // `index` is not a part of an individual old peer config (that we update)
-    Assure(index);
-    Assure(!fresh.index);
+    // `index` is not a part of an individual peer configuration
+    Assure(old.index);
+    Assure(!index);
 
-    Assure(strcmp(name, fresh.name) == 0);
+    Assure(strcmp(name, old.name) == 0);
 
-    if (strcmp(host, fresh.host) != 0) {
+    if (strcmp(host, old.host) != 0) {
         throw TextException(ToSBuf("No support for changing cache_peer hostname (yet)",
-                                   Debug::Extra, "old hostname: ", host,
-                                   Debug::Extra, "new hostname: ", fresh.host),
+                                   Debug::Extra, "old hostname: ", old.host,
+                                   Debug::Extra, "new hostname: ", host),
                             Here());
     }
 
-    if (type != fresh.type) {
+    if (type != old.type) {
         throw TextException(ToSBuf("No support for changing cache_peer type (yet)",
-                                   Debug::Extra, "old type: ", neighborTypeStr(this),
-                                   Debug::Extra, "new type: ", neighborTypeStr(&fresh)),
+                                   Debug::Extra, "old type: ", neighborTypeStr(&old),
+                                   Debug::Extra, "new type: ", neighborTypeStr(this)),
                             Here());
     }
 
-    // `in_addr` is derived from `addresses` and `icp.port` (handled below);
-    // delay `in_addr` update until `addresses` are updated
+    // `in_addr` is derived from `addresses` and `icp.port` (see below for those
+    // two field notes). Delay `in_addr` update until `addresses` are updated.
 
-    // preserve `stats`
+    stats = old.stats;
 
-    icp.port = fresh.icp.port; // but preserve `icp.version` and `icp.counts` stats
+    if (icp.port == old.icp.port)
+        icp = old.icp; // inherit `icp.version` and `icp.counts` stats
 #if USE_HTCP
-    htcp.port = fresh.htcp.port; // but preserve `htcp.version` and `htcp.counts` stats
+    if (htcp.port == old.htcp.port)
+        htcp = old.htcp; // inherit `htcp.version` and `htcp.counts` stats
 #endif
 
-    if (http_port != fresh.http_port) {
+    if (http_port != old.http_port) {
         throw TextException(ToSBuf("No support for changing cache_peer HTTP port (yet)",
-                                   Debug::Extra, "old port: ", http_port,
-                                   Debug::Extra, "new port: ", fresh.http_port),
+                                   Debug::Extra, "old port: ", old.http_port,
+                                   Debug::Extra, "new port: ", http_port),
                             Here());
     }
 
-    Assure(!fresh.typelist); // managed by rigid neighbor_type_domain
-    Assure(!fresh.access); // managed by rigid cache_peer_access
+    // copy old values managed by rigid neighbor_type_domain (which could not have changed)
+    Assure(!typelist);
+    auto tlNext = &typelist;
+    for (auto tlOld = old.typelist; tlOld; tlOld = tlOld->next) {
+        *tlNext = new NeighborTypeDomainList{xstrdup(tlOld->domain), tlOld->type, nullptr};
+        tlNext = &(*tlNext)->next;
+    }
 
-    options.carp = fresh.options.carp;
-#if USE_AUTH
-    options.userhash = fresh.options.userhash;
-#endif
-    options.sourcehash = fresh.options.sourcehash;
-    // XXX: Handle other options
-    // Changing options like `originserver` is risky for transactions that check
-    // such options multiple times. TODO: Support these changes after reference
-    // counting CachePeer objects.
-    // if (options != fresh.options) {
-    //     throw TextException(ToSBuf("No support for changing certain cache_peer options (yet)",
-    //                                Debug::Extra, "old options: ", options,
-    //                                Debug::Extra, "new options: ", fresh.options),
-    //                         Here());
-    // }
+    Assure(!access); // managed by pliable cache_peer_access
 
-    weight = fresh.weight;
-    basetime = fresh.basetime;
+    // `options` may change
+    // weight may change
+    // basetime may change
 
-    mcast.ttl = fresh.mcast.ttl; // but preserve mcast stats; TODO: Remove unused mcast.id?
+    if (mcast.ttl == old.mcast.ttl) {
+        mcast = old.mcast; // inherit mcast stats but ...
+        mcast.flags = {}; // do not inherit peerCountMcastPeersSchedule() state
+    }
 
 #if USE_CACHE_DIGESTS
     Assure(!digest); // TODO: Remove digest as unused?
-    Assure(!fresh.digest); // TODO: Remove digest as unused?
+    Assure(!old.digest); // TODO: Remove digest as unused?
     Assure(!digest_url); // TODO: Remove digest_url as unused?
-    Assure(!fresh.digest_url); // TODO: Remove digest_url as unused?
+    Assure(!old.digest_url); // TODO: Remove digest_url as unused?
 #endif
-    // preserve `tcp_up` state
-    // preserve `reprobe` state
 
-    stale = fresh.stale;
-    Assure(!stale); // update() should be given fresh configurations
+    tcp_up = old.tcp_up;
+    reprobe = old.reprobe;
 
     // `addresses` changes are handled by peerDNSConfigure() triggered by peerDnsRefreshStart()
     // `n_addresses` changes are handled by peerDNSConfigure() triggered by peerDnsRefreshStart()
 
-    // preserve `rr_count` stats
-    // preserve `testing_now` state
+    rr_count = old.rr_count;
+    testing_now = old.testing_now;
 
-    // The mutually exclusive peer selection fields below are set (if they are
-    // still relevant but need updating) via peerSelectResetIfChanged():
-    // preserve `carp` fields
-    // preserve `userhash` fields
-    // preserve `sourcehash` fields
+    // The following mutually-exclusive peer selection method hashes and load
+    // fields are computed by CachePeers::reset() called from
+    // Configuration::Component<CachePeers*>::FinishSmoothReconfiguration().
+    // * `carp` fields
+    // * `userhash` fields
+    // * `sourcehash` fields
 
-    safe_free(login);
-    login = fresh.login ? xstrdup(fresh.login) : nullptr;
+    // `login` is parsed
 
-    connect_timeout_raw = fresh.connect_timeout_raw;
-    connect_fail_limit = fresh.connect_fail_limit;
-    max_conn = fresh.max_conn;
+    // `connect_timeout_raw` is parsed
+    // `connect_fail_limit` is parsed
+    // `max_conn` is parsed
 
-    // standby.pool is is managed by standby.mgr (if any)
-    // standby.mgr is synced later via PeerPoolMgr::SyncConfig()
-    standby.limit = fresh.standby.limit;
-    // standby.waitingForClose is managed by standby.mgr (if any)
+    // `standby.pool` is managed by standby.mgr (if any)
+    // `standby.mgr` is managed by PeerPoolMgr::StartManagingIfNeeded() at CachePeers::add() time
+    // `standby.limit` is parsed
+    // `standby.waitingForClose` is managed by standby.mgr (if any)
 
-    safe_free(domain);
-    domain = fresh.domain ? xstrdup(fresh.domain) : nullptr;
+    // `domain` is parsed
 
-    secure = fresh.secure;
-    sslContext = fresh.sslContext;
+    // `secure` is parsed
+    // `sslContext` is parsed
     Assure(&tlsContext.options == &secure);
     Assure(&tlsContext.raw == &sslContext);
 
-    // reset session cache because session-related parameters may have changed
-    sslSession = nullptr;
+    // do not inherit session cache because session-related parameters may have changed
+    Assure(!sslSession);
 
-    front_end_https = fresh.front_end_https;
-    connection_auth = fresh.connection_auth;
+    // `front_end_https` is parsed
+    // `connection_auth` is parsed
 }
 
 Security::FuturePeerContext *

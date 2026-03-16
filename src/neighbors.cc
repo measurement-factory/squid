@@ -1045,16 +1045,6 @@ neighborsUdpAck(const cache_key * key, icp_common_t * header, const Ip::Address 
     }
 }
 
-CachePeer *
-findCachePeerByName(const char * const name)
-{
-    for (const auto &p: CurrentCachePeers()) {
-        if (!strcasecmp(name, p->name))
-            return p.getRaw();
-    }
-    return nullptr;
-}
-
 int
 neighborUp(const CachePeer * p)
 {

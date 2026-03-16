@@ -1455,7 +1455,6 @@ RegisterModules()
     CallRunnerRegistrator(ClientDbRr);
     CallRunnerRegistrator(CollapsedForwardingRr);
     CallRunnerRegistrator(MemStoreRr);
-    CallRunnerRegistrator(PeerPoolMgrsRr);
     CallRunnerRegistrator(PeerSourceHashRr);
     CallRunnerRegistrator(SharedMemPagesRr);
     CallRunnerRegistrator(SharedSessionCacheRr);

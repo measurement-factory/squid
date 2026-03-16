@@ -40,9 +40,10 @@ public:
     explicit CachePeer(const SBuf &address);
     ~CachePeer();
 
+    /// XXX: Update description
     /// apply new configuration while preserving current name, IP addresses, any
     /// TCP connection pools, and connection establishment stats
-    void update(Configuration::SmoothReconfiguration &, const CachePeer &fresh);
+    void inherit(Configuration::SmoothReconfiguration &, const CachePeer &fresh);
 
     /// reacts to a successful establishment of a connection to this cache_peer
     void noteSuccess();
@@ -199,10 +200,6 @@ public:
 
     /// whether to do another TCP probe after current TCP probes
     bool reprobe = false;
-
-    /// whether the last reconfiguration attempt expects to check our settings
-    /// but has not done so
-    bool stale = false;
 
     Ip::Address addresses[10];
     int n_addresses = 0;
