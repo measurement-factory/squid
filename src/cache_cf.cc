@@ -2123,13 +2123,8 @@ Configuration::Component<CachePeers*>::Reconfigure(SmoothReconfiguration &sr, Ca
         throw TextException("cache_peer specified twice", Here());
 
     Assure(peers == Config.peers);
-    const auto currentPeer = findCachePeerByName(newPeer->name);
-    if (currentPeer) {
-        newPeer->inherit(sr, *currentPeer);
-        PeerPoolMgr::SyncConfig(*currentPeer); // XXX
-    } else {
-        PeerPoolMgr::StartManagingIfNeeded(*newPeer); // XXX
-    }
+    if (const auto oldPeer = findCachePeerByName(newPeer->name))
+        newPeer->inherit(sr, *oldPeer);
 
     sr.fresh.cachePeers->parsed.push_back(newPeer);
 }

@@ -52,7 +52,9 @@ void
 CachePeers::add(const KeptCachePeer &peer)
 {
     storage.push_back(peer);
-    storage.back()->index = size();
+    Assure(!peer->index);
+    peer->index = size();
+    PeerPoolMgr::StartManagingIfNeeded(*peer);
 }
 
 KeptCachePeer
@@ -174,6 +176,8 @@ CachePeers::reset(Configuration::SmoothReconfiguration &sr)
     // harmful. Detect changes in all cache_peer-based directives, including
     // cache_peer_access and neighbor_type_domain! Order changes are probably OK
     // as long as we reindex (at the end of this method).
+    //
+    // Completion of this TODO should resurrect PeerPoolMgr::SyncConfig() or similar calls.
 
     // workspace to find and remove cache_peers that changed or were not
     // mentioned in the fresh configuration at all

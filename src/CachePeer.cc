@@ -161,7 +161,7 @@ CachePeer::inherit(Configuration::SmoothReconfiguration &, const CachePeer &old)
     // `max_conn` is parsed
 
     // `standby.pool` is managed by standby.mgr (if any)
-    // `standby.mgr` is synced later via PeerPoolMgr::SyncConfig() XXX
+    // `standby.mgr` is managed by PeerPoolMgr::StartManagingIfNeeded() at CachePeers::add() time
     // `standby.limit` is parsed
     // `standby.waitingForClose` is managed by standby.mgr (if any)
 
