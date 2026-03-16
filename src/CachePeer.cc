@@ -8,6 +8,8 @@
 
 #include "squid.h"
 #include "acl/Gadgets.h"
+#include "acl/Tree.h"
+#include "base/IoManip.h"
 #include "base/PrecomputedCodeContext.h"
 #include "CachePeer.h"
 #include "configuration/Smooth.h"
@@ -271,6 +273,53 @@ CachePeer::noteRemoval()
     for (const auto &callback: idlePinnedConnectionCallbacks_)
         ScheduleCallHere(callback);
     idlePinnedConnectionCallbacks_.clear();
+}
+
+/// reports peer_t using squid.conf syntax for valid values
+static
+std::ostream &
+operator <<(std::ostream &os, const peer_t type)
+{
+    switch (type) {
+
+    case PEER_PARENT:
+        os << "parent";
+        break;
+
+    case PEER_SIBLING:
+        os << "sibling";
+        break;
+
+    case PEER_MULTICAST:
+        os << "multicast";
+        break;
+
+    default: // includes PEER_NONE
+        os << "peer_type=" << type;
+        break;
+    }
+
+    return os;
+}
+
+void
+PrintDirectives(std::ostream &os, const CachePeer &peer)
+{
+    os << "cache_peer " << peer.host << ' ' << neighborTypeStr(&peer) << ' ' << peer.http_port << ' ' << peer.icp.port;
+    PrintOptions(os, peer);
+    os << "\n";
+
+    if (peer.access) {
+        // XXX: This code adds a single space indentation for the second
+        // cache_peer_access rule and beyond because AsList() does not handle
+        // multiline output specially when honoring delimitedBy().
+        const auto prefix = ToSBuf("cache_peer_access ", peer.name);
+        os << AsList(ToTree(peer.access).treeDump(prefix, &Acl::AllowOrDeny)).delimitedBy(" ");
+    }
+
+    for (auto t = peer.typelist; t; t = t->next) {
+        os << "neighbor_type_domain " << peer.name << ' ' << t->type << ' ' << t->domain;
+    }
 }
 
 std::ostream &

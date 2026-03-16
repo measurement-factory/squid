@@ -284,6 +284,10 @@ NoteOutgoingConnectionFailure(CachePeer * const peer)
         peer->noteFailure();
 }
 
+/// Report all directives that configured the given CachePeer object. At the
+/// very least, a cache_peer directive is printed. Uses squid.conf syntax.
+void PrintDirectives(std::ostream &, const CachePeer &);
+
 /// identify the given cache peer in cache.log messages and such
 std::ostream &operator <<(std::ostream &, const CachePeer &);
 
