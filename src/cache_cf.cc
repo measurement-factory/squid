@@ -2119,8 +2119,8 @@ Configuration::Component<CachePeers*>::Reconfigure(SmoothReconfiguration &sr, Ca
     auto newPeer = ParseCachePeer(parser);
     debugs(3, 5, *newPeer);
 
-    // XXX: Check for duplicates in sr.fresh.cachePeers->parsed!
-    // throw TextException("cache_peer specified twice", Here());
+    if (findCachePeerByNameIn(sr.fresh.cachePeers->parsed, newPeer->name))
+        throw TextException("cache_peer specified twice", Here());
 
     Assure(peers == Config.peers);
     const auto currentPeer = findCachePeerByName(newPeer->name);
