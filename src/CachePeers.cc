@@ -150,19 +150,8 @@ template <>
 void
 Configuration::Component<CachePeers*>::StartSmoothReconfiguration(SmoothReconfiguration &)
 {
-    // Mark old cache_peers as stale so that FinishSmoothReconfiguration() can
-    // find old peers that are no longer present in the new configuration file.
-    //
-    // XXX: Marking old cache_peers is not good enough because we do not want to
-    // remember to check the `stale` flag whenever (re)configuration code
-    // accesses a CachePeer object (e.g., see a check in parse_peer_access()).
-    // TODO: Stash old cache_peers here and forget them upon successful smooth
-    // reconfiguration but bring them back on smooth reconfiguration failures.
-    // To handle smooth reconfiguration failures, add
-    // Configuration::Component<T>::AbortSmoothReconfiguration()?
     for (const auto &p: CurrentCachePeers()) {
-        p->stale = true; // XXX: Remove this field
-        aclDestroyAccessList(&p->access); // XXX: This will go away when stale peers are stashed (see XXX above).
+        aclDestroyAccessList(&p->access); // XXX: This will go away when stale peers are stashed
     }
 }
 
