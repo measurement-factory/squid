@@ -24,6 +24,10 @@ echo "TMPDIR=${TMPDIR:=${RUNNER_TEMP:-/tmp}}"
 configureBinary=./configure
 buildLog=${TMPDIR}/test-ast-build.log
 xunusedLog=${TMPDIR}/test-ast-xunused.log
+suppressionFilter=./test-suite/test-ast-supp-filter.pl
+suppressions=./test-suite/xunused.supp
+suppressedLog=${TMPDIR}/test-ast-suppressed.log
+suppressedStatLog=${TMPDIR}/test-ast-suppressed-stats.log
 
 customCompileCommands=$1
 defaultCompileCommands=${TMPDIR}/compile_commands.json
@@ -165,7 +169,9 @@ main() {
 
     xunused --filter="$includedDirsRegex" $compileCommands > $xunusedLog 2>&1 || return
 
-    local unusedFunctionCount=`grep -c "is unused$" $xunusedLog`
+    $suppressionFilter $suppressions <$xunusedLog 1>$suppressedLog 2>$suppressedStatLog || return
+
+    local unusedFunctionCount=$(wc -l <$suppressedLog)
     echo "Unused functions: $unusedFunctionCount"
     if [ "$unusedFunctionCount" -eq 0 ]
     then
