@@ -41,9 +41,6 @@ void neighbors_init(void);
 void neighborsHtcpClear(StoreEntry *, HttpRequest *, const HttpRequestMethod &, htcp_clr_reason);
 #endif
 
-/// cache_peer with a given name (or nil)
-CachePeer *findCachePeerByName(const char *);
-
 /// replaces configuration of a matching cache_peer with a given new one
 /// \sa CachePeer::update()
 void UpdateCachePeer(const CachePeer &newCfg);

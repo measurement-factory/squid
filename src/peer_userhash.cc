@@ -130,9 +130,10 @@ peerUserHashInit(void)
 void
 peerUserHashReset(Configuration::SmoothReconfiguration &sr)
 {
-    sr.asyncCall(39, 5, "peerUserHashInit", NullaryFunDialer(&peerUserHashInit));
+    UserHashPeers() = std::move(sr.fresh.cachePeers->userHashPeers);
 }
 
+// XXX: Remove to simplify
 void
 peerUserHashResetIfChanged(Configuration::SmoothReconfiguration &sr, const CachePeer &current, const CachePeer &fresh)
 {

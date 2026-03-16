@@ -125,7 +125,7 @@ peerSourceHashInit(void)
 void
 peerSourceHashReset(Configuration::SmoothReconfiguration &sr)
 {
-    sr.asyncCall(39, 5, "peerSourceHashInit", NullaryFunDialer(&peerSourceHashInit));
+    SourceHashPeers() = std::move(sr.fresh.cachePeers->sourceHashPeers);
 }
 
 void

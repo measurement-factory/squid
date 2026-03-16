@@ -507,22 +507,6 @@ ConfigParser::regex(const char *expectedRegexDescription)
     return std::unique_ptr<RegexPattern>(new RegexPattern(pattern, flags));
 }
 
-CachePeer &
-ConfigParser::cachePeer(const char *peerNameTokenDescription)
-{
-    if (const auto name = NextToken()) {
-        debugs(3, 5, CurrentLocation() << ' ' << peerNameTokenDescription << ": " << name);
-
-        if (const auto p = findCachePeerByName(name))
-            return *p;
-
-        throw TextException(ToSBuf("Cannot find a previously declared cache_peer referred to by ",
-                                   peerNameTokenDescription, " as ", name), Here());
-    }
-
-    throw TextException(ToSBuf("Missing ", peerNameTokenDescription), Here());
-}
-
 char *
 ConfigParser::NextQuotedToken()
 {

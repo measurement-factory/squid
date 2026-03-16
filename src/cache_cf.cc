@@ -2119,20 +2119,19 @@ Configuration::Component<CachePeers*>::Reconfigure(SmoothReconfiguration &sr, Ca
     auto newPeer = ParseCachePeer(parser);
     debugs(3, 5, *newPeer);
 
+    // XXX: Check for duplicates in sr.fresh.cachePeers->parsed!
+    // throw TextException("cache_peer specified twice", Here());
+
     Assure(peers == Config.peers);
     const auto currentPeer = findCachePeerByName(newPeer->name);
     if (currentPeer) {
-        if (!currentPeer->stale)
-            throw TextException("cache_peer specified twice", Here());
-        // TODO: Consider reporting unchanged configurations.
-        currentPeer->update(sr, *newPeer);
-        PeerPoolMgr::SyncConfig(*currentPeer);
+        newPeer->inherit(sr, *currentPeer);
+        PeerPoolMgr::SyncConfig(*currentPeer); // XXX
     } else {
-        PeerPoolMgr::StartManagingIfNeeded(*newPeer);
-        peerSelectAdd(sr, *newPeer);
-        sr.asyncCall(3, 5, "neighbors_init", NullaryFunDialer(&neighbors_init));
-        AddConfigured(newPeer);
+        PeerPoolMgr::StartManagingIfNeeded(*newPeer); // XXX
     }
+
+    sr.fresh.cachePeers->parsed.push_back(newPeer);
 }
 
 static void
@@ -2223,34 +2222,55 @@ free_denyinfo(AclDenyInfoList ** list)
 }
 
 static void
-parse_peer_access(void)
+parsePeerAccessFor(CachePeer &p)
 {
-    auto &p = LegacyParser.cachePeer("cache_peer_access peer-name");
-
-    // XXX: This check will go away when stale peers are stashed (see XXX in
-    // Configuration::Component<CachePeers*>::StartSmoothReconfiguration()).
-    if (p.stale) {
-        throw TextException(ToSBuf("A cache_peer_access directive refers to cache_peer ", p,
-                                   " that has been removed from configuration (or is now declared below this reference point)"), Here());
-    }
-
     std::string directive = "peer_access ";
     directive += p.name;
     aclParseAccessLine(directive.c_str(), LegacyParser, &p.access);
 }
 
+static void
+parse_peer_access(void)
+{
+    const auto peerNameTokenDescription = "cache_peer_access peer-name";
+    auto name = LegacyParser.token(peerNameTokenDescription);
+    if (const auto p = findCachePeerByName(name.c_str())) { // XXX: Upgrade API to SBuf
+        parsePeerAccessFor(*p);
+    } else {
+        throw TextException(ToSBuf("Cannot find a previously declared cache_peer referred to by ",
+                                   peerNameTokenDescription, " as ", name), Here());
+    }
+}
+
 template <>
 void
-Configuration::Component<CachePeerAccesses>::Reconfigure(SmoothReconfiguration &, ConfigParser &)
+Configuration::Component<CachePeerAccesses>::Reconfigure(SmoothReconfiguration &sr, ConfigParser &)
 {
     // TODO: Convert peer_access to Configuration::Component API
-    parse_peer_access();
+
+    // XXX: Reduce code duplication with parse_peer_access()
+    const auto peerNameTokenDescription = "cache_peer_access peer-name";
+    auto name = LegacyParser.token(peerNameTokenDescription);
+    if (const auto p = findCachePeerByNameIn(sr.fresh.cachePeers->parsed, name.c_str())) { // XXX: Upgrade API to SBuf
+        parsePeerAccessFor(*p);
+    } else {
+        throw TextException(ToSBuf("Cannot find a previously declared cache_peer referred to by ",
+                                   peerNameTokenDescription, " as ", name), Here());
+    }
 }
 
 static void
 parse_hostdomaintype(void)
 {
-    auto &p = LegacyParser.cachePeer("neighbor_type_domain peer-name");
+    // XXX: Reduce code duplication with parse_peer_access()
+    const auto peerNameTokenDescription = "neighbor_type_domain peer-name";
+    auto name = LegacyParser.token(peerNameTokenDescription);
+    const auto peer = findCachePeerByName(name.c_str()); // XXX: Upgrade API to SBuf
+    if (!peer) {
+        throw TextException(ToSBuf("Cannot find a previously declared cache_peer referred to by ",
+                                   peerNameTokenDescription, " as ", name), Here());
+    }
+    auto &p = *peer;
 
     char *type = ConfigParser::NextToken();
     if (!type) {

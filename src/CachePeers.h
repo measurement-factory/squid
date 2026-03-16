@@ -17,14 +17,20 @@
 #include <memory>
 #include <vector>
 
-/// cache_peer configuration storage
+/// configured cache_peers
+using KeptCachePeers = std::vector<KeptCachePeer, PoolingAllocator<KeptCachePeer> >;
+
+/// manages active/current set of configured cache_peers
 class CachePeers final
 {
 public:
     ~CachePeers();
 
     /// owns stored CachePeer objects
-    using Storage = std::vector<KeptCachePeer, PoolingAllocator<KeptCachePeer> >;
+    using Storage = KeptCachePeers;
+
+    // XXX: document
+    void reset(Configuration::SmoothReconfiguration &);
 
     /// stores a configured cache_peer
     /// \sa remove()
@@ -37,6 +43,9 @@ public:
 
     /// the number of currently stored (i.e. added and not removed) cache_peers
     auto size() const { return storage.size(); }
+
+    /// currently stored (i.e. added and not removed) cache_peers
+    auto &raw() const { return storage; }
 
     /* peer iterators forming a sequence for C++ range-based for loop API */
     using const_iterator = Storage::const_iterator;
@@ -82,6 +91,27 @@ using SelectedCachePeers = CachePeers::Storage;
 /// Template parameter type for Configuration::Component specialization that
 /// handles smooth cache_peer_access reconfiguration
 class CachePeerAccesses {};
+
+/// configured cache_peer with a given name (or nil)
+CachePeer *findCachePeerByName(const char *);
+/// cache_peer with a given name among the given peers (or nil)
+CachePeer *findCachePeerByNameIn(KeptCachePeers &, const char *name);
+
+/// XXX
+class BeingConfiguredCachePeers
+{
+public:
+    /// successfully parsed cache_peer directives; future CurrentCachePeers().storage
+    KeptCachePeers parsed;
+
+    // XXX: Use or remove!
+    /// future CarpPeers()
+    KeptCachePeers carpPeers;
+    /// future SourceHashPeers()
+    KeptCachePeers sourceHashPeers;
+    /// future UserHashPeers()
+    KeptCachePeers userHashPeers;
+};
 
 #endif /* SQUID_SRC_CACHEPEERS_H */
 
