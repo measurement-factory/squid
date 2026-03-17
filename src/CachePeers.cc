@@ -106,14 +106,6 @@ AddConfigured(const KeptCachePeer &peer)
 }
 
 void
-DeleteConfigured(Configuration::SmoothReconfiguration &sr, CachePeer * const peer)
-{
-    Assure(Config.peers);
-    const auto removedPeer = Config.peers->remove(peer);
-    peerSelectDrop(sr, *removedPeer);
-}
-
-void
 DeleteConfigured(CachePeer * const peer)
 {
     Assure(Config.peers);

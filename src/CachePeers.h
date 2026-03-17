@@ -78,11 +78,8 @@ const CachePeers &CurrentCachePeers();
 void AddConfigured(const KeptCachePeer &);
 
 /// Destroys the given peer after removing it from the set of configured peers.
-/// This DeleteConfigured() variation is used during smooth reconfiguration.
-void DeleteConfigured(Configuration::SmoothReconfiguration &, CachePeer *);
-
-/// Destroys the given peer after removing it from the set of configured peers.
-/// This DeleteConfigured() variation is used outside of smooth reconfiguration.
+/// \prec findCachePeerByName() is true for the given peer
+/// \sa AddConfigured()
 void DeleteConfigured(CachePeer *);
 
 /// A subset of CurrentCachePeers() suitable for long-term storage.
@@ -105,14 +102,6 @@ class BeingConfiguredCachePeers
 public:
     /// successfully parsed cache_peer directives; future CurrentCachePeers().storage
     KeptCachePeers parsed;
-
-    // XXX: Use or remove!
-    /// future CarpPeers()
-    KeptCachePeers carpPeers;
-    /// future SourceHashPeers()
-    KeptCachePeers sourceHashPeers;
-    /// future UserHashPeers()
-    KeptCachePeers userHashPeers;
 };
 
 #endif /* SQUID_SRC_CACHEPEERS_H */

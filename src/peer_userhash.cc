@@ -127,28 +127,6 @@ peerUserHashInit(void)
     UserHashPeers() = rawUserHashPeers;
 }
 
-void
-peerUserHashReset(Configuration::SmoothReconfiguration &sr)
-{
-    UserHashPeers() = std::move(sr.fresh.cachePeers->userHashPeers);
-}
-
-// XXX: Remove to simplify
-void
-peerUserHashResetIfChanged(Configuration::SmoothReconfiguration &sr, const CachePeer &current, const CachePeer &fresh)
-{
-    Assure(current.options.userhash || fresh.options.userhash);
-
-    // peerUserHashInit() hashes name, but the name cannot change as long as
-    // smooth reconfiguration code matches cache_peers using their names
-    Assure(strcmp(current.name, fresh.name) == 0);
-
-    if (current.options.userhash && fresh.options.userhash && current.weight == fresh.weight)
-        return; // current UserHash cache_peer is fresh as far as peerUserHashInit() is concerned
-
-    peerUserHashReset(sr);
-}
-
 static void
 peerUserHashRegisterWithCacheManager(void)
 {
