@@ -14,6 +14,7 @@
 #include "CachePeer.h"
 #include "configuration/Smooth.h"
 #include "defines.h"
+#include "FwdState.h"
 #include "neighbors.h"
 #include "NeighborTypeDomainList.h"
 #include "pconn.h"
@@ -273,6 +274,8 @@ CachePeer::noteRemoval()
     for (const auto &callback: idlePinnedConnectionCallbacks_)
         ScheduleCallHere(callback);
     idlePinnedConnectionCallbacks_.clear();
+    PeerPoolMgr::Stop(standby.mgr);
+    fwdPconnPool->closeAllTo(this);
 }
 
 /// reports peer_t using squid.conf syntax for valid values

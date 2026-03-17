@@ -12,13 +12,12 @@
 #include "carp.h"
 #include "ConfigOption.h"
 #include "configuration/Smooth.h"
-#include "FwdState.h"
 #include "neighbors.h"
-#include "pconn.h"
 #include "peer_sourcehash.h"
 #include "peer_userhash.h"
 #include "PeerPoolMgr.h"
 #include "PeerSelectState.h"
+#include "sbuf/Stream.h"
 #include "SquidConfig.h"
 
 #include <algorithm>
@@ -51,10 +50,25 @@ CachePeers::nextPeerToPing(const size_t pollIndex)
 void
 CachePeers::add(const KeptCachePeer &peer)
 {
+    // keep in sync with reAdd()
+    Assure(peer);
     storage.push_back(peer);
     Assure(!peer->index);
     peer->index = size();
     PeerPoolMgr::StartManagingIfNeeded(*peer);
+}
+
+/// reset() helper for old unchanged cache_peers that need to be re-indexed
+void
+CachePeers::reAdd(const KeptCachePeer &peer)
+{
+    // keep in sync with add()
+    Assure(peer);
+    storage.push_back(peer);
+    const auto newIndex = size(); // often the same as peer->index
+    debugs(15, 2, "old " << *peer << " was at " << peer->index << " now at " << newIndex);
+    Assure(peer->index);
+    peer->index = newIndex;
 }
 
 KeptCachePeer
@@ -65,10 +79,8 @@ CachePeers::remove(CachePeer * const peer)
     });
     Assure(pos != storage.end());
     const auto removedPeer = *pos;
-    PeerPoolMgr::Stop(peer->standby.mgr);
-    peer->noteRemoval();
-    fwdPconnPool->closeAllTo(peer);
     storage.erase(pos);
+    removedPeer->noteRemoval();
     return removedPeer;
 }
 
@@ -120,7 +132,7 @@ findCachePeerByName(const char * const name)
 }
 
 CachePeer *
-findCachePeerByNameIn(KeptCachePeers &peers, const char *name)
+findCachePeerByNameIn(const KeptCachePeers &peers, const char *name)
 {
     // XXX: Do not duplicate findCachePeerByName()
     for (const auto &p: peers) {
@@ -179,34 +191,55 @@ CachePeers::reset(Configuration::SmoothReconfiguration &sr)
     //
     // Completion of this TODO should resurrect PeerPoolMgr::SyncConfig() or similar calls.
 
-    // workspace to find and remove cache_peers that changed or were not
-    // mentioned in the fresh configuration at all
+    // Workspace to find and eventually remove cache_peers that changed or were
+    // not mentioned in the fresh configuration at all. This container does not
+    // have cache_peers with unchanged configuration -- we want to _move_ (i.e.
+    // reindex) rather than remove() those, so that they keep their connections.
     SelectedCachePeers peersToRemove;
 
     debugs(15, 5, storage.size() << " old and " << sr.fresh.cachePeers->parsed.size() << " new cache_peers");
 
-    for (const auto &p: sr.fresh.cachePeers->parsed) {
-        if (!findCachePeerByNameIn(storage, p->name))
-            debugs(15, DBG_IMPORTANT, "Adding new cache_peer: " << *p);
+    const auto oldStorage = std::move(storage);
+    storage.clear(); // get `storage` back into known state
+
+    // helps compare CachePeer configurations
+    const auto toDirectives = [](const auto &peer) {
+        SBufStream os;
+        PrintDirectives(os, peer);
+        return os.buf();
+    };
+
+    for (const auto &fresh: sr.fresh.cachePeers->parsed) {
+        if (const auto old = findCachePeerByNameIn(oldStorage, fresh->name)) {
+            Assure(fresh != old); // different pointers
+            if (toDirectives(*old) == toDirectives(*fresh)) { // same configuration
+                reAdd(old);
+            } else {
+                debugs(15, DBG_IMPORTANT, "Reconfigured existing cache_peer: " << *fresh);
+                add(fresh);
+                peersToRemove.push_back(old);
+            }
+        } else {
+            debugs(15, DBG_IMPORTANT, "Adding new cache_peer: " << *fresh);
+            add(fresh);
+        }
     }
 
-    for (const auto &p: storage) {
-        if (const auto stayed = findCachePeerByNameIn(sr.fresh.cachePeers->parsed, p->name)) {
-            Assure(p != stayed); // for now, see above TODO about not removing-then-adding peers
-            debugs(15, DBG_IMPORTANT, "Reconfigured cache_peer: " << *p);
-        } else {
-            debugs(15, DBG_IMPORTANT, "WARNING: Removing old cache_peer not present in new configuration: " << *p);
+    for (const auto &old: oldStorage) {
+        if (!findCachePeerByNameIn(sr.fresh.cachePeers->parsed, old->name)) {
+            debugs(15, DBG_IMPORTANT, "Removing old cache_peer: " << *old);
+            peersToRemove.push_back(old);
         }
-        peersToRemove.push_back(p);
+        // else case was handled in the previous loop
     }
+
+    Assure(peersToRemove.size() <= oldStorage.size());
+    Assure(storage.size() == sr.fresh.cachePeers->parsed.size());
 
     for (const auto &p: peersToRemove)
-        remove(p.getRaw());
+        p->noteRemoval();
 
-    Assure(storage.empty()); // for now, see above TODO about not removing-then-adding peers
-    for (const auto &p: sr.fresh.cachePeers->parsed) {
-        add(p);
-    }
+    // TODO: Do not reindex if nothing has changed.
 
     carpInit();
     peerSourceHashInit();

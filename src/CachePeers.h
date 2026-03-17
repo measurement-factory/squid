@@ -58,6 +58,8 @@ public:
     CachePeer &nextPeerToPing(size_t iteration);
 
 private:
+    void reAdd(const KeptCachePeer &);
+
     /// cache_peers in configuration/parsing order
     Storage storage;
 
@@ -95,7 +97,7 @@ class CachePeerAccesses {};
 /// configured cache_peer with a given name (or nil)
 CachePeer *findCachePeerByName(const char *);
 /// cache_peer with a given name among the given peers (or nil)
-CachePeer *findCachePeerByNameIn(KeptCachePeers &, const char *name);
+CachePeer *findCachePeerByNameIn(const KeptCachePeers &, const char *name);
 
 /// XXX
 class BeingConfiguredCachePeers
