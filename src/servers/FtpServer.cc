@@ -318,8 +318,7 @@ Ftp::Server::clientPinnedConnectionClosed(const CommCloseCbParams &io)
 
     // TODO: Keep the control connection open after fixing the reset
     // problem below
-    if (Comm::IsConnOpen(clientConnection))
-        clientConnection->close();
+    clientConnection->close();
 
     // TODO: If the server control connection is gone, reset state to login
     // again. Resetting login alone is not enough: FtpRelay::sendCommand() will
@@ -409,11 +408,7 @@ Ftp::Server::acceptDataConnection(const CommAcceptCbParams &params)
     debugs(33, 4, "accepted " << params.conn);
     fd_note(params.conn->fd, "passive client ftp data");
 
-    if (!clientConnection) {
-        debugs(33, 5, "late data connection?");
-        closeDataConnection(); // in case we are still listening
-        params.conn->close();
-    } else if (params.conn->remote != clientConnection->remote) {
+    if (params.conn->remote != clientConnection->remote) {
         debugs(33, 2, "rogue data conn? ctrl: " << clientConnection->remote);
         params.conn->close();
         // Some FTP servers close control connection here, but it may make
@@ -1419,7 +1414,6 @@ Ftp::Server::handlePasvRequest(String &, String &params)
 bool
 Ftp::Server::createDataConnection(Ip::Address cltAddr)
 {
-    assert(clientConnection != nullptr);
     assert(!clientConnection->remote.isAnyAddr());
 
     if (cltAddr != clientConnection->remote) {
@@ -1737,8 +1731,7 @@ Ftp::Server::callException(const std::exception &e)
     debugs(33, 2, "FTP::Server job caught: " << e.what());
     closeDataConnection();
     unpinConnection(true);
-    if (Comm::IsConnOpen(clientConnection))
-        clientConnection->close();
+    clientConnection->close();
     AsyncJob::callException(e);
 }
 
