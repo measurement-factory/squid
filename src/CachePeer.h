@@ -207,6 +207,9 @@ public:
     int rr_count = 0;
     int testing_now = 0;
 
+    /// whether scheduling netdbExchangeStart() should be avoided
+    bool netdbExchangePending = false;
+
     struct {
         unsigned int hash = 0;
         double load_multiplier = 0.0;

@@ -179,6 +179,8 @@ CachePeer::noteRemoval()
     idlePinnedConnectionCallbacks_.clear();
     PeerPoolMgr::Stop(standby.mgr);
     fwdPconnPool->closeAllTo(this);
+    // TODO: After eventDelete() becomes safe, cancel netdbExchangeStart event
+    // to prevent accumulation of those events for frequently removed peers.
 }
 
 /// reports peer_t using squid.conf syntax for valid values
