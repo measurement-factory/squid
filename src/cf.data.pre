@@ -4088,30 +4088,26 @@ DOC_START
 
 	This directive supports smooth reconfiguration, with caveats:
 
-	* Changing cache_peer name from A to B means removing old cache_peer named
-	  A and adding a brand new cache_peer named B: Squid pairs old and new
-	  cache_peer directives using cache_peer name (which defaults to
-	  cache_peer hostname). To update an existing cache_peer, use its old name
-	  and, if there was no explicit name, the old hostname specs.
+	* Squid pairs old and new cache_peer directives using cache_peer name
+	  parameter (which defaults to cache_peer hostname).
 
-	* Removing a cache_peer closes all idle persistent and standby connections
-	  to that peer. The associated performance overheads depend on many
-	  factors. In some tests, Squid blocked for about one millisecond to close
-	  100 idle connections.  Connections closure also slows down any ongoing
-	  transactions that have selected the being-removed cache_peer but have
-	  not obtained a connection to it yet.
+	* Cache peers with a completely unchanged cache_peer directive and a
+	  completely unchanged sequence of matching cache_peer_access directives
+	  (if any) keep their idle persistent and standby connections.
 
-	* Changing cache_peer hostname is not yet supported.
+	* Removing a cache_peer or changing its configuration closes all idle
+	  persistent and standby connections to that peer. The associated
+	  performance overheads depend on many factors. In some tests, Squid
+	  blocked for about one millisecond to close 100 idle connections.
+	  Connections closure may also slow down ongoing transactions that have
+	  selected the affected cache_peer but have not obtained a connection to
+	  it yet.
 
-	* Changing many of the cache_peer options (e.g., `originserver` and
-	  `carp-key`) is not yet supported, but not diagnostic is given for some
-	  of the ignored changes. Changing TLS-related options is supported.
+	* Changing the order of cache_peer directives is supported and does not
+	  (in itself) change individual cache peer configurations.
 
-	* Changing cache_peer options does not close any affected idle persistent,
-	  standby, or pinned connections to that peer (yet?).
-
-For general details about smooth reconfiguration, see documentation for
-the "reconfiguration" directive.
+	For general details about smooth reconfiguration, see documentation for
+	the "reconfiguration" directive.
 DOC_END
 
 NAME: cache_peer_access

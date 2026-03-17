@@ -2075,7 +2075,7 @@ Configuration::Component<CachePeers*>::Reconfigure(SmoothReconfiguration &sr, Ca
 
     Assure(peers == Config.peers);
     if (const auto oldPeer = findCachePeerByName(newPeer->name))
-        newPeer->inherit(sr, *oldPeer);
+        newPeer->copyRigidFrom(*oldPeer);
 
     sr.fresh.cachePeers->parsed.push_back(newPeer);
 }

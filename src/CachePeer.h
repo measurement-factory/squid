@@ -40,10 +40,11 @@ public:
     explicit CachePeer(const SBuf &address);
     ~CachePeer();
 
-    /// XXX: Update description
-    /// apply new configuration while preserving current name, IP addresses, any
-    /// TCP connection pools, and connection establishment stats
-    void inherit(Configuration::SmoothReconfiguration &, const CachePeer &fresh);
+    /// Copies rigid parts of the given `old` peer configuration. This copying
+    /// is necessary because our config parser does not see those rigid parts.
+    /// This copying is safe because those parts could not have changed.
+    /// \pre We are performing smooth reconfiguration.
+    void copyRigidFrom(const CachePeer &old);
 
     /// reacts to a successful establishment of a connection to this cache_peer
     void noteSuccess();
