@@ -40,10 +40,11 @@ public:
     explicit CachePeer(const SBuf &address);
     ~CachePeer();
 
-    /// XXX: Update description
-    /// apply new configuration while preserving current name, IP addresses, any
-    /// TCP connection pools, and connection establishment stats
-    void inherit(Configuration::SmoothReconfiguration &, const CachePeer &fresh);
+    /// Copies rigid parts of the given `old` peer configuration. This copying
+    /// is necessary because our config parser does not see those rigid parts.
+    /// This copying is safe because those parts could not have changed.
+    /// \pre We are performing smooth reconfiguration.
+    void copyRigidFrom(const CachePeer &old);
 
     /// reacts to a successful establishment of a connection to this cache_peer
     void noteSuccess();
@@ -206,6 +207,9 @@ public:
     int rr_count = 0;
     int testing_now = 0;
 
+    /// whether scheduling netdbExchangeStart() should be avoided
+    bool netdbExchangePending = false;
+
     struct {
         unsigned int hash = 0;
         double load_multiplier = 0.0;
@@ -283,6 +287,10 @@ NoteOutgoingConnectionFailure(CachePeer * const peer)
     if (peer)
         peer->noteFailure();
 }
+
+/// Report all directives that configured the given CachePeer object. At the
+/// very least, a cache_peer directive is printed. Uses squid.conf syntax.
+void PrintDirectives(std::ostream &, const CachePeer &);
 
 /// identify the given cache peer in cache.log messages and such
 std::ostream &operator <<(std::ostream &, const CachePeer &);

@@ -1749,64 +1749,15 @@ parse_cachedir(Store::DiskConfig *swap)
     Store::Disks::Parse(*swap);
 }
 
-static const char *
-peer_type_str(const peer_t type)
-{
-    const char * result;
-
-    switch (type) {
-
-    case PEER_PARENT:
-        result = "parent";
-        break;
-
-    case PEER_SIBLING:
-        result = "sibling";
-        break;
-
-    case PEER_MULTICAST:
-        result = "multicast";
-        break;
-
-    default:
-        result = "unknown";
-        break;
-    }
-
-    return result;
-}
-
 static void
-dump_peer(StoreEntry * entry, const char *name, const CachePeers *peers)
+dump_peer(StoreEntry * const entry, const char *, const CachePeers *peers)
 {
     if (!peers)
         return;
 
-    NeighborTypeDomainList *t;
-    LOCAL_ARRAY(char, xname, 128);
-
+    PackableStream os(*entry);
     for (const auto &peer: *peers) {
-        const auto p = peer.getRaw();
-        storeAppendPrintf(entry, "%s %s %s %d %d name=%s",
-                          name,
-                          p->host,
-                          neighborTypeStr(p),
-                          p->http_port,
-                          p->icp.port,
-                          p->name);
-        dump_peer_options(entry, p);
-
-        if (p->access) {
-            snprintf(xname, 128, "cache_peer_access %s", p->name);
-            dump_acl_access(entry, xname, p->access);
-        }
-
-        for (t = p->typelist; t; t = t->next) {
-            storeAppendPrintf(entry, "neighbor_type_domain %s %s %s\n",
-                              p->name,
-                              peer_type_str(t->type),
-                              t->domain);
-        }
+        PrintDirectives(os, *peer);
     }
 }
 
@@ -2124,7 +2075,7 @@ Configuration::Component<CachePeers*>::Reconfigure(SmoothReconfiguration &sr, Ca
 
     Assure(peers == Config.peers);
     if (const auto oldPeer = findCachePeerByName(newPeer->name))
-        newPeer->inherit(sr, *oldPeer);
+        newPeer->copyRigidFrom(*oldPeer);
 
     sr.fresh.cachePeers->parsed.push_back(newPeer);
 }

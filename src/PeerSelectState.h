@@ -166,22 +166,8 @@ private:
     const InstanceId<PeerSelector> id; ///< unique identification in worker log
 };
 
-/// Updates global peer selection state to reflect a given cache_peer addition.
-void peerSelectAdd(Configuration::SmoothReconfiguration &, const CachePeer &);
-
 /// Updates global peer selection state to reflect a given cache_peer deletion.
-/// This peerSelectDrop() variation is used during smooth reconfiguration.
-void peerSelectDrop(Configuration::SmoothReconfiguration &, const CachePeer &);
-
-/// Updates global peer selection state to reflect a given cache_peer deletion.
-/// This peerSelectDrop() variation is used outside of smooth reconfiguration.
 void peerSelectDrop(const CachePeer &);
-
-/// Updates global peer selection state if selection-related configuration of
-/// the given `current` peer is changing.
-/// \param current reflects an existing CachePeer state
-/// \param fresh is a new configuration for the current peer
-void peerSelectResetIfChanged(Configuration::SmoothReconfiguration &, const CachePeer &current, const CachePeer &fresh);
 
 #endif /* SQUID_SRC_PEERSELECTSTATE_H */
 

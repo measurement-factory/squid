@@ -1134,8 +1134,10 @@ peerDNSConfigure(const ipcache_addrs *ia, const Dns::LookupDetails &, void *data
 
 #if USE_ICMP
     if (p->type != PEER_MULTICAST && IamWorkerProcess())
-        if (!p->options.no_netdb_exchange)
+        if (!p->options.no_netdb_exchange && !p->netdbExchangePending) {
+            p->netdbExchangePending = true; // prevent concurrent same-peer event accumulation
             eventAddIsh("netdbExchangeStart", netdbExchangeStart, p, 30.0, 1);
+        }
 #endif
 
     if (p->standby.mgr.valid())
@@ -1373,6 +1375,17 @@ void
 dump_peer_options(StoreEntry * sentry, CachePeer * p)
 {
     PackableStream os(*sentry);
+    PrintOptions(os, *p);
+    os << "\n";
+}
+
+void
+PrintOptions(std::ostream &os, const CachePeer &peer)
+{
+    // TODO: Track whether name was explicitly configured (i.e. CachePeer::rename() was called)
+    os << " name=" << peer.name;
+
+    const auto p = &peer; // TODO: Remove this diff reducer
 
     if (p->options.proxy_only)
         os << " proxy-only";
@@ -1489,7 +1502,6 @@ dump_peer_options(StoreEntry * sentry, CachePeer * p)
         os << " connection-auth=auto";
 
     p->secure.dumpCfg(os, "tls-");
-    os << '\n';
 }
 
 static void
@@ -1545,6 +1557,11 @@ dump_peers(StoreEntry *sentry, CachePeers *peers)
         }
 
         storeAppendPrintf(sentry, "IGNORED    : %8d %3d%%\n", e->stats.ignored_replies, Math::intPercent(e->stats.ignored_replies, e->stats.pings_acked));
+
+        if (!e->options.no_netdb_exchange) {
+            storeAppendPrintf(sentry, "NetDB exchange pending: %s\n",
+                              (e->netdbExchangePending ? "true" : "false"));
+        }
 
         if (!e->options.no_query) {
             storeAppendPrintf(sentry, "Histogram of PINGS ACKED:\n");

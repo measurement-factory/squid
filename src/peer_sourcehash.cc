@@ -122,27 +122,6 @@ peerSourceHashInit(void)
     SourceHashPeers() = rawSourceHashPeers;
 }
 
-void
-peerSourceHashReset(Configuration::SmoothReconfiguration &sr)
-{
-    SourceHashPeers() = std::move(sr.fresh.cachePeers->sourceHashPeers);
-}
-
-void
-peerSourceHashResetIfChanged(Configuration::SmoothReconfiguration &sr, const CachePeer &current, const CachePeer &fresh)
-{
-    Assure(current.options.sourcehash || fresh.options.sourcehash);
-
-    // peerSourceHashInit() hashes name, but the name cannot change as long as
-    // smooth reconfiguration code matches cache_peers using their names
-    Assure(strcmp(current.name, fresh.name) == 0);
-
-    if (current.options.sourcehash && fresh.options.sourcehash && current.weight == fresh.weight)
-        return; // current SourceHash cache_peer is fresh as far as peerSourceHashInit() is concerned
-
-    peerSourceHashReset(sr);
-}
-
 /// reacts to RegisteredRunner events relevant to this module
 class PeerSourceHashRr: public RegisteredRunner
 {

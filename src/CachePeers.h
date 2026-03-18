@@ -58,6 +58,8 @@ public:
     CachePeer &nextPeerToPing(size_t iteration);
 
 private:
+    bool reAdd(const KeptCachePeer &);
+
     /// cache_peers in configuration/parsing order
     Storage storage;
 
@@ -76,11 +78,8 @@ const CachePeers &CurrentCachePeers();
 void AddConfigured(const KeptCachePeer &);
 
 /// Destroys the given peer after removing it from the set of configured peers.
-/// This DeleteConfigured() variation is used during smooth reconfiguration.
-void DeleteConfigured(Configuration::SmoothReconfiguration &, CachePeer *);
-
-/// Destroys the given peer after removing it from the set of configured peers.
-/// This DeleteConfigured() variation is used outside of smooth reconfiguration.
+/// \prec findCachePeerByName() is true for the given peer
+/// \sa AddConfigured()
 void DeleteConfigured(CachePeer *);
 
 /// A subset of CurrentCachePeers() suitable for long-term storage.
@@ -95,7 +94,7 @@ class CachePeerAccesses {};
 /// configured cache_peer with a given name (or nil)
 CachePeer *findCachePeerByName(const char *);
 /// cache_peer with a given name among the given peers (or nil)
-CachePeer *findCachePeerByNameIn(KeptCachePeers &, const char *name);
+CachePeer *findCachePeerByNameIn(const KeptCachePeers &, const char *name);
 
 /// XXX
 class BeingConfiguredCachePeers
@@ -103,14 +102,6 @@ class BeingConfiguredCachePeers
 public:
     /// successfully parsed cache_peer directives; future CurrentCachePeers().storage
     KeptCachePeers parsed;
-
-    // XXX: Use or remove!
-    /// future CarpPeers()
-    KeptCachePeers carpPeers;
-    /// future SourceHashPeers()
-    KeptCachePeers sourceHashPeers;
-    /// future UserHashPeers()
-    KeptCachePeers userHashPeers;
 };
 
 #endif /* SQUID_SRC_CACHEPEERS_H */

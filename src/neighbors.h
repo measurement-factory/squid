@@ -62,7 +62,15 @@ void peerNoteDigestLookup(HttpRequest * request, CachePeer * p, lookup_t lookup)
 int neighborUp(const CachePeer * e);
 const char *neighborTypeStr(const CachePeer * e);
 peer_t neighborType(const CachePeer *, const AnyP::Uri &);
+
+/// Dumps optional cache_peer directive parameters (e.g., `login` and `carp`)
+/// using squid.conf syntax. Currently always prints the `name` parameter.
+/// Prints a single space before the first printed parameter.
+void PrintOptions(std::ostream &os, const CachePeer &peer);
+
+/// Deprecated PrintOptions() wrapper and diff reducer. Appends a new line.
 void dump_peer_options(StoreEntry *, CachePeer *);
+
 int peerHTTPOkay(const CachePeer *, PeerSelector *);
 
 /// \returns max(1, timeout)

@@ -69,12 +69,15 @@ public:
         assert(r);
         // TODO: check if we actually need to do this. should be implicit
         r->http_ver = Http::ProtocolVersion();
+        p->netdbExchangePending = true;
     }
 
     ~netdbExchangeState() {
         debugs(38, 3, e->url());
         storeUnregister(sc, e, this);
         e->unlock("netdbExchangeDone");
+        if (p.valid())
+            p->netdbExchangePending = false;
     }
 
     DisappearingCachePeer p;
@@ -1183,6 +1186,9 @@ netdbExchangeStart(void *data)
 {
 #if USE_ICMP
     CachePeer *p = (CachePeer *)data;
+
+    p->netdbExchangePending = false; // will be set again if we make it to ex creation
+
     static const SBuf netDB("netdb");
     char *uri = internalRemoteUri(p->secure.encryptTransport, p->host, p->http_port, "/squid-internal-dynamic/", netDB);
     debugs(38, 3, "Requesting '" << uri << "'");

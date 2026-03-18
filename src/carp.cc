@@ -128,27 +128,6 @@ carpInit(void)
     CarpPeers() = rawCarpPeers;
 }
 
-void
-carpReset(Configuration::SmoothReconfiguration &sr)
-{
-    CarpPeers() = std::move(sr.fresh.cachePeers->carpPeers);
-}
-
-void
-carpResetIfChanged(Configuration::SmoothReconfiguration &sr, const CachePeer &current, const CachePeer &fresh)
-{
-    Assure(current.options.carp || fresh.options.carp);
-
-    // carpInit() hashes name, but the name cannot change as long as smooth
-    // reconfiguration code matches cache_peers using their names
-    Assure(strcmp(current.name, fresh.name) == 0);
-
-    if (current.options.carp && fresh.options.carp && current.weight == fresh.weight)
-        return; // current CARP cache_peer is fresh as far as carpInit() is concerned
-
-    carpReset(sr);
-}
-
 /// reacts to RegisteredRunner events relevant to this module
 class CarpRr: public RegisteredRunner
 {

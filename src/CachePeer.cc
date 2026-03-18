@@ -8,10 +8,13 @@
 
 #include "squid.h"
 #include "acl/Gadgets.h"
+#include "acl/Tree.h"
+#include "base/IoManip.h"
 #include "base/PrecomputedCodeContext.h"
 #include "CachePeer.h"
 #include "configuration/Smooth.h"
 #include "defines.h"
+#include "FwdState.h"
 #include "neighbors.h"
 #include "NeighborTypeDomainList.h"
 #include "pconn.h"
@@ -65,118 +68,21 @@ CachePeer::~CachePeer()
 }
 
 void
-CachePeer::inherit(Configuration::SmoothReconfiguration &, const CachePeer &old)
+CachePeer::copyRigidFrom(const CachePeer &old)
 {
     debugs(3, 7, " new " << *this << " inherits from old " << old);
+    Assure(strcmp(name, old.name) == 0);
 
     // XXX: Remove that function as unused: peerSelectResetIfChanged(sr, *this, fresh); // before we update *this
 
-    // When annotating new CachePeer fields, use data member declaration order.
-
-    // `index` is not a part of an individual peer configuration
-    Assure(old.index);
-    Assure(!index);
-
-    Assure(strcmp(name, old.name) == 0);
-
-    if (strcmp(host, old.host) != 0) {
-        throw TextException(ToSBuf("No support for changing cache_peer hostname (yet)",
-                                   Debug::Extra, "old hostname: ", old.host,
-                                   Debug::Extra, "new hostname: ", host),
-                            Here());
-    }
-
-    if (type != old.type) {
-        throw TextException(ToSBuf("No support for changing cache_peer type (yet)",
-                                   Debug::Extra, "old type: ", neighborTypeStr(&old),
-                                   Debug::Extra, "new type: ", neighborTypeStr(this)),
-                            Here());
-    }
-
-    // `in_addr` is derived from `addresses` and `icp.port` (see below for those
-    // two field notes). Delay `in_addr` update until `addresses` are updated.
-
-    stats = old.stats;
-
-    if (icp.port == old.icp.port)
-        icp = old.icp; // inherit `icp.version` and `icp.counts` stats
-#if USE_HTCP
-    if (htcp.port == old.htcp.port)
-        htcp = old.htcp; // inherit `htcp.version` and `htcp.counts` stats
-#endif
-
-    if (http_port != old.http_port) {
-        throw TextException(ToSBuf("No support for changing cache_peer HTTP port (yet)",
-                                   Debug::Extra, "old port: ", old.http_port,
-                                   Debug::Extra, "new port: ", http_port),
-                            Here());
-    }
-
-    // copy old values managed by rigid neighbor_type_domain (which could not have changed)
+    // TODO: Remove this copying after making neighbor_type_domain pliable.
+    // Copy old values managed by rigid neighbor_type_domain (which could not have changed).
     Assure(!typelist);
     auto tlNext = &typelist;
     for (auto tlOld = old.typelist; tlOld; tlOld = tlOld->next) {
         *tlNext = new NeighborTypeDomainList{xstrdup(tlOld->domain), tlOld->type, nullptr};
         tlNext = &(*tlNext)->next;
     }
-
-    Assure(!access); // managed by pliable cache_peer_access
-
-    // `options` may change
-    // weight may change
-    // basetime may change
-
-    if (mcast.ttl == old.mcast.ttl) {
-        mcast = old.mcast; // inherit mcast stats but ...
-        mcast.flags = {}; // do not inherit peerCountMcastPeersSchedule() state
-    }
-
-#if USE_CACHE_DIGESTS
-    Assure(!digest); // TODO: Remove digest as unused?
-    Assure(!old.digest); // TODO: Remove digest as unused?
-    Assure(!digest_url); // TODO: Remove digest_url as unused?
-    Assure(!old.digest_url); // TODO: Remove digest_url as unused?
-#endif
-
-    tcp_up = old.tcp_up;
-    reprobe = old.reprobe;
-
-    // `addresses` changes are handled by peerDNSConfigure() triggered by peerDnsRefreshStart()
-    // `n_addresses` changes are handled by peerDNSConfigure() triggered by peerDnsRefreshStart()
-
-    rr_count = old.rr_count;
-    testing_now = old.testing_now;
-
-    // The following mutually-exclusive peer selection method hashes and load
-    // fields are computed by CachePeers::reset() called from
-    // Configuration::Component<CachePeers*>::FinishSmoothReconfiguration().
-    // * `carp` fields
-    // * `userhash` fields
-    // * `sourcehash` fields
-
-    // `login` is parsed
-
-    // `connect_timeout_raw` is parsed
-    // `connect_fail_limit` is parsed
-    // `max_conn` is parsed
-
-    // `standby.pool` is managed by standby.mgr (if any)
-    // `standby.mgr` is managed by PeerPoolMgr::StartManagingIfNeeded() at CachePeers::add() time
-    // `standby.limit` is parsed
-    // `standby.waitingForClose` is managed by standby.mgr (if any)
-
-    // `domain` is parsed
-
-    // `secure` is parsed
-    // `sslContext` is parsed
-    Assure(&tlsContext.options == &secure);
-    Assure(&tlsContext.raw == &sslContext);
-
-    // do not inherit session cache because session-related parameters may have changed
-    Assure(!sslSession);
-
-    // `front_end_https` is parsed
-    // `connection_auth` is parsed
 }
 
 Security::FuturePeerContext *
@@ -271,6 +177,57 @@ CachePeer::noteRemoval()
     for (const auto &callback: idlePinnedConnectionCallbacks_)
         ScheduleCallHere(callback);
     idlePinnedConnectionCallbacks_.clear();
+    PeerPoolMgr::Stop(standby.mgr);
+    fwdPconnPool->closeAllTo(this);
+    // TODO: After eventDelete() becomes safe, cancel netdbExchangeStart event
+    // to prevent accumulation of those events for frequently removed peers.
+}
+
+/// reports peer_t using squid.conf syntax for valid values
+static
+std::ostream &
+operator <<(std::ostream &os, const peer_t type)
+{
+    switch (type) {
+
+    case PEER_PARENT:
+        os << "parent";
+        break;
+
+    case PEER_SIBLING:
+        os << "sibling";
+        break;
+
+    case PEER_MULTICAST:
+        os << "multicast";
+        break;
+
+    default: // includes PEER_NONE
+        os << "peer_type=" << type;
+        break;
+    }
+
+    return os;
+}
+
+void
+PrintDirectives(std::ostream &os, const CachePeer &peer)
+{
+    os << "cache_peer " << peer.host << ' ' << neighborTypeStr(&peer) << ' ' << peer.http_port << ' ' << peer.icp.port;
+    PrintOptions(os, peer);
+    os << "\n";
+
+    if (peer.access) {
+        // XXX: This code adds a single space indentation for the second
+        // cache_peer_access rule and beyond because AsList() does not handle
+        // multiline output specially when honoring delimitedBy().
+        const auto prefix = ToSBuf("cache_peer_access ", peer.name);
+        os << AsList(ToTree(peer.access).treeDump(prefix, &Acl::AllowOrDeny)).delimitedBy(" ");
+    }
+
+    for (auto t = peer.typelist; t; t = t->next) {
+        os << "neighbor_type_domain " << peer.name << ' ' << t->type << ' ' << t->domain;
+    }
 }
 
 std::ostream &
