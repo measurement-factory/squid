@@ -974,8 +974,10 @@ Ftp::Gateway::processReplyBody()
         return;
     }
 
+    const auto availableDataSize = data.readBuf->contentSize();
+
     /* Directory listings are special. They write ther own headers via the error objects */
-    if (!flags.http_header_sent && data.readBuf->contentSize() >= 0 && !flags.isdir)
+    if (!flags.http_header_sent && !flags.isdir)
         appendSuccessHeader();
 
     if (EBIT_TEST(entry->flags, ENTRY_ABORTED)) {
@@ -1004,13 +1006,16 @@ Ftp::Gateway::processReplyBody()
         parseListing();
         maybeReadVirginBody();
         return;
-    } else if (const auto csize = data.readBuf->contentSize()) {
-        writeReplyBody(data.readBuf->content(), csize);
-        debugs(9, 5, "consuming " << csize << " bytes of readBuf");
-        data.readBuf->consume(csize);
+    } else if (availableDataSize) {
+        writeReplyBody(data.readBuf->content(), availableDataSize);
+        debugs(9, 5, "consuming " << availableDataSize << " bytes of readBuf");
+        data.readBuf->consume(availableDataSize);
     }
 
     entry->flush();
+
+    if (availableDataSize && theSize >= 0 && data.payloadSeen >= static_cast<uint64_t>(theSize))
+        markParsedVirginReplyAsWhole("whole virgin body");
 
     maybeReadVirginBody();
 }
@@ -1157,6 +1162,7 @@ Ftp::Gateway::start()
         SBuf realm(ftpRealm()); // local copy so SBuf will not disappear too early
         const auto reply = ftpAuthRequired(request.getRaw(), realm, fwd->al);
         entry->replaceHttpReply(reply);
+        fwd->markStoredReplyAsWhole("checkAuth failed");
         serverComplete();
         return;
     }
@@ -1263,6 +1269,7 @@ Ftp::Gateway::loginFailed()
 
     // add it to the store entry for response....
     entry->replaceHttpReply(newrep);
+    fwd->markStoredReplyAsWhole("loginFailed");
     serverComplete();
 }
 
@@ -2232,6 +2239,7 @@ Ftp::Gateway::completedListing()
     ctrl.message = nullptr;
     entry->replaceHttpReply(ferr.BuildHttpReply());
     entry->flush();
+    fwd->markStoredReplyAsWhole("completedListing");
     entry->unlock("Ftp::Gateway");
 }
 
@@ -2246,8 +2254,9 @@ ftpReadTransferDone(Ftp::Gateway * ftpState)
         if (ftpState->flags.listing) {
             ftpState->completedListing();
             /* QUIT operation handles sending the reply to client */
+        } else {
+            ftpState->markParsedVirginReplyAsWhole("ftpReadTransferDone code 226 or 250");
         }
-        ftpState->markParsedVirginReplyAsWhole("ftpReadTransferDone code 226 or 250");
         ftpSendQuit(ftpState);
     } else {            /* != 226 */
         debugs(9, DBG_IMPORTANT, "Got code " << code << " after reading data");
@@ -2279,7 +2288,6 @@ ftpWriteTransferDone(Ftp::Gateway * ftpState)
     }
 
     ftpState->entry->timestampsSet();   /* XXX Is this needed? */
-    ftpState->markParsedVirginReplyAsWhole("ftpWriteTransferDone code 226 or 250");
     ftpSendReply(ftpState);
 }
 
@@ -2414,6 +2422,7 @@ ftpFail(Ftp::Gateway *ftpState)
     delete ftperr;
 
     ftpState->entry->replaceHttpReply(newrep);
+    ftpState->fwd->markStoredReplyAsWhole("ftpFail");
     ftpSendQuit(ftpState);
 }
 
@@ -2492,6 +2501,8 @@ ftpSendReply(Ftp::Gateway * ftpState)
     err.detailError(new Ftp::ErrorDetail(code));
 
     ftpState->entry->replaceHttpReply(err.BuildHttpReply());
+
+    ftpState->fwd->markStoredReplyAsWhole("ftpSendReply");
 
     ftpSendQuit(ftpState);
 }
