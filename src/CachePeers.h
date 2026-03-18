@@ -58,7 +58,7 @@ public:
     CachePeer &nextPeerToPing(size_t iteration);
 
 private:
-    void reAdd(const KeptCachePeer &);
+    bool reAdd(const KeptCachePeer &);
 
     /// cache_peers in configuration/parsing order
     Storage storage;

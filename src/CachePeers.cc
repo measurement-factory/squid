@@ -59,16 +59,19 @@ CachePeers::add(const KeptCachePeer &peer)
 }
 
 /// reset() helper for old unchanged cache_peers that need to be re-indexed
-void
+/// \returns whether the given peer has changed its position
+bool
 CachePeers::reAdd(const KeptCachePeer &peer)
 {
     // keep in sync with add()
     Assure(peer);
+    const auto oldIndex = peer->index;
     storage.push_back(peer);
-    const auto newIndex = size(); // often the same as peer->index
-    debugs(15, 2, "old " << *peer << " was at " << peer->index << " now at " << newIndex);
-    Assure(peer->index);
+    const auto newIndex = size(); // often the same as oldIndex
+    debugs(15, 2, "old " << *peer << " was at " << oldIndex << " now at " << newIndex);
+    Assure(oldIndex);
     peer->index = newIndex;
+    return oldIndex != newIndex;
 }
 
 KeptCachePeer
@@ -194,6 +197,8 @@ CachePeers::reset(Configuration::SmoothReconfiguration &sr)
     const auto oldStorage = std::move(storage);
     storage.clear(); // get `storage` back into known state
 
+    auto sawChanges = false; // including added, removed, and moved cache_peers
+
     // helps compare CachePeer configurations
     const auto toDirectives = [](const auto &peer) {
         SBufStream os;
@@ -205,15 +210,18 @@ CachePeers::reset(Configuration::SmoothReconfiguration &sr)
         if (const auto old = findCachePeerByNameIn(oldStorage, fresh->name)) {
             Assure(fresh != old); // different pointers
             if (toDirectives(*old) == toDirectives(*fresh)) { // same configuration
-                reAdd(old);
+                const auto changedPosition = reAdd(old);
+                sawChanges = sawChanges || changedPosition;
             } else {
                 debugs(15, DBG_IMPORTANT, "Reconfigured existing cache_peer: " << *fresh);
                 add(fresh);
                 peersToRemove.push_back(old);
+                sawChanges = true;
             }
         } else {
             debugs(15, DBG_IMPORTANT, "Adding new cache_peer: " << *fresh);
             add(fresh);
+            sawChanges = true;
         }
     }
 
@@ -221,6 +229,7 @@ CachePeers::reset(Configuration::SmoothReconfiguration &sr)
         if (!findCachePeerByNameIn(sr.fresh.cachePeers->parsed, old->name)) {
             debugs(15, DBG_IMPORTANT, "Removing old cache_peer: " << *old);
             peersToRemove.push_back(old);
+            sawChanges = true;
         }
         // else case was handled in the previous loop
     }
@@ -231,7 +240,10 @@ CachePeers::reset(Configuration::SmoothReconfiguration &sr)
     for (const auto &p: peersToRemove)
         p->noteRemoval();
 
-    // TODO: Do not reindex if nothing has changed.
+    if (!sawChanges) {
+        debugs(15, 2, "no changes detected");
+        return;
+    }
 
     carpInit();
     peerSourceHashInit();
