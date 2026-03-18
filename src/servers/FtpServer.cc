@@ -241,6 +241,7 @@ void
 Ftp::Server::AcceptCtrlConnection(const CommAcceptCbParams &params)
 {
     Assure(params.port);
+    Assure(params.conn);
 
     // NP: it is possible the port was reconfigured when the call or accept() was queued.
 

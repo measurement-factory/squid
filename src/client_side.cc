@@ -2168,6 +2168,7 @@ void
 httpAccept(const CommAcceptCbParams &params)
 {
     Assure(params.port);
+    Assure(params.conn);
 
     // NP: it is possible the port was reconfigured when the call or accept() was queued.
 
@@ -2370,6 +2371,7 @@ static void
 httpsAccept(const CommAcceptCbParams &params)
 {
     Assure(params.port);
+    Assure(params.conn);
 
     // NP: it is possible the port was reconfigured when the call or accept() was queued.
 
