@@ -2178,8 +2178,6 @@ httpAccept(const CommAcceptCbParams &params)
         return;
     }
 
-    Assure(params.conn);
-
     debugs(33, 4, params.conn << ": accepted");
     fd_note(params.conn->fd, "client http connect");
     const auto xact = MasterXaction::MakePortful(params.port);
@@ -2381,8 +2379,6 @@ httpsAccept(const CommAcceptCbParams &params)
         debugs(33, 2, "httpsAccept: " << params.port->listenConn << ": accept failure: " << xstrerr(params.xerrno));
         return;
     }
-
-    Assure(params.conn);
 
     const auto xact = MasterXaction::MakePortful(params.port);
     xact->tcpClient = params.conn;

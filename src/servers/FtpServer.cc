@@ -250,8 +250,6 @@ Ftp::Server::AcceptCtrlConnection(const CommAcceptCbParams &params)
         return;
     }
 
-    Assure(params.conn);
-
     debugs(33, 4, params.conn << ": accepted");
     fd_note(params.conn->fd, "client ftp connect");
 
