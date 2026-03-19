@@ -408,7 +408,7 @@ public:
 //      with the I/O buffers and socket.
 public:
     // Client TCP connection details from comm layer.
-    Comm::ConnectionPointer clientConnection;
+    const Comm::ConnectionPointer clientConnection;
 
     /**
      * The transfer protocol currently being spoken on this connection.

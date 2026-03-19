@@ -146,14 +146,14 @@ int
 ACLFilledChecklist::fd() const
 {
     const auto c = conn();
-    return (c && c->clientConnection) ? c->clientConnection->fd : fd_;
+    return c ? c->clientConnection->fd : fd_;
 }
 
 void
 ACLFilledChecklist::fd(int aDescriptor)
 {
     const auto c = conn();
-    assert(!c || !c->clientConnection || c->clientConnection->fd == aDescriptor);
+    assert(!c || c->clientConnection->fd == aDescriptor);
     fd_ = aDescriptor;
 }
 
