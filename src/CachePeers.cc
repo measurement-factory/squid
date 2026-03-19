@@ -19,6 +19,7 @@
 #include "PeerSelectState.h"
 #include "sbuf/Stream.h"
 #include "SquidConfig.h"
+#include "tools.h"
 
 #include <algorithm>
 
@@ -114,6 +115,45 @@ DeleteConfigured(CachePeer * const peer)
     Assure(Config.peers);
     const auto removedPeer = Config.peers->remove(peer);
     peerSelectDrop(*removedPeer);
+}
+
+bool
+IsConflicting(const KeptCachePeer &peer)
+{
+    const auto me = getMyHostname();
+    return !strcmp(peer->host, me);
+}
+
+void
+DeleteConflicting()
+{
+    if (Comm::IsConnOpen(icpIncomingConn)) {
+        // workspace to find and remove cache_peers that "look like this host"
+        SelectedCachePeers peersToRemove;
+
+        // TODO: After we stop reconfiguring pliable directives with unchanged
+        // spelling: cache_peer A dropped here (because config1 had a matching
+        // https_port P) will not be restored if config2 drops P. We should
+        // remember that a cache_peer was dropped and force reconfiguration of
+        // unchanged cache_peers during the next smooth reconfiguration round.
+        for (const auto &thisPeer: CurrentCachePeers()) {
+            if (!IsConflicting(thisPeer))
+                continue;
+
+            for (AnyP::PortCfgPointer s = HttpPortList; s != nullptr; s = s->next) {
+                if (thisPeer->http_port != s->s.port())
+                    continue;
+
+                debugs(15, DBG_IMPORTANT, "WARNING: Peer looks like this host." <<
+                        Debug::Extra << "Ignoring cache_peer " << *thisPeer);
+
+                peersToRemove.push_back(thisPeer);
+                break; // avoid warning about (and removing) the same CachePeer twice
+            }
+        }
+        for (const auto &p: peersToRemove)
+            DeleteConfigured(p.getRaw());
+    }
 }
 
 CachePeer *
@@ -251,6 +291,6 @@ CachePeers::reset(Configuration::SmoothReconfiguration &sr)
     peerUserHashInit();
 #endif
 
-    neighbors_init(); // XXX: Check for port conflict earlier to avoid exceptions
+    neighbors_init(true);
 }
 

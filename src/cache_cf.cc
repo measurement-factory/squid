@@ -2073,6 +2073,9 @@ Configuration::Component<CachePeers*>::Reconfigure(SmoothReconfiguration &sr, Ca
     if (findCachePeerByNameIn(sr.fresh.cachePeers->parsed, newPeer->name))
         throw TextException("cache_peer specified twice", Here());
 
+    if (IsConflicting(newPeer))
+        throw TextException("cache_peer looks like this host", Here());
+
     Assure(peers == Config.peers);
     if (const auto oldPeer = findCachePeerByName(newPeer->name))
         newPeer->copyRigidFrom(*oldPeer);
