@@ -2044,6 +2044,7 @@ ConnStateData::ConnStateData(const MasterXaction::Pointer &xact) :
     port(xact->squidPort),
     receivedFirstByte_(false)
 {
+    Assure(clientConnection);
     clientConnection->leaveOrphanage();
 
     // store the details required for creating more MasterXaction objects as new requests come in
