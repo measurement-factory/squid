@@ -320,7 +320,8 @@ Ftp::Server::clientPinnedConnectionClosed(const CommCloseCbParams &io)
 
     // TODO: Keep the control connection open after fixing the reset
     // problem below
-    clientConnection->close();
+    if (Comm::IsConnOpen(clientConnection))
+        clientConnection->close();
 
     // TODO: If the server control connection is gone, reset state to login
     // again. Resetting login alone is not enough: FtpRelay::sendCommand() will
@@ -1733,7 +1734,8 @@ Ftp::Server::callException(const std::exception &e)
     debugs(33, 2, "FTP::Server job caught: " << e.what());
     closeDataConnection();
     unpinConnection(true);
-    clientConnection->close();
+    if (Comm::IsConnOpen(clientConnection))
+        clientConnection->close();
     AsyncJob::callException(e);
 }
 
