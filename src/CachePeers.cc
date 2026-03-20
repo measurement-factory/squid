@@ -19,6 +19,7 @@
 #include "PeerSelectState.h"
 #include "sbuf/Stream.h"
 #include "SquidConfig.h"
+#include "tools.h"
 
 #include <algorithm>
 
@@ -114,6 +115,32 @@ DeleteConfigured(CachePeer * const peer)
     Assure(Config.peers);
     const auto removedPeer = Config.peers->remove(peer);
     peerSelectDrop(*removedPeer);
+}
+
+bool
+IsConflicting(const CachePeer &peer)
+{
+    const auto me = getMyHostname();
+    if (!strcmp(peer.host, me)) {
+        for (AnyP::PortCfgPointer s = HttpPortList; s != nullptr; s = s->next) {
+            if (peer.http_port == s->s.port())
+                return true;
+        }
+    }
+    return false;
+}
+
+bool
+IsConflicting(const AnyP::PortCfg &portCfg)
+{
+    const auto me = getMyHostname();
+    for (const auto &p: CurrentCachePeers()) {
+        if (!strcasecmp(p->host, me)) {
+            if (p->http_port == portCfg.s.port())
+                return true;
+        }
+    }
+    return false;
 }
 
 CachePeer *
@@ -251,6 +278,6 @@ CachePeers::reset(Configuration::SmoothReconfiguration &sr)
     peerUserHashInit();
 #endif
 
-    neighbors_init(); // XXX: Check for port conflict earlier to avoid exceptions
+    neighbors_init(true);
 }
 

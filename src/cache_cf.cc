@@ -2073,6 +2073,9 @@ Configuration::Component<CachePeers*>::Reconfigure(SmoothReconfiguration &sr, Ca
     if (findCachePeerByNameIn(sr.fresh.cachePeers->parsed, newPeer->name))
         throw TextException("cache_peer specified twice", Here());
 
+    if (IsConflicting(*newPeer))
+        throw TextException("the cache_peer looks like this host", Here());
+
     Assure(peers == Config.peers);
     if (const auto oldPeer = findCachePeerByName(newPeer->name))
         newPeer->copyRigidFrom(*oldPeer);
@@ -3070,6 +3073,10 @@ Configuration::Component<AnyP::PortCfgPointer>::Reconfigure(SmoothReconfiguratio
 {
     static const SBuf protoName("HTTPS");
     const auto firstNewCfg = ParsePortCfg(protoName);
+
+    if (IsConflicting(*firstNewCfg))
+        throw TextException("a cache_peer looks like this host", Here());
+
     UpdatePortCfg(ports, *firstNewCfg);
     if (const auto ipV4clone = firstNewCfg->next)
         UpdatePortCfg(ports, *ipV4clone);

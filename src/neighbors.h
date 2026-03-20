@@ -36,7 +36,7 @@ void neighborAddAcl(const char *, const char *);
 
 void neighborsUdpAck(const cache_key *, icp_common_t *, const Ip::Address &);
 void neighborAdd(const char *, const char *, int, int, int, int, int);
-void neighbors_init(void);
+void neighbors_init(bool smoothReconfiguration = false);
 #if USE_HTCP
 void neighborsHtcpClear(StoreEntry *, HttpRequest *, const HttpRequestMethod &, htcp_clr_reason);
 #endif

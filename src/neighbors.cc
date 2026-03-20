@@ -499,14 +499,13 @@ neighborsRegisterWithCacheManager()
 }
 
 void
-neighbors_init(void)
+neighbors_init(const bool smoothReconfiguration)
 {
     struct servent *sep = nullptr;
-    const char *me = getMyHostname();
 
     neighborsRegisterWithCacheManager();
 
-    if (Comm::IsConnOpen(icpIncomingConn)) {
+    if (!smoothReconfiguration && Comm::IsConnOpen(icpIncomingConn)) {
         // workspace to find and remove cache_peers that "look like this host"
         SelectedCachePeers peersToRemove;
 
@@ -516,19 +515,13 @@ neighbors_init(void)
         // remember that a cache_peer was dropped and force reconfiguration of
         // unchanged cache_peers during the next smooth reconfiguration round.
         for (const auto &thisPeer: CurrentCachePeers()) {
-            if (0 != strcmp(thisPeer->host, me))
+            if (!IsConflicting(*thisPeer))
                 continue;
 
-            for (AnyP::PortCfgPointer s = HttpPortList; s != nullptr; s = s->next) {
-                if (thisPeer->http_port != s->s.port())
-                    continue;
+            debugs(15, DBG_IMPORTANT, "WARNING: Peer looks like this host." <<
+                   Debug::Extra << "Ignoring cache_peer " << *thisPeer);
 
-                debugs(15, DBG_IMPORTANT, "WARNING: Peer looks like this host." <<
-                       Debug::Extra << "Ignoring cache_peer " << *thisPeer);
-
-                peersToRemove.push_back(thisPeer);
-                break; // avoid warning about (and removing) the same CachePeer twice
-            }
+            peersToRemove.push_back(thisPeer);
         }
 
         for (const auto &p: peersToRemove)
