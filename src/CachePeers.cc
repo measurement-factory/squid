@@ -130,6 +130,19 @@ IsConflicting(const CachePeer &peer)
     return false;
 }
 
+bool
+IsConflicting(const AnyP::PortCfg &portCfg)
+{
+    const auto me = getMyHostname();
+    for (const auto &p: CurrentCachePeers()) {
+        if (!strcasecmp(p->host, me)) {
+            if (p->http_port == portCfg.s.port())
+                return true;
+        }
+    }
+    return false;
+}
+
 CachePeer *
 findCachePeerByName(const char * const name)
 {
