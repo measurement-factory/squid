@@ -3075,7 +3075,7 @@ Configuration::Component<AnyP::PortCfgPointer>::Reconfigure(SmoothReconfiguratio
     const auto firstNewCfg = ParsePortCfg(protoName);
 
     if (IsConflicting(*firstNewCfg))
-       throw TextException("a cache_peer looks like this host", Here());
+        throw TextException("a cache_peer looks like this host", Here());
 
     UpdatePortCfg(ports, *firstNewCfg);
     if (const auto ipV4clone = firstNewCfg->next)
