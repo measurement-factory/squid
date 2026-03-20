@@ -29,7 +29,8 @@ public:
     /// owns stored CachePeer objects
     using Storage = KeptCachePeers;
 
-    // XXX: document
+    /// Atomically replace current/active cache_peers with the ones configured
+    /// and validated during earlier smooth reconfiguration stages.
     void reset(Configuration::SmoothReconfiguration &);
 
     /// stores a configured cache_peer
@@ -96,10 +97,14 @@ CachePeer *findCachePeerByName(const char *);
 /// cache_peer with a given name among the given peers (or nil)
 CachePeer *findCachePeerByNameIn(const KeptCachePeers &, const char *name);
 
-/// XXX
+/// cache_peer-specific parts of Configuration::SmoothReconfiguration
 class BeingConfiguredCachePeers
 {
 public:
+    // This class currently has only one member. This class cannot be replaced
+    // with KeptCachePeers type because SmoothReconfiguration::fresh needs to
+    // forward-declare this type. KeptCachePeers cannot be forward-declared.
+
     /// successfully parsed cache_peer directives; future CurrentCachePeers().storage
     KeptCachePeers parsed;
 };

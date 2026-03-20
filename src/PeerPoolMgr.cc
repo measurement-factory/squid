@@ -274,13 +274,3 @@ PeerPoolMgr::StartManagingIfNeeded(CachePeer &peer)
     }
 }
 
-// TODO: Use or remove.
-void
-PeerPoolMgr::SyncConfig(CachePeer &peer)
-{
-    if (!peer.standby.mgr)
-        StartManagingIfNeeded(peer);
-    else
-        Checkpoint(peer.standby.mgr, "smooth reconfiguration");
-}
-

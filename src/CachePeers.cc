@@ -178,14 +178,6 @@ Configuration::Component<CachePeers*>::FinishSmoothReconfiguration(SmoothReconfi
 void
 CachePeers::reset(Configuration::SmoothReconfiguration &sr)
 {
-    // TODO: Do not remove() and then add() completely unchanged peers. Doing so
-    // results in closing (and opening) various idle connections, which can be
-    // harmful. Detect changes in all cache_peer-based directives, including
-    // cache_peer_access and neighbor_type_domain! Order changes are probably OK
-    // as long as we reindex (at the end of this method).
-    //
-    // Completion of this TODO should resurrect PeerPoolMgr::SyncConfig() or similar calls.
-
     // Workspace to find and eventually remove cache_peers that changed or were
     // not mentioned in the fresh configuration at all. This container does not
     // have cache_peers with unchanged configuration -- we want to _move_ (i.e.

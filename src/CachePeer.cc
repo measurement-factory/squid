@@ -73,8 +73,6 @@ CachePeer::copyRigidFrom(const CachePeer &old)
     debugs(3, 7, " new " << *this << " inherits from old " << old);
     Assure(strcmp(name, old.name) == 0);
 
-    // XXX: Remove that function as unused: peerSelectResetIfChanged(sr, *this, fresh); // before we update *this
-
     // TODO: Remove this copying after making neighbor_type_domain pliable.
     // Copy old values managed by rigid neighbor_type_domain (which could not have changed).
     Assure(!typelist);
