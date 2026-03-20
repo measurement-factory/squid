@@ -118,42 +118,16 @@ DeleteConfigured(CachePeer * const peer)
 }
 
 bool
-IsConflicting(const KeptCachePeer &peer)
+IsConflicting(const CachePeer &peer)
 {
     const auto me = getMyHostname();
-    return !strcmp(peer->host, me);
-}
-
-void
-DeleteConflicting()
-{
-    if (Comm::IsConnOpen(icpIncomingConn)) {
-        // workspace to find and remove cache_peers that "look like this host"
-        SelectedCachePeers peersToRemove;
-
-        // TODO: After we stop reconfiguring pliable directives with unchanged
-        // spelling: cache_peer A dropped here (because config1 had a matching
-        // https_port P) will not be restored if config2 drops P. We should
-        // remember that a cache_peer was dropped and force reconfiguration of
-        // unchanged cache_peers during the next smooth reconfiguration round.
-        for (const auto &thisPeer: CurrentCachePeers()) {
-            if (!IsConflicting(thisPeer))
-                continue;
-
-            for (AnyP::PortCfgPointer s = HttpPortList; s != nullptr; s = s->next) {
-                if (thisPeer->http_port != s->s.port())
-                    continue;
-
-                debugs(15, DBG_IMPORTANT, "WARNING: Peer looks like this host." <<
-                        Debug::Extra << "Ignoring cache_peer " << *thisPeer);
-
-                peersToRemove.push_back(thisPeer);
-                break; // avoid warning about (and removing) the same CachePeer twice
-            }
+    if (!strcmp(peer.host, me)) {
+        for (AnyP::PortCfgPointer s = HttpPortList; s != nullptr; s = s->next) {
+            if (peer.http_port == s->s.port())
+                return true;
         }
-        for (const auto &p: peersToRemove)
-            DeleteConfigured(p.getRaw());
     }
+    return false;
 }
 
 CachePeer *

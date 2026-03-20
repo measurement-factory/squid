@@ -505,8 +505,28 @@ neighbors_init(const bool smoothReconfiguration)
 
     neighborsRegisterWithCacheManager();
 
-    if (!smoothReconfiguration) // otherwise handled already
-        DeleteConflicting();
+    if (!smoothReconfiguration && Comm::IsConnOpen(icpIncomingConn)) {
+        // workspace to find and remove cache_peers that "look like this host"
+        SelectedCachePeers peersToRemove;
+
+        // TODO: After we stop reconfiguring pliable directives with unchanged
+        // spelling: cache_peer A dropped here (because config1 had a matching
+        // https_port P) will not be restored if config2 drops P. We should
+        // remember that a cache_peer was dropped and force reconfiguration of
+        // unchanged cache_peers during the next smooth reconfiguration round.
+        for (const auto &thisPeer: CurrentCachePeers()) {
+            if (!IsConflicting(*thisPeer))
+                continue;
+
+            debugs(15, DBG_IMPORTANT, "WARNING: Peer looks like this host." <<
+                   Debug::Extra << "Ignoring cache_peer " << *thisPeer);
+
+            peersToRemove.push_back(thisPeer);
+        }
+
+        for (const auto &p: peersToRemove)
+            DeleteConfigured(p.getRaw());
+    }
 
     peerDnsRefreshStart();
 

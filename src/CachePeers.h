@@ -87,11 +87,9 @@ void DeleteConfigured(CachePeer *);
 /// DeleteConfigured() must keep every stored copy in sync.
 using SelectedCachePeers = CachePeers::Storage;
 
-/// \returns whether the cache_peer host name and this host name are the same
-bool IsConflicting(const KeptCachePeer &);
-
-/// Removes all IsConflicting() cache_peers from the configuration
-void DeleteConflicting();
+/// \returns whether the cache_peer hostname equals getMyHostname()
+/// the cache_peer port equals one of the configured ports
+bool IsConflicting(const CachePeer &);
 
 /// Template parameter type for Configuration::Component specialization that
 /// handles smooth cache_peer_access reconfiguration
