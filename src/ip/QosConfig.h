@@ -99,7 +99,7 @@ nfmark_t getNfConnmark(const Comm::ConnectionPointer &conn, const ConnectionDire
 * @param connDir Specifies connection type (incoming or outgoing)
 * @cm            Netfilter mark configuration (mark and mask)
 */
-bool setNfConnmark(const Comm::ConnectionPointer &conn, const ConnectionDirection connDir, const NfMarkConfig &cm);
+bool setNfConnmark(const Comm::ConnectionPointer &conn, ConnectionDirection connDir, const NfMarkConfig &cm);
 
 /**
 * Function to work out and then apply to the socket the appropriate
