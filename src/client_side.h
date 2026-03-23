@@ -407,7 +407,7 @@ public:
 //      but all sorts of code likes to play directly
 //      with the I/O buffers and socket.
 public:
-    // Client TCP connection details from comm layer.
+    /// Client-to-Squid TCP connection details. This pointer is never nil.
     const Comm::ConnectionPointer clientConnection;
 
     /**
