@@ -118,20 +118,10 @@ DeleteConfigured(CachePeer * const peer)
 }
 
 bool
-IsConflicting(const CachePeer &peer)
-{
-    for (auto p = HttpPortList; p; p = p->next) {
-        if (IsConflicting(*p, peer))
-            return true;
-    }
-    return false;
-}
-
-bool
 IsConflicting(const AnyP::PortCfg &portCfg, const CachePeer &peer)
 {
     const auto me = getMyHostname();
-    return strcmp(peer.host, me) == 0 && peer.http_port == portCfg.s.port();
+    return strcasecmp(peer.host, me) == 0 && peer.http_port == portCfg.s.port();
 }
 
 CachePeer *
@@ -185,6 +175,16 @@ Configuration::Component<CachePeers*>::FinishSmoothReconfiguration(SmoothReconfi
 {
     if (!Config.peers && !sr.fresh.cachePeers->parsed.size())
         return;
+
+    const auto &freshPeers = sr.fresh.cachePeers->parsed;
+    for (auto freshPort = HttpPortList; freshPort; freshPort = freshPort->next) {
+        Assure(!freshPort->stale);
+        const auto it = std::find_if(freshPeers.begin(), freshPeers.end(),
+           [&freshPort](const auto &peer) { return IsConflicting(*freshPort, *peer); });
+        if (it != freshPeers.end()){
+            throw TextException("a cache_peer looks like this host", Here());
+        }
+    }
 
     // TODO: Avoid duplicating this code.
     if (!Config.peers)
