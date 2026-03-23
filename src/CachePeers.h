@@ -97,7 +97,6 @@ class CachePeerAccesses {};
 
 /// configured cache_peer with a given name (or nil)
 CachePeer *findCachePeerByName(const char *);
-
 /// cache_peer with a given name among the given peers (or nil)
 CachePeer *findCachePeerByNameIn(const KeptCachePeers &, const char *name);
 
