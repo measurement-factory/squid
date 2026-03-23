@@ -759,8 +759,8 @@ HttpRequest::manager(const CbcPointer<ConnStateData> &aMgr, const AccessLogEntry
         flags.ignoreCc = port->ignore_cc;
     }
 
-    auto clientConnection = clientConnectionManager->clientConnection;
-    {
+    const auto clientConnection = clientConnectionManager->clientConnection;
+    { // TODO: Remove this diff reducer.
         client_addr = clientConnection->remote; // XXX: remove request->client_addr member.
 #if FOLLOW_X_FORWARDED_FOR
         // indirect client gets stored here because it is an HTTP header result (from X-Forwarded-For:)
