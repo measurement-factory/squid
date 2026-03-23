@@ -416,7 +416,7 @@ ClientHttpRequest::logRequest()
     /* This is broken. Fails if the connection has been closed. Needs
      * to snarf the ssl details some place earlier..
      */
-    if (getConn())
+    if (getConn() != NULL)
         al->cache.ssluser = sslGetUserEmail(fd_table[getConn()->fd].ssl);
 
 #endif
