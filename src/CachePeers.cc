@@ -120,27 +120,18 @@ DeleteConfigured(CachePeer * const peer)
 bool
 IsConflicting(const CachePeer &peer)
 {
-    const auto me = getMyHostname();
-    if (!strcmp(peer.host, me)) {
-        for (AnyP::PortCfgPointer s = HttpPortList; s != nullptr; s = s->next) {
-            if (peer.http_port == s->s.port())
-                return true;
-        }
+    for (auto p = HttpPortList; p; p = p->next) {
+        if (IsConflicting(*p, peer))
+            return true;
     }
     return false;
 }
 
 bool
-IsConflicting(const AnyP::PortCfg &portCfg)
+IsConflicting(const AnyP::PortCfg &portCfg, const CachePeer &peer)
 {
     const auto me = getMyHostname();
-    for (const auto &p: CurrentCachePeers()) {
-        if (!strcasecmp(p->host, me)) {
-            if (p->http_port == portCfg.s.port())
-                return true;
-        }
-    }
-    return false;
+    return strcmp(peer.host, me) == 0 && peer.http_port == portCfg.s.port();
 }
 
 CachePeer *

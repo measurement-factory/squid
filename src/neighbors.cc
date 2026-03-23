@@ -515,13 +515,11 @@ neighbors_init(const bool smoothReconfiguration)
         // remember that a cache_peer was dropped and force reconfiguration of
         // unchanged cache_peers during the next smooth reconfiguration round.
         for (const auto &thisPeer: CurrentCachePeers()) {
-            if (!IsConflicting(*thisPeer))
-                continue;
-
-            debugs(15, DBG_IMPORTANT, "WARNING: Peer looks like this host." <<
-                   Debug::Extra << "Ignoring cache_peer " << *thisPeer);
-
-            peersToRemove.push_back(thisPeer);
+            if (IsConflicting(*thisPeer)) {
+                debugs(15, DBG_IMPORTANT, "WARNING: Peer looks like this host." <<
+                       Debug::Extra << "Ignoring cache_peer " << *thisPeer);
+                peersToRemove.push_back(thisPeer);
+            }
         }
 
         for (const auto &p: peersToRemove)

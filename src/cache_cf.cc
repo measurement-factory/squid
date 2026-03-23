@@ -3069,13 +3069,17 @@ Configuration::Component<AnyP::PortCfgPointer>::FinishSmoothReconfiguration(Smoo
 
 template <>
 void
-Configuration::Component<AnyP::PortCfgPointer>::Reconfigure(SmoothReconfiguration &, AnyP::PortCfgPointer &ports, ConfigParser &)
+Configuration::Component<AnyP::PortCfgPointer>::Reconfigure(SmoothReconfiguration &sr, AnyP::PortCfgPointer &ports, ConfigParser &)
 {
     static const SBuf protoName("HTTPS");
     const auto firstNewCfg = ParsePortCfg(protoName);
 
-    if (IsConflicting(*firstNewCfg))
+    const auto &freshPeers = sr.fresh.cachePeers->parsed;
+    const auto it = std::find_if(freshPeers.begin(), freshPeers.end(),
+       [&firstNewCfg](const auto &peer) { return IsConflicting(*firstNewCfg, *peer); });
+    if (it != freshPeers.end()){
         throw TextException("a cache_peer looks like this host", Here());
+    }
 
     UpdatePortCfg(ports, *firstNewCfg);
     if (const auto ipV4clone = firstNewCfg->next)

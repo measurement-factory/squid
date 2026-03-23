@@ -93,7 +93,7 @@ bool IsConflicting(const CachePeer &);
 
 /// \returns whether a cache_peer's hostname and port are
 /// getMyHostname() and portCfg.s.port().
-bool IsConflicting(const AnyP::PortCfg &portCfg);
+bool IsConflicting(const AnyP::PortCfg &portCfg, const CachePeer &);
 
 /// Template parameter type for Configuration::Component specialization that
 /// handles smooth cache_peer_access reconfiguration
@@ -101,6 +101,7 @@ class CachePeerAccesses {};
 
 /// configured cache_peer with a given name (or nil)
 CachePeer *findCachePeerByName(const char *);
+
 /// cache_peer with a given name among the given peers (or nil)
 CachePeer *findCachePeerByNameIn(const KeptCachePeers &, const char *name);
 
