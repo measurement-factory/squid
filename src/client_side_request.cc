@@ -130,7 +130,7 @@ ClientHttpRequest::ClientHttpRequest(ConnStateData * aConn) :
         al->updateError(aConn->bareError);
 
 #if USE_OPENSSL
-        if (aConn->clientConnection != nullptr && aConn->clientConnection->isOpen()) {
+        if (aConn->clientConnection->isOpen()) {
             if (auto ssl = fd_table[aConn->clientConnection->fd].ssl.get())
                 al->cache.sslClientCert.resetWithoutLocking(SSL_get_peer_certificate(ssl));
         }
@@ -706,7 +706,7 @@ ClientHttpRequest::noteAdaptationAclCheckDone(Adaptation::ServiceGroupPointer g)
 #if ICAP_CLIENT
     Adaptation::Icap::History::Pointer ih = request->icapHistory();
     if (ih != nullptr) {
-        if (getConn() != nullptr && getConn()->clientConnection != nullptr) {
+        if (getConn()) {
 #if USE_OPENSSL
             if (getConn()->clientConnection->isOpen()) {
                 ih->ssluser = sslGetUserEmail(fd_table[getConn()->clientConnection->fd].ssl.get());

@@ -470,8 +470,7 @@ Format::Format::assemble(MemBuf &mb, const AccessLogEntry::Pointer &al, int logS
         case LFT_CLIENT_EUI:
 #if USE_SQUID_EUI
             // TODO make the ACL checklist have a direct link to any TCP details.
-            if (al->request && al->request->clientConnectionManager.valid() &&
-                    al->request->clientConnectionManager->clientConnection) {
+            if (al->request && al->request->clientConnectionManager.valid()) {
                 const auto &conn = al->request->clientConnectionManager->clientConnection;
                 if (conn->remote.isIPv4())
                     conn->remoteEui48.encode(tmp, sizeof(tmp));
@@ -485,7 +484,6 @@ Format::Format::assemble(MemBuf &mb, const AccessLogEntry::Pointer &al, int logS
         case LFT_EXT_ACL_CLIENT_EUI48:
 #if USE_SQUID_EUI
             if (al->request && al->request->clientConnectionManager.valid() &&
-                    al->request->clientConnectionManager->clientConnection &&
                     al->request->clientConnectionManager->clientConnection->remote.isIPv4()) {
                 al->request->clientConnectionManager->clientConnection->remoteEui48.encode(tmp, sizeof(tmp));
                 out = tmp;
@@ -496,7 +494,6 @@ Format::Format::assemble(MemBuf &mb, const AccessLogEntry::Pointer &al, int logS
         case LFT_EXT_ACL_CLIENT_EUI64:
 #if USE_SQUID_EUI
             if (al->request && al->request->clientConnectionManager.valid() &&
-                    al->request->clientConnectionManager->clientConnection &&
                     !al->request->clientConnectionManager->clientConnection->remote.isIPv4()) {
                 al->request->clientConnectionManager->clientConnection->remoteEui64.encode(tmp, sizeof(tmp));
                 out = tmp;
