@@ -2012,7 +2012,7 @@ clientBuildError(err_type page_id, Http::StatusCode status, char const *url,
                  const ConnStateData *conn, HttpRequest *request, const AccessLogEntry::Pointer &al)
 {
     const auto err = new ErrorState(page_id, status, request, al);
-    err->src_addr = conn && conn->clientConnection ? conn->clientConnection->remote : Ip::Address::NoAddr();
+    err->src_addr = conn ? conn->clientConnection->remote : Ip::Address::NoAddr();
 
     if (url)
         err->url = xstrdup(url);

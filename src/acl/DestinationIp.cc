@@ -47,8 +47,7 @@ ACLDestinationIP::match(ACLChecklist *cl)
     // In which case, we also need this ACL to accurately match the destination
     if (Config.onoff.client_dst_passthru && (checklist->request->flags.intercepted || checklist->request->flags.interceptTproxy)) {
         const auto conn = checklist->conn();
-        return (conn && conn->clientConnection) ?
-               ACLIP::match(conn->clientConnection->local) : -1;
+        return conn ? ACLIP::match(conn->clientConnection->local) : -1;
     }
 
     if (lookupBanned) {

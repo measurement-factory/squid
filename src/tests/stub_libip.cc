@@ -81,7 +81,7 @@ CBDATA_CLASS_INIT(acl_nfmark);
 acl_nfmark::~acl_nfmark() STUB
 void Ip::Qos::getTosFromServer(const Comm::ConnectionPointer &, fde *) STUB
 nfmark_t Ip::Qos::getNfConnmark(const Comm::ConnectionPointer &, const ConnectionDirection) STUB_RETVAL(-1)
-bool Ip::Qos::setNfConnmark(Comm::ConnectionPointer &, const ConnectionDirection, const Ip::NfMarkConfig &) STUB_RETVAL(false)
+bool Ip::Qos::setNfConnmark(const Comm::ConnectionPointer &, ConnectionDirection, const Ip::NfMarkConfig &) STUB_RETVAL(false)
 int Ip::Qos::doTosLocalMiss(const Comm::ConnectionPointer &, const hier_code) STUB_RETVAL(-1)
 int Ip::Qos::doNfmarkLocalMiss(const Comm::ConnectionPointer &, const hier_code) STUB_RETVAL(-1)
 int Ip::Qos::doTosLocalHit(const Comm::ConnectionPointer &) STUB_RETVAL(-1)

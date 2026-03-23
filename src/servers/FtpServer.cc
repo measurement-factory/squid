@@ -409,11 +409,7 @@ Ftp::Server::acceptDataConnection(const CommAcceptCbParams &params)
     debugs(33, 4, "accepted " << params.conn);
     fd_note(params.conn->fd, "passive client ftp data");
 
-    if (!clientConnection) {
-        debugs(33, 5, "late data connection?");
-        closeDataConnection(); // in case we are still listening
-        params.conn->close();
-    } else if (params.conn->remote != clientConnection->remote) {
+    if (params.conn->remote != clientConnection->remote) {
         debugs(33, 2, "rogue data conn? ctrl: " << clientConnection->remote);
         params.conn->close();
         // Some FTP servers close control connection here, but it may make
@@ -1419,7 +1415,6 @@ Ftp::Server::handlePasvRequest(String &, String &params)
 bool
 Ftp::Server::createDataConnection(Ip::Address cltAddr)
 {
-    assert(clientConnection != nullptr);
     assert(!clientConnection->remote.isAnyAddr());
 
     if (cltAddr != clientConnection->remote) {
