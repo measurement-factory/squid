@@ -15,6 +15,7 @@
 #include "base/CodeContext.h"
 #include "comm/Connection.h"
 #include "comm/Tcp.h"
+#include "configuration/forward.h"
 #include "security/ServerOptions.h"
 
 namespace AnyP
@@ -96,7 +97,7 @@ extern AnyP::PortCfgPointer FtpPortList;
 
 /// replaces configuration of a matching listed port with a given new one
 /// \sa AnyP::PortCfg::update()
-void UpdatePortCfg(const AnyP::PortCfgPointer &list, const AnyP::PortCfg &newCfg);
+void UpdatePortCfg(const AnyP::PortCfgPointer &list, const AnyP::PortCfg &newCfg, const Configuration::SmoothReconfiguration &);
 
 #if !defined(MAXTCPLISTENPORTS)
 // Max number of TCP listening ports

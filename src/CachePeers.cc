@@ -176,16 +176,6 @@ Configuration::Component<CachePeers*>::FinishSmoothReconfiguration(SmoothReconfi
     if (!Config.peers && !sr.fresh.cachePeers->parsed.size())
         return;
 
-    const auto &freshPeers = sr.fresh.cachePeers->parsed;
-    for (auto freshPort = HttpPortList; freshPort; freshPort = freshPort->next) {
-        Assure(!freshPort->stale);
-        const auto it = std::find_if(freshPeers.begin(), freshPeers.end(),
-           [&freshPort](const auto &peer) { return IsConflicting(*freshPort, *peer); });
-        if (it != freshPeers.end()){
-            throw TextException("a cache_peer looks like this host", Here());
-        }
-    }
-
     // TODO: Avoid duplicating this code.
     if (!Config.peers)
         Config.peers = new CachePeers;

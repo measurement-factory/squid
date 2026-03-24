@@ -9,7 +9,9 @@
 #include "squid.h"
 #include "anyp/PortCfg.h"
 #include "anyp/UriScheme.h"
+#include "CachePeers.h"
 #include "comm.h"
+#include "configuration/Smooth.h"
 #include "enums.h"
 #include "fatal.h"
 #include "security/PeerOptions.h"
@@ -262,7 +264,7 @@ AnyP::operator <<(std::ostream &os, const PortCfg &cfg)
 }
 
 void
-UpdatePortCfg(const AnyP::PortCfgPointer &list, const AnyP::PortCfg &newCfg)
+UpdatePortCfg(const AnyP::PortCfgPointer &list, const AnyP::PortCfg &newCfg, const Configuration::SmoothReconfiguration &sr)
 {
     debugs(3, 5, newCfg);
     AnyP::PortCfgPointer currentCfg; // to be determined
@@ -286,5 +288,9 @@ UpdatePortCfg(const AnyP::PortCfgPointer &list, const AnyP::PortCfg &newCfg)
 
     // TODO: Consider reporting unchanged configurations.
     currentCfg->update(newCfg);
+    Assure(!newCfg.stale);
+    for (const auto &peer: sr.fresh.cachePeers->parsed) {
+        if (IsConflicting(*currentCfg, *peer))
+            throw TextException("a cache_peer looks like this host", Here());
+    }
 }
-
