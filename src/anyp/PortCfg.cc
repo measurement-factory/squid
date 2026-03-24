@@ -289,7 +289,7 @@ UpdatePortCfg(const AnyP::PortCfgPointer &list, const AnyP::PortCfg &newCfg, con
     // TODO: Consider reporting unchanged configurations.
     currentCfg->update(newCfg);
 
-    Assure(!newCfg.stale);
+    Assure(!currentCfg.stale);
     for (const auto &peer: sr.fresh.cachePeers->parsed) {
         if (IsConflicting(*currentCfg, *peer))
             throw TextException("a cache_peer looks like this host", Here());
