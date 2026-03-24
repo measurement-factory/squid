@@ -121,7 +121,7 @@ bool
 IsConflicting(const AnyP::PortCfg &portCfg, const CachePeer &peer)
 {
     const auto me = getMyHostname();
-    return strcasecmp(peer.host, me) == 0 && peer.http_port == portCfg.s.port();
+    return strcmp(peer.host, me) == 0 && peer.http_port == portCfg.s.port();
 }
 
 CachePeer *
