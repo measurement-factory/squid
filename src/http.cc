@@ -993,17 +993,11 @@ HttpStateData::haveParsedReplyHeaders()
             break;
 
         case ReuseDecision::cachePositively:
-            if (!entry->makePublic()) {
-                decision.make(ReuseDecision::doNotCacheButShare, "public key creation error");
-                entry->makePrivate(true);
-            }
+            entry->makePublic();
             break;
 
         case ReuseDecision::cacheNegatively:
-            if (!entry->cacheNegatively()) {
-                decision.make(ReuseDecision::doNotCacheButShare, "public key creation error");
-                entry->makePrivate(true);
-            }
+            entry->cacheNegatively();
             break;
 
         case ReuseDecision::doNotCacheButShare:
@@ -1014,7 +1008,6 @@ HttpStateData::haveParsedReplyHeaders()
             assert(0);
             break;
         }
-        debugs(11, 3, "decided: " << decision);
     }
 
     if (!ignoreCacheControl) {
@@ -2692,6 +2685,7 @@ HttpStateData::ReuseDecision::make(const HttpStateData::ReuseDecision::Answers a
 {
     answer = ans;
     reason = why;
+    debugs(11, 3, "decided: " << *this);
     return answer;
 }
 
