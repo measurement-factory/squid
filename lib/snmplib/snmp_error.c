@@ -37,9 +37,3 @@
 #include "squid.h"
 #include "snmp_error.h"
 
-
-
-
-
-
-

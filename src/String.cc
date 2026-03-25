@@ -421,4 +421,3 @@ String::find(char const *aString) const
     return c-rawBuf();
 }
 
-

@@ -26,4 +26,3 @@ FREE *MemBuf::freeFunc() STUB_RETVAL(nullptr)
 void MemBuf::append(const char *, int) STUB
 void MemBuf::vappendf(const char *, va_list) STUB
 
-

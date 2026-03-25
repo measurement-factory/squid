@@ -220,7 +220,3 @@ aclDestroyAccessList(acl_access ** list)
 /* maex@space.net (06.09.1996)
  *    destroy an AclDenyInfoList */
 
-
-
-
-

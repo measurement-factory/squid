@@ -288,4 +288,3 @@ Ipc::Coordinator* Ipc::Coordinator::Instance()
     return TheInstance;
 }
 
-
