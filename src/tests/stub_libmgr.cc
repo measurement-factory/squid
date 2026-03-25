@@ -244,5 +244,4 @@ void Mgr::StoreToCommWriter::close() STUB
 //Mgr::StringParam::StringParam(const String&) STUB
 void Mgr::StringParam::pack(Ipc::TypedMsgHdr&) const STUB
 void Mgr::StringParam::unpackValue(const Ipc::TypedMsgHdr&) STUB
-static String t;
 
