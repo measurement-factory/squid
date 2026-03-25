@@ -1,2 +1,6 @@
 # unused due to hard-coded zero ASYNC_WRITE #define
 aioWrite
+Adaptation::Ecap
+UseInterceptionAddressesLookedUpEarlier
+MissingLibraryError
+

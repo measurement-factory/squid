@@ -43,22 +43,28 @@ sub readSuppressions {
 }
 
 sub applySuppressions {
+    my $inSuppressionBlock = 0;
     while (<STDIN>) {
         chomp;
         my $line = $_;
-        next if $line !~ /is unused$/;
+        next if $line =~ /Processing file/;
         $linesWithMatches{$line} = [];
         my $matched = 0;
         foreach my $pattern (@patterns) {
             if ($line =~ /$pattern/) {
+                if ($line =~ /(uses=\d+|is unused)$/) {
+                    $inSuppressionBlock = 1;
+                }
                 $matched++;
                 push @{ $suppStats{$pattern} }, $line;
                 push @{ $linesWithMatches{$line} }, $pattern;
             }
         }
-        if ($matched == 0) {
-            print "$line\n"; # not suppressed lines
-        }
+        next if $matched > 0;
+        next if ($inSuppressionBlock==1 && $line =~ /^([^:\s]+):(\d+): note: (defined|declared|comment starts|definition ends|declaration ends|comment ends) here$/);
+        $inSuppressionBlock = 0;
+
+        print "$line\n"; # not suppressed lines
     }
 }
 

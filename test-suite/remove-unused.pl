@@ -144,25 +144,29 @@ foreach my $file (sort keys %fileRangesUnused) {
     open(my $out, '>', $file) or die "ERROR: Cannot write to '$file': $!\n";
 
     my $emptyLines = undef;
+    my $inDeletionBlock = 0;
     for (my $i = 0; $i < $totalLines; $i++) {
         chomp(my $line = $content[$i]);
+
         if ($line eq "") {
-            if (defined $emptyLines) {
-                $emptyLines .= $content[$i];
-            } else {
-                $emptyLines = $content[$i];
-            }
+            $emptyLines = defined($emptyLines) ? $emptyLines . $content[$i] : $content[$i];
+            next;
+        }
+
+        if (exists $linesToDelete{$i + 1}) {
+            $inDeletionBlock = 1;
             next;
         }
 
         if (defined $emptyLines) {
-            if (!exists $linesToDelete{$i + 1}) {
-                print $out $emptyLines;
-            }
+            $emptyLines = ($inDeletionBlock == 0) ? $emptyLines : "\n";
+            print $out $emptyLines;
             $emptyLines = undef;
         }
 
-        print $out $content[$i] unless exists $linesToDelete{$i + 1};
+        $inDeletionBlock = 0;
+
+        print $out $content[$i];
     }
     # write empty line leftovers
     if (defined $emptyLines) {
