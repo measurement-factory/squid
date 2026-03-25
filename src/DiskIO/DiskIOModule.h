@@ -32,7 +32,6 @@ public:
      * available module for this system.
      */
     static DiskIOModule *FindDefault();
-    static std::vector<DiskIOModule*> const &Modules();
     typedef std::vector<DiskIOModule*>::iterator iterator;
     typedef std::vector<DiskIOModule*>::const_iterator const_iterator;
     DiskIOModule();
@@ -49,8 +48,6 @@ public:
     DiskIOModule &operator=(DiskIOModule const&);
 
 protected:
-    //bool initialised;
-    static void RegisterAllModulesWithCacheManager(void);
 
 private:
     static std::vector<DiskIOModule*> &GetModules();

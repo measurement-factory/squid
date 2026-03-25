@@ -12,11 +12,4 @@
 #include "mgr/ActionProfile.h"
 #include "mgr/Command.h"
 
-std::ostream &
-Mgr::operator <<(std::ostream &os, const Command &cmd)
-{
-    if (cmd.profile != nullptr)
-        return os << *cmd.profile;
-    return os << "undef";
-}
 

@@ -123,7 +123,6 @@ public:
     PconnPool(const char *aDescription, const CbcPointer<PeerPoolMgr> &aMgr);
     ~PconnPool();
 
-    void moduleInit();
     void push(const Comm::ConnectionPointer &serverConn, const char *domain);
 
     /**
@@ -139,7 +138,6 @@ public:
      * hence, do not need to pop a connection.
      */
     Comm::ConnectionPointer pop(const Comm::ConnectionPointer &dest, const char *domain, bool keepOpen);
-    void count(int uses);
     void dump(std::ostream &) const;
     void unlinkList(IdleConnList *list);
     void noteUses(int uses);

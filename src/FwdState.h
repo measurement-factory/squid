@@ -109,7 +109,6 @@ public:
 
     void fail(ErrorState *err);
     void unregister(Comm::ConnectionPointer &conn);
-    void unregister(int fd);
     void complete();
 
     /// Mark reply as written to Store in its entirety, including the header and
@@ -126,8 +125,6 @@ public:
     void dispatch();
 
     void pconnPush(Comm::ConnectionPointer & conn, const char *domain);
-
-    bool dontRetry() { return flags.dont_retry; }
 
     void dontRetry(bool val) { flags.dont_retry = val; }
 

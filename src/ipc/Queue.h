@@ -98,15 +98,12 @@ public:
 
     OneToOneUniQueue(const unsigned int aMaxItemSize, const int aCapacity);
 
-    unsigned int maxItemSize() const { return theMaxItemSize; }
     int size() const { return theSize; }
-    int capacity() const { return theCapacity; }
     int sharedMemorySize() const { return Items2Bytes(theMaxItemSize, theCapacity); }
 
     bool empty() const { return !theSize; }
     bool full() const { return theSize == theCapacity; }
 
-    static int Bytes2Items(const unsigned int maxItemSize, int size);
     static int Items2Bytes(const unsigned int maxItemSize, const int size);
 
     /// returns true iff the value was set; [un]blocks the reader as needed
@@ -199,9 +196,6 @@ public:
 
     /// returns reader's rate limit for a given remote process
     const QueueReader::Rate &rateLimit(const int remoteProcessId) const;
-
-    /// number of items in incoming queue from a given remote process
-    int inSize(const int remoteProcessId) const { return inQueue(remoteProcessId).size(); }
 
     /// number of items in outgoing queue to a given remote process
     int outSize(const int remoteProcessId) const { return outQueue(remoteProcessId).size(); }
@@ -296,7 +290,6 @@ private:
     int oneToOneQueueIndex(const Group fromGroup, const int fromProcessId, const Group toGroup, const int toProcessId) const;
     const OneToOneUniQueue &oneToOneQueue(const Group fromGroup, const int fromProcessId, const Group toGroup, const int toProcessId) const;
     int readerIndex(const Group group, const int processId) const;
-    Group localGroup() const { return theLocalGroup; }
     Group remoteGroup() const { return theLocalGroup == groupA ? groupB : groupA; }
 
 private:
