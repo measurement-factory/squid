@@ -102,7 +102,6 @@ public:
     const char * pos(char const *aString) const;
     const char * pos(char const ch) const;
     size_type find(char const *aString) const;
-    const char * rpos(char const ch) const;
     int cmp(char const *) const;
     int cmp(char const *, size_type count) const;
     int cmp(String const &) const;

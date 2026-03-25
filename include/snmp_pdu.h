@@ -72,7 +72,6 @@ struct snmp_pdu {
 
 struct snmp_pdu *snmp_pdu_create(int);
 struct snmp_pdu *snmp_pdu_clone(struct snmp_pdu *);
-struct snmp_pdu *snmp_fix_pdu(struct snmp_pdu *, int);
 void snmp_free_pdu(struct snmp_pdu *);
 void snmp_pdu_free(struct snmp_pdu *);
 
