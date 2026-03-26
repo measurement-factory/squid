@@ -3,4 +3,5 @@ aioWrite
 Adaptation::Ecap
 UseInterceptionAddressesLookedUpEarlier
 MissingLibraryError
+PeerOptions::updateSessionOptions
 
