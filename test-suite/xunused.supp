@@ -4,4 +4,17 @@ Adaptation::Ecap
 UseInterceptionAddressesLookedUpEarlier
 MissingLibraryError
 PeerOptions::updateSessionOptions
+::UseCount
+::finalizedInCbdataChild
+::toCbdata
+CompositePoolNode::operator new
+VectorPool::operator new
+Fs::Ufs::UFSStoreState::_queued_read::operator delete
+Fs::Ufs::UFSStoreState::_queued_read::operator new
+Fs::Ufs::UFSStoreState::_queued_write::operator delete
+Fs::Ufs::UFSStoreState::_queued_write::operator new
+Helper::Request::operator delete
+Helper::Request::operator new
+MimeIcon::operator delete
+MimeIcon::operator new
 
