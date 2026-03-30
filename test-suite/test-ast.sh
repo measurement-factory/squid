@@ -22,6 +22,7 @@
 echo "TMPDIR=${TMPDIR:=${RUNNER_TEMP:-/tmp}}"
 
 configureBinary=./configure
+bootstrapBinary=./bootstrap.sh
 buildLog=${TMPDIR}/test-ast-build.log
 xunusedLog=${TMPDIR}/test-ast-xunused.log
 
@@ -122,7 +123,7 @@ buildCompilationDatabase() {
     bear --version || return
 
     make -k distclean > /dev/null 2>&1
-    ./bootstrap.sh || return
+    $bootstrapBinary || return
     myConfigure || return
 
     make clean
@@ -135,9 +136,9 @@ main() {
     # Version information is also useful for independently reproducing problems.
     xunused --version || return
 
-    if [ ! -x $configureBinary ]
+    if [ ! -x $bootstrapBinary ]
     then
-        echo "$0 must be run from the source root directory (where $configureBinary is)." >&2
+        echo "$0 must be run from the source root directory (where $bootstrapBinary is)." >&2
         return 1
     fi
 
