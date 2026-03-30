@@ -591,12 +591,8 @@ StoreEntry::setPublicKey(const KeyScope scope)
     Assure(scope == ksDefault || scope == ksRevalidation);
 
     if (key && !EBIT_TEST(flags, KEY_PRIVATE)) {
-        const bool isDefault = !publicDefaultKeyCmp();
-        if (isDefault && scope == ksDefault)
-            return true; // already ksDefault
-        else if (!isDefault && scope == ksRevalidation)
-            return true; // already ksRevalidation
-        // else public key scope has changed
+        if (publicKeyScope() == scope)
+            return true; // Nothing to do: Already have a public key with the requested scope.
 
         // TODO: Address the following concern when adding support for SMP
         // collapsed revalidation (which implies `transients` existence): Our
@@ -636,15 +632,15 @@ StoreEntry::setPublicKey(const KeyScope scope)
     return false;
 }
 
-/// compares public key (which must exist) with the default public key
-/// \returns nil if the keys are equal, the default public key otherwise
-const cache_key *
-StoreEntry::publicDefaultKeyCmp() const
+/// current public key scope
+/// \prec This entry is public.
+KeyScope
+StoreEntry::publicKeyScope() const
 {
     const auto pubKey = publicKey();
     assert(pubKey);
-    const auto defaultKey = calcPublicKey(ksDefault);
-    return storeKeyHashCmp(pubKey, defaultKey) ? defaultKey : nullptr;
+    // TODO: Consider storing ksRevalidation as a flag to avoid this slow key computation.
+    return storeKeyHashCmp(pubKey, calcPublicKey(ksDefault)) == 0 ? ksDefault : ksRevalidation;
 }
 
 /// Unconditionally sets public key for this store entry.
@@ -1779,8 +1775,7 @@ char const *
 StoreEntry::getSerialisedMetaData(size_t &length) const
 {
     Assure(publicKey());
-    Assure(!publicDefaultKeyCmp());
-
+    Assure(publicKeyScope() == ksDefault);
     return static_cast<const char *>(Store::PackSwapMeta(*this, length).release());
 }
 
