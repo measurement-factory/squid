@@ -54,7 +54,7 @@ jobs:
           sudo apt-get --quiet=2 update
           sudo apt-get --quiet=2 build-dep squid
           sudo apt-get --quiet=2 install libtool-bin valgrind
-          sudo apt-get --quiet=2 install llvm-18-dev libclang-18-dev
+          sudo apt-get --quiet=2 install llvm-18-dev libclang-18-dev bear
 
       - name: Checkout repository
         uses: actions/checkout@v4
