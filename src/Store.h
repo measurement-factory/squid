@@ -142,7 +142,10 @@ public:
     /// for eventual removal from the Store.
     void releaseRequest(const bool shareable = false);
     void negativeCache();
-    void cacheNegatively();     // TODO: why both negativeCache() and cacheNegatively() ?
+
+    /// makePublic() but set negative-caching expiration times and flags (via negativeCache())
+    void cacheNegatively();
+
     void invokeHandlers();
     void cacheInMemory(); ///< start or continue storing in memory cache
     void swapOut();
