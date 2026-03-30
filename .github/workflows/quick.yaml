@@ -73,7 +73,7 @@ jobs:
 
       - name: Build xunused
         run: |
-          mkdir build
+          cmake -S . -B build
           cmake --build build
         working-directory: xunused
 
