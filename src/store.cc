@@ -597,6 +597,16 @@ StoreEntry::setPublicKey(const KeyScope scope)
         else if (!isDefault && scope == ksRevalidation)
             return true; // already ksRevalidation
         // else public key scope has changed
+
+        // TODO: Address the following concern when adding support for SMP
+        // collapsed revalidation (which implies `transients` existence): Our
+        // public key K1 implies that we are in `transients`, indexed under K1.
+        // Once we change our key to K2 below, mem().xitTable.index would not be
+        // able to cover both keys and facilitate free of K1's transient slot.
+        // And we cannot purge that K1 slot now because older transactions may
+        // still broadcast using its index; private entries cannot broadcast
+        // keys instead of transient indexes.
+        Assure(!Store::Controller::SmpAware());
     }
 
     assert(mem_obj);
