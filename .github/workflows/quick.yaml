@@ -68,9 +68,6 @@ jobs:
           path: xunused
           ref: SQUID-1137-report-unused-declaration-definition-source-code-lines-test
 
-      - name: List Workspace
-        run: ls -R $GITHUB_WORKSPACE
-
       - name: Build xunused
         run: |
           cmake -S . -B build
@@ -83,6 +80,19 @@ jobs:
       - name: Perform AST Analysis
         run: ./test-suite/test-ast.sh
         working-directory: squid
+
+      - name: List Workspace
+        if: success() || failure()
+        run: ls -R $GITHUB_WORKSPACE
+
+      - name: Publish test logs
+        if: success() || failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-logs
+          path: |
+            ${{ runner.temp }}/*.log
+            ${{ runner.temp }}/compile_commands.json
 
   functionality-tests:
 
