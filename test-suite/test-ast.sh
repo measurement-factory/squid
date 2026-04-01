@@ -25,6 +25,7 @@ configureBinary=./configure
 bootstrapBinary=./bootstrap.sh
 buildLog=${TMPDIR}/test-ast-build.log
 xunusedLog=${TMPDIR}/test-ast-xunused.log
+bearConfig=${TMPDIR}/bear.json
 
 customCompileCommands=$1
 defaultCompileCommands=${TMPDIR}/compile_commands.json
@@ -128,7 +129,10 @@ buildCompilationDatabase() {
 
     make clean
 
-    bear --output $defaultCompileCommands -- make all check
+    bearConfigCommands='{"output": { "content": { "include_only_existing_source": true, "duplicate_filter_fields": "file" }, "format": { "command_as_array": true, "drop_output_field": false } } }'
+    echo "$bearConfigCommands" > $bearConfig
+
+    bear --config $bearConfig --output $defaultCompileCommands -- make all check
 }
 
 main() {
@@ -164,7 +168,7 @@ main() {
     local topSrcDir=`pwd`
     local includedDirsRegex="$topSrcDir/($analyzedSourceDirectories)"
 
-    xunused --report-functions --special-functions $compileCommands > $xunusedLog 2>&1 || return
+    xunused --filter="$includedDirsRegex" --report-functions --special-functions $compileCommands > $xunusedLog 2>&1 || return
 
     local unusedFunctionCount=`grep -c "is unused$" $xunusedLog`
     echo "Unused functions: $unusedFunctionCount"
