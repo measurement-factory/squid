@@ -56,9 +56,6 @@ public:
     /// compute and store checksum based on int32_t and uint64_t integers
     void set(int32_t f1, uint64_t f2);
 
-    // printing for debugging
-    std::ostream &print(std::ostream &os) const;
-
 private:
     uint8_t raw[3]; // designed to follow "op" members, in padding space
 };

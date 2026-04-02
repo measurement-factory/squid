@@ -380,18 +380,6 @@ _heap_node_exist(heap * hp, int id)
  * Printing and debug functions
  ****************************************************************************/
 
-/*
- * Print the heap in element order, id..last.
- */
-static void
-heap_print_inorder(heap * hp, int id)
-{
-    while (id < hp->last) {
-        printf("%d\tKey = %.04f\n", id, hp->nodes[id]->key);
-        id++;
-    }
-}
-
 #ifdef  MEASURE_HEAP_SKEW
 
 /****************************************************************************

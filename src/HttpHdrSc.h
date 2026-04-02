@@ -27,7 +27,6 @@ class HttpHdrSc
 
 public:
     bool parse(const String *str);
-    void packInto(Packable * p) const;
     void updateStats(StatHist *) const;
     HttpHdrScTarget * getMergedTarget(const char *ourtarget); // TODO: make const?
 

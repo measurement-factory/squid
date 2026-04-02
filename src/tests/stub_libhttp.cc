@@ -47,7 +47,6 @@ bool Message::parse(const char *, const size_t, bool, Http::StatusCode *) STUB_R
 bool Message::parseCharBuf(const char *, ssize_t) STUB_RETVAL(false)
 int Message::httpMsgParseStep(const char *, int, int) STUB_RETVAL(-1)
 int Message::httpMsgParseError() STUB_RETVAL(0)
-void Message::firstLineBuf(MemBuf&) STUB
 void Message::hdrCacheInit() STUB
 bool Message::parseHeader(Http1::Parser &, Http::ContentLengthInterpreter &) STUB_RETVAL(false)
 }

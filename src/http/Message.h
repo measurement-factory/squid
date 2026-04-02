@@ -115,8 +115,6 @@ public:
 
     virtual bool expectingBody(const HttpRequestMethod&, int64_t&) const = 0;
 
-    void firstLineBuf(MemBuf&);
-
     virtual bool inheritProperties(const Http::Message *) = 0;
 
 protected:
