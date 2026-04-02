@@ -145,4 +145,3 @@ MemBlob::consume(const size_type rawN)
     }
 }
 
-

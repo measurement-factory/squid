@@ -265,4 +265,3 @@ Http::Message::hdrCacheInit()
     cache_control = header.getCc();
 }
 
-

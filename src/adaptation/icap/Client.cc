@@ -10,5 +10,3 @@
 #include "adaptation/icap/Client.h"
 #include "debug/Stream.h"
 
-
-

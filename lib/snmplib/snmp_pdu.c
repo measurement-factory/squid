@@ -497,7 +497,3 @@ snmp_pdu_decode(u_char * Packet,    /* data */
     return (bufp);
 }
 
-
-
-
-

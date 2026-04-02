@@ -53,5 +53,3 @@ Mem::AllocatorProxy::relabel(const char * const aLabel)
     label = aLabel;
 }
 
-
-

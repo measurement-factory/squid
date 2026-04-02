@@ -22,4 +22,3 @@ Adaptation::DynamicGroupCfg::add(const String &item)
     services.push_back(item);
 }
 
-

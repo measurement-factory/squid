@@ -42,5 +42,3 @@ Adaptation::Message::set(Header *aHeader)
     }
 }
 
-
-

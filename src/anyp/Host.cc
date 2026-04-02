@@ -95,6 +95,3 @@ AnyP::operator <<(std::ostream &os, const Host &host)
     return os;
 }
 
-
-
-

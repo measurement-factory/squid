@@ -169,29 +169,3 @@ struct tok {
 #define NHASHSIZE    128
 #define NBUCKET(x)   (x & 0x7F)
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

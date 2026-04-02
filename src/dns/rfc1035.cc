@@ -649,6 +649,3 @@ rfc1035MessageUnpack(const char *buf,
     return nr;
 }
 
-
-
-
