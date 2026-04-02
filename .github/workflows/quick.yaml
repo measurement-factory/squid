@@ -89,7 +89,7 @@ jobs:
         if: success() || failure()
         uses: actions/upload-artifact@v4
         with:
-          name: test-logs
+          name: ${{ github.job }}-logs
           path: |
             ${{ runner.temp }}/*.log
             ${{ runner.temp }}/compile_commands.json
