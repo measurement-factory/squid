@@ -360,19 +360,6 @@ BodyPipe::checkIn(Checkout &checkout)
         postAppend(currentSize - checkout.checkedOutSize);
 }
 
-void
-BodyPipe::undoCheckOut(Checkout &checkout)
-{
-    assert(isCheckedOut);
-    const size_t currentSize = theBuf.contentSize();
-    // We can only undo if size did not change, and even that carries
-    // some risk. If this becomes a problem, the code checking out
-    // raw buffers should always check them in (possibly unchanged)
-    // instead of relying on the automated undo mechanism of Checkout.
-    // The code can always use a temporary buffer to accomplish that.
-    Must(checkout.checkedOutSize == currentSize);
-}
-
 // TODO: Optimize: inform consumer/producer about more data/space only if
 // they used the data/space since we notified them last time.
 
@@ -503,19 +490,5 @@ BodyPipeCheckout::checkIn()
     assert(!checkedIn);
     thePipe.checkIn(*this);
     checkedIn = true;
-}
-
-BodyPipeCheckout::BodyPipeCheckout(const BodyPipeCheckout &c): thePipe(c.thePipe),
-    buf(c.buf), offset(c.offset), checkedOutSize(c.checkedOutSize),
-    checkedIn(c.checkedIn)
-{
-    assert(false); // prevent copying
-}
-
-BodyPipeCheckout &
-BodyPipeCheckout::operator =(const BodyPipeCheckout &)
-{
-    assert(false); // prevent assignment
-    return *this;
 }
 

@@ -78,9 +78,5 @@ public:
     RefCount<RT> request;
 };
 
-template <class RT>
-IoResult<RT>
-IOResult(RefCount<RT> aRequest, RefCount<DiskThreadsDiskFile> aFile) { return IoResult<RT>(aFile, aRequest);}
-
 #endif /* SQUID_SRC_DISKIO_DISKTHREADS_DISKTHREADSDISKFILE_H */
 

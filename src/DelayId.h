@@ -30,7 +30,6 @@ public:
     DelayIdComposite::Pointer compositePosition();
     DelayIdComposite::Pointer const compositePosition() const;
     void compositePosition(const DelayIdComposite::Pointer &);
-    bool operator == (DelayId const &rhs) const;
     operator bool() const;
     int bytesWanted(int min, int max) const;
     void bytesIn (int qty);

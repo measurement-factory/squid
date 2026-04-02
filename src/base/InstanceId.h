@@ -50,10 +50,6 @@ public:
 
     InstanceId() {change();}
     InstanceId(InstanceId &&) = delete; // no copying/moving of any kind
-
-    operator Value() const { return value; }
-    bool operator ==(const InstanceId &o) const { return value == o.value; }
-    bool operator !=(const InstanceId &o) const { return !(*this == o); }
     void change();
 
     /// writes a compact text representation of the ID

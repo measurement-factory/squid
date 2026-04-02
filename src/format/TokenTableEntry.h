@@ -30,11 +30,9 @@ namespace Format
 class TokenTableEntry
 {
 public:
-    TokenTableEntry() : configTag(nullptr), tokenType(LFT_NONE), options(0) {}
     TokenTableEntry(const char *aTag, const ByteCode_t &aType) : configTag(aTag), tokenType(aType), options(0) {}
     // nothing to destruct configTag is pointer to global const string
     ~TokenTableEntry() {}
-    TokenTableEntry(const TokenTableEntry& t) : configTag(t.configTag), tokenType(t.tokenType), options(t.options) {}
 
     /// the config file ASCII representation for this token
     /// just the base tag bytes, excluding any option syntax bytes

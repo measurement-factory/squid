@@ -31,10 +31,6 @@ public:
     typedef uint32_t Size;
 
     StoreMapSlice(): size(0), next(-1) {}
-    StoreMapSlice(const StoreMapSlice &o) {
-        size.exchange(o.size);
-        next.exchange(o.next);
-    }
 
     StoreMapSlice &operator =(const StoreMapSlice &o) {
         size.store(o.size);
@@ -134,11 +130,6 @@ public:
         assert(index >= 0);
         assert(index < capacity);
         return items[index];
-    }
-
-    const Item &at(const int index) const
-    {
-        return const_cast<StoreMapItems<C>&>(*this).at(index);
     }
 
     /// reset all items to the same value
@@ -249,11 +240,6 @@ public:
 
     /// computes map entry anchor position for a given entry key
     sfileno fileNoByKey(const cache_key *const key) const;
-
-    /// Like strcmp(mapped, new), but for store entry versions/timestamps.
-    /// Returns +2 if the mapped entry does not exist; -1/0/+1 otherwise.
-    /// Comparison may be inaccurate unless the caller is a lock holder.
-    int compareVersions(const sfileno oldFileno, time_t newVersion) const;
 
     /// finds, locks, and returns an anchor for an empty key position,
     /// erasing the old entry (if any)
@@ -375,7 +361,6 @@ private:
 
     Anchor &anchorAt(const sfileno fileno);
     const Anchor &anchorAt(const sfileno fileno) const;
-    Anchor &anchorByKey(const cache_key *const key);
 
     Slice &sliceAt(const SliceId sliceId);
     const Slice &sliceAt(const SliceId sliceId) const;

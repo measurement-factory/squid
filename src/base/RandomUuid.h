@@ -37,7 +37,6 @@ public:
     Serialized serialize() const;
 
     bool operator ==(const RandomUuid &) const;
-    bool operator !=(const RandomUuid &other) const { return !(*this == other); }
 
     /// creates a UUID object with the same value as this UUID
     RandomUuid clone() const { return *this; }

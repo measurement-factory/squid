@@ -79,8 +79,6 @@ protected:
     bool checkedIn;
 
 private:
-    BodyPipeCheckout(const BodyPipeCheckout &); // prevent copying
-    BodyPipeCheckout &operator =(const BodyPipeCheckout &); // prevent assignment
 };
 
 /** Connects those who produces message body content with those who
@@ -142,7 +140,6 @@ protected:
     // lower-level interface used by Checkout
     MemBuf &checkOut(); // obtain raw buffer
     void checkIn(Checkout &checkout); // return updated raw buffer
-    void undoCheckOut(Checkout &checkout); // undo checkout efffect
 
     void scheduleBodyDataNotification();
     void scheduleBodyEndNotification();

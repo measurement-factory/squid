@@ -28,24 +28,6 @@ storeKeyText(const cache_key *key)
     return buf;
 }
 
-const cache_key *
-storeKeyScan(const char *buf)
-{
-    static unsigned char digest[SQUID_MD5_DIGEST_LENGTH];
-    int i;
-    int j = 0;
-    char t[3];
-
-    for (i = 0; i < SQUID_MD5_DIGEST_LENGTH; ++i) {
-        t[0] = *(buf + (j++));
-        t[1] = *(buf + (j++));
-        t[2] = '\0';
-        *(digest + i) = (unsigned char) strtol(t, nullptr, 16);
-    }
-
-    return digest;
-}
-
 int
 storeKeyHashCmp(const void *a, const void *b)
 {

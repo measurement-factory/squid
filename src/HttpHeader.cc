@@ -152,33 +152,9 @@ HttpHeader::HttpHeader(const http_hdr_owner_type anOwner): owner(anOwner), len(0
     httpHeaderMaskInit(&mask, 0);
 }
 
-// XXX: Delete as unused, expensive, and violating copy semantics by skipping Warnings
-HttpHeader::HttpHeader(const HttpHeader &other): owner(other.owner), len(other.len), conflictingContentLength_(false)
-{
-    entries.reserve(other.entries.capacity());
-    httpHeaderMaskInit(&mask, 0);
-    update(&other); // will update the mask as well
-}
-
 HttpHeader::~HttpHeader()
 {
     clean();
-}
-
-// XXX: Delete as unused, expensive, and violating assignment semantics by skipping Warnings
-HttpHeader &
-HttpHeader::operator =(const HttpHeader &other)
-{
-    if (this != &other) {
-        // we do not really care, but the caller probably does
-        assert(owner == other.owner);
-        clean();
-        update(&other); // will update the mask as well
-        len = other.len;
-        conflictingContentLength_ = other.conflictingContentLength_;
-        teUnsupported_ = other.teUnsupported_;
-    }
-    return *this;
 }
 
 void
@@ -620,29 +596,6 @@ HttpHeader::findEntry(Http::HdrType id) const
     return nullptr;        /* not reached */
 }
 
-/*
- * same as httpHeaderFindEntry
- */
-HttpHeaderEntry *
-HttpHeader::findLastEntry(Http::HdrType id) const
-{
-    assert(any_registered_header(id));
-    assert(!Http::HeaderLookupTable.lookup(id).list);
-
-    /* check mask first */
-    if (!CBIT_TEST(mask, id))
-        return nullptr;
-
-    for (auto e = entries.rbegin(); e != entries.rend(); ++e) {
-        if (*e && (*e)->id == id)
-            return *e;
-    }
-
-    /* hm.. we thought it was there, but it was not found */
-    assert(false);
-    return nullptr; /* not reached */
-}
-
 int
 HttpHeader::delByName(const SBuf &name)
 {
@@ -921,17 +874,6 @@ HttpHeader::getByNameListMember(const char *name, const char *member, const char
     return ::getListMember(header, member, separator);
 }
 
-/*
- * returns a the value of the specified list member, if any.
- */
-SBuf
-HttpHeader::getListMember(Http::HdrType id, const char *member, const char separator) const
-{
-    assert(any_registered_header(id));
-    const auto header = getStrOrList(id);
-    return ::getListMember(header, member, separator);
-}
-
 /* test if a field is present */
 int
 HttpHeader::has(Http::HdrType id) const
@@ -1038,38 +980,6 @@ HttpHeader::putContRange(const HttpHdrContRange * cr)
     mb.clean();
 }
 
-void
-HttpHeader::putRange(const HttpHdrRange * range)
-{
-    assert(range);
-    /* remove old directives if any */
-    delById(Http::HdrType::RANGE);
-    /* pack into mb */
-    MemBuf mb;
-    mb.init();
-    range->packInto(&mb);
-    /* put */
-    addEntry(new HttpHeaderEntry(Http::HdrType::RANGE, SBuf(), mb.buf));
-    /* cleanup */
-    mb.clean();
-}
-
-void
-HttpHeader::putSc(HttpHdrSc *sc)
-{
-    assert(sc);
-    /* remove old directives if any */
-    delById(Http::HdrType::SURROGATE_CONTROL);
-    /* pack into mb */
-    MemBuf mb;
-    mb.init();
-    sc->packInto(&mb);
-    /* put */
-    addEntry(new HttpHeaderEntry(Http::HdrType::SURROGATE_CONTROL, SBuf(), mb.buf));
-    /* cleanup */
-    mb.clean();
-}
-
 /* add extension header (these fields are not parsed/analyzed/joined, etc.) */
 void
 HttpHeader::putExt(const char *name, const char *value)
@@ -1167,22 +1077,6 @@ HttpHeader::getStr(Http::HdrType id) const
     assert(Http::HeaderLookupTable.lookup(id).type == Http::HdrFieldType::ftStr);  /* must be of an appropriate type */
 
     if ((e = findEntry(id))) {
-        httpHeaderNoteParsedEntry(e->id, e->value, false);  /* no errors are possible */
-        return e->value.termedBuf();
-    }
-
-    return nullptr;
-}
-
-/* unusual */
-const char *
-HttpHeader::getLastStr(Http::HdrType id) const
-{
-    HttpHeaderEntry *e;
-    assert(any_registered_header(id));
-    assert(Http::HeaderLookupTable.lookup(id).type == Http::HdrFieldType::ftStr);  /* must be of an appropriate type */
-
-    if ((e = findLastEntry(id))) {
         httpHeaderNoteParsedEntry(e->id, e->value, false);  /* no errors are possible */
         return e->value.termedBuf();
     }

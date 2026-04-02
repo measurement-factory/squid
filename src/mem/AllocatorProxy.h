@@ -69,18 +69,7 @@ public:
     void freeOne(void *);
 
     int inUseCount() const;
-    size_t objectSize() const {return size;}
     char const * objectType() const {return label;}
-
-    PoolMeter const &getMeter() const;
-
-    /**
-     * \param stats Object to be filled with statistical data about pool.
-     * \retval      Number of objects in use, ie. allocated.
-     */
-    size_t getStats(PoolStats &stats);
-
-    void zeroBlocks(bool doIt);
 
     /// \copydoc Mem::Allocator::relabel()
     void relabel(const char * const aLabel);

@@ -23,8 +23,6 @@ public:
     using value_type = const char *;
 
     explicit WordlistIterator(const wordlist * const wl): w(wl) {}
-
-    auto operator ==(const WordlistIterator &rhs) const { return this->w == rhs.w; }
     auto operator !=(const WordlistIterator &rhs) const { return this->w != rhs.w; }
 
     inline value_type operator *() const;

@@ -57,8 +57,6 @@ typedef enum {
 
 /// Main cleanup handler.
 void memClean(void);
-void memInitModule(void);
-void memCleanModule(void);
 void memConfigure(void);
 /// Allocate one element from the typed pool
 void *memAllocate(mem_type);
@@ -68,7 +66,6 @@ void *memReallocBuf(void *buf, size_t net_size, size_t * gross_size);
 void memFree(void *, int type);
 void memFreeBuf(size_t size, void *);
 FREE *memFreeBufFunc(size_t size);
-int memInUse(mem_type);
 
 #endif /* SQUID_SRC_MEM_FORWARD_H */
 

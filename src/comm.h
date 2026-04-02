@@ -18,8 +18,6 @@ namespace Ip
 class Address;
 }
 
-bool comm_iocallbackpending(void); /* inline candidate */
-
 int commSetNonBlocking(int fd);
 int commUnsetNonBlocking(int fd);
 
@@ -84,7 +82,6 @@ void checkTimeouts(void);
 
 AsyncCall::Pointer comm_add_close_handler(int fd, CLCB *, void *);
 void comm_add_close_handler(int fd, AsyncCall::Pointer &);
-void comm_remove_close_handler(int fd, CLCB *, void *);
 void comm_remove_close_handler(int fd, AsyncCall::Pointer &);
 
 int comm_udp_recvfrom(int fd, void *buf, size_t len, int flags, Ip::Address &from);

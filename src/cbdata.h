@@ -386,10 +386,7 @@ public:
     CallbackData(): data_(nullptr) {}
     CallbackData(void *data): data_(cbdataReference(data)) {}
     CallbackData(const CallbackData &other): data_(cbdataReference(other.data_)) {}
-    CallbackData(CallbackData &&other): data_(other.data_) { other.data_ = nullptr; }
     ~CallbackData() { cbdataReferenceDone(data_); }
-
-    CallbackData &operator =(const CallbackData &other);
     CallbackData &operator =(CallbackData &&other) { cbdataReferenceDone(data_); data_ = other.data_; other.data_ = nullptr; return *this; }
 
     bool valid() const { return cbdataReferenceValid(data_); }

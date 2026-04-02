@@ -29,10 +29,6 @@ public:
         return code == ce.code && depth == ce.depth && cert == ce.cert;
     }
 
-    bool operator != (const CertError &ce) const {
-        return !(*this == ce);
-    }
-
 public:
     Security::ErrorCode code; ///< certificate error code
     Security::CertPointer cert; ///< certificate with the above error code
