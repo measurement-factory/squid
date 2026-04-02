@@ -10,12 +10,3 @@
 #include "adaptation/icap/Client.h"
 #include "debug/Stream.h"
 
-void Adaptation::Icap::InitModule()
-{
-    debugs(93,2, "module enabled.");
-}
-
-void Adaptation::Icap::CleanModule()
-{
-}
-

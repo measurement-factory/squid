@@ -34,9 +34,6 @@ public:
     /// clear the HttpBody content
     void clear() { raw_.clear(); }
 
-    /// \return true if there is any content in the HttpBody
-    bool hasContent() const { return raw_.length() > 0; }
-
     /// \return size of the HttpBody's message content
     size_t contentSize() const { return raw_.length(); }
 

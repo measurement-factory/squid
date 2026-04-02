@@ -220,19 +220,3 @@ aclDestroyAccessList(acl_access ** list)
 /* maex@space.net (06.09.1996)
  *    destroy an AclDenyInfoList */
 
-void
-aclDestroyDenyInfoList(AclDenyInfoList ** list)
-{
-    AclDenyInfoList *a = nullptr;
-    AclDenyInfoList *a_next = nullptr;
-
-    debugs(28, 8, "aclDestroyDenyInfoList: invoked");
-
-    for (a = *list; a; a = a_next) {
-        a_next = a->next;
-        delete a;
-    }
-
-    *list = nullptr;
-}
-

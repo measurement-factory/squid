@@ -32,8 +32,6 @@ public:
     bool operator== (const Eui48 &t) const { return memcmp(eui, t.eui, SZ_EUI48_BUF) == 0; }
     bool operator< (const Eui48 &t) const { return memcmp(eui, t.eui, SZ_EUI48_BUF) < 0; }
 
-    const unsigned char *get(void);
-
     bool set(const char *src, const int len) {
         if (len > SZ_EUI48_BUF) return false;
         if (len < SZ_EUI48_BUF) clear();

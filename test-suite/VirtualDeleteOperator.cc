@@ -32,7 +32,6 @@ size_t CallCounter::deletes() const {return _deletes;}
 class BaseVirtual
 {
 public:
-    void *operator new (size_t);
     void operator delete (void *);
     virtual ~BaseVirtual();
     static void DeleteABase(BaseVirtual *aBase);
@@ -40,13 +39,6 @@ public:
 };
 
 CallCounter BaseVirtual::Calls;
-
-void *
-BaseVirtual::operator new(size_t byteCount)
-{
-    Calls.recordNew();
-    return ::operator new (byteCount);
-}
 
 void
 BaseVirtual::operator delete(void *address)
