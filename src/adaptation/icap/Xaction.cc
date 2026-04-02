@@ -673,11 +673,6 @@ void Adaptation::Icap::Xaction::fillDoneStatus(MemBuf &buf) const
         buf.append("Stopped", 7);
 }
 
-bool Adaptation::Icap::Xaction::fillVirginHttpHeader(MemBuf &) const
-{
-    return false;
-}
-
 bool
 Ssl::IcapPeerConnector::initialize(Security::SessionPointer &serverSession)
 {

@@ -33,20 +33,6 @@ ACLDomainData::~ACLDomainData()
     }
 }
 
-template<class T>
-inline int
-splaystrcasecmp (T&l, T&r)
-{
-    return strcasecmp ((char *)l,(char *)r);
-}
-
-template<class T>
-inline int
-splaystrcmp (T&l, T&r)
-{
-    return strcmp ((char *)l,(char *)r);
-}
-
 /* general compare functions, these are used for tree search algorithms
  * so they return <0, 0 or >0 */
 

@@ -192,16 +192,6 @@ httpHdrContRangeParseInit(HttpHdrContRange * range, const char *str)
     return 1;
 }
 
-HttpHdrContRange *
-httpHdrContRangeDup(const HttpHdrContRange * range)
-{
-    HttpHdrContRange *dup;
-    assert(range);
-    dup = httpHdrContRangeCreate();
-    *dup = *range;
-    return dup;
-}
-
 void
 httpHdrContRangePackInto(const HttpHdrContRange * range, Packable * p)
 {

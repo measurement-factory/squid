@@ -74,22 +74,10 @@ struct snmp_mib_tree {
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-void init_mib(char *);
-int read_objid(char *, oid *, int *);
-void print_objid(oid *, int);
-void sprint_objid(char *, oid *, int);
 void print_variable(oid *, int, struct variable_list *);
 void sprint_variable(char *, oid *, int, struct variable_list *);
 void sprint_value(char *, oid *, int, struct variable_list *);
 void print_value(oid *, int, struct variable_list *);
-
-/*void print_variable_list(struct variable_list *); */
-/*void print_variable_list_value(struct variable_list *); */
-/*void print_type(struct variable_list *); */
-void print_oid_nums(oid *, int);
-
-struct snmp_mib_tree *read_mib(char *);
 
 #ifdef __cplusplus
 }

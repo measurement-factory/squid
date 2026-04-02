@@ -35,12 +35,6 @@ strListAdd(String *str, const char *item, const char delimiter)
     strListAdd(*str, item, strlen(item), delimiter);
 }
 
-void
-strListAdd(String &str, const SBuf &item, char delimiter)
-{
-    strListAdd(str, item.rawContent(), item.length(), delimiter);
-}
-
 /** returns true iff "m" is a member of the list */
 int
 strListIsMember(const String * list, const SBuf &m, char del)
