@@ -95,7 +95,6 @@ public:
 
     void noteNewWaiter() {theAllWaiters++;} ///< New xaction waiting for service to be up or available
     void noteGoneWaiter(); ///< An xaction is not waiting any more for service to be available
-    bool existWaiters() const {return (theAllWaiters > 0);} ///< if there are xactions waiting for the service to be available
 
     //AsyncJob virtual methods
     bool doneAll() const override { return Adaptation::Initiator::doneAll() && false;}

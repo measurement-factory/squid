@@ -25,12 +25,8 @@ public:
     /// Exists to avoid double iteration of find() and push() combo.
     bool push_back_unique(C const &element);
     bool find(C const &)const;
-    bool findAndTune(C const &);
-    /// Iterates the entire list to return the last element holder.
-    CbDataList *tail();
     CbDataList *next;
     C element;
-    bool empty() const { return this == NULL; }
 };
 
 template<class C>
@@ -41,7 +37,6 @@ public:
     CbDataListContainer();
     ~CbDataListContainer();
     CbDataList<C> *push_back (C const &);
-    C pop_front();
     bool empty() const;
 
     CbDataList<C> *head;
@@ -97,15 +92,6 @@ CbDataList<C>::push_back_unique(C const &toAdd)
 }
 
 template <class C>
-CbDataList<C> *
-CbDataList<C>::tail()
-{
-    CbDataList<C> *last;
-    for (last = this; last->next; last = last->next);
-    return last;
-}
-
-template <class C>
 bool
 CbDataList<C>::find (C const &toFind) const
 {
@@ -114,32 +100,6 @@ CbDataList<C>::find (C const &toFind) const
     for (node = this; node; node = node->next)
         if (node->element == toFind)
             return true;
-
-    return false;
-}
-
-template <class C>
-bool
-CbDataList<C>::findAndTune(C const & toFind)
-{
-    CbDataList<C> *prev = NULL;
-
-    for (CbDataList<C> *node = this; node; node = node->
-            next) {
-        if (node->element == toFind) {
-            if (prev != NULL) {
-                /* shift the element just found to the second position
-                 * in the list */
-                prev->next = node->next;
-                node->next = this->next;
-                this->next = node;
-            }
-
-            return true;
-        }
-
-        prev = node;
-    }
 
     return false;
 }
@@ -170,22 +130,6 @@ CbDataListContainer<C>::push_back (C const &element)
         head = node;
 
     return node;
-}
-
-template <class C>
-C
-CbDataListContainer<C>::pop_front()
-{
-    if (head) {
-        C result = head->element;
-        CbDataList<C> *node = head;
-        head = head->next;
-        node->next = NULL;
-        delete node;
-        return result;
-    }
-
-    return C();
 }
 
 template <class C>
