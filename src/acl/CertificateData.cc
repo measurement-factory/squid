@@ -40,13 +40,6 @@ xRefFree(T &thing)
     xfree (thing);
 }
 
-template<class T>
-inline int
-splaystrcmp (T&l, T&r)
-{
-    return strcmp ((char *)l,(char *)r);
-}
-
 bool
 ACLCertificateData::match(X509 *cert)
 {

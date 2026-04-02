@@ -34,7 +34,6 @@ public:
     ~ConnOpener() override;
 
     void setHost(const char *);    ///< set the hostname note for this connection
-    const char * getHost() const;  ///< get the hostname noted for this connection
 
 protected:
     void start() override;

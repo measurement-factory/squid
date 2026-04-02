@@ -56,7 +56,6 @@ struct variable_list {
 
 struct variable_list *snmp_var_new(oid *, int);
 struct variable_list *snmp_var_new_integer(oid *, int, int, unsigned char);
-struct variable_list *snmp_var_clone(struct variable_list *);
 void snmp_var_free(struct variable_list *);
 
 u_char *snmp_var_EncodeVarBind(u_char *, int *, struct variable_list *, int);

@@ -680,13 +680,6 @@ Rock::SwapDir::diskOffset(const SlotId sid) const
 }
 
 int64_t
-Rock::SwapDir::diskOffset(Ipc::Mem::PageId &pageId) const
-{
-    assert(pageId);
-    return diskOffset(pageId.number - 1);
-}
-
-int64_t
 Rock::SwapDir::diskOffsetLimit() const
 {
     assert(map);
@@ -725,12 +718,6 @@ Rock::SwapDir::reserveSlotForWriting()
     // are rebuilding and have not loaded "many" entries or empty slots yet.
     debugs(47, 3, "cannot get a slot; entries: " << map->entryCount());
     throw TexcHere("ran out of free db slots");
-}
-
-bool
-Rock::SwapDir::validSlotId(const SlotId slotId) const
-{
-    return 0 <= slotId && slotId < slotLimitActual();
 }
 
 void
@@ -954,12 +941,6 @@ Rock::SwapDir::updateHeaders(StoreEntry *updatedE)
         debugs(20, 2, "error starting to update entry " << *updatedE << ": " << ex.what());
         map->abortUpdating(update);
     }
-}
-
-bool
-Rock::SwapDir::full() const
-{
-    return freeSlots != nullptr && !freeSlots->size();
 }
 
 // storeSwapOutFileClosed calls this nethod on DISK_NO_SPACE_LEFT,

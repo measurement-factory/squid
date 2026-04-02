@@ -219,8 +219,6 @@ void urlInitialize(void);
 char *urlCanonicalCleanWithoutRequest(const SBuf &url, const HttpRequestMethod &, const AnyP::UriScheme &);
 const char *urlCanonicalFakeHttps(const HttpRequest * request);
 bool urlIsRelative(const char *);
-char *urlRInternal(const char *host, unsigned short port, const char *dir, const char *name);
-char *urlInternal(const char *dir, const char *name);
 bool urlAppendDomain(char *host); ///< apply append_domain config to the given hostname
 
 enum MatchDomainNameFlags {
@@ -264,7 +262,6 @@ enum MatchDomainNameFlags {
  */
 int matchDomainName(const char *host, const char *domain, MatchDomainNameFlags flags = mdnNone);
 bool urlCheckRequest(const HttpRequest *);
-void urlExtMethodConfigure(void);
 
 #endif /* SQUID_SRC_ANYP_URI_H */
 

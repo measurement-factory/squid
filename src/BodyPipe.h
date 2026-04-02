@@ -142,7 +142,6 @@ protected:
     // lower-level interface used by Checkout
     MemBuf &checkOut(); // obtain raw buffer
     void checkIn(Checkout &checkout); // return updated raw buffer
-    void undoCheckOut(Checkout &checkout); // undo checkout efffect
 
     void scheduleBodyDataNotification();
     void scheduleBodyEndNotification();

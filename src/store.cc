@@ -768,14 +768,6 @@ storeCreateEntry(const char *url, const char *logUrl, const RequestFlags &flags,
     return e;
 }
 
-/* Mark object as expired */
-void
-StoreEntry::expireNow()
-{
-    debugs(20, 3, "StoreEntry::expireNow: '" << getMD5Text() << "'");
-    expires = squid_curtime;
-}
-
 void
 StoreEntry::write (StoreIOBuffer writeBuffer)
 {
@@ -858,13 +850,6 @@ storeAppendPrintf(StoreEntry * e, const char *fmt,...)
     va_start(args, fmt);
     e->vappendf(fmt, args);
     va_end(args);
-}
-
-// deprecated. use StoreEntry::appendf() instead.
-void
-storeAppendVPrintf(StoreEntry * e, const char *fmt, va_list vargs)
-{
-    e->vappendf(fmt, vargs);
 }
 
 struct _store_check_cachable_hist {
@@ -1332,15 +1317,6 @@ StoreEntry::negativeCache()
         EBIT_SET(flags, ENTRY_NEGCACHED);
         debugs(20, 6, "expires = " << expires << " +" << (expires-squid_curtime) << ' ' << *this);
     }
-}
-
-int
-expiresMoreThan(time_t expires, time_t when)
-{
-    if (expires < 0)            /* No Expires given */
-        return 1;
-
-    return (expires > (squid_curtime + when));
 }
 
 int
