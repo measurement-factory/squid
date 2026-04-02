@@ -28,3 +28,9 @@ Helper::Request::operator delete
 Helper::Request::operator new
 MimeIcon::operator delete
 MimeIcon::operator new
+
+# TODO: Use this to delete HeapPolicyData::theHeap
+delete_heap
+
+# May become useful in triage? TODO: Consider deleting.
+ntlm_dump_ntlmssp_flags
