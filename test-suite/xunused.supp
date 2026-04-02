@@ -1,2 +1,30 @@
 # unused due to hard-coded zero ASYNC_WRITE #define
 aioWrite
+
+# unused in Squid and used in eCAP adapters (external loadable modules)
+Adaptation::Ecap
+
+# unused on Linux (primarily FreeBSD feature)
+UseInterceptionAddressesLookedUpEarlier
+
+# only used when USE_OPENSSL is off
+MissingLibraryError
+
+# only used if USE_OPENSSL is off and HAVE_LIBGNUTLS is on
+PeerOptions::updateSessionOptions
+
+# Unused functions that belong to CBDATA_CLASS or MEMPROXY_CLASS
+# and thus cannot be removed separately.
+::UseCount
+::finalizedInCbdataChild
+::toCbdata
+CompositePoolNode::operator new
+VectorPool::operator new
+Fs::Ufs::UFSStoreState::_queued_read::operator delete
+Fs::Ufs::UFSStoreState::_queued_read::operator new
+Fs::Ufs::UFSStoreState::_queued_write::operator delete
+Fs::Ufs::UFSStoreState::_queued_write::operator new
+Helper::Request::operator delete
+Helper::Request::operator new
+MimeIcon::operator delete
+MimeIcon::operator new
