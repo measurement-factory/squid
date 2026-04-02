@@ -19,6 +19,4 @@
  \ingroup FileSystems, UFS
  */
 
-/* Unused variable: */
-Fs::Ufs::StoreFSufs<Fs::Ufs::UFSSwapDir> *DiskdInstance_foo = nullptr;
 

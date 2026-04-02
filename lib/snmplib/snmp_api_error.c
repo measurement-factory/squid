@@ -43,29 +43,6 @@
 
 int snmp_errno = 0;
 
-static const char *api_errors[17] = {
-    "Unknown Error",
-    "Generic Error",
-    "Invalid local port",
-    "Unknown host",
-    "Unknown session",
-    "Too Long",
-
-    "Encoding ASN.1 Information",   /* 6 */
-    "Decoding ASN.1 Information",   /* 7 */
-    "PDU Translation error",
-    "OS Error",
-    "Invalid Textual OID",
-
-    "Unable to fix PDU",
-    "Unsupported SNMP Type",
-    "Unable to parse PDU",
-    "Packet Error",
-    "No Response From Host",
-
-    "Unknown Error"
-};
-
 void
 snmp_set_api_error(int x)
 {
