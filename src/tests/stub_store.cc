@@ -40,7 +40,8 @@ void StoreEntry::makePublic() STUB
 bool StoreEntry::makePublicWith(KeyScope) STUB
 void StoreEntry::makePrivate(const bool) STUB
 bool StoreEntry::setPublicKey(const KeyScope) STUB
-void StoreEntry::setPrivateKey(const bool, const bool) STUB
+void StoreEntry::setPrivateKey(bool, bool, StoreEntry::EvictCached) STUB
+void StoreEntry::hideFromNewcomers() STUB
 void StoreEntry::expireNow() STUB
 void StoreEntry::releaseRequest(const bool) STUB
 void StoreEntry::negativeCache() STUB

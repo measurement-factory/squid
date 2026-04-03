@@ -359,6 +359,10 @@ StoreEntry::mayStartSwapOut()
     // if there is a usable disk entry already, do not start over
     if (hasDisk() || Store::Root().hasReadableDiskEntry(*this)) {
         debugs(20, 3, "already did"); // we or somebody else created that entry
+        // hasReadableDiskEntry() may become false later, but we make our
+        // decision permanent now under the assumption that our caller has made
+        // a "that entry is fresher/better than this entry" decision (and
+        // signaled its decision by not purging that entry before calling us).
         swapOutDecision(MemObject::SwapOut::swImpossible);
         return false;
     }

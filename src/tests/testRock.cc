@@ -236,12 +236,14 @@ TestRock::testRockSwapOut()
         // without marking the old entry as deleted
         StoreEntry *const pe = addEntry(3);
 
-        CPPUNIT_ASSERT_EQUAL(SWAPOUT_NONE, pe->swap_status);
-        CPPUNIT_ASSERT_EQUAL(-1, pe->swap_dirn);
-        CPPUNIT_ASSERT_EQUAL(-1, pe->swap_filen);
+        // addEntry() above makes `pe` public, purging the old same-key entry
+        CPPUNIT_ASSERT_EQUAL(SWAPOUT_WRITING, pe->swap_status);
+        CPPUNIT_ASSERT_EQUAL(0, pe->swap_dirn);
+        CPPUNIT_ASSERT(pe->swap_filen >= 0);
         pe->unlock("TestRock::testRockSwapOut e#3");
 
         // after marking the old entry as deleted
+        // this marking is not necessary (see above), but it is good to test it
         StoreEntry *const pe2 = getEntry(4);
         CPPUNIT_ASSERT(pe2 != nullptr);
         pe2->release();
@@ -256,7 +258,7 @@ TestRock::testRockSwapOut()
 
         CPPUNIT_ASSERT_EQUAL(SWAPOUT_DONE, pe3->swap_status);
 
-        pe->unlock("TestRock::testRockSwapOut e#4");
+        pe3->unlock("TestRock::testRockSwapOut e#4");
     }
 
     // try to swap out entry to a used locked slot
@@ -292,18 +294,6 @@ TestRock::testRockSwapOut()
         CPPUNIT_ASSERT(!EBIT_TEST(pe->flags, RELEASE_REQUEST));
         CPPUNIT_ASSERT_EQUAL(SWAPOUT_DONE, pe2->swap_status);
         pe2->unlock("TestRock::testRockSwapOut e#5.2");
-
-        // Add another entry with the same key (#5.3). Now, there is no matching
-        // StoreEntry in store_table, so #5.2 is not marked for release and the
-        // "already did" check in mayStartSwapOut() blocks e#5.3 swapout. This
-        // sequence may not model a known real scenario, but it may be useful
-        // for detecting subtle (and possibly unwanted Store logic changes).
-        StoreEntry *const pe3 = addEntry(5);
-        CPPUNIT_ASSERT_EQUAL(SWAPOUT_NONE, pe3->swap_status);
-        CPPUNIT_ASSERT_EQUAL(-1, pe3->swap_dirn);
-        CPPUNIT_ASSERT_EQUAL(-1, pe3->swap_filen);
-        loop.run();
-        pe3->unlock("TestRock::testRockSwapOut e#5.3");
     }
 
     // We primed storage with 5 entries and also swapped out e#5.1 and e#5.2.

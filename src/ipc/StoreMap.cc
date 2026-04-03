@@ -701,6 +701,13 @@ Ipc::StoreMap::closeForUpdating(Update &update)
 
     /* the relative order of most operations is significant here */
 
+    // We are going to relocate the entry anchor, but we are preserving its
+    // update.entry->fileno or update.entry->mem().memCache.index because those
+    // that locked update.entry may expect those indexes and related metadata to
+    // remain unchanged. However, we must prevent newcomers from getting this
+    // stale information (without purging our being-updated entry!).
+    update.entry->hideFromNewcomers();
+
     /* splice the fresh chain prefix with the stale chain suffix */
     Slice &freshSplicingSlice = sliceAt(update.fresh.splicingPoint);
     const SliceId suffixStart = sliceAt(update.stale.splicingPoint).next; // may be negative
