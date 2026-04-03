@@ -168,7 +168,7 @@ main() {
     local topSrcDir=`pwd`
     local includedDirsRegex="$topSrcDir/($analyzedSourceDirectories)"
 
-    xunused --filter="$includedDirsRegex" --report-functions --special-functions $compileCommands > $xunusedLog 2>&1 || return
+    xunused --filter="$includedDirsRegex" --special-functions $compileCommands > $xunusedLog 2>&1 || return
 
     local unusedFunctionCount=`grep -c "is unused$" $xunusedLog`
     echo "Unused functions: $unusedFunctionCount"
