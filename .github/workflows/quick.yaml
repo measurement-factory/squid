@@ -70,12 +70,10 @@ jobs:
 
       - name: Build xunused
         run: |
-          cmake -S . -B build
-          cmake --build build
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug
+          cmake --build build --config Debug
+          cmake --install build --config Debug
         working-directory: xunused
-
-      - name: Set Path
-        run: echo "$GITHUB_WORKSPACE/xunused/build" >> $GITHUB_PATH
 
       - name: Perform AST Analysis
         run: ./test-suite/test-ast.sh
