@@ -98,7 +98,6 @@ PeerPoolMgr::handleOpenedConnection(const CommConnectCbParams &params)
     }
 
     if (params.flag != Comm::OK) {
-        NoteOutgoingConnectionFailure(peer.getRaw());
         checkpoint("conn opening failure"); // may retry
         return;
     }
@@ -146,7 +145,6 @@ PeerPoolMgr::handleSecuredPeer(Security::EncryptorAnswer &answer)
     assert(!answer.tunneled);
     if (answer.error.get()) {
         assert(!answer.conn);
-        // PeerConnector calls NoteOutgoingConnectionFailure() for us
         checkpoint("conn securing failure"); // may retry
         return;
     }

@@ -116,11 +116,8 @@ Security::PeerConnector::commCloseHandler(const CommCloseCbParams &params)
     static const auto d = MakeNamedErrorDetail("TLS_CONNECT_CLOSE");
     err->detailError(d);
 
-    if (serverConn) {
-        countFailingConnection();
-        serverConn->noteClosure();
-        serverConn = nullptr;
-    }
+    // Keep our fde::closing() serverConn, including its descriptor, for error
+    // reporting and fwdPconnPool updates; bail() triggers noteClosure().
 
     bail(err);
 }
@@ -128,7 +125,12 @@ Security::PeerConnector::commCloseHandler(const CommCloseCbParams &params)
 void
 Security::PeerConnector::commTimeoutHandler(const CommTimeoutCbParams &)
 {
-    debugs(83, 5, serverConnection() << " timedout. this=" << (void*)this);
+    const auto failure = OutgoingConnectionFailure(serverConn, Http::scNone);
+    const auto debugLevel = failure.important ? DBG_IMPORTANT : 5;
+    debugs(83, debugLevel, "ERROR: TLS connection establishment timeout" <<
+           Debug::Extra << "Squid-to-peer transport connection: " << serverConn);
+    failure.countAfterReport();
+
     const auto err = new ErrorState(ERR_SECURE_CONNECT_FAIL, Http::scGatewayTimeout, request.getRaw(), al);
     static const auto d = MakeNamedErrorDetail("TLS_CONNECT_TIMEOUT");
     err->detailError(d);
@@ -278,9 +280,14 @@ Security::PeerConnector::handleNegotiationResult(const Security::IoResult &resul
     }
 
     // TODO: Honor result.important when working in a reverse proxy role?
-    debugs(83, 2, "ERROR: Cannot establish a TLS connection" <<
+    const auto failure = OutgoingConnectionFailure(serverConn, Http::scNone);
+    const auto debugLevel = failure.important ? DBG_IMPORTANT : 2;
+    debugs(83, debugLevel, "ERROR: Cannot establish a TLS connection" <<
+           Debug::Extra << "Squid-to-peer transport connection: " << serverConnection() <<
            Debug::Extra << "problem: " << WithExtras(result) <<
-           Debug::Extra << "connection: " << serverConnection());
+           RawPointer("detail: ", result.errorDetail).asExtra());
+    failure.countAfterReport();
+
     recordNegotiationDetails();
     noteNegotiationError(result.errorDetail);
 }
@@ -352,6 +359,12 @@ Security::PeerConnector::sslCrtvdHandleReply(Ssl::CertValidationResponse::Pointe
             SSL_set_ex_data(session.get(), ssl_ex_index_ssl_errors,  (void *)errs);
             delete oldErrs;
         }
+
+        const auto failure = OutgoingConnectionFailure(serverConn, Http::scNone);
+        const auto debugLevel = failure.important ? DBG_IMPORTANT : 2;
+        debugs(83, debugLevel, "ERROR: sslcrtvalidator_program does not trust peer certificate" <<
+               Debug::Extra << "Squid-to-peer transport connection: " << serverConn);
+        failure.countAfterReport();
     } else if (validationResponse->resultCode != ::Helper::Okay)
         validatorFailed = true;
 
@@ -509,7 +522,7 @@ Security::PeerConnector::bail(ErrorState *error)
     if (const auto failingConnection = serverConn) {
         countFailingConnection();
         disconnect();
-        failingConnection->close();
+        failingConnection->close(); // may already be closing
     }
 
     callBack();
@@ -528,7 +541,6 @@ void
 Security::PeerConnector::countFailingConnection()
 {
     assert(serverConn);
-    NoteOutgoingConnectionFailure(serverConn->getPeer());
     // TODO: Calling PconnPool::noteUses() should not be our responsibility.
     if (noteFwdPconnUse && serverConn->isOpen())
         fwdPconnPool->noteUses(fd_table[serverConn->fd].pconn.uses);

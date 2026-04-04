@@ -306,5 +306,31 @@ operator <<(std::ostream &os, const WithExtras<T> &a) {
     return os;
 }
 
-#endif /* SQUID_SRC_BASE_IOMANIP_H */
+/// Allows convenient use of capturing lambda functions and other suitable
+/// functors as output stream manipulators. Typically used via a CallToPrint().
+/// PrintFunction must be callable with a single std::ostream reference.
+template <typename PrintFunction>
+class PrinterCall
+{
+public:
+    PrinterCall(const PrintFunction &f): function_(f) {}
+    PrintFunction function_;
+};
 
+template <typename PrintFunction>
+std::ostream &
+operator <<(std::ostream &os, const PrinterCall<PrintFunction> &printerCall)
+{
+    printerCall.function_(os);
+    return os;
+}
+
+/// convenience wrapper for creating PrinterCall<> objects
+template <typename PrintFunction>
+auto
+CallToPrint(const PrintFunction &f)
+{
+    return PrinterCall<PrintFunction>(f);
+}
+
+#endif /* SQUID_SRC_BASE_IOMANIP_H */
