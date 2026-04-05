@@ -58,9 +58,11 @@ tls_read_method(int fd, char *buf, int len)
     } else
         fd_table[fd].flags.read_pending = false;
 
+#if USE_OPENSSL
     // log any new/updated TLS secrets
     if (session)
         Security::KeyLoggingCheckpoint(*session);
+#endif
 
     return i;
 }
@@ -88,9 +90,11 @@ tls_write_method(int fd, const char *buf, int len)
         debugs(83, 8, "TLS FD " << fd << " session=" << (void*)session << " " << i << " bytes");
     }
 
+#if USE_OPENSSL
     // log any new/updated TLS secrets
     if (session)
         Security::KeyLoggingCheckpoint(*session);
+#endif
 
     return i;
 }
@@ -161,7 +165,11 @@ CreateSession(const Security::ContextPointer &ctx, const Comm::ConnectionPointer
 #endif /* HAVE_LIBGNUTLS */
 
     if (session) {
+#if USE_OPENSSL
         Security::KeyLoggingStart(*session, caller);
+#else
+        (void)caller;
+#endif
 
         const int fd = conn->fd;
 
@@ -203,6 +211,7 @@ CreateSession(const Security::ContextPointer &ctx, const Comm::ConnectionPointer
     (void)ctx;
     (void)opts;
     (void)type;
+    (void)caller;
     (void)squidCtx;
 #endif /* USE_OPENSSL || HAVE_LIBGNUTLS */
     return false;

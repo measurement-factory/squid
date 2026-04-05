@@ -31,6 +31,7 @@ Security::KeyLog::KeyLog(ConfigParser &parser)
     assert(!logFormat);
     type = Log::Format::CLF_NONE;
 
+#if USE_OPENSSL
 #if HAVE_LIBSSL_SSL_CTX_SET_KEYLOG_CALLBACK
     debugs(33, 3, "tls_key_log supports TLS v1.3+");
 #else
@@ -38,6 +39,9 @@ Security::KeyLog::KeyLog(ConfigParser &parser)
            "TLS v1.3+ connections (if any) because this Squid was built with OpenSSL library version " <<
            "that does not support SSL_CTX_set_keylog_callback(3ssl) API: " << OpenSSL_version(OPENSSL_VERSION));
 #endif /* HAVE_LIBSSL_SSL_CTX_SET_KEYLOG_CALLBACK */
+#else
+    assert(!"tls_key_log is declared to require USE_OPENSSL");
+#endif /* USE_OPENSSL */
 }
 
 void
