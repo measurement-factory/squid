@@ -40,7 +40,7 @@ public:
 
     /* prohibit copying to ensure single tracker for each activity */
     StartupActivityTracker(const StartupActivityTracker &) = delete;
-    StartupActivityTracker &operator =(StartupActivityTracker &) = delete;
+    StartupActivityTracker &operator =(const StartupActivityTracker &) = delete;
     /* prohibit moving assignment to avoid surprising end to old activity tracking */
     StartupActivityTracker &operator =(StartupActivityTracker &&) = delete;
 
