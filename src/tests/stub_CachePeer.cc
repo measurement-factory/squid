@@ -11,8 +11,12 @@
 #define STUB_API "CachePeer.cc"
 #include "tests/STUB.h"
 
+#include "anyp/forward.h"
 #include "CachePeer.h"
+#include "CachePeers.h"
+
 void CachePeer::rename(const char *) STUB
 time_t CachePeer::connectTimeout() const STUB_RETVAL(0)
 std::ostream &operator <<(std::ostream &os, const CachePeer &) STUB_RETVAL(os)
+bool IsConflicting(const AnyP::PortCfg &, const CachePeer &) STUB_RETVAL(false)
 

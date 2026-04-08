@@ -2075,6 +2075,11 @@ Configuration::Component<CachePeers*>::Reconfigure(SmoothReconfiguration &sr, Ca
     if (findCachePeerByNameIn(sr.fresh.cachePeers->parsed, newPeer->name))
         throw TextException("cache_peer specified twice", Here());
 
+    for (auto p = HttpPortList; p; p = p->next) {
+        if (!p->stale && IsConflicting(*p, *newPeer))
+            throw TextException("the cache_peer looks like this host", Here());
+    }
+
     Assure(peers == Config.peers);
     if (const auto oldPeer = findCachePeerByName(newPeer->name))
         newPeer->copyRigidFrom(*oldPeer);
@@ -3068,13 +3073,14 @@ Configuration::Component<AnyP::PortCfgPointer>::FinishSmoothReconfiguration(Smoo
 
 template <>
 void
-Configuration::Component<AnyP::PortCfgPointer>::Reconfigure(SmoothReconfiguration &, AnyP::PortCfgPointer &ports, ConfigParser &)
+Configuration::Component<AnyP::PortCfgPointer>::Reconfigure(SmoothReconfiguration &sr, AnyP::PortCfgPointer &ports, ConfigParser &)
 {
     static const SBuf protoName("HTTPS");
     const auto firstNewCfg = ParsePortCfg(protoName);
-    UpdatePortCfg(ports, *firstNewCfg);
+
+    UpdatePortCfg(ports, *firstNewCfg, sr);
     if (const auto ipV4clone = firstNewCfg->next)
-        UpdatePortCfg(ports, *ipV4clone);
+        UpdatePortCfg(ports, *ipV4clone, sr);
 }
 
 #include "cf_parser.cci"
