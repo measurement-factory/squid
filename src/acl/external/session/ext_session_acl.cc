@@ -150,8 +150,6 @@ static void init_db(void)
     }
 }
 
-int session_is_active = 0;
-
 static size_t
 dataSize(DB_ENTRY *data)
 {

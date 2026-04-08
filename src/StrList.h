@@ -23,10 +23,6 @@ void strListAdd(String * str, const char *item, char del);
 /// Appends the given item of a given size to a delimiter-separated list in str.
 void strListAdd(String &str, const char *item, const size_t itemSize, const char del = ',');
 
-/// Appends the given item to a delimiter-separated list in str.
-/// Use strListAdd(c-string) for c-string items with unknown length.
-void strListAdd(String &str, const SBuf &item, char delimiter = ',');
-
 int strListIsMember(const String * str, const SBuf &item, char del);
 int strListIsSubstr(const String * list, const char *s, char del);
 /// Iterates through delimiter-separated and optionally "quoted" list members.

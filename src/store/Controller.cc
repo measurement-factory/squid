@@ -462,12 +462,6 @@ Store::Controller::transientsReader(const StoreEntry &e) const
     return transients && e.hasTransients() && transients->isReader(e);
 }
 
-bool
-Store::Controller::transientsWriter(const StoreEntry &e) const
-{
-    return transients && e.hasTransients() && transients->isWriter(e);
-}
-
 int64_t
 Store::Controller::accumulateMore(StoreEntry &entry) const
 {

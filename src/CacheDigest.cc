@@ -64,17 +64,6 @@ CacheDigest::~CacheDigest()
     xfree(mask);
 }
 
-CacheDigest *
-CacheDigest::clone() const
-{
-    CacheDigest *cl = new CacheDigest(capacity, bits_per_entry);
-    cl->count = count;
-    cl->del_count = del_count;
-    assert(mask_size == cl->mask_size);
-    memcpy(cl->mask, mask, mask_size);
-    return cl;
-}
-
 void
 CacheDigest::clear()
 {
@@ -136,14 +125,6 @@ CacheDigest::add(const cache_key * key)
     ++count;
 }
 
-void
-CacheDigest::remove(const cache_key * key)
-{
-    assert(key);
-    ++del_count;
-    /* we do not support deletions from the digest */
-}
-
 /* returns mask utilization parameters */
 static void
 cacheDigestStats(const CacheDigest * cd, CacheDigestStats * stats)
@@ -185,24 +166,6 @@ CacheDigest::usedMaskPercent() const
     CacheDigestStats stats;
     cacheDigestStats(this, &stats);
     return xpercent(stats.bit_on_count, stats.bit_count);
-}
-
-void
-cacheDigestGuessStatsUpdate(CacheDigestGuessStats * stats, int real_hit, int guess_hit)
-{
-    assert(stats);
-
-    if (real_hit) {
-        if (guess_hit)
-            ++stats->trueHits;
-        else
-            ++stats->falseMisses;
-    } else {
-        if (guess_hit)
-            ++stats->falseHits;
-        else
-            ++stats->trueMisses;
-    }
 }
 
 void

@@ -396,12 +396,6 @@ error:
 }
 
 const char *
-checkNullString(const char *p)
-{
-    return p ? p : "(NULL)";
-}
-
-const char *
 String::pos(char const *aString) const
 {
     if (undefined())
@@ -417,39 +411,11 @@ String::pos(char const ch) const
     return strchr(termedBuf(), ch);
 }
 
-const char *
-String::rpos(char const ch) const
-{
-    if (undefined())
-        return nullptr;
-    return strrchr(termedBuf(), (ch));
-}
-
-String::size_type
-String::find(char const ch) const
-{
-    const char *c;
-    c=pos(ch);
-    if (c==nullptr)
-        return npos;
-    return c-rawBuf();
-}
-
 String::size_type
 String::find(char const *aString) const
 {
     const char *c;
     c=pos(aString);
-    if (c==nullptr)
-        return npos;
-    return c-rawBuf();
-}
-
-String::size_type
-String::rfind(char const ch) const
-{
-    const char *c;
-    c=rpos(ch);
     if (c==nullptr)
         return npos;
     return c-rawBuf();

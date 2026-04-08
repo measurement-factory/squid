@@ -794,15 +794,6 @@ Ssl::Initialize(void)
 }
 
 bool
-Ssl::InitServerContext(Security::ContextPointer &ctx, AnyP::PortCfg &)
-{
-    if (!ctx)
-        return false;
-
-    return true;
-}
-
-bool
 Ssl::InitClientContext(Security::ContextPointer &ctx, Security::PeerOptions &peer, Security::ParsedPortFlags fl)
 {
     if (!ctx)
@@ -992,28 +983,6 @@ sslGetUserCertificatePEM(SSL *ssl)
         return Ssl::GetX509PEM(cert);
 
     return SBuf();
-}
-
-SBuf
-sslGetUserCertificateChainPEM(SSL *ssl)
-{
-    assert(ssl);
-
-    auto chain = SSL_get_peer_cert_chain(ssl);
-
-    if (!chain)
-        return sslGetUserCertificatePEM(ssl);
-
-    Ssl::BIO_Pointer bio(BIO_new(BIO_s_mem()));
-
-    for (int i = 0; i < sk_X509_num(chain); ++i) {
-        X509 *cert = sk_X509_value(chain, i);
-        PEM_write_bio_X509(bio.get(), cert);
-    }
-
-    char *ptr;
-    const auto len = BIO_get_mem_data(bio.get(), &ptr);
-    return SBuf(ptr, len);
 }
 
 /// Create SSL context and apply ssl certificate and private key to it.

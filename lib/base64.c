@@ -214,21 +214,6 @@ static const char base64_encode_table[64] =
     "0123456789+/";
 
 void
-base64_encode_raw(char *dst, size_t length, const uint8_t *src)
-{
-    encode_raw(base64_encode_table, dst, length, src);
-}
-
-void
-base64_encode_group(char *dst, uint32_t group)
-{
-    *dst++ = ENCODE(base64_encode_table, (group >> 18));
-    *dst++ = ENCODE(base64_encode_table, (group >> 12));
-    *dst++ = ENCODE(base64_encode_table, (group >> 6));
-    *dst++ = ENCODE(base64_encode_table, group);
-}
-
-void
 base64_encode_init(struct base64_encode_ctx *ctx)
 {
     ctx->word = ctx->bits = 0;

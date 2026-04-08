@@ -461,12 +461,6 @@ Fs::Ufs::RebuildState::getNextFile(sfileno * filn_p, int *)
 }
 
 bool
-Fs::Ufs::RebuildState::error() const
-{
-    return false;
-}
-
-bool
 Fs::Ufs::RebuildState::isDone() const
 {
     return _done;

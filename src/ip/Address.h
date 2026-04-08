@@ -59,7 +59,6 @@ public:
     Address(const struct in6_addr &);
     Address(const struct sockaddr_in6 &);
     Address(const struct hostent &);
-    Address(const struct addrinfo &);
     Address(const char*);
     /*@}*/
 
@@ -382,7 +381,6 @@ operator << (std::ostream &os, const Address &ipa)
 class Address_list
 {
 public:
-    Address_list() { next = nullptr; };
     ~Address_list() { if (next) delete next; next = nullptr; };
 
     Address s;
@@ -390,8 +388,6 @@ public:
 };
 
 } // namespace Ip
-
-void parse_IpAddress_list_token(Ip::Address_list **, char *);
 
 #endif /* SQUID_SRC_IP_ADDRESS_H */
 

@@ -95,19 +95,3 @@ AnyP::operator <<(std::ostream &os, const Host &host)
     return os;
 }
 
-std::ostream &
-AnyP::operator <<(std::ostream &os, const Bracketed &hostWrapper)
-{
-    bool addBrackets = false;
-    if (const auto ip = hostWrapper.host.ip())
-        addBrackets = ip->isIPv6();
-
-    if (addBrackets)
-        os << '[';
-    os << hostWrapper.host;
-    if (addBrackets)
-        os << ']';
-
-    return os;
-}
-

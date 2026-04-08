@@ -89,7 +89,6 @@ public:
 
     Class *operator ->() const { return Base::operator ->()->theObject; }
     Class &operator *() const { return *Base::operator *().theObject; }
-    const Class *getRaw() const { return Base::getRaw()->theObject; }
     Class *getRaw() { return Base::getRaw()->theObject; }
 };
 

@@ -27,7 +27,6 @@ void DelayedAsyncCalls::delay(const AsyncCall::Pointer &) STUB
 void DelayedAsyncCalls::schedule() STUB
 
 #include "comm.h"
-bool comm_iocallbackpending(void) STUB_RETVAL(false)
 int commSetNonBlocking(int) STUB_RETVAL(Comm::COMM_ERROR)
 int commUnsetNonBlocking(int) STUB_RETVAL(-1)
 void commSetCloseOnExec(int) STUB_NOP
@@ -55,7 +54,6 @@ void commCloseAllSockets(void) STUB
 void checkTimeouts(void) STUB
 AsyncCall::Pointer comm_add_close_handler(int, CLCB *, void *) STUB
 void comm_add_close_handler(int, AsyncCall::Pointer &) STUB
-void comm_remove_close_handler(int, CLCB *, void *) STUB
 void comm_remove_close_handler(int, AsyncCall::Pointer &)STUB
 int comm_udp_recvfrom(int, void *, size_t, int, Ip::Address &) STUB_RETVAL(-1)
 int comm_udp_recv(int, void *, size_t, int) STUB_RETVAL(-1)

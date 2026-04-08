@@ -43,12 +43,6 @@ SwapChecksum24::set(int32_t f1, uint64_t f2)
         static_cast<uint32_t>(f2 & 0xFFFFFFFF));
 }
 
-std::ostream &
-SwapChecksum24::print(std::ostream &os) const
-{
-    return os << raw[0] << '-' << raw[1] << '-' << raw[2];
-}
-
 bool
 StoreSwapLogData::sane() const
 {

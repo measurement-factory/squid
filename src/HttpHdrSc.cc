@@ -189,77 +189,12 @@ HttpHdrSc::parse(const String * str)
     return !sc->targets.empty();
 }
 
-/// XXX: this function should be in HttpHdrScTarget.cc
-void
-HttpHdrScTarget::packInto(Packable * p) const
-{
-    http_hdr_sc_type flag;
-    int pcount = 0;
-    assert (p);
-
-    for (flag = SC_NO_STORE; flag < SC_ENUM_END; ++flag) {
-        if (isSet(flag) && flag != SC_OTHER) {
-
-            /* print option name */
-            p->appendf((pcount ? ", %s" : "%s"), ScAttrs[flag].name);
-
-            /* handle options with values */
-
-            if (flag == SC_MAX_AGE)
-                p->appendf("=%d", (int) max_age);
-
-            if (flag == SC_CONTENT)
-                p->appendf("=\"" SQUIDSTRINGPH "\"", SQUIDSTRINGPRINT(content_));
-
-            ++pcount;
-        }
-    }
-
-    if (hasTarget())
-        p->appendf(";" SQUIDSTRINGPH, SQUIDSTRINGPRINT(target));
-}
-
-void
-HttpHdrSc::packInto(Packable * p) const
-{
-    assert(p);
-    for (const auto &t : targets) {
-        t.packInto(p);
-    }
-}
-
-/* negative max_age will clean old max_Age setting */
-void
-HttpHdrSc::setMaxAge(char const *target, int max_age)
-{
-    HttpHdrScTarget *sct = findTarget(target);
-
-    if (!sct) {
-        sct = &targets.emplace_back(target);
-    }
-
-    sct->maxAge(max_age);
-}
-
 void
 HttpHdrSc::updateStats(StatHist * hist) const
 {
     for (auto &t : targets) {
         t.updateStats(hist);
     }
-}
-
-void
-httpHdrScTargetStatDumper(StoreEntry * sentry, int, double val, double, int count)
-{
-    extern const HttpHeaderStat *dump_stat;     /* argh! */
-    const int id = (int) val;
-    const bool valid_id = id >= 0 && id < SC_ENUM_END;
-    const char *name = valid_id ? ScAttrs[id].name : "INVALID";
-
-    if (count || valid_id)
-        storeAppendPrintf(sentry, "%2d\t %-20s\t %5d\t %6.2f\n",
-                          id, name, count, xdiv(count, dump_stat->scParsedCount));
 }
 
 void

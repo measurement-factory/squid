@@ -192,8 +192,6 @@ static bool clientPingHasFinished(ping_data const *aPing);
 void prepareLogWithRequestDetails(HttpRequest *, const AccessLogEntryPointer &);
 static void ClientSocketContextPushDeferredIfNeeded(Http::StreamPointer deferredRequest, ConnStateData * conn);
 
-char *skipLeadingSpace(char *aString);
-
 void
 clientUpdateStatCounters(const LogTags &logType)
 {
@@ -1034,17 +1032,6 @@ ConnStateData::endingShutdown()
     // swanSong() in the close handler will cleanup.
     if (Comm::IsConnOpen(clientConnection))
         clientConnection->close();
-}
-
-char *
-skipLeadingSpace(char *aString)
-{
-    char *result = aString;
-
-    while (xisspace(*aString))
-        ++aString;
-
-    return result;
 }
 
 /**

@@ -19,7 +19,6 @@ Ip::Address::Address(const struct sockaddr_in &) STUB
 Ip::Address::Address(const struct in6_addr &) STUB
 Ip::Address::Address(const struct sockaddr_in6 &) STUB
 Ip::Address::Address(const struct hostent &) STUB
-Ip::Address::Address(const struct addrinfo &) STUB
 Ip::Address::Address(const char*) STUB
 Ip::Address& Ip::Address::operator =(struct sockaddr_in const &) STUB_RETVAL(*this)
 Ip::Address& Ip::Address::operator =(struct sockaddr_storage const &) STUB_RETVAL(*this)
@@ -70,7 +69,6 @@ void Ip::Address::getSockAddr(struct sockaddr_in &) const STUB
 bool Ip::Address::getInAddr(struct in_addr &) const STUB_RETVAL(false)
 void Ip::Address::getSockAddr(struct sockaddr_in6 &) const STUB
 void Ip::Address::getInAddr(struct in6_addr &) const STUB
-void parse_IpAddress_list_token(Ip::Address_list **, char *) STUB
 
 //#include "ip/forward.h"
 
@@ -107,7 +105,6 @@ Ip::Intercept Ip::Interceptor;
 
 #include "ip/NfMarkConfig.h"
 Ip::NfMarkConfig Ip::NfMarkConfig::Parse(const SBuf &) STUB_RETSTATREF(Ip::NfMarkConfig)
-nfmark_t Ip::NfMarkConfig::applyToMark(nfmark_t) const STUB_RETVAL(0)
 std::ostream &Ip::operator <<(std::ostream &os, Ip::NfMarkConfig) STUB_RETVAL(os)
 
 #include "ip/tools.h"

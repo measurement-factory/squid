@@ -52,18 +52,6 @@ public:
             lock = cbdataReference(o->toCbdata());
     }
 
-    /// support assigning a child cbc pointer to a parent cbc pointer
-    template <typename Other>
-    CbcPointer &operator =(const CbcPointer<Other> &o) {
-        if (this != &o) { // assignment to self
-            clear();
-            cbc = o.raw(); // so that set() is accurate
-            if (o.valid())
-                lock = cbdataReference(o->toCbdata());
-        }
-        return *this;
-    }
-
     void clear(); ///< make pointer not set; does not invalidate cbdata
 
     std::ostream &print(std::ostream &os) const;

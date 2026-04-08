@@ -30,13 +30,7 @@ public:
     static Owner *Init(const char *const shmId, const Ipc::Mem::PoolId stackId, const unsigned int capacity, const size_t pageSize);
 
     PagePool(const char *const id);
-
-    unsigned int capacity() const { return pageIndex->capacity(); }
     size_t pageSize() const { return pageIndex->pageSize(); }
-    /// lower bound for the number of free pages
-    unsigned int size() const { return pageIndex->size(); }
-    /// approximate number of shared memory pages used now
-    size_t level() const { return capacity() - size(); }
     /// approximate number of shared memory pages used now for given purpose
     size_t level(const int purpose) const;
 

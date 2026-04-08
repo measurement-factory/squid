@@ -80,8 +80,6 @@ public:
     ServiceSet();
 
 protected:
-    virtual bool replace(Pos &pos) const { return has(++pos); }
-    virtual bool advance(Pos &) const { return false; }
 };
 
 // corner case: a group consisting of one service
@@ -91,8 +89,6 @@ public:
     SingleService(const String &aServiceKey);
 
 protected:
-    virtual bool replace(Pos &) const { return false; }
-    virtual bool advance(Pos &) const { return false; }
 };
 
 /// a group of services that must be used one after another
@@ -102,8 +98,6 @@ public:
     ServiceChain();
 
 protected:
-    virtual bool replace(Pos &) const { return false; }
-    virtual bool advance(Pos &pos) const { return has(++pos); }
 };
 
 /// a temporary service chain built upon another service request
