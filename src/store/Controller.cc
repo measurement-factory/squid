@@ -486,6 +486,7 @@ Store::Controller::evictIfFound(const cache_key *key)
 
     if (StoreEntry *entry = peekAtLocal(key)) {
         debugs(20, 5, "marking local in-transit " << *entry);
+        assert(entry->publicKey()); // release() below must cover unattached Stores
         entry->release(true);
         return;
     }
@@ -784,8 +785,10 @@ Store::Controller::syncCollapsed(const sfileno xitIndex)
     transients->status(*collapsed, entryStatus);
 
     if (entryStatus.waitingToBeFreed) {
-        debugs(20, 3, "will release " << *collapsed << " due to waitingToBeFreed");
-        collapsed->release(true); // may already be marked
+        // Just hide: Purging same-key cached entries (if any) is the
+        // responsibility of the worker that marked xitIndex entry for deletion.
+        debugs(20, 3, "hiding " << *collapsed << " due to waitingToBeFreed");
+        collapsed->hideFromNewcomers();
     }
 
     if (transients->isWriter(*collapsed))

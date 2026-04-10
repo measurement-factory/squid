@@ -90,7 +90,7 @@ public:
     /// Can we create and initialize Transients?
     static bool Enabled() { return EntryLimit(); }
 
-protected:
+private:
     void addEntry(StoreEntry*, const cache_key *, const Store::IoStatus);
     void addWriterEntry(StoreEntry &, const cache_key *);
     void addReaderEntry(StoreEntry &, const cache_key *);

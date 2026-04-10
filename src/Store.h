@@ -10,6 +10,7 @@
 #define SQUID_SRC_STORE_H
 
 #include "base/DelayedAsyncCalls.h"
+#include "base/OnOff.h"
 #include "base/Packable.h"
 #include "base/Range.h"
 #include "base/RefCount.h"
@@ -38,6 +39,9 @@ class StoreEntry : public hash_link, public Packable
 {
 
 public:
+    /// whether to call evictCached()
+    using EvictCached = OnOff;
+
     bool checkDeferRead(int fd) const;
 
     const char *getMD5Text() const;
@@ -131,7 +135,15 @@ public:
     /// Either fills this entry with private key or changes the existing key
     /// from public to private.
     /// \param permanent whether this entry should be private forever.
-    void setPrivateKey(const bool shareable, const bool permanent);
+    /// \param evictCached whether to call evictCached() for a public entry
+    void setPrivateKey(bool shareable, bool permanent, EvictCached = EvictCached::on);
+
+    /// For public entries, permanently changes the entry key to private while
+    /// still allowing entry sharing by those who have already locked the entry,
+    /// as if calling setPrivateKey(true, true, EvictCached::off).
+    /// For private entries, just ensures that the entry remains private, as if
+    /// calling setPrivateKey(sharebleWhenPrivate, true, EvictCached::off).
+    void hideFromNewcomers();
 
     void expireNow();
     /// Makes the StoreEntry private and marks the corresponding entry

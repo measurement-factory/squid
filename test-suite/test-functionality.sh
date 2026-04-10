@@ -219,6 +219,7 @@ main() {
             accumulate-headers-after-304
             upgrade-protocols
             cache-response
+            cache-refresh-response
             proxy-collapsed-forwarding
             hit-revalidation
             busy-restart

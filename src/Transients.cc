@@ -16,6 +16,7 @@
 #include "ipc/mem/Pages.h"
 #include "MemObject.h"
 #include "mime_header.h"
+#include "sbuf/Stream.h"
 #include "SquidConfig.h"
 #include "SquidMath.h"
 #include "StoreStats.h"
@@ -203,7 +204,10 @@ Transients::monitorIo(StoreEntry *e, const cache_key *key, const Store::IoStatus
 
     const auto index = e->mem_obj->xitTable.index;
     if (const auto old = locals->at(index)) {
-        assert(old == e);
+        if (old != e)
+            throw TextException(ToSBuf("entry collision: ", *old, " blocks ", *e), Here());
+        debugs(20, 5, "already " << direction << "-monitoring: " << *old);
+        Assure(direction == old->mem().xitTable.io);
     } else {
         // We do not lock e because we do not want to prevent its destruction;
         // e is tied to us via mem_obj so we will know when it is destructed.

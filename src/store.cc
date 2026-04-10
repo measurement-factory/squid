@@ -547,6 +547,16 @@ getKeyCounter(void)
     return key_counter;
 }
 
+void
+StoreEntry::hideFromNewcomers()
+{
+    debugs(20, 7, *this);
+    if (EBIT_TEST(flags, KEY_PRIVATE))
+        setPrivateKey(shareableWhenPrivate, true, EvictCached::off);
+    else
+        setPrivateKey(true, true, EvictCached::off);
+}
+
 /* RBC 20050104 AFAICT this should become simpler:
  * rather than reinserting with a special key it should be marked
  * as 'released' and then cleaned up when refcounting indicates.
@@ -557,9 +567,9 @@ getKeyCounter(void)
  * concept'.
  */
 void
-StoreEntry::setPrivateKey(const bool shareable, const bool permanent)
+StoreEntry::setPrivateKey(const bool shareable, const bool permanent, const EvictCached evictCached)
 {
-    debugs(20, 3, shareable << permanent << ' ' << *this);
+    debugs(20, 3, shareable << permanent << bool(evictCached) << ' ' << *this);
     if (permanent)
         EBIT_SET(flags, RELEASE_REQUEST); // may already be set
     if (!shareable)
@@ -569,7 +579,8 @@ StoreEntry::setPrivateKey(const bool shareable, const bool permanent)
         return;
 
     if (key) {
-        Store::Root().evictCached(*this); // all caches/workers will know
+        if (evictCached == EvictCached::on)
+            Store::Root().evictCached(*this); // all caches/workers will know
         hashDelete();
     }
 
@@ -579,7 +590,7 @@ StoreEntry::setPrivateKey(const bool shareable, const bool permanent)
 
     assert(hash_lookup(store_table, newkey) == nullptr);
     EBIT_SET(flags, KEY_PRIVATE);
-    shareableWhenPrivate = shareable;
+    shareableWhenPrivate = shareable; // XXX: May overwrite an earlier decision _not_ to share.
     hashInsert(newkey);
 }
 
@@ -622,6 +633,7 @@ StoreEntry::setPublicKey(const KeyScope scope)
     try {
         EntryGuard newVaryMarker(adjustVary(), "setPublicKey+failure");
         const cache_key *pubKey = calcPublicKey(scope);
+        Store::Root().evictIfFound(pubKey);
         Store::Root().addWriting(this, pubKey);
         forcePublicKey(pubKey);
         newVaryMarker.unlockAndReset("setPublicKey+success");
