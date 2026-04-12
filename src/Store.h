@@ -313,6 +313,11 @@ public:
         return !EBIT_TEST(flags, KEY_PRIVATE) || shareableWhenPrivate;
     }
 
+    /// Sets the scope of the existing empty public entry.
+    /// The basic use case is to switch ksRevalidation to ksDefault
+    /// for a collapsed entry.
+    void forcePublicKeyScope(KeyScope scope);
+
 #if USE_ADAPTATION
     /// call back producer when more buffer space is available
     void deferProducer(const AsyncCall::Pointer &producer);

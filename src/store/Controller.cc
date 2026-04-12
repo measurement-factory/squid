@@ -789,6 +789,8 @@ Store::Controller::syncCollapsed(const sfileno xitIndex)
         // responsibility of the worker that marked xitIndex entry for deletion.
         debugs(20, 3, "hiding " << *collapsed << " due to waitingToBeFreed");
         collapsed->hideFromNewcomers();
+    } else {
+        collapsed->forcePublicKeyScope(ksDefault); // reset ksRevalidation in reading workers
     }
 
     if (transients->isWriter(*collapsed))

@@ -1034,7 +1034,6 @@ void
 Ipc::StoreMapAnchor::setKey(const cache_key *const aKey)
 {
     memcpy(key, aKey, sizeof(key));
-    waitingToBeFreed = Store::Root().markedForDeletion(aKey);
 }
 
 bool

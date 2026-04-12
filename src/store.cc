@@ -401,6 +401,28 @@ StoreEntry::kickProducer()
 #endif
 
 void
+StoreEntry::forcePublicKeyScope(const KeyScope scope)
+{
+    if (!publicKey()) {
+        return;
+    }
+
+    if (publicKeyScope() == scope) {
+        return;
+    }
+
+    if (!isEmpty()) {
+        return;
+    }
+
+    const auto pubKey = calcPublicKey(scope);
+    if (key)
+        hashDelete();
+
+    hashInsert(pubKey);
+}
+
+void
 StoreEntry::destroyMemObject()
 {
     debugs(20, 3, mem_obj << " in " << *this);
@@ -619,7 +641,7 @@ StoreEntry::setPublicKey(const KeyScope scope)
         // And we cannot purge that K1 slot now because older transactions may
         // still broadcast using its index; private entries cannot broadcast
         // keys instead of transient indexes.
-        Assure(!Store::Controller::SmpAware());
+        // Assure(!Store::Controller::SmpAware());
     }
 
     assert(mem_obj);

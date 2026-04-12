@@ -282,9 +282,7 @@ clientReplyContext::processExpired()
 
     // TODO: Consider also allowing regular (non-collapsed) revalidation hits.
     // TODO: support collapsed revalidation for Vary-controlled entries
-    bool collapsingAllowed = Config.onoff.collapsed_forwarding &&
-                             !Store::Controller::SmpAware() &&
-                             http->request->vary_headers.isEmpty();
+    bool collapsingAllowed = Config.onoff.collapsed_forwarding && http->request->vary_headers.isEmpty();
 
     StoreEntry *entry = nullptr;
     if (collapsingAllowed) {
