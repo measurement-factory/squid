@@ -712,6 +712,8 @@ Store::Controller::updateOnNotModified(StoreEntry *old, StoreEntry &e304)
     if (old->swap_dirn > -1)
         disks->updateHeaders(old);
 
+    Store::Root().setUpdated(e304);
+
     return true;
 }
 
@@ -784,7 +786,13 @@ Store::Controller::syncCollapsed(const sfileno xitIndex)
     Transients::EntryStatus entryStatus;
     transients->status(*collapsed, entryStatus);
 
-    if (entryStatus.waitingToBeFreed) {
+    if (entryStatus.wasUpdated) {
+        const auto key = collapsed->calcPublicKey(ksDefault);
+        if (auto entry = peek(key)) {
+            entry->hideFromNewcomers();
+        }
+        collapsed->forcePublicKeyScope(ksDefault);
+    } else if (entryStatus.waitingToBeFreed) {
         // Just hide: Purging same-key cached entries (if any) is the
         // responsibility of the worker that marked xitIndex entry for deletion.
         debugs(20, 3, "hiding " << *collapsed << " due to waitingToBeFreed");
@@ -904,6 +912,13 @@ Store::Controller::anchorToCache(StoreEntry &entry)
     debugs(20, 7, "skipping not yet cached " << entry);
     entry.setCollapsingRequirement(true);
     return false;
+}
+
+void
+Store::Controller::setUpdated(const StoreEntry &entry)
+{
+    assert(entry.hasTransients());
+    transients->setUpdated(entry);
 }
 
 bool

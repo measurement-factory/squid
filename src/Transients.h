@@ -33,6 +33,7 @@ public:
     public:
         bool hasWriter = false; ///< whether some worker is storing the entry
         bool waitingToBeFreed = false; ///< whether the entry was marked for deletion
+        bool wasUpdated = false;
     };
 
     Transients();
@@ -50,6 +51,8 @@ public:
 
     /// copies current shared entry metadata into entryStatus
     void status(const StoreEntry &e, EntryStatus &entryStatus) const;
+
+    void setUpdated(const StoreEntry &);
 
     /// number of entry readers some time ago
     int readers(const StoreEntry &e) const;

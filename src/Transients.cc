@@ -289,6 +289,14 @@ Transients::status(const StoreEntry &entry, Transients::EntryStatus &entryStatus
                          map->writeableEntry(idx) : map->readableEntry(idx);
     entryStatus.hasWriter = anchor.writing();
     entryStatus.waitingToBeFreed = anchor.waitingToBeFreed;
+    entryStatus.wasUpdated = anchor.wasUpdated;
+}
+
+void
+Transients::setUpdated(const StoreEntry &entry)
+{
+    assert(entry.hasTransients());
+    map->setUpdated(entry.mem_obj->xitTable.index);
 }
 
 void

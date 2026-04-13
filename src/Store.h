@@ -318,6 +318,8 @@ public:
     /// for a collapsed entry.
     void forcePublicKeyScope(KeyScope scope);
 
+    const cache_key *calcPublicKey(KeyScope) const;
+
 #if USE_ADAPTATION
     /// call back producer when more buffer space is available
     void deferProducer(const AsyncCall::Pointer &producer);
@@ -343,7 +345,6 @@ private:
     bool checkTooBig() const;
     void forcePublicKey(const cache_key *newkey);
     StoreEntry *adjustVary();
-    const cache_key *calcPublicKey(KeyScope) const;
     KeyScope publicKeyScope() const;
 
     /// flags [truncated or too big] entry with ENTRY_BAD_LENGTH and releases it

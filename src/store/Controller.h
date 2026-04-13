@@ -122,6 +122,8 @@ public:
     /// \returns an iterator for all Store entries
     StoreSearch *search();
 
+    void setUpdated(const StoreEntry &);
+
     /// whether there are any SMP-aware storages
     static bool SmpAware();
 

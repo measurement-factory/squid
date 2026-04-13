@@ -65,6 +65,13 @@ Ipc::StoreMap::StoreMap(const SBuf &aPath): cleaner(nullptr), path(aPath),
     assert(entryLimit() <= sliceLimit()); // at least one slice per entry
 }
 
+void
+Ipc::StoreMap::setUpdated(const sfileno fileno)
+{
+    Anchor &inode = anchorAt(fileno);
+    inode.wasUpdated = true;
+}
+
 int
 Ipc::StoreMap::compareVersions(const sfileno fileno, time_t newVersion) const
 {
@@ -716,7 +723,6 @@ Ipc::StoreMap::closeForUpdating(Update &update)
     else
         Must(freshSplicingSlice.next == suffixStart);
     // either way, fresh chain uses the stale chain suffix now
-
     // make the fresh anchor/chain readable for everybody
     update.fresh.anchor->lock.switchExclusiveToShared();
     // but the fresh anchor is still invisible to anybody but us
@@ -1025,7 +1031,7 @@ Ipc::StoreMap::sliceAt(const SliceId sliceId) const
 
 /* Ipc::StoreMapAnchor */
 
-Ipc::StoreMapAnchor::StoreMapAnchor(): start(0), splicingPoint(-1)
+Ipc::StoreMapAnchor::StoreMapAnchor(): start(0), splicingPoint(-1), wasUpdated(false)
 {
     // keep in sync with rewind()
 }

@@ -113,6 +113,8 @@ public:
     /// where the updated chain prefix containing metadata/headers ends [update]
     /// if unset, this anchor points to a chain that was never updated
     std::atomic<StoreMapSliceId> splicingPoint;
+
+    std::atomic<bool> wasUpdated;
 };
 
 /// an array of shareable Items
@@ -254,6 +256,8 @@ public:
     /// Returns +2 if the mapped entry does not exist; -1/0/+1 otherwise.
     /// Comparison may be inaccurate unless the caller is a lock holder.
     int compareVersions(const sfileno oldFileno, time_t newVersion) const;
+
+    void setUpdated(sfileno);
 
     /// finds, locks, and returns an anchor for an empty key position,
     /// erasing the old entry (if any)
