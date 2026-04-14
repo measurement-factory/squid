@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1996-2025 The Squid Software Foundation and contributors
+ * Copyright (C) 1996-2026 The Squid Software Foundation and contributors
  *
  * Squid software is distributed under GPLv2+ license and includes
  * contributions from numerous individuals and organizations.
@@ -187,8 +187,6 @@ private:
 };
 
 #define fd_table fde::Table
-
-int fdNFree(void);
 
 inline int
 FD_READ_METHOD(int fd, char *buf, int len)

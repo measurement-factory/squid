@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1996-2025 The Squid Software Foundation and contributors
+ * Copyright (C) 1996-2026 The Squid Software Foundation and contributors
  *
  * Squid software is distributed under GPLv2+ license and includes
  * contributions from numerous individuals and organizations.
@@ -113,7 +113,7 @@ static STCB netdbExchangeHandleReply;
 
 /* We have to keep a local list of CachePeer names.  The Peers structure
  * gets freed during a reconfigure.  We want this database to
- * remain persisitent, so _net_db_peer->peername points into this
+ * remain persistent, so _net_db_peer->peername points into this
  * linked list */
 static wordlist *peer_names = nullptr;
 
@@ -1131,6 +1131,11 @@ netdbBinaryExchange(StoreEntry * s)
         if ( !addr.isIPv4() )
             continue;
 
+        if (i + rec_sz > 4096) {
+            s->append(buf, i);
+            i = 0;
+        }
+
         buf[i] = (char) NETDB_EX_NETWORK;
         ++i;
 
@@ -1156,11 +1161,6 @@ netdbBinaryExchange(StoreEntry * s)
         memcpy(&buf[i], &j, sizeof(int));
 
         i += sizeof(int);
-
-        if (i + rec_sz > 4096) {
-            s->append(buf, i);
-            i = 0;
-        }
     }
 
     if (i > 0) {

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1996-2025 The Squid Software Foundation and contributors
+ * Copyright (C) 1996-2026 The Squid Software Foundation and contributors
  *
  * Squid software is distributed under GPLv2+ license and includes
  * contributions from numerous individuals and organizations.
@@ -160,8 +160,6 @@ protected:
     void adaptOrFinalizeReply();
     void addVirginReplyBody(const char *buf, ssize_t len);
     void storeReplyBody(const char *buf, ssize_t len);
-    /// \deprecated use SBuf I/O API and calcBufferSpaceToReserve() instead
-    size_t replyBodySpace(const MemBuf &readBuf, const size_t minSpace) const;
     /// determine how much space the buffer needs to reserve
     size_t calcBufferSpaceToReserve(const size_t space, const size_t wantSpace) const;
 

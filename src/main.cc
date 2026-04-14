@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1996-2025 The Squid Software Foundation and contributors
+ * Copyright (C) 1996-2026 The Squid Software Foundation and contributors
  *
  * Squid software is distributed under GPLv2+ license and includes
  * contributions from numerous individuals and organizations.
@@ -11,7 +11,6 @@
 #include "squid.h"
 #include "AccessLogEntry.h"
 //#include "acl/Acl.h"
-#include "acl/Asn.h"
 #include "acl/forward.h"
 #include "anyp/UriScheme.h"
 #include "auth/Config.h"
@@ -26,6 +25,7 @@
 #include "client_side.h"
 #include "comm.h"
 #include "CommandLine.h"
+#include "compat/unistd.h"
 #include "ConfigParser.h"
 #include "CpuAffinity.h"
 #include "debug/Messages.h"
@@ -42,7 +42,6 @@
 #include "fs_io.h"
 #include "FwdState.h"
 #include "globals.h"
-#include "htcp.h"
 #include "http/Stream.h"
 #include "HttpHeader.h"
 #include "HttpReply.h"
@@ -76,8 +75,6 @@
 #include "time/Engine.h"
 #include "tools.h"
 #include "unlinkd.h"
-#include "wccp.h"
-#include "wccp2.h"
 #include "windows_service.h"
 
 #if USE_ADAPTATION
@@ -111,9 +108,6 @@
 #endif
 #if USE_ADAPTATION
 #include "adaptation/Config.h"
-#endif
-#if SQUID_SNMP
-#include "snmp_core.h"
 #endif
 
 #include <cerrno>
@@ -420,7 +414,7 @@ mainHandleCommandLineOption(const int optId, const char *optValue)
 
     case 'C':
         /** \par C
-         * Unset/disabel global option for catchign signals. opt_catch_signals */
+         * Unset/disable global option for catchign signals. opt_catch_signals */
         opt_catch_signals = 0;
         break;
 
@@ -789,30 +783,12 @@ sig_child(int sig)
 static void
 serverConnectionsOpen(void)
 {
-    if (IamPrimaryProcess()) {
-#if USE_WCCP
-        wccpConnectionOpen();
-#endif
-
-#if USE_WCCPv2
-
-        wccp2ConnectionOpen();
-#endif
-    }
     // start various proxying services if we are responsible for them
     if (IamWorkerProcess()) {
         clientOpenListenSockets();
         icpOpenPorts();
-#if USE_HTCP
-        htcpOpenPorts();
-#endif
-#if SQUID_SNMP
-        snmpOpenPorts();
-#endif
-
         icmpEngine.Open();
         netdbInit();
-        asnInit();
         Acl::Node::Initialize();
         peerSelectInit();
     }
@@ -823,29 +799,10 @@ serverConnectionsClose(void)
 {
     assert(shutting_down || reconfiguring);
 
-    if (IamPrimaryProcess()) {
-#if USE_WCCP
-
-        wccpConnectionClose();
-#endif
-#if USE_WCCPv2
-
-        wccp2ConnectionClose();
-#endif
-    }
     if (IamWorkerProcess()) {
         clientConnectionsClose();
         icpConnectionShutdown();
-#if USE_HTCP
-        htcpSocketShutdown();
-#endif
-
         icmpEngine.Close();
-#if SQUID_SNMP
-        snmpClosePorts();
-#endif
-
-        asnFreeMemory();
     }
 }
 
@@ -866,9 +823,6 @@ mainReconfigureStart(void)
     // Initiate asynchronous closing sequence
     serverConnectionsClose();
     icpClosePorts();
-#if USE_HTCP
-    htcpClosePorts();
-#endif
 #if USE_OPENSSL
     Ssl::TheGlobalContextStorage().reconfigureStart();
 #endif
@@ -982,17 +936,6 @@ mainReconfigureFinish(void *)
 #endif
     externalAclInit();
 
-    if (IamPrimaryProcess()) {
-#if USE_WCCP
-
-        wccpInit();
-#endif
-#if USE_WCCPv2
-
-        wccp2Init();
-#endif
-    }
-
     serverConnectionsOpen();
 
     neighbors_init();
@@ -1057,7 +1000,7 @@ setEffectiveUser(void)
     if (geteuid() == 0) {
         debugs(0, DBG_CRITICAL, "Squid is not safe to run as root!  If you must");
         debugs(0, DBG_CRITICAL, "start Squid as root, then you must configure");
-        debugs(0, DBG_CRITICAL, "it to run as a non-priveledged user with the");
+        debugs(0, DBG_CRITICAL, "it to run as a non-privileged user with the");
         debugs(0, DBG_CRITICAL, "'cache_effective_user' option in the config file.");
         fatal("Don't run Squid as root, set 'cache_effective_user'!");
     }
@@ -1194,11 +1137,6 @@ mainInitialize(void)
     icapLogOpen();
 #endif
 
-#if SQUID_SNMP
-
-    snmpInit();
-
-#endif
 #if MALLOC_DBG
 
     malloc_debug(0, malloc_debug_level);
@@ -1232,18 +1170,6 @@ mainInitialize(void)
     // TODO: pconn is a good candidate for new-style registration
     // PconnModule::GetInstance()->registerWithCacheManager();
     // moved to PconnModule::PconnModule()
-
-    if (IamPrimaryProcess()) {
-#if USE_WCCP
-        wccpInit();
-
-#endif
-#if USE_WCCPv2
-
-        wccp2Init();
-
-#endif
-    }
 
     serverConnectionsOpen();
 
@@ -1486,7 +1412,9 @@ RegisterModules()
 #if USE_AUTH
     CallRunnerRegistrator(PeerUserHashRr);
 #endif
-
+#if USE_HTCP
+    CallRunnerRegistrator(HtcpRr);
+#endif
 #if USE_OPENSSL
     CallRunnerRegistrator(sslBumpCfgRr);
     CallRunnerRegistratorIn(Ssl, HelperRr);
@@ -1494,6 +1422,17 @@ RegisterModules()
 
 #if HAVE_FS_ROCK
     CallRunnerRegistratorIn(Rock, SwapDirRr);
+#endif
+
+#if SQUID_SNMP
+    CallRunnerRegistrator(SnmpRr);
+#endif
+
+#if USE_WCCP
+    CallRunnerRegistrator(WccpRr);
+#endif
+#if USE_WCCPv2
+    CallRunnerRegistrator(Wccp2Rr);
 #endif
 }
 
@@ -1942,10 +1881,7 @@ watch_child(const CommandLine &masterCommand)
     pid_t pid;
 #ifdef TIOCNOTTY
 
-    int i;
 #endif
-
-    int nullfd;
 
     // TODO: zero values are not supported because they result in
     // misconfigured SMP Squid instances running forever, endlessly
@@ -1964,7 +1900,7 @@ watch_child(const CommandLine &masterCommand)
 
 #ifdef TIOCNOTTY
 
-    if ((i = open("/dev/tty", O_RDWR | O_TEXT)) >= 0) {
+    if ((const auto i = xopen("/dev/tty", O_RDWR | O_TEXT)) >= 0) {
         ioctl(i, TIOCNOTTY, nullptr);
         close(i);
     }
@@ -1977,7 +1913,7 @@ watch_child(const CommandLine &masterCommand)
      * 1.1.3.  execvp had a bit overflow error in a loop..
      */
     /* Connect stdio to /dev/null in daemon mode */
-    nullfd = open(_PATH_DEVNULL, O_RDWR | O_TEXT);
+    const auto nullfd = xopen(_PATH_DEVNULL, O_RDWR | O_TEXT);
 
     if (nullfd < 0) {
         int xerrno = errno;
@@ -2117,21 +2053,6 @@ SquidShutdown()
     redirectShutdown();
     externalAclShutdown();
     icpClosePorts();
-#if USE_HTCP
-    htcpClosePorts();
-#endif
-#if SQUID_SNMP
-    snmpClosePorts();
-#endif
-#if USE_WCCP
-
-    wccpConnectionClose();
-#endif
-#if USE_WCCPv2
-
-    wccp2ConnectionClose();
-#endif
-
     releaseServerSockets();
     commCloseAllSockets();
 

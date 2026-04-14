@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1996-2025 The Squid Software Foundation and contributors
+ * Copyright (C) 1996-2026 The Squid Software Foundation and contributors
  *
  * Squid software is distributed under GPLv2+ license and includes
  * contributions from numerous individuals and organizations.
@@ -30,6 +30,8 @@
 #include "cache_cf.h"
 #include "CachePeer.h"
 #include "CachePeers.h"
+#include "compat/netdb.h"
+#include "compat/socket.h"
 #include "ConfigOption.h"
 #include "ConfigParser.h"
 #include "configuration/Preprocessor.h"
@@ -43,7 +45,7 @@
 #include "fqdncache.h"
 #include "ftp/Elements.h"
 #include "globals.h"
-#include "HttpHeaderTools.h"
+#include "HeaderMangling.h"
 #include "HttpUpgradeProtocolAccess.h"
 #include "icmp/IcmpConfig.h"
 #include "ip/Intercept.h"
@@ -104,9 +106,6 @@
 #endif
 #if HAVE_GRP_H
 #include <grp.h>
-#endif
-#if HAVE_SYS_SOCKET_H
-#include <sys/socket.h>
 #endif
 #if HAVE_SYS_STAT_H
 #include <sys/stat.h>
@@ -1788,7 +1787,7 @@ GetService(const char *proto, const OnOff allowZero, ConfigParser &parser)
     }
 
     // try to get the service port number from /etc/services
-    if (const auto serv = getservbyname(portName.c_str(), proto)) {
+    if (const auto serv = xgetservbyname(portName.c_str(), proto)) {
         if (const auto portNumber = ntohs(static_cast<unsigned short>(serv->s_port)))
             return portNumber;
         if (allowZero == OnOff::on)

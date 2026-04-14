@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1996-2025 The Squid Software Foundation and contributors
+ * Copyright (C) 1996-2026 The Squid Software Foundation and contributors
  *
  * Squid software is distributed under GPLv2+ license and includes
  * contributions from numerous individuals and organizations.
@@ -21,6 +21,7 @@
 #include "format/Token.h"
 #include "FwdState.h"
 #include "globals.h"
+#include "HeaderMangling.h"
 #include "http/Stream.h"
 #include "HttpHeaderTools.h"
 #include "HttpReply.h"
@@ -85,7 +86,7 @@ clientReplyContext::clientReplyContext(ClientHttpRequest *clientContext) :
 void
 clientReplyContext::setReplyToError(
     err_type err, Http::StatusCode status, char const *uri,
-    const ConnStateData *conn, HttpRequest *failedrequest, const char *unparsedrequest,
+    const ConnStateData *conn, HttpRequest *failedrequest, const char *,
 #if USE_AUTH
     Auth::UserRequest::Pointer auth_user_request
 #else
@@ -94,9 +95,6 @@ clientReplyContext::setReplyToError(
 )
 {
     auto errstate = clientBuildError(err, status, uri, conn, failedrequest, http->al);
-
-    if (unparsedrequest)
-        errstate->request_hdrs = xstrdup(unparsedrequest);
 
 #if USE_AUTH
     errstate->auth_user_request = auth_user_request;
@@ -993,11 +991,14 @@ clientReplyContext::traceReply()
     triggerInitialStoreRead();
     http->storeEntry()->releaseRequest();
     http->storeEntry()->buffer();
+    MemBuf content;
+    content.init();
+    http->request->pack(&content, true /* hide authorization data */);
     const HttpReplyPointer rep(new HttpReply);
-    rep->setHeaders(Http::scOkay, nullptr, "text/plain", http->request->prefixLen(), 0, squid_curtime);
+    rep->setHeaders(Http::scOkay, nullptr, "message/http", content.contentSize(), 0, squid_curtime);
+    rep->body.set(SBuf(content.buf, content.size));
     http->storeEntry()->replaceHttpReply(rep);
-    http->request->swapOut(http->storeEntry());
-    http->storeEntry()->complete();
+    http->storeEntry()->completeSuccessfully("traceReply() stored the entire response");
 }
 
 int
@@ -1019,7 +1020,7 @@ clientReplyContext::checkTransferDone()
 
     /*
      * Handle STORE_OK objects.
-     * objectLen(entry) will be set proprely.
+     * objectLen(entry) will be set properly.
      * RC: Does objectLen(entry) include the Headers?
      * RC: Yes.
      */

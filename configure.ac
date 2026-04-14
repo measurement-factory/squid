@@ -1,4 +1,4 @@
-## Copyright (C) 1996-2025 The Squid Software Foundation and contributors
+## Copyright (C) 1996-2026 The Squid Software Foundation and contributors
 ##
 ## Squid software is distributed under GPLv2+ license and includes
 ## contributions from numerous individuals and organizations.
@@ -10,8 +10,13 @@ AC_PREREQ(2.61)
 AC_CONFIG_HEADERS([include/autoconf.h])
 AC_CONFIG_AUX_DIR(cfgaux)
 AC_CONFIG_SRCDIR([src/main.cc])
-AM_INIT_AUTOMAKE([tar-ustar nostdinc subdir-objects dist-xz])
-AC_REVISION($Revision$)dnl
+AC_COPYRIGHT([Copyright (C) 1996-2026 The Squid Software Foundation and contributors
+
+ Squid software is distributed under GPLv2+ license and includes
+ contributions from numerous individuals and organizations.
+ Please see the COPYING and CONTRIBUTORS files for details.
+])
+AM_INIT_AUTOMAKE([1.14 tar-ustar nostdinc subdir-objects dist-xz])
 AC_PREFIX_DEFAULT(/usr/local/squid)
 AM_MAINTAINER_MODE
 
@@ -60,7 +65,6 @@ AS_IF([test -e /etc/os-release],[
 ])
 
 AC_PROG_CC
-AM_PROG_CC_C_O
 AC_PROG_CXX
 
 # AC_USE_SYSTEM_EXTENSIONS should be called before any macros that run the C compiler.
@@ -992,7 +996,8 @@ include <windows.h>
 #include <sys/param.h>
 #endif
   ]])
-  AC_CHECK_MEMBER([struct arpreq.arp_pa],[],[
+  AC_CHECK_HEADERS(sys/socket.h)
+  AC_CHECK_MEMBER([struct arpreq.arp_ha.sa_family],[],[
     AS_IF([test "x$squid_host_os" != "xmingw" -a "x$squid_host_os" != "xcygwin"],[
       AC_MSG_NOTICE([OS support for EUI seems incomplete, disabling it])
       enable_eui=no
@@ -1137,7 +1142,7 @@ AM_CONDITIONAL(ENABLE_SSL,[ test "x$with_openssl" = "xyes" ])
 AC_SUBST(SSLLIB)
 
 # Kerberos support libraries: MIT
-SQUID_AUTO_LIB(mit-krb5,[MIT Kerberos],[LIB_KRB5])
+SQUID_AUTO_LIB(mit-krb5,[MIT Kerberos],[LIBMIT_KRB5])
 AH_TEMPLATE(USE_APPLE_KRB5,[Apple Kerberos support is available])
 AH_TEMPLATE(USE_SOLARIS_KRB5,[Solaris Kerberos support is available])
 SQUID_CHECK_LIB_WORKS(mit-krb5,[
@@ -1167,15 +1172,18 @@ SQUID_CHECK_LIB_WORKS(mit-krb5,[
 SQUID_AUTO_LIB(heimdal-krb5,[Heimdal Kerberos],[LIBHEIMDAL_KRB5])
 SQUID_CHECK_LIB_WORKS(heimdal-krb5,[
   AS_IF([test "x$LIBMIT_KRB5_LIBS" = "x"],[
-    PKG_CHECK_MODULES([LIBHEIMDAL_KRB5],[heimdal-krb5 heimdal-gssapi],[
+    PKG_CHECK_MODULES([LIBHEIMDAL_KRB5],[heimdal-krb5 heimdal-gssapi],[:],[
+      dnl FreeBSD ports package name is just 'heimdal'
+      PKG_CHECK_MODULES([LIBHEIMDAL_KRB5],[heimdal heimdal-gssapi],[:],[:])
+    ])
+    AS_IF([test "x$LIBHEIMDAL_KRB5_LIBS" != "x" ],[
       CPPFLAGS="$LIBHEIMDAL_KRB5_CFLAGS $CPPFLAGS"
       AC_CHECK_HEADERS(gssapi.h gssapi/gssapi.h gssapi/gssapi_krb5.h)
       AC_CHECK_HEADERS(krb5.h com_err.h et/com_err.h)
 
       LIBS="$LIBHEIMDAL_KRB5_PATH $LIBHEIMDAL_KRB5_LIBS $LIBS"
-      SQUID_CHECK_KRB5_HEIMDAL_BROKEN_KRB5_H
       SQUID_CHECK_KRB5_FUNCS
-    ],[:])
+    ])
   ])
 ])
 
@@ -1550,7 +1558,6 @@ AC_MSG_NOTICE([Authentication support enabled: ${enable_auth:=yes}])
 SQUID_DEFINE_BOOL(USE_AUTH,$enable_auth,[Enable support for authentication])
 AM_CONDITIONAL(ENABLE_AUTH, test "x$enable_auth" != "xno")
 AUTH_MODULES=""
-require_smblib="no"
 require_sspi="no"
 
 AC_ARG_ENABLE(auth-basic,
@@ -1611,7 +1618,6 @@ for module in $AUTH_MODULES; do
 done
 AC_SUBST(AUTH_MODULES)
 AC_SUBST(AUTH_LIBS_TO_BUILD)
-AM_CONDITIONAL(ENABLE_SMBLIB, test "x$require_smblib" = "xyes")
 AM_CONDITIONAL(ENABLE_SSPI, test "x$require_sspi" = "xyes")
 
 dnl Select logging daemon helpers to build
@@ -2054,13 +2060,6 @@ SQUID_CHECK_SIN_LEN_IN_SOCKADDR_IN
 dnl System-specific library modifications
 AH_TEMPLATE(GETTIMEOFDAY_NO_TZP,[Whether gettimeofday takes only one argument])
 AS_CASE(["$host"],
-  [*-pc-sco3.2*],[
-    # -lintl is needed on SCO version 3.2v4.2 for strftime()
-    # Robert Side <rside@aiinc.bc.ca>
-    # Mon, 18 Jan 1999 17:48:00 GMT
-    AC_CHECK_LIB(intl, strftime)
-  ],
-
   [i386-*-solaris2.*],[
     AS_IF([test "x$GCC" = "xyes"],[
       AC_MSG_NOTICE([Removing -O for gcc on $host])
@@ -2514,8 +2513,6 @@ AC_CONFIG_FILES([
 	icons/Makefile
 	lib/Makefile
 	lib/ntlmauth/Makefile
-	lib/rfcnb/Makefile
-	lib/smblib/Makefile
 	lib/snmplib/Makefile
 	lib/sspi/Makefile
 	scripts/Makefile
@@ -2562,7 +2559,6 @@ AC_CONFIG_FILES([
 	src/auth/negotiate/wrapper/Makefile
 	src/auth/ntlm/Makefile
 	src/auth/ntlm/fake/Makefile
-	src/auth/ntlm/SSPI/Makefile
 	src/base/Makefile
 	src/clients/Makefile
 	src/comm/Makefile

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1996-2025 The Squid Software Foundation and contributors
+ * Copyright (C) 1996-2026 The Squid Software Foundation and contributors
  *
  * Squid software is distributed under GPLv2+ license and includes
  * contributions from numerous individuals and organizations.
@@ -51,7 +51,6 @@ WIN32_maperror(unsigned long WIN32_oserrno)
         {ERROR_BROKEN_PIPE, EPIPE},
         {ERROR_DISK_FULL, ENOSPC},
         {ERROR_INVALID_TARGET_HANDLE, EBADF},
-        {ERROR_INVALID_HANDLE, EINVAL},
         {ERROR_WAIT_NO_CHILDREN, ECHILD},
         {ERROR_CHILD_NOT_COMPLETE, ECHILD},
         {ERROR_DIRECT_ACCESS_HANDLE, EBADF},

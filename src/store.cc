@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1996-2025 The Squid Software Foundation and contributors
+ * Copyright (C) 1996-2026 The Squid Software Foundation and contributors
  *
  * Squid software is distributed under GPLv2+ license and includes
  * contributions from numerous individuals and organizations.
@@ -24,7 +24,7 @@
 #endif
 #include "ETag.h"
 #include "event.h"
-#include "fde.h"
+#include "fd.h"
 #include "globals.h"
 #include "http.h"
 #include "HttpReply.h"
