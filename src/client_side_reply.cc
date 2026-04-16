@@ -352,7 +352,8 @@ clientReplyContext::processExpired()
         /* start counting the length from 0 */
         StoreIOBuffer localTempBuffer(HTTP_REQBUF_SZ, 0, tempbuf);
         // keep lastStreamBufferedBytes: tempbuf is not a Client Stream buffer
-        ::storeClientCopy(sc, entry, localTempBuffer, HandleIMSReply, this);
+        const auto callback = (collapsedRevalidation == crSlave) ? HandleIMSReplyCollapsed : HandleIMSReply;
+        ::storeClientCopy(sc, entry, localTempBuffer, callback, this);
     }
 }
 
@@ -371,6 +372,13 @@ clientReplyContext::HandleIMSReply(void *data, StoreIOBuffer result)
 {
     clientReplyContext *context = (clientReplyContext *)data;
     context->handleIMSReply(result);
+}
+
+void
+clientReplyContext::HandleIMSReplyCollapsed(void *data, StoreIOBuffer result)
+{
+    clientReplyContext *context = (clientReplyContext *)data;
+    context->handleIMSReplyCollapsed(result);
 }
 
 void
@@ -432,6 +440,9 @@ clientReplyContext::handleIMSReply(const StoreIOBuffer result)
     const auto &new_rep = http->storeEntry()->mem().freshestReply();
     const auto status = new_rep.sline.status();
 
+    if (collapsedRevalidation == crInitiator)
+        Store::Root().setStatusForRevalidated(*http->storeEntry());
+
     // XXX: Disregard stale incomplete (i.e. still being written) borrowed (i.e.
     // not caused by our request) IMS responses. That new_rep may be very old!
 
@@ -488,6 +499,96 @@ clientReplyContext::handleIMSReply(const StoreIOBuffer result)
         http->updateLoggingTags(LOG_TCP_REFRESH_FAIL_ERR);
         debugs(88, 3, "origin replied with error " << status << ", forwarding to client due to fail_on_validation_err");
         sendClientUpstreamResponse(result);
+        return;
+    }
+
+    // ignore and let client have old entry
+    http->updateLoggingTags(LOG_TCP_REFRESH_FAIL_OLD);
+    debugs(88, 3, "origin replied with error " << status << ", sending old entry (" << oldStatus << ") to client");
+    sendClientOldEntry();
+}
+
+void
+clientReplyContext::handleIMSReplyCollapsed(const StoreIOBuffer result)
+{
+    if (deleting)
+        return;
+
+    if (http->storeEntry() == nullptr)
+        return;
+
+    debugs(88, 3, http->storeEntry()->url() << " got " << result);
+
+    if (result.flags.error && !EBIT_TEST(http->storeEntry()->flags, ENTRY_ABORTED))
+        return;
+
+    Assure(collapsedRevalidation == crSlave);
+
+    if (!http->storeEntry()->mayStartHitting()) {
+        debugs(88, 3, "CF slave hit private non-shareable " << *http->storeEntry() << ". MISS");
+        // restore context to meet processMiss() expectations
+        restoreState();
+        http->updateLoggingTags(LOG_TCP_MISS);
+        processMiss();
+        return;
+    }
+
+    // request to origin was aborted
+    if (EBIT_TEST(http->storeEntry()->flags, ENTRY_ABORTED)) {
+        debugs(88, 3, "request to origin aborted '" << http->storeEntry()->url() << "', sending old entry to client");
+        http->updateLoggingTags(LOG_TCP_REFRESH_FAIL_OLD);
+        sendClientOldEntry();
+        return;
+    }
+
+    const auto oldStatus = old_entry->mem().freshestReply().sline.status();
+    const auto &new_rep = http->storeEntry()->mem().freshestReply(); // the updated reply (non-304)
+    const auto status = http->storeEntry()->mem().xitTable.statusForRevalidated;
+
+    // origin replied 304
+    if (status == Http::scNotModified) {
+
+        http->updateLoggingTags(LOG_TCP_REFRESH_UNMODIFIED);
+        http->request->flags.staleIfHit = false; // old_entry is no longer stale
+
+        // if client sent IMS
+        if (http->request->flags.ims && !old_entry->modifiedSince(http->request->ims, http->request->imslen)) {
+            // forward the 304 from origin
+            debugs(88, 3, "origin replied 304, revalidated existing entry creating and sending 304 to client");
+            sendNotModified();
+            return;
+        }
+
+        // send existing entry, it's still valid
+        debugs(88, 3, "origin replied 304, revalidated existing entry and sending " << status << " to client");
+        sendClientUpstreamResponse(result);
+        return;
+    }
+
+    // origin replied with a non-error code
+    if (status > Http::scNone && status < Http::scInternalServerError) {
+        // RFC 9111 section 4:
+        // "When more than one suitable response is stored,
+        //  a cache MUST use the most recent one
+        // (as determined by the Date header field)."
+        if (new_rep.olderThan(&old_entry->mem().freshestReply())) {
+            http->al->cache.code.err.ignored = true;
+            debugs(88, 3, "origin replied " << status << " but with an older date header, sending old entry (" << oldStatus << ") to client");
+            sendClientOldEntry();
+            return;
+        }
+
+        http->updateLoggingTags(LOG_TCP_REFRESH_MODIFIED);
+        debugs(88, 3, "origin replied " << status << ", forwarding to client");
+        sendClientUpstreamResponse(result);
+        return;
+    }
+
+    // origin replied with an error
+    if (http->request->flags.failOnValidationError) {
+        http->updateLoggingTags(LOG_TCP_REFRESH_FAIL_ERR);
+        debugs(88, 3, "origin replied with error " << status << ", forwarding to client due to fail_on_validation_err");
+        sendRevalidationError(status);
         return;
     }
 
@@ -1765,6 +1866,18 @@ clientReplyContext::sendPreconditionFailedError()
     http->updateLoggingTags(LOG_TCP_HIT);
     ErrorState *const err =
         clientBuildError(ERR_PRECONDITION_FAILED, Http::scPreconditionFailed,
+                         nullptr, http->getConn(), http->request, http->al);
+    removeClientStoreReference(&sc, http);
+    HTTPMSGUNLOCK(reply);
+    startError(err);
+}
+
+void
+clientReplyContext::sendRevalidationError(const Http::StatusCode errorCode)
+{
+    http->updateLoggingTags(LOG_TCP_HIT);
+    ErrorState *const err =
+        clientBuildError(ERR_INVALID_RESP, errorCode,
                          nullptr, http->getConn(), http->request, http->al);
     removeClientStoreReference(&sc, http);
     HTTPMSGUNLOCK(reply);

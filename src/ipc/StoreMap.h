@@ -9,6 +9,7 @@
 #ifndef SQUID_SRC_IPC_STOREMAP_H
 #define SQUID_SRC_IPC_STOREMAP_H
 
+#include "http/StatusCode.h"
 #include "ipc/mem/FlexibleArray.h"
 #include "ipc/mem/Pointer.h"
 #include "ipc/ReadWriteLock.h"
@@ -115,6 +116,7 @@ public:
     std::atomic<StoreMapSliceId> splicingPoint;
 
     std::atomic<bool> wasUpdated;
+    std::atomic<Http::StatusCode> statusForRevalidated;
 };
 
 /// an array of shareable Items
@@ -258,6 +260,7 @@ public:
     int compareVersions(const sfileno oldFileno, time_t newVersion) const;
 
     void setUpdated(sfileno);
+    void setStatusForRevalidated(sfileno, Http::StatusCode);
 
     /// finds, locks, and returns an anchor for an empty key position,
     /// erasing the old entry (if any)

@@ -290,6 +290,7 @@ Transients::status(const StoreEntry &entry, Transients::EntryStatus &entryStatus
     entryStatus.hasWriter = anchor.writing();
     entryStatus.waitingToBeFreed = anchor.waitingToBeFreed;
     entryStatus.wasUpdated = anchor.wasUpdated;
+    entryStatus.statusForRevalidated = anchor.statusForRevalidated;
 }
 
 void
@@ -297,6 +298,14 @@ Transients::setUpdated(const StoreEntry &entry)
 {
     assert(entry.hasTransients());
     map->setUpdated(entry.mem_obj->xitTable.index);
+}
+
+void
+Transients::setStatusForRevalidated(const StoreEntry &entry)
+{
+    assert(entry.hasTransients());
+    const auto status = entry.mem().freshestReply().sline.status();
+    map->setStatusForRevalidated(entry.mem_obj->xitTable.index, status);
 }
 
 void

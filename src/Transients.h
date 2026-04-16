@@ -34,6 +34,7 @@ public:
         bool hasWriter = false; ///< whether some worker is storing the entry
         bool waitingToBeFreed = false; ///< whether the entry was marked for deletion
         bool wasUpdated = false;
+        Http::StatusCode statusForRevalidated = Http::scNone;
     };
 
     Transients();
@@ -53,6 +54,7 @@ public:
     void status(const StoreEntry &e, EntryStatus &entryStatus) const;
 
     void setUpdated(const StoreEntry &);
+    void setStatusForRevalidated(const StoreEntry &);
 
     /// number of entry readers some time ago
     int readers(const StoreEntry &e) const;

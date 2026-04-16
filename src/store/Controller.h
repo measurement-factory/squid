@@ -123,6 +123,7 @@ public:
     StoreSearch *search();
 
     void setUpdated(const StoreEntry &);
+    void setStatusForRevalidated(const StoreEntry &);
 
     /// whether there are any SMP-aware storages
     static bool SmpAware();

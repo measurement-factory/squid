@@ -188,6 +188,7 @@ public:
 
         int32_t index = -1; ///< entry position inside the in-transit table
         Store::IoStatus io = Store::ioUndecided; ///< current I/O state
+        Http::StatusCode statusForRevalidated = Http::scNone;
     };
     XitTable xitTable; ///< current [shared] memory caching state for the entry
 

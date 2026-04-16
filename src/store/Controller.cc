@@ -785,20 +785,24 @@ Store::Controller::syncCollapsed(const sfileno xitIndex)
 
     Transients::EntryStatus entryStatus;
     transients->status(*collapsed, entryStatus);
+    collapsed->mem_obj->xitTable.statusForRevalidated = entryStatus.statusForRevalidated;
 
     if (entryStatus.wasUpdated) {
-        const auto key = collapsed->calcPublicKey(ksDefault);
-        if (auto entry = peek(key)) {
-            entry->hideFromNewcomers();
+        if (collapsed->publicKeyScope() == ksRevalidation) {
+            const auto key = collapsed->calcPublicKey(ksDefault);
+            if (auto entry = peek(key)) {
+                entry->hideFromNewcomers();
+            }
+            collapsed->forcePublicKeyScope(ksDefault);
         }
-        collapsed->forcePublicKeyScope(ksDefault);
     } else if (entryStatus.waitingToBeFreed) {
         // Just hide: Purging same-key cached entries (if any) is the
         // responsibility of the worker that marked xitIndex entry for deletion.
         debugs(20, 3, "hiding " << *collapsed << " due to waitingToBeFreed");
         collapsed->hideFromNewcomers();
     } else {
-        collapsed->forcePublicKeyScope(ksDefault); // reset ksRevalidation in reading workers
+        if (collapsed->publicKeyScope() == ksRevalidation)
+            collapsed->forcePublicKeyScope(ksDefault); // reset ksRevalidation in reading workers
     }
 
     if (transients->isWriter(*collapsed))
@@ -919,6 +923,13 @@ Store::Controller::setUpdated(const StoreEntry &entry)
 {
     assert(entry.hasTransients());
     transients->setUpdated(entry);
+}
+
+void
+Store::Controller::setStatusForRevalidated(const StoreEntry &entry)
+{
+    assert(entry.hasTransients());
+    transients->setStatusForRevalidated(entry);
 }
 
 bool
