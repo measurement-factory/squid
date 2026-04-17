@@ -29,13 +29,12 @@ Configuration::SmoothReconfiguration::run()
 
     prepComponents();
 
-    // TODO: Optimize by reconfiguring only those pliable directives that changed.
     for (const auto &directive: freshConfig.pliableDirectives)
         reconfigure(directive);
 
     finalizeComponents();
 
-    // TODO: Close client-Squid and Squid-origin pconns, but only if relevant details change.
+    // TODO: Close client-Squid and Squid-origin pconns.
 
     finish();
 }

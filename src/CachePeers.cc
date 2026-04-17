@@ -50,28 +50,11 @@ CachePeers::nextPeerToPing(const size_t pollIndex)
 void
 CachePeers::add(const KeptCachePeer &peer)
 {
-    // keep in sync with reAdd()
     Assure(peer);
     storage.push_back(peer);
     Assure(!peer->index);
     peer->index = size();
     PeerPoolMgr::StartManagingIfNeeded(*peer);
-}
-
-/// reset() helper for old unchanged cache_peers that need to be re-indexed
-/// \returns whether the given peer has changed its position
-bool
-CachePeers::reAdd(const KeptCachePeer &peer)
-{
-    // keep in sync with add()
-    Assure(peer);
-    const auto oldIndex = peer->index;
-    storage.push_back(peer);
-    const auto newIndex = size(); // often the same as oldIndex
-    debugs(15, 2, "old " << *peer << " was at " << oldIndex << " now at " << newIndex);
-    Assure(oldIndex);
-    peer->index = newIndex;
-    return oldIndex != newIndex;
 }
 
 KeptCachePeer
@@ -178,18 +161,19 @@ Configuration::Component<CachePeers*>::FinishSmoothReconfiguration(SmoothReconfi
 void
 CachePeers::reset(Configuration::SmoothReconfiguration &sr)
 {
-    // Workspace to find and eventually remove cache_peers that changed or were
-    // not mentioned in the fresh configuration at all. This container does not
-    // have cache_peers with unchanged configuration -- we want to _move_ (i.e.
-    // reindex) rather than remove() those, so that they keep their connections.
-    SelectedCachePeers peersToRemove;
-
     debugs(15, 5, storage.size() << " old and " << sr.fresh.cachePeers->parsed.size() << " new cache_peers");
 
     const auto oldStorage = std::move(storage);
     storage.clear(); // get `storage` back into known state
 
-    auto sawChanges = false; // including added, removed, and moved cache_peers
+    for (const auto &old: oldStorage) {
+        if (!findCachePeerByNameIn(sr.fresh.cachePeers->parsed, old->name)) {
+            debugs(15, DBG_IMPORTANT, "Removing old cache_peer: " << *old);
+        }
+        // else case is handled in the loop below
+
+        old->noteRemoval();
+    }
 
     // helps compare CachePeer configurations
     const auto toDirectives = [](const auto &peer) {
@@ -201,41 +185,18 @@ CachePeers::reset(Configuration::SmoothReconfiguration &sr)
     for (const auto &fresh: sr.fresh.cachePeers->parsed) {
         if (const auto old = findCachePeerByNameIn(oldStorage, fresh->name)) {
             Assure(fresh != old); // different pointers
-            if (toDirectives(*old) == toDirectives(*fresh)) { // same configuration
-                const auto changedPosition = reAdd(old);
-                sawChanges = sawChanges || changedPosition;
-            } else {
-                debugs(15, DBG_IMPORTANT, "Reconfigured existing cache_peer: " << *fresh);
-                add(fresh);
-                peersToRemove.push_back(old);
-                sawChanges = true;
-            }
+            const auto sameSpelling = (toDirectives(*old) == toDirectives(*fresh));
+            debugs(15, DBG_IMPORTANT, "Reconfiguring existing cache_peer (with " <<
+                   (sameSpelling ? "unchanged" : "changed") <<
+                   "configuration spelling): " << *fresh);
+            add(fresh);
         } else {
             debugs(15, DBG_IMPORTANT, "Adding new cache_peer: " << *fresh);
             add(fresh);
-            sawChanges = true;
         }
     }
 
-    for (const auto &old: oldStorage) {
-        if (!findCachePeerByNameIn(sr.fresh.cachePeers->parsed, old->name)) {
-            debugs(15, DBG_IMPORTANT, "Removing old cache_peer: " << *old);
-            peersToRemove.push_back(old);
-            sawChanges = true;
-        }
-        // else case was handled in the previous loop
-    }
-
-    Assure(peersToRemove.size() <= oldStorage.size());
     Assure(storage.size() == sr.fresh.cachePeers->parsed.size());
-
-    for (const auto &p: peersToRemove)
-        p->noteRemoval();
-
-    if (!sawChanges) {
-        debugs(15, 2, "no changes detected");
-        return;
-    }
 
     carpInit();
     peerSourceHashInit();
