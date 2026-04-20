@@ -1174,9 +1174,7 @@ Ftp::Gateway::start()
 void
 Ftp::Gateway::handleControlReply()
 {
-    Ftp::Client::handleControlReply();
-    if (ctrl.message == nullptr)
-        return; // didn't get complete reply yet
+    Assure(ctrl.message);
 
     /* Copy the message except for the last line to cwd_message to be
      * printed in error messages.
@@ -1211,6 +1209,7 @@ ftpReadWelcome(Ftp::Gateway * ftpState)
         if (nullptr != ftpState->ctrl.message)
             debugs(9, DBG_IMPORTANT, "FTP server is busy: " << ftpState->ctrl.message->key);
 
+        ftpState->processControlReply();
         return;
     } else {
         ftpFail(ftpState);
