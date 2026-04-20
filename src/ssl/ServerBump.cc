@@ -44,6 +44,9 @@ Ssl::ServerBump::ServerBump(ClientHttpRequest *http, StoreEntry *e, Ssl::BumpMod
 #if USE_DELAY_POOLS
     sc->setDelayId(DelayId::DelayClient(http));
 #endif
+#if FOLLOW_X_FORWARDED_FOR
+    indirectClient = request->indirect_client_addr;
+#endif
 }
 
 Ssl::ServerBump::~ServerBump()
