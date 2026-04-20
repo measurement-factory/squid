@@ -122,8 +122,11 @@ public:
     /// \returns an iterator for all Store entries
     StoreSearch *search();
 
+    /// the entry has been updated via a 304 response
     void setUpdated(const StoreEntry &);
-    void setStatusForRevalidated(const StoreEntry &);
+
+    /// whether the entry has been updated via a 304 response
+    bool wasUpdated(const StoreEntry &) const;
 
     /// whether there are any SMP-aware storages
     static bool SmpAware();

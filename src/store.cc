@@ -683,6 +683,12 @@ StoreEntry::publicKeyScope() const
     return storeKeyHashCmp(pubKey, calcPublicKey(ksDefault)) == 0 ? ksDefault : ksRevalidation;
 }
 
+bool
+StoreEntry::wasUpdated() const
+{
+    return hasTransients() ? Store::Root().wasUpdated(*this) : false;
+}
+
 /// Unconditionally sets public key for this store entry.
 /// Releases the old entry with the same public key (if any).
 void

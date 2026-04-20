@@ -322,6 +322,8 @@ public:
 
     KeyScope publicKeyScope() const;
 
+    bool wasUpdated() const;
+
 #if USE_ADAPTATION
     /// call back producer when more buffer space is available
     void deferProducer(const AsyncCall::Pointer &producer);

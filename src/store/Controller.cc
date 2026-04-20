@@ -785,12 +785,14 @@ Store::Controller::syncCollapsed(const sfileno xitIndex)
 
     Transients::EntryStatus entryStatus;
     transients->status(*collapsed, entryStatus);
-    collapsed->mem_obj->xitTable.statusForRevalidated = entryStatus.statusForRevalidated;
 
+    // Check first wasUpdated before waitingToBeFreed.
+    // 304 responses are private and 304 initiator entries are marked for removal, but we
+    // use collapsed entries in slaves to attach to the updated response.
     if (entryStatus.wasUpdated) {
         if (collapsed->publicKeyScope() == ksRevalidation) {
             const auto key = collapsed->calcPublicKey(ksDefault);
-            if (auto entry = peek(key)) {
+            if (auto entry = peekAtLocal(key)) {
                 entry->hideFromNewcomers();
             }
             collapsed->forcePublicKeyScope(ksDefault);
@@ -925,11 +927,13 @@ Store::Controller::setUpdated(const StoreEntry &entry)
     transients->setUpdated(entry);
 }
 
-void
-Store::Controller::setStatusForRevalidated(const StoreEntry &entry)
+bool
+Store::Controller::wasUpdated(const StoreEntry &entry) const
 {
     assert(entry.hasTransients());
-    transients->setStatusForRevalidated(entry);
+    Transients::EntryStatus entryStatus;
+    transients->status(entry, entryStatus);
+    return entryStatus.wasUpdated;
 }
 
 bool

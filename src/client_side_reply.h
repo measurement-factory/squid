@@ -26,7 +26,6 @@ class clientReplyContext : public RefCountable, public StoreClient
 public:
     static STCB CacheHit;
     static STCB HandleIMSReply;
-    static STCB HandleIMSReplyCollapsed;
     static STCB SendMoreData;
 
     clientReplyContext(ClientHttpRequest *);
@@ -110,7 +109,6 @@ private:
     void noteStreamBufferredBytes(const StoreIOBuffer &);
     void cacheHit(StoreIOBuffer result);
     void handleIMSReply(StoreIOBuffer result);
-    void handleIMSReplyCollapsed(StoreIOBuffer result);
     void sendMoreData(StoreIOBuffer result);
     void triggerInitialStoreRead(STCB = SendMoreData);
     void requestMoreBodyFromStore();
@@ -128,7 +126,6 @@ private:
 
     void sendBodyTooLargeError();
     void sendPreconditionFailedError();
-    void sendRevalidationError(Http::StatusCode);
     void sendNotModified();
     void sendNotModifiedOrPreconditionFailedError();
     void sendClientUpstreamResponse(const StoreIOBuffer &upstreamResponse);

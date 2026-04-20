@@ -72,13 +72,6 @@ Ipc::StoreMap::setUpdated(const sfileno fileno)
     inode.wasUpdated = true;
 }
 
-void
-Ipc::StoreMap::setStatusForRevalidated(const sfileno fileno, const Http::StatusCode code)
-{
-    Anchor &inode = anchorAt(fileno);
-    inode.statusForRevalidated = code;
-}
-
 int
 Ipc::StoreMap::compareVersions(const sfileno fileno, time_t newVersion) const
 {
