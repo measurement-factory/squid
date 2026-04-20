@@ -383,9 +383,7 @@ ConfigParser::NextToken()
 
             ConfigParser::CfgFile *wordfile = new ConfigParser::CfgFile();
             if (!path || !wordfile->startParse(path)) {
-                debugs(3, DBG_CRITICAL, "FATAL: Error opening config file: " << token);
                 delete wordfile;
-                self_destruct();
                 return nullptr;
             }
             CfgFiles.push(wordfile);
@@ -628,7 +626,11 @@ ConfigParser::CfgFile::startParse(char *path)
 #endif
 
     filePath = path;
-    return getFileLine();
+    if (!getFileLine()) {
+        debugs(3, DBG_CRITICAL, "WARNING: file: " << path << " is empty");
+        return false;
+    }
+    return true;
 }
 
 bool
