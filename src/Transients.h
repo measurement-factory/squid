@@ -52,6 +52,7 @@ public:
     /// copies current shared entry metadata into entryStatus
     void status(const StoreEntry &e, EntryStatus &entryStatus) const;
     /// \copydoc Store::Controller::setUpdated()
+    /// \prec the entry is opened for writing
     void setUpdated(const StoreEntry &);
 
     /// number of entry readers some time ago

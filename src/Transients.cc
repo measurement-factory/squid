@@ -296,6 +296,7 @@ void
 Transients::setUpdated(const StoreEntry &entry)
 {
     assert(entry.hasTransients());
+    assert(isWriter(entry));
     map->setUpdated(entry.mem_obj->xitTable.index);
 }
 
