@@ -439,10 +439,27 @@ clientReplyContext::handleIMSReply(const StoreIOBuffer result)
     // not caused by our request) IMS responses. That new_rep may be very old!
 
     // origin replied 304
-    if (status == Http::scNotModified || updatedInAnotherWorker) {
+
+    if (updatedInAnotherWorker) {
+        http->updateLoggingTags(LOG_TCP_REFRESH_UNMODIFIED);
+
+        // if client sent IMS
+        if (http->request->flags.ims && !old_entry->modifiedSince(http->request->ims, http->request->imslen)) {
+            debugs(88, 3, "origin replied 304, revalidated existing entry, creating and sending 304 to client");
+            sendNotModified();
+            return;
+        }
+
+        // after syncCollapsed() http->storeEntry() contains the updated entry
+        debugs(88, 3, "origin replied 304, revalidated existing entry and sending " << status << " to client");
+        sendClientUpstreamResponse(result);
+        return;
+    }
+
+    if (status == Http::scNotModified) {
         // TODO: The update may not be instantaneous. Should we wait for its
         // completion to avoid spawning too much client-disassociated work?
-        if (!updatedInAnotherWorker && !Store::Root().updateOnNotModified(old_entry, *http->storeEntry())) {
+        if (!Store::Root().updateOnNotModified(old_entry, *http->storeEntry())) {
             old_entry->release(true);
             restoreState();
             http->updateLoggingTags(LOG_TCP_MISS);
@@ -457,14 +474,13 @@ clientReplyContext::handleIMSReply(const StoreIOBuffer result)
         if (http->request->flags.ims && !old_entry->modifiedSince(http->request->ims, http->request->imslen)) {
             // forward the 304 from origin
             debugs(88, 3, "origin replied 304, revalidated existing entry and forwarding 304 to client");
-            updatedInAnotherWorker ? sendNotModified() : sendClientUpstreamResponse(result);
+            sendClientUpstreamResponse(result);
             return;
         }
 
         // send existing entry, it's still valid
         debugs(88, 3, "origin replied 304, revalidated existing entry and sending " << oldStatus << " to client");
-        // after syncCollapsed() http->storeEntry() contains the updated entry
-        updatedInAnotherWorker ? sendClientUpstreamResponse(result) : sendClientOldEntry();
+        sendClientOldEntry();
         return;
     }
 

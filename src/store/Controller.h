@@ -105,7 +105,7 @@ public:
     bool transientsWriter(const StoreEntry &) const;
 
     /// Update local intransit entry after changes made by appending worker.
-    void syncCollapsed(const sfileno);
+    void syncCollapsed(const sfileno, bool weAreAppendingWorker);
 
     /// adjust shared state after this worker stopped changing the entry
     void noteStoppedSharedWriting(StoreEntry &);
@@ -122,10 +122,10 @@ public:
     /// \returns an iterator for all Store entries
     StoreSearch *search();
 
-    /// the entry has been updated via a 304 response
+    /// mark the entry that has been updated via a 304 response
     void setUpdated(const StoreEntry &);
 
-    /// whether the entry has been updated via a 304 response
+    /// whether the entry has been marked as updated via a 304 response
     bool wasUpdated(const StoreEntry &) const;
 
     /// whether there are any SMP-aware storages
@@ -151,6 +151,7 @@ private:
     bool anchorToCache(StoreEntry &);
     void checkTransients(const StoreEntry &) const;
     void checkFoundCandidate(const StoreEntry &) const;
+    void switchToDefaultKeyScope(StoreEntry &);
 
     Disks *disks; ///< summary view of all disk caches (including none); never nil
     Memory *sharedMemStore; ///< memory cache that multiple workers can use

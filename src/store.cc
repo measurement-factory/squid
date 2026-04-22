@@ -672,8 +672,6 @@ StoreEntry::setPublicKey(const KeyScope scope)
     return false;
 }
 
-/// current public key scope
-/// \prec This entry is public.
 KeyScope
 StoreEntry::publicKeyScope() const
 {
@@ -681,12 +679,6 @@ StoreEntry::publicKeyScope() const
     assert(pubKey);
     // TODO: Consider storing ksRevalidation as a flag to avoid this slow key computation.
     return storeKeyHashCmp(pubKey, calcPublicKey(ksDefault)) == 0 ? ksDefault : ksRevalidation;
-}
-
-bool
-StoreEntry::wasUpdated() const
-{
-    return hasTransients() ? Store::Root().wasUpdated(*this) : false;
 }
 
 /// Unconditionally sets public key for this store entry.
@@ -715,8 +707,6 @@ StoreEntry::forcePublicKey(const cache_key *newkey)
         storeDirSwapLog(this, SWAP_LOG_ADD);
 }
 
-/// Calculates correct public key for feeding forcePublicKey().
-/// Assumes adjustVary() has been called for this entry already.
 const cache_key *
 StoreEntry::calcPublicKey(const KeyScope keyScope) const
 {

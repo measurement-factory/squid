@@ -51,7 +51,7 @@ public:
 
     /// copies current shared entry metadata into entryStatus
     void status(const StoreEntry &e, EntryStatus &entryStatus) const;
-
+    /// \copydoc Store::Controller::setUpdated()
     void setUpdated(const StoreEntry &);
 
     /// number of entry readers some time ago

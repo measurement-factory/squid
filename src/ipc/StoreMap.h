@@ -81,6 +81,8 @@ public:
     std::atomic<uint8_t> waitingToBeFreed; ///< may be accessed w/o a lock
     /// whether StoreMap::abortWriting() was called for a read-locked entry
     std::atomic<uint8_t> writerHalted;
+    /// whether StoreMap::setUpdated() was called for an entry
+    std::atomic<bool> wasUpdated;
 
     // fields marked with [app] can be modified when appending-while-reading
     // fields marked with [update] can be modified when updating-while-reading
@@ -113,8 +115,6 @@ public:
     /// where the updated chain prefix containing metadata/headers ends [update]
     /// if unset, this anchor points to a chain that was never updated
     std::atomic<StoreMapSliceId> splicingPoint;
-
-    std::atomic<bool> wasUpdated;
 };
 
 /// an array of shareable Items
@@ -257,6 +257,7 @@ public:
     /// Comparison may be inaccurate unless the caller is a lock holder.
     int compareVersions(const sfileno oldFileno, time_t newVersion) const;
 
+    /// mark the entry that has been updated by 304 response
     void setUpdated(sfileno);
 
     /// finds, locks, and returns an anchor for an empty key position,

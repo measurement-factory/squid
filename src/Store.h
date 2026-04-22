@@ -318,11 +318,13 @@ public:
     /// for a collapsed entry.
     void forcePublicKeyScope(KeyScope scope);
 
+    /// Calculates correct public key for feeding forcePublicKey().
+    /// Assumes adjustVary() has been called for this entry already.
     const cache_key *calcPublicKey(KeyScope) const;
 
+    /// current public key scope
+    /// \prec This entry is public.
     KeyScope publicKeyScope() const;
-
-    bool wasUpdated() const;
 
 #if USE_ADAPTATION
     /// call back producer when more buffer space is available
