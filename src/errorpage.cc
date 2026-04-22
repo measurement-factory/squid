@@ -1291,7 +1291,8 @@ ErrorState::compileLegacyCode(Build &build)
 
     assert(p);
 
-    debugs(4, 3, "%" << letter << " --> '" << p << "'" );
+    // TODO: Add an I/O manipulator to report non-printable chars better.
+    debugs(4, 3, "%" << (letter ? letter : '?') << " --> '" << p << "'" );
 
     if (do_quote)
         p = html_quote(p);
