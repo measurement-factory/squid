@@ -1002,9 +1002,7 @@ ErrorState::compileLegacyCode(Build &build)
         if (!build.allowRecursion)
             p = "%D";  // if recursion is not allowed, do not convert
         else if (detail) {
-            auto rawDetail = detail->verbose(request);
-            // XXX: Performance regression. c_str() reallocates
-            const auto compiledDetail = compileBody(rawDetail.c_str(), false);
+            const auto compiledDetail = detail->verbose(request, this);
             mb.append(compiledDetail.rawContent(), compiledDetail.length());
             do_quote = 0;
         }
@@ -1457,22 +1455,42 @@ ErrorState::compile(const char *input, bool building_deny_info_url, bool allowRe
     build.input = input;
 
     auto blockStart = build.input;
-    while (const auto letter = *build.input) {
-        if (letter == '%') {
+    while (*build.input) {
+        // here, "code" and %code are used in compileLeadingCode() sense
+        auto oneCode = build;
+        oneCode.output.clear(); // to capture just one compiled leading %code below
+        if (compileLeadingCode(oneCode)) {
+            // %code-less input block before the compiled %code
             build.output.append(blockStart, build.input - blockStart);
-            compileLegacyCode(build);
+            // compiled %code itself
+            build.output.append(oneCode.output);
+            Assure(build.input < oneCode.input); // we are making progress
+            build.input = oneCode.input; // after the compiled %code
             blockStart = build.input;
-        }
-        else if (letter == '@' && LogformatMagic.cmp(build.input, LogformatMagic.length()) == 0) {
-            build.output.append(blockStart, build.input - blockStart);
-            compileLogformatCode(build);
-            blockStart = build.input;
-        } else {
+        } else
             ++build.input;
-        }
     }
     build.output.append(blockStart, build.input - blockStart);
     return build.output;
+}
+
+/// Here, "code" means legacy %code or modern @Squid{logformat %code) sequence
+SBuf
+ErrorState::compileLeadingCode(Build &build)
+{
+    const auto letter = *build.input; // may be the terminating NUL
+
+    if (letter == '%') {
+        compileLegacyCode(build);
+        return true;
+    }
+
+    if (letter == '@' && LogformatMagic.cmp(build.input, LogformatMagic.length()) == 0) {
+        compileLogformatCode(build);
+        return true;
+    }
+
+    return false;
 }
 
 /// react to a compile() error

@@ -530,8 +530,23 @@ Security::ErrorDetail::brief() const
     return os.buf();
 }
 
+// XXX: Duplicates errorpage.cc code.
+namespace ErrorPage {
+
+/// state and parameters shared by several ErrorState::compile*() methods
+class Build
+{
+public:
+    SBuf output; ///< compilation result
+    const char *input = nullptr; ///< template bytes that need to be compiled
+    bool building_deny_info_url = false; ///< whether we compile deny_info URI
+    bool allowRecursion = false; ///< whether top-level compile() calls are OK
+};
+
+} // namespace ErrorPage
+
 SBuf
-Security::ErrorDetail::verbose(const HttpRequestPointer &request) const
+Security::ErrorDetail::verbose(const HttpRequestPointer &request, ErrorDetailCompiler * const compiler) const
 {
     std::optional<SBuf> customFormat;
 #if USE_OPENSSL
@@ -549,12 +564,38 @@ Security::ErrorDetail::verbose(const HttpRequestPointer &request) const
     SBufStream os;
     assert(format);
     auto remainder = format;
-    while (auto p = strchr(remainder, '%')) {
+    // TODO: This loop condition mishandles modern @Squid{logformat %code}
+    // elements that compileLeadingCode() called below does support. We do not
+    // have to support them (in this branch), but we should not mishandle them!
+    while (const auto p = strchr(remainder, '%')) {
         os.write(remainder, p - remainder);
-        const auto formattingCodeLen = convertErrorCodeToDescription(++p, os);
-        if (!formattingCodeLen)
+        remainder = p;
+
+        // XXX: convertErrorCodeToDescription() does not need this.
+        Build build;
+        build.building_deny_info_url = false; // XXX: Assumes the caller does not support this. Correct for now.
+        build.allowRecursion = false;
+        build.input = remainder;
+
+        // When compiler is nil, we leave behind both legacy errorpage %codes and modern @Squid{} codes.
+        // The former is a regression because those codes used to be compiled by `%D` code in errorpage.cc.
+
+        // XXX: convertErrorCodeToDescription() does not want to see the leading
+        // '%' character, but compileLeadingCode() does need it, causing +1s.
+        if (const auto formattingCodeLen = convertErrorCodeToDescription(remainder+1, os)) {
+            remainder += formattingCodeLen + 1;
+        } else if (compiler && compiler->compileLeadingCode(oneCode)) {
+            os << oneCode.output;
+            Assure(remainder < oneCode.input); // we are making progress
+            remainder = oneCode.input;
+        } else {
+            // TODO: Perhaps compiler->compileLeadingCode() should always
+            // "succeed" if given a %code? We do not really support incremental
+            // parsing anyway: compileLogformatCode() rejects missing '}', and
+            // compileLegacyCode() in master/v8 now barf at "%\0", at least.
             os << '%';
-        remainder = p + formattingCodeLen;
+            ++remainder;
+        }
     }
     os << remainder;
     return os.buf();
