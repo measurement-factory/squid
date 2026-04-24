@@ -1103,9 +1103,20 @@ Ftp::Server::writeErrorReply(const HttpReply *reply, const int scode)
     if (request->error)
         mb.appendf("%i-%s\r\n", scode, errorPageName(request->error.category));
 
-    for (const auto &detail: request->error.details) {
-        mb.appendf("%i-Error-Detail-Brief: " SQUIDSBUFPH "\r\n", scode, SQUIDSBUFPRINT(detail->brief()));
-        mb.appendf("%i-Error-Detail-Verbose: " SQUIDSBUFPH "\r\n", scode, SQUIDSBUFPRINT(detail->verbose(request, nullptr)));
+    if (!request->error.details.empty()) {
+        // Addressing TODO at the end of this method should remove this temporary hack.
+        // XXX: ErrorState currently requires non-constant HttpRequest, HttpReply.
+        const auto err = std::make_unique<ErrorState>(
+            const_cast<HttpRequest*>(request),
+            const_cast<HttpReply*>(reply),
+            pipeline.front()->http->al);
+
+        for (const auto &detail: request->error.details) {
+            ErrorPage::Build build(*request, "", *err);
+            detail->verbose(build);
+            mb.appendf("%i-Error-Detail-Brief: " SQUIDSBUFPH "\r\n", scode, SQUIDSBUFPRINT(detail->brief()));
+            mb.appendf("%i-Error-Detail-Verbose: " SQUIDSBUFPH "\r\n", scode, SQUIDSBUFPRINT(build.output));
+        }
     }
 
 #if USE_ADAPTATION

@@ -102,16 +102,6 @@ private:
 
 namespace ErrorPage {
 
-/// state and parameters shared by several ErrorState::compile*() methods
-class Build
-{
-public:
-    SBuf output; ///< compilation result
-    const char *input = nullptr; ///< template bytes that need to be compiled
-    bool building_deny_info_url = false; ///< whether we compile deny_info URI
-    bool allowRecursion = false; ///< whether top-level compile() calls are OK
-};
-
 /// pretty-prints error page/deny_info building error
 class BuildErrorPrinter
 {
@@ -1002,7 +992,7 @@ ErrorState::compileLegacyCode(Build &build)
         if (!build.allowRecursion)
             p = "%D";  // if recursion is not allowed, do not convert
         else if (detail) {
-            const auto compiledDetail = detail->verbose(request, this);
+            const auto compiledDetail = detail->verbose2(build);
             mb.append(compiledDetail.rawContent(), compiledDetail.length());
             do_quote = 0;
         }
@@ -1447,50 +1437,38 @@ ErrorState::compileBody(const char *input, bool allowRecursion)
 SBuf
 ErrorState::compile(const char *input, bool building_deny_info_url, bool allowRecursion)
 {
-    assert(input);
-
-    Build build;
+    Build build(*request, input, *this);
     build.building_deny_info_url = building_deny_info_url;
     build.allowRecursion = allowRecursion;
-    build.input = input;
-
-    auto blockStart = build.input;
-    while (*build.input) {
-        // here, "code" and %code are used in compileLeadingCode() sense
-        auto oneCode = build;
-        oneCode.output.clear(); // to capture just one compiled leading %code below
-        if (compileLeadingCode(oneCode)) {
-            // %code-less input block before the compiled %code
-            build.output.append(blockStart, build.input - blockStart);
-            // compiled %code itself
-            build.output.append(oneCode.output);
-            Assure(build.input < oneCode.input); // we are making progress
-            build.input = oneCode.input; // after the compiled %code
-            blockStart = build.input;
-        } else
-            ++build.input;
-    }
-    build.output.append(blockStart, build.input - blockStart);
+    build.compile();
     return build.output;
 }
 
-/// Here, "code" means legacy %code or modern @Squid{logformat %code) sequence
-SBuf
-ErrorState::compileLeadingCode(Build &build)
+void
+ErrorState::compile(Build &build) const
 {
-    const auto letter = *build.input; // may be the terminating NUL
+    assert(build.input);
 
-    if (letter == '%') {
-        compileLegacyCode(build);
-        return true;
+    // TODO: Instead of violating const-correctness with const_cast<ErrorState*>
+    // below, adjust compile*() methods to avoid ErrorState modifications.
+
+    auto blockStart = build.input;
+    while (const auto letter = *build.input) {
+        if (letter == '%') {
+            build.output.append(blockStart, build.input - blockStart);
+            if (build.secondaryCompiler && !build.secondaryCompiler->compilePercentCode(build))
+                const_cast<ErrorState*>(this)->compileLegacyCode(build);
+            blockStart = build.input;
+        }
+        else if (letter == '@' && LogformatMagic.cmp(build.input, LogformatMagic.length()) == 0) {
+            build.output.append(blockStart, build.input - blockStart);
+            const_cast<ErrorState*>(this)->compileLogformatCode(build);
+            blockStart = build.input;
+        } else {
+            ++build.input;
+        }
     }
-
-    if (letter == '@' && LogformatMagic.cmp(build.input, LogformatMagic.length()) == 0) {
-        compileLogformatCode(build);
-        return true;
-    }
-
-    return false;
+    build.output.append(blockStart, build.input - blockStart);
 }
 
 /// react to a compile() error
@@ -1526,6 +1504,25 @@ ErrorState::noteBuildError_(const char *const msg, const char * const errorLocat
     } else {
         throw TexcHere(ToSBuf(BuildErrorPrinter(inputLocation, page_id, msg, errorLocation)));
     }
+}
+
+/* ErrorPage::Build */
+
+ErrorPage::Build::Build(const HttpRequest &aRequest, const char * const templateFragment, const PrimaryCompiler &aPrimaryCompiler):
+    request(aRequest),
+    primaryCompiler(aPrimaryCompiler),
+    input(templateFragment)
+{
+}
+
+ErrorPage::Build
+ErrorPage::Build::subtask(const char * const templateFragment, const PercentCodeCompiler &aSecondaryCompiler) const
+{
+    Build subBuild(request, templateFragment, primaryCompiler);
+    subBuild.secondaryCompiler = &aSecondaryCompiler;
+    subBuild.building_deny_info_url = building_deny_info_url;
+    subBuild.allowRecursion = allowRecursion;
+    return subBuild;
 }
 
 /* ErrorPage::BuildErrorPrinter */

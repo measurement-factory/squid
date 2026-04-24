@@ -21,6 +21,7 @@ class ErrorDetail: public RefCountable
 {
 public:
     using Pointer = ErrorDetailPointer;
+    using Build = ErrorPage::Build;
 
     ~ErrorDetail() override {}
 
@@ -30,7 +31,7 @@ public:
 
     /// \returns all available details; may be customized for the given request
     /// suitable for error pages and other output meant for human consumption
-    virtual SBuf verbose(const HttpRequestPointer &) const = 0;
+    virtual SBuf verbose2(const Build &) const = 0;
 
     // Duplicate details for the same error typically happen when we update some
     // error storage (e.g., ALE) twice from the same detail source (e.g., the

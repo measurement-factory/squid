@@ -78,18 +78,14 @@ class MemBuf;
 class StoreEntry;
 class wordlist;
 
-namespace ErrorPage {
-
-class Build;
-
-} // namespace ErrorPage
-
 /// \ingroup ErrorPageAPI
 class ErrorState
 {
     CBDATA_CLASS(ErrorState);
 
 public:
+    using Build = ErrorPage::Build;
+
     /// creates an error of type other than ERR_RELAY_REMOTE
     ErrorState(err_type type, Http::StatusCode, HttpRequest * request, const AccessLogEntryPointer &al);
     ErrorState() = delete; // not implemented.
@@ -113,12 +109,13 @@ public:
     /// ensures that a future BuildHttpReply() is likely to succeed
     void validate();
 
+    /// appends build.input to build.output after replacing all %codes
+    void compile(Build &) const;
+
     /// the source of the error template (for reporting purposes)
     SBuf inputLocation;
 
 private:
-    typedef ErrorPage::Build Build;
-
     /// initializations shared by public constructors
     ErrorState(err_type, const AccessLogEntryPointer &);
 
@@ -136,6 +133,7 @@ private:
     /// compile @Squid{%code} sequence containing a single logformat %code
     void compileLogformatCode(Build &build);
 
+    /// compile(Build&) convenience wrapper without a custom compiler support;
     /// replaces all legacy and logformat %codes in the given input
     /// \param input  the template text to be converted
     /// \param building_deny_info_url  whether input is a deny_info URL parameter
@@ -335,6 +333,59 @@ protected:
     String templateName; ///< The name of the template
     err_type templateCode; ///< The internal code for this template.
 };
+
+namespace ErrorPage {
+
+/// An API for recognizing and replaces a %code sequence.
+class PercentCodeCompiler: public Interface {
+public:
+    /// Either recognizes and replaces a single %code sequence at the beginning
+    /// of `build.input`, appending the replacement to `build.output`, OR does
+    /// not modify `build`.
+    /// \returns false when the leading %code was not recognized
+    /// \prec `build.input` starts with a `%` character.
+    virtual bool compilePercentCode(Build &) const = 0;
+};
+
+/// Manages conversion of an errorpage template fragment (or equivalent) into an
+/// error response body fragment. This conversion replaces legacy errorpage
+/// %code sequences, logformat %code sequences, and, in some cases,
+/// context-dependent %code sequences. Related ErrorState methods refer to this
+/// substitution process as errorpage "compilation".
+class Build
+{
+public:
+    using PrimaryCompiler = ErrorState;
+
+    /// Creates a build step that focuses on the given template fragment, using
+    /// the given primary compiler. The build object is expected to be allocated
+    /// on stack and have shorter lifetime than constructor parameters lifetime.
+    explicit Build(const HttpRequest &, const char *templateFragment, const PrimaryCompiler &);
+
+    /// Creates a build step that focuses on the given template fragment, using
+    /// the given "secondary" context-dependent compiler. The build object
+    /// lifetime is expected to be shorter than that of function parameters.
+    Build subtask(const char *templateFragment, const PercentCodeCompiler &secondary) const;
+
+    /// converts `input` into `output`, replacing all %codes as needed
+    void compile() { primaryCompiler.compile(*this); }
+
+    /// transaction that triggered this build
+    const HttpRequest &request;
+
+    /// handles legacy errorpage %code sequences and logformat %code sequences
+    const PrimaryCompiler &primaryCompiler;
+
+    /// handles context-dependent %code sequences
+    const PercentCodeCompiler *secondaryCompiler = nullptr;
+
+    SBuf output; ///< compilation result
+    const char *input; ///< template bytes that need to be compiled; never nil
+    bool building_deny_info_url = false; ///< whether we compile deny_info URI
+    bool allowRecursion = false; ///< whether top-level compile() calls are OK
+};
+
+} // namespace ErrorPage
 
 /**
  * Parses the Accept-Language header value and return one language item on

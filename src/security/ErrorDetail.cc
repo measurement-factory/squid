@@ -530,75 +530,24 @@ Security::ErrorDetail::brief() const
     return os.buf();
 }
 
-// XXX: Duplicates errorpage.cc code.
-namespace ErrorPage {
-
-/// state and parameters shared by several ErrorState::compile*() methods
-class Build
-{
-public:
-    SBuf output; ///< compilation result
-    const char *input = nullptr; ///< template bytes that need to be compiled
-    bool building_deny_info_url = false; ///< whether we compile deny_info URI
-    bool allowRecursion = false; ///< whether top-level compile() calls are OK
-};
-
-} // namespace ErrorPage
-
+// XXX: API contradiction: Caller supplies build.output but we return new output instead of using that
 SBuf
-Security::ErrorDetail::verbose(const HttpRequestPointer &request, ErrorDetailCompiler * const compiler) const
+Security::ErrorDetail::verbose2(const ErrorPage::Build &build) const
 {
     std::optional<SBuf> customFormat;
 #if USE_OPENSSL
-    if (const auto errorDetail = Ssl::ErrorDetailsManager::GetInstance().findDetail(error_no, request)) {
+    if (const auto errorDetail = Ssl::ErrorDetailsManager::GetInstance().findDetail(error_no, &build.request)) {
         detailEntry = *errorDetail;
         customFormat = detailEntry->detail;
     } else {
         detailEntry.reset();
     }
-#else
-    (void)request;
 #endif
     auto format = customFormat ? customFormat->c_str() : "SSL handshake error (%err_name)";
 
-    SBufStream os;
-    assert(format);
-    auto remainder = format;
-    // TODO: This loop condition mishandles modern @Squid{logformat %code}
-    // elements that compileLeadingCode() called below does support. We do not
-    // have to support them (in this branch), but we should not mishandle them!
-    while (const auto p = strchr(remainder, '%')) {
-        os.write(remainder, p - remainder);
-        remainder = p;
-
-        // XXX: convertErrorCodeToDescription() does not need this.
-        Build build;
-        build.building_deny_info_url = false; // XXX: Assumes the caller does not support this. Correct for now.
-        build.allowRecursion = false;
-        build.input = remainder;
-
-        // When compiler is nil, we leave behind both legacy errorpage %codes and modern @Squid{} codes.
-        // The former is a regression because those codes used to be compiled by `%D` code in errorpage.cc.
-
-        // XXX: convertErrorCodeToDescription() does not want to see the leading
-        // '%' character, but compileLeadingCode() does need it, causing +1s.
-        if (const auto formattingCodeLen = convertErrorCodeToDescription(remainder+1, os)) {
-            remainder += formattingCodeLen + 1;
-        } else if (compiler && compiler->compileLeadingCode(oneCode)) {
-            os << oneCode.output;
-            Assure(remainder < oneCode.input); // we are making progress
-            remainder = oneCode.input;
-        } else {
-            // TODO: Perhaps compiler->compileLeadingCode() should always
-            // "succeed" if given a %code? We do not really support incremental
-            // parsing anyway: compileLogformatCode() rejects missing '}', and
-            // compileLegacyCode() in master/v8 now barf at "%\0", at least.
-            os << '%';
-            ++remainder;
-        }
-    }
-    os << remainder;
-    return os.buf();
+    auto myBuild = build.subtask(format, *this);
+    myBuild.compile(); // calls our compilePercentCode() as needed
+    return myBuild.output;
 }
 
 /// textual representation of the subject of the broken certificate
@@ -778,6 +727,24 @@ Security::ErrorDetail::printErrorLibError(std::ostream &os) const
         os << ErrorString(lib_error_no);
     else
         os << "[No Error]";
+}
+
+bool
+Security::ErrorDetail::compilePercentCode(ErrorPage::Build &build) const
+{
+    Assure(build.input);
+    Assure(*build.input == '%');
+    const auto codeNameStart = build.input + 1;
+    SBufStream os;
+    if (const auto codeNameLength = convertErrorCodeToDescription(codeNameStart, os)) {
+        Assure(build.input < codeNameStart + codeNameLength); // making parsing progress
+        Assure(codeNameStart + codeNameLength <= build.input + strlen(build.input)); // still within bounds
+        build.input = codeNameStart + codeNameLength;
+        build.output.append(os.buf());
+        return true;
+    }
+
+    return false; // including bare/trailing '%' cases
 }
 
 /**
