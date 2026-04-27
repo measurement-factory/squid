@@ -132,7 +132,7 @@ CollapsedForwarding::HandleNewData(const char *const when)
         }
 
         debugs(17, 7, "handling entry " << msg.xitIndex << " in transients_map");
-        Store::Root().syncCollapsed(msg.xitIndex, workerId == KidIdentifier);
+        Store::Root().syncCollapsed(msg.xitIndex);
         debugs(17, 7, "handled entry " << msg.xitIndex << " in transients_map");
 
         // XXX: stop and schedule an async call to continue

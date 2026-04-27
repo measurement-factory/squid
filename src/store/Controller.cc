@@ -760,7 +760,7 @@ Store::Controller::addWriting(StoreEntry *e, const cache_key *key)
 void
 Store::Controller::switchToDefaultKeyScope(StoreEntry &e)
 {
-    if (e.publicKeyScope() == ksRevalidation) {
+    if (e.publicKeyScope() == ksRevalidation && transients->isReader(e)) {
         const auto key = e.calcPublicKey(ksDefault);
         if (auto entry = peekAtLocal(key)) {
             entry->hideFromNewcomers();
@@ -771,7 +771,7 @@ Store::Controller::switchToDefaultKeyScope(StoreEntry &e)
 }
 
 void
-Store::Controller::syncCollapsed(const sfileno xitIndex, const bool weAreAppendingWorker)
+Store::Controller::syncCollapsed(const sfileno xitIndex)
 {
     assert(transients);
 
@@ -799,20 +799,18 @@ Store::Controller::syncCollapsed(const sfileno xitIndex, const bool weAreAppendi
     Transients::EntryStatus entryStatus;
     transients->status(*collapsed, entryStatus);
 
-    if (!weAreAppendingWorker) {
-        // Check first wasUpdated before waitingToBeFreed.
-        // 304 responses are private and 304 initiator entries are marked for removal, but we
-        // use collapsed entries in slaves to attach to the updated response.
-        if (entryStatus.wasUpdated || !entryStatus.waitingToBeFreed) {
-            debugs(20, 3, "switching " << *collapsed << " to default scope, updated=" << entryStatus.wasUpdated);
-            switchToDefaultKeyScope(*collapsed);
-        } else {
-            Assure(entryStatus.waitingToBeFreed);
-            // Just hide: Purging same-key cached entries (if any) is the
-            // responsibility of the worker that marked xitIndex entry for deletion.
-            debugs(20, 3, "hiding " << *collapsed << " due to waitingToBeFreed");
-            collapsed->hideFromNewcomers();
-        }
+    // Check first wasUpdated before waitingToBeFreed.
+    // 304 responses are private and 304 initiator entries are marked for removal, but we
+    // use collapsed entries in slaves to attach to the updated response.
+    if (entryStatus.wasUpdated || !entryStatus.waitingToBeFreed) {
+        debugs(20, 3, "switching " << *collapsed << " to default scope, updated=" << entryStatus.wasUpdated);
+        switchToDefaultKeyScope(*collapsed);
+    } else {
+        Assure(entryStatus.waitingToBeFreed);
+        // Just hide: Purging same-key cached entries (if any) is the
+        // responsibility of the worker that marked xitIndex entry for deletion.
+        debugs(20, 3, "hiding " << *collapsed << " due to waitingToBeFreed");
+        collapsed->hideFromNewcomers();
     }
 
     if (transients->isWriter(*collapsed))

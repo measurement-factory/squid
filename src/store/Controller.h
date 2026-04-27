@@ -105,7 +105,7 @@ public:
     bool transientsWriter(const StoreEntry &) const;
 
     /// Update local intransit entry after changes made by appending worker.
-    void syncCollapsed(const sfileno, bool weAreAppendingWorker);
+    void syncCollapsed(const sfileno);
 
     /// adjust shared state after this worker stopped changing the entry
     void noteStoppedSharedWriting(StoreEntry &);
