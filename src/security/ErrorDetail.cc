@@ -530,13 +530,12 @@ Security::ErrorDetail::brief() const
     return os.buf();
 }
 
-// XXX: API contradiction: Caller supplies build.output but we return new output instead of using that
 SBuf
-Security::ErrorDetail::verbose2(const ErrorPage::Build &build) const
+Security::ErrorDetail::verbose(const ErrorTemplateCompiler &compiler) const
 {
     std::optional<SBuf> customFormat;
 #if USE_OPENSSL
-    if (const auto errorDetail = Ssl::ErrorDetailsManager::GetInstance().findDetail(error_no, &build.request)) {
+    if (const auto errorDetail = Ssl::ErrorDetailsManager::GetInstance().findDetail(error_no, compiler.request)) {
         detailEntry = *errorDetail;
         customFormat = detailEntry->detail;
     } else {
@@ -544,10 +543,7 @@ Security::ErrorDetail::verbose2(const ErrorPage::Build &build) const
     }
 #endif
     auto format = customFormat ? customFormat->c_str() : "SSL handshake error (%err_name)";
-
-    auto myBuild = build.subtask(format, *this);
-    myBuild.compile(); // calls our compilePercentCode() as needed
-    return myBuild.output;
+    return compiler.compileDetail(format, this); // calls our compilePercentCode() as needed
 }
 
 /// textual representation of the subject of the broken certificate
@@ -709,7 +705,7 @@ Security::ErrorDetail::printErrorDescription(std::ostream &os) const
 
 #if USE_OPENSSL
     if (detailEntry) {
-        os << detailEntry->descr;
+        os << detailEntry->descr; // quote for HTML?
         return;
     }
 #endif

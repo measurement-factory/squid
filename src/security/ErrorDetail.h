@@ -65,7 +65,7 @@ public:
 
     /* ErrorDetail API */
     SBuf brief() const override;
-    SBuf verbose2(const Build &) const override;
+    SBuf verbose(const ErrorTemplateCompiler &) const override;
 
     /// \returns error category; \see ErrorCode
     ErrorCode errorNo() const { return error_no; }

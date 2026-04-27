@@ -109,8 +109,10 @@ public:
     /// ensures that a future BuildHttpReply() is likely to succeed
     void validate();
 
-    /// appends build.input to build.output after replacing all %codes
-    void compile(Build &) const;
+    /// Replaces all %codes in the given ErrorDetail `format` template.
+    /// \param compiler is an optional handler for caller-specific template %code sequences
+    /// \sa compile()
+    SBuf compileDetail(const char *format, const ErrorPage::PercentCodeCompiler *compiler) const;
 
     /// the source of the error template (for reporting purposes)
     SBuf inputLocation;
@@ -133,13 +135,15 @@ private:
     /// compile @Squid{%code} sequence containing a single logformat %code
     void compileLogformatCode(Build &build);
 
-    /// compile(Build&) convenience wrapper without a custom compiler support;
     /// replaces all legacy and logformat %codes in the given input
     /// \param input  the template text to be converted
     /// \param building_deny_info_url  whether input is a deny_info URL parameter
     /// \param allowRecursion  whether to compile %codes which produce %codes
     /// \returns the given input with all %codes substituted
+    /// \sa compileDetail()
     SBuf compile(const char *input, bool building_deny_info_url, bool allowRecursion);
+
+    void compile(Build &build) const;
 
     /// React to a compile() error, throwing if buildContext allows.
     /// \param msg description of what went wrong
@@ -347,40 +351,21 @@ public:
     virtual bool compilePercentCode(Build &) const = 0;
 };
 
-/// Manages conversion of an errorpage template fragment (or equivalent) into an
-/// error response body fragment. This conversion replaces legacy errorpage
-/// %code sequences, logformat %code sequences, and, in some cases,
-/// context-dependent %code sequences. Related ErrorState methods refer to this
-/// substitution process as errorpage "compilation".
+/// State and parameters shared by several
+/// PercentCodeCompiler::compilePercentCode() and ErrorState::compile*() methods
+/// that convert an errorpage template fragment (or equivalent) into an error
+/// response body fragment. This conversion replaces legacy errorpage %code
+/// sequences, logformat %code sequences, and, in some cases, context-dependent
+/// %code sequences.
 class Build
 {
 public:
-    using PrimaryCompiler = ErrorState;
-
-    /// Creates a build step that focuses on the given template fragment, using
-    /// the given primary compiler. The build object is expected to be allocated
-    /// on stack and have shorter lifetime than constructor parameters lifetime.
-    explicit Build(const HttpRequest &, const char *templateFragment, const PrimaryCompiler &);
-
-    /// Creates a build step that focuses on the given template fragment, using
-    /// the given "secondary" context-dependent compiler. The build object
-    /// lifetime is expected to be shorter than that of function parameters.
-    Build subtask(const char *templateFragment, const PercentCodeCompiler &secondary) const;
-
-    /// converts `input` into `output`, replacing all %codes as needed
-    void compile() { primaryCompiler.compile(*this); }
-
-    /// transaction that triggered this build
-    const HttpRequest &request;
-
-    /// handles legacy errorpage %code sequences and logformat %code sequences
-    const PrimaryCompiler &primaryCompiler;
-
-    /// handles context-dependent %code sequences
-    const PercentCodeCompiler *secondaryCompiler = nullptr;
-
     SBuf output; ///< compilation result
     const char *input; ///< template bytes that need to be compiled; never nil
+
+    /// handles context-dependent %code sequences unsupported by ErrorState
+    const PercentCodeCompiler *secondaryCompiler = nullptr;
+
     bool building_deny_info_url = false; ///< whether we compile deny_info URI
     bool allowRecursion = false; ///< whether top-level compile() calls are OK
 };

@@ -992,7 +992,7 @@ ErrorState::compileLegacyCode(Build &build)
         if (!build.allowRecursion)
             p = "%D";  // if recursion is not allowed, do not convert
         else if (detail) {
-            const auto compiledDetail = detail->verbose2(build);
+            const auto compiledDetail = detail->verbose(*this);
             mb.append(compiledDetail.rawContent(), compiledDetail.length());
             do_quote = 0;
         }
@@ -1437,13 +1437,37 @@ ErrorState::compileBody(const char *input, bool allowRecursion)
 SBuf
 ErrorState::compile(const char *input, bool building_deny_info_url, bool allowRecursion)
 {
-    Build build(*request, input, *this);
+    assert(input);
+
+    Build build;
     build.building_deny_info_url = building_deny_info_url;
     build.allowRecursion = allowRecursion;
-    build.compile();
+    build.input = input;
+
+    compile(build);
+    Assure(!*build.input); // compiled the whole template
+
     return build.output;
 }
 
+SBuf
+ErrorState::compileDetail(const char * const format, const ErrorPage::PercentCodeCompiler * const secondaryCompiler) const
+{
+    Assure(format);
+
+    Build build;
+    build.input = format;
+    build.secondaryCompiler = secondaryCompiler; // may be nil
+
+    compile(build);
+    Assure(!*build.input); // compiled the whole template
+
+    return build.output;
+}
+
+/// Replaces all %code sequences found in build.input.
+/// Appends processed input to build.output.
+/// Consumes processed build.input.
 void
 ErrorState::compile(Build &build) const
 {
@@ -1504,25 +1528,6 @@ ErrorState::noteBuildError_(const char *const msg, const char * const errorLocat
     } else {
         throw TexcHere(ToSBuf(BuildErrorPrinter(inputLocation, page_id, msg, errorLocation)));
     }
-}
-
-/* ErrorPage::Build */
-
-ErrorPage::Build::Build(const HttpRequest &aRequest, const char * const templateFragment, const PrimaryCompiler &aPrimaryCompiler):
-    request(aRequest),
-    primaryCompiler(aPrimaryCompiler),
-    input(templateFragment)
-{
-}
-
-ErrorPage::Build
-ErrorPage::Build::subtask(const char * const templateFragment, const PercentCodeCompiler &aSecondaryCompiler) const
-{
-    Build subBuild(request, templateFragment, primaryCompiler);
-    subBuild.secondaryCompiler = &aSecondaryCompiler;
-    subBuild.building_deny_info_url = building_deny_info_url;
-    subBuild.allowRecursion = allowRecursion;
-    return subBuild;
 }
 
 /* ErrorPage::BuildErrorPrinter */
