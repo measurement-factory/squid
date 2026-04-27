@@ -764,6 +764,7 @@ Store::Controller::switchToDefaultKeyScope(StoreEntry &e)
         const auto key = e.calcPublicKey(ksDefault);
         if (auto entry = peekAtLocal(key)) {
             entry->hideFromNewcomers();
+            Store::Root().transientsDisconnect(*entry);
         }
         e.forcePublicKeyScope(ksDefault);
     }

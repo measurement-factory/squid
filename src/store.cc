@@ -419,7 +419,8 @@ StoreEntry::forcePublicKeyScope(const KeyScope scope)
     if (key)
         hashDelete();
 
-    hashInsert(pubKey);
+    Store::Root().transientsDisconnect(*this);
+    Store::Root().addReading(this, pubKey);
 }
 
 void
@@ -662,6 +663,7 @@ StoreEntry::setPublicKey(const KeyScope scope)
         EntryGuard newVaryMarker(adjustVary(), "setPublicKey+failure");
         const cache_key *pubKey = calcPublicKey(scope);
         Store::Root().evictIfFound(pubKey);
+        Store::Root().transientsDisconnect(*this);
         Store::Root().addWriting(this, pubKey);
         forcePublicKey(pubKey);
         newVaryMarker.unlockAndReset("setPublicKey+success");
