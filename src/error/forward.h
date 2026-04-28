@@ -93,8 +93,8 @@ class ErrorDetail;
 class ErrorState;
 
 namespace ErrorPage {
-    class PercentCodeCompiler;
-    class Build;
+class PercentCodeCompiler;
+class Build;
 } // namespace ErrorPage
 
 typedef RefCount<ErrorDetail> ErrorDetailPointer;

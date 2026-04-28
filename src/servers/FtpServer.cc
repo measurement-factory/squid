@@ -1107,9 +1107,9 @@ Ftp::Server::writeErrorReply(const HttpReply *reply, const int scode)
         // Addressing TODO at the end of this method should remove this temporary hack.
         // XXX: ErrorState currently requires non-constant HttpRequest and HttpReply.
         const auto err = std::make_unique<ErrorState>(
-            const_cast<HttpRequest*>(request),
-            const_cast<HttpReply*>(reply),
-            pipeline.front()->http->al);
+                             const_cast<HttpRequest*>(request),
+                             const_cast<HttpReply*>(reply),
+                             pipeline.front()->http->al);
 
         for (const auto &detail: request->error.details) {
             mb.appendf("%i-Error-Detail-Brief: " SQUIDSBUFPH "\r\n", scode, SQUIDSBUFPRINT(detail->brief()));
