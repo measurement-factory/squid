@@ -1471,7 +1471,7 @@ ErrorState::compileDetail(const char * const format, const ErrorPage::PercentCod
 void
 ErrorState::compile(Build &build) const
 {
-    assert(build.input);
+    Assure(build.input);
 
     // TODO: Instead of violating const-correctness with const_cast<ErrorState*>
     // below, adjust compile*() methods to avoid ErrorState modifications.
