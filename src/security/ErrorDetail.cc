@@ -787,7 +787,6 @@ Security::ErrorDetail::convertErrorCodeToDescription(const char * const code, st
         }
     }
 
-    // TODO: Support logformat %codes.
     return 0;
 }
 
