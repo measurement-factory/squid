@@ -705,7 +705,7 @@ Security::ErrorDetail::printErrorDescription(std::ostream &os) const
 
 #if USE_OPENSSL
     if (detailEntry) {
-        os << detailEntry->descr; // quote for HTML?
+        os << detailEntry->descr;
         return;
     }
 #endif
