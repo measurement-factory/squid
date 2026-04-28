@@ -12,6 +12,7 @@
 #define SQUID_SRC_ERRORPAGE_H
 
 #include "cbdata.h"
+#include "base/TypeTraits.h"
 #include "comm/forward.h"
 #include "error/Detail.h"
 #include "error/forward.h"
