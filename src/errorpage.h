@@ -340,13 +340,13 @@ protected:
 
 namespace ErrorPage {
 
-/// An API for recognizing and replaces a %code sequence.
+/// An API for recognizing and replacing a single %code sequence.
 class PercentCodeCompiler: public Interface {
 public:
-    /// Either recognizes and replaces a single %code sequence at the beginning
-    /// of `build.input`, appending the replacement to `build.output`, OR does
-    /// not modify `build`.
-    /// \returns false when the leading %code was not recognized
+    /// Either recognizes a single %code sequence at the beginning of
+    /// `build.input` and appends its replacement to `build.output` OR does not
+    /// modify `build`.
+    /// \returns true when the leading %code was recognized
     /// \prec `build.input` starts with a `%` character.
     virtual bool compilePercentCode(Build &) const = 0;
 };
@@ -355,15 +355,16 @@ public:
 /// PercentCodeCompiler::compilePercentCode() and ErrorState::compile*() methods
 /// that convert an errorpage template fragment (or equivalent) into an error
 /// response body fragment. This conversion replaces legacy errorpage %code
-/// sequences, logformat %code sequences, and, in some cases, context-dependent
-/// %code sequences.
+/// sequences, logformat %code sequences, and, in some cases,
+/// ErrorDetail-dependent %code sequences.
 class Build
 {
 public:
     SBuf output; ///< compilation result
     const char *input; ///< template bytes that need to be compiled; never nil
 
-    /// handles context-dependent %code sequences unsupported by ErrorState
+    /// Handles context-dependent %code sequences unsupported by ErrorState.
+    /// Compiler object lifetime must exceed this Build object lifetime.
     const PercentCodeCompiler *secondaryCompiler = nullptr;
 
     bool building_deny_info_url = false; ///< whether we compile deny_info URI
