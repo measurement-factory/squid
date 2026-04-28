@@ -70,7 +70,7 @@ Security::ErrorDetail::ErrorDetail(ErrorCode, int, int) STUB
 Security::ErrorDetail::ErrorDetail(ErrorCode, LibErrorCode, int) STUB
 #endif
 void Security::ErrorDetail::setPeerCertificate(const CertPointer &) STUB
-SBuf Security::ErrorDetail::verbose(const HttpRequestPointer &) const STUB_RETVAL(SBuf())
+SBuf Security::ErrorDetail::verbose(const ErrorTemplateCompiler &) const STUB_RETVAL(SBuf())
 SBuf Security::ErrorDetail::brief() const STUB_RETVAL(SBuf())
 Security::ErrorCode Security::ErrorCodeFromName(const char *) STUB_RETVAL(0)
 const char *Security::ErrorNameFromCode(ErrorCode, bool) STUB_RETVAL("")
