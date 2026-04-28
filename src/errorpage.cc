@@ -1480,7 +1480,7 @@ ErrorState::compile(Build &build) const
     while (const auto letter = *build.input) {
         if (letter == '%') {
             build.output.append(blockStart, build.input - blockStart);
-            if (build.secondaryCompiler && !build.secondaryCompiler->compilePercentCode(build))
+            if (!build.secondaryCompiler || !build.secondaryCompiler->compilePercentCode(build))
                 const_cast<ErrorState*>(this)->compileLegacyCode(build);
             blockStart = build.input;
         }
