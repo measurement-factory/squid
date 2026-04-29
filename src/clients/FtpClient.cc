@@ -355,6 +355,11 @@ Ftp::Client::scheduleReadControlReply(int buffered_ok)
 
         typedef CommCbMemFunT<Client, CommIoCbParams> Dialer;
         AsyncCall::Pointer reader = JobCallback(9, 5, Dialer, this, Ftp::Client::readControlReply);
+        
+        if (ctrl.offset == ctrl.size) {
+            ctrl.buf = static_cast<char*>(memReallocBuf(ctrl.buf, ctrl.size << 1, &ctrl.size));
+        }
+        
         comm_read(ctrl.conn, ctrl.buf + ctrl.offset, ctrl.size - ctrl.offset, reader);
     }
 }
@@ -426,11 +431,6 @@ Ftp::Client::handleControlReply()
 
     if (!parseControlReply(bytes_used)) {
         /* didn't get complete reply yet */
-
-        if (ctrl.offset == ctrl.size) {
-            ctrl.buf = static_cast<char*>(memReallocBuf(ctrl.buf, ctrl.size << 1, &ctrl.size));
-        }
-
         scheduleReadControlReply(0);
         return;
     }
