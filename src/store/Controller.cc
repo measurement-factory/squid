@@ -764,7 +764,6 @@ Store::Controller::switchToDefaultKeyScope(StoreEntry &e)
         const auto key = e.calcPublicKey(ksDefault);
         if (auto entry = peekAtLocal(key)) {
             entry->hideFromNewcomers();
-            Store::Root().transientsDisconnect(*entry);
         }
         e.forcePublicKeyScope(ksDefault);
     }
@@ -775,11 +774,13 @@ Store::Controller::syncCollapsed(const sfileno xitIndex)
 {
     assert(transients);
 
-    StoreEntry *collapsed = transients->findCollapsed(xitIndex);
-    if (!collapsed) { // the entry is no longer active, ignore update
+    auto entries = transients->findCollapsed(xitIndex);
+    if (!entries) { // the entry is no longer active, ignore update
         debugs(20, 7, "not SMP-syncing not-transient " << xitIndex);
         return;
     }
+
+    for (auto collapsed: *entries) {
 
     if (!collapsed->locked()) {
         debugs(20, 3, "skipping (and may destroy) unlocked " << *collapsed);
@@ -873,6 +874,8 @@ Store::Controller::syncCollapsed(const sfileno xitIndex)
     // the entry is still not in one of the caches
     debugs(20, 7, "waiting " << *collapsed);
     collapsed->setCollapsingRequirement(true);
+
+    }
 }
 
 /// If possible and has not been done, associates the entry with its store(s).

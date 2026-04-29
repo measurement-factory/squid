@@ -36,11 +36,48 @@ public:
         bool wasUpdated = false; ///< whether some worker updated the entry by a 304 response
     };
 
+    /// Maps local reader and writer StoreEntries to their transient ID.
+    /// There can be many StoreEntries with the same transient ID.
+    class Locals {
+    public:
+        /// keeps StoreEntries with the same transient ID (e.g., a stale StoreEntry
+    	/// and a refreshed by 304 StoreEntry)
+        using Entries = std::list<StoreEntry*>;
+        /// maps transient ID index to Entries list
+        using Index = std::vector<Entries>;
+
+        explicit Locals(const size_t size) : index(size) {}
+
+        /// \returns most recently added StoreEntry with the given fileno
+        StoreEntry *freshest(const sfileno fileno) {
+            const auto &entries = index.at(fileno);
+            return entries.empty() ? nullptr : entries.back();
+        }
+        bool exists(const  StoreEntry &entry) const {
+            const auto &entries = index.at(entry.mem_obj->xitTable.index);
+            return std::find(entries.begin(), entries.end(), &entry) != entries.end();
+        }
+
+        void add(StoreEntry &entry) {
+            auto &entries = index.at(entry.mem().xitTable.index);
+            entries.push_back(&entry);
+        }
+
+        void remove(const StoreEntry &entry) {
+            auto &entries = index.at(entry.mem().xitTable.index);
+            auto it = std::find(entries.begin(), entries.end(), &entry);
+            Assure(it != entries.end());
+            entries.erase(it);
+        }
+
+        Index index;
+    };
+
     Transients();
     ~Transients() override;
 
     /// return a local, previously collapsed entry
-    StoreEntry *findCollapsed(const sfileno xitIndex);
+    Transients::Locals::Entries *findCollapsed(const sfileno xitIndex);
 
     /// start listening for remote DELETE requests targeting either a complete
     /// StoreEntry (ioReading) or a being-formed miss StoreEntry (ioWriting)
@@ -106,7 +143,6 @@ private:
     /// shared packed info indexed by Store keys, for creating new StoreEntries
     TransientsMap *map;
 
-    typedef std::vector<StoreEntry*> Locals;
     /// local collapsed reader and writer entries, indexed by transient ID,
     /// for syncing old StoreEntries
     Locals *locals;
