@@ -142,7 +142,7 @@ Ftp::CtrlChannel::CtrlChannel():
     last_reply(nullptr),
     replycode(0)
 {
-    buf = static_cast<char*>(memAllocBuf(min(4096, Config.maxReplyHeaderSize), &size));
+    buf = static_cast<char*>(memAllocBuf(min(4096UL, Config.maxReplyHeaderSize), &size));
 }
 
 Ftp::CtrlChannel::~CtrlChannel()
@@ -346,6 +346,7 @@ Ftp::Client::scheduleReadControlReply(int buffered_ok)
 
         if (ctrl.offset >= Config.maxReplyHeaderSize) {
             debugs(9, DBG_IMPORTANT, "FTP control reply too large: " << ctrl.offset << " bytes exceeds maxReplyHeaderSize=" << Config.maxReplyHeaderSize);
+            failed(ERR_TOO_BIG, 0);
             return;
         }
 
