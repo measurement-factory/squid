@@ -142,7 +142,7 @@ Ftp::CtrlChannel::CtrlChannel():
     last_reply(nullptr),
     replycode(0)
 {
-    buf = static_cast<char*>(memAllocBuf(min(4096UL, Config.maxReplyHeaderSize), &size));
+    buf = static_cast<char*>(memAllocBuf(min(size_t{4096}, Config.maxReplyHeaderSize), &size));
 }
 
 Ftp::CtrlChannel::~CtrlChannel()
