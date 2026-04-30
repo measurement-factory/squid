@@ -345,8 +345,8 @@ Ftp::Client::scheduleReadControlReply(int buffered_ok)
         }
 
         if (ctrl.offset >= Config.maxReplyHeaderSize) {
-            debugs(9, DBG_IMPORTANT, "FTP control reply too large: " << ctrl.offset << " bytes exceeds maxReplyHeaderSize=" << Config.maxReplyHeaderSize);
-            failed(ERR_TOO_BIG, 0);
+            debugs(9, DBG_IMPORTANT, "FTP control reply exceeding maxReplyHeaderSize=" << Config.maxReplyHeaderSize);
+            failed(ERR_FTP_FAILURE, 0);
             return;
         }
 
