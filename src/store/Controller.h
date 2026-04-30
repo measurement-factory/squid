@@ -122,8 +122,8 @@ public:
     /// \returns an iterator for all Store entries
     StoreSearch *search();
 
-    /// mark the entry that has been updated via a 304 response
-    void setUpdated(const StoreEntry &);
+    /// marks the 304 entry after it has been applied to the updated entry
+    void appliedForUpdate(const StoreEntry &);
 
     /// whether the entry has been marked as updated via a 304 response
     bool wasUpdated(const StoreEntry &) const;

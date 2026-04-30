@@ -33,7 +33,7 @@ public:
     public:
         bool hasWriter = false; ///< whether some worker is storing the entry
         bool waitingToBeFreed = false; ///< whether the entry was marked for deletion
-        bool wasUpdated = false; ///< whether some worker updated the entry by a 304 response
+        bool updateApplied = false; ///< whether some worker updated the entry by a 304 response
     };
 
     /// Maps local reader and writer StoreEntries to their transient ID.
@@ -88,9 +88,10 @@ public:
 
     /// copies current shared entry metadata into entryStatus
     void status(const StoreEntry &e, EntryStatus &entryStatus) const;
-    /// \copydoc Store::Controller::setUpdated()
+
+    /// \copydoc Store::Controller::appliedForUpdate()
     /// \prec the entry is opened for writing
-    void setUpdated(const StoreEntry &);
+    void appliedForUpdate(const StoreEntry &);
 
     /// number of entry readers some time ago
     int readers(const StoreEntry &e) const;
@@ -125,6 +126,8 @@ public:
     bool isWriter(const StoreEntry &) const;
     /// whether we or somebody else is in the "writing to Transients" I/O state
     bool hasWriter(const StoreEntry &);
+
+    bool entryIndexChanged(const cache_key *) const;
 
     static int64_t EntryLimit();
 

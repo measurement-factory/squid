@@ -712,7 +712,7 @@ Store::Controller::updateOnNotModified(StoreEntry *old, StoreEntry &e304)
     if (old->swap_dirn > -1)
         disks->updateHeaders(old);
 
-    Store::Root().setUpdated(e304);
+    Store::Root().appliedForUpdate(e304);
 
     return true;
 }
@@ -760,13 +760,14 @@ Store::Controller::addWriting(StoreEntry *e, const cache_key *key)
 void
 Store::Controller::switchToDefaultKeyScope(StoreEntry &e)
 {
-    if (e.publicKeyScope() == ksRevalidation && transients->isReader(e)) {
-        const auto key = e.calcPublicKey(ksDefault);
-        if (auto entry = peekAtLocal(key)) {
-            entry->hideFromNewcomers();
-        }
-        e.forcePublicKeyScope(ksDefault);
+    Assure(e.publicKeyScope() == ksRevalidation);
+    Assure(transients->isReader(e));
+    debugs(20, 3, "switching " << e << " to default scope");
+    const auto key = e.calcPublicKey(ksDefault);
+    if (auto entry = peekAtLocal(key)) {
+        entry->hideFromNewcomers();
     }
+    e.forcePublicKeyScope(ksDefault);
 }
 
 void
@@ -795,18 +796,27 @@ Store::Controller::syncCollapsed(const sfileno xitIndex)
         return;
     }
 
-    debugs(20, 7, "syncing " << *collapsed);
-
     Transients::EntryStatus entryStatus;
     transients->status(*collapsed, entryStatus);
 
-    // Check first wasUpdated before waitingToBeFreed.
+    debugs(20, 7, "syncing " << *collapsed << " updateApplied=" << entryStatus.updateApplied);
+
+    const auto revalidationReader = collapsed->publicKeyScope() == ksRevalidation && transients->isReader(*collapsed);
+
+    const auto revalidationReaderUpdater = revalidationReader && entryStatus.updateApplied;
+
+    auto revalidationReaderOverwriter = false;
+    if (revalidationReader && !entryStatus.updateApplied) {
+        const auto key = collapsed->calcPublicKey(ksDefault);
+        revalidationReaderOverwriter = transients->entryIndexChanged(key);
+    }
+
+    if (revalidationReaderUpdater || revalidationReaderOverwriter)
+        switchToDefaultKeyScope(*collapsed);
+
     // 304 responses are private and 304 initiator entries are marked for removal, but we
     // use collapsed entries in slaves to attach to the updated response.
-    if (entryStatus.wasUpdated || !entryStatus.waitingToBeFreed) {
-        debugs(20, 3, "switching " << *collapsed << " to default scope, updated=" << entryStatus.wasUpdated);
-        switchToDefaultKeyScope(*collapsed);
-    } else {
+    if (entryStatus.waitingToBeFreed && !revalidationReaderUpdater) {
         Assure(entryStatus.waitingToBeFreed);
         // Just hide: Purging same-key cached entries (if any) is the
         // responsibility of the worker that marked xitIndex entry for deletion.
@@ -930,10 +940,10 @@ Store::Controller::anchorToCache(StoreEntry &entry)
 }
 
 void
-Store::Controller::setUpdated(const StoreEntry &entry)
+Store::Controller::appliedForUpdate(const StoreEntry &entry)
 {
     assert(entry.hasTransients());
-    transients->setUpdated(entry);
+    transients->appliedForUpdate(entry);
 }
 
 bool
@@ -942,7 +952,7 @@ Store::Controller::wasUpdated(const StoreEntry &entry) const
     assert(entry.hasTransients());
     Transients::EntryStatus entryStatus;
     transients->status(entry, entryStatus);
-    return entryStatus.wasUpdated;
+    return entryStatus.updateApplied;
 }
 
 bool

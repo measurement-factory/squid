@@ -81,8 +81,8 @@ public:
     std::atomic<uint8_t> waitingToBeFreed; ///< may be accessed w/o a lock
     /// whether StoreMap::abortWriting() was called for a read-locked entry
     std::atomic<uint8_t> writerHalted;
-    /// whether StoreMap::setUpdated() was called for an entry
-    std::atomic<bool> wasUpdated;
+    /// whether StoreMap::appliedForUpdate() was called for an entry
+    std::atomic<bool> updateApplied;
 
     // fields marked with [app] can be modified when appending-while-reading
     // fields marked with [update] can be modified when updating-while-reading
@@ -257,8 +257,8 @@ public:
     /// Comparison may be inaccurate unless the caller is a lock holder.
     int compareVersions(const sfileno oldFileno, time_t newVersion) const;
 
-    /// mark the entry that has been updated by 304 response
-    void setUpdated(sfileno);
+    /// mark the updating entry after it has been used for update
+    void appliedForUpdate(sfileno);
 
     /// finds, locks, and returns an anchor for an empty key position,
     /// erasing the old entry (if any)

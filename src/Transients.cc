@@ -270,6 +270,21 @@ Transients::hasWriter(const StoreEntry &e)
     return map->peekAtWriter(e.mem_obj->xitTable.index);
 }
 
+bool
+Transients::entryIndexChanged(const cache_key *key) const
+{
+    const auto index = map->fileNoByKey(key);
+    if (auto prevEntry = locals->freshest(index)) {
+        sfileno newIndex;
+        if (map->openForReading(reinterpret_cast<const cache_key*>(key), newIndex)) {
+            map->closeForReading(newIndex);
+            debugs(20, 7, "index changed=" << prevEntry->mem_obj->xitTable.index << " : " << newIndex);
+            return newIndex != prevEntry->mem_obj->xitTable.index;
+        }
+    }
+    return false;
+}
+
 void
 Transients::noteFreeMapSlice(const Ipc::StoreMapSliceId)
 {
@@ -286,15 +301,15 @@ Transients::status(const StoreEntry &entry, Transients::EntryStatus &entryStatus
                          map->writeableEntry(idx) : map->readableEntry(idx);
     entryStatus.hasWriter = anchor.writing();
     entryStatus.waitingToBeFreed = anchor.waitingToBeFreed;
-    entryStatus.wasUpdated = anchor.wasUpdated;
+    entryStatus.updateApplied = anchor.updateApplied;
 }
 
 void
-Transients::setUpdated(const StoreEntry &entry)
+Transients::appliedForUpdate(const StoreEntry &entry)
 {
     assert(entry.hasTransients());
     assert(isWriter(entry));
-    map->setUpdated(entry.mem_obj->xitTable.index);
+    map->appliedForUpdate(entry.mem_obj->xitTable.index);
 }
 
 void
