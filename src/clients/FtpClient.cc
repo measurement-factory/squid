@@ -356,8 +356,14 @@ Ftp::Client::scheduleReadControlReply(int buffered_ok)
         typedef CommCbMemFunT<Client, CommIoCbParams> Dialer;
         AsyncCall::Pointer reader = JobCallback(9, 5, Dialer, this, Ftp::Client::readControlReply);
         
+        if (ctrl.offset >= Config.maxReplyHeaderSize) {
+            debugs(9, DBG_IMPORTANT, "FTP control reply too large: " << ctrl.offset << " bytes exceeds maxReplyHeaderSize=" << Config.maxReplyHeaderSize);
+            return;
+        }
+
         if (ctrl.offset == ctrl.size) {
-            ctrl.buf = static_cast<char*>(memReallocBuf(ctrl.buf, ctrl.size << 1, &ctrl.size));
+            const auto newSize = min(ctrl.size << 1, Config.maxReplyHeaderSize);
+            ctrl.buf = static_cast<char*>(memReallocBuf(ctrl.buf, newSize, &ctrl.size));
         }
         
         comm_read(ctrl.conn, ctrl.buf + ctrl.offset, ctrl.size - ctrl.offset, reader);
