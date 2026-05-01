@@ -183,11 +183,9 @@ Comm::operator << (std::ostream &os, const Connection &conn)
     if (!conn.remote.isNoAddr() || conn.remote.port())
         os << " remote=" << conn.remote;
     if (const auto peer = conn.getPeer())
-        os << " peer=" << *peer;
+        os << " cache_peer=" << *peer;
     if (conn.peerType)
         os << ' ' << hier_code_str[conn.peerType];
-    if (const auto peer = conn.getPeer())
-        os << " cache_peer=" << *peer;
     if (conn.fd >= 0)
         os << " FD " << conn.fd;
     if (conn.flags != COMM_UNSET)
