@@ -185,10 +185,18 @@ CachePeers::reset(Configuration::SmoothReconfiguration &sr)
     for (const auto &fresh: sr.fresh.cachePeers->parsed) {
         if (const auto old = findCachePeerByNameIn(oldStorage, fresh->name)) {
             Assure(fresh != old); // different pointers
+
+            // Do not report alive cache_peers explicitly because that state is
+            // normal/expected and, hence, not interesting. There is also no
+            // consistent terminology for describing that state: mgr:server_list
+            // and some code use "Up", but a lot of code uses "Alive" as well.
+            const auto status = !fresh->tcp_up ? "DEAD " : "";
+
             const auto sameSpelling = (toDirectives(*old) == toDirectives(*fresh));
-            debugs(15, DBG_IMPORTANT, "Reconfiguring existing cache_peer (with " <<
+            debugs(15, DBG_IMPORTANT, "Reconfiguring existing " << status <<
+                   "cache_peer (with " <<
                    (sameSpelling ? "unchanged" : "changed") <<
-                   "configuration spelling): " << *fresh);
+                   " configuration spelling): " << *fresh);
             add(fresh);
         } else {
             debugs(15, DBG_IMPORTANT, "Adding new cache_peer: " << *fresh);

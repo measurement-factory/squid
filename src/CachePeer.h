@@ -41,11 +41,13 @@ public:
     explicit CachePeer(const SBuf &address);
     ~CachePeer();
 
-    /// Copies rigid parts of the given `old` peer configuration. This copying
-    /// is necessary because our config parser does not see those rigid parts.
-    /// This copying is safe because those parts could not have changed.
+    /// Facilitates smooth transition from the `old` same-name cache_peer:
+    /// * Copies rigid parts of the  `old` configuration. This copying is
+    ///   necessary because our config parser does not see those rigid parts.
+    ///   This copying is safe because those parts could not have changed.
+    /// * Preserves `old` state that reconfiguration should not reset.
     /// \pre We are performing smooth reconfiguration.
-    void copyRigidFrom(const CachePeer &old);
+    void inheritFrom(const CachePeer &old);
 
     /// reacts to a successful establishment of a connection to this cache_peer
     void noteSuccess();

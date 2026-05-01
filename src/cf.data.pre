@@ -4127,6 +4127,32 @@ DOC_START
 
 	This directive supports smooth reconfiguration, with caveats:
 
+	* Squid pairs old and new cache_peer directives using `cache_peer name`
+	  parameter (which defaults to `cache_peer hostname`). This name-based
+	  pairing affects initial cache_peer "up" or "down" status (as detailed
+	  further below) and cache.log messages about reconfigration progress.
+
+	* A cache_peer that uses a domain name for its required `hostname`
+	  configuration parameter must obtain IP address(es) for that domain name.
+	  If Squid DNS cache lacks the corresponding entry, Squid performs an
+	  asynchronous DNS lookup. A cache_peer remains unusable while that DNS
+	  lookup is pending, possibly leading to transaction failures (due to the
+	  lack of usable cache_peers).
+
+	* A cache_peer either inherits its initial "up" or "down" status from the
+	  old same-name cache_peer (if such a peer exists in the old configuration)
+	  or starts "up" (otherwise). Squid uses this "optimistic" approach to avoid
+	  transaction failures (due to the lack of "up" cache_peers) that would
+	  happen if Squid were to wait for asynchronous cache_peer probes to finish.
+	  Just like harsh reconfiguration, smooth reconfiguration triggers probing
+	  of all cache_peers.
+
+	* Transactions that had committed to using a cache_peer prior to
+	  reconfiguration continue to use that old cache_peer configuration after
+	  reconfiguration. For example, a CONNECT tunnel through a cache_peer will
+	  continue to function even after that cache_peer changes its port or is
+	  completely removed by reconfiguration.
+
 	* Just like harsh reconfiguration, smooth reconfiguration closes all idle
 	  persistent and standby connections to all cache_peers, even if all
 	  cache_peer directives remain unchanged. Squid closes these connections
@@ -4137,13 +4163,6 @@ DOC_START
 	  100 idle connections. Connections closure may also slow down ongoing
 	  transactions that have selected the affected cache_peer but have not
 	  obtained a connection to it yet.
-
-	* Just like harsh reconfiguration, smooth reconfiguration starts a TCP
-	  connection probe for every configured cache_peer. A new peer remains
-	  inaccessible until that probe succeeds, and any transaction that must go
-	  through that cache_peer will fail. Future Squid versions may add support
-	  for a more graceful handover where an old same-name cache_peer is reused
-	  during the new cache_peer probe.
 
 	For general details about smooth reconfiguration, see documentation for
 	the "reconfiguration" directive.

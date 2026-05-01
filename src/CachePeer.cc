@@ -71,7 +71,7 @@ CachePeer::~CachePeer()
 }
 
 void
-CachePeer::copyRigidFrom(const CachePeer &old)
+CachePeer::inheritFrom(const CachePeer &old)
 {
     debugs(3, 7, " new " << *this << " inherits from old " << old);
     Assure(strcmp(name, old.name) == 0);
@@ -84,6 +84,14 @@ CachePeer::copyRigidFrom(const CachePeer &old)
         *tlNext = new NeighborTypeDomainList{xstrdup(tlOld->domain), tlOld->type, nullptr};
         tlNext = &(*tlNext)->next;
     }
+
+    Assure(!tcp_up);
+    tcp_up = old.tcp_up;
+    stats.logged_state = old.stats.logged_state;
+
+    // Limit TCP probe spawning rate across same-name cache_peers, just like we
+    // do for a single CachePeer object. See peerProbeIsBusy().
+    stats.last_connect_probe = old.stats.last_connect_probe;
 }
 
 Security::FuturePeerContext *
