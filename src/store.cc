@@ -401,6 +401,29 @@ StoreEntry::kickProducer()
 #endif
 
 void
+StoreEntry::forcePublicKeyScope(const KeyScope scope)
+{
+    if (!publicKey()) {
+        return;
+    }
+
+    if (publicKeyScope() == scope) {
+        return;
+    }
+
+    if (!isEmpty()) {
+        return;
+    }
+
+    const auto pubKey = calcPublicKey(scope);
+    if (key)
+        hashDelete();
+
+    Store::Root().transientsDisconnect(*this);
+    Store::Root().addReading(this, pubKey);
+}
+
+void
 StoreEntry::destroyMemObject()
 {
     debugs(20, 3, mem_obj << " in " << *this);
@@ -619,7 +642,7 @@ StoreEntry::setPublicKey(const KeyScope scope)
         // And we cannot purge that K1 slot now because older transactions may
         // still broadcast using its index; private entries cannot broadcast
         // keys instead of transient indexes.
-        Assure(!Store::Controller::SmpAware());
+        // Assure(!Store::Controller::SmpAware());
     }
 
     assert(mem_obj);
@@ -640,6 +663,7 @@ StoreEntry::setPublicKey(const KeyScope scope)
         EntryGuard newVaryMarker(adjustVary(), "setPublicKey+failure");
         const cache_key *pubKey = calcPublicKey(scope);
         Store::Root().evictIfFound(pubKey);
+        Store::Root().transientsDisconnect(*this);
         Store::Root().addWriting(this, pubKey);
         forcePublicKey(pubKey);
         newVaryMarker.unlockAndReset("setPublicKey+success");
@@ -650,8 +674,6 @@ StoreEntry::setPublicKey(const KeyScope scope)
     return false;
 }
 
-/// current public key scope
-/// \prec This entry is public.
 KeyScope
 StoreEntry::publicKeyScope() const
 {
@@ -687,8 +709,6 @@ StoreEntry::forcePublicKey(const cache_key *newkey)
         storeDirSwapLog(this, SWAP_LOG_ADD);
 }
 
-/// Calculates correct public key for feeding forcePublicKey().
-/// Assumes adjustVary() has been called for this entry already.
 const cache_key *
 StoreEntry::calcPublicKey(const KeyScope keyScope) const
 {

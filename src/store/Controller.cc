@@ -712,6 +712,8 @@ Store::Controller::updateOnNotModified(StoreEntry *old, StoreEntry &e304)
     if (old->swap_dirn > -1)
         disks->updateHeaders(old);
 
+    Store::Root().appliedForUpdate(*old, e304);
+
     return true;
 }
 
@@ -756,15 +758,30 @@ Store::Controller::addWriting(StoreEntry *e, const cache_key *key)
 }
 
 void
+Store::Controller::switchToDefaultKeyScope(StoreEntry &e)
+{
+    Assure(e.publicKeyScope() == ksRevalidation);
+    Assure(transients->isReader(e));
+    debugs(20, 3, "switching " << e << " to default scope");
+    const auto key = e.calcPublicKey(ksDefault);
+    if (auto entry = peekAtLocal(key)) {
+        entry->hideFromNewcomers();
+    }
+    e.forcePublicKeyScope(ksDefault);
+}
+
+void
 Store::Controller::syncCollapsed(const sfileno xitIndex)
 {
     assert(transients);
 
-    StoreEntry *collapsed = transients->findCollapsed(xitIndex);
-    if (!collapsed) { // the entry is no longer active, ignore update
+    auto entries = transients->findCollapsed(xitIndex);
+    if (!entries) { // the entry is no longer active, ignore update
         debugs(20, 7, "not SMP-syncing not-transient " << xitIndex);
         return;
     }
+
+    for (auto collapsed: *entries) {
 
     if (!collapsed->locked()) {
         debugs(20, 3, "skipping (and may destroy) unlocked " << *collapsed);
@@ -779,12 +796,32 @@ Store::Controller::syncCollapsed(const sfileno xitIndex)
         return;
     }
 
-    debugs(20, 7, "syncing " << *collapsed);
-
     Transients::EntryStatus entryStatus;
     transients->status(*collapsed, entryStatus);
 
-    if (entryStatus.waitingToBeFreed) {
+    const auto revalidationReader = collapsed->publicKey() && collapsed->publicKeyScope() == ksRevalidation && transients->isReader(*collapsed);
+    // whether the collapsed entry got a non-cacheable 304 reply
+    const auto revalidationReaderUpdater = revalidationReader && entryStatus.updateApplied;
+
+    debugs(20, 7, "syncing " << *collapsed << " updateApplied=" << entryStatus.updateApplied <<
+            "revalidationReader=" << revalidationReader << " revalidationReaderUpdater=" << revalidationReaderUpdater);
+
+    // whether the collapsed entry got a cacheable reply
+    auto revalidationReaderOverwriter = false;
+    if (revalidationReader && !entryStatus.updateApplied) {
+        const auto key = collapsed->calcPublicKey(ksDefault);
+        revalidationReaderOverwriter = transients->localIsStale(key);
+    }
+
+    if (revalidationReaderUpdater || revalidationReaderOverwriter) {
+        switchToDefaultKeyScope(*collapsed);
+        collapsed->mem_obj->xitTable.updated = entryStatus.updateApplied;
+    }
+
+    // 304 responses are private and Initiator marks them for removal. But we
+    // do not mark our collapsed entries because we use them to attach to
+    // the updated response.
+    if (entryStatus.waitingToBeFreed && !revalidationReaderUpdater) {
         // Just hide: Purging same-key cached entries (if any) is the
         // responsibility of the worker that marked xitIndex entry for deletion.
         debugs(20, 3, "hiding " << *collapsed << " due to waitingToBeFreed");
@@ -851,6 +888,7 @@ Store::Controller::syncCollapsed(const sfileno xitIndex)
     // the entry is still not in one of the caches
     debugs(20, 7, "waiting " << *collapsed);
     collapsed->setCollapsingRequirement(true);
+    }
 }
 
 /// If possible and has not been done, associates the entry with its store(s).
@@ -902,6 +940,22 @@ Store::Controller::anchorToCache(StoreEntry &entry)
     debugs(20, 7, "skipping not yet cached " << entry);
     entry.setCollapsingRequirement(true);
     return false;
+}
+
+void
+Store::Controller::appliedForUpdate(StoreEntry &e, const StoreEntry &entry)
+{
+    assert(entry.hasTransients());
+    transients->appliedForUpdate(e, entry);
+}
+
+bool
+Store::Controller::wasUpdated(const StoreEntry &entry) const
+{
+    assert(entry.hasTransients());
+    Transients::EntryStatus entryStatus;
+    transients->status(entry, entryStatus);
+    return entryStatus.updateApplied;
 }
 
 bool

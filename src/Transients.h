@@ -33,13 +33,51 @@ public:
     public:
         bool hasWriter = false; ///< whether some worker is storing the entry
         bool waitingToBeFreed = false; ///< whether the entry was marked for deletion
+        bool updateApplied = false; ///< whether the 304 entry has been applied to the revalidated entry
+    };
+
+    /// Maps local reader and writer StoreEntries to their transient ID.
+    /// There can be many StoreEntries with the same transient ID.
+    class Locals {
+    public:
+        /// keeps StoreEntries with the same transient ID (e.g., a stale StoreEntry
+        /// and a refreshed by 304 StoreEntry)
+        using Entries = std::list<StoreEntry*>;
+        /// maps transient ID index to Entries list
+        using Index = std::vector<Entries>;
+
+        explicit Locals(const size_t size) : index(size) {}
+
+        /// \returns most recently added StoreEntry with the given fileno
+        StoreEntry *freshest(const sfileno fileno) {
+            const auto &entries = index.at(fileno);
+            return entries.empty() ? nullptr : entries.back();
+        }
+        bool exists(const  StoreEntry &entry) const {
+            const auto &entries = index.at(entry.mem_obj->xitTable.index);
+            return std::find(entries.begin(), entries.end(), &entry) != entries.end();
+        }
+
+        void add(StoreEntry &entry) {
+            auto &entries = index.at(entry.mem().xitTable.index);
+            entries.push_back(&entry);
+        }
+
+        void remove(const StoreEntry &entry) {
+            auto &entries = index.at(entry.mem().xitTable.index);
+            auto it = std::find(entries.begin(), entries.end(), &entry);
+            Assure(it != entries.end());
+            entries.erase(it);
+        }
+
+        Index index;
     };
 
     Transients();
     ~Transients() override;
 
     /// return a local, previously collapsed entry
-    StoreEntry *findCollapsed(const sfileno xitIndex);
+    Transients::Locals::Entries *findCollapsed(const sfileno xitIndex);
 
     /// start listening for remote DELETE requests targeting either a complete
     /// StoreEntry (ioReading) or a being-formed miss StoreEntry (ioWriting)
@@ -50,6 +88,10 @@ public:
 
     /// copies current shared entry metadata into entryStatus
     void status(const StoreEntry &e, EntryStatus &entryStatus) const;
+
+    /// \copydoc Store::Controller::appliedForUpdate()
+    /// \prec the entry is opened for writing
+    void appliedForUpdate(StoreEntry &e, const StoreEntry &);
 
     /// number of entry readers some time ago
     int readers(const StoreEntry &e) const;
@@ -84,6 +126,9 @@ public:
     bool isWriter(const StoreEntry &) const;
     /// whether we or somebody else is in the "writing to Transients" I/O state
     bool hasWriter(const StoreEntry &);
+    /// whether for the given key there is a shared entry that is fresher than
+    /// the local entry
+    bool localIsStale(const cache_key *key) const;
 
     static int64_t EntryLimit();
 
@@ -102,7 +147,6 @@ private:
     /// shared packed info indexed by Store keys, for creating new StoreEntries
     TransientsMap *map;
 
-    typedef std::vector<StoreEntry*> Locals;
     /// local collapsed reader and writer entries, indexed by transient ID,
     /// for syncing old StoreEntries
     Locals *locals;

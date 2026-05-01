@@ -65,6 +65,14 @@ Ipc::StoreMap::StoreMap(const SBuf &aPath): cleaner(nullptr), path(aPath),
     assert(entryLimit() <= sliceLimit()); // at least one slice per entry
 }
 
+void
+Ipc::StoreMap::appliedForUpdate(const sfileno fileno)
+{
+    Anchor &inode = anchorAt(fileno);
+    assert(inode.writing());;
+    inode.updateApplied = true;
+}
+
 int
 Ipc::StoreMap::compareVersions(const sfileno fileno, time_t newVersion) const
 {
@@ -1025,7 +1033,7 @@ Ipc::StoreMap::sliceAt(const SliceId sliceId) const
 
 /* Ipc::StoreMapAnchor */
 
-Ipc::StoreMapAnchor::StoreMapAnchor(): start(0), splicingPoint(-1)
+Ipc::StoreMapAnchor::StoreMapAnchor(): updateApplied(false), start(0), splicingPoint(-1)
 {
     // keep in sync with rewind()
 }
@@ -1098,6 +1106,7 @@ Ipc::StoreMapAnchor::rewind()
     basics.clear();
     waitingToBeFreed = false;
     writerHalted = false;
+    updateApplied = false;
     // but keep the lock
 }
 

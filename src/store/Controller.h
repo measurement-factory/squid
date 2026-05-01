@@ -122,6 +122,12 @@ public:
     /// \returns an iterator for all Store entries
     StoreSearch *search();
 
+    /// marks the 304 entry after it has been applied to the updated entry
+    void appliedForUpdate(StoreEntry &e, const StoreEntry &e304);
+
+    /// whether the entry has been marked as updated via a 304 response
+    bool wasUpdated(const StoreEntry &) const;
+
     /// whether there are any SMP-aware storages
     static bool SmpAware();
 
@@ -145,6 +151,7 @@ private:
     bool anchorToCache(StoreEntry &);
     void checkTransients(const StoreEntry &) const;
     void checkFoundCandidate(const StoreEntry &) const;
+    void switchToDefaultKeyScope(StoreEntry &);
 
     Disks *disks; ///< summary view of all disk caches (including none); never nil
     Memory *sharedMemStore; ///< memory cache that multiple workers can use

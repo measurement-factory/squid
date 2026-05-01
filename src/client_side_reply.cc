@@ -282,9 +282,7 @@ clientReplyContext::processExpired()
 
     // TODO: Consider also allowing regular (non-collapsed) revalidation hits.
     // TODO: support collapsed revalidation for Vary-controlled entries
-    bool collapsingAllowed = Config.onoff.collapsed_forwarding &&
-                             !Store::Controller::SmpAware() &&
-                             http->request->vary_headers.isEmpty();
+    bool collapsingAllowed = Config.onoff.collapsed_forwarding && http->request->vary_headers.isEmpty();
 
     StoreEntry *entry = nullptr;
     if (collapsingAllowed) {
@@ -433,11 +431,31 @@ clientReplyContext::handleIMSReply(const StoreIOBuffer result)
     const auto oldStatus = old_entry->mem().freshestReply().sline.status();
     const auto &new_rep = http->storeEntry()->mem().freshestReply();
     const auto status = new_rep.sline.status();
+    const auto updatedInAnotherWorker = collapsedRevalidation == crSlave &&
+        http->storeEntry()->mem_obj->xitTable.updated &&
+        status != Http::scNotModified;
 
     // XXX: Disregard stale incomplete (i.e. still being written) borrowed (i.e.
     // not caused by our request) IMS responses. That new_rep may be very old!
 
     // origin replied 304
+
+    if (updatedInAnotherWorker) {
+        http->updateLoggingTags(LOG_TCP_REFRESH_UNMODIFIED);
+
+        // if client sent IMS
+        if (http->request->flags.ims && !old_entry->modifiedSince(http->request->ims, http->request->imslen)) {
+            debugs(88, 3, "origin replied 304, revalidated existing entry, creating and sending 304 to client");
+            sendNotModified();
+            return;
+        }
+
+        // after syncCollapsed() http->storeEntry() contains the updated entry
+        debugs(88, 3, "origin replied 304, revalidated existing entry and sending " << status << " to client");
+        sendClientUpstreamResponse(result);
+        return;
+    }
+
     if (status == Http::scNotModified) {
         // TODO: The update may not be instantaneous. Should we wait for its
         // completion to avoid spawning too much client-disassociated work?
