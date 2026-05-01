@@ -200,8 +200,8 @@ Ftp::Relay::swanSong()
     Ftp::Client::swanSong();
 }
 
-/// Keep control connection for future requests, after we are done with it.
-/// Similar to COMPLETE_PERSISTENT_MSG handling in http.cc.
+/// If future requests may reuse it, keep our control connection. Similar to
+/// COMPLETE_NONPERSISTENT_MSG and COMPLETE_PERSISTENT_MSG handling in http.cc.
 void
 Ftp::Relay::serverComplete()
 {
@@ -213,6 +213,10 @@ Ftp::Relay::serverComplete()
             debugs(9, 7, "completing FTP server " << ctrl.conn <<
                    " after " << ctrl.replycode);
             fwd->unregister(ctrl.conn);
+
+            // no cache_peer support for flags.ftpNative requests
+            Assure(!ctrl.conn->toGoneCachePeer());
+
             if (ctrl.replycode == 221) { // Server sends FTP 221 before closing
                 mgr->unpinConnection(false);
                 ctrl.close();

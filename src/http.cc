@@ -1095,6 +1095,11 @@ HttpStateData::statusIfComplete() const
     if (!rep->keep_alive)
         return COMPLETE_NONPERSISTENT_MSG;
 
+    if (serverConnection->toGoneCachePeer()) {
+        debugs(11, 2, "toGoneCachePeer: " << serverConnection->id);
+        return COMPLETE_NONPERSISTENT_MSG;
+    }
+
     return COMPLETE_PERSISTENT_MSG;
 }
 

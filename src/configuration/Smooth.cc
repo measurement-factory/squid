@@ -44,5 +44,7 @@ Configuration::SmoothReconfiguration::finish()
 {
     while (const auto call = plan_.extract())
         ScheduleCallHere(call);
+
+    debugs(3, 3, "scheduled calls: " << plan_.size());
 }
 

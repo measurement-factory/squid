@@ -277,6 +277,7 @@ IdleConnList::findUseable(const Comm::ConnectionPointer &aKey)
 
         // finally, a match. pop and return it.
         Comm::ConnectionPointer result = theList_[i];
+        debugs(48, 7, "found at " << i << ": " << result);
         Assure(!result->toGoneCachePeer());
         clearHandlers(result);
         /* may delete this */
@@ -444,6 +445,10 @@ PconnPool::push(const Comm::ConnectionPointer &conn, const char *domain)
 {
     if (fdUsageHigh()) {
         debugs(48, 3, "Not many unused FDs");
+        conn->close();
+        return;
+    } else if (conn->toGoneCachePeer()) {
+        debugs(48, 3, "rejecting connection toGoneCachePeer: " << conn->id);
         conn->close();
         return;
     } else if (shutting_down) {
