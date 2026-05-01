@@ -33,7 +33,7 @@ public:
     public:
         bool hasWriter = false; ///< whether some worker is storing the entry
         bool waitingToBeFreed = false; ///< whether the entry was marked for deletion
-        bool updateApplied = false; ///< whether some worker updated the entry by a 304 response
+        bool updateApplied = false; ///< whether the 304 entry has been applied to the revalidated entry
     };
 
     /// Maps local reader and writer StoreEntries to their transient ID.
@@ -126,8 +126,8 @@ public:
     bool isWriter(const StoreEntry &) const;
     /// whether we or somebody else is in the "writing to Transients" I/O state
     bool hasWriter(const StoreEntry &);
-    /// whether there is an entry in the index having a different fileno
-    /// from an existing entry in Locals with the same key
+    /// whether for the given key there is a shared entry that is fresher than
+    /// the local entry
     bool localIsStale(const cache_key *key) const;
 
     static int64_t EntryLimit();

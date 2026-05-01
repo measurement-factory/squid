@@ -888,7 +888,6 @@ Store::Controller::syncCollapsed(const sfileno xitIndex)
     // the entry is still not in one of the caches
     debugs(20, 7, "waiting " << *collapsed);
     collapsed->setCollapsingRequirement(true);
-
     }
 }
 
