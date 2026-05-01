@@ -818,10 +818,10 @@ Store::Controller::syncCollapsed(const sfileno xitIndex)
         collapsed->mem_obj->xitTable.updated = entryStatus.updateApplied;
     }
 
-    // 304 responses are private and 304 initiator entries are marked for removal, but we
-    // use collapsed entries in slaves to attach to the updated response.
+    // 304 responses are private and Initiator marks them for removal. But we
+    // do not mark our collapsed entries because we use them to attach to
+    // the updated response.
     if (entryStatus.waitingToBeFreed && !revalidationReaderUpdater) {
-        Assure(entryStatus.waitingToBeFreed);
         // Just hide: Purging same-key cached entries (if any) is the
         // responsibility of the worker that marked xitIndex entry for deletion.
         debugs(20, 3, "hiding " << *collapsed << " due to waitingToBeFreed");
