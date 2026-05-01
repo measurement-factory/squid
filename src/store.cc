@@ -581,9 +581,9 @@ StoreEntry::hideFromNewcomers()
 {
     debugs(20, 7, *this);
     if (EBIT_TEST(flags, KEY_PRIVATE))
-        setPrivateKey(shareableWhenPrivate, false, EvictCached::off); // TODO: here and below check the second argument
+        setPrivateKey(shareableWhenPrivate, true, EvictCached::off);
     else
-        setPrivateKey(true, false, EvictCached::off);
+        setPrivateKey(true, true, EvictCached::off);
 }
 
 /* RBC 20050104 AFAICT this should become simpler:

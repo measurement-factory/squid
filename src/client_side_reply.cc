@@ -432,7 +432,7 @@ clientReplyContext::handleIMSReply(const StoreIOBuffer result)
     const auto &new_rep = http->storeEntry()->mem().freshestReply();
     const auto status = new_rep.sline.status();
     const auto updatedInAnotherWorker = collapsedRevalidation == crSlave &&
-        Store::Root().wasUpdated(*http->storeEntry()) &&
+        http->storeEntry()->mem_obj->xitTable.updated &&
         status != Http::scNotModified;
 
     // XXX: Disregard stale incomplete (i.e. still being written) borrowed (i.e.

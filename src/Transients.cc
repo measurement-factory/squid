@@ -271,18 +271,10 @@ Transients::hasWriter(const StoreEntry &e)
 }
 
 bool
-Transients::entryIndexChanged(const cache_key *key) const
+Transients::localIsStale(const cache_key *key) const
 {
     const auto index = map->fileNoByKey(key);
-    if (auto prevEntry = locals->freshest(index)) {
-        sfileno newIndex;
-        if (map->openForReading(reinterpret_cast<const cache_key*>(key), newIndex)) {
-            map->closeForReading(newIndex);
-            debugs(20, 7, "index changed=" << prevEntry->mem_obj->xitTable.index << " : " << newIndex);
-            return newIndex != prevEntry->mem_obj->xitTable.index;
-        }
-    }
-    return false;
+    return locals->freshest(index) == nullptr;
 }
 
 void
@@ -305,11 +297,19 @@ Transients::status(const StoreEntry &entry, Transients::EntryStatus &entryStatus
 }
 
 void
-Transients::appliedForUpdate(const StoreEntry &entry)
+Transients::appliedForUpdate(StoreEntry &e, const StoreEntry &entry)
 {
     assert(entry.hasTransients());
     assert(isWriter(entry));
     map->appliedForUpdate(entry.mem_obj->xitTable.index);
+    // refresh the entry index after update
+    evictCached(e);
+    const auto key = e.calcPublicKey(ksDefault);
+    sfileno index = 0;
+    const auto anchor = map->openForWriting(key, index);
+    if (!anchor)
+        throw TextException("writer collision", Here());
+    map->closeForWriting(index);
 }
 
 void

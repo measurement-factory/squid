@@ -177,6 +177,7 @@ public:
         {
             index = anIndex;
             io = anIo;
+            updated = false;
         }
 
         /// stop associating our StoreEntry with a Transients entry
@@ -184,10 +185,13 @@ public:
         {
             index = -1;
             io = Store::ioDone;
+            updated = false;
         }
 
         int32_t index = -1; ///< entry position inside the in-transit table
         Store::IoStatus io = Store::ioUndecided; ///< current I/O state
+        /// whether the respective Transients entry was updated via 304
+        bool updated = false;
     };
     XitTable xitTable; ///< current [shared] memory caching state for the entry
 

@@ -712,7 +712,7 @@ Store::Controller::updateOnNotModified(StoreEntry *old, StoreEntry &e304)
     if (old->swap_dirn > -1)
         disks->updateHeaders(old);
 
-    Store::Root().appliedForUpdate(e304);
+    Store::Root().appliedForUpdate(*old, e304);
 
     return true;
 }
@@ -799,20 +799,24 @@ Store::Controller::syncCollapsed(const sfileno xitIndex)
     Transients::EntryStatus entryStatus;
     transients->status(*collapsed, entryStatus);
 
-    debugs(20, 7, "syncing " << *collapsed << " updateApplied=" << entryStatus.updateApplied);
-
-    const auto revalidationReader = collapsed->publicKeyScope() == ksRevalidation && transients->isReader(*collapsed);
-
+    const auto revalidationReader = collapsed->publicKey() && collapsed->publicKeyScope() == ksRevalidation && transients->isReader(*collapsed);
+    // whether the collapsed entry got a non-cacheable 304 reply
     const auto revalidationReaderUpdater = revalidationReader && entryStatus.updateApplied;
 
+    debugs(20, 7, "syncing " << *collapsed << " updateApplied=" << entryStatus.updateApplied <<
+            "revalidationReader=" << revalidationReader << " revalidationReaderUpdater=" << revalidationReaderUpdater);
+
+    // whether the collapsed entry got a cacheable reply
     auto revalidationReaderOverwriter = false;
     if (revalidationReader && !entryStatus.updateApplied) {
         const auto key = collapsed->calcPublicKey(ksDefault);
-        revalidationReaderOverwriter = transients->entryIndexChanged(key);
+        revalidationReaderOverwriter = transients->localIsStale(key);
     }
 
-    if (revalidationReaderUpdater || revalidationReaderOverwriter)
+    if (revalidationReaderUpdater || revalidationReaderOverwriter) {
         switchToDefaultKeyScope(*collapsed);
+        collapsed->mem_obj->xitTable.updated = entryStatus.updateApplied;
+    }
 
     // 304 responses are private and 304 initiator entries are marked for removal, but we
     // use collapsed entries in slaves to attach to the updated response.
@@ -940,10 +944,10 @@ Store::Controller::anchorToCache(StoreEntry &entry)
 }
 
 void
-Store::Controller::appliedForUpdate(const StoreEntry &entry)
+Store::Controller::appliedForUpdate(StoreEntry &e, const StoreEntry &entry)
 {
     assert(entry.hasTransients());
-    transients->appliedForUpdate(entry);
+    transients->appliedForUpdate(e, entry);
 }
 
 bool

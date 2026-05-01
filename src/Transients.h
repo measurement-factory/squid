@@ -41,7 +41,7 @@ public:
     class Locals {
     public:
         /// keeps StoreEntries with the same transient ID (e.g., a stale StoreEntry
-    	/// and a refreshed by 304 StoreEntry)
+        /// and a refreshed by 304 StoreEntry)
         using Entries = std::list<StoreEntry*>;
         /// maps transient ID index to Entries list
         using Index = std::vector<Entries>;
@@ -91,7 +91,7 @@ public:
 
     /// \copydoc Store::Controller::appliedForUpdate()
     /// \prec the entry is opened for writing
-    void appliedForUpdate(const StoreEntry &);
+    void appliedForUpdate(StoreEntry &e, const StoreEntry &);
 
     /// number of entry readers some time ago
     int readers(const StoreEntry &e) const;
@@ -126,8 +126,9 @@ public:
     bool isWriter(const StoreEntry &) const;
     /// whether we or somebody else is in the "writing to Transients" I/O state
     bool hasWriter(const StoreEntry &);
-
-    bool entryIndexChanged(const cache_key *) const;
+    /// whether there is an entry in the index having a different fileno
+    /// from an existing entry in Locals with the same key
+    bool localIsStale(const cache_key *key) const;
 
     static int64_t EntryLimit();
 
