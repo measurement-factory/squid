@@ -213,5 +213,7 @@ CachePeers::reset(Configuration::SmoothReconfiguration &sr)
 #endif
 
     neighbors_init(); // XXX: Check for port conflict earlier to avoid exceptions
+
+    // peerClearRR() is unnecessary because all CurrentCachePeers() have the same initial rr_count
 }
 

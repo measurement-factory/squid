@@ -2066,7 +2066,7 @@ free_peer(CachePeers ** const peers)
 
 template <>
 void
-Configuration::Component<CachePeers*>::Reconfigure(SmoothReconfiguration &sr, CachePeers *&peers, ConfigParser &parser)
+Configuration::Component<CachePeers*>::Reconfigure(SmoothReconfiguration &sr, CachePeers *&, ConfigParser &parser)
 {
     auto newPeer = ParseCachePeer(parser);
     debugs(3, 5, *newPeer);
@@ -2074,9 +2074,7 @@ Configuration::Component<CachePeers*>::Reconfigure(SmoothReconfiguration &sr, Ca
     if (findCachePeerByNameIn(sr.fresh.cachePeers->parsed, newPeer->name))
         throw TextException("cache_peer specified twice", Here());
 
-    Assure(peers == Config.peers);
-    if (const auto oldPeer = findCachePeerByName(newPeer->name))
-        newPeer->inheritFrom(*oldPeer);
+    newPeer->noteParsed(sr);
 
     sr.fresh.cachePeers->parsed.push_back(newPeer);
 }

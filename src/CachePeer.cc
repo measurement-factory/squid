@@ -71,10 +71,41 @@ CachePeer::~CachePeer()
 }
 
 void
+CachePeer::noteParsed(Configuration::SmoothReconfiguration &)
+{
+    if (const auto old = findCachePeerByName(name))
+        inheritFrom(*old);
+    else
+        startDynasty();
+}
+
+/// noteParsed() implementation for a cache_peer absent from the previous configuration
+/// \sa inheritFrom()
+void
+CachePeer::startDynasty()
+{
+    debugs(3, 7, "with " << *this);
+
+    // Optimistically assume that this newly enabled peer is reachable. This is
+    // enough for hostname=IP cache_peers, bit the peer will still be unusable
+    // if its hostname resolution requires communication with the DNS server.
+    Assure(!tcp_up);
+    tcp_up = connect_fail_limit;
+    stats.logged_state = PEER_ALIVE;
+}
+
+/// noteParsed() implementation for a cache_peer that was also present in the
+/// previous configuration, represented there by the `old` CachePeer object.
+/// \sa startDynasty()
+void
 CachePeer::inheritFrom(const CachePeer &old)
 {
-    debugs(3, 7, " new " << *this << " inherits from old " << old);
+    debugs(3, 7, "new " << *this << " inherits from old " << old);
     Assure(strcmp(name, old.name) == 0);
+
+    /// Copy rigid parts of the `old` configuration. This copying is necessary
+    /// because our config parser does not see those rigid parts. This copying
+    /// is safe because those parts could not have changed.
 
     // TODO: Remove this copying after making neighbor_type_domain pliable.
     // Copy old values managed by rigid neighbor_type_domain (which could not have changed).
@@ -84,6 +115,8 @@ CachePeer::inheritFrom(const CachePeer &old)
         *tlNext = new NeighborTypeDomainList{xstrdup(tlOld->domain), tlOld->type, nullptr};
         tlNext = &(*tlNext)->next;
     }
+
+    /// Carry over the `old` state parts that reconfiguration should not reset.
 
     Assure(!tcp_up);
     tcp_up = old.tcp_up;

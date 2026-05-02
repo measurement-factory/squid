@@ -41,13 +41,8 @@ public:
     explicit CachePeer(const SBuf &address);
     ~CachePeer();
 
-    /// Facilitates smooth transition from the `old` same-name cache_peer:
-    /// * Copies rigid parts of the  `old` configuration. This copying is
-    ///   necessary because our config parser does not see those rigid parts.
-    ///   This copying is safe because those parts could not have changed.
-    /// * Preserves `old` state that reconfiguration should not reset.
-    /// \pre We are performing smooth reconfiguration.
-    void inheritFrom(const CachePeer &old);
+    /// reacts to legacy parser finishing up parsing of our cache_peer directive
+    void noteParsed(Configuration::SmoothReconfiguration &);
 
     /// reacts to a successful establishment of a connection to this cache_peer
     void noteSuccess();
@@ -278,6 +273,9 @@ private:
     using UnorderedCallbacks = std::unordered_set<AsyncCall::Pointer, std::hash<AsyncCall::Pointer>, std::equal_to<AsyncCall::Pointer>, PoolingAllocator<AsyncCall::Pointer> >;
 
     friend class OutgoingConnectionFailure;
+
+    void startDynasty();
+    void inheritFrom(const CachePeer &);
 
     /// reacts to a failure on a connection to this cache_peer
     /// \param code a received response status code, if any
