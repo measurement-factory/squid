@@ -125,9 +125,6 @@ public:
     /// marks the 304 entry after it has been applied to the updated entry
     void appliedForUpdate(StoreEntry &e, const StoreEntry &e304);
 
-    /// whether the entry has been marked as updated via a 304 response
-    bool wasUpdated(const StoreEntry &) const;
-
     /// whether there are any SMP-aware storages
     static bool SmpAware();
 

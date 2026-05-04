@@ -945,17 +945,8 @@ Store::Controller::anchorToCache(StoreEntry &entry)
 void
 Store::Controller::appliedForUpdate(StoreEntry &e, const StoreEntry &entry)
 {
-    assert(entry.hasTransients());
-    transients->appliedForUpdate(e, entry);
-}
-
-bool
-Store::Controller::wasUpdated(const StoreEntry &entry) const
-{
-    assert(entry.hasTransients());
-    Transients::EntryStatus entryStatus;
-    transients->status(entry, entryStatus);
-    return entryStatus.updateApplied;
+    if (entry.hasTransients())
+        transients->appliedForUpdate(e, entry);
 }
 
 bool
