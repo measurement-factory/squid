@@ -26,6 +26,7 @@ class clientReplyContext : public RefCountable, public StoreClient
 public:
     static STCB CacheHit;
     static STCB HandleIMSReply;
+    static STCB HandleSmpCollapsedRevaliationReply;
     static STCB SendMoreData;
 
     clientReplyContext(ClientHttpRequest *);
@@ -109,6 +110,7 @@ private:
     void noteStreamBufferredBytes(const StoreIOBuffer &);
     void cacheHit(StoreIOBuffer result);
     void handleIMSReply(StoreIOBuffer result);
+    void handleSmpCollapsedRevaliationReply(StoreIOBuffer result);
     void sendMoreData(StoreIOBuffer result);
     void triggerInitialStoreRead(STCB = SendMoreData);
     void requestMoreBodyFromStore();

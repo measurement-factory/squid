@@ -148,7 +148,6 @@ private:
     bool anchorToCache(StoreEntry &);
     void checkTransients(const StoreEntry &) const;
     void checkFoundCandidate(const StoreEntry &) const;
-    void switchToDefaultKeyScope(StoreEntry &);
 
     Disks *disks; ///< summary view of all disk caches (including none); never nil
     Memory *sharedMemStore; ///< memory cache that multiple workers can use

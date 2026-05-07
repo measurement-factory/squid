@@ -313,11 +313,6 @@ public:
         return !EBIT_TEST(flags, KEY_PRIVATE) || shareableWhenPrivate;
     }
 
-    /// Sets the scope of the existing empty public entry.
-    /// The basic use case is to switch ksRevalidation to ksDefault
-    /// for a collapsed entry.
-    void forcePublicKeyScope(KeyScope scope);
-
     /// Calculates correct public key for feeding forcePublicKey().
     /// Assumes adjustVary() has been called for this entry already.
     const cache_key *calcPublicKey(KeyScope) const;

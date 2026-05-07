@@ -352,7 +352,8 @@ clientReplyContext::processExpired()
         /* start counting the length from 0 */
         StoreIOBuffer localTempBuffer(HTTP_REQBUF_SZ, 0, tempbuf);
         // keep lastStreamBufferedBytes: tempbuf is not a Client Stream buffer
-        ::storeClientCopy(sc, entry, localTempBuffer, HandleIMSReply, this);
+        auto handler = (collapsedRevalidation = crInitiator) ? HandleIMSReply : HandleSmpCollapsedRevaliationReply;
+        ::storeClientCopy(sc, entry, localTempBuffer, handler, this);
     }
 }
 
@@ -371,6 +372,13 @@ clientReplyContext::HandleIMSReply(void *data, StoreIOBuffer result)
 {
     clientReplyContext *context = (clientReplyContext *)data;
     context->handleIMSReply(result);
+}
+
+void
+clientReplyContext::HandleSmpCollapsedRevaliationReply(void *data, StoreIOBuffer result)
+{
+    clientReplyContext *context = (clientReplyContext *)data;
+    context->handleSmpCollapsedRevaliationReply(result);
 }
 
 void
@@ -431,31 +439,11 @@ clientReplyContext::handleIMSReply(const StoreIOBuffer result)
     const auto oldStatus = old_entry->mem().freshestReply().sline.status();
     const auto &new_rep = http->storeEntry()->mem().freshestReply();
     const auto status = new_rep.sline.status();
-    const auto updatedInAnotherWorker = collapsedRevalidation == crSlave &&
-        http->storeEntry()->mem_obj->xitTable.updated &&
-        status != Http::scNotModified;
 
     // XXX: Disregard stale incomplete (i.e. still being written) borrowed (i.e.
     // not caused by our request) IMS responses. That new_rep may be very old!
 
     // origin replied 304
-
-    if (updatedInAnotherWorker) {
-        http->updateLoggingTags(LOG_TCP_REFRESH_UNMODIFIED);
-
-        // if client sent IMS
-        if (http->request->flags.ims && !old_entry->modifiedSince(http->request->ims, http->request->imslen)) {
-            debugs(88, 3, "origin replied 304, revalidated existing entry, creating and sending 304 to client");
-            sendNotModified();
-            return;
-        }
-
-        // after syncCollapsed() http->storeEntry() contains the updated entry
-        debugs(88, 3, "origin replied 304, revalidated existing entry and sending " << status << " to client");
-        sendClientUpstreamResponse(result);
-        return;
-    }
-
     if (status == Http::scNotModified) {
         // TODO: The update may not be instantaneous. Should we wait for its
         // completion to avoid spawning too much client-disassociated work?
@@ -516,6 +504,29 @@ clientReplyContext::handleIMSReply(const StoreIOBuffer result)
     debugs(88, 3, "origin replied with error " << status << ", sending old entry (" << oldStatus << ") to client");
     sendClientOldEntry();
 }
+
+void
+clientReplyContext::handleSmpCollapsedRevaliationReply(const StoreIOBuffer result)
+{
+    if (const auto seFresh = storeGetPublicByRequest(http->request)) {
+        debugs(88, 3, "crInitiator successfully updated or replaced");
+
+        old_entry->hideFromNewcomers();
+
+        // clear the old state; we do not need it anymore
+        restoreState();
+        removeClientStoreReference(&sc, http);
+        // now go to the existing path that reads "updated or replaced" seFresh
+        ::storeClientCopy(sc, seFresh, result, HandleIMSReply, this);
+        return;
+    } else {
+        debugs(88, 3, "SMP collapsed revalidation failure");
+        restoreState();
+        http->updateLoggingTags(LOG_TCP_REFRESH_FAIL_ERR);
+        processMiss();
+    }
+}
+
 
 CSR clientGetMoreData;
 CSD clientReplyDetach;

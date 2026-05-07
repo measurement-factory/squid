@@ -401,29 +401,6 @@ StoreEntry::kickProducer()
 #endif
 
 void
-StoreEntry::forcePublicKeyScope(const KeyScope scope)
-{
-    if (!publicKey()) {
-        return;
-    }
-
-    if (publicKeyScope() == scope) {
-        return;
-    }
-
-    if (!isEmpty()) {
-        return;
-    }
-
-    const auto pubKey = calcPublicKey(scope);
-    if (key)
-        hashDelete();
-
-    Store::Root().transientsDisconnect(*this);
-    Store::Root().addReading(this, pubKey);
-}
-
-void
 StoreEntry::destroyMemObject()
 {
     debugs(20, 3, mem_obj << " in " << *this);
