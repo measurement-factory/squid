@@ -177,6 +177,8 @@ public:
         {
             index = anIndex;
             io = anIo;
+            collapsed = false;
+            collapsedSlaveNotified = false;
         }
 
         /// stop associating our StoreEntry with a Transients entry
@@ -184,10 +186,15 @@ public:
         {
             index = -1;
             io = Store::ioDone;
+            collapsed = false;
+            collapsedSlaveNotified = false;
         }
 
         int32_t index = -1; ///< entry position inside the in-transit table
         Store::IoStatus io = Store::ioUndecided; ///< current I/O state
+        /// whether our StoreEntry was initially a collapsed revalidation entry, either slave or initiator
+        bool collapsed = false;
+        bool collapsedSlaveNotified = false;
     };
     XitTable xitTable; ///< current [shared] memory caching state for the entry
 

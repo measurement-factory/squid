@@ -297,12 +297,22 @@ Transients::status(const StoreEntry &entry, Transients::EntryStatus &entryStatus
 }
 
 void
-Transients::appliedForUpdate(StoreEntry &e, const StoreEntry &entry)
+Transients::updateApplied(const StoreEntry &e)
 {
-    assert(entry.hasTransients());
-    assert(isWriter(entry));
-    map->appliedForUpdate(entry.mem_obj->xitTable.index);
-    // refresh the entry index after update
+    assert(e.hasTransients());
+    assert(isWriter(e));
+
+    EntryStatus entryStatus;
+    status(e, entryStatus);
+    if (!entryStatus.updateApplied) {
+        map->appliedForUpdate(e.mem_obj->xitTable.index);
+        CollapsedForwarding::Broadcast(e);
+    }
+}
+
+void
+Transients::refreshEntry(StoreEntry &e)
+{
     evictCached(e);
     const auto key = e.calcPublicKey(ksDefault);
     sfileno index = 0;

@@ -377,6 +377,13 @@ store_client::doCopy(StoreEntry *anEntry)
            " objectLen: " << entry->objectLen() <<
            " past_answers: " << answers);
 
+    if (mem->xitTable.collapsedSlaveNotified) {
+        debugs(33, 3, "proceed to collapsed revalidation handler");
+        noteNews();
+        flags.store_copying = false;
+        return;
+    }
+
     const auto sendHttpHeaders = sendingHttpHeaders();
 
     if (!sendHttpHeaders && !moreToRead()) {

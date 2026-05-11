@@ -123,7 +123,9 @@ public:
     StoreSearch *search();
 
     /// marks the 304 entry after it has been applied to the updated entry
-    void appliedForUpdate(StoreEntry &e, const StoreEntry &e304);
+    void updateApplied(StoreEntry &e, const StoreEntry &e304);
+
+    void collapsedWritingCheckpoint(const StoreEntry &e);
 
     /// whether there are any SMP-aware storages
     static bool SmpAware();

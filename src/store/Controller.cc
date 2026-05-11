@@ -707,12 +707,10 @@ Store::Controller::updateOnNotModified(StoreEntry *old, StoreEntry &e304)
     }
 
     if (sharedMemStore && old->mem_status == IN_MEMORY && !EBIT_TEST(old->flags, ENTRY_SPECIAL))
-        sharedMemStore->updateHeaders(old);
+        sharedMemStore->updateHeaders(old, e304);
 
     if (old->swap_dirn > -1)
-        disks->updateHeaders(old);
-
-    Store::Root().appliedForUpdate(*old, e304);
+        disks->updateHeaders(old, e304);
 
     return true;
 }
@@ -788,8 +786,6 @@ Store::Controller::syncCollapsed(const sfileno xitIndex)
     Transients::EntryStatus entryStatus;
     transients->status(*collapsed, entryStatus);
 
-    const auto revalidationReader = collapsed->publicKey() && collapsed->publicKeyScope() == ksRevalidation && transients->isReader(*collapsed);
-
     if (entryStatus.waitingToBeFreed) {
         // Just hide: Purging same-key cached entries (if any) is the
         // responsibility of the worker that marked xitIndex entry for deletion.
@@ -799,6 +795,14 @@ Store::Controller::syncCollapsed(const sfileno xitIndex)
 
     if (transients->isWriter(*collapsed))
         return; // readers can only change our waitingToBeFreed flag
+    else if (transients->isReader(*collapsed) && collapsed->mem_obj->xitTable.collapsed) {
+        debugs(20, 5, "revalidated " << *collapsed);
+        collapsed->setCollapsingRequirement(false);
+        collapsed->mem_obj->xitTable.collapsed = false;
+        collapsed->mem_obj->xitTable.collapsedSlaveNotified = true;
+        collapsed->invokeHandlers();
+        return;
+    }
 
     assert(transients->isReader(*collapsed));
 
@@ -837,11 +841,6 @@ Store::Controller::syncCollapsed(const sfileno xitIndex)
     if (inSync) {
         debugs(20, 5, "synced " << *collapsed);
         assert(found);
-        collapsed->setCollapsingRequirement(false);
-        collapsed->invokeHandlers();
-        return;
-    } else if (revalidationReader) {
-        debugs(20, 5, "revalidated " << *collapsed);
         collapsed->setCollapsingRequirement(false);
         collapsed->invokeHandlers();
         return;
@@ -917,10 +916,19 @@ Store::Controller::anchorToCache(StoreEntry &entry)
 }
 
 void
-Store::Controller::appliedForUpdate(StoreEntry &e, const StoreEntry &entry)
+Store::Controller::updateApplied(StoreEntry &e, const StoreEntry &e304)
 {
-    if (entry.hasTransients())
-        transients->appliedForUpdate(e, entry);
+    collapsedWritingCheckpoint(e304);
+
+    if (e.hasTransients())
+        transients->refreshEntry(e);
+}
+
+void
+Store::Controller::collapsedWritingCheckpoint(const StoreEntry &e)
+{
+    if (e.mem_obj && e.mem_obj->xitTable.collapsed && e.hasTransients())
+        transients->updateApplied(e);
 }
 
 bool

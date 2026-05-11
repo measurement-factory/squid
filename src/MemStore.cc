@@ -347,12 +347,12 @@ MemStore::get(const cache_key *key)
 }
 
 void
-MemStore::updateHeaders(StoreEntry *updatedE)
+MemStore::updateHeaders(StoreEntry *updatedE, const StoreEntry &e304)
 {
     if (!map)
         return;
 
-    Ipc::StoreMapUpdate update(updatedE);
+    Ipc::StoreMapUpdate update(updatedE, &e304);
     assert(updatedE);
     assert(updatedE->mem_obj);
     if (!map->openForUpdating(update, updatedE->mem_obj->memCache.index))
@@ -667,6 +667,7 @@ MemStore::startCaching(StoreEntry &e)
     e.mem_obj->memCache.index = index;
     e.mem_obj->memCache.io = Store::ioWriting;
     slot->set(e);
+    Store::Root().collapsedWritingCheckpoint(e);
     // Do not allow others to feed off an unknown-size entry because we will
     // stop swapping it out if it grows too large.
     if (e.mem_obj->expectedReplySize() >= 0)

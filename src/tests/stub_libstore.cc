@@ -109,7 +109,7 @@ void Disks::stat(StoreEntry &) const STUB
 void Disks::sync() STUB
 void Disks::reference(StoreEntry &) STUB
 bool Disks::dereference(StoreEntry &) STUB_RETVAL(false)
-void Disks::updateHeaders(StoreEntry *) STUB
+void Disks::updateHeaders(StoreEntry *, const StoreEntry &) STUB
 void Disks::maintain() STUB
 bool Disks::anchorToCache(StoreEntry &) STUB_RETVAL(false)
 bool Disks::updateAnchored(StoreEntry &) STUB_RETVAL(false)

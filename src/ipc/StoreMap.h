@@ -200,13 +200,14 @@ public:
         StoreMapSliceId splicingPoint;
     };
 
-    explicit StoreMapUpdate(StoreEntry *anEntry);
+    explicit StoreMapUpdate(StoreEntry *anEntry, const StoreEntry *e304);
     StoreMapUpdate(const StoreMapUpdate &other);
     ~StoreMapUpdate();
 
     StoreMapUpdate &operator =(const StoreMapUpdate &other) = delete;
 
     StoreEntry *entry; ///< the store entry being updated
+    const StoreEntry *entry304; ///< the updating store entry
     Edition stale; ///< old anchor and chain
     Edition fresh; ///< new anchor and the updated chain prefix
 };

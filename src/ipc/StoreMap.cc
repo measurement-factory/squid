@@ -767,6 +767,8 @@ Ipc::StoreMap::closeForUpdating(Update &update)
     closeForReading(update.fresh.fileNo);
     update.fresh = Update::Edition();
 
+    Store::Root().updateApplied(*update.entry, *update.entry304);
+
     debugs(54, 5, "closed entry " << updateSaved.stale.fileNo << " of " << *updateSaved.entry <<
            " named " << updateSaved.stale.name << " for updating " << path <<
            " to fresh entry " << updateSaved.fresh.fileNo << " named " << updateSaved.fresh.name <<
@@ -1112,23 +1114,28 @@ Ipc::StoreMapAnchor::rewind()
 
 /* Ipc::StoreMapUpdate */
 
-Ipc::StoreMapUpdate::StoreMapUpdate(StoreEntry *anEntry):
-    entry(anEntry)
+Ipc::StoreMapUpdate::StoreMapUpdate(StoreEntry *anEntry, const StoreEntry *e304):
+    entry(anEntry),
+    entry304(e304)
 {
     entry->lock("Ipc::StoreMapUpdate1");
+    const_cast<StoreEntry *>(entry304)->lock("Ipc::StoreMapUpdate1");
 }
 
 Ipc::StoreMapUpdate::StoreMapUpdate(const StoreMapUpdate &other):
     entry(other.entry),
+    entry304(other.entry304),
     stale(other.stale),
     fresh(other.fresh)
 {
     entry->lock("Ipc::StoreMapUpdate2");
+    const_cast<StoreEntry *>(entry304)->lock("Ipc::StoreMapUpdate2");
 }
 
 Ipc::StoreMapUpdate::~StoreMapUpdate()
 {
     entry->unlock("Ipc::StoreMapUpdate");
+    const_cast<StoreEntry *>(entry304)->unlock("Ipc::StoreMapUpdate");
 }
 
 /* Ipc::StoreMap::Owner */

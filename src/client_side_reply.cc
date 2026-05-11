@@ -330,6 +330,8 @@ clientReplyContext::processExpired()
             http->request->etag = etag.str;
     }
 
+    entry->mem_obj->xitTable.collapsed = collapsingAllowed;
+
     debugs(88, 5, "lastmod " << entry->lastModified());
     http->storeEntry(entry);
     assert(http->out.offset == 0);
@@ -352,7 +354,7 @@ clientReplyContext::processExpired()
         /* start counting the length from 0 */
         StoreIOBuffer localTempBuffer(HTTP_REQBUF_SZ, 0, tempbuf);
         // keep lastStreamBufferedBytes: tempbuf is not a Client Stream buffer
-        auto handler = (collapsedRevalidation = crInitiator) ? HandleIMSReply : HandleSmpCollapsedRevaliationReply;
+        auto handler = (collapsedRevalidation == crSlave) ? HandleSmpCollapsedRevaliationReply : HandleIMSReply;
         ::storeClientCopy(sc, entry, localTempBuffer, handler, this);
     }
 }
@@ -506,18 +508,32 @@ clientReplyContext::handleIMSReply(const StoreIOBuffer result)
 }
 
 void
-clientReplyContext::handleSmpCollapsedRevaliationReply(const StoreIOBuffer result)
+clientReplyContext::handleSmpCollapsedRevaliationReply(const StoreIOBuffer)
 {
     if (const auto seFresh = storeGetPublicByRequest(http->request)) {
         debugs(88, 3, "crInitiator successfully updated or replaced");
+
+        seFresh->lock("clientReplyContext::handleSmpCollapsedRevaliationReply");
+
+        seFresh->ensureMemObject(storeId(), http->log_uri, http->request->method);
 
         old_entry->hideFromNewcomers();
 
         // clear the old state; we do not need it anymore
         restoreState();
-        removeClientStoreReference(&sc, http);
+
+        // prepare to use seFresh
+        saveState();
+        sc = storeClientListAdd(seFresh, this);
+
+#if USE_DELAY_POOLS
+        /* delay_id is already set on original store client */
+        sc->setDelayId(DelayId::DelayClient(http));
+#endif
+        http->storeEntry(seFresh);
+        StoreIOBuffer localTempBuffer(HTTP_REQBUF_SZ, 0, tempbuf);
         // now go to the existing path that reads "updated or replaced" seFresh
-        ::storeClientCopy(sc, seFresh, result, HandleIMSReply, this);
+        ::storeClientCopy(sc, seFresh, localTempBuffer, HandleIMSReply, this);
         return;
     } else {
         debugs(88, 3, "SMP collapsed revalidation failure");
@@ -526,7 +542,6 @@ clientReplyContext::handleSmpCollapsedRevaliationReply(const StoreIOBuffer resul
         processMiss();
     }
 }
-
 
 CSR clientGetMoreData;
 CSD clientReplyDetach;
