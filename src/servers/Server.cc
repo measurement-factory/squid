@@ -138,9 +138,7 @@ Server::doClientRead(const CommIoCbParams &io)
         debugs(33, 5, io.conn << " closed?");
 
         if (shouldCloseOnEof()) {
-            LogTagsErrors lte;
-            lte.aborted = true;
-            terminateAll(ERR_CLIENT_GONE, lte);
+            terminateAll(ERR_CLIENT_GONE, AbortedLogTag());
             return;
         }
 

@@ -586,6 +586,12 @@ ConnStateData::swanSong()
     flags.readMore = false;
     clientdbEstablished(clientConnection->remote, -1);  /* decrement */
 
+    // XXX: Here, clean termination is wrong: All transactions should reach
+    // their Http::Stream::finished() before swanSong(), so that all problematic
+    // transactions are given a specific termination reason, and all successful
+    // ones terminate cleanly, collectively emptying our pipeline. TODO: Upgrade
+    // legacy code that still uses "close and let swanSong() cleanup" design
+    // instead of terminateAll() with specific errors at error discovery time.
     terminateAll(ERR_NONE, LogTagsErrors());
     checkLogging();
 
@@ -956,23 +962,19 @@ ConnStateData::abortRequestParsing(const char *const uri)
 void
 ConnStateData::startShutdown()
 {
-    // RegisteredRunner API callback - Squid has been shut down
-
-    // if connection is idle terminate it now,
-    // otherwise wait for grace period to end
-    if (pipeline.empty())
-        endingShutdown();
+    Assure(shutting_down);
+    // In "shutdown pending" mode, we stop accepting brand new work while giving
+    // ongoing transactions a chance to complete, including transactions that
+    // are parsing request headers and, hence, are not in the pipeline yet.
+    if (pipeline.empty() && inBuf.isEmpty())
+        terminateAll(ERR_SHUTTING_DOWN, AbortedLogTag()); // useful even with an empty pipeline
 }
 
 void
 ConnStateData::endingShutdown()
 {
-    // RegisteredRunner API callback - Squid shutdown grace period is over
-
-    // force the client connection to close immediately
-    // swanSong() in the close handler will cleanup.
-    if (Comm::IsConnOpen(clientConnection))
-        clientConnection->close();
+    Assure(shutting_down);
+    terminateAll(ERR_SHUTTING_DOWN, AbortedLogTag());
 }
 
 char *

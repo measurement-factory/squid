@@ -29,6 +29,9 @@ public:
     bool aborted = false;  ///< _ABORTED: other abnormal termination (e.g., I/O error)
 };
 
+/// A LogTagsErrors object for generating an `_ABORTED` log tag suffix.
+inline auto AbortedLogTag() { LogTagsErrors lte; lte.aborted = true; return lte; }
+
 /** Squid transaction result code/tag set.
  *
  * These codes indicate how the request was received
