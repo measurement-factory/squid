@@ -934,8 +934,6 @@ Store::Controller::updateFinished(StoreEntry &e, const StoreEntry &e304, const I
 void
 Store::Controller::collapsedWritingCheckpoint(const StoreEntry &e, const Ipc::StoreMapAnchor::UpdateStatus updateStatus)
 {
-	int x = !e.mem_obj ? 0 : e.mem_obj->xitTable.collapsed+10;
-	debugs(88, 3, "status= " << updateStatus << " " << " writer= " <<  transients->isWriter(e) << " collapsed = " << x);
     if (e.mem_obj && e.mem_obj->xitTable.collapsed && e.hasTransients() && transients->isWriter(e))
         transients->setUpdateStatus(e, updateStatus);
 }

@@ -354,7 +354,7 @@ clientReplyContext::processExpired()
         /* start counting the length from 0 */
         StoreIOBuffer localTempBuffer(HTTP_REQBUF_SZ, 0, tempbuf);
         // keep lastStreamBufferedBytes: tempbuf is not a Client Stream buffer
-        auto handler = (collapsedRevalidation == crSlave) ? HandleSmpCollapsedRevaliationReply : HandleIMSReply;
+        auto handler = (collapsedRevalidation == crSlave && Store::Root().transientsReader(*entry)) ? HandleSmpCollapsedRevaliationReply : HandleIMSReply;
         ::storeClientCopy(sc, entry, localTempBuffer, handler, this);
     }
 }
@@ -545,10 +545,17 @@ clientReplyContext::handleSmpCollapsedRevaliationReply(const StoreIOBuffer)
         sc->setDelayId(DelayId::DelayClient(http));
 #endif
         http->storeEntry(seFresh);
+
+        // cannot handle this case in HandleIMSReply() because server 304 reply is unavailable here
+        if (http->request->flags.ims && !http->storeEntry()->modifiedSince(http->request->ims, http->request->imslen)) {
+            debugs(88, 3, "sending 304 to client");
+            sendNotModified();
+            return;
+        }
+
         StoreIOBuffer localTempBuffer(HTTP_REQBUF_SZ, 0, tempbuf);
         // now go to the existing path that reads "updated or replaced" seFresh
         ::storeClientCopy(sc, seFresh, localTempBuffer, HandleIMSReply, this);
-        return;
     } else {
         debugs(88, 3, "SMP collapsed revalidation failure");
         restoreState();
