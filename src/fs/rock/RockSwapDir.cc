@@ -642,8 +642,6 @@ Rock::SwapDir::createStoreIO(StoreEntry &e, StoreIOState::STIOCB * const cbIo, v
 
     sio->file(theFile);
 
-    Store::Root().collapsedWritingCheckpoint(e);
-
     trackReferences(e);
     return sio;
 }

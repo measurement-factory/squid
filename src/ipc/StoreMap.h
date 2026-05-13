@@ -81,8 +81,12 @@ public:
     std::atomic<uint8_t> waitingToBeFreed; ///< may be accessed w/o a lock
     /// whether StoreMap::abortWriting() was called for a read-locked entry
     std::atomic<uint8_t> writerHalted;
-    /// whether StoreMap::appliedForUpdate() was called for an entry
-    std::atomic<bool> updateApplied;
+
+    /// Whether the collapsed entry that is being revalidated was successfully updated (uApdated)
+    /// or not (uFailed).
+    enum UpdateStatus { uNone, uApplied, uFailed};
+    /// the status of the collapsed revalidation entry
+    std::atomic<UpdateStatus> updateStatus;
 
     // fields marked with [app] can be modified when appending-while-reading
     // fields marked with [update] can be modified when updating-while-reading
@@ -259,7 +263,7 @@ public:
     int compareVersions(const sfileno oldFileno, time_t newVersion) const;
 
     /// mark the updating entry after it has been used for update
-    void appliedForUpdate(sfileno);
+    void setUpdateStatus(sfileno, Ipc::StoreMapAnchor::UpdateStatus);
 
     /// finds, locks, and returns an anchor for an empty key position,
     /// erasing the old entry (if any)

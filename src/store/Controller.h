@@ -9,6 +9,7 @@
 #ifndef SQUID_SRC_STORE_CONTROLLER_H
 #define SQUID_SRC_STORE_CONTROLLER_H
 
+#include "ipc/StoreMap.h"
 #include "store/Storage.h"
 
 class MemObject;
@@ -122,10 +123,11 @@ public:
     /// \returns an iterator for all Store entries
     StoreSearch *search();
 
-    /// marks the 304 entry after it has been applied to the updated entry
-    void updateApplied(StoreEntry &e, const StoreEntry &e304);
+    /// adjusts the shared transients entry after the update has been successfully applied (or failed)
+    void updateFinished(StoreEntry &e, const StoreEntry &e304, Ipc::StoreMapAnchor::UpdateStatus);
 
-    void collapsedWritingCheckpoint(const StoreEntry &e);
+    /// sets the collapsed transients entry status after the update has been applied (or failed)
+    void collapsedWritingCheckpoint(const StoreEntry &e, Ipc::StoreMapAnchor::UpdateStatus);
 
     /// whether there are any SMP-aware storages
     static bool SmpAware();

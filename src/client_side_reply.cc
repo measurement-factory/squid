@@ -510,7 +510,21 @@ clientReplyContext::handleIMSReply(const StoreIOBuffer result)
 void
 clientReplyContext::handleSmpCollapsedRevaliationReply(const StoreIOBuffer)
 {
+    Assure(collapsedRevalidation == crSlave);
+
+    if (EBIT_TEST(http->storeEntry()->flags, ENTRY_ABORTED)) {
+        // TODO: de-duplicate with handleIMSReply()
+        debugs(88, 3, "CF slave was aborted");
+        // restore context to meet processMiss() expectations
+        restoreState();
+        http->updateLoggingTags(LOG_TCP_MISS);
+        processMiss();
+        return;
+    }
+
     if (const auto seFresh = storeGetPublicByRequest(http->request)) {
+        // TODO: de-duplicate with processExpired()
+
         debugs(88, 3, "crInitiator successfully updated or replaced");
 
         seFresh->lock("clientReplyContext::handleSmpCollapsedRevaliationReply");
@@ -519,7 +533,7 @@ clientReplyContext::handleSmpCollapsedRevaliationReply(const StoreIOBuffer)
 
         old_entry->hideFromNewcomers();
 
-        // clear the old state; we do not need it anymore
+        // clear the previous (revalidation) state; we do not need it anymore
         restoreState();
 
         // prepare to use seFresh

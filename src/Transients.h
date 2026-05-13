@@ -33,7 +33,8 @@ public:
     public:
         bool hasWriter = false; ///< whether some worker is storing the entry
         bool waitingToBeFreed = false; ///< whether the entry was marked for deletion
-        bool updateApplied = false; ///< whether the 304 entry has been applied to the revalidated entry
+        /// the status of the collapsed revalidation entry
+        Ipc::StoreMapAnchor::UpdateStatus updateStatus = Ipc::StoreMapAnchor::uNone;
     };
 
     /// Maps local reader and writer StoreEntries to their transient ID.
@@ -89,9 +90,9 @@ public:
     /// copies current shared entry metadata into entryStatus
     void status(const StoreEntry &e, EntryStatus &entryStatus) const;
 
-    /// \copydoc Store::Controller::updateApplied()
+    /// sets the shared entry status for the collapsed revalidation entry
     /// \prec the entry is opened for writing
-    void updateApplied(const StoreEntry &e);
+    void setUpdateStatus(const StoreEntry &e, Ipc::StoreMapAnchor::UpdateStatus updateStatus);
 
     /// refresh the entry index after update
     void refreshEntry(StoreEntry &e);

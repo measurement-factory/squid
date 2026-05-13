@@ -584,6 +584,11 @@ StoreEntry::setPrivateKey(const bool shareable, const bool permanent, const Evic
     if (EBIT_TEST(flags, KEY_PRIVATE))
         return;
 
+    if (mem_obj && mem_obj->freshestReply().sline.status() != Http::scNotModified) {
+        // a private non-304 entry means that revalidation (if any) was unsuccessful
+        Store::Root().collapsedWritingCheckpoint(*this, Ipc::StoreMapAnchor::uFailed);
+    }
+
     if (key) {
         if (evictCached == EvictCached::on)
             Store::Root().evictCached(*this); // all caches/workers will know
@@ -639,6 +644,7 @@ StoreEntry::setPublicKey(const KeyScope scope)
     try {
         EntryGuard newVaryMarker(adjustVary(), "setPublicKey+failure");
         const cache_key *pubKey = calcPublicKey(scope);
+        Store::Root().collapsedWritingCheckpoint(*this, Ipc::StoreMapAnchor::uApplied);
         Store::Root().evictIfFound(pubKey);
         Store::Root().transientsDisconnect(*this);
         Store::Root().addWriting(this, pubKey);

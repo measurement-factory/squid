@@ -293,21 +293,25 @@ Transients::status(const StoreEntry &entry, Transients::EntryStatus &entryStatus
                          map->writeableEntry(idx) : map->readableEntry(idx);
     entryStatus.hasWriter = anchor.writing();
     entryStatus.waitingToBeFreed = anchor.waitingToBeFreed;
-    entryStatus.updateApplied = anchor.updateApplied;
+    entryStatus.updateStatus = anchor.updateStatus;
 }
 
 void
-Transients::updateApplied(const StoreEntry &e)
+Transients::setUpdateStatus(const StoreEntry &e, const Ipc::StoreMapAnchor::UpdateStatus updateStatus)
 {
     assert(e.hasTransients());
+    assert(e.mem_obj && e.mem_obj->xitTable.collapsed);
     assert(isWriter(e));
 
     EntryStatus entryStatus;
     status(e, entryStatus);
-    if (!entryStatus.updateApplied) {
-        map->appliedForUpdate(e.mem_obj->xitTable.index);
+    debugs(20, 5, "updateStatus: " << entryStatus.updateStatus);
+    if (entryStatus.updateStatus == Ipc::StoreMapAnchor::uNone) {
+        map->setUpdateStatus(e.mem_obj->xitTable.index, updateStatus);
         CollapsedForwarding::Broadcast(e);
+        return;
     }
+    Assure(entryStatus.updateStatus == updateStatus);
 }
 
 void

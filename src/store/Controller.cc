@@ -699,10 +699,12 @@ Store::Controller::updateOnNotModified(StoreEntry *old, StoreEntry &e304)
     try {
         if (!old->updateOnNotModified(e304)) {
             debugs(20, 5, "updated nothing in " << *old << " with " << e304);
+            updateFinished(*old, e304, Ipc::StoreMapAnchor::uApplied);
             return true;
         }
     } catch (...) {
         debugs(20, DBG_IMPORTANT, "ERROR: Failed to update a cached response: " << CurrentException);
+        updateFinished(*old, e304, Ipc::StoreMapAnchor::uFailed);
         return false;
     }
 
@@ -795,12 +797,17 @@ Store::Controller::syncCollapsed(const sfileno xitIndex)
 
     if (transients->isWriter(*collapsed))
         return; // readers can only change our waitingToBeFreed flag
-    else if (transients->isReader(*collapsed) && collapsed->mem_obj->xitTable.collapsed) {
-        debugs(20, 5, "revalidated " << *collapsed);
-        collapsed->setCollapsingRequirement(false);
-        collapsed->mem_obj->xitTable.collapsed = false;
-        collapsed->mem_obj->xitTable.collapsedSlaveNotified = true;
-        collapsed->invokeHandlers();
+
+    if (transients->isReader(*collapsed) && collapsed->mem_obj->xitTable.collapsed) {
+        debugs(20, 5, "revalidated " << *collapsed << " status=" << entryStatus.updateStatus);
+        if (entryStatus.updateStatus != Ipc::StoreMapAnchor::uNone) {
+            collapsed->setCollapsingRequirement(false);
+            collapsed->mem_obj->xitTable.collapsed = false;
+            collapsed->mem_obj->xitTable.collapsedSlaveNotified = true;
+            if (entryStatus.updateStatus != Ipc::StoreMapAnchor::uApplied)
+                collapsed->abort();
+            collapsed->invokeHandlers();
+        }
         return;
     }
 
@@ -916,19 +923,21 @@ Store::Controller::anchorToCache(StoreEntry &entry)
 }
 
 void
-Store::Controller::updateApplied(StoreEntry &e, const StoreEntry &e304)
+Store::Controller::updateFinished(StoreEntry &e, const StoreEntry &e304, const Ipc::StoreMapAnchor::UpdateStatus updateStatus)
 {
-    collapsedWritingCheckpoint(e304);
+    collapsedWritingCheckpoint(e304, updateStatus);
 
     if (e.hasTransients())
         transients->refreshEntry(e);
 }
 
 void
-Store::Controller::collapsedWritingCheckpoint(const StoreEntry &e)
+Store::Controller::collapsedWritingCheckpoint(const StoreEntry &e, const Ipc::StoreMapAnchor::UpdateStatus updateStatus)
 {
-    if (e.mem_obj && e.mem_obj->xitTable.collapsed && e.hasTransients())
-        transients->updateApplied(e);
+	int x = !e.mem_obj ? 0 : e.mem_obj->xitTable.collapsed+10;
+	debugs(88, 3, "status= " << updateStatus << " " << " writer= " <<  transients->isWriter(e) << " collapsed = " << x);
+    if (e.mem_obj && e.mem_obj->xitTable.collapsed && e.hasTransients() && transients->isWriter(e))
+        transients->setUpdateStatus(e, updateStatus);
 }
 
 bool

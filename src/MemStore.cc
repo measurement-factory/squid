@@ -667,7 +667,6 @@ MemStore::startCaching(StoreEntry &e)
     e.mem_obj->memCache.index = index;
     e.mem_obj->memCache.io = Store::ioWriting;
     slot->set(e);
-    Store::Root().collapsedWritingCheckpoint(e);
     // Do not allow others to feed off an unknown-size entry because we will
     // stop swapping it out if it grows too large.
     if (e.mem_obj->expectedReplySize() >= 0)

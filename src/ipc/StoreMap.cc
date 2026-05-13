@@ -66,11 +66,11 @@ Ipc::StoreMap::StoreMap(const SBuf &aPath): cleaner(nullptr), path(aPath),
 }
 
 void
-Ipc::StoreMap::appliedForUpdate(const sfileno fileno)
+Ipc::StoreMap::setUpdateStatus(const sfileno fileno, const Ipc::StoreMapAnchor::UpdateStatus updateStatus)
 {
     Anchor &inode = anchorAt(fileno);
     assert(inode.writing());;
-    inode.updateApplied = true;
+    inode.updateStatus = updateStatus;
 }
 
 int
@@ -360,6 +360,7 @@ Ipc::StoreMap::abortUpdating(Update &update)
 {
     const sfileno fileno = update.stale.fileNo;
     debugs(54, 5, "aborting entry " << fileno << " for updating " << path);
+    Store::Root().updateFinished(*update.entry, *update.entry304, Ipc::StoreMapAnchor::uFailed);
     if (update.stale) {
         AssertFlagIsSet(update.stale.anchor->lock.updating);
         update.stale.anchor->lock.unlockHeaders();
@@ -767,7 +768,7 @@ Ipc::StoreMap::closeForUpdating(Update &update)
     closeForReading(update.fresh.fileNo);
     update.fresh = Update::Edition();
 
-    Store::Root().updateApplied(*update.entry, *update.entry304);
+    Store::Root().updateFinished(*update.entry, *update.entry304, Ipc::StoreMapAnchor::uApplied);
 
     debugs(54, 5, "closed entry " << updateSaved.stale.fileNo << " of " << *updateSaved.entry <<
            " named " << updateSaved.stale.name << " for updating " << path <<
@@ -1035,7 +1036,7 @@ Ipc::StoreMap::sliceAt(const SliceId sliceId) const
 
 /* Ipc::StoreMapAnchor */
 
-Ipc::StoreMapAnchor::StoreMapAnchor(): updateApplied(false), start(0), splicingPoint(-1)
+Ipc::StoreMapAnchor::StoreMapAnchor(): updateStatus(uNone), start(0), splicingPoint(-1)
 {
     // keep in sync with rewind()
 }
@@ -1108,7 +1109,7 @@ Ipc::StoreMapAnchor::rewind()
     basics.clear();
     waitingToBeFreed = false;
     writerHalted = false;
-    updateApplied = false;
+    updateStatus = uNone;
     // but keep the lock
 }
 
