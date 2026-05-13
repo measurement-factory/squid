@@ -77,7 +77,7 @@ public:
     void purgeSome();
 
     int64_t diskOffset(Ipc::Mem::PageId &pageId) const;
-    int64_t diskOffset(int filen) const;
+    int64_t diskOffset(SlotId) const;
     void writeError(StoreIOState &sio);
 
     /* StoreMapCleaner API */
