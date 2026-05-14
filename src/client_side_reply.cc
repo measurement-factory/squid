@@ -12,6 +12,7 @@
 #include "acl/FilledChecklist.h"
 #include "acl/Gadgets.h"
 #include "anyp/PortCfg.h"
+#include "base/AsyncFunCalls.h"
 #include "client_side_reply.h"
 #include "clientStream.h"
 #include "errorpage.h"
@@ -354,8 +355,13 @@ clientReplyContext::processExpired()
         /* start counting the length from 0 */
         StoreIOBuffer localTempBuffer(HTTP_REQBUF_SZ, 0, tempbuf);
         // keep lastStreamBufferedBytes: tempbuf is not a Client Stream buffer
-        auto handler = (collapsedRevalidation == crSlave && Store::Root().transientsReader(*entry)) ? HandleSmpCollapsedRevaliationReply : HandleIMSReply;
-        ::storeClientCopy(sc, entry, localTempBuffer, handler, this);
+
+        if (collapsedRevalidation == crSlave && Store::Root().transientsReader(*entry)) {
+            sc->_smpCollapsedRevalidationCallback = store_client::SmpCollapsedCallback(asyncCall(88, 4, "HandleSmpCollapsedRevaliationReply",
+                                                      callDialer(clientReplyContext::HandleSmpCollapsedRevaliationReply, this)));
+        } else {
+            ::storeClientCopy(sc, entry, localTempBuffer, HandleIMSReply, this);
+        }
     }
 }
 
@@ -377,10 +383,9 @@ clientReplyContext::HandleIMSReply(void *data, StoreIOBuffer result)
 }
 
 void
-clientReplyContext::HandleSmpCollapsedRevaliationReply(void *data, StoreIOBuffer result)
+clientReplyContext::HandleSmpCollapsedRevaliationReply(clientReplyContext *context)
 {
-    clientReplyContext *context = (clientReplyContext *)data;
-    context->handleSmpCollapsedRevaliationReply(result);
+    context->handleSmpCollapsedRevaliationReply();
 }
 
 void
@@ -508,7 +513,7 @@ clientReplyContext::handleIMSReply(const StoreIOBuffer result)
 }
 
 void
-clientReplyContext::handleSmpCollapsedRevaliationReply(const StoreIOBuffer)
+clientReplyContext::handleSmpCollapsedRevaliationReply()
 {
     Assure(collapsedRevalidation == crSlave);
 

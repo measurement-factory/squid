@@ -377,13 +377,6 @@ store_client::doCopy(StoreEntry *anEntry)
            " objectLen: " << entry->objectLen() <<
            " past_answers: " << answers);
 
-    if (mem->xitTable.collapsedSlaveNotified) {
-        debugs(33, 3, "proceed to collapsed revalidation handler");
-        noteNews();
-        flags.store_copying = false;
-        return;
-    }
-
     const auto sendHttpHeaders = sendingHttpHeaders();
 
     if (!sendHttpHeaders && !moreToRead()) {
@@ -892,6 +885,27 @@ StoreEntry::invokeHandlers()
     CodeContext::Reset(savedContext);
 }
 
+/* Call handlers waiting for  data to be appended to E. */
+void
+StoreEntry::invokeSmpCollapsedHandlers()
+{
+    debugs(90, 3, mem_obj->nclients << " clients; " << *this << ' ' << getMD5Text());
+
+    int i = 0;
+    const auto savedContext = CodeContext::Current();
+    for (dlink_node *node = mem_obj->clients.head; node; node = node->next) {
+        auto sc = reinterpret_cast<store_client *>(node->data);
+        if (!sc->_smpCollapsedRevalidationCallback.pending())
+            continue;
+
+        CodeContext::Reset(sc->_smpCollapsedRevalidationCallback.codeContext);
+        debugs(90, 3, "checking client #" << i);
+        ScheduleCallHere(sc->_smpCollapsedRevalidationCallback.handler);
+        sc->_smpCollapsedRevalidationCallback.handler = nullptr;
+    }
+    CodeContext::Reset(savedContext);
+}
+
 // Does not account for remote readers/clients.
 int
 storePendingNClients(const StoreEntry * e)
@@ -1092,6 +1106,18 @@ store_client::Callback::Callback(STCB *function, void *data):
     cbData(data),
     codeContext(CodeContext::Current())
 {
+}
+
+store_client::SmpCollapsedCallback::SmpCollapsedCallback(const AsyncCall::Pointer h):
+    handler(h),
+    codeContext(CodeContext::Current())
+{
+}
+
+bool
+store_client::SmpCollapsedCallback::pending() const
+{
+    return bool(handler);
 }
 
 #if USE_DELAY_POOLS

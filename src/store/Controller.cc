@@ -802,11 +802,9 @@ Store::Controller::syncCollapsed(const sfileno xitIndex)
         debugs(20, 5, "revalidated " << *collapsed << " status=" << entryStatus.updateStatus);
         if (entryStatus.updateStatus != Ipc::StoreMapAnchor::uNone) {
             collapsed->setCollapsingRequirement(false);
-            collapsed->mem_obj->xitTable.collapsed = false;
-            collapsed->mem_obj->xitTable.collapsedSlaveNotified = true;
             if (entryStatus.updateStatus != Ipc::StoreMapAnchor::uApplied)
                 collapsed->abort();
-            collapsed->invokeHandlers();
+            collapsed->invokeSmpCollapsedHandlers();
         }
         return;
     }

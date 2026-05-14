@@ -214,6 +214,15 @@ public:
         /// a scheduled asynchronous finishCallback() call (or nil)
         AsyncCall::Pointer notifier;
     } _callback;
+
+    struct SmpCollapsedCallback {
+        SmpCollapsedCallback() = default;
+        explicit SmpCollapsedCallback(const AsyncCall::Pointer);
+        bool pending() const;
+
+        AsyncCall::Pointer handler;
+        CodeContextPointer codeContext; ///< Store client context
+    } _smpCollapsedRevalidationCallback;
 };
 
 /// Asynchronously read HTTP response headers and/or body bytes from Store.
