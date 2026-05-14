@@ -357,8 +357,8 @@ clientReplyContext::processExpired()
         // keep lastStreamBufferedBytes: tempbuf is not a Client Stream buffer
 
         if (collapsedRevalidation == crSlave && Store::Root().transientsReader(*entry)) {
-            sc->_smpCollapsedRevalidationCallback = store_client::SmpCollapsedCallback(asyncCall(88, 4, "HandleSmpCollapsedRevaliationReply",
-                                                      callDialer(clientReplyContext::HandleSmpCollapsedRevaliationReply, this)));
+            sc->_smpCollapsedRevalidationCallback = asyncCall(88, 4, "HandleSmpCollapsedRevaliationReply",
+                                                              callDialer(clientReplyContext::HandleSmpCollapsedRevaliationReply, this));
         } else {
             ::storeClientCopy(sc, entry, localTempBuffer, HandleIMSReply, this);
         }
