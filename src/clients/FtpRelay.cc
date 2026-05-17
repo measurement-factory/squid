@@ -91,8 +91,6 @@ protected:
     void readCwdOrCdupReply();
     void readUserOrPassReply();
 
-    void scheduleReadControlReply();
-
     /// Inform Ftp::Server that we are done if originWaitInProgress
     void stopOriginWait(int code);
     /// called by Store if the entry is no longer usable
@@ -346,16 +344,7 @@ Ftp::Relay::processReplyBody()
 void
 Ftp::Relay::handleControlReply()
 {
-    if (!request->clientConnectionManager.valid()) {
-        debugs(9, 5, "client connection gone");
-        closeServer();
-        return;
-    }
-
-    Ftp::Client::handleControlReply();
-    if (ctrl.message == nullptr)
-        return; // didn't get complete reply yet
-
+    Assure(ctrl.message);
     assert(state < END);
     assert(this->SM_FUNCS[state] != nullptr);
     (this->*SM_FUNCS[state])();
@@ -501,7 +490,7 @@ Ftp::Relay::readGreeting()
     case 120:
         if (nullptr != ctrl.message)
             debugs(9, DBG_IMPORTANT, "FTP server is busy: " << ctrl.message->key);
-        forwardPreliminaryReply(&Ftp::Relay::scheduleReadControlReply);
+        forwardPreliminaryReply(&Ftp::Relay::processControlReply);
         break;
     default:
         failed();
@@ -575,7 +564,7 @@ Ftp::Relay::readReply()
            serverState() == fssHandleUploadRequest);
 
     if (Is1xx(ctrl.replycode))
-        forwardPreliminaryReply(&Ftp::Relay::scheduleReadControlReply);
+        forwardPreliminaryReply(&Ftp::Relay::processControlReply);
     else
         forwardReply();
 }
@@ -751,12 +740,6 @@ Ftp::Relay::dataChannelConnected(const CommConnectCbParams &io)
     data.opened(io.conn, dataCloser());
 
     sendCommand();
-}
-
-void
-Ftp::Relay::scheduleReadControlReply()
-{
-    Ftp::Client::scheduleReadControlReply(0);
 }
 
 bool
