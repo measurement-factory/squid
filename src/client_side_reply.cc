@@ -358,7 +358,7 @@ clientReplyContext::processExpired()
 
         if (collapsedRevalidation == crSlave && Store::Root().transientsReader(*entry)) {
             sc->_smpCollapsedRevalidationCallback = asyncCall(88, 4, "HandleSmpCollapsedRevaliationReply",
-                                                              callDialer(clientReplyContext::HandleSmpCollapsedRevaliationReply, this));
+                                                    callDialer(clientReplyContext::HandleSmpCollapsedRevaliationReply, this));
         } else {
             ::storeClientCopy(sc, entry, localTempBuffer, HandleIMSReply, this);
         }
