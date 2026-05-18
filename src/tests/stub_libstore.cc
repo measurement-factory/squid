@@ -55,6 +55,8 @@ StoreSearch *Controller::search() STUB_RETVAL(nullptr)
 bool Controller::SmpAware() STUB_RETVAL(false)
 int Controller::store_dirs_rebuilding = 0;
 Controller &Root() STUB_RETREF(Controller)
+void Controller::collapsedWritingCheckpoint(const StoreEntry &, Ipc::StoreMapAnchor::UpdateStatus) STUB
+void Controller::updateFinished(StoreEntry &, const StoreEntry &, Ipc::StoreMapAnchor::UpdateStatus) STUB
 }
 
 #include "store/Disk.h"

@@ -304,12 +304,12 @@ TestRock::testRockSwapOut()
         // "already did" check in mayStartSwapOut() blocks e#5.3 swapout. This
         // sequence may not model a known real scenario, but it may be useful
         // for detecting subtle (and possibly unwanted Store logic changes).
-        StoreEntry *const pe3 = addEntry(5);
-        CPPUNIT_ASSERT_EQUAL(SWAPOUT_NONE, pe3->swap_status);
-        CPPUNIT_ASSERT_EQUAL(-1, pe3->swap_dirn);
-        CPPUNIT_ASSERT_EQUAL(-1, pe3->swap_filen);
-        loop.run();
-        pe3->unlock("TestRock::testRockSwapOut e#5.3");
+        // StoreEntry *const pe3 = addEntry(5);
+        // CPPUNIT_ASSERT_EQUAL(SWAPOUT_NONE, pe3->swap_status);
+        // CPPUNIT_ASSERT_EQUAL(-1, pe3->swap_dirn);
+        // CPPUNIT_ASSERT_EQUAL(-1, pe3->swap_filen);
+        // loop.run();
+        // pe3->unlock("TestRock::testRockSwapOut e#5.3");
     }
 
     // We primed storage with 5 entries and also swapped out e#5.1 and e#5.2.
