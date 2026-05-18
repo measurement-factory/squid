@@ -547,7 +547,7 @@ Rock::Rebuild::importEntry(Ipc::StoreMapAnchor &anchor, const sfileno fileno, co
     debugs(47, 8, "importing basics for entry " << fileno <<
            " inode.entrySize: " << header.entrySize <<
            " swap_file_sz: " << loadedE.swap_file_sz);
-    anchor.set(loadedE);
+    anchor.set2(loadedE);
 
     // we have not validated whether all db cells for this entry were loaded
     EBIT_CLR(anchor.basics.flags, ENTRY_VALIDATED);
@@ -842,7 +842,17 @@ Rock::Rebuild::addSlotToEntry(const sfileno fileno, const SlotId slotId, const D
 void
 Rock::Rebuild::primeNewEntry(Ipc::StoreMap::Anchor &anchor, const sfileno fileno, const DbCellHeader &header)
 {
-    anchor.setKey(reinterpret_cast<const cache_key*>(header.key));
+    const auto key = reinterpret_cast<const cache_key*>(header.key);
+
+    anchor.setKey2(key);
+
+    // After setKey() above, if a transaction starts storing another/fresher
+    // same-key entry (e.g., into a memory cache), it will be able to (and must)
+    // mark our entry. This check catches cases where Squid starts storing a
+    // fresher entry _before_ the above setKey() call.
+    if (Store::Root().markedForDeletion(key))
+        anchor.waitingToBeFreed = true; // might already be true
+
     assert(header.firstSlot >= 0);
     anchor.start = -1; // addSlotToEntry() will set it
 

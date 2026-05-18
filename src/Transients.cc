@@ -245,7 +245,13 @@ Transients::addWriterEntry(StoreEntry &e, const cache_key *key)
     // and to provide index to such methods as hasWriter()
     e.mem_obj->xitTable.open(index, Store::ioWriting);
 
-    anchor->setKey(key);
+    anchor->setKey2(key);
+
+    // After openForWriting() above, no other transaction may start storing
+    // another/fresher same-key entry because we locked the transients. Thus, we
+    // do not need to set `anchor->waitingToBeFreed` here to catch such cases
+    // (unlike MemStore::startCaching() and other openForWriting*() callers).
+
     // allow reading and receive remote DELETE events, but do not switch to
     // the reading lock because transientReaders() callers want true readers
     map->startAppending(index);

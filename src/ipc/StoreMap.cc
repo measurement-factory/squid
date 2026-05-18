@@ -116,7 +116,7 @@ Ipc::StoreMap::openOrCreateForReading(const cache_key *const key, sfileno &filen
     // the competing openOrCreateForReading() workers race to create a new entry
     idx = fileNoByKey(key);
     if (auto anchor = openForWritingAt(idx)) {
-        anchor->setKey(key);
+        anchor->setKey2(key);
         anchor->lock.switchExclusiveToShared();
         // race ended
         assert(anchor->complete());
@@ -657,7 +657,15 @@ Ipc::StoreMap::openForUpdating(Update &update, const sfileno fileNoHint)
 
     Must(update.stale);
     Must(update.fresh);
-    update.fresh.anchor->set(entry);
+    update.fresh.anchor->set2(entry);
+
+    // After set() above, if a transaction starts storing another/fresher
+    // same-key entry (e.g., into a different cache), it will be able to (and
+    // must) mark our entry. This check catches cases where Squid starts storing
+    // a fresher entry _before_ the above set() call.
+    if (Store::Root().markedForDeletion(static_cast<const cache_key*>(entry.key)))
+        update.fresh.anchor->waitingToBeFreed = true; // might already be true
+
     debugs(54, 5, "opened entry " << update.stale.fileNo << " for updating " << path <<
            " using entry " << update.fresh.fileNo << " of " << entry);
 
@@ -1059,10 +1067,16 @@ Ipc::StoreMapAnchor::StoreMapAnchor(): start(0), splicingPoint(-1)
 }
 
 void
-Ipc::StoreMapAnchor::setKey(const cache_key *const aKey)
+Ipc::StoreMapAnchor::setKey2(const cache_key *const aKey)
 {
     memcpy(key, aKey, sizeof(key));
+    // We can set waitingToBeFreed after the key because setKey() implies
+    // exclusive write access -- nobody else can currently lock/read our entry.
+    // We set after so that, when we are a Transients anchor,
+    // markedForDeletion() returns `true` if `waitingToBeFreed` has already been
+    // set.
     waitingToBeFreed = Store::Root().markedForDeletion(aKey);
+
 }
 
 bool
@@ -1073,10 +1087,10 @@ Ipc::StoreMapAnchor::sameKey(const cache_key *const aKey) const
 }
 
 void
-Ipc::StoreMapAnchor::set(const StoreEntry &from, const cache_key *aKey)
+Ipc::StoreMapAnchor::set2(const StoreEntry &from, const cache_key *aKey)
 {
     assert(writing() && !reading());
-    setKey(reinterpret_cast<const cache_key*>(aKey ? aKey : from.key));
+    setKey2(reinterpret_cast<const cache_key*>(aKey ? aKey : from.key));
     basics.timestamp = from.timestamp;
     basics.lastref = from.lastref;
     basics.expires = from.expires;

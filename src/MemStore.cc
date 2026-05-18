@@ -666,7 +666,15 @@ MemStore::startCaching(StoreEntry &e)
     assert(e.mem_obj);
     e.mem_obj->memCache.index = index;
     e.mem_obj->memCache.io = Store::ioWriting;
-    slot->set(e);
+    slot->set2(e);
+
+    // After set() above, if a transaction starts storing another/fresher
+    // same-key entry (e.g., into a disk cache), it will be able to (and must)
+    // mark our entry. This check catches cases where Squid starts storing a
+    // fresher entry _before_ the above set() call.
+    if (Store::Root().markedForDeletion(reinterpret_cast<const cache_key *>(e.key)))
+        slot->waitingToBeFreed = true; // might already be true
+
     // Do not allow others to feed off an unknown-size entry because we will
     // stop swapping it out if it grows too large.
     if (e.mem_obj->expectedReplySize() >= 0)
