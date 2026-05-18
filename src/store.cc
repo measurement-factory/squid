@@ -1814,6 +1814,8 @@ StoreEntry::storeWritingCheckpoint()
 
     assert(mem_obj);
     if (mem_obj->memCache.io != Store::ioDone) {
+        // XXX: purge-cached test logs show that we may get here after false
+        // memoryCacheHasSpaceFor() implies that we are not mem-caching this:
         debugs(20, 7, "not done with mem-caching " << *this);
         return;
     }
