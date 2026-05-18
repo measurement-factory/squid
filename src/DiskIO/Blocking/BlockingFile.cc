@@ -87,7 +87,13 @@ BlockingFile::close()
 bool
 BlockingFile::canRead() const
 {
-    return fd > -1;
+    return fd > -1 && !error();
+}
+
+bool
+BlockingFile::canWrite() const
+{
+    return fd > -1 && !error();
 }
 
 bool

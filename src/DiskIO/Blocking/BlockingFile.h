@@ -23,6 +23,8 @@ class BlockingFile : public DiskFile
 public:
     BlockingFile(char const *path);
     ~BlockingFile() override;
+
+    /* DiskFile API */
     void open(int flags, mode_t mode, RefCount<IORequestor> callback) override;
     void create(int flags, mode_t mode, RefCount<IORequestor> callback) override;
     void read(ReadRequest *) override;
@@ -30,8 +32,8 @@ public:
     void close() override;
     bool error() const override;
     int getFD() const override { return fd;}
-
     bool canRead() const override;
+    bool canWrite() const override;
     bool ioInProgress() const override;
 
 private:
