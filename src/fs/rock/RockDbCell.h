@@ -33,6 +33,7 @@ public:
     bool sane(const size_t slotSize, int slotLimit) const {
         return
             0 <= firstSlot && firstSlot < slotLimit &&
+            firstSlot != nextSlot &&
             -1 <= nextSlot && nextSlot < slotLimit &&
             version > 0 &&
             0 < payloadSize && payloadSize <= slotSize - sizeof(DbCellHeader);
