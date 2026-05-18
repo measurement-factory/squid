@@ -59,11 +59,11 @@ public:
     StoreMapAnchor();
 
     /// store StoreEntry key and basics for an inode slot
-    void set2(const StoreEntry &anEntry, const cache_key *aKey = nullptr);
+    void set(const StoreEntry &anEntry, const cache_key *aKey = nullptr);
     /// load StoreEntry basics that were previously stored with set()
     void exportInto(StoreEntry &) const;
 
-    void setKey2(const cache_key *const aKey);
+    void setKey(const cache_key *const aKey);
     bool sameKey(const cache_key *const aKey) const;
 
     /// undo the effects of set(), setKey(), etc., but keep locks and state

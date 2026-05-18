@@ -627,14 +627,7 @@ Rock::SwapDir::createStoreIO(StoreEntry &e, StoreIOState::STIOCB * const cbIo, v
     }
 
     assert(filen >= 0);
-    slot->set2(e);
-
-    // After set() above, if a transaction starts storing another/fresher
-    // same-key entry (e.g., into a memory cache), it will be able to (and must)
-    // mark our entry. This check catches cases where Squid starts storing a
-    // fresher entry _before_ the above set() call.
-    if (Store::Root().markedForDeletion(reinterpret_cast<const cache_key *>(e.key)))
-        slot->waitingToBeFreed = true; // might already be true
+    slot->set(e);
 
     // XXX: We rely on our caller, storeSwapOutStart(), to set e.fileno.
     // If that does not happen, the entry will not decrement the read level!
