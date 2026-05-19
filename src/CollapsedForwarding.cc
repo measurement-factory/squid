@@ -22,6 +22,7 @@
 #include "Store.h"
 #include "store_key_md5.h"
 #include "tools.h"
+#include "Transients.h"
 
 /// shared memory segment path to use for CollapsedForwarding queue
 static const char *const ShmLabel = "cf";
@@ -59,7 +60,7 @@ void
 CollapsedForwarding::Init()
 {
     Must(!queue.get());
-    if (UsingSmp() && IamWorkerProcess()) {
+    if (Transients::Enabled() && IamWorkerProcess()) {
         queue.reset(new Queue(ShmLabel, KidIdentifier));
         AsyncCall::Pointer callback = asyncCall(17, 4, "CollapsedForwarding::HandleNewDataAtStart",
                                                 NullaryFunDialer(&CollapsedForwarding::HandleNewDataAtStart));
@@ -215,6 +216,9 @@ DefineRunnerRegistrator(CollapsedForwardingRr);
 
 void CollapsedForwardingRr::create()
 {
+    if (!Transients::Enabled())
+        return;
+
     Must(!owner);
     owner = Ipc::MultiQueue::Init(ShmLabel, Config.workers, 1,
                                   sizeof(CollapsedForwardingMsg),
