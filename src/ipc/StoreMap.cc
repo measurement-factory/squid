@@ -788,6 +788,21 @@ Ipc::StoreMap::visitVictims(const NameFilter visitor)
     return false;
 }
 
+void
+Ipc::StoreMap::visitMarkedForDeletion(const AnchorVisitor visitor)
+{
+    Assure(anchors->capacity >= 0);
+    for (size_t i = 0; i < size_t(anchors->capacity); ++i) {
+        const auto &anchor = anchorAt(i);
+        if (!anchor.waitingToBeFreed)
+            continue;
+        if (anchor.start <= 0)
+            continue; // this entry has no on-disk(XXX) representation
+        if (!visitor(anchor))
+            return;
+    }
+}
+
 bool
 Ipc::StoreMap::purgeOne()
 {
@@ -1119,12 +1134,24 @@ Ipc::StoreMapAnchor::exportInto(StoreEntry &into) const
 void
 Ipc::StoreMapAnchor::rewind()
 {
+    debugs(54, 7, "key=" << storeKeyText(reinterpret_cast<const cache_key*>(&key)) << " waitingToBeFreed=" << bool(waitingToBeFreed) << " start=" << start);
+
     assert(writing());
-    start = 0;
     splicingPoint = -1;
     memset(&key, 0, sizeof(key));
     basics.clear();
+
+    // Rock::SwapDir::writeMarkedForDeletion() and alike need to be able to find
+    // entries that still need to be deleted on disk and to know enough to zero
+    // at least one of their on-disk slots. Zeroing the first slot is best, so
+    // we keep `start` (if any).
+    //
+    // XXX: Find another way to detect anchors that need their slots erased.
     waitingToBeFreed = false;
+    // XXX: Making waitingToBeFreed true here breaks caching probably because we
+    // have rewind()+fill code that ends up with true waitingToBeFreed? TODO:
+    // Distinguish between abandon() and resetForUse()?
+
     writerHalted = false;
     // but keep the lock
 }
