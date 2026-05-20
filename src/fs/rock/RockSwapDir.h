@@ -41,6 +41,14 @@ public:
     SwapDir();
     ~SwapDir() override;
 
+    /// Synchronously reacts to this process imminent termination. May be slow.
+    /// This method exists (i.e. we do not rely on the destructor) because
+    /// reference counting makes this object destruction _timing_ unpredictable
+    /// and may violate this method preconditions:
+    /// \prec Disk I/O modules are still fully functional.
+    /// \prec All transaction caching activity has ended before this call.
+    void shutdown();
+
     /* public ::SwapDir API */
     void reconfigure() override;
     StoreEntry *get(const cache_key *key) override;
@@ -142,6 +150,7 @@ private:
     void createError(const char *const msg);
     void handleWriteCompletionSuccess(const WriteRequest &request);
     void handleWriteCompletionProblem(const int errflag, const WriteRequest &request);
+    void writeMarkedForDeletion();
 
     /// tracks (often asynchronous) opening of theFile
     Instance::OptionalStartupActivityTracker startupTracker;
@@ -167,6 +176,7 @@ public:
 protected:
     /* Ipc::Mem::RegisteredRunner API */
     void create() override;
+    void endingShutdown() override;
 
 private:
     std::vector<Ipc::Mem::Owner<Rebuild::Stats> *> rebuildStatsOwners;

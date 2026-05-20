@@ -14,6 +14,8 @@
 #include "fs/rock/forward.h"
 #include "fs/rock/RockIoState.h"
 
+#include <optional>
+
 class DiskFile;
 
 namespace Rock
@@ -52,6 +54,20 @@ public:
 
     /// whether this is the last request for the entry
     bool eof;
+};
+
+/// a request to write an empty DbCellHeader
+class ZeroingRequest: public ::WriteRequest
+{
+    CBDATA_CLASS(ZeroingRequest);
+
+public:
+    using Pointer = RefCount<ZeroingRequest>;
+
+    explicit ZeroingRequest(uint64_t diskOffset);
+
+    /// whether the request succeeded (for processed requests)
+    std::optional<bool> completed;
 };
 
 } // namespace Rock

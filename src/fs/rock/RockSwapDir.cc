@@ -581,6 +581,63 @@ Rock::SwapDir::validateOptions()
     }
 }
 
+void
+Rock::SwapDir::shutdown()
+{
+    if (UsingSmp() && !IamDiskProcess()) {
+        debugs(47, 3, "delegating to disker");
+        return;
+    }
+
+    debugs(47, 3, path);
+
+    if (!theFile) {
+        debugs(47, 3, "already closed");
+        return;
+    }
+
+    writeMarkedForDeletion();
+
+    theFile->close();
+    Assure(!theFile); // synchronous closeCompleted() callback makes theFile nil
+}
+
+void
+Rock::SwapDir::writeMarkedForDeletion()
+{
+    Assure(theFile);
+    Assure(freeSlots);
+    uint64_t writtenCells = 0;
+    Ipc::Mem::PageId pageId;
+    while (theFile->canWrite() && freeSlots->pop(pageId)) {
+        // XXX: Do not rewrite previously empty entries!
+
+        debugs(47, 8, "zeroing a previously free db cell: " << pageId);
+        auto zr = ZeroingRequest::Pointer::Make(diskOffset(pageId));
+        theFile->write(zr.getRaw());
+        Assure(zr->completed); // here, we only support synchronous writes
+        if (!*zr->completed) {
+            // TODO: Do not duplicate Debug::Extra code!
+            debugs(47, DBG_IMPORTANT, "ERROR: Write error when purging rock cache_dir entries previously marked for deletion" <<
+                   Debug::Extra << "cache_dir: " << path <<
+                   Debug::Extra << "total marked slots: " << freeSlots->size() <<
+                   Debug::Extra << "marked slots erased: " << writtenCells);
+            break;
+         }
+
+        ++writtenCells;
+        pageId = Ipc::Mem::PageId(); // TODO: pop() should return a new page (or std::nullopt) instead
+
+        if (writtenCells % 100000 == 0) { // XXX: Warn based on time passed instead.
+            debugs(47, DBG_IMPORTANT, "WARNING: Still purging rock cache_dir entries previously marked for deletion" <<
+                   Debug::Extra << "cache_dir: " << path <<
+                   Debug::Extra << "total marked slots: " << freeSlots->size() <<
+                   Debug::Extra << "marked slots erased: " << writtenCells);
+        }
+    }
+    debugs(47, 3, "writtenCells: " << writtenCells);
+}
+
 bool
 Rock::SwapDir::canStore(const StoreEntry &e, int64_t diskSpaceNeeded, int &load) const
 {
@@ -847,6 +904,12 @@ Rock::SwapDir::readCompleted(const char *, int rlen, int errflag, RefCount< ::Re
 void
 Rock::SwapDir::writeCompleted(int errflag, size_t, RefCount< ::WriteRequest> r)
 {
+    if (const auto zeroingWrite = dynamic_cast<Rock::ZeroingRequest*>(r.getRaw())) {
+        Assure(!zeroingWrite->completed);
+        zeroingWrite->completed = (errflag == DISK_OK);
+        return;
+    }
+
     // TODO: Move details into IoState::handleWriteCompletion() after figuring
     // out how to deal with map access. See readCompleted().
 
@@ -1141,6 +1204,15 @@ void Rock::SwapDirRr::create()
                 shm_new(Ipc::Mem::PageStack)(sd->freeSlotsPath(), config);
             freeSlotsOwners.push_back(freeSlotsOwner);
         }
+    }
+}
+
+void
+Rock::SwapDirRr::endingShutdown()
+{
+    for (size_t i = 0; i < Config.cacheSwap.n_configured; ++i) {
+        if (const auto sd = dynamic_cast<SwapDir*>(INDEXSD(i)))
+            sd->shutdown();
     }
 }
 
