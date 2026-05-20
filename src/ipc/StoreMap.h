@@ -388,11 +388,6 @@ private:
     typedef std::function<bool (const sfileno name)> NameFilter; // a "name"-based test
     bool visitVictims(const NameFilter filter);
 
-public: // XXX!
-    // a function that is called for each markedForDeletion() anchor
-    typedef std::function<bool (const Anchor &)> AnchorVisitor; // XXX
-    void visitMarkedForDeletion(AnchorVisitor);
-
     void freeChain(const sfileno fileno, Anchor &inode, const bool keepLock);
     void freeChainAt(SliceId sliceId, const SliceId splicingPoint);
 
