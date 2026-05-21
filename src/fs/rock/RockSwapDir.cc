@@ -28,6 +28,7 @@
 #include "ipc/mem/Pages.h"
 #include "MemObject.h"
 #include "Parsing.h"
+#include "sbuf/Stream.h"
 #include "SquidConfig.h"
 #include "SquidMath.h"
 #include "tools.h"
@@ -277,6 +278,13 @@ Rock::SwapDir::createError(const char *const msg)
     fatal("Rock Store db creation error");
 }
 
+// XXX: Move.
+Rock::FreeSlots::FreeSlots(const SwapDir::Pointer &sd):
+    hazardousSlots(shm_old(Ipc::Mem::PageStack)(FreeSlots::Config(sd, ZeroWhenFlushing::on).segmentName().c_str())),
+    inertSlots(shm_old(Ipc::Mem::PageStack)(FreeSlots::Config(sd, ZeroWhenFlushing::off).segmentName().c_str()))
+{
+}
+
 void
 Rock::SwapDir::init()
 {
@@ -287,7 +295,8 @@ Rock::SwapDir::init()
     // are refcounted. We up our count once to avoid implicit delete's.
     lock();
 
-    freeSlots = shm_old(Ipc::Mem::PageStack)(freeSlotsPath());
+    Assure(!freeSlots);
+    freeSlots.reset(new FreeSlots(this));
 
     Must(!map);
     map = new DirMap(inodeMapPath());
@@ -609,10 +618,8 @@ Rock::SwapDir::writeMarkedForDeletion()
     Assure(freeSlots);
     uint64_t writtenCells = 0;
     Ipc::Mem::PageId pageId;
-    while (theFile->canWrite() && freeSlots->pop(pageId)) {
-        // XXX: Do not rewrite previously empty entries!
-
-        debugs(47, 8, "zeroing a previously free db cell: " << pageId);
+    while (theFile->canWrite() && freeSlots->popHazardous(pageId)) {
+        debugs(47, 8, "zeroing hazardous free slot: " << pageId);
         auto zr = ZeroingRequest::Pointer::Make(diskOffset(pageId));
         theFile->write(zr.getRaw());
         Assure(zr->completed); // here, we only support synchronous writes
@@ -623,7 +630,7 @@ Rock::SwapDir::writeMarkedForDeletion()
                    Debug::Extra << "total marked slots: " << freeSlots->size() <<
                    Debug::Extra << "marked slots erased: " << writtenCells);
             break;
-         }
+        }
 
         ++writtenCells;
         pageId = Ipc::Mem::PageId(); // TODO: pop() should return a new page (or std::nullopt) instead
@@ -795,13 +802,15 @@ void
 Rock::SwapDir::noteFreeMapSlice(const Ipc::StoreMapSliceId sliceId)
 {
     Ipc::Mem::PageId pageId;
-    pageId.pool = Ipc::Mem::PageStack::IdForSwapDirSpace(index);
+    // TODO: Consider avoiding zeroing non-inode slots.
+    // TODO: Move repeated PageId conversions to lower-level FreeSlots code.
+    pageId.pool = Ipc::Mem::PageStack::IdForSwapDirSpace(index, ZeroWhenFlushing::on);
     pageId.number = sliceId+1;
     if (waitingForPage) {
         *waitingForPage = pageId;
         waitingForPage = nullptr;
     } else {
-        freeSlots->push(pageId);
+        freeSlots->pushHazardous(pageId);
     }
 }
 
@@ -1164,15 +1173,6 @@ Rock::SwapDir::inodeMapPath() const
     return Ipc::Mem::Segment::Name(SBuf(path), "map");
 }
 
-const char *
-Rock::SwapDir::freeSlotsPath() const
-{
-    static String spacesPath;
-    spacesPath = path;
-    spacesPath.append("_spaces");
-    return spacesPath.termedBuf();
-}
-
 bool
 Rock::SwapDir::hasReadableEntry(const StoreEntry &e) const
 {
@@ -1194,18 +1194,53 @@ void Rock::SwapDirRr::create()
                 SwapDir::DirMap::Init(sd->inodeMapPath(), capacity);
             mapOwners.push_back(mapOwner);
 
-            // TODO: somehow remove pool id and counters from PageStack?
-            Ipc::Mem::PageStack::Config config;
-            config.poolId = Ipc::Mem::PageStack::IdForSwapDirSpace(i);
-            config.pageSize = 0; // this is an index of slots on _disk_
-            config.capacity = capacity;
-            config.createFull = false; // Rebuild finds and pushes free slots
-            Ipc::Mem::Owner<Ipc::Mem::PageStack> *const freeSlotsOwner =
-                shm_new(Ipc::Mem::PageStack)(sd->freeSlotsPath(), config);
-            freeSlotsOwners.push_back(freeSlotsOwner);
+            const auto addFreeSlots = [&](const ZeroWhenFlushing doZeroWhenFlushing) {
+                const auto config = FreeSlots::Config(sd, doZeroWhenFlushing);
+                freeSlotsOwners.push_back(shm_new(Ipc::Mem::PageStack)(config.segmentName().c_str(), config));
+            };
+            addFreeSlots(ZeroWhenFlushing::off);
+            addFreeSlots(ZeroWhenFlushing::on);
         }
     }
 }
+
+/* Rock::FreeSlots::Config */
+
+Rock::FreeSlots::Config::Config(const SwapDir::Pointer &sd, const ZeroWhenFlushing doZeroWhenFlushing):
+    swapDir(sd),
+    zeroWhenFlushing(doZeroWhenFlushing)
+{
+    Assure(swapDir);
+
+    // TODO: somehow remove pool id and counters from PageStack?
+    poolId = Ipc::Mem::PageStack::IdForSwapDirSpace(swapDir->index, zeroWhenFlushing);
+    pageSize = 0; // this is an index of slots on _disk_
+    capacity = swapDir->slotLimitActual();
+    createFull = false; // Rebuild finds and pushes free slots
+}
+
+SBuf
+Rock::FreeSlots::Config::segmentName() const
+{
+    return ToSBuf(swapDir->path, !zeroWhenFlushing ? "_inert" : "_hazardous");
+}
+
+/* Rock::FreeSlots */
+
+Rock::FreeSlots::PageCount
+Rock::FreeSlots::size() const
+{
+    return NaturalSum<PageCount>(inertSlots->size(), hazardousSlots->size()).value();
+}
+
+bool
+Rock::FreeSlots::pop(PageId &pageId)
+{
+    // first use slots that, if not popped, would have to be zeroed at shutdown
+    return hazardousSlots->pop(pageId) || inertSlots->pop(pageId);
+}
+
+/* Rock::SwapDirRr */
 
 void
 Rock::SwapDirRr::endingShutdown()

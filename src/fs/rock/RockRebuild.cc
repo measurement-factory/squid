@@ -737,9 +737,10 @@ Rock::Rebuild::freeSlot(const SlotId slotId, const bool invalid)
     }
 
     Ipc::Mem::PageId pageId;
-    pageId.pool = Ipc::Mem::PageStack::IdForSwapDirSpace(sd->index);
+    pageId.pool = Ipc::Mem::PageStack::IdForSwapDirSpace(sd->index, ZeroWhenFlushing::on);
     pageId.number = slotId+1;
-    sd->freeSlots->push(pageId);
+    // XXX: Some free slots (e.g., empty ones) are actually inert!
+    sd->freeSlots->pushHazardous(pageId);
 }
 
 /// freeSlot() for never-been-mapped slots

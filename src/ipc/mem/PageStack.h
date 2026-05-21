@@ -9,6 +9,7 @@
 #ifndef SQUID_SRC_IPC_MEM_PAGESTACK_H
 #define SQUID_SRC_IPC_MEM_PAGESTACK_H
 
+#include "base/OnOff.h"
 #include "ipc/mem/FlexibleArray.h"
 #include "ipc/mem/forward.h"
 
@@ -168,7 +169,8 @@ public:
     /// multipurpose PagePool of shared memory pages
     static PoolId IdForMultipurposePool() { return 200; } // segments could use 2xx
     /// stack of free rock cache_dir slot numbers
-    static PoolId IdForSwapDirSpace(const int dirIdx) { return 900 + dirIdx + 1; }
+    /// \param zeroWhenFlushing determines whether the slots need zeroing on disk
+    static PoolId IdForSwapDirSpace(const int dirIdx, const OnOff zeroWhenFlushing) { return (!zeroWhenFlushing ? 900 : 800) + dirIdx + 1; }
 
 private:
     const Config config_;

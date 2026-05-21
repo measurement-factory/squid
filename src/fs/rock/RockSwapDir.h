@@ -9,6 +9,7 @@
 #ifndef SQUID_SRC_FS_ROCK_ROCKSWAPDIR_H
 #define SQUID_SRC_FS_ROCK_ROCKSWAPDIR_H
 
+#include "base/OnOff.h"
 #include "DiskIO/DiskFile.h"
 #include "DiskIO/IORequestor.h"
 #include "fs/rock/forward.h"
@@ -18,9 +19,11 @@
 #include "ipc/mem/Page.h"
 #include "ipc/mem/PageStack.h"
 #include "ipc/StoreMap.h"
+#include "sbuf/forward.h"
 #include "store/Disk.h"
 #include "store_rebuild.h"
 
+#include <memory>
 #include <optional>
 #include <vector>
 
@@ -67,8 +70,6 @@ public:
 
     // temporary path to the shared memory map of first slots of cached entries
     SBuf inodeMapPath() const;
-    // temporary path to the shared memory stack of free slots
-    const char *freeSlotsPath() const;
 
     int64_t entryLimitAbsolute() const { return SwapFilenMax+1; } ///< Core limit
     int64_t entryLimitActual() const; ///< max number of possible entries in db
@@ -157,13 +158,81 @@ private:
 
     DiskIOStrategy *io;
     RefCount<DiskFile> theFile; ///< cache storage for this cache_dir
-    Ipc::Mem::Pointer<Ipc::Mem::PageStack> freeSlots; ///< all unused slots
+    std::unique_ptr<FreeSlots> freeSlots; ///< all unused slots
     Ipc::Mem::PageId *waitingForPage; ///< one-page cache for a "hot" free slot
 
     /* configurable options */
     DiskFile::Config fileConfig; ///< file-level configuration options
 
     static const int64_t HeaderSize = 16*1024; ///< on-disk db header size
+};
+
+/// Whether to zero a db cell header on disk. To reduce disk writes in busy
+/// environments where most freed db slots become used again, Rock delays
+/// zeroing until SwapDir::shutdown(). To reduce zeroing costs at shutdown, Rock
+/// classifies slots (at slot freeing time; as detailed below) and then only
+/// zeroes slots classified as "hazardous" (at shutdown):
+///
+/// * "Hazardous" slots are slots that, if left intact, may be treated as valid
+///   Store entries during next Squid startup, leading to, for example, cache
+///   hits for resources purged by the previous Squid instance. Hazardous slots
+///   should be zeroed to prevent such entry "resurrections" and other problems.
+///
+/// * "Inert" slots are all the other slots; they do not require zeroing.
+///
+/// \sa Rock::ZeroingRequest
+using ZeroWhenFlushing = OnOff;
+
+/// Slot IDs of currently unused db cells inside one rock cache_dir.
+class FreeSlots
+{
+public:
+    using PageCount = Ipc::Mem::PageStack::PageCount;
+    using PageId = Ipc::Mem::PageId;
+
+    /// Ipc::Mem::PageStack creation instructions.
+    class Config: public Ipc::Mem::PageStack::Config
+    {
+    public:
+        Config(const SwapDir::Pointer &, ZeroWhenFlushing);
+
+        /// the name of Ipc::Mem::Segment that contains our free slot IDs
+        SBuf segmentName() const;
+
+        /// cache_dir that contains our free slots
+        Rock::SwapDir::Pointer swapDir;
+
+        /// whether the being-configured Ipc::Mem::PageStack is for hazardous slots
+        ZeroWhenFlushing zeroWhenFlushing;
+    };
+
+    explicit FreeSlots(const SwapDir::Pointer &);
+
+    /// \copydoc Ipc::Mem::PageStack::size()
+    PageCount size() const;
+
+    /// either extracts a previously pushed slot, sets the given PageId, and
+    /// returns true (if a free slot was available) or returns false (otherwise)
+    bool pop(PageId &);
+
+    /// Like pop() but ignores (i.e. never considers or returns) inert slots.
+    /// This method is only meant to be used during cache_dir flushing.
+    /// \sa ZeroWhenFlushing
+    bool popHazardous(PageId &pageId) { return hazardousSlots->pop(pageId); }
+
+    /// makes the given page available to a future pop() caller and promises to
+    /// eventually zero the corresponding disk slot
+    /// \sa pushInert(), ZeroWhenFlushing
+    void pushHazardous(PageId &pageId) { hazardousSlots->push(pageId); }
+
+    /// makes the given page available to a future pop() caller without
+    /// promising to eventually zero the corresponding disk slot
+    /// \sa pushHazardous(), ZeroWhenFlushing
+    void pushInert(PageId &pageId) { inertSlots->push(pageId); }
+
+private:
+    Ipc::Mem::Pointer<Ipc::Mem::PageStack> hazardousSlots; ///< free ZeroWhenFlushing::on slots
+    Ipc::Mem::Pointer<Ipc::Mem::PageStack> inertSlots; ///< free ZeroWhenFlushing::off slots
 };
 
 /// initializes shared memory segments used by Rock::SwapDir

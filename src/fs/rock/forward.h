@@ -28,6 +28,7 @@ namespace Rock
 {
 
 class SwapDir;
+class FreeSlots;
 
 /// db cell number, starting with cell 0 (always occupied by the db header)
 typedef sfileno SlotId;
