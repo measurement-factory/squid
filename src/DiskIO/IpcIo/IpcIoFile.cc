@@ -315,7 +315,7 @@ IpcIoFile::write(WriteRequest *writeRequest)
         localWrite.requestId = lastRequestId;
         localWrite.start = current_time;
         localWrite.workerPid = myPid;
-        { // writeRequest
+        {   // writeRequest
             Assure(writeRequest->len <= Ipc::Mem::PageSize());
             localWrite.command = IpcIo::cmdWrite;
             localWrite.offset = writeRequest->offset;
