@@ -96,7 +96,7 @@ private:
     void addReaderEntry(StoreEntry &, const cache_key *);
 
     // Ipc::StoreMapCleaner API
-    void noteFreeMapSlice(const Ipc::StoreMapSliceId sliceId) override;
+    void noteFreeMapSlice(Ipc::StoreMapSliceId, bool) override;
 
 private:
     /// shared packed info indexed by Store keys, for creating new StoreEntries

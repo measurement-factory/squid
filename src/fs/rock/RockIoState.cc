@@ -349,11 +349,11 @@ void
 Rock::IoState::finishedWriting(const int errFlag)
 {
     if (sidCurrent >= 0) {
-        dir->noteFreeMapSlice(sidCurrent);
+        dir->noteFreeMapSlice(sidCurrent, sidCurrent == sidFirst);
         sidCurrent = -1;
     }
     if (sidNext >= 0) {
-        dir->noteFreeMapSlice(sidNext);
+        dir->noteFreeMapSlice(sidNext, sidNext == sidFirst);
         sidNext = -1;
     }
 

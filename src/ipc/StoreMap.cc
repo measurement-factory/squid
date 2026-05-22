@@ -460,7 +460,7 @@ Ipc::StoreMap::freeChain(const sfileno fileno, Anchor &inode, const bool keepLoc
     debugs(54, 7, "freeing entry " << fileno <<
            " in " << path);
     if (!inode.empty())
-        freeChainAt(inode.start, inode.splicingPoint);
+        freeChainAt(inode);
     inode.rewind();
 
     if (!keepLocked)
@@ -469,19 +469,26 @@ Ipc::StoreMap::freeChain(const sfileno fileno, Anchor &inode, const bool keepLoc
     debugs(54, 5, "freed entry " << fileno << " in " << path);
 }
 
-/// unconditionally frees an already locked chain of slots; no anchor maintenance
+/// freeChain() helper to unconditionally free an already locked chain of slots;
+/// the caller is responsible for updating the chain anchor
 void
-Ipc::StoreMap::freeChainAt(SliceId sliceId, const SliceId splicingPoint)
+Ipc::StoreMap::freeChainAt(const Anchor &anchor)
 {
     static uint64_t ChainId = 0; // to pair freeing/freed calls in debugs()
     const uint64_t chainId = ++ChainId;
+
+    // optimization: avoid repeated atomic loads, especially inside the loop
+    const auto startId = anchor.start.load();
+    const auto splicingPoint = anchor.splicingPoint.load();
+
+    auto sliceId = startId;
     debugs(54, 7, "freeing chain #" << chainId << " starting at " << sliceId << " in " << path);
     while (sliceId >= 0) {
         Slice &slice = sliceAt(sliceId);
         const SliceId nextId = slice.next;
         slice.clear();
         if (cleaner)
-            cleaner->noteFreeMapSlice(sliceId); // might change slice state
+            cleaner->noteFreeMapSlice(sliceId, sliceId == startId); // might change slice state
         if (sliceId == splicingPoint) {
             debugs(54, 5, "preserving chain #" << chainId << " in " << path <<
                    " suffix after slice " << splicingPoint);

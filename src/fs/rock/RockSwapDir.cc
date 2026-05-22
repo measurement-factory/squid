@@ -799,18 +799,19 @@ Rock::SwapDir::validSlotId(const SlotId slotId) const
 }
 
 void
-Rock::SwapDir::noteFreeMapSlice(const Ipc::StoreMapSliceId sliceId)
+Rock::SwapDir::noteFreeMapSlice(const Ipc::StoreMapSliceId sliceId, const bool isInode)
 {
+    debugs(47, 7, "slice " << sliceId << " isInode=" << isInode);
     Ipc::Mem::PageId pageId;
-    // TODO: Consider avoiding zeroing non-inode slots.
     // TODO: Move repeated PageId conversions to lower-level FreeSlots code.
-    pageId.pool = Ipc::Mem::PageStack::IdForSwapDirSpace(index, ZeroWhenFlushing::on);
+    const auto zeroWhenFlushing = isInode ? ZeroWhenFlushing::on : ZeroWhenFlushing::off;
+    pageId.pool = Ipc::Mem::PageStack::IdForSwapDirSpace(index, zeroWhenFlushing);
     pageId.number = sliceId+1;
     if (waitingForPage) {
         *waitingForPage = pageId;
         waitingForPage = nullptr;
     } else {
-        freeSlots->pushHazardous(pageId);
+        freeSlots->push(pageId, zeroWhenFlushing);
     }
 }
 
@@ -930,7 +931,7 @@ Rock::SwapDir::writeCompleted(int errflag, size_t, RefCount< ::WriteRequest> r)
     // quit if somebody called IoState::close() while we were waiting
     if (!sio.stillWaiting()) {
         debugs(79, 3, "ignoring closed entry " << sio.swap_filen);
-        noteFreeMapSlice(request->sidCurrent);
+        noteFreeMapSlice(request->sidCurrent, request->sidPrevious < 0);
         return;
     }
 
@@ -992,7 +993,7 @@ Rock::SwapDir::handleWriteCompletionProblem(const int errflag, const WriteReques
 {
     auto &sio = *request.sio;
 
-    noteFreeMapSlice(request.sidCurrent);
+    noteFreeMapSlice(request.sidCurrent, request.sidPrevious < 0);
 
     writeError(sio);
     sio.finishedWriting(errflag);

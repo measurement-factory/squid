@@ -90,7 +90,7 @@ public:
     void writeError(StoreIOState &sio);
 
     /* StoreMapCleaner API */
-    void noteFreeMapSlice(const Ipc::StoreMapSliceId fileno) override;
+    void noteFreeMapSlice(Ipc::StoreMapSliceId, bool) override;
 
     uint64_t slotSize; ///< all db slots are of this size
 
@@ -219,6 +219,9 @@ public:
     /// This method is only meant to be used during cache_dir flushing.
     /// \sa ZeroWhenFlushing
     bool popHazardous(PageId &pageId) { return hazardousSlots->pop(pageId); }
+
+    /// makes the given page available to a future pop() caller
+    void push(PageId &pageId, const ZeroWhenFlushing zeroWhenFlushing) { !zeroWhenFlushing ? inertSlots->push(pageId) : hazardousSlots->push(pageId); }
 
     /// makes the given page available to a future pop() caller and promises to
     /// eventually zero the corresponding disk slot

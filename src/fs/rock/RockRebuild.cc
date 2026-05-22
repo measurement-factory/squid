@@ -736,11 +736,14 @@ Rock::Rebuild::freeSlot(const SlotId slotId, const bool invalid)
         //sd->unlink(fileno); leave garbage on disk, it should not hurt
     }
 
+    // XXX: This is overly conservative: Some free slots (e.g., empty ones) are
+    // inert and some (e.g., those containing stale inodes) are hazardous!
+    const auto zeroWhenFlushing = ZeroWhenFlushing::on;
+
     Ipc::Mem::PageId pageId;
-    pageId.pool = Ipc::Mem::PageStack::IdForSwapDirSpace(sd->index, ZeroWhenFlushing::on);
+    pageId.pool = Ipc::Mem::PageStack::IdForSwapDirSpace(sd->index, zeroWhenFlushing);
     pageId.number = slotId+1;
-    // XXX: Some free slots (e.g., empty ones) are actually inert!
-    sd->freeSlots->pushHazardous(pageId);
+    sd->freeSlots->push(pageId, zeroWhenFlushing);
 }
 
 /// freeSlot() for never-been-mapped slots

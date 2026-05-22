@@ -274,7 +274,7 @@ Transients::hasWriter(const StoreEntry &e)
 }
 
 void
-Transients::noteFreeMapSlice(const Ipc::StoreMapSliceId)
+Transients::noteFreeMapSlice(Ipc::StoreMapSliceId, bool)
 {
     // TODO: we should probably find the entry being deleted and abort it
 }
