@@ -228,6 +228,7 @@ main() {
             cache-refresh-response
             proxy-collapsed-forwarding
             hit-revalidation
+            purge-cached
             busy-restart
             smooth-reconfiguration-of-cache-peers
             truncated-responses
