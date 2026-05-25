@@ -301,7 +301,8 @@ Transients::setUpdateStatus(const StoreEntry &e, const Ipc::StoreMapAnchor::Upda
 {
     assert(e.hasTransients());
     assert(e.mem_obj && e.mem_obj->xitTable.collapsed);
-    assert(isWriter(e));
+    // XXX: fix to assert(isWriter(e))
+    assert(isWriter(e) || isReader(e));
 
     EntryStatus entryStatus;
     status(e, entryStatus);

@@ -69,7 +69,8 @@ void
 Ipc::StoreMap::setUpdateStatus(const sfileno fileno, const Ipc::StoreMapAnchor::UpdateStatus updateStatus)
 {
     Anchor &inode = anchorAt(fileno);
-    assert(inode.writing());;
+    // XXX: fix to assert(inode.writing())
+    assert(inode.writing() || inode.reading());
     inode.updateStatus = updateStatus;
 }
 

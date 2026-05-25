@@ -481,6 +481,13 @@ clientReplyContext::handleIMSReply(const StoreIOBuffer result)
 
     // origin replied with a non-error code
     if (status > Http::scNone && status < Http::scInternalServerError) {
+
+        if (collapsedRevalidation == crSlave && http->request->flags.ims && !old_entry->modifiedSince(http->request->ims, http->request->imslen)) {
+            debugs(88, 3, "sending 304 to client");
+            sendNotModified();
+            return;
+        }
+
         // RFC 9111 section 4:
         // "When more than one suitable response is stored,
         //  a cache MUST use the most recent one
@@ -550,13 +557,6 @@ clientReplyContext::handleSmpCollapsedRevaliationReply()
         sc->setDelayId(DelayId::DelayClient(http));
 #endif
         http->storeEntry(seFresh);
-
-        // cannot handle this case in HandleIMSReply() because server 304 reply is unavailable here
-        if (http->request->flags.ims && !http->storeEntry()->modifiedSince(http->request->ims, http->request->imslen)) {
-            debugs(88, 3, "sending 304 to client");
-            sendNotModified();
-            return;
-        }
 
         StoreIOBuffer localTempBuffer(HTTP_REQBUF_SZ, 0, tempbuf);
         // now go to the existing path that reads "updated or replaced" seFresh

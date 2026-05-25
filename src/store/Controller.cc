@@ -923,7 +923,8 @@ Store::Controller::anchorToCache(StoreEntry &entry)
 void
 Store::Controller::updateFinished(StoreEntry &e, const StoreEntry &e304, const Ipc::StoreMapAnchor::UpdateStatus updateStatus)
 {
-    collapsedWritingCheckpoint(e304, updateStatus);
+    if (e304.mem_obj && e304.mem_obj->xitTable.collapsed)
+        transients->setUpdateStatus(e304, updateStatus);
 
     if (e.hasTransients())
         transients->refreshEntry(e);
