@@ -37,7 +37,7 @@ static
 const auto &
 EmptyCellHeader()
 {
-    const auto emtyCell = new Rock::DbCellHeader();
+    static const auto emtyCell = new Rock::DbCellHeader();
     return *emtyCell;
 }
 
