@@ -563,6 +563,39 @@ StoreEntry::hideFromNewcomers()
         setPrivateKey(true, true, EvictCached::off);
 }
 
+Store::CollapsedEntryTransientsState::CollapsedEntryTransientsState(StoreEntry *e) : entry(e)
+{
+    assert(entry && entry->locked());
+    if (entry->hasTransients() && entry->mem_obj->xitTable.isCollapsedInitiator()) {
+        xitTable = entry->mem_obj->xitTable;
+        entry->mem_obj->xitTable.close();
+    }
+}
+
+Store::CollapsedEntryTransientsState::~CollapsedEntryTransientsState()
+{
+    if (xitTable.isOpen() && !entry->mem_obj->xitTable.isOpen()) {
+        entry->mem_obj->xitTable = xitTable;
+        xitTable = MemObject::XitTable();
+    }
+}
+
+void
+Store::CollapsedEntryTransientsState::release()
+{
+    if (xitTable.isOpen()) {
+        // the transients index must have been updated already
+        assert(entry->mem_obj->xitTable.isOpen());
+        assert(entry->mem_obj->xitTable.index != xitTable.index);
+
+        // notify via the old transients entry about the update
+        Store::Root().setUpdateStatus(xitTable, Ipc::StoreMapAnchor::uApplied);
+        Store::Root().transientsDisconnect(*this);
+        xitTable = MemObject::XitTable();
+    }
+}
+
+
 /* RBC 20050104 AFAICT this should become simpler:
  * rather than reinserting with a special key it should be marked
  * as 'released' and then cleaned up when refcounting indicates.
@@ -584,9 +617,9 @@ StoreEntry::setPrivateKey(const bool shareable, const bool permanent, const Evic
     if (EBIT_TEST(flags, KEY_PRIVATE))
         return;
 
-    if (mem_obj && mem_obj->freshestReply().sline.status() != Http::scNotModified) {
+    if (hasTransients() && mem_obj->xitTable.isCollapsedInitiator() && mem_obj->freshestReply().sline.status() != Http::scNotModified) {
         // a private non-304 entry means that revalidation (if any) was unsuccessful
-        Store::Root().collapsedWritingCheckpoint(*this, Ipc::StoreMapAnchor::uFailed);
+        Store::Root().setUpdateStatus(mem_obj->xitTable, Ipc::StoreMapAnchor::uFailed);
     }
 
     if (key) {
@@ -644,10 +677,10 @@ StoreEntry::setPublicKey(const KeyScope scope)
     try {
         EntryGuard newVaryMarker(adjustVary(), "setPublicKey+failure");
         const cache_key *pubKey = calcPublicKey(scope);
-        Store::Root().collapsedWritingCheckpoint(*this, Ipc::StoreMapAnchor::uApplied);
         Store::Root().evictIfFound(pubKey);
-        Store::Root().transientsDisconnect(*this);
+        Store::CollapsedEntryTransientsState collapsedEntryState(this);
         Store::Root().addWriting(this, pubKey);
+        collapsedEntryState.release();
         forcePublicKey(pubKey);
         newVaryMarker.unlockAndReset("setPublicKey+success");
         return true;

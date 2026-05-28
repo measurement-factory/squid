@@ -297,22 +297,14 @@ Transients::status(const StoreEntry &entry, Transients::EntryStatus &entryStatus
 }
 
 void
-Transients::setUpdateStatus(const StoreEntry &e, const Ipc::StoreMapAnchor::UpdateStatus updateStatus)
+Transients::setUpdateStatus(const MemObject::XitTable &xitTable, const Ipc::StoreMapAnchor::UpdateStatus updateStatus)
 {
-    assert(e.hasTransients());
-    assert(e.mem_obj && e.mem_obj->xitTable.collapsed);
-    // XXX: fix to assert(isWriter(e))
-    assert(isWriter(e) || isReader(e));
-
-    EntryStatus entryStatus;
-    status(e, entryStatus);
-    debugs(20, 5, "updateStatus: " << entryStatus.updateStatus);
-    if (entryStatus.updateStatus == Ipc::StoreMapAnchor::uNone) {
-        map->setUpdateStatus(e.mem_obj->xitTable.index, updateStatus);
-        CollapsedForwarding::Broadcast(e);
+    const auto &anchor = xitTable.io == Store::ioWriting ? map->writeableEntry(xitTable.index) : map->readableEntry(xitTable.index);
+    if (anchor.updateStatus == Ipc::StoreMapAnchor::uNone) {
+        map->setUpdateStatus(xitTable.index, updateStatus);
+        CollapsedForwarding::Broadcast(xitTable.index, false);
         return;
     }
-    Assure(entryStatus.updateStatus == updateStatus);
 }
 
 void
@@ -374,6 +366,25 @@ Transients::evictIfFound(const cache_key *key)
 }
 
 void
+Transients::disconnect(Store::CollapsedEntryTransientsState &state)
+{
+    assert(map);
+    if (state.xitTable.io == Store::ioWriting) {
+        // completeWriting() was not called, so there could be an active
+        // Store writer out there, but we should not abortWriting() here
+        // because another writer may have succeeded, making readers happy.
+        // If none succeeded, the readers will notice the lack of writers.
+        map->closeForWriting(state.xitTable.index);
+        CollapsedForwarding::Broadcast(state.xitTable.index, false);
+    } else {
+        assert(state.xitTable.io == Store::ioReading);
+        map->closeForReadingAndFreeIdle(state.xitTable.index);
+    }
+    locals->remove(state);
+    state.xitTable.close();
+}
+
+void
 Transients::disconnect(StoreEntry &entry)
 {
     debugs(20, 5, entry);
@@ -421,6 +432,15 @@ bool
 Transients::isWriter(const StoreEntry &e) const
 {
     return e.mem_obj && e.mem_obj->xitTable.io == Store::ioWriting;
+}
+
+void
+Transients::Locals::remove(Store::CollapsedEntryTransientsState &state)
+{
+    auto &entries = index.at(state.xitTable.index);
+    auto it = std::find(entries.begin(), entries.end(), state.entry);
+    Assure(it != entries.end());
+    entries.erase(it);
 }
 
 /// initializes shared memory segment used by Transients

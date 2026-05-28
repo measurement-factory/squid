@@ -71,6 +71,8 @@ public:
             entries.erase(it);
         }
 
+        void remove(Store::CollapsedEntryTransientsState &state);
+
         Index index;
     };
 
@@ -92,7 +94,7 @@ public:
 
     /// sets the shared entry status for the collapsed revalidation entry
     /// \prec the entry is opened for writing
-    void setUpdateStatus(const StoreEntry &e, Ipc::StoreMapAnchor::UpdateStatus updateStatus);
+    void setUpdateStatus(const MemObject::XitTable &xitTable, const Ipc::StoreMapAnchor::UpdateStatus updateStatus);
 
     /// refresh the entry index after update
     void refreshEntry(StoreEntry &e);
@@ -102,6 +104,7 @@ public:
 
     /// the caller is done writing or reading the given entry
     void disconnect(StoreEntry &);
+    void disconnect(Store::CollapsedEntryTransientsState &);
 
     /* Store API */
     StoreEntry *get(const cache_key *) override;

@@ -627,6 +627,13 @@ Store::Controller::transientsDisconnect(StoreEntry &e)
 }
 
 void
+Store::Controller::transientsDisconnect(Store::CollapsedEntryTransientsState &state)
+{
+    if (transients)
+        transients->disconnect(state);
+}
+
+void
 Store::Controller::handleIdleEntry(StoreEntry &e)
 {
     bool keepInLocalMemory = false;
@@ -923,18 +930,17 @@ Store::Controller::anchorToCache(StoreEntry &entry)
 void
 Store::Controller::updateFinished(StoreEntry &e, const StoreEntry &e304, const Ipc::StoreMapAnchor::UpdateStatus updateStatus)
 {
-    if (e304.mem_obj && e304.mem_obj->xitTable.collapsed)
-        transients->setUpdateStatus(e304, updateStatus);
-
-    if (e.hasTransients())
+    if (e.hasTransients()) {
         transients->refreshEntry(e);
+        if (e304.hasTransients() && e304.mem_obj->xitTable.isCollapsedInitiator())
+            transients->setUpdateStatus(e304.mem_obj->xitTable, updateStatus);
+    }
 }
 
 void
-Store::Controller::collapsedWritingCheckpoint(const StoreEntry &e, const Ipc::StoreMapAnchor::UpdateStatus updateStatus)
+Store::Controller::setUpdateStatus(const MemObject::XitTable &xitTable, const Ipc::StoreMapAnchor::UpdateStatus updateStatus)
 {
-    if (e.mem_obj && e.mem_obj->xitTable.collapsed && e.hasTransients() && transients->isWriter(e))
-        transients->setUpdateStatus(e, updateStatus);
+    transients->setUpdateStatus(xitTable, updateStatus);
 }
 
 bool

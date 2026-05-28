@@ -331,7 +331,8 @@ clientReplyContext::processExpired()
             http->request->etag = etag.str;
     }
 
-    entry->mem_obj->xitTable.collapsed = collapsingAllowed;
+    if (collapsingAllowed)
+        entry->mem_obj->xitTable.setCollapsedRole(collapsedRevalidation == crInitiator ? MemObject::XitTable::coInitiator :  MemObject::XitTable::coSlave);
 
     debugs(88, 5, "lastmod " << entry->lastModified());
     http->storeEntry(entry);

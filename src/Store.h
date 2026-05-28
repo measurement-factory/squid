@@ -425,6 +425,22 @@ private:
 
 void Stats(StoreEntry *output);
 void Maintain(void *unused);
+
+class CollapsedEntryTransientsState
+{
+public:
+    CollapsedEntryTransientsState(StoreEntry *e);
+
+    ~CollapsedEntryTransientsState();
+
+    /// closes the old transients entry after the StoreEntry
+    /// was attached to a new transients entry
+    void release();
+
+    StoreEntry *entry; ///< the StoreEntry that switches its transients entry
+    MemObject::XitTable xitTable; ///< stores the entry's old transients index
+};
+
 }; // namespace Store
 
 /// \ingroup StoreAPI

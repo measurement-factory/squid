@@ -116,6 +116,7 @@ public:
 
     /// disassociates the entry from the intransit table
     void transientsDisconnect(StoreEntry &);
+    void transientsDisconnect(Store::CollapsedEntryTransientsState &);
 
     /// disassociates the entry from the memory cache, preserving cached data
     void memoryDisconnect(StoreEntry &);
@@ -126,8 +127,7 @@ public:
     /// adjusts the shared transients entry after the update has been successfully applied (or failed)
     void updateFinished(StoreEntry &e, const StoreEntry &e304, Ipc::StoreMapAnchor::UpdateStatus);
 
-    /// sets the collapsed transients entry status after the update has been applied (or failed)
-    void collapsedWritingCheckpoint(const StoreEntry &e, Ipc::StoreMapAnchor::UpdateStatus);
+    void setUpdateStatus(const MemObject::XitTable &, Ipc::StoreMapAnchor::UpdateStatus);
 
     /// whether there are any SMP-aware storages
     static bool SmpAware();
