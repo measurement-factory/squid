@@ -171,14 +171,14 @@ private:
 /// environments where most freed db slots become used again, Rock delays
 /// zeroing until SwapDir::shutdown(). To reduce zeroing costs at shutdown, Rock
 /// classifies slots (at slot freeing time; as detailed below) and then only
-/// zeroes slots classified as "hazardous" (at shutdown):
+/// zeroes (at shutdown) those slots that were classified as needing zeroing.
 ///
-/// * "Hazardous" slots are slots that, if left intact, may be treated as valid
-///   Store entries during next Squid startup, leading to, for example, cache
-///   hits for resources purged by the previous Squid instance. Hazardous slots
-///   should be zeroed to prevent such entry "resurrections" and other problems.
+/// * ZeroWhenFlushing:on slots are slots that require zeroing: If left intact,
+///   they may be treated as valid Store entries during the next Squid startup,
+///   leading to, for example, cache hits for resources purged by the previous
+///   Squid instance. Zeroing prevents entry "resurrections" and other problems.
 ///
-/// * "Inert" slots are all the other slots; they do not require zeroing.
+/// * ZeroWhenFlushing:off slots are slots that do not require zeroing.
 ///
 /// \sa Rock::ZeroingRequest
 using ZeroWhenFlushing = OnOff;
@@ -202,7 +202,7 @@ public:
         /// cache_dir that contains our free slots
         Rock::SwapDir::Pointer swapDir;
 
-        /// whether the being-configured Ipc::Mem::PageStack is for hazardous slots
+        /// classifies free slots in the being-configured Ipc::Mem::PageStack
         ZeroWhenFlushing zeroWhenFlushing;
     };
 
@@ -215,27 +215,17 @@ public:
     /// returns true (if a free slot was available) or returns false (otherwise)
     bool pop(PageId &);
 
-    /// Like pop() but ignores (i.e. never considers or returns) inert slots.
+    /// Like pop() but only extracts ZeroWhenFlushing:on slots.
     /// This method is only meant to be used during cache_dir flushing.
     /// \sa ZeroWhenFlushing
-    bool popHazardous(PageId &pageId) { return hazardousSlots->pop(pageId); }
+    bool popToBeZeroed(PageId &pageId) { return slotsToBeZeroed->pop(pageId); }
 
     /// makes the given page available to a future pop() caller
-    void push(PageId &pageId, const ZeroWhenFlushing zeroWhenFlushing) { !zeroWhenFlushing ? inertSlots->push(pageId) : hazardousSlots->push(pageId); }
-
-    /// makes the given page available to a future pop() caller and promises to
-    /// eventually zero the corresponding disk slot
-    /// \sa pushInert(), ZeroWhenFlushing
-    void pushHazardous(PageId &pageId) { hazardousSlots->push(pageId); }
-
-    /// makes the given page available to a future pop() caller without
-    /// promising to eventually zero the corresponding disk slot
-    /// \sa pushHazardous(), ZeroWhenFlushing
-    void pushInert(PageId &pageId) { inertSlots->push(pageId); }
+    void push(PageId &pageId, const ZeroWhenFlushing zeroWhenFlushing) { !zeroWhenFlushing ? slotsToBeLeftAsIs->push(pageId) : slotsToBeZeroed->push(pageId); }
 
 private:
-    Ipc::Mem::Pointer<Ipc::Mem::PageStack> hazardousSlots; ///< free ZeroWhenFlushing::on slots
-    Ipc::Mem::Pointer<Ipc::Mem::PageStack> inertSlots; ///< free ZeroWhenFlushing::off slots
+    Ipc::Mem::Pointer<Ipc::Mem::PageStack> slotsToBeZeroed; ///< free ZeroWhenFlushing::on slots
+    Ipc::Mem::Pointer<Ipc::Mem::PageStack> slotsToBeLeftAsIs; ///< free ZeroWhenFlushing::off slots
 };
 
 /// initializes shared memory segments used by Rock::SwapDir

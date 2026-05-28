@@ -280,8 +280,8 @@ Rock::SwapDir::createError(const char *const msg)
 
 // XXX: Move.
 Rock::FreeSlots::FreeSlots(const SwapDir::Pointer &sd):
-    hazardousSlots(shm_old(Ipc::Mem::PageStack)(FreeSlots::Config(sd, ZeroWhenFlushing::on).segmentName().c_str())),
-    inertSlots(shm_old(Ipc::Mem::PageStack)(FreeSlots::Config(sd, ZeroWhenFlushing::off).segmentName().c_str()))
+    slotsToBeZeroed(shm_old(Ipc::Mem::PageStack)(FreeSlots::Config(sd, ZeroWhenFlushing::on).segmentName().c_str())),
+    slotsToBeLeftAsIs(shm_old(Ipc::Mem::PageStack)(FreeSlots::Config(sd, ZeroWhenFlushing::off).segmentName().c_str()))
 {
 }
 
@@ -618,8 +618,8 @@ Rock::SwapDir::writeMarkedForDeletion()
     Assure(freeSlots);
     uint64_t writtenCells = 0;
     Ipc::Mem::PageId pageId;
-    while (theFile->canWrite() && freeSlots->popHazardous(pageId)) {
-        debugs(47, 8, "zeroing hazardous free slot: " << pageId);
+    while (theFile->canWrite() && freeSlots->popToBeZeroed(pageId)) {
+        debugs(47, 8, "zeroing free slot: " << pageId);
         auto zr = ZeroingRequest::Pointer::Make(diskOffset(pageId));
         theFile->write(zr.getRaw());
         Assure(zr->completed); // here, we only support synchronous writes
@@ -1223,7 +1223,7 @@ Rock::FreeSlots::Config::Config(const SwapDir::Pointer &sd, const ZeroWhenFlushi
 SBuf
 Rock::FreeSlots::Config::segmentName() const
 {
-    return ToSBuf(swapDir->path, !zeroWhenFlushing ? "_inert" : "_hazardous");
+    return ToSBuf(swapDir->path, !zeroWhenFlushing ? "_space2keep" : "_space2zero");
 }
 
 /* Rock::FreeSlots */
@@ -1231,14 +1231,14 @@ Rock::FreeSlots::Config::segmentName() const
 Rock::FreeSlots::PageCount
 Rock::FreeSlots::size() const
 {
-    return NaturalSum<PageCount>(inertSlots->size(), hazardousSlots->size()).value();
+    return NaturalSum<PageCount>(slotsToBeLeftAsIs->size(), slotsToBeZeroed->size()).value();
 }
 
 bool
 Rock::FreeSlots::pop(PageId &pageId)
 {
     // first use slots that, if not popped, would have to be zeroed at shutdown
-    return hazardousSlots->pop(pageId) || inertSlots->pop(pageId);
+    return slotsToBeZeroed->pop(pageId) || slotsToBeLeftAsIs->pop(pageId);
 }
 
 /* Rock::SwapDirRr */
