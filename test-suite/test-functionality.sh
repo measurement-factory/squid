@@ -89,7 +89,7 @@ start_overlord() {
     # Start Overlord script as root, so that it can start Squid as root,
     # emulating common deployment cases. Unlike starting as 'nobody', this
     # also allows easy access to the script source file, suppressions, etc.
-    sudo --reset-timestamp --non-interactive --background \
+    sudo --reset-timestamp --non-interactive \
         $SQUID_OVERLORD_DIR/overlord.pl \
         --valgrind-suppressions $suppressions \
         > $log 2>&1 || return
