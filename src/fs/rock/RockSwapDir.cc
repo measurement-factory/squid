@@ -278,13 +278,6 @@ Rock::SwapDir::createError(const char *const msg)
     fatal("Rock Store db creation error");
 }
 
-// XXX: Move.
-Rock::FreeSlots::FreeSlots(const SwapDir::Pointer &sd):
-    slotsToBeZeroed(shm_old(Ipc::Mem::PageStack)(FreeSlots::Config(sd, ZeroWhenFlushing::on).segmentName().c_str())),
-    slotsToBeLeftAsIs(shm_old(Ipc::Mem::PageStack)(FreeSlots::Config(sd, ZeroWhenFlushing::off).segmentName().c_str()))
-{
-}
-
 void
 Rock::SwapDir::init()
 {
@@ -605,14 +598,14 @@ Rock::SwapDir::shutdown()
         return;
     }
 
-    writeMarkedForDeletion();
+    zeroMarkedForDeletion();
 
     theFile->close();
     Assure(!theFile); // synchronous closeCompleted() callback makes theFile nil
 }
 
 void
-Rock::SwapDir::writeMarkedForDeletion()
+Rock::SwapDir::zeroMarkedForDeletion()
 {
     Assure(theFile);
     Assure(freeSlots);
@@ -620,15 +613,18 @@ Rock::SwapDir::writeMarkedForDeletion()
     Ipc::Mem::PageId pageId;
     while (theFile->canWrite() && freeSlots->popToBeZeroed(pageId)) {
         debugs(47, 8, "zeroing free slot: " << pageId);
+
+        const auto debugDetails = [&](std::ostream &os) {
+            os << Debug::Extra << "cache_dir: " << path;
+            os << Debug::Extra << "total marked slots: " << freeSlots->size();
+            os << Debug::Extra << "marked slots erased: " << writtenCells;
+        };
+
         auto zr = ZeroingRequest::Pointer::Make(diskOffset(pageId));
         theFile->write(zr.getRaw());
         Assure(zr->completed); // here, we only support synchronous writes
         if (!*zr->completed) {
-            // TODO: Do not duplicate Debug::Extra code!
-            debugs(47, DBG_IMPORTANT, "ERROR: Write error when purging rock cache_dir entries previously marked for deletion" <<
-                   Debug::Extra << "cache_dir: " << path <<
-                   Debug::Extra << "total marked slots: " << freeSlots->size() <<
-                   Debug::Extra << "marked slots erased: " << writtenCells);
+            debugs(47, DBG_IMPORTANT, "ERROR: Write error when purging rock cache_dir entries previously marked for deletion:" << CallToPrint(debugDetails));
             break;
         }
 
@@ -636,10 +632,7 @@ Rock::SwapDir::writeMarkedForDeletion()
         pageId = Ipc::Mem::PageId(); // TODO: pop() should return a new page (or std::nullopt) instead
 
         if (writtenCells % 100000 == 0) { // XXX: Warn based on time passed instead.
-            debugs(47, DBG_IMPORTANT, "WARNING: Still purging rock cache_dir entries previously marked for deletion" <<
-                   Debug::Extra << "cache_dir: " << path <<
-                   Debug::Extra << "total marked slots: " << freeSlots->size() <<
-                   Debug::Extra << "marked slots erased: " << writtenCells);
+            debugs(47, DBG_IMPORTANT, "WARNING: Still purging rock cache_dir entries previously marked for deletion" << CallToPrint(debugDetails));
         }
     }
     debugs(47, 3, "writtenCells: " << writtenCells);
@@ -803,7 +796,6 @@ Rock::SwapDir::noteFreeMapSlice(const Ipc::StoreMapSliceId sliceId, const bool i
 {
     debugs(47, 7, "slice " << sliceId << " isInode=" << isInode);
     Ipc::Mem::PageId pageId;
-    // TODO: Move repeated PageId conversions to lower-level FreeSlots code.
     const auto zeroWhenFlushing = isInode ? ZeroWhenFlushing::on : ZeroWhenFlushing::off;
     pageId.pool = Ipc::Mem::PageStack::IdForSwapDirSpace(index, zeroWhenFlushing);
     pageId.number = sliceId+1;
@@ -1227,6 +1219,12 @@ Rock::FreeSlots::Config::segmentName() const
 }
 
 /* Rock::FreeSlots */
+
+Rock::FreeSlots::FreeSlots(const SwapDir::Pointer &sd):
+    slotsToBeZeroed(shm_old(Ipc::Mem::PageStack)(FreeSlots::Config(sd, ZeroWhenFlushing::on).segmentName().c_str())),
+    slotsToBeLeftAsIs(shm_old(Ipc::Mem::PageStack)(FreeSlots::Config(sd, ZeroWhenFlushing::off).segmentName().c_str()))
+{
+}
 
 Rock::FreeSlots::PageCount
 Rock::FreeSlots::size() const

@@ -151,7 +151,7 @@ private:
     void createError(const char *const msg);
     void handleWriteCompletionSuccess(const WriteRequest &request);
     void handleWriteCompletionProblem(const int errflag, const WriteRequest &request);
-    void writeMarkedForDeletion();
+    void zeroMarkedForDeletion();
 
     /// tracks (often asynchronous) opening of theFile
     Instance::OptionalStartupActivityTracker startupTracker;
