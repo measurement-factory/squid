@@ -93,7 +93,7 @@ jobs:
           name: test-logs
           path: |
             ${{ runner.temp }}/*.log
-            /usr/local/squid/var/logs/overlord/*.log
+            /usr/local/squid/var/logs/overlord*/*.log
 
   source-maintenance-tests:
 
