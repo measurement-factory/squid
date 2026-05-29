@@ -101,7 +101,6 @@ IpcIoFile::IpcIoFile(char const *aDb):
     myPid(getpid()),
     diskId(-1),
     error_(false),
-    lastRequestId(0),
     olderRequests(&requestMap1), newerRequests(&requestMap2),
     timeoutCheckScheduled(false)
 {
@@ -307,21 +306,8 @@ IpcIoFile::write(WriteRequest *writeRequest)
 
     if (IamDiskProcess()) {
         // when fulfilling its own requests, disker works synchronously
-        IpcIoMsg localWrite;
-
-        // TODO: Remove duplication with IpcIoFile::push()!
-        if (++lastRequestId == 0) // don't use zero value as requestId
-            ++lastRequestId;
-        localWrite.requestId = lastRequestId;
-        localWrite.start = current_time;
-        localWrite.workerPid = myPid;
-        {   // writeRequest
-            Assure(writeRequest->len <= Ipc::Mem::PageSize());
-            localWrite.command = IpcIo::cmdWrite;
-            localWrite.offset = writeRequest->offset;
-            localWrite.len = writeRequest->len;
-        }
-
+        IpcIoMsg localWrite(*writeRequest, myPid);
+        Assure(writeRequest->len <= Ipc::Mem::PageSize());
         DiskerWrite(localWrite, writeRequest->buf, writeRequest->len);
         writeCompleted(writeRequest, &localWrite);
         return;
@@ -401,24 +387,15 @@ IpcIoFile::push(IpcIoPendingRequest *const pending)
 
     IpcIoMsg ipcIo;
     try {
-        if (++lastRequestId == 0) // don't use zero value as requestId
-            ++lastRequestId;
-        ipcIo.requestId = lastRequestId;
-        ipcIo.start = current_time;
-        ipcIo.workerPid = myPid;
         if (pending->readRequest) {
-            ipcIo.command = IpcIo::cmdRead;
-            ipcIo.offset = pending->readRequest->offset;
-            ipcIo.len = pending->readRequest->len;
+            ipcIo = IpcIoMsg(*pending->readRequest, myPid);
         } else { // pending->writeRequest
+            ipcIo = IpcIoMsg(*pending->writeRequest, myPid);
             Must(pending->writeRequest->len <= Ipc::Mem::PageSize());
             if (!Ipc::Mem::GetPage(Ipc::Mem::PageId::ioPage, ipcIo.page)) {
                 ipcIo.len = 0;
                 throw TexcHere("run out of shared memory pages for IPC I/O");
             }
-            ipcIo.command = IpcIo::cmdWrite;
-            ipcIo.offset = pending->writeRequest->offset;
-            ipcIo.len = pending->writeRequest->len;
             char *const buf = Ipc::Mem::PagePointer(ipcIo.page);
             memcpy(buf, pending->writeRequest->buf, ipcIo.len); // optimize away
         }
@@ -706,6 +683,8 @@ IpcIoFile::getFD() const
 
 /* IpcIoMsg */
 
+unsigned int IpcIoMsg::LastRequestId = 0;
+
 IpcIoMsg::IpcIoMsg():
     requestId(0),
     offset(0),
@@ -716,6 +695,21 @@ IpcIoMsg::IpcIoMsg():
 {
     start.tv_sec = 0;
     start.tv_usec = 0;
+}
+
+template <class IoRequest>
+IpcIoMsg::IpcIoMsg(const IoRequest &r, const pid_t worker):
+    requestId(++LastRequestId ? LastRequestId : ++LastRequestId), // do not use zero value as requestId
+    offset(r.offset),
+    len(r.len),
+    workerPid(worker),
+    command(std::is_same<IoRequest, ReadRequest>::value ? IpcIo::cmdRead : IpcIo::cmdWrite),
+    start(current_time),
+    xerrno(0)
+{
+    static_assert(
+        std::is_same<IoRequest, ReadRequest>::value ||
+        std::is_same<IoRequest, WriteRequest>::value);
 }
 
 void
