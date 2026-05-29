@@ -10,9 +10,9 @@
 #define SQUID_SRC_STORE_CONTROLLER_H
 
 #include "ipc/StoreMap.h"
+#include "MemObject.h"
 #include "store/Storage.h"
 
-class MemObject;
 class RequestFlags;
 class HttpRequestMethod;
 
