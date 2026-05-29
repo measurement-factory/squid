@@ -932,7 +932,7 @@ Store::Controller::updateFinished(StoreEntry &e, const StoreEntry &e304, const I
 {
     if (e.hasTransients()) {
         transients->refreshEntry(e);
-        if (e304.hasTransients() && e304.mem_obj->xitTable.isCollapsedInitiator())
+        if (e304.isSmpCollapsedRevalidationInitiator())
             transients->setUpdateStatus(e304.mem_obj->xitTable, updateStatus);
     }
 }

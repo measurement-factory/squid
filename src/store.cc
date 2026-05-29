@@ -566,7 +566,8 @@ StoreEntry::hideFromNewcomers()
 Store::CollapsedEntryTransientsState::CollapsedEntryTransientsState(StoreEntry *e) : entry(e)
 {
     assert(entry && entry->locked());
-    if (entry->hasTransients() && entry->mem_obj->xitTable.isCollapsedInitiator()) {
+    entry->lock("CollapsedEntryTransientsState");
+    if (entry->isSmpCollapsedRevalidationInitiator()) {
         xitTable = entry->mem_obj->xitTable;
         entry->mem_obj->xitTable.close();
     }
@@ -578,6 +579,7 @@ Store::CollapsedEntryTransientsState::~CollapsedEntryTransientsState()
         entry->mem_obj->xitTable = xitTable;
         xitTable = MemObject::XitTable();
     }
+    entry->unlock("CollapsedEntryTransientsState");
 }
 
 void
@@ -617,7 +619,7 @@ StoreEntry::setPrivateKey(const bool shareable, const bool permanent, const Evic
     if (EBIT_TEST(flags, KEY_PRIVATE))
         return;
 
-    if (hasTransients() && mem_obj->xitTable.isCollapsedInitiator() && mem_obj->freshestReply().sline.status() != Http::scNotModified) {
+    if (isSmpCollapsedRevalidationInitiator() && mem_obj->freshestReply().sline.status() != Http::scNotModified) {
         // a private non-304 entry means that revalidation (if any) was unsuccessful
         Store::Root().setUpdateStatus(mem_obj->xitTable, Ipc::StoreMapAnchor::uFailed);
     }

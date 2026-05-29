@@ -240,6 +240,8 @@ public:
     /// whether there is a corresponding locked shared memory table entry
     bool hasMemStore() const { return mem_obj && mem_obj->memCache.index >= 0; }
 
+    bool isSmpCollapsedRevalidationInitiator() const { return hasTransients() && mem_obj->xitTable.isCollapsedInitiator(); }
+
     /// whether this entry can feed collapsed requests and only them
     bool hittingRequiresCollapsing() const { return EBIT_TEST(flags, ENTRY_REQUIRES_COLLAPSING); }
 
