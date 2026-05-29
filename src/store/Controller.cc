@@ -843,7 +843,7 @@ Store::Controller::syncCollapsed(const sfileno xitIndex)
 
     if (entryStatus.waitingToBeFreed && !found) {
         debugs(20, 3, "aborting unattached " << *collapsed <<
-                " because it was marked for deletion before we could attach it");
+               " because it was marked for deletion before we could attach it");
         collapsed->abort();
         return;
     }

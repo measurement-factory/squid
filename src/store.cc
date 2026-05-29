@@ -597,7 +597,6 @@ Store::CollapsedEntryTransientsState::release()
     }
 }
 
-
 /* RBC 20050104 AFAICT this should become simpler:
  * rather than reinserting with a special key it should be marked
  * as 'released' and then cleaned up when refcounting indicates.
