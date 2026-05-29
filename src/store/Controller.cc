@@ -769,111 +769,108 @@ Store::Controller::syncCollapsed(const sfileno xitIndex)
 {
     assert(transients);
 
-    auto entries = transients->findCollapsed(xitIndex);
-    if (!entries) { // the entry is no longer active, ignore update
+    StoreEntry *collapsed = transients->findCollapsed(xitIndex);
+    if (!collapsed) { // the entry is no longer active, ignore update
         debugs(20, 7, "not SMP-syncing not-transient " << xitIndex);
         return;
     }
 
-    for (auto collapsed: *entries) {
-
-        if (!collapsed->locked()) {
-            debugs(20, 3, "skipping (and may destroy) unlocked " << *collapsed);
-            handleIdleEntry(*collapsed);
-            return;
-        }
-
-        assert(collapsed->mem_obj);
-
-        if (EBIT_TEST(collapsed->flags, ENTRY_ABORTED)) {
-            debugs(20, 3, "skipping already aborted " << *collapsed);
-            return;
-        }
-
-        debugs(20, 7, "syncing " << *collapsed);
-
-        Transients::EntryStatus entryStatus;
-        transients->status(*collapsed, entryStatus);
-
-        if (entryStatus.waitingToBeFreed) {
-            // Just hide: Purging same-key cached entries (if any) is the
-            // responsibility of the worker that marked xitIndex entry for deletion.
-            debugs(20, 3, "hiding " << *collapsed << " due to waitingToBeFreed");
-            collapsed->hideFromNewcomers();
-        }
-
-        if (transients->isWriter(*collapsed))
-            return; // readers can only change our waitingToBeFreed flag
-
-        if (transients->isReader(*collapsed) && collapsed->mem_obj->xitTable.collapsed) {
-            debugs(20, 5, "revalidated " << *collapsed << " status=" << entryStatus.updateStatus);
-            if (entryStatus.updateStatus != Ipc::StoreMapAnchor::uNone) {
-                collapsed->setCollapsingRequirement(false);
-                if (entryStatus.updateStatus != Ipc::StoreMapAnchor::uApplied)
-                    collapsed->abort();
-                collapsed->invokeSmpCollapsedHandlers();
-            }
-            return;
-        }
-
-        assert(transients->isReader(*collapsed));
-
-        bool found = false;
-        bool inSync = false;
-        if (sharedMemStore && collapsed->mem_obj->memCache.io == Store::ioDone) {
-            found = true;
-            inSync = true;
-            debugs(20, 7, "already handled by memory store: " << *collapsed);
-        } else if (sharedMemStore && collapsed->hasMemStore()) {
-            found = true;
-            inSync = sharedMemStore->updateAnchored(*collapsed);
-            // TODO: handle entries attached to both memory and disk
-        } else if (collapsed->hasDisk()) {
-            found = true;
-            inSync = disks->updateAnchored(*collapsed);
-        } else {
-            try {
-                found = anchorToCache(*collapsed);
-                inSync = found;
-            } catch (...) {
-                // TODO: Write an exception handler for the entire method.
-                debugs(20, 3, "anchorToCache() failed for " << *collapsed << ": " << CurrentException);
-                collapsed->abort();
-                return;
-            }
-        }
-
-        if (entryStatus.waitingToBeFreed && !found) {
-            debugs(20, 3, "aborting unattached " << *collapsed <<
-                   " because it was marked for deletion before we could attach it");
-            collapsed->abort();
-            return;
-        }
-
-        if (inSync) {
-            debugs(20, 5, "synced " << *collapsed);
-            assert(found);
-            collapsed->setCollapsingRequirement(false);
-            collapsed->invokeHandlers();
-            return;
-        }
-
-        if (found) { // unrecoverable problem syncing this entry
-            debugs(20, 3, "aborting unsyncable " << *collapsed);
-            collapsed->abort();
-            return;
-        }
-
-        if (!entryStatus.hasWriter) {
-            debugs(20, 3, "aborting abandoned-by-writer " << *collapsed);
-            collapsed->abort();
-            return;
-        }
-
-        // the entry is still not in one of the caches
-        debugs(20, 7, "waiting " << *collapsed);
-        collapsed->setCollapsingRequirement(true);
+    if (!collapsed->locked()) {
+        debugs(20, 3, "skipping (and may destroy) unlocked " << *collapsed);
+        handleIdleEntry(*collapsed);
+        return;
     }
+
+    assert(collapsed->mem_obj);
+
+    if (EBIT_TEST(collapsed->flags, ENTRY_ABORTED)) {
+        debugs(20, 3, "skipping already aborted " << *collapsed);
+        return;
+    }
+
+    debugs(20, 7, "syncing " << *collapsed);
+
+    Transients::EntryStatus entryStatus;
+    transients->status(*collapsed, entryStatus);
+
+    if (entryStatus.waitingToBeFreed) {
+        // Just hide: Purging same-key cached entries (if any) is the
+        // responsibility of the worker that marked xitIndex entry for deletion.
+        debugs(20, 3, "hiding " << *collapsed << " due to waitingToBeFreed");
+        collapsed->hideFromNewcomers();
+    }
+
+    if (transients->isWriter(*collapsed))
+        return; // readers can only change our waitingToBeFreed flag
+
+    if (transients->isReader(*collapsed) && collapsed->mem_obj->xitTable.collapsed) {
+        debugs(20, 5, "revalidated " << *collapsed << " status=" << entryStatus.updateStatus);
+        if (entryStatus.updateStatus != Ipc::StoreMapAnchor::uNone) {
+            collapsed->setCollapsingRequirement(false);
+            if (entryStatus.updateStatus != Ipc::StoreMapAnchor::uApplied)
+                collapsed->abort();
+            collapsed->invokeSmpCollapsedHandlers();
+        }
+        return;
+    }
+
+    assert(transients->isReader(*collapsed));
+
+    bool found = false;
+    bool inSync = false;
+    if (sharedMemStore && collapsed->mem_obj->memCache.io == Store::ioDone) {
+        found = true;
+        inSync = true;
+        debugs(20, 7, "already handled by memory store: " << *collapsed);
+    } else if (sharedMemStore && collapsed->hasMemStore()) {
+        found = true;
+        inSync = sharedMemStore->updateAnchored(*collapsed);
+        // TODO: handle entries attached to both memory and disk
+    } else if (collapsed->hasDisk()) {
+        found = true;
+        inSync = disks->updateAnchored(*collapsed);
+    } else {
+        try {
+            found = anchorToCache(*collapsed);
+            inSync = found;
+        } catch (...) {
+            // TODO: Write an exception handler for the entire method.
+            debugs(20, 3, "anchorToCache() failed for " << *collapsed << ": " << CurrentException);
+            collapsed->abort();
+            return;
+        }
+    }
+
+    if (entryStatus.waitingToBeFreed && !found) {
+        debugs(20, 3, "aborting unattached " << *collapsed <<
+                " because it was marked for deletion before we could attach it");
+        collapsed->abort();
+        return;
+    }
+
+    if (inSync) {
+        debugs(20, 5, "synced " << *collapsed);
+        assert(found);
+        collapsed->setCollapsingRequirement(false);
+        collapsed->invokeHandlers();
+        return;
+    }
+
+    if (found) { // unrecoverable problem syncing this entry
+        debugs(20, 3, "aborting unsyncable " << *collapsed);
+        collapsed->abort();
+        return;
+    }
+
+    if (!entryStatus.hasWriter) {
+        debugs(20, 3, "aborting abandoned-by-writer " << *collapsed);
+        collapsed->abort();
+        return;
+    }
+
+    // the entry is still not in one of the caches
+    debugs(20, 7, "waiting " << *collapsed);
+    collapsed->setCollapsingRequirement(true);
 }
 
 /// If possible and has not been done, associates the entry with its store(s).

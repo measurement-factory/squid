@@ -55,7 +55,7 @@ Transients::init()
     map->cleaner = this;
     map->disableHitValidation(); // Transients lacks slices to validate
 
-    locals = new Locals(entryLimit);
+    locals = new Locals(entryLimit, nullptr);
 }
 
 void
@@ -163,7 +163,7 @@ Transients::get(const cache_key *key)
     // Since it did not, the local entry key must have changed from public to
     // private. We still need to keep the private entry around for syncing as
     // its clients depend on it, but we should not allow new clients to join.
-    if (StoreEntry *oldE = locals->freshest(index)) {
+    if (StoreEntry *oldE = locals->at(index)) {
         debugs(20, 3, "not joining private " << *oldE);
         assert(EBIT_TEST(oldE->flags, KEY_PRIVATE));
         map->closeForReadingAndFreeIdle(index);
@@ -178,16 +178,16 @@ Transients::get(const cache_key *key)
     return e;
 }
 
-Transients::Locals::Entries *
+StoreEntry *
 Transients::findCollapsed(const sfileno index)
 {
     if (!map)
         return nullptr;
 
-    auto &entries = locals->index.at(index);
-    if (!entries.empty()) {
-        debugs(20, 5, "found " << entries.size() << " entries at " << index << " in " << MapLabel());
-        return &entries;
+    if (StoreEntry *oldE = locals->at(index)) {
+        debugs(20, 5, "found " << *oldE << " at " << index << " in " << MapLabel());
+        assert(oldE->mem_obj && oldE->mem_obj->xitTable.index == index);
+        return oldE;
     }
 
     debugs(20, 3, "no entry at " << index << " in " << MapLabel());
@@ -202,13 +202,16 @@ Transients::monitorIo(StoreEntry *e, const cache_key *key, const Store::IoStatus
         assert(e->hasTransients());
     }
 
-    if (locals->exists(*e)) {
-        debugs(20, 5, "already " << direction << "-monitoring: " << *e);
-        Assure(direction == e->mem().xitTable.io);
+    const auto index = e->mem_obj->xitTable.index;
+    if (const auto old = locals->at(index)) {
+        if (old != e)
+            throw TextException(ToSBuf("entry collision: ", *old, " blocks ", *e), Here());
+        debugs(20, 5, "already " << direction << "-monitoring: " << *old);
+        Assure(direction == old->mem().xitTable.io);
     } else {
         // We do not lock e because we do not want to prevent its destruction;
         // e is tied to us via mem_obj so we will know when it is destructed.
-        locals->add(*e);
+        locals->at(index) = e;
     }
 }
 
@@ -268,13 +271,6 @@ Transients::hasWriter(const StoreEntry &e)
     if (!e.hasTransients())
         return false;
     return map->peekAtWriter(e.mem_obj->xitTable.index);
-}
-
-bool
-Transients::localIsStale(const cache_key *key) const
-{
-    const auto index = map->fileNoByKey(key);
-    return locals->freshest(index) == nullptr;
 }
 
 void
@@ -380,7 +376,7 @@ Transients::disconnect(Store::CollapsedEntryTransientsState &state)
         assert(state.xitTable.io == Store::ioReading);
         map->closeForReadingAndFreeIdle(state.xitTable.index);
     }
-    locals->remove(state);
+    locals->at(state.xitTable.index) = nullptr;
     state.xitTable.close();
 }
 
@@ -402,7 +398,7 @@ Transients::disconnect(StoreEntry &entry)
             assert(isReader(entry));
             map->closeForReadingAndFreeIdle(xitTable.index);
         }
-        locals->remove(entry);
+        locals->at(xitTable.index) = nullptr;
         xitTable.close();
     }
 }
@@ -432,15 +428,6 @@ bool
 Transients::isWriter(const StoreEntry &e) const
 {
     return e.mem_obj && e.mem_obj->xitTable.io == Store::ioWriting;
-}
-
-void
-Transients::Locals::remove(Store::CollapsedEntryTransientsState &state)
-{
-    auto &entries = index.at(state.xitTable.index);
-    auto it = std::find(entries.begin(), entries.end(), state.entry);
-    Assure(it != entries.end());
-    entries.erase(it);
 }
 
 /// initializes shared memory segment used by Transients
