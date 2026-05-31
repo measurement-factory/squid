@@ -428,6 +428,9 @@ private:
 void Stats(StoreEntry *output);
 void Maintain(void *unused);
 
+/// Allows to switch safely an SMP collapsed transients entry (initiator)
+/// to a new transients index. Disconnects the entry from the old index
+/// only if this operation has succeeded.
 class CollapsedEntryTransientsState
 {
 public:

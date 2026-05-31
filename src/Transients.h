@@ -54,8 +54,7 @@ public:
     void status(const StoreEntry &e, EntryStatus &entryStatus) const;
 
     /// sets the shared entry status for the collapsed revalidation entry
-    /// \prec the entry is opened for writing
-    void setUpdateStatus(const MemObject::XitTable &xitTable, const Ipc::StoreMapAnchor::UpdateStatus updateStatus);
+    void setUpdateStatus(const MemObject::XitTable &xitTable, Ipc::StoreMapAnchor::UpdateStatus);
 
     /// refresh the entry index after update
     void refreshEntry(StoreEntry &e);

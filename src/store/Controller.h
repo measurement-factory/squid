@@ -124,9 +124,11 @@ public:
     /// \returns an iterator for all Store entries
     StoreSearch *search();
 
-    /// adjusts the shared transients entry after the update has been successfully applied (or failed)
+    /// adjusts the shared transients entry after the 304 update has been successfully applied (or failed)
     void updateFinished(StoreEntry &e, const StoreEntry &e304, Ipc::StoreMapAnchor::UpdateStatus);
 
+    /// adjusts the 'updateStatus' shared transients entry state after the entry has been
+    /// either updated by a 304 or overwritten by a cacheable response
     void setUpdateStatus(const MemObject::XitTable &, Ipc::StoreMapAnchor::UpdateStatus);
 
     /// whether there are any SMP-aware storages

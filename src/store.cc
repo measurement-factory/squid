@@ -576,6 +576,7 @@ Store::CollapsedEntryTransientsState::CollapsedEntryTransientsState(StoreEntry *
 Store::CollapsedEntryTransientsState::~CollapsedEntryTransientsState()
 {
     if (xitTable.isOpen() && !entry->mem_obj->xitTable.isOpen()) {
+        // rollback if it failed to open a new transients entry slot
         entry->mem_obj->xitTable = xitTable;
         xitTable = MemObject::XitTable();
     }
