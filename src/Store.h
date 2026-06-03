@@ -320,10 +320,6 @@ public:
     /// Assumes adjustVary() has been called for this entry already.
     const cache_key *calcPublicKey(KeyScope) const;
 
-    /// current public key scope
-    /// \prec This entry is public.
-    KeyScope publicKeyScope() const;
-
 #if USE_ADAPTATION
     /// call back producer when more buffer space is available
     void deferProducer(const AsyncCall::Pointer &producer);
@@ -349,6 +345,7 @@ private:
     bool checkTooBig() const;
     void forcePublicKey(const cache_key *newkey);
     StoreEntry *adjustVary();
+    KeyScope publicKeyScope() const;
 
     /// flags [truncated or too big] entry with ENTRY_BAD_LENGTH and releases it
     void lengthWentBad(const char *reason);

@@ -304,6 +304,9 @@ TestRock::testRockSwapOut()
         // "already did" check in mayStartSwapOut() blocks e#5.3 swapout. This
         // sequence may not model a known real scenario, but it may be useful
         // for detecting subtle (and possibly unwanted Store logic changes).
+
+        // XXX: This change was introduced in the base branch c58e0f0 commit
+        // and is broken in the PR branch
         // StoreEntry *const pe3 = addEntry(5);
         // CPPUNIT_ASSERT_EQUAL(SWAPOUT_NONE, pe3->swap_status);
         // CPPUNIT_ASSERT_EQUAL(-1, pe3->swap_dirn);

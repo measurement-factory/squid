@@ -692,6 +692,8 @@ StoreEntry::setPublicKey(const KeyScope scope)
     return false;
 }
 
+/// current public key scope
+/// \prec This entry is public.
 KeyScope
 StoreEntry::publicKeyScope() const
 {
