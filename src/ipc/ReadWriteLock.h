@@ -29,6 +29,14 @@ public:
     ReadWriteLock() : readers(0), writing(false), appending(false), readLevel(0), writeLevel(0)
     {}
 
+    /// Whether an unlock*() call was expected around this call time. The lock
+    /// may be locked or unlocked by the time the caller gets our result,
+    /// regardless of the return value.
+    /// \returns true if an unlock*() has already been called (in a different
+    /// process) after this lock() call or is still expected to be called (in
+    /// this or a different process)
+    bool locked() const { return readers || writing; }
+
     bool lockShared(); ///< lock for reading or return false
     bool lockExclusive(); ///< lock for modification or return false
     bool lockHeaders(); ///< lock for [readable] metadata update or return false
