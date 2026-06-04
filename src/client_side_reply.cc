@@ -483,12 +483,6 @@ clientReplyContext::handleIMSReply(const StoreIOBuffer result)
     // origin replied with a non-error code
     if (status > Http::scNone && status < Http::scInternalServerError) {
 
-        if (collapsedRevalidation == crSlave && http->request->flags.ims && !old_entry->modifiedSince(http->request->ims, http->request->imslen)) {
-            debugs(88, 3, "sending 304 to client");
-            sendNotModified();
-            return;
-        }
-
         // RFC 9111 section 4:
         // "When more than one suitable response is stored,
         //  a cache MUST use the most recent one
@@ -497,6 +491,12 @@ clientReplyContext::handleIMSReply(const StoreIOBuffer result)
             http->al->cache.code.err.ignored = true;
             debugs(88, 3, "origin replied " << status << " but with an older date header, sending old entry (" << oldStatus << ") to client");
             sendClientOldEntry();
+            return;
+        }
+
+        if (collapsedRevalidation == crSlave && http->request->flags.ims && !http->storeEntry()->modifiedSince(http->request->ims, http->request->imslen)) {
+            debugs(88, 3, "sending 304 to client");
+            sendNotModified();
             return;
         }
 
