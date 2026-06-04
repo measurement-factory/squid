@@ -33,6 +33,8 @@ public:
     public:
         bool hasWriter = false; ///< whether some worker is storing the entry
         bool waitingToBeFreed = false; ///< whether the entry was marked for deletion
+        /// the status of the collapsed revalidation entry
+        Ipc::StoreMapAnchor::UpdateStatus updateStatus = Ipc::StoreMapAnchor::uNone;
     };
 
     Transients();
@@ -51,11 +53,18 @@ public:
     /// copies current shared entry metadata into entryStatus
     void status(const StoreEntry &e, EntryStatus &entryStatus) const;
 
+    /// sets the shared entry status for the collapsed revalidation entry
+    void setUpdateStatus(const MemObject::XitTable &xitTable, Ipc::StoreMapAnchor::UpdateStatus);
+
+    /// refresh the entry index after update
+    void refreshEntry(StoreEntry &e);
+
     /// number of entry readers some time ago
     int readers(const StoreEntry &e) const;
 
     /// the caller is done writing or reading the given entry
     void disconnect(StoreEntry &);
+    void disconnect(Store::CollapsedEntryTransientsState &);
 
     /* Store API */
     StoreEntry *get(const cache_key *) override;

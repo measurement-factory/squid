@@ -57,7 +57,7 @@ public:
     void stat(StoreEntry &e) const override;
     void reference(StoreEntry &e) override;
     bool dereference(StoreEntry &e) override;
-    void updateHeaders(StoreEntry *e) override;
+    void updateHeaders(StoreEntry *e, const StoreEntry &e304) override;
     void maintain() override;
     bool anchorToCache(StoreEntry &) override;
     bool updateAnchored(StoreEntry &) override;

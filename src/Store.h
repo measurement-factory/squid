@@ -155,6 +155,7 @@ public:
     void cacheNegatively();
 
     void invokeHandlers();
+    void invokeSmpCollapsedHandlers();
     void cacheInMemory(); ///< start or continue storing in memory cache
     void swapOut();
     /// whether we are in the process of writing this entry to disk
@@ -239,6 +240,8 @@ public:
     /// whether there is a corresponding locked shared memory table entry
     bool hasMemStore() const { return mem_obj && mem_obj->memCache.index >= 0; }
 
+    bool isSmpCollapsedRevalidationInitiator() const { return hasTransients() && mem_obj->xitTable.isCollapsedInitiator(); }
+
     /// whether this entry can feed collapsed requests and only them
     bool hittingRequiresCollapsing() const { return EBIT_TEST(flags, ENTRY_REQUIRES_COLLAPSING); }
 
@@ -313,6 +316,10 @@ public:
         return !EBIT_TEST(flags, KEY_PRIVATE) || shareableWhenPrivate;
     }
 
+    /// Calculates correct public key for feeding forcePublicKey().
+    /// Assumes adjustVary() has been called for this entry already.
+    const cache_key *calcPublicKey(KeyScope) const;
+
 #if USE_ADAPTATION
     /// call back producer when more buffer space is available
     void deferProducer(const AsyncCall::Pointer &producer);
@@ -338,7 +345,6 @@ private:
     bool checkTooBig() const;
     void forcePublicKey(const cache_key *newkey);
     StoreEntry *adjustVary();
-    const cache_key *calcPublicKey(KeyScope) const;
     KeyScope publicKeyScope() const;
 
     /// flags [truncated or too big] entry with ENTRY_BAD_LENGTH and releases it
@@ -418,6 +424,25 @@ private:
 
 void Stats(StoreEntry *output);
 void Maintain(void *unused);
+
+/// Allows to switch safely an SMP collapsed transients entry (initiator)
+/// to a new transients index. Disconnects the entry from the old index
+/// only if this operation has succeeded.
+class CollapsedEntryTransientsState
+{
+public:
+    CollapsedEntryTransientsState(StoreEntry *e);
+
+    ~CollapsedEntryTransientsState();
+
+    /// closes the old transients entry after the StoreEntry
+    /// was attached to a new transients entry
+    void release();
+
+    StoreEntry *entry; ///< the StoreEntry that switches its transients entry
+    MemObject::XitTable xitTable; ///< stores the entry's old transients index
+};
+
 }; // namespace Store
 
 /// \ingroup StoreAPI

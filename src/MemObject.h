@@ -172,11 +172,18 @@ public:
     class XitTable
     {
     public:
+        typedef enum {
+            coNone = 0, ///< collapsed revalidation is not allowed for this entry
+            coInitiator, ///< the entry in the worker that initiated the collapsed revalidation request
+            coSlave ///< the entry in another worker serving a collapsed revalidation slave
+        } CollapsedRole;
+
         /// associate our StoreEntry with a Transients entry at the given index
         void open(const int32_t anIndex, const Store::IoStatus anIo)
         {
             index = anIndex;
             io = anIo;
+            collapsed = coNone;
         }
 
         /// stop associating our StoreEntry with a Transients entry
@@ -184,10 +191,18 @@ public:
         {
             index = -1;
             io = Store::ioDone;
+            collapsed = coNone;
         }
+
+        bool isOpen() const  { return index >= 0; }
+
+        void setCollapsedRole(const CollapsedRole role) { if (collapsed == coNone) collapsed = role; }
+        bool isCollapsedInitiator() const { return collapsed == coInitiator; }
 
         int32_t index = -1; ///< entry position inside the in-transit table
         Store::IoStatus io = Store::ioUndecided; ///< current I/O state
+        /// the collapsed revalidation entry role, if any
+        CollapsedRole collapsed = coNone;
     };
     XitTable xitTable; ///< current [shared] memory caching state for the entry
 

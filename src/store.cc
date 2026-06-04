@@ -563,6 +563,41 @@ StoreEntry::hideFromNewcomers()
         setPrivateKey(true, true, EvictCached::off);
 }
 
+Store::CollapsedEntryTransientsState::CollapsedEntryTransientsState(StoreEntry *e) : entry(e)
+{
+    assert(entry && entry->locked());
+    entry->lock("CollapsedEntryTransientsState");
+    if (entry->isSmpCollapsedRevalidationInitiator()) {
+        xitTable = entry->mem_obj->xitTable;
+        entry->mem_obj->xitTable.close();
+    }
+}
+
+Store::CollapsedEntryTransientsState::~CollapsedEntryTransientsState()
+{
+    if (xitTable.isOpen() && !entry->mem_obj->xitTable.isOpen()) {
+        // rollback if it failed to open a new transients entry slot
+        entry->mem_obj->xitTable = xitTable;
+        xitTable = MemObject::XitTable();
+    }
+    entry->unlock("CollapsedEntryTransientsState");
+}
+
+void
+Store::CollapsedEntryTransientsState::release()
+{
+    if (xitTable.isOpen()) {
+        // the transients index must have been updated already
+        assert(entry->mem_obj->xitTable.isOpen());
+        assert(entry->mem_obj->xitTable.index != xitTable.index);
+
+        // notify via the old transients entry about the update
+        Store::Root().setUpdateStatus(xitTable, Ipc::StoreMapAnchor::uApplied);
+        Store::Root().transientsDisconnect(*this);
+        xitTable = MemObject::XitTable();
+    }
+}
+
 /* RBC 20050104 AFAICT this should become simpler:
  * rather than reinserting with a special key it should be marked
  * as 'released' and then cleaned up when refcounting indicates.
@@ -583,6 +618,11 @@ StoreEntry::setPrivateKey(const bool shareable, const bool permanent, const Evic
 
     if (EBIT_TEST(flags, KEY_PRIVATE))
         return;
+
+    if (isSmpCollapsedRevalidationInitiator() && mem_obj->freshestReply().sline.status() != Http::scNotModified) {
+        // a private non-304 entry means that revalidation (if any) was unsuccessful
+        Store::Root().setUpdateStatus(mem_obj->xitTable, Ipc::StoreMapAnchor::uFailed);
+    }
 
     if (key) {
         if (evictCached == EvictCached::on)
@@ -619,7 +659,7 @@ StoreEntry::setPublicKey(const KeyScope scope)
         // And we cannot purge that K1 slot now because older transactions may
         // still broadcast using its index; private entries cannot broadcast
         // keys instead of transient indexes.
-        Assure(!Store::Controller::SmpAware());
+        // Assure(!Store::Controller::SmpAware());
     }
 
     assert(mem_obj);
@@ -640,7 +680,9 @@ StoreEntry::setPublicKey(const KeyScope scope)
         EntryGuard newVaryMarker(adjustVary(), "setPublicKey+failure");
         const cache_key *pubKey = calcPublicKey(scope);
         Store::Root().evictIfFound(pubKey);
+        Store::CollapsedEntryTransientsState collapsedEntryState(this);
         Store::Root().addWriting(this, pubKey);
+        collapsedEntryState.release();
         forcePublicKey(pubKey);
         newVaryMarker.unlockAndReset("setPublicKey+success");
         return true;
@@ -687,8 +729,6 @@ StoreEntry::forcePublicKey(const cache_key *newkey)
         storeDirSwapLog(this, SWAP_LOG_ADD);
 }
 
-/// Calculates correct public key for feeding forcePublicKey().
-/// Assumes adjustVary() has been called for this entry already.
 const cache_key *
 StoreEntry::calcPublicKey(const KeyScope keyScope) const
 {

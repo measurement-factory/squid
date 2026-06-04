@@ -109,6 +109,8 @@ private:
     void noteStreamBufferredBytes(const StoreIOBuffer &);
     void cacheHit(StoreIOBuffer result);
     void handleIMSReply(StoreIOBuffer result);
+    static void HandleSmpCollapsedRevaliationReply(clientReplyContext *);
+    void handleSmpCollapsedRevaliationReply();
     void sendMoreData(StoreIOBuffer result);
     void triggerInitialStoreRead(STCB = SendMoreData);
     void requestMoreBodyFromStore();
