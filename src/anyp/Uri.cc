@@ -70,6 +70,23 @@ PathChars()
 }
 
 /**
+ * containsFtpCommandDelimiter validates that the given URL component does not contain delimiters in a FTP request.
+ * \param s the URL component to validate. s should have been previously decoded.
+ * \return true if the URL component contains FTP delimiters, false otherwise.
+ */
+static bool containsFtpCommandDelimiter(const SBuf &s)
+{
+    static const auto crlf = CharacterSet::CR + CharacterSet::LF;
+
+    if (s.findFirstOf(crlf) != SBuf::npos) {
+        debugs(23, 2, "ERROR: FTP URL contains command delimiter characters");
+        return true;
+    }
+
+    return false;
+}
+
+/**
  * Governed by RFC 3986 section 2.1
  */
 SBuf
@@ -570,10 +587,20 @@ AnyP::Uri::parse(const HttpRequestMethod& method, const SBuf &rawUrl)
             }
         }
 
+        const auto loginInfo = SBuf(login);
+        if(scheme == AnyP::PROTO_FTP) {
+            // XXX: We do not need to validate the host because it cannot contain a raw CR or LF due to the way it is initialized.
+            //      Moreover, the host is not used in a FTP command argument.
+            //      Therefore, there is no risk of FTP command injection via the host component of a FTP URL.
+            const auto urlpathDecoded = AnyP::Uri::Decode(SBuf(urlpath));
+            if(!urlpathDecoded || containsFtpCommandDelimiter(urlpathDecoded.value()) || containsFtpCommandDelimiter(loginInfo))
+                return false;
+        }
+
         setScheme(scheme);
         path(urlpath);
         host(foundHost);
-        userInfo(SBuf(login));
+        userInfo(loginInfo);
         port(foundPort);
         return true;
 

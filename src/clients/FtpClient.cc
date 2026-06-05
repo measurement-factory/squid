@@ -839,6 +839,15 @@ Ftp::Client::dataClosed(const CommCloseCbParams &)
 void
 Ftp::Client::writeCommand(const char *buf)
 {
+    const auto bufLen = strlen(buf);
+
+    // The caller must supply a non-empty command followed by CRLF.
+    // TODO: Move CRLF appending code from callers to here.
+    Assure(bufLen > 2);
+    Assure(buf[bufLen-2] == '\r');
+    Assure(buf[bufLen-1] == '\n');
+    Assure(strcspn(buf, crlf) == bufLen-2);
+
     char *ebuf;
     /* trace FTP protocol communications at level 2 */
     debugs(9, 2, "ftp<< " << buf);
