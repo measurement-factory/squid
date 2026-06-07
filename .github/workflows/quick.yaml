@@ -41,6 +41,60 @@ env:
 
 jobs:
 
+  test-ast-tests:
+
+    runs-on: [ ubuntu-24.04 ]
+
+    permissions:
+      security-events: write
+
+    steps:
+
+      - name: Install prerequisite Linux packages
+        run: |
+          # required for "apt-get build-dep" to work
+          sudo sed --in-place -E 's/^(Types: deb)$/\1 deb-src/' /etc/apt/sources.list.d/ubuntu.sources
+          sudo apt-get --quiet=2 update
+          sudo apt-get --quiet=2 build-dep squid
+          sudo apt-get --quiet=2 install libtool-bin valgrind
+          sudo apt-get --quiet=2 install llvm-18-dev libclang-18-dev bear
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          path: squid
+
+      - name: Checkout xunused
+        uses: actions/checkout@v4
+        with:
+          repository: measurement-factory/xunused
+          path: xunused
+          ref: SQUID-1137-report-unused-declaration-definition-source-code-lines-test
+
+      - name: Build xunused
+        run: |
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug
+          cmake --build build --config Debug
+          cmake --install build --config Debug
+        working-directory: xunused
+
+      - name: Perform AST Analysis
+        run: ./test-suite/test-ast.sh
+        working-directory: squid
+
+      - name: List Workspace
+        if: success() || failure()
+        run: ls -R $GITHUB_WORKSPACE
+
+      - name: Publish test logs
+        if: success() || failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ github.job }}-logs
+          path: |
+            ${{ runner.temp }}/*.log
+            ${{ runner.temp }}/compile_commands.json
+
   functionality-tests:
 
     runs-on: ubuntu-24.04
