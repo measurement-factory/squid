@@ -38,9 +38,12 @@ class wordlist;
 namespace Helper
 {
 /// Holds the  required data to serve a helper request.
-class Xaction {
+class Xaction: public RefCountable {
     MEMPROXY_CLASS(Helper::Xaction);
 public:
+    // TODO: convert to a unique pointer to maintain transaction uniqueness
+    using Pointer = RefCount<Xaction>;
+
     Xaction(HLPCB *c, void *d, const char *b): request(c, d, b) {}
     Helper::Request request;
     Helper::Reply reply;
@@ -75,14 +78,14 @@ public:
     virtual ~Client();
 
     /// \returns next request in the queue, or nil.
-    Xaction *nextRequest();
+    Xaction::Pointer nextRequest();
 
     /// If possible, submit request. Otherwise, either kill Squid or return false.
     bool trySubmit(const char *buf, HLPCB * callback, void *data);
 
     /// Submits a request to the helper or add it to the queue if none of
     /// the servers is available.
-    void submitRequest(Xaction *);
+    void submitRequest(const Xaction::Pointer &);
 
     /// Dump some stats about the helper state to a Packable object
     void packStatsInto(Packable *p, const char *label = nullptr) const;
@@ -114,7 +117,7 @@ public:
 public:
     wordlist *cmdline = nullptr;
     dlink_list servers;
-    std::queue<Xaction *> queue;
+    std::queue<Xaction::Pointer> queue;
     const char *id_name = nullptr;
     ChildConfig childs; ///< Configuration settings for number running.
     int ipc_type = 0;
@@ -244,7 +247,7 @@ public:
         bool shutdown;
     } flags;
 
-    using Requests = std::list<Xaction *>;
+    using Requests = std::list<Xaction::Pointer>;
     Requests requests; ///< requests in order of submission/expiration
 
     struct {
@@ -275,7 +278,7 @@ public:
     /// A helper reply may be distributed to more than one of the retrieved
     /// packets from helper. This member stores the Xaction object as long as
     /// the end-of-message for current reply is not retrieved.
-    Xaction *replyXaction;
+    Xaction::Pointer replyXaction;
 
     /// Whether to ignore current message, because it is timed-out or other reason
     bool ignoreToEom;
@@ -290,7 +293,7 @@ public:
     /// Xaction object and remove it from queue.
     /// If concurrency is disabled then the requestId is ignored and the
     /// Xaction of the next request in queue is retrieved.
-    Xaction *popRequest(int requestId);
+    Xaction::Pointer popRequest(int requestId);
 
     /// Run over the active requests lists and forces a retry, or timedout reply
     /// or the configured "on timeout response" for timedout requests.
