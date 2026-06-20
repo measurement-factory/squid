@@ -31,6 +31,12 @@ public:
     /// return false iff the idle entry should be destroyed
     virtual bool dereference(StoreEntry &e) = 0;
 
+    /// somebody StoreEntry::lock() for the unlocked entry
+    virtual void lockInPolicy(StoreEntry &) = 0;
+
+    /// somebody StoreEntry::unlock() the entry to zero lock count
+    virtual void unlockInPolicy(StoreEntry &) = 0;
+
     /// make stored metadata and HTTP headers the same as in the given entry
     virtual void updateHeaders(StoreEntry *) {}
 
