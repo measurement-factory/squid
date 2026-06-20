@@ -1490,7 +1490,7 @@ ftpReadCwd(Ftp::Gateway * ftpState)
             ftpState->cwd_message.append('\n');
             ftpState->cwd_message.append(w->key);
         }
-        ftpState->ctrl.message = nullptr;
+        wordlistDestroy(&ftpState->ctrl.message);
 
         /* Continue to traverse the path */
         ftpTraverseDirectory(ftpState);
