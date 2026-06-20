@@ -1428,6 +1428,12 @@ ClientHttpRequest::updateError(const Error &error)
 }
 
 bool
+ClientHttpRequest::seenError() const
+{
+    return (request && request->error) || al->error();
+}
+
+bool
 ClientHttpRequest::gotEnough() const
 {
     // TODO: See also (and unify with) clientReplyContext::storeNotOKTransferDone()
