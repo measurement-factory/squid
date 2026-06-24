@@ -90,6 +90,10 @@ public:
     /// Can we create and initialize Transients?
     static bool Enabled() { return EntryLimit(); }
 
+    /// Associates a new Transients slot with the entry key,
+    /// if that entry is marked for deletion. Does nothing otherwise.
+    void forgetMarkedEntry(StoreEntry &e);
+
 private:
     void addEntry(StoreEntry*, const cache_key *, const Store::IoStatus);
     void addWriterEntry(StoreEntry &, const cache_key *);

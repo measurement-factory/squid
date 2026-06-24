@@ -150,11 +150,20 @@ Ipc::StoreMap::openForWriting(const cache_key *const key, sfileno &fileno)
         return anchor;
     }
 
-    debugs(54, 5, "replacing stale entry " << currentIdx << " to write " << path);
+    return openMarkedForWriting(key, fileno);
+}
+
+Ipc::StoreMap::Anchor *
+Ipc::StoreMap::openMarkedForWriting(const cache_key *const key, sfileno &fileno)
+{
+    const auto name = nameByKey(key);
+    const int currentIdx = fileNoByName(name);
 
     const auto staleAnchor = openForReplacingAt(currentIdx, key);
     if (!staleAnchor)
         return nullptr;
+
+    debugs(54, 5, "replacing stale entry " << currentIdx << " to write " << path);
 
     Update::Edition available;
     if (!openKeyless(available)) { // XXX: debugs() will say "for updating"
@@ -759,6 +768,8 @@ Ipc::StoreMap::closeForUpdating(Update &update)
     // finally, unlock the fresh entry
     closeForReading(update.fresh.fileNo);
     update.fresh = Update::Edition();
+
+    Store::Root().updateFinished(*update.entry);
 
     debugs(54, 5, "closed entry " << updateSaved.stale.fileNo << " of " << *updateSaved.entry <<
            " named " << updateSaved.stale.name << " for updating " << path <<

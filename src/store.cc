@@ -687,8 +687,6 @@ StoreEntry::forcePublicKey(const cache_key *newkey)
         storeDirSwapLog(this, SWAP_LOG_ADD);
 }
 
-/// Calculates correct public key for feeding forcePublicKey().
-/// Assumes adjustVary() has been called for this entry already.
 const cache_key *
 StoreEntry::calcPublicKey(const KeyScope keyScope) const
 {

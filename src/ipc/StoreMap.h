@@ -261,6 +261,9 @@ public:
     /// locks and returns an anchor for the empty fileno position; if
     /// overwriteExisting is false and the position is not empty, returns nil
     Anchor *openForWritingAt(sfileno fileno, bool overwriteExisting = true);
+    /// like openForWriting() but does nothing if the old entry does not exist
+    Anchor *openMarkedForWriting(const cache_key *const key, sfileno &fileno);
+
     /// restrict opened for writing entry to appending operations; allow reads
     void startAppending(const sfileno fileno);
     /// successfully finish creating or updating the entry at fileno pos

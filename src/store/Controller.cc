@@ -918,6 +918,13 @@ Store::Controller::checkTransients(const StoreEntry &e) const
     assert(!transients || e.hasTransients());
 }
 
+void
+Store::Controller::updateFinished(StoreEntry &e)
+{
+    if (e.hasTransients())
+        transients->forgetMarkedEntry(e);
+}
+
 Store::Controller&
 Store::Root()
 {

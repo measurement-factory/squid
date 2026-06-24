@@ -428,3 +428,12 @@ TransientsRr::~TransientsRr()
     delete mapOwner;
 }
 
+void
+Transients::forgetMarkedEntry(StoreEntry &e)
+{
+    const auto key = e.calcPublicKey(ksDefault);
+    sfileno index = 0;
+    if (map->openMarkedForWriting(key, index))
+        map->closeForWriting(index);
+}
+
