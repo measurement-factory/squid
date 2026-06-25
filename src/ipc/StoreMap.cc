@@ -40,6 +40,12 @@ StoreMapFileNosId(const SBuf &path)
     return Ipc::Mem::Segment::Name(path, "filenos");
 }
 
+static SBuf
+StoreMapFreeCandidatesId(const SBuf &path)
+{
+    return Ipc::Mem::Segment::Name(path, "tofree");
+}
+
 Ipc::StoreMap::Owner *
 Ipc::StoreMap::Init(const SBuf &path, const int sliceLimit)
 {
@@ -57,6 +63,8 @@ Ipc::StoreMap::Init(const SBuf &path, const int sliceLimit)
     config.capacity = anchorLimit;
     config.createFull = false; // we have not delayed freeing any entries yet
 
+   owner->freeCandidates = shm_new(Mem::PageStack)(StoreMapFreeCandidatesId(path).c_str(), anchorLimit);
+ 
     debugs(54, 5, "created " << path << " with " << anchorLimit << '+' << sliceLimit);
     return owner;
 }
@@ -65,6 +73,7 @@ Ipc::StoreMap::StoreMap(const SBuf &aPath): cleaner(nullptr), path(aPath),
     fileNos(shm_old(FileNos)(StoreMapFileNosId(path).c_str())),
     anchors(shm_old(Anchors)(StoreMapAnchorsId(path).c_str())),
     slices(shm_old(Slices)(StoreMapSlicesId(path).c_str())),
+    freeCandidates(shm_old(Mem::PageStack)(StoreMapSlicesId(path).c_str())),
     hitValidation(true)
 {
     debugs(54, 5, "attached " << path << " with " <<
@@ -898,10 +907,11 @@ void Ipc::StoreMap::freeingCheckpoint(const sfileno fileNo, Anchor &anchor)
     }
 
     // assert(!"XXX: unlocked entry"); 
-    // Here for testing. We probably should move this even higher!
-    if (cleaner) {
-        cleaner->noteFreeMapInodeCandidate(fileNo);
-        return; // XXX: Remove after moving this `if` down.
+    if (freeCandidates) {
+        Mem::PageId pageId;
+        pageId.pool = Ipc::Mem::PageStack::IdForStoreMapSpace(); // TODO: Set by Rock, using a cache_dir-index-based index?
+        pageId.number = fileNo + 1;
+        freeCandidates->push(pageId);
     }
 
     if (anchor.lock.lockExclusive())
@@ -912,8 +922,39 @@ void Ipc::StoreMap::freeingCheckpoint(const sfileno fileNo, Anchor &anchor)
         return;
     }
 
-    // XXX move cleaner->noteFreeMapInodeCandidate() here 
+    assert(!"need addFreeCandidate()"); // XXX move freeCandidates->push() here 
 }
+
+#if XXX_implement
+void
+Ipc::StoreMap::freeAllCandidates()
+{
+    if (!freeCandidates)
+        return;
+
+    debugs(..., "freeing " << freeCandidates->size() << " entries in " ...);
+
+    while (!freeCandidates->empty()) {
+        Mem::PageId pageId;
+        if (!freeCandidates->pop(pageId)) {
+            debugs(..., "Squid BUG: Failed to purge; leaving " << freeCandidates->size() << " candidates in " ...);
+            return;
+        }
+
+        Assure(pageId.page > 0);
+        const auto fileno = pageId.page - 1;
+        Anchor &s = anchorAt(fileno);
+        if (s.lock.lockExclusive()) {
+            freeChain(fileno, s, false); // may be empty
+            debugs(54, 5, "purged entry " << fileno << " from " << path);
+        } else {
+            ++purgeFailures;
+        }
+    }
+    if (purgeFailures)
+        debugs(..., "Squid BUG: Failed to purge " << purgeFailures << " entries; leaving " << freeCandidates->size() << " candidates in " ...);
+}
+#endif
 
 void
 Ipc::StoreMap::importSlice(const SliceId sliceId, const Slice &slice)
@@ -1263,7 +1304,8 @@ Ipc::StoreMapUpdate::~StoreMapUpdate()
 Ipc::StoreMap::Owner::Owner():
     fileNos(nullptr),
     anchors(nullptr),
-    slices(nullptr)
+    slices(nullptr),
+    freeCandidates(nullptr)
 {
 }
 
@@ -1272,6 +1314,7 @@ Ipc::StoreMap::Owner::~Owner()
     delete fileNos;
     delete anchors;
     delete slices;
+    delete freeCandidates;
 }
 
 /* Ipc::StoreMapAnchors */

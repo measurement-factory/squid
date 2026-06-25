@@ -809,7 +809,7 @@ Rock::SwapDir::noteFreeMapSlice(const Ipc::StoreMapSliceId sliceId, const bool i
     debugs(47, 7, "slice " << sliceId << " isInode=" << isInode);
     Ipc::Mem::PageId pageId;
     const auto zeroWhenFlushing = isInode ? ZeroWhenFlushing::on : ZeroWhenFlushing::off;
-    pageId.pool = Ipc::Mem::PageStack::IdForSwapDirSpace(index, zeroWhenFlushing, DelayedFreeing::off);
+    pageId.pool = Ipc::Mem::PageStack::IdForSwapDirSpace(index, zeroWhenFlushing);
     pageId.number = sliceId+1;
     if (waitingForPage) {
         *waitingForPage = pageId;
@@ -817,16 +817,6 @@ Rock::SwapDir::noteFreeMapSlice(const Ipc::StoreMapSliceId sliceId, const bool i
     } else {
         freeSlots->push(pageId, zeroWhenFlushing);
     }
-}
-
-void
-Rock::SwapDir::noteFreeMapInodeCandidate(const sfileno fileNo)
-{
-    debugs(47, 7, "entry " << fileNo);
-    Ipc::Mem::PageId pageId;
-    pageId.pool = Ipc::Mem::PageStack::IdForSwapDirSpace(index, ZeroWhenFlushing::on, DelayedFreeing::on);
-    pageId.number = uint32_t(fileNo)+1;
-    freeSlots->noteCandidate(pageId);
 }
 
 // tries to open an old entry with swap_filen for reading
@@ -1209,28 +1199,26 @@ void Rock::SwapDirRr::create()
                 SwapDir::DirMap::Init(sd->inodeMapPath(), capacity);
             mapOwners.push_back(mapOwner);
 
-            const auto addFreeSlots = [&](const ZeroWhenFlushing doZeroWhenFlushing, const DelayedFreeing doDelayFreeing) {
-                const auto config = FreeSlots::Config(sd, doZeroWhenFlushing, doDelayFreeing);
+            const auto addFreeSlots = [&](const ZeroWhenFlushing doZeroWhenFlushing) {
+                const auto config = FreeSlots::Config(sd, doZeroWhenFlushing);
                 freeSlotsOwners.push_back(shm_new(Ipc::Mem::PageStack)(config.segmentName().c_str(), config));
             };
-            addFreeSlots(ZeroWhenFlushing::off, DelayedFreeing::off);
-            addFreeSlots(ZeroWhenFlushing::on, DelayedFreeing::off);
-            addFreeSlots(ZeroWhenFlushing::on, DelayedFreeing::on);
+            addFreeSlots(ZeroWhenFlushing::off);
+            addFreeSlots(ZeroWhenFlushing::on);
         }
     }
 }
 
 /* Rock::FreeSlots::Config */
 
-Rock::FreeSlots::Config::Config(const SwapDir::Pointer &sd, const ZeroWhenFlushing doZeroWhenFlushing, const DelayedFreeing doDelayedFreeing):
+Rock::FreeSlots::Config::Config(const SwapDir::Pointer &sd, const ZeroWhenFlushing doZeroWhenFlushing):
     swapDir(sd),
-    zeroWhenFlushing(doZeroWhenFlushing),
-    delayedFreeing(doDelayedFreeing)
+    zeroWhenFlushing(doZeroWhenFlushing)
 {
     Assure(swapDir);
 
     // TODO: somehow remove pool id and counters from PageStack?
-    poolId = Ipc::Mem::PageStack::IdForSwapDirSpace(swapDir->index, zeroWhenFlushing, delayedFreeing);
+    poolId = Ipc::Mem::PageStack::IdForSwapDirSpace(swapDir->index, zeroWhenFlushing);
     pageSize = 0; // this is an index of slots on _disk_
     capacity = swapDir->slotLimitActual();
     createFull = false; // Rebuild finds and pushes free slots
@@ -1245,9 +1233,8 @@ Rock::FreeSlots::Config::segmentName() const
 /* Rock::FreeSlots */
 
 Rock::FreeSlots::FreeSlots(const SwapDir::Pointer &sd):
-    slotsToBeZeroed(shm_old(Ipc::Mem::PageStack)(FreeSlots::Config(sd, ZeroWhenFlushing::on, DelayedFreeing::off).segmentName().c_str())),
-    slotsToBeLeftAsIs(shm_old(Ipc::Mem::PageStack)(FreeSlots::Config(sd, ZeroWhenFlushing::off, DelayedFreeing::off).segmentName().c_str())),
-    candidates(shm_old(Ipc::Mem::PageStack)(FreeSlots::Config(sd, ZeroWhenFlushing::on, DelayedFreeing::on).segmentName().c_str()))
+    slotsToBeZeroed(shm_old(Ipc::Mem::PageStack)(FreeSlots::Config(sd, ZeroWhenFlushing::on).segmentName().c_str())),
+    slotsToBeLeftAsIs(shm_old(Ipc::Mem::PageStack)(FreeSlots::Config(sd, ZeroWhenFlushing::off).segmentName().c_str()))
 {
 }
 

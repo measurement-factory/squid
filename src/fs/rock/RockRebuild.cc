@@ -746,7 +746,7 @@ Rock::Rebuild::freeSlot(const SlotId slotId, const bool invalid)
     const auto zeroWhenFlushing = slot.inode() ? ZeroWhenFlushing::on : ZeroWhenFlushing::off;
 
     Ipc::Mem::PageId pageId;
-    pageId.pool = Ipc::Mem::PageStack::IdForSwapDirSpace(sd->index, zeroWhenFlushing, DelayedFreeing::off);
+    pageId.pool = Ipc::Mem::PageStack::IdForSwapDirSpace(sd->index, zeroWhenFlushing);
     pageId.number = slotId+1;
     sd->freeSlots->push(pageId, zeroWhenFlushing);
 }

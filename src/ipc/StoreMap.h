@@ -412,12 +412,6 @@ public:
     /// adjust slice-linked state before a locked Readable slice is erased
     /// \param isInode tells whether the slice was the first one in the entry chain
     virtual void noteFreeMapSlice(StoreMapSliceId, bool isInode) = 0;
-
-    /// XXX: Document
-    ///
-    /// TODO: Make pure if MemStore can benefit from indexing these candidates.
-    virtual void noteFreeMapInodeCandidate(sfileno) {}
-
 };
 
 } // namespace Ipc
