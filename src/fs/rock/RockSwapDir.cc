@@ -608,6 +608,18 @@ void
 Rock::SwapDir::zeroMarkedForDeletion()
 {
     Assure(theFile);
+#if 0
+    if (theFile->canWrite()) {
+        // Move map's free candidates, if any, to our freeSlots, to be purged by
+        // the loop below. We expect to be the only ones using the map by now,
+        // allowing us to successfully lock (and free) all candidates.
+        Assure(map);
+        map->freeAllCandidates();
+    }
+#else
+    // return; // XXX: remove
+#endif
+
     Assure(freeSlots);
     uint64_t writtenCells = 0;
     Ipc::Mem::PageId pageId;
