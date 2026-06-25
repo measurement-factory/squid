@@ -168,7 +168,6 @@ public:
     static PoolId IdForMemStoreSpace() { return 10; }
     /// multipurpose PagePool of shared memory pages
     static PoolId IdForMultipurposePool() { return 200; } // segments could use 2xx
-    static PoolId IdForStoreMapSpace() { return 300; } 
     /// stack of free rock cache_dir slot numbers
     /// \param zeroWhenFlushing determines whether the slots need zeroing on disk
     static PoolId IdForSwapDirSpace(const int dirIdx, const OnOff zeroWhenFlushing) { return (!zeroWhenFlushing ? 900 : 800) + dirIdx + 1; }

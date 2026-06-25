@@ -10,7 +10,6 @@
 
 #include "squid.h"
 #include "base/IoManip.h"
-#include "ipc/mem/Page.h"
 #include "ipc/StoreMap.h"
 #include "sbuf/SBuf.h"
 #include "SquidConfig.h"
@@ -40,12 +39,6 @@ StoreMapFileNosId(const SBuf &path)
     return Ipc::Mem::Segment::Name(path, "filenos");
 }
 
-static SBuf
-StoreMapFreeCandidatesId(const SBuf &path)
-{
-    return Ipc::Mem::Segment::Name(path, "tofree");
-}
-
 Ipc::StoreMap::Owner *
 Ipc::StoreMap::Init(const SBuf &path, const int sliceLimit)
 {
@@ -55,16 +48,6 @@ Ipc::StoreMap::Init(const SBuf &path, const int sliceLimit)
     owner->fileNos = shm_new(FileNos)(StoreMapFileNosId(path).c_str(), anchorLimit);
     owner->anchors = shm_new(Anchors)(StoreMapAnchorsId(path).c_str(), anchorLimit);
     owner->slices = shm_new(Slices)(StoreMapSlicesId(path).c_str(), sliceLimit);
- 
-    // TODO: somehow remove pool id and counters from PageStack?
-    Ipc::Mem::PageStack::Config config;
-    config.poolId = Ipc::Mem::PageStack::IdForStoreMapSpace();
-    config.pageSize = 0; // this is an index of slots on _disk_
-    config.capacity = anchorLimit;
-    config.createFull = false; // we have not delayed freeing any entries yet
-
-   owner->freeCandidates = shm_new(Mem::PageStack)(StoreMapFreeCandidatesId(path).c_str(), anchorLimit);
- 
     debugs(54, 5, "created " << path << " with " << anchorLimit << '+' << sliceLimit);
     return owner;
 }
@@ -73,7 +56,6 @@ Ipc::StoreMap::StoreMap(const SBuf &aPath): cleaner(nullptr), path(aPath),
     fileNos(shm_old(FileNos)(StoreMapFileNosId(path).c_str())),
     anchors(shm_old(Anchors)(StoreMapAnchorsId(path).c_str())),
     slices(shm_old(Slices)(StoreMapSlicesId(path).c_str())),
-    freeCandidates(shm_old(Mem::PageStack)(StoreMapSlicesId(path).c_str())),
     hitValidation(true)
 {
     debugs(54, 5, "attached " << path << " with " <<
@@ -510,8 +492,9 @@ Ipc::StoreMap::freeChain(const sfileno fileno, Anchor &inode, const bool keepLoc
 
     if (!keepLocked) {
         inode.lock.unlockExclusive();
-        // No freeingCheckpoint() because freeChainAt() above freed previously
-        // added slots, and nobody could add more slots since we are the writer.
+        // No freeingCheckpoint() because we have effectively handled all entry
+        // markings that could have occurred up to (and including) the
+        // unlockExclusive() call above.
     }
     --anchors->count;
     debugs(54, 5, "freed entry " << fileno << " in " << path);
@@ -906,15 +889,7 @@ void Ipc::StoreMap::freeingCheckpoint(const sfileno fileNo, Anchor &anchor)
         return;
     }
 
-    // assert(!"XXX: unlocked entry"); 
-    if (freeCandidates) {
-        Mem::PageId pageId;
-        pageId.pool = Ipc::Mem::PageStack::IdForStoreMapSpace(); // TODO: Set by Rock, using a cache_dir-index-based index?
-        pageId.number = fileNo + 1;
-        freeCandidates->push(pageId);
-    }
-
-    if (anchor.lock.lockExclusive())
+    if (anchor.lock.lockExclusive()) {
         if (anchor.waitingToBeFreed) // earlier check result may be stale by now
             freeChain(fileNo, anchor, false);
         else
@@ -922,39 +897,9 @@ void Ipc::StoreMap::freeingCheckpoint(const sfileno fileNo, Anchor &anchor)
         return;
     }
 
-    assert(!"need addFreeCandidate()"); // XXX move freeCandidates->push() here 
+    // XXX: Add addFreeCandidate() 
+    assert(!"need addFreeCandidate()"); 
 }
-
-#if XXX_implement
-void
-Ipc::StoreMap::freeAllCandidates()
-{
-    if (!freeCandidates)
-        return;
-
-    debugs(..., "freeing " << freeCandidates->size() << " entries in " ...);
-
-    while (!freeCandidates->empty()) {
-        Mem::PageId pageId;
-        if (!freeCandidates->pop(pageId)) {
-            debugs(..., "Squid BUG: Failed to purge; leaving " << freeCandidates->size() << " candidates in " ...);
-            return;
-        }
-
-        Assure(pageId.page > 0);
-        const auto fileno = pageId.page - 1;
-        Anchor &s = anchorAt(fileno);
-        if (s.lock.lockExclusive()) {
-            freeChain(fileno, s, false); // may be empty
-            debugs(54, 5, "purged entry " << fileno << " from " << path);
-        } else {
-            ++purgeFailures;
-        }
-    }
-    if (purgeFailures)
-        debugs(..., "Squid BUG: Failed to purge " << purgeFailures << " entries; leaving " << freeCandidates->size() << " candidates in " ...);
-}
-#endif
 
 void
 Ipc::StoreMap::importSlice(const SliceId sliceId, const Slice &slice)
@@ -1304,8 +1249,7 @@ Ipc::StoreMapUpdate::~StoreMapUpdate()
 Ipc::StoreMap::Owner::Owner():
     fileNos(nullptr),
     anchors(nullptr),
-    slices(nullptr),
-    freeCandidates(nullptr)
+    slices(nullptr)
 {
 }
 
@@ -1314,7 +1258,6 @@ Ipc::StoreMap::Owner::~Owner()
     delete fileNos;
     delete anchors;
     delete slices;
-    delete freeCandidates;
 }
 
 /* Ipc::StoreMapAnchors */

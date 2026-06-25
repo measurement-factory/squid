@@ -10,7 +10,6 @@
 #define SQUID_SRC_IPC_STOREMAP_H
 
 #include "ipc/mem/FlexibleArray.h"
-#include "ipc/mem/PageStack.h"
 #include "ipc/mem/Pointer.h"
 #include "ipc/ReadWriteLock.h"
 #include "sbuf/SBuf.h"
@@ -238,7 +237,6 @@ public:
         FileNos::Owner *fileNos;
         Anchors::Owner *anchors;
         Slices::Owner *slices;
-        Mem::Owner<Mem::PageStack> *freeCandidates;
     private:
         Owner(const Owner &); // not implemented
         Owner &operator =(const Owner &); // not implemented
@@ -367,7 +365,6 @@ protected:
     Mem::Pointer<StoreMapFileNos> fileNos; ///< entry inodes (starting blocks)
     Mem::Pointer<StoreMapAnchors> anchors; ///< entry inodes (starting blocks)
     Mem::Pointer<StoreMapSlices> slices; ///< chained entry pieces positions
-    Mem::Pointer<Mem::PageStack> freeCandidates; ///< inode fileNos for entries that are waiting to be freed
 
 private:
     /// computes entry name (i.e., key hash) for a given entry key
