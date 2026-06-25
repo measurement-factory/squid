@@ -914,8 +914,11 @@ void Ipc::StoreMap::freeingCheckpoint(const sfileno fileNo, Anchor &anchor)
         freeCandidates->push(pageId);
     }
 
-    if (anchor.lock.lockExclusive()) {
-        freeChain(fileNo, anchor, false);
+    if (anchor.lock.lockExclusive())
+        if (anchor.waitingToBeFreed) // earlier check result may be stale by now
+            freeChain(fileNo, anchor, false);
+        else
+            anchor.lock.unlockExclusive();
         return;
     }
 
