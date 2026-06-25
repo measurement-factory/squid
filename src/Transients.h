@@ -92,7 +92,7 @@ public:
 
     /// Associates a new Transients slot with the entry key,
     /// if that entry is marked for deletion. Does nothing otherwise.
-    void forgetMarkedEntry(StoreEntry &e);
+    void forgetMarkedEntry(const StoreEntry &);
 
 private:
     void addEntry(StoreEntry*, const cache_key *, const Store::IoStatus);

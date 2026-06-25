@@ -919,7 +919,7 @@ Store::Controller::checkTransients(const StoreEntry &e) const
 }
 
 void
-Store::Controller::updateFinished(StoreEntry &e)
+Store::Controller::updateFinished(const StoreEntry &e)
 {
     if (e.hasTransients())
         transients->forgetMarkedEntry(e);

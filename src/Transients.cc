@@ -429,7 +429,7 @@ TransientsRr::~TransientsRr()
 }
 
 void
-Transients::forgetMarkedEntry(StoreEntry &e)
+Transients::forgetMarkedEntry(const StoreEntry &e)
 {
     const auto key = e.calcPublicKey(ksDefault);
     sfileno index = 0;
