@@ -91,6 +91,7 @@ public:
 
     /* StoreMapCleaner API */
     void noteFreeMapSlice(Ipc::StoreMapSliceId, bool) override;
+    void noteFreeMapInodeCandidate(sfileno) override;
 
     uint64_t slotSize; ///< all db slots are of this size
 
@@ -183,7 +184,20 @@ private:
 /// \sa Rock::ZeroingRequest
 using ZeroWhenFlushing = OnOff;
 
+/// Whether the associated item has already been freed.
+///
+/// * DelayedFreeing:off items are available for reuse now.
+///
+/// * DelayedFreeing:on items are cache_dir inodes that are marked for deletion
+///   but not yet available for reuse (e.g., because they are still locked by a
+///   cache reader). They are expected to become reusable, usually fairly soon
+///   (e.g., when the transaction reading the cache entry ends).
+///
+/// \sa ZeroWhenFlushing
+using DelayedFreeing = OnOff;
+
 /// Slot IDs of currently unused db cells inside one rock cache_dir.
+/// Also maintains an index of entries that are waiting to be freed (i.e. become unused).
 class FreeSlots
 {
 public:
@@ -194,7 +208,7 @@ public:
     class Config: public Ipc::Mem::PageStack::Config
     {
     public:
-        Config(const SwapDir::Pointer &, ZeroWhenFlushing);
+        Config(const SwapDir::Pointer &, ZeroWhenFlushing, DelayedFreeing);
 
         /// the name of Ipc::Mem::Segment that contains our free slot IDs
         SBuf segmentName() const;
@@ -204,6 +218,9 @@ public:
 
         /// classifies free slots in the being-configured Ipc::Mem::PageStack
         ZeroWhenFlushing zeroWhenFlushing;
+
+        /// classifies free slots in the being-configured Ipc::Mem::PageStack
+        DelayedFreeing delayedFreeing;
     };
 
     explicit FreeSlots(const SwapDir::Pointer &);
@@ -223,9 +240,12 @@ public:
     /// makes the given page available to a future pop() caller
     void push(PageId &pageId, const ZeroWhenFlushing zeroWhenFlushing) { !zeroWhenFlushing ? slotsToBeLeftAsIs->push(pageId) : slotsToBeZeroed->push(pageId); }
 
+    void noteCandidate(PageId &pageId) { candidates->push(pageId); }
+
 private:
     Ipc::Mem::Pointer<Ipc::Mem::PageStack> slotsToBeZeroed; ///< free ZeroWhenFlushing::on slots
     Ipc::Mem::Pointer<Ipc::Mem::PageStack> slotsToBeLeftAsIs; ///< free ZeroWhenFlushing::off slots
+    Ipc::Mem::Pointer<Ipc::Mem::PageStack> candidates; ///< future free slots (DelayedFreeing:on)
 };
 
 /// initializes shared memory segments used by Rock::SwapDir

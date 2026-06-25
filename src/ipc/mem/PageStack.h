@@ -171,7 +171,8 @@ public:
     static PoolId IdForStoreMapSpace() { return 300; } 
     /// stack of free rock cache_dir slot numbers
     /// \param zeroWhenFlushing determines whether the slots need zeroing on disk
-    static PoolId IdForSwapDirSpace(const int dirIdx, const OnOff zeroWhenFlushing) { return (!zeroWhenFlushing ? 900 : 800) + dirIdx + 1; }
+    /// \param delayedFreeing determines whether the slot is not yet free
+    static PoolId IdForSwapDirSpace(const int dirIdx, const OnOff zeroWhenFlushing, const OnOff delayedFreeing) { return (!delayedFreeing ? (!zeroWhenFlushing ? 900 : 800) : 700) + dirIdx + 1; }
 
 private:
     const Config config_;
