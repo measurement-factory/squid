@@ -296,10 +296,9 @@ TestRock::testRockSwapOut()
         pe2->unlock("TestRock::testRockSwapOut e#5.2");
     }
 
-    // We primed storage with 5 entries and also swapped out e#5.1 and e#5.2.
-    // XXX: StoreMap counts unlocked and unreachable e#5.1. This happens because
-    // its anchor/chain has not been freed yet -- nobody needed their space.
-    CPPUNIT_ASSERT_EQUAL((uint64_t)7, store->currentCount());
+    // We primed storage with 5 entries and also swapped out e#5.1 and e#5.2,
+    // but e#5.1 was marked for deletion and unlocked, so StoreMap freed it.
+    CPPUNIT_ASSERT_EQUAL(uint64_t(7-1), store->currentCount());
 
     // try to get and release all reachable entries
     for (int i = 0; i < 6; ++i) {
