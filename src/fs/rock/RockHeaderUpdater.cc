@@ -165,6 +165,13 @@ Rock::HeaderUpdater::noteDoneReading(int errflag)
 void
 Rock::HeaderUpdater::startWriting()
 {
+    // TODO: Do any other StoreEntry::mayStartSwapOut() checks apply here?
+    if (!update.entry->publicKey()) {
+        debugs(47, 3, "cannot write a private fresh entry: " << *update.entry);
+        mustStop("fresh entry went private");
+        return;
+    }
+
     writer = store->createUpdateIO(
                  update,
                  &NoteDoneWriting,
