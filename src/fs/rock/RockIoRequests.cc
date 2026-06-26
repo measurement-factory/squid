@@ -13,6 +13,7 @@
 
 CBDATA_NAMESPACED_CLASS_INIT(Rock, ReadRequest);
 CBDATA_NAMESPACED_CLASS_INIT(Rock, WriteRequest);
+CBDATA_NAMESPACED_CLASS_INIT(Rock, ZeroingRequest);
 
 Rock::ReadRequest::ReadRequest(const ::ReadRequest &base, const IoState::Pointer &anSio, const IoXactionId anId):
     ::ReadRequest(base),
@@ -29,5 +30,23 @@ Rock::WriteRequest::WriteRequest(const ::WriteRequest &base, const IoState::Poin
     id(anId),
     eof(false)
 {
+}
+
+/// ZeroingRequest construction helper that creates a DbCellHeader with true empty()
+static
+const auto &
+EmptyCellHeader()
+{
+    static const auto emtyCell = new Rock::DbCellHeader();
+    return *emtyCell;
+}
+
+Rock::ZeroingRequest::ZeroingRequest(const uint64_t diskOffset):
+    ::WriteRequest(reinterpret_cast<const char*>(&EmptyCellHeader()),
+                   diskOffset, sizeof(EmptyCellHeader()), nullptr)
+{
+    // Paranoid: Base class initialization above uses the fact that
+    // sizeof(reference to x) is sizeof(x).
+    static_assert(sizeof(EmptyCellHeader()) == sizeof(Rock::DbCellHeader));
 }
 

@@ -102,6 +102,7 @@ public:
     uint8_t anchored:1;  ///< whether we loaded the inode slot for this entry
 
     /* for LoadingSlot */
+    uint8_t inode:1;  ///< whether the slot contains an entry inode
     uint8_t mapped:1;  ///< whether the slot was added to a mapped entry
     uint8_t finalized:1;  ///< whether finalizeOrThrow() has scanned the slot
     uint8_t freed:1;  ///< whether the slot was given to the map as free space
@@ -114,6 +115,8 @@ public:
     LoadingEntry(const sfileno fileNo, LoadingParts &source);
 
     uint64_t &size; ///< payload seen so far
+
+    // XXX: Rock db cell versions are effectively unused since Rebuild::sameEntry() changes in 2016 commit abf396ec.
     uint32_t &version; ///< DbCellHeader::version to distinguish same-URL chains
 
     /// possible store entry states during index rebuild
@@ -140,6 +143,10 @@ public:
     /// another slot in some chain belonging to the same entry (unordered!)
     Ipc::StoreMapSliceId &more;
 
+    /* LoadingFlags::inode */
+    bool inode() const { return flags.inode; }
+    void inode(const bool beInode) { flags.inode = beInode; }
+
     /* LoadingFlags::mapped */
     bool mapped() const { return flags.mapped; }
     void mapped(const bool beMapped) { flags.mapped = beMapped; }
@@ -151,8 +158,6 @@ public:
     /* LoadingFlags::freed */
     bool freed() const { return flags.freed; }
     void freed(const bool beFreed) { flags.freed = beFreed; }
-
-    bool used() const { return freed() || mapped() || more != -1; }
 
 private:
     LoadingFlags &flags; ///< slot flags (see the above accessors) are ours
@@ -508,6 +513,8 @@ Rock::Rebuild::loadOneSlot()
     }
     buf.consume(sizeof(header)); // optimize to avoid memmove()
 
+    loadingSlot(slotId).inode(header.firstSlot == slotId);
+
     useNewSlot(slotId, header);
 }
 
@@ -736,10 +743,12 @@ Rock::Rebuild::freeSlot(const SlotId slotId, const bool invalid)
         //sd->unlink(fileno); leave garbage on disk, it should not hurt
     }
 
+    const auto zeroWhenFlushing = slot.inode() ? ZeroWhenFlushing::on : ZeroWhenFlushing::off;
+
     Ipc::Mem::PageId pageId;
-    pageId.pool = Ipc::Mem::PageStack::IdForSwapDirSpace(sd->index);
+    pageId.pool = Ipc::Mem::PageStack::IdForSwapDirSpace(sd->index, zeroWhenFlushing);
     pageId.number = slotId+1;
-    sd->freeSlots->push(pageId);
+    sd->freeSlots->push(pageId, zeroWhenFlushing);
 }
 
 /// freeSlot() for never-been-mapped slots

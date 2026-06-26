@@ -23,7 +23,7 @@ void MemStore::disconnect(StoreEntry &) STUB
 void MemStore::reference(StoreEntry &) STUB
 void MemStore::updateHeaders(StoreEntry *) STUB
 void MemStore::maintain() STUB
-void MemStore::noteFreeMapSlice(const Ipc::StoreMapSliceId) STUB
+void MemStore::noteFreeMapSlice(Ipc::StoreMapSliceId, bool) STUB
 void MemStore::init() STUB
 void MemStore::getStats(StoreInfoStats&) const STUB
 void MemStore::stat(StoreEntry &) const STUB

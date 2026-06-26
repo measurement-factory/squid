@@ -834,7 +834,7 @@ MemStore::reserveSapForWriting(Ipc::Mem::PageId &page)
 }
 
 void
-MemStore::noteFreeMapSlice(const Ipc::StoreMapSliceId sliceId)
+MemStore::noteFreeMapSlice(const Ipc::StoreMapSliceId sliceId, bool)
 {
     Ipc::Mem::PageId &pageId = extras->items[sliceId].page;
     debugs(20, 9, "slice " << sliceId << " freed " << pageId);

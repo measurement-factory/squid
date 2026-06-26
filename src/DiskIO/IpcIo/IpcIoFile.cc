@@ -56,6 +56,7 @@ bool IpcIoFile::DiskerHandleMoreRequestsScheduled = false;
 
 static void DiskerOpen(const SBuf &path, int flags, mode_t);
 static void DiskerClose(const SBuf &path);
+static void DiskerWrite(IpcIoMsg &, const char *buf, size_t bufSize);
 
 /// IpcIo wrapper for debugs() streams; XXX: find a better class name
 struct SipcIo {
@@ -100,7 +101,6 @@ IpcIoFile::IpcIoFile(char const *aDb):
     myPid(getpid()),
     diskId(-1),
     error_(false),
-    lastRequestId(0),
     olderRequests(&requestMap1), newerRequests(&requestMap2),
     timeoutCheckScheduled(false)
 {
@@ -214,6 +214,7 @@ IpcIoFile::create(int flags, mode_t mode, RefCount<IORequestor> callback)
 void
 IpcIoFile::close()
 {
+    debugs(79, 5, "closing " << dbName);
     assert(ioRequestor != nullptr);
 
     if (IamDiskProcess())
@@ -303,6 +304,15 @@ IpcIoFile::write(WriteRequest *writeRequest)
     //assert(minOffset < 0 || minOffset <= writeRequest->offset);
     //assert(maxOffset < 0 || writeRequest->offset + writeRequest->len <= (uint64_t)maxOffset);
 
+    if (IamDiskProcess()) {
+        // when fulfilling its own requests, disker works synchronously
+        IpcIoMsg localWrite(*writeRequest, myPid);
+        Assure(writeRequest->len <= Ipc::Mem::PageSize());
+        DiskerWrite(localWrite, writeRequest->buf, writeRequest->len);
+        writeCompleted(writeRequest, &localWrite);
+        return;
+    }
+
     IpcIoPendingRequest *const pending = new IpcIoPendingRequest(this);
     pending->writeRequest = writeRequest;
     push(pending);
@@ -377,24 +387,15 @@ IpcIoFile::push(IpcIoPendingRequest *const pending)
 
     IpcIoMsg ipcIo;
     try {
-        if (++lastRequestId == 0) // don't use zero value as requestId
-            ++lastRequestId;
-        ipcIo.requestId = lastRequestId;
-        ipcIo.start = current_time;
-        ipcIo.workerPid = myPid;
         if (pending->readRequest) {
-            ipcIo.command = IpcIo::cmdRead;
-            ipcIo.offset = pending->readRequest->offset;
-            ipcIo.len = pending->readRequest->len;
+            ipcIo = IpcIoMsg(*pending->readRequest, myPid);
         } else { // pending->writeRequest
+            ipcIo = IpcIoMsg(*pending->writeRequest, myPid);
             Must(pending->writeRequest->len <= Ipc::Mem::PageSize());
             if (!Ipc::Mem::GetPage(Ipc::Mem::PageId::ioPage, ipcIo.page)) {
                 ipcIo.len = 0;
                 throw TexcHere("run out of shared memory pages for IPC I/O");
             }
-            ipcIo.command = IpcIo::cmdWrite;
-            ipcIo.offset = pending->writeRequest->offset;
-            ipcIo.len = pending->writeRequest->len;
             char *const buf = Ipc::Mem::PagePointer(ipcIo.page);
             memcpy(buf, pending->writeRequest->buf, ipcIo.len); // optimize away
         }
@@ -682,6 +683,8 @@ IpcIoFile::getFD() const
 
 /* IpcIoMsg */
 
+unsigned int IpcIoMsg::LastRequestId = 0;
+
 IpcIoMsg::IpcIoMsg():
     requestId(0),
     offset(0),
@@ -692,6 +695,21 @@ IpcIoMsg::IpcIoMsg():
 {
     start.tv_sec = 0;
     start.tv_usec = 0;
+}
+
+template <class IoRequest>
+IpcIoMsg::IpcIoMsg(const IoRequest &r, const pid_t worker):
+    requestId(++LastRequestId ? LastRequestId : ++LastRequestId), // do not use zero value as requestId
+    offset(r.offset),
+    len(r.len),
+    workerPid(worker),
+    command(std::is_same<IoRequest, ReadRequest>::value ? IpcIo::cmdRead : IpcIo::cmdWrite),
+    start(current_time),
+    xerrno(0)
+{
+    static_assert(
+        std::is_same<IoRequest, ReadRequest>::value ||
+        std::is_same<IoRequest, WriteRequest>::value);
 }
 
 void
@@ -766,13 +784,13 @@ diskerRead(IpcIoMsg &ipcIo)
     }
 }
 
-/// Tries to write buffer to disk (a few times if needed);
-/// sets ipcIo results, but does no cleanup. The caller must cleanup.
+/// Writes toWrite bytes of the given buffer to disk. Always sets ipcIo.len and
+/// ipcIo.xerrno. Signals errors by setting ipcIo.len to less than toWrite and
+/// setting ipcIo.xerrno to a non-zero value. TODO: Simplify API, especially the
+/// error reporting part, and keep ipcIo constant.
 static void
-diskerWriteAttempts(IpcIoMsg &ipcIo)
+DiskerWrite(IpcIoMsg &ipcIo, const char *buf, size_t toWrite)
 {
-    const char *buf = Ipc::Mem::PagePointer(ipcIo.page);
-    size_t toWrite = min(ipcIo.len, Ipc::Mem::PageSize());
     size_t wroteSoFar = 0;
     off_t offset = ipcIo.offset;
     // Partial writes to disk do happen. It is unlikely that the caller can
@@ -824,10 +842,13 @@ diskerWriteAttempts(IpcIoMsg &ipcIo)
     return; // not a fatal I/O error, unless the caller treats it as such
 }
 
+/// handles a remote write request
 static void
 diskerWrite(IpcIoMsg &ipcIo)
 {
-    diskerWriteAttempts(ipcIo); // may fail
+    const char *buf = Ipc::Mem::PagePointer(ipcIo.page);
+    const auto toWrite = min(ipcIo.len, Ipc::Mem::PageSize());
+    DiskerWrite(ipcIo, buf, toWrite);
     Ipc::Mem::PutPage(ipcIo.page);
 }
 

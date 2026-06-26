@@ -42,6 +42,9 @@ class IpcIoMsg
 public:
     IpcIoMsg();
 
+    /// a new request matching the given ReadRequest or WriteRequest from the given worker
+    template <class IoRequest> IpcIoMsg(const IoRequest &, pid_t);
+
     /// prints message parameters; suitable for cache manager reports
     void stat(std::ostream &);
 
@@ -57,6 +60,9 @@ public:
     struct timeval start; ///< when the I/O request was converted to IpcIoMsg
 
     int xerrno; ///< I/O error code or zero
+
+private:
+    static unsigned int LastRequestId; ///< the last generated requestId value or zero
 };
 
 class IpcIoPendingRequest;
@@ -137,8 +143,6 @@ private:
     RefCount<IORequestor> ioRequestor;
 
     bool error_; ///< whether we have seen at least one I/O error (XXX)
-
-    unsigned int lastRequestId; ///< last requestId used
 
     /// maps requestId to the handleResponse callback
     typedef std::map<unsigned int, IpcIoPendingRequest*> RequestMap;

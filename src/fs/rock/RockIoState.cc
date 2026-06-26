@@ -348,12 +348,18 @@ Rock::IoState::expectedReply(const IoXactionId receivedId)
 void
 Rock::IoState::finishedWriting(const int errFlag)
 {
+    // We can tell whether we used sidCurrent as an inode slot (i.e. whether
+    // sidCurrent is sidFirst), but sidCurrent could have been used as an inode
+    // slot before reserveSlotForWriting() gave it to us, and we do not remember
+    // that information. TODO: Optimize this error handling by remembering that
+    // prior usage instead of simply assuming the worst.
+    const auto zeroAbandonedSlots = true;
     if (sidCurrent >= 0) {
-        dir->noteFreeMapSlice(sidCurrent);
+        dir->noteFreeMapSlice(sidCurrent, zeroAbandonedSlots);
         sidCurrent = -1;
     }
     if (sidNext >= 0) {
-        dir->noteFreeMapSlice(sidNext);
+        dir->noteFreeMapSlice(sidNext, zeroAbandonedSlots);
         sidNext = -1;
     }
 

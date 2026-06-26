@@ -28,6 +28,7 @@
 #include "ipc/mem/Pages.h"
 #include "MemObject.h"
 #include "Parsing.h"
+#include "sbuf/Stream.h"
 #include "SquidConfig.h"
 #include "SquidMath.h"
 #include "tools.h"
@@ -287,7 +288,8 @@ Rock::SwapDir::init()
     // are refcounted. We up our count once to avoid implicit delete's.
     lock();
 
-    freeSlots = shm_old(Ipc::Mem::PageStack)(freeSlotsPath());
+    Assure(!freeSlots);
+    freeSlots.reset(new FreeSlots(this));
 
     Must(!map);
     map = new DirMap(inodeMapPath());
@@ -581,6 +583,61 @@ Rock::SwapDir::validateOptions()
     }
 }
 
+void
+Rock::SwapDir::shutdown()
+{
+    if (UsingSmp() && !IamDiskProcess()) {
+        debugs(47, 3, "delegating to disker");
+        return;
+    }
+
+    debugs(47, 3, path);
+
+    if (!theFile) {
+        debugs(47, 3, "already closed");
+        return;
+    }
+
+    zeroMarkedForDeletion();
+
+    theFile->close();
+    Assure(!theFile); // synchronous closeCompleted() callback makes theFile nil
+}
+
+void
+Rock::SwapDir::zeroMarkedForDeletion()
+{
+    Assure(theFile);
+    Assure(freeSlots);
+    uint64_t writtenCells = 0;
+    Ipc::Mem::PageId pageId;
+    while (theFile->canWrite() && freeSlots->popToBeZeroed(pageId)) {
+        debugs(47, 8, "zeroing free slot: " << pageId);
+
+        const auto debugDetails = [&](std::ostream &os) {
+            os << Debug::Extra << "cache_dir: " << path;
+            os << Debug::Extra << "total marked slots: " << freeSlots->size();
+            os << Debug::Extra << "marked slots erased: " << writtenCells;
+        };
+
+        auto zr = ZeroingRequest::Pointer::Make(diskOffset(pageId));
+        theFile->write(zr.getRaw());
+        Assure(zr->completed); // here, we only support synchronous writes
+        if (!*zr->completed) {
+            debugs(47, DBG_IMPORTANT, "ERROR: Write error when purging rock cache_dir entries previously marked for deletion:" << CallToPrint(debugDetails));
+            break;
+        }
+
+        ++writtenCells;
+        pageId = Ipc::Mem::PageId(); // TODO: pop() should return a new page (or std::nullopt) instead
+
+        if (writtenCells % 100000 == 0) { // XXX: Warn based on time passed instead.
+            debugs(47, DBG_IMPORTANT, "WARNING: Still purging rock cache_dir entries previously marked for deletion" << CallToPrint(debugDetails));
+        }
+    }
+    debugs(47, 3, "writtenCells: " << writtenCells);
+}
+
 bool
 Rock::SwapDir::canStore(const StoreEntry &e, int64_t diskSpaceNeeded, int &load) const
 {
@@ -735,16 +792,18 @@ Rock::SwapDir::validSlotId(const SlotId slotId) const
 }
 
 void
-Rock::SwapDir::noteFreeMapSlice(const Ipc::StoreMapSliceId sliceId)
+Rock::SwapDir::noteFreeMapSlice(const Ipc::StoreMapSliceId sliceId, const bool isInode)
 {
+    debugs(47, 7, "slice " << sliceId << " isInode=" << isInode);
     Ipc::Mem::PageId pageId;
-    pageId.pool = Ipc::Mem::PageStack::IdForSwapDirSpace(index);
+    const auto zeroWhenFlushing = isInode ? ZeroWhenFlushing::on : ZeroWhenFlushing::off;
+    pageId.pool = Ipc::Mem::PageStack::IdForSwapDirSpace(index, zeroWhenFlushing);
     pageId.number = sliceId+1;
     if (waitingForPage) {
         *waitingForPage = pageId;
         waitingForPage = nullptr;
     } else {
-        freeSlots->push(pageId);
+        freeSlots->push(pageId, zeroWhenFlushing);
     }
 }
 
@@ -847,6 +906,12 @@ Rock::SwapDir::readCompleted(const char *, int rlen, int errflag, RefCount< ::Re
 void
 Rock::SwapDir::writeCompleted(int errflag, size_t, RefCount< ::WriteRequest> r)
 {
+    if (const auto zeroingWrite = dynamic_cast<Rock::ZeroingRequest*>(r.getRaw())) {
+        Assure(!zeroingWrite->completed);
+        zeroingWrite->completed = (errflag == DISK_OK);
+        return;
+    }
+
     // TODO: Move details into IoState::handleWriteCompletion() after figuring
     // out how to deal with map access. See readCompleted().
 
@@ -858,7 +923,7 @@ Rock::SwapDir::writeCompleted(int errflag, size_t, RefCount< ::WriteRequest> r)
     // quit if somebody called IoState::close() while we were waiting
     if (!sio.stillWaiting()) {
         debugs(79, 3, "ignoring closed entry " << sio.swap_filen);
-        noteFreeMapSlice(request->sidCurrent);
+        noteFreeMapSlice(request->sidCurrent, request->sidPrevious < 0);
         return;
     }
 
@@ -920,7 +985,7 @@ Rock::SwapDir::handleWriteCompletionProblem(const int errflag, const WriteReques
 {
     auto &sio = *request.sio;
 
-    noteFreeMapSlice(request.sidCurrent);
+    noteFreeMapSlice(request.sidCurrent, request.sidPrevious < 0);
 
     writeError(sio);
     sio.finishedWriting(errflag);
@@ -1101,15 +1166,6 @@ Rock::SwapDir::inodeMapPath() const
     return Ipc::Mem::Segment::Name(SBuf(path), "map");
 }
 
-const char *
-Rock::SwapDir::freeSlotsPath() const
-{
-    static String spacesPath;
-    spacesPath = path;
-    spacesPath.append("_spaces");
-    return spacesPath.termedBuf();
-}
-
 bool
 Rock::SwapDir::hasReadableEntry(const StoreEntry &e) const
 {
@@ -1131,16 +1187,66 @@ void Rock::SwapDirRr::create()
                 SwapDir::DirMap::Init(sd->inodeMapPath(), capacity);
             mapOwners.push_back(mapOwner);
 
-            // TODO: somehow remove pool id and counters from PageStack?
-            Ipc::Mem::PageStack::Config config;
-            config.poolId = Ipc::Mem::PageStack::IdForSwapDirSpace(i);
-            config.pageSize = 0; // this is an index of slots on _disk_
-            config.capacity = capacity;
-            config.createFull = false; // Rebuild finds and pushes free slots
-            Ipc::Mem::Owner<Ipc::Mem::PageStack> *const freeSlotsOwner =
-                shm_new(Ipc::Mem::PageStack)(sd->freeSlotsPath(), config);
-            freeSlotsOwners.push_back(freeSlotsOwner);
+            const auto addFreeSlots = [&](const ZeroWhenFlushing doZeroWhenFlushing) {
+                const auto config = FreeSlots::Config(sd, doZeroWhenFlushing);
+                freeSlotsOwners.push_back(shm_new(Ipc::Mem::PageStack)(config.segmentName().c_str(), config));
+            };
+            addFreeSlots(ZeroWhenFlushing::off);
+            addFreeSlots(ZeroWhenFlushing::on);
         }
+    }
+}
+
+/* Rock::FreeSlots::Config */
+
+Rock::FreeSlots::Config::Config(const SwapDir::Pointer &sd, const ZeroWhenFlushing doZeroWhenFlushing):
+    swapDir(sd),
+    zeroWhenFlushing(doZeroWhenFlushing)
+{
+    Assure(swapDir);
+
+    // TODO: somehow remove pool id and counters from PageStack?
+    poolId = Ipc::Mem::PageStack::IdForSwapDirSpace(swapDir->index, zeroWhenFlushing);
+    pageSize = 0; // this is an index of slots on _disk_
+    capacity = swapDir->slotLimitActual();
+    createFull = false; // Rebuild finds and pushes free slots
+}
+
+SBuf
+Rock::FreeSlots::Config::segmentName() const
+{
+    return ToSBuf(swapDir->path, !zeroWhenFlushing ? "_space2keep" : "_space2zero");
+}
+
+/* Rock::FreeSlots */
+
+Rock::FreeSlots::FreeSlots(const SwapDir::Pointer &sd):
+    slotsToBeZeroed(shm_old(Ipc::Mem::PageStack)(FreeSlots::Config(sd, ZeroWhenFlushing::on).segmentName().c_str())),
+    slotsToBeLeftAsIs(shm_old(Ipc::Mem::PageStack)(FreeSlots::Config(sd, ZeroWhenFlushing::off).segmentName().c_str()))
+{
+}
+
+Rock::FreeSlots::PageCount
+Rock::FreeSlots::size() const
+{
+    return NaturalSum<PageCount>(slotsToBeLeftAsIs->size(), slotsToBeZeroed->size()).value();
+}
+
+bool
+Rock::FreeSlots::pop(PageId &pageId)
+{
+    // first use slots that, if not popped, would have to be zeroed at shutdown
+    return slotsToBeZeroed->pop(pageId) || slotsToBeLeftAsIs->pop(pageId);
+}
+
+/* Rock::SwapDirRr */
+
+void
+Rock::SwapDirRr::endingShutdown()
+{
+    for (size_t i = 0; i < Config.cacheSwap.n_configured; ++i) {
+        if (const auto sd = dynamic_cast<SwapDir*>(INDEXSD(i)))
+            sd->shutdown();
     }
 }
 

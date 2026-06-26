@@ -95,6 +95,13 @@ Ipc::StoreMap::forgetWritingEntry(sfileno fileno)
     inode.rewind();
 
     inode.lock.unlockExclusive();
+    // No freeingCheckpoint() either (for similar reasons). A DELETE-like
+    // transaction that happens _before_ a matching disk-cached entry is
+    // discovered/indexed naturally does not purge that entry: HTTP cache
+    // freshness is not guaranteed for an "offline" cache. In deployments where
+    // all transactions must go through the same Squid, foreground cache index
+    // rebuilding can be viewed as providing stronger guarantees (by failing
+    // "early" DELETE transactions).
     --anchors->count;
 
     debugs(54, 8, "closed entry " << fileno << " for writing " << path);
@@ -214,19 +221,19 @@ Ipc::StoreMap::openForReplacingAt(const sfileno fileno, const cache_key *const k
     debugs(54, 5, "opening entry " << fileno << " for reading " << path);
     Anchor &s = anchorAt(fileno);
 
-    if (!s.lock.lockShared()) {
+    if (!lockShared(fileno, s)) {
         debugs(54, 5, "cannot open busy entry " << fileno << " for reading " << path);
         return nullptr;
     }
 
     if (!s.waitingToBeFreed) {
-        s.lock.unlockShared();
+        unlockShared(fileno, s);
         debugs(54, 7, "cannot open unmarked entry " << fileno << " for reading " << path);
         return nullptr;
     }
 
     if (!s.sameKey(key)) {
-        s.lock.unlockShared();
+        unlockShared(fileno, s);
         debugs(54, 5, "cannot open wrong-key entry " << fileno << " for reading " << path);
         return nullptr;
     }
@@ -246,7 +253,7 @@ Ipc::StoreMap::openForWritingAt(const sfileno fileno, bool overwriteExisting)
 
         // bail if we cannot empty this position
         if (!s.waitingToBeFreed && !s.empty() && !overwriteExisting) {
-            lock.unlockExclusive();
+            unlockExclusive(fileno, s);
             debugs(54, 5, "cannot open existing entry " << fileno <<
                    " for writing " << path);
             return nullptr;
@@ -286,7 +293,7 @@ Ipc::StoreMap::closeForWriting(const sfileno fileno)
     Anchor &s = anchorAt(fileno);
     assert(s.writing());
     // TODO: assert(!s.empty()); // i.e., unlocked s becomes s.complete()
-    s.lock.unlockExclusive();
+    unlockExclusive(fileno, s);
     debugs(54, 5, "closed entry " << fileno << " for writing " << path);
     // cannot assert completeness here because we have no lock
 }
@@ -343,7 +350,7 @@ Ipc::StoreMap::abortWriting(const sfileno fileno)
     } else {
         s.waitingToBeFreed = true;
         s.writerHalted = true;
-        s.lock.unlockExclusive();
+        unlockExclusive(fileno, s);
         debugs(54, 5, "closed busy entry " << fileno << " for writing " << path);
     }
 }
@@ -405,9 +412,26 @@ Ipc::StoreMap::freeEntry(const sfileno fileno)
         return result;
     }
 
+    return markEntryToBeFreed(fileno, s);
+}
+
+/// Ensures Anchor::waitingToBeFreed flag is set. The caller may not have a lock
+/// on the entry!
+/// \returns whether we were given an unmarked entry (and marked it)
+bool
+Ipc::StoreMap::markEntryToBeFreed(const sfileno fileno, Anchor &anchor)
+{
     uint8_t expected = false;
     // mark to free the locked entry later (if not already marked)
-    return s.waitingToBeFreed.compare_exchange_strong(expected, true);
+    if (anchor.waitingToBeFreed.compare_exchange_strong(expected, true)) {
+        // TODO: Avoid repeated waitingToBeFreed checks by splitting
+        // freeingCheckpoint() to isolate freeingCheckpointForMarkedEntry()?
+        freeingCheckpoint(fileno, anchor);
+        return true;
+    }
+
+    // Nothing to do because the entry has been marked already.
+    return false;
 }
 
 void
@@ -420,17 +444,20 @@ Ipc::StoreMap::freeEntryByKey(const cache_key *const key)
     Anchor &s = anchorAt(idx);
     if (s.lock.lockExclusive()) {
         if (s.sameKey(key))
-            freeChain(idx, s, true);
-        s.lock.unlockExclusive();
-    } else if (s.lock.lockShared()) {
-        if (s.sameKey(key))
+            freeChain(idx, s, false);
+        else
+            unlockExclusive(idx, s);
+    } else if (lockShared(idx, s)) {
+        if (s.sameKey(key)) {
+            // Optimization: We can avoid markEntryToBeFreed() because unlockShared() below is also a checkpoint.
             s.waitingToBeFreed = true; // mark to free it later
-        s.lock.unlockShared();
+        }
+        unlockShared(idx, s);
     } else {
         // we cannot be sure that the entry we found is ours because we do not
         // have a lock on it, but we still check to minimize false deletions
         if (s.sameKey(key))
-            s.waitingToBeFreed = true; // mark to free it later
+            (void)markEntryToBeFreed(idx, s);
     }
 }
 
@@ -460,28 +487,39 @@ Ipc::StoreMap::freeChain(const sfileno fileno, Anchor &inode, const bool keepLoc
     debugs(54, 7, "freeing entry " << fileno <<
            " in " << path);
     if (!inode.empty())
-        freeChainAt(inode.start, inode.splicingPoint);
+        freeChainAt(inode);
     inode.rewind();
 
-    if (!keepLocked)
+    if (!keepLocked) {
         inode.lock.unlockExclusive();
+        // No freeingCheckpoint() because we have effectively handled all entry
+        // markings that could have occurred up to (and including) the
+        // unlockExclusive() call above.
+    }
     --anchors->count;
     debugs(54, 5, "freed entry " << fileno << " in " << path);
 }
 
-/// unconditionally frees an already locked chain of slots; no anchor maintenance
+/// freeChain() helper to unconditionally free an already locked chain of slots;
+/// the caller is responsible for updating the chain anchor
 void
-Ipc::StoreMap::freeChainAt(SliceId sliceId, const SliceId splicingPoint)
+Ipc::StoreMap::freeChainAt(const Anchor &anchor)
 {
     static uint64_t ChainId = 0; // to pair freeing/freed calls in debugs()
     const uint64_t chainId = ++ChainId;
+
+    // optimization: avoid repeated atomic loads, especially inside the loop
+    const auto startId = anchor.start.load();
+    const auto splicingPoint = anchor.splicingPoint.load();
+
+    auto sliceId = startId;
     debugs(54, 7, "freeing chain #" << chainId << " starting at " << sliceId << " in " << path);
     while (sliceId >= 0) {
         Slice &slice = sliceAt(sliceId);
         const SliceId nextId = slice.next;
         slice.clear();
         if (cleaner)
-            cleaner->noteFreeMapSlice(sliceId); // might change slice state
+            cleaner->noteFreeMapSlice(sliceId, sliceId == startId); // might change slice state
         if (sliceId == splicingPoint) {
             debugs(54, 5, "preserving chain #" << chainId << " in " << path <<
                    " suffix after slice " << splicingPoint);
@@ -538,35 +576,35 @@ Ipc::StoreMap::openForReadingAt(const sfileno fileno, const cache_key *const key
     debugs(54, 5, "opening entry " << fileno << " for reading " << path);
     Anchor &s = anchorAt(fileno);
 
-    if (!s.lock.lockShared()) {
+    if (!lockShared(fileno, s)) {
         debugs(54, 5, "cannot open busy entry " << fileno <<
                " for reading " << path);
         return nullptr;
     }
 
     if (s.empty()) {
-        s.lock.unlockShared();
+        unlockShared(fileno, s);
         debugs(54, 7, "cannot open empty entry " << fileno <<
                " for reading " << path);
         return nullptr;
     }
 
     if (s.waitingToBeFreed) {
-        s.lock.unlockShared();
+        unlockShared(fileno, s);
         debugs(54, 7, "cannot open marked entry " << fileno <<
                " for reading " << path);
         return nullptr;
     }
 
     if (!s.sameKey(key)) {
-        s.lock.unlockShared();
+        unlockShared(fileno, s);
         debugs(54, 5, "cannot open wrong-key entry " << fileno <<
                " for reading " << path);
         return nullptr;
     }
 
     if (Config.paranoid_hit_validation.count() && hitValidation && !validateHit(fileno)) {
-        s.lock.unlockShared();
+        unlockShared(fileno, s);
         debugs(54, 5, "cannot open corrupted entry " << fileno <<
                " for reading " << path);
         return nullptr;
@@ -581,7 +619,7 @@ Ipc::StoreMap::closeForReading(const sfileno fileno)
 {
     Anchor &s = anchorAt(fileno);
     assert(s.reading());
-    s.lock.unlockShared();
+    unlockShared(fileno, s);
     debugs(54, 5, "closed entry " << fileno << " for reading " << path);
 }
 
@@ -592,6 +630,7 @@ Ipc::StoreMap::closeForReadingAndFreeIdle(const sfileno fileno)
     assert(s.reading());
 
     if (!s.lock.unlockSharedAndSwitchToExclusive()) {
+        freeingCheckpoint(fileno, s);
         debugs(54, 5, "closed entry " << fileno << " for reading " << path);
         return;
     }
@@ -802,10 +841,69 @@ Ipc::StoreMap::purgeOne()
                 debugs(54, 5, "purged entry " << fileno << " from " << path);
                 return true;
             }
-            s.lock.unlockExclusive();
+            unlockExclusive(fileno, s);
         }
         return false;
     });
+}
+
+bool
+Ipc::StoreMap::lockShared(const sfileno fileNo, Anchor &anchor)
+{
+    if (anchor.lock.lockShared())
+        return true;
+
+    freeingCheckpoint(fileNo, anchor);
+    return false;
+}
+
+// TODO: Consider adding Ipc::StoreMap::lockExclusive() for symmetry/completeness sake.
+
+void Ipc::StoreMap::unlockExclusive(const sfileno fileNo, Anchor &anchor)
+{
+    // TODO: Consider the following optimization: Do not worry about readLevel
+    // here if the entry was never in the appending mode -- there will be no
+    // readers. Same if readLevel went to 0 after appending mode was turned off.
+    if (anchor.lock.fullyExclusive() && anchor.waitingToBeFreed) {
+        // Optimization: We already have a write lock and there are no readers,
+        // so we can skip the more expensive unlock+checkpoint code path below.
+        freeChain(fileNo, anchor, false);
+        return;
+    }
+
+    anchor.lock.unlockExclusive();
+    freeingCheckpoint(fileNo, anchor);
+}
+
+void Ipc::StoreMap::unlockShared(const sfileno fileNo, Anchor &anchor)
+{
+    anchor.lock.unlockShared();
+    freeingCheckpoint(fileNo, anchor);
+}
+
+/// Frees an unlocked entry that is waitingToBeFreed. Code that unlocks an entry
+/// or sets waitingToBeFreed must either call this method or provide an excuse.
+void Ipc::StoreMap::freeingCheckpoint(const sfileno fileNo, Anchor &anchor)
+{
+    if (!anchor.waitingToBeFreed) {
+        // If some code marks this entry for deletion after this check, then
+        // that code will call us again.
+        return;
+    }
+
+    if (anchor.lock.lockExclusive()) {
+        if (anchor.waitingToBeFreed) // earlier check result may be stale by now
+            freeChain(fileNo, anchor, false);
+        else
+            anchor.lock.unlockExclusive();
+        return;
+    }
+
+    // A lockExclusive() failure above only happens for one of these reasons:
+    // * There was (or will be) an anchor reader. OK: Our unlockShared() will call us.
+    // * There was (or will be) an anchor writer. OK: Our unlockExclusive() will call us if needed.
+    // * We lost to a failed lockShared() attempt. OK: Our lockShared() will call us if needed.
+    debugs(54, 5, "yielding entry " << fileNo << " with lock " << anchor.lock << " while cleaning " << path);
 }
 
 void
@@ -1063,6 +1161,7 @@ Ipc::StoreMapAnchor::setKey(const cache_key *const aKey)
 {
     memcpy(key, aKey, sizeof(key));
     waitingToBeFreed = Store::Root().markedForDeletion(aKey);
+    // no freeingCheckpoint() here because we are only called for a locked entry
 }
 
 bool
@@ -1125,6 +1224,7 @@ Ipc::StoreMapAnchor::rewind()
     memset(&key, 0, sizeof(key));
     basics.clear();
     waitingToBeFreed = false;
+    // no freeingCheckpoint() here because we are only called for a locked entry
     writerHalted = false;
     // but keep the lock
 }

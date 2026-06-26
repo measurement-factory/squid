@@ -29,6 +29,26 @@ public:
     ReadWriteLock() : readers(0), writing(false), appending(false), readLevel(0), writeLevel(0)
     {}
 
+    /// Whether an unlock*() call was expected around this call time. The lock
+    /// may be locked or unlocked by the time the caller gets our result,
+    /// regardless of the return value.
+    /// \returns true if an unlock*() has already been called (in a different
+    /// process) after this lock() call or is still expected to be called (in
+    /// this or a different process)
+    bool locked() const { return readers || writing; }
+
+    // TODO: To optimize, consider detecting cases where the previously
+    // appending entry went to zero readLevel at some point. In those cases, we
+    // can start checking readers instead of much more ephemeral readLevel.
+    //
+    // XXX: A lockExclusive(), startAppending() sequence implies that the caller
+    // lost exclusivity. When such a writer calls unlockExclusive() and such,
+    // those uses of the term "exclusive" become misleading and necessitate
+    // introduction of this "fully exclusive" terminology.
+    //
+    /// Whether there is a writer and no (existing or pending/future) readers.
+    bool fullyExclusive() const { return writing && !appending && !readLevel; }
+
     bool lockShared(); ///< lock for reading or return false
     bool lockExclusive(); ///< lock for modification or return false
     bool lockHeaders(); ///< lock for [readable] metadata update or return false

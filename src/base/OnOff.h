@@ -12,5 +12,9 @@
 /// safer than bool in a list of integer-like function parameters
 enum class OnOff { off, on };
 
+/// whether the given value is "off"; this convenience function converts OnOff
+/// to boolean values without the caller explicitly doing an equality comparison
+inline bool operator !(const OnOff value) { return value == OnOff::off; }
+
 #endif /* SQUID_SRC_BASE_ONOFF_H */
 

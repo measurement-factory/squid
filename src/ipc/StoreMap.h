@@ -388,8 +388,14 @@ private:
     typedef std::function<bool (const sfileno name)> NameFilter; // a "name"-based test
     bool visitVictims(const NameFilter filter);
 
+    bool lockShared(sfileno, Anchor &);
+    void unlockExclusive(sfileno, Anchor &);
+    void unlockShared(sfileno, Anchor &);
+    void freeingCheckpoint(sfileno, Anchor &);
+
+    bool markEntryToBeFreed(sfileno, Anchor &);
     void freeChain(const sfileno fileno, Anchor &inode, const bool keepLock);
-    void freeChainAt(SliceId sliceId, const SliceId splicingPoint);
+    void freeChainAt(const Anchor &);
 
     /// whether paranoid_hit_validation should be performed
     bool hitValidation;
@@ -402,7 +408,8 @@ public:
     virtual ~StoreMapCleaner() {}
 
     /// adjust slice-linked state before a locked Readable slice is erased
-    virtual void noteFreeMapSlice(const StoreMapSliceId sliceId) = 0;
+    /// \param isInode tells whether the slice was the first one in the entry chain
+    virtual void noteFreeMapSlice(StoreMapSliceId, bool isInode) = 0;
 };
 
 } // namespace Ipc
