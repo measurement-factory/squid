@@ -388,6 +388,7 @@ private:
     typedef std::function<bool (const sfileno name)> NameFilter; // a "name"-based test
     bool visitVictims(const NameFilter filter);
 
+    bool lockShared(sfileno, Anchor &);
     void unlockExclusive(sfileno, Anchor &);
     void unlockShared(sfileno, Anchor &);
     void freeingCheckpoint(sfileno, Anchor &);

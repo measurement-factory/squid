@@ -221,7 +221,7 @@ Ipc::StoreMap::openForReplacingAt(const sfileno fileno, const cache_key *const k
     debugs(54, 5, "opening entry " << fileno << " for reading " << path);
     Anchor &s = anchorAt(fileno);
 
-    if (!s.lock.lockShared()) {
+    if (!lockShared(fileno, s)) {
         debugs(54, 5, "cannot open busy entry " << fileno << " for reading " << path);
         return nullptr;
     }
@@ -447,7 +447,7 @@ Ipc::StoreMap::freeEntryByKey(const cache_key *const key)
             freeChain(idx, s, false);
         else
             unlockExclusive(idx, s);
-    } else if (s.lock.lockShared()) {
+    } else if (lockShared(idx, s)) {
         if (s.sameKey(key)) {
             // Optimization: We can avoid markEntryToBeFreed() because unlockShared() below is also a checkpoint.
             s.waitingToBeFreed = true; // mark to free it later
@@ -576,7 +576,7 @@ Ipc::StoreMap::openForReadingAt(const sfileno fileno, const cache_key *const key
     debugs(54, 5, "opening entry " << fileno << " for reading " << path);
     Anchor &s = anchorAt(fileno);
 
-    if (!s.lock.lockShared()) {
+    if (!lockShared(fileno, s)) {
         debugs(54, 5, "cannot open busy entry " << fileno <<
                " for reading " << path);
         return nullptr;
@@ -847,13 +847,23 @@ Ipc::StoreMap::purgeOne()
     });
 }
 
+bool
+Ipc::StoreMap::lockShared(const sfileno fileNo, Anchor &anchor)
+{
+    if (anchor.lock.lockShared())
+        return true;
+
+    freeingCheckpoint(fileNo, anchor);
+    return false;
+}
+
+// TODO: Consider adding Ipc::StoreMap::lockExclusive() for symmetry/completeness sake.
+
 void Ipc::StoreMap::unlockExclusive(const sfileno fileNo, Anchor &anchor)
 {
-    // XXX: readLevel is private; add ReadWriteLock::fullyExclusive()? Also, we
-    // do not need to worry about readLevel if the entry was never in the
-    // appending mode -- there will be no readers -- or if readLevel went to
-    // zero after appending mode was turned off -- again, no readers... But that
-    // is a secondary-level optimization.
+    // TODO: Consider the following optimization: Do not worry about readLevel
+    // here if the entry was never in the appending mode -- there will be no
+    // readers. Same if readLevel went to 0 after appending mode was turned off.
     if (anchor.lock.fullyExclusive() && anchor.waitingToBeFreed) {
         // Optimization: We already have a write lock and there are no readers,
         // so we can skip the more expensive unlock+checkpoint code path below.
@@ -881,14 +891,6 @@ void Ipc::StoreMap::freeingCheckpoint(const sfileno fileNo, Anchor &anchor)
         return;
     }
 
-    if (anchor.lock.locked()) {
-        // We cannot freeChain() because we may not hold an exclusive lock. And
-        // calling addFreeCandidate() is likely useless because a locked entry
-        // is not a viable candidate. When the entry is unlocked, unlocking code
-        // will call us again.
-        return;
-    }
-
     if (anchor.lock.lockExclusive()) {
         if (anchor.waitingToBeFreed) // earlier check result may be stale by now
             freeChain(fileNo, anchor, false);
@@ -897,8 +899,11 @@ void Ipc::StoreMap::freeingCheckpoint(const sfileno fileNo, Anchor &anchor)
         return;
     }
 
-    // XXX: Add addFreeCandidate() 
-    assert(!"need addFreeCandidate()"); 
+    // A lockExclusive() failure above only happens for one of these reasons:
+    // * There was (or will be) an anchor reader. OK: Our unlockShared() will call us.
+    // * There was (or will be) an anchor writer. OK: Our unlockExclusive() will call us if needed.
+    // * We lost to a failed lockShared() attempt. OK: Our lockShared() will call us if needed.
+    debugs(54, 5, "yielding entry " << fileNo << " with lock " << anchor.lock << " while cleaning " << path);
 }
 
 void
@@ -1156,7 +1161,7 @@ Ipc::StoreMapAnchor::setKey(const cache_key *const aKey)
 {
     memcpy(key, aKey, sizeof(key));
     waitingToBeFreed = Store::Root().markedForDeletion(aKey);
-    // no freeingCheckpoint() here because setKey() is only called for a locked entry
+    // no freeingCheckpoint() here because we are only called for a locked entry
 }
 
 bool
@@ -1219,6 +1224,7 @@ Ipc::StoreMapAnchor::rewind()
     memset(&key, 0, sizeof(key));
     basics.clear();
     waitingToBeFreed = false;
+    // no freeingCheckpoint() here because we are only called for a locked entry
     writerHalted = false;
     // but keep the lock
 }
