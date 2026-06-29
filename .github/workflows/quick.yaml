@@ -63,12 +63,12 @@ jobs:
           sudo apt-get --quiet=2 install libtool-bin valgrind
 
       - name: Setup a nodejs environment
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
-          node-version: 20
+          node-version: 24
 
       - name: Checkout Squid sources
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: ${{ env.CHECKOUT_FETCH_DEPTH }}
 
@@ -88,7 +88,7 @@ jobs:
 
       - name: Publish test logs
         if: success() || failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: test-logs
           path: |
@@ -113,7 +113,7 @@ jobs:
               --progress-bar off \
               codespell==1.16 # TODO: Upgrade to codespell v2
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: ${{ env.CHECKOUT_FETCH_DEPTH }}
 
@@ -153,10 +153,10 @@ jobs:
           sudo apt-get --quiet=2 install linuxdoc-tools libtool-bin ${{ matrix.compiler.CC }} ccache valgrind
 
       - name: Checkout sources
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup ccache
-        uses: hendrikmuhs/ccache-action@v1.2.19
+        uses: hendrikmuhs/ccache-action@v1.2.23
         with:
           verbose: 2 # default 0
           key: ${{ matrix.os }}-${{ matrix.compiler.CC }}-${{ matrix.layer.nick }}
@@ -168,7 +168,7 @@ jobs:
 
       - name: Publish build logs
         if: success() || failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: build-logs-${{ matrix.os }}-${{ matrix.compiler.CC }}-${{ matrix.layer.nick }}
           path: "**/*.log"
@@ -191,13 +191,13 @@ jobs:
           sudo apt-get --quiet=2 install linuxdoc-tools libtool-bin
 
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@v3
+        uses: github/codeql-action/init@v4
 
       - name: Build Squid
         run: ./test-builds.sh ./test-suite/buildtests/layer-02-maximus.opts
 
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v3
+        uses: github/codeql-action/analyze@v4
