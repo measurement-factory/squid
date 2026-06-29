@@ -162,12 +162,13 @@ void Ipc::UdsSender::DelayedRetry(void *data)
 {
     Pointer *ptr = static_cast<Pointer*>(data);
     assert(ptr);
-    if (UdsSender *us = dynamic_cast<UdsSender*>(ptr->valid())) {
+    const auto sender = *ptr;
+    delete ptr;
+    if (const auto us = dynamic_cast<UdsSender*>(sender.valid())) {
         CallBack(us->codeContext, [&us] {
             CallJobHere(54, 4, us, UdsSender, delayedRetry);
         });
     }
-    delete ptr;
 }
 
 /// make another sending attempt after a pause
