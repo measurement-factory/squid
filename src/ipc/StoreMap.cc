@@ -1135,7 +1135,7 @@ Ipc::StoreMapAnchor::rewind()
     splicingPoint = -1;
     memset(&key, 0, sizeof(key));
     basics.clear();
-//    waitingToBeFreed = false;
+    waitingToBeFreed = false;
     writerHalted = false;
     // but keep the lock
 }
