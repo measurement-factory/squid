@@ -72,7 +72,12 @@ void Ipc::Strand::registerSelf()
 
     selfRegistrationTracker.start(ScopedId("Ipc::Strand self-registration"));
     NotifyCoordinator(mtRegisterStrand, tag);
-    setTimeout(6, "Ipc::Strand::timeoutHandler"); // TODO: make 6 configurable?
+    auto timeout = time_t(6); // TODO: make 6 configurable?
+#if WITH_VALGRIND
+    if (RUNNING_ON_VALGRIND)
+        timeout *= 10; // compensate for Valgrind overheads, especially during startup
+#endif
+    setTimeout(timeout, "Ipc::Strand::timeoutHandler");
 }
 
 void Ipc::Strand::receive(const TypedMsgHdr &message)
