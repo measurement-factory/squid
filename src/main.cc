@@ -197,6 +197,12 @@ private:
     }
 
     static void FinalShutdownRunners(void *) {
+        RunRegisteredHere(RegisteredRunner::shutdownTransactions);
+        // RegisteredRunner::shutdownTransactions promises a main loop iteration
+        eventAdd("EndShutdown", &EndShutdown, nullptr, 0, 1);
+    }
+
+    static void EndShutdown(void *) {
         RunRegisteredHere(RegisteredRunner::endingShutdown);
 
         // XXX: this should be a Runner.

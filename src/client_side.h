@@ -369,7 +369,7 @@ public:
 
     /* Registered Runner API */
     void startShutdown() override;
-    void endingShutdown() override;
+    void shutdownTransactions() override;
 
     /// \returns existing non-empty connection annotations,
     /// creates and returns empty annotations otherwise

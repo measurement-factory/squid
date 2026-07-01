@@ -966,12 +966,13 @@ ConnStateData::startShutdown()
     // In "shutdown pending" mode, we stop accepting brand new work while giving
     // ongoing transactions a chance to complete, including transactions that
     // are parsing request headers and, hence, are not in the pipeline yet.
+    // TODO: Mark connection non-persistent to stop reading _new_ requests.
     if (pipeline.empty() && inBuf.isEmpty())
         terminateAll(ERR_SHUTTING_DOWN, AbortedLogTag()); // useful even with an empty pipeline
 }
 
 void
-ConnStateData::endingShutdown()
+ConnStateData::shutdownTransactions()
 {
     Assure(shutting_down);
     terminateAll(ERR_SHUTTING_DOWN, AbortedLogTag());

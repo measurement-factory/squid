@@ -72,15 +72,19 @@ public:
 
     /* Shutdown events */
 
-    /// Called after receiving a shutdown request and before stopping the main
-    /// loop. At least one main loop iteration is guaranteed after this call.
-    /// Meant for cleanup and state saving that may require other modules.
+    /// Called after receiving a shutdown request. At least one main loop
+    /// iteration is guaranteed after this call. Meant for ending services or
+    /// activities that may start new master transactions or similar "new work".
     virtual void startShutdown() {}
 
-    /// Called after shutdown_lifetime grace period ends and before stopping
-    /// the main loop. At least one main loop iteration is guaranteed after
-    /// this call.
-    /// Meant for cleanup and state saving that may require other modules.
+    /// Called after shutdown_lifetime grace period ends. At least one main loop
+    /// iteration is guaranteed after this call. Meant for killing existing
+    /// inflight master transactions.
+    virtual void shutdownTransactions() {}
+
+    /// Called after all master transactions have ended. At least one main loop
+    /// iteration is guaranteed after this call. Meant for ending services
+    /// required by inflight master transactions.
     virtual void endingShutdown() {}
 
     /// Called after stopping the main loop and before releasing memory.
