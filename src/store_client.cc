@@ -749,6 +749,7 @@ store_client::readHeader(char const *buf, ssize_t len)
         parsingBuffer->consume(mem->swap_hdr_sz);
     } catch (...) {
         debugs(90, DBG_IMPORTANT, "ERROR: Failed to unpack Store entry metadata: " << CurrentException);
+        entry->disk().evictCached(*entry); // do not let others into the same trap
         fail();
         return;
     }
@@ -1010,6 +1011,7 @@ store_client::parseHttpHeadersFromDisk()
                Debug::Extra << "exception: " << CurrentException <<
                Debug::Extra << "raw input size: " << parsingBuffer->contentSize() << " bytes" <<
                Debug::Extra << "current buffer capacity: " << parsingBuffer->capacity() << " bytes");
+        entry->disk().evictCached(*entry); // do not let others into the same trap
         fail();
         return false;
     }
