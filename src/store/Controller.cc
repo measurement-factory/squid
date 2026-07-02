@@ -919,10 +919,12 @@ Store::Controller::checkTransients(const StoreEntry &e) const
 }
 
 void
-Store::Controller::updateFinished(const StoreEntry &e)
+Store::Controller::updateFinished(StoreEntry &e)
 {
-    if (e.hasTransients())
+    if (e.hasTransients()) {
+        transients->evictCached(e);
         transients->forgetMarkedEntry(e);
+    }
 }
 
 Store::Controller&

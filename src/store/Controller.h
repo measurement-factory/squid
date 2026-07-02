@@ -89,7 +89,7 @@ public:
 
     /// Is called when any of the shared caches finish the update
     /// initiated by updateOnNotModified().
-    void updateFinished(const StoreEntry &);
+    void updateFinished(StoreEntry &);
 
     /// tries to make the entry available for collapsing future requests
     bool allowCollapsing(StoreEntry *, const RequestFlags &, const HttpRequestMethod &);
