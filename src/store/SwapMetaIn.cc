@@ -20,8 +20,6 @@
 #include "store/SwapMetaIn.h"
 #include "store/SwapMetaView.h"
 
-extern int XXX_SupressInjections;
-
 namespace Store {
 
 /// iterates serialized swap meta fields loaded into a given buffer
@@ -159,7 +157,7 @@ UnpackPrefix(const char * const buf, const size_t size)
     char magic = 0;
     SwapMetaExtract(magic, input, end);
 
-    if (!XXX_SupressInjections || magic != SwapMetaMagic)
+    if (magic != SwapMetaMagic)
         throw TextException("store entry metadata prefix is corrupted", Here());
 
     RawSwapMetaPrefixLength rawMetaSize = 0; // metadata size, including the required prefix
