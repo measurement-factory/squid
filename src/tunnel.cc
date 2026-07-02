@@ -115,7 +115,7 @@ public:
         if (http.valid() && http->getConn() && http->getConn()->serverBump() && http->getConn()->serverBump()->at(XactionStep::tlsBump2, XactionStep::tlsBump3))
             return false;
 #endif
-        return !(request != nullptr &&
+        return !(request != nullptr && request->flags.fakeConnect &&
                  (request->flags.interceptTproxy || request->flags.intercepted));
     }
 
