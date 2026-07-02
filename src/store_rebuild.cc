@@ -282,6 +282,9 @@ storeRebuildLoadEntry(int fd, int diskIndex, MemBuf &buf, StoreRebuildData &)
     return true;
 }
 
+extern int XXX_SupressInjections;
+int XXX_SupressInjections = 0;
+
 bool
 storeRebuildParseEntry(MemBuf &buf, StoreEntry &tmpe, cache_key *key,
                        StoreRebuildData &stats,
@@ -291,12 +294,15 @@ storeRebuildParseEntry(MemBuf &buf, StoreEntry &tmpe, cache_key *key,
 
     tmpe.key = nullptr;
 
+++XXX_SupressInjections;
     try {
         swap_hdr_len = Store::UnpackIndexSwapMeta(buf, tmpe, key);
     } catch (...) {
         debugs(47, Important(65), "WARNING: Indexer ignores a cache_dir entry: " << CurrentException);
+--XXX_SupressInjections;
         return false;
     }
+--XXX_SupressInjections;
 
     // TODO: consume parsed metadata?
 
