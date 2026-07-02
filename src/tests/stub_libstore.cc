@@ -55,6 +55,7 @@ StoreSearch *Controller::search() STUB_RETVAL(nullptr)
 bool Controller::SmpAware() STUB_RETVAL(false)
 int Controller::store_dirs_rebuilding = 0;
 Controller &Root() STUB_RETREF(Controller)
+void Controller::updateFinished(StoreEntry &) STUB
 }
 
 #include "store/Disk.h"

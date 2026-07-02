@@ -324,6 +324,10 @@ public:
     void kickProducer();
 #endif
 
+    /// Calculates correct public key for feeding forcePublicKey().
+    /// Assumes adjustVary() has been called for this entry already.
+    const cache_key *calcPublicKey(KeyScope) const;
+
     /* Packable API */
     void append(char const *, int) override;
     void vappendf(const char *, va_list) override;
@@ -342,7 +346,6 @@ private:
     bool checkTooBig() const;
     void forcePublicKey(const cache_key *newkey);
     StoreEntry *adjustVary();
-    const cache_key *calcPublicKey(KeyScope) const;
     KeyScope publicKeyScope() const;
 
     /// flags [truncated or too big] entry with ENTRY_BAD_LENGTH and releases it
