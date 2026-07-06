@@ -413,13 +413,16 @@ PeerSelector::resolveSelected()
     // Bug 3243: CVE 2009-0801
     // Bypass of browser same-origin access control in intercepted communication
     // To resolve this we must use only the original client destination when going DIRECT
-    // on intercepted traffic which failed Host verification
+    // on intercepted traffic which failed Host verification.
+    // We add an exception real client CONNECTs. Forcing the original client
+    // destination here would loop back to the intercept listener
+    // instead of reaching the CONNECT target.
     const HttpRequest *req = request;
     const bool isIntercepted = !req->flags.redirected &&
                                (req->flags.intercepted || req->flags.interceptTproxy);
     const bool useOriginalDst = Config.onoff.client_dst_passthru || !req->flags.hostVerified;
     const bool choseDirect = fs && fs->code == HIER_DIRECT;
-    if (isIntercepted && useOriginalDst && choseDirect) {
+    if (isIntercepted && useOriginalDst && choseDirect && req->method != Http::METHOD_CONNECT) {
         // check the client is still around before using any of its details
         if (req->clientConnectionManager.valid()) {
             // construct a "result" adding the ORIGINAL_DST to the set instead of DIRECT
