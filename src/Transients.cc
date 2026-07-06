@@ -361,6 +361,13 @@ Transients::disconnect(StoreEntry &entry)
     }
 }
 
+void
+Transients::update(StoreEntry &e)
+{
+    assert(e.hasTransients());
+    map->replaceFileNo(e.calcPublicKey(ksDefault));
+}
+
 /// calculates maximum number of entries we need to store and map
 int64_t
 Transients::EntryLimit()

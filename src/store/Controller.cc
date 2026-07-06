@@ -627,6 +627,14 @@ Store::Controller::transientsDisconnect(StoreEntry &e)
 }
 
 void
+Store::Controller::transientsUpdate(StoreEntry &e)
+{
+    if (e.hasTransients()) {
+        transients->update(e);
+    }
+}
+
+void
 Store::Controller::handleIdleEntry(StoreEntry &e)
 {
     bool keepInLocalMemory = false;
