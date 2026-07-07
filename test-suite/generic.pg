@@ -1,0 +1,57 @@
+// Default Web Polygraph workload configuration for test-performance.sh.
+
+Content SmallContent = {
+    size = unif(0KB, 64KB);
+    cachable = 70%;
+};
+
+Content LargeContent = {
+    size = unif(1MB, 10MB);
+    cachable = 90%;
+};
+
+Server S = {
+    contents = [ SmallContent: 80%, LargeContent ];
+    direct_access = contents;
+
+    pconn_use_lmt = zipf(16);
+    idle_pconn_tout = 15sec;
+
+    addresses = ['127.0.0.1:8080' ];
+};
+
+Robot R = {
+    req_methods = [ "GET", "POST": 20%, "HEAD": 1% ];
+    post_contents = [ SmallContent ];
+
+    pop_model = { pop_distr = popUnif(); };
+    recurrence = 50%;
+
+    pconn_use_lmt = zipf(64);
+
+    origins = S.addresses;
+    addresses = ['127.0.0.1' ** 10 ];
+};
+
+use(S, R);
+
+Phase phRampUp = {
+    name = "ramp";
+    goal.duration = 1minute;
+    populus_factor_beg = 0;
+    populus_factor_end = 1.0;
+};
+
+Phase phMeasurement = {
+    name = "meas";
+    goal.duration = 10minutes;
+};
+
+Phase phCoolDown = {
+    name = "cool";
+    goal.duration = phRampUp.duration;
+    populus_factor_end = 0;
+    synchronize = false;
+};
+
+schedule(phRampUp, phMeasurement, phCoolDown);

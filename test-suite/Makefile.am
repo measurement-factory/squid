@@ -14,6 +14,7 @@ EXTRA_DIST = \
 	$(srcdir)/squidconf/* \
 	test-ast.sh \
 	test-functionality.sh \
+	test-performance.sh \
 	test-sources.sh \
 	test-squid-conf.sh \
 	testHeader.cc.in \
