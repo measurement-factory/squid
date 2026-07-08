@@ -48,31 +48,33 @@ jobs:
       - name: Checkout Squid sources
         uses: actions/checkout@v6
 
-      # XXX: These anonymous steps poorly duplicates functionality-tests steps in quick.yaml
-      - run: ./bootstrap.sh
-      - run: ./configure --with-openssl
-      - run: make -j`nproc`
-      - run: |
-          sudo make install
+      # # XXX: These anonymous steps poorly duplicates functionality-tests steps in quick.yaml
+      # - run: ./bootstrap.sh
+      # - run: ./configure --with-openssl
+      # - run: make -j`nproc`
+      # - run: |
+      #     sudo make install
+      #     sudo chown -R nobody:nogroup /usr/local/squid
+
+      - name: Fetch foreign exes
+        run: |
+          curl -o squid-instance.tgz --no-progress-meter https://www.measurement-factory.com/extras/squid-instance.tgz
+          tar -xvzf squid-instance.tgz
+          sudo mv -i squid-instance /usr/local/squid
+          sudo mkdir -p /usr/local/squid/var/cache
+          sudo mkdir -p /usr/local/squid/var/logs
+          sudo mkdir -p /usr/local/squid/var/run/squid
+          sudo mkdir -p /usr/local/squid/etc
+          sudo cp -p test-suite/generic.pg /usr/local/squid/etc/
           sudo chown -R nobody:nogroup /usr/local/squid
+          /usr/local/squid/sbin/squid --version
+          curl -o poly-exes.tgz --no-progress-meter https://www.measurement-factory.com/extras/poly-exes.tgz
+          tar -xvzf poly-exes.tgz
+          sudo mv -i exes /tmp/poly-exes
+          /tmp/poly-exes/client --version
+          /tmp/poly-exes/server --version
 
-      # XXX: Restore and adjust.
-      # - name: Fetch foreign exes
-      #   run: |
-      #     curl -o exes.tgz --no-progress-meter https://www.measurement-factory.com/extras/exes1.tgz
-      #     tar -xvzf exes.tgz
-      #     ./exes/client --version
-      #     ./exes/server --version
-      #     ./exes/squid --version
-      #     sudo mkdir -p /usr/local/squid/sbin
-      #     sudo mkdir -p /usr/local/squid/var/logs
-      #     sudo mkdir -p /usr/local/squid/etc
-      #     sudo cp -p ./exes/squid /usr/local/squid/sbin/
-      #     sudo cp -p ./exes/mime.conf /usr/local/squid/etc/
-      #     mkdir -p /usr/local/squid/sbin
-
-      # XXX: Restore
-      # - run: ./test-suite/test-functionality.sh generic-performance
+      - run: ./test-suite/test-functionality.sh generic-performance
 
       # XXX: This step duplicates a functionality-tests step in quick.yaml
       # Squid logs are not readable to actions/upload-artifact below
@@ -81,13 +83,12 @@ jobs:
         run: sudo chmod -R a+rX /usr/local/squid
 
       # XXX: This step poorly duplicates a functionality-tests step in quick.yaml
-      # XXX: Restore:      /usr/local/squid/var/logs/overlord*/*.log
-      # XXX: Restore:      "${{ runner.temp }}/*.log
-      # XXX: Restore:      "${{ runner.temp }}/**/*.log
       - name: Publish test logs
         if: success() || failure()
         uses: actions/upload-artifact@v7
         with:
           name: test-logs
           path: |
-            /usr/local/squid/**/*
+            /usr/local/squid/var/logs/overlord*/*.log
+            ${{ runner.temp }}/*.log
+            ${{ runner.temp }}/**/*.log

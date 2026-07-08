@@ -84,16 +84,26 @@ start_overlord() {
         return 0;
     fi
 
-    local suppressions=`realpath ../squid/test-suite/valgrind.supp`
+    # XXX: Restore, but not for performance tests.
+    # local suppressions=`realpath ../squid/test-suite/valgrind.supp`
+    #    --valgrind-suppressions $suppressions
 
     # Start Overlord script as root, so that it can start Squid as root,
     # emulating common deployment cases. Unlike starting as 'nobody', this
     # also allows easy access to the script source file, suppressions, etc.
     sudo --reset-timestamp --non-interactive \
         $SQUID_OVERLORD_DIR/overlord.pl \
-        --valgrind-suppressions $suppressions \
         > $log 2>&1 || return
-    echo "Started squid-overlord service at $url"
+
+    if test -e $log && curl -H 'Pop-Version: 4' --no-progress-meter $url/check > /dev/null
+    then
+        echo "Started squid-overlord service at $url"
+        return 0;
+    fi
+
+    echo "Failed to started squid-overlord service at $url"
+    ls -l $log
+    return 1
 }
 
 setup_test_tools() {
