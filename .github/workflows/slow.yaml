@@ -39,6 +39,15 @@ jobs:
           sudo apt-get --quiet=2 build-dep squid
           sudo apt-get --quiet=2 install libtool-bin valgrind
 
+      # XXX: This step duplicates a functionality-tests step in quick.yaml
+      - name: Setup a nodejs environment
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - name: Checkout Squid sources
+        uses: actions/checkout@v6
+
       - name: Test foreign exes
         run: |
           curl -o exes.tgz --no-progress-meter https://www.measurement-factory.com/extras/exes1.tgz
@@ -46,3 +55,28 @@ jobs:
           ./exes/client --version
           ./exes/server --version
           ./exes/squid --version
+          sudo mkdir -p /usr/local/squid/sbin
+          sudo mkdir -p /usr/local/squid/var/logs
+          sudo mkdir -p /usr/local/squid/etc
+          sudo cp -p ./exes/squid /usr/local/squid/sbin/
+          sudo cp -p ./exes/mime.conf /usr/local/squid/etc/
+          mkdir -p /usr/local/squid/sbin
+
+      - run: ./test-suite/test-functionality.sh generic-performance
+
+      # XXX: This step duplicates a functionality-tests step in quick.yaml
+      # Squid logs are not readable to actions/upload-artifact below
+      - name: Prep test logs
+        if: success() || failure()
+        run: sudo chmod -R a+rX /usr/local/squid
+
+      # XXX: This step poorly duplicates a functionality-tests step in quick.yaml
+      - name: Publish test logs
+        if: success() || failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-logs
+          path: |
+            "${{ runner.temp }}/*.log
+            "${{ runner.temp }}/**/*.log
+            /usr/local/squid/var/logs/overlord*/*.log

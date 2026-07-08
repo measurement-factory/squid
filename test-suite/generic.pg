@@ -35,23 +35,25 @@ Robot R = {
 
 use(S, R);
 
-Phase phRampUp = {
-    name = "ramp";
-    goal.duration = 1minute;
+Phase phWarmUp = {
+    name = "warm";
+    goal.duration = 20sec;
     populus_factor_beg = 0;
     populus_factor_end = 1.0;
+    log_stats = false;
 };
 
 Phase phMeasurement = {
     name = "meas";
-    goal.duration = 10minutes;
+    goal.duration = 1min; // XXX: 10min
 };
 
 Phase phCoolDown = {
     name = "cool";
-    goal.duration = phRampUp.duration;
+    goal.duration = phWarmUp.goal.duration;
     populus_factor_end = 0;
+    log_stats = false;
     synchronize = false;
 };
 
-schedule(phRampUp, phMeasurement, phCoolDown);
+schedule(phWarmUp, phMeasurement, phCoolDown);
