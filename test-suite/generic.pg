@@ -5,13 +5,8 @@ Content SmallContent = {
     cachable = 70%;
 };
 
-Content LargeContent = {
-    size = unif(1MB, 10MB);
-    cachable = 90%;
-};
-
 Server S = {
-    contents = [ SmallContent: 80%, LargeContent ];
+    contents = [ SmallContent ];
     direct_access = contents;
 
     pconn_use_lmt = zipf(16);
@@ -45,7 +40,7 @@ Phase phWarmUp = {
 
 Phase phMeasurement = {
     name = "meas";
-    goal.duration = 1min; // XXX: 10min
+    goal.duration = 10min;
 };
 
 Phase phCoolDown = {
