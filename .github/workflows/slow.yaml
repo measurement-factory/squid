@@ -30,21 +30,6 @@ jobs:
     runs-on: self-hosted
 
     steps:
-      # XXX: This step duplicates a functionality-tests step in quick.yaml
-      - name: Install prerequisite Linux packages
-        run: |
-          # required for "apt-get build-dep" to work
-          sudo sed --in-place -E 's/^(Types: deb)$/\1 deb-src/' /etc/apt/sources.list.d/ubuntu.sources
-          sudo apt-get --quiet=2 update
-          sudo apt-get --quiet=2 build-dep squid
-          sudo apt-get --quiet=2 install libtool-bin valgrind
-
-      # XXX: This step duplicates a functionality-tests step in quick.yaml
-      - name: Setup a nodejs environment
-        uses: actions/setup-node@v6
-        with:
-          node-version: 24
-
       - name: Checkout Squid sources
         uses: actions/checkout@v6
 
