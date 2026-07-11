@@ -67,11 +67,21 @@ jobs:
       - name: Terminate leftover processes
         if: success() || failure()
         run: |
-          if pgrep --list-full --full 'squid-overlord.pl|sbin/squid|[(]squid-'
+          primary='squid-overlord/overlord[.]pl|sbin[/]squid|[(]squid-'
+          secondary='[(]pinger[)]'
+          all="$primary|$secondary"
+          if pgrep --list-full --full "$all"
           then
-            pkill --INT --full 'squid-overlord.pl|sbin/squid'
+            echo "Killing the above processes"
+            sudo pkill -INT --full "$primary" || true
             sleep 30
-            pkill --KILL --full 'squid-overlord.pl|sbin/squid|[(]squid-|pinger'
+            sudo pkill -KILL --full "$all" || true
+            sleep 10
+            if pgrep --list-full --full "$all"
+            then
+              echo "Failed to kill the above processes"
+              exit 1;
+            fi
           fi
 
       # XXX: This step duplicates a functionality-tests step in quick.yaml
