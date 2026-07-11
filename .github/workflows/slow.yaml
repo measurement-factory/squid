@@ -43,21 +43,24 @@ jobs:
 
       - name: Fetch foreign exes
         run: |
-          curl -o squid-instance.tgz --no-progress-meter https://www.measurement-factory.com/extras/squid-instance.tgz
-          tar -xvzf squid-instance.tgz
-          sudo mv -i squid-instance /usr/local/squid
-          sudo mkdir -p /usr/local/squid/var/cache
-          sudo mkdir -p /usr/local/squid/var/logs
-          sudo mkdir -p /usr/local/squid/var/run/squid
-          sudo mkdir -p /usr/local/squid/etc
-          sudo cp -p test-suite/generic.pg /usr/local/squid/etc/
-          sudo chown -R nobody:nogroup /usr/local/squid
-          /usr/local/squid/sbin/squid --version
-          curl -o poly-exes.tgz --no-progress-meter https://www.measurement-factory.com/extras/poly-exes.tgz
-          tar -xvzf poly-exes.tgz
-          sudo mv -i exes /tmp/poly-exes
-          /tmp/poly-exes/client --version
-          /tmp/poly-exes/server --version
+          if ! test -e /usr/local/squid
+          then
+            curl -o squid-instance.tgz --no-progress-meter https://www.measurement-factory.com/extras/squid-instance.tgz
+            tar -xvzf squid-instance.tgz
+            sudo mv -i squid-instance /usr/local/squid
+            sudo mkdir -p /usr/local/squid/var/cache
+            sudo mkdir -p /usr/local/squid/var/logs
+            sudo mkdir -p /usr/local/squid/var/run/squid
+            sudo mkdir -p /usr/local/squid/etc
+            sudo cp -p test-suite/generic.pg /usr/local/squid/etc/
+            sudo chown -R nobody:nogroup /usr/local/squid
+            /usr/local/squid/sbin/squid --version
+            curl -o poly-exes.tgz --no-progress-meter https://www.measurement-factory.com/extras/poly-exes.tgz
+            tar -xvzf poly-exes.tgz
+            sudo mv -i exes /tmp/poly-exes
+            /tmp/poly-exes/client --version
+            /tmp/poly-exes/server --version
+          fi
 
       - run: ./test-suite/test-functionality.sh generic-performance
 
