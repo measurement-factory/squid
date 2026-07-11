@@ -78,13 +78,15 @@ clone_repo() {
 }
 
 start_overlord() {
-    local url=http://localhost:13128/
+    local url=http://localhost:13128
     local log=$TMPDIR/squid-overlord.log
     if test -e $log && curl -H 'Pop-Version: 4' --no-progress-meter $url/check > /dev/null
     then
         echo "Will reuse squid-overlord service running at $url"
         return 0;
     fi
+
+    echo "Starting squid-overlord service at $url"
 
     # XXX: Restore, but not for performance tests.
     # local suppressions=`realpath ../squid/test-suite/valgrind.supp`
@@ -103,7 +105,7 @@ start_overlord() {
         return 0;
     fi
 
-    echo "Failed to started squid-overlord service at $url"
+    echo "Failed to start squid-overlord service at $url"
     ls -l $log
     return 1
 }
