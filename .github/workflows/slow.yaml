@@ -61,6 +61,16 @@ jobs:
 
       - run: ./test-suite/test-functionality.sh generic-performance
 
+      - name: Terminate leftover processes
+        if: success() || failure()
+        run: |
+          if pgrep --list-full --full 'squid-overlord.pl|sbin/squid|[(]squid-'
+          then
+            pkill --INT --full 'squid-overlord.pl|sbin/squid'
+            sleep 30
+            pkill --KILL --full 'squid-overlord.pl|sbin/squid|[(]squid-|pinger'
+          fi
+
       # XXX: This step duplicates a functionality-tests step in quick.yaml
       # Squid logs are not readable to actions/upload-artifact below
       - name: Prep test logs
