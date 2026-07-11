@@ -27,7 +27,7 @@ jobs:
 
   performance-baseline:
 
-    runs-on: ubuntu-24.04
+    runs-on: self-hosted
 
     steps:
       # XXX: This step duplicates a functionality-tests step in quick.yaml
