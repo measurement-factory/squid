@@ -422,7 +422,7 @@ PeerSelector::resolveSelected()
                                (req->flags.intercepted || req->flags.interceptTproxy);
     const bool useOriginalDst = Config.onoff.client_dst_passthru || !req->flags.hostVerified;
     const bool choseDirect = fs && fs->code == HIER_DIRECT;
-    const auto realClientConnect = req->method == Http::METHOD_CONNECT && !req->flags.fakeRequest;
+    const bool realClientConnect = req->method == Http::METHOD_CONNECT && !req->flags.fakeRequest;
     if (isIntercepted && useOriginalDst && choseDirect && !realClientConnect) {
         // check the client is still around before using any of its details
         if (req->clientConnectionManager.valid()) {

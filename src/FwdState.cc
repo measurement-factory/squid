@@ -172,8 +172,8 @@ void FwdState::start(Pointer aSelf)
     // instead of reaching the CONNECT target.
     const bool isIntercepted = request && !request->flags.redirected && (request->flags.intercepted || request->flags.interceptTproxy);
     const bool useOriginalDst = Config.onoff.client_dst_passthru || (request && !request->flags.hostVerified);
-    const bool isConnect = request && request->method == Http::METHOD_CONNECT;
-    if (isIntercepted && useOriginalDst && !isConnect) {
+    const bool realClientConnect = request && request->method == Http::METHOD_CONNECT && !request->flags.fakeRequest;
+    if (isIntercepted && useOriginalDst && !realClientConnect) {
         selectPeerForIntercepted();
         return;
     }
@@ -1492,12 +1492,12 @@ getOutgoingAddress(HttpRequest * request, const Comm::ConnectionPointer &conn)
         conn->local.setIPv4();
 
     // Do not spoof the client's source address for a real client CONNECT;
-    const bool clientOriginatedConnect = request &&
+    const bool realClientConnect = request &&
                                          request->method == Http::METHOD_CONNECT &&
                                          !request->flags.fakeRequest;
 
     // maybe use TPROXY client address
-    if (request && request->flags.spoofClientIp && !clientOriginatedConnect) {
+    if (request && request->flags.spoofClientIp && !realClientConnect) {
         if (!conn->getPeer() || !conn->getPeer()->options.no_tproxy) {
 #if FOLLOW_X_FORWARDED_FOR && LINUX_NETFILTER
             if (Config.onoff.tproxy_uses_indirect_client)
