@@ -68,8 +68,8 @@ public:
     bool hostVerified = false;
     /// Set for requests handled by a "tproxy" port.
     bool interceptTproxy = false;
-    // Set for fake CONNECT requests created during interception.
-    bool fakeConnect = false;
+    // Set for fake requests created by Squid itself, e.g., during interception.
+    bool fakeRequest = false;
     /// The client IP address should be spoofed when connecting to the web server.
     /// This applies to TPROXY traffic that has not had spoofing disabled through
     /// the spoof_client_ip squid.conf ACL.

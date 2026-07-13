@@ -1494,7 +1494,7 @@ getOutgoingAddress(HttpRequest * request, const Comm::ConnectionPointer &conn)
     // Do not spoof the client's source address for a real client CONNECT;
     const bool clientOriginatedConnect = request &&
                                          request->method == Http::METHOD_CONNECT &&
-                                         !request->flags.fakeConnect;
+                                         !request->flags.fakeRequest;
 
     // maybe use TPROXY client address
     if (request && request->flags.spoofClientIp && !clientOriginatedConnect) {
