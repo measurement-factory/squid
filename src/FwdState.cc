@@ -167,13 +167,9 @@ void FwdState::start(Pointer aSelf)
     // Bug 3243: CVE 2009-0801
     // Bypass of browser same-origin access control in intercepted communication
     // To resolve this we must force DIRECT and only to the original client destination.
-    // We add an exception real client CONNECTs. Forcing the original client
-    // destination here would loop back to the intercept listener
-    // instead of reaching the CONNECT target.
     const bool isIntercepted = request && !request->flags.redirected && (request->flags.intercepted || request->flags.interceptTproxy);
     const bool useOriginalDst = Config.onoff.client_dst_passthru || (request && !request->flags.hostVerified);
-    const bool realClientConnect = request && request->method == Http::METHOD_CONNECT && !request->flags.fakeRequest;
-    if (isIntercepted && useOriginalDst && !realClientConnect) {
+    if (isIntercepted && useOriginalDst) {
         selectPeerForIntercepted();
         return;
     }
