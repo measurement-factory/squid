@@ -83,7 +83,7 @@ Ssl::ReportAndForgetErrors(std::ostream &os)
 {
     unsigned int reported = 0; // efficiently marks ForgetErrors() call boundary
     while (const auto errorToForget = ERR_get_error())
-        os << Debug::Extra << "OpenSSL-saved error #" << (++reported) << ": 0x" << asHex(errorToForget);
+        os << Debug::Extra << "OpenSSL-saved error #" << (++reported) << ": " << Security::ErrorString(errorToForget);
     return os;
 }
 

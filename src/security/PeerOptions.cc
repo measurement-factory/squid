@@ -13,6 +13,7 @@
 #include "globals.h"
 #include "parser/Tokenizer.h"
 #include "Parsing.h"
+#include "sbuf/Stream.h"
 #include "security/KeyLogger.h"
 #include "security/PeerOptions.h"
 
@@ -75,9 +76,6 @@ Security::PeerOptions::parse(const char *token)
         caFiles.emplace_back(SBuf(token + 7));
     } else if (strncmp(token, "capath=", 7) == 0) {
         caDir = SBuf(token + 7);
-#if !USE_OPENSSL
-        debugs(3, DBG_PARSE_NOTE(1), "WARNING: capath= option requires --with-openssl.");
-#endif
     } else if (strncmp(token, "crlfile=", 8) == 0) {
         crlFile = SBuf(token + 8);
         loadCrlFile();
@@ -679,57 +677,77 @@ Security::PeerOptions::updateContextNpn(Security::ContextPointer &ctx)
 #endif
 }
 
-static const char *
+[[maybe_unused]]
+static void
+throwLibrarySupportError(const SBuf &errorMessage)
+{
+    // XXX: Refactor high-level configuration/callers code to enforce library
+    // requirements, so that low-level code like this one becomes unreachable.
+    throw TextException(ToSBuf(errorMessage, Debug::Extra, "reason: Squid built without OpenSSL or GnuTLS support"), Here());
+}
+
+static void
 loadSystemTrustedCa(Security::ContextPointer &ctx)
 {
     debugs(83, 8, "Setting default system Trusted CA. ctx=" << (void*)ctx.get());
+    const auto errorMessage = "Cannot enable default locations for loading trusted CA certificates";
 #if USE_OPENSSL
+    // The call below does not fail when the configured OpenSSL default CA
+    // directory or certificate file is missing or inaccessible. We cannot
+    // easily validate those locations ourselves because it is difficult to
+    // reproduce complex internal OpenSSL logic for computing those defaults.
     if (SSL_CTX_set_default_verify_paths(ctx.get()) == 0)
-        return Security::ErrorString(ERR_get_error());
+        throw TextException(ToSBuf(errorMessage, Ssl::ReportAndForgetErrors), Here());
 
 #elif HAVE_LIBGNUTLS
     auto x = gnutls_certificate_set_x509_system_trust(ctx.get());
     if (x < 0)
-        return Security::ErrorString(x);
+        throw TextException(ToSBuf(errorMessage, Debug::Extra, "GnuTLS error: ", Security::ErrorString(x)), Here());
 
+#else
+    throwLibrarySupportError(SBuf(errorMessage));
 #endif
-    return nullptr;
 }
 
 void
 Security::PeerOptions::updateContextCa(Security::ContextPointer &ctx)
 {
     debugs(83, 8, "Setting CA certificate locations.");
-#if USE_OPENSSL
     if (const char *path = caDir.isEmpty() ? nullptr : caDir.c_str()) {
+        const auto errorMessage = [path]() -> auto { return ToSBuf("Cannot set the directory containing trusted CA certificates: ", path); };
+#if USE_OPENSSL
+        // The call below caches path info but does not fail when the directory
+        // is missing or inaccessible. TODO: Validate directory accessibility to
+        // detect more misconfiguration cases?
         if (!SSL_CTX_load_verify_locations(ctx.get(), nullptr, path)) {
-            const auto x = ERR_get_error();
-            debugs(83, DBG_IMPORTANT, "WARNING: Ignoring error setting CA certificate location " << path << ": " << Security::ErrorString(x));
+            throw TextException(ToSBuf(errorMessage(), Ssl::ReportAndForgetErrors), Here());
         }
-    }
+#elif HAVE_LIBGNUTLS
+        const auto x = gnutls_certificate_set_x509_trust_dir(ctx.get(), caDir.c_str(), GNUTLS_X509_FMT_PEM);
+        Assure(x >= 0); // this GnuTLS function does not report errors
+#else
+        throwLibrarySupportError(errorMessage());
 #endif
+    }
+
     for (auto i : caFiles) {
+        const auto errorMessage = [&i]() -> auto { return ToSBuf("Cannot set the location of a trusted CA certificate: ", i); };
 #if USE_OPENSSL
         if (!SSL_CTX_load_verify_locations(ctx.get(), i.c_str(), nullptr)) {
-            const auto x = ERR_get_error();
-            debugs(83, DBG_IMPORTANT, "WARNING: Ignoring error setting CA certificate location " <<
-                   i << ": " << Security::ErrorString(x));
+            throw TextException(ToSBuf(errorMessage(), Ssl::ReportAndForgetErrors), Here());
         }
 #elif HAVE_LIBGNUTLS
         const auto x = gnutls_certificate_set_x509_trust_file(ctx.get(), i.c_str(), GNUTLS_X509_FMT_PEM);
         if (x < 0) {
-            debugs(83, DBG_IMPORTANT, "WARNING: Ignoring error setting CA certificate location " <<
-                   i << ": " << Security::ErrorString(x));
+            throw TextException(ToSBuf(errorMessage(), Debug::Extra, "GnuTLS error: ", Security::ErrorString(x)), Here());
         }
+#else
+        throwLibrarySupportError(errorMessage());
 #endif
     }
 
-    if (!flags.tlsDefaultCa)
-        return;
-
-    if (const char *err = loadSystemTrustedCa(ctx)) {
-        debugs(83, DBG_IMPORTANT, "WARNING: Ignoring error setting default trusted CA : " << err);
-    }
+    if (flags.tlsDefaultCa)
+        loadSystemTrustedCa(ctx);
 }
 
 void
