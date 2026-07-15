@@ -172,13 +172,13 @@ using GeneralName = AnyP::Host;
 /**
  * Load PEM-encoded certificates from the given file.
  */
-bool loadCerts(const char *certsFile, Ssl::CertsIndexedList &list);
+void loadCerts(const char *certsFile, Ssl::CertsIndexedList &);
 
 /**
  * Load PEM-encoded certificates to the squid untrusteds certificates
  * internal DB from the given file.
  */
-bool loadSquidUntrusted(const char *path);
+void loadSquidUntrusted(const char *filename);
 
 /**
  * Removes all certificates from squid untrusteds certificates
@@ -214,29 +214,6 @@ bool missingChainCertificatesUrls(std::queue<SBuf> &URIs, const STACK_OF(X509) &
   * Generate a certificate to be used as untrusted signing certificate, based on a trusted CA
 */
 bool generateUntrustedCert(Security::CertPointer & untrustedCert, Security::PrivateKeyPointer & untrustedPkey, Security::CertPointer const & cert, Security::PrivateKeyPointer const & pkey);
-
-/// certificates indexed by issuer name
-typedef std::multimap<SBuf, X509 *> CertsIndexedList;
-
-/**
- \ingroup ServerProtocolSSLAPI
- * Load PEM-encoded certificates from the given file.
- */
-bool loadCerts(const char *certsFile, Ssl::CertsIndexedList &list);
-
-/**
- \ingroup ServerProtocolSSLAPI
- * Load PEM-encoded certificates to the squid untrusteds certificates
- * internal DB from the given file.
- */
-bool loadSquidUntrusted(const char *path);
-
-/**
- \ingroup ServerProtocolSSLAPI
- * Removes all certificates from squid untrusteds certificates
- * internal DB and frees all memory
- */
-void unloadSquidUntrusted();
 
 /**
   \ingroup ServerProtocolSSLAPI

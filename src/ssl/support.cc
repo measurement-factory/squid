@@ -1309,21 +1309,20 @@ Ssl::findIssuerUri(X509 *cert)
     return uri[0] != '\0' ? uri : nullptr;
 }
 
-bool
+void
 Ssl::loadCerts(const char *certsFile, Ssl::CertsIndexedList &list)
 {
-    const BIO_Pointer in(BIO_new_file(certsFile, "r"));
-    if (!in) {
-        debugs(83, DBG_IMPORTANT, "ERROR: Failed to open '" << certsFile << "' to load certificates");
-        return false;
-    }
+    const auto in = OpenFileForReading(certsFile);
 
+    const auto initialSize = list.size();
     while (auto aCert = ReadOptionalCertificate(in)) {
         const auto name = Security::SubjectName(*aCert);
         list.insert(std::pair<SBuf, X509 *>(name, aCert.release()));
     }
-    debugs(83, 4, "Loaded " << list.size() << " certificates from file: '" << certsFile << "'");
-    return true;
+    const auto loadedCount = list.size() - initialSize;
+    debugs(83, 4, "loaded " << loadedCount << " certificates from " << certsFile);
+    if (!loadedCount)
+        debugs(83, DBG_IMPORTANT, "WARNING: No X509 certificates found in " << certsFile);
 }
 
 /// quickly find the issuer certificate of a certificate cert in the
@@ -1540,10 +1539,10 @@ Ssl::useSquidUntrusted(SSL_CTX *sslContext)
     SSL_CTX_set_cert_verify_callback(sslContext, untrustedToStoreCtx_cb, nullptr);
 }
 
-bool
+void
 Ssl::loadSquidUntrusted(const char *path)
 {
-    return Ssl::loadCerts(path, SquidUntrustedCerts());
+    loadCerts(path, SquidUntrustedCerts());
 }
 
 void

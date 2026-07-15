@@ -87,8 +87,9 @@ Ssl::ReportAndForgetErrors(std::ostream &os)
     return os;
 }
 
+template <typename Problem>
 [[ noreturn ]] static void
-ThrowErrors(const char * const problem, const int savedErrno, const SourceLocation &where)
+ThrowErrors(const Problem &problem, const int savedErrno, const SourceLocation &where)
 {
     throw TextException(ToSBuf(problem, ": ",
                                Ssl::ReportAndForgetErrors,
@@ -822,15 +823,23 @@ bool Ssl::generateSslCertificate(Security::CertPointer & certToStore, Security::
     return  generateFakeSslCertificate(certToStore, pkeyToStore, properties, serial);
 }
 
-bool
-Ssl::OpenCertsFileForReading(Ssl::BIO_Pointer &bio, const char *filename)
+Ssl::BIO_Pointer
+Ssl::OpenFileForReading(const char * const filename)
 {
-    bio.reset(BIO_new(BIO_s_file()));
-    if (!bio)
-        return false;
-    if (!BIO_read_filename(bio.get(), filename))
-        return false;
-    return true;
+    ForgetErrors();
+
+    BIO_Pointer bio(BIO_new(BIO_s_file()));
+    if (!bio) {
+        const auto savedErrno = errno;
+        ThrowErrors("cannot allocate OpenSSL file BIO structure", savedErrno, Here());
+    }
+
+    if (!BIO_read_filename(bio.get(), filename)) {
+        const auto savedErrno = errno;
+        ThrowErrors(ToSBuf("cannot open ", filename, " for reading"), savedErrno, Here());
+    }
+
+    return bio;
 }
 
 Security::CertPointer
@@ -884,9 +893,7 @@ Ssl::ReadPrivateKeyFromFile(char const * keyFilename, Security::PrivateKeyPointe
 {
     if (!keyFilename)
         return;
-    Ssl::BIO_Pointer bio;
-    if (!OpenCertsFileForReading(bio, keyFilename))
-        return;
+    auto bio = OpenFileForReading(keyFilename);
     ReadPrivateKey(bio, pkey, passwd_callback);
 }
 
