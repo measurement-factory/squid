@@ -73,13 +73,13 @@ public:
 
 private:
     ParsedPortFlags parseFlags();
-    void loadCrlFile();
+    void loadCrlFile(const SBuf &filename);
     void loadKeysFile();
 
 public:
     SBuf sslOptions;     ///< library-specific options string
     SBuf caDir;          ///< path of directory containing a set of trusted Certificate Authorities
-    SBuf crlFile;        ///< path of file containing Certificate Revoke List
+    SBuf crlFile;        ///< path of file containing Certificate Revocation List; \sa parsedCrl
 
     SBuf sslCipher;
     SBuf sslFlags;       ///< flags defining what TLS operations Squid performs

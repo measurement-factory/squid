@@ -26,15 +26,9 @@ Security::KeyData::loadCertificates()
     cert.reset(); // paranoid: ensure cert is unset
 
 #if USE_OPENSSL
-    const char *certFilename = certFile.c_str();
-    Ssl::BIO_Pointer bio(BIO_new(BIO_s_file()));
-    if (!bio || !BIO_read_filename(bio.get(), certFilename)) {
-        const auto x = ERR_get_error();
-        debugs(83, DBG_IMPORTANT, "ERROR: unable to load certificate file '" << certFile << "': " << ErrorString(x));
-        return false;
-    }
-
+    Ssl::BIO_Pointer bio; // Move inside try/catch when implementing "Reject configs" TODO below is implemented.
     try {
+        bio = Ssl::OpenFileForReading(certFile.c_str());
         cert = Ssl::ReadCertificate(bio);
         debugs(83, DBG_PARSE_NOTE(2), "Loaded signing certificate: " << *cert);
     }
@@ -44,6 +38,7 @@ Security::KeyData::loadCertificates()
                Debug::Extra << "problem: " << CurrentException);
         return false;
     }
+    Assure(bio);
 
     try {
         // Squid sends `cert` (loaded above) followed by certificates in `chain`

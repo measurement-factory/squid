@@ -77,8 +77,7 @@ Security::PeerOptions::parse(const char *token)
     } else if (strncmp(token, "capath=", 7) == 0) {
         caDir = SBuf(token + 7);
     } else if (strncmp(token, "crlfile=", 8) == 0) {
-        crlFile = SBuf(token + 8);
-        loadCrlFile();
+        loadCrlFile(SBuf(token + 8));
     } else if (strncmp(token, "flags=", 6) == 0) {
         if (parsedFlags != 0) {
             debugs(3, DBG_PARSE_NOTE(1), "WARNING: Overwriting flags=" << sslFlags << " with " << SBuf(token + 6));
@@ -614,27 +613,27 @@ Security::PeerOptions::parseFlags()
     return fl;
 }
 
-/// Load a CRLs list stored in the file whose /path/name is in crlFile
-/// replaces any CRL loaded previously
+/// Load all X509 CRL entries from the given file into parsedCrl.
 void
-Security::PeerOptions::loadCrlFile()
+Security::PeerOptions::loadCrlFile(const SBuf &filename)
 {
-    parsedCrl.clear();
-    if (crlFile.isEmpty())
-        return;
+    if (filename.isEmpty())
+        throw TextException("empty crlfile=... parameter values are not supported", Here());
+    if (!crlFile.isEmpty())
+        throw TextException("multiple crlfile=... parameters are not supported", Here());
+    crlFile = filename;
 
+    Assure(parsedCrl.empty());
 #if USE_OPENSSL
-    BIO *in = BIO_new_file(crlFile.c_str(), "r");
-    if (!in) {
-        debugs(83, 2, "WARNING: Failed to open CRL file " << crlFile);
-        return;
-    }
-
-    while (X509_CRL *crl = PEM_read_bio_X509_CRL(in,nullptr,nullptr,nullptr)) {
+    const auto bio = Ssl::OpenFileForReading(crlFile.c_str());
+    while (const auto crl = PEM_read_bio_X509_CRL(bio.get(), nullptr, nullptr, nullptr)) {
         parsedCrl.emplace_back(Security::CrlPointer(crl));
     }
-    BIO_free(in);
+#else
+    throwLibrarySupportError(ToSBuf("Cannot load CRLs from ", crlFile));
 #endif
+    if (parsedCrl.empty())
+        debugs(83, DBG_PARSE_NOTE(DBG_IMPORTANT), "WARNING: No X509 CRL entries found in crlfile=" << crlFile);
 }
 
 void
@@ -754,15 +753,11 @@ void
 Security::PeerOptions::updateContextCrl(Security::ContextPointer &ctx)
 {
 #if USE_OPENSSL
-    bool verifyCrl = false;
+    const auto verifyCrl = !parsedCrl.empty();
     X509_STORE *st = SSL_CTX_get_cert_store(ctx.get());
-    if (parsedCrl.size()) {
-        for (auto &i : parsedCrl) {
-            if (!X509_STORE_add_crl(st, i.get()))
-                debugs(83, 2, "WARNING: Failed to add CRL");
-            else
-                verifyCrl = true;
-        }
+    for (const auto &i: parsedCrl) {
+        if (!X509_STORE_add_crl(st, i.get()))
+            throw TextException(ToSBuf("Cannot add a loaded CRL entry to the security context", Ssl::ReportAndForgetErrors), Here());
     }
 
 #if X509_V_FLAG_CRL_CHECK
