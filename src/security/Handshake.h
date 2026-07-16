@@ -84,17 +84,19 @@ public:
     MessageSource messageSource;
 
 private:
+    using ParseMethod = void (HandshakeParser::*)();
+
     bool isSslv2Record(const SBuf &raw) const;
     void parseRecord();
     void parseModernRecord();
     void parseVersion2Record();
     void parseMessages();
+    void parseNonEmptyMessages(ParseMethod);
 
-    void parseChangeCipherCpecMessage();
+    void parseChangeCipherSpecMessage();
     void parseAlertMessage();
     void parseHandshakeMessage();
-    void parseApplicationDataMessage();
-    void skipMessage(const char *msgType);
+    void skipPossiblyEmptyMessages(const char *msgType);
 
     bool parseRecordVersion2Try();
     void parseVersion2HandshakeMessage(const SBuf &raw);
@@ -114,9 +116,6 @@ private:
     unsigned int currentContentType; ///< The current TLS/SSL record content type
 
     const char *done; ///< not nil if we got what we were looking for
-
-    /// concatenated TLSPlaintext.fragments of TLSPlaintext.type
-    SBuf fragments;
 
     /// TLS record layer (parsing uninterpreted data)
     Parser::BinaryTokenizer tkRecords;
