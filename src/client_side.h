@@ -440,7 +440,8 @@ private:
     void terminateAll(const Error &, const LogTagsErrors &) override;
     bool shouldCloseOnEof() const override;
 
-    void checkLogging();
+    const char * ignoreLeftovers() const;
+    void allTerminated();
 
     void parseRequests();
     void clientAfterReadingRequests();
@@ -503,6 +504,8 @@ private:
     /// If set, are propagated to the current and all future master transactions
     /// on the connection.
     NotePairs::Pointer theNotes;
+    /// whether terminateAll() has been called
+    bool allTerminated_ = false;
 };
 
 const char *findTrailingHTTPVersion(const char *uriAndHTTPVersion, const char *end = nullptr);
