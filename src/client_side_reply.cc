@@ -363,9 +363,6 @@ clientReplyContext::sendClientUpstreamResponse(const StoreIOBuffer &upstreamResp
 {
     removeStoreReference(&old_sc, &old_entry);
 
-    if (collapsedRevalidation)
-        http->storeEntry()->clearPublicKeyScope();
-
     /* here the data to send is the data we just received */
     assert(!EBIT_TEST(http->storeEntry()->flags, ENTRY_ABORTED));
     sendMoreData(upstreamResponse);
