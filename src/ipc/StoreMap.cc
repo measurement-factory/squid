@@ -10,6 +10,7 @@
 
 #include "squid.h"
 #include "base/IoManip.h"
+#include "CollapsedForwarding.h"
 #include "ipc/StoreMap.h"
 #include "sbuf/SBuf.h"
 #include "SquidConfig.h"
@@ -375,7 +376,7 @@ Ipc::StoreMap::abortUpdating(Update &update)
 
 // XXX: duplication with StoreMap::openForWriting()
 bool
-Ipc::StoreMap::replaceFileNo(const cache_key *const key)
+Ipc::StoreMap::replaceFileNo(const cache_key *const key, sfileno &fresh)
 {
     const auto name = nameByKey(key);
     const int currentIdx = fileNoByName(name);
@@ -418,6 +419,8 @@ Ipc::StoreMap::replaceFileNo(const cache_key *const key)
     // swap anchor "pointers": fileNos[name] <-> fileNos[available.name]
     relocate(name, available.fileNo);
     relocate(available.name, currentIdx);
+    available.anchor->wasRelocated = true;
+    fresh = available.fileNo;
 
     staleAnchor->lock.unlockHeaders();
     closeForReading(currentIdx);
@@ -815,7 +818,8 @@ Ipc::StoreMap::closeForUpdating(Update &update)
     // either way, fresh chain uses the stale chain suffix now
 
     // update Transients entry index before the fresh anchor becomes available
-    Store::Root().transientsUpdate(*update.entry);
+    sfileno freshTransientsFileNo = 0;
+    const bool transientsUpdated = Store::Root().transientsUpdate(*update.entry, freshTransientsFileNo);
 
     // make the fresh anchor/chain readable for everybody
     update.fresh.anchor->lock.switchExclusiveToShared();
@@ -858,6 +862,11 @@ Ipc::StoreMap::closeForUpdating(Update &update)
     // finally, unlock the fresh entry
     closeForReading(update.fresh.fileNo);
     update.fresh = Update::Edition();
+
+    // notify those who could have attached to the updated Transients entry
+    // so that they could anchorToCache()
+    if (transientsUpdated)
+        CollapsedForwarding::Broadcast(freshTransientsFileNo, Here(), false);
 
     debugs(54, 5, "closed entry " << updateSaved.stale.fileNo << " of " << *updateSaved.entry <<
            " named " << updateSaved.stale.name << " for updating " << path <<
@@ -1286,6 +1295,7 @@ Ipc::StoreMapAnchor::rewind()
     waitingToBeFreed = false;
     // no freeingCheckpoint() here because we are only called for a locked entry
     writerHalted = false;
+    wasRelocated = false;
     // but keep the lock
 }
 

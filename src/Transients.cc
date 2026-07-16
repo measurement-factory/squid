@@ -289,6 +289,7 @@ Transients::status(const StoreEntry &entry, Transients::EntryStatus &entryStatus
                          map->writeableEntry(idx) : map->readableEntry(idx);
     entryStatus.hasWriter = anchor.writing();
     entryStatus.waitingToBeFreed = anchor.waitingToBeFreed;
+    entryStatus.wasRelocated = anchor.wasRelocated;
 }
 
 void
@@ -361,11 +362,11 @@ Transients::disconnect(StoreEntry &entry)
     }
 }
 
-void
-Transients::update(StoreEntry &e)
+bool
+Transients::update(StoreEntry &e, sfileno &fresh)
 {
     assert(e.hasTransients());
-    map->replaceFileNo(e.calcPublicKey(ksDefault));
+    return map->replaceFileNo(e.calcPublicKey(ksDefault), fresh);
 }
 
 /// calculates maximum number of entries we need to store and map

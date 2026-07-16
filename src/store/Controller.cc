@@ -626,12 +626,10 @@ Store::Controller::transientsDisconnect(StoreEntry &e)
         transients->disconnect(e);
 }
 
-void
-Store::Controller::transientsUpdate(StoreEntry &e)
+bool
+Store::Controller::transientsUpdate(StoreEntry &e, sfileno &fresh)
 {
-    if (e.hasTransients()) {
-        transients->update(e);
-    }
+    return e.hasTransients() ? transients->update(e, fresh) : false;
 }
 
 void
@@ -904,7 +902,8 @@ Store::Controller::anchorToCache(StoreEntry &entry)
     if (entryStatus.waitingToBeFreed)
         throw TextException("will never be able to anchor to an already marked entry", Here());
 
-    if (!entryStatus.hasWriter)
+    // the entry that is being updated is not opened for writing
+    if (!entryStatus.hasWriter && !entryStatus.wasRelocated)
         throw TextException("will never be able to anchor to an abandoned-by-writer entry", Here());
 
     debugs(20, 7, "skipping not yet cached " << entry);
