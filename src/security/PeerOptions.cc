@@ -723,7 +723,10 @@ Security::PeerOptions::updateContextCa(Security::ContextPointer &ctx)
         }
 #elif HAVE_LIBGNUTLS
         const auto x = gnutls_certificate_set_x509_trust_dir(ctx.get(), caDir.c_str(), GNUTLS_X509_FMT_PEM);
-        Assure(x >= 0); // this GnuTLS function does not report errors
+        // The above GnuTLS function is documented to return a non-negative
+        // counter, but we check `x` anyway to use errorMessage(), at least.
+        if (x < 0)
+            throw TextException(ToSBuf(errorMessage(), Debug::Extra, "GnuTLS error: ", Security::ErrorString(x)), Here());
 #else
         throwLibrarySupportError(errorMessage());
 #endif
