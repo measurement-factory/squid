@@ -19,6 +19,9 @@
 void
 Pipeline::add(const Http::StreamPointer &c)
 {
+    Assure(!mayUseConnection());
+    Assure(!poppedBusy);
+    c->mayUseConnection(true);
     requests.push_back(c);
     ++nrequests;
     debugs(33, 3, "Pipeline " << (void*)this << " add request " << nrequests << ' ' << c);
@@ -48,6 +51,12 @@ Pipeline::back() const
     return requests.back();
 }
 
+bool
+Pipeline::mayUseConnection() const
+{
+    return requests.empty() ? false : requests.front()->mayUseConnection();
+}
+
 void
 Pipeline::popMe(const Http::StreamPointer &which)
 {
@@ -58,6 +67,10 @@ Pipeline::popMe(const Http::StreamPointer &which)
     // in reality there may be multiple contexts doing processing in parallel.
     // XXX: pipeline still assumes HTTP/1 FIFO semantics are obeyed.
     assert(which == requests.front());
+    if (which->mayUseConnection()) {
+        Assure(requests.size() == 1);
+        poppedBusy = true;
+    }
     requests.pop_front();
 }
 
