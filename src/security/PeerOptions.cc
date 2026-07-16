@@ -23,6 +23,15 @@
 
 #include <bitset>
 
+[[maybe_unused]]
+static void
+throwLibrarySupportError(const SBuf &errorMessage)
+{
+    // XXX: Refactor high-level configuration/callers code to enforce library
+    // requirements, so that low-level code like this one becomes unreachable.
+    throw TextException(ToSBuf(errorMessage, Debug::Extra, "reason: Squid built without OpenSSL or GnuTLS support"), Here());
+}
+
 Security::PeerOptions &
 Security::ProxyOutgoingConfig()
 {
@@ -674,15 +683,6 @@ Security::PeerOptions::updateContextNpn(Security::ContextPointer &ctx)
     //       it does support ALPN per-session, not per-context.
     (void)ctx;
 #endif
-}
-
-[[maybe_unused]]
-static void
-throwLibrarySupportError(const SBuf &errorMessage)
-{
-    // XXX: Refactor high-level configuration/callers code to enforce library
-    // requirements, so that low-level code like this one becomes unreachable.
-    throw TextException(ToSBuf(errorMessage, Debug::Extra, "reason: Squid built without OpenSSL or GnuTLS support"), Here());
 }
 
 static void
