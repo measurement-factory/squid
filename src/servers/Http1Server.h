@@ -39,6 +39,7 @@ protected:
     int pipelinePrefetchMax() const override;
     time_t idleTimeout() const override;
     void noteTakeServerConnectionControl(ServerConnectionContext) override;
+    size_t pendingRequestBytes() const override;
 
     /* BodyPipe API */
     void noteMoreBodySpaceAvailable(BodyPipe::Pointer) override;
