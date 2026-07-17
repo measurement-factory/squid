@@ -1487,10 +1487,8 @@ getOutgoingAddress(HttpRequest * request, const Comm::ConnectionPointer &conn)
     if (conn->remote.isIPv4())
         conn->local.setIPv4();
 
-    // Do not spoof the client's source address for a real client CONNECT;
-    const bool realClientConnect = request && request->method == Http::METHOD_CONNECT && !request->flags.fakeRequest;
     // maybe use TPROXY client address
-    if (request && request->flags.spoofClientIp && !realClientConnect) {
+    if (request && request->flags.spoofClientIp) {
         if (!conn->getPeer() || !conn->getPeer()->options.no_tproxy) {
 #if FOLLOW_X_FORWARDED_FOR && LINUX_NETFILTER
             if (Config.onoff.tproxy_uses_indirect_client)
