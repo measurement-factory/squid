@@ -352,7 +352,6 @@ AS_IF([test "x$ac_cv_require_wno_deprecated_register" = "xyes"],[
 SQUID_CXXFLAGS="$SQUID_CXXFLAGS $squid_cv_cc_arg_pipe"
 SQUID_CFLAGS="$SQUID_CFLAGS $squid_cv_cc_arg_pipe"
 
-# possibly include some build info tag into squid -v
 SQUID_EMBED_BUILD_INFO
 
 AC_ARG_ENABLE(optimizations,

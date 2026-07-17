@@ -1080,6 +1080,8 @@ mainInitialize(void)
         Config.Port.icp = (unsigned short) icpPortNumOverride;
 
     debugs(1, DBG_CRITICAL, "Starting Squid Cache version " << version_string << " for " << CONFIG_HOST_TYPE << "...");
+    if (strlen(SQUID_BUILD_INFO))
+        debugs(1, DBG_IMPORTANT, "Build info: " << SQUID_BUILD_INFO);
     debugs(1, Critical(5), "Service Name: " << service_name);
 
 #if _SQUID_WINDOWS_

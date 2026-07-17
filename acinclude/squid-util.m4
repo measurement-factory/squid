@@ -279,11 +279,13 @@ AC_DEFUN([SQUID_OPTIONAL_LIB],[
 
 AC_DEFUN([SQUID_EMBED_BUILD_INFO],[
   AC_ARG_ENABLE([build-info],
-    AS_HELP_STRING([--enable-build-info="build info string"],
-      [Add an additional string in the output of "squid -v".
-       Default is not to add anything. If the string is not specified,
-       tries to determine nick and revision number of the current
-       bazaar branch]),[
+    AS_HELP_STRING([--enable-build-info="opaque string"],
+      [Remember and report custom information about this Squid build.
+       Squid does not interpret the specified string but adds it to "squid -v"
+       output, startup cache.log messages, cache manager "info" report, etc.
+       When disabled, nothing is reported; this is the default behavior.
+       When enabled without a string value, ./configure attempts to use the
+       current git checkout info (e.g., a branch name and shortened commit SHA)].),[
     AS_CASE(["$enableval"],
       [no],[:],
       [yes],[
@@ -304,7 +306,7 @@ AC_DEFUN([SQUID_EMBED_BUILD_INFO],[
     )
   ])
   AC_DEFINE_UNQUOTED([SQUID_BUILD_INFO],["$squid_build_info"],
-     [Squid extended build info field for "squid -v" output])
+     [Custom Squid build info; see --enable-build-info])
 ])
 
 dnl like AC_SEARCH_LIBS, with an extra argument which is
