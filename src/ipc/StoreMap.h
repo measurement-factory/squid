@@ -81,9 +81,9 @@ public:
     std::atomic<uint8_t> waitingToBeFreed; ///< may be accessed w/o a lock
     /// whether StoreMap::abortWriting() was called for a read-locked entry
     std::atomic<uint8_t> writerHalted;
-    /// whether this anchor corresponds to a fresh fileno that replaced
+    /// whether this anchor corresponds to a fresh fileno that is replacing
     /// a stale fileno by StoreMap::replaceFileNo()
-    std::atomic<bool> wasRelocated = false;
+    std::atomic<bool> isRelocating = false;
 
     // fields marked with [app] can be modified when appending-while-reading
     // fields marked with [update] can be modified when updating-while-reading
@@ -281,7 +281,8 @@ public:
     /// undoes partial update, unlocks, and cleans up
     void abortUpdating(Update &update);
     /// replaces entry's stale fileno with a fresh fileno
-    bool replaceFileNo(const cache_key *const key, sfileno &fresh);
+    bool startFileNoReplacing(const cache_key *const key, sfileno &fresh);
+    void finishFileNoReplacing(sfileno fresh);
 
     /// the caller must hold a lock on the entry
     /// \returns nullptr unless the slice is readable

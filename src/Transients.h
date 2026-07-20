@@ -33,7 +33,7 @@ public:
     public:
         bool hasWriter = false; ///< whether some worker is storing the entry
         bool waitingToBeFreed = false; ///< whether the entry was marked for deletion
-        bool wasRelocated = false; ///< whether the entry was relocated (obtaining a fresh fileno)
+        bool isRelocating = false; ///< whether the entry is being relocated (obtaining a fresh fileno)
     };
 
     Transients();
@@ -59,7 +59,8 @@ public:
     void disconnect(StoreEntry &);
 
     /// the caller is done with entry updating
-    bool update(StoreEntry &, sfileno &fresh);
+    bool updateStart(StoreEntry &, sfileno &fresh);
+    void updateFinish(sfileno fresh);
 
     /* Store API */
     StoreEntry *get(const cache_key *) override;

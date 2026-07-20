@@ -383,7 +383,7 @@ Ipc::StoreMap::abortUpdating(Update &update)
 }
 
 bool
-Ipc::StoreMap::replaceFileNo(const cache_key *const key, sfileno &fresh)
+Ipc::StoreMap::startFileNoReplacing(const cache_key *const key, sfileno &fresh)
 {
     const auto name = nameByKey(key);
     const int currentIdx = fileNoByName(name);
@@ -397,12 +397,21 @@ Ipc::StoreMap::replaceFileNo(const cache_key *const key, sfileno &fresh)
     debugs(54, 5, "replacing stale entry " << currentIdx << " to write " << path);
 
     if (auto freshAnchor = replaceFileNoCommon(name, currentIdx, staleAnchor, fresh)) {
-        freshAnchor->wasRelocated = true;
-        closeForWriting(fresh);
+        freshAnchor->isRelocating = true;
+        freshAnchor->lock.switchExclusiveToShared();
         freeEntry(currentIdx);
         return true;
     }
     return false;
+}
+
+void
+Ipc::StoreMap::finishFileNoReplacing(const sfileno fresh)
+{
+    auto &s = anchorAt(fresh);
+    assert(s.reading());
+    s.isRelocating = false;
+    closeForReading(fresh);
 }
 
 const Ipc::StoreMap::Anchor *
@@ -791,7 +800,7 @@ Ipc::StoreMap::closeForUpdating(Update &update)
 
     // update Transients entry index before the fresh anchor becomes available
     sfileno freshTransientsFileNo = 0;
-    const bool transientsUpdated = Store::Root().transientsUpdate(*update.entry, freshTransientsFileNo);
+    const bool transientsUpdated = Store::Root().transientsUpdateStart(*update.entry, freshTransientsFileNo);
 
     // make the fresh anchor/chain readable for everybody
     update.fresh.anchor->lock.switchExclusiveToShared();
@@ -835,6 +844,7 @@ Ipc::StoreMap::closeForUpdating(Update &update)
     closeForReading(update.fresh.fileNo);
     update.fresh = Update::Edition();
 
+    Store::Root().transientsUpdateFinish(freshTransientsFileNo);
     // notify those who could have attached to the updated Transients entry
     // so that they could anchorToCache()
     if (transientsUpdated)
@@ -1267,7 +1277,7 @@ Ipc::StoreMapAnchor::rewind()
     waitingToBeFreed = false;
     // no freeingCheckpoint() here because we are only called for a locked entry
     writerHalted = false;
-    wasRelocated = false;
+    isRelocating = false;
     // but keep the lock
 }
 
