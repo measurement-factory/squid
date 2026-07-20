@@ -402,6 +402,8 @@ private:
     void freeChain(const sfileno fileno, Anchor &inode, const bool keepLock);
     void freeChainAt(const Anchor &);
 
+    Ipc::StoreMap::Anchor * replaceFileNoCommon(sfileno name, sfileno currentIdx, const Ipc::StoreMap::Anchor *staleAnchor, sfileno &fresh);
+
     /// whether paranoid_hit_validation should be performed
     bool hitValidation;
 };

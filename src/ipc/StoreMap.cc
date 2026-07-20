@@ -164,6 +164,14 @@ Ipc::StoreMap::openForWriting(const cache_key *const key, sfileno &fileno)
     if (!staleAnchor)
         return nullptr;
 
+    return replaceFileNoCommon(name, currentIdx, staleAnchor, fileno);
+}
+
+Ipc::StoreMap::Anchor *
+Ipc::StoreMap::replaceFileNoCommon(sfileno name, sfileno currentIdx, const Ipc::StoreMap::Anchor * const staleAnchor, sfileno &fresh)
+{
+    assert(staleAnchor);
+
     Update::Edition available;
     if (!openKeyless(available)) { // XXX: debugs() will say "for updating"
         debugs(54, 5, "no anchors to replace stale entry " << currentIdx << " to write " << path);
@@ -195,14 +203,14 @@ Ipc::StoreMap::openForWriting(const cache_key *const key, sfileno &fileno)
     relocate(name, available.fileNo);
     relocate(available.name, currentIdx);
 
+    fresh = available.fileNo;
+
     staleAnchor->lock.unlockHeaders();
     closeForReading(currentIdx);
 
-    debugs(54, 5, "opened entry " << available.fileNo << " under name " << name << " for writing " << path <<
-           " after moving marked entry " << currentIdx << " to name " << available.name);
+    debugs(54, 5, "replaced stale entry " << currentIdx << " under name " << name << " with fresh entry " <<
+            available.fileNo << " under name " << available.name << " in " << path);
 
-    // available.fileNo is left locked for writing
-    fileno = available.fileNo;
     return available.anchor;
 }
 
@@ -374,7 +382,6 @@ Ipc::StoreMap::abortUpdating(Update &update)
     debugs(54, 5, "aborted entry " << fileno << " for updating " << path);
 }
 
-// XXX: duplication with StoreMap::openForWriting()
 bool
 Ipc::StoreMap::replaceFileNo(const cache_key *const key, sfileno &fresh)
 {
@@ -389,48 +396,13 @@ Ipc::StoreMap::replaceFileNo(const cache_key *const key, sfileno &fresh)
 
     debugs(54, 5, "replacing stale entry " << currentIdx << " to write " << path);
 
-    Update::Edition available;
-    if (!openKeyless(available)) { // XXX: debugs() will say "for updating"
-        debugs(54, 5, "no anchors to replace stale entry " << currentIdx << " to write " << path);
-        closeForReading(currentIdx);
-        return false;
+    if (auto freshAnchor = replaceFileNoCommon(name, currentIdx, staleAnchor, fresh)) {
+        freshAnchor->wasRelocated = true;
+        closeForWriting(fresh);
+        freeEntry(currentIdx);
+        return true;
     }
-
-    if (!staleAnchor->lock.lockHeaders()) {
-        debugs(54, 5, "no access to replace stale entry " << currentIdx << " to write " << path);
-        abortWriting(available.fileNo);
-        closeForReading(currentIdx);
-        return false;
-    }
-
-    // fileNos[name] may have been updated many times before our lockHeaders(),
-    // including ABA-like updates that restore the same index value, but we do
-    // not care about past updates as long as the now-locked fileNos[name] value
-    // currently points to the previously locked stale entry (i.e. that the swap
-    // below swaps two locked fileNos entries).
-    if (fileNoByName(name) != currentIdx) {
-        debugs(54, 5, "somebody else replaced stale entry " << currentIdx << " to write " << path);
-        abortWriting(available.fileNo);
-        staleAnchor->lock.unlockHeaders();
-        closeForReading(currentIdx);
-        return false;
-    }
-
-    // swap anchor "pointers": fileNos[name] <-> fileNos[available.name]
-    relocate(name, available.fileNo);
-    relocate(available.name, currentIdx);
-    available.anchor->wasRelocated = true;
-    fresh = available.fileNo;
-
-    staleAnchor->lock.unlockHeaders();
-    closeForReading(currentIdx);
-    closeForWriting(available.fileNo);
-    freeEntry(currentIdx);
-
-    debugs(54, 5, "replaced stale entry " << currentIdx << " under name " << name << " with fresh entry " <<
-            available.fileNo << " under name " << available.name << " in " << path);
-
-    return true;
+    return false;
 }
 
 const Ipc::StoreMap::Anchor *
