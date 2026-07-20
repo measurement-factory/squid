@@ -626,6 +626,18 @@ Store::Controller::transientsDisconnect(StoreEntry &e)
         transients->disconnect(e);
 }
 
+bool
+Store::Controller::transientsUpdateStart(StoreEntry &e, sfileno &fresh)
+{
+    return e.hasTransients() ? transients->updateStart(e, fresh) : false;
+}
+
+void
+Store::Controller::transientsUpdateFinish(const sfileno fresh)
+{
+    transients->updateFinish(fresh);
+}
+
 void
 Store::Controller::handleIdleEntry(StoreEntry &e)
 {
@@ -881,6 +893,12 @@ Store::Controller::anchorToCache(StoreEntry &entry)
     Transients::EntryStatus entryStatus;
     transients->status(entry, entryStatus);
 
+    if (entryStatus.isRelocating) {
+        debugs(20, 7, "skipping being relocated " << entry);
+        entry.setCollapsingRequirement(true);
+        return false;
+    }
+
     bool found = false;
     if (sharedMemStore)
         found = sharedMemStore->anchorToCache(entry);
@@ -896,6 +914,7 @@ Store::Controller::anchorToCache(StoreEntry &entry)
     if (entryStatus.waitingToBeFreed)
         throw TextException("will never be able to anchor to an already marked entry", Here());
 
+    // the entry that is being updated is not opened for writing
     if (!entryStatus.hasWriter)
         throw TextException("will never be able to anchor to an abandoned-by-writer entry", Here());
 
