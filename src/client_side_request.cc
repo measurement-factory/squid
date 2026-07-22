@@ -1398,7 +1398,8 @@ ClientHttpRequest::sslBumpStart()
     AsyncCall::Pointer bumpCall = commCbCall(85, 5, "ClientSocketContext::sslBumpEstablish",
                                   CommIoCbPtrFun(&SslBumpEstablish, this));
 
-    if (request->flags.interceptTproxy || request->flags.intercepted) {
+    const bool realClientConnect = request->method == Http::METHOD_CONNECT && !request->flags.fakeRequest;
+    if (!realClientConnect && (request->flags.interceptTproxy || request->flags.intercepted)) {
         CommIoCbParams &params = GetCommParams<CommIoCbParams>(bumpCall);
         params.flag = Comm::OK;
         params.conn = getConn()->clientConnection;
