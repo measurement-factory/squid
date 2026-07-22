@@ -9,6 +9,7 @@
 #include "squid.h"
 #include "base/TextException.h"
 #include "debug/Stream.h"
+#include "sbuf/Stream.h"
 #include "security/Time.h"
 #include "ssl/gadgets.h"
 #include "ssl/ProxyCerts.h"
@@ -19,7 +20,7 @@
 void
 CheckValidityRangeFreshness(sslproxy_cert_adapt &ca, const Security::Time &from, const Security::Time &to)
 {
-    assert(ca.alg == Ssl::algSetValidityRange);
+    assert(ca.alg == Ssl::algSetValidityRange || ca.alg == Ssl::algSetRepeatingValidityRange); // XXX?
     debugs(33, 5, ca.param << " at " << squid_curtime << '<' << ca.nextValidityRangeFreshnessCheck);
     if (squid_curtime < ca.nextValidityRangeFreshnessCheck)
         return; // either still fresh and good or stale and reported
@@ -29,9 +30,9 @@ CheckValidityRangeFreshness(sslproxy_cert_adapt &ca, const Security::Time &from,
         if (!now)
             throw TextException("ASN1_TIME_set(current_time) failure", Here());
         if (*now < from)
-            throw TextException("setValidityRange has not started yet", Here());
+            throw TextException(ToSBuf("setValidityRange has not started yet: ", Security::ToGeneralizedTimeString(from)), Here());
         if (to < *now)
-            throw TextException("setValidityRange has already ended", Here());
+            throw TextException(ToSBuf("setValidityRange has already ended: ", Security::ToGeneralizedTimeString(to)), Here());
 
         // looks good now, but check again when the validity period ends
         ca.nextValidityRangeFreshnessCheck = Security::ToPosixTime(to);

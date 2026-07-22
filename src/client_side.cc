@@ -104,6 +104,7 @@
 #include "MemBuf.h"
 #include "MemObject.h"
 #include "mime_header.h"
+#include "Parsing.h"
 #include "parser/Tokenizer.h"
 #include "proxyp/Header.h"
 #include "proxyp/Parser.h"
@@ -2693,6 +2694,48 @@ ConnStateData::sslCrtdHandleReply(const Helper::Reply &reply)
     getSslContextDone(nil);
 }
 
+/// helps configureCertAdaptation() apply a matched algSetRepeatingValidityRange rule
+void
+ConnStateData::configureRepeatedValidityRange(const sslproxy_cert_adapt &ca, Ssl::CertificateProperties &cfg)
+{
+    Assure(ca.alg == Ssl::algSetRepeatingValidityRange);
+
+    const auto periodDuration = xatoi(ca.param)*24*60*60; // days to seconds; XXX: xatoi()?
+    const auto currentPeriodStart = (squid_curtime / periodDuration) * periodDuration;
+    Assure(currentPeriodStart <= squid_curtime);
+    Assure(squid_curtime < currentPeriodStart + periodDuration);
+
+    // To avoid problems with out-of-sync client clocks and transmission delays,
+    // we want the client to see a certificate validity period that (from the
+    // client p.o.v.) starts in the past and ends in the future. Even small
+    // positive margin may work. We also want all generated certificates (for a
+    // given TLS context) to have the same validity period duration. The
+    // following algorithm uses periodDuration/4 margins to accomplish these two
+    // goals. For example:
+    //
+    // ----|----|----  // timeline: previous, current, and next periods (e.g., three 4-day periods)
+    // AAAA CCCC EEEE  // when generated certificates A, C, and E are valid
+    //   BB BBDD DDFF  // when generated certificates B, D, and (partially shown) F are valid
+    //
+    //   AB BCCD DEEF  // what generated certificates are actually used/returned by Squid
+
+    time_t start = 0; // TBD below
+    const auto margin = periodDuration / 4;
+    if (squid_curtime < currentPeriodStart + margin)
+        start = currentPeriodStart - periodDuration / 2; // cert B: the middle of the previous period
+    else if (squid_curtime < currentPeriodStart + periodDuration - margin)
+        start = currentPeriodStart; // cert C: the beginning of the current period
+    else
+        start = currentPeriodStart + periodDuration / 2; // cert D: the middle of the current period
+
+    cfg.validityRangeFrom = Security::MakeTime(start);
+    cfg.validityRangeTo = Security::MakeTime(start + periodDuration);
+    cfg.validityRange = std::string(ToSBuf(
+                                        Security::ToGeneralizedTimeString(*cfg.validityRangeFrom), ',',
+                                        Security::ToGeneralizedTimeString(*cfg.validityRangeTo)).c_str());
+    cfg.setValidityRange = true;
+}
+
 /// helps buildSslCertGenerationParams() apply sslproxy_cert_adapt configuration
 void
 ConnStateData::configureCertAdaptation(Ssl::CertificateProperties &cfg, ACLFilledChecklist &checklist)
@@ -2718,6 +2761,9 @@ ConnStateData::configureCertAdaptation(Ssl::CertificateProperties &cfg, ACLFille
                 cfg.validityRangeFrom = Security::ParseTime(ca->param1, "validityRangeFrom");
                 cfg.validityRangeTo = Security::ParseTime(ca->param2, "validityRangeTo");
                 cfg.setValidityRange = true;
+                CheckValidityRangeFreshness(*ca, *cfg.validityRangeFrom, *cfg.validityRangeTo);
+            } else if (ca->alg == Ssl::algSetRepeatingValidityRange) {
+                configureRepeatedValidityRange(*ca, cfg);
                 CheckValidityRangeFreshness(*ca, *cfg.validityRangeFrom, *cfg.validityRangeTo);
             } else if (ca->alg == Ssl::algSetValidAfter)
                 cfg.setValidAfter = true;

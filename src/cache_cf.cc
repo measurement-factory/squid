@@ -4335,6 +4335,34 @@ static void parse_sslproxy_cert_adapt(sslproxy_cert_adapt **cert_adapt)
         if (*to < *from)
             reject("setValidityRange 'from' parameter is greater than 'to': ", param);
         CheckValidityRangeFreshness(*ca, *from, *to);
+    } else if (strcmp(al, Ssl::CertAdaptAlgorithmStr[Ssl::algSetRepeatingValidityRange]) == 0) {
+        ca->alg = Ssl::algSetRepeatingValidityRange;
+
+        const auto reject = [](const char * const error, const char * const detail = "") {
+            throw TextException(ToSBuf(error, detail), Here());
+        };
+
+        if (!param) {
+            // XXX: Do not set this here. Leave unset until it is needed to generate dates.
+
+            // CA/Browser Forum's "Baseline Requirements for the Issuance and
+            // Management of Publicly‐Trusted TLS Server Certificates" (v2.2.8
+            // dated 2026-06-16), Section 6.3.2: "Certificates issued on or
+            // after 2029‐03‐15 SHOULD NOT have a Validity Period greater than
+            // 46 days and MUST NOT have a Validity Period greater than 47 days.
+            // https://cabforum.org/working-groups/server/baseline-requirements/documents/
+            param = "46";
+        }
+
+        if (xatoi(param) <= 0)
+            reject("setRepeatingValidityRange parameter must be a positive integer", param);
+
+        const auto secondsInValidityDay = 86400;
+        // XXX: xatoi()
+        if (xatoi(param) > std::numeric_limits<int /*XXX*/ >::max() / secondsInValidityDay)
+            reject("setRepeatingValidityRange parameter is too big", param);
+
+        ca->param = xstrdup(param);
     } else {
         debugs(3, DBG_CRITICAL, "FATAL: sslproxy_cert_adapt: unknown cert adaptation algorithm: " << al);
         self_destruct();

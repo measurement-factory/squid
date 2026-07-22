@@ -9,6 +9,7 @@
 #ifndef SQUID_SRC_SECURITY_TIME_H
 #define SQUID_SRC_SECURITY_TIME_H
 
+#include "sbuf/forward.h"
 #include "security/forward.h"
 
 namespace Security {
@@ -19,6 +20,14 @@ TimePointer ParseTime(const char *input, const char *description);
 
 /// POSIX time_t representation of the given certificate time
 time_t ToPosixTime(const Time &);
+
+/// creates a time object representing the given POSIX time_t moment
+TimePointer MakeTime(const time_t);
+
+/// std::ostream manipulator to print Time values in RFC 5280 Section 4.1.2.5.2
+/// YYYYMMDDHHMMSSZ format. This is not an AsGeneralizedTime stream manipulator
+/// because Time values cannot be shared (or copied efficiently).
+SBuf ToGeneralizedTimeString(const Time &);
 
 } // namespace Security
 

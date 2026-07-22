@@ -32,6 +32,7 @@
 #if USE_OPENSSL
 #include "security/forward.h"
 #include "security/Handshake.h"
+#include "ssl/ProxyCerts.h"
 #include "ssl/support.h"
 #endif
 #if USE_DELAY_POOLS
@@ -411,6 +412,7 @@ protected:
     /// \return false if and only if the connection should be closed.
     bool handleIdleClientPinnedTlsRead();
 
+    void configureRepeatedValidityRange(const sslproxy_cert_adapt &, Ssl::CertificateProperties &);
     void configureCertAdaptation(Ssl::CertificateProperties &, ACLFilledChecklist &);
 #endif
 
