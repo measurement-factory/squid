@@ -2464,15 +2464,8 @@ httpsAccept(const CommAcceptCbParams &params)
 void
 ConnStateData::postHttpsAccept()
 {
-    if (port->flags.tunnelSslBumping) {
+    if (port->flags.tunnelSslBumping && clientConnection->local.port() != port->s.port()) {
 #if USE_OPENSSL
-        // TODO: this should also check that clientConnection IP is Squid's own IP.
-        if (clientConnection->local.port() == port->s.port()) {
-            debugs(33, 5, "transparent connection received on SSL bump port: " << clientConnection);
-            httpsEstablish(this, port->secure.staticContext);
-            return;
-        }
-
         debugs(33, 5, "accept transparent connection: " << clientConnection);
 
         if (!Config.accessList.ssl_bump) {
