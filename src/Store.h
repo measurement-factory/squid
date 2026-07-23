@@ -299,7 +299,7 @@ public:
     /// Removes all unlocked (and marks for eventual removal all locked) Store
     /// entries, including attached and unattached entries that have our key.
     /// Also destroys us if we are unlocked or makes us private otherwise.
-    void release(const bool shareable = false);
+    void release(bool shareable, bool evict);
 
     /// One of the three methods to get rid of an unlocked StoreEntry object.
     /// May destroy this object if it is unlocked; does nothing otherwise.
@@ -312,6 +312,10 @@ public:
     bool mayStartHitting() const {
         return !EBIT_TEST(flags, KEY_PRIVATE) || shareableWhenPrivate;
     }
+
+    /// whether it was requested to remove all cache entries
+    /// associated with this StoreEntry
+    bool evictionRequired() const { return evictWhenAbandoning; }
 
     /// Calls CollapsedForwarding::Broadcast() or delays that call until
     /// Store::BroadcastMonitor is ready, effectively aggregating calls.
@@ -358,6 +362,9 @@ private:
     /// they previously locked? This member should not affect transactions
     /// that already started reading from the entry.
     bool shareableWhenPrivate;
+
+    /// whether to initiate cache cleanup before abandoning this StoreEntry
+    bool evictWhenAbandoning;
 
 #if USE_ADAPTATION
     /// producer callback registered with deferProducer

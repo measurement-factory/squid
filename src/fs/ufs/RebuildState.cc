@@ -259,7 +259,7 @@ Fs::Ufs::RebuildState::evictStaleAndContinue(const cache_key *candidateKey, cons
         }
 
         ++staleCount;
-        indexedEntry->release(true); // evict previously indexedEntry
+        indexedEntry->release(true, true); // evict previously indexedEntry
     }
 
     return true;

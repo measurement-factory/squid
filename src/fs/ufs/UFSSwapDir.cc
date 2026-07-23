@@ -508,7 +508,7 @@ Fs::Ufs::UFSSwapDir::maintain()
 
         ++removed;
 
-        e->release(true);
+        e->release(true, true);
     }
 
     walker->Done(walker);

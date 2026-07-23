@@ -2583,7 +2583,7 @@ Ftp::Gateway::haveParsedReplyHeaders()
 
     // makePublic() if allowed/possible or release() otherwise
     if (flags.authenticated || getCurrentOffset()) {
-        e->release();
+        e->release(false, true);
         return;
     }
     e->makePublic();

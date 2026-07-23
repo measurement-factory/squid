@@ -246,7 +246,7 @@ TestRock::testRockSwapOut()
         // this marking is not necessary (see above), but it is good to test it
         StoreEntry *const pe2 = getEntry(4);
         CPPUNIT_ASSERT(pe2 != nullptr);
-        pe2->release();
+        pe2->release(false, true);
 
         StoreEntry *const pe3 = addEntry(4);
         CPPUNIT_ASSERT_EQUAL(SWAPOUT_WRITING, pe3->swap_status);
@@ -305,7 +305,7 @@ TestRock::testRockSwapOut()
         StoreEntry *const pe = getEntry(i);
         CPPUNIT_ASSERT(pe != nullptr);
 
-        pe->release(); // destroys pe
+        pe->release(false, true); // destroys pe
 
         StoreEntry *const pe2 = getEntry(i);
         CPPUNIT_ASSERT_EQUAL(static_cast<StoreEntry *>(nullptr), pe2);

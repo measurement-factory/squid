@@ -148,7 +148,7 @@ Client::setFinalReply(HttpReply *rep)
     entry->replaceHttpReply(theFinalReply, false); // but do not write yet
     haveParsedReplyHeaders(); // update the entry/reply (e.g., set timestamps)
     if (!EBIT_TEST(entry->flags, RELEASE_REQUEST) && blockCaching())
-        entry->release();
+        entry->release(false, true);
     entry->startWriting(); // write the updated entry to store
 
     return theFinalReply;

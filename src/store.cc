@@ -369,7 +369,8 @@ StoreEntry::StoreEntry() :
     store_status(STORE_PENDING),
     swap_status(SWAPOUT_NONE),
     lock_count(0),
-    shareableWhenPrivate(false)
+    shareableWhenPrivate(false),
+    evictWhenAbandoning(false)
 {
     debugs(20, 5, "StoreEntry constructed, this=" << this);
 }
@@ -511,7 +512,7 @@ StoreEntry::doAbandon(const char *context)
     // are STORE_PENDING, but aborted readers should never release().
     if (EBIT_TEST(flags, RELEASE_REQUEST) ||
             (store_status == STORE_PENDING && !Store::Root().transientsReader(*this))) {
-        this->release();
+        this->release(true, evictWhenAbandoning);
         return;
     }
 
@@ -672,7 +673,7 @@ StoreEntry::forcePublicKey(const cache_key *newkey)
     if (StoreEntry *e2 = (StoreEntry *)hash_lookup(store_table, newkey)) {
         assert(e2 != this);
         debugs(20, 3, "releasing clashing " << *e2);
-        e2->release(true);
+        e2->release(true, true);
     }
 
     if (key)
@@ -723,7 +724,7 @@ StoreEntry::adjustVary()
              */
             request->vary_headers.clear();       /* free old "bad" variance key */
             if (StoreEntry *pe = storeGetPublic(mem_obj->storeId(), mem_obj->method))
-                pe->release(true);
+                pe->release(true, true);
         }
 
         /* Make sure the request knows the variance status */
@@ -1186,9 +1187,12 @@ Store::Maintain(void *)
 #define MAINTAIN_MAX_REMOVE     64
 
 void
-StoreEntry::release(const bool shareable)
+StoreEntry::release(const bool shareable, const bool evict)
 {
     debugs(20, 3, shareable << ' ' << *this << ' ' << getMD5Text());
+
+    evictWhenAbandoning = evict;
+
     /* If, for any reason we can't discard this object because of an
      * outstanding request, mark it for pending release */
 
