@@ -455,7 +455,7 @@ storeDigestRewriteResume(void)
     /* setting public key will mark the old digest entry for removal once unlocked */
     e->setPublicKey();
     if (const auto oldEntry = sd_state.publicEntry) {
-        oldEntry->release(true, true);
+        oldEntry->release(true);
         sd_state.publicEntry = nullptr;
         oldEntry->unlock("storeDigestRewriteResume");
     }

@@ -438,7 +438,7 @@ clientReplyContext::handleIMSReply(const StoreIOBuffer result)
         // TODO: The update may not be instantaneous. Should we wait for its
         // completion to avoid spawning too much client-disassociated work?
         if (!Store::Root().updateOnNotModified(old_entry, *http->storeEntry())) {
-            old_entry->release(true, true);
+            old_entry->release(true);
             restoreState();
             http->updateLoggingTags(LOG_TCP_MISS);
             processMiss();
@@ -979,7 +979,7 @@ clientReplyContext::purgeEntry(StoreEntry &entry, const Http::MethodType methodT
 #if USE_HTCP
     neighborsHtcpClear(&entry, http->request, HttpRequestMethod(methodType), HTCP_CLR_PURGE);
 #endif
-    entry.release(true, true);
+    entry.release(true);
     purgeStatus = Http::scOkay;
     return true;
 }

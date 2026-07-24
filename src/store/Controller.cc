@@ -343,7 +343,7 @@ Store::Controller::find(const cache_key *key)
             return entry;
         } catch (const std::exception &ex) {
             debugs(20, 2, "failed with " << *entry << ": " << ex.what());
-            entry->release(false, true);
+            entry->release();
             // fall through
         }
     }
@@ -472,11 +472,7 @@ Store::Controller::accumulateMore(StoreEntry &entry) const
 void
 Store::Controller::evictCached(StoreEntry &e)
 {
-    debugs(20, 7, e << " :" << e.evictionRequired());
-
-    if (!e.evictionRequired())
-        return;
-
+    debugs(20, 7, e);
     if (transients)
         transients->evictCached(e);
     memoryEvictCached(e);
@@ -491,7 +487,7 @@ Store::Controller::evictIfFound(const cache_key *key)
     if (StoreEntry *entry = peekAtLocal(key)) {
         debugs(20, 5, "marking local in-transit " << *entry);
         assert(entry->publicKey()); // release() below must cover unattached Stores
-        entry->release(true, true);
+        entry->release(true);
         return;
     }
 
@@ -671,7 +667,7 @@ Store::Controller::handleIdleEntry(StoreEntry &e)
     // We know the in-memory data will be gone. Get rid of the entire entry if
     // it has nothing worth preserving on disk either.
     if (!e.swappedOut()) {
-        e.release(false, true); // deletes e
+        e.release(); // deletes e
         return;
     }
 
