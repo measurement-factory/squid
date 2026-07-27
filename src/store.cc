@@ -1188,7 +1188,6 @@ void
 StoreEntry::release(const bool shareable)
 {
     debugs(20, 3, shareable << ' ' << *this << ' ' << getMD5Text());
-
     /* If, for any reason we can't discard this object because of an
      * outstanding request, mark it for pending release */
 

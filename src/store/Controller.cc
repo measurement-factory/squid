@@ -472,7 +472,8 @@ Store::Controller::accumulateMore(StoreEntry &entry) const
 void
 Store::Controller::evictCached(StoreEntry &e)
 {
-    evictShared(e.publicKey());
+    if (const auto key = e.publicKey())
+        evictShared(key);
 }
 
 void
