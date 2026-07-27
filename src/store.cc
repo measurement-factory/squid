@@ -509,8 +509,7 @@ StoreEntry::doAbandon(const char *context)
 
     // Both aborted local writers and aborted local readers (of remote writers)
     // are STORE_PENDING, but aborted readers should never release().
-    if (EBIT_TEST(flags, RELEASE_REQUEST) ||
-            (store_status == STORE_PENDING && !Store::Root().transientsReader(*this))) {
+    if (store_status == STORE_PENDING && !Store::Root().transientsReader(*this)) {
         this->release();
         return;
     }
@@ -1189,6 +1188,7 @@ void
 StoreEntry::release(const bool shareable)
 {
     debugs(20, 3, shareable << ' ' << *this << ' ' << getMD5Text());
+
     /* If, for any reason we can't discard this object because of an
      * outstanding request, mark it for pending release */
 
