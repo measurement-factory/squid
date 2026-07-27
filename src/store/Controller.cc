@@ -485,7 +485,6 @@ Store::Controller::evictIfFound(const cache_key *key)
         debugs(20, 5, "marking local in-transit " << *entry);
         assert(entry->publicKey()); // release() below must cover unattached Stores
         entry->hideFromNewcomers();
-        return;
     }
 
     evictShared(key);
