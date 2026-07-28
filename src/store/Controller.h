@@ -145,7 +145,6 @@ private:
     bool anchorToCache(StoreEntry &);
     void checkTransients(const StoreEntry &) const;
     void checkFoundCandidate(const StoreEntry &) const;
-    void evictShared(const cache_key *);
 
     Disks *disks; ///< summary view of all disk caches (including none); never nil
     Memory *sharedMemStore; ///< memory cache that multiple workers can use
