@@ -487,7 +487,8 @@ Store::Controller::evictIfFound(const cache_key *key)
     if (StoreEntry *entry = peekAtLocal(key)) {
         debugs(20, 5, "marking local in-transit " << *entry);
         assert(entry->publicKey()); // release() below must cover unattached Stores
-        entry->hideFromNewcomers();
+        entry->release(true);
+        return;
     }
 
     if (sharedMemStore)
