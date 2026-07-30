@@ -4355,12 +4355,13 @@ static void parse_sslproxy_cert_adapt(sslproxy_cert_adapt **cert_adapt)
         }
 
         if (xatoi(param) <= 0)
-            reject("setRepeatingValidityRange parameter must be a positive integer", param);
+            reject("setRepeatingValidityRange parameter must be a positive integer; got ", param);
 
         const auto secondsInValidityDay = 86400;
+        const auto maxValue = std::numeric_limits<int /*XXX*/ >::max() / secondsInValidityDay;
         // XXX: xatoi()
-        if (xatoi(param) > std::numeric_limits<int /*XXX*/ >::max() / secondsInValidityDay)
-            reject("setRepeatingValidityRange parameter is too big", param);
+        if (xatoi(param) > maxValue)
+            reject(ToSBuf("setRepeatingValidityRange parameter value exceeds ", maxValue, " days: ", param).c_str());
 
         ca->param = xstrdup(param);
     } else {
