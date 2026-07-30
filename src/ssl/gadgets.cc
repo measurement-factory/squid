@@ -857,13 +857,17 @@ Ssl::OneLineSummary(X509_NAME &name)
 
 bool Ssl::sslDateIsInTheFuture(char const * date)
 {
-    ASN1_UTCTIME tm;
-    tm.flags = 0;
-    tm.type = 23;
-    tm.data = (unsigned char *)date;
-    tm.length = strlen(date);
+    ASN1_TIME tm = {};
 
-    return (X509_cmp_current_time(&tm) > 0);
+    // TODO: Use Security::ParseTime() after building libsecurity _before_ helpers.
+    if (!ASN1_TIME_set_string(&tm, date))
+        throw TextException(ToSBuf("Failed to parse ASN.1 time: ", date), Here());
+
+    const auto cmpResult = X509_cmp_current_time(&tm);
+    debugs(83, 5, "date=" << date << " cmp=" << cmpResult);
+    if (!cmpResult)
+        throw TextException(ToSBuf("Failed to compare parsed ASN.1 time: ", date), Here());
+    return (cmpResult > 0);
 }
 
 static const char *getSubjectEntry(X509 *x509, int nid)
