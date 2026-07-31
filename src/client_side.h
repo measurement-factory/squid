@@ -412,7 +412,7 @@ protected:
     /// \return false if and only if the connection should be closed.
     bool handleIdleClientPinnedTlsRead();
 
-    void configureRepeatedValidityRange(const sslproxy_cert_adapt &, Ssl::CertificateProperties &);
+    void configureRepeatingValidityRange(const sslproxy_cert_adapt &, Ssl::CertificateProperties &);
     void configureCertAdaptation(Ssl::CertificateProperties &, ACLFilledChecklist &);
 #endif
 

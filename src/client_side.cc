@@ -2696,7 +2696,7 @@ ConnStateData::sslCrtdHandleReply(const Helper::Reply &reply)
 
 /// helps configureCertAdaptation() apply a matched algSetRepeatingValidityRange rule
 void
-ConnStateData::configureRepeatedValidityRange(const sslproxy_cert_adapt &ca, Ssl::CertificateProperties &cfg)
+ConnStateData::configureRepeatingValidityRange(const sslproxy_cert_adapt &ca, Ssl::CertificateProperties &cfg)
 {
     Assure(ca.alg == Ssl::algSetRepeatingValidityRange);
 
@@ -2763,7 +2763,7 @@ ConnStateData::configureCertAdaptation(Ssl::CertificateProperties &cfg, ACLFille
                 cfg.setValidityRange = true;
                 CheckValidityRangeFreshness(*ca, *cfg.validityRangeFrom, *cfg.validityRangeTo);
             } else if (ca->alg == Ssl::algSetRepeatingValidityRange) {
-                configureRepeatedValidityRange(*ca, cfg);
+                configureRepeatingValidityRange(*ca, cfg);
                 CheckValidityRangeFreshness(*ca, *cfg.validityRangeFrom, *cfg.validityRangeTo);
             } else if (ca->alg == Ssl::algSetValidAfter)
                 cfg.setValidAfter = true;
