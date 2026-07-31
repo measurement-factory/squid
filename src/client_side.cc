@@ -2700,7 +2700,7 @@ ConnStateData::configureRepeatedValidityRange(const sslproxy_cert_adapt &ca, Ssl
 {
     Assure(ca.alg == Ssl::algSetRepeatingValidityRange);
 
-    const auto periodDuration = xatoi(ca.param)*24*60*60; // days to seconds; XXX: xatoi()?
+    const auto periodDuration = xatoi(ca.param)*24*60*60; // days to seconds; XXX: xatoi() calls self_destruct(); XXX: magic numbers
     const auto currentPeriodStart = (squid_curtime / periodDuration) * periodDuration;
     Assure(currentPeriodStart <= squid_curtime);
     Assure(squid_curtime < currentPeriodStart + periodDuration);

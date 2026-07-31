@@ -4354,13 +4354,15 @@ static void parse_sslproxy_cert_adapt(sslproxy_cert_adapt **cert_adapt)
             param = "46";
         }
 
-        if (xatoi(param) <= 0)
+        // TODO: Support time-units? See parseTimeUnit().
+        const auto days = xatoi(param);
+        if (days <= 0)
             reject("setRepeatingValidityRange parameter must be a positive integer; got ", param);
 
+        // protect from overflows during subsequent conversion to seconds
         const auto secondsInValidityDay = 86400;
-        const auto maxValue = std::numeric_limits<int /*XXX*/ >::max() / secondsInValidityDay;
-        // XXX: xatoi()
-        if (xatoi(param) > maxValue)
+        const auto maxValue = std::numeric_limits<decltype(days)>::max() / secondsInValidityDay;
+        if (days > maxValue)
             reject(ToSBuf("setRepeatingValidityRange parameter value exceeds ", maxValue, " days: ", param).c_str());
 
         ca->param = xstrdup(param);
