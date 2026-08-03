@@ -146,7 +146,7 @@ private:
 
     bool incomingInvalidates(Http::StatusCode) const;
     void maybeRemovePublic(Http::StatusCode);
- 
+
     /// Parser being used at present to parse the HTTP/ICY server response.
     Http1::ResponseParserPointer hp;
     Http1::TeChunkedParser *httpChunkDecoder = nullptr;
