@@ -9,21 +9,18 @@
 #ifndef SQUID_SRC_ACL_CLIENTALPN_H
 #define SQUID_SRC_ACL_CLIENTALPN_H
 
-#include "acl/Node.h"
+#include "acl/Data.h"
+#include "acl/ParameterizedNode.h"
 
-namespace Acl {
-
-class ClientAlpn : public Acl::Node
+namespace Acl
 {
-    MEMPROXY_CLASS(ClientAlpn);
 
+/// an "tls::client_alpn" ACL
+class ClientAlpn : public ParameterizedNode< ACLData<const char *> >
+{
 public:
     /* Acl::Node API */
-    char const *typeString() const override;
-    void parse() override;
-    int match(ACLChecklist *checklist) override;
-    SBufList dump() const override;
-    bool empty() const override;
+    int match(ACLChecklist *) override;
 };
 
 } // namespace Acl

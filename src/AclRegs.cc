@@ -260,7 +260,7 @@ Acl::Init()
     RegisterMaker("ssl::server_name_regex", [](TypeName name)->Node* { return new FinalizedParameterizedNode<ServerNameCheck>(name, new ACLRegexData); });
     FinalizedParameterizedNode<ServerNameCheck>::PreferAllocatorLabelPrefix("ssl::server_name+");
 
-    RegisterMaker("tls::client_alpn", [](TypeName)->Node* { return new ClientAlpn; });
+    RegisterMaker("tls::client_alpn", [](TypeName name)->Node* { return new  FinalizedParameterizedNode<ClientAlpn>(name, new ACLStringData); });
 #endif
 
 #if USE_SQUID_EUI
