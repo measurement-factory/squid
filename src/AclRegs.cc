@@ -78,6 +78,7 @@
 #include "acl/ServerName.h"
 #include "acl/SslError.h"
 #include "acl/SslErrorData.h"
+#include "acl/ClientAlpn.h"
 #endif
 #include "acl/StringData.h"
 #if USE_OPENSSL
@@ -258,6 +259,8 @@ Acl::Init()
     RegisterMaker("ssl::server_name", [](TypeName name)->Node* { return new FinalizedParameterizedNode<ServerNameCheck>(name, new ACLServerNameData); });
     RegisterMaker("ssl::server_name_regex", [](TypeName name)->Node* { return new FinalizedParameterizedNode<ServerNameCheck>(name, new ACLRegexData); });
     FinalizedParameterizedNode<ServerNameCheck>::PreferAllocatorLabelPrefix("ssl::server_name+");
+
+    RegisterMaker("tls::client_alpn", [](TypeName)->Node* { return new ClientAlpn; });
 #endif
 
 #if USE_SQUID_EUI
