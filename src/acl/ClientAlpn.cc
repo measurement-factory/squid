@@ -13,7 +13,7 @@
 #include "acl/FilledChecklist.h"
 
 int
-Acl::ClientAlpn::match(ACLChecklist *cl)
+Acl::ClientAlpn::match(ACLChecklist * const)
 {
     //TODO implement
     return 0;
