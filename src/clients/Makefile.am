@@ -12,6 +12,8 @@ noinst_LTLIBRARIES = libclients.la
 libclients_la_SOURCES = \
 	Client.cc \
 	Client.h \
+	HttpVersionSelector.cc \
+	HttpVersionSelector.h \
 	FtpClient.cc \
 	FtpClient.h \
 	FtpGateway.cc \

@@ -71,6 +71,7 @@
 #include "client_side_reply.h"
 #include "client_side_request.h"
 #include "ClientRequestContext.h"
+#include "clients/HttpVersionSelector.h"
 #include "comm.h"
 #include "comm/Connection.h"
 #include "comm/Loops.h"
@@ -2167,6 +2168,14 @@ httpAccept(const CommAcceptCbParams &params)
         // Its possible the call was still queued when the client disconnected
         debugs(33, 2, params.port->listenConn << ": accept failure: " << xstrerr(params.xerrno));
         return;
+    }
+
+    if (Config.clientHttpVersionSelector) {
+        ACLFilledChecklist ch(nullptr, nullptr);
+        ch.src_addr = params.conn->remote;
+        ch.my_addr = params.conn->local;
+        if (!Config.clientHttpVersionSelector->check(ClientHttpVersion::http11, ch))
+            return;
     }
 
     debugs(33, 4, params.conn << ": accepted");

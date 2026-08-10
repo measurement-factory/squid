@@ -2741,6 +2741,8 @@ TYPE: ::ClientHttpVersionSelector*
 DEFAULT: none
 DEFAULT_DOC: The default implements `client_http_version any` behavior.
 LOC: Config.clientHttpVersionSelector
+COMPONENT_RECONFIGURATION_TYPE: ClientHttpVersionSelector*
+REPETITIONS: update
 IFDEF: USE_OPENSSL
 DOC_START
 	Determines the major HTTP version to use on an accepted client-to-Squid
