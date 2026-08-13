@@ -14,28 +14,28 @@
 class ClientHttpVersion
 {
 public:
-	using Pointer = std::shared_ptr<ClientHttpVersion>;
+    using Pointer = std::shared_ptr<ClientHttpVersion>;
 
-	enum Protocol { http11, h2, any };
+    enum Protocol { none, http11, h2, any };
 
-	explicit ClientHttpVersion(ConfigParser &);
-	~ClientHttpVersion();
+    explicit ClientHttpVersion(ConfigParser &);
+    ~ClientHttpVersion();
 
-	// prohibit copy and move
-	ClientHttpVersion(const ClientHttpVersion&) = delete;
-	ClientHttpVersion& operator=(const ClientHttpVersion&) = delete;
+    // prohibit copy and move
+    ClientHttpVersion(const ClientHttpVersion&) = delete;
+    ClientHttpVersion& operator=(const ClientHttpVersion&) = delete;
 
     void print(std::ostream &) const;
 
     ACLList *aclList = nullptr;
-    Protocol protocol;
+    Protocol protocol = none;
 };
 
 class ClientHttpVersionSelector
 {
 public:
-	void add(ConfigParser &);
-    bool check(ClientHttpVersion::Protocol, ACLFilledChecklist &);
+    void add(ConfigParser &);
+    bool check(const SBufList &protocols, ACLFilledChecklist &);
 
     std::vector<ClientHttpVersion::Pointer> directives;
 };

@@ -2174,7 +2174,8 @@ httpAccept(const CommAcceptCbParams &params)
         ACLFilledChecklist ch(nullptr, nullptr);
         ch.src_addr = params.conn->remote;
         ch.my_addr = params.conn->local;
-        if (!Config.clientHttpVersionSelector->check(ClientHttpVersion::http11, ch))
+        static const SBufList defaultAlpnList{SBuf("http/1.1")};
+        if (!Config.clientHttpVersionSelector->check(defaultAlpnList, ch))
             return;
     }
 
@@ -2234,6 +2235,18 @@ clientNegotiateSSL(int fd, void *data)
     }
 
     Security::SessionPointer session(fd_table[fd].ssl);
+
+    if (const auto protocolList = static_cast<SBufList *>(SSL_get_ex_data(session.get(), ssl_ex_index_ssl_error_detail))) {
+        if (Config.clientHttpVersionSelector) {
+            ACLFilledChecklist ch(nullptr, nullptr);
+            conn->fillChecklist(ch);
+            if (!Config.clientHttpVersionSelector->check(*protocolList, ch)) {
+                // TODO: set an error?
+                conn->clientConnection->close();
+                return;
+            }
+        }
+    }
 
 #if USE_OPENSSL
     if (Security::SessionIsResumed(session)) {

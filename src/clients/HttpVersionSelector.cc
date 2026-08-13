@@ -18,19 +18,25 @@
 #include "sbuf/Stream.h"
 #include "SquidConfig.h"
 
+static ClientHttpVersion::Protocol
+parseProtocol(const SBuf &protocol)
+{
+    if (protocol.cmp("http/1.1") == 0)
+        return ClientHttpVersion::http11;
+    else if (protocol.cmp("h2") == 0)
+        return ClientHttpVersion::h2;
+    else if (protocol.cmp("any") == 0)
+        return ClientHttpVersion::any;
+    else
+        return ClientHttpVersion::none;
+}
 
 ClientHttpVersion::ClientHttpVersion(ConfigParser &parser)
 {
     const auto version = parser.token("client http version type");
-    if (version.cmp("http/1.1") == 0)
-    	protocol = http11;
-    else if (version.cmp("h2") == 0)
-        protocol = h2;
-    else if (version.cmp("any") == 0)
-    	protocol = any;
-    else
+    protocol = parseProtocol(version);
+    if (protocol == none)
         throw TextException(ToSBuf("unsupported client http version: '", version, "'"), Here());
-
     aclList = parser.optionalAclList();
 }
 
@@ -43,6 +49,9 @@ void
 ClientHttpVersion::print(std::ostream &os) const
 {
     switch (protocol) {
+    case none:
+        os << "none";
+        break;
     case http11:
         os << "http/1.1";
         break;
@@ -59,17 +68,26 @@ ClientHttpVersion::print(std::ostream &os) const
 void
 ClientHttpVersionSelector::add(ConfigParser &parser)
 {
-	directives.emplace_back(std::make_shared<ClientHttpVersion>(parser));
+    directives.emplace_back(std::make_shared<ClientHttpVersion>(parser));
 }
 
 bool
-ClientHttpVersionSelector::check(const ClientHttpVersion::Protocol clientProtocol, ACLFilledChecklist &ch)
+ClientHttpVersionSelector::check(const SBufList &protocols, ACLFilledChecklist &ch)
 {
-	for (auto &version: directives) {
-        if (!version->aclList || ch.fastCheck(version->aclList).allowed())
-            return (clientProtocol == version->protocol || version->protocol == ClientHttpVersion::any);
-	}
-	return true;
+    std::vector<ClientHttpVersion::Protocol> clientProtocols;
+    for (auto p: protocols) {
+        const auto parsed = parseProtocol(p);
+        if (parsed != ClientHttpVersion::none)
+            clientProtocols.push_back(parsed);
+    }
+
+    for (auto &version: directives) {
+        if (!version->aclList || ch.fastCheck(version->aclList).allowed()) {
+            for (auto p: clientProtocols)
+                return (p == version->protocol || version->protocol == ClientHttpVersion::any);
+        }
+    }
+    return true;
 }
 
 template <>
@@ -110,9 +128,9 @@ template <>
 void
 Configuration::Component<ClientHttpVersionSelector*>::Parse(ClientHttpVersionSelector *&raw, ConfigParser &parser)
 {
-	if (!raw)
+    if (!raw)
         raw = new ClientHttpVersionSelector();
-	raw->add(parser);
+    raw->add(parser);
 }
 
 template <>
@@ -122,7 +140,7 @@ Configuration::Component<ClientHttpVersionSelector*>::Print(std::ostream &os, Cl
     Assure(selector);
 
     for (const auto &version: selector->directives) {
-    	os << directiveName << ' ';
-    	version->print(os);
+        os << directiveName << ' ';
+        version->print(os);
     }
 }

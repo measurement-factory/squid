@@ -462,6 +462,43 @@ Security::ServerOptions::loadDhParams()
 #endif // USE_OPENSSL
 }
 
+// TODO: rename and move
+#if USE_OPENSSL
+static int
+squid_alpn_select_callback(SSL *ssl, const unsigned char **out, unsigned char *outlen,
+    const unsigned char *in, unsigned int inlen, void *)
+{
+    if (!ssl)
+        return SSL_TLSEXT_ERR_NOACK;
+
+    // 'in' contains the client's offered ALPN protocols in format:
+    // [len][string][len][string]... (e.g., \x02h2\x08http/1.1)
+
+    auto protocolList = new SBufList();
+    const unsigned char *ptr = in;
+    auto remaining = inlen;
+    while (remaining > 0) {
+        unsigned char protoLen = *ptr;
+        protocolList->emplace_back(reinterpret_cast<const char*>(ptr + 1), protoLen);
+
+        // std::string protocol(reinterpret_cast<const char*>(&in[i + 1]), protoLen);
+        // debugs(83, 2, "Client offered ALPN: " << protocol);
+
+        ptr += (protoLen + 1);
+        remaining -= (protoLen + 1);
+    }
+
+    if (!protocolList->empty())
+        SSL_set_ex_data(ssl, ssl_ex_index_ssl_alpn, protocolList);
+
+    // hardcode the server response to "http/1.1".
+    static const unsigned char http11_alpn[] = { 8, 'h', 't', 't', 'p', '/', '1', '.', '1' };
+    *out = &http11_alpn[1]; // Points directly to the string text "http/1.1"
+    *outlen = http11_alpn[0]; // the prefix (8)
+    return SSL_TLSEXT_ERR_OK; // Accept the handshake cleanly using HTTP/1.1
+}
+#endif
+
 bool
 Security::ServerOptions::updateContextConfig(Security::ContextPointer &ctx)
 {
@@ -500,6 +537,9 @@ Security::ServerOptions::updateContextConfig(Security::ContextPointer &ctx)
         SSL_CTX_set_ex_data(ctx.get(), ssl_ctx_ex_index_dont_verify_domain, (void *) -1);
 
     Security::SetSessionCacheCallbacks(ctx);
+
+    SSL_CTX_set_alpn_select_cb(ctx.get(), squid_alpn_select_callback, nullptr);
+
 #endif
     return true;
 }
