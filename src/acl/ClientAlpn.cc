@@ -73,8 +73,7 @@ Acl::ClientAlpn::match(ACLChecklist * const ch)
     assert(checklist != nullptr && checklist->request != nullptr);
 
     if (ConnStateData *conn = checklist->conn()) {
-        Security::TlsDetails::Pointer const &details = conn->tlsParser.details;
-        conn->clientConnection->tlsNegotiations()->retrieveParsedInfo(details);
+        const auto &details = conn->tlsParser.details;
         if (details && !details->tlsAppLayerProtoNeg.isEmpty()) {
             return data->match(details->tlsAppLayerProtoNeg);
         }
