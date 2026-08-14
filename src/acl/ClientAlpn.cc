@@ -70,7 +70,7 @@ int
 Acl::ClientAlpn::match(ACLChecklist * const ch)
 {
     const auto checklist = Filled(ch);
-    assert(checklist != nullptr && checklist->request != nullptr);
+    assert(checklist);
 
     if (ConnStateData *conn = checklist->conn()) {
         const auto &details = conn->tlsParser.details;
