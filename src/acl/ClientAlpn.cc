@@ -53,9 +53,9 @@ bool ACLClientAlpnData::match(char const *toFind)
 
 bool ACLClientAlpnData::match(const SBuf &tf)
 {
-    Parser::BinaryTokenizer tkAPN(tf);
-    while (!tkAPN.atEnd()) {
-        const auto alpn = tkAPN.pstring8("ALPN");
+    Parser::BinaryTokenizer tkAlpn(tf);
+    while (!tkAlpn.atEnd()) {
+        const auto alpn = tkAlpn.pstring8("ALPN");
         if (alpn == preferredAlpn)
             return true;
         if (!otherAlpn.isEmpty() && alpn == otherAlpn)
