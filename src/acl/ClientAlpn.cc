@@ -14,11 +14,42 @@
 #include "security/Handshake.h"
 #include "security/NegotiationHistory.h"
 #include "client_side.h"
+#include "base/TextException.h"
+#include "ConfigParser.h"
 
-int
-Acl::ClientAlpn::match(ACLChecklist * const ch)
+SBufList ACLClientAlpnData::dump() const
 {
-    //TODO implement
+    SBufList sl;
+    sl.push_back(preferredAlpn);
+    if (!otherAlpn.isEmpty())
+        sl.push_back(otherAlpn);
+    return sl;
+}
+
+void ACLClientAlpnData::parse()
+{
+    const char *t = ConfigParser::strtokFile();
+    if (!t)
+        throw TextException("tls::client_alpn requires a protocol name", Here());
+    preferredAlpn = SBuf(t);
+
+    if (const char *t2 = ConfigParser::strtokFile())
+        otherAlpn = SBuf(t2);
+}
+
+bool ACLClientAlpnData::empty() const
+{
+    return preferredAlpn.isEmpty();
+}
+
+bool ACLClientAlpnData::match(char const *)
+{
+    return false;
+}
+
+
+int ClientAlpn::match(ACLChecklist * const ch)
+{
     const auto checklist = Filled(ch);
     assert(checklist != nullptr && checklist->request != nullptr);
 
@@ -27,6 +58,7 @@ Acl::ClientAlpn::match(ACLChecklist * const ch)
         conn->clientConnection->tlsNegotiations()->retrieveParsedInfo(details);
         if (details && !details->tlsAppLayerProtoNeg.isEmpty()) {
             debugs(28, 5, "Client ALPN: " << details->tlsAppLayerProtoNeg);
+            return data->match(details->tlsAppLayerProtoNeg);
         }
     }
     return 0;

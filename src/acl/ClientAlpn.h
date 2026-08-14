@@ -15,8 +15,25 @@
 namespace Acl
 {
 
+class ACLClientAlpnData: public ACLData<char const *>
+{
+    MEMPROXY_CLASS(ACLClientAlpnData);
+public:
+    ACLClientAlpnData() {}
+    ~ACLClientAlpnData() override {}
+    /// \deprecated use match(SBuf&) instead.
+    bool match(char const *) override;
+    bool match(const SBuf &);
+    SBufList dump() const override;
+    void parse() override;
+    bool empty() const override;
+private:
+    SBuf preferredAlpn;
+    SBuf otherAlpn;
+};
+
 /// an "tls::client_alpn" ACL
-class ClientAlpn : public ParameterizedNode< ACLData<const char *> >
+class ClientAlpn : public ParameterizedNode<ACLClientAlpnData>
 {
 public:
     /* Acl::Node API */
