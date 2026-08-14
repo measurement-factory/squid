@@ -42,8 +42,27 @@ bool ACLClientAlpnData::empty() const
     return preferredAlpn.isEmpty();
 }
 
-bool ACLClientAlpnData::match(char const *)
+bool ACLClientAlpnData::match(char const *toFind)
 {
+    if (!toFind) {
+        // TODO: Check whether we can Assure(toFind) instead.
+        debugs(28, 3, "not matching a nil c-string");
+        return false;
+    }
+    return match(SBuf(toFind));
+}
+
+bool ACLClientAlpnData::match(const SBuf &tf)
+{
+    Parser::BinaryTokenizer tkAPN(tf);
+    while (!tkAPN.atEnd()){
+        const auto alpn = tkAPN.pstring8("ALPN");
+        if (alpn == preferredAlpn)
+            return true;
+        if (!otherAlpn.isEmpty() && alpn == otherAlpn)
+            return false;
+    }
+
     return false;
 }
 
@@ -57,7 +76,6 @@ Acl::ClientAlpn::match(ACLChecklist * const ch)
         Security::TlsDetails::Pointer const &details = conn->tlsParser.details;
         conn->clientConnection->tlsNegotiations()->retrieveParsedInfo(details);
         if (details && !details->tlsAppLayerProtoNeg.isEmpty()) {
-            debugs(28, 5, "Client ALPN: " << details->tlsAppLayerProtoNeg);
             return data->match(details->tlsAppLayerProtoNeg);
         }
     }
