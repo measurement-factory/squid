@@ -11,11 +11,11 @@
 #include "squid.h"
 #include "acl/ClientAlpn.h"
 #include "acl/FilledChecklist.h"
+#include "base/TextException.h"
+#include "client_side.h"
+#include "ConfigParser.h"
 #include "security/Handshake.h"
 #include "security/NegotiationHistory.h"
-#include "client_side.h"
-#include "base/TextException.h"
-#include "ConfigParser.h"
 
 SBufList ACLClientAlpnData::dump() const
 {
@@ -55,7 +55,7 @@ bool ACLClientAlpnData::match(char const *toFind)
 bool ACLClientAlpnData::match(const SBuf &tf)
 {
     Parser::BinaryTokenizer tkAPN(tf);
-    while (!tkAPN.atEnd()){
+    while (!tkAPN.atEnd()) {
         const auto alpn = tkAPN.pstring8("ALPN");
         if (alpn == preferredAlpn)
             return true;

@@ -75,10 +75,10 @@
 #if USE_OPENSSL
 #include "acl/Certificate.h"
 #include "acl/CertificateData.h"
+#include "acl/ClientAlpn.h"
 #include "acl/ServerName.h"
 #include "acl/SslError.h"
 #include "acl/SslErrorData.h"
-#include "acl/ClientAlpn.h"
 #endif
 #include "acl/StringData.h"
 #if USE_OPENSSL
