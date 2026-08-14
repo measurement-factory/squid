@@ -12,9 +12,6 @@
 #include "acl/Data.h"
 #include "acl/ParameterizedNode.h"
 
-namespace Acl
-{
-
 class ACLClientAlpnData: public ACLData<char const *>
 {
     MEMPROXY_CLASS(ACLClientAlpnData);
@@ -31,6 +28,9 @@ private:
     SBuf preferredAlpn;
     SBuf otherAlpn;
 };
+
+namespace Acl
+{
 
 /// an "tls::client_alpn" ACL
 class ClientAlpn : public ParameterizedNode<ACLClientAlpnData>

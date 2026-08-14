@@ -47,8 +47,8 @@ bool ACLClientAlpnData::match(char const *)
     return false;
 }
 
-
-int ClientAlpn::match(ACLChecklist * const ch)
+int
+Acl::ClientAlpn::match(ACLChecklist * const ch)
 {
     const auto checklist = Filled(ch);
     assert(checklist != nullptr && checklist->request != nullptr);
