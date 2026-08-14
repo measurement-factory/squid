@@ -45,7 +45,6 @@ bool ACLClientAlpnData::empty() const
 bool ACLClientAlpnData::match(char const *toFind)
 {
     if (!toFind) {
-        // TODO: Check whether we can Assure(toFind) instead.
         debugs(28, 3, "not matching a nil c-string");
         return false;
     }
