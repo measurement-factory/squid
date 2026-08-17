@@ -194,13 +194,13 @@ void
 BodyPipe::clearProducer(bool atEof)
 {
     if (theProducer.set()) {
-        debugs(93, 4, "clearing BodyPipe producer" << status());
+        debugs(91,7, "clearing BodyPipe producer" << status());
         theProducer.clear();
         if (atEof) {
             if (!bodySizeKnown())
                 theBodySize = thePutSize;
             else if (bodySize() != thePutSize)
-                debugs(93, 4, "aborting on premature eof" << status());
+                debugs(91,3, "aborting on premature eof" << status());
         } else {
             // asserta that we can detect the abort if the consumer joins later
             assert(!bodySizeKnown() || bodySize() != thePutSize);
@@ -396,7 +396,7 @@ BodyPipe::postAppend(size_t size)
 {
     assert(!isCheckedOut);
     thePutSize += size;
-    debugs(93, 4, "added " << size << " bytes" << status());
+    debugs(91,7, "added " << size << " bytes" << status());
 
     // We should not consume here even if mustAutoConsume because the
     // caller may not be ready for the data to be consumed during this call.
