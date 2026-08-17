@@ -2174,9 +2174,10 @@ httpAccept(const CommAcceptCbParams &params)
         ACLFilledChecklist ch(nullptr, nullptr);
         ch.src_addr = params.conn->remote;
         ch.my_addr = params.conn->local;
-        static const SBufList defaultAlpnList{SBuf("http/1.1")};
-        if (!Config.clientHttpVersionSelector->check(defaultAlpnList, ch))
-            return;
+        if (const auto proto = Config.clientHttpVersionSelector->check(ch)) {
+            if (proto->empty())
+                return;
+        }
     }
 
     debugs(33, 4, params.conn << ": accepted");
@@ -2236,17 +2237,6 @@ clientNegotiateSSL(int fd, void *data)
 
     Security::SessionPointer session(fd_table[fd].ssl);
 
-    if (const auto protocolList = static_cast<SBufList *>(SSL_get_ex_data(session.get(), ssl_ex_index_ssl_error_detail))) {
-        if (Config.clientHttpVersionSelector) {
-            ACLFilledChecklist ch(nullptr, nullptr);
-            conn->fillChecklist(ch);
-            if (!Config.clientHttpVersionSelector->check(*protocolList, ch)) {
-                // TODO: set an error?
-                conn->clientConnection->close();
-                return;
-            }
-        }
-    }
 
 #if USE_OPENSSL
     if (Security::SessionIsResumed(session)) {
@@ -2344,6 +2334,15 @@ httpsEstablish(ConnStateData *connState, const Security::ContextPointer &ctx)
         return;
 
     connState->resetReadTimeout(Config.Timeout.request);
+
+#if USE_OPENSSL
+    if (Config.clientHttpVersionSelector) {
+        Security::SessionPointer session(fd_table[details->fd].ssl);
+        auto ch = ACLFilledChecklist::Make(nullptr, nullptr);
+        connState->fillChecklist(*ch);
+        SSL_set_ex_data(session.get(), ssl_ex_index_ssl_alpn, ch.release());
+    }
+#endif
 
     Comm::SetSelect(details->fd, COMM_SELECT_READ, clientNegotiateSSL, connState, 0);
 }

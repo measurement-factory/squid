@@ -11,6 +11,7 @@
 #include "base/IoManip.h"
 #include "base/Packable.h"
 #include "cache_cf.h"
+#include "clients/HttpVersionSelector.h"
 #include "error/SysErrorDetail.h"
 #include "fatal.h"
 #include "globals.h"
@@ -31,6 +32,8 @@
 #endif
 
 #include <limits>
+#include <optional>
+#include <string_view>
 
 Security::ServerOptions &
 Security::ServerOptions::operator =(const Security::ServerOptions &old) {
@@ -468,34 +471,26 @@ static int
 squid_alpn_select_callback(SSL *ssl, const unsigned char **out, unsigned char *outlen,
     const unsigned char *in, unsigned int inlen, void *)
 {
-    if (!ssl)
-        return SSL_TLSEXT_ERR_NOACK;
+    assert(ssl);
 
-    // 'in' contains the client's offered ALPN protocols in format:
-    // [len][string][len][string]... (e.g., \x02h2\x08http/1.1)
-
-    auto protocolList = new SBufList();
-    const unsigned char *ptr = in;
-    auto remaining = inlen;
-    while (remaining > 0) {
-        unsigned char protoLen = *ptr;
-        protocolList->emplace_back(reinterpret_cast<const char*>(ptr + 1), protoLen);
-
-        // std::string protocol(reinterpret_cast<const char*>(&in[i + 1]), protoLen);
-        // debugs(83, 2, "Client offered ALPN: " << protocol);
-
-        ptr += (protoLen + 1);
-        remaining -= (protoLen + 1);
+    if (auto check = static_cast<ACLFilledChecklist *>(SSL_get_ex_data(ssl, ssl_ex_index_ssl_alpn))) {
+        if (const auto proto = Config.clientHttpVersionSelector->check(reinterpret_cast<const char *>(in), inlen,  *check)) {
+            // one of the rules matched
+            if (!proto->empty()) {
+                const auto selected = reinterpret_cast<const unsigned char *>(proto->data());
+                *out = &selected[1];
+                *outlen = selected[0];
+                return SSL_TLSEXT_ERR_OK;
+            }
+            return SSL_TLSEXT_ERR_ALERT_FATAL;
+        } // else none of the rules matched
     }
 
-    if (!protocolList->empty())
-        SSL_set_ex_data(ssl, ssl_ex_index_ssl_alpn, protocolList);
-
-    // hardcode the server response to "http/1.1".
+    // default: hardcode server response to "http/1.1".
     static const unsigned char http11_alpn[] = { 8, 'h', 't', 't', 'p', '/', '1', '.', '1' };
-    *out = &http11_alpn[1]; // Points directly to the string text "http/1.1"
-    *outlen = http11_alpn[0]; // the prefix (8)
-    return SSL_TLSEXT_ERR_OK; // Accept the handshake cleanly using HTTP/1.1
+    *out = &http11_alpn[1];
+    *outlen = http11_alpn[0];
+    return SSL_TLSEXT_ERR_OK;
 }
 #endif
 

@@ -767,14 +767,6 @@ ssl_free_ErrorDetail(void *, void *ptr, CRYPTO_EX_DATA *,
 }
 
 static void
-ssl_free_ProtocolList(void *, void *ptr, CRYPTO_EX_DATA *,
-int, long, void *)
-{
-    const auto protocolList = static_cast<SBufList*>(ptr);
-    delete protocolList;
-}
-
-static void
 ssl_free_SslErrors(void *, void *ptr, CRYPTO_EX_DATA *,
                    int, long, void *)
 {
@@ -896,7 +888,7 @@ Ssl::InitializeOnce()
     ssl_ex_index_ssl_cert_chain = SSL_get_ex_new_index(0, (void *) "ssl_cert_chain", nullptr, nullptr, &ssl_free_CertChain);
     ssl_ex_index_ssl_validation_counter = SSL_get_ex_new_index(0, (void *) "ssl_validation_counter", nullptr, nullptr, &ssl_free_int);
     ssl_ex_index_verify_callback_parameters = SSL_get_ex_new_index(0, (void *) "verify_callback_parameters", nullptr, nullptr, &ssl_free_VerifyCallbackParameters);
-    ssl_ex_index_ssl_alpn = SSL_get_ex_new_index(0, (void *) "ssl_alpn", nullptr, nullptr, &ssl_free_ProtocolList);
+    ssl_ex_index_ssl_alpn = SSL_get_ex_new_index(0, (void *) "ssl_alpn", nullptr, ssl_dupAclChecklist, &ssl_freeAclChecklist);
 }
 
 bool

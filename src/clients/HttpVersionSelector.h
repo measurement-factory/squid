@@ -10,6 +10,8 @@
 #include "configuration/forward.h"
 
 #include <memory>
+#include <optional>
+#include <string_view>
 
 class ClientHttpVersion
 {
@@ -28,14 +30,17 @@ public:
     void print(std::ostream &) const;
 
     ACLList *aclList = nullptr;
-    Protocol protocol = none;
+    SBuf protocol;
 };
 
 class ClientHttpVersionSelector
 {
 public:
     void add(ConfigParser &);
-    bool check(const SBufList &protocols, ACLFilledChecklist &);
+    std::optional<std::string_view> check(ACLFilledChecklist &ch);
+    std::optional<std::string_view> check(const char *, unsigned int, ACLFilledChecklist &);
+
+    bool supported(const char *proto, unsigned int protoLen) const;
 
     std::vector<ClientHttpVersion::Pointer> directives;
 };

@@ -18,25 +18,24 @@
 #include "sbuf/Stream.h"
 #include "SquidConfig.h"
 
-static ClientHttpVersion::Protocol
+static bool
 parseProtocol(const SBuf &protocol)
 {
     if (protocol.cmp("http/1.1") == 0)
-        return ClientHttpVersion::http11;
+        return true;
     else if (protocol.cmp("h2") == 0)
-        return ClientHttpVersion::h2;
+        return true;
     else if (protocol.cmp("any") == 0)
-        return ClientHttpVersion::any;
-    else
-        return ClientHttpVersion::none;
+        return true;
+    return false;
 }
 
 ClientHttpVersion::ClientHttpVersion(ConfigParser &parser)
 {
     const auto version = parser.token("client http version type");
-    protocol = parseProtocol(version);
-    if (protocol == none)
+    if (parseProtocol(version))
         throw TextException(ToSBuf("unsupported client http version: '", version, "'"), Here());
+    protocol = version;
     aclList = parser.optionalAclList();
 }
 
@@ -48,21 +47,7 @@ ClientHttpVersion::~ClientHttpVersion()
 void
 ClientHttpVersion::print(std::ostream &os) const
 {
-    switch (protocol) {
-    case none:
-        os << "none";
-        break;
-    case http11:
-        os << "http/1.1";
-        break;
-    case h2:
-        os << "h2";
-        break;
-    case any:
-        os << "any";
-        break;
-    }
-    os << "\n";
+    os << protocol << '\n';
 }
 
 void
@@ -72,22 +57,44 @@ ClientHttpVersionSelector::add(ConfigParser &parser)
 }
 
 bool
-ClientHttpVersionSelector::check(const SBufList &protocols, ACLFilledChecklist &ch)
+ClientHttpVersionSelector::supported(const char *proto, const unsigned int protoLen) const {
+    return strncmp(proto, "http/1.1", protoLen) == 0;
+}
+
+std::optional<std::string_view>
+ClientHttpVersionSelector::check(ACLFilledChecklist &ch)
 {
-    std::vector<ClientHttpVersion::Protocol> clientProtocols;
-    for (auto p: protocols) {
-        const auto parsed = parseProtocol(p);
-        if (parsed != ClientHttpVersion::none)
-            clientProtocols.push_back(parsed);
+    return check(nullptr, 0, ch);
+}
+
+std::optional<std::string_view>
+ClientHttpVersionSelector::check(const char *in, unsigned int inLen, ACLFilledChecklist &ch)
+{
+    static const char http11_alpn[] = {8, 'h', 't', 't', 'p', '/', '1', '.', '1' };
+    if (!in) {
+        in = &http11_alpn[1];
+        inLen = http11_alpn[0];
     }
 
     for (auto &version: directives) {
         if (!version->aclList || ch.fastCheck(version->aclList).allowed()) {
-            for (auto p: clientProtocols)
-                return (p == version->protocol || version->protocol == ClientHttpVersion::any);
+            // 'in' contains the client's offered ALPN protocols in format:
+            // [len][string][len][string]... (e.g., \x02h2\x08http/1.1)
+            auto current = in;
+            auto remaining = inLen;
+            while (remaining > 0) {
+                unsigned int protoLen = *current;
+                const char *proto = current+1;
+                if ((version->protocol.cmp(proto, protoLen) == 0 || version->protocol.cmp("any") == 0) && supported(proto, protoLen)) {
+                    return std::make_optional<std::string_view>(current, protoLen+1);
+                }
+                current += (protoLen + 1);
+                remaining -= (protoLen + 1);
+            }
+            return std::string_view{};
         }
     }
-    return true;
+    return std::nullopt;
 }
 
 template <>
