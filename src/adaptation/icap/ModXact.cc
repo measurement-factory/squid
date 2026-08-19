@@ -645,7 +645,7 @@ void Adaptation::Icap::ModXact::checkConsuming()
 
 void Adaptation::Icap::ModXact::parseMore()
 {
-    debugs(93, 4, "have " << readBuf.length() << " bytes to parse" << status());
+    debugs(93, 5, "have " << readBuf.length() << " bytes to parse" << status());
     debugs(93, 5, "\n" << readBuf);
 
     if (state.parsingHeaders())
@@ -1087,13 +1087,13 @@ template<class Part>
 bool Adaptation::Icap::ModXact::parsePart(Part *part, const char *description)
 {
     Must(part);
-    debugs(93, 4, "have " << readBuf.length() << ' ' << description << " bytes to parse; state: " << state.parsing);
+    debugs(93, 5, "have " << readBuf.length() << ' ' << description << " bytes to parse; state: " << state.parsing);
     Http::StatusCode error = Http::scNone;
     // XXX: performance regression. c_str() data copies
     // XXX: Http::Message::parse requires a terminated string buffer
     const char *tmpBuf = readBuf.c_str();
     const bool parsed = part->parse(tmpBuf, readBuf.length(), commEof, &error);
-    debugs(93, (!parsed && error) ? 2 : 4, description << " parsing result: " << parsed << " detail: " << error);
+    debugs(93, (!parsed && error) ? 2 : 5, description << " parsing result: " << parsed << " detail: " << error);
     Must(parsed || !error);
     if (parsed)
         readBuf.consume(part->hdr_sz);
@@ -1159,7 +1159,7 @@ void Adaptation::Icap::ModXact::parseBody()
     Must(state.parsing == State::psBody);
     Must(bodyParser);
 
-    debugs(93, 4, "have " << readBuf.length() << " body bytes to parse");
+    debugs(93, 5, "have " << readBuf.length() << " body bytes to parse");
 
     // the parser will throw on errors
     BodyPipeCheckout bpc(*adapted.body_pipe);
@@ -1168,7 +1168,7 @@ void Adaptation::Icap::ModXact::parseBody()
     readBuf = bodyParser->remaining(); // sync buffers after parse
     bpc.checkIn();
 
-    debugs(93, 4, "have " << readBuf.length() << " body bytes after parsed all: " << parsed);
+    debugs(93, 5, "have " << readBuf.length() << " body bytes after parsed all: " << parsed);
     replyHttpBodySize += adapted.body_pipe->buf().contentSize();
 
     // TODO: expose BodyPipe::putSize() to make this check simpler and clearer
@@ -1214,7 +1214,7 @@ void Adaptation::Icap::ModXact::stopParsing(const bool checkUnparsedData)
     if (checkUnparsedData)
         Must(readBuf.isEmpty());
 
-    debugs(93, 4, "will no longer parse" << status());
+    debugs(93, 7, "will no longer parse" << status());
 
     delete bodyParser;
     bodyParser = nullptr;
@@ -1288,7 +1288,7 @@ Adaptation::Icap::ModXact::~ModXact()
 // internal cleanup
 void Adaptation::Icap::ModXact::swanSong()
 {
-    debugs(93, 4, "swan sings" << status());
+    debugs(93, 5, "swan sings" << status());
 
     stopWriting(false);
     stopSending(false);

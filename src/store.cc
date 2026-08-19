@@ -1008,7 +1008,7 @@ storeCheckCachableStats(StoreEntry *sentry)
 void
 StoreEntry::lengthWentBad(const char *reason)
 {
-    debugs(20, 2, "because " << reason << ": " << *this);
+    debugs(20, 3, "because " << reason << ": " << *this);
     EBIT_SET(flags, ENTRY_BAD_LENGTH);
     releaseRequest();
 }
@@ -1016,7 +1016,7 @@ StoreEntry::lengthWentBad(const char *reason)
 void
 StoreEntry::completeSuccessfully(const char * const whyWeAreSure)
 {
-    debugs(20, 2, whyWeAreSure << "; " << *this);
+    debugs(20, 3, whyWeAreSure << "; " << *this);
     complete();
 }
 
