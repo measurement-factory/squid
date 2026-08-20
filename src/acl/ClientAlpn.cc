@@ -16,6 +16,15 @@
 #include "ConfigParser.h"
 #include "security/Handshake.h"
 #include "security/NegotiationHistory.h"
+#include <set>
+
+bool ACLClientAlpnData::isSupportedAlpn(const SBuf &alpn){
+    static const std::set<SBuf> supportedAlpns = {
+        SBuf("h2"),
+        SBuf("http/1.1")
+    };
+    return supportedAlpns.find(alpn) != supportedAlpns.end();
+}
 
 SBufList ACLClientAlpnData::dump() const
 {
@@ -33,8 +42,15 @@ void ACLClientAlpnData::parse()
         throw TextException("tls::client_alpn requires a protocol name", Here());
     preferredAlpn = SBuf(t);
 
+    if (!isSupportedAlpn(preferredAlpn))
+        throw TextException("tls::client_alpn uses an unsported protocol name as first parameter", Here());
+
     if (const char *t2 = ConfigParser::strtokFile())
         otherAlpn = SBuf(t2);
+
+    if(!otherAlpn.isEmpty() && !isSupportedAlpn(otherAlpn))
+        throw TextException("tls::client_alpn uses an unsported protocol name as second parameter", Here());
+
 }
 
 bool ACLClientAlpnData::empty() const

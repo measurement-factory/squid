@@ -25,6 +25,7 @@ public:
     void parse() override;
     bool empty() const override;
 private:
+    bool isSupportedAlpn(const SBuf &);
     SBuf preferredAlpn;
     SBuf otherAlpn;
 };
