@@ -49,11 +49,16 @@ void ACLClientAlpnData::parse()
     if (const char *t2 = ConfigParser::strtokFile())
         otherAlpn = SBuf(t2);
 
-    if(!otherAlpn.isEmpty() && !isSupportedAlpn(otherAlpn))
-        throw TextException(ToSBuf("tls::client_alpn uses ", otherAlpn, " which is unsupported"), Here());
+    if (!otherAlpn.isEmpty()) {
+        if (preferredAlpn == otherAlpn)
+            throw TextException(ToSBuf("tls::client_alpn uses duplicate protocol: ", preferredAlpn), Here());
 
-    if(!otherAlpn.isEmpty() && ConfigParser::strtokFile())
-        throw TextException("tls::client_alpn only supports one optional alternative protocol", Here());
+        if (!isSupportedAlpn(otherAlpn))
+            throw TextException(ToSBuf("tls::client_alpn uses ", otherAlpn, " which is unsupported"), Here());
+
+        if (ConfigParser::strtokFile())
+            throw TextException("tls::client_alpn only supports one optional alternative protocol", Here());
+    }
 }
 
 bool ACLClientAlpnData::empty() const
