@@ -51,6 +51,8 @@ void ACLClientAlpnData::parse()
     if(!otherAlpn.isEmpty() && !isSupportedAlpn(otherAlpn))
         throw TextException("tls::client_alpn uses " << otherAlpn << " which is unsupported", Here());
 
+    if(!otherAlpn.isEmpty() && ConfigParser::strtokFile())
+        throw TextException("tls::client_alpn only supports one optional alternative protocol", Here());
 }
 
 bool ACLClientAlpnData::empty() const
