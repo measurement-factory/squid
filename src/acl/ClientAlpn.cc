@@ -14,6 +14,7 @@
 #include "base/TextException.h"
 #include "client_side.h"
 #include "ConfigParser.h"
+#include "sbuf/Stream.h"
 #include "security/Handshake.h"
 #include "security/NegotiationHistory.h"
 #include <set>
@@ -43,13 +44,13 @@ void ACLClientAlpnData::parse()
     preferredAlpn = SBuf(t);
 
     if (!isSupportedAlpn(preferredAlpn))
-        throw TextException("tls::client_alpn uses " << preferredAlpn << " which is unsupported", Here());
+        throw TextException(ToSBuf("tls::client_alpn uses ", preferredAlpn, " which is unsupported"), Here());
 
     if (const char *t2 = ConfigParser::strtokFile())
         otherAlpn = SBuf(t2);
 
     if(!otherAlpn.isEmpty() && !isSupportedAlpn(otherAlpn))
-        throw TextException("tls::client_alpn uses " << otherAlpn << " which is unsupported", Here());
+        throw TextException(ToSBuf("tls::client_alpn uses ", otherAlpn, " which is unsupported"), Here());
 
     if(!otherAlpn.isEmpty() && ConfigParser::strtokFile())
         throw TextException("tls::client_alpn only supports one optional alternative protocol", Here());
