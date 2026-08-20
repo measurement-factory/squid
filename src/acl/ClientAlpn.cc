@@ -18,7 +18,7 @@
 #include "security/NegotiationHistory.h"
 #include <set>
 
-bool ACLClientAlpnData::isSupportedAlpn(const SBuf &alpn){
+bool ACLClientAlpnData::isSupportedAlpn(const SBuf &alpn) {
     static const std::set<SBuf> supportedAlpns = {
         SBuf("h2"),
         SBuf("http/1.1")
