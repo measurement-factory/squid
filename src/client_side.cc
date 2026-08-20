@@ -2174,10 +2174,8 @@ httpAccept(const CommAcceptCbParams &params)
         ACLFilledChecklist ch(nullptr, nullptr);
         ch.src_addr = params.conn->remote;
         ch.my_addr = params.conn->local;
-        if (const auto proto = Config.clientHttpVersionSelector->check(ch)) {
-            if (proto->empty())
-                return;
-        }
+        if (Config.clientHttpVersionSelector->check(ch).empty())
+            return;
     }
 
     debugs(33, 4, params.conn << ": accepted");
@@ -2236,7 +2234,6 @@ clientNegotiateSSL(int fd, void *data)
     }
 
     Security::SessionPointer session(fd_table[fd].ssl);
-
 
 #if USE_OPENSSL
     if (Security::SessionIsResumed(session)) {

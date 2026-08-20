@@ -10,15 +10,12 @@
 #include "configuration/forward.h"
 
 #include <memory>
-#include <optional>
 #include <string_view>
 
 class ClientHttpVersion
 {
 public:
     using Pointer = std::shared_ptr<ClientHttpVersion>;
-
-    enum Protocol { none, http11, h2, any };
 
     explicit ClientHttpVersion(ConfigParser &);
     ~ClientHttpVersion();
@@ -36,11 +33,22 @@ public:
 class ClientHttpVersionSelector
 {
 public:
-    void add(ConfigParser &);
-    std::optional<std::string_view> check(ACLFilledChecklist &ch);
-    std::optional<std::string_view> check(const char *, unsigned int, ACLFilledChecklist &);
+    inline static const SBuf AnyProtocol = SBuf("any");
 
-    bool supported(const char *proto, unsigned int protoLen) const;
+    void add(ConfigParser &);
+
+    /// Checks client_http_version directive when ALPN is available.
+    /// \param alpn the string containing client's offered ALPN protocols in format:
+    /// [len][string][len][string]... (e.g., \x02h2\x08http/1.1)
+    /// \param alpnLen the length of alpn
+    static std::string_view Check(const char *alpn, unsigned int alpnLen, ACLFilledChecklist *);
+
+    /// Checks client_http_version directive when ALPN is unavailable.
+    std::string_view check(ACLFilledChecklist &ch);
 
     std::vector<ClientHttpVersion::Pointer> directives;
+
+private:
+
+    std::string_view check(const char *in, unsigned int inLen, ACLFilledChecklist &);
 };

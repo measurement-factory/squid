@@ -18,6 +18,7 @@
 #include "sbuf/Stream.h"
 #include "SquidConfig.h"
 
+
 static bool
 parseProtocol(const SBuf &protocol)
 {
@@ -33,7 +34,7 @@ parseProtocol(const SBuf &protocol)
 ClientHttpVersion::ClientHttpVersion(ConfigParser &parser)
 {
     const auto version = parser.token("client http version type");
-    if (parseProtocol(version))
+    if (!parseProtocol(version))
         throw TextException(ToSBuf("unsupported client http version: '", version, "'"), Here());
     protocol = version;
     aclList = parser.optionalAclList();
@@ -50,51 +51,65 @@ ClientHttpVersion::print(std::ostream &os) const
     os << protocol << '\n';
 }
 
+static bool
+Supported(const char *clientProtocol, const unsigned int protoLen)
+{
+    return strncmp(clientProtocol, "http/1.1", protoLen) == 0;
+}
+
+static std::string_view
+CheckProtocol(const char *in, unsigned int inLen, const SBuf &matchedProtocol)
+{
+    // Use these defaults if client does not provide ALPN
+    // This usually means that the client intends to use http/1.1.
+    static const char http11Alpn[] = { 8, 'h', 't', 't', 'p', '/', '1', '.', '1' };
+
+    auto current = in ? in : &http11Alpn[0];
+    auto remaining = inLen ? inLen : http11Alpn[0]+1;
+    while (remaining > 0) {
+        unsigned int protoLen = *current;
+        const char *clientProtocol = current+1;
+        if ((matchedProtocol.cmp(clientProtocol, protoLen) == 0 || matchedProtocol.cmp("any") == 0) && Supported(clientProtocol, protoLen)) {
+            return std::string_view(current, protoLen+1);
+        }
+        current += (protoLen + 1);
+        remaining -= (protoLen + 1);
+    }
+
+    return std::string_view{};
+}
+
 void
 ClientHttpVersionSelector::add(ConfigParser &parser)
 {
     directives.emplace_back(std::make_shared<ClientHttpVersion>(parser));
 }
 
-bool
-ClientHttpVersionSelector::supported(const char *proto, const unsigned int protoLen) const {
-    return strncmp(proto, "http/1.1", protoLen) == 0;
-}
-
-std::optional<std::string_view>
+std::string_view
 ClientHttpVersionSelector::check(ACLFilledChecklist &ch)
 {
     return check(nullptr, 0, ch);
 }
 
-std::optional<std::string_view>
-ClientHttpVersionSelector::check(const char *in, unsigned int inLen, ACLFilledChecklist &ch)
+std::string_view
+ClientHttpVersionSelector::Check(const char *alpn, unsigned int alpnLen, ACLFilledChecklist *ch)
 {
-    static const char http11_alpn[] = {8, 'h', 't', 't', 'p', '/', '1', '.', '1' };
-    if (!in) {
-        in = &http11_alpn[1];
-        inLen = http11_alpn[0];
-    }
+    if (!ch)
+        return CheckProtocol(alpn, alpnLen, ClientHttpVersionSelector::AnyProtocol);
 
-    for (auto &version: directives) {
-        if (!version->aclList || ch.fastCheck(version->aclList).allowed()) {
-            // 'in' contains the client's offered ALPN protocols in format:
-            // [len][string][len][string]... (e.g., \x02h2\x08http/1.1)
-            auto current = in;
-            auto remaining = inLen;
-            while (remaining > 0) {
-                unsigned int protoLen = *current;
-                const char *proto = current+1;
-                if ((version->protocol.cmp(proto, protoLen) == 0 || version->protocol.cmp("any") == 0) && supported(proto, protoLen)) {
-                    return std::make_optional<std::string_view>(current, protoLen+1);
-                }
-                current += (protoLen + 1);
-                remaining -= (protoLen + 1);
-            }
-            return std::string_view{};
-        }
-    }
-    return std::nullopt;
+    assert(Config.clientHttpVersionSelector);
+    return Config.clientHttpVersionSelector->check(alpn ,alpnLen, *ch);
+}
+
+std::string_view
+ClientHttpVersionSelector::check(const char *alpn, unsigned int alpnLen, ACLFilledChecklist &ch)
+{
+    auto matchedVersion = std::find_if(directives.begin(), directives.end(), [&](const ClientHttpVersion::Pointer& version) {
+        return !version->aclList || ch.fastCheck(version->aclList).allowed();
+    });
+
+    const auto proto = (matchedVersion == directives.end()) ?  AnyProtocol : (*matchedVersion)->protocol;
+    return CheckProtocol(alpn, alpnLen, proto);
 }
 
 template <>

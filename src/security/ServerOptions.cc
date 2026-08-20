@@ -465,33 +465,60 @@ Security::ServerOptions::loadDhParams()
 #endif // USE_OPENSSL
 }
 
-// TODO: rename and move
 #if USE_OPENSSL
+// TODO: move to where it belongs
 static int
-squid_alpn_select_callback(SSL *ssl, const unsigned char **out, unsigned char *outlen,
+alpn_select_cb(SSL *ssl, const unsigned char **out, unsigned char *outlen,
     const unsigned char *in, unsigned int inlen, void *)
 {
     assert(ssl);
 
-    if (auto check = static_cast<ACLFilledChecklist *>(SSL_get_ex_data(ssl, ssl_ex_index_ssl_alpn))) {
-        if (const auto proto = Config.clientHttpVersionSelector->check(reinterpret_cast<const char *>(in), inlen,  *check)) {
-            // one of the rules matched
-            if (!proto->empty()) {
-                const auto selected = reinterpret_cast<const unsigned char *>(proto->data());
-                *out = &selected[1];
-                *outlen = selected[0];
-                return SSL_TLSEXT_ERR_OK;
-            }
-            return SSL_TLSEXT_ERR_ALERT_FATAL;
-        } // else none of the rules matched
-    }
+    try {
+        auto checkList = static_cast<ACLFilledChecklist *>(SSL_get_ex_data(ssl, ssl_ex_index_ssl_alpn));
+        const auto proto = ClientHttpVersionSelector::Check(reinterpret_cast<const char *>(in), inlen, checkList);
 
-    // default: hardcode server response to "http/1.1".
-    static const unsigned char http11_alpn[] = { 8, 'h', 't', 't', 'p', '/', '1', '.', '1' };
-    *out = &http11_alpn[1];
-    *outlen = http11_alpn[0];
-    return SSL_TLSEXT_ERR_OK;
+        if (proto.empty())
+            return SSL_TLSEXT_ERR_ALERT_FATAL;
+
+        const auto selected = reinterpret_cast<const unsigned char *>(proto.data());
+        *out = &selected[1];
+        *outlen = selected[0];
+        return SSL_TLSEXT_ERR_OK;
+    } catch (...) {
+        debugs (83, 1, "cannot select a protocol: " << CurrentException);
+        return SSL_TLSEXT_ERR_ALERT_FATAL;
+    }
 }
+
+int client_hello_cb(SSL *ssl, int *al, void *) {
+    assert(ssl);
+    assert(al);
+
+    try {
+        const unsigned char *ext = nullptr;
+        size_t extLen = 0;
+        // Check if the ALPN extension is present
+        if (SSL_client_hello_get0_ext(ssl, TLSEXT_TYPE_application_layer_protocol_negotiation, &ext, &extLen) == 1)
+            return SSL_CLIENT_HELLO_SUCCESS; // ALPN found, proceed normally
+
+        if (auto ch = static_cast<ACLFilledChecklist *>(SSL_get_ex_data(ssl, ssl_ex_index_ssl_alpn))) {
+            const auto proto = Config.clientHttpVersionSelector->check(*ch);
+            if (proto.empty()) {
+                // set the alert to "no_application_protocol" and fail
+                *al = TLS1_AD_NO_APPLICATION_PROTOCOL;
+                return SSL_CLIENT_HELLO_ERROR;
+            }
+        }
+
+        // no ALPN, but HTTP version selection rules (if any) allow us to proceed
+        return SSL_CLIENT_HELLO_SUCCESS;
+    } catch (...) {
+        debugs (83, 2, "cannot handle client hello: " << CurrentException);
+        *al = SSL_AD_INTERNAL_ERROR;
+        return SSL_CLIENT_HELLO_ERROR;
+    }
+}
+
 #endif
 
 bool
@@ -533,7 +560,8 @@ Security::ServerOptions::updateContextConfig(Security::ContextPointer &ctx)
 
     Security::SetSessionCacheCallbacks(ctx);
 
-    SSL_CTX_set_alpn_select_cb(ctx.get(), squid_alpn_select_callback, nullptr);
+    SSL_CTX_set_client_hello_cb(ctx.get(), client_hello_cb, nullptr);
+    SSL_CTX_set_alpn_select_cb(ctx.get(), alpn_select_cb, nullptr);
 
 #endif
     return true;
