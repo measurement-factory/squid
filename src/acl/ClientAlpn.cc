@@ -43,13 +43,13 @@ void ACLClientAlpnData::parse()
     preferredAlpn = SBuf(t);
 
     if (!isSupportedAlpn(preferredAlpn))
-        throw TextException("tls::client_alpn uses an unsported protocol name as first parameter", Here());
+        throw TextException("tls::client_alpn uses " << preferredAlpn << " which is unsupported", Here());
 
     if (const char *t2 = ConfigParser::strtokFile())
         otherAlpn = SBuf(t2);
 
     if(!otherAlpn.isEmpty() && !isSupportedAlpn(otherAlpn))
-        throw TextException("tls::client_alpn uses an unsported protocol name as second parameter", Here());
+        throw TextException("tls::client_alpn uses " << otherAlpn << " which is unsupported", Here());
 
 }
 
@@ -92,6 +92,8 @@ Acl::ClientAlpn::match(ACLChecklist * const ch)
         if (details && !details->tlsAppLayerProtoNeg.isEmpty()) {
             return data->match(details->tlsAppLayerProtoNeg);
         }
+    } else {
+        debugs(28, DBG_IMPORTANT, "WARNING: tls::client_alpn ACL is missing a client connection to check");
     }
     return 0;
 }
