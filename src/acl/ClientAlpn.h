@@ -12,15 +12,13 @@
 #include "acl/Data.h"
 #include "acl/ParameterizedNode.h"
 
-class ACLClientAlpnData: public ACLData<char const *>
+class ACLClientAlpnData: public ACLData<const SBuf &>
 {
     MEMPROXY_CLASS(ACLClientAlpnData);
 public:
     ACLClientAlpnData() {}
     ~ACLClientAlpnData() override {}
-    /// \deprecated use match(SBuf&) instead.
-    bool match(char const *) override;
-    bool match(const SBuf &);
+    bool match(const SBuf &) override;
     SBufList dump() const override;
     void parse() override;
     bool empty() const override;

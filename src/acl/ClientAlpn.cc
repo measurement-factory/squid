@@ -66,15 +66,6 @@ bool ACLClientAlpnData::empty() const
     return preferredAlpn.isEmpty();
 }
 
-bool ACLClientAlpnData::match(char const *toFind)
-{
-    if (!toFind) {
-        debugs(28, 3, "not matching a nil c-string");
-        return false;
-    }
-    return match(SBuf(toFind));
-}
-
 bool ACLClientAlpnData::match(const SBuf &tf)
 {
     Parser::BinaryTokenizer tkAlpn(tf);
