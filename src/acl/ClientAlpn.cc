@@ -38,7 +38,7 @@ SBufList ACLClientAlpnData::dump() const
 
 void ACLClientAlpnData::parse()
 {
-    const char *t = ConfigParser::strtokFile();
+    const auto t = ConfigParser::strtokFile();
     if (!t)
         throw TextException("tls::client_alpn requires a protocol name", Here());
     preferredAlpn = SBuf(t);
@@ -46,7 +46,7 @@ void ACLClientAlpnData::parse()
     if (!isSupportedAlpn(preferredAlpn))
         throw TextException(ToSBuf("tls::client_alpn uses ", preferredAlpn, " which is unsupported"), Here());
 
-    if (const char *t2 = ConfigParser::strtokFile())
+    if (const auto t2 = ConfigParser::strtokFile())
         otherAlpn = SBuf(t2);
 
     if (!otherAlpn.isEmpty()) {
