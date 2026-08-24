@@ -51,13 +51,14 @@ ClientHttpVersion::print(std::ostream &os) const
     os << protocol << '\n';
 }
 
-static bool
+static const SBuf &
 Supported(const char *clientProtocol, const unsigned int protoLen)
 {
-    return strncmp(clientProtocol, "http/1.1", protoLen) == 0;
+    static const SBuf SupportedProtocol = SBuf("http/1.1");
+    return SupportedProtocol.cmp(clientProtocol, protoLen) == 0 ? SupportedProtocol : ClientHttpVersionSelector::UnsupportedProtocol;
 }
 
-static std::string_view
+static const SBuf &
 CheckProtocol(const char *in, unsigned int inLen, const SBuf &matchedProtocol)
 {
     // Use these defaults if client does not provide ALPN
@@ -69,14 +70,17 @@ CheckProtocol(const char *in, unsigned int inLen, const SBuf &matchedProtocol)
     while (remaining > 0) {
         unsigned int protoLen = *current;
         const char *clientProtocol = current+1;
-        if ((matchedProtocol.cmp(clientProtocol, protoLen) == 0 || matchedProtocol.cmp("any") == 0) && Supported(clientProtocol, protoLen)) {
-            return std::string_view(current, protoLen+1);
+        if ((matchedProtocol.cmp(clientProtocol, protoLen) == 0 || matchedProtocol.cmp("any") == 0)) {
+            const auto &result = Supported(clientProtocol, protoLen);
+            if (result != ClientHttpVersionSelector::UnsupportedProtocol)
+                return result;
         }
+        // the buffer boundaries must have been checked by tls_parse_ctos_alpn()
         current += (protoLen + 1);
         remaining -= (protoLen + 1);
     }
 
-    return std::string_view{};
+    return ClientHttpVersionSelector::UnsupportedProtocol;
 }
 
 void
@@ -85,14 +89,8 @@ ClientHttpVersionSelector::add(ConfigParser &parser)
     directives.emplace_back(std::make_shared<ClientHttpVersion>(parser));
 }
 
-std::string_view
-ClientHttpVersionSelector::check(ACLFilledChecklist &ch)
-{
-    return check(nullptr, 0, ch);
-}
-
-std::string_view
-ClientHttpVersionSelector::Check(const char *alpn, unsigned int alpnLen, ACLFilledChecklist *ch)
+const SBuf &
+ClientHttpVersionSelector::Check(ACLFilledChecklist *ch, const char *alpn, unsigned int alpnLen)
 {
     if (!ch)
         return CheckProtocol(alpn, alpnLen, ClientHttpVersionSelector::AnyProtocol);
@@ -101,7 +99,7 @@ ClientHttpVersionSelector::Check(const char *alpn, unsigned int alpnLen, ACLFill
     return Config.clientHttpVersionSelector->check(alpn ,alpnLen, *ch);
 }
 
-std::string_view
+const SBuf &
 ClientHttpVersionSelector::check(const char *alpn, unsigned int alpnLen, ACLFilledChecklist &ch)
 {
     auto matchedVersion = std::find_if(directives.begin(), directives.end(), [&](const ClientHttpVersion::Pointer& version) {

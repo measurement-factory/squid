@@ -889,6 +889,7 @@ Ssl::InitializeOnce()
     ssl_ex_index_ssl_validation_counter = SSL_get_ex_new_index(0, (void *) "ssl_validation_counter", nullptr, nullptr, &ssl_free_int);
     ssl_ex_index_verify_callback_parameters = SSL_get_ex_new_index(0, (void *) "verify_callback_parameters", nullptr, nullptr, &ssl_free_VerifyCallbackParameters);
     ssl_ex_index_ssl_alpn = SSL_get_ex_new_index(0, (void *) "ssl_alpn", nullptr, ssl_dupAclChecklist, &ssl_freeAclChecklist);
+    ssl_ex_index_ssl_alpn_selected = SSL_get_ex_new_index(0, (void *) "ssl_alpn_selected", nullptr, nullptr, nullptr);
 }
 
 bool

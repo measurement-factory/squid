@@ -2174,7 +2174,7 @@ httpAccept(const CommAcceptCbParams &params)
         ACLFilledChecklist ch(nullptr, nullptr);
         ch.src_addr = params.conn->remote;
         ch.my_addr = params.conn->local;
-        if (Config.clientHttpVersionSelector->check(ch).empty())
+        if (ClientHttpVersionSelector::Check(&ch, nullptr, 0).isEmpty())
             return;
     }
 
