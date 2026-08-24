@@ -194,6 +194,35 @@ aclParseAclList(ConfigParser &, ACLList **config, const char *label)
     return aclCount;
 }
 
+void
+ParseAclWithAction(acl_access **treePointer, const Acl::Answer &action, const char *desc, Acl::Node *acl)
+{
+    assert(treePointer);
+    auto &access = *treePointer;
+    if (!access) {
+        const auto tree = new Acl::Tree;
+        tree->context(ToSBuf('(', desc, " rules)"), config_input_line);
+        access = new acl_access(tree);
+    }
+    assert(access);
+
+    Acl::AndNode *rule = new Acl::AndNode;
+    rule->context(ToSBuf('(', desc, " rule)"), config_input_line);
+    if (acl)
+        rule->add(acl);
+    else
+        rule->lineParse();
+    (*access)->add(rule, action);
+}
+
+void
+ParseOptionalAclWithAction(ConfigParser &parser, acl_access **treePointer, const Acl::Answer &action, const char *desc)
+{
+    if (!parser.skipOptional("if"))
+        return; // the directive has no ACLs
+    ParseAclWithAction(treePointer, action, desc);
+}
+
 /*********************/
 /* Destroy functions */
 /*********************/
