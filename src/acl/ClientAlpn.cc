@@ -14,9 +14,13 @@
 #include "base/TextException.h"
 #include "client_side.h"
 #include "ConfigParser.h"
+#include "fde.h"
+#include "globals.h"
 #include "sbuf/Stream.h"
 #include "security/Handshake.h"
 #include "security/NegotiationHistory.h"
+#include "security/Session.h"
+
 #include <set>
 
 bool ACLClientAlpnData::isSupportedAlpn(const SBuf &alpn) {
@@ -90,6 +94,12 @@ Acl::ClientAlpn::match(ACLChecklist * const ch)
         const auto &details = conn->tlsParser.details;
         if (details && !details->tlsAppLayerProtoNeg.isEmpty()) {
             return data->match(details->tlsAppLayerProtoNeg);
+        }
+
+        if (const auto sslConnection = fd_table[conn->clientConnection->fd].ssl.get()) {
+            if (const auto alpnList = static_cast<SBuf *>(SSL_get_ex_data(sslConnection, ssl_ex_index_client_alpn))) {
+                return data->match(*alpnList);
+            }
         }
     } else {
         debugs(28, DBG_IMPORTANT, "WARNING: tls::client_alpn ACL is missing a client connection to check");
