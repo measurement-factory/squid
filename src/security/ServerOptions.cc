@@ -467,7 +467,7 @@ Security::ServerOptions::loadDhParams()
 
 #if USE_OPENSSL
 
-static const SBuf &
+static const std::optional<SBuf>
 HttpVersionSelectorCheck(SSL *ssl,  const unsigned char *alpn, const unsigned int alpnLen)
 {
     auto checkList = static_cast<ACLFilledChecklist *>(SSL_get_ex_data(ssl, ssl_ex_index_ssl_alpn));
@@ -482,15 +482,16 @@ alpn_select_cb(SSL *ssl, const unsigned char **out, unsigned char *outlen,
     assert(ssl);
 
     try {
-        const auto &proto = HttpVersionSelectorCheck(ssl, in, inlen);
+        const auto protoTemp = HttpVersionSelectorCheck(ssl, in, inlen);
+        const auto proto = new std::optional<SBuf>(protoTemp);
+        if (!SSL_set_ex_data(ssl, ssl_ex_index_ssl_alpn_selected, (void *)proto))
+            throw TextException("SSL_set_ex_data() error", Here());
 
-        SSL_set_ex_data(ssl, ssl_ex_index_ssl_alpn_selected, (void *)&proto);
-
-        if (proto.isEmpty())
+        if (proto)
             return SSL_TLSEXT_ERR_ALERT_FATAL;
 
-        *out = reinterpret_cast<const unsigned char *>(proto.rawContent());
-        *outlen = proto.length();
+        *out = reinterpret_cast<const unsigned char *>((*proto)->rawContent());
+        *outlen = (*proto)->length();
         return SSL_TLSEXT_ERR_OK;
     } catch (...) {
         debugs (83, DBG_IMPORTANT, "cannot select a protocol: " << CurrentException);
@@ -511,9 +512,9 @@ int client_hello_cb(SSL *ssl, int *al, void *) {
             return SSL_CLIENT_HELLO_SUCCESS; // ALPN found, will handle them in alpn_select_cb()
 
         // no ALPN, check the HTTP version selection rules here
-        const auto &proto = HttpVersionSelectorCheck(ssl, nullptr, 0);
+        const auto proto = HttpVersionSelectorCheck(ssl, nullptr, 0);
 
-        if (proto.isEmpty()) {
+        if (!proto) {
             // set the alert to "no_application_protocol" and fail
             *al = TLS1_AD_NO_APPLICATION_PROTOCOL;
             return SSL_CLIENT_HELLO_ERROR;

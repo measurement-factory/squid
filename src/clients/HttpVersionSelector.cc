@@ -22,11 +22,11 @@
 static bool
 parseProtocol(const SBuf &protocol)
 {
-    if (protocol.cmp("http/1.1") == 0)
+    if (protocol == ClientHttpVersionSelector::Http11Protocol)
         return true;
     else if (protocol.cmp("h2") == 0)
         return true;
-    else if (protocol.cmp("any") == 0)
+    else if (protocol == ClientHttpVersionSelector::AnyProtocol)
         return true;
     return false;
 }
@@ -51,36 +51,48 @@ ClientHttpVersion::print(std::ostream &os) const
     os << protocol << '\n';
 }
 
-static const SBuf &
+static std::optional<SBuf>
 Supported(const char *clientProtocol, const unsigned int protoLen)
 {
-    static const SBuf SupportedProtocol = SBuf("http/1.1");
-    return SupportedProtocol.cmp(clientProtocol, protoLen) == 0 ? SupportedProtocol : ClientHttpVersionSelector::UnsupportedProtocol;
+    const auto &supportedProtocol = ClientHttpVersionSelector::Http11Protocol;
+    return supportedProtocol.cmp(clientProtocol, protoLen) == 0 ? std::make_optional(supportedProtocol) : std::nullopt;
 }
 
-static const SBuf &
+static bool
+Matched(const SBuf &candidateProtocol, const char *clientProto, unsigned int clientProtoLen)
+{
+    return candidateProtocol.cmp(clientProto, clientProtoLen) == 0 || candidateProtocol.cmp("any") == 0;
+}
+
+static std::optional<SBuf>
 CheckProtocol(const char *in, unsigned int inLen, const SBuf &matchedProtocol)
 {
-    // Use these defaults if client does not provide ALPN
-    // This usually means that the client intends to use http/1.1.
-    static const char http11Alpn[] = { 8, 'h', 't', 't', 'p', '/', '1', '.', '1' };
+    if (!in) {
+        assert(!inLen);
+        // A client not providing ALPN usually intends to use http/1.1.
+        const auto &clientDefault = ClientHttpVersionSelector::Http11Protocol;
+        if (Matched(matchedProtocol, clientDefault.rawContent(), clientDefault.length()))
+            return clientDefault;
+        return std::nullopt;
+    }
 
-    auto current = in ? in : &http11Alpn[0];
-    auto remaining = inLen ? inLen : http11Alpn[0]+1;
+    assert(inLen);
+
+    auto current = in;
+    auto remaining = inLen;
     while (remaining > 0) {
         unsigned int protoLen = *current;
-        const char *clientProtocol = current+1;
-        if ((matchedProtocol.cmp(clientProtocol, protoLen) == 0 || matchedProtocol.cmp("any") == 0)) {
-            const auto &result = Supported(clientProtocol, protoLen);
-            if (result != ClientHttpVersionSelector::UnsupportedProtocol)
-                return result;
-        }
+        assert(remaining > protoLen);
+        auto clientProtocol = current+1;
+        if (Matched(matchedProtocol, clientProtocol, protoLen))
+            return Supported(clientProtocol, protoLen);
+
         // the buffer boundaries must have been checked by tls_parse_ctos_alpn()
         current += (protoLen + 1);
         remaining -= (protoLen + 1);
     }
 
-    return ClientHttpVersionSelector::UnsupportedProtocol;
+    return std::nullopt;
 }
 
 void
@@ -89,7 +101,7 @@ ClientHttpVersionSelector::add(ConfigParser &parser)
     directives.emplace_back(std::make_shared<ClientHttpVersion>(parser));
 }
 
-const SBuf &
+const std::optional<SBuf>
 ClientHttpVersionSelector::Check(ACLFilledChecklist *ch, const char *alpn, unsigned int alpnLen)
 {
     if (!ch)
@@ -99,7 +111,7 @@ ClientHttpVersionSelector::Check(ACLFilledChecklist *ch, const char *alpn, unsig
     return Config.clientHttpVersionSelector->check(alpn ,alpnLen, *ch);
 }
 
-const SBuf &
+const std::optional<SBuf>
 ClientHttpVersionSelector::check(const char *alpn, unsigned int alpnLen, ACLFilledChecklist &ch)
 {
     auto matchedVersion = std::find_if(directives.begin(), directives.end(), [&](const ClientHttpVersion::Pointer& version) {

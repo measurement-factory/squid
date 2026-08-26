@@ -34,7 +34,7 @@ class ClientHttpVersionSelector
 {
 public:
     inline static const SBuf AnyProtocol = SBuf("any");
-    inline static const SBuf UnsupportedProtocol = SBuf();
+    inline static const SBuf Http11Protocol = SBuf("http/1.1");
 
     void add(ConfigParser &);
 
@@ -42,11 +42,11 @@ public:
     /// \param alpn the string containing client's offered ALPN protocols in format:
     /// [len][string][len][string]... (e.g., \x02h2\x08http/1.1)
     /// \param alpnLen the length of alpn
-    static const SBuf &Check(ACLFilledChecklist *, const char *alpn, unsigned int alpnLen);
+    static const std::optional<SBuf> Check(ACLFilledChecklist *, const char *alpn, unsigned int alpnLen);
 
     std::vector<ClientHttpVersion::Pointer> directives;
 
 private:
 
-    const SBuf &check(const char *in, unsigned int inLen, ACLFilledChecklist &);
+    const std::optional<SBuf> check(const char *in, unsigned int inLen, ACLFilledChecklist &);
 };
