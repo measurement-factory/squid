@@ -14,6 +14,8 @@ SUBDIRS = \
 noinst_LTLIBRARIES = libsecurity.la
 
 libsecurity_la_SOURCES = \
+	Alpn.cc \
+	Alpn.h \
 	BlindPeerConnector.cc \
 	BlindPeerConnector.h \
 	CertError.h \

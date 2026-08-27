@@ -1730,6 +1730,23 @@ IF USE_OPENSSL
 	  #
 	  # DNS, ICP, and HTCP exchanges during the master transaction do not
 	  # affect these rules.
+
+	acl aclname tls::client_alpn <protocol-name> [other-protocol-name]
+	  # Matches ALPN (RFC 7301) protocol name(s) sent by the TLS client [fast]
+	  #
+	  # If `other-protocol-name` is given, this ACL matches two kinds of ALPN
+	  # lists: Lists containing `protocol-name` without `other-protocol-name`
+	  # entries and lists where the first `protocol-name` entry appears before
+	  # the first `other-protocol-name` entry. In other words, the two-name
+	  # variation of this ACL matches clients that _prefer_ the first protocol
+	  # (and may not support the other protocol at all).
+	  #
+	  # Protocol names are case-sensitive. The two currently supported names
+	  # are `h2` and `http/1.1`.
+	  #
+	  # This ACL cannot be used to distinguish clients that sent no TLS ALPN
+	  # extension at all from clients that sent an extension with a list that
+	  # does not contain any supported protocol names.
 ENDIF
 	acl aclname any-of acl1 acl2 ...
 	  # match any one of the acls [fast or slow]
