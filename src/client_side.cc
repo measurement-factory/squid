@@ -1850,6 +1850,13 @@ ConnStateData::afterClientRead()
     if (pipeline.empty())
         fd_note(clientConnection->fd, "Reading next request");
 
+    if (auto ssl = fd_table[clientConnection->fd].ssl.get()) {
+        const auto proto = static_cast<const std::optional<SBuf> *>(SSL_get_ex_data(ssl, ssl_ex_index_ssl_alpn_selected));
+        Assure(proto);
+        Assure(*proto);
+        Assure(proto->value() == ClientHttpVersionSelector::Http11Protocol);
+    }
+
     parseRequests();
 
     if (!isOpen())

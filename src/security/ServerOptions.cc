@@ -467,11 +467,15 @@ Security::ServerOptions::loadDhParams()
 
 #if USE_OPENSSL
 
-static const std::optional<SBuf>
+static std::optional<SBuf> *
 HttpVersionSelectorCheck(SSL *ssl,  const unsigned char *alpn, const unsigned int alpnLen)
 {
     auto checkList = static_cast<ACLFilledChecklist *>(SSL_get_ex_data(ssl, ssl_ex_index_ssl_alpn));
-    return ClientHttpVersionSelector::Check(checkList, reinterpret_cast<const char *>(alpn), alpnLen);
+    const auto protoTemp = ClientHttpVersionSelector::Check(checkList, reinterpret_cast<const char *>(alpn), alpnLen);
+    const auto proto = new std::optional<SBuf>(protoTemp);
+    if (!SSL_set_ex_data(ssl, ssl_ex_index_ssl_alpn_selected, (void *)proto))
+        throw TextException("SSL_set_ex_data() error", Here());
+    return proto;
 }
 
 // TODO: move to where it belongs
@@ -482,12 +486,9 @@ alpn_select_cb(SSL *ssl, const unsigned char **out, unsigned char *outlen,
     assert(ssl);
 
     try {
-        const auto protoTemp = HttpVersionSelectorCheck(ssl, in, inlen);
-        const auto proto = new std::optional<SBuf>(protoTemp);
-        if (!SSL_set_ex_data(ssl, ssl_ex_index_ssl_alpn_selected, (void *)proto))
-            throw TextException("SSL_set_ex_data() error", Here());
+        const auto proto = HttpVersionSelectorCheck(ssl, in, inlen);
 
-        if (!protoTemp)
+        if (!proto->has_value())
             return SSL_TLSEXT_ERR_ALERT_FATAL;
 
         *out = reinterpret_cast<const unsigned char *>((*proto)->rawContent());
@@ -514,7 +515,7 @@ int client_hello_cb(SSL *ssl, int *al, void *) {
         // no ALPN, check the HTTP version selection rules here
         const auto proto = HttpVersionSelectorCheck(ssl, nullptr, 0);
 
-        if (!proto) {
+        if (!proto->has_value()) {
             // set the alert to "no_application_protocol" and fail
             *al = TLS1_AD_NO_APPLICATION_PROTOCOL;
             return SSL_CLIENT_HELLO_ERROR;
