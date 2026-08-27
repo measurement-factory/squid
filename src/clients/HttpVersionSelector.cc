@@ -11,6 +11,7 @@
 #include "acl/FilledChecklist.h"
 #include "acl/Gadgets.h"
 #include "acl/Tree.h"
+#include "base/Raw.h"
 #include "ConfigOption.h"
 #include "ConfigParser.h"
 #include "configuration/Smooth.h"
@@ -67,32 +68,36 @@ Matched(const SBuf &candidateProtocol, const char *clientProto, unsigned int cli
 static std::optional<SBuf>
 CheckProtocol(const char *in, unsigned int inLen, const SBuf &matchedProtocol)
 {
+    std::optional<SBuf> resultProtocol = std::nullopt;
+
     if (!in) {
         assert(!inLen);
         // A client not providing ALPN usually intends to use http/1.1.
         const auto &clientDefault = ClientHttpVersionSelector::Http11Protocol;
         if (Matched(matchedProtocol, clientDefault.rawContent(), clientDefault.length()))
-            return clientDefault;
-        return std::nullopt;
+            resultProtocol = clientDefault;
+    } else {
+        assert(inLen);
+
+        auto current = in;
+        auto remaining = inLen;
+        while (remaining > 0) {
+            unsigned int protoLen = *current;
+            assert(remaining > protoLen);
+            auto clientProtocol = current+1;
+            debugs(11, 5, Raw("ALPN candidate", clientProtocol, protoLen));
+            if (Matched(matchedProtocol, clientProtocol, protoLen)) {
+                resultProtocol = Supported(clientProtocol, protoLen);
+                break;
+            }
+
+            // the buffer boundaries must have been checked by tls_parse_ctos_alpn()
+            current += (protoLen + 1);
+            remaining -= (protoLen + 1);
+        }
     }
-
-    assert(inLen);
-
-    auto current = in;
-    auto remaining = inLen;
-    while (remaining > 0) {
-        unsigned int protoLen = *current;
-        assert(remaining > protoLen);
-        auto clientProtocol = current+1;
-        if (Matched(matchedProtocol, clientProtocol, protoLen))
-            return Supported(clientProtocol, protoLen);
-
-        // the buffer boundaries must have been checked by tls_parse_ctos_alpn()
-        current += (protoLen + 1);
-        remaining -= (protoLen + 1);
-    }
-
-    return std::nullopt;
+    debugs(11, 2, "Selected HTTP version: " << (resultProtocol ? resultProtocol->c_str() : "none"));
+    return resultProtocol;
 }
 
 void

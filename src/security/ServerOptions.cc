@@ -487,7 +487,7 @@ alpn_select_cb(SSL *ssl, const unsigned char **out, unsigned char *outlen,
         if (!SSL_set_ex_data(ssl, ssl_ex_index_ssl_alpn_selected, (void *)proto))
             throw TextException("SSL_set_ex_data() error", Here());
 
-        if (proto)
+        if (!protoTemp)
             return SSL_TLSEXT_ERR_ALERT_FATAL;
 
         *out = reinterpret_cast<const unsigned char *>((*proto)->rawContent());
