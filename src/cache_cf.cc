@@ -228,6 +228,9 @@ static void free_sslproxy_cert_adapt(sslproxy_cert_adapt **cert_adapt);
 static void parse_sslproxy_ssl_bump(acl_access **ssl_bump);
 static void dump_sslproxy_ssl_bump(StoreEntry *entry, const char *name, acl_access *ssl_bump);
 static void free_sslproxy_ssl_bump(acl_access **ssl_bump);
+static void parse_bumped_traffic_indirect_client_address(Ssl::Config::BumpedXFFMode *value);
+static void dump_bumped_traffic_indirect_client_address(StoreEntry *entry, const char *name, Ssl::Config::BumpedXFFMode value);
+static void free_bumped_traffic_indirect_client_address(Ssl::Config::BumpedXFFMode *value);
 #endif /* USE_OPENSSL */
 
 static void parse_ftp_epsv(acl_access **ftp_epsv);
@@ -4935,3 +4938,36 @@ free_http_upgrade_request_protocols(HttpUpgradeProtocolAccess **protoGuardsPtr)
     protoGuards = nullptr;
 }
 
+#if USE_OPENSSL
+static std::vector<std::string> BumpedXFFMode_str = {
+    std::string("none"),
+    std::string("tunnel"),
+    std::string("follow_x_forwarded_for")
+};
+
+static void parse_bumped_traffic_indirect_client_address(Ssl::Config::BumpedXFFMode *value)
+{
+    std::string token(ConfigParser::NextToken());
+    if (token.empty()) {
+        self_destruct();
+        return;
+    }
+
+    auto it = std::find(BumpedXFFMode_str.begin(), BumpedXFFMode_str.end(), token);
+    if (it == BumpedXFFMode_str.end()) {
+        self_destruct();
+        return;
+    }
+    *value = static_cast<Ssl::Config::BumpedXFFMode>(it - BumpedXFFMode_str.begin());
+}
+
+static void dump_bumped_traffic_indirect_client_address(StoreEntry *entry, const char *name, Ssl::Config::BumpedXFFMode value)
+{
+    storeAppendPrintf(entry, "%s %s\n", name, BumpedXFFMode_str.at(value).c_str());
+}
+
+static void free_bumped_traffic_indirect_client_address(Ssl::Config::BumpedXFFMode *value)
+{
+    *value = Ssl::Config::xffNone;
+}
+#endif
