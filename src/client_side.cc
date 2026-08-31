@@ -2177,14 +2177,6 @@ httpAccept(const CommAcceptCbParams &params)
         return;
     }
 
-    if (Config.clientHttpVersionSelector) {
-        ACLFilledChecklist ch(nullptr, nullptr);
-        ch.src_addr = params.conn->remote;
-        ch.my_addr = params.conn->local;
-        if (!ClientHttpVersionSelector::Check(&ch, nullptr, 0))
-            return;
-    }
-
     debugs(33, 4, params.conn << ": accepted");
     fd_note(params.conn->fd, "client http connect");
     const auto xact = MasterXaction::MakePortful(params.port);
