@@ -10,43 +10,26 @@
 #include "configuration/forward.h"
 
 #include <memory>
-#include <string_view>
-
-class ClientHttpVersion
-{
-public:
-    using Pointer = std::shared_ptr<ClientHttpVersion>;
-
-    explicit ClientHttpVersion(ConfigParser &);
-    ~ClientHttpVersion();
-
-    // prohibit copy and move
-    ClientHttpVersion(const ClientHttpVersion&) = delete;
-    ClientHttpVersion& operator=(const ClientHttpVersion&) = delete;
-
-    void print(std::ostream &) const;
-
-    ACLList *aclList = nullptr;
-    SBuf protocol;
-};
 
 class ClientHttpVersionSelector
 {
 public:
-    inline static const SBuf AnyProtocol = SBuf("any");
-    inline static const SBuf Http11Protocol = SBuf("http/1.1");
+    static const SBuf Http11Protocol;
+    static const SBuf Http2Protocol;
+    static const SBuf AnyProtocol;
 
-    void add(ConfigParser &);
+    enum Protocol { http11, h2, any };
 
-    /// Checks client_http_version directive when ALPN is available.
-    /// \param alpn the string containing client's offered ALPN protocols in format:
+    void parse(ConfigParser &);
+
+    /// Applies client_http_version rule to select a suitable protocol.
+    /// \param alpn the string containing client's offered ALPN protocols (or nil) in format:
     /// [len][string][len][string]... (e.g., \x02h2\x08http/1.1)
     /// \param alpnLen the length of alpn
     static const std::optional<SBuf> Check(ACLFilledChecklist *, const char *alpn, unsigned int alpnLen);
 
-    std::vector<ClientHttpVersion::Pointer> directives;
+    std::shared_ptr<ACLList> aclList;
 
 private:
-
     const std::optional<SBuf> check(const char *in, unsigned int inLen, ACLFilledChecklist &);
 };
