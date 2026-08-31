@@ -29,7 +29,4 @@ public:
     static const std::optional<SBuf> Check(ACLFilledChecklist *, const char *alpn, unsigned int alpnLen);
 
     std::shared_ptr<ACLList> aclList;
-
-private:
-    const std::optional<SBuf> check(const char *in, unsigned int inLen, ACLFilledChecklist &);
 };

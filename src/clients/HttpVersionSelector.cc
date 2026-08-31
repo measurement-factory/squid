@@ -125,14 +125,11 @@ ClientHttpVersionSelector::Check(ACLFilledChecklist *ch, const char *alpn, unsig
     if (!ch)
         return CheckProtocol(alpn, alpnLen, ClientHttpVersionSelector::AnyProtocol);
 
-    assert(Config.clientHttpVersionSelector);
-    return Config.clientHttpVersionSelector->check(alpn ,alpnLen, *ch);
-}
+    Assure(Config.clientHttpVersionSelector);
+    auto aclList =  Config.clientHttpVersionSelector->aclList.get();
+    Assure(aclList);
 
-const std::optional<SBuf>
-ClientHttpVersionSelector::check(const char *alpn, unsigned int alpnLen, ACLFilledChecklist &ch)
-{
-    const auto &answer = ch.fastCheck(aclList.get());
+    const auto &answer = ch->fastCheck(aclList);
     auto proto = AnyProtocol;
     if (answer.allowed()) {
         auto it = std::find_if(ProtoVersionMap.begin(), ProtoVersionMap.end(), [&](const auto &p) {
