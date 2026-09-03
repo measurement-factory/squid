@@ -12,6 +12,7 @@
 #include "acl/Gadgets.h"
 #include "acl/Tree.h"
 #include "base/Raw.h"
+#include "cache_cf.h"
 #include "ConfigOption.h"
 #include "ConfigParser.h"
 #include "configuration/Smooth.h"
@@ -68,13 +69,17 @@ CheckProtocol(const char *in, unsigned int inLen, const SBuf &matchedProtocol)
 {
     debugs(11, 5, "Configuration candidate: " << matchedProtocol << " has ALPN: " << bool(in));
 
-    if (!ConfigurationSupported(matchedProtocol))
+    if (!ConfigurationSupported(matchedProtocol)) {
+        debugs(11, 2, "The configured HTTP version " << matchedProtocol << " is unsupported.");
         return std::nullopt;
+    }
 
     if (!in) {
         assert(!inLen);
         // A client not providing ALPN usually intends to use http/1.1.
-        return (matchedProtocol == ClientHttpVersionSelector::AnyProtocol) ? ClientHttpVersionSelector::Http11Protocol : matchedProtocol;
+        const auto resultProtocol = (matchedProtocol == ClientHttpVersionSelector::AnyProtocol) ? ClientHttpVersionSelector::Http11Protocol : matchedProtocol;
+        debugs(11, 2, "Selected HTTP version: " << resultProtocol);
+        return resultProtocol;
     }
 
     assert(inLen);
@@ -196,14 +201,15 @@ Configuration::Component<ClientHttpVersionSelector*>::Print(std::ostream &os, Cl
     if (auto list = selector->aclList.get()) {
         const auto lines = ToTree(list).treeDump(directiveName, [](const Acl::Answer &action) {
             auto it = std::find_if(ProtoVersionMap.begin(), ProtoVersionMap.end(), [&](const auto &p) {
-                    return p.first == action.kind;
+                return p.first == action.kind;
             });
-            assert(it == ProtoVersionMap.end());
-            return it->second;
+            assert(it != ProtoVersionMap.end());
+            // TODO: get rid of this static SBuf
+            static SBuf result;
+            result = ToSBuf(it->second, " if ");
+            return result.c_str();
         });
-        for (const auto &line : lines)
-            os << line << " ";
-        os << "\n";
+        dump_SBufList(os, lines);
     }
 }
 

@@ -1178,6 +1178,23 @@ dump_SBufList(StoreEntry * entry, const char *name, SBufList &list)
     }
 }
 
+void
+dump_SBufList(std::ostream &os, const SBufList &words)
+{
+    for (const auto &i : words) {
+        os << i << ' ';
+    }
+}
+
+void
+dump_SBufList(std::ostream &os, const char * const name, const SBufList &list)
+{
+    if (!list.empty()) {
+        os << name << ' ';
+        dump_SBufList(os, list);
+    }
+}
+
 static void
 free_SBufList(SBufList *list)
 {
