@@ -242,7 +242,6 @@ static void free_UrlHelperTimeout(SquidConfig::UrlHelperTimeout *);
 static void parse_on_unsupported_protocol(acl_access **access);
 static void dump_on_unsupported_protocol(StoreEntry *entry, const char *name, acl_access *access);
 static void free_on_unsupported_protocol(acl_access **access);
-static void ParseAclWithAction(acl_access **access, const Acl::Answer &action, const char *desc, Acl::Node *acl = nullptr);
 static void parse_http_upgrade_request_protocols(HttpUpgradeProtocolAccess **protoGuards);
 static void dump_http_upgrade_request_protocols(StoreEntry *entry, const char *name, HttpUpgradeProtocolAccess *protoGuards);
 static void free_http_upgrade_request_protocols(HttpUpgradeProtocolAccess **protoGuards);
@@ -1710,11 +1709,12 @@ dump_AuthSchemes(StoreEntry *entry, const char *name, acl_access *authSchemes)
 
 #endif /* USE_AUTH */
 
-static void
-ParseAclWithAction(acl_access **config, const Acl::Answer &action, const char *desc, Acl::Node *acl)
+void
+ParseAclWithAction(acl_access **config, const Acl::Answer &action, const char *desc, const bool mandatoryIf, Acl::Node *acl)
 {
     assert(config);
     auto &access = *config;
+
     if (!access) {
         const auto tree = new Acl::Tree;
         tree->context(ToSBuf('(', desc, " rules)"), config_input_line);
@@ -1727,7 +1727,7 @@ ParseAclWithAction(acl_access **config, const Acl::Answer &action, const char *d
     if (acl)
         rule->add(acl);
     else
-        rule->lineParse();
+        rule->lineParse(mandatoryIf);
     (*access)->add(rule, action);
 }
 
@@ -4424,7 +4424,7 @@ static void parse_ftp_epsv(acl_access **ftp_epsv)
         if (ftpEpsvDeprecatedAction == Acl::Answer(ACCESS_DENIED)) {
             static const auto all = new SBuf("all");
             if (const auto a = Acl::Node::FindByName(*all))
-                ParseAclWithAction(ftp_epsv, ftpEpsvDeprecatedAction, "ftp_epsv", a);
+                ParseAclWithAction(ftp_epsv, ftpEpsvDeprecatedAction, "ftp_epsv", false, a);
             else {
                 self_destruct();
                 return;

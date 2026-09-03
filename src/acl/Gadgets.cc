@@ -169,7 +169,7 @@ aclParseAccessLine(const char *directive, ConfigParser &parser, acl_access **con
 
 // aclParseAclList does not expect or set actions (cf. aclParseAccessLine)
 size_t
-aclParseAclList(ConfigParser &, ACLList **config, const char *label)
+aclParseAclList(ConfigParser &, ACLList **config, const char *label, const bool mandatoryIf)
 {
     // accommodate callers unable to convert their ACL list context to string
     if (!label)
@@ -177,7 +177,7 @@ aclParseAclList(ConfigParser &, ACLList **config, const char *label)
 
     Acl::AndNode *rule = new Acl::AndNode;
     rule->context(ToSBuf('(', cfg_directive, ' ', label, " line)"), config_input_line);
-    const auto aclCount = rule->lineParse();
+    const auto aclCount = rule->lineParse(mandatoryIf);
 
     // XXX: We have created only one node, and our callers do not support
     // actions, but we now have to create an action-supporting Acl::Tree because
