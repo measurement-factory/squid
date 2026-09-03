@@ -41,11 +41,21 @@ Acl::InnerNode::add(Acl::Node *node)
 
 // kids use this method to handle [multiple] parse() calls correctly
 size_t
-Acl::InnerNode::lineParse()
+Acl::InnerNode::lineParse(bool mandatoryIf)
 {
     // XXX: not precise, may change when looping or parsing multiple lines
     if (!cfgline)
         cfgline = xstrdup(config_input_line);
+
+    auto ifKeyword = false;
+    if (const auto nextToken = ConfigParser::PeekAtToken()) {
+        if (strcmp(nextToken, "if") == 0) {
+            ifKeyword = true;
+            (void)ConfigParser::NextToken();
+        } else if (mandatoryIf) {
+             throw TextException("missing 'if' keyword", Here());
+        }
+    }
 
     // expect a list of ACL names, each possibly preceded by '!' for negation
 
@@ -74,6 +84,8 @@ Acl::InnerNode::lineParse()
         ++count;
     }
 
+    if (!count && ifKeyword)
+        throw TextException("missing ACL name(s) after 'if' keyword", Here());
     return count;
 }
 

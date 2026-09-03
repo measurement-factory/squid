@@ -31,11 +31,9 @@ void parse_time_t(time_t * var);
 /// Parse bytes number from a string
 void parseBytesOptionValue(size_t * bptr, const char *units, char const * value);
 
-/// parses an optional [ [!]<acl>... ] line (e.g., ssl-bump) assigning the action to the Acl::Tree object
-/// \deprecated use ParseOptionalAclWithAction() instead
-void ParseAclWithAction(acl_access **treePointer, const Acl::Answer &action, const char *desc, Acl::Node *acl = nullptr);
-
-/// parses an optional [ if [!]<acl>...] line (e.g., ssl-bump) assigning the action to the Acl::Tree object
+/// parses an optional [ [if] [!]<acl>... ] line (e.g., ssl-bump) assigning the action to the Acl::Tree object
+/// \param mandatoryIf whether the "if" keyword must be placed before the list of ACLs
+void ParseAclWithAction(acl_access **treePointer, const Acl::Answer &action, const char *desc, bool mandatoryIf = false, Acl::Node *acl = nullptr);
 
 namespace Configuration {
 
