@@ -13,6 +13,7 @@
 #include "client_side.h"
 #include "client_side_reply.h"
 #include "client_side_request.h"
+#include "clients/HttpVersionSelector.h"
 #include "comm/Write.h"
 #include "HeaderMangling.h"
 #include "http/one/RequestParser.h"
@@ -53,6 +54,17 @@ Http::One::Server::start()
     AsyncCall::Pointer timeoutCall =  JobCallback(33, 5,
                                       TimeoutDialer, this, Http1::Server::requestTimeout);
     commSetConnTimeout(clientConnection, Config.Timeout.request_start_timeout, timeoutCall);
+
+    if (Config.clientHttpVersionSelector) {
+        auto ch = ACLFilledChecklist::Make(nullptr, nullptr);
+        fillChecklist(*ch);
+        if (!ClientHttpVersionSelector::Check(ch.release(), nullptr, 0)) {
+            debugs(33, 2, "Cannot select HTTP protocol version");
+            clientConnection->close();
+            return;
+        }
+    }
+
     readSomeData();
 }
 

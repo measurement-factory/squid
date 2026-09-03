@@ -14,6 +14,8 @@
 #include "configuration/forward.h"
 #include "sbuf/forward.h"
 
+#include <iosfwd>
+
 class wordlist;
 
 void configFreeMemory(void);
@@ -29,6 +31,10 @@ void requirePathnameExists(const char *name, const char *path);
 void parse_time_t(time_t * var);
 /// Parse bytes number from a string
 void parseBytesOptionValue(size_t * bptr, const char *units, char const * value);
+
+void dump_SBufList(std::ostream &, const SBufList &);
+// dumps SBufList with name prefix
+void dump_SBufList(std::ostream &, const char *name, const SBufList &);
 
 namespace Configuration {
 

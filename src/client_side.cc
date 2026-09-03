@@ -71,6 +71,7 @@
 #include "client_side_reply.h"
 #include "client_side_request.h"
 #include "ClientRequestContext.h"
+#include "clients/HttpVersionSelector.h"
 #include "comm.h"
 #include "comm/Connection.h"
 #include "comm/Loops.h"
@@ -1859,6 +1860,13 @@ ConnStateData::afterClientRead()
     if (pipeline.empty())
         fd_note(clientConnection->fd, "Reading next request");
 
+    if (auto ssl = fd_table[clientConnection->fd].ssl.get()) {
+        const auto proto = static_cast<const std::optional<SBuf> *>(SSL_get_ex_data(ssl, ssl_ex_index_ssl_alpn_selected));
+        Assure(proto);
+        Assure(*proto);
+        Assure(proto->value() == ClientHttpVersionSelector::Http11Protocol);
+    }
+
     parseRequests();
 
     if (!isOpen())
@@ -2341,6 +2349,15 @@ httpsEstablish(ConnStateData *connState, const Security::ContextPointer &ctx)
         return;
 
     connState->resetReadTimeout(Config.Timeout.request);
+
+#if USE_OPENSSL
+    if (Config.clientHttpVersionSelector) {
+        Security::SessionPointer session(fd_table[details->fd].ssl);
+        auto ch = ACLFilledChecklist::Make(nullptr, nullptr);
+        connState->fillChecklist(*ch);
+        SSL_set_ex_data(session.get(), ssl_ex_index_ssl_alpn, ch.release());
+    }
+#endif
 
     Comm::SetSelect(details->fd, COMM_SELECT_READ, clientNegotiateSSL, connState, 0);
 }

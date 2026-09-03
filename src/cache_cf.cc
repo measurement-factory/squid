@@ -242,7 +242,6 @@ static void free_UrlHelperTimeout(SquidConfig::UrlHelperTimeout *);
 static void parse_on_unsupported_protocol(acl_access **access);
 static void dump_on_unsupported_protocol(StoreEntry *entry, const char *name, acl_access *access);
 static void free_on_unsupported_protocol(acl_access **access);
-static void ParseAclWithAction(acl_access **access, const Acl::Answer &action, const char *desc, Acl::Node *acl = nullptr);
 static void parse_http_upgrade_request_protocols(HttpUpgradeProtocolAccess **protoGuards);
 static void dump_http_upgrade_request_protocols(StoreEntry *entry, const char *name, HttpUpgradeProtocolAccess *protoGuards);
 static void free_http_upgrade_request_protocols(HttpUpgradeProtocolAccess **protoGuards);
@@ -1179,6 +1178,23 @@ dump_SBufList(StoreEntry * entry, const char *name, SBufList &list)
     }
 }
 
+void
+dump_SBufList(std::ostream &os, const SBufList &words)
+{
+    for (const auto &i : words) {
+        os << i << ' ';
+    }
+}
+
+void
+dump_SBufList(std::ostream &os, const char * const name, const SBufList &list)
+{
+    if (!list.empty()) {
+        os << name << ' ';
+        dump_SBufList(os, list);
+    }
+}
+
 static void
 free_SBufList(SBufList *list)
 {
@@ -1709,27 +1725,6 @@ dump_AuthSchemes(StoreEntry *entry, const char *name, acl_access *authSchemes)
 }
 
 #endif /* USE_AUTH */
-
-static void
-ParseAclWithAction(acl_access **config, const Acl::Answer &action, const char *desc, Acl::Node *acl)
-{
-    assert(config);
-    auto &access = *config;
-    if (!access) {
-        const auto tree = new Acl::Tree;
-        tree->context(ToSBuf('(', desc, " rules)"), config_input_line);
-        access = new acl_access(tree);
-    }
-    assert(access);
-
-    Acl::AndNode *rule = new Acl::AndNode;
-    rule->context(ToSBuf('(', desc, " rule)"), config_input_line);
-    if (acl)
-        rule->add(acl);
-    else
-        rule->lineParse();
-    (*access)->add(rule, action);
-}
 
 static void
 parse_cachedir(Store::DiskConfig *swap)

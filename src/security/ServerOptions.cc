@@ -11,6 +11,7 @@
 #include "base/IoManip.h"
 #include "base/Packable.h"
 #include "cache_cf.h"
+#include "clients/HttpVersionSelector.h"
 #include "error/SysErrorDetail.h"
 #include "fatal.h"
 #include "globals.h"
@@ -31,6 +32,8 @@
 #endif
 
 #include <limits>
+#include <optional>
+#include <string_view>
 
 Security::ServerOptions &
 Security::ServerOptions::operator =(const Security::ServerOptions &old) {
@@ -462,6 +465,73 @@ Security::ServerOptions::loadDhParams()
 #endif // USE_OPENSSL
 }
 
+#if USE_OPENSSL
+
+static std::optional<SBuf> *
+HttpVersionSelectorCheck(SSL *ssl,  const unsigned char *alpn, const unsigned int alpnLen)
+{
+    auto checkList = static_cast<ACLFilledChecklist *>(SSL_get_ex_data(ssl, ssl_ex_index_ssl_alpn));
+    const auto protoTemp = ClientHttpVersionSelector::Check(checkList, reinterpret_cast<const char *>(alpn), alpnLen);
+    const auto proto = new std::optional<SBuf>(protoTemp);
+    if (!SSL_set_ex_data(ssl, ssl_ex_index_ssl_alpn_selected, (void *)proto))
+        throw TextException("SSL_set_ex_data() error", Here());
+    return proto;
+}
+
+// TODO: move to where it belongs
+static int
+alpn_select_cb(SSL *ssl, const unsigned char **out, unsigned char *outlen,
+    const unsigned char *in, unsigned int inlen, void *)
+{
+    assert(ssl);
+
+    try {
+        const auto proto = HttpVersionSelectorCheck(ssl, in, inlen);
+
+        if (!proto->has_value())
+            return SSL_TLSEXT_ERR_ALERT_FATAL;
+
+        *out = reinterpret_cast<const unsigned char *>((*proto)->rawContent());
+        *outlen = (*proto)->length();
+        return SSL_TLSEXT_ERR_OK;
+    } catch (...) {
+        debugs (83, DBG_IMPORTANT, "cannot select a protocol: " << CurrentException);
+        return SSL_TLSEXT_ERR_ALERT_FATAL;
+    }
+}
+
+int client_hello_cb(SSL *ssl, int *al, void *) {
+    assert(ssl);
+    assert(al);
+
+    try {
+        const unsigned char *ext = nullptr;
+        size_t extLen = 0;
+
+        // Check if the ALPN extension is present
+        if (SSL_client_hello_get0_ext(ssl, TLSEXT_TYPE_application_layer_protocol_negotiation, &ext, &extLen) == 1)
+            return SSL_CLIENT_HELLO_SUCCESS; // ALPN found, will handle them in alpn_select_cb()
+
+        // no ALPN, check the HTTP version selection rules here
+        const auto proto = HttpVersionSelectorCheck(ssl, nullptr, 0);
+
+        if (!proto->has_value()) {
+            // set the alert to "no_application_protocol" and fail
+            *al = TLS1_AD_NO_APPLICATION_PROTOCOL;
+            return SSL_CLIENT_HELLO_ERROR;
+        }
+
+        // no ALPN, but HTTP version selection rules (if any) allow us to proceed
+        return SSL_CLIENT_HELLO_SUCCESS;
+    } catch (...) {
+        debugs (83, DBG_IMPORTANT, "cannot handle client hello: " << CurrentException);
+        *al = SSL_AD_INTERNAL_ERROR;
+        return SSL_CLIENT_HELLO_ERROR;
+    }
+}
+
+#endif
+
 bool
 Security::ServerOptions::updateContextConfig(Security::ContextPointer &ctx)
 {
@@ -500,6 +570,10 @@ Security::ServerOptions::updateContextConfig(Security::ContextPointer &ctx)
         SSL_CTX_set_ex_data(ctx.get(), ssl_ctx_ex_index_dont_verify_domain, (void *) -1);
 
     Security::SetSessionCacheCallbacks(ctx);
+
+    SSL_CTX_set_client_hello_cb(ctx.get(), client_hello_cb, nullptr);
+    SSL_CTX_set_alpn_select_cb(ctx.get(), alpn_select_cb, nullptr);
+
 #endif
     return true;
 }

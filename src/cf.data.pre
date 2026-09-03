@@ -2736,6 +2736,116 @@ DOC_START
 	- ssl-bump
 DOC_END
 
+NAME: client_http_version
+TYPE: ::ClientHttpVersionSelector*
+DEFAULT: none
+DEFAULT_DOC: The default implements `client_http_version any` behavior.
+LOC: Config.clientHttpVersionSelector
+COMPONENT_RECONFIGURATION_TYPE: ClientHttpVersionSelector*
+REPETITIONS: update
+IFDEF: USE_OPENSSL
+DOC_START
+	Determines the major HTTP version to use on an accepted client-to-Squid
+	connection or a CONNECT tunnel stared at or bumped by SslBump rules.
+
+	    client_http_version <version> [if [!]<aclname>...]
+
+	This directive is checked in three cases: After accepting a TCP connection
+	on an `http_port`, after accepting a TLS connection on an `https_port`,
+	and when Squid generates a TLS ServerHello response while meddling with
+	client CONNECT tunnel traffic using SslBump rules. When this directive is
+	evaluated after accepting a client connection, no HTTP transaction-level
+	information is available yet (e.g., a `has request` ACL does not match).
+
+	Client preferences signaled via TLS ALPN (RFC 7301) can be tested using
+	`tls::client_alpn` ACLs. When the client sends an ALPN ClientHello
+	extension, Squid responds with an ALPN ServerHello extension value
+	determined by this directive.
+
+	Squid terminates the connection if the client does not support the HTTP
+	version selected by this directive. Thus, this directive can be used to
+	block traffic. This directive is used before the `http_access` directive.
+
+	The following `version` values are supported:
+
+	    http/1.1: Use HTTP/1.1. If a TLS client sends ALPN, but its list of
+	        client-supported protocols does not contain `http/1.1`, then Squid
+	        terminates the TLS connection after sending a fatal TLS
+	        `no_application_protocol` alert. When accepting a plain text
+	        `http_port` connection or serving a TLS client that does not send
+	        ALPN, Squid uses HTTP/1.1. In this context, Squid does not treat
+	        (unusual) ALPN `http/1.0` values specially. Unlike `any`, this
+	        option ignores client protocol version preferences.
+
+	    h2: Use HTTP/2. If a TLS client does not send ALPN, then Squid
+	        terminates the TLS connection. If a TLS client sends ALPN, but its
+	        list of client-supported protocols does not contain `h2`, then
+	        Squid terminates the TLS connection after sending a fatal TLS
+	        `no_application_protocol` alert. If the client opened a plain text
+	        `http_port` connection, Squid terminates it. In this context,
+	        Squid does not treat (unusual) ALPN `h2c` values specially. Unlike
+	        `any`, this option ignores client protocol version preferences.
+
+	        Currently, Squid does not support HTTP/2, so this option results
+	        in client connection termination. When Squid supports HTTP/2, the
+	        same `h2`-based rule would enable HTTP/2 transactions for clients
+	        that claim HTTP/2 support.
+
+	    any: Use any protocol supported by Squid that is also supported by the
+	        client. If a TLS client sends ALPN list with multiple protocols
+	        supported by Squid, use the first such protocol (i.e. use a
+	        mutually-supported protocol preferred by the client). If a TLS
+	        client does not send ALPN, use HTTP/1.1. If the sent ALPN list of
+	        client-supported protocols does not name any protocol supported by
+	        Squid, then Squid terminates the TLS connection after sending a
+	        fatal TLS `no_application_protocol` alert. When accepting a plain
+	        text `http_port` connection, Squid uses HTTP/1.1.
+
+	        Currently, Squid does not support HTTP/2, so this option is
+	        equivalent to `http/1.1`. When Squid support for HTTP/2 is mature
+	        enough, the same `any`-based rule would would enable HTTP/2
+	        transactions for clients that claim HTTP/2 support.
+
+	A rule matches if all of its ACLs match. A rule without ACLs always
+	matches.
+
+	The rules are checked in the directives configuration order. The first
+	matching rule wins. If there are no rules or if no rules match, an
+	implicit `client_http_version any` rule is used.
+
+	Examples:
+
+	    # Require HTTP/1.1 but use HTTP/2 for connections to https_port named "modern".
+	    acl received_on_h2_port myportname modern
+	    client_http_version h2 if received_on_h2_port
+	    client_http_version http/1.1
+
+	    # Follow client preferences but require a certain client to use HTTP/2.
+	    acl testClient src 127.0.0.10
+	    client_http_version h2 if mustUseH2
+	    client_http_version any
+
+	    # Use HTTP/1 if the TLS client supports it and require HTTP/2 otherwise.
+	    acl client_supports_h1 tls::client_alpn http/1.1
+	    client_http_version http/1.1 if client_supports_h1
+	    client_http_version h2
+
+	    # Use HTTP/1 if the TLS client prefers it and require HTTP/2 otherwise.
+	    acl client_prefers_h1 tls::client_alpn http/1.1 h2
+	    client_http_version http/1.1 if client_prefers_h1
+	    client_http_version h2
+
+	    # Follow client preferences if the client supports both versions and
+	    # require HTTP/1 otherwise.
+	    acl client_supports_h1 tls::client_alpn http/1.1
+	    acl client_supports_h2 tls::client_alpn h2
+	    client_http_version any if client_supports_h1 client_supports_h2
+	    client_http_version http/1.1
+
+	This clause only supports fast acl types.
+	See https://wiki.squid-cache.org/SquidFaq/SquidAcl for details.
+DOC_END
+
 NAME: tcp_outgoing_tos tcp_outgoing_ds tcp_outgoing_dscp
 TYPE: acl_tos
 DEFAULT: none
