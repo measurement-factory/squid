@@ -99,6 +99,8 @@ protected:
     void diskFull() override;
     void reference(StoreEntry &e) override;
     bool dereference(StoreEntry &e) override;
+    void lockInPolicy(StoreEntry &) override;
+    void unlockInPolicy(StoreEntry &) override;
     void updateHeaders(StoreEntry *e) override;
     bool unlinkdUseful() const override;
     void statfs(StoreEntry &e) const override;

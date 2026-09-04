@@ -250,6 +250,38 @@ Store::Controller::referenceBusy(StoreEntry &e)
     }
 }
 
+void
+Store::Controller::lockInPolicy(StoreEntry &e)
+{
+    if (EBIT_TEST(e.flags, ENTRY_SPECIAL))
+        return;
+
+    if (e.hasDisk())
+        swapDir->lockInPolicy(e);
+
+    if (sharedMemStore && e.mem_status == IN_MEMORY)
+        sharedMemStore->lockInPolicy(e);
+
+    if (e.mem_obj && mem_policy->Locked)
+        mem_policy->Locked(mem_policy, &e, &e.mem_obj->repl);
+}
+
+void
+Store::Controller::unlockInPolicy(StoreEntry &e)
+{
+    if (EBIT_TEST(e.flags, ENTRY_SPECIAL))
+        return;
+
+    if (e.hasDisk())
+        swapDir->unlockInPolicy(e);
+
+    if (sharedMemStore && e.mem_status == IN_MEMORY)
+        sharedMemStore->unlockInPolicy(e);
+
+    if (e.mem_obj && mem_policy->Unlocked)
+        mem_policy->Unlocked(mem_policy, &e, &e.mem_obj->repl);
+}
+
 /// dereference()s an idle entry
 /// \returns false if and only if the entry should be deleted
 bool

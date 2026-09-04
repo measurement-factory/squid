@@ -52,6 +52,8 @@ void Controller::noteStoppedSharedWriting(StoreEntry &) STUB
 int Controller::transientReaders(const StoreEntry &) const STUB_RETVAL(0)
 void Controller::transientsDisconnect(StoreEntry &) STUB
 void Controller::memoryDisconnect(StoreEntry &) STUB
+void Controller::lockInPolicy(StoreEntry &) STUB
+void Controller::unlockInPolicy(StoreEntry &) STUB
 StoreSearch *Controller::search() STUB_RETVAL(nullptr)
 bool Controller::SmpAware() STUB_RETVAL(false)
 int Controller::store_dirs_rebuilding = 0;
@@ -110,6 +112,8 @@ void Disks::stat(StoreEntry &) const STUB
 void Disks::sync() STUB
 void Disks::reference(StoreEntry &) STUB
 bool Disks::dereference(StoreEntry &) STUB_RETVAL(false)
+void Disks::lockInPolicy(StoreEntry &) STUB
+void Disks::unlockInPolicy(StoreEntry &) STUB
 void Disks::updateHeaders(StoreEntry *) STUB
 void Disks::maintain() STUB
 bool Disks::anchorToCache(StoreEntry &) STUB_RETVAL(false)

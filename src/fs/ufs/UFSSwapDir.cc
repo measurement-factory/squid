@@ -542,6 +542,24 @@ Fs::Ufs::UFSSwapDir::dereference(StoreEntry & e)
     return true; // keep e in the global store_table
 }
 
+void
+Fs::Ufs::UFSSwapDir::lockInPolicy(StoreEntry &e)
+{
+    debugs(47, 3, &e << " " <<  e.swap_dirn << "/" << e.swap_filen);
+
+    if (repl && repl->Locked)
+        repl->Locked(repl, &e, &e.repl);
+}
+
+void
+Fs::Ufs::UFSSwapDir::unlockInPolicy(StoreEntry &e)
+{
+    debugs(47, 3, &e << " " << e.swap_dirn << "/" << e.swap_filen);
+
+    if (repl && repl->Unlocked)
+        repl->Unlocked(repl, &e, &e.repl);
+}
+
 StoreIOState::Pointer
 Fs::Ufs::UFSSwapDir::createStoreIO(StoreEntry &e, StoreIOState::STIOCB * const aCallback, void * const callback_data)
 {
