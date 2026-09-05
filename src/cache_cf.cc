@@ -1157,13 +1157,27 @@ parse_SBufList(SBufList * list)
         list->push_back(SBuf(token));
 }
 
+static bool
+IsDelimiter(const SBuf &token)
+{
+    return token.cmp("\n") == 0 || token.cmp(" ") == 0;
+}
+
 // just dump a list, no directive name
 static void
 dump_SBufList(StoreEntry * entry, const SBufList &words)
 {
-    for (const auto &i : words) {
-        entry->append(i.rawContent(), i.length());
-        entry->append(" ",1);
+    // assume that the list does not have leading delimiters
+    // exclude all trailing delimiters
+    const auto endToken = std::find_if(words.rbegin(), words.rend(), [] (const SBuf &token) {
+        return !IsDelimiter(token);
+    }).base();
+
+    for (auto i = words.begin(); i != endToken; ++i) {
+        // do not add space before and after existing delimiters
+        if (i != words.begin() && !IsDelimiter(*i) && !IsDelimiter(*std::prev(i)))
+            entry->append(" ",1);
+        entry->append(i->rawContent(), i->length());
     }
     entry->append("\n",1);
 }
@@ -1282,8 +1296,6 @@ dump_acl_address(StoreEntry * entry, const char *name, Acl::Address * head)
             storeAppendPrintf(entry, "%s autoselect", name);
 
         dump_acl_list(entry, l->aclList);
-
-        storeAppendPrintf(entry, "\n");
     }
 }
 
@@ -1320,8 +1332,6 @@ dump_acl_tos(StoreEntry * entry, const char *name, acl_tos * head)
             storeAppendPrintf(entry, "%s none", name);
 
         dump_acl_list(entry, l->aclList);
-
-        storeAppendPrintf(entry, "\n");
     }
 }
 
@@ -1376,8 +1386,6 @@ dump_acl_nfmark(StoreEntry * entry, const char *name, acl_nfmark * head)
         storeAppendPrintf(entry, "%s %s", name, ToSBuf(l->markConfig).c_str());
 
         dump_acl_list(entry, l->aclList);
-
-        storeAppendPrintf(entry, "\n");
     }
 }
 
@@ -1422,8 +1430,6 @@ dump_acl_b_size_t(StoreEntry * entry, const char *name, AclSizeLimit * head)
             storeAppendPrintf(entry, "%s none", name);
 
         dump_acl_list(entry, l->aclList);
-
-        storeAppendPrintf(entry, "\n");
     }
 }
 
@@ -2642,10 +2648,18 @@ parse_TokenOrQuotedString(char **var)
 #define free_TokenOrQuotedString free_string
 
 static void
-dump_time_t(StoreEntry * entry, const char *name, time_t var)
+dump_time_unit(StoreEntry * entry, const char *name, time_t var)
 {
     PackableStream os(*entry);
-    os << name << ' ' << var << " seconds\n";
+    os << name << ' ' << var << " seconds";
+}
+
+static void
+dump_time_t(StoreEntry * entry, const char *name, time_t var)
+{
+    dump_time_unit(entry, name, var);
+    PackableStream os(*entry);
+    os << "\n";
 }
 
 void
@@ -3749,8 +3763,8 @@ dump_access_log(StoreEntry * entry, const char *name, CustomLog * logs)
 
         if (log->aclList)
             dump_acl_list(entry, log->aclList);
-
-        storeAppendPrintf(entry, "\n");
+        else
+            storeAppendPrintf(entry, "\n");
     }
 }
 
@@ -4021,7 +4035,8 @@ static void dump_sslproxy_cert_adapt(StoreEntry *entry, const char *name, sslpro
         storeAppendPrintf(entry, "%s{%s} ", Ssl::sslCertAdaptAlgoritm(ca->alg), ca->param);
         if (ca->aclList)
             dump_acl_list(entry, ca->aclList);
-        storeAppendPrintf(entry, "\n");
+        else
+            storeAppendPrintf(entry, "\n");
     }
 }
 
@@ -4067,7 +4082,8 @@ static void dump_sslproxy_cert_sign(StoreEntry *entry, const char *name, sslprox
         storeAppendPrintf(entry, "%s ", Ssl::certSignAlgorithm(cs->alg));
         if (cs->aclList)
             dump_acl_list(entry, cs->aclList);
-        storeAppendPrintf(entry, "\n");
+        else
+            storeAppendPrintf(entry, "\n");
     }
 }
 
@@ -4216,7 +4232,8 @@ static void dump_HeaderWithAclList(StoreEntry * entry, const char *name, HeaderW
         storeAppendPrintf(entry, "%s %s %s", name, hwa->fieldName.c_str(), hwa->fieldValue.c_str());
         if (hwa->aclList)
             dump_acl_list(entry, hwa->aclList);
-        storeAppendPrintf(entry, "\n");
+        else
+            storeAppendPrintf(entry, "\n");
     }
 }
 
@@ -4530,7 +4547,7 @@ dump_UrlHelperTimeout(StoreEntry *entry, const char *name, SquidConfig::UrlHelpe
     const char  *onTimedOutActions[] = {"bypass", "fail", "retry", "use_configured_response"};
     assert(config.action >= 0 && config.action <= toutActUseConfiguredResponse);
 
-    dump_time_t(entry, name, Config.Timeout.urlRewrite);
+    dump_time_unit(entry, name, Config.Timeout.urlRewrite);
     storeAppendPrintf(entry, " on_timeout=%s", onTimedOutActions[config.action]);
 
     if (config.response)

@@ -75,7 +75,8 @@ Security::KeyLog::dump(std::ostream &os) const
         // TODO: Use Acl::dump() after fixing the XXX in dump_acl_list().
         for (const auto &acl: ToTree(aclList).treeDump("if", &Acl::AllowOrDeny))
             os << ' ' << acl;
-    }
+    } else
+        os << '\n';
 }
 
 void
@@ -122,6 +123,5 @@ Configuration::Component<Security::KeyLog*>::Print(std::ostream &os, Security::K
     os << directiveName << ' ';
     assert(keyLog);
     keyLog->dump(os);
-    os << '\n';
 }
 
