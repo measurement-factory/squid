@@ -53,7 +53,7 @@ Acl::InnerNode::lineParse(bool mandatoryIf)
             ifKeyword = true;
             (void)ConfigParser::NextToken();
         } else if (mandatoryIf) {
-             throw TextException("missing 'if' keyword", Here());
+            throw TextException("missing 'if' keyword", Here());
         }
     }
 
