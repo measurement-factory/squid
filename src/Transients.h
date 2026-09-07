@@ -56,7 +56,7 @@ public:
     /// sets the shared entry status for the collapsed revalidation entry
     void setUpdateStatus(const MemObject::XitTable &xitTable, Ipc::StoreMapAnchor::UpdateStatus);
 
-    /// refresh the entry index after update
+    /// refresh the entry index after successful update
     void refreshEntry(StoreEntry &e);
 
     /// number of entry readers some time ago

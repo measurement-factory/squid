@@ -928,9 +928,16 @@ void
 Store::Controller::updateFinished(StoreEntry &e, const StoreEntry &e304, const Ipc::StoreMapAnchor::UpdateStatus updateStatus)
 {
     if (e.hasTransients()) {
-        transients->refreshEntry(e);
+        auto finalStatus = updateStatus;
+        try {
+            if (updateStatus == Ipc::StoreMapAnchor::uApplied)
+                transients->refreshEntry(e);
+        } catch (...) {
+            debugs(20, 2, "Failed to refresh transients entry " << CurrentException);
+            finalStatus = Ipc::StoreMapAnchor::uFailed;
+        }
         if (e304.isSmpCollapsedRevalidationInitiator())
-            transients->setUpdateStatus(e304.mem_obj->xitTable, updateStatus);
+            transients->setUpdateStatus(e304.mem_obj->xitTable, finalStatus);
     }
 }
 
