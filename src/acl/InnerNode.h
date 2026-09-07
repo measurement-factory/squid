@@ -35,7 +35,7 @@ public:
 
     /// parses a [ [!]acl1 [!]acl2... ] sequence, appending to nodes
     /// \returns the number of parsed ACL names
-    size_t lineParse();
+    size_t lineParse(bool mandatoryIf = false);
 
     /// appends the node to the collection and takes control over it
     void add(Acl::Node *node);
