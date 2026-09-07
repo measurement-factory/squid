@@ -204,10 +204,7 @@ Configuration::Component<ClientHttpVersionSelector*>::Print(std::ostream &os, Cl
                 return p.first == action.kind;
             });
             assert(it != ProtoVersionMap.end());
-            // TODO: get rid of this static SBuf
-            static SBuf result;
-            result = ToSBuf(it->second, " if ");
-            return result.c_str();
+            return it->second;
         });
         dump_SBufList(os, lines);
     }

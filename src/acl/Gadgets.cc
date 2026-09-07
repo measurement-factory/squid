@@ -218,8 +218,7 @@ ParseAclWithAction(acl_access **treePointer, const Acl::Answer &action, const ch
 void
 ParseOptionalAclWithAction(ConfigParser &parser, acl_access **treePointer, const Acl::Answer &action, const char *desc)
 {
-    if (!parser.skipOptional("if"))
-        return; // the directive has no ACLs
+    (void) parser.skipOptional("if");
     ParseAclWithAction(treePointer, action, desc);
 }
 
