@@ -65,6 +65,14 @@ Ipc::StoreMap::StoreMap(const SBuf &aPath): cleaner(nullptr), path(aPath),
     assert(entryLimit() <= sliceLimit()); // at least one slice per entry
 }
 
+void
+Ipc::StoreMap::setUpdateStatus(const sfileno fileno, const Ipc::StoreMapAnchor::UpdateStatus updateStatus)
+{
+    Anchor &inode = anchorAt(fileno);
+    assert(inode.writing() || inode.reading());
+    inode.updateStatus = updateStatus;
+}
+
 int
 Ipc::StoreMap::compareVersions(const sfileno fileno, time_t newVersion) const
 {
@@ -352,6 +360,7 @@ Ipc::StoreMap::abortUpdating(Update &update)
 {
     const sfileno fileno = update.stale.fileNo;
     debugs(54, 5, "aborting entry " << fileno << " for updating " << path);
+    Store::Root().updateFinished(*update.entry, *update.entry304, Ipc::StoreMapAnchor::uFailed);
     if (update.stale) {
         AssertFlagIsSet(update.stale.anchor->lock.updating);
         update.stale.anchor->lock.unlockHeaders();
@@ -759,6 +768,8 @@ Ipc::StoreMap::closeForUpdating(Update &update)
     closeForReading(update.fresh.fileNo);
     update.fresh = Update::Edition();
 
+    Store::Root().updateFinished(*update.entry, *update.entry304, Ipc::StoreMapAnchor::uApplied);
+
     debugs(54, 5, "closed entry " << updateSaved.stale.fileNo << " of " << *updateSaved.entry <<
            " named " << updateSaved.stale.name << " for updating " << path <<
            " to fresh entry " << updateSaved.fresh.fileNo << " named " << updateSaved.fresh.name <<
@@ -1025,7 +1036,7 @@ Ipc::StoreMap::sliceAt(const SliceId sliceId) const
 
 /* Ipc::StoreMapAnchor */
 
-Ipc::StoreMapAnchor::StoreMapAnchor(): start(0), splicingPoint(-1)
+Ipc::StoreMapAnchor::StoreMapAnchor(): updateStatus(uNone), start(0), splicingPoint(-1)
 {
     // keep in sync with rewind()
 }
@@ -1098,28 +1109,34 @@ Ipc::StoreMapAnchor::rewind()
     basics.clear();
     waitingToBeFreed = false;
     writerHalted = false;
+    updateStatus = uNone;
     // but keep the lock
 }
 
 /* Ipc::StoreMapUpdate */
 
-Ipc::StoreMapUpdate::StoreMapUpdate(StoreEntry *anEntry):
-    entry(anEntry)
+Ipc::StoreMapUpdate::StoreMapUpdate(StoreEntry *anEntry, const StoreEntry *e304):
+    entry(anEntry),
+    entry304(e304)
 {
     entry->lock("Ipc::StoreMapUpdate1");
+    const_cast<StoreEntry *>(entry304)->lock("Ipc::StoreMapUpdate1");
 }
 
 Ipc::StoreMapUpdate::StoreMapUpdate(const StoreMapUpdate &other):
     entry(other.entry),
+    entry304(other.entry304),
     stale(other.stale),
     fresh(other.fresh)
 {
     entry->lock("Ipc::StoreMapUpdate2");
+    const_cast<StoreEntry *>(entry304)->lock("Ipc::StoreMapUpdate2");
 }
 
 Ipc::StoreMapUpdate::~StoreMapUpdate()
 {
     entry->unlock("Ipc::StoreMapUpdate");
+    const_cast<StoreEntry *>(entry304)->unlock("Ipc::StoreMapUpdate");
 }
 
 /* Ipc::StoreMap::Owner */

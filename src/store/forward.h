@@ -40,6 +40,7 @@ namespace Store
 enum IoStatus { ioUndecided, ioWriting, ioReading, ioDone };
 
 class Storage;
+class CollapsedEntryTransientsState;
 class Controller;
 class Controlled;
 class Disks;

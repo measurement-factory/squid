@@ -9,9 +9,10 @@
 #ifndef SQUID_SRC_STORE_CONTROLLER_H
 #define SQUID_SRC_STORE_CONTROLLER_H
 
+#include "ipc/StoreMap.h"
+#include "MemObject.h"
 #include "store/Storage.h"
 
-class MemObject;
 class RequestFlags;
 class HttpRequestMethod;
 
@@ -115,12 +116,20 @@ public:
 
     /// disassociates the entry from the intransit table
     void transientsDisconnect(StoreEntry &);
+    void transientsDisconnect(Store::CollapsedEntryTransientsState &);
 
     /// disassociates the entry from the memory cache, preserving cached data
     void memoryDisconnect(StoreEntry &);
 
     /// \returns an iterator for all Store entries
     StoreSearch *search();
+
+    /// adjusts the shared transients entry after the 304 update has been successfully applied (or failed)
+    void updateFinished(StoreEntry &e, const StoreEntry &e304, Ipc::StoreMapAnchor::UpdateStatus);
+
+    /// adjusts the 'updateStatus' shared transients entry state after the entry has been
+    /// either updated by a 304 or overwritten by a cacheable response
+    void setUpdateStatus(const MemObject::XitTable &, Ipc::StoreMapAnchor::UpdateStatus);
 
     /// whether there are any SMP-aware storages
     static bool SmpAware();

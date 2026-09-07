@@ -21,7 +21,7 @@ void MemStore::write(StoreEntry &) STUB
 void MemStore::completeWriting(StoreEntry &) STUB
 void MemStore::disconnect(StoreEntry &) STUB
 void MemStore::reference(StoreEntry &) STUB
-void MemStore::updateHeaders(StoreEntry *) STUB
+void MemStore::updateHeaders(StoreEntry *, const StoreEntry &) STUB
 void MemStore::maintain() STUB
 void MemStore::noteFreeMapSlice(const Ipc::StoreMapSliceId) STUB
 void MemStore::init() STUB

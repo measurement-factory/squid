@@ -289,6 +289,30 @@ Transients::status(const StoreEntry &entry, Transients::EntryStatus &entryStatus
                          map->writeableEntry(idx) : map->readableEntry(idx);
     entryStatus.hasWriter = anchor.writing();
     entryStatus.waitingToBeFreed = anchor.waitingToBeFreed;
+    entryStatus.updateStatus = anchor.updateStatus;
+}
+
+void
+Transients::setUpdateStatus(const MemObject::XitTable &xitTable, const Ipc::StoreMapAnchor::UpdateStatus updateStatus)
+{
+    const auto &anchor = xitTable.io == Store::ioWriting ? map->writeableEntry(xitTable.index) : map->readableEntry(xitTable.index);
+    if (anchor.updateStatus == Ipc::StoreMapAnchor::uNone) {
+        map->setUpdateStatus(xitTable.index, updateStatus);
+        CollapsedForwarding::Broadcast(xitTable.index, false);
+        return;
+    }
+}
+
+void
+Transients::refreshEntry(StoreEntry &e)
+{
+    evictCached(e);
+    const auto key = e.calcPublicKey(ksDefault);
+    sfileno index = 0;
+    const auto anchor = map->openForWriting(key, index);
+    if (!anchor)
+        throw TextException("writer collision", Here());
+    map->closeForWriting(index);
 }
 
 void
@@ -335,6 +359,25 @@ Transients::evictIfFound(const cache_key *key)
     const sfileno index = map->fileNoByKey(key);
     if (map->freeEntry(index))
         CollapsedForwarding::Broadcast(index, true);
+}
+
+void
+Transients::disconnect(Store::CollapsedEntryTransientsState &state)
+{
+    assert(map);
+    if (state.xitTable.io == Store::ioWriting) {
+        // completeWriting() was not called, so there could be an active
+        // Store writer out there, but we should not abortWriting() here
+        // because another writer may have succeeded, making readers happy.
+        // If none succeeded, the readers will notice the lack of writers.
+        map->closeForWriting(state.xitTable.index);
+        CollapsedForwarding::Broadcast(state.xitTable.index, false);
+    } else {
+        assert(state.xitTable.io == Store::ioReading);
+        map->closeForReadingAndFreeIdle(state.xitTable.index);
+    }
+    locals->at(state.xitTable.index) = nullptr;
+    state.xitTable.close();
 }
 
 void
