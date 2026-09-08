@@ -91,8 +91,10 @@ Http::One::Server::parseOneRequest()
     // parser is incremental. Generate new parser state if we,
     // a) do not have one already
     // b) have completed the previous request parsing already
-    if (!parser_ || !parser_->needsMoreData())
+    if (!parser_ || !parser_->needsMoreData()) {
+        Assure(ClientHttpVersionSelector::Verify(clientConnection, ClientHttpVersionSelector::Http11Protocol));
         parser_ = new Http1::RequestParser(preservingClientData_);
+    }
 
     /* Process request */
     Http::Stream *context = parseHttpRequest(parser_);

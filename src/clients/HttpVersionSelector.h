@@ -27,6 +27,8 @@ public:
     /// [len][string][len][string]... (e.g., \x02h2\x08http/1.1)
     /// \param alpnLen the length of alpn
     static const std::optional<SBuf> Check(ACLFilledChecklist *, const char *alpn, unsigned int alpnLen);
+    /// whether the client connection expects the client protocol bytes
+    static bool Verify(const Comm::ConnectionPointer &clientConn, const SBuf clientProtocol);
 
     std::shared_ptr<ACLList> aclList;
 };

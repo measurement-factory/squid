@@ -16,12 +16,16 @@
 #include "ConfigOption.h"
 #include "ConfigParser.h"
 #include "configuration/Smooth.h"
+#include "fde.h"
 #include "HttpVersionSelector.h"
 #include "sbuf/Stream.h"
 #include "SquidConfig.h"
 
 #include <algorithm>
 #include <array>
+#if USE_OPENSSL
+#include "ssl/support.h"
+#endif
 #include <utility>
 
 static const std::array<std::pair<ClientHttpVersionSelector::Protocol, const char *>, 3> ProtoVersionMap = {{
@@ -145,6 +149,22 @@ ClientHttpVersionSelector::Check(ACLFilledChecklist *ch, const char *alpn, unsig
     }
 
     return CheckProtocol(alpn, alpnLen, proto);
+}
+
+bool
+ClientHttpVersionSelector::Verify(const Comm::ConnectionPointer &clientConnection, const SBuf clientProtocol)
+{
+    if (!Comm::IsConnOpen(clientConnection))
+        return true; // nothing to verify: the client connection is closed already
+#if USE_OPENSSL
+    if (auto session = fd_table[clientConnection->fd].ssl.get()) {
+        const auto proto = static_cast<const std::optional<SBuf> *>(SSL_get_ex_data(session, ssl_ex_index_ssl_alpn_selected));
+        Assure(proto);
+        Assure(*proto);
+        return proto->value() == clientProtocol;
+    }
+#endif
+    return clientProtocol == Http11Protocol;
 }
 
 template <>
