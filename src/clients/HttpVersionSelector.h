@@ -6,6 +6,9 @@
  * Please see the COPYING and CONTRIBUTORS files for details.
  */
 
+#ifndef SQUID_SRC_CLIENTS_HTTPVERSIONSELECTOR_H
+#define SQUID_SRC_CLIENTS_HTTPVERSIONSELECTOR_H
+
 #include "acl/forward.h"
 #include "configuration/forward.h"
 
@@ -32,3 +35,6 @@ public:
 
     std::shared_ptr<ACLList> aclList;
 };
+
+#endif /* SQUID_SRC_CLIENTS_HTTPVERSIONSELECTOR_H */
+
