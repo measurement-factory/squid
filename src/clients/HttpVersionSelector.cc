@@ -29,10 +29,11 @@
 #include <utility>
 
 static const std::array<std::pair<ClientHttpVersionSelector::Protocol, const char *>, 3> ProtoVersionMap = {{
-    {ClientHttpVersionSelector::http11, "http/1.1" },
-    {ClientHttpVersionSelector::h2, "h2"},
-    {ClientHttpVersionSelector::any, "any"}
-}};
+        {ClientHttpVersionSelector::http11, "http/1.1" },
+        {ClientHttpVersionSelector::h2, "h2"},
+        {ClientHttpVersionSelector::any, "any"}
+    }
+};
 
 const SBuf ClientHttpVersionSelector::Http11Protocol(ProtoVersionMap[ClientHttpVersionSelector::http11].second);
 const SBuf ClientHttpVersionSelector::Http2Protocol(ProtoVersionMap[ClientHttpVersionSelector::h2].second);
@@ -42,8 +43,8 @@ static std::optional<ClientHttpVersionSelector::Protocol>
 parseProtocol(const SBuf &protocol)
 {
     auto it = std::find_if(ProtoVersionMap.begin(), ProtoVersionMap.end(), [&](const auto &p) {
-            return protocol.cmp(p.second) == 0;
-            });
+        return protocol.cmp(p.second) == 0;
+    });
     if (it == ProtoVersionMap.end())
         return std::nullopt;
     return it->first;
@@ -193,7 +194,7 @@ Configuration::Component<ClientHttpVersionSelector*>::FinishSmoothReconfiguratio
     // if parsed at least one directive
     if (sr.fresh.clientHttpVersionSelector->aclList)
         Config.clientHttpVersionSelector = new ClientHttpVersionSelector(std::move(*sr.fresh.clientHttpVersionSelector));
- }
+}
 
 template <>
 void
