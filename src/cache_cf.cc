@@ -1157,27 +1157,21 @@ parse_SBufList(SBufList * list)
         list->push_back(SBuf(token));
 }
 
-static bool
-IsDelimiter(const SBuf &token)
-{
-    return token.cmp("\n") == 0 || token.cmp(" ") == 0;
-}
-
 // just dump a list, no directive name
 static void
 dump_SBufList(StoreEntry * entry, const SBufList &words)
 {
-    // assume that the list does not have leading delimiters
-    // exclude all trailing delimiters
-    const auto endToken = std::find_if(words.rbegin(), words.rend(), [] (const SBuf &token) {
-        return !IsDelimiter(token);
-    }).base();
-
-    for (auto i = words.begin(); i != endToken; ++i) {
-        // do not add space before and after existing delimiters
-        if (i != words.begin() && !IsDelimiter(*i) && !IsDelimiter(*std::prev(i)))
-            entry->append(" ",1);
-        entry->append(i->rawContent(), i->length());
+    bool sawToken = false;
+    for (const auto &i : words) {
+        if (i.cmp("\n") == 0) {
+            sawToken = false;
+            entry->append("\n",1);
+        } else {
+            if (sawToken)
+                entry->append(" ",1);
+            entry->append(i.rawContent(), i.length());
+            sawToken = true;
+        }
     }
     entry->append("\n",1);
 }
