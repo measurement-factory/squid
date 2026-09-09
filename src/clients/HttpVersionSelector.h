@@ -11,6 +11,7 @@
 
 #include "acl/forward.h"
 #include "configuration/forward.h"
+#include "sbuf/SBuf.h"
 
 #include <memory>
 
