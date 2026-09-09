@@ -493,7 +493,7 @@ HttpVersionSelectorErrorDetail(SSL *ssl, const char *detailString)
 // TODO: move to where it belongs
 static int
 alpn_select_cb(SSL *ssl, const unsigned char **out, unsigned char *outlen,
-    const unsigned char *in, unsigned int inlen, void *)
+               const unsigned char *in, unsigned int inlen, void *)
 {
     assert(ssl);
 

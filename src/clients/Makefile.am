@@ -12,8 +12,6 @@ noinst_LTLIBRARIES = libclients.la
 libclients_la_SOURCES = \
 	Client.cc \
 	Client.h \
-	HttpVersionSelector.cc \
-	HttpVersionSelector.h \
 	FtpClient.cc \
 	FtpClient.h \
 	FtpGateway.cc \
@@ -22,6 +20,8 @@ libclients_la_SOURCES = \
 	HttpTunneler.h \
 	HttpTunnelerAnswer.cc \
 	HttpTunnelerAnswer.h \
+	HttpVersionSelector.cc \
+	HttpVersionSelector.h \
 	WhoisGateway.cc \
 	WhoisGateway.h \
 	forward.h

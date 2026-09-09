@@ -823,7 +823,7 @@ ssl_free_VerifyCallbackParameters(void *, void *ptr, CRYPTO_EX_DATA *,
 /// "free" function for the ssl_ex_index_ssl_alpn_selected entry
 static void
 ssl_free_AlpnSelected(void *, void *ptr, CRYPTO_EX_DATA *,
-        int, long, void *)
+                      int, long, void *)
 {
     auto alpn = static_cast<std::optional<SBuf> *>(ptr);
     delete alpn;
@@ -832,7 +832,7 @@ ssl_free_AlpnSelected(void *, void *ptr, CRYPTO_EX_DATA *,
 /// "dup" function for the ssl_ex_index_ssl_alpn_selected entry
 static int
 ssl_dup_AlpnSelected(CRYPTO_EX_DATA *, const CRYPTO_EX_DATA *, void **from_d,
-                    int , long, void *)
+                     int, long, void *)
 {
     if (*from_d == nullptr)
         return 1;
