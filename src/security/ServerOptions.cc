@@ -480,10 +480,9 @@ HttpVersionSelectorCheck(SSL *ssl,  const unsigned char *alpn, const unsigned in
 }
 
 static void
-HttpVersionSelectorErrorDetail(SSL *ssl, const char *detailString)
+HttpVersionSelectorErrorDetail(SSL *ssl, const ErrorDetail::Pointer &d)
 {
-    std::unique_ptr<ErrorDetail::Pointer> detail(new ErrorDetail::Pointer(
-                MakeNamedErrorDetail(detailString)));
+    std::unique_ptr<ErrorDetail::Pointer> detail(new ErrorDetail::Pointer(d));
     if (SSL_set_ex_data(ssl, ssl_ex_index_ssl_error_detail, detail.get()))
         detail.release();
     else
@@ -501,7 +500,8 @@ alpn_select_cb(SSL *ssl, const unsigned char **out, unsigned char *outlen,
         const auto proto = HttpVersionSelectorCheck(ssl, in, inlen);
 
         if (!proto->has_value()) {
-            HttpVersionSelectorErrorDetail(ssl, "SSL_TLSEXT_ERR_ALERT_FATAL(select)");
+            static const auto d = MakeNamedErrorDetail("SSL_TLSEXT_ERR_ALERT_FATAL(select)");
+            HttpVersionSelectorErrorDetail(ssl, d);
             return SSL_TLSEXT_ERR_ALERT_FATAL;
         }
 
@@ -510,7 +510,8 @@ alpn_select_cb(SSL *ssl, const unsigned char **out, unsigned char *outlen,
         return SSL_TLSEXT_ERR_OK;
     } catch (...) {
         debugs (83, DBG_IMPORTANT, "cannot select a protocol: " << CurrentException);
-        HttpVersionSelectorErrorDetail(ssl, "SSL_TLSEXT_ERR_ALERT_FATAL(error)");
+        static const auto d = MakeNamedErrorDetail("SSL_TLSEXT_ERR_ALERT_FATAL(error)");
+        HttpVersionSelectorErrorDetail(ssl, d);
         return SSL_TLSEXT_ERR_ALERT_FATAL;
     }
 }
@@ -534,7 +535,8 @@ client_hello_cb(SSL *ssl, int *al, void *) {
         if (!proto->has_value()) {
             // set the alert to "no_application_protocol" and fail
             *al = TLS1_AD_NO_APPLICATION_PROTOCOL;
-            HttpVersionSelectorErrorDetail(ssl, "TLS1_AD_NO_APPLICATION_PROTOCOL");
+            static const auto d = MakeNamedErrorDetail("TLS1_AD_NO_APPLICATION_PROTOCOL");
+            HttpVersionSelectorErrorDetail(ssl, d);
             return SSL_CLIENT_HELLO_ERROR;
         }
 
@@ -542,7 +544,8 @@ client_hello_cb(SSL *ssl, int *al, void *) {
         return SSL_CLIENT_HELLO_SUCCESS;
     } catch (...) {
         debugs (83, DBG_IMPORTANT, "cannot handle client hello: " << CurrentException);
-        HttpVersionSelectorErrorDetail(ssl, "SSL_AD_INTERNAL_ERROR");
+        static const auto d = MakeNamedErrorDetail("SSL_AD_INTERNAL_ERROR");
+        HttpVersionSelectorErrorDetail(ssl, d);
         *al = SSL_AD_INTERNAL_ERROR;
         return SSL_CLIENT_HELLO_ERROR;
     }

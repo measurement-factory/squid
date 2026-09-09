@@ -61,7 +61,8 @@ Http::One::Server::start()
         fillChecklist(*ch);
         if (!ClientHttpVersionSelector::Check(ch.release(), nullptr, 0)) {
             debugs(33, 2, "Cannot select HTTP protocol version");
-            updateError(ERR_PROTOCOL_UNKNOWN, MakeNamedErrorDetail("CANNOT_SELECT_HTTP_VERSION"));
+            static const auto d = MakeNamedErrorDetail("CANNOT_SELECT_HTTP_VERSION");
+            updateError(ERR_PROTOCOL_UNKNOWN, d);
             clientConnection->close();
             return;
         }
