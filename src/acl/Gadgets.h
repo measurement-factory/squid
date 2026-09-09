@@ -26,7 +26,7 @@ void aclDestroyAccessList(acl_access **list);
 /// \ingroup ACLAPI
 void aclDestroyAclList(ACLList **);
 
-/// Parses a single line of the "allow" or "deny" action followed by acls" directive (e.g., http_access).
+/// Parses a single line of a "action followed by acls" directive (e.g., http_access).
 void aclParseAccessLine(const char *directive, ConfigParser &, acl_access **);
 
 /// Parses a single line of a "some context followed by acls" directive (e.g., note n v).

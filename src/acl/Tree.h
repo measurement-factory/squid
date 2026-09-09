@@ -80,7 +80,8 @@ Tree::treeDump(const SBuf &prefix, const ActionToStringConverter converter) cons
 
         auto nodeText = (*node)->dump();
         if (!nodeText.empty()) {
-            text.push_back(SBuf("if"));
+            static const SBuf ifToken("if");
+            text.push_back(ifToken);
             text.splice(text.end(), nodeText);
         }
         text.push_back(SBuf("\n"));

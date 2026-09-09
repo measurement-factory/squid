@@ -116,7 +116,7 @@ ClientHttpVersionSelector::parse(ConfigParser &parser)
 {
     const auto version = parser.token("client http version type");
 
-    auto proto = parseProtocol(version);
+    const auto proto = parseProtocol(version);
     if (!proto)
         throw TextException(ToSBuf("unsupported client http version: '", version, "'"), Here());
 
@@ -136,7 +136,7 @@ ClientHttpVersionSelector::Check(ACLFilledChecklist *ch, const char *alpn, unsig
         return CheckProtocol(alpn, alpnLen, ClientHttpVersionSelector::AnyProtocol);
 
     Assure(Config.clientHttpVersionSelector);
-    auto aclList =  Config.clientHttpVersionSelector->aclList.get();
+    const auto aclList =  Config.clientHttpVersionSelector->aclList.get();
     Assure(aclList);
 
     const auto &answer = ch->fastCheck(aclList);
@@ -221,7 +221,7 @@ Configuration::Component<ClientHttpVersionSelector*>::Print(std::ostream &os, Cl
 
     if (auto list = selector->aclList.get()) {
         const auto lines = ToTree(list).treeDump(directiveName, [](const Acl::Answer &action) {
-            auto it = std::find_if(ProtoVersionMap.begin(), ProtoVersionMap.end(), [&](const auto &p) {
+            const auto it = std::find_if(ProtoVersionMap.begin(), ProtoVersionMap.end(), [&](const auto &p) {
                 return p.first == action.kind;
             });
             assert(it != ProtoVersionMap.end());

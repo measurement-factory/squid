@@ -28,7 +28,7 @@ public:
 
     void parse(ConfigParser &);
 
-    /// Applies client_http_version rule to select a suitable protocol.
+    /// Applies client_http_version rules to select a suitable protocol.
     /// \param alpn the string containing client's offered ALPN protocols (or nil) in format:
     /// [len][string][len][string]... (e.g., \x02h2\x08http/1.1)
     /// \param alpnLen the length of alpn
