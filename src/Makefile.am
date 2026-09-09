@@ -2250,8 +2250,8 @@ nodist_tests_testCacheManager_SOURCES = \
 # comm.cc only requires comm/libcomm.la until fdc_table is dead.
 tests_testCacheManager_LDADD = \
 	libsquid.la \
-	clients/libclients.la \
 	servers/libservers.la \
+	clients/libclients.la \
 	ftp/libftp.la \
 	helper/libhelper.la \
 	http/libhttp.la \
