@@ -79,8 +79,10 @@ Tree::treeDump(const SBuf &prefix, const ActionToStringConverter converter) cons
         }
 
         text.splice(text.end(), (*node)->dump());
-        if (node != lastNode)
-            text.push_back(SBuf("\n"));
+        if (node != lastNode) {
+            static const SBuf LF("\n");
+            text.push_back(LF);
+        }
     }
     return text;
 }
