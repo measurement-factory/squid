@@ -504,9 +504,9 @@ squid_LDADD = \
 	acl/libstate.la \
 	$(AUTH_LIBS) \
 	acl/libapi.la \
-	clients/libclients.la \
-	configuration/libconfiguration.la \
 	servers/libservers.la \
+	configuration/libconfiguration.la \
+	clients/libclients.la \
 	ftp/libftp.la \
 	helper/libhelper.la \
 	http/libhttp.la \
