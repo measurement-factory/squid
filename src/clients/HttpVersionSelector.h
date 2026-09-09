@@ -10,6 +10,7 @@
 #define SQUID_SRC_CLIENTS_HTTPVERSIONSELECTOR_H
 
 #include "acl/forward.h"
+#include "comm/forward.h"
 #include "configuration/forward.h"
 #include "sbuf/SBuf.h"
 
