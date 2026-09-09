@@ -515,7 +515,8 @@ alpn_select_cb(SSL *ssl, const unsigned char **out, unsigned char *outlen,
     }
 }
 
-int client_hello_cb(SSL *ssl, int *al, void *) {
+static int
+client_hello_cb(SSL *ssl, int *al, void *) {
     assert(ssl);
     assert(al);
 
