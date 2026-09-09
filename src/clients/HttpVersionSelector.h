@@ -14,6 +14,7 @@
 #include "sbuf/SBuf.h"
 
 #include <memory>
+#include <optional>
 
 class ClientHttpVersionSelector
 {
