@@ -12,6 +12,7 @@
 #include "acl/forward.h"
 #include "base/RefCount.h"
 #include "base/YesNoNone.h"
+#include "clients/forward.h"
 #include "configuration/forward.h"
 #if USE_DELAY_POOLS
 #include "ClientDelayConfig.h"
@@ -550,6 +551,8 @@ public:
     } happyEyeballs;
 
     Configuration::ReconfigurationMode *reconfigurationMode;
+
+    ClientHttpVersionSelector *clientHttpVersionSelector;
 };
 
 extern SquidConfig Config;

@@ -44,6 +44,13 @@ aclParseAclList(ConfigParser &parser, ACLList ** const tree, const Any any)
     return aclParseAclList(parser, tree, buf.str().c_str());
 }
 
+/// parses an optional [ [!]<acl>... ] line (e.g., ssl-bump) assigning the action to the Acl::Tree object
+/// \deprecated use ParseOptionalAclWithAction() instead
+void ParseAclWithAction(acl_access **treePointer, const Acl::Answer &action, const char *desc, Acl::Node *acl = nullptr);
+
+/// parses an optional [ if [!]<acl>...] line (e.g., ssl-bump) assigning the action to the Acl::Tree object
+void ParseOptionalAclWithAction(ConfigParser &, acl_access **treePointer, const Acl::Answer &action, const char *desc);
+
 /// Whether the given name names an Acl::Node object with true isProxyAuth() result.
 /// This is a safe variation of Acl::Node::FindByName(*name)->isProxyAuth().
 bool aclIsProxyAuth(const std::optional<SBuf> &name);
