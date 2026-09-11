@@ -3770,6 +3770,7 @@ dump_access_log(StoreEntry * entry, const char *name, CustomLog * logs)
 
         if (log->aclList)
             dump_acl_list(entry, log->aclList);
+
         storeAppendPrintf(entry, "\n");
     }
 }
