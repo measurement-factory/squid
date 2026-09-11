@@ -1720,7 +1720,7 @@ CONFIG_START
 # Adapt to list your (internal) IP networks.
 # It is common to allow access from these addresses, but your needs may vary.
 # Be careful with negating this ACL: This ACL does not match Squid-generated
-# requests, so "!localnet" does _not_ mean an "external" request received
+# requests, so `!localnet` does _not_ mean an "external" request received
 # from a non-local address. It means "external or internally-generated"!
 acl localnet src 0.0.0.1-0.255.255.255	# RFC 1122 "this" network (LAN)
 acl localnet src 10.0.0.0/8		# RFC 1918 local private network (LAN)
