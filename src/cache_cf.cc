@@ -2657,6 +2657,7 @@ parse_TokenOrQuotedString(char **var)
 static void
 dump_time_unit(std::ostream &os, time_t var)
 {
+    // canonical output in seconds
     os << ' ' << var << " seconds";
 }
 
