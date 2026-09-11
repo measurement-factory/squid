@@ -66,6 +66,7 @@ Tree::treeDump(const SBuf &prefix, const ActionToStringConverter converter) cons
     SBufList text;
     Actions::const_iterator action = actions.begin();
     typedef Nodes::const_iterator NCI;
+    const NCI lastNode = nodes.empty() ? nodes.end() : std::prev(nodes.end());
     for (NCI node = nodes.begin(); node != nodes.end(); ++node) {
 
         text.push_back(prefix);
@@ -78,7 +79,10 @@ Tree::treeDump(const SBuf &prefix, const ActionToStringConverter converter) cons
         }
 
         text.splice(text.end(), (*node)->dump());
-        text.push_back(SBuf("\n"));
+        if (node != lastNode) {
+            static const SBuf LF("\n");
+            text.push_back(LF);
+        }
     }
     return text;
 }

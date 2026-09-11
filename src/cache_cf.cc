@@ -1157,15 +1157,23 @@ parse_SBufList(SBufList * list)
         list->push_back(SBuf(token));
 }
 
-// just dump a list, no directive name
+// just dump a list, no directive name (no terminating '\n')
 static void
 dump_SBufList(StoreEntry * entry, const SBufList &words)
 {
+    bool sawToken = false;
     for (const auto &i : words) {
-        entry->append(i.rawContent(), i.length());
-        entry->append(" ",1);
+        // avoid extra spaces before and after '\n'
+        if (i.cmp("\n") == 0) {
+            sawToken = false;
+            entry->append("\n",1);
+        } else {
+            if (sawToken)
+                entry->append(" ",1);
+            entry->append(i.rawContent(), i.length());
+            sawToken = true;
+        }
     }
-    entry->append("\n",1);
 }
 
 // dump a SBufList type directive with name
@@ -1176,6 +1184,7 @@ dump_SBufList(StoreEntry * entry, const char *name, SBufList &list)
         entry->append(name, strlen(name));
         entry->append(" ", 1);
         dump_SBufList(entry, list);
+        entry->append("\n",1);
     }
 }
 
@@ -1217,8 +1226,10 @@ dump_acl_list(StoreEntry * entry, ACLList * head)
 void
 dump_acl_access(StoreEntry * entry, const char *name, acl_access * head)
 {
-    if (head)
+    if (head) {
         dump_SBufList(entry, ToTree(head).treeDump(name, &Acl::AllowOrDeny));
+        storeAppendPrintf(entry, "\n");
+    }
 }
 
 static void
@@ -1702,10 +1713,12 @@ free_AuthSchemes(acl_access **authSchemes)
 static void
 dump_AuthSchemes(StoreEntry *entry, const char *name, acl_access *authSchemes)
 {
-    if (authSchemes)
+    if (authSchemes) {
         dump_SBufList(entry, ToTree(authSchemes).treeDump(name, [](const Acl::Answer &action) {
-        return Auth::TheConfig.schemeLists.at(action.kind).rawSchemes;
-    }));
+            return Auth::TheConfig.schemeLists.at(action.kind).rawSchemes;
+        }));
+        storeAppendPrintf(entry, "\n");
+    }
 }
 
 #endif /* USE_AUTH */
@@ -2642,10 +2655,19 @@ parse_TokenOrQuotedString(char **var)
 #define free_TokenOrQuotedString free_string
 
 static void
+dump_time_unit(std::ostream &os, time_t var)
+{
+    // canonical output in seconds
+    os << ' ' << var << " seconds";
+}
+
+static void
 dump_time_t(StoreEntry * entry, const char *name, time_t var)
 {
     PackableStream os(*entry);
-    os << name << ' ' << var << " seconds\n";
+    os << name;
+    dump_time_unit(os, var);
+    os << "\n";
 }
 
 void
@@ -3947,8 +3969,10 @@ static void parse_icap_service_failure_limit(Adaptation::Icap::Config *cfg)
 static void dump_icap_service_failure_limit(StoreEntry *entry, const char *name, const Adaptation::Icap::Config &cfg)
 {
     storeAppendPrintf(entry, "%s %d", name, cfg.service_failure_limit);
-    if (cfg.oldest_service_failure > 0) {
-        storeAppendPrintf(entry, " in %d seconds", (int)cfg.oldest_service_failure);
+    if (cfg.oldest_service_failure >= 0) {
+        PackableStream os(*entry);
+        os << " in";
+        dump_time_unit(os, static_cast<int>(cfg.oldest_service_failure));
     }
     storeAppendPrintf(entry, "\n");
 }
@@ -4194,10 +4218,12 @@ static void parse_sslproxy_ssl_bump(acl_access **ssl_bump)
 
 static void dump_sslproxy_ssl_bump(StoreEntry *entry, const char *name, acl_access *ssl_bump)
 {
-    if (ssl_bump)
+    if (ssl_bump) {
         dump_SBufList(entry, ToTree(ssl_bump).treeDump(name, [](const Acl::Answer &action) {
-        return Ssl::BumpModeStr.at(action.kind);
-    }));
+            return Ssl::BumpModeStr.at(action.kind);
+        }));
+        storeAppendPrintf(entry, "\n");
+    }
 }
 
 static void free_sslproxy_ssl_bump(acl_access **ssl_bump)
@@ -4438,8 +4464,10 @@ static void parse_ftp_epsv(acl_access **ftp_epsv)
 
 static void dump_ftp_epsv(StoreEntry *entry, const char *name, acl_access *ftp_epsv)
 {
-    if (ftp_epsv)
+    if (ftp_epsv) {
         dump_SBufList(entry, ToTree(ftp_epsv).treeDump(name, Acl::AllowOrDeny));
+        storeAppendPrintf(entry, "\n");
+    }
 }
 
 static void free_ftp_epsv(acl_access **ftp_epsv)
@@ -4530,13 +4558,14 @@ dump_UrlHelperTimeout(StoreEntry *entry, const char *name, SquidConfig::UrlHelpe
     const char  *onTimedOutActions[] = {"bypass", "fail", "retry", "use_configured_response"};
     assert(config.action >= 0 && config.action <= toutActUseConfiguredResponse);
 
-    dump_time_t(entry, name, Config.Timeout.urlRewrite);
-    storeAppendPrintf(entry, " on_timeout=%s", onTimedOutActions[config.action]);
+    PackableStream os(*entry);
+    os << name;
+    dump_time_unit(os, static_cast<int>(Config.Timeout.urlRewrite));
+    os << " on_timeout=" << onTimedOutActions[config.action];
 
     if (config.response)
-        storeAppendPrintf(entry, " response=\"%s\"", config.response);
-
-    storeAppendPrintf(entry, "\n");
+        os << " response=\"" << config.response << '"';
+    os << "\n";
 }
 
 static void
@@ -4584,6 +4613,7 @@ dump_on_unsupported_protocol(StoreEntry *entry, const char *name, acl_access *ac
             return onErrorTunnelMode.at(action.kind);
         });
         dump_SBufList(entry, lines);
+        storeAppendPrintf(entry, "\n");
     }
 }
 
@@ -4617,6 +4647,7 @@ dump_http_upgrade_request_protocols(StoreEntry *entry, const char *rawName, Http
         const auto acld = ToTree(acls).treeDump("", &Acl::AllowOrDeny);
         line.insert(line.end(), acld.begin(), acld.end());
         dump_SBufList(entry, line);
+        storeAppendPrintf(entry, "\n");
     });
 }
 
