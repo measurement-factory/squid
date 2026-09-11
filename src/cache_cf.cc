@@ -1715,8 +1715,8 @@ dump_AuthSchemes(StoreEntry *entry, const char *name, acl_access *authSchemes)
 {
     if (authSchemes) {
         dump_SBufList(entry, ToTree(authSchemes).treeDump(name, [](const Acl::Answer &action) {
-        return Auth::TheConfig.schemeLists.at(action.kind).rawSchemes;
-    }));
+            return Auth::TheConfig.schemeLists.at(action.kind).rawSchemes;
+        }));
         storeAppendPrintf(entry, "\n");
     }
 }
@@ -4219,8 +4219,8 @@ static void dump_sslproxy_ssl_bump(StoreEntry *entry, const char *name, acl_acce
 {
     if (ssl_bump) {
         dump_SBufList(entry, ToTree(ssl_bump).treeDump(name, [](const Acl::Answer &action) {
-        return Ssl::BumpModeStr.at(action.kind);
-    }));
+            return Ssl::BumpModeStr.at(action.kind);
+        }));
         storeAppendPrintf(entry, "\n");
     }
 }
