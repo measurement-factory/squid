@@ -1157,7 +1157,7 @@ parse_SBufList(SBufList * list)
         list->push_back(SBuf(token));
 }
 
-// just dump a list, no directive name
+// just dump a list, no directive name (no terminating '\n')
 static void
 dump_SBufList(StoreEntry * entry, const SBufList &words)
 {
@@ -1173,7 +1173,6 @@ dump_SBufList(StoreEntry * entry, const SBufList &words)
             sawToken = true;
         }
     }
-    entry->append("\n",1);
 }
 
 // dump a SBufList type directive with name
@@ -1184,6 +1183,7 @@ dump_SBufList(StoreEntry * entry, const char *name, SBufList &list)
         entry->append(name, strlen(name));
         entry->append(" ", 1);
         dump_SBufList(entry, list);
+        entry->append("\n",1);
     }
 }
 
@@ -1225,8 +1225,10 @@ dump_acl_list(StoreEntry * entry, ACLList * head)
 void
 dump_acl_access(StoreEntry * entry, const char *name, acl_access * head)
 {
-    if (head)
+    if (head) {
         dump_SBufList(entry, ToTree(head).treeDump(name, &Acl::AllowOrDeny));
+        storeAppendPrintf(entry, "\n");
+    }
 }
 
 static void
@@ -1290,6 +1292,8 @@ dump_acl_address(StoreEntry * entry, const char *name, Acl::Address * head)
             storeAppendPrintf(entry, "%s autoselect", name);
 
         dump_acl_list(entry, l->aclList);
+
+        storeAppendPrintf(entry, "\n");
     }
 }
 
@@ -1326,6 +1330,8 @@ dump_acl_tos(StoreEntry * entry, const char *name, acl_tos * head)
             storeAppendPrintf(entry, "%s none", name);
 
         dump_acl_list(entry, l->aclList);
+
+        storeAppendPrintf(entry, "\n");
     }
 }
 
@@ -1380,6 +1386,8 @@ dump_acl_nfmark(StoreEntry * entry, const char *name, acl_nfmark * head)
         storeAppendPrintf(entry, "%s %s", name, ToSBuf(l->markConfig).c_str());
 
         dump_acl_list(entry, l->aclList);
+
+        storeAppendPrintf(entry, "\n");
     }
 }
 
@@ -1424,6 +1432,8 @@ dump_acl_b_size_t(StoreEntry * entry, const char *name, AclSizeLimit * head)
             storeAppendPrintf(entry, "%s none", name);
 
         dump_acl_list(entry, l->aclList);
+
+        storeAppendPrintf(entry, "\n");
     }
 }
 
@@ -1702,10 +1712,12 @@ free_AuthSchemes(acl_access **authSchemes)
 static void
 dump_AuthSchemes(StoreEntry *entry, const char *name, acl_access *authSchemes)
 {
-    if (authSchemes)
+    if (authSchemes) {
         dump_SBufList(entry, ToTree(authSchemes).treeDump(name, [](const Acl::Answer &action) {
         return Auth::TheConfig.schemeLists.at(action.kind).rawSchemes;
     }));
+        storeAppendPrintf(entry, "\n");
+    }
 }
 
 #endif /* USE_AUTH */
@@ -3757,8 +3769,7 @@ dump_access_log(StoreEntry * entry, const char *name, CustomLog * logs)
 
         if (log->aclList)
             dump_acl_list(entry, log->aclList);
-        else
-            storeAppendPrintf(entry, "\n");
+        storeAppendPrintf(entry, "\n");
     }
 }
 
@@ -4029,8 +4040,7 @@ static void dump_sslproxy_cert_adapt(StoreEntry *entry, const char *name, sslpro
         storeAppendPrintf(entry, "%s{%s} ", Ssl::sslCertAdaptAlgoritm(ca->alg), ca->param);
         if (ca->aclList)
             dump_acl_list(entry, ca->aclList);
-        else
-            storeAppendPrintf(entry, "\n");
+        storeAppendPrintf(entry, "\n");
     }
 }
 
@@ -4076,8 +4086,7 @@ static void dump_sslproxy_cert_sign(StoreEntry *entry, const char *name, sslprox
         storeAppendPrintf(entry, "%s ", Ssl::certSignAlgorithm(cs->alg));
         if (cs->aclList)
             dump_acl_list(entry, cs->aclList);
-        else
-            storeAppendPrintf(entry, "\n");
+        storeAppendPrintf(entry, "\n");
     }
 }
 
@@ -4204,10 +4213,12 @@ static void parse_sslproxy_ssl_bump(acl_access **ssl_bump)
 
 static void dump_sslproxy_ssl_bump(StoreEntry *entry, const char *name, acl_access *ssl_bump)
 {
-    if (ssl_bump)
+    if (ssl_bump) {
         dump_SBufList(entry, ToTree(ssl_bump).treeDump(name, [](const Acl::Answer &action) {
         return Ssl::BumpModeStr.at(action.kind);
     }));
+        storeAppendPrintf(entry, "\n");
+    }
 }
 
 static void free_sslproxy_ssl_bump(acl_access **ssl_bump)
@@ -4226,8 +4237,7 @@ static void dump_HeaderWithAclList(StoreEntry * entry, const char *name, HeaderW
         storeAppendPrintf(entry, "%s %s %s", name, hwa->fieldName.c_str(), hwa->fieldValue.c_str());
         if (hwa->aclList)
             dump_acl_list(entry, hwa->aclList);
-        else
-            storeAppendPrintf(entry, "\n");
+        storeAppendPrintf(entry, "\n");
     }
 }
 
@@ -4449,8 +4459,10 @@ static void parse_ftp_epsv(acl_access **ftp_epsv)
 
 static void dump_ftp_epsv(StoreEntry *entry, const char *name, acl_access *ftp_epsv)
 {
-    if (ftp_epsv)
+    if (ftp_epsv) {
         dump_SBufList(entry, ToTree(ftp_epsv).treeDump(name, Acl::AllowOrDeny));
+        storeAppendPrintf(entry, "\n");
+    }
 }
 
 static void free_ftp_epsv(acl_access **ftp_epsv)
@@ -4595,6 +4607,7 @@ dump_on_unsupported_protocol(StoreEntry *entry, const char *name, acl_access *ac
             return onErrorTunnelMode.at(action.kind);
         });
         dump_SBufList(entry, lines);
+        storeAppendPrintf(entry, "\n");
     }
 }
 
@@ -4628,6 +4641,7 @@ dump_http_upgrade_request_protocols(StoreEntry *entry, const char *rawName, Http
         const auto acld = ToTree(acls).treeDump("", &Acl::AllowOrDeny);
         line.insert(line.end(), acld.begin(), acld.end());
         dump_SBufList(entry, line);
+        storeAppendPrintf(entry, "\n");
     });
 }
 
