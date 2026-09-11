@@ -1163,6 +1163,7 @@ dump_SBufList(StoreEntry * entry, const SBufList &words)
 {
     bool sawToken = false;
     for (const auto &i : words) {
+        // avoid extra spaces before and after '\n'
         if (i.cmp("\n") == 0) {
             sawToken = false;
             entry->append("\n",1);
@@ -2654,17 +2655,17 @@ parse_TokenOrQuotedString(char **var)
 #define free_TokenOrQuotedString free_string
 
 static void
-dump_time_unit(StoreEntry * entry, const char *name, time_t var)
+dump_time_unit(std::ostream &os, time_t var)
 {
-    PackableStream os(*entry);
-    os << name << ' ' << var << " seconds";
+    os << ' ' << var << " seconds";
 }
 
 static void
 dump_time_t(StoreEntry * entry, const char *name, time_t var)
 {
-    dump_time_unit(entry, name, var);
     PackableStream os(*entry);
+    os << name;
+    dump_time_unit(os, var);
     os << "\n";
 }
 
@@ -3966,8 +3967,10 @@ static void parse_icap_service_failure_limit(Adaptation::Icap::Config *cfg)
 static void dump_icap_service_failure_limit(StoreEntry *entry, const char *name, const Adaptation::Icap::Config &cfg)
 {
     storeAppendPrintf(entry, "%s %d", name, cfg.service_failure_limit);
-    if (cfg.oldest_service_failure > 0) {
-        storeAppendPrintf(entry, " in %d seconds", (int)cfg.oldest_service_failure);
+    if (cfg.oldest_service_failure >= 0) {
+        PackableStream os(*entry);
+        os << " in";
+        dump_time_unit(os, static_cast<int>(cfg.oldest_service_failure));
     }
     storeAppendPrintf(entry, "\n");
 }
@@ -4553,13 +4556,14 @@ dump_UrlHelperTimeout(StoreEntry *entry, const char *name, SquidConfig::UrlHelpe
     const char  *onTimedOutActions[] = {"bypass", "fail", "retry", "use_configured_response"};
     assert(config.action >= 0 && config.action <= toutActUseConfiguredResponse);
 
-    dump_time_unit(entry, name, Config.Timeout.urlRewrite);
-    storeAppendPrintf(entry, " on_timeout=%s", onTimedOutActions[config.action]);
+    PackableStream os(*entry);
+    os << name;
+    dump_time_unit(os, static_cast<int>(Config.Timeout.urlRewrite));
+    os << " on_timeout=" << onTimedOutActions[config.action];
 
     if (config.response)
-        storeAppendPrintf(entry, " response=\"%s\"", config.response);
-
-    storeAppendPrintf(entry, "\n");
+        os << " response=\"" << config.response << '"';
+    os << "\n";
 }
 
 static void
