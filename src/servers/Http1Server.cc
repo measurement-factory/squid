@@ -13,7 +13,9 @@
 #include "client_side.h"
 #include "client_side_reply.h"
 #include "client_side_request.h"
+#include "clients/HttpVersionSelector.h"
 #include "comm/Write.h"
+#include "error/Detail.h"
 #include "HeaderMangling.h"
 #include "http/one/RequestParser.h"
 #include "http/Stream.h"
@@ -53,6 +55,19 @@ Http::One::Server::start()
     AsyncCall::Pointer timeoutCall =  JobCallback(33, 5,
                                       TimeoutDialer, this, Http1::Server::requestTimeout);
     commSetConnTimeout(clientConnection, Config.Timeout.request_start_timeout, timeoutCall);
+
+    if (Config.clientHttpVersionSelector) {
+        auto ch = ACLFilledChecklist::Make(nullptr, nullptr);
+        fillChecklist(*ch);
+        if (!ClientHttpVersionSelector::Check(ch.release(), nullptr, 0)) {
+            debugs(33, 2, "Cannot select HTTP protocol version");
+            static const auto d = MakeNamedErrorDetail("CANNOT_SELECT_HTTP_VERSION");
+            updateError(ERR_PROTOCOL_UNKNOWN, d);
+            clientConnection->close();
+            return;
+        }
+    }
+
     readSomeData();
 }
 
@@ -79,8 +94,10 @@ Http::One::Server::parseOneRequest()
     // parser is incremental. Generate new parser state if we,
     // a) do not have one already
     // b) have completed the previous request parsing already
-    if (!parser_ || !parser_->needsMoreData())
+    if (!parser_ || !parser_->needsMoreData()) {
+        Assure(ClientHttpVersionSelector::Verify(clientConnection, ClientHttpVersionSelector::Http11Protocol));
         parser_ = new Http1::RequestParser(preservingClientData_);
+    }
 
     /* Process request */
     Http::Stream *context = parseHttpRequest(parser_);
