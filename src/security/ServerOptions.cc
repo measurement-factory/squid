@@ -534,7 +534,6 @@ client_hello_cb(SSL *ssl, int *al, void *) {
     try {
         const unsigned char *ext = nullptr;
         size_t extLen = 0;
-        throw TextException("blablabla() error", Here());
 
         // Check if the ALPN extension is present
         if (SSL_client_hello_get0_ext(ssl, TLSEXT_TYPE_application_layer_protocol_negotiation, &ext, &extLen) == 1)
