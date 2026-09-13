@@ -37,10 +37,6 @@ void parseBytesOptionValue(size_t * bptr, const char *units, char const * value)
 /// \param mandatoryIf whether the "if" keyword must be placed before the list of ACLs
 void ParseAclWithAction(acl_access **treePointer, const Acl::Answer &action, const char *desc, bool mandatoryIf = false, Acl::Node *acl = nullptr);
 
-void dump_SBufList(std::ostream &, const SBufList &);
-// dumps SBufList with name prefix
-void dump_SBufList(std::ostream &, const char *name, const SBufList &);
-
 namespace Configuration {
 
 /// Preprocesses squid.conf or equivalent configuration.

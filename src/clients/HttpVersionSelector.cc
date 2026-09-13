@@ -220,14 +220,23 @@ Configuration::Component<ClientHttpVersionSelector*>::Print(std::ostream &os, Cl
     Assure(selector);
 
     if (auto list = selector->aclList.get()) {
-        const auto lines = ToTree(list).treeDump(directiveName, [](const Acl::Answer &action) {
+        const auto tokens = ToTree(list).treeDump(directiveName, [](const Acl::Answer &action) {
             const auto it = std::find_if(ProtoVersionMap.begin(), ProtoVersionMap.end(), [&](const auto &p) {
                 return p.first == action.kind;
             });
             assert(it != ProtoVersionMap.end());
             return it->second;
         });
-        dump_SBufList(os, lines);
+        // TODO: move to a helper function
+        const static SBuf LF("\n");
+        bool sawToken = false;
+        for (const auto &i : tokens) {
+            if (sawToken && i != LF)
+                os << ' ';
+            os << i;
+            sawToken = (i != LF);
+        }
+        os << LF;
     }
 }
 

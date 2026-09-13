@@ -71,7 +71,6 @@
 #include "client_side_reply.h"
 #include "client_side_request.h"
 #include "ClientRequestContext.h"
-#include "clients/HttpVersionSelector.h"
 #include "comm.h"
 #include "comm/Connection.h"
 #include "comm/Loops.h"
