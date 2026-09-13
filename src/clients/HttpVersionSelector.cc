@@ -124,7 +124,7 @@ ClientHttpVersionSelector::parse(ConfigParser &parser)
     action.kind = *proto;
 
     auto raw = aclList.get();
-    ParseOptionalAclWithAction(parser, &raw, action, "client_http_version");
+    ParseAclWithAction(&raw, action, "client_http_version", true);
     if (!aclList)
         aclList.reset(raw);
 }
