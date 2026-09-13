@@ -34,7 +34,6 @@
 
 #include <limits>
 #include <optional>
-#include <string_view>
 
 Security::ServerOptions &
 Security::ServerOptions::operator =(const Security::ServerOptions &old) {
