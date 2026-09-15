@@ -14,6 +14,7 @@
 #include "error/SysErrorDetail.h"
 #include "fatal.h"
 #include "globals.h"
+#include "security/Alpn.h"
 #include "security/KeyLogger.h"
 #include "security/ServerOptions.h"
 #include "security/Session.h"
@@ -176,8 +177,10 @@ Security::ServerOptions::createBlankContext() const
     }
     ctx = convertContextFromRawPtr(t);
 
-    if (ctx)
+    if (ctx) {
         Security::EnableKeyLogging(ctx);
+        Security::EnableClientAlpnObservation(ctx);
+    }
 
 #elif HAVE_LIBGNUTLS
     // Initialize for X.509 certificate exchange

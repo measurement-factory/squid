@@ -888,6 +888,7 @@ Ssl::InitializeOnce()
     ssl_ex_index_ssl_cert_chain = SSL_get_ex_new_index(0, (void *) "ssl_cert_chain", nullptr, nullptr, &ssl_free_CertChain);
     ssl_ex_index_ssl_validation_counter = SSL_get_ex_new_index(0, (void *) "ssl_validation_counter", nullptr, nullptr, &ssl_free_int);
     ssl_ex_index_verify_callback_parameters = SSL_get_ex_new_index(0, (void *) "verify_callback_parameters", nullptr, nullptr, &ssl_free_VerifyCallbackParameters);
+    ssl_ex_index_client_alpn = SSL_get_ex_new_index(0, (void *) "client_alpn", nullptr, nullptr, ssl_free_SBuf);
 }
 
 bool
