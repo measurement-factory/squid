@@ -11,14 +11,16 @@
 
 #include "acl/Data.h"
 #include "acl/ParameterizedNode.h"
+#include "sbuf/SBuf.h"
+#include "security/Alpn.h"
 
-class ACLClientAlpnData: public ACLData<const SBuf &>
+class ACLClientAlpnData: public ACLData< const Security::AlpnProtocols & >
 {
     MEMPROXY_CLASS(ACLClientAlpnData);
 public:
     ACLClientAlpnData() {}
     ~ACLClientAlpnData() override {}
-    bool match(const SBuf &) override;
+    bool match(const Security::AlpnProtocols &) override;
     SBufList dump() const override;
     void parse() override;
     bool empty() const override;
@@ -37,6 +39,7 @@ class ClientAlpn : public ParameterizedNode<ACLClientAlpnData>
 public:
     /* Acl::Node API */
     int match(ACLChecklist *) override;
+    bool requiresAle() const override { return true; }
 };
 
 } // namespace Acl

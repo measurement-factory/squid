@@ -28,6 +28,7 @@
 #include "adaptation/icap/Elements.h"
 #endif
 #if USE_OPENSSL
+#include "security/Alpn.h"
 #include "ssl/gadgets.h"
 #include "ssl/support.h"
 #endif
@@ -131,6 +132,8 @@ public:
     public:
         const char *user = nullptr; ///< emailAddress from the SSL client certificate
         int bumpMode = ::Ssl::bumpEnd; ///< whether and how the request was SslBumped
+        /// ALPN protocols offered by the client, in client-preferred order
+        Security::AlpnProtocols clientAlpns;
     } ssl;
 #endif
 

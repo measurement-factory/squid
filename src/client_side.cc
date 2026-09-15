@@ -63,6 +63,7 @@
 #include "anyp/PortCfg.h"
 #include "base/AsyncCallbacks.h"
 #include "base/AsyncFunCalls.h"
+#include "base/IoManip.h"
 #include "base/Subscription.h"
 #include "base/TextException.h"
 #include "CachePeer.h"
@@ -107,6 +108,7 @@
 #include "proxyp/Header.h"
 #include "proxyp/Parser.h"
 #include "sbuf/Stream.h"
+#include "security/Alpn.h"
 #include "security/Certificate.h"
 #include "security/CommunicationSecrets.h"
 #include "security/Io.h"
@@ -2152,7 +2154,12 @@ ConnStateData::whenClientIpKnown()
 Security::IoResult
 ConnStateData::acceptTls()
 {
-    return Security::Accept(*clientConnection);
+    const auto result = Security::Accept(*clientConnection);
+#if USE_OPENSSL
+    if (tlsClientAlpns_.empty())
+        tlsClientAlpns_ = Security::ObservedClientAlpns(fd_table[clientConnection->fd].ssl);
+#endif
+    return result;
 }
 
 /** Handle a new connection on an HTTP socket. */
@@ -2786,6 +2793,8 @@ ConnStateData::parseTlsHandshake()
         resetSslCommonName(details->serverName.c_str());
         tlsClientSni_ = details->serverName;
     }
+    if (details && !details->tlsAppLayerProtoNeg.isEmpty())
+        tlsClientAlpns_ = Security::ParseAlpnList(details->tlsAppLayerProtoNeg);
 
     // We should disable read/write handlers
     Comm::ResetSelect(clientConnection->fd);
@@ -3456,6 +3465,10 @@ ConnStateData::fillConnectionLevelDetails(ACLFilledChecklist &checklist) const
     }
 
 #if USE_OPENSSL
+    // the ALE may predate the client TLS handshake that revealed these protocols
+    if (checklist.al && checklist.al->ssl.clientAlpns.empty())
+        checklist.al->ssl.clientAlpns = tlsClientAlpns_;
+
     if (!checklist.sslErrors && sslServerBump)
         checklist.sslErrors = sslServerBump->sslErrors();
 #endif

@@ -12,14 +12,8 @@
 #include "acl/ClientAlpn.h"
 #include "acl/FilledChecklist.h"
 #include "base/TextException.h"
-#include "client_side.h"
 #include "ConfigParser.h"
-#include "fde.h"
-#include "globals.h"
 #include "sbuf/Stream.h"
-#include "security/Handshake.h"
-#include "security/NegotiationHistory.h"
-#include "security/Session.h"
 
 #include <set>
 
@@ -70,11 +64,9 @@ bool ACLClientAlpnData::empty() const
     return preferredAlpn.isEmpty();
 }
 
-bool ACLClientAlpnData::match(const SBuf &tf)
+bool ACLClientAlpnData::match(const Security::AlpnProtocols &protocols)
 {
-    Parser::BinaryTokenizer tkAlpn(tf);
-    while (!tkAlpn.atEnd()) {
-        const auto alpn = tkAlpn.pstring8("ALPN");
+    for (const auto &alpn: protocols) {
         if (alpn == preferredAlpn)
             return true;
         if (!otherAlpn.isEmpty() && alpn == otherAlpn)
@@ -90,20 +82,11 @@ Acl::ClientAlpn::match(ACLChecklist * const ch)
     const auto checklist = Filled(ch);
     assert(checklist);
 
-    if (ConnStateData *conn = checklist->conn()) {
-        const auto &details = conn->tlsParser.details;
-        if (details && !details->tlsAppLayerProtoNeg.isEmpty()) {
-            return data->match(details->tlsAppLayerProtoNeg);
-        }
-
-        if (const auto sslConnection = fd_table[conn->clientConnection->fd].ssl.get()) {
-            if (const auto alpnList = static_cast<SBuf *>(SSL_get_ex_data(sslConnection, ssl_ex_index_client_alpn))) {
-                return data->match(*alpnList);
-            }
-        }
-    } else {
-        debugs(28, DBG_IMPORTANT, "WARNING: tls::client_alpn ACL is missing a client connection to check");
+    if (!checklist->al || checklist->al->ssl.clientAlpns.empty()) {
+        debugs(28, 3, "ALPN list offered by the client is empty");
+        return 0;
     }
-    return 0;
+
+    return data->match(checklist->al->ssl.clientAlpns);
 }
 
