@@ -936,6 +936,9 @@ Store::Controller::updateFinished(StoreEntry &e, const StoreEntry &e304, const I
             debugs(20, 2, "Failed to refresh transients entry " << CurrentException);
             finalStatus = Ipc::StoreMapAnchor::uFailed;
         }
+        // XXX: The above try/catch does not cover this code. Ideally, we want
+        // callers to be more resilient to exceptions, which is orthogonal to
+        // exception-reducing efforts (that may be valuable as well!).
         if (e304.isSmpCollapsedRevalidationInitiator())
             transients->setUpdateStatus(e304.mem_obj->xitTable, finalStatus);
     }
