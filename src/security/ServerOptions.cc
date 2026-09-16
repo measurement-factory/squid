@@ -498,6 +498,8 @@ HttpVersionSelectorErrorDetail(SSL *ssl, const ErrorDetail::Pointer &d)
         debugs(83, 2, "WARNING: Failed to store error detail: " << *detail << Ssl::ReportAndForgetErrors);
 }
 
+extern "C" {
+
 // TODO: move to where it belongs
 static int
 alpn_select_cb(SSL *ssl, const unsigned char **out, unsigned char *outlen,
@@ -562,6 +564,8 @@ client_hello_cb(SSL *ssl, int *al, void *) {
         return SSL_CLIENT_HELLO_ERROR;
     }
 }
+
+} /* extern "C" */
 
 #endif
 
