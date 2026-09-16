@@ -940,7 +940,7 @@ Store::Controller::updateFinished(StoreEntry &e, const StoreEntry &e304, const I
         // callers to be more resilient to exceptions, which is orthogonal to
         // exception-reducing efforts (that may be valuable as well!).
         if (e304.isSmpCollapsedRevalidationInitiator())
-            transients->setUpdateStatus(e304.mem_obj->xitTable, finalStatus);
+            transients->setUpdateStatus(e304.mem_obj->xitTable, updateStatus);
     }
 }
 
