@@ -484,7 +484,7 @@ HttpVersionSelectorCheck(SSL *ssl,  const unsigned char *alpn, const unsigned in
     const auto protoTemp = ClientHttpVersionSelector::Check(checkList, reinterpret_cast<const char *>(alpn), alpnLen);
     const auto proto = new std::optional<SBuf>(protoTemp);
     if (!SSL_set_ex_data(ssl, ssl_ex_index_ssl_alpn_selected, (void *)proto))
-        throw TextException("SSL_set_ex_data() error", Here());
+        throw TextException(ToSBuf("Cannot set selected protocol", Ssl::ReportAndForgetErrors), Here());
     return proto;
 }
 
@@ -495,7 +495,7 @@ HttpVersionSelectorErrorDetail(SSL *ssl, const ErrorDetail::Pointer &d)
     if (SSL_set_ex_data(ssl, ssl_ex_index_ssl_error_detail, detail.get()))
         detail.release();
     else
-        debugs(83, 2, "failed to store error detail: " << *detail);
+        debugs(83, 2, "WARNING: Failed to store error detail: " << *detail << Ssl::ReportAndForgetErrors);
 }
 
 // TODO: move to where it belongs
