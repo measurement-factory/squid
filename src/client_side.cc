@@ -2793,7 +2793,7 @@ ConnStateData::parseTlsHandshake()
         resetSslCommonName(details->serverName.c_str());
         tlsClientSni_ = details->serverName;
     }
-    if (details && !details->tlsAppLayerProtoNeg.isEmpty() && tlsClientAlpns_.isEmpty())
+    if (details && !details->tlsAppLayerProtoNeg.isEmpty() && tlsClientAlpns_.empty())
         tlsClientAlpns_ = Security::ParseAlpnList(details->tlsAppLayerProtoNeg);
 
     // We should disable read/write handlers
