@@ -46,7 +46,6 @@
 #endif
 
 #include <iosfwd>
-#include <vector>
 
 class ClientHttpRequest;
 class HttpHdrRangeSpec;
