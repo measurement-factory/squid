@@ -551,10 +551,10 @@ Store::Disks::dereference(StoreEntry &e)
 }
 
 void
-Store::Disks::updateHeaders(StoreEntry *e)
+Store::Disks::updateHeaders(StoreEntry *e, const StoreEntry &e304)
 {
     Must(e);
-    return e->disk().updateHeaders(e);
+    return e->disk().updateHeaders(e, e304);
 }
 
 void

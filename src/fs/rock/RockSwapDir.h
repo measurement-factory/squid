@@ -99,7 +99,7 @@ protected:
     void diskFull() override;
     void reference(StoreEntry &e) override;
     bool dereference(StoreEntry &e) override;
-    void updateHeaders(StoreEntry *e) override;
+    void updateHeaders(StoreEntry *e, const StoreEntry &e304) override;
     bool unlinkdUseful() const override;
     void statfs(StoreEntry &e) const override;
 

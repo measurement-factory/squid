@@ -214,6 +214,8 @@ public:
         /// a scheduled asynchronous finishCallback() call (or nil)
         AsyncCall::Pointer notifier;
     } _callback;
+
+    AsyncCall::Pointer _smpCollapsedRevalidationCallback;
 };
 
 /// Asynchronously read HTTP response headers and/or body bytes from Store.

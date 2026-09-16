@@ -939,12 +939,12 @@ Rock::SwapDir::writeError(StoreIOState &sio)
 }
 
 void
-Rock::SwapDir::updateHeaders(StoreEntry *updatedE)
+Rock::SwapDir::updateHeaders(StoreEntry *updatedE, const StoreEntry &e304)
 {
     if (!map)
         return;
 
-    Ipc::StoreMapUpdate update(updatedE);
+    Ipc::StoreMapUpdate update(updatedE, &e304);
     if (!map->openForUpdating(update, updatedE->swap_filen))
         return;
 

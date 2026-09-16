@@ -12,6 +12,7 @@
 #include "acl/FilledChecklist.h"
 #include "acl/Gadgets.h"
 #include "anyp/PortCfg.h"
+#include "base/AsyncFunCalls.h"
 #include "client_side_reply.h"
 #include "clientStream.h"
 #include "errorpage.h"
@@ -282,9 +283,7 @@ clientReplyContext::processExpired()
 
     // TODO: Consider also allowing regular (non-collapsed) revalidation hits.
     // TODO: support collapsed revalidation for Vary-controlled entries
-    bool collapsingAllowed = Config.onoff.collapsed_forwarding &&
-                             !Store::Controller::SmpAware() &&
-                             http->request->vary_headers.isEmpty();
+    bool collapsingAllowed = Config.onoff.collapsed_forwarding && http->request->vary_headers.isEmpty();
 
     StoreEntry *entry = nullptr;
     if (collapsingAllowed) {
@@ -332,6 +331,9 @@ clientReplyContext::processExpired()
             http->request->etag = etag.str;
     }
 
+    if (collapsingAllowed)
+        entry->mem_obj->xitTable.setCollapsedRole(collapsedRevalidation == crInitiator ? MemObject::XitTable::coInitiator : MemObject::XitTable::coSlave);
+
     debugs(88, 5, "lastmod " << entry->lastModified());
     http->storeEntry(entry);
     assert(http->out.offset == 0);
@@ -354,7 +356,13 @@ clientReplyContext::processExpired()
         /* start counting the length from 0 */
         StoreIOBuffer localTempBuffer(HTTP_REQBUF_SZ, 0, tempbuf);
         // keep lastStreamBufferedBytes: tempbuf is not a Client Stream buffer
-        ::storeClientCopy(sc, entry, localTempBuffer, HandleIMSReply, this);
+
+        if (collapsedRevalidation == crSlave && Store::Root().transientsReader(*entry)) {
+            sc->_smpCollapsedRevalidationCallback = asyncCall(88, 4, "HandleSmpCollapsedRevaliationReply",
+                                                    callDialer(clientReplyContext::HandleSmpCollapsedRevaliationReply, this));
+        } else {
+            ::storeClientCopy(sc, entry, localTempBuffer, HandleIMSReply, this);
+        }
     }
 }
 
@@ -373,6 +381,12 @@ clientReplyContext::HandleIMSReply(void *data, StoreIOBuffer result)
 {
     clientReplyContext *context = (clientReplyContext *)data;
     context->handleIMSReply(result);
+}
+
+void
+clientReplyContext::HandleSmpCollapsedRevaliationReply(clientReplyContext *context)
+{
+    context->handleSmpCollapsedRevaliationReply();
 }
 
 void
@@ -468,6 +482,7 @@ clientReplyContext::handleIMSReply(const StoreIOBuffer result)
 
     // origin replied with a non-error code
     if (status > Http::scNone && status < Http::scInternalServerError) {
+
         // RFC 9111 section 4:
         // "When more than one suitable response is stored,
         //  a cache MUST use the most recent one
@@ -476,6 +491,12 @@ clientReplyContext::handleIMSReply(const StoreIOBuffer result)
             http->al->cache.code.err.ignored = true;
             debugs(88, 3, "origin replied " << status << " but with an older date header, sending old entry (" << oldStatus << ") to client");
             sendClientOldEntry();
+            return;
+        }
+
+        if (collapsedRevalidation == crSlave && http->request->flags.ims && !http->storeEntry()->modifiedSince(http->request->ims, http->request->imslen)) {
+            debugs(88, 3, "sending 304 to client");
+            sendNotModified();
             return;
         }
 
@@ -497,6 +518,56 @@ clientReplyContext::handleIMSReply(const StoreIOBuffer result)
     http->updateLoggingTags(LOG_TCP_REFRESH_FAIL_OLD);
     debugs(88, 3, "origin replied with error " << status << ", sending old entry (" << oldStatus << ") to client");
     sendClientOldEntry();
+}
+
+void
+clientReplyContext::handleSmpCollapsedRevaliationReply()
+{
+    Assure(collapsedRevalidation == crSlave);
+
+    if (EBIT_TEST(http->storeEntry()->flags, ENTRY_ABORTED)) {
+        // TODO: de-duplicate with handleIMSReply()
+        debugs(88, 3, "CF slave was aborted");
+        // restore context to meet processMiss() expectations
+        restoreState();
+        http->updateLoggingTags(LOG_TCP_MISS);
+        processMiss();
+        return;
+    }
+
+    if (const auto seFresh = storeGetPublicByRequest(http->request)) {
+        // TODO: de-duplicate with processExpired()
+
+        debugs(88, 3, "crInitiator successfully updated or replaced");
+
+        seFresh->lock("clientReplyContext::handleSmpCollapsedRevaliationReply");
+
+        seFresh->ensureMemObject(storeId(), http->log_uri, http->request->method);
+
+        old_entry->hideFromNewcomers();
+
+        // clear the previous (revalidation) state; we do not need it anymore
+        restoreState();
+
+        // prepare to use seFresh
+        saveState();
+        sc = storeClientListAdd(seFresh, this);
+
+#if USE_DELAY_POOLS
+        /* delay_id is already set on original store client */
+        sc->setDelayId(DelayId::DelayClient(http));
+#endif
+        http->storeEntry(seFresh);
+
+        StoreIOBuffer localTempBuffer(HTTP_REQBUF_SZ, 0, tempbuf);
+        // now go to the existing path that reads "updated or replaced" seFresh
+        ::storeClientCopy(sc, seFresh, localTempBuffer, HandleIMSReply, this);
+    } else {
+        debugs(88, 3, "SMP collapsed revalidation failure");
+        restoreState();
+        http->updateLoggingTags(LOG_TCP_REFRESH_FAIL_ERR);
+        processMiss();
+    }
 }
 
 CSR clientGetMoreData;

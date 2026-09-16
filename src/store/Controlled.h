@@ -32,7 +32,7 @@ public:
     virtual bool dereference(StoreEntry &e) = 0;
 
     /// make stored metadata and HTTP headers the same as in the given entry
-    virtual void updateHeaders(StoreEntry *) {}
+    virtual void updateHeaders(StoreEntry *, const StoreEntry &) {}
 
     /// tie StoreEntry to this storage if this storage has a matching entry
     /// \retval true if this storage has a matching entry

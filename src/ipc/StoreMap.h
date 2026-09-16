@@ -82,6 +82,12 @@ public:
     /// whether StoreMap::abortWriting() was called for a read-locked entry
     std::atomic<uint8_t> writerHalted;
 
+    /// Whether the collapsed entry that is being revalidated was successfully updated (uApdated)
+    /// or not (uFailed).
+    enum UpdateStatus { uNone, uApplied, uFailed};
+    /// the status of the collapsed revalidation entry
+    std::atomic<UpdateStatus> updateStatus;
+
     // fields marked with [app] can be modified when appending-while-reading
     // fields marked with [update] can be modified when updating-while-reading
 
@@ -198,13 +204,14 @@ public:
         StoreMapSliceId splicingPoint;
     };
 
-    explicit StoreMapUpdate(StoreEntry *anEntry);
+    explicit StoreMapUpdate(StoreEntry *anEntry, const StoreEntry *e304);
     StoreMapUpdate(const StoreMapUpdate &other);
     ~StoreMapUpdate();
 
     StoreMapUpdate &operator =(const StoreMapUpdate &other) = delete;
 
     StoreEntry *entry; ///< the store entry being updated
+    const StoreEntry *entry304; ///< the updating store entry
     Edition stale; ///< old anchor and chain
     Edition fresh; ///< new anchor and the updated chain prefix
 };
@@ -254,6 +261,9 @@ public:
     /// Returns +2 if the mapped entry does not exist; -1/0/+1 otherwise.
     /// Comparison may be inaccurate unless the caller is a lock holder.
     int compareVersions(const sfileno oldFileno, time_t newVersion) const;
+
+    /// mark the updating entry after it has been used for update
+    void setUpdateStatus(sfileno, Ipc::StoreMapAnchor::UpdateStatus);
 
     /// finds, locks, and returns an anchor for an empty key position,
     /// erasing the old entry (if any)

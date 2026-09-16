@@ -55,6 +55,9 @@ StoreSearch *Controller::search() STUB_RETVAL(nullptr)
 bool Controller::SmpAware() STUB_RETVAL(false)
 int Controller::store_dirs_rebuilding = 0;
 Controller &Root() STUB_RETREF(Controller)
+void Controller::updateFinished(StoreEntry &, const StoreEntry &, Ipc::StoreMapAnchor::UpdateStatus) STUB
+void Controller::setUpdateStatus(const MemObject::XitTable &, Ipc::StoreMapAnchor::UpdateStatus) STUB;
+void Controller::transientsDisconnect(Store::CollapsedEntryTransientsState&) STUB;
 }
 
 #include "store/Disk.h"
@@ -109,7 +112,7 @@ void Disks::stat(StoreEntry &) const STUB
 void Disks::sync() STUB
 void Disks::reference(StoreEntry &) STUB
 bool Disks::dereference(StoreEntry &) STUB_RETVAL(false)
-void Disks::updateHeaders(StoreEntry *) STUB
+void Disks::updateHeaders(StoreEntry *, const StoreEntry &) STUB
 void Disks::maintain() STUB
 bool Disks::anchorToCache(StoreEntry &) STUB_RETVAL(false)
 bool Disks::updateAnchored(StoreEntry &) STUB_RETVAL(false)
