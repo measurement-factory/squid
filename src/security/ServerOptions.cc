@@ -467,16 +467,6 @@ Security::ServerOptions::loadDhParams()
 
 #if USE_OPENSSL
 
-template <class F>
-void IgnoreExceptions(F &&f) noexcept
-{
-    try {
-        f();
-    }
-    catch (...) {
-    }
-}
-
 static std::optional<SBuf> *
 HttpVersionSelectorCheck(SSL *ssl,  const unsigned char *alpn, const unsigned int alpnLen)
 {
@@ -519,7 +509,7 @@ alpn_select_cb(SSL *ssl, const unsigned char **out, unsigned char *outlen,
         *outlen = (*proto)->length();
         return SSL_TLSEXT_ERR_OK;
     } catch (...) {
-        IgnoreExceptions([&] {
+        SWALLOW_EXCEPTIONS({
             debugs(83, DBG_IMPORTANT, "ERROR: Cannot select a protocol: " << CurrentException);
             static const auto d = MakeNamedErrorDetail("SSL_TLSEXT_ERR_ALERT_FATAL(error)");
             HttpVersionSelectorErrorDetail(ssl, d);
@@ -555,7 +545,7 @@ client_hello_cb(SSL *ssl, int *al, void *) {
         // no ALPN, but HTTP version selection rules (if any) allow us to proceed
         return SSL_CLIENT_HELLO_SUCCESS;
     } catch (...) {
-        IgnoreExceptions([&] {
+        SWALLOW_EXCEPTIONS({
             debugs(83, DBG_IMPORTANT, "ERROR: Cannot handle client hello: " << CurrentException);
             static const auto d = MakeNamedErrorDetail("SSL_AD_INTERNAL_ERROR");
             HttpVersionSelectorErrorDetail(ssl, d);
