@@ -36,8 +36,8 @@ static int
 ClientAlpnObservationCallback(SSL *ssl, const unsigned char **, unsigned char *, const unsigned char *in, unsigned int inlen, void *)
 {
     const auto index = ClientAlpnIndex();
-    delete static_cast<SBuf*>(SSL_get_ex_data(ssl, index));
-    SSL_set_ex_data(ssl, index, new SBuf(reinterpret_cast<const char *>(in), inlen));
+    if (!SSL_get_ex_data(ssl, index))
+        SSL_set_ex_data(ssl, index, new SBuf(reinterpret_cast<const char *>(in), inlen));
     return SSL_TLSEXT_ERR_NOACK;
 }
 #endif /* USE_OPENSSL */
