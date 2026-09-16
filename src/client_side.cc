@@ -2323,6 +2323,15 @@ httpsEstablish(ConnStateData *connState, const Security::ContextPointer &ctx)
 
     connState->resetReadTimeout(Config.Timeout.request);
 
+#if USE_OPENSSL
+    if (Config.clientHttpVersionSelector) {
+        Security::SessionPointer session(fd_table[details->fd].ssl);
+        auto ch = ACLFilledChecklist::Make(nullptr, nullptr);
+        connState->fillChecklist(*ch);
+        SSL_set_ex_data(session.get(), ssl_ex_index_ssl_alpn, ch.release());
+    }
+#endif
+
     Comm::SetSelect(details->fd, COMM_SELECT_READ, clientNegotiateSSL, connState, 0);
 }
 
