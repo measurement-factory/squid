@@ -11,19 +11,33 @@
 #include "squid.h"
 #include "base/Assure.h"
 #include "base/TextException.h"
-#include "globals.h"
 #include "parser/BinaryTokenizer.h"
 #include "sbuf/SBuf.h"
 #include "security/Alpn.h"
 #include "security/Session.h"
 
 #if USE_OPENSSL
+/// "free" function for SSL_get_ex_new_index("client_alpn")
+static void
+FreeClientAlpn(void *, void * const ptr, CRYPTO_EX_DATA *, int, long, void *)
+{
+    delete static_cast<SBuf*>(ptr);
+}
+
+/// position of the raw client ALPN list slot inside Security::Connection "exdata"
+static auto
+ClientAlpnIndex()
+{
+    static int index = SSL_get_ex_new_index(0, const_cast<char *>("client_alpn"), nullptr, nullptr, &FreeClientAlpn);
+    return index;
+}
+
 static int
 ClientAlpnObservationCallback(SSL *ssl, const unsigned char **, unsigned char *, const unsigned char *in, unsigned int inlen, void *)
 {
-    if (const auto old = static_cast<const SBuf *>(SSL_get_ex_data(ssl, ssl_ex_index_client_alpn)))
-        delete old;
-    SSL_set_ex_data(ssl, ssl_ex_index_client_alpn, new SBuf(reinterpret_cast<const char *>(in), inlen));
+    const auto index = ClientAlpnIndex();
+    delete static_cast<SBuf*>(SSL_get_ex_data(ssl, index));
+    SSL_set_ex_data(ssl, index, new SBuf(reinterpret_cast<const char *>(in), inlen));
     return SSL_TLSEXT_ERR_NOACK;
 }
 #endif /* USE_OPENSSL */
@@ -59,7 +73,7 @@ Security::ObservedClientAlpns(const SessionPointer &session)
 {
 #if USE_OPENSSL
     if (session) {
-        if (const auto rawList = static_cast<const SBuf *>(SSL_get_ex_data(session.get(), ssl_ex_index_client_alpn)))
+        if (const auto rawList = static_cast<const SBuf *>(SSL_get_ex_data(session.get(), ClientAlpnIndex())))
             return ParseAlpnList(*rawList);
     }
 #else
