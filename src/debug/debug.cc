@@ -30,6 +30,14 @@ bool Debug::log_syslog = false;
 int Debug::Levels[MAX_DEBUG_SECTIONS];
 char *Debug::cache_log = nullptr;
 int Debug::rotateNumber = -1;
+uint64_t Debug::exceptionsNumber = 0;
+
+SourceLocation &
+Debug::lastExceptionLocation()
+{
+	static SourceLocation loc = Here();
+	return loc;
+}
 
 /// a counter related to the number of debugs() calls
 using DebugRecordCount = uint64_t;
@@ -1367,10 +1375,18 @@ Debug::Finish()
 {
     const LoggingSectionGuard sectionGuard;
 
+    static int val = 0;
+    if (val < 5) {
+        throw TextException("failure", Here());
+    }
+
     // TODO: #include "base/CodeContext.h" instead if doing so works well.
     extern std::ostream &CurrentCodeContextDetail(std::ostream &os);
     if (Current->level <= DBG_IMPORTANT)
-        Current->buf << CurrentCodeContextDetail;
+        Current->buf << CurrentCodeContextDetail << " " << lastExceptionLocation();
+
+    if (exceptionsNumber)
+        Current->buf << Extra << "debugs() exceptions: " << exceptionsNumber;
 
     if (Current->waitingForIdle) {
         const auto past = Current;
@@ -1396,6 +1412,8 @@ Debug::Finish()
     Current = past->upper;
     if (Current)
         delete past;
+
+    exceptionsNumber = 0;
     // else it was a static topContext from Debug::Start()
 }
 
