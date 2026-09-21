@@ -1360,6 +1360,7 @@ Debug::Start(const int section, const int level)
     }
 
     Current = future;
+
     return future->buf;
 }
 
