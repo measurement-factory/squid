@@ -488,74 +488,70 @@ HttpVersionSelectorErrorDetail(SSL *ssl, const ErrorDetail::Pointer &d)
         debugs(83, 2, "WARNING: Failed to store error detail: " << *detail << Ssl::ReportAndForgetErrors);
 }
 
-extern "C" {
-
 // TODO: move to where it belongs
-    static int
-    alpn_select_cb(SSL *ssl, const unsigned char **out, unsigned char *outlen,
-                   const unsigned char *in, unsigned int inlen, void *)
-    {
-        assert(ssl);
+static int
+alpn_select_cb(SSL *ssl, const unsigned char **out, unsigned char *outlen,
+               const unsigned char *in, unsigned int inlen, void *)
+{
+    assert(ssl);
 
-        try {
-            const auto proto = HttpVersionSelectorCheck(ssl, in, inlen);
-            if (!proto->has_value()) {
-                static const auto d = MakeNamedErrorDetail("SSL_TLSEXT_ERR_ALERT_FATAL(select)");
-                HttpVersionSelectorErrorDetail(ssl, d);
-                return SSL_TLSEXT_ERR_ALERT_FATAL;
-            }
-
-            *out = reinterpret_cast<const unsigned char *>((*proto)->rawContent());
-            *outlen = (*proto)->length();
-            return SSL_TLSEXT_ERR_OK;
-        } catch (...) {
-            SWALLOW_EXCEPTIONS({
-                debugs(83, DBG_IMPORTANT, "ERROR: Cannot select a protocol: " << CurrentException);
-                static const auto d = MakeNamedErrorDetail("SSL_TLSEXT_ERR_ALERT_FATAL(error)");
-                HttpVersionSelectorErrorDetail(ssl, d);
-            });
+    try {
+        const auto proto = HttpVersionSelectorCheck(ssl, in, inlen);
+        if (!proto->has_value()) {
+            static const auto d = MakeNamedErrorDetail("SSL_TLSEXT_ERR_ALERT_FATAL(select)");
+            HttpVersionSelectorErrorDetail(ssl, d);
             return SSL_TLSEXT_ERR_ALERT_FATAL;
         }
+
+        *out = reinterpret_cast<const unsigned char *>((*proto)->rawContent());
+        *outlen = (*proto)->length();
+        return SSL_TLSEXT_ERR_OK;
+    } catch (...) {
+        SWALLOW_EXCEPTIONS({
+            debugs(83, DBG_IMPORTANT, "ERROR: Cannot select a protocol: " << CurrentException);
+            static const auto d = MakeNamedErrorDetail("SSL_TLSEXT_ERR_ALERT_FATAL(error)");
+            HttpVersionSelectorErrorDetail(ssl, d);
+        });
+        return SSL_TLSEXT_ERR_ALERT_FATAL;
     }
+}
 
-    static int
-    client_hello_cb(SSL *ssl, int *al, void *) {
-        assert(ssl);
-        assert(al);
+static int
+client_hello_cb(SSL *ssl, int *al, void *) {
+    assert(ssl);
+    assert(al);
 
-        try {
-            const unsigned char *ext = nullptr;
-            size_t extLen = 0;
+    try {
+        const unsigned char *ext = nullptr;
+        size_t extLen = 0;
 
-            // Check if the ALPN extension is present
-            if (SSL_client_hello_get0_ext(ssl, TLSEXT_TYPE_application_layer_protocol_negotiation, &ext, &extLen) == 1)
-                return SSL_CLIENT_HELLO_SUCCESS; // ALPN found, will handle them in alpn_select_cb()
+        // Check if the ALPN extension is present
+        if (SSL_client_hello_get0_ext(ssl, TLSEXT_TYPE_application_layer_protocol_negotiation, &ext, &extLen) == 1)
+            return SSL_CLIENT_HELLO_SUCCESS; // ALPN found, will handle them in alpn_select_cb()
 
-            // no ALPN, check the HTTP version selection rules here
-            const auto proto = HttpVersionSelectorCheck(ssl, nullptr, 0);
+        // no ALPN, check the HTTP version selection rules here
+        const auto proto = HttpVersionSelectorCheck(ssl, nullptr, 0);
 
-            if (!proto->has_value()) {
-                // set the alert to "no_application_protocol" and fail
-                *al = TLS1_AD_NO_APPLICATION_PROTOCOL;
-                static const auto d = MakeNamedErrorDetail("TLS1_AD_NO_APPLICATION_PROTOCOL");
-                HttpVersionSelectorErrorDetail(ssl, d);
-                return SSL_CLIENT_HELLO_ERROR;
-            }
-
-            // no ALPN, but HTTP version selection rules (if any) allow us to proceed
-            return SSL_CLIENT_HELLO_SUCCESS;
-        } catch (...) {
-            SWALLOW_EXCEPTIONS({
-                debugs(83, DBG_IMPORTANT, "ERROR: Cannot handle client hello: " << CurrentException);
-                static const auto d = MakeNamedErrorDetail("SSL_AD_INTERNAL_ERROR");
-                HttpVersionSelectorErrorDetail(ssl, d);
-                *al = SSL_AD_INTERNAL_ERROR;
-            });
+        if (!proto->has_value()) {
+            // set the alert to "no_application_protocol" and fail
+            *al = TLS1_AD_NO_APPLICATION_PROTOCOL;
+            static const auto d = MakeNamedErrorDetail("TLS1_AD_NO_APPLICATION_PROTOCOL");
+            HttpVersionSelectorErrorDetail(ssl, d);
             return SSL_CLIENT_HELLO_ERROR;
         }
-    }
 
-} /* extern "C" */
+        // no ALPN, but HTTP version selection rules (if any) allow us to proceed
+        return SSL_CLIENT_HELLO_SUCCESS;
+    } catch (...) {
+        SWALLOW_EXCEPTIONS({
+            debugs(83, DBG_IMPORTANT, "ERROR: Cannot handle client hello: " << CurrentException);
+            static const auto d = MakeNamedErrorDetail("SSL_AD_INTERNAL_ERROR");
+            HttpVersionSelectorErrorDetail(ssl, d);
+            *al = SSL_AD_INTERNAL_ERROR;
+        });
+        return SSL_CLIENT_HELLO_ERROR;
+    }
+}
 
 #endif
 
