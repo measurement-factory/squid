@@ -10,6 +10,7 @@
 
 #include "squid.h"
 #include "base/IoManip.h"
+#include "parser/forward.h"
 #include "sbuf/Stream.h"
 #include "security/Handshake.h"
 #if USE_OPENSSL
@@ -231,7 +232,6 @@ void
 Security::HandshakeParser::parseVersion2Record()
 {
     const Sslv2Record record(tkRecords);
-    tkRecords.commit();
     details->tlsVersion = AnyP::ProtocolVersion(AnyP::PROTO_SSL, 2, 0);
     parseVersion2HandshakeMessage(record.fragment);
     state = atHelloReceived;
@@ -264,7 +264,6 @@ void
 Security::HandshakeParser::parseModernRecord()
 {
     const TLSPlaintext record(tkRecords);
-    tkRecords.commit();
 
     details->tlsVersion = record.version;
 
@@ -273,49 +272,64 @@ Security::HandshakeParser::parseModernRecord()
     // RFC 5246: MUST NOT send zero-length [non-application] fragments
     Must(record.fragment.length() || record.type == ContentType::ctApplicationData);
 
-    if (currentContentType != record.type) {
-        parseMessages();
-        Must(tkMessages.atEnd()); // no currentContentType leftovers
-        fragments = record.fragment;
-        currentContentType = record.type;
-    } else {
-        fragments.append(record.fragment);
+    if (currentContentType != record.type && tkMessages.uncommitted() > 0) {
+        // We could not parse these leftovers before. Since every serialized TLS construct has a
+        // known size (constant or sent-in-advance), parsing these bytes now cannot succeed either.
+        throw TextException(ToSBuf("truncated TLS message;",
+            " leftovers size=", tkMessages.uncommitted(),
+            " type=", currentContentType), Here());
     }
 
-    if (tkRecords.atEnd() && !done)
+    currentContentType = record.type;
+
+    tkMessages.expectMore(!tkRecords.exhausted());
+    tkMessages.append(record.fragment);
+
+    try {
         parseMessages();
+    } catch (const Parser::BinaryTokenizer::InsufficientInput &) {
+        debugs(83, 3, "need more records");
+    }
 }
 
-/// parses one or more "higher-level protocol" frames of currentContentType
+/// Incrementally parses all sequential currentContentType TLS fragments.
+/// Successfully stops parsing earlier if `done` becomes set.
 void
 Security::HandshakeParser::parseMessages()
 {
-    tkMessages.reset(fragments, false);
-    for (; !tkMessages.atEnd(); tkMessages.commit()) {
-        switch (currentContentType) {
-        case ContentType::ctChangeCipherSpec:
-            parseChangeCipherCpecMessage();
-            continue;
-        case ContentType::ctAlert:
-            parseAlertMessage();
-            continue;
-        case ContentType::ctHandshake:
-            parseHandshakeMessage();
-            continue;
-        case ContentType::ctApplicationData:
-            parseApplicationDataMessage();
-            continue;
-        }
-        skipMessage("unknown ContentType msg [fragment]");
+    switch (currentContentType) {
+    case ContentType::ctChangeCipherSpec:
+        return parseNonEmptyMessages(&HandshakeParser::parseChangeCipherSpecMessage);
+    case ContentType::ctAlert:
+        return parseNonEmptyMessages(&HandshakeParser::parseAlertMessage);
+    case ContentType::ctHandshake:
+        return parseNonEmptyMessages(&HandshakeParser::parseHandshakeMessage);
+    case ContentType::ctApplicationData:
+        return skipPossiblyEmptyMessages("app data [fragment]");
     }
+    return skipPossiblyEmptyMessages("unknown ContentType msg [fragment]");
+}
+
+/// Incrementally parses all sequential currentContentType messages using the given TLS message parser.
+/// Each message is assumed to be serialized using at least one byte.
+/// At least one message is expected per sequence.
+/// Successfully stops parsing earlier if `done` becomes set.
+void
+Security::HandshakeParser::parseNonEmptyMessages(const ParseMethod messageParser)
+{
+    tkMessages.rollback();
+    do {
+        (this->*messageParser)();
+        tkMessages.commit();
+    } while (!done && !tkMessages.exhausted());
 }
 
 void
-Security::HandshakeParser::parseChangeCipherCpecMessage()
+Security::HandshakeParser::parseChangeCipherSpecMessage()
 {
     Must(currentContentType == ContentType::ctChangeCipherSpec);
     // We are currently ignoring Change Cipher Spec Protocol messages.
-    skipMessage("ChangeCipherSpec msg [fragment]");
+    tkMessages.skip(1, "ChangeCipherSpec msg [fragment]");
 
     // In TLS v1.2 and earlier, ChangeCipherSpec is sent after Hello (when
     // tlsSupportedVersion is already known) and indicates session resumption.
@@ -376,13 +390,6 @@ Security::HandshakeParser::parseHandshakeMessage()
     }
     debugs(83, 5, "ignoring " << message.msg_body.length() << "-byte type-" <<
            static_cast<unsigned int>(message.msg_type) << " handshake message");
-}
-
-void
-Security::HandshakeParser::parseApplicationDataMessage()
-{
-    Must(currentContentType == ContentType::ctApplicationData);
-    skipMessage("app data [fragment]");
 }
 
 void
@@ -629,12 +636,16 @@ Security::HandshakeParser::parseSupportedVersionsExtension(const SBuf &extension
 }
 
 void
-Security::HandshakeParser::skipMessage(const char *description)
+Security::HandshakeParser::skipPossiblyEmptyMessages(const char *description)
 {
-    // tkMessages/fragments can only contain messages of the same ContentType.
+    Assure(tkMessages.uncommitted() == 0);
+    // tkMessages can only contain messages of the same ContentType.
     // To skip a message, we can and should skip everything we have [left]. If
-    // we have partial messages, debugging will mislead about their boundaries.
+    // we buffered a partial message, we will need to read/skip multiple times.
     tkMessages.skip(tkMessages.leftovers().length(), description);
+    tkMessages.commit();
+    if (tkMessages.expectingMore())
+        throw Parser::InsufficientInput();
 }
 
 bool
@@ -646,8 +657,7 @@ Security::HandshakeParser::parseHello(const SBuf &data)
 
         // data contains everything read so far, but we may read more later
         tkRecords.reinput(data, true);
-        tkRecords.rollback();
-        while (!done)
+        for (tkRecords.rollback(); !done; tkRecords.commit())
             parseRecord();
         debugs(83, 7, "success; got: " << done);
         // we are done; tkRecords may have leftovers we are not interested in
