@@ -30,14 +30,8 @@ bool Debug::log_syslog = false;
 int Debug::Levels[MAX_DEBUG_SECTIONS];
 char *Debug::cache_log = nullptr;
 int Debug::rotateNumber = -1;
-uint64_t Debug::exceptionsNumber = 0;
-
-SourceLocation &
-Debug::lastExceptionLocation()
-{
-	static SourceLocation loc = Here();
-	return loc;
-}
+uint64_t Debug::ExceptionsNumber = 0;
+std::unique_ptr<TextException> Debug::LastException;
 
 /// a counter related to the number of debugs() calls
 using DebugRecordCount = uint64_t;
@@ -1366,7 +1360,6 @@ Debug::Start(const int section, const int level)
     }
 
     Current = future;
-
     return future->buf;
 }
 
@@ -1375,18 +1368,10 @@ Debug::Finish()
 {
     const LoggingSectionGuard sectionGuard;
 
-    static int val = 0;
-    if (val < 5) {
-        throw TextException("failure", Here());
-    }
-
     // TODO: #include "base/CodeContext.h" instead if doing so works well.
     extern std::ostream &CurrentCodeContextDetail(std::ostream &os);
     if (Current->level <= DBG_IMPORTANT)
-        Current->buf << CurrentCodeContextDetail << " " << lastExceptionLocation();
-
-    if (exceptionsNumber)
-        Current->buf << Extra << "debugs() exceptions: " << exceptionsNumber;
+        Current->buf << CurrentCodeContextDetail;
 
     if (Current->waitingForIdle) {
         const auto past = Current;
@@ -1412,9 +1397,38 @@ Debug::Finish()
     Current = past->upper;
     if (Current)
         delete past;
-
-    exceptionsNumber = 0;
     // else it was a static topContext from Debug::Start()
+}
+
+void
+Debug::HandleException()
+{
+    try {
+        throw; // re-throw to recognize the exception type
+    }
+    catch (const TextException &ex) {
+        Debug::LastException.reset(new TextException(ex));
+    }
+    catch (...) { }
+    Debug::ExceptionsNumber++;
+}
+
+void
+Debug::LogException()
+{
+    assert(ExceptionsNumber);
+
+    std::ostream &os = Debug::Start(0, 0);
+    os << "ERROR: debugs() internal error";
+    os << Extra << "exceptions since last successful call: " << ExceptionsNumber;
+    if (LastException) {
+        os << Extra << "last exception:";
+        os << Extra << *LastException;
+    }
+    Debug::Finish();
+
+    LastException.reset();
+    ExceptionsNumber = 0;
 }
 
 void

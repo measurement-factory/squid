@@ -16,6 +16,7 @@
 #include "mem/AllocatorProxy.h"
 
 #include <iostream>
+#include <memory>
 #undef assert
 #include <sstream>
 #include <iomanip>
@@ -42,6 +43,7 @@
 #define DBG_PARSE_NOTE(x) (opt_parse_cfg_only?0:(x)) /**< output is always to be displayed on '-k parse' but at level-x normally. */
 
 class DebugMessageHeader;
+class TextException;
 
 class Debug
 {
@@ -84,8 +86,9 @@ public:
     static int override_X;
     static bool log_syslog;
     /// the number of unsuccessful debugs() calls between two successful calls
-    static uint64_t exceptionsNumber;
-    static SourceLocation &lastExceptionLocation();
+    static uint64_t ExceptionsNumber;
+    /// the last exception that caused debugs() failure
+    static std::unique_ptr<TextException> LastException;
 
     // TODO: Convert all helpers to use debugs() and NameThisHelper() APIs.
     /// Use the given name for debugs() messages from this helper process.
@@ -172,6 +175,11 @@ public:
     /// are expected.
     static void SettleSyslog();
 
+    /// log an internal debugs() error as a DBG_CRITICAL message
+    static void LogException();
+    /// store statistics about internal debugs() errors for future LogException()
+    static void HandleException();
+
 private:
     static void FormatStream(std::ostream &);
     static void LogMessage(const Context &);
@@ -195,6 +203,8 @@ void ResyncDebugLog(FILE *newDestination);
 #define debugs(SECTION, LEVEL, CONTENT) \
    do { \
        try { \
+           if (Debug::ExceptionsNumber) \
+               Debug::LogException(); \
            const int _dbg_level = (LEVEL); \
            if (Debug::Enabled((SECTION), _dbg_level)) { \
                std::ostream &_dbo = Debug::Start((SECTION), _dbg_level); \
@@ -206,12 +216,8 @@ void ResyncDebugLog(FILE *newDestination);
                Debug::Finish(); \
            } \
        } \
-       catch (const TextException &ex) { \
-           Debug::lastExceptionLocation() = ex.where; \
-           Debug::exceptionsNumber++; \
-       } \
        catch (...) { \
-           Debug::exceptionsNumber++; \
+           Debug::HandleException(); \
        } \
    } while (/*CONSTCOND*/ 0)
 

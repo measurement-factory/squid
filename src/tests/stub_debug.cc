@@ -104,7 +104,6 @@ Debug::Finish()
         LogMessage(*Current);
         delete Current;
         Current = nullptr;
-        exceptionsNumber = 0;
     }
 }
 
