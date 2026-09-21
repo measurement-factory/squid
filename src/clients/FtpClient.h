@@ -99,11 +99,17 @@ public:
 
     void addr(const Ip::Address &addr); ///< import host and port
 
+    /// updates counters after this number of bytes have been added to readBuf
+    void appended(size_t size);
+
 public:
     MemBuf *readBuf;
     char *host;
     unsigned short port;
     bool read_pending;
+
+    /// amount of message payload/body received so far
+    uint64_t payloadSeen = 0;
 };
 
 /// FTP client functionality shared among FTP Gateway and Relay clients.
