@@ -3465,7 +3465,6 @@ ConnStateData::fillConnectionLevelDetails(ACLFilledChecklist &checklist) const
     }
 
 #if USE_OPENSSL
-    // the ALE may predate the client TLS handshake that revealed these protocols
     if (checklist.al && checklist.al->ssl.clientAlpns.empty())
         checklist.al->ssl.clientAlpns = tlsClientAlpns_;
 
