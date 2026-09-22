@@ -2793,8 +2793,13 @@ ConnStateData::parseTlsHandshake()
         resetSslCommonName(details->serverName.c_str());
         tlsClientSni_ = details->serverName;
     }
-    if (details && !details->tlsAppLayerProtoNeg.isEmpty() && tlsClientAlpns_.empty())
+    if (details && !details->tlsAppLayerProtoNeg.isEmpty() && tlsClientAlpns_.empty()) {
         tlsClientAlpns_ = Security::ParseAlpnList(details->tlsAppLayerProtoNeg);
+        if (const auto context = pipeline.front()) {
+            if (const auto http = context->http)
+                http->al->ssl.clientAlpns = tlsClientAlpns_;
+        }
+    }
 
     // We should disable read/write handlers
     Comm::ResetSelect(clientConnection->fd);
@@ -3465,9 +3470,6 @@ ConnStateData::fillConnectionLevelDetails(ACLFilledChecklist &checklist) const
     }
 
 #if USE_OPENSSL
-    if (checklist.al && checklist.al->ssl.clientAlpns.empty())
-        checklist.al->ssl.clientAlpns = tlsClientAlpns_;
-
     if (!checklist.sslErrors && sslServerBump)
         checklist.sslErrors = sslServerBump->sslErrors();
 #endif
