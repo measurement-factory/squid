@@ -491,7 +491,7 @@ StoreErrorDetail(SSL *ssl, const ErrorDetail::Pointer &d)
 // TODO: move to where it belongs
 static int
 AlpnSelectCbImpl(SSL *ssl, const unsigned char **out, unsigned char *outlen,
-               const unsigned char *in, unsigned int inlen, void *)
+                 const unsigned char *in, unsigned int inlen, void *)
 {
     assert(ssl);
 
@@ -556,21 +556,21 @@ int
 ClientHelloCb(SSL *ssl, int *al, void *arg)
 {
     return CallNoThrow(ssl,
-        [&] {
-            *al = SSL_AD_INTERNAL_ERROR; // ignored on success
-            return ClientHelloCbImpl(ssl, al, arg);
-            },
-        "SSL_AD_INTERNAL_ERROR", SSL_CLIENT_HELLO_ERROR);
+    [&] {
+        *al = SSL_AD_INTERNAL_ERROR; // ignored on success
+        return ClientHelloCbImpl(ssl, al, arg);
+    },
+    "SSL_AD_INTERNAL_ERROR", SSL_CLIENT_HELLO_ERROR);
 }
 
 extern "C"
 int
 AlpnCb(SSL *ssl, const unsigned char **out, unsigned char *outlen,
-        const unsigned char *in, unsigned int inlen, void *arg)
+       const unsigned char *in, unsigned int inlen, void *arg)
 {
     return CallNoThrow(ssl,
-        [&] { return AlpnSelectCbImpl(ssl, out, outlen, in, inlen, arg); },
-        "SSL_TLSEXT_ERR_ALERT_FATAL(error)", SSL_TLSEXT_ERR_ALERT_FATAL);
+                       [&] { return AlpnSelectCbImpl(ssl, out, outlen, in, inlen, arg); },
+                       "SSL_TLSEXT_ERR_ALERT_FATAL(error)", SSL_TLSEXT_ERR_ALERT_FATAL);
 }
 
 }
