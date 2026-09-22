@@ -548,7 +548,10 @@ R CallNoThrow(Impl &&impl, OnError &&onError, R errorResult)
     }
 }
 
-static int
+namespace {
+
+extern "C"
+int
 ClientHelloCb(SSL *ssl, int *al, void *arg)
 {
     return CallNoThrow(
@@ -561,7 +564,8 @@ ClientHelloCb(SSL *ssl, int *al, void *arg)
         SSL_CLIENT_HELLO_ERROR);
 }
 
-static int
+extern "C"
+int
 AlpnCb(SSL *ssl, const unsigned char **out, unsigned char *outlen,
         const unsigned char *in, unsigned int inlen, void *arg)
 {
@@ -572,6 +576,8 @@ AlpnCb(SSL *ssl, const unsigned char **out, unsigned char *outlen,
             HttpVersionSelectorErrorDetail(ssl, d);
         },
         SSL_TLSEXT_ERR_ALERT_FATAL);
+}
+
 }
 
 #endif
