@@ -606,6 +606,14 @@ Rock::Rebuild::validationSteps()
 void
 Rock::Rebuild::finalizeOrThrow(const sfileno fileNo, LoadingEntry &le)
 {
+    Assure(le.state() == LoadingEntry::leLoading);
+
+    // To iterate the entire original entry chain, the loop below must start
+    // with an inode slot, but that loop starting position -- anchor.start --
+    // points to an inode only if addSlotToEntry() actually saw an inode slot.
+    if (!le.anchored())
+        throw TextException("lost inode slot (at least)", Here());
+
     // walk all map-linked slots, starting from inode, and mark each
     Ipc::StoreMapAnchor &anchor = sd->map->writeableEntry(fileNo);
     Must(le.size > 0); // paranoid
@@ -800,6 +808,11 @@ Rock::Rebuild::addSlotToEntry(const sfileno fileno, const SlotId slotId, const D
         LoadingSlot inode = loadingSlot(anchor.start);
         chainSlots(inode.more, slotId);
     } else {
+        // Current slotId is not necessarily where the entry chain starts, but
+        // anchor.start is the only place where we can keep the "unordered" slot
+        // sequence start. TODO: Add le.lastLoaded, increasing indexing memory
+        // usage but reducing chances that we misuse anchor.start as the entry
+        // chain start before le.anchored() becomes true?
         chainSlots(anchor.start, slotId);
     }
 
@@ -899,6 +912,12 @@ Rock::Rebuild::useNewSlot(const SlotId slotId, const DbCellHeader &header)
 {
     const cache_key *const key =
         reinterpret_cast<const cache_key*>(header.key);
+    // XXX: Without locking, same-key slots may get different fileno values due
+    // to workers opening multiple same-name anchors. The corresponding disk
+    // entries will be freed (as incomplete), even if they did not conflict with
+    // any network-loaded entries (with different entry keys). TODO: Index
+    // LoadingEntry parts by key instead of fileNoByKey() and remember their
+    // fileno at openForWriting() call time, increasing indexing memory usage.
     const sfileno fileno = sd->map->fileNoByKey(key);
     assert(0 <= fileno && fileno < dbEntryLimit);
 
