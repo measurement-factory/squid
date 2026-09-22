@@ -534,15 +534,16 @@ ClientHelloCbImpl(SSL *ssl, int *al, void *) {
     return SSL_CLIENT_HELLO_SUCCESS;
 }
 
-template <class Impl, class OnError, class R>
-R CallNoThrow(Impl &&impl, OnError &&onError, R errorResult)
+template <class Impl, class Detail, class R>
+R CallNoThrow(SSL *ssl, Impl &&impl, Detail detail, R errorResult)
 {
     try {
         return impl();
     } catch (...) {
         SWALLOW_EXCEPTIONS({
             debugs(83, DBG_IMPORTANT, "ERROR: " << CurrentException);
-            onError();
+            static const auto d = MakeNamedErrorDetail(detail);
+            HttpVersionSelectorErrorDetail(ssl, d);
         });
         return errorResult;
     }
@@ -554,15 +555,12 @@ extern "C"
 int
 ClientHelloCb(SSL *ssl, int *al, void *arg)
 {
-    return CallNoThrow(
+    return CallNoThrow(ssl,
         [&] {
             *al = SSL_AD_INTERNAL_ERROR; // ignored on success
-            return ClientHelloCbImpl(ssl, al, arg); },
-        [&] {
-            static const auto d = MakeNamedErrorDetail("SSL_AD_INTERNAL_ERROR");
-            HttpVersionSelectorErrorDetail(ssl, d);
-        },
-        SSL_CLIENT_HELLO_ERROR);
+            return ClientHelloCbImpl(ssl, al, arg);
+            },
+        "SSL_AD_INTERNAL_ERROR", SSL_CLIENT_HELLO_ERROR);
 }
 
 extern "C"
@@ -570,13 +568,9 @@ int
 AlpnCb(SSL *ssl, const unsigned char **out, unsigned char *outlen,
         const unsigned char *in, unsigned int inlen, void *arg)
 {
-    return CallNoThrow(
+    return CallNoThrow(ssl,
         [&] { return AlpnSelectCbImpl(ssl, out, outlen, in, inlen, arg); },
-        [&] {
-            static const auto d = MakeNamedErrorDetail("SSL_TLSEXT_ERR_ALERT_FATAL(error)");
-            HttpVersionSelectorErrorDetail(ssl, d);
-        },
-        SSL_TLSEXT_ERR_ALERT_FATAL);
+		"SSL_TLSEXT_ERR_ALERT_FATAL(error)", SSL_TLSEXT_ERR_ALERT_FATAL);
 }
 
 }
