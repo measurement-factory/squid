@@ -555,11 +555,12 @@ int
 ClientHelloCb(SSL *ssl, int *al, void *arg)
 {
     return CallNoThrow(
-        [&] { return ClientHelloCbImpl(ssl, al, arg); },
+        [&] {
+            *al = SSL_AD_INTERNAL_ERROR; // ignored on success
+            return ClientHelloCbImpl(ssl, al, arg); },
         [&] {
             static const auto d = MakeNamedErrorDetail("SSL_AD_INTERNAL_ERROR");
             HttpVersionSelectorErrorDetail(ssl, d);
-            *al = SSL_AD_INTERNAL_ERROR;
         },
         SSL_CLIENT_HELLO_ERROR);
 }
