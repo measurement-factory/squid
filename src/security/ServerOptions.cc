@@ -570,7 +570,7 @@ AlpnCb(SSL *ssl, const unsigned char **out, unsigned char *outlen,
 {
     return CallNoThrow(ssl,
         [&] { return AlpnSelectCbImpl(ssl, out, outlen, in, inlen, arg); },
-		"SSL_TLSEXT_ERR_ALERT_FATAL(error)", SSL_TLSEXT_ERR_ALERT_FATAL);
+        "SSL_TLSEXT_ERR_ALERT_FATAL(error)", SSL_TLSEXT_ERR_ALERT_FATAL);
 }
 
 }
