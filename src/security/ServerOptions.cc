@@ -479,7 +479,7 @@ HttpVersionSelectorCheck(SSL *ssl,  const unsigned char *alpn, const unsigned in
 }
 
 static void
-HttpVersionSelectorErrorDetail(SSL *ssl, const ErrorDetail::Pointer &d)
+StoreErrorDetail(SSL *ssl, const ErrorDetail::Pointer &d)
 {
     std::unique_ptr<ErrorDetail::Pointer> detail(new ErrorDetail::Pointer(d));
     if (SSL_set_ex_data(ssl, ssl_ex_index_ssl_error_detail, detail.get()))
@@ -498,7 +498,7 @@ AlpnSelectCbImpl(SSL *ssl, const unsigned char **out, unsigned char *outlen,
     const auto proto = HttpVersionSelectorCheck(ssl, in, inlen);
     if (!proto->has_value()) {
         static const auto d = MakeNamedErrorDetail("SSL_TLSEXT_ERR_ALERT_FATAL(select)");
-        HttpVersionSelectorErrorDetail(ssl, d);
+        StoreErrorDetail(ssl, d);
         return SSL_TLSEXT_ERR_ALERT_FATAL;
     }
 
@@ -526,7 +526,7 @@ ClientHelloCbImpl(SSL *ssl, int *al, void *) {
         // set the alert to "no_application_protocol" and fail
         *al = TLS1_AD_NO_APPLICATION_PROTOCOL;
         static const auto d = MakeNamedErrorDetail("TLS1_AD_NO_APPLICATION_PROTOCOL");
-        HttpVersionSelectorErrorDetail(ssl, d);
+        StoreErrorDetail(ssl, d);
         return SSL_CLIENT_HELLO_ERROR;
     }
 
