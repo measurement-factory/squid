@@ -11,9 +11,11 @@
 #include "base/IoManip.h"
 #include "base/Packable.h"
 #include "cache_cf.h"
+#include "clients/HttpVersionSelector.h"
 #include "error/SysErrorDetail.h"
 #include "fatal.h"
 #include "globals.h"
+#include "sbuf/Stream.h"
 #include "security/KeyLogger.h"
 #include "security/ServerOptions.h"
 #include "security/Session.h"
@@ -31,6 +33,7 @@
 #endif
 
 #include <limits>
+#include <optional>
 
 Security::ServerOptions &
 Security::ServerOptions::operator =(const Security::ServerOptions &old) {
@@ -462,6 +465,108 @@ Security::ServerOptions::loadDhParams()
 #endif // USE_OPENSSL
 }
 
+#if USE_OPENSSL
+
+static std::optional<SBuf> *
+HttpVersionSelectorCheck(SSL *ssl,  const unsigned char *alpn, const unsigned int alpnLen)
+{
+    auto checkList = static_cast<ACLFilledChecklist *>(SSL_get_ex_data(ssl, ssl_ex_index_ssl_alpn));
+    const auto protoTemp = ClientHttpVersionSelector::Check(checkList, reinterpret_cast<const char *>(alpn), alpnLen);
+    const auto proto = new std::optional<SBuf>(protoTemp);
+    if (!SSL_set_ex_data(ssl, ssl_ex_index_ssl_alpn_selected, (void *)proto))
+        throw TextException(ToSBuf("Cannot set selected protocol", Ssl::ReportAndForgetErrors), Here());
+    return proto;
+}
+
+// TODO: move to where it belongs
+static int
+AlpnSelectCbImpl(SSL *ssl, const unsigned char **out, unsigned char *outlen,
+                 const unsigned char *in, unsigned int inlen, void *)
+{
+    assert(ssl);
+
+    const auto proto = HttpVersionSelectorCheck(ssl, in, inlen);
+    if (!proto->has_value()) {
+        static auto d = MakeNamedErrorDetail("SSL_TLSEXT_ERR_ALERT_FATAL(select)");
+        StoreErrorDetail(ssl, d);
+        return SSL_TLSEXT_ERR_ALERT_FATAL;
+    }
+
+    *out = reinterpret_cast<const unsigned char *>((*proto)->rawContent());
+    *outlen = (*proto)->length();
+    return SSL_TLSEXT_ERR_OK;
+}
+
+static int
+ClientHelloCbImpl(SSL *ssl, int *al, void *) {
+    assert(ssl);
+    assert(al);
+
+    const unsigned char *ext = nullptr;
+    size_t extLen = 0;
+
+    // Check if the ALPN extension is present
+    if (SSL_client_hello_get0_ext(ssl, TLSEXT_TYPE_application_layer_protocol_negotiation, &ext, &extLen) == 1)
+        return SSL_CLIENT_HELLO_SUCCESS; // ALPN found, will handle them in AlpnSelectCbImpl()
+
+    // no ALPN, check the HTTP version selection rules here
+    const auto proto = HttpVersionSelectorCheck(ssl, nullptr, 0);
+
+    if (!proto->has_value()) {
+        // set the alert to "no_application_protocol" and fail
+        *al = TLS1_AD_NO_APPLICATION_PROTOCOL;
+        static const auto d = MakeNamedErrorDetail("TLS1_AD_NO_APPLICATION_PROTOCOL");
+        StoreErrorDetail(ssl, d);
+        return SSL_CLIENT_HELLO_ERROR;
+    }
+
+    // no ALPN, but HTTP version selection rules (if any) allow us to proceed
+    return SSL_CLIENT_HELLO_SUCCESS;
+}
+
+template <class Impl, class Detail, class R>
+R CallNoThrow(SSL *ssl, Impl &&impl, Detail detail, R errorResult)
+{
+    try {
+        return impl();
+    } catch (...) {
+        SWALLOW_EXCEPTIONS({
+            debugs(83, DBG_IMPORTANT, "ERROR: " << CurrentException);
+            static const auto d = MakeNamedErrorDetail(detail);
+            StoreErrorDetail(ssl, d);
+        });
+        return errorResult;
+    }
+}
+
+namespace {
+
+extern "C"
+int
+ClientHelloCb(SSL *ssl, int *al, void *arg)
+{
+    return CallNoThrow(ssl,
+    [&] {
+        *al = SSL_AD_INTERNAL_ERROR; // ignored on success
+        return ClientHelloCbImpl(ssl, al, arg);
+    },
+    "SSL_AD_INTERNAL_ERROR", SSL_CLIENT_HELLO_ERROR);
+}
+
+extern "C"
+int
+AlpnCb(SSL *ssl, const unsigned char **out, unsigned char *outlen,
+       const unsigned char *in, unsigned int inlen, void *arg)
+{
+    return CallNoThrow(ssl,
+                       [&] { return AlpnSelectCbImpl(ssl, out, outlen, in, inlen, arg); },
+                       "SSL_TLSEXT_ERR_ALERT_FATAL(error)", SSL_TLSEXT_ERR_ALERT_FATAL);
+}
+
+}
+
+#endif // USE_OPENSSL
+
 bool
 Security::ServerOptions::updateContextConfig(Security::ContextPointer &ctx)
 {
@@ -500,6 +605,10 @@ Security::ServerOptions::updateContextConfig(Security::ContextPointer &ctx)
         SSL_CTX_set_ex_data(ctx.get(), ssl_ctx_ex_index_dont_verify_domain, (void *) -1);
 
     Security::SetSessionCacheCallbacks(ctx);
+
+    SSL_CTX_set_client_hello_cb(ctx.get(), ClientHelloCb, nullptr);
+    SSL_CTX_set_alpn_select_cb(ctx.get(), AlpnCb, nullptr);
+
 #endif
     return true;
 }

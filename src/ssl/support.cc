@@ -563,12 +563,8 @@ ssl_verify_cb(int ok, X509_STORE_CTX * ctx)
                 broken_cert.resetAndLock(last_used_cert);
         }
 
-        std::unique_ptr<Security::ErrorDetail::Pointer> edp(new Security::ErrorDetail::Pointer(
-                    new Security::ErrorDetail(error_no, peer_cert, broken_cert)));
-        if (SSL_set_ex_data(ssl, ssl_ex_index_ssl_error_detail, edp.get()))
-            edp.release();
-        else
-            debugs(83, 2, "failed to store a " << *peer_cert << " error detail: " << *edp);
+        auto d = Security::ErrorDetail::Pointer(new Security::ErrorDetail(error_no, peer_cert, broken_cert));
+        StoreErrorDetail(ssl, d);
     }
 
     return ok;
@@ -820,6 +816,30 @@ ssl_free_VerifyCallbackParameters(void *, void *ptr, CRYPTO_EX_DATA *,
     delete static_cast<Ssl::VerifyCallbackParameters*>(ptr);
 }
 
+/// "free" function for the ssl_ex_index_ssl_alpn_selected entry
+static void
+ssl_free_AlpnSelected(void *, void *ptr, CRYPTO_EX_DATA *,
+                      int, long, void *)
+{
+    auto alpn = static_cast<std::optional<SBuf> *>(ptr);
+    delete alpn;
+}
+
+/// "dup" function for the ssl_ex_index_ssl_alpn_selected entry
+static int
+ssl_dup_AlpnSelected(CRYPTO_EX_DATA *, const CRYPTO_EX_DATA *, void **from_d,
+                     int, long, void *)
+{
+    if (*from_d == nullptr)
+        return 1;
+    auto alpnOld = static_cast<std::optional<SBuf> *>(*from_d);
+    auto alpnNew = new std::optional<SBuf>(*alpnOld);
+    if (!alpnNew)
+        return 0;
+    *from_d = alpnNew;
+    return 1;
+}
+
 void
 Ssl::Configure()
 {
@@ -888,6 +908,8 @@ Ssl::InitializeOnce()
     ssl_ex_index_ssl_cert_chain = SSL_get_ex_new_index(0, (void *) "ssl_cert_chain", nullptr, nullptr, &ssl_free_CertChain);
     ssl_ex_index_ssl_validation_counter = SSL_get_ex_new_index(0, (void *) "ssl_validation_counter", nullptr, nullptr, &ssl_free_int);
     ssl_ex_index_verify_callback_parameters = SSL_get_ex_new_index(0, (void *) "verify_callback_parameters", nullptr, nullptr, &ssl_free_VerifyCallbackParameters);
+    ssl_ex_index_ssl_alpn = SSL_get_ex_new_index(0, (void *) "ssl_alpn", nullptr, ssl_dupAclChecklist, &ssl_freeAclChecklist);
+    ssl_ex_index_ssl_alpn_selected = SSL_get_ex_new_index(0, (void *) "ssl_alpn_selected", nullptr, ssl_dup_AlpnSelected, &ssl_free_AlpnSelected);
 }
 
 bool

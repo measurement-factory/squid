@@ -16,6 +16,10 @@
 #include "mem/forward.h"
 #include "sbuf/forward.h"
 
+#if USE_OPENSSL
+#include <openssl/ssl.h>
+#endif
+
 /// interface for supplying additional information about a transaction failure
 class ErrorDetail: public RefCountable
 {
@@ -47,6 +51,11 @@ public:
 /// creates a new NamedErrorDetail object with a unique name
 /// \see NamedErrorDetail::Name for naming restrictions
 ErrorDetail::Pointer MakeNamedErrorDetail(const char *name);
+
+#if USE_OPENSSL
+/// stores ErrorDetail about an OpenSSL problem into the SSL session
+void StoreErrorDetail(SSL *, const ::ErrorDetail::Pointer &);
+#endif // USE_OPENSSL
 
 /// dump the given ErrorDetail (for debugging)
 std::ostream &operator <<(std::ostream &os, const ErrorDetail &);
