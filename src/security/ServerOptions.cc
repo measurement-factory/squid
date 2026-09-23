@@ -478,16 +478,6 @@ HttpVersionSelectorCheck(SSL *ssl,  const unsigned char *alpn, const unsigned in
     return proto;
 }
 
-static void
-StoreErrorDetail(SSL *ssl, const ErrorDetail::Pointer &d)
-{
-    std::unique_ptr<ErrorDetail::Pointer> detail(new ErrorDetail::Pointer(d));
-    if (SSL_set_ex_data(ssl, ssl_ex_index_ssl_error_detail, detail.get()))
-        detail.release();
-    else
-        debugs(83, 2, "WARNING: Failed to store error detail: " << *detail << Ssl::ReportAndForgetErrors);
-}
-
 // TODO: move to where it belongs
 static int
 AlpnSelectCbImpl(SSL *ssl, const unsigned char **out, unsigned char *outlen,
@@ -497,7 +487,7 @@ AlpnSelectCbImpl(SSL *ssl, const unsigned char **out, unsigned char *outlen,
 
     const auto proto = HttpVersionSelectorCheck(ssl, in, inlen);
     if (!proto->has_value()) {
-        static const auto d = MakeNamedErrorDetail("SSL_TLSEXT_ERR_ALERT_FATAL(select)");
+        static auto d = MakeNamedErrorDetail("SSL_TLSEXT_ERR_ALERT_FATAL(select)");
         StoreErrorDetail(ssl, d);
         return SSL_TLSEXT_ERR_ALERT_FATAL;
     }
@@ -543,7 +533,7 @@ R CallNoThrow(SSL *ssl, Impl &&impl, Detail detail, R errorResult)
         SWALLOW_EXCEPTIONS({
             debugs(83, DBG_IMPORTANT, "ERROR: " << CurrentException);
             static const auto d = MakeNamedErrorDetail(detail);
-            HttpVersionSelectorErrorDetail(ssl, d);
+            StoreErrorDetail(ssl, d);
         });
         return errorResult;
     }
@@ -575,7 +565,7 @@ AlpnCb(SSL *ssl, const unsigned char **out, unsigned char *outlen,
 
 }
 
-#endif
+#endif // USE_OPENSSL
 
 bool
 Security::ServerOptions::updateContextConfig(Security::ContextPointer &ctx)

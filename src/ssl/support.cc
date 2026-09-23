@@ -563,12 +563,8 @@ ssl_verify_cb(int ok, X509_STORE_CTX * ctx)
                 broken_cert.resetAndLock(last_used_cert);
         }
 
-        std::unique_ptr<Security::ErrorDetail::Pointer> edp(new Security::ErrorDetail::Pointer(
-                    new Security::ErrorDetail(error_no, peer_cert, broken_cert)));
-        if (SSL_set_ex_data(ssl, ssl_ex_index_ssl_error_detail, edp.get()))
-            edp.release();
-        else
-            debugs(83, 2, "failed to store a " << *peer_cert << " error detail: " << *edp);
+        auto d = Security::ErrorDetail::Pointer(new Security::ErrorDetail(error_no, peer_cert, broken_cert));
+        StoreErrorDetail(ssl, d);
     }
 
     return ok;
