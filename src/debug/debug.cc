@@ -32,6 +32,7 @@ char *Debug::cache_log = nullptr;
 int Debug::rotateNumber = -1;
 uint64_t Debug::ExceptionsNumber = 0;
 std::unique_ptr<TextException> Debug::LastException;
+SourceLocation Debug::LastExceptionLocation = SourceLocation("", "", 0);
 
 /// a counter related to the number of debugs() calls
 using DebugRecordCount = uint64_t;
@@ -1361,6 +1362,9 @@ Debug::Start(const int section, const int level)
 
     Current = future;
 
+    if (!LoggingSectionGuard::Busy() && Debug::ExceptionsNumber)
+        Debug::LogException();
+
     return future->buf;
 }
 
@@ -1408,7 +1412,7 @@ Debug::HandleException()
         throw; // re-throw to recognize the exception type
     }
     catch (const TextException &ex) {
-        Debug::LastException.reset(new TextException(ex));
+        Debug::LastExceptionLocation = ex.where;
     }
     catch (...) { }
     Debug::ExceptionsNumber++;
@@ -1417,16 +1421,14 @@ Debug::HandleException()
 void
 Debug::LogException()
 {
+    const LoggingSectionGuard sectionGuard;
+
     assert(ExceptionsNumber);
 
-    std::ostream &os = Debug::Start(0, 0);
-    os << "ERROR: debugs() internal error";
-    os << Extra << "exceptions since last successful call: " << ExceptionsNumber;
-    if (LastException) {
-        os << Extra << "last exception:";
-        os << Extra << *LastException;
-    }
-    Debug::Finish();
+    debugs(0, 0,"ERROR: debugs() internal error" <<
+           Extra << "exceptions since last successful call: " << ExceptionsNumber <<
+           Extra << "last exception location:" <<
+           Extra << LastExceptionLocation);
 
     LastException.reset();
     ExceptionsNumber = 0;

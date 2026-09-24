@@ -87,8 +87,9 @@ public:
     static bool log_syslog;
     /// the number of unsuccessful debugs() calls between two successful calls
     static uint64_t ExceptionsNumber;
-    /// the last exception that caused debugs() failure
+    /// the last exception location that caused debugs() failure
     static std::unique_ptr<TextException> LastException;
+    static SourceLocation LastExceptionLocation;
 
     // TODO: Convert all helpers to use debugs() and NameThisHelper() APIs.
     /// Use the given name for debugs() messages from this helper process.
@@ -203,8 +204,6 @@ void ResyncDebugLog(FILE *newDestination);
 #define debugs(SECTION, LEVEL, CONTENT) \
    do { \
        try { \
-           if (Debug::ExceptionsNumber) \
-               Debug::LogException(); \
            const int _dbg_level = (LEVEL); \
            if (Debug::Enabled((SECTION), _dbg_level)) { \
                std::ostream &_dbo = Debug::Start((SECTION), _dbg_level); \
