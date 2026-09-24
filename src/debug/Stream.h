@@ -16,6 +16,7 @@
 #include "mem/AllocatorProxy.h"
 
 #include <iostream>
+#include <memory>
 #undef assert
 #include <sstream>
 #include <iomanip>
@@ -42,6 +43,7 @@
 #define DBG_PARSE_NOTE(x) (opt_parse_cfg_only?0:(x)) /**< output is always to be displayed on '-k parse' but at level-x normally. */
 
 class DebugMessageHeader;
+class TextException;
 
 class Debug
 {
@@ -83,6 +85,11 @@ public:
     static int Levels[MAX_DEBUG_SECTIONS];
     static int override_X;
     static bool log_syslog;
+    /// the number of unsuccessful debugs() calls between two successful calls
+    static uint64_t ExceptionsNumber;
+    /// the last exception location that caused debugs() failure
+    static std::unique_ptr<TextException> LastException;
+    static SourceLocation LastExceptionLocation;
 
     // TODO: Convert all helpers to use debugs() and NameThisHelper() APIs.
     /// Use the given name for debugs() messages from this helper process.
@@ -169,6 +176,11 @@ public:
     /// are expected.
     static void SettleSyslog();
 
+    /// log an internal debugs() error as a DBG_CRITICAL message
+    static void LogException();
+    /// store statistics about internal debugs() errors for future LogException()
+    static void HandleException();
+
 private:
     static void FormatStream(std::ostream &);
     static void LogMessage(const Context &);
@@ -191,16 +203,21 @@ void ResyncDebugLog(FILE *newDestination);
  */
 #define debugs(SECTION, LEVEL, CONTENT) \
    do { \
-        const int _dbg_level = (LEVEL); \
-        if (Debug::Enabled((SECTION), _dbg_level)) { \
-            std::ostream &_dbo = Debug::Start((SECTION), _dbg_level); \
-            if (_dbg_level > DBG_IMPORTANT) { \
-                _dbo << (SECTION) << ',' << _dbg_level << "| " \
-                     << Here() << ": "; \
-            } \
-            _dbo << CONTENT; \
-            Debug::Finish(); \
-        } \
+       try { \
+           const int _dbg_level = (LEVEL); \
+           if (Debug::Enabled((SECTION), _dbg_level)) { \
+               std::ostream &_dbo = Debug::Start((SECTION), _dbg_level); \
+               if (_dbg_level > DBG_IMPORTANT) { \
+                   _dbo << (SECTION) << ',' << _dbg_level << "| " \
+                        << Here() << ": "; \
+               } \
+               _dbo << CONTENT; \
+               Debug::Finish(); \
+           } \
+       } \
+       catch (...) { \
+           Debug::HandleException(); \
+       } \
    } while (/*CONSTCOND*/ 0)
 
 /// Does not change the stream being manipulated. Exists for its side effect:

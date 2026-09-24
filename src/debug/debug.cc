@@ -30,6 +30,9 @@ bool Debug::log_syslog = false;
 int Debug::Levels[MAX_DEBUG_SECTIONS];
 char *Debug::cache_log = nullptr;
 int Debug::rotateNumber = -1;
+uint64_t Debug::ExceptionsNumber = 0;
+std::unique_ptr<TextException> Debug::LastException;
+SourceLocation Debug::LastExceptionLocation = SourceLocation("", "", 0);
 
 /// a counter related to the number of debugs() calls
 using DebugRecordCount = uint64_t;
@@ -1359,6 +1362,9 @@ Debug::Start(const int section, const int level)
 
     Current = future;
 
+    if (!LoggingSectionGuard::Busy() && Debug::ExceptionsNumber)
+        Debug::LogException();
+
     return future->buf;
 }
 
@@ -1397,6 +1403,35 @@ Debug::Finish()
     if (Current)
         delete past;
     // else it was a static topContext from Debug::Start()
+}
+
+void
+Debug::HandleException()
+{
+    try {
+        throw; // re-throw to recognize the exception type
+    }
+    catch (const TextException &ex) {
+        Debug::LastExceptionLocation = ex.where;
+    }
+    catch (...) { }
+    Debug::ExceptionsNumber++;
+}
+
+void
+Debug::LogException()
+{
+    const LoggingSectionGuard sectionGuard;
+
+    assert(ExceptionsNumber);
+
+    debugs(0, 0,"ERROR: debugs() internal error" <<
+           Extra << "exceptions since last successful call: " << ExceptionsNumber <<
+           Extra << "last exception location:" <<
+           Extra << LastExceptionLocation);
+
+    LastException.reset();
+    ExceptionsNumber = 0;
 }
 
 void
