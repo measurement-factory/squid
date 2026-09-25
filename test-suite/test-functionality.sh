@@ -227,6 +227,7 @@ main() {
             cache-response
             cache-refresh-response
             proxy-collapsed-forwarding
+            rock-entry-leftovers
             hit-revalidation
             purge-cached
             busy-restart
