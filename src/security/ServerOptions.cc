@@ -532,8 +532,7 @@ R CallNoThrow(SSL *ssl, Impl &&impl, Detail detail, R errorResult)
     } catch (...) {
         SWALLOW_EXCEPTIONS({
             debugs(83, DBG_IMPORTANT, "ERROR: " << CurrentException);
-            static const auto d = MakeNamedErrorDetail(detail);
-            StoreErrorDetail(ssl, d);
+            StoreErrorDetail(ssl, detail);
         });
         return errorResult;
     }
@@ -545,12 +544,13 @@ extern "C"
 int
 ClientHelloCb(SSL *ssl, int *al, void *arg)
 {
+    static const auto d = MakeNamedErrorDetail("SSL_AD_INTERNAL_ERROR");
     return CallNoThrow(ssl,
     [&] {
         *al = SSL_AD_INTERNAL_ERROR; // ignored on success
         return ClientHelloCbImpl(ssl, al, arg);
     },
-    "SSL_AD_INTERNAL_ERROR", SSL_CLIENT_HELLO_ERROR);
+    d, SSL_CLIENT_HELLO_ERROR);
 }
 
 extern "C"
@@ -558,9 +558,10 @@ int
 AlpnCb(SSL *ssl, const unsigned char **out, unsigned char *outlen,
        const unsigned char *in, unsigned int inlen, void *arg)
 {
+    static const auto d = MakeNamedErrorDetail("SSL_TLSEXT_ERR_ALERT_FATAL(error)");
     return CallNoThrow(ssl,
                        [&] { return AlpnSelectCbImpl(ssl, out, outlen, in, inlen, arg); },
-                       "SSL_TLSEXT_ERR_ALERT_FATAL(error)", SSL_TLSEXT_ERR_ALERT_FATAL);
+                       d, SSL_TLSEXT_ERR_ALERT_FATAL);
 }
 
 }
