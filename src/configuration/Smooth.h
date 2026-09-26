@@ -10,6 +10,7 @@
 #define SQUID_SRC_CONFIGURATION_SMOOTH_H
 
 #include "base/AsyncCallList.h"
+#include "clients/forward.h"
 #include "configuration/forward.h"
 #include "peering.h"
 
@@ -84,6 +85,7 @@ public:
     /// exposing every user to complete definitions of all underlying types.
     struct {
         FreshField<BeingConfiguredCachePeers> cachePeers;
+        FreshField<ClientHttpVersionSelector> clientHttpVersionSelector;
     } fresh;
 
 protected:

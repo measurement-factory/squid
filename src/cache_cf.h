@@ -15,6 +15,8 @@
 #include "configuration/forward.h"
 #include "sbuf/forward.h"
 
+#include <iosfwd>
+
 class wordlist;
 
 void configFreeMemory(void);

@@ -504,9 +504,9 @@ squid_LDADD = \
 	acl/libstate.la \
 	$(AUTH_LIBS) \
 	acl/libapi.la \
-	clients/libclients.la \
-	configuration/libconfiguration.la \
 	servers/libservers.la \
+	configuration/libconfiguration.la \
+	clients/libclients.la \
 	ftp/libftp.la \
 	helper/libhelper.la \
 	http/libhttp.la \
@@ -2250,8 +2250,8 @@ nodist_tests_testCacheManager_SOURCES = \
 # comm.cc only requires comm/libcomm.la until fdc_table is dead.
 tests_testCacheManager_LDADD = \
 	libsquid.la \
-	clients/libclients.la \
 	servers/libservers.la \
+	clients/libclients.la \
 	ftp/libftp.la \
 	helper/libhelper.la \
 	http/libhttp.la \

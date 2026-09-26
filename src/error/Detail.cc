@@ -48,6 +48,18 @@ operator <<(std::ostream &os, const ErrorDetail::Pointer &detail)
     return os;
 }
 
+#if USE_OPENSSL
+void
+StoreErrorDetail(SSL *ssl, const ErrorDetail::Pointer &d)
+{
+    std::unique_ptr<ErrorDetail::Pointer> detail(new ErrorDetail::Pointer(d));
+    if (SSL_set_ex_data(ssl, ssl_ex_index_ssl_error_detail, detail.get()))
+        detail.release();
+    else
+        debugs(83, 2, "WARNING: Failed to store error detail: " << *detail << Ssl::ReportAndForgetErrors);
+}
+#endif // USE_OPENSSL
+
 /* NamedErrorDetail */
 
 ErrorDetail::Pointer
