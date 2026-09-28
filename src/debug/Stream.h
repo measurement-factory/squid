@@ -184,6 +184,7 @@ public:
 private:
     static void FormatStream(std::ostream &);
     static void LogMessage(const Context &);
+    static void ContextCleanup() noexcept;
 
     static Context *Current; ///< deepest active context; nil outside debugs()
 };

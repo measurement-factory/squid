@@ -1362,10 +1362,17 @@ Debug::Start(const int section, const int level)
 
     Current = future;
 
-    if (!LoggingSectionGuard::Busy() && Debug::ExceptionsNumber)
-        Debug::LogException();
-
     return future->buf;
+}
+
+void
+Debug::ContextCleanup() noexcept
+{
+    auto past = Debug::Current;
+    Current = past->upper;
+    if (Current)
+        delete past;
+    // else it was a static topContext from Debug::Start()
 }
 
 void
@@ -1398,11 +1405,10 @@ Debug::Finish()
     LogMessage(*Current);
     Current->forceAlert = false;
 
-    Context *past = Current;
-    Current = past->upper;
-    if (Current)
-        delete past;
-    // else it was a static topContext from Debug::Start()
+    ContextCleanup();
+
+    if (Debug::ExceptionsNumber)
+        Debug::LogException();
 }
 
 void
@@ -1412,9 +1418,11 @@ Debug::HandleException() noexcept
         throw; // re-throw to recognize the exception type
     }
     catch (const TextException &ex) {
-        Debug::LastExceptionLocation = ex.where;
+        if (!Debug::ExceptionsNumber) // will log the first if there are many
+            Debug::LastExceptionLocation = ex.where;
     }
     catch (...) { }
+    ContextCleanup();
     Debug::ExceptionsNumber++;
 }
 
@@ -1425,13 +1433,18 @@ Debug::LogException()
 
     assert(ExceptionsNumber);
 
+    const auto before = ExceptionsNumber;
+
     debugs(0, 0,"ERROR: debugs() internal error" <<
            Extra << "exceptions since last successful call: " << ExceptionsNumber <<
            Extra << "last exception location:" <<
            Extra << LastExceptionLocation);
 
-    LastException.reset();
-    ExceptionsNumber = 0;
+    // check whether the debugs() above was successful
+    if (before == ExceptionsNumber) {
+        LastException.reset();
+        ExceptionsNumber = 0;
+    }
 }
 
 void
