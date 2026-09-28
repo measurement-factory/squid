@@ -1406,7 +1406,7 @@ Debug::Finish()
 }
 
 void
-Debug::HandleException()
+Debug::HandleException() noexcept
 {
     try {
         throw; // re-throw to recognize the exception type

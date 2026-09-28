@@ -74,7 +74,7 @@ public:
     };
 
     /// whether debugging the given section and the given level produces output
-    static bool Enabled(const int section, const int level)
+    static bool Enabled(const int section, const int level) noexcept
     {
         return level <= Debug::Levels[section];
     }
@@ -179,7 +179,7 @@ public:
     /// log an internal debugs() error as a DBG_CRITICAL message
     static void LogException();
     /// store statistics about internal debugs() errors for future LogException()
-    static void HandleException();
+    static void HandleException() noexcept;
 
 private:
     static void FormatStream(std::ostream &);
@@ -203,9 +203,9 @@ void ResyncDebugLog(FILE *newDestination);
  */
 #define debugs(SECTION, LEVEL, CONTENT) \
    do { \
-       try { \
-           const int _dbg_level = (LEVEL); \
-           if (Debug::Enabled((SECTION), _dbg_level)) { \
+       const int _dbg_level = (LEVEL); \
+       if (Debug::Enabled((SECTION), _dbg_level)) { \
+           try { \
                std::ostream &_dbo = Debug::Start((SECTION), _dbg_level); \
                if (_dbg_level > DBG_IMPORTANT) { \
                    _dbo << (SECTION) << ',' << _dbg_level << "| " \
@@ -214,9 +214,9 @@ void ResyncDebugLog(FILE *newDestination);
                _dbo << CONTENT; \
                Debug::Finish(); \
            } \
-       } \
-       catch (...) { \
-           Debug::HandleException(); \
+	       catch (...) { \
+	           Debug::HandleException(); \
+	       } \
        } \
    } while (/*CONSTCOND*/ 0)
 
