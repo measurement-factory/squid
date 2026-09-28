@@ -14,6 +14,11 @@
 #define STUB_API "security/libsecurity.la"
 #include "tests/STUB.h"
 
+#include "security/Alpn.h"
+void Security::EnableClientAlpnObservation(ContextPointer &) STUB
+Security::AlpnProtocols Security::ParseAlpnList(const SBuf &) STUB_RETVAL(AlpnProtocols())
+Security::AlpnProtocols Security::ObservedClientAlpns(const SessionPointer &) STUB_RETVAL(AlpnProtocols())
+
 #include "security/BlindPeerConnector.h"
 CBDATA_NAMESPACED_CLASS_INIT(Security, BlindPeerConnector);
 namespace Security

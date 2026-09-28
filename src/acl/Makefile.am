@@ -163,6 +163,8 @@ SSL_ACLS = \
         CertificateData.h  \
         Certificate.cc \
         Certificate.h  \
+	ClientAlpn.cc \
+	ClientAlpn.h \
 	ServerCertificate.cc \
 	ServerCertificate.h \
 	ServerName.cc \
