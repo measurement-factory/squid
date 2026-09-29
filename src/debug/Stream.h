@@ -179,7 +179,7 @@ public:
     /// log an internal debugs() error as a DBG_CRITICAL message
     static void LogException();
     /// store statistics about internal debugs() errors for future LogException()
-    static void HandleException() noexcept;
+    static void HandleException(const SourceLocation &) noexcept;
 
 private:
     static void FormatStream(std::ostream &);
@@ -206,17 +206,18 @@ void ResyncDebugLog(FILE *newDestination);
    do { \
        const int _dbg_level = (LEVEL); \
        if (Debug::Enabled((SECTION), _dbg_level)) { \
+           const auto _location = Here(); \
            try { \
                std::ostream &_dbo = Debug::Start((SECTION), _dbg_level); \
                if (_dbg_level > DBG_IMPORTANT) { \
                    _dbo << (SECTION) << ',' << _dbg_level << "| " \
-                        << Here() << ": "; \
+                        << _location << ": "; \
                } \
                _dbo << CONTENT; \
                Debug::Finish(); \
            } \
 	       catch (...) { \
-	           Debug::HandleException(); \
+	           Debug::HandleException(_location); \
 	       } \
        } \
    } while (/*CONSTCOND*/ 0)

@@ -1412,16 +1412,10 @@ Debug::Finish()
 }
 
 void
-Debug::HandleException() noexcept
+Debug::HandleException(const SourceLocation &location) noexcept
 {
-    try {
-        throw; // re-throw to recognize the exception type
-    }
-    catch (const TextException &ex) {
-        if (!Debug::ExceptionsNumber) // will log the first if there are many
-            Debug::LastExceptionLocation = ex.where;
-    }
-    catch (...) { }
+    if (!Debug::ExceptionsNumber) // will log the first if there are many
+        Debug::LastExceptionLocation = location;
     ContextCleanup();
     Debug::ExceptionsNumber++;
 }
