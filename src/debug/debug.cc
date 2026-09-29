@@ -1429,16 +1429,14 @@ Debug::LogException()
 
     const auto before = ExceptionsNumber;
 
-    debugs(0, 0,"ERROR: debugs() internal error" <<
+    debugs(0, DBG_CRITICAL, "ERROR: Squid BUG: debugs() failure" <<
            Extra << "exceptions since last successful call: " << ExceptionsNumber <<
            Extra << "last exception location:" <<
            Extra << LastExceptionLocation);
 
     // check whether the debugs() above was successful
-    if (before == ExceptionsNumber) {
-        LastException.reset();
-        ExceptionsNumber = 0;
-    }
+    const auto SuccessfullyLoggedException = before == ExceptionsNumber;
+    assert(SuccessfullyLoggedException);
 }
 
 void
