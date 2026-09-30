@@ -3969,7 +3969,7 @@ static void parse_icap_service_failure_limit(Adaptation::Icap::Config *cfg)
 static void dump_icap_service_failure_limit(StoreEntry *entry, const char *name, const Adaptation::Icap::Config &cfg)
 {
     storeAppendPrintf(entry, "%s %d", name, cfg.service_failure_limit);
-    if (cfg.oldest_service_failure >= 0) {
+    if (cfg.oldest_service_failure > 0) {
         PackableStream os(*entry);
         os << " in";
         dump_time_unit(os, static_cast<int>(cfg.oldest_service_failure));
