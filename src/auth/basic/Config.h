@@ -50,7 +50,7 @@ private:
 } // namespace Basic
 } // namespace Auth
 
-extern helper *basicauthenticators;
+extern Helper::ClientPointer basicauthenticators;
 
 #endif /* HAVE_AUTH_MODULE_BASIC */
 #endif /* SQUID_SRC_AUTH_BASIC_CONFIG_H */
