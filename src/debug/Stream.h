@@ -215,9 +215,9 @@ void ResyncDebugLog(FILE *newDestination);
                _dbo << CONTENT; \
                Debug::Finish(); \
            } \
-	       catch (...) { \
-	           Debug::HandleException(_location); \
-	       } \
+           catch (...) { \
+               Debug::HandleException(_location); \
+           } \
        } \
    } while (/*CONSTCOND*/ 0)
 
