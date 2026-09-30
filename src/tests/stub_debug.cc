@@ -107,6 +107,9 @@ Debug::Finish()
     }
 }
 
+void Debug::LogException() STUB
+void Debug::HandleException(const SourceLocation &) noexcept STUB
+
 std::ostream&
 ForceAlert(std::ostream& s)
 {
