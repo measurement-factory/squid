@@ -76,6 +76,7 @@ public:
     /// whether debugging the given section and the given level produces output
     static bool Enabled(const int section, const int level) noexcept
     {
+        static_assert(noexcept(level <= Debug::Levels[section])); // duplicates the expression below
         return level <= Debug::Levels[section];
     }
 

@@ -1415,8 +1415,10 @@ Debug::Finish()
 void
 Debug::HandleException(const SourceLocation &location) noexcept
 {
-    if (!Debug::ExceptionsNumber) // will log the first if there are many
+    if (!Debug::ExceptionsNumber) { // log the first location if there are many
+        static_assert(noexcept(Debug::FailureLocation = location)); // duplicates the expression below
         Debug::FailureLocation = location;
+    }
     ContextCleanup();
     Debug::ExceptionsNumber++;
 }
