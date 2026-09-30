@@ -87,9 +87,8 @@ public:
     static bool log_syslog;
     /// the number of unsuccessful debugs() calls between two successful calls
     static uint64_t ExceptionsNumber;
-    /// the last exception location that caused debugs() failure
-    static std::unique_ptr<TextException> LastException;
-    static SourceLocation LastExceptionLocation;
+    /// the first problematic debugs() code location that caused an exception
+    static SourceLocation FailureLocation;
 
     // TODO: Convert all helpers to use debugs() and NameThisHelper() APIs.
     /// Use the given name for debugs() messages from this helper process.

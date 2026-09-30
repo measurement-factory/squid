@@ -31,8 +31,7 @@ int Debug::Levels[MAX_DEBUG_SECTIONS];
 char *Debug::cache_log = nullptr;
 int Debug::rotateNumber = -1;
 uint64_t Debug::ExceptionsNumber = 0;
-std::unique_ptr<TextException> Debug::LastException;
-SourceLocation Debug::LastExceptionLocation = SourceLocation("", "", 0);
+SourceLocation Debug::FailureLocation = SourceLocation("", "", 0);
 
 /// a counter related to the number of debugs() calls
 using DebugRecordCount = uint64_t;
@@ -1378,6 +1377,11 @@ Debug::ContextCleanup() noexcept
 void
 Debug::Finish()
 {
+    // Log the exception before creating LoggingSectionGuard so
+    // that the exception message is logged before the Current message
+    if (Debug::ExceptionsNumber)
+        Debug::LogException();
+
     const LoggingSectionGuard sectionGuard;
 
     // TODO: #include "base/CodeContext.h" instead if doing so works well.
@@ -1406,16 +1410,13 @@ Debug::Finish()
     Current->forceAlert = false;
 
     ContextCleanup();
-
-    if (Debug::ExceptionsNumber)
-        Debug::LogException();
 }
 
 void
 Debug::HandleException(const SourceLocation &location) noexcept
 {
     if (!Debug::ExceptionsNumber) // will log the first if there are many
-        Debug::LastExceptionLocation = location;
+        Debug::FailureLocation = location;
     ContextCleanup();
     Debug::ExceptionsNumber++;
 }
@@ -1423,20 +1424,22 @@ Debug::HandleException(const SourceLocation &location) noexcept
 void
 Debug::LogException()
 {
-    const LoggingSectionGuard sectionGuard;
-
     assert(ExceptionsNumber);
 
-    const auto before = ExceptionsNumber;
+    const auto loc = FailureLocation;
+    const auto num = ExceptionsNumber;
+
+    // reset first to avoid recursion
+    FailureLocation = SourceLocation("", "", 0);
+    ExceptionsNumber = 0;
 
     debugs(0, DBG_CRITICAL, "ERROR: Squid BUG: debugs() failure" <<
-           Extra << "exceptions since last successful call: " << ExceptionsNumber <<
-           Extra << "last exception location:" <<
-           Extra << LastExceptionLocation);
+           Extra << "exceptions since last successful call: " << num <<
+           Extra << "first problematic debugs() location:" <<
+           Extra << loc);
 
     // check whether the debugs() above was successful
-    const auto SuccessfullyLoggedException = before == ExceptionsNumber;
-    assert(SuccessfullyLoggedException);
+    assert(!ExceptionsNumber);
 }
 
 void
