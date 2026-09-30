@@ -16,7 +16,6 @@
 #include "mem/AllocatorProxy.h"
 
 #include <iostream>
-#include <memory>
 #undef assert
 #include <sstream>
 #include <iomanip>
