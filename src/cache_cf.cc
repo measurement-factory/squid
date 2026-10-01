@@ -411,6 +411,23 @@ dumpLines(StoreEntry * const entry, const SBuf &lines)
     PackableStream(*entry) << lines;
 }
 
+/// Prints `<n> <time-unit>` configuration snippet for directive parameters
+/// marked with "time-units" in cf.data.pre. TODO: Support "time-units-small".
+class WithTimeUnit
+{
+public:
+    explicit WithTimeUnit(const time_t t): toPrint(t) {}
+    const time_t toPrint;
+};
+
+/// implements WithTimeUnit printing using a "stream manipulator" API
+static auto &
+operator <<(std::ostream &os, const WithTimeUnit &t) {
+    // TODO: Use the most appropriate time unit for larger values (e.g., `5 hours`).
+    os << t.toPrint << " seconds";
+    return os;
+}
+
 /*
  * The templated functions below are essentially ConfigParser methods. They are
  * not implemented as such because our generated code calling them is the only
@@ -2644,19 +2661,10 @@ parse_TokenOrQuotedString(char **var)
 #define free_TokenOrQuotedString free_string
 
 static void
-dump_time_unit(std::ostream &os, time_t var)
-{
-    // canonical output in seconds
-    os << ' ' << var << " seconds";
-}
-
-static void
 dump_time_t(StoreEntry * entry, const char *name, time_t var)
 {
     PackableStream os(*entry);
-    os << name;
-    dump_time_unit(os, var);
-    os << "\n";
+    os << name << ' ' << WithTimeUnit(var) << '\n';
 }
 
 void
@@ -3959,8 +3967,7 @@ static void dump_icap_service_failure_limit(StoreEntry *entry, const char *name,
     storeAppendPrintf(entry, "%s %d", name, cfg.service_failure_limit);
     if (cfg.oldest_service_failure > 0) {
         PackableStream os(*entry);
-        os << " in";
-        dump_time_unit(os, cfg.oldest_service_failure);
+        os << " in " << WithTimeUnit(cfg.oldest_service_failure);
     }
     storeAppendPrintf(entry, "\n");
 }
@@ -4540,13 +4547,12 @@ dump_UrlHelperTimeout(StoreEntry *entry, const char *name, SquidConfig::UrlHelpe
     assert(config.action >= 0 && config.action <= toutActUseConfiguredResponse);
 
     PackableStream os(*entry);
-    os << name;
-    dump_time_unit(os, Config.Timeout.urlRewrite);
+    os << name << ' ' << WithTimeUnit(Config.Timeout.urlRewrite);
     os << " on_timeout=" << onTimedOutActions[config.action];
 
     if (config.response)
         os << " response=\"" << config.response << '"';
-    os << "\n";
+    os << '\n';
 }
 
 static void
