@@ -28,4 +28,4 @@ const Acl::Answer &ACLChecklist::fastCheck() STUB_RETREF(Acl::Answer)
 const Acl::Answer &ACLChecklist::fastCheck(const ACLList *) STUB_RETREF(Acl::Answer)
 
 #include "acl/Tree.h"
-SBufList Acl::Tree::ruleDump() const STUB_RETVAL(SBufList())
+SBuf Acl::Tree::ruleConfig() const STUB_RETVAL(SBuf())

@@ -12,7 +12,7 @@
 #include "acl/Acl.h"
 #include "acl/BoolOps.h"
 #include "cbdata.h"
-#include "sbuf/List.h"
+#include "sbuf/Stream.h"
 
 namespace Acl
 {
@@ -24,25 +24,26 @@ class Tree: public OrNode
     MEMPROXY_CLASS(Tree);
 
 public:
-    /// The list of tokens, spaces, and new lines that, if concatenated, produce
-    /// a valid configuration text containing zero or more directive lines. Each
+    /// Configuration text containing zero or more directive lines. Each
     /// directive is formed by the given prefix followed by the Tree-stored
     /// action and the corresponding access rule. Handles all the necessary
-    /// formatting, including spaces and new lines. \sa ruleDump()
+    /// formatting, including spaces and new lines. \sa ruleConfig()
+    /// \returns empty string if the tree does not store any access rules
     ///
     /// the supplied converter maps action.kind to a string
     template <class ActionToStringConverter>
-    SBufList treeDump(const SBuf &prefix, ActionToStringConverter) const;
+    SBuf directivesConfig(const SBuf &prefix, ActionToStringConverter) const;
 
-    /// treeDump(SBuf, ...) wrapper for legacy callers. TODO: Remove this diff reducer.
+    /// directivesConfig(SBuf, ...) wrapper for legacy callers. TODO: Remove this diff reducer.
     template <class ActionToStringConverter>
-    SBufList treeDump(const char * const prefix, const ActionToStringConverter action) const { return treeDump(SBuf(prefix), action); }
+    SBuf directivesConfig(const char * const prefix, const ActionToStringConverter action) const { return directivesConfig(SBuf(prefix), action); }
 
-    /// The list of acl names, each possibly prefixed with "!" (e.g., words that
-    /// follow an `http_access allow` directive line prefix). This method is for
-    /// code that uses a Tree object to store a single access rule. Code that
-    /// stores multiple access rules must use treeDump() instead.
-    SBufList ruleDump() const;
+    /// The `[!]aclname...` part of a single ACL-aware directive configuration
+    /// line (i.e. space-separated acl names, each possibly prefixed with "!").
+    /// This method is for code that uses a Tree object to store a single access
+    /// rule. Use directivesConfig() for code that stores multiple access rules.
+    /// \returns empty string if the tree does not store any access rules
+    SBuf ruleConfig() const;
 
     /// Returns the corresponding action after a successful tree match.
     Answer winningAction() const;
@@ -71,10 +72,10 @@ AllowOrDeny(const Answer &action)
 }
 
 template <class ActionToStringConverter>
-inline SBufList
-Tree::treeDump(const SBuf &prefix, const ActionToStringConverter converter) const
+inline SBuf
+Tree::directivesConfig(const SBuf &prefix, const ActionToStringConverter converter) const
 {
-    SBufList text;
+    SBufStream os;
     Actions::const_iterator action = actions.begin();
     typedef Nodes::const_iterator NCI;
     for (NCI node = nodes.begin(); node != nodes.end(); ++node) {
@@ -82,31 +83,28 @@ Tree::treeDump(const SBuf &prefix, const ActionToStringConverter converter) cons
         // number of words added to the current directive line
         size_t wordCount = 0;
 
-        const auto addWord = [&text,&wordCount](const SBuf &word) {
-            if (wordCount++) {
-                static const auto space = SBuf(" ");
-                text.push_back(space);
-            }
-            text.push_back(word);
+        const auto addText = [&os, &wordCount](const SBuf &word) {
+            if (wordCount++)
+                os << ' ';
+            os << word;
         };
 
-        addWord(prefix);
+        addText(prefix);
 
         if (action != actions.end()) {
             static const SBuf DefaultActString("???");
             const char *act = converter(*action);
-            addWord(act ? SBuf(act) : DefaultActString);
+            addText(act ? SBuf(act) : DefaultActString);
             ++action;
         }
 
         for (const auto &word: (*node)->dump()) {
-            addWord(word);
+            addText(word);
         }
 
-        static const auto nl = SBuf("\n");
-        text.push_back(nl);
+        os << '\n';
     }
-    return text;
+    return os.buf();
 }
 
 } // namespace Acl

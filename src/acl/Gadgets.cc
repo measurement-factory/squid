@@ -20,7 +20,6 @@
 #include "acl/AclDenyInfoList.h"
 #include "acl/Gadgets.h"
 #include "acl/Tree.h"
-#include "base/IoManip.h"
 #include "cache_cf.h"
 #include "ConfigParser.h"
 #include "errorpage.h"
@@ -198,8 +197,12 @@ aclParseAclList(ConfigParser &, ACLList **config, const char *label)
 void
 Acl::PrintOptionalRule(std::ostream &os, const char * const prefix, ACLList * const head)
 {
-    if (head)
-        os << AsList(ToTree(head).ruleDump()).prefixedBy(prefix).delimitedBy(" ");
+    if (head) {
+        const auto rule = ToTree(head).ruleConfig();
+        // aclParseAclList() may create a rule without ACLs (e.g., `note name value`)
+        if (!rule.isEmpty())
+            os << prefix << rule;
+    }
 }
 
 /*********************/

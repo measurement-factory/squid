@@ -9,6 +9,7 @@
 #include "squid.h"
 #include "acl/Checklist.h"
 #include "acl/Tree.h"
+#include "base/IoManip.h"
 #include "wordlist.h"
 
 Acl::Answer
@@ -66,17 +67,16 @@ Acl::Tree::bannedAction(ACLChecklist *checklist, Nodes::const_iterator node) con
     return false;
 }
 
-SBufList
-Acl::Tree::ruleDump() const
+SBuf
+Acl::Tree::ruleConfig() const
 {
     // Our callers store a single access rule. Such rules do not use actions
     // because their configuration essentially implies an "allow" action.
     Assure(actions.empty());
 
-    SBufList text;
-    for (const auto &node: nodes) {
-        text.splice(text.end(), node->dump());
-    }
-    return text;
+    SBufStream os;
+    for (const auto &node: nodes)
+        os << AsList(node->dump()).delimitedBy(" ");
+    return os.buf();
 }
 
