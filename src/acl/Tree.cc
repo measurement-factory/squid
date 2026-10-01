@@ -66,3 +66,17 @@ Acl::Tree::bannedAction(ACLChecklist *checklist, Nodes::const_iterator node) con
     return false;
 }
 
+SBufList
+Acl::Tree::ruleDump() const
+{
+    // Our callers store a single access rule. Such rules do not use actions
+    // because their configuration essentially implies an "allow" action.
+    Assure(actions.empty());
+
+    SBufList text;
+    for (const auto &node: nodes) {
+        text.splice(text.end(), node->dump());
+    }
+    return text;
+}
+

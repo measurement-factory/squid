@@ -62,8 +62,6 @@ wordlist *aclDumpGeneric(const Acl::Node *);
 void aclCacheMatchFlush(dlink_list * cache);
 /// \ingroup ACLAPI
 void dump_acl_access(StoreEntry * entry, const char *name, acl_access * head);
-/// \ingroup ACLAPI
-void dump_acl_list(StoreEntry * entry, ACLList * head);
 
 namespace Acl {
 /// convenient and safe access to a stored (and parsed/configured) Tree
@@ -72,6 +70,10 @@ namespace Acl {
 /// written so that ToTree() caller may just check that cfg itself is not nil
 /// (because parsing code never stores nil TreePointer objects).
 const Tree &ToTree(const TreePointer *cfg);
+
+/// Prints the "[!]aclname..." part of a single ACL-aware directive
+/// configuration line after the given prefix (if that rule was configured).
+void PrintOptionalRule(std::ostream &, const char *prefix, ACLList *);
 }
 
 #endif /* SQUID_SRC_ACL_GADGETS_H */

@@ -24,7 +24,12 @@ class Tree: public OrNode
     MEMPROXY_CLASS(Tree);
 
 public:
-    /// dumps <prefix, action, rule, new line> tuples
+    /// The list of tokens, spaces, and new lines that, if concatenated, produce
+    /// a valid configuration text containing zero or more directive lines. Each
+    /// directive is formed by the given prefix followed by the Tree-stored
+    /// action and the corresponding access rule. Handles all the necessary
+    /// formatting, including spaces and new lines. \sa ruleDump()
+    ///
     /// the supplied converter maps action.kind to a string
     template <class ActionToStringConverter>
     SBufList treeDump(const SBuf &prefix, ActionToStringConverter) const;
@@ -32,6 +37,12 @@ public:
     /// treeDump(SBuf, ...) wrapper for legacy callers. TODO: Remove this diff reducer.
     template <class ActionToStringConverter>
     SBufList treeDump(const char * const prefix, const ActionToStringConverter action) const { return treeDump(SBuf(prefix), action); }
+
+    /// The list of acl names, each possibly prefixed with "!" (e.g., words that
+    /// follow an `http_access allow` directive line prefix). This method is for
+    /// code that uses a Tree object to store a single access rule. Code that
+    /// stores multiple access rules must use treeDump() instead.
+    SBufList ruleDump() const;
 
     /// Returns the corresponding action after a successful tree match.
     Answer winningAction() const;
@@ -66,23 +77,34 @@ Tree::treeDump(const SBuf &prefix, const ActionToStringConverter converter) cons
     SBufList text;
     Actions::const_iterator action = actions.begin();
     typedef Nodes::const_iterator NCI;
-    const NCI lastNode = nodes.empty() ? nodes.end() : std::prev(nodes.end());
     for (NCI node = nodes.begin(); node != nodes.end(); ++node) {
 
-        text.push_back(prefix);
+        // number of words added to the current directive line
+        size_t wordCount = 0;
+
+        const auto addWord = [&text,&wordCount](const SBuf &word) {
+            if (wordCount++) {
+                static const auto space = SBuf(" ");
+                text.push_back(space);
+            }
+            text.push_back(word);
+        };
+
+        addWord(prefix);
 
         if (action != actions.end()) {
             static const SBuf DefaultActString("???");
             const char *act = converter(*action);
-            text.push_back(act ? SBuf(act) : DefaultActString);
+            addWord(act ? SBuf(act) : DefaultActString);
             ++action;
         }
 
-        text.splice(text.end(), (*node)->dump());
-        if (node != lastNode) {
-            static const SBuf LF("\n");
-            text.push_back(LF);
+        for (const auto &word: (*node)->dump()) {
+            addWord(word);
         }
+
+        static const auto nl = SBuf("\n");
+        text.push_back(nl);
     }
     return text;
 }
