@@ -3960,7 +3960,7 @@ static void dump_icap_service_failure_limit(StoreEntry *entry, const char *name,
     if (cfg.oldest_service_failure > 0) {
         PackableStream os(*entry);
         os << " in";
-        dump_time_unit(os, static_cast<int>(cfg.oldest_service_failure));
+        dump_time_unit(os, cfg.oldest_service_failure);
     }
     storeAppendPrintf(entry, "\n");
 }
@@ -4541,7 +4541,7 @@ dump_UrlHelperTimeout(StoreEntry *entry, const char *name, SquidConfig::UrlHelpe
 
     PackableStream os(*entry);
     os << name;
-    dump_time_unit(os, static_cast<int>(Config.Timeout.urlRewrite));
+    dump_time_unit(os, Config.Timeout.urlRewrite);
     os << " on_timeout=" << onTimedOutActions[config.action];
 
     if (config.response)
