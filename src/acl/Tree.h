@@ -34,10 +34,6 @@ public:
     template <class ActionToStringConverter>
     SBuf directivesConfig(const SBuf &prefix, ActionToStringConverter) const;
 
-    /// directivesConfig(SBuf, ...) wrapper for legacy callers. TODO: Remove this diff reducer.
-    template <class ActionToStringConverter>
-    SBuf directivesConfig(const char * const prefix, const ActionToStringConverter action) const { return directivesConfig(SBuf(prefix), action); }
-
     /// The `[!]aclname...` part of a single ACL-aware directive configuration
     /// line (i.e. space-separated acl names, each possibly prefixed with "!").
     /// This method is for code that uses a Tree object to store a single access

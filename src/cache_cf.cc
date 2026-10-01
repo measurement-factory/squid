@@ -1220,7 +1220,7 @@ void
 dump_acl_access(StoreEntry * entry, const char *name, acl_access * head)
 {
     if (head)
-        dumpLines(entry, ToTree(head).directivesConfig(name, &Acl::AllowOrDeny));
+        dumpLines(entry, ToTree(head).directivesConfig(SBuf(name), &Acl::AllowOrDeny));
 }
 
 static void
@@ -1705,7 +1705,7 @@ static void
 dump_AuthSchemes(StoreEntry *entry, const char *name, acl_access *authSchemes)
 {
     if (authSchemes)
-        dumpLines(entry, ToTree(authSchemes).directivesConfig(name, [](const Acl::Answer &action) {
+        dumpLines(entry, ToTree(authSchemes).directivesConfig(SBuf(name), [](const Acl::Answer &action) {
         return Auth::TheConfig.schemeLists.at(action.kind).rawSchemes;
     }));
 }
@@ -4205,7 +4205,7 @@ static void parse_sslproxy_ssl_bump(acl_access **ssl_bump)
 static void dump_sslproxy_ssl_bump(StoreEntry *entry, const char *name, acl_access *ssl_bump)
 {
     if (ssl_bump)
-        dumpLines(entry, ToTree(ssl_bump).directivesConfig(name, [](const Acl::Answer &action) {
+        dumpLines(entry, ToTree(ssl_bump).directivesConfig(SBuf(name), [](const Acl::Answer &action) {
         return Ssl::BumpModeStr.at(action.kind);
     }));
 }
@@ -4448,7 +4448,7 @@ static void parse_ftp_epsv(acl_access **ftp_epsv)
 static void dump_ftp_epsv(StoreEntry *entry, const char *name, acl_access *ftp_epsv)
 {
     if (ftp_epsv)
-        dumpLines(entry, ToTree(ftp_epsv).directivesConfig(name, Acl::AllowOrDeny));
+        dumpLines(entry, ToTree(ftp_epsv).directivesConfig(SBuf(name), Acl::AllowOrDeny));
 }
 
 static void free_ftp_epsv(acl_access **ftp_epsv)
@@ -4590,7 +4590,7 @@ dump_on_unsupported_protocol(StoreEntry *entry, const char *name, acl_access *ac
         "respond"
     };
     if (access) {
-        const auto lines = ToTree(access).directivesConfig(name, [](const Acl::Answer &action) {
+        const auto lines = ToTree(access).directivesConfig(SBuf(name), [](const Acl::Answer &action) {
             return onErrorTunnelMode.at(action.kind);
         });
         dumpLines(entry, lines);
