@@ -30,6 +30,8 @@ bool Debug::log_syslog = false;
 int Debug::Levels[MAX_DEBUG_SECTIONS];
 char *Debug::cache_log = nullptr;
 int Debug::rotateNumber = -1;
+uint64_t Debug::ExceptionsNumber = 0;
+SourceLocation Debug::FailureLocation = SourceLocation("", "", 0);
 
 /// a counter related to the number of debugs() calls
 using DebugRecordCount = uint64_t;
@@ -1375,6 +1377,11 @@ Debug::ContextCleanup() noexcept
 void
 Debug::Finish()
 {
+    // Log the exception before creating LoggingSectionGuard so
+    // that the exception message is logged before the Current message
+    if (Debug::ExceptionsNumber)
+        Debug::LogException();
+
     const LoggingSectionGuard sectionGuard;
 
     // TODO: #include "base/CodeContext.h" instead if doing so works well.
@@ -1406,10 +1413,35 @@ Debug::Finish()
 }
 
 void
-Debug::HandleException(const SourceLocation &) noexcept
+Debug::HandleException(const SourceLocation &location) noexcept
 {
-    // TODO: store statistics about debugs() exceptions
+    if (!Debug::ExceptionsNumber) { // log the first location if there are many
+        static_assert(noexcept(Debug::FailureLocation = location)); // duplicates the expression below
+        Debug::FailureLocation = location;
+    }
     ContextCleanup();
+    Debug::ExceptionsNumber++;
+}
+
+void
+Debug::LogException()
+{
+    assert(ExceptionsNumber);
+
+    const auto loc = FailureLocation;
+    const auto num = ExceptionsNumber;
+
+    // reset first to avoid recursion
+    FailureLocation = SourceLocation("", "", 0);
+    ExceptionsNumber = 0;
+
+    debugs(0, DBG_CRITICAL, "ERROR: Squid BUG: debugs() failure" <<
+           Extra << "exceptions since last successful call: " << num <<
+           Extra << "first problematic debugs() location:" <<
+           Extra << loc);
+
+    // check whether the debugs() above was successful
+    assert(!ExceptionsNumber);
 }
 
 void

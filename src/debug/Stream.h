@@ -83,6 +83,10 @@ public:
     static int Levels[MAX_DEBUG_SECTIONS];
     static int override_X;
     static bool log_syslog;
+    /// the number of unsuccessful debugs() calls between two successful calls
+    static uint64_t ExceptionsNumber;
+    /// the first problematic debugs() code location that caused an exception
+    static SourceLocation FailureLocation;
 
     // TODO: Convert all helpers to use debugs() and NameThisHelper() APIs.
     /// Use the given name for debugs() messages from this helper process.
@@ -168,6 +172,9 @@ public:
     /// Finalizes syslog configuration when no (more) ConfigureSyslog() calls
     /// are expected.
     static void SettleSyslog();
+
+    /// log an internal debugs() error as a DBG_CRITICAL message
+    static void LogException();
 
     /// takes care of debugs() exceptions
     static void HandleException(const SourceLocation &) noexcept;

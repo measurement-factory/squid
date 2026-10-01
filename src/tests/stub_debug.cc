@@ -74,6 +74,7 @@ Debug::Extra(std::ostream &os)
 bool Debug::StderrEnabled() STUB_RETVAL(false)
 void Debug::PrepareToDie() STUB
 void Debug::HandleException(const SourceLocation &) noexcept STUB
+void Debug::LogException() STUB
 
 void
 Debug::parseOptions(char const *)
