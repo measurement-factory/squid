@@ -28,6 +28,7 @@ public:
     /// directive is formed by the given prefix followed by the Tree-stored
     /// action and the corresponding access rule. Handles all the necessary
     /// formatting, including spaces and new lines. \sa ruleConfig()
+    /// \prec prefix is not empty
     /// \returns empty string if the tree does not store any access rules
     ///
     /// the supplied converter maps action.kind to a string
@@ -71,31 +72,23 @@ template <class ActionToStringConverter>
 inline SBuf
 Tree::directivesConfig(const SBuf &prefix, const ActionToStringConverter converter) const
 {
+    Assure(!prefix.isEmpty());
     SBufStream os;
     Actions::const_iterator action = actions.begin();
     typedef Nodes::const_iterator NCI;
     for (NCI node = nodes.begin(); node != nodes.end(); ++node) {
 
-        // number of words added to the current directive line
-        size_t wordCount = 0;
-
-        const auto addText = [&os, &wordCount](const SBuf &word) {
-            if (wordCount++)
-                os << ' ';
-            os << word;
-        };
-
-        addText(prefix);
+        os << prefix;
 
         if (action != actions.end()) {
             static const SBuf DefaultActString("???");
             const char *act = converter(*action);
-            addText(act ? SBuf(act) : DefaultActString);
+            os << ' ' << (act ? SBuf(act) : DefaultActString);
             ++action;
         }
 
         for (const auto &word: (*node)->dump()) {
-            addText(word);
+            os << ' ' << word;
         }
 
         os << '\n';
