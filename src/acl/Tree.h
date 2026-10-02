@@ -83,9 +83,9 @@ Tree::directivesConfig(const SBuf &prefix, const ActionToStringConverter convert
         os << prefix;
 
         if (action != actions.end()) {
-            static const SBuf DefaultActString("???");
+            const auto DefaultActString = "???"; // TODO: Assure(act) instead.
             const char *act = converter(*action);
-            os << ' ' << (act ? SBuf(act) : DefaultActString);
+            os << ' ' << (act ? act : DefaultActString);
             ++action;
         }
 
