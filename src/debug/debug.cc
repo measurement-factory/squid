@@ -1406,7 +1406,7 @@ Debug::Finish()
 }
 
 void
-Debug::HandleException(const SourceLocation &) noexcept
+Debug::HandleException() noexcept
 {
     // TODO: store statistics about debugs() exceptions
     ContextCleanup();
