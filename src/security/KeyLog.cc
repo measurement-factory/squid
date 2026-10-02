@@ -71,11 +71,7 @@ Security::KeyLog::dump(std::ostream &os) const
 {
     os << filename;
     dumpOptions(os);
-    if (aclList) {
-        // TODO: Use Acl::dump() after fixing the XXX in dump_acl_list().
-        for (const auto &acl: ToTree(aclList).treeDump("if", &Acl::AllowOrDeny))
-            os << ' ' << acl;
-    }
+    Acl::PrintOptionalRule(os, " if ", aclList);
 }
 
 void

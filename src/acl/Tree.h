@@ -11,8 +11,9 @@
 
 #include "acl/Acl.h"
 #include "acl/BoolOps.h"
+#include "base/IoManip.h"
 #include "cbdata.h"
-#include "sbuf/List.h"
+#include "sbuf/Stream.h"
 
 namespace Acl
 {
@@ -24,14 +25,24 @@ class Tree: public OrNode
     MEMPROXY_CLASS(Tree);
 
 public:
-    /// dumps <prefix, action, rule, new line> tuples
+    /// Configuration text containing zero or more directive lines. Each
+    /// directive is formed by the given prefix followed by the Tree-stored
+    /// action and the corresponding access rule. Handles all the necessary
+    /// formatting, including spaces and new lines. \sa ruleConfig()
+    /// \prec prefix is not empty
+    /// \returns empty string if the tree does not store any access rules
+    ///
     /// the supplied converter maps action.kind to a string
     template <class ActionToStringConverter>
-    SBufList treeDump(const SBuf &prefix, ActionToStringConverter) const;
+    SBuf directivesConfig(const SBuf &prefix, ActionToStringConverter) const;
 
-    /// treeDump(SBuf, ...) wrapper for legacy callers. TODO: Remove this diff reducer.
-    template <class ActionToStringConverter>
-    SBufList treeDump(const char * const prefix, const ActionToStringConverter action) const { return treeDump(SBuf(prefix), action); }
+    /// The `[!]aclname...` part of a single ACL-aware directive configuration
+    /// line (i.e. space-separated acl names, each possibly prefixed with "!").
+    /// This method is for code that uses a Tree object to store a single access
+    /// rule. Use directivesConfig() for code that stores multiple access rules.
+    /// \returns empty string if the tree does not store any access rules
+    /// \sa PrintOptionalRule()
+    SBuf ruleConfig() const;
 
     /// Returns the corresponding action after a successful tree match.
     Answer winningAction() const;
@@ -60,27 +71,29 @@ AllowOrDeny(const Answer &action)
 }
 
 template <class ActionToStringConverter>
-inline SBufList
-Tree::treeDump(const SBuf &prefix, const ActionToStringConverter converter) const
+inline SBuf
+Tree::directivesConfig(const SBuf &prefix, const ActionToStringConverter converter) const
 {
-    SBufList text;
+    Assure(!prefix.isEmpty());
+    SBufStream os;
     Actions::const_iterator action = actions.begin();
     typedef Nodes::const_iterator NCI;
     for (NCI node = nodes.begin(); node != nodes.end(); ++node) {
 
-        text.push_back(prefix);
+        os << prefix;
 
         if (action != actions.end()) {
-            static const SBuf DefaultActString("???");
+            const auto DefaultActString = "???"; // TODO: Assure(act) instead.
             const char *act = converter(*action);
-            text.push_back(act ? SBuf(act) : DefaultActString);
+            os << ' ' << (act ? act : DefaultActString);
             ++action;
         }
 
-        text.splice(text.end(), (*node)->dump());
-        text.push_back(SBuf("\n"));
+        os << AsList((*node)->dump()).prefixedBy(" ").delimitedBy(" ");
+
+        os << '\n';
     }
-    return text;
+    return os.buf();
 }
 
 } // namespace Acl
