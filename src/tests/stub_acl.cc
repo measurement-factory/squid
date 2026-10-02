@@ -19,7 +19,7 @@
 size_t aclParseAclList(ConfigParser &, ACLList **, const char *) STUB_RETVAL(0)
 void aclDestroyAclList(ACLList **) STUB
 const Acl::Tree &Acl::ToTree(const TreePointer *) STUB_RETREF(Acl::Tree)
-void Acl::PrintOptionalRule(std::ostream &, const char *, ACLList *) STUB
+void Acl::PrintOptionalRule(std::ostream &, const char *, const ACLList *) STUB
 
 #include "acl/Checklist.h"
 ACLChecklist::ACLChecklist() STUB

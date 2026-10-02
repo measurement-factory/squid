@@ -195,7 +195,7 @@ aclParseAclList(ConfigParser &, ACLList **config, const char *label)
 }
 
 void
-Acl::PrintOptionalRule(std::ostream &os, const char * const prefix, ACLList * const head)
+Acl::PrintOptionalRule(std::ostream &os, const char * const prefix, const ACLList * const head)
 {
     if (head) {
         const auto rule = ToTree(head).ruleConfig();

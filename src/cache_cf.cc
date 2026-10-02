@@ -1225,7 +1225,7 @@ free_acl(Acl::NamedAcls **config)
 /// Acl::PrintOptionalRule() wrapper for older directives that use StoreEntry
 /// for configuration dumping and do not support the "if" prefix.
 static void
-dumpLegacyRule(StoreEntry * const entry, ACLList * const head)
+dumpLegacyRule(StoreEntry * const entry, const ACLList * const head)
 {
     if (head) {
         PackableStream os(*entry);

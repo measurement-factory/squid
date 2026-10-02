@@ -73,7 +73,7 @@ const Tree &ToTree(const TreePointer *cfg);
 
 /// Prints the "[!]aclname..." part of a single ACL-aware directive
 /// configuration line after the given prefix (if that rule was configured).
-void PrintOptionalRule(std::ostream &, const char *prefix, ACLList *);
+void PrintOptionalRule(std::ostream &, const char *prefix, const ACLList *);
 }
 
 #endif /* SQUID_SRC_ACL_GADGETS_H */
