@@ -11,6 +11,7 @@
 
 #include "acl/Acl.h"
 #include "acl/BoolOps.h"
+#include "base/IoManip.h"
 #include "cbdata.h"
 #include "sbuf/Stream.h"
 
@@ -40,6 +41,7 @@ public:
     /// This method is for code that uses a Tree object to store a single access
     /// rule. Use directivesConfig() for code that stores multiple access rules.
     /// \returns empty string if the tree does not store any access rules
+    /// \sa PrintOptionalRule()
     SBuf ruleConfig() const;
 
     /// Returns the corresponding action after a successful tree match.
@@ -87,9 +89,7 @@ Tree::directivesConfig(const SBuf &prefix, const ActionToStringConverter convert
             ++action;
         }
 
-        for (const auto &word: (*node)->dump()) {
-            os << ' ' << word;
-        }
+        os << AsList((*node)->dump()).prefixedBy(" ").delimitedBy(" ");
 
         os << '\n';
     }
