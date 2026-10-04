@@ -96,7 +96,7 @@ ThrowAnException()
 }
 
 // Recursively calls itself via debugs() until level <= maxLevel and
-// throws if level > maxLevel. 
+// throws if level > maxLevel.
 static const char *
 RecursiveDebugsSingleException(const int level, const int maxLevel)
 {
@@ -109,7 +109,7 @@ RecursiveDebugsSingleException(const int level, const int maxLevel)
 
 // Recursively calls itself via debugs() until level < maxLevel and then
 // either throws if level is in the (minThrowingLevel, maxThrowingLevel] range
-// or returns a string. 
+// or returns a string.
 static const char *
 RecursiveDebugsMultipleExceptions(const int level, const int minThrowingLevel, const int maxThrowingLevel, const int maxLevel)
 {
@@ -193,7 +193,7 @@ TestDebugs::TestMany(const int level, const int minThrowingLevel, const int maxT
 }
 
 void
-TestDebugs::testAll() 
+TestDebugs::testAll()
 {
     Debug::Levels[0] = 1;
     Debug::Levels[1] = 1;

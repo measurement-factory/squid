@@ -883,6 +883,7 @@ tests_testDebugs_SOURCES = \
 	tests/stub_CollapsedForwarding.cc \
 	ConfigOption.cc \
 	ConfigParser.cc \
+	tests/testDebugs.cc \
 	tests/stub_ETag.cc \
 	tests/stub_EventLoop.cc \
 	ExternalACLEntry.cc \
@@ -1040,8 +1041,7 @@ tests_testDebugs_SOURCES = \
 	tests/stub_wccp2.cc \
 	wccp2.h \
 	wordlist.cc \
-	wordlist.h \
-	tests/testDebugs.cc
+	wordlist.h
 nodist_tests_testDebugs_SOURCES = \
 	$(BUILT_SOURCES)
 tests_testDebugs_LDADD = \
