@@ -153,7 +153,7 @@ TestDebugs::TestSimple() {
 }
 
 // check that if there are N nested debugs() messages stored in the Debug::Current list
-// and the N+1 debugs() throws, these prevoius N messages are logged correctly
+// and the N+1 debugs() throws, these previous N messages are logged correctly
 void
 TestDebugs::TestOne(const int level, const int maxLevel) {
 #if !_SQUID_WINDOWS_
