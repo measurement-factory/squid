@@ -110,6 +110,7 @@ void Ssl::Helper::Shutdown()
 {
     if (!ssl_crtd)
         return;
+    ssl_crtd->retired = true;
     helperShutdown(ssl_crtd);
     wordlistDestroy(&ssl_crtd->cmdline);
     ssl_crtd = nullptr;
@@ -240,6 +241,7 @@ void Ssl::CertValidationHelper::Shutdown()
 {
     if (!ssl_crt_validator)
         return;
+    ssl_crt_validator->retired = true;
     helperShutdown(ssl_crt_validator);
     wordlistDestroy(&ssl_crt_validator->cmdline);
     ssl_crt_validator = nullptr;
