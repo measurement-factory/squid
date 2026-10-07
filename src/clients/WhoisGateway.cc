@@ -167,8 +167,7 @@ WhoisState::readReply(const Comm::ConnectionPointer &conn, char *aBuffer, size_t
     entry->timestampsSet();
     entry->flush();
 
-    if (!entry->makePublic())
-        entry->makePrivate(true);
+    entry->makePublic();
 
     if (dataWritten) // treat zero-length responses as incomplete
         fwd->markStoredReplyAsWhole("whois received/stored the entire response");

@@ -363,8 +363,14 @@ StoreEntry::mayStartSwapOut()
         return false;
     }
 
-    if (Store::Root().markedForDeletionAndAbandoned(*this)) {
-        debugs(20, 3, "marked for deletion and abandoned");
+    if (!publicKey()) {
+        debugs(20, 3, "private entry");
+        swapOutDecision(MemObject::SwapOut::swImpossible);
+        return false;
+    }
+
+    if (Store::Root().markedForDeletion(reinterpret_cast<const cache_key*>(key))) {
+        debugs(20, 3, "marked for deletion");
         swapOutDecision(MemObject::SwapOut::swImpossible);
         return false;
     }
