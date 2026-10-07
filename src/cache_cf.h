@@ -11,6 +11,7 @@
 #ifndef SQUID_SRC_CACHE_CF_H
 #define SQUID_SRC_CACHE_CF_H
 
+#include "acl/forward.h"
 #include "configuration/forward.h"
 #include "sbuf/forward.h"
 
@@ -29,6 +30,10 @@ void requirePathnameExists(const char *name, const char *path);
 void parse_time_t(time_t * var);
 /// Parse bytes number from a string
 void parseBytesOptionValue(size_t * bptr, const char *units, char const * value);
+
+/// parses an optional [ [if] [!]<acl>... ] line (e.g., ssl-bump) assigning the action to the Acl::Tree object
+/// \param mandatoryIf whether the "if" keyword must be placed before the list of ACLs
+void ParseAclWithAction(acl_access **treePointer, const Acl::Answer &action, const char *desc, bool mandatoryIf = false, Acl::Node *acl = nullptr);
 
 namespace Configuration {
 
