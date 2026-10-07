@@ -110,7 +110,6 @@ public:
     bool retryBrokenHelper = false; ///< Whether the requests must retried on BH replies
     SBuf onTimedOutResponse; ///< The response to use when helper response timedout
     char eom = '\n';   ///< The char which marks the end of (response) message, normally '\n'
-    bool retired = false; ///< whether the owner has abandoned this helper for good
 
     struct _stats {
         int requests = 0;
