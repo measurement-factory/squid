@@ -10,6 +10,7 @@
 
 #include "squid.h"
 #include "base/IoManip.h"
+#include "CollapsedForwarding.h"
 #include "ipc/StoreMap.h"
 #include "sbuf/SBuf.h"
 #include "SquidConfig.h"
@@ -163,6 +164,14 @@ Ipc::StoreMap::openForWriting(const cache_key *const key, sfileno &fileno)
     if (!staleAnchor)
         return nullptr;
 
+    return replaceFileNoCommon(name, currentIdx, staleAnchor, fileno);
+}
+
+Ipc::StoreMap::Anchor *
+Ipc::StoreMap::replaceFileNoCommon(sfileno name, sfileno currentIdx, const Ipc::StoreMap::Anchor * const staleAnchor, sfileno &fresh)
+{
+    assert(staleAnchor);
+
     Update::Edition available;
     if (!openKeyless(available)) { // XXX: debugs() will say "for updating"
         debugs(54, 5, "no anchors to replace stale entry " << currentIdx << " to write " << path);
@@ -194,14 +203,14 @@ Ipc::StoreMap::openForWriting(const cache_key *const key, sfileno &fileno)
     relocate(name, available.fileNo);
     relocate(available.name, currentIdx);
 
+    fresh = available.fileNo;
+
     staleAnchor->lock.unlockHeaders();
     closeForReading(currentIdx);
 
-    debugs(54, 5, "opened entry " << available.fileNo << " under name " << name << " for writing " << path <<
-           " after moving marked entry " << currentIdx << " to name " << available.name);
+    debugs(54, 5, "replaced stale entry " << currentIdx << " under name " << name << " with fresh entry " <<
+            available.fileNo << " under name " << available.name << " in " << path);
 
-    // available.fileNo is left locked for writing
-    fileno = available.fileNo;
     return available.anchor;
 }
 
@@ -371,6 +380,38 @@ Ipc::StoreMap::abortUpdating(Update &update)
         update.fresh = Update::Edition();
     }
     debugs(54, 5, "aborted entry " << fileno << " for updating " << path);
+}
+
+bool
+Ipc::StoreMap::startFileNoReplacing(const cache_key *const key, sfileno &fresh)
+{
+    const auto name = nameByKey(key);
+    const int currentIdx = fileNoByName(name);
+
+    const auto staleAnchor = openForReadingAt(currentIdx, key);
+    if (!staleAnchor) {
+        debugs(54, 5, "cannot open unreadable entry " << currentIdx << " for reading " << path);
+        return false;
+    }
+
+    debugs(54, 5, "replacing stale entry " << currentIdx << " to write " << path);
+
+    if (auto freshAnchor = replaceFileNoCommon(name, currentIdx, staleAnchor, fresh)) {
+        freshAnchor->isRelocating = true;
+        freshAnchor->lock.switchExclusiveToShared();
+        freeEntry(currentIdx);
+        return true;
+    }
+    return false;
+}
+
+void
+Ipc::StoreMap::finishFileNoReplacing(const sfileno fresh)
+{
+    auto &s = anchorAt(fresh);
+    assert(s.reading());
+    s.isRelocating = false;
+    closeForReading(fresh);
 }
 
 const Ipc::StoreMap::Anchor *
@@ -757,6 +798,10 @@ Ipc::StoreMap::closeForUpdating(Update &update)
         Must(freshSplicingSlice.next == suffixStart);
     // either way, fresh chain uses the stale chain suffix now
 
+    // update Transients entry index before the fresh anchor becomes available
+    sfileno freshTransientsFileNo = 0;
+    const bool transientsUpdated = Store::Root().transientsUpdateStart(*update.entry, freshTransientsFileNo);
+
     // make the fresh anchor/chain readable for everybody
     update.fresh.anchor->lock.switchExclusiveToShared();
     // but the fresh anchor is still invisible to anybody but us
@@ -798,6 +843,12 @@ Ipc::StoreMap::closeForUpdating(Update &update)
     // finally, unlock the fresh entry
     closeForReading(update.fresh.fileNo);
     update.fresh = Update::Edition();
+
+    Store::Root().transientsUpdateFinish(freshTransientsFileNo);
+    // notify those who could have attached to the updated Transients entry
+    // so that they could anchorToCache()
+    if (transientsUpdated)
+        CollapsedForwarding::Broadcast(freshTransientsFileNo, Here(), false);
 
     debugs(54, 5, "closed entry " << updateSaved.stale.fileNo << " of " << *updateSaved.entry <<
            " named " << updateSaved.stale.name << " for updating " << path <<
@@ -1226,6 +1277,7 @@ Ipc::StoreMapAnchor::rewind()
     waitingToBeFreed = false;
     // no freeingCheckpoint() here because we are only called for a locked entry
     writerHalted = false;
+    isRelocating = false;
     // but keep the lock
 }
 

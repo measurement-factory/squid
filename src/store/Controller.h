@@ -116,6 +116,10 @@ public:
     /// disassociates the entry from the intransit table
     void transientsDisconnect(StoreEntry &);
 
+    /// associates a new intransit table index with the entry key
+    bool transientsUpdateStart(StoreEntry &, sfileno &fresh);
+    void transientsUpdateFinish(sfileno fresh);
+
     /// disassociates the entry from the memory cache, preserving cached data
     void memoryDisconnect(StoreEntry &);
 
