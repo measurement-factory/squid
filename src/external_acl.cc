@@ -157,7 +157,6 @@ external_acl::~external_acl()
 
     if (theHelper) {
         theHelper->cmdline = nullptr; // destroyed below
-        theHelper->retired = true;
         helperShutdown(theHelper);
         theHelper = nullptr;
     }

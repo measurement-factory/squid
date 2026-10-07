@@ -210,8 +210,6 @@ helperOpenServers(const helper::Pointer &hlp)
     void * hIpc;
     wordlist *w;
 
-    assert(!hlp->retired);
-
     if (hlp->cmdline == nullptr)
         return;
 
@@ -442,8 +440,6 @@ helperStatefulOpenServers(const statefulhelper::Pointer &hlp)
 void
 helper::submitRequest(Helper::Xaction *r)
 {
-    assert(!retired);
-
     helper_server *srv;
 
     if ((srv = GetFirstAvailable(this)))
@@ -517,9 +513,6 @@ helper::syncQueueStats()
 bool
 helper::prepSubmit()
 {
-    if (retired)
-        return false; // should not submit to a retired helper
-
     // re-sync for the configuration may have changed since the last submission
     syncQueueStats();
 
@@ -945,7 +938,7 @@ helperReturnBuffer(helper_server * srv, const helper::Pointer &hlp, char * msg, 
         bool retry = false;
         if (cbdataReferenceValid(r->request.data)) {
             r->reply.finalize();
-            if (r->reply.result == Helper::BrokenHelper && r->request.retries < MAX_RETRIES && !hlp->retired) {
+            if (r->reply.result == Helper::BrokenHelper && r->request.retries < MAX_RETRIES && !srv->flags.shutdown) {
                 debugs(84, DBG_IMPORTANT, "ERROR: helper: " << r->reply << ", attempt #" << (r->request.retries + 1) << " of 2");
                 retry = true;
             } else {
@@ -1541,7 +1534,7 @@ helper_server::checkForTimedOutRequests(bool const retry)
         debugs(84, 2, "Request " << r->request.Id << " timed-out, remove it from queue");
         void *cbdata;
         bool retried = false;
-        if (retry && r->request.retries < MAX_RETRIES && !parent->retired && cbdataReferenceValid(r->request.data)) {
+        if (retry && r->request.retries < MAX_RETRIES && !flags.shutdown && cbdataReferenceValid(r->request.data)) {
             debugs(84, 2, "Retry request " << r->request.Id);
             ++r->request.retries;
             parent->submitRequest(r);
