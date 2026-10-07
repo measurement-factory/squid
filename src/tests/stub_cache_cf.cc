@@ -37,6 +37,7 @@ void dump_acl_list(StoreEntry*, ACLList*) STUB
 void Configuration::SwitchToGeneratedInput(const SBuf &) STUB
 void Configuration::SwitchToExternalInput(const char *, bool) STUB
 void Configuration::SwitchTo(const Location &) STUB
+void dump_SBufList(std::ostream &, const SBufList &) STUB
 
 #include "configuration/Preprocessor.h"
 void Configuration::PreprocessedDirective::print(std::ostream &) const STUB
