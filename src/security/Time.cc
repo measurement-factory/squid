@@ -19,17 +19,35 @@
 
 #if USE_OPENSSL
 Security::TimePointer
-Security::ParseTime(const char * const generalizedTime, const char * const description)
+Security::Clone(const TimePointer &old)
 {
-    assert(generalizedTime);
+    if (!old)
+        return nullptr;
+
+#if USE_OPENSSL
+    // OpenSSL v1.0 API appears to lack ASN1_TIME_dup() so we emulate until we can require OpenSSL v1.1.
+    TimePointer t(static_cast<ASN1_TIME*>(ASN1_STRING_dup(static_cast<const ASN1_STRING *>(old.get()))));
+    if (!t)
+        throw TextException("OpenSSL ASN1_STRING_dup() failed", Here());
+    return t;
+#elif USE_GNUTLS
+    throw TextException("Missing GnuTLS support for Time manipulation", Here());
+#else
+    throw TextException("TLS library required for Time manipulation ", Here());
+#endif
+}
+
+Security::TimePointer
+Security::ParseTime(const SBuf &generalizedTime, const char * const description)
+{
     debugs(33, DBG_PARSE_NOTE(2), description << ": " << generalizedTime);
 
 #if USE_OPENSSL
-    TimePointer t(ASN1_TIME_set(nullptr, 0));
+    TimePointer t(ASN1_TIME_new());
     if (!t)
-        throw TextException(ToSBuf("ASN1_TIME_set() failed to allocate an ASN1_TIME structure for parsing ", description), Here());
+        throw TextException(ToSBuf("ASN1_TIME_new() failed to allocate an ASN1_TIME structure for parsing ", description), Here());
 #if HAVE_LIBCRYPTO_ASN1_TIME_SET_STRING
-    if (!ASN1_TIME_set_string(t.get(), generalizedTime))
+    if (!ASN1_TIME_set_string(t.get(), SBuf(generalizedTime).c_str()))
         throw TextException(ToSBuf("ASN1_TIME_set_string() failed to parse ", description, ": ", generalizedTime), Here());
 #else
     throw TextException(ToSBuf("Need OpenSSL version providing ASN1_TIME_set_string() to parse ", description), Here());
@@ -67,10 +85,12 @@ Security::TimePointer
 Security::MakeTime(const time_t time)
 {
 #if USE_OPENSSL
-    TimePointer result(ASN1_TIME_set(nullptr, time));
-    if (!result)
-        throw TextException(ToSBuf("OpenSSL ASN1_TIME_set(", time, ") failed"), Here());
-    return result;
+    TimePointer t(ASN1_TIME_new());
+    if (!t)
+        throw TextException(ToSBuf("ASN1_TIME_new() failed to allocate an ASN1_TIME structure", Ssl::ReportAndForgetErrors), Here());
+    if (!ASN1_TIME_set(t.get(), time))
+        throw TextException(ToSBuf("OpenSSL ASN1_TIME_set(", time, ") failed", Ssl::ReportAndForgetErrors), Here());
+    return t;
 #elif USE_GNUTLS
     throw TextException("Missing GnuTLS support for Security::MakeTime(time_t)", Here());
 #else

@@ -4323,18 +4323,17 @@ static void parse_sslproxy_cert_adapt(sslproxy_cert_adapt **cert_adapt)
         // TODO: Use Tokenizer after upgrading sslproxy_cert_adapt from a POD.
         if (const auto comma = strchr(param, ',')) {
             ca->param = xstrdup(param);
-            ca->param1 = xstrndup(param, comma - param + 1);
-            ca->param2 = xstrdup(comma + 1);
+            ca->validityRangeFrom = Security::ParseTime(SBuf(param, comma - param + 1), "'from' parameter of setValidityRange algorithm");
+            ca->validityRangeTo = Security::ParseTime(SBuf(comma + 1), "'to' parameter of setValidityRange algorithm");
         } else {
             reject("setValidityRange is missing a comma between {from,to} parameters", param);
         }
 
-        // TODO: Upgrade sslproxy_cert_adapt from a POD and store these there.
-        const auto from = Security::ParseTime(ca->param1, "setValidityRange 'from' parameter");
-        const auto to = Security::ParseTime(ca->param2, "setValidityRange 'to' parameter");
-        if (*to < *from)
+        Assure(ca->validityRangeFrom);
+        Assure(ca->validityRangeTo);
+        if (*ca->validityRangeTo < *ca->validityRangeFrom)
             reject("setValidityRange 'from' parameter is greater than 'to': ", param);
-        CheckValidityRangeFreshness(*ca, *from, *to);
+        CheckValidityRangeFreshness(*ca, *ca->validityRangeFrom, *ca->validityRangeTo);
     } else if (strcmp(al, Ssl::CertAdaptAlgorithmStr[Ssl::algSetRepeatingValidityRange]) == 0) {
         ca->alg = Ssl::algSetRepeatingValidityRange;
 
@@ -4356,6 +4355,7 @@ static void parse_sslproxy_cert_adapt(sslproxy_cert_adapt **cert_adapt)
 
         // TODO: Support time-units? See parseTimeUnit().
         const auto days = xatoi(param);
+
         if (days <= 0)
             reject("setRepeatingValidityRange parameter must be a positive integer; got ", param);
 
@@ -4366,6 +4366,7 @@ static void parse_sslproxy_cert_adapt(sslproxy_cert_adapt **cert_adapt)
             reject(ToSBuf("setRepeatingValidityRange parameter value exceeds ", maxValue, " days: ", param).c_str());
 
         ca->param = xstrdup(param);
+        ca->validityRangePeriodDurationSeconds = days * secondsInValidityDay;
     } else {
         debugs(3, DBG_CRITICAL, "FATAL: sslproxy_cert_adapt: unknown cert adaptation algorithm: " << al);
         self_destruct();

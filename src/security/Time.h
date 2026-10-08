@@ -14,9 +14,13 @@
 
 namespace Security {
 
+/// Creates a new Time object with the value pointed to by the given parameter.
+/// \returns nil if the parameter is nil
+TimePointer Clone(const TimePointer &);
+
 /// creates a time object by parsing input in GeneralizedTime format
 /// \param description what is being parsed (for errors/debugging)
-TimePointer ParseTime(const char *input, const char *description);
+TimePointer ParseTime(const SBuf &input, const char *description);
 
 /// POSIX time_t representation of the given certificate time
 time_t ToPosixTime(const Time &);

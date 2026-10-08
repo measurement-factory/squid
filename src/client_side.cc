@@ -2699,8 +2699,10 @@ void
 ConnStateData::configureRepeatingValidityRange(const sslproxy_cert_adapt &ca, Ssl::CertificateProperties &cfg)
 {
     Assure(ca.alg == Ssl::algSetRepeatingValidityRange);
+    Assure(ca.validityRangePeriodDurationSeconds);
 
-    const auto periodDuration = xatoi(ca.param)*24*60*60; // days to seconds; XXX: xatoi() calls self_destruct(); XXX: magic numbers
+    const auto periodDuration = *ca.validityRangePeriodDurationSeconds;
+    Assure(periodDuration > 0);
     const auto currentPeriodStart = (squid_curtime / periodDuration) * periodDuration;
     Assure(currentPeriodStart <= squid_curtime);
     Assure(squid_curtime < currentPeriodStart + periodDuration);
@@ -2758,8 +2760,8 @@ ConnStateData::configureCertAdaptation(Ssl::CertificateProperties &cfg, ACLFille
                 cfg.setCommonName = true;
             } else if (ca->alg == Ssl::algSetValidityRange) {
                 cfg.validityRange = param;
-                cfg.validityRangeFrom = Security::ParseTime(ca->param1, "validityRangeFrom");
-                cfg.validityRangeTo = Security::ParseTime(ca->param2, "validityRangeTo");
+                cfg.validityRangeFrom = Security::Clone(ca->validityRangeFrom);
+                cfg.validityRangeTo = Security::Clone(ca->validityRangeTo);
                 cfg.setValidityRange = true;
                 CheckValidityRangeFreshness(*ca, *cfg.validityRangeFrom, *cfg.validityRangeTo);
             } else if (ca->alg == Ssl::algSetRepeatingValidityRange) {
