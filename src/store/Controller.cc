@@ -709,25 +709,25 @@ Store::Controller::updateOnNotModified(StoreEntry *old, StoreEntry &e304)
             updateFinished(*old, e304, Ipc::StoreMapAnchor::uApplied);
             return true;
         }
+
+        bool needFinishUpdating = true;
+        if (sharedMemStore && old->mem_status == IN_MEMORY && !EBIT_TEST(old->flags, ENTRY_SPECIAL)) {
+            sharedMemStore->updateHeaders(old, e304);
+            needFinishUpdating = false;
+        }
+
+        if (old->swap_dirn > -1) {
+            disks->updateHeaders(old, e304);
+            needFinishUpdating = false;
+        }
+
+        if (needFinishUpdating)
+            updateFinished(*old, e304, Ipc::StoreMapAnchor::uApplied);
     } catch (...) {
         debugs(20, DBG_IMPORTANT, "ERROR: Failed to update a cached response: " << CurrentException);
         updateFinished(*old, e304, Ipc::StoreMapAnchor::uFailed);
         return false;
     }
-
-    bool needFinishUpdating = true;
-    if (sharedMemStore && old->mem_status == IN_MEMORY && !EBIT_TEST(old->flags, ENTRY_SPECIAL)) {
-        sharedMemStore->updateHeaders(old, e304);
-        needFinishUpdating = false;
-    }
-
-    if (old->swap_dirn > -1) {
-        disks->updateHeaders(old, e304);
-        needFinishUpdating = false;
-    }
-
-    if (needFinishUpdating)
-        updateFinished(*old, e304, Ipc::StoreMapAnchor::uApplied);
 
     return true;
 }
@@ -933,7 +933,7 @@ Store::Controller::anchorToCache(StoreEntry &entry)
 }
 
 void
-Store::Controller::updateFinished(StoreEntry &e, const StoreEntry &e304, const Ipc::StoreMapAnchor::UpdateStatus updateStatus)
+Store::Controller::updateFinished(StoreEntry &e, const StoreEntry &e304, const Ipc::StoreMapAnchor::UpdateStatus updateStatus) noexcept
 {
     if (e.hasTransients()) {
         auto finalStatus = updateStatus;
@@ -944,11 +944,15 @@ Store::Controller::updateFinished(StoreEntry &e, const StoreEntry &e304, const I
             debugs(20, 2, "Failed to refresh transients entry " << CurrentException);
             finalStatus = Ipc::StoreMapAnchor::uFailed;
         }
-        // XXX: The above try/catch does not cover this code. Ideally, we want
-        // callers to be more resilient to exceptions, which is orthogonal to
-        // exception-reducing efforts (that may be valuable as well!).
-        if (e304.isSmpCollapsedRevalidationInitiator())
+
+        if (!e304.isSmpCollapsedRevalidationInitiator())
+            return;
+
+        try {
             transients->setUpdateStatus(e304.mem_obj->xitTable, finalStatus);
+        } catch (...) {
+            debugs(20, 2, CurrentException);
+        }
     }
 }
 
