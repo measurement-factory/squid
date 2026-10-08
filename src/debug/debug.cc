@@ -1363,6 +1363,16 @@ Debug::Start(const int section, const int level)
 }
 
 void
+Debug::ContextCleanup() noexcept
+{
+    auto past = Debug::Current;
+    Current = past->upper;
+    if (Current)
+        delete past;
+    // else it was a static topContext from Debug::Start()
+}
+
+void
 Debug::Finish()
 {
     const LoggingSectionGuard sectionGuard;
@@ -1392,11 +1402,14 @@ Debug::Finish()
     LogMessage(*Current);
     Current->forceAlert = false;
 
-    Context *past = Current;
-    Current = past->upper;
-    if (Current)
-        delete past;
-    // else it was a static topContext from Debug::Start()
+    ContextCleanup();
+}
+
+void
+Debug::HandleException() noexcept
+{
+    // TODO: store statistics about debugs() exceptions
+    ContextCleanup();
 }
 
 void
