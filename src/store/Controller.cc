@@ -715,11 +715,19 @@ Store::Controller::updateOnNotModified(StoreEntry *old, StoreEntry &e304)
         return false;
     }
 
-    if (sharedMemStore && old->mem_status == IN_MEMORY && !EBIT_TEST(old->flags, ENTRY_SPECIAL))
+    bool needFinishUpdating = true;
+    if (sharedMemStore && old->mem_status == IN_MEMORY && !EBIT_TEST(old->flags, ENTRY_SPECIAL)) {
         sharedMemStore->updateHeaders(old, e304);
+        needFinishUpdating = false;
+    }
 
-    if (old->swap_dirn > -1)
+    if (old->swap_dirn > -1) {
         disks->updateHeaders(old, e304);
+        needFinishUpdating = false;
+    }
+
+    if (needFinishUpdating)
+        updateFinished(*old, e304, Ipc::StoreMapAnchor::uApplied);
 
     return true;
 }
@@ -930,7 +938,7 @@ Store::Controller::updateFinished(StoreEntry &e, const StoreEntry &e304, const I
     if (e.hasTransients()) {
         auto finalStatus = updateStatus;
         try {
-            if (updateStatus == Ipc::StoreMapAnchor::uApplied)
+            if (updateStatus == Ipc::StoreMapAnchor::uApplied && e.store_status == STORE_OK)
                 transients->refreshEntry(e);
         } catch (...) {
             debugs(20, 2, "Failed to refresh transients entry " << CurrentException);
@@ -940,7 +948,7 @@ Store::Controller::updateFinished(StoreEntry &e, const StoreEntry &e304, const I
         // callers to be more resilient to exceptions, which is orthogonal to
         // exception-reducing efforts (that may be valuable as well!).
         if (e304.isSmpCollapsedRevalidationInitiator())
-            transients->setUpdateStatus(e304.mem_obj->xitTable, updateStatus);
+            transients->setUpdateStatus(e304.mem_obj->xitTable, finalStatus);
     }
 }
 

@@ -306,6 +306,8 @@ Transients::setUpdateStatus(const MemObject::XitTable &xitTable, const Ipc::Stor
 void
 Transients::refreshEntry(StoreEntry &e)
 {
+	Assure(e.store_status == STORE_OK);
+
     evictCached(e);
     const auto key = e.calcPublicKey(ksDefault);
     sfileno index = 0;
