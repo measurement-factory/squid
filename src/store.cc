@@ -619,9 +619,13 @@ StoreEntry::setPrivateKey(const bool shareable, const bool permanent, const Evic
     if (EBIT_TEST(flags, KEY_PRIVATE))
         return;
 
-    if (isSmpCollapsedRevalidationInitiator() && mem_obj->freshestReply().sline.status() != Http::scNotModified) {
-        // a private non-304 entry means that revalidation (if any) was unsuccessful
-        Store::Root().setUpdateStatus(mem_obj->xitTable, Ipc::StoreMapAnchor::uFailed);
+    if (isSmpCollapsedRevalidationInitiator()) {
+        const bool notModified = mem_obj->freshestReply().sline.status() == Http::scNotModified;
+        // revalidation (if any) was unsuccessful if
+        // we got a private non-304 entry and/or the client that initiated this transaction is gone
+        if (!notModified || storePendingNClients(this) == 0) {
+            Store::Root().setUpdateStatus(mem_obj->xitTable, Ipc::StoreMapAnchor::uFailed);
+        }
     }
 
     if (key) {

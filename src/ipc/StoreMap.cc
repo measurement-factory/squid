@@ -159,6 +159,13 @@ Ipc::StoreMap::openForWriting(const cache_key *const key, sfileno &fileno)
 
     debugs(54, 5, "replacing stale entry " << currentIdx << " to write " << path);
 
+    // The code below tries to assign a new anchor to get around the stale
+    // entry. In some situations the anchor consumption may increase significantly.
+    // For example, a resource needing revalidation is being slowly stored.
+    // Every new request to the same resource may get another 200 response after
+    // revalidation that deprecates the previous one and thus consumes additional
+    // anchor. N such requests will consume N additional anchors. TODO: optimize.
+
     const auto staleAnchor = openForReplacingAt(currentIdx, key);
     if (!staleAnchor)
         return nullptr;

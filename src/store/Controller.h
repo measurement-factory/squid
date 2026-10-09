@@ -125,7 +125,7 @@ public:
     StoreSearch *search();
 
     /// adjusts the shared transients entry after the 304 update has been successfully applied (or failed)
-    void updateFinished(StoreEntry &e, const StoreEntry &e304, Ipc::StoreMapAnchor::UpdateStatus);
+    void updateFinished(StoreEntry &e, const StoreEntry &e304, Ipc::StoreMapAnchor::UpdateStatus) noexcept;
 
     /// adjusts the 'updateStatus' shared transients entry state after the entry has been
     /// either updated by a 304 or overwritten by a cacheable response
