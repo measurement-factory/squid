@@ -9,6 +9,7 @@
 /* DEBUG: section 84    Helper process maintenance */
 
 #include "squid.h"
+#include "base/Assure.h"
 #include "base/AsyncCbdataCalls.h"
 #include "base/Packable.h"
 #include "base/Raw.h"
@@ -1395,6 +1396,8 @@ helperDispatchWriteDone(const Comm::ConnectionPointer &, char *, size_t, Comm::F
 static void
 helperDispatch(helper_server * srv, Helper::Xaction * r)
 {
+    Assure(!srv->flags.shutdown);
+
     const auto hlp = srv->parent;
     const uint64_t reqId = ++srv->nextRequestId;
 
