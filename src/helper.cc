@@ -9,6 +9,7 @@
 /* DEBUG: section 84    Helper process maintenance */
 
 #include "squid.h"
+#include "base/Assure.h"
 #include "base/AsyncCbdataCalls.h"
 #include "base/Packable.h"
 #include "base/Raw.h"
@@ -938,7 +939,7 @@ helperReturnBuffer(helper_server * srv, const helper::Pointer &hlp, char * msg, 
         bool retry = false;
         if (cbdataReferenceValid(r->request.data)) {
             r->reply.finalize();
-            if (r->reply.result == Helper::BrokenHelper && r->request.retries < MAX_RETRIES) {
+            if (r->reply.result == Helper::BrokenHelper && r->request.retries < MAX_RETRIES && !srv->flags.shutdown) {
                 debugs(84, DBG_IMPORTANT, "ERROR: helper: " << r->reply << ", attempt #" << (r->request.retries + 1) << " of 2");
                 retry = true;
             } else {
@@ -1395,6 +1396,8 @@ helperDispatchWriteDone(const Comm::ConnectionPointer &, char *, size_t, Comm::F
 static void
 helperDispatch(helper_server * srv, Helper::Xaction * r)
 {
+    Assure(!srv->flags.shutdown);
+
     const auto hlp = srv->parent;
     const uint64_t reqId = ++srv->nextRequestId;
 
@@ -1534,7 +1537,7 @@ helper_server::checkForTimedOutRequests(bool const retry)
         debugs(84, 2, "Request " << r->request.Id << " timed-out, remove it from queue");
         void *cbdata;
         bool retried = false;
-        if (retry && r->request.retries < MAX_RETRIES && cbdataReferenceValid(r->request.data)) {
+        if (retry && r->request.retries < MAX_RETRIES && !flags.shutdown && cbdataReferenceValid(r->request.data)) {
             debugs(84, 2, "Retry request " << r->request.Id);
             ++r->request.retries;
             parent->submitRequest(r);
