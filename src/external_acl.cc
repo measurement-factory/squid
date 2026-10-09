@@ -154,14 +154,12 @@ external_acl::external_acl() :
 external_acl::~external_acl()
 {
     xfree(name);
+    wordlistDestroy(&cmdline);
 
     if (theHelper) {
-        theHelper->cmdline = nullptr; // destroyed below
         helperShutdown(theHelper);
         theHelper = nullptr;
     }
-
-    wordlistDestroy(&cmdline);
 
     while (lru_list.tail) {
         ExternalACLEntryPointer e(static_cast<ExternalACLEntry *>(lru_list.tail->data));
