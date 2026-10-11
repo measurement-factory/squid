@@ -19,6 +19,7 @@
 
 #if !_SQUID_WINDOWS_
 
+// TODO: add Windows support
 // A helper class that counts stderr lines,
 // by redirecting file descriptor 2 (stderr) to a pipe,
 // then reading the pipe and counting newlines.
@@ -26,13 +27,16 @@ class StderrCapture
 {
 public:
     StderrCapture() {
+#if !_SQUID_WINDOWS_
         assert(pipe(pipeFd) != -1);
         savedStderr = dup(STDERR_FILENO);
         dup2(pipeFd[1], STDERR_FILENO);
         close(pipeFd[1]); // stderr now owns this fd
+#endif
     }
 
     ~StderrCapture() {
+#if !_SQUID_WINDOWS_
         restore();
 
         if (pipeFd[0] >= 0)
@@ -40,34 +44,36 @@ public:
 
         if (savedStderr >= 0)
             close(savedStderr);
-
+#endif
     }
 
-    int stopAndCountLines() {
-        restore();
-
+    void stopAndCountLines(int expectedLines) {
+#if !_SQUID_WINDOWS_
         int lines = 0;
+        restore();
         char buf[4096];
-
-        ssize_t n;
+        ssize_t n = 0;
         while ((n = read(pipeFd[0], buf, sizeof(buf))) > 0) {
             for (ssize_t i = 0; i < n; ++i)
                 lines += (buf[i] == '\n');
         }
-
-        return lines;
+        CPPUNIT_ASSERT_EQUAL(expectedLines, lines);
+#else
+        (void)expectedLines;
+#endif
     }
 
 private:
+#if !_SQUID_WINDOWS_
     void restore() {
         if (savedStderr >= 0) {
             fflush(stderr);
             dup2(savedStderr, STDERR_FILENO);
         }
     }
-
     int pipeFd[2] {-1, -1};
     int savedStderr {-1};
+#endif
 };
 
 #endif /* _SQUID_WINDOWS_ */
@@ -138,34 +144,24 @@ RecursiveDebugsMultipleExceptions(const int level, const int minThrowingLevel, c
 // other debugs() that go before and after the call
 void
 TestDebugs::TestSimple() {
-#if !_SQUID_WINDOWS_
     StderrCapture capture;
-#endif
     try {
         debugs(1, DBG_IMPORTANT, "message before");
         debugs(1, DBG_IMPORTANT, ThrowAnException());
         debugs(1, DBG_IMPORTANT, "message after");
     } catch (...) {}
-#if !_SQUID_WINDOWS_
-    const auto count = capture.stopAndCountLines();
-    CPPUNIT_ASSERT_EQUAL(2, count);
-#endif
+    capture.stopAndCountLines(2);
 }
 
 // check that if there are N nested debugs() messages stored in the Debug::Current list
 // and the N+1 debugs() throws, these previous N messages are logged correctly
 void
 TestDebugs::TestOne(const int level, const int maxLevel) {
-#if !_SQUID_WINDOWS_
     StderrCapture capture;
-#endif
     try {
         debugs(1, DBG_IMPORTANT, RecursiveDebugsSingleException(level, maxLevel));
     } catch (...) {}
-#if !_SQUID_WINDOWS_
-    const auto count = capture.stopAndCountLines();
-    CPPUNIT_ASSERT_EQUAL(maxLevel, count);
-#endif
+    capture.stopAndCountLines(maxLevel);
 }
 
 // This test stores N nested debugs() messages in the Debug::Current list,
@@ -178,18 +174,13 @@ TestDebugs::TestOne(const int level, const int maxLevel) {
 void
 TestDebugs::TestMany(const int level, const int minThrowingLevel, const int maxThrowingLevel, const int maxLevel)
 {
-#if !_SQUID_WINDOWS_
     StderrCapture capture;
-#endif
     try {
         debugs(1, DBG_IMPORTANT, RecursiveDebugsMultipleExceptions(level, minThrowingLevel, maxThrowingLevel, maxLevel));
     } catch (...) {}
-#if !_SQUID_WINDOWS_
-    const auto count = capture.stopAndCountLines();
     const auto before = minThrowingLevel-level+1;
     const auto after = maxLevel-maxThrowingLevel;
-    CPPUNIT_ASSERT_EQUAL(before+after, count);
-#endif
+    capture.stopAndCountLines(before+after);
 }
 
 void
