@@ -683,7 +683,7 @@ Store::Controller::handleIdleEntry(StoreEntry &e)
 }
 
 bool
-Store::Controller::updateOnNotModified(StoreEntry *old, StoreEntry &e304)
+Store::Controller::updateOnNotModified(StoreEntry *old, StoreEntry &e304) noexcept
 {
     Must(old);
     Must(old->mem_obj);
