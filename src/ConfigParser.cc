@@ -606,14 +606,9 @@ ConfigParser::skipOptional(const char *keyword)
 ACLList *
 ConfigParser::optionalAclList()
 {
-    if (!skipOptional("if"))
-        return nullptr; // OK: the directive has no ACLs
-
     ACLList *acls = nullptr;
-    const auto aclCount = aclParseAclList(*this, &acls, cfg_directive);
+    (void)aclParseAclList(*this, &acls, cfg_directive, true);
     assert(acls);
-    if (aclCount <= 0)
-        throw TextException("missing ACL name(s) after 'if' keyword", Here());
     return acls;
 }
 

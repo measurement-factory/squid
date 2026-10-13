@@ -32,7 +32,7 @@ void aclParseAccessLine(const char *directive, ConfigParser &, acl_access **);
 /// Parses a single line of a "some context followed by acls" directive (e.g., note n v).
 /// The label parameter identifies the context (for debugging).
 /// \returns the number of parsed ACL names
-size_t aclParseAclList(ConfigParser &, ACLList **, const char *label);
+size_t aclParseAclList(ConfigParser &, ACLList **, const char *label, bool mandatoryIf = false);
 
 /// Template to convert various context labels to strings. \ingroup ACLAPI
 template <class Any>
