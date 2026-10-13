@@ -11,6 +11,7 @@
 
 #include "sbuf/forward.h"
 
+class ClientHttpVersionSelector;
 class FwdState;
 class HttpRequest;
 
