@@ -22,8 +22,10 @@
 echo "TMPDIR=${TMPDIR:=${RUNNER_TEMP:-/tmp}}"
 
 configureBinary=./configure
+bootstrapBinary=./bootstrap.sh
 buildLog=${TMPDIR}/test-ast-build.log
 xunusedLog=${TMPDIR}/test-ast-xunused.log
+bearConfig=${TMPDIR}/bear.json
 
 customCompileCommands=$1
 defaultCompileCommands=${TMPDIR}/compile_commands.json
@@ -122,12 +124,15 @@ buildCompilationDatabase() {
     bear --version || return
 
     make -k distclean > /dev/null 2>&1
-    ./bootstrap.sh || return
+    $bootstrapBinary || return
     myConfigure || return
 
     make clean
 
-    bear --output $defaultCompileCommands -- make all check
+    bearConfigCommands='{"output": { "content": { "include_only_existing_source": true, "duplicate_filter_fields": "file" }, "format": { "command_as_array": true, "drop_output_field": false } } }'
+    echo "$bearConfigCommands" > $bearConfig
+
+    bear --config $bearConfig --output $defaultCompileCommands -- make all check
 }
 
 main() {
@@ -135,9 +140,9 @@ main() {
     # Version information is also useful for independently reproducing problems.
     xunused --version || return
 
-    if [ ! -x $configureBinary ]
+    if [ ! -x $bootstrapBinary ]
     then
-        echo "$0 must be run from the source root directory (where $configureBinary is)." >&2
+        echo "$0 must be run from the source root directory (where $bootstrapBinary is)." >&2
         return 1
     fi
 
@@ -163,7 +168,7 @@ main() {
     local topSrcDir=`pwd`
     local includedDirsRegex="$topSrcDir/($analyzedSourceDirectories)"
 
-    xunused --filter="$includedDirsRegex" $compileCommands > $xunusedLog 2>&1 || return
+    xunused --filter="$includedDirsRegex" --special-functions $compileCommands > $xunusedLog 2>&1 || return
 
     local unusedFunctionCount=`grep -c "is unused$" $xunusedLog`
     echo "Unused functions: $unusedFunctionCount"
