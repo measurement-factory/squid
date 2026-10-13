@@ -169,9 +169,13 @@ public:
     /// are expected.
     static void SettleSyslog();
 
+    /// takes care of debugs() exceptions
+    static void HandleException() noexcept;
+
 private:
     static void FormatStream(std::ostream &);
     static void LogMessage(const Context &);
+    static void ContextCleanup() noexcept;
 
     static Context *Current; ///< deepest active context; nil outside debugs()
 };
@@ -193,13 +197,18 @@ void ResyncDebugLog(FILE *newDestination);
    do { \
         const int _dbg_level = (LEVEL); \
         if (Debug::Enabled((SECTION), _dbg_level)) { \
-            std::ostream &_dbo = Debug::Start((SECTION), _dbg_level); \
-            if (_dbg_level > DBG_IMPORTANT) { \
-                _dbo << (SECTION) << ',' << _dbg_level << "| " \
-                     << Here() << ": "; \
+            try { \
+                std::ostream &_dbo = Debug::Start((SECTION), _dbg_level); \
+                if (_dbg_level > DBG_IMPORTANT) { \
+                    _dbo << (SECTION) << ',' << _dbg_level << "| " \
+                         << Here() << ": "; \
+                } \
+                _dbo << CONTENT; \
+                Debug::Finish(); \
             } \
-            _dbo << CONTENT; \
-            Debug::Finish(); \
+            catch (...) { \
+                Debug::HandleException(); \
+            } \
         } \
    } while (/*CONSTCOND*/ 0)
 

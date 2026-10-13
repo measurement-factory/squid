@@ -861,6 +861,27 @@ tests_testLookupTable_LDADD = \
 	$(XTRA_LIBS)
 tests_testLookupTable_LDFLAGS = $(LIBADD_DL)
 
+check_PROGRAMS += tests/testDebugs
+tests_testDebugs_SOURCES = \
+	tests/testDebugs.cc
+nodist_tests_testDebugs_SOURCES = \
+        debug/Stream.h
+tests_testDebugs_LDADD = \
+	debug/libdebug.la \
+	base/libbase.la \
+	sbuf/libsbuf.la \
+	ssl/libsslutil.la \
+	ip/libip.la \
+	error/liberror.la \
+	comm/libminimal.la \
+	mem/libminimal.la \
+	anyp/libanyp.la \
+	time/libtime.la \
+	$(LIBCPPUNIT_LIBS) \
+	$(COMPAT_LIB) \
+	$(XTRA_LIBS)
+tests_testDebugs_LDFLAGS = $(LIBADD_DL)
+
 check_PROGRAMS += tests/testRefCount
 tests_testRefCount_SOURCES = \
 	tests/testRefCount.cc
