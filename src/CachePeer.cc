@@ -9,7 +9,6 @@
 #include "squid.h"
 #include "acl/Gadgets.h"
 #include "acl/Tree.h"
-#include "base/IoManip.h"
 #include "base/PrecomputedCodeContext.h"
 #include "CachePeer.h"
 #include "CachePeers.h"
@@ -340,15 +339,12 @@ PrintDirectives(std::ostream &os, const CachePeer &peer)
     os << "\n";
 
     if (peer.access) {
-        // XXX: This code adds a single space indentation for the second
-        // cache_peer_access rule and beyond because AsList() does not handle
-        // multiline output specially when honoring delimitedBy().
         const auto prefix = ToSBuf("cache_peer_access ", peer.name);
-        os << AsList(ToTree(peer.access).treeDump(prefix, &Acl::AllowOrDeny)).delimitedBy(" ");
+        os << ToTree(peer.access).directivesConfig(prefix, &Acl::AllowOrDeny);
     }
 
     for (auto t = peer.typelist; t; t = t->next) {
-        os << "neighbor_type_domain " << peer.name << ' ' << t->type << ' ' << t->domain;
+        os << "neighbor_type_domain " << peer.name << ' ' << t->type << ' ' << t->domain << '\n';
     }
 }
 

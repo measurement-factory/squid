@@ -24,6 +24,7 @@
 #include "AuthReg.h"
 #include "base/AsyncFunCalls.h"
 #include "base/CharacterSet.h"
+#include "base/IoManip.h"
 #include "base/OnOff.h"
 #include "base/PackableStream.h"
 #include "base/RunnersRegistry.h"
@@ -400,6 +401,31 @@ Configuration::SwitchToExternalInput(const char * const filenameOrCommand, const
     // "gen_acls.pl output line 4" instead of current "gen_acls.pl line 4").
     const auto l = Location(SBuf(isCommand ? filenameOrCommand + 1 : filenameOrCommand));
     Configuration::SwitchTo(l);
+}
+
+/// prints zero or more pre-formatted configuration lines without adding any
+/// delimiters or separators
+static void
+dumpLines(StoreEntry * const entry, const SBuf &lines)
+{
+    PackableStream(*entry) << lines;
+}
+
+/// Prints `<n> <time-unit>` configuration snippet for directive parameters
+/// marked with "time-units" in cf.data.pre. TODO: Support "time-units-small".
+class WithTimeUnit
+{
+public:
+    explicit WithTimeUnit(const time_t t): toPrint(t) {}
+    const time_t toPrint;
+};
+
+/// implements WithTimeUnit printing using a "stream manipulator" API
+static auto &
+operator <<(std::ostream &os, const WithTimeUnit &t) {
+    // TODO: Use the most appropriate time unit for larger values (e.g., `5 hours`).
+    os << t.toPrint << " seconds";
+    return os;
 }
 
 /*
@@ -1157,25 +1183,15 @@ parse_SBufList(SBufList * list)
         list->push_back(SBuf(token));
 }
 
-// just dump a list, no directive name
-static void
-dump_SBufList(StoreEntry * entry, const SBufList &words)
-{
-    for (const auto &i : words) {
-        entry->append(i.rawContent(), i.length());
-        entry->append(" ",1);
-    }
-    entry->append("\n",1);
-}
-
-// dump a SBufList type directive with name
 static void
 dump_SBufList(StoreEntry * entry, const char *name, SBufList &list)
 {
     if (!list.empty()) {
         entry->append(name, strlen(name));
         entry->append(" ", 1);
-        dump_SBufList(entry, list);
+        PackableStream os(*entry);
+        os << AsList(list).delimitedBy(" ");
+        os << '\n';
     }
 }
 
@@ -1206,19 +1222,22 @@ free_acl(Acl::NamedAcls **config)
     Acl::FreeNamedAcls(config);
 }
 
-void
-dump_acl_list(StoreEntry * entry, ACLList * head)
+/// Acl::PrintOptionalRule() wrapper for older directives that use StoreEntry
+/// for configuration dumping and do not support the "if" prefix.
+static void
+dumpLegacyRule(StoreEntry * const entry, const ACLList * const head)
 {
-    // XXX: Should dump ACL names like "foo !bar" but dumps parsing context like
-    // "(clientside_tos 0x11 line)".
-    dump_SBufList(entry, ToTree(head).dump());
+    if (head) {
+        PackableStream os(*entry);
+        Acl::PrintOptionalRule(os, " ", head);
+    }
 }
 
 void
 dump_acl_access(StoreEntry * entry, const char *name, acl_access * head)
 {
     if (head)
-        dump_SBufList(entry, ToTree(head).treeDump(name, &Acl::AllowOrDeny));
+        dumpLines(entry, ToTree(head).directivesConfig(SBuf(name), &Acl::AllowOrDeny));
 }
 
 static void
@@ -1281,7 +1300,7 @@ dump_acl_address(StoreEntry * entry, const char *name, Acl::Address * head)
         else
             storeAppendPrintf(entry, "%s autoselect", name);
 
-        dump_acl_list(entry, l->aclList);
+        dumpLegacyRule(entry, l->aclList);
 
         storeAppendPrintf(entry, "\n");
     }
@@ -1319,7 +1338,7 @@ dump_acl_tos(StoreEntry * entry, const char *name, acl_tos * head)
         else
             storeAppendPrintf(entry, "%s none", name);
 
-        dump_acl_list(entry, l->aclList);
+        dumpLegacyRule(entry, l->aclList);
 
         storeAppendPrintf(entry, "\n");
     }
@@ -1375,7 +1394,7 @@ dump_acl_nfmark(StoreEntry * entry, const char *name, acl_nfmark * head)
     for (acl_nfmark *l = head; l; l = l->next) {
         storeAppendPrintf(entry, "%s %s", name, ToSBuf(l->markConfig).c_str());
 
-        dump_acl_list(entry, l->aclList);
+        dumpLegacyRule(entry, l->aclList);
 
         storeAppendPrintf(entry, "\n");
     }
@@ -1417,11 +1436,11 @@ dump_acl_b_size_t(StoreEntry * entry, const char *name, AclSizeLimit * head)
 {
     for (AclSizeLimit *l = head; l; l = l->next) {
         if (l->size != -1)
-            storeAppendPrintf(entry, "%s %d %s\n", name, (int) l->size, B_BYTES_STR);
+            storeAppendPrintf(entry, "%s %d %s", name, (int) l->size, B_BYTES_STR);
         else
             storeAppendPrintf(entry, "%s none", name);
 
-        dump_acl_list(entry, l->aclList);
+        dumpLegacyRule(entry, l->aclList);
 
         storeAppendPrintf(entry, "\n");
     }
@@ -1703,7 +1722,7 @@ static void
 dump_AuthSchemes(StoreEntry *entry, const char *name, acl_access *authSchemes)
 {
     if (authSchemes)
-        dump_SBufList(entry, ToTree(authSchemes).treeDump(name, [](const Acl::Answer &action) {
+        dumpLines(entry, ToTree(authSchemes).directivesConfig(SBuf(name), [](const Acl::Answer &action) {
         return Auth::TheConfig.schemeLists.at(action.kind).rawSchemes;
     }));
 }
@@ -2645,7 +2664,7 @@ static void
 dump_time_t(StoreEntry * entry, const char *name, time_t var)
 {
     PackableStream os(*entry);
-    os << name << ' ' << var << " seconds\n";
+    os << name << ' ' << WithTimeUnit(var) << '\n';
 }
 
 void
@@ -3747,8 +3766,7 @@ dump_access_log(StoreEntry * entry, const char *name, CustomLog * logs)
             log->dumpOptions(os);
         }
 
-        if (log->aclList)
-            dump_acl_list(entry, log->aclList);
+        dumpLegacyRule(entry, log->aclList);
 
         storeAppendPrintf(entry, "\n");
     }
@@ -3948,7 +3966,8 @@ static void dump_icap_service_failure_limit(StoreEntry *entry, const char *name,
 {
     storeAppendPrintf(entry, "%s %d", name, cfg.service_failure_limit);
     if (cfg.oldest_service_failure > 0) {
-        storeAppendPrintf(entry, " in %d seconds", (int)cfg.oldest_service_failure);
+        PackableStream os(*entry);
+        os << " in " << WithTimeUnit(cfg.oldest_service_failure);
     }
     storeAppendPrintf(entry, "\n");
 }
@@ -4018,9 +4037,8 @@ static void dump_sslproxy_cert_adapt(StoreEntry *entry, const char *name, sslpro
 {
     for (const auto *ca = cert_adapt; ca; ca = ca->next) {
         storeAppendPrintf(entry, "%s ", name);
-        storeAppendPrintf(entry, "%s{%s} ", Ssl::sslCertAdaptAlgoritm(ca->alg), ca->param);
-        if (ca->aclList)
-            dump_acl_list(entry, ca->aclList);
+        storeAppendPrintf(entry, "%s{%s}", Ssl::sslCertAdaptAlgoritm(ca->alg), ca->param);
+        dumpLegacyRule(entry, ca->aclList);
         storeAppendPrintf(entry, "\n");
     }
 }
@@ -4064,9 +4082,8 @@ static void dump_sslproxy_cert_sign(StoreEntry *entry, const char *name, sslprox
 {
     for (const auto *cs = cert_sign; cs; cs = cs->next) {
         storeAppendPrintf(entry, "%s ", name);
-        storeAppendPrintf(entry, "%s ", Ssl::certSignAlgorithm(cs->alg));
-        if (cs->aclList)
-            dump_acl_list(entry, cs->aclList);
+        storeAppendPrintf(entry, "%s", Ssl::certSignAlgorithm(cs->alg));
+        dumpLegacyRule(entry, cs->aclList);
         storeAppendPrintf(entry, "\n");
     }
 }
@@ -4195,7 +4212,7 @@ static void parse_sslproxy_ssl_bump(acl_access **ssl_bump)
 static void dump_sslproxy_ssl_bump(StoreEntry *entry, const char *name, acl_access *ssl_bump)
 {
     if (ssl_bump)
-        dump_SBufList(entry, ToTree(ssl_bump).treeDump(name, [](const Acl::Answer &action) {
+        dumpLines(entry, ToTree(ssl_bump).directivesConfig(SBuf(name), [](const Acl::Answer &action) {
         return Ssl::BumpModeStr.at(action.kind);
     }));
 }
@@ -4214,8 +4231,7 @@ static void dump_HeaderWithAclList(StoreEntry * entry, const char *name, HeaderW
 
     for (HeaderWithAclList::iterator hwa = headers->begin(); hwa != headers->end(); ++hwa) {
         storeAppendPrintf(entry, "%s %s %s", name, hwa->fieldName.c_str(), hwa->fieldValue.c_str());
-        if (hwa->aclList)
-            dump_acl_list(entry, hwa->aclList);
+        dumpLegacyRule(entry, hwa->aclList);
         storeAppendPrintf(entry, "\n");
     }
 }
@@ -4438,7 +4454,7 @@ static void parse_ftp_epsv(acl_access **ftp_epsv)
 static void dump_ftp_epsv(StoreEntry *entry, const char *name, acl_access *ftp_epsv)
 {
     if (ftp_epsv)
-        dump_SBufList(entry, ToTree(ftp_epsv).treeDump(name, Acl::AllowOrDeny));
+        dumpLines(entry, ToTree(ftp_epsv).directivesConfig(SBuf(name), Acl::AllowOrDeny));
 }
 
 static void free_ftp_epsv(acl_access **ftp_epsv)
@@ -4529,13 +4545,13 @@ dump_UrlHelperTimeout(StoreEntry *entry, const char *name, SquidConfig::UrlHelpe
     const char  *onTimedOutActions[] = {"bypass", "fail", "retry", "use_configured_response"};
     assert(config.action >= 0 && config.action <= toutActUseConfiguredResponse);
 
-    dump_time_t(entry, name, Config.Timeout.urlRewrite);
-    storeAppendPrintf(entry, " on_timeout=%s", onTimedOutActions[config.action]);
+    PackableStream os(*entry);
+    os << name << ' ' << WithTimeUnit(Config.Timeout.urlRewrite);
+    os << " on_timeout=" << onTimedOutActions[config.action];
 
     if (config.response)
-        storeAppendPrintf(entry, " response=\"%s\"", config.response);
-
-    storeAppendPrintf(entry, "\n");
+        os << " response=\"" << config.response << '"';
+    os << '\n';
 }
 
 static void
@@ -4579,10 +4595,10 @@ dump_on_unsupported_protocol(StoreEntry *entry, const char *name, acl_access *ac
         "respond"
     };
     if (access) {
-        const auto lines = ToTree(access).treeDump(name, [](const Acl::Answer &action) {
+        const auto lines = ToTree(access).directivesConfig(SBuf(name), [](const Acl::Answer &action) {
             return onErrorTunnelMode.at(action.kind);
         });
-        dump_SBufList(entry, lines);
+        dumpLines(entry, lines);
     }
 }
 
@@ -4610,12 +4626,7 @@ dump_http_upgrade_request_protocols(StoreEntry *entry, const char *rawName, Http
 
     const SBuf name(rawName);
     protoGuards->forEach([entry,&name](const SBuf &proto, const acl_access *acls) {
-        SBufList line;
-        line.push_back(name);
-        line.push_back(proto);
-        const auto acld = ToTree(acls).treeDump("", &Acl::AllowOrDeny);
-        line.insert(line.end(), acld.begin(), acld.end());
-        dump_SBufList(entry, line);
+        dumpLines(entry, ToTree(acls).directivesConfig(ToSBuf(name, ' ', proto), &Acl::AllowOrDeny));
     });
 }
 

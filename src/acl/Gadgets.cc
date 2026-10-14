@@ -194,6 +194,17 @@ aclParseAclList(ConfigParser &, ACLList **config, const char *label)
     return aclCount;
 }
 
+void
+Acl::PrintOptionalRule(std::ostream &os, const char * const prefix, const ACLList * const head)
+{
+    if (head) {
+        const auto rule = ToTree(head).ruleConfig();
+        // aclParseAclList() may create a rule without ACLs (e.g., `note name value`)
+        if (!rule.isEmpty())
+            os << prefix << rule;
+    }
+}
+
 /*********************/
 /* Destroy functions */
 /*********************/
